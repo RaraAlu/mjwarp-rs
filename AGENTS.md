@@ -334,6 +334,3 @@ PR说明目的、范围与验证。
 codegraph explore "<符号或问题>"
 codegraph node <符号或文件>
 ```
-
-没有索引时跳过CodeGraph。
-不要自行初始化索引。
