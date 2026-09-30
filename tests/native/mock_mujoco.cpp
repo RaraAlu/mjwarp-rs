@@ -1,11 +1,19 @@
-// Test DLL only. It never links the real MuJoCo runtime.
+// Test library only. It never links the real MuJoCo runtime.
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#define MOCK_EXPORT __declspec(dllexport)
+#else
+#include <stdio.h>
+#include <stdlib.h>
+#define MOCK_EXPORT __attribute__((visibility("default")))
+#endif
 #include <mujoco/mjmodel.h>
 #ifndef MOCK_VERSION
 #define MOCK_VERSION 3012000
 #endif
 static void record(char event) {
+#ifdef _WIN32
   wchar_t path[32768];
   DWORD size = GetEnvironmentVariableW(L"MJWARP_NATIVE_LIFETIME_LOG", path, 32768);
   if (!size || size >= 32768) return;
@@ -15,12 +23,27 @@ static void record(char event) {
   DWORD written;
   WriteFile(file, &event, 1, &written, nullptr);
   CloseHandle(file);
+#else
+  const char* path = getenv("MJWARP_NATIVE_LIFETIME_LOG");
+  if (!path || !*path) return;
+  FILE* file = fopen(path, "ab");
+  if (!file) return;
+  fputc(event, file);
+  fclose(file);
+#endif
+}
+[[noreturn]] static void fail(int code) {
+#ifdef _WIN32
+  ExitProcess(code);
+#else
+  _Exit(code);
+#endif
 }
 #ifndef MOCK_MISSING_VERSION
-extern "C" __declspec(dllexport) int mj_version() { return MOCK_VERSION; }
+extern "C" MOCK_EXPORT int mj_version() { return MOCK_VERSION; }
 #endif
 #ifndef MOCK_MISSING_LOAD
-extern "C" __declspec(dllexport) mjModel* mj_loadModelBuffer(const void*, int) {
+extern "C" MOCK_EXPORT mjModel* mj_loadModelBuffer(const void*, int) {
 #ifdef MOCK_TRACKING
   static mjModel model{};
   static double mass = 0;
@@ -98,20 +121,21 @@ extern "C" __declspec(dllexport) mjModel* mj_loadModelBuffer(const void*, int) {
 #endif
   return &model;
 #else
-  ExitProcess(82); // Version/symbol checks must prevent model calls.
+  fail(82); // Version/symbol checks must prevent model calls.
   return nullptr;
 #endif
 }
 #endif
 #ifndef MOCK_MISSING_DELETE
-extern "C" __declspec(dllexport) void mj_deleteModel(mjModel*) {
+extern "C" MOCK_EXPORT void mj_deleteModel(mjModel*) {
 #ifdef MOCK_TRACKING
   record('D');
 #else
-  ExitProcess(83);
+  fail(83);
 #endif
 }
 #endif
+#ifdef _WIN32
 BOOL WINAPI DllMain(HINSTANCE, DWORD reason, LPVOID) {
 #ifdef MOCK_TRACKING
   if (reason == DLL_PROCESS_DETACH) record('U');
@@ -120,3 +144,10 @@ BOOL WINAPI DllMain(HINSTANCE, DWORD reason, LPVOID) {
 #endif
   return TRUE;
 }
+#else
+__attribute__((destructor)) static void library_unload() {
+#ifdef MOCK_TRACKING
+  record('U');
+#endif
+}
+#endif

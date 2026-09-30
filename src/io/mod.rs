@@ -33,14 +33,20 @@ mod native {
         diagnostics::{InputError, NativeProbeError},
         model::NativeModelInfo,
     };
-    use std::{
-        ffi::c_void, marker::PhantomData, os::windows::ffi::OsStrExt, path::Path, ptr::NonNull,
-        rc::Rc,
-    };
+    #[cfg(target_os = "linux")]
+    use std::os::unix::ffi::OsStrExt;
+    #[cfg(target_os = "windows")]
+    use std::os::windows::ffi::OsStrExt;
+    use std::{ffi::c_void, marker::PhantomData, path::Path, ptr::NonNull, rc::Rc};
+
+    #[cfg(target_os = "windows")]
+    type NativePathChar = u16;
+    #[cfg(target_os = "linux")]
+    type NativePathChar = std::ffi::c_char;
 
     unsafe extern "C" {
         fn mjwarp_native_open(
-            path: *const u16,
+            path: *const NativePathChar,
             mjb: *const c_void,
             bytes: i32,
             owner: *mut *mut c_void,
@@ -228,8 +234,16 @@ mod native {
         }
     }
 
-    fn dll_path(dll: &Path) -> Result<Vec<u16>, NativeProbeError> {
+    fn dll_path(dll: &Path) -> Result<Vec<NativePathChar>, NativeProbeError> {
+        #[cfg(target_os = "windows")]
         let mut path: Vec<u16> = dll.as_os_str().encode_wide().collect();
+        #[cfg(target_os = "linux")]
+        let mut path: Vec<NativePathChar> = dll
+            .as_os_str()
+            .as_bytes()
+            .iter()
+            .map(|&byte| byte as NativePathChar)
+            .collect();
         if !dll.is_absolute() || path.contains(&0) {
             return Err(NativeProbeError::InvalidPath);
         }
@@ -306,6 +320,25 @@ mod native {
             assert_eq!(
                 dll_path(Path::new("C:\\bad\0.dll")),
                 Err(NativeProbeError::InvalidPath)
+            );
+            assert_eq!(
+                dll_path(Path::new("/bad\0.so")),
+                Err(NativeProbeError::InvalidPath)
+            );
+        }
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn preserves_non_utf8_linux_library_paths() {
+            let bytes = b"/trusted/\xff/mujoco.so";
+            let path = Path::new(std::ffi::OsStr::from_bytes(bytes));
+            let encoded = dll_path(path).unwrap();
+            assert_eq!(encoded.last(), Some(&0));
+            assert_eq!(
+                encoded[..encoded.len() - 1]
+                    .iter()
+                    .map(|&byte| byte as u8)
+                    .collect::<Vec<_>>(),
+                bytes
             );
         }
         #[test]

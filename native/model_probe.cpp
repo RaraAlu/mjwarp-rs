@@ -1,6 +1,10 @@
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
 #include <stddef.h>
 #include <string.h>
 #include <new>
@@ -9,7 +13,13 @@
 #include "mjwarp_native_probe.h"
 
 static_assert(mjVERSION_HEADER == 3012000, "MuJoCo 3.12.0 headers required");
-static_assert(sizeof(void*) == 8 && sizeof(wchar_t) == 2);
+static_assert(sizeof(void*) == 8);
+#ifdef _WIN32
+static_assert(sizeof(wchar_t) == 2);
+using NativeLibrary = HMODULE;
+#else
+using NativeLibrary = void*;
+#endif
 static_assert(std::is_same_v<mjtNum, double> && sizeof(mjtNum) == 8);
 static_assert(std::is_same_v<mjtSize, int64_t> && sizeof(int) == 4);
 static_assert(sizeof(mjwarp_native_info) == 96 && alignof(mjwarp_native_info) == 8);
@@ -39,10 +49,53 @@ static_assert(offsetof(mjwarp_flex_position_targets, flex_centered) == 80);
 static_assert(offsetof(mjwarp_flex_position_targets, flex_vert0) == 120);
 
 struct mjwarp_native_owner {
-  HMODULE library;
+  NativeLibrary library;
   mjModel* model;
   decltype(&mj_deleteModel) delete_model;
 };
+
+static NativeLibrary library_open(const mjwarp_native_path_char* path, uint32_t* detail) {
+#ifdef _WIN32
+  auto library = LoadLibraryExW(reinterpret_cast<const wchar_t*>(path), nullptr,
+      LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+  if (!library) *detail = GetLastError();
+#else
+  // Absolute caller-verified paths avoid name-based search and global symbols.
+  auto library = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+  // dlopen has no portable numeric error code; status 1 identifies the failure.
+  (void)detail;
+#endif
+  return library;
+}
+template <typename T>
+static T library_symbol(NativeLibrary library, const char* name) {
+#ifdef _WIN32
+  return reinterpret_cast<T>(GetProcAddress(library, name));
+#else
+  return reinterpret_cast<T>(dlsym(library, name));
+#endif
+}
+static void library_close(NativeLibrary library) {
+#ifdef _WIN32
+  FreeLibrary(library);
+#else
+  dlclose(library);
+#endif
+}
+static void* owner_allocate() {
+#ifdef _WIN32
+  return HeapAlloc(GetProcessHeap(), 0, sizeof(mjwarp_native_owner));
+#else
+  return ::operator new(sizeof(mjwarp_native_owner), std::nothrow);
+#endif
+}
+static void owner_free(void* owner) {
+#ifdef _WIN32
+  HeapFree(GetProcessHeap(), 0, owner);
+#else
+  ::operator delete(owner);
+#endif
+}
 
 #include "g01_fields.inc"
 
@@ -101,36 +154,33 @@ extern "C" int32_t mjwarp_native_copy_flex_position(
 
 extern "C" void mjwarp_native_close(mjwarp_native_owner* owner) {
   if (!owner) return;
-  // Model deletion must run while its DLL still owns executable code.
+  // Model deletion must run before unloading its library's executable code.
   if (owner->model) owner->delete_model(owner->model);
-  if (owner->library) FreeLibrary(owner->library);
+  if (owner->library) library_close(owner->library);
   owner->~mjwarp_native_owner();
-  HeapFree(GetProcessHeap(), 0, owner);
+  owner_free(owner);
 }
 
 extern "C" int32_t mjwarp_native_open(
-    const uint16_t* path, const void* mjb, int32_t bytes,
+    const mjwarp_native_path_char* path, const void* mjb, int32_t bytes,
     mjwarp_native_owner** output, mjwarp_native_info* info, uint32_t* detail) {
   *output = nullptr;
   *detail = 0;
-  HMODULE library = LoadLibraryExW(reinterpret_cast<const wchar_t*>(path), nullptr,
-      LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
-  if (!library) { *detail = GetLastError(); return 1; }
-  auto version = reinterpret_cast<decltype(&mj_version)>(GetProcAddress(library, "mj_version"));
-  if (!version) { FreeLibrary(library); return 3; }
+  NativeLibrary library = library_open(path, detail);
+  if (!library) return 1;
+  auto version = library_symbol<decltype(&mj_version)>(library, "mj_version");
+  if (!version) { library_close(library); return 3; }
   int actual = version();
   if (actual != mjVERSION_HEADER) {
     *detail = static_cast<uint32_t>(actual);
-    FreeLibrary(library);
+    library_close(library);
     return 2;
   }
-  auto load = reinterpret_cast<decltype(&mj_loadModelBuffer)>(
-      GetProcAddress(library, "mj_loadModelBuffer"));
-  auto destroy = reinterpret_cast<decltype(&mj_deleteModel)>(
-      GetProcAddress(library, "mj_deleteModel"));
-  if (!load || !destroy) { FreeLibrary(library); return !load ? 4 : 5; }
-  void* storage = HeapAlloc(GetProcessHeap(), 0, sizeof(mjwarp_native_owner));
-  if (!storage) { FreeLibrary(library); return 7; }
+  auto load = library_symbol<decltype(&mj_loadModelBuffer)>(library, "mj_loadModelBuffer");
+  auto destroy = library_symbol<decltype(&mj_deleteModel)>(library, "mj_deleteModel");
+  if (!load || !destroy) { library_close(library); return !load ? 4 : 5; }
+  void* storage = owner_allocate();
+  if (!storage) { library_close(library); return 7; }
   // Placement construction starts the C++17 object's lifetime explicitly.
   auto owner = new (storage) mjwarp_native_owner{library, nullptr, destroy};
   owner->model = load(mjb, bytes);

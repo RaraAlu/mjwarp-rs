@@ -1,8 +1,8 @@
 //! 独立声明柔体字段ABI。
 //! 失败路径不得写入任何目标。
-use super::{EMPTY, dll, flex_position::FLEX};
+use super::{EMPTY, NativePathChar, flex_position::FLEX, native_path};
 use mjwarp_rs::model::NativeModelInfo;
-use std::{ffi::c_void, os::windows::ffi::OsStrExt};
+use std::ffi::c_void;
 #[repr(C)]
 #[derive(Default, Debug, PartialEq, Eq)]
 struct Counts {
@@ -34,7 +34,7 @@ struct Targets {
 }
 unsafe extern "C" {
     fn mjwarp_native_open(
-        path: *const u16,
+        path: *const NativePathChar,
         mjb: *const c_void,
         bytes: i32,
         owner: *mut *mut c_void,
@@ -53,8 +53,7 @@ impl Drop for Owner {
     }
 }
 fn open(bytes: &[u8]) -> Owner {
-    let mut path: Vec<u16> = dll().as_os_str().encode_wide().collect();
-    path.push(0);
+    let path = native_path();
     let mut owner = std::ptr::null_mut();
     let mut info = NativeModelInfo::default();
     let mut detail = 0;

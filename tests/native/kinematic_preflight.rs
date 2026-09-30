@@ -1,7 +1,7 @@
 //! 独立声明桥接ABI，检查复制前校验。
-use super::{MIXED, dll};
+use super::{MIXED, NativePathChar, native_path};
 use mjwarp_rs::model::NativeModelInfo;
-use std::{ffi::c_void, os::windows::ffi::OsStrExt};
+use std::ffi::c_void;
 
 #[repr(C)]
 struct Targets {
@@ -25,7 +25,7 @@ struct Targets {
 }
 unsafe extern "C" {
     fn mjwarp_native_open(
-        path: *const u16,
+        path: *const NativePathChar,
         mjb: *const c_void,
         bytes: i32,
         owner: *mut *mut c_void,
@@ -48,8 +48,7 @@ impl Drop for Owner {
 fn checks_all_bridge_counts_and_targets_before_any_output_write() {
     assert_eq!(size_of::<Targets>(), 128);
     assert_eq!(std::mem::offset_of!(Targets, jnt_axis), 120);
-    let mut path: Vec<u16> = dll().as_os_str().encode_wide().collect();
-    path.push(0);
+    let path = native_path();
     let mut raw = std::ptr::null_mut();
     let mut info = NativeModelInfo::default();
     let mut detail = 0;

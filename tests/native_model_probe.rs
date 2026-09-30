@@ -266,8 +266,36 @@ fn dll() -> PathBuf {
     PathBuf::from(std::env::var_os("MJWARP_MUJOCO_DLL").expect("set verified MuJoCo DLL path"))
 }
 fn mock(name: &str) -> PathBuf {
+    let extension = if cfg!(target_os = "windows") {
+        "dll"
+    } else {
+        "so"
+    };
     PathBuf::from(std::env::var_os("MJWARP_NATIVE_MOCKS").expect("build native test DLLs"))
-        .join(format!("{name}.dll"))
+        .join(format!("{name}.{extension}"))
+}
+#[cfg(target_os = "windows")]
+type NativePathChar = u16;
+#[cfg(target_os = "linux")]
+type NativePathChar = std::ffi::c_char;
+fn native_path() -> Vec<NativePathChar> {
+    #[cfg(target_os = "windows")]
+    let mut path = {
+        use std::os::windows::ffi::OsStrExt;
+        dll().as_os_str().encode_wide().collect::<Vec<_>>()
+    };
+    #[cfg(target_os = "linux")]
+    let mut path = {
+        use std::os::unix::ffi::OsStrExt;
+        dll()
+            .as_os_str()
+            .as_bytes()
+            .iter()
+            .map(|&byte| byte as NativePathChar)
+            .collect::<Vec<_>>()
+    };
+    path.push(0);
+    path
 }
 fn load(path: &std::path::Path, bytes: &[u8]) -> Result<NativeModelProbe, NativeProbeError> {
     // SAFETY: explicit opt-in tests use the verified official DLL, our compiled

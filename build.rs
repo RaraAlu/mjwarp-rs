@@ -7,20 +7,16 @@ fn main() {
 #[cfg(feature = "native-model-probe")]
 fn build_native_probe() {
     use std::{env, path::PathBuf};
-    assert_eq!(
-        env::var("CARGO_CFG_TARGET_OS").unwrap(),
-        "windows",
-        "native-model-probe only supports Windows"
+    let os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+    let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap();
+    assert!(
+        (os == "windows" && target_env == "msvc") || (os == "linux" && target_env == "gnu"),
+        "native-model-probe requires Windows MSVC or Linux GNU"
     );
     assert_eq!(
         env::var("CARGO_CFG_TARGET_ARCH").unwrap(),
         "x86_64",
         "native-model-probe only supports x86_64"
-    );
-    assert_eq!(
-        env::var("CARGO_CFG_TARGET_ENV").unwrap(),
-        "msvc",
-        "native-model-probe currently requires the explicit Windows MSVC target"
     );
     let root = PathBuf::from(
         env::var_os("MJWARP_MUJOCO_ROOT")
@@ -35,12 +31,14 @@ fn build_native_probe() {
     println!("cargo:rerun-if-changed=native/model_probe.cpp");
     println!("cargo:rerun-if-changed=native/g01_fields.inc");
     println!("cargo:rerun-if-changed=include/mjwarp_native_probe.h");
-    cc::Build::new()
-        .cpp(true)
-        .std("c++17")
-        .cpp_link_stdlib(None)
-        .static_crt(false)
-        .warnings_into_errors(true)
+    let mut build = cc::Build::new();
+    build.cpp(true).std("c++17").warnings_into_errors(true);
+    if os == "windows" {
+        build.cpp_link_stdlib(None).static_crt(false);
+    } else {
+        println!("cargo:rustc-link-lib=dl");
+    }
+    build
         .include(include)
         .include("include")
         .file("native/model_probe.cpp")

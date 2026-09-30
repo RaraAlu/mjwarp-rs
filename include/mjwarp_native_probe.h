@@ -77,8 +77,14 @@ typedef struct mjwarp_flex_position_targets {
   double* flex_vert0;
 } mjwarp_flex_position_targets;
 
-// Trusted DLL and MJB only. Never accepts a borrowed mjModel pointer.
-int32_t mjwarp_native_open(const uint16_t* dll_path, const void* mjb, int32_t bytes,
+// Windows uses UTF-16; Linux uses native path bytes. Both are NUL-terminated.
+#ifdef _WIN32
+typedef uint16_t mjwarp_native_path_char;
+#else
+typedef char mjwarp_native_path_char;
+#endif
+// Trusted shared library and MJB only. Never accepts a borrowed mjModel pointer.
+int32_t mjwarp_native_open(const mjwarp_native_path_char* library_path, const void* mjb, int32_t bytes,
                           mjwarp_native_owner** owner, mjwarp_native_info* info,
                           uint32_t* detail);
 void mjwarp_native_close(mjwarp_native_owner* owner);
