@@ -96,6 +96,7 @@ GPU唤醒循环并轻量刷新树。
 
 完整G01入口已实现。
 Windows双模式验收通过。
+Linux双模式完整门禁通过。
 原生快照独占78项读字段。
 转换自动派生线性壳体面。
 `KinematicsPlan::for_g01`建立计划。
@@ -105,6 +106,8 @@ Windows双模式验收通过。
 严格计划继续检查阶段就绪。
 完整模型与其他阶段仍待实现。
 证据见[G01报告](windows-g01-acceptance.md)。
+原生桥接支持MSVC与GNU。
+Linux证据见[复验报告](linux-g01-acceptance.md)。
 
 ## 系统分层
 

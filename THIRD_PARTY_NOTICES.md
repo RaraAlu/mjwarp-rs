@@ -257,3 +257,20 @@ cc采用MIT或Apache-2.0。
 默认构建不启用cc。
 
 [cc包元数据](https://crates.io/crates/cc/1.6.0)
+
+## Linux复验工具链
+
+Linux继续采用上述MuJoCo版本。
+运行包摘要见Linux原生清单。
+本项目不提交官方动态库。
+新脚本沿用CUDA 12.8.1。
+组件版本与摘要见Linux报告。
+CUDA组件采用NVIDIA许可。
+CCCL另含开源许可通知。
+下载脚本保留各项声明。
+工具链仅存放于target目录。
+本轮没有新增Cargo依赖。
+
+[Linux运行包清单](fixtures/native-probe/linux-runtime.json)
+[Linux验收报告](docs/linux-g01-acceptance.md)
+[CUDA官方清单](https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.8.1.json)

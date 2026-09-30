@@ -63,7 +63,9 @@ G01已提供完整常驻入口。
 G01也保留等价低层调用。
 原生快照覆盖78项读字段。
 Windows双模式验收通过。
-Linux仍待验收。
+Linux双模式验收通过。
+Linux GPU采用RTX 5080。
+T4完整G01仍待复验。
 GPU引擎尚待实现。
 首版面向NVIDIA。
 验收覆盖Windows与Linux。
@@ -179,7 +181,9 @@ GPU探针需要NVIDIA驱动。
 | `cargo fmt` | 格式化源码 |
 | `cargo clippy --all-targets -- -D warnings` | 检查代码并拒绝警告 |
 
-原生输入探针暂限Windows MSVC。
+原生输入探针支持两种工具链。
+Windows采用x64 MSVC。
+Linux采用x86_64 GNU。
 它通过可选feature编译C++桥接。
 默认GNU工具链保持不变。
 先运行`prepare-native-probe.ps1`。
@@ -219,7 +223,7 @@ cargo test --locked --features cuda-probe --test gpu_probe -- --ignored --test-t
 ```
 
 详细证据见探针报告。
-G01验收需要可信原生DLL。
+G01验收需要可信原生动态库。
 它也需要NVIDIA驱动与NVRTC。
 完整Windows验收执行以下命令：
 
@@ -229,6 +233,18 @@ scripts/test-windows-g01.ps1 -AllFeatures -FullRegression -Release
 ```
 
 证据见G01全阶段报告。
+Linux完整验收执行以下命令：
+
+```text
+bash scripts/prepare-linux-native.sh
+bash scripts/prepare-linux-cuda.sh
+bash scripts/test-linux-g01.sh --all-features --full-regression
+bash scripts/test-linux-g01.sh --all-features --full-regression --release
+```
+
+Linux证据见对应验收报告。
+T4复验另加`--require-t4`。
+该选项拒绝其他GPU。
 刚体探针显式检查参考哈希。
 执行以下Windows脚本：
 

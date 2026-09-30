@@ -73,6 +73,9 @@ GPU初始化静态geom缓存。
 完整G01入口已实现。
 Windows双模式验收通过。
 证据见[G01报告](windows-g01-acceptance.md)。
+Linux双模式完整门禁通过。
+T4完整G01仍待复验。
+证据见[Linux报告](linux-g01-acceptance.md)。
 其余完整等价阶段仍待实现。
 物理引擎API仍待实现。
 
