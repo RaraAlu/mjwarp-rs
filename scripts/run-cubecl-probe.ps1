@@ -32,7 +32,8 @@ if ($Backend -eq 'llvm') {
     if (-not (Test-Path -LiteralPath $devcmd)) {
         throw '找不到VsDevCmd.bat'
     }
-    $environment = & $env:ComSpec /d /s /c "`"`"$devcmd`" -no_logo -arch=x64 -host_arch=x64 && set`""
+    # call避免cmd吞掉路径外层引号。
+    $environment = & $env:ComSpec /d /c "call `"$devcmd`" -no_logo -arch=x64 -host_arch=x64 && set"
     if ($LASTEXITCODE -ne 0) {
         throw 'MSVC环境初始化失败'
     }

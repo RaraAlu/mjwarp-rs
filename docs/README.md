@@ -84,7 +84,8 @@ MC物理契约任务仍待实现。
 契约签名尚未进入源码。
 Windows驱动探针已经执行。
 CubeCL C++已执行Windows探针。
-LLVM路线仍缺MSVC工具。
+CubeCL LLVM也通过局部探针。
+本机MSVC与SDK复验通过。
 Linux机器等待项目推送。
 这些记录不代表引擎完成率。
 
@@ -106,7 +107,7 @@ Linux机器等待项目推送。
 | 程序行为 | 提供`probe`命令；默认不加载GPU依赖 |
 | 库入口 | `src/lib.rs`；只导出探针，不提供物理引擎 |
 | 驱动级GPU探针 | Windows通过；缓冲、事件、边界与图重放 |
-| CubeCL内核路线 | C++通过Windows局部探针；LLVM构建等待MSVC |
+| CubeCL内核路线 | C++与LLVM通过Windows局部探针；Linux仍待执行 |
 | GPU物理 | 尚未实现 |
 | GPU批量渲染 | 尚未实现 |
 | CPU play与查看器 | 不属于本仓库职责 |

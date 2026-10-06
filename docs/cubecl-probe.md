@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 原生PTX | 手写PTX，驱动JIT | GPU回归通过 |
 | CubeCL C++ | 同一Rust内核，C++，NVRTC | 六种长度、最大元素与3轮图重放通过 |
-| CubeCL LLVM | 同一Rust内核，pliron，LLVM | 构建阻塞；尚未编译或运行 |
+| CubeCL LLVM | 同一Rust内核，pliron，LLVM | MSVC构建通过；六种长度、最大元素与3轮图重放通过 |
 
 Linux仍等待GitHub推送。
 本轮不推送项目。
@@ -124,44 +124,56 @@ CubeCL依赖因此无法完整构建。
 
 依据：[MSYS2 binutils](https://packages.msys2.org/packages/mingw-w64-x86_64-binutils)、[linkme注册机制](https://github.com/dtolnay/linkme)。
 
-## LLVM构建阻塞
+## MSVC与LLVM复验
 
-本机缺少MSVC与Windows SDK。
-用户授权安装C++生成工具。
-本轮下载微软官方安装器。
-本轮核对有效微软签名。
-执行策略拦截管理员提权。
-本轮没有完成MSVC安装。
-本轮没有执行LLVM编译器。
-本轮没有安装LLVM二进制包。
-Rust自带LLVM不替代链接包。
+用户完成C++生成工具安装。
+本轮核对VS组件记录。
+本轮导入x64开发环境。
+原脚本错误包裹路径引号。
+脚本改用`call`命令。
+脚本正确读取含空格路径。
+本轮编译并链接C++程序。
+程序调用Windows API。
+程序返回成功并报告64位。
+本轮不改Rust默认目标。
 
 ```text
-installer: C:/Rust/mjwarp-rs/target/toolchains/msvc/vs_BuildTools.exe
-signature: Valid; Microsoft Corporation
+VS Build Tools 2022: 17.14.41
+VC tools directory: 14.44.35207
+cl.exe: 19.44.35229.0
+Windows SDK: 10.0.26100.0
 installed Rust target: stable-x86_64-pc-windows-msvc
 default Rust target: stable-x86_64-pc-windows-gnu
-actual build error: linker `link.exe` not found
+C++ smoke: target/msvc-check/smoke.cpp
+C++ API: GetCurrentProcessId
+C++ flags: /W4 /WX /EHsc
 ```
 
-用户需完成管理员安装。
-以下命令安装所需两项。
-请在管理员PowerShell执行。
-命令不自动重启机器。
+上轮缺少`link.exe`。
+用户安装后解除该阻塞。
+本轮实际编译LLVM路线。
+257元素探针首先通过。
+六种长度随后通过GPU回归。
+最大元素探针同样通过。
+两路共用MSVC构建也通过。
 
-```powershell
-& 'C:/Rust/mjwarp-rs/target/toolchains/msvc/vs_BuildTools.exe' --quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621
-```
-
-依据：[微软安装参数](https://learn.microsoft.com/en-us/visualstudio/install/use-command-line-parameters-to-install-visual-studio?view=visualstudio)。
-
-完成安装后运行LLVM路线。
-脚本读取VS开发环境。
-脚本显式选用MSVC Rust目标。
-上游bundler再下载LLVM包。
-上游bundler负责摘要校验。
+bundler提供独立LLVM包。
+它不借用Rust内部LLVM。
+本轮另核对下载包摘要。
 本轮不伪造安装标记。
-主路线仍等待实际链接验收。
+
+```text
+LLVM: 23.1.0
+bundle: 23.1.0-3, windows-x64
+cache: C:/Users/zhang/AppData/Local/tracel/tracel-llvm-23.1.0-3
+archive_sha256: d0a548eec377613e56aa61c500c5dee7c469d49e20b8ea076ee2441ea1c435ee
+sidecar_content_sha256: 2bb32dedb99de5a764e056dfa3c98d6d60368aa3dc468171e009d9cd2b8fdc73
+```
+
+bundler核对包与内容摘要。
+本轮独立复验下载包摘要。
+SDK安装不证明清洁部署。
+主路线仍等待双平台验收。
 
 ```powershell
 pwsh -NoProfile -File scripts/run-cubecl-probe.ps1 -Backend llvm
@@ -176,25 +188,25 @@ pwsh -NoProfile -File scripts/run-cubecl-probe.ps1 -Backend llvm -GpuTests
 | pliron与pliron-llvm | 冻结Git提交；0.18.0 | Apache-2.0 |
 | tracel-llvm-bundler | 23.1.0-3 | MIT OR Apache-2.0 |
 | llvm-sys | 231.0.0 | MIT |
-| LLVM包 | 本轮未安装；bundler目标23.1.0-3 | 待安装后核对包内通知 |
+| LLVM包 | 23.1.0-3，Windows x64 | 包内Support通知声明Apache-2.0 WITH LLVM-exception；完整通知仍待整理 |
 | cudarc | 0.18.2 | MIT OR Apache-2.0 |
 | libloading | 0.8.8 | ISC |
 | buildid、option-ext | 1.0.5、0.2.0 | MPL-2.0 |
 | CUDA组件 | 官方12.8.1清单 | CUDA Toolkit许可；CCCL另含开源通知 |
 | GNU构建工具 | binutils 2.47-3及配套包 | GPL/LGPL等；不链接产品 |
-| VS Build Tools | 安装器签名通过；未安装 | 微软许可；不分发安装器 |
+| VS Build Tools | 2022，17.14.41；编译与链接通过 | 微软许可；不分发安装器 |
 
 本轮核对Cargo许可字段。
 锁文件固定全部Rust依赖。
 新增依赖含MPL文件级义务。
 本轮没有改写这些依赖源码。
-发布前仍须整理完整通知。
+LLVM包只附局部Support通知。
+发布前需补齐完整许可通知。
 本项目自身许可仍待用户确定。
 元数据清单不等于法务验收。
 
 ## 未完成项
 
-- LLVM实际构建与GPU执行。
 - 两路原子与共享内存测试。
 - 两路生成产物与缓存核对。
 - 无完整SDK的部署测试。
@@ -213,6 +225,11 @@ P1完整准入仍未完成。
 本轮沿用驱动596.36。
 GNU与MSVC Rust均为1.99.0。
 
+### 上轮检查
+
+以下保留安装前的证据。
+LLVM失败只描述当时环境。
+
 | 检查 | 实际结果 |
 | --- | --- |
 | `cargo test --locked` | 13通过；默认不执行GPU |
@@ -228,6 +245,30 @@ GNU与MSVC Rust均为1.99.0。
 | `run-cubecl-probe.ps1 -Backend llvm` | 预检拒绝；缺少MSVC与Windows SDK |
 
 C++检查使用私有GNU工具路径。
-本轮未执行全特性检查。
-LLVM阻塞会影响该检查。
+上轮尚未执行全特性检查。
+
+### 安装后复验
+
+本轮采用MSVC开发环境。
+GPU测试同时设置CUDA路径。
+MSVC目标初缺Clippy。
+本轮补装后检查通过。
+本轮保留GNU默认工具链。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| C++ x64烟测；`cl.exe /W4 /WX /EHsc` | Windows头文件、链接与API调用通过 |
+| `cargo +stable-x86_64-pc-windows-msvc test --locked` | 13通过；默认不执行GPU |
+| `run-cubecl-probe.ps1 -Backend llvm` | 257元素通过；3轮图重放通过 |
+| `run-cubecl-probe.ps1 -Backend llvm -GpuTests` | 1通过；覆盖六种长度 |
+| `run-cubecl-probe.ps1 -Backend llvm -Elements 1048576` | 精确结果、守卫与3轮重放通过 |
+| `cargo +stable-x86_64-pc-windows-msvc test --locked --all-features` | 15通过；4项GPU测试默认忽略 |
+| `cargo +stable-x86_64-pc-windows-msvc test --locked --all-features --test cubecl_probe -- --ignored --test-threads=1` | 2通过；同一MSVC构建验证两路 |
+| `cargo +stable-x86_64-pc-windows-msvc test --locked --all-features --test gpu_probe -- --ignored --test-threads=1` | 2通过；原生回归与错误设备 |
+| `run-cubecl-probe.ps1 -Backend cpp -GpuTests` | 1通过；GNU路线回归 |
+| `cargo +stable-x86_64-pc-windows-msvc clippy --locked --all-targets --all-features -- -D warnings` | 通过 |
+| `cargo fmt --check` | 通过 |
+| PowerShell启动脚本解析 | 通过 |
+| `git diff --check` | 通过 |
+
 以上结果不代表部署验收。
