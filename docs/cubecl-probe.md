@@ -4,15 +4,19 @@
 本轮只验证P1局部能力。
 本轮不冻结引擎主路线。
 
+Windows最新能力见[内核报告](windows-kernel-probe.md)。
+下文保留工具与安装复验。
+
 ## 当前结果
 
 | 路线 | 实现 | Windows状态 |
 | --- | --- | --- |
 | 原生PTX | 手写PTX，驱动JIT | GPU回归通过 |
-| CubeCL C++ | 同一Rust内核，C++，NVRTC | 六种长度、最大元素与3轮图重放通过 |
-| CubeCL LLVM | 同一Rust内核，pliron，LLVM | MSVC构建通过；六种长度、最大元素与3轮图重放通过 |
+| CubeCL C++ | 同一组Rust内核，C++，NVRTC | 六种内核、七种规模与3轮图重放通过 |
+| CubeCL LLVM | 同一组Rust内核，pliron，LLVM | MSVC构建通过；同组能力探针通过 |
 
-Linux仍等待GitHub推送。
+用户本轮只推进Windows。
+本轮不开展Linux工作。
 本轮不推送项目。
 物理与渲染仍未实现。
 
@@ -30,8 +34,8 @@ tracel-llvm-bundler: 23.1.0-3
 llvm-sys: 231.0.0
 ```
 
-两路调用同一个`affine`定义。
-Rust内核计算`y = 2x + 1`。
+两路共用同一组Rust定义。
+默认内核计算`y = 2x + 1`。
 两路显式构造目标编译器。
 它们不借用默认后端选择。
 C++特性不引入LLVM编译器。
@@ -44,7 +48,8 @@ LLVM特性只启用NVPTX目标。
 | 参数 | 固定契约 |
 | --- | --- |
 | `--backend` | `native-ptx`、`cubecl-cpp`、`cubecl-llvm` |
-| 两路Rust定义 | `src/runtime/cubecl.rs::affine` |
+| `--kernel` | 默认`affine`；另含原子、归约、块扫描、分支与求解 |
+| 两路Rust定义 | `src/runtime/cubecl.rs`中的六种内核 |
 | C++编译器 | `CppCompiler<Cuda>` |
 | LLVM编译器 | `PlironCompiler`，`LlvmTarget::Nvptx` |
 | 地址类型 | `AddressType::U32` |
@@ -57,7 +62,7 @@ LLVM特性只启用NVPTX目标。
 | LLVM选项 | 当前GPU的SM，按驱动API选择PTX版本 |
 | 输出尾部 | 16个守卫元素 |
 
-该ABI只用于这个探针。
+该ABI只用于这些探针。
 它不冻结模型设备布局。
 探针不创建完整设备能力表。
 探针不启用自动调优。
@@ -207,7 +212,8 @@ LLVM包只附局部Support通知。
 
 ## 未完成项
 
-- 两路原子与共享内存测试。
+- 浮点原子与全局扫描。
+- 图节点参数与外部资源测试。
 - 两路生成产物与缓存核对。
 - 无完整SDK的部署测试。
 - Linux同组GPU测试。
@@ -248,6 +254,9 @@ C++检查使用私有GNU工具路径。
 上轮尚未执行全特性检查。
 
 ### 安装后复验
+
+以下保留affine阶段证据。
+最新测试数量见Windows报告。
 
 本轮采用MSVC开发环境。
 GPU测试同时设置CUDA路径。

@@ -3,6 +3,9 @@
 
 use crate::diagnostics::ProbeError;
 
+#[cfg(any(feature = "cuda-probe", test))]
+mod samples;
+
 #[cfg(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe"))]
 mod cubecl;
 #[cfg(feature = "cuda-probe")]
@@ -13,6 +16,70 @@ const GUARD_ELEMENTS: usize = 16;
 const GUARD_VALUE: f32 = -12345.0;
 const MAX_ELEMENTS: usize = 1 << 20;
 const MAX_REPLAYS: usize = 1000;
+const BLOCK_THREADS: usize = 128;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ProbeKernel {
+    #[default]
+    Affine,
+    AtomicSum,
+    BlockReduce,
+    BlockScan,
+    ControlFlow,
+    SmallSolve,
+}
+
+impl ProbeKernel {
+    pub const ALL: [Self; 6] = [
+        Self::Affine,
+        Self::AtomicSum,
+        Self::BlockReduce,
+        Self::BlockScan,
+        Self::ControlFlow,
+        Self::SmallSolve,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Affine => "affine",
+            Self::AtomicSum => "atomic-sum",
+            Self::BlockReduce => "block-reduce",
+            Self::BlockScan => "block-scan",
+            Self::ControlFlow => "control-flow",
+            Self::SmallSolve => "small-solve",
+        }
+    }
+
+    pub fn parse(value: &str) -> Result<Self, ProbeError> {
+        Self::ALL
+            .into_iter()
+            .find(|kernel| kernel.name() == value)
+            .ok_or(ProbeError::InvalidArgument("未知探针内核"))
+    }
+
+    fn output_elements(self, elements: usize) -> Result<usize, ProbeError> {
+        match self {
+            Self::AtomicSum => Ok(1),
+            Self::BlockReduce => Ok(elements.div_ceil(BLOCK_THREADS)),
+            Self::SmallSolve => elements
+                .checked_mul(2)
+                .ok_or(ProbeError::InvalidArgument("矩阵缓冲长度溢出")),
+            _ => Ok(elements),
+        }
+    }
+
+    #[cfg(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe"))]
+    fn entrypoint(self) -> &'static str {
+        match self {
+            Self::Affine => "cubecl_affine_probe",
+            Self::AtomicSum => "cubecl_atomic_sum_probe",
+            Self::BlockReduce => "cubecl_block_reduce_probe",
+            Self::BlockScan => "cubecl_block_scan_probe",
+            Self::ControlFlow => "cubecl_control_flow_probe",
+            Self::SmallSolve => "cubecl_small_solve_probe",
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ProbeBackend {
@@ -60,6 +127,7 @@ impl ProbeBackend {
 #[derive(Clone, Copy, Debug)]
 pub struct ProbeConfig {
     pub backend: ProbeBackend,
+    pub kernel: ProbeKernel,
     pub device: usize,
     pub elements: usize,
     pub replays: usize,
@@ -69,6 +137,7 @@ impl Default for ProbeConfig {
     fn default() -> Self {
         Self {
             backend: ProbeBackend::NativePtx,
+            kernel: ProbeKernel::Affine,
             device: 0,
             elements: 257,
             replays: 3,
@@ -84,7 +153,10 @@ impl ProbeConfig {
         if !(1..=MAX_REPLAYS).contains(&self.replays) {
             return Err(ProbeError::InvalidArgument("重放数须在1至1000"));
         }
-        buffer_bytes(self.elements)?;
+        if self.backend == ProbeBackend::NativePtx && self.kernel != ProbeKernel::Affine {
+            return Err(ProbeError::InvalidArgument("原生PTX只支持affine探针"));
+        }
+        buffer_bytes(self.kernel.output_elements(self.elements)?)?;
         Ok(())
     }
 }
@@ -92,6 +164,7 @@ impl ProbeConfig {
 #[derive(Debug)]
 pub struct ProbeReport {
     pub backend: ProbeBackend,
+    pub kernel: ProbeKernel,
     /// 仅CubeCL路线记录冻结提交。
     pub compiler_revision: Option<&'static str>,
     pub os: &'static str,
@@ -299,15 +372,50 @@ mod tests {
             ProbeBackend::CubeClLlvm,
         ] {
             if !backend.enabled() {
-                assert_eq!(
-                    run_probe(ProbeConfig {
-                        backend,
-                        ..Default::default()
-                    })
-                    .unwrap_err(),
-                    ProbeError::FeatureDisabled(backend.required_feature())
-                );
+                for kernel in ProbeKernel::ALL {
+                    if backend == ProbeBackend::NativePtx && kernel != ProbeKernel::Affine {
+                        continue;
+                    }
+                    assert_eq!(
+                        run_probe(ProbeConfig {
+                            backend,
+                            kernel,
+                            ..Default::default()
+                        })
+                        .unwrap_err(),
+                        ProbeError::FeatureDisabled(backend.required_feature())
+                    );
+                }
             }
         }
+    }
+
+    #[test]
+    fn parses_kernels_and_rejects_native_route_substitution() {
+        for kernel in ProbeKernel::ALL {
+            assert_eq!(ProbeKernel::parse(kernel.name()).unwrap(), kernel);
+            let config = ProbeConfig {
+                kernel,
+                ..Default::default()
+            };
+            assert_eq!(config.validate().is_ok(), kernel == ProbeKernel::Affine);
+            ProbeConfig {
+                backend: ProbeBackend::CubeClCpp,
+                ..config
+            }
+            .validate()
+            .unwrap();
+        }
+        assert!(ProbeKernel::parse("auto").is_err());
+        assert!(ProbeKernel::parse("unknown").is_err());
+    }
+
+    #[test]
+    fn calculates_kernel_output_capacity() {
+        assert_eq!(ProbeKernel::AtomicSum.output_elements(257).unwrap(), 1);
+        assert_eq!(ProbeKernel::BlockReduce.output_elements(257).unwrap(), 3);
+        assert_eq!(ProbeKernel::BlockScan.output_elements(257).unwrap(), 257);
+        assert_eq!(ProbeKernel::SmallSolve.output_elements(257).unwrap(), 514);
+        assert!(ProbeKernel::SmallSolve.output_elements(usize::MAX).is_err());
     }
 }

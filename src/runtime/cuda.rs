@@ -1,13 +1,13 @@
 //! 集中封装CUDA适配。
 
 use super::{
-    GUARD_ELEMENTS, GUARD_VALUE, ProbeBackend, ProbeConfig, ProbeReport, buffer_bytes,
-    input_values, validate_output,
+    BLOCK_THREADS, ProbeBackend, ProbeConfig, ProbeKernel, ProbeReport, buffer_bytes,
+    samples::{self, Samples},
 };
 use crate::diagnostics::ProbeError;
 use cudarc::driver::{
-    CudaContext, CudaFunction, CudaSlice, CudaStream, DriverError, LaunchConfig, PushKernelArg,
-    result, sys,
+    CudaContext, CudaFunction, CudaSlice, CudaStream, DeviceRepr, DriverError, LaunchConfig,
+    PushKernelArg, result, sys,
 };
 use cudarc::nvrtc::Ptx;
 use std::sync::Arc;
@@ -147,7 +147,12 @@ pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
         ),
         #[cfg(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe"))]
         backend => {
-            let compiled = super::cubecl::compile(backend, (major * 10 + minor) as u32, version)?;
+            let compiled = super::cubecl::compile(
+                backend,
+                config.kernel,
+                (major * 10 + minor) as u32,
+                version,
+            )?;
             (compiled.ptx, compiled.entrypoint, compiled.shared_memory)
         }
         #[cfg(not(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe")))]
@@ -157,22 +162,74 @@ pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
     let function = module
         .load_function(&entrypoint)
         .map_err(cuda_error("kernel-load"))?;
+    match config.kernel {
+        ProbeKernel::Affine | ProbeKernel::SmallSolve => run_typed(
+            &context,
+            &function,
+            config,
+            shared_memory,
+            samples::floats,
+            samples::validate_floats,
+        )?,
+        _ => run_typed(
+            &context,
+            &function,
+            config,
+            shared_memory,
+            samples::integers,
+            samples::validate_integers,
+        )?,
+    }
+    context.check_err().map_err(cuda_error("context-status"))?;
+    Ok(ProbeReport {
+        backend: config.backend,
+        kernel: config.kernel,
+        compiler_revision: match config.backend {
+            ProbeBackend::NativePtx => None,
+            #[cfg(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe"))]
+            _ => Some(super::cubecl::REVISION),
+            #[cfg(not(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe")))]
+            _ => None,
+        },
+        os: std::env::consts::OS,
+        arch: std::env::consts::ARCH,
+        device: config.device,
+        gpu_name,
+        compute_capability: (major, minor),
+        driver_api_version: version,
+        elements: config.elements,
+        buffer_bytes: buffer_bytes(config.kernel.output_elements(config.elements)?)?,
+        graph_replays: config.replays,
+    })
+}
+
+type ValidateSamples<T> = fn(ProbeKernel, &Samples<T>, &[T]) -> Result<(), ProbeError>;
+
+fn run_typed<T: DeviceRepr + Copy>(
+    context: &Arc<CudaContext>,
+    function: &CudaFunction,
+    config: ProbeConfig,
+    shared_memory: u32,
+    sample: fn(ProbeKernel, usize, usize) -> Samples<T>,
+    validate: ValidateSamples<T>,
+) -> Result<(), ProbeError> {
     let transfer = context
         .new_stream()
         .map_err(cuda_error("transfer-stream"))?;
     let execute = context.new_stream().map_err(cuda_error("execute-stream"))?;
-    let input = input_values(config.elements, 0);
-    let mut device_input = transfer.clone_htod(&input).map_err(cuda_error("upload"))?;
-    let sentinel = vec![GUARD_VALUE; config.elements + GUARD_ELEMENTS];
+    let initial = sample(config.kernel, config.elements, 0);
+    let mut device_input = transfer
+        .clone_htod(&initial.input)
+        .map_err(cuda_error("upload"))?;
     let mut device_output = transfer
-        .clone_htod(&sentinel)
+        .clone_htod(&initial.initial)
         .map_err(cuda_error("allocate-output"))?;
     // CubeCL固定u32长度；不传动态元数据。
     // 两路均禁用grid_constants。
     let metadata = if config.backend != ProbeBackend::NativePtx {
         Some(
             transfer
-                .clone_htod(&[config.elements as u32, sentinel.len() as u32])
+                .clone_htod(&[initial.input.len() as u32, initial.initial.len() as u32])
                 .map_err(cuda_error("metadata-upload"))?,
         )
     } else {
@@ -183,14 +240,15 @@ pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
         .map_err(cuda_error("upload-event"))?;
     launch(
         &execute,
-        &function,
+        function,
         &device_input,
         &mut device_output,
         config.elements,
         metadata.as_ref(),
         shared_memory,
     )?;
-    download_and_check(&transfer, &execute, &input, &device_output)?;
+    let output = download(&transfer, &execute, &device_output)?;
+    validate(config.kernel, &initial, &output)?;
     execute.synchronize().map_err(cuda_error("warmup-wait"))?;
 
     // 捕获期间不编译或分配缓冲。
@@ -198,10 +256,10 @@ pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
         .begin_capture(sys::CUstreamCaptureMode::CU_STREAM_CAPTURE_MODE_THREAD_LOCAL)
         .map_err(cuda_error("capture-begin"))?;
     // 避免捕获等待图外的跟踪事件。
-    let tracking = TrackingPause::after_warmup(&context);
+    let tracking = TrackingPause::after_warmup(context);
     let captured = launch(
         &execute,
-        &function,
+        function,
         &device_input,
         &mut device_output,
         config.elements,
@@ -218,18 +276,19 @@ pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
     // 错误路径也先等待，再释放。
     let replayed = (|| {
         for epoch in 1..=config.replays {
-            let input = input_values(config.elements, epoch);
+            let current = sample(config.kernel, config.elements, epoch);
             transfer
-                .memcpy_htod(&input, &mut device_input)
+                .memcpy_htod(&current.input, &mut device_input)
                 .map_err(cuda_error("replay-upload"))?;
             transfer
-                .memcpy_htod(&sentinel, &mut device_output)
+                .memcpy_htod(&current.initial, &mut device_output)
                 .map_err(cuda_error("replay-reset"))?;
             execute
                 .join(&transfer)
                 .map_err(cuda_error("replay-upload-event"))?;
             graph.launch()?;
-            download_and_check(&transfer, &execute, &input, &device_output)?;
+            let output = download(&transfer, &execute, &device_output)?;
+            validate(config.kernel, &current, &output)?;
         }
         Ok(())
     })();
@@ -238,41 +297,22 @@ pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
     drop(graph);
     replayed?;
     completed?;
-    context.check_err().map_err(cuda_error("context-status"))?;
-    Ok(ProbeReport {
-        backend: config.backend,
-        compiler_revision: match config.backend {
-            ProbeBackend::NativePtx => None,
-            #[cfg(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe"))]
-            _ => Some(super::cubecl::REVISION),
-            #[cfg(not(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe")))]
-            _ => None,
-        },
-        os: std::env::consts::OS,
-        arch: std::env::consts::ARCH,
-        device: config.device,
-        gpu_name,
-        compute_capability: (major, minor),
-        driver_api_version: version,
-        elements: config.elements,
-        buffer_bytes: buffer_bytes(config.elements)?,
-        graph_replays: config.replays,
-    })
+    Ok(())
 }
 
-fn launch(
+fn launch<T: DeviceRepr>(
     stream: &CudaStream,
     function: &CudaFunction,
-    input: &CudaSlice<f32>,
-    output: &mut CudaSlice<f32>,
+    input: &CudaSlice<T>,
+    output: &mut CudaSlice<T>,
     elements: usize,
     metadata: Option<&CudaSlice<u32>>,
     shared_memory: u32,
 ) -> Result<(), ProbeError> {
     let elements = elements as u32;
     let config = LaunchConfig {
-        grid_dim: (elements.div_ceil(128), 1, 1),
-        block_dim: (128, 1, 1),
+        grid_dim: (elements.div_ceil(BLOCK_THREADS as u32), 1, 1),
+        block_dim: (BLOCK_THREADS as u32, 1, 1),
         shared_mem_bytes: shared_memory,
     };
     // SAFETY: 私有调用仅使用两种固定ABI。
@@ -281,6 +321,8 @@ fn launch(
     // 元数据持有两个u32缓冲长度。
     // 输入只读，输出独占且容量充足。
     // 内核守卫限制索引，资源持续存活。
+    // 私有调用只传f32或u32样本。
+    // 原子u32与普通u32共用存储布局。
     unsafe {
         let mut builder = stream.launch_builder(function);
         builder.arg(input).arg(output);
@@ -295,12 +337,11 @@ fn launch(
     Ok(())
 }
 
-fn download_and_check(
+fn download<T: DeviceRepr>(
     transfer: &Arc<CudaStream>,
     execute: &CudaStream,
-    input: &[f32],
-    output: &CudaSlice<f32>,
-) -> Result<(), ProbeError> {
+    output: &CudaSlice<T>,
+) -> Result<Vec<T>, ProbeError> {
     transfer
         .join(execute)
         .map_err(cuda_error("completion-event"))?;
@@ -310,5 +351,5 @@ fn download_and_check(
     transfer
         .synchronize()
         .map_err(cuda_error("download-wait"))?;
-    validate_output(input, &downloaded)
+    Ok(downloaded)
 }

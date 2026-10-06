@@ -2,6 +2,8 @@
 param(
     [ValidateSet('cpp', 'llvm')]
     [string]$Backend = 'cpp',
+    [ValidateSet('affine', 'atomic-sum', 'block-reduce', 'block-scan', 'control-flow', 'small-solve')]
+    [string]$Kernel = 'affine',
     [ValidateRange(1, 1048576)]
     [int]$Elements = 257,
     [switch]$GpuTests
@@ -58,7 +60,7 @@ try {
     if ($GpuTests) {
         & cargo @cargoArgs test --locked --features $feature --test cubecl_probe -- --ignored --test-threads=1
     } else {
-        & cargo @cargoArgs run --locked --features $feature -- probe --backend "cubecl-$Backend" --elements $Elements
+        & cargo @cargoArgs run --locked --features $feature -- probe --backend "cubecl-$Backend" --kernel $Kernel --elements $Elements
     }
     if ($LASTEXITCODE -ne 0) {
         throw "探针失败，退出码$LASTEXITCODE"

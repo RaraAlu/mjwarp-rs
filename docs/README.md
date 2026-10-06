@@ -54,6 +54,7 @@ CPU调试与工具边界仍待确认。
 11. [上游映射草案](upstream-api-map.md)
 12. [GPU探针与路线评估](gpu-probe.md)
 13. [CubeCL双路探针](cubecl-probe.md)
+14. [Windows内核能力探针](windows-kernel-probe.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -86,7 +87,8 @@ Windows驱动探针已经执行。
 CubeCL C++已执行Windows探针。
 CubeCL LLVM也通过局部探针。
 本机MSVC与SDK复验通过。
-Linux机器等待项目推送。
+Windows补齐六种内核探针。
+本轮不开展Linux工作。
 这些记录不代表引擎完成率。
 
 应用调用方案不放入本仓库。
@@ -107,12 +109,12 @@ Linux机器等待项目推送。
 | 程序行为 | 提供`probe`命令；默认不加载GPU依赖 |
 | 库入口 | `src/lib.rs`；只导出探针，不提供物理引擎 |
 | 驱动级GPU探针 | Windows通过；缓冲、事件、边界与图重放 |
-| CubeCL内核路线 | C++与LLVM通过Windows局部探针；Linux仍待执行 |
+| CubeCL内核路线 | C++与LLVM通过Windows六种内核探针；每路42组配置 |
 | GPU物理 | 尚未实现 |
 | GPU批量渲染 | 尚未实现 |
 | CPU play与查看器 | 不属于本仓库职责 |
 
-依据：[包配置](../Cargo.toml)、[程序入口](../src/main.rs)、[驱动基线](gpu-probe.md)、[双路报告](cubecl-probe.md)。
+依据：[包配置](../Cargo.toml)、[程序入口](../src/main.rs)、[驱动基线](gpu-probe.md)、[双路报告](cubecl-probe.md)、[能力报告](windows-kernel-probe.md)。
 
 骨架版本不代表正式验收。
 文档不宣称已有引擎API。

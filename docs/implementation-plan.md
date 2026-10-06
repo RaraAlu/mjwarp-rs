@@ -18,6 +18,8 @@ Windows已验证缓冲与图。
 CubeCL C++已执行Windows探针。
 CubeCL LLVM也通过局部探针。
 本机MSVC与SDK复验通过。
+Windows继续验证内核能力。
+本轮不开展Linux工作。
 其余引擎阶段仍待实施。
 阶段顺序不表示工期承诺。
 项目不预设团队人数与预算。
@@ -42,6 +44,7 @@ CubeCL LLVM也通过局部探针。
 内部组合与测试证据仍待展开。
 P1探针证据见[执行报告](gpu-probe.md)。
 双路进展见[编译探针](cubecl-probe.md)。
+新增能力见[Windows报告](windows-kernel-probe.md)。
 P1准入与其余阶段仍未完成。
 
 ## 实施原则

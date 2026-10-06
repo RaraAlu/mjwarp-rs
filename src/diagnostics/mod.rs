@@ -38,6 +38,16 @@ pub enum ProbeError {
         expected: f32,
         actual: f32,
     },
+    IntegerMismatch {
+        index: usize,
+        expected: u32,
+        actual: u32,
+    },
+    SolveMismatch {
+        index: usize,
+        expected: f64,
+        actual: f64,
+    },
 }
 
 impl fmt::Display for ProbeError {
@@ -69,6 +79,19 @@ impl fmt::Display for ProbeError {
                 expected,
                 actual,
             } => write!(f, "输出[{index}]错误：期望{expected}，实际{actual}"),
+            Self::IntegerMismatch {
+                index,
+                expected,
+                actual,
+            } => write!(f, "整数输出[{index}]错误：期望{expected}，实际{actual}"),
+            Self::SolveMismatch {
+                index,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "求解输出或残差[{index}]错误：期望{expected}，实际{actual}"
+            ),
         }
     }
 }
@@ -86,5 +109,18 @@ mod tests {
             code: 200,
         };
         assert_eq!(error.to_string(), "CUDA失败：load；错误码200");
+    }
+
+    #[test]
+    fn preserves_large_integer_mismatches_without_rounding() {
+        let error = ProbeError::IntegerMismatch {
+            index: 0,
+            expected: 16_777_217,
+            actual: 16_777_216,
+        };
+        assert_eq!(
+            error.to_string(),
+            "整数输出[0]错误：期望16777217，实际16777216"
+        );
     }
 }
