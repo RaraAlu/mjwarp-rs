@@ -12,7 +12,7 @@ Windows最新能力见[内核报告](windows-kernel-probe.md)。
 | 路线 | 实现 | Windows状态 |
 | --- | --- | --- |
 | 原生PTX | 手写PTX，驱动JIT | GPU回归通过 |
-| CubeCL C++ | 同一组Rust内核，C++，NVRTC | 六种内核、七种规模与3轮图重放通过 |
+| CubeCL C++ | 同一组Rust内核，C++，NVRTC | 八项探针、九种规模与真实图节点更新通过 |
 | CubeCL LLVM | 同一组Rust内核，pliron，LLVM | MSVC构建通过；同组能力探针通过 |
 
 用户本轮只推进Windows。
@@ -48,8 +48,8 @@ LLVM特性只启用NVPTX目标。
 | 参数 | 固定契约 |
 | --- | --- |
 | `--backend` | `native-ptx`、`cubecl-cpp`、`cubecl-llvm` |
-| `--kernel` | 默认`affine`；另含原子、归约、块扫描、分支与求解 |
-| 两路Rust定义 | `src/runtime/cubecl.rs`中的六种内核 |
+| `--kernel` | 默认`affine`；含整数及浮点原子、归约、块及全局扫描、分支、求解 |
+| 两路Rust定义 | 八项探针与两个扫描辅助内核 |
 | C++编译器 | `CppCompiler<Cuda>` |
 | LLVM编译器 | `PlironCompiler`，`LlvmTarget::Nvptx` |
 | 地址类型 | `AddressType::U32` |
@@ -76,6 +76,7 @@ LLVM特性只启用NVPTX目标。
 两路保留元数据至图释放。
 错误路径也等待执行完成。
 图重放不证明节点参数更新。
+新增报告单独验证节点更新。
 图重放不关闭外部租约契约。
 
 ## Windows私有工具
@@ -212,8 +213,8 @@ LLVM包只附局部Support通知。
 
 ## 未完成项
 
-- 浮点原子与全局扫描。
-- 图节点参数与外部资源测试。
+- 更多浮点分布与误差边界。
+- 图布局变化与外部资源测试。
 - 两路生成产物与缓存核对。
 - 无完整SDK的部署测试。
 - Linux同组GPU测试。

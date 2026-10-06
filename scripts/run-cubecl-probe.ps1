@@ -2,7 +2,7 @@
 param(
     [ValidateSet('cpp', 'llvm')]
     [string]$Backend = 'cpp',
-    [ValidateSet('affine', 'atomic-sum', 'block-reduce', 'block-scan', 'control-flow', 'small-solve')]
+    [ValidateSet('affine', 'atomic-sum', 'float-atomic-sum', 'block-reduce', 'block-scan', 'global-scan', 'control-flow', 'small-solve')]
     [string]$Kernel = 'affine',
     [ValidateRange(1, 1048576)]
     [int]$Elements = 257,

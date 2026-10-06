@@ -87,7 +87,10 @@ Windows驱动探针已经执行。
 CubeCL C++已执行Windows探针。
 CubeCL LLVM也通过局部探针。
 本机MSVC与SDK复验通过。
-Windows补齐六种内核探针。
+Windows补齐八项能力探针。
+双路通过分层全局扫描。
+双路通过f32原子累加。
+图节点更新切换真实输出。
 本轮不开展Linux工作。
 这些记录不代表引擎完成率。
 
@@ -109,7 +112,7 @@ Windows补齐六种内核探针。
 | 程序行为 | 提供`probe`命令；默认不加载GPU依赖 |
 | 库入口 | `src/lib.rs`；只导出探针，不提供物理引擎 |
 | 驱动级GPU探针 | Windows通过；缓冲、事件、边界与图重放 |
-| CubeCL内核路线 | C++与LLVM通过Windows六种内核探针；每路42组配置 |
+| CubeCL内核路线 | Windows双路各通过74组配置；含全局扫描、f32原子及图更新 |
 | GPU物理 | 尚未实现 |
 | GPU批量渲染 | 尚未实现 |
 | CPU play与查看器 | 不属于本仓库职责 |

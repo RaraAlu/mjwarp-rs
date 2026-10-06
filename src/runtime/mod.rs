@@ -23,18 +23,22 @@ pub enum ProbeKernel {
     #[default]
     Affine,
     AtomicSum,
+    FloatAtomicSum,
     BlockReduce,
     BlockScan,
+    GlobalScan,
     ControlFlow,
     SmallSolve,
 }
 
 impl ProbeKernel {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 8] = [
         Self::Affine,
         Self::AtomicSum,
+        Self::FloatAtomicSum,
         Self::BlockReduce,
         Self::BlockScan,
+        Self::GlobalScan,
         Self::ControlFlow,
         Self::SmallSolve,
     ];
@@ -43,8 +47,10 @@ impl ProbeKernel {
         match self {
             Self::Affine => "affine",
             Self::AtomicSum => "atomic-sum",
+            Self::FloatAtomicSum => "float-atomic-sum",
             Self::BlockReduce => "block-reduce",
             Self::BlockScan => "block-scan",
+            Self::GlobalScan => "global-scan",
             Self::ControlFlow => "control-flow",
             Self::SmallSolve => "small-solve",
         }
@@ -59,7 +65,7 @@ impl ProbeKernel {
 
     fn output_elements(self, elements: usize) -> Result<usize, ProbeError> {
         match self {
-            Self::AtomicSum => Ok(1),
+            Self::AtomicSum | Self::FloatAtomicSum => Ok(1),
             Self::BlockReduce => Ok(elements.div_ceil(BLOCK_THREADS)),
             Self::SmallSolve => elements
                 .checked_mul(2)
@@ -73,8 +79,10 @@ impl ProbeKernel {
         match self {
             Self::Affine => "cubecl_affine_probe",
             Self::AtomicSum => "cubecl_atomic_sum_probe",
+            Self::FloatAtomicSum => "cubecl_float_atomic_sum_probe",
             Self::BlockReduce => "cubecl_block_reduce_probe",
             Self::BlockScan => "cubecl_block_scan_probe",
+            Self::GlobalScan => "cubecl_global_scan_probe",
             Self::ControlFlow => "cubecl_control_flow_probe",
             Self::SmallSolve => "cubecl_small_solve_probe",
         }
@@ -177,6 +185,10 @@ pub struct ProbeReport {
     pub elements: usize,
     pub buffer_bytes: usize,
     pub graph_replays: usize,
+    /// 实际捕获的内核节点数。
+    pub graph_kernel_nodes: usize,
+    /// 成功更新的节点参数次数。
+    pub graph_node_updates: usize,
 }
 
 /// 同步返回探针结果。
@@ -413,8 +425,10 @@ mod tests {
     #[test]
     fn calculates_kernel_output_capacity() {
         assert_eq!(ProbeKernel::AtomicSum.output_elements(257).unwrap(), 1);
+        assert_eq!(ProbeKernel::FloatAtomicSum.output_elements(257).unwrap(), 1);
         assert_eq!(ProbeKernel::BlockReduce.output_elements(257).unwrap(), 3);
         assert_eq!(ProbeKernel::BlockScan.output_elements(257).unwrap(), 257);
+        assert_eq!(ProbeKernel::GlobalScan.output_elements(257).unwrap(), 257);
         assert_eq!(ProbeKernel::SmallSolve.output_elements(257).unwrap(), 514);
         assert!(ProbeKernel::SmallSolve.output_elements(usize::MAX).is_err());
     }

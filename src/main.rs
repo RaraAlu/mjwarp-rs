@@ -1,7 +1,7 @@
 use mjwarp_rs::runtime::{ProbeBackend, ProbeConfig, ProbeKernel, run_probe};
 use std::process::ExitCode;
 
-const USAGE: &str = "mjwarp-rs probe [--backend native-ptx|cubecl-cpp|cubecl-llvm] [--kernel affine|atomic-sum|block-reduce|block-scan|control-flow|small-solve] [--device N] [--elements N] [--replays N]\n原生：cargo run --features cuda-probe -- probe\nC++：cargo run --features cubecl-cpp-probe -- probe --backend cubecl-cpp\nLLVM：cargo run --features cubecl-llvm-probe -- probe --backend cubecl-llvm\n探针不提供物理引擎。";
+const USAGE: &str = "mjwarp-rs probe [--backend native-ptx|cubecl-cpp|cubecl-llvm] [--kernel affine|atomic-sum|float-atomic-sum|block-reduce|block-scan|global-scan|control-flow|small-solve] [--device N] [--elements N] [--replays N]\n原生：cargo run --features cuda-probe -- probe\nC++：cargo run --features cubecl-cpp-probe -- probe --backend cubecl-cpp\nLLVM：cargo run --features cubecl-llvm-probe -- probe --backend cubecl-llvm\n探针不提供物理引擎。";
 
 fn parse_args(args: &[String]) -> Result<Option<ProbeConfig>, String> {
     if args.len() == 1 && matches!(args[0].as_str(), "--help" | "-h") {
@@ -84,6 +84,10 @@ fn main() -> ExitCode {
             );
             println!("upload/kernel/download/cross-stream/guard=pass");
             println!("graph_replays={}; changed_input=pass", report.graph_replays);
+            println!(
+                "graph_kernel_nodes={}; node_updates={}; inactive_output=pass",
+                report.graph_kernel_nodes, report.graph_node_updates
+            );
             println!("此结果只验证当前路线。");
             println!("引擎与正式准入仍待完成。");
             ExitCode::SUCCESS

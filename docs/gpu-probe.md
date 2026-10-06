@@ -4,7 +4,8 @@
 以下数量描述此前轮次。
 最新进展见[双路探针](cubecl-probe.md)。
 C++路线已执行Windows探针。
-LLVM路线仍等待MSVC安装。
+LLVM路线现已通过Windows探针。
+最新能力见[Windows报告](windows-kernel-probe.md)。
 
 日期：2026-10-06。
 状态：Windows驱动探针通过。

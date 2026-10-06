@@ -29,6 +29,7 @@ pub enum ProbeError {
     },
     BackendPanic,
     EmptyGraph,
+    InvalidGraph(&'static str),
     InvalidOutputLength {
         expected: usize,
         actual: usize,
@@ -71,6 +72,7 @@ impl fmt::Display for ProbeError {
             Self::Cuda { stage, code } => write!(f, "CUDA失败：{stage}；错误码{code}"),
             Self::BackendPanic => write!(f, "GPU适配层异常；未回退CPU"),
             Self::EmptyGraph => write!(f, "图捕获没有记录内核"),
+            Self::InvalidGraph(reason) => write!(f, "图布局错误：{reason}"),
             Self::InvalidOutputLength { expected, actual } => {
                 write!(f, "输出长度错误：期望{expected}，实际{actual}")
             }

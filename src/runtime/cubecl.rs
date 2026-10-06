@@ -10,6 +10,23 @@ use cudarc::nvrtc::Ptx;
 
 pub(super) const REVISION: &str = "1f73b9f63de50a17398c1d5278e2a5f11612c7e1";
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum KernelStage {
+    Probe(ProbeKernel),
+    ScanTotals,
+    ScanOffsets,
+}
+
+impl KernelStage {
+    fn entrypoint(self) -> &'static str {
+        match self {
+            Self::Probe(kernel) => kernel.entrypoint(),
+            Self::ScanTotals => "cubecl_scan_totals_probe",
+            Self::ScanOffsets => "cubecl_scan_offsets_probe",
+        }
+    }
+}
+
 #[cube]
 fn affine(input: &[f32], output: &mut [f32]) {
     if ABSOLUTE_POS < input.len() {
@@ -19,6 +36,13 @@ fn affine(input: &[f32], output: &mut [f32]) {
 
 #[cube]
 fn atomic_sum(input: &[u32], output: &mut [Atomic<u32>]) {
+    if ABSOLUTE_POS < input.len() {
+        output[0].fetch_add(input[ABSOLUTE_POS]);
+    }
+}
+
+#[cube]
+fn float_atomic_sum(input: &[f32], output: &mut [Atomic<f32>]) {
     if ABSOLUTE_POS < input.len() {
         output[0].fetch_add(input[ABSOLUTE_POS]);
     }
@@ -76,6 +100,24 @@ fn block_scan(input: &[u32], output: &mut [u32]) {
 }
 
 #[cube]
+fn scan_totals(input: &[u32], output: &mut [u32]) {
+    if ABSOLUTE_POS < output.len() {
+        let mut last = (ABSOLUTE_POS + 1) * 128 - 1;
+        if last >= input.len() {
+            last = input.len() - 1;
+        }
+        output[ABSOLUTE_POS] = input[last];
+    }
+}
+
+#[cube]
+fn scan_offsets(input: &[u32], output: &mut [u32]) {
+    if ABSOLUTE_POS < output.len() && CUBE_POS > 0 {
+        output[ABSOLUTE_POS] += input[CUBE_POS - 1];
+    }
+}
+
+#[cube]
 fn control_flow(input: &[u32], output: &mut [u32]) {
     if ABSOLUTE_POS < input.len() {
         let value = input[ABSOLUTE_POS];
@@ -108,7 +150,7 @@ fn small_solve(input: &[f32], output: &mut [f32]) {
     }
 }
 
-fn definition(kernel: ProbeKernel) -> KernelDefinition {
+fn definition(kernel: KernelStage) -> KernelDefinition {
     // 固定128线程与u32索引。
     // 两个缓冲仅携带静态长度。
     let settings = KernelSettings::new(
@@ -120,29 +162,40 @@ fn definition(kernel: ProbeKernel) -> KernelDefinition {
     let mut builder = KernelBuilder::new(settings);
     let arg = BufferCompilationArg { inplace: None };
     match kernel {
-        ProbeKernel::Affine | ProbeKernel::SmallSolve => {
+        KernelStage::Probe(ProbeKernel::Affine | ProbeKernel::SmallSolve) => {
             let input = <[f32] as LaunchArg>::expand(&arg, &mut builder);
             let mut output = <[f32] as LaunchArg>::expand(&arg, &mut builder);
-            if kernel == ProbeKernel::Affine {
+            if kernel == KernelStage::Probe(ProbeKernel::Affine) {
                 affine::expand(&builder.scope, &input, &mut output);
             } else {
                 small_solve::expand(&builder.scope, &input, &mut output);
             }
         }
-        ProbeKernel::AtomicSum => {
+        KernelStage::Probe(ProbeKernel::AtomicSum) => {
             let input = <[u32] as LaunchArg>::expand(&arg, &mut builder);
             let mut output = <[Atomic<u32>] as LaunchArg>::expand(&arg, &mut builder);
             atomic_sum::expand(&builder.scope, &input, &mut output);
+        }
+        KernelStage::Probe(ProbeKernel::FloatAtomicSum) => {
+            let input = <[f32] as LaunchArg>::expand(&arg, &mut builder);
+            let mut output = <[Atomic<f32>] as LaunchArg>::expand(&arg, &mut builder);
+            float_atomic_sum::expand(&builder.scope, &input, &mut output);
         }
         _ => {
             let input = <[u32] as LaunchArg>::expand(&arg, &mut builder);
             let mut output = <[u32] as LaunchArg>::expand(&arg, &mut builder);
             match kernel {
-                ProbeKernel::BlockReduce => {
+                KernelStage::Probe(ProbeKernel::BlockReduce) => {
                     block_reduce::expand(&builder.scope, &input, &mut output)
                 }
-                ProbeKernel::BlockScan => block_scan::expand(&builder.scope, &input, &mut output),
-                ProbeKernel::ControlFlow => {
+                KernelStage::Probe(ProbeKernel::BlockScan | ProbeKernel::GlobalScan) => {
+                    block_scan::expand(&builder.scope, &input, &mut output)
+                }
+                KernelStage::ScanTotals => scan_totals::expand(&builder.scope, &input, &mut output),
+                KernelStage::ScanOffsets => {
+                    scan_offsets::expand(&builder.scope, &input, &mut output)
+                }
+                KernelStage::Probe(ProbeKernel::ControlFlow) => {
                     control_flow::expand(&builder.scope, &input, &mut output)
                 }
                 _ => unreachable!(),
@@ -167,7 +220,7 @@ fn compilation_error(stage: &'static str, detail: impl ToString) -> ProbeError {
 
 pub(super) fn compile(
     backend: ProbeBackend,
-    kernel: ProbeKernel,
+    kernel: KernelStage,
     sm: u32,
     driver: i32,
 ) -> Result<CompiledProbe, ProbeError> {
@@ -184,7 +237,7 @@ pub(super) fn compile(
 }
 
 #[cfg(feature = "cubecl-cpp-probe")]
-fn cpp_source(kernel: ProbeKernel) -> Result<cubecl_cpp::ComputeKernel, ProbeError> {
+fn cpp_source(kernel: KernelStage) -> Result<cubecl_cpp::ComputeKernel, ProbeError> {
     use cubecl_cpp::{
         shared::{CompilationOptions, CppCompiler},
         target::Cuda,
@@ -196,7 +249,7 @@ fn cpp_source(kernel: ProbeKernel) -> Result<cubecl_cpp::ComputeKernel, ProbeErr
 }
 
 #[cfg(feature = "cubecl-cpp-probe")]
-fn compile_cpp(kernel: ProbeKernel, sm: u32) -> Result<CompiledProbe, ProbeError> {
+fn compile_cpp(kernel: KernelStage, sm: u32) -> Result<CompiledProbe, ProbeError> {
     use cudarc::nvrtc::{CompileOptions, compile_ptx_with_opts, sys};
     // SAFETY: 仅探测编译器库，不传用户指针。
     if !unsafe { sys::is_culib_present() } {
@@ -236,7 +289,7 @@ fn compile_cpp(kernel: ProbeKernel, sm: u32) -> Result<CompiledProbe, ProbeError
 }
 
 #[cfg(feature = "cubecl-llvm-probe")]
-fn compile_llvm(kernel: ProbeKernel, sm: u32, driver: i32) -> Result<CompiledProbe, ProbeError> {
+fn compile_llvm(kernel: KernelStage, sm: u32, driver: i32) -> Result<CompiledProbe, ProbeError> {
     use cubecl_core::ir::nvidia::SmArch;
     use cubecl_llvm::{
         LlvmTarget, PlironArtifact, PlironCompiler, PlironOptions, nvptx::ptx_version::PtxVersion,
@@ -274,6 +327,13 @@ fn compile_llvm(kernel: ProbeKernel, sm: u32, driver: i32) -> Result<CompiledPro
 mod tests {
     use super::*;
 
+    fn stages() -> impl Iterator<Item = KernelStage> {
+        ProbeKernel::ALL
+            .into_iter()
+            .map(KernelStage::Probe)
+            .chain([KernelStage::ScanTotals, KernelStage::ScanOffsets])
+    }
+
     #[test]
     fn linker_retains_slice_interface_registration() {
         use cubecl_core::ir::{
@@ -289,7 +349,7 @@ mod tests {
 
     #[test]
     fn freezes_metadata_layout_and_launch_dimensions() {
-        for kind in ProbeKernel::ALL {
+        for kind in stages() {
             let kernel = definition(kind);
             assert!(kernel.info.scalars.is_empty());
             assert!(!kernel.info.has_dynamic_meta);
@@ -305,17 +365,25 @@ mod tests {
     #[cfg(feature = "cubecl-cpp-probe")]
     #[test]
     fn lowers_rust_kernel_to_cpp_without_gpu() {
-        for kind in ProbeKernel::ALL {
+        for kind in stages() {
             let kernel = cpp_source(kind).unwrap();
             assert!(kernel.source.contains(kind.entrypoint()));
             assert!(kernel.source.contains("info_st"));
             assert_eq!(kernel.buffers.len(), 2);
-            if matches!(kind, ProbeKernel::BlockReduce | ProbeKernel::BlockScan) {
+            if matches!(
+                kind,
+                KernelStage::Probe(
+                    ProbeKernel::BlockReduce | ProbeKernel::BlockScan | ProbeKernel::GlobalScan
+                )
+            ) {
                 assert!(kernel.source.contains("__syncthreads"));
                 assert!(kernel.source.contains("__shared__"));
             }
-            if kind == ProbeKernel::AtomicSum {
+            if kind == KernelStage::Probe(ProbeKernel::AtomicSum) {
                 assert!(kernel.source.contains("atom.relaxed.add.u32"));
+            }
+            if kind == KernelStage::Probe(ProbeKernel::FloatAtomicSum) {
+                assert!(kernel.source.contains("atom.relaxed.add.f32"));
             }
         }
     }
@@ -323,17 +391,25 @@ mod tests {
     #[cfg(feature = "cubecl-llvm-probe")]
     #[test]
     fn lowers_all_rust_kernels_to_ptx_without_gpu() {
-        for kind in ProbeKernel::ALL {
+        for kind in stages() {
             // 固定编译目标，不访问驱动。
             let kernel = compile_llvm(kind, 89, 13020).unwrap();
             let ptx = kernel.ptx.to_src();
             assert_eq!(kernel.entrypoint, kind.entrypoint());
             assert!(ptx.contains(kind.entrypoint()));
-            if matches!(kind, ProbeKernel::BlockReduce | ProbeKernel::BlockScan) {
+            if matches!(
+                kind,
+                KernelStage::Probe(
+                    ProbeKernel::BlockReduce | ProbeKernel::BlockScan | ProbeKernel::GlobalScan
+                )
+            ) {
                 assert!(ptx.contains("bar.sync"));
                 assert!(ptx.contains(".shared"));
             }
-            if kind == ProbeKernel::AtomicSum {
+            if matches!(
+                kind,
+                KernelStage::Probe(ProbeKernel::AtomicSum | ProbeKernel::FloatAtomicSum)
+            ) {
                 assert!(ptx.contains("atom.") || ptx.contains("red."));
             }
         }

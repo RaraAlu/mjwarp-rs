@@ -14,6 +14,8 @@ fn validates_buffers_events_and_graph_replays_on_gpu() {
         .unwrap();
         assert_eq!(report.elements, elements);
         assert_eq!(report.graph_replays, 3);
+        assert_eq!(report.graph_kernel_nodes, 1);
+        assert_eq!(report.graph_node_updates, 3);
     }
 }
 

@@ -11,6 +11,35 @@ pub(super) struct Samples<T> {
     pub input: Vec<T>,
     pub initial: Vec<T>,
     pub expected: Vec<T>,
+    pub scan_levels: Vec<ScanSamples<T>>,
+}
+
+pub(super) struct ScanSamples<T> {
+    pub sums: Vec<T>,
+    pub prefix: Vec<T>,
+}
+
+fn scan_levels(input: &[u32]) -> Vec<ScanSamples<u32>> {
+    let mut levels = Vec::new();
+    let mut values = input.to_vec();
+    while values.len() > BLOCK_THREADS {
+        let mut sums: Vec<u32> = values
+            .chunks(BLOCK_THREADS)
+            .map(|block| block.iter().sum())
+            .collect();
+        let mut prefix: Vec<u32> = sums
+            .iter()
+            .scan(0, |total, value| {
+                *total += value;
+                Some(*total)
+            })
+            .collect();
+        values.clone_from(&sums);
+        sums.extend([INTEGER_GUARD; GUARD_ELEMENTS]);
+        prefix.extend([INTEGER_GUARD; GUARD_ELEMENTS]);
+        levels.push(ScanSamples { sums, prefix });
+    }
+    levels
 }
 
 pub(super) fn integers(kernel: ProbeKernel, elements: usize, epoch: usize) -> Samples<u32> {
@@ -30,6 +59,13 @@ pub(super) fn integers(kernel: ProbeKernel, elements: usize, epoch: usize) -> Sa
                     *sum += value;
                     Some(*sum)
                 })
+            })
+            .collect(),
+        ProbeKernel::GlobalScan => input
+            .iter()
+            .scan(0, |sum, value| {
+                *sum += value;
+                Some(*sum)
             })
             .collect(),
         ProbeKernel::ControlFlow => input
@@ -55,6 +91,11 @@ pub(super) fn integers(kernel: ProbeKernel, elements: usize, epoch: usize) -> Sa
     initial.extend([INTEGER_GUARD; GUARD_ELEMENTS]);
     expected.extend([INTEGER_GUARD; GUARD_ELEMENTS]);
     Samples {
+        scan_levels: if kernel == ProbeKernel::GlobalScan {
+            scan_levels(&input)
+        } else {
+            Vec::new()
+        },
         input,
         initial,
         expected,
@@ -67,6 +108,18 @@ pub(super) fn floats(kernel: ProbeKernel, elements: usize, epoch: usize) -> Samp
             let input = input_values(elements, epoch);
             let expected = input.iter().map(|value| value * 2.0 + 1.0).collect();
             (input, expected)
+        }
+        ProbeKernel::FloatAtomicSum => {
+            // 四分之一整数保证任意次序精确。
+            // 单项绝对值不超过3。
+            let input: Vec<f32> = (0..elements)
+                .map(|index| {
+                    let quarter = (index % 17) as i32 - 8 + (epoch % 9) as i32 - 4;
+                    quarter as f32 * 0.25
+                })
+                .collect();
+            let sum: f64 = input.iter().map(|&value| f64::from(value)).sum();
+            (input, vec![sum as f32])
         }
         ProbeKernel::SmallSolve => {
             // 已知解生成右端，避免复制求解算法。
@@ -83,12 +136,16 @@ pub(super) fn floats(kernel: ProbeKernel, elements: usize, epoch: usize) -> Samp
         }
         _ => unreachable!("整数内核不使用浮点样本"),
     };
-    let initial = vec![GUARD_VALUE; expected.len() + GUARD_ELEMENTS];
+    let mut initial = vec![GUARD_VALUE; expected.len() + GUARD_ELEMENTS];
+    if kernel == ProbeKernel::FloatAtomicSum {
+        initial[0] = 0.0;
+    }
     expected.extend([GUARD_VALUE; GUARD_ELEMENTS]);
     Samples {
         input,
         initial,
         expected,
+        scan_levels: Vec::new(),
     }
 }
 
@@ -104,10 +161,28 @@ pub(super) fn validate_integers(
     samples: &Samples<u32>,
     actual: &[u32],
 ) -> Result<(), ProbeError> {
-    validate_length(samples.expected.len(), actual.len())?;
-    for (index, (&expected, &actual)) in samples.expected.iter().zip(actual).enumerate() {
+    validate_integer_values(&samples.expected, actual)
+}
+
+pub(super) fn validate_integer_values(expected: &[u32], actual: &[u32]) -> Result<(), ProbeError> {
+    validate_length(expected.len(), actual.len())?;
+    for (index, (&expected, &actual)) in expected.iter().zip(actual).enumerate() {
         if expected != actual {
             return Err(ProbeError::IntegerMismatch {
+                index,
+                expected,
+                actual,
+            });
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn validate_float_values(expected: &[f32], actual: &[f32]) -> Result<(), ProbeError> {
+    validate_length(expected.len(), actual.len())?;
+    for (index, (&expected, &actual)) in expected.iter().zip(actual).enumerate() {
+        if expected != actual {
+            return Err(ProbeError::Mismatch {
                 index,
                 expected,
                 actual,
@@ -179,6 +254,11 @@ mod tests {
         assert_eq!(scan.expected[0], 1);
         assert_eq!(scan.expected[127], 1116);
         assert_eq!(scan.expected[128], 10);
+        let global = integers(ProbeKernel::GlobalScan, 129, 0);
+        assert_eq!(global.expected[128], 1126);
+        assert_eq!(global.scan_levels.len(), 1);
+        assert_eq!(global.scan_levels[0].sums[..2], [1116, 10]);
+        assert_eq!(global.scan_levels[0].prefix[..2], [1116, 1126]);
         let atomic = integers(ProbeKernel::AtomicSum, 129, 0);
         assert_eq!(atomic.expected[0], 1126);
         assert_eq!(atomic.initial[0], 0);
@@ -189,7 +269,10 @@ mod tests {
     #[test]
     fn checks_all_reference_values_and_guards() {
         for kernel in ProbeKernel::ALL {
-            if matches!(kernel, ProbeKernel::Affine | ProbeKernel::SmallSolve) {
+            if matches!(
+                kernel,
+                ProbeKernel::Affine | ProbeKernel::SmallSolve | ProbeKernel::FloatAtomicSum
+            ) {
                 let samples = floats(kernel, 129, 3);
                 validate_floats(kernel, &samples, &samples.expected).unwrap();
             } else {
@@ -205,6 +288,7 @@ mod tests {
             ProbeKernel::AtomicSum,
             ProbeKernel::BlockReduce,
             ProbeKernel::BlockScan,
+            ProbeKernel::GlobalScan,
             ProbeKernel::ControlFlow,
         ] {
             let old = integers(kernel, 129, 0);
@@ -261,5 +345,73 @@ mod tests {
         close(0, 0.0, SOLVE_TOLERANCE).unwrap();
         assert!(close(0, 0.0, SOLVE_TOLERANCE * 1.01).is_err());
         assert!(close(0, 0.0, f64::NAN).is_err());
+    }
+
+    #[test]
+    fn fixes_hierarchical_scan_shapes_and_rejects_block_local_results() {
+        for (elements, shapes) in [
+            (128, vec![]),
+            (129, vec![2]),
+            (16384, vec![128]),
+            (16385, vec![129, 2]),
+            (super::super::MAX_ELEMENTS, vec![8192, 64]),
+        ] {
+            let global = integers(ProbeKernel::GlobalScan, elements, 3);
+            assert_eq!(
+                global
+                    .scan_levels
+                    .iter()
+                    .map(|level| level.sums.len() - GUARD_ELEMENTS)
+                    .collect::<Vec<_>>(),
+                shapes
+            );
+            let sum: u64 = global.input.iter().map(|&value| u64::from(value)).sum();
+            assert_eq!(u64::from(global.expected[elements - 1]), sum);
+            for level in &global.scan_levels {
+                let active = level.sums.len() - GUARD_ELEMENTS;
+                assert_eq!(u64::from(level.prefix[active - 1]), sum);
+                assert_eq!(&level.sums[active..], &[INTEGER_GUARD; GUARD_ELEMENTS]);
+            }
+            if elements > BLOCK_THREADS {
+                let local = integers(ProbeKernel::BlockScan, elements, 3);
+                assert!(
+                    validate_integers(ProbeKernel::GlobalScan, &global, &local.expected).is_err()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn bounds_float_atomic_partials_and_rejects_stale_or_nonfinite_outputs() {
+        let kernel = ProbeKernel::FloatAtomicSum;
+        for epoch in [0, 1, 8, 9, super::super::MAX_REPLAYS] {
+            let samples = floats(kernel, super::super::MAX_ELEMENTS, epoch);
+            let quarters: Vec<i64> = samples
+                .input
+                .iter()
+                .map(|&value| (value * 4.0) as i64)
+                .collect();
+            assert!(quarters.iter().map(|value| value.abs()).sum::<i64>() < 1 << 24);
+            assert!(quarters.iter().any(|&value| value < 0));
+            assert!(quarters.iter().any(|&value| value > 0));
+            assert_eq!(
+                samples.expected[0],
+                quarters.iter().sum::<i64>() as f32 * 0.25
+            );
+            assert_eq!(samples.initial[0], 0.0);
+            validate_floats(kernel, &samples, &samples.expected).unwrap();
+            let stale = floats(kernel, super::super::MAX_ELEMENTS, epoch + 1);
+            assert!(validate_floats(kernel, &samples, &stale.expected).is_err());
+        }
+        let samples = floats(kernel, 129, 3);
+        for value in [samples.expected[0] + 0.25, f32::NAN, f32::INFINITY] {
+            let mut output = samples.expected.clone();
+            output[0] = value;
+            assert!(validate_floats(kernel, &samples, &output).is_err());
+        }
+        assert!(validate_float_values(&samples.expected, &[]).is_err());
+        let mut bad_guard = samples.expected.clone();
+        *bad_guard.last_mut().unwrap() = 0.0;
+        assert!(validate_float_values(&samples.expected, &bad_guard).is_err());
     }
 }
