@@ -60,6 +60,7 @@ CPU调试与工具边界仍待确认。
 17. [Windows外部资源ABI探针](windows-external-probe.md)
 18. [基础源码与架构收口](foundation-architecture.md)
 19. [Windows字段交换探针](windows-transfer-probe.md)
+20. [Windows原生模型输入探针](windows-native-model-probe.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -127,13 +128,14 @@ Windows补齐八项能力探针。
 | Cargo包名 | `mjwarp-rs` |
 | Cargo版本 | `0.1.0` |
 | Rust edition | `2024` |
-| 第三方依赖 | 可选cudarc、冻结CubeCL、serde、JSON与sha2；锁定版本 |
+| 第三方依赖 | 可选cudarc、冻结CubeCL、serde、JSON、sha2与原生构建cc；锁定版本 |
 | 程序入口 | `src/main.rs` |
 | 程序行为 | 提供`probe`、`resources`、`external-resources`、`cache-build`与`cache-run`；默认不加载GPU依赖 |
 | 库入口 | `src/lib.rs`；导出七模块基础接口与探针，不提供完整引擎 |
-| 模型基础 | 检查连续批量字段、容量与世界范围；原生模型ABI仍待实现 |
+| 模型基础 | 检查连续布局与小型原生DTO；完整模型ABI仍待实现 |
 | 输入转换 | 先校验再转f32；支持连续字段GPU交换；不替代等价上传入口 |
 | GPU字段交换 | f32、i32与u32上传、回读与世界复制；独占缓冲、会话隔离与同步等待 |
+| 原生模型输入探针 | Windows MSVC可选读取可信MJB；四字段独占快照与GPU回读；不提供完整put_model |
 | 纯数学 | 八项f32四元数及空间代数公式；GPU数值验收仍待补齐 |
 | 历史基础 | 检查三维布局与显式时间阈值；GPU历史仍待实现 |
 | 图像基础 | 检查单相机批量像素、容量与输出开关；不生成像素 |
@@ -146,7 +148,7 @@ Windows补齐八项能力探针。
 | GPU批量渲染 | 尚未实现 |
 | CPU play与查看器 | 不属于本仓库职责 |
 
-依据：[包配置](../Cargo.toml)、[程序入口](../src/main.rs)、[驱动基线](gpu-probe.md)、[双路报告](cubecl-probe.md)、[能力报告](windows-kernel-probe.md)、[租约报告](windows-resource-probe.md)、[缓存报告](windows-artifact-probe.md)、[外部ABI报告](windows-external-probe.md)、[基础报告](foundation-architecture.md)、[字段报告](windows-transfer-probe.md)。
+依据：[包配置](../Cargo.toml)、[程序入口](../src/main.rs)、[驱动基线](gpu-probe.md)、[双路报告](cubecl-probe.md)、[能力报告](windows-kernel-probe.md)、[租约报告](windows-resource-probe.md)、[缓存报告](windows-artifact-probe.md)、[外部ABI报告](windows-external-probe.md)、[基础报告](foundation-architecture.md)、[字段报告](windows-transfer-probe.md)、[原生输入报告](windows-native-model-probe.md)。
 
 骨架版本不代表正式验收。
 文档不宣称已有完整引擎。

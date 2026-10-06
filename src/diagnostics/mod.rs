@@ -2,6 +2,50 @@
 
 use std::fmt;
 
+/// 原生已编译输入探针的错误。
+/// 不承诺恶意MJB的安全隔离。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum NativeProbeError {
+    Input(InputError),
+    InvalidPath,
+    InvalidMjbHeader,
+    AbiMismatch,
+    VersionMismatch { expected: i32, actual: i32 },
+    Native { stage: &'static str, code: u32 },
+    HostAllocation { bytes: usize },
+}
+
+impl From<InputError> for NativeProbeError {
+    fn from(error: InputError) -> Self {
+        Self::Input(error)
+    }
+}
+
+impl fmt::Display for NativeProbeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Input(error) => write!(f, "原生输入错误：{error}"),
+            Self::InvalidPath => write!(f, "请提供无NUL的绝对DLL路径"),
+            Self::InvalidMjbHeader => write!(f, "MJB头部无效"),
+            Self::AbiMismatch => write!(f, "原生探针ABI不匹配"),
+            Self::VersionMismatch { expected, actual } => {
+                write!(f, "原生版本错误：期望{expected}，实际{actual}")
+            }
+            Self::Native { stage, code } => write!(f, "原生失败：{stage}；错误码{code}"),
+            Self::HostAllocation { bytes } => write!(f, "宿主分配失败：{bytes}字节"),
+        }
+    }
+}
+
+impl std::error::Error for NativeProbeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Input(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
 /// 基础辅助接口的输入错误。
 /// 不替代正式引擎诊断。
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -295,6 +339,30 @@ impl std::error::Error for ProbeError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preserves_native_error_stage_version_and_source() {
+        use std::error::Error;
+        assert_eq!(
+            NativeProbeError::Native {
+                stage: "load_library",
+                code: 126
+            }
+            .to_string(),
+            "原生失败：load_library；错误码126"
+        );
+        let error = NativeProbeError::from(InputError::InvalidDimension { field: "nbody" });
+        assert_eq!(error.source().unwrap().to_string(), "维度无效：nbody");
+        assert!(NativeProbeError::AbiMismatch.source().is_none());
+        assert!(
+            NativeProbeError::VersionMismatch {
+                expected: 3012000,
+                actual: 123
+            }
+            .to_string()
+            .contains("实际123")
+        );
+    }
 
     #[test]
     fn preserves_transfer_error_sources_and_ranges() {

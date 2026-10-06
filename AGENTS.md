@@ -6,6 +6,7 @@
 
 项目只负责MJWarp引擎能力。
 当前代码提供无头GPU探针。
+基础辅助与原生输入探针已落地。
 GPU引擎尚待实现。
 首版面向NVIDIA。
 验收覆盖Windows与Linux。
@@ -31,10 +32,15 @@ LRsLab负责CPU play。
 | `Cargo.toml` | 指定包信息与语言版本 |
 | `Cargo.lock` | 锁定依赖版本 |
 | `src/main.rs` | 提供探针命令入口 |
-| `src/lib.rs` | 导出探针配置与结果 |
+| `src/lib.rs` | 导出七模块基础接口与探针 |
+| `src/model/` | 检查批量布局与原生DTO |
+| `src/io/` | 转换、GPU字段交换与原生快照 |
 | `src/runtime/` | 实现驱动级GPU探针 |
 | `src/diagnostics/` | 定义探针错误 |
-| `tests/` | 存放Rust GPU探针测试 |
+| `native/`与`include/` | 提供可选原生桥接 |
+| `build.rs` | 按feature编译原生桥接 |
+| `tests/` | 存放Rust GPU与原生探针测试 |
+| `fixtures/native-probe/` | 保留静态MJB、源XML与哈希 |
 | `docs/README.md` | 提供文档索引与现状 |
 | `docs/project-positioning.md` | 明确产品与依赖边界 |
 | `docs/architecture.md` | 描述目标模块与接口 |
@@ -47,7 +53,6 @@ LRsLab负责CPU play。
 以下目录尚未创建：
 
 ```text
-fixtures/   模型、轨迹与图像样本
 benches/    性能测试
 examples/   接入示例
 ```
@@ -71,6 +76,14 @@ GPU探针需要NVIDIA驱动。
 | `cargo fmt --check` | 检查格式 |
 | `cargo fmt` | 格式化源码 |
 | `cargo clippy --all-targets -- -D warnings` | 检查代码并拒绝警告 |
+
+原生输入探针暂限Windows MSVC。
+它通过可选feature编译C++桥接。
+默认GNU工具链保持不变。
+先运行`prepare-native-probe.ps1`。
+再运行`test-windows-native.ps1`。
+脚本位于`scripts/`目录。
+详见原生模型输入探针报告。
 
 ## 编码风格与命名
 
@@ -127,7 +140,7 @@ fn rejects_invalid_dimensions() { /* ... */ }
 
 ## 提交与合并请求
 
-仓库尚无历史提交。
+仓库已有中文历史提交。
 采用以下中文标题格式：
 
 ```text
