@@ -1,7 +1,7 @@
 # mjwarp-rs 项目文档
 
 创建日期：2026-10-06。
-状态：设计与P1探针开发。
+状态：基础层与P1探针开发。
 
 本项目对标MJWarp。
 它提供Rust GPU物理接口。
@@ -58,6 +58,7 @@ CPU调试与工具边界仍待确认。
 15. [Windows资源租约探针](windows-resource-probe.md)
 16. [Windows产物缓存探针](windows-artifact-probe.md)
 17. [Windows外部资源ABI探针](windows-external-probe.md)
+18. [基础源码与架构收口](foundation-architecture.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -85,7 +86,10 @@ CPU调试与工具边界仍待确认。
 MC物理契约任务仍待实现。
 字段单位、布局与证据仍待补齐。
 全量内部组合仍待展开。
-契约签名尚未进入源码。
+产品契约仍待完整实现。
+五模块已有基础辅助接口。
+八项数学公式已有宿主测试。
+运行时架构拆成七个叶子。
 Windows驱动探针已经执行。
 CubeCL C++已执行Windows探针。
 CubeCL LLVM也通过局部探针。
@@ -123,7 +127,12 @@ Windows补齐八项能力探针。
 | 第三方依赖 | 可选cudarc、冻结CubeCL、serde、JSON与sha2；锁定版本 |
 | 程序入口 | `src/main.rs` |
 | 程序行为 | 提供`probe`、`resources`、`external-resources`、`cache-build`与`cache-run`；默认不加载GPU依赖 |
-| 库入口 | `src/lib.rs`；只导出探针，不提供物理引擎 |
+| 库入口 | `src/lib.rs`；导出七模块基础接口与探针，不提供完整引擎 |
+| 模型基础 | 检查连续批量字段、容量与世界范围；原生模型ABI仍待实现 |
+| 输入转换 | 先校验再转f32；复制指定世界字段；不替代等价上传入口 |
+| 纯数学 | 八项f32四元数及空间代数公式；GPU数值验收仍待补齐 |
+| 历史基础 | 检查三维布局与显式时间阈值；GPU历史仍待实现 |
+| 图像基础 | 检查单相机批量像素、容量与输出开关；不生成像素 |
 | 驱动级GPU探针 | Windows通过；缓冲、事件、边界与图重放 |
 | CubeCL内核路线 | Windows双路各通过74组配置；含全局扫描、f32原子及图更新 |
 | 内部资源租约 | 三路各通过5种规模；支持偏移视图、完成队列、句柄提前释放与宿主失败隔离 |
@@ -133,10 +142,10 @@ Windows补齐八项能力探针。
 | GPU批量渲染 | 尚未实现 |
 | CPU play与查看器 | 不属于本仓库职责 |
 
-依据：[包配置](../Cargo.toml)、[程序入口](../src/main.rs)、[驱动基线](gpu-probe.md)、[双路报告](cubecl-probe.md)、[能力报告](windows-kernel-probe.md)、[租约报告](windows-resource-probe.md)、[缓存报告](windows-artifact-probe.md)、[外部ABI报告](windows-external-probe.md)。
+依据：[包配置](../Cargo.toml)、[程序入口](../src/main.rs)、[驱动基线](gpu-probe.md)、[双路报告](cubecl-probe.md)、[能力报告](windows-kernel-probe.md)、[租约报告](windows-resource-probe.md)、[缓存报告](windows-artifact-probe.md)、[外部ABI报告](windows-external-probe.md)、[基础报告](foundation-architecture.md)。
 
 骨架版本不代表正式验收。
-文档不宣称已有引擎API。
+文档不宣称已有完整引擎。
 GPU编译路线仍需原型验证。
 原生依赖版本仍需冻结。
 许可与部署清单仍需核对。

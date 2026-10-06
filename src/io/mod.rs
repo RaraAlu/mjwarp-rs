@@ -1,0 +1,155 @@
+//! 宿主转换与状态片段复制。
+//! 不提供模型上传入口。
+
+use crate::diagnostics::InputError;
+use crate::model::BatchLayout;
+
+/// 先检查全量输入，再转换。
+/// 拒绝非有限值与f32溢出。
+/// 允许舍入、下溢和负零。
+/// 此严格辅助接口不替代put_data。
+pub fn convert_f64_to_f32_into(source: &[f64], target: &mut [f32]) -> Result<(), InputError> {
+    check_length("target", source.len(), target.len())?;
+    for (index, &value) in source.iter().enumerate() {
+        if !value.is_finite() {
+            return Err(InputError::NonFinite {
+                field: "source",
+                index,
+            });
+        }
+        if !(value as f32).is_finite() {
+            return Err(InputError::ScalarOverflow {
+                field: "source",
+                index,
+            });
+        }
+    }
+    for (&value, output) in source.iter().zip(target) {
+        *output = value as f32;
+    }
+    Ok(())
+}
+
+/// 复制一个世界的连续f32字段。
+/// 保留全部位模式。
+/// 任意输入错误都不改写目标。
+pub fn copy_world_f32(
+    layout: BatchLayout,
+    world: usize,
+    source: &[f32],
+    target: &mut [f32],
+) -> Result<(), InputError> {
+    if layout.element_bytes() != size_of::<f32>() {
+        return Err(InputError::InvalidDimension {
+            field: "element_bytes",
+        });
+    }
+    let range = layout.world_elements(world)?;
+    check_length("source", layout.elements_per_world(), source.len())?;
+    check_length("target", layout.total_elements(), target.len())?;
+    target[range].copy_from_slice(source);
+    Ok(())
+}
+
+fn check_length(field: &'static str, expected: usize, actual: usize) -> Result<(), InputError> {
+    if expected != actual {
+        return Err(InputError::LengthMismatch {
+            field,
+            expected,
+            actual,
+        });
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn converts_with_rounding_underflow_and_negative_zero() {
+        let source = [
+            1.5,
+            -0.0,
+            f64::MIN_POSITIVE,
+            f64::from(f32::MAX),
+            16_777_217.0,
+        ];
+        let mut target = [9.0; 5];
+        convert_f64_to_f32_into(&source, &mut target).unwrap();
+        assert_eq!(target, [1.5, -0.0, 0.0, f32::MAX, 16_777_216.0]);
+        assert_eq!(target[1].to_bits(), (-0.0_f32).to_bits());
+        convert_f64_to_f32_into(&[], &mut []).unwrap();
+    }
+
+    #[test]
+    fn rejects_non_finite_inputs_without_partial_writes() {
+        for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let mut target = [7.0; 3];
+            assert_eq!(
+                convert_f64_to_f32_into(&[1.0, 2.0, invalid], &mut target),
+                Err(InputError::NonFinite {
+                    field: "source",
+                    index: 2
+                })
+            );
+            assert_eq!(target, [7.0; 3]);
+        }
+    }
+
+    #[test]
+    fn rejects_conversion_overflow_without_partial_writes() {
+        for invalid in [f64::MAX, -f64::MAX] {
+            let mut target = [7.0; 2];
+            assert_eq!(
+                convert_f64_to_f32_into(&[1.0, invalid], &mut target),
+                Err(InputError::ScalarOverflow {
+                    field: "source",
+                    index: 1
+                })
+            );
+            assert_eq!(target, [7.0; 2]);
+        }
+    }
+
+    #[test]
+    fn rejects_conversion_length_without_writes() {
+        let mut target = [7.0];
+        assert_eq!(
+            convert_f64_to_f32_into(&[1.0, 2.0], &mut target),
+            Err(InputError::LengthMismatch {
+                field: "target",
+                expected: 2,
+                actual: 1
+            })
+        );
+        assert_eq!(target, [7.0]);
+    }
+
+    #[test]
+    fn copies_one_world_and_preserves_bits() {
+        let layout = BatchLayout::new(3, 2, 4).unwrap();
+        let source = [f32::from_bits(0x7fc0_0017), -0.0];
+        let mut target = [7.0; 6];
+        copy_world_f32(layout, 1, &source, &mut target).unwrap();
+        assert_eq!(&target[..2], &[7.0; 2]);
+        assert_eq!(&target[4..], &[7.0; 2]);
+        assert_eq!(target[2].to_bits(), source[0].to_bits());
+        assert_eq!(target[3].to_bits(), source[1].to_bits());
+        copy_world_f32(BatchLayout::new(2, 0, 4).unwrap(), 1, &[], &mut []).unwrap();
+    }
+
+    #[test]
+    fn rejects_copy_inputs_without_writes() {
+        let mut target = [7.0; 4];
+        for (layout, world, source) in [
+            (BatchLayout::new(2, 2, 8).unwrap(), 0, &[1.0, 2.0][..]),
+            (BatchLayout::new(2, 2, 4).unwrap(), 2, &[1.0, 2.0][..]),
+            (BatchLayout::new(2, 2, 4).unwrap(), 1, &[1.0][..]),
+            (BatchLayout::new(2, 3, 4).unwrap(), 1, &[1.0, 2.0, 3.0][..]),
+        ] {
+            assert!(copy_world_f32(layout, world, source, &mut target).is_err());
+            assert_eq!(target, [7.0; 4]);
+        }
+    }
+}

@@ -1,6 +1,65 @@
-//! 探针错误独立于物理诊断。
+//! 基础输入错误与独立探针错误。
 
 use std::fmt;
+
+/// 基础辅助接口的输入错误。
+/// 不替代正式引擎诊断。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum InputError {
+    InvalidDimension {
+        field: &'static str,
+    },
+    Overflow {
+        field: &'static str,
+    },
+    LengthMismatch {
+        field: &'static str,
+        expected: usize,
+        actual: usize,
+    },
+    NonFinite {
+        field: &'static str,
+        index: usize,
+    },
+    ScalarOverflow {
+        field: &'static str,
+        index: usize,
+    },
+    InvalidIndex {
+        field: &'static str,
+        index: usize,
+        limit: usize,
+    },
+    InvalidHistoryTime {
+        index: usize,
+    },
+    DisabledOutput,
+}
+
+impl fmt::Display for InputError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidDimension { field } => write!(f, "维度无效：{field}"),
+            Self::Overflow { field } => write!(f, "容量溢出：{field}"),
+            Self::LengthMismatch {
+                field,
+                expected,
+                actual,
+            } => write!(f, "长度错误：{field}；期望{expected}，实际{actual}"),
+            Self::NonFinite { field, index } => write!(f, "数值非有限：{field}[{index}]"),
+            Self::ScalarOverflow { field, index } => write!(f, "转换溢出：{field}[{index}]"),
+            Self::InvalidIndex {
+                field,
+                index,
+                limit,
+            } => write!(f, "索引越界：{field}[{index}]；上限{limit}"),
+            Self::InvalidHistoryTime { index } => write!(f, "历史时间间隔无效：{index}"),
+            Self::DisabledOutput => write!(f, "图像输出未启用"),
+        }
+    }
+}
+
+impl std::error::Error for InputError {}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ProbeError {
@@ -174,6 +233,21 @@ impl std::error::Error for ProbeError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preserves_input_field_and_index() {
+        let error = InputError::InvalidIndex {
+            field: "world",
+            index: 3,
+            limit: 2,
+        };
+        assert_eq!(error.to_string(), "索引越界：world[3]；上限2");
+        let error = InputError::NonFinite {
+            field: "state",
+            index: 7,
+        };
+        assert_eq!(error.to_string(), "数值非有限：state[7]");
+    }
 
     #[test]
     fn preserves_cuda_stage_and_code() {
