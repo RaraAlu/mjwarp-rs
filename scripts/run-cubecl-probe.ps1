@@ -6,10 +6,14 @@ param(
     [string]$Kernel = 'affine',
     [ValidateRange(1, 1048576)]
     [int]$Elements = 257,
-    [switch]$GpuTests
+    [switch]$GpuTests,
+    [switch]$ResourceTests
 )
 
 $ErrorActionPreference = 'Stop'
+if ($GpuTests -and $ResourceTests) {
+    throw '请选择一种测试矩阵'
+}
 $root = Split-Path -Parent $PSScriptRoot
 $cuda = Join-Path $root 'target\toolchains\cuda-12.8.1'
 if (-not (Test-Path -LiteralPath (Join-Path $cuda 'components.json'))) {
@@ -57,7 +61,9 @@ if ($Backend -eq 'llvm') {
 Push-Location $root
 try {
     $feature = "cubecl-$Backend-probe"
-    if ($GpuTests) {
+    if ($ResourceTests) {
+        & cargo @cargoArgs test --locked --features $feature --test runtime_resources -- --ignored --test-threads=1
+    } elseif ($GpuTests) {
         & cargo @cargoArgs test --locked --features $feature --test cubecl_probe -- --ignored --test-threads=1
     } else {
         & cargo @cargoArgs run --locked --features $feature -- probe --backend "cubecl-$Backend" --kernel $Kernel --elements $Elements

@@ -1,19 +1,31 @@
-use mjwarp_rs::runtime::{ProbeBackend, ProbeConfig, ProbeKernel, run_probe};
+use mjwarp_rs::runtime::{
+    ProbeBackend, ProbeConfig, ProbeKernel, ResourceProbeConfig, run_probe, run_resource_probe,
+};
 use std::process::ExitCode;
 
-const USAGE: &str = "mjwarp-rs probe [--backend native-ptx|cubecl-cpp|cubecl-llvm] [--kernel affine|atomic-sum|float-atomic-sum|block-reduce|block-scan|global-scan|control-flow|small-solve] [--device N] [--elements N] [--replays N]\n原生：cargo run --features cuda-probe -- probe\nC++：cargo run --features cubecl-cpp-probe -- probe --backend cubecl-cpp\nLLVM：cargo run --features cubecl-llvm-probe -- probe --backend cubecl-llvm\n探针不提供物理引擎。";
+const USAGE: &str = "mjwarp-rs probe [--backend native-ptx|cubecl-cpp|cubecl-llvm] [--kernel affine|atomic-sum|float-atomic-sum|block-reduce|block-scan|global-scan|control-flow|small-solve] [--device N] [--elements N] [--replays N]\nmjwarp-rs resources [--backend native-ptx|cubecl-cpp|cubecl-llvm] [--device N] [--elements N]\n原生：cargo run --features cuda-probe -- probe\nC++：cargo run --features cubecl-cpp-probe -- probe --backend cubecl-cpp\nLLVM：cargo run --features cubecl-llvm-probe -- probe --backend cubecl-llvm\n探针不提供物理引擎。";
 
-fn parse_args(args: &[String]) -> Result<Option<ProbeConfig>, String> {
+struct Command {
+    config: ProbeConfig,
+    resources: bool,
+}
+
+fn parse_args(args: &[String]) -> Result<Option<Command>, String> {
     if args.len() == 1 && matches!(args[0].as_str(), "--help" | "-h") {
         return Ok(None);
     }
-    if args.first().map(String::as_str) != Some("probe") {
-        return Err("请使用probe命令".into());
-    }
+    let resources = match args.first().map(String::as_str) {
+        Some("probe") => false,
+        Some("resources") => true,
+        _ => return Err("请使用probe或resources命令".into()),
+    };
     let mut config = ProbeConfig::default();
     let mut seen = [false; 5];
     let mut flags = args[1..].iter();
     while let Some(flag) = flags.next() {
+        if resources && matches!(flag.as_str(), "--kernel" | "--replays") {
+            return Err(format!("资源探针不支持：{flag}"));
+        }
         if flag == "--backend" {
             if seen[3] {
                 return Err(format!("重复参数：{flag}"));
@@ -46,12 +58,53 @@ fn parse_args(args: &[String]) -> Result<Option<ProbeConfig>, String> {
         *field = value.parse().map_err(|_| format!("需要非负整数：{flag}"))?;
     }
     config.validate().map_err(|error| error.to_string())?;
-    Ok(Some(config))
+    Ok(Some(Command { config, resources }))
+}
+
+fn resources(config: ProbeConfig) -> ExitCode {
+    match run_resource_probe(ResourceProbeConfig {
+        backend: config.backend,
+        device: config.device,
+        elements: config.elements,
+    }) {
+        Ok(report) => {
+            println!("platform={}/{}", report.os, report.arch);
+            println!("device={}: {}", report.device, report.gpu_name);
+            println!(
+                "sm={}.{}; driver_api={}",
+                report.compute_capability.0, report.compute_capability.1, report.driver_api_version
+            );
+            println!("route={}", report.backend.name());
+            if let Some(revision) = report.compiler_revision {
+                println!("cubecl_revision={revision}");
+            }
+            println!(
+                "elements={}; view_bytes={}; output_owner_bytes={}",
+                report.elements, report.view_bytes, report.output_owner_bytes
+            );
+            println!(
+                "submissions={}; host_failures={}; rejections={}; graph_replays={}",
+                report.completed_submissions,
+                report.failed_submissions,
+                report.rejected_requests,
+                report.graph_replays
+            );
+            println!(
+                "owner/offset-view/cross-stream/token-drop/token-forget/queue-drop/guard=pass"
+            );
+            println!("探针不冻结外部设备ABI。");
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            ExitCode::FAILURE
+        }
+    }
 }
 
 fn main() -> ExitCode {
     let args: Vec<_> = std::env::args().skip(1).collect();
-    let config = match parse_args(&args) {
+    let command = match parse_args(&args) {
         Ok(Some(config)) => config,
         Ok(None) => {
             println!("{USAGE}");
@@ -62,6 +115,10 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
+    if command.resources {
+        return resources(command.config);
+    }
+    let config = command.config;
     match run_probe(config) {
         Ok(report) => {
             println!("platform={}/{}", report.os, report.arch);
@@ -110,7 +167,11 @@ mod tests {
     fn accepts_help_defaults_and_explicit_values() {
         assert!(parse_args(&args(&["--help"])).unwrap().is_none());
         assert_eq!(
-            parse_args(&args(&["probe"])).unwrap().unwrap().elements,
+            parse_args(&args(&["probe"]))
+                .unwrap()
+                .unwrap()
+                .config
+                .elements,
             257
         );
         let config = parse_args(&args(&[
@@ -125,7 +186,8 @@ mod tests {
             "4",
         ]))
         .unwrap()
-        .unwrap();
+        .unwrap()
+        .config;
         assert_eq!(
             (config.device, config.elements, config.replays),
             (2, 129, 4)
@@ -174,8 +236,34 @@ mod tests {
                 kernel.name(),
             ]))
             .unwrap()
-            .unwrap();
+            .unwrap()
+            .config;
             assert_eq!(config.kernel, kernel);
+        }
+    }
+
+    #[test]
+    fn accepts_resource_command_and_rejects_kernel_options() {
+        let command = parse_args(&args(&[
+            "resources",
+            "--backend",
+            "cubecl-cpp",
+            "--elements",
+            "129",
+        ]))
+        .unwrap()
+        .unwrap();
+        assert!(command.resources);
+        assert_eq!(command.config.elements, 129);
+        assert_eq!(command.config.backend, ProbeBackend::CubeClCpp);
+        for values in [
+            vec!["resources", "--kernel", "affine"],
+            vec!["resources", "--replays", "1"],
+            vec!["resources", "--elements", "0"],
+            vec!["resources", "--backend", "cpu"],
+            vec!["resources", "--elements", "1", "--elements", "2"],
+        ] {
+            assert!(parse_args(&args(&values)).is_err());
         }
     }
 }

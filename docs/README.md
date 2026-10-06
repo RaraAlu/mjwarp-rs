@@ -55,6 +55,7 @@ CPU调试与工具边界仍待确认。
 12. [GPU探针与路线评估](gpu-probe.md)
 13. [CubeCL双路探针](cubecl-probe.md)
 14. [Windows内核能力探针](windows-kernel-probe.md)
+15. [Windows资源租约探针](windows-resource-probe.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -91,6 +92,9 @@ Windows补齐八项能力探针。
 双路通过分层全局扫描。
 双路通过f32原子累加。
 图节点更新切换真实输出。
+三路通过内部资源租约探针。
+队列保留真实缓冲所有者。
+提交失败保留错误状态。
 本轮不开展Linux工作。
 这些记录不代表引擎完成率。
 
@@ -109,15 +113,16 @@ Windows补齐八项能力探针。
 | Rust edition | `2024` |
 | 第三方依赖 | 可选cudarc与冻结CubeCL；Cargo.lock固定版本 |
 | 程序入口 | `src/main.rs` |
-| 程序行为 | 提供`probe`命令；默认不加载GPU依赖 |
+| 程序行为 | 提供`probe`与`resources`命令；默认不加载GPU依赖 |
 | 库入口 | `src/lib.rs`；只导出探针，不提供物理引擎 |
 | 驱动级GPU探针 | Windows通过；缓冲、事件、边界与图重放 |
 | CubeCL内核路线 | Windows双路各通过74组配置；含全局扫描、f32原子及图更新 |
+| 内部资源租约 | 三路各通过5种规模；支持偏移视图、完成队列、句柄提前释放与宿主失败隔离 |
 | GPU物理 | 尚未实现 |
 | GPU批量渲染 | 尚未实现 |
 | CPU play与查看器 | 不属于本仓库职责 |
 
-依据：[包配置](../Cargo.toml)、[程序入口](../src/main.rs)、[驱动基线](gpu-probe.md)、[双路报告](cubecl-probe.md)、[能力报告](windows-kernel-probe.md)。
+依据：[包配置](../Cargo.toml)、[程序入口](../src/main.rs)、[驱动基线](gpu-probe.md)、[双路报告](cubecl-probe.md)、[能力报告](windows-kernel-probe.md)、[租约报告](windows-resource-probe.md)。
 
 骨架版本不代表正式验收。
 文档不宣称已有引擎API。

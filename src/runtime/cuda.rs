@@ -13,6 +13,9 @@ use cudarc::driver::{
 use cudarc::nvrtc::Ptx;
 use std::sync::Arc;
 
+mod resources;
+pub(super) use resources::run as run_resources;
+
 fn cuda_error(stage: &'static str) -> impl FnOnce(DriverError) -> ProbeError {
     move |error| ProbeError::Cuda {
         stage,
@@ -288,7 +291,14 @@ impl Drop for ProbeGraph {
     }
 }
 
-pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
+struct DeviceInfo {
+    context: Arc<CudaContext>,
+    gpu_name: String,
+    capability: (i32, i32),
+    driver_api: i32,
+}
+
+fn prepare(config: ProbeConfig) -> Result<(DeviceInfo, GpuProgram), ProbeError> {
     // SAFETY: 只探测NVIDIA驱动库。
     // 加载器不解引用用户指针。
     if !unsafe { sys::is_culib_present() } {
@@ -365,9 +375,23 @@ pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
     #[cfg(not(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe")))]
     let scan = None;
     let program = GpuProgram { main, scan };
+    Ok((
+        DeviceInfo {
+            context,
+            gpu_name,
+            capability: (major, minor),
+            driver_api: version,
+        },
+        program,
+    ))
+}
+
+pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
+    let (info, program) = prepare(config)?;
+    let context = &info.context;
     let (graph_kernel_nodes, graph_node_updates) = match config.kernel {
         ProbeKernel::Affine | ProbeKernel::SmallSolve | ProbeKernel::FloatAtomicSum => run_typed(
-            &context,
+            context,
             &program,
             config,
             samples::floats,
@@ -375,7 +399,7 @@ pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
             samples::validate_float_values,
         )?,
         _ => run_typed(
-            &context,
+            context,
             &program,
             config,
             samples::integers,
@@ -383,6 +407,7 @@ pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
             samples::validate_integer_values,
         )?,
     };
+    drop(program);
     context.check_err().map_err(cuda_error("context-status"))?;
     Ok(ProbeReport {
         backend: config.backend,
@@ -397,9 +422,9 @@ pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
         os: std::env::consts::OS,
         arch: std::env::consts::ARCH,
         device: config.device,
-        gpu_name,
-        compute_capability: (major, minor),
-        driver_api_version: version,
+        gpu_name: info.gpu_name,
+        compute_capability: info.capability,
+        driver_api_version: info.driver_api,
         elements: config.elements,
         buffer_bytes: buffer_bytes(config.kernel.output_elements(config.elements)?)?,
         graph_replays: config.replays,

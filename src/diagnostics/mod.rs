@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ProbeError {
     InvalidArgument(&'static str),
     FeatureDisabled(&'static str),
@@ -30,6 +30,7 @@ pub enum ProbeError {
     BackendPanic,
     EmptyGraph,
     InvalidGraph(&'static str),
+    Resource(ResourceError),
     InvalidOutputLength {
         expected: usize,
         actual: usize,
@@ -49,6 +50,60 @@ pub enum ProbeError {
         expected: f64,
         actual: f64,
     },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ResourceError {
+    DeviceMismatch,
+    ContextMismatch,
+    InvalidRange {
+        offset: usize,
+        bytes: usize,
+        capacity: usize,
+    },
+    Misaligned,
+    StaleLayout {
+        expected: u64,
+        actual: u64,
+    },
+    ReadOnly,
+    Conflict,
+    LayoutBusy,
+    VersionExhausted,
+    Quarantined,
+    Poisoned,
+    InvalidCompletion,
+}
+
+impl From<ResourceError> for ProbeError {
+    fn from(error: ResourceError) -> Self {
+        Self::Resource(error)
+    }
+}
+
+impl fmt::Display for ResourceError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DeviceMismatch => write!(f, "设备不匹配"),
+            Self::ContextMismatch => write!(f, "上下文不匹配"),
+            Self::InvalidRange {
+                offset,
+                bytes,
+                capacity,
+            } => write!(f, "范围越界：偏移{offset}，字节{bytes}，容量{capacity}"),
+            Self::Misaligned => write!(f, "范围未按元素对齐"),
+            Self::StaleLayout { expected, actual } => {
+                write!(f, "布局过期：当前{expected}，请求{actual}")
+            }
+            Self::ReadOnly => write!(f, "只读资源拒绝写入"),
+            Self::Conflict => write!(f, "在途租约冲突"),
+            Self::LayoutBusy => write!(f, "在途资源拒绝布局变更"),
+            Self::VersionExhausted => write!(f, "资源版本或租约编号耗尽"),
+            Self::Quarantined => write!(f, "资源已隔离"),
+            Self::Poisoned => write!(f, "资源锁异常"),
+            Self::InvalidCompletion => write!(f, "完成令牌不属于在途队列"),
+        }
+    }
 }
 
 impl fmt::Display for ProbeError {
@@ -73,6 +128,7 @@ impl fmt::Display for ProbeError {
             Self::BackendPanic => write!(f, "GPU适配层异常；未回退CPU"),
             Self::EmptyGraph => write!(f, "图捕获没有记录内核"),
             Self::InvalidGraph(reason) => write!(f, "图布局错误：{reason}"),
+            Self::Resource(error) => write!(f, "资源错误：{error}"),
             Self::InvalidOutputLength { expected, actual } => {
                 write!(f, "输出长度错误：期望{expected}，实际{actual}")
             }

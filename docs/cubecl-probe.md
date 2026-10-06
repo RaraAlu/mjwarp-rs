@@ -5,6 +5,7 @@
 本轮不冻结引擎主路线。
 
 Windows最新能力见[内核报告](windows-kernel-probe.md)。
+资源原型见[租约报告](windows-resource-probe.md)。
 下文保留工具与安装复验。
 
 ## 当前结果

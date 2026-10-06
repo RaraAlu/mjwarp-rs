@@ -4,6 +4,10 @@
 use crate::diagnostics::ProbeError;
 
 #[cfg(any(feature = "cuda-probe", test))]
+mod completion;
+#[cfg(any(feature = "cuda-probe", test))]
+mod lease;
+#[cfg(any(feature = "cuda-probe", test))]
 mod samples;
 
 #[cfg(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe"))]
@@ -189,6 +193,75 @@ pub struct ProbeReport {
     pub graph_kernel_nodes: usize,
     /// 成功更新的节点参数次数。
     pub graph_node_updates: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ResourceProbeConfig {
+    pub backend: ProbeBackend,
+    pub device: usize,
+    pub elements: usize,
+}
+
+impl Default for ResourceProbeConfig {
+    fn default() -> Self {
+        let config = ProbeConfig::default();
+        Self {
+            backend: config.backend,
+            device: config.device,
+            elements: config.elements,
+        }
+    }
+}
+
+impl ResourceProbeConfig {
+    fn kernel_config(self) -> ProbeConfig {
+        ProbeConfig {
+            backend: self.backend,
+            device: self.device,
+            elements: self.elements,
+            kernel: ProbeKernel::Affine,
+            replays: 1,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ResourceProbeReport {
+    pub backend: ProbeBackend,
+    pub compiler_revision: Option<&'static str>,
+    pub os: &'static str,
+    pub arch: &'static str,
+    pub device: usize,
+    pub gpu_name: String,
+    pub compute_capability: (i32, i32),
+    pub driver_api_version: i32,
+    pub elements: usize,
+    pub view_bytes: usize,
+    pub output_owner_bytes: usize,
+    pub completed_submissions: usize,
+    /// GPU提交后模拟宿主错误。
+    /// 此项不注入设备故障。
+    pub failed_submissions: usize,
+    pub rejected_requests: usize,
+    pub graph_replays: usize,
+}
+
+/// 同步验证内部租约原型。
+/// 此接口不导出外部设备视图。
+pub fn run_resource_probe(config: ResourceProbeConfig) -> Result<ResourceProbeReport, ProbeError> {
+    config.kernel_config().validate()?;
+    if !config.backend.enabled() {
+        return Err(ProbeError::FeatureDisabled(
+            config.backend.required_feature(),
+        ));
+    }
+    #[cfg(feature = "cuda-probe")]
+    {
+        std::panic::catch_unwind(|| cuda::run_resources(config))
+            .map_err(|_| ProbeError::BackendPanic)?
+    }
+    #[cfg(not(feature = "cuda-probe"))]
+    Err(ProbeError::FeatureDisabled("cuda-probe"))
 }
 
 /// 同步返回探针结果。
@@ -384,6 +457,14 @@ mod tests {
             ProbeBackend::CubeClLlvm,
         ] {
             if !backend.enabled() {
+                assert_eq!(
+                    run_resource_probe(ResourceProbeConfig {
+                        backend,
+                        ..Default::default()
+                    })
+                    .unwrap_err(),
+                    ProbeError::FeatureDisabled(backend.required_feature())
+                );
                 for kernel in ProbeKernel::ALL {
                     if backend == ProbeBackend::NativePtx && kernel != ProbeKernel::Affine {
                         continue;
@@ -399,6 +480,19 @@ mod tests {
                     );
                 }
             }
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_resource_dimensions_before_loading_driver() {
+        for elements in [0, MAX_ELEMENTS + 1, usize::MAX] {
+            assert!(matches!(
+                run_resource_probe(ResourceProbeConfig {
+                    elements,
+                    ..Default::default()
+                }),
+                Err(ProbeError::InvalidArgument(_))
+            ));
         }
     }
 
