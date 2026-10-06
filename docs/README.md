@@ -57,6 +57,7 @@ CPU调试与工具边界仍待确认。
 14. [Windows内核能力探针](windows-kernel-probe.md)
 15. [Windows资源租约探针](windows-resource-probe.md)
 16. [Windows产物缓存探针](windows-artifact-probe.md)
+17. [Windows外部资源ABI探针](windows-external-probe.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -99,6 +100,10 @@ Windows补齐八项能力探针。
 三路支持可信PTX缓存复用。
 仅驱动子进程通过68组配置。
 清洁部署仍须独立机器证据。
+三路通过外部资源ABI原型。
+驱动核对传统分配实际范围。
+队列保留外部所有者与事件。
+原型不冻结生产张量接口。
 本轮不开展Linux工作。
 这些记录不代表引擎完成率。
 
@@ -117,17 +122,18 @@ Windows补齐八项能力探针。
 | Rust edition | `2024` |
 | 第三方依赖 | 可选cudarc、冻结CubeCL、serde、JSON与sha2；锁定版本 |
 | 程序入口 | `src/main.rs` |
-| 程序行为 | 提供`probe`、`resources`、`cache-build`与`cache-run`；默认不加载GPU依赖 |
+| 程序行为 | 提供`probe`、`resources`、`external-resources`、`cache-build`与`cache-run`；默认不加载GPU依赖 |
 | 库入口 | `src/lib.rs`；只导出探针，不提供物理引擎 |
 | 驱动级GPU探针 | Windows通过；缓冲、事件、边界与图重放 |
 | CubeCL内核路线 | Windows双路各通过74组配置；含全局扫描、f32原子及图更新 |
 | 内部资源租约 | 三路各通过5种规模；支持偏移视图、完成队列、句柄提前释放与宿主失败隔离 |
 | PTX缓存与部署烟测 | 17份产物；仅驱动受限进程通过68组配置；清洁机器验收仍待执行 |
+| 外部资源ABI原型 | Rust/C++核对96字节布局；三路核对实际分配与所有者移交；生产接口仍待决议 |
 | GPU物理 | 尚未实现 |
 | GPU批量渲染 | 尚未实现 |
 | CPU play与查看器 | 不属于本仓库职责 |
 
-依据：[包配置](../Cargo.toml)、[程序入口](../src/main.rs)、[驱动基线](gpu-probe.md)、[双路报告](cubecl-probe.md)、[能力报告](windows-kernel-probe.md)、[租约报告](windows-resource-probe.md)、[缓存报告](windows-artifact-probe.md)。
+依据：[包配置](../Cargo.toml)、[程序入口](../src/main.rs)、[驱动基线](gpu-probe.md)、[双路报告](cubecl-probe.md)、[能力报告](windows-kernel-probe.md)、[租约报告](windows-resource-probe.md)、[缓存报告](windows-artifact-probe.md)、[外部ABI报告](windows-external-probe.md)。
 
 骨架版本不代表正式验收。
 文档不宣称已有引擎API。

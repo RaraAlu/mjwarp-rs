@@ -78,6 +78,10 @@ pub enum ResourceError {
     Quarantined,
     Poisoned,
     InvalidCompletion,
+    InvalidExternalDescriptor,
+    UnsupportedExternalLayout,
+    UnsupportedExternalMemory,
+    DuplicateExternalAllocation,
 }
 
 impl From<ResourceError> for ProbeError {
@@ -107,6 +111,10 @@ impl fmt::Display for ResourceError {
             Self::Quarantined => write!(f, "资源已隔离"),
             Self::Poisoned => write!(f, "资源锁异常"),
             Self::InvalidCompletion => write!(f, "完成令牌不属于在途队列"),
+            Self::InvalidExternalDescriptor => write!(f, "外部描述符版本或范围无效"),
+            Self::UnsupportedExternalLayout => write!(f, "外部原型仅支持连续f32"),
+            Self::UnsupportedExternalMemory => write!(f, "外部原型拒绝此内存类型"),
+            Self::DuplicateExternalAllocation => write!(f, "外部分配仍持有注册或在途租约"),
         }
     }
 }

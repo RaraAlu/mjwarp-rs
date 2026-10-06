@@ -1,16 +1,18 @@
 use mjwarp_rs::runtime::{
     ArtifactReport, ProbeBackend, ProbeConfig, ProbeKernel, ProbeReport, ResourceProbeConfig,
-    build_probe_artifact, run_cached_probe, run_probe, run_resource_probe,
+    ResourceProbeReport, build_probe_artifact, run_cached_probe, run_external_resource_probe,
+    run_probe, run_resource_probe,
 };
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-const USAGE: &str = "mjwarp-rs probe [--backend native-ptx|cubecl-cpp|cubecl-llvm] [--kernel affine|atomic-sum|float-atomic-sum|block-reduce|block-scan|global-scan|control-flow|small-solve] [--device N] [--elements N] [--replays N]\nmjwarp-rs resources [--backend ROUTE] [--device N] [--elements N]\nmjwarp-rs cache-build --cache DIR [--backend ROUTE] [--kernel KERNEL] [--device N] [--refresh]\nmjwarp-rs cache-run --cache DIR --trust-cache [--backend ROUTE] [--kernel KERNEL] [--device N] [--elements N] [--replays N] [--require-no-nvrtc]\n原生：cargo run --features cuda-probe -- probe\nC++：cargo run --features cubecl-cpp-probe -- probe --backend cubecl-cpp\nLLVM：cargo run --features cubecl-llvm-probe -- probe --backend cubecl-llvm\n缓存摘要不认证代码来源。\n探针不提供物理引擎。";
+const USAGE: &str = "mjwarp-rs probe [--backend native-ptx|cubecl-cpp|cubecl-llvm] [--kernel affine|atomic-sum|float-atomic-sum|block-reduce|block-scan|global-scan|control-flow|small-solve] [--device N] [--elements N] [--replays N]\nmjwarp-rs resources [--backend ROUTE] [--device N] [--elements N]\nmjwarp-rs external-resources [--backend ROUTE] [--device N] [--elements N]\nmjwarp-rs cache-build --cache DIR [--backend ROUTE] [--kernel KERNEL] [--device N] [--refresh]\nmjwarp-rs cache-run --cache DIR --trust-cache [--backend ROUTE] [--kernel KERNEL] [--device N] [--elements N] [--replays N] [--require-no-nvrtc]\n原生：cargo run --features cuda-probe -- probe\nC++：cargo run --features cubecl-cpp-probe -- probe --backend cubecl-cpp\nLLVM：cargo run --features cubecl-llvm-probe -- probe --backend cubecl-llvm\n缓存摘要不认证代码来源。\n探针不提供物理引擎。";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Kind {
     Probe,
     Resources,
+    ExternalResources,
     CacheBuild,
     CacheRun,
 }
@@ -30,6 +32,7 @@ fn parse_args(args: &[String]) -> Result<Option<Command>, String> {
     let kind = match args.first().map(String::as_str) {
         Some("probe") => Kind::Probe,
         Some("resources") => Kind::Resources,
+        Some("external-resources") => Kind::ExternalResources,
         Some("cache-build") => Kind::CacheBuild,
         Some("cache-run") => Kind::CacheRun,
         _ => return Err("请使用探针或缓存命令".into()),
@@ -42,7 +45,9 @@ fn parse_args(args: &[String]) -> Result<Option<Command>, String> {
     let mut seen = [false; 9];
     let mut flags = args[1..].iter();
     while let Some(flag) = flags.next() {
-        if kind == Kind::Resources && matches!(flag.as_str(), "--kernel" | "--replays") {
+        if matches!(kind, Kind::Resources | Kind::ExternalResources)
+            && matches!(flag.as_str(), "--kernel" | "--replays")
+        {
             return Err(format!("资源探针不支持：{flag}"));
         }
         if kind == Kind::CacheBuild && matches!(flag.as_str(), "--elements" | "--replays") {
@@ -124,38 +129,26 @@ fn parse_args(args: &[String]) -> Result<Option<Command>, String> {
     }))
 }
 
-fn resources(config: ProbeConfig) -> ExitCode {
-    match run_resource_probe(ResourceProbeConfig {
+fn resources(config: ProbeConfig, external: bool) -> ExitCode {
+    let config = ResourceProbeConfig {
         backend: config.backend,
         device: config.device,
         elements: config.elements,
-    }) {
+    };
+    let result = if external {
+        run_external_resource_probe(config).map(|report| {
+            println!(
+                "imports={}; owner_releases={}; producer_dependencies={}",
+                report.imported_allocations, report.released_owners, report.producer_dependencies
+            );
+            report.resources
+        })
+    } else {
+        run_resource_probe(config)
+    };
+    match result {
         Ok(report) => {
-            println!("platform={}/{}", report.os, report.arch);
-            println!("device={}: {}", report.device, report.gpu_name);
-            println!(
-                "sm={}.{}; driver_api={}",
-                report.compute_capability.0, report.compute_capability.1, report.driver_api_version
-            );
-            println!("route={}", report.backend.name());
-            if let Some(revision) = report.compiler_revision {
-                println!("cubecl_revision={revision}");
-            }
-            println!(
-                "elements={}; view_bytes={}; output_owner_bytes={}",
-                report.elements, report.view_bytes, report.output_owner_bytes
-            );
-            println!(
-                "submissions={}; host_failures={}; rejections={}; graph_replays={}",
-                report.completed_submissions,
-                report.failed_submissions,
-                report.rejected_requests,
-                report.graph_replays
-            );
-            println!(
-                "owner/offset-view/cross-stream/token-drop/token-forget/queue-drop/guard=pass"
-            );
-            println!("探针不冻结外部设备ABI。");
+            print_resources(&report);
             ExitCode::SUCCESS
         }
         Err(error) => {
@@ -178,8 +171,8 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    if command.kind == Kind::Resources {
-        return resources(command.config);
+    if matches!(command.kind, Kind::Resources | Kind::ExternalResources) {
+        return resources(command.config, command.kind == Kind::ExternalResources);
     }
     let config = command.config;
     if let Some(directory) = &command.cache {
@@ -228,6 +221,32 @@ fn print_artifact(report: &ArtifactReport) {
     println!("artifact={}", report.path.display());
     println!("cache_status={:?}; stages={}", report.status, report.stages);
     println!("cache_key_sha256={}", report.key_sha256);
+}
+
+fn print_resources(report: &ResourceProbeReport) {
+    println!("platform={}/{}", report.os, report.arch);
+    println!("device={}: {}", report.device, report.gpu_name);
+    println!(
+        "sm={}.{}; driver_api={}",
+        report.compute_capability.0, report.compute_capability.1, report.driver_api_version
+    );
+    println!("route={}", report.backend.name());
+    if let Some(revision) = report.compiler_revision {
+        println!("cubecl_revision={revision}");
+    }
+    println!(
+        "elements={}; view_bytes={}; output_owner_bytes={}",
+        report.elements, report.view_bytes, report.output_owner_bytes
+    );
+    println!(
+        "submissions={}; host_failures={}; rejections={}; graph_replays={}",
+        report.completed_submissions,
+        report.failed_submissions,
+        report.rejected_requests,
+        report.graph_replays
+    );
+    println!("owner/offset-view/cross-stream/token-drop/token-forget/queue-drop/guard=pass");
+    println!("探针不冻结外部设备ABI。");
 }
 
 fn print_probe(report: &ProbeReport) {
@@ -365,6 +384,39 @@ mod tests {
             vec!["resources", "--elements", "0"],
             vec!["resources", "--backend", "cpu"],
             vec!["resources", "--elements", "1", "--elements", "2"],
+        ] {
+            assert!(parse_args(&args(&values)).is_err());
+        }
+    }
+
+    #[test]
+    fn accepts_external_resources_and_rejects_unrelated_options() {
+        let command = parse_args(&args(&[
+            "external-resources",
+            "--backend",
+            "cubecl-llvm",
+            "--elements",
+            "129",
+        ]))
+        .unwrap()
+        .unwrap();
+        assert_eq!(command.kind, Kind::ExternalResources);
+        assert_eq!(command.config.elements, 129);
+        assert_eq!(command.config.backend, ProbeBackend::CubeClLlvm);
+        for flag in [
+            "--kernel",
+            "--replays",
+            "--cache",
+            "--refresh",
+            "--trust-cache",
+            "--require-no-nvrtc",
+        ] {
+            assert!(parse_args(&args(&["external-resources", flag, "1"])).is_err());
+        }
+        for values in [
+            vec!["external-resources", "--elements", "0"],
+            vec!["external-resources", "--backend", "cpu"],
+            vec!["external-resources", "--elements", "1", "--elements", "2"],
         ] {
             assert!(parse_args(&args(&values)).is_err());
         }

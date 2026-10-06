@@ -14,6 +14,7 @@ use cudarc::nvrtc::Ptx;
 use std::sync::Arc;
 
 pub(super) mod artifacts;
+pub(super) mod external;
 mod resources;
 pub(super) use resources::run as run_resources;
 
@@ -29,7 +30,8 @@ struct TrackingPause<'a>(&'a CudaContext);
 impl<'a> TrackingPause<'a> {
     fn after_warmup(context: &'a CudaContext) -> Self {
         // SAFETY: 调用方已等待全部预热。
-        // 私有上下文不接入外部资源。
+        // 调用方独占本探针的资源。
+        // 外部导入器先等待生产事件。
         // 捕获仅记录内核，且不释放缓冲。
         unsafe { context.disable_event_tracking() };
         Self(context)

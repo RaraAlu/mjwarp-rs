@@ -19,13 +19,13 @@ use cudarc::driver::{
 };
 use std::sync::Arc;
 
-struct CudaFence {
-    stream: Arc<CudaStream>,
-    event: Option<CudaEvent>,
+pub(super) struct CudaFence {
+    pub(super) stream: Arc<CudaStream>,
+    pub(super) event: Option<CudaEvent>,
 }
 
 impl CudaFence {
-    fn arm(&mut self) -> Result<(), ProbeError> {
+    pub(super) fn arm(&mut self) -> Result<(), ProbeError> {
         self.event = Some(
             self.stream
                 .record_event(None)
@@ -113,13 +113,7 @@ impl AffineResources {
         let output = pointer
             .checked_add(output.range().start as u64)
             .ok_or(ProbeError::InvalidArgument("输出地址溢出"))?;
-        let elements = self.elements as u32;
-        let config = LaunchConfig {
-            grid_dim: (elements.div_ceil(BLOCK_THREADS as u32), 1, 1),
-            block_dim: (BLOCK_THREADS as u32, 1, 1),
-            shared_mem_bytes: self.kernel.shared_memory,
-        };
-        // SAFETY: 私有ABI包含三项参数。
+        // SAFETY: 内部所有者提供真实地址。
         // 租约校验真实容量与字节偏移。
         // 输入只读；输出租约独占范围。
         // 队列先保留所有者再调用本函数。
@@ -127,17 +121,15 @@ impl AffineResources {
         // 元数据记录视图长度而非容量。
         // 内核守卫限制索引至视图范围。
         unsafe {
-            let mut builder = stream.launch_builder(&self.kernel.function);
-            builder.arg(&input).arg(&output);
-            if let Some(metadata) = &self.metadata {
-                builder.arg(metadata);
-            } else {
-                builder.arg(&elements);
-            }
-            builder.launch(config)
+            launch_affine_raw(
+                stream,
+                &self.kernel,
+                input,
+                output,
+                self.elements,
+                self.metadata.as_ref(),
+            )
         }
-        .map_err(cuda_error("lease-launch"))?;
-        Ok(())
     }
 
     fn capture(
@@ -170,6 +162,39 @@ impl AffineResources {
     }
 }
 
+// 调用方保证指针范围、权限与寿命。
+// 调用方只传本探针固定仿射内核。
+pub(super) unsafe fn launch_affine_raw(
+    stream: &CudaStream,
+    kernel: &LoadedKernel,
+    input: u64,
+    output: u64,
+    elements: usize,
+    metadata: Option<&CudaSlice<u32>>,
+) -> Result<(), ProbeError> {
+    let elements = elements as u32;
+    let config = LaunchConfig {
+        grid_dim: (elements.div_ceil(BLOCK_THREADS as u32), 1, 1),
+        block_dim: (BLOCK_THREADS as u32, 1, 1),
+        shared_mem_bytes: kernel.shared_memory,
+    };
+    // SAFETY: 调用方保证两项有效地址。
+    // 第三项采用原生或CubeCL固定ABI。
+    // 调用方保留所有者至内核完成。
+    unsafe {
+        let mut builder = stream.launch_builder(&kernel.function);
+        builder.arg(&input).arg(&output);
+        if let Some(metadata) = metadata {
+            builder.arg(metadata);
+        } else {
+            builder.arg(&elements);
+        }
+        builder.launch(config)
+    }
+    .map_err(cuda_error("lease-launch"))?;
+    Ok(())
+}
+
 fn identity(context: &CudaContext) -> DeviceIdentity {
     DeviceIdentity {
         device: context.ordinal(),
@@ -185,12 +210,12 @@ fn wrap(owner: CudaSlice<f32>, writable: bool) -> Result<LeasedBuffer<CudaSlice<
 
 // 仅用于验证同设备异上下文。
 // 不将此上下文接入内核调用。
-struct ForeignContext {
-    raw: sys::CUcontext,
+pub(super) struct ForeignContext {
+    pub(super) raw: usize,
     primary: Arc<CudaContext>,
 }
 impl ForeignContext {
-    fn new(primary: &Arc<CudaContext>) -> Result<Self, ProbeError> {
+    pub(super) fn new(primary: &Arc<CudaContext>) -> Result<Self, ProbeError> {
         let mut raw = std::ptr::null_mut();
         // SAFETY: 驱动写入独立上下文句柄。
         // primary持有有效CUDA设备。
@@ -198,7 +223,7 @@ impl ForeignContext {
             .result()
             .map_err(cuda_error("lease-foreign-context"))?;
         let context = Self {
-            raw,
+            raw: raw as usize,
             primary: primary.clone(),
         };
         primary
@@ -212,7 +237,7 @@ impl Drop for ForeignContext {
         // SAFETY: 此对象独占异域上下文。
         // 本探针从未向此上下文提交任务。
         self.primary
-            .record_err(unsafe { sys::cuCtxDestroy_v2(self.raw) }.result());
+            .record_err(unsafe { sys::cuCtxDestroy_v2(self.raw as sys::CUcontext) }.result());
         self.primary.record_err(self.primary.bind_to_thread());
     }
 }
@@ -245,7 +270,7 @@ fn check_rejections(
         (
             ViewRequest {
                 target: DeviceIdentity {
-                    context: foreign.raw as usize,
+                    context: foreign.raw,
                     ..view.target
                 },
                 ..view

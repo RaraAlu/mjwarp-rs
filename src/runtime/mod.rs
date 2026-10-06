@@ -3,6 +3,7 @@
 
 use crate::diagnostics::ProbeError;
 use std::path::{Path, PathBuf};
+pub mod external;
 
 #[cfg(feature = "cuda-probe")]
 mod cache;
@@ -322,6 +323,34 @@ pub struct ResourceProbeReport {
     pub graph_replays: usize,
 }
 
+#[derive(Debug)]
+pub struct ExternalResourceProbeReport {
+    pub resources: ResourceProbeReport,
+    pub imported_allocations: usize,
+    pub released_owners: usize,
+    pub producer_dependencies: usize,
+}
+
+/// 验证私有外部导入与所有者移交。
+/// 本接口不导出生产张量适配器。
+pub fn run_external_resource_probe(
+    config: ResourceProbeConfig,
+) -> Result<ExternalResourceProbeReport, ProbeError> {
+    config.kernel_config().validate()?;
+    if !config.backend.enabled() {
+        return Err(ProbeError::FeatureDisabled(
+            config.backend.required_feature(),
+        ));
+    }
+    #[cfg(feature = "cuda-probe")]
+    {
+        std::panic::catch_unwind(|| cuda::external::run(config))
+            .map_err(|_| ProbeError::BackendPanic)?
+    }
+    #[cfg(not(feature = "cuda-probe"))]
+    Err(ProbeError::FeatureDisabled("cuda-probe"))
+}
+
 /// 同步验证内部租约原型。
 /// 此接口不导出外部设备视图。
 pub fn run_resource_probe(config: ResourceProbeConfig) -> Result<ResourceProbeReport, ProbeError> {
@@ -534,6 +563,14 @@ mod tests {
         ] {
             if !backend.enabled() {
                 assert_eq!(
+                    run_external_resource_probe(ResourceProbeConfig {
+                        backend,
+                        ..Default::default()
+                    })
+                    .unwrap_err(),
+                    ProbeError::FeatureDisabled(backend.required_feature())
+                );
+                assert_eq!(
                     run_resource_probe(ResourceProbeConfig {
                         backend,
                         ..Default::default()
@@ -562,6 +599,13 @@ mod tests {
     #[test]
     fn rejects_invalid_resource_dimensions_before_loading_driver() {
         for elements in [0, MAX_ELEMENTS + 1, usize::MAX] {
+            assert!(matches!(
+                run_external_resource_probe(ResourceProbeConfig {
+                    elements,
+                    ..Default::default()
+                }),
+                Err(ProbeError::InvalidArgument(_))
+            ));
             assert!(matches!(
                 run_resource_probe(ResourceProbeConfig {
                     elements,
