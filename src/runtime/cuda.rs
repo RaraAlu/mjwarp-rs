@@ -339,6 +339,13 @@ fn prepare_device(device: usize) -> Result<DeviceInfo, ProbeError> {
     })
 }
 
+pub(super) fn transfer_stream(device: usize) -> Result<Arc<CudaStream>, ProbeError> {
+    prepare_device(device)?
+        .context
+        .new_stream()
+        .map_err(cuda_error("transfer-stream"))
+}
+
 fn prepare(config: ProbeConfig) -> Result<(DeviceInfo, GpuProgram), ProbeError> {
     let info = prepare_device(config.device)?;
     let context = &info.context;

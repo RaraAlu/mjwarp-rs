@@ -30,6 +30,12 @@ pub enum InputError {
         index: usize,
         limit: usize,
     },
+    InvalidRange {
+        field: &'static str,
+        offset: usize,
+        elements: usize,
+        capacity: usize,
+    },
     InvalidHistoryTime {
         index: usize,
     },
@@ -53,6 +59,15 @@ impl fmt::Display for InputError {
                 index,
                 limit,
             } => write!(f, "索引越界：{field}[{index}]；上限{limit}"),
+            Self::InvalidRange {
+                field,
+                offset,
+                elements,
+                capacity,
+            } => write!(
+                f,
+                "范围越界：{field}；偏移{offset}，元素{elements}，容量{capacity}"
+            ),
             Self::InvalidHistoryTime { index } => write!(f, "历史时间间隔无效：{index}"),
             Self::DisabledOutput => write!(f, "图像输出未启用"),
         }
@@ -60,6 +75,53 @@ impl fmt::Display for InputError {
 }
 
 impl std::error::Error for InputError {}
+
+/// 同步传输辅助的错误。
+/// 不替代正式引擎诊断。
+#[derive(Clone, Debug, PartialEq)]
+pub enum TransferError {
+    Input(InputError),
+    Backend(ProbeError),
+    HostAllocation { bytes: usize },
+    SessionMismatch,
+    OverlappingCopy,
+    Quarantined,
+}
+
+impl From<InputError> for TransferError {
+    fn from(error: InputError) -> Self {
+        Self::Input(error)
+    }
+}
+
+impl From<ProbeError> for TransferError {
+    fn from(error: ProbeError) -> Self {
+        Self::Backend(error)
+    }
+}
+
+impl fmt::Display for TransferError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Input(error) => write!(f, "传输输入错误：{error}"),
+            Self::Backend(error) => write!(f, "传输后端错误：{error}"),
+            Self::HostAllocation { bytes } => write!(f, "宿主分配失败：{bytes}字节"),
+            Self::SessionMismatch => write!(f, "传输会话不匹配"),
+            Self::OverlappingCopy => write!(f, "设备自复制拒绝重叠范围"),
+            Self::Quarantined => write!(f, "传输会话已隔离"),
+        }
+    }
+}
+
+impl std::error::Error for TransferError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Input(error) => Some(error),
+            Self::Backend(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ProbeError {
@@ -233,6 +295,29 @@ impl std::error::Error for ProbeError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preserves_transfer_error_sources_and_ranges() {
+        use std::error::Error;
+        let input = InputError::InvalidRange {
+            field: "buffer",
+            offset: 3,
+            elements: 2,
+            capacity: 4,
+        };
+        let error = TransferError::from(input.clone());
+        assert_eq!(error, TransferError::Input(input));
+        assert!(error.source().unwrap().to_string().contains("偏移3"));
+        let error = TransferError::from(ProbeError::Cuda {
+            stage: "copy",
+            code: 700,
+        });
+        assert_eq!(
+            error.source().unwrap().to_string(),
+            "CUDA失败：copy；错误码700"
+        );
+        assert!(TransferError::Quarantined.source().is_none());
+    }
 
     #[test]
     fn preserves_input_field_and_index() {

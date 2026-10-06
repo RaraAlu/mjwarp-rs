@@ -4,6 +4,9 @@
 use crate::diagnostics::ProbeError;
 use std::path::{Path, PathBuf};
 pub mod external;
+mod transfer;
+pub(crate) use transfer::host_staging;
+pub use transfer::{TransferBuffer, TransferElement, TransferSession};
 
 #[cfg(feature = "cuda-probe")]
 mod cache;
