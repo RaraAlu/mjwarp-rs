@@ -7,6 +7,11 @@ pub enum ProbeError {
     InvalidArgument(&'static str),
     FeatureDisabled(&'static str),
     NvrtcUnavailable,
+    NvrtcPresent,
+    Artifact {
+        stage: &'static str,
+        detail: String,
+    },
     Compilation {
         stage: &'static str,
         detail: String,
@@ -112,6 +117,8 @@ impl fmt::Display for ProbeError {
             Self::InvalidArgument(message) => write!(f, "参数错误：{message}"),
             Self::FeatureDisabled(feature) => write!(f, "请启用{feature}功能"),
             Self::NvrtcUnavailable => write!(f, "找不到NVRTC库；请检查PATH"),
+            Self::NvrtcPresent => write!(f, "仅驱动探针拒绝可见NVRTC"),
+            Self::Artifact { stage, detail } => write!(f, "产物错误：{stage}；{detail}"),
             Self::Compilation { stage, detail } => write!(f, "编译失败：{stage}\n{detail}"),
             Self::DriverUnavailable => write!(f, "找不到NVIDIA驱动库"),
             Self::InvalidDevice {

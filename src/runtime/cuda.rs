@@ -13,6 +13,7 @@ use cudarc::driver::{
 use cudarc::nvrtc::Ptx;
 use std::sync::Arc;
 
+pub(super) mod artifacts;
 mod resources;
 pub(super) use resources::run as run_resources;
 
@@ -298,7 +299,7 @@ struct DeviceInfo {
     driver_api: i32,
 }
 
-fn prepare(config: ProbeConfig) -> Result<(DeviceInfo, GpuProgram), ProbeError> {
+fn prepare_device(device: usize) -> Result<DeviceInfo, ProbeError> {
     // SAFETY: 只探测NVIDIA驱动库。
     // 加载器不解引用用户指针。
     if !unsafe { sys::is_culib_present() } {
@@ -314,13 +315,13 @@ fn prepare(config: ProbeConfig) -> Result<(DeviceInfo, GpuProgram), ProbeError> 
         return Err(ProbeError::UnsupportedDriver { version });
     }
     let available = CudaContext::device_count().map_err(cuda_error("device-count"))?;
-    if config.device >= available as usize {
+    if device >= available as usize {
         return Err(ProbeError::InvalidDevice {
-            requested: config.device,
+            requested: device,
             available,
         });
     }
-    let context = CudaContext::new(config.device).map_err(cuda_error("context"))?;
+    let context = CudaContext::new(device).map_err(cuda_error("context"))?;
     let gpu_name = context.name().map_err(cuda_error("device-name"))?;
     let (major, minor) = context
         .compute_capability()
@@ -328,6 +329,20 @@ fn prepare(config: ProbeConfig) -> Result<(DeviceInfo, GpuProgram), ProbeError> 
     if major < 7 {
         return Err(ProbeError::UnsupportedDevice { major, minor });
     }
+    Ok(DeviceInfo {
+        context,
+        gpu_name,
+        capability: (major, minor),
+        driver_api: version,
+    })
+}
+
+fn prepare(config: ProbeConfig) -> Result<(DeviceInfo, GpuProgram), ProbeError> {
+    let info = prepare_device(config.device)?;
+    let context = &info.context;
+    let (major, minor) = info.capability;
+    let version = info.driver_api;
+    let _ = (major, minor, version);
     let main = match config.backend {
         ProbeBackend::NativePtx => {
             let module = context
@@ -342,7 +357,7 @@ fn prepare(config: ProbeConfig) -> Result<(DeviceInfo, GpuProgram), ProbeError> 
         }
         #[cfg(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe"))]
         backend => load_cubecl(
-            &context,
+            context,
             backend,
             super::cubecl::KernelStage::Probe(config.kernel),
             (major * 10 + minor) as u32,
@@ -355,14 +370,14 @@ fn prepare(config: ProbeConfig) -> Result<(DeviceInfo, GpuProgram), ProbeError> 
     let scan = if config.kernel == ProbeKernel::GlobalScan && config.elements > BLOCK_THREADS {
         Some(ScanKernels {
             totals: load_cubecl(
-                &context,
+                context,
                 config.backend,
                 super::cubecl::KernelStage::ScanTotals,
                 (major * 10 + minor) as u32,
                 version,
             )?,
             offsets: load_cubecl(
-                &context,
+                context,
                 config.backend,
                 super::cubecl::KernelStage::ScanOffsets,
                 (major * 10 + minor) as u32,
@@ -375,19 +390,19 @@ fn prepare(config: ProbeConfig) -> Result<(DeviceInfo, GpuProgram), ProbeError> 
     #[cfg(not(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe")))]
     let scan = None;
     let program = GpuProgram { main, scan };
-    Ok((
-        DeviceInfo {
-            context,
-            gpu_name,
-            capability: (major, minor),
-            driver_api: version,
-        },
-        program,
-    ))
+    Ok((info, program))
 }
 
 pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
     let (info, program) = prepare(config)?;
+    run_prepared(config, info, program)
+}
+
+fn run_prepared(
+    config: ProbeConfig,
+    info: DeviceInfo,
+    program: GpuProgram,
+) -> Result<ProbeReport, ProbeError> {
     let context = &info.context;
     let (graph_kernel_nodes, graph_node_updates) = match config.kernel {
         ProbeKernel::Affine | ProbeKernel::SmallSolve | ProbeKernel::FloatAtomicSum => run_typed(
@@ -414,10 +429,7 @@ pub(super) fn run(config: ProbeConfig) -> Result<ProbeReport, ProbeError> {
         kernel: config.kernel,
         compiler_revision: match config.backend {
             ProbeBackend::NativePtx => None,
-            #[cfg(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe"))]
-            _ => Some(super::cubecl::REVISION),
-            #[cfg(not(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe")))]
-            _ => None,
+            _ => Some(super::cache::CUBECL_REVISION),
         },
         os: std::env::consts::OS,
         arch: std::env::consts::ARCH,

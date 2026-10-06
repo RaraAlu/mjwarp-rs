@@ -2,6 +2,10 @@
 //! 探针不冻结运行时接口。
 
 use crate::diagnostics::ProbeError;
+use std::path::{Path, PathBuf};
+
+#[cfg(feature = "cuda-probe")]
+mod cache;
 
 #[cfg(any(feature = "cuda-probe", test))]
 mod completion;
@@ -78,7 +82,7 @@ impl ProbeKernel {
         }
     }
 
-    #[cfg(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe"))]
+    #[cfg(feature = "cuda-probe")]
     fn entrypoint(self) -> &'static str {
         match self {
             Self::Affine => "cubecl_affine_probe",
@@ -193,6 +197,78 @@ pub struct ProbeReport {
     pub graph_kernel_nodes: usize,
     /// 成功更新的节点参数次数。
     pub graph_node_updates: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ArtifactStatus {
+    Hit,
+    Compiled,
+}
+
+#[derive(Debug)]
+pub struct ArtifactReport {
+    pub path: PathBuf,
+    pub key_sha256: String,
+    pub stages: usize,
+    pub status: ArtifactStatus,
+}
+
+#[derive(Debug)]
+pub struct CachedProbeReport {
+    pub artifact: ArtifactReport,
+    pub probe: ProbeReport,
+}
+
+/// 构建固定ABI的PTX缓存。
+/// 命中时不加载前端编译器。
+/// 损坏时不自动重建。
+pub fn build_probe_artifact(
+    config: ProbeConfig,
+    directory: &Path,
+    refresh: bool,
+) -> Result<ArtifactReport, ProbeError> {
+    config.validate()?;
+    #[cfg(feature = "cuda-probe")]
+    {
+        std::panic::catch_unwind(|| cuda::artifacts::build(config, directory, refresh))
+            .map_err(|_| ProbeError::BackendPanic)?
+    }
+    #[cfg(not(feature = "cuda-probe"))]
+    {
+        let _ = (directory, refresh);
+        Err(ProbeError::FeatureDisabled("cuda-probe"))
+    }
+}
+
+/// 只读取已有缓存，不调用编译器。
+/// 摘要只验证完整性，不验证来源。
+///
+/// # Safety
+/// 调用方须信任目录及全部PTX。
+/// PTX须来自本探针编译流程。
+/// PTX须遵守固定三参数ABI。
+/// PTX不得越界或引入数据竞争。
+/// 调用方须防止文件篡改。
+pub unsafe fn run_cached_probe(
+    config: ProbeConfig,
+    directory: &Path,
+    require_no_nvrtc: bool,
+) -> Result<CachedProbeReport, ProbeError> {
+    config.validate()?;
+    #[cfg(feature = "cuda-probe")]
+    {
+        // SAFETY: 调用方保证产物可信。
+        // 私有适配层保留模块与缓冲。
+        std::panic::catch_unwind(|| unsafe {
+            cuda::artifacts::run(config, directory, require_no_nvrtc)
+        })
+        .map_err(|_| ProbeError::BackendPanic)?
+    }
+    #[cfg(not(feature = "cuda-probe"))]
+    {
+        let _ = (directory, require_no_nvrtc);
+        Err(ProbeError::FeatureDisabled("cuda-probe"))
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

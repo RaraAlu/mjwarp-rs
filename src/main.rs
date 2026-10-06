@@ -1,30 +1,81 @@
 use mjwarp_rs::runtime::{
-    ProbeBackend, ProbeConfig, ProbeKernel, ResourceProbeConfig, run_probe, run_resource_probe,
+    ArtifactReport, ProbeBackend, ProbeConfig, ProbeKernel, ProbeReport, ResourceProbeConfig,
+    build_probe_artifact, run_cached_probe, run_probe, run_resource_probe,
 };
+use std::path::PathBuf;
 use std::process::ExitCode;
 
-const USAGE: &str = "mjwarp-rs probe [--backend native-ptx|cubecl-cpp|cubecl-llvm] [--kernel affine|atomic-sum|float-atomic-sum|block-reduce|block-scan|global-scan|control-flow|small-solve] [--device N] [--elements N] [--replays N]\nmjwarp-rs resources [--backend native-ptx|cubecl-cpp|cubecl-llvm] [--device N] [--elements N]\n原生：cargo run --features cuda-probe -- probe\nC++：cargo run --features cubecl-cpp-probe -- probe --backend cubecl-cpp\nLLVM：cargo run --features cubecl-llvm-probe -- probe --backend cubecl-llvm\n探针不提供物理引擎。";
+const USAGE: &str = "mjwarp-rs probe [--backend native-ptx|cubecl-cpp|cubecl-llvm] [--kernel affine|atomic-sum|float-atomic-sum|block-reduce|block-scan|global-scan|control-flow|small-solve] [--device N] [--elements N] [--replays N]\nmjwarp-rs resources [--backend ROUTE] [--device N] [--elements N]\nmjwarp-rs cache-build --cache DIR [--backend ROUTE] [--kernel KERNEL] [--device N] [--refresh]\nmjwarp-rs cache-run --cache DIR --trust-cache [--backend ROUTE] [--kernel KERNEL] [--device N] [--elements N] [--replays N] [--require-no-nvrtc]\n原生：cargo run --features cuda-probe -- probe\nC++：cargo run --features cubecl-cpp-probe -- probe --backend cubecl-cpp\nLLVM：cargo run --features cubecl-llvm-probe -- probe --backend cubecl-llvm\n缓存摘要不认证代码来源。\n探针不提供物理引擎。";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Kind {
+    Probe,
+    Resources,
+    CacheBuild,
+    CacheRun,
+}
 
 struct Command {
     config: ProbeConfig,
-    resources: bool,
+    kind: Kind,
+    cache: Option<PathBuf>,
+    refresh: bool,
+    require_no_nvrtc: bool,
 }
 
 fn parse_args(args: &[String]) -> Result<Option<Command>, String> {
     if args.len() == 1 && matches!(args[0].as_str(), "--help" | "-h") {
         return Ok(None);
     }
-    let resources = match args.first().map(String::as_str) {
-        Some("probe") => false,
-        Some("resources") => true,
-        _ => return Err("请使用probe或resources命令".into()),
+    let kind = match args.first().map(String::as_str) {
+        Some("probe") => Kind::Probe,
+        Some("resources") => Kind::Resources,
+        Some("cache-build") => Kind::CacheBuild,
+        Some("cache-run") => Kind::CacheRun,
+        _ => return Err("请使用探针或缓存命令".into()),
     };
     let mut config = ProbeConfig::default();
-    let mut seen = [false; 5];
+    let mut cache = None;
+    let mut refresh = false;
+    let mut require_no_nvrtc = false;
+    let mut trust_cache = false;
+    let mut seen = [false; 9];
     let mut flags = args[1..].iter();
     while let Some(flag) = flags.next() {
-        if resources && matches!(flag.as_str(), "--kernel" | "--replays") {
+        if kind == Kind::Resources && matches!(flag.as_str(), "--kernel" | "--replays") {
             return Err(format!("资源探针不支持：{flag}"));
+        }
+        if kind == Kind::CacheBuild && matches!(flag.as_str(), "--elements" | "--replays") {
+            return Err(format!("缓存构建不支持：{flag}"));
+        }
+        let extra = match flag.as_str() {
+            "--cache" => Some((5, matches!(kind, Kind::CacheBuild | Kind::CacheRun))),
+            "--refresh" => Some((6, kind == Kind::CacheBuild)),
+            "--trust-cache" => Some((7, kind == Kind::CacheRun)),
+            "--require-no-nvrtc" => Some((8, kind == Kind::CacheRun)),
+            _ => None,
+        };
+        if let Some((slot, allowed)) = extra {
+            if !allowed {
+                return Err(format!("命令不支持：{flag}"));
+            }
+            if seen[slot] {
+                return Err(format!("重复参数：{flag}"));
+            }
+            seen[slot] = true;
+            match slot {
+                5 => {
+                    let value = flags.next().ok_or_else(|| format!("缺少参数值：{flag}"))?;
+                    if value.is_empty() || value.starts_with("--") {
+                        return Err("缓存路径无效".into());
+                    }
+                    cache = Some(PathBuf::from(value));
+                }
+                6 => refresh = true,
+                7 => trust_cache = true,
+                _ => require_no_nvrtc = true,
+            }
+            continue;
         }
         if flag == "--backend" {
             if seen[3] {
@@ -58,7 +109,19 @@ fn parse_args(args: &[String]) -> Result<Option<Command>, String> {
         *field = value.parse().map_err(|_| format!("需要非负整数：{flag}"))?;
     }
     config.validate().map_err(|error| error.to_string())?;
-    Ok(Some(Command { config, resources }))
+    if matches!(kind, Kind::CacheBuild | Kind::CacheRun) && cache.is_none() {
+        return Err("缓存命令需要--cache".into());
+    }
+    if kind == Kind::CacheRun && !trust_cache {
+        return Err("可信产物需要--trust-cache".into());
+    }
+    Ok(Some(Command {
+        config,
+        kind,
+        cache,
+        refresh,
+        require_no_nvrtc,
+    }))
 }
 
 fn resources(config: ProbeConfig) -> ExitCode {
@@ -115,38 +178,43 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    if command.resources {
+    if command.kind == Kind::Resources {
         return resources(command.config);
     }
     let config = command.config;
+    if let Some(directory) = &command.cache {
+        if command.kind == Kind::CacheBuild {
+            return match build_probe_artifact(config, directory, command.refresh) {
+                Ok(report) => {
+                    print_artifact(&report);
+                    ExitCode::SUCCESS
+                }
+                Err(error) => {
+                    eprintln!("{error}");
+                    ExitCode::FAILURE
+                }
+            };
+        }
+        // SAFETY: 用户显式声明信任目录。
+        // --trust-cache要求可信探针产物。
+        return match unsafe { run_cached_probe(config, directory, command.require_no_nvrtc) } {
+            Ok(report) => {
+                print_artifact(&report.artifact);
+                if command.require_no_nvrtc {
+                    println!("nvrtc_available=false");
+                }
+                print_probe(&report.probe);
+                ExitCode::SUCCESS
+            }
+            Err(error) => {
+                eprintln!("{error}");
+                ExitCode::FAILURE
+            }
+        };
+    }
     match run_probe(config) {
         Ok(report) => {
-            println!("platform={}/{}", report.os, report.arch);
-            println!("device={}: {}", report.device, report.gpu_name);
-            println!(
-                "sm={}.{}",
-                report.compute_capability.0, report.compute_capability.1
-            );
-            println!("driver_api={}", report.driver_api_version);
-            println!("route={}", report.backend.name());
-            println!("kernel={}", report.kernel.name());
-            if let Some(revision) = report.compiler_revision {
-                println!("cubecl_revision={revision}");
-            } else {
-                println!("ptx=6.0; target=sm_70");
-            }
-            println!(
-                "elements={}; output_bytes={}",
-                report.elements, report.buffer_bytes
-            );
-            println!("upload/kernel/download/cross-stream/guard=pass");
-            println!("graph_replays={}; changed_input=pass", report.graph_replays);
-            println!(
-                "graph_kernel_nodes={}; node_updates={}; inactive_output=pass",
-                report.graph_kernel_nodes, report.graph_node_updates
-            );
-            println!("此结果只验证当前路线。");
-            println!("引擎与正式准入仍待完成。");
+            print_probe(&report);
             ExitCode::SUCCESS
         }
         Err(error) => {
@@ -154,6 +222,41 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn print_artifact(report: &ArtifactReport) {
+    println!("artifact={}", report.path.display());
+    println!("cache_status={:?}; stages={}", report.status, report.stages);
+    println!("cache_key_sha256={}", report.key_sha256);
+}
+
+fn print_probe(report: &ProbeReport) {
+    println!("platform={}/{}", report.os, report.arch);
+    println!("device={}: {}", report.device, report.gpu_name);
+    println!(
+        "sm={}.{}",
+        report.compute_capability.0, report.compute_capability.1
+    );
+    println!("driver_api={}", report.driver_api_version);
+    println!("route={}", report.backend.name());
+    println!("kernel={}", report.kernel.name());
+    if let Some(revision) = report.compiler_revision {
+        println!("cubecl_revision={revision}");
+    } else {
+        println!("ptx=6.0; target=sm_70");
+    }
+    println!(
+        "elements={}; output_bytes={}",
+        report.elements, report.buffer_bytes
+    );
+    println!("upload/kernel/download/cross-stream/guard=pass");
+    println!("graph_replays={}; changed_input=pass", report.graph_replays);
+    println!(
+        "graph_kernel_nodes={}; node_updates={}; inactive_output=pass",
+        report.graph_kernel_nodes, report.graph_node_updates
+    );
+    println!("此结果只验证当前路线。");
+    println!("引擎与正式准入仍待完成。");
 }
 
 #[cfg(test)]
@@ -253,7 +356,7 @@ mod tests {
         ]))
         .unwrap()
         .unwrap();
-        assert!(command.resources);
+        assert_eq!(command.kind, Kind::Resources);
         assert_eq!(command.config.elements, 129);
         assert_eq!(command.config.backend, ProbeBackend::CubeClCpp);
         for values in [
@@ -264,6 +367,74 @@ mod tests {
             vec!["resources", "--elements", "1", "--elements", "2"],
         ] {
             assert!(parse_args(&args(&values)).is_err());
+        }
+    }
+
+    #[test]
+    fn requires_explicit_cache_path_and_trust() {
+        for values in [
+            vec!["cache-build"],
+            vec!["cache-run", "--cache", "trusted"],
+            vec!["cache-run", "--trust-cache"],
+            vec!["cache-build", "--cache", ""],
+            vec!["cache-build", "--cache", "--refresh"],
+        ] {
+            assert!(parse_args(&args(&values)).is_err(), "{values:?}");
+        }
+        let command = parse_args(&args(&[
+            "cache-run",
+            "--cache",
+            "trusted",
+            "--trust-cache",
+            "--require-no-nvrtc",
+            "--backend",
+            "cubecl-llvm",
+            "--kernel",
+            "global-scan",
+            "--elements",
+            "16385",
+        ]))
+        .unwrap()
+        .unwrap();
+        assert_eq!(command.kind, Kind::CacheRun);
+        assert_eq!(command.cache, Some(PathBuf::from("trusted")));
+        assert!(command.require_no_nvrtc);
+        assert_eq!(command.config.elements, 16385);
+        let command = parse_args(&args(&["cache-build", "--cache", "trusted", "--refresh"]))
+            .unwrap()
+            .unwrap();
+        assert!(command.refresh);
+    }
+
+    #[test]
+    fn rejects_irrelevant_and_duplicate_cache_flags() {
+        for values in [
+            vec!["probe", "--cache", "a"],
+            vec!["resources", "--refresh"],
+            vec!["cache-build", "--cache", "a", "--elements", "1"],
+            vec!["cache-build", "--cache", "a", "--replays", "1"],
+            vec!["cache-build", "--cache", "a", "--trust-cache"],
+            vec!["cache-build", "--cache", "a", "--require-no-nvrtc"],
+            vec!["cache-run", "--cache", "a", "--trust-cache", "--refresh"],
+            vec!["cache-build", "--cache", "a", "--cache", "b"],
+            vec!["cache-build", "--cache", "a", "--refresh", "--refresh"],
+            vec![
+                "cache-run",
+                "--cache",
+                "a",
+                "--trust-cache",
+                "--trust-cache",
+            ],
+            vec![
+                "cache-run",
+                "--cache",
+                "a",
+                "--trust-cache",
+                "--require-no-nvrtc",
+                "--require-no-nvrtc",
+            ],
+        ] {
+            assert!(parse_args(&args(&values)).is_err(), "{values:?}");
         }
     }
 }
