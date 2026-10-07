@@ -9,6 +9,8 @@ use crate::runtime::TransferSession;
 
 mod mass_matrix;
 pub use mass_matrix::{MassMatrixOutput, MassMatrixWorld, probe_mass_matrix};
+mod mass_solve;
+pub use mass_solve::{MassSolveOutput, MassSolveWorld, probe_mass_solve};
 
 /// 七项GPU结果的只读世界视图。
 /// 矩阵按行展开，四元数用wxyz。
@@ -247,21 +249,22 @@ pub fn probe_kinematics(
     }
     #[cfg(feature = "cuda-probe")]
     {
-        kinematics_device(session, model, layout, qpos).map(|(_, result)| result)
+        kinematics_device::<f32>(session, model, layout, qpos)
+            .map(|(_, values)| KinematicsOutput { layout, values })
     }
 }
 
 #[cfg(feature = "cuda-probe")]
-fn kinematics_device(
+fn kinematics_device<T: RigidScalar>(
     session: &TransferSession,
     model: &InertialModelInput,
     layout: KinematicsLayout,
     qpos: &[f32],
-) -> Result<(crate::runtime::TransferBuffer<f32>, KinematicsOutput), TransferError> {
+) -> Result<(crate::runtime::TransferBuffer<T>, Vec<T>), TransferError> {
     let f = model.kinematics().fields();
     let i = model.fields();
     let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
-    let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
+    let mut parameters = crate::runtime::host_staging::<T>(layout.parameters)?;
     let mut cursor = 0;
     for field in [
         &f.body_parentid,
@@ -283,21 +286,25 @@ fn kinematics_device(
         &f.jnt_pos,
         &f.jnt_axis,
     ] {
-        parameters[cursor..cursor + field.len()].copy_from_slice(field);
+        pack_rigid(&mut parameters[cursor..cursor + field.len()], field);
         cursor += field.len();
     }
     let metadata = session.upload(&metadata)?;
     let parameters = session.upload(&parameters)?;
     // A real one-element allocation supplies a valid ABI pointer for nq=0.
-    let state = session.upload(if qpos.is_empty() { &[0.0] } else { qpos })?;
-    let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
-    values.fill(-131072.0);
-    values[4..layout.guarded - 4].fill(f32::NAN);
+    let state = upload_rigid::<T>(session, if qpos.is_empty() { &[0.0] } else { qpos })?;
+    let mut values = crate::runtime::host_staging::<T>(layout.guarded)?;
+    values.fill(T::from(-131072.0));
+    values[4..layout.guarded - 4].fill(T::from(f32::NAN));
     let mut output = session.upload(&values)?;
-    let kernel =
-        crate::runtime::SynchronousKernel::compile(session, KINEMATICS_CUDA, "rigid_kinematics")?;
+    let kernel = crate::runtime::SynchronousKernel::compile(
+        session,
+        &rigid_source::<T>(KINEMATICS_CUDA),
+        "rigid_kinematics",
+    )?;
     // SAFETY: Owned validated topology proves acyclic parent/joint/qpos
     // ranges. Checked packing matches the fixed CUDA ABI and every offset.
+    // RigidScalar and rigid_source select the same pointer width for all buffers.
     // One thread owns each world and processes parents before children.
     // Guards fit the output allocation; session launch waits for completion.
     unsafe {
@@ -316,7 +323,7 @@ fn kinematics_device(
     }
     output.read_range_into(0, &mut values)?;
     check_device_values(&values, "kinematics_output")?;
-    Ok((output, KinematicsOutput { layout, values }))
+    Ok((output, values))
 }
 
 /// 四项质心结果的只读世界视图。
@@ -476,21 +483,22 @@ pub fn probe_com_position(
     }
     #[cfg(feature = "cuda-probe")]
     {
-        com_position_device(session, model, fk, layout, qpos).map(|(_, result)| result)
+        com_position_device::<f32>(session, model, fk, layout, qpos)
+            .map(|(_, values)| ComPositionOutput { layout, values })
     }
 }
 
 #[cfg(feature = "cuda-probe")]
-fn com_position_device(
+fn com_position_device<T: RigidScalar>(
     session: &TransferSession,
     model: &InertialModelInput,
     fk: KinematicsLayout,
     layout: ComPositionLayout,
     qpos: &[f32],
-) -> Result<(crate::runtime::TransferBuffer<f32>, ComPositionOutput), TransferError> {
+) -> Result<(crate::runtime::TransferBuffer<T>, Vec<T>), TransferError> {
     // The validated FK output remains allocated on the same GPU session.
     // Its host checkpoint proves finite values; no CPU transform feeds COM.
-    let (state, checkpoint) = kinematics_device(session, model, fk, qpos)?;
+    let (state, checkpoint) = kinematics_device::<T>(session, model, fk, qpos)?;
     drop(checkpoint);
     let k = model.kinematics();
     let f = k.fields();
@@ -501,21 +509,22 @@ fn com_position_device(
         metadata[cursor..cursor + field.len()].copy_from_slice(field);
         cursor += field.len();
     }
-    let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
-    parameters[..k.nbody()].copy_from_slice(&i.body_mass);
-    parameters[k.nbody()..].copy_from_slice(&i.body_inertia);
+    let mut parameters = crate::runtime::host_staging::<T>(layout.parameters)?;
+    pack_rigid(&mut parameters[..k.nbody()], &i.body_mass);
+    pack_rigid(&mut parameters[k.nbody()..], &i.body_inertia);
     let metadata = session.upload(&metadata)?;
     let parameters = session.upload(&parameters)?;
-    let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
-    values.fill(-131072.0);
-    values[4..layout.guarded - 4].fill(f32::NAN);
+    let mut values = crate::runtime::host_staging::<T>(layout.guarded)?;
+    values.fill(T::from(-131072.0));
+    values[4..layout.guarded - 4].fill(T::from(f32::NAN));
     let mut output = session.upload(&values)?;
     let kernel = crate::runtime::SynchronousKernel::compile(
         session,
-        COM_POSITION_CUDA,
+        &rigid_source::<T>(COM_POSITION_CUDA),
         "rigid_com_position",
     )?;
     // SAFETY: Checked layouts bound all packed offsets by i32::MAX.
+    // RigidScalar and rigid_source keep shader pointers and buffers equal-width.
     // Validated topology proves parent order and joint/body/DOF addresses.
     // FK state has precisely 28*nbody+6*njnt elements per world plus guards.
     // Each thread owns one output world, with no cross-thread reads/writes.
@@ -536,26 +545,77 @@ fn com_position_device(
     }
     output.read_range_into(0, &mut values)?;
     check_device_values(&values, "com_position_output")?;
-    Ok((output, ComPositionOutput { layout, values }))
+    Ok((output, values))
+}
+
+/// Keep every buffer and shader pointer type equal. Public rigid inputs and
+/// results stay f32; only the new solver selects the internal f64 pipeline.
+#[cfg(feature = "cuda-probe")]
+trait RigidScalar: crate::runtime::TransferElement + From<f32> + Into<f64> {}
+#[cfg(feature = "cuda-probe")]
+impl RigidScalar for f32 {}
+#[cfg(feature = "cuda-probe")]
+impl RigidScalar for f64 {}
+
+#[cfg(feature = "cuda-probe")]
+fn pack_rigid<T: RigidScalar>(destination: &mut [T], source: &[f32]) {
+    for (d, &s) in destination.iter_mut().zip(source) {
+        *d = T::from(s);
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn upload_rigid<T: RigidScalar>(
+    session: &TransferSession,
+    source: &[f32],
+) -> Result<crate::runtime::TransferBuffer<T>, TransferError> {
+    let mut values = crate::runtime::host_staging::<T>(source.len())?;
+    pack_rigid(&mut values, source);
+    session.upload(&values)
+}
+
+#[cfg(feature = "cuda-probe")]
+fn rigid_source<T: RigidScalar>(source: &str) -> std::borrow::Cow<'_, str> {
+    // Only the private fixed shader constants use this scalar specialization.
+    if size_of::<T>() == 4 {
+        std::borrow::Cow::Borrowed(source)
+    } else {
+        std::borrow::Cow::Owned(
+            source
+                .replace("float", "double")
+                .replace("sqrtf", "sqrt")
+                .replace("sinf", "sin")
+                .replace("cosf", "cos"),
+        )
+    }
 }
 
 #[cfg(any(feature = "cuda-probe", test))]
-fn check_device_values(values: &[f32], field: &'static str) -> Result<(), TransferError> {
+fn check_device_values<T: Copy + Into<f64>>(
+    values: &[T],
+    field: &'static str,
+) -> Result<(), TransferError> {
+    check_device_guards(values)?;
+    for (index, value) in values[4..values.len() - 4].iter().enumerate() {
+        if !(*value).into().is_finite() {
+            return Err(InputError::NonFinite { field, index }.into());
+        }
+    }
+    Ok(())
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn check_device_guards<T: Copy + Into<f64>>(values: &[T]) -> Result<(), TransferError> {
     // Private callers supply a checked payload layout and two four-value guards.
     debug_assert!(values.len() >= 8);
     for index in (0..4).chain(values.len() - 4..values.len()) {
-        if values[index] != -131072.0 {
+        if values[index].into() != -131072.0 {
             return Err(ProbeError::Mismatch {
                 index,
                 expected: -131072.0,
-                actual: values[index],
+                actual: values[index].into() as f32,
             }
             .into());
-        }
-    }
-    for (index, value) in values[4..values.len() - 4].iter().enumerate() {
-        if !value.is_finite() {
-            return Err(InputError::NonFinite { field, index }.into());
         }
     }
     Ok(())

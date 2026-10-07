@@ -812,11 +812,13 @@ G01最小GPU探针已有证据。
 质心与自由度子集已有证据。
 下一步扩展完整运动学分支。
 质量矩阵已提供GPU辅助子集。
-完整G02与矩阵分解仍待实现。
+正定分解与求解已有辅助子集。
+完整G02与G03仍待实现。
 详见[惯性增量报告](windows-inertial-fields.md)。
 数值证据见[刚体报告](windows-kinematics-probe.md)。
 质心证据见[质心报告](windows-com-position-probe.md)。
 矩阵证据见[矩阵报告](windows-mass-matrix-probe.md)。
+求解证据见[求解报告](windows-mass-solve-probe.md)。
 继续收口原生版本与字段映射。
 继续设计完整Model与Data布局。
 同步辅助不替代等价导入入口。

@@ -8,7 +8,10 @@
 ## 本轮结果
 
 连续字段已有真实GPU交换。
-接口支持三类四字节元素。
+原轮覆盖三类四字节元素。
+后续求解增量扩展f64复制。
+当前连续字段也支持八字节f64。
+增量证据见[求解报告](windows-mass-solve-probe.md)。
 宿主接口不导出设备地址。
 新增依赖与默认工具链均不变。
 测试与脚本不调用Python。
@@ -39,7 +42,7 @@ C:/Rust/mjwarp-rs/
 
 | 接口 | 实际行为 |
 | --- | --- |
-| `TransferElement` | 封闭支持`f32`、`i32`与`u32` |
+| `TransferElement` | 封闭支持`f32`、`f64`、`i32`与`u32` |
 | `TransferSession::new` | 检查真实驱动与设备；不加载编译器 |
 | `TransferSession::upload` | 独占分配与全字段上传 |
 | `TransferBuffer::read_range_into` | 暂存后回读指定范围 |
@@ -196,7 +199,7 @@ LLVM与全特性检查显式用MSVC。
 elements_per_world: 0, 1, 5, 129, 257, 4097
 ```
 
-GPU测试覆盖三类位模式。
+原轮GPU测试覆盖三类位模式。
 测试覆盖世界写入与双向复制。
 测试核对错误后的原值。
 测试核对会话clone与提前释放。

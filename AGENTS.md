@@ -13,6 +13,9 @@
 刚体运动学已有GPU探针。
 质心与自由度映射也有探针。
 质量矩阵已有GPU子集探针。
+质量求解已有正定辅助探针。
+求解内部采用GPU f64计算。
+公开物理输入与结果保持f32。
 它不替代完整G01阶段。
 GPU引擎尚待实现。
 首版面向NVIDIA。
@@ -46,6 +49,7 @@ LRsLab负责CPU play。
 | `src/runtime/` | 实现驱动级GPU探针 |
 | `src/physics/` | 历史校验与刚体GPU探针 |
 | `src/physics/mass_matrix.rs` | 复合惯量与稠密质量矩阵 |
+| `src/physics/mass_solve.rs` | 正定分解与多右端项求解 |
 | `src/runtime/transfer/kernel.rs` | 封装内部同步内核ABI |
 | `src/diagnostics/` | 定义探针错误 |
 | `native/`与`include/` | 提供可选原生桥接 |
@@ -55,6 +59,7 @@ LRsLab负责CPU play。
 | `fixtures/kinematics/` | 保留静态原生运动学参考 |
 | `fixtures/com-position/` | 保留质心参考与零质量边界 |
 | `fixtures/mass-matrix/` | 保留矩阵参考与armature链 |
+| `fixtures/mass-solve/` | 保留原生因子、右端项与解 |
 | `docs/README.md` | 提供文档索引与现状 |
 | `docs/project-positioning.md` | 明确产品与依赖边界 |
 | `docs/architecture.md` | 描述目标模块与接口 |
@@ -146,6 +151,8 @@ scripts/test-windows-kinematics.ps1 -AllFeatures -Release
 ```text
 scripts/test-windows-mass-matrix.ps1 -AllFeatures
 scripts/test-windows-mass-matrix.ps1 -AllFeatures -Release
+scripts/test-windows-mass-solve.ps1 -AllFeatures
+scripts/test-windows-mass-solve.ps1 -AllFeatures -Release
 ```
 
 产品测试不生成原生参考。

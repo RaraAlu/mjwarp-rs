@@ -887,6 +887,9 @@ Windows与Linux分别执行测试。
 本轮校验自由度最近祖先。
 质量矩阵仅有GPU子集。
 完整G01与G02仍待实现。
+正定求解只提供GPU辅助子集。
+完整G03仍待实现。
+求解证据见[求解报告](windows-mass-solve-probe.md)。
 矩阵证据见[矩阵报告](windows-mass-matrix-probe.md)。
 刚体子集已有七项GPU结果。
 质心子集新增四项GPU结果。

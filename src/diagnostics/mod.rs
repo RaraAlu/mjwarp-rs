@@ -141,10 +141,18 @@ impl std::error::Error for InputError {}
 pub enum TransferError {
     Input(InputError),
     Backend(ProbeError),
-    HostAllocation { bytes: usize },
+    HostAllocation {
+        bytes: usize,
+    },
     SessionMismatch,
     OverlappingCopy,
     Quarantined,
+    /// GPU分解遇到非正或非有限主元。
+    InvalidPivot {
+        world: usize,
+        dof: usize,
+        value: f64,
+    },
 }
 
 impl From<InputError> for TransferError {
@@ -168,6 +176,9 @@ impl fmt::Display for TransferError {
             Self::SessionMismatch => write!(f, "传输会话不匹配"),
             Self::OverlappingCopy => write!(f, "设备自复制拒绝重叠范围"),
             Self::Quarantined => write!(f, "传输会话已隔离"),
+            Self::InvalidPivot { world, dof, value } => {
+                write!(f, "分解主元无效：世界{world}；自由度{dof}；值{value}")
+            }
         }
     }
 }
@@ -354,6 +365,29 @@ impl std::error::Error for ProbeError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preserves_factorization_world_dof_value_and_source() {
+        use std::error::Error;
+        let error = TransferError::InvalidPivot {
+            world: 2,
+            dof: 3,
+            value: -0.25,
+        };
+        assert_eq!(error.to_string(), "分解主元无效：世界2；自由度3；值-0.25");
+        assert!(error.source().is_none());
+        let value = -1.0 - 2.0f64.powi(-40);
+        let error = TransferError::InvalidPivot {
+            world: 2,
+            dof: 3,
+            value,
+        };
+        let TransferError::InvalidPivot { value: actual, .. } = error else {
+            unreachable!()
+        };
+        assert_eq!(actual.to_bits(), value.to_bits());
+        assert_ne!(actual, f64::from(value as f32));
+    }
 
     #[test]
     fn preserves_native_error_stage_version_and_source() {

@@ -1,7 +1,7 @@
 //! 内部固定ABI内核适配。
 //! 不提供安全的任意内核入口。
 
-use super::{TransferBuffer, TransferSession};
+use super::{TransferBuffer, TransferElement, TransferSession};
 use crate::diagnostics::{InputError, ProbeError, TransferError};
 use cudarc::{
     driver::{CudaFunction, LaunchConfig, PushKernelArg},
@@ -9,7 +9,7 @@ use cudarc::{
 };
 use std::sync::Arc;
 
-/// ABI: (const int*, const float*, const float*, float*, u32, u32, u32, u32).
+/// ABI: (const int*, const T*, const T*, T*, u32, u32, u32, u32).
 /// 核函数与缓冲保留同一会话。
 pub(crate) struct SynchronousKernel {
     session: TransferSession,
@@ -19,7 +19,7 @@ pub(crate) struct SynchronousKernel {
 impl SynchronousKernel {
     pub(crate) fn compile(
         session: &TransferSession,
-        source: &'static str,
+        source: &str,
         entry: &'static str,
     ) -> Result<Self, TransferError> {
         session.inner.status.check()?;
@@ -65,12 +65,12 @@ impl SynchronousKernel {
     /// dimensions. All four buffers must be nonempty. The kernel must only write
     /// output, must not outlive this synchronized launch, and must not spawn work
     /// elsewhere. Kernel code must not access pointers outside these buffers.
-    pub(crate) unsafe fn launch(
+    pub(crate) unsafe fn launch<T: TransferElement>(
         &self,
         metadata: &TransferBuffer<i32>,
-        parameters: &TransferBuffer<f32>,
-        state: &TransferBuffer<f32>,
-        output: &mut TransferBuffer<f32>,
+        parameters: &TransferBuffer<T>,
+        state: &TransferBuffer<T>,
+        output: &mut TransferBuffer<T>,
         dimensions: [u32; 4],
     ) -> Result<(), TransferError> {
         for same in [
@@ -143,6 +143,28 @@ impl Drop for SynchronousKernel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn preserves_f64_buffer_width_in_fixed_kernel_abi() {
+        let session = TransferSession::new(0).unwrap();
+        let source = SOURCE.replace("float", "double");
+        let kernel = SynchronousKernel::compile(&session, &source, "adapter_probe").unwrap();
+        let meta = session.upload(&[0i32]).unwrap();
+        let parameters = session.upload(&[2.0f64.powi(-40)]).unwrap();
+        let state = session.upload(&[1.0f64, -1.0]).unwrap();
+        let mut output = session.upload(&[0.0f64; 2]).unwrap();
+        // SAFETY: This trusted shader uses double pointers and two elements in
+        // same-session f64 state/output buffers. Metadata is one i32 element.
+        unsafe {
+            kernel
+                .launch(&meta, &parameters, &state, &mut output, [0, 0, 0, 2])
+                .unwrap();
+        }
+        let mut values = [0.0f64; 2];
+        output.read_range_into(0, &mut values).unwrap();
+        assert_eq!(values, [1.0 + 2.0f64.powi(-40), -1.0 + 2.0f64.powi(-40)]);
+        assert_ne!(values[0], 1.0);
+    }
     const SOURCE: &str = r#"
 extern "C" __global__ void adapter_probe(const int* m,const float* p,const float* s,
     float* o,unsigned a,unsigned b,unsigned c,unsigned n) {

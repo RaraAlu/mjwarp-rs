@@ -20,7 +20,7 @@ fn session() -> TransferSession {
 
 #[test]
 #[ignore = "需要NVIDIA GPU；不回退CPU"]
-fn roundtrips_three_types_after_host_and_session_drop() {
+fn roundtrips_four_types_after_host_and_session_drop() {
     let session = session();
     assert_eq!(session.device(), 0);
     let floats = [
@@ -36,6 +36,15 @@ fn roundtrips_three_types_after_host_and_session_drop() {
     host.fill(7.0);
     let signed = session.upload(&[i32::MIN, -1, 0, i32::MAX]).unwrap();
     let unsigned = session.upload(&[0_u32, 16_777_217, u32::MAX]).unwrap();
+    let double_bits = [
+        0x8000_0000_0000_0000,
+        0x7ff8_0000_0000_0017,
+        0x7ff0_0000_0000_0000,
+        0xfff0_0000_0000_0000,
+        1,
+        0x3ff0_0000_0000_0001,
+    ];
+    let doubles = session.upload(&double_bits.map(f64::from_bits)).unwrap();
     drop(session);
     assert_eq!(buffer.len(), 6);
     assert_eq!(buffer.byte_len(), 24);
@@ -49,6 +58,10 @@ fn roundtrips_three_types_after_host_and_session_drop() {
     let mut actual = [0; 3];
     unsigned.read_range_into(0, &mut actual).unwrap();
     assert_eq!(actual, [0, 16_777_217, u32::MAX]);
+    let mut actual = [0.0f64; 6];
+    doubles.read_range_into(0, &mut actual).unwrap();
+    assert_eq!(doubles.byte_len(), 48);
+    assert_eq!(actual.map(f64::to_bits), double_bits);
 }
 
 #[test]
@@ -97,6 +110,17 @@ fn copies_between_independent_fields_and_session_clones() {
     let mut original = [0; 15];
     source.read_into(&mut original).unwrap();
     assert_eq!(original.as_slice(), source_values);
+    let precise = [1.0 + 2.0f64.powi(-40), -1.0, 3.0, 4.0];
+    let input =
+        DeviceBatch::upload(&session, BatchLayout::new(2, 2, 8).unwrap(), &precise).unwrap();
+    let mut output =
+        DeviceBatch::upload(&clone, BatchLayout::new(2, 2, 8).unwrap(), &[0.0f64; 4]).unwrap();
+    output.copy_world_from(1, &input, 0).unwrap();
+    output.copy_world_within(0, 1).unwrap();
+    output.write_world(1, &precise[2..]).unwrap();
+    let mut actual = [0.0f64; 4];
+    output.read_into(&mut actual).unwrap();
+    assert_eq!(actual.map(f64::to_bits), precise.map(f64::to_bits));
 }
 
 #[test]

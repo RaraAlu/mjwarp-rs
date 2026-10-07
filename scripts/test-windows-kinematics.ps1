@@ -34,7 +34,7 @@ function Invoke-CheckedTest {
 Push-Location $root
 try {
     $passed = Invoke-CheckedTest 'kinematics' ($base + @('--test','kinematics_probe','--','--ignored','--test-threads=1','--nocapture')) $(if ($AllFeatures) {4} else {3})
-    $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib','runtime::transfer::kernel::tests','--','--ignored','--test-threads=1')) 2
+    $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib','runtime::transfer::kernel::tests','--','--ignored','--test-threads=1')) 3
     # 记录真实平台与错误上界。
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
     if ($LASTEXITCODE -ne 0) { throw 'GPU信息查询失败' }

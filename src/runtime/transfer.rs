@@ -26,11 +26,12 @@ mod element {
     pub trait Sealed: Copy + Default {}
 
     impl Sealed for f32 {}
+    impl Sealed for f64 {}
     impl Sealed for i32 {}
     impl Sealed for u32 {}
 }
 
-/// 仅支持f32、i32与u32。
+/// 支持f32、f64、i32与u32。
 /// 调用方不能增加设备类型。
 ///
 /// ```compile_fail
@@ -40,6 +41,7 @@ mod element {
 /// ```
 pub trait TransferElement: element::Sealed {}
 impl TransferElement for f32 {}
+impl TransferElement for f64 {}
 impl TransferElement for i32 {}
 impl TransferElement for u32 {}
 
@@ -488,8 +490,10 @@ mod tests {
     fn checks_element_and_slice_byte_capacity() {
         assert_eq!(checked_bytes::<f32>(0).unwrap(), 0);
         assert_eq!(checked_bytes::<i32>(5).unwrap(), 20);
+        assert_eq!(checked_bytes::<f64>(5).unwrap(), 40);
         assert!(checked_bytes::<u32>(usize::MAX).is_err());
         assert!(checked_bytes::<f32>(isize::MAX as usize / 4 + 1).is_err());
+        assert!(checked_bytes::<f64>(isize::MAX as usize / 8 + 1).is_err());
         assert_eq!(host_staging::<u32>(3).unwrap(), vec![0; 3]);
     }
 
