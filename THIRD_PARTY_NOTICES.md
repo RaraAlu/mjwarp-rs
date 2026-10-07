@@ -30,6 +30,8 @@ CUDA部分复用上述许可。
 本项目按世界顺序遍历体。
 本项目不移植mocap等分支。
 本项目添加同步与范围检查。
+本项目另移植质心与惯量子集。
+零质量分支沿用冻结Warp。
 它不代表完整物理阶段。
 
 [上游刚体源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py)

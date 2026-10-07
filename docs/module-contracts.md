@@ -887,6 +887,10 @@ Windows与Linux分别执行测试。
 本轮校验自由度最近祖先。
 质量矩阵与完整G01仍待实现。
 刚体子集已有七项GPU结果。
+质心子集新增四项GPU结果。
+零质量语义对齐冻结Warp。
+原生CPU阈值回退不适用。
+质心证据见[质心报告](windows-com-position-probe.md)。
 数值证据见[刚体报告](windows-kinematics-probe.md)。
 该子集只支持一组共享参数。
 结构校验不证明G01物理等价。

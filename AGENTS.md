@@ -11,6 +11,7 @@
 九项惯性字段支持组合上传。
 二十一字段仍属辅助子集。
 刚体运动学已有GPU探针。
+质心与自由度映射也有探针。
 它不替代完整G01阶段。
 GPU引擎尚待实现。
 首版面向NVIDIA。
@@ -50,6 +51,7 @@ LRsLab负责CPU play。
 | `tests/` | 存放Rust GPU与原生探针测试 |
 | `fixtures/native-probe/` | 保留静态MJB、源XML、结构打印件与哈希 |
 | `fixtures/kinematics/` | 保留静态原生运动学参考 |
+| `fixtures/com-position/` | 保留质心参考与零质量边界 |
 | `docs/README.md` | 提供文档索引与现状 |
 | `docs/project-positioning.md` | 明确产品与依赖边界 |
 | `docs/architecture.md` | 描述目标模块与接口 |

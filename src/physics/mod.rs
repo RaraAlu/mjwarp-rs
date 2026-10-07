@@ -1,4 +1,4 @@
-//! 历史布局与刚体运动学探针。
+//! 历史布局与刚体GPU辅助探针。
 //! 不实现完整物理阶段。
 
 use std::ops::Range;
@@ -244,51 +244,267 @@ pub fn probe_kinematics(
     }
     #[cfg(feature = "cuda-probe")]
     {
-        let f = model.kinematics().fields();
+        kinematics_device(session, model, layout, qpos).map(|(_, result)| result)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn kinematics_device(
+    session: &TransferSession,
+    model: &InertialModelInput,
+    layout: KinematicsLayout,
+    qpos: &[f32],
+) -> Result<(crate::runtime::TransferBuffer<f32>, KinematicsOutput), TransferError> {
+    let f = model.kinematics().fields();
+    let i = model.fields();
+    let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
+    let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
+    let mut cursor = 0;
+    for field in [
+        &f.body_parentid,
+        &f.body_jntadr,
+        &f.body_jntnum,
+        &f.jnt_type,
+        &f.jnt_qposadr,
+    ] {
+        metadata[cursor..cursor + field.len()].copy_from_slice(field);
+        cursor += field.len();
+    }
+    cursor = 0;
+    for field in [
+        &f.qpos0,
+        &f.body_pos,
+        &f.body_quat,
+        &i.body_ipos,
+        &i.body_iquat,
+        &f.jnt_pos,
+        &f.jnt_axis,
+    ] {
+        parameters[cursor..cursor + field.len()].copy_from_slice(field);
+        cursor += field.len();
+    }
+    let metadata = session.upload(&metadata)?;
+    let parameters = session.upload(&parameters)?;
+    // A real one-element allocation supplies a valid ABI pointer for nq=0.
+    let state = session.upload(if qpos.is_empty() { &[0.0] } else { qpos })?;
+    let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
+    values.fill(-131072.0);
+    values[4..layout.guarded - 4].fill(f32::NAN);
+    let mut output = session.upload(&values)?;
+    let kernel =
+        crate::runtime::SynchronousKernel::compile(session, KINEMATICS_CUDA, "rigid_kinematics")?;
+    // SAFETY: Owned validated topology proves acyclic parent/joint/qpos
+    // ranges. Checked packing matches the fixed CUDA ABI and every offset.
+    // One thread owns each world and processes parents before children.
+    // Guards fit the output allocation; session launch waits for completion.
+    unsafe {
+        kernel.launch(
+            &metadata,
+            &parameters,
+            &state,
+            &mut output,
+            [
+                layout.nq as u32,
+                layout.nbody as u32,
+                layout.njnt as u32,
+                layout.output.worlds() as u32,
+            ],
+        )?;
+    }
+    output.read_range_into(0, &mut values)?;
+    check_device_values(&values, "kinematics_output")?;
+    Ok((output, KinematicsOutput { layout, values }))
+}
+
+/// 四项质心结果的只读世界视图。
+/// cdof按角向量、线向量排列。
+#[derive(Clone, Copy, Debug)]
+pub struct ComPositionWorld<'a> {
+    /// 每体子树质量，单位kg。
+    pub subtree_mass: &'a [f32],
+    /// 每体世界坐标质心，单位m。
+    pub subtree_com: &'a [f32],
+    /// 每体根子树质心坐标惯量。
+    pub cinert: &'a [f32],
+    /// 每自由度空间运动映射。
+    pub cdof: &'a [f32],
+}
+
+/// 同步GPU质心结果。
+/// cinert每体包含十项。
+/// 前六项为xx,yy,zz,xy,xz,yz。
+/// 后四项为质量一阶矩与质量。
+#[derive(Clone, Debug)]
+pub struct ComPositionOutput {
+    layout: ComPositionLayout,
+    values: Vec<f32>,
+}
+
+impl ComPositionOutput {
+    pub fn worlds(&self) -> usize {
+        self.layout.output.worlds()
+    }
+    pub fn nbody(&self) -> usize {
+        self.layout.nbody
+    }
+    pub fn nv(&self) -> usize {
+        self.layout.nv
+    }
+    pub fn world(&self, world: usize) -> Result<ComPositionWorld<'_>, InputError> {
+        let r = self.layout.output.world_elements(world)?;
+        let v = &self.values[r.start + 4..r.end + 4];
+        let nb = self.nbody();
+        Ok(ComPositionWorld {
+            subtree_mass: &v[..nb],
+            subtree_com: &v[nb..4 * nb],
+            cinert: &v[4 * nb..14 * nb],
+            cdof: &v[14 * nb..],
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct ComPositionLayout {
+    output: BatchLayout,
+    nbody: usize,
+    nv: usize,
+    #[cfg(feature = "cuda-probe")]
+    metadata: usize,
+    #[cfg(feature = "cuda-probe")]
+    parameters: usize,
+    #[cfg(feature = "cuda-probe")]
+    guarded: usize,
+}
+
+impl ComPositionLayout {
+    fn new(worlds: usize, nbody: usize, njnt: usize, nv: usize) -> Result<Self, InputError> {
+        if worlds == 0 || worlds > (u32::MAX - 255) as usize || nbody == 0 {
+            return Err(InputError::InvalidDimension {
+                field: "com_position_dimensions",
+            });
+        }
+        let overflow = || InputError::Overflow {
+            field: "com_position_layout",
+        };
+        let metadata = njnt
+            .checked_mul(3)
+            .and_then(|n| n.checked_add(nbody))
+            .ok_or_else(overflow)?;
+        let parameters = nbody.checked_mul(4).ok_or_else(overflow)?;
+        let stride = nbody
+            .checked_mul(14)
+            .and_then(|n| nv.checked_mul(6).and_then(|d| n.checked_add(d)))
+            .ok_or_else(overflow)?;
+        if [metadata, parameters, stride]
+            .iter()
+            .any(|&n| n > i32::MAX as usize)
+        {
+            return Err(overflow());
+        }
+        let output = BatchLayout::new(worlds, stride, 4)?;
+        let guarded = output
+            .total_elements()
+            .checked_add(8)
+            .ok_or_else(overflow)?;
+        BatchLayout::new(1, guarded, 4)?;
+        #[cfg(not(feature = "cuda-probe"))]
+        let _ = (metadata, parameters, guarded);
+        Ok(Self {
+            output,
+            nbody,
+            nv,
+            #[cfg(feature = "cuda-probe")]
+            metadata,
+            #[cfg(feature = "cuda-probe")]
+            parameters,
+            #[cfg(feature = "cuda-probe")]
+            guarded,
+        })
+    }
+}
+
+fn check_com_position(
+    model: &InertialModelInput,
+    worlds: usize,
+    qpos: &[f32],
+) -> Result<(KinematicsLayout, ComPositionLayout), InputError> {
+    let fk = check_kinematics(model, worlds, qpos)?;
+    for (field, values) in [
+        ("body_mass", &model.fields().body_mass[..1]),
+        ("body_inertia", &model.fields().body_inertia[..3]),
+    ] {
+        if values.iter().any(|&v| v != 0.0) {
+            return Err(InputError::InvalidTopology {
+                field,
+                index: 0,
+                reason: "nonzero_world_inertia",
+            });
+        }
+    }
+    let k = model.kinematics();
+    Ok((
+        fk,
+        ComPositionLayout::new(worlds, k.nbody(), k.njnt(), k.nv())?,
+    ))
+}
+
+/// G01质心子集的同步GPU探针。
+/// 复用设备中的刚体运动学结果。
+/// GPU推导子树质量与根体索引。
+/// 零质量子树质心保持零。
+/// 不采用原生CPU的阈值回退。
+/// 世界体质量与惯量必须为零。
+/// 惯量单位为kg*m^2。
+/// 不处理休眠、柔性体或mocap。
+/// 不替代U057完整等价入口。
+/// 每次调用上传并同步回读。
+/// 需要cuda-probe及NVRTC。
+pub fn probe_com_position(
+    session: &TransferSession,
+    model: &InertialModelInput,
+    worlds: usize,
+    qpos: &[f32],
+) -> Result<ComPositionOutput, TransferError> {
+    let (fk, layout) = check_com_position(model, worlds, qpos)?;
+    #[cfg(not(feature = "cuda-probe"))]
+    {
+        let _ = (session, fk, layout);
+        Err(ProbeError::FeatureDisabled("cuda-probe").into())
+    }
+    #[cfg(feature = "cuda-probe")]
+    {
+        // The validated FK output remains allocated on the same GPU session.
+        // Its host checkpoint proves finite values; no CPU transform feeds COM.
+        let (state, checkpoint) = kinematics_device(session, model, fk, qpos)?;
+        drop(checkpoint);
+        let k = model.kinematics();
+        let f = k.fields();
         let i = model.fields();
         let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
-        let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
         let mut cursor = 0;
-        for field in [
-            &f.body_parentid,
-            &f.body_jntadr,
-            &f.body_jntnum,
-            &f.jnt_type,
-            &f.jnt_qposadr,
-        ] {
+        for field in [&f.body_parentid, &f.jnt_type, &f.jnt_bodyid, &f.jnt_dofadr] {
             metadata[cursor..cursor + field.len()].copy_from_slice(field);
             cursor += field.len();
         }
-        cursor = 0;
-        for field in [
-            &f.qpos0,
-            &f.body_pos,
-            &f.body_quat,
-            &i.body_ipos,
-            &i.body_iquat,
-            &f.jnt_pos,
-            &f.jnt_axis,
-        ] {
-            parameters[cursor..cursor + field.len()].copy_from_slice(field);
-            cursor += field.len();
-        }
+        let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
+        parameters[..k.nbody()].copy_from_slice(&i.body_mass);
+        parameters[k.nbody()..].copy_from_slice(&i.body_inertia);
         let metadata = session.upload(&metadata)?;
         let parameters = session.upload(&parameters)?;
-        // A real one-element allocation supplies a valid ABI pointer for nq=0.
-        let state = session.upload(if qpos.is_empty() { &[0.0] } else { qpos })?;
         let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
         values.fill(-131072.0);
         values[4..layout.guarded - 4].fill(f32::NAN);
         let mut output = session.upload(&values)?;
         let kernel = crate::runtime::SynchronousKernel::compile(
             session,
-            KINEMATICS_CUDA,
-            "rigid_kinematics",
+            COM_POSITION_CUDA,
+            "rigid_com_position",
         )?;
-        // SAFETY: Owned validated topology proves acyclic parent/joint/qpos
-        // ranges. Checked packing matches the fixed CUDA ABI and every offset.
-        // One thread owns each world and processes parents before children.
-        // Guards fit the output allocation; session launch waits for completion.
+        // SAFETY: Checked layouts bound all packed offsets by i32::MAX.
+        // Validated topology proves parent order and joint/body/DOF addresses.
+        // FK state has precisely 28*nbody+6*njnt elements per world plus guards.
+        // Each thread owns one output world, with no cross-thread reads/writes.
+        // The same-session adapter waits before any buffer or module can drop.
         unsafe {
             kernel.launch(
                 &metadata,
@@ -296,36 +512,113 @@ pub fn probe_kinematics(
                 &state,
                 &mut output,
                 [
-                    layout.nq as u32,
-                    layout.nbody as u32,
-                    layout.njnt as u32,
+                    k.nbody() as u32,
+                    k.njnt() as u32,
+                    k.nv() as u32,
                     worlds as u32,
                 ],
             )?;
         }
         output.read_range_into(0, &mut values)?;
-        for index in (0..4).chain(layout.guarded - 4..layout.guarded) {
-            if values[index] != -131072.0 {
-                return Err(ProbeError::Mismatch {
-                    index,
-                    expected: -131072.0,
-                    actual: values[index],
-                }
-                .into());
-            }
-        }
-        for (index, value) in values[4..layout.guarded - 4].iter().enumerate() {
-            if !value.is_finite() {
-                return Err(InputError::NonFinite {
-                    field: "kinematics_output",
-                    index,
-                }
-                .into());
-            }
-        }
-        Ok(KinematicsOutput { layout, values })
+        check_device_values(&values, "com_position_output")?;
+        Ok(ComPositionOutput { layout, values })
     }
 }
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn check_device_values(values: &[f32], field: &'static str) -> Result<(), TransferError> {
+    // Private callers supply a checked payload layout and two four-value guards.
+    debug_assert!(values.len() >= 8);
+    for index in (0..4).chain(values.len() - 4..values.len()) {
+        if values[index] != -131072.0 {
+            return Err(ProbeError::Mismatch {
+                index,
+                expected: -131072.0,
+                actual: values[index],
+            }
+            .into());
+        }
+    }
+    for (index, value) in values[4..values.len() - 4].iter().enumerate() {
+        if !value.is_finite() {
+            return Err(InputError::NonFinite { field, index }.into());
+        }
+    }
+    Ok(())
+}
+
+// Adapted from the frozen smooth.py com_pos algebra. Apache-2.0 attribution
+// and license terms below apply to both bounded rigid CUDA probes.
+#[cfg(feature = "cuda-probe")]
+const COM_POSITION_CUDA: &str = r#"
+extern "C" __global__ void rigid_com_position(const int* m,const float* p,
+    const float* state,float* output,unsigned nb,unsigned nj,unsigned nv,unsigned nw) {
+  unsigned w=blockIdx.x*blockDim.x+threadIdx.x;
+  if(w>=nw) return;
+  const int* parent=m; const int* type=m+nb; const int* body=type+nj;
+  const int* adr=body+nj;
+  const float* mass=p; const float* inertia=p+nb;
+  const float* s=state+4+(unsigned long long)w*(28*nb+6*nj);
+  const float* xmat=s+7*nb; const float* ipos=s+16*nb;
+  const float* imat=s+19*nb; const float* anchor=s+28*nb;
+  const float* axis=anchor+3*nj;
+  float* sm=output+4+(unsigned long long)w*(14*nb+6*nv);
+  float* com=sm+nb; float* ci=com+3*nb; float* cd=ci+10*nb;
+  for(unsigned b=0;b<nb;b++) {
+    sm[b]=mass[b];
+    for(int a=0;a<3;a++) com[3*b+a]=mass[b]*ipos[3*b+a];
+  }
+  for(int b=int(nb)-1;b>0;b--) {
+    int up=parent[b]; sm[up]+=sm[b];
+    for(int a=0;a<3;a++) com[3*up+a]+=com[3*b+a];
+  }
+  for(unsigned b=0;b<nb;b++) if(sm[b]!=0.0f)
+    for(int a=0;a<3;a++) com[3*b+a]/=sm[b];
+  for(unsigned b=0;b<nb;b++) {
+    unsigned root=b; while(parent[root]!=0) root=parent[root];
+    float x=ipos[3*b]-com[3*root], y=ipos[3*b+1]-com[3*root+1];
+    float z=ipos[3*b+2]-com[3*root+2], mb=mass[b];
+    const float* r=imat+9*b; const float* d=inertia+3*b;
+    float t[9];
+    for(int row=0;row<3;row++) for(int col=0;col<3;col++) {
+      float v=0.0f;
+      for(int a=0;a<3;a++) v+=r[3*row+a]*d[a]*r[3*col+a];
+      t[3*row+col]=v;
+    }
+    float* c=ci+10*b;
+    c[0]=t[0]+mb*(y*y+z*z); c[1]=t[4]+mb*(x*x+z*z);
+    c[2]=t[8]+mb*(x*x+y*y); c[3]=t[1]-mb*x*y;
+    c[4]=t[2]-mb*x*z; c[5]=t[5]-mb*y*z;
+    c[6]=mb*x; c[7]=mb*y; c[8]=mb*z; c[9]=mb;
+  }
+  for(unsigned j=0;j<nj;j++) {
+    unsigned b=body[j],root=b; while(parent[root]!=0) root=parent[root];
+    float off[3]; for(int a=0;a<3;a++) off[a]=com[3*root+a]-anchor[3*j+a];
+    unsigned d=adr[j]; int ty=type[j];
+    if(ty==0) {
+      for(int a=0;a<3;a++) {
+        float* c=cd+6*(d+a);
+        for(int k=0;k<6;k++) c[k]=0.0f;
+        c[3+a]=1.0f;
+      }
+      d+=3;
+    }
+    int count=(ty<=1)?3:1;
+    for(int a=0;a<count;a++) {
+      float ax[3]; for(int k=0;k<3;k++) ax[k]=(ty<=1)?xmat[9*b+3*k+a]:axis[3*j+k];
+      float* c=cd+6*(d+a);
+      if(ty==2) {
+        for(int k=0;k<3;k++) { c[k]=0.0f; c[3+k]=ax[k]; }
+      } else {
+        for(int k=0;k<3;k++) c[k]=ax[k];
+        c[3]=ax[1]*off[2]-ax[2]*off[1];
+        c[4]=ax[2]*off[0]-ax[0]*off[2];
+        c[5]=ax[0]*off[1]-ax[1]*off[0];
+      }
+    }
+  }
+}
+"#;
 
 // CUDA expressions follow the frozen Warp wxyz/row-major math conventions.
 // The sequential body schedule is intentionally a correctness probe, not the
@@ -679,6 +972,97 @@ mod tests {
         assert_eq!(w.ximat.len(), 18);
         assert!(w.xanchor.is_empty() && w.xaxis.is_empty());
         assert!(out.world(2).is_err());
+    }
+
+    #[test]
+    fn rejects_com_position_capacity_and_invalid_world_inertia() {
+        for dims in [
+            (0, 1, 0, 0),
+            (1, 0, 0, 0),
+            (usize::MAX, 1, 0, 0),
+            (1, usize::MAX, 0, 0),
+            (1, 1, usize::MAX, 0),
+            (1, 1, 0, usize::MAX),
+            (1, 1, 0, i32::MAX as usize),
+        ] {
+            assert!(ComPositionLayout::new(dims.0, dims.1, dims.2, dims.3).is_err());
+        }
+        let m = test_model(Some(3));
+        for field in ["body_mass", "body_inertia"] {
+            let changed = edited(&m, |_, i| {
+                if field == "body_mass" {
+                    i.body_mass[0] = 1.0;
+                } else {
+                    i.body_inertia[0] = 1.0;
+                }
+            });
+            assert!(matches!(
+                check_com_position(&changed, 1, &[0.0]),
+                Err(InputError::InvalidTopology {
+                    reason: "nonzero_world_inertia",
+                    ..
+                })
+            ));
+            // The narrower COM contract does not restrict the existing FK helper.
+            assert!(check_kinematics(&changed, 1, &[0.0]).is_ok());
+        }
+    }
+
+    #[test]
+    fn com_position_reuses_kinematics_checks_before_device_work() {
+        let m = test_model(Some(3));
+        assert!(check_com_position(&m, 2, &[0.0]).is_err());
+        assert!(check_com_position(&m, 2, &[0.0, f32::NAN]).is_err());
+        let changed = edited(&m, |k, _| k.jnt_axis.fill(0.0));
+        assert!(check_com_position(&changed, 1, &[0.0]).is_err());
+        assert!(check_com_position(&m, 2, &[0.0, 0.5]).is_ok());
+    }
+
+    #[test]
+    fn com_position_views_keep_world_body_and_dof_ranges_separate() {
+        let layout = ComPositionLayout::new(2, 2, 1, 1).unwrap();
+        let out = ComPositionOutput {
+            layout,
+            values: (0..76).map(|n| n as f32).collect(),
+        };
+        assert_eq!(out.worlds(), 2);
+        assert_eq!(out.nbody(), 2);
+        assert_eq!(out.nv(), 1);
+        let w = out.world(1).unwrap();
+        assert_eq!(w.subtree_mass, &[38.0, 39.0]);
+        assert_eq!(w.subtree_com, &[40.0, 41.0, 42.0, 43.0, 44.0, 45.0]);
+        assert_eq!(w.cinert.len(), 20);
+        assert_eq!(w.cdof, &[66.0, 67.0, 68.0, 69.0, 70.0, 71.0]);
+        assert!(out.world(2).is_err());
+        let layout = ComPositionLayout::new(1, 1, 0, 0).unwrap();
+        let out = ComPositionOutput {
+            layout,
+            values: vec![0.0; 22],
+        };
+        assert!(out.world(0).unwrap().cdof.is_empty());
+    }
+
+    #[test]
+    fn rejects_both_device_guards_and_incomplete_finite_payloads() {
+        let mut v = vec![-131072.0; 12];
+        v[4..8].fill(0.0);
+        check_device_values(&v, "probe_output").unwrap();
+        for index in [0, 3, 8, 11] {
+            let mut changed = v.clone();
+            changed[index] = 0.0;
+            assert!(matches!(
+                check_device_values(&changed, "probe_output"),
+                Err(TransferError::Backend(ProbeError::Mismatch { .. }))
+            ));
+        }
+        for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let mut changed = v.clone();
+            changed[5] = bad;
+            assert!(matches!(
+                check_device_values(&changed, "probe_output"),
+                Err(TransferError::Input(InputError::NonFinite { index: 1, .. }))
+            ));
+        }
     }
 
     #[test]
