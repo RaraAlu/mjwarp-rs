@@ -9,7 +9,8 @@ use cudarc::{
 };
 use std::sync::Arc;
 
-/// ABI: (const int*, const T*, const T*, T*, u32, u32, u32, u32).
+/// ABI: (const int*, const P*, const S*, O*, u32, u32, u32, u32).
+/// 调用方证明三种元素的实际ABI。
 /// 核函数与缓冲保留同一会话。
 pub(crate) struct SynchronousKernel {
     session: TransferSession,
@@ -65,12 +66,12 @@ impl SynchronousKernel {
     /// dimensions. All four buffers must be nonempty. The kernel must only write
     /// output, must not outlive this synchronized launch, and must not spawn work
     /// elsewhere. Kernel code must not access pointers outside these buffers.
-    pub(crate) unsafe fn launch<T: TransferElement>(
+    pub(crate) unsafe fn launch<P: TransferElement, S: TransferElement, O: TransferElement>(
         &self,
         metadata: &TransferBuffer<i32>,
-        parameters: &TransferBuffer<T>,
-        state: &TransferBuffer<T>,
-        output: &mut TransferBuffer<T>,
+        parameters: &TransferBuffer<P>,
+        state: &TransferBuffer<S>,
+        output: &mut TransferBuffer<O>,
         dimensions: [u32; 4],
     ) -> Result<(), TransferError> {
         for same in [
@@ -181,10 +182,10 @@ extern "C" __global__ void adapter_probe(const int* m,const float* p,const float
         let kernel = SynchronousKernel::compile(&session, SOURCE, "adapter_probe").unwrap();
         let meta = session.upload(&[3i32]).unwrap();
         let foreign = other.upload(&[3i32]).unwrap();
-        let parameters = session.upload(&[2.0]).unwrap();
-        let state = session.upload(&[1.0, 2.0, 3.0]).unwrap();
+        let parameters = session.upload(&[2.0f32]).unwrap();
+        let state = session.upload(&[1.0f32, 2.0, 3.0]).unwrap();
         let empty = session.upload::<f32>(&[]).unwrap();
-        let mut output = session.upload(&[0.0; 3]).unwrap();
+        let mut output = session.upload(&[0.0f32; 3]).unwrap();
         // SAFETY: This trusted kernel uses three state/output elements; rejected
         // paths return before launch and do not dereference any buffer pointer.
         unsafe {
@@ -210,6 +211,30 @@ extern "C" __global__ void adapter_probe(const int* m,const float* p,const float
         let mut values = [0.0; 3];
         output.read_range_into(0, &mut values).unwrap();
         assert_eq!(values, [12.0, 13.0, 14.0]);
+    }
+
+    #[test]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn preserves_three_independent_buffer_widths_in_mixed_kernel_abi() {
+        let session = TransferSession::new(0).unwrap();
+        let source = SOURCE
+            .replace("const float* p", "const double* p")
+            .replace("float* o", "int* o");
+        let kernel = SynchronousKernel::compile(&session, &source, "adapter_probe").unwrap();
+        let meta = session.upload(&[3i32]).unwrap();
+        let parameters = session.upload(&[2.0f64]).unwrap();
+        let state = session.upload(&[1.0f32, 2.0, 3.0]).unwrap();
+        let mut output = session.upload(&[-1i32; 3]).unwrap();
+        // SAFETY: The trusted shader reads one i32, one f64 and three f32
+        // elements, then writes three i32 elements in the same session.
+        unsafe {
+            kernel
+                .launch(&meta, &parameters, &state, &mut output, [1, 2, 3, 3])
+                .unwrap();
+        }
+        let mut values = [0i32; 3];
+        output.read_range_into(0, &mut values).unwrap();
+        assert_eq!(values, [12, 13, 14]);
     }
 
     #[test]

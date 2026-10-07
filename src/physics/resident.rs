@@ -15,14 +15,14 @@ use super::{
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
-#[cfg(feature = "cuda-probe")]
-use crate::model::CamLightParameter;
 use crate::model::{
     AttachedModelInput, BatchLayout, CamLightFields, CamLightModelInput, CamLightParameters,
     FixedTendonFields, FixedTendonModelInput, FixedTendonRows, KinematicsParameter,
     KinematicsParameters, MocapModelInput, SpatialTendonFields, SpatialTendonModelInput,
     SpatialTendonRows,
 };
+#[cfg(feature = "cuda-probe")]
+use crate::model::{CamLightParameter, SpatialTendonGeometry};
 use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
@@ -293,16 +293,15 @@ impl KinematicsPlan {
         )
     }
 
-    /// 接收site与pulley路径。
+    /// 接收site、滑轮与球柱路径。
     /// 两种肌腱集合各用局部编号。
-    /// 本接口不提供几何绕行。
     pub fn with_spatial_tendons(
         session: &TransferSession,
         model: SpatialTendonModelInput,
         parameters: KinematicsParameters,
         camlight_parameters: CamLightParameters,
     ) -> Result<Self, TransferError> {
-        let (model, spatial_fields, spatial_rows) = model.into_parts();
+        let (model, spatial_fields, spatial_rows, spatial_geometry) = model.into_parts();
         let spatial_layout = SpatialTendonLayout::new(
             1,
             spatial_rows.ntendon(),
@@ -340,6 +339,7 @@ impl KinematicsPlan {
                 spatial_fields,
                 spatial_rows,
                 spatial_layout,
+                spatial_geometry,
             );
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
@@ -389,7 +389,8 @@ impl KinematicsPlan {
                 com_stride,
             )?;
             let fixed_tendon = pack_fixed_tendon(&model, &fixed_tendon_fields)?;
-            let spatial_tendon = pack_spatial_tendon(&model, &spatial_fields)?;
+            let spatial_tendon =
+                pack_spatial_tendon(&model, &spatial_fields, spatial_geometry.as_ref())?;
             let rigid = rigid.upload(session)?;
             let com = com.upload(session)?;
             let attached = attached.upload(session)?;
@@ -436,12 +437,16 @@ impl KinematicsPlan {
             let spatial_tendon = if spatial_layout.is_empty() {
                 None
             } else {
-                let source = super::spatial_tendon::SPATIAL_TENDON_CUDA;
+                let source = format!(
+                    "{}\n{}",
+                    super::tendon_wrap::TENDON_WRAP_CUDA,
+                    super::spatial_tendon::SPATIAL_TENDON_CUDA
+                );
                 Some(DeviceSpatialTendon {
                     model: spatial_tendon.upload(session)?,
-                    site_kernel: SynchronousKernel::compile(session, source, "spatial_site")?,
-                    moment_kernel: SynchronousKernel::compile(session, source, "spatial_moment")?,
-                    wrap_kernel: SynchronousKernel::compile(session, source, "spatial_wrap")?,
+                    site_kernel: SynchronousKernel::compile(session, &source, "spatial_site")?,
+                    moment_kernel: SynchronousKernel::compile(session, &source, "spatial_moment")?,
+                    wrap_kernel: SynchronousKernel::compile(session, &source, "spatial_wrap")?,
                 })
             };
             Ok(Self {
@@ -822,8 +827,8 @@ impl KinematicsPlan {
                 ];
                 // SAFETY: Validated paths, CSR and derived body descriptors bound
                 // all accesses. Checked layouts bound each wide world offset.
-                // The first two entries use the f32 ABI; the third uses i32.
-                // Inputs may share immutable integer metadata; outputs never alias.
+                // The first two entries use f32; the third reads f32 and writes i32.
+                // All outputs are distinct allocations from their immutable inputs.
                 // Synchronous launches preserve site -> moment ordering and owners.
                 unsafe {
                     device.site_kernel.launch(
@@ -842,8 +847,8 @@ impl KinematicsPlan {
                     )?;
                     device.wrap_kernel.launch(
                         &device.model.metadata,
-                        &device.model.metadata,
-                        &device.model.metadata,
+                        &device.model.parameters,
+                        &data.spatial_tendon,
                         &mut data.spatial_wrap,
                         dimensions,
                     )?;
@@ -1296,6 +1301,7 @@ fn packed_length(mut lengths: impl Iterator<Item = usize>) -> Result<usize, Inpu
 fn pack_spatial_tendon(
     model: &AttachedModelInput,
     fields: &SpatialTendonFields,
+    geometry: Option<&SpatialTendonGeometry>,
 ) -> Result<PackedModel, TransferError> {
     let k = model.rigid().kinematics();
     let f = k.fields();
@@ -1304,7 +1310,7 @@ fn pack_spatial_tendon(
     let nw = fields.wrap_type.len();
     let length = packed_length(
         [
-            6,
+            9,
             nb,
             nb,
             nb,
@@ -1313,6 +1319,7 @@ fn pack_spatial_tendon(
             nt,
             nt,
             nt,
+            nw,
             nw,
             nw,
             nw,
@@ -1321,36 +1328,41 @@ fn pack_spatial_tendon(
         .into_iter(),
     )?;
     let mut metadata = crate::runtime::host_staging::<i32>(length)?;
-    let mut parameters = crate::runtime::host_staging::<f32>(nw.max(1))?;
+    let size_count = geometry.map_or(0, |g| g.geom_size.values().len());
+    let param_count = packed_length([nw, size_count].into_iter())?;
+    let mut parameters = crate::runtime::host_staging::<f32>(param_count.max(1))?;
     let layout = AttachedLayout::new(1, model.ngeom(), model.nsite())?;
-    metadata[..6].copy_from_slice(&[
+    metadata[..9].copy_from_slice(&[
         nt as i32,
         nw as i32,
         fields.ten_j_colind.len() as i32,
         nb as i32,
         layout.output.elements_per_world() as i32,
         (12 * model.ngeom()) as i32,
+        model.ngeom() as i32,
+        geometry.map_or(1, |g| g.geom_size.batches()) as i32,
+        nw as i32,
     ]);
-    metadata[6..6 + nb].copy_from_slice(&f.body_parentid);
+    metadata[9..9 + nb].copy_from_slice(&f.body_parentid);
     for body in 1..nb {
         let parent = f.body_parentid[body] as usize;
-        metadata[6 + nb + body] = if parent == 0 {
+        metadata[9 + nb + body] = if parent == 0 {
             body as i32
         } else {
-            metadata[6 + nb + parent]
+            metadata[9 + nb + parent]
         };
         let count = f.body_jntnum[body] as usize;
         if count > 0 {
             let start = f.body_jntadr[body] as usize;
-            metadata[6 + 2 * nb + body] = f.jnt_dofadr[start];
+            metadata[9 + 2 * nb + body] = f.jnt_dofadr[start];
             for joint in start..start + count {
-                metadata[6 + 3 * nb + body] +=
+                metadata[9 + 3 * nb + body] +=
                     crate::model::topology::JointType::try_from(f.jnt_type[joint])?.dof_width()
                         as i32;
             }
         }
     }
-    let mut cursor = 6 + 4 * nb;
+    let mut cursor = 9 + 4 * nb;
     for values in [
         &fields.tendon_adr,
         &fields.tendon_num,
@@ -1363,8 +1375,16 @@ fn pack_spatial_tendon(
         cursor += values.len();
     }
     for (i, (&kind, &id)) in fields.wrap_type.iter().zip(&fields.wrap_objid).enumerate() {
-        metadata[cursor + i] = if kind == 3 {
-            model.fields().site_bodyid[id as usize]
+        metadata[cursor + i] = match kind {
+            3 => model.fields().site_bodyid[id as usize],
+            4 | 5 => model.fields().geom_bodyid[id as usize],
+            _ => -1,
+        };
+    }
+    cursor += nw;
+    for (i, &kind) in fields.wrap_type.iter().enumerate() {
+        metadata[cursor + i] = if matches!(kind, 4 | 5) && fields.wrap_prm[i].round() >= 0.0 {
+            fields.wrap_prm[i].round() as i32
         } else {
             -1
         };
@@ -1385,6 +1405,9 @@ fn pack_spatial_tendon(
             }
             *value = scale;
         }
+    }
+    if let Some(g) = geometry {
+        parameters[nw..nw + size_count].copy_from_slice(g.geom_size.values());
     }
     Ok(PackedModel {
         metadata,
@@ -2049,7 +2072,16 @@ mod tests {
             data.spatial_wrap.write_range(index, &[-131072]).unwrap();
         }
         for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
-            for index in [4, 5, 6, 4 + 512 * 14, 5 + 512 * 14, 6 + 512 * 14] {
+            for index in [
+                4,
+                5,
+                6,
+                4 + 512 * 28,
+                5 + 512 * 28,
+                6 + 512 * 28,
+                18 + 512 * 28,
+                31 + 512 * 28,
+            ] {
                 data.spatial_tendon.write_range(index, &[bad]).unwrap();
                 assert!(matches!(data.readback(), Err(TransferError::Input(
                     InputError::NonFinite { field: "resident_spatial_tendon_output", index: i })) if i==index-4));
@@ -2096,7 +2128,7 @@ mod tests {
                 error,
                 TransferError::Input(InputError::NonFinite {
                     field: "resident_spatial_tendon_output",
-                    index: 7168
+                    index: 14336
                 })
             ),
             "{error:?}"

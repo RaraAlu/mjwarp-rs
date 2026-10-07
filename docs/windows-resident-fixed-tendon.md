@@ -9,7 +9,8 @@
 本报告保留该批历史计数。
 常驻链现含六个设备子集。
 设备结果现用七个缓冲。
-空间增量见[最新报告](windows-resident-spatial-tendon.md)。
+空间site增量见[历史报告](windows-resident-spatial-tendon.md)。
+球柱增量见[最新报告](windows-resident-geom-tendon.md)。
 
 ## 实际接口
 
@@ -282,7 +283,7 @@ Normify只激活两个辅助叶子。
 
 该批尚未实现空间肌腱。
 后续子集已支持site与pulley。
-球柱绕行仍待实现。
+后续子集已支持球柱绕行。
 该批尚未实现包裹字段。
 后续子集已更新包裹字段。
 flex位置与休眠副作用仍待实现。

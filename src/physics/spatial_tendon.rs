@@ -1,5 +1,5 @@
-//! site与pulley空间肌腱GPU子集。
-//! 不计算球柱绕行或肌腱速度。
+//! site、滑轮与球柱空间肌腱子集。
+//! 不计算肌腱速度或限位。
 
 use crate::diagnostics::InputError;
 use crate::model::{BatchLayout, SpatialTendonRows};
@@ -41,7 +41,7 @@ impl SpatialTendonOutput {
         Ok(SpatialTendonWorld {
             ten_length: &v[..nt],
             ten_jacobian: &v[nt..nt + nnz],
-            wrap_xpos: &v[nt + nnz..],
+            wrap_xpos: &v[nt + nnz..nt + nnz + 6 * self.rows.nwrap()],
             ten_wrapadr: &ids[..nt],
             ten_wrapnum: &ids[nt..2 * nt],
             wrap_obj: &ids[2 * nt..],
@@ -70,7 +70,7 @@ impl SpatialTendonLayout {
             field: "spatial_tendon_layout",
         };
         let floats = nw
-            .checked_mul(6)
+            .checked_mul(13)
             .and_then(|n| n.checked_add(nt))
             .and_then(|n| n.checked_add(nnz))
             .filter(|&n| n <= i32::MAX as usize)
@@ -110,7 +110,8 @@ impl SpatialTendonLayout {
 }
 
 // Adapted from mujoco_warp/_src/smooth.py::_spatial_site_tendon,
-// _accumulate_jac_chain and _spatial_tendon_wrap, and math.py::normalize_with_norm.
+// _spatial_geom_tendon, _accumulate_jac_chain and _spatial_tendon_wrap,
+// and math.py::normalize_with_norm.
 // Frozen revision: 71da24d956378a87a703b6e1442b13aec0c4ac29.
 // Copyright 2025 The Newton Developers
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -124,37 +125,56 @@ impl SpatialTendonLayout {
 // limitations under the License.
 #[cfg(feature = "cuda-probe")]
 pub(super) const SPATIAL_TENDON_CUDA: &str = r#"
-struct SV { float x,y,z; };
-__device__ SV sl(const float* p) {return {p[0],p[1],p[2]};}
-__device__ SV sub(SV a,SV b) {return {a.x-b.x,a.y-b.y,a.z-b.z};}
-__device__ SV cross(SV a,SV b) {return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x};}
-__device__ float norm(SV a) {return sqrtf(a.x*a.x+a.y*a.y+a.z*a.z);}
-__device__ SV direction(SV a,float n) {return n<1e-15f ? SV{1,0,0} : SV{a.x/n,a.y/n,a.z/n};}
-// Header: nt,nwrap,nnz,nbody,attached stride,site position offset.
+__device__ void put(float* p,SV v) {p[0]=v.x;p[1]=v.y;p[2]=v.z;}
+__device__ SV point(const float* scratch,int i) {return sl(scratch+7*i+1);}
+// Header: nt,nwrap,nnz,nbody,attached stride,site offset,ngeom,size period,size offset.
 // Arrays: parent,root,dofadr,dofnum; tendonadr,num,rowadr,rownnz;
-// wraptype,siteid,sitebody; CSR columns.
+// wraptype,objid,body,sidesite; CSR columns.
+// Float result: lengths, CSR, compact wrap positions, private 7*nwrap scratch.
 extern "C" __global__ void spatial_site(const int* m,const float* scales,
     const float* attached,float* result,unsigned nv,unsigned a,unsigned b,unsigned worlds) {
   unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=worlds) return;
   int nt=m[0],nw=m[1],nnz=m[2],nb=m[3];
-  const int* adr=m+6+4*nb;const int* num=adr+nt;
+  const int* adr=m+9+4*nb;const int* num=adr+nt;
   const int* type=adr+4*nt;const int* site=type+nw;
-  float* out=result+4+(unsigned long long)w*(nt+nnz+6ull*nw);
-  float* points=out+nt+nnz;
-  for(int i=0;i<nt+nnz+6*nw;++i) out[i]=0.0f;
-  const float* sx=attached+4+(unsigned long long)w*m[4]+m[5];
+  const int* side=type+3*nw;
+  float* out=result+4+(unsigned long long)w*(nt+nnz+13ull*nw);
+  float* points=out+nt+nnz;float* scratch=points+6*nw;
+  for(int i=0;i<nt+nnz+13*nw;++i) out[i]=0.0f;
+  const float* ax=attached+4+(unsigned long long)w*m[4];const float* sx=ax+m[5];
   for(int i=0;i<nw;++i) if(type[i]==3) {
-    for(int k=0;k<3;++k) points[3*i+k]=sx[3*site[i]+k];
+    put(scratch+7*i+1,sl(sx+3*site[i]));
+  }
+  for(int i=0;i<nw;++i) if(type[i]==4 || type[i]==5) {
+    int g=site[i];SV s=side[i]>=0 ? sl(sx+3*side[i]) : SV{1e10f,1e10f,1e10f};
+    float radius=scales[m[8]+(unsigned long long)(w%m[7])*3*m[6]+3*g];
+    Wrap3 r=wrap(point(scratch,i-1),point(scratch,i+1),sl(ax+3*g),ax+3*m[6]+9*g,radius,type[i],s);
+    scratch[7*i]=r.len;put(scratch+7*i+1,r.a);put(scratch+7*i+4,r.b);
   }
   for(int t=0;t<nt;++t) for(int i=adr[t];i<adr[t]+num[t]-1;++i) {
-    if(type[i]==3 && type[i+1]==3) out[t]+=norm(sub(sl(points+3*(i+1)),sl(points+3*i)))*scales[i];
+    if(type[i]==3 && type[i+1]==3) out[t]+=norm(sub(point(scratch,i+1),point(scratch,i)))*scales[i];
+    if(type[i]==4 || type[i]==5) {
+      float len=scratch[7*i];
+      if(len>=0) len=norm(sub(point(scratch,i),point(scratch,i-1)))+len
+        +norm(sub(point(scratch,i+1),sl(scratch+7*i+4)));
+      else len=norm(sub(point(scratch,i+1),point(scratch,i-1)));
+      if(len!=0) out[t]+=len*scales[i];
+    }
+  }
+  int cursor=0;
+  for(int i=0;i<nw;++i) {
+    if(type[i]==3) put(points+3*cursor++,point(scratch,i));
+    else if(type[i]==2) put(points+3*cursor++,{0,0,0});
+    else if(norm(point(scratch,i))<1e10f) {
+      put(points+3*cursor++,point(scratch,i));put(points+3*cursor++,sl(scratch+7*i+4));
+    }
   }
 }
 __device__ void chain(const int* m,const float* com,float* jac,int body,
     int row,int count,SV offset,SV vec,float scale) {
   int nb=m[3],nt=m[0],nw=m[1];
-  const int* parent=m+6;const int* dofadr=parent+2*nb;const int* dofnum=dofadr+nb;
-  const int* cols=m+6+4*nb+4*nt+3*nw;
+  const int* parent=m+9;const int* dofadr=parent+2*nb;const int* dofnum=dofadr+nb;
+  const int* cols=m+9+4*nb+4*nt+4*nw;
   const float* cdof=com+14*nb;
   int ptr=count-1;
   while(body>0) {
@@ -170,37 +190,53 @@ __device__ void chain(const int* m,const float* com,float* jac,int body,
     body=parent[body];
   }
 }
+__device__ void segment(const int* m,const float* com,float* jac,int row,int count,
+    int b0,int b1,SV p0,SV p1,float scale) {
+  if(b0==b1) return;
+  const int* root=m+9+m[3];SV dif=sub(p1,p0),vec=direction(dif,norm(dif));
+  chain(m,com,jac,b0,row,count,sub(p0,sl(com+m[3]+3*root[b0])),vec,-scale);
+  chain(m,com,jac,b1,row,count,sub(p1,sl(com+m[3]+3*root[b1])),vec,scale);
+}
 extern "C" __global__ void spatial_moment(const int* m,const float* scales,
     const float* input,float* result,unsigned nv,unsigned a,unsigned b,unsigned worlds) {
   unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=worlds) return;
   int nt=m[0],nw=m[1],nnz=m[2],nb=m[3];
-  const int* root=m+6+nb;const int* adr=m+6+4*nb;const int* num=adr+nt;
+  const int* adr=m+9+4*nb;const int* num=adr+nt;
   const int* row=num+nt;const int* count=row+nt;const int* type=count+nt;
   const int* body=type+2*nw;
   const float* com=input+4+(unsigned long long)w*(14ull*nb+6ull*nv);
-  float* out=result+4+(unsigned long long)w*(nt+nnz+6ull*nw);
-  float* jac=out+nt;const float* points=jac+nnz;
+  float* out=result+4+(unsigned long long)w*(nt+nnz+13ull*nw);
+  float* jac=out+nt;const float* scratch=jac+nnz+6*nw;
   for(int j=0;j<nnz;++j) jac[j]=0.0f;
   for(int t=0;t<nt;++t) for(int i=adr[t];i<adr[t]+num[t]-1;++i) {
-    if(type[i]!=3 || type[i+1]!=3 || body[i]==body[i+1]) continue;
-    SV p0=sl(points+3*i),p1=sl(points+3*(i+1));SV dif=sub(p1,p0);float len=norm(dif);
-    SV vec=direction(dif,len);
-    SV o0=sub(p0,sl(com+nb+3*root[body[i]]));
-    SV o1=sub(p1,sl(com+nb+3*root[body[i+1]]));
-    chain(m,com,jac,body[i],row[t],count[t],o0,vec,-scales[i]);
-    chain(m,com,jac,body[i+1],row[t],count[t],o1,vec,scales[i]);
+    if(type[i]==3 && type[i+1]==3)
+      segment(m,com,jac,row[t],count[t],body[i],body[i+1],point(scratch,i),point(scratch,i+1),scales[i]);
+    if(type[i]==4 || type[i]==5) {
+      if(scratch[7*i]>=0) {
+        segment(m,com,jac,row[t],count[t],body[i-1],body[i],point(scratch,i-1),point(scratch,i),scales[i]);
+        segment(m,com,jac,row[t],count[t],body[i],body[i+1],sl(scratch+7*i+4),point(scratch,i+1),scales[i]);
+      } else segment(m,com,jac,row[t],count[t],body[i-1],body[i+1],point(scratch,i-1),point(scratch,i+1),scales[i]);
+    }
   }
 }
-// Same eight-argument ABI, specialized to integer parameters/state/output.
-extern "C" __global__ void spatial_wrap(const int* m,const int* params,
-    const int* state,int* result,unsigned nv,unsigned a,unsigned b,unsigned worlds) {
+// Mixed f32 input / i32 output retains the same eight-argument pointer ABI.
+extern "C" __global__ void spatial_wrap(const int* m,const float* params,
+    const float* state,int* result,unsigned nv,unsigned a,unsigned b,unsigned worlds) {
   unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=worlds) return;
-  int nt=m[0],nw=m[1],nb=m[3];const int* adr=m+6+4*nb;const int* num=adr+nt;
-  const int* type=adr+4*nt;
+  int nt=m[0],nw=m[1],nnz=m[2],nb=m[3];const int* adr=m+9+4*nb;const int* num=adr+nt;
+  const int* type=adr+4*nt;const int* id=type+nw;
+  const float* scratch=state+4+(unsigned long long)w*(nt+nnz+13ull*nw)+nt+nnz+6*nw;
   int* out=result+4+(unsigned long long)w*(2ull*nt+2ull*nw);
   for(int i=0;i<2*nt+2*nw;++i) out[i]=0;
-  for(int t=0;t<nt;++t) {out[t]=adr[t];out[nt+t]=num[t];}
-  for(int i=0;i<nw;++i) out[2*nt+i]=type[i]==2 ? -2 : -1;
+  int cursor=0;
+  for(int t=0;t<nt;++t) {
+    out[t]=cursor;
+    for(int i=adr[t];i<adr[t]+num[t];++i) {
+      if(type[i]==3 || type[i]==2) out[2*nt+cursor++]=type[i]==2?-2:-1;
+      else if(norm(point(scratch,i))<1e10f) {out[2*nt+cursor++]=id[i];out[2*nt+cursor++]=id[i];}
+    }
+    out[nt+t]=cursor-out[t];
+  }
 }
 "#;
 

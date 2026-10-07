@@ -20,7 +20,9 @@ pub use camlight::{CamLightFields, CamLightModelInput, CamLightParameter, CamLig
 pub mod fixed_tendon;
 pub use fixed_tendon::{FixedTendonFields, FixedTendonModelInput, FixedTendonRows};
 pub mod spatial_tendon;
-pub use spatial_tendon::{SpatialTendonFields, SpatialTendonModelInput, SpatialTendonRows};
+pub use spatial_tendon::{
+    SpatialTendonFields, SpatialTendonGeometry, SpatialTendonModelInput, SpatialTendonRows,
+};
 
 /// Windows原生探针的小型DTO。
 /// 计数采用原生有符号64位。

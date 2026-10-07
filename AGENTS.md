@@ -19,7 +19,8 @@ GPU支持相机与光源位姿。
 GPU支持固定肌腱长度与力臂。
 肌腱拓扑与系数仍共享。
 空间肌腱支持site与pulley。
-球柱绕行仍待实现。
+GPU支持球柱与内侧绕行。
+几何尺寸支持独立周期。
 两类肌腱各用局部编号。
 常驻状态支持mocap写入。
 GPU初始化静态geom缓存。
@@ -63,7 +64,7 @@ LRsLab负责CPU play。
 | `src/model/mocap.rs` | 检查mocap映射与静态几何 |
 | `src/model/camlight.rs` | 检查相机光源拓扑与独立参数 |
 | `src/model/fixed_tendon.rs` | 检查固定肌腱与原生CSR |
-| `src/model/spatial_tendon.rs` | 检查site路径与滑轮除数 |
+| `src/model/spatial_tendon.rs` | 检查路径、球柱尺寸与侧向site |
 | `src/io/` | 转换、GPU字段交换与只读字段组 |
 | `src/io/fields.rs` | 提供独立连续字段底层 |
 | `src/runtime/` | 实现驱动级GPU探针 |
@@ -72,7 +73,8 @@ LRsLab负责CPU play。
 | `src/physics/resident.rs` | 常驻六个运动学设备子集 |
 | `src/physics/camlight.rs` | 相机光源两段GPU位姿计算 |
 | `src/physics/fixed_tendon.rs` | 固定肌腱长度与稀疏力臂 |
-| `src/physics/spatial_tendon.rs` | site长度、力臂与包裹字段 |
+| `src/physics/spatial_tendon.rs` | 路径长度、力臂与动态包裹字段 |
+| `src/physics/tendon_wrap.rs` | 冻结球柱与内侧绕行公式 |
 | `src/physics/mass_matrix.rs` | 复合惯量与稠密质量矩阵 |
 | `src/physics/mass_solve.rs` | 正定分解与多右端项求解 |
 | `src/runtime/transfer/kernel.rs` | 封装内部同步内核ABI |
@@ -87,6 +89,7 @@ LRsLab负责CPU play。
 | `fixtures/camlight/` | 保留相机光源原生参考 |
 | `fixtures/fixed-tendon/` | 保留固定肌腱原生参考 |
 | `fixtures/spatial-tendon/` | 保留site与滑轮原生参考 |
+| `fixtures/geom-tendon/` | 保留球柱与内侧原生参考 |
 | `fixtures/com-position/` | 保留质心参考与零质量边界 |
 | `fixtures/mass-matrix/` | 保留矩阵参考与armature链 |
 | `fixtures/mass-solve/` | 保留原生因子、右端项与解 |

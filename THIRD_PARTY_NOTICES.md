@@ -77,14 +77,14 @@ GPU输出位置与按行展开矩阵。
 本项目顺序累加固定长度。
 本项目保留原生CSR列编号。
 本项目拒绝同腱重复关节。
-本项目不实现空间绕行。
+固定子集不计算空间绕行。
 它不代表完整G01实现。
 
 [冻结肌腱源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py)。
 
 ## 空间肌腱CUDA辅助
 
-`src/physics/spatial_tendon.rs`移植site段。
+`src/physics/spatial_tendon.rs`移植site及geom段。
 它复用冻结祖先链力臂公式。
 它复用归一化与包裹写入语义。
 上游文件为`smooth.py`与`math.py`。
@@ -93,11 +93,29 @@ GPU输出位置与按行展开矩阵。
 本项目将滑轮除数转为共享比例。
 本项目分三段调度CUDA内核。
 整数段保留原生双点容量。
-本项目不实现球柱绕行。
+本项目另复用球柱绕行辅助。
 它不代表完整G01实现。
 
 [冻结空间肌腱源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py)。
 [冻结归一化源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/math.py)。
+
+## 球柱绕行CUDA辅助
+
+`src/physics/tendon_wrap.rs`移植绕行公式。
+公式来自冻结`util_misc.py`。
+版权归Newton开发者。
+许可采用Apache-2.0。
+本地许可路径沿用上述条款。
+本项目改用CUDA C++与f32。
+本项目保留球面退化平面分支。
+本项目保留圆柱螺旋与内侧牛顿迭代。
+反三角夹紧参考Warp 1.15.0。
+版权：Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+该源码采用Apache-2.0。
+本项目没有新增运行时依赖。
+
+[冻结绕行源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/util_misc.py)。
+[Warp反三角源码](https://github.com/NVIDIA/warp/blob/v1.15.0/warp/native/builtin.h)。
 
 ## 质量矩阵CUDA探针
 

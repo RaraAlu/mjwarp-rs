@@ -20,6 +20,8 @@ pub use camlight::{CamLightOutput, CamLightWorld};
 mod fixed_tendon;
 pub use fixed_tendon::{FixedTendonOutput, FixedTendonWorld};
 mod spatial_tendon;
+#[cfg(feature = "cuda-probe")]
+mod tendon_wrap;
 pub use spatial_tendon::{SpatialTendonOutput, SpatialTendonWorld};
 
 /// 七项GPU结果的只读世界视图。
