@@ -15,6 +15,8 @@ mod attached;
 pub use attached::{AttachedKinematicsOutput, AttachedKinematicsWorld, probe_attached_kinematics};
 mod resident;
 pub use resident::{KinematicsData, KinematicsPlan, KinematicsSnapshot};
+mod camlight;
+pub use camlight::{CamLightOutput, CamLightWorld};
 
 /// 七项GPU结果的只读世界视图。
 /// 矩阵按行展开，四元数用wxyz。

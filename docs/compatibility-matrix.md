@@ -7,6 +7,7 @@
 此处指完整等价项目。
 G01已有常驻辅助增量。
 mocap证据见[增量报告](windows-resident-mocap.md)。
+相机光源见[增量报告](windows-resident-camlight.md)。
 辅助证据不关闭G01。
 下表不代表已有功能。
 首版契约核对关键字段与限制。

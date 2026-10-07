@@ -28,7 +28,8 @@ CUDA部分复用上述许可。
 冻结提交号保持不变。
 本项目改用CUDA C++与f32。
 本项目按世界顺序遍历体。
-本项目不移植mocap等分支。
+独立刚体探针不处理mocap。
+常驻入口另处理mocap分支。
 本项目添加同步与范围检查。
 本项目另移植质心与惯量子集。
 零质量分支沿用冻结Warp。
@@ -43,9 +44,29 @@ CUDA部分复用上述许可。
 版权与Apache-2.0许可沿用上述条款。
 本项目复用刚体CUDA四元数公式。
 GPU输出位置与按行展开矩阵。
-本探针每次重算静态geom。
-它不复刻上游初始化缓存副作用。
+独立探针每次重算静态geom。
+常驻入口另保留GPU静态缓存。
 它不代表完整G01实现。
+
+## 相机与光源CUDA辅助
+
+`src/physics/camlight.rs`移植位姿分支。
+公式来自冻结`smooth.py`。
+版权与Apache-2.0沿用上述条款。
+本项目改用两段同步CUDA调度。
+第一段复用刚体设备结果。
+第二段复用子树质心结果。
+本项目添加独立字段周期。
+本项目不实现渲染与休眠。
+它不代表完整G01实现。
+方向归一化参考Warp 1.15.0。
+该版本将kEps设为零。
+上游版权归NVIDIA。
+其公式采用Apache-2.0许可。
+
+[冻结相机光源源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L773-L938)。
+[Warp归一化](https://github.com/NVIDIA/warp/blob/v1.15.0/warp/native/vec.h#L1033-L1040)。
+[Warp零阈值](https://github.com/NVIDIA/warp/blob/v1.15.0/warp/native/builtin.h#L527)。
 
 ## 质量矩阵CUDA探针
 

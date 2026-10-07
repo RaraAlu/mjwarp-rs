@@ -2,7 +2,7 @@
 param([switch]$AllFeatures, [switch]$Release)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics')) {
+foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight')) {
     $fixtures = Join-Path $root "fixtures\$name"
     $manifest = Get-Content -LiteralPath (Join-Path $fixtures 'manifest.json') -Raw | ConvertFrom-Json
     foreach ($file in $manifest.files) {
@@ -41,6 +41,9 @@ try {
     $parameters = Invoke-CheckedTest 'parameters' ($base + @('--test', 'resident_parameters', '--', '--ignored', '--test-threads=1', '--nocapture')) 3
     $mocapReferences = Invoke-CheckedTest 'mocap-references' ($base + @('--test', 'resident_mocap', 'reference_hashes', '--', '--test-threads=1')) 1
     $mocap = Invoke-CheckedTest 'mocap' ($base + @('--test', 'resident_mocap', '--', '--ignored', '--test-threads=1', '--nocapture')) 4
+    $camlightReferences = Invoke-CheckedTest 'camlight-references' ($base + @('--test', 'resident_camlight', 'reference_hashes', '--', '--test-threads=1')) 1
+    $camlight = Invoke-CheckedTest 'camlight' ($base + @('--test', 'resident_camlight', '--', '--ignored', '--test-threads=1', '--nocapture')) 5
+    $camlightGuards = Invoke-CheckedTest 'camlight-guards' ($base + @('--lib', 'camlight_readback_rejects', '--', '--ignored', '--test-threads=1')) 1
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
     $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 3
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
@@ -75,6 +78,24 @@ try {
         }
     }
     if ($mocapComparisons -ne 2084) { throw "mocap比较计数不符：$mocapComparisons" }
+    $camlightLargest = 0.0
+    $camlightComparisons = 0
+    $camlightParameterLargest = 0.0
+    $camlightParameterComparisons = 0
+    foreach ($line in Get-Content -LiteralPath (Join-Path $directory 'camlight.log')) {
+        if ($line -match 'G01-camlight kind=(native|parameters) world=\d+ max_abs_error=([0-9.eE+-]+)') {
+            $number = [double]::Parse($Matches[2], [Globalization.CultureInfo]::InvariantCulture)
+            if ($Matches[1] -eq 'native') {
+                $camlightComparisons++
+                $camlightLargest = [Math]::Max($camlightLargest, $number)
+            } else {
+                $camlightParameterComparisons++
+                $camlightParameterLargest = [Math]::Max($camlightParameterLargest, $number)
+            }
+        }
+    }
+    if ($camlightComparisons -ne 2084) { throw "相机光源比较计数不符：$camlightComparisons" }
+    if ($camlightParameterComparisons -ne 1042) { throw "相机光源参数计数不符：$camlightParameterComparisons" }
     [ordered]@{
         platform = 'Windows x86_64 MSVC'
         windowsVersion = [Environment]::OSVersion.Version.ToString()
@@ -90,13 +111,16 @@ try {
         parametersPassed = $parameters
         mocapReferencesPassed = $mocapReferences
         mocapPassed = $mocap
+        camlightReferencesPassed = $camlightReferences
+        camlightPassed = $camlight
+        camlightGuardsPassed = $camlightGuards
         staticCachePassed = $staticCache
         adapterPassed = $adapter
         comparedWorlds = $comparisons
         maxAbsoluteError = $largest
         absoluteTolerance = 0.00002
         relativeTolerance = 0.00002
-        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json')
+        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json')
         sharedReferenceBatchSize = 1
         parameterIndexRule = 'world % B_f'
         parameterComparedWorlds = $parameterComparisons
@@ -110,6 +134,15 @@ try {
         mocapDefaultFieldPeriods = @(3, 5, 7)
         mocapIdsReversed = $true
         staticCacheMutationWorlds = 513
+        camlightComparedWorlds = $camlightComparisons
+        camlightMaxAbsoluteError = $camlightLargest
+        camlightParameterComparedWorlds = $camlightParameterComparisons
+        camlightParameterMaxAbsoluteError = $camlightParameterLargest
+        camlightFieldPeriods = @(2, 3, 5, 7, 11, 3, 5, 7, 2, 11)
+        camlightWorldCounts = @(1, 2, 5, 513)
+        camlightModes = @(0, 1, 2, 3, 4)
+        camlightNegativeTargets = @(-2, -1)
+        camlightDegenerateTargetWorlds = 513
         nvrtcLibraries = @(Get-ChildItem -LiteralPath (Join-Path $env:CUDA_PATH 'bin') -Filter 'nvrtc*.dll' |
             ForEach-Object { [ordered]@{ name = $_.Name; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() } })
         scriptInvokesNativeKinematics = $false

@@ -6,6 +6,9 @@
 本批不增加第三方依赖。
 产品链不引入Python。
 
+本文保留本批历史证据。
+后续见[相机光源报告](windows-resident-camlight.md)。
+
 ## 实际改动
 
 模型辅助检查mocap映射。

@@ -4,15 +4,19 @@
 use std::sync::Arc;
 
 use super::attached::AttachedLayout;
+use super::camlight::CamLightLayout;
 use super::{
-    AttachedKinematicsOutput, ComPositionLayout, ComPositionOutput, KinematicsLayout,
-    KinematicsOutput, check_com_position, check_kinematics,
+    AttachedKinematicsOutput, CamLightOutput, ComPositionLayout, ComPositionOutput,
+    KinematicsLayout, KinematicsOutput, check_com_position, check_kinematics,
 };
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
+#[cfg(feature = "cuda-probe")]
+use crate::model::CamLightParameter;
 use crate::model::{
-    AttachedModelInput, BatchLayout, KinematicsParameter, KinematicsParameters, MocapModelInput,
+    AttachedModelInput, BatchLayout, CamLightFields, CamLightModelInput, CamLightParameters,
+    KinematicsParameter, KinematicsParameters, MocapModelInput,
 };
 use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
@@ -25,13 +29,16 @@ use crate::runtime::{SynchronousKernel, TransferBuffer};
 /// 默认状态使用检查后的qpos0。
 /// 保留探针的严格输入限制。
 /// 支持mocap与静态geom缓存。
-/// 不处理相机或灯光。
+/// 支持相机与光源位姿。
 /// 不冻结正式GPU编译路线。
 pub struct KinematicsPlan {
     model: Arc<AttachedModelInput>,
     parameters: KinematicsParameters,
     body_mocapid: Vec<i32>,
     nmocap: usize,
+    ncam: usize,
+    nlight: usize,
+    camlight_parameters: CamLightParameters,
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
     rigid: super::DeviceModel<f32>,
@@ -47,6 +54,15 @@ pub struct KinematicsPlan {
     attached_kernel: SynchronousKernel,
     #[cfg(feature = "cuda-probe")]
     initialize_kernel: SynchronousKernel,
+    #[cfg(feature = "cuda-probe")]
+    camlight: Option<DeviceCamLight>,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct DeviceCamLight {
+    model: super::DeviceModel<f32>,
+    rigid_kernel: SynchronousKernel,
+    com_kernel: SynchronousKernel,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -58,6 +74,7 @@ struct ResidentLayout {
     rigid: KinematicsLayout,
     com: ComPositionLayout,
     attached: AttachedLayout,
+    camlight: CamLightLayout,
 }
 
 impl ResidentLayout {
@@ -74,6 +91,7 @@ impl ResidentLayout {
             rigid: KinematicsLayout::new(worlds, k.nq(), k.nbody(), k.njnt())?,
             com: ComPositionLayout::new(worlds, k.nbody(), k.njnt(), k.nv())?,
             attached: AttachedLayout::new(worlds, model.ngeom(), model.nsite())?,
+            camlight: CamLightLayout::new(worlds, 0, 0)?,
             qpos: BatchLayout::new(worlds, k.nq(), 4)?,
             mocap_pos: BatchLayout::new(worlds, nmocap * 3, 4)?,
             mocap_quat: BatchLayout::new(worlds, nmocap * 4, 4)?,
@@ -87,6 +105,7 @@ struct ReadyStages {
     rigid: bool,
     com: bool,
     attached: bool,
+    camlight: bool,
 }
 
 impl ReadyStages {
@@ -123,6 +142,8 @@ pub struct KinematicsData {
     com: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
     attached: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    camlight: TransferBuffer<f32>,
 }
 
 /// 一次显式回读的完整子集结果。
@@ -132,9 +153,13 @@ pub struct KinematicsData {
 pub struct KinematicsSnapshot {
     attached: AttachedKinematicsOutput,
     com: ComPositionOutput,
+    camlight: CamLightOutput,
 }
 
 impl KinematicsSnapshot {
+    pub fn camlight(&self) -> &CamLightOutput {
+        &self.camlight
+    }
     pub fn rigid(&self) -> &KinematicsOutput {
         self.attached.rigid()
     }
@@ -179,6 +204,28 @@ impl KinematicsPlan {
         model: MocapModelInput,
         parameters: KinematicsParameters,
     ) -> Result<Self, TransferError> {
+        Self::with_camlight(
+            session,
+            CamLightModelInput::new(model, CamLightFields::default())?,
+            parameters,
+            CamLightParameters::default(),
+        )
+    }
+
+    /// 接收已编译的跟踪常量。
+    /// 十项参数独立按世界取模。
+    /// 相机与光源只计算位姿。
+    pub fn with_camlight(
+        session: &TransferSession,
+        model: CamLightModelInput,
+        parameters: KinematicsParameters,
+        camlight_parameters: CamLightParameters,
+    ) -> Result<Self, TransferError> {
+        camlight_parameters.validate(&model)?;
+        let ncam = model.ncam();
+        let nlight = model.nlight();
+        let camlight_layout = CamLightLayout::new(1, ncam, nlight)?;
+        let (model, camlight_fields) = model.into_parts();
         let (model, body_mocapid, nmocap, static_geom) = model.into_parts();
         let (fk, com) =
             check_com_position(model.rigid(), 1, &model.rigid().kinematics().fields().qpos0)?;
@@ -194,12 +241,15 @@ impl KinematicsPlan {
                 body_mocapid,
                 nmocap,
                 static_geom,
+                camlight_fields,
+                camlight_layout,
             );
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let _ = (com, attached);
+            let com_stride = com.output.elements_per_world();
+            let _ = attached;
             let k = model.rigid().kinematics().fields();
             let a = model.fields();
             // Pack and check all descriptors before any device allocation.
@@ -235,6 +285,12 @@ impl KinematicsPlan {
                 ],
                 &ATTACHED_PARAMETERS,
             )?;
+            let camlight = pack_camlight(
+                &camlight_fields,
+                &camlight_parameters,
+                fk.output.elements_per_world(),
+                com_stride,
+            )?;
             let rigid = rigid.upload(session)?;
             let com = com.upload(session)?;
             let attached = attached.upload(session)?;
@@ -252,11 +308,28 @@ impl KinematicsPlan {
                 SynchronousKernel::compile(session, &source, "attached_kinematics")?;
             let initialize_kernel =
                 SynchronousKernel::compile(session, &source, "initialize_attached")?;
+            let camlight = if camlight_layout.is_empty() {
+                None
+            } else {
+                let source = format!(
+                    "{FIELD_BATCH_CUDA}\n{}\n{}",
+                    super::KINEMATICS_CUDA,
+                    super::camlight::CAMLIGHT_CUDA
+                );
+                Some(DeviceCamLight {
+                    model: camlight.upload(session)?,
+                    rigid_kernel: SynchronousKernel::compile(session, &source, "camlight_rigid")?,
+                    com_kernel: SynchronousKernel::compile(session, &source, "camlight_com")?,
+                })
+            };
             Ok(Self {
                 model: Arc::new(model),
                 parameters,
                 body_mocapid,
                 nmocap,
+                ncam,
+                nlight,
+                camlight_parameters,
                 session: session.clone(),
                 rigid,
                 com,
@@ -265,6 +338,7 @@ impl KinematicsPlan {
                 com_kernel,
                 attached_kernel,
                 initialize_kernel,
+                camlight,
             })
         }
     }
@@ -285,11 +359,22 @@ impl KinematicsPlan {
         &self.body_mocapid
     }
 
-    /// 创建独立世界与三个输出缓冲。
+    pub fn camlight_parameters(&self) -> &CamLightParameters {
+        &self.camlight_parameters
+    }
+    pub fn ncam(&self) -> usize {
+        self.ncam
+    }
+    pub fn nlight(&self) -> usize {
+        self.nlight
+    }
+
+    /// 创建独立世界与四组输出。
     /// 全部尺寸通过后才申请显存。
     /// 初始派生结果保持未就绪。
     pub fn create_data(&self, worlds: usize) -> Result<KinematicsData, TransferError> {
-        let layout = ResidentLayout::new(&self.model, worlds, self.nmocap)?;
+        let mut layout = ResidentLayout::new(&self.model, worlds, self.nmocap)?;
+        layout.camlight = CamLightLayout::new(worlds, self.ncam, self.nlight)?;
         #[cfg(not(feature = "cuda-probe"))]
         {
             let _ = layout.state;
@@ -343,6 +428,7 @@ impl KinematicsPlan {
                 rigid: allocate_output(&self.session, layout.rigid.guarded)?,
                 com: allocate_output(&self.session, layout.com.guarded)?,
                 attached: allocate_output(&self.session, layout.attached.guarded)?,
+                camlight: allocate_output(&self.session, layout.camlight.guarded)?,
             };
             self.update_rigid(&mut data)?;
             // SAFETY: The initialization entry shares the checked attached ABI.
@@ -376,7 +462,7 @@ impl KinematicsPlan {
     }
 
     /// 只更新七项刚体结果。
-    /// 它废弃质心与附着结果。
+    /// 它废弃全部派生结果。
     pub fn update_rigid(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
         data.ready = ReadyStages::default();
@@ -412,6 +498,7 @@ impl KinematicsPlan {
         self.check_data(data)?;
         data.ready.require(data.ready.rigid, "rigid")?;
         data.ready.com = false;
+        data.ready.camlight = false;
         #[cfg(not(feature = "cuda-probe"))]
         {
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
@@ -475,14 +562,62 @@ impl KinematicsPlan {
         }
     }
 
-    /// 依次执行三个子集阶段。
+    /// 复用刚体与质心设备结果。
+    /// 两段执行不回读中间结果。
+    pub fn update_camlight(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        data.ready.require(data.ready.rigid, "rigid")?;
+        data.ready.require(data.ready.com, "com")?;
+        data.ready.camlight = false;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            if let Some(device) = &self.camlight {
+                let dimensions = [
+                    data.layout.rigid.nbody as u32,
+                    self.ncam as u32,
+                    self.nlight as u32,
+                    data.worlds() as u32,
+                ];
+                // SAFETY: Checked topology, field descriptors and layouts bound
+                // all reads/writes. The fixed f32 ABI matches both entry points.
+                // Each thread owns one guarded world. The COM launch reads that
+                // world's output only after the synchronous FK launch completes.
+                // All allocations share this plan's session; no owners can drop.
+                unsafe {
+                    device.rigid_kernel.launch(
+                        &device.model.metadata,
+                        &device.model.parameters,
+                        &data.rigid,
+                        &mut data.camlight,
+                        dimensions,
+                    )?;
+                    device.com_kernel.launch(
+                        &device.model.metadata,
+                        &device.model.parameters,
+                        &data.com,
+                        &mut data.camlight,
+                        dimensions,
+                    )?;
+                }
+            }
+            data.ready.camlight = true;
+            Ok(())
+        }
+    }
+
+    /// 依次执行四个子集阶段。
     /// 不上传模型或编译内核。
     /// 不回读阶段间的宿主结果。
     /// 不等于上游fwd_kinematics。
     pub fn update(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.update_rigid(data)?;
         self.update_attached(data)?;
-        self.update_com(data)
+        self.update_com(data)?;
+        self.update_camlight(data)
     }
 }
 
@@ -576,10 +711,15 @@ impl KinematicsData {
     /// 结果未就绪时明确返回错误。
     pub fn readback(&self) -> Result<KinematicsSnapshot, TransferError> {
         self.ready.require_all()?;
+        self.ready.require(
+            self.layout.camlight.is_empty() || self.ready.camlight,
+            "camlight",
+        )?;
         let lengths = [
             self.layout.rigid.output.total_elements() + 8,
             self.layout.com.output.total_elements() + 8,
             self.layout.attached.output.total_elements() + 8,
+            self.layout.camlight.output.total_elements() + 8,
         ];
         #[cfg(not(feature = "cuda-probe"))]
         {
@@ -591,6 +731,7 @@ impl KinematicsData {
             let rigid = read_output(&self.rigid, lengths[0], "resident_rigid_output")?;
             let com = read_output(&self.com, lengths[1], "resident_com_output")?;
             let attached = read_output(&self.attached, lengths[2], "resident_attached_output")?;
+            let camlight = read_output(&self.camlight, lengths[3], "resident_camlight_output")?;
             Ok(KinematicsSnapshot {
                 attached: AttachedKinematicsOutput {
                     rigid: KinematicsOutput {
@@ -603,6 +744,10 @@ impl KinematicsData {
                 com: ComPositionOutput {
                     layout: self.layout.com,
                     values: com,
+                },
+                camlight: CamLightOutput {
+                    layout: self.layout.camlight,
+                    values: camlight,
                 },
             })
         }
@@ -751,6 +896,51 @@ const ATTACHED_PARAMETERS: [KinematicsParameter; 4] = [
 struct PackedModel {
     metadata: Vec<i32>,
     parameters: Vec<f32>,
+}
+
+#[cfg(feature = "cuda-probe")]
+fn pack_camlight(
+    fields: &CamLightFields,
+    parameters: &CamLightParameters,
+    rigid_stride: usize,
+    com_stride: usize,
+) -> Result<PackedModel, TransferError> {
+    let header = [rigid_stride as i32, com_stride as i32];
+    let topology: [&[i32]; 7] = [
+        &header,
+        &fields.cam_mode,
+        &fields.cam_bodyid,
+        &fields.cam_targetbodyid,
+        &fields.light_mode,
+        &fields.light_bodyid,
+        &fields.light_targetbodyid,
+    ];
+    let metadata_len = packed_length(topology.iter().map(|t| t.len()).chain(std::iter::once(20)))?;
+    let parameters_len = packed_length(
+        CamLightParameter::ALL
+            .iter()
+            .map(|&f| parameters.values(f, fields).len()),
+    )?;
+    let mut metadata = crate::runtime::host_staging::<i32>(metadata_len)?;
+    let mut values = crate::runtime::host_staging::<f32>(parameters_len.max(1))?;
+    let mut cursor = 0;
+    for t in topology {
+        metadata[cursor..cursor + t.len()].copy_from_slice(t);
+        cursor += t.len();
+    }
+    let mut offset = 0;
+    for f in CamLightParameter::ALL {
+        let v = parameters.values(f, fields);
+        metadata[cursor] = offset as i32;
+        metadata[cursor + 1] = parameters.batches(f) as i32;
+        values[offset..offset + v.len()].copy_from_slice(v);
+        offset += v.len();
+        cursor += 2;
+    }
+    Ok(PackedModel {
+        metadata,
+        parameters: values,
+    })
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -1194,5 +1384,61 @@ mod tests {
                 })
             ));
         }
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn camlight_readback_rejects_device_guards_and_nonfinite_payloads() {
+        let session = TransferSession::new(0).unwrap();
+        let model = CamLightModelInput::new(
+            MocapModelInput::new(empty_model(), vec![-1]).unwrap(),
+            CamLightFields {
+                cam_mode: vec![0],
+                cam_bodyid: vec![0],
+                cam_targetbodyid: vec![-1],
+                cam_pos: vec![1.0, 2.0, 3.0],
+                cam_quat: vec![1.0, 0.0, 0.0, 0.0],
+                cam_poscom0: vec![0.0; 3],
+                cam_pos0: vec![0.0; 3],
+                cam_mat0: vec![0.0; 9],
+                light_mode: vec![0],
+                light_bodyid: vec![0],
+                light_targetbodyid: vec![-1],
+                light_pos: vec![1.0, 2.0, 3.0],
+                light_dir: vec![0.0, 0.0, 1.0],
+                light_poscom0: vec![0.0; 3],
+                light_pos0: vec![0.0; 3],
+                light_dir0: vec![0.0; 3],
+            },
+        )
+        .unwrap();
+        let plan = KinematicsPlan::with_camlight(
+            &session,
+            model,
+            KinematicsParameters::default(),
+            CamLightParameters::default(),
+        )
+        .unwrap();
+        let mut data = plan.create_data(513).unwrap();
+        plan.update(&mut data).unwrap();
+        let len = data.layout.camlight.guarded;
+        for index in [0, 3, len - 4, len - 1] {
+            data.camlight.write_range(index, &[0.0]).unwrap();
+            assert!(
+                matches!(data.readback(),Err(TransferError::Backend(crate::diagnostics::ProbeError::Mismatch{index:i,..})) if i==index)
+            );
+            data.camlight.write_range(index, &[-131072.0]).unwrap();
+        }
+        for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            for index in [4, 4 + 512 * 18 + 3, 4 + 512 * 18 + 12, 4 + 512 * 18 + 15] {
+                data.camlight.write_range(index, &[bad]).unwrap();
+                assert!(
+                    matches!(data.readback(),Err(TransferError::Input(InputError::NonFinite{field:"resident_camlight_output",index:i})) if i==index-4)
+                );
+                plan.update_camlight(&mut data).unwrap();
+            }
+        }
+        data.readback().unwrap();
     }
 }

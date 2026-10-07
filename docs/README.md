@@ -71,6 +71,7 @@ CPU调试与工具边界仍待确认。
 28. [Windows常驻运动学底座](windows-resident-kinematics.md)
 29. [Windows运动学字段批量](windows-resident-parameters.md)
 30. [Windows运动学mocap子集](windows-resident-mocap.md)
+31. [Windows相机光源子集](windows-resident-camlight.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -107,8 +108,9 @@ MC物理契约任务仍待实现。
 质量矩阵已有GPU子集证据。
 正定分解与求解也有GPU子集。
 几何与site位姿也有GPU子集。
-常驻计划复用三个设备子集。
-十三项参数支持独立批量。
+常驻计划复用四个设备子集。
+二十三项参数支持独立批量。
+GPU支持相机与光源位姿。
 常驻状态支持mocap写入。
 GPU初始化静态geom缓存。
 更新仍重算全部site。

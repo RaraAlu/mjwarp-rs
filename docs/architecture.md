@@ -22,10 +22,13 @@
 这些清单不增加架构模块。
 
 常驻辅助新增mocap状态。
+常驻辅助也计算相机光源位姿。
+十项新参数支持独立周期。
 GPU初始化静态geom缓存。
 参数与共享拓扑保持只读。
 辅助入口不替代目标架构。
 现状见[mocap报告](windows-resident-mocap.md)。
+相机光源见[增量报告](windows-resident-camlight.md)。
 
 ## 系统分层
 
