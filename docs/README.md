@@ -75,6 +75,7 @@ CPU调试与工具边界仍待确认。
 32. [Windows固定肌腱子集](windows-resident-fixed-tendon.md)
 33. [Windows空间肌腱子集](windows-resident-spatial-tendon.md)
 34. [Windows球柱绕行子集](windows-resident-geom-tendon.md)
+35. [运动视频逐帧原生复核](windows-geom-tendon-frame-review.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
