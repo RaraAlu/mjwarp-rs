@@ -2,7 +2,7 @@
 param([switch]$AllFeatures, [switch]$Release)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon', 'spatial-tendon', 'geom-tendon')) {
+foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon', 'spatial-tendon', 'geom-tendon', 'flex-position')) {
     $fixtures = Join-Path $root "fixtures\$name"
     $manifest = Get-Content -LiteralPath (Join-Path $fixtures 'manifest.json') -Raw | ConvertFrom-Json
     foreach ($file in $manifest.files) {
@@ -56,6 +56,9 @@ try {
     $globalBoundaries = Invoke-CheckedTest 'global-boundaries' ($base + @('--test', 'resident_tendon', 'rejects_global', '--', '--test-threads=1')) 1
     $globalTendon = Invoke-CheckedTest 'global-tendon' ($base + @('--test', 'resident_tendon', '--', '--ignored', '--test-threads=1', '--nocapture')) 3
     $globalGuards = Invoke-CheckedTest 'global-guards' ($base + @('--lib', 'global_tendon_readback', '--', '--ignored', '--test-threads=1')) 1
+    $flexReferences = Invoke-CheckedTest 'flex-references' ($base + @('--test', 'resident_flex_position', 'reference_hashes', '--', '--test-threads=1')) 1
+    $flex = Invoke-CheckedTest 'flex-position' ($base + @('--test', 'resident_flex_position', '--', '--ignored', '--test-threads=1', '--nocapture')) 4
+    $flexGuards = Invoke-CheckedTest 'flex-guards' ($base + @('--lib', 'flex_position_readback', '--', '--ignored', '--test-threads=1')) 1
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
     $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 4
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
@@ -174,6 +177,9 @@ try {
         }
     }
     if ($globalRounds -ne 16 -or $globalComparisons -ne 2084) { throw '混合肌腱比较计数不符' }
+    $flexStats = @([regex]::Matches([string](Get-Content -LiteralPath (Join-Path $directory 'flex-position.log') -Raw), 'G01-flex states=(\d+) scalars=(\d+) max_abs_error=([0-9.eE+-]+)'))
+    if ($flexStats.Count -ne 1 -or [int]$flexStats[0].Groups[1].Value -ne 2084 -or [int]$flexStats[0].Groups[2].Value -ne 625200) { throw '柔体位置比较计数不符' }
+    $flexLargest = [double]::Parse($flexStats[0].Groups[3].Value, [Globalization.CultureInfo]::InvariantCulture)
     [ordered]@{
         platform = 'Windows x86_64 MSVC'
         windowsVersion = [Environment]::OSVersion.Version.ToString()
@@ -204,13 +210,16 @@ try {
         globalTendonBoundariesPassed = $globalBoundaries
         globalTendonPassed = $globalTendon
         globalTendonGuardsPassed = $globalGuards
+        flexPositionReferencesPassed = $flexReferences
+        flexPositionPassed = $flex
+        flexPositionGuardsPassed = $flexGuards
         staticCachePassed = $staticCache
         adapterPassed = $adapter
         comparedWorlds = $comparisons
         maxAbsoluteError = $largest
         absoluteTolerance = 0.00002
         relativeTolerance = 0.00002
-        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json', 'fixtures/geom-tendon/manifest.json', 'fixtures/mixed-tendon/manifest.json')
+        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json', 'fixtures/geom-tendon/manifest.json', 'fixtures/mixed-tendon/manifest.json', 'fixtures/flex-position/manifest.json')
         sharedReferenceBatchSize = 1
         parameterIndexRule = 'world % B_f'
         parameterComparedWorlds = $parameterComparisons
@@ -284,6 +293,17 @@ try {
         globalTendonAssemblyLaunches = 3
         globalTendonResidentSubsets = 7
         globalTendonOutputBuffers = 9
+        flexPositionComparedWorlds = 2084
+        flexPositionComparedScalars = 625200
+        flexPositionMaxAbsoluteError = $flexLargest
+        flexPositionWorldCounts = @(1, 2, 5, 513)
+        flexPositionCount = 4
+        flexPositionNodeCount = 20
+        flexPositionVertexCount = 80
+        flexPositionInterpolationModes = @(0, 1)
+        flexPositionSharedFields = $true
+        flexPositionResidentSubsets = 8
+        flexPositionOutputBuffers = 10
         nvrtcLibraries = @(Get-ChildItem -LiteralPath (Join-Path $env:CUDA_PATH 'bin') -Filter 'nvrtc*.dll' |
             ForEach-Object { [ordered]@{ name = $_.Name; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() } })
         scriptInvokesNativeKinematics = $false

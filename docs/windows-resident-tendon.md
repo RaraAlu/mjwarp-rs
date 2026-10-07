@@ -218,8 +218,10 @@ target/mixed-tendon-verification/
 完整原生模型导入仍待扩展。
 本批不扩展原生探针FFI字段。
 肌腱速度、限位与惯量仍待实现。
-flex位置与休眠副作用仍待补齐。
+本批当时尚缺flex位置。
+休眠副作用仍待补齐。
 正式编译路线与生产ABI仍待冻结。
 Linux与清洁部署仍待验收。
 本批不关闭完整G01阶段。
-下一步补齐flex位置。
+后续已补齐柔体位置子集。
+新增证据见[柔体报告](windows-resident-flex-position.md)。

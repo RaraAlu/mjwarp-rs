@@ -77,6 +77,7 @@ CPU调试与工具边界仍待确认。
 34. [Windows球柱绕行子集](windows-resident-geom-tendon.md)
 35. [运动视频逐帧原生复核](windows-geom-tendon-frame-review.md)
 36. [Windows混合肌腱编号](windows-resident-tendon.md)
+37. [Windows柔体位置子集](windows-resident-flex-position.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -117,6 +118,11 @@ MC物理契约任务仍待实现。
 局部入口使用七个结果缓冲。
 混合入口另加GPU合并。
 混合入口使用九个结果缓冲。
+柔体入口另加位置子集。
+该入口使用十个结果缓冲。
+GPU计算节点与顶点位置。
+它支持直接与线性插值。
+柔体位置字段仍共享。
 二十三项参数支持独立批量。
 GPU支持相机与光源位姿。
 GPU支持固定肌腱长度与力臂。

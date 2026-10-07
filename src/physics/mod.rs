@@ -25,6 +25,8 @@ mod tendon_wrap;
 pub use spatial_tendon::{SpatialTendonOutput, SpatialTendonWorld};
 mod tendon;
 pub use tendon::{TendonOutput, TendonWorld};
+mod flex;
+pub use flex::{FlexPositionOutput, FlexPositionWorld};
 
 /// 七项GPU结果的只读世界视图。
 /// 矩阵按行展开，四元数用wxyz。

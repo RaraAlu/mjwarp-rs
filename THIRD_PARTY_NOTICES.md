@@ -48,6 +48,24 @@ GPU输出位置与按行展开矩阵。
 常驻入口另保留GPU静态缓存。
 它不代表完整G01实现。
 
+## 柔体位置CUDA辅助
+
+`src/physics/flex.rs`移植位置子集。
+公式来自冻结`smooth.py`。
+权重依据冻结`support.py`。
+版权归Newton开发者。
+许可采用Apache-2.0。
+本地许可保留上述文件。
+本项目改用同步CUDA C++。
+每个线程独占一个世界。
+线程先更新节点再更新顶点。
+公开物理输入与输出采用f32。
+本项目拒绝高阶与壳插值。
+它不提供完整柔体阶段。
+
+[冻结位置源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L211-L317)。
+[冻结线性权重](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/support.py#L1004-L1013)。
+
 ## 相机与光源CUDA辅助
 
 `src/physics/camlight.rs`移植位姿分支。
