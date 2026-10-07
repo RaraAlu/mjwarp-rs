@@ -55,6 +55,12 @@ GPU直接读取刚体位姿。
 该线程随后更新顶点。
 柔体字段与拓扑仍共享。
 增量见[柔体报告](windows-resident-flex-position.md)。
+可选唤醒入口另加两个整数缓冲。
+GPU复用全局肌腱长度。
+GPU唤醒循环并轻量刷新树。
+范围与边距各用独立周期。
+身体与自由度活动表仍待实现。
+增量见[唤醒报告](windows-resident-tendon-wake.md)。
 
 ## 系统分层
 

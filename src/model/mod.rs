@@ -27,6 +27,8 @@ pub mod tendon;
 pub use tendon::{TendonFields, TendonModelInput, TendonRows, TendonSubset};
 pub mod flex;
 pub use flex::{FlexPositionFields, FlexPositionModelInput};
+pub mod sleep;
+pub use sleep::{SleepTreeState, TREE_FULLY_AWAKE, TendonWakeFields, TendonWakeModelInput};
 
 /// Windows原生探针的小型DTO。
 /// 计数采用原生有符号64位。

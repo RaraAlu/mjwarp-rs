@@ -2,7 +2,7 @@
 param([switch]$AllFeatures, [switch]$Release)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon', 'spatial-tendon', 'geom-tendon', 'flex-position')) {
+foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon', 'spatial-tendon', 'geom-tendon', 'flex-position', 'tendon-wake')) {
     $fixtures = Join-Path $root "fixtures\$name"
     $manifest = Get-Content -LiteralPath (Join-Path $fixtures 'manifest.json') -Raw | ConvertFrom-Json
     foreach ($file in $manifest.files) {
@@ -59,6 +59,9 @@ try {
     $flexReferences = Invoke-CheckedTest 'flex-references' ($base + @('--test', 'resident_flex_position', 'reference_hashes', '--', '--test-threads=1')) 1
     $flex = Invoke-CheckedTest 'flex-position' ($base + @('--test', 'resident_flex_position', '--', '--ignored', '--test-threads=1', '--nocapture')) 4
     $flexGuards = Invoke-CheckedTest 'flex-guards' ($base + @('--lib', 'flex_position_readback', '--', '--ignored', '--test-threads=1')) 1
+    $wakeReferences = Invoke-CheckedTest 'wake-references' ($base + @('--test', 'resident_tendon_wake', 'reference_hashes', '--', '--test-threads=1')) 1
+    $wake = Invoke-CheckedTest 'tendon-wake' ($base + @('--test', 'resident_tendon_wake', '--', '--ignored', '--test-threads=1', '--nocapture')) 5
+    $wakeGuards = Invoke-CheckedTest 'wake-guards' ($base + @('--lib', 'tendon_wake_readback', '--', '--ignored', '--test-threads=1')) 1
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
     $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 4
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
@@ -180,6 +183,8 @@ try {
     $flexStats = @([regex]::Matches([string](Get-Content -LiteralPath (Join-Path $directory 'flex-position.log') -Raw), 'G01-flex states=(\d+) scalars=(\d+) max_abs_error=([0-9.eE+-]+)'))
     if ($flexStats.Count -ne 1 -or [int]$flexStats[0].Groups[1].Value -ne 2084 -or [int]$flexStats[0].Groups[2].Value -ne 625200) { throw '柔体位置比较计数不符' }
     $flexLargest = [double]::Parse($flexStats[0].Groups[3].Value, [Globalization.CultureInfo]::InvariantCulture)
+    $wakeStats = @([regex]::Matches([string](Get-Content -LiteralPath (Join-Path $directory 'tendon-wake.log') -Raw), 'G01-tendon-wake kind=native round=\d+ world=\d+ exact_tree_state=true'))
+    if ($wakeStats.Count -ne 2084) { throw '肌腱唤醒比较计数不符' }
     [ordered]@{
         platform = 'Windows x86_64 MSVC'
         windowsVersion = [Environment]::OSVersion.Version.ToString()
@@ -213,13 +218,16 @@ try {
         flexPositionReferencesPassed = $flexReferences
         flexPositionPassed = $flex
         flexPositionGuardsPassed = $flexGuards
+        tendonWakeReferencesPassed = $wakeReferences
+        tendonWakePassed = $wake
+        tendonWakeGuardsPassed = $wakeGuards
         staticCachePassed = $staticCache
         adapterPassed = $adapter
         comparedWorlds = $comparisons
         maxAbsoluteError = $largest
         absoluteTolerance = 0.00002
         relativeTolerance = 0.00002
-        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json', 'fixtures/geom-tendon/manifest.json', 'fixtures/mixed-tendon/manifest.json', 'fixtures/flex-position/manifest.json')
+        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json', 'fixtures/geom-tendon/manifest.json', 'fixtures/mixed-tendon/manifest.json', 'fixtures/flex-position/manifest.json', 'fixtures/tendon-wake/manifest.json')
         sharedReferenceBatchSize = 1
         parameterIndexRule = 'world % B_f'
         parameterComparedWorlds = $parameterComparisons
@@ -304,6 +312,12 @@ try {
         flexPositionSharedFields = $true
         flexPositionResidentSubsets = 8
         flexPositionOutputBuffers = 10
+        tendonWakeComparedWorlds = $wakeStats.Count
+        tendonWakeExactTreeStates = $true
+        tendonWakeWorldCounts = @(1, 2, 5, 513)
+        tendonWakeFieldPeriods = @(3, 2)
+        tendonWakeLightweightBodyDofCounters = 0
+        tendonWakeExtraIntegerBuffers = 2
         nvrtcLibraries = @(Get-ChildItem -LiteralPath (Join-Path $env:CUDA_PATH 'bin') -Filter 'nvrtc*.dll' |
             ForEach-Object { [ordered]@{ name = $_.Name; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() } })
         scriptInvokesNativeKinematics = $false

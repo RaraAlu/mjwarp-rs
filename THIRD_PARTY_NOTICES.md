@@ -135,6 +135,21 @@ GPU输出位置与按行展开矩阵。
 [冻结绕行源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/util_misc.py)。
 [Warp反三角源码](https://github.com/NVIDIA/warp/blob/v1.15.0/warp/native/builtin.h)。
 
+## 肌腱唤醒CUDA子集
+
+`src/physics/sleep.rs`移植冻结唤醒公式。
+它复用`sleep.py`的树唤醒逻辑。
+它复用肌腱限位条件与轻量刷新。
+版权：Copyright 2026 The Newton Developers。
+上游采用Apache-2.0。
+本项目保留[Apache-2.0许可](LICENSES/Apache-2.0.txt)。
+本项目改用每世界串行扫描。
+本项目增加检查与双缓冲。
+本项目不移植完整休眠状态机。
+本批没有新增运行时依赖。
+
+[冻结休眠源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/sleep.py)。
+
 ## 质量矩阵CUDA探针
 
 `src/physics/mass_matrix.rs`移植刚体CRB。

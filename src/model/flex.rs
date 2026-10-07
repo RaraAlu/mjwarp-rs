@@ -23,7 +23,8 @@ pub struct FlexPositionFields {
 }
 
 /// 接收已编译模型的位置子集。
-/// 不提供边、弹性与休眠。
+/// 不提供边与弹性。
+/// 休眠需要独立可选包装。
 ///
 /// ```compile_fail
 /// fn mutate(m: &mut mjwarp_rs::model::FlexPositionModelInput) {

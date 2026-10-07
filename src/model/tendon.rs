@@ -66,7 +66,7 @@ impl TendonRows {
 /// 接收已编译模型的混合字段。
 /// 拆分时保持各子集相对顺序。
 /// 子集校验报告局部错误索引。
-/// 不支持flex与休眠分支。
+/// flex与休眠需要可选包装。
 ///
 /// ```compile_fail
 /// fn mutate(m: &mut mjwarp_rs::model::TendonModelInput) {
@@ -77,6 +77,7 @@ impl TendonRows {
 pub struct TendonModelInput {
     spatial: SpatialTendonModelInput,
     rows: TendonRows,
+    fields: TendonFields,
 }
 
 impl TendonModelInput {
@@ -190,6 +191,7 @@ impl TendonModelInput {
                 subsets,
                 nwrap: nw,
             },
+            fields,
         })
     }
     pub fn spatial(&self) -> &SpatialTendonModelInput {
@@ -197,6 +199,10 @@ impl TendonModelInput {
     }
     pub fn rows(&self) -> &TendonRows {
         &self.rows
+    }
+    /// 保留检查后的原生路径。
+    pub fn fields(&self) -> &TendonFields {
+        &self.fields
     }
     pub(crate) fn into_parts(self) -> (SpatialTendonModelInput, TendonRows) {
         (self.spatial, self.rows)

@@ -21,7 +21,11 @@
 GPU计算节点与顶点位置。
 它支持直接与线性插值。
 柔体位置字段仍共享。
-二十三项参数支持独立批量。
+可选入口另加肌腱唤醒。
+GPU刷新树标记与树计数。
+范围与边距各用独立周期。
+完整休眠仍待实现。
+既有二十三项参数保留独立批量。
 GPU支持相机与光源位姿。
 GPU支持固定肌腱长度与力臂。
 肌腱拓扑与系数仍共享。
@@ -73,6 +77,7 @@ LRsLab负责CPU play。
 | `src/model/camlight.rs` | 检查相机光源拓扑与独立参数 |
 | `src/model/fixed_tendon.rs` | 检查固定肌腱与原生CSR |
 | `src/model/flex.rs` | 检查柔体节点与顶点字段 |
+| `src/model/sleep.rs` | 检查树循环与限位参数 |
 | `src/model/spatial_tendon.rs` | 检查路径、球柱尺寸与侧向site |
 | `src/model/tendon.rs` | 检查混合字段与全局肌腱编号 |
 | `src/io/` | 转换、GPU字段交换与只读字段组 |
@@ -81,6 +86,7 @@ LRsLab负责CPU play。
 | `src/physics/` | 历史校验与刚体GPU探针 |
 | `src/physics/attached.rs` | 复用刚体设备结果计算附着位姿 |
 | `src/physics/resident.rs` | 常驻设备子集与全局合并 |
+| `src/physics/sleep.rs` | 肌腱唤醒与轻量树刷新 |
 | `src/physics/camlight.rs` | 相机光源两段GPU位姿计算 |
 | `src/physics/fixed_tendon.rs` | 固定肌腱长度与稀疏力臂 |
 | `src/physics/flex.rs` | GPU计算柔体节点与顶点位置 |

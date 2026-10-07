@@ -27,6 +27,8 @@ mod tendon;
 pub use tendon::{TendonOutput, TendonWorld};
 mod flex;
 pub use flex::{FlexPositionOutput, FlexPositionWorld};
+mod sleep;
+pub use sleep::{SleepTreeOutput, SleepTreeWorld};
 
 /// 七项GPU结果的只读世界视图。
 /// 矩阵按行展开，四元数用wxyz。

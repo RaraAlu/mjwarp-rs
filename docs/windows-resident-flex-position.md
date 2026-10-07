@@ -206,5 +206,11 @@ Linux真实验收仍待执行。
 完整G01与U061继续保持计划。
 下一步补齐休眠副作用。
 
+## 后续增量
+
+肌腱唤醒现已落地辅助子集。
+本报告保留当时的验证数量。
+当前范围见[唤醒报告](windows-resident-tendon-wake.md)。
+
 [冻结位置源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L211-L317)。
 [冻结线性权重](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/support.py#L1004-L1013)。

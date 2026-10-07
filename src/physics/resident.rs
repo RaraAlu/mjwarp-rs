@@ -7,21 +7,24 @@ use super::attached::AttachedLayout;
 use super::camlight::CamLightLayout;
 use super::fixed_tendon::FixedTendonLayout;
 use super::flex::FlexPositionLayout;
+use super::sleep::SleepTreeLayout;
 use super::spatial_tendon::SpatialTendonLayout;
 use super::tendon::TendonLayout;
 use super::{
     AttachedKinematicsOutput, CamLightOutput, ComPositionLayout, ComPositionOutput,
-    FixedTendonOutput, FlexPositionOutput, KinematicsLayout, KinematicsOutput, SpatialTendonOutput,
-    TendonOutput, check_com_position, check_kinematics,
+    FixedTendonOutput, FlexPositionOutput, KinematicsLayout, KinematicsOutput, SleepTreeOutput,
+    SpatialTendonOutput, TendonOutput, check_com_position, check_kinematics,
 };
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
+use crate::model::sleep::TendonWakeInfo;
 use crate::model::{
     AttachedModelInput, BatchLayout, CamLightFields, CamLightModelInput, CamLightParameters,
     FixedTendonFields, FixedTendonModelInput, FixedTendonRows, FlexPositionFields,
     FlexPositionModelInput, KinematicsParameter, KinematicsParameters, MocapModelInput,
-    SpatialTendonFields, SpatialTendonModelInput, SpatialTendonRows, TendonModelInput, TendonRows,
+    SleepTreeState, SpatialTendonFields, SpatialTendonModelInput, SpatialTendonRows,
+    TendonModelInput, TendonRows, TendonWakeModelInput,
 };
 #[cfg(feature = "cuda-probe")]
 use crate::model::{CamLightParameter, SpatialTendonGeometry, TendonSubset};
@@ -50,6 +53,7 @@ pub struct KinematicsPlan {
     spatial_tendon_rows: Arc<SpatialTendonRows>,
     tendon_rows: Option<Arc<TendonRows>>,
     flex_fields: Option<Arc<FlexPositionFields>>,
+    sleep_info: Option<Arc<TendonWakeInfo>>,
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
     rigid: super::DeviceModel<f32>,
@@ -75,6 +79,21 @@ pub struct KinematicsPlan {
     tendon: Option<DeviceTendon>,
     #[cfg(feature = "cuda-probe")]
     flex: Option<DeviceFlex>,
+    #[cfg(feature = "cuda-probe")]
+    sleep: Option<DeviceSleep>,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct DeviceSleep {
+    model: super::DeviceModel<f32>,
+    copy_kernel: SynchronousKernel,
+    wake_kernel: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct ResidentSleep {
+    state: TransferBuffer<i32>,
+    scratch: TransferBuffer<i32>,
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -131,6 +150,7 @@ struct ResidentLayout {
     spatial_tendon: SpatialTendonLayout,
     tendon: Option<TendonLayout>,
     flex: Option<FlexPositionLayout>,
+    sleep: Option<SleepTreeLayout>,
 }
 
 impl ResidentLayout {
@@ -152,6 +172,7 @@ impl ResidentLayout {
             spatial_tendon: SpatialTendonLayout::new(worlds, 0, 0, 0)?,
             tendon: None,
             flex: None,
+            sleep: None,
             qpos: BatchLayout::new(worlds, k.nq(), 4)?,
             mocap_pos: BatchLayout::new(worlds, nmocap * 3, 4)?,
             mocap_quat: BatchLayout::new(worlds, nmocap * 4, 4)?,
@@ -170,6 +191,7 @@ struct ReadyStages {
     spatial_tendon: bool,
     tendon: bool,
     flex: bool,
+    sleep: bool,
 }
 
 impl ReadyStages {
@@ -221,6 +243,8 @@ pub struct KinematicsData {
     tendon: Option<ResidentTendon>,
     #[cfg(feature = "cuda-probe")]
     flex: Option<TransferBuffer<f32>>,
+    #[cfg(feature = "cuda-probe")]
+    sleep: Option<ResidentSleep>,
 }
 
 /// 一次显式回读的完整子集结果。
@@ -235,9 +259,13 @@ pub struct KinematicsSnapshot {
     spatial_tendon: SpatialTendonOutput,
     tendon: Option<TendonOutput>,
     flex: Option<FlexPositionOutput>,
+    sleep: Option<SleepTreeOutput>,
 }
 
 impl KinematicsSnapshot {
+    pub fn sleep_trees(&self) -> Option<&SleepTreeOutput> {
+        self.sleep.as_ref()
+    }
     /// 柔体入口提供位置结果。
     /// 旧入口返回None。
     pub fn flex_positions(&self) -> Option<&FlexPositionOutput> {
@@ -351,7 +379,15 @@ impl KinematicsPlan {
         parameters: KinematicsParameters,
         camlight_parameters: CamLightParameters,
     ) -> Result<Self, TransferError> {
-        Self::with_tendon_subsets(session, model, parameters, camlight_parameters, None, None)
+        Self::with_tendon_subsets(
+            session,
+            model,
+            parameters,
+            camlight_parameters,
+            None,
+            None,
+            None,
+        )
     }
 
     /// 保留原生全局编号与CSR。
@@ -370,6 +406,7 @@ impl KinematicsPlan {
             parameters,
             camlight_parameters,
             Some(rows),
+            None,
             None,
         )
     }
@@ -391,6 +428,28 @@ impl KinematicsPlan {
             camlight_parameters,
             Some(rows),
             Some(fields),
+            None,
+        )
+    }
+
+    /// 另加肌腱唤醒副作用。
+    /// 不实现完整休眠状态机。
+    pub fn with_tendon_wake(
+        session: &TransferSession,
+        model: TendonWakeModelInput,
+        parameters: KinematicsParameters,
+        camlight_parameters: CamLightParameters,
+    ) -> Result<Self, TransferError> {
+        let (model, flex, info) = model.into_parts();
+        let (model, rows) = model.into_parts();
+        Self::with_tendon_subsets(
+            session,
+            model,
+            parameters,
+            camlight_parameters,
+            Some(rows),
+            flex,
+            Some(info),
         )
     }
 
@@ -401,6 +460,7 @@ impl KinematicsPlan {
         camlight_parameters: CamLightParameters,
         tendon_rows: Option<TendonRows>,
         flex_fields: Option<FlexPositionFields>,
+        sleep_info: Option<TendonWakeInfo>,
     ) -> Result<Self, TransferError> {
         if let Some(rows) = &tendon_rows {
             TendonLayout::new(1, rows.ntendon(), rows.nnz(), rows.nwrap())?;
@@ -429,6 +489,10 @@ impl KinematicsPlan {
             .as_ref()
             .map(|f| FlexPositionLayout::new(1, f.flex_nodebodyid.len(), f.flex_vertbodyid.len()))
             .transpose()?;
+        let sleep_layout = sleep_info
+            .as_ref()
+            .map(|i| SleepTreeLayout::new(1, i.ntree))
+            .transpose()?;
         #[cfg(not(feature = "cuda-probe"))]
         {
             let _ = (
@@ -451,13 +515,15 @@ impl KinematicsPlan {
                 tendon_rows,
                 flex_fields,
                 flex_layout,
+                sleep_info,
+                sleep_layout,
             );
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
         #[cfg(feature = "cuda-probe")]
         {
             let com_stride = com.output.elements_per_world();
-            let _ = attached;
+            let _ = (attached, sleep_layout);
             let k = model.rigid().kinematics().fields();
             let a = model.fields();
             // Pack and check all descriptors before any device allocation.
@@ -509,6 +575,10 @@ impl KinematicsPlan {
             let flex = flex_fields
                 .as_ref()
                 .map(|f| pack_flex(f, fk.output.elements_per_world(), fk.nbody))
+                .transpose()?;
+            let sleep = sleep_info
+                .as_ref()
+                .map(|i| pack_sleep(i, tendon_rows.as_ref().expect("checked global tendons")))
                 .transpose()?;
             let rigid = rigid.upload(session)?;
             let com = com.upload(session)?;
@@ -597,6 +667,23 @@ impl KinematicsPlan {
             } else {
                 None
             };
+            let sleep = if let Some(sleep) = sleep {
+                Some(DeviceSleep {
+                    model: sleep.upload(session)?,
+                    copy_kernel: SynchronousKernel::compile(
+                        session,
+                        super::sleep::TENDON_WAKE_CUDA,
+                        "sleep_copy",
+                    )?,
+                    wake_kernel: SynchronousKernel::compile(
+                        session,
+                        super::sleep::TENDON_WAKE_CUDA,
+                        "tendon_wake",
+                    )?,
+                })
+            } else {
+                None
+            };
             Ok(Self {
                 model: Arc::new(model),
                 parameters,
@@ -609,6 +696,7 @@ impl KinematicsPlan {
                 spatial_tendon_rows: Arc::new(spatial_rows),
                 tendon_rows: tendon_rows.map(Arc::new),
                 flex_fields: flex_fields.map(Arc::new),
+                sleep_info: sleep_info.map(Arc::new),
                 session: session.clone(),
                 rigid,
                 com,
@@ -622,6 +710,7 @@ impl KinematicsPlan {
                 spatial_tendon,
                 tendon,
                 flex,
+                sleep,
             })
         }
     }
@@ -689,6 +778,11 @@ impl KinematicsPlan {
             .map(|f| {
                 FlexPositionLayout::new(worlds, f.flex_nodebodyid.len(), f.flex_vertbodyid.len())
             })
+            .transpose()?;
+        layout.sleep = self
+            .sleep_info
+            .as_ref()
+            .map(|i| SleepTreeLayout::new(worlds, i.ntree))
             .transpose()?;
         #[cfg(not(feature = "cuda-probe"))]
         {
@@ -765,6 +859,27 @@ impl KinematicsPlan {
                 flex: layout
                     .flex
                     .map(|l| allocate_output(&self.session, l.guarded))
+                    .transpose()?,
+                sleep: layout
+                    .sleep
+                    .map(|l| -> Result<_, TransferError> {
+                        let k = self.model.rigid().kinematics();
+                        let initial = SleepTreeState {
+                            tree_asleep: vec![crate::model::TREE_FULLY_AWAKE; l.ntree],
+                            nbody_awake: k.nbody() as i32,
+                            nv_awake: k.nv() as i32,
+                        }
+                        .packed();
+                        let mut values = crate::runtime::host_staging::<i32>(l.guarded)?;
+                        values.fill(-131072);
+                        for row in values[4..l.guarded - 4].chunks_exact_mut(initial.len()) {
+                            row.copy_from_slice(&initial);
+                        }
+                        Ok(ResidentSleep {
+                            state: self.session.upload(&values)?,
+                            scratch: allocate_integer_output(&self.session, l.guarded)?,
+                        })
+                    })
                     .transpose()?,
             };
             self.update_rigid(&mut data)?;
@@ -955,6 +1070,7 @@ impl KinematicsPlan {
     pub fn update_fixed_tendons(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
         data.ready.fixed_tendon = false;
+        data.ready.sleep = false;
         data.ready.tendon = false;
         #[cfg(not(feature = "cuda-probe"))]
         {
@@ -996,6 +1112,7 @@ impl KinematicsPlan {
         data.ready.require(data.ready.attached, "attached")?;
         data.ready.require(data.ready.com, "com")?;
         data.ready.spatial_tendon = false;
+        data.ready.sleep = false;
         data.ready.tendon = false;
         #[cfg(not(feature = "cuda-probe"))]
         {
@@ -1055,6 +1172,7 @@ impl KinematicsPlan {
     fn assemble_tendons(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
         data.ready.tendon = false;
+        data.ready.sleep = false;
         #[cfg(not(feature = "cuda-probe"))]
         {
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
@@ -1135,6 +1253,50 @@ impl KinematicsPlan {
         }
     }
 
+    /// 唤醒后只刷新树活动标记。
+    /// 它不推进自动休眠计数。
+    pub fn update_tendon_wake(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        if self.sleep_info.is_some() {
+            data.ready.require(data.ready.tendon, "tendon")?;
+        }
+        data.ready.sleep = false;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            if let (Some(device), Some(out), Some(tendon)) =
+                (&self.sleep, &mut data.sleep, &data.tendon)
+            {
+                let dims = [0, 0, 0, data.layout.qpos.worlds() as u32];
+                // SAFETY: Checked tree cycles and global paths bound all accesses.
+                // Separate guarded buffers never alias. Synchronized copy seeds
+                // scratch before each world-owned wake pass; failures keep state.
+                unsafe {
+                    device.copy_kernel.launch(
+                        &device.model.metadata,
+                        &device.model.parameters,
+                        &out.state,
+                        &mut out.scratch,
+                        dims,
+                    )?;
+                    device.wake_kernel.launch(
+                        &device.model.metadata,
+                        &device.model.parameters,
+                        &tendon.values,
+                        &mut out.scratch,
+                        dims,
+                    )?;
+                }
+                std::mem::swap(&mut out.state, &mut out.scratch);
+            }
+            data.ready.sleep = true;
+            Ok(())
+        }
+    }
+
     /// 依次执行六个基础子集。
     /// 混合入口另做GPU合并。
     /// 柔体入口另加位置更新。
@@ -1147,11 +1309,39 @@ impl KinematicsPlan {
         self.update_com(data)?;
         self.update_camlight(data)?;
         self.update_flex_positions(data)?;
-        self.update_tendons(data)
+        self.update_tendons(data)?;
+        self.update_tendon_wake(data)
     }
 }
 
 impl KinematicsData {
+    /// 检查全部状态后写入一个世界。
+    /// 它只废弃树副作用结果。
+    pub fn write_world_sleep(
+        &mut self,
+        world: usize,
+        state: &SleepTreeState,
+    ) -> Result<(), TransferError> {
+        let l = self.layout.sleep.ok_or(InputError::DisabledOutput)?;
+        let range = l.output.world_elements(world)?;
+        let k = self.model.rigid().kinematics();
+        state.validate(l.ntree, k.nbody(), k.nv())?;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = range;
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            self.sleep
+                .as_mut()
+                .expect("checked sleep layout")
+                .state
+                .write_range(4 + range.start, &state.packed())?;
+            self.ready.sleep = false;
+            Ok(())
+        }
+    }
     pub fn tendon_rows(&self) -> Option<&TendonRows> {
         self.tendon_rows.as_deref()
     }
@@ -1270,6 +1460,10 @@ impl KinematicsData {
             self.layout.flex.is_none_or(|l| l.is_empty()) || self.ready.flex,
             "flex_positions",
         )?;
+        self.ready.require(
+            self.layout.sleep.is_none() || self.ready.sleep,
+            "tendon_wake",
+        )?;
         let lengths = [
             self.layout.rigid.output.total_elements() + 8,
             self.layout.com.output.total_elements() + 8,
@@ -1318,6 +1512,17 @@ impl KinematicsData {
                 _ => None,
             };
             Ok(KinematicsSnapshot {
+                sleep: match (&self.sleep, self.layout.sleep) {
+                    (Some(out), Some(layout)) => Some(SleepTreeOutput {
+                        layout,
+                        values: read_output(
+                            &out.state,
+                            layout.guarded,
+                            "resident_sleep_tree_output",
+                        )?,
+                    }),
+                    _ => None,
+                },
                 flex: match (&self.flex, self.layout.flex) {
                     (Some(out), Some(layout)) => Some(FlexPositionOutput {
                         layout,
@@ -1500,6 +1705,34 @@ const ATTACHED_PARAMETERS: [KinematicsParameter; 4] = [
 struct PackedModel {
     metadata: Vec<i32>,
     parameters: Vec<f32>,
+}
+
+#[cfg(feature = "cuda-probe")]
+fn pack_sleep(info: &TendonWakeInfo, rows: &TendonRows) -> Result<PackedModel, TransferError> {
+    let f = &info.fields;
+    let l = TendonLayout::new(1, rows.ntendon(), rows.nnz(), rows.nwrap())?;
+    let mut metadata = vec![
+        info.ntree as i32,
+        rows.ntendon() as i32,
+        info.wrap_treeid.len() as i32,
+        f.tendon_range.batches() as i32,
+        f.tendon_margin.batches() as i32,
+        l.output.elements_per_world() as i32,
+        i32::from(f.sleep_enabled && !f.island_disabled),
+    ];
+    metadata.extend(&info.tendon_adr);
+    metadata.extend(&info.tendon_num);
+    metadata.extend(f.tendon_limited.iter().copied().map(i32::from));
+    metadata.extend(&info.wrap_treeid);
+    let mut parameters = f.tendon_range.values().to_vec();
+    parameters.extend(f.tendon_margin.values());
+    if parameters.is_empty() {
+        parameters.push(0.0);
+    }
+    Ok(PackedModel {
+        metadata,
+        parameters,
+    })
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -2663,6 +2896,85 @@ mod tests {
                 .flexvert_xpos,
             &[0.2, 0.3, 0.4, 0.0, 0.0, 0.0]
         );
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn tendon_wake_readback_rejects_guards_with_static_flex_and_zero_trees() {
+        let session = TransferSession::new(0).unwrap();
+        let cam = CamLightModelInput::new(
+            MocapModelInput::new(empty_model(), vec![-1]).unwrap(),
+            CamLightFields::default(),
+        )
+        .unwrap();
+        let flex = FlexPositionModelInput::new(
+            TendonModelInput::new(cam, crate::model::TendonFields::default()).unwrap(),
+            FlexPositionFields {
+                flex_interp: vec![0],
+                flex_cellnum: vec![1; 3],
+                flex_nodeadr: vec![0],
+                flex_nodenum: vec![0],
+                flex_vertadr: vec![0],
+                flex_vertnum: vec![1],
+                flex_centered: vec![false],
+                flex_vertbodyid: vec![0],
+                flex_vert: vec![0.2, 0.3, 0.4],
+                flex_vert0: vec![0.5; 3],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let fields = crate::model::TendonWakeFields {
+            body_treeid: vec![-1],
+            tendon_limited: vec![],
+            tendon_range: crate::model::ParameterBatch::new(3, 0, vec![]).unwrap(),
+            tendon_margin: crate::model::ParameterBatch::new(2, 0, vec![]).unwrap(),
+            sleep_enabled: true,
+            island_disabled: false,
+        };
+        let input = TendonWakeModelInput::with_flex_positions(flex, fields).unwrap();
+        let plan = KinematicsPlan::with_tendon_wake(
+            &session,
+            input,
+            KinematicsParameters::default(),
+            CamLightParameters::default(),
+        )
+        .unwrap();
+        let mut data = plan.create_data(513).unwrap();
+        plan.update(&mut data).unwrap();
+        let len = data.layout.sleep.unwrap().guarded;
+        for index in [0, 3, len - 4, len - 1] {
+            data.sleep
+                .as_mut()
+                .unwrap()
+                .state
+                .write_range(index, &[0])
+                .unwrap();
+            assert!(
+                matches!(data.readback(), Err(TransferError::Backend(crate::diagnostics::ProbeError::Mismatch { index: i, .. })) if i == index)
+            );
+            data.sleep
+                .as_mut()
+                .unwrap()
+                .state
+                .write_range(index, &[-131072])
+                .unwrap();
+        }
+        let out = data.readback().unwrap();
+        assert_eq!(
+            out.flex_positions()
+                .unwrap()
+                .world(512)
+                .unwrap()
+                .flexvert_xpos,
+            [0.2, 0.3, 0.4]
+        );
+        let row = out.sleep_trees().unwrap().world(512).unwrap();
+        assert!(row.tree_asleep.is_empty() && row.tree_awake.is_empty());
+        assert_eq!((row.ntree_awake, row.nbody_awake, row.nv_awake), (0, 1, 0));
+        assert!(out.sleep_trees().unwrap().world(513).is_err());
+        assert!(plan.create_data(0).is_err());
     }
 
     #[cfg(feature = "cuda-probe")]
