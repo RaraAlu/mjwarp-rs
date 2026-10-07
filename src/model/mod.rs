@@ -11,6 +11,8 @@ pub mod inertial;
 pub use inertial::{InertialFields, InertialModelInput};
 pub mod attached;
 pub use attached::{AttachedFields, AttachedModelInput};
+pub mod mocap;
+pub use mocap::MocapModelInput;
 pub mod parameters;
 pub use parameters::{KinematicsParameter, KinematicsParameters, ParameterBatch};
 

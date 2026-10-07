@@ -793,6 +793,12 @@ extern "C" __global__ void rigid_kinematics(const int* meta,const float* model,
   const int* type=num+nb; const int* qa=type+nj;
 #ifdef MJWARP_FIELD_BATCHES
   const int* desc=qa+nj;
+#ifdef MJWARP_MOCAP
+  unsigned nm=desc[0]; const int* mocap=desc+1;
+  desc=mocap+nb;
+  const float* mp=state+(unsigned long long)worlds*nq+(unsigned long long)w*3*nm;
+  const float* mq=state+(unsigned long long)worlds*(nq+3*nm)+(unsigned long long)w*4*nm;
+#endif
   const float* q0=field_parameter(model,desc,w,nq);
   const float* bp=field_parameter(model,desc+2,w,3*nb);
   const float* bq=field_parameter(model,desc+4,w,4*nb);
@@ -817,8 +823,12 @@ extern "C" __global__ void rigid_kinematics(const int* meta,const float* model,
       store_v(anchor+3*j,p); store_v(xa+3*j,load_v(axis+3*j));
     } else if(b) {
       Q pr=load_q(xq+4*parent[b]);
-      p=add(load_v(xp+3*parent[b]),rotate(pr,load_v(bp+3*b)));
-      r=multiply(pr,load_q(bq+4*b));
+      V local_p=load_v(bp+3*b); Q local_q=load_q(bq+4*b);
+#ifdef MJWARP_MOCAP
+      if(mocap[b]>=0) { local_p=load_v(mp+3*mocap[b]); local_q=load_q(mq+4*mocap[b]); }
+#endif
+      p=add(load_v(xp+3*parent[b]),rotate(pr,local_p));
+      r=multiply(pr,local_q);
       for(int k=0;k<count;++k,++j) {
         V local=load_v(jp+3*j), a=add(p,rotate(r,local));
         V ax=rotate(r,load_v(axis+3*j));

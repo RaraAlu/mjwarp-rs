@@ -4,6 +4,8 @@
 范围：G01常驻严格子集。
 本批不关闭完整G01。
 本批不添加第三方依赖。
+本页保留第二批历史证据。
+后续mocap与缓存见[增量报告](windows-resident-mocap.md)。
 
 ## 实际接口
 
@@ -258,7 +260,7 @@ target/resident-kinematics/verification-field-batches/
 5e2e2cffb0cd811432aedaa780c0b8716c7d7f0b
 ```
 
-## 剩余范围
+## 第二批结束时的剩余范围
 
 当前仍不处理mocap。
 当前仍重算全部geom与site。

@@ -70,6 +70,7 @@ CPU调试与工具边界仍待确认。
 27. [Windows附着运动学探针](windows-attached-kinematics-probe.md)
 28. [Windows常驻运动学底座](windows-resident-kinematics.md)
 29. [Windows运动学字段批量](windows-resident-parameters.md)
+30. [Windows运动学mocap子集](windows-resident-mocap.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -108,6 +109,9 @@ MC物理契约任务仍待实现。
 几何与site位姿也有GPU子集。
 常驻计划复用三个设备子集。
 十三项参数支持独立批量。
+常驻状态支持mocap写入。
+GPU初始化静态geom缓存。
+更新仍重算全部site。
 状态更新不再重复上传模型。
 完整G01阶段仍待实现。
 连续字段已有真实GPU交换。
@@ -161,7 +165,7 @@ Windows补齐八项能力探针。
 | 质量矩阵GPU探针 | GPU计算CRB与对称稠密矩阵；支持自由度armature；不提供分解或求解 |
 | 质量求解GPU探针 | 内部GPU f64计算反向LDL与多个右端项；公开结果为f32；不替代完整G03 |
 | 附着运动学GPU探针 | 六项几何与site字段检查；复用刚体设备结果计算四项位姿；不替代完整G01 |
-| 常驻运动学底座 | 模型上传与编译仅发生一次；独占世界状态与三个结果缓冲；显式回读；十三项参数独立按世界取模；仍限严格子集 |
+| 常驻运动学底座 | 一次上传与编译；独占世界状态；显式回读；十三项参数独立取模；mocap世界写入；静态geom缓存；仍限严格子集 |
 | 纯数学 | 八项f32四元数及空间代数公式；刚体探针覆盖部分GPU公式；完整数值验收仍待补齐 |
 | 历史基础 | 检查三维布局与显式时间阈值；GPU历史仍待实现 |
 | 图像基础 | 检查单相机批量像素、容量与输出开关；不生成像素 |
@@ -185,6 +189,7 @@ Windows补齐八项能力探针。
 附着位姿详见[附着报告](windows-attached-kinematics-probe.md)。
 常驻设备链详见[底座报告](windows-resident-kinematics.md)。
 字段批量详见[批量报告](windows-resident-parameters.md)。
+mocap与缓存详见[增量报告](windows-resident-mocap.md)。
 文档不宣称已有完整引擎。
 GPU编译路线仍需原型验证。
 原生依赖版本仍需冻结。

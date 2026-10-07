@@ -14,6 +14,9 @@
 几何与site位姿也有GPU探针。
 常驻底座复用三个设备子集。
 十三项参数支持独立批量。
+常驻状态支持mocap写入。
+GPU初始化静态geom缓存。
+更新仍重算全部site。
 拓扑仍只支持共享参数。
 质心与自由度映射也有探针。
 质量矩阵已有GPU子集探针。
@@ -50,6 +53,7 @@ LRsLab负责CPU play。
 | `src/model/` | 检查布局、原生DTO与运动学惯性输入 |
 | `src/model/attached.rs` | 检查几何与site六项附着字段 |
 | `src/model/parameters.rs` | 检查运动学字段独立批量 |
+| `src/model/mocap.rs` | 检查mocap映射与静态几何 |
 | `src/io/` | 转换、GPU字段交换与只读字段组 |
 | `src/io/fields.rs` | 提供独立连续字段底层 |
 | `src/runtime/` | 实现驱动级GPU探针 |
@@ -66,6 +70,7 @@ LRsLab负责CPU play。
 | `fixtures/native-probe/` | 保留静态MJB、源XML、结构打印件与哈希 |
 | `fixtures/kinematics/` | 保留静态原生运动学参考 |
 | `fixtures/attached-kinematics/` | 保留几何与site原生参考 |
+| `fixtures/mocap-kinematics/` | 保留mocap与静态几何参考 |
 | `fixtures/com-position/` | 保留质心参考与零质量边界 |
 | `fixtures/mass-matrix/` | 保留矩阵参考与armature链 |
 | `fixtures/mass-solve/` | 保留原生因子、右端项与解 |

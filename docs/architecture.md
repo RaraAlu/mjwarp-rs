@@ -21,6 +21,12 @@
 入口组合见[边界清单](supported-combinations.md)。
 这些清单不增加架构模块。
 
+常驻辅助新增mocap状态。
+GPU初始化静态geom缓存。
+参数与共享拓扑保持只读。
+辅助入口不替代目标架构。
+现状见[mocap报告](windows-resident-mocap.md)。
+
 ## 系统分层
 
 ```text

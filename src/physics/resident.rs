@@ -11,7 +11,9 @@ use super::{
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
-use crate::model::{AttachedModelInput, BatchLayout, KinematicsParameter, KinematicsParameters};
+use crate::model::{
+    AttachedModelInput, BatchLayout, KinematicsParameter, KinematicsParameters, MocapModelInput,
+};
 use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
@@ -22,11 +24,14 @@ use crate::runtime::{SynchronousKernel, TransferBuffer};
 /// 模型拓扑仍只共享一份。
 /// 默认状态使用检查后的qpos0。
 /// 保留探针的严格输入限制。
-/// 不处理mocap、相机或静态缓存。
+/// 支持mocap与静态geom缓存。
+/// 不处理相机或灯光。
 /// 不冻结正式GPU编译路线。
 pub struct KinematicsPlan {
     model: Arc<AttachedModelInput>,
     parameters: KinematicsParameters,
+    body_mocapid: Vec<i32>,
+    nmocap: usize,
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
     rigid: super::DeviceModel<f32>,
@@ -40,24 +45,39 @@ pub struct KinematicsPlan {
     com_kernel: SynchronousKernel,
     #[cfg(feature = "cuda-probe")]
     attached_kernel: SynchronousKernel,
+    #[cfg(feature = "cuda-probe")]
+    initialize_kernel: SynchronousKernel,
 }
 
 #[derive(Clone, Copy, Debug)]
 struct ResidentLayout {
     qpos: BatchLayout,
+    mocap_pos: BatchLayout,
+    mocap_quat: BatchLayout,
+    state: BatchLayout,
     rigid: KinematicsLayout,
     com: ComPositionLayout,
     attached: AttachedLayout,
 }
 
 impl ResidentLayout {
-    fn new(model: &AttachedModelInput, worlds: usize) -> Result<Self, InputError> {
+    fn new(model: &AttachedModelInput, worlds: usize, nmocap: usize) -> Result<Self, InputError> {
         let k = model.rigid().kinematics();
+        let stride = nmocap
+            .checked_mul(7)
+            .and_then(|n| n.checked_add(k.nq()))
+            .filter(|&n| n <= i32::MAX as usize)
+            .ok_or(InputError::Overflow {
+                field: "resident_state",
+            })?;
         Ok(Self {
             rigid: KinematicsLayout::new(worlds, k.nq(), k.nbody(), k.njnt())?,
             com: ComPositionLayout::new(worlds, k.nbody(), k.njnt(), k.nv())?,
             attached: AttachedLayout::new(worlds, model.ngeom(), model.nsite())?,
             qpos: BatchLayout::new(worlds, k.nq(), 4)?,
+            mocap_pos: BatchLayout::new(worlds, nmocap * 3, 4)?,
+            mocap_quat: BatchLayout::new(worlds, nmocap * 4, 4)?,
+            state: BatchLayout::new(worlds, stride, 4)?,
         })
     }
 }
@@ -87,16 +107,16 @@ impl ReadyStages {
 /// 独占多世界状态与设备输出。
 /// 它记录具体设备模型的身份。
 /// 相同尺寸不允许跨计划使用。
-/// 写入qpos会废弃全部派生结果。
+/// 状态写入会废弃派生结果。
 /// 更新完成只表示驱动执行成功。
 /// 显式回读检查守卫与有限性。
-/// 不自动执行任何物理阶段。
+/// 初始化缓存不代表阶段就绪。
 pub struct KinematicsData {
     model: Arc<AttachedModelInput>,
     layout: ResidentLayout,
     ready: ReadyStages,
     #[cfg(feature = "cuda-probe")]
-    qpos: TransferBuffer<f32>,
+    state: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
     rigid: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
@@ -146,13 +166,35 @@ impl KinematicsPlan {
         model: AttachedModelInput,
         parameters: KinematicsParameters,
     ) -> Result<Self, TransferError> {
+        let ids = vec![-1; model.rigid().kinematics().nbody()];
+        Self::with_mocap(session, MocapModelInput::new(model, ids)?, parameters)
+    }
+
+    /// 先检查映射与全部参数行。
+    /// 初始mocap使用体参数行。
+    /// 静态geom使用GPU初始化。
+    /// 模型参数与拓扑保持只读。
+    pub fn with_mocap(
+        session: &TransferSession,
+        model: MocapModelInput,
+        parameters: KinematicsParameters,
+    ) -> Result<Self, TransferError> {
+        let (model, body_mocapid, nmocap, static_geom) = model.into_parts();
         let (fk, com) =
             check_com_position(model.rigid(), 1, &model.rigid().kinematics().fields().qpos0)?;
         let attached = AttachedLayout::new(1, model.ngeom(), model.nsite())?;
         check_parameters(&model, &parameters)?;
         #[cfg(not(feature = "cuda-probe"))]
         {
-            let _ = (session, fk, com, attached);
+            let _ = (
+                session,
+                fk,
+                com,
+                attached,
+                body_mocapid,
+                nmocap,
+                static_geom,
+            );
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
         #[cfg(feature = "cuda-probe")]
@@ -170,6 +212,8 @@ impl KinematicsPlan {
                     &k.body_jntnum,
                     &k.jnt_type,
                     &k.jnt_qposadr,
+                    &[nmocap as i32],
+                    &body_mocapid,
                 ],
                 &RIGID_PARAMETERS,
             )?;
@@ -179,6 +223,7 @@ impl KinematicsPlan {
                 &[&k.body_parentid, &k.jnt_type, &k.jnt_bodyid, &k.jnt_dofadr],
                 &COM_PARAMETERS,
             )?;
+            let static_geom: Vec<i32> = static_geom.into_iter().map(i32::from).collect();
             let attached = pack_model(
                 &model,
                 &parameters,
@@ -186,26 +231,32 @@ impl KinematicsPlan {
                     &[fk.output.elements_per_world() as i32],
                     &a.geom_bodyid,
                     &a.site_bodyid,
+                    &static_geom,
                 ],
                 &ATTACHED_PARAMETERS,
             )?;
             let rigid = rigid.upload(session)?;
             let com = com.upload(session)?;
             let attached = attached.upload(session)?;
-            let source = format!("{FIELD_BATCH_CUDA}\n{}", super::KINEMATICS_CUDA);
+            let prefix = format!("{FIELD_BATCH_CUDA}\n#define MJWARP_MOCAP\n");
+            let source = format!("{prefix}{}", super::KINEMATICS_CUDA);
             let rigid_kernel = SynchronousKernel::compile(session, &source, "rigid_kinematics")?;
             let source = format!("{FIELD_BATCH_CUDA}\n{}", super::COM_POSITION_CUDA);
             let com_kernel = SynchronousKernel::compile(session, &source, "rigid_com_position")?;
             let source = format!(
-                "{FIELD_BATCH_CUDA}\n{}\n{}",
+                "{prefix}{}\n{}",
                 super::KINEMATICS_CUDA,
                 super::attached::ATTACHED_CUDA
             );
             let attached_kernel =
                 SynchronousKernel::compile(session, &source, "attached_kinematics")?;
+            let initialize_kernel =
+                SynchronousKernel::compile(session, &source, "initialize_attached")?;
             Ok(Self {
                 model: Arc::new(model),
                 parameters,
+                body_mocapid,
+                nmocap,
                 session: session.clone(),
                 rigid,
                 com,
@@ -213,6 +264,7 @@ impl KinematicsPlan {
                 rigid_kernel,
                 com_kernel,
                 attached_kernel,
+                initialize_kernel,
             })
         }
     }
@@ -225,23 +277,36 @@ impl KinematicsPlan {
         &self.parameters
     }
 
+    pub fn nmocap(&self) -> usize {
+        self.nmocap
+    }
+
+    pub fn body_mocapid(&self) -> &[i32] {
+        &self.body_mocapid
+    }
+
     /// 创建独立世界与三个输出缓冲。
     /// 全部尺寸通过后才申请显存。
     /// 初始派生结果保持未就绪。
     pub fn create_data(&self, worlds: usize) -> Result<KinematicsData, TransferError> {
-        let layout = ResidentLayout::new(&self.model, worlds)?;
+        let layout = ResidentLayout::new(&self.model, worlds, self.nmocap)?;
         #[cfg(not(feature = "cuda-probe"))]
         {
-            let _ = layout;
+            let _ = layout.state;
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let mut qpos =
-                crate::runtime::host_staging::<f32>(layout.qpos.total_elements().max(1))?;
+            // Three contiguous field blocks preserve independent world writes.
+            // Kernel wide offsets match these checked batch lengths exactly.
+            let mut state =
+                crate::runtime::host_staging::<f32>(layout.state.total_elements().max(1))?;
             let nq = layout.qpos.elements_per_world();
             if nq != 0 {
-                for (world, row) in qpos.chunks_exact_mut(nq).enumerate() {
+                for (world, row) in state[..layout.qpos.total_elements()]
+                    .chunks_exact_mut(nq)
+                    .enumerate()
+                {
                     row.copy_from_slice(self.parameters.world(
                         KinematicsParameter::Qpos0,
                         &self.model,
@@ -249,15 +314,56 @@ impl KinematicsPlan {
                     ));
                 }
             }
-            Ok(KinematicsData {
+            let pos_start = layout.qpos.total_elements();
+            let quat_start = pos_start + layout.mocap_pos.total_elements();
+            for world in 0..worlds {
+                let bp = self
+                    .parameters
+                    .world(KinematicsParameter::BodyPos, &self.model, world);
+                let bq = self
+                    .parameters
+                    .world(KinematicsParameter::BodyQuat, &self.model, world);
+                for (body, &id) in self
+                    .body_mocapid
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, &id)| id >= 0)
+                {
+                    let p = pos_start + world * 3 * self.nmocap + id as usize * 3;
+                    let q = quat_start + world * 4 * self.nmocap + id as usize * 4;
+                    state[p..p + 3].copy_from_slice(&bp[body * 3..body * 3 + 3]);
+                    state[q..q + 4].copy_from_slice(&bq[body * 4..body * 4 + 4]);
+                }
+            }
+            let mut data = KinematicsData {
                 model: Arc::clone(&self.model),
                 layout,
                 ready: ReadyStages::default(),
-                qpos: self.session.upload(&qpos)?,
+                state: self.session.upload(&state)?,
                 rigid: allocate_output(&self.session, layout.rigid.guarded)?,
                 com: allocate_output(&self.session, layout.com.guarded)?,
                 attached: allocate_output(&self.session, layout.attached.guarded)?,
-            })
+            };
+            self.update_rigid(&mut data)?;
+            // SAFETY: The initialization entry shares the checked attached ABI.
+            // Metadata includes ngeom static flags, followed by four descriptors.
+            // FK is synchronized; each thread writes only its guarded world.
+            unsafe {
+                self.initialize_kernel.launch(
+                    &self.attached.metadata,
+                    &self.attached.parameters,
+                    &data.rigid,
+                    &mut data.attached,
+                    [
+                        layout.rigid.nbody as u32,
+                        self.model.ngeom() as u32,
+                        self.model.nsite() as u32,
+                        worlds as u32,
+                    ],
+                )?;
+            }
+            data.ready = ReadyStages::default();
+            Ok(data)
         }
     }
 
@@ -290,7 +396,7 @@ impl KinematicsPlan {
                 self.rigid_kernel.launch(
                     &self.rigid.metadata,
                     &self.rigid.parameters,
-                    &data.qpos,
+                    &data.state,
                     &mut data.rigid,
                     [l.nq as u32, l.nbody as u32, l.njnt as u32, worlds],
                 )?;
@@ -333,7 +439,8 @@ impl KinematicsPlan {
     }
 
     /// 读取已有刚体设备结果。
-    /// 每次重算全部geom与site。
+    /// 跳过静态geom缓存。
+    /// 每次重算全部site。
     pub fn update_attached(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
         data.ready.require(data.ready.rigid, "rigid")?;
@@ -407,7 +514,61 @@ impl KinematicsData {
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
         #[cfg(feature = "cuda-probe")]
-        self.qpos.write_range(offset, qpos)
+        self.state.write_range(offset, qpos)
+    }
+
+    pub fn nmocap(&self) -> usize {
+        self.layout.mocap_pos.elements_per_world() / 3
+    }
+
+    /// 检查后写入全部mocap状态。
+    /// 四元数顺序采用wxyz。
+    /// GPU更新归一化四元数。
+    /// 输入错误保留已有结果。
+    pub fn write_mocap(&mut self, pos: &[f32], quat: &[f32]) -> Result<(), TransferError> {
+        check_mocap(
+            self.layout.mocap_pos.total_elements(),
+            self.layout.mocap_quat.total_elements(),
+            pos,
+            quat,
+        )?;
+        self.write_checked_mocap(0, 0, pos, quat)
+    }
+
+    /// 只写入指定世界的mocap。
+    /// 它废弃整组派生结果。
+    pub fn write_world_mocap(
+        &mut self,
+        world: usize,
+        pos: &[f32],
+        quat: &[f32],
+    ) -> Result<(), TransferError> {
+        let p = self.layout.mocap_pos.world_elements(world)?;
+        let q = self.layout.mocap_quat.world_elements(world)?;
+        check_mocap(p.len(), q.len(), pos, quat)?;
+        self.write_checked_mocap(p.start, q.start, pos, quat)
+    }
+
+    fn write_checked_mocap(
+        &mut self,
+        p: usize,
+        q: usize,
+        pos: &[f32],
+        quat: &[f32],
+    ) -> Result<(), TransferError> {
+        self.ready = ReadyStages::default();
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = (p, q, pos, quat);
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let start = self.layout.qpos.total_elements();
+            self.state.write_range(start + p, pos)?;
+            self.state
+                .write_range(start + self.layout.mocap_pos.total_elements() + q, quat)
+        }
     }
 
     /// 回读并检查全部子集结果。
@@ -446,6 +607,34 @@ impl KinematicsData {
             })
         }
     }
+}
+
+fn check_mocap(np: usize, nq: usize, pos: &[f32], quat: &[f32]) -> Result<(), InputError> {
+    for (field, expected, values) in [("mocap_pos", np, pos), ("mocap_quat", nq, quat)] {
+        if values.len() != expected {
+            return Err(InputError::LengthMismatch {
+                field,
+                expected,
+                actual: values.len(),
+            });
+        }
+        for (index, v) in values.iter().enumerate() {
+            if !v.is_finite() {
+                return Err(InputError::NonFinite { field, index });
+            }
+        }
+    }
+    for (index, rotation) in quat.as_chunks::<4>().0.iter().enumerate() {
+        let squared: f64 = rotation.iter().map(|&x| f64::from(x).powi(2)).sum();
+        if !(1e-12..=1e12).contains(&squared) {
+            return Err(InputError::InvalidTopology {
+                field: "mocap_quat",
+                index: 4 * index,
+                reason: "unusable_state_quaternion",
+            });
+        }
+    }
+    Ok(())
 }
 
 fn check_parameters(
@@ -693,11 +882,11 @@ mod tests {
         let m = empty_model();
         for worlds in [0, u32::MAX as usize, usize::MAX] {
             assert!(matches!(
-                ResidentLayout::new(&m, worlds),
+                ResidentLayout::new(&m, worlds, 0),
                 Err(InputError::InvalidDimension { .. })
             ));
         }
-        let l = ResidentLayout::new(&m, 513).unwrap();
+        let l = ResidentLayout::new(&m, 513, 0).unwrap();
         assert_eq!(l.qpos.total_elements(), 0);
         assert_eq!(l.rigid.output.total_elements(), 513 * 28);
         assert_eq!(l.com.output.total_elements(), 513 * 14);
@@ -895,5 +1084,115 @@ mod tests {
             pack_model(&empty_model(), &parameters, &[&[28]], &ATTACHED_PARAMETERS).unwrap();
         assert_eq!(empty.parameters, [0.0]);
         assert_eq!(empty.metadata, [28, 0, 1, 0, 1, 0, 1, 0, 1]);
+    }
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn static_geom_cache_survives_changed_body_frames_while_sites_update() {
+        let session = TransferSession::new(0).unwrap();
+        for (ng, ns) in [(1, 1), (1, 0), (0, 1), (0, 0)] {
+            let model = AttachedModelInput::new(
+                empty_model().rigid().clone(),
+                crate::model::AttachedFields {
+                    geom_bodyid: vec![0; ng],
+                    geom_pos: [1.0, 2.0, 3.0].repeat(ng),
+                    geom_quat: [1.0, 0.0, 0.0, 0.0].repeat(ng),
+                    site_bodyid: vec![0; ns],
+                    site_pos: [4.0, 5.0, 6.0].repeat(ns),
+                    site_quat: [1.0, 0.0, 0.0, 0.0].repeat(ns),
+                },
+            )
+            .unwrap();
+            let plan = KinematicsPlan::new(&session, model).unwrap();
+            let mut data = plan.create_data(513).unwrap();
+            let initial = read_output(
+                &data.attached,
+                data.layout.attached.guarded,
+                "initial_static",
+            )
+            .unwrap();
+            if ng != 0 {
+                assert_eq!(&initial[4..7], &[1.0, 2.0, 3.0]);
+            }
+            assert!(data.write_mocap(&[1.0], &[]).is_err());
+            data.write_mocap(&[], &[]).unwrap();
+            data.write_world_mocap(512, &[], &[]).unwrap();
+            plan.update_rigid(&mut data).unwrap();
+            // Test-only corruption distinguishes skip semantics from recomputing
+            // an unchanged static transform. No public API exposes this write.
+            for world in 0..513 {
+                data.rigid
+                    .write_range(4 + world * 28, &[9.0, 8.0, 7.0])
+                    .unwrap();
+            }
+            plan.update_attached(&mut data).unwrap();
+            let updated = read_output(
+                &data.attached,
+                data.layout.attached.guarded,
+                "updated_static",
+            )
+            .unwrap();
+            for world in 0..513 {
+                let start = 4 + world * 12 * (ng + ns);
+                assert_eq!(
+                    &initial[start..start + 12 * ng],
+                    &updated[start..start + 12 * ng]
+                );
+                if ns != 0 {
+                    assert_eq!(&updated[start + 12 * ng..start + 12 * ng + 3], &[13.0; 3]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn validates_mocap_lengths_finiteness_and_quaternion_capacity() {
+        assert!(check_mocap(0, 0, &[], &[]).is_ok());
+        assert!(check_mocap(3, 4, &[0.0; 3], &[-2.0, -0.0, 0.0, 0.0]).is_ok());
+        assert!(check_mocap(3, 4, &[0.0; 3], &[]).is_err());
+        assert!(check_mocap(0, 0, &[1.0], &[]).is_err());
+        for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            assert!(matches!(
+                check_mocap(3, 4, &[bad, 0.0, 0.0], &[1.0, 0.0, 0.0, 0.0]),
+                Err(InputError::NonFinite {
+                    field: "mocap_pos",
+                    index: 0
+                })
+            ));
+            assert!(matches!(
+                check_mocap(3, 4, &[0.0; 3], &[bad, 0.0, 0.0, 0.0]),
+                Err(InputError::NonFinite {
+                    field: "mocap_quat",
+                    index: 0
+                })
+            ));
+        }
+        for bad in [0.0, 1e-7, 1e7, f32::MAX] {
+            assert!(matches!(
+                check_mocap(6, 8, &[0.0; 6], &[1.0, 0.0, 0.0, 0.0, bad, 0.0, 0.0, 0.0]),
+                Err(InputError::InvalidTopology {
+                    field: "mocap_quat",
+                    index: 4,
+                    ..
+                })
+            ));
+        }
+    }
+
+    #[test]
+    fn checks_packed_mocap_state_capacity_before_allocation() {
+        let m = empty_model();
+        let l = ResidentLayout::new(&m, 513, 2).unwrap();
+        assert_eq!(l.state.total_elements(), 513 * 14);
+        assert_eq!(l.mocap_pos.world_elements(512).unwrap(), 3072..3078);
+        assert_eq!(l.mocap_quat.world_elements(512).unwrap(), 4096..4104);
+        for nm in [i32::MAX as usize / 7 + 1, usize::MAX] {
+            assert!(matches!(
+                ResidentLayout::new(&m, 1, nm),
+                Err(InputError::Overflow {
+                    field: "resident_state"
+                })
+            ));
+        }
     }
 }

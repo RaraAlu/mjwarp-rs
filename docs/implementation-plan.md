@@ -43,6 +43,9 @@ GPU已计算复合惯量与稠密矩阵。
 GPU已计算几何与site位姿。
 常驻底座已复用三个设备子集。
 十三项参数已支持独立批量。
+常驻状态已支持mocap写入。
+GPU已初始化静态geom缓存。
+更新仍重算全部site。
 完整G01阶段仍待实现。
 可信MJB适配暂用Windows MSVC。
 完整模型与原生版本仍待冻结。
@@ -815,14 +818,15 @@ G01最小GPU探针已有证据。
 质心与自由度子集已有证据。
 下一步扩展完整运动学分支。
 几何与site已有GPU辅助探针。
-下一步扩展mocap与其他分支。
+mocap已有常驻GPU子集。
 常驻底座已复用三条设备链。
 更新不再上传模型或编译。
 阶段间不强制回读宿主。
 十三项参数已支持独立批量。
 各字段采用world取模。
-下一步扩展mocap与静态语义。
-随后补齐相机与光源。
+mocap映射支持共享拓扑。
+静态geom保留GPU初始缓存。
+下一步补齐相机与光源。
 完整G01仍需双平台验收。
 质量矩阵已提供GPU辅助子集。
 正定分解与求解已有辅助子集。
@@ -832,6 +836,7 @@ G01最小GPU探针已有证据。
 附着证据见[附着报告](windows-attached-kinematics-probe.md)。
 常驻证据见[底座报告](windows-resident-kinematics.md)。
 批量证据见[参数报告](windows-resident-parameters.md)。
+mocap证据见[增量报告](windows-resident-mocap.md)。
 质心证据见[质心报告](windows-com-position-probe.md)。
 矩阵证据见[矩阵报告](windows-mass-matrix-probe.md)。
 求解证据见[求解报告](windows-mass-solve-probe.md)。

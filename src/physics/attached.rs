@@ -209,14 +209,17 @@ pub(super) fn upload_attached_model(
 // limitations under the License.
 #[cfg(feature = "cuda-probe")]
 pub(super) const ATTACHED_CUDA: &str = r#"
-extern "C" __global__ void attached_kinematics(const int* meta,const float* model,
-    const float* body,float* result,unsigned nb,unsigned ng,unsigned ns,unsigned worlds) {
+__device__ void attached_frames(const int* meta,const float* model,
+    const float* body,float* result,unsigned nb,unsigned ng,unsigned ns,unsigned worlds,bool initialize) {
   unsigned w=blockIdx.x*blockDim.x+threadIdx.x;
   if(w>=worlds) return;
   const float* xp=body+4+(unsigned long long)w*meta[0];
   const float* xq=xp+3*nb;
 #ifdef MJWARP_FIELD_BATCHES
   const int* desc=meta+1+ng+ns;
+#ifdef MJWARP_MOCAP
+  const int* static_geom=desc; desc+=ng;
+#endif
   const float* gp=field_parameter(model,desc,w,3*ng);
   const float* gq=field_parameter(model,desc+2,w,4*ng);
   const float* sp=field_parameter(model,desc+4,w,3*ns);
@@ -228,6 +231,9 @@ extern "C" __global__ void attached_kinematics(const int* meta,const float* mode
   float* gx=result+4+(unsigned long long)w*(12*ng+12*ns);
   float* gm=gx+3*ng; float* sx=gm+9*ng; float* sm=sx+3*ns;
   for(unsigned g=0;g<ng;++g) {
+#ifdef MJWARP_MOCAP
+    if(!initialize && static_geom[g]) continue;
+#endif
     int b=meta[1+g]; Q q=load_q(xq+4*b);
     store_v(gx+3*g,add(load_v(xp+3*b),rotate(q,load_v(gp+3*g))));
     matrix(gm+9*g,multiply(q,load_q(gq+4*g)));
@@ -238,6 +244,16 @@ extern "C" __global__ void attached_kinematics(const int* meta,const float* mode
     matrix(sm+9*s,multiply(q,load_q(sq+4*s)));
   }
 }
+extern "C" __global__ void attached_kinematics(const int* meta,const float* model,
+    const float* body,float* result,unsigned nb,unsigned ng,unsigned ns,unsigned worlds) {
+  attached_frames(meta,model,body,result,nb,ng,ns,worlds,false);
+}
+#ifdef MJWARP_MOCAP
+extern "C" __global__ void initialize_attached(const int* meta,const float* model,
+    const float* body,float* result,unsigned nb,unsigned ng,unsigned ns,unsigned worlds) {
+  attached_frames(meta,model,body,result,nb,ng,ns,worlds,true);
+}
+#endif
 "#;
 
 #[cfg(test)]
