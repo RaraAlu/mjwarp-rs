@@ -10,6 +10,8 @@
 十二项运动学字段支持GPU上传。
 九项惯性字段支持组合上传。
 二十一字段仍属辅助子集。
+刚体运动学已有GPU探针。
+它不替代完整G01阶段。
 GPU引擎尚待实现。
 首版面向NVIDIA。
 验收覆盖Windows与Linux。
@@ -40,11 +42,14 @@ LRsLab负责CPU play。
 | `src/io/` | 转换、GPU字段交换与只读字段组 |
 | `src/io/fields.rs` | 提供独立连续字段底层 |
 | `src/runtime/` | 实现驱动级GPU探针 |
+| `src/physics/` | 历史校验与刚体GPU探针 |
+| `src/runtime/transfer/kernel.rs` | 封装内部同步内核ABI |
 | `src/diagnostics/` | 定义探针错误 |
 | `native/`与`include/` | 提供可选原生桥接 |
 | `build.rs` | 按feature编译原生桥接 |
 | `tests/` | 存放Rust GPU与原生探针测试 |
 | `fixtures/native-probe/` | 保留静态MJB、源XML、结构打印件与哈希 |
+| `fixtures/kinematics/` | 保留静态原生运动学参考 |
 | `docs/README.md` | 提供文档索引与现状 |
 | `docs/project-positioning.md` | 明确产品与依赖边界 |
 | `docs/architecture.md` | 描述目标模块与接口 |
@@ -121,6 +126,16 @@ cargo test --locked --features cuda-probe --test gpu_probe -- --ignored --test-t
 ```
 
 详细证据见探针报告。
+刚体探针显式检查参考哈希。
+执行以下Windows脚本：
+
+```text
+scripts/test-windows-kinematics.ps1 -AllFeatures
+scripts/test-windows-kinematics.ps1 -AllFeatures -Release
+```
+
+该脚本需要NVRTC。
+产品测试不生成原生参考。
 项目尚未设覆盖率门槛。
 新增逻辑须配套Rust测试。
 使用内置测试框架。

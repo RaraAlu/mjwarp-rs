@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 pub mod external;
 mod transfer;
 pub(crate) use transfer::host_staging;
+#[cfg(feature = "cuda-probe")]
+pub(crate) use transfer::kernel::SynchronousKernel;
 pub use transfer::{TransferBuffer, TransferElement, TransferSession};
 
 #[cfg(feature = "cuda-probe")]

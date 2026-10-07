@@ -885,7 +885,9 @@ Windows与Linux分别执行测试。
 十二字段详见[增量报告](windows-kinematic-fields.md)。
 九惯性字段详见[惯性报告](windows-inertial-fields.md)。
 本轮校验自由度最近祖先。
-质量矩阵与G01仍待实现。
+质量矩阵与完整G01仍待实现。
+刚体子集已有七项GPU结果。
+数值证据见[刚体报告](windows-kinematics-probe.md)。
 该子集只支持一组共享参数。
 结构校验不证明G01物理等价。
 严格转换不替代等价put_model。

@@ -13,6 +13,9 @@ use std::{
     },
 };
 
+#[cfg(feature = "cuda-probe")]
+pub(crate) mod kernel;
+
 mod element {
     #[cfg(feature = "cuda-probe")]
     pub trait Sealed:

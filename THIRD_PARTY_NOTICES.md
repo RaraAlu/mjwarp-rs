@@ -19,6 +19,21 @@
 
 [上游源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/math.py)
 
+## 刚体运动学CUDA探针
+
+`src/physics/mod.rs`移植刚体子集。
+CUDA部分复用上述许可。
+上游版权归Newton开发者。
+算法依据`smooth.py`与`math.py`。
+冻结提交号保持不变。
+本项目改用CUDA C++与f32。
+本项目按世界顺序遍历体。
+本项目不移植mocap等分支。
+本项目添加同步与范围检查。
+它不代表完整物理阶段。
+
+[上游刚体源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py)
+
 ## 原生模型输入候选
 
 探针采用MuJoCo 3.12.0。
