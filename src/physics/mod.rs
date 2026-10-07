@@ -13,6 +13,8 @@ mod mass_solve;
 pub use mass_solve::{MassSolveOutput, MassSolveWorld, probe_mass_solve};
 mod attached;
 pub use attached::{AttachedKinematicsOutput, AttachedKinematicsWorld, probe_attached_kinematics};
+mod resident;
+pub use resident::{KinematicsData, KinematicsPlan, KinematicsSnapshot};
 
 /// 七项GPU结果的只读世界视图。
 /// 矩阵按行展开，四元数用wxyz。
@@ -263,6 +265,54 @@ fn kinematics_device<T: RigidScalar>(
     layout: KinematicsLayout,
     qpos: &[f32],
 ) -> Result<(crate::runtime::TransferBuffer<T>, Vec<T>), TransferError> {
+    let device = upload_kinematics_model::<T>(session, model, layout)?;
+    // A real one-element allocation supplies a valid ABI pointer for nq=0.
+    let state = upload_rigid::<T>(session, if qpos.is_empty() { &[0.0] } else { qpos })?;
+    let mut values = crate::runtime::host_staging::<T>(layout.guarded)?;
+    values.fill(T::from(-131072.0));
+    values[4..layout.guarded - 4].fill(T::from(f32::NAN));
+    let mut output = session.upload(&values)?;
+    let kernel = crate::runtime::SynchronousKernel::compile(
+        session,
+        &rigid_source::<T>(KINEMATICS_CUDA),
+        "rigid_kinematics",
+    )?;
+    // SAFETY: Owned validated topology proves acyclic parent/joint/qpos
+    // ranges. Checked packing matches the fixed CUDA ABI and every offset.
+    // RigidScalar and rigid_source select the same pointer width for all buffers.
+    // One thread owns each world and processes parents before children.
+    // Guards fit the output allocation; session launch waits for completion.
+    unsafe {
+        kernel.launch(
+            &device.metadata,
+            &device.parameters,
+            &state,
+            &mut output,
+            [
+                layout.nq as u32,
+                layout.nbody as u32,
+                layout.njnt as u32,
+                layout.output.worlds() as u32,
+            ],
+        )?;
+    }
+    output.read_range_into(0, &mut values)?;
+    check_device_values(&values, "kinematics_output")?;
+    Ok((output, values))
+}
+
+#[cfg(feature = "cuda-probe")]
+struct DeviceModel<T: crate::runtime::TransferElement> {
+    metadata: crate::runtime::TransferBuffer<i32>,
+    parameters: crate::runtime::TransferBuffer<T>,
+}
+
+#[cfg(feature = "cuda-probe")]
+fn upload_kinematics_model<T: RigidScalar>(
+    session: &TransferSession,
+    model: &InertialModelInput,
+    layout: KinematicsLayout,
+) -> Result<DeviceModel<T>, TransferError> {
     let f = model.kinematics().fields();
     let i = model.fields();
     let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
@@ -291,41 +341,10 @@ fn kinematics_device<T: RigidScalar>(
         pack_rigid(&mut parameters[cursor..cursor + field.len()], field);
         cursor += field.len();
     }
-    let metadata = session.upload(&metadata)?;
-    let parameters = session.upload(&parameters)?;
-    // A real one-element allocation supplies a valid ABI pointer for nq=0.
-    let state = upload_rigid::<T>(session, if qpos.is_empty() { &[0.0] } else { qpos })?;
-    let mut values = crate::runtime::host_staging::<T>(layout.guarded)?;
-    values.fill(T::from(-131072.0));
-    values[4..layout.guarded - 4].fill(T::from(f32::NAN));
-    let mut output = session.upload(&values)?;
-    let kernel = crate::runtime::SynchronousKernel::compile(
-        session,
-        &rigid_source::<T>(KINEMATICS_CUDA),
-        "rigid_kinematics",
-    )?;
-    // SAFETY: Owned validated topology proves acyclic parent/joint/qpos
-    // ranges. Checked packing matches the fixed CUDA ABI and every offset.
-    // RigidScalar and rigid_source select the same pointer width for all buffers.
-    // One thread owns each world and processes parents before children.
-    // Guards fit the output allocation; session launch waits for completion.
-    unsafe {
-        kernel.launch(
-            &metadata,
-            &parameters,
-            &state,
-            &mut output,
-            [
-                layout.nq as u32,
-                layout.nbody as u32,
-                layout.njnt as u32,
-                layout.output.worlds() as u32,
-            ],
-        )?;
-    }
-    output.read_range_into(0, &mut values)?;
-    check_device_values(&values, "kinematics_output")?;
-    Ok((output, values))
+    Ok(DeviceModel {
+        metadata: session.upload(&metadata)?,
+        parameters: session.upload(&parameters)?,
+    })
 }
 
 /// 四项质心结果的只读世界视图。
@@ -503,19 +522,7 @@ fn com_position_device<T: RigidScalar>(
     let (state, checkpoint) = kinematics_device::<T>(session, model, fk, qpos)?;
     drop(checkpoint);
     let k = model.kinematics();
-    let f = k.fields();
-    let i = model.fields();
-    let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
-    let mut cursor = 0;
-    for field in [&f.body_parentid, &f.jnt_type, &f.jnt_bodyid, &f.jnt_dofadr] {
-        metadata[cursor..cursor + field.len()].copy_from_slice(field);
-        cursor += field.len();
-    }
-    let mut parameters = crate::runtime::host_staging::<T>(layout.parameters)?;
-    pack_rigid(&mut parameters[..k.nbody()], &i.body_mass);
-    pack_rigid(&mut parameters[k.nbody()..], &i.body_inertia);
-    let metadata = session.upload(&metadata)?;
-    let parameters = session.upload(&parameters)?;
+    let device = upload_com_model::<T>(session, model, layout)?;
     let mut values = crate::runtime::host_staging::<T>(layout.guarded)?;
     values.fill(T::from(-131072.0));
     values[4..layout.guarded - 4].fill(T::from(f32::NAN));
@@ -533,8 +540,8 @@ fn com_position_device<T: RigidScalar>(
     // The same-session adapter waits before any buffer or module can drop.
     unsafe {
         kernel.launch(
-            &metadata,
-            &parameters,
+            &device.metadata,
+            &device.parameters,
             &state,
             &mut output,
             [
@@ -548,6 +555,30 @@ fn com_position_device<T: RigidScalar>(
     output.read_range_into(0, &mut values)?;
     check_device_values(&values, "com_position_output")?;
     Ok((output, values))
+}
+
+#[cfg(feature = "cuda-probe")]
+fn upload_com_model<T: RigidScalar>(
+    session: &TransferSession,
+    model: &InertialModelInput,
+    layout: ComPositionLayout,
+) -> Result<DeviceModel<T>, TransferError> {
+    let k = model.kinematics();
+    let f = k.fields();
+    let i = model.fields();
+    let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
+    let mut cursor = 0;
+    for field in [&f.body_parentid, &f.jnt_type, &f.jnt_bodyid, &f.jnt_dofadr] {
+        metadata[cursor..cursor + field.len()].copy_from_slice(field);
+        cursor += field.len();
+    }
+    let mut parameters = crate::runtime::host_staging::<T>(layout.parameters)?;
+    pack_rigid(&mut parameters[..k.nbody()], &i.body_mass);
+    pack_rigid(&mut parameters[k.nbody()..], &i.body_inertia);
+    Ok(DeviceModel {
+        metadata: session.upload(&metadata)?,
+        parameters: session.upload(&parameters)?,
+    })
 }
 
 /// Keep every buffer and shader pointer type equal. Public rigid inputs and
@@ -633,7 +664,13 @@ extern "C" __global__ void rigid_com_position(const int* m,const float* p,
   if(w>=nw) return;
   const int* parent=m; const int* type=m+nb; const int* body=type+nj;
   const int* adr=body+nj;
+#ifdef MJWARP_FIELD_BATCHES
+  const int* desc=adr+nj;
+  const float* mass=field_parameter(p,desc,w,nb);
+  const float* inertia=field_parameter(p,desc+2,w,3*nb);
+#else
   const float* mass=p; const float* inertia=p+nb;
+#endif
   const float* s=state+4+(unsigned long long)w*(28*nb+6*nj);
   const float* xmat=s+7*nb; const float* ipos=s+16*nb;
   const float* imat=s+19*nb; const float* anchor=s+28*nb;
@@ -754,9 +791,20 @@ extern "C" __global__ void rigid_kinematics(const int* meta,const float* model,
   if(w>=worlds) return;
   const int* parent=meta; const int* adr=parent+nb; const int* num=adr+nb;
   const int* type=num+nb; const int* qa=type+nj;
+#ifdef MJWARP_FIELD_BATCHES
+  const int* desc=qa+nj;
+  const float* q0=field_parameter(model,desc,w,nq);
+  const float* bp=field_parameter(model,desc+2,w,3*nb);
+  const float* bq=field_parameter(model,desc+4,w,4*nb);
+  const float* ip=field_parameter(model,desc+6,w,3*nb);
+  const float* iq=field_parameter(model,desc+8,w,4*nb);
+  const float* jp=field_parameter(model,desc+10,w,3*nj);
+  const float* axis=field_parameter(model,desc+12,w,3*nj);
+#else
   const float* q0=model; const float* bp=q0+nq; const float* bq=bp+3*nb;
   const float* ip=bq+4*nb; const float* iq=ip+3*nb;
   const float* jp=iq+4*nb; const float* axis=jp+3*nj;
+#endif
   const float* q=state+(unsigned long long)w*nq;
   float* xp=result+4+(unsigned long long)w*(28*nb+6*nj);
   float* xq=xp+3*nb; float* xm=xq+4*nb; float* xi=xm+9*nb;

@@ -145,6 +145,12 @@ pub enum TransferError {
         bytes: usize,
     },
     SessionMismatch,
+    /// 状态不属于当前常驻计划。
+    ModelMismatch,
+    /// 严格辅助尚未生成对应结果。
+    StageNotReady {
+        stage: &'static str,
+    },
     OverlappingCopy,
     Quarantined,
     /// GPU分解遇到非正或非有限主元。
@@ -174,6 +180,8 @@ impl fmt::Display for TransferError {
             Self::Backend(error) => write!(f, "传输后端错误：{error}"),
             Self::HostAllocation { bytes } => write!(f, "宿主分配失败：{bytes}字节"),
             Self::SessionMismatch => write!(f, "传输会话不匹配"),
+            Self::ModelMismatch => write!(f, "状态不属于当前设备模型"),
+            Self::StageNotReady { stage } => write!(f, "辅助阶段尚未更新：{stage}"),
             Self::OverlappingCopy => write!(f, "设备自复制拒绝重叠范围"),
             Self::Quarantined => write!(f, "传输会话已隔离"),
             Self::InvalidPivot { world, dof, value } => {
@@ -365,6 +373,19 @@ impl std::error::Error for ProbeError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preserves_resident_model_and_stage_errors() {
+        use std::error::Error;
+        assert_eq!(
+            TransferError::ModelMismatch.to_string(),
+            "状态不属于当前设备模型"
+        );
+        let error = TransferError::StageNotReady { stage: "com" };
+        assert_eq!(error.to_string(), "辅助阶段尚未更新：com");
+        assert!(error.source().is_none());
+        assert!(TransferError::ModelMismatch.source().is_none());
+    }
 
     #[test]
     fn preserves_factorization_world_dof_value_and_source() {

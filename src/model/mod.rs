@@ -11,6 +11,8 @@ pub mod inertial;
 pub use inertial::{InertialFields, InertialModelInput};
 pub mod attached;
 pub use attached::{AttachedFields, AttachedModelInput};
+pub mod parameters;
+pub use parameters::{KinematicsParameter, KinematicsParameters, ParameterBatch};
 
 /// Windows原生探针的小型DTO。
 /// 计数采用原生有符号64位。

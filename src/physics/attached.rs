@@ -22,9 +22,9 @@ pub struct AttachedKinematicsWorld<'a> {
 /// 结果独立拥有宿主缓冲。
 #[derive(Clone, Debug)]
 pub struct AttachedKinematicsOutput {
-    rigid: KinematicsOutput,
-    layout: AttachedLayout,
-    values: Vec<f32>,
+    pub(super) rigid: KinematicsOutput,
+    pub(super) layout: AttachedLayout,
+    pub(super) values: Vec<f32>,
 }
 
 impl AttachedKinematicsOutput {
@@ -55,8 +55,8 @@ impl AttachedKinematicsOutput {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct AttachedLayout {
-    output: BatchLayout,
+pub(super) struct AttachedLayout {
+    pub(super) output: BatchLayout,
     ngeom: usize,
     nsite: usize,
     #[cfg(feature = "cuda-probe")]
@@ -64,11 +64,11 @@ struct AttachedLayout {
     #[cfg(feature = "cuda-probe")]
     parameters: usize,
     #[cfg(feature = "cuda-probe")]
-    guarded: usize,
+    pub(super) guarded: usize,
 }
 
 impl AttachedLayout {
-    fn new(worlds: usize, ngeom: usize, nsite: usize) -> Result<Self, InputError> {
+    pub(super) fn new(worlds: usize, ngeom: usize, nsite: usize) -> Result<Self, InputError> {
         if worlds == 0 || worlds > (u32::MAX - 255) as usize {
             return Err(InputError::InvalidDimension {
                 field: "attached_dimensions",
@@ -130,19 +130,7 @@ pub fn probe_attached_kinematics(
     {
         let (body, rigid_values) =
             super::kinematics_device::<f32>(session, model.rigid(), fk, qpos)?;
-        let f = model.fields();
-        let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
-        metadata[0] = fk.output.elements_per_world() as i32;
-        metadata[1..1 + model.ngeom()].copy_from_slice(&f.geom_bodyid);
-        metadata[1 + model.ngeom()..].copy_from_slice(&f.site_bodyid);
-        let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
-        let mut cursor = 0;
-        for field in [&f.geom_pos, &f.geom_quat, &f.site_pos, &f.site_quat] {
-            parameters[cursor..cursor + field.len()].copy_from_slice(field);
-            cursor += field.len();
-        }
-        let metadata = session.upload(&metadata)?;
-        let parameters = session.upload(&parameters)?;
+        let device = upload_attached_model(session, model, fk, layout)?;
         let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
         values.fill(-131072.0);
         values[4..layout.guarded - 4].fill(f32::NAN);
@@ -158,8 +146,8 @@ pub fn probe_attached_kinematics(
         // Each thread owns one world's output; launch waits before any owner drops.
         unsafe {
             kernel.launch(
-                &metadata,
-                &parameters,
+                &device.metadata,
+                &device.parameters,
                 &body,
                 &mut output,
                 [
@@ -183,6 +171,30 @@ pub fn probe_attached_kinematics(
     }
 }
 
+#[cfg(feature = "cuda-probe")]
+pub(super) fn upload_attached_model(
+    session: &TransferSession,
+    model: &AttachedModelInput,
+    fk: super::KinematicsLayout,
+    layout: AttachedLayout,
+) -> Result<super::DeviceModel<f32>, TransferError> {
+    let f = model.fields();
+    let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
+    metadata[0] = fk.output.elements_per_world() as i32;
+    metadata[1..1 + model.ngeom()].copy_from_slice(&f.geom_bodyid);
+    metadata[1 + model.ngeom()..].copy_from_slice(&f.site_bodyid);
+    let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
+    let mut cursor = 0;
+    for field in [&f.geom_pos, &f.geom_quat, &f.site_pos, &f.site_quat] {
+        parameters[cursor..cursor + field.len()].copy_from_slice(field);
+        cursor += field.len();
+    }
+    Ok(super::DeviceModel {
+        metadata: session.upload(&metadata)?,
+        parameters: session.upload(&parameters)?,
+    })
+}
+
 // Adapted from mujoco_warp/_src/smooth.py at
 // 71da24d956378a87a703b6e1442b13aec0c4ac29.
 // Copyright 2025 The Newton Developers
@@ -196,15 +208,23 @@ pub fn probe_attached_kinematics(
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #[cfg(feature = "cuda-probe")]
-const ATTACHED_CUDA: &str = r#"
+pub(super) const ATTACHED_CUDA: &str = r#"
 extern "C" __global__ void attached_kinematics(const int* meta,const float* model,
     const float* body,float* result,unsigned nb,unsigned ng,unsigned ns,unsigned worlds) {
   unsigned w=blockIdx.x*blockDim.x+threadIdx.x;
   if(w>=worlds) return;
   const float* xp=body+4+(unsigned long long)w*meta[0];
   const float* xq=xp+3*nb;
+#ifdef MJWARP_FIELD_BATCHES
+  const int* desc=meta+1+ng+ns;
+  const float* gp=field_parameter(model,desc,w,3*ng);
+  const float* gq=field_parameter(model,desc+2,w,4*ng);
+  const float* sp=field_parameter(model,desc+4,w,3*ns);
+  const float* sq=field_parameter(model,desc+6,w,4*ns);
+#else
   const float* gp=model; const float* gq=gp+3*ng;
   const float* sp=gq+4*ng; const float* sq=sp+3*ns;
+#endif
   float* gx=result+4+(unsigned long long)w*(12*ng+12*ns);
   float* gm=gx+3*ng; float* sx=gm+9*ng; float* sm=sx+3*ns;
   for(unsigned g=0;g<ng;++g) {

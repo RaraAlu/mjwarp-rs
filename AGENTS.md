@@ -12,6 +12,9 @@
 二十一字段仍属辅助子集。
 刚体运动学已有GPU探针。
 几何与site位姿也有GPU探针。
+常驻底座复用三个设备子集。
+十三项参数支持独立批量。
+拓扑仍只支持共享参数。
 质心与自由度映射也有探针。
 质量矩阵已有GPU子集探针。
 质量求解已有正定辅助探针。
@@ -46,11 +49,13 @@ LRsLab负责CPU play。
 | `src/lib.rs` | 导出七模块基础接口与探针 |
 | `src/model/` | 检查布局、原生DTO与运动学惯性输入 |
 | `src/model/attached.rs` | 检查几何与site六项附着字段 |
+| `src/model/parameters.rs` | 检查运动学字段独立批量 |
 | `src/io/` | 转换、GPU字段交换与只读字段组 |
 | `src/io/fields.rs` | 提供独立连续字段底层 |
 | `src/runtime/` | 实现驱动级GPU探针 |
 | `src/physics/` | 历史校验与刚体GPU探针 |
 | `src/physics/attached.rs` | 复用刚体设备结果计算附着位姿 |
+| `src/physics/resident.rs` | 常驻刚体、附着与质心设备链 |
 | `src/physics/mass_matrix.rs` | 复合惯量与稠密质量矩阵 |
 | `src/physics/mass_solve.rs` | 正定分解与多右端项求解 |
 | `src/runtime/transfer/kernel.rs` | 封装内部同步内核ABI |
@@ -165,6 +170,8 @@ scripts/test-windows-mass-matrix.ps1 -AllFeatures
 scripts/test-windows-mass-matrix.ps1 -AllFeatures -Release
 scripts/test-windows-mass-solve.ps1 -AllFeatures
 scripts/test-windows-mass-solve.ps1 -AllFeatures -Release
+scripts/test-windows-resident-kinematics.ps1 -AllFeatures
+scripts/test-windows-resident-kinematics.ps1 -AllFeatures -Release
 ```
 
 产品测试不生成原生参考。
