@@ -16,6 +16,12 @@ static_assert(sizeof(mjwarp_native_info) == 96 && alignof(mjwarp_native_info) ==
 static_assert(offsetof(mjwarp_native_info, native_model_bytes) == 24);
 static_assert(offsetof(mjwarp_native_info, nq) == 32);
 static_assert(offsetof(mjwarp_native_info, nbody) == 64);
+static_assert(sizeof(mjwarp_kinematic_targets) == 128);
+static_assert(alignof(mjwarp_kinematic_targets) == 8);
+static_assert(offsetof(mjwarp_kinematic_targets, nq) == 8);
+static_assert(offsetof(mjwarp_kinematic_targets, qpos0) == 32);
+static_assert(offsetof(mjwarp_kinematic_targets, body_quat) == 72);
+static_assert(offsetof(mjwarp_kinematic_targets, jnt_axis) == 120);
 
 struct mjwarp_native_owner {
   HMODULE library;
@@ -83,5 +89,42 @@ extern "C" int32_t mjwarp_native_copy(
   memcpy(body_mass, m->body_mass, nbody * sizeof(double));
   memcpy(body_parentid, m->body_parentid, nbody * sizeof(int32_t));
   if (njnt) memcpy(jnt_type, m->jnt_type, njnt * sizeof(int32_t));
+  return 0;
+}
+
+extern "C" int32_t mjwarp_native_copy_kinematic(
+    const mjwarp_native_owner* owner, const mjwarp_kinematic_targets* t) {
+  if (!owner || !owner->model || !t || t->schema != 1 || t->reserved != 0) return 8;
+  const mjModel* m = owner->model;
+  if (m->nq < 0 || m->nbody < 1 || m->njnt < 0 ||
+      t->nq != static_cast<uint64_t>(m->nq) ||
+      t->nbody != static_cast<uint64_t>(m->nbody) ||
+      t->njnt != static_cast<uint64_t>(m->njnt) ||
+      t->nq > SIZE_MAX / sizeof(double) ||
+      t->nbody > SIZE_MAX / (4 * sizeof(double)) ||
+      t->njnt > SIZE_MAX / (3 * sizeof(double)) ||
+      (t->nq && (!t->qpos0 || !m->qpos0)) ||
+      !t->body_parentid || !m->body_parentid ||
+      !t->body_jntadr || !m->body_jntadr || !t->body_jntnum || !m->body_jntnum ||
+      !t->body_pos || !m->body_pos || !t->body_quat || !m->body_quat ||
+      (t->njnt && (!t->jnt_type || !m->jnt_type ||
+                  !t->jnt_bodyid || !m->jnt_bodyid ||
+                  !t->jnt_qposadr || !m->jnt_qposadr ||
+                  !t->jnt_dofadr || !m->jnt_dofadr ||
+                  !t->jnt_pos || !m->jnt_pos || !t->jnt_axis || !m->jnt_axis))) return 8;
+  if (t->nq) memcpy(t->qpos0, m->qpos0, t->nq * sizeof(double));
+  memcpy(t->body_parentid, m->body_parentid, t->nbody * sizeof(int32_t));
+  memcpy(t->body_jntadr, m->body_jntadr, t->nbody * sizeof(int32_t));
+  memcpy(t->body_jntnum, m->body_jntnum, t->nbody * sizeof(int32_t));
+  memcpy(t->body_pos, m->body_pos, t->nbody * 3 * sizeof(double));
+  memcpy(t->body_quat, m->body_quat, t->nbody * 4 * sizeof(double));
+  if (t->njnt) {
+    memcpy(t->jnt_type, m->jnt_type, t->njnt * sizeof(int32_t));
+    memcpy(t->jnt_bodyid, m->jnt_bodyid, t->njnt * sizeof(int32_t));
+    memcpy(t->jnt_qposadr, m->jnt_qposadr, t->njnt * sizeof(int32_t));
+    memcpy(t->jnt_dofadr, m->jnt_dofadr, t->njnt * sizeof(int32_t));
+    memcpy(t->jnt_pos, m->jnt_pos, t->njnt * 3 * sizeof(double));
+    memcpy(t->jnt_axis, m->jnt_axis, t->njnt * 3 * sizeof(double));
+  }
   return 0;
 }

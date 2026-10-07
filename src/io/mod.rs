@@ -5,6 +5,11 @@ use crate::diagnostics::{InputError, TransferError};
 use crate::model::BatchLayout;
 use crate::runtime::{TransferBuffer, TransferElement, TransferSession};
 
+mod kinematic;
+pub use kinematic::DeviceKinematicModel;
+#[cfg(feature = "native-model-probe")]
+pub use kinematic::NativeKinematicSnapshot;
+
 /// 连续批量字段的GPU传输辅助。
 /// 不解释物理字段或模型身份。
 /// 不替代Model、Data或put_data。
@@ -321,6 +326,16 @@ mod native {
             )?;
             Ok(snapshot)
         }
+
+        /// 复制十二项运动学字段。
+        /// 快照不借用模型或DLL。
+        pub fn kinematic_snapshot(
+            &self,
+        ) -> Result<super::NativeKinematicSnapshot, NativeProbeError> {
+            // SAFETY: the unique model and its DLL remain live during this call.
+            // No API mutates the model; capture owns all disjoint output arrays.
+            unsafe { super::NativeKinematicSnapshot::capture(self.owner.as_ptr(), self.info) }
+        }
     }
 
     impl Drop for NativeModelProbe {
@@ -330,7 +345,7 @@ mod native {
         }
     }
 
-    fn staging<T: Copy + Default>(count: usize) -> Result<Vec<T>, NativeProbeError> {
+    pub(super) fn staging<T: Copy + Default>(count: usize) -> Result<Vec<T>, NativeProbeError> {
         let bytes = count
             .checked_mul(size_of::<T>())
             .filter(|v| *v <= isize::MAX as usize)

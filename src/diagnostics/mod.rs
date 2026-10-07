@@ -84,6 +84,11 @@ pub enum InputError {
         index: usize,
     },
     DisabledOutput,
+    InvalidTopology {
+        field: &'static str,
+        index: usize,
+        reason: &'static str,
+    },
 }
 
 impl fmt::Display for InputError {
@@ -114,6 +119,11 @@ impl fmt::Display for InputError {
             ),
             Self::InvalidHistoryTime { index } => write!(f, "历史时间间隔无效：{index}"),
             Self::DisabledOutput => write!(f, "图像输出未启用"),
+            Self::InvalidTopology {
+                field,
+                index,
+                reason,
+            } => write!(f, "拓扑无效：{field}[{index}]；{reason}"),
         }
     }
 }
@@ -400,6 +410,15 @@ mod tests {
             index: 7,
         };
         assert_eq!(error.to_string(), "数值非有限：state[7]");
+        let error = InputError::InvalidTopology {
+            field: "jnt_bodyid",
+            index: 2,
+            reason: "joint_owner_mismatch",
+        };
+        assert_eq!(
+            error.to_string(),
+            "拓扑无效：jnt_bodyid[2]；joint_owner_mismatch"
+        );
     }
 
     #[test]

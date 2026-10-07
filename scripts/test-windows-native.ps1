@@ -36,7 +36,8 @@ try {
         @{ Name = 'missing-version'; Define = '/DMOCK_MISSING_VERSION' },
         @{ Name = 'missing-delete'; Define = '/DMOCK_MISSING_DELETE' },
         @{ Name = 'tracking'; Define = '/DMOCK_TRACKING' },
-        @{ Name = 'invalid-counts'; Define = @('/DMOCK_TRACKING', '/DMOCK_INVALID_COUNTS') }
+        @{ Name = 'invalid-counts'; Define = @('/DMOCK_TRACKING', '/DMOCK_INVALID_COUNTS') },
+        @{ Name = 'missing-kinematic-pointer'; Define = @('/DMOCK_TRACKING', '/DMOCK_MISSING_KINEMATIC_POINTER') }
     )) {
         & cl.exe /nologo /LD /MD /std:c++17 "/I$package\include" $case.Define `
             (Join-Path $root 'tests\native\mock_mujoco.cpp') "/Fe$($case.Name).dll"
@@ -57,7 +58,7 @@ try {
     $output = & cargo @cargoArgs 2>&1 | Tee-Object -FilePath (Join-Path $env:MJWARP_NATIVE_MOCKS 'tests.log')
     if ($LASTEXITCODE -ne 0) { throw '原生模型探针失败' }
     $match = [regex]::Match(($output -join "`n"), 'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;')
-    $expected = if ($Gpu -or $AllFeatures) { 8 } else { 7 }
+    $expected = if ($Gpu -or $AllFeatures) { 15 } else { 12 }
     if (-not $match.Success -or [int]$match.Groups[1].Value -ne $expected -or
         [int]$match.Groups[2].Value -ne 0 -or [int]$match.Groups[3].Value -ne 0) {
         throw '测试计数无效'

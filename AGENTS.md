@@ -7,6 +7,7 @@
 项目只负责MJWarp引擎能力。
 当前代码提供无头GPU探针。
 基础辅助与原生输入探针已落地。
+十二项运动学字段支持GPU上传。
 GPU引擎尚待实现。
 首版面向NVIDIA。
 验收覆盖Windows与Linux。
@@ -33,14 +34,14 @@ LRsLab负责CPU play。
 | `Cargo.lock` | 锁定依赖版本 |
 | `src/main.rs` | 提供探针命令入口 |
 | `src/lib.rs` | 导出七模块基础接口与探针 |
-| `src/model/` | 检查批量布局与原生DTO |
-| `src/io/` | 转换、GPU字段交换与原生快照 |
+| `src/model/` | 检查批量布局、原生DTO与运动学输入 |
+| `src/io/` | 转换、GPU字段交换与只读字段组 |
 | `src/runtime/` | 实现驱动级GPU探针 |
 | `src/diagnostics/` | 定义探针错误 |
 | `native/`与`include/` | 提供可选原生桥接 |
 | `build.rs` | 按feature编译原生桥接 |
 | `tests/` | 存放Rust GPU与原生探针测试 |
-| `fixtures/native-probe/` | 保留静态MJB、源XML与哈希 |
+| `fixtures/native-probe/` | 保留静态MJB、源XML、结构打印件与哈希 |
 | `docs/README.md` | 提供文档索引与现状 |
 | `docs/project-positioning.md` | 明确产品与依赖边界 |
 | `docs/architecture.md` | 描述目标模块与接口 |

@@ -31,6 +31,15 @@ extern "C" __declspec(dllexport) mjModel* mj_loadModelBuffer(const void*, int) {
 #endif
   model.body_mass = &mass;
   model.body_parentid = &parent;
+#ifdef MOCK_MISSING_KINEMATIC_POINTER
+  static int address = -1, count = 0;
+  static double position[3]{};
+  model.body_jntadr = &address;
+  model.body_jntnum = &count;
+  model.body_pos = position;
+  // Keep the last nonempty body field null to check late preflight failure.
+  model.body_quat = nullptr;
+#endif
   return &model;
 #else
   ExitProcess(82); // Version/symbol checks must prevent model calls.

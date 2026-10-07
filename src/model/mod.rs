@@ -5,6 +5,9 @@ use std::ops::Range;
 
 use crate::diagnostics::{InputError, NativeProbeError};
 
+pub mod topology;
+pub use topology::{KinematicFields, KinematicModelInput};
+
 /// Windows原生探针的小型DTO。
 /// 计数采用原生有符号64位。
 /// 本类型不表示完整模型布局。
