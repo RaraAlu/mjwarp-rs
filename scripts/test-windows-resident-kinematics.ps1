@@ -51,7 +51,7 @@ try {
     $spatial = Invoke-CheckedTest 'spatial-tendon' ($base + @('--test', 'resident_spatial_tendon', '--', '--ignored', '--test-threads=1', '--nocapture')) 5
     $spatialGuards = Invoke-CheckedTest 'spatial-guards' ($base + @('--lib', 'spatial_tendon_readback_rejects', '--', '--ignored', '--test-threads=1')) 2
     $geomReferences = Invoke-CheckedTest 'geom-references' ($base + @('--test', 'resident_geom_tendon', 'reference_hashes', '--', '--test-threads=1')) 1
-    $geom = Invoke-CheckedTest 'geom-tendon' ($base + @('--test', 'resident_geom_tendon', '--', '--ignored', '--test-threads=1', '--nocapture')) 5
+    $geom = Invoke-CheckedTest 'geom-tendon' ($base + @('--test', 'resident_geom_tendon', '--', '--ignored', '--test-threads=1', '--nocapture')) 6
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
     $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 4
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
@@ -136,6 +136,8 @@ try {
     $geomComparisons = 0
     $geomAnalyticLargest = 0.0
     $geomAnalyticComparisons = 0
+    $geomMotionLargest = 0.0
+    $geomMotionComparisons = 0
     foreach ($line in Get-Content -LiteralPath (Join-Path $directory 'geom-tendon.log')) {
         if ($line -match 'G01-geom-tendon kind=(native|analytic) world=\d+ max_abs_error=([0-9.eE+-]+)') {
             $number = [double]::Parse($Matches[2], [Globalization.CultureInfo]::InvariantCulture)
@@ -147,9 +149,15 @@ try {
                 $geomAnalyticLargest = [Math]::Max($geomAnalyticLargest, $number)
             }
         }
+        if ($line -match 'G01-geom-tendon kind=motion world=\d+ frame=\d+ max_abs_error=([0-9.eE+-]+)') {
+            $geomMotionComparisons++
+            $number = [double]::Parse($Matches[1], [Globalization.CultureInfo]::InvariantCulture)
+            $geomMotionLargest = [Math]::Max($geomMotionLargest, $number)
+        }
     }
     if ($geomComparisons -ne 2084) { throw "球柱参考计数不符：$geomComparisons" }
     if ($geomAnalyticComparisons -ne 1042) { throw "圆柱公式计数不符：$geomAnalyticComparisons" }
+    if ($geomMotionComparisons -ne 9) { throw "内侧运动计数不符：$geomMotionComparisons" }
     [ordered]@{
         platform = 'Windows x86_64 MSVC'
         windowsVersion = [Environment]::OSVersion.Version.ToString()
@@ -227,6 +235,10 @@ try {
         geomTendonMaxAbsoluteError = $geomLargest
         geomTendonAnalyticComparedWorlds = $geomAnalyticComparisons
         geomTendonAnalyticMaxAbsoluteError = $geomAnalyticLargest
+        geomTendonMotionComparedWorlds = $geomMotionComparisons
+        geomTendonMotionMaxAbsoluteError = $geomMotionLargest
+        geomTendonMotionFrames = @(310, 344, 393)
+        geomTendonMotionWorldCounts = @(3, 513)
         geomTendonWorldCounts = @(1, 2, 5, 513)
         geomTendonSizePeriod = 3
         geomTendonAnalyticFieldPeriods = @(3, 2, 5, 7)
@@ -235,7 +247,9 @@ try {
         geomTendonWrapCount = 37
         geomTendonWrapTypes = @('sphere', 'cylinder', 'site', 'pulley')
         geomTendonSharedTopologyAndSideIds = $true
-        geomTendonInternalScratchValuesPerWrap = 7
+        geomTendonInternalScratchValuesPerWrap = 13
+        geomTendonInsideNewtonPrecision = 'f64'
+        geomTendonInsideDirectionsBeforeContactRounding = $true
         geomTendonIntegerStageReadsFloatState = $true
         residentSubsets = 6
         residentOutputBuffers = 7

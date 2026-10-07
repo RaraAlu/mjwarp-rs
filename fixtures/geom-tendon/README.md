@@ -3,7 +3,7 @@
 范围：G01严格辅助子集。
 原生版本固定为MuJoCo 3.12.0。
 冻结上游提交见清单。
-清单锁定四份文件哈希。
+清单锁定七份文件哈希。
 产品测试只读取固定JSON。
 产品测试不启动Python。
 产品测试不生成参考。
@@ -42,4 +42,26 @@ CSR槽位数量为十。
 两种容限均采用`2e-5`。
 整数输出要求精确一致。
 
+## 内侧运动回归
+
+新增参考固定三组失配状态。
+源帧编号为310、344与393。
+源世界编号为2。
+输入保留逐帧导出的f32数值。
+GPU测试另核对世界512。
+测试保留原有直接比较容限。
+
+开发者编译`motion-reference.cpp`。
+该工具加载既有MJB。
+它不调用XML编译器。
+它独立运行原生运动学与肌腱。
+产品测试只读取新增JSON。
+原四份文件保持原哈希。
+新增文本固定采用LF换行。
+
+```text
+motion-reference.exe wrap-tree.mjb inside-cylinder-motion-inputs.txt inside-cylinder-motion.json
+```
+
 详细证据见[球柱报告](../../docs/windows-resident-geom-tendon.md)。
+逐帧证据见[复核报告](../../docs/windows-geom-tendon-frame-review.md)。

@@ -2,12 +2,12 @@
 
 日期：2026-10-07。
 范围：G01球柱绕行子集。
-结论：逐帧比较未全部通过。
+结论：T4修复后全部通过。
 本报告不关闭完整G01。
-本轮只记录复核证据。
-本轮未修复引擎源码。
+本报告保留初轮失配证据。
+末节记录精度修复与复验。
 
-## 复核方法
+## 初轮复核方法
 
 我重新导出全部GPU运动帧。
 导出器同时保存实际f32输入。
@@ -52,7 +52,7 @@ GPU公开结果保持f32。
 abs(gpu - native) <= 2e-5 + 2e-5 * abs(native)
 ```
 
-## 结果
+## 初轮结果
 
 | 检查 | 结果 |
 | --- | ---: |
@@ -116,7 +116,7 @@ ratio:        9.777602322256355
 后续修复须加入这些回归状态。
 后续验收须保持现有容限。
 
-## 审查产物
+## 初轮审查产物
 
 产物目录：
 
@@ -155,7 +155,7 @@ Git忽略临时审查产物。
 清理target会删除原始证据。
 请另存需要保留的产物。
 
-## 实际命令
+## 初轮实际命令
 
 ```powershell
 target/geom-tendon-review/frame-export.exe fixtures/geom-tendon/wrap-tree.json target/geom-tendon-review/frame-gpu.json
@@ -199,3 +199,130 @@ DLL哈希如下。
 ```text
 79b61d22b4d230a00bd31930fc6943f8ea8c6174a1bf4a6bf90f2459dbf8df1b
 ```
+
+## T4精度修复与复验
+
+本轮修改两项内部CUDA计算。
+内侧投影与迭代改用GPU f64。
+迭代容差仍为`1e-6`。
+迭代上限仍为二十轮。
+方向计算先于世界接点舍入。
+局部差分避开矩阵往返误差。
+内部缓存六项f32方向分量。
+公开物理字段继续采用f32。
+外侧圆弧保留冻结f32分支。
+产品链不运行Python或CPU物理。
+
+单独提高迭代精度先修复310帧。
+393帧仍因短段舍入而超限。
+其短连接段约长`0.001029`米。
+方向缓存随后消除剩余失配。
+回归参考固定三组原生状态。
+哈希清单覆盖参考与作者工具。
+原四份参考文件保持原哈希。
+产品测试只读取固定JSON。
+
+我重新计算全部480个GPU源帧。
+新旧实际输入精确一致。
+四个审查世界沿用原编号。
+本轮仍不比较其余509个世界。
+原生工具重新执行1920组状态。
+新旧原生结果保持字节一致。
+比较器继续检查全部尾部槽位。
+浮点判据沿用原`2e-5`公式。
+整数判据继续要求精确一致。
+本轮没有放宽容限或删除帧。
+
+| 检查 | 修复前 | 修复后 |
+| --- | ---: | ---: |
+| GPU源帧 | 480 | 480 |
+| 原生状态 | 1920 | 1920 |
+| 比较标量 | 852480 | 852480 |
+| 超限帧 | 3 | 0 |
+| 超限状态 | 6 | 0 |
+| 浮点超限标量 | 16 | 0 |
+| 整数失配标量 | 0 | 0 |
+| 全字段最大容限比 | 9.777603 | 0.147321 |
+
+| 字段 | 修复后最大绝对差 | 超限标量 |
+| --- | ---: | ---: |
+| `ten_length` | 8.845451e-6 | 0 |
+| `ten_J` | 2.190997e-6 | 0 |
+| `wrap_xpos` | 1.583790e-6 | 0 |
+| `geom_xpos` | 1.360927e-7 | 0 |
+| `geom_xmat` | 2.384186e-7 | 0 |
+| `site_xpos` | 3.371477e-7 | 0 |
+
+上述最大差覆盖全部十条肌腱。
+力臂最大差不再来自T4。
+三帧固定回归最大差另见[球柱报告](windows-resident-geom-tendon.md)。
+调试与发布各通过119项探针。
+两种常驻脚本各通过49项。
+宿主、Clippy与文档构建均通过。
+初轮全量回归发现旧硬编码索引。
+我改用布局推导索引后复验。
+该测试仍检查溢出拒绝与恢复。
+原生初验另缺测试DLL路径。
+我运行准备脚本后复验。
+全量命令见[球柱报告](windows-resident-geom-tendon.md)。
+
+新数值证据与视频位于：
+
+```text
+target/geom-tendon-t4-review/
+target/geom-tendon-t4-verification/
+```
+
+| 文件 | 内容 |
+| --- | --- |
+| `frame-gpu.json` | 修复后480帧结果与实际输入 |
+| `native-frame-results.jsonl` | 本轮重新执行的1920组原生结果 |
+| `frame-audit-summary.json` | 零失配、原容限及源码哈希 |
+| `frame-audit-fields.jsonl` | 每帧每字段误差 |
+| `frame-audit-failures.json` | 空失配列表 |
+| `04-t4-fixed-review.mp4` | 修复后GPU与原生叠图 |
+| `frame-review-310.png` | 原超限源帧310 |
+| `frame-review-344.png` | 原超限源帧344 |
+| `frame-review-393.png` | 原超限源帧393 |
+| `frame-video-verification.json` | 编码帧数、播放尺寸与抽帧 |
+| `frame-audit-bundle.zip` | 本轮数据、视频与复验脚本 |
+
+```powershell
+target/geom-tendon-t4-review/frame-export.exe fixtures/geom-tendon/wrap-tree.json target/geom-tendon-t4-review/frame-gpu.json
+node target/geom-tendon-t4-review/frame-audit.cjs prepare
+target/geom-tendon-t4-review/run-native-frame.ps1
+node target/geom-tendon-t4-review/frame-audit.cjs check
+node target/geom-tendon-t4-review/frame-render.cjs --preview
+node target/geom-tendon-t4-review/frame-render.cjs
+node target/geom-tendon-t4-review/frame-video-verify.cjs
+node target/geom-tendon-t4-review/frame-finalize.cjs
+```
+
+新比较命令退出码为0。
+视频显示端请求480帧。
+实时编码器实际保留474帧。
+它省略六帧显示记录。
+数值复核仍覆盖480源帧。
+视频时长约19.92秒。
+视频不包含动力学积分。
+显示弧线仍不参与数值比较。
+我核对五处视频抽帧。
+我另核对三张原超限源帧图。
+这不代表逐帧视觉验收。
+
+本轮未运行Python文档审计。
+我人工核对本轮文档与源码。
+核对范围含六份相关源码。
+它另含四份修改文档。
+63处本地链接均有效。
+汇总脚本另修复空日志读取。
+汇总复用完整GPU成功日志。
+其余快速检查重新执行。
+Normify保持完整G01计划态。
+架构收尾返回零错误。
+工具提示一项旧流程警告。
+我保留其余历史变更。
+本轮未验证Linux与清洁部署。
+Git继续忽略临时审查产物。
+复验脚本仍引用初轮目录。
+请另存需要保留的证据。

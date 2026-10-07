@@ -2123,13 +2123,20 @@ mod tests {
         data.attached.write_range(position, &[1e20]).unwrap();
         plan.update_spatial_tendons(&mut data).unwrap();
         let error = data.readback().expect_err("spatial norm must overflow");
+        let start = data
+            .layout
+            .spatial_tendon
+            .output
+            .world_elements(512)
+            .unwrap()
+            .start;
         assert!(
             matches!(
                 error,
                 TransferError::Input(InputError::NonFinite {
                     field: "resident_spatial_tendon_output",
-                    index: 14336
-                })
+                    index
+                }) if index == start
             ),
             "{error:?}"
         );

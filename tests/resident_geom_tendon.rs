@@ -21,6 +21,12 @@ use reference::floats;
 fn fixture() -> Value {
     serde_json::from_str(include_str!("../fixtures/geom-tendon/wrap-tree.json")).unwrap()
 }
+fn motion_fixture() -> Value {
+    serde_json::from_str(include_str!(
+        "../fixtures/geom-tendon/inside-cylinder-motion.json"
+    ))
+    .unwrap()
+}
 fn ids(v: &Value, key: &str) -> Vec<i32> {
     v[key]
         .as_array()
@@ -152,6 +158,20 @@ fn reference_hashes_cover_dynamic_sphere_cylinder_and_inside_paths() {
     assert_ne!(v["cases"][0]["ten_wrapnum"], v["cases"][3]["ten_wrapnum"]);
     assert_eq!(v["absolute_tolerance"].as_f64(), Some(2e-5));
     assert_eq!(v["relative_tolerance"].as_f64(), Some(2e-5));
+    let motion = motion_fixture();
+    assert_eq!(motion["native_version"], 3012000);
+    assert_eq!(motion["absolute_tolerance"].as_f64(), Some(2e-5));
+    assert_eq!(motion["relative_tolerance"].as_f64(), Some(2e-5));
+    assert_eq!(motion["source_world"], 2);
+    assert_eq!(
+        motion["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["source_frame"].as_u64().unwrap())
+            .collect::<Vec<_>>(),
+        [310, 344, 393]
+    );
 }
 #[test]
 fn rejects_geometry_side_path_dimensions_and_missing_geom_dofs() {
@@ -272,6 +292,32 @@ fn geometry_dofs_match_length_derivatives_in_wrapped_and_direct_states() {
                 assert!(
                     (derivative - f64::from(moment)).abs() < 0.003,
                     "case={id} t={t} dof={dof} derivative={derivative} moment={moment}"
+                );
+            }
+        }
+    }
+}
+#[test]
+#[ignore = "需要NVIDIA驱动与NVRTC"]
+fn inside_cylinder_motion_frames_match_native_without_relaxing_tolerance() {
+    reference_hashes_cover_dynamic_sphere_cylinder_and_inside_paths();
+    let v = fixture();
+    let motion = motion_fixture();
+    let s = TransferSession::new(0).unwrap();
+    let p = plan(&s, &v);
+    for worlds in [3, 513] {
+        let mut data = p.create_data(worlds).unwrap();
+        for c in motion["cases"].as_array().unwrap() {
+            for w in [2, 512].into_iter().filter(|&w| w < worlds) {
+                write(&mut data, w, c);
+            }
+            p.update(&mut data).unwrap();
+            let out = data.readback().unwrap();
+            for w in [2, 512].into_iter().filter(|&w| w < worlds) {
+                eprintln!(
+                    "G01-geom-tendon kind=motion world={w} frame={} max_abs_error={:e}",
+                    c["source_frame"],
+                    native(&out, w, c)
                 );
             }
         }
