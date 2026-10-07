@@ -6,9 +6,11 @@ use std::sync::Arc;
 use super::attached::AttachedLayout;
 use super::camlight::CamLightLayout;
 use super::fixed_tendon::FixedTendonLayout;
+use super::spatial_tendon::SpatialTendonLayout;
 use super::{
     AttachedKinematicsOutput, CamLightOutput, ComPositionLayout, ComPositionOutput,
-    FixedTendonOutput, KinematicsLayout, KinematicsOutput, check_com_position, check_kinematics,
+    FixedTendonOutput, KinematicsLayout, KinematicsOutput, SpatialTendonOutput, check_com_position,
+    check_kinematics,
 };
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
@@ -18,7 +20,8 @@ use crate::model::CamLightParameter;
 use crate::model::{
     AttachedModelInput, BatchLayout, CamLightFields, CamLightModelInput, CamLightParameters,
     FixedTendonFields, FixedTendonModelInput, FixedTendonRows, KinematicsParameter,
-    KinematicsParameters, MocapModelInput,
+    KinematicsParameters, MocapModelInput, SpatialTendonFields, SpatialTendonModelInput,
+    SpatialTendonRows,
 };
 use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
@@ -42,6 +45,7 @@ pub struct KinematicsPlan {
     nlight: usize,
     camlight_parameters: CamLightParameters,
     fixed_tendon_rows: Arc<FixedTendonRows>,
+    spatial_tendon_rows: Arc<SpatialTendonRows>,
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
     rigid: super::DeviceModel<f32>,
@@ -61,6 +65,16 @@ pub struct KinematicsPlan {
     camlight: Option<DeviceCamLight>,
     #[cfg(feature = "cuda-probe")]
     fixed_tendon: Option<DeviceFixedTendon>,
+    #[cfg(feature = "cuda-probe")]
+    spatial_tendon: Option<DeviceSpatialTendon>,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct DeviceSpatialTendon {
+    model: super::DeviceModel<f32>,
+    site_kernel: SynchronousKernel,
+    moment_kernel: SynchronousKernel,
+    wrap_kernel: SynchronousKernel,
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -87,6 +101,7 @@ struct ResidentLayout {
     attached: AttachedLayout,
     camlight: CamLightLayout,
     fixed_tendon: FixedTendonLayout,
+    spatial_tendon: SpatialTendonLayout,
 }
 
 impl ResidentLayout {
@@ -105,6 +120,7 @@ impl ResidentLayout {
             attached: AttachedLayout::new(worlds, model.ngeom(), model.nsite())?,
             camlight: CamLightLayout::new(worlds, 0, 0)?,
             fixed_tendon: FixedTendonLayout::new(worlds, 0, 0)?,
+            spatial_tendon: SpatialTendonLayout::new(worlds, 0, 0, 0)?,
             qpos: BatchLayout::new(worlds, k.nq(), 4)?,
             mocap_pos: BatchLayout::new(worlds, nmocap * 3, 4)?,
             mocap_quat: BatchLayout::new(worlds, nmocap * 4, 4)?,
@@ -120,6 +136,7 @@ struct ReadyStages {
     attached: bool,
     camlight: bool,
     fixed_tendon: bool,
+    spatial_tendon: bool,
 }
 
 impl ReadyStages {
@@ -147,6 +164,7 @@ impl ReadyStages {
 pub struct KinematicsData {
     model: Arc<AttachedModelInput>,
     fixed_tendon_rows: Arc<FixedTendonRows>,
+    spatial_tendon_rows: Arc<SpatialTendonRows>,
     layout: ResidentLayout,
     ready: ReadyStages,
     #[cfg(feature = "cuda-probe")]
@@ -161,6 +179,10 @@ pub struct KinematicsData {
     camlight: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
     fixed_tendon: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    spatial_tendon: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    spatial_wrap: TransferBuffer<i32>,
 }
 
 /// 一次显式回读的完整子集结果。
@@ -172,9 +194,13 @@ pub struct KinematicsSnapshot {
     com: ComPositionOutput,
     camlight: CamLightOutput,
     fixed_tendon: FixedTendonOutput,
+    spatial_tendon: SpatialTendonOutput,
 }
 
 impl KinematicsSnapshot {
+    pub fn spatial_tendon(&self) -> &SpatialTendonOutput {
+        &self.spatial_tendon
+    }
     pub fn fixed_tendon(&self) -> &FixedTendonOutput {
         &self.fixed_tendon
     }
@@ -259,6 +285,30 @@ impl KinematicsPlan {
         parameters: KinematicsParameters,
         camlight_parameters: CamLightParameters,
     ) -> Result<Self, TransferError> {
+        Self::with_spatial_tendons(
+            session,
+            SpatialTendonModelInput::new(model, SpatialTendonFields::default())?,
+            parameters,
+            camlight_parameters,
+        )
+    }
+
+    /// 接收site与pulley路径。
+    /// 两种肌腱集合各用局部编号。
+    /// 本接口不提供几何绕行。
+    pub fn with_spatial_tendons(
+        session: &TransferSession,
+        model: SpatialTendonModelInput,
+        parameters: KinematicsParameters,
+        camlight_parameters: CamLightParameters,
+    ) -> Result<Self, TransferError> {
+        let (model, spatial_fields, spatial_rows) = model.into_parts();
+        let spatial_layout = SpatialTendonLayout::new(
+            1,
+            spatial_rows.ntendon(),
+            spatial_rows.nnz(),
+            spatial_rows.nwrap(),
+        )?;
         let (model, fixed_tendon_fields, fixed_tendon_rows) = model.into_parts();
         let fixed_tendon_layout =
             FixedTendonLayout::new(1, fixed_tendon_rows.ntendon(), fixed_tendon_rows.nnz())?;
@@ -287,6 +337,9 @@ impl KinematicsPlan {
                 fixed_tendon_layout,
                 fixed_tendon_fields,
                 fixed_tendon_rows,
+                spatial_fields,
+                spatial_rows,
+                spatial_layout,
             );
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
@@ -336,6 +389,7 @@ impl KinematicsPlan {
                 com_stride,
             )?;
             let fixed_tendon = pack_fixed_tendon(&model, &fixed_tendon_fields)?;
+            let spatial_tendon = pack_spatial_tendon(&model, &spatial_fields)?;
             let rigid = rigid.upload(session)?;
             let com = com.upload(session)?;
             let attached = attached.upload(session)?;
@@ -379,6 +433,17 @@ impl KinematicsPlan {
                     )?,
                 })
             };
+            let spatial_tendon = if spatial_layout.is_empty() {
+                None
+            } else {
+                let source = super::spatial_tendon::SPATIAL_TENDON_CUDA;
+                Some(DeviceSpatialTendon {
+                    model: spatial_tendon.upload(session)?,
+                    site_kernel: SynchronousKernel::compile(session, source, "spatial_site")?,
+                    moment_kernel: SynchronousKernel::compile(session, source, "spatial_moment")?,
+                    wrap_kernel: SynchronousKernel::compile(session, source, "spatial_wrap")?,
+                })
+            };
             Ok(Self {
                 model: Arc::new(model),
                 parameters,
@@ -388,6 +453,7 @@ impl KinematicsPlan {
                 nlight,
                 camlight_parameters,
                 fixed_tendon_rows: Arc::new(fixed_tendon_rows),
+                spatial_tendon_rows: Arc::new(spatial_rows),
                 session: session.clone(),
                 rigid,
                 com,
@@ -398,6 +464,7 @@ impl KinematicsPlan {
                 initialize_kernel,
                 camlight,
                 fixed_tendon,
+                spatial_tendon,
             })
         }
     }
@@ -430,8 +497,11 @@ impl KinematicsPlan {
     pub fn fixed_tendon_rows(&self) -> &FixedTendonRows {
         &self.fixed_tendon_rows
     }
+    pub fn spatial_tendon_rows(&self) -> &SpatialTendonRows {
+        &self.spatial_tendon_rows
+    }
 
-    /// 创建独立世界与五组输出。
+    /// 创建独立世界与七组输出。
     /// 全部尺寸通过后才申请显存。
     /// 初始派生结果保持未就绪。
     pub fn create_data(&self, worlds: usize) -> Result<KinematicsData, TransferError> {
@@ -441,6 +511,12 @@ impl KinematicsPlan {
             worlds,
             self.fixed_tendon_rows.ntendon(),
             self.fixed_tendon_rows.nnz(),
+        )?;
+        layout.spatial_tendon = SpatialTendonLayout::new(
+            worlds,
+            self.spatial_tendon_rows.ntendon(),
+            self.spatial_tendon_rows.nnz(),
+            self.spatial_tendon_rows.nwrap(),
         )?;
         #[cfg(not(feature = "cuda-probe"))]
         {
@@ -490,6 +566,7 @@ impl KinematicsPlan {
             let mut data = KinematicsData {
                 model: Arc::clone(&self.model),
                 fixed_tendon_rows: Arc::clone(&self.fixed_tendon_rows),
+                spatial_tendon_rows: Arc::clone(&self.spatial_tendon_rows),
                 layout,
                 ready: ReadyStages::default(),
                 state: self.session.upload(&state)?,
@@ -498,6 +575,11 @@ impl KinematicsPlan {
                 attached: allocate_output(&self.session, layout.attached.guarded)?,
                 camlight: allocate_output(&self.session, layout.camlight.guarded)?,
                 fixed_tendon: allocate_output(&self.session, layout.fixed_tendon.guarded)?,
+                spatial_tendon: allocate_output(&self.session, layout.spatial_tendon.guarded)?,
+                spatial_wrap: allocate_integer_output(
+                    &self.session,
+                    layout.spatial_tendon.guarded_indices,
+                )?,
             };
             self.update_rigid(&mut data)?;
             // SAFETY: The initialization entry shares the checked attached ABI.
@@ -568,6 +650,7 @@ impl KinematicsPlan {
         data.ready.require(data.ready.rigid, "rigid")?;
         data.ready.com = false;
         data.ready.camlight = false;
+        data.ready.spatial_tendon = false;
         #[cfg(not(feature = "cuda-probe"))]
         {
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
@@ -601,6 +684,7 @@ impl KinematicsPlan {
         self.check_data(data)?;
         data.ready.require(data.ready.rigid, "rigid")?;
         data.ready.attached = false;
+        data.ready.spatial_tendon = false;
         #[cfg(not(feature = "cuda-probe"))]
         {
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
@@ -716,7 +800,61 @@ impl KinematicsPlan {
         }
     }
 
-    /// 依次执行五个子集阶段。
+    /// 复用site与质心设备结果。
+    /// 三次执行不回读中间结果。
+    pub fn update_spatial_tendons(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        data.ready.require(data.ready.attached, "attached")?;
+        data.ready.require(data.ready.com, "com")?;
+        data.ready.spatial_tendon = false;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            if let Some(device) = &self.spatial_tendon {
+                let dimensions = [
+                    self.model.rigid().kinematics().nv() as u32,
+                    0,
+                    0,
+                    data.worlds() as u32,
+                ];
+                // SAFETY: Validated paths, CSR and derived body descriptors bound
+                // all accesses. Checked layouts bound each wide world offset.
+                // The first two entries use the f32 ABI; the third uses i32.
+                // Inputs may share immutable integer metadata; outputs never alias.
+                // Synchronous launches preserve site -> moment ordering and owners.
+                unsafe {
+                    device.site_kernel.launch(
+                        &device.model.metadata,
+                        &device.model.parameters,
+                        &data.attached,
+                        &mut data.spatial_tendon,
+                        dimensions,
+                    )?;
+                    device.moment_kernel.launch(
+                        &device.model.metadata,
+                        &device.model.parameters,
+                        &data.com,
+                        &mut data.spatial_tendon,
+                        dimensions,
+                    )?;
+                    device.wrap_kernel.launch(
+                        &device.model.metadata,
+                        &device.model.metadata,
+                        &device.model.metadata,
+                        &mut data.spatial_wrap,
+                        dimensions,
+                    )?;
+                }
+            }
+            data.ready.spatial_tendon = true;
+            Ok(())
+        }
+    }
+
+    /// 依次执行六个子集阶段。
     /// 不上传模型或编译内核。
     /// 不回读阶段间的宿主结果。
     /// 不等于上游fwd_kinematics。
@@ -725,11 +863,15 @@ impl KinematicsPlan {
         self.update_attached(data)?;
         self.update_com(data)?;
         self.update_camlight(data)?;
-        self.update_fixed_tendons(data)
+        self.update_fixed_tendons(data)?;
+        self.update_spatial_tendons(data)
     }
 }
 
 impl KinematicsData {
+    pub fn spatial_tendon_rows(&self) -> &SpatialTendonRows {
+        &self.spatial_tendon_rows
+    }
     pub fn fixed_tendon_rows(&self) -> &FixedTendonRows {
         &self.fixed_tendon_rows
     }
@@ -830,12 +972,17 @@ impl KinematicsData {
             self.layout.fixed_tendon.is_empty() || self.ready.fixed_tendon,
             "fixed_tendon",
         )?;
+        self.ready.require(
+            self.layout.spatial_tendon.is_empty() || self.ready.spatial_tendon,
+            "spatial_tendon",
+        )?;
         let lengths = [
             self.layout.rigid.output.total_elements() + 8,
             self.layout.com.output.total_elements() + 8,
             self.layout.attached.output.total_elements() + 8,
             self.layout.camlight.output.total_elements() + 8,
             self.layout.fixed_tendon.output.total_elements() + 8,
+            self.layout.spatial_tendon.output.total_elements() + 8,
         ];
         #[cfg(not(feature = "cuda-probe"))]
         {
@@ -852,6 +999,16 @@ impl KinematicsData {
                 &self.fixed_tendon,
                 lengths[4],
                 "resident_fixed_tendon_output",
+            )?;
+            let spatial_tendon = read_output(
+                &self.spatial_tendon,
+                lengths[5],
+                "resident_spatial_tendon_output",
+            )?;
+            let spatial_wrap = read_output(
+                &self.spatial_wrap,
+                self.layout.spatial_tendon.indices.total_elements() + 8,
+                "resident_spatial_wrap_output",
             )?;
             Ok(KinematicsSnapshot {
                 attached: AttachedKinematicsOutput {
@@ -874,6 +1031,12 @@ impl KinematicsData {
                     layout: self.layout.fixed_tendon,
                     values: fixed_tendon,
                     rows: Arc::clone(&self.fixed_tendon_rows),
+                },
+                spatial_tendon: SpatialTendonOutput {
+                    layout: self.layout.spatial_tendon,
+                    values: spatial_tendon,
+                    indices: spatial_wrap,
+                    rows: Arc::clone(&self.spatial_tendon_rows),
                 },
             })
         }
@@ -1130,6 +1293,106 @@ fn packed_length(mut lengths: impl Iterator<Item = usize>) -> Result<usize, Inpu
 }
 
 #[cfg(feature = "cuda-probe")]
+fn pack_spatial_tendon(
+    model: &AttachedModelInput,
+    fields: &SpatialTendonFields,
+) -> Result<PackedModel, TransferError> {
+    let k = model.rigid().kinematics();
+    let f = k.fields();
+    let nb = k.nbody();
+    let nt = fields.tendon_adr.len();
+    let nw = fields.wrap_type.len();
+    let length = packed_length(
+        [
+            6,
+            nb,
+            nb,
+            nb,
+            nb,
+            nt,
+            nt,
+            nt,
+            nt,
+            nw,
+            nw,
+            nw,
+            fields.ten_j_colind.len(),
+        ]
+        .into_iter(),
+    )?;
+    let mut metadata = crate::runtime::host_staging::<i32>(length)?;
+    let mut parameters = crate::runtime::host_staging::<f32>(nw.max(1))?;
+    let layout = AttachedLayout::new(1, model.ngeom(), model.nsite())?;
+    metadata[..6].copy_from_slice(&[
+        nt as i32,
+        nw as i32,
+        fields.ten_j_colind.len() as i32,
+        nb as i32,
+        layout.output.elements_per_world() as i32,
+        (12 * model.ngeom()) as i32,
+    ]);
+    metadata[6..6 + nb].copy_from_slice(&f.body_parentid);
+    for body in 1..nb {
+        let parent = f.body_parentid[body] as usize;
+        metadata[6 + nb + body] = if parent == 0 {
+            body as i32
+        } else {
+            metadata[6 + nb + parent]
+        };
+        let count = f.body_jntnum[body] as usize;
+        if count > 0 {
+            let start = f.body_jntadr[body] as usize;
+            metadata[6 + 2 * nb + body] = f.jnt_dofadr[start];
+            for joint in start..start + count {
+                metadata[6 + 3 * nb + body] +=
+                    crate::model::topology::JointType::try_from(f.jnt_type[joint])?.dof_width()
+                        as i32;
+            }
+        }
+    }
+    let mut cursor = 6 + 4 * nb;
+    for values in [
+        &fields.tendon_adr,
+        &fields.tendon_num,
+        &fields.ten_j_rowadr,
+        &fields.ten_j_rownnz,
+        &fields.wrap_type,
+        &fields.wrap_objid,
+    ] {
+        metadata[cursor..cursor + values.len()].copy_from_slice(values);
+        cursor += values.len();
+    }
+    for (i, (&kind, &id)) in fields.wrap_type.iter().zip(&fields.wrap_objid).enumerate() {
+        metadata[cursor + i] = if kind == 3 {
+            model.fields().site_bodyid[id as usize]
+        } else {
+            -1
+        };
+    }
+    cursor += nw;
+    metadata[cursor..].copy_from_slice(&fields.ten_j_colind);
+    for tendon in 0..nt {
+        let mut scale = 1.0;
+        let start = fields.tendon_adr[tendon] as usize;
+        for (i, value) in parameters
+            .iter_mut()
+            .enumerate()
+            .skip(start)
+            .take(fields.tendon_num[tendon] as usize)
+        {
+            if fields.wrap_type[i] == 2 {
+                scale = 1.0 / fields.wrap_prm[i];
+            }
+            *value = scale;
+        }
+    }
+    Ok(PackedModel {
+        metadata,
+        parameters,
+    })
+}
+
+#[cfg(feature = "cuda-probe")]
 fn pack_model(
     model: &AttachedModelInput,
     parameters: &KinematicsParameters,
@@ -1187,12 +1450,23 @@ fn allocate_output(
 }
 
 #[cfg(feature = "cuda-probe")]
-fn read_output(
-    buffer: &TransferBuffer<f32>,
+fn allocate_integer_output(
+    session: &TransferSession,
+    length: usize,
+) -> Result<TransferBuffer<i32>, TransferError> {
+    let mut values = crate::runtime::host_staging::<i32>(length)?;
+    values.fill(-131072);
+    values[4..length - 4].fill(i32::MAX);
+    session.upload(&values)
+}
+
+#[cfg(feature = "cuda-probe")]
+fn read_output<T: crate::runtime::TransferElement + Into<f64>>(
+    buffer: &TransferBuffer<T>,
     length: usize,
     field: &'static str,
-) -> Result<Vec<f32>, TransferError> {
-    let mut values = crate::runtime::host_staging::<f32>(length)?;
+) -> Result<Vec<T>, TransferError> {
+    let mut values = crate::runtime::host_staging::<T>(length)?;
     buffer.read_range_into(0, &mut values)?;
     super::check_device_values(&values, field)?;
     Ok(values)
@@ -1703,5 +1977,135 @@ mod tests {
                 .ten_length,
             &[f32::MAX * 0.5]
         );
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    fn spatial_tendon_plan(session: &TransferSession) -> KinematicsPlan {
+        let base = parameter_model(false);
+        let mut fields = base.fields().clone();
+        fields.site_bodyid = vec![0, 1];
+        fields.site_pos = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+        fields.site_quat = [1.0, 0.0, 0.0, 0.0].repeat(2);
+        let attached = AttachedModelInput::new(base.rigid().clone(), fields).unwrap();
+        let cam = CamLightModelInput::new(
+            MocapModelInput::new(attached, vec![-1; 2]).unwrap(),
+            CamLightFields::default(),
+        )
+        .unwrap();
+        let fixed = FixedTendonModelInput::new(cam, FixedTendonFields::default()).unwrap();
+        let model = SpatialTendonModelInput::new(
+            fixed,
+            SpatialTendonFields {
+                tendon_adr: vec![0],
+                tendon_num: vec![2],
+                wrap_type: vec![3, 3],
+                wrap_objid: vec![0, 1],
+                wrap_prm: vec![0.0; 2],
+                ten_j_rowadr: vec![0],
+                ten_j_rownnz: vec![1],
+                ten_j_colind: vec![0],
+            },
+        )
+        .unwrap();
+        KinematicsPlan::with_spatial_tendons(
+            session,
+            model,
+            KinematicsParameters::default(),
+            CamLightParameters::default(),
+        )
+        .unwrap()
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn spatial_tendon_readback_rejects_both_device_guards_and_nonfinite_payloads() {
+        let session = TransferSession::new(0).unwrap();
+        let plan = spatial_tendon_plan(&session);
+        let mut data = plan.create_data(513).unwrap();
+        plan.update(&mut data).unwrap();
+        for index in [
+            0,
+            3,
+            data.layout.spatial_tendon.guarded - 4,
+            data.layout.spatial_tendon.guarded - 1,
+        ] {
+            data.spatial_tendon.write_range(index, &[0.0]).unwrap();
+            assert!(matches!(data.readback(), Err(TransferError::Backend(
+                crate::diagnostics::ProbeError::Mismatch { index: i, .. })) if i==index));
+            data.spatial_tendon
+                .write_range(index, &[-131072.0])
+                .unwrap();
+        }
+        for index in [
+            0,
+            3,
+            data.layout.spatial_tendon.guarded_indices - 4,
+            data.layout.spatial_tendon.guarded_indices - 1,
+        ] {
+            data.spatial_wrap.write_range(index, &[0]).unwrap();
+            assert!(matches!(data.readback(), Err(TransferError::Backend(
+                crate::diagnostics::ProbeError::Mismatch { index: i, .. })) if i==index));
+            data.spatial_wrap.write_range(index, &[-131072]).unwrap();
+        }
+        for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            for index in [4, 5, 6, 4 + 512 * 14, 5 + 512 * 14, 6 + 512 * 14] {
+                data.spatial_tendon.write_range(index, &[bad]).unwrap();
+                assert!(matches!(data.readback(), Err(TransferError::Input(
+                    InputError::NonFinite { field: "resident_spatial_tendon_output", index: i })) if i==index-4));
+                plan.update_spatial_tendons(&mut data).unwrap();
+            }
+        }
+        // Every update clears unused integer and position slots too.
+        data.spatial_wrap
+            .write_range(4, &vec![i32::MAX; 513 * 6])
+            .unwrap();
+        plan.update_spatial_tendons(&mut data).unwrap();
+        let out = data.readback().unwrap();
+        let row = out.spatial_tendon().world(512).unwrap();
+        assert_eq!(row.wrap_obj, &[-1, -1, 0, 0]);
+        assert_eq!(&row.wrap_xpos[6..], &[0.0; 6]);
+        let empty = KinematicsPlan::new(&session, empty_model()).unwrap();
+        let mut data = empty.create_data(513).unwrap();
+        empty.update(&mut data).unwrap();
+        let out = data.readback().unwrap();
+        let row = out.spatial_tendon().world(512).unwrap();
+        assert!(row.ten_length.is_empty() && row.wrap_obj.is_empty());
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn spatial_tendon_readback_rejects_overflow_and_recovers_from_coincident_sites() {
+        let session = TransferSession::new(0).unwrap();
+        let plan = spatial_tendon_plan(&session);
+        let mut data = plan.create_data(513).unwrap();
+        data.write_world_qpos(512, &[-1.0]).unwrap();
+        plan.update(&mut data).unwrap();
+        let out = data.readback().unwrap();
+        let row = out.spatial_tendon().world(512).unwrap();
+        assert_eq!(row.ten_length, &[0.0]);
+        assert_eq!(row.ten_jacobian, &[1.0]);
+        // Isolate spatial norm overflow without overflowing COM inertia first.
+        let position = 4 + 512 * 36 + 12 + 3;
+        data.attached.write_range(position, &[1e20]).unwrap();
+        plan.update_spatial_tendons(&mut data).unwrap();
+        let error = data.readback().expect_err("spatial norm must overflow");
+        assert!(
+            matches!(
+                error,
+                TransferError::Input(InputError::NonFinite {
+                    field: "resident_spatial_tendon_output",
+                    index: 7168
+                })
+            ),
+            "{error:?}"
+        );
+        data.write_world_qpos(512, &[2.0]).unwrap();
+        plan.update(&mut data).unwrap();
+        let out = data.readback().unwrap();
+        let row = out.spatial_tendon().world(512).unwrap();
+        assert_eq!(row.ten_length, &[3.0]);
+        assert_eq!(row.ten_jacobian, &[1.0]);
     }
 }

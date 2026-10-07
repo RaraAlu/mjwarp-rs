@@ -2,7 +2,7 @@
 param([switch]$AllFeatures, [switch]$Release)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon')) {
+foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon', 'spatial-tendon')) {
     $fixtures = Join-Path $root "fixtures\$name"
     $manifest = Get-Content -LiteralPath (Join-Path $fixtures 'manifest.json') -Raw | ConvertFrom-Json
     foreach ($file in $manifest.files) {
@@ -47,6 +47,9 @@ try {
     $tendonReferences = Invoke-CheckedTest 'tendon-references' ($base + @('--test', 'resident_fixed_tendon', 'reference_hashes', '--', '--test-threads=1')) 1
     $tendon = Invoke-CheckedTest 'fixed-tendon' ($base + @('--test', 'resident_fixed_tendon', '--', '--ignored', '--test-threads=1', '--nocapture')) 4
     $tendonGuards = Invoke-CheckedTest 'tendon-guards' ($base + @('--lib', 'fixed_tendon_readback_rejects', '--', '--ignored', '--test-threads=1')) 2
+    $spatialReferences = Invoke-CheckedTest 'spatial-references' ($base + @('--test', 'resident_spatial_tendon', 'reference_hashes', '--', '--test-threads=1')) 1
+    $spatial = Invoke-CheckedTest 'spatial-tendon' ($base + @('--test', 'resident_spatial_tendon', '--', '--ignored', '--test-threads=1', '--nocapture')) 5
+    $spatialGuards = Invoke-CheckedTest 'spatial-guards' ($base + @('--lib', 'spatial_tendon_readback_rejects', '--', '--ignored', '--test-threads=1')) 2
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
     $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 3
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
@@ -109,6 +112,24 @@ try {
         }
     }
     if ($tendonComparisons -ne 2084) { throw "固定肌腱比较计数不符：$tendonComparisons" }
+    $spatialLargest = 0.0
+    $spatialComparisons = 0
+    $spatialParameterLargest = 0.0
+    $spatialParameterComparisons = 0
+    foreach ($line in Get-Content -LiteralPath (Join-Path $directory 'spatial-tendon.log')) {
+        if ($line -match 'G01-spatial-tendon kind=(native|parameters) world=\d+ max_abs_error=([0-9.eE+-]+)') {
+            $number = [double]::Parse($Matches[2], [Globalization.CultureInfo]::InvariantCulture)
+            if ($Matches[1] -eq 'native') {
+                $spatialComparisons++
+                $spatialLargest = [Math]::Max($spatialLargest, $number)
+            } else {
+                $spatialParameterComparisons++
+                $spatialParameterLargest = [Math]::Max($spatialParameterLargest, $number)
+            }
+        }
+    }
+    if ($spatialComparisons -ne 2084) { throw "空间肌腱比较计数不符：$spatialComparisons" }
+    if ($spatialParameterComparisons -ne 1042) { throw "空间肌腱参数计数不符：$spatialParameterComparisons" }
     [ordered]@{
         platform = 'Windows x86_64 MSVC'
         windowsVersion = [Environment]::OSVersion.Version.ToString()
@@ -130,13 +151,16 @@ try {
         fixedTendonReferencesPassed = $tendonReferences
         fixedTendonPassed = $tendon
         fixedTendonGuardsPassed = $tendonGuards
+        spatialTendonReferencesPassed = $spatialReferences
+        spatialTendonPassed = $spatial
+        spatialTendonGuardsPassed = $spatialGuards
         staticCachePassed = $staticCache
         adapterPassed = $adapter
         comparedWorlds = $comparisons
         maxAbsoluteError = $largest
         absoluteTolerance = 0.00002
         relativeTolerance = 0.00002
-        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json')
+        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json')
         sharedReferenceBatchSize = 1
         parameterIndexRule = 'world % B_f'
         parameterComparedWorlds = $parameterComparisons
@@ -166,6 +190,19 @@ try {
         fixedTendonNnz = 8
         fixedTendonQpos0Period = 3
         fixedTendonSharedCoefficients = $true
+        spatialTendonComparedWorlds = $spatialComparisons
+        spatialTendonMaxAbsoluteError = $spatialLargest
+        spatialTendonParameterComparedWorlds = $spatialParameterComparisons
+        spatialTendonParameterMaxAbsoluteError = $spatialParameterLargest
+        spatialTendonWorldCounts = @(1, 2, 5, 513)
+        spatialTendonFieldPeriods = @(3, 2, 5)
+        spatialTendonCount = 5
+        spatialTendonNnz = 45
+        spatialTendonWrapCount = 19
+        spatialTendonWrapTypes = @('site', 'pulley')
+        spatialTendonSharedTopologyAndDivisors = $true
+        residentSubsets = 6
+        residentOutputBuffers = 7
         nvrtcLibraries = @(Get-ChildItem -LiteralPath (Join-Path $env:CUDA_PATH 'bin') -Filter 'nvrtc*.dll' |
             ForEach-Object { [ordered]@{ name = $_.Name; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() } })
         scriptInvokesNativeKinematics = $false

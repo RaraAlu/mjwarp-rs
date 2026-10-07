@@ -10,6 +10,11 @@ mocap证据见[增量报告](windows-resident-mocap.md)。
 相机光源见[增量报告](windows-resident-camlight.md)。
 固定肌腱见[增量报告](windows-resident-fixed-tendon.md)。
 固定长度与力臂仍属子集。
+空间肌腱见[增量报告](windows-resident-spatial-tendon.md)。
+空间子集支持site与pulley。
+它提供长度、力臂与包裹字段。
+两类肌腱各用局部编号。
+球柱绕行仍待实现。
 G06速度与限位仍待实现。
 辅助证据不关闭G01。
 下表不代表已有功能。

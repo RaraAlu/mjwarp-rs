@@ -28,6 +28,42 @@ pub struct FixedTendonRows {
 }
 
 impl FixedTendonRows {
+    pub(super) fn checked(
+        rowadr: Vec<i32>,
+        rownnz: Vec<i32>,
+        colind: Vec<i32>,
+        nv: usize,
+    ) -> Result<Self, InputError> {
+        if rowadr.len() != rownnz.len() {
+            return Err(InputError::LengthMismatch {
+                field: "ten_J_rownnz",
+                expected: rowadr.len(),
+                actual: rownnz.len(),
+            });
+        }
+        partition(&rowadr, &rownnz, colind.len(), "ten_J_rowadr", false)?;
+        for row in 0..rowadr.len() {
+            let start = rowadr[row] as usize;
+            let columns = &colind[start..start + rownnz[row] as usize];
+            for (offset, &column) in columns.iter().enumerate() {
+                if column < 0
+                    || column as usize >= nv
+                    || (offset > 0 && columns[offset - 1] >= column)
+                {
+                    return Err(invalid(
+                        "ten_J_colind",
+                        start + offset,
+                        "invalid_sorted_dof_column",
+                    ));
+                }
+            }
+        }
+        Ok(Self {
+            rowadr,
+            rownnz,
+            colind,
+        })
+    }
     pub fn ntendon(&self) -> usize {
         self.rowadr.len()
     }
@@ -107,12 +143,11 @@ impl FixedTendonModelInput {
             "tendon_adr",
             true,
         )?;
-        partition(
-            &fields.ten_j_rowadr,
-            &fields.ten_j_rownnz,
-            nnz,
-            "ten_J_rowadr",
-            false,
+        let rows = FixedTendonRows::checked(
+            fields.ten_j_rowadr.clone(),
+            fields.ten_j_rownnz.clone(),
+            fields.ten_j_colind.clone(),
+            k.nv(),
         )?;
         for (index, &value) in fields.wrap_prm.iter().enumerate() {
             if !value.is_finite() {
@@ -127,18 +162,6 @@ impl FixedTendonModelInput {
             let end = start + fields.tendon_num[tendon] as usize;
             let row = fields.ten_j_rowadr[tendon] as usize;
             let columns = &fields.ten_j_colind[row..row + fields.ten_j_rownnz[tendon] as usize];
-            for (offset, &column) in columns.iter().enumerate() {
-                if column < 0
-                    || column as usize >= k.nv()
-                    || (offset > 0 && columns[offset - 1] >= column)
-                {
-                    return Err(invalid(
-                        "ten_J_colind",
-                        row + offset,
-                        "invalid_sorted_dof_column",
-                    ));
-                }
-            }
             let mut seen = std::collections::BTreeSet::new();
             for index in start..end {
                 if fields.wrap_type[index] != 1 {
@@ -171,11 +194,6 @@ impl FixedTendonModelInput {
                 }
             }
         }
-        let rows = FixedTendonRows {
-            rowadr: fields.ten_j_rowadr.clone(),
-            rownnz: fields.ten_j_rownnz.clone(),
-            colind: fields.ten_j_colind.clone(),
-        };
         Ok(Self {
             camlight,
             fields,
@@ -213,7 +231,7 @@ fn checked_pack(nt: usize, nw: usize, nnz: usize) -> Result<(), InputError> {
         })?;
     Ok(())
 }
-fn partition(
+pub(super) fn partition(
     adr: &[i32],
     num: &[i32],
     capacity: usize,

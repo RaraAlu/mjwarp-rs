@@ -82,6 +82,23 @@ GPU输出位置与按行展开矩阵。
 
 [冻结肌腱源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py)。
 
+## 空间肌腱CUDA辅助
+
+`src/physics/spatial_tendon.rs`移植site段。
+它复用冻结祖先链力臂公式。
+它复用归一化与包裹写入语义。
+上游文件为`smooth.py`与`math.py`。
+版权与Apache-2.0沿用上述条款。
+本项目顺序累加每个世界。
+本项目将滑轮除数转为共享比例。
+本项目分三段调度CUDA内核。
+整数段保留原生双点容量。
+本项目不实现球柱绕行。
+它不代表完整G01实现。
+
+[冻结空间肌腱源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py)。
+[冻结归一化源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/math.py)。
+
 ## 质量矩阵CUDA探针
 
 `src/physics/mass_matrix.rs`移植刚体CRB。

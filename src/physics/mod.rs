@@ -19,6 +19,8 @@ mod camlight;
 pub use camlight::{CamLightOutput, CamLightWorld};
 mod fixed_tendon;
 pub use fixed_tendon::{FixedTendonOutput, FixedTendonWorld};
+mod spatial_tendon;
+pub use spatial_tendon::{SpatialTendonOutput, SpatialTendonWorld};
 
 /// 七项GPU结果的只读世界视图。
 /// 矩阵按行展开，四元数用wxyz。
