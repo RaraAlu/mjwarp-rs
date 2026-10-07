@@ -43,6 +43,8 @@ GPU已计算复合惯量与稠密矩阵。
 GPU已计算几何与site位姿。
 常驻底座已复用六个设备子集。
 二十三项参数已支持独立批量。
+混合入口已增加GPU合并。
+它保留原生肌腱顺序与CSR。
 GPU已计算相机与光源位姿。
 GPU已计算固定肌腱长度。
 GPU也输出固定稀疏力臂。
@@ -827,7 +829,8 @@ G01最小GPU探针已有证据。
 几何与site已有GPU辅助探针。
 mocap已有常驻GPU子集。
 常驻底座已复用六个设备子集。
-设备结果使用七个缓冲。
+局部入口使用七个结果缓冲。
+混合入口使用九个结果缓冲。
 更新不再上传模型或编译。
 阶段间不强制回读宿主。
 二十三项参数已支持独立批量。
@@ -840,8 +843,9 @@ mocap映射支持共享拓扑。
 GPU已更新稀疏力臂与包裹字段。
 两类肌腱各用局部编号。
 GPU已支持球柱与内侧绕行。
-下一步统一原生肌腱编号。
-随后补齐flex位置。
+混合入口已保留原生全局编号。
+GPU已合并长度、力臂与包裹。
+下一步补齐flex位置。
 随后核对休眠副作用。
 完整G01仍需双平台验收。
 质量矩阵已提供GPU辅助子集。
@@ -857,6 +861,7 @@ mocap证据见[增量报告](windows-resident-mocap.md)。
 固定肌腱见[增量报告](windows-resident-fixed-tendon.md)。
 空间肌腱见[增量报告](windows-resident-spatial-tendon.md)。
 球柱绕行见[增量报告](windows-resident-geom-tendon.md)。
+肌腱编号见[混合报告](windows-resident-tendon.md)。
 质心证据见[质心报告](windows-com-position-probe.md)。
 矩阵证据见[矩阵报告](windows-mass-matrix-probe.md)。
 求解证据见[求解报告](windows-mass-solve-probe.md)。

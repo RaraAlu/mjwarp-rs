@@ -23,6 +23,8 @@ pub mod spatial_tendon;
 pub use spatial_tendon::{
     SpatialTendonFields, SpatialTendonGeometry, SpatialTendonModelInput, SpatialTendonRows,
 };
+pub mod tendon;
+pub use tendon::{TendonFields, TendonModelInput, TendonRows, TendonSubset};
 
 /// Windows原生探针的小型DTO。
 /// 计数采用原生有符号64位。

@@ -277,14 +277,15 @@ Normify只激活两个辅助叶子。
 本批仍只覆盖严格辅助子集。
 本批未覆盖球柱与侧向site。
 后续[球柱批次](windows-resident-geom-tendon.md)已实现此子集。
-完整肌腱编号与导入仍待统一。
+本批不提供全局肌腱入口。
+后续[混合批次](windows-resident-tendon.md)已统一编号。
+完整原生模型导入仍待扩展。
 肌腱速度与限位仍待实现。
 flex位置与休眠副作用仍待补齐。
 完整G01仍需双平台验收。
 本轮不执行Linux或清洁部署。
 
-下一步统一肌腱全局编号。
-随后补齐flex与休眠分支。
+下一步补齐flex与休眠分支。
 
 公式对齐冻结上游。
 [冻结肌腱源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py)。

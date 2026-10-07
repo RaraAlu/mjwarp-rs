@@ -1,0 +1,50 @@
+<mujoco model="mixed-tendon">
+  <option gravity="0 0 0"/>
+  <default><geom contype="0" conaffinity="0"/><site size="0.015"/></default>
+  <worldbody>
+    <geom name="sphere" type="sphere" size="0.3"/>
+    <geom name="next" type="sphere" pos="1.7 0.1 0" size="0.2"/>
+    <site name="s0" pos="-1 0.1 0"/><site name="s1" pos="1 0.15 0"/>
+    <site name="side" pos="0 1 0"/><site name="inside" pos="0.05 0 0"/>
+    <site name="i0" pos="1.2 0.4 0"/><site name="i1" pos="1.5 -0.1 0"/>
+    <site name="far0" pos="-1 0.8 0"/><site name="far1" pos="1 0.9 0"/>
+    <site name="opposite" pos="0 -1 0"/><site name="origin" pos="0.1 0 0"/>
+    <site name="s2" pos="2.5 0.05 0"/><site name="m0" pos="-1 -2.9 0"/>
+    <site name="c0" pos="-1 3.1 -0.6"/>
+    <site name="ci0" pos="1.2 3.4 -0.2"/><site name="ci1" pos="1.5 2.9 0.4"/>
+    <body name="rotor" pos="0 -3 0">
+      <joint name="hinge" type="hinge" axis="0 0 1"/>
+      <inertial mass="1" pos="0 0 0" diaginertia="0.1 0.1 0.1"/>
+      <geom name="moving" type="sphere" pos="0.2 0 0" size="0.25"/>
+      <site name="mside" pos="0.2 0.6 0"/>
+    </body>
+    <body name="slider" pos="1 -2.85 0">
+      <joint name="slide" type="slide" axis="0 1 0"/>
+      <inertial mass="1" pos="0 0 0" diaginertia="0.1 0.1 0.1"/>
+      <site name="m1"/>
+    </body>
+    <body name="cylinder" pos="0 3 0">
+      <joint name="ball" type="ball"/>
+      <inertial mass="1" pos="0 0 0" diaginertia="0.1 0.1 0.1"/>
+      <geom name="cyl" type="cylinder" size="0.25 0.8"/>
+      <site name="cside" pos="0 0.75 0"/><site name="cinside" pos="0.04 0 0"/>
+    </body>
+    <body name="tracked" mocap="true" pos="1 3.15 0.7"><site name="c1"/></body>
+  </worldbody>
+  <tendon>
+    <fixed name="fixed-first"><joint joint="hinge" coef="1.7"/><joint joint="slide" coef="-0.4"/></fixed>
+    <spatial name="sphere-side"><site site="s0"/><geom geom="sphere" sidesite="side"/><site site="s1"/></spatial>
+    <spatial name="sphere-short"><site site="s0"/><geom geom="sphere"/><site site="s1"/></spatial>
+    <fixed name="fixed-zero"><joint joint="slide" coef="0"/></fixed>
+    <spatial name="sphere-inside"><site site="i0"/><geom geom="sphere" sidesite="inside"/><site site="i1"/></spatial>
+    <spatial name="cylinder-side"><site site="c0"/><geom geom="cyl" sidesite="cside"/><site site="c1"/></spatial>
+    <spatial name="cylinder-inside"><site site="ci0"/><geom geom="cyl" sidesite="cinside"/><site site="ci1"/></spatial>
+    <fixed name="fixed-middle"><joint joint="hinge" coef="-0.25"/></fixed>
+    <spatial name="moving-sphere"><site site="m0"/><geom geom="moving" sidesite="mside"/><site site="m1"/></spatial>
+    <spatial name="forced-long"><site site="far0"/><geom geom="sphere" sidesite="opposite"/><site site="far1"/></spatial>
+    <spatial name="inside-endpoint"><site site="origin"/><geom geom="sphere"/><site site="s1"/></spatial>
+    <spatial name="pulley"><pulley divisor="2"/><site site="s0"/><geom geom="sphere" sidesite="side"/><site site="s1"/><pulley divisor="4"/><site site="m0"/><geom geom="moving" sidesite="mside"/><site site="m1"/></spatial>
+    <spatial name="multiple"><site site="s0"/><geom geom="sphere" sidesite="side"/><site site="s1"/><geom geom="next"/><site site="s2"/></spatial>
+    <fixed name="fixed-last"><joint joint="hinge" coef="1"/><joint joint="slide" coef="2"/></fixed>
+  </tendon>
+</mujoco>

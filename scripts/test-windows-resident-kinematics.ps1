@@ -52,6 +52,10 @@ try {
     $spatialGuards = Invoke-CheckedTest 'spatial-guards' ($base + @('--lib', 'spatial_tendon_readback_rejects', '--', '--ignored', '--test-threads=1')) 2
     $geomReferences = Invoke-CheckedTest 'geom-references' ($base + @('--test', 'resident_geom_tendon', 'reference_hashes', '--', '--test-threads=1')) 1
     $geom = Invoke-CheckedTest 'geom-tendon' ($base + @('--test', 'resident_geom_tendon', '--', '--ignored', '--test-threads=1', '--nocapture')) 6
+    $globalReferences = Invoke-CheckedTest 'global-references' ($base + @('--test', 'resident_tendon', 'reference_hashes', '--', '--test-threads=1')) 1
+    $globalBoundaries = Invoke-CheckedTest 'global-boundaries' ($base + @('--test', 'resident_tendon', 'rejects_global', '--', '--test-threads=1')) 1
+    $globalTendon = Invoke-CheckedTest 'global-tendon' ($base + @('--test', 'resident_tendon', '--', '--ignored', '--test-threads=1', '--nocapture')) 3
+    $globalGuards = Invoke-CheckedTest 'global-guards' ($base + @('--lib', 'global_tendon_readback', '--', '--ignored', '--test-threads=1')) 1
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
     $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 4
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
@@ -158,6 +162,18 @@ try {
     if ($geomComparisons -ne 2084) { throw "球柱参考计数不符：$geomComparisons" }
     if ($geomAnalyticComparisons -ne 1042) { throw "圆柱公式计数不符：$geomAnalyticComparisons" }
     if ($geomMotionComparisons -ne 9) { throw "内侧运动计数不符：$geomMotionComparisons" }
+    $globalLargest = 0.0
+    $globalComparisons = 0
+    $globalRounds = 0
+    foreach ($line in Get-Content -LiteralPath (Join-Path $directory 'global-tendon.log')) {
+        if ($line -match 'G01-global-tendon worlds=\d+ round=\d+ comparisons=(\d+) max_abs_error=([0-9.eE+-]+)') {
+            $globalRounds++
+            $globalComparisons += [int]$Matches[1]
+            $number = [double]::Parse($Matches[2], [Globalization.CultureInfo]::InvariantCulture)
+            $globalLargest = [Math]::Max($globalLargest, $number)
+        }
+    }
+    if ($globalRounds -ne 16 -or $globalComparisons -ne 2084) { throw '混合肌腱比较计数不符' }
     [ordered]@{
         platform = 'Windows x86_64 MSVC'
         windowsVersion = [Environment]::OSVersion.Version.ToString()
@@ -184,13 +200,17 @@ try {
         spatialTendonGuardsPassed = $spatialGuards
         geomTendonReferencesPassed = $geomReferences
         geomTendonPassed = $geom
+        globalTendonReferencesPassed = $globalReferences
+        globalTendonBoundariesPassed = $globalBoundaries
+        globalTendonPassed = $globalTendon
+        globalTendonGuardsPassed = $globalGuards
         staticCachePassed = $staticCache
         adapterPassed = $adapter
         comparedWorlds = $comparisons
         maxAbsoluteError = $largest
         absoluteTolerance = 0.00002
         relativeTolerance = 0.00002
-        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json', 'fixtures/geom-tendon/manifest.json')
+        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json', 'fixtures/geom-tendon/manifest.json', 'fixtures/mixed-tendon/manifest.json')
         sharedReferenceBatchSize = 1
         parameterIndexRule = 'world % B_f'
         parameterComparedWorlds = $parameterComparisons
@@ -253,6 +273,17 @@ try {
         geomTendonIntegerStageReadsFloatState = $true
         residentSubsets = 6
         residentOutputBuffers = 7
+        globalTendonComparedWorlds = $globalComparisons
+        globalTendonMaxAbsoluteError = $globalLargest
+        globalTendonWorldCounts = @(1, 2, 5, 513)
+        globalTendonCount = 14
+        globalTendonNnz = 16
+        globalTendonWrapCount = 43
+        globalTendonFixedIds = @(0, 3, 7, 13)
+        globalTendonPreservesNativeOrder = $true
+        globalTendonAssemblyLaunches = 3
+        globalTendonResidentSubsets = 7
+        globalTendonOutputBuffers = 9
         nvrtcLibraries = @(Get-ChildItem -LiteralPath (Join-Path $env:CUDA_PATH 'bin') -Filter 'nvrtc*.dll' |
             ForEach-Object { [ordered]@{ name = $_.Name; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() } })
         scriptInvokesNativeKinematics = $false

@@ -307,15 +307,16 @@ target/geom-tendon-t4-review/
 ## 当前限制与后续
 
 本批仍只覆盖严格辅助子集。
-全局肌腱编号与导入仍待统一。
+本批不提供全局肌腱入口。
+后续[混合批次](windows-resident-tendon.md)已统一编号。
+完整原生模型导入仍待扩展。
 肌腱速度、限位与惯量仍待实现。
 flex位置与休眠副作用仍待补齐。
 完整G01仍需双平台验收。
 本轮不执行Linux或清洁部署。
 Normify不激活完整产品阶段。
 
-下一步统一肌腱全局编号。
-随后补齐flex与休眠分支。
+下一步补齐flex与休眠分支。
 
 [冻结绕行源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/util_misc.py)。
 [冻结肌腱源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py)。

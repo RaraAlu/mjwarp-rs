@@ -14,6 +14,8 @@ mocap证据见[增量报告](windows-resident-mocap.md)。
 空间子集支持site与pulley。
 它提供长度、力臂与包裹字段。
 两类肌腱各用局部编号。
+混合入口保留原生全局编号。
+编号证据见[混合报告](windows-resident-tendon.md)。
 球柱绕行见[增量报告](windows-resident-geom-tendon.md)。
 GPU已支持球柱与内侧绕行。
 几何尺寸已支持独立周期。
