@@ -12,6 +12,7 @@
 二十一字段仍属辅助子集。
 刚体运动学已有GPU探针。
 质心与自由度映射也有探针。
+质量矩阵已有GPU子集探针。
 它不替代完整G01阶段。
 GPU引擎尚待实现。
 首版面向NVIDIA。
@@ -44,6 +45,7 @@ LRsLab负责CPU play。
 | `src/io/fields.rs` | 提供独立连续字段底层 |
 | `src/runtime/` | 实现驱动级GPU探针 |
 | `src/physics/` | 历史校验与刚体GPU探针 |
+| `src/physics/mass_matrix.rs` | 复合惯量与稠密质量矩阵 |
 | `src/runtime/transfer/kernel.rs` | 封装内部同步内核ABI |
 | `src/diagnostics/` | 定义探针错误 |
 | `native/`与`include/` | 提供可选原生桥接 |
@@ -52,6 +54,7 @@ LRsLab负责CPU play。
 | `fixtures/native-probe/` | 保留静态MJB、源XML、结构打印件与哈希 |
 | `fixtures/kinematics/` | 保留静态原生运动学参考 |
 | `fixtures/com-position/` | 保留质心参考与零质量边界 |
+| `fixtures/mass-matrix/` | 保留矩阵参考与armature链 |
 | `docs/README.md` | 提供文档索引与现状 |
 | `docs/project-positioning.md` | 明确产品与依赖边界 |
 | `docs/architecture.md` | 描述目标模块与接口 |
@@ -137,6 +140,14 @@ scripts/test-windows-kinematics.ps1 -AllFeatures -Release
 ```
 
 该脚本需要NVRTC。
+质量矩阵脚本也需要NVRTC。
+执行以下Windows脚本：
+
+```text
+scripts/test-windows-mass-matrix.ps1 -AllFeatures
+scripts/test-windows-mass-matrix.ps1 -AllFeatures -Release
+```
+
 产品测试不生成原生参考。
 项目尚未设覆盖率门槛。
 新增逻辑须配套Rust测试。

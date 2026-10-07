@@ -7,6 +7,9 @@ use crate::diagnostics::{InputError, ProbeError, TransferError};
 use crate::model::{BatchLayout, InertialModelInput};
 use crate::runtime::TransferSession;
 
+mod mass_matrix;
+pub use mass_matrix::{MassMatrixOutput, MassMatrixWorld, probe_mass_matrix};
+
 /// 七项GPU结果的只读世界视图。
 /// 矩阵按行展开，四元数用wxyz。
 #[derive(Clone, Copy, Debug)]
@@ -473,56 +476,67 @@ pub fn probe_com_position(
     }
     #[cfg(feature = "cuda-probe")]
     {
-        // The validated FK output remains allocated on the same GPU session.
-        // Its host checkpoint proves finite values; no CPU transform feeds COM.
-        let (state, checkpoint) = kinematics_device(session, model, fk, qpos)?;
-        drop(checkpoint);
-        let k = model.kinematics();
-        let f = k.fields();
-        let i = model.fields();
-        let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
-        let mut cursor = 0;
-        for field in [&f.body_parentid, &f.jnt_type, &f.jnt_bodyid, &f.jnt_dofadr] {
-            metadata[cursor..cursor + field.len()].copy_from_slice(field);
-            cursor += field.len();
-        }
-        let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
-        parameters[..k.nbody()].copy_from_slice(&i.body_mass);
-        parameters[k.nbody()..].copy_from_slice(&i.body_inertia);
-        let metadata = session.upload(&metadata)?;
-        let parameters = session.upload(&parameters)?;
-        let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
-        values.fill(-131072.0);
-        values[4..layout.guarded - 4].fill(f32::NAN);
-        let mut output = session.upload(&values)?;
-        let kernel = crate::runtime::SynchronousKernel::compile(
-            session,
-            COM_POSITION_CUDA,
-            "rigid_com_position",
-        )?;
-        // SAFETY: Checked layouts bound all packed offsets by i32::MAX.
-        // Validated topology proves parent order and joint/body/DOF addresses.
-        // FK state has precisely 28*nbody+6*njnt elements per world plus guards.
-        // Each thread owns one output world, with no cross-thread reads/writes.
-        // The same-session adapter waits before any buffer or module can drop.
-        unsafe {
-            kernel.launch(
-                &metadata,
-                &parameters,
-                &state,
-                &mut output,
-                [
-                    k.nbody() as u32,
-                    k.njnt() as u32,
-                    k.nv() as u32,
-                    worlds as u32,
-                ],
-            )?;
-        }
-        output.read_range_into(0, &mut values)?;
-        check_device_values(&values, "com_position_output")?;
-        Ok(ComPositionOutput { layout, values })
+        com_position_device(session, model, fk, layout, qpos).map(|(_, result)| result)
     }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn com_position_device(
+    session: &TransferSession,
+    model: &InertialModelInput,
+    fk: KinematicsLayout,
+    layout: ComPositionLayout,
+    qpos: &[f32],
+) -> Result<(crate::runtime::TransferBuffer<f32>, ComPositionOutput), TransferError> {
+    // The validated FK output remains allocated on the same GPU session.
+    // Its host checkpoint proves finite values; no CPU transform feeds COM.
+    let (state, checkpoint) = kinematics_device(session, model, fk, qpos)?;
+    drop(checkpoint);
+    let k = model.kinematics();
+    let f = k.fields();
+    let i = model.fields();
+    let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
+    let mut cursor = 0;
+    for field in [&f.body_parentid, &f.jnt_type, &f.jnt_bodyid, &f.jnt_dofadr] {
+        metadata[cursor..cursor + field.len()].copy_from_slice(field);
+        cursor += field.len();
+    }
+    let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
+    parameters[..k.nbody()].copy_from_slice(&i.body_mass);
+    parameters[k.nbody()..].copy_from_slice(&i.body_inertia);
+    let metadata = session.upload(&metadata)?;
+    let parameters = session.upload(&parameters)?;
+    let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
+    values.fill(-131072.0);
+    values[4..layout.guarded - 4].fill(f32::NAN);
+    let mut output = session.upload(&values)?;
+    let kernel = crate::runtime::SynchronousKernel::compile(
+        session,
+        COM_POSITION_CUDA,
+        "rigid_com_position",
+    )?;
+    // SAFETY: Checked layouts bound all packed offsets by i32::MAX.
+    // Validated topology proves parent order and joint/body/DOF addresses.
+    // FK state has precisely 28*nbody+6*njnt elements per world plus guards.
+    // Each thread owns one output world, with no cross-thread reads/writes.
+    // The same-session adapter waits before any buffer or module can drop.
+    unsafe {
+        kernel.launch(
+            &metadata,
+            &parameters,
+            &state,
+            &mut output,
+            [
+                k.nbody() as u32,
+                k.njnt() as u32,
+                k.nv() as u32,
+                layout.output.worlds() as u32,
+            ],
+        )?;
+    }
+    output.read_range_into(0, &mut values)?;
+    check_device_values(&values, "com_position_output")?;
+    Ok((output, ComPositionOutput { layout, values }))
 }
 
 #[cfg(any(feature = "cuda-probe", test))]
@@ -808,7 +822,7 @@ impl HistoryLayout {
 mod tests {
     use super::*;
 
-    fn test_model(joint: Option<i32>) -> InertialModelInput {
+    pub(super) fn test_model(joint: Option<i32>) -> InertialModelInput {
         use crate::model::{InertialFields, KinematicFields, KinematicModelInput};
         let (nq, nv) = match joint {
             Some(0) => (7, 6),

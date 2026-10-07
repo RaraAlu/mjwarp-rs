@@ -39,6 +39,7 @@ Windows继续验证内核能力。
 刚体子集计算七项GPU结果。
 四类关节已有固定原生参考。
 GPU已计算质心与惯量映射。
+GPU已计算复合惯量与稠密矩阵。
 完整G01阶段仍待实现。
 可信MJB适配暂用Windows MSVC。
 完整模型与原生版本仍待冻结。
@@ -810,10 +811,12 @@ P2接入已编译模型并转换上传。
 G01最小GPU探针已有证据。
 质心与自由度子集已有证据。
 下一步扩展完整运动学分支。
-质量矩阵与其余物理仍待实现。
+质量矩阵已提供GPU辅助子集。
+完整G02与矩阵分解仍待实现。
 详见[惯性增量报告](windows-inertial-fields.md)。
 数值证据见[刚体报告](windows-kinematics-probe.md)。
 质心证据见[质心报告](windows-com-position-probe.md)。
+矩阵证据见[矩阵报告](windows-mass-matrix-probe.md)。
 继续收口原生版本与字段映射。
 继续设计完整Model与Data布局。
 同步辅助不替代等价导入入口。

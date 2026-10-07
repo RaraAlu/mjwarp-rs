@@ -1,4 +1,4 @@
-//! 两项GPU探针共用静态DTO。
+//! 刚体GPU探针共用静态DTO。
 use mjwarp_rs::model::{InertialFields, InertialModelInput, KinematicFields, KinematicModelInput};
 use serde_json::Value;
 

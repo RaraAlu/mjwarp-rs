@@ -885,7 +885,9 @@ Windows与Linux分别执行测试。
 十二字段详见[增量报告](windows-kinematic-fields.md)。
 九惯性字段详见[惯性报告](windows-inertial-fields.md)。
 本轮校验自由度最近祖先。
-质量矩阵与完整G01仍待实现。
+质量矩阵仅有GPU子集。
+完整G01与G02仍待实现。
+矩阵证据见[矩阵报告](windows-mass-matrix-probe.md)。
 刚体子集已有七项GPU结果。
 质心子集新增四项GPU结果。
 零质量语义对齐冻结Warp。

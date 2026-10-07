@@ -36,6 +36,19 @@ CUDA部分复用上述许可。
 
 [上游刚体源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py)
 
+## 质量矩阵CUDA探针
+
+`src/physics/mass_matrix.rs`移植刚体CRB。
+它复用冻结惯量向量乘法。
+上游文件为`smooth.py`与`math.py`。
+版权与Apache-2.0许可沿用上述条款。
+本项目改用顺序CUDA C++调度。
+本项目输出对称稠密f32矩阵。
+本项目不移植稀疏布局与休眠。
+本项目不叠加肌腱与执行器惯量。
+本项目添加完成与有限性检查。
+它不代表完整G02实现。
+
 ## 原生模型输入候选
 
 探针采用MuJoCo 3.12.0。
