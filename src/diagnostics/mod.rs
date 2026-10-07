@@ -65,6 +65,10 @@ pub enum InputError {
         field: &'static str,
         index: usize,
     },
+    NegativeValue {
+        field: &'static str,
+        index: usize,
+    },
     ScalarOverflow {
         field: &'static str,
         index: usize,
@@ -102,6 +106,7 @@ impl fmt::Display for InputError {
                 actual,
             } => write!(f, "长度错误：{field}；期望{expected}，实际{actual}"),
             Self::NonFinite { field, index } => write!(f, "数值非有限：{field}[{index}]"),
+            Self::NegativeValue { field, index } => write!(f, "数值为负：{field}[{index}]"),
             Self::ScalarOverflow { field, index } => write!(f, "转换溢出：{field}[{index}]"),
             Self::InvalidIndex {
                 field,

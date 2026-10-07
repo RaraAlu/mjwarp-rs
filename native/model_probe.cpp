@@ -22,6 +22,12 @@ static_assert(offsetof(mjwarp_kinematic_targets, nq) == 8);
 static_assert(offsetof(mjwarp_kinematic_targets, qpos0) == 32);
 static_assert(offsetof(mjwarp_kinematic_targets, body_quat) == 72);
 static_assert(offsetof(mjwarp_kinematic_targets, jnt_axis) == 120);
+static_assert(sizeof(mjwarp_inertial_targets) == 96);
+static_assert(alignof(mjwarp_inertial_targets) == 8);
+static_assert(offsetof(mjwarp_inertial_targets, nbody) == 8);
+static_assert(offsetof(mjwarp_inertial_targets, body_ipos) == 24);
+static_assert(offsetof(mjwarp_inertial_targets, dof_bodyid) == 56);
+static_assert(offsetof(mjwarp_inertial_targets, dof_damping) == 88);
 
 struct mjwarp_native_owner {
   HMODULE library;
@@ -89,6 +95,38 @@ extern "C" int32_t mjwarp_native_copy(
   memcpy(body_mass, m->body_mass, nbody * sizeof(double));
   memcpy(body_parentid, m->body_parentid, nbody * sizeof(int32_t));
   if (njnt) memcpy(jnt_type, m->jnt_type, njnt * sizeof(int32_t));
+  return 0;
+}
+
+extern "C" int32_t mjwarp_native_copy_inertial(
+    const mjwarp_native_owner* owner, const mjwarp_inertial_targets* t) {
+  if (!owner || !owner->model || !t || t->schema != 1 || t->reserved != 0) return 8;
+  const mjModel* m = owner->model;
+  if (m->nbody < 1 || m->nv < 0 ||
+      t->nbody != static_cast<uint64_t>(m->nbody) ||
+      t->nv != static_cast<uint64_t>(m->nv) ||
+      t->nbody > SIZE_MAX / (4 * sizeof(double)) ||
+      t->nv > SIZE_MAX / sizeof(double) ||
+      !t->body_ipos || !m->body_ipos ||
+      !t->body_iquat || !m->body_iquat ||
+      !t->body_mass || !m->body_mass ||
+      !t->body_inertia || !m->body_inertia ||
+      (t->nv && (!t->dof_bodyid || !m->dof_bodyid ||
+                 !t->dof_jntid || !m->dof_jntid ||
+                 !t->dof_parentid || !m->dof_parentid ||
+                 !t->dof_armature || !m->dof_armature ||
+                 !t->dof_damping || !m->dof_damping))) return 8;
+  memcpy(t->body_ipos, m->body_ipos, t->nbody * 3 * sizeof(double));
+  memcpy(t->body_iquat, m->body_iquat, t->nbody * 4 * sizeof(double));
+  memcpy(t->body_mass, m->body_mass, t->nbody * sizeof(double));
+  memcpy(t->body_inertia, m->body_inertia, t->nbody * 3 * sizeof(double));
+  if (t->nv) {
+    memcpy(t->dof_bodyid, m->dof_bodyid, t->nv * sizeof(int32_t));
+    memcpy(t->dof_jntid, m->dof_jntid, t->nv * sizeof(int32_t));
+    memcpy(t->dof_parentid, m->dof_parentid, t->nv * sizeof(int32_t));
+    memcpy(t->dof_armature, m->dof_armature, t->nv * sizeof(double));
+    memcpy(t->dof_damping, m->dof_damping, t->nv * sizeof(double));
+  }
   return 0;
 }
 

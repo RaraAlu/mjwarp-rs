@@ -29,6 +29,9 @@ LRsLab继续负责模型编译。
 & target/toolchains/mujoco-3.12.0/package/bin/compile.exe fixtures/native-probe/mixed-joints.xml fixtures/native-probe/mixed-joints.mjb
 & target/toolchains/mujoco-3.12.0/package/bin/compile.exe fixtures/native-probe/mixed-joints.xml target/mixed-joints-reference.txt
 Copy-Item -LiteralPath target/mixed-joints-reference.txt -Destination fixtures/native-probe/mixed-joints-reference.txt
+& target/toolchains/mujoco-3.12.0/package/bin/compile.exe fixtures/native-probe/inertial-tree.xml fixtures/native-probe/inertial-tree.mjb
+& target/toolchains/mujoco-3.12.0/package/bin/compile.exe fixtures/native-probe/inertial-tree.xml target/inertial-tree-reference.txt
+Copy-Item -LiteralPath target/inertial-tree-reference.txt -Destination fixtures/native-probe/inertial-tree-reference.txt
 ```
 
 manifest记录工具提交与SHA256。
@@ -77,3 +80,31 @@ slide使用米，hinge使用弧度。
 世界体使用索引零。
 本轮固定精确二进制值。
 测试不放宽误差容限。
+
+## 惯性分支样本
+
+新样本包含八体与六关节。
+它覆盖全部四类关节。
+静态体桥接与兄弟分支共存。
+同体双关节保持连续自由度。
+第二根体经静态祖先连接。
+显式惯量避免几何推断误差。
+样本不包含碰撞几何。
+
+| 字段 | 预期值 |
+| --- | --- |
+| `nq,nv,nbody,njnt` | `15,13,8,6` |
+| `body_parentid` | `[0,0,1,1,3,1,0,6]` |
+| `body_mass` | `[0,2,3,1,4,5,6,7]` kg |
+| `dof_bodyid` | `[1,1,1,1,1,1,2,2,2,4,4,5,7]` |
+| `dof_jntid` | `[0,0,0,0,0,0,1,1,1,2,3,4,5]` |
+| `dof_parentid` | `[-1,0,1,2,3,4,5,6,7,5,9,5,-1]` |
+
+测试独立固定全部二十一字段。
+XML提供精确二进制分数。
+官方打印件确认编译后结构。
+打印件采用低精度数字格式。
+它不充当精确浮点参考。
+新manifest包含十项文件。
+此前七项哈希保持不变。
+本增量不证明G01数值等价。

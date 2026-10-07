@@ -8,6 +8,8 @@
 当前代码提供无头GPU探针。
 基础辅助与原生输入探针已落地。
 十二项运动学字段支持GPU上传。
+九项惯性字段支持组合上传。
+二十一字段仍属辅助子集。
 GPU引擎尚待实现。
 首版面向NVIDIA。
 验收覆盖Windows与Linux。
@@ -34,8 +36,9 @@ LRsLab负责CPU play。
 | `Cargo.lock` | 锁定依赖版本 |
 | `src/main.rs` | 提供探针命令入口 |
 | `src/lib.rs` | 导出七模块基础接口与探针 |
-| `src/model/` | 检查批量布局、原生DTO与运动学输入 |
+| `src/model/` | 检查布局、原生DTO与运动学惯性输入 |
 | `src/io/` | 转换、GPU字段交换与只读字段组 |
+| `src/io/fields.rs` | 提供独立连续字段底层 |
 | `src/runtime/` | 实现驱动级GPU探针 |
 | `src/diagnostics/` | 定义探针错误 |
 | `native/`与`include/` | 提供可选原生桥接 |

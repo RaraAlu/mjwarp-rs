@@ -29,6 +29,19 @@ typedef struct mjwarp_kinematic_targets {
   double* jnt_pos;
   double* jnt_axis;
 } mjwarp_kinematic_targets;
+typedef struct mjwarp_inertial_targets {
+  uint32_t schema, reserved;
+  uint64_t nbody, nv;
+  double* body_ipos;
+  double* body_iquat;
+  double* body_mass;
+  double* body_inertia;
+  int32_t* dof_bodyid;
+  int32_t* dof_jntid;
+  int32_t* dof_parentid;
+  double* dof_armature;
+  double* dof_damping;
+} mjwarp_inertial_targets;
 
 // Trusted DLL and MJB only. Never accepts a borrowed mjModel pointer.
 int32_t mjwarp_native_open(const uint16_t* dll_path, const void* mjb, int32_t bytes,
@@ -44,6 +57,9 @@ int32_t mjwarp_native_copy(const mjwarp_native_owner* owner,
 // Checks every count and required pointer before writing any output.
 int32_t mjwarp_native_copy_kinematic(const mjwarp_native_owner* owner,
                                     const mjwarp_kinematic_targets* targets);
+// Same disjoint-buffer contract; preflights all nine sources and targets.
+int32_t mjwarp_native_copy_inertial(const mjwarp_native_owner* owner,
+                                   const mjwarp_inertial_targets* targets);
 #ifdef __cplusplus
 }
 #endif

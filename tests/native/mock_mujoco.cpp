@@ -31,14 +31,23 @@ extern "C" __declspec(dllexport) mjModel* mj_loadModelBuffer(const void*, int) {
 #endif
   model.body_mass = &mass;
   model.body_parentid = &parent;
-#ifdef MOCK_MISSING_KINEMATIC_POINTER
+#if defined(MOCK_MISSING_KINEMATIC_POINTER) || defined(MOCK_MISSING_INERTIAL_POINTER)
   static int address = -1, count = 0;
   static double position[3]{};
   model.body_jntadr = &address;
   model.body_jntnum = &count;
   model.body_pos = position;
-  // Keep the last nonempty body field null to check late preflight failure.
+#ifdef MOCK_MISSING_INERTIAL_POINTER
+  static double quaternion[4]{1, 0, 0, 0};
+  model.body_quat = quaternion;
+  model.body_ipos = position;
+  model.body_iquat = quaternion;
+  // Keep the last nonempty inertial body field null for late preflight failure.
+  model.body_inertia = nullptr;
+#else
+  // Keep the last nonempty kinematic body field null for late preflight failure.
   model.body_quat = nullptr;
+#endif
 #endif
   return &model;
 #else

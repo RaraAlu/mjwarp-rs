@@ -62,6 +62,7 @@ CPU调试与工具边界仍待确认。
 19. [Windows字段交换探针](windows-transfer-probe.md)
 20. [Windows原生模型输入探针](windows-native-model-probe.md)
 21. [Windows运动学字段增量](windows-kinematic-fields.md)
+22. [Windows惯性字段增量](windows-inertial-fields.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -133,11 +134,12 @@ Windows补齐八项能力探针。
 | 程序入口 | `src/main.rs` |
 | 程序行为 | 提供`probe`、`resources`、`external-resources`、`cache-build`与`cache-run`；默认不加载GPU依赖 |
 | 库入口 | `src/lib.rs`；导出七模块基础接口与探针，不提供完整引擎 |
-| 模型基础 | 检查连续布局、原生DTO与十二项运动学字段；完整模型ABI仍待实现 |
+| 模型基础 | 检查布局与原生DTO；组合十二运动学与九惯性字段；完整模型ABI仍待实现 |
 | 输入转换 | 先校验再转f32；支持连续字段GPU交换；不替代等价上传入口 |
 | GPU字段交换 | f32、i32与u32上传、回读与世界复制；独占缓冲、会话隔离与同步等待 |
 | 原生模型输入探针 | Windows MSVC可选读取可信MJB；四字段独占快照与GPU回读；不提供完整put_model |
 | 运动学字段增量 | 四类关节与地址校验；十二字段独占快照及只读GPU字段组；参数批量长度固定为一 |
+| 惯性字段增量 | 九字段及最近祖先校验；组合二十一字段上传与回读；不计算动力学 |
 | 纯数学 | 八项f32四元数及空间代数公式；GPU数值验收仍待补齐 |
 | 历史基础 | 检查三维布局与显式时间阈值；GPU历史仍待实现 |
 | 图像基础 | 检查单相机批量像素、容量与输出开关；不生成像素 |
@@ -153,6 +155,7 @@ Windows补齐八项能力探针。
 依据：[包配置](../Cargo.toml)、[程序入口](../src/main.rs)、[驱动基线](gpu-probe.md)、[双路报告](cubecl-probe.md)、[能力报告](windows-kernel-probe.md)、[租约报告](windows-resource-probe.md)、[缓存报告](windows-artifact-probe.md)、[外部ABI报告](windows-external-probe.md)、[基础报告](foundation-architecture.md)、[字段报告](windows-transfer-probe.md)、[原生输入报告](windows-native-model-probe.md)、[运动学字段报告](windows-kinematic-fields.md)。
 
 骨架版本不代表正式验收。
+惯性子集详见[增量报告](windows-inertial-fields.md)。
 文档不宣称已有完整引擎。
 GPU编译路线仍需原型验证。
 原生依赖版本仍需冻结。

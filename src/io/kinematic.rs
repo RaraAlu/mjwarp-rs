@@ -81,7 +81,7 @@ impl DeviceKinematicModel {
     }
 }
 
-fn upload_field<T: TransferElement>(
+pub(super) fn upload_field<T: TransferElement>(
     session: &TransferSession,
     values: &[T],
 ) -> Result<DeviceBatch<T>, TransferError> {
@@ -92,7 +92,9 @@ fn upload_field<T: TransferElement>(
     )
 }
 
-fn read_field<T: TransferElement>(field: &DeviceBatch<T>) -> Result<Vec<T>, TransferError> {
+pub(super) fn read_field<T: TransferElement>(
+    field: &DeviceBatch<T>,
+) -> Result<Vec<T>, TransferError> {
     let mut values = host_staging(field.layout().total_elements())?;
     field.read_into(&mut values)?;
     Ok(values)
@@ -102,7 +104,7 @@ fn read_field<T: TransferElement>(field: &DeviceBatch<T>) -> Result<Vec<T>, Tran
 pub use native::NativeKinematicSnapshot;
 
 #[cfg(feature = "native-model-probe")]
-mod native {
+pub(super) mod native {
     use super::*;
     use crate::{
         diagnostics::{InputError, NativeProbeError},
@@ -165,7 +167,7 @@ mod native {
         -> i32;
     }
 
-    fn elements(count: i64, width: usize) -> Result<usize, InputError> {
+    pub(in crate::io) fn elements(count: i64, width: usize) -> Result<usize, InputError> {
         let count = usize::try_from(count).map_err(|_| InputError::Overflow {
             field: "kinematic_field",
         })?;
@@ -176,7 +178,7 @@ mod native {
         Ok(len)
     }
 
-    fn check_info(info: NativeModelInfo) -> Result<(), NativeProbeError> {
+    pub(in crate::io) fn check_info(info: NativeModelInfo) -> Result<(), NativeProbeError> {
         info.validate()?;
         for (field, count) in [
             ("nq", info.nq),
@@ -199,7 +201,7 @@ mod native {
             owner: *const c_void,
             info: NativeModelInfo,
         ) -> Result<Self, NativeProbeError> {
-            use crate::io::native::staging;
+            use crate::io::fields::native_staging as staging;
             check_info(info)?;
             let mut s = Self {
                 info,
@@ -285,8 +287,11 @@ mod native {
         }
     }
 
-    fn convert(field: &'static str, values: &[f64]) -> Result<Vec<f32>, NativeProbeError> {
-        let mut target = crate::io::native::staging(values.len())?;
+    pub(in crate::io) fn convert(
+        field: &'static str,
+        values: &[f64],
+    ) -> Result<Vec<f32>, NativeProbeError> {
+        let mut target = crate::io::fields::native_staging(values.len())?;
         crate::io::convert_f64_to_f32_into(values, &mut target).map_err(|error| match error {
             InputError::NonFinite { index, .. } => InputError::NonFinite { field, index },
             InputError::ScalarOverflow { index, .. } => InputError::ScalarOverflow { field, index },

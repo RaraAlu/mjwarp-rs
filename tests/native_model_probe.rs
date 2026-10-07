@@ -7,6 +7,10 @@ const JOINTS: &[u8] = include_bytes!("../fixtures/native-probe/two-joints.mjb");
 const EMPTY: &[u8] = include_bytes!("../fixtures/native-probe/zero-dof.mjb");
 const MIXED: &[u8] = include_bytes!("../fixtures/native-probe/mixed-joints.mjb");
 
+#[path = "native/inertial_fields.rs"]
+mod inertial;
+#[path = "native/inertial_preflight.rs"]
+mod inertial_preflight;
 #[path = "native/kinematic_preflight.rs"]
 mod preflight;
 
