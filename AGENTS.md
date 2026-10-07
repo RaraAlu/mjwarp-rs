@@ -11,6 +11,7 @@
 九项惯性字段支持组合上传。
 二十一字段仍属辅助子集。
 刚体运动学已有GPU探针。
+几何与site位姿也有GPU探针。
 质心与自由度映射也有探针。
 质量矩阵已有GPU子集探针。
 质量求解已有正定辅助探针。
@@ -44,10 +45,12 @@ LRsLab负责CPU play。
 | `src/main.rs` | 提供探针命令入口 |
 | `src/lib.rs` | 导出七模块基础接口与探针 |
 | `src/model/` | 检查布局、原生DTO与运动学惯性输入 |
+| `src/model/attached.rs` | 检查几何与site六项附着字段 |
 | `src/io/` | 转换、GPU字段交换与只读字段组 |
 | `src/io/fields.rs` | 提供独立连续字段底层 |
 | `src/runtime/` | 实现驱动级GPU探针 |
 | `src/physics/` | 历史校验与刚体GPU探针 |
+| `src/physics/attached.rs` | 复用刚体设备结果计算附着位姿 |
 | `src/physics/mass_matrix.rs` | 复合惯量与稠密质量矩阵 |
 | `src/physics/mass_solve.rs` | 正定分解与多右端项求解 |
 | `src/runtime/transfer/kernel.rs` | 封装内部同步内核ABI |
@@ -57,6 +60,7 @@ LRsLab负责CPU play。
 | `tests/` | 存放Rust GPU与原生探针测试 |
 | `fixtures/native-probe/` | 保留静态MJB、源XML、结构打印件与哈希 |
 | `fixtures/kinematics/` | 保留静态原生运动学参考 |
+| `fixtures/attached-kinematics/` | 保留几何与site原生参考 |
 | `fixtures/com-position/` | 保留质心参考与零质量边界 |
 | `fixtures/mass-matrix/` | 保留矩阵参考与armature链 |
 | `fixtures/mass-solve/` | 保留原生因子、右端项与解 |
@@ -145,6 +149,14 @@ scripts/test-windows-kinematics.ps1 -AllFeatures -Release
 ```
 
 该脚本需要NVRTC。
+附着运动学也需要NVRTC。
+执行以下Windows脚本：
+
+```text
+scripts/test-windows-attached-kinematics.ps1 -AllFeatures
+scripts/test-windows-attached-kinematics.ps1 -AllFeatures -Release
+```
+
 质量矩阵脚本也需要NVRTC。
 执行以下Windows脚本：
 

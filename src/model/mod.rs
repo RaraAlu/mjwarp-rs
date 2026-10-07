@@ -9,6 +9,8 @@ pub mod topology;
 pub use topology::{KinematicFields, KinematicModelInput};
 pub mod inertial;
 pub use inertial::{InertialFields, InertialModelInput};
+pub mod attached;
+pub use attached::{AttachedFields, AttachedModelInput};
 
 /// Windows原生探针的小型DTO。
 /// 计数采用原生有符号64位。

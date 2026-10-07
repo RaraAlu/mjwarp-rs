@@ -892,6 +892,10 @@ Windows与Linux分别执行测试。
 求解证据见[求解报告](windows-mass-solve-probe.md)。
 矩阵证据见[矩阵报告](windows-mass-matrix-probe.md)。
 刚体子集已有七项GPU结果。
+附着子集新增四项GPU结果。
+六字段只读检查已有源码。
+静态geom重算不复刻缓存副作用。
+附着证据见[附着报告](windows-attached-kinematics-probe.md)。
 质心子集新增四项GPU结果。
 零质量语义对齐冻结Warp。
 原生CPU阈值回退不适用。

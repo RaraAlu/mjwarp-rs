@@ -36,6 +36,17 @@ CUDA部分复用上述许可。
 
 [上游刚体源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py)
 
+## 几何与site运动学CUDA探针
+
+`src/physics/attached.rs`移植附着变换。
+公式来自冻结`smooth.py`。
+版权与Apache-2.0许可沿用上述条款。
+本项目复用刚体CUDA四元数公式。
+GPU输出位置与按行展开矩阵。
+本探针每次重算静态geom。
+它不复刻上游初始化缓存副作用。
+它不代表完整G01实现。
+
 ## 质量矩阵CUDA探针
 
 `src/physics/mass_matrix.rs`移植刚体CRB。
