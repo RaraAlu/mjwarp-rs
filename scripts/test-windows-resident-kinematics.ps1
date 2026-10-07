@@ -2,7 +2,7 @@
 param([switch]$AllFeatures, [switch]$Release)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight')) {
+foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon')) {
     $fixtures = Join-Path $root "fixtures\$name"
     $manifest = Get-Content -LiteralPath (Join-Path $fixtures 'manifest.json') -Raw | ConvertFrom-Json
     foreach ($file in $manifest.files) {
@@ -44,6 +44,9 @@ try {
     $camlightReferences = Invoke-CheckedTest 'camlight-references' ($base + @('--test', 'resident_camlight', 'reference_hashes', '--', '--test-threads=1')) 1
     $camlight = Invoke-CheckedTest 'camlight' ($base + @('--test', 'resident_camlight', '--', '--ignored', '--test-threads=1', '--nocapture')) 5
     $camlightGuards = Invoke-CheckedTest 'camlight-guards' ($base + @('--lib', 'camlight_readback_rejects', '--', '--ignored', '--test-threads=1')) 1
+    $tendonReferences = Invoke-CheckedTest 'tendon-references' ($base + @('--test', 'resident_fixed_tendon', 'reference_hashes', '--', '--test-threads=1')) 1
+    $tendon = Invoke-CheckedTest 'fixed-tendon' ($base + @('--test', 'resident_fixed_tendon', '--', '--ignored', '--test-threads=1', '--nocapture')) 4
+    $tendonGuards = Invoke-CheckedTest 'tendon-guards' ($base + @('--lib', 'fixed_tendon_readback_rejects', '--', '--ignored', '--test-threads=1')) 2
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
     $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 3
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
@@ -96,6 +99,16 @@ try {
     }
     if ($camlightComparisons -ne 2084) { throw "相机光源比较计数不符：$camlightComparisons" }
     if ($camlightParameterComparisons -ne 1042) { throw "相机光源参数计数不符：$camlightParameterComparisons" }
+    $tendonLargest = 0.0
+    $tendonComparisons = 0
+    foreach ($line in Get-Content -LiteralPath (Join-Path $directory 'fixed-tendon.log')) {
+        if ($line -match 'G01-fixed-tendon kind=native world=\d+ max_abs_error=([0-9.eE+-]+)') {
+            $tendonComparisons++
+            $number = [double]::Parse($Matches[1], [Globalization.CultureInfo]::InvariantCulture)
+            $tendonLargest = [Math]::Max($tendonLargest, $number)
+        }
+    }
+    if ($tendonComparisons -ne 2084) { throw "固定肌腱比较计数不符：$tendonComparisons" }
     [ordered]@{
         platform = 'Windows x86_64 MSVC'
         windowsVersion = [Environment]::OSVersion.Version.ToString()
@@ -114,13 +127,16 @@ try {
         camlightReferencesPassed = $camlightReferences
         camlightPassed = $camlight
         camlightGuardsPassed = $camlightGuards
+        fixedTendonReferencesPassed = $tendonReferences
+        fixedTendonPassed = $tendon
+        fixedTendonGuardsPassed = $tendonGuards
         staticCachePassed = $staticCache
         adapterPassed = $adapter
         comparedWorlds = $comparisons
         maxAbsoluteError = $largest
         absoluteTolerance = 0.00002
         relativeTolerance = 0.00002
-        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json')
+        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json')
         sharedReferenceBatchSize = 1
         parameterIndexRule = 'world % B_f'
         parameterComparedWorlds = $parameterComparisons
@@ -143,6 +159,13 @@ try {
         camlightModes = @(0, 1, 2, 3, 4)
         camlightNegativeTargets = @(-2, -1)
         camlightDegenerateTargetWorlds = 513
+        fixedTendonComparedWorlds = $tendonComparisons
+        fixedTendonMaxAbsoluteError = $tendonLargest
+        fixedTendonWorldCounts = @(1, 2, 5, 513)
+        fixedTendonCount = 4
+        fixedTendonNnz = 8
+        fixedTendonQpos0Period = 3
+        fixedTendonSharedCoefficients = $true
         nvrtcLibraries = @(Get-ChildItem -LiteralPath (Join-Path $env:CUDA_PATH 'bin') -Filter 'nvrtc*.dll' |
             ForEach-Object { [ordered]@{ name = $_.Name; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() } })
         scriptInvokesNativeKinematics = $false

@@ -68,6 +68,20 @@ GPU输出位置与按行展开矩阵。
 [Warp归一化](https://github.com/NVIDIA/warp/blob/v1.15.0/warp/native/vec.h#L1033-L1040)。
 [Warp零阈值](https://github.com/NVIDIA/warp/blob/v1.15.0/warp/native/builtin.h#L527)。
 
+## 固定肌腱CUDA辅助
+
+`src/physics/fixed_tendon.rs`移植关节项。
+公式来自冻结`_joint_tendon`。
+版权与Apache-2.0沿用上述条款。
+本项目每线程独占一个世界。
+本项目顺序累加固定长度。
+本项目保留原生CSR列编号。
+本项目拒绝同腱重复关节。
+本项目不实现空间绕行。
+它不代表完整G01实现。
+
+[冻结肌腱源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py)。
+
 ## 质量矩阵CUDA探针
 
 `src/physics/mass_matrix.rs`移植刚体CRB。

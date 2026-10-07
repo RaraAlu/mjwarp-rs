@@ -29,6 +29,10 @@ GPU初始化静态geom缓存。
 辅助入口不替代目标架构。
 现状见[mocap报告](windows-resident-mocap.md)。
 相机光源见[增量报告](windows-resident-camlight.md)。
+固定肌腱见[增量报告](windows-resident-fixed-tendon.md)。
+固定肌腱读取常驻qpos。
+它保留原生CSR布局。
+它不计算空间绕行或包裹点。
 
 ## 系统分层
 

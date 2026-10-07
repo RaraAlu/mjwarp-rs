@@ -5,9 +5,10 @@ use std::sync::Arc;
 
 use super::attached::AttachedLayout;
 use super::camlight::CamLightLayout;
+use super::fixed_tendon::FixedTendonLayout;
 use super::{
     AttachedKinematicsOutput, CamLightOutput, ComPositionLayout, ComPositionOutput,
-    KinematicsLayout, KinematicsOutput, check_com_position, check_kinematics,
+    FixedTendonOutput, KinematicsLayout, KinematicsOutput, check_com_position, check_kinematics,
 };
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
@@ -16,7 +17,8 @@ use crate::diagnostics::{InputError, TransferError};
 use crate::model::CamLightParameter;
 use crate::model::{
     AttachedModelInput, BatchLayout, CamLightFields, CamLightModelInput, CamLightParameters,
-    KinematicsParameter, KinematicsParameters, MocapModelInput,
+    FixedTendonFields, FixedTendonModelInput, FixedTendonRows, KinematicsParameter,
+    KinematicsParameters, MocapModelInput,
 };
 use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
@@ -39,6 +41,7 @@ pub struct KinematicsPlan {
     ncam: usize,
     nlight: usize,
     camlight_parameters: CamLightParameters,
+    fixed_tendon_rows: Arc<FixedTendonRows>,
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
     rigid: super::DeviceModel<f32>,
@@ -56,6 +59,14 @@ pub struct KinematicsPlan {
     initialize_kernel: SynchronousKernel,
     #[cfg(feature = "cuda-probe")]
     camlight: Option<DeviceCamLight>,
+    #[cfg(feature = "cuda-probe")]
+    fixed_tendon: Option<DeviceFixedTendon>,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct DeviceFixedTendon {
+    model: super::DeviceModel<f32>,
+    kernel: SynchronousKernel,
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -75,6 +86,7 @@ struct ResidentLayout {
     com: ComPositionLayout,
     attached: AttachedLayout,
     camlight: CamLightLayout,
+    fixed_tendon: FixedTendonLayout,
 }
 
 impl ResidentLayout {
@@ -92,6 +104,7 @@ impl ResidentLayout {
             com: ComPositionLayout::new(worlds, k.nbody(), k.njnt(), k.nv())?,
             attached: AttachedLayout::new(worlds, model.ngeom(), model.nsite())?,
             camlight: CamLightLayout::new(worlds, 0, 0)?,
+            fixed_tendon: FixedTendonLayout::new(worlds, 0, 0)?,
             qpos: BatchLayout::new(worlds, k.nq(), 4)?,
             mocap_pos: BatchLayout::new(worlds, nmocap * 3, 4)?,
             mocap_quat: BatchLayout::new(worlds, nmocap * 4, 4)?,
@@ -106,6 +119,7 @@ struct ReadyStages {
     com: bool,
     attached: bool,
     camlight: bool,
+    fixed_tendon: bool,
 }
 
 impl ReadyStages {
@@ -132,6 +146,7 @@ impl ReadyStages {
 /// 初始化缓存不代表阶段就绪。
 pub struct KinematicsData {
     model: Arc<AttachedModelInput>,
+    fixed_tendon_rows: Arc<FixedTendonRows>,
     layout: ResidentLayout,
     ready: ReadyStages,
     #[cfg(feature = "cuda-probe")]
@@ -144,6 +159,8 @@ pub struct KinematicsData {
     attached: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
     camlight: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    fixed_tendon: TransferBuffer<f32>,
 }
 
 /// 一次显式回读的完整子集结果。
@@ -154,9 +171,13 @@ pub struct KinematicsSnapshot {
     attached: AttachedKinematicsOutput,
     com: ComPositionOutput,
     camlight: CamLightOutput,
+    fixed_tendon: FixedTendonOutput,
 }
 
 impl KinematicsSnapshot {
+    pub fn fixed_tendon(&self) -> &FixedTendonOutput {
+        &self.fixed_tendon
+    }
     pub fn camlight(&self) -> &CamLightOutput {
         &self.camlight
     }
@@ -221,6 +242,26 @@ impl KinematicsPlan {
         parameters: KinematicsParameters,
         camlight_parameters: CamLightParameters,
     ) -> Result<Self, TransferError> {
+        Self::with_fixed_tendons(
+            session,
+            FixedTendonModelInput::new(model, FixedTendonFields::default())?,
+            parameters,
+            camlight_parameters,
+        )
+    }
+
+    /// 接收关节项与原生CSR。
+    /// 系数与拓扑共享一份。
+    /// 长度直接使用当前qpos。
+    pub fn with_fixed_tendons(
+        session: &TransferSession,
+        model: FixedTendonModelInput,
+        parameters: KinematicsParameters,
+        camlight_parameters: CamLightParameters,
+    ) -> Result<Self, TransferError> {
+        let (model, fixed_tendon_fields, fixed_tendon_rows) = model.into_parts();
+        let fixed_tendon_layout =
+            FixedTendonLayout::new(1, fixed_tendon_rows.ntendon(), fixed_tendon_rows.nnz())?;
         camlight_parameters.validate(&model)?;
         let ncam = model.ncam();
         let nlight = model.nlight();
@@ -243,6 +284,9 @@ impl KinematicsPlan {
                 static_geom,
                 camlight_fields,
                 camlight_layout,
+                fixed_tendon_layout,
+                fixed_tendon_fields,
+                fixed_tendon_rows,
             );
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
@@ -291,6 +335,7 @@ impl KinematicsPlan {
                 fk.output.elements_per_world(),
                 com_stride,
             )?;
+            let fixed_tendon = pack_fixed_tendon(&model, &fixed_tendon_fields)?;
             let rigid = rigid.upload(session)?;
             let com = com.upload(session)?;
             let attached = attached.upload(session)?;
@@ -322,6 +367,18 @@ impl KinematicsPlan {
                     com_kernel: SynchronousKernel::compile(session, &source, "camlight_com")?,
                 })
             };
+            let fixed_tendon = if fixed_tendon_layout.is_empty() {
+                None
+            } else {
+                Some(DeviceFixedTendon {
+                    model: fixed_tendon.upload(session)?,
+                    kernel: SynchronousKernel::compile(
+                        session,
+                        super::fixed_tendon::FIXED_TENDON_CUDA,
+                        "fixed_tendon",
+                    )?,
+                })
+            };
             Ok(Self {
                 model: Arc::new(model),
                 parameters,
@@ -330,6 +387,7 @@ impl KinematicsPlan {
                 ncam,
                 nlight,
                 camlight_parameters,
+                fixed_tendon_rows: Arc::new(fixed_tendon_rows),
                 session: session.clone(),
                 rigid,
                 com,
@@ -339,6 +397,7 @@ impl KinematicsPlan {
                 attached_kernel,
                 initialize_kernel,
                 camlight,
+                fixed_tendon,
             })
         }
     }
@@ -368,13 +427,21 @@ impl KinematicsPlan {
     pub fn nlight(&self) -> usize {
         self.nlight
     }
+    pub fn fixed_tendon_rows(&self) -> &FixedTendonRows {
+        &self.fixed_tendon_rows
+    }
 
-    /// 创建独立世界与四组输出。
+    /// 创建独立世界与五组输出。
     /// 全部尺寸通过后才申请显存。
     /// 初始派生结果保持未就绪。
     pub fn create_data(&self, worlds: usize) -> Result<KinematicsData, TransferError> {
         let mut layout = ResidentLayout::new(&self.model, worlds, self.nmocap)?;
         layout.camlight = CamLightLayout::new(worlds, self.ncam, self.nlight)?;
+        layout.fixed_tendon = FixedTendonLayout::new(
+            worlds,
+            self.fixed_tendon_rows.ntendon(),
+            self.fixed_tendon_rows.nnz(),
+        )?;
         #[cfg(not(feature = "cuda-probe"))]
         {
             let _ = layout.state;
@@ -422,6 +489,7 @@ impl KinematicsPlan {
             }
             let mut data = KinematicsData {
                 model: Arc::clone(&self.model),
+                fixed_tendon_rows: Arc::clone(&self.fixed_tendon_rows),
                 layout,
                 ready: ReadyStages::default(),
                 state: self.session.upload(&state)?,
@@ -429,6 +497,7 @@ impl KinematicsPlan {
                 com: allocate_output(&self.session, layout.com.guarded)?,
                 attached: allocate_output(&self.session, layout.attached.guarded)?,
                 camlight: allocate_output(&self.session, layout.camlight.guarded)?,
+                fixed_tendon: allocate_output(&self.session, layout.fixed_tendon.guarded)?,
             };
             self.update_rigid(&mut data)?;
             // SAFETY: The initialization entry shares the checked attached ABI.
@@ -609,7 +678,45 @@ impl KinematicsPlan {
         }
     }
 
-    /// 依次执行四个子集阶段。
+    /// 只读取常驻qpos状态。
+    /// 本子集不依赖刚体或质心。
+    pub fn update_fixed_tendons(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        data.ready.fixed_tendon = false;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            if let Some(device) = &self.fixed_tendon {
+                let l = data.layout.fixed_tendon;
+                let dimensions = [
+                    data.layout.qpos.elements_per_world() as u32,
+                    l.ntendon as u32,
+                    l.nnz as u32,
+                    data.worlds() as u32,
+                ];
+                // SAFETY: Validated scalar joint references and CSR coverage prove
+                // every packed qpos address and Jacobian slot. Checked layouts
+                // bound the wide world strides. Buffers share this session and
+                // distinct allocations; each thread owns one guarded output row.
+                unsafe {
+                    device.kernel.launch(
+                        &device.model.metadata,
+                        &device.model.parameters,
+                        &data.state,
+                        &mut data.fixed_tendon,
+                        dimensions,
+                    )?;
+                }
+            }
+            data.ready.fixed_tendon = true;
+            Ok(())
+        }
+    }
+
+    /// 依次执行五个子集阶段。
     /// 不上传模型或编译内核。
     /// 不回读阶段间的宿主结果。
     /// 不等于上游fwd_kinematics。
@@ -617,11 +724,15 @@ impl KinematicsPlan {
         self.update_rigid(data)?;
         self.update_attached(data)?;
         self.update_com(data)?;
-        self.update_camlight(data)
+        self.update_camlight(data)?;
+        self.update_fixed_tendons(data)
     }
 }
 
 impl KinematicsData {
+    pub fn fixed_tendon_rows(&self) -> &FixedTendonRows {
+        &self.fixed_tendon_rows
+    }
     pub fn worlds(&self) -> usize {
         self.layout.qpos.worlds()
     }
@@ -715,11 +826,16 @@ impl KinematicsData {
             self.layout.camlight.is_empty() || self.ready.camlight,
             "camlight",
         )?;
+        self.ready.require(
+            self.layout.fixed_tendon.is_empty() || self.ready.fixed_tendon,
+            "fixed_tendon",
+        )?;
         let lengths = [
             self.layout.rigid.output.total_elements() + 8,
             self.layout.com.output.total_elements() + 8,
             self.layout.attached.output.total_elements() + 8,
             self.layout.camlight.output.total_elements() + 8,
+            self.layout.fixed_tendon.output.total_elements() + 8,
         ];
         #[cfg(not(feature = "cuda-probe"))]
         {
@@ -732,6 +848,11 @@ impl KinematicsData {
             let com = read_output(&self.com, lengths[1], "resident_com_output")?;
             let attached = read_output(&self.attached, lengths[2], "resident_attached_output")?;
             let camlight = read_output(&self.camlight, lengths[3], "resident_camlight_output")?;
+            let fixed_tendon = read_output(
+                &self.fixed_tendon,
+                lengths[4],
+                "resident_fixed_tendon_output",
+            )?;
             Ok(KinematicsSnapshot {
                 attached: AttachedKinematicsOutput {
                     rigid: KinematicsOutput {
@@ -748,6 +869,11 @@ impl KinematicsData {
                 camlight: CamLightOutput {
                     layout: self.layout.camlight,
                     values: camlight,
+                },
+                fixed_tendon: FixedTendonOutput {
+                    layout: self.layout.fixed_tendon,
+                    values: fixed_tendon,
+                    rows: Arc::clone(&self.fixed_tendon_rows),
                 },
             })
         }
@@ -951,6 +1077,45 @@ impl PackedModel {
             parameters: session.upload(&self.parameters)?,
         })
     }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn pack_fixed_tendon(
+    model: &AttachedModelInput,
+    fields: &FixedTendonFields,
+) -> Result<PackedModel, TransferError> {
+    let nt = fields.tendon_adr.len();
+    let nw = fields.wrap_objid.len();
+    let length = packed_length([1, nt, nt, nw, nw].into_iter())?;
+    let mut metadata = crate::runtime::host_staging::<i32>(length)?;
+    let mut parameters = crate::runtime::host_staging::<f32>(nw.max(1))?;
+    metadata[0] = nw as i32;
+    metadata[1..1 + nt].copy_from_slice(&fields.tendon_adr);
+    metadata[1 + nt..1 + 2 * nt].copy_from_slice(&fields.tendon_num);
+    parameters[..nw].copy_from_slice(&fields.wrap_prm);
+    let k = model.rigid().kinematics().fields();
+    for tendon in 0..nt {
+        let row = fields.ten_j_rowadr[tendon] as usize;
+        let columns = &fields.ten_j_colind[row..row + fields.ten_j_rownnz[tendon] as usize];
+        let start = fields.tendon_adr[tendon] as usize;
+        for i in start..start + fields.tendon_num[tendon] as usize {
+            let joint = fields.wrap_objid[i] as usize;
+            metadata[1 + 2 * nt + i] = k.jnt_qposadr[joint];
+            // Model validation proved each reference exists in this sorted row.
+            let slot = columns.binary_search(&k.jnt_dofadr[joint]).map_err(|_| {
+                InputError::InvalidTopology {
+                    field: "ten_J_colind",
+                    index: row,
+                    reason: "missing_tendon_dof_column",
+                }
+            })?;
+            metadata[1 + 2 * nt + nw + i] = (row + slot) as i32;
+        }
+    }
+    Ok(PackedModel {
+        metadata,
+        parameters,
+    })
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -1440,5 +1605,103 @@ mod tests {
             }
         }
         data.readback().unwrap();
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    fn fixed_tendon_plan(session: &TransferSession, coefficient: f32) -> KinematicsPlan {
+        let camlight = CamLightModelInput::new(
+            MocapModelInput::new(parameter_model(false), vec![-1; 2]).unwrap(),
+            CamLightFields::default(),
+        )
+        .unwrap();
+        let model = FixedTendonModelInput::new(
+            camlight,
+            FixedTendonFields {
+                tendon_adr: vec![0],
+                tendon_num: vec![1],
+                wrap_type: vec![1],
+                wrap_objid: vec![0],
+                wrap_prm: vec![coefficient],
+                ten_j_rowadr: vec![0],
+                ten_j_rownnz: vec![1],
+                ten_j_colind: vec![0],
+            },
+        )
+        .unwrap();
+        KinematicsPlan::with_fixed_tendons(
+            session,
+            model,
+            KinematicsParameters::default(),
+            CamLightParameters::default(),
+        )
+        .unwrap()
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn fixed_tendon_readback_rejects_device_guards_and_nonfinite_payloads() {
+        let session = TransferSession::new(0).unwrap();
+        let plan = fixed_tendon_plan(&session, -2.0);
+        let mut data = plan.create_data(513).unwrap();
+        plan.update(&mut data).unwrap();
+        let length = data.layout.fixed_tendon.guarded;
+        for index in [0, 3, length - 4, length - 1] {
+            data.fixed_tendon.write_range(index, &[0.0]).unwrap();
+            assert!(matches!(data.readback(), Err(TransferError::Backend(
+                crate::diagnostics::ProbeError::Mismatch { index: i, .. })) if i==index));
+            data.fixed_tendon.write_range(index, &[-131072.0]).unwrap();
+        }
+        for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            for index in [4, 5, 4 + 512 * 2, 5 + 512 * 2] {
+                data.fixed_tendon.write_range(index, &[bad]).unwrap();
+                assert!(matches!(data.readback(), Err(TransferError::Input(
+                    InputError::NonFinite { field: "resident_fixed_tendon_output", index: i })) if i==index-4));
+                plan.update_fixed_tendons(&mut data).unwrap();
+            }
+        }
+        data.readback().unwrap();
+        // An empty zero-DOF model still exposes checked empty tendon views.
+        let plan = KinematicsPlan::new(&session, empty_model()).unwrap();
+        let mut data = plan.create_data(513).unwrap();
+        plan.update(&mut data).unwrap();
+        assert!(
+            data.readback()
+                .unwrap()
+                .fixed_tendon()
+                .world(512)
+                .unwrap()
+                .ten_jacobian
+                .is_empty()
+        );
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn fixed_tendon_readback_rejects_arithmetic_overflow_and_recovers() {
+        let session = TransferSession::new(0).unwrap();
+        let plan = fixed_tendon_plan(&session, f32::MAX);
+        let mut data = plan.create_data(513).unwrap();
+        data.write_world_qpos(512, &[2.0]).unwrap();
+        plan.update(&mut data).unwrap();
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::Input(InputError::NonFinite {
+                field: "resident_fixed_tendon_output",
+                index: 1024
+            }))
+        ));
+        data.write_world_qpos(512, &[0.5]).unwrap();
+        plan.update(&mut data).unwrap();
+        assert_eq!(
+            data.readback()
+                .unwrap()
+                .fixed_tendon()
+                .world(512)
+                .unwrap()
+                .ten_length,
+            &[f32::MAX * 0.5]
+        );
     }
 }

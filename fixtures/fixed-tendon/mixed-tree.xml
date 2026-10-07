@@ -1,0 +1,29 @@
+<mujoco model="fixed-tendon-reference">
+  <compiler angle="radian"/>
+  <option jacobian="sparse"/>
+  <default><geom type="sphere" size="0.08" mass="1"/></default>
+  <worldbody>
+    <body name="free" pos="0.2 -0.1 1">
+      <freejoint name="free-joint"/><geom/>
+      <body name="ball" pos="0 0 0.2">
+        <joint name="ball-joint" type="ball"/><geom/>
+        <body name="hinge-a" pos="0.1 0.2 0.1">
+          <joint name="hinge-a" type="hinge" axis="0 1 0" ref="0.4"/><geom/>
+          <site pos="0.1 0 0"/>
+          <body name="hinge-b" pos="0.2 0 0">
+            <joint name="hinge-b" type="hinge" axis="1 0 0" ref="-0.3"/><geom/>
+          </body>
+        </body>
+      </body>
+    </body>
+    <body name="slide" pos="-0.2 0.3 0.7">
+      <joint name="slide" type="slide" axis="0 0 1" ref="0.15"/><geom/>
+    </body>
+  </worldbody>
+  <tendon>
+    <fixed name="signed"><joint joint="hinge-b" coef="-0.75"/><joint joint="hinge-a" coef="1.5"/><joint joint="slide" coef="2.25"/></fixed>
+    <fixed name="zero"><joint joint="hinge-a" coef="0"/><joint joint="slide" coef="0"/></fixed>
+    <fixed name="single"><joint joint="hinge-b" coef="-2"/></fixed>
+    <fixed name="mixed"><joint joint="slide" coef="-0.5"/><joint joint="hinge-a" coef="0.25"/></fixed>
+  </tendon>
+</mujoco>

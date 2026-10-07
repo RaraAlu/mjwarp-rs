@@ -17,6 +17,8 @@ pub mod parameters;
 pub use parameters::{KinematicsParameter, KinematicsParameters, ParameterBatch};
 pub mod camlight;
 pub use camlight::{CamLightFields, CamLightModelInput, CamLightParameter, CamLightParameters};
+pub mod fixed_tendon;
+pub use fixed_tendon::{FixedTendonFields, FixedTendonModelInput, FixedTendonRows};
 
 /// Windows原生探针的小型DTO。
 /// 计数采用原生有符号64位。
