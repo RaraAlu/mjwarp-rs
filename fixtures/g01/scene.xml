@@ -1,0 +1,74 @@
+<mujoco model="g01-complete">
+  <compiler fusestatic="false"/>
+  <option gravity="0 0 0"><flag sleep="enable"/></option>
+  <default><geom contype="0" conaffinity="0"/><site size="0.01"/></default>
+  <worldbody>
+    <geom name="static-sphere" type="sphere" size="0.3" pos="0 -2 0"/>
+    <geom name="static-cylinder" type="cylinder" size="0.25 0.8" pos="0 3 0"/>
+    <site name="s0" pos="-1 -1.9 0"/><site name="s1" pos="1 -1.85 0"/>
+    <site name="side" pos="0 -1 0"/><site name="inside" pos="0.04 -2 0"/>
+    <site name="i0" pos="1.2 -1.6 0"/><site name="i1" pos="1.5 -2.1 0"/>
+    <site name="c0" pos="-1 3.1 -0.6"/><site name="c1" pos="1 3.15 0.7"/>
+    <site name="cside" pos="0 3.75 0"/><site name="cinside" pos="0.04 3 0"/>
+    <site name="ci0" pos="1.2 3.4 -0.2"/><site name="ci1" pos="1.5 2.9 0.4"/>
+    <camera name="world-camera" pos="2 -3 1"/><light name="world-light" pos="-2 3 1" dir="1 2 -3"/>
+    <body name="rotor" pos="0.2 -0.3 0.4" euler="10 20 30">
+      <joint name="hinge" axis="0 0 1"/>
+      <inertial mass="1" pos="0.1 0 0" diaginertia="0.1 0.2 0.3"/>
+      <geom name="moving-sphere" type="sphere" size="0.1" pos="0.2 0 0"/>
+      <site name="moving" pos="0.4 0.1 0"/><site name="moving-side" pos="0.2 0.5 0"/>
+      <camera name="fixed" pos="1 2 3"/><camera name="track" mode="track" pos="-2 3 1"/>
+      <camera name="com" mode="trackcom" pos="2 -1 3"/>
+      <camera name="target" mode="targetbody" target="slider" pos="1 -2 3"/>
+      <camera name="targetcom" mode="targetbodycom" target="tracked" pos="3 2 -1"/>
+      <camera name="missing" pos="1 3 2"/><camera name="missingcom" pos="-1 2 3"/>
+      <light name="fixed" pos="-1 2 3" dir="2 -1 3"/>
+      <light name="track" mode="track" pos="2 -3 1" dir="-1 2 3"/>
+      <light name="com" mode="trackcom" pos="-2 1 3" dir="1 -2 3"/>
+      <light name="target" mode="targetbody" target="slider" pos="2 1 3"/>
+      <light name="targetcom" mode="targetbodycom" target="tracked" pos="-3 -2 1"/>
+      <light name="missing" pos="-1 -3 -2" dir="1 3 -2"/>
+      <light name="missingcom" pos="1 -2 -3" dir="1 -2 3"/>
+      <flexcomp name="shell" type="grid" dim="3" count="5 3 3" cellcount="2 1 1" spacing="0.2 0.3 0.4" pos="1 0 0" dof="trilinear" mass="2">
+        <contact selfcollide="none" internal="false"/>
+      </flexcomp>
+    </body>
+    <body name="slider" pos="1.3 0.2 -0.1">
+      <joint name="slide" type="slide" axis="1 0 0"/>
+      <inertial mass="1" pos="0 0 0" diaginertia="0.1 0.1 0.1"/>
+      <site name="slide-site"/>
+    </body>
+    <body name="ball" pos="-0.8 0.4 0.2">
+      <joint name="balljoint" type="ball"/>
+      <inertial mass="1" pos="0 0 0" diaginertia="0.1 0.1 0.1"/>
+    </body>
+    <body name="free" pos="-3 -1 0.7"><freejoint/>
+      <inertial mass="1" pos="0.1 0 0.1" diaginertia="0.1 0.2 0.2"/>
+      <site name="free-site"/>
+    </body>
+    <body name="tracked" mocap="true" pos="0.5 0.7 0.2">
+      <geom type="sphere" size="0.06" mass="1"/><site name="tracked-site"/>
+      <body pos="0.2 0.1 0.3"><geom type="sphere" size="0.05" mass="0.5"/><site name="tracked-child"/></body>
+    </body>
+    <body name="fixed-child" pos="2 1 0"><geom type="box" size="0.1 0.2 0.1" mass="1"/><site name="fixed-site"/></body>
+    <flexcomp name="solid" type="grid" dim="3" count="3 3 3" spacing="0.3 0.3 0.3" pos="0 2 0" dof="trilinear" mass="2">
+      <contact selfcollide="none" internal="false"/>
+    </flexcomp>
+  </worldbody>
+  <deformable>
+    <flex name="offset" dim="1" body="world rotor slider tracked ball" vertex="-0.4 0 0 0.1 0.2 0.3 -0.2 0 0 0.1 -0.1 0.2 0 0.3 0" element="0 1 1 2 2 3 3 4"/>
+    <flex name="centered" dim="1" body="rotor slider tracked" vertex="0 0 0 0 0 0 0 0 0" element="0 1 1 2"/>
+  </deformable>
+  <tendon>
+    <fixed limited="true" range="-0.1 0.1" margin="0.01"><joint joint="hinge" coef="1.7"/><joint joint="slide" coef="-0.4"/></fixed>
+    <spatial><site site="s0"/><geom geom="static-sphere" sidesite="side"/><site site="s1"/></spatial>
+    <spatial><site site="s0"/><geom geom="static-sphere"/><site site="s1"/></spatial>
+    <spatial><site site="i0"/><geom geom="static-sphere" sidesite="inside"/><site site="i1"/></spatial>
+    <spatial><site site="c0"/><geom geom="static-cylinder" sidesite="cside"/><site site="c1"/></spatial>
+    <spatial><site site="ci0"/><geom geom="static-cylinder" sidesite="cinside"/><site site="ci1"/></spatial>
+    <fixed><joint joint="slide" coef="0"/></fixed>
+    <spatial limited="true" range="0 0.2" margin="0.01"><site site="moving"/><site site="slide-site"/></spatial>
+    <spatial><pulley divisor="2"/><site site="moving"/><site site="tracked-site"/><pulley divisor="4"/><site site="free-site"/><site site="tracked-child"/></spatial>
+    <fixed><joint joint="hinge" coef="-0.25"/></fixed>
+  </tendon>
+</mujoco>

@@ -1,4 +1,4 @@
-//! 相机与光源的严格字段子集。
+//! 相机与光源的已检查字段。
 //! 跟踪常量来自已编译模型。
 
 use super::{MocapModelInput, ParameterBatch};
@@ -119,6 +119,22 @@ pub struct CamLightModelInput {
 
 impl CamLightModelInput {
     pub fn new(mocap: MocapModelInput, fields: CamLightFields) -> Result<Self, InputError> {
+        Self::checked(mocap, fields, true)
+    }
+
+    /// 检查布局而不要求单位姿态。
+    pub fn new_equivalent(
+        mocap: MocapModelInput,
+        fields: CamLightFields,
+    ) -> Result<Self, InputError> {
+        Self::checked(mocap, fields, false)
+    }
+
+    fn checked(
+        mocap: MocapModelInput,
+        fields: CamLightFields,
+        strict: bool,
+    ) -> Result<Self, InputError> {
         let nb = mocap.attached().rigid().kinematics().nbody();
         for (mode, body, target, names) in [
             (
@@ -178,7 +194,11 @@ impl CamLightModelInput {
                 field.width(model.ncam(), model.nlight()),
                 field.name(),
             )?;
-            check_values(field, values)?;
+            if strict {
+                check_values(field, values)?;
+            } else {
+                check_values_mode(field, values, false)?;
+            }
         }
         Ok(model)
     }
@@ -215,6 +235,13 @@ impl CamLightParameters {
         self.fields[field as usize].as_ref()
     }
     pub(crate) fn validate(&self, model: &CamLightModelInput) -> Result<(), InputError> {
+        self.validate_mode(model, true)
+    }
+    pub(crate) fn validate_mode(
+        &self,
+        model: &CamLightModelInput,
+        strict: bool,
+    ) -> Result<(), InputError> {
         for field in CamLightParameter::ALL {
             if let Some(batch) = self.get(field) {
                 check_length(
@@ -222,7 +249,9 @@ impl CamLightParameters {
                     field.shared(model.fields()).len(),
                     field.name(),
                 )?;
-                check_values(field, batch.values())?;
+                check_values_mode(field, batch.values(), strict)?;
+            } else {
+                check_values_mode(field, field.shared(model.fields()), strict)?;
             }
         }
         Ok(())
@@ -254,6 +283,13 @@ fn check_length(actual: usize, expected: usize, field: &'static str) -> Result<(
 }
 
 fn check_values(field: CamLightParameter, values: &[f32]) -> Result<(), InputError> {
+    check_values_mode(field, values, true)
+}
+fn check_values_mode(
+    field: CamLightParameter,
+    values: &[f32],
+    strict: bool,
+) -> Result<(), InputError> {
     for (index, value) in values.iter().enumerate() {
         if !value.is_finite() {
             return Err(InputError::NonFinite {
@@ -262,7 +298,7 @@ fn check_values(field: CamLightParameter, values: &[f32]) -> Result<(), InputErr
             });
         }
     }
-    if field == CamLightParameter::CamQuat {
+    if strict && field == CamLightParameter::CamQuat {
         for (index, q) in values.as_chunks::<4>().0.iter().enumerate() {
             let squared: f64 = q.iter().map(|&v| f64::from(v).powi(2)).sum();
             if (squared - 1.0).abs() > 2e-6 {
@@ -417,6 +453,38 @@ mod tests {
             ParameterBatch::new(7, 20, q).unwrap(),
         );
         assert!(p.validate(&model).is_err());
+    }
+    #[test]
+    fn equivalent_rotation_still_requires_strict_shared_or_override_validation() {
+        let mut fields = fields();
+        fields.cam_quat[16] = 2.0;
+        let model = CamLightModelInput::new_equivalent(base(), fields.clone()).unwrap();
+        assert_eq!(model.fields(), &fields);
+        assert!(CamLightModelInput::new(base(), fields).is_err());
+        let mut parameters = CamLightParameters::default();
+        assert!(matches!(
+            parameters.validate(&model),
+            Err(InputError::InvalidTopology {
+                field: "cam_quat",
+                index: 4,
+                reason: "nonunit_model_rotation"
+            })
+        ));
+        parameters.validate_mode(&model, false).unwrap();
+        parameters.set(
+            CamLightParameter::CamQuat,
+            ParameterBatch::new(1, 20, [1.0, 0.0, 0.0, 0.0].repeat(5)).unwrap(),
+        );
+        parameters.validate(&model).unwrap();
+        let mut nonfinite = model.fields().clone();
+        nonfinite.cam_quat[16] = f32::NAN;
+        assert!(matches!(
+            CamLightModelInput::new_equivalent(base(), nonfinite),
+            Err(InputError::NonFinite {
+                field: "cam_quat",
+                index: 16
+            })
+        ));
     }
     #[test]
     fn rejects_topology_lengths_modes_and_unsafe_references() {

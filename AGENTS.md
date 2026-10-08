@@ -58,7 +58,12 @@ GPU初始化静态geom缓存。
 质量求解已有正定辅助探针。
 求解内部采用GPU f64计算。
 公开物理输入与结果保持f32。
-它不替代完整G01阶段。
+质量求解不进入G01调度。
+G01已提供完整常驻入口。
+G01也保留等价低层调用。
+原生快照覆盖78项读字段。
+Windows双模式验收通过。
+Linux仍待验收。
 GPU引擎尚待实现。
 首版面向NVIDIA。
 验收覆盖Windows与Linux。
@@ -98,6 +103,7 @@ LRsLab负责CPU play。
 | `src/model/tendon.rs` | 检查混合字段与全局肌腱编号 |
 | `src/io/` | 转换、GPU字段交换与只读字段组 |
 | `src/io/fields.rs` | 提供独立连续字段底层 |
+| `src/io/g01.rs` | 转换完整G01模型读字段 |
 | `src/io/flex.rs` | 复制并转换原生柔体位置字段 |
 | `src/runtime/` | 实现驱动级GPU探针 |
 | `src/physics/` | 历史校验与刚体GPU探针 |
@@ -136,6 +142,7 @@ LRsLab负责CPU play。
 | `fixtures/com-position/` | 保留质心参考与零质量边界 |
 | `fixtures/mass-matrix/` | 保留矩阵参考与armature链 |
 | `fixtures/mass-solve/` | 保留原生因子、右端项与解 |
+| `fixtures/g01/` | 保留完整链原生参考与摘要 |
 | `docs/README.md` | 提供文档索引与现状 |
 | `docs/project-positioning.md` | 明确产品与依赖边界 |
 | `docs/architecture.md` | 描述目标模块与接口 |
@@ -212,6 +219,16 @@ cargo test --locked --features cuda-probe --test gpu_probe -- --ignored --test-t
 ```
 
 详细证据见探针报告。
+G01验收需要可信原生DLL。
+它也需要NVIDIA驱动与NVRTC。
+完整Windows验收执行以下命令：
+
+```text
+scripts/test-windows-g01.ps1 -AllFeatures -FullRegression
+scripts/test-windows-g01.ps1 -AllFeatures -FullRegression -Release
+```
+
+证据见G01全阶段报告。
 刚体探针显式检查参考哈希。
 执行以下Windows脚本：
 

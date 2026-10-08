@@ -44,6 +44,8 @@ struct mjwarp_native_owner {
   decltype(&mj_deleteModel) delete_model;
 };
 
+#include "g01_fields.inc"
+
 extern "C" int32_t mjwarp_native_flex_position_info(
     const mjwarp_native_owner* owner, mjwarp_flex_position_info* info) {
   if (!owner || !owner->model || !info) return 8;

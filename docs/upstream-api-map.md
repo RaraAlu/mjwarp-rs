@@ -40,7 +40,9 @@ mujoco_warp/**/*_test.py
 下表只提出实现归属。
 模块路径表示未来布局。
 它们不是当前Rust API。
-所有对应能力仍待实现。
+G01相关入口已经实现。
+其余完整能力仍待实现。
+G01验收见[本轮报告](windows-g01-acceptance.md)。
 原始签名见[声明盘点](upstream-contract-inventory.md)。
 Rust签名仍需原型评审。
 多个符号可以合并接口。
@@ -280,6 +282,29 @@ step
 依据：[模型上传](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/io.py)、[积分配置检查](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/forward.py)。
 
 ## 本轮完成与剩余任务
+
+### G01实际映射
+
+更新日期：2026-10-09。
+Windows双模式验收通过。
+以下函数接受G01计划与Data。
+等价函数不要求新鲜度票据。
+资源与模型身份检查仍强制。
+
+| 上游编号 | 实际Rust入口 | 范围 |
+| --- | --- | --- |
+| U018 | `physics::fwd_kinematics` | 完整G01调度与条件唤醒 |
+| U056 | `physics::camlight` | 五类相机光源模式 |
+| U057 | `physics::com_pos` | 质心、惯量与自由度映射 |
+| U061 | `physics::flex` | G01位置、边、面与缓存失效 |
+| U062 | `physics::kinematics` | 刚体与附着位姿 |
+| U067 | `physics::tendon` | 长度、稀疏力臂与包裹 |
+
+G01不关闭完整G06与G22。
+M02与M07仍保留完整计划。
+Linux验收仍待执行。
+
+### 首轮盘点记录
 
 本轮核对了入口与文件数量。
 本轮完成实现归属草案。

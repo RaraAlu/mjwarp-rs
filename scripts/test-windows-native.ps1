@@ -31,7 +31,7 @@ New-Item -ItemType Directory -Path $env:MJWARP_NATIVE_MOCKS -Force | Out-Null
 $env:MJWARP_NATIVE_LIFETIME_LOG = Join-Path $env:MJWARP_NATIVE_MOCKS 'lifetime.log'
 $fixtures = Join-Path $root 'fixtures\native-probe'
 $manifest = Get-Content -LiteralPath (Join-Path $fixtures 'manifest.json') -Raw | ConvertFrom-Json
-foreach ($name in @('native-probe', 'flex-position', 'flex-stretch')) {
+foreach ($name in @('native-probe', 'flex-position', 'flex-stretch', 'g01')) {
     $base = Join-Path $root "fixtures\$name"
     $checked = Get-Content -LiteralPath (Join-Path $base 'manifest.json') -Raw | ConvertFrom-Json
     foreach ($file in $checked.files) {
@@ -53,6 +53,9 @@ try {
         @{ Name = 'missing-flex-pointer'; Define = @('/DMOCK_TRACKING', '/DMOCK_MISSING_FLEX_POINTER') },
         @{ Name = 'invalid-flex-counts'; Define = @('/DMOCK_TRACKING', '/DMOCK_INVALID_FLEX_COUNTS') },
         @{ Name = 'oversized-flex-counts'; Define = @('/DMOCK_TRACKING', '/DMOCK_OVERSIZED_FLEX_COUNTS') },
+        @{ Name = 'g01-missing-size'; Define = @('/DMOCK_TRACKING', '/DMOCK_G01', '/DMOCK_G01_MISSING_SIZE') },
+        @{ Name = 'g01-negative-site'; Define = @('/DMOCK_TRACKING', '/DMOCK_G01', '/DMOCK_G01_NEGATIVE_SITE') },
+        @{ Name = 'g01-oversized-camera'; Define = @('/DMOCK_TRACKING', '/DMOCK_G01', '/DMOCK_G01_OVERSIZED_CAMERA') },
         @{ Name = 'direct-flex'; Define = @('/DMOCK_TRACKING', '/DMOCK_FLEX_DIRECT') }
     )) {
         & cl.exe /nologo /LD /MD /std:c++17 "/I$package\include" $case.Define `
@@ -74,7 +77,7 @@ try {
     $output = & cargo @cargoArgs 2>&1 | Tee-Object -FilePath (Join-Path $env:MJWARP_NATIVE_MOCKS 'tests.log')
     if ($LASTEXITCODE -ne 0) { throw '原生模型探针失败' }
     $match = [regex]::Match(($output -join "`n"), 'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;')
-    $expected = if ($Gpu -or $AllFeatures) { 25 } else { 20 }
+    $expected = if ($Gpu -or $AllFeatures) { 27 } else { 22 }
     if (-not $match.Success -or [int]$match.Groups[1].Value -ne $expected -or
         [int]$match.Groups[2].Value -ne 0 -or [int]$match.Groups[3].Value -ne 0) {
         throw '测试计数无效'

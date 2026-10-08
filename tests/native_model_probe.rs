@@ -11,6 +11,8 @@ const MIXED: &[u8] = include_bytes!("../fixtures/native-probe/mixed-joints.mjb")
 mod flex_position;
 #[path = "native/flex_position_preflight.rs"]
 mod flex_position_preflight;
+#[path = "native/g01_preflight.rs"]
+mod g01_preflight;
 #[path = "native/inertial_fields.rs"]
 mod inertial;
 #[path = "native/inertial_preflight.rs"]

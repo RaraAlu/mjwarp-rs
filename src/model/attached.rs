@@ -21,7 +21,8 @@ pub struct AttachedFields {
 }
 
 /// 拥有刚体子集与六项附着字段。
-/// 本辅助接口要求单位四元数。
+/// 严格构造要求单位四元数。
+/// 等价构造仅检查有限性。
 /// 验证后仅提供只读借用。
 ///
 /// ```compile_fail
@@ -38,6 +39,23 @@ pub struct AttachedModelInput {
 
 impl AttachedModelInput {
     pub fn new(rigid: InertialModelInput, fields: AttachedFields) -> Result<Self, InputError> {
+        Self::checked(rigid, fields, true)
+    }
+
+    /// 检查布局而不要求单位姿态。
+    /// G01沿用上游矩阵计算语义。
+    pub fn new_equivalent(
+        rigid: InertialModelInput,
+        fields: AttachedFields,
+    ) -> Result<Self, InputError> {
+        Self::checked(rigid, fields, false)
+    }
+
+    fn checked(
+        rigid: InertialModelInput,
+        fields: AttachedFields,
+        strict: bool,
+    ) -> Result<Self, InputError> {
         for (ids, pos, quat, names) in [
             (
                 &fields.geom_bodyid,
@@ -79,7 +97,7 @@ impl AttachedModelInput {
             }
             for (index, rotation) in quat.as_chunks::<4>().0.iter().enumerate() {
                 let squared: f64 = rotation.iter().map(|&x| f64::from(x).powi(2)).sum();
-                if (squared - 1.0).abs() > 2e-6 {
+                if strict && (squared - 1.0).abs() > 2e-6 {
                     return Err(InputError::InvalidTopology {
                         field: names[2],
                         index,

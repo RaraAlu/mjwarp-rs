@@ -13,6 +13,19 @@ typedef struct mjwarp_native_info {
 } mjwarp_native_info;
 typedef struct mjwarp_native_owner mjwarp_native_owner;
 
+// kind: 1 = int32, 2 = double, 3 = uint8. Count means scalar elements.
+typedef struct mjwarp_g01_field_info {
+  uint32_t kind, reserved;
+  int64_t count;
+} mjwarp_g01_field_info;
+int32_t mjwarp_native_g01_field_info(const mjwarp_native_owner* owner,
+                                   uint32_t id, mjwarp_g01_field_info* info);
+// Target must own count * scalar-width bytes and cannot overlap native storage.
+// Preflight rejects wrong kinds, counts, IDs and required null pointers.
+int32_t mjwarp_native_copy_g01_field(const mjwarp_native_owner* owner,
+                                   uint32_t id, const mjwarp_g01_field_info* info,
+                                   void* target);
+
 typedef struct mjwarp_kinematic_targets {
   uint32_t schema, reserved;
   uint64_t nq, nbody, njnt;

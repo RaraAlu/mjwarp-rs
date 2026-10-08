@@ -31,6 +31,25 @@ extern "C" __declspec(dllexport) mjModel* mj_loadModelBuffer(const void*, int) {
 #endif
   model.body_mass = &mass;
   model.body_parentid = &parent;
+#ifdef MOCK_G01
+  static int address = -1, count = 0, body = 0, geom_type = 2;
+  static double position[3]{}, quaternion[4]{1, 0, 0, 0}, size[3]{0.1, 0.1, 0.1};
+  model.body_jntadr = &address; model.body_jntnum = &count;
+  model.body_pos = position; model.body_quat = quaternion;
+  model.body_ipos = position; model.body_iquat = quaternion; model.body_inertia = position;
+  model.body_mocapid = &address; model.body_treeid = &address;
+  model.ngeom = 1; model.geom_bodyid = &body; model.geom_pos = position;
+  model.geom_quat = quaternion; model.geom_type = &geom_type; model.geom_size = size;
+#ifdef MOCK_G01_MISSING_SIZE
+  model.geom_size = nullptr;
+#endif
+#ifdef MOCK_G01_NEGATIVE_SITE
+  model.nsite = -1;
+#endif
+#ifdef MOCK_G01_OVERSIZED_CAMERA
+  model.ncam = INT64_MAX;
+#endif
+#endif
 #ifdef MOCK_INVALID_FLEX_COUNTS
   model.nflex = -1;
 #endif

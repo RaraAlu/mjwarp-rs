@@ -5,10 +5,14 @@ mod fields;
 #[cfg(feature = "native-model-probe")]
 mod flex;
 #[cfg(feature = "native-model-probe")]
+mod g01;
+#[cfg(feature = "native-model-probe")]
 use fields::check_length;
 pub use fields::{DeviceBatch, convert_f64_to_f32_into, copy_world_f32, upload_f64_batch};
 #[cfg(feature = "native-model-probe")]
 pub use flex::NativeFlexPositionSnapshot;
+#[cfg(feature = "native-model-probe")]
+pub use g01::NativeG01Snapshot;
 
 mod inertial;
 mod kinematic;
@@ -204,6 +208,16 @@ mod native {
             // SAFETY: this thread-confined owner retains its immutable model and
             // DLL; capture preflights counts and owns all disjoint target arrays.
             unsafe { super::NativeFlexPositionSnapshot::capture(self.owner.as_ptr(), self.info) }
+        }
+
+        /// 复制同一模型的全部G01字段。
+        /// 快照不借用原生模型或DLL。
+        pub fn g01_snapshot(&self) -> Result<super::NativeG01Snapshot, NativeProbeError> {
+            let inertial = self.inertial_snapshot()?;
+            let positions = self.flex_position_snapshot()?;
+            // SAFETY: Self retains the immutable owner and DLL on this thread.
+            // Each snapshot owns separate buffers; the bridge checks its field ABI.
+            unsafe { super::NativeG01Snapshot::capture(self.owner.as_ptr(), inertial, positions) }
         }
     }
 

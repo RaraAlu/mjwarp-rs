@@ -33,6 +33,7 @@ fn build_native_probe() {
     );
     println!("cargo:rerun-if-changed={}", include.display());
     println!("cargo:rerun-if-changed=native/model_probe.cpp");
+    println!("cargo:rerun-if-changed=native/g01_fields.inc");
     println!("cargo:rerun-if-changed=include/mjwarp_native_probe.h");
     cc::Build::new()
         .cpp(true)

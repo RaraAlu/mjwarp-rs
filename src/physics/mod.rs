@@ -1,5 +1,5 @@
-//! 历史布局与刚体GPU辅助探针。
-//! 不实现完整物理阶段。
+//! G01运动学与GPU辅助阶段。
+//! 其余完整物理阶段仍待实现。
 
 use std::ops::Range;
 
@@ -14,7 +14,10 @@ pub use mass_solve::{MassSolveOutput, MassSolveWorld, probe_mass_solve};
 mod attached;
 pub use attached::{AttachedKinematicsOutput, AttachedKinematicsWorld, probe_attached_kinematics};
 mod resident;
-pub use resident::{KinematicsData, KinematicsPlan, KinematicsSnapshot};
+pub use resident::{
+    G01SleepState, G01State, KinematicsData, KinematicsPlan, KinematicsSnapshot, camlight, com_pos,
+    flex, fwd_kinematics, kinematics, tendon,
+};
 mod camlight;
 pub use camlight::{CamLightOutput, CamLightWorld};
 mod fixed_tendon;
@@ -782,7 +785,11 @@ __device__ void store_q(float* p,Q q) { p[0]=q.w;p[1]=q.x;p[2]=q.y;p[3]=q.z; }
 __device__ V add(V a,V b) { return {a.x+b.x,a.y+b.y,a.z+b.z}; }
 __device__ V scale(V a,float s) { return {a.x*s,a.y*s,a.z*s}; }
 __device__ Q normalize(Q q) {
-  float s=1.0f/sqrtf(q.w*q.w+q.x*q.x+q.y*q.y+q.z*q.z);
+  float n=sqrtf(q.w*q.w+q.x*q.x+q.y*q.y+q.z*q.z);
+#ifdef MJWARP_G01_EQUIVALENT
+  if(n==0.0f) return {0,0,0,0};
+#endif
+  float s=1.0f/n;
   return {q.w*s,q.x*s,q.y*s,q.z*s};
 }
 __device__ Q multiply(Q a,Q b) {
@@ -837,6 +844,9 @@ extern "C" __global__ void rigid_kinematics(const int* meta,const float* model,
   float* im=xi+3*nb; float* anchor=im+9*nb; float* xa=anchor+3*nj;
   for(unsigned b=0;b<nb;++b) {
     V p={0,0,0}; Q r={1,0,0,0};
+#ifdef MJWARP_G01_EQUIVALENT
+    if(!b) { p=load_v(xp); r=load_q(xq); }
+#endif
     int j=adr[b], count=num[b];
     if(b && count==1 && type[j]==0) {
       p=load_v(q+qa[j]); r=normalize(load_q(q+qa[j]+3));

@@ -1,5 +1,5 @@
-//! G01严格子集的常驻设备链。
-//! 不提供冻结上游等价阶段。
+//! G01常驻设备链与等价入口。
+//! 旧探针继续保留严格检查。
 
 use std::sync::Arc;
 
@@ -46,6 +46,7 @@ use crate::runtime::{SynchronousKernel, TransferBuffer};
 /// 支持相机与光源位姿。
 /// 不冻结正式GPU编译路线。
 pub struct KinematicsPlan {
+    equivalent: bool,
     model: Arc<AttachedModelInput>,
     parameters: KinematicsParameters,
     body_mocapid: Vec<i32>,
@@ -196,12 +197,133 @@ struct ResidentLayout {
 
 #[derive(Default)]
 struct OptionalSubsets {
+    equivalent: bool,
     tendon_rows: Option<TendonRows>,
     flex_fields: Option<FlexPositionFields>,
     edge_fields: Option<FlexEdgeFields>,
     face_fields: Option<FlexFaceFields>,
     hessian_fields: Option<FlexHessianFields>,
     sleep_info: Option<TendonWakeInfo>,
+}
+
+/// G01消费的调用方状态。
+/// 矩阵缓存按世界连续展开。
+/// world_pose采用xyz与wxyz。
+/// 缺省缓存保留已有设备值。
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct G01State {
+    pub qpos: Vec<f32>,
+    pub qvel: Vec<f32>,
+    pub mocap_pos: Vec<f32>,
+    pub mocap_quat: Vec<f32>,
+    /// 每世界按七项刚体字段展开。
+    pub rigid_cache: Option<Vec<f32>>,
+    /// 每世界按质量、质心、惯量、cdof展开。
+    pub com_cache: Option<Vec<f32>>,
+    /// 本字段覆盖刚体缓存的世界位姿。
+    pub world_pose: Option<Vec<[f32; 7]>>,
+    pub attached_cache: Option<Vec<f32>>,
+    pub flex_hessian_valid: Option<Vec<bool>>,
+    pub sleep: Option<Vec<G01SleepState>>,
+}
+
+/// G01树状态保留独立活动标记。
+/// 调用方负责活动标记一致性。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct G01SleepState {
+    pub tree_asleep: Vec<i32>,
+    pub tree_awake: Vec<i32>,
+    pub ntree_awake: i32,
+    pub nbody_awake: i32,
+    pub nv_awake: i32,
+}
+impl G01SleepState {
+    fn validate(&self, ntree: usize, nbody: usize, nv: usize) -> Result<(), InputError> {
+        SleepTreeState {
+            tree_asleep: self.tree_asleep.clone(),
+            nbody_awake: self.nbody_awake,
+            nv_awake: self.nv_awake,
+        }
+        .validate(ntree, nbody, nv)?;
+        check_size("tree_awake", ntree, self.tree_awake.len())?;
+        if self.ntree_awake < 0 || self.ntree_awake as usize > ntree {
+            return Err(InputError::InvalidDimension {
+                field: "ntree_awake",
+            });
+        }
+        for (index, &value) in self.tree_awake.iter().enumerate() {
+            if value != 0 && value != 1 {
+                return Err(InputError::InvalidTopology {
+                    field: "tree_awake",
+                    index,
+                    reason: "noncanonical_boolean",
+                });
+            }
+        }
+        Ok(())
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn packed(&self) -> Vec<i32> {
+        let mut result = self.tree_asleep.clone();
+        result.extend_from_slice(&self.tree_awake);
+        result.extend_from_slice(&[self.ntree_awake, self.nbody_awake, self.nv_awake]);
+        result
+    }
+}
+
+/// 完整G01入口不要求新鲜度票据。
+/// 调用方提供一致的模型与状态。
+/// 本入口不执行碰撞或质量阶段。
+pub fn fwd_kinematics(
+    plan: &KinematicsPlan,
+    data: &mut KinematicsData,
+) -> Result<(), TransferError> {
+    kinematics(plan, data)?;
+    com_pos(plan, data)?;
+    camlight(plan, data)?;
+    flex(plan, data)?;
+    tendon(plan, data)?;
+    plan.update_tendon_wake(data)
+}
+
+/// 重算刚体与附着位姿。
+/// 保留世界位姿与静态几何缓存。
+pub fn kinematics(plan: &KinematicsPlan, data: &mut KinematicsData) -> Result<(), TransferError> {
+    plan.check_g01_data(data)?;
+    plan.update_rigid(data)?;
+    plan.update_attached(data)
+}
+
+/// 读取已有刚体设备字段。
+/// 调用方负责输入的物理一致性。
+pub fn com_pos(plan: &KinematicsPlan, data: &mut KinematicsData) -> Result<(), TransferError> {
+    plan.check_g01_data(data)?;
+    plan.update_com(data)
+}
+
+/// 读取已有刚体与质心字段。
+/// 本入口不隐式重算前置阶段。
+pub fn camlight(plan: &KinematicsPlan, data: &mut KinematicsData) -> Result<(), TransferError> {
+    plan.check_g01_data(data)?;
+    plan.update_camlight(data)
+}
+
+/// 重算柔体位置、边与壳体面。
+/// 读取已有刚体、质心与qvel。
+/// 先清除Hessian有效标志。
+pub fn flex(plan: &KinematicsPlan, data: &mut KinematicsData) -> Result<(), TransferError> {
+    plan.check_g01_data(data)?;
+    plan.update_flex_positions(data)?;
+    plan.update_flex_edges(data)?;
+    plan.update_flex_faces(data)
+}
+
+/// 重算全局肌腱与包裹字段。
+/// 读取已有附着、质心与qpos。
+/// 本入口不执行肌腱唤醒。
+pub fn tendon(plan: &KinematicsPlan, data: &mut KinematicsData) -> Result<(), TransferError> {
+    plan.check_g01_data(data)?;
+    plan.update_tendons(data)
 }
 
 impl ResidentLayout {
@@ -274,6 +396,7 @@ impl ReadyStages {
 /// 显式回读检查守卫与有限性。
 /// 初始化缓存不代表阶段就绪。
 pub struct KinematicsData {
+    equivalent: bool,
     model: Arc<AttachedModelInput>,
     fixed_tendon_rows: Arc<FixedTendonRows>,
     spatial_tendon_rows: Arc<SpatialTendonRows>,
@@ -526,6 +649,7 @@ impl KinematicsPlan {
                 face_fields: faces,
                 hessian_fields: hessian,
                 sleep_info: None,
+                equivalent: false,
             },
         )
     }
@@ -552,8 +676,170 @@ impl KinematicsPlan {
                 face_fields: faces,
                 hessian_fields: hessian,
                 sleep_info: Some(info),
+                equivalent: false,
             },
         )
+    }
+
+    /// 完整G01保留等价数值路径。
+    /// 模型必须包含全部边面字段。
+    /// 空集合也采用显式空字段。
+    /// 旧构造入口继续严格检查。
+    pub fn for_g01(
+        session: &TransferSession,
+        model: TendonWakeModelInput,
+        parameters: KinematicsParameters,
+        camlight_parameters: CamLightParameters,
+    ) -> Result<Self, TransferError> {
+        if model.flex_positions().is_none()
+            || model.flex_edges().is_none()
+            || model.flex_faces().is_none()
+        {
+            return Err(InputError::InvalidDimension {
+                field: "g01_requires_complete_flex_fields",
+            }
+            .into());
+        }
+        let (model, flex, edges, faces, hessian, info) = model.into_parts();
+        let (model, rows) = model.into_parts();
+        Self::with_tendon_subsets(
+            session,
+            model,
+            parameters,
+            camlight_parameters,
+            OptionalSubsets {
+                equivalent: true,
+                tendon_rows: Some(rows),
+                flex_fields: flex,
+                edge_fields: edges,
+                face_fields: faces,
+                hessian_fields: hessian,
+                sleep_info: Some(info),
+            },
+        )
+    }
+
+    /// 先检查全部长度与引用。
+    /// 输入错误不改写设备状态。
+    /// 传输失败废弃就绪票据。
+    /// 低层回读仍反映当前缓冲。
+    pub fn import_g01_state(
+        &self,
+        data: &mut KinematicsData,
+        state: &G01State,
+    ) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        if !self.equivalent {
+            return Err(InputError::InvalidDimension {
+                field: "g01_requires_equivalent_plan",
+            }
+            .into());
+        }
+        check_g01_qpos(self.model.rigid(), data.worlds(), &state.qpos)?;
+        let e = data.edge_layout()?;
+        check_finite_field("qvel", e.qvel.total_elements(), &state.qvel)?;
+        check_mocap_mode(
+            data.layout.mocap_pos.total_elements(),
+            data.layout.mocap_quat.total_elements(),
+            &state.mocap_pos,
+            &state.mocap_quat,
+            false,
+        )?;
+        for (cache, field, expected) in [
+            (
+                &state.rigid_cache,
+                "rigid_cache",
+                data.layout.rigid.output.total_elements(),
+            ),
+            (
+                &state.com_cache,
+                "com_cache",
+                data.layout.com.output.total_elements(),
+            ),
+        ] {
+            if let Some(cache) = cache {
+                check_finite_field(field, expected, cache)?;
+            }
+        }
+        if let Some(poses) = &state.world_pose {
+            check_size("world_pose", data.worlds(), poses.len())?;
+            for pose in poses {
+                check_finite_field("world_pose", 7, pose)?;
+            }
+        }
+        if let Some(cache) = &state.attached_cache {
+            check_finite_field(
+                "attached_cache",
+                data.layout.attached.output.total_elements(),
+                cache,
+            )?;
+        }
+        if let Some(flags) = &state.flex_hessian_valid {
+            check_size(
+                "flex_hessian_valid",
+                data.layout
+                    .flex
+                    .expect("complete G01 flex")
+                    .validity
+                    .total_elements(),
+                flags.len(),
+            )?;
+        }
+        if let Some(sleep) = &state.sleep {
+            check_size("sleep", data.worlds(), sleep.len())?;
+            let l = data.layout.sleep.expect("complete G01 sleep");
+            let k = self.model.rigid().kinematics();
+            for row in sleep {
+                row.validate(l.ntree, k.nbody(), k.nv())?;
+            }
+        }
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            data.ready = ReadyStages::default();
+            data.write_checked_qpos(0, &state.qpos)?;
+            data.write_qvel(&state.qvel)?;
+            data.write_checked_mocap(0, 0, &state.mocap_pos, &state.mocap_quat)?;
+            if let Some(cache) = &state.rigid_cache {
+                data.rigid.write_range(4, cache)?;
+            }
+            if let Some(cache) = &state.com_cache {
+                data.com.write_range(4, cache)?;
+            }
+            if let Some(poses) = &state.world_pose {
+                for (world, pose) in poses.iter().enumerate() {
+                    let start = 4 + world * data.layout.rigid.output.elements_per_world();
+                    data.rigid.write_range(start, &pose[..3])?;
+                    data.rigid
+                        .write_range(start + 3 * data.layout.rigid.nbody, &pose[3..])?;
+                }
+            }
+            if let Some(cache) = &state.attached_cache {
+                data.attached.write_range(4, cache)?;
+            }
+            if let Some(flags) = &state.flex_hessian_valid {
+                let values: Vec<i32> = flags.iter().map(|&v| i32::from(v)).collect();
+                data.flex_validity
+                    .as_mut()
+                    .expect("complete G01 flex")
+                    .write_range(4, &values)?;
+            }
+            if let Some(sleep) = &state.sleep {
+                let l = data.layout.sleep.expect("complete G01 sleep");
+                for (world, row) in sleep.iter().enumerate() {
+                    let start = 4 + l.output.world_elements(world)?.start;
+                    data.sleep
+                        .as_mut()
+                        .expect("complete G01 sleep")
+                        .state
+                        .write_range(start, &row.packed())?;
+                }
+            }
+            Ok(())
+        }
     }
 
     fn with_tendon_subsets(
@@ -564,6 +850,7 @@ impl KinematicsPlan {
         subsets: OptionalSubsets,
     ) -> Result<Self, TransferError> {
         let OptionalSubsets {
+            equivalent,
             tendon_rows,
             flex_fields,
             edge_fields,
@@ -584,16 +871,31 @@ impl KinematicsPlan {
         let (model, fixed_tendon_fields, fixed_tendon_rows) = model.into_parts();
         let fixed_tendon_layout =
             FixedTendonLayout::new(1, fixed_tendon_rows.ntendon(), fixed_tendon_rows.nnz())?;
-        camlight_parameters.validate(&model)?;
+        if equivalent {
+            camlight_parameters.validate_mode(&model, false)?;
+        } else {
+            camlight_parameters.validate(&model)?;
+        }
         let ncam = model.ncam();
         let nlight = model.nlight();
         let camlight_layout = CamLightLayout::new(1, ncam, nlight)?;
         let (model, camlight_fields) = model.into_parts();
         let (model, body_mocapid, nmocap, static_geom) = model.into_parts();
-        let (fk, com) =
-            check_com_position(model.rigid(), 1, &model.rigid().kinematics().fields().qpos0)?;
+        let k = model.rigid().kinematics();
+        let (fk, com) = if equivalent {
+            (
+                check_g01_qpos(model.rigid(), 1, &k.fields().qpos0)?,
+                ComPositionLayout::new(1, k.nbody(), k.njnt(), k.nv())?,
+            )
+        } else {
+            check_com_position(model.rigid(), 1, &k.fields().qpos0)?
+        };
         let attached = AttachedLayout::new(1, model.ngeom(), model.nsite())?;
-        check_parameters(&model, &parameters)?;
+        if equivalent {
+            parameters.validate(&model)?;
+        } else {
+            check_parameters(&model, &parameters)?;
+        }
         let flex_layout = flex_fields
             .as_ref()
             .map(|f| {
@@ -778,7 +1080,12 @@ impl KinematicsPlan {
             let rigid = rigid.upload(session)?;
             let com = com.upload(session)?;
             let attached = attached.upload(session)?;
-            let prefix = format!("{FIELD_BATCH_CUDA}\n#define MJWARP_MOCAP\n");
+            let mode = if equivalent {
+                "#define MJWARP_G01_EQUIVALENT\n"
+            } else {
+                ""
+            };
+            let prefix = format!("{FIELD_BATCH_CUDA}\n#define MJWARP_MOCAP\n{mode}");
             let source = format!("{prefix}{}", super::KINEMATICS_CUDA);
             let rigid_kernel = SynchronousKernel::compile(session, &source, "rigid_kinematics")?;
             let source = format!("{FIELD_BATCH_CUDA}\n{}", super::COM_POSITION_CUDA);
@@ -926,6 +1233,7 @@ impl KinematicsPlan {
                 None
             };
             Ok(Self {
+                equivalent,
                 model: Arc::new(model),
                 parameters,
                 body_mocapid,
@@ -1117,6 +1425,7 @@ impl KinematicsPlan {
                 }
             }
             let mut data = KinematicsData {
+                equivalent: self.equivalent,
                 model: Arc::clone(&self.model),
                 fixed_tendon_rows: Arc::clone(&self.fixed_tendon_rows),
                 spatial_tendon_rows: Arc::clone(&self.spatial_tendon_rows),
@@ -1201,6 +1510,14 @@ impl KinematicsPlan {
                     })
                     .transpose()?,
             };
+            if self.equivalent {
+                for world in 0..worlds {
+                    let start = 4 + world * layout.rigid.output.elements_per_world();
+                    data.rigid.write_range(start, &[0.0; 3])?;
+                    data.rigid
+                        .write_range(start + 3 * layout.rigid.nbody, &[1.0, 0.0, 0.0, 0.0])?;
+                }
+            }
             self.update_rigid(&mut data)?;
             // SAFETY: The initialization entry shares the checked attached ABI.
             // Metadata includes ngeom static flags, followed by four descriptors.
@@ -1230,6 +1547,29 @@ impl KinematicsPlan {
         } else {
             Err(TransferError::ModelMismatch)
         }
+    }
+
+    fn check_g01_data(&self, data: &KinematicsData) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        if !self.equivalent {
+            return Err(InputError::InvalidDimension {
+                field: "g01_requires_equivalent_plan",
+            }
+            .into());
+        }
+        Ok(())
+    }
+
+    fn require_input(
+        &self,
+        data: &KinematicsData,
+        ready: bool,
+        stage: &'static str,
+    ) -> Result<(), TransferError> {
+        if !self.equivalent {
+            data.ready.require(ready, stage)?;
+        }
+        Ok(())
     }
 
     /// 只更新七项刚体结果。
@@ -1264,10 +1604,10 @@ impl KinematicsPlan {
     }
 
     /// 读取已有刚体设备结果。
-    /// 本严格辅助要求刚体就绪。
+    /// 严格计划要求刚体就绪。
     pub fn update_com(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
-        data.ready.require(data.ready.rigid, "rigid")?;
+        self.require_input(data, data.ready.rigid, "rigid")?;
         data.ready.com = false;
         data.ready.edges = false;
         data.ready.camlight = false;
@@ -1304,7 +1644,7 @@ impl KinematicsPlan {
     /// 每次重算全部site。
     pub fn update_attached(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
-        data.ready.require(data.ready.rigid, "rigid")?;
+        self.require_input(data, data.ready.rigid, "rigid")?;
         data.ready.attached = false;
         data.ready.spatial_tendon = false;
         data.ready.tendon = false;
@@ -1342,8 +1682,8 @@ impl KinematicsPlan {
     /// 两段执行不回读中间结果。
     pub fn update_camlight(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
-        data.ready.require(data.ready.rigid, "rigid")?;
-        data.ready.require(data.ready.com, "com")?;
+        self.require_input(data, data.ready.rigid, "rigid")?;
+        self.require_input(data, data.ready.com, "com")?;
         data.ready.camlight = false;
         #[cfg(not(feature = "cuda-probe"))]
         {
@@ -1429,8 +1769,8 @@ impl KinematicsPlan {
     /// 三次执行不回读中间结果。
     pub fn update_spatial_tendons(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
-        data.ready.require(data.ready.attached, "attached")?;
-        data.ready.require(data.ready.com, "com")?;
+        self.require_input(data, data.ready.attached, "attached")?;
+        self.require_input(data, data.ready.com, "com")?;
         data.ready.spatial_tendon = false;
         data.ready.sleep = false;
         data.ready.tendon = false;
@@ -1550,7 +1890,7 @@ impl KinematicsPlan {
     /// 本辅助不计算Hessian矩阵。
     pub fn update_flex_positions(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
-        data.ready.require(data.ready.rigid, "rigid")?;
+        self.require_input(data, data.ready.rigid, "rigid")?;
         data.ready.flex = false;
         data.ready.edges = false;
         data.ready.faces = false;
@@ -1576,7 +1916,7 @@ impl KinematicsPlan {
                     )?;
                 }
                 // SAFETY: Checked immutable fields partition nodes and vertices.
-                // Each synchronized thread reads a ready rigid world and owns
+                // Each synchronized thread reads an initialized rigid world and owns
                 // its guarded output; wide strides match checked batch layouts.
                 unsafe {
                     device.kernel.launch(
@@ -1685,8 +2025,8 @@ impl KinematicsPlan {
     pub fn update_flex_edges(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
         if data.layout.edges.is_some_and(|l| !l.is_empty()) {
-            data.ready.require(data.ready.com, "com")?;
-            data.ready.require(data.ready.flex, "flex_positions")?;
+            self.require_input(data, data.ready.com, "com")?;
+            self.require_input(data, data.ready.flex, "flex_positions")?;
         }
         data.ready.edges = false;
         #[cfg(not(feature = "cuda-probe"))]
@@ -1722,7 +2062,7 @@ impl KinematicsPlan {
     pub fn update_flex_faces(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
         if data.layout.faces.is_some_and(|l| !l.is_empty()) {
-            data.ready.require(data.ready.flex, "flex_positions")?;
+            self.require_input(data, data.ready.flex, "flex_positions")?;
         }
         data.ready.faces = false;
         #[cfg(not(feature = "cuda-probe"))]
@@ -1877,7 +2217,11 @@ impl KinematicsData {
     /// 完整检查后改写全部qpos。
     /// 输入错误保留已有设备结果。
     pub fn write_qpos(&mut self, qpos: &[f32]) -> Result<(), TransferError> {
-        check_kinematics(self.model.rigid(), self.worlds(), qpos)?;
+        if self.equivalent {
+            check_g01_qpos(self.model.rigid(), self.worlds(), qpos)?;
+        } else {
+            check_kinematics(self.model.rigid(), self.worlds(), qpos)?;
+        }
         self.write_checked_qpos(0, qpos)
     }
 
@@ -1885,7 +2229,11 @@ impl KinematicsData {
     /// 它废弃整组派生结果。
     pub fn write_world_qpos(&mut self, world: usize, qpos: &[f32]) -> Result<(), TransferError> {
         let range = self.layout.qpos.world_elements(world)?;
-        check_kinematics(self.model.rigid(), 1, qpos)?;
+        if self.equivalent {
+            check_g01_qpos(self.model.rigid(), 1, qpos)?;
+        } else {
+            check_kinematics(self.model.rigid(), 1, qpos)?;
+        }
         self.write_checked_qpos(range.start, qpos)
     }
 
@@ -1909,11 +2257,12 @@ impl KinematicsData {
     /// GPU更新归一化四元数。
     /// 输入错误保留已有结果。
     pub fn write_mocap(&mut self, pos: &[f32], quat: &[f32]) -> Result<(), TransferError> {
-        check_mocap(
+        check_mocap_mode(
             self.layout.mocap_pos.total_elements(),
             self.layout.mocap_quat.total_elements(),
             pos,
             quat,
+            !self.equivalent,
         )?;
         self.write_checked_mocap(0, 0, pos, quat)
     }
@@ -1928,7 +2277,7 @@ impl KinematicsData {
     ) -> Result<(), TransferError> {
         let p = self.layout.mocap_pos.world_elements(world)?;
         let q = self.layout.mocap_quat.world_elements(world)?;
-        check_mocap(p.len(), q.len(), pos, quat)?;
+        check_mocap_mode(p.len(), q.len(), pos, quat, !self.equivalent)?;
         self.write_checked_mocap(p.start, q.start, pos, quat)
     }
 
@@ -1991,6 +2340,24 @@ impl KinematicsData {
             self.layout.faces.is_none_or(|l| l.is_empty()) || self.ready.faces,
             "flex_faces",
         )?;
+        self.readback_fields()
+    }
+
+    /// 回读G01当前字段与缓存。
+    /// 本入口不要求新鲜度票据。
+    /// 未计算字段保留已有设备值。
+    /// 它仍检查哨兵与有限性。
+    pub fn readback_g01(&self) -> Result<KinematicsSnapshot, TransferError> {
+        if !self.equivalent {
+            return Err(InputError::InvalidDimension {
+                field: "g01_requires_equivalent_plan",
+            }
+            .into());
+        }
+        self.readback_fields()
+    }
+
+    fn readback_fields(&self) -> Result<KinematicsSnapshot, TransferError> {
         let lengths = [
             self.layout.rigid.output.total_elements() + 8,
             self.layout.com.output.total_elements() + 8,
@@ -2132,7 +2499,55 @@ impl KinematicsData {
     }
 }
 
+#[cfg(test)]
 fn check_mocap(np: usize, nq: usize, pos: &[f32], quat: &[f32]) -> Result<(), InputError> {
+    check_mocap_mode(np, nq, pos, quat, true)
+}
+
+fn check_size(field: &'static str, expected: usize, actual: usize) -> Result<(), InputError> {
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(InputError::LengthMismatch {
+            field,
+            expected,
+            actual,
+        })
+    }
+}
+fn check_finite_field(
+    field: &'static str,
+    expected: usize,
+    values: &[f32],
+) -> Result<(), InputError> {
+    check_size(field, expected, values.len())?;
+    for (index, value) in values.iter().enumerate() {
+        if !value.is_finite() {
+            return Err(InputError::NonFinite { field, index });
+        }
+    }
+    Ok(())
+}
+fn check_g01_qpos(
+    model: &crate::model::InertialModelInput,
+    worlds: usize,
+    qpos: &[f32],
+) -> Result<KinematicsLayout, InputError> {
+    let k = model.kinematics();
+    let l = KinematicsLayout::new(worlds, k.nq(), k.nbody(), k.njnt())?;
+    let expected = worlds.checked_mul(k.nq()).ok_or(InputError::Overflow {
+        field: "kinematics_qpos",
+    })?;
+    check_finite_field("kinematics_qpos", expected, qpos)?;
+    Ok(l)
+}
+fn check_mocap_mode(
+    np: usize,
+    nq: usize,
+    pos: &[f32],
+    quat: &[f32],
+    strict: bool,
+) -> Result<(), InputError> {
     for (field, expected, values) in [("mocap_pos", np, pos), ("mocap_quat", nq, quat)] {
         if values.len() != expected {
             return Err(InputError::LengthMismatch {
@@ -2149,7 +2564,7 @@ fn check_mocap(np: usize, nq: usize, pos: &[f32], quat: &[f32]) -> Result<(), In
     }
     for (index, rotation) in quat.as_chunks::<4>().0.iter().enumerate() {
         let squared: f64 = rotation.iter().map(|&x| f64::from(x).powi(2)).sum();
-        if !(1e-12..=1e12).contains(&squared) {
+        if strict && !(1e-12..=1e12).contains(&squared) {
             return Err(InputError::InvalidTopology {
                 field: "mocap_quat",
                 index: 4 * index,
