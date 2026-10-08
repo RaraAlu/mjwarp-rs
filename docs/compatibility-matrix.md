@@ -18,10 +18,13 @@ mocap证据见[增量报告](windows-resident-mocap.md)。
 编号证据见[混合报告](windows-resident-tendon.md)。
 柔体位置见[增量报告](windows-resident-flex-position.md)。
 GPU已计算节点与顶点位置。
+它支持直接与线性插值。
+柔体边见[增量报告](windows-resident-flex-edge.md)。
+GPU已计算边长、雅可比与速度。
+柔体面姿态仍待实现。
 肌腱唤醒见[增量报告](windows-resident-tendon-wake.md)。
 GPU已唤醒循环并刷新树。
 完整G25仍待实现。
-它支持直接与线性插值。
 G22完整柔体能力仍待实现。
 球柱绕行见[增量报告](windows-resident-geom-tendon.md)。
 GPU已支持球柱与内侧绕行。

@@ -2,7 +2,7 @@
 param([switch]$AllFeatures, [switch]$Release)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon', 'spatial-tendon', 'geom-tendon', 'flex-position', 'tendon-wake')) {
+foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon', 'spatial-tendon', 'geom-tendon', 'flex-position', 'tendon-wake', 'flex-edge')) {
     $fixtures = Join-Path $root "fixtures\$name"
     $manifest = Get-Content -LiteralPath (Join-Path $fixtures 'manifest.json') -Raw | ConvertFrom-Json
     foreach ($file in $manifest.files) {
@@ -62,10 +62,20 @@ try {
     $wakeReferences = Invoke-CheckedTest 'wake-references' ($base + @('--test', 'resident_tendon_wake', 'reference_hashes', '--', '--test-threads=1')) 1
     $wake = Invoke-CheckedTest 'tendon-wake' ($base + @('--test', 'resident_tendon_wake', '--', '--ignored', '--test-threads=1', '--nocapture')) 5
     $wakeGuards = Invoke-CheckedTest 'wake-guards' ($base + @('--lib', 'tendon_wake_readback', '--', '--ignored', '--test-threads=1')) 1
+    $edgeReferences = Invoke-CheckedTest 'edge-references' ($base + @('--test', 'resident_flex_edge', 'reference_hashes', '--', '--test-threads=1')) 1
+    $edgeBoundaries = Invoke-CheckedTest 'edge-boundaries' ($base + @('--test', 'resident_flex_edge', 'rejects_invalid', '--', '--test-threads=1')) 1
+    $edge = Invoke-CheckedTest 'flex-edge' ($base + @('--test', 'resident_flex_edge', '--', '--ignored', '--test-threads=1', '--nocapture')) 4
+    $edgeGuards = Invoke-CheckedTest 'edge-guards' ($base + @('--lib', 'flex_edge_readback', '--', '--ignored', '--test-threads=1')) 1
+    $edgeFreeBody = Invoke-CheckedTest 'edge-free-body' ($base + @('--lib', 'flex_edge_free_body', '--', '--ignored', '--test-threads=1')) 1
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
     $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 4
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
     if ($LASTEXITCODE -ne 0) { throw 'GPU信息查询失败' }
+    $edgeStats = [regex]::Match((Get-Content -LiteralPath (Join-Path $directory 'flex-edge.log') -Raw),
+        'G01-flex-edge states=(\d+) scalars=(\d+) max_abs_error=([0-9.eE+-]+)')
+    if (-not $edgeStats.Success -or [int]$edgeStats.Groups[1].Value -ne 2084 -or
+        [int]$edgeStats.Groups[2].Value -ne 1204552) { throw '柔体边比较计数不符' }
+    $edgeLargest = [double]::Parse($edgeStats.Groups[3].Value, [Globalization.CultureInfo]::InvariantCulture)
     $largest = 0.0
     $comparisons = 0
     foreach ($line in Get-Content -LiteralPath (Join-Path $directory 'resident.log')) {
@@ -221,13 +231,18 @@ try {
         tendonWakeReferencesPassed = $wakeReferences
         tendonWakePassed = $wake
         tendonWakeGuardsPassed = $wakeGuards
+        flexEdgeReferencesPassed = $edgeReferences
+        flexEdgeBoundariesPassed = $edgeBoundaries
+        flexEdgePassed = $edge
+        flexEdgeGuardsPassed = $edgeGuards
+        flexEdgeFreeBodyPassed = $edgeFreeBody
         staticCachePassed = $staticCache
         adapterPassed = $adapter
         comparedWorlds = $comparisons
         maxAbsoluteError = $largest
         absoluteTolerance = 0.00002
         relativeTolerance = 0.00002
-        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json', 'fixtures/geom-tendon/manifest.json', 'fixtures/mixed-tendon/manifest.json', 'fixtures/flex-position/manifest.json', 'fixtures/tendon-wake/manifest.json')
+        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json', 'fixtures/geom-tendon/manifest.json', 'fixtures/mixed-tendon/manifest.json', 'fixtures/flex-position/manifest.json', 'fixtures/tendon-wake/manifest.json', 'fixtures/flex-edge/manifest.json')
         sharedReferenceBatchSize = 1
         parameterIndexRule = 'world % B_f'
         parameterComparedWorlds = $parameterComparisons
@@ -318,6 +333,16 @@ try {
         tendonWakeFieldPeriods = @(3, 2)
         tendonWakeLightweightBodyDofCounters = 0
         tendonWakeExtraIntegerBuffers = 2
+        flexEdgeComparedWorlds = 2084
+        flexEdgeComparedScalars = 1204552
+        flexEdgeMaxAbsoluteError = $edgeLargest
+        flexEdgeWorldCounts = @(1, 2, 5, 513)
+        flexEdgeCount = 284
+        flexEdgeNnz = 10
+        flexEdgeExtraFloatBuffers = 2
+        flexEdgeQvelDefault = 0.0
+        flexEdgeSharedTopology = $true
+        flexEdgeReadsDevicePositionsAndCom = $true
         nvrtcLibraries = @(Get-ChildItem -LiteralPath (Join-Path $env:CUDA_PATH 'bin') -Filter 'nvrtc*.dll' |
             ForEach-Object { [ordered]@{ name = $_.Name; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() } })
         scriptInvokesNativeKinematics = $false

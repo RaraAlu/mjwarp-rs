@@ -79,6 +79,7 @@ CPU调试与工具边界仍待确认。
 36. [Windows混合肌腱编号](windows-resident-tendon.md)
 37. [Windows柔体位置子集](windows-resident-flex-position.md)
 38. [Windows肌腱唤醒子集](windows-resident-tendon-wake.md)
+39. [Windows柔体边子集](windows-resident-flex-edge.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -120,10 +121,15 @@ MC物理契约任务仍待实现。
 混合入口另加GPU合并。
 混合入口使用九个结果缓冲。
 柔体入口另加位置子集。
-该入口使用十个结果缓冲。
+纯位置入口使用十个结果缓冲。
 GPU计算节点与顶点位置。
 它支持直接与线性插值。
 柔体位置字段仍共享。
+可选边入口另加两个浮点缓冲。
+GPU计算边长、雅可比与速度。
+qvel支持独立世界写入。
+边拓扑与稀疏行仍共享。
+柔体面运动学仍待实现。
 可选入口另加肌腱唤醒。
 GPU刷新树标记与树计数。
 范围与边距各用独立周期。

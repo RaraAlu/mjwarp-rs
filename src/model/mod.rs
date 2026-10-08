@@ -26,7 +26,7 @@ pub use spatial_tendon::{
 pub mod tendon;
 pub use tendon::{TendonFields, TendonModelInput, TendonRows, TendonSubset};
 pub mod flex;
-pub use flex::{FlexPositionFields, FlexPositionModelInput};
+pub use flex::{FlexEdgeFields, FlexPositionFields, FlexPositionModelInput};
 pub mod sleep;
 pub use sleep::{SleepTreeState, TREE_FULLY_AWAKE, TendonWakeFields, TendonWakeModelInput};
 

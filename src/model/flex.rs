@@ -1,7 +1,7 @@
-//! 检查柔体节点与顶点位置。
+//! 检查柔体位置与可选边字段。
 //! 共享拓扑与局部坐标。
 
-use super::TendonModelInput;
+use super::{InertialModelInput, TendonModelInput};
 use crate::diagnostics::InputError;
 
 /// 原生柔体位置字段。
@@ -23,7 +23,7 @@ pub struct FlexPositionFields {
 }
 
 /// 接收已编译模型的位置子集。
-/// 不提供边与弹性。
+/// 可选边字段不提供弹性。
 /// 休眠需要独立可选包装。
 ///
 /// ```compile_fail
@@ -35,6 +35,7 @@ pub struct FlexPositionFields {
 pub struct FlexPositionModelInput {
     tendons: TendonModelInput,
     fields: FlexPositionFields,
+    edges: Option<FlexEdgeFields>,
 }
 impl FlexPositionModelInput {
     pub fn new(tendons: TendonModelInput, fields: FlexPositionFields) -> Result<Self, InputError> {
@@ -48,7 +49,29 @@ impl FlexPositionModelInput {
             .kinematics()
             .nbody();
         fields.validate(nb)?;
-        Ok(Self { tendons, fields })
+        Ok(Self {
+            tendons,
+            fields,
+            edges: None,
+        })
+    }
+    /// 检查后启用边计算。
+    /// 空行保留冻结上游语义。
+    pub fn with_edges(mut self, fields: FlexEdgeFields) -> Result<Self, InputError> {
+        let rigid = self
+            .tendons
+            .spatial()
+            .fixed()
+            .camlight()
+            .mocap()
+            .attached()
+            .rigid();
+        fields.validate(&self.fields, rigid)?;
+        self.edges = Some(fields);
+        Ok(self)
+    }
+    pub fn edges(&self) -> Option<&FlexEdgeFields> {
+        self.edges.as_ref()
     }
     pub fn tendons(&self) -> &TendonModelInput {
         &self.tendons
@@ -65,8 +88,183 @@ impl FlexPositionModelInput {
     pub fn nflexvert(&self) -> usize {
         self.fields.flex_vertbodyid.len()
     }
-    pub(crate) fn into_parts(self) -> (TendonModelInput, FlexPositionFields) {
-        (self.tendons, self.fields)
+    pub(crate) fn into_parts(
+        self,
+    ) -> (TendonModelInput, FlexPositionFields, Option<FlexEdgeFields>) {
+        (self.tendons, self.fields, self.edges)
+    }
+}
+
+/// 共享边拓扑与原生稀疏行。
+/// 边端点采用柔体局部编号。
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FlexEdgeFields {
+    pub flex_edgeadr: Vec<i32>,
+    pub flex_edgenum: Vec<i32>,
+    pub flex_edge: Vec<i32>,
+    pub flexedge_j_rowadr: Vec<i32>,
+    pub flexedge_j_rownnz: Vec<i32>,
+    pub flexedge_j_colind: Vec<i32>,
+}
+impl FlexEdgeFields {
+    pub fn nflexedge(&self) -> usize {
+        self.flexedge_j_rownnz.len()
+    }
+    pub fn nnz(&self) -> usize {
+        self.flexedge_j_colind.len()
+    }
+    fn validate(
+        &self,
+        f: &FlexPositionFields,
+        rigid: &InertialModelInput,
+    ) -> Result<(), InputError> {
+        let nf = f.flex_interp.len();
+        let ne = self.nflexedge();
+        let k = rigid.kinematics();
+        let overflow = || InputError::Overflow {
+            field: "flex_edge_fields",
+        };
+        // Bounds also cover the GPU descriptor and output strides.
+        ne.checked_mul(4)
+            .and_then(|n| n.checked_add(self.nnz()))
+            .and_then(|n| n.checked_add(f.flex_vertbodyid.len()))
+            .and_then(|n| k.nbody().checked_mul(2).and_then(|b| n.checked_add(b)))
+            .and_then(|n| n.checked_add(k.nv()))
+            .and_then(|n| n.checked_add(7))
+            .filter(|&n| n <= i32::MAX as usize)
+            .ok_or_else(overflow)?;
+        ne.checked_mul(2)
+            .and_then(|n| n.checked_add(self.nnz()))
+            .filter(|&n| n <= i32::MAX as usize)
+            .ok_or_else(overflow)?;
+        for (field, actual, expected) in [
+            ("flex_edgeadr", self.flex_edgeadr.len(), nf),
+            ("flex_edgenum", self.flex_edgenum.len(), nf),
+            ("flex_edge", self.flex_edge.len(), 2 * ne),
+            ("flexedge_J_rowadr", self.flexedge_j_rowadr.len(), ne),
+        ] {
+            if actual != expected {
+                return Err(InputError::LengthMismatch {
+                    field,
+                    expected,
+                    actual,
+                });
+            }
+        }
+        let invalid = |field, index, reason| InputError::InvalidTopology {
+            field,
+            index,
+            reason,
+        };
+        if let Some(index) = self
+            .flexedge_j_colind
+            .iter()
+            .position(|&d| d < 0 || d as usize >= k.nv())
+        {
+            return Err(invalid(
+                "flexedge_J_colind",
+                index,
+                "dof_reference_out_of_range",
+            ));
+        }
+        let (mut edge, mut slot) = (0usize, 0usize);
+        let parents = &k.fields().body_parentid;
+        let dofbody = &rigid.fields().dof_bodyid;
+        for flex in 0..nf {
+            let count = self.flex_edgenum[flex];
+            if count < 0
+                || count as usize > ne - edge
+                || self.flex_edgeadr[flex] < 0
+                || self.flex_edgeadr[flex] as usize != edge
+            {
+                return Err(invalid(
+                    "flex_edgeadr",
+                    flex,
+                    "invalid_contiguous_edge_range",
+                ));
+            }
+            for e in edge..edge + count as usize {
+                let mut body = [0; 2];
+                for (end, b) in body.iter_mut().enumerate() {
+                    let v = self.flex_edge[2 * e + end];
+                    if v < 0 || v >= f.flex_vertnum[flex] {
+                        return Err(invalid(
+                            "flex_edge",
+                            2 * e + end,
+                            "vertex_reference_out_of_range",
+                        ));
+                    }
+                    *b = f.flex_vertbodyid[f.flex_vertadr[flex] as usize + v as usize];
+                }
+                let adr = self.flexedge_j_rowadr[e];
+                let nnz = self.flexedge_j_rownnz[e];
+                if nnz < 0
+                    || adr < 0
+                    || adr as usize > self.nnz()
+                    || nnz as usize > self.nnz() - adr as usize
+                    || (nnz > 0 && adr as usize != slot)
+                {
+                    return Err(invalid("flexedge_J_rowadr", e, "invalid_sparse_range"));
+                }
+                if nnz == 0 {
+                    continue;
+                }
+                if body.iter().any(|&b| b < 0) {
+                    return Err(invalid(
+                        "flexedge_J_rownnz",
+                        e,
+                        "interpolated_vertex_has_sparse_row",
+                    ));
+                }
+                let cols = &self.flexedge_j_colind[slot..slot + nnz as usize];
+                if cols.iter().any(|&c| c < 0 || c as usize >= k.nv())
+                    || cols.windows(2).any(|p| p[0] >= p[1])
+                {
+                    return Err(invalid(
+                        "flexedge_J_colind",
+                        slot,
+                        "invalid_sorted_dof_columns",
+                    ));
+                }
+                let affects = |mut b: i32, d: i32| {
+                    while b > 0 {
+                        if b == d {
+                            return true;
+                        }
+                        b = parents[b as usize];
+                    }
+                    false
+                };
+                let mut i = 0;
+                for (d, &owner) in dofbody.iter().enumerate() {
+                    if body.iter().any(|&b| affects(b, owner)) {
+                        if cols.get(i) != Some(&(d as i32)) {
+                            return Err(invalid(
+                                "flexedge_J_colind",
+                                slot,
+                                "endpoint_dof_union_mismatch",
+                            ));
+                        }
+                        i += 1;
+                    }
+                }
+                if i != cols.len() {
+                    return Err(invalid(
+                        "flexedge_J_colind",
+                        slot,
+                        "endpoint_dof_union_mismatch",
+                    ));
+                }
+                slot += nnz as usize;
+            }
+            edge += count as usize;
+        }
+        // Native nJfe can reserve unused tail slots when passive forces are off.
+        // The GPU clears the whole pool before writing the checked active rows.
+        if edge != ne {
+            return Err(invalid("flex_edge_ranges", nf, "unclaimed_edges"));
+        }
+        Ok(())
     }
 }
 

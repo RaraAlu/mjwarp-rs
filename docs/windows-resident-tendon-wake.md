@@ -197,5 +197,11 @@ target/tendon-wake-verification/
 Linux真实验收仍待执行。
 完整G01与G25保持计划状态。
 
+## 后续增量
+
+柔体边现已落地辅助子集。
+本报告保留当时的验证数量。
+当前范围见[边报告](windows-resident-flex-edge.md)。
+
 [冻结阶段入口](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/forward.py)。
 [冻结休眠源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/sleep.py)。

@@ -135,6 +135,22 @@ GPU输出位置与按行展开矩阵。
 [冻结绕行源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/util_misc.py)。
 [Warp反三角源码](https://github.com/NVIDIA/warp/blob/v1.15.0/warp/native/builtin.h)。
 
+## 柔体边CUDA子集
+
+`src/physics/flex_edge.rs`移植边公式。
+它复用冻结`smooth.py`的边内核。
+它复用`math.py`的零长度分支。
+版权：Copyright 2025 The Newton Developers。
+上游采用Apache-2.0。
+本项目保留[Apache-2.0许可](LICENSES/Apache-2.0.txt)。
+本项目改用每世界串行计算。
+本项目添加CSR检查与守卫。
+本项目每轮清零预留稀疏槽。
+本项目不移植完整柔体阶段。
+本批没有新增运行时依赖。
+
+[冻结柔体边源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L347-L414)。
+
 ## 肌腱唤醒CUDA子集
 
 `src/physics/sleep.rs`移植冻结唤醒公式。

@@ -1,7 +1,9 @@
 //! 检查肌腱唤醒的共享拓扑。
 //! 不实现完整休眠状态机。
 
-use super::{FlexPositionFields, FlexPositionModelInput, ParameterBatch, TendonModelInput};
+use super::{
+    FlexEdgeFields, FlexPositionFields, FlexPositionModelInput, ParameterBatch, TendonModelInput,
+};
 use crate::diagnostics::InputError;
 
 /// 冻结上游的完全唤醒值。
@@ -20,11 +22,12 @@ pub struct TendonWakeFields {
 }
 
 /// 接收原生树编号与限位字段。
-/// 可选柔体仍只计算位置。
+/// 可选柔体支持位置与边。
 #[derive(Clone, Debug, PartialEq)]
 pub struct TendonWakeModelInput {
     tendons: TendonModelInput,
     flex: Option<FlexPositionFields>,
+    edges: Option<FlexEdgeFields>,
     pub(crate) info: TendonWakeInfo,
 }
 
@@ -39,18 +42,19 @@ pub(crate) struct TendonWakeInfo {
 
 impl TendonWakeModelInput {
     pub fn new(tendons: TendonModelInput, fields: TendonWakeFields) -> Result<Self, InputError> {
-        Self::checked(tendons, None, fields)
+        Self::checked(tendons, None, None, fields)
     }
     pub fn with_flex_positions(
         model: FlexPositionModelInput,
         fields: TendonWakeFields,
     ) -> Result<Self, InputError> {
-        let (tendons, flex) = model.into_parts();
-        Self::checked(tendons, Some(flex), fields)
+        let (tendons, flex, edges) = model.into_parts();
+        Self::checked(tendons, Some(flex), edges, fields)
     }
     fn checked(
         tendons: TendonModelInput,
         flex: Option<FlexPositionFields>,
+        edges: Option<FlexEdgeFields>,
         fields: TendonWakeFields,
     ) -> Result<Self, InputError> {
         let attached = tendons.spatial().fixed().camlight().mocap().attached();
@@ -147,6 +151,7 @@ impl TendonWakeModelInput {
         Ok(Self {
             tendons,
             flex,
+            edges,
             info,
         })
     }
@@ -162,10 +167,18 @@ impl TendonWakeModelInput {
     pub fn flex_positions(&self) -> Option<&FlexPositionFields> {
         self.flex.as_ref()
     }
+    pub fn flex_edges(&self) -> Option<&FlexEdgeFields> {
+        self.edges.as_ref()
+    }
     pub(crate) fn into_parts(
         self,
-    ) -> (TendonModelInput, Option<FlexPositionFields>, TendonWakeInfo) {
-        (self.tendons, self.flex, self.info)
+    ) -> (
+        TendonModelInput,
+        Option<FlexPositionFields>,
+        Option<FlexEdgeFields>,
+        TendonWakeInfo,
+    ) {
+        (self.tendons, self.flex, self.edges, self.info)
     }
 }
 

@@ -27,6 +27,8 @@ mod tendon;
 pub use tendon::{TendonOutput, TendonWorld};
 mod flex;
 pub use flex::{FlexPositionOutput, FlexPositionWorld};
+mod flex_edge;
+pub use flex_edge::{FlexEdgeOutput, FlexEdgeWorld};
 mod sleep;
 pub use sleep::{SleepTreeOutput, SleepTreeWorld};
 

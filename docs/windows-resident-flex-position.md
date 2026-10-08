@@ -211,6 +211,8 @@ Linux真实验收仍待执行。
 肌腱唤醒现已落地辅助子集。
 本报告保留当时的验证数量。
 当前范围见[唤醒报告](windows-resident-tendon-wake.md)。
+柔体边现已落地辅助子集。
+当前范围见[边报告](windows-resident-flex-edge.md)。
 
 [冻结位置源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L211-L317)。
 [冻结线性权重](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/support.py#L1004-L1013)。

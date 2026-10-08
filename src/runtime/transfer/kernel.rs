@@ -10,6 +10,7 @@ use cudarc::{
 use std::sync::Arc;
 
 /// ABI: (const int*, const P*, const S*, O*, u32, u32, u32, u32).
+/// 柔体边另用固定三输入ABI。
 /// 调用方证明三种元素的实际ABI。
 /// 核函数与缓冲保留同一会话。
 pub(crate) struct SynchronousKernel {
@@ -117,6 +118,75 @@ impl SynchronousKernel {
             unsafe {
                 args.launch(LaunchConfig {
                     grid_dim: (count.div_ceil(256), 1, 1),
+                    block_dim: (256, 1, 1),
+                    shared_mem_bytes: 0,
+                })
+            }?;
+            Ok(())
+        })
+    }
+
+    /// ABI: (const int*, const float*, const float*, const float*, float*, u32).
+    ///
+    /// # Safety
+    /// Caller proves this exact ABI, checked strides and every buffer access.
+    /// Inputs are read-only; output is disjoint. All buffers are nonempty.
+    /// The kernel only writes output and launches no asynchronous child work.
+    pub(crate) unsafe fn launch_flex_edges(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        qvel: &TransferBuffer<f32>,
+        com: &TransferBuffer<f32>,
+        flex: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        worlds: u32,
+    ) -> Result<(), TransferError> {
+        for same in [
+            Arc::ptr_eq(&self.session.inner, &metadata.session.inner),
+            Arc::ptr_eq(&self.session.inner, &qvel.session.inner),
+            Arc::ptr_eq(&self.session.inner, &com.session.inner),
+            Arc::ptr_eq(&self.session.inner, &flex.session.inner),
+            Arc::ptr_eq(&self.session.inner, &output.session.inner),
+        ] {
+            if !same {
+                return Err(TransferError::SessionMismatch);
+            }
+        }
+        if worlds == 0 || worlds > u32::MAX - 255 {
+            return Err(InputError::InvalidDimension {
+                field: "kernel_work_items",
+            }
+            .into());
+        }
+        let (Some(metadata), Some(qvel), Some(com), Some(flex), Some(output)) = (
+            metadata.allocation.as_ref(),
+            qvel.allocation.as_ref(),
+            com.allocation.as_ref(),
+            flex.allocation.as_ref(),
+            output.allocation.as_mut(),
+        ) else {
+            return Err(InputError::InvalidDimension {
+                field: "kernel_buffers",
+            }
+            .into());
+        };
+        self.session.run("flex-edge-kernel-launch", || {
+            let mut args = self
+                .session
+                .inner
+                .stream
+                .launch_builder(self.function.as_ref().unwrap());
+            args.arg(metadata)
+                .arg(qvel)
+                .arg(com)
+                .arg(flex)
+                .arg(output)
+                .arg(&worlds);
+            // SAFETY: The caller proves the private ABI and checked ranges.
+            // run serializes this session and waits before releasing borrows.
+            unsafe {
+                args.launch(LaunchConfig {
+                    grid_dim: (worlds.div_ceil(256), 1, 1),
                     block_dim: (256, 1, 1),
                     shared_mem_bytes: 0,
                 })

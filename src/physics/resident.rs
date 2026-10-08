@@ -7,13 +7,14 @@ use super::attached::AttachedLayout;
 use super::camlight::CamLightLayout;
 use super::fixed_tendon::FixedTendonLayout;
 use super::flex::FlexPositionLayout;
+use super::flex_edge::FlexEdgeLayout;
 use super::sleep::SleepTreeLayout;
 use super::spatial_tendon::SpatialTendonLayout;
 use super::tendon::TendonLayout;
 use super::{
     AttachedKinematicsOutput, CamLightOutput, ComPositionLayout, ComPositionOutput,
-    FixedTendonOutput, FlexPositionOutput, KinematicsLayout, KinematicsOutput, SleepTreeOutput,
-    SpatialTendonOutput, TendonOutput, check_com_position, check_kinematics,
+    FixedTendonOutput, FlexEdgeOutput, FlexPositionOutput, KinematicsLayout, KinematicsOutput,
+    SleepTreeOutput, SpatialTendonOutput, TendonOutput, check_com_position, check_kinematics,
 };
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
@@ -21,7 +22,7 @@ use crate::diagnostics::{InputError, TransferError};
 use crate::model::sleep::TendonWakeInfo;
 use crate::model::{
     AttachedModelInput, BatchLayout, CamLightFields, CamLightModelInput, CamLightParameters,
-    FixedTendonFields, FixedTendonModelInput, FixedTendonRows, FlexPositionFields,
+    FixedTendonFields, FixedTendonModelInput, FixedTendonRows, FlexEdgeFields, FlexPositionFields,
     FlexPositionModelInput, KinematicsParameter, KinematicsParameters, MocapModelInput,
     SleepTreeState, SpatialTendonFields, SpatialTendonModelInput, SpatialTendonRows,
     TendonModelInput, TendonRows, TendonWakeModelInput,
@@ -34,7 +35,7 @@ use crate::runtime::{SynchronousKernel, TransferBuffer};
 
 /// 一次上传并编译的运动学计划。
 /// 一个计划可以创建多组独立状态。
-/// 每项浮点字段独立按世界取模。
+/// 既有模型参数独立按世界取模。
 /// 模型拓扑仍只共享一份。
 /// 默认状态使用检查后的qpos0。
 /// 保留探针的严格输入限制。
@@ -53,6 +54,7 @@ pub struct KinematicsPlan {
     spatial_tendon_rows: Arc<SpatialTendonRows>,
     tendon_rows: Option<Arc<TendonRows>>,
     flex_fields: Option<Arc<FlexPositionFields>>,
+    edge_fields: Option<Arc<FlexEdgeFields>>,
     sleep_info: Option<Arc<TendonWakeInfo>>,
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
@@ -80,6 +82,8 @@ pub struct KinematicsPlan {
     #[cfg(feature = "cuda-probe")]
     flex: Option<DeviceFlex>,
     #[cfg(feature = "cuda-probe")]
+    edges: Option<DeviceFlexEdges>,
+    #[cfg(feature = "cuda-probe")]
     sleep: Option<DeviceSleep>,
 }
 
@@ -100,6 +104,17 @@ struct ResidentSleep {
 struct DeviceFlex {
     model: super::DeviceModel<f32>,
     kernel: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct DeviceFlexEdges {
+    metadata: TransferBuffer<i32>,
+    kernel: SynchronousKernel,
+}
+#[cfg(feature = "cuda-probe")]
+struct ResidentFlexEdges {
+    qvel: TransferBuffer<f32>,
+    values: TransferBuffer<f32>,
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -150,7 +165,16 @@ struct ResidentLayout {
     spatial_tendon: SpatialTendonLayout,
     tendon: Option<TendonLayout>,
     flex: Option<FlexPositionLayout>,
+    edges: Option<FlexEdgeLayout>,
     sleep: Option<SleepTreeLayout>,
+}
+
+#[derive(Default)]
+struct OptionalSubsets {
+    tendon_rows: Option<TendonRows>,
+    flex_fields: Option<FlexPositionFields>,
+    edge_fields: Option<FlexEdgeFields>,
+    sleep_info: Option<TendonWakeInfo>,
 }
 
 impl ResidentLayout {
@@ -172,6 +196,7 @@ impl ResidentLayout {
             spatial_tendon: SpatialTendonLayout::new(worlds, 0, 0, 0)?,
             tendon: None,
             flex: None,
+            edges: None,
             sleep: None,
             qpos: BatchLayout::new(worlds, k.nq(), 4)?,
             mocap_pos: BatchLayout::new(worlds, nmocap * 3, 4)?,
@@ -191,6 +216,7 @@ struct ReadyStages {
     spatial_tendon: bool,
     tendon: bool,
     flex: bool,
+    edges: bool,
     sleep: bool,
 }
 
@@ -221,6 +247,7 @@ pub struct KinematicsData {
     fixed_tendon_rows: Arc<FixedTendonRows>,
     spatial_tendon_rows: Arc<SpatialTendonRows>,
     tendon_rows: Option<Arc<TendonRows>>,
+    edge_fields: Option<Arc<FlexEdgeFields>>,
     layout: ResidentLayout,
     ready: ReadyStages,
     #[cfg(feature = "cuda-probe")]
@@ -244,6 +271,8 @@ pub struct KinematicsData {
     #[cfg(feature = "cuda-probe")]
     flex: Option<TransferBuffer<f32>>,
     #[cfg(feature = "cuda-probe")]
+    edges: Option<ResidentFlexEdges>,
+    #[cfg(feature = "cuda-probe")]
     sleep: Option<ResidentSleep>,
 }
 
@@ -259,10 +288,14 @@ pub struct KinematicsSnapshot {
     spatial_tendon: SpatialTendonOutput,
     tendon: Option<TendonOutput>,
     flex: Option<FlexPositionOutput>,
+    edges: Option<FlexEdgeOutput>,
     sleep: Option<SleepTreeOutput>,
 }
 
 impl KinematicsSnapshot {
+    pub fn flex_edges(&self) -> Option<&FlexEdgeOutput> {
+        self.edges.as_ref()
+    }
     pub fn sleep_trees(&self) -> Option<&SleepTreeOutput> {
         self.sleep.as_ref()
     }
@@ -297,6 +330,9 @@ impl KinematicsSnapshot {
 }
 
 impl KinematicsPlan {
+    pub fn flex_edge_fields(&self) -> Option<&FlexEdgeFields> {
+        self.edge_fields.as_deref()
+    }
     /// 检查模型及qpos0后上传。
     /// 本辅助不接受非法默认姿态。
     /// 需要cuda-probe与NVRTC。
@@ -384,9 +420,7 @@ impl KinematicsPlan {
             model,
             parameters,
             camlight_parameters,
-            None,
-            None,
-            None,
+            OptionalSubsets::default(),
         )
     }
 
@@ -405,13 +439,15 @@ impl KinematicsPlan {
             model,
             parameters,
             camlight_parameters,
-            Some(rows),
-            None,
-            None,
+            OptionalSubsets {
+                tendon_rows: Some(rows),
+                ..Default::default()
+            },
         )
     }
 
     /// 另加柔体节点与顶点位置。
+    /// 可选边复用质心与qvel。
     /// 保留混合肌腱全局编号。
     pub fn with_flex_positions(
         session: &TransferSession,
@@ -419,16 +455,19 @@ impl KinematicsPlan {
         parameters: KinematicsParameters,
         camlight_parameters: CamLightParameters,
     ) -> Result<Self, TransferError> {
-        let (model, fields) = model.into_parts();
+        let (model, fields, edges) = model.into_parts();
         let (model, rows) = model.into_parts();
         Self::with_tendon_subsets(
             session,
             model,
             parameters,
             camlight_parameters,
-            Some(rows),
-            Some(fields),
-            None,
+            OptionalSubsets {
+                tendon_rows: Some(rows),
+                flex_fields: Some(fields),
+                edge_fields: edges,
+                sleep_info: None,
+            },
         )
     }
 
@@ -440,16 +479,19 @@ impl KinematicsPlan {
         parameters: KinematicsParameters,
         camlight_parameters: CamLightParameters,
     ) -> Result<Self, TransferError> {
-        let (model, flex, info) = model.into_parts();
+        let (model, flex, edges, info) = model.into_parts();
         let (model, rows) = model.into_parts();
         Self::with_tendon_subsets(
             session,
             model,
             parameters,
             camlight_parameters,
-            Some(rows),
-            flex,
-            Some(info),
+            OptionalSubsets {
+                tendon_rows: Some(rows),
+                flex_fields: flex,
+                edge_fields: edges,
+                sleep_info: Some(info),
+            },
         )
     }
 
@@ -458,10 +500,14 @@ impl KinematicsPlan {
         model: SpatialTendonModelInput,
         parameters: KinematicsParameters,
         camlight_parameters: CamLightParameters,
-        tendon_rows: Option<TendonRows>,
-        flex_fields: Option<FlexPositionFields>,
-        sleep_info: Option<TendonWakeInfo>,
+        subsets: OptionalSubsets,
     ) -> Result<Self, TransferError> {
+        let OptionalSubsets {
+            tendon_rows,
+            flex_fields,
+            edge_fields,
+            sleep_info,
+        } = subsets;
         if let Some(rows) = &tendon_rows {
             TendonLayout::new(1, rows.ntendon(), rows.nnz(), rows.nwrap())?;
         }
@@ -493,6 +539,12 @@ impl KinematicsPlan {
             .as_ref()
             .map(|i| SleepTreeLayout::new(1, i.ntree))
             .transpose()?;
+        let edge_layout = edge_fields
+            .as_ref()
+            .map(|f| {
+                FlexEdgeLayout::new(1, f.nflexedge(), f.nnz(), model.rigid().kinematics().nv())
+            })
+            .transpose()?;
         #[cfg(not(feature = "cuda-probe"))]
         {
             let _ = (
@@ -517,6 +569,8 @@ impl KinematicsPlan {
                 flex_layout,
                 sleep_info,
                 sleep_layout,
+                edge_fields,
+                edge_layout,
             );
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
@@ -579,6 +633,21 @@ impl KinematicsPlan {
             let sleep = sleep_info
                 .as_ref()
                 .map(|i| pack_sleep(i, tendon_rows.as_ref().expect("checked global tendons")))
+                .transpose()?;
+            let edges = edge_fields
+                .as_ref()
+                .map(|f| {
+                    pack_flex_edges(
+                        &model,
+                        flex_fields.as_ref().expect("checked flex positions"),
+                        f,
+                        com_stride,
+                        flex_layout
+                            .expect("checked flex layout")
+                            .output
+                            .elements_per_world(),
+                    )
+                })
                 .transpose()?;
             let rigid = rigid.upload(session)?;
             let com = com.upload(session)?;
@@ -684,6 +753,18 @@ impl KinematicsPlan {
             } else {
                 None
             };
+            let edges = if edge_layout.is_some_and(|l| !l.is_empty()) {
+                Some(DeviceFlexEdges {
+                    metadata: session.upload(&edges.expect("checked edge fields"))?,
+                    kernel: SynchronousKernel::compile(
+                        session,
+                        super::flex_edge::FLEX_EDGE_CUDA,
+                        "flex_edges",
+                    )?,
+                })
+            } else {
+                None
+            };
             Ok(Self {
                 model: Arc::new(model),
                 parameters,
@@ -696,6 +777,7 @@ impl KinematicsPlan {
                 spatial_tendon_rows: Arc::new(spatial_rows),
                 tendon_rows: tendon_rows.map(Arc::new),
                 flex_fields: flex_fields.map(Arc::new),
+                edge_fields: edge_fields.map(Arc::new),
                 sleep_info: sleep_info.map(Arc::new),
                 session: session.clone(),
                 rigid,
@@ -710,6 +792,7 @@ impl KinematicsPlan {
                 spatial_tendon,
                 tendon,
                 flex,
+                edges,
                 sleep,
             })
         }
@@ -784,6 +867,18 @@ impl KinematicsPlan {
             .as_ref()
             .map(|i| SleepTreeLayout::new(worlds, i.ntree))
             .transpose()?;
+        layout.edges = self
+            .edge_fields
+            .as_ref()
+            .map(|f| {
+                FlexEdgeLayout::new(
+                    worlds,
+                    f.nflexedge(),
+                    f.nnz(),
+                    self.model.rigid().kinematics().nv(),
+                )
+            })
+            .transpose()?;
         #[cfg(not(feature = "cuda-probe"))]
         {
             let _ = layout.state;
@@ -834,6 +929,7 @@ impl KinematicsPlan {
                 fixed_tendon_rows: Arc::clone(&self.fixed_tendon_rows),
                 spatial_tendon_rows: Arc::clone(&self.spatial_tendon_rows),
                 tendon_rows: self.tendon_rows.clone(),
+                edge_fields: self.edge_fields.clone(),
                 layout,
                 ready: ReadyStages::default(),
                 state: self.session.upload(&state)?,
@@ -859,6 +955,18 @@ impl KinematicsPlan {
                 flex: layout
                     .flex
                     .map(|l| allocate_output(&self.session, l.guarded))
+                    .transpose()?,
+                edges: layout
+                    .edges
+                    .map(|l| -> Result<_, TransferError> {
+                        let mut qvel = crate::runtime::host_staging::<f32>(l.guarded_qvel)?;
+                        qvel.fill(-131072.0);
+                        qvel[4..l.guarded_qvel - 4].fill(0.0);
+                        Ok(ResidentFlexEdges {
+                            qvel: self.session.upload(&qvel)?,
+                            values: allocate_output(&self.session, l.guarded)?,
+                        })
+                    })
                     .transpose()?,
                 sleep: layout
                     .sleep
@@ -950,6 +1058,7 @@ impl KinematicsPlan {
         self.check_data(data)?;
         data.ready.require(data.ready.rigid, "rigid")?;
         data.ready.com = false;
+        data.ready.edges = false;
         data.ready.camlight = false;
         data.ready.spatial_tendon = false;
         data.ready.tendon = false;
@@ -1228,6 +1337,7 @@ impl KinematicsPlan {
         self.check_data(data)?;
         data.ready.require(data.ready.rigid, "rigid")?;
         data.ready.flex = false;
+        data.ready.edges = false;
         #[cfg(not(feature = "cuda-probe"))]
         {
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
@@ -1297,6 +1407,43 @@ impl KinematicsPlan {
         }
     }
 
+    /// 复用设备顶点与质心。
+    /// qvel写入只废弃本阶段。
+    pub fn update_flex_edges(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        if data.layout.edges.is_some_and(|l| !l.is_empty()) {
+            data.ready.require(data.ready.com, "com")?;
+            data.ready.require(data.ready.flex, "flex_positions")?;
+        }
+        data.ready.edges = false;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            if let (Some(device), Some(out), Some(flex)) =
+                (&self.edges, &mut data.edges, &data.flex)
+            {
+                // SAFETY: Checked endpoints, disjoint CSR rows, ancestry and
+                // guarded wide strides bound every read/write. Inputs retain
+                // this model/session. The private f32 ABI waits before reuse.
+                unsafe {
+                    device.kernel.launch_flex_edges(
+                        &device.metadata,
+                        &out.qvel,
+                        &data.com,
+                        flex,
+                        &mut out.values,
+                        data.layout.qpos.worlds() as u32,
+                    )?;
+                }
+            }
+            data.ready.edges = true;
+            Ok(())
+        }
+    }
+
     /// 依次执行六个基础子集。
     /// 混合入口另做GPU合并。
     /// 柔体入口另加位置更新。
@@ -1309,12 +1456,68 @@ impl KinematicsPlan {
         self.update_com(data)?;
         self.update_camlight(data)?;
         self.update_flex_positions(data)?;
+        self.update_flex_edges(data)?;
         self.update_tendons(data)?;
         self.update_tendon_wake(data)
     }
 }
 
 impl KinematicsData {
+    pub fn flex_edge_fields(&self) -> Option<&FlexEdgeFields> {
+        self.edge_fields.as_deref()
+    }
+    /// 只写入启用边计算的状态。
+    /// 输入错误保留已有结果。
+    pub fn write_qvel(&mut self, qvel: &[f32]) -> Result<(), TransferError> {
+        let l = self.edge_layout()?;
+        self.write_checked_qvel(0, l.qvel.total_elements(), qvel)
+    }
+    pub fn write_world_qvel(&mut self, world: usize, qvel: &[f32]) -> Result<(), TransferError> {
+        let r = self.edge_layout()?.qvel.world_elements(world)?;
+        self.write_checked_qvel(r.start, r.len(), qvel)
+    }
+    fn edge_layout(&self) -> Result<FlexEdgeLayout, TransferError> {
+        self.layout.edges.ok_or(
+            InputError::InvalidDimension {
+                field: "flex_edges_disabled",
+            }
+            .into(),
+        )
+    }
+    fn write_checked_qvel(
+        &mut self,
+        offset: usize,
+        expected: usize,
+        qvel: &[f32],
+    ) -> Result<(), TransferError> {
+        if qvel.len() != expected {
+            return Err(InputError::LengthMismatch {
+                field: "qvel",
+                expected,
+                actual: qvel.len(),
+            }
+            .into());
+        }
+        if let Some(index) = qvel.iter().position(|v| !v.is_finite()) {
+            return Err(InputError::NonFinite {
+                field: "qvel",
+                index,
+            }
+            .into());
+        }
+        self.ready.edges = false;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = offset;
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        self.edges
+            .as_mut()
+            .expect("checked edge state")
+            .qvel
+            .write_range(4 + offset, qvel)
+    }
     /// 检查全部状态后写入一个世界。
     /// 它只废弃树副作用结果。
     pub fn write_world_sleep(
@@ -1464,6 +1667,10 @@ impl KinematicsData {
             self.layout.sleep.is_none() || self.ready.sleep,
             "tendon_wake",
         )?;
+        self.ready.require(
+            self.layout.edges.is_none_or(|l| l.is_empty()) || self.ready.edges,
+            "flex_edges",
+        )?;
         let lengths = [
             self.layout.rigid.output.total_elements() + 8,
             self.layout.com.output.total_elements() + 8,
@@ -1512,6 +1719,23 @@ impl KinematicsData {
                 _ => None,
             };
             Ok(KinematicsSnapshot {
+                edges: match (&self.edges, self.layout.edges) {
+                    (Some(out), Some(layout)) => {
+                        read_output(&out.qvel, layout.guarded_qvel, "resident_qvel_input")?;
+                        Some(FlexEdgeOutput {
+                            layout,
+                            fields: Arc::clone(
+                                self.edge_fields.as_ref().expect("checked edge fields"),
+                            ),
+                            values: read_output(
+                                &out.values,
+                                layout.guarded,
+                                "resident_flex_edge_output",
+                            )?,
+                        })
+                    }
+                    _ => None,
+                },
                 sleep: match (&self.sleep, self.layout.sleep) {
                     (Some(out), Some(layout)) => Some(SleepTreeOutput {
                         layout,
@@ -1733,6 +1957,65 @@ fn pack_sleep(info: &TendonWakeInfo, rows: &TendonRows) -> Result<PackedModel, T
         metadata,
         parameters,
     })
+}
+
+#[cfg(feature = "cuda-probe")]
+fn pack_flex_edges(
+    model: &AttachedModelInput,
+    f: &FlexPositionFields,
+    e: &FlexEdgeFields,
+    com_stride: usize,
+    flex_stride: usize,
+) -> Result<Vec<i32>, TransferError> {
+    let rigid = model.rigid();
+    let k = rigid.kinematics();
+    let nb = k.nbody();
+    let ne = e.nflexedge();
+    let nnz = e.nnz();
+    let nvert = f.flex_vertbodyid.len();
+    let length = packed_length([7, 4 * ne, nnz, nvert, nb, nb, k.nv()].into_iter())?;
+    let mut m = crate::runtime::host_staging::<i32>(length)?;
+    m[..7].copy_from_slice(&[
+        nb as i32,
+        k.nv() as i32,
+        ne as i32,
+        nnz as i32,
+        com_stride as i32,
+        flex_stride as i32,
+        nvert as i32,
+    ]);
+    for flex in 0..f.flex_interp.len() {
+        let start = e.flex_edgeadr[flex] as usize;
+        let end = start + e.flex_edgenum[flex] as usize;
+        for edge in start..end {
+            m[7 + 4 * edge..7 + 4 * edge + 4].copy_from_slice(&[
+                f.flex_vertadr[flex] + e.flex_edge[2 * edge],
+                f.flex_vertadr[flex] + e.flex_edge[2 * edge + 1],
+                e.flexedge_j_rowadr[edge],
+                e.flexedge_j_rownnz[edge],
+            ]);
+        }
+    }
+    let mut cursor = 7 + 4 * ne;
+    for values in [
+        &e.flexedge_j_colind,
+        &f.flex_vertbodyid,
+        &k.fields().body_parentid,
+    ] {
+        m[cursor..cursor + values.len()].copy_from_slice(values);
+        cursor += values.len();
+    }
+    for body in 1..nb {
+        let parent = k.fields().body_parentid[body] as usize;
+        m[cursor + body] = if parent == 0 {
+            body as i32
+        } else {
+            m[cursor + parent]
+        };
+    }
+    cursor += nb;
+    m[cursor..].copy_from_slice(&rigid.fields().dof_bodyid);
+    Ok(m)
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -2812,6 +3095,251 @@ mod tests {
         let out = data.readback().unwrap();
         let row = out.spatial_tendon().world(512).unwrap();
         assert!(row.ten_length.is_empty() && row.wrap_obj.is_empty());
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn flex_edge_free_body_matches_translation_rotation_and_velocity() {
+        let session = TransferSession::new(0).unwrap();
+        let cam = CamLightModelInput::new(
+            MocapModelInput::new(parameter_model(true), vec![-1; 2]).unwrap(),
+            CamLightFields::default(),
+        )
+        .unwrap();
+        let input = FlexPositionModelInput::new(
+            TendonModelInput::new(cam, crate::model::TendonFields::default()).unwrap(),
+            FlexPositionFields {
+                flex_interp: vec![0],
+                flex_cellnum: vec![1; 3],
+                flex_nodeadr: vec![0],
+                flex_nodenum: vec![0],
+                flex_vertadr: vec![0],
+                flex_vertnum: vec![2],
+                flex_centered: vec![false],
+                flex_vertbodyid: vec![0, 1],
+                flex_vert: vec![2.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+                flex_vert0: vec![0.0; 6],
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .with_edges(FlexEdgeFields {
+            flex_edgeadr: vec![0],
+            flex_edgenum: vec![1],
+            flex_edge: vec![0, 1],
+            flexedge_j_rowadr: vec![0],
+            flexedge_j_rownnz: vec![6],
+            flexedge_j_colind: (0..6).collect(),
+        })
+        .unwrap();
+        let plan = KinematicsPlan::with_flex_positions(
+            &session,
+            input,
+            KinematicsParameters::default(),
+            CamLightParameters::default(),
+        )
+        .unwrap();
+        let mut data = plan.create_data(513).unwrap();
+        data.write_qvel(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0].repeat(513))
+            .unwrap();
+        plan.update(&mut data).unwrap();
+        let out = data.readback().unwrap();
+        let norm = 5.0_f32.sqrt();
+        for w in 0..513 {
+            let f = out.flex_edges().unwrap().world(w).unwrap();
+            assert!((f.flexedge_length[0] - norm).abs() < 1e-6);
+            for (&a, e) in
+                f.flexedge_jacobian
+                    .iter()
+                    .zip([-2.0 / norm, 1.0 / norm, 0.0, 0.0, 0.0, 2.0 / norm])
+            {
+                assert!((a - e).abs() < 1e-6);
+            }
+            assert!((f.flexedge_velocity[0] - 12.0 / norm).abs() < 1e-6);
+        }
+        let cam = CamLightModelInput::new(
+            MocapModelInput::new(empty_model(), vec![-1]).unwrap(),
+            CamLightFields::default(),
+        )
+        .unwrap();
+        let input = FlexPositionModelInput::new(
+            TendonModelInput::new(cam, crate::model::TendonFields::default()).unwrap(),
+            FlexPositionFields {
+                flex_interp: vec![0],
+                flex_cellnum: vec![1; 3],
+                flex_nodeadr: vec![0],
+                flex_nodenum: vec![0],
+                flex_vertadr: vec![0],
+                flex_vertnum: vec![2],
+                flex_centered: vec![false],
+                flex_vertbodyid: vec![0; 2],
+                flex_vert: vec![0.0, 0.0, 0.0, 3.0, 4.0, 0.0],
+                flex_vert0: vec![0.0; 6],
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .with_edges(FlexEdgeFields {
+            flex_edgeadr: vec![0],
+            flex_edgenum: vec![1],
+            flex_edge: vec![0, 1],
+            flexedge_j_rowadr: vec![0],
+            flexedge_j_rownnz: vec![0],
+            flexedge_j_colind: vec![],
+        })
+        .unwrap();
+        let plan = KinematicsPlan::with_flex_positions(
+            &session,
+            input,
+            KinematicsParameters::default(),
+            CamLightParameters::default(),
+        )
+        .unwrap();
+        let mut data = plan.create_data(513).unwrap();
+        data.write_qvel(&[]).unwrap();
+        data.write_world_qvel(512, &[]).unwrap();
+        plan.update(&mut data).unwrap();
+        let out = data.readback().unwrap();
+        for w in 0..513 {
+            let f = out.flex_edges().unwrap().world(w).unwrap();
+            assert_eq!(f.flexedge_length, &[5.0]);
+            assert_eq!(f.flexedge_velocity, &[0.0]);
+            assert!(f.flexedge_jacobian.is_empty());
+        }
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn flex_edge_readback_rejects_guards_nonfinite_and_foreign_inputs() {
+        let session = TransferSession::new(0).unwrap();
+        let cam = CamLightModelInput::new(
+            MocapModelInput::new(parameter_model(false), vec![-1; 2]).unwrap(),
+            CamLightFields::default(),
+        )
+        .unwrap();
+        let input = FlexPositionModelInput::new(
+            TendonModelInput::new(cam, crate::model::TendonFields::default()).unwrap(),
+            FlexPositionFields {
+                flex_interp: vec![0],
+                flex_cellnum: vec![1; 3],
+                flex_nodeadr: vec![0],
+                flex_nodenum: vec![0],
+                flex_vertadr: vec![0],
+                flex_vertnum: vec![2],
+                flex_centered: vec![false],
+                flex_vertbodyid: vec![0, 1],
+                flex_vert: vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                flex_vert0: vec![0.0; 6],
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .with_edges(FlexEdgeFields {
+            flex_edgeadr: vec![0],
+            flex_edgenum: vec![1],
+            flex_edge: vec![0, 1],
+            flexedge_j_rowadr: vec![0],
+            flexedge_j_rownnz: vec![1],
+            flexedge_j_colind: vec![0],
+        })
+        .unwrap();
+        let plan = KinematicsPlan::with_flex_positions(
+            &session,
+            input,
+            KinematicsParameters::default(),
+            CamLightParameters::default(),
+        )
+        .unwrap();
+        let mut data = plan.create_data(513).unwrap();
+        plan.update(&mut data).unwrap();
+        let l = data.layout.edges.unwrap();
+        for qvel in [false, true] {
+            let len = if qvel { l.guarded_qvel } else { l.guarded };
+            for index in [0, 3, len - 4, len - 1] {
+                let e = data.edges.as_mut().unwrap();
+                let b = if qvel { &mut e.qvel } else { &mut e.values };
+                b.write_range(index, &[0.0]).unwrap();
+                assert!(matches!(data.readback(),Err(TransferError::Backend(
+                    crate::diagnostics::ProbeError::Mismatch {index:i,..})) if i==index));
+                let e = data.edges.as_mut().unwrap();
+                let b = if qvel { &mut e.qvel } else { &mut e.values };
+                b.write_range(index, &[-131072.0]).unwrap();
+            }
+            for index in [4, 4 + (len - 8) / 2, len - 5] {
+                for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+                    let e = data.edges.as_mut().unwrap();
+                    let b = if qvel { &mut e.qvel } else { &mut e.values };
+                    b.write_range(index, &[value]).unwrap();
+                    let field = if qvel {
+                        "resident_qvel_input"
+                    } else {
+                        "resident_flex_edge_output"
+                    };
+                    assert!(matches!(data.readback(),Err(TransferError::Input(
+                        InputError::NonFinite {field:f,index:i})) if f==field && i==index-4));
+                    if qvel {
+                        data.edges
+                            .as_mut()
+                            .unwrap()
+                            .qvel
+                            .write_range(index, &[0.0])
+                            .unwrap();
+                    }
+                    plan.update_flex_edges(&mut data).unwrap();
+                }
+            }
+        }
+        data.flex
+            .as_mut()
+            .unwrap()
+            .write_range(4, &[f32::MAX, 0.0, 0.0])
+            .unwrap();
+        plan.update_flex_edges(&mut data).unwrap();
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::Input(InputError::NonFinite {
+                field: "resident_flex_edge_output",
+                index: 0
+            }))
+        ));
+        plan.update_flex_positions(&mut data).unwrap();
+        plan.update_flex_edges(&mut data).unwrap();
+        let device = plan.edges.as_ref().unwrap();
+        let foreign = TransferSession::new(0).unwrap();
+        let foreign_qvel = foreign.upload(&vec![0.0; l.guarded_qvel]).unwrap();
+        let flex = data.flex.as_ref().unwrap();
+        let edges = data.edges.as_mut().unwrap();
+        // SAFETY: These invalid calls exit before launching. Other buffers keep
+        // their checked resident layouts and exact private kernel ABI.
+        unsafe {
+            assert!(matches!(
+                device.kernel.launch_flex_edges(
+                    &device.metadata,
+                    &foreign_qvel,
+                    &data.com,
+                    flex,
+                    &mut edges.values,
+                    513
+                ),
+                Err(TransferError::SessionMismatch)
+            ));
+            for worlds in [0, u32::MAX] {
+                assert!(matches!(
+                    device.kernel.launch_flex_edges(
+                        &device.metadata,
+                        &edges.qvel,
+                        &data.com,
+                        flex,
+                        &mut edges.values,
+                        worlds
+                    ),
+                    Err(TransferError::Input(InputError::InvalidDimension { .. }))
+                ));
+            }
+        }
+        data.readback().unwrap();
     }
 
     #[cfg(feature = "cuda-probe")]
