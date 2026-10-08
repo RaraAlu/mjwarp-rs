@@ -3,8 +3,12 @@
 
 mod fields;
 #[cfg(feature = "native-model-probe")]
+mod flex;
+#[cfg(feature = "native-model-probe")]
 use fields::check_length;
 pub use fields::{DeviceBatch, convert_f64_to_f32_into, copy_world_f32, upload_f64_batch};
+#[cfg(feature = "native-model-probe")]
+pub use flex::NativeFlexPositionSnapshot;
 
 mod inertial;
 mod kinematic;
@@ -190,6 +194,16 @@ mod native {
             // SAFETY: this thread-confined owner keeps its immutable model and DLL
             // live through both copies. No public API can mutate the native model.
             unsafe { super::NativeInertialSnapshot::capture(self.owner.as_ptr(), kinematics) }
+        }
+
+        /// 复制十二项柔体位置字段。
+        /// 快照不借用模型或DLL。
+        pub fn flex_position_snapshot(
+            &self,
+        ) -> Result<super::NativeFlexPositionSnapshot, NativeProbeError> {
+            // SAFETY: this thread-confined owner retains its immutable model and
+            // DLL; capture preflights counts and owns all disjoint target arrays.
+            unsafe { super::NativeFlexPositionSnapshot::capture(self.owner.as_ptr(), self.info) }
         }
     }
 

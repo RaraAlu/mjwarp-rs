@@ -43,6 +43,27 @@ typedef struct mjwarp_inertial_targets {
   double* dof_damping;
 } mjwarp_inertial_targets;
 
+typedef struct mjwarp_flex_position_info {
+  uint32_t schema, reserved;
+  int64_t nflex, nflexnode, nflexvert;
+} mjwarp_flex_position_info;
+typedef struct mjwarp_flex_position_targets {
+  uint32_t schema, reserved;
+  uint64_t nflex, nflexnode, nflexvert;
+  int32_t* flex_interp;
+  int32_t* flex_cellnum;
+  int32_t* flex_nodeadr;
+  int32_t* flex_nodenum;
+  int32_t* flex_vertadr;
+  int32_t* flex_vertnum;
+  uint8_t* flex_centered;
+  int32_t* flex_nodebodyid;
+  int32_t* flex_vertbodyid;
+  double* flex_node;
+  double* flex_vert;
+  double* flex_vert0;
+} mjwarp_flex_position_targets;
+
 // Trusted DLL and MJB only. Never accepts a borrowed mjModel pointer.
 int32_t mjwarp_native_open(const uint16_t* dll_path, const void* mjb, int32_t bytes,
                           mjwarp_native_owner** owner, mjwarp_native_info* info,
@@ -60,6 +81,13 @@ int32_t mjwarp_native_copy_kinematic(const mjwarp_native_owner* owner,
 // Same disjoint-buffer contract; preflights all nine sources and targets.
 int32_t mjwarp_native_copy_inertial(const mjwarp_native_owner* owner,
                                    const mjwarp_inertial_targets* targets);
+// Independent count DTO preserves the existing core-info ABI.
+int32_t mjwarp_native_flex_position_info(const mjwarp_native_owner* owner,
+                                        mjwarp_flex_position_info* info);
+// Checks all twelve sources and targets before writing; zero counts allow null.
+// Targets must be disjoint and sized for their declared counts.
+int32_t mjwarp_native_copy_flex_position(const mjwarp_native_owner* owner,
+                                        const mjwarp_flex_position_targets* targets);
 #ifdef __cplusplus
 }
 #endif

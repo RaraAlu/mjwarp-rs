@@ -83,6 +83,7 @@ CPU调试与工具边界仍待确认。
 40. [Windows柔体面子集](windows-resident-flex-face.md)
 41. [Windows柔体缓存失效](windows-resident-flex-hessian.md)
 42. [Windows柔体拉伸矩阵](windows-resident-flex-stretch.md)
+43. [Windows原生柔体位置转换](windows-native-flex-position.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -133,6 +134,10 @@ GPU计算边长、雅可比与速度。
 qvel支持独立世界写入。
 边拓扑与稀疏行仍共享。
 GPU已计算线性壳体面位姿。
+原生柔体位置转换已落地。
+十二项字段可接入常驻辅助。
+转换仍拒绝二次插值。
+证据见[转换报告](windows-native-flex-position.md)。
 可选面入口另加一个结果缓冲。
 面四元数采用xyzw顺序。
 柔体Hessian失效已落地。
@@ -209,6 +214,7 @@ Windows补齐八项能力探针。
 | 原生模型输入探针 | Windows MSVC可选读取可信MJB；四字段独占快照与GPU回读；不提供完整put_model |
 | 运动学字段增量 | 四类关节与地址校验；十二字段独占快照及只读GPU字段组；参数批量长度固定为一 |
 | 惯性字段增量 | 九字段及最近祖先校验；组合二十一字段上传与回读；不计算动力学 |
+| 原生柔体位置转换 | 独占十二项位置字段；严格转换后接入常驻GPU辅助；不替代完整put_model |
 | 刚体运动学探针 | GPU计算七项字段；四类关节、偏心旋转与批量世界；不替代完整G01 |
 | 质心GPU探针 | GPU计算子树质量、质心、cinert与cdof；零质量遵循冻结Warp；不替代U057 |
 | 质量矩阵GPU探针 | GPU计算CRB与对称稠密矩阵；支持自由度armature；不提供分解或求解 |

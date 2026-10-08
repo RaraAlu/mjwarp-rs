@@ -26,6 +26,9 @@ GPU计算边长、雅可比与速度。
 qvel支持独立世界写入。
 边拓扑与稀疏行仍共享。
 GPU已计算线性壳体面位姿。
+原生柔体位置转换已落地。
+快照独占十二项位置字段。
+转换仍拒绝二次插值。
 可选面入口另加一个结果缓冲。
 面四元数采用xyzw顺序。
 柔体Hessian失效已落地。
@@ -95,6 +98,7 @@ LRsLab负责CPU play。
 | `src/model/tendon.rs` | 检查混合字段与全局肌腱编号 |
 | `src/io/` | 转换、GPU字段交换与只读字段组 |
 | `src/io/fields.rs` | 提供独立连续字段底层 |
+| `src/io/flex.rs` | 复制并转换原生柔体位置字段 |
 | `src/runtime/` | 实现驱动级GPU探针 |
 | `src/physics/` | 历史校验与刚体GPU探针 |
 | `src/physics/attached.rs` | 复用刚体设备结果计算附着位姿 |

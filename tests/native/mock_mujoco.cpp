@@ -31,6 +31,34 @@ extern "C" __declspec(dllexport) mjModel* mj_loadModelBuffer(const void*, int) {
 #endif
   model.body_mass = &mass;
   model.body_parentid = &parent;
+#ifdef MOCK_INVALID_FLEX_COUNTS
+  model.nflex = -1;
+#endif
+#ifdef MOCK_OVERSIZED_FLEX_COUNTS
+  model.nflexnode = INT64_C(2147483648);
+#endif
+#if defined(MOCK_MISSING_FLEX_POINTER) || defined(MOCK_FLEX_DIRECT)
+  static int mode = 0, cells[3]{1, 1, 1}, zero = 0, one = 1;
+  static mjtBool centered = true;
+  static double vertex[3]{};
+  model.nflex = 1;
+  model.nflexvert = 1;
+  model.flex_interp = &mode;
+  model.flex_cellnum = cells;
+  model.flex_nodeadr = &zero;
+  model.flex_nodenum = &zero;
+  model.flex_vertadr = &zero;
+  model.flex_vertnum = &one;
+  model.flex_centered = &centered;
+  model.flex_vertbodyid = &zero;
+  model.flex_vert = vertex;
+#ifdef MOCK_MISSING_FLEX_POINTER
+  // Fail at the last required source, after all other checks succeed.
+  model.flex_vert0 = nullptr;
+#else
+  model.flex_vert0 = vertex;
+#endif
+#endif
 #if defined(MOCK_MISSING_KINEMATIC_POINTER) || defined(MOCK_MISSING_INERTIAL_POINTER)
   static int address = -1, count = 0;
   static double position[3]{};

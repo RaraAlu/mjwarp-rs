@@ -31,9 +31,13 @@ New-Item -ItemType Directory -Path $env:MJWARP_NATIVE_MOCKS -Force | Out-Null
 $env:MJWARP_NATIVE_LIFETIME_LOG = Join-Path $env:MJWARP_NATIVE_MOCKS 'lifetime.log'
 $fixtures = Join-Path $root 'fixtures\native-probe'
 $manifest = Get-Content -LiteralPath (Join-Path $fixtures 'manifest.json') -Raw | ConvertFrom-Json
-foreach ($file in $manifest.files) {
-    $hash = (Get-FileHash -LiteralPath (Join-Path $fixtures $file.path) -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($hash -ne $file.sha256) { throw "样本校验失败：$($file.path)" }
+foreach ($name in @('native-probe', 'flex-position', 'flex-stretch')) {
+    $base = Join-Path $root "fixtures\$name"
+    $checked = Get-Content -LiteralPath (Join-Path $base 'manifest.json') -Raw | ConvertFrom-Json
+    foreach ($file in $checked.files) {
+        $hash = (Get-FileHash -LiteralPath (Join-Path $base $file.path) -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($hash -ne $file.sha256) { throw "样本校验失败：$name/$($file.path)" }
+    }
 }
 Push-Location $env:MJWARP_NATIVE_MOCKS
 try {
@@ -45,7 +49,11 @@ try {
         @{ Name = 'tracking'; Define = '/DMOCK_TRACKING' },
         @{ Name = 'invalid-counts'; Define = @('/DMOCK_TRACKING', '/DMOCK_INVALID_COUNTS') },
         @{ Name = 'missing-kinematic-pointer'; Define = @('/DMOCK_TRACKING', '/DMOCK_MISSING_KINEMATIC_POINTER') },
-        @{ Name = 'missing-inertial-pointer'; Define = @('/DMOCK_TRACKING', '/DMOCK_MISSING_INERTIAL_POINTER') }
+        @{ Name = 'missing-inertial-pointer'; Define = @('/DMOCK_TRACKING', '/DMOCK_MISSING_INERTIAL_POINTER') },
+        @{ Name = 'missing-flex-pointer'; Define = @('/DMOCK_TRACKING', '/DMOCK_MISSING_FLEX_POINTER') },
+        @{ Name = 'invalid-flex-counts'; Define = @('/DMOCK_TRACKING', '/DMOCK_INVALID_FLEX_COUNTS') },
+        @{ Name = 'oversized-flex-counts'; Define = @('/DMOCK_TRACKING', '/DMOCK_OVERSIZED_FLEX_COUNTS') },
+        @{ Name = 'direct-flex'; Define = @('/DMOCK_TRACKING', '/DMOCK_FLEX_DIRECT') }
     )) {
         & cl.exe /nologo /LD /MD /std:c++17 "/I$package\include" $case.Define `
             (Join-Path $root 'tests\native\mock_mujoco.cpp') "/Fe$($case.Name).dll"
@@ -66,7 +74,7 @@ try {
     $output = & cargo @cargoArgs 2>&1 | Tee-Object -FilePath (Join-Path $env:MJWARP_NATIVE_MOCKS 'tests.log')
     if ($LASTEXITCODE -ne 0) { throw '原生模型探针失败' }
     $match = [regex]::Match(($output -join "`n"), 'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;')
-    $expected = if ($Gpu -or $AllFeatures) { 22 } else { 17 }
+    $expected = if ($Gpu -or $AllFeatures) { 25 } else { 20 }
     if (-not $match.Success -or [int]$match.Groups[1].Value -ne $expected -or
         [int]$match.Groups[2].Value -ne 0 -or [int]$match.Groups[3].Value -ne 0) {
         throw '测试计数无效'

@@ -28,12 +28,74 @@ static_assert(offsetof(mjwarp_inertial_targets, nbody) == 8);
 static_assert(offsetof(mjwarp_inertial_targets, body_ipos) == 24);
 static_assert(offsetof(mjwarp_inertial_targets, dof_bodyid) == 56);
 static_assert(offsetof(mjwarp_inertial_targets, dof_damping) == 88);
+static_assert(sizeof(mjtBool) == 1);
+static_assert(sizeof(mjwarp_flex_position_info) == 32);
+static_assert(alignof(mjwarp_flex_position_info) == 8);
+static_assert(offsetof(mjwarp_flex_position_info, nflex) == 8);
+static_assert(sizeof(mjwarp_flex_position_targets) == 128);
+static_assert(alignof(mjwarp_flex_position_targets) == 8);
+static_assert(offsetof(mjwarp_flex_position_targets, flex_interp) == 32);
+static_assert(offsetof(mjwarp_flex_position_targets, flex_centered) == 80);
+static_assert(offsetof(mjwarp_flex_position_targets, flex_vert0) == 120);
 
 struct mjwarp_native_owner {
   HMODULE library;
   mjModel* model;
   decltype(&mj_deleteModel) delete_model;
 };
+
+extern "C" int32_t mjwarp_native_flex_position_info(
+    const mjwarp_native_owner* owner, mjwarp_flex_position_info* info) {
+  if (!owner || !owner->model || !info) return 8;
+  const mjModel* m = owner->model;
+  if (m->nflex < 0 || m->nflexnode < 0 || m->nflexvert < 0) return 8;
+  *info = {1, 0, m->nflex, m->nflexnode, m->nflexvert};
+  return 0;
+}
+
+extern "C" int32_t mjwarp_native_copy_flex_position(
+    const mjwarp_native_owner* owner, const mjwarp_flex_position_targets* t) {
+  if (!owner || !owner->model || !t || t->schema != 1 || t->reserved != 0) return 8;
+  const mjModel* m = owner->model;
+  if (m->nflex < 0 || m->nflexnode < 0 || m->nflexvert < 0 ||
+      t->nflex != static_cast<uint64_t>(m->nflex) ||
+      t->nflexnode != static_cast<uint64_t>(m->nflexnode) ||
+      t->nflexvert != static_cast<uint64_t>(m->nflexvert) ||
+      t->nflex > SIZE_MAX / (3 * sizeof(int32_t)) ||
+      t->nflexnode > SIZE_MAX / (3 * sizeof(double)) ||
+      t->nflexvert > SIZE_MAX / (3 * sizeof(double)) ||
+      (t->nflex && (!t->flex_interp || !m->flex_interp ||
+                   !t->flex_cellnum || !m->flex_cellnum ||
+                   !t->flex_nodeadr || !m->flex_nodeadr ||
+                   !t->flex_nodenum || !m->flex_nodenum ||
+                   !t->flex_vertadr || !m->flex_vertadr ||
+                   !t->flex_vertnum || !m->flex_vertnum ||
+                   !t->flex_centered || !m->flex_centered)) ||
+      (t->nflexnode && (!t->flex_nodebodyid || !m->flex_nodebodyid ||
+                       !t->flex_node || !m->flex_node)) ||
+      (t->nflexvert && (!t->flex_vertbodyid || !m->flex_vertbodyid ||
+                       !t->flex_vert || !m->flex_vert ||
+                       !t->flex_vert0 || !m->flex_vert0))) return 8;
+  if (t->nflex) {
+    memcpy(t->flex_interp, m->flex_interp, t->nflex * sizeof(int32_t));
+    memcpy(t->flex_cellnum, m->flex_cellnum, t->nflex * 3 * sizeof(int32_t));
+    memcpy(t->flex_nodeadr, m->flex_nodeadr, t->nflex * sizeof(int32_t));
+    memcpy(t->flex_nodenum, m->flex_nodenum, t->nflex * sizeof(int32_t));
+    memcpy(t->flex_vertadr, m->flex_vertadr, t->nflex * sizeof(int32_t));
+    memcpy(t->flex_vertnum, m->flex_vertnum, t->nflex * sizeof(int32_t));
+    memcpy(t->flex_centered, m->flex_centered, t->nflex * sizeof(uint8_t));
+  }
+  if (t->nflexnode) {
+    memcpy(t->flex_nodebodyid, m->flex_nodebodyid, t->nflexnode * sizeof(int32_t));
+    memcpy(t->flex_node, m->flex_node, t->nflexnode * 3 * sizeof(double));
+  }
+  if (t->nflexvert) {
+    memcpy(t->flex_vertbodyid, m->flex_vertbodyid, t->nflexvert * sizeof(int32_t));
+    memcpy(t->flex_vert, m->flex_vert, t->nflexvert * 3 * sizeof(double));
+    memcpy(t->flex_vert0, m->flex_vert0, t->nflexvert * 3 * sizeof(double));
+  }
+  return 0;
+}
 
 extern "C" void mjwarp_native_close(mjwarp_native_owner* owner) {
   if (!owner) return;
