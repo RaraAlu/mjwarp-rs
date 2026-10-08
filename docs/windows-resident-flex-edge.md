@@ -230,3 +230,10 @@ G22动力学与G25休眠仍待实现。
 
 [冻结柔体边源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L347-L414)。
 [冻结归一化源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/math.py#L260-L265)。
+
+## 后续面增量
+
+以上计数保留本轮历史。
+后续已增加线性壳体面辅助。
+当前证据见[面报告](windows-resident-flex-face.md)。
+高阶与Hessian失效仍待实现。

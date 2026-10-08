@@ -2,7 +2,8 @@
 //! 不实现完整休眠状态机。
 
 use super::{
-    FlexEdgeFields, FlexPositionFields, FlexPositionModelInput, ParameterBatch, TendonModelInput,
+    FlexEdgeFields, FlexFaceFields, FlexPositionFields, FlexPositionModelInput, ParameterBatch,
+    TendonModelInput,
 };
 use crate::diagnostics::InputError;
 
@@ -22,12 +23,13 @@ pub struct TendonWakeFields {
 }
 
 /// 接收原生树编号与限位字段。
-/// 可选柔体支持位置与边。
+/// 可选柔体支持位置、边与面。
 #[derive(Clone, Debug, PartialEq)]
 pub struct TendonWakeModelInput {
     tendons: TendonModelInput,
     flex: Option<FlexPositionFields>,
     edges: Option<FlexEdgeFields>,
+    faces: Option<FlexFaceFields>,
     pub(crate) info: TendonWakeInfo,
 }
 
@@ -42,19 +44,20 @@ pub(crate) struct TendonWakeInfo {
 
 impl TendonWakeModelInput {
     pub fn new(tendons: TendonModelInput, fields: TendonWakeFields) -> Result<Self, InputError> {
-        Self::checked(tendons, None, None, fields)
+        Self::checked(tendons, None, None, None, fields)
     }
     pub fn with_flex_positions(
         model: FlexPositionModelInput,
         fields: TendonWakeFields,
     ) -> Result<Self, InputError> {
-        let (tendons, flex, edges) = model.into_parts();
-        Self::checked(tendons, Some(flex), edges, fields)
+        let (tendons, flex, edges, faces) = model.into_parts();
+        Self::checked(tendons, Some(flex), edges, faces, fields)
     }
     fn checked(
         tendons: TendonModelInput,
         flex: Option<FlexPositionFields>,
         edges: Option<FlexEdgeFields>,
+        faces: Option<FlexFaceFields>,
         fields: TendonWakeFields,
     ) -> Result<Self, InputError> {
         let attached = tendons.spatial().fixed().camlight().mocap().attached();
@@ -152,6 +155,7 @@ impl TendonWakeModelInput {
             tendons,
             flex,
             edges,
+            faces,
             info,
         })
     }
@@ -170,15 +174,19 @@ impl TendonWakeModelInput {
     pub fn flex_edges(&self) -> Option<&FlexEdgeFields> {
         self.edges.as_ref()
     }
+    pub fn flex_faces(&self) -> Option<&FlexFaceFields> {
+        self.faces.as_ref()
+    }
     pub(crate) fn into_parts(
         self,
     ) -> (
         TendonModelInput,
         Option<FlexPositionFields>,
         Option<FlexEdgeFields>,
+        Option<FlexFaceFields>,
         TendonWakeInfo,
     ) {
-        (self.tendons, self.flex, self.edges, self.info)
+        (self.tendons, self.flex, self.edges, self.faces, self.info)
     }
 }
 

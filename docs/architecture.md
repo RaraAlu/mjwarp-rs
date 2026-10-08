@@ -60,7 +60,13 @@ qvel与边结果各用一个缓冲。
 GPU读取常驻顶点与质心。
 GPU计算边长、雅可比与速度。
 快照保留原生稀疏行字段。
-柔体面姿态仍待实现。
+可选面入口另加一个结果缓冲。
+GPU只读取常驻节点位置。
+GPU计算线性壳体面位姿。
+面四元数采用xyzw顺序。
+面阶段不依赖质心或qvel。
+柔体Hessian失效仍待实现。
+增量见[面报告](windows-resident-flex-face.md)。
 增量见[边报告](windows-resident-flex-edge.md)。
 可选唤醒入口另加两个整数缓冲。
 GPU复用全局肌腱长度。

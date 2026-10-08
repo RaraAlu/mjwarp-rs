@@ -25,7 +25,10 @@ GPU计算节点与顶点位置。
 GPU计算边长、雅可比与速度。
 qvel支持独立世界写入。
 边拓扑与稀疏行仍共享。
-柔体面运动学仍待实现。
+GPU已计算线性壳体面位姿。
+可选面入口另加一个结果缓冲。
+面四元数采用xyzw顺序。
+柔体Hessian失效仍待实现。
 可选入口另加肌腱唤醒。
 GPU刷新树标记与树计数。
 范围与边距各用独立周期。
@@ -81,7 +84,7 @@ LRsLab负责CPU play。
 | `src/model/mocap.rs` | 检查mocap映射与静态几何 |
 | `src/model/camlight.rs` | 检查相机光源拓扑与独立参数 |
 | `src/model/fixed_tendon.rs` | 检查固定肌腱与原生CSR |
-| `src/model/flex.rs` | 检查柔体位置、边与稀疏行 |
+| `src/model/flex.rs` | 检查位置、边、稀疏行与面映射 |
 | `src/model/sleep.rs` | 检查树循环与限位参数 |
 | `src/model/spatial_tendon.rs` | 检查路径、球柱尺寸与侧向site |
 | `src/model/tendon.rs` | 检查混合字段与全局肌腱编号 |
@@ -96,6 +99,7 @@ LRsLab负责CPU play。
 | `src/physics/fixed_tendon.rs` | 固定肌腱长度与稀疏力臂 |
 | `src/physics/flex.rs` | GPU计算柔体节点与顶点位置 |
 | `src/physics/flex_edge.rs` | GPU计算边长、雅可比与速度 |
+| `src/physics/flex_face.rs` | GPU计算线性壳体面位姿 |
 | `src/physics/spatial_tendon.rs` | 路径长度、力臂与动态包裹字段 |
 | `src/physics/tendon.rs` | GPU合并原生顺序的肌腱结果 |
 | `src/physics/tendon_wrap.rs` | 冻结球柱与内侧绕行公式 |
@@ -114,6 +118,7 @@ LRsLab负责CPU play。
 | `fixtures/fixed-tendon/` | 保留固定肌腱原生参考 |
 | `fixtures/flex-position/` | 保留柔体位置原生参考 |
 | `fixtures/flex-edge/` | 保留柔体边与原生稀疏行 |
+| `fixtures/flex-face/` | 保留原生节点与独立极分解参考 |
 | `fixtures/spatial-tendon/` | 保留site与滑轮原生参考 |
 | `fixtures/geom-tendon/` | 保留球柱与内侧原生参考 |
 | `fixtures/mixed-tendon/` | 保留混合编号与全局原生参考 |

@@ -60,7 +60,9 @@ GPU输出位置与按行展开矩阵。
 每个线程独占一个世界。
 线程先更新节点再更新顶点。
 公开物理输入与输出采用f32。
-本项目拒绝高阶与壳插值。
+本项目支持线性壳体位置。
+本项目仍拒绝高阶插值。
+冻结节点辅助不执行内部TFI。
 它不提供完整柔体阶段。
 
 [冻结位置源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L211-L317)。
@@ -150,6 +152,25 @@ GPU输出位置与按行展开矩阵。
 本批没有新增运行时依赖。
 
 [冻结柔体边源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L347-L414)。
+
+## 柔体面CUDA子集
+
+`src/physics/flex_face.rs`移植面公式。
+`src/model/flex.rs`移植面节点映射。
+公式来自冻结`smooth.py`。
+映射与迭代来自冻结`support.py`。
+版权归2025年Newton开发者。
+许可采用Apache-2.0。
+本地许可保留上述文件。
+本项目只支持线性壳体面。
+本项目改用同步CUDA C++。
+旋转沿用五十轮冻结迭代。
+面四元数保留xyzw顺序。
+本项目不移植完整柔体阶段。
+本项目没有新增依赖。
+
+[冻结面与节点源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py)。
+[冻结面映射与极分解](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/support.py)。
 
 ## 肌腱唤醒CUDA子集
 

@@ -80,6 +80,7 @@ CPU调试与工具边界仍待确认。
 37. [Windows柔体位置子集](windows-resident-flex-position.md)
 38. [Windows肌腱唤醒子集](windows-resident-tendon-wake.md)
 39. [Windows柔体边子集](windows-resident-flex-edge.md)
+40. [Windows柔体面子集](windows-resident-flex-face.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -129,7 +130,10 @@ GPU计算节点与顶点位置。
 GPU计算边长、雅可比与速度。
 qvel支持独立世界写入。
 边拓扑与稀疏行仍共享。
-柔体面运动学仍待实现。
+GPU已计算线性壳体面位姿。
+可选面入口另加一个结果缓冲。
+面四元数采用xyzw顺序。
+柔体Hessian失效仍待实现。
 可选入口另加肌腱唤醒。
 GPU刷新树标记与树计数。
 范围与边距各用独立周期。

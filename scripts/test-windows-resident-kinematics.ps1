@@ -2,7 +2,7 @@
 param([switch]$AllFeatures, [switch]$Release)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon', 'spatial-tendon', 'geom-tendon', 'flex-position', 'tendon-wake', 'flex-edge')) {
+foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon', 'spatial-tendon', 'geom-tendon', 'flex-position', 'tendon-wake', 'flex-edge', 'flex-face')) {
     $fixtures = Join-Path $root "fixtures\$name"
     $manifest = Get-Content -LiteralPath (Join-Path $fixtures 'manifest.json') -Raw | ConvertFrom-Json
     foreach ($file in $manifest.files) {
@@ -67,6 +67,11 @@ try {
     $edge = Invoke-CheckedTest 'flex-edge' ($base + @('--test', 'resident_flex_edge', '--', '--ignored', '--test-threads=1', '--nocapture')) 4
     $edgeGuards = Invoke-CheckedTest 'edge-guards' ($base + @('--lib', 'flex_edge_readback', '--', '--ignored', '--test-threads=1')) 1
     $edgeFreeBody = Invoke-CheckedTest 'edge-free-body' ($base + @('--lib', 'flex_edge_free_body', '--', '--ignored', '--test-threads=1')) 1
+    $faceReferences = Invoke-CheckedTest 'face-references' ($base + @('--test', 'resident_flex_face', 'reference_hashes', '--', '--test-threads=1')) 1
+    $faceBoundaries = Invoke-CheckedTest 'face-boundaries' ($base + @('--test', 'resident_flex_face', 'rejects_face', '--', '--test-threads=1')) 1
+    $face = Invoke-CheckedTest 'flex-face' ($base + @('--test', 'resident_flex_face', '--', '--ignored', '--test-threads=1', '--nocapture')) 3
+    $faceGuards = Invoke-CheckedTest 'face-guards' ($base + @('--lib', 'flex_face_readback', '--', '--ignored', '--test-threads=1')) 1
+    $faceAnalytic = Invoke-CheckedTest 'face-analytic' ($base + @('--lib', 'flex_face_checks_analytic', '--', '--ignored', '--test-threads=1')) 1
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
     $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 4
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
@@ -76,6 +81,12 @@ try {
     if (-not $edgeStats.Success -or [int]$edgeStats.Groups[1].Value -ne 2084 -or
         [int]$edgeStats.Groups[2].Value -ne 1204552) { throw '柔体边比较计数不符' }
     $edgeLargest = [double]::Parse($edgeStats.Groups[3].Value, [Globalization.CultureInfo]::InvariantCulture)
+    $faceStats = [regex]::Match((Get-Content -LiteralPath (Join-Path $directory 'flex-face.log') -Raw),
+        'G01-flex-face states=(\d+) scalars=(\d+) max_position_error=([0-9.eE+-]+) max_quaternion_error=([0-9.eE+-]+)')
+    if (-not $faceStats.Success -or [int]$faceStats.Groups[1].Value -ne 2084 -or
+        [int]$faceStats.Groups[2].Value -ne 1033664) { throw '柔体面比较计数不符' }
+    $facePositionLargest = [double]::Parse($faceStats.Groups[3].Value, [Globalization.CultureInfo]::InvariantCulture)
+    $faceQuaternionLargest = [double]::Parse($faceStats.Groups[4].Value, [Globalization.CultureInfo]::InvariantCulture)
     $largest = 0.0
     $comparisons = 0
     foreach ($line in Get-Content -LiteralPath (Join-Path $directory 'resident.log')) {
@@ -236,13 +247,18 @@ try {
         flexEdgePassed = $edge
         flexEdgeGuardsPassed = $edgeGuards
         flexEdgeFreeBodyPassed = $edgeFreeBody
+        flexFaceReferencesPassed = $faceReferences
+        flexFaceBoundariesPassed = $faceBoundaries
+        flexFacePassed = $face
+        flexFaceGuardsPassed = $faceGuards
+        flexFaceAnalyticPassed = $faceAnalytic
         staticCachePassed = $staticCache
         adapterPassed = $adapter
         comparedWorlds = $comparisons
         maxAbsoluteError = $largest
         absoluteTolerance = 0.00002
         relativeTolerance = 0.00002
-        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json', 'fixtures/geom-tendon/manifest.json', 'fixtures/mixed-tendon/manifest.json', 'fixtures/flex-position/manifest.json', 'fixtures/tendon-wake/manifest.json', 'fixtures/flex-edge/manifest.json')
+        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json', 'fixtures/geom-tendon/manifest.json', 'fixtures/mixed-tendon/manifest.json', 'fixtures/flex-position/manifest.json', 'fixtures/tendon-wake/manifest.json', 'fixtures/flex-edge/manifest.json', 'fixtures/flex-face/manifest.json')
         sharedReferenceBatchSize = 1
         parameterIndexRule = 'world % B_f'
         parameterComparedWorlds = $parameterComparisons
@@ -343,6 +359,17 @@ try {
         flexEdgeQvelDefault = 0.0
         flexEdgeSharedTopology = $true
         flexEdgeReadsDevicePositionsAndCom = $true
+        flexFaceComparedWorlds = 2084
+        flexFaceComparedScalars = 1033664
+        flexFaceMaxPositionError = $facePositionLargest
+        flexFaceMaxQuaternionError = $faceQuaternionLargest
+        flexFaceWorldCounts = @(1, 2, 5, 513)
+        flexFaceCount = 16
+        flexFaceExtraFloatBuffers = 1
+        flexFaceQuaternionOrder = 'xyzw'
+        flexFaceReferenceUsesEigenPolar = $true
+        flexFaceRequiresOnlyNodePositions = $true
+        flexFaceHighOrderSupported = $false
         nvrtcLibraries = @(Get-ChildItem -LiteralPath (Join-Path $env:CUDA_PATH 'bin') -Filter 'nvrtc*.dll' |
             ForEach-Object { [ordered]@{ name = $_.Name; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() } })
         scriptInvokesNativeKinematics = $false

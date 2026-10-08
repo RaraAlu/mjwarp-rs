@@ -29,6 +29,8 @@ mod flex;
 pub use flex::{FlexPositionOutput, FlexPositionWorld};
 mod flex_edge;
 pub use flex_edge::{FlexEdgeOutput, FlexEdgeWorld};
+mod flex_face;
+pub use flex_face::{FlexFaceOutput, FlexFaceWorld};
 mod sleep;
 pub use sleep::{SleepTreeOutput, SleepTreeWorld};
 

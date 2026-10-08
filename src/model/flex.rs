@@ -1,4 +1,4 @@
-//! 检查柔体位置与可选边字段。
+//! 检查柔体位置与可选边面字段。
 //! 共享拓扑与局部坐标。
 
 use super::{InertialModelInput, TendonModelInput};
@@ -6,6 +6,8 @@ use crate::diagnostics::InputError;
 
 /// 原生柔体位置字段。
 /// 仅支持直接与线性插值。
+/// 线性壳体沿用冻结节点语义。
+/// 本辅助不重建内部节点。
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct FlexPositionFields {
     pub flex_interp: Vec<i32>,
@@ -23,7 +25,7 @@ pub struct FlexPositionFields {
 }
 
 /// 接收已编译模型的位置子集。
-/// 可选边字段不提供弹性。
+/// 可选边面字段不提供弹性。
 /// 休眠需要独立可选包装。
 ///
 /// ```compile_fail
@@ -36,6 +38,7 @@ pub struct FlexPositionModelInput {
     tendons: TendonModelInput,
     fields: FlexPositionFields,
     edges: Option<FlexEdgeFields>,
+    faces: Option<FlexFaceFields>,
 }
 impl FlexPositionModelInput {
     pub fn new(tendons: TendonModelInput, fields: FlexPositionFields) -> Result<Self, InputError> {
@@ -53,6 +56,7 @@ impl FlexPositionModelInput {
             tendons,
             fields,
             edges: None,
+            faces: None,
         })
     }
     /// 检查后启用边计算。
@@ -73,6 +77,15 @@ impl FlexPositionModelInput {
     pub fn edges(&self) -> Option<&FlexEdgeFields> {
         self.edges.as_ref()
     }
+    /// 检查完整线性壳体面映射。
+    pub fn with_faces(mut self, fields: FlexFaceFields) -> Result<Self, InputError> {
+        fields.validate(&self.fields)?;
+        self.faces = Some(fields);
+        Ok(self)
+    }
+    pub fn faces(&self) -> Option<&FlexFaceFields> {
+        self.faces.as_ref()
+    }
     pub fn tendons(&self) -> &TendonModelInput {
         &self.tendons
     }
@@ -90,9 +103,134 @@ impl FlexPositionModelInput {
     }
     pub(crate) fn into_parts(
         self,
-    ) -> (TendonModelInput, FlexPositionFields, Option<FlexEdgeFields>) {
-        (self.tendons, self.fields, self.edges)
+    ) -> (
+        TendonModelInput,
+        FlexPositionFields,
+        Option<FlexEdgeFields>,
+        Option<FlexFaceFields>,
+    ) {
+        (self.tendons, self.fields, self.edges, self.faces)
     }
+}
+
+/// 冻结上游的完整面映射。
+/// 每面保留九项全局节点号。
+/// 线性面末五项使用负一。
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FlexFaceFields {
+    pub flex_face_map: Vec<i32>,
+    pub flex_face: Vec<i32>,
+}
+impl FlexFaceFields {
+    pub fn nflexface(&self) -> usize {
+        self.flex_face_map.len() / 2
+    }
+    fn validate(&self, positions: &FlexPositionFields) -> Result<(), InputError> {
+        let overflow = || InputError::Overflow {
+            field: "flex_face_fields",
+        };
+        let mut expected = 0usize;
+        for f in 0..positions.flex_interp.len() {
+            if positions.flex_interp[f] == -1 {
+                expected = expected
+                    .checked_add(face_count(&positions.flex_cellnum[3 * f..3 * f + 3])?)
+                    .ok_or_else(overflow)?;
+            }
+        }
+        expected
+            .checked_mul(10)
+            .and_then(|n| n.checked_add(2))
+            .filter(|&n| n <= i32::MAX as usize)
+            .ok_or_else(overflow)?;
+        expected
+            .checked_mul(31)
+            .filter(|&n| n <= i32::MAX as usize)
+            .ok_or_else(overflow)?;
+        for (field, actual, required) in [
+            ("flex_face_map", self.flex_face_map.len(), 2 * expected),
+            ("flex_face", self.flex_face.len(), 9 * expected),
+        ] {
+            if actual != required {
+                return Err(InputError::LengthMismatch {
+                    field,
+                    expected: required,
+                    actual,
+                });
+            }
+        }
+        let mut face = 0;
+        for f in 0..positions.flex_interp.len() {
+            if positions.flex_interp[f] != -1 {
+                continue;
+            }
+            let cells = &positions.flex_cellnum[3 * f..3 * f + 3];
+            for local in 0..face_count(cells)? {
+                if self.flex_face_map[2 * face..2 * face + 2] != [f as i32, local as i32] {
+                    return Err(InputError::InvalidTopology {
+                        field: "flex_face_map",
+                        index: face,
+                        reason: "noncanonical_face_mapping",
+                    });
+                }
+                let (_, nodes) = face_nodes(cells, local);
+                for (slot, expected) in nodes
+                    .into_iter()
+                    .map(|n| positions.flex_nodeadr[f] + n)
+                    .chain([-1; 5])
+                    .enumerate()
+                {
+                    if self.flex_face[9 * face + slot] != expected {
+                        return Err(InputError::InvalidTopology {
+                            field: "flex_face",
+                            index: 9 * face + slot,
+                            reason: "noncanonical_face_nodes",
+                        });
+                    }
+                }
+                face += 1;
+            }
+        }
+        Ok(())
+    }
+}
+fn face_count(cells: &[i32]) -> Result<usize, InputError> {
+    let [x, y, z] = [cells[0] as usize, cells[1] as usize, cells[2] as usize];
+    x.checked_mul(y)
+        .and_then(|n| x.checked_mul(z).and_then(|a| n.checked_add(a)))
+        .and_then(|n| y.checked_mul(z).and_then(|a| n.checked_add(a)))
+        .and_then(|n| n.checked_mul(2))
+        .filter(|&n| n <= i32::MAX as usize)
+        .ok_or(InputError::Overflow {
+            field: "flex_face_fields",
+        })
+}
+// Frozen support.py: get_face_metadata and gather_face_node_index, order one.
+// Checked positive cells and node-grid bounds protect all integer arithmetic.
+pub(crate) fn face_nodes(cells: &[i32], local: usize) -> (i32, [i32; 4]) {
+    let [x, y, z] = [cells[0], cells[1], cells[2]];
+    let mut within = local as i32;
+    let mut side = 0;
+    for size in [y * z, y * z, x * z, x * z, x * y, x * y] {
+        if within < size {
+            break;
+        }
+        within -= size;
+        side += 1;
+    }
+    let axis = side / 2;
+    let c1 = [z, x, y][axis as usize];
+    let fixed = (side % 2) * [x, y, z][axis as usize];
+    let (q0, q1) = (within / c1, within % c1);
+    let nodes = std::array::from_fn(|slot| {
+        let (a, b) = (q0 + slot as i32 / 2, q1 + slot as i32 % 2);
+        let [i, j, k] = match axis {
+            0 => [fixed, a, b],
+            1 => [b, fixed, a],
+            _ => [a, b, fixed],
+        };
+        (i * (y + 1) + j) * (z + 1) + k
+    });
+    (axis, nodes)
 }
 
 /// 共享边拓扑与原生稀疏行。
@@ -331,7 +469,7 @@ impl FlexPositionFields {
         let (mut node, mut vert) = (0usize, 0usize);
         for f in 0..nf {
             let mode = self.flex_interp[f];
-            if mode != 0 && mode != 1 {
+            if !matches!(mode, -1..=1) {
                 return Err(invalid("flex_interp", f, "unsupported_flex_interpolation"));
             }
             let vn = self.flex_vertnum[f];
@@ -358,7 +496,7 @@ impl FlexPositionFields {
             if mode == 0 && count != 0 {
                 return Err(invalid("flex_nodenum", f, "direct_flex_has_nodes"));
             }
-            if mode == 1 {
+            if mode != 0 {
                 let mut grid = 1usize;
                 for &c in &self.flex_cellnum[3 * f..3 * f + 3] {
                     if c <= 0 {
@@ -378,7 +516,7 @@ impl FlexPositionFields {
                 if body < (if mode == 0 { 0 } else { -1 }) || (body >= 0 && body as usize >= nb) {
                     return Err(invalid("flex_vertbodyid", v, "body_reference_out_of_range"));
                 }
-                if mode == 1 {
+                if mode != 0 {
                     // Native compilation can leave tiny out-of-cube values.
                     // Preserve upstream clamping, but forbid undefined int casts.
                     for k in 0..3 {
@@ -564,8 +702,8 @@ mod tests {
         assert!(f.validate(1).is_err());
     }
     #[test]
-    fn rejects_high_order_shell_and_unsafe_linear_cells() {
-        for mode in [-2, -1, 2, i32::MAX] {
+    fn rejects_high_order_and_unsafe_linear_cells() {
+        for mode in [-2, 2, i32::MAX] {
             let mut f = fields();
             f.flex_interp[1] = mode;
             assert!(f.validate(1).is_err());
@@ -585,5 +723,32 @@ mod tests {
             f.flex_vert0[5] = coord;
             f.validate(1).unwrap();
         }
+    }
+    #[test]
+    fn accepts_linear_shell_and_checks_canonical_faces() {
+        let mut p = fields();
+        p.flex_interp[1] = -1;
+        p.validate(1).unwrap();
+        let mut f = FlexFaceFields::default();
+        for local in 0..6 {
+            f.flex_face_map.extend([1, local]);
+            f.flex_face.extend(face_nodes(&[1, 1, 1], local as usize).1);
+            f.flex_face.extend([-1; 5]);
+        }
+        f.validate(&p).unwrap();
+        for i in 0..f.flex_face.len() {
+            let mut bad = f.clone();
+            bad.flex_face[i] += 1;
+            assert!(bad.validate(&p).is_err());
+        }
+        for i in 0..f.flex_face_map.len() {
+            let mut bad = f.clone();
+            bad.flex_face_map[i] += 1;
+            assert!(bad.validate(&p).is_err());
+        }
+        FlexFaceFields::default()
+            .validate(&FlexPositionFields::default())
+            .unwrap();
+        assert!(FlexFaceFields::default().validate(&p).is_err());
     }
 }
