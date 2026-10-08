@@ -31,6 +31,8 @@ mod flex_edge;
 pub use flex_edge::{FlexEdgeOutput, FlexEdgeWorld};
 mod flex_face;
 pub use flex_face::{FlexFaceOutput, FlexFaceWorld};
+mod flex_hessian;
+pub use flex_hessian::{FlexHessianOutput, FlexHessianWorld};
 mod sleep;
 pub use sleep::{SleepTreeOutput, SleepTreeWorld};
 

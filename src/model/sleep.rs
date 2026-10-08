@@ -2,8 +2,8 @@
 //! 不实现完整休眠状态机。
 
 use super::{
-    FlexEdgeFields, FlexFaceFields, FlexPositionFields, FlexPositionModelInput, ParameterBatch,
-    TendonModelInput,
+    FlexEdgeFields, FlexFaceFields, FlexHessianFields, FlexPositionFields, FlexPositionModelInput,
+    ParameterBatch, TendonModelInput,
 };
 use crate::diagnostics::InputError;
 
@@ -30,6 +30,7 @@ pub struct TendonWakeModelInput {
     flex: Option<FlexPositionFields>,
     edges: Option<FlexEdgeFields>,
     faces: Option<FlexFaceFields>,
+    hessian: Option<FlexHessianFields>,
     pub(crate) info: TendonWakeInfo,
 }
 
@@ -44,20 +45,21 @@ pub(crate) struct TendonWakeInfo {
 
 impl TendonWakeModelInput {
     pub fn new(tendons: TendonModelInput, fields: TendonWakeFields) -> Result<Self, InputError> {
-        Self::checked(tendons, None, None, None, fields)
+        Self::checked(tendons, None, None, None, None, fields)
     }
     pub fn with_flex_positions(
         model: FlexPositionModelInput,
         fields: TendonWakeFields,
     ) -> Result<Self, InputError> {
-        let (tendons, flex, edges, faces) = model.into_parts();
-        Self::checked(tendons, Some(flex), edges, faces, fields)
+        let (tendons, flex, edges, faces, hessian) = model.into_parts();
+        Self::checked(tendons, Some(flex), edges, faces, hessian, fields)
     }
     fn checked(
         tendons: TendonModelInput,
         flex: Option<FlexPositionFields>,
         edges: Option<FlexEdgeFields>,
         faces: Option<FlexFaceFields>,
+        hessian: Option<FlexHessianFields>,
         fields: TendonWakeFields,
     ) -> Result<Self, InputError> {
         let attached = tendons.spatial().fixed().camlight().mocap().attached();
@@ -156,6 +158,7 @@ impl TendonWakeModelInput {
             flex,
             edges,
             faces,
+            hessian,
             info,
         })
     }
@@ -177,6 +180,9 @@ impl TendonWakeModelInput {
     pub fn flex_faces(&self) -> Option<&FlexFaceFields> {
         self.faces.as_ref()
     }
+    pub fn flex_hessian(&self) -> Option<&FlexHessianFields> {
+        self.hessian.as_ref()
+    }
     pub(crate) fn into_parts(
         self,
     ) -> (
@@ -184,9 +190,17 @@ impl TendonWakeModelInput {
         Option<FlexPositionFields>,
         Option<FlexEdgeFields>,
         Option<FlexFaceFields>,
+        Option<FlexHessianFields>,
         TendonWakeInfo,
     ) {
-        (self.tendons, self.flex, self.edges, self.faces, self.info)
+        (
+            self.tendons,
+            self.flex,
+            self.edges,
+            self.faces,
+            self.hessian,
+            self.info,
+        )
     }
 }
 

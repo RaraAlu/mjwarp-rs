@@ -3,6 +3,9 @@
 
 use super::{InertialModelInput, TendonModelInput};
 use crate::diagnostics::InputError;
+#[path = "flex_hessian.rs"]
+mod hessian;
+pub use hessian::FlexHessianFields;
 
 /// 原生柔体位置字段。
 /// 仅支持直接与线性插值。
@@ -39,6 +42,7 @@ pub struct FlexPositionModelInput {
     fields: FlexPositionFields,
     edges: Option<FlexEdgeFields>,
     faces: Option<FlexFaceFields>,
+    hessian: Option<FlexHessianFields>,
 }
 impl FlexPositionModelInput {
     pub fn new(tendons: TendonModelInput, fields: FlexPositionFields) -> Result<Self, InputError> {
@@ -57,6 +61,7 @@ impl FlexPositionModelInput {
             fields,
             edges: None,
             faces: None,
+            hessian: None,
         })
     }
     /// 检查后启用边计算。
@@ -71,6 +76,9 @@ impl FlexPositionModelInput {
             .attached()
             .rigid();
         fields.validate(&self.fields, rigid)?;
+        if let Some(hessian) = &self.hessian {
+            hessian.validate(&self.fields, &fields)?;
+        }
         self.edges = Some(fields);
         Ok(self)
     }
@@ -85,6 +93,19 @@ impl FlexPositionModelInput {
     }
     pub fn faces(&self) -> Option<&FlexFaceFields> {
         self.faces.as_ref()
+    }
+    /// 启用21系数拉伸矩阵。
+    /// 调用方先启用边计算。
+    pub fn with_hessian(mut self, fields: FlexHessianFields) -> Result<Self, InputError> {
+        let edges = self.edges.as_ref().ok_or(InputError::InvalidDimension {
+            field: "flex_hessian_requires_edges",
+        })?;
+        fields.validate(&self.fields, edges)?;
+        self.hessian = Some(fields);
+        Ok(self)
+    }
+    pub fn hessian(&self) -> Option<&FlexHessianFields> {
+        self.hessian.as_ref()
     }
     pub fn tendons(&self) -> &TendonModelInput {
         &self.tendons
@@ -108,8 +129,15 @@ impl FlexPositionModelInput {
         FlexPositionFields,
         Option<FlexEdgeFields>,
         Option<FlexFaceFields>,
+        Option<FlexHessianFields>,
     ) {
-        (self.tendons, self.fields, self.edges, self.faces)
+        (
+            self.tendons,
+            self.fields,
+            self.edges,
+            self.faces,
+            self.hessian,
+        )
     }
 }
 

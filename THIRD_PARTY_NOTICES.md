@@ -63,7 +63,7 @@ GPU输出位置与按行展开矩阵。
 清除逻辑来自冻结flex包装器。
 设备标志改用守卫i32缓冲。
 宿主快照提供只读bool视图。
-本项目尚未移植Hessian计算。
+本项目另移植拉伸投影矩阵。
 公开物理输入与输出采用f32。
 本项目支持线性壳体位置。
 本项目仍拒绝高阶插值。
@@ -73,6 +73,24 @@ GPU输出位置与按行展开矩阵。
 [冻结位置源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L211-L317)。
 [冻结失效顺序](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L573-L576)。
 [冻结线性权重](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/support.py#L1004-L1013)。
+
+## 柔体拉伸CUDA子集
+
+`src/physics/flex_hessian.rs`
+移植冻结拉伸块与缓存流程。
+公式来自冻结`passive.py`。
+版权归Newton开发者。
+许可采用Apache-2.0。
+本地许可沿用上述文件。
+本项目只实现21系数路线。
+本项目将负张力截断为零。
+每个线程独占一个世界。
+线程顺序累加单元与边块。
+第二段同步标记缓存有效。
+它不提供完整弹性阶段。
+本项目没有新增依赖。
+
+[冻结拉伸源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/passive.py)。
 
 ## 相机与光源CUDA辅助
 

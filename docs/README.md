@@ -82,6 +82,7 @@ CPU调试与工具边界仍待确认。
 39. [Windows柔体边子集](windows-resident-flex-edge.md)
 40. [Windows柔体面子集](windows-resident-flex-face.md)
 41. [Windows柔体缓存失效](windows-resident-flex-hessian.md)
+42. [Windows柔体拉伸矩阵](windows-resident-flex-stretch.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -135,7 +136,10 @@ GPU已计算线性壳体面位姿。
 可选面入口另加一个结果缓冲。
 面四元数采用xyzw顺序。
 柔体Hessian失效已落地。
-Hessian计算仍待实现。
+GPU已缓存拉伸投影矩阵。
+三角形与四面体采用21系数。
+矩阵乘法仍待实现。
+证据见[拉伸报告](windows-resident-flex-stretch.md)。
 可选入口另加肌腱唤醒。
 GPU刷新树标记与树计数。
 范围与边距各用独立周期。

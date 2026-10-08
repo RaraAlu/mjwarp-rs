@@ -9,14 +9,15 @@ use super::fixed_tendon::FixedTendonLayout;
 use super::flex::FlexPositionLayout;
 use super::flex_edge::FlexEdgeLayout;
 use super::flex_face::FlexFaceLayout;
+use super::flex_hessian::FlexHessianLayout;
 use super::sleep::SleepTreeLayout;
 use super::spatial_tendon::SpatialTendonLayout;
 use super::tendon::TendonLayout;
 use super::{
     AttachedKinematicsOutput, CamLightOutput, ComPositionLayout, ComPositionOutput,
-    FixedTendonOutput, FlexEdgeOutput, FlexFaceOutput, FlexPositionOutput, KinematicsLayout,
-    KinematicsOutput, SleepTreeOutput, SpatialTendonOutput, TendonOutput, check_com_position,
-    check_kinematics,
+    FixedTendonOutput, FlexEdgeOutput, FlexFaceOutput, FlexHessianOutput, FlexPositionOutput,
+    KinematicsLayout, KinematicsOutput, SleepTreeOutput, SpatialTendonOutput, TendonOutput,
+    check_com_position, check_kinematics,
 };
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
@@ -25,9 +26,9 @@ use crate::model::sleep::TendonWakeInfo;
 use crate::model::{
     AttachedModelInput, BatchLayout, CamLightFields, CamLightModelInput, CamLightParameters,
     FixedTendonFields, FixedTendonModelInput, FixedTendonRows, FlexEdgeFields, FlexFaceFields,
-    FlexPositionFields, FlexPositionModelInput, KinematicsParameter, KinematicsParameters,
-    MocapModelInput, SleepTreeState, SpatialTendonFields, SpatialTendonModelInput,
-    SpatialTendonRows, TendonModelInput, TendonRows, TendonWakeModelInput,
+    FlexHessianFields, FlexPositionFields, FlexPositionModelInput, KinematicsParameter,
+    KinematicsParameters, MocapModelInput, SleepTreeState, SpatialTendonFields,
+    SpatialTendonModelInput, SpatialTendonRows, TendonModelInput, TendonRows, TendonWakeModelInput,
 };
 #[cfg(feature = "cuda-probe")]
 use crate::model::{CamLightParameter, SpatialTendonGeometry, TendonSubset};
@@ -58,6 +59,7 @@ pub struct KinematicsPlan {
     flex_fields: Option<Arc<FlexPositionFields>>,
     edge_fields: Option<Arc<FlexEdgeFields>>,
     face_fields: Option<Arc<FlexFaceFields>>,
+    hessian_fields: Option<Arc<FlexHessianFields>>,
     sleep_info: Option<Arc<TendonWakeInfo>>,
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
@@ -89,6 +91,8 @@ pub struct KinematicsPlan {
     #[cfg(feature = "cuda-probe")]
     faces: Option<DeviceFlex>,
     #[cfg(feature = "cuda-probe")]
+    hessian: Option<DeviceFlexHessian>,
+    #[cfg(feature = "cuda-probe")]
     sleep: Option<DeviceSleep>,
 }
 
@@ -116,6 +120,13 @@ struct DeviceFlexPositions {
     model: super::DeviceModel<f32>,
     kernel: SynchronousKernel,
     invalidate_kernel: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct DeviceFlexHessian {
+    model: super::DeviceModel<f32>,
+    kernel: SynchronousKernel,
+    validate_kernel: SynchronousKernel,
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -179,6 +190,7 @@ struct ResidentLayout {
     flex: Option<FlexPositionLayout>,
     edges: Option<FlexEdgeLayout>,
     faces: Option<FlexFaceLayout>,
+    hessian: Option<FlexHessianLayout>,
     sleep: Option<SleepTreeLayout>,
 }
 
@@ -188,6 +200,7 @@ struct OptionalSubsets {
     flex_fields: Option<FlexPositionFields>,
     edge_fields: Option<FlexEdgeFields>,
     face_fields: Option<FlexFaceFields>,
+    hessian_fields: Option<FlexHessianFields>,
     sleep_info: Option<TendonWakeInfo>,
 }
 
@@ -212,6 +225,7 @@ impl ResidentLayout {
             flex: None,
             edges: None,
             faces: None,
+            hessian: None,
             sleep: None,
             qpos: BatchLayout::new(worlds, k.nq(), 4)?,
             mocap_pos: BatchLayout::new(worlds, nmocap * 3, 4)?,
@@ -233,6 +247,7 @@ struct ReadyStages {
     flex: bool,
     edges: bool,
     faces: bool,
+    hessian: bool,
     sleep: bool,
 }
 
@@ -265,6 +280,7 @@ pub struct KinematicsData {
     tendon_rows: Option<Arc<TendonRows>>,
     edge_fields: Option<Arc<FlexEdgeFields>>,
     face_fields: Option<Arc<FlexFaceFields>>,
+    hessian_fields: Option<Arc<FlexHessianFields>>,
     layout: ResidentLayout,
     ready: ReadyStages,
     #[cfg(feature = "cuda-probe")]
@@ -294,6 +310,8 @@ pub struct KinematicsData {
     #[cfg(feature = "cuda-probe")]
     faces: Option<TransferBuffer<f32>>,
     #[cfg(feature = "cuda-probe")]
+    hessian: Option<TransferBuffer<f32>>,
+    #[cfg(feature = "cuda-probe")]
     sleep: Option<ResidentSleep>,
 }
 
@@ -311,10 +329,16 @@ pub struct KinematicsSnapshot {
     flex: Option<FlexPositionOutput>,
     edges: Option<FlexEdgeOutput>,
     faces: Option<FlexFaceOutput>,
+    hessian: Option<FlexHessianOutput>,
     sleep: Option<SleepTreeOutput>,
 }
 
 impl KinematicsSnapshot {
+    /// 显式计算完成才提供矩阵。
+    /// 位置刷新后返回None。
+    pub fn flex_hessian(&self) -> Option<&FlexHessianOutput> {
+        self.hessian.as_ref()
+    }
     pub fn flex_faces(&self) -> Option<&FlexFaceOutput> {
         self.faces.as_ref()
     }
@@ -355,6 +379,9 @@ impl KinematicsSnapshot {
 }
 
 impl KinematicsPlan {
+    pub fn flex_hessian_fields(&self) -> Option<&FlexHessianFields> {
+        self.hessian_fields.as_deref()
+    }
     pub fn flex_face_fields(&self) -> Option<&FlexFaceFields> {
         self.face_fields.as_deref()
     }
@@ -485,7 +512,7 @@ impl KinematicsPlan {
         parameters: KinematicsParameters,
         camlight_parameters: CamLightParameters,
     ) -> Result<Self, TransferError> {
-        let (model, fields, edges, faces) = model.into_parts();
+        let (model, fields, edges, faces, hessian) = model.into_parts();
         let (model, rows) = model.into_parts();
         Self::with_tendon_subsets(
             session,
@@ -497,6 +524,7 @@ impl KinematicsPlan {
                 flex_fields: Some(fields),
                 edge_fields: edges,
                 face_fields: faces,
+                hessian_fields: hessian,
                 sleep_info: None,
             },
         )
@@ -510,7 +538,7 @@ impl KinematicsPlan {
         parameters: KinematicsParameters,
         camlight_parameters: CamLightParameters,
     ) -> Result<Self, TransferError> {
-        let (model, flex, edges, faces, info) = model.into_parts();
+        let (model, flex, edges, faces, hessian, info) = model.into_parts();
         let (model, rows) = model.into_parts();
         Self::with_tendon_subsets(
             session,
@@ -522,6 +550,7 @@ impl KinematicsPlan {
                 flex_fields: flex,
                 edge_fields: edges,
                 face_fields: faces,
+                hessian_fields: hessian,
                 sleep_info: Some(info),
             },
         )
@@ -539,6 +568,7 @@ impl KinematicsPlan {
             flex_fields,
             edge_fields,
             face_fields,
+            hessian_fields,
             sleep_info,
         } = subsets;
         if let Some(rows) = &tendon_rows {
@@ -589,6 +619,23 @@ impl KinematicsPlan {
             .as_ref()
             .map(|f| FlexFaceLayout::new(1, f.nflexface()))
             .transpose()?;
+        let hessian_layout = hessian_fields
+            .as_ref()
+            .map(|_| {
+                FlexHessianLayout::new(
+                    1,
+                    flex_fields
+                        .as_ref()
+                        .expect("checked flex fields")
+                        .flex_vertbodyid
+                        .len(),
+                    edge_fields
+                        .as_ref()
+                        .expect("checked edge fields")
+                        .nflexedge(),
+                )
+            })
+            .transpose()?;
         #[cfg(not(feature = "cuda-probe"))]
         {
             let _ = (
@@ -617,6 +664,8 @@ impl KinematicsPlan {
                 edge_layout,
                 face_fields,
                 face_layout,
+                hessian_fields,
+                hessian_layout,
             );
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
@@ -703,6 +752,24 @@ impl KinematicsPlan {
                         f,
                         flex_layout
                             .expect("checked flex layout")
+                            .output
+                            .elements_per_world(),
+                    )
+                })
+                .transpose()?;
+            let hessian = hessian_fields
+                .as_ref()
+                .map(|h| {
+                    pack_flex_hessian(
+                        flex_fields.as_ref().expect("checked flex fields"),
+                        edge_fields.as_ref().expect("checked edge fields"),
+                        h,
+                        flex_layout
+                            .expect("checked flex layout")
+                            .output
+                            .elements_per_world(),
+                        edge_layout
+                            .expect("checked edge layout")
                             .output
                             .elements_per_world(),
                     )
@@ -841,6 +908,23 @@ impl KinematicsPlan {
             } else {
                 None
             };
+            let hessian = if hessian_layout.is_some_and(|l| l.output.elements_per_world() != 0) {
+                Some(DeviceFlexHessian {
+                    model: hessian.expect("checked hessian fields").upload(session)?,
+                    kernel: SynchronousKernel::compile(
+                        session,
+                        super::flex_hessian::FLEX_HESSIAN_CUDA,
+                        "flex_hessian",
+                    )?,
+                    validate_kernel: SynchronousKernel::compile(
+                        session,
+                        super::flex_hessian::FLEX_HESSIAN_CUDA,
+                        "flex_hessian_validate",
+                    )?,
+                })
+            } else {
+                None
+            };
             Ok(Self {
                 model: Arc::new(model),
                 parameters,
@@ -855,6 +939,7 @@ impl KinematicsPlan {
                 flex_fields: flex_fields.map(Arc::new),
                 edge_fields: edge_fields.map(Arc::new),
                 face_fields: face_fields.map(Arc::new),
+                hessian_fields: hessian_fields.map(Arc::new),
                 sleep_info: sleep_info.map(Arc::new),
                 session: session.clone(),
                 rigid,
@@ -871,6 +956,7 @@ impl KinematicsPlan {
                 flex,
                 edges,
                 faces,
+                hessian,
                 sleep,
             })
         }
@@ -967,6 +1053,24 @@ impl KinematicsPlan {
             .as_ref()
             .map(|f| FlexFaceLayout::new(worlds, f.nflexface()))
             .transpose()?;
+        layout.hessian = self
+            .hessian_fields
+            .as_ref()
+            .map(|_| {
+                FlexHessianLayout::new(
+                    worlds,
+                    self.flex_fields
+                        .as_ref()
+                        .expect("checked flex fields")
+                        .flex_vertbodyid
+                        .len(),
+                    self.edge_fields
+                        .as_ref()
+                        .expect("checked edge fields")
+                        .nflexedge(),
+                )
+            })
+            .transpose()?;
         #[cfg(not(feature = "cuda-probe"))]
         {
             let _ = layout.state;
@@ -1019,6 +1123,7 @@ impl KinematicsPlan {
                 tendon_rows: self.tendon_rows.clone(),
                 edge_fields: self.edge_fields.clone(),
                 face_fields: self.face_fields.clone(),
+                hessian_fields: self.hessian_fields.clone(),
                 layout,
                 ready: ReadyStages::default(),
                 flex_validity: layout
@@ -1056,6 +1161,10 @@ impl KinematicsPlan {
                     .transpose()?,
                 faces: layout
                     .faces
+                    .map(|l| allocate_output(&self.session, l.guarded))
+                    .transpose()?,
+                hessian: layout
+                    .hessian
                     .map(|l| allocate_output(&self.session, l.guarded))
                     .transpose()?,
                 edges: layout
@@ -1445,6 +1554,7 @@ impl KinematicsPlan {
         data.ready.flex = false;
         data.ready.edges = false;
         data.ready.faces = false;
+        data.ready.hessian = false;
         #[cfg(not(feature = "cuda-probe"))]
         {
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
@@ -1479,6 +1589,49 @@ impl KinematicsPlan {
                 }
             }
             data.ready.flex = true;
+            Ok(())
+        }
+    }
+
+    /// 显式缓存拉伸投影矩阵。
+    /// 本阶段不执行矩阵乘法。
+    pub fn update_flex_hessian(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        if self.hessian_fields.is_some() {
+            data.ready.require(data.ready.flex, "flex_positions")?;
+            data.ready.require(data.ready.edges, "flex_edges")?;
+        }
+        data.ready.hessian = false;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            if let (Some(device), Some(output)) = (&self.hessian, &mut data.hessian) {
+                // SAFETY: Validated elements, edge pairs and 21-value ranges
+                // bound all accesses. Checked node offsets select vertices.
+                // Buffers share one session and disjoint guarded allocations.
+                // Synchronization finishes blocks before publishing valid flags.
+                unsafe {
+                    device.kernel.launch_flex_hessian(
+                        (&device.model.metadata, &device.model.parameters),
+                        data.flex.as_ref().expect("checked flex positions"),
+                        &data.edges.as_ref().expect("checked flex edges").values,
+                        data.flex_validity.as_ref().expect("checked flex validity"),
+                        output,
+                        data.layout.qpos.worlds() as u32,
+                    )?;
+                    device.validate_kernel.launch(
+                        &device.model.metadata,
+                        &device.model.parameters,
+                        output,
+                        data.flex_validity.as_mut().expect("checked flex validity"),
+                        [0, 0, 0, data.layout.qpos.worlds() as u32],
+                    )?;
+                }
+            }
+            data.ready.hessian = true;
             Ok(())
         }
     }
@@ -1620,6 +1773,9 @@ impl KinematicsPlan {
 }
 
 impl KinematicsData {
+    pub fn flex_hessian_fields(&self) -> Option<&FlexHessianFields> {
+        self.hessian_fields.as_deref()
+    }
     pub fn flex_face_fields(&self) -> Option<&FlexFaceFields> {
         self.face_fields.as_deref()
     }
@@ -1883,6 +2039,19 @@ impl KinematicsData {
                 _ => None,
             };
             Ok(KinematicsSnapshot {
+                hessian: match (&self.hessian, self.layout.hessian) {
+                    (Some(out), Some(layout)) if self.ready.hessian => Some(FlexHessianOutput {
+                        layout,
+                        fields: Arc::clone(
+                            self.hessian_fields
+                                .as_ref()
+                                .expect("checked hessian fields"),
+                        ),
+                        edges: Arc::clone(self.edge_fields.as_ref().expect("checked edge fields")),
+                        values: read_output(out, layout.guarded, "resident_flex_hessian_output")?,
+                    }),
+                    _ => None,
+                },
                 faces: match (&self.faces, self.layout.faces) {
                     (Some(out), Some(layout)) => Some(FlexFaceOutput {
                         layout,
@@ -2105,6 +2274,60 @@ const ATTACHED_PARAMETERS: [KinematicsParameter; 4] = [
 struct PackedModel {
     metadata: Vec<i32>,
     parameters: Vec<f32>,
+}
+
+#[cfg(feature = "cuda-probe")]
+fn pack_flex_hessian(
+    positions: &FlexPositionFields,
+    edges: &FlexEdgeFields,
+    fields: &FlexHessianFields,
+    position_stride: usize,
+    edge_stride: usize,
+) -> Result<PackedModel, TransferError> {
+    let nf = positions.flex_interp.len();
+    let elem_offset = 9 + 11 * nf;
+    let elemedge_offset = elem_offset + fields.flex_elem.len();
+    let edge_offset = elemedge_offset + fields.flex_elemedge.len();
+    let mut metadata = crate::runtime::host_staging::<i32>(edge_offset + edges.flex_edge.len())?;
+    metadata[..9].copy_from_slice(&[
+        nf as i32,
+        positions.flex_vertbodyid.len() as i32,
+        edges.nflexedge() as i32,
+        position_stride as i32,
+        edge_stride as i32,
+        elem_offset as i32,
+        elemedge_offset as i32,
+        edge_offset as i32,
+        (3 * positions.flex_nodebodyid.len()) as i32,
+    ]);
+    for f in 0..nf {
+        metadata[9 + 11 * f..20 + 11 * f].copy_from_slice(&[
+            fields.flex_dim[f],
+            i32::from(fields.active(positions, f)),
+            positions.flex_vertadr[f],
+            positions.flex_vertnum[f],
+            edges.flex_edgeadr[f],
+            edges.flex_edgenum[f],
+            fields.flex_elemadr[f],
+            fields.flex_elemnum[f],
+            fields.flex_elemdataadr[f],
+            fields.flex_elemedgeadr[f],
+            fields.flex_stiffnessadr[f],
+        ]);
+    }
+    metadata[elem_offset..elemedge_offset].copy_from_slice(&fields.flex_elem);
+    metadata[elemedge_offset..edge_offset].copy_from_slice(&fields.flex_elemedge);
+    metadata[edge_offset..].copy_from_slice(&edges.flex_edge);
+    let mut parameters = crate::runtime::host_staging::<f32>(
+        (fields.flexedge_length0.len() + fields.flex_stiffness.len()).max(1),
+    )?;
+    let n = fields.flexedge_length0.len();
+    parameters[..n].copy_from_slice(&fields.flexedge_length0);
+    parameters[n..n + fields.flex_stiffness.len()].copy_from_slice(&fields.flex_stiffness);
+    Ok(PackedModel {
+        metadata,
+        parameters,
+    })
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -2716,6 +2939,20 @@ mod tests {
         })
         .unwrap()
         .with_faces(faces)
+        .unwrap()
+        .with_hessian(FlexHessianFields {
+            flex_dim: vec![1; 3],
+            flex_rigid: vec![true, false, false],
+            flex_elemadr: vec![0, 1, 2],
+            flex_elemnum: vec![1; 3],
+            flex_elemdataadr: vec![0, 2, 4],
+            flex_elemedgeadr: vec![0, 1, 2],
+            flex_stiffnessadr: vec![-1; 3],
+            flex_elem: [0, 1].repeat(3),
+            flex_elemedge: vec![0; 3],
+            flexedge_length0: vec![1.0; 3],
+            flex_stiffness: vec![],
+        })
         .unwrap();
         let wake = TendonWakeModelInput::with_flex_positions(
             flex,
@@ -2736,6 +2973,293 @@ mod tests {
             CamLightParameters::default(),
         )
         .unwrap()
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    fn stretch_plan(session: &TransferSession) -> KinematicsPlan {
+        let cam = CamLightModelInput::new(
+            MocapModelInput::new(parameter_model(true), vec![-1; 2]).unwrap(),
+            CamLightFields::default(),
+        )
+        .unwrap();
+        let mut stiffness = vec![0.0; 42];
+        for base in [0, 21] {
+            for k in [0, 3, 5] {
+                stiffness[base + k] = 1.0;
+            }
+        }
+        let input = FlexPositionModelInput::new(
+            TendonModelInput::new(cam, crate::model::TendonFields::default()).unwrap(),
+            FlexPositionFields {
+                flex_interp: vec![0; 2],
+                flex_cellnum: vec![1; 6],
+                flex_nodeadr: vec![0; 2],
+                flex_nodenum: vec![0; 2],
+                flex_vertadr: vec![0, 3],
+                flex_vertnum: vec![3; 2],
+                flex_centered: vec![false; 2],
+                flex_nodebodyid: vec![],
+                flex_node: vec![],
+                flex_vertbodyid: [0, 1, 1].repeat(2),
+                flex_vert: [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0].repeat(2),
+                flex_vert0: [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0].repeat(2),
+            },
+        )
+        .unwrap()
+        .with_edges(FlexEdgeFields {
+            flex_edgeadr: vec![0, 3],
+            flex_edgenum: vec![3; 2],
+            flex_edge: [1, 2, 2, 0, 0, 1].repeat(2),
+            flexedge_j_rowadr: vec![0; 6],
+            flexedge_j_rownnz: vec![0; 6],
+            flexedge_j_colind: vec![],
+        })
+        .unwrap()
+        .with_hessian(FlexHessianFields {
+            flex_dim: vec![2; 2],
+            flex_rigid: vec![false; 2],
+            flex_elemadr: vec![0, 1],
+            flex_elemnum: vec![1; 2],
+            flex_elemdataadr: vec![0, 3],
+            flex_elemedgeadr: vec![0, 3],
+            flex_stiffnessadr: vec![0, 21],
+            flex_elem: [0, 1, 2].repeat(2),
+            flex_elemedge: [0, 1, 2].repeat(2),
+            flexedge_length0: [2.0f32.sqrt(), 1.0, 1.0].repeat(2),
+            flex_stiffness: stiffness,
+        })
+        .unwrap();
+        KinematicsPlan::with_flex_positions(
+            session,
+            input,
+            KinematicsParameters::default(),
+            CamLightParameters::default(),
+        )
+        .unwrap()
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn stretch_hessian_checks_analytic_compression_and_partial_cache() {
+        let session = TransferSession::new(0).unwrap();
+        let plan = stretch_plan(&session);
+        let mut data = plan.create_data(513).unwrap();
+        plan.update(&mut data).unwrap();
+        let vertices = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0].repeat(2);
+        let lengths = [2.0f32.sqrt(), 1.0, 1.0].repeat(2);
+        let expected_diag = [
+            2.0, 0.0, 0.0, 2.0, 0.0, 0.0, 4.0, -2.0, 0.0, 2.0, 0.0, 0.0, 2.0, -2.0, 0.0, 4.0, 0.0,
+            0.0,
+        ];
+        let expected_edge = [
+            -2.0, 2.0, 0.0, 2.0, -2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.0, 0.0, 0.0, 0.0,
+            0.0, -2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        ];
+        for scale in [1.0, 0.5] {
+            for w in 0..513 {
+                data.flex
+                    .as_mut()
+                    .unwrap()
+                    .write_range(
+                        4 + 18 * w,
+                        &vertices.iter().map(|v| v * scale).collect::<Vec<_>>(),
+                    )
+                    .unwrap();
+                data.edges
+                    .as_mut()
+                    .unwrap()
+                    .values
+                    .write_range(
+                        4 + 12 * w,
+                        &lengths.iter().map(|v| v * scale).collect::<Vec<_>>(),
+                    )
+                    .unwrap();
+            }
+            data.flex_validity
+                .as_mut()
+                .unwrap()
+                .write_range(4, &vec![0; 1026])
+                .unwrap();
+            plan.update_flex_hessian(&mut data).unwrap();
+            let out = data.readback().unwrap();
+            for w in [0, 256, 512] {
+                let h = out.flex_hessian().unwrap().world(w).unwrap();
+                for (actual, expected) in h.flexvert_hessian.iter().zip(expected_diag.repeat(2)) {
+                    assert!((actual - expected * scale * scale).abs() < 2e-6);
+                }
+                for (actual, expected) in h.flexedge_hessian.iter().zip(expected_edge.repeat(2)) {
+                    assert!((actual - expected * scale * scale).abs() < 2e-6);
+                }
+            }
+        }
+        let width = data.layout.hessian.unwrap().output.elements_per_world();
+        let payload = vec![37.0; 513 * width];
+        data.hessian
+            .as_mut()
+            .unwrap()
+            .write_range(4, &payload)
+            .unwrap();
+        let flags: Vec<i32> = (0..1026).map(|i| i % 2).collect();
+        data.flex_validity
+            .as_mut()
+            .unwrap()
+            .write_range(4, &flags)
+            .unwrap();
+        plan.update_flex_hessian(&mut data).unwrap();
+        let out = data.readback().unwrap();
+        for w in 0..513 {
+            let h = out.flex_hessian().unwrap().world(w).unwrap();
+            assert!(
+                h.flexvert_hessian[18..]
+                    .iter()
+                    .chain(&h.flexedge_hessian[27..])
+                    .all(|&v| v == 37.0)
+            );
+            assert!(
+                h.flexvert_hessian[..18]
+                    .iter()
+                    .chain(&h.flexedge_hessian[..27])
+                    .all(|&v| v != 37.0)
+            );
+        }
+        // A valid cache ignores even private geometry changes; G01 clears it.
+        data.flex
+            .as_mut()
+            .unwrap()
+            .write_range(4, &[7.0; 18])
+            .unwrap();
+        plan.update_flex_hessian(&mut data).unwrap();
+        assert_eq!(
+            out.flex_hessian().unwrap().values,
+            data.readback().unwrap().flex_hessian().unwrap().values
+        );
+        plan.update(&mut data).unwrap();
+        assert!(data.readback().unwrap().flex_hessian().is_none());
+        plan.update_flex_hessian(&mut data).unwrap();
+        assert!(
+            !data.readback().unwrap().flex_hessian().unwrap().values[4..4 + width].contains(&37.0)
+        );
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn stretch_hessian_rejects_guards_nonfinite_and_late_publish_failure() {
+        let session = TransferSession::new(0).unwrap();
+        let foreign = TransferSession::new(0).unwrap();
+        let mut plan = stretch_plan(&session);
+        let mut data = plan.create_data(513).unwrap();
+        plan.update(&mut data).unwrap();
+        plan.update_flex_hessian(&mut data).unwrap();
+        let len = data.layout.hessian.unwrap().guarded;
+        for index in (0..4).chain(len - 4..len) {
+            data.hessian
+                .as_mut()
+                .unwrap()
+                .write_range(index, &[0.0])
+                .unwrap();
+            assert!(data.readback().is_err());
+            data.hessian
+                .as_mut()
+                .unwrap()
+                .write_range(index, &[-131072.0])
+                .unwrap();
+        }
+        for index in [4, 4 + 90 * 256, len - 5] {
+            for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+                data.hessian
+                    .as_mut()
+                    .unwrap()
+                    .write_range(index, &[value])
+                    .unwrap();
+                assert!(matches!(
+                    data.readback(),
+                    Err(TransferError::Input(InputError::NonFinite {
+                        field: "resident_flex_hessian_output",
+                        ..
+                    }))
+                ));
+                plan.update(&mut data).unwrap();
+                plan.update_flex_hessian(&mut data).unwrap();
+                data.readback().unwrap();
+            }
+        }
+        for publish in [false, true] {
+            plan.update(&mut data).unwrap();
+            let replacement = SynchronousKernel::compile(
+                &foreign,
+                super::super::flex_hessian::FLEX_HESSIAN_CUDA,
+                if publish {
+                    "flex_hessian_validate"
+                } else {
+                    "flex_hessian"
+                },
+            )
+            .unwrap();
+            let device = plan.hessian.as_mut().unwrap();
+            let slot = if publish {
+                &mut device.validate_kernel
+            } else {
+                &mut device.kernel
+            };
+            let original = std::mem::replace(slot, replacement);
+            assert_eq!(
+                plan.update_flex_hessian(&mut data),
+                Err(TransferError::SessionMismatch)
+            );
+            assert!(data.readback().unwrap().flex_hessian().is_none());
+            assert!(
+                read_flex_validity(data.flex_validity.as_ref().unwrap(), 1034)
+                    .unwrap()
+                    .iter()
+                    .all(|&v| !v)
+            );
+            let device = plan.hessian.as_mut().unwrap();
+            *if publish {
+                &mut device.validate_kernel
+            } else {
+                &mut device.kernel
+            } = original;
+            plan.update_flex_hessian(&mut data).unwrap();
+            data.readback().unwrap();
+        }
+        // Finite positions/edge lengths can still overflow material arithmetic.
+        data.flex
+            .as_mut()
+            .unwrap()
+            .write_range(4, &[f32::MAX, -f32::MAX, 0.0, 0.0, f32::MAX, 0.0].repeat(3))
+            .unwrap();
+        data.edges
+            .as_mut()
+            .unwrap()
+            .values
+            .write_range(4, &[f32::MAX; 6])
+            .unwrap();
+        data.flex_validity
+            .as_mut()
+            .unwrap()
+            .write_range(4, &[0; 2])
+            .unwrap();
+        plan.update_flex_hessian(&mut data).unwrap();
+        assert!(data.readback().is_err());
+        let mixed = flex_hessian_plan(&session);
+        let mut state = mixed.create_data(2).unwrap();
+        mixed.update(&mut state).unwrap();
+        mixed.update_flex_hessian(&mut state).unwrap();
+        assert!(state.readback().unwrap().flex_faces().is_some());
+        assert!(state.readback().unwrap().sleep_trees().is_some());
+        assert_eq!(
+            state
+                .readback()
+                .unwrap()
+                .flex_positions()
+                .unwrap()
+                .world(1)
+                .unwrap()
+                .flex_hessian_valid,
+            &[true; 3]
+        );
     }
 
     #[cfg(feature = "cuda-probe")]

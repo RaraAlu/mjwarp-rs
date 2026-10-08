@@ -66,7 +66,14 @@ GPU计算线性壳体面位姿。
 面四元数采用xyzw顺序。
 面阶段不依赖质心或qvel。
 柔体Hessian失效已落地。
-Hessian计算仍待实现。
+GPU已缓存拉伸投影矩阵。
+可选矩阵另占一个浮点缓冲。
+调用方显式触发矩阵阶段。
+位置刷新仍清除全部标志。
+qvel刷新保留几何缓存。
+三角形与四面体采用21系数。
+矩阵乘法仍待实现。
+证据见[拉伸报告](windows-resident-flex-stretch.md)。
 增量见[面报告](windows-resident-flex-face.md)。
 增量见[边报告](windows-resident-flex-edge.md)。
 可选唤醒入口另加两个整数缓冲。

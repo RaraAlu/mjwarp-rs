@@ -25,7 +25,10 @@ GPU已计算边长、雅可比与速度。
 GPU已计算线性壳体面位姿。
 高阶与完整柔体仍待实现。
 柔体Hessian失效已落地。
-Hessian计算仍待实现。
+GPU已缓存拉伸投影矩阵。
+三角形与四面体采用21系数。
+矩阵乘法与新材料仍待实现。
+证据见[拉伸报告](windows-resident-flex-stretch.md)。
 证据见[缓存报告](windows-resident-flex-hessian.md)。
 肌腱唤醒见[增量报告](windows-resident-tendon-wake.md)。
 GPU已唤醒循环并刷新树。

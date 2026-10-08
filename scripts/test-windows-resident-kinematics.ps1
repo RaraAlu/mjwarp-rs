@@ -2,7 +2,7 @@
 param([switch]$AllFeatures, [switch]$Release)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon', 'spatial-tendon', 'geom-tendon', 'flex-position', 'tendon-wake', 'flex-edge', 'flex-face')) {
+foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon', 'spatial-tendon', 'geom-tendon', 'flex-position', 'tendon-wake', 'flex-edge', 'flex-face', 'flex-stretch')) {
     $fixtures = Join-Path $root "fixtures\$name"
     $manifest = Get-Content -LiteralPath (Join-Path $fixtures 'manifest.json') -Raw | ConvertFrom-Json
     foreach ($file in $manifest.files) {
@@ -75,8 +75,13 @@ try {
     $hessianLayout = Invoke-CheckedTest 'hessian-layout' ($base + @('--lib', 'checks_hessian_validity_layout', '--', '--test-threads=1')) 1
     $hessianDecode = Invoke-CheckedTest 'hessian-decode' ($base + @('--lib', 'flex_hessian_decodes', '--', '--test-threads=1')) 1
     $hessian = Invoke-CheckedTest 'flex-hessian' ($base + @('--lib', 'flex_hessian_', '--', '--ignored', '--test-threads=1', '--nocapture')) 3
+    $stretchReferences = Invoke-CheckedTest 'stretch-references' ($base + @('--test', 'resident_flex_stretch', 'reference_hashes', '--', '--test-threads=1')) 1
+    $stretchBoundaries = Invoke-CheckedTest 'stretch-boundaries' ($base + @('--test', 'resident_flex_stretch', 'rejects_hessian', '--', '--test-threads=1')) 1
+    $stretchLayout = Invoke-CheckedTest 'stretch-layout' ($base + @('--lib', 'checks_hessian_layouts', '--', '--test-threads=1')) 1
+    $stretch = Invoke-CheckedTest 'flex-stretch' ($base + @('--test', 'resident_flex_stretch', '--', '--ignored', '--test-threads=1', '--nocapture')) 4
+    $stretchGuards = Invoke-CheckedTest 'stretch-guards' ($base + @('--lib', 'stretch_hessian_', '--', '--ignored', '--test-threads=1', '--nocapture')) 2
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
-    $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 4
+    $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 5
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
     if ($LASTEXITCODE -ne 0) { throw 'GPU信息查询失败' }
     $edgeStats = [regex]::Match((Get-Content -LiteralPath (Join-Path $directory 'flex-edge.log') -Raw),
@@ -90,6 +95,11 @@ try {
         [int]$faceStats.Groups[2].Value -ne 1033664) { throw '柔体面比较计数不符' }
     $facePositionLargest = [double]::Parse($faceStats.Groups[3].Value, [Globalization.CultureInfo]::InvariantCulture)
     $faceQuaternionLargest = [double]::Parse($faceStats.Groups[4].Value, [Globalization.CultureInfo]::InvariantCulture)
+    $stretchStats = [regex]::Match((Get-Content -LiteralPath (Join-Path $directory 'flex-stretch.log') -Raw),
+        'flex-stretch states=(\d+) scalars=(\d+) max_abs_error=([0-9.eE+-]+)')
+    if (-not $stretchStats.Success -or [int]$stretchStats.Groups[1].Value -ne 2084 -or
+        [int]$stretchStats.Groups[2].Value -ne 3044724) { throw '拉伸矩阵比较计数不符' }
+    $stretchLargest = [double]::Parse($stretchStats.Groups[3].Value, [Globalization.CultureInfo]::InvariantCulture)
     $largest = 0.0
     $comparisons = 0
     foreach ($line in Get-Content -LiteralPath (Join-Path $directory 'resident.log')) {
@@ -265,7 +275,7 @@ try {
         maxAbsoluteError = $largest
         absoluteTolerance = 0.00002
         relativeTolerance = 0.00002
-        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json', 'fixtures/geom-tendon/manifest.json', 'fixtures/mixed-tendon/manifest.json', 'fixtures/flex-position/manifest.json', 'fixtures/tendon-wake/manifest.json', 'fixtures/flex-edge/manifest.json', 'fixtures/flex-face/manifest.json')
+        fixtureManifests = @('fixtures/kinematics/manifest.json', 'fixtures/com-position/manifest.json', 'fixtures/attached-kinematics/manifest.json', 'fixtures/mocap-kinematics/manifest.json', 'fixtures/camlight/manifest.json', 'fixtures/fixed-tendon/manifest.json', 'fixtures/spatial-tendon/manifest.json', 'fixtures/geom-tendon/manifest.json', 'fixtures/mixed-tendon/manifest.json', 'fixtures/flex-position/manifest.json', 'fixtures/tendon-wake/manifest.json', 'fixtures/flex-edge/manifest.json', 'fixtures/flex-face/manifest.json', 'fixtures/flex-stretch/manifest.json')
         sharedReferenceBatchSize = 1
         parameterIndexRule = 'world % B_f'
         parameterComparedWorlds = $parameterComparisons
@@ -360,7 +370,21 @@ try {
         flexHessianStorage = 'guarded i32, checked bool snapshot'
         flexHessianModes = @(0, 1, -1)
         flexHessianClearBeforePositions = $true
-        flexHessianProducerImplemented = $false
+        flexHessianProducerImplemented = $true
+        flexStretchReferencesPassed = $stretchReferences
+        flexStretchBoundariesPassed = $stretchBoundaries
+        flexStretchLayoutPassed = $stretchLayout
+        flexStretchPassed = $stretch
+        flexStretchGuardsPassed = $stretchGuards
+        flexStretchComparedWorlds = 2084
+        flexStretchComparedScalars = 3044724
+        flexStretchMaxAbsoluteError = $stretchLargest
+        flexStretchCoefficientsPerElement = 21
+        flexStretchExtraFloatBuffers = 1
+        flexStretchDims = @(2, 3)
+        flexStretchExplicitStage = $true
+        flexStretchAutomaticG01Stage = $false
+        flexStretchMatrixVectorProduct = $false
         tendonWakeComparedWorlds = $wakeStats.Count
         tendonWakeExactTreeStates = $true
         tendonWakeWorldCounts = @(1, 2, 5, 513)

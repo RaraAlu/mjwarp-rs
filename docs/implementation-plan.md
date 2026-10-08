@@ -61,7 +61,9 @@ qvel已支持独立世界写入。
 GPU已计算线性壳体面位姿。
 面四元数采用xyzw顺序。
 柔体Hessian失效已落地。
-Hessian计算仍待实现。
+GPU已缓存拉伸投影矩阵。
+三角形与四面体采用21系数。
+矩阵乘法仍待实现。
 GPU已支持肌腱唤醒副作用。
 GPU已轻量刷新树活动标记。
 完整休眠状态机仍待实现。
@@ -867,7 +869,10 @@ GPU已合并长度、力臂与包裹。
 证据见[面报告](windows-resident-flex-face.md)。
 Hessian失效语义已落地。
 证据见[缓存报告](windows-resident-flex-hessian.md)。
-下一步推进完整柔体字段。
+拉伸投影矩阵已落地。
+证据见[拉伸报告](windows-resident-flex-stretch.md)。
+下一步推进矩阵乘法。
+随后补齐高阶与新材料。
 随后收口完整阶段入口。
 完整G01仍需双平台验收。
 质量矩阵已提供GPU辅助子集。
