@@ -187,6 +187,8 @@ mod gpu {
     }
     fn native(out: &KinematicsSnapshot, w: usize, c: &Value) -> (f64, f64) {
         let p = out.flex_positions().unwrap().world(w).unwrap();
+        // Frozen clear semantics, separate from the native position reference.
+        assert_eq!(p.flex_hessian_valid, &[false; 4]);
         compare(p.flexnode_xpos, &c["flexnode_xpos"]);
         compare(p.flexvert_xpos, &c["flexvert_xpos"]);
         let f = out.flex_faces().unwrap().world(w).unwrap();

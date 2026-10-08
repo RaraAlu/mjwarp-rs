@@ -83,7 +83,7 @@ pub struct KinematicsPlan {
     #[cfg(feature = "cuda-probe")]
     tendon: Option<DeviceTendon>,
     #[cfg(feature = "cuda-probe")]
-    flex: Option<DeviceFlex>,
+    flex: Option<DeviceFlexPositions>,
     #[cfg(feature = "cuda-probe")]
     edges: Option<DeviceFlexEdges>,
     #[cfg(feature = "cuda-probe")]
@@ -109,6 +109,13 @@ struct ResidentSleep {
 struct DeviceFlex {
     model: super::DeviceModel<f32>,
     kernel: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct DeviceFlexPositions {
+    model: super::DeviceModel<f32>,
+    kernel: SynchronousKernel,
+    invalidate_kernel: SynchronousKernel,
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -280,6 +287,8 @@ pub struct KinematicsData {
     tendon: Option<ResidentTendon>,
     #[cfg(feature = "cuda-probe")]
     flex: Option<TransferBuffer<f32>>,
+    #[cfg(feature = "cuda-probe")]
+    flex_validity: Option<TransferBuffer<i32>>,
     #[cfg(feature = "cuda-probe")]
     edges: Option<ResidentFlexEdges>,
     #[cfg(feature = "cuda-probe")]
@@ -468,6 +477,7 @@ impl KinematicsPlan {
     /// 另加柔体节点与顶点位置。
     /// 可选边复用质心与qvel。
     /// 可选面只复用设备节点。
+    /// 位置阶段清除Hessian标志。
     /// 保留混合肌腱全局编号。
     pub fn with_flex_positions(
         session: &TransferSession,
@@ -556,7 +566,14 @@ impl KinematicsPlan {
         check_parameters(&model, &parameters)?;
         let flex_layout = flex_fields
             .as_ref()
-            .map(|f| FlexPositionLayout::new(1, f.flex_nodebodyid.len(), f.flex_vertbodyid.len()))
+            .map(|f| {
+                FlexPositionLayout::new(
+                    1,
+                    f.flex_interp.len(),
+                    f.flex_nodebodyid.len(),
+                    f.flex_vertbodyid.len(),
+                )
+            })
             .transpose()?;
         let sleep_layout = sleep_info
             .as_ref()
@@ -767,8 +784,13 @@ impl KinematicsPlan {
                 None
             };
             let flex = if flex_layout.is_some_and(|l| !l.is_empty()) {
-                Some(DeviceFlex {
+                Some(DeviceFlexPositions {
                     model: flex.expect("checked flex fields").upload(session)?,
+                    invalidate_kernel: SynchronousKernel::compile(
+                        session,
+                        super::flex::FLEX_POSITION_CUDA,
+                        "flex_invalidate",
+                    )?,
                     kernel: SynchronousKernel::compile(
                         session,
                         super::flex::FLEX_POSITION_CUDA,
@@ -915,7 +937,12 @@ impl KinematicsPlan {
             .flex_fields
             .as_ref()
             .map(|f| {
-                FlexPositionLayout::new(worlds, f.flex_nodebodyid.len(), f.flex_vertbodyid.len())
+                FlexPositionLayout::new(
+                    worlds,
+                    f.flex_interp.len(),
+                    f.flex_nodebodyid.len(),
+                    f.flex_vertbodyid.len(),
+                )
             })
             .transpose()?;
         layout.sleep = self
@@ -994,6 +1021,15 @@ impl KinematicsPlan {
                 face_fields: self.face_fields.clone(),
                 layout,
                 ready: ReadyStages::default(),
+                flex_validity: layout
+                    .flex
+                    .map(|l| {
+                        let mut values = crate::runtime::host_staging::<i32>(l.guarded_validity)?;
+                        values.fill(-131072);
+                        values[4..l.guarded_validity - 4].fill(0);
+                        self.session.upload(&values)
+                    })
+                    .transpose()?,
                 state: self.session.upload(&state)?,
                 rigid: allocate_output(&self.session, layout.rigid.guarded)?,
                 com: allocate_output(&self.session, layout.com.guarded)?,
@@ -1399,6 +1435,10 @@ impl KinematicsPlan {
 
     /// 只更新柔体位置子集。
     /// 它只依赖刚体结果。
+    /// 先清除每世界的柔体标志。
+    /// 随后计算节点与顶点位置。
+    /// 严格入口先检查刚体就绪。
+    /// 本辅助不计算Hessian矩阵。
     pub fn update_flex_positions(&self, data: &mut KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
         data.ready.require(data.ready.rigid, "rigid")?;
@@ -1412,6 +1452,19 @@ impl KinematicsPlan {
         #[cfg(feature = "cuda-probe")]
         {
             if let (Some(device), Some(out)) = (&self.flex, &mut data.flex) {
+                // SAFETY: This private entry shares the checked flex metadata.
+                // It ignores float inputs and writes only world*nf i32 slots.
+                // Guarded validity owns the same session and checked dimensions.
+                // Clear before position work, even when positions later fail.
+                unsafe {
+                    device.invalidate_kernel.launch(
+                        &device.model.metadata,
+                        &device.model.parameters,
+                        &data.rigid,
+                        data.flex_validity.as_mut().expect("checked flex validity"),
+                        [0, 0, 0, data.layout.qpos.worlds() as u32],
+                    )?;
+                }
                 // SAFETY: Checked immutable fields partition nodes and vertices.
                 // Each synchronized thread reads a ready rigid world and owns
                 // its guarded output; wide strides match checked batch layouts.
@@ -1870,6 +1923,10 @@ impl KinematicsData {
                     (Some(out), Some(layout)) => Some(FlexPositionOutput {
                         layout,
                         values: read_output(out, layout.guarded, "resident_flex_position_output")?,
+                        validity: read_flex_validity(
+                            self.flex_validity.as_ref().expect("checked flex validity"),
+                            layout.guarded_validity,
+                        )?,
                     }),
                     _ => None,
                 },
@@ -2525,6 +2582,37 @@ fn allocate_output(
 }
 
 #[cfg(feature = "cuda-probe")]
+fn read_flex_validity(
+    buffer: &TransferBuffer<i32>,
+    length: usize,
+) -> Result<Vec<bool>, TransferError> {
+    let values = read_output(buffer, length, "resident_flex_hessian_valid")?;
+    decode_flex_validity(&values[4..length - 4])
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn decode_flex_validity(values: &[i32]) -> Result<Vec<bool>, TransferError> {
+    for (index, &value) in values.iter().enumerate() {
+        if value != 0 && value != 1 {
+            return Err(InputError::InvalidTopology {
+                field: "resident_flex_hessian_valid",
+                index,
+                reason: "expected 0 or 1",
+            }
+            .into());
+        }
+    }
+    let mut decoded = Vec::new();
+    decoded
+        .try_reserve_exact(values.len())
+        .map_err(|_| TransferError::HostAllocation {
+            bytes: values.len(),
+        })?;
+    decoded.extend(values.iter().map(|&v| v == 1));
+    Ok(decoded)
+}
+
+#[cfg(feature = "cuda-probe")]
 fn allocate_integer_output(
     session: &TransferSession,
     length: usize,
@@ -2553,6 +2641,449 @@ mod tests {
     use crate::model::{
         AttachedFields, InertialFields, InertialModelInput, KinematicFields, KinematicModelInput,
     };
+
+    #[test]
+    fn flex_hessian_decodes_only_canonical_boolean_slots() {
+        assert_eq!(decode_flex_validity(&[]).unwrap(), Vec::<bool>::new());
+        assert_eq!(
+            decode_flex_validity(&[0, 1, 0, 1]).unwrap(),
+            [false, true, false, true]
+        );
+        for value in [-131072, -1, 2, i32::MIN, i32::MAX] {
+            assert!(matches!(
+                decode_flex_validity(&[0, value, 1]),
+                Err(TransferError::Input(InputError::InvalidTopology {
+                    field: "resident_flex_hessian_valid",
+                    index: 1,
+                    ..
+                }))
+            ));
+        }
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    fn flex_hessian_plan(session: &TransferSession) -> KinematicsPlan {
+        let cam = CamLightModelInput::new(
+            MocapModelInput::new(parameter_model(true), vec![-1; 2]).unwrap(),
+            CamLightFields::default(),
+        )
+        .unwrap();
+        let mut nodes = Vec::new();
+        for _ in 0..2 {
+            for x in 0..2 {
+                for y in 0..2 {
+                    for z in 0..2 {
+                        nodes.extend([x as f32, y as f32, z as f32]);
+                    }
+                }
+            }
+        }
+        let mut faces = FlexFaceFields::default();
+        for f in 0..6 {
+            faces.flex_face_map.extend([2, f]);
+            faces.flex_face.extend(
+                crate::model::flex::face_nodes(&[1; 3], f as usize)
+                    .1
+                    .map(|n| n + 8),
+            );
+            faces.flex_face.extend([-1; 5]);
+        }
+        let flex = FlexPositionModelInput::new(
+            TendonModelInput::new(cam, crate::model::TendonFields::default()).unwrap(),
+            FlexPositionFields {
+                flex_interp: vec![0, 1, -1],
+                flex_cellnum: vec![1; 9],
+                flex_nodeadr: vec![0, 0, 8],
+                flex_nodenum: vec![0, 8, 8],
+                flex_vertadr: vec![0, 2, 4],
+                flex_vertnum: vec![2; 3],
+                flex_centered: vec![false; 3],
+                flex_nodebodyid: vec![1; 16],
+                flex_vertbodyid: vec![1; 6],
+                flex_node: nodes,
+                flex_vert: [0.2, 0.3, 0.4, 0.7, 0.8, 0.9].repeat(3),
+                flex_vert0: [0.2, 0.3, 0.4, 0.7, 0.8, 0.9].repeat(3),
+            },
+        )
+        .unwrap()
+        .with_edges(FlexEdgeFields {
+            flex_edgeadr: vec![0, 1, 2],
+            flex_edgenum: vec![1; 3],
+            flex_edge: [0, 1].repeat(3),
+            flexedge_j_rowadr: vec![0; 3],
+            flexedge_j_rownnz: vec![0; 3],
+            flexedge_j_colind: vec![],
+        })
+        .unwrap()
+        .with_faces(faces)
+        .unwrap();
+        let wake = TendonWakeModelInput::with_flex_positions(
+            flex,
+            crate::model::TendonWakeFields {
+                body_treeid: vec![-1, 0],
+                tendon_limited: vec![],
+                tendon_range: crate::model::ParameterBatch::new(3, 0, vec![]).unwrap(),
+                tendon_margin: crate::model::ParameterBatch::new(2, 0, vec![]).unwrap(),
+                sleep_enabled: true,
+                island_disabled: false,
+            },
+        )
+        .unwrap();
+        KinematicsPlan::with_tendon_wake(
+            session,
+            wake,
+            KinematicsParameters::default(),
+            CamLightParameters::default(),
+        )
+        .unwrap()
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn flex_hessian_clears_all_mixed_sleeping_worlds_before_positions() {
+        let session = TransferSession::new(0).unwrap();
+        let plan = flex_hessian_plan(&session);
+        let mut states = 0;
+        let mut flags = 0;
+        for worlds in [1, 2, 5, 513] {
+            let mut data = plan.create_data(worlds).unwrap();
+            assert_eq!(
+                read_flex_validity(data.flex_validity.as_ref().unwrap(), 8 + 3 * worlds).unwrap(),
+                vec![false; 3 * worlds]
+            );
+            let sleeping = SleepTreeState {
+                tree_asleep: vec![0],
+                nbody_awake: 1,
+                nv_awake: 0,
+            };
+            for w in 0..worlds {
+                data.write_world_sleep(w, &sleeping).unwrap();
+            }
+            for round in 0..4 {
+                // Simulate a future cache producer privately; no public write API.
+                let seed: Vec<_> = (0..3 * worlds)
+                    .map(|i| {
+                        if round == 0 {
+                            1
+                        } else {
+                            (i + round) as i32 % 2
+                        }
+                    })
+                    .collect();
+                data.flex_validity
+                    .as_mut()
+                    .unwrap()
+                    .write_range(4, &seed)
+                    .unwrap();
+                if round == 0 {
+                    assert!(matches!(
+                        plan.update_flex_positions(&mut data),
+                        Err(TransferError::StageNotReady { stage: "rigid" })
+                    ));
+                    assert_eq!(
+                        read_flex_validity(data.flex_validity.as_ref().unwrap(), 8 + 3 * worlds)
+                            .unwrap(),
+                        vec![true; 3 * worlds]
+                    );
+                }
+                plan.update(&mut data).unwrap();
+                let out = data.readback().unwrap();
+                assert_eq!(out.flex_positions().unwrap().nflex(), 3);
+                for w in 0..worlds {
+                    assert_eq!(
+                        out.flex_positions()
+                            .unwrap()
+                            .world(w)
+                            .unwrap()
+                            .flex_hessian_valid,
+                        &[false; 3]
+                    );
+                    assert_eq!(
+                        out.sleep_trees().unwrap().world(w).unwrap().tree_asleep,
+                        &[0]
+                    );
+                }
+                states += worlds;
+                flags += 3 * worlds;
+            }
+            data.flex_validity
+                .as_mut()
+                .unwrap()
+                .write_range(4, &vec![1; 3 * worlds])
+                .unwrap();
+            // Non-position stages must not clear this private simulated cache.
+            plan.update_attached(&mut data).unwrap();
+            plan.update_com(&mut data).unwrap();
+            plan.update_camlight(&mut data).unwrap();
+            data.write_world_qvel(worlds - 1, &[0.0; 6]).unwrap();
+            plan.update_flex_edges(&mut data).unwrap();
+            plan.update_flex_faces(&mut data).unwrap();
+            plan.update_tendons(&mut data).unwrap();
+            plan.update_tendon_wake(&mut data).unwrap();
+            let old = data.readback().unwrap();
+            assert_eq!(
+                old.flex_positions()
+                    .unwrap()
+                    .world(worlds - 1)
+                    .unwrap()
+                    .flex_hessian_valid,
+                &[true; 3]
+            );
+            assert!(data.write_world_qpos(worlds, &[]).is_err());
+            assert!(data.write_world_qvel(0, &[f32::NAN; 6]).is_err());
+            assert!(data.write_world_mocap(worlds, &[], &[]).is_err());
+            assert_eq!(
+                data.readback()
+                    .unwrap()
+                    .flex_positions()
+                    .unwrap()
+                    .world(0)
+                    .unwrap()
+                    .flex_hessian_valid,
+                &[true; 3]
+            );
+            plan.update_flex_positions(&mut data).unwrap();
+            assert!(matches!(
+                data.readback(),
+                Err(TransferError::StageNotReady {
+                    stage: "flex_edges"
+                })
+            ));
+            plan.update_flex_edges(&mut data).unwrap();
+            plan.update_flex_faces(&mut data).unwrap();
+            assert_eq!(
+                data.readback()
+                    .unwrap()
+                    .flex_positions()
+                    .unwrap()
+                    .world(0)
+                    .unwrap()
+                    .flex_hessian_valid,
+                &[false; 3]
+            );
+            assert_eq!(
+                old.flex_positions()
+                    .unwrap()
+                    .world(0)
+                    .unwrap()
+                    .flex_hessian_valid,
+                &[true; 3]
+            );
+        }
+        assert_eq!((states, flags), (2084, 6252));
+        println!("G01-flex-hessian states={states} flags={flags} exact_false=true");
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn flex_hessian_rejects_guards_nonboolean_slots_and_late_launch_failure() {
+        let session = TransferSession::new(0).unwrap();
+        let mut plan = flex_hessian_plan(&session);
+        let mut data = plan.create_data(513).unwrap();
+        plan.update(&mut data).unwrap();
+        let length = data.layout.flex.unwrap().guarded_validity;
+        for index in [0, 3, length - 4, length - 1] {
+            data.flex_validity
+                .as_mut()
+                .unwrap()
+                .write_range(index, &[0])
+                .unwrap();
+            assert!(
+                matches!(data.readback(), Err(TransferError::Backend(crate::diagnostics::ProbeError::Mismatch {index: i,..})) if i == index)
+            );
+            // Clearing the payload must leave guard corruption visible.
+            plan.update(&mut data).unwrap();
+            assert!(data.readback().is_err());
+            data.flex_validity
+                .as_mut()
+                .unwrap()
+                .write_range(index, &[-131072])
+                .unwrap();
+        }
+        for index in [4, 4 + 3 * 256 + 1, length - 5] {
+            for value in [-1, 2, i32::MIN, i32::MAX] {
+                data.flex_validity
+                    .as_mut()
+                    .unwrap()
+                    .write_range(index, &[value])
+                    .unwrap();
+                assert!(
+                    matches!(data.readback(), Err(TransferError::Input(InputError::InvalidTopology {field: "resident_flex_hessian_valid",index: i,..})) if i == index - 4)
+                );
+                plan.update(&mut data).unwrap();
+                data.readback().unwrap();
+            }
+        }
+        let foreign = TransferSession::new(0).unwrap();
+        let other = flex_hessian_plan(&session);
+        data.flex_validity
+            .as_mut()
+            .unwrap()
+            .write_range(4, &vec![1; 3 * 513])
+            .unwrap();
+        assert_eq!(
+            other.update_flex_positions(&mut data),
+            Err(TransferError::ModelMismatch)
+        );
+        assert!(
+            read_flex_validity(data.flex_validity.as_ref().unwrap(), length)
+                .unwrap()
+                .iter()
+                .all(|&v| v)
+        );
+        let replacement = SynchronousKernel::compile(
+            &foreign,
+            super::super::flex::FLEX_POSITION_CUDA,
+            "flex_positions",
+        )
+        .unwrap();
+        let original = std::mem::replace(&mut plan.flex.as_mut().unwrap().kernel, replacement);
+        assert_eq!(
+            plan.update_flex_positions(&mut data),
+            Err(TransferError::SessionMismatch)
+        );
+        // A later position-launch failure must not retain the valid flags.
+        assert!(
+            read_flex_validity(data.flex_validity.as_ref().unwrap(), length)
+                .unwrap()
+                .iter()
+                .all(|&v| !v)
+        );
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::StageNotReady {
+                stage: "flex_positions"
+            })
+        ));
+        plan.flex.as_mut().unwrap().kernel = original;
+        plan.update(&mut data).unwrap();
+        data.flex_validity
+            .as_mut()
+            .unwrap()
+            .write_range(4, &vec![1; 3 * 513])
+            .unwrap();
+        let replacement = SynchronousKernel::compile(
+            &foreign,
+            super::super::flex::FLEX_POSITION_CUDA,
+            "flex_invalidate",
+        )
+        .unwrap();
+        let original = std::mem::replace(
+            &mut plan.flex.as_mut().unwrap().invalidate_kernel,
+            replacement,
+        );
+        assert_eq!(
+            plan.update_flex_positions(&mut data),
+            Err(TransferError::SessionMismatch)
+        );
+        assert!(
+            read_flex_validity(data.flex_validity.as_ref().unwrap(), length)
+                .unwrap()
+                .iter()
+                .all(|&v| v)
+        );
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::StageNotReady {
+                stage: "flex_positions"
+            })
+        ));
+        plan.flex.as_mut().unwrap().invalidate_kernel = original;
+        let qpos = plan.model.rigid().kinematics().fields().qpos0.clone();
+        data.write_world_qpos(512, &qpos).unwrap();
+        assert!(matches!(
+            plan.update_flex_positions(&mut data),
+            Err(TransferError::StageNotReady { stage: "rigid" })
+        ));
+        plan.update(&mut data).unwrap();
+        let snapshot = data.readback().unwrap();
+        drop(plan);
+        drop(other);
+        drop(foreign);
+        drop(session);
+        assert_eq!(
+            data.readback()
+                .unwrap()
+                .flex_positions()
+                .unwrap()
+                .world(512)
+                .unwrap()
+                .flex_hessian_valid,
+            &[false; 3]
+        );
+        drop(data);
+        assert_eq!(
+            snapshot
+                .flex_positions()
+                .unwrap()
+                .world(512)
+                .unwrap()
+                .flex_hessian_valid,
+            &[false; 3]
+        );
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn flex_hessian_handles_empty_and_static_direct_flex_routes() {
+        let session = TransferSession::new(0).unwrap();
+        let old = KinematicsPlan::new(&session, empty_model()).unwrap();
+        let mut data = old.create_data(5).unwrap();
+        assert!(data.flex_validity.is_none());
+        old.update(&mut data).unwrap();
+        assert!(data.readback().unwrap().flex_positions().is_none());
+        for nf in [0, 1, 3] {
+            let cam = CamLightModelInput::new(
+                MocapModelInput::new(empty_model(), vec![-1]).unwrap(),
+                CamLightFields::default(),
+            )
+            .unwrap();
+            let input = FlexPositionModelInput::new(
+                TendonModelInput::new(cam, crate::model::TendonFields::default()).unwrap(),
+                FlexPositionFields {
+                    flex_interp: vec![0; nf],
+                    flex_cellnum: vec![1; 3 * nf],
+                    flex_nodeadr: vec![0; nf],
+                    flex_nodenum: vec![0; nf],
+                    flex_vertadr: (0..nf as i32).collect(),
+                    flex_vertnum: vec![1; nf],
+                    flex_centered: vec![false; nf],
+                    flex_vertbodyid: vec![0; nf],
+                    flex_vert: vec![0.0; 3 * nf],
+                    flex_vert0: vec![0.0; 3 * nf],
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let plan = KinematicsPlan::with_flex_positions(
+                &session,
+                input,
+                KinematicsParameters::default(),
+                CamLightParameters::default(),
+            )
+            .unwrap();
+            let mut data = plan.create_data(513).unwrap();
+            assert_eq!(data.flex.as_ref().unwrap().len(), 8 + 3 * 513 * nf);
+            assert_eq!(data.flex_validity.as_ref().unwrap().len(), 8 + 513 * nf);
+            if nf != 0 {
+                data.flex_validity
+                    .as_mut()
+                    .unwrap()
+                    .write_range(4, &vec![1; 513 * nf])
+                    .unwrap();
+            }
+            plan.update(&mut data).unwrap();
+            let out = data.readback().unwrap();
+            let f = out.flex_positions().unwrap();
+            assert_eq!(f.nflex(), nf);
+            assert_eq!(f.world(512).unwrap().flex_hessian_valid, vec![false; nf]);
+            assert_eq!(f.world(512).unwrap().flexvert_xpos, vec![0.0; 3 * nf]);
+            assert!(f.world(513).is_err());
+        }
+    }
 
     fn empty_model() -> AttachedModelInput {
         let k = KinematicModelInput::new(

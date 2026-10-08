@@ -7,11 +7,15 @@ use crate::{diagnostics::InputError, model::BatchLayout};
 pub struct FlexPositionWorld<'a> {
     pub flexnode_xpos: &'a [f32],
     pub flexvert_xpos: &'a [f32],
+    /// 位置更新会清除全部标志。
+    /// 本辅助不计算Hessian矩阵。
+    pub flex_hessian_valid: &'a [bool],
 }
 #[derive(Clone, Debug)]
 pub struct FlexPositionOutput {
     pub(super) layout: FlexPositionLayout,
     pub(super) values: Vec<f32>,
+    pub(super) validity: Vec<bool>,
 }
 impl FlexPositionOutput {
     pub fn worlds(&self) -> usize {
@@ -19,6 +23,9 @@ impl FlexPositionOutput {
     }
     pub fn nflexnode(&self) -> usize {
         self.layout.nn
+    }
+    pub fn nflex(&self) -> usize {
+        self.layout.validity.elements_per_world()
     }
     pub fn nflexvert(&self) -> usize {
         self.layout.nv
@@ -29,19 +36,23 @@ impl FlexPositionOutput {
         Ok(FlexPositionWorld {
             flexnode_xpos: &v[..3 * self.layout.nn],
             flexvert_xpos: &v[3 * self.layout.nn..],
+            flex_hessian_valid: &self.validity[self.layout.validity.world_elements(world)?],
         })
     }
 }
 #[derive(Clone, Copy, Debug)]
 pub(super) struct FlexPositionLayout {
     pub(super) output: BatchLayout,
+    pub(super) validity: BatchLayout,
     nn: usize,
     nv: usize,
     #[cfg(feature = "cuda-probe")]
     pub(super) guarded: usize,
+    #[cfg(feature = "cuda-probe")]
+    pub(super) guarded_validity: usize,
 }
 impl FlexPositionLayout {
-    pub(super) fn new(worlds: usize, nn: usize, nv: usize) -> Result<Self, InputError> {
+    pub(super) fn new(worlds: usize, nf: usize, nn: usize, nv: usize) -> Result<Self, InputError> {
         if worlds == 0 || worlds > (u32::MAX - 255) as usize {
             return Err(InputError::InvalidDimension {
                 field: "flex_position_dimensions",
@@ -56,23 +67,36 @@ impl FlexPositionLayout {
             .filter(|&n| n <= i32::MAX as usize)
             .ok_or_else(overflow)?;
         let output = BatchLayout::new(worlds, width, 4)?;
+        if nf > i32::MAX as usize {
+            return Err(overflow());
+        }
+        // Use checked i32 device slots, not Rust bool device representations.
+        let validity = BatchLayout::new(worlds, nf, 4)?;
+        let guarded_validity = validity
+            .total_elements()
+            .checked_add(8)
+            .ok_or_else(overflow)?;
+        BatchLayout::new(1, guarded_validity, 4)?;
         let guarded = output
             .total_elements()
             .checked_add(8)
             .ok_or_else(overflow)?;
         BatchLayout::new(1, guarded, 4)?;
         #[cfg(not(feature = "cuda-probe"))]
-        let _ = guarded;
+        let _ = (guarded, guarded_validity);
         Ok(Self {
             output,
+            validity,
             nn,
             nv,
             #[cfg(feature = "cuda-probe")]
             guarded,
+            #[cfg(feature = "cuda-probe")]
+            guarded_validity,
         })
     }
     pub(super) fn is_empty(self) -> bool {
-        self.output.elements_per_world() == 0
+        self.output.elements_per_world() == 0 && self.validity.elements_per_world() == 0
     }
 }
 
@@ -81,6 +105,14 @@ impl FlexPositionLayout {
 // One thread owns a world: node writes precede vertex interpolation.
 #[cfg(feature = "cuda-probe")]
 pub(super) const FLEX_POSITION_CUDA: &str = r#"
+// Frozen smooth.flex clears every (world, flex) before any position work.
+// Private guarded i32 slots encode false=0 and true=1; this is not Warp's bool ABI.
+extern "C" __global__ void flex_invalidate(const int* m,const float* params,
+    const float* rigid,int* result,unsigned a,unsigned b,unsigned c,unsigned worlds) {
+  unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=worlds) return;
+  int nf=m[0];int* flags=result+4+(unsigned long long)w*nf;
+  for(int f=0;f<nf;++f) flags[f]=0;
+}
 __device__ void flex_transform(float* out,const float* local,const float* xp,
     const float* xm,int body,bool centered) {
   const float* p=xp+3*body;const float* r=xm+9*body;
@@ -132,19 +164,46 @@ mod tests {
     #[test]
     fn checks_flex_position_layouts_and_views() {
         for w in [0, u32::MAX as usize, usize::MAX] {
-            assert!(FlexPositionLayout::new(w, 1, 1).is_err());
+            assert!(FlexPositionLayout::new(w, 1, 1, 1).is_err());
         }
         for (n, v) in [(usize::MAX, 0), (0, usize::MAX), (i32::MAX as usize, 1)] {
-            assert!(FlexPositionLayout::new(1, n, v).is_err());
+            assert!(FlexPositionLayout::new(1, 1, n, v).is_err());
         }
-        let l = FlexPositionLayout::new(513, 8, 3).unwrap();
+        let l = FlexPositionLayout::new(513, 4, 8, 3).unwrap();
         assert_eq!(l.output.elements_per_world(), 33);
+        assert_eq!(l.validity.total_elements(), 2052);
         let out = FlexPositionOutput {
-            layout: FlexPositionLayout::new(2, 0, 0).unwrap(),
+            layout: FlexPositionLayout::new(2, 0, 0, 0).unwrap(),
             values: vec![0.0; 8],
+            validity: vec![],
         };
         assert!(out.world(1).unwrap().flexvert_xpos.is_empty());
         assert!(out.world(2).is_err());
         assert!(out.layout.is_empty());
+    }
+    #[test]
+    fn checks_hessian_validity_layout_and_bool_views() {
+        for nf in [i32::MAX as usize + 1, usize::MAX] {
+            assert!(FlexPositionLayout::new(1, nf, 0, 0).is_err());
+        }
+        assert!(
+            FlexPositionLayout::new((u32::MAX - 255) as usize, i32::MAX as usize, 0, 0).is_err()
+        );
+        let out = FlexPositionOutput {
+            layout: FlexPositionLayout::new(2, 3, 0, 0).unwrap(),
+            values: vec![0.0; 8],
+            validity: vec![false, true, false, true, false, true],
+        };
+        assert_eq!(out.nflex(), 3);
+        assert_eq!(
+            out.world(0).unwrap().flex_hessian_valid,
+            &[false, true, false]
+        );
+        assert_eq!(
+            out.world(1).unwrap().flex_hessian_valid,
+            &[true, false, true]
+        );
+        assert!(out.world(2).is_err());
+        assert!(!out.layout.is_empty());
     }
 }

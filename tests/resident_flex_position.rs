@@ -138,6 +138,9 @@ mod gpu {
     }
     fn native(out: &KinematicsSnapshot, w: usize, c: &Value) -> f64 {
         let f = out.flex_positions().unwrap().world(w).unwrap();
+        // Check the frozen flag contract separately from native positions.
+        assert_eq!(out.flex_positions().unwrap().nflex(), 4);
+        assert_eq!(f.flex_hessian_valid, &[false; 4]);
         let max = compare(f.flexnode_xpos, &c["flexnode_xpos"])
             .max(compare(f.flexvert_xpos, &c["flexvert_xpos"]));
         compare(out.rigid().world(w).unwrap().xpos, &c["xpos"]);

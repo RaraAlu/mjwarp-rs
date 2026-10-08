@@ -24,7 +24,9 @@ GPU已计算边长、雅可比与速度。
 柔体面见[增量报告](windows-resident-flex-face.md)。
 GPU已计算线性壳体面位姿。
 高阶与完整柔体仍待实现。
-柔体Hessian失效仍待实现。
+柔体Hessian失效已落地。
+Hessian计算仍待实现。
+证据见[缓存报告](windows-resident-flex-hessian.md)。
 肌腱唤醒见[增量报告](windows-resident-tendon-wake.md)。
 GPU已唤醒循环并刷新树。
 完整G25仍待实现。

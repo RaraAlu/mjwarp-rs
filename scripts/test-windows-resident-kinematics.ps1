@@ -72,6 +72,9 @@ try {
     $face = Invoke-CheckedTest 'flex-face' ($base + @('--test', 'resident_flex_face', '--', '--ignored', '--test-threads=1', '--nocapture')) 3
     $faceGuards = Invoke-CheckedTest 'face-guards' ($base + @('--lib', 'flex_face_readback', '--', '--ignored', '--test-threads=1')) 1
     $faceAnalytic = Invoke-CheckedTest 'face-analytic' ($base + @('--lib', 'flex_face_checks_analytic', '--', '--ignored', '--test-threads=1')) 1
+    $hessianLayout = Invoke-CheckedTest 'hessian-layout' ($base + @('--lib', 'checks_hessian_validity_layout', '--', '--test-threads=1')) 1
+    $hessianDecode = Invoke-CheckedTest 'hessian-decode' ($base + @('--lib', 'flex_hessian_decodes', '--', '--test-threads=1')) 1
+    $hessian = Invoke-CheckedTest 'flex-hessian' ($base + @('--lib', 'flex_hessian_', '--', '--ignored', '--test-threads=1', '--nocapture')) 3
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
     $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 4
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
@@ -206,6 +209,10 @@ try {
     $flexLargest = [double]::Parse($flexStats[0].Groups[3].Value, [Globalization.CultureInfo]::InvariantCulture)
     $wakeStats = @([regex]::Matches([string](Get-Content -LiteralPath (Join-Path $directory 'tendon-wake.log') -Raw), 'G01-tendon-wake kind=native round=\d+ world=\d+ exact_tree_state=true'))
     if ($wakeStats.Count -ne 2084) { throw '肌腱唤醒比较计数不符' }
+    $hessianStats = [regex]::Match((Get-Content -LiteralPath (Join-Path $directory 'flex-hessian.log') -Raw),
+        'G01-flex-hessian states=(\d+) flags=(\d+) exact_false=true')
+    if (-not $hessianStats.Success -or [int]$hessianStats.Groups[1].Value -ne 2084 -or
+        [int]$hessianStats.Groups[2].Value -ne 6252) { throw 'Hessian标志计数不符' }
     [ordered]@{
         platform = 'Windows x86_64 MSVC'
         windowsVersion = [Environment]::OSVersion.Version.ToString()
@@ -342,7 +349,18 @@ try {
         flexPositionInterpolationModes = @(0, 1)
         flexPositionSharedFields = $true
         flexPositionResidentSubsets = 8
-        flexPositionOutputBuffers = 10
+        flexPositionOutputBuffers = 11
+        flexHessianLayoutPassed = $hessianLayout
+        flexHessianDecodePassed = $hessianDecode
+        flexHessianPassed = $hessian
+        flexHessianComparedWorlds = 2084
+        flexHessianComparedFlags = 6252
+        flexHessianExactFalse = $true
+        flexHessianExtraIntegerBuffers = 1
+        flexHessianStorage = 'guarded i32, checked bool snapshot'
+        flexHessianModes = @(0, 1, -1)
+        flexHessianClearBeforePositions = $true
+        flexHessianProducerImplemented = $false
         tendonWakeComparedWorlds = $wakeStats.Count
         tendonWakeExactTreeStates = $true
         tendonWakeWorldCounts = @(1, 2, 5, 513)

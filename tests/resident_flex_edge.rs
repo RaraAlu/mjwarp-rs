@@ -238,6 +238,15 @@ mod gpu {
         max
     }
     fn native(o: &KinematicsSnapshot, w: usize, c: &Value) -> f64 {
+        // Frozen clear semantics, not a native Hessian field comparison.
+        assert_eq!(
+            o.flex_positions()
+                .unwrap()
+                .world(w)
+                .unwrap()
+                .flex_hessian_valid,
+            &[false; 4]
+        );
         let f = o.flex_edges().unwrap().world(w).unwrap();
         compare(f.flexedge_length, &c["flexedge_length"])
             .max(compare(f.flexedge_velocity, &c["flexedge_velocity"]))

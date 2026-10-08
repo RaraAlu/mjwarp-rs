@@ -59,6 +59,11 @@ GPU输出位置与按行展开矩阵。
 本项目改用同步CUDA C++。
 每个线程独占一个世界。
 线程先更新节点再更新顶点。
+本项目先清除Hessian标志。
+清除逻辑来自冻结flex包装器。
+设备标志改用守卫i32缓冲。
+宿主快照提供只读bool视图。
+本项目尚未移植Hessian计算。
 公开物理输入与输出采用f32。
 本项目支持线性壳体位置。
 本项目仍拒绝高阶插值。
@@ -66,6 +71,7 @@ GPU输出位置与按行展开矩阵。
 它不提供完整柔体阶段。
 
 [冻结位置源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L211-L317)。
+[冻结失效顺序](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L573-L576)。
 [冻结线性权重](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/support.py#L1004-L1013)。
 
 ## 相机与光源CUDA辅助
