@@ -78,7 +78,8 @@ mj_kinematics -> mj_comPos -> mj_camlight -> mj_flex -> mj_tendon
 节点位置使用原生矩阵运算。
 壳体面采用独立极分解参考。
 `mju_eig3`提供对称特征分解。
-GPU实现使用另一条SVD路线。
+GPU实现使用四元数迭代。
+它沿用冻结上游公式。
 面四元数采用xyzw顺序。
 比较允许等价的整体符号。
 睡眠测试另用独立树状态公式。
