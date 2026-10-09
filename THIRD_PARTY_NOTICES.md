@@ -211,6 +211,19 @@ GPU输出位置与按行展开矩阵。
 
 [冻结休眠源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/sleep.py)。
 
+## 常驻空间速度CUDA子集
+
+`src/physics/com_velocity.rs`移植速度公式。
+公式来自冻结com_vel与motion_cross。
+版权归2025年Newton开发者。
+本项目沿用Apache-2.0许可。
+本项目改用逐世界CUDA C++调度。
+本项目添加常驻缓存与输入检查。
+本批没有新增第三方依赖。
+它不替代完整G02阶段。
+
+[冻结速度源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L2363-L2457)。
+
 ## 质量矩阵CUDA探针
 
 `src/physics/mass_matrix.rs`移植刚体CRB。

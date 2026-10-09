@@ -18,6 +18,8 @@ pub use resident::{
     G01SleepState, G01State, KinematicsData, KinematicsPlan, KinematicsSnapshot, camlight, com_pos,
     flex, fwd_kinematics, kinematics, tendon,
 };
+mod com_velocity;
+pub use com_velocity::{ComVelocityData, ComVelocityPlan, ComVelocitySnapshot, ComVelocityWorld};
 mod camlight;
 pub use camlight::{CamLightOutput, CamLightWorld};
 mod fixed_tendon;

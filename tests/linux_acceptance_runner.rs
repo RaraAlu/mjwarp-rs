@@ -138,3 +138,16 @@ fn rejects_empty_invalid_and_partly_invalid_fixture_manifests() {
         assert_eq!(result.status.success(), expected);
     }
 }
+
+#[test]
+fn com_velocity_gate_fixes_counts_and_keeps_full_g02_unverified() {
+    let gate = include_str!("../scripts/test-linux-com-velocity.sh");
+    assert!(gate.contains("run_checked gpu 6 6"));
+    assert!(gate.contains("run_checked guards 1 1"));
+    assert!(gate.contains("g02Verified:false,t4Verified:false"));
+    assert!(gate.contains("--require-t4"));
+    assert!(gate.contains("error(\"invalid fixture manifest\")"));
+    let g01 = include_str!("../scripts/test-linux-g01.sh");
+    assert!(g01.contains("expected=168"));
+    assert!(g01.contains("expected=176"));
+}

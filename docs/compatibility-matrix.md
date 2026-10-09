@@ -12,6 +12,16 @@ G01仍保留既有辅助入口。
 证据见[G01报告](windows-g01-acceptance.md)。
 Linux证据见[复验报告](linux-g01-acceptance.md)。
 
+### G02首批实现边界
+
+常驻空间速度子集已落地。
+GPU计算cvel与cdof_dot。
+它复用常驻位置与质心缓存。
+模型拓扑与参数仍共享。
+RNE与完整G02仍待实现。
+Windows与T4尚未复验本子集。
+证据见[速度报告](linux-resident-com-velocity.md)。
+
 ### G01平台验收状态
 
 | 项目 | 当前证据 |

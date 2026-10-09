@@ -1541,7 +1541,7 @@ impl KinematicsPlan {
         }
     }
 
-    fn check_data(&self, data: &KinematicsData) -> Result<(), TransferError> {
+    pub(super) fn check_data(&self, data: &KinematicsData) -> Result<(), TransferError> {
         if Arc::ptr_eq(&self.model, &data.model) {
             Ok(())
         } else {
@@ -2113,6 +2113,29 @@ impl KinematicsPlan {
 }
 
 impl KinematicsData {
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn com_device(&self) -> Result<&TransferBuffer<f32>, TransferError> {
+        self.ready.require(self.ready.com, "com")?;
+        Ok(&self.com)
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn check_com_device_outputs(&self) -> Result<(), TransferError> {
+        self.ready.require(self.ready.rigid, "rigid")?;
+        self.ready.require(self.ready.com, "com")?;
+        read_output(
+            &self.rigid,
+            self.layout.rigid.output.total_elements() + 8,
+            "resident_rigid_output",
+        )?;
+        read_output(
+            &self.com,
+            self.layout.com.output.total_elements() + 8,
+            "resident_com_output",
+        )?;
+        Ok(())
+    }
+
     pub fn flex_hessian_fields(&self) -> Option<&FlexHessianFields> {
         self.hessian_fields.as_deref()
     }

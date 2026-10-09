@@ -47,8 +47,8 @@ run_checked native-only 22 22 cargo test --locked --features native-model-probe 
     --test native_model_probe -- --ignored --test-threads=1
 run_resident_checks
 if (( full_regression )); then
-    expected=161
-    if (( all_features )); then expected=169; fi
+    expected=168
+    if (( all_features )); then expected=176; fi
     run_checked all-probes "$expected" "$expected" "${base[@]}" -- --ignored --test-threads=1 --nocapture
     run_checked host-default -1 203 cargo test --locked
     run_checked clippy-default -1 0 cargo clippy --locked --all-targets -- -D warnings

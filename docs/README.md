@@ -86,6 +86,7 @@ CPU调试与工具边界仍待确认。
 43. [Windows原生柔体位置转换](windows-native-flex-position.md)
 44. [Windows G01全阶段验收](windows-g01-acceptance.md)
 45. [Linux G01全阶段验收](linux-g01-acceptance.md)
+46. [Linux常驻空间速度子集](linux-resident-com-velocity.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
