@@ -97,6 +97,7 @@ CPU调试与工具边界仍待确认。
 46. [Linux常驻空间速度子集](linux-resident-com-velocity.md)
 47. [Linux常驻RNE偏置力子集](linux-resident-rne-bias.md)
 48. [Linux单精度修复进展](linux-f32-precision-restoration.md)
+49. [Windows肌腱上游并列诊断](windows-mjwarp-geom-tendon-comparison.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -242,7 +243,7 @@ Linux复验只覆盖既有范围。
 | 质量求解GPU探针 | GPU f32计算反向LDL与多个右端项；原生对照仍有失败；不替代完整G03 |
 | 附着运动学GPU探针 | 六项几何与site字段检查；复用刚体设备结果计算四项位姿；不替代完整G01 |
 | 常驻运动学底座 | 一次上传与编译；严格计划保留就绪检查；G01计划提供完整链与等价低层调用；支持预检导入与当前字段回读 |
-| 完整G01 | 原生78字段转换；完整运动学调度与五个低层入口；Windows与Linux双模式通过；T4完整复验仍待环境 |
+| 完整G01 | 原生78字段转换；完整运动学调度与五个低层入口；历史双平台通过；当前T4仍待全量上游对照 |
 | G02刚体子集 | 常驻cvel、cdof_dot与qfrc_bias；全链f32；原生RNE对照仍有失败；完整G02仍待实现 |
 | 固定肌腱GPU子集 | 关节项加权qpos长度与稀疏力臂；共享系数与原生CSR；不提供空间绕行、速度或限位 |
 | 空间肌腱GPU子集 | site、pulley与球柱路径；内侧绕行；独立尺寸周期；长度、稀疏力臂及动态包裹字段；仍用局部编号 |

@@ -9,6 +9,10 @@ use cudarc::{
 };
 use std::sync::Arc;
 
+// 跟随冻结上游的Warp 1.15策略。
+// fuse_fp开启FMA，且不启用fast-math。
+const PHYSICS_FMAD: bool = true;
+
 /// ABI: (const int*, const P*, const S*, O*, u32, u32, u32, u32).
 /// 柔体边另用固定三输入ABI。
 /// 拉伸矩阵另用六指针ABI。
@@ -45,7 +49,7 @@ impl SynchronousKernel {
             compile_ptx_with_opts(
                 source,
                 CompileOptions {
-                    fmad: Some(false),
+                    fmad: Some(PHYSICS_FMAD),
                     use_fast_math: Some(false),
                     options: vec!["--std=c++17".into(), "--gpu-architecture=compute_70".into()],
                     name: Some(format!("{entry}.cu")),
@@ -330,7 +334,9 @@ fn check_physics_ptx(ptx: &str, entry: &'static str) -> Result<(), ProbeError> {
             let b = operands(lines[i + 1]);
             let c = operands(lines[i + 2]);
             if b.len() == 4
-                && b[0] == "mul.rn.f64"
+                // 未标舍入的mul默认采用rn。
+                // FMA开关会改变库内指令拼写。
+                && matches!(b[0].as_str(), "mul.rn.f64" | "mul.f64")
                 && b[2] == a[1]
                 && b[3] == "0d3BF921FB54442D19"
                 && c.len() == 3
@@ -394,7 +400,7 @@ fn record_physics_ptx(
         "cudaMathReduction": "CUDA-12.8 sinf/cosf integer angle reduction only",
         "passed": passed,
         "nvrtcVersion": [major, minor],
-        "fmad": false,
+        "fmad": PHYSICS_FMAD,
         "useFastMath": false,
         "options": ["--std=c++17", "--gpu-architecture=compute_70"],
     });
@@ -445,14 +451,47 @@ mod tests {
         .unwrap();
         let reduction = ".reg .f64 %fd<3>;\ncvt.rn.f64.s64 %fd1, %rd1;\nmul.rn.f64 %fd2, %fd1, 0d3BF921FB54442D19;\ncvt.rn.f32.f64 %f1, %fd2;";
         check_physics_ptx(reduction, "probe").unwrap();
+        check_physics_ptx(&reduction.replace("mul.rn.f64", "mul.f64"), "probe").unwrap();
         for changed in [
             reduction.replace("f64.s64", "f64.f32"),
             reduction.replace("0d3BF921FB54442D19", "0d3FF0000000000000"),
             reduction.replace("%fd1, 0d", "%fd3, 0d"),
+            reduction.replace("mul.rn.f64", "mul.rz.f64"),
             format!("{reduction}\nadd.rn.f64 %fd1, %fd1, %fd2;"),
+            format!("{reduction}\nmul.f64 %fd1, %fd1, %fd2;"),
         ] {
             assert!(check_physics_ptx(&changed, "probe").is_err());
         }
+    }
+
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn physical_kernel_fuses_f32_multiply_add_like_warp() {
+        let session = TransferSession::new(0).unwrap();
+        let source = r#"
+extern "C" __global__ void fma_probe(const int* m,const float* p,const float* s,
+    float* o,unsigned a,unsigned b,unsigned c,unsigned n) {
+  if(threadIdx.x==0 && blockIdx.x==0) o[0]=p[0]*s[0]+p[1];
+}
+"#;
+        let kernel = SynchronousKernel::compile(&session, source, "fma_probe").unwrap();
+        let a = 1.0 + f32::EPSILON;
+        let b = 1.0 - f32::EPSILON;
+        let meta = session.upload(&[0_i32]).unwrap();
+        let parameters = session.upload(&[a, -1.0]).unwrap();
+        let state = session.upload(&[b]).unwrap();
+        let mut output = session.upload(&[0.0_f32]).unwrap();
+        // SAFETY: 固定内核只读两参数和一状态。
+        // 同会话输出独占一个f32元素。
+        unsafe {
+            kernel
+                .launch(&meta, &parameters, &state, &mut output, [0, 0, 0, 1])
+                .unwrap();
+        }
+        let mut values = [0.0_f32];
+        output.read_range_into(0, &mut values).unwrap();
+        assert_eq!(values[0], a.mul_add(b, -1.0));
+        assert_ne!(values[0], a * b - 1.0);
     }
 
     #[test]
