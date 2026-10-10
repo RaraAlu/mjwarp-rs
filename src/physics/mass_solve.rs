@@ -78,14 +78,13 @@ impl MassSolveLayout {
         if stride > i32::MAX as usize {
             return Err(overflow());
         }
-        let output = BatchLayout::new(worlds, stride, 8)?;
+        let output = BatchLayout::new(worlds, stride, 4)?;
         let rhs = BatchLayout::new(worlds, rhs_stride, 4)?;
         let guarded = output
             .total_elements()
             .checked_add(8)
             .ok_or_else(overflow)?;
-        BatchLayout::new(1, guarded, 8)?;
-        BatchLayout::new(worlds, rhs_stride, 8)?;
+        BatchLayout::new(1, guarded, 4)?;
         Ok(Self {
             output,
             rhs,
@@ -144,7 +143,7 @@ pub fn probe_mass_solve(
     #[cfg(feature = "cuda-probe")]
     {
         let (state, checkpoint) =
-            super::mass_matrix::mass_matrix_device::<f64>(session, model, worlds, qpos)?;
+            super::mass_matrix::mass_matrix_device(session, model, worlds, qpos)?;
         drop(checkpoint);
         solve_device(session, model.kinematics().nbody(), layout, &state, rhs)
     }
@@ -155,24 +154,20 @@ fn solve_device(
     session: &TransferSession,
     nbody: usize,
     layout: MassSolveLayout,
-    state: &crate::runtime::TransferBuffer<f64>,
+    state: &crate::runtime::TransferBuffer<f32>,
     rhs: &[f32],
 ) -> Result<MassSolveOutput, TransferError> {
     let metadata = session.upload(&[0i32])?;
     // Preserve a real pointer for the empty zero-DOF vector.
-    let parameters =
-        super::upload_rigid::<f64>(session, if rhs.is_empty() { &[0.0] } else { rhs })?;
-    let mut values = crate::runtime::host_staging::<f64>(layout.guarded)?;
+    let parameters = session.upload(if rhs.is_empty() { &[0.0] } else { rhs })?;
+    let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
     values.fill(-131072.0);
-    values[4..layout.guarded - 4].fill(f64::NAN);
+    values[4..layout.guarded - 4].fill(f32::NAN);
     let mut output = session.upload(&values)?;
-    let kernel = crate::runtime::SynchronousKernel::compile(
-        session,
-        &super::rigid_source::<f64>(MASS_SOLVE_CUDA),
-        "rigid_mass_solve",
-    )?;
+    let kernel =
+        crate::runtime::SynchronousKernel::compile(session, MASS_SOLVE_CUDA, "rigid_mass_solve")?;
     // SAFETY: Layouts bound every per-world offset and nv*nv by i32::MAX.
-    // rigid_source::<f64> selects double pointers for all three f64 buffers.
+    // The fixed shader and all physical buffers use frozen f32.
     // State comes from the same-session checked mass matrix with 10*nb+nv*nv
     // values/world and two four-element guards. Each thread owns one world.
     // RHS has exactly worlds*nrhs*nv values, or a real zero-DOF placeholder.
@@ -193,15 +188,7 @@ fn solve_device(
     }
     output.read_range_into(0, &mut values)?;
     check_result(layout, &values)?;
-    let mut public = crate::runtime::host_staging::<f32>(layout.guarded)?;
-    for (d, &s) in public.iter_mut().zip(&values) {
-        *d = s as f32;
-    }
-    super::check_device_values(&public, "mass_solve_output")?;
-    Ok(MassSolveOutput {
-        layout,
-        values: public,
-    })
+    Ok(MassSolveOutput { layout, values })
 }
 
 #[cfg(any(feature = "cuda-probe", test))]
@@ -277,7 +264,7 @@ extern "C" __global__ void rigid_mass_solve(const int* unused,const float* rhs,
       status[0]=1.0f; status[1]=float(k); status[2]=pivot; return;
     }
     float reciprocal=1.0f/pivot; inv[k]=reciprocal;
-    if(!isfinite(reciprocal) || reciprocal>3.4028234663852886e38) {
+    if(!isfinite(reciprocal) || reciprocal>3.4028234663852886e38f) {
       status[0]=2.0f; status[1]=float(k); status[2]=reciprocal; return;
     }
     // Keep the original row until every preceding row update completes.
@@ -325,6 +312,9 @@ mod tests {
         assert!(MassSolveLayout::new(1, 0, 3).is_ok());
         assert!(MassSolveLayout::new(1, 46340, 1).is_err());
         assert!(MassSolveLayout::new(1, 46339, 1).is_ok());
+        let layout = MassSolveLayout::new(513, 2, 3).unwrap();
+        assert_eq!(layout.output.total_bytes(), 513 * 15 * size_of::<f32>());
+        assert_eq!(layout.rhs.total_bytes(), 513 * 6 * size_of::<f32>());
     }
     #[test]
     fn rejects_rhs_length_and_nonfinite_values() {
@@ -414,7 +404,7 @@ mod tests {
                 value: -3.0
             }
         );
-        for pivot in [-1.0 - 2.0f64.powi(-40), 0.0, f64::INFINITY, f64::NAN] {
+        for pivot in [-1.0 - 2.0f32.powi(-23), 0.0, f32::INFINITY, f32::NAN] {
             state[28..32].copy_from_slice(&[pivot, 0.0, 0.0, 3.0]);
             let b = s.upload(&state).unwrap();
             let TransferError::InvalidPivot { world, dof, value } =
@@ -426,7 +416,7 @@ mod tests {
             if pivot.is_nan() {
                 assert!(value.is_nan());
             } else {
-                assert_eq!(value.to_bits(), pivot.to_bits());
+                assert_eq!(value.to_bits(), f64::from(pivot).to_bits());
             }
         }
         state[28..32].copy_from_slice(&[2.0, 0.0, 0.0, 3.0]);

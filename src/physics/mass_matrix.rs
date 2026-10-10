@@ -122,21 +122,21 @@ pub fn probe_mass_matrix(
     }
     #[cfg(feature = "cuda-probe")]
     {
-        mass_matrix_device::<f32>(session, model, worlds, qpos).map(|(_, result)| result)
+        mass_matrix_device(session, model, worlds, qpos).map(|(_, result)| result)
     }
 }
 
 #[cfg(feature = "cuda-probe")]
-pub(super) fn mass_matrix_device<T: super::RigidScalar>(
+pub(super) fn mass_matrix_device(
     session: &TransferSession,
     model: &InertialModelInput,
     worlds: usize,
     qpos: &[f32],
-) -> Result<(crate::runtime::TransferBuffer<T>, MassMatrixOutput), TransferError> {
+) -> Result<(crate::runtime::TransferBuffer<f32>, MassMatrixOutput), TransferError> {
     let (fk, com) = super::check_com_position(model, worlds, qpos)?;
     let k = model.kinematics();
     let layout = MassMatrixLayout::new(worlds, k.nbody(), k.nv())?;
-    let (state, checkpoint) = super::com_position_device::<T>(session, model, fk, com, qpos)?;
+    let (state, checkpoint) = super::com_position_device(session, model, fk, com, qpos)?;
     drop(checkpoint);
     let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
     let mut cursor = 0;
@@ -151,25 +151,19 @@ pub(super) fn mass_matrix_device<T: super::RigidScalar>(
     let metadata = session.upload(&metadata)?;
     // A real pointer preserves the fixed ABI for the zero-DOF case.
     let armature = &model.fields().dof_armature;
-    let parameters = super::upload_rigid::<T>(
-        session,
-        if armature.is_empty() {
-            &[0.0]
-        } else {
-            armature
-        },
-    )?;
-    let mut values = crate::runtime::host_staging::<T>(layout.guarded)?;
-    values.fill(T::from(-131072.0));
-    values[4..layout.guarded - 4].fill(T::from(f32::NAN));
+    let parameters = session.upload(if armature.is_empty() {
+        &[0.0]
+    } else {
+        armature
+    })?;
+    let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
+    values.fill(-131072.0);
+    values[4..layout.guarded - 4].fill(f32::NAN);
     let mut output = session.upload(&values)?;
-    let kernel = crate::runtime::SynchronousKernel::compile(
-        session,
-        &super::rigid_source::<T>(MASS_MATRIX_CUDA),
-        "rigid_mass_matrix",
-    )?;
+    let kernel =
+        crate::runtime::SynchronousKernel::compile(session, MASS_MATRIX_CUDA, "rigid_mass_matrix")?;
     // SAFETY: Checked packing bounds all per-world indices by i32::MAX.
-    // RigidScalar and rigid_source keep shader pointers and buffers equal-width.
+    // The fixed shader and all physical buffers use f32.
     // Validated body and DOF trees strictly precede children; owners fit nb.
     // State is the same-session COM buffer with 14*nb+6*nv values/world.
     // Each thread owns one world; the synchronized adapter retains buffers.
@@ -184,20 +178,7 @@ pub(super) fn mass_matrix_device<T: super::RigidScalar>(
     }
     output.read_range_into(0, &mut values)?;
     super::check_device_values(&values, "mass_matrix_output")?;
-    // Public checkpoints stay f32. Solver callers discard this checked copy
-    // and retain the full-precision device matrix without uploading it again.
-    let mut public = crate::runtime::host_staging::<f32>(layout.guarded)?;
-    for (d, &s) in public.iter_mut().zip(&values) {
-        *d = s.into() as f32;
-    }
-    super::check_device_values(&public, "mass_matrix_output")?;
-    Ok((
-        output,
-        MassMatrixOutput {
-            layout,
-            values: public,
-        },
-    ))
+    Ok((output, MassMatrixOutput { layout, values }))
 }
 
 // Adapted from frozen smooth.py crb and math.py inert_vec at

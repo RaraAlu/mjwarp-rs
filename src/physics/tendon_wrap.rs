@@ -70,42 +70,36 @@ __device__ Wrap2 circle(V2 e0,V2 e1,V2 side,float r) {
   if((cr>0 && ind!=0) || (cr<0 && ind==0)) angle=2.0f*3.14159265358979323846f-angle;
   return {r*angle,p0,p1};
 }
-struct DV2 {double x,y;};
-struct Inside2 {double len;DV2 a,b;};
-__device__ double das(double x) {return asin(fmin(fmax(x,-1.0),1.0));}
-__device__ Inside2 inside(DV2 e0,DV2 e1,double r) {
-  // Newton在近切点处需要双精度。
-  double x0=e0.x,y0=e0.y,x1=e1.x,y1=e1.y;
-  double l0=hypot(x0,y0),l1=hypot(x1,y1),dx=x1-x0,dy=y1-y0,dd=dx*dx+dy*dy;
-  Inside2 no={-1,{1e10,1e10},{1e10,1e10}};
-  if(l0<=r || l1<=r || r<1e-15 || l0<1e-15 || l1<1e-15) return no;
-  if(dd>1e-15) {double a=-(dx*x0+dy*y0)/dd;
-    if(a>0 && a<1 && hypot(x0+dx*a,y0+dy*a)<=r) return no;}
-  double n=hypot(x0+x1,y0+y1);
-  DV2 p={n!=0?r*(x0+x1)/n:0,n!=0?r*(y0+y1)/n:0};Inside2 fallback={0,p,p};
-  double A=r/l0,B=r/l1,aa=A*A,bb=B*B;
-  double c=(l0*l0+l1*l1-dd)/(2*l0*l1);
-  if(c<-1+1e-15) return {-1,p,p};
-  if(c>1-1e-15) return fallback;
-  double G=acos(fmin(fmax(c,-1.0),1.0)),z=1-1e-7;
-  double f=das(A*z)+das(B*z)-2*das(z)+G;
+__device__ Wrap2 inside(V2 e0,V2 e1,float r) {
+  float x0=e0.x,y0=e0.y,x1=e1.x,y1=e1.y;
+  float l0=n2(e0),l1=n2(e1),dx=x1-x0,dy=y1-y0,dd=dx*dx+dy*dy;
+  if(l0<=r || l1<=r || r<1e-15f || l0<1e-15f || l1<1e-15f) return no2();
+  if(dd>1e-15f) {float a=-(dx*x0+dy*y0)/dd;
+    if(a>0 && a<1 && n2({x0+dx*a,y0+dy*a})<=r) return no2();}
+  V2 p=m2(u2(m2(a2(e0,e1),0.5f)),r);Wrap2 fallback={0,p,p};
+  float A=sd(r,l0),B=sd(r,l1),aa=A*A,bb=B*B;
+  float c=sd(l0*l0+l1*l1-dd,2.0f*l0*l1);
+  if(c<-1.0f+1e-15f) return {-1,p,p};
+  if(c>1.0f-1e-15f) return fallback;
+  float G=ac(c),z=1.0f-1e-7f;
+  float f=as(A*z)+as(B*z)-2.0f*as(z)+G;
   if(f>0) return fallback;
   int iter=0;
-  while(iter<20 && fabs(f)>1e-6) {
-    double zz=z*z;
-    double df=A/fmax(1e-15,sqrt(1-zz*aa))+B/fmax(1e-15,sqrt(1-zz*bb))
-      -2/fmax(1e-15,sqrt(1-zz));
-    if(df>-1e-15) return fallback;
-    double z1=z-f/df;if(z1>z) return fallback;
-    z=z1;f=das(A*z)+das(B*z)-2*das(z)+G;
-    if(f>1e-6) return fallback;
+  while(iter<20 && fabsf(f)>1e-6f) {
+    float zz=z*z;
+    float df=A/fmaxf(1e-15f,sqrtf(1.0f-zz*aa))+B/fmaxf(1e-15f,sqrtf(1.0f-zz*bb))
+      -2.0f/fmaxf(1e-15f,sqrtf(1.0f-zz));
+    if(df>-1e-15f) return fallback;
+    float z1=z-sd(f,df);if(z1>z) return fallback;
+    z=z1;f=as(A*z)+as(B*z)-2.0f*as(z)+G;
+    if(f>1e-6f) return fallback;
     ++iter;
   }
   if(iter>=20) return fallback;
-  double vx,vy,ang;
-  if(x0*y1-y0*x1>0) {vx=x0/l0;vy=y0/l0;ang=das(z)-das(A*z);}
-  else {vx=x1/l1;vy=y1/l1;ang=das(z)-das(B*z);}
-  p={r*(cos(ang)*vx-sin(ang)*vy),r*(sin(ang)*vx+cos(ang)*vy)};
+  float vx,vy,ang;
+  if(x0*y1-y0*x1>0) {vx=x0/l0;vy=y0/l0;ang=as(z)-as(A*z);}
+  else {vx=x1/l1;vy=y1/l1;ang=as(z)-as(B*z);}
+  p={r*(cosf(ang)*vx-sinf(ang)*vy),r*(sinf(ang)*vx+cosf(ang)*vy)};
   return {0,p,p};
 }
 __device__ SV mt(const float* m,SV v) {
@@ -114,42 +108,7 @@ __device__ SV mt(const float* m,SV v) {
 __device__ SV mm(const float* m,SV v) {
   return {m[0]*v.x+m[1]*v.y+m[2]*v.z,m[3]*v.x+m[4]*v.y+m[5]*v.z,m[6]*v.x+m[7]*v.y+m[8]*v.z};
 }
-struct DV {double x,y,z;};
-__device__ DV dsub(DV a,DV b) {return {a.x-b.x,a.y-b.y,a.z-b.z};}
-__device__ DV local(const float* m,SV x,SV pos) {
-  double dx=(double)x.x-pos.x,dy=(double)x.y-pos.y,dz=(double)x.z-pos.z;
-  return {m[0]*dx+m[3]*dy+m[6]*dz,m[1]*dx+m[4]*dy+m[7]*dz,m[2]*dx+m[5]*dy+m[8]*dz};
-}
-__device__ DV rotate(const float* m,DV v) {
-  return {m[0]*v.x+m[1]*v.y+m[2]*v.z,m[3]*v.x+m[4]*v.y+m[5]*v.z,m[6]*v.x+m[7]*v.y+m[8]*v.z};
-}
-__device__ SV precise_direction(DV v) {
-  double n=sqrt(v.x*v.x+v.y*v.y+v.z*v.z);
-  return n<1e-15 ? SV{1,0,0} : SV{(float)(v.x/n),(float)(v.y/n),(float)(v.z/n)};
-}
 struct Wrap3 {float len;SV a,b,dir0,dir1;};
-__device__ Wrap3 inside_wrap(SV x0,SV x1,SV pos,const float* mat,float r,int type,SV ax0,SV ax1) {
-  DV p0=local(mat,x0,pos),p1=local(mat,x1,pos);
-  DV2 e0={p0.x*ax0.x+p0.y*ax0.y+p0.z*ax0.z,p0.x*ax1.x+p0.y*ax1.y+p0.z*ax1.z};
-  DV2 e1={p1.x*ax0.x+p1.y*ax0.y+p1.z*ax0.z,p1.x*ax1.x+p1.y*ax1.y+p1.z*ax1.z};
-  Inside2 w=inside(e0,e1,r);
-  if(w.len<0) return {-1,{1e10f,1e10f,1e10f},{1e10f,1e10f,1e10f},{0,0,0},{0,0,0}};
-  DV a={ax0.x*w.a.x+ax1.x*w.a.y,ax0.y*w.a.x+ax1.y*w.a.y,ax0.z*w.a.x+ax1.z*w.a.y};
-  DV b={ax0.x*w.b.x+ax1.x*w.b.y,ax0.y*w.b.x+ax1.y*w.b.y,ax0.z*w.b.x+ax1.z*w.b.y};
-  if(type==5) {
-    double l0=hypot(p0.x-a.x,p0.y-a.y),l1=hypot(p1.x-b.x,p1.y-b.y),total=l0+w.len+l1;
-    double denominator=total!=0?total:1e-15;
-    a.z=p0.z+(p1.z-p0.z)*l0/denominator;
-    b.z=p0.z+(p1.z-p0.z)*(l0+w.len)/denominator;
-    w.len=hypot(w.len,b.z-a.z);
-  }
-  // 先算方向，再舍入世界接触点。
-  // 局部差分避开矩阵往返误差。
-  SV dir0=precise_direction(rotate(mat,dsub(a,p0))),dir1=precise_direction(rotate(mat,dsub(p1,b)));
-  a=rotate(mat,a);b=rotate(mat,b);
-  return {(float)w.len,{(float)(a.x+pos.x),(float)(a.y+pos.y),(float)(a.z+pos.z)},
-    {(float)(b.x+pos.x),(float)(b.y+pos.y),(float)(b.z+pos.z)},dir0,dir1};
-}
 __device__ Wrap3 wrap(SV x0,SV x1,SV pos,const float* mat,float r,int type,SV side) {
   SV p0=mt(mat,sub(x0,pos)),p1=mt(mat,sub(x1,pos));
   Wrap3 no={-1,{1e10f,1e10f,1e10f},{1e10f,1e10f,1e10f},{0,0,0},{0,0,0}};
@@ -167,8 +126,7 @@ __device__ Wrap3 wrap(SV x0,SV x1,SV pos,const float* mat,float r,int type,SV si
   V2 e0={dot(p0,ax0),dot(p0,ax1)},e1={dot(p1,ax0),dot(p1,ax1)};
   bool valid=norm(side)<1e10f;SV sp={0,0,0};V2 s={1e10f,1e10f};
   if(valid) {sp=mt(mat,sub(side,pos));s=m2(u2({dot(sp,ax0),dot(sp,ax1)}),r);}
-  if(valid && norm(sp)<r) return inside_wrap(x0,x1,pos,mat,r,type,ax0,ax1);
-  Wrap2 w=circle(e0,e1,s,r);
+  Wrap2 w=valid && norm(sp)<r ? inside(e0,e1,r) : circle(e0,e1,s,r);
   if(w.len<0) return no;
   SV a=add(mul(ax0,w.a.x),mul(ax1,w.a.y)),b=add(mul(ax0,w.b.x),mul(ax1,w.b.y));
   if(type==5) {

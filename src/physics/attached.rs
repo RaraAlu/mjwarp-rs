@@ -128,8 +128,7 @@ pub fn probe_attached_kinematics(
     }
     #[cfg(feature = "cuda-probe")]
     {
-        let (body, rigid_values) =
-            super::kinematics_device::<f32>(session, model.rigid(), fk, qpos)?;
+        let (body, rigid_values) = super::kinematics_device(session, model.rigid(), fk, qpos)?;
         let device = upload_attached_model(session, model, fk, layout)?;
         let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
         values.fill(-131072.0);
@@ -177,7 +176,7 @@ pub(super) fn upload_attached_model(
     model: &AttachedModelInput,
     fk: super::KinematicsLayout,
     layout: AttachedLayout,
-) -> Result<super::DeviceModel<f32>, TransferError> {
+) -> Result<super::DeviceModel, TransferError> {
     let f = model.fields();
     let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
     metadata[0] = fk.output.elements_per_world() as i32;

@@ -280,33 +280,30 @@ pub fn probe_kinematics(
     }
     #[cfg(feature = "cuda-probe")]
     {
-        kinematics_device::<f32>(session, model, layout, qpos)
+        kinematics_device(session, model, layout, qpos)
             .map(|(_, values)| KinematicsOutput { layout, values })
     }
 }
 
 #[cfg(feature = "cuda-probe")]
-fn kinematics_device<T: RigidScalar>(
+fn kinematics_device(
     session: &TransferSession,
     model: &InertialModelInput,
     layout: KinematicsLayout,
     qpos: &[f32],
-) -> Result<(crate::runtime::TransferBuffer<T>, Vec<T>), TransferError> {
-    let device = upload_kinematics_model::<T>(session, model, layout)?;
+) -> Result<(crate::runtime::TransferBuffer<f32>, Vec<f32>), TransferError> {
+    let device = upload_kinematics_model(session, model, layout)?;
     // A real one-element allocation supplies a valid ABI pointer for nq=0.
-    let state = upload_rigid::<T>(session, if qpos.is_empty() { &[0.0] } else { qpos })?;
-    let mut values = crate::runtime::host_staging::<T>(layout.guarded)?;
-    values.fill(T::from(-131072.0));
-    values[4..layout.guarded - 4].fill(T::from(f32::NAN));
+    let state = session.upload(if qpos.is_empty() { &[0.0] } else { qpos })?;
+    let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
+    values.fill(-131072.0);
+    values[4..layout.guarded - 4].fill(f32::NAN);
     let mut output = session.upload(&values)?;
-    let kernel = crate::runtime::SynchronousKernel::compile(
-        session,
-        &rigid_source::<T>(KINEMATICS_CUDA),
-        "rigid_kinematics",
-    )?;
+    let kernel =
+        crate::runtime::SynchronousKernel::compile(session, KINEMATICS_CUDA, "rigid_kinematics")?;
     // SAFETY: Owned validated topology proves acyclic parent/joint/qpos
     // ranges. Checked packing matches the fixed CUDA ABI and every offset.
-    // RigidScalar and rigid_source select the same pointer width for all buffers.
+    // The fixed shader and all physical buffers use f32.
     // One thread owns each world and processes parents before children.
     // Guards fit the output allocation; session launch waits for completion.
     unsafe {
@@ -329,21 +326,21 @@ fn kinematics_device<T: RigidScalar>(
 }
 
 #[cfg(feature = "cuda-probe")]
-struct DeviceModel<T: crate::runtime::TransferElement> {
+struct DeviceModel {
     metadata: crate::runtime::TransferBuffer<i32>,
-    parameters: crate::runtime::TransferBuffer<T>,
+    parameters: crate::runtime::TransferBuffer<f32>,
 }
 
 #[cfg(feature = "cuda-probe")]
-fn upload_kinematics_model<T: RigidScalar>(
+fn upload_kinematics_model(
     session: &TransferSession,
     model: &InertialModelInput,
     layout: KinematicsLayout,
-) -> Result<DeviceModel<T>, TransferError> {
+) -> Result<DeviceModel, TransferError> {
     let f = model.kinematics().fields();
     let i = model.fields();
     let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
-    let mut parameters = crate::runtime::host_staging::<T>(layout.parameters)?;
+    let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
     let mut cursor = 0;
     for field in [
         &f.body_parentid,
@@ -365,7 +362,7 @@ fn upload_kinematics_model<T: RigidScalar>(
         &f.jnt_pos,
         &f.jnt_axis,
     ] {
-        pack_rigid(&mut parameters[cursor..cursor + field.len()], field);
+        parameters[cursor..cursor + field.len()].copy_from_slice(field);
         cursor += field.len();
     }
     Ok(DeviceModel {
@@ -531,36 +528,36 @@ pub fn probe_com_position(
     }
     #[cfg(feature = "cuda-probe")]
     {
-        com_position_device::<f32>(session, model, fk, layout, qpos)
+        com_position_device(session, model, fk, layout, qpos)
             .map(|(_, values)| ComPositionOutput { layout, values })
     }
 }
 
 #[cfg(feature = "cuda-probe")]
-fn com_position_device<T: RigidScalar>(
+fn com_position_device(
     session: &TransferSession,
     model: &InertialModelInput,
     fk: KinematicsLayout,
     layout: ComPositionLayout,
     qpos: &[f32],
-) -> Result<(crate::runtime::TransferBuffer<T>, Vec<T>), TransferError> {
+) -> Result<(crate::runtime::TransferBuffer<f32>, Vec<f32>), TransferError> {
     // The validated FK output remains allocated on the same GPU session.
     // Its host checkpoint proves finite values; no CPU transform feeds COM.
-    let (state, checkpoint) = kinematics_device::<T>(session, model, fk, qpos)?;
+    let (state, checkpoint) = kinematics_device(session, model, fk, qpos)?;
     drop(checkpoint);
     let k = model.kinematics();
-    let device = upload_com_model::<T>(session, model, layout)?;
-    let mut values = crate::runtime::host_staging::<T>(layout.guarded)?;
-    values.fill(T::from(-131072.0));
-    values[4..layout.guarded - 4].fill(T::from(f32::NAN));
+    let device = upload_com_model(session, model, layout)?;
+    let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
+    values.fill(-131072.0);
+    values[4..layout.guarded - 4].fill(f32::NAN);
     let mut output = session.upload(&values)?;
     let kernel = crate::runtime::SynchronousKernel::compile(
         session,
-        &rigid_source::<T>(COM_POSITION_CUDA),
+        COM_POSITION_CUDA,
         "rigid_com_position",
     )?;
     // SAFETY: Checked layouts bound all packed offsets by i32::MAX.
-    // RigidScalar and rigid_source keep shader pointers and buffers equal-width.
+    // The fixed shader and all physical buffers use f32.
     // Validated topology proves parent order and joint/body/DOF addresses.
     // FK state has precisely 28*nbody+6*njnt elements per world plus guards.
     // Each thread owns one output world, with no cross-thread reads/writes.
@@ -585,11 +582,11 @@ fn com_position_device<T: RigidScalar>(
 }
 
 #[cfg(feature = "cuda-probe")]
-fn upload_com_model<T: RigidScalar>(
+fn upload_com_model(
     session: &TransferSession,
     model: &InertialModelInput,
     layout: ComPositionLayout,
-) -> Result<DeviceModel<T>, TransferError> {
+) -> Result<DeviceModel, TransferError> {
     let k = model.kinematics();
     let f = k.fields();
     let i = model.fields();
@@ -599,55 +596,13 @@ fn upload_com_model<T: RigidScalar>(
         metadata[cursor..cursor + field.len()].copy_from_slice(field);
         cursor += field.len();
     }
-    let mut parameters = crate::runtime::host_staging::<T>(layout.parameters)?;
-    pack_rigid(&mut parameters[..k.nbody()], &i.body_mass);
-    pack_rigid(&mut parameters[k.nbody()..], &i.body_inertia);
+    let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
+    parameters[..k.nbody()].copy_from_slice(&i.body_mass);
+    parameters[k.nbody()..].copy_from_slice(&i.body_inertia);
     Ok(DeviceModel {
         metadata: session.upload(&metadata)?,
         parameters: session.upload(&parameters)?,
     })
-}
-
-/// Keep every buffer and shader pointer type equal. Public rigid inputs and
-/// results stay f32; only the new solver selects the internal f64 pipeline.
-#[cfg(feature = "cuda-probe")]
-trait RigidScalar: crate::runtime::TransferElement + From<f32> + Into<f64> {}
-#[cfg(feature = "cuda-probe")]
-impl RigidScalar for f32 {}
-#[cfg(feature = "cuda-probe")]
-impl RigidScalar for f64 {}
-
-#[cfg(feature = "cuda-probe")]
-fn pack_rigid<T: RigidScalar>(destination: &mut [T], source: &[f32]) {
-    for (d, &s) in destination.iter_mut().zip(source) {
-        *d = T::from(s);
-    }
-}
-
-#[cfg(feature = "cuda-probe")]
-fn upload_rigid<T: RigidScalar>(
-    session: &TransferSession,
-    source: &[f32],
-) -> Result<crate::runtime::TransferBuffer<T>, TransferError> {
-    let mut values = crate::runtime::host_staging::<T>(source.len())?;
-    pack_rigid(&mut values, source);
-    session.upload(&values)
-}
-
-#[cfg(feature = "cuda-probe")]
-fn rigid_source<T: RigidScalar>(source: &str) -> std::borrow::Cow<'_, str> {
-    // Only the private fixed shader constants use this scalar specialization.
-    if size_of::<T>() == 4 {
-        std::borrow::Cow::Borrowed(source)
-    } else {
-        std::borrow::Cow::Owned(
-            source
-                .replace("float", "double")
-                .replace("sqrtf", "sqrt")
-                .replace("sinf", "sin")
-                .replace("cosf", "cos"),
-        )
-    }
 }
 
 #[cfg(any(feature = "cuda-probe", test))]

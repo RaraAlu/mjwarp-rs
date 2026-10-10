@@ -33,7 +33,7 @@ pub struct RneBiasData {
     layout: RneBiasLayout,
     ready: bool,
     #[cfg(feature = "cuda-probe")]
-    output: TransferBuffer<f64>,
+    output: TransferBuffer<f32>,
 }
 
 /// 显式回读后的独立宿主快照。
@@ -81,12 +81,12 @@ impl RneBiasLayout {
             .filter(|&n| n <= i32::MAX as usize)
             .ok_or_else(overflow)?;
         BatchLayout::new(1, metadata, 4)?;
-        let output = BatchLayout::new(worlds, width, 8)?;
+        let output = BatchLayout::new(worlds, width, 4)?;
         let guarded = output
             .total_elements()
             .checked_add(8)
             .ok_or_else(overflow)?;
-        BatchLayout::new(1, guarded, 8)?;
+        BatchLayout::new(1, guarded, 4)?;
         #[cfg(not(feature = "cuda-probe"))]
         let _ = guarded;
         Ok(Self {
@@ -182,9 +182,9 @@ impl RneBiasPlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let mut values = crate::runtime::host_staging::<f64>(layout.guarded)?;
+            let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
             values.fill(-131072.0);
-            values[4..layout.guarded - 4].fill(f64::NAN);
+            values[4..layout.guarded - 4].fill(f32::NAN);
             Ok(RneBiasData {
                 velocity,
                 layout,
@@ -223,11 +223,11 @@ impl RneBiasPlan {
         #[cfg(feature = "cuda-probe")]
         {
             let inputs = data.velocity.rne_inputs()?;
-            // SAFETY: Reuse the five-pointer spatial ABI with f64 velocities.
+            // SAFETY: Reuse the five-pointer spatial ABI with f32 fields.
             // Validated parent/DOF maps bound all accesses. Metadata stores
             // dimensions and finite gravity's IEEE f32 bits, decoded by CUDA.
             // Input strides are nv, 14*nbody+6*nv and 6*nbody+6*nv.
-            // Output uses f64 with stride 12*nbody+nv; only qvel uses f32.
+            // Output uses f32 with stride 12*nbody+nv, like frozen RNE.
             // All state/result buffers have four guards on each side.
             // Disjoint buffers retain one session; launch waits for completion.
             unsafe {
@@ -288,7 +288,7 @@ impl RneBiasData {
         #[cfg(feature = "cuda-probe")]
         {
             self.velocity.readback()?;
-            let mut values = crate::runtime::host_staging::<f64>(self.layout.guarded)?;
+            let mut values = crate::runtime::host_staging::<f32>(self.layout.guarded)?;
             self.output.read_range_into(0, &mut values)?;
             super::check_device_values(&values, "rne_bias_output")?;
             let mut bias = crate::runtime::host_staging::<f32>(self.worlds() * self.layout.nv)?;
@@ -296,7 +296,7 @@ impl RneBiasData {
                 let start =
                     4 + self.layout.output.world_elements(w)?.start + 12 * self.layout.nbody;
                 for d in 0..self.layout.nv {
-                    bias[w * self.layout.nv + d] = values[start + d] as f32;
+                    bias[w * self.layout.nv + d] = values[start + d];
                 }
             }
             if let Some(index) = bias.iter().position(|v| !v.is_finite()) {
@@ -343,7 +343,7 @@ impl RneBiasSnapshot {
 // limitations under the License.
 #[cfg(feature = "cuda-probe")]
 const RNE_BIAS_CUDA: &str = r#"
-__device__ void inertia_vector(const double* i,const double* v,double* f) {
+__device__ void inertia_vector(const float* i,const float* v,float* f) {
   f[0]=i[0]*v[0]+i[3]*v[1]+i[4]*v[2]-i[8]*v[4]+i[7]*v[5];
   f[1]=i[3]*v[0]+i[1]*v[1]+i[5]*v[2]+i[8]*v[3]-i[6]*v[5];
   f[2]=i[4]*v[0]+i[5]*v[1]+i[2]*v[2]-i[7]*v[3]+i[6]*v[4];
@@ -351,31 +351,31 @@ __device__ void inertia_vector(const double* i,const double* v,double* f) {
   f[4]=i[6]*v[2]-i[8]*v[0]+i[9]*v[4];
   f[5]=i[7]*v[0]-i[6]*v[1]+i[9]*v[5];
 }
-__device__ void cross_force(const double* v,const double* f,double* out) {
+__device__ void cross_force(const float* v,const float* f,float* out) {
   out[0]=(v[1]*f[2]-v[2]*f[1])+(v[4]*f[5]-v[5]*f[4]);
   out[1]=(v[2]*f[0]-v[0]*f[2])+(v[5]*f[3]-v[3]*f[5]);
   out[2]=(v[0]*f[1]-v[1]*f[0])+(v[3]*f[4]-v[4]*f[3]);
   out[3]=v[1]*f[5]-v[2]*f[4];out[4]=v[2]*f[3]-v[0]*f[5];out[5]=v[0]*f[4]-v[1]*f[3];
 }
 extern "C" __global__ void rne_bias(const int* m,const float* velocities,
-    const double* com,const double* velocity,double* output,unsigned nw) {
+    const float* com,const float* velocity,float* output,unsigned nw) {
   unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=nw) return;
   unsigned nb=m[0],nv=m[1];const int* parent=m+5;
   const int* num=parent+nb;const int* adr=num+nb;const int* body=adr+nb;
   const float* qvel=velocities+4+(unsigned long long)w*nv;
-  const double* ci=com+4+(unsigned long long)w*(14ull*nb+6ull*nv)+4ull*nb;
-  const double* cdof=ci+10ull*nb;
-  const double* cvel=velocity+4+(unsigned long long)w*(6ull*nb+6ull*nv);
-  const double* dot=cvel+6ull*nb;
-  double* acc=output+4+(unsigned long long)w*(12ull*nb+nv);
-  double* frc=acc+6ull*nb;double* bias=frc+6ull*nb;
+  const float* ci=com+4+(unsigned long long)w*(14ull*nb+6ull*nv)+4ull*nb;
+  const float* cdof=ci+10ull*nb;
+  const float* cvel=velocity+4+(unsigned long long)w*(6ull*nb+6ull*nv);
+  const float* dot=cvel+6ull*nb;
+  float* acc=output+4+(unsigned long long)w*(12ull*nb+nv);
+  float* frc=acc+6ull*nb;float* bias=frc+6ull*nb;
   for(int k=0;k<6;++k) { acc[k]=k<3?0.0f:-__int_as_float(m[k-1]);frc[k]=0.0f; }
   for(unsigned b=1;b<nb;++b) {
-    double* a=acc+6ull*b;
+    float* a=acc+6ull*b;
     for(int k=0;k<6;++k) a[k]=acc[6ull*parent[b]+k];
     for(int d=adr[b];d<adr[b]+num[b];++d)
-      for(int k=0;k<6;++k) a[k]+=double(dot[6ull*d+k])*qvel[d];
-    double iv[6],cross[6],v[6];for(int k=0;k<6;++k) v[k]=cvel[6ull*b+k];
+      for(int k=0;k<6;++k) a[k]+=dot[6ull*d+k]*qvel[d];
+    float iv[6],cross[6],v[6];for(int k=0;k<6;++k) v[k]=cvel[6ull*b+k];
     inertia_vector(ci+10ull*b,v,iv);cross_force(v,iv,cross);
     inertia_vector(ci+10ull*b,a,frc+6ull*b);
     for(int k=0;k<6;++k) frc[6ull*b+k]+=cross[k];
@@ -383,7 +383,7 @@ extern "C" __global__ void rne_bias(const int* m,const float* velocities,
   for(int b=int(nb)-1;b>0;--b)
     for(int k=0;k<6;++k) frc[6ull*parent[b]+k]+=frc[6ull*b+k];
   for(unsigned d=0;d<nv;++d) {
-    double f=0.0;for(int k=0;k<6;++k) f+=cdof[6ull*d+k]*frc[6ull*body[d]+k];bias[d]=f;
+    float f=0.0f;for(int k=0;k<6;++k) f+=cdof[6ull*d+k]*frc[6ull*body[d]+k];bias[d]=f;
   }
 }
 "#;
@@ -403,7 +403,8 @@ mod tests {
         ] {
             assert!(RneBiasLayout::new(w, b, v).is_err());
         }
-        assert!(RneBiasLayout::new(513, 1, 0).is_ok());
+        let layout = RneBiasLayout::new(513, 1, 0).unwrap();
+        assert_eq!(layout.output.total_bytes(), 513 * 12 * size_of::<f32>());
     }
 
     #[test]
@@ -442,13 +443,13 @@ mod tests {
             d.output.write_range(i, &[-131072.0]).unwrap();
         }
         for i in [4, 4 + 6 * d.layout.nbody, 4 + 12 * d.layout.nbody] {
-            d.output.write_range(i, &[f64::NAN]).unwrap();
+            d.output.write_range(i, &[f32::NAN]).unwrap();
             assert!(d.readback().is_err());
             p.update_bias(&mut d).unwrap();
             d.readback().unwrap();
         }
         d.output
-            .write_range(4 + 12 * d.layout.nbody, &[f64::MAX])
+            .write_range(4 + 12 * d.layout.nbody, &[f32::INFINITY])
             .unwrap();
         assert!(d.readback().is_err());
         p.update_bias(&mut d).unwrap();

@@ -39,18 +39,18 @@ pub struct ComVelocityData {
     #[cfg(feature = "cuda-probe")]
     qvel: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
-    output: TransferBuffer<f64>,
+    output: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
-    rigid: TransferBuffer<f64>,
+    rigid: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
-    com: TransferBuffer<f64>,
+    com: TransferBuffer<f32>,
 }
 
 #[cfg(feature = "cuda-probe")]
 pub(super) struct RneInputs<'a> {
     pub qvel: &'a TransferBuffer<f32>,
-    pub com: &'a TransferBuffer<f64>,
-    pub velocity: &'a TransferBuffer<f64>,
+    pub com: &'a TransferBuffer<f32>,
+    pub velocity: &'a TransferBuffer<f32>,
 }
 
 /// 显式回读后的独立宿主快照。
@@ -106,14 +106,14 @@ impl ComVelocityLayout {
             .filter(|&n| n <= i32::MAX as usize)
             .ok_or_else(overflow)?;
         BatchLayout::new(1, metadata, 4)?;
-        let output = BatchLayout::new(worlds, width, 8)?;
+        let output = BatchLayout::new(worlds, width, 4)?;
         let qvel = BatchLayout::new(worlds, nv, 4)?;
         let guarded = output
             .total_elements()
             .checked_add(8)
             .ok_or_else(overflow)?;
         let guarded_qvel = qvel.total_elements().checked_add(8).ok_or_else(overflow)?;
-        BatchLayout::new(1, guarded, 8)?;
+        BatchLayout::new(1, guarded, 4)?;
         BatchLayout::new(1, guarded_qvel, 4)?;
         let rigid_width = nbody
             .checked_mul(28)
@@ -125,16 +125,16 @@ impl ComVelocityLayout {
             .and_then(|n| nv.checked_mul(6).and_then(|v| n.checked_add(v)))
             .filter(|&n| n <= i32::MAX as usize)
             .ok_or_else(overflow)?;
-        let guarded_rigid = BatchLayout::new(worlds, rigid_width, 8)?
+        let guarded_rigid = BatchLayout::new(worlds, rigid_width, 4)?
             .total_elements()
             .checked_add(8)
             .ok_or_else(overflow)?;
-        let guarded_com = BatchLayout::new(worlds, com_width, 8)?
+        let guarded_com = BatchLayout::new(worlds, com_width, 4)?
             .total_elements()
             .checked_add(8)
             .ok_or_else(overflow)?;
-        BatchLayout::new(1, guarded_rigid, 8)?;
-        BatchLayout::new(1, guarded_com, 8)?;
+        BatchLayout::new(1, guarded_rigid, 4)?;
+        BatchLayout::new(1, guarded_com, 4)?;
         #[cfg(not(feature = "cuda-probe"))]
         let _ = (guarded, guarded_qvel, guarded_rigid, guarded_com);
         Ok(Self {
@@ -227,9 +227,9 @@ impl ComVelocityPlan {
             let mut velocities = crate::runtime::host_staging::<f32>(layout.guarded_qvel)?;
             velocities.fill(-131072.0);
             velocities[4..layout.guarded_qvel - 4].fill(0.0);
-            let mut values = crate::runtime::host_staging::<f64>(layout.guarded)?;
+            let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
             values.fill(-131072.0);
-            values[4..layout.guarded - 4].fill(f64::NAN);
+            values[4..layout.guarded - 4].fill(f32::NAN);
             Ok(ComVelocityData {
                 position,
                 layout,
@@ -263,8 +263,8 @@ impl ComVelocityPlan {
             )?;
             let worlds = data.worlds() as u32;
             // SAFETY: Validated topology bounds joint/DOF indices and parent order.
-            // The checked layouts bound all guarded offsets. qvel uses f32;
-            // private FK, COM and velocity workspaces use f64 for cancellation.
+            // The checked layouts bound all guarded offsets. Model, state and
+            // private FK, COM and velocity workspaces all use frozen f32.
             // All buffers use this plan's session; one thread owns one world.
             // COM remains on-device with stride 14*nbody+6*nv. The adapter waits
             // before any buffer or compiled module can drop or be reused.
@@ -368,20 +368,15 @@ impl ComVelocityData {
                 (&self.rigid, self.layout.guarded_rigid, "com_velocity_rigid"),
                 (&self.com, self.layout.guarded_com, "com_velocity_com"),
             ] {
-                let mut values = crate::runtime::host_staging::<f64>(length)?;
+                let mut values = crate::runtime::host_staging::<f32>(length)?;
                 buffer.read_range_into(0, &mut values)?;
                 super::check_device_values(&values, field)?;
             }
             let mut qvel = crate::runtime::host_staging::<f32>(self.layout.guarded_qvel)?;
             self.qvel.read_range_into(0, &mut qvel)?;
             super::check_device_values(&qvel, "com_velocity_qvel")?;
-            let mut workspace = crate::runtime::host_staging::<f64>(self.layout.guarded)?;
-            self.output.read_range_into(0, &mut workspace)?;
-            super::check_device_values(&workspace, "com_velocity_workspace")?;
             let mut values = crate::runtime::host_staging::<f32>(self.layout.guarded)?;
-            for (out, value) in values.iter_mut().zip(workspace) {
-                *out = value as f32;
-            }
+            self.output.read_range_into(0, &mut values)?;
             super::check_device_values(&values, "com_velocity_output")?;
             Ok(ComVelocitySnapshot {
                 layout: self.layout,
@@ -432,10 +427,10 @@ fn check_qvel(expected: usize, qvel: &[f32]) -> Result<(), InputError> {
 fn velocity_workspace(
     session: &TransferSession,
     length: usize,
-) -> Result<TransferBuffer<f64>, TransferError> {
-    let mut values = crate::runtime::host_staging::<f64>(length)?;
+) -> Result<TransferBuffer<f32>, TransferError> {
+    let mut values = crate::runtime::host_staging::<f32>(length)?;
     values.fill(-131072.0);
-    values[4..length - 4].fill(f64::NAN);
+    values[4..length - 4].fill(f32::NAN);
     session.upload(&values)
 }
 
@@ -452,37 +447,37 @@ fn velocity_workspace(
 // limitations under the License.
 #[cfg(feature = "cuda-probe")]
 const COM_VELOCITY_CUDA: &str = r#"
-__device__ void motion_cross(const double* a,const double* b,double* out) {
+__device__ void motion_cross(const float* a,const float* b,float* out) {
   out[0]=a[1]*b[2]-a[2]*b[1];out[1]=a[2]*b[0]-a[0]*b[2];out[2]=a[0]*b[1]-a[1]*b[0];
   out[3]=(a[1]*b[5]-a[2]*b[4])+(a[4]*b[2]-a[5]*b[1]);
   out[4]=(a[2]*b[3]-a[0]*b[5])+(a[5]*b[0]-a[3]*b[2]);
   out[5]=(a[0]*b[4]-a[1]*b[3])+(a[3]*b[1]-a[4]*b[0]);
 }
 extern "C" __global__ void com_velocity(const int* m,const float* velocities,
-    const double* com,double* output,unsigned nb,unsigned nj,unsigned nv,unsigned nw) {
+    const float* com,float* output,unsigned nb,unsigned nj,unsigned nv,unsigned nw) {
   unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=nw) return;
   const int* parent=m;const int* num=parent+nb;const int* adr=num+nb;
   const int* type=adr+nb;const int* dofadr=type+nj;
   const float* qvel=velocities+4+(unsigned long long)w*nv;
-  const double* cdof=com+4+(unsigned long long)w*(14ull*nb+6ull*nv)+14ull*nb;
-  double* cvel=output+4+(unsigned long long)w*(6ull*nb+6ull*nv);double* dot=cvel+6ull*nb;
+  const float* cdof=com+4+(unsigned long long)w*(14ull*nb+6ull*nv)+14ull*nb;
+  float* cvel=output+4+(unsigned long long)w*(6ull*nb+6ull*nv);float* dot=cvel+6ull*nb;
   for(int k=0;k<6;++k) cvel[k]=0.0f;
   for(unsigned b=1;b<nb;++b) {
-    double v[6];for(int k=0;k<6;++k) v[k]=cvel[6ull*parent[b]+k];
+    float v[6];for(int k=0;k<6;++k) v[k]=cvel[6ull*parent[b]+k];
     for(int j=adr[b];j<adr[b]+num[b];++j) {
       int d=dofadr[j],t=type[j];
       if(t==0) {
         for(int i=0;i<3;++i) for(int k=0;k<6;++k) {
-          v[k]+=double(cdof[6ull*(d+i)+k])*qvel[d+i];dot[6ull*(d+i)+k]=0.0f;
+          v[k]+=cdof[6ull*(d+i)+k]*qvel[d+i];dot[6ull*(d+i)+k]=0.0f;
         }
         for(int i=3;i<6;++i) motion_cross(v,cdof+6ull*(d+i),dot+6ull*(d+i));
-        for(int i=3;i<6;++i) for(int k=0;k<6;++k) v[k]+=double(cdof[6ull*(d+i)+k])*qvel[d+i];
+        for(int i=3;i<6;++i) for(int k=0;k<6;++k) v[k]+=cdof[6ull*(d+i)+k]*qvel[d+i];
       } else if(t==1) {
         for(int i=0;i<3;++i) motion_cross(v,cdof+6ull*(d+i),dot+6ull*(d+i));
-        for(int i=0;i<3;++i) for(int k=0;k<6;++k) v[k]+=double(cdof[6ull*(d+i)+k])*qvel[d+i];
+        for(int i=0;i<3;++i) for(int k=0;k<6;++k) v[k]+=cdof[6ull*(d+i)+k]*qvel[d+i];
       } else {
         motion_cross(v,cdof+6ull*d,dot+6ull*d);
-        for(int k=0;k<6;++k) v[k]+=double(cdof[6ull*d+k])*qvel[d];
+        for(int k=0;k<6;++k) v[k]+=cdof[6ull*d+k]*qvel[d];
       }
     }
     for(int k=0;k<6;++k) cvel[6ull*b+k]=v[k];
@@ -526,11 +521,11 @@ mod tests {
                 assert!(data.readback().is_err());
                 write(&mut data, which, offset, -131072.0);
             }
-            write(&mut data, which, 4, f64::NAN);
+            write(&mut data, which, 4, f32::NAN);
             assert!(data.readback().is_err());
             plan.update(&mut data).unwrap();
         }
-        write(&mut data, 2, 4, f64::MAX);
+        write(&mut data, 2, 4, f32::INFINITY);
         assert!(data.readback().is_err());
         plan.update(&mut data).unwrap();
         data.qvel.write_range(0, &[0.0]).unwrap();
@@ -555,7 +550,13 @@ mod tests {
         ] {
             assert!(ComVelocityLayout::new(w, b, j, v).is_err());
         }
-        assert!(ComVelocityLayout::new(513, 1, 0, 0).is_ok());
+        let layout = ComVelocityLayout::new(513, 1, 0, 0).unwrap();
+        assert_eq!(layout.output.total_bytes(), 513 * 6 * size_of::<f32>());
+        #[cfg(feature = "cuda-probe")]
+        {
+            assert_eq!(layout.guarded_rigid, 513 * 28 + 8);
+            assert_eq!(layout.guarded_com, 513 * 14 + 8);
+        }
     }
 
     #[test]

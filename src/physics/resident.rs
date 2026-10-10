@@ -64,11 +64,11 @@ pub struct KinematicsPlan {
     sleep_info: Option<Arc<TendonWakeInfo>>,
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    rigid: super::DeviceModel<f32>,
+    rigid: super::DeviceModel,
     #[cfg(feature = "cuda-probe")]
-    com: super::DeviceModel<f32>,
+    com: super::DeviceModel,
     #[cfg(feature = "cuda-probe")]
-    attached: super::DeviceModel<f32>,
+    attached: super::DeviceModel,
     #[cfg(feature = "cuda-probe")]
     rigid_kernel: SynchronousKernel,
     #[cfg(feature = "cuda-probe")]
@@ -105,7 +105,7 @@ pub(super) struct VelocityPositionKernels {
 
 #[cfg(feature = "cuda-probe")]
 struct DeviceSleep {
-    model: super::DeviceModel<f32>,
+    model: super::DeviceModel,
     copy_kernel: SynchronousKernel,
     wake_kernel: SynchronousKernel,
 }
@@ -118,20 +118,20 @@ struct ResidentSleep {
 
 #[cfg(feature = "cuda-probe")]
 struct DeviceFlex {
-    model: super::DeviceModel<f32>,
+    model: super::DeviceModel,
     kernel: SynchronousKernel,
 }
 
 #[cfg(feature = "cuda-probe")]
 struct DeviceFlexPositions {
-    model: super::DeviceModel<f32>,
+    model: super::DeviceModel,
     kernel: SynchronousKernel,
     invalidate_kernel: SynchronousKernel,
 }
 
 #[cfg(feature = "cuda-probe")]
 struct DeviceFlexHessian {
-    model: super::DeviceModel<f32>,
+    model: super::DeviceModel,
     kernel: SynchronousKernel,
     validate_kernel: SynchronousKernel,
 }
@@ -149,7 +149,7 @@ struct ResidentFlexEdges {
 
 #[cfg(feature = "cuda-probe")]
 struct DeviceTendon {
-    model: super::DeviceModel<f32>,
+    model: super::DeviceModel,
     values_kernel: SynchronousKernel,
     indices_kernel: SynchronousKernel,
 }
@@ -162,7 +162,7 @@ struct ResidentTendon {
 
 #[cfg(feature = "cuda-probe")]
 struct DeviceSpatialTendon {
-    model: super::DeviceModel<f32>,
+    model: super::DeviceModel,
     site_kernel: SynchronousKernel,
     moment_kernel: SynchronousKernel,
     wrap_kernel: SynchronousKernel,
@@ -170,13 +170,13 @@ struct DeviceSpatialTendon {
 
 #[cfg(feature = "cuda-probe")]
 struct DeviceFixedTendon {
-    model: super::DeviceModel<f32>,
+    model: super::DeviceModel,
     kernel: SynchronousKernel,
 }
 
 #[cfg(feature = "cuda-probe")]
 struct DeviceCamLight {
-    model: super::DeviceModel<f32>,
+    model: super::DeviceModel,
     rigid_kernel: SynchronousKernel,
     com_kernel: SynchronousKernel,
 }
@@ -1559,32 +1559,10 @@ impl KinematicsPlan {
     pub(super) fn compile_velocity_position(
         &self,
     ) -> Result<VelocityPositionKernels, TransferError> {
-        // Specialize only the private fixed shaders; model/state uploads stay f32.
-        let mut rigid = super::rigid_source::<f64>(super::KINEMATICS_CUDA).into_owned();
-        for name in [
-            "model", "state", "mp", "mq", "q0", "bp", "bq", "ip", "iq", "jp", "axis", "q",
-        ] {
-            rigid = rigid.replace(
-                &format!("const double* {name}"),
-                &format!("const float* {name}"),
-            );
-        }
-        rigid = rigid
-            .replace(
-                "__device__ V load_v(const double* p)",
-                "template<class T> __device__ V load_v(const T* p)",
-            )
-            .replace(
-                "__device__ Q load_q(const double* p)",
-                "template<class T> __device__ Q load_q(const T* p)",
-            );
+        let rigid = super::KINEMATICS_CUDA;
         let source = format!("{FIELD_BATCH_CUDA}\n#define MJWARP_MOCAP\n{rigid}");
         let rigid = SynchronousKernel::compile(&self.session, &source, "rigid_kinematics")?;
-        let com = super::rigid_source::<f64>(super::COM_POSITION_CUDA)
-            .replace("const double* p,", "const float* p,")
-            .replace("const double* mass=", "const float* mass=")
-            .replace("const double* inertia=", "const float* inertia=")
-            .replace("const double* d=inertia", "const float* d=inertia");
+        let com = super::COM_POSITION_CUDA;
         let source = format!("{FIELD_BATCH_CUDA}\n{com}");
         Ok(VelocityPositionKernels {
             rigid,
@@ -1597,8 +1575,8 @@ impl KinematicsPlan {
         &self,
         data: &KinematicsData,
         kernels: &VelocityPositionKernels,
-        rigid: &mut TransferBuffer<f64>,
-        com: &mut TransferBuffer<f64>,
+        rigid: &mut TransferBuffer<f32>,
+        com: &mut TransferBuffer<f32>,
     ) -> Result<(), TransferError> {
         self.check_data(data)?;
         let l = data.layout;
@@ -1619,7 +1597,7 @@ impl KinematicsPlan {
         let worlds = data.worlds() as u32;
         // SAFETY: This typed kernel pair fixes both ABIs. Existing validated
         // metadata and f32 model/state allocations bound all reads; the checked
-        // f64 workspaces have identical element strides and disjoint ownership.
+        // f32 workspaces have identical element strides and disjoint ownership.
         // The adapter enforces one session and waits after each launch.
         unsafe {
             kernels.rigid.launch(
@@ -3077,7 +3055,7 @@ fn pack_camlight(
 
 #[cfg(feature = "cuda-probe")]
 impl PackedModel {
-    fn upload(self, session: &TransferSession) -> Result<super::DeviceModel<f32>, TransferError> {
+    fn upload(self, session: &TransferSession) -> Result<super::DeviceModel, TransferError> {
         Ok(super::DeviceModel {
             metadata: session.upload(&self.metadata)?,
             parameters: session.upload(&self.parameters)?,

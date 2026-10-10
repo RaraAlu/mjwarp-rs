@@ -25,6 +25,15 @@ impl SynchronousKernel {
         source: &str,
         entry: &'static str,
     ) -> Result<Self, TransferError> {
+        Self::compile_checked(session, source, entry, true)
+    }
+
+    fn compile_checked(
+        session: &TransferSession,
+        source: &str,
+        entry: &'static str,
+        require_f32: bool,
+    ) -> Result<Self, TransferError> {
         session.inner.status.check()?;
         // Compiler calls do not enqueue device work. Compile failures need not
         // quarantine a healthy transfer session, and cannot trigger CPU fallback.
@@ -49,6 +58,12 @@ impl SynchronousKernel {
             })
         })
         .unwrap_or(Err(ProbeError::BackendPanic))?;
+        if require_f32 {
+            let generated = ptx.to_src();
+            let precision = check_physics_ptx(&generated, entry);
+            record_physics_ptx(source, &generated, entry, precision.is_ok())?;
+            precision?;
+        }
         let function = session.run("synchronous-kernel-load", || {
             session
                 .inner
@@ -200,23 +215,19 @@ impl SynchronousKernel {
         })
     }
 
-    /// ABI: (const int*, const float*, const C*, const V*, O*, u32).
+    /// ABI: (const int*, const float*, const float*, const float*, float*, u32).
     ///
     /// # Safety
-    /// Caller proves this ABI, C/V/O scalar widths, strides and accesses.
+    /// Caller proves this f32 ABI, strides and accesses.
     /// Inputs are read-only; output is disjoint. All buffers are nonempty.
     /// The kernel only writes output and launches no asynchronous child work.
-    pub(crate) unsafe fn launch_flex_edges<
-        C: TransferElement,
-        V: TransferElement,
-        O: TransferElement,
-    >(
+    pub(crate) unsafe fn launch_flex_edges(
         &self,
         metadata: &TransferBuffer<i32>,
         qvel: &TransferBuffer<f32>,
-        com: &TransferBuffer<C>,
-        flex: &TransferBuffer<V>,
-        output: &mut TransferBuffer<O>,
+        com: &TransferBuffer<f32>,
+        flex: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
         worlds: u32,
     ) -> Result<(), TransferError> {
         for same in [
@@ -289,15 +300,176 @@ impl Drop for SynchronousKernel {
     }
 }
 
+// Warp's f32 sin/cos also call CUDA sinf/cosf. CUDA 12.8's slow integer angle
+// reduction emits this exact s64 -> f64 -> f32 triplet. It does not promote a
+// physical f32 value or accumulator. Reject every other non-f32 operation.
+fn check_physics_ptx(ptx: &str, entry: &'static str) -> Result<(), ProbeError> {
+    let lines: Vec<_> = ptx
+        .lines()
+        .map(|line| line.split_once("//").map_or(line, |(code, _)| code).trim())
+        .filter(|line| !line.is_empty())
+        .collect();
+    let operands = |line: &str| -> Vec<String> {
+        line.split(|c: char| c.is_ascii_whitespace() || c == ',' || c == ';')
+            .filter(|word| !word.is_empty())
+            .map(str::to_owned)
+            .collect()
+    };
+    let mut reduction_count = 0;
+    let mut declarations = false;
+    let mut i = 0;
+    while i < lines.len() {
+        let code = lines[i];
+        if code.starts_with(".reg .f64 ") || code.starts_with(".reg .f64\t") {
+            declarations = true;
+            i += 1;
+            continue;
+        }
+        let a = operands(code);
+        if a.len() == 3 && a[0] == "cvt.rn.f64.s64" && i + 2 < lines.len() {
+            let b = operands(lines[i + 1]);
+            let c = operands(lines[i + 2]);
+            if b.len() == 4
+                && b[0] == "mul.rn.f64"
+                && b[2] == a[1]
+                && b[3] == "0d3BF921FB54442D19"
+                && c.len() == 3
+                && c[0] == "cvt.rn.f32.f64"
+                && c[2] == b[1]
+            {
+                reduction_count += 1;
+                i += 3;
+                continue;
+            }
+        }
+        for token in code
+            .split_whitespace()
+            .flat_map(|word| word.split('.').skip(1))
+        {
+            let token = token.trim_matches(|c: char| !c.is_ascii_alphanumeric());
+            if matches!(token, "f64" | "f16" | "f16x2" | "bf16" | "bf16x2" | "tf32") {
+                return Err(ProbeError::Compilation {
+                    stage: "physics-precision-ptx",
+                    detail: format!("{entry}: forbidden {token}: {code}"),
+                });
+            }
+        }
+        i += 1;
+    }
+    if declarations && reduction_count == 0 {
+        return Err(ProbeError::Compilation {
+            stage: "physics-precision-ptx",
+            detail: format!("{entry}: unaccounted f64 registers"),
+        });
+    }
+    Ok(())
+}
+
+fn record_physics_ptx(
+    source: &str,
+    ptx: &str,
+    entry: &'static str,
+    passed: bool,
+) -> Result<(), ProbeError> {
+    let Some(directory) = std::env::var_os("MJWARP_PHYSICS_PTX_DIR") else {
+        return Ok(());
+    };
+    let (mut major, mut minor) = (0, 0);
+    // SAFETY: Compilation already loaded NVRTC; both output pointers are valid.
+    unsafe { sys::nvrtcVersion(&mut major, &mut minor) }
+        .result()
+        .map_err(|error| ProbeError::Compilation {
+            stage: "physics-precision-evidence",
+            detail: format!("{entry}: NVRTC version: {error:?}"),
+        })?;
+    use sha2::{Digest, Sha256};
+    let source_hash = format!("{:x}", Sha256::digest(source.as_bytes()));
+    let ptx_hash = format!("{:x}", Sha256::digest(ptx.as_bytes()));
+    let prefix = std::path::PathBuf::from(directory).join(format!("{entry}-{ptx_hash}"));
+    let record = serde_json::json!({
+        "entry": entry,
+        "sourceSha256": source_hash,
+        "ptxSha256": ptx_hash,
+        "precisionGate": "f32-physics",
+        "cudaMathReduction": "CUDA-12.8 sinf/cosf integer angle reduction only",
+        "passed": passed,
+        "nvrtcVersion": [major, minor],
+        "fmad": false,
+        "useFastMath": false,
+        "options": ["--std=c++17", "--gpu-architecture=compute_70"],
+    });
+    let save = || -> Result<(), Box<dyn std::error::Error>> {
+        std::fs::create_dir_all(prefix.parent().unwrap())?;
+        std::fs::write(prefix.with_extension("cu"), source)?;
+        std::fs::write(prefix.with_extension("ptx"), ptx)?;
+        std::fs::write(
+            prefix.with_extension("json"),
+            serde_json::to_vec_pretty(&record)?,
+        )?;
+        Ok(())
+    };
+    save().map_err(|error| ProbeError::Compilation {
+        stage: "physics-precision-evidence",
+        detail: format!("{entry}: {error}"),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rejects_generated_physics_precision_promotions_and_demotions() {
+        for code in [
+            "add.rn.f64 %fd1, %fd2, %fd3;",
+            "cvt.f32.f64 %f1, %fd2;",
+            ".reg .f64 %fd<2>;",
+            "mul.rn.f16 %h1, %h2, %h3;",
+            "add.f16x2 %r1, %r2, %r3;",
+            "cvt.rn.bf16.f32 %h1, %f1;",
+            "add.bf16x2 %r1, %r2, %r3;",
+            "cvt.rn.tf32.f32 %r1, %f1;",
+        ] {
+            assert!(matches!(
+                check_physics_ptx(code, "probe"),
+                Err(ProbeError::Compilation {
+                    stage: "physics-precision-ptx",
+                    ..
+                })
+            ));
+        }
+        check_physics_ptx(
+            "// f64 is forbidden\n.reg .b64 %rd<2>;\nadd.rn.f32 %f16, %f64, %f3;",
+            "probe",
+        )
+        .unwrap();
+        let reduction = ".reg .f64 %fd<3>;\ncvt.rn.f64.s64 %fd1, %rd1;\nmul.rn.f64 %fd2, %fd1, 0d3BF921FB54442D19;\ncvt.rn.f32.f64 %f1, %fd2;";
+        check_physics_ptx(reduction, "probe").unwrap();
+        for changed in [
+            reduction.replace("f64.s64", "f64.f32"),
+            reduction.replace("0d3BF921FB54442D19", "0d3FF0000000000000"),
+            reduction.replace("%fd1, 0d", "%fd3, 0d"),
+            format!("{reduction}\nadd.rn.f64 %fd1, %fd1, %fd2;"),
+        ] {
+            assert!(check_physics_ptx(&changed, "probe").is_err());
+        }
+    }
+
     #[test]
     #[ignore = "requires NVIDIA driver and NVRTC"]
     fn preserves_f64_buffer_width_in_fixed_kernel_abi() {
         let session = TransferSession::new(0).unwrap();
         let source = SOURCE.replace("float", "double");
-        let kernel = SynchronousKernel::compile(&session, &source, "adapter_probe").unwrap();
+        assert!(matches!(
+            SynchronousKernel::compile(&session, &source, "adapter_probe"),
+            Err(TransferError::Backend(ProbeError::Compilation {
+                stage: "physics-precision-ptx",
+                ..
+            }))
+        ));
+        // Only this ABI test opts out; production compile always checks PTX.
+        let kernel =
+            SynchronousKernel::compile_checked(&session, &source, "adapter_probe", false).unwrap();
         let meta = session.upload(&[0i32]).unwrap();
         let parameters = session.upload(&[2.0f64.powi(-40)]).unwrap();
         let state = session.upload(&[1.0f64, -1.0]).unwrap();
@@ -368,7 +540,8 @@ extern "C" __global__ void adapter_probe(const int* m,const float* p,const float
         let source = SOURCE
             .replace("const float* p", "const double* p")
             .replace("float* o", "int* o");
-        let kernel = SynchronousKernel::compile(&session, &source, "adapter_probe").unwrap();
+        let kernel =
+            SynchronousKernel::compile_checked(&session, &source, "adapter_probe", false).unwrap();
         let meta = session.upload(&[3i32]).unwrap();
         let parameters = session.upload(&[2.0f64]).unwrap();
         let state = session.upload(&[1.0f32, 2.0, 3.0]).unwrap();
