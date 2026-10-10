@@ -148,6 +148,19 @@ fn com_velocity_gate_fixes_counts_and_keeps_full_g02_unverified() {
     assert!(gate.contains("--require-t4"));
     assert!(gate.contains("error(\"invalid fixture manifest\")"));
     let g01 = include_str!("../scripts/test-linux-g01.sh");
-    assert!(g01.contains("expected=168"));
     assert!(g01.contains("expected=176"));
+    assert!(g01.contains("expected=184"));
+}
+
+#[test]
+fn rne_bias_gate_checks_predecessors_and_keeps_full_g02_unverified() {
+    let gate = include_str!("../scripts/test-linux-rne-bias.sh");
+    assert!(gate.contains("run_checked gpu 7 7"));
+    assert!(gate.contains("run_checked guards 1 1"));
+    assert!(gate.contains("run_checked velocity-regression 6 6"));
+    assert!(gate.contains("run_checked velocity-guards 1 1"));
+    assert!(gate.contains("g02Verified:false,t4Verified:false"));
+    assert!(gate.contains("rneBiasSubsetVerified:true"));
+    assert!(gate.contains("error(\"invalid fixture manifest\")"));
+    assert!(gate.contains("--require-t4"));
 }

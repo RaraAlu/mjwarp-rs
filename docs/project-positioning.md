@@ -79,8 +79,13 @@ T4完整G01仍待复验。
 其余完整等价阶段仍待实现。
 G02空间速度已有常驻子集。
 GPU计算cvel与cdof_dot。
+RNE偏置力已有常驻子集。
+GPU计算qfrc_bias。
+速度与偏置力内部采用f64。
+公开物理字段仍采用f32。
 完整G02仍待实现。
 证据见[速度报告](linux-resident-com-velocity.md)。
+偏置力见[RNE报告](linux-resident-rne-bias.md)。
 物理引擎API仍待实现。
 
 项目保持独立身份。

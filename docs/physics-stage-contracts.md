@@ -2,12 +2,13 @@
 
 整理日期：2026-10-06。
 版本：0.1阶段草案。
-状态：阶段草案与G01实现记录。
+状态：草案与G01、G02子集记录。
 
 本文件细化阶段输入与副作用。
 本文件不设计新的物理算法。
 目标表不表示全部现有接口。
 G01实际入口见下节。
+G02严格子集见本节末尾。
 全部语义对齐冻结上游。
 资源安全约束继续保持强制。
 严格门面继续采用独立入口。
@@ -130,6 +131,45 @@ RK4的离散逆向路径明确拒绝。
 Rust不能据此排除全部IMPLICIT。
 
 依据：[完整与分步](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/forward.py#L2063-L2156)、[逆向入口](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/inverse.py#L178-L234)、[离散逆向限制](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/inverse.py#L80-L121)。
+
+### G02严格子集实际入口
+
+本节只记录现有子集。
+目标表不承诺完整G02。
+完整U063仍保留计划态。
+这些入口不实现等价rne。
+它们不提供完整fwd_velocity。
+
+| 入口 | 本子集的实际契约 |
+| --- | --- |
+| `ComVelocityPlan::new` | 共享模型；默认qpos0与零qvel；结果未就绪 |
+| `ComVelocityPlan::update` | GPU刷新刚体、质心与空间速度；显式回读检查结果 |
+| `RneBiasPlan::new` | 显式共享重力；零重力关闭贡献；不转换完整Option |
+| `RneBiasPlan::update` | GPU刷新位置、质心、空间速度与偏置力 |
+| `RneBiasPlan::update_velocity` | 只准备前置字段；废弃已有偏置力 |
+| `RneBiasPlan::update_bias` | 读取新鲜前置字段；不重算位置或速度；固定flg_acc=false |
+| `RneBiasData::readback` | 检查前置字段、全部工作区与守卫；发布独立f32快照 |
+
+GPU内部工作区采用f64。
+它们复用既有模型与状态上传。
+G01继续采用原有f32路径。
+公开物理字段仍采用f32。
+RNE输出仅含qfrc_bias。
+内部保留cacc与cfrc_int。
+输入错误保留已有结果。
+合法状态写入废弃派生结果。
+跨模型调用返回身份错误。
+内核更新失败不发布结果。
+未就绪调用不刷新前置阶段。
+
+本子集不处理qacc贡献。
+它不处理外力与后约束阶段。
+它不提供完整休眠或被动力。
+它不替代逐世界Option转换。
+严格新鲜度仅约束本子集。
+未来等价低层入口另行验收。
+
+依据：[RNE实现与复验](linux-resident-rne-bias.md)。
 
 ## 4. 人工接触注入
 

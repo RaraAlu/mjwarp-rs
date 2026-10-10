@@ -12,15 +12,22 @@ G01仍保留既有辅助入口。
 证据见[G01报告](windows-g01-acceptance.md)。
 Linux证据见[复验报告](linux-g01-acceptance.md)。
 
-### G02首批实现边界
+### G02子集实现边界
 
 常驻空间速度子集已落地。
 GPU计算cvel与cdof_dot。
-它复用常驻位置与质心缓存。
+它复用常驻模型与状态上传。
+GPU内部工作区采用f64。
+公开物理字段仍采用f32。
 模型拓扑与参数仍共享。
-RNE与完整G02仍待实现。
+RNE偏置力子集已落地。
+GPU计算qfrc_bias。
+调用方显式提供共享重力。
+零重力关闭重力贡献。
+完整RNE与G02仍待实现。
 Windows与T4尚未复验本子集。
 证据见[速度报告](linux-resident-com-velocity.md)。
+最新证据见[RNE报告](linux-resident-rne-bias.md)。
 
 ### G01平台验收状态
 

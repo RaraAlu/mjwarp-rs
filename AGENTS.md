@@ -61,6 +61,10 @@ GPU初始化静态geom缓存。
 质量求解不进入G01调度。
 G02空间速度已有常驻子集。
 GPU计算cvel与cdof_dot。
+RNE偏置力已有常驻子集。
+GPU计算qfrc_bias。
+速度与偏置力内部采用f64。
+公开物理字段仍采用f32。
 完整G02仍待实现。
 G01已提供完整常驻入口。
 G01也保留等价低层调用。
@@ -115,6 +119,7 @@ LRsLab负责CPU play。
 | `src/physics/attached.rs` | 复用刚体设备结果计算附着位姿 |
 | `src/physics/resident.rs` | 常驻设备子集与全局合并 |
 | `src/physics/com_velocity.rs` | 常驻GPU空间速度与导数 |
+| `src/physics/rne_bias.rs` | 常驻GPU重力与广义偏置力 |
 | `src/physics/sleep.rs` | 肌腱唤醒与轻量树刷新 |
 | `src/physics/camlight.rs` | 相机光源两段GPU位姿计算 |
 | `src/physics/fixed_tendon.rs` | 固定肌腱长度与稀疏力臂 |

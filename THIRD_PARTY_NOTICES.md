@@ -224,6 +224,23 @@ GPU输出位置与按行展开矩阵。
 
 [冻结速度源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L2363-L2457)。
 
+## 常驻RNE偏置力CUDA子集
+
+`src/physics/rne_bias.rs`移植RNE公式。
+本子集固定采用flg_acc=false。
+它复用惯量向量与力叉乘。
+版权归2025年Newton开发者。
+本项目沿用Apache-2.0许可。
+本项目改用逐世界CUDA C++调度。
+GPU内部工作区采用f64。
+公开输入与结果保持f32。
+本项目增加守卫与就绪检查。
+本批没有新增第三方依赖。
+它不替代完整RNE与G02。
+
+[冻结RNE源码](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/smooth.py#L1243-L1394)。
+[冻结空间代数](https://github.com/google-deepmind/mujoco_warp/blob/71da24d956378a87a703b6e1442b13aec0c4ac29/mujoco_warp/_src/math.py#L111-L147)。
+
 ## 质量矩阵CUDA探针
 
 `src/physics/mass_matrix.rs`移植刚体CRB。

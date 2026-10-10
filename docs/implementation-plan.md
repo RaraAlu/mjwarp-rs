@@ -887,8 +887,13 @@ T4完整G01仍待复验。
 下一步推进完整G02。
 首批已实现常驻空间速度子集。
 GPU计算cvel与cdof_dot。
-下一批补RNE偏置力与阶段契约。
+第二批已实现RNE偏置力子集。
+GPU计算qfrc_bias。
+严格子集阶段契约已补齐。
+完整RNE与等价调度仍待实现。
+下一批收口CRB常驻组合。
 证据见[速度报告](linux-resident-com-velocity.md)。
+偏置力见[RNE报告](linux-resident-rne-bias.md)。
 随后收口完整G03。
 矩阵乘法与新材料推进G22。
 它们不阻塞G01运动学收口。

@@ -98,6 +98,12 @@ pub struct KinematicsPlan {
 }
 
 #[cfg(feature = "cuda-probe")]
+pub(super) struct VelocityPositionKernels {
+    rigid: SynchronousKernel,
+    com: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
 struct DeviceSleep {
     model: super::DeviceModel<f32>,
     copy_kernel: SynchronousKernel,
@@ -1549,6 +1555,91 @@ impl KinematicsPlan {
         }
     }
 
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn compile_velocity_position(
+        &self,
+    ) -> Result<VelocityPositionKernels, TransferError> {
+        // Specialize only the private fixed shaders; model/state uploads stay f32.
+        let mut rigid = super::rigid_source::<f64>(super::KINEMATICS_CUDA).into_owned();
+        for name in [
+            "model", "state", "mp", "mq", "q0", "bp", "bq", "ip", "iq", "jp", "axis", "q",
+        ] {
+            rigid = rigid.replace(
+                &format!("const double* {name}"),
+                &format!("const float* {name}"),
+            );
+        }
+        rigid = rigid
+            .replace(
+                "__device__ V load_v(const double* p)",
+                "template<class T> __device__ V load_v(const T* p)",
+            )
+            .replace(
+                "__device__ Q load_q(const double* p)",
+                "template<class T> __device__ Q load_q(const T* p)",
+            );
+        let source = format!("{FIELD_BATCH_CUDA}\n#define MJWARP_MOCAP\n{rigid}");
+        let rigid = SynchronousKernel::compile(&self.session, &source, "rigid_kinematics")?;
+        let com = super::rigid_source::<f64>(super::COM_POSITION_CUDA)
+            .replace("const double* p,", "const float* p,")
+            .replace("const double* mass=", "const float* mass=")
+            .replace("const double* inertia=", "const float* inertia=")
+            .replace("const double* d=inertia", "const float* d=inertia");
+        let source = format!("{FIELD_BATCH_CUDA}\n{com}");
+        Ok(VelocityPositionKernels {
+            rigid,
+            com: SynchronousKernel::compile(&self.session, &source, "rigid_com_position")?,
+        })
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn update_velocity_position(
+        &self,
+        data: &KinematicsData,
+        kernels: &VelocityPositionKernels,
+        rigid: &mut TransferBuffer<f64>,
+        com: &mut TransferBuffer<f64>,
+    ) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        let l = data.layout;
+        for (actual, expected) in [
+            (rigid.len(), l.rigid.output.total_elements() + 8),
+            (com.len(), l.com.output.total_elements() + 8),
+        ] {
+            if actual != expected {
+                return Err(InputError::LengthMismatch {
+                    field: "velocity_position_workspace",
+                    expected,
+                    actual,
+                }
+                .into());
+            }
+        }
+        let k = self.model.rigid().kinematics();
+        let worlds = data.worlds() as u32;
+        // SAFETY: This typed kernel pair fixes both ABIs. Existing validated
+        // metadata and f32 model/state allocations bound all reads; the checked
+        // f64 workspaces have identical element strides and disjoint ownership.
+        // The adapter enforces one session and waits after each launch.
+        unsafe {
+            kernels.rigid.launch(
+                &self.rigid.metadata,
+                &self.rigid.parameters,
+                &data.state,
+                rigid,
+                [k.nq() as u32, k.nbody() as u32, k.njnt() as u32, worlds],
+            )?;
+            kernels.com.launch(
+                &self.com.metadata,
+                &self.com.parameters,
+                rigid,
+                com,
+                [k.nbody() as u32, k.njnt() as u32, k.nv() as u32, worlds],
+            )?;
+        }
+        Ok(())
+    }
+
     fn check_g01_data(&self, data: &KinematicsData) -> Result<(), TransferError> {
         self.check_data(data)?;
         if !self.equivalent {
@@ -2113,29 +2204,6 @@ impl KinematicsPlan {
 }
 
 impl KinematicsData {
-    #[cfg(feature = "cuda-probe")]
-    pub(super) fn com_device(&self) -> Result<&TransferBuffer<f32>, TransferError> {
-        self.ready.require(self.ready.com, "com")?;
-        Ok(&self.com)
-    }
-
-    #[cfg(feature = "cuda-probe")]
-    pub(super) fn check_com_device_outputs(&self) -> Result<(), TransferError> {
-        self.ready.require(self.ready.rigid, "rigid")?;
-        self.ready.require(self.ready.com, "com")?;
-        read_output(
-            &self.rigid,
-            self.layout.rigid.output.total_elements() + 8,
-            "resident_rigid_output",
-        )?;
-        read_output(
-            &self.com,
-            self.layout.com.output.total_elements() + 8,
-            "resident_com_output",
-        )?;
-        Ok(())
-    }
-
     pub fn flex_hessian_fields(&self) -> Option<&FlexHessianFields> {
         self.hessian_fields.as_deref()
     }

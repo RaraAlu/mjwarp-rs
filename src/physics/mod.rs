@@ -20,6 +20,8 @@ pub use resident::{
 };
 mod com_velocity;
 pub use com_velocity::{ComVelocityData, ComVelocityPlan, ComVelocitySnapshot, ComVelocityWorld};
+mod rne_bias;
+pub use rne_bias::{RneBiasData, RneBiasPlan, RneBiasSnapshot, RneBiasWorld};
 mod camlight;
 pub use camlight::{CamLightOutput, CamLightWorld};
 mod fixed_tendon;

@@ -200,19 +200,23 @@ impl SynchronousKernel {
         })
     }
 
-    /// ABI: (const int*, const float*, const float*, const float*, float*, u32).
+    /// ABI: (const int*, const float*, const C*, const V*, O*, u32).
     ///
     /// # Safety
-    /// Caller proves this exact ABI, checked strides and every buffer access.
+    /// Caller proves this ABI, C/V/O scalar widths, strides and accesses.
     /// Inputs are read-only; output is disjoint. All buffers are nonempty.
     /// The kernel only writes output and launches no asynchronous child work.
-    pub(crate) unsafe fn launch_flex_edges(
+    pub(crate) unsafe fn launch_flex_edges<
+        C: TransferElement,
+        V: TransferElement,
+        O: TransferElement,
+    >(
         &self,
         metadata: &TransferBuffer<i32>,
         qvel: &TransferBuffer<f32>,
-        com: &TransferBuffer<f32>,
-        flex: &TransferBuffer<f32>,
-        output: &mut TransferBuffer<f32>,
+        com: &TransferBuffer<C>,
+        flex: &TransferBuffer<V>,
+        output: &mut TransferBuffer<O>,
         worlds: u32,
     ) -> Result<(), TransferError> {
         for same in [
