@@ -18,7 +18,13 @@ use sha2::{Digest, Sha256};
 #[path = "support/geom_tendon_input.rs"]
 mod input;
 use input::{fixture, floats, ids, model, motion_fixture, parts, plan, write};
+#[path = "support/two_reference.rs"]
+mod two_reference;
+#[path = "support/mjwarp_geom_reference.rs"]
+mod upstream_reference;
+use two_reference::{Audit, Reference, evaluate, native_reference};
 fn compare(a: &[f32], e: &[f64]) -> f64 {
+    // 解析不变量不进入参考回退。
     assert_eq!(a.len(), e.len());
     let mut max: f64 = 0.0;
     for (i, (&a, &e)) in a.iter().zip(e).enumerate() {
@@ -40,7 +46,13 @@ fn native(out: &KinematicsSnapshot, w: usize, c: &Value) -> f64 {
         .into_iter()
         .flat_map(|k| c[k].as_array().unwrap().iter().map(|v| v.as_f64().unwrap()))
         .collect();
-    compare(&[a.ten_length, a.ten_jacobian, a.wrap_xpos].concat(), &e)
+    two_reference::assert_native(
+        "MuJoCo3.12.0:geom-tendon:combined",
+        &[a.ten_length, a.ten_jacobian, a.wrap_xpos].concat(),
+        e,
+        2e-5,
+        2e-5,
+    )
 }
 #[test]
 fn reference_hashes_cover_dynamic_sphere_cylinder_and_inside_paths() {
@@ -220,23 +232,93 @@ fn inside_cylinder_motion_frames_match_native_without_relaxing_tolerance() {
     let motion = motion_fixture();
     let s = TransferSession::new(0).unwrap();
     let p = plan(&s, &v);
+    let mut audit = Audit::new("G01-geom-motion");
     for worlds in [3, 513] {
         let mut data = p.create_data(worlds).unwrap();
         for c in motion["cases"].as_array().unwrap() {
-            for w in [2, 512].into_iter().filter(|&w| w < worlds) {
-                write(&mut data, w, c);
+            // 完整批量状态匹配冻结上游。
+            let inputs: Vec<_> = (0..worlds)
+                .map(|w| {
+                    if matches!(w, 2 | 512) {
+                        c
+                    } else {
+                        &v["cases"][w % 3]
+                    }
+                })
+                .collect();
+            let hashes = upstream_reference::input_hashes(&inputs);
+            for (w, input) in inputs.iter().enumerate() {
+                write(&mut data, w, input);
             }
             p.update(&mut data).unwrap();
             let out = data.readback().unwrap();
             for w in [2, 512].into_iter().filter(|&w| w < worlds) {
-                eprintln!(
-                    "G01-geom-tendon kind=motion world={w} frame={} max_abs_error={:e}",
-                    c["source_frame"],
-                    native(&out, w, c)
-                );
+                let a = out.spatial_tendon().world(w).unwrap();
+                for (key, actual) in [
+                    ("ten_wrapadr", a.ten_wrapadr),
+                    ("ten_wrapnum", a.ten_wrapnum),
+                    ("wrap_obj", a.wrap_obj),
+                ] {
+                    assert_eq!(actual, ids(c, key));
+                }
+                let frame = c["source_frame"].as_u64().unwrap();
+                for (key, actual) in [
+                    ("ten_length", a.ten_length),
+                    ("ten_J", a.ten_jacobian),
+                    ("wrap_xpos", a.wrap_xpos),
+                ] {
+                    let expected = c[key]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|v| v.as_f64().unwrap())
+                        .collect();
+                    let identity =
+                        format!("MuJoCo3.12.0:inside-cylinder-motion:frame={frame}:field={key}");
+                    let decision = evaluate(
+                        actual,
+                        Some(native_reference(identity, expected, 2e-5, 2e-5)),
+                        || {
+                            let Some(row) =
+                                upstream_reference::motion_row(worlds, w, frame, &hashes)?
+                            else {
+                                return Ok(None);
+                            };
+                            for (name, actual) in [
+                                ("ten_wrapadr", a.ten_wrapadr),
+                                ("ten_wrapnum", a.ten_wrapnum),
+                                ("wrap_obj", a.wrap_obj),
+                            ] {
+                                if actual != ids(&row, name) {
+                                    return Err(format!("topology_mismatch:{name}"));
+                                }
+                            }
+                            Ok(Some(Reference {
+                                identity: format!(
+                                    "MJWarp:{}:sha256={}:worlds={worlds}:world={w}:frame={frame}:field={key}",
+                                    upstream_reference::REVISION,
+                                    upstream_reference::sha(include_bytes!(
+                                        "../fixtures/mjwarp-geom-tendon/reference.json"
+                                    ))
+                                ),
+                                values: row[key]
+                                    .as_array()
+                                    .unwrap()
+                                    .iter()
+                                    .map(|v| f64::from(v.as_f64().unwrap() as f32))
+                                    .collect(),
+                                // 用户选择暂不冻结二级容差。
+                                // 逐位相等也不冒充容差验收。
+                                tolerance: None,
+                            }))
+                        },
+                    );
+                    audit.record(serde_json::json!({"worlds": worlds, "world": w, "frame": frame, "field": key}), decision);
+                }
             }
         }
     }
+    audit.finish();
 }
 #[test]
 #[ignore = "需要NVIDIA驱动与NVRTC"]

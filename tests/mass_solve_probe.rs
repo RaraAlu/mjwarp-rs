@@ -10,6 +10,10 @@ use serde_json::Value;
 #[path = "support/rigid_reference.rs"]
 mod reference;
 use reference::{floats, model};
+#[path = "support/two_reference.rs"]
+mod two_reference;
+use sha2::{Digest, Sha256};
+use two_reference::{Audit, evaluate, native_reference};
 
 const MODELS: [&str; 6] = [
     include_str!("../fixtures/mass-matrix/mixed-joints.json"),
@@ -34,22 +38,47 @@ const REL: f64 = 2e-4;
 const RESIDUAL: f64 = 2e-5;
 const RECONSTRUCTION: f64 = 2e-6;
 
-fn compare(out: &MassSolveOutput, world: usize, case: &Value) {
+fn verify_native_references() {
+    static VERIFIED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+    VERIFIED.get_or_init(|| {
+        let manifest: Value =
+            serde_json::from_str(include_str!("../fixtures/mass-solve/manifest.json")).unwrap();
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let files = manifest["files"].as_array().unwrap();
+        for file in files {
+            let path = root.join(file["path"].as_str().unwrap());
+            assert_eq!(
+                format!("{:x}", Sha256::digest(std::fs::read(path).unwrap())),
+                file["sha256"]
+            );
+        }
+        for source in SOLVES {
+            let digest = format!("{:x}", Sha256::digest(source.as_bytes()));
+            assert!(files.iter().any(|file| file["sha256"] == digest));
+        }
+    });
+}
+
+fn compare(out: &MassSolveOutput, world: usize, case: &Value, audit: &mut Audit) {
+    verify_native_references();
     let w = out.world(world).unwrap();
     let n = out.nv();
     let mut maximum: f64 = 0.0;
+    let case_hash = format!("{:x}", Sha256::digest(serde_json::to_vec(case).unwrap()));
     for (key, actual) in [("ld", w.ld), ("diagonal_inverse", w.diagonal_inverse)] {
         let expected = case[key].as_array().unwrap();
-        assert_eq!(actual.len(), expected.len());
-        for (&a, e) in actual.iter().zip(expected) {
-            let e = e.as_f64().unwrap();
-            let error = (f64::from(a) - e).abs();
-            maximum = maximum.max(error);
-            assert!(
-                a.is_finite() && error <= ABS + REL * e.abs(),
-                "G03 {key}: {a} vs {e}"
-            );
-        }
+        let identity = format!("MuJoCo3.12.0:mass-solve:case_sha256={case_hash}:field={key}");
+        let decision = evaluate(
+            actual,
+            Some(native_reference(
+                identity,
+                expected.iter().map(|v| v.as_f64().unwrap()).collect(),
+                ABS,
+                REL,
+            )),
+            || Ok(None),
+        );
+        maximum = maximum.max(audit.record(serde_json::json!({"world": world, "case": case["id"], "case_sha256": case_hash, "field": key}), decision));
     }
     let matrix = case["matrix"].as_array().unwrap();
     let rownorm = (0..n)
@@ -103,15 +132,21 @@ fn compare(out: &MassSolveOutput, world: usize, case: &Value) {
         let x = &w.solution[r * n..(r + 1) * n];
         let expected = &case["solution"].as_array().unwrap()[r % 3 * n..(r % 3 + 1) * n];
         let rhs = &case["rhs"].as_array().unwrap()[r % 3 * n..(r % 3 + 1) * n];
-        for (&a, e) in x.iter().zip(expected) {
-            let e = e.as_f64().unwrap();
-            let error = (f64::from(a) - e).abs();
-            maximum = maximum.max(error);
-            assert!(
-                a.is_finite() && error <= ABS + REL * e.abs(),
-                "G03 solve: {a} vs {e}"
-            );
-        }
+        let identity = format!(
+            "MuJoCo3.12.0:mass-solve:case_sha256={case_hash}:field=solution:rhs={}",
+            r % 3
+        );
+        let decision = evaluate(
+            x,
+            Some(native_reference(
+                identity,
+                expected.iter().map(|v| v.as_f64().unwrap()).collect(),
+                ABS,
+                REL,
+            )),
+            || Ok(None),
+        );
+        maximum = maximum.max(audit.record(serde_json::json!({"world": world, "case": case["id"], "case_sha256": case_hash, "field": "solution", "rhs": r}), decision));
         let xnorm = x.iter().map(|&v| f64::from(v).abs()).fold(0.0, f64::max);
         let bnorm = rhs
             .iter()
@@ -148,6 +183,7 @@ fn rhs(case: &Value, n: usize, count: usize) -> Vec<f32> {
 
 #[test]
 fn solve_references_freeze_shapes_tolerances_and_matching_model_states() {
+    verify_native_references();
     for (m, s) in MODELS.into_iter().zip(SOLVES) {
         let m: Value = serde_json::from_str(m).unwrap();
         let s: Value = serde_json::from_str(s).unwrap();
@@ -188,6 +224,7 @@ fn solve_references_freeze_shapes_tolerances_and_matching_model_states() {
 #[test]
 #[ignore = "requires NVIDIA driver and NVRTC"]
 fn gpu_factors_and_multiple_rhs_match_independent_native_solves() {
+    let mut audit = Audit::new("G03-factors-and-rhs");
     let session = TransferSession::new(0).unwrap();
     for (m, s) in MODELS.into_iter().zip(SOLVES) {
         let m = model(&serde_json::from_str(m).unwrap());
@@ -201,13 +238,15 @@ fn gpu_factors_and_multiple_rhs_match_independent_native_solves() {
         assert_eq!(out.rhs_count(), 3);
         assert!(out.world(8).is_err());
         for (w, c) in cases.iter().enumerate() {
-            compare(&out, w, c);
+            compare(&out, w, c, &mut audit);
         }
     }
+    audit.finish();
 }
 #[test]
 #[ignore = "requires NVIDIA driver and NVRTC"]
 fn mass_solve_batches_cross_blocks_without_mutating_inputs() {
+    let mut audit = Audit::new("G03-batches");
     let session = TransferSession::new(0).unwrap();
     let m = model(&serde_json::from_str(MODELS[2]).unwrap());
     let s: Value = serde_json::from_str(SOLVES[2]).unwrap();
@@ -223,13 +262,15 @@ fn mass_solve_batches_cross_blocks_without_mutating_inputs() {
         let out = probe_mass_solve(&session, &m, worlds, &q, 3, &b).unwrap();
         assert_eq!((q, b), original);
         for w in 0..worlds {
-            compare(&out, w, &cases[w % 8]);
+            compare(&out, w, &cases[w % 8], &mut audit);
         }
     }
+    audit.finish();
 }
 #[test]
 #[ignore = "requires NVIDIA driver and NVRTC"]
 fn rhs_counts_one_two_three_and_five_reuse_each_world_factor() {
+    let mut audit = Audit::new("G03-rhs-counts");
     let session = TransferSession::new(0).unwrap();
     let m = model(&serde_json::from_str(MODELS[0]).unwrap());
     let s: Value = serde_json::from_str(SOLVES[0]).unwrap();
@@ -242,9 +283,10 @@ fn rhs_counts_one_two_three_and_five_reuse_each_world_factor() {
             .collect();
         let out = probe_mass_solve(&session, &m, 8, &q, count, &b).unwrap();
         for (w, c) in cases.iter().enumerate() {
-            compare(&out, w, c);
+            compare(&out, w, c, &mut audit);
         }
     }
+    audit.finish();
 }
 #[test]
 #[ignore = "requires NVIDIA driver and NVRTC"]
@@ -332,12 +374,15 @@ fn singular_models_reject_without_regularization_and_healthy_sessions_recover() 
         assert!((a - e).abs() <= 2e-6);
     }
     let out = probe_mass_solve(&session, &m, 1, &q, 3, &floats(&s["cases"][0], "rhs")).unwrap();
-    compare(&out, 0, &s["cases"][0]);
+    let mut audit = Audit::new("G03-recovery");
+    compare(&out, 0, &s["cases"][0], &mut audit);
+    audit.finish();
 }
 #[cfg(feature = "native-model-probe")]
 #[test]
 #[ignore = "requires trusted Windows MuJoCo DLL, NVIDIA driver and NVRTC"]
 fn native_snapshots_feed_gpu_solves_without_native_physics_at_runtime() {
+    let mut audit = Audit::new("G03-native-snapshots");
     use mjwarp_rs::io::NativeModelProbe;
     let dll = std::path::PathBuf::from(
         std::env::var_os("MJWARP_MUJOCO_DLL").expect("provide trusted DLL"),
@@ -364,7 +409,8 @@ fn native_snapshots_feed_gpu_solves_without_native_physics_at_runtime() {
         let b: Vec<_> = cases.iter().flat_map(|c| floats(c, "rhs")).collect();
         let out = probe_mass_solve(&session, &m_native, 8, &q, 3, &b).unwrap();
         for (w, c) in cases.iter().enumerate() {
-            compare(&out, w, c);
+            compare(&out, w, c, &mut audit);
         }
     }
+    audit.finish();
 }

@@ -3,6 +3,9 @@
 日期：2026-10-11。
 状态：完成补测；T4尚未通过。
 
+本报告记录机制接入前的补测。
+最新记录见[两级补测](windows-two-reference-acceptance.md)。
+
 T4指本机Windows验收阶段。
 它不指NVIDIA T4显卡。
 本轮覆盖完整G01验收范围。

@@ -9,6 +9,9 @@ use mjwarp_rs::{
     runtime::TransferSession,
 };
 use serde_json::Value;
+#[path = "support/two_reference.rs"]
+mod two_reference;
+use two_reference::{Audit, evaluate, native_reference};
 fn fixture() -> Value {
     serde_json::from_str(include_str!("../fixtures/g01/reference.json")).unwrap()
 }
@@ -62,19 +65,34 @@ fn com_cache(v: &Value) -> Vec<f32> {
     values.extend(cache(v, &["subtree_com", "cinert", "cdof"]));
     values
 }
-fn compare(actual: &[f32], expected: &Value, key: &str, max: &mut f64, scalars: &mut usize) {
-    let expected = expected[key].as_array().unwrap();
-    assert_eq!(actual.len(), expected.len(), "{key} length");
-    for (i, (&a, e)) in actual.iter().zip(expected).enumerate() {
-        let e = e.as_f64().unwrap();
-        let err = (f64::from(a) - e).abs();
-        *max = max.max(err);
-        *scalars += 1;
-        assert!(
-            a.is_finite() && err <= 2e-5 + 2e-5 * e.abs(),
-            "G01 {key}[{i}] actual={a} expected={e} err={err}"
-        );
-    }
+fn compare(
+    actual: &[f32],
+    expected: &Value,
+    key: &str,
+    max: &mut f64,
+    scalars: &mut usize,
+    audit: &mut Audit,
+) {
+    let values = expected[key]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_f64().unwrap())
+        .collect();
+    let identity = format!(
+        "MuJoCo3.12.0:fixtures/g01/reference.json:case={}:field={key}",
+        expected["id"]
+    );
+    let decision = evaluate(
+        actual,
+        Some(native_reference(identity, values, 2e-5, 2e-5)),
+        || Ok(None),
+    );
+    *max = max.max(audit.record(
+        serde_json::json!({"case": expected["id"], "field": key}),
+        decision,
+    ));
+    *scalars += actual.len();
 }
 #[test]
 fn reference_hashes_and_coverage() {
@@ -112,6 +130,7 @@ fn reference_hashes_and_coverage() {
 #[test]
 #[ignore = "需要可信MuJoCo DLL与NVIDIA GPU"]
 fn full_chain_matches_native_reference_without_freshness_ticket() {
+    let mut audit = Audit::new("G01-complete");
     let v = fixture();
     let session = TransferSession::new(0).unwrap();
     let p = plan(&session);
@@ -163,9 +182,12 @@ fn full_chain_matches_native_reference_without_freshness_ticket() {
                     (t.ten_jacobian, "ten_J"),
                     (face.face_xpos, "face_xpos"),
                 ] {
-                    compare(actual, c, key, &mut max, &mut scalars);
+                    compare(actual, c, key, &mut max, &mut scalars, &mut audit);
                 }
                 let quats = c["face_quat"].as_array().unwrap();
+                assert_eq!(face.face_quat.len(), quats.len());
+                assert_eq!(quats.len() % 4, 0);
+                let mut aligned = Vec::with_capacity(quats.len());
                 for (a, e) in face
                     .face_quat
                     .as_chunks::<4>()
@@ -178,17 +200,26 @@ fn full_chain_matches_native_reference_without_freshness_ticket() {
                         .zip(e)
                         .map(|(&a, e)| f64::from(a) * e.as_f64().unwrap())
                         .sum::<f64>();
-                    for (&a, e) in a.iter().zip(e) {
-                        let expected = e.as_f64().unwrap() * if dot < 0.0 { -1.0 } else { 1.0 };
-                        let err = (f64::from(a) - expected).abs();
-                        assert!(
-                            err <= 2e-5 + 2e-5 * expected.abs(),
-                            "face quaternion err={err}"
-                        );
-                        max = max.max(err);
-                        scalars += 1;
-                    }
+                    aligned.extend(
+                        e.iter()
+                            .map(|e| e.as_f64().unwrap() * if dot < 0.0 { -1.0 } else { 1.0 }),
+                    );
                 }
+                let decision = evaluate(
+                    face.face_quat,
+                    Some(native_reference(
+                        "MuJoCo3.12.0:g01:face_quat:sign_aligned",
+                        aligned,
+                        2e-5,
+                        2e-5,
+                    )),
+                    || Ok(None),
+                );
+                max = max.max(audit.record(
+                    serde_json::json!({"world": w, "field": "face_quat"}),
+                    decision,
+                ));
+                scalars += face.face_quat.len();
                 let points = c["wrap_obj"].as_array().unwrap().len();
                 compare(
                     &t.wrap_xpos[..3 * points],
@@ -196,6 +227,7 @@ fn full_chain_matches_native_reference_without_freshness_ticket() {
                     "wrap_xpos",
                     &mut max,
                     &mut scalars,
+                    &mut audit,
                 );
                 assert!(t.wrap_xpos[3 * points..].iter().all(|&x| x == 0.0));
                 for (a, key) in [
@@ -220,6 +252,7 @@ fn full_chain_matches_native_reference_without_freshness_ticket() {
     }
     assert_eq!(states, 2084);
     println!("G01-complete states={states} scalars={scalars} max_abs_error={max}");
+    audit.finish();
 }
 
 fn sleep_state(
@@ -713,6 +746,7 @@ fn g01_import_preflights_all_fields_and_preserves_previous_results_on_rejection(
 #[test]
 #[ignore = "需要可信MuJoCo DLL与NVIDIA GPU"]
 fn raw_g01_stages_read_prepared_fields_without_implicit_dependencies() {
+    let mut audit = Audit::new("G01-raw");
     let v = fixture();
     let model = input();
     let seed = sleep_state(&model);
@@ -788,7 +822,7 @@ fn raw_g01_stages_read_prepared_fields_without_implicit_dependencies() {
             (t.ten_length, "ten_length"),
             (t.ten_jacobian, "ten_J"),
         ] {
-            compare(a, c, key, &mut max, &mut scalars);
+            compare(a, c, key, &mut max, &mut scalars, &mut audit);
         }
         assert_eq!(f.flex_hessian_valid, &[false; 4]);
         let sleep = out.sleep_trees().unwrap().world(w).unwrap();
@@ -811,14 +845,22 @@ fn raw_g01_stages_read_prepared_fields_without_implicit_dependencies() {
             (com.cinert, "cinert"),
             (com.cdof, "cdof"),
         ] {
-            compare(a, c, key, &mut max, &mut scalars);
+            compare(a, c, key, &mut max, &mut scalars, &mut audit);
         }
     }
     kinematics(&p, &mut d).unwrap();
     let out = d.readback_g01().unwrap();
     for w in 0..16 {
         let r = out.rigid().world(w).unwrap();
-        compare(r.xpos, &v["cases"][w], "xpos", &mut max, &mut scalars);
+        compare(
+            r.xpos,
+            &v["cases"][w],
+            "xpos",
+            &mut max,
+            &mut scalars,
+            &mut audit,
+        );
     }
     println!("G01 raw scalars={scalars} max_abs_error={max:e}");
+    audit.finish();
 }

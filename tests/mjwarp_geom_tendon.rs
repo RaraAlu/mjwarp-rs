@@ -6,29 +6,9 @@ mod input;
 use input::{fixture, floats, ids, motion_fixture, plan, write};
 use mjwarp_rs::runtime::TransferSession;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
-
-fn upstream() -> Value {
-    serde_json::from_str(include_str!(
-        "../fixtures/mjwarp-geom-tendon/reference.json"
-    ))
-    .unwrap()
-}
-
-fn provenance() -> Value {
-    serde_json::from_str(include_str!(
-        "../fixtures/mjwarp-geom-tendon/provenance.json"
-    ))
-    .unwrap()
-}
-
-fn sha(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
-}
-
-fn float_bytes(values: &[f32]) -> Vec<u8> {
-    values.iter().flat_map(|v| v.to_le_bytes()).collect()
-}
+#[path = "support/mjwarp_geom_reference.rs"]
+mod upstream_reference;
+use upstream_reference::{float_bytes, provenance, sha, upstream};
 
 // 折叠正负零，保持数值顺序。
 fn ordered_bits(value: f32) -> u32 {
@@ -93,51 +73,41 @@ fn metrics_reject_nonfinite_results() {
 
 #[test]
 fn mjwarp_reference_hashes_and_quantization_are_frozen() {
-    let manifest: Value =
-        serde_json::from_str(include_str!("../fixtures/mjwarp-geom-tendon/manifest.json")).unwrap();
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    for file in manifest["files"].as_array().unwrap() {
-        let path = file["path"].as_str().unwrap();
-        assert_eq!(
-            sha(&std::fs::read(root.join(path)).unwrap()),
-            file["sha256"],
-            "{path}"
-        );
-    }
-    let u = upstream();
-    let p = provenance();
-    for value in [&manifest, &u, &p] {
-        assert_eq!(
-            value["upstream_revision"],
-            "71da24d956378a87a703b6e1442b13aec0c4ac29"
-        );
-    }
-    assert_eq!(u["rows"].as_array().unwrap().len(), 37);
-    assert_eq!(u["float_fields"].as_array().unwrap().len(), 16);
-    assert_eq!(u["int_fields"].as_array().unwrap().len(), 3);
-    assert_eq!(p["packages"]["warp-lang"], "1.15.0");
-    assert_eq!(p["packages"]["mujoco"], "3.15.0");
-    assert_eq!(p["module_options"]["fuse_fp"], true);
-    assert_eq!(p["module_options"]["fast_math"], false);
+    upstream_reference::validate();
+}
+
+#[test]
+fn fallback_reference_rejects_wrong_batch_state_and_world() {
     let v = fixture();
-    for (key, mapping) in p["device_model_fields"].as_object().unwrap() {
-        let bytes = if key == "geom_size" {
-            float_bytes(
-                &(0..3)
-                    .flat_map(|i| floats(&v["cases"][i], key))
-                    .collect::<Vec<_>>(),
-            )
-        } else if mapping["dtype"] == "float32" {
-            float_bytes(&floats(&v["model"], key))
-        } else {
-            assert_eq!(mapping["dtype"], "int32");
-            ids(&v["model"], key)
-                .iter()
-                .flat_map(|v| v.to_le_bytes())
-                .collect()
-        };
-        assert_eq!(sha(&bytes), mapping["sha256"], "model field={key}");
-    }
+    let motion = motion_fixture();
+    let inputs = [&v["cases"][0], &v["cases"][1], &motion["cases"][0]];
+    let hashes = upstream_reference::input_hashes(&inputs);
+    assert!(
+        upstream_reference::motion_row(3, 2, 310, &hashes)
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        upstream_reference::motion_row(3, 1, 310, &hashes)
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        upstream_reference::motion_row(4, 2, 310, &hashes)
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        upstream_reference::motion_row(3, 2, 311, &hashes)
+            .unwrap()
+            .is_none()
+    );
+    let mut wrong = hashes;
+    wrong["qpos"] = json!("wrong");
+    assert_eq!(
+        upstream_reference::motion_row(3, 2, 310, &wrong).unwrap_err(),
+        "batch_input_hash_mismatch"
+    );
 }
 
 #[test]
