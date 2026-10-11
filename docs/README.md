@@ -51,6 +51,13 @@ CPU调试与工具边界仍待确认。
 两级机制已接入G01与G03辅助。
 缺少同条件第二参考仍待验收。
 最新规则见[红线验收](native-error-redline-acceptance.md)。
+新规完整产品复测已经执行。
+双模式各474过、3败。
+质量求解仍缺同条件第二参考。
+旧393诊断达到三次上限。
+本轮没有再次执行该诊断。
+完整T4仍不放行。
+记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
 证据见[首差追踪](frame393-first-divergence.md)。
@@ -121,6 +128,7 @@ CPU调试与工具边界仍待确认。
 52. [第393帧绕行首差](frame393-first-divergence.md)
 53. [内侧绕行乘加顺序修复](inside-norm-order-fix.md)
 54. [原生基准与5%误差红线](native-error-redline-acceptance.md)
+55. [Windows红线T4复测](windows-t4-redline-retest.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
