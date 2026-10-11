@@ -54,11 +54,13 @@ XML需经参考工具才能复现。
 ```powershell
 New-Item -ItemType Directory -Force target/flex-position-verification | Out-Null
 $env:PATH = "$env:MJWARP_MUJOCO_ROOT/bin;$env:PATH"
+$lib = Join-Path (Join-Path $env:MJWARP_MUJOCO_ROOT 'lib') 'mujoco.lib'
+if (-not (Test-Path -LiteralPath $lib)) { throw '请先准备原生工具链' }
 cl.exe /nologo /W4 /WX /MD /O2 /std:c++17 /EHsc `
   /I"$env:MJWARP_MUJOCO_ROOT/include" fixtures/flex-position/reference.cpp `
   /Fotarget/flex-position-verification/reference.obj `
   /Fetarget/flex-position-verification/reference.exe `
-  /link "$env:MJWARP_MUJOCO_ROOT/lib/mujoco.lib"
+  /link $lib
 target/flex-position-verification/reference.exe `
   fixtures/flex-position/flex-tree.xml `
   fixtures/flex-position/flex-tree.json `

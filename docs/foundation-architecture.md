@@ -94,10 +94,11 @@ mjwarp.runtime
 | tooling | `src/main.rs` | 命令解析与显式配置 |
 
 运行时容器保留18项映射：
+其中包含[探针PTX](../src/runtime/probe.ptx)。
+其余17项如下：
 
 ```text
 src/runtime/mod.rs
-src/runtime/probe.ptx
 src/runtime/samples.rs
 src/runtime/cuda/resources.rs
 src/runtime/cuda/artifacts.rs

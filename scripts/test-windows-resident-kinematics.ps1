@@ -333,8 +333,8 @@ try {
         geomTendonWrapTypes = @('sphere', 'cylinder', 'site', 'pulley')
         geomTendonSharedTopologyAndSideIds = $true
         geomTendonInternalScratchValuesPerWrap = 13
-        geomTendonInsideNewtonPrecision = 'f64'
-        geomTendonInsideDirectionsBeforeContactRounding = $true
+        geomTendonInsideNewtonPrecision = 'f32'
+        geomTendonInsideDirectionsBeforeContactRounding = $false
         geomTendonIntegerStageReadsFloatState = $true
         residentSubsets = 6
         residentOutputBuffers = 7

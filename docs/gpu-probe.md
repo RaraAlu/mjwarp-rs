@@ -96,7 +96,7 @@ bundler下载平台LLVM包。
 | `src/main.rs` | 解析命令与打印结果 |
 | `src/runtime/mod.rs` | 检查配置与核对输出 |
 | `src/runtime/cuda.rs` | 管理CUDA缓冲、事件与图 |
-| `src/runtime/probe.ptx` | 执行有索引守卫的f32变换 |
+| [探针PTX](../src/runtime/probe.ptx) | 执行有索引守卫的f32变换 |
 | `src/diagnostics/mod.rs` | 报告参数与CUDA错误 |
 | `tests/gpu_probe.rs` | 执行显式GPU测试 |
 

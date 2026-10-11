@@ -76,7 +76,9 @@ Windows双模式验收通过。
 Linux双模式完整门禁通过。
 上述记录属于历史验收。
 当前f32复验仍有门禁失败。
-T4完整G01仍待复验。
+本机已补跑完整T4范围。
+当前数值门禁仍未通过。
+证据见[T4补测](windows-t4-recheck.md)。
 证据见[Linux报告](linux-g01-acceptance.md)。
 其余完整等价阶段仍待实现。
 G02空间速度已有常驻子集。
@@ -88,7 +90,8 @@ GPU计算qfrc_bias。
 完整G02仍待实现。
 证据见[速度报告](linux-resident-com-velocity.md)。
 偏置力见[RNE报告](linux-resident-rne-bias.md)。
-原生对照仍有容限失败。
+本机速度与RNE子集已通过。
+质量求解仍超原生容差。
 最新状态见[f32修复](linux-f32-precision-restoration.md)。
 物理引擎API仍待实现。
 

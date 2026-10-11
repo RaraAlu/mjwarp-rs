@@ -83,9 +83,11 @@ mj_flex
 $pkg = Join-Path $PWD 'target/toolchains/mujoco-3.12.0/package'
 $dir = Join-Path $PWD 'target/flex-edge-verification'
 New-Item -ItemType Directory -Force $dir | Out-Null
+$lib = Join-Path (Join-Path $pkg 'lib') 'mujoco.lib'
+if (-not (Test-Path -LiteralPath $lib)) { throw '请先准备原生工具链' }
 cl.exe /nologo /W4 /WX /MD /O2 /std:c++17 /EHsc "/I$pkg/include" `
     fixtures/flex-edge/reference.cpp "/Fo$dir/reference.obj" `
-    "/Fe$dir/reference.exe" /link "$pkg/lib/mujoco.lib"
+    "/Fe$dir/reference.exe" /link $lib
 $env:PATH = "$pkg/bin;$env:PATH"
 & "$dir/reference.exe" fixtures/flex-position/flex-tree.mjb `
     fixtures/flex-edge/edge-state.json

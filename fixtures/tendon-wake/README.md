@@ -63,11 +63,13 @@ GPU辅助仍重算全部肌腱。
 
 ```powershell
 $pkg = $env:MJWARP_MUJOCO_ROOT
+$lib = Join-Path (Join-Path $pkg 'lib') 'mujoco.lib'
+if (-not (Test-Path -LiteralPath $lib)) { throw '请先准备原生工具链' }
 cl.exe /nologo /W4 /WX /MD /O2 /std:c++17 /EHsc `
   "/I$pkg/include" fixtures/tendon-wake/reference.cpp `
   /Fotarget/tendon-wake-verification/reference.obj `
   /Fetarget/tendon-wake-verification/reference.exe `
-  /link "$pkg/lib/mujoco.lib"
+  /link $lib
 $env:PATH = "$pkg/bin;$env:PATH"
 target/tendon-wake-verification/reference.exe `
   fixtures/mixed-tendon/mixed-tree.mjb `

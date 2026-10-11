@@ -36,13 +36,18 @@ mj_kinematics -> mj_comPos -> mj_comVel -> mj_rne(flg_acc=0)
 ```
 
 离线制作示例：
+先准备Linux原生工具链。
+库目录不属于仓库源码。
 
 ```bash
+pkg="$PWD/target/toolchains/mujoco-3.12.0/linux-package"
+libdir="$pkg/lib"
+test -f "$libdir/libmujoco.so.3.12.0" || exit 1
 g++ -std=c++17 -O2 -Wall -Wextra -Werror \
-  -I target/toolchains/mujoco-3.12.0/linux-package/include \
+  -I "$pkg/include" \
   fixtures/rne-bias/reference.cpp \
-  target/toolchains/mujoco-3.12.0/linux-package/lib/libmujoco.so.3.12.0 \
-  -Wl,-rpath,"$PWD/target/toolchains/mujoco-3.12.0/linux-package/lib" \
+  -L "$libdir" -l:libmujoco.so.3.12.0 \
+  -Wl,-rpath,"$libdir" \
   -o target/rne-bias-reference
 target/rne-bias-reference fixtures/native-probe/mixed-joints.mjb \
   fixtures/rne-bias/mixed-joints.json

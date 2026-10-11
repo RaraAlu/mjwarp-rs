@@ -58,11 +58,12 @@ src/runtime/mod.rs
 src/runtime/cubecl.rs
 src/runtime/cuda.rs
 src/runtime/cuda/artifacts.rs
-src/runtime/probe.ptx
 src/runtime/cache.rs
 Cargo.toml
 Cargo.lock
 ```
+
+驱动缓存另读取[探针PTX](../src/runtime/probe.ptx)。
 
 源码变化会保守失效缓存。
 元素数与重放数不进入键。

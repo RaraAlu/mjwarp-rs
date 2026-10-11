@@ -52,10 +52,16 @@ G01快照继续覆盖78项字段。
 环境变量沿用历史名称。
 Linux的DLL变量指向so文件。
 
-```text
-MJWARP_MUJOCO_ROOT=target/toolchains/mujoco-3.12.0/linux-package
-MJWARP_MUJOCO_DLL=<absolute root>/lib/libmujoco.so.3.12.0
-CUDA_PATH=target/toolchains/cuda-12.8.1
+以下目录属于外部工具链。
+先准备Linux原生库与CUDA。
+在仓库根目录设置环境：
+
+```bash
+export MJWARP_MUJOCO_ROOT="$PWD/target/toolchains/mujoco-3.12.0/linux-package"
+mujoco_lib_dir="$MJWARP_MUJOCO_ROOT/lib"
+export MJWARP_MUJOCO_DLL="$mujoco_lib_dir/libmujoco.so.3.12.0"
+export CUDA_PATH="$PWD/target/toolchains/cuda-12.8.1"
+test -f "$MJWARP_MUJOCO_DLL" || exit 1
 ```
 
 本轮没有新增Cargo依赖。
