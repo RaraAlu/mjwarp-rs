@@ -1,19 +1,21 @@
 #![cfg(feature = "cuda-probe")]
-//! G03反向LDL与多右端项辅助。
+//! G03分块因子与多右端项辅助。
 use mjwarp_rs::{
     diagnostics::{InputError, TransferError},
     model::InertialModelInput,
-    physics::{MassSolveOutput, probe_mass_solve},
+    physics::{MassFactorKind, MassSolveOutput, probe_mass_solve},
     runtime::TransferSession,
 };
 use serde_json::Value;
 #[path = "support/rigid_reference.rs"]
 mod reference;
 use reference::{floats, model};
+#[path = "support/mass_solve_reference.rs"]
+mod block_reference;
 #[path = "support/two_reference.rs"]
 mod two_reference;
 use sha2::{Digest, Sha256};
-use two_reference::{Audit, evaluate, native_reference};
+use two_reference::{Audit, MJWARP_RELATIVE_SLACK, SecondaryReference, evaluate, native_reference};
 
 const MODELS: [&str; 6] = [
     include_str!("../fixtures/mass-matrix/mixed-joints.json"),
@@ -59,15 +61,66 @@ fn verify_native_references() {
     });
 }
 
-fn compare(out: &MassSolveOutput, world: usize, case: &Value, audit: &mut Audit) {
+fn compare(
+    out: &MassSolveOutput,
+    world: usize,
+    case: &Value,
+    native_source: &str,
+    audit: &mut Audit,
+) {
     verify_native_references();
     let w = out.world(world).unwrap();
     let n = out.nv();
     let mut maximum: f64 = 0.0;
     let case_hash = format!("{:x}", Sha256::digest(serde_json::to_vec(case).unwrap()));
+    let (reference_model, row) =
+        block_reference::row(native_source, out.worlds(), out.rhs_count(), world, case);
+    assert_eq!(
+        w.blocks.len(),
+        reference_model["blocks"].as_array().unwrap().len()
+    );
+    for (block, expected) in w
+        .blocks
+        .iter()
+        .zip(reference_model["blocks"].as_array().unwrap())
+    {
+        assert_eq!(expected["start"], block.start);
+        assert_eq!(expected["size"], block.size);
+        let kind = match expected["route"].as_str().unwrap() {
+            "compact" => MassFactorKind::Diagonal,
+            "small_cholesky" | "tile_cholesky" => MassFactorKind::Cholesky,
+            "sparse_ldl" => MassFactorKind::ReverseLdl,
+            other => panic!("unknown route {other}"),
+        };
+        assert_eq!(block.kind, kind);
+    }
+    let secondary = |key: &str, range: std::ops::Range<usize>| {
+        Ok(Some(SecondaryReference {
+            identity: format!(
+                "MJWarp:{}:{}:{key}",
+                block_reference::reference()["revision"],
+                reference_model["name"]
+            ),
+            conditions: format!(
+                "native_case={case_hash};worlds={};rhs_count={};world={world};qpos={};rhs={};f32",
+                out.worlds(),
+                out.rhs_count(),
+                row["qpos_batch_sha256"],
+                row["rhs_batch_sha256"]
+            ),
+            values: row[key].as_array().unwrap()[range]
+                .iter()
+                .map(|x| x.as_f64().unwrap() as f32)
+                .collect(),
+            relative_slack: Some(MJWARP_RELATIVE_SLACK),
+        }))
+    };
     for (key, actual) in [("ld", w.ld), ("diagonal_inverse", w.diagonal_inverse)] {
-        let expected = case[key].as_array().unwrap();
-        let identity = format!("MuJoCo3.12.0:mass-solve:case_sha256={case_hash}:field={key}");
+        let field = if key == "ld" { "factor" } else { key };
+        let expected = row[format!("native_{field}")].as_array().unwrap();
+        let identity = format!(
+            "MuJoCo3.12.0:matrix-derived-block-factor:case_sha256={case_hash}:field={field}"
+        );
         let decision = evaluate(
             actual,
             Some(native_reference(
@@ -76,7 +129,7 @@ fn compare(out: &MassSolveOutput, world: usize, case: &Value, audit: &mut Audit)
                 ABS,
                 REL,
             )),
-            || Ok(None),
+            || secondary(field, 0..actual.len()),
         );
         maximum = maximum.max(audit.record(serde_json::json!({"world": world, "case": case["id"], "case_sha256": case_hash, "field": key}), decision));
     }
@@ -90,30 +143,65 @@ fn compare(out: &MassSolveOutput, world: usize, case: &Value, audit: &mut Audit)
         .fold(0.0, f64::max);
     let mut reconstruction: f64 = 0.0;
     for i in 0..n {
-        assert!(w.ld[i * n + i] > 0.0 && w.diagonal_inverse[i] > 0.0);
-        assert!(
-            (f64::from(w.ld[i * n + i]) * f64::from(w.diagonal_inverse[i]) - 1.0).abs() <= 2e-6
-        );
+        let block = w
+            .blocks
+            .iter()
+            .find(|b| (b.start..b.start + b.size).contains(&i))
+            .unwrap();
+        match block.kind {
+            MassFactorKind::Diagonal => {
+                assert!(w.diagonal_inverse[i] > 0.0);
+                assert_eq!(w.ld[i * n + i], 0.0);
+            }
+            MassFactorKind::Cholesky => {
+                assert!(w.ld[i * n + i] > 0.0);
+                assert_eq!(w.diagonal_inverse[i], 0.0);
+            }
+            MassFactorKind::ReverseLdl => {
+                assert!(w.ld[i * n + i] > 0.0 && w.diagonal_inverse[i] > 0.0);
+                assert!(
+                    (f64::from(w.ld[i * n + i]) * f64::from(w.diagonal_inverse[i]) - 1.0).abs()
+                        <= 2e-6
+                );
+            }
+        }
         let mut error = 0.0;
         for j in 0..n {
-            if j > i {
+            if (block.kind == MassFactorKind::Cholesky && j < i)
+                || (block.kind != MassFactorKind::Cholesky && j > i)
+                || !(block.start..block.start + block.size).contains(&j)
+            {
                 assert_eq!(w.ld[i * n + j], 0.0);
             }
-            let reconstructed = (i.max(j)..n)
-                .map(|k| {
-                    let lki = if k == i {
-                        1.0
-                    } else {
-                        f64::from(w.ld[k * n + i])
-                    };
-                    let lkj = if k == j {
-                        1.0
-                    } else {
-                        f64::from(w.ld[k * n + j])
-                    };
-                    lki * f64::from(w.ld[k * n + k]) * lkj
-                })
-                .sum::<f64>();
+            let reconstructed = if !(block.start..block.start + block.size).contains(&j) {
+                0.0
+            } else if block.kind == MassFactorKind::Diagonal {
+                if i == j {
+                    1.0 / f64::from(w.diagonal_inverse[i])
+                } else {
+                    0.0
+                }
+            } else if block.kind == MassFactorKind::Cholesky {
+                (block.start..=i.min(j))
+                    .map(|k| f64::from(w.ld[k * n + i]) * f64::from(w.ld[k * n + j]))
+                    .sum::<f64>()
+            } else {
+                (i.max(j)..block.start + block.size)
+                    .map(|k| {
+                        let lki = if k == i {
+                            1.0
+                        } else {
+                            f64::from(w.ld[k * n + i])
+                        };
+                        let lkj = if k == j {
+                            1.0
+                        } else {
+                            f64::from(w.ld[k * n + j])
+                        };
+                        lki * f64::from(w.ld[k * n + k]) * lkj
+                    })
+                    .sum::<f64>()
+            };
             error += (reconstructed - matrix[i * n + j].as_f64().unwrap()).abs();
         }
         reconstruction = reconstruction.max(if rownorm == 0.0 {
@@ -144,7 +232,7 @@ fn compare(out: &MassSolveOutput, world: usize, case: &Value, audit: &mut Audit)
                 ABS,
                 REL,
             )),
-            || Ok(None),
+            || secondary("solution", r * n..(r + 1) * n),
         );
         maximum = maximum.max(audit.record(serde_json::json!({"world": world, "case": case["id"], "case_sha256": case_hash, "field": "solution", "rhs": r}), decision));
         let xnorm = x.iter().map(|&v| f64::from(v).abs()).fold(0.0, f64::max);
@@ -221,14 +309,103 @@ fn solve_references_freeze_shapes_tolerances_and_matching_model_states() {
         }
     }
 }
+
+#[test]
+fn block_references_bind_all_configurations_and_native_factor_semantics() {
+    let reference = block_reference::reference();
+    assert_eq!(reference["models"].as_array().unwrap().len(), MODELS.len());
+    for (index, model) in reference["models"].as_array().unwrap().iter().enumerate() {
+        assert_eq!(
+            model["model_sha256"],
+            format!("{:x}", Sha256::digest(MODELS[index].as_bytes()))
+        );
+        let native: Value = serde_json::from_str(SOLVES[index]).unwrap();
+        let n = native["nv"].as_u64().unwrap() as usize;
+        let mut configurations = std::collections::BTreeSet::new();
+        for row in model["rows"].as_array().unwrap() {
+            let worlds = row["worlds"].as_u64().unwrap() as usize;
+            let count = row["rhs_count"].as_u64().unwrap() as usize;
+            let world = row["world"].as_u64().unwrap() as usize;
+            let case = &native["cases"][world % 8];
+            configurations.insert((worlds, count));
+            let (_, bound) = block_reference::row(SOLVES[index], worlds, count, world, case);
+            assert_eq!(row, bound);
+            for (field, size) in [
+                ("factor", n * n),
+                ("native_factor", n * n),
+                ("diagonal_inverse", n),
+                ("native_diagonal_inverse", n),
+                ("solution", n * count),
+            ] {
+                let values = row[field].as_array().unwrap();
+                assert_eq!(values.len(), size);
+                assert!(values.iter().all(|v| v.as_f64().unwrap().is_finite()));
+            }
+            // 只验证独立参考语义；f64不进入产品计算。
+            let f: Vec<_> = row["native_factor"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap())
+                .collect();
+            let matrix: Vec<_> = case["matrix"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap())
+                .collect();
+            let inv: Vec<_> = row["native_diagonal_inverse"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap())
+                .collect();
+            for i in 0..n {
+                for j in 0..n {
+                    let value = if i == j && inv[i] > 0.0 {
+                        1.0 / inv[i]
+                    } else {
+                        (0..n).map(|k| f[k * n + i] * f[k * n + j]).sum::<f64>()
+                    };
+                    assert!(
+                        (value - matrix[i * n + j]).abs()
+                            <= 1e-12 * (1.0 + matrix[i * n + j].abs())
+                    );
+                }
+            }
+        }
+        let mut expected = std::collections::BTreeSet::from([(8, 3)]);
+        if index == 0 {
+            expected.extend([(8, 1), (8, 2), (8, 5)]);
+        }
+        if index == 2 {
+            expected.extend([1, 255, 256, 257, 513].map(|w| (w, 3)));
+        }
+        if index == 5 {
+            expected.insert((1, 3));
+        }
+        assert_eq!(configurations, expected);
+        for (worlds, count) in expected {
+            assert_eq!(
+                model["rows"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|r| r["worlds"] == worlds && r["rhs_count"] == count)
+                    .count(),
+                worlds
+            );
+        }
+    }
+}
 #[test]
 #[ignore = "requires NVIDIA driver and NVRTC"]
 fn gpu_factors_and_multiple_rhs_match_independent_native_solves() {
     let mut audit = Audit::new("G03-factors-and-rhs");
     let session = TransferSession::new(0).unwrap();
-    for (m, s) in MODELS.into_iter().zip(SOLVES) {
+    for (m, source) in MODELS.into_iter().zip(SOLVES) {
         let m = model(&serde_json::from_str(m).unwrap());
-        let s: Value = serde_json::from_str(s).unwrap();
+        let s: Value = serde_json::from_str(source).unwrap();
         let cases = s["cases"].as_array().unwrap();
         let q: Vec<_> = cases.iter().flat_map(|c| floats(c, "qpos")).collect();
         let b: Vec<_> = cases.iter().flat_map(|c| floats(c, "rhs")).collect();
@@ -238,7 +415,7 @@ fn gpu_factors_and_multiple_rhs_match_independent_native_solves() {
         assert_eq!(out.rhs_count(), 3);
         assert!(out.world(8).is_err());
         for (w, c) in cases.iter().enumerate() {
-            compare(&out, w, c, &mut audit);
+            compare(&out, w, c, source, &mut audit);
         }
     }
     audit.finish();
@@ -259,10 +436,15 @@ fn mass_solve_batches_cross_blocks_without_mutating_inputs() {
             .flat_map(|w| floats(&cases[w % 8], "rhs"))
             .collect();
         let original = (q.clone(), b.clone());
+        let started = std::time::Instant::now();
         let out = probe_mass_solve(&session, &m, worlds, &q, 3, &b).unwrap();
+        eprintln!(
+            "G03-batch worlds={worlds} host_wall_ms={} includes_compile_and_transfer=true",
+            started.elapsed().as_secs_f64() * 1000.0
+        );
         assert_eq!((q, b), original);
         for w in 0..worlds {
-            compare(&out, w, &cases[w % 8], &mut audit);
+            compare(&out, w, &cases[w % 8], SOLVES[2], &mut audit);
         }
     }
     audit.finish();
@@ -283,7 +465,7 @@ fn rhs_counts_one_two_three_and_five_reuse_each_world_factor() {
             .collect();
         let out = probe_mass_solve(&session, &m, 8, &q, count, &b).unwrap();
         for (w, c) in cases.iter().enumerate() {
-            compare(&out, w, c, &mut audit);
+            compare(&out, w, c, SOLVES[0], &mut audit);
         }
     }
     audit.finish();
@@ -302,16 +484,17 @@ fn analytical_chain_recovers_known_vector_and_owns_results_after_session_drop() 
     for (&a, e) in w.solution.iter().zip([0.0, 0.0, 0.0, 1.0, 2.0, 3.0]) {
         assert!((a - e).abs() <= 2e-6);
     }
+    let u00 = 6.25_f64.sqrt();
     for (&a, e) in w.ld.iter().zip([
-        479.0 / 108.0,
+        u00,
+        1.75 / u00,
         0.0,
         0.0,
-        28.0 / 27.0,
-        27.0 / 16.0,
+        (1.6875_f64 - 1.75 * 1.75 / 6.25).sqrt(),
         0.0,
         0.0,
         0.0,
-        19.0 / 4.0,
+        0.0,
     ]) {
         assert!((f64::from(a) - e).abs() <= 2e-6);
     }
@@ -356,7 +539,7 @@ fn singular_models_reject_without_regularization_and_healthy_sessions_recover() 
         probe_mass_solve(&session, &singular, 1, &q, 1, &[1.0; 3]).unwrap_err(),
         TransferError::InvalidPivot {
             world: 0,
-            dof: 2,
+            dof: 0,
             value: 0.0
         }
     );
@@ -375,7 +558,7 @@ fn singular_models_reject_without_regularization_and_healthy_sessions_recover() 
     }
     let out = probe_mass_solve(&session, &m, 1, &q, 3, &floats(&s["cases"][0], "rhs")).unwrap();
     let mut audit = Audit::new("G03-recovery");
-    compare(&out, 0, &s["cases"][0], &mut audit);
+    compare(&out, 0, &s["cases"][0], SOLVES[5], &mut audit);
     audit.finish();
 }
 #[cfg(feature = "native-model-probe")]
@@ -396,20 +579,20 @@ fn native_snapshots_feed_gpu_solves_without_native_physics_at_runtime() {
         include_bytes!("../fixtures/com-position/massless-tree.mjb"),
         include_bytes!("../fixtures/mass-matrix/armature-chain.mjb"),
     ];
-    for ((m, s), mjb) in MODELS.into_iter().zip(SOLVES).zip(mjbs) {
+    for ((m, source), mjb) in MODELS.into_iter().zip(SOLVES).zip(mjbs) {
         // SAFETY: The caller supplies the hash-verified trusted candidate DLL.
         // These static compiled models use that exact known ABI.
         let native = unsafe { NativeModelProbe::load_trusted(&dll, mjb) }.unwrap();
         let m_native = native.inertial_snapshot().unwrap().into_model().unwrap();
         assert_eq!(m_native, model(&serde_json::from_str(m).unwrap()));
         drop(native);
-        let s: Value = serde_json::from_str(s).unwrap();
+        let s: Value = serde_json::from_str(source).unwrap();
         let cases = s["cases"].as_array().unwrap();
         let q: Vec<_> = cases.iter().flat_map(|c| floats(c, "qpos")).collect();
         let b: Vec<_> = cases.iter().flat_map(|c| floats(c, "rhs")).collect();
         let out = probe_mass_solve(&session, &m_native, 8, &q, 3, &b).unwrap();
         for (w, c) in cases.iter().enumerate() {
-            compare(&out, w, c, &mut audit);
+            compare(&out, w, c, source, &mut audit);
         }
     }
     audit.finish();

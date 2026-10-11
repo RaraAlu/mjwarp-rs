@@ -34,7 +34,7 @@ function Invoke-Test([string[]]$Target, [string]$Log, [int]$Expected) {
 }
 Push-Location $root
 try {
-    $null = Invoke-Test -Target @('--lib', 'physics::mass_solve::tests::device_') -Log 'boundaries.log' -Expected 2
+    $null = Invoke-Test -Target @('--lib', 'physics::mass_solve::tests::device_') -Log 'boundaries.log' -Expected 3
     $null = Invoke-Test -Target @('--lib', 'runtime::transfer::kernel::tests::preserves_f64_buffer_width') -Log 'scalar-abi.log' -Expected 1
     $expected = if ($AllFeatures) { 6 } else { 5 }
     $output = @(Invoke-Test -Target @('--test', 'mass_solve_probe') -Log 'mass-solve.log' -Expected $expected)
@@ -64,13 +64,14 @@ try {
         allFeatures = [bool]$AllFeatures
         release = [bool]$Release
         massSolvePassed = $expected
-        factorBoundaryPassed = 2
+        factorBoundaryPassed = 3
         scalarAbiPassed = 1
         comparedNativeWorlds = $comparisons
         analyticalChecks = $analytical
         singularRejections = $singular
-        internalScalar = 'f64'
+        internalScalar = 'f32'
         publicScalar = 'f32'
+        factorFormat = 'per-tree: diagonal reciprocal, upper Cholesky, or reverse LDL'
         maxAbsoluteError = $largest
         maxNormalizedResidual = $residual
         maxNormalizedReconstruction = $reconstruction

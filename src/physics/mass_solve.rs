@@ -5,14 +5,75 @@ use crate::diagnostics::{InputError, ProbeError, TransferError};
 use crate::model::{BatchLayout, InertialModelInput};
 use crate::runtime::TransferSession;
 
+/// 每个独立运动树的因子格式。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MassFactorKind {
+    /// 单自由度只存质量倒数，因子区域为零。
+    Diagonal,
+    /// 上三角U满足M = U^T U；倒数区域为零。
+    Cholesky,
+    /// 下三角L与对角D满足M = L^T D L。
+    ReverseLdl,
+}
+
+/// 自由度区间共用同一因子格式。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MassFactorBlock {
+    pub start: usize,
+    pub size: usize,
+    pub kind: MassFactorKind,
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn factor_blocks(parents: &[i32]) -> Vec<MassFactorBlock> {
+    let mut blocks = Vec::<MassFactorBlock>::new();
+    for (dof, &parent) in parents.iter().enumerate() {
+        if parent < 0 {
+            blocks.push(MassFactorBlock {
+                start: dof,
+                size: 0,
+                kind: MassFactorKind::Diagonal,
+            });
+        }
+        // 模型校验保证先祖编号更小。
+        // 后续区间检查再拒绝交错树。
+        blocks.last_mut().expect("checked DOF tree").size += 1;
+    }
+    for block in &mut blocks {
+        block.kind = match block.size {
+            1 => MassFactorKind::Diagonal,
+            2..=64 => MassFactorKind::Cholesky,
+            _ => MassFactorKind::ReverseLdl,
+        };
+    }
+    blocks
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn check_block_intervals(parents: &[i32], blocks: &[MassFactorBlock]) -> Result<(), InputError> {
+    for block in blocks {
+        if parents[block.start..block.start + block.size]
+            .iter()
+            .any(|&p| p >= 0 && (p as usize) < block.start)
+        {
+            return Err(InputError::InvalidDimension {
+                field: "mass_solve_interleaved_trees",
+            });
+        }
+    }
+    Ok(())
+}
+
 /// 每世界分解与求解的只读视图。
 #[derive(Clone, Copy, Debug)]
 pub struct MassSolveWorld<'a> {
-    /// 稠密行优先打包：下三角存L，对角存D，上三角为零。
-    /// L的单位对角不存储；M = L^T D L。
+    /// 兼容字段名；按blocks解释稠密行优先因子。
+    /// 不再统一采用旧版反向LDL格式。
     pub ld: &'a [f32],
-    /// 每自由度的D倒数。
+    /// 对角块存质量倒数；LDL块存D倒数。
+    /// Cholesky块填零，不提供无语义倒数。
     pub diagonal_inverse: &'a [f32],
+    pub blocks: &'a [MassFactorBlock],
     /// 多右端项按`[rhs,nv]`连续排列。
     pub solution: &'a [f32],
 }
@@ -22,6 +83,7 @@ pub struct MassSolveWorld<'a> {
 pub struct MassSolveOutput {
     layout: MassSolveLayout,
     values: Vec<f32>,
+    blocks: Vec<MassFactorBlock>,
 }
 impl MassSolveOutput {
     pub fn worlds(&self) -> usize {
@@ -38,6 +100,7 @@ impl MassSolveOutput {
         let v = &self.values[r.start + 7..r.end + 4];
         let square = self.nv() * self.nv();
         Ok(MassSolveWorld {
+            blocks: &self.blocks,
             ld: &v[..square],
             diagonal_inverse: &v[square..square + self.nv()],
             solution: &v[square + self.nv()..],
@@ -114,14 +177,16 @@ impl MassSolveLayout {
     }
 }
 
-/// 同步GPU反向LDL与多右端项求解。
+/// 同步GPU分块因子与多右端项求解。
 /// rhs采用`[world,rhs,nv]`布局。
 /// GPU复用已检查的质量矩阵。
 /// 主元必须严格为正且有限。
 /// 接口不修补主元或回退CPU。
 /// 零自由度允许空向量结果。
 /// 单个失败世界阻止整个结果发布。
-/// 不支持稀疏或分块调度。
+/// 单自由度采用倒数，至64维采用Cholesky。
+/// 更大树保留稠密反向LDL辅助。
+/// 不复制上游tile调度或多自由度紧凑优化。
 /// 不替代U060、U065与完整G03。
 pub fn probe_mass_solve(
     session: &TransferSession,
@@ -142,10 +207,19 @@ pub fn probe_mass_solve(
     }
     #[cfg(feature = "cuda-probe")]
     {
+        let blocks = factor_blocks(&model.fields().dof_parentid);
+        check_block_intervals(&model.fields().dof_parentid, &blocks)?;
         let (state, checkpoint) =
             super::mass_matrix::mass_matrix_device(session, model, worlds, qpos)?;
         drop(checkpoint);
-        solve_device(session, model.kinematics().nbody(), layout, &state, rhs)
+        solve_device(
+            session,
+            model.kinematics().nbody(),
+            layout,
+            &state,
+            rhs,
+            blocks,
+        )
     }
 }
 
@@ -156,8 +230,18 @@ fn solve_device(
     layout: MassSolveLayout,
     state: &crate::runtime::TransferBuffer<f32>,
     rhs: &[f32],
+    blocks: Vec<MassFactorBlock>,
 ) -> Result<MassSolveOutput, TransferError> {
-    let metadata = session.upload(&[0i32])?;
+    let mut packed = vec![blocks.len() as i32];
+    for block in &blocks {
+        let kind = match block.kind {
+            MassFactorKind::Diagonal => 0,
+            MassFactorKind::Cholesky => 1,
+            MassFactorKind::ReverseLdl => 2,
+        };
+        packed.extend([block.start as i32, block.size as i32, kind]);
+    }
+    let metadata = session.upload(&packed)?;
     // Preserve a real pointer for the empty zero-DOF vector.
     let parameters = session.upload(if rhs.is_empty() { &[0.0] } else { rhs })?;
     let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
@@ -171,6 +255,7 @@ fn solve_device(
     // State comes from the same-session checked mass matrix with 10*nb+nv*nv
     // values/world and two four-element guards. Each thread owns one world.
     // RHS has exactly worlds*nrhs*nv values, or a real zero-DOF placeholder.
+    // Metadata partitions nv into disjoint checked tree intervals.
     // The fixed-ABI adapter synchronizes and retains all submitted resources.
     unsafe {
         kernel.launch(
@@ -188,7 +273,11 @@ fn solve_device(
     }
     output.read_range_into(0, &mut values)?;
     check_result(layout, &values)?;
-    Ok(MassSolveOutput { layout, values })
+    Ok(MassSolveOutput {
+        layout,
+        values,
+        blocks,
+    })
 }
 
 #[cfg(any(feature = "cuda-probe", test))]
@@ -232,8 +321,8 @@ fn check_result<T: Copy + Into<f64>>(
     super::check_device_values(values, "mass_solve_output")
 }
 
-// Adapt the reverse LDL algebra from frozen smooth.py _qLD_acc/_qLDiag_div.
-// Use dense scalar scheduling instead of sparse updates or tiled Cholesky.
+// 冻结smooth.py提供Cholesky与反向LDL公式。
+// 本辅助按树分块；每线程处理一个世界。
 // Copyright 2025 The Newton Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -249,7 +338,7 @@ fn check_result<T: Copy + Into<f64>>(
 // limitations under the License.
 #[cfg(feature = "cuda-probe")]
 const MASS_SOLVE_CUDA: &str = r#"
-extern "C" __global__ void rigid_mass_solve(const int* unused,const float* rhs,
+extern "C" __global__ void rigid_mass_solve(const int* blocks,const float* rhs,
     const float* state,float* output,unsigned nb,unsigned n,unsigned nr,unsigned nw) {
   unsigned w=blockIdx.x*blockDim.x+threadIdx.x;
   if(w>=nw) return;
@@ -257,8 +346,38 @@ extern "C" __global__ void rigid_mass_solve(const int* unused,const float* rhs,
   float* status=output+4+(unsigned long long)w*(3+n*n+n+nr*n);
   float* ld=status+3; float* inv=ld+n*n; float* x=inv+n;
   status[0]=0.0f; status[1]=-1.0f; status[2]=0.0f;
-  for(unsigned i=0;i<n;i++) for(unsigned j=0;j<n;j++) ld[i*n+j]=(j<=i)?mat[i*n+j]:0.0f;
-  for(int k=int(n)-1;k>=0;k--) {
+  for(unsigned i=0;i<n*n;i++) ld[i]=0.0f;
+  for(unsigned i=0;i<n;i++) inv[i]=0.0f;
+  for(int block=0;block<blocks[0];block++) {
+    int begin=blocks[1+3*block], end=begin+blocks[2+3*block], kind=blocks[3+3*block];
+    if(kind==0) {
+      float pivot=mat[begin*n+begin];
+      if(!(pivot>0.0f) || !isfinite(pivot)) {
+        status[0]=1.0f; status[1]=float(begin); status[2]=pivot; return;
+      }
+      inv[begin]=1.0f/pivot;
+      if(!isfinite(inv[begin])) {
+        status[0]=2.0f; status[1]=float(begin); status[2]=inv[begin]; return;
+      }
+    } else if(kind==1) {
+      for(int i=begin;i<end;i++) {
+        float pivot=mat[i*n+i];
+        for(int k=begin;k<i;k++) pivot-=ld[k*n+i]*ld[k*n+i];
+        if(!(pivot>0.0f) || !isfinite(pivot)) {
+          status[0]=1.0f; status[1]=float(i); status[2]=pivot; return;
+        }
+        float diagonal=sqrtf(pivot);
+        ld[i*n+i]=diagonal;
+        float reciprocal=1.0f/diagonal;
+        for(int j=i+1;j<end;j++) {
+          float value=mat[i*n+j];
+          for(int k=begin;k<i;k++) value-=ld[k*n+i]*ld[k*n+j];
+          ld[i*n+j]=value*reciprocal;
+        }
+      }
+    } else {
+    for(int i=begin;i<end;i++) for(int j=begin;j<=i;j++) ld[i*n+j]=mat[i*n+j];
+    for(int k=end-1;k>=begin;k--) {
     float pivot=ld[k*n+k];
     if(!(pivot>0.0f) || !isfinite(pivot)) {
       status[0]=1.0f; status[1]=float(k); status[2]=pivot; return;
@@ -268,25 +387,45 @@ extern "C" __global__ void rigid_mass_solve(const int* unused,const float* rhs,
       status[0]=2.0f; status[1]=float(k); status[2]=reciprocal; return;
     }
     // Keep the original row until every preceding row update completes.
-    for(int i=k-1;i>=0;i--) {
+    for(int i=k-1;i>=begin;i--) {
       float tmp=ld[k*n+i]*reciprocal;
-      for(int j=0;j<=i;j++) ld[i*n+j]-=ld[k*n+j]*tmp;
+      for(int j=begin;j<=i;j++) ld[i*n+j]-=ld[k*n+j]*tmp;
     }
-    for(int j=0;j<k;j++) ld[k*n+j]*=reciprocal;
+    for(int j=begin;j<k;j++) ld[k*n+j]*=reciprocal;
+    }
+    }
   }
   if(n==0) return;
   const float* b=rhs+(unsigned long long)w*nr*n;
   for(unsigned r=0;r<nr;r++) {
     float* v=x+r*n;
     for(unsigned i=0;i<n;i++) v[i]=b[r*n+i];
-    // L^-T, then D^-1, then L^-1. The unit diagonal of L is implicit.
-    for(int k=int(n)-1;k>=0;k--)
-      for(int i=0;i<k;i++) v[i]-=ld[k*n+i]*v[k];
-    for(unsigned i=0;i<n;i++) v[i]*=inv[i];
-    for(unsigned i=0;i<n;i++) {
+    for(int block=0;block<blocks[0];block++) {
+      int begin=blocks[1+3*block], end=begin+blocks[2+3*block], kind=blocks[3+3*block];
+      if(kind==0) {
+        v[begin]*=inv[begin];
+      } else if(kind==1) {
+        for(int i=begin;i<end;i++) {
+          float value=v[i];
+          for(int j=begin;j<i;j++) value-=ld[j*n+i]*v[j];
+          v[i]=value/ld[i*n+i];
+        }
+        for(int i=end-1;i>=begin;i--) {
+          float value=v[i];
+          for(int j=i+1;j<end;j++) value-=ld[i*n+j]*v[j];
+          v[i]=value/ld[i*n+i];
+        }
+      } else {
+    // 反向LDL块依次执行L^-T、D^-1与L^-1。
+    for(int k=end-1;k>=begin;k--)
+      for(int i=begin;i<k;i++) v[i]-=ld[k*n+i]*v[k];
+    for(int i=begin;i<end;i++) v[i]*=inv[i];
+    for(int i=begin;i<end;i++) {
       float sum=0.0f;
-      for(unsigned j=0;j<i;j++) sum+=ld[i*n+j]*v[j];
+      for(int j=begin;j<i;j++) sum+=ld[i*n+j]*v[j];
       v[i]-=sum;
+    }
+      }
     }
   }
 }
@@ -340,6 +479,7 @@ mod tests {
         let out = MassSolveOutput {
             layout: l,
             values: (0..l.guarded).map(|n| n as f32).collect(),
+            blocks: factor_blocks(&[-1, 0]),
         };
         assert_eq!(out.worlds(), 2);
         assert_eq!(out.nv(), 2);
@@ -353,6 +493,7 @@ mod tests {
         let out = MassSolveOutput {
             layout: l,
             values: vec![0.0; l.guarded],
+            blocks: vec![],
         };
         let w = out.world(0).unwrap();
         assert!(w.ld.is_empty() && w.diagonal_inverse.is_empty() && w.solution.is_empty());
@@ -397,7 +538,7 @@ mod tests {
         state[28..32].copy_from_slice(&[1.0, 2.0, 2.0, 1.0]);
         let b = s.upload(&state).unwrap();
         assert_eq!(
-            solve_device(&s, 1, l, &b, &[1.0; 6]).unwrap_err(),
+            solve_device(&s, 1, l, &b, &[1.0; 6], reverse_test_block()).unwrap_err(),
             TransferError::InvalidPivot {
                 world: 1,
                 dof: 0,
@@ -408,7 +549,7 @@ mod tests {
             state[28..32].copy_from_slice(&[pivot, 0.0, 0.0, 3.0]);
             let b = s.upload(&state).unwrap();
             let TransferError::InvalidPivot { world, dof, value } =
-                solve_device(&s, 1, l, &b, &[1.0; 6]).unwrap_err()
+                solve_device(&s, 1, l, &b, &[1.0; 6], reverse_test_block()).unwrap_err()
             else {
                 panic!("expected invalid pivot")
             };
@@ -421,7 +562,7 @@ mod tests {
         }
         state[28..32].copy_from_slice(&[2.0, 0.0, 0.0, 3.0]);
         let b = s.upload(&state).unwrap();
-        let out = solve_device(&s, 1, l, &b, &[1.0; 6]).unwrap();
+        let out = solve_device(&s, 1, l, &b, &[1.0; 6], reverse_test_block()).unwrap();
         assert_eq!(out.world(2).unwrap().solution, &[0.5, 1.0 / 3.0]);
     }
     #[cfg(feature = "cuda-probe")]
@@ -435,7 +576,7 @@ mod tests {
         state[14] = 1e-39;
         let b = s.upload(&state).unwrap();
         assert!(matches!(
-            solve_device(&s, 1, l, &b, &[1.0]),
+            solve_device(&s, 1, l, &b, &[1.0], factor_blocks(&[-1])),
             Err(TransferError::Input(InputError::NonFinite {
                 field: "mass_solve_diagonal_inverse",
                 index: 0
@@ -444,7 +585,7 @@ mod tests {
         state[14] = 1e-30;
         let b = s.upload(&state).unwrap();
         assert!(matches!(
-            solve_device(&s, 1, l, &b, &[1e20]),
+            solve_device(&s, 1, l, &b, &[1e20], factor_blocks(&[-1])),
             Err(TransferError::Input(InputError::NonFinite {
                 field: "mass_solve_output",
                 ..
@@ -453,12 +594,91 @@ mod tests {
         state[14] = 2.0;
         let b = s.upload(&state).unwrap();
         assert_eq!(
-            solve_device(&s, 1, l, &b, &[1.0])
+            solve_device(&s, 1, l, &b, &[1.0], factor_blocks(&[-1]))
                 .unwrap()
                 .world(0)
                 .unwrap()
                 .solution,
             &[0.5]
         );
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    fn reverse_test_block() -> Vec<MassFactorBlock> {
+        vec![MassFactorBlock {
+            start: 0,
+            size: 2,
+            kind: MassFactorKind::ReverseLdl,
+        }]
+    }
+
+    #[test]
+    fn partitions_independent_trees_and_freezes_factor_formats() {
+        assert!(factor_blocks(&[]).is_empty());
+        let blocks = factor_blocks(&[-1, 0, -1]);
+        assert!(check_block_intervals(&[-1, 0, -1], &blocks).is_ok());
+        let interleaved = [-1, -1, 0];
+        assert!(check_block_intervals(&interleaved, &factor_blocks(&interleaved)).is_err());
+        assert_eq!(
+            blocks,
+            vec![
+                MassFactorBlock {
+                    start: 0,
+                    size: 2,
+                    kind: MassFactorKind::Cholesky
+                },
+                MassFactorBlock {
+                    start: 2,
+                    size: 1,
+                    kind: MassFactorKind::Diagonal
+                },
+            ]
+        );
+        for (size, kind) in [
+            (64, MassFactorKind::Cholesky),
+            (65, MassFactorKind::ReverseLdl),
+        ] {
+            let parents: Vec<i32> = (0..size).map(|i| i - 1).collect();
+            assert_eq!(factor_blocks(&parents)[0].kind, kind);
+        }
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn device_cholesky_rejects_bad_pivots_and_recovers() {
+        let s = TransferSession::new(0).unwrap();
+        let l = MassSolveLayout::new(1, 2, 1).unwrap();
+        let mut state = vec![-131072.0; 22];
+        state[4..14].fill(0.0);
+        for pivot in [0.0, -1.0, f32::INFINITY, f32::NAN] {
+            state[14..18].copy_from_slice(&[pivot, 0.0, 0.0, 3.0]);
+            let b = s.upload(&state).unwrap();
+            assert!(matches!(
+                solve_device(&s, 1, l, &b, &[1.0; 2], factor_blocks(&[-1, 0])),
+                Err(TransferError::InvalidPivot {
+                    world: 0,
+                    dof: 0,
+                    ..
+                })
+            ));
+        }
+        state[14..18].copy_from_slice(&[1.0, 2.0, 2.0, 1.0]);
+        let b = s.upload(&state).unwrap();
+        assert_eq!(
+            solve_device(&s, 1, l, &b, &[1.0; 2], factor_blocks(&[-1, 0])).unwrap_err(),
+            TransferError::InvalidPivot {
+                world: 0,
+                dof: 1,
+                value: -3.0
+            }
+        );
+        state[14..18].copy_from_slice(&[4.0, 2.0, 2.0, 5.0]);
+        let b = s.upload(&state).unwrap();
+        let out = solve_device(&s, 1, l, &b, &[8.0, 12.0], factor_blocks(&[-1, 0])).unwrap();
+        let w = out.world(0).unwrap();
+        assert_eq!(w.ld, &[2.0, 1.0, 0.0, 2.0]);
+        assert_eq!(w.diagonal_inverse, &[0.0, 0.0]);
+        assert_eq!(w.solution, &[1.0, 2.0]);
     }
 }

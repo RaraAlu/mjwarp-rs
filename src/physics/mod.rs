@@ -10,7 +10,9 @@ use crate::runtime::TransferSession;
 mod mass_matrix;
 pub use mass_matrix::{MassMatrixOutput, MassMatrixWorld, probe_mass_matrix};
 mod mass_solve;
-pub use mass_solve::{MassSolveOutput, MassSolveWorld, probe_mass_solve};
+pub use mass_solve::{
+    MassFactorBlock, MassFactorKind, MassSolveOutput, MassSolveWorld, probe_mass_solve,
+};
 mod attached;
 pub use attached::{AttachedKinematicsOutput, AttachedKinematicsWorld, probe_attached_kinematics};
 mod resident;

@@ -222,8 +222,11 @@ extern "C" __global__ void rigid_mass_matrix(const int* m,const float* p,
       i[6]*v[2]-i[8]*v[0]+i[9]*v[4],
       i[7]*v[0]-i[6]*v[1]+i[9]*v[5]};
     for(int j=int(d);j>=0;j=dparent[j]) {
-      float value=(j==int(d))?p[d]:0.0f;
-      for(int a=0;a<6;a++) value+=cd[6*j+a]*buf[a];
+      // Frozen _M finishes wp.dot before adding the diagonal armature.
+      // Seeding the dot with armature changes the f32 rounding sequence.
+      float value=cd[6*j]*buf[0];
+      for(int a=1;a<6;a++) value+=cd[6*j+a]*buf[a];
+      if(j==int(d)) value=__fadd_rn(value,p[d]);
       mat[d*nv+j]=value; mat[j*nv+d]=value;
     }
   }
@@ -278,5 +281,38 @@ mod tests {
         assert!(super::super::check_com_position(&m, 2, &[0.0]).is_err());
         assert!(super::super::check_com_position(&m, 2, &[0.0, f32::NAN]).is_err());
         assert!(super::super::check_com_position(&m, 2, &[0.0, 0.5]).is_ok());
+    }
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn device_adds_armature_after_the_completed_spatial_dot() {
+        let session = TransferSession::new(0).unwrap();
+        let metadata = session.upload(&[0_i32, 0, -1]).unwrap();
+        let parameters = session.upload(&[1.0_f32]).unwrap();
+        // 用二进制幂隔离舍入，不构造物理惯量。
+        let mut values = vec![-131072.0_f32; 28];
+        values[4..24].fill(0.0);
+        values[8..11].copy_from_slice(&[134217728.0, -134217728.0, 8.0]);
+        values[18..21].fill(1.0);
+        let state = session.upload(&values).unwrap();
+        let mut values = vec![-131072.0_f32; 19];
+        values[4..15].fill(f32::NAN);
+        let mut output = session.upload(&values).unwrap();
+        let kernel = crate::runtime::SynchronousKernel::compile(
+            &session,
+            MASS_MATRIX_CUDA,
+            "rigid_mass_matrix",
+        )
+        .unwrap();
+        // SAFETY: One world uses 20 COM scalars and 11 result scalars.
+        // All buffers share this session; guards bound both layouts.
+        unsafe {
+            kernel
+                .launch(&metadata, &parameters, &state, &mut output, [1, 1, 0, 1])
+                .unwrap();
+        }
+        output.read_range_into(0, &mut values).unwrap();
+        super::super::check_device_values(&values, "mass_matrix_output").unwrap();
+        assert_eq!(values[14], 9.0);
     }
 }
