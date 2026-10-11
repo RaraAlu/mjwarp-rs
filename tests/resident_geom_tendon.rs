@@ -22,7 +22,7 @@ use input::{fixture, floats, ids, model, motion_fixture, parts, plan, write};
 mod two_reference;
 #[path = "support/mjwarp_geom_reference.rs"]
 mod upstream_reference;
-use two_reference::{Audit, Reference, evaluate, native_reference};
+use two_reference::{Audit, MJWARP_RELATIVE_SLACK, SecondaryReference, evaluate, native_reference};
 fn compare(a: &[f32], e: &[f64]) -> f64 {
     // 解析不变量不进入参考回退。
     assert_eq!(a.len(), e.len());
@@ -226,7 +226,7 @@ fn geometry_dofs_match_length_derivatives_in_wrapped_and_direct_states() {
 }
 #[test]
 #[ignore = "需要NVIDIA驱动与NVRTC"]
-fn inside_cylinder_motion_frames_match_native_without_relaxing_tolerance() {
+fn inside_cylinder_motion_frames_follow_native_first_error_redline() {
     reference_hashes_cover_dynamic_sphere_cylinder_and_inside_paths();
     let v = fixture();
     let motion = motion_fixture();
@@ -293,7 +293,7 @@ fn inside_cylinder_motion_frames_match_native_without_relaxing_tolerance() {
                                     return Err(format!("topology_mismatch:{name}"));
                                 }
                             }
-                            Ok(Some(Reference {
+                            Ok(Some(SecondaryReference {
                                 identity: format!(
                                     "MJWarp:{}:sha256={}:worlds={worlds}:world={w}:frame={frame}:field={key}",
                                     upstream_reference::REVISION,
@@ -301,15 +301,17 @@ fn inside_cylinder_motion_frames_match_native_without_relaxing_tolerance() {
                                         "../fixtures/mjwarp-geom-tendon/reference.json"
                                     ))
                                 ),
+                                conditions: format!(
+                                    "validated_model_and_batch:{}",
+                                    upstream_reference::sha(&serde_json::to_vec(&hashes).unwrap())
+                                ),
                                 values: row[key]
                                     .as_array()
                                     .unwrap()
                                     .iter()
-                                    .map(|v| f64::from(v.as_f64().unwrap() as f32))
+                                    .map(|v| v.as_f64().unwrap() as f32)
                                     .collect(),
-                                // 用户选择暂不冻结二级容差。
-                                // 逐位相等也不冒充容差验收。
-                                tolerance: None,
+                                relative_slack: Some(MJWARP_RELATIVE_SLACK),
                             }))
                         },
                     );

@@ -44,16 +44,20 @@ CPU调试与工具边界仍待确认。
 第一数值参考为原生MuJoCo。
 原生通过即通过该项数值门禁。
 仅原生超差后对照MJWarp。
-第二参考通过也通过数值门禁。
+两路都计算相对原生的误差。
+不劣于MJWarp时对照放行。
+略高但在5%红线内也放行。
+越线则严格禁行。
 两级机制已接入G01与G03辅助。
-缺少第二参考或容差仍待验收。
+缺少同条件第二参考仍待验收。
+最新规则见[红线验收](native-error-redline-acceptance.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
 证据见[首差追踪](frame393-first-divergence.md)。
 两处初始长度已固定乘加顺序。
 第393帧接触点对齐MJWarp。
 但原生力臂误差反而增大。
-两级门禁仍保留待验收。
+下述报告保留旧门禁结果。
 证据见[局部修复](inside-norm-order-fix.md)。
 内部升精度不能替代上游等价。
 四类已知路径已恢复f32。
@@ -116,6 +120,7 @@ CPU调试与工具边界仍待确认。
 51. [Windows两级判定补测](windows-two-reference-acceptance.md)
 52. [第393帧绕行首差](frame393-first-divergence.md)
 53. [内侧绕行乘加顺序修复](inside-norm-order-fix.md)
+54. [原生基准与5%误差红线](native-error-redline-acceptance.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。

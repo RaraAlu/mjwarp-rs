@@ -4,6 +4,10 @@
 
 use serde_json::{Value, json};
 
+// 用户于2026-10-11冻结5%余量。
+// 它约束归一化误差，不约束输出值。
+pub const MJWARP_RELATIVE_SLACK: f64 = 0.05;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Tolerance {
     pub absolute: f64,
@@ -15,6 +19,16 @@ pub struct Reference {
     pub identity: String,
     pub values: Vec<f64>,
     pub tolerance: Option<Tolerance>,
+}
+
+/// 两路GPU结果共享原生基准。
+/// 调用方先核对模型与状态。
+#[derive(Clone, Debug)]
+pub struct SecondaryReference {
+    pub identity: String,
+    pub conditions: String,
+    pub values: Vec<f32>,
+    pub relative_slack: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -34,6 +48,15 @@ impl Status {
             Self::Pending => "pending",
         }
     }
+
+    fn admission_label(self) -> &'static str {
+        match self {
+            Self::NativePassed => "原生放行",
+            Self::MjwarpPassed => "二级放行",
+            Self::Failed => "失败不放行",
+            Self::Pending => "待验收不放行",
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -41,6 +64,8 @@ pub struct Comparison {
     pub identity: String,
     pub count: usize,
     pub max_absolute: f64,
+    pub max_normalized: Option<f64>,
+    pub worst_normalized_index: Option<usize>,
     pub worst_index: Option<usize>,
     pub violations: Option<usize>,
     pub tolerance: Option<Tolerance>,
@@ -51,6 +76,8 @@ impl Comparison {
         json!({
             "identity": self.identity, "count": self.count,
             "max_absolute": self.max_absolute, "worst_index": self.worst_index,
+            "max_normalized": self.max_normalized,
+            "worst_normalized_index": self.worst_normalized_index,
             "violations": self.violations,
             "tolerance": self.tolerance.map(|t| json!({"absolute": t.absolute, "relative": t.relative}))
         })
@@ -63,6 +90,9 @@ pub struct Decision {
     pub reason: String,
     pub native: Option<Comparison>,
     pub mjwarp: Option<Comparison>,
+    pub conditions: Option<String>,
+    pub relative_slack: Option<f64>,
+    pub redline: Option<f64>,
 }
 
 impl Decision {
@@ -71,13 +101,29 @@ impl Decision {
     }
 
     pub fn json(&self) -> Value {
-        json!({"status": self.status.name(), "reason": self.reason,
+        let accepted_reference = match self.status {
+            Status::NativePassed => Some("native_mujoco"),
+            Status::MjwarpPassed => Some("mjwarp"),
+            Status::Failed | Status::Pending => None,
+        };
+        // 放行标记仅描述本字段块。
+        // 它不证明完整验收或精度改善。
+        let label = match self.reason.as_str() {
+            "native_error_not_worse_than_mjwarp" => "对照放行",
+            "native_error_within_mjwarp_redline" => "红线内放行",
+            _ => self.status.admission_label(),
+        };
+        json!({"policy": "native_error_v2", "status": self.status.name(), "reason": self.reason, "gate": "NP03",
+            "np03_admitted": self.passed(), "admission_label": label,
+            "accepted_reference": accepted_reference,
+            "error_baseline": "native_mujoco", "conditions": self.conditions,
+            "relative_slack": self.relative_slack, "redline": self.redline,
             "native": self.native.as_ref().map(Comparison::json),
             "mjwarp": self.mjwarp.as_ref().map(Comparison::json)})
     }
 }
 
-fn compare(actual: &[f32], reference: Reference) -> Result<Comparison, &'static str> {
+fn compare(actual: &[f32], reference: &Reference) -> Result<Comparison, &'static str> {
     if reference.identity.is_empty() {
         return Err("missing_reference_identity");
     }
@@ -96,9 +142,11 @@ fn compare(actual: &[f32], reference: Reference) -> Result<Comparison, &'static 
         return Err("invalid_tolerance");
     }
     let mut result = Comparison {
-        identity: reference.identity,
+        identity: reference.identity.clone(),
         count: actual.len(),
         max_absolute: 0.0,
+        max_normalized: reference.tolerance.map(|_| 0.0),
+        worst_normalized_index: None,
         worst_index: None,
         violations: reference.tolerance.map(|_| 0),
         tolerance: reference.tolerance,
@@ -120,6 +168,24 @@ fn compare(actual: &[f32], reference: Reference) -> Result<Comparison, &'static 
             if error > limit {
                 *result.violations.as_mut().unwrap() += 1;
             }
+            let normalized = if limit == 0.0 && error == 0.0 {
+                0.0
+            } else {
+                error / limit
+            };
+            if result
+                .max_normalized
+                .is_some_and(|maximum| normalized > maximum)
+            {
+                result.worst_normalized_index = Some(index);
+            }
+            result.max_normalized = result
+                .max_normalized
+                .filter(|_| normalized.is_finite())
+                .map(|maximum| maximum.max(normalized));
+            if result.max_normalized.is_none() {
+                result.worst_normalized_index = None;
+            }
         }
     }
     Ok(result)
@@ -130,13 +196,16 @@ fn compare(actual: &[f32], reference: Reference) -> Result<Comparison, &'static 
 pub fn evaluate(
     actual: &[f32],
     native: Option<Reference>,
-    mjwarp: impl FnOnce() -> Result<Option<Reference>, String>,
+    mjwarp: impl FnOnce() -> Result<Option<SecondaryReference>, String>,
 ) -> Decision {
     let mut decision = Decision {
         status: Status::Failed,
         reason: String::new(),
         native: None,
         mjwarp: None,
+        conditions: None,
+        relative_slack: None,
+        redline: None,
     };
     if actual.iter().any(|v| !v.is_finite()) {
         decision.reason = "nonfinite_actual".into();
@@ -147,7 +216,7 @@ pub fn evaluate(
         decision.reason = "missing_native_reference".into();
         return decision;
     };
-    match compare(actual, native) {
+    match compare(actual, &native) {
         Err(reason) => decision.reason = reason.into(),
         Ok(comparison) => {
             let violations = comparison.violations;
@@ -167,23 +236,68 @@ pub fn evaluate(
                         decision.status = Status::Pending;
                         decision.reason = "missing_mjwarp_reference".into();
                     }
-                    Ok(Some(reference)) => match compare(actual, reference) {
-                        Err(reason) => decision.reason = reason.into(),
-                        Ok(comparison) => {
-                            let violations = comparison.violations;
-                            decision.mjwarp = Some(comparison);
-                            (decision.status, decision.reason) = match violations {
-                                None => (Status::Pending, "missing_mjwarp_tolerance".into()),
-                                Some(0) => (Status::MjwarpPassed, "mjwarp_within_tolerance".into()),
-                                Some(_) => (Status::Failed, "both_references_exceeded".into()),
-                            };
-                        }
-                    },
+                    Ok(Some(reference)) => judge_secondary(&mut decision, &native, reference),
                 },
             }
         }
     }
     decision
+}
+
+fn judge_secondary(decision: &mut Decision, native: &Reference, reference: SecondaryReference) {
+    if reference.identity.is_empty() || reference.conditions.is_empty() {
+        decision.reason = "missing_mjwarp_identity_or_conditions".into();
+        return;
+    }
+    if let Some(slack) = reference.relative_slack
+        && (!slack.is_finite() || slack < 0.0)
+    {
+        decision.reason = "invalid_mjwarp_redline".into();
+        return;
+    }
+    decision.conditions = Some(reference.conditions);
+    decision.relative_slack = reference.relative_slack;
+    // 两路误差都相对同一原生数组。
+    // 不再检查本库与MJWarp的距离。
+    let mut comparison = match compare(&reference.values, native) {
+        Ok(value) => value,
+        Err(reason) => {
+            decision.reason = format!("invalid_mjwarp_reference: {reason}");
+            return;
+        }
+    };
+    comparison.identity = reference.identity;
+    let upstream_score = comparison.max_normalized;
+    decision.mjwarp = Some(comparison);
+    let (Some(actual_score), Some(upstream_score)) = (
+        decision.native.as_ref().and_then(|c| c.max_normalized),
+        upstream_score,
+    ) else {
+        decision.reason = "undefined_normalized_error".into();
+        return;
+    };
+    if let Some(slack) = reference.relative_slack {
+        let redline = upstream_score * (1.0 + slack);
+        if !redline.is_finite() {
+            decision.reason = "nonfinite_mjwarp_redline".into();
+            return;
+        }
+        decision.redline = Some(redline);
+    }
+    if actual_score <= upstream_score {
+        decision.status = Status::MjwarpPassed;
+        decision.reason = "native_error_not_worse_than_mjwarp".into();
+    } else if let Some(redline) = decision.redline {
+        if actual_score <= redline {
+            decision.status = Status::MjwarpPassed;
+            decision.reason = "native_error_within_mjwarp_redline".into();
+        } else {
+            decision.reason = "native_error_exceeds_mjwarp_redline".into();
+        }
+    } else {
+        decision.status = Status::Pending;
+        decision.reason = "missing_mjwarp_redline".into();
+    }
 }
 
 pub fn native_reference(
@@ -221,6 +335,7 @@ pub fn assert_native(
 pub struct Audit {
     scope: String,
     counts: [usize; 4],
+    compared_scalars: usize,
     details: Vec<Value>,
 }
 
@@ -229,6 +344,7 @@ impl Audit {
         Self {
             scope: scope.into(),
             counts: [0; 4],
+            compared_scalars: 0,
             details: Vec::new(),
         }
     }
@@ -240,6 +356,9 @@ impl Audit {
             Status::Failed => 2,
             Status::Pending => 3,
         }] += 1;
+        // 空字段允许形状检查。
+        // 汇总不能把空字段当数值证据。
+        self.compared_scalars += decision.native.as_ref().map_or(0, |c| c.count);
         let maximum = decision.native.as_ref().map_or(0.0, |c| c.max_absolute);
         if decision.status != Status::NativePassed {
             let detail = json!({"context": context, "decision": decision.json()});
@@ -249,13 +368,33 @@ impl Audit {
         maximum
     }
 
-    pub fn finish(self) {
-        let report = json!({"schema": 1, "scope": self.scope,
+    pub fn report(&self) -> Value {
+        let evaluated_blocks: usize = self.counts.iter().sum();
+        let np03_admitted = self.compared_scalars > 0 && self.counts[2] == 0 && self.counts[3] == 0;
+        let admission_label = if self.counts[2] > 0 {
+            "失败不放行"
+        } else if self.counts[3] > 0 {
+            "待验收不放行"
+        } else if self.compared_scalars == 0 {
+            "未验收不放行"
+        } else if self.counts[1] > 0 {
+            "放行，含二级参考"
+        } else {
+            "原生放行"
+        };
+        json!({"schema": 2, "policy": "native_error_v2", "scope": self.scope, "gate": "NP03",
+            "coverage": "recorded_blocks_only", "evaluated_blocks": evaluated_blocks,
+            "compared_scalars": self.compared_scalars, "np03_admitted": np03_admitted,
+            "admission_label": admission_label,
             "native_passed": self.counts[0], "mjwarp_passed": self.counts[1],
-            "failed": self.counts[2], "pending": self.counts[3], "details": self.details});
+            "failed": self.counts[2], "pending": self.counts[3], "details": self.details})
+    }
+
+    pub fn finish(self) {
+        let report = self.report();
         eprintln!("NP03_SUMMARY {report}");
         assert!(
-            self.counts[2] == 0 && self.counts[3] == 0,
+            report["np03_admitted"] == true,
             "NP03 gate failed: {report}"
         );
     }

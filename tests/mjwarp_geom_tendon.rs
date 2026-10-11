@@ -223,6 +223,7 @@ fn reports_mjwarp_parallel_differences_without_native_tolerance() {
     }
     assert_eq!(observations.len(), 37);
     let report = json!({"schema": 1, "scope": "G01 geom tendon diagnostic subset", "parity": "not_evaluated",
+        "report_kind": "diagnostic", "np03_admitted": false, "admission_label": "诊断完成，不作放行",
         "native_tolerance_used": false, "integer_mismatches": integer_mismatches,
         "observations": observations, "upstream": provenance()});
     if let Some(path) = std::env::var_os("MJWARP_PARALLEL_REPORT") {
