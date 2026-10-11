@@ -230,3 +230,64 @@ fn reports_mjwarp_parallel_differences_without_native_tolerance() {
     }
     assert_eq!(integer_mismatches, 0, "MJWarp discrete topology differs");
 }
+
+#[test]
+#[ignore = "需要NVIDIA驱动与NVRTC；验证局部舍入修复"]
+fn inside_norm_order_preserves_frozen_short_segment_contacts() {
+    // 仅锁定已解释的接触点回归。
+    // 原生优先门禁仍独立判定全部字段。
+    mjwarp_reference_hashes_and_quantization_are_frozen();
+    let v = fixture();
+    let motion = motion_fixture();
+    let case = motion["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["source_frame"] == 393)
+        .unwrap();
+    let session = TransferSession::new(0).unwrap();
+    let plan = plan(&session, &v);
+    let mut checked = 0;
+    for worlds in [3, 513] {
+        let mut data = plan.create_data(worlds).unwrap();
+        let inputs: Vec<_> = (0..worlds)
+            .map(|w| {
+                if matches!(w, 2 | 512) {
+                    case
+                } else {
+                    &v["cases"][w % 3]
+                }
+            })
+            .collect();
+        let hashes = upstream_reference::input_hashes(&inputs);
+        for (w, input) in inputs.iter().enumerate() {
+            write(&mut data, w, input);
+        }
+        plan.update(&mut data).unwrap();
+        let out = data.readback().unwrap();
+        for w in [2, 512].into_iter().filter(|&w| w < worlds) {
+            let row = upstream_reference::motion_row(worlds, w, 393, &hashes)
+                .unwrap()
+                .unwrap();
+            let tendon = out.spatial_tendon().world(w).unwrap();
+            assert_eq!(tendon.ten_wrapadr, ids(&row, "ten_wrapadr"));
+            assert_eq!(tendon.ten_wrapnum, ids(&row, "ten_wrapnum"));
+            assert_eq!(tendon.wrap_obj, ids(&row, "wrap_obj"));
+            assert_eq!(tendon.ten_wrapnum[4], 4);
+            let start = 3 * (tendon.ten_wrapadr[4] as usize + 1);
+            let expected = floats(&row, "wrap_xpos");
+            let actual = &tendon.wrap_xpos[start..start + 6];
+            assert!(actual.iter().all(|v| v.is_finite()));
+            assert_eq!(
+                actual.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+                expected[start..start + 6]
+                    .iter()
+                    .map(|v| v.to_bits())
+                    .collect::<Vec<_>>(),
+                "frame393 contacts: worlds={worlds} world={w}"
+            );
+            checked += 1;
+        }
+    }
+    assert_eq!(checked, 3);
+}

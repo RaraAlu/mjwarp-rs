@@ -70,9 +70,16 @@ __device__ Wrap2 circle(V2 e0,V2 e1,V2 side,float r) {
   if((cr>0 && ind!=0) || (cr<0 && ind==0)) angle=2.0f*3.14159265358979323846f-angle;
   return {r*angle,p0,p1};
 }
+// 固定内侧初始长度的收缩顺序。
+// 冻结上游先舍入x平方，再融合y平方。
+// 短末段会放大1 ULP的长度差。
+// 仅此处固定顺序，不改变通用n2。
+__device__ float inside_norm(V2 a) {
+  return sqrtf(__fmaf_rn(a.y,a.y,__fmul_rn(a.x,a.x)));
+}
 __device__ Wrap2 inside(V2 e0,V2 e1,float r) {
   float x0=e0.x,y0=e0.y,x1=e1.x,y1=e1.y;
-  float l0=n2(e0),l1=n2(e1),dx=x1-x0,dy=y1-y0,dd=dx*dx+dy*dy;
+  float l0=inside_norm(e0),l1=inside_norm(e1),dx=x1-x0,dy=y1-y0,dd=dx*dx+dy*dy;
   if(l0<=r || l1<=r || r<1e-15f || l0<1e-15f || l1<1e-15f) return no2();
   if(dd>1e-15f) {float a=-(dx*x0+dy*y0)/dd;
     if(a>0 && a<1 && n2({x0+dx*a,y0+dy*a})<=r) return no2();}

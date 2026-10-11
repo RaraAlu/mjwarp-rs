@@ -204,11 +204,11 @@ fn traces_frame393_before_newton_without_changing_production() {
     );
     std::fs::create_dir_all(&directory).unwrap();
     let mut replay = wrap_source::TENDON_WRAP_CUDA.to_owned();
-    // Causal replay only: pin the two initial norms to the observed upstream FMA order.
+    // The product now pins this order. Keep the independent inline replay form.
     // Do not change the production source or any convergence threshold.
     replace_once(
         &mut replay,
-        "l0=n2(e0),l1=n2(e1)",
+        "l0=inside_norm(e0),l1=inside_norm(e1)",
         "l0=sqrtf(__fmaf_rn(e0.y,e0.y,__fmul_rn(e0.x,e0.x))),l1=sqrtf(__fmaf_rn(e1.y,e1.y,__fmul_rn(e1.x,e1.x)))",
     );
     let source = format!(

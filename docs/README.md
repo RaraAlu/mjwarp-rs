@@ -50,6 +50,11 @@ CPU调试与工具边界仍待确认。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
 证据见[首差追踪](frame393-first-divergence.md)。
+两处初始长度已固定乘加顺序。
+第393帧接触点对齐MJWarp。
+但原生力臂误差反而增大。
+两级门禁仍保留待验收。
+证据见[局部修复](inside-norm-order-fix.md)。
 内部升精度不能替代上游等价。
 四类已知路径已恢复f32。
 原生对照仍有超差。
@@ -109,6 +114,8 @@ CPU调试与工具边界仍待确认。
 49. [Windows肌腱上游并列诊断](windows-mjwarp-geom-tendon-comparison.md)
 50. [Windows完整T4补测](windows-t4-recheck.md)
 51. [Windows两级判定补测](windows-two-reference-acceptance.md)
+52. [第393帧绕行首差](frame393-first-divergence.md)
+53. [内侧绕行乘加顺序修复](inside-norm-order-fix.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
