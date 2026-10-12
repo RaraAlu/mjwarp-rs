@@ -12,6 +12,9 @@ mod state_packing;
 #[path = "support/t4_field_internal.rs"]
 mod field_internal;
 
+#[path = "support/t4_packing_routes.rs"]
+mod packing_routes;
+
 const REVISION: &str = "71da24d956378a87a703b6e1442b13aec0c4ac29";
 const FIXTURE: &str = include_str!("../fixtures/precision/g01-inputs.json");
 const REMAINING: [&str; 6] = [

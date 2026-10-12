@@ -89,6 +89,12 @@ NP04仍缺公平稳态性能对照。
 新增五项宿主测试通过。
 旧满额验证没有重跑。
 详见[逐字段与内部量](t4-field-internal.md)。
+
+随后展开其余八个打包器。
+本轮登记82条字段与派生路由。
+固定肌腱内部量另映射四组。
+新增五项测试通过，旧项不重跑。
+详见[其余打包路由](t4-packing-routes.md)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
