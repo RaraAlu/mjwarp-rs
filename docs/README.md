@@ -74,6 +74,11 @@ NP04仍缺公平稳态性能对照。
 性能条件检查拒绝不公平记录。
 真实稳态性能仍未测。
 详见[证据门禁](t4-evidence-gates.md)。
+随后核对78项原生入口。
+32项浮点转换保持f32。
+三项布尔适配单独记录。
+局部量与设备打包仍待审。
+详见[入口精度映射](t4-input-precision.md)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
