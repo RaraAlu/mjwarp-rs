@@ -83,6 +83,12 @@ NP04仍缺公平稳态性能对照。
 同时核对十个打包器存储。
 派生缓存与布尔编码单列。
 详见[状态精度追踪](t4-state-packing.md)。
+
+后续已展开23项批量参数。
+质心内部计算另映射15组。
+新增五项宿主测试通过。
+旧满额验证没有重跑。
+详见[逐字段与内部量](t4-field-internal.md)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。

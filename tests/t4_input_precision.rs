@@ -9,6 +9,9 @@ use std::{collections::BTreeSet, path::PathBuf};
 #[path = "support/t4_state_packing.rs"]
 mod state_packing;
 
+#[path = "support/t4_field_internal.rs"]
+mod field_internal;
+
 const REVISION: &str = "71da24d956378a87a703b6e1442b13aec0c4ac29";
 const FIXTURE: &str = include_str!("../fixtures/precision/g01-inputs.json");
 const REMAINING: [&str; 6] = [
