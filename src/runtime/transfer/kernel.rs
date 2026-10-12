@@ -9,6 +9,10 @@ use cudarc::{
 };
 use std::sync::Arc;
 
+#[cfg(test)]
+#[path = "../../../tests/support/t4_rigid_capture.rs"]
+mod recapture;
+
 // 跟随冻结上游的Warp 1.15策略。
 // fuse_fp开启FMA，且不启用fast-math。
 const PHYSICS_FMAD: bool = true;

@@ -114,6 +114,13 @@ NP04仍缺公平稳态性能对照。
 旧完整产物已触发源码漂移。
 完整T4仍未验收。
 详见[零四元数核验](t4-zero-quaternion.md)。
+
+随后补齐三种刚体编译产物。
+另补七份附着相机复用产物。
+当前集合保留24入口、30变体。
+三十份产物均过原精度门禁。
+本轮未重跑物理或满额验证。
+详见[刚体增量编译](t4-rigid-recapture.md)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
