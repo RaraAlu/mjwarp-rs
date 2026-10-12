@@ -314,7 +314,7 @@ fn validate(i: &Inventory) -> Check {
     require(
         i.schema == 1
             && i.scope == "g01-topology-and-frame-precision"
-            && i.product_revision == "20df13fa6ddae17794b334d569e198e938ace6cd"
+            && i.product_revision == "dcb1fae771c45ca5df823d0b2517f04724f625b2"
             && i.upstream_revision == super::REVISION,
         "revision/scope",
     )?;
@@ -477,7 +477,14 @@ fn verify_captures(root: &Path) -> Result<(usize, usize), String> {
                         )?;
                     }
                 }
-                contains(&text, &reader(group)?.replace("\r\n", "\n"))?;
+                let current = reader(group)?.replace("\r\n", "\n");
+                // 旧刚体产物只核对历史分支；新产物另记定向实证。
+                let captured = if group == "rigid" {
+                    super::rigid_internal::historical_rigid_kernel(&current)?
+                } else {
+                    current
+                };
+                contains(&text, &captured)?;
                 let uses_resident = text.contains("#define MJWARP_FIELD_BATCHES")
                     && (group == "com"
                         || group == "camlight"

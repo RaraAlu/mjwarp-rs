@@ -1,5 +1,5 @@
 //! 原生入口的静态精度映射。
-//! 不执行GPU或原生动态库。
+//! 默认不执行GPU；零分支实证另行显式启用。
 #![cfg(feature = "cuda-probe")]
 
 use serde::Deserialize;
@@ -20,6 +20,9 @@ mod topology_frames;
 
 #[path = "support/t4_rigid_internal.rs"]
 mod rigid_internal;
+
+#[path = "support/t4_zero_quaternion.rs"]
+mod zero_quaternion;
 
 const REVISION: &str = "71da24d956378a87a703b6e1442b13aec0c4ac29";
 const FIXTURE: &str = include_str!("../fixtures/precision/g01-inputs.json");

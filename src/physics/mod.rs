@@ -748,7 +748,7 @@ __device__ V scale(V a,float s) { return {a.x*s,a.y*s,a.z*s}; }
 __device__ Q normalize(Q q) {
   float n=sqrtf(q.w*q.w+q.x*q.x+q.y*q.y+q.z*q.z);
 #ifdef MJWARP_G01_EQUIVALENT
-  if(n==0.0f) return {0,0,0,0};
+  if(n==0.0f) return {0,0,0,1};
 #endif
   float s=1.0f/n;
   return {q.w*s,q.x*s,q.y*s,q.z*s};

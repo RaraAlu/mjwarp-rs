@@ -116,7 +116,7 @@ fn validate(i: &Inventory) -> Check {
     )?;
     require(
         i.upstream_revision == super::REVISION
-            && i.product_revision == "248a28a7242525d5f86871d4b588e50c1a27693b",
+            && i.product_revision == "dcb1fae771c45ca5df823d0b2517f04724f625b2",
         "revision",
     )?;
     require(

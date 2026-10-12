@@ -166,7 +166,7 @@ fn validate(i: &Inventory) -> Check {
         "scope",
     )?;
     require(
-        i.product_revision == "78601790d2d09d8d08a93ba6876b388f1ca43174"
+        i.product_revision == "dcb1fae771c45ca5df823d0b2517f04724f625b2"
             && i.upstream_revision == super::REVISION,
         "revision",
     )?;

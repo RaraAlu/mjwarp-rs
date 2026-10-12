@@ -1,5 +1,5 @@
 //! 刚体内部量与七项输出的静态映射。
-//! 零四元数源码分歧阻止等价放行。
+//! 零分支已有产物实证；完整精度仍不放行。
 use super::{Check, Stamp, between, digest, require};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -62,7 +62,7 @@ const BOUNDARIES: [&str; 3] = [
     "diagnostic-f64-no-feedback",
 ];
 const REMAINING: [&str; 5] = [
-    "zero-quaternion-source-disagreement",
+    "zero-quaternion-full-pipeline-not-retested",
     "operator-order-and-generated-semantics",
     "other-kernel-internals-and-outputs",
     "upstream-generated-kernels",
@@ -125,6 +125,13 @@ fn inventory() -> Inventory {
 }
 fn kernel() -> &'static str {
     between(PHYSICS, "const KINEMATICS_CUDA: &str = r#\"", "\"#;").unwrap()
+}
+/// 旧捕获仅证明历史源码，不充当修复后的完整捕获。
+/// 只回溯已实测的一个分支；其他漂移仍触发原哈希检查。
+pub(super) fn historical_rigid_kernel(text: &str) -> Result<String, String> {
+    let current = "if(n==0.0f) return {0,0,0,1};";
+    require(text.matches(current).count() == 1, "zero fallback drift")?;
+    Ok(text.replace(current, "if(n==0.0f) return {0,0,0,0};"))
 }
 fn source(path: &str) -> Result<&'static str, String> {
     SOURCES
@@ -236,17 +243,17 @@ fn validate_boundaries(i: &Inventory, text: &str) -> Check {
     )?;
     let z = &i.zero_quaternion;
     require(
-        z.status == "blocked-source-disagreement"
-            && z.product_return == [0, 0, 0, 0]
+        z.status == "matched-generated-artifact"
+            && z.product_return == [0, 0, 0, 1]
             && z.warp_header_return == [0, 0, 0, 1]
             && z.warp_doc_claim == "zero quaternion"
-            && !z.upstream_generated_verified
+            && z.upstream_generated_verified
             && !i.equivalence_eligible,
-        "zero quaternion blocker",
+        "zero quaternion evidence boundary",
     )?;
     anchor(
         text,
-        "#ifdef MJWARP_G01_EQUIVALENT\n  if(n==0.0f) return {0,0,0,0};\n#endif",
+        "#ifdef MJWARP_G01_EQUIVALENT\n  if(n==0.0f) return {0,0,0,1};\n#endif",
     )?;
     anchor(text, "if(!b) { p=load_v(xp); r=load_q(xq); }")?;
     anchor(text, "for(unsigned b=0;b<nb;++b)")?;
@@ -268,7 +275,7 @@ fn validate(i: &Inventory) -> Check {
     require(
         i.schema == 1
             && i.scope == "g01-rigid-internal-and-output"
-            && i.product_revision == "9753037e7b3a783fa6f8a05a77cfea854923f83a"
+            && i.product_revision == "dcb1fae771c45ca5df823d0b2517f04724f625b2"
             && i.upstream_revision == super::REVISION,
         "scope/revision",
     )?;
@@ -434,7 +441,10 @@ fn verify_captures(root: &Path) -> Result<usize, String> {
                     )?;
                 }
             }
-            anchor(&text, &kernel().replace("\r\n", "\n"))?;
+            anchor(
+                &text,
+                &historical_rigid_kernel(kernel())?.replace("\r\n", "\n"),
+            )?;
             require(
                 variants.insert(capture_variant(&text)?),
                 "duplicate variant",
@@ -495,23 +505,23 @@ fn rejects_missing_or_misrouted_output_fields() {
     }
 }
 #[test]
-fn preserves_zero_quaternion_blocker_and_active_macros() {
+fn preserves_zero_quaternion_evidence_and_active_macros() {
     validate_boundaries(&inventory(), &kernel().replace('\n', "\r\n")).unwrap();
     for mutation in 0..5 {
         let mut i = inventory();
         match mutation {
             0 => i.zero_quaternion.status = "accepted".into(),
             1 => i.zero_quaternion.warp_header_return = [0; 4],
-            2 => i.zero_quaternion.upstream_generated_verified = true,
+            2 => i.zero_quaternion.upstream_generated_verified = false,
             3 => i.equivalence_eligible = true,
-            _ => i.zero_quaternion.product_return = [0, 0, 0, 1],
+            _ => i.zero_quaternion.product_return = [0; 4],
         }
         assert!(validate_boundaries(&i, kernel()).is_err());
     }
     assert!(
         validate_boundaries(
             &inventory(),
-            &kernel().replace("if(n==0.0f) return {0,0,0,0};", "changed_fallback")
+            &kernel().replace("if(n==0.0f) return {0,0,0,1};", "changed_fallback")
         )
         .is_err()
     );
@@ -520,6 +530,40 @@ fn preserves_zero_quaternion_blocker_and_active_macros() {
         (false, false)
     );
     assert!(capture_variant("#define MJWARP_G01_EQUIVALENT").is_err());
+    // 整份历史源码哈希约束唯一差分，也保护严格入口。
+    assert_eq!(
+        digest(&historical_rigid_kernel(PHYSICS).unwrap()),
+        "595d571679b02ebd4705442cc7f07c362d0918519466c22b91d97271e93719f2"
+    );
+    assert!(historical_rigid_kernel(&kernel().replace("{0,0,0,1}", "{1,0,0,0}")).is_err());
+    let report: serde_json::Value = serde_json::from_str(include_str!(
+        "../../fixtures/precision/g01-zero-quaternion-result.json"
+    ))
+    .unwrap();
+    assert_eq!(report["zero_fallback"], serde_json::json!([0, 0, 0, 1]));
+    assert_eq!(report["comparisons"], 608);
+    assert_eq!(report["differences"], serde_json::json!([]));
+    assert_eq!(report["upstream_revision"], super::REVISION);
+    assert_eq!(
+        report["upstream_ptx_sha256"],
+        "1d9e4e3a983ca35090ade3a48fd83aa0dc86a23228bb0865010f681698ab75dd"
+    );
+    // 本次只刷新受影响的源码戳，不重跑旧整组配置。
+    for text in [
+        include_str!("../../fixtures/precision/g01-state-packing.json"),
+        include_str!("../../fixtures/precision/g01-field-internal.json"),
+        include_str!("../../fixtures/precision/g01-topology-frames.json"),
+        FIXTURE,
+    ] {
+        let value: serde_json::Value = serde_json::from_str(text).unwrap();
+        let stamp = value["product_sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["path"] == "src/physics/mod.rs")
+            .unwrap();
+        assert_eq!(stamp["sha256"], digest(PHYSICS));
+    }
 }
 #[test]
 fn rejects_source_drift_and_premature_precision_acceptance() {
@@ -577,7 +621,8 @@ fn audit_frozen_rigid_internal_and_output_sources() {
     let report = serde_json::json!({
         "schema":1,"scope":i.scope,"inventory_sha256":digest(FIXTURE),
         "product_revision":i.product_revision,"upstream_revision":i.upstream_revision,
-        "internal_groups":i.steps.len(),"output_fields":i.outputs.len(),"captured_variants":captures,
+        "internal_groups":i.steps.len(),"output_fields":i.outputs.len(),"historical_captured_variants":captures,
+        "current_full_capture_verified":false,
         "zero_quaternion_status":i.zero_quaternion.status,"equivalence_eligible":false,
         "np01_complete":false,"np02_complete":false,"np03":"historical-unchanged","np04":"not-measured",
         "gpu_executions":0,"python_executions":0,"remaining":i.remaining

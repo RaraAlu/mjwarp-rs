@@ -593,7 +593,13 @@ fn g01_accepts_finite_nonunit_parameters_and_zero_state_quaternions() {
     for (j, &kind) in fields.jnt_type.iter().enumerate() {
         if kind <= 1 {
             let b = fields.jnt_bodyid[j] as usize;
-            assert_eq!(&r.xquat[4 * b..4 * b + 4], &[0.0; 4]);
+            // 冻结场景的球关节直属世界体，局部旋转为单位量。
+            // Warp按存储槽返回末位一，不返回MJWarp单位旋转。
+            if kind == 1 {
+                assert_eq!(fields.body_parentid[b], 0);
+                assert_eq!(&fields.body_quat[4 * b..4 * b + 4], &[1.0, 0.0, 0.0, 0.0]);
+            }
+            assert_eq!(&r.xquat[4 * b..4 * b + 4], &[0.0, 0.0, 0.0, 1.0]);
         }
     }
     assert!(
