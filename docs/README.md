@@ -95,6 +95,12 @@ NP04仍缺公平稳态性能对照。
 固定肌腱内部量另映射四组。
 新增五项测试通过，旧项不重跑。
 详见[其余打包路由](t4-packing-routes.md)。
+
+随后补齐23条整数拓扑路由。
+附着相机内部量另映射16组。
+八项输出追踪到宿主视图。
+新增五项用例通过，旧项未重跑。
+详见[拓扑与位姿](t4-topology-frames.md)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
