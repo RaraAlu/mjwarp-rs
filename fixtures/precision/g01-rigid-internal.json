@@ -1,0 +1,449 @@
+{
+  "schema": 1,
+  "scope": "g01-rigid-internal-and-output",
+  "product_revision": "9753037e7b3a783fa6f8a05a77cfea854923f83a",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "product_sources": [
+    {
+      "path": "src/physics/mod.rs",
+      "sha256": "595d571679b02ebd4705442cc7f07c362d0918519466c22b91d97271e93719f2"
+    },
+    {
+      "path": "src/runtime/transfer.rs",
+      "sha256": "268c351cb4a7048cef7ceb870c8e4a7f1a12633dc474d75065b356f8988e190f"
+    },
+    {
+      "path": "src/physics/resident.rs",
+      "sha256": "b2d63abc3763c38435ab8bb76c866fb307f7e144f1db712ae0abc46d1c7fd9cf"
+    }
+  ],
+  "external_sources": [
+    {
+      "path": "upstream/_src/math.py",
+      "sha256": "a6f6ee11b9519c9b247c55eb83fec2842ac56bb05d21ea3d19623b200cfb4778"
+    },
+    {
+      "path": "upstream/_src/types.py",
+      "sha256": "5ff63b8186bafba2e2d51d5aae84875fb289411d9984f4e06b51813ea088491b"
+    },
+    {
+      "path": "warp/_src/types.py",
+      "sha256": "2ea64925f7c1e551c7d20b6e45091640b548d6c0e6b88275b9fa866578041efa"
+    },
+    {
+      "path": "warp/_src/builtins.py",
+      "sha256": "182fa9f313dadee495ec7085ed0edf6e78567d0504ab4ebd3e6859143c9a9cb9"
+    },
+    {
+      "path": "warp/native/builtin.h",
+      "sha256": "99e9ab17698e87ec85d743d416249f7a5f29f5cb8419a2955560350bc564bbe4"
+    },
+    {
+      "path": "upstream/_src/smooth.py",
+      "sha256": "6268f0e1b6cb4c9ec6bbd3aa29828dfb36224efb2a3a3e1f54e5f87b6623fdef"
+    },
+    {
+      "path": "upstream/_src/io.py",
+      "sha256": "5b5facb1918a9f0f6bb169adbb861cb43bfd26bdbdbf932e4080eb51ebbe1c88"
+    },
+    {
+      "path": "warp/native/quat.h",
+      "sha256": "1ef29e23117b3da391c12d5e4959f52f8cc83ccb2c8b5ced474a63499a20ccd2"
+    }
+  ],
+  "steps": [
+    {
+      "id": "normalize-positive",
+      "classification": "source-boundary",
+      "scalar": "f32",
+      "upstream_source": "warp/native/quat.h",
+      "symbol": "normalize",
+      "upstream_type": "wp.quat",
+      "product": [
+        "float n=sqrtf(q.w*q.w+q.x*q.x+q.y*q.y+q.z*q.z);",
+        "float s=1.0f/n;",
+        "return {q.w*s,q.x*s,q.y*s,q.z*s};"
+      ],
+      "upstream": [
+        "return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;",
+        "Type length(const quat_t<Type>& q) { return sqrt(dot(q, q)); }",
+        "Type l = length(q);",
+        "Type inv_l = Type(1) / l;",
+        "return quat_t<Type>(q.x * inv_l, q.y * inv_l, q.z * inv_l, q.w * inv_l);"
+      ]
+    },
+    {
+      "id": "quaternion-product",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/math.py",
+      "symbol": "mul_quat",
+      "upstream_type": "wp.quat",
+      "product": [
+        "__device__ Q multiply(Q a,Q b) {",
+        "return {a.w*b.w-a.x*b.x-a.y*b.y-a.z*b.z,",
+        "a.w*b.z+a.x*b.y-a.y*b.x+a.z*b.w};"
+      ],
+      "upstream": [
+        "return wp.quat(",
+        "u[0] * v[0] - u[1] * v[1] - u[2] * v[2] - u[3] * v[3],",
+        "u[0] * v[3] + u[1] * v[2] - u[2] * v[1] + u[3] * v[0],"
+      ]
+    },
+    {
+      "id": "rotation",
+      "classification": "different-order",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/math.py",
+      "symbol": "rot_vec_quat",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "float d=q.x*v.x+q.y*v.y+q.z*v.z;",
+        "float s=q.w*q.w-q.x*q.x-q.y*q.y-q.z*q.z;",
+        "return {s*v.x+2*d*q.x+2*q.w*(q.y*v.z-q.z*v.y),"
+      ],
+      "upstream": [
+        "s, u = quat[0], wp.vec3(quat[1], quat[2], quat[3])",
+        "r = 2.0 * (wp.dot(u, vec) * u) + (s * s - wp.dot(u, u)) * vec",
+        "r = r + 2.0 * s * wp.cross(u, vec)"
+      ]
+    },
+    {
+      "id": "matrix",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/math.py",
+      "symbol": "quat_to_mat",
+      "upstream_type": "wp.mat33",
+      "product": [
+        "__device__ void matrix(float* m,Q q) {",
+        "m[0]=q.w*q.w+q.x*q.x-q.y*q.y-q.z*q.z;",
+        "m[8]=q.w*q.w-q.x*q.x-q.y*q.y+q.z*q.z;"
+      ],
+      "upstream": [
+        "q00 = quat[0] * quat[0]",
+        "q33 = quat[3] * quat[3]",
+        "q00 + q11 - q22 - q33,",
+        "q00 - q11 - q22 + q33,"
+      ]
+    },
+    {
+      "id": "free-state",
+      "classification": "normalization-dependent",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/smooth.py",
+      "symbol": "_kinematics_branch",
+      "upstream_type": "wp.vec3+wp.quat",
+      "product": [
+        "if(b && count==1 && type[j]==0) {",
+        "p=load_v(q+qa[j]); r=normalize(load_q(q+qa[j]+3));",
+        "store_v(anchor+3*j,p); store_v(xa+3*j,load_v(axis+3*j));"
+      ],
+      "upstream": [
+        "if jnt_type_ == JointType.FREE:",
+        "xpos = wp.vec3(qpos[qadr], qpos[qadr + 1], qpos[qadr + 2])",
+        "xquat = wp.quat(qpos[qadr + 3], qpos[qadr + 4], qpos[qadr + 5], qpos[qadr + 6])",
+        "xquat = wp.normalize(xquat)",
+        "xaxis_out[worldid, jntadr] = jnt_axis[worldid % jnt_axis.shape[0], jntadr]"
+      ]
+    },
+    {
+      "id": "mocap",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/smooth.py",
+      "symbol": "_kinematics_branch",
+      "upstream_type": "wp.vec3+wp.quat",
+      "product": [
+        "V local_p=load_v(bp+3*b); Q local_q=load_q(bq+4*b);",
+        "if(mocap[b]>=0) { local_p=load_v(mp+3*mocap[b]); local_q=load_q(mq+4*mocap[b]); }"
+      ],
+      "upstream": [
+        "mocapid = body_mocapid[bodyid]",
+        "xpos = mocap_pos_in[worldid, mocapid]",
+        "xquat = mocap_quat_in[worldid, mocapid]",
+        "xpos = body_pos[worldid % body_pos.shape[0], bodyid]",
+        "xquat = body_quat[worldid % body_quat.shape[0], bodyid]"
+      ]
+    },
+    {
+      "id": "parent-compose",
+      "classification": "different-order",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/smooth.py",
+      "symbol": "_kinematics_branch",
+      "upstream_type": "wp.vec3+wp.quat",
+      "product": [
+        "Q pr=load_q(xq+4*parent[b]);",
+        "p=add(load_v(xp+3*parent[b]),rotate(pr,local_p));",
+        "r=multiply(pr,local_q);"
+      ],
+      "upstream": [
+        "xpos = math.rot_vec_quat(xpos, xquat_out[worldid, pid]) + xpos_out[worldid, pid]",
+        "xquat = math.mul_quat(xquat_out[worldid, pid], xquat)"
+      ]
+    },
+    {
+      "id": "joint-anchor",
+      "classification": "different-order",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/smooth.py",
+      "symbol": "_kinematics_branch",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "V local=load_v(jp+3*j), a=add(p,rotate(r,local));"
+      ],
+      "upstream": [
+        "xanchor = math.rot_vec_quat(jnt_pos[jnt_pos_id, jntadr], xquat) + xpos"
+      ]
+    },
+    {
+      "id": "joint-axis",
+      "classification": "different-order",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/smooth.py",
+      "symbol": "_kinematics_branch",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "V ax=rotate(r,load_v(axis+3*j));"
+      ],
+      "upstream": [
+        "jnt_axis_ = jnt_axis[worldid % jnt_axis.shape[0], jntadr]",
+        "xaxis = math.rot_vec_quat(jnt_axis_, xquat)"
+      ]
+    },
+    {
+      "id": "slide",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/smooth.py",
+      "symbol": "_kinematics_branch",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "if(type[j]==2) p=add(p,scale(ax,q[qa[j]]-q0[qa[j]]));"
+      ],
+      "upstream": [
+        "elif jnt_type_ == JointType.SLIDE:",
+        "xpos += xaxis * (qpos[qadr] - qpos0[worldid % qpos0.shape[0], qadr])"
+      ]
+    },
+    {
+      "id": "ball",
+      "classification": "normalization-dependent",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/smooth.py",
+      "symbol": "_kinematics_branch",
+      "upstream_type": "wp.quat",
+      "product": [
+        "Q delta;",
+        "if(type[j]==1) delta=normalize(load_q(q+qa[j]));"
+      ],
+      "upstream": [
+        "if jnt_type_ == JointType.BALL:",
+        "qloc = wp.quat(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2], qpos[qadr + 3])",
+        "qloc = wp.normalize(qloc)"
+      ]
+    },
+    {
+      "id": "hinge-trigonometry",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/math.py",
+      "symbol": "axis_angle_to_quat",
+      "upstream_type": "float+wp.quat",
+      "product": [
+        "float h=0.5f*(q[qa[j]]-q0[qa[j]]), s=sinf(h);",
+        "V t=scale(load_v(axis+3*j),s); delta={cosf(h),t.x,t.y,t.z};"
+      ],
+      "upstream": [
+        "def axis_angle_to_quat(axis: wp.vec3, angle: float) -> wp.quat:",
+        "s, c = wp.sin(angle * 0.5), wp.cos(angle * 0.5)",
+        "axis = axis * s",
+        "return wp.quat(c, axis[0], axis[1], axis[2])"
+      ]
+    },
+    {
+      "id": "rotation-accumulate",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/smooth.py",
+      "symbol": "_kinematics_branch",
+      "upstream_type": "wp.quat",
+      "product": [
+        "r=multiply(r,delta);"
+      ],
+      "upstream": [
+        "xquat = math.mul_quat(xquat, qloc)",
+        "qloc_ = math.axis_angle_to_quat(jnt_axis_, qpos[qadr] - qpos0_)",
+        "xquat = math.mul_quat(xquat, qloc_)"
+      ]
+    },
+    {
+      "id": "offcenter-correction",
+      "classification": "different-expression",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/smooth.py",
+      "symbol": "_kinematics_branch",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "p=add(a,scale(rotate(r,local),-1));"
+      ],
+      "upstream": [
+        "xpos = xanchor - math.rot_vec_quat(jnt_pos[jnt_pos_id, jntadr], xquat)"
+      ]
+    },
+    {
+      "id": "final-normalize",
+      "classification": "normalization-dependent",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/smooth.py",
+      "symbol": "_kinematics_branch",
+      "upstream_type": "wp.quat",
+      "product": [
+        "r=normalize(r);"
+      ],
+      "upstream": [
+        "xquat = wp.normalize(xquat)\n    xpos_out[worldid, bodyid] = xpos"
+      ]
+    },
+    {
+      "id": "inertial-position",
+      "classification": "fused-stage",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/smooth.py",
+      "symbol": "_compute_body_inertial_frames",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "store_v(xi+3*b,add(p,rotate(r,load_v(ip+3*b))));"
+      ],
+      "upstream": [
+        "xipos_out[worldid, bodyid] = xpos + math.rot_vec_quat(body_ipos[worldid % body_ipos.shape[0], bodyid], xquat)"
+      ]
+    },
+    {
+      "id": "inertial-matrix",
+      "classification": "fused-stage",
+      "scalar": "f32",
+      "upstream_source": "upstream/_src/smooth.py",
+      "symbol": "_compute_body_inertial_frames",
+      "upstream_type": "wp.mat33",
+      "product": [
+        "matrix(im+9*b,multiply(r,load_q(iq+4*b)));"
+      ],
+      "upstream": [
+        "ximat_out[worldid, bodyid] = math.quat_to_mat(math.mul_quat(xquat, body_iquat[worldid % body_iquat.shape[0], bodyid]))"
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "xpos",
+      "scalar": "f32",
+      "upstream_type": "wp.vec3",
+      "pointer": "float* xp=result+4+(unsigned long long)w*(28*nb+6*nj);",
+      "write": "store_v(xp+3*b,p);",
+      "view": "&v[..3 * nb]",
+      "symbol": "_kinematics_branch",
+      "upstream_write": "xpos_out[worldid, bodyid] = xpos",
+      "upstream_declaration": "array(\"nworld\", \"nbody\", wp.vec3)"
+    },
+    {
+      "name": "xquat",
+      "scalar": "f32",
+      "upstream_type": "wp.quat",
+      "pointer": "float* xq=xp+3*nb;",
+      "write": "store_q(xq+4*b,r);",
+      "view": "&v[3 * nb..7 * nb]",
+      "symbol": "_kinematics_branch",
+      "upstream_write": "xquat_out[worldid, bodyid] = xquat",
+      "upstream_declaration": "array(\"nworld\", \"nbody\", wp.quat)"
+    },
+    {
+      "name": "xmat",
+      "scalar": "f32",
+      "upstream_type": "wp.mat33",
+      "pointer": "float* xm=xq+4*nb;",
+      "write": "matrix(xm+9*b,r);",
+      "view": "&v[7 * nb..16 * nb]",
+      "symbol": "_compute_body_matrices",
+      "upstream_write": "xmat_out[worldid, bodyid] = math.quat_to_mat(xquat_in[worldid, bodyid])",
+      "upstream_declaration": "array(\"nworld\", \"nbody\", wp.mat33)"
+    },
+    {
+      "name": "xipos",
+      "scalar": "f32",
+      "upstream_type": "wp.vec3",
+      "pointer": "float* xi=xm+9*nb;",
+      "write": "store_v(xi+3*b,add(p,rotate(r,load_v(ip+3*b))));",
+      "view": "&v[16 * nb..19 * nb]",
+      "symbol": "_compute_body_inertial_frames",
+      "upstream_write": "xipos_out[worldid, bodyid] = xpos + math.rot_vec_quat(body_ipos[worldid % body_ipos.shape[0], bodyid], xquat)",
+      "upstream_declaration": "array(\"nworld\", \"nbody\", wp.vec3)"
+    },
+    {
+      "name": "ximat",
+      "scalar": "f32",
+      "upstream_type": "wp.mat33",
+      "pointer": "float* im=xi+3*nb;",
+      "write": "matrix(im+9*b,multiply(r,load_q(iq+4*b)));",
+      "view": "&v[19 * nb..28 * nb]",
+      "symbol": "_compute_body_inertial_frames",
+      "upstream_write": "ximat_out[worldid, bodyid] = math.quat_to_mat(math.mul_quat(xquat, body_iquat[worldid % body_iquat.shape[0], bodyid]))",
+      "upstream_declaration": "array(\"nworld\", \"nbody\", wp.mat33)"
+    },
+    {
+      "name": "xanchor",
+      "scalar": "f32",
+      "upstream_type": "wp.vec3",
+      "pointer": "float* anchor=im+9*nb;",
+      "write": "store_v(anchor+3*j,a);",
+      "view": "&v[28 * nb..28 * nb + 3 * nj]",
+      "symbol": "_kinematics_branch",
+      "upstream_write": "xanchor_out[worldid, jntadr] = xanchor",
+      "upstream_declaration": "array(\"nworld\", \"njnt\", wp.vec3)"
+    },
+    {
+      "name": "xaxis",
+      "scalar": "f32",
+      "upstream_type": "wp.vec3",
+      "pointer": "float* xa=anchor+3*nj;",
+      "write": "store_v(xa+3*j,ax);",
+      "view": "&v[28 * nb + 3 * nj..]",
+      "symbol": "_kinematics_branch",
+      "upstream_write": "xaxis_out[worldid, jntadr] = xaxis",
+      "upstream_declaration": "array(\"nworld\", \"njnt\", wp.vec3)"
+    }
+  ],
+  "boundaries": [
+    "world-pose-preserved",
+    "serial-versus-branch-schedule",
+    "diagnostic-f64-no-feedback"
+  ],
+  "zero_quaternion": {
+    "status": "blocked-source-disagreement",
+    "product_return": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "warp_header_return": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "warp_doc_claim": "zero quaternion",
+    "upstream_generated_verified": false
+  },
+  "np01_complete": false,
+  "np02_complete": false,
+  "equivalence_eligible": false,
+  "remaining": [
+    "zero-quaternion-source-disagreement",
+    "operator-order-and-generated-semantics",
+    "other-kernel-internals-and-outputs",
+    "upstream-generated-kernels",
+    "measured-performance"
+  ]
+}

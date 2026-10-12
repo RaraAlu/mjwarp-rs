@@ -101,6 +101,12 @@ NP04仍缺公平稳态性能对照。
 八项输出追踪到宿主视图。
 新增五项用例通过，旧项未重跑。
 详见[拓扑与位姿](t4-topology-frames.md)。
+
+随后映射17组刚体内部量。
+七项输出已追踪到宿主视图。
+新增六项用例通过，旧项未重跑。
+零四元数源码分歧仍阻止等价放行。
+详见[刚体内部量](t4-rigid-internal.md)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
