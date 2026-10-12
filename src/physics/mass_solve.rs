@@ -338,6 +338,14 @@ fn check_result<T: Copy + Into<f64>>(
 // limitations under the License.
 #[cfg(feature = "cuda-probe")]
 const MASS_SOLVE_CUDA: &str = r#"
+__device__ float tile_schur_update(float value,float a,float b) {
+  float result;
+  // Match the frozen MathDx PTX, including its permission to contract.
+  // Explicit .rn on mul/sub would forbid the driver's FMA contraction.
+  asm("{ .reg .f32 product; mul.f32 product,%2,%3; sub.f32 %0,%1,product; }"
+      : "=f"(result) : "f"(value), "f"(a), "f"(b));
+  return result;
+}
 extern "C" __global__ void rigid_mass_solve(const int* blocks,const float* rhs,
     const float* state,float* output,unsigned nb,unsigned n,unsigned nr,unsigned nw) {
   unsigned w=blockIdx.x*blockDim.x+threadIdx.x;
@@ -360,19 +368,35 @@ extern "C" __global__ void rigid_mass_solve(const int* blocks,const float* rhs,
         status[0]=2.0f; status[1]=float(begin); status[2]=inv[begin]; return;
       }
     } else if(kind==1) {
+      // Frozen MathDx tile PTX uses rsqrt.approx plus multiply.
+      // Preserve the mul/sub contract for each Schur update.
+      // The small scalar route (through six DOFs) retains sqrt/divide/FMA.
+      bool tile=end-begin>6;
       for(int i=begin;i<end;i++) {
         float pivot=mat[i*n+i];
-        for(int k=begin;k<i;k++) pivot-=ld[k*n+i]*ld[k*n+i];
+        for(int k=begin;k<i;k++) {
+          float u=ld[k*n+i];
+          pivot=tile ? tile_schur_update(pivot,u,u) : fmaf(-u,u,pivot);
+        }
         if(!(pivot>0.0f) || !isfinite(pivot)) {
           status[0]=1.0f; status[1]=float(i); status[2]=pivot; return;
         }
-        float diagonal=sqrtf(pivot);
+        float reciprocal, diagonal;
+        if(tile) {
+          asm("rsqrt.approx.f32 %0, %1;" : "=f"(reciprocal) : "f"(pivot));
+          diagonal=__fmul_rn(pivot,reciprocal);
+        } else {
+          diagonal=sqrtf(pivot);
+          reciprocal=1.0f/diagonal;
+        }
         ld[i*n+i]=diagonal;
-        float reciprocal=1.0f/diagonal;
         for(int j=i+1;j<end;j++) {
           float value=mat[i*n+j];
-          for(int k=begin;k<i;k++) value-=ld[k*n+i]*ld[k*n+j];
-          ld[i*n+j]=value*reciprocal;
+          for(int k=begin;k<i;k++) {
+            float u=ld[k*n+i], v=ld[k*n+j];
+            value=tile ? tile_schur_update(value,u,v) : fmaf(-u,v,value);
+          }
+          ld[i*n+j]=__fmul_rn(value,reciprocal);
         }
       }
     } else {
@@ -681,4 +705,165 @@ mod tests {
         assert_eq!(w.diagonal_inverse, &[0.0, 0.0]);
         assert_eq!(w.solution, &[1.0, 2.0]);
     }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    fn first_difference_evidence_binds_inputs_and_upstream() {
+        use sha2::{Digest, Sha256};
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let manifest: serde_json::Value = serde_json::from_str(include_str!(
+            "../../fixtures/mjwarp-mass-solve/first-difference/manifest.json"
+        ))
+        .unwrap();
+        for (path, hash) in manifest["files"].as_object().unwrap() {
+            assert_eq!(
+                format!(
+                    "{:x}",
+                    Sha256::digest(std::fs::read(root.join(path)).unwrap())
+                ),
+                hash.as_str().unwrap(),
+                "{path}"
+            );
+        }
+        let upstream: serde_json::Value = serde_json::from_str(include_str!(
+            "../../fixtures/mjwarp-mass-solve/first-difference/upstream.json"
+        ))
+        .unwrap();
+        let baseline: serde_json::Value = serde_json::from_str(include_str!(
+            "../../fixtures/mjwarp-mass-solve/first-difference/baseline.json"
+        ))
+        .unwrap();
+        assert_eq!(
+            upstream["revision"],
+            "71da24d956378a87a703b6e1442b13aec0c4ac29"
+        );
+        assert_eq!(upstream["worlds"], 8);
+        assert_eq!(upstream["rhs_count"], 3);
+        for field in [
+            "xpos",
+            "xquat",
+            "xmat",
+            "xipos",
+            "ximat",
+            "xanchor",
+            "xaxis",
+            "subtree_com",
+            "cinert",
+            "cdof",
+            "crb",
+            "matrix",
+        ] {
+            let bits = |v: &serde_json::Value| {
+                v.as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|x| (x.as_f64().unwrap() as f32).to_bits())
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(
+                bits(&baseline["rows"][1][field]),
+                bits(&upstream["rows"][1][field]),
+                "{field}"
+            );
+        }
+        assert_ne!(
+            baseline["rows"][1]["factor"][0],
+            upstream["rows"][1]["factor"][0]
+        );
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn device_tile_factor_matches_frozen_matrix_before_back_substitution() {
+        let reference: serde_json::Value = serde_json::from_str(include_str!(
+            "../../fixtures/mjwarp-mass-solve/first-difference/upstream.json"
+        ))
+        .unwrap();
+        let rows = reference["rows"].as_array().unwrap();
+        let s = TransferSession::new(0).unwrap();
+        let n = 11;
+        let stride = 10 + n * n;
+        let mut state = vec![-131072.0; 8 + rows.len() * stride];
+        for (w, row) in rows.iter().enumerate() {
+            let start = 4 + w * stride;
+            state[start..start + 10].fill(0.0);
+            for (out, v) in state[start + 10..start + stride]
+                .iter_mut()
+                .zip(row["matrix"].as_array().unwrap())
+            {
+                *out = v.as_f64().unwrap() as f32;
+            }
+        }
+        let parents: Vec<_> = (0..n as i32).map(|i| i - 1).collect();
+        let layout = MassSolveLayout::new(rows.len(), n, 1).unwrap();
+        let out = solve_device(
+            &s,
+            1,
+            layout,
+            &s.upload(&state).unwrap(),
+            &vec![0.0; rows.len() * n],
+            factor_blocks(&parents),
+        )
+        .unwrap();
+        for (w, row) in rows.iter().enumerate() {
+            let factor = out.world(w).unwrap().ld;
+            for (i, (a, b)) in factor
+                .iter()
+                .zip(row["factor"].as_array().unwrap())
+                .enumerate()
+            {
+                let b = b.as_f64().unwrap() as f32;
+                // Same-matrix trace bounds the observed MathDx rounding only.
+                // It does not replace the full native-first solution gates.
+                assert!(
+                    a.to_bits().abs_diff(b.to_bits()) <= 1,
+                    "same-matrix factor world={w} index={i}: {a} != {b}"
+                );
+            }
+            assert!(out.world(w).unwrap().solution.iter().all(|&x| x == 0.0));
+        }
+        assert_eq!(
+            out.world(1).unwrap().ld[0].to_bits(),
+            3.741_657_3_f32.to_bits()
+        );
+
+        // Exercise invalid tile pivots, then recover on the same session.
+        let layout = MassSolveLayout::new(1, 7, 1).unwrap();
+        let parents: Vec<_> = (0..7).map(|i| i - 1).collect();
+        let mut state = vec![-131072.0; 67];
+        state[4..63].fill(0.0);
+        for i in 0..7 {
+            state[14 + i * 8] = 4.0;
+        }
+        for pivot in [0.0, -1.0, f32::INFINITY, f32::NAN] {
+            state[14] = pivot;
+            assert!(matches!(
+                solve_device(
+                    &s,
+                    1,
+                    layout,
+                    &s.upload(&state).unwrap(),
+                    &[1.0; 7],
+                    factor_blocks(&parents)
+                ),
+                Err(TransferError::InvalidPivot { dof: 0, .. })
+            ));
+        }
+        state[14] = 4.0;
+        let out = solve_device(
+            &s,
+            1,
+            layout,
+            &s.upload(&state).unwrap(),
+            &[1.0; 7],
+            factor_blocks(&parents),
+        )
+        .unwrap();
+        assert_eq!(out.world(0).unwrap().solution, &[0.25; 7]);
+    }
 }
+
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "../../tests/support/g03_first_difference.rs"]
+mod first_difference;
