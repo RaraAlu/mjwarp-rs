@@ -1,0 +1,408 @@
+{
+  "schema": 1,
+  "scope": "g01-state-and-packing-storage",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "product_revision": "248a28a7242525d5f86871d4b588e50c1a27693b",
+  "product_sources": [
+    {
+      "path": "src/physics/resident.rs",
+      "sha256": "b2d63abc3763c38435ab8bb76c866fb307f7e144f1db712ae0abc46d1c7fd9cf"
+    },
+    {
+      "path": "src/physics/mod.rs",
+      "sha256": "595d571679b02ebd4705442cc7f07c362d0918519466c22b91d97271e93719f2"
+    },
+    {
+      "path": "src/physics/attached.rs",
+      "sha256": "9073a9675298ffe734fbe48de51169a440d816ef7cbb433e41fe1d04f1de9197"
+    },
+    {
+      "path": "src/physics/sleep.rs",
+      "sha256": "300ea42de44de58a9bb78304856e3fe6df8a20a79a7123e8d97b02645f0197c8"
+    },
+    {
+      "path": "src/physics/flex.rs",
+      "sha256": "cb2977a3418922333d772d237e4b44dfe6e5135b4a9e48c7b82d1346525eb11e"
+    },
+    {
+      "path": "src/physics/flex_hessian.rs",
+      "sha256": "587e5553148ac53ddb900fb3eb4c1abbe33befdb71c6c640baa106bc873c1eb5"
+    },
+    {
+      "path": "src/runtime/transfer.rs",
+      "sha256": "268c351cb4a7048cef7ceb870c8e4a7f1a12633dc474d75065b356f8988e190f"
+    }
+  ],
+  "states": [
+    {
+      "owner": "G01State",
+      "name": "qpos",
+      "host_type": "Vec<f32>",
+      "device_owner": "KinematicsData",
+      "device_field": "state",
+      "device_type": "TransferBuffer<f32>",
+      "classification": "same-scalar",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "qpos",
+          "declaration": "array(\"nworld\", \"nq\", float)"
+        }
+      ]
+    },
+    {
+      "owner": "G01State",
+      "name": "qvel",
+      "host_type": "Vec<f32>",
+      "device_owner": "ResidentFlexEdges",
+      "device_field": "qvel",
+      "device_type": "TransferBuffer<f32>",
+      "classification": "same-scalar",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "qvel",
+          "declaration": "array(\"nworld\", \"nv\", float)"
+        }
+      ]
+    },
+    {
+      "owner": "G01State",
+      "name": "mocap_pos",
+      "host_type": "Vec<f32>",
+      "device_owner": "KinematicsData",
+      "device_field": "state",
+      "device_type": "TransferBuffer<f32>",
+      "classification": "same-scalar",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "mocap_pos",
+          "declaration": "array(\"nworld\", \"nmocap\", wp.vec3)"
+        }
+      ]
+    },
+    {
+      "owner": "G01State",
+      "name": "mocap_quat",
+      "host_type": "Vec<f32>",
+      "device_owner": "KinematicsData",
+      "device_field": "state",
+      "device_type": "TransferBuffer<f32>",
+      "classification": "same-scalar",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "mocap_quat",
+          "declaration": "array(\"nworld\", \"nmocap\", wp.quat)"
+        }
+      ]
+    },
+    {
+      "owner": "G01State",
+      "name": "rigid_cache",
+      "host_type": "Option<Vec<f32>>",
+      "device_owner": "KinematicsData",
+      "device_field": "rigid",
+      "device_type": "TransferBuffer<f32>",
+      "classification": "same-scalar",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "xpos",
+          "declaration": "array(\"nworld\", \"nbody\", wp.vec3)"
+        },
+        {
+          "owner": "Data",
+          "name": "xquat",
+          "declaration": "array(\"nworld\", \"nbody\", wp.quat)"
+        },
+        {
+          "owner": "Data",
+          "name": "xmat",
+          "declaration": "array(\"nworld\", \"nbody\", wp.mat33)"
+        },
+        {
+          "owner": "Data",
+          "name": "xipos",
+          "declaration": "array(\"nworld\", \"nbody\", wp.vec3)"
+        },
+        {
+          "owner": "Data",
+          "name": "ximat",
+          "declaration": "array(\"nworld\", \"nbody\", wp.mat33)"
+        },
+        {
+          "owner": "Data",
+          "name": "xanchor",
+          "declaration": "array(\"nworld\", \"njnt\", wp.vec3)"
+        },
+        {
+          "owner": "Data",
+          "name": "xaxis",
+          "declaration": "array(\"nworld\", \"njnt\", wp.vec3)"
+        }
+      ]
+    },
+    {
+      "owner": "G01State",
+      "name": "com_cache",
+      "host_type": "Option<Vec<f32>>",
+      "device_owner": "KinematicsData",
+      "device_field": "com",
+      "device_type": "TransferBuffer<f32>",
+      "classification": "derived-cache",
+      "upstream": [
+        {
+          "owner": "Model",
+          "name": "body_subtreemass",
+          "declaration": "array(\"*\", \"nbody\", float)"
+        },
+        {
+          "owner": "Data",
+          "name": "subtree_com",
+          "declaration": "array(\"nworld\", \"nbody\", wp.vec3)"
+        },
+        {
+          "owner": "Data",
+          "name": "cinert",
+          "declaration": "array(\"nworld\", \"nbody\", vec10)"
+        },
+        {
+          "owner": "Data",
+          "name": "cdof",
+          "declaration": "array(\"nworld\", \"nv\", wp.spatial_vector)"
+        }
+      ]
+    },
+    {
+      "owner": "G01State",
+      "name": "world_pose",
+      "host_type": "Option<Vec<[f32; 7]>>",
+      "device_owner": "KinematicsData",
+      "device_field": "rigid",
+      "device_type": "TransferBuffer<f32>",
+      "classification": "world-body-alias",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "xpos",
+          "declaration": "array(\"nworld\", \"nbody\", wp.vec3)"
+        },
+        {
+          "owner": "Data",
+          "name": "xquat",
+          "declaration": "array(\"nworld\", \"nbody\", wp.quat)"
+        }
+      ]
+    },
+    {
+      "owner": "G01State",
+      "name": "attached_cache",
+      "host_type": "Option<Vec<f32>>",
+      "device_owner": "KinematicsData",
+      "device_field": "attached",
+      "device_type": "TransferBuffer<f32>",
+      "classification": "same-scalar",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "geom_xpos",
+          "declaration": "array(\"nworld\", \"ngeom\", wp.vec3)"
+        },
+        {
+          "owner": "Data",
+          "name": "geom_xmat",
+          "declaration": "array(\"nworld\", \"ngeom\", wp.mat33)"
+        },
+        {
+          "owner": "Data",
+          "name": "site_xpos",
+          "declaration": "array(\"nworld\", \"nsite\", wp.vec3)"
+        },
+        {
+          "owner": "Data",
+          "name": "site_xmat",
+          "declaration": "array(\"nworld\", \"nsite\", wp.mat33)"
+        }
+      ]
+    },
+    {
+      "owner": "G01State",
+      "name": "flex_hessian_valid",
+      "host_type": "Option<Vec<bool>>",
+      "device_owner": "KinematicsData",
+      "device_field": "flex_validity",
+      "device_type": "Option<TransferBuffer<i32>>",
+      "classification": "bool-i32",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "flex_hessian_valid",
+          "declaration": "array(\"nworld\", \"nflex\", bool)"
+        }
+      ]
+    },
+    {
+      "owner": "G01State",
+      "name": "sleep",
+      "host_type": "Option<Vec<G01SleepState>>",
+      "device_owner": "ResidentSleep",
+      "device_field": "state",
+      "device_type": "TransferBuffer<i32>",
+      "classification": "sleep-container",
+      "upstream": []
+    },
+    {
+      "owner": "G01SleepState",
+      "name": "tree_asleep",
+      "host_type": "Vec<i32>",
+      "device_owner": "ResidentSleep",
+      "device_field": "state",
+      "device_type": "TransferBuffer<i32>",
+      "classification": "same-scalar",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "tree_asleep",
+          "declaration": "array(\"nworld\", \"ntree\", int)"
+        }
+      ]
+    },
+    {
+      "owner": "G01SleepState",
+      "name": "tree_awake",
+      "host_type": "Vec<i32>",
+      "device_owner": "ResidentSleep",
+      "device_field": "state",
+      "device_type": "TransferBuffer<i32>",
+      "classification": "same-scalar",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "tree_awake",
+          "declaration": "array(\"nworld\", \"ntree\", int)"
+        }
+      ]
+    },
+    {
+      "owner": "G01SleepState",
+      "name": "ntree_awake",
+      "host_type": "i32",
+      "device_owner": "ResidentSleep",
+      "device_field": "state",
+      "device_type": "TransferBuffer<i32>",
+      "classification": "same-scalar",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "ntree_awake",
+          "declaration": "array(\"nworld\", int)"
+        }
+      ]
+    },
+    {
+      "owner": "G01SleepState",
+      "name": "nbody_awake",
+      "host_type": "i32",
+      "device_owner": "ResidentSleep",
+      "device_field": "state",
+      "device_type": "TransferBuffer<i32>",
+      "classification": "same-scalar",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "nbody_awake",
+          "declaration": "array(\"nworld\", int)"
+        }
+      ]
+    },
+    {
+      "owner": "G01SleepState",
+      "name": "nv_awake",
+      "host_type": "i32",
+      "device_owner": "ResidentSleep",
+      "device_field": "state",
+      "device_type": "TransferBuffer<i32>",
+      "classification": "same-scalar",
+      "upstream": [
+        {
+          "owner": "Data",
+          "name": "nv_awake",
+          "declaration": "array(\"nworld\", int)"
+        }
+      ]
+    }
+  ],
+  "packers": [
+    {
+      "name": "pack_model",
+      "metadata": "i32",
+      "parameters": "f32",
+      "boundary": "typed-copy-and-index-pack"
+    },
+    {
+      "name": "pack_camlight",
+      "metadata": "i32",
+      "parameters": "f32",
+      "boundary": "typed-copy-and-index-pack"
+    },
+    {
+      "name": "pack_fixed_tendon",
+      "metadata": "i32",
+      "parameters": "f32",
+      "boundary": "typed-copy-and-index-pack"
+    },
+    {
+      "name": "pack_spatial_tendon",
+      "metadata": "i32",
+      "parameters": "f32",
+      "boundary": "f32-pulley-precompute"
+    },
+    {
+      "name": "pack_tendon",
+      "metadata": "i32",
+      "parameters": "f32",
+      "boundary": "unused-f32-sentinel"
+    },
+    {
+      "name": "pack_flex",
+      "metadata": "i32",
+      "parameters": "f32",
+      "boundary": "typed-copy-and-index-pack"
+    },
+    {
+      "name": "pack_flex_edges",
+      "metadata": "i32",
+      "parameters": "none",
+      "boundary": "typed-copy-and-index-pack"
+    },
+    {
+      "name": "pack_flex_faces",
+      "metadata": "i32",
+      "parameters": "f32",
+      "boundary": "unused-f32-sentinel"
+    },
+    {
+      "name": "pack_sleep",
+      "metadata": "i32",
+      "parameters": "f32",
+      "boundary": "typed-copy-and-index-pack"
+    },
+    {
+      "name": "pack_flex_hessian",
+      "metadata": "i32",
+      "parameters": "f32",
+      "boundary": "typed-copy-and-index-pack"
+    }
+  ],
+  "np01_complete": false,
+  "remaining": [
+    "per-field-model-packing",
+    "physical-locals-and-accumulators",
+    "complete-output-mapping",
+    "other-physics-state-paths",
+    "upstream-generated-kernels",
+    "measured-performance"
+  ]
+}

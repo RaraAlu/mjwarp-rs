@@ -79,6 +79,10 @@ NP04仍缺公平稳态性能对照。
 三项布尔适配单独记录。
 局部量与设备打包仍待审。
 详见[入口精度映射](t4-input-precision.md)。
+随后追踪15项状态声明。
+同时核对十个打包器存储。
+派生缓存与布尔编码单列。
+详见[状态精度追踪](t4-state-packing.md)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
