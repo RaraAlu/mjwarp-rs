@@ -69,6 +69,11 @@ NP01与NP02仍缺全路径证据。
 NP04仍缺公平稳态性能对照。
 完整T4仍不放行。
 最新记录见[T4追加验证](windows-t4-g03-retest.md)。
+后续新增独立宿主证据门禁。
+24个入口及双模式产物已核对。
+性能条件检查拒绝不公平记录。
+真实稳态性能仍未测。
+详见[证据门禁](t4-evidence-gates.md)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
@@ -142,6 +147,7 @@ NP04仍缺公平稳态性能对照。
 54. [原生基准与5%误差红线](native-error-redline-acceptance.md)
 55. [Windows红线T4复测](windows-t4-redline-retest.md)
 56. [Windows完整T4追加验证](windows-t4-g03-retest.md)
+57. [T4精度与性能证据门禁](t4-evidence-gates.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
