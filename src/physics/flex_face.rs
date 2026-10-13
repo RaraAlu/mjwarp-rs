@@ -111,11 +111,11 @@ __device__ void face_polar(float* q,const float F[3][3]) {
     for(int k=0;k<3;++k) omega[k]=((crosses[0][k]+crosses[1][k])+crosses[2][k])/denom;
     float w=sqrtf(face_dot(omega,omega));if(w<1.0e-6f) break;
     float rot[4];for(int k=0;k<3;++k) rot[k]=(omega[k]/w)*sinf(0.5f*w);rot[3]=cosf(0.5f*w);
-    // Frozen Warp PTX rounds q.xyz*rot.w before the two fused additions.
+    // Loaded frozen Warp SASS keeps the first product rounded and fuses all three sums.
     float next[4];
-    next[0]=__fsub_rn(fmaf(q[2],rot[1],fmaf(q[3],rot[0],__fmul_rn(q[0],rot[3]))),__fmul_rn(q[1],rot[2]));
-    next[1]=__fsub_rn(fmaf(q[0],rot[2],fmaf(q[3],rot[1],__fmul_rn(q[1],rot[3]))),__fmul_rn(q[2],rot[0]));
-    next[2]=__fsub_rn(fmaf(q[1],rot[0],fmaf(q[3],rot[2],__fmul_rn(q[2],rot[3]))),__fmul_rn(q[0],rot[1]));
+    next[0]=fmaf(-q[1],rot[2],fmaf(q[2],rot[1],fmaf(q[3],rot[0],__fmul_rn(q[0],rot[3]))));
+    next[1]=fmaf(-q[2],rot[0],fmaf(q[0],rot[2],fmaf(q[3],rot[1],__fmul_rn(q[1],rot[3]))));
+    next[2]=fmaf(-q[0],rot[1],fmaf(q[1],rot[0],fmaf(q[3],rot[2],__fmul_rn(q[2],rot[3]))));
     next[3]=rot[3]*q[3]-rot[0]*q[0]-rot[1]*q[1]-rot[2]*q[2];
     float n=sqrtf(((next[0]*next[0]+next[1]*next[1])+next[2]*next[2])+next[3]*next[3]);
     // Warp kEps is zero; nonpositive lengths return the identity.
