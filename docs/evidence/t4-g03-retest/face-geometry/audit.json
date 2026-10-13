@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "scope": "public-model-linear-face-geometry-domain",
+  "base_revision": "7f24a058b0c3265e03fa2336f0fc18b2e064d9fa",
+  "schedule": {
+    "change": "2026-10-11-mjwarp-parallel-acceptance",
+    "status": "in_progress",
+    "dependency": "2026-10-11-g03-mjwarp-reference",
+    "dependency_status": "verified",
+    "resources": [
+      "acceptance:windows-product",
+      "gpu:windows-t4"
+    ],
+    "subslice_order_encoded": false,
+    "selected_as_global_earliest": false,
+    "selection_reason": "existing listed geometry-domain candidate with no new prerequisite or competing task"
+  },
+  "sources": [
+    {
+      "path": "tests/t4_face_geometry_domain.rs",
+      "sha256": "5d7c8ae8c737e176087690cc2142abf6a6081260a9bf835cc575ba8c18c18c1e"
+    },
+    {
+      "path": "src/model/flex.rs",
+      "sha256": "d8df34bc61ce9ed738bf623932942b3eb5389d741ff3ac16a8a8cb0f921e5cc4"
+    },
+    {
+      "path": "src/physics/flex_face.rs",
+      "sha256": "c767031632d34c048d8fed344e03af528da3848fad6eec09fd808be257ff9db3"
+    },
+    {
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+      "sha256": "c924593f7be8447c76328bcf7dc5b4ce92b6a54458c4afdbf36806cb8e036d46"
+    },
+    {
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+      "sha256": "6268f0e1b6cb4c9ec6bbd3aa29828dfb36224efb2a3a3e1f54e5f87b6623fdef"
+    },
+    {
+      "path": "fixtures/precision/t4-current-capture-status.json",
+      "sha256": "71ad4173d952bac4cf52a3193bea0846c48cb6d801316f51c9f27ddeb05b0ff3"
+    }
+  ],
+  "source_normalization": "LF",
+  "new_boundary": "public model topology validation; no face position/polar/trig evaluation or old world/sample replay",
+  "coverage": {
+    "grids": 64,
+    "cell_counts_per_axis": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "side_chunks": 384,
+    "linear_faces": 2400,
+    "corner_node_references": 9600,
+    "inactive_tail_slots": 12000,
+    "global_node_offset": 8,
+    "face_owner": 1,
+    "negative_cases": 46
+  },
+  "proved": [
+    "64 canonical six-side asymmetric-grid mappings pass actual public model validation",
+    "only four global corner references and five exact-minus-one tail slots are admitted",
+    "higher-order interpolation, extra tail nodes, missing corners, noncanonical-minus-two sentinel and one-sided outward-normal reordering are rejected"
+  ],
+  "unproved": [
+    "physical geometry evaluation accuracy",
+    "triangle/sine/cosine branch numerical equivalence",
+    "new fusion-source CUDA/PTX or machine-code accuracy",
+    "post-repair numerical equality"
+  ],
+  "product_source_changes": 0,
+  "reason_no_product_edit": "no evidence of incorrect existing geometry-domain checks; do not modify correct formulas just to create product diff",
+  "calls": [
+    {
+      "n": 1,
+      "command": "cargo test --locked --features cuda-probe --test t4_face_geometry_domain -- --test-threads=1",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0,
+      "seconds_reported": 0,
+      "log": "target/t4-face-geometry-domain-1.log",
+      "sha256": "9aac541e87978ebae5bd0af2ca3715fabb4d857d8efb1ccacf7247c9a53b9828"
+    }
+  ],
+  "target_invocations": 1,
+  "remaining_target_invocations": 2,
+  "repeat_needed": false,
+  "post_test_edit": "style-only chunks_exact(9) -> as_chunks::<9>().0; final Clippy passed; tests not repeated",
+  "clippy_calls": [
+    {
+      "n": 1,
+      "result": "constant chunks_exact lint rejected"
+    },
+    {
+      "n": 2,
+      "result": "passed after idiomatic slice change"
+    }
+  ],
+  "checks": [
+    "cargo fmt --check",
+    "cargo clippy --locked --features cuda-probe --test t4_face_geometry_domain -- -D warnings",
+    "git diff --check"
+  ],
+  "old_exhausted_tests_rerun": false,
+  "build_capture_and_physics_are_distinct": true,
+  "source_change_does_not_reset_call_budget": true,
+  "exhausted_capture_not_split_into_new_entrypoint": true,
+  "current_cuda_compiled": false,
+  "current_ptx_captured": false,
+  "current_machine_code_captured": false,
+  "current_numerical_tested": false,
+  "current_bit_differences": null,
+  "previous_failed_bit_differences": 2078,
+  "gpu_sessions": 0,
+  "physics_compiler_calls": 0,
+  "kernel_launches": 0,
+  "python_product_executions": 0,
+  "tolerance_changes": 0,
+  "coverage_reductions": 0,
+  "np01": "declared model/index domain strengthened; full generated mapping still open",
+  "np02": "current fusion-source artifact stale/missing; geometry and trig codegen equivalence open",
+  "np03": "no numerical admission; original failure preserved",
+  "np04": "no fair performance or GPU memory measurement",
+  "full_acceptance": false,
+  "next_ready": [
+    "independent trig/control-flow source-boundary review without exhausted nominal-graph replay",
+    "decide legitimate build-only verification boundary distinct from exhausted full capture validation"
+  ],
+  "blocked_acceptance": [
+    "current source artifact evidence",
+    "post-repair device numerical equivalence"
+  ]
+}
