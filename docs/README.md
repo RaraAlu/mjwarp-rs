@@ -174,6 +174,11 @@ NP04仍缺公平稳态性能对照。
 新版面CUDA与PTX现已核验。
 机器码与修复后数值仍未验证。
 详见[当前编译证据](t4-field-internal.md#当前源码的完整纯编译核验)。
+随后核对三角控制域。
+有限小坐标也能触发慢归约。
+两侧PTX均含库级f64归约链。
+本轮不宣称完整库算法等价。
+详见[三角控制域](t4-face-trig-control.md)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。

@@ -1,0 +1,145 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "scope": "independent-host-trig-control-domain-not-numerical-replay",
+  "base_revision": "f24679604b9557cb7a538565dd007d28dee8a436",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "sources": [
+    {
+      "path": "src/physics/flex_face.rs",
+      "sha256": "c767031632d34c048d8fed344e03af528da3848fad6eec09fd808be257ff9db3",
+      "normalization": "LF"
+    },
+    {
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/support.py",
+      "sha256": "c924593f7be8447c76328bcf7dc5b4ce92b6a54458c4afdbf36806cb8e036d46",
+      "normalization": "LF"
+    },
+    {
+      "path": "target/mjwarp-parallel/venv/Lib/site-packages/warp/native/builtin.h",
+      "sha256": "99e9ab17698e87ec85d743d416249f7a5f29f5cb8419a2955560350bc564bbe4",
+      "normalization": "LF"
+    }
+  ],
+  "ptx": [
+    {
+      "path": "target/t4-final-face-compile/current/flex_faces-8057e350787cf69170eb945bdcef22a892f6588950936d11980e77827fb43b4a.ptx",
+      "sha256": "8057e350787cf69170eb945bdcef22a892f6588950936d11980e77827fb43b4a",
+      "entry": "flex_faces",
+      "nvrtc": "12.8.93",
+      "target": "compute_70"
+    },
+    {
+      "path": "target/mjwarp-parallel/warp-cache/1.15.0/wp_mujoco_warp._src.smooth_ca013d6/wp_mujoco_warp._src.smooth_ca013d6.sm89.ptx",
+      "sha256": "1d9e4e3a983ca35090ade3a48fd83aa0dc86a23228bb0865010f681698ab75dd",
+      "entry": "_flex_face_kinematics_9a1620ae_cuda_kernel_forward",
+      "nvrtc": "12.9.86",
+      "target": "sm_89",
+      "trailing_nul": 1
+    }
+  ],
+  "precision_mapping": {
+    "physics_locals_and_accumulators": "f32",
+    "angle": "f32 multiplication by exact 0.5",
+    "convergence_threshold_bits": "358637BD",
+    "large_angle_threshold_bits": "47CE4780",
+    "large_angle_threshold": 105615,
+    "per_entry_library_reduction_chains": 4,
+    "library_chain": ["integer bfi.b64", "cvt.rn.f64.s64", "mul.f64 0d3BF921FB54442D19", "cvt.rn.f32.f64"],
+    "library_f64_influences_physics_outputs": true,
+    "library_f64_is_diagnostic_only": false,
+    "full_intrinsic_equivalence": false
+  },
+  "geometry_witness": {
+    "corners": [[-0.5, 0.25, -0.5], [-0.5, -0.25, 0.5], [0.5, 0.25, -0.5], [0.5, -0.25, 0.5]],
+    "normal_axis": 2,
+    "t1": [1, 0, 0],
+    "t2": [0, -0.5, 1],
+    "normal": [0, -1, -0.5],
+    "determinant": 1.25,
+    "first_iteration_trace": 0,
+    "first_iteration_cross_sum": [2, 0, 0],
+    "observed_f32_w": 20000000000,
+    "observed_f32_half_angle": 10000000000,
+    "claim": "source-level finite nondegenerate geometry; no native-model compilation or device execution"
+  },
+  "verification": {
+    "selector": "t4_trig_control_domain",
+    "command": "cargo test --locked --features cuda-probe --test t4_trig_control_domain -- --test-threads=1 --nocapture",
+    "previous_calls": 0,
+    "call_cap": 3,
+    "calls": [
+      {
+        "n": 1,
+        "passed": 3,
+        "failed": 1,
+        "seconds": 0.00,
+        "log": "target/t4-face-trig-control/host-1.log",
+        "sha256": "3e76e427ed3243a7801b85ab4848d68552a23f488653f3a0365e673918a4bcf7",
+        "cause": "checker assumed inlined half angle and 1e-6 spelling; pinned source actually uses half_w and 1.0e-6; no product failure"
+      },
+      {
+        "n": 2,
+        "passed": 4,
+        "failed": 0,
+        "seconds": 0.02,
+        "log": "target/t4-face-trig-control/host-2.log",
+        "sha256": "7f3aeaa44fd82a889e8e6859cf31b515f0a18179d7c8f49ab98df1d46553e092"
+      }
+    ],
+    "exponent_classes": 148,
+    "finite_bit_representatives": 740,
+    "all_mantissas_exhaustively_tested": false,
+    "mathematical_argument": "positive finite active w has exponent 107..254; multiply by exact 0.5 shifts exponent to 106..253 without mantissa rounding",
+    "no_further_repeat_after_pass": true,
+    "tested_source": "tests/t4_trig_control_domain.rs",
+    "tested_source_sha256_lf": "245369a68c2b2fed7b5da8ed2ff9135157aa6faf3cf7614c0228b0013def97e8",
+    "fmt_check": "passed",
+    "clippy_command": "cargo clippy --locked --features cuda-probe --test t4_trig_control_domain -- -D warnings",
+    "clippy": "passed",
+    "diff_check": "passed",
+    "pinned_source_hashes_verified": 3,
+    "pinned_ptx_hashes_verified": 2,
+    "test_log_hashes_verified": 2,
+    "doc_audit_hook": {
+      "report": "C:/Users/zhang/.codex/audit-docs/reports/e05f246e1c12b4cf/audit-mjsa549x.md",
+      "source_files": 318,
+      "doc_files": 93,
+      "reported_mismatches": 0,
+      "manual_review_scope": "changed documentation against pinned source, actual PTX control operands, test and log outputs; not a full product audit"
+    },
+    "product_formula_changed": false,
+    "cuda_compiler_invocations": 0,
+    "gpu_sessions": 0,
+    "kernel_launches": 0,
+    "python_invocations": 0,
+    "old_exhausted_selectors_run": 0,
+    "tolerance_changed": false,
+    "sample_world_or_field_coverage_reduced": false
+  },
+  "current_capture_status_sha256": "48dc717449fc274770357e436cbd7c507960dfc9f897cf3d1096d90c9c1e080e",
+  "current_machine_code_captured": false,
+  "current_numerical_tested": false,
+  "current_bit_differences": null,
+  "previous_strict_bit_differences": 2078,
+  "np01": "control domain and library mixed precision mapped; full project still pending",
+  "np02": "existing PTX inspected; current machine code and Hessian generated artifacts missing",
+  "np03": "no numerical execution",
+  "np04": "no fair performance or process peak memory measurement",
+  "normify": {
+    "project": "mjwarp-rs",
+    "change": "2026-10-11-mjwarp-parallel-acceptance",
+    "status": "in_progress",
+    "depends_on": ["2026-10-11-g03-mjwarp-reference"],
+    "resources": ["gpu:windows-t4", "acceptance:windows-product"],
+    "schedule_claim_change": "rejected by running-claims; original schedule preserved; existing module claim retained",
+    "source_drift": 0,
+    "errors": 0,
+    "historical_warnings": ["mjwarp.model.flex leaf-too-coarse", "mjwarp.physics.tendon-wrap leaf-too-coarse"],
+    "build": "passed",
+    "root_state": "planned",
+    "related_leaf_states": "active",
+    "next": "current machine/numerical and fair performance evidence remain open; exhausted selectors cannot rerun without new authorization"
+  },
+  "full_acceptance": false
+}

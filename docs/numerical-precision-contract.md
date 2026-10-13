@@ -382,6 +382,13 @@ Warp也调用同类f32函数。
 它拒绝物理浮点量的升精度。
 它也拒绝其他f64运算。
 本项不允许私有f64工作区。
+库级f64归约影响物理输出。
+它不属于纯诊断计算。
+不能宣称全部指令采用f32。
+柔体面两侧PTX各含四条归约链。
+有限小坐标也能触发慢路径。
+本项不证明完整库算法等价。
+实核见[三角控制域](t4-face-trig-control.md)。
 依据：[Warp数学接口](https://github.com/NVIDIA/warp/blob/v1.13.0/warp/native/builtin.h#L1179-L1184)。
 
 设置MJWARP_PHYSICS_PTX_DIR后，
