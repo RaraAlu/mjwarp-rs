@@ -242,6 +242,7 @@ NP04仍缺公平稳态性能对照。
 23. [Windows刚体运动学探针](windows-kinematics-probe.md)
 24. [Windows质心GPU探针](windows-com-position-probe.md)
 25. [Windows质量矩阵探针](windows-mass-matrix-probe.md)
+    新增[CRB常驻严格组合](resident-crb.md)。
 26. [Windows质量求解探针](windows-mass-solve-probe.md)
 27. [Windows附着运动学探针](windows-attached-kinematics-probe.md)
 28. [Windows常驻运动学底座](windows-resident-kinematics.md)

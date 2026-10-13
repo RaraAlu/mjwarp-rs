@@ -898,7 +898,11 @@ GPU计算qfrc_bias。
 关闭加速度仍有原生超差。
 完整阶段与精度仍未验收。
 记录见[RNE加速度](rne-acceleration.md)。
-下一批收口CRB常驻组合。
+随后实现CRB常驻严格组合。
+它复用原G01质心设备缓冲。
+独立位置与矩阵阶段已落地。
+完整CRB与G02仍待验收。
+记录见[常驻CRB](resident-crb.md)。
 证据见[速度报告](linux-resident-com-velocity.md)。
 偏置力见[RNE报告](linux-resident-rne-bias.md)。
 随后收口完整G03。

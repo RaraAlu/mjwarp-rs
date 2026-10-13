@@ -6,6 +6,9 @@ use crate::diagnostics::{InputError, TransferError};
 use crate::model::{BatchLayout, InertialModelInput};
 use crate::runtime::TransferSession;
 
+mod resident;
+pub use resident::{MassMatrixData, MassMatrixPlan};
+
 /// 同步结果的只读世界视图。
 #[derive(Clone, Copy, Debug)]
 pub struct MassMatrixWorld<'a> {

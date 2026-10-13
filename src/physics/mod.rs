@@ -8,7 +8,9 @@ use crate::model::{BatchLayout, InertialModelInput};
 use crate::runtime::TransferSession;
 
 mod mass_matrix;
-pub use mass_matrix::{MassMatrixOutput, MassMatrixWorld, probe_mass_matrix};
+pub use mass_matrix::{
+    MassMatrixData, MassMatrixOutput, MassMatrixPlan, MassMatrixWorld, probe_mass_matrix,
+};
 mod mass_solve;
 pub use mass_solve::{
     MassFactorBlock, MassFactorKind, MassSolveOutput, MassSolveWorld, probe_mass_solve,

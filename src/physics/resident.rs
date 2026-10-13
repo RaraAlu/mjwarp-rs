@@ -2182,6 +2182,30 @@ impl KinematicsPlan {
 }
 
 impl KinematicsData {
+    /// CRB只借用新鲜质心工作区。
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn mass_matrix_input(&self) -> Result<&TransferBuffer<f32>, TransferError> {
+        self.ready.require(self.ready.com, "com_position")?;
+        Ok(&self.com)
+    }
+
+    /// 显式回读只检查CRB必需前置。
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn check_mass_matrix_inputs(&self) -> Result<(), TransferError> {
+        self.ready.require(self.ready.com, "com_position")?;
+        read_output(
+            &self.rigid,
+            self.layout.rigid.output.total_elements() + 8,
+            "crb_rigid_input",
+        )?;
+        read_output(
+            &self.com,
+            self.layout.com.output.total_elements() + 8,
+            "crb_com_input",
+        )?;
+        Ok(())
+    }
+
     pub fn flex_hessian_fields(&self) -> Option<&FlexHessianFields> {
         self.hessian_fields.as_deref()
     }
