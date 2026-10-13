@@ -1,6 +1,8 @@
 //! 逐字段核对批量打包与质心内部量。
 //! 此切片不代表完整精度验收。
 
+use super::face_lineage;
+
 /// 面与矩阵新增切片；不执行旧满额选择。
 mod flex_matrices {
     use super::super::{Check, Stamp, between, digest, require};
@@ -163,7 +165,12 @@ mod flex_matrices {
             "product denominator",
         )?;
         for s in &i.product_sources {
-            require(digest(source(&s.path)?) == s.sha256, "product drift")?;
+            let text = if s.path == "src/physics/flex_face.rs" {
+                super::face_lineage::historical(source(&s.path)?)?
+            } else {
+                source(&s.path)?.to_owned()
+            };
+            require(digest(&text) == s.sha256, "product drift")?;
         }
         require(
             i.external_sources.len() == EXTERNAL.len()
@@ -191,7 +198,12 @@ mod flex_matrices {
                 "group type/identity",
             )?;
             for a in &g.product {
-                anchor(source(&g.source)?, a)?;
+                let text = if g.source == "src/physics/flex_face.rs" {
+                    super::face_lineage::historical(source(&g.source)?)?
+                } else {
+                    source(&g.source)?.to_owned()
+                };
+                anchor(&text, a)?;
             }
             require(
                 g.upstream.iter().all(|s| !s.trim().is_empty()),
@@ -419,17 +431,19 @@ mod flex_matrices {
             history.join("release-ptx"),
             current.to_path_buf(),
         ] {
-            for a in &rows {
-                require(
-                    now["artifacts"]
-                        .as_array()
-                        .unwrap()
-                        .iter()
-                        .filter(|r| *r == *a)
-                        .count()
-                        == 1,
-                    "current lineage",
-                )?;
+            for old in &rows {
+                let matches: Vec<_> = now["artifacts"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|r| r["entry"] == old["entry"])
+                    .collect();
+                require(matches.len() == 1, "current lineage denominator")?;
+                let fresh = matches[0];
+                if old["entry"] != "flex_faces" {
+                    require(fresh == *old, "unrelated capture drift")?;
+                }
+                let a = if dir == current { fresh } else { *old };
                 let entry = a["entry"].as_str().unwrap();
                 let hash = a["ptx_sha256"].as_str().ok_or("hash")?;
                 require(
@@ -453,7 +467,11 @@ mod flex_matrices {
                         } else {
                             (HESSIAN, "FLEX_HESSIAN_CUDA")
                         };
-                        let text = text.replace("\r\n", "\n");
+                        let text = if entry == "flex_faces" && dir != current {
+                            super::face_lineage::historical(text)?
+                        } else {
+                            text.replace("\r\n", "\n")
+                        };
                         require(
                             std::str::from_utf8(&bytes).map_err(|e| e.to_string())?
                                 == between(&text, &format!("const {name}: &str = r#\""), "\"#;")?,

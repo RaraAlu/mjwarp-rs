@@ -1,5 +1,9 @@
 //! Rust直接执行冻结Warp产物；不启动Python。
 mod face_polar {
+    mod operators {
+        include!("t4_face_operators.rs");
+    }
+
     use super::*;
     use serde_json::{Value, json};
 

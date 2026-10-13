@@ -95,22 +95,32 @@ __device__ void face_cross(float* r,const float* a,const float* b) {
 __device__ void face_polar(float* q,const float F[3][3]) {
   q[0]=q[1]=q[2]=0.0f;q[3]=1.0f;
   for(int iter=0;iter<50;++iter) {
-    float x=q[0],y=q[1],z=q[2],s=q[3];
-    // Column-major rotation columns, matching Warp's xyzw convention.
-    float R[3][3]={{1-2*(y*y+z*z),2*(x*y+s*z),2*(x*z-s*y)},
-      {2*(x*y-s*z),1-2*(x*x+z*z),2*(y*z+s*x)},
-      {2*(x*z+s*y),2*(y*z-s*x),1-2*(x*x+y*y)}};
+    // Warp quat_to_matrix rotates each basis vector without renormalizing.
+    float R[3][3];
+    for(int col=0;col<3;++col) {
+      float v[3]={0,0,0};v[col]=1.0f;
+      float c=2.0f*q[3]*q[3]-1.0f;
+      float d=2.0f*(q[0]*v[0]+q[1]*v[1]+q[2]*v[2]);
+      R[col][0]=v[0]*c+q[0]*d+(q[1]*v[2]-q[2]*v[1])*q[3]*2.0f;
+      R[col][1]=v[1]*c+q[1]*d+(q[2]*v[0]-q[0]*v[2])*q[3]*2.0f;
+      R[col][2]=v[2]*c+q[2]*d+(q[0]*v[1]-q[1]*v[0])*q[3]*2.0f;
+    }
     float crosses[3][3];
     for(int c=0;c<3;++c) face_cross(crosses[c],R[c],F[c]);
     float omega[3];float denom=fabsf((face_dot(R[0],F[0])+face_dot(R[1],F[1]))+face_dot(R[2],F[2]))+1.0e-10f;
     for(int k=0;k<3;++k) omega[k]=((crosses[0][k]+crosses[1][k])+crosses[2][k])/denom;
     float w=sqrtf(face_dot(omega,omega));if(w<1.0e-6f) break;
     float rot[4];for(int k=0;k<3;++k) rot[k]=(omega[k]/w)*sinf(0.5f*w);rot[3]=cosf(0.5f*w);
-    float next[4];float cross[3];face_cross(cross,rot,q);
-    for(int k=0;k<3;++k) next[k]=(rot[3]*q[k]+q[3]*rot[k])+cross[k];
-    next[3]=rot[3]*q[3]-face_dot(rot,q);
+    // Frozen Warp PTX rounds q.xyz*rot.w before the two fused additions.
+    float next[4];
+    next[0]=__fsub_rn(fmaf(q[2],rot[1],fmaf(q[3],rot[0],__fmul_rn(q[0],rot[3]))),__fmul_rn(q[1],rot[2]));
+    next[1]=__fsub_rn(fmaf(q[0],rot[2],fmaf(q[3],rot[1],__fmul_rn(q[1],rot[3]))),__fmul_rn(q[2],rot[0]));
+    next[2]=__fsub_rn(fmaf(q[1],rot[0],fmaf(q[3],rot[2],__fmul_rn(q[2],rot[3]))),__fmul_rn(q[0],rot[1]));
+    next[3]=rot[3]*q[3]-rot[0]*q[0]-rot[1]*q[1]-rot[2]*q[2];
     float n=sqrtf(((next[0]*next[0]+next[1]*next[1])+next[2]*next[2])+next[3]*next[3]);
-    for(int k=0;k<4;++k) q[k]=next[k]/n;
+    // Warp kEps is zero; nonpositive lengths return the identity.
+    if(n>0.0f) {float inv_n=1.0f/n;for(int k=0;k<4;++k) q[k]=next[k]*inv_n;}
+    else {q[0]=q[1]=q[2]=0.0f;q[3]=1.0f;}
   }
 }
 extern "C" __global__ void flex_faces(const int* m,const float* params,const float* nodes,

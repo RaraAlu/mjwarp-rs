@@ -3,6 +3,10 @@ use super::{PHYSICS_FMAD, check_physics_ptx, record_physics_ptx};
 use cudarc::nvrtc::{CompileOptions, compile_ptx_with_opts};
 use std::{fs, path::PathBuf, time::Instant};
 
+#[path = "t4_face_lineage.rs"]
+mod face_lineage;
+const FACE: &str = include_str!("../../src/physics/flex_face.rs");
+
 // 复用完整证据校验器；本切片不调用其性能接口。
 #[allow(dead_code)]
 #[path = "t4_evidence.rs"]
@@ -10,7 +14,7 @@ mod evidence;
 use evidence::{Inventory, digest, validate_inventory, verify_capture, verify_sources};
 
 const BASE: &str = include_str!("../../fixtures/precision/t4-kernels.json");
-const REVISION: &str = "af7f8871c7377d016ed04e99440e5a1486dcc318";
+const REVISION: &str = "d2d7b467f0e96c5ea0795849ce71d0078b4be917";
 const PHYSICS: &str = include_str!("../../src/physics/mod.rs");
 const RESIDENT: &str = include_str!("../../src/physics/resident.rs");
 const RUNTIME: &str = include_str!("../../src/runtime/transfer/kernel.rs");
@@ -54,6 +58,14 @@ fn sources() -> [String; 3] {
 
 // 所有嵌入刚体模板的入口都要重编译，不能只看入口名称。
 fn recipe(old: &evidence::Artifact) -> Option<(&'static str, String)> {
+    if old.entry == "flex_faces" {
+        let source = normalized(template(FACE, "FLEX_FACE_CUDA"));
+        assert_eq!(
+            digest(face_lineage::historical(&source).unwrap().as_bytes()),
+            old.source_sha256
+        );
+        return Some(("flex_faces", source));
+    }
     let rigid = sources();
     let (entry, candidates): (_, Vec<String>) = match old.entry.as_str() {
         "rigid_kinematics" => (ENTRY, rigid.into()),
@@ -102,7 +114,7 @@ fn recipe(old: &evidence::Artifact) -> Option<(&'static str, String)> {
     Some((entry, source))
 }
 
-/// 只允许两份来源戳和十份嵌入刚体的产物更新。
+/// 保留十份刚体更新；另允许一份面算子修复。
 /// 其他字段、参考、变体、排除项和未验收边界全部继承。
 fn lineage(value: &Inventory) -> Result<(), String> {
     validate_inventory(value)?;
@@ -111,6 +123,7 @@ fn lineage(value: &Inventory) -> Result<(), String> {
     for (path, text) in [
         ("src/physics/mod.rs", PHYSICS),
         ("src/runtime/transfer/kernel.rs", RUNTIME),
+        ("src/physics/flex_face.rs", FACE),
     ] {
         expected
             .product_sources
@@ -129,7 +142,7 @@ fn lineage(value: &Inventory) -> Result<(), String> {
             replacements += 1;
         }
     }
-    if replacements != 10
+    if replacements != 11
         || serde_json::to_value(expected).unwrap() != serde_json::to_value(value).unwrap()
     {
         return Err("unexpected lineage change".into());
@@ -258,7 +271,13 @@ fn recompile_rigid_variants_without_launching_physics() {
     let mut value = old.clone();
     value.source_revision = REVISION.into();
     for stamp in &mut value.product_sources {
-        if ["src/physics/mod.rs", "src/runtime/transfer/kernel.rs"].contains(&stamp.path.as_str()) {
+        if [
+            "src/physics/mod.rs",
+            "src/runtime/transfer/kernel.rs",
+            "src/physics/flex_face.rs",
+        ]
+        .contains(&stamp.path.as_str())
+        {
             stamp.sha256 = digest(
                 normalized(&fs::read_to_string(root().join(&stamp.path)).unwrap()).as_bytes(),
             );
@@ -272,7 +291,7 @@ fn recompile_rigid_variants_without_launching_physics() {
         let plan = recipe(row);
         assert_eq!(
             plan.is_some(),
-            old_cu.contains("if(n==0.0f) return {0,0,0,0};"),
+            old_cu.contains("if(n==0.0f) return {0,0,0,0};") || row.entry == "flex_faces",
             "unmapped shared template"
         );
         let Some((entry, source)) = plan else {
@@ -282,13 +301,24 @@ fn recompile_rigid_variants_without_launching_physics() {
             }
             continue;
         };
-        assert_eq!(
-            normalized(&old_cu).replace(
+        let historical = if entry == "flex_faces" {
+            face_lineage::historical(&source).unwrap()
+        } else {
+            source.replace(
+                "if(n==0.0f) return {0,0,0,1};",
                 "if(n==0.0f) return {0,0,0,0};",
-                "if(n==0.0f) return {0,0,0,1};"
-            ),
-            source
-        );
+            )
+        };
+        assert_eq!(normalized(&old_cu), historical);
+        if entry != "flex_faces" {
+            assert_eq!(
+                normalized(&old_cu).replace(
+                    "if(n==0.0f) return {0,0,0,0};",
+                    "if(n==0.0f) return {0,0,0,1};"
+                ),
+                source
+            );
+        }
         let ptx = compile_ptx_with_opts(
             &source,
             CompileOptions {
@@ -313,7 +343,7 @@ fn recompile_rigid_variants_without_launching_physics() {
         };
         compiled.push(row.clone());
     }
-    assert_eq!(compiled.len(), 10);
+    assert_eq!(compiled.len(), 11);
     lineage(&value).unwrap();
     verify_capture(&value, &out).unwrap();
     // 所有入口重新执行原精度门禁；不只信任历史passed字段。
@@ -338,11 +368,114 @@ fn recompile_rigid_variants_without_launching_physics() {
         &inventory,
     )
     .unwrap();
-    let report = serde_json::json!({"schema":1,"scope":"current-product-compile-only-lineage","source_revision":REVISION,"historical_inventory_sha256":digest(normalized(BASE).as_bytes()),"current_inventory_sha256":digest(&inventory),"kernel_entries":24,"variants":30,"recompiled_rigid_variants":3,"recompiled_dependent_variants":7,"retained_verified_variants":20,"historical_modes_verified":["debug","release"],"new_capture_mode":"compile-only; not debug/release physical runs","ptx_precision_gate_passes":30,"corruption_rejections":3,"product_gpu_executions":0,"python_executions":0,"elapsed_ms":started.elapsed().as_millis(),"np01_complete":false,"np02_complete":false,"np03":"historical-not-rerun","np04_measured":false,"full_t4_admitted":false});
+    let report = serde_json::json!({"schema":1,"scope":"current-product-compile-only-lineage","source_revision":REVISION,"historical_inventory_sha256":digest(normalized(BASE).as_bytes()),"current_inventory_sha256":digest(&inventory),"kernel_entries":24,"variants":30,"recompiled_rigid_variants":3,"recompiled_dependent_variants":7,"recompiled_face_variants":1,"retained_verified_variants":19,"historical_modes_verified":["debug","release"],"new_capture_mode":"compile-only; not debug/release physical runs","ptx_precision_gate_passes":30,"corruption_rejections":3,"product_gpu_executions":0,"python_executions":0,"elapsed_ms":started.elapsed().as_millis(),"np01_complete":false,"np02_complete":false,"np03":"historical-not-rerun","np04_measured":false,"full_t4_admitted":false});
     fs::write(
         out.parent().unwrap().join("t4-rigid-recapture-audit.json"),
         serde_json::to_vec_pretty(&report).unwrap(),
     )
     .unwrap();
     println!("{report}");
+}
+
+#[test]
+#[ignore = "archive already measured face artifact; no compiler or GPU replay"]
+fn archives_face_operator_repair_with_failed_numeric_gate() {
+    let out = PathBuf::from(std::env::var_os("MJWARP_PHYSICS_PTX_DIR").unwrap());
+    assert!(out.is_absolute() && !out.exists());
+    assert!(
+        out.parent()
+            .unwrap()
+            .canonicalize()
+            .unwrap()
+            .starts_with(root().join("target").canonicalize().unwrap())
+    );
+    let previous = root().join("target/t4-rigid-recapture/with-dependents/current");
+    let mut value: Inventory = serde_json::from_str(include_str!(
+        "../../docs/evidence/t4-g03-retest/face-operators/previous-kernels.json"
+    ))
+    .unwrap();
+    verify_capture(&value, &previous).unwrap();
+    let source = fs::read_to_string(root().join("target/t4-face-operators/product.cu")).unwrap();
+    let ptx = fs::read_to_string(root().join("target/t4-face-operators/product.ptx")).unwrap();
+    assert_eq!(source, template(&normalized(FACE), "FLEX_FACE_CUDA"));
+    let result: serde_json::Value = serde_json::from_slice(
+        &fs::read(root().join("target/t4-face-operators/factorial.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(result["product_cuda_sha256"], digest(source.as_bytes()));
+    assert_eq!(result["product_ptx_sha256"], digest(ptx.as_bytes()));
+    // 保留失败，不把编译证据转成数值准入。
+    assert_eq!(result["repaired_product"]["bit_differences"], 2078);
+    assert_eq!(result["full_acceptance"], false);
+    let historic = face_lineage::historical(FACE).unwrap();
+    let old = base();
+    let old_stamp = old
+        .product_sources
+        .iter()
+        .find(|s| s.path == "src/physics/flex_face.rs")
+        .unwrap();
+    assert_eq!(digest(historic.as_bytes()), old_stamp.sha256);
+    for block in [
+        face_lineage::NEW_R,
+        face_lineage::FIX_M,
+        face_lineage::NEW_N,
+    ] {
+        assert!(face_lineage::historical(&normalized(FACE).replace(block, "changed")).is_err());
+    }
+    fs::create_dir(&out).unwrap();
+    let mut retained = 0;
+    for row in &value.artifacts {
+        if row.entry != "flex_faces" {
+            for ext in ["cu", "ptx", "json"] {
+                let name = format!("{}-{}.{ext}", row.entry, row.ptx_sha256);
+                fs::copy(previous.join(&name), out.join(name)).unwrap();
+            }
+            retained += 1;
+        }
+    }
+    assert_eq!(retained, 29);
+    check_physics_ptx(&ptx, "flex_faces").unwrap();
+    record_physics_ptx(&source, &ptx, "flex_faces", true).unwrap();
+    let row = value
+        .artifacts
+        .iter_mut()
+        .find(|a| a.entry == "flex_faces")
+        .unwrap();
+    row.source_sha256 = digest(source.as_bytes());
+    row.ptx_sha256 = digest(ptx.as_bytes());
+    row.receipt_sha256 =
+        digest(&fs::read(out.join(format!("flex_faces-{}.json", row.ptx_sha256))).unwrap());
+    value
+        .product_sources
+        .iter_mut()
+        .find(|s| s.path == "src/physics/flex_face.rs")
+        .unwrap()
+        .sha256 = digest(normalized(FACE).as_bytes());
+    value.source_revision = REVISION.into();
+    lineage(&value).unwrap();
+    verify_sources(
+        &value,
+        &root(),
+        &root().join("target/mjwarp-parallel/upstream/mujoco_warp"),
+    )
+    .unwrap();
+    verify_capture(&value, &out).unwrap();
+    for artifact in &value.artifacts {
+        let ptx =
+            fs::read_to_string(out.join(format!("{}-{}.ptx", artifact.entry, artifact.ptx_sha256)))
+                .unwrap();
+        check_physics_ptx(&ptx, "face-current-capture").unwrap();
+    }
+    let bytes = serde_json::to_vec_pretty(&value).unwrap();
+    fs::write(
+        out.parent().unwrap().join("t4-current-kernels.json"),
+        &bytes,
+    )
+    .unwrap();
+    let audit = serde_json::json!({"scope":"face-repair-artifact-lineage-only","source_revision":REVISION,"current_inventory_sha256":digest(&bytes),"entries":24,"variants":30,"retained_variants":29,"updated_face_variants":1,"ptx_precision_gate_passes":30,"lineage_mutation_rejections":3,"new_compiler_calls":0,"gpu_executions":0,"numerical_gate":"failed-2078-bit-differences","full_acceptance":false});
+    fs::write(
+        out.parent().unwrap().join("capture.json"),
+        serde_json::to_string_pretty(&audit).unwrap() + "\n",
+    )
+    .unwrap();
 }

@@ -1,6 +1,8 @@
 //! 追踪其余打包器的字段路由。
 //! 私有表示不充当完整上游ABI。
 
+use super::face_lineage;
+
 /// 柔体新增切片；旧打包选择及其分母保持原样。
 mod flex_internal {
     use super::super::{Check, Stamp, between, digest, require};
@@ -848,8 +850,13 @@ fn validate(i: &Inventory) -> Check {
         "source coverage",
     )?;
     for stamp in &i.product_sources {
+        let text = if stamp.path == "src/physics/flex_face.rs" {
+            face_lineage::historical(source(&stamp.path)?)?
+        } else {
+            source(&stamp.path)?.to_owned()
+        };
         require(
-            digest(source(&stamp.path)?) == stamp.sha256,
+            digest(&text) == stamp.sha256,
             format!("source drift: {}", stamp.path),
         )?;
     }

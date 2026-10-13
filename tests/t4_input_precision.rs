@@ -6,6 +6,9 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeSet, path::PathBuf};
 
+#[path = "support/t4_face_lineage.rs"]
+mod face_lineage;
+
 #[path = "support/t4_state_packing.rs"]
 mod state_packing;
 
