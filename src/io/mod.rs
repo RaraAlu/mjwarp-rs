@@ -2,6 +2,8 @@
 //! 不提供完整模型上传入口。
 
 mod collision;
+#[cfg(feature = "native-model-probe")]
+mod collision_native;
 mod fields;
 pub use collision::NativePrimitiveGeometrySnapshot;
 #[cfg(feature = "native-model-probe")]
@@ -136,6 +138,16 @@ mod native {
 
         pub fn info(&self) -> NativeModelInfo {
             self.info
+        }
+
+        /// 复制十三项原生几何字段。
+        /// 快照独占数据，不借用模型。
+        pub fn primitive_geometry_snapshot(
+            &self,
+        ) -> Result<super::NativePrimitiveGeometrySnapshot, NativeProbeError> {
+            // SAFETY: the immutable model and DLL remain owned by self.
+            // The capture helper allocates disjoint, exact-width arrays.
+            unsafe { super::collision_native::capture(self.owner.as_ptr(), self.info) }
         }
 
         /// 先检查全部目标长度。
