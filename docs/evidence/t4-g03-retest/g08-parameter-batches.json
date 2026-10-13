@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "base_revision": "ba5855bf3325c6c603bf950a76ea75669524b0bc",
+  "scope": "Seven independent collision-geometry parameter cycles, host-only; no device upload or physics",
+  "frozen_upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "layout": "Each overridden field is contiguous [period, geometry, component]; unoverridden fields use the original shared model row",
+  "mapping": [
+    {
+      "field": "geom_solmix",
+      "width": 1,
+      "value_type": "f32",
+      "consumer": "collision_core.py:351",
+      "world_index": "world % this field's own period",
+      "upstream_leading_dimension": "*"
+    },
+    {
+      "field": "geom_solref",
+      "width": 2,
+      "value_type": "f32",
+      "consumer": "collision_core.py:353",
+      "world_index": "world % this field's own period",
+      "upstream_leading_dimension": "*"
+    },
+    {
+      "field": "geom_solimp",
+      "width": 5,
+      "value_type": "f32",
+      "consumer": "collision_core.py:354",
+      "world_index": "world % this field's own period",
+      "upstream_leading_dimension": "*"
+    },
+    {
+      "field": "geom_size",
+      "width": 3,
+      "value_type": "f32",
+      "consumer": "collision_core.py:101,107",
+      "world_index": "world % this field's own period",
+      "upstream_leading_dimension": "*"
+    },
+    {
+      "field": "geom_friction",
+      "width": 3,
+      "value_type": "f32",
+      "consumer": "collision_core.py:352",
+      "world_index": "world % this field's own period",
+      "upstream_leading_dimension": "*"
+    },
+    {
+      "field": "geom_margin",
+      "width": 1,
+      "value_type": "f32",
+      "consumer": "collision_core.py:312; collision_driver.py:309",
+      "world_index": "world % this field's own period",
+      "upstream_leading_dimension": "*"
+    },
+    {
+      "field": "geom_gap",
+      "width": 1,
+      "value_type": "f32",
+      "consumer": "collision_core.py:313; collision_driver.py:311",
+      "world_index": "world % this field's own period",
+      "upstream_leading_dimension": "*"
+    }
+  ],
+  "integer_topology": "geom_type/bodyid/contype/conaffinity/condim/priority remain shared i32, with no per-world override",
+  "native_adapter": "NativePrimitiveGeometrySnapshot::into_host_batch validates existing 3.12 ABI and quantizes native f64 defaults once; explicit ParameterBatch overrides already contain f32",
+  "ownership": "HostBatch owns checked model and seven optional ParameterBatch objects; world/geometry views borrow it and cannot outlive it",
+  "validation": {
+    "worlds": "positive, at most i32::MAX; invalid exposed world indices reject before modulo",
+    "periods": "positive through ParameterBatch; may exceed world count and need not divide it",
+    "row_width": "ngeom * field width, checked against immutable model",
+    "all_rows_finite": true,
+    "length_and_element_overflow": "existing ParameterBatch checks preserved",
+    "geometry_index": "reject >= ngeom before multiplication",
+    "native_abi": "existing version/scalar/count checks execute before binding, even when overriding a bad default"
+  },
+  "test_command": "cargo test --locked --test collision_parameters -- --test-threads=1",
+  "call_cap": 3,
+  "calls": [
+    {
+      "n": 1,
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "test_seconds": 0,
+      "compile_seconds_reported": 2.29,
+      "log": "target/g08-parameter-batches/test-1.log"
+    }
+  ],
+  "test_inputs": "synthetic owned host snapshots; five worlds and independently distinct periods 1..7; no physical reference generated",
+  "clippy": {
+    "command": "cargo clippy --locked --test collision_parameters -- -D warnings",
+    "calls": 1,
+    "passed": true
+  },
+  "source_sha256_lf": {
+    "src/model/collision_parameters.rs": "270c0d9cd9c3ed82453340ac09ce9615139c9bdbda09752ef81392c79b96af29",
+    "src/io/collision_parameters.rs": "1e0a0417384e56c894780632d9d5dc987248d8553e415ef1aee344ba00ad52cf",
+    "src/model/mod.rs": "499e5fff21b9595d4b9f14a47a07ef10fd2f08e6ba84ed6901248e75ce9cf100",
+    "src/io/mod.rs": "4d61671abb856f6d51d34416a3f4706066764848deeed6db69f1ea86788e7d68",
+    "tests/collision_parameters.rs": "eb8b0b8b26b701c5f8f45f65a04f8eb5f3eb5f4a237fc8763256025d44935067",
+    "src/model/parameters.rs": "e7ff5c42142dc8b326343d07c91eaa0a02d74615be577a9acbd4b5ec05af0d3b",
+    "target/mjwarp-parallel/upstream/mujoco_warp/_src/types.py": "5ff63b8186bafba2e2d51d5aae84875fb289411d9984f4e06b51813ea088491b",
+    "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_core.py": "55bfdc244254624d61c228d70d4fd4dc0d2d6af60af40c6e8ed16e47315e2ea6",
+    "target/mjwarp-parallel/upstream/mujoco_warp/_src/collision_driver.py": "186f59493726610a4bf477301852fc06c306a12101a12161198a78b785affa6d"
+  },
+  "logs_sha256_raw": {
+    "target/g08-parameter-batches/test-1.log": "b17f661037687a7c4ac59f29dac0110eaf23c2b0fae90f8dac2e6b54cc81b146",
+    "target/g08-parameter-batches/clippy-1.log": "194b4693ef9b9bf64334811bb5f9b90a6e2fe28427d27388907def48a7983890"
+  },
+  "source_drift": {
+    "changed_shared_exports": [
+      "src/model/mod.rs",
+      "src/io/mod.rs"
+    ],
+    "historical_host_receipt": "docs/evidence/t4-g03-retest/g08-host-input.json, commit 3f81b01679b182e28f764d07a7a00da33dcd8196",
+    "historical_native_capture_receipt": "docs/evidence/t4-g03-retest/g08-native-capture.json, commit ba5855bf3325c6c603bf950a76ea75669524b0bc",
+    "old_receipts_unchanged": true,
+    "unchanged_logic": [
+      "src/model/parameters.rs",
+      "src/model/collision.rs",
+      "src/io/collision.rs",
+      "src/io/collision_native.rs",
+      "build.rs",
+      "native bridge and headers"
+    ],
+    "old_collision_input_calls": 2,
+    "old_native_collision_input_calls": 1,
+    "old_targets_rerun": 0
+  },
+  "NP01": "Seven host f32 fields and six shared i32 fields only; not complete physical type mapping",
+  "NP02": "Frozen declarations and per-field consumer indexing read; no new generated GPU kernel evidence",
+  "NP03": "Host binding/indexing tests only; no physical numeric admission",
+  "NP04": "No fair GPU performance or device-memory measurement",
+  "cpu_physics_calls": 0,
+  "native_capture_calls": 0,
+  "gpu_sessions": 0,
+  "python_executions": 0,
+  "old_exhausted_target_calls": 0,
+  "original_tolerance_unchanged": true,
+  "old_physical_coverage_unchanged": true,
+  "formal_P2_prerequisites_unchanged": true,
+  "D04_complete": false,
+  "full_precision_accepted": false
+}

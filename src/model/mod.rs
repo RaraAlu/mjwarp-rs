@@ -13,6 +13,11 @@ pub mod attached;
 pub use attached::{AttachedFields, AttachedModelInput};
 pub mod collision;
 pub use collision::{PrimitiveGeometryFields, PrimitiveGeometryInput};
+pub mod collision_parameters;
+pub use collision_parameters::{
+    PrimitiveGeometryHostBatch, PrimitiveGeometryParameter, PrimitiveGeometryParameters,
+    PrimitiveGeometryTopology, PrimitiveGeometryWorld,
+};
 pub mod mocap;
 pub use mocap::MocapModelInput;
 pub mod parameters;

@@ -4,6 +4,7 @@
 mod collision;
 #[cfg(feature = "native-model-probe")]
 mod collision_native;
+mod collision_parameters;
 mod fields;
 pub use collision::NativePrimitiveGeometrySnapshot;
 #[cfg(feature = "native-model-probe")]
