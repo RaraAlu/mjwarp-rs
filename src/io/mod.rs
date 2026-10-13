@@ -1,7 +1,9 @@
 //! 宿主转换与连续GPU字段交换。
 //! 不提供完整模型上传入口。
 
+mod collision;
 mod fields;
+pub use collision::NativePrimitiveGeometrySnapshot;
 #[cfg(feature = "native-model-probe")]
 mod flex;
 #[cfg(feature = "native-model-probe")]
