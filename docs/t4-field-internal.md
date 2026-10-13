@@ -4,6 +4,127 @@
 状态：本轮静态切片通过。
 完整精度验收仍未完成。
 
+## 当前源码的完整纯编译核验
+
+日期：2026-10-14。
+本轮真实补齐新版面CUDA与PTX。
+当前机器码与修复后数值仍未执行。
+下文保留此前未编译时的历史边界。
+
+### 原始账本纠正
+
+原显式编译选择只执行过两次。
+另三次宿主选择将该用例标为忽略。
+忽略不等于执行编译。
+所以编译选择尚有一次额度。
+本轮据原日志纠正此前泛化判断。
+源码变化没有重置任何调用次数。
+
+原函数已经覆盖当前完整集合。
+它包含三份刚体、七份依赖和一份面。
+本轮没有把刚体用例替换成单面用例。
+本轮也没有新建编译目标或拆分选择。
+本轮执行原选择的第三次，现已满额。
+
+| 选择 | 累计调用 | 本轮结果 |
+| --- | --- | --- |
+| 原显式编译捕获 | 3 | 1过0败、238过滤，1.92秒 |
+| 原宿主谱系选择 | 3 | 本轮未运行 |
+| 末项修复宿主目标 | 3 | 4过0败，0.01秒 |
+| 面物理与机器码捕获 | 各保持原账本 | 本轮未运行 |
+
+前两次原编译日志仍保留原字节。
+完整调用见[编译审计](evidence/t4-g03-retest/face-current-compile/audit.json)。
+
+### 当前编译产物
+
+本轮使用原NVRTC 12.8.93。
+目标仍为compute70。
+融合乘加保持开启。
+快速数学保持关闭。
+本轮没有改动产品物理源码。
+输入CUDA仍采用三轴末项修复版本。
+
+原函数重新编译11份变体。
+它沿用19份核实后的历史产物。
+完整集合仍为24入口、30变体。
+三十份PTX均通过原类型门禁。
+三个文件破坏反例均触发拒绝。
+本轮完整检查没有删减覆盖。
+对比前轮当前清单，29条产物记录不变。
+只有面入口的来源、PTX与回执变化。
+
+实际产物目录如下：
+
+```text
+target/t4-final-face-compile/current
+```
+
+面CUDA摘要前缀为`2548aee52c26`。
+面PTX摘要前缀为`8057e350787c`。
+新PTX确实包含三轴末项`fma.rn.f32`。
+本轮不把这些指令冒充加载后的机器码。
+完整结果见[编译回执](evidence/t4-g03-retest/face-current-compile/compile.json)。
+
+当前[清单](../fixtures/precision/t4-current-kernels.json)来自真实生成结果。
+当前[状态](../fixtures/precision/t4-current-capture-status.json)只标记编译与PTX完成。
+机器码、数值与完整验收标志仍为假。
+当前位差数量仍记为未知。
+前轮2078项失败不改报为零。
+
+### 保留旧证据与历史断言
+
+本轮先归档旧清单与旧状态。
+它们保持原始字节与哈希。
+历史来源见[旧清单](evidence/t4-g03-retest/face-current-compile/previous-kernels.json)。
+历史边界见[旧状态](evidence/t4-g03-retest/face-current-compile/previous-status.json)。
+旧PTX与CUBIN目录保持原字节。
+它们不代表修复后的当前源码。
+
+末项修复的旧宿主断言改读历史快照。
+未知漂移和伪造完成标志仍触发拒绝。
+本轮另增加当前编译点绑定检查。
+它核对真实CUDA、PTX与回执哈希。
+该新检查不授予机器码或数值准入。
+原宿主目标只用第三次剩余额度。
+此后该目标也停止重跑。
+
+最终仅冻结编译点的输入路径。
+冻结前后输入字节完全相同。
+随后Clippy通过，本轮不追加第四次测试。
+后续取证不能改写这些阶段断言。
+
+### 实际命令与剩余缺口
+
+```text
+cargo test --locked --features cuda-probe --lib runtime::transfer::kernel::recapture::recompile_rigid_variants_without_launching_physics -- --ignored --exact --test-threads=1 --nocapture
+cargo test --locked --features cuda-probe --test t4_face_fusion_repair -- --test-threads=1
+cargo clippy --locked --features cuda-probe --test t4_face_fusion_repair --lib --tests -- -D warnings
+cargo fmt --check
+```
+
+编译目标使用独立新目录。
+目录变量为`MJWARP_PHYSICS_PTX_DIR`。
+本轮不覆盖任何旧捕获目录。
+本轮没有GPU会话或内核启动。
+本轮没有Python产品执行。
+本轮没有Linux、发布或原生数值复验。
+编译耗时不代表物理性能。
+显存与公平稳态性能仍未测。
+
+| 门禁 | 当前边界 |
+| --- | --- |
+| NP01 | 当前编译类型门禁通过；完整上游映射未齐 |
+| NP02 | 当前PTX已补；当前机器码与矩阵产物仍缺 |
+| NP03 | 修复后设备数值与原生对照未执行 |
+| NP04 | 公平性能与进程显存仍未验收 |
+
+主排程、前置、UID与资源锁保持。
+原容差、全部覆盖和21系数范围保持。
+下一独立候选是三角控制域核对。
+其他既定就绪产品阶段也可继续。
+完整项目与T4继续开放。
+
 ## 三轴末项融合源码修复
 
 最近的独立增量见[线性几何域](#线性面的可达几何域)。

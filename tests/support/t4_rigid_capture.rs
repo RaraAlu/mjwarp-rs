@@ -14,7 +14,7 @@ mod evidence;
 use evidence::{Inventory, digest, validate_inventory, verify_capture, verify_sources};
 
 const BASE: &str = include_str!("../../fixtures/precision/t4-kernels.json");
-const REVISION: &str = "d2d7b467f0e96c5ea0795849ce71d0078b4be917";
+const REVISION: &str = "934667a8e958155d4fe7e033e148978d498778e4";
 const PHYSICS: &str = include_str!("../../src/physics/mod.rs");
 const RESIDENT: &str = include_str!("../../src/physics/resident.rs");
 const RUNTIME: &str = include_str!("../../src/runtime/transfer/kernel.rs");

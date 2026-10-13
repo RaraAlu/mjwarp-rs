@@ -9,8 +9,16 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 const FACE: &str = include_str!("../src/physics/flex_face.rs");
-const INVENTORY: &str = include_str!("../fixtures/precision/t4-current-kernels.json");
-const STATUS: &str = include_str!("../fixtures/precision/t4-current-capture-status.json");
+// 保留修复当时的失效断言；不让后续真实取证改写历史。
+const INVENTORY: &str =
+    include_str!("../docs/evidence/t4-g03-retest/face-current-compile/previous-kernels.json");
+const STATUS: &str =
+    include_str!("../docs/evidence/t4-g03-retest/face-current-compile/previous-status.json");
+// 固定本次真实编译点；后续机器码或数值取证不能改写此点。
+const CURRENT_INVENTORY: &str =
+    include_str!("../docs/evidence/t4-g03-retest/face-current-compile/kernels.json");
+const CURRENT_STATUS: &str =
+    include_str!("../docs/evidence/t4-g03-retest/face-current-compile/status.json");
 const FUSION: &str = include_str!("../docs/evidence/t4-g03-retest/face-machine/fusion.json");
 
 fn digest(text: &str) -> String {
@@ -167,5 +175,59 @@ fn keeps_old_capture_separate_from_uncompiled_product() {
         let mut changed = status.clone();
         changed[key] = true.into();
         assert!(validates_stale_status(&changed).is_err());
+    }
+}
+
+#[test]
+fn binds_current_ptx_without_admitting_machine_or_numerical_acceptance() {
+    let status: Value = serde_json::from_str(CURRENT_STATUS).unwrap();
+    let inventory: Value = serde_json::from_str(CURRENT_INVENTORY).unwrap();
+    assert_eq!(
+        status["status"],
+        "compiled-ptx-only-machine-and-numerical-pending"
+    );
+    assert_eq!(status["inventory_sha256"], digest(CURRENT_INVENTORY));
+    assert_eq!(status["current_source"]["sha256"], digest(FACE));
+    assert_eq!(status["current_cuda_compiled"], true);
+    assert_eq!(status["current_ptx_captured"], true);
+    for key in [
+        "current_machine_code_captured",
+        "current_numerical_tested",
+        "full_acceptance",
+    ] {
+        assert_eq!(status[key], false);
+    }
+    assert_eq!(status["current_bit_differences"], Value::Null);
+    assert_eq!(status["previous_strict_bit_differences"], 2078);
+    assert_eq!(status["pending"].as_array().unwrap().len(), 2);
+    assert_eq!(inventory["artifacts"].as_array().unwrap().len(), 30);
+    let face = inventory["artifacts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["entry"] == "flex_faces")
+        .unwrap();
+    assert_eq!(face, &status["current_capture"]);
+    assert_eq!(
+        face["source_sha256"],
+        status["current_source"]["cuda_sha256"]
+    );
+    assert_ne!(face["source_sha256"], status["old_capture"]["cuda_sha256"]);
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let dir = root.join(status["current_capture_directory"].as_str().unwrap());
+    for (extension, key) in [
+        ("cu", "source_sha256"),
+        ("ptx", "ptx_sha256"),
+        ("json", "receipt_sha256"),
+    ] {
+        let path = dir.join(format!(
+            "flex_faces-{}.{extension}",
+            face["ptx_sha256"].as_str().unwrap()
+        ));
+        let bytes = std::fs::read(path).unwrap();
+        assert_eq!(
+            format!("{:x}", Sha256::digest(bytes)),
+            face[key].as_str().unwrap()
+        );
     }
 }
