@@ -694,3 +694,62 @@ D05与D06现在存在文件冲突。
 不能把分时预期写成已支持的暂停。
 原T4与D04未完成状态均保留。
 架构校验不替代产品验收。
+
+## D04首个G08原生输入工具
+
+日期：2026-10-14。
+本轮落实参考输入准备代码。
+工具见[原生输入作者工具](../scripts/prepare-g08-reference-input.ps1)。
+冻结输入见[XML](../fixtures/collision-reference-input/plane-sphere.xml)
+与[七状态](../fixtures/collision-reference-input/plane-sphere-states.json)。
+实际收据见[输入证据](evidence/t4-g03-retest/g08-reference-input.json)。
+
+冻结上游存在平面—球函数。
+其包装函数为`plane_sphere_wrapper`。
+它输出接触浮点量与整数标记。
+本轮核对wrapper与core实际源码。
+当前缓存未发现collision生成模块。
+本轮不把源码当作GPU产物。
+
+本轮真实编译原生MJB。
+工具随后重载MJB并打印模型。
+实载版本为MuJoCo 3.12.0。
+实载维度为nq7、nv6。
+身体与几何数量均为2。
+编译器及DLL匹配冻结官方包字节。
+工具拒绝覆盖既有作者输出目录。
+输出始终位于仓库target目录。
+
+七状态均保存qpos与qvel。
+工具转换状态为f32并保留位型。
+自由关节四元数采用wxyz。
+原生MJB继续采用f64 ABI。
+两者不能混称全文件采用f32。
+真实产物已按原字节冻结。
+本轮不计算CPU接触或步进。
+本轮未启动GPU或Python。
+
+输入制作配置累计两次。
+首次在原生编译前失败。
+原因是混用raw与LF源码摘要。
+冻结源码没有发生变化。
+本轮保留失败日志与两种摘要。
+第二次修正为原始源码字节身份。
+输入文本仍使用LF规范摘要。
+二进制始终采用原始字节摘要。
+第二次成功并通过五个拒绝检查。
+通过后没有再次执行。
+旧三次准入门禁仍保持冻结。
+
+```powershell
+pwsh -NoProfile -File scripts/prepare-g08-reference-input.ps1 -RepositoryRoot C:/Rust/mjwarp-rs -SelfTest
+```
+
+这只是原生输入制作能力。
+它不是G08 GPU算法实现。
+它不提供上游GPU接触输出。
+D04与G08物理验收仍未通过。
+下一实际代码候选为原生接触作者工具。
+原生结果只作独立诊断来源。
+不得把它替代冻结MJWarp GPU证据。
+原容差、旧覆盖与21系数边界保持。
