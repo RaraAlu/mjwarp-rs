@@ -1,0 +1,239 @@
+{
+  "schema": 1,
+  "scope": "hessian-generation-prerequisites-static-only",
+  "base_revision": "97a7b54f638552049bd0ffe2efcc7cbb971389bf",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "source_normalization": "LF",
+  "sources": [
+    {
+      "id": "version",
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/util_pkg.py",
+      "sha256": "a023e53be117000aa6fa921fa585e8f9ebb579672f142e321e665c32b7a26a12"
+    },
+    {
+      "id": "product",
+      "path": "src/physics/flex_hessian.rs",
+      "sha256": "587e5553148ac53ddb900fb3eb4c1abbe33befdb71c6c640baa106bc873c1eb5"
+    },
+    {
+      "id": "model",
+      "path": "src/model/flex_hessian.rs",
+      "sha256": "30608e8ada8a609124c9f9d3a1279b781df63653f51b067b9768cf674ce2a5fb"
+    },
+    {
+      "id": "passive",
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/passive.py",
+      "sha256": "d7c89fbe7bc000e2d7d1394a8d8441abb20f13dbdb77f22e6ecc4357723e98ca"
+    },
+    {
+      "id": "derivative",
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/derivative.py",
+      "sha256": "d2fb5a758e8774ea49546a0d7936534be48cc1f714629239aef71413be670a4a"
+    },
+    {
+      "id": "io",
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/io.py",
+      "sha256": "5b5facb1918a9f0f6bb169adbb861cb43bfd26bdbdbf932e4080eb51ebbe1c88"
+    },
+    {
+      "id": "types",
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/types.py",
+      "sha256": "5ff63b8186bafba2e2d51d5aae84875fb289411d9984f4e06b51813ea088491b"
+    },
+    {
+      "id": "builtin",
+      "path": "target/mjwarp-parallel/venv/Lib/site-packages/warp/native/builtin.h",
+      "sha256": "99e9ab17698e87ec85d743d416249f7a5f29f5cb8419a2955560350bc564bbe4"
+    },
+    {
+      "id": "matrix",
+      "path": "target/mjwarp-parallel/venv/Lib/site-packages/warp/native/mat.h",
+      "sha256": "05278e6459e65954daab81f75dfac784eef856c43da09048e4fa5478e2475795"
+    },
+    {
+      "id": "vector",
+      "path": "target/mjwarp-parallel/venv/Lib/site-packages/warp/native/vec.h",
+      "sha256": "93994499dfac4b341e1bdf04dd1aec92939844562c58b602b94d0f81a1d6ca62"
+    },
+    {
+      "id": "metadata",
+      "path": "target/mjwarp-parallel/venv/Lib/site-packages/mujoco-3.15.0.dist-info/METADATA",
+      "sha256": "ed75e601a51e1372123c1f3e95b2286c4ee6c94661886dbc19e43d2f8e9efad4"
+    }
+  ],
+  "prerequisites": [
+    {
+      "source": "version",
+      "symbol": "check_version",
+      "anchors": [
+        "installed_str = importlib.metadata.version(package_name)",
+        "installed_version = _parse_version(installed_str)",
+        "return ops[op](installed_version, required_version)"
+      ]
+    },
+    {
+      "source": "passive",
+      "symbol": "flex_hessian",
+      "anchors": [
+        "if m.nflex == 0:\n    return",
+        "nclear = max(m.nflexvert, m.nflexedge)",
+        "if nclear > 0:",
+        "dim=(d.nworld, nclear)",
+        "if m.nflexelem > 0:",
+        "dim=(d.nworld, m.nflexelem)",
+        "dim=(d.nworld, m.nflexedge)",
+        "d.flex_hessian_valid.fill_(True)"
+      ],
+      "ordered": [
+        "_flex_hessian_clear,",
+        "_flex_hessian_elem,",
+        "_flex_hessian_diag,",
+        "d.flex_hessian_valid.fill_(True)"
+      ]
+    },
+    {
+      "source": "passive",
+      "symbol": "_flex_hessian_active",
+      "anchors": [
+        "if f < 0:",
+        "flex_interp[f] != 0 or flex_rigid[f] or flex_dim[f] < 2",
+        "if stiffness_adr < 0:",
+        "return flex_stiffness[stiffness_adr] != 0.0"
+      ]
+    },
+    {
+      "source": "passive",
+      "symbol": "_flex_hessian_elem",
+      "anchors": [
+        "if flex_hessian_valid_in[worldid, f]:",
+        "if not _flex_hessian_active(",
+        "local_elemid * (FLEX_STIFFNESS_3D if dim == 3 else 21)",
+        "snh = wp.static(FLEX_STIFFNESS_3D == 24) and dim == 3 and flex_stiffness[stiffness_adr + 21] != 0.0"
+      ]
+    },
+    {
+      "source": "types",
+      "anchors": [
+        "FLEX_STIFFNESS_3D = 24 if util_pkg.check_version(\"mujoco>=3.14.1.dev989511280\") else 21",
+        "flex_hessian_valid: array(\"nworld\", \"nflex\", bool)"
+      ]
+    },
+    {
+      "source": "metadata",
+      "anchors": [
+        "Name: mujoco\nVersion: 3.15.0\n"
+      ]
+    },
+    {
+      "source": "io",
+      "anchors": [
+        "m.has_flex_snh = bool(",
+        "types.FLEX_STIFFNESS_3D == 24",
+        "and mjm.flex_dim[f] == 3",
+        "and mjm.flex_elemnum[f] > 0",
+        "raise ValueError(\"stable Neo-Hookean elasticity requires integrator='discrete'\")"
+      ]
+    },
+    {
+      "source": "derivative",
+      "symbol": "eff_build",
+      "anchors": [
+        "if m.opt.integrator != IntegratorType.DISCRETE:",
+        "if m.nflex > 0 and not ((m.opt.disableflags & DisableBit.SPRING) and (m.opt.disableflags & DisableBit.DAMPER)):",
+        "passive.flex_hessian(m, d)"
+      ]
+    },
+    {
+      "source": "model",
+      "anchors": [
+        "positions.flex_interp[f] == 0",
+        "&& !self.flex_rigid[f]",
+        "&& self.flex_dim[f] >= 2",
+        "let width = count.checked_mul(21)"
+      ]
+    }
+  ],
+  "accumulation": [
+    {
+      "source": "passive",
+      "symbol": "_flex_hessian_elem",
+      "anchors": [
+        "worldid, elemid = wp.tid()",
+        "wp.atomic_add(flexedge_hessian_out, worldid, edge_id, block)"
+      ]
+    },
+    {
+      "source": "passive",
+      "symbol": "_flex_hessian_diag",
+      "anchors": [
+        "worldid, edgeid = wp.tid()",
+        "d0 = vec6(-block[0, 0]",
+        "wp.atomic_add(flexvert_hessian_out, worldid, va + vert[0], d0)",
+        "wp.atomic_add(flexvert_hessian_out, worldid, va + vert[1], d1)"
+      ]
+    },
+    {
+      "source": "matrix",
+      "anchors": [
+        "m.data[i][j] = atomic_add(&addr->data[i][j], value.data[i][j]);"
+      ]
+    },
+    {
+      "source": "vector",
+      "anchors": [
+        "ret[i] = atomic_add(&(addr->c[i]), value[i]);"
+      ]
+    },
+    {
+      "source": "builtin",
+      "anchors": [
+        "template <typename T> inline CUDA_CALLABLE T atomic_add(T* buf, T value)",
+        "return atomicAdd(buf, value);"
+      ]
+    },
+    {
+      "source": "passive",
+      "symbol": "stretch_stiffness_block",
+      "anchors": [
+        "if sa != 0.0 and sb != 0.0:",
+        "geo += tension[a] * sa * sb",
+        "geo *= scale"
+      ]
+    },
+    {
+      "source": "product",
+      "anchors": [
+        "for(int el=0;el<r[7];++el)",
+        "blocks[9*edge+k]+=block[k]",
+        "geo+=tension[a]*hessian_sign(i,a,dim)*hessian_sign(j,a,dim)",
+        "d0[k]-=b[upper[k]];d1[k]-=b[lower[k]];"
+      ]
+    }
+  ],
+  "cache_root": "target/mjwarp-parallel/warp-cache/1.15.0",
+  "cache_files": [
+    {
+      "path": "wp_mujoco_warp._src.smooth_ca013d6/wp_mujoco_warp._src.smooth_ca013d6.cu",
+      "sha256": "3a6b3856727f63797a28646a5864aa02cd76a20ed3658199c69b3ad75c802bfa"
+    },
+    {
+      "path": "wp_mujoco_warp._src.smooth_ca013d6/wp_mujoco_warp._src.smooth_ca013d6.meta",
+      "sha256": "ba204423894a1e795fd21f5da3b15dfd9ab1ea515497743603556d39fb76c5cb"
+    },
+    {
+      "path": "wp_mujoco_warp._src.smooth_ca013d6/wp_mujoco_warp._src.smooth_ca013d6.sm89.ptx",
+      "sha256": "1d9e4e3a983ca35090ade3a48fd83aa0dc86a23228bb0865010f681698ab75dd"
+    }
+  ],
+  "observed_mujoco": "3.15.0",
+  "current_environment_stiffness_width": 24,
+  "product_stiffness_width": 21,
+  "actual_hessian_generated_artifact": false,
+  "metadata_proves_historical_compile_environment": false,
+  "full_acceptance": false,
+  "next": [
+    "obtain-independent-passive-generated-CUDA-and-PTX-with-frozen-compiler-without-Python-product-chain",
+    "freeze-compatible-21-coefficient-branch-or-implement-24-coefficient-mapping",
+    "measure-shared-edge-and-shared-vertex-atomic-order-and-signed-zero-on-device"
+  ]
+}

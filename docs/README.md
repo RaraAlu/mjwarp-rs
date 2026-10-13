@@ -144,6 +144,11 @@ NP04仍缺公平稳态性能对照。
 严格逐位门禁仍失败。
 满额诊断不再重跑。
 详见[算子隔离](t4-field-internal.md#极分解算子与编译器隔离)。
+随后核对矩阵生成前置。
+三项独立宿主检查通过。
+实际矩阵生成产物仍缺失。
+原子次序与零符号仍待实测。
+详见[生成前置](t4-field-internal.md#矩阵生成前置与累加风险)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
