@@ -20,6 +20,7 @@ const PHYSICS_FMAD: bool = true;
 /// ABI: (const int*, const P*, const S*, O*, u32, u32, u32, u32).
 /// 柔体边另用固定三输入ABI。
 /// 拉伸矩阵另用六指针ABI。
+/// RNE前向另用六指针及u32开关。
 /// 调用方证明三种元素的实际ABI。
 /// 核函数与缓冲保留同一会话。
 pub(crate) struct SynchronousKernel {
@@ -28,6 +29,85 @@ pub(crate) struct SynchronousKernel {
 }
 
 impl SynchronousKernel {
+    /// ABI: (i32*, f32*, f32*, f32*, f32*, f32*, u32, u32).
+    /// flag使用私有u32，不混用上游bool结构ABI。
+    ///
+    /// # Safety
+    /// Caller proves metadata and all four f32 input strides.
+    /// Inputs are immutable and disjoint from the guarded output.
+    /// All buffers retain this session; the kernel spawns no child work.
+    pub(crate) unsafe fn launch_rne_cacc(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        inputs: (
+            &TransferBuffer<f32>,
+            &TransferBuffer<f32>,
+            &TransferBuffer<f32>,
+            &TransferBuffer<f32>,
+        ),
+        output: &mut TransferBuffer<f32>,
+        flg_acc: bool,
+        worlds: u32,
+    ) -> Result<(), TransferError> {
+        for same in [
+            Arc::ptr_eq(&self.session.inner, &metadata.session.inner),
+            Arc::ptr_eq(&self.session.inner, &inputs.0.session.inner),
+            Arc::ptr_eq(&self.session.inner, &inputs.1.session.inner),
+            Arc::ptr_eq(&self.session.inner, &inputs.2.session.inner),
+            Arc::ptr_eq(&self.session.inner, &inputs.3.session.inner),
+            Arc::ptr_eq(&self.session.inner, &output.session.inner),
+        ] {
+            if !same {
+                return Err(TransferError::SessionMismatch);
+            }
+        }
+        if worlds == 0 || worlds > u32::MAX - 255 {
+            return Err(InputError::InvalidDimension {
+                field: "kernel_work_items",
+            }
+            .into());
+        }
+        let (Some(m), Some(v), Some(a), Some(c), Some(d), Some(o)) = (
+            metadata.allocation.as_ref(),
+            inputs.0.allocation.as_ref(),
+            inputs.1.allocation.as_ref(),
+            inputs.2.allocation.as_ref(),
+            inputs.3.allocation.as_ref(),
+            output.allocation.as_mut(),
+        ) else {
+            return Err(InputError::InvalidDimension {
+                field: "kernel_buffers",
+            }
+            .into());
+        };
+        let flag = u32::from(flg_acc);
+        self.session.run("rne-cacc-kernel-launch", || {
+            let mut args = self
+                .session
+                .inner
+                .stream
+                .launch_builder(self.function.as_ref().unwrap());
+            args.arg(m)
+                .arg(v)
+                .arg(a)
+                .arg(c)
+                .arg(d)
+                .arg(o)
+                .arg(&flag)
+                .arg(&worlds);
+            // SAFETY: The caller proves the exact private ABI and all ranges.
+            // run holds the session operation lock and waits for completion.
+            unsafe {
+                args.launch(LaunchConfig {
+                    grid_dim: (worlds.div_ceil(256), 1, 1),
+                    block_dim: (256, 1, 1),
+                    shared_mem_bytes: 0,
+                })
+            }?;
+            Ok(())
+        })
+    }
+
     pub(crate) fn compile(
         session: &TransferSession,
         source: &str,

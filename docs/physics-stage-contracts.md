@@ -180,6 +180,25 @@ RNE输出仅含qfrc_bias。
 依据：[RNE实现与复验](linux-resident-rne-bias.md)。
 最新状态见[f32修复](linux-f32-precision-restoration.md)。
 
+### G02加速度严格辅助
+
+旧偏置力子集保持上述契约。
+新`RnePlan`另接入qacc。
+它复用现有空间速度底座。
+它支持显式加速度开关。
+它输出cacc、cfrc_int与qfrc_bias。
+它采用分层浮点原子反向累加。
+qacc写入只废弃RNE结果。
+位置与速度写入也废弃前置。
+输入拒绝保留已有结果。
+新辅助仍要求前置新鲜度。
+它不提供完整等价rne。
+开启加速度的原生样本通过。
+关闭加速度仍有原生超差。
+本轮不借用其他辅助的红线。
+完整G02与精度仍未验收。
+依据见[RNE加速度](rne-acceleration.md)。
+
 ## 4. 人工接触注入
 
 人工接触属于等价范围。

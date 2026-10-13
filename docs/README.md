@@ -264,6 +264,7 @@ NP04仍缺公平稳态性能对照。
 45. [Linux G01全阶段验收](linux-g01-acceptance.md)
 46. [Linux常驻空间速度子集](linux-resident-com-velocity.md)
 47. [Linux常驻RNE偏置力子集](linux-resident-rne-bias.md)
+    新增[RNE加速度辅助](rne-acceleration.md)。
 48. [Linux单精度修复进展](linux-f32-precision-restoration.md)
 49. [Windows肌腱上游并列诊断](windows-mjwarp-geom-tendon-comparison.md)
 50. [Windows完整T4补测](windows-t4-recheck.md)

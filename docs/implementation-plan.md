@@ -891,6 +891,13 @@ GPU计算cvel与cdof_dot。
 GPU计算qfrc_bias。
 严格子集阶段契约已补齐。
 完整RNE与等价调度仍待实现。
+随后补齐RNE加速度严格辅助。
+新辅助支持qacc独立写入。
+反向阶段采用分层原子累加。
+加速度样本通过原生容差。
+关闭加速度仍有原生超差。
+完整阶段与精度仍未验收。
+记录见[RNE加速度](rne-acceleration.md)。
 下一批收口CRB常驻组合。
 证据见[速度报告](linux-resident-com-velocity.md)。
 偏置力见[RNE报告](linux-resident-rne-bias.md)。

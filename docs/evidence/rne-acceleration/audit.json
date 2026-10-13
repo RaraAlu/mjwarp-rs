@@ -1,0 +1,295 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "base_revision": "2d760e8256db0338e37f333796cdbc9d02820414",
+  "scope": "existing-plan RNE qacc implementation and local operator repair, not full G02",
+  "environment": {
+    "platform": "Windows",
+    "profile": "debug",
+    "features": [
+      "cuda-probe"
+    ],
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "device_total_mib": 16376,
+    "process_memory_query": "nvidia-smi used_gpu_memory -> [N/A] under WDDM",
+    "device_wide_observations_mib": [
+      3239,
+      3022
+    ],
+    "device_wide_observations_are_process_peak": false
+  },
+  "native_author": {
+    "calls": 1,
+    "models": 5,
+    "states_per_model": 8,
+    "gravities": 3,
+    "flags": 2,
+    "rne_calls": 240,
+    "native_version": 3012000,
+    "executable_sha256": "722a17b6e1120f32fd7b05d0678ee6753d3a79c9f9b498f709fc3c7bd8109660",
+    "source_sha256": "04c1b8f0752489047777cff5f224941ae4f10b9a861a2b03ce86e22a32ed590e",
+    "native_dll_sha256": "79b61d22b4d230a00bd31930fc6943f8ea8c6174a1bf4a6bf90f2459dbf8df1b",
+    "compiler_command": "cl /nologo /EHsc /std:c++17 /O2 /I<MuJoCo3.12>/include fixtures/rne-acceleration/reference.cpp /Fe:target/rne-acceleration-author/attempt-1/reference.exe /Fo:target/rne-acceleration-author/attempt-1/reference.obj /link /LIBPATH:<MuJoCo3.12>/lib mujoco.lib",
+    "invocation": "reference.exe <one frozen MJB from manifest> fixtures/rne-acceleration/<matching model>.json",
+    "product_executes_author": false,
+    "cpu_product_backend": false
+  },
+  "integration": {
+    "second_report_archive": "docs/evidence/rne-acceleration/native-results.json",
+    "final_report_archive": "docs/evidence/rne-acceleration/native-final.json",
+    "selector": "resident_rne_acceleration",
+    "command": "cargo test --locked --features cuda-probe --test resident_rne_acceleration -- --include-ignored --test-threads=1 --nocapture",
+    "call_cap": 3,
+    "calls": [
+      {
+        "n": 1,
+        "passed": 1,
+        "failed": 2,
+        "seconds": 2.92,
+        "early_stop": true,
+        "failures": [
+          "serde_json decimal f64 last-bit diagnostic assertion",
+          "first native tolerance failure mixed-joints/state3/gravity0/flagfalse/dof7"
+        ]
+      },
+      {
+        "n": 2,
+        "passed": 2,
+        "failed": 1,
+        "seconds": 15.32,
+        "complete_coverage": true,
+        "failed_blocks": 1042
+      },
+      {
+        "n": 3,
+        "passed": 2,
+        "failed": 1,
+        "seconds": 15.51,
+        "complete_coverage": true,
+        "failed_blocks": 1042,
+        "post_operator_repair": true
+      }
+    ],
+    "exhausted": true,
+    "renamed_or_split_to_reset_budget": false,
+    "models": 5,
+    "gravities": 3,
+    "states": 8,
+    "world_counts": [
+      1,
+      2,
+      5,
+      513
+    ],
+    "flags": [
+      false,
+      true
+    ],
+    "total_scalars": 900288,
+    "true_mode_native_pass_scalars": 450144,
+    "false_mode_native_fail_world_field_blocks": 1042,
+    "failure_groups": [
+      "mixed-joints/state3/gravity0/false:521",
+      "mixed-joints/state7/gravity2/false:521"
+    ],
+    "maximum_normalized_error": 2.76253322412056,
+    "absolute_tolerance": 2E-05,
+    "relative_tolerance": 2E-05,
+    "admitted": false,
+    "new_redline_policy_added": false,
+    "final_numeric_log_elapsed_ms": 13679,
+    "final_report_elapsed_ms": 13682,
+    "maximum_owned_rne_device_bytes": 250608,
+    "memory_scope": "metadata/qacc/output allocation sizes; excludes reused G01/velocity, JIT and driver",
+    "process_memory_peak_measured": false,
+    "fair_performance_acceptance": false
+  },
+  "stage_diagnostic": {
+    "purpose": "new RNE stage only on identical product-prefix f32 inputs; not complete upstream pipeline",
+    "calls": 3,
+    "call_cap": 3,
+    "exhausted": true,
+    "calls_detail": [
+      {
+        "n": 1,
+        "selector": "physics::rne::tests::",
+        "passed": 3,
+        "failed": 0,
+        "seconds": 2.01,
+        "filtered": 239,
+        "scope": "layout/guards and state3 gravity0 both flags",
+        "bit_differences": 0
+      },
+      {
+        "n": 2,
+        "selector": "physics::rne::tests::diagnoses_new_qacc_stage_against_frozen_ptx_on_identical_device_inputs",
+        "passed": 1,
+        "failed": 0,
+        "seconds": 1.17,
+        "filtered": 241,
+        "scope": "diagnostic state7 gravity2 both flags, not admission",
+        "false_mode_bit_differences": 2,
+        "first_difference": "cfrc_int[body4][1], flat61; then qfrc_bias[dof10], flat82"
+      },
+      {
+        "n": 3,
+        "selector": "physics::rne::tests::diagnoses_new_qacc_stage_against_frozen_ptx_on_identical_device_inputs",
+        "passed": 1,
+        "failed": 0,
+        "seconds": 2.01,
+        "filtered": 241,
+        "scope": "post-repair state3/gravity0 and state7/gravity2, both flags",
+        "compared_scalars": 332,
+        "bit_differences": 0,
+        "strict_zero_difference_assertion": true
+      }
+    ],
+    "source_rne_rs_at_first_call_raw_sha256": "09425644811dac3c09c91ee3bc0623651562a0210b98d82f3042664278e1293c",
+    "source_cuda_before_repair_sha256": "358f41877ebfb0081dbab157bd27a1a04447ea0b301cd143d87ac13991913ce7",
+    "source_cuda_after_repair_sha256": "cf624cc043591268e1b8565ce150e8dc8e08d9a23a44c68087ed20416d3df17e",
+    "actual_frozen_ptx_loaded": true,
+    "python_calls": 0,
+    "reference_differences_do_not_admit_native_failures": true
+  },
+  "checks": {
+    "cached_diff_check": "passed",
+    "staged_reference_hash_rows_verified": 16,
+    "cuda_check": "passed",
+    "all_test_build_check": "cargo check --locked --features cuda-probe --tests passed; no old tests executed",
+    "default_check": "first build found cfg-only unused flg_acc warning, fixed with cfg(feature); default Clippy passed",
+    "cuda_clippy_command": "cargo clippy --locked --features cuda-probe --lib --test resident_rne_acceleration -- -D warnings",
+    "cuda_clippy_calls": 3,
+    "cuda_clippy": "all passed, final after physical repair",
+    "default_clippy_command": "cargo clippy --locked --lib -- -D warnings",
+    "default_clippy": "passed first call",
+    "fmt_check": "passed",
+    "diff_check": "passed",
+    "doc_audit": {
+      "report": "C:/Users/zhang/.codex/audit-docs/reports/e05f246e1c12b4cf/audit-c7qbs83t.md",
+      "sources": 367,
+      "docs": 100,
+      "mismatches": 0,
+      "manual_review": "new docs against API/state code, actual CU/PTX ABI and two inert_vec call-site groups, all failed logs and full-coverage results"
+    },
+    "post_test_source_change": "runtime ABI comment only; no CUDA or runtime behavior changes",
+    "line_ending_repair": "four eol=lf entries; native numerical/source bytes unchanged, manifest/evidence normalized to LF; no exhausted test repeated"
+  },
+  "normify": {
+    "build": "passed",
+    "project": "mjwarp-rs",
+    "change": "2026-10-11-mjwarp-parallel-acceptance",
+    "status": "in_progress",
+    "depends_on": [
+      "2026-10-11-g03-mjwarp-reference"
+    ],
+    "resources": [
+      "gpu:windows-t4",
+      "acceptance:windows-product"
+    ],
+    "design_check_errors": 0,
+    "design_check_warnings": 0,
+    "errors": 0,
+    "warnings": 6,
+    "previous_leaf_warnings": 5,
+    "new_leaf_warning": "mjwarp.physics.core source3",
+    "physics_core_uid": "ece0669c",
+    "physics_core_state": "planned",
+    "runtime_kernel_state": "active",
+    "main_closed": false,
+    "formal_g02_started_or_closed": false,
+    "full_g02_prerequisites_retained": true
+  },
+  "logs": [
+    {
+      "path": "target/rne-acceleration-author/attempt-1/compile.log",
+      "sha256": "301d1d545a95b9d321d85132eeb08fe4345780b487e410420a4720748e8ab039"
+    },
+    {
+      "path": "target/rne-acceleration-validation/attempt-1/integration.log",
+      "sha256": "18f4d412cf5f8b3d6dab9e2ab39bf45f65f9c0a3400867c6373cb6a9587ed280"
+    },
+    {
+      "path": "target/rne-acceleration-validation/attempt-2/integration.log",
+      "sha256": "0d944390e03668e6fc5e8d4c6418c69c0d6999436476d0d38e77af0e7932827f"
+    },
+    {
+      "path": "target/rne-acceleration-validation/attempt-3/integration.log",
+      "sha256": "6aa5b3432f9bb15c30290f4598249c3a00293f5e8b36516f95ab034b198a64a1"
+    },
+    {
+      "path": "target/rne-acceleration-validation/diagnostic-1/unit.log",
+      "sha256": "921101c7ff6c8c05b93d2725761bc0e76f8d0d46dad9157a1e700ab48b98dd11"
+    },
+    {
+      "path": "target/rne-acceleration-validation/diagnostic-2/unit.log",
+      "sha256": "55107f4f60c59108516ca49836efa72e85e0bfc64028e68f895b3552e2d4ca1d"
+    },
+    {
+      "path": "target/rne-acceleration-validation/diagnostic-3/unit.log",
+      "sha256": "689fca843a625710b32cb6145c2609608aee46ba2b29f2bdf9a48de071f3e330"
+    },
+    {
+      "path": "target/rne-acceleration-validation/clippy-1.log",
+      "sha256": "34dc4edabf5cb162f450c2dbfb811fdc3ba6baf213996a6e686d4d4d49dfc39c"
+    },
+    {
+      "path": "target/rne-acceleration-validation/clippy-2.log",
+      "sha256": "914bcc9430018b7d569c3b2bfcb8b014609aa16ceb2e7c7f0171a30089eb8fcf"
+    },
+    {
+      "path": "target/rne-acceleration-validation/clippy-3.log",
+      "sha256": "6956916810fb8219440df4de127f7e33823bc6c7fadf3f0f8cfea104f4e81627"
+    },
+    {
+      "path": "target/rne-acceleration-validation/default-clippy-1.log",
+      "sha256": "b1d50e91cda20ed81030b5c0697d06b4feeed123b7042f6321e1b4c04535a6d7"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/evidence/rne-acceleration/map.json",
+      "sha256": "fa2d00e1b3a624c69662f7cf5f12eca91089fbfe58f7829ca0436d37999402c3"
+    },
+    {
+      "path": "docs/evidence/rne-acceleration/native-results.json",
+      "sha256": "7cc393a61452f7d323e9bdc09367983268ba432b1a883861f852f79d0ca3f038"
+    },
+    {
+      "path": "docs/evidence/rne-acceleration/native-final.json",
+      "sha256": "714549e076ccfd50dda8521c2befe44f9858609459370993ce8866c073ed2c24"
+    },
+    {
+      "path": "docs/evidence/rne-acceleration/state3-frozen.json",
+      "sha256": "2fbb33f30ab42e7193f8561444d87ee3213dfdaeaca089df88983e40fe0db38e"
+    },
+    {
+      "path": "docs/evidence/rne-acceleration/state7-frozen.json",
+      "sha256": "205069b3aa5e3a0517ff4c7b1657b94ad82cfd75392694ef21218a8ac3929ba7"
+    },
+    {
+      "path": "docs/evidence/rne-acceleration/repaired-frozen.json",
+      "sha256": "37a2ab7bebd3181052d311f5a9e562b378dcbf9ef4770f020077c90cfad6c33e"
+    },
+    {
+      "path": "fixtures/rne-acceleration/manifest.json",
+      "sha256": "706aef8a2f4c60d055f9b08e496e4dba25ee2d66febb7594ba4eb43171b03ff4"
+    }
+  ],
+  "old_exhausted_selectors_run": 0,
+  "face_normalization_call_count_retained": 1,
+  "old_bias_source_changed": false,
+  "old_velocity_source_changed": false,
+  "old_precision_manifest_hashes_updated": false,
+  "old_full_t4_acceptance_inherited": false,
+  "physical_tolerance_changes": 0,
+  "physical_coverage_reductions": 0,
+  "python_executions": 0,
+  "linux_executed": false,
+  "release_executed": false,
+  "np01": "new local f32 and ABI map recorded; full project mapping not accepted",
+  "np02": "local call-site FMA repaired with actual frozen stage; full-domain loaded machine code not accepted",
+  "np03": "true nonzero-qacc native samples pass; false native blocks fail, no redline admission",
+  "np04": "not accepted",
+  "full_acceptance": false
+}
