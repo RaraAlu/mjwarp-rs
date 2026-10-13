@@ -1,0 +1,303 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "scope": "spatial-tendon-site-chain-output-types-and-accumulation-boundaries",
+  "base_revision": "bd6f6efe01fc9369b4224c61ac84f63fa31f7038",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "sources": [
+    {
+      "path": "src/physics/spatial_tendon.rs",
+      "sha256": "d43f422fee1ee8c0239406d5056069b35c6e66535126399c49596078f41021ec"
+    },
+    {
+      "path": "src/physics/tendon_wrap.rs",
+      "sha256": "6e7961996cd9c8198033ec5134b658acc83c72a807cb603d4cce7a0b02f5b4e2"
+    },
+    {
+      "path": "src/physics/resident.rs",
+      "sha256": "b2d63abc3763c38435ab8bb76c866fb307f7e144f1db712ae0abc46d1c7fd9cf"
+    },
+    {
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+      "sha256": "6268f0e1b6cb4c9ec6bbd3aa29828dfb36224efb2a3a3e1f54e5f87b6623fdef"
+    },
+    {
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/math.py",
+      "sha256": "a6f6ee11b9519c9b247c55eb83fec2842ac56bb05d21ea3d19623b200cfb4778"
+    },
+    {
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/types.py",
+      "sha256": "5ff63b8186bafba2e2d51d5aae84875fb289411d9984f4e06b51813ea088491b"
+    }
+  ],
+  "groups": [
+    {
+      "id": "site-load",
+      "p_source": 0,
+      "product": "put(scratch+13*i+1,sl(sx+3*site[i]));",
+      "u_source": 3,
+      "upstream": "pnt0 = site_xpos_in[worldid, id0]"
+    },
+    {
+      "id": "site-length",
+      "p_source": 0,
+      "product": "out[t]+=norm(sub(point(scratch,i+1),point(scratch,i)))*scales[i];",
+      "u_source": 3,
+      "upstream": "wp.atomic_add(ten_length_out[worldid], tenid, length * pulley_scale)"
+    },
+    {
+      "id": "segment-difference",
+      "p_source": 0,
+      "product": "SV dif=sub(p1,p0);",
+      "u_source": 3,
+      "upstream": "dif = pnt1 - pnt0"
+    },
+    {
+      "id": "unit-zero",
+      "p_source": 1,
+      "product": "return n!=0 ? SV{a.x/n,a.y/n,a.z/n} : a;",
+      "u_source": 4,
+      "upstream": "return x, 0.0"
+    },
+    {
+      "id": "tiny-direction",
+      "p_source": 1,
+      "product": "return n<1e-15f ? SV{1,0,0} : SV{a.x/n,a.y/n,a.z/n};",
+      "u_source": 3,
+      "upstream": "vec = wp.vec3(1.0, 0.0, 0.0)"
+    },
+    {
+      "id": "same-body",
+      "p_source": 0,
+      "product": "if(b0==b1) return;",
+      "u_source": 3,
+      "upstream": "if body0 != body1:"
+    },
+    {
+      "id": "root-offset-0",
+      "p_source": 0,
+      "product": "sub(p0,sl(com+m[3]+3*root[b0]))",
+      "u_source": 3,
+      "upstream": "offset0 = pnt0 - subtree_com_in[worldid, body_rootid[body0]]"
+    },
+    {
+      "id": "root-offset-1",
+      "p_source": 0,
+      "product": "sub(p1,sl(com+m[3]+3*root[b1]))",
+      "u_source": 3,
+      "upstream": "offset1 = pnt1 - subtree_com_in[worldid, body_rootid[body1]]"
+    },
+    {
+      "id": "reverse-dof",
+      "p_source": 0,
+      "product": "for(int k=dofnum[body]-1;k>=0;--k)",
+      "u_source": 3,
+      "upstream": "dof = bdofadr + bdofnum - 1 - k_rev"
+    },
+    {
+      "id": "sparse-match",
+      "p_source": 0,
+      "product": "cols[row+ptr]==dof",
+      "u_source": 3,
+      "upstream": "ten_J_colind[sparseid] == dof"
+    },
+    {
+      "id": "angular-cross",
+      "p_source": 0,
+      "product": "SV v=cross(sl(c),offset);",
+      "u_source": 3,
+      "upstream": "jacp = cdof_lin + wp.cross(cdof_ang, offset)"
+    },
+    {
+      "id": "projection",
+      "p_source": 0,
+      "product": "float j=((c[3]+v.x)*vec.x+(c[4]+v.y)*vec.y+(c[5]+v.z)*vec.z)*scale;",
+      "u_source": 3,
+      "upstream": "J = wp.dot(jacp, vec) * scale"
+    },
+    {
+      "id": "skip-zero",
+      "p_source": 0,
+      "product": "if(j!=0.0f) jac[row+ptr]+=j;",
+      "u_source": 3,
+      "upstream": "if J != 0.0:"
+    },
+    {
+      "id": "serial-vs-atomic",
+      "p_source": 0,
+      "product": "jac[row+ptr]+=j;",
+      "u_source": 3,
+      "upstream": "wp.atomic_add(ten_J_out[worldid], sparseid, J)"
+    },
+    {
+      "id": "pulley-sentinel",
+      "p_source": 0,
+      "product": "out[2*nt+cursor++]=type[i]==2?-2:-1;",
+      "u_source": 3,
+      "upstream": "wrap_obj_out[worldid, row][col] = -2"
+    },
+    {
+      "id": "wrap-count",
+      "p_source": 0,
+      "product": "out[nt+t]=cursor-out[t];",
+      "u_source": 3,
+      "upstream": "ten_wrapadr_out[worldid, i] = wrapcount"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "ten_length",
+      "scalar": "f32",
+      "product": "ten_length: &v[..nt]",
+      "upstream": "ten_length: array(\"nworld\", \"ntendon\", float)"
+    },
+    {
+      "name": "ten_jacobian",
+      "scalar": "f32",
+      "product": "ten_jacobian: &v[nt..nt + nnz]",
+      "upstream": "ten_J: array(\"nworld\", \"nJten\", float)"
+    },
+    {
+      "name": "ten_wrapadr",
+      "scalar": "i32",
+      "product": "ten_wrapadr: &ids[..nt]",
+      "upstream": "ten_wrapadr: array(\"nworld\", \"ntendon\", int)"
+    },
+    {
+      "name": "ten_wrapnum",
+      "scalar": "i32",
+      "product": "ten_wrapnum: &ids[nt..2 * nt]",
+      "upstream": "ten_wrapnum: array(\"nworld\", \"ntendon\", int)"
+    },
+    {
+      "name": "wrap_obj",
+      "scalar": "i32",
+      "product": "wrap_obj: &ids[2 * nt..]",
+      "upstream": "wrap_obj: array(\"nworld\", \"nwrap\", wp.vec2i)"
+    },
+    {
+      "name": "wrap_xpos",
+      "scalar": "f32",
+      "product": "wrap_xpos: &v[nt + nnz..nt + nnz + 6 * self.rows.nwrap()]",
+      "upstream": "wrap_xpos: array(\"nworld\", \"nwrap\", wp.spatial_vector)"
+    }
+  ],
+  "product_capture": {
+    "directory": "target/t4-final-face-compile/current",
+    "cuda_sha256": "b519b69671a467bc130416096f6d33817b5d7d72dfbce824154b427ecfa5f796",
+    "ptx_sha256": "756fa239370205924573e242a2ff79f465efbb64e346f9353e205077e31bb13c",
+    "entries": [
+      {
+        "name": "spatial_site",
+        "receipt_sha256": "c1dd505d58315f69fb3b32c154e67abb6ecc967ab59c55f35e8d4313499dc6c5",
+        "library_reductions": 4
+      },
+      {
+        "name": "spatial_moment",
+        "receipt_sha256": "bbb79c92fbdb422e7e5c72e5f5a1b1c5f3b0aea80d92482b5b4f06db505e9190",
+        "library_reductions": 0
+      },
+      {
+        "name": "spatial_wrap",
+        "receipt_sha256": "4695acfa084a088686417ad3954e9ad4e22397bd626ccfbd54468d8d591d9129",
+        "library_reductions": 0
+      }
+    ]
+  },
+  "upstream_capture": {
+    "prefix": "target/mjwarp-parallel/warp-cache/1.15.0/wp_mujoco_warp._src.smooth_ca013d6/wp_mujoco_warp._src.smooth_ca013d6",
+    "cuda_sha256": "3a6b3856727f63797a28646a5864aa02cd76a20ed3658199c69b3ad75c802bfa",
+    "ptx_sha256": "1d9e4e3a983ca35090ade3a48fd83aa0dc86a23228bb0865010f681698ab75dd",
+    "entries": [
+      {
+        "name": "_spatial_site_tendon_d90d9688_cuda_kernel_forward",
+        "library_reductions": 0
+      },
+      {
+        "name": "_spatial_geom_tendon_1ca37386_cuda_kernel_forward",
+        "library_reductions": 4
+      },
+      {
+        "name": "_spatial_tendon_wrap_2bb6c667_cuda_kernel_forward",
+        "library_reductions": 0
+      }
+    ]
+  },
+  "precision": {
+    "local_physics": "f32",
+    "topology_and_wrap_outputs": "i32",
+    "tiny_threshold_bits": "26901D7D",
+    "library_reduction": "s64 -> f64 -> mul 0d3BF921FB54442D19 -> f32",
+    "library_f64_affects_physical_outputs": true,
+    "library_f64_is_diagnostic": false,
+    "normalize_with_norm_zero": "return original vector and zero norm",
+    "unit_zero": "return original vector",
+    "direction_tiny": "return [1,0,0] for n < 1e-15_f32"
+  },
+  "verification": {
+    "selector": "t4_spatial_tendon_precision",
+    "prior_calls": 0,
+    "call_cap": 3,
+    "command": "cargo test --locked --features cuda-probe --test t4_spatial_tendon_precision -- --test-threads=1 --nocapture",
+    "calls": [{"n": 1, "passed": 4, "failed": 0, "seconds": 0.09, "log": "target/t4-spatial-tendon-precision/host-1.log", "sha256": "94d7eb0e6167e70941d14e20b794b5113ca01f366efd845a552f94339381a57c"}],
+    "tested_source": "tests/t4_spatial_tendon_precision.rs",
+    "tested_source_sha256_lf": "738defb2df2079fcde4db5a2943f04a23569c236839e66d0c57476a90aff62cc",
+    "source_pins": 6,
+    "artifact_files": 11,
+    "internal_groups": 16,
+    "outputs": 6,
+    "no_repeat_after_pass": true,
+    "old_exhausted_selectors_run": 0,
+    "tendon_wake_or_camlight_or_trig_selector_run": 0,
+    "cuda_compiler_invocations": 0,
+    "gpu_sessions": 0,
+    "kernel_launches": 0,
+    "python_invocations": 0,
+    "tolerance_changed": false,
+    "sample_world_field_coverage_reduced": false,
+    "hessian_21_coefficient_boundary_unchanged": true,
+    "fmt_check": "passed",
+    "clippy_command": "cargo clippy --locked --features cuda-probe --test t4_spatial_tendon_precision -- -D warnings",
+    "clippy": "passed",
+    "doc_audit_hook": "C:/Users/zhang/.codex/audit-docs/reports/e05f246e1c12b4cf/audit-i22yc90g.md",
+    "doc_audit_reported_mismatches": 0,
+    "current_inventory_sha256_unchanged": "bafa1f3255bc9f08b2566041ed9102d6e75706e75c9c390fa56ae89df4c0ad39",
+    "current_capture_status_sha256_unchanged": "48dc717449fc274770357e436cbd7c507960dfc9f897cf3d1096d90c9c1e080e"
+  },
+  "normify": {
+    "project": "mjwarp-rs",
+    "change": "2026-10-11-mjwarp-parallel-acceptance",
+    "status": "in_progress",
+    "depends_on": ["2026-10-11-g03-mjwarp-reference"],
+    "resources": ["gpu:windows-t4", "acceptance:windows-product"],
+    "module_uid": "a80c3152",
+    "module_state": "active",
+    "root_state": "planned",
+    "source_drift": 0,
+    "errors": 0,
+    "historical_warnings": ["mjwarp.model.flex leaf-too-coarse", "mjwarp.physics.tendon-wrap leaf-too-coarse"],
+    "build": "passed",
+    "next_function_candidate": "G02@P4 complete RNE and equivalent scheduling",
+    "function_prerequisites_verified": false,
+    "function_prerequisites": ["2026-10-11-roadmap-p2-upload", "2026-10-11-roadmap-p3", "2026-10-11-roadmap-g01-p4"],
+    "ready_short_prerequisite_path": ["2026-10-11-roadmap-d01", "2026-10-11-roadmap-p0", "2026-10-11-roadmap-p1", "2026-10-11-roadmap-p2-upload", "2026-10-11-roadmap-g02-p4"],
+    "path_does_not_replace_all_prerequisites": true
+  },
+  "boundaries": {
+    "np01_complete": false,
+    "np02_complete": false,
+    "full_equivalence": false,
+    "product_formula_changed": false,
+    "accumulation_order_equivalent": false,
+    "full_sphere_cylinder_inside_formula_audited": false,
+    "local_vs_global_tendon_numbering": "local spatial subset; mixed merger retains native global numbering",
+    "remaining": [
+      "full wrap formulas and intrinsic compiler equivalence",
+      "serial versus atomic floating-point accumulation order",
+      "device numerical acceptance",
+      "fair performance"
+    ],
+    "current_face_bit_differences": null,
+    "previous_face_strict_bit_differences": 2078
+  }
+}

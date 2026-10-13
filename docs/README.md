@@ -189,6 +189,11 @@ NP04仍缺公平稳态性能对照。
 上游生成与常量实例化仍待补。
 完整休眠仍不属于当前子集。
 详见[唤醒映射与剩余清单](t4-tendon-wake-internal.md)。
+随后补查空间肌腱site链。
+十六组与六项输出已映射。
+三类归一化保留不同分支。
+串行与原子累加等价仍待证。
+详见[空间肌腱映射](t4-spatial-tendon-internal.md)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
