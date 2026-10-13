@@ -304,3 +304,16 @@ CCCL另含开源许可通知。
 [Linux运行包清单](fixtures/native-probe/linux-runtime.json)
 [Linux验收报告](docs/linux-g01-acceptance.md)
 [CUDA官方清单](https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.8.1.json)
+
+## 本地机器码核查工具
+
+本地核查采用CUPTI与nvdisasm。
+两者均采用12.8.90版本。
+官方12.8.1清单固定下载摘要。
+工具采用上述CUDA许可。
+本项目仅将工具存放于target。
+本项目不提交或分发这些工具。
+本轮没有新增Cargo依赖。
+产品构建与运行不依赖CUPTI。
+捕获测试只加载模块，不启动内核。
+版本与回执见[机器码记录](docs/t4-field-internal.md#实际加载机器码与末项融合)。
