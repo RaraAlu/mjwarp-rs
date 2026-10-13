@@ -1,5 +1,576 @@
 //! 追踪其余打包器的字段路由。
 //! 私有表示不充当完整上游ABI。
+
+/// 柔体新增切片；旧打包选择及其分母保持原样。
+mod flex_internal {
+    use super::super::{Check, Stamp, between, digest, require};
+    use serde::Deserialize;
+    use sha2::{Digest, Sha256};
+    use std::{
+        collections::{BTreeMap, BTreeSet},
+        path::Path,
+    };
+
+    const FIXTURE: &str = include_str!("../../docs/evidence/t4-g03-retest/flex-internal/map.json");
+    const FLEX: &str = include_str!("../../src/physics/flex.rs");
+    const EDGE: &str = include_str!("../../src/physics/flex_edge.rs");
+    const RESIDENT: &str = include_str!("../../src/physics/resident.rs");
+    const MODEL: &str = include_str!("../../src/model/flex.rs");
+    const TRANSFER: &str = include_str!("../../src/runtime/transfer.rs");
+    const SOURCES: &[(&str, &str)] = &[
+        ("src/physics/flex.rs", FLEX),
+        ("src/physics/flex_edge.rs", EDGE),
+        ("src/physics/resident.rs", RESIDENT),
+        ("src/model/flex.rs", MODEL),
+        ("src/runtime/transfer.rs", TRANSFER),
+    ];
+    const EXTERNAL: &[&str] = &[
+        "upstream/_src/smooth.py",
+        "upstream/_src/math.py",
+        "upstream/_src/support.py",
+        "upstream/_src/types.py",
+        "warp/_src/types.py",
+    ];
+    const STEPS: &[&str] = &[
+        "node-transform|same-scalar-order-unverified|f32|src/physics/flex.rs|upstream/_src/smooth.py|_flex_nodes|wp.vec3|3|3",
+        "vertex-direct|same-scalar-order-unverified|f32|src/physics/flex.rs|upstream/_src/smooth.py|_flex_vertices|wp.vec3|1|2",
+        "cell-lookup|f32-to-i32|f32|src/physics/flex.rs|upstream/_src/smooth.py|_flex_vertices|float|2|2",
+        "local-clamp|finite-domain|f32|src/physics/flex.rs|upstream/_src/smooth.py|_flex_vertices|wp.vec3|2|2",
+        "basis|same-scalar-order-unverified|f32|src/physics/flex.rs|upstream/_src/support.py|eval_basis_trilinear|float|1|1",
+        "interpolate|same-loop-order|f32|src/physics/flex.rs|upstream/_src/smooth.py|_flex_vertices|wp.vec3|3|5",
+        "invalidate|private-bool-adapter|i32|src/physics/flex.rs|upstream/_src/smooth.py|flex|bool|2|2",
+        "edge-difference|same-scalar|f32|src/physics/flex_edge.rs|upstream/_src/smooth.py|_flex_edges|wp.vec3|1|2",
+        "edge-length|same-scalar-order-unverified|f32|src/physics/flex_edge.rs|upstream/_src/math.py|normalize_with_norm|float|1|1",
+        "edge-normalize|zero-preserved|f32|src/physics/flex_edge.rs|upstream/_src/math.py|normalize_with_norm|wp.vec3|1|3",
+        "edge-offset|same-scalar|f32|src/physics/flex_edge.rs|upstream/_src/smooth.py|_flex_edges|wp.vec3|2|2",
+        "point-velocity|same-scalar-order-unverified|f32|src/physics/flex_edge.rs|upstream/_src/smooth.py|_flex_edges|wp.vec3|2|2",
+        "jacobian|same-endpoint-order|f32|src/physics/flex_edge.rs|upstream/_src/smooth.py|_flex_edges|float|3|4",
+        "edge-velocity|same-row-order|f32|src/physics/flex_edge.rs|upstream/_src/smooth.py|_flex_edges|float|2|3",
+        "sparse-pool|extra-tail-clear|f32|src/physics/flex_edge.rs|upstream/_src/smooth.py|_flex_edges|float|1|2",
+        "edge-early-return|same-velocity-only|f32|src/physics/flex_edge.rs|upstream/_src/smooth.py|_flex_edges|float|1|3",
+    ];
+    const OUTPUTS: &[&str] = &[
+        "flexnode_xpos|flexnode_xpos|f32|wp.vec3|src/physics/flex.rs|_flex_nodes|array(\"nworld\", \"nflexnode\", wp.vec3)|float* nx=result+4+(unsigned long long)w*(3ull*nn+3ull*nv);|flex_transform(nx+3*i,local,xp,xm,nodebody[i],row[8]!=0||zero);|&v[..3 * self.layout.nn]|flexnode_xpos_out[worldid, nodeid] = xpos",
+        "flexvert_xpos|flexvert_xpos|f32|wp.vec3|src/physics/flex.rs|_flex_vertices|array(\"nworld\", \"nflexvert\", wp.vec3)|float* vx=nx+3*nn;|for(int d=0;d<3;++d) vx[3*v+d]=p[d];|&v[3 * self.layout.nn..]|flexvert_xpos_out[worldid, vertid] = result",
+        "flexedge_length|flexedge_length|f32|float|src/physics/flex_edge.rs|_flex_edges|array(\"nworld\", \"nflexedge\", float)|float* len=out+4+(unsigned long long)w*(2ull*ne+nnz);|len[e]=norm;|&v[..ne]|flexedge_length_out[worldid, edgeid] = edge_length",
+        "flexedge_velocity|flexedge_velocity|f32|float|src/physics/flex_edge.rs|_flex_edges|array(\"nworld\", \"nflexedge\", float)|float* vel=len+ne;|vel[e]+=j*qv[d];|&v[ne..2 * ne]|flexedge_velocity_out[worldid, edgeid] = vel",
+        "flexedge_jacobian|flexedge_J|f32|float|src/physics/flex_edge.rs|_flex_edges|array(\"nworld\", \"nJfe\", float)|float* jac=vel+ne;|jac[adr+i]=j;|&v[2 * ne..]|flexedge_J_out[worldid, rowadr + i] = J_val",
+        "flex_hessian_valid|flex_hessian_valid|bool|bool|src/physics/flex.rs|flex|array(\"nworld\", \"nflex\", bool)|int* flags=result+4+(unsigned long long)w*nf;|flags[f]=0;|&self.validity[self.layout.validity.world_elements(world)?]|d.flex_hessian_valid.zero_()",
+    ];
+    const REMAINING: &[&str] = &[
+        "generated-operator-semantics",
+        "sparse-unused-tail-side-effect",
+        "face-hessian-and-other-internals",
+        "full-pipeline-current-numerics",
+        "measured-performance",
+    ];
+    #[derive(Clone, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Step {
+        id: String,
+        classification: String,
+        scalar: String,
+        source: String,
+        external: String,
+        symbol: String,
+        upstream_type: String,
+        product: Vec<String>,
+        upstream: Vec<String>,
+    }
+    #[derive(Clone, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Output {
+        name: String,
+        upstream_name: String,
+        scalar: String,
+        upstream_type: String,
+        source: String,
+        symbol: String,
+        declaration: String,
+        pointer: String,
+        write: String,
+        view: String,
+        upstream_write: String,
+    }
+    #[derive(Clone, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Inventory {
+        schema: u32,
+        scope: String,
+        product_revision: String,
+        upstream_revision: String,
+        product_sources: Vec<Stamp>,
+        external_sources: Vec<Stamp>,
+        steps: Vec<Step>,
+        outputs: Vec<Output>,
+        np01_complete: bool,
+        np02_complete: bool,
+        equivalence_eligible: bool,
+        remaining: Vec<String>,
+    }
+    fn inventory() -> Inventory {
+        serde_json::from_str(FIXTURE).unwrap()
+    }
+    fn source(path: &str) -> Result<&'static str, String> {
+        SOURCES
+            .iter()
+            .find_map(|(p, t)| (*p == path).then_some(*t))
+            .ok_or_else(|| path.into())
+    }
+    fn anchor(text: &str, needle: &str) -> Check {
+        require(
+            !needle.trim().is_empty() && text.contains(needle),
+            format!("anchor: {needle}"),
+        )
+    }
+    fn body<'a>(text: &'a str, symbol: &str) -> Result<&'a str, String> {
+        text.split_once(&format!("def {symbol}("))
+            .map(|(_, s)| s.split("\n\n\n").next().unwrap())
+            .ok_or_else(|| symbol.into())
+    }
+    fn validate(i: &Inventory) -> Check {
+        require(
+            i.schema == 1
+                && i.scope == "g01-flex-position-edge-internal-output"
+                && i.product_revision == "e272b1474391c4b875ad89b70a7e865a33eec914"
+                && i.upstream_revision == super::super::REVISION
+                && !i.np01_complete
+                && !i.np02_complete
+                && !i.equivalence_eligible
+                && i.remaining
+                    .iter()
+                    .map(String::as_str)
+                    .eq(REMAINING.iter().copied()),
+            "scope/acceptance",
+        )?;
+        require(
+            i.product_sources.len() == SOURCES.len()
+                && i.product_sources
+                    .iter()
+                    .map(|s| s.path.as_str())
+                    .collect::<BTreeSet<_>>()
+                    == SOURCES.iter().map(|(p, _)| *p).collect(),
+            "product denominator",
+        )?;
+        for s in &i.product_sources {
+            require(digest(source(&s.path)?) == s.sha256, "product source drift")?;
+        }
+        require(
+            i.external_sources.len() == EXTERNAL.len()
+                && i.external_sources
+                    .iter()
+                    .map(|s| s.path.as_str())
+                    .collect::<BTreeSet<_>>()
+                    == EXTERNAL.iter().copied().collect(),
+            "external denominator",
+        )?;
+        require(i.steps.len() == STEPS.len(), "step denominator")?;
+        for (s, expected) in i.steps.iter().zip(STEPS) {
+            require(
+                format!(
+                    "{}|{}|{}|{}|{}|{}|{}|{}|{}",
+                    s.id,
+                    s.classification,
+                    s.scalar,
+                    s.source,
+                    s.external,
+                    s.symbol,
+                    s.upstream_type,
+                    s.product.len(),
+                    s.upstream.len()
+                ) == *expected,
+                "step identity/type/boundary",
+            )?;
+            let text = source(&s.source)?;
+            let kernel = between(
+                text,
+                if s.source.ends_with("flex.rs") {
+                    "const FLEX_POSITION_CUDA: &str = r#\""
+                } else {
+                    "const FLEX_EDGE_CUDA: &str = r#\""
+                },
+                "\"#;",
+            )?;
+            for a in &s.product {
+                anchor(kernel, a)?;
+            }
+            require(
+                s.upstream.iter().all(|a| !a.trim().is_empty()),
+                "empty upstream anchor",
+            )?;
+        }
+        require(i.outputs.len() == OUTPUTS.len(), "output denominator")?;
+        for (o, expected) in i.outputs.iter().zip(OUTPUTS) {
+            require(
+                format!(
+                    "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+                    o.name,
+                    o.upstream_name,
+                    o.scalar,
+                    o.upstream_type,
+                    o.source,
+                    o.symbol,
+                    o.declaration,
+                    o.pointer,
+                    o.write,
+                    o.view,
+                    o.upstream_write
+                ) == *expected,
+                "output identity/type/route",
+            )?;
+            let text = source(&o.source)?;
+            for a in [
+                &o.pointer,
+                &o.write,
+                &format!("pub {}: &'a [{}]", o.name, o.scalar),
+                &format!("{}: {},", o.name, o.view),
+            ] {
+                anchor(text, a)?;
+            }
+            require(
+                super::super::upstream_scalar(&o.declaration)? == o.scalar,
+                "output scalar",
+            )?;
+        }
+        boundaries()
+    }
+    fn boundaries() -> Check {
+        for (text, anchors) in [
+            (
+                FLEX,
+                &[
+                    "pub(super) values: Vec<f32>",
+                    "pub(super) validity: Vec<bool>",
+                    "let v = &self.values[r.start + 4..r.end + 4];",
+                ][..],
+            ),
+            (
+                EDGE,
+                &[
+                    "pub(super) values: Vec<f32>",
+                    "let v = &self.values[r.start + 4..r.end + 4];",
+                    "const float* qv=qvel+4+(unsigned long long)w*nv;",
+                    "while(b>0) {if(b==owner) return true;b=parent[b];}return false;",
+                ][..],
+            ),
+            (
+                RESIDENT,
+                &[
+                    "flex: Option<TransferBuffer<f32>>",
+                    "flex_validity: Option<TransferBuffer<i32>>",
+                    "values: read_output(out, layout.guarded, \"resident_flex_position_output\")?",
+                    "\"resident_flex_edge_output\"",
+                    "if value != 0 && value != 1",
+                    "decoded.extend(values.iter().map(|&v| v == 1));",
+                ][..],
+            ),
+            (TRANSFER, &["target.copy_from_slice(staging.values());"][..]),
+            (
+                MODEL,
+                &[
+                    "\"interpolated_vertex_has_sparse_row\"",
+                    "\"endpoint_dof_union_mismatch\"",
+                    "// Native nJfe can reserve unused tail slots when passive forces are off.",
+                    "if !scaled.is_finite() || scaled < i32::MIN as f32 || scaled >= 2147483648.0",
+                ][..],
+            ),
+        ] {
+            for a in anchors {
+                anchor(text, a)?;
+            }
+        }
+        // 同一世界先失效，再算节点/顶点，最后计算边。
+        let pos = RESIDENT.find("\"flex_invalidate\"").ok_or("invalidation")?;
+        let nodes = RESIDENT[pos..]
+            .find("\"flex_positions\"")
+            .ok_or("positions")?
+            + pos;
+        require(RESIDENT[nodes..].contains("\"flex_edges\""), "stage order")?;
+        Ok(())
+    }
+    type Texts = BTreeMap<String, String>;
+    fn verify_external(i: &Inventory, texts: &Texts) -> Check {
+        let get = |p: &str| texts.get(p).ok_or_else(|| format!("external: {p}"));
+        for s in &i.external_sources {
+            require(digest(get(&s.path)?) == s.sha256, "external drift")?;
+        }
+        super::super::verify_external(
+            &super::super::inventory(),
+            get("upstream/_src/types.py")?,
+            get("warp/_src/types.py")?,
+        )?;
+        // 六维速度也须追到f32定义，不能只核对三维别名。
+        for a in [
+            "class spatial_vectorf(vector(length=6, dtype=float32)):",
+            "spatial_vector = spatial_vectorf",
+        ] {
+            anchor(get("warp/_src/types.py")?, a)?;
+        }
+        for a in [
+            "qvel_in: wp.array2d[float]",
+            "cdof_in: wp.array2d[wp.spatial_vector]",
+            "body_isdofancestor: wp.array2d[int]",
+        ] {
+            anchor(body(get("upstream/_src/smooth.py")?, "_flex_edges")?, a)?;
+        }
+        for s in &i.steps {
+            let section = body(get(&s.external)?, &s.symbol)?;
+            for a in &s.upstream {
+                anchor(section, a)?;
+            }
+        }
+        let smooth = get("upstream/_src/smooth.py")?;
+        let data = get("upstream/_src/types.py")?
+            .split_once("class Data:")
+            .ok_or("Data")?
+            .1;
+        for o in &i.outputs {
+            anchor(data, &format!("  {}: {}\n", o.upstream_name, o.declaration))?;
+            let section = body(smooth, &o.symbol)?;
+            anchor(section, &o.upstream_write)?;
+            if o.scalar != "bool" {
+                anchor(
+                    section,
+                    &format!("{}_out: wp.array2d[{}]", o.upstream_name, o.upstream_type),
+                )?;
+            }
+        }
+        for a in ["if i == 0:", "return 1.0 - s", "return s"] {
+            anchor(body(get("upstream/_src/support.py")?, "_phi")?, a)?;
+        }
+        let edges = body(smooth, "_flex_edges")?;
+        require(!edges.contains("zero_()"), "upstream pool-clear assumption")?;
+        // 私有祖先遍历与上游预计算掩码分开记账。
+        anchor(edges, "if body_isdofancestor[b1, dofid] != 0:")?;
+        anchor(edges, "if body_isdofancestor[b2, dofid] != 0:")?;
+        let flex = body(smooth, "flex")?;
+        let invalidate = flex
+            .find("d.flex_hessian_valid.zero_()")
+            .ok_or("invalidate")?;
+        let nodes = flex.find("_flex_nodes,").ok_or("nodes")?;
+        let vertices = flex.find("_flex_vertices,").ok_or("vertices")?;
+        let edges = flex.find("_flex_edges,").ok_or("edges")?;
+        require(
+            invalidate < nodes && nodes < vertices && vertices < edges,
+            "upstream stage order",
+        )
+    }
+    fn verify_captures(history: &Path, current: &Path) -> Result<usize, String> {
+        let original: serde_json::Value =
+            serde_json::from_str(include_str!("../../fixtures/precision/t4-kernels.json")).unwrap();
+        let now: serde_json::Value = serde_json::from_str(include_str!(
+            "../../fixtures/precision/t4-current-kernels.json"
+        ))
+        .unwrap();
+        let entries = ["flex_invalidate", "flex_positions", "flex_edges"];
+        let rows: Vec<_> = original["artifacts"]
+            .as_array()
+            .ok_or("artifacts")?
+            .iter()
+            .filter(|a| entries.contains(&a["entry"].as_str().unwrap_or("")))
+            .collect();
+        require(
+            rows.len() == 3
+                && rows
+                    .iter()
+                    .map(|a| a["entry"].as_str().unwrap())
+                    .collect::<BTreeSet<_>>()
+                    == entries.into_iter().collect(),
+            "capture denominator",
+        )?;
+        let mut count = 0;
+        for directory in [
+            history.join("debug-ptx"),
+            history.join("release-ptx"),
+            current.to_path_buf(),
+        ] {
+            for row in &rows {
+                require(
+                    now["artifacts"]
+                        .as_array()
+                        .ok_or("current artifacts")?
+                        .iter()
+                        .filter(|a| *a == *row)
+                        .count()
+                        == 1,
+                    "current lineage changed",
+                )?;
+                let entry = row["entry"].as_str().ok_or("entry")?;
+                let hash = row["ptx_sha256"].as_str().ok_or("hash")?;
+                require(
+                    hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()),
+                    "path hash",
+                )?;
+                for (ext, key) in [
+                    ("cu", "source_sha256"),
+                    ("ptx", "ptx_sha256"),
+                    ("json", "receipt_sha256"),
+                ] {
+                    let bytes = std::fs::read(directory.join(format!("{entry}-{hash}.{ext}")))
+                        .map_err(|e| e.to_string())?;
+                    require(
+                        format!("{:x}", Sha256::digest(&bytes))
+                            == row[key].as_str().ok_or("hash")?,
+                        "artifact drift",
+                    )?;
+                    if ext == "cu" {
+                        let text = String::from_utf8(bytes)
+                            .map_err(|e| e.to_string())?
+                            .replace("\r\n", "\n");
+                        let (source, constant) = if entry == "flex_edges" {
+                            (EDGE, "FLEX_EDGE_CUDA")
+                        } else {
+                            (FLEX, "FLEX_POSITION_CUDA")
+                        };
+                        let normalized = source.replace("\r\n", "\n");
+                        require(
+                            text == between(
+                                &normalized,
+                                &format!("const {constant}: &str = r#\""),
+                                "\"#;",
+                            )?,
+                            "current product template",
+                        )?;
+                    } else if ext == "json" {
+                        let r: serde_json::Value =
+                            serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+                        require(
+                            r["entry"] == entry
+                                && r["passed"] == true
+                                && r["fmad"] == true
+                                && r["useFastMath"] == false
+                                && r["precisionGate"] == "f32-physics",
+                            "receipt options",
+                        )?;
+                    }
+                }
+                count += 1;
+            }
+        }
+        Ok(count)
+    }
+    #[test]
+    fn covers_sixteen_groups_and_six_output_routes() {
+        validate(&inventory()).unwrap();
+        assert_eq!((STEPS.len(), OUTPUTS.len()), (16, 6));
+    }
+    #[test]
+    fn rejects_missing_retyped_and_reclassified_flex_groups() {
+        for n in 0..STEPS.len() {
+            for mutation in 0..5 {
+                let mut i = inventory();
+                match mutation {
+                    0 => {
+                        i.steps.remove(n);
+                    }
+                    1 => i.steps[n].scalar = "f64".into(),
+                    2 => i.steps[n].classification = "equivalent".into(),
+                    3 => {
+                        i.steps[n].product.pop();
+                    }
+                    _ => i.steps[n].product[0] = "missing-product-expression".into(),
+                }
+                assert!(validate(&i).is_err(), "{n}/{mutation}");
+            }
+        }
+    }
+    #[test]
+    fn rejects_output_retyping_and_private_abi_confusion() {
+        for n in 0..OUTPUTS.len() {
+            for mutation in 0..5 {
+                let mut i = inventory();
+                match mutation {
+                    0 => {
+                        i.outputs.remove(n);
+                    }
+                    1 => i.outputs[n].scalar = "f64".into(),
+                    2 => i.outputs[n].view = "&v[..]".into(),
+                    3 => i.outputs[n].upstream_name = "wrong-upstream-field".into(),
+                    _ => i.outputs[n].pointer = "wrong-pointer".into(),
+                }
+                assert!(validate(&i).is_err(), "{n}/{mutation}");
+            }
+        }
+    }
+    #[test]
+    fn rejects_drift_and_premature_flex_acceptance() {
+        for n in 0..SOURCES.len() {
+            let mut i = inventory();
+            i.product_sources[n].sha256 = "0".repeat(64);
+            assert!(validate(&i).is_err());
+        }
+        for n in 0..5 {
+            let mut i = inventory();
+            match n {
+                0 => i.np01_complete = true,
+                1 => i.np02_complete = true,
+                2 => i.equivalence_eligible = true,
+                3 => i.remaining.clear(),
+                _ => {
+                    i.external_sources.pop();
+                }
+            }
+            assert!(validate(&i).is_err());
+        }
+    }
+    #[test]
+    #[ignore = "reads frozen flex sources and existing captures; no Python, GPU or compilation"]
+    fn audits_frozen_flex_sources_and_retained_artifacts() {
+        let i = inventory();
+        validate(&i).unwrap();
+        let mut texts = Texts::new();
+        for s in &i.external_sources {
+            let (kind, path) = s.path.split_once('/').unwrap();
+            let key = if kind == "upstream" {
+                "MJWARP_FROZEN_UPSTREAM_ROOT"
+            } else {
+                "MJWARP_FROZEN_WARP_ROOT"
+            };
+            let root = std::env::var_os(key).expect(key);
+            texts.insert(
+                s.path.clone(),
+                std::fs::read_to_string(Path::new(&root).join(path))
+                    .unwrap()
+                    .replace("\r\n", "\n"),
+            );
+        }
+        verify_external(&i, &texts).unwrap();
+        let mut changed = i.clone();
+        changed.steps[0].upstream[0] = "wrong-upstream".into();
+        assert!(verify_external(&changed, &texts).is_err());
+        let mut changed = texts.clone();
+        changed
+            .get_mut("upstream/_src/support.py")
+            .unwrap()
+            .push('\n');
+        assert!(verify_external(&i, &changed).is_err());
+        let mut changed = texts.clone();
+        let types = changed.get_mut("upstream/_src/types.py").unwrap();
+        *types = types.replace(
+            "flexedge_J: array(\"nworld\", \"nJfe\", float)",
+            "flexedge_J: array(\"nworld\", \"nJfe\", wp.float64)",
+        );
+        assert!(verify_external(&i, &changed).is_err());
+        let old = std::env::var_os("MJWARP_T4_EVIDENCE_ROOT").expect("history");
+        let current = std::env::var_os("MJWARP_T4_CURRENT_CAPTURE_ROOT").expect("current");
+        let count = verify_captures(Path::new(&old), Path::new(&current)).unwrap();
+        let report = serde_json::json!({
+            "schema":1,"scope":i.scope,"product_revision":i.product_revision,
+            "upstream_revision":i.upstream_revision,"map_sha256":digest(FIXTURE),
+            "internal_groups":16,"f32_internal_groups":15,"private_i32_flag_groups":1,
+            "output_fields":6,"f32_outputs":5,"bool_outputs":1,
+            "historical_capture_variants":6,"retained_current_variants":3,"checked_capture_sets":count,
+            "np01_complete":false,"np02_complete":false,"equivalence_eligible":false,
+            "np03":"historical-not-rerun","np04":"not-measured","gpu_executions":0,"python_executions":0,
+            "recompilations":0,"remaining":i.remaining
+        });
+        println!("{report}");
+        if let Some(path) = std::env::var_os("MJWARP_FLEX_INTERNAL_AUDIT_REPORT") {
+            std::fs::write(path, serde_json::to_string_pretty(&report).unwrap() + "\n").unwrap();
+        }
+    }
+}
+
 use super::{Check, Stamp, between, digest, require};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};

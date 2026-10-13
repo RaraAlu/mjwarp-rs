@@ -121,6 +121,11 @@ NP04仍缺公平稳态性能对照。
 三十份产物均过原精度门禁。
 本轮未重跑物理或满额验证。
 详见[刚体增量编译](t4-rigid-recapture.md)。
+随后映射16组柔体内部量。
+六项输出追踪到宿主视图。
+未用稀疏尾槽存在清零差异。
+完整精度验收仍未完成。
+详见[柔体后续切片](t4-packing-routes.md#柔体后续切片)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。

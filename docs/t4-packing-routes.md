@@ -8,6 +8,8 @@
 同时映射附着相机内部量及输出。
 见[拓扑与位姿](t4-topology-frames.md)。
 下文保留本轮历史证据。
+10月13日续补柔体内部量。
+见[柔体后续切片](#柔体后续切片)。
 
 ## 本轮落实
 
@@ -235,3 +237,148 @@ git diff --cached --check
 原模块标识与计划状态不变。
 本轮不关闭无关历史变更。
 架构检查不代替物理验收。
+
+## 柔体后续切片
+
+日期：2026-10-13。
+本节单独记录新增证据。
+旧打包路由分母保持不变。
+生产源码与原参考保持不变。
+原容差与全部覆盖保持不变。
+
+### 精度映射
+
+本轮映射16组内部量。
+15组物理量使用单精度（f32）。
+一组标志使用整数（i32）。
+检查器另追踪六项输出。
+五项输出使用单精度（f32）。
+一项输出采用布尔（bool）。
+
+| 内部组 | 产品表达式 | 上游对应 | 核对边界 |
+| --- | --- | --- | --- |
+| 节点变换 | `flex_transform` | `_flex_nodes` | 居中与局部全零短路 |
+| 直接顶点 | `row[0]==0` | `_flex_vertices` | 矩阵乘加顺序待证 |
+| 单元查找 | `coord`转整数 | `ci/cj/ck` | 有限值与整数范围 |
+| 局部坐标 | `fminf/fmaxf` | `wp.clamp` | 有限输入域 |
+| 三线性权重 | 三项权重乘积 | `eval_basis_trilinear` | `_phi`保持f32 |
+| 插值累加 | `p[d]+=weight*nx[...]` | `result += w * ...` | 三重循环顺序一致 |
+| 缓存失效 | `flags[f]=0` | `zero_()` | 私有i32适配bool |
+| 边向量 | 两顶点相减 | `pos2-pos1` | f32分量 |
+| 边长 | `sqrtf`与点积 | `wp.length` | 生成运算顺序待证 |
+| 边归一化 | 非零才除法 | `normalize_with_norm` | 零长度保留原向量 |
+| 质心偏移 | `off` | `offset1/offset2` | 根体质心索引 |
+| 点速度 | `p`与叉积 | `jacp1/jacp2` | 六维速度也采用f32 |
+| 雅可比累加 | `j`先减后加 | `J_val` | 端点顺序一致 |
+| 边速度 | `vel[e]+=j*qv[d]` | `vel` | 稀疏行顺序一致 |
+| 稀疏池初始化 | 全池写零 | 仅写活动行 | 未用尾槽副作用不同 |
+| 提前返回 | `continue` | `return` | 速度置零后退出 |
+
+索引和单元编号仍采用i32。
+模型检查拒绝非法整数转换。
+六维速度别名追到f32定义。
+宿主读回保持原标量类型。
+检查器不把类型相同当成等价。
+
+| 宿主字段 | 上游字段 | 设备与视图 |
+| --- | --- | --- |
+| `flexnode_xpos` | 同名 | `nx`到前三倍节点段 |
+| `flexvert_xpos` | 同名 | `vx`到后续顶点段 |
+| `flexedge_length` | 同名 | `len`到首个边段 |
+| `flexedge_velocity` | 同名 | `vel`到第二边段 |
+| `flexedge_jacobian` | `flexedge_J` | `jac`到稀疏池段 |
+| `flex_hessian_valid` | 同名 | i32检查后转bool |
+
+标志解码只接受零与一。
+它不复制上游布尔设备布局。
+节点阶段先于顶点插值。
+缓存失效先于位置更新。
+边阶段随后消费顶点位置。
+本库按世界串行遍历。
+上游按节点、顶点、边并行。
+调度差异仍需生成产物证据。
+
+### 尾槽差异
+
+产品先清零整份雅可比池。
+上游边核只写活动稀疏行。
+模型允许保留未用尾槽。
+因此尾槽清零属于额外副作用。
+本轮不推断尾槽数值已等价。
+后续须核对上游初始化链。
+同时须核对真实入口的可达状态。
+本轮不凭源码片段改产品行为。
+
+产品另通过父链判断祖先。
+上游读取预计算祖先掩码。
+模型检查约束端点自由度并集。
+这些证据仍不替代全路径验收。
+
+### 证据与调用账本
+
+检查器核对五份产品源码。
+它也核对五份冻结外部源码。
+映射见[柔体清单](evidence/t4-g03-retest/flex-internal/map.json)。
+结果见[柔体实核](evidence/t4-g03-retest/flex-internal/audit.json)。
+本轮使用独立子目录。
+旧历史清单不涵盖该子目录。
+本轮不改写旧历史清单。
+
+三类入口各核对三份集合。
+入口为失效、位置与边。
+六份来自旧调试与发布捕获。
+三份来自当前增量编译集合。
+三份当前记录仍沿用旧产物。
+检查器核实完整模板与三类哈希。
+它还核对既有精度回执选项。
+这些读取不算重新编译或运行。
+
+本轮只选择新增命名空间。
+首次四过一败，过滤36项。
+失败源于缺少资料目录变量。
+第二次补齐变量，五项通过。
+第二次耗时0.51秒。
+随后补查六维速度标量定义。
+第三次五过零败，耗时0.52秒。
+该新增选择累计已满三次。
+后续不要原配置继续重跑。
+格式与静态检查均通过。
+旧打包测试正文逐字保持不变。
+最终日志为`target/t4-flex-internal-final.log`。
+旧36项始终不执行。
+所有产品物理内核均不执行。
+本轮不启动Python解释器。
+本轮不创建GPU会话。
+本轮不测稳态性能或显存峰值。
+
+```powershell
+$env:MJWARP_FROZEN_UPSTREAM_ROOT = "$PWD/target/mjwarp-parallel/upstream/mujoco_warp"
+$env:MJWARP_FROZEN_WARP_ROOT = "$PWD/target/mjwarp-parallel/venv/Lib/site-packages/warp"
+$env:MJWARP_T4_EVIDENCE_ROOT = "$PWD/target/t4-g03-retest"
+$env:MJWARP_T4_CURRENT_CAPTURE_ROOT = "$PWD/target/t4-rigid-recapture/with-dependents/current"
+$env:MJWARP_FLEX_INTERNAL_AUDIT_REPORT = "$PWD/docs/evidence/t4-g03-retest/flex-internal/audit.json"
+cargo test --locked --features cuda-probe --test t4_input_precision packing_routes::flex_internal:: -- --include-ignored --test-threads=1
+cargo clippy --locked --features cuda-probe --test t4_input_precision -- -D warnings
+cargo fmt --check
+```
+
+### 排程与验收边界
+
+本轮沿用进行态主任务。
+工具拒绝扩展运行态占用。
+本轮仅修改已登记文件范围。
+证据放入已登记目录前缀。
+原依赖与独占资源保持不变。
+原模块标识与状态保持不变。
+本轮不新占GPU或启动并行任务。
+
+| 门禁 | 本轮结论 |
+| --- | --- |
+| NP01 | 新增16组与六项输出映射；全路径未完 |
+| NP02 | 九份既有集合实核；上游生成运算待证 |
+| NP03 | 沿用历史；不重跑满额物理验证 |
+| NP04 | 未测公平稳态与进程显存峰值 |
+
+下一步核对柔体面与Hessian。
+尾槽副作用单列待审。
+完整精度与T4验收继续开放。
