@@ -1,0 +1,291 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "scope": "g01-tendon-wake-internal-and-integer-outputs",
+  "base_revision": "0037caff9e35d34c420bdaace55bad00e7aa4556",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "sources": [
+    {
+      "path": "src/physics/sleep.rs",
+      "sha256": "300ea42de44de58a9bb78304856e3fe6df8a20a79a7123e8d97b02645f0197c8",
+      "normalization": "LF"
+    },
+    {
+      "path": "src/model/sleep.rs",
+      "sha256": "99f87a55739ff5bae250feb75311fdd4fc81eec25a6ca225029de36f845fb4e5",
+      "normalization": "LF"
+    },
+    {
+      "path": "src/physics/resident.rs",
+      "sha256": "b2d63abc3763c38435ab8bb76c866fb307f7e144f1db712ae0abc46d1c7fd9cf",
+      "normalization": "LF"
+    },
+    {
+      "path": "src/physics/mod.rs",
+      "sha256": "b73b83e788ad159447d18cc2ba21c6d1c5d7228c7d15fd6f75a71bc4cd95d650",
+      "normalization": "LF"
+    },
+    {
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/sleep.py",
+      "sha256": "5b50688a8949afa30df1ae6ce2195132fdf50cf6ed821746badd8e06b92d91b0",
+      "normalization": "LF"
+    },
+    {
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/types.py",
+      "sha256": "5ff63b8186bafba2e2d51d5aae84875fb289411d9984f4e06b51813ea088491b",
+      "normalization": "LF"
+    }
+  ],
+  "groups": [
+    {
+      "id": "wrap-tree",
+      "source": 1,
+      "scalar": "i32",
+      "product": "1 => k.jnt_bodyid[id as usize]",
+      "upstream": "t = body_treeid[jnt_bodyid[t_objid]]"
+    },
+    {
+      "id": "enable",
+      "source": 2,
+      "scalar": "bool-to-i32",
+      "product": "i32::from(f.sleep_enabled && !f.island_disabled)",
+      "upstream": null
+    },
+    {
+      "id": "range-period",
+      "source": 0,
+      "scalar": "f32",
+      "product": "(w%m[3])*2*nt",
+      "upstream": "r = tendon_range[worldid % tendon_range.shape[0], tenid]"
+    },
+    {
+      "id": "margin-period",
+      "source": 0,
+      "scalar": "f32",
+      "product": "(w%m[4])*nt",
+      "upstream": "margin = tendon_margin[worldid % tendon_margin.shape[0], tenid]"
+    },
+    {
+      "id": "live-length",
+      "source": 0,
+      "scalar": "f32",
+      "product": "const float* length=lengths+4+(unsigned long long)w*m[5];",
+      "upstream": "length = ten_length[worldid, tenid]"
+    },
+    {
+      "id": "lower-distance",
+      "source": 0,
+      "scalar": "f32",
+      "product": "length[t]-range[2*t]",
+      "upstream": "dist_low = length - r[0]"
+    },
+    {
+      "id": "upper-distance",
+      "source": 0,
+      "scalar": "f32",
+      "product": "range[2*t+1]-length[t]",
+      "upstream": "dist_high = r[1] - length"
+    },
+    {
+      "id": "strict-limit",
+      "source": 0,
+      "scalar": "f32-to-predicate",
+      "product": "length[t]-range[2*t]<margin[t]||range[2*t+1]-length[t]<margin[t]",
+      "upstream": "if dist_low < margin:"
+    },
+    {
+      "id": "input-awake",
+      "source": 0,
+      "scalar": "i32",
+      "product": "tree>=0&&awake[tree]==1",
+      "upstream": "if tree_awake_in[worldid, t] == 1:"
+    },
+    {
+      "id": "wake-initial",
+      "source": 0,
+      "scalar": "i32",
+      "product": "wakeval=-11",
+      "upstream": "wakeval = int(K_AWAKE_VAL)"
+    },
+    {
+      "id": "wake-minimum",
+      "source": 0,
+      "scalar": "i32",
+      "product": "if(asleep[tree]<wakeval) wakeval=asleep[tree];",
+      "upstream": "if val < wakeval:"
+    },
+    {
+      "id": "sleeping-target",
+      "source": 0,
+      "scalar": "i32",
+      "product": "tree>=0&&awake[tree]==0",
+      "upstream": "if tree_awake_in[worldid, t] == 0:"
+    },
+    {
+      "id": "already-awake",
+      "source": 0,
+      "scalar": "i32",
+      "product": "if(old<0) { if(wakeval<old) asleep[tree]=wakeval;return; }",
+      "upstream": "if wakeval < asleep_val:"
+    },
+    {
+      "id": "bounded-cycle",
+      "source": 0,
+      "scalar": "i32",
+      "product": "for(int step=0;step<=ntree;++step)",
+      "upstream": "for step in range(ntree + 1):"
+    },
+    {
+      "id": "refresh-flag",
+      "source": 0,
+      "scalar": "i32",
+      "product": "awake[i]=asleep[i]<0",
+      "upstream": "is_awake = int(tree_asleep_in[worldid, treeid] < 0)"
+    },
+    {
+      "id": "refresh-count",
+      "source": 0,
+      "scalar": "i32",
+      "product": "count+=awake[i]",
+      "upstream": "wp.atomic_add(ntree_awake_out, worldid, 1)"
+    },
+    {
+      "id": "clear-body-dof",
+      "source": 0,
+      "scalar": "i32",
+      "product": "awake[n]=count;awake[n+1]=0;awake[n+2]=0;",
+      "upstream": "nbody_awake_out[worldid] = 0"
+    },
+    {
+      "id": "copy-noop-boundary",
+      "source": 0,
+      "scalar": "i32 bit-preserving",
+      "product": "result[offset+i]=state[offset+i];",
+      "upstream": null
+    }
+  ],
+  "outputs": [
+    {
+      "name": "tree_asleep",
+      "scalar": "i32",
+      "upstream": "tree_asleep: array(\"nworld\", \"ntree\", int)"
+    },
+    {
+      "name": "tree_awake",
+      "scalar": "i32",
+      "upstream": "tree_awake: array(\"nworld\", \"ntree\", int)"
+    },
+    {
+      "name": "ntree_awake",
+      "scalar": "i32",
+      "upstream": "ntree_awake: array(\"nworld\", int)"
+    },
+    {
+      "name": "nbody_awake",
+      "scalar": "i32",
+      "upstream": "nbody_awake: array(\"nworld\", int)"
+    },
+    {
+      "name": "nv_awake",
+      "scalar": "i32",
+      "upstream": "nv_awake: array(\"nworld\", int)"
+    }
+  ],
+  "capture": {
+    "directory": "target/t4-final-face-compile/current",
+    "cuda_sha256": "90f06a049e10a979e44f8d067ec20a9633ab9dc3ff0a3f2698f787478774f7c3",
+    "ptx_sha256": "0f0740d3df05b413ea24faf778f76e32e651183ade60c45b2dc324f97e50d2ff",
+    "entries": [
+      {
+        "name": "sleep_copy",
+        "receipt_sha256": "36ded661eff91df90bd7cc925e49c7f9e1acacbf260bc5e34eb62dc41fd544a0"
+      },
+      {
+        "name": "tendon_wake",
+        "receipt_sha256": "38ca3c33a7f85ec7ac252a4a1b3015c7592944994fa69c8d610be39896ede889"
+      }
+    ]
+  },
+  "precision": {
+    "physical_parameters_distances": "f32",
+    "state_minimum_loop_flags_counts": "i32",
+    "storage_load_store": ".u32 bit transport; signed .s32 arithmetic and predicates",
+    "address_math": "u64/s64 not physical floating-point",
+    "readback_f64": "diagnostic is_finite only; returned Vec<T> remains i32",
+    "host_initial_state": "five integer fields can retain all i32 bits",
+    "product_fully_awake": -11,
+    "upstream_fully_awake_expression": "-(1 + types.MJ_MINAWAKE)",
+    "upstream_binding_constant_instantiation_verified": false,
+    "upstream_generated_sleep_artifact_available": false,
+    "parallel_semantics_verified": false
+  },
+  "verification": {
+    "selector": "t4_tendon_wake_precision",
+    "prior_calls": 0,
+    "call_cap": 3,
+    "command": "cargo test --locked --features cuda-probe --test t4_tendon_wake_precision -- --test-threads=1 --nocapture",
+    "calls": [
+      {
+        "n": 1,
+        "passed": 4,
+        "failed": 0,
+        "seconds": 0.03,
+        "log": "target/t4-tendon-wake-precision/host-1.log",
+        "sha256": "0392abb12dafe155cd62a5a423c19fe2aa57fc99b5fac45159635817bd927f4d"
+      }
+    ],
+    "tested_source": "tests/t4_tendon_wake_precision.rs",
+    "tested_source_sha256_lf": "0e1b99924dd9b92d8b71601a1c16bb98e5f8f27ab20fa1458645cf410bb79a37",
+    "source_pins": 6,
+    "actual_product_artifact_files": 6,
+    "internal_groups": 18,
+    "integer_outputs": 5,
+    "f32_limit_adjacent_cases": 6,
+    "geu_complement_classes": 4,
+    "source_and_capture_checks": "passed",
+    "fmt_check": "passed",
+    "clippy_command": "cargo clippy --locked --features cuda-probe --test t4_tendon_wake_precision -- -D warnings",
+    "clippy": "passed",
+    "doc_audit_hook": "C:/Users/zhang/.codex/audit-docs/reports/e05f246e1c12b4cf/audit-akt13v88.md",
+    "doc_audit_reported_mismatches": 0,
+    "no_repeat_after_pass": true,
+    "old_exhausted_selectors_run": 0,
+    "camlight_or_trig_selector_run": 0,
+    "cuda_compiler_invocations": 0,
+    "gpu_sessions": 0,
+    "kernel_launches": 0,
+    "python_invocations": 0,
+    "tolerance_changed": false,
+    "sample_world_field_coverage_reduced": false,
+    "hessian_21_coefficient_boundary_unchanged": true,
+    "current_inventory_sha256_unchanged": "bafa1f3255bc9f08b2566041ed9102d6e75706e75c9c390fa56ae89df4c0ad39",
+    "current_capture_status_sha256_unchanged": "48dc717449fc274770357e436cbd7c507960dfc9f897cf3d1096d90c9c1e080e"
+  },
+  "normify": {
+    "project": "mjwarp-rs",
+    "change": "2026-10-11-mjwarp-parallel-acceptance",
+    "status": "in_progress",
+    "depends_on": ["2026-10-11-g03-mjwarp-reference"],
+    "resources": ["gpu:windows-t4", "acceptance:windows-product"],
+    "module_uids": {"mjwarp.physics.sleep": "a362cc08", "mjwarp.model.sleep": "a762ce09"},
+    "module_states": "active",
+    "root_state": "planned",
+    "source_drift": 0,
+    "errors": 0,
+    "historical_warnings": ["mjwarp.model.flex leaf-too-coarse", "mjwarp.physics.tendon-wrap leaf-too-coarse"],
+    "build": "passed"
+  },
+  "boundaries": {
+    "scope": "tendon wake and lightweight tree refresh only; no full G25 state machine or body/dof active tables",
+    "empty_or_disabled": "copy and return; counters preserved",
+    "enabled_nonempty": "refresh tree flags/count; zero body/dof counters",
+    "original_awake_flags": "unchanged until final refresh; no immediate newly-awake cascade",
+    "publication": "copy state to scratch; launch wake; swap only after both succeed",
+    "np01_complete": false,
+    "np02_complete": false,
+    "full_sleep_acceptance": false,
+    "product_formula_changed": false,
+    "current_face_bit_differences": null,
+    "previous_face_strict_bit_differences": 2078
+  }
+}

@@ -184,6 +184,11 @@ NP04仍缺公平稳态性能对照。
 向量特化保留直接f32除法。
 本轮不新增设备数值证据。
 详见[相机光源映射](t4-camlight-internal.md)。
+随后核对肌腱唤醒内部量。
+十八组与五项整数输出已映射。
+上游生成与常量实例化仍待补。
+完整休眠仍不属于当前子集。
+详见[唤醒映射与剩余清单](t4-tendon-wake-internal.md)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
