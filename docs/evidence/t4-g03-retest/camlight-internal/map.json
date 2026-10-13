@@ -1,0 +1,317 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "scope": "g01-camlight-internal-and-four-outputs",
+  "product_revision": "b05eb6fa2ee0875ee666cc023dc77c4c5a109746",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "sources": [
+    {
+      "path": "src/physics/camlight.rs",
+      "sha256": "593108f3c8f5c79dcbf574e5f40e2e12c86ab38922840a1a5c5245fee510adc0",
+      "normalization": "LF"
+    },
+    {
+      "path": "src/physics/resident.rs",
+      "sha256": "b2d63abc3763c38435ab8bb76c866fb307f7e144f1db712ae0abc46d1c7fd9cf",
+      "normalization": "LF"
+    },
+    {
+      "path": "src/physics/mod.rs",
+      "sha256": "b73b83e788ad159447d18cc2ba21c6d1c5d7228c7d15fd6f75a71bc4cd95d650",
+      "normalization": "LF"
+    },
+    {
+      "path": "src/model/camlight.rs",
+      "sha256": "e9299df14f07771f225e1068754357aa33b24f4ec10491149d578704cdb9f52e",
+      "normalization": "LF"
+    },
+    {
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py",
+      "sha256": "6268f0e1b6cb4c9ec6bbd3aa29828dfb36224efb2a3a3e1f54e5f87b6623fdef",
+      "normalization": "LF"
+    },
+    {
+      "path": "target/mjwarp-parallel/upstream/mujoco_warp/_src/types.py",
+      "sha256": "5ff63b8186bafba2e2d51d5aae84875fb289411d9984f4e06b51813ea088491b",
+      "normalization": "LF"
+    },
+    {
+      "path": "target/mjwarp-parallel/venv/Lib/site-packages/warp/native/vec.h",
+      "sha256": "93994499dfac4b341e1bdf04dd1aec92939844562c58b602b94d0f81a1d6ca62",
+      "normalization": "LF"
+    },
+    {
+      "path": "target/mjwarp-parallel/venv/Lib/site-packages/warp/native/builtin.h",
+      "sha256": "99e9ab17698e87ec85d743d416249f7a5f29f5cb8419a2955560350bc564bbe4",
+      "normalization": "LF"
+    }
+  ],
+  "groups": [
+    {
+      "id": "camera-fixed-position",
+      "physical_scalar": "f32",
+      "product": "V pos=add(load_v(xp+3*b),rotate(q,load_v(cp+3*c)));",
+      "upstream": "cam_xpos_out[worldid, camid] = xpos + math.rot_vec_quat(cam_pos[cam_pos_id, camid], xquat)"
+    },
+    {
+      "id": "camera-track-position",
+      "physical_scalar": "f32",
+      "product": "if(mode==1) pos=add(load_v(xp+3*b),load_v(cp0+3*c));",
+      "upstream": "cam_xpos_out[worldid, camid] = body_xpos + cam_pos0[worldid % cam_pos0.shape[0], camid]"
+    },
+    {
+      "id": "camera-track-matrix",
+      "physical_scalar": "f32",
+      "product": "if(mode==1 || mode==2)",
+      "upstream": "cam_xmat_out[worldid, camid] = cam_mat0[worldid % cam_mat0.shape[0], camid]"
+    },
+    {
+      "id": "camera-trackcom",
+      "physical_scalar": "f32",
+      "product": "if(cm[c]==2) store_v(cx+3*c,add(load_v(sc+3*cb[c]),load_v(cpc+3*c)));",
+      "upstream": "subtree_com_in[worldid, cam_bodyid[camid]] + cam_poscom0[worldid % cam_poscom0.shape[0], camid]"
+    },
+    {
+      "id": "camera-fixed-or-invalid-target",
+      "physical_scalar": "f32",
+      "product": "else matrix(mx+9*c,multiply(q,load_q(cq+4*c)));",
+      "upstream": "cam_xmat_out[worldid, camid] = math.quat_to_mat(math.mul_quat(xquat, cam_quat[cam_quat_id, camid]))"
+    },
+    {
+      "id": "camera-target-body",
+      "physical_scalar": "f32",
+      "product": "else if(mode==3 && t>=0) look_at(mx+9*c,pos,load_v(xp+3*t));",
+      "upstream": "pos = xpos_in[worldid, cam_targetbodyid[camid]]"
+    },
+    {
+      "id": "camera-target-com",
+      "physical_scalar": "f32",
+      "product": "else if(cm[c]==4 && ct[c]>=0) look_at(mx+9*c,load_v(cx+3*c),load_v(sc+3*ct[c]));",
+      "upstream": "pos = subtree_com_in[worldid, cam_targetbodyid[camid]]"
+    },
+    {
+      "id": "camera-look-z",
+      "physical_scalar": "f32",
+      "product": "V z=light_normalize(add(pos,scale(target,-1.0f)));",
+      "upstream": "mat_3 = wp.normalize(cam_xpos_out[worldid, camid] - pos)"
+    },
+    {
+      "id": "camera-look-x",
+      "physical_scalar": "f32",
+      "product": "V x=light_normalize(light_cross(V{0,0,1},z));",
+      "upstream": "mat_1 = wp.normalize(wp.cross(wp.vec3(0.0, 0.0, 1.0), mat_3))"
+    },
+    {
+      "id": "camera-look-y",
+      "physical_scalar": "f32",
+      "product": "V y=light_normalize(light_cross(z,x));",
+      "upstream": "mat_2 = wp.normalize(wp.cross(mat_3, mat_1))"
+    },
+    {
+      "id": "light-fixed-position",
+      "physical_scalar": "f32",
+      "product": "V pos=add(load_v(xp+3*b),rotate(q,load_v(lp+3*l)));",
+      "upstream": "light_xpos_out[worldid, lightid] = xpos + math.rot_vec_quat(light_pos[light_pos_id, lightid], xquat)"
+    },
+    {
+      "id": "light-track-position",
+      "physical_scalar": "f32",
+      "product": "if(mode==1) pos=add(load_v(xp+3*b),load_v(lp0+3*l));",
+      "upstream": "light_xpos_out[worldid, lightid] = body_xpos + light_pos0[worldid % light_pos0.shape[0], lightid]"
+    },
+    {
+      "id": "light-fixed-direction",
+      "physical_scalar": "f32",
+      "product": "V dir=rotate(q,load_v(ld+3*l));",
+      "upstream": "light_xdir_out[worldid, lightid] = math.rot_vec_quat(light_dir[light_dir_id, lightid], xquat)"
+    },
+    {
+      "id": "light-track",
+      "physical_scalar": "f32",
+      "product": "if(mode==1 || mode==2) dir=load_v(ld0+3*l);",
+      "upstream": "light_xdir_out[worldid, lightid] = light_dir0[worldid % light_dir0.shape[0], lightid]"
+    },
+    {
+      "id": "light-trackcom",
+      "physical_scalar": "f32",
+      "product": "if(lm[l]==2) store_v(lx+3*l,add(load_v(sc+3*lb[l]),load_v(lpc+3*l)));",
+      "upstream": "subtree_com_in[worldid, light_bodyid[lightid]] + light_poscom0[worldid % light_poscom0.shape[0], lightid]"
+    },
+    {
+      "id": "light-target-body",
+      "physical_scalar": "f32",
+      "product": "else if(mode==3 && t>=0) dir=add(load_v(xp+3*t),scale(pos,-1.0f));",
+      "upstream": "pos = xpos_in[worldid, light_targetbodyid[lightid]]"
+    },
+    {
+      "id": "light-target-com",
+      "physical_scalar": "f32",
+      "product": "store_v(dx+3*l,light_normalize(add(load_v(sc+3*lt[l]),scale(load_v(lx+3*l),-1.0f))));",
+      "upstream": "pos = subtree_com_in[worldid, light_targetbodyid[lightid]]"
+    },
+    {
+      "id": "light-normalization-exception",
+      "physical_scalar": "f32",
+      "product": "store_v(dx+3*l,invalid ? dir : light_normalize(dir));",
+      "upstream": "light_xdir_out[worldid, lightid] = wp.normalize(light_xdir_out[worldid, lightid])"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "cam_xpos",
+      "width": 3,
+      "scalar": "f32",
+      "product": "cam_xpos: &v[..3 * nc]",
+      "upstream": "cam_xpos: array(\"nworld\", \"ncam\", wp.vec3)"
+    },
+    {
+      "name": "cam_xmat",
+      "width": 9,
+      "scalar": "f32",
+      "product": "cam_xmat: &v[3 * nc..12 * nc]",
+      "upstream": "cam_xmat: array(\"nworld\", \"ncam\", wp.mat33)"
+    },
+    {
+      "name": "light_xpos",
+      "width": 3,
+      "scalar": "f32",
+      "product": "light_xpos: &v[12 * nc..12 * nc + 3 * nl]",
+      "upstream": "light_xpos: array(\"nworld\", \"nlight\", wp.vec3)"
+    },
+    {
+      "name": "light_xdir",
+      "width": 3,
+      "scalar": "f32",
+      "product": "light_xdir: &v[12 * nc + 3 * nl..]",
+      "upstream": "light_xdir: array(\"nworld\", \"nlight\", wp.vec3)"
+    }
+  ],
+  "product_capture": {
+    "directory": "target/t4-final-face-compile/current",
+    "cuda_sha256": "e5f0d212dfcd5486c345277b5b71b7b413fe571dfc6e02671a24c9266d538b58",
+    "ptx_sha256": "a23d98ef5d774c635a67fdab86b6504a2ec957157d288ddb20307f1c55d34be9",
+    "entries": [
+      {
+        "name": "camlight_rigid",
+        "receipt_sha256": "eda43f17bd79807dd5f6c46a927ccfcc9851547bd3bc378a55d40d003ac4d25e",
+        "normalization_sites": 4
+      },
+      {
+        "name": "camlight_com",
+        "receipt_sha256": "4b35966eafbd523f3ceb9651fcdab4e8ca111b4538d4c84c75851dad9883252c",
+        "normalization_sites": 4
+      }
+    ]
+  },
+  "upstream_capture": {
+    "prefix": "target/mjwarp-parallel/warp-cache/1.15.0/wp_mujoco_warp._src.smooth_ca013d6/wp_mujoco_warp._src.smooth_ca013d6",
+    "cuda_sha256": "3a6b3856727f63797a28646a5864aa02cd76a20ed3658199c69b3ad75c802bfa",
+    "ptx_sha256": "1d9e4e3a983ca35090ade3a48fd83aa0dc86a23228bb0865010f681698ab75dd",
+    "entries": [
+      {
+        "name": "_cam_local_to_global_ed67ebfa_cuda_kernel_forward",
+        "normalization_sites": 3
+      },
+      {
+        "name": "_light_local_to_global_1966b84b_cuda_kernel_forward",
+        "normalization_sites": 1
+      }
+    ]
+  },
+  "verification": {
+    "selector": "t4_camlight_precision",
+    "command": "cargo test --locked --features cuda-probe --test t4_camlight_precision -- --test-threads=1 --nocapture",
+    "prior_calls": 0,
+    "call_cap": 3,
+    "calls": [
+      {
+        "n": 1,
+        "passed": 2,
+        "failed": 1,
+        "seconds": 0.03,
+        "log": "target/t4-camlight-precision/host-1.log",
+        "sha256": "1c2cb0903af0471f8e39da48c6492f42cce9edbdd26e3372231cc122dd32c0a6",
+        "cause": "checker required a new immediate zero in each normalization block; frozen compiler reuses a preceding zero register; not a product defect"
+      },
+      {
+        "n": 2,
+        "passed": 3,
+        "failed": 0,
+        "seconds": 0.07,
+        "log": "target/t4-camlight-precision/host-2.log",
+        "sha256": "e01e0c51e085bb8c6079166fe0a2117e03565938788a43f2e15d3bced3ff7434",
+        "tested_source_sha256_lf": "ed631a2a6d5ef55970ec34feb74532b80449d65ac136b7a593fdc93d9f21d93e"
+      },
+      {
+        "n": 3,
+        "passed": 3,
+        "failed": 0,
+        "seconds": 0.06,
+        "log": "target/t4-camlight-precision/host-3.log",
+        "sha256": "b99bb30ed27d90aa66e2a76a18e1af5917e2075b374eae1be018cf2cf5a878f3",
+        "cause_for_repeat": "manual field-route review found two omitted light-position groups; fixed denominator expanded from 16 to 18; same whole target, no coverage removed"
+      }
+    ],
+    "tested_source": "tests/t4_camlight_precision.rs",
+    "tested_source_sha256_lf": "b3e362af3d5a91c87429b9cddea57b8b87f62f067092a7093d9b59cb4c7e9064",
+    "source_pins": 8,
+    "actual_artifact_files": 8,
+    "actual_ptx_entries": 4,
+    "normalization_sites": 12,
+    "mode_ids": [0, 1, 2, 3, 4],
+    "internal_groups": 18,
+    "public_outputs": 4,
+    "fmt_check": "passed",
+    "clippy_command": "cargo clippy --locked --features cuda-probe --test t4_camlight_precision -- -D warnings",
+    "clippy": "passed",
+    "doc_audit_hook": "C:/Users/zhang/.codex/audit-docs/reports/e05f246e1c12b4cf/audit-a1wgxjrr.md",
+    "doc_audit_reported_mismatches": 0,
+    "repeated_only_after_explicit_coverage_change": true,
+    "configuration_exhausted": true,
+    "old_exhausted_selectors_run": 0,
+    "trig_control_selector_run": 0,
+    "cuda_compiler_invocations": 0,
+    "gpu_sessions": 0,
+    "kernel_launches": 0,
+    "python_invocations": 0,
+    "tolerance_changed": false,
+    "sample_world_field_coverage_reduced": false,
+    "hessian_21_coefficient_boundary_unchanged": true,
+    "current_inventory_sha256_unchanged": "bafa1f3255bc9f08b2566041ed9102d6e75706e75c9c390fa56ae89df4c0ad39",
+    "current_capture_status_sha256_unchanged": "48dc717449fc274770357e436cbd7c507960dfc9f897cf3d1096d90c9c1e080e",
+    "current_face_bit_differences": null,
+    "previous_face_strict_bit_differences": 2078
+  },
+  "normify": {
+    "project": "mjwarp-rs",
+    "change": "2026-10-11-mjwarp-parallel-acceptance",
+    "status": "in_progress",
+    "depends_on": ["2026-10-11-g03-mjwarp-reference"],
+    "resources": ["gpu:windows-t4", "acceptance:windows-product"],
+    "module_uid": "cd673a89",
+    "module_state": "active",
+    "root_state": "planned",
+    "errors": 0,
+    "historical_warnings": ["mjwarp.model.flex leaf-too-coarse", "mjwarp.physics.tendon-wrap leaf-too-coarse"],
+    "next_independent_candidate": "G01 tendon-wake internal and integer-output precision map"
+  },
+  "boundaries": {
+    "new_cuda_compilation": false,
+    "new_gpu_execution": false,
+    "physical_formula_changed": false,
+    "vector_normalization": "specialized vec3 uses three direct f32 divisions; quaternion reciprocal multiplication is not transferable",
+    "negative_target_light": "returns rotated direction without normalization",
+    "targetcom_product": "rigid stage temporary then synchronous COM overwrite; no intermediate readback",
+    "matrix_order": "row-major",
+    "np01_complete": false,
+    "np02_complete": false,
+    "full_equivalence": false,
+    "remaining": [
+      "complete field/stage maps",
+      "shared quaternion/math expression and backend equivalence",
+      "post-fix face device evidence",
+      "Hessian generated artifacts",
+      "fair performance"
+    ]
+  }
+}

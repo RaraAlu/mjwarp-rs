@@ -179,6 +179,11 @@ NP04仍缺公平稳态性能对照。
 两侧PTX均含库级f64归约链。
 本轮不宣称完整库算法等价。
 详见[三角控制域](t4-face-trig-control.md)。
+随后补查相机光源内部量。
+十八组与四项输出映射已核对。
+向量特化保留直接f32除法。
+本轮不新增设备数值证据。
+详见[相机光源映射](t4-camlight-internal.md)。
 记录见[红线T4复测](windows-t4-redline-retest.md)。
 记录见[两级补测](windows-two-reference-acceptance.md)。
 第393帧绕行首差已有定位。
