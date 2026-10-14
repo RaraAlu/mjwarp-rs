@@ -29,6 +29,90 @@ pub(crate) struct SynchronousKernel {
 }
 
 impl SynchronousKernel {
+    /// 混合求解固定128线程；因子跨度包含稠密前缀。
+    ///
+    /// # Safety
+    /// Caller proves packed route/diagonal/level/Small metadata and its bounds.
+    /// Each block owns one world/RHS; all threads reach every barrier.
+    pub(crate) unsafe fn launch_mixed_solve(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        rhs: &TransferBuffer<f32>,
+        factor: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        dimensions: [u32; 4],
+    ) -> Result<(), TransferError> {
+        for same in [
+            Arc::ptr_eq(&self.session.inner, &metadata.session.inner),
+            Arc::ptr_eq(&self.session.inner, &rhs.session.inner),
+            Arc::ptr_eq(&self.session.inner, &factor.session.inner),
+            Arc::ptr_eq(&self.session.inner, &output.session.inner),
+        ] {
+            if !same {
+                return Err(TransferError::SessionMismatch);
+            }
+        }
+        let [n, stride, nr, worlds] = dimensions.map(|v| v as usize);
+        let invalid = || InputError::InvalidDimension {
+            field: "mixed_solve_abi",
+        };
+        let groups = worlds
+            .checked_mul(nr)
+            .filter(|&v| v > 0 && v <= i32::MAX as usize)
+            .ok_or_else(invalid)?;
+        if dimensions.iter().any(|&v| v > i32::MAX as u32) || n == 0 || stride < 2 * n {
+            return Err(invalid().into());
+        }
+        let rhs_len = groups
+            .checked_mul(n)
+            .and_then(|v| v.checked_add(8))
+            .ok_or_else(invalid)?;
+        let factor_len = worlds
+            .checked_mul(stride)
+            .and_then(|v| v.checked_add(8))
+            .ok_or_else(invalid)?;
+        let meta_min = n
+            .checked_mul(2)
+            .and_then(|v| v.checked_add(5))
+            .filter(|&v| v <= i32::MAX as usize)
+            .ok_or_else(invalid)?;
+        if rhs.len() != rhs_len
+            || output.len() != rhs_len
+            || factor.len() != factor_len
+            || metadata.len() < meta_min
+        {
+            return Err(invalid().into());
+        }
+        let (Some(m), Some(r), Some(f), Some(o)) = (
+            metadata.allocation.as_ref(),
+            rhs.allocation.as_ref(),
+            factor.allocation.as_ref(),
+            output.allocation.as_mut(),
+        ) else {
+            return Err(invalid().into());
+        };
+        self.session.run("mixed-solve-128-launch", || {
+            let mut args = self
+                .session
+                .inner
+                .stream
+                .launch_builder(self.function.as_ref().unwrap());
+            args.arg(m).arg(r).arg(f).arg(o);
+            for value in &dimensions {
+                args.arg(value);
+            }
+            // SAFETY: Checked capacities and private metadata proof bound all
+            // accesses; run serializes and synchronizes completion.
+            unsafe {
+                args.launch(LaunchConfig {
+                    grid_dim: (groups as u32, 1, 1),
+                    block_dim: (128, 1, 1),
+                    shared_mem_bytes: 0,
+                })
+            }?;
+            Ok(())
+        })
+    }
     /// Small分解固定64线程；每线程独占一个世界块。
     ///
     /// # Safety
@@ -674,6 +758,104 @@ fn record_physics_ptx(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[ignore = "new mixed128 prefix-stride ABI; no old ABI or physics replay"]
+    fn mixed_solve_128_abi_checks_prefix_stride_sessions_and_grouped_capacity() {
+        let session = TransferSession::new(0).unwrap();
+        let other = TransferSession::new(0).unwrap();
+        let source = r#"extern "C" __global__ void mixed_solve_abi(const int* meta,const float* rhs,
+ const float* factor,float* output,unsigned n,unsigned stride,unsigned nr,unsigned worlds) {
+ __shared__ float slots[128];unsigned tid=threadIdx.x;slots[tid]=float(tid)+0.25f;__syncthreads();
+ for(unsigned i=tid;i<n;i+=128)output[4+blockIdx.x*n+i]=float(blockIdx.x)*1000.0f+float(i)+slots[(tid+1)%128];
+}"#;
+        let kernel = SynchronousKernel::compile(&session, source, "mixed_solve_abi").unwrap();
+        let metadata = session.upload(&vec![0i32; 263]).unwrap();
+        let rhs = session.upload(&vec![0.0f32; 782]).unwrap();
+        let factor = session.upload(&vec![0.0f32; 908]).unwrap();
+        let mut output = session.upload(&vec![-131072.0f32; 782]).unwrap();
+        let foreign_meta = other.upload(&vec![0i32; 263]).unwrap();
+        let foreign_rhs = other.upload(&vec![0.0f32; 782]).unwrap();
+        let foreign_factor = other.upload(&vec![0.0f32; 908]).unwrap();
+        let mut foreign_output = other.upload(&vec![-131072.0f32; 782]).unwrap();
+        let dims = [129, 300, 2, 3];
+        // SAFETY: Rejection paths never launch. The probe ignores metadata and
+        // inputs; its checked groups and n bound every disjoint output write.
+        unsafe {
+            assert!(matches!(
+                kernel.launch_mixed_solve(&foreign_meta, &rhs, &factor, &mut output, dims),
+                Err(TransferError::SessionMismatch)
+            ));
+            assert!(matches!(
+                kernel.launch_mixed_solve(&metadata, &foreign_rhs, &factor, &mut output, dims),
+                Err(TransferError::SessionMismatch)
+            ));
+            assert!(matches!(
+                kernel.launch_mixed_solve(&metadata, &rhs, &foreign_factor, &mut output, dims),
+                Err(TransferError::SessionMismatch)
+            ));
+            assert!(matches!(
+                kernel.launch_mixed_solve(&metadata, &rhs, &factor, &mut foreign_output, dims),
+                Err(TransferError::SessionMismatch)
+            ));
+            for bad in [
+                [0, 300, 2, 3],
+                [129, 257, 2, 3],
+                [129, 300, 0, 3],
+                [129, 300, 2, 0],
+                [u32::MAX, 300, 2, 3],
+                [1, 2, 65536, 65536],
+            ] {
+                assert!(
+                    kernel
+                        .launch_mixed_solve(&metadata, &rhs, &factor, &mut output, bad)
+                        .is_err()
+                );
+            }
+            let short_meta = session.upload(&vec![0i32; 262]).unwrap();
+            let short_rhs = session.upload(&vec![0.0f32; 781]).unwrap();
+            let short_factor = session.upload(&vec![0.0f32; 907]).unwrap();
+            let mut short_output = session.upload(&vec![0.0f32; 781]).unwrap();
+            assert!(
+                kernel
+                    .launch_mixed_solve(&short_meta, &rhs, &factor, &mut output, dims)
+                    .is_err()
+            );
+            assert!(
+                kernel
+                    .launch_mixed_solve(&metadata, &short_rhs, &factor, &mut output, dims)
+                    .is_err()
+            );
+            assert!(
+                kernel
+                    .launch_mixed_solve(&metadata, &rhs, &short_factor, &mut output, dims)
+                    .is_err()
+            );
+            assert!(
+                kernel
+                    .launch_mixed_solve(&metadata, &rhs, &factor, &mut short_output, dims)
+                    .is_err()
+            );
+            kernel
+                .launch_mixed_solve(&metadata, &rhs, &factor, &mut output, dims)
+                .unwrap();
+        }
+        let mut actual = vec![0.0; 782];
+        output.read_range_into(0, &mut actual).unwrap();
+        assert!(
+            actual[..4]
+                .iter()
+                .chain(&actual[778..])
+                .all(|&v| v == -131072.0)
+        );
+        for group in 0..6 {
+            for i in 0..129 {
+                assert_eq!(
+                    actual[4 + group * 129 + i],
+                    (group * 1000 + i) as f32 + ((i % 128 + 1) % 128) as f32 + 0.25
+                );
+            }
+        }
+    }
 
     #[test]
     #[ignore = "requires NVIDIA/NVRTC; new Small64 ABI purpose"]

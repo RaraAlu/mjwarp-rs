@@ -252,6 +252,7 @@ NP04仍缺公平稳态性能对照。
     随后核实[七维MathDx原生编译](native-mathdx7.md)。
     现接通[七维原生链接与设备调用](native-mathdx7-link.md)。
     随后接通[常驻三路混合分解](mixed-mass-factor.md)。
+    现接通[常驻三路混合求解](mixed-mass-solve.md)。
     原生入口补充[CSR六字段捕获](native-sparse-mass.md)。
 26. [Windows质量求解探针](windows-mass-solve-probe.md)
 27. [Windows附着运动学探针](windows-attached-kinematics-probe.md)

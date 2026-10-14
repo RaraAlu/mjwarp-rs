@@ -1,0 +1,212 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "base_revision": "17f6c760daf7885ce4e5d5b67d93404b58be2a82",
+  "scope": "first resident Sparse/Small/Compact merged-factor consumer, grouped RHS solve and cache ownership; no Tile/CRB bridge",
+  "budgets": {
+    "reference_assembly": "1/3 successful frozen; no factor/solve author",
+    "product": "3/3 combined host + GPU target + private single function; all successful frozen",
+    "new_128_ABI": "1/3 successful frozen",
+    "old_MixedFactor": "3/3 frozen",
+    "old_Small": "FAILED3/3; corrected host certificate unexecuted",
+    "old_SparseSolve_third": "frozen",
+    "old_Clippy": "forbidden; zero calls",
+    "old_SDK": "capability1/3 and link-device2/3 frozen",
+    "other_old_successful_or_full_targets": "zero calls",
+    "account_quota": "does not reset test purpose"
+  },
+  "commands": [
+    {
+      "command": "scripts/prepare-mixed-solve-reference.ps1 -Attempt 1",
+      "purpose": "independent new matrix-vector reference assembly",
+      "result": "2 topologies,4 cases,12 columns; max full-model reference residual1.75322927972204e-18",
+      "old_authors_called": 0
+    },
+    {
+      "command": "cargo test --locked --lib physics::mass_solve::sparse::mixed::solve::tests:: -- --test-threads=1 --nocapture",
+      "passed": 2,
+      "filtered": 191,
+      "test_seconds": 0.01,
+      "compile_seconds": 3.15,
+      "source_stage": "early full source archived; later cfg CUDA fault tests/world diagnostic changes; current default not rerun"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --test mixed_mass_solve -- --ignored --test-threads=1 --nocapture",
+      "passed": 2,
+      "test_seconds": 4.67,
+      "compile_seconds": 4.67,
+      "warnings": 0,
+      "note": "package-cache lock wait occurred; not an extra invocation"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::tests::cached_merged_factor_ignores_old_sources_and_rejects_each_consumer_fault -- --ignored --test-threads=1 --nocapture",
+      "passed": 1,
+      "filtered": 262,
+      "test_seconds": 1.1,
+      "compile_seconds": 5.35,
+      "warnings": 0
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib runtime::transfer::kernel::tests::mixed_solve_128_abi_checks_prefix_stride_sessions_and_grouped_capacity -- --ignored --test-threads=1 --nocapture",
+      "passed": 1,
+      "filtered": 262,
+      "test_seconds": 0.22,
+      "compile_cache_seconds": 0.14
+    }
+  ],
+  "product": {
+    "input": "one public CSR M and independent finite RHS, all f32",
+    "factor": "one completed merged U-prefix/full-CSR/nv-inverse snapshot per world",
+    "RHS_layout": "world,rhs,dof",
+    "kernel": "one128-thread block per world/RHS; one thread per Small block; Compact independent D*y; Sparse copy/atomic-sub UP/diag/DOWN only flag-1, barrier each level",
+    "Small": "static2..6; both triangular divisions __fdiv_rn; mul/sub asm without .rn preserves contraction permission",
+    "consume": "never inspect stale primary/producer CSR or Small producer after merged factor is complete",
+    "matrix_write": "invalidate gather/factor/solution",
+    "RHS_write": "invalidate solution only; factor bytes read-only",
+    "invalid_or_foreign": "preserve ready cache",
+    "validation": "GPU full factors/RHS finite+guards and selected positive route diagonals/full-nv inverse",
+    "factor_fault": "invalidate factor readiness; no batch publication",
+    "RHS_fault": "preserve factor; no batch publication",
+    "snapshot": "independent factor/RHS/solution owned vectors and model Arc"
+  },
+  "numeric": {
+    "models": "two auxiliary CSR topologies, not two compiled native models",
+    "states_per_model": 2,
+    "mixed86": "nv86 nc2201 prefix90; world1/2/257 nr3 andworld2 nr1/2/5",
+    "crowded390": "131Sparse +129Small2 +1Compact, nv390 nc9034 prefix516; world2 nr3",
+    "batches": 14,
+    "solution_slots": 141592,
+    "zero_RHS_column_slots": 47656,
+    "max_abs": 0.000026702880859375,
+    "max_per_tree_residual": 3.7332696249326277e-7,
+    "abs": 0.0002,
+    "rel": 0.0002,
+    "residual": 0.00002,
+    "normalizer": "every tree max(1e-30,||M||inf*||x||inf+||b||inf); high-norm Small cannot dilute Sparse",
+    "atomic_final_solution_bit_determinism": false,
+    "RHS_and_factor_preserved_bits": true
+  },
+  "references": {
+    "ordinary_Sparse": "reuse frozen chain65 LU outputs and input f32 matrices, no author replay",
+    "new_blocks": "independently chosen dyadic z and exact-f32 M*z RHS only; no solve/factorization",
+    "crowded": "independent synthetic SPD diag(d)+0.0625*11T with known z",
+    "zero_check": "only all-zero RHS columns, not isolated exact-zero manufactured solutions in nonzero columns",
+    "full_model_reference_residual": 1.75322927972204e-18,
+    "full_model_normalizer_risk": "explicitly countered by per-tree product residual",
+    "Python_or_MuJoCo_or_candidate_reference_calls": 0
+  },
+  "failure_coverage": {
+    "world_RHS_write": 256,
+    "invalid_world": 257,
+    "matrix_needs_fresh_generation": true,
+    "stale_nan_primary_and_CSR": "cached solver/readback still work; fresh factor/gather reject",
+    "stale_Small_producer_guard": "cached consumer still works",
+    "merged_factor_faults": "head/tail guards, Small diagonal, NaN offdiag, Sparse diagonal, inverse negative/infinite",
+    "RHS": "head/tail guards, NaN; factor preserved",
+    "output": "head/tail guards, NaN recompute",
+    "status": "head/tail guards",
+    "repair_recovery": true,
+    "raw_unselected_RHS_bits": true,
+    "foreign_plan_rejection": true,
+    "snapshot_lifetime": true
+  },
+  "ABI": {
+    "dimensions": [
+      "nv",
+      "factor_stride_with_prefix",
+      "nr",
+      "worlds"
+    ],
+    "threads": 128,
+    "rejections": 14,
+    "sessions": 4,
+    "dimension_rejections": 6,
+    "capacity_rejections": 4,
+    "positions": 774,
+    "shared_slots": 128,
+    "barrier": true,
+    "precompile_static_borrow_fix": "duplicate mutable output array loans changed to sequential calls, all checks retained; no failed CUDA invocation"
+  },
+  "precision": {
+    "physical_all": "f32",
+    "metadata": "i32",
+    "diagnostic_only": "f64 reference/residual/error values; no CPU product solve",
+    "NVRTC": "12.8",
+    "target": "compute_70",
+    "fmad": true,
+    "fast_math": false,
+    "whole_PTX_gate": "unchanged",
+    "actual_new_module_ops": {
+      "div_rn_f32": 18,
+      "mul_f32": 53,
+      "sub_f32": 53,
+      "explicit_fma_rn": 0,
+      "atomic_global_add_f32": 2
+    },
+    "new_source": "6b01821ccb5eedd0217f709ae12757cb9cf179252b3473007f037732b576b081",
+    "new_PTX": "9b7829088e94a26dfa23fad24065a2383bb2abd8f5b915af648c7947218bc667",
+    "legacy_Small_actual": "existing1/2 .sm89.ptx has div.rn/mul/sub; incorrect .ptx filename premise corrected read-only",
+    "legacy_Small3to6_and_SASS": "unaccepted",
+    "SDK_loaded": false
+  },
+  "capture": {
+    "entries": 29,
+    "counts": {
+      "GPU": 14,
+      "private": 14,
+      "ABI": 1
+    },
+    "meaning": "actual compilation-entry captures in test runs, not distinct-module or launch count",
+    "all_hashes_and_gate_pass": true,
+    "index": "docs/evidence/mixed-mass-solve/kernel-index.json",
+    "contract_copies": "frozen before-first-CUDA design ledger; later copies do not reset budget"
+  },
+  "platform": {
+    "OS": "Windows",
+    "GPU": "RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "product_streams": 1
+  },
+  "performance": {
+    "phase_ms": 308,
+    "includes": "allocations/transfers, updates/readbacks, reference comparisons and host diagnostic per-tree residuals",
+    "excludes": "plan JIT",
+    "max_owned_buffer_bytes": 12352436,
+    "accounting": "11 guarded data buffers plus all plan metadata; arithmetic capacity accounting, not measured peak",
+    "fair_GPU_time_or_peak_VRAM": false
+  },
+  "compatibility": {
+    "legacy128_256_64_and_compile_methods": "six actual existing method bodies byte-identical",
+    "legacy_MixedFactor_and_Sparse_CUDA": "byte-identical",
+    "old_tests_authors_references_Cargo_build_rs": "unchanged",
+    "static_check": "first PowerShell parser rejected $name: variable interpolation, corrected ${name}:; second check passed; no physical test/author ran in first failure"
+  },
+  "documentation": {
+    "manual": "whole new code/tests/reference assembly and relevant frozen generated CUDA/PTX + companion docs",
+    "hook_report": "C:/Users/zhang/.codex/audit-docs/reports/e05f246e1c12b4cf/audit-u4_2w2iv.md",
+    "source_files": 464,
+    "doc_files": 112,
+    "mismatches": 0,
+    "note": "report-time snapshot, no manual Python auditor"
+  },
+  "normify": {
+    "original_UIDs": true,
+    "mass_solve": "active",
+    "kernel": "active",
+    "core": "planned",
+    "compiler": "planned",
+    "main": "in_progress",
+    "formal_dependencies_and_resources": "unchanged",
+    "precheck": "0 error / 0 warning",
+    "validate_build": "0 error / 11 coarse-leaf warnings",
+    "no_source_drift_after_refresh": true
+  },
+  "boundaries": {
+    "full_G03": "open",
+    "NP01_NP02_NP03_NP04": "open",
+    "Tile7_and_CRB_bridge": "unsupported",
+    "Linux_release_T4": "unrun",
+    "reference_pass_not_upstream_equivalence": true,
+    "no_push_release_deploy": true
+  }
+}

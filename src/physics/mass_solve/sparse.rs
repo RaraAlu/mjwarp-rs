@@ -17,7 +17,8 @@ pub use dense::{
 };
 pub use mixed::{
     SparseMassMixedFactorData, SparseMassMixedFactorOutput, SparseMassMixedFactorPlan,
-    SparseMassMixedFactorWorld,
+    SparseMassMixedFactorWorld, SparseMassMixedSolveData, SparseMassMixedSolveOutput,
+    SparseMassMixedSolvePlan, SparseMassMixedSolveWorld,
 };
 
 mod resident;
