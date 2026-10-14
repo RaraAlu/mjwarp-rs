@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use super::{KinematicsData, KinematicsPlan};
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FlexEdgePassiveOptions {
     pub disable_spring: bool,
     pub disable_damper: bool,
@@ -114,6 +114,7 @@ fn layout(worlds: usize, nv: usize) -> Result<BatchLayout, InputError> {
 pub struct FlexEdgePassivePlan<'p> {
     source: &'p KinematicsPlan,
     spec: Arc<Spec>,
+    options: FlexEdgePassiveOptions,
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
@@ -203,6 +204,7 @@ impl<'p> FlexEdgePassivePlan<'p> {
             Ok(Self {
                 source,
                 spec: Arc::new(spec),
+                options,
                 metadata: session.upload(&metadata)?,
                 parameters: session.upload(&parameters)?,
                 kernels: [
@@ -239,6 +241,80 @@ impl<'p> FlexEdgePassivePlan<'p> {
                 staged: allocate(count, f32::NAN)?,
                 status: allocate(worlds, f32::NAN)?,
             })
+        }
+    }
+
+    pub fn options(&self) -> FlexEdgePassiveOptions {
+        self.options
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn shared_passive_context(
+        &self,
+    ) -> (TransferSession, usize, FlexEdgePassiveOptions) {
+        (self.session.clone(), self.spec.nv, self.options)
+    }
+
+    pub(super) fn accepts_shared_source(&self, source: &KinematicsData) -> bool {
+        self.source.check_data(source).is_ok()
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn matches_shared_model(&self, model: &crate::model::KinematicModelInput) -> bool {
+        self.source.shared_kinematic_model() == model
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn accumulate_shared_passive(
+        &self,
+        source: &KinematicsData,
+        target: &mut TransferBuffer<f32>,
+        status: &mut TransferBuffer<f32>,
+        worlds: usize,
+    ) -> Result<(), TransferError> {
+        let input = self.source.flex_edge_passive_source(source)?;
+        if source.worlds() != worlds
+            || target.len() != 2 * worlds * self.spec.nv + 8
+            || status.len() != worlds + 8
+        {
+            return Err(TransferError::ModelMismatch);
+        }
+        let w = worlds as u32;
+        // SAFETY: 计划锁定常驻边源。
+        // 共享状态缓冲仅接收验证结果。
+        unsafe {
+            self.kernels[0].launch(
+                &self.metadata,
+                &self.parameters,
+                input,
+                status,
+                [self.spec.ne as u32, self.spec.nv as u32, w, w],
+            )?;
+        }
+        let checked = read(status, worlds, "passive_force_flex_edge_status")?;
+        if let Some(index) = checked[4..4 + worlds].iter().position(|&v| v != 1.0) {
+            return Err(InputError::InvalidTopology {
+                field: "passive_force_flex_edge_source",
+                index,
+                reason: "guard_mapping_or_nonfinite",
+            }
+            .into());
+        }
+        let work = w
+            .checked_mul(self.spec.ne as u32)
+            .ok_or(InputError::Overflow {
+                field: "passive_force_flex_edge_work",
+            })?;
+        // SAFETY: 每线程处理一条边。
+        // 目标已含关节和肌腱贡献。
+        unsafe {
+            self.kernels[2].launch(
+                &self.metadata,
+                &self.parameters,
+                input,
+                target,
+                [self.spec.ne as u32, self.spec.nv as u32, w, work],
+            )
         }
     }
 

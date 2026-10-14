@@ -12,7 +12,7 @@ use crate::runtime::TransferSession;
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct JointPassiveOptions {
     pub disable_spring: bool,
     pub disable_damper: bool,
@@ -164,6 +164,7 @@ fn layout(nq: usize, nv: usize, worlds: usize) -> Result<Layout, InputError> {
 }
 pub struct JointPassivePlan {
     input: Arc<Input>,
+    options: JointPassiveOptions,
     smooth: SmoothForcePlan,
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
@@ -249,6 +250,7 @@ impl JointPassivePlan {
             let metadata = session.upload(&i.meta)?;
             Ok(Self {
                 input: Arc::new(i),
+                options,
                 smooth,
                 session: session.clone(),
                 metadata,
@@ -292,6 +294,83 @@ impl JointPassivePlan {
                 staged: alloc(l.parts.total_elements(), f32::NAN)?,
                 status: alloc(worlds, f32::NAN)?,
             })
+        }
+    }
+    pub fn options(&self) -> JointPassiveOptions {
+        self.options
+    }
+    #[cfg(feature = "cuda-probe")]
+    pub(in crate::physics) fn shared_passive_model(&self) -> &KinematicModelInput {
+        &self.input.model
+    }
+    #[cfg(feature = "cuda-probe")]
+    pub(in crate::physics) fn shared_passive_context(
+        &self,
+    ) -> (
+        TransferSession,
+        SmoothForceInput,
+        usize,
+        JointPassiveOptions,
+    ) {
+        (
+            self.session.clone(),
+            self.smooth.input().clone(),
+            self.input.model.nv(),
+            self.options,
+        )
+    }
+    #[cfg(feature = "cuda-probe")]
+    pub(in crate::physics) fn write_shared_passive_base(
+        &self,
+        data: &JointPassiveData,
+        target: &mut TransferBuffer<f32>,
+        status: &mut TransferBuffer<f32>,
+        worlds: usize,
+    ) -> Result<(), TransferError> {
+        if !Arc::ptr_eq(&self.input, &data.input)
+            || data.worlds() != worlds
+            || target.len() != 2 * worlds * self.input.model.nv() + 8
+            || status.len() != worlds + 8
+        {
+            return Err(TransferError::ModelMismatch);
+        }
+        let mut guards = [0.0; 8];
+        target.read_range_into(0, &mut guards[..4])?;
+        target.read_range_into(target.len() - 4, &mut guards[4..])?;
+        crate::physics::check_device_guards(&guards)?;
+        let n = self.input.model.nv() as u32;
+        let nq = self.input.model.nq() as u32;
+        let w = worlds as u32;
+        // SAFETY: 计划锁定状态与静态元数据。
+        // 调用方提供同会话的受保护目标。
+        unsafe {
+            self.kernels[0].launch(
+                &self.metadata,
+                &self.parameters,
+                &data.state,
+                status,
+                [nq, n, w, w],
+            )?;
+        }
+        let checked = read(status, worlds, "passive_force_joint_status")?;
+        if let Some(index) = checked[4..4 + worlds].iter().position(|&v| v != 1.0) {
+            return Err(InputError::InvalidTopology {
+                field: "passive_force_joint_source",
+                index,
+                reason: "nonfinite_guard_mapping_or_unsupported_spring",
+            }
+            .into());
+        }
+        // SAFETY: 每线程直接写一个弹簧槽和阻尼槽。
+        // 该写入先于后续两个原子累加阶段。
+        unsafe {
+            self.kernels[1].launch(
+                &self.metadata,
+                &self.parameters,
+                &data.state,
+                target,
+                [nq, n, w, w * n],
+            )
         }
     }
     pub fn update_joint(&self, data: &mut JointPassiveData) -> Result<(), TransferError> {

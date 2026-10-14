@@ -166,6 +166,11 @@ impl TransferSession {
         self.inner.device
     }
 
+    #[cfg(feature = "cuda-probe")]
+    pub(crate) fn same_session(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.inner, &other.inner)
+    }
+
     /// 原样上传全部位模式。
     /// 空字段不申请设备缓冲。
     pub fn upload<T: TransferElement>(

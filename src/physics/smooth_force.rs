@@ -280,6 +280,13 @@ impl SmoothForceData {
     pub fn worlds(&self) -> usize {
         self.layout.vector.worlds()
     }
+    pub(super) fn invalidate(&mut self) {
+        self.ready = false;
+    }
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn passive_target(&mut self) -> &mut TransferBuffer<f32> {
+        &mut self.forces
+    }
     pub fn write_force(
         &mut self,
         field: SmoothForceField,

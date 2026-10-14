@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use super::{TendonVelocityPlan, TendonVelocityView};
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct TendonPassiveOptions {
     pub disable_spring: bool,
     pub disable_damper: bool,
@@ -104,6 +104,7 @@ fn layout(worlds: usize, nv: usize) -> Result<BatchLayout, InputError> {
 pub struct TendonPassivePlan<'v, 'p> {
     velocity: &'v TendonVelocityPlan<'p>,
     spec: Arc<Spec>,
+    options: TendonPassiveOptions,
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
@@ -187,6 +188,7 @@ impl<'v, 'p> TendonPassivePlan<'v, 'p> {
             Ok(Self {
                 velocity,
                 spec: Arc::new(spec),
+                options,
                 parameters: session.upload(&packed)?,
                 kernels: [
                     SynchronousKernel::compile(&session, &code, "tendon_passive_validate")?,
@@ -222,6 +224,77 @@ impl<'v, 'p> TendonPassivePlan<'v, 'p> {
                 staged: allocate(count, f32::NAN)?,
                 status: allocate(worlds, f32::NAN)?,
             })
+        }
+    }
+
+    pub fn options(&self) -> TendonPassiveOptions {
+        self.options
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn shared_passive_context(&self) -> (TransferSession, usize, TendonPassiveOptions) {
+        (self.session.clone(), self.spec.nv, self.options)
+    }
+
+    pub(super) fn accepts_shared_velocity(&self, velocity: &TendonVelocityView<'_, 'p>) -> bool {
+        velocity.belongs_to(self.velocity)
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn accumulate_shared_passive(
+        &self,
+        velocity: &TendonVelocityView<'_, 'p>,
+        target: &mut TransferBuffer<f32>,
+        status: &mut TransferBuffer<f32>,
+        worlds: usize,
+    ) -> Result<(), TransferError> {
+        let input = velocity.tendon_passive_device()?;
+        if !velocity.belongs_to(self.velocity)
+            || input.worlds != worlds
+            || target.len() != 2 * worlds * self.spec.nv + 8
+            || status.len() != worlds + 8
+        {
+            return Err(TransferError::ModelMismatch);
+        }
+        let w = worlds as u32;
+        // SAFETY: 速度视图锁定真实源。
+        // 共享状态缓冲仅接收验证结果。
+        unsafe {
+            self.kernels[0].launch_tendon_passive(
+                input.metadata,
+                &self.parameters,
+                input.source,
+                input.velocity,
+                status,
+                [self.spec.nt as u32, self.spec.nv as u32, w, w],
+            )?;
+        }
+        let checked = read(status, worlds, "passive_force_tendon_status")?;
+        if let Some(index) = checked[4..4 + worlds].iter().position(|&v| v != 1.0) {
+            return Err(InputError::InvalidTopology {
+                field: "passive_force_tendon_source",
+                index,
+                reason: "guard_mapping_or_nonfinite",
+            }
+            .into());
+        }
+        let work = w
+            .checked_mul(self.spec.nt as u32)
+            .and_then(|n| n.checked_mul(self.spec.max_row as u32))
+            .ok_or(InputError::Overflow {
+                field: "passive_force_tendon_work",
+            })?;
+        // SAFETY: 每线程处理一个稀疏槽。
+        // 目标先含关节贡献。
+        unsafe {
+            self.kernels[2].launch_tendon_passive(
+                input.metadata,
+                &self.parameters,
+                input.source,
+                input.velocity,
+                target,
+                [self.spec.nt as u32, self.spec.nv as u32, w, work],
+            )
         }
     }
 

@@ -333,6 +333,12 @@ impl TendonVelocityView<'_, '_> {
     pub(super) fn belongs_to(&self, plan: &TendonVelocityPlan<'_>) -> bool {
         std::ptr::eq(self.plan, plan)
     }
+    pub(super) fn source_data(&self) -> &KinematicsData {
+        self.source
+    }
+    pub(super) fn worlds(&self) -> usize {
+        self.data.worlds()
+    }
     #[cfg(feature = "cuda-probe")]
     pub(super) fn tendon_passive_device(
         &self,

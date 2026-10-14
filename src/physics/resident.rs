@@ -508,6 +508,11 @@ impl KinematicsSnapshot {
 }
 
 impl KinematicsPlan {
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn shared_kinematic_model(&self) -> &crate::model::KinematicModelInput {
+        self.model.rigid().kinematics()
+    }
+
     pub fn flex_hessian_fields(&self) -> Option<&FlexHessianFields> {
         self.hessian_fields.as_deref()
     }
