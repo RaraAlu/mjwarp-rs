@@ -1,0 +1,945 @@
+//! DOF阻尼与标量弹簧生产者；不代表完整passive。
+use super::{
+    SmoothForceData, SmoothForceField, SmoothForceOptions, SmoothForceOutput, SmoothForcePlan,
+};
+#[cfg(not(feature = "cuda-probe"))]
+use crate::diagnostics::ProbeError;
+use crate::diagnostics::{InputError, TransferError};
+use crate::model::topology::JointType;
+use crate::model::{BatchLayout, KinematicModelInput, ParameterBatch, SmoothForceInput};
+use crate::runtime::TransferSession;
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::{SynchronousKernel, TransferBuffer};
+use std::sync::Arc;
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct JointPassiveOptions {
+    pub disable_spring: bool,
+    pub disable_damper: bool,
+}
+#[derive(Clone, Debug)]
+pub struct JointPassiveParameters {
+    pub qpos_spring: ParameterBatch,
+    pub stiffness: ParameterBatch,
+    pub stiffness_poly: ParameterBatch,
+    pub damping: ParameterBatch,
+    pub damping_poly: ParameterBatch,
+}
+impl JointPassiveParameters {
+    fn fields(&self) -> [&ParameterBatch; 5] {
+        [
+            &self.qpos_spring,
+            &self.stiffness,
+            &self.stiffness_poly,
+            &self.damping,
+            &self.damping_poly,
+        ]
+    }
+}
+struct Input {
+    model: KinematicModelInput,
+    params: JointPassiveParameters,
+    meta: Vec<i32>,
+    offsets: [usize; 5],
+    param_len: usize,
+    body: Vec<i32>,
+}
+fn input(
+    model: KinematicModelInput,
+    params: JointPassiveParameters,
+    options: JointPassiveOptions,
+) -> Result<Input, InputError> {
+    let (nq, nv, nj) = (model.nq(), model.nv(), model.njnt());
+    if nv == 0 || nj == 0 {
+        return Err(InputError::InvalidDimension {
+            field: "joint_passive_model",
+        });
+    }
+    let widths = [nq, nj, 2 * nj, nv, 2 * nv];
+    let mut offsets = [0; 5];
+    let mut plen = 0usize;
+    for (i, p) in params.fields().iter().enumerate() {
+        if p.row_elements() != widths[i] {
+            return Err(InputError::LengthMismatch {
+                field: "joint_passive_parameter",
+                expected: widths[i],
+                actual: p.row_elements(),
+            });
+        }
+        offsets[i] = plen;
+        plen = plen
+            .checked_add(p.values().len())
+            .filter(|&v| v <= i32::MAX as usize)
+            .ok_or(InputError::Overflow {
+                field: "joint_passive_parameters",
+            })?;
+    }
+    let mut kinds = vec![0; nv];
+    let mut qadr = vec![0; nv];
+    let mut joint = vec![0; nv];
+    let mut body = vec![0; nv];
+    for j in 0..nj {
+        let kind = JointType::try_from(model.fields().jnt_type[j])?;
+        if !options.disable_spring && matches!(kind, JointType::Free | JointType::Ball) {
+            let active = params.stiffness.values().chunks(nj).any(|r| r[j] != 0.0)
+                || params
+                    .stiffness_poly
+                    .values()
+                    .chunks(2 * nj)
+                    .any(|r| r[2 * j] != 0.0 || r[2 * j + 1] != 0.0);
+            if active {
+                return Err(InputError::InvalidTopology {
+                    field: "joint_passive_spring",
+                    index: j,
+                    reason: "free_ball_spring_not_implemented",
+                });
+            }
+        }
+        let d = model.fields().jnt_dofadr[j] as usize;
+        for k in 0..kind.dof_width() {
+            kinds[d + k] = kind as i32;
+            qadr[d + k] = model.fields().jnt_qposadr[j];
+            joint[d + k] = j as i32;
+            body[d + k] = model.fields().jnt_bodyid[j];
+        }
+    }
+    nv.checked_mul(3)
+        .and_then(|v| v.checked_add(8))
+        .filter(|&v| v <= i32::MAX as usize)
+        .ok_or(InputError::Overflow {
+            field: "joint_passive_metadata",
+        })?;
+    let mut meta = vec![-131072; 4];
+    meta.extend(kinds);
+    meta.extend(qadr);
+    meta.extend(joint);
+    meta.extend([-131072; 4]);
+    Ok(Input {
+        model,
+        params,
+        meta,
+        offsets,
+        param_len: plen,
+        body,
+    })
+}
+#[derive(Clone, Copy)]
+struct Layout {
+    state: BatchLayout,
+    vector: BatchLayout,
+    parts: BatchLayout,
+}
+fn layout(nq: usize, nv: usize, worlds: usize) -> Result<Layout, InputError> {
+    if worlds == 0
+        || nv == 0
+        || worlds
+            .checked_mul(nv)
+            .is_none_or(|v| v > (u32::MAX - 255) as usize)
+    {
+        return Err(InputError::InvalidDimension {
+            field: "joint_passive_work",
+        });
+    }
+    let state = BatchLayout::new(
+        worlds,
+        nq.checked_add(nv).ok_or(InputError::Overflow {
+            field: "joint_passive_state",
+        })?,
+        4,
+    )?;
+    let vector = BatchLayout::new(worlds, nv, 4)?;
+    let parts = BatchLayout::new(worlds, 2 * nv, 4)?;
+    for n in [state.total_elements(), parts.total_elements(), worlds] {
+        n.checked_add(8)
+            .and_then(|v| v.checked_mul(4))
+            .ok_or(InputError::Overflow {
+                field: "joint_passive_guards",
+            })?;
+    }
+    Ok(Layout {
+        state,
+        vector,
+        parts,
+    })
+}
+pub struct JointPassivePlan {
+    input: Arc<Input>,
+    smooth: SmoothForcePlan,
+    #[cfg(feature = "cuda-probe")]
+    session: TransferSession,
+    #[cfg(feature = "cuda-probe")]
+    metadata: TransferBuffer<i32>,
+    #[cfg(feature = "cuda-probe")]
+    parameters: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    kernels: [SynchronousKernel; 3],
+}
+pub struct JointPassiveData {
+    input: Arc<Input>,
+    layout: Layout,
+    ready: bool,
+    smooth: SmoothForceData,
+    #[cfg(feature = "cuda-probe")]
+    state: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    current: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    staged: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    status: TransferBuffer<f32>,
+}
+#[derive(Clone, Debug)]
+pub struct JointPassiveOutput {
+    layout: BatchLayout,
+    values: Vec<f32>,
+}
+impl JointPassiveOutput {
+    pub fn worlds(&self) -> usize {
+        self.layout.worlds()
+    }
+    pub fn spring(&self, world: usize) -> Result<&[f32], InputError> {
+        let r = self.layout.world_elements(world)?;
+        Ok(&self.values[4 + r.start..4 + r.end])
+    }
+    pub fn damper(&self, world: usize) -> Result<&[f32], InputError> {
+        let r = self.layout.world_elements(world)?;
+        let off = 4 + self.layout.total_elements();
+        Ok(&self.values[off + r.start..off + r.end])
+    }
+}
+impl JointPassivePlan {
+    pub fn new(
+        session: &TransferSession,
+        model: KinematicModelInput,
+        params: JointPassiveParameters,
+        options: JointPassiveOptions,
+    ) -> Result<Self, TransferError> {
+        let i = input(model, params, options)?;
+        debug_assert_eq!(i.meta.len(), 3 * i.model.nv() + 8);
+        debug_assert_eq!(
+            i.offsets[4] + i.params.damping_poly.values().len(),
+            i.param_len
+        );
+        layout(i.model.nq(), i.model.nv(), 1)?;
+        let sm = SmoothForceInput::new(0, vec![-1; i.model.nbody()], i.body.clone())?;
+        let smooth = SmoothForcePlan::new(session, sm, SmoothForceOptions::default())?;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = (i, smooth);
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let mut p = vec![-131072.0; 4];
+            for f in i.params.fields() {
+                p.extend(f.values());
+            }
+            p.extend([-131072.0; 4]);
+            let periods = i.params.fields().map(|p| p.batches().to_string()).join(",");
+            let offsets = i.offsets.map(|v| v.to_string()).join(",");
+            let code = format!(
+                "#define JP_NQ {}\n#define JP_NV {}\n#define JP_NJ {}\n#define JP_PL {}\n#define JP_S {}\n#define JP_D {}\n__device__ __constant__ unsigned JP_BATCH[5]={{{periods}}};\n__device__ __constant__ unsigned JP_OFF[5]={{{offsets}}};\n{CUDA}",
+                i.model.nq(),
+                i.model.nv(),
+                i.model.njnt(),
+                i.param_len,
+                u32::from(options.disable_spring),
+                u32::from(options.disable_damper)
+            );
+            let metadata = session.upload(&i.meta)?;
+            Ok(Self {
+                input: Arc::new(i),
+                smooth,
+                session: session.clone(),
+                metadata,
+                parameters: session.upload(&p)?,
+                kernels: [
+                    SynchronousKernel::compile(session, &code, "joint_passive_validate")?,
+                    SynchronousKernel::compile(session, &code, "joint_passive_compute")?,
+                    SynchronousKernel::compile(session, &code, "joint_passive_sum")?,
+                ],
+            })
+        }
+    }
+    pub fn create_data(&self, worlds: usize) -> Result<JointPassiveData, TransferError> {
+        let m = &self.input.model;
+        let l = layout(m.nq(), m.nv(), worlds)?;
+        let smooth = self.smooth.create_data(worlds)?;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = (l, smooth);
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let alloc = |count: usize, value| {
+                let mut v = crate::runtime::host_staging::<f32>(count + 8)?;
+                v.fill(-131072.0);
+                v[4..4 + count].fill(value);
+                self.session.upload(&v)
+            };
+            let mut state = alloc(l.state.total_elements(), 0.0)?;
+            for w in 0..worlds {
+                state.write_range(4 + w * m.nq(), &m.fields().qpos0)?;
+            }
+            Ok(JointPassiveData {
+                input: self.input.clone(),
+                layout: l,
+                ready: false,
+                smooth,
+                state,
+                current: alloc(l.parts.total_elements(), f32::NAN)?,
+                staged: alloc(l.parts.total_elements(), f32::NAN)?,
+                status: alloc(worlds, f32::NAN)?,
+            })
+        }
+    }
+    pub fn update_joint(&self, data: &mut JointPassiveData) -> Result<(), TransferError> {
+        if !Arc::ptr_eq(&self.input, &data.input) {
+            return Err(TransferError::ModelMismatch);
+        }
+        data.ready = false;
+        data.smooth.ready = false;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let n = self.input.model.nv() as u32;
+            let nq = self.input.model.nq() as u32;
+            let w = data.worlds() as u32;
+            let mut guards = [0.0; 8];
+            data.current.read_range_into(0, &mut guards[..4])?;
+            data.current
+                .read_range_into(data.current.len() - 4, &mut guards[4..])?;
+            crate::physics::check_device_guards(&guards)?;
+            // SAFETY: Static constants bound all guarded arrays. Validation
+            // checks DOF kind/joint/qpos indexes before any dependent read.
+            unsafe {
+                self.kernels[0].launch(
+                    &self.metadata,
+                    &self.parameters,
+                    &data.state,
+                    &mut data.status,
+                    [nq, n, w, w],
+                )?;
+            }
+            let status = read(&data.status, data.worlds(), "joint_passive_status")?;
+            if let Some(index) = status[4..4 + data.worlds()].iter().position(|&v| v != 1.0) {
+                return Err(InputError::InvalidTopology {
+                    field: "joint_passive_source",
+                    index,
+                    reason: "nonfinite_guard_mapping_or_unsupported_spring",
+                }
+                .into());
+            }
+            // SAFETY: Each thread owns one spring and damper slot; validated
+            // scalars use independent constant batch periods and fixed offsets.
+            unsafe {
+                self.kernels[1].launch(
+                    &self.metadata,
+                    &self.parameters,
+                    &data.state,
+                    &mut data.staged,
+                    [nq, n, w, w * n],
+                )?;
+            }
+            read(
+                &data.staged,
+                data.layout.parts.total_elements(),
+                "joint_passive_staged",
+            )?;
+            std::mem::swap(&mut data.current, &mut data.staged);
+            data.ready = true;
+            Ok(())
+        }
+    }
+    /// 只合并本关节子集；不冒充gravcomp/fluid等完整被动力。
+    pub fn update_joint_only_smooth(
+        &self,
+        data: &mut JointPassiveData,
+    ) -> Result<(), TransferError> {
+        self.update_joint(data)?;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let n = self.input.model.nv() as u32;
+            let w = data.worlds() as u32;
+            // SAFETY: Same-plan parts own2*worlds*nv; the actual owned smooth
+            // buffer owns4*worlds*nv and only its first field receives the sum.
+            unsafe {
+                self.kernels[2].launch(
+                    &self.metadata,
+                    &data.current,
+                    &data.current,
+                    &mut data.smooth.forces,
+                    [0, n, w, w * n],
+                )?;
+            }
+            self.smooth.update(&mut data.smooth)
+        }
+    }
+}
+impl JointPassiveData {
+    pub fn worlds(&self) -> usize {
+        debug_assert_eq!(self.layout.state.worlds(), self.layout.vector.worlds());
+        self.layout.vector.worlds()
+    }
+    pub fn write_qpos(&mut self, values: &[f32]) -> Result<(), TransferError> {
+        self.write(false, None, values)
+    }
+    pub fn write_qvel(&mut self, values: &[f32]) -> Result<(), TransferError> {
+        self.write(true, None, values)
+    }
+    pub fn write_world_qpos(&mut self, world: usize, values: &[f32]) -> Result<(), TransferError> {
+        self.write(false, Some(world), values)
+    }
+    pub fn write_world_qvel(&mut self, world: usize, values: &[f32]) -> Result<(), TransferError> {
+        self.write(true, Some(world), values)
+    }
+    fn write(
+        &mut self,
+        vel: bool,
+        world: Option<usize>,
+        values: &[f32],
+    ) -> Result<(), TransferError> {
+        if let Some(w) = world {
+            self.layout.vector.world_elements(w)?;
+        }
+        let width = if vel {
+            self.input.model.nv()
+        } else {
+            self.input.model.nq()
+        };
+        let expected = if world.is_some() {
+            width
+        } else {
+            width * self.worlds()
+        };
+        if values.len() != expected {
+            return Err(InputError::LengthMismatch {
+                field: "joint_passive_state",
+                expected,
+                actual: values.len(),
+            }
+            .into());
+        }
+        if let Some(index) = values.iter().position(|v| !v.is_finite()) {
+            return Err(InputError::NonFinite {
+                field: "joint_passive_state",
+                index,
+            }
+            .into());
+        }
+        let offset =
+            4 + if vel {
+                self.worlds() * self.input.model.nq()
+            } else {
+                0
+            } + world.unwrap_or(0) * width;
+        self.ready = false;
+        self.smooth.ready = false;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = offset;
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            self.state.write_range(offset, values)
+        }
+    }
+    /// 调用方显式提供其余三项；不能覆盖本生产者的Passive字段。
+    pub fn write_other_force(
+        &mut self,
+        field: SmoothForceField,
+        values: &[f32],
+    ) -> Result<(), TransferError> {
+        if field == SmoothForceField::Passive {
+            return Err(InputError::InvalidDimension {
+                field: "joint_only_passive_owned",
+            }
+            .into());
+        }
+        self.smooth.write_force(field, values)
+    }
+    pub fn readback_joint(&self) -> Result<JointPassiveOutput, TransferError> {
+        if !self.ready {
+            return Err(TransferError::StageNotReady {
+                stage: "joint_passive",
+            });
+        }
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            Ok(JointPassiveOutput {
+                layout: self.layout.vector,
+                values: read(
+                    &self.current,
+                    self.layout.parts.total_elements(),
+                    "joint_passive",
+                )?,
+            })
+        }
+    }
+    pub fn readback_joint_only_smooth(&self) -> Result<SmoothForceOutput, TransferError> {
+        self.smooth.readback()
+    }
+}
+#[cfg(feature = "cuda-probe")]
+fn read(
+    b: &TransferBuffer<f32>,
+    count: usize,
+    field: &'static str,
+) -> Result<Vec<f32>, TransferError> {
+    let mut v = crate::runtime::host_staging::<f32>(count + 8)?;
+    b.read_range_into(0, &mut v)?;
+    crate::physics::check_device_values(&v, field)?;
+    Ok(v)
+}
+// Frozen passive.py82 and util_misc._poly_force865 (71da24d, Apache-2.0).
+// Copyright2025 The Newton Developers; LICENSES/Apache-2.0.txt.
+// Ordinary float expressions preserve the original compiler contraction policy.
+#[cfg(feature = "cuda-probe")]
+const CUDA: &str = r#"
+__device__ float jp_poly(float linear,float a,float b,float x){float result=linear;result=result+a*x;result=result+(b*x)*x;return result;}
+extern "C" __global__ void joint_passive_validate(const int* meta,const float* p,const float* state,float* status,unsigned nq,unsigned nv,unsigned worlds,unsigned work){
+ unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=work)return;bool valid=nq==JP_NQ&&nv==JP_NV;
+ for(unsigned j=0;j<4;++j)valid=valid&&meta[j]==-131072&&meta[4+3ull*JP_NV+j]==-131072&&p[j]==-131072.0f&&p[4+JP_PL+j]==-131072.0f&&state[j]==-131072.0f&&state[4+1ull*worlds*(JP_NQ+JP_NV)+j]==-131072.0f;
+ for(unsigned j=0;j<JP_PL;++j)valid=valid&&isfinite(p[4+j]);
+ for(unsigned j=0;j<JP_NQ;++j)valid=valid&&isfinite(state[4+1ull*w*JP_NQ+j]);for(unsigned j=0;j<JP_NV;++j)valid=valid&&isfinite(state[4+1ull*worlds*JP_NQ+1ull*w*JP_NV+j]);
+ for(unsigned i=0;i<JP_NV;++i){int kind=meta[4+i],q=meta[4+JP_NV+i],j=meta[4+2ull*JP_NV+i];if(kind<0||kind>3||q<0||q>=JP_NQ||j<0||j>=JP_NJ){valid=false;continue;}
+  if(!JP_S&&kind<2){unsigned si=4+JP_OFF[1]+(w%JP_BATCH[1])*JP_NJ+j,pi=4+JP_OFF[2]+2*((w%JP_BATCH[2])*JP_NJ+j);if(p[si]!=0.0f||p[pi]!=0.0f||p[pi+1]!=0.0f)valid=false;}}
+ status[4+w]=valid?1.0f:0.0f;
+}
+extern "C" __global__ void joint_passive_compute(const int* meta,const float* p,const float* state,float* out,unsigned nq,unsigned nv,unsigned worlds,unsigned work){
+ unsigned tid=blockIdx.x*blockDim.x+threadIdx.x;if(tid>=work)return;unsigned w=tid/nv,i=tid%nv;int kind=meta[4+i],q=meta[4+JP_NV+i],j=meta[4+2ull*JP_NV+i];float spring=0.0f,damper=0.0f;
+ if(!JP_D){unsigned di=4+JP_OFF[3]+(w%JP_BATCH[3])*JP_NV+i,pi=4+JP_OFF[4]+2*((w%JP_BATCH[4])*JP_NV+i);float d=p[di],a=p[pi],b=p[pi+1];if(d!=0.0f||a!=0.0f||b!=0.0f){float v=state[4+1ull*worlds*JP_NQ+1ull*w*JP_NV+i];damper=-v*jp_poly(d,a,b,fabsf(v));}}
+ if(!JP_S&&kind>=2){unsigned si=4+JP_OFF[1]+(w%JP_BATCH[1])*JP_NJ+j,pi=4+JP_OFF[2]+2*((w%JP_BATCH[2])*JP_NJ+j);float s=p[si],a=p[pi],b=p[pi+1];if(s!=0.0f||a!=0.0f||b!=0.0f){float dif=state[4+1ull*w*JP_NQ+q]-p[4+JP_OFF[0]+(w%JP_BATCH[0])*JP_NQ+q];spring=-dif*jp_poly(s,a,b,dif);}}
+ out[4+tid]=spring;out[4+1ull*worlds*nv+tid]=damper;
+}
+extern "C" __global__ void joint_passive_sum(const int* meta,const float* parts,const float* unused,float* forces,unsigned ignored,unsigned nv,unsigned worlds,unsigned work){unsigned tid=blockIdx.x*blockDim.x+threadIdx.x;if(tid>=work)return;forces[4+tid]=__fadd_rn(parts[4+tid],parts[4+1ull*worlds*nv+tid]);}
+"#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn model() -> KinematicModelInput {
+        use crate::model::KinematicFields;
+        let mut qpos0 = vec![0.0; 13];
+        qpos0[3] = 1.0;
+        qpos0[7] = 1.0;
+        KinematicModelInput::new(
+            11,
+            KinematicFields {
+                qpos0,
+                body_parentid: vec![0; 5],
+                body_jntadr: vec![-1, 0, 1, 2, 3],
+                body_jntnum: vec![0, 1, 1, 1, 1],
+                body_pos: vec![0.0; 15],
+                body_quat: [1.0, 0.0, 0.0, 0.0].repeat(5),
+                jnt_type: vec![0, 1, 2, 3],
+                jnt_bodyid: vec![1, 2, 3, 4],
+                jnt_qposadr: vec![0, 7, 11, 12],
+                jnt_dofadr: vec![0, 6, 9, 10],
+                jnt_pos: vec![0.0; 12],
+                jnt_axis: [0.0, 0.0, 1.0].repeat(4),
+            },
+        )
+        .unwrap()
+    }
+    fn params(periods: [usize; 5]) -> JointPassiveParameters {
+        let mut q = Vec::new();
+        for r in 0..periods[0] {
+            let mut row = model().fields().qpos0.clone();
+            row[11] = (r as f32 - 1.0) / 16.0;
+            row[12] = -(r as f32) / 8.0;
+            q.extend(row);
+        }
+        let mut s = Vec::new();
+        for r in 0..periods[1] {
+            s.extend([0.0, 0.0, (r % 3) as f32 / 4.0, 0.5 + (r % 3) as f32 / 16.0]);
+        }
+        let mut sp = Vec::new();
+        for r in 0..periods[2] {
+            sp.extend([
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.125 + (r % 2) as f32 / 16.0,
+                0.0625,
+                -0.0625,
+                0.125,
+            ]);
+        }
+        let mut damp = Vec::new();
+        for r in 0..periods[3] {
+            for i in 0..11 {
+                damp.push(if i % 5 == 0 || i % 3 == 0 {
+                    0.0
+                } else {
+                    0.25 + ((i + r) % 4) as f32 / 8.0
+                });
+            }
+        }
+        let mut dp = Vec::new();
+        for r in 0..periods[4] {
+            for i in 0..11 {
+                dp.extend(if i % 5 == 0 {
+                    [0.0, 0.0]
+                } else {
+                    [
+                        if i % 3 == 0 {
+                            0.125 + (r % 2) as f32 / 16.0
+                        } else {
+                            0.0
+                        },
+                        if i % 4 == 0 { 0.0625 } else { 0.0 },
+                    ]
+                });
+            }
+        }
+        JointPassiveParameters {
+            qpos_spring: ParameterBatch::new(periods[0], 13, q).unwrap(),
+            stiffness: ParameterBatch::new(periods[1], 4, s).unwrap(),
+            stiffness_poly: ParameterBatch::new(periods[2], 8, sp).unwrap(),
+            damping: ParameterBatch::new(periods[3], 11, damp).unwrap(),
+            damping_poly: ParameterBatch::new(periods[4], 22, dp).unwrap(),
+        }
+    }
+    #[test]
+    fn host_preserves_all_joint_widths_and_independent_parameter_periods() {
+        let p = params([2, 3, 5, 7, 11]);
+        let i = input(model(), p, JointPassiveOptions::default()).unwrap();
+        assert_eq!(i.body, vec![1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 4]);
+        assert_eq!(&i.meta[4..15], &[0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 3]);
+        for (f, period) in i.params.fields().iter().zip([2, 3, 5, 7, 11]) {
+            assert_eq!(f.batches(), period);
+            assert_eq!(f.world(256), f.world(256 % period));
+        }
+        assert_eq!(i.param_len, 397);
+        assert_eq!(i.offsets, [0, 26, 38, 78, 155]);
+        let l = layout(13, 11, 257).unwrap();
+        assert_eq!(l.state.total_elements(), 6168);
+        assert_eq!(l.parts.total_elements(), 5654);
+    }
+    #[test]
+    fn host_rejects_unsupported_active_rotation_springs_and_bad_shapes() {
+        for (joint, poly) in [(0, false), (1, false), (0, true), (1, true)] {
+            let mut p = params([1; 5]);
+            if poly {
+                let mut v = p.stiffness_poly.values().to_vec();
+                v[2 * joint] = 0.125;
+                p.stiffness_poly = ParameterBatch::new(1, 8, v).unwrap();
+            } else {
+                let mut v = p.stiffness.values().to_vec();
+                v[joint] = 0.25;
+                p.stiffness = ParameterBatch::new(1, 4, v).unwrap();
+            }
+            assert!(input(model(), p.clone(), JointPassiveOptions::default()).is_err());
+            input(
+                model(),
+                p,
+                JointPassiveOptions {
+                    disable_spring: true,
+                    disable_damper: false,
+                },
+            )
+            .unwrap();
+        }
+        let mut p = params([1; 5]);
+        p.damping = ParameterBatch::new(1, 10, vec![0.0; 10]).unwrap();
+        assert!(input(model(), p, JointPassiveOptions::default()).is_err());
+        assert!(layout(13, 11, 0).is_err());
+        assert!(layout(13, 11, usize::MAX).is_err());
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn raw(b: &TransferBuffer<f32>) -> Vec<f32> {
+        let mut v = vec![0.0; b.len()];
+        b.read_range_into(0, &mut v).unwrap();
+        v
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn bits(v: &[f32]) -> Vec<u32> {
+        v.iter().map(|v| v.to_bits()).collect()
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn oracle(
+        i: &Input,
+        w: usize,
+        q: &[f32],
+        v: &[f32],
+        o: JointPassiveOptions,
+    ) -> (Vec<f32>, Vec<f32>) {
+        let m = &i.model;
+        let ps = i.params.qpos_spring.world(w);
+        let st = i.params.stiffness.world(w);
+        let sp = i.params.stiffness_poly.world(w);
+        let da = i.params.damping.world(w);
+        let dp = i.params.damping_poly.world(w);
+        let mut spring = vec![0.0f32; m.nv()];
+        let mut damper = spring.clone();
+        for j in 0..m.njnt() {
+            let kind = JointType::try_from(m.fields().jnt_type[j]).unwrap();
+            let d = m.fields().jnt_dofadr[j] as usize;
+            for k in 0..kind.dof_width() {
+                let a = d + k;
+                if !o.disable_damper && (da[a] != 0.0 || dp[2 * a] != 0.0 || dp[2 * a + 1] != 0.0) {
+                    let vel = v[a] as f64;
+                    let x = vel.abs();
+                    let f =
+                        -vel * (da[a] as f64 + dp[2 * a] as f64 * x + dp[2 * a + 1] as f64 * x * x);
+                    assert_eq!(f as f32 as f64, f);
+                    damper[a] = f as f32;
+                }
+            }
+            if !o.disable_spring
+                && matches!(kind, JointType::Slide | JointType::Hinge)
+                && (st[j] != 0.0 || sp[2 * j] != 0.0 || sp[2 * j + 1] != 0.0)
+            {
+                let a = m.fields().jnt_qposadr[j] as usize;
+                let x = q[a] as f64 - ps[a] as f64;
+                let f = -x * (st[j] as f64 + sp[2 * j] as f64 * x + sp[2 * j + 1] as f64 * x * x);
+                assert_eq!(f as f32 as f64, f);
+                spring[d] = f as f32;
+            }
+        }
+        (spring, damper)
+    }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "new joint passive producer and explicit joint-only GPU smooth connection, no old selectors"]
+    fn gpu_produces_joint_forces_with_periodic_poly_only_coefficients_and_disable_flags() {
+        let session = TransferSession::new(0).unwrap();
+        let start = std::time::Instant::now();
+        let mut batches = 0;
+        let mut slots = 0;
+        let mut capacity = 0;
+        let mut last = None;
+        for periods in [[1; 5], [2, 3, 5, 7, 11]] {
+            for flags in 0..4 {
+                let options = JointPassiveOptions {
+                    disable_spring: flags & 1 != 0,
+                    disable_damper: flags & 2 != 0,
+                };
+                let plan =
+                    JointPassivePlan::new(&session, model(), params(periods), options).unwrap();
+                for worlds in [1, 2, 257] {
+                    let mut d = plan.create_data(worlds).unwrap();
+                    assert!(d.readback_joint().is_err());
+                    for state in 0..2 {
+                        let q: Vec<f32> = (0..13 * worlds)
+                            .map(|j| ((j + state) % 9) as f32 / 8.0 - 0.5)
+                            .collect();
+                        let v: Vec<f32> = (0..11 * worlds)
+                            .map(|j| {
+                                let x = ((j + 3 * state) % 9) as f32 / 8.0 - 0.5;
+                                if x == 0.0 && j % 2 == 0 { -0.0 } else { x }
+                            })
+                            .collect();
+                        let bias: Vec<f32> = (0..11 * worlds)
+                            .map(|j| 0.125 + ((j + state) % 3) as f32 / 16.0)
+                            .collect();
+                        let act: Vec<f32> = (0..11 * worlds)
+                            .map(|j| ((j + 2) % 5) as f32 / 16.0 - 0.125)
+                            .collect();
+                        let applied: Vec<f32> = (0..11 * worlds)
+                            .map(|j| ((j + state) % 3) as f32 / 32.0 - 0.03125)
+                            .collect();
+                        let other = [
+                            (SmoothForceField::Bias, &bias),
+                            (SmoothForceField::Actuator, &act),
+                            (SmoothForceField::Applied, &applied),
+                        ];
+                        for k in 0..3 {
+                            if state == 1 && k == 0 {
+                                assert!(d.readback_joint_only_smooth().is_ok());
+                            }
+                            let (field, values) = other[(k + flags as usize % 3) % 3];
+                            d.write_other_force(field, values).unwrap();
+                            assert!(d.readback_joint_only_smooth().is_err());
+                        }
+                        d.write_qpos(&q).unwrap();
+                        d.write_qvel(&v).unwrap();
+                        plan.update_joint_only_smooth(&mut d).unwrap();
+                        let parts = d.readback_joint().unwrap();
+                        let smooth = d.readback_joint_only_smooth().unwrap();
+                        for w in 0..worlds {
+                            let (s, da) = oracle(
+                                &plan.input,
+                                w,
+                                &q[13 * w..13 * (w + 1)],
+                                &v[11 * w..11 * (w + 1)],
+                                options,
+                            );
+                            assert_eq!(bits(parts.spring(w).unwrap()), bits(&s));
+                            assert_eq!(bits(parts.damper(w).unwrap()), bits(&da));
+                            let sum: Vec<f32> = s
+                                .iter()
+                                .zip(&da)
+                                .enumerate()
+                                .map(|(r, (&a, &b))| {
+                                    let s = a as f64 + b as f64;
+                                    assert_eq!(s as f32 as f64, s);
+                                    let result = ((s - bias[w * 11 + r] as f64)
+                                        + act[w * 11 + r] as f64)
+                                        + applied[w * 11 + r] as f64;
+                                    assert_eq!(result as f32 as f64, result);
+                                    result as f32
+                                })
+                                .collect();
+                            assert_eq!(bits(smooth.world(w).unwrap()), bits(&sum));
+                            slots += 11;
+                        }
+                        batches += 1;
+                        last = Some(parts);
+                        capacity = capacity.max(
+                            4 * (plan.metadata.len()
+                                + plan.parameters.len()
+                                + d.state.len()
+                                + d.current.len()
+                                + d.staged.len()
+                                + d.status.len()
+                                + d.smooth.metadata.len()
+                                + d.smooth.forces.len()
+                                + d.smooth.output.len()
+                                + d.smooth.status.len()),
+                        );
+                    }
+                    let before = bits(&raw(&d.current));
+                    assert!(d.write_world_qvel(worlds, &[0.0; 11]).is_err());
+                    let old_state = bits(&raw(&d.state));
+                    let mut bad_q = vec![0.0; 13 * worlds];
+                    bad_q[0] = f32::NAN;
+                    let mut bad_v = vec![0.0; 11 * worlds];
+                    bad_v[11 * worlds - 1] = f32::INFINITY;
+                    assert!(d.write_qpos(&bad_q).is_err());
+                    assert!(d.write_qvel(&bad_v).is_err());
+                    assert_eq!(old_state, bits(&raw(&d.state)));
+                    assert!(d.readback_joint().is_ok());
+                    assert!(d.readback_joint_only_smooth().is_ok());
+                    assert!(
+                        d.write_other_force(SmoothForceField::Passive, &vec![0.0; 11 * worlds])
+                            .is_err()
+                    );
+                    assert_eq!(before, bits(&raw(&d.current)));
+                    d.write_world_qvel(worlds - 1, &[0.25; 11]).unwrap();
+                    assert!(d.readback_joint().is_err());
+                    assert!(d.readback_joint_only_smooth().is_err());
+                    plan.update_joint(&mut d).unwrap();
+                }
+            }
+        }
+        drop(session);
+        assert_eq!(last.unwrap().worlds(), 257);
+        assert_eq!((batches, slots), (48, 45760));
+        assert_eq!(capacity, 130604);
+        println!(
+            "joint_passive batches={batches} spring_slots={slots} damper_slots={slots} joint_smooth_slots={slots} bit_difference=0 smooth_dependency_updates=48 phase_ms={} owned_buffer_capacity_bytes={capacity}",
+            start.elapsed().as_millis()
+        );
+    }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "new joint producer guard/mapping/nonfinite/unsupported/overflow rejection only"]
+    fn gpu_rejects_bad_joint_sources_without_publishing_partial_parts() {
+        let s = TransferSession::new(0).unwrap();
+        let mut plan =
+            JointPassivePlan::new(&s, model(), params([1; 5]), JointPassiveOptions::default())
+                .unwrap();
+        let mut d = plan.create_data(2).unwrap();
+        d.write_qvel(&[0.5; 22]).unwrap();
+        plan.update_joint(&mut d).unwrap();
+        let mut faults = 0;
+        for field in 0..5 {
+            for edge in 0..8 {
+                let b = match field {
+                    0 => &mut d.state,
+                    1 => &mut d.current,
+                    2 => &mut d.staged,
+                    3 => &mut d.status,
+                    _ => &mut plan.parameters,
+                };
+                let index = if edge < 4 { edge } else { b.len() - 8 + edge };
+                b.write_range(index, &[77.0]).unwrap();
+                let before = bits(&raw(&d.current));
+                assert!(plan.update_joint(&mut d).is_err());
+                assert_eq!(before, bits(&raw(&d.current)));
+                let b = match field {
+                    0 => &mut d.state,
+                    1 => &mut d.current,
+                    2 => &mut d.staged,
+                    3 => &mut d.status,
+                    _ => &mut plan.parameters,
+                };
+                b.write_range(index, &[-131072.0]).unwrap();
+                plan.update_joint(&mut d).unwrap();
+                faults += 1;
+            }
+        }
+        for index in [
+            0,
+            3,
+            plan.metadata.len() - 4,
+            plan.metadata.len() - 1,
+            4,
+            4 + 11,
+            4 + 22,
+        ] {
+            let mut old = [0];
+            plan.metadata.read_range_into(index, &mut old).unwrap();
+            plan.metadata.write_range(index, &[i32::MAX]).unwrap();
+            let before = bits(&raw(&d.current));
+            assert!(plan.update_joint(&mut d).is_err());
+            assert_eq!(before, bits(&raw(&d.current)));
+            plan.metadata.write_range(index, &old).unwrap();
+            plan.update_joint(&mut d).unwrap();
+            faults += 1;
+        }
+        for index in [4, 4 + 26] {
+            let old = raw(&d.state)[index];
+            d.state.write_range(index, &[f32::NAN]).unwrap();
+            let before = bits(&raw(&d.current));
+            assert!(plan.update_joint(&mut d).is_err());
+            assert_eq!(before, bits(&raw(&d.current)));
+            d.state.write_range(index, &[old]).unwrap();
+            plan.update_joint(&mut d).unwrap();
+            faults += 1;
+        }
+        let index = 4 + plan.input.offsets[1];
+        let old = raw(&plan.parameters)[index];
+        plan.parameters.write_range(index, &[1.0]).unwrap();
+        let before = bits(&raw(&d.current));
+        assert!(plan.update_joint(&mut d).is_err());
+        assert_eq!(before, bits(&raw(&d.current)));
+        plan.parameters.write_range(index, &[old]).unwrap();
+        plan.update_joint(&mut d).unwrap();
+        faults += 1;
+        d.write_world_qvel(1, &[f32::MAX; 11]).unwrap();
+        let before = bits(&raw(&d.current));
+        assert!(plan.update_joint(&mut d).is_err());
+        assert_eq!(before, bits(&raw(&d.current)));
+        d.write_world_qvel(1, &[0.5; 11]).unwrap();
+        plan.update_joint(&mut d).unwrap();
+        faults += 1;
+        let other =
+            JointPassivePlan::new(&s, model(), params([1; 5]), JointPassiveOptions::default())
+                .unwrap();
+        let before = bits(&raw(&d.current));
+        assert!(other.update_joint(&mut d).is_err());
+        assert_eq!(before, bits(&raw(&d.current)));
+        assert!(d.readback_joint().is_ok());
+        assert_eq!(faults, 51);
+        println!(
+            "joint_passive_private faults={faults} unsupported_rotation_spring_rejected=true no_partial_publication=true recovered=true old_smooth_dependencies=0"
+        );
+    }
+}

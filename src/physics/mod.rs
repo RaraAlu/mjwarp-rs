@@ -16,6 +16,10 @@ pub use applied_force::{
 };
 mod smooth_force;
 pub use smooth_force::{
+    JointPassiveData, JointPassiveOptions, JointPassiveOutput, JointPassiveParameters,
+    JointPassivePlan,
+};
+pub use smooth_force::{
     SmoothForceData, SmoothForceField, SmoothForceOptions, SmoothForceOutput, SmoothForcePlan,
 };
 

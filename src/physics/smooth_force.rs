@@ -8,6 +8,11 @@ use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
+mod joint_passive;
+pub use joint_passive::{
+    JointPassiveData, JointPassiveOptions, JointPassiveOutput, JointPassiveParameters,
+    JointPassivePlan,
+};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SmoothForceOptions {
