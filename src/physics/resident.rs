@@ -27,7 +27,7 @@ use crate::model::{
     AttachedModelInput, BatchLayout, CamLightFields, CamLightModelInput, CamLightParameters,
     FixedTendonFields, FixedTendonModelInput, FixedTendonRows, FlexEdgeFields, FlexFaceFields,
     FlexHessianFields, FlexPositionFields, FlexPositionModelInput, KinematicsParameter,
-    KinematicsParameters, MocapModelInput, SleepTreeState, SpatialTendonFields,
+    KinematicsParameters, MocapModelInput, ParameterBatch, SleepTreeState, SpatialTendonFields,
     SpatialTendonModelInput, SpatialTendonRows, TendonModelInput, TendonRows, TendonWakeModelInput,
 };
 #[cfg(feature = "cuda-probe")]
@@ -511,6 +511,24 @@ impl KinematicsPlan {
     #[cfg(feature = "cuda-probe")]
     pub(super) fn shared_kinematic_model(&self) -> &crate::model::KinematicModelInput {
         self.model.rigid().kinematics()
+    }
+
+    pub(super) fn gravity_compensation_context(
+        &self,
+    ) -> Result<(TransferSession, Arc<AttachedModelInput>, ParameterBatch), TransferError> {
+        let body_mass = self
+            .parameters
+            .get(KinematicsParameter::BodyMass)
+            .cloned()
+            .map(Ok)
+            .unwrap_or_else(|| {
+                ParameterBatch::new(
+                    1,
+                    self.model.rigid().kinematics().nbody(),
+                    self.model.rigid().fields().body_mass.clone(),
+                )
+            })?;
+        Ok((self.session.clone(), Arc::clone(&self.model), body_mass))
     }
 
     pub fn flex_hessian_fields(&self) -> Option<&FlexHessianFields> {
@@ -1626,6 +1644,19 @@ impl KinematicsPlan {
                 info.fields.island_disabled,
             )
         })
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn gravity_compensation_source<'a>(
+        &self,
+        data: &'a KinematicsData,
+    ) -> Result<(&'a TransferBuffer<f32>, &'a TransferBuffer<f32>), TransferError> {
+        self.check_data(data)?;
+        data.ready
+            .require(data.ready.rigid, "gravity_compensation_rigid")?;
+        data.ready
+            .require(data.ready.com, "gravity_compensation_com")?;
+        Ok((&data.rigid, &data.com))
     }
 
     #[cfg(feature = "cuda-probe")]

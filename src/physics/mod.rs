@@ -75,6 +75,11 @@ pub use flex_edge_passive::{
     FlexEdgePassiveData, FlexEdgePassiveInput, FlexEdgePassiveOptions, FlexEdgePassivePlan,
     FlexEdgePassiveSnapshot, FlexEdgePassiveView,
 };
+mod gravity_compensation;
+pub use gravity_compensation::{
+    GravityCompensationData, GravityCompensationOptions, GravityCompensationParameters,
+    GravityCompensationPlan, GravityCompensationSnapshot, GravityCompensationView,
+};
 mod passive_force;
 pub use passive_force::{
     ClearedPassiveForceView, PassiveForceData, PassiveForcePlan, PassiveForceSnapshot,

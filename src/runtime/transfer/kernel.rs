@@ -549,6 +549,73 @@ impl SynchronousKernel {
         })
     }
 
+    /// ABI：三个只读f32缓冲、一个可写缓冲、四项维度。
+    ///
+    /// # Safety
+    /// 调用方证明私有ABI与全部跨度。
+    /// 输入只读且输出独占。
+    pub(crate) unsafe fn launch_gravity_compensation(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        parameters: &TransferBuffer<f32>,
+        rigid: &TransferBuffer<f32>,
+        com: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        dimensions: [u32; 4],
+    ) -> Result<(), TransferError> {
+        for same in [
+            Arc::ptr_eq(&self.session.inner, &metadata.session.inner),
+            Arc::ptr_eq(&self.session.inner, &parameters.session.inner),
+            Arc::ptr_eq(&self.session.inner, &rigid.session.inner),
+            Arc::ptr_eq(&self.session.inner, &com.session.inner),
+            Arc::ptr_eq(&self.session.inner, &output.session.inner),
+        ] {
+            if !same {
+                return Err(TransferError::SessionMismatch);
+            }
+        }
+        let count = dimensions[3];
+        if count == 0 || count > u32::MAX - 255 {
+            return Err(InputError::InvalidDimension {
+                field: "kernel_work_items",
+            }
+            .into());
+        }
+        let (Some(m), Some(p), Some(r), Some(c), Some(o)) = (
+            metadata.allocation.as_ref(),
+            parameters.allocation.as_ref(),
+            rigid.allocation.as_ref(),
+            com.allocation.as_ref(),
+            output.allocation.as_mut(),
+        ) else {
+            return Err(InputError::InvalidDimension {
+                field: "kernel_buffers",
+            }
+            .into());
+        };
+        self.session.run("gravity-compensation-kernel-launch", || {
+            let mut args = self
+                .session
+                .inner
+                .stream
+                .launch_builder(self.function.as_ref().unwrap());
+            args.arg(m).arg(p).arg(r).arg(c).arg(o);
+            for value in &dimensions {
+                args.arg(value);
+            }
+            // SAFETY: 调用方证明私有ABI。
+            // run会串行并等待完成。
+            unsafe {
+                args.launch(LaunchConfig {
+                    grid_dim: (count.div_ceil(256), 1, 1),
+                    block_dim: (256, 1, 1),
+                    shared_mem_bytes: 0,
+                })
+            }?;
+            Ok(())
+        })
+    }
+
     /// ABI: (i32*, f32*, f32*, f32*, i32*, f32*, u32).
     /// 六个缓冲保留同一会话。
     ///

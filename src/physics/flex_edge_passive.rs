@@ -259,6 +259,10 @@ impl<'p> FlexEdgePassivePlan<'p> {
         self.source.passive_sleep_context()
     }
 
+    pub(super) fn shared_source_plan(&self) -> &'p KinematicsPlan {
+        self.source
+    }
+
     #[cfg(feature = "cuda-probe")]
     pub(super) fn shared_sleep_source<'a>(
         &self,
