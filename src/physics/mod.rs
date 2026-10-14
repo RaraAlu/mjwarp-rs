@@ -70,6 +70,11 @@ pub use tendon_passive::{
     TendonPassiveData, TendonPassiveOptions, TendonPassiveParameters, TendonPassivePlan,
     TendonPassiveSnapshot, TendonPassiveView,
 };
+mod flex_edge_passive;
+pub use flex_edge_passive::{
+    FlexEdgePassiveData, FlexEdgePassiveInput, FlexEdgePassiveOptions, FlexEdgePassivePlan,
+    FlexEdgePassiveSnapshot, FlexEdgePassiveView,
+};
 mod spatial_tendon;
 #[cfg(feature = "cuda-probe")]
 mod tendon_wrap;
