@@ -91,6 +91,7 @@ pub(super) struct FluidInputs<'a> {
     pub rigid: &'a TransferBuffer<f32>,
     pub com: &'a TransferBuffer<f32>,
     pub velocity: &'a TransferBuffer<f32>,
+    pub attached: Option<&'a TransferBuffer<f32>>,
 }
 
 /// 显式回读后的独立宿主快照。
@@ -274,6 +275,63 @@ impl ComVelocityPlan {
         self.position.fluid_force_context()
     }
 
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn fluid_inputs<'a>(
+        &self,
+        data: &'a ComVelocityData,
+        require_attached: bool,
+    ) -> Result<FluidInputs<'a>, TransferError> {
+        self.check_data(data)?;
+        if !data.ready {
+            return Err(TransferError::StageNotReady {
+                stage: "com_velocity",
+            });
+        }
+        Ok(FluidInputs {
+            rigid: &data.rigid,
+            com: &data.com,
+            velocity: &data.output,
+            attached: require_attached
+                .then(|| self.position.fluid_force_attached_source(&data.position))
+                .transpose()?,
+        })
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn update_fluid_attached(
+        &self,
+        data: &mut ComVelocityData,
+    ) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        if !data.ready {
+            return Err(TransferError::StageNotReady {
+                stage: "com_velocity",
+            });
+        }
+        self.position.update_rigid(&mut data.position)?;
+        self.position.update_attached(&mut data.position)
+    }
+
+    #[cfg(all(test, feature = "cuda-probe"))]
+    pub(super) fn fluid_snapshot_for_test(
+        &self,
+        data: &ComVelocityData,
+        require_attached: bool,
+    ) -> Result<(Vec<f32>, Vec<f32>, Vec<f32>, Option<Vec<f32>>), TransferError> {
+        let inputs = self.fluid_inputs(data, require_attached)?;
+        let read = |buffer: &TransferBuffer<f32>| -> Result<Vec<f32>, TransferError> {
+            let mut values = crate::runtime::host_staging::<f32>(buffer.len())?;
+            buffer.read_range_into(0, &mut values)?;
+            Ok(values)
+        };
+        Ok((
+            read(inputs.rigid)?,
+            read(inputs.com)?,
+            read(inputs.velocity)?,
+            inputs.attached.map(read).transpose()?,
+        ))
+    }
+
     /// 创建独立世界与零qvel。
     /// 初始速度结果保持未就绪。
     pub fn create_data(&self, worlds: usize) -> Result<ComVelocityData, TransferError> {
@@ -390,6 +448,28 @@ impl<'p> ResidentComVelocityPlan<'p> {
         std::ptr::eq(self.source, source)
     }
 
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn fluid_inputs<'a>(
+        &self,
+        source: &'a KinematicsData,
+        data: &'a ResidentComVelocityData,
+        require_attached: bool,
+    ) -> Result<FluidInputs<'a>, TransferError> {
+        if !data.ready {
+            return Err(TransferError::StageNotReady {
+                stage: "resident_com_velocity",
+            });
+        }
+        Ok(FluidInputs {
+            rigid: &data.rigid,
+            com: &data.com,
+            velocity: &data.output,
+            attached: require_attached
+                .then(|| self.source.fluid_force_attached_source(source))
+                .transpose()?,
+        })
+    }
+
     pub(super) fn create_data(
         &self,
         worlds: usize,
@@ -461,20 +541,6 @@ impl ResidentComVelocityData {
     pub(super) fn invalidate(&mut self) {
         self.ready = false;
     }
-
-    #[cfg(feature = "cuda-probe")]
-    pub(super) fn fluid_inputs(&self) -> Result<FluidInputs<'_>, TransferError> {
-        if !self.ready {
-            return Err(TransferError::StageNotReady {
-                stage: "resident_com_velocity",
-            });
-        }
-        Ok(FluidInputs {
-            rigid: &self.rigid,
-            com: &self.com,
-            velocity: &self.output,
-        })
-    }
 }
 
 impl ComVelocityData {
@@ -490,33 +556,6 @@ impl ComVelocityData {
             com: &self.com,
             velocity: &self.output,
         })
-    }
-
-    #[cfg(feature = "cuda-probe")]
-    pub(super) fn fluid_inputs(&self) -> Result<FluidInputs<'_>, TransferError> {
-        if !self.ready {
-            return Err(TransferError::StageNotReady {
-                stage: "com_velocity",
-            });
-        }
-        Ok(FluidInputs {
-            rigid: &self.rigid,
-            com: &self.com,
-            velocity: &self.output,
-        })
-    }
-
-    #[cfg(all(test, feature = "cuda-probe"))]
-    pub(super) fn fluid_snapshot_for_test(
-        &self,
-    ) -> Result<(Vec<f32>, Vec<f32>, Vec<f32>), TransferError> {
-        self.fluid_inputs()?;
-        let read = |buffer: &TransferBuffer<f32>| -> Result<Vec<f32>, TransferError> {
-            let mut values = crate::runtime::host_staging::<f32>(buffer.len())?;
-            buffer.read_range_into(0, &mut values)?;
-            Ok(values)
-        };
-        Ok((read(&self.rigid)?, read(&self.com)?, read(&self.output)?))
     }
 
     pub fn worlds(&self) -> usize {

@@ -1707,6 +1707,17 @@ impl KinematicsPlan {
     }
 
     #[cfg(feature = "cuda-probe")]
+    pub(super) fn fluid_force_attached_source<'a>(
+        &self,
+        data: &'a KinematicsData,
+    ) -> Result<&'a TransferBuffer<f32>, TransferError> {
+        self.check_data(data)?;
+        data.ready
+            .require(data.ready.attached, "fluid_force_attached")?;
+        Ok(&data.attached)
+    }
+
+    #[cfg(feature = "cuda-probe")]
     pub(super) fn passive_sleep_source<'a>(
         &self,
         data: &'a KinematicsData,

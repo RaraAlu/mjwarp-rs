@@ -890,6 +890,9 @@ mod tests {
             wind: ParameterBatch::new(2, 3, vec![0.0, 0.0, 0.0, 0.25, -0.125, 0.0625]).unwrap(),
             density: ParameterBatch::new(3, 1, vec![0.5, 1.0, 0.25]).unwrap(),
             viscosity: ParameterBatch::new(5, 1, vec![0.125, 0.25, 0.375, 0.5, 0.625]).unwrap(),
+            geom_size: ParameterBatch::new(1, 0, Vec::new()).unwrap(),
+            geom_type: Vec::new(),
+            geom_fluid: Vec::new(),
             body_fluid_ellipsoid: vec![false; nbody],
         }
     }

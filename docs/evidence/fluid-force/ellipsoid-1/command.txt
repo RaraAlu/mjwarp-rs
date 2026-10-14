@@ -1,0 +1,10 @@
+$env:CUDA_PATH = (Resolve-Path 'target/toolchains/cuda-12.8.1').Path
+$env:PATH = (Join-Path $env:CUDA_PATH 'bin') + ';' + $env:PATH
+$reportDir = 'docs/evidence/fluid-force/ellipsoid-1'
+New-Item -ItemType Directory -Force -Path $reportDir | Out-Null
+$env:MJWARP_ELLIPSOID_FLUID_REPORT = (Join-Path (Get-Location) "$reportDir/run.json").Path
+cargo test --locked --features cuda-probe physics::fluid_force::tests::gpu_matches_independent_ellipsoid_reference -- --ignored --exact --nocapture --test-threads=1
+
+Result: 1 passed; 0 failed; 323 filtered out.
+Full regression was not run.
+Python was not started.
