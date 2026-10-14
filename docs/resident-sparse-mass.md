@@ -193,7 +193,8 @@ CRB文件只增加测试故障入口。
 原CRB与稀疏CUDA文本保持。
 新采集与验证内核另记回执。
 来源见[映射](evidence/resident-sparse-mass/map.json)。
-完整原生CSR输入转换仍缺。
+随后补齐[六项原生CSR捕获](native-sparse-mass.md)。
+完整模型与大块原生实测仍缺。
 非紧凑混合因子前缀仍缺。
 融合回代与求解残差仍未验收。
 全域算子与机器码等价仍缺。

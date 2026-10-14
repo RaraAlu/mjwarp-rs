@@ -23,7 +23,7 @@ mod inertial;
 mod kinematic;
 pub use inertial::DeviceInertialModel;
 #[cfg(feature = "native-model-probe")]
-pub use inertial::NativeInertialSnapshot;
+pub use inertial::{NativeInertialSnapshot, NativeSparseMassSnapshot};
 pub use kinematic::DeviceKinematicModel;
 #[cfg(feature = "native-model-probe")]
 pub use kinematic::NativeKinematicSnapshot;
@@ -219,6 +219,16 @@ mod native {
             // SAFETY: this thread-confined owner keeps its immutable model and DLL
             // live through both copies. No public API can mutate the native model.
             unsafe { super::NativeInertialSnapshot::capture(self.owner.as_ptr(), kinematics) }
+        }
+
+        /// 复制六项原生CSR整数数组。
+        /// 快照独占数据，不调用物理。
+        pub fn sparse_mass_snapshot(
+            &self,
+        ) -> Result<super::NativeSparseMassSnapshot, NativeProbeError> {
+            // SAFETY: Self retains the immutable owner and its DLL on this
+            // thread; capture owns all exact-width, disjoint output vectors.
+            unsafe { super::inertial::sparse::capture(self.owner.as_ptr(), self.info) }
         }
 
         /// 复制十二项柔体位置字段。

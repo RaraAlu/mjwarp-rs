@@ -11,6 +11,11 @@ use crate::{
     runtime::TransferSession,
 };
 
+#[cfg(feature = "native-model-probe")]
+pub(in crate::io) mod sparse;
+#[cfg(feature = "native-model-probe")]
+pub use sparse::NativeSparseMassSnapshot;
+
 /// 独占二十一项只读GPU字段。
 /// 上传完成后才发布本对象。
 /// 所有字段共享一组参数。

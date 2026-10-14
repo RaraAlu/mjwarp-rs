@@ -246,6 +246,7 @@ NP04仍缺公平稳态性能对照。
     随后新增[常驻分解与求解](resident-mass-solve.md)。
     现新增[真实CSR分层分解](resident-sparse-factor.md)。
     随后接通[CRB到CSR设备衔接](resident-sparse-mass.md)。
+    原生入口补充[CSR六字段捕获](native-sparse-mass.md)。
 26. [Windows质量求解探针](windows-mass-solve-probe.md)
 27. [Windows附着运动学探针](windows-attached-kinematics-probe.md)
 28. [Windows常驻运动学底座](windows-resident-kinematics.md)

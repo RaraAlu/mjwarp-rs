@@ -918,6 +918,9 @@ RHS更新不再重新分解。
 现已接通局部CRB到CSR设备采集。
 新组合仍缺非紧凑混合与回代。
 记录见[设备衔接](resident-sparse-mass.md)。
+现补独立原生CSR六字段转换。
+它不改变原G01快照ABI。
+记录见[原生CSR](native-sparse-mass.md)。
 矩阵乘法与新材料推进G22。
 它们不阻塞G01运动学收口。
 质量矩阵已提供GPU辅助子集。
