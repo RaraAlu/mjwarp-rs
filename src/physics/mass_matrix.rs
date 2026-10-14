@@ -9,6 +9,9 @@ use crate::runtime::TransferSession;
 mod resident;
 pub use resident::{MassMatrixData, MassMatrixPlan};
 mod multiply;
+pub use multiply::{
+    MassMatrixEnergyData, MassMatrixEnergyPlan, MassMatrixEnergySnapshot, MassMatrixEnergyView,
+};
 pub use multiply::{MassMatrixMultiplyData, MassMatrixMultiplyPlan, MassMatrixMultiplyView};
 pub use multiply::{MassMultiplyData, MassMultiplyFormat, MassMultiplyOutput, MassMultiplyPlan};
 

@@ -9,6 +9,10 @@ use crate::physics::{MassMatrixData, MassMatrixPlan};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
 use std::sync::Arc;
+mod device_energy;
+pub use device_energy::{
+    MassMatrixEnergyData, MassMatrixEnergyPlan, MassMatrixEnergySnapshot, MassMatrixEnergyView,
+};
 
 #[derive(Debug)]
 struct Spec {
@@ -396,7 +400,7 @@ extern "C" __global__ void borrowed_mass_multiply(const int* meta,const float* s
 mod tests {
     use super::*;
     use crate::model::SparseMassFields;
-    fn input(n: usize, split: bool) -> SparseMassInput {
+    pub(super) fn input(n: usize, split: bool) -> SparseMassInput {
         let mid = n.div_ceil(2);
         let parents: Vec<i32> = (0..n)
             .map(|i| {
@@ -480,7 +484,7 @@ mod tests {
         }
     }
     #[cfg(feature = "cuda-probe")]
-    fn model(i: &SparseMassInput) -> crate::model::AttachedModelInput {
+    pub(super) fn model(i: &SparseMassInput) -> crate::model::AttachedModelInput {
         use crate::model::{
             AttachedFields, AttachedModelInput, InertialFields, InertialModelInput,
             KinematicFields, KinematicModelInput,

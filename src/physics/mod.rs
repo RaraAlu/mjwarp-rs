@@ -23,6 +23,9 @@ mod mass_matrix;
 pub use mass_matrix::{
     MassMatrixData, MassMatrixOutput, MassMatrixPlan, MassMatrixWorld, probe_mass_matrix,
 };
+pub use mass_matrix::{
+    MassMatrixEnergyData, MassMatrixEnergyPlan, MassMatrixEnergySnapshot, MassMatrixEnergyView,
+};
 pub use mass_matrix::{MassMatrixMultiplyData, MassMatrixMultiplyPlan, MassMatrixMultiplyView};
 pub use mass_matrix::{MassMultiplyData, MassMultiplyFormat, MassMultiplyOutput, MassMultiplyPlan};
 mod mass_solve;

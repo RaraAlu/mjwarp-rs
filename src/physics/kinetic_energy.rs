@@ -349,7 +349,7 @@ fn read(
 // Preserve ordinary float multiplication/addition and compiler contraction
 // permission. Padding is zero-initialized but never enters local reduction.
 #[cfg(feature = "cuda-probe")]
-const CUDA: &str = r#"
+pub(super) const CUDA: &str = r#"
 extern "C" __global__ void kinetic_energy_validate(const int* meta,const float* pair,
  const float* current,float* status,unsigned n,unsigned worlds,unsigned unused,unsigned work){
  unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=work)return;

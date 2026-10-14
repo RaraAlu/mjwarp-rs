@@ -8,6 +8,9 @@ use crate::runtime::TransferSession;
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
 mod borrowed;
+pub use borrowed::{
+    MassMatrixEnergyData, MassMatrixEnergyPlan, MassMatrixEnergySnapshot, MassMatrixEnergyView,
+};
 pub use borrowed::{MassMatrixMultiplyData, MassMatrixMultiplyPlan, MassMatrixMultiplyView};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
