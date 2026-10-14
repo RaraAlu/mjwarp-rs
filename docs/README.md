@@ -260,6 +260,8 @@ NP04仍缺公平稳态性能对照。
     新用途四项测试通过。
     随后新增[平滑力四项合并](smooth-force.md)。
     新用途六项测试通过。
+    现新增[空间外力累加辅助](applied-force.md)。
+    新用途四项测试通过。
     原生入口补充[CSR六字段捕获](native-sparse-mass.md)。
 26. [Windows质量求解探针](windows-mass-solve-probe.md)
 27. [Windows附着运动学探针](windows-attached-kinematics-probe.md)
