@@ -14,9 +14,10 @@ use std::sync::Arc;
 #[cfg(feature = "cuda-probe")]
 use super::SmoothForceOptions;
 use super::{
-    FlexEdgePassivePlan, GravityCompensationOptions, GravityCompensationParameters,
-    GravityCompensationPlan, JointPassiveData, JointPassivePlan, KinematicsData, SmoothForceData,
-    SmoothForceField, SmoothForceOutput, SmoothForcePlan, TendonPassivePlan, TendonVelocityView,
+    FlexEdgePassivePlan, FluidForceData, FluidForceInput, FluidForcePlan,
+    GravityCompensationOptions, GravityCompensationParameters, GravityCompensationPlan,
+    JointPassiveData, JointPassivePlan, KinematicsData, SmoothForceData, SmoothForceField,
+    SmoothForceOutput, SmoothForcePlan, TendonPassivePlan, TendonVelocityView,
 };
 
 pub struct PassiveForcePlan<'a, 'v, 'p, 'f> {
@@ -25,6 +26,7 @@ pub struct PassiveForcePlan<'a, 'v, 'p, 'f> {
     tendon: &'a TendonPassivePlan<'v, 'p>,
     flex_edge: &'a FlexEdgePassivePlan<'f>,
     gravity: Option<GravityCompensationPlan<'f>>,
+    fluid: Option<FluidForcePlan<'f>>,
     identity: Arc<()>,
     smooth: SmoothForcePlan,
     nv: usize,
@@ -37,7 +39,7 @@ pub struct PassiveForcePlan<'a, 'v, 'p, 'f> {
     #[cfg(feature = "cuda-probe")]
     dummy: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 3],
+    kernels: [SynchronousKernel; 4],
 }
 
 pub struct PassiveForceData {
@@ -45,6 +47,7 @@ pub struct PassiveForceData {
     layout: BatchLayout,
     ready: bool,
     smooth: SmoothForceData,
+    fluid: Option<FluidForceData>,
     #[cfg(feature = "cuda-probe")]
     parts: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
@@ -104,7 +107,7 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
         tendon: &'a TendonPassivePlan<'v, 'p>,
         flex_edge: &'a FlexEdgePassivePlan<'f>,
     ) -> Result<Self, TransferError> {
-        Self::build(joint, tendon, flex_edge, None)
+        Self::build(joint, tendon, flex_edge, None, None)
     }
 
     pub fn with_gravity_compensation(
@@ -116,7 +119,31 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
     ) -> Result<Self, TransferError> {
         let gravity =
             GravityCompensationPlan::new(flex_edge.shared_source_plan(), parameters, options)?;
-        Self::build(joint, tendon, flex_edge, Some(gravity))
+        Self::build(joint, tendon, flex_edge, Some(gravity), None)
+    }
+
+    pub fn with_fluid_force(
+        joint: &'a JointPassivePlan,
+        tendon: &'a TendonPassivePlan<'v, 'p>,
+        flex_edge: &'a FlexEdgePassivePlan<'f>,
+        input: FluidForceInput,
+    ) -> Result<Self, TransferError> {
+        let fluid = FluidForcePlan::from_resident(flex_edge.shared_source_plan(), input)?;
+        Self::build(joint, tendon, flex_edge, None, Some(fluid))
+    }
+
+    pub fn with_gravity_and_fluid(
+        joint: &'a JointPassivePlan,
+        tendon: &'a TendonPassivePlan<'v, 'p>,
+        flex_edge: &'a FlexEdgePassivePlan<'f>,
+        gravity_parameters: GravityCompensationParameters,
+        gravity_options: GravityCompensationOptions,
+        fluid_input: FluidForceInput,
+    ) -> Result<Self, TransferError> {
+        let source = flex_edge.shared_source_plan();
+        let gravity = GravityCompensationPlan::new(source, gravity_parameters, gravity_options)?;
+        let fluid = FluidForcePlan::from_resident(source, fluid_input)?;
+        Self::build(joint, tendon, flex_edge, Some(gravity), Some(fluid))
     }
 
     fn build(
@@ -124,10 +151,11 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
         tendon: &'a TendonPassivePlan<'v, 'p>,
         flex_edge: &'a FlexEdgePassivePlan<'f>,
         gravity: Option<GravityCompensationPlan<'f>>,
+        fluid: Option<FluidForcePlan<'f>>,
     ) -> Result<Self, TransferError> {
         #[cfg(not(feature = "cuda-probe"))]
         {
-            let _ = (joint, tendon, flex_edge, gravity);
+            let _ = (joint, tendon, flex_edge, gravity, fluid);
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
         #[cfg(feature = "cuda-probe")]
@@ -145,6 +173,9 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
                 || !flex_edge.matches_shared_model(joint.shared_passive_model())
                 || !session.same_session(&tendon_session)
                 || !session.same_session(&flex_session)
+                || fluid.as_ref().is_some_and(|fluid| {
+                    !fluid.accepts_resident_source(flex_edge.shared_source_plan())
+                })
             {
                 return Err(TransferError::ModelMismatch);
             }
@@ -175,6 +206,7 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
                 tendon,
                 flex_edge,
                 gravity,
+                fluid,
                 identity: Arc::new(()),
                 smooth,
                 nv,
@@ -186,6 +218,7 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
                     SynchronousKernel::compile(&session, &code, "passive_force_clear")?,
                     SynchronousKernel::compile(&session, &code, "passive_force_sum")?,
                     SynchronousKernel::compile(&session, &code, "passive_force_clear_gravity")?,
+                    SynchronousKernel::compile(&session, &code, "passive_force_add_fluid")?,
                 ],
                 session,
             })
@@ -201,9 +234,14 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
                 field: "passive_force_parts",
             })?;
         let smooth = self.smooth.create_data(worlds)?;
+        let fluid = self
+            .fluid
+            .as_ref()
+            .map(|plan| plan.create_data(worlds))
+            .transpose()?;
         #[cfg(not(feature = "cuda-probe"))]
         {
-            let _ = (count, smooth);
+            let _ = (count, smooth, fluid);
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
         #[cfg(feature = "cuda-probe")]
@@ -219,6 +257,7 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
                 layout,
                 ready: false,
                 smooth,
+                fluid,
                 parts: allocate(count, f32::NAN)?,
                 gravity: allocate(layout.total_elements(), 0.0)?,
                 status: allocate(worlds, f32::NAN)?,
@@ -252,6 +291,10 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
                 .gravity
                 .as_ref()
                 .is_some_and(|gravity| !gravity.accepts_source(flex_source))
+            || self.fluid.is_some() != data.fluid.is_some()
+            || self.fluid.as_ref().is_some_and(|fluid| {
+                !fluid.accepts_resident_source(self.flex_edge.shared_source_plan())
+            })
             || !std::ptr::eq(tendon_velocity.source_data(), flex_source)
         {
             return Err(TransferError::ModelMismatch);
@@ -290,6 +333,12 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
             if let Some(gravity) = &self.gravity {
                 gravity.write_shared(flex_source, &mut data.gravity, &mut data.status, worlds)?;
                 read_parts(&data.gravity, data.layout.total_elements())?;
+            }
+            if let Some(fluid) = &self.fluid {
+                fluid.update_resident(
+                    flex_source,
+                    data.fluid.as_mut().ok_or(TransferError::ModelMismatch)?,
+                )?;
             }
             let sleep = if self.smooth.options().enable_sleep() {
                 Some(self.flex_edge.shared_sleep_source(flex_source)?)
@@ -350,6 +399,12 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
                     [0, self.nv as u32, worlds as u32, work],
                 )?;
             }
+            if let Some(fluid) = &self.fluid {
+                fluid.clear_shared(
+                    data.fluid.as_mut().ok_or(TransferError::ModelMismatch)?,
+                    worlds,
+                )?;
+            }
             read_parts(&data.parts, 2 * data.layout.total_elements())?;
             self.write_passive(data, worlds, work)?;
             if !self.smooth.options().enable_sleep() {
@@ -406,6 +461,12 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
                     [0, self.nv as u32, worlds as u32, work],
                 )?;
             }
+            if let Some(fluid) = &self.fluid {
+                fluid.clear_shared(
+                    data.fluid.as_mut().ok_or(TransferError::ModelMismatch)?,
+                    worlds,
+                )?;
+            }
             read_parts(&data.parts, 2 * data.layout.total_elements())?;
             let sleep = self.flex_edge.shared_sleep_source(sleep_source)?;
             self.finish(data, worlds, work, Some(sleep))?;
@@ -424,20 +485,39 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
         worlds: usize,
         work: u32,
     ) -> Result<(), TransferError> {
+        let fluid = match (&self.fluid, &data.fluid) {
+            (Some(plan), Some(fluid)) => Some(plan.shared_qfrc(fluid, worlds)?),
+            (None, None) => None,
+            _ => return Err(TransferError::ModelMismatch),
+        };
         let passive = data.smooth.passive_target();
         if let Some(gravity) = &self.gravity {
-            return gravity.sum_shared(&data.parts, &data.gravity, passive, worlds);
+            gravity.sum_shared(&data.parts, &data.gravity, passive, worlds)?;
+        } else {
+            // SAFETY: 分量缓冲含两个连续字段。
+            // 目标仅写入平滑力的Passive字段。
+            unsafe {
+                self.kernels[1].launch(
+                    &self.metadata,
+                    &self.dummy,
+                    &data.parts,
+                    passive,
+                    [0, self.nv as u32, worlds as u32, work],
+                )?;
+            }
         }
-        // SAFETY: 分量缓冲含两个连续字段。
-        // 目标仅写入平滑力的Passive字段。
-        unsafe {
-            self.kernels[1].launch(
-                &self.metadata,
-                &self.dummy,
-                &data.parts,
-                passive,
-                [0, self.nv as u32, worlds as u32, work],
-            )?;
+        if let Some(fluid) = fluid {
+            // SAFETY: 流体缓冲与目标都含worlds*nv槽。
+            // 本次加法严格位于重力补偿之后。
+            unsafe {
+                self.kernels[3].launch(
+                    &self.metadata,
+                    &self.dummy,
+                    fluid,
+                    passive,
+                    [0, self.nv as u32, worlds as u32, work],
+                )?;
+            }
         }
         Ok(())
     }
@@ -565,6 +645,9 @@ extern "C" __global__ void passive_force_sum(const int* meta,const float* p,cons
 }
 extern "C" __global__ void passive_force_clear_gravity(const int* meta,const float* p,const float* state,float* out,unsigned ignored,unsigned nv,unsigned worlds,unsigned work){
  unsigned tid=blockIdx.x*blockDim.x+threadIdx.x;if(tid>=work)return;out[4+tid]=0.0f;
+}
+extern "C" __global__ void passive_force_add_fluid(const int* meta,const float* p,const float* fluid,float* out,unsigned ignored,unsigned nv,unsigned worlds,unsigned work){
+ unsigned tid=blockIdx.x*blockDim.x+threadIdx.x;if(tid>=work)return;out[4+tid]=__fadd_rn(out[4+tid],fluid[4+tid]);
 }
 "#;
 
@@ -799,6 +882,15 @@ mod tests {
             damping: rows(5, 1, |row| vec![row as f32 / 16.0]),
             damping_poly: rows(7, 2, |row| vec![row as f32 / 64.0, 0.0]),
             length_spring: rows(11, 2, |row| vec![0.0, row as f32 / 64.0]),
+        }
+    }
+
+    fn fluid_input(nbody: usize) -> FluidForceInput {
+        FluidForceInput {
+            wind: ParameterBatch::new(2, 3, vec![0.0, 0.0, 0.0, 0.25, -0.125, 0.0625]).unwrap(),
+            density: ParameterBatch::new(3, 1, vec![0.5, 1.0, 0.25]).unwrap(),
+            viscosity: ParameterBatch::new(5, 1, vec![0.125, 0.25, 0.375, 0.5, 0.625]).unwrap(),
+            body_fluid_ellipsoid: vec![false; nbody],
         }
     }
 
@@ -1982,6 +2074,477 @@ mod tests {
             "performance_acceptance": false,
         });
         if let Some(path) = std::env::var_os("MJWARP_GRAVITY_COMPENSATION_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+        }
+        println!("{report}");
+    }
+
+    #[test]
+    #[ignore = "new G04 resident fluid composition and failure boundaries"]
+    fn gpu_wires_resident_fluid_into_shared_passive_order() {
+        let timer = std::time::Instant::now();
+        let session = TransferSession::new(0).unwrap();
+        let model = kinematic([1.0, 0.0, 0.0]);
+        let source_plan = super::super::KinematicsPlan::with_flex_positions(
+            &session,
+            flex_model(model.clone()),
+            KinematicsParameters::default(),
+            CamLightParameters::default(),
+        )
+        .unwrap();
+        let velocity_plan = TendonVelocityPlan::new(&source_plan).unwrap();
+        let joint_plan = JointPassivePlan::new(
+            &session,
+            model.clone(),
+            joint_parameters(),
+            JointPassiveOptions::default(),
+        )
+        .unwrap();
+        let tendon_plan = TendonPassivePlan::new(
+            &velocity_plan,
+            tendon_parameters(),
+            TendonPassiveOptions::default(),
+        )
+        .unwrap();
+        let flex_plan = FlexEdgePassivePlan::new(
+            &source_plan,
+            FlexEdgePassiveInput {
+                length0: vec![0.0],
+                stiffness: vec![-1.0],
+                damping: vec![0.5],
+                rigid: vec![false],
+            },
+            FlexEdgePassiveOptions::default(),
+        )
+        .unwrap();
+        let gravity = GravityCompensationParameters {
+            gravity: ParameterBatch::new(2, 3, vec![-1.0, 0.0, 0.0, -2.0, 0.0, 0.0]).unwrap(),
+            body_gravcomp: ParameterBatch::new(3, 2, vec![0.0, 1.0, 0.0, 0.5, 0.0, 0.25]).unwrap(),
+            jnt_actgravcomp: vec![0],
+        };
+        let fluid = fluid_input(2);
+        let base_plan = PassiveForcePlan::with_gravity_compensation(
+            &joint_plan,
+            &tendon_plan,
+            &flex_plan,
+            gravity.clone(),
+            GravityCompensationOptions::default(),
+        )
+        .unwrap();
+        let plan = PassiveForcePlan::with_gravity_and_fluid(
+            &joint_plan,
+            &tendon_plan,
+            &flex_plan,
+            gravity,
+            GravityCompensationOptions::default(),
+            fluid.clone(),
+        )
+        .unwrap();
+        let worlds = 5;
+        let qpos = (0..worlds)
+            .map(|world| 0.125 * (world + 1) as f32)
+            .collect::<Vec<_>>();
+        let qvel = (0..worlds)
+            .map(|world| 0.25 + 0.125 * world as f32)
+            .collect::<Vec<_>>();
+        let mut source = source_plan.create_data(worlds).unwrap();
+        let mut velocity = velocity_plan.create_data(worlds).unwrap();
+        let mut joint = joint_plan.create_data(worlds).unwrap();
+        let mut base_data = base_plan.create_data(worlds).unwrap();
+        let mut data = plan.create_data(worlds).unwrap();
+        source.write_qpos(&qpos).unwrap();
+        source.write_qvel(&qvel).unwrap();
+        source_plan.update(&mut source).unwrap();
+        velocity.write_qvel(&qvel).unwrap();
+        joint.write_qpos(&qpos).unwrap();
+        joint.write_qvel(&qvel).unwrap();
+        joint_plan.update_joint(&mut joint).unwrap();
+        let velocity_view = velocity_plan.update(&source, &mut velocity).unwrap();
+        let base = base_plan
+            .update(&joint, &velocity_view, &source, &mut base_data)
+            .unwrap();
+        let base_snapshot = base.snapshot().unwrap();
+        let base_smooth = base.smooth().unwrap();
+        let view = plan
+            .update(&joint, &velocity_view, &source, &mut data)
+            .unwrap();
+        let snapshot = view.snapshot().unwrap();
+        let smooth = view.smooth().unwrap();
+        let fluid_snapshot = data.fluid.as_ref().unwrap().snapshot().unwrap();
+        let mut fluid_nonzero = false;
+        for world in 0..worlds {
+            let fluid_value = fluid_snapshot.world(world).unwrap().qfrc[0];
+            fluid_nonzero |= fluid_value != 0.0;
+            assert_eq!(
+                snapshot.spring(world).unwrap()[0].to_bits(),
+                base_snapshot.spring(world).unwrap()[0].to_bits()
+            );
+            assert_eq!(
+                snapshot.damper(world).unwrap()[0].to_bits(),
+                base_snapshot.damper(world).unwrap()[0].to_bits()
+            );
+            assert_eq!(
+                snapshot.gravity(world).unwrap()[0].to_bits(),
+                base_snapshot.gravity(world).unwrap()[0].to_bits()
+            );
+            assert_eq!(
+                smooth.world(world).unwrap()[0].to_bits(),
+                (base_smooth.world(world).unwrap()[0] + fluid_value).to_bits()
+            );
+        }
+        assert!(fluid_nonzero);
+
+        data.fluid
+            .as_mut()
+            .unwrap()
+            .corrupt_body_guard_for_test(0, 99.0)
+            .unwrap();
+        assert!(
+            plan.update(&joint, &velocity_view, &source, &mut data)
+                .is_err()
+        );
+        assert!(data.snapshot().is_err());
+        assert!(data.smooth_output().is_err());
+        data.fluid
+            .as_mut()
+            .unwrap()
+            .corrupt_body_guard_for_test(0, -131072.0)
+            .unwrap();
+        plan.update(&joint, &velocity_view, &source, &mut data)
+            .unwrap();
+
+        let foreign_plan = super::super::KinematicsPlan::with_flex_positions(
+            &session,
+            flex_model(model.clone()),
+            KinematicsParameters::default(),
+            CamLightParameters::default(),
+        )
+        .unwrap();
+        let foreign_source = foreign_plan.create_data(worlds).unwrap();
+        assert!(matches!(
+            plan.update(&joint, &velocity_view, &foreign_source, &mut data),
+            Err(TransferError::ModelMismatch)
+        ));
+        assert!(data.snapshot().is_ok());
+        let fluid_before = data.fluid.as_ref().unwrap().snapshot().unwrap();
+        let changed_qvel = (0..worlds)
+            .map(|world| -0.5 - 0.125 * world as f32)
+            .collect::<Vec<_>>();
+        source.write_qvel(&changed_qvel).unwrap();
+        velocity.write_qvel(&changed_qvel).unwrap();
+        joint.write_qvel(&changed_qvel).unwrap();
+        joint_plan.update_joint(&mut joint).unwrap();
+        let velocity_view = velocity_plan.update(&source, &mut velocity).unwrap();
+        assert!(matches!(
+            plan.update(&joint, &velocity_view, &source, &mut data),
+            Err(TransferError::StageNotReady {
+                stage: "flex_edge_passive_source"
+            })
+        ));
+        assert!(data.snapshot().is_err());
+        assert!(data.smooth_output().is_err());
+        source_plan.update_flex_edges(&mut source).unwrap();
+        let velocity_view = velocity_plan.update(&source, &mut velocity).unwrap();
+        plan.update(&joint, &velocity_view, &source, &mut data)
+            .unwrap();
+        let fluid_after = data.fluid.as_ref().unwrap().snapshot().unwrap();
+        assert!((0..worlds).any(|world| {
+            fluid_before.world(world).unwrap().qfrc != fluid_after.world(world).unwrap().qfrc
+        }));
+
+        let disabled_options = JointPassiveOptions {
+            disable_spring: true,
+            disable_damper: true,
+        };
+        let disabled_joint =
+            JointPassivePlan::new(&session, model, joint_parameters(), disabled_options).unwrap();
+        let disabled_tendon = TendonPassivePlan::new(
+            &velocity_plan,
+            tendon_parameters(),
+            TendonPassiveOptions {
+                disable_spring: true,
+                disable_damper: true,
+            },
+        )
+        .unwrap();
+        let disabled_flex = FlexEdgePassivePlan::new(
+            &source_plan,
+            FlexEdgePassiveInput {
+                length0: vec![f32::NAN],
+                stiffness: vec![f32::NAN],
+                damping: vec![f32::NAN],
+                rigid: vec![false],
+            },
+            FlexEdgePassiveOptions {
+                disable_spring: true,
+                disable_damper: true,
+            },
+        )
+        .unwrap();
+        let disabled_plan = PassiveForcePlan::with_fluid_force(
+            &disabled_joint,
+            &disabled_tendon,
+            &disabled_flex,
+            fluid,
+        )
+        .unwrap();
+        let mut disabled_data = disabled_plan.create_data(worlds).unwrap();
+        assert!(matches!(
+            disabled_plan.update(&joint, &velocity_view, &source, &mut disabled_data),
+            Err(TransferError::Input(InputError::InvalidDimension {
+                field: "passive_force_disabled_path"
+            }))
+        ));
+        let cleared = disabled_plan.clear_disabled(&mut disabled_data).unwrap();
+        let cleared_snapshot = cleared.snapshot().unwrap();
+        let cleared_smooth = cleared.smooth().unwrap();
+        let cleared_fluid = disabled_data.fluid.as_ref().unwrap().snapshot().unwrap();
+        for world in 0..worlds {
+            assert!(
+                cleared_snapshot
+                    .spring(world)
+                    .unwrap()
+                    .iter()
+                    .all(|&value| { value.to_bits() == 0.0f32.to_bits() })
+            );
+            assert!(
+                cleared_snapshot
+                    .damper(world)
+                    .unwrap()
+                    .iter()
+                    .all(|&value| { value.to_bits() == 0.0f32.to_bits() })
+            );
+            assert!(
+                cleared_smooth
+                    .world(world)
+                    .unwrap()
+                    .iter()
+                    .all(|&value| { value.to_bits() == 0.0f32.to_bits() })
+            );
+            assert!(
+                cleared_fluid
+                    .world(world)
+                    .unwrap()
+                    .body_force_torque
+                    .iter()
+                    .chain(cleared_fluid.world(world).unwrap().qfrc.iter())
+                    .all(|&value| value.to_bits() == 0.0f32.to_bits())
+            );
+        }
+        let sleep_model = sleep_kinematic();
+        let wake = TendonWakeModelInput::with_flex_positions(
+            sleep_flex_model(sleep_model.clone()),
+            TendonWakeFields {
+                body_treeid: vec![-1, 0, 1],
+                tendon_limited: vec![false],
+                tendon_range: ParameterBatch::new(1, 2, vec![-10.0, 10.0]).unwrap(),
+                tendon_margin: ParameterBatch::new(1, 1, vec![0.0]).unwrap(),
+                sleep_enabled: true,
+                island_disabled: false,
+            },
+        )
+        .unwrap();
+        let mut sleep_parameters = KinematicsParameters::default();
+        sleep_parameters.set(
+            KinematicsParameter::BodyInertia,
+            ParameterBatch::new(1, 9, vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]).unwrap(),
+        );
+        let sleep_source_plan = super::super::KinematicsPlan::with_tendon_wake(
+            &session,
+            wake,
+            sleep_parameters,
+            CamLightParameters::default(),
+        )
+        .unwrap();
+        let sleep_velocity_plan = TendonVelocityPlan::new(&sleep_source_plan).unwrap();
+        let sleep_joint_plan = JointPassivePlan::new(
+            &session,
+            sleep_model.clone(),
+            sleep_joint_parameters(),
+            JointPassiveOptions::default(),
+        )
+        .unwrap();
+        let sleep_tendon_plan = TendonPassivePlan::new(
+            &sleep_velocity_plan,
+            tendon_parameters(),
+            TendonPassiveOptions::default(),
+        )
+        .unwrap();
+        let sleep_flex_plan = FlexEdgePassivePlan::new(
+            &sleep_source_plan,
+            FlexEdgePassiveInput {
+                length0: vec![0.5],
+                stiffness: vec![-1.0],
+                damping: vec![0.25],
+                rigid: vec![false],
+            },
+            FlexEdgePassiveOptions::default(),
+        )
+        .unwrap();
+        let sleep_plan = PassiveForcePlan::with_fluid_force(
+            &sleep_joint_plan,
+            &sleep_tendon_plan,
+            &sleep_flex_plan,
+            fluid_input(3),
+        )
+        .unwrap();
+        let sleep_worlds = 2;
+        let sleep_qpos = vec![0.25, -0.5, 0.75, -1.0];
+        let sleep_qvel = vec![0.5, -0.75, 1.0, -1.25];
+        let mut sleep_source = sleep_source_plan.create_data(sleep_worlds).unwrap();
+        let mut sleep_velocity = sleep_velocity_plan.create_data(sleep_worlds).unwrap();
+        let mut sleep_joint = sleep_joint_plan.create_data(sleep_worlds).unwrap();
+        let mut sleep_data = sleep_plan.create_data(sleep_worlds).unwrap();
+        sleep_source.write_qpos(&sleep_qpos).unwrap();
+        sleep_source.write_qvel(&sleep_qvel).unwrap();
+        sleep_source_plan.update(&mut sleep_source).unwrap();
+        for (world, tree_asleep) in [(0, vec![-11, 1]), (1, vec![0, -11])] {
+            sleep_source
+                .write_world_sleep(
+                    world,
+                    &SleepTreeState {
+                        tree_asleep,
+                        nbody_awake: 1,
+                        nv_awake: 1,
+                    },
+                )
+                .unwrap();
+        }
+        sleep_source_plan
+            .update_tendon_wake(&mut sleep_source)
+            .unwrap();
+        sleep_velocity.write_qvel(&sleep_qvel).unwrap();
+        sleep_joint.write_qpos(&sleep_qpos).unwrap();
+        sleep_joint.write_qvel(&sleep_qvel).unwrap();
+        sleep_joint_plan.update_joint(&mut sleep_joint).unwrap();
+        let sleep_velocity_view = sleep_velocity_plan
+            .update(&sleep_source, &mut sleep_velocity)
+            .unwrap();
+        let sleep_view = sleep_plan
+            .update(
+                &sleep_joint,
+                &sleep_velocity_view,
+                &sleep_source,
+                &mut sleep_data,
+            )
+            .unwrap();
+        let sleep_snapshot = sleep_view.snapshot().unwrap();
+        let sleep_smooth = sleep_view.smooth().unwrap();
+        let sleep_fluid = sleep_data.fluid.as_ref().unwrap().snapshot().unwrap();
+        assert!((0..sleep_worlds).any(|world| {
+            sleep_fluid
+                .world(world)
+                .unwrap()
+                .qfrc
+                .iter()
+                .any(|&value| value != 0.0)
+        }));
+        for (world, awake) in [(0, [true, false]), (1, [false, true])] {
+            for (dof, &awake) in awake.iter().enumerate() {
+                let passive = sleep_snapshot.spring(world).unwrap()[dof]
+                    + sleep_snapshot.damper(world).unwrap()[dof];
+                let expected = passive + sleep_fluid.world(world).unwrap().qfrc[dof];
+                let actual = sleep_smooth.world(world).unwrap()[dof];
+                if awake {
+                    assert_eq!(actual.to_bits(), expected.to_bits());
+                } else {
+                    assert_eq!(actual.to_bits(), 0.0f32.to_bits());
+                }
+            }
+        }
+
+        let disabled_sleep_joint = JointPassivePlan::new(
+            &session,
+            sleep_model,
+            sleep_joint_parameters(),
+            disabled_options,
+        )
+        .unwrap();
+        let disabled_sleep_tendon = TendonPassivePlan::new(
+            &sleep_velocity_plan,
+            tendon_parameters(),
+            TendonPassiveOptions {
+                disable_spring: true,
+                disable_damper: true,
+            },
+        )
+        .unwrap();
+        let disabled_sleep_flex = FlexEdgePassivePlan::new(
+            &sleep_source_plan,
+            FlexEdgePassiveInput {
+                length0: vec![f32::NAN],
+                stiffness: vec![f32::NAN],
+                damping: vec![f32::NAN],
+                rigid: vec![false],
+            },
+            FlexEdgePassiveOptions {
+                disable_spring: true,
+                disable_damper: true,
+            },
+        )
+        .unwrap();
+        let disabled_sleep_plan = PassiveForcePlan::with_fluid_force(
+            &disabled_sleep_joint,
+            &disabled_sleep_tendon,
+            &disabled_sleep_flex,
+            fluid_input(3),
+        )
+        .unwrap();
+        let mut disabled_sleep_data = disabled_sleep_plan.create_data(sleep_worlds).unwrap();
+        let cold = disabled_sleep_plan
+            .clear_disabled(&mut disabled_sleep_data)
+            .unwrap();
+        assert!(cold.smooth().is_err());
+        assert!(
+            disabled_sleep_data
+                .fluid
+                .as_ref()
+                .unwrap()
+                .snapshot()
+                .unwrap()
+                .world(0)
+                .unwrap()
+                .qfrc
+                .iter()
+                .all(|&value| value.to_bits() == 0.0f32.to_bits())
+        );
+        sleep_source.write_qvel(&[-2.0, 3.0, -4.0, 5.0]).unwrap();
+        let filtered = disabled_sleep_plan
+            .clear_disabled_with_sleep(&sleep_source, &mut disabled_sleep_data)
+            .unwrap();
+        for world in 0..sleep_worlds {
+            assert!(
+                filtered
+                    .smooth()
+                    .unwrap()
+                    .world(world)
+                    .unwrap()
+                    .iter()
+                    .all(|&value| { value.to_bits() == 0.0f32.to_bits() })
+            );
+        }
+
+        let report = serde_json::json!({
+            "worlds": worlds,
+            "sleep_worlds": sleep_worlds,
+            "composition_order": ["spring", "damper", "allowed_gravity", "fluid"],
+            "fluid_parameter_periods": [2, 3, 5],
+            "has_fluid_false_control": true,
+            "dual_disabled_fluid_clear": true,
+            "sleep_filtering": true,
+            "source_write_invalidation": true,
+            "same_shape_foreign_source_rejected": true,
+            "mid_device_failure_blocks_publication": true,
+            "healthy_repair_recovered": true,
+            "same_source_resident_kinematics": true,
+            "joint_state_caller_synchronized": true,
+            "full_chain_same_generation": false,
+            "frozen_upstream_device_output": false,
+            "absolute_tolerance": 2.0e-6,
+            "diagnostic_elapsed_ms": timer.elapsed().as_millis(),
+            "performance_acceptance": false,
+        });
+        if let Some(path) = std::env::var_os("MJWARP_PASSIVE_FLUID_REPORT") {
             std::fs::write(path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
         }
         println!("{report}");

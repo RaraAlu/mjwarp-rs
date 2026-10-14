@@ -1693,6 +1693,20 @@ impl KinematicsPlan {
     }
 
     #[cfg(feature = "cuda-probe")]
+    pub(super) fn fluid_force_qvel_source<'a>(
+        &self,
+        data: &'a KinematicsData,
+    ) -> Result<&'a TransferBuffer<f32>, TransferError> {
+        self.check_data(data)?;
+        data.edges.as_ref().map(|edges| &edges.qvel).ok_or(
+            InputError::InvalidDimension {
+                field: "fluid_force_requires_qvel",
+            }
+            .into(),
+        )
+    }
+
+    #[cfg(feature = "cuda-probe")]
     pub(super) fn passive_sleep_source<'a>(
         &self,
         data: &'a KinematicsData,

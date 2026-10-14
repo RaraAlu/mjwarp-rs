@@ -3,13 +3,17 @@
 
 use std::sync::Arc;
 
-use super::{ComVelocityData, ComVelocityPlan};
+#[cfg(feature = "cuda-probe")]
+use super::com_velocity::FluidInputs;
+use super::com_velocity::{ResidentComVelocityData, ResidentComVelocityPlan};
+use super::{ComVelocityData, ComVelocityPlan, KinematicsData, KinematicsPlan};
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::{AttachedModelInput, BatchLayout, ParameterBatch};
+use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
-use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
+use crate::runtime::{SynchronousKernel, TransferBuffer};
 
 #[derive(Clone, Debug)]
 pub struct FluidForceInput {
@@ -167,8 +171,18 @@ fn layout(worlds: usize, nb: usize, nv: usize) -> Result<Layout, InputError> {
     Ok(Layout { body, qfrc })
 }
 
+#[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
+fn clear_work(value: usize) -> Result<u32, InputError> {
+    u32::try_from(value)
+        .ok()
+        .filter(|&value| value > 0 && value <= u32::MAX - 255)
+        .ok_or(InputError::Overflow {
+            field: "fluid_force_clear_work",
+        })
+}
+
 pub struct FluidForcePlan<'p> {
-    source: &'p ComVelocityPlan,
+    source: FluidForceSource<'p>,
     spec: Arc<Spec>,
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
@@ -177,19 +191,25 @@ pub struct FluidForcePlan<'p> {
     #[cfg(feature = "cuda-probe")]
     parameters: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 3],
+    kernels: [SynchronousKernel; 4],
 }
 
 pub struct FluidForceData {
     spec: Arc<Spec>,
     layout: Layout,
     ready: bool,
+    resident_velocity: Option<ResidentComVelocityData>,
     #[cfg(feature = "cuda-probe")]
     body: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
     qfrc: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
     status: TransferBuffer<f32>,
+}
+
+enum FluidForceSource<'p> {
+    Independent(&'p ComVelocityPlan),
+    Resident(ResidentComVelocityPlan<'p>),
 }
 
 pub struct FluidForceView<'a> {
@@ -228,11 +248,45 @@ impl FluidForceSnapshot {
 impl<'p> FluidForcePlan<'p> {
     pub fn new(source: &'p ComVelocityPlan, input: FluidForceInput) -> Result<Self, TransferError> {
         let (session, model, body_mass, body_inertia) = source.fluid_force_context()?;
+        Self::build(
+            FluidForceSource::Independent(source),
+            session,
+            model,
+            body_mass,
+            body_inertia,
+            input,
+        )
+    }
+
+    pub(super) fn from_resident(
+        source: &'p KinematicsPlan,
+        input: FluidForceInput,
+    ) -> Result<Self, TransferError> {
+        let resident = ResidentComVelocityPlan::new(source)?;
+        let (session, model, body_mass, body_inertia) = source.fluid_force_context()?;
+        Self::build(
+            FluidForceSource::Resident(resident),
+            session,
+            model,
+            body_mass,
+            body_inertia,
+            input,
+        )
+    }
+
+    fn build(
+        source: FluidForceSource<'p>,
+        session: TransferSession,
+        model: Arc<AttachedModelInput>,
+        body_mass: ParameterBatch,
+        body_inertia: ParameterBatch,
+        input: FluidForceInput,
+    ) -> Result<Self, TransferError> {
         let spec = Arc::new(spec(model, body_mass, body_inertia, input)?);
         layout(1, spec.nb, spec.nv)?;
         #[cfg(not(feature = "cuda-probe"))]
         {
-            let _ = (session, spec);
+            let _ = (source, session, spec);
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
         #[cfg(feature = "cuda-probe")]
@@ -274,6 +328,7 @@ impl<'p> FluidForcePlan<'p> {
                     SynchronousKernel::compile(&session, &code, "fluid_force_validate")?,
                     SynchronousKernel::compile(&session, &code, "fluid_force_body")?,
                     SynchronousKernel::compile(&session, &code, "fluid_force_project")?,
+                    SynchronousKernel::compile(&session, &code, "fluid_force_clear")?,
                 ],
                 session,
             })
@@ -299,6 +354,10 @@ impl<'p> FluidForcePlan<'p> {
                 spec: self.spec.clone(),
                 layout,
                 ready: false,
+                resident_velocity: match &self.source {
+                    FluidForceSource::Independent(_) => None,
+                    FluidForceSource::Resident(source) => Some(source.create_data(worlds)?),
+                },
                 body: allocate(layout.body.total_elements(), f32::NAN)?,
                 qfrc: allocate(layout.qfrc.total_elements(), f32::NAN)?,
                 status: allocate(worlds, f32::NAN)?,
@@ -316,9 +375,13 @@ impl<'p> FluidForcePlan<'p> {
         source: &'a ComVelocityData,
         data: &'a mut FluidForceData,
     ) -> Result<FluidForceView<'a>, TransferError> {
+        let FluidForceSource::Independent(plan) = &self.source else {
+            return Err(TransferError::ModelMismatch);
+        };
         if !Arc::ptr_eq(&self.spec, &data.spec)
             || data.worlds() != source.worlds()
-            || self.source.check_data(source).is_err()
+            || plan.check_data(source).is_err()
+            || data.resident_velocity.is_some()
         {
             return Err(TransferError::ModelMismatch);
         }
@@ -330,102 +393,245 @@ impl<'p> FluidForcePlan<'p> {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            check_guards(&data.body)?;
-            check_guards(&data.qfrc)?;
             let inputs = source.fluid_inputs()?;
-            let worlds = data.worlds();
-            let body_work = worlds
-                .checked_mul(self.spec.nb)
-                .ok_or(InputError::Overflow {
-                    field: "fluid_force_work",
-                })?;
-            let qfrc_work = worlds
-                .checked_mul(self.spec.nv)
-                .ok_or(InputError::Overflow {
-                    field: "fluid_force_work",
-                })?;
-            // SAFETY: 同源票据保证位置、质心与速度一致。
-            // 验证核先检查守卫、映射、周期参数与活动输入。
-            unsafe {
-                self.kernels[0].launch_fluid_force(
-                    &self.metadata,
-                    [
-                        &self.parameters,
-                        inputs.rigid,
-                        inputs.com,
-                        inputs.velocity,
-                        &self.parameters,
-                    ],
-                    &mut data.status,
-                    [
-                        self.spec.nb as u32,
-                        self.spec.nv as u32,
-                        worlds as u32,
-                        worlds as u32,
-                    ],
-                )?;
-            }
-            let status = read_output(&data.status, worlds, "fluid_force_status")?;
-            if let Some(index) = status[4..4 + worlds].iter().position(|&value| value != 1.0) {
-                return Err(InputError::InvalidTopology {
-                    field: "fluid_force_source",
-                    index,
-                    reason: "guard_mapping_or_nonfinite",
-                }
-                .into());
-            }
-            // SAFETY: 每线程独占一个世界刚体空间力槽。
-            unsafe {
-                self.kernels[1].launch_fluid_force(
-                    &self.metadata,
-                    [
-                        &self.parameters,
-                        inputs.rigid,
-                        inputs.com,
-                        inputs.velocity,
-                        &self.parameters,
-                    ],
-                    &mut data.body,
-                    [
-                        self.spec.nb as u32,
-                        self.spec.nv as u32,
-                        worlds as u32,
-                        body_work as u32,
-                    ],
-                )?;
-            }
-            read_output(
-                &data.body,
-                data.layout.body.total_elements(),
-                "fluid_force_body",
-            )?;
-            // SAFETY: 每线程按bodyid升序投影一个自由度。
-            unsafe {
-                self.kernels[2].launch_fluid_force(
-                    &self.metadata,
-                    [
-                        &self.parameters,
-                        inputs.rigid,
-                        inputs.com,
-                        &data.body,
-                        &self.parameters,
-                    ],
-                    &mut data.qfrc,
-                    [
-                        self.spec.nb as u32,
-                        self.spec.nv as u32,
-                        worlds as u32,
-                        qfrc_work as u32,
-                    ],
-                )?;
-            }
-            read_output(&data.qfrc, data.layout.qfrc.total_elements(), "qfrc_fluid")?;
+            self.launch(inputs, data)?;
             data.ready = true;
             Ok(FluidForceView {
                 data,
                 _source: source,
             })
         }
+    }
+
+    pub(super) fn accepts_resident_source(&self, source: &KinematicsPlan) -> bool {
+        matches!(&self.source, FluidForceSource::Resident(plan) if plan.accepts_source(source))
+    }
+
+    #[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
+    pub(super) fn update_resident(
+        &self,
+        source: &KinematicsData,
+        data: &mut FluidForceData,
+    ) -> Result<(), TransferError> {
+        let FluidForceSource::Resident(plan) = &self.source else {
+            return Err(TransferError::ModelMismatch);
+        };
+        if !Arc::ptr_eq(&self.spec, &data.spec) || data.worlds() != source.worlds() {
+            return Err(TransferError::ModelMismatch);
+        }
+        data.ready = false;
+        let resident = data
+            .resident_velocity
+            .as_mut()
+            .ok_or(TransferError::ModelMismatch)?;
+        plan.update(source, resident)?;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let inputs = resident.fluid_inputs()?;
+            let layout = data.layout;
+            self.launch_buffers(
+                inputs,
+                layout,
+                &mut data.body,
+                &mut data.qfrc,
+                &mut data.status,
+            )?;
+            data.ready = true;
+            Ok(())
+        }
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn shared_qfrc<'a>(
+        &self,
+        data: &'a FluidForceData,
+        worlds: usize,
+    ) -> Result<&'a TransferBuffer<f32>, TransferError> {
+        if !Arc::ptr_eq(&self.spec, &data.spec) || data.worlds() != worlds {
+            return Err(TransferError::ModelMismatch);
+        }
+        if !data.ready {
+            return Err(TransferError::StageNotReady {
+                stage: "fluid_force",
+            });
+        }
+        Ok(&data.qfrc)
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn clear_shared(
+        &self,
+        data: &mut FluidForceData,
+        worlds: usize,
+    ) -> Result<(), TransferError> {
+        if !matches!(&self.source, FluidForceSource::Resident(_))
+            || !Arc::ptr_eq(&self.spec, &data.spec)
+            || data.worlds() != worlds
+            || data.resident_velocity.is_none()
+        {
+            return Err(TransferError::ModelMismatch);
+        }
+        let layout = data.layout;
+        let body_work = clear_work(layout.body.total_elements())?;
+        let qfrc_work = clear_work(layout.qfrc.total_elements())?;
+        let status_work = clear_work(worlds)?;
+        data.ready = false;
+        data.resident_velocity
+            .as_mut()
+            .ok_or(TransferError::ModelMismatch)?
+            .invalidate();
+        check_guards(&data.body)?;
+        check_guards(&data.qfrc)?;
+        check_guards(&data.status)?;
+        for (output, work) in [
+            (&mut data.body, body_work),
+            (&mut data.qfrc, qfrc_work),
+            (&mut data.status, status_work),
+        ] {
+            // SAFETY: 每线程清零一个独占槽。
+            // 五个参数缓冲只满足私有ABI。
+            unsafe {
+                self.kernels[3].launch_fluid_force(
+                    &self.metadata,
+                    [
+                        &self.parameters,
+                        &self.parameters,
+                        &self.parameters,
+                        &self.parameters,
+                        &self.parameters,
+                    ],
+                    output,
+                    [
+                        self.spec.nb as u32,
+                        self.spec.nv as u32,
+                        worlds as u32,
+                        work,
+                    ],
+                )?;
+            }
+        }
+        read_output(&data.body, layout.body.total_elements(), "fluid_force_body")?;
+        read_output(&data.qfrc, layout.qfrc.total_elements(), "qfrc_fluid")?;
+        read_output(&data.status, worlds, "fluid_force_status")?;
+        data.ready = true;
+        Ok(())
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    fn launch(
+        &self,
+        inputs: FluidInputs<'_>,
+        data: &mut FluidForceData,
+    ) -> Result<(), TransferError> {
+        let layout = data.layout;
+        self.launch_buffers(
+            inputs,
+            layout,
+            &mut data.body,
+            &mut data.qfrc,
+            &mut data.status,
+        )
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    fn launch_buffers(
+        &self,
+        inputs: FluidInputs<'_>,
+        layout: Layout,
+        body: &mut TransferBuffer<f32>,
+        qfrc: &mut TransferBuffer<f32>,
+        status_buffer: &mut TransferBuffer<f32>,
+    ) -> Result<(), TransferError> {
+        check_guards(body)?;
+        check_guards(qfrc)?;
+        let worlds = layout.qfrc.worlds();
+        let body_work = worlds
+            .checked_mul(self.spec.nb)
+            .ok_or(InputError::Overflow {
+                field: "fluid_force_work",
+            })?;
+        let qfrc_work = worlds
+            .checked_mul(self.spec.nv)
+            .ok_or(InputError::Overflow {
+                field: "fluid_force_work",
+            })?;
+        // SAFETY: 输入来自同一已就绪速度票据。
+        // 验证核先检查守卫、映射与参数。
+        unsafe {
+            self.kernels[0].launch_fluid_force(
+                &self.metadata,
+                [
+                    &self.parameters,
+                    inputs.rigid,
+                    inputs.com,
+                    inputs.velocity,
+                    &self.parameters,
+                ],
+                status_buffer,
+                [
+                    self.spec.nb as u32,
+                    self.spec.nv as u32,
+                    worlds as u32,
+                    worlds as u32,
+                ],
+            )?;
+        }
+        let status = read_output(status_buffer, worlds, "fluid_force_status")?;
+        if let Some(index) = status[4..4 + worlds].iter().position(|&value| value != 1.0) {
+            return Err(InputError::InvalidTopology {
+                field: "fluid_force_source",
+                index,
+                reason: "guard_mapping_or_nonfinite",
+            }
+            .into());
+        }
+        // SAFETY: 每线程独占一个刚体空间力槽。
+        unsafe {
+            self.kernels[1].launch_fluid_force(
+                &self.metadata,
+                [
+                    &self.parameters,
+                    inputs.rigid,
+                    inputs.com,
+                    inputs.velocity,
+                    &self.parameters,
+                ],
+                body,
+                [
+                    self.spec.nb as u32,
+                    self.spec.nv as u32,
+                    worlds as u32,
+                    body_work as u32,
+                ],
+            )?;
+        }
+        read_output(body, layout.body.total_elements(), "fluid_force_body")?;
+        // SAFETY: 每线程按bodyid升序投影自由度。
+        unsafe {
+            self.kernels[2].launch_fluid_force(
+                &self.metadata,
+                [
+                    &self.parameters,
+                    inputs.rigid,
+                    inputs.com,
+                    body,
+                    &self.parameters,
+                ],
+                qfrc,
+                [
+                    self.spec.nb as u32,
+                    self.spec.nv as u32,
+                    worlds as u32,
+                    qfrc_work as u32,
+                ],
+            )?;
+        }
+        read_output(qfrc, layout.qfrc.total_elements(), "qfrc_fluid")?;
+        Ok(())
     }
 }
 
@@ -434,7 +640,7 @@ impl FluidForceData {
         self.layout.qfrc.worlds()
     }
 
-    fn snapshot(&self) -> Result<FluidForceSnapshot, TransferError> {
+    pub(super) fn snapshot(&self) -> Result<FluidForceSnapshot, TransferError> {
         if !self.ready {
             return Err(TransferError::StageNotReady {
                 stage: "fluid_force",
@@ -456,6 +662,15 @@ impl FluidForceData {
                 qfrc: read_output(&self.qfrc, self.layout.qfrc.total_elements(), "qfrc_fluid")?,
             })
         }
+    }
+
+    #[cfg(all(test, feature = "cuda-probe"))]
+    pub(super) fn corrupt_body_guard_for_test(
+        &mut self,
+        index: usize,
+        value: f32,
+    ) -> Result<(), TransferError> {
+        self.body.write_range(index, &[value])
     }
 }
 
@@ -532,6 +747,9 @@ extern "C" __global__ void fluid_force_project(const int* raw,const float* p,con
  for(unsigned b=(unsigned)dofbody;b<FF_NB;++b){const float* f=force+6*b;if(f[0]==0.0f&&f[1]==0.0f&&f[2]==0.0f&&f[3]==0.0f&&f[4]==0.0f&&f[5]==0.0f)continue;int cursor=(int)b;while(cursor!=0&&cursor!=dofbody)cursor=parent[cursor];if(cursor==0)continue;const float* point=xipos+3*b;const float* center=subtree+3*(unsigned)root[b];float offset[3]={point[0]-center[0],point[1]-center[1],point[2]-center[2]};float cross[3]={cdof[1]*offset[2]-cdof[2]*offset[1],cdof[2]*offset[0]-cdof[0]*offset[2],cdof[0]*offset[1]-cdof[1]*offset[0]};accum+=ff_dot6(jac,f)+ff_dot3(cross,f);}
  output[4+tid]=accum;
 }
+extern "C" __global__ void fluid_force_clear(const int* raw,const float* p,const float* first,const float* second,const float* third,const float* fourth,float* output,unsigned nb,unsigned nv,unsigned worlds,unsigned work){
+ unsigned tid=blockIdx.x*blockDim.x+threadIdx.x;if(tid>=work)return;output[4+tid]=0.0f;
+}
 "#;
 
 #[cfg(test)]
@@ -541,6 +759,23 @@ mod tests {
         AttachedFields, InertialFields, InertialModelInput, KinematicFields, KinematicModelInput,
         KinematicsParameter, KinematicsParameters,
     };
+
+    #[test]
+    fn checks_fluid_clear_work_bounds() {
+        assert_eq!(clear_work(1).unwrap(), 1);
+        assert_eq!(
+            clear_work((u32::MAX - 255) as usize).unwrap(),
+            u32::MAX - 255
+        );
+        for value in [0, (u32::MAX - 254) as usize, usize::MAX] {
+            assert!(matches!(
+                clear_work(value),
+                Err(InputError::Overflow {
+                    field: "fluid_force_clear_work"
+                })
+            ));
+        }
+    }
 
     fn simple_model() -> AttachedModelInput {
         let kinematic = KinematicModelInput::new(

@@ -46,6 +46,39 @@ pub struct ComVelocityData {
     com: TransferBuffer<f32>,
 }
 
+/// 借用常驻运动学状态的空间速度计划。
+/// 它只拥有派生设备缓冲。
+#[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
+pub(super) struct ResidentComVelocityPlan<'p> {
+    source: &'p KinematicsPlan,
+    identity: std::sync::Arc<()>,
+    nbody: usize,
+    njnt: usize,
+    nv: usize,
+    #[cfg(feature = "cuda-probe")]
+    session: TransferSession,
+    #[cfg(feature = "cuda-probe")]
+    metadata: TransferBuffer<i32>,
+    #[cfg(feature = "cuda-probe")]
+    kernel: SynchronousKernel,
+    #[cfg(feature = "cuda-probe")]
+    position_kernels: super::resident::VelocityPositionKernels,
+}
+
+/// 同源位置、质心与速度派生结果。
+#[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
+pub(super) struct ResidentComVelocityData {
+    identity: std::sync::Arc<()>,
+    layout: ComVelocityLayout,
+    ready: bool,
+    #[cfg(feature = "cuda-probe")]
+    output: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    rigid: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    com: TransferBuffer<f32>,
+}
+
 #[cfg(feature = "cuda-probe")]
 pub(super) struct RneInputs<'a> {
     pub qvel: &'a TransferBuffer<f32>,
@@ -309,6 +342,138 @@ impl ComVelocityPlan {
             data.ready = true;
             Ok(())
         }
+    }
+}
+
+#[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
+impl<'p> ResidentComVelocityPlan<'p> {
+    pub(super) fn new(source: &'p KinematicsPlan) -> Result<Self, TransferError> {
+        let (session, model, _, _) = source.fluid_force_context()?;
+        let k = model.rigid().kinematics();
+        let (nbody, njnt, nv) = (k.nbody(), k.njnt(), k.nv());
+        ComVelocityLayout::new(1, nbody, njnt, nv)?;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = (session, model);
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let f = k.fields();
+            let mut values = crate::runtime::host_staging::<i32>(3 * nbody + 2 * njnt)?;
+            let mut cursor = 0;
+            for field in [
+                &f.body_parentid,
+                &f.body_jntnum,
+                &f.body_jntadr,
+                &f.jnt_type,
+                &f.jnt_dofadr,
+            ] {
+                values[cursor..cursor + field.len()].copy_from_slice(field);
+                cursor += field.len();
+            }
+            Ok(Self {
+                source,
+                identity: std::sync::Arc::new(()),
+                nbody,
+                njnt,
+                nv,
+                metadata: session.upload(&values)?,
+                kernel: SynchronousKernel::compile(&session, COM_VELOCITY_CUDA, "com_velocity")?,
+                position_kernels: source.compile_velocity_position()?,
+                session,
+            })
+        }
+    }
+
+    pub(super) fn accepts_source(&self, source: &KinematicsPlan) -> bool {
+        std::ptr::eq(self.source, source)
+    }
+
+    pub(super) fn create_data(
+        &self,
+        worlds: usize,
+    ) -> Result<ResidentComVelocityData, TransferError> {
+        let layout = ComVelocityLayout::new(worlds, self.nbody, self.njnt, self.nv)?;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = layout;
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            Ok(ResidentComVelocityData {
+                identity: self.identity.clone(),
+                layout,
+                ready: false,
+                output: velocity_workspace(&self.session, layout.guarded)?,
+                rigid: velocity_workspace(&self.session, layout.guarded_rigid)?,
+                com: velocity_workspace(&self.session, layout.guarded_com)?,
+            })
+        }
+    }
+
+    pub(super) fn update(
+        &self,
+        source: &KinematicsData,
+        data: &mut ResidentComVelocityData,
+    ) -> Result<(), TransferError> {
+        if !std::sync::Arc::ptr_eq(&self.identity, &data.identity)
+            || data.layout.output.worlds() != source.worlds()
+        {
+            return Err(TransferError::ModelMismatch);
+        }
+        self.source.check_data(source)?;
+        data.ready = false;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let qvel = self.source.fluid_force_qvel_source(source)?;
+            self.source.update_velocity_position(
+                source,
+                &self.position_kernels,
+                &mut data.rigid,
+                &mut data.com,
+            )?;
+            let worlds = source.worlds() as u32;
+            // SAFETY: qvel与位置来自同一KinematicsData。
+            // 私有输出按已检查布局分配。
+            unsafe {
+                self.kernel.launch(
+                    &self.metadata,
+                    qvel,
+                    &data.com,
+                    &mut data.output,
+                    [self.nbody as u32, self.njnt as u32, self.nv as u32, worlds],
+                )?;
+            }
+            data.ready = true;
+            Ok(())
+        }
+    }
+}
+
+impl ResidentComVelocityData {
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn invalidate(&mut self) {
+        self.ready = false;
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn fluid_inputs(&self) -> Result<FluidInputs<'_>, TransferError> {
+        if !self.ready {
+            return Err(TransferError::StageNotReady {
+                stage: "resident_com_velocity",
+            });
+        }
+        Ok(FluidInputs {
+            rigid: &self.rigid,
+            com: &self.com,
+            velocity: &self.output,
+        })
     }
 }
 
