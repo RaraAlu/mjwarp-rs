@@ -300,3 +300,17 @@ Linux、发行模式与T4均未执行。
 数据见[数值统计](evidence/resident-mixed-mass/numeric.json)。
 产物见[回执索引](evidence/resident-mixed-mass/kernel-index.json)。
 来源见[映射](evidence/resident-mixed-mass/map.json)。
+
+## 追加定向核验
+
+修后桥接函数现已执行。
+结果为一过零败。
+命令过滤三百零九项。
+测试耗时二点四七秒。
+qpos状态长度断言通过。
+状态失效链断言通过。
+右端项复用因子通过。
+旧失败与调用仍保留。
+旧成功目标没有重跑。
+完整G03与NP仍开放。
+结果见[跟进证据](evidence/resident-mixed-mass/followup-2026-10-14.json)。

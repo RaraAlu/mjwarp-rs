@@ -198,3 +198,18 @@ Linux与发行模式没有执行。
 结果见[原始数值](evidence/small-mass-prefix/results.json)。
 映射见[来源记录](evidence/small-mass-prefix/map.json)。
 命令见[审计账本](evidence/small-mass-prefix/audit.json)。
+
+## 追加定向核验
+
+用户已澄清次数规则。
+失败不会触发放弃。
+规则只禁止重复检查。
+本轮只执行缺失函数。
+修后身份断言现已通过。
+结果为一过零败。
+该命令没有过滤用例。
+测试耗时零点一九秒。
+旧三次调用历史保留。
+旧GPU目标没有重跑。
+完整G03与NP仍开放。
+结果见[跟进证据](evidence/small-mass-prefix/followup-2026-10-14.json)。
