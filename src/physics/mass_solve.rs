@@ -12,10 +12,11 @@ pub use sparse::{
     SparseMassData, SparseMassDenseData, SparseMassDenseOutput, SparseMassDensePlan,
     SparseMassFactorData, SparseMassFactorOutput, SparseMassFactorPlan, SparseMassFactorWorld,
     SparseMassMixedFactorData, SparseMassMixedFactorOutput, SparseMassMixedFactorPlan,
-    SparseMassMixedFactorWorld, SparseMassMixedSolveData, SparseMassMixedSolveOutput,
-    SparseMassMixedSolvePlan, SparseMassMixedSolveWorld, SparseMassOutput, SparseMassPlan,
-    SparseMassSmallData, SparseMassSmallOutput, SparseMassSmallPlan, SparseMassSolveData,
-    SparseMassSolveOutput, SparseMassSolvePlan, SparseMassSolveWorld, SparseMassWorld,
+    SparseMassMixedFactorWorld, SparseMassMixedResidentData, SparseMassMixedResidentPlan,
+    SparseMassMixedSolveData, SparseMassMixedSolveOutput, SparseMassMixedSolvePlan,
+    SparseMassMixedSolveWorld, SparseMassOutput, SparseMassPlan, SparseMassSmallData,
+    SparseMassSmallOutput, SparseMassSmallPlan, SparseMassSolveData, SparseMassSolveOutput,
+    SparseMassSolvePlan, SparseMassSolveWorld, SparseMassWorld,
 };
 
 /// 每个独立运动树的因子格式。

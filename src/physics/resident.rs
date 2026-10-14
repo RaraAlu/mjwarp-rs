@@ -2182,6 +2182,12 @@ impl KinematicsPlan {
 }
 
 impl KinematicsData {
+    #[cfg(all(test, feature = "cuda-probe"))]
+    pub(in crate::physics) fn state_values_for_test(&self) -> Result<Vec<f32>, TransferError> {
+        let mut values = crate::runtime::host_staging::<f32>(self.state.len())?;
+        self.state.read_range_into(0, &mut values)?;
+        Ok(values)
+    }
     /// CRB只借用新鲜质心工作区。
     #[cfg(feature = "cuda-probe")]
     pub(super) fn mass_matrix_input(&self) -> Result<&TransferBuffer<f32>, TransferError> {

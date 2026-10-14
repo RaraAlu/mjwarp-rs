@@ -236,3 +236,13 @@ NP01至NP04继续开放。
 数据见[数值统计](evidence/mixed-mass-solve/numeric.json)。
 边界见[审计](evidence/mixed-mass-solve/audit.json)。
 来源见[映射](evidence/mixed-mass-solve/map.json)。
+
+## 后续独立桥接增量
+
+后续新增[CRB混合桥接](resident-mixed-mass.md)。
+它复用本消费器的完成因子。
+它不重跑本轮冻结测试。
+新数值与私有故障通过。
+新状态测试失败后静态修复。
+该状态用途修后尚未执行。
+完整G03与NP仍未验收。

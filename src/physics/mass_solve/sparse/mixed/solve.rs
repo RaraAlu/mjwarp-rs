@@ -11,8 +11,10 @@ use crate::diagnostics::{InputError, TransferError};
 use crate::model::SparseMassRoute;
 use crate::model::{BatchLayout, SparseMassInput};
 use crate::runtime::TransferSession;
+mod resident;
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
+pub use resident::{SparseMassMixedResidentData, SparseMassMixedResidentPlan};
 
 pub struct SparseMassMixedSolvePlan {
     mass: SparseMassMixedFactorPlan,

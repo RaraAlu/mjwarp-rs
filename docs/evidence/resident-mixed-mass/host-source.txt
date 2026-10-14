@@ -1,0 +1,334 @@
+//! GPU CRB到三路混合分解/求解的常驻桥接。
+//! 调用方只写qpos/RHS；物理CSR始终留在设备上。
+use super::{SparseMassMixedSolveData, SparseMassMixedSolveOutput, SparseMassMixedSolvePlan};
+#[cfg(not(feature = "cuda-probe"))]
+use crate::diagnostics::ProbeError;
+use crate::diagnostics::{InputError, TransferError};
+use crate::model::{AttachedModelInput, SparseMassInput};
+use crate::physics::{MassMatrixData, MassMatrixOutput, MassMatrixPlan};
+use crate::runtime::TransferSession;
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::{SynchronousKernel, TransferBuffer};
+
+pub struct SparseMassMixedResidentPlan {
+    matrix: MassMatrixPlan,
+    solve: SparseMassMixedSolvePlan,
+    #[cfg(feature = "cuda-probe")]
+    nbody: usize,
+    #[cfg(feature = "cuda-probe")]
+    metadata: TransferBuffer<i32>,
+    #[cfg(feature = "cuda-probe")]
+    kernels: [SynchronousKernel; 2],
+}
+pub struct SparseMassMixedResidentData {
+    matrix: MassMatrixData,
+    solve: SparseMassMixedSolveData,
+    gathered: bool,
+    #[cfg(feature = "cuda-probe")]
+    status: TransferBuffer<f32>,
+}
+fn topology(model: &AttachedModelInput, input: &SparseMassInput) -> Result<(), InputError> {
+    if model.rigid().kinematics().nv() != input.nv()
+        || model.rigid().fields().dof_parentid != input.fields().dof_parentid
+    {
+        return Err(InputError::InvalidTopology {
+            field: "resident_mixed_topology",
+            index: 0,
+            reason: "CSR_and_inertial_dof_topology_must_match",
+        });
+    }
+    Ok(())
+}
+impl SparseMassMixedResidentPlan {
+    pub fn new(
+        session: &TransferSession,
+        model: AttachedModelInput,
+        input: SparseMassInput,
+    ) -> Result<Self, TransferError> {
+        topology(&model, &input)?;
+        #[cfg(feature = "cuda-probe")]
+        let nbody = model.rigid().kinematics().nbody();
+        // The mixed constructor rejects Tile before a physics producer exists.
+        let solve = SparseMassMixedSolvePlan::new(session, input)?;
+        let matrix = MassMatrixPlan::new(session, model)?;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = (solve, matrix);
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let f = solve.input().fields();
+            let mut meta = f.m_rownnz.clone();
+            meta.extend(&f.m_rowadr);
+            meta.extend(&f.m_colind);
+            if meta.len() > i32::MAX as usize {
+                return Err(InputError::Overflow {
+                    field: "resident_mixed_metadata",
+                }
+                .into());
+            }
+            Ok(Self {
+                matrix,
+                solve,
+                nbody,
+                metadata: session.upload(&meta)?,
+                kernels: [
+                    SynchronousKernel::compile(session, CUDA, "resident_mixed_validate")?,
+                    SynchronousKernel::compile(session, CUDA, "resident_mixed_gather")?,
+                ],
+            })
+        }
+    }
+    pub fn input(&self) -> &SparseMassInput {
+        self.solve.input()
+    }
+    pub fn create_data(
+        &self,
+        worlds: usize,
+        rhs_count: usize,
+    ) -> Result<SparseMassMixedResidentData, TransferError> {
+        let matrix = self.matrix.create_data(worlds)?;
+        let solve = self.solve.create_data(worlds, rhs_count)?;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = (matrix, solve);
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let mut status = crate::runtime::host_staging::<f32>(worlds + 8)?;
+            status.fill(-131072.0);
+            status[4..4 + worlds].fill(f32::NAN);
+            Ok(SparseMassMixedResidentData {
+                matrix,
+                solve,
+                gathered: false,
+                status: self.solve.mass.session.upload(&status)?,
+            })
+        }
+    }
+    fn check_data(&self, data: &SparseMassMixedResidentData) -> Result<(), TransferError> {
+        self.matrix.check_data(&data.matrix)?;
+        self.solve.mass.check_data(&data.solve.mass)
+    }
+    pub fn update(&self, data: &mut SparseMassMixedResidentData) -> Result<(), TransferError> {
+        self.update_position(data)?;
+        self.update_matrix(data)?;
+        self.update_gather(data)?;
+        self.update_factor(data)?;
+        self.update_solve(data)
+    }
+    pub fn update_position(
+        &self,
+        data: &mut SparseMassMixedResidentData,
+    ) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        data.invalidate();
+        self.matrix.update_position(&mut data.matrix)
+    }
+    pub fn update_matrix(
+        &self,
+        data: &mut SparseMassMixedResidentData,
+    ) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        data.invalidate();
+        self.matrix.update_matrix(&mut data.matrix)
+    }
+    pub fn update_gather(
+        &self,
+        data: &mut SparseMassMixedResidentData,
+    ) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        data.invalidate();
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let source = data.matrix.matrix_input()?;
+            let n = self.input().nv() as u32;
+            let nc = self.input().nc() as u32;
+            let worlds = data.worlds() as u32;
+            // SAFETY: Source owns guarded worlds*(10*nb+n*n) f32 values. The
+            // validator only reads it and owns one separate status per world.
+            unsafe {
+                self.kernels[0].launch(
+                    &self.metadata,
+                    source,
+                    source,
+                    &mut data.status,
+                    [self.nbody as u32, n, nc, worlds],
+                )?;
+            }
+            let mut status = crate::runtime::host_staging::<f32>(data.worlds() + 8)?;
+            data.status.read_range_into(0, &mut status)?;
+            crate::physics::check_device_values(&status, "resident_mixed_source_status")?;
+            for (world, &value) in status[4..4 + data.worlds()].iter().enumerate() {
+                if value != 1.0 {
+                    return Err(InputError::InvalidTopology {
+                        field: "resident_mixed_source",
+                        index: world,
+                        reason: "invalid_CRB_or_dense_matrix",
+                    }
+                    .into());
+                }
+            }
+            // SAFETY: Validated CSR rows partition nc, columns fit n, and the
+            // disjoint primary M payload is worlds*nc with persistent guards.
+            unsafe {
+                self.kernels[1].launch(
+                    &self.metadata,
+                    source,
+                    source,
+                    &mut data.solve.mass.matrix,
+                    [self.nbody as u32, n, nc, worlds * n],
+                )?;
+            }
+            let mut guards = [0.0f32; 8];
+            data.solve
+                .mass
+                .matrix
+                .read_range_into(0, &mut guards[..4])?;
+            data.solve.mass.matrix.read_range_into(
+                4 + data.solve.mass.sparse.matrix_layout.total_elements(),
+                &mut guards[4..],
+            )?;
+            crate::physics::check_device_guards(&guards)?;
+            // This captures the GPU-produced primary CSR once for both actual
+            // factor producers. No host physical readback is uploaded again.
+            self.solve.update_gather(&mut data.solve)?;
+            data.gathered = true;
+            Ok(())
+        }
+    }
+    pub fn update_factor(
+        &self,
+        data: &mut SparseMassMixedResidentData,
+    ) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        if !data.gathered {
+            return Err(TransferError::StageNotReady {
+                stage: "resident_mixed_gather",
+            });
+        }
+        self.solve.update_factor(&mut data.solve)
+    }
+    pub fn update_solve(
+        &self,
+        data: &mut SparseMassMixedResidentData,
+    ) -> Result<(), TransferError> {
+        self.check_data(data)?;
+        if !data.gathered {
+            return Err(TransferError::StageNotReady {
+                stage: "resident_mixed_gather",
+            });
+        }
+        self.solve.update_solve(&mut data.solve)
+    }
+}
+impl SparseMassMixedResidentData {
+    pub fn worlds(&self) -> usize {
+        self.matrix.worlds()
+    }
+    pub fn rhs_count(&self) -> usize {
+        self.solve.rhs_count()
+    }
+    fn invalidate(&mut self) {
+        self.gathered = false;
+        self.solve.ready = false;
+        self.solve.mass.invalidate();
+    }
+    fn after_qpos(&mut self, result: Result<(), TransferError>) -> Result<(), TransferError> {
+        if !matches!(result, Err(TransferError::Input(_))) {
+            self.invalidate();
+        }
+        result
+    }
+    pub fn write_qpos(&mut self, values: &[f32]) -> Result<(), TransferError> {
+        let result = self.matrix.write_qpos(values);
+        self.after_qpos(result)
+    }
+    pub fn write_world_qpos(&mut self, world: usize, values: &[f32]) -> Result<(), TransferError> {
+        let result = self.matrix.write_world_qpos(world, values);
+        self.after_qpos(result)
+    }
+    pub fn write_rhs(&mut self, values: &[f32]) -> Result<(), TransferError> {
+        self.solve.write_rhs(values)
+    }
+    pub fn write_world_rhs(&mut self, world: usize, values: &[f32]) -> Result<(), TransferError> {
+        self.solve.write_world_rhs(world, values)
+    }
+    /// 仅读取完成合并因子；陈旧CRB不决定缓存解寿命。
+    pub fn readback(&self) -> Result<SparseMassMixedSolveOutput, TransferError> {
+        self.solve.readback()
+    }
+    /// 独立诊断当前GPU矩阵；不改变求解缓存。
+    pub fn readback_matrix(&self) -> Result<MassMatrixOutput, TransferError> {
+        self.matrix.readback()
+    }
+}
+// CSR selection reuses the frozen source/stride/copy semantics. No arithmetic
+// or upstream precision change; full CRB and matrix source is validated first.
+#[cfg(feature = "cuda-probe")]
+const CUDA: &str = r#"
+extern "C" __global__ void resident_mixed_validate(const int* meta,const float* source,
+ const float* unused,float* status,unsigned nb,unsigned n,unsigned nc,unsigned worlds) {
+ unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=worlds)return;
+ unsigned long long stride=10ull*nb+1ull*n*n,total=stride*worlds;bool valid=true;
+ for(unsigned j=0;j<4;++j)valid=valid && source[j]==-131072.0f && source[4+total+j]==-131072.0f;
+ const float* value=source+4+1ull*w*stride;
+ for(unsigned long long j=0;j<stride;++j)valid=valid && isfinite(value[j]);
+ status[4+w]=valid?1.0f:0.0f;
+}
+extern "C" __global__ void resident_mixed_gather(const int* meta,const float* source,
+ const float* unused,float* csr,unsigned nb,unsigned n,unsigned nc,unsigned work) {
+ unsigned tid=blockIdx.x*blockDim.x+threadIdx.x;if(tid>=work)return;
+ unsigned w=tid/n,row=tid%n;const int* rownnz=meta;const int* rowadr=meta+n;const int* colind=meta+2*n;
+ const float* dense=source+4+1ull*w*(10ull*nb+1ull*n*n)+10ull*nb;
+ float* output=csr+4+1ull*w*nc;
+ for(int j=0;j<rownnz[row];++j){int a=rowadr[row]+j;output[a]=dense[1ull*row*n+colind[a]];}
+}
+"#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate as engine;
+    mod input {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/support/resident_mixed_mass.rs"
+        ));
+    }
+    #[test]
+    fn assembled_offsets_preserve_native_fields_and_single_world_inertia() {
+        let model = input::model(false);
+        let k = model.rigid().kinematics();
+        let f = model.rigid().fields();
+        assert_eq!((k.nv(), k.nq(), k.nbody(), k.njnt()), (68, 68, 69, 68));
+        assert_eq!(&k.fields().body_parentid[66..], &[0, 66, 0]);
+        assert_eq!(&k.fields().jnt_bodyid[65..], &[66, 67, 68]);
+        assert_eq!(&f.dof_bodyid[65..], &[66, 67, 68]);
+        assert_eq!(&f.dof_jntid[65..], &[65, 66, 67]);
+        assert_eq!(&f.dof_parentid[65..], &[-1, 65, -1]);
+        assert_eq!(&f.body_mass[66..], &[2.0, 3.0, 4.0]);
+        assert_eq!(f.body_mass[0], 0.0);
+        assert_eq!(&f.body_inertia[..3], &[0.0; 3]);
+        let refs = input::reference();
+        assert_eq!(refs["cases"].as_array().unwrap().len(), 2);
+        assert_eq!(input::qpos(0).len(), 68);
+        assert_eq!(input::rhs(&refs, 0, 3).len(), 204);
+    }
+    #[test]
+    fn bridge_topology_rejects_different_nv_and_same_nv_wrong_ancestry() {
+        let model = input::model(false);
+        let sparse = input::input(false);
+        topology(&model, &sparse).unwrap();
+        assert!(topology(&model, &input::input(true)).is_err());
+        let other = input::model(true);
+        assert_eq!(other.rigid().kinematics().nv(), 68);
+        assert!(topology(&other, &sparse).is_err());
+    }
+}

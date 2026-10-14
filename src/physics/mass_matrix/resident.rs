@@ -218,6 +218,10 @@ impl MassMatrixPlan {
 
 impl MassMatrixData {
     #[cfg(all(test, feature = "cuda-probe"))]
+    pub(in crate::physics) fn state_values_for_test(&self) -> Result<Vec<f32>, TransferError> {
+        self.position.state_values_for_test()
+    }
+    #[cfg(all(test, feature = "cuda-probe"))]
     pub(in crate::physics) fn corrupt_output_for_test(
         &mut self,
         offset: usize,

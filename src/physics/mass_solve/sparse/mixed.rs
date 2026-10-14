@@ -11,8 +11,8 @@ use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
 mod solve;
 pub use solve::{
-    SparseMassMixedSolveData, SparseMassMixedSolveOutput, SparseMassMixedSolvePlan,
-    SparseMassMixedSolveWorld,
+    SparseMassMixedResidentData, SparseMassMixedResidentPlan, SparseMassMixedSolveData,
+    SparseMassMixedSolveOutput, SparseMassMixedSolvePlan, SparseMassMixedSolveWorld,
 };
 
 pub struct SparseMassMixedFactorPlan {
