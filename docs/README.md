@@ -249,6 +249,7 @@ NP04仍缺公平稳态性能对照。
     现新增[稀疏融合回代辅助](resident-sparse-solve.md)。
     随后补齐[非紧凑块GPU稠密化](sparse-mass-dense.md)。
     现新增[Small前缀分解辅助](small-mass-prefix.md)。
+    随后核实[七维MathDx原生编译](native-mathdx7.md)。
     原生入口补充[CSR六字段捕获](native-sparse-mass.md)。
 26. [Windows质量求解探针](windows-mass-solve-probe.md)
 27. [Windows附着运动学探针](windows-attached-kinematics-probe.md)
