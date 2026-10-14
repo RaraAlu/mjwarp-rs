@@ -38,6 +38,13 @@ pub use warp_com::{
     FrozenWarpComArtifact, FrozenWarpComInput, FrozenWarpComOutput, FrozenWarpComReadback,
     FrozenWarpComReceipt,
 };
+#[cfg(feature = "cuda-probe")]
+mod warp_kinematics;
+#[cfg(feature = "cuda-probe")]
+pub use warp_kinematics::{
+    FrozenWarpKinematicsArtifact, FrozenWarpKinematicsInput, FrozenWarpKinematicsReadback,
+    FrozenWarpKinematicsReceipt,
+};
 
 const GUARD_ELEMENTS: usize = 16;
 #[cfg(any(feature = "cuda-probe", test))]
