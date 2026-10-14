@@ -414,7 +414,7 @@ mod tests {
         TendonModelInput,
     };
     #[cfg(feature = "cuda-probe")]
-    use crate::model::{CamLightParameters, KinematicsParameters};
+    use crate::model::{CamLightParameters, KinematicsParameters, ParameterBatch};
 
     fn coefficient(j: usize) -> f32 {
         (j as i32 % 5 - 2) as f32 / 8.0
@@ -585,6 +585,81 @@ mod tests {
                 x as f32
             })
             .collect()
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn passive_repeated(period: usize, width: usize, row: &[f32]) -> ParameterBatch {
+        assert_eq!(width, row.len());
+        ParameterBatch::new(period, width, row.repeat(period)).unwrap()
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn passive_parameters(periods: [usize; 5]) -> crate::physics::TendonPassiveParameters {
+        let mut stiffness = vec![0.0; 5];
+        stiffness[0] = 0.25;
+        let mut stiffness_poly = vec![0.0; 10];
+        stiffness_poly[0] = 0.125;
+        stiffness_poly[1] = 0.0625;
+        let mut damping = vec![0.0; 5];
+        damping[0] = 0.125;
+        let mut damping_poly = vec![0.0; 10];
+        damping_poly[0] = 0.125;
+        damping_poly[1] = 0.0625;
+        let mut spring = vec![0.0; 10];
+        spring[1] = 1.0;
+        crate::physics::TendonPassiveParameters {
+            stiffness: passive_repeated(periods[0], 5, &stiffness),
+            stiffness_poly: passive_repeated(periods[1], 10, &stiffness_poly),
+            damping: passive_repeated(periods[2], 5, &damping),
+            damping_poly: passive_repeated(periods[3], 10, &damping_poly),
+            length_spring: passive_repeated(periods[4], 10, &spring),
+        }
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn varying_passive_parameters() -> crate::physics::TendonPassiveParameters {
+        let scalar = |period: usize, base: f32| {
+            let mut values = Vec::with_capacity(5 * period);
+            for row in 0..period {
+                let mut field = vec![0.0; 5];
+                field[0] = base + row as f32 / 64.0;
+                values.extend(field);
+            }
+            ParameterBatch::new(period, 5, values).unwrap()
+        };
+        let poly = |period: usize| {
+            let mut values = Vec::with_capacity(10 * period);
+            for row in 0..period {
+                let mut field = vec![0.0; 10];
+                field[0] = row as f32 / 64.0;
+                values.extend(field);
+            }
+            ParameterBatch::new(period, 10, values).unwrap()
+        };
+        let mut lengths = Vec::with_capacity(110);
+        for row in 0..11 {
+            let mut field = vec![0.0; 10];
+            field[1] = 1.0 + row as f32 / 32.0;
+            lengths.extend(field);
+        }
+        crate::physics::TendonPassiveParameters {
+            stiffness: scalar(2, 0.25),
+            stiffness_poly: poly(3),
+            damping: scalar(5, 0.125),
+            damping_poly: poly(7),
+            length_spring: ParameterBatch::new(11, 10, lengths).unwrap(),
+        }
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn empty_row_passive_parameters() -> crate::physics::TendonPassiveParameters {
+        let mut stiffness = vec![0.0; 5];
+        stiffness[4] = 0.25;
+        let mut damping = vec![0.0; 5];
+        damping[4] = 0.125;
+        crate::physics::TendonPassiveParameters {
+            stiffness: ParameterBatch::new(1, 5, stiffness).unwrap(),
+            stiffness_poly: ParameterBatch::new(1, 10, vec![0.0; 10]).unwrap(),
+            damping: ParameterBatch::new(1, 5, damping).unwrap(),
+            damping_poly: ParameterBatch::new(1, 10, vec![0.0; 10]).unwrap(),
+            length_spring: ParameterBatch::new(1, 10, vec![0.0; 10]).unwrap(),
+        }
     }
     #[test]
     #[cfg(feature = "cuda-probe")]
@@ -814,34 +889,7 @@ mod tests {
     #[cfg(feature = "cuda-probe")]
     #[ignore = "new tendon passive consumer; does not rerun old tendon velocity acceptance"]
     fn gpu_tendon_passive_consumes_actual_length_jacobian_and_velocity() {
-        use crate::model::ParameterBatch;
-        use crate::physics::{TendonPassiveOptions, TendonPassiveParameters, TendonPassivePlan};
-
-        fn repeated(period: usize, width: usize, row: &[f32]) -> ParameterBatch {
-            assert_eq!(width, row.len());
-            ParameterBatch::new(period, width, row.repeat(period)).unwrap()
-        }
-        fn passive_parameters(periods: [usize; 5]) -> TendonPassiveParameters {
-            let mut stiffness = vec![0.0; 5];
-            stiffness[0] = 0.25;
-            let mut stiffness_poly = vec![0.0; 10];
-            stiffness_poly[0] = 0.125;
-            stiffness_poly[1] = 0.0625;
-            let mut damping = vec![0.0; 5];
-            damping[0] = 0.125;
-            let mut damping_poly = vec![0.0; 10];
-            damping_poly[0] = 0.125;
-            damping_poly[1] = 0.0625;
-            let mut spring = vec![0.0; 10];
-            spring[1] = 1.0;
-            TendonPassiveParameters {
-                stiffness: repeated(periods[0], 5, &stiffness),
-                stiffness_poly: repeated(periods[1], 10, &stiffness_poly),
-                damping: repeated(periods[2], 5, &damping),
-                damping_poly: repeated(periods[3], 10, &damping_poly),
-                length_spring: repeated(periods[4], 10, &spring),
-            }
-        }
+        use crate::physics::{TendonPassiveOptions, TendonPassivePlan};
 
         let session = TransferSession::new(0).unwrap();
         let source_plan = producer(&session, 3);
@@ -941,5 +989,190 @@ mod tests {
             "tendon_passive worlds=260 slots={slots} bit_difference=0 atomic_overlap_unproven=true phase_ms={}",
             timer.elapsed().as_millis()
         );
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "new conditional-read coverage for frozen disable and zero-coefficient semantics"]
+    fn gpu_tendon_passive_skips_disabled_and_inactive_inputs() {
+        use crate::physics::{TendonPassiveOptions, TendonPassivePlan};
+
+        let session = TransferSession::new(0).unwrap();
+        let source_plan = producer(&session, 3);
+        let velocity_plan = TendonVelocityPlan::new(&source_plan).unwrap();
+        let parameters = passive_parameters([2, 3, 5, 7, 11]);
+        let active = TendonPassivePlan::new(
+            &velocity_plan,
+            parameters.clone(),
+            TendonPassiveOptions::default(),
+        )
+        .unwrap();
+        let disabled = TendonPassivePlan::new(
+            &velocity_plan,
+            parameters.clone(),
+            TendonPassiveOptions {
+                disable_spring: true,
+                disable_damper: true,
+            },
+        )
+        .unwrap();
+        let damper = TendonPassivePlan::new(
+            &velocity_plan,
+            parameters.clone(),
+            TendonPassiveOptions {
+                disable_spring: true,
+                disable_damper: false,
+            },
+        )
+        .unwrap();
+        let spring = TendonPassivePlan::new(
+            &velocity_plan,
+            parameters,
+            TendonPassiveOptions {
+                disable_spring: false,
+                disable_damper: true,
+            },
+        )
+        .unwrap();
+
+        let mut source = source_plan.create_data(1).unwrap();
+        source_plan.update(&mut source).unwrap();
+        let mut velocity = velocity_plan.create_data(1).unwrap();
+        velocity.write_qvel(&[0.25, -0.25, 0.0]).unwrap();
+        let initial = velocity_plan.update(&source, &mut velocity).unwrap();
+        drop(initial);
+
+        let source_buffer = source.tendon_velocity_source_for_test();
+        let raw_source = raw(source_buffer);
+        source_buffer.write_range(4, &[f32::NAN, f32::NAN]).unwrap();
+        let view = velocity_plan.update(&source, &mut velocity).unwrap();
+        let mut disabled_data = disabled.create_data(1).unwrap();
+        let zero = disabled
+            .update(&view, &mut disabled_data)
+            .unwrap()
+            .snapshot()
+            .unwrap();
+        assert_eq!(bits(zero.spring(0).unwrap()), bits(&[0.0; 3]));
+        assert_eq!(bits(zero.damper(0).unwrap()), bits(&[0.0; 3]));
+
+        let mut damper_data = damper.create_data(1).unwrap();
+        let damper_snapshot = damper
+            .update(&view, &mut damper_data)
+            .unwrap()
+            .snapshot()
+            .unwrap();
+        assert_eq!(
+            bits(damper_snapshot.damper(0).unwrap()),
+            bits(&[-0.1015625, 0.1015625, 0.0])
+        );
+        let mut active_data = active.create_data(1).unwrap();
+        assert!(active.update(&view, &mut active_data).is_err());
+        drop(view);
+
+        source
+            .tendon_velocity_source_for_test()
+            .write_range(4, &[raw_source[4]])
+            .unwrap();
+        let view = velocity_plan.update(&source, &mut velocity).unwrap();
+        active.update(&view, &mut active_data).unwrap();
+        drop(view);
+        source
+            .tendon_velocity_source_for_test()
+            .write_range(5, &[raw_source[5]])
+            .unwrap();
+
+        velocity.current.write_range(4, &[f32::NAN]).unwrap();
+        let invalid_velocity = TendonVelocityView {
+            plan: &velocity_plan,
+            source: &source,
+            data: &velocity,
+        };
+        let mut spring_data = spring.create_data(1).unwrap();
+        spring.update(&invalid_velocity, &mut spring_data).unwrap();
+        assert!(damper.update(&invalid_velocity, &mut damper_data).is_err());
+        println!("tendon_passive_conditional disabled=2 inactive_length=1 disabled_velocity=1");
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "new varying-period and empty-CSR branch coverage"]
+    fn gpu_tendon_passive_maps_varying_periods_and_skips_empty_rows() {
+        use crate::physics::{TendonPassiveOptions, TendonPassivePlan};
+
+        let session = TransferSession::new(0).unwrap();
+        let source_plan = producer(&session, 3);
+        let velocity_plan = TendonVelocityPlan::new(&source_plan).unwrap();
+        let varying = TendonPassivePlan::new(
+            &velocity_plan,
+            varying_passive_parameters(),
+            TendonPassiveOptions::default(),
+        )
+        .unwrap();
+        let empty = TendonPassivePlan::new(
+            &velocity_plan,
+            empty_row_passive_parameters(),
+            TendonPassiveOptions::default(),
+        )
+        .unwrap();
+        let worlds = 11;
+        let mut source = source_plan.create_data(worlds).unwrap();
+        source_plan.update(&mut source).unwrap();
+        let mut velocity = velocity_plan.create_data(worlds).unwrap();
+        let qvel = [0.25, -0.25, 0.0].repeat(worlds);
+        velocity.write_qvel(&qvel).unwrap();
+        let view = velocity_plan.update(&source, &mut velocity).unwrap();
+        let mut varying_data = varying.create_data(worlds).unwrap();
+        let snapshot = varying
+            .update(&view, &mut varying_data)
+            .unwrap()
+            .snapshot()
+            .unwrap();
+        for world in 0..worlds {
+            let x = 1.0_f32 - (world % 11) as f32 / 32.0;
+            let stiffness = 0.25_f32 + (world % 2) as f32 / 64.0;
+            let stiffness_poly = (world % 3) as f32 / 64.0;
+            let spring_force = -x * (stiffness + stiffness_poly * x);
+            let damping = 0.125_f32 + (world % 5) as f32 / 64.0;
+            let damping_poly = (world % 7) as f32 / 64.0;
+            let damper_force = 0.5_f32 * (damping + damping_poly * 0.5_f32);
+            assert_eq!(
+                bits(snapshot.spring(world).unwrap()),
+                bits(&[-spring_force, spring_force, 0.0])
+            );
+            assert_eq!(
+                bits(snapshot.damper(world).unwrap()),
+                bits(&[-damper_force, damper_force, 0.0])
+            );
+        }
+        drop(view);
+
+        source
+            .tendon_velocity_source_for_test()
+            .write_range(8, &[f32::NAN])
+            .unwrap();
+        let ready = velocity_plan.update(&source, &mut velocity).unwrap();
+        drop(ready);
+        for world in 0..worlds {
+            velocity
+                .current
+                .write_range(4 + world * 5 + 4, &[f32::NAN])
+                .unwrap();
+        }
+        let invalid_empty_values = TendonVelocityView {
+            plan: &velocity_plan,
+            source: &source,
+            data: &velocity,
+        };
+        let mut empty_data = empty.create_data(worlds).unwrap();
+        let empty_snapshot = empty
+            .update(&invalid_empty_values, &mut empty_data)
+            .unwrap()
+            .snapshot()
+            .unwrap();
+        for world in 0..worlds {
+            assert_eq!(bits(empty_snapshot.spring(world).unwrap()), bits(&[0.0; 3]));
+            assert_eq!(bits(empty_snapshot.damper(world).unwrap()), bits(&[0.0; 3]));
+        }
+        println!("tendon_passive_periods worlds=11 periods=2,3,5,7,11 empty_rows=11");
     }
 }
