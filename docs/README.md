@@ -265,6 +265,9 @@ NP04仍缺公平稳态性能对照。
     随后新增[动能归约消费者](kinetic-energy.md)。
     新用途五项测试通过。
     完整能量与设备接线仍待实现。
+    现接通[常驻矩阵直接借用](borrowed-mass-multiply.md)。
+    新用途四项专项通过。
+    动能设备接线仍待实现。
     原生入口补充[CSR六字段捕获](native-sparse-mass.md)。
 26. [Windows质量求解探针](windows-mass-solve-probe.md)
 27. [Windows附着运动学探针](windows-attached-kinematics-probe.md)

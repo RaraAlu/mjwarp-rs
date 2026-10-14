@@ -7,6 +7,8 @@ use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
+mod borrowed;
+pub use borrowed::{MassMatrixMultiplyData, MassMatrixMultiplyPlan, MassMatrixMultiplyView};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MassMultiplyFormat {

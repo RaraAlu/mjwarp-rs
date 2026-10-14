@@ -57,6 +57,22 @@ fn check_layout(worlds: usize, nb: usize, nv: usize) -> Result<MassMatrixLayout,
 }
 
 impl MassMatrixPlan {
+    /// 只读取实际计划拓扑；不执行物理生产者。
+    pub(super) fn multiply_context(
+        &self,
+    ) -> Result<(usize, usize, TransferSession, Vec<i32>), TransferError> {
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let mut parents = crate::runtime::host_staging::<i32>(self.nv)?;
+            self.metadata
+                .read_range_into(2 + self.nbody + self.nv, &mut parents)?;
+            Ok((self.nbody, self.nv, self.session.clone(), parents))
+        }
+    }
     pub(in crate::physics) fn check_data(
         &self,
         data: &MassMatrixData,

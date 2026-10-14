@@ -9,6 +9,7 @@ use crate::runtime::TransferSession;
 mod resident;
 pub use resident::{MassMatrixData, MassMatrixPlan};
 mod multiply;
+pub use multiply::{MassMatrixMultiplyData, MassMatrixMultiplyPlan, MassMatrixMultiplyView};
 pub use multiply::{MassMultiplyData, MassMultiplyFormat, MassMultiplyOutput, MassMultiplyPlan};
 
 /// 同步结果的只读世界视图。

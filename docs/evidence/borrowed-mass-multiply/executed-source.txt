@@ -1,0 +1,846 @@
+//! 直接消费常驻CRB设备矩阵，不复制M。
+//! 只读视图同时借用矩阵与向量数据。
+use super::{MassMultiplyFormat, MassMultiplyOutput, checked, layouts, metadata};
+#[cfg(not(feature = "cuda-probe"))]
+use crate::diagnostics::ProbeError;
+use crate::diagnostics::{InputError, TransferError};
+use crate::model::{BatchLayout, SparseMassInput};
+use crate::physics::{MassMatrixData, MassMatrixPlan};
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
+use std::sync::Arc;
+
+#[derive(Debug)]
+struct Spec {
+    nbody: usize,
+    nv: usize,
+    meta: Vec<i32>,
+}
+fn packed(nbody: usize, parents: &[i32], input: &SparseMassInput) -> Result<Spec, InputError> {
+    let n = input.nv();
+    if parents != input.fields().dof_parentid || n == 0 || nbody == 0 {
+        return Err(InputError::InvalidTopology {
+            field: "borrowed_mul_m_topology",
+            index: 0,
+            reason: "source_and_CSR_parents_must_match",
+        });
+    }
+    let stride = n
+        .checked_mul(n)
+        .and_then(|v| nbody.checked_mul(10).and_then(|b| v.checked_add(b)))
+        .filter(|&v| v <= i32::MAX as usize)
+        .ok_or(InputError::Overflow {
+            field: "borrowed_mul_m_stride",
+        })?;
+    layouts(n, stride, 1)?;
+    let mut m = metadata(input)?;
+    let count = m[n] as usize;
+    // Preserve original mirrored-row append order. Only addresses change:
+    // each CSR slot now reads its actual lower-triangle dense CRB/M cell.
+    for row in 0..n {
+        for k in m[row] as usize..m[row + 1] as usize {
+            let col = m[n + 1 + k] as usize;
+            m[n + 1 + count + k] = (row.max(col) * n + row.min(col)) as i32;
+        }
+    }
+    let mut meta = vec![n as i32, count as i32];
+    meta.extend(m);
+    Ok(Spec { nbody, nv: n, meta })
+}
+pub struct MassMatrixMultiplyPlan<'plan> {
+    matrix: &'plan MassMatrixPlan,
+    spec: Arc<Spec>,
+    #[cfg(feature = "cuda-probe")]
+    session: TransferSession,
+    #[cfg(feature = "cuda-probe")]
+    kernels: [SynchronousKernel; 2],
+}
+pub struct MassMatrixMultiplyData {
+    spec: Arc<Spec>,
+    vector_layout: BatchLayout,
+    #[cfg(feature = "cuda-probe")]
+    metadata: TransferBuffer<i32>,
+    #[cfg(feature = "cuda-probe")]
+    vector: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    current: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    staged: TransferBuffer<f32>,
+    #[cfg(feature = "cuda-probe")]
+    status: TransferBuffer<f32>,
+}
+/// 视图阻止矩阵或向量写入；快照只保存历史结果。
+pub struct MassMatrixMultiplyView<'borrow> {
+    source: &'borrow MassMatrixData,
+    data: &'borrow MassMatrixMultiplyData,
+    computed: Vec<bool>,
+}
+impl MassMatrixMultiplyView<'_> {
+    pub fn worlds(&self) -> usize {
+        debug_assert_eq!(self.source.worlds(), self.data.worlds());
+        self.source.worlds()
+    }
+    /// 只标记本次计算的世界；skip缓存不认证当前态。
+    pub fn is_current(&self, world: usize) -> Result<bool, InputError> {
+        self.data.vector_layout.world_elements(world)?;
+        Ok(self.computed[world])
+    }
+    /// 完整当前态消费者必须先通过此门禁。
+    pub fn fresh_snapshot(&self) -> Result<MassMultiplyOutput, TransferError> {
+        if self.computed.iter().any(|&v| !v) {
+            return Err(TransferError::StageNotReady {
+                stage: "borrowed_mul_m_all_current",
+            });
+        }
+        self.snapshot()
+    }
+    /// 返回历史结果；跳过槽不代表当前矩阵或向量。
+    pub fn snapshot(&self) -> Result<MassMultiplyOutput, TransferError> {
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            Ok(MassMultiplyOutput {
+                layout: self.data.vector_layout,
+                values: read(
+                    &self.data.current,
+                    self.data.vector_layout.total_elements(),
+                    "borrowed_Mqvel",
+                )?,
+            })
+        }
+    }
+}
+impl<'plan> MassMatrixMultiplyPlan<'plan> {
+    pub fn new(
+        matrix: &'plan MassMatrixPlan,
+        input: SparseMassInput,
+        format: MassMultiplyFormat,
+    ) -> Result<Self, TransferError> {
+        let (nb, n, session, parents) = matrix.multiply_context()?;
+        let s = packed(nb, &parents, &input)?;
+        if n != s.nv {
+            return Err(TransferError::ModelMismatch);
+        }
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = (s, session, format);
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let code = format!(
+                "#define BORROW_NV {n}\n#define BORROW_NB {nb}\n#define BORROW_COUNT {}\n#define BORROW_DENSE {}\n{CUDA}",
+                s.meta[1],
+                usize::from(format == MassMultiplyFormat::Dense)
+            );
+            Ok(Self {
+                matrix,
+                spec: Arc::new(s),
+                session: session.clone(),
+                kernels: [
+                    SynchronousKernel::compile(&session, &code, "borrowed_mass_validate")?,
+                    SynchronousKernel::compile(&session, &code, "borrowed_mass_multiply")?,
+                ],
+            })
+        }
+    }
+    pub fn create_data(&self, worlds: usize) -> Result<MassMatrixMultiplyData, TransferError> {
+        let s = &self.spec;
+        let (_, vl) = layouts(s.nv, 10 * s.nbody + s.nv * s.nv, worlds)?;
+        self.spec
+            .meta
+            .len()
+            .checked_add(worlds)
+            .and_then(|v| v.checked_add(8))
+            .filter(|&v| v <= i32::MAX as usize)
+            .ok_or(InputError::Overflow {
+                field: "borrowed_mul_m_metadata",
+            })?;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = vl;
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            let mut meta = vec![-131072; 4];
+            meta.extend(&s.meta);
+            meta.resize(meta.len() + worlds, 0);
+            meta.extend([-131072; 4]);
+            let alloc = |count: usize, initial| {
+                let mut v = crate::runtime::host_staging::<f32>(count + 8)?;
+                v.fill(-131072.0);
+                v[4..4 + count].fill(initial);
+                self.session.upload(&v)
+            };
+            Ok(MassMatrixMultiplyData {
+                spec: self.spec.clone(),
+                vector_layout: vl,
+                metadata: self.session.upload(&meta)?,
+                vector: alloc(vl.total_elements(), 0.0)?,
+                current: alloc(vl.total_elements(), 0.0)?,
+                staged: alloc(vl.total_elements(), f32::NAN)?,
+                status: alloc(worlds, f32::NAN)?,
+            })
+        }
+    }
+    pub fn update<'borrow>(
+        &self,
+        data: &'borrow mut MassMatrixMultiplyData,
+        source: &'borrow MassMatrixData,
+        skip: Option<&[bool]>,
+    ) -> Result<MassMatrixMultiplyView<'borrow>, TransferError> {
+        if !Arc::ptr_eq(&self.spec, &data.spec) {
+            return Err(TransferError::ModelMismatch);
+        }
+        self.matrix.check_data(source)?;
+        if source.worlds() != data.worlds() {
+            return Err(InputError::LengthMismatch {
+                field: "borrowed_mul_m_worlds",
+                expected: data.worlds(),
+                actual: source.worlds(),
+            }
+            .into());
+        }
+        if let Some(v) = skip {
+            if v.len() != data.worlds() {
+                return Err(InputError::LengthMismatch {
+                    field: "borrowed_mul_m_skip",
+                    expected: data.worlds(),
+                    actual: v.len(),
+                }
+                .into());
+            }
+        }
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            // This borrow is checked afresh on every call. No cached pointer,
+            // exported integer tag, or solver-factor lifetime substitutes it.
+            let m = source.matrix_input()?;
+            let stride = 10 * self.spec.nbody + self.spec.nv * self.spec.nv;
+            if m.len() != stride * data.worlds() + 8 {
+                return Err(TransferError::ModelMismatch);
+            }
+            let so = 4 + self.spec.meta.len();
+            let flags = skip.map_or_else(
+                || vec![0; data.worlds()],
+                |v| v.iter().map(|&v| i32::from(v)).collect(),
+            );
+            data.metadata.write_range(so, &flags)?;
+            read(
+                &data.current,
+                data.vector_layout.total_elements(),
+                "borrowed_mul_m_current",
+            )?;
+            let n = self.spec.nv as u32;
+            let nb = self.spec.nbody as u32;
+            let w = data.worlds() as u32;
+            // SAFETY: Actual same-plan source owns its guarded CRB-prefix plus
+            // dense-M stride. Constant metadata and vector capacities match it.
+            unsafe {
+                self.kernels[0].launch(
+                    &data.metadata,
+                    m,
+                    &data.vector,
+                    &mut data.status,
+                    [nb, n, so as u32, w],
+                )?;
+            }
+            let status = read(&data.status, data.worlds(), "borrowed_mul_m_status")?;
+            if let Some(index) = status[4..4 + data.worlds()].iter().position(|&v| v != 1.0) {
+                return Err(InputError::InvalidTopology {
+                    field: "borrowed_mul_m_source",
+                    index,
+                    reason: "nonfinite_guard_or_mapping",
+                }
+                .into());
+            }
+            // Only result payload is copied device-to-device to preserve skip.
+            // M stays in the original producer allocation; guards stay local.
+            data.staged.copy_range_from(
+                4,
+                &data.current,
+                4,
+                data.vector_layout.total_elements(),
+            )?;
+            // SAFETY: Validated metadata bounds every lower-M address and
+            // column. Each thread owns one staged result; skipped worlds return.
+            unsafe {
+                self.kernels[1].launch(
+                    &data.metadata,
+                    m,
+                    &data.vector,
+                    &mut data.staged,
+                    [nb, n, so as u32, w * n],
+                )?;
+            }
+            read(
+                &data.staged,
+                data.vector_layout.total_elements(),
+                "borrowed_Mqvel_staged",
+            )?;
+            std::mem::swap(&mut data.current, &mut data.staged);
+            let computed = flags.iter().map(|&v| v == 0).collect();
+            Ok(MassMatrixMultiplyView {
+                source,
+                data,
+                computed,
+            })
+        }
+    }
+}
+impl MassMatrixMultiplyData {
+    pub fn worlds(&self) -> usize {
+        self.vector_layout.worlds()
+    }
+    pub fn write_vector(&mut self, values: &[f32]) -> Result<(), TransferError> {
+        self.write(0, self.vector_layout.total_elements(), values)
+    }
+    pub fn write_world_vector(
+        &mut self,
+        world: usize,
+        values: &[f32],
+    ) -> Result<(), TransferError> {
+        let r = self.vector_layout.world_elements(world)?;
+        self.write(r.start, r.len(), values)
+    }
+    fn write(&mut self, offset: usize, count: usize, values: &[f32]) -> Result<(), TransferError> {
+        checked(values, count, "borrowed_mul_m_vector")?;
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = offset;
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+        #[cfg(feature = "cuda-probe")]
+        {
+            self.vector.write_range(4 + offset, values)
+        }
+    }
+}
+#[cfg(feature = "cuda-probe")]
+fn read(
+    b: &TransferBuffer<f32>,
+    count: usize,
+    field: &'static str,
+) -> Result<Vec<f32>, TransferError> {
+    let mut v = crate::runtime::host_staging::<f32>(count + 8)?;
+    b.read_range_into(0, &mut v)?;
+    crate::physics::check_device_values(&v, field)?;
+    Ok(v)
+}
+// Frozen support.py/io.py (71da24d, Apache-2.0): unchanged f32 sum/append
+// semantics, with explicit original CRB/M stride instead of separate M buffer.
+#[cfg(feature = "cuda-probe")]
+const CUDA: &str = r#"
+extern "C" __global__ void borrowed_mass_validate(const int* meta,const float* source,const float* vec,float* status,
+ unsigned nb,unsigned n,unsigned so,unsigned work){
+ unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=work)return;
+ unsigned long long stride=10ull*nb+1ull*n*n;bool valid=nb==BORROW_NB&&n==BORROW_NV&&meta[4]==BORROW_NV&&meta[5]==BORROW_COUNT;
+ for(unsigned j=0;j<4;++j)valid=valid&&meta[j]==-131072&&meta[so+work+j]==-131072&&source[j]==-131072.0f&&source[4+stride*work+j]==-131072.0f&&vec[j]==-131072.0f&&vec[4+1ull*work*n+j]==-131072.0f;
+ const int* row=meta+6;const int* col=row+BORROW_NV+1;const int* adr=col+BORROW_COUNT;
+ valid=valid&&row[0]==0&&row[BORROW_NV]==BORROW_COUNT;
+ for(unsigned r=0;r<BORROW_NV;++r){int a=row[r],b=row[r+1];if(a<0||a>b||b>BORROW_COUNT){valid=false;continue;}
+  for(int k=a;k<b;++k){int c=col[k];if(c<0||c>=BORROW_NV){valid=false;continue;}unsigned expected=(r>(unsigned)c?r:(unsigned)c)*BORROW_NV+(r<(unsigned)c?r:(unsigned)c);if(adr[k]!=(int)expected)valid=false;}}
+ if(!meta[so+w]){for(unsigned long long j=0;j<stride;++j)valid=valid&&isfinite(source[4+stride*w+j]);for(unsigned j=0;j<n;++j)valid=valid&&isfinite(vec[4+1ull*w*n+j]);}
+ status[4+w]=valid?1.0f:0.0f;
+}
+extern "C" __global__ void borrowed_mass_multiply(const int* meta,const float* source,const float* vec,float* result,
+ unsigned nb,unsigned n,unsigned so,unsigned work){
+ unsigned tid=blockIdx.x*blockDim.x+threadIdx.x;if(tid>=work)return;unsigned w=tid/n,r=tid%n;if(meta[so+w])return;
+ const float* M=source+4+(10ull*nb+1ull*n*n)*w+10ull*nb;const float* v=vec+4+1ull*w*n;float acc=0.0f;
+ #if BORROW_DENSE
+ #pragma unroll
+ for(unsigned c=0;c<BORROW_NV;++c)acc=acc+M[1ull*r*BORROW_NV+c]*v[c];
+ #else
+ const int* row=meta+6;const int* col=row+BORROW_NV+1;const int* adr=col+BORROW_COUNT;
+ for(int k=row[r];k<row[r+1];++k)acc=acc+M[adr[k]]*v[col[k]];
+ #endif
+ result[4+tid]=acc;
+}
+"#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::SparseMassFields;
+    fn input(n: usize, split: bool) -> SparseMassInput {
+        let mid = n.div_ceil(2);
+        let parents: Vec<i32> = (0..n)
+            .map(|i| {
+                if i == 0 || (split && i == mid) {
+                    -1
+                } else {
+                    i as i32 - 1
+                }
+            })
+            .collect();
+        let mut rowadr = Vec::new();
+        let mut rownnz = Vec::new();
+        let mut cols = Vec::new();
+        for i in 0..n {
+            rowadr.push(cols.len() as i32);
+            let mut row = Vec::new();
+            let mut j = i as i32;
+            while j >= 0 {
+                row.push(j);
+                j = parents[j as usize];
+            }
+            row.reverse();
+            rownnz.push(row.len() as i32);
+            cols.extend(row);
+        }
+        SparseMassInput::new(SparseMassFields {
+            dof_parentid: parents,
+            m_rowadr: rowadr,
+            m_rownnz: rownnz,
+            m_colind: cols,
+            tree_dofadr: if split { vec![0, mid as i32] } else { vec![0] },
+            tree_dofnum: if split {
+                vec![mid as i32, (n - mid) as i32]
+            } else {
+                vec![n as i32]
+            },
+        })
+        .unwrap()
+    }
+    #[test]
+    fn host_maps_original_append_rows_to_actual_lower_crb_addresses() {
+        for n in [3, 33, 65] {
+            let i = input(n, true);
+            let old = metadata(&i).unwrap();
+            let s = packed(n + 1, &i.fields().dof_parentid, &i).unwrap();
+            let count = old[n] as usize;
+            assert_eq!(s.meta[0], n as i32);
+            assert_eq!(s.meta[1], count as i32);
+            assert_eq!(&s.meta[2..2 + n + 1 + count], &old[..n + 1 + count]);
+            for row in 0..n {
+                for k in old[row] as usize..old[row + 1] as usize {
+                    let col = old[n + 1 + k] as usize;
+                    assert_eq!(
+                        s.meta[2 + n + 1 + count + k] as usize,
+                        row.max(col) * n + row.min(col)
+                    );
+                }
+            }
+        }
+    }
+    #[test]
+    fn host_rejects_wrong_source_topology_and_guarded_source_strides() {
+        let i = input(33, true);
+        assert!(packed(34, &input(33, false).fields().dof_parentid, &i).is_err());
+        assert!(packed(34, &[], &i).is_err());
+        assert!(packed(0, &i.fields().dof_parentid, &i).is_err());
+        assert!(packed(usize::MAX, &i.fields().dof_parentid, &i).is_err());
+        for n in [3, 33, 65] {
+            let i = input(n, true);
+            let s = packed(n + 1, &i.fields().dof_parentid, &i).unwrap();
+            let (m, v) = layouts(n, 10 * s.nbody + n * n, 257).unwrap();
+            assert_eq!(m.total_elements(), 257 * (10 * (n + 1) + n * n));
+            assert_eq!(v.total_elements(), 257 * n);
+        }
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn model(i: &SparseMassInput) -> crate::model::AttachedModelInput {
+        use crate::model::{
+            AttachedFields, AttachedModelInput, InertialFields, InertialModelInput,
+            KinematicFields, KinematicModelInput,
+        };
+        let n = i.nv();
+        let nb = n + 1;
+        let parents = &i.fields().dof_parentid;
+        let mut body_parentid = vec![0];
+        body_parentid.extend(parents.iter().map(|&p| p + 1));
+        let mut body_jntadr = vec![-1];
+        body_jntadr.extend(0..n as i32);
+        let mut body_jntnum = vec![0];
+        body_jntnum.extend(vec![1; n]);
+        let mut body_pos = vec![0.0; 3];
+        body_pos.extend([0.08, 0.01, 0.02].repeat(n));
+        let k = KinematicModelInput::new(
+            n,
+            KinematicFields {
+                qpos0: vec![0.0; n],
+                body_parentid,
+                body_jntadr,
+                body_jntnum,
+                body_pos,
+                body_quat: [1.0, 0.0, 0.0, 0.0].repeat(nb),
+                jnt_type: vec![3; n],
+                jnt_bodyid: (1..nb as i32).collect(),
+                jnt_qposadr: (0..n as i32).collect(),
+                jnt_dofadr: (0..n as i32).collect(),
+                jnt_pos: vec![0.0; 3 * n],
+                jnt_axis: [0.0, 0.0, 1.0].repeat(n),
+            },
+        )
+        .unwrap();
+        let mut body_ipos = vec![0.0; 3];
+        body_ipos.extend([0.03, 0.01, 0.0].repeat(n));
+        let mut body_mass = vec![0.0];
+        body_mass.extend(vec![0.01; n]);
+        let mut body_inertia = vec![0.0; 3];
+        body_inertia.extend(vec![0.001; 3 * n]);
+        let inertial = InertialModelInput::new(
+            k,
+            InertialFields {
+                body_ipos,
+                body_iquat: [1.0, 0.0, 0.0, 0.0].repeat(nb),
+                body_mass,
+                body_inertia,
+                dof_bodyid: (1..nb as i32).collect(),
+                dof_jntid: (0..n as i32).collect(),
+                dof_parentid: parents.clone(),
+                dof_armature: vec![2.0; n],
+                dof_damping: vec![0.0; n],
+            },
+        )
+        .unwrap();
+        AttachedModelInput::new(inertial, AttachedFields::default()).unwrap()
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn raw(b: &TransferBuffer<f32>) -> Vec<f32> {
+        let mut v = vec![0.0; b.len()];
+        b.read_range_into(0, &mut v).unwrap();
+        v
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn bits(v: &[f32]) -> Vec<u32> {
+        v.iter().map(|v| v.to_bits()).collect()
+    }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "new live CRB/M borrowed consumer; conditional M-dot oracle, not old CRB/mul_m/bridge admission"]
+    fn gpu_consumes_the_actual_resident_matrix_without_M_copy_or_host_feedback() {
+        let session = TransferSession::new(0).unwrap();
+        let start = std::time::Instant::now();
+        let mut batches = 0;
+        let mut slots = 0;
+        let mut dependencies = 0;
+        let mut max_abs = 0.0f64;
+        let mut capacity = 0;
+        let mut last_snapshot = None;
+        for n in [3, 33, 65] {
+            let i = input(n, true);
+            let producer = MassMatrixPlan::new(&session, model(&i)).unwrap();
+            let plans = [
+                MassMatrixMultiplyPlan::new(&producer, i.clone(), MassMultiplyFormat::Sparse)
+                    .unwrap(),
+                MassMatrixMultiplyPlan::new(&producer, i.clone(), MassMultiplyFormat::Dense)
+                    .unwrap(),
+            ];
+            assert!(
+                MassMatrixMultiplyPlan::new(&producer, input(n, false), MassMultiplyFormat::Sparse)
+                    .is_err()
+            );
+            let foreign = MassMatrixPlan::new(&session, model(&i)).unwrap();
+            for worlds in [1, 2, 257] {
+                let mut source = producer.create_data(worlds).unwrap();
+                let foreign_source = foreign.create_data(worlds).unwrap();
+                let mut data = [
+                    plans[0].create_data(worlds).unwrap(),
+                    plans[1].create_data(worlds).unwrap(),
+                ];
+                for index in 0..2 {
+                    assert!(
+                        plans[index]
+                            .update(&mut data[index], &source, None)
+                            .is_err()
+                    );
+                    assert!(
+                        plans[index]
+                            .update(&mut data[index], &foreign_source, None)
+                            .is_err()
+                    );
+                }
+                for state in 0..2 {
+                    let positions: Vec<f32> = (0..worlds * n)
+                        .map(|j| ((j + state) % 9) as f32 * 0.07 - 0.28)
+                        .collect();
+                    source.write_qpos(&positions).unwrap();
+                    // Existing producers execute only as dependencies of the
+                    // new live-allocation connection; no old gold is assessed.
+                    producer.update(&mut source).unwrap();
+                    dependencies += 1;
+                    let m = source.readback().unwrap();
+                    let source_bits = bits(&raw(source.matrix_input().unwrap()));
+                    // Freshness is per-call, not inferred from initial zeros,
+                    // old outputs or a new state of the same source allocation.
+                    for index in 0..2 {
+                        let before = bits(&raw(&data[index].current));
+                        let view = plans[index]
+                            .update(&mut data[index], &source, Some(&vec![true; worlds]))
+                            .unwrap();
+                        assert!(view.fresh_snapshot().is_err());
+                        assert!(view.is_current(worlds).is_err());
+                        for w in 0..worlds {
+                            assert!(!view.is_current(w).unwrap());
+                        }
+                        assert_eq!(before, bits(&view.snapshot().unwrap().values));
+                    }
+                    for vector in 0..2 {
+                        let q: Vec<f32> = (0..worlds * n)
+                            .map(|j| ((j + 3 * vector + state) % 9) as f32 / 8.0 - 0.5)
+                            .collect();
+                        for index in 0..2 {
+                            data[index].write_vector(&q).unwrap();
+                            // Vector changes must not invalidate/reallocate M.
+                            assert_eq!(source_bits, bits(&raw(source.matrix_input().unwrap())));
+                            let view = plans[index]
+                                .update(&mut data[index], &source, None)
+                                .unwrap();
+                            assert_eq!(view.worlds(), worlds);
+                            for w in 0..worlds {
+                                assert!(view.is_current(w).unwrap());
+                            }
+                            let out = view.fresh_snapshot().unwrap();
+                            assert!(out.world(worlds).is_err());
+                            for w in 0..worlds {
+                                let world_matrix = m.world(w).unwrap().matrix;
+                                for (r, &actual) in out.world(w).unwrap().iter().enumerate() {
+                                    let expected = (0..n)
+                                        .map(|c| {
+                                            world_matrix[r * n + c] as f64 * q[w * n + c] as f64
+                                        })
+                                        .sum::<f64>();
+                                    let err = (actual as f64 - expected).abs();
+                                    assert!(
+                                        err <= 2e-5 + 2e-5 * expected.abs(),
+                                        "n={n} w={w} row={r} actual={actual} expected={expected}"
+                                    );
+                                    max_abs = max_abs.max(err);
+                                    slots += 1;
+                                }
+                            }
+                            drop(view);
+                            capacity = capacity.max(
+                                4 * (data[index].metadata.len()
+                                    + data[index].vector.len()
+                                    + data[index].current.len()
+                                    + data[index].staged.len()
+                                    + data[index].status.len()),
+                            );
+                            last_snapshot = Some(out);
+                            batches += 1;
+                        }
+                    }
+                }
+                for index in 0..2 {
+                    let before = bits(&raw(&data[index].current));
+                    let q = vec![0.375; n];
+                    data[index].write_world_vector(worlds - 1, &q).unwrap();
+                    let mut skip = vec![true; worlds];
+                    skip[worlds - 1] = false;
+                    let view = plans[index]
+                        .update(&mut data[index], &source, Some(&skip))
+                        .unwrap();
+                    let out = view.snapshot().unwrap();
+                    for w in 0..worlds {
+                        assert_eq!(view.is_current(w).unwrap(), w == worlds - 1);
+                    }
+                    if worlds > 1 {
+                        assert!(view.fresh_snapshot().is_err());
+                    }
+                    let a = 4 + (worlds - 1) * n;
+                    assert_eq!(&before[..a], &bits(&out.values)[..a]);
+                    drop(view);
+                    let before = bits(&raw(&data[index].current));
+                    assert!(
+                        plans[1 - index]
+                            .update(&mut data[index], &source, None)
+                            .is_err()
+                    );
+                    assert!(
+                        plans[index]
+                            .update(&mut data[index], &source, Some(&[]))
+                            .is_err()
+                    );
+                    assert!(data[index].write_world_vector(worlds, &q).is_err());
+                    assert!(data[index].write_vector(&[f32::NAN]).is_err());
+                    assert_eq!(before, bits(&raw(&data[index].current)));
+                }
+                if n == 3 && worlds == 2 {
+                    let mut another = producer.create_data(worlds).unwrap();
+                    another.write_qpos(&[0.2; 6]).unwrap();
+                    producer.update(&mut another).unwrap();
+                    dependencies += 1;
+                    let matrix = another.readback().unwrap();
+                    for index in 0..2 {
+                        let before = bits(&raw(&data[index].current));
+                        let q = vec![0.25; 6];
+                        data[index].write_vector(&q).unwrap();
+                        let view = plans[index]
+                            .update(&mut data[index], &another, Some(&[true, false]))
+                            .unwrap();
+                        assert!(!view.is_current(0).unwrap());
+                        assert!(view.is_current(1).unwrap());
+                        assert!(view.fresh_snapshot().is_err());
+                        let out = view.snapshot().unwrap();
+                        assert_eq!(&before[4..7], &bits(out.world(0).unwrap()));
+                        for r in 0..3 {
+                            let expected = (0..3)
+                                .map(|c| matrix.world(1).unwrap().matrix[3 * r + c] as f64 * 0.25)
+                                .sum::<f64>();
+                            assert!(
+                                (out.world(1).unwrap()[r] as f64 - expected).abs()
+                                    <= 2e-5 + 2e-5 * expected.abs()
+                            );
+                        }
+                    }
+                }
+                // This tests fresh consumer admission, not the frozen bridge's
+                // failed raw-qpos range or independent cached-factor lifecycle.
+                source.write_qpos(&vec![0.0; n * worlds]).unwrap();
+                for index in 0..2 {
+                    let old = bits(&raw(&data[index].current));
+                    assert!(
+                        plans[index]
+                            .update(&mut data[index], &source, None)
+                            .is_err()
+                    );
+                    assert_eq!(old, bits(&raw(&data[index].current)));
+                }
+            }
+        }
+        drop(session);
+        assert!(
+            last_snapshot
+                .unwrap()
+                .world(256)
+                .unwrap()
+                .iter()
+                .all(|v| v.is_finite())
+        );
+        assert_eq!((batches, slots, dependencies), (72, 210080, 19));
+        println!(
+            "borrowed_mul_m batches={batches} slots={slots} producer_dependency_updates={dependencies} max_abs={max_abs:.17e} phase_ms={} consumer_owned_buffer_capacity_bytes={capacity} M_buffer_copies=0",
+            start.elapsed().as_millis()
+        );
+    }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "new borrowed source/metadata/guard/overflow publication failures; no old producer numerical reference"]
+    fn gpu_rejects_corrupt_live_sources_and_never_partially_publishes_results() {
+        let session = TransferSession::new(0).unwrap();
+        let i = input(3, true);
+        let producer = MassMatrixPlan::new(&session, model(&i)).unwrap();
+        let mut source = producer.create_data(257).unwrap();
+        producer.update(&mut source).unwrap();
+        let source_original = raw(source.matrix_input().unwrap());
+        let mut faults = 0;
+        for format in [MassMultiplyFormat::Sparse, MassMultiplyFormat::Dense] {
+            let plan = MassMatrixMultiplyPlan::new(&producer, i.clone(), format).unwrap();
+            let mut d = plan.create_data(257).unwrap();
+            d.write_vector(&vec![0.5; 771]).unwrap();
+            drop(plan.update(&mut d, &source, None).unwrap());
+            for field in 0..4 {
+                for edge in 0..8 {
+                    let b = match field {
+                        0 => &mut d.vector,
+                        1 => &mut d.current,
+                        2 => &mut d.staged,
+                        _ => &mut d.status,
+                    };
+                    let index = if edge < 4 { edge } else { b.len() - 8 + edge };
+                    b.write_range(index, &[77.0]).unwrap();
+                    let before = bits(&raw(&d.current));
+                    assert!(plan.update(&mut d, &source, None).is_err());
+                    assert_eq!(before, bits(&raw(&d.current)));
+                    let b = match field {
+                        0 => &mut d.vector,
+                        1 => &mut d.current,
+                        2 => &mut d.staged,
+                        _ => &mut d.status,
+                    };
+                    b.write_range(index, &[-131072.0]).unwrap();
+                    drop(plan.update(&mut d, &source, None).unwrap());
+                    faults += 1;
+                }
+            }
+            for index in [
+                0,
+                3,
+                d.metadata.len() - 4,
+                d.metadata.len() - 1,
+                4,
+                5,
+                6,
+                7,
+                6 + 3 + 1,
+            ] {
+                let mut old = [0];
+                d.metadata.read_range_into(index, &mut old).unwrap();
+                d.metadata.write_range(index, &[i32::MAX]).unwrap();
+                let before = bits(&raw(&d.current));
+                assert!(plan.update(&mut d, &source, None).is_err());
+                assert_eq!(before, bits(&raw(&d.current)));
+                d.metadata.write_range(index, &old).unwrap();
+                drop(plan.update(&mut d, &source, None).unwrap());
+                faults += 1;
+            }
+            for index in [
+                0,
+                3,
+                source_original.len() - 4,
+                source_original.len() - 1,
+                4,
+                4 + 40,
+                4 + 256 * 49 + 40,
+            ] {
+                let bad = if index < 4 || index >= source_original.len() - 4 {
+                    0.0
+                } else {
+                    f32::NAN
+                };
+                source.corrupt_output_for_test(index, bad).unwrap();
+                let before = bits(&raw(&d.current));
+                assert!(plan.update(&mut d, &source, None).is_err());
+                assert_eq!(before, bits(&raw(&d.current)));
+                source
+                    .corrupt_output_for_test(index, source_original[index])
+                    .unwrap();
+                drop(plan.update(&mut d, &source, None).unwrap());
+                faults += 1;
+            }
+            d.vector.write_range(4, &[f32::NAN]).unwrap();
+            let before = bits(&raw(&d.current));
+            assert!(plan.update(&mut d, &source, None).is_err());
+            let mut skip = vec![false; 257];
+            skip[0] = true;
+            let out = plan
+                .update(&mut d, &source, Some(&skip))
+                .unwrap()
+                .snapshot()
+                .unwrap();
+            assert_eq!(&before[4..7], &bits(out.world(0).unwrap()));
+            d.vector.write_range(4, &[0.5]).unwrap();
+            source
+                .corrupt_output_for_test(4 + 40, f32::INFINITY)
+                .unwrap();
+            let before = bits(&raw(&d.current));
+            assert!(plan.update(&mut d, &source, None).is_err());
+            drop(plan.update(&mut d, &source, Some(&skip)).unwrap());
+            assert_eq!(&before[4..7], &bits(&raw(&d.current))[4..7]);
+            source
+                .corrupt_output_for_test(4 + 40, source_original[4 + 40])
+                .unwrap();
+            d.write_world_vector(256, &[f32::MAX; 3]).unwrap();
+            let before = bits(&raw(&d.current));
+            assert!(plan.update(&mut d, &source, None).is_err());
+            assert_eq!(before, bits(&raw(&d.current)));
+            d.write_world_vector(256, &[0.5; 3]).unwrap();
+            drop(plan.update(&mut d, &source, None).unwrap());
+            faults += 3;
+        }
+        assert_eq!(faults, 102);
+        println!(
+            "borrowed_mul_m_private faults={faults} formats=2 producer_dependency_updates=1 no_partial_publication=true recovered=true"
+        );
+    }
+}
