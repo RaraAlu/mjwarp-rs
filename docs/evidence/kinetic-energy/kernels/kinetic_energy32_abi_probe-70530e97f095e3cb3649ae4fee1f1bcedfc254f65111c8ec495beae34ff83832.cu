@@ -1,0 +1,3 @@
+extern "C" __global__ void kinetic_energy32_abi_probe(const int* meta,const float* pair,const float* current,float* staged,unsigned n,unsigned worlds,unsigned unused,unsigned work){
+         float value=(float)(threadIdx.x+1);for(unsigned o=16;o>0;o/=2)value+=__shfl_down_sync(0xffffffffu,value,o,32);
+         if(threadIdx.x==0){unsigned w=blockIdx.x;staged[4+2ull*w]=current[4+2ull*w];staged[5+2ull*w]=value+pair[4+2ull*n*w]+meta[0]+w;}}

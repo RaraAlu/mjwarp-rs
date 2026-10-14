@@ -8,6 +8,7 @@ use cudarc::{
     nvrtc::{CompileOptions, compile_ptx_with_opts, sys},
 };
 use std::sync::Arc;
+mod kinetic_energy;
 
 #[cfg(test)]
 #[path = "../../../tests/support/t4_rigid_capture.rs"]

@@ -262,6 +262,9 @@ NP04仍缺公平稳态性能对照。
     新用途六项测试通过。
     现新增[空间外力累加辅助](applied-force.md)。
     新用途四项测试通过。
+    随后新增[动能归约消费者](kinetic-energy.md)。
+    新用途五项测试通过。
+    完整能量与设备接线仍待实现。
     原生入口补充[CSR六字段捕获](native-sparse-mass.md)。
 26. [Windows质量求解探针](windows-mass-solve-probe.md)
 27. [Windows附着运动学探针](windows-attached-kinematics-probe.md)
