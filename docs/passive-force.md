@@ -11,6 +11,7 @@ GPU再合并弹簧与阻尼。
 平滑力直接消费结果。
 休眠过滤借用常驻状态。
 映射来自实际树拓扑。
+关节生产者现支持旋转弹簧。
 
 源码位于以下文件：
 
@@ -139,11 +140,14 @@ CUDA检查执行两次。
 ```text
 docs/evidence/passive-force/
 docs/evidence/passive-force-sleep/
+docs/evidence/joint-passive-rotation/
 ```
 
 ## 未覆盖范围
 
-本轮未实现旋转弹簧。
+共享入口复用旋转计算内核。
+本次只实测关节平滑入口。
+完整共享旋转组合仍未实测。
 本轮未实现柔体体积力。
 本轮未接入重力补偿。
 本轮未接入流体力。

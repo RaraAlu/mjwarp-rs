@@ -1,4 +1,4 @@
-//! DOF阻尼与标量弹簧生产者；不代表完整passive。
+//! DOF阻尼与四类关节弹簧生产者；不代表完整passive。
 use super::{
     SmoothForceData, SmoothForceField, SmoothForceOptions, SmoothForceOutput, SmoothForcePlan,
 };
@@ -47,7 +47,7 @@ struct Input {
 fn input(
     model: KinematicModelInput,
     params: JointPassiveParameters,
-    options: JointPassiveOptions,
+    _options: JointPassiveOptions,
 ) -> Result<Input, InputError> {
     let (nq, nv, nj) = (model.nq(), model.nv(), model.njnt());
     if nv == 0 || nj == 0 {
@@ -77,33 +77,20 @@ fn input(
     let mut kinds = vec![0; nv];
     let mut qadr = vec![0; nv];
     let mut joint = vec![0; nv];
+    let mut local = vec![0; nv];
     let mut body = vec![0; nv];
     for j in 0..nj {
         let kind = JointType::try_from(model.fields().jnt_type[j])?;
-        if !options.disable_spring && matches!(kind, JointType::Free | JointType::Ball) {
-            let active = params.stiffness.values().chunks(nj).any(|r| r[j] != 0.0)
-                || params
-                    .stiffness_poly
-                    .values()
-                    .chunks(2 * nj)
-                    .any(|r| r[2 * j] != 0.0 || r[2 * j + 1] != 0.0);
-            if active {
-                return Err(InputError::InvalidTopology {
-                    field: "joint_passive_spring",
-                    index: j,
-                    reason: "free_ball_spring_not_implemented",
-                });
-            }
-        }
         let d = model.fields().jnt_dofadr[j] as usize;
         for k in 0..kind.dof_width() {
             kinds[d + k] = kind as i32;
             qadr[d + k] = model.fields().jnt_qposadr[j];
             joint[d + k] = j as i32;
+            local[d + k] = k as i32;
             body[d + k] = model.fields().jnt_bodyid[j];
         }
     }
-    nv.checked_mul(3)
+    nv.checked_mul(4)
         .and_then(|v| v.checked_add(8))
         .filter(|&v| v <= i32::MAX as usize)
         .ok_or(InputError::Overflow {
@@ -113,6 +100,7 @@ fn input(
     meta.extend(kinds);
     meta.extend(qadr);
     meta.extend(joint);
+    meta.extend(local);
     meta.extend([-131072; 4]);
     Ok(Input {
         model,
@@ -216,7 +204,7 @@ impl JointPassivePlan {
         options: JointPassiveOptions,
     ) -> Result<Self, TransferError> {
         let i = input(model, params, options)?;
-        debug_assert_eq!(i.meta.len(), 3 * i.model.nv() + 8);
+        debug_assert_eq!(i.meta.len(), 4 * i.model.nv() + 8);
         debug_assert_eq!(
             i.offsets[4] + i.params.damping_poly.values().len(),
             i.param_len
@@ -357,7 +345,7 @@ impl JointPassivePlan {
             return Err(InputError::InvalidTopology {
                 field: "passive_force_joint_source",
                 index,
-                reason: "nonfinite_guard_mapping_or_unsupported_spring",
+                reason: "nonfinite_guard_or_mapping",
             }
             .into());
         }
@@ -409,7 +397,7 @@ impl JointPassivePlan {
                 return Err(InputError::InvalidTopology {
                     field: "joint_passive_source",
                     index,
-                    reason: "nonfinite_guard_mapping_or_unsupported_spring",
+                    reason: "nonfinite_guard_or_mapping",
                 }
                 .into());
             }
@@ -583,25 +571,45 @@ fn read(
     crate::physics::check_device_values(&v, field)?;
     Ok(v)
 }
-// Frozen passive.py82 and util_misc._poly_force865 (71da24d, Apache-2.0).
+// Frozen passive.py82, math.py23/162/178, util_misc.py865.
+// Baseline 71da24d, Apache-2.0.
 // Copyright2025 The Newton Developers; LICENSES/Apache-2.0.txt.
 // Ordinary float expressions preserve the original compiler contraction policy.
 #[cfg(feature = "cuda-probe")]
 const CUDA: &str = r#"
 __device__ float jp_poly(float linear,float a,float b,float x){float result=linear;result=result+a*x;result=result+(b*x)*x;return result;}
+__device__ float jp_len3(float x,float y,float z){return sqrtf((x*x+y*y)+z*z);}
+__device__ void jp_quat_sub(const float* qa,const float* qb,float* out){
+ float n=sqrtf(((qa[0]*qa[0]+qa[1]*qa[1])+qa[2]*qa[2])+qa[3]*qa[3]);
+ float a0,a1,a2,a3;
+ if(n>0.0f){float inv=1.0f/n;a0=qa[0]*inv;a1=qa[1]*inv;a2=qa[2]*inv;a3=qa[3]*inv;}
+ else{a0=0.0f;a1=0.0f;a2=0.0f;a3=1.0f;}
+ float b0=qb[0],b1=-qb[1],b2=-qb[2],b3=-qb[3];
+ float d0=((b0*a0-b1*a1)-b2*a2)-b3*a3;
+ float d1=((b0*a1+b1*a0)+b2*a3)-b3*a2;
+ float d2=((b0*a2-b1*a3)+b2*a0)+b3*a1;
+ float d3=((b0*a3+b1*a2)-b2*a1)+b3*a0;
+ float sine=jp_len3(d1,d2,d3);
+ if(sine==0.0f){out[0]=0.0f;out[1]=0.0f;out[2]=0.0f;return;}
+ float speed=2.0f*atan2f(sine,d0);
+ if(speed>3.14159265358979323846f)speed-=6.28318530717958647692f;
+ out[0]=(d1*speed)/sine;out[1]=(d2*speed)/sine;out[2]=(d3*speed)/sine;
+}
 extern "C" __global__ void joint_passive_validate(const int* meta,const float* p,const float* state,float* status,unsigned nq,unsigned nv,unsigned worlds,unsigned work){
  unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=work)return;bool valid=nq==JP_NQ&&nv==JP_NV;
- for(unsigned j=0;j<4;++j)valid=valid&&meta[j]==-131072&&meta[4+3ull*JP_NV+j]==-131072&&p[j]==-131072.0f&&p[4+JP_PL+j]==-131072.0f&&state[j]==-131072.0f&&state[4+1ull*worlds*(JP_NQ+JP_NV)+j]==-131072.0f;
+ for(unsigned j=0;j<4;++j)valid=valid&&meta[j]==-131072&&meta[4+4ull*JP_NV+j]==-131072&&p[j]==-131072.0f&&p[4+JP_PL+j]==-131072.0f&&state[j]==-131072.0f&&state[4+1ull*worlds*(JP_NQ+JP_NV)+j]==-131072.0f;
  for(unsigned j=0;j<JP_PL;++j)valid=valid&&isfinite(p[4+j]);
  for(unsigned j=0;j<JP_NQ;++j)valid=valid&&isfinite(state[4+1ull*w*JP_NQ+j]);for(unsigned j=0;j<JP_NV;++j)valid=valid&&isfinite(state[4+1ull*worlds*JP_NQ+1ull*w*JP_NV+j]);
- for(unsigned i=0;i<JP_NV;++i){int kind=meta[4+i],q=meta[4+JP_NV+i],j=meta[4+2ull*JP_NV+i];if(kind<0||kind>3||q<0||q>=JP_NQ||j<0||j>=JP_NJ){valid=false;continue;}
-  if(!JP_S&&kind<2){unsigned si=4+JP_OFF[1]+(w%JP_BATCH[1])*JP_NJ+j,pi=4+JP_OFF[2]+2*((w%JP_BATCH[2])*JP_NJ+j);if(p[si]!=0.0f||p[pi]!=0.0f||p[pi+1]!=0.0f)valid=false;}}
+ for(unsigned i=0;i<JP_NV;++i){int kind=meta[4+i],q=meta[4+JP_NV+i],j=meta[4+2ull*JP_NV+i],local=meta[4+3ull*JP_NV+i];unsigned qw=kind==0?7u:(kind==1?4u:1u),dw=kind==0?6u:(kind==1?3u:1u);if(kind<0||kind>3||q<0||j<0||j>=JP_NJ||local<0||(unsigned)local>=dw||qw>nq||(unsigned)q>nq-qw){valid=false;continue;}}
  status[4+w]=valid?1.0f:0.0f;
 }
 extern "C" __global__ void joint_passive_compute(const int* meta,const float* p,const float* state,float* out,unsigned nq,unsigned nv,unsigned worlds,unsigned work){
- unsigned tid=blockIdx.x*blockDim.x+threadIdx.x;if(tid>=work)return;unsigned w=tid/nv,i=tid%nv;int kind=meta[4+i],q=meta[4+JP_NV+i],j=meta[4+2ull*JP_NV+i];float spring=0.0f,damper=0.0f;
+ unsigned tid=blockIdx.x*blockDim.x+threadIdx.x;if(tid>=work)return;unsigned w=tid/nv,i=tid%nv;int kind=meta[4+i],q=meta[4+JP_NV+i],j=meta[4+2ull*JP_NV+i],local=meta[4+3ull*JP_NV+i];float spring=0.0f,damper=0.0f;
  if(!JP_D){unsigned di=4+JP_OFF[3]+(w%JP_BATCH[3])*JP_NV+i,pi=4+JP_OFF[4]+2*((w%JP_BATCH[4])*JP_NV+i);float d=p[di],a=p[pi],b=p[pi+1];if(d!=0.0f||a!=0.0f||b!=0.0f){float v=state[4+1ull*worlds*JP_NQ+1ull*w*JP_NV+i];damper=-v*jp_poly(d,a,b,fabsf(v));}}
- if(!JP_S&&kind>=2){unsigned si=4+JP_OFF[1]+(w%JP_BATCH[1])*JP_NJ+j,pi=4+JP_OFF[2]+2*((w%JP_BATCH[2])*JP_NJ+j);float s=p[si],a=p[pi],b=p[pi+1];if(s!=0.0f||a!=0.0f||b!=0.0f){float dif=state[4+1ull*w*JP_NQ+q]-p[4+JP_OFF[0]+(w%JP_BATCH[0])*JP_NQ+q];spring=-dif*jp_poly(s,a,b,dif);}}
+ if(!JP_S){unsigned si=4+JP_OFF[1]+(w%JP_BATCH[1])*JP_NJ+j,pi=4+JP_OFF[2]+2*((w%JP_BATCH[2])*JP_NJ+j);float s=p[si],a=p[pi],b=p[pi+1];if(s!=0.0f||a!=0.0f||b!=0.0f){const float* qs=state+4+1ull*w*JP_NQ+q;const float* qr=p+4+JP_OFF[0]+(w%JP_BATCH[0])*JP_NQ+q;
+   if(kind==0&&local<3){float x=qs[0]-qr[0],y=qs[1]-qr[1],z=qs[2]-qr[2],r=jp_len3(x,y,z),k=jp_poly(s,a,b,r);float dif=local==0?x:(local==1?y:z);spring=-k*dif;}
+   else if(kind<2){unsigned qo=kind==0?3u:0u;float dif[3];jp_quat_sub(qs+qo,qr+qo,dif);float r=jp_len3(dif[0],dif[1],dif[2]),k=jp_poly(s,a,b,r);spring=-k*dif[kind==0?local-3:local];}
+   else{float dif=qs[0]-qr[0];spring=-dif*jp_poly(s,a,b,dif);}}}
  out[4+tid]=spring;out[4+1ull*worlds*nv+tid]=damper;
 }
 extern "C" __global__ void joint_passive_sum(const int* meta,const float* parts,const float* unused,float* forces,unsigned ignored,unsigned nv,unsigned worlds,unsigned work){unsigned tid=blockIdx.x*blockDim.x+threadIdx.x;if(tid>=work)return;forces[4+tid]=__fadd_rn(parts[4+tid],parts[4+1ull*worlds*nv+tid]);}
@@ -711,7 +719,7 @@ mod tests {
         assert_eq!(l.parts.total_elements(), 5654);
     }
     #[test]
-    fn host_rejects_unsupported_active_rotation_springs_and_bad_shapes() {
+    fn host_accepts_active_rotation_springs_and_rejects_bad_shapes() {
         for (joint, poly) in [(0, false), (1, false), (0, true), (1, true)] {
             let mut p = params([1; 5]);
             if poly {
@@ -723,8 +731,9 @@ mod tests {
                 v[joint] = 0.25;
                 p.stiffness = ParameterBatch::new(1, 4, v).unwrap();
             }
-            assert!(input(model(), p.clone(), JointPassiveOptions::default()).is_err());
-            input(
+            let i = input(model(), p.clone(), JointPassiveOptions::default()).unwrap();
+            assert_eq!(&i.meta[37..48], &[0, 1, 2, 3, 4, 5, 0, 1, 2, 0, 0]);
+            let disabled = input(
                 model(),
                 p,
                 JointPassiveOptions {
@@ -733,6 +742,7 @@ mod tests {
                 },
             )
             .unwrap();
+            assert_eq!(disabled.meta, i.meta);
         }
         let mut p = params([1; 5]);
         p.damping = ParameterBatch::new(1, 10, vec![0.0; 10]).unwrap();
@@ -749,6 +759,110 @@ mod tests {
     #[cfg(feature = "cuda-probe")]
     fn bits(v: &[f32]) -> Vec<u32> {
         v.iter().map(|v| v.to_bits()).collect()
+    }
+    #[cfg(feature = "cuda-probe")]
+    const ROTATION_ABS_TOLERANCE: f32 = 2.0e-6;
+    #[cfg(feature = "cuda-probe")]
+    fn warp_len3(v: [f32; 3]) -> f32 {
+        ((v[0] * v[0] + v[1] * v[1]) + v[2] * v[2]).sqrt()
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn warp_normalize_quat(q: [f32; 4]) -> [f32; 4] {
+        let length = (((q[0] * q[0] + q[1] * q[1]) + q[2] * q[2]) + q[3] * q[3]).sqrt();
+        if length > 0.0 {
+            let inverse = 1.0 / length;
+            [
+                q[0] * inverse,
+                q[1] * inverse,
+                q[2] * inverse,
+                q[3] * inverse,
+            ]
+        } else {
+            [0.0, 0.0, 0.0, 1.0]
+        }
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn warp_mul_quat(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
+        [
+            ((a[0] * b[0] - a[1] * b[1]) - a[2] * b[2]) - a[3] * b[3],
+            ((a[0] * b[1] + a[1] * b[0]) + a[2] * b[3]) - a[3] * b[2],
+            ((a[0] * b[2] - a[1] * b[3]) + a[2] * b[0]) + a[3] * b[1],
+            ((a[0] * b[3] + a[1] * b[2]) - a[2] * b[1]) + a[3] * b[0],
+        ]
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn warp_quat_to_vel(q: [f32; 4]) -> [f32; 3] {
+        let axis = [q[1], q[2], q[3]];
+        let sine = warp_len3(axis);
+        if sine == 0.0 {
+            return [0.0; 3];
+        }
+        let mut speed = 2.0 * sine.atan2(q[0]);
+        if speed > std::f32::consts::PI {
+            speed -= 2.0 * std::f32::consts::PI;
+        }
+        [
+            (axis[0] * speed) / sine,
+            (axis[1] * speed) / sine,
+            (axis[2] * speed) / sine,
+        ]
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn warp_quat_sub(current: [f32; 4], reference: [f32; 4]) -> [f32; 3] {
+        let current = warp_normalize_quat(current);
+        let conjugate = [reference[0], -reference[1], -reference[2], -reference[3]];
+        warp_quat_to_vel(warp_mul_quat(conjugate, current))
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn warp_poly(linear: f32, a: f32, b: f32, x: f32) -> f32 {
+        let mut result = linear;
+        result += a * x;
+        result += (b * x) * x;
+        result
+    }
+    #[cfg(feature = "cuda-probe")]
+    fn rotation_oracle(i: &Input, world: usize, qpos: &[f32]) -> Vec<f32> {
+        let reference = i.params.qpos_spring.world(world);
+        let stiffness = i.params.stiffness.world(world);
+        let polynomial = i.params.stiffness_poly.world(world);
+        let mut result = vec![0.0; i.model.nv()];
+        let translation = [
+            qpos[0] - reference[0],
+            qpos[1] - reference[1],
+            qpos[2] - reference[2],
+        ];
+        let length = warp_len3(translation);
+        let gain = warp_poly(stiffness[0], polynomial[0], polynomial[1], length);
+        for k in 0..3 {
+            result[k] = -gain * translation[k];
+        }
+        for (joint, qadr, dadr) in [(0, 3, 3), (1, 7, 6)] {
+            let difference = warp_quat_sub(
+                qpos[qadr..qadr + 4].try_into().unwrap(),
+                reference[qadr..qadr + 4].try_into().unwrap(),
+            );
+            let length = warp_len3(difference);
+            let gain = warp_poly(
+                stiffness[joint],
+                polynomial[2 * joint],
+                polynomial[2 * joint + 1],
+                length,
+            );
+            for k in 0..3 {
+                result[dadr + k] = -gain * difference[k];
+            }
+        }
+        for (joint, qadr, dadr) in [(2, 11, 9), (3, 12, 10)] {
+            let difference = qpos[qadr] - reference[qadr];
+            let gain = warp_poly(
+                stiffness[joint],
+                polynomial[2 * joint],
+                polynomial[2 * joint + 1],
+                difference,
+            );
+            result[dadr] = -gain * difference;
+        }
+        result
     }
     #[cfg(feature = "cuda-probe")]
     fn oracle(
@@ -920,7 +1034,7 @@ mod tests {
         drop(session);
         assert_eq!(last.unwrap().worlds(), 257);
         assert_eq!((batches, slots), (48, 45760));
-        assert_eq!(capacity, 130604);
+        assert_eq!(capacity, 130648);
         println!(
             "joint_passive batches={batches} spring_slots={slots} damper_slots={slots} joint_smooth_slots={slots} bit_difference=0 smooth_dependency_updates=48 phase_ms={} owned_buffer_capacity_bytes={capacity}",
             start.elapsed().as_millis()
@@ -928,7 +1042,300 @@ mod tests {
     }
     #[test]
     #[cfg(feature = "cuda-probe")]
-    #[ignore = "new joint producer guard/mapping/nonfinite/unsupported/overflow rejection only"]
+    #[ignore = "requires CUDA; targeted FREE/BALL spring parity only"]
+    fn gpu_produces_free_ball_springs_with_warp_quaternion_edges() {
+        const WORLDS: usize = 13;
+        const SQRT_HALF: f32 = 0.70710677;
+        let session = TransferSession::new(0).unwrap();
+        let source_model = model();
+        let free_reference = [
+            [1.0, 0.0, 0.0, 0.0],
+            [2.0, 0.25, -0.5, 0.75],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [0.5, 0.5, 0.5, 0.5],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [SQRT_HALF, SQRT_HALF, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0e-23, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+        ];
+        let ball_reference = [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.75, -0.5, 0.25, 0.125],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [0.5, 0.5, 0.5, 0.5],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [SQRT_HALF, 0.0, SQRT_HALF, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0e-23, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+        ];
+        let free_current = [
+            [0.0, 0.0, 0.0, 0.0],
+            [1.5, 0.375, -0.625, 0.5],
+            [0.9238795, 0.38268343, 0.0, 0.0],
+            [-0.9238795, -0.38268343, 0.0, 0.0],
+            [0.5, 0.5, 0.5, 0.5],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0001, 1.0, 0.0, 0.0],
+            [-0.0001, 1.0, 0.0, 0.0],
+            [SQRT_HALF, 0.0, SQRT_HALF, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0e-23, 1.0e-23, 1.0e-23, 1.0e-23],
+            [SQRT_HALF, SQRT_HALF, 0.0, 0.0],
+            [4.0e-23, 4.0e-23, 0.0, 0.0],
+        ];
+        let ball_current = [
+            [0.0, 0.0, 0.0, 0.0],
+            [1.25, -0.25, 0.5, 0.75],
+            [0.9238795, 0.0, 0.38268343, 0.0],
+            [-0.9238795, 0.0, -0.38268343, 0.0],
+            [0.5, 0.5, 0.5, 0.5],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0001, 0.0, 0.0, 1.0],
+            [-0.0001, 0.0, 0.0, 1.0],
+            [SQRT_HALF, 0.0, 0.0, SQRT_HALF],
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0e-23, 1.0e-23, 1.0e-23, 1.0e-23],
+            [SQRT_HALF, 0.0, SQRT_HALF, 0.0],
+            [4.0e-23, 0.0, 4.0e-23, 0.0],
+        ];
+        let translation = [
+            [0.5, 0.0, 0.0],
+            [0.0, -0.25, 0.0],
+            [0.0, 0.0, 0.125],
+            [-0.5, 0.0, 0.0],
+            [0.0, 0.25, 0.0],
+            [0.0, 0.0, -0.125],
+            [0.25, 0.0, 0.0],
+            [0.0, -0.5, 0.0],
+            [0.0, 0.0, 0.25],
+            [-0.125, 0.0, 0.0],
+            [0.0, 0.125, 0.0],
+            [0.0, 0.0, -0.25],
+            [0.5, 0.0, 0.0],
+        ];
+        let slide = [
+            0.25, -0.125, 0.5, -0.25, 0.0, 0.125, -0.5, 0.25, -0.125, 0.5, -0.25, 0.125, -0.5,
+        ];
+        let hinge = [
+            -0.25, 0.5, -0.125, 0.25, 0.0, -0.5, 0.125, -0.25, 0.5, -0.125, 0.25, -0.5, 0.125,
+        ];
+        let mut references = Vec::with_capacity(WORLDS * 13);
+        let mut qpos = Vec::with_capacity(WORLDS * 13);
+        for world in 0..WORLDS {
+            let mut reference = source_model.fields().qpos0.clone();
+            reference[0] = world as f32 * 0.0625;
+            reference[1] = -(world as f32) * 0.03125;
+            reference[2] = world as f32 * 0.015625;
+            reference[3..7].copy_from_slice(&free_reference[world]);
+            reference[7..11].copy_from_slice(&ball_reference[world]);
+            reference[11] = 0.125;
+            reference[12] = -0.25;
+            let mut state = reference.clone();
+            for k in 0..3 {
+                state[k] += translation[world][k];
+            }
+            state[3..7].copy_from_slice(&free_current[world]);
+            state[7..11].copy_from_slice(&ball_current[world]);
+            state[11] += slide[world];
+            state[12] += hinge[world];
+            references.extend(reference);
+            qpos.extend(state);
+        }
+        let parameters = JointPassiveParameters {
+            qpos_spring: ParameterBatch::new(WORLDS, 13, references).unwrap(),
+            stiffness: ParameterBatch::new(1, 4, vec![1.25, 0.75, 0.5, 0.625]).unwrap(),
+            stiffness_poly: ParameterBatch::new(
+                1,
+                8,
+                vec![0.0, 0.0, 0.125, 0.0625, 0.125, -0.0625, -0.125, 0.0625],
+            )
+            .unwrap(),
+            damping: ParameterBatch::new(1, 11, vec![0.0; 11]).unwrap(),
+            damping_poly: ParameterBatch::new(1, 22, vec![0.0; 22]).unwrap(),
+        };
+        let mut plan = JointPassivePlan::new(
+            &session,
+            source_model.clone(),
+            parameters.clone(),
+            JointPassiveOptions::default(),
+        )
+        .unwrap();
+        let mut data = plan.create_data(WORLDS).unwrap();
+        let zeros = vec![0.0; WORLDS * 11];
+        data.write_qpos(&qpos).unwrap();
+        data.write_qvel(&zeros).unwrap();
+        for field in [
+            SmoothForceField::Bias,
+            SmoothForceField::Actuator,
+            SmoothForceField::Applied,
+        ] {
+            data.write_other_force(field, &zeros).unwrap();
+        }
+        plan.update_joint_only_smooth(&mut data).unwrap();
+        let parts = data.readback_joint().unwrap();
+        let smooth = data.readback_joint_only_smooth().unwrap();
+        let mut expected = Vec::with_capacity(WORLDS);
+        for world in 0..WORLDS {
+            let oracle = rotation_oracle(&plan.input, world, &qpos[13 * world..13 * (world + 1)]);
+            let spring = parts.spring(world).unwrap();
+            let combined = smooth.world(world).unwrap();
+            for index in [0, 1, 2, 9, 10] {
+                assert_eq!(spring[index], oracle[index], "world={world} dof={index}");
+                assert_eq!(combined[index], oracle[index], "world={world} dof={index}");
+            }
+            for index in 3..9 {
+                let error = (spring[index] - oracle[index]).abs();
+                assert!(
+                    error <= ROTATION_ABS_TOLERANCE,
+                    "world={world} dof={index} error={error}"
+                );
+                let smooth_error = (combined[index] - oracle[index]).abs();
+                assert!(
+                    smooth_error <= ROTATION_ABS_TOLERANCE,
+                    "smooth world={world} dof={index} error={smooth_error}"
+                );
+            }
+            assert_eq!(bits(parts.damper(world).unwrap()), vec![0; 11]);
+            expected.push(oracle);
+        }
+        for index in 3..9 {
+            assert!(
+                (expected[2][index] - expected[3][index]).abs() <= ROTATION_ABS_TOLERANCE,
+                "q sign dof={index}"
+            );
+            assert_eq!(expected[4][index], 0.0, "zero axis dof={index}");
+        }
+        let zero_fallback = warp_quat_sub([0.0; 4], [1.0, 0.0, 0.0, 0.0]);
+        assert_eq!(zero_fallback[0], 0.0);
+        assert_eq!(zero_fallback[1], 0.0);
+        assert_eq!(zero_fallback[2].to_bits(), std::f32::consts::PI.to_bits());
+        let below = warp_normalize_quat(free_current[6]);
+        let below_raw = 2.0 * warp_len3([below[1], below[2], below[3]]).atan2(below[0]);
+        assert!(below[0] > 0.0 && below_raw < std::f32::consts::PI);
+        let negative = warp_normalize_quat(free_current[7]);
+        let negative_difference = warp_mul_quat([1.0, -0.0, -0.0, -0.0], negative);
+        let negative_raw = 2.0
+            * warp_len3([
+                negative_difference[1],
+                negative_difference[2],
+                negative_difference[3],
+            ])
+            .atan2(negative_difference[0]);
+        assert!(negative_difference[0] < 0.0 && negative_raw > std::f32::consts::PI);
+        let current = warp_normalize_quat(free_current[8]);
+        let reference = free_reference[8];
+        let conjugate = [reference[0], -reference[1], -reference[2], -reference[3]];
+        let forward = warp_quat_to_vel(warp_mul_quat(conjugate, current));
+        let reversed = warp_quat_to_vel(warp_mul_quat(current, conjugate));
+        let analytic = [-1.2091995, 1.2091995, -1.2091995];
+        for index in 0..3 {
+            assert!((forward[index] - analytic[index]).abs() <= ROTATION_ABS_TOLERANCE);
+        }
+        assert!(
+            forward
+                .iter()
+                .zip(reversed)
+                .any(|(&a, b)| (a - b).abs() > 0.1)
+        );
+        let right_angle = warp_quat_sub([SQRT_HALF, SQRT_HALF, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]);
+        assert!((right_angle[0] - std::f32::consts::FRAC_PI_2).abs() <= ROTATION_ABS_TOLERANCE);
+        assert_eq!((right_angle[1], right_angle[2]), (0.0, 0.0));
+        let zero_reference = warp_quat_sub(free_current[9], free_reference[9]);
+        assert_eq!(zero_reference, [0.0; 3]);
+        let normalized_zero_reference =
+            warp_quat_sub(free_current[9], warp_normalize_quat(free_reference[9]));
+        assert!(normalized_zero_reference.iter().any(|v| v.abs() > 1.0));
+        let underflow_current = warp_quat_sub(free_current[10], free_reference[10]);
+        assert_eq!(underflow_current[0], 0.0);
+        assert_eq!(underflow_current[1], 0.0);
+        assert_eq!(
+            underflow_current[2].to_bits(),
+            std::f32::consts::PI.to_bits()
+        );
+        let underflow_reference = warp_quat_sub(free_current[11], free_reference[11]);
+        assert_eq!(underflow_reference, [0.0; 3]);
+        let normalized_underflow_reference =
+            warp_quat_sub(free_current[11], warp_normalize_quat(free_reference[11]));
+        assert!(normalized_underflow_reference.iter().any(|v| v.abs() > 1.0));
+        let nonzero_square = warp_quat_sub(free_current[12], free_reference[12]);
+        assert!(nonzero_square[0].abs() > 1.0);
+        assert_eq!((nonzero_square[1], nonzero_square[2]), (0.0, 0.0));
+        let local_index = 4 + 3 * 11;
+        let mut old_local = [0];
+        plan.metadata
+            .read_range_into(local_index, &mut old_local)
+            .unwrap();
+        plan.metadata.write_range(local_index, &[i32::MAX]).unwrap();
+        let before_rejection = bits(&raw(&data.current));
+        assert!(plan.update_joint(&mut data).is_err());
+        assert_eq!(before_rejection, bits(&raw(&data.current)));
+        plan.metadata.write_range(local_index, &old_local).unwrap();
+        plan.update_joint_only_smooth(&mut data).unwrap();
+        let disabled = JointPassivePlan::new(
+            &session,
+            source_model,
+            parameters,
+            JointPassiveOptions {
+                disable_spring: true,
+                disable_damper: false,
+            },
+        )
+        .unwrap();
+        let mut disabled_data = disabled.create_data(WORLDS).unwrap();
+        disabled_data.write_qpos(&qpos).unwrap();
+        disabled_data.write_qvel(&zeros).unwrap();
+        for field in [
+            SmoothForceField::Bias,
+            SmoothForceField::Actuator,
+            SmoothForceField::Applied,
+        ] {
+            disabled_data.write_other_force(field, &zeros).unwrap();
+        }
+        disabled
+            .update_joint_only_smooth(&mut disabled_data)
+            .unwrap();
+        let disabled_parts = disabled_data.readback_joint().unwrap();
+        let disabled_smooth = disabled_data.readback_joint_only_smooth().unwrap();
+        for world in 0..WORLDS {
+            assert!(
+                disabled_parts
+                    .spring(world)
+                    .unwrap()
+                    .iter()
+                    .all(|&v| v == 0.0)
+            );
+            assert!(
+                disabled_parts
+                    .damper(world)
+                    .unwrap()
+                    .iter()
+                    .all(|&v| v == 0.0)
+            );
+            assert!(
+                disabled_smooth
+                    .world(world)
+                    .unwrap()
+                    .iter()
+                    .all(|&v| v == 0.0)
+            );
+        }
+        println!(
+            "joint_passive_rotation worlds={WORLDS} rotation_tolerance={ROTATION_ABS_TOLERANCE:e} q_sign=true zero_quaternion=true nonunit_current=true nonunit_reference=true disabled=true"
+        );
+    }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "joint producer guard/mapping/nonfinite/overflow rejection only"]
     fn gpu_rejects_bad_joint_sources_without_publishing_partial_parts() {
         let s = TransferSession::new(0).unwrap();
         let mut plan =
@@ -972,6 +1379,7 @@ mod tests {
             4,
             4 + 11,
             4 + 22,
+            4 + 33,
         ] {
             let mut old = [0];
             plan.metadata.read_range_into(index, &mut old).unwrap();
@@ -993,15 +1401,6 @@ mod tests {
             plan.update_joint(&mut d).unwrap();
             faults += 1;
         }
-        let index = 4 + plan.input.offsets[1];
-        let old = raw(&plan.parameters)[index];
-        plan.parameters.write_range(index, &[1.0]).unwrap();
-        let before = bits(&raw(&d.current));
-        assert!(plan.update_joint(&mut d).is_err());
-        assert_eq!(before, bits(&raw(&d.current)));
-        plan.parameters.write_range(index, &[old]).unwrap();
-        plan.update_joint(&mut d).unwrap();
-        faults += 1;
         d.write_world_qvel(1, &[f32::MAX; 11]).unwrap();
         let before = bits(&raw(&d.current));
         assert!(plan.update_joint(&mut d).is_err());
@@ -1018,7 +1417,7 @@ mod tests {
         assert!(d.readback_joint().is_ok());
         assert_eq!(faults, 51);
         println!(
-            "joint_passive_private faults={faults} unsupported_rotation_spring_rejected=true no_partial_publication=true recovered=true old_smooth_dependencies=0"
+            "joint_passive_private faults={faults} local_mapping_rejected=true no_partial_publication=true recovered=true old_smooth_dependencies=0"
         );
     }
 }

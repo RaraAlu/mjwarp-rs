@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "purpose": "Independent analytic anchors for the handwritten f32 oracle",
+  "candidate_outputs_read": false,
+  "anchors": [
+    {
+      "name": "identity_to_x_90",
+      "current_wxyz": [0.70710677, 0.70710677, 0.0, 0.0],
+      "reference_wxyz": [1.0, 0.0, 0.0, 0.0],
+      "expected_rotation_vector": [1.5707964, 0.0, 0.0],
+      "derivation": "axis x; angle pi/2"
+    },
+    {
+      "name": "reference_x_90_current_y_90",
+      "current_wxyz": [0.70710677, 0.0, 0.70710677, 0.0],
+      "reference_wxyz": [0.70710677, 0.70710677, 0.0, 0.0],
+      "expected_difference_wxyz": [0.5, -0.5, 0.5, -0.5],
+      "expected_rotation_vector": [-1.2091995, 1.2091995, -1.2091995],
+      "derivation": "conjugate(reference)*current; angle 2pi/3; axis (-1,1,-1)/sqrt(3)"
+    },
+    {
+      "name": "zero_current_warp_fallback",
+      "current_wxyz": [0.0, 0.0, 0.0, 0.0],
+      "normalized_raw_slots": [0.0, 0.0, 0.0, 1.0],
+      "reference_wxyz": [1.0, 0.0, 0.0, 0.0],
+      "expected_rotation_vector": [0.0, 0.0, 3.1415927],
+      "derivation": "Warp quat zero fallback is consumed as raw wxyz slots"
+    },
+    {
+      "name": "squared_length_underflow_split",
+      "below_current_wxyz": [1e-23, 1e-23, 1e-23, 1e-23],
+      "above_current_wxyz": [4e-23, 4e-23, 0.0, 0.0],
+      "below_expected_normalized_raw_slots": [0.0, 0.0, 0.0, 1.0],
+      "above_expected_branch": "nonzero squared length",
+      "reference_probe_wxyz": [1e-23, 0.0, 0.0, 0.0],
+      "reference_probe_current_wxyz": [0.70710677, 0.70710677, 0.0, 0.0],
+      "reference_probe_expected_rotation_vector": [0.0, 0.0, 0.0],
+      "derivation": "Current normalization branches on f32 squared length; reference remains unnormalized"
+    }
+  ],
+  "limitation": "These anchors validate the independent oracle. They do not replace frozen MJWarp device output or complete NP acceptance."
+}
