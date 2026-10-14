@@ -206,6 +206,37 @@ impl SparseMassSmallPlan {
     }
 }
 impl SparseMassSmallData {
+    #[cfg(all(test, feature = "cuda-probe"))]
+    pub(in crate::physics::mass_solve::sparse) fn test_factor_buffer_mut(
+        &mut self,
+    ) -> &mut TransferBuffer<f32> {
+        &mut self.factor
+    }
+    #[cfg(feature = "cuda-probe")]
+    pub(in crate::physics::mass_solve::sparse) fn copy_matrix_from(
+        &mut self,
+        source: &TransferBuffer<f32>,
+    ) -> Result<(), TransferError> {
+        self.invalidate();
+        self.source
+            .matrix
+            .copy_range_from(0, source, 0, source.len())
+    }
+    pub(in crate::physics::mass_solve::sparse) fn invalidate(&mut self) {
+        self.ready = false;
+        self.source.ready = false;
+    }
+    #[cfg(feature = "cuda-probe")]
+    pub(in crate::physics::mass_solve::sparse) fn factor_buffer(
+        &self,
+    ) -> Result<&TransferBuffer<f32>, TransferError> {
+        if !self.ready {
+            return Err(TransferError::StageNotReady {
+                stage: "mixed_small_factor",
+            });
+        }
+        Ok(&self.factor)
+    }
     pub fn worlds(&self) -> usize {
         self.source.worlds()
     }

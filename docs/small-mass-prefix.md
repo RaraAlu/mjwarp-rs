@@ -186,7 +186,9 @@ Normify保留原树与模块UID。
 本轮不运行任何Clippy。
 旧超限与满额记录继续冻结。
 旧回代第三次也继续冻结。
-完整混合分解与Tile仍未实现。
+随后落实[常驻三路混合分解](mixed-mass-factor.md)。
+它接通Sparse、Small与Compact。
+完整Tile混合分解仍未实现。
 完整G03与NP01至NP04仍开放。
 Small3至6生成物与SASS仍缺。
 Linux与发行模式没有执行。

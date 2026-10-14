@@ -16,9 +16,10 @@ pub use mass_solve::{
     MassFactorBlock, MassFactorKind, MassSolveData, MassSolveOutput, MassSolvePlan, MassSolveWorld,
     SparseMassData, SparseMassDenseData, SparseMassDenseOutput, SparseMassDensePlan,
     SparseMassFactorData, SparseMassFactorOutput, SparseMassFactorPlan, SparseMassFactorWorld,
-    SparseMassOutput, SparseMassPlan, SparseMassSmallData, SparseMassSmallOutput,
-    SparseMassSmallPlan, SparseMassSolveData, SparseMassSolveOutput, SparseMassSolvePlan,
-    SparseMassSolveWorld, SparseMassWorld, probe_mass_solve,
+    SparseMassMixedFactorData, SparseMassMixedFactorOutput, SparseMassMixedFactorPlan,
+    SparseMassMixedFactorWorld, SparseMassOutput, SparseMassPlan, SparseMassSmallData,
+    SparseMassSmallOutput, SparseMassSmallPlan, SparseMassSolveData, SparseMassSolveOutput,
+    SparseMassSolvePlan, SparseMassSolveWorld, SparseMassWorld, probe_mass_solve,
 };
 mod attached;
 pub use attached::{AttachedKinematicsOutput, AttachedKinematicsWorld, probe_attached_kinematics};

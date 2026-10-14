@@ -1,0 +1,162 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "base_revision": "8009579f2b2d69e90c2736be42299b96fbd7605a",
+  "purpose": "new resident three-route mixed factor assembly/cache/ownership",
+  "budget": {
+    "full_tests": 0,
+    "old_tests": 0,
+    "maximum": 3,
+    "SDK_probe": 0,
+    "authors": 0,
+    "before_gpu": 1,
+    "host": "2 passed, frozen",
+    "preparation_failure_counts": true,
+    "clippy": 0
+  },
+  "product": {
+    "Tile": "reject before SDK loading; no precision gate bypass",
+    "noncompact_inverse": "1/Mdiag, not 1/Udiag",
+    "metadata": "i32",
+    "physical_type": "f32 input/output/local/accumulator",
+    "merge": "GPU copies dense U prefix + full CSR tail + all nv inverse",
+    "primary_CSR": "owned mutable main M",
+    "compile": "existing compute70, fast_math false, fmad true, whole-PTX f32 gate",
+    "gather": "GPU snapshot main M into Sparse source, then device copy same generation into Small source",
+    "routes": [
+      "SparseLdl",
+      "SmallCholesky2..6",
+      "Compact"
+    ],
+    "factor": "reuse captured generation only",
+    "no_CPU_factorization": true,
+    "require_sparse_tail": true,
+    "noncompact_CSR": "original M, not U"
+  },
+  "coverage": {
+    "merged_stride": 2377,
+    "ownership_world": 256,
+    "nv": 86,
+    "nc": 2201,
+    "worlds": [
+      1,
+      2,
+      257
+    ],
+    "prefix": 90,
+    "lower_positive_zero": 18200,
+    "non_sparse_inverse_bit_slots": 10920,
+    "private_fault": "old primary source poisoning, captured Sparse snapshot, final/producer guards, bad merged diagonal, raw unselected world write bits and recovery",
+    "scalars": 1236040,
+    "new_pivot_dof": [
+      0,
+      65,
+      85
+    ],
+    "states": 2,
+    "non_sparse_CSR_bit_slots": 29120,
+    "batches": 6
+  },
+  "tolerances": {
+    "atomic_final_factor_bit_determinism": "not required",
+    "reconstruction_divisor": "max(1,abs(M))",
+    "reconstruction": 2E-06,
+    "abs": 0.0002,
+    "copied_rows_and_non_sparse_inverse": "exact f32 bits",
+    "rel": 0.0002
+  },
+  "references": {
+    "f64": "references and reconstruction diagnostics only",
+    "Small": "existing independently chosen U, Small2..6 dyadic Gram, two cases",
+    "sparse": "existing offline native CSR LDL, first 65-chain two cases; no author replay",
+    "Compact": "fixed M=4, inverse=0.25"
+  },
+  "boundaries": {
+    "NP01_NP02_NP03_NP04": "open",
+    "mixed_solve": "not implemented",
+    "SDK_capability": "1/3 frozen",
+    "CRB_to_mixed_bridge": "not implemented",
+    "Tile7": "unintegrated; opaque CUBIN not admitted",
+    "Linux_release_T4": "unrun",
+    "Small_target": "FAILED3/3 corrected host certificate unexecuted",
+    "SDK_link_device": "2/3 frozen",
+    "full_G03": "open"
+  },
+  "files": [
+    {
+      "path": "src/physics/mass_solve/sparse/mixed.rs",
+      "sha256": "6bd549d4a15e764d12419461bac6429cb84aa25303b9f35feafe1efbf3650ada",
+      "normalization": "LF"
+    },
+    {
+      "path": "src/physics/mass_solve/sparse.rs",
+      "sha256": "0fd843511c1634ebc3d678fb615936732ef30434151d51b29fb93035977ec94c",
+      "normalization": "LF"
+    },
+    {
+      "path": "src/physics/mass_solve/sparse/dense/small.rs",
+      "sha256": "29079a78c6974ed52cbdd099e056818bb395aa9ea2994adfbde90b41886f1211",
+      "normalization": "LF"
+    },
+    {
+      "path": "src/physics/mass_solve/sparse/dense.rs",
+      "sha256": "fbf8c9e51cb422893940d659460af6380be45aaef6ca53948936ffbb64965c0d",
+      "normalization": "LF"
+    },
+    {
+      "path": "src/physics/mass_solve.rs",
+      "sha256": "ca65de5240298d0cf5f50687dd6bdf39dd725eeaa37466609ca32d507f105c2d",
+      "normalization": "LF"
+    },
+    {
+      "path": "src/physics/mod.rs",
+      "sha256": "adc9639856b36d7a3dc698148263cabb82ac977ac0fdcd5ec4731d65ddbbbb72",
+      "normalization": "LF"
+    },
+    {
+      "path": "src/runtime/transfer/kernel.rs",
+      "sha256": "0560126f6d8f9a785790bd0ce554866c9de5100e9b9fc566f5af99378743752e",
+      "normalization": "LF"
+    },
+    {
+      "path": "tests/mixed_mass_factor.rs",
+      "sha256": "1c73c623594c07bfad725950695231d8f8dd43e069458ec948856438a7a86958",
+      "normalization": "LF"
+    },
+    {
+      "path": "tests/support/small_mass_prefix.rs",
+      "sha256": "f3fb4c59d5fc91e2de85d294e01c067cd6559cc32563f620af9e55270845dd07",
+      "normalization": "LF"
+    },
+    {
+      "path": "fixtures/sparse-mass-factor/native.json",
+      "sha256": "7a2742c16f0f9edadb4343a6e097169166ea365a07f7637276801b15f9c76d59",
+      "normalization": "LF"
+    },
+    {
+      "path": "fixtures/small-mass-prefix/reference.json",
+      "sha256": "58a6c4801829f755bdc3294aa0c7d1e6c4e7cb7fe3a88439cc5912fa76d0fe1c",
+      "normalization": "LF"
+    },
+    {
+      "path": "fixtures/small-mass-prefix/manifest.json",
+      "sha256": "bf15782f5198be431c189147f42ea858ce5f378abfe61d1d9bea35aa8697519d",
+      "normalization": "LF"
+    },
+    {
+      "path": "fixtures/small-mass-prefix/contract.json",
+      "sha256": "e444b4c2ec30940141cad97d489a33c5b5bd934a1808059d4c68ca63de6fbd06",
+      "normalization": "LF"
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "d5f8857874b1196d8c26446e3281b60f15c1aa5ebaf26ecf5033091386258dcf",
+      "normalization": "LF"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "72af69f9b0816674118e8ca59e85f101aaebe9021a28fd5e9e9aae102ec25d90",
+      "normalization": "LF"
+    }
+  ]
+}

@@ -11,9 +11,10 @@ mod sparse;
 pub use sparse::{
     SparseMassData, SparseMassDenseData, SparseMassDenseOutput, SparseMassDensePlan,
     SparseMassFactorData, SparseMassFactorOutput, SparseMassFactorPlan, SparseMassFactorWorld,
-    SparseMassOutput, SparseMassPlan, SparseMassSmallData, SparseMassSmallOutput,
-    SparseMassSmallPlan, SparseMassSolveData, SparseMassSolveOutput, SparseMassSolvePlan,
-    SparseMassSolveWorld, SparseMassWorld,
+    SparseMassMixedFactorData, SparseMassMixedFactorOutput, SparseMassMixedFactorPlan,
+    SparseMassMixedFactorWorld, SparseMassOutput, SparseMassPlan, SparseMassSmallData,
+    SparseMassSmallOutput, SparseMassSmallPlan, SparseMassSolveData, SparseMassSolveOutput,
+    SparseMassSolvePlan, SparseMassSolveWorld, SparseMassWorld,
 };
 
 /// 每个独立运动树的因子格式。

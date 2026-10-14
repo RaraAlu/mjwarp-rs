@@ -10,9 +10,14 @@ use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
 
 mod dense;
+mod mixed;
 pub use dense::{
     SparseMassDenseData, SparseMassDenseOutput, SparseMassDensePlan, SparseMassSmallData,
     SparseMassSmallOutput, SparseMassSmallPlan,
+};
+pub use mixed::{
+    SparseMassMixedFactorData, SparseMassMixedFactorOutput, SparseMassMixedFactorPlan,
+    SparseMassMixedFactorWorld,
 };
 
 mod resident;
@@ -157,6 +162,14 @@ impl SparseMassFactorPlan {
                 .into());
             }
         }
+        Self::from_input(session, input)
+    }
+    // The mixed caller validates supported routes before using this factory.
+    // Keep the public constructor's noncompact rejection above unchanged.
+    fn from_input(
+        session: &TransferSession,
+        input: SparseMassInput,
+    ) -> Result<Self, TransferError> {
         let input = Arc::new(input);
         #[cfg(not(feature = "cuda-probe"))]
         {
