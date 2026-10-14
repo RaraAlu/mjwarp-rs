@@ -1,0 +1,182 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "base_revision": "85a212b1e599b9014328385af66582b4d91c4e68",
+  "purpose": "necessary noncompact-block GPU densify input stage; NOT Cholesky factors, mixed factor admission or full G03",
+  "platform": "Windows GNU debug",
+  "gpu": "RTX 4070 Ti SUPER",
+  "driver": "596.36",
+  "nvrtc": [
+    12,
+    8
+  ],
+  "commands": [
+    {
+      "purpose": "new dense target",
+      "attempt": 1,
+      "configuration": "default new host function only",
+      "command": "cargo test --locked --test sparse_mass_dense -- --test-threads=1 --nocapture",
+      "exit": 0,
+      "passed": 1,
+      "failed": 0,
+      "filtered": 0,
+      "test_seconds": 0.02,
+      "cargo_seconds": 2.77,
+      "absolute_start": "unknown"
+    },
+    {
+      "purpose": "same new dense target, conservative cumulative across configurations",
+      "attempt": 2,
+      "configuration": "cuda-probe new GPU functions only; successful host filtered",
+      "command": "cargo test --locked --features cuda-probe --test sparse_mass_dense gpu_ -- --ignored --test-threads=1 --nocapture",
+      "exit": 0,
+      "passed": 2,
+      "failed": 0,
+      "filtered": 1,
+      "test_seconds": 0.75,
+      "cargo_seconds": 3.43,
+      "absolute_start": "unknown"
+    },
+    {
+      "purpose": "new private dense fault",
+      "attempt": 1,
+      "configuration": "cuda-probe new dense module tests only",
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::dense::tests:: -- --ignored --test-threads=1 --nocapture",
+      "exit": 0,
+      "passed": 1,
+      "failed": 0,
+      "filtered": 252,
+      "test_seconds": 0.39,
+      "cargo_seconds": 3.7,
+      "absolute_start": "unknown"
+    }
+  ],
+  "types": {
+    "source_indices": "i32",
+    "matrix": "f32",
+    "output": "f32",
+    "holes": "+0.0f",
+    "negative_zero": "bit preserved",
+    "physical_arithmetic": "none",
+    "private_dimensions": "bounded u32; not upstream array_t ABI",
+    "source_map": "prefix address order, not M_tiles grouping order",
+    "small_prefix": "input symmetric matrix only; never uninitialized factor lower slots"
+  },
+  "coverage": {
+    "frozen_model": "sparse-tile",
+    "nv": 72,
+    "nc": 2173,
+    "tree_sizes": [
+      65,
+      7
+    ],
+    "native_prefix": 49,
+    "native_states": 2,
+    "native_slots": 25480,
+    "native_world_edit_slots": 147,
+    "synthetic": [
+      "fork7",
+      "fork64",
+      "Small2+3"
+    ],
+    "synthetic_slots": 2162160,
+    "main_slots": 2187640,
+    "worlds": [
+      1,
+      2,
+      257
+    ],
+    "streams": 2,
+    "structural_positive_zeros": 2046720,
+    "negative_zero_copy_asserted": true,
+    "empty_prefix": [
+      "zero model",
+      "pure sparse chain65"
+    ],
+    "slot_comparison": "to_bits exact; no floating tolerance changed"
+  },
+  "contract_arithmetic_error": {
+    "pre_run_prediction": 2079480,
+    "actual": 2046720,
+    "difference": 32760,
+    "closed_form": "((7-1)*(7-2)+(64-1)*(64-2))*2*(1+2+257)",
+    "reason": "64x64 symmetric star has64 diagonals+126 directed offdiagonals=190 present, not127 CSR entries",
+    "original_contract_preserved": true,
+    "source_indices_samples_and_assertions_unchanged": true,
+    "no_repeat_for_statistics": true
+  },
+  "private_assertions": [
+    "different plans reject before invalidation; invalid length/world/NaN/Inf preserves ready cache",
+    "world1 write: world0+leading/trailing guards bit equal, all selected world slots equal",
+    "CSR leading/trailing guards and unselected/selected NaN reject update and readback, restore succeeds",
+    "output leading/trailing guards reject readback/update, restore succeeds",
+    "output NaN rejects readback, fresh gather overwrites and recovers",
+    "status leading/trailing guards reject update/readback, restore succeeds"
+  ],
+  "pre_execution_repairs": [
+    "first cargo fmt OS1224 mapped-file error; subsequent format/fmt-check pass",
+    "private source static review corrected duplicate +8 guard length before any test; all bounds derive from layouts",
+    "one apply_patch context mismatch before test; no source or test execution on that failed patch"
+  ],
+  "timing": {
+    "twelve_batch_phase_ms": 122,
+    "includes_host_compare": true,
+    "excludes_plan_compilation_private_and_world_edit": true,
+    "max_product_buffer_bytes": 4358752,
+    "bytes_include": "CSR,dense,status,metadata and guards",
+    "excludes": "JIT,driver,process peak",
+    "fair_performance": "unaccepted"
+  },
+  "budgets": {
+    "new_dense_target_cumulative": 2,
+    "max": 3,
+    "new_private_fault_cumulative": 1,
+    "successful_functions_repeated": 0,
+    "old_test_functions": 0,
+    "old_factor_author": 0,
+    "new_author": 0,
+    "cuda_clippy": 0,
+    "default_clippy": 0,
+    "old_clippy_excess": "prior4 calls, excess1 retained/frozen",
+    "old_solve_third": "frozen",
+    "python_calls": 0,
+    "manual_audit_python_calls": 0
+  },
+  "old_precision_tolerances_unchanged": {
+    "solution_abs_rel": 0.0002,
+    "residual": 2E-05,
+    "reconstruction": 2E-06
+  },
+  "reference_boundaries": [
+    "native.json LDL factor is NOT Cholesky U expected output",
+    "explicit frozen caches have tile11/12 actual MathDx only, not tile7",
+    "synthetic layout values do not prove SPD or physics numerical precision",
+    "no MathDx fallback substitution selected",
+    "SparseMassFactorPlan and SparseMassSolvePlan still reject noncompact mixed inputs"
+  ],
+  "normify": {
+    "errors": 0,
+    "warnings": 10,
+    "model_uid": "af628ce1",
+    "mass_solve_uid": "cd53f287",
+    "root_and_core": "planned",
+    "formal_prerequisites_and_resources": "unchanged",
+    "main_change": "in_progress; not closed"
+  },
+  "doc_audit": {
+    "path": "C:/Users/zhang/.codex/audit-docs/reports/e05f246e1c12b4cf/audit-a_rmyasx.md",
+    "source_files": 424,
+    "doc_files": 107,
+    "mismatches": 0,
+    "manual": "source/map/reference-format/counts/all commands/scoped historical boundaries checked"
+  },
+  "archive_format": "LF and trailing-empty-line trim only; raw original logs retained and separately hashed",
+  "unaccepted": [
+    "noncompact mixed Cholesky factors and solves",
+    "Small/MathDx full per-operator and generated machine mapping",
+    "full G03 and NP01-04",
+    "current upstream bit differences; old395007 historical",
+    "Linux/release/T4/fair performance"
+  ],
+  "push_release": false
+}

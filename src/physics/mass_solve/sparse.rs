@@ -9,6 +9,9 @@ use crate::runtime::TransferSession;
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
 
+mod dense;
+pub use dense::{SparseMassDenseData, SparseMassDenseOutput, SparseMassDensePlan};
+
 mod resident;
 pub use resident::{
     SparseMassData, SparseMassOutput, SparseMassPlan, SparseMassSolveData, SparseMassSolveOutput,

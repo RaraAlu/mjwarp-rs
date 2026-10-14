@@ -261,6 +261,38 @@ impl SparseMassInput {
     pub fn qld_block_total(&self) -> usize {
         self.qld_block_total
     }
+    /// 按qLD前缀地址返回对称块的CSR源槽。
+    /// 缺项采用nC哨兵；这不是分解后的因子。
+    /// 顺序按前缀地址，不冒充M_tiles的分组顺序。
+    pub fn dense_block_sources(&self) -> Result<Vec<i32>, InputError> {
+        let mut slots = Vec::new();
+        slots
+            .try_reserve_exact(self.qld_block_total)
+            .map_err(|_| InputError::Overflow {
+                field: "dense_block_sources_allocation",
+            })?;
+        slots.resize(self.qld_block_total, self.nc() as i32);
+        // Frozen io.py:1172-1200 (71da24d), Apache-2.0.
+        // Copyright 2025 The Newton Developers; licenses/Apache-2.0.txt.
+        for block in &self.blocks {
+            let address = self.qld_block_adr[block.start];
+            if address < 0 {
+                continue;
+            }
+            for i in 0..block.size {
+                for j in 0..block.size {
+                    let row = block.start + i.max(j);
+                    let column = (block.start + i.min(j)) as i32;
+                    let start = self.fields.m_rowadr[row] as usize;
+                    let end = start + self.fields.m_rownnz[row] as usize;
+                    if let Ok(k) = self.fields.m_colind[start..end].binary_search(&column) {
+                        slots[address as usize + i * block.size + j] = (start + k) as i32;
+                    }
+                }
+            }
+        }
+        Ok(slots)
+    }
     /// 零更新时保留冻结占位元组。
     pub fn qld_all_updates(&self) -> &[[i32; 3]] {
         if self.updates.is_empty() {

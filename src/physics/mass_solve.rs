@@ -9,9 +9,10 @@ mod resident;
 pub use resident::{MassSolveData, MassSolvePlan};
 mod sparse;
 pub use sparse::{
-    SparseMassData, SparseMassFactorData, SparseMassFactorOutput, SparseMassFactorPlan,
-    SparseMassFactorWorld, SparseMassOutput, SparseMassPlan, SparseMassSolveData,
-    SparseMassSolveOutput, SparseMassSolvePlan, SparseMassSolveWorld, SparseMassWorld,
+    SparseMassData, SparseMassDenseData, SparseMassDenseOutput, SparseMassDensePlan,
+    SparseMassFactorData, SparseMassFactorOutput, SparseMassFactorPlan, SparseMassFactorWorld,
+    SparseMassOutput, SparseMassPlan, SparseMassSolveData, SparseMassSolveOutput,
+    SparseMassSolvePlan, SparseMassSolveWorld, SparseMassWorld,
 };
 
 /// 每个独立运动树的因子格式。
