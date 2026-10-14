@@ -61,6 +61,10 @@ mod camlight;
 pub use camlight::{CamLightOutput, CamLightWorld};
 mod fixed_tendon;
 pub use fixed_tendon::{FixedTendonOutput, FixedTendonWorld};
+mod tendon_velocity;
+pub use tendon_velocity::{
+    TendonVelocityData, TendonVelocityPlan, TendonVelocitySnapshot, TendonVelocityView,
+};
 mod spatial_tendon;
 #[cfg(feature = "cuda-probe")]
 mod tendon_wrap;

@@ -1555,6 +1555,47 @@ impl KinematicsPlan {
         }
     }
 
+    pub(super) fn tendon_velocity_context(
+        &self,
+    ) -> Result<(TransferSession, usize, Arc<TendonRows>), TransferError> {
+        let rows = self
+            .tendon_rows
+            .clone()
+            .ok_or(InputError::InvalidDimension {
+                field: "velocity_requires_global_tendons",
+            })?;
+        Ok((
+            self.session.clone(),
+            self.model.rigid().kinematics().nv(),
+            rows,
+        ))
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn tendon_velocity_source<'a>(
+        &self,
+        data: &'a KinematicsData,
+    ) -> Result<&'a TransferBuffer<f32>, TransferError> {
+        self.check_data(data)?;
+        if !self
+            .tendon_rows
+            .as_ref()
+            .zip(data.tendon_rows.as_ref())
+            .is_some_and(|(a, b)| Arc::ptr_eq(a, b))
+        {
+            return Err(TransferError::ModelMismatch);
+        }
+        // 等价入口也必须检查就绪。
+        data.ready
+            .require(data.ready.tendon, "tendon_velocity_source")?;
+        data.tendon.as_ref().map(|t| &t.values).ok_or(
+            InputError::InvalidDimension {
+                field: "velocity_requires_global_tendons",
+            }
+            .into(),
+        )
+    }
+
     #[cfg(feature = "cuda-probe")]
     pub(super) fn compile_velocity_position(
         &self,
@@ -2182,6 +2223,10 @@ impl KinematicsPlan {
 }
 
 impl KinematicsData {
+    #[cfg(all(test, feature = "cuda-probe"))]
+    pub(super) fn tendon_velocity_source_for_test(&mut self) -> &mut TransferBuffer<f32> {
+        &mut self.tendon.as_mut().unwrap().values
+    }
     #[cfg(all(test, feature = "cuda-probe"))]
     pub(in crate::physics) fn state_values_for_test(&self) -> Result<Vec<f32>, TransferError> {
         let mut values = crate::runtime::host_staging::<f32>(self.state.len())?;
