@@ -10,7 +10,10 @@ use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
 
 mod dense;
-pub use dense::{SparseMassDenseData, SparseMassDenseOutput, SparseMassDensePlan};
+pub use dense::{
+    SparseMassDenseData, SparseMassDenseOutput, SparseMassDensePlan, SparseMassSmallData,
+    SparseMassSmallOutput, SparseMassSmallPlan,
+};
 
 mod resident;
 pub use resident::{

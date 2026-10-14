@@ -29,6 +29,88 @@ pub(crate) struct SynchronousKernel {
 }
 
 impl SynchronousKernel {
+    /// Small分解固定64线程；每线程独占一个世界块。
+    ///
+    /// # Safety
+    /// Caller proves triples (DOF start, prefix address, static size) and ABI.
+    /// Input buffers are immutable; each thread owns a disjoint factor block.
+    pub(crate) unsafe fn launch_small_factor(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        matrix: &TransferBuffer<f32>,
+        unused: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        dimensions: [u32; 4],
+    ) -> Result<(), TransferError> {
+        for same in [
+            Arc::ptr_eq(&self.session.inner, &metadata.session.inner),
+            Arc::ptr_eq(&self.session.inner, &matrix.session.inner),
+            Arc::ptr_eq(&self.session.inner, &unused.session.inner),
+            Arc::ptr_eq(&self.session.inner, &output.session.inner),
+        ] {
+            if !same {
+                return Err(TransferError::SessionMismatch);
+            }
+        }
+        let [prefix, first, count, work] = dimensions.map(|v| v as usize);
+        let invalid = || InputError::InvalidDimension {
+            field: "small_factor_abi",
+        };
+        if count == 0
+            || work == 0
+            || work > (u32::MAX - 63) as usize
+            || work % count != 0
+            || prefix > i32::MAX as usize
+        {
+            return Err(invalid().into());
+        }
+        let min_meta = first
+            .checked_add(count)
+            .and_then(|v| v.checked_mul(3))
+            .filter(|&v| v <= i32::MAX as usize)
+            .ok_or_else(invalid)?;
+        let length = (work / count)
+            .checked_mul(prefix)
+            .and_then(|v| v.checked_add(8))
+            .ok_or_else(invalid)?;
+        if metadata.len() < min_meta
+            || matrix.len() != length
+            || unused.len() != length
+            || output.len() != length
+        {
+            return Err(invalid().into());
+        }
+        let (Some(m), Some(a), Some(b), Some(o)) = (
+            metadata.allocation.as_ref(),
+            matrix.allocation.as_ref(),
+            unused.allocation.as_ref(),
+            output.allocation.as_mut(),
+        ) else {
+            return Err(invalid().into());
+        };
+        self.session.run("small-factor-64-launch", || {
+            let mut args = self
+                .session
+                .inner
+                .stream
+                .launch_builder(self.function.as_ref().unwrap());
+            args.arg(m).arg(a).arg(b).arg(o);
+            for d in &dimensions {
+                args.arg(d);
+            }
+            // SAFETY: Capacity checks and the caller's static block descriptors
+            // bound all accesses; run serializes and waits for completion.
+            unsafe {
+                args.launch(LaunchConfig {
+                    grid_dim: ((work as u32).div_ceil(64), 1, 1),
+                    block_dim: (64, 1, 1),
+                    shared_mem_bytes: 0,
+                })
+            }?;
+            Ok(())
+        })
+    }
+
     /// 固定128线程；每世界每RHS独占一个块。
     ///
     /// # Safety
@@ -592,6 +674,91 @@ fn record_physics_ptx(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "requires NVIDIA/NVRTC; new Small64 ABI purpose"]
+    fn small_factor_64_abi_checks_sessions_capacities_and_work_partition() {
+        let session = TransferSession::new(0).unwrap();
+        let other = TransferSession::new(0).unwrap();
+        let source = r#"
+extern "C" __global__ void small_abi_probe(const int* m,const float* a,const float* b,float* o,
+ unsigned prefix,unsigned first,unsigned count,unsigned work) {
+ __shared__ unsigned slots[64];slots[threadIdx.x]=threadIdx.x;__syncthreads();
+ unsigned tid=blockIdx.x*blockDim.x+threadIdx.x;
+ if(tid<work)o[4+tid]=blockDim.x*1000+blockIdx.x*64+slots[63-threadIdx.x];
+}
+"#;
+        let kernel = SynchronousKernel::compile(&session, source, "small_abi_probe").unwrap();
+        let m = session.upload(&vec![0i32; 192]).unwrap();
+        let a = session.upload(&vec![0f32; 136]).unwrap();
+        let mut out = session.upload(&vec![-131072f32; 136]).unwrap();
+        let fm = other.upload(&vec![0i32; 192]).unwrap();
+        let fa = other.upload(&vec![0f32; 136]).unwrap();
+        let mut fo = other.upload(&vec![0f32; 136]).unwrap();
+        let tiny_m = session.upload(&[0i32]).unwrap();
+        let tiny = session.upload(&[0f32]).unwrap();
+        let mut tiny_out = session.upload(&[0f32]).unwrap();
+        // SAFETY: Rejection cases return before launch. The accepted probe has
+        // two full64 blocks, 128 output slots and exactly64 shared slots.
+        unsafe {
+            for k in 0..4 {
+                assert_eq!(
+                    kernel.launch_small_factor(
+                        if k == 0 { &fm } else { &m },
+                        if k == 1 { &fa } else { &a },
+                        if k == 2 { &fa } else { &a },
+                        if k == 3 { &mut fo } else { &mut out },
+                        [64, 0, 64, 128]
+                    ),
+                    Err(TransferError::SessionMismatch)
+                );
+            }
+            for dims in [
+                [64, 0, 0, 128],
+                [64, 0, 64, 0],
+                [64, 0, 64, 129],
+                [u32::MAX, 0, 64, 128],
+                [64, u32::MAX, 64, 128],
+                [64, 0, 64, u32::MAX],
+            ] {
+                assert!(matches!(
+                    kernel.launch_small_factor(&m, &a, &a, &mut out, dims),
+                    Err(TransferError::Input(_))
+                ));
+            }
+            for k in 0..4 {
+                assert!(matches!(
+                    kernel.launch_small_factor(
+                        if k == 0 { &tiny_m } else { &m },
+                        if k == 1 { &tiny } else { &a },
+                        if k == 2 { &tiny } else { &a },
+                        if k == 3 { &mut tiny_out } else { &mut out },
+                        [64, 0, 64, 128]
+                    ),
+                    Err(TransferError::Input(_))
+                ));
+            }
+            kernel
+                .launch_small_factor(&m, &a, &a, &mut out, [64, 0, 64, 128])
+                .unwrap();
+        }
+        let mut values = vec![0f32; 136];
+        out.read_range_into(0, &mut values).unwrap();
+        assert!(
+            values[..4]
+                .iter()
+                .chain(&values[132..])
+                .all(|&v| v == -131072.0)
+        );
+        for group in 0..2 {
+            for tid in 0..64 {
+                assert_eq!(
+                    values[4 + group * 64 + tid],
+                    (64000 + group * 64 + 63 - tid) as f32
+                );
+            }
+        }
+    }
 
     #[test]
     #[ignore = "requires NVIDIA driver/NVRTC; new 128-thread sparse solve ABI purpose"]

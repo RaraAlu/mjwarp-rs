@@ -7,6 +7,9 @@ use crate::runtime::TransferSession;
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
 
+mod small;
+pub use small::{SparseMassSmallData, SparseMassSmallOutput, SparseMassSmallPlan};
+
 pub struct SparseMassDensePlan {
     input: Arc<SparseMassInput>,
     #[cfg(feature = "cuda-probe")]
