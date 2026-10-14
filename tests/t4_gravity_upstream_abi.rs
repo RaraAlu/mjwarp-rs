@@ -10,13 +10,14 @@ use cudarc::{
     },
     nvrtc::{CompileOptions, compile_ptx_with_opts, sys as nvrtc_sys},
 };
+use mjwarp_rs::runtime::{FrozenWarpGravityArtifact, FrozenWarpGravityInput};
 use serde::Deserialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{fs, mem::size_of, path::Path, path::PathBuf};
 
 const PACKAGE: &str = include_str!("../fixtures/gravity-upstream-abi/package.json");
-const PACKAGE_SHA256: &str = "4fafa7e6b76cc6ac77b81983b6a1bd2b2b2f92f7ba6622921d673a6f8b6acbc4";
+const PACKAGE_SHA256: &str = "e8a103433c10c14a5aff41ed65ebbf737157280d6943c4c772101f0c72d830b7";
 const REVISION: &str = "71da24d956378a87a703b6e1442b13aec0c4ac29";
 const WARP_VERSION: &str = "1.15.0";
 #[cfg(windows)]
@@ -86,6 +87,25 @@ struct ArtifactReceipt {
     ptx_file: String,
     cu_sha256: String,
     ptx_sha256: String,
+    meta_file: String,
+    meta_sha256: String,
+    python_version: String,
+    python_executable_sha256: String,
+    generator_file: String,
+    generator_sha256: String,
+    warp_dll_sha256: String,
+    cuda_toolkit: String,
+    ptx_compiler: String,
+    driver_version: String,
+    device: String,
+    generation_invocation_id: String,
+    generation_log: String,
+    generation_log_sha256: String,
+    generation_execution_file: String,
+    generation_execution_sha256: String,
+    compiler_provenance: String,
+    authoring_only: bool,
+    product_python_dependency: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -297,8 +317,10 @@ fn validate_package(package: &Value) -> Result<(), GateError> {
     let requirements = &package["artifact_requirements"];
     if requirements["launch_rank"] != 3
         || requirements["array_arguments"] != 11
-        || requirements["receipt_fields"].as_array().map(Vec::len) != Some(19)
+        || requirements["receipt_fields"].as_array().map(Vec::len) != Some(38)
         || requirements["compile_options"]["requires_actual_receipt"] != true
+        || requirements["device_output_required"] != true
+        || requirements["full_chain_independent"] != false
     {
         return Err(GateError::Mismatch("artifact boundary"));
     }
@@ -308,8 +330,10 @@ fn validate_package(package: &Value) -> Result<(), GateError> {
         || pipeline["native_compile_entry"] != "wp_cuda_compile_program"
         || pipeline["native_compile_binary_pinned"] != true
         || pipeline["non_python_codegen_export_present"] != false
-        || pipeline["missing_artifact"] != "frozen passive module emitted CUDA"
+        || pipeline["artifact_directory"] != "fixtures/gravity-upstream-abi/generated"
         || pipeline["python_execution_allowed"] != false
+        || pipeline["offline_python_authoring_allowed"] != true
+        || pipeline["runtime_dependency"] != "rust_cuda_driver_only"
     {
         return Err(GateError::Mismatch("generation pipeline"));
     }
@@ -443,6 +467,30 @@ fn validate_artifact_candidate(
         || receipt.fuse_fp != options["fuse_fp"]
         || receipt.launch_rank != 3
         || receipt.array_arguments != 11
+        || receipt.meta_file != "module.meta"
+        || receipt.meta_sha256 != "4a80327bc21a875a63b9cf3dfc43386ed40119012357560339f071ac50ea461c"
+        || receipt.python_version != "3.12.13"
+        || receipt.python_executable_sha256
+            != "feeec36120097a03201a96ae17a0e2c1fba70dd6241cb4bfdd9e7c2a00bada77"
+        || receipt.generator_file != "generate.py"
+        || receipt.generator_sha256
+            != "3f0348511e241a345cb3ae66b201cb02b1cef19d532b5980cd86a0e1700b0f2e"
+        || receipt.warp_dll_sha256
+            != "7c006eb348a7359810f4d001cbd4141cc5d6d1641fc2989e4c3711e99e6671d6"
+        || receipt.cuda_toolkit != "12.9"
+        || receipt.ptx_compiler != "12.9.86"
+        || receipt.driver_version != "596.36"
+        || receipt.device != "NVIDIA GeForce RTX 4070 Ti SUPER"
+        || receipt.generation_invocation_id != "exec-9a825267"
+        || receipt.generation_log != "generation.log"
+        || receipt.generation_log_sha256
+            != "92626aabae26d638ad6d1c0e83461eac15a0d4c564afb9e3873dab9884578efa"
+        || receipt.generation_execution_file != "generation-execution.json"
+        || receipt.generation_execution_sha256
+            != "8247ab2031fdccfd47d12ca8c3856150aed1c3d5539006cc65a0fd0f57edfd12"
+        || receipt.compiler_provenance != "reconstructed_from_stdout_ptx_and_pinned_source_defaults"
+        || !receipt.authoring_only
+        || receipt.product_python_dependency
     {
         return Err(GateError::Mismatch("artifact receipt identity"));
     }
@@ -459,6 +507,30 @@ fn validate_artifact_candidate(
     let ptx = safe_file(directory, &receipt.ptx_file, "artifact ptx")?;
     if digest(&cu) != receipt.cu_sha256 || digest(&ptx) != receipt.ptx_sha256 {
         return Err(GateError::Mismatch("artifact hash"));
+    }
+    if receipt.evidence_kind == "frozen-generated" {
+        for (file, expected, what) in [
+            (&receipt.meta_file, &receipt.meta_sha256, "artifact meta"),
+            (
+                &receipt.generator_file,
+                &receipt.generator_sha256,
+                "artifact generator",
+            ),
+            (
+                &receipt.generation_log,
+                &receipt.generation_log_sha256,
+                "artifact generation log",
+            ),
+            (
+                &receipt.generation_execution_file,
+                &receipt.generation_execution_sha256,
+                "artifact execution",
+            ),
+        ] {
+            if digest(&safe_file(directory, file, what)?) != *expected {
+                return Err(GateError::Mismatch("artifact support hash"));
+            }
+        }
     }
     let cu = std::str::from_utf8(&cu).map_err(|_| GateError::Parse("artifact cu"))?;
     let cu_signature = signature_lines(
@@ -557,6 +629,25 @@ fn receipt(package: &Value) -> Value {
         "ptx_file": "module.ptx",
         "cu_sha256": "",
         "ptx_sha256": "",
+        "meta_file": "module.meta",
+        "meta_sha256": "4a80327bc21a875a63b9cf3dfc43386ed40119012357560339f071ac50ea461c",
+        "python_version": "3.12.13",
+        "python_executable_sha256": "feeec36120097a03201a96ae17a0e2c1fba70dd6241cb4bfdd9e7c2a00bada77",
+        "generator_file": "generate.py",
+        "generator_sha256": "3f0348511e241a345cb3ae66b201cb02b1cef19d532b5980cd86a0e1700b0f2e",
+        "warp_dll_sha256": "7c006eb348a7359810f4d001cbd4141cc5d6d1641fc2989e4c3711e99e6671d6",
+        "cuda_toolkit": "12.9",
+        "ptx_compiler": "12.9.86",
+        "driver_version": "596.36",
+        "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+        "generation_invocation_id": "exec-9a825267",
+        "generation_log": "generation.log",
+        "generation_log_sha256": "92626aabae26d638ad6d1c0e83461eac15a0d4c564afb9e3873dab9884578efa",
+        "generation_execution_file": "generation-execution.json",
+        "generation_execution_sha256": "8247ab2031fdccfd47d12ca8c3856150aed1c3d5539006cc65a0fd0f57edfd12",
+        "compiler_provenance": "reconstructed_from_stdout_ptx_and_pinned_source_defaults",
+        "authoring_only": true,
+        "product_python_dependency": false,
     })
 }
 
@@ -596,6 +687,59 @@ fn write_candidate(directory: &Path, cu: &[u8], ptx: &[u8], receipt: &Value) {
         serde_json::to_vec(receipt).unwrap(),
     )
     .unwrap();
+}
+
+fn frozen_physical_input(package: &Value) -> FrozenWarpGravityInput {
+    let model = &package["model"];
+    let ints = |field: &str| {
+        model[field]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|value| i32::try_from(value.as_i64().unwrap()).unwrap())
+            .collect::<Vec<_>>()
+    };
+    let worlds = usize_value(&package["dimensions"]["worlds"], "worlds").unwrap();
+    let nbody = usize_value(&package["dimensions"]["nbody"], "nbody").unwrap();
+    let nv = usize_value(&package["dimensions"]["nv"], "nv").unwrap();
+    let xipos = f32_values(&package["state"]["xipos_row"], "xipos row")
+        .unwrap()
+        .repeat(worlds);
+    let (candidate_path, candidate_hash) = stamp(package, "input_sources", 0).unwrap();
+    let candidate: Value =
+        serde_json::from_slice(&read_stamped(candidate_path, candidate_hash).unwrap()).unwrap();
+    let mut subtree_com = Vec::with_capacity(worlds * nbody * 3);
+    let mut cdof = Vec::with_capacity(worlds * nv * 6);
+    for row in candidate["candidate_com_diagnostics"].as_array().unwrap() {
+        subtree_com.extend(f32_values(&row["subtree_com"], "subtree com").unwrap());
+        cdof.extend(f32_values(&row["cdof"], "cdof").unwrap());
+    }
+    FrozenWarpGravityInput {
+        worlds,
+        nbody,
+        nv,
+        opt_gravity: f32_values(&model["opt_gravity"], "opt_gravity").unwrap(),
+        body_parentid: ints("body_parentid"),
+        body_rootid: ints("body_rootid"),
+        body_mass: f32_values(&model["body_mass"], "body_mass").unwrap(),
+        body_gravcomp: f32_values(&model["body_gravcomp"], "body_gravcomp").unwrap(),
+        dof_bodyid: ints("dof_bodyid"),
+        body_isdofancestor: ints("body_isdofancestor"),
+        xipos,
+        subtree_com,
+        cdof,
+    }
+}
+
+fn analytic_expected(package: &Value) -> Vec<f32> {
+    let (path, hash) = stamp(package, "input_sources", 1).unwrap();
+    let contract: Value = serde_json::from_slice(&read_stamped(path, hash).unwrap()).unwrap();
+    contract["expected"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|row| f32_values(row, "expected").unwrap())
+        .collect()
 }
 
 #[test]
@@ -664,11 +808,11 @@ fn frozen_input_and_artifact_gate_reject_drift() {
     validate_package(&package).unwrap();
     assert_eq!(
         package["artifact_requirements"]["actual_artifact_present"],
-        false
+        true
     );
     assert_eq!(
         package["artifact_requirements"]["equivalence_eligible"],
-        false
+        true
     );
     let missing = Temp::new("missing");
     assert_eq!(
@@ -719,8 +863,44 @@ fn frozen_input_and_artifact_gate_reject_drift() {
     assert_eq!(identity.evidence_kind, "synthetic-non-physical");
     assert_eq!(
         admit_artifact(&package, &valid.0),
-        Err(GateError::Mismatch("artifact not registered"))
+        Err(GateError::Mismatch("artifact evidence kind"))
     );
+
+    let generated = root().join(
+        package["generation_pipeline"]["artifact_directory"]
+            .as_str()
+            .unwrap(),
+    );
+    let identity = admit_artifact(&package, &generated).unwrap();
+    assert_eq!(
+        identity.entry,
+        "_gravity_force_7c63ac28_cuda_kernel_forward"
+    );
+    assert_eq!(
+        identity.cu_sha256,
+        "dd9338e9f38feb767273c3e1a445aea54bee3dee7d899076363202a4d26e865d"
+    );
+    assert_eq!(
+        identity.ptx_sha256,
+        "d06154da63f64118e8fdb19c0b646a59c5b485d580f4716e5edea97a57c1dd70"
+    );
+
+    let trusted_drift = Temp::new("trusted-drift");
+    for name in [
+        "generate.py",
+        "generation-execution.json",
+        "generation.log",
+        "module.cu",
+        "module.meta",
+        "module.ptx",
+        "receipt.json",
+    ] {
+        fs::copy(generated.join(name), trusted_drift.0.join(name)).unwrap();
+    }
+    let mut changed = fs::read(trusted_drift.0.join("module.cu")).unwrap();
+    changed[0] ^= 1;
+    fs::write(trusted_drift.0.join("module.cu"), changed).unwrap();
+    assert!(FrozenWarpGravityArtifact::load(&trusted_drift.0, 0).is_err());
 
     let changed = Temp::new("changed-byte");
     let mut changed_cu = cu.clone();
@@ -976,6 +1156,101 @@ fn local_frozen_install_matches_record_and_rejects_smooth_cache() {
             path.display()
         );
     }
+}
+
+#[cfg(windows)]
+#[test]
+#[ignore = "requires an SM89 GPU and the frozen generated Warp 1.15 artifact"]
+fn frozen_generated_artifact_imports_and_launches() {
+    use std::time::Instant;
+
+    let package = package().unwrap();
+    validate_package(&package).unwrap();
+    let directory = root().join(
+        package["generation_pipeline"]["artifact_directory"]
+            .as_str()
+            .unwrap(),
+    );
+    let identity = admit_artifact(&package, &directory).unwrap();
+    let load_started = Instant::now();
+    let artifact = FrozenWarpGravityArtifact::load(&directory, 0).unwrap();
+    let load_micros = load_started.elapsed().as_micros();
+    assert_eq!(artifact.receipt().entry, identity.entry);
+
+    let input = frozen_physical_input(&package);
+    let launch_started = Instant::now();
+    let readback = artifact.launch_diagnostic(&input).unwrap();
+    let launch_micros = launch_started.elapsed().as_micros();
+    let raw_bits = readback
+        .bits()
+        .iter()
+        .map(|value| format!("{value:08x}"))
+        .collect::<Vec<_>>();
+    let evidence_directory =
+        std::env::var_os("MJWARP_GRAVITY_UPSTREAM_EVIDENCE_DIR").map(PathBuf::from);
+    if let Some(evidence) = &evidence_directory {
+        fs::create_dir_all(evidence).unwrap();
+        let raw = serde_json::json!({
+            "schema": 1,
+            "provenance": "direct_generated_kernel_readback_before_finite_validation",
+            "upstream_revision": REVISION,
+            "entry": identity.entry,
+            "artifact_cu_sha256": identity.cu_sha256,
+            "artifact_ptx_sha256": identity.ptx_sha256,
+            "actual_bits": &raw_bits,
+            "count": readback.bits().len()
+        });
+        fs::write(
+            evidence.join("raw.json"),
+            serde_json::to_vec_pretty(&raw).unwrap(),
+        )
+        .unwrap();
+    }
+
+    let actual = readback.into_finite().unwrap();
+    let expected = analytic_expected(&package);
+    let max_absolute = max_absolute_finite(&actual, &expected).unwrap();
+    let bit_differences = actual
+        .iter()
+        .zip(&expected)
+        .filter(|(actual, expected)| actual.to_bits() != expected.to_bits())
+        .count();
+    if let Some(evidence) = &evidence_directory {
+        let report = serde_json::json!({
+            "schema": 1,
+            "evidence_kind": "frozen-generated-upstream-device-launch",
+            "upstream_revision": REVISION,
+            "warp_version": WARP_VERSION,
+            "entry": artifact.receipt().entry,
+            "artifact_cu_sha256": artifact.receipt().cu_sha256,
+            "artifact_ptx_sha256": artifact.receipt().ptx_sha256,
+            "package_sha256": PACKAGE_SHA256,
+            "launch_shape": [input.worlds, input.nbody - 1, input.nv],
+            "output_count": actual.len(),
+            "actual": &actual,
+            "actual_bits": &raw_bits,
+            "expected": &expected,
+            "expected_kind": "analytic_certificate_not_upstream_device_output",
+            "tolerance": 0.000002,
+            "max_absolute": max_absolute,
+            "bit_differences": bit_differences,
+            "artifact_load_micros": load_micros,
+            "launch_and_readback_micros": launch_micros,
+            "upstream_generated_gravity_kernel": true,
+            "candidate_derived_inputs": true,
+            "full_chain_independent": false,
+            "artifact_equivalence_eligible": true,
+            "full_chain_equivalence_eligible": false,
+            "product_python_dependency": false
+        });
+        fs::write(
+            evidence.join("run.json"),
+            serde_json::to_vec_pretty(&report).unwrap(),
+        )
+        .unwrap();
+    }
+    assert_eq!(actual.len(), expected.len());
+    assert!(max_absolute <= 0.000002);
 }
 
 #[cfg(windows)]

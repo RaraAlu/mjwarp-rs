@@ -24,6 +24,13 @@ mod samples;
 mod cubecl;
 #[cfg(feature = "cuda-probe")]
 mod cuda;
+#[cfg(feature = "cuda-probe")]
+mod warp_gravity;
+#[cfg(feature = "cuda-probe")]
+pub use warp_gravity::{
+    FrozenWarpGravityArtifact, FrozenWarpGravityInput, FrozenWarpGravityReadback,
+    FrozenWarpGravityReceipt,
+};
 
 const GUARD_ELEMENTS: usize = 16;
 #[cfg(any(feature = "cuda-probe", test))]
