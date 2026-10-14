@@ -244,6 +244,7 @@ NP04仍缺公平稳态性能对照。
 25. [Windows质量矩阵探针](windows-mass-matrix-probe.md)
     新增[CRB常驻严格组合](resident-crb.md)。
     随后新增[常驻分解与求解](resident-mass-solve.md)。
+    现新增[真实CSR分层分解](resident-sparse-factor.md)。
 26. [Windows质量求解探针](windows-mass-solve-probe.md)
 27. [Windows附着运动学探针](windows-attached-kinematics-probe.md)
 28. [Windows常驻运动学底座](windows-resident-kinematics.md)

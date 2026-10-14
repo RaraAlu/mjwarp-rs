@@ -4,6 +4,9 @@
 use super::{BatchLayout, KinematicModelInput, topology::JointType};
 use crate::diagnostics::InputError;
 
+mod sparse;
+pub use sparse::{SparseMassBlock, SparseMassFields, SparseMassInput, SparseMassRoute};
+
 /// 九项连续字段的未检查输入。
 /// 参数批量长度固定为一。
 #[derive(Clone, Debug, Default, PartialEq)]

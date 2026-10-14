@@ -7,6 +7,10 @@ use crate::runtime::TransferSession;
 
 mod resident;
 pub use resident::{MassSolveData, MassSolvePlan};
+mod sparse;
+pub use sparse::{
+    SparseMassFactorData, SparseMassFactorOutput, SparseMassFactorPlan, SparseMassFactorWorld,
+};
 
 /// 每个独立运动树的因子格式。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

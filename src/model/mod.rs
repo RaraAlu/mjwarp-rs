@@ -8,7 +8,10 @@ use crate::diagnostics::{InputError, NativeProbeError};
 pub mod topology;
 pub use topology::{KinematicFields, KinematicModelInput};
 pub mod inertial;
-pub use inertial::{InertialFields, InertialModelInput};
+pub use inertial::{
+    InertialFields, InertialModelInput, SparseMassBlock, SparseMassFields, SparseMassInput,
+    SparseMassRoute,
+};
 pub mod attached;
 pub use attached::{AttachedFields, AttachedModelInput};
 pub mod collision;

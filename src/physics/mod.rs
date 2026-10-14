@@ -14,6 +14,7 @@ pub use mass_matrix::{
 mod mass_solve;
 pub use mass_solve::{
     MassFactorBlock, MassFactorKind, MassSolveData, MassSolveOutput, MassSolvePlan, MassSolveWorld,
+    SparseMassFactorData, SparseMassFactorOutput, SparseMassFactorPlan, SparseMassFactorWorld,
     probe_mass_solve,
 };
 mod attached;
