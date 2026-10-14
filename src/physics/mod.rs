@@ -78,7 +78,7 @@ pub use flex_edge_passive::{
 mod passive_force;
 pub use passive_force::{
     ClearedPassiveForceView, PassiveForceData, PassiveForcePlan, PassiveForceSnapshot,
-    PassiveForceView,
+    PassiveForceView, SleepClearedPassiveForceView,
 };
 mod spatial_tendon;
 #[cfg(feature = "cuda-probe")]

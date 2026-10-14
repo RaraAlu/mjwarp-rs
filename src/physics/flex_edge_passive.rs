@@ -255,6 +255,18 @@ impl<'p> FlexEdgePassivePlan<'p> {
         (self.session.clone(), self.spec.nv, self.options)
     }
 
+    pub(super) fn shared_sleep_context(&self) -> Option<(usize, &[i32], bool, bool)> {
+        self.source.passive_sleep_context()
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn shared_sleep_source<'a>(
+        &self,
+        source: &'a KinematicsData,
+    ) -> Result<&'a TransferBuffer<i32>, TransferError> {
+        self.source.passive_sleep_source(source)
+    }
+
     pub(super) fn accepts_shared_source(&self, source: &KinematicsData) -> bool {
         self.source.check_data(source).is_ok()
     }

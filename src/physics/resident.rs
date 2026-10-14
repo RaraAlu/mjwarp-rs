@@ -1617,6 +1617,36 @@ impl KinematicsPlan {
         ))
     }
 
+    pub(super) fn passive_sleep_context(&self) -> Option<(usize, &[i32], bool, bool)> {
+        self.sleep_info.as_ref().map(|info| {
+            (
+                info.ntree,
+                info.fields.body_treeid.as_slice(),
+                info.fields.sleep_enabled,
+                info.fields.island_disabled,
+            )
+        })
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn passive_sleep_source<'a>(
+        &self,
+        data: &'a KinematicsData,
+    ) -> Result<&'a TransferBuffer<i32>, TransferError> {
+        self.check_data(data)?;
+        let expected = self.sleep_info.as_ref().ok_or(InputError::DisabledOutput)?;
+        let layout = data.layout.sleep.ok_or(InputError::DisabledOutput)?;
+        if layout.ntree != expected.ntree {
+            return Err(TransferError::ModelMismatch);
+        }
+        data.ready
+            .require(data.ready.sleep, "passive_force_sleep_source")?;
+        data.sleep
+            .as_ref()
+            .map(|sleep| &sleep.state)
+            .ok_or(InputError::DisabledOutput.into())
+    }
+
     #[cfg(feature = "cuda-probe")]
     pub(super) fn flex_edge_passive_source<'a>(
         &self,

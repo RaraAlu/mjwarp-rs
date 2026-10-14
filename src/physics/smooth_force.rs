@@ -205,59 +205,100 @@ impl SmoothForcePlan {
         }
     }
     pub fn update(&self, data: &mut SmoothForceData) -> Result<(), TransferError> {
+        #[cfg(feature = "cuda-probe")]
+        {
+            self.update_with_sleep_source(data, None)
+        }
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            if !Arc::ptr_eq(&self.input, &data.input) {
+                return Err(TransferError::ModelMismatch);
+            }
+            data.ready = false;
+            Err(ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn update_with_sleep_source(
+        &self,
+        data: &mut SmoothForceData,
+        sleep: Option<&TransferBuffer<i32>>,
+    ) -> Result<(), TransferError> {
         if !Arc::ptr_eq(&self.input, &data.input) {
             return Err(TransferError::ModelMismatch);
         }
         data.ready = false;
-        #[cfg(not(feature = "cuda-probe"))]
+        let nb = self.input.nbody() as u32;
+        let n = self.input.nv() as u32;
+        let nt = self.input.ntree() as u32;
+        let worlds = data.worlds() as u32;
+        if self.options.enable_sleep()
+            && let Some(source) = sleep
         {
-            Err(ProbeError::FeatureDisabled("cuda-probe").into())
-        }
-        #[cfg(feature = "cuda-probe")]
-        {
-            let nb = self.input.nbody() as u32;
-            let n = self.input.nv() as u32;
-            let nt = self.input.ntree() as u32;
-            let worlds = data.worlds() as u32;
-            // SAFETY: Checked same-plan guarded metadata owns nb+n+worlds*nt
-            // i32 payload. Each validator writes a separate status/world and
-            // bounds-checks every body/tree before dereferencing that mapping.
-            unsafe {
-                self.kernels[0].launch(
-                    &data.metadata,
-                    &data.forces,
-                    &data.forces,
-                    &mut data.status,
-                    [nb, n, nt, worlds],
-                )?;
-            }
-            let mut status = crate::runtime::host_staging::<f32>(data.worlds() + 8)?;
-            data.status.read_range_into(0, &mut status)?;
-            crate::physics::check_device_values(&status, "smooth_force_status")?;
-            if let Some(index) = status[4..4 + data.worlds()].iter().position(|&v| v != 1.0) {
-                return Err(InputError::InvalidTopology {
-                    field: "smooth_force_source",
-                    index,
-                    reason: "nonfinite_guard_or_mapping",
+            let expected = data
+                .worlds()
+                .checked_mul(
+                    self.input
+                        .ntree()
+                        .checked_mul(2)
+                        .and_then(|n| n.checked_add(3))
+                        .ok_or(InputError::Overflow {
+                            field: "smooth_force_sleep_source",
+                        })?,
+                )
+                .and_then(|n| n.checked_add(8))
+                .ok_or(InputError::Overflow {
+                    field: "smooth_force_sleep_source",
+                })?;
+            if source.len() != expected {
+                return Err(InputError::LengthMismatch {
+                    field: "smooth_force_sleep_source",
+                    expected,
+                    actual: source.len(),
                 }
                 .into());
             }
-            // SAFETY: Validation proves all mappings and active force payloads.
-            // Field-major input owns4*worlds*n f32s; one thread owns each result.
-            // Sleeping threads write positive zero without reading any forces.
-            unsafe {
-                self.kernels[1].launch(
-                    &data.metadata,
-                    &data.forces,
-                    &data.forces,
-                    &mut data.output,
-                    [nb, n, nt, data.layout.vector.total_elements() as u32],
-                )?;
-            }
-            data.checked_values()?;
-            data.ready = true;
-            Ok(())
         }
+        let sleep = sleep.unwrap_or(&data.metadata);
+        // SAFETY: Checked same-plan metadata owns body/tree mappings. The
+        // optional resident source owns guarded worlds*(2*ntree+3) i32s.
+        // Each validator owns one status slot and checks both source guards.
+        unsafe {
+            self.kernels[0].launch(
+                &data.metadata,
+                &data.forces,
+                sleep,
+                &mut data.status,
+                [nb, n, nt, worlds],
+            )?;
+        }
+        let mut status = crate::runtime::host_staging::<f32>(data.worlds() + 8)?;
+        data.status.read_range_into(0, &mut status)?;
+        crate::physics::check_device_values(&status, "smooth_force_status")?;
+        if let Some(index) = status[4..4 + data.worlds()].iter().position(|&v| v != 1.0) {
+            return Err(InputError::InvalidTopology {
+                field: "smooth_force_source",
+                index,
+                reason: "nonfinite_guard_or_mapping",
+            }
+            .into());
+        }
+        // SAFETY: Validation proves all mappings and active force payloads.
+        // Field-major input owns4*worlds*n f32s; one thread owns each result.
+        // Sleeping threads write positive zero without reading any forces.
+        unsafe {
+            self.kernels[1].launch(
+                &data.metadata,
+                &data.forces,
+                sleep,
+                &mut data.output,
+                [nb, n, nt, data.layout.vector.total_elements() as u32],
+            )?;
+        }
+        data.checked_values()?;
+        data.ready = true;
+        Ok(())
     }
 }
 fn check_force(values: &[f32], expected: usize, field: SmoothForceField) -> Result<(), InputError> {
@@ -386,27 +427,31 @@ impl SmoothForceData {
 #[cfg(feature = "cuda-probe")]
 const CUDA: &str = r#"
 extern "C" __global__ void smooth_force_validate(const int* meta,const float* forces,
- const float* unused,float* status,unsigned nb,unsigned n,unsigned nt,unsigned worlds) {
+ const int* sleep,float* status,unsigned nb,unsigned n,unsigned nt,unsigned worlds) {
  unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=worlds)return;
  unsigned long long total=1ull*worlds*n,mlen=1ull*nb+n+1ull*worlds*nt;bool valid=true;
  for(unsigned j=0;j<4;++j)valid=valid&&meta[j]==-131072&&meta[4+mlen+j]==-131072&&forces[j]==-131072.0f&&forces[4+4*total+j]==-131072.0f;
- const int* tree=meta+4;const int* body=tree+nb;const int* awake=body+n;
+ const int* tree=meta+4;const int* body=tree+nb;const int* awake=body+n;unsigned long long stride=nt;
+ #if SMOOTH_SLEEP
+ if(sleep!=meta){unsigned long long sw=2ull*nt+3,sl=1ull*worlds*sw;for(unsigned j=0;j<4;++j)valid=valid&&sleep[j]==-131072&&sleep[4+sl+j]==-131072;awake=sleep+4+nt;stride=sw;}
+ #endif
  for(unsigned b=0;b<nb;++b)if(tree[b]<-1||(tree[b]>=0&&(unsigned)tree[b]>=nt))valid=false;
  for(unsigned i=0;i<n;++i){int b=body[i];if(b<0||(unsigned)b>=nb){valid=false;continue;}
   int t=tree[b];if(t<-1||(t>=0&&(unsigned)t>=nt)){valid=false;continue;}
   #if SMOOTH_SLEEP
-  if(t>=0&&awake[1ull*w*nt+t]==0)continue;
+  if(t>=0&&awake[1ull*w*stride+t]==0)continue;
   #endif
   for(unsigned f=0;f<4;++f)valid=valid&&isfinite(forces[4+f*total+1ull*w*n+i]);
  }
  status[4+w]=valid?1.0f:0.0f;
 }
 extern "C" __global__ void smooth_force(const int* meta,const float* forces,
- const float* unused,float* output,unsigned nb,unsigned n,unsigned nt,unsigned work) {
+ const int* sleep,float* output,unsigned nb,unsigned n,unsigned nt,unsigned work) {
  unsigned tid=blockIdx.x*blockDim.x+threadIdx.x;if(tid>=work)return;
  unsigned w=tid/n,i=tid%n;const int* tree=meta+4;const int* body=tree+nb;const int* awake=body+n;
  #if SMOOTH_SLEEP
- int t=tree[body[i]];if(t>=0&&awake[1ull*w*nt+t]==0){output[4+tid]=0.0f;return;}
+ unsigned long long stride=nt;if(sleep!=meta){awake=sleep+4+nt;stride=2ull*nt+3;}
+ int t=tree[body[i]];if(t>=0&&awake[1ull*w*stride+t]==0){output[4+tid]=0.0f;return;}
  #endif
  const float* f=forces+4+tid;float acc=__fsub_rn(f[0],f[work]);
  acc=__fadd_rn(acc,f[2ull*work]);output[4+tid]=__fadd_rn(acc,f[3ull*work]);
