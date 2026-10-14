@@ -10,6 +10,11 @@ use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 
+mod solve;
+pub use solve::{
+    SparseMassSolveData, SparseMassSolveOutput, SparseMassSolvePlan, SparseMassSolveWorld,
+};
+
 pub struct SparseMassPlan {
     matrix: MassMatrixPlan,
     factor: SparseMassFactorPlan,

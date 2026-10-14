@@ -1,0 +1,29 @@
+Actual new-test assertion change excerpt. Not a change to an old acceptance rule.
+First run: 2 passed / 1 failed, 5.14s; original raw failure remains integration-first.txt.
+Second run: only the failed ownership function, 1 passed / 2 filtered, 2.47s.
+Same overall purpose, cumulative 2/3; no third call.
+
+Input change in the failed ownership function only:
+- data.write_rhs(&vec![0.25; 257 * 3 * n]).unwrap();
++ let solve_refs = reference();
++ let solve_case = &solve_refs["models"][0]["cases"][0];
++ data.write_rhs(&rhs(solve_case, n, 3, 0).repeat(257)).unwrap();
+
+For each unchanged world in [0, 255]:
+- assert_eq!(out.solution.map(to_bits), before.solution.map(to_bits));
++ for (&a, &b) in out.solution.zip(before.solution) {
++     assert!((a-b).abs() <= 2e-4 + 2e-4*b.abs());
++ }
++ compare(&out, world, native_model, native_case_0, solve_case, 0);
+
+Both runs retain all 257 worlds, three RHS, world256 zero overwrite, factor cache bits,
+invalid inputs/foreign plan rejection, qpos invalidation, fresh gather requirement,
+recovery, owned snapshot and zero-DOF branches. First run stopped at failed assertion;
+later branches completed only in the second run.
+The independent numerical function remains unchanged and was not executed twice.
+The private fault test independently checks unchanged RHS/guard bits and factor bits.
+
+Frozen smooth.py:3314-3403 uses same-layer atomic_sub, barriers between layers,
+and a full-world launch. This does not establish deterministic same-input result bits.
+Atomic ordering is an explanatory mechanism, not an independently isolated root cause.
+Do not claim unchanged-world solution bit isolation, NP zero deviation, or machine parity.

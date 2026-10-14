@@ -1,5 +1,5 @@
 //! 真正CSR分层分解；不调用稠密辅助。
-//! 本轮不实现融合回代与非紧凑混合块。
+//! 子模块提供融合回代；非紧凑混合块仍待实现。
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
@@ -10,7 +10,10 @@ use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
 
 mod resident;
-pub use resident::{SparseMassData, SparseMassOutput, SparseMassPlan, SparseMassWorld};
+pub use resident::{
+    SparseMassData, SparseMassOutput, SparseMassPlan, SparseMassSolveData, SparseMassSolveOutput,
+    SparseMassSolvePlan, SparseMassSolveWorld, SparseMassWorld,
+};
 
 pub struct SparseMassFactorPlan {
     input: Arc<SparseMassInput>,

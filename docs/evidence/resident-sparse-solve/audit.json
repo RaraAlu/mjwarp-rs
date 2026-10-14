@@ -1,0 +1,214 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "platform": "Windows GNU debug",
+  "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+  "driver": "596.36",
+  "gpu_memory_mib": 16376,
+  "nvrtc": [
+    12,
+    8
+  ],
+  "commands": [
+    {
+      "purpose": "independent-reference",
+      "attempt": 1,
+      "command": "scripts/prepare-sparse-solve-reference.ps1 -Attempt 1",
+      "exit": 0,
+      "result": "3 models / 6 matrices / 18 RHS columns",
+      "absolute_start": "unknown"
+    },
+    {
+      "purpose": "new-solve-overall",
+      "attempt": 1,
+      "command": "cargo test --locked --features cuda-probe --test resident_sparse_solve -- --include-ignored --test-threads=1 --nocapture",
+      "exit": 101,
+      "passed": 2,
+      "failed": 1,
+      "filtered": 0,
+      "test_seconds": 5.14,
+      "absolute_start": "unknown",
+      "log": "integration-first.txt"
+    },
+    {
+      "purpose": "new-solve-overall same purpose continuation",
+      "attempt": 2,
+      "command": "cargo test --locked --features cuda-probe --test resident_sparse_solve rejected_inputs_preserve_cache_and_world_writes_remain_independent -- --ignored --test-threads=1 --nocapture",
+      "exit": 0,
+      "passed": 1,
+      "failed": 0,
+      "filtered": 2,
+      "test_seconds": 2.47,
+      "absolute_start": "unknown",
+      "log": "ownership-second.txt"
+    },
+    {
+      "purpose": "new-solve-private-fault",
+      "attempt": 1,
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::resident::solve::tests:: -- --include-ignored --test-threads=1 --nocapture",
+      "exit": 0,
+      "passed": 2,
+      "failed": 0,
+      "filtered": 250,
+      "test_seconds": 0.95,
+      "absolute_start": "unknown",
+      "log": "private-first.txt"
+    },
+    {
+      "purpose": "new-solve-128-ABI",
+      "attempt": 1,
+      "command": "cargo test --locked --features cuda-probe --lib runtime::transfer::kernel::tests::sparse_solve_128_abi_checks_sessions_capacities_and_block_barriers -- --ignored --test-threads=1 --nocapture",
+      "exit": 0,
+      "passed": 1,
+      "failed": 0,
+      "filtered": 251,
+      "test_seconds": 0.22,
+      "absolute_start": "unknown",
+      "log": "abi-first.txt"
+    }
+  ],
+  "cuda_clippy": {
+    "calls": [
+      {
+        "order": 1,
+        "event": "b3ed8711",
+        "command": "cargo clippy --locked --lib --features cuda-probe -- -D warnings",
+        "cargo_seconds": 2.07,
+        "composite_wall_ms": 2866,
+        "exit": 0,
+        "absolute_start": "unknown",
+        "note": "preceding cargo fmt failed OS1224; Clippy still ran and succeeded"
+      },
+      {
+        "order": 2,
+        "event": "4ad8c9ce",
+        "command": "cargo clippy --locked --lib --test resident_sparse_solve --features cuda-probe -- -D warnings",
+        "cargo_seconds": 0.94,
+        "composite_wall_ms": 1722,
+        "exit": 0,
+        "absolute_start": "unknown"
+      },
+      {
+        "order": 3,
+        "event": "63835341",
+        "command": "cargo clippy --locked --features cuda-probe --lib --test resident_sparse_solve -- -D warnings",
+        "cargo_seconds": 0.75,
+        "composite_wall_ms": 2308,
+        "exit": 0,
+        "absolute_start": "unknown"
+      },
+      {
+        "order": 4,
+        "event": "95021eb2",
+        "command": "cargo clippy --locked --features cuda-probe --lib --test resident_sparse_solve -- -D warnings",
+        "cargo_seconds": 0.73,
+        "composite_wall_ms": 2031,
+        "exit": 0,
+        "absolute_start": "unknown"
+      }
+    ],
+    "library_same_configuration_same_purpose": 4,
+    "limit": 3,
+    "excess_calls": 1,
+    "status": "process contract violation once; all four checks passed; no more calls",
+    "composite_elapsed_is_not_start_time": true
+  },
+  "default_clippy": {
+    "command": "cargo clippy --locked --lib -- -D warnings",
+    "calls": 2,
+    "cargo_seconds": [
+      0.71,
+      0.44
+    ],
+    "passed": 2,
+    "absolute_starts": "unknown"
+  },
+  "fmt": {
+    "first": "OS1224 file mapped, failed",
+    "later": "format and fmt --check passed"
+  },
+  "tolerances": {
+    "solution_absolute": 0.0002,
+    "solution_relative": 0.0002,
+    "normalized_residual": 2E-05,
+    "old_reconstruction": 2E-06,
+    "old_reconstruction_rerun": false,
+    "no_secondary_waiver": true
+  },
+  "comparison": {
+    "models": 3,
+    "states": 2,
+    "batches": 12,
+    "rhs_streams": 2,
+    "solution_scalars": 621920,
+    "zero_rhs_scalars": 207220,
+    "nonzero_rhs_scalars": 414700,
+    "max_absolute": 5.531608894604467E-06,
+    "max_normalized_residual": 9.04697634263432E-08,
+    "phase_elapsed_ms": 1217,
+    "timing_includes_host_compare": true,
+    "max_additional_device_bytes": 432904,
+    "process_peak_vram": "unmeasured"
+  },
+  "failure_record": {
+    "first_assertion": "new same-input unchanged-world solution to_bits equality",
+    "status": "not a pre-existing rule; unsupported deterministic inference corrected",
+    "first_rhs": "constant0.25",
+    "second_rhs": "frozen independent LU three columns; all 257 worlds and three RHS retained",
+    "second_assertion": "original2e-4 tolerance and independent LU/residual; not solution bit isolation",
+    "mechanism": "frozen same-layer atomic_sub with layer barriers permits ordering differences",
+    "isolated_root_cause": "not independently localized",
+    "diff": "ownership-assertion.txt",
+    "first_failure_retained": true
+  },
+  "private_assertions": [
+    "unselected RHS and guard bits equal; selected RHS bits correct",
+    "factor cached bits equal",
+    "old CRB NaN: cached solve/readback succeeds, fresh gather/factor/solve/readback rejects",
+    "old CSR NaN: cached solve/readback succeeds, refactor/readback rejects",
+    "factor first/last guards + NaN + negative/infinite inverse: readback/solve reject, factor invalidates, recover",
+    "RHS first/last guards + NaN: readback/solve reject, factor remains ready, recover",
+    "output first/last guards: readback/solve reject; NaN output readback rejects and solve recovers",
+    "status first/last guards: solve/readback reject, factor remains ready, recover"
+  ],
+  "budgets": {
+    "reference_author": 1,
+    "solve_overall": 2,
+    "private_fault": 1,
+    "abi128": 1,
+    "third_solve_frozen": true,
+    "old_factor_author_calls": 0,
+    "old_gpu_native_full_targets": 0,
+    "successful_numerical_function_calls": 1,
+    "successful_private_calls": 1,
+    "python_calls": 0,
+    "manual_python_auditor_calls": 0
+  },
+  "withdrawn_experiment": "dirty-world mask drafted then entirely removed before compilation/testing/admission; final whole-world schedule follows frozen source",
+  "doc_audit": {
+    "path": "C:/Users/zhang/.codex/audit-docs/reports/e05f246e1c12b4cf/audit-9z6ta6ze.md",
+    "source_files": 416,
+    "doc_files": 106,
+    "mismatches": 0,
+    "manual_review": "scoped code/commands/counts/failed assertion vs original contract checked"
+  },
+  "normify": {
+    "root_state": "planned",
+    "mass_solve_uid": "cd53f287",
+    "runtime_kernel_uid": "da95e316",
+    "active_modules_retained": true,
+    "formal_p4": "original prerequisites and source/resource locks retained",
+    "main_change": "2026-10-11-mjwarp-parallel-acceptance in_progress; do not close",
+    "errors": 0,
+    "coarse_warnings": 10
+  },
+  "unaccepted": [
+    "full G03 and NP01-04",
+    "actual frozen generated fused sparse artifact equivalence",
+    "current upstream scalar bit-pattern differences unmeasured; old395007 historical",
+    "noncompact mixed factors",
+    "Linux/release/T4/fair performance"
+  ],
+  "push_release": false,
+  "archive_format": "LF normalization; three success logs remove trailing empty lines only; raw original files unchanged and separately pinned"
+}

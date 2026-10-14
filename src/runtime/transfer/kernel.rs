@@ -29,6 +29,91 @@ pub(crate) struct SynchronousKernel {
 }
 
 impl SynchronousKernel {
+    /// 固定128线程；每世界每RHS独占一个块。
+    ///
+    /// # Safety
+    /// Caller proves metadata contents and the eight-argument sparse solve ABI.
+    /// Buffers are disjoint; only output changes. Every thread reaches barriers.
+    pub(crate) unsafe fn launch_sparse_solve(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        rhs: &TransferBuffer<f32>,
+        factor: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        dimensions: [u32; 4],
+    ) -> Result<(), TransferError> {
+        for same in [
+            Arc::ptr_eq(&self.session.inner, &metadata.session.inner),
+            Arc::ptr_eq(&self.session.inner, &rhs.session.inner),
+            Arc::ptr_eq(&self.session.inner, &factor.session.inner),
+            Arc::ptr_eq(&self.session.inner, &output.session.inner),
+        ] {
+            if !same {
+                return Err(TransferError::SessionMismatch);
+            }
+        }
+        let [n, nc, nr, worlds] = dimensions.map(|v| v as usize);
+        let invalid = || InputError::InvalidDimension {
+            field: "sparse_solve_abi",
+        };
+        let groups = worlds
+            .checked_mul(nr)
+            .filter(|&v| v > 0 && v <= i32::MAX as usize)
+            .ok_or_else(invalid)?;
+        if dimensions.iter().any(|&v| v > i32::MAX as u32) {
+            return Err(invalid().into());
+        }
+        let rhs_len = groups
+            .checked_mul(n)
+            .and_then(|v| v.checked_add(8))
+            .ok_or_else(invalid)?;
+        let factor_len = n
+            .checked_add(nc)
+            .and_then(|v| v.checked_mul(worlds))
+            .and_then(|v| v.checked_add(8))
+            .ok_or_else(invalid)?;
+        let meta_min = n
+            .checked_mul(2)
+            .and_then(|v| v.checked_add(2))
+            .ok_or_else(invalid)?;
+        if rhs.len() != rhs_len
+            || output.len() != rhs_len
+            || factor.len() != factor_len
+            || metadata.len() < meta_min
+        {
+            return Err(invalid().into());
+        }
+        let (Some(m), Some(r), Some(f), Some(o)) = (
+            metadata.allocation.as_ref(),
+            rhs.allocation.as_ref(),
+            factor.allocation.as_ref(),
+            output.allocation.as_mut(),
+        ) else {
+            return Err(invalid().into());
+        };
+        self.session.run("sparse-solve-128-launch", || {
+            let mut args = self
+                .session
+                .inner
+                .stream
+                .launch_builder(self.function.as_ref().unwrap());
+            args.arg(m).arg(r).arg(f).arg(o);
+            for value in &dimensions {
+                args.arg(value);
+            }
+            // SAFETY: Checked capacities and caller-proven metadata bound every
+            // access. Each block owns a distinct RHS and run waits for completion.
+            unsafe {
+                args.launch(LaunchConfig {
+                    grid_dim: (groups as u32, 1, 1),
+                    block_dim: (128, 1, 1),
+                    shared_mem_bytes: 0,
+                })
+            }?;
+            Ok(())
+        })
+    }
+
     /// ABI: (i32*, f32*, f32*, f32*, f32*, f32*, u32, u32).
     /// flag使用私有u32，不混用上游bool结构ABI。
     ///
@@ -507,6 +592,94 @@ fn record_physics_ptx(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "requires NVIDIA driver/NVRTC; new 128-thread sparse solve ABI purpose"]
+    fn sparse_solve_128_abi_checks_sessions_capacities_and_block_barriers() {
+        let session = TransferSession::new(0).unwrap();
+        let other = TransferSession::new(0).unwrap();
+        let source = r#"
+extern "C" __global__ void sparse_abi_probe(const int* m,const float* r,const float* f,
+ float* o,unsigned n,unsigned nc,unsigned nr,unsigned worlds) {
+ __shared__ unsigned count[128];
+ count[threadIdx.x]=threadIdx.x;
+ __syncthreads();
+ o[4+(unsigned long long)blockIdx.x*n+threadIdx.x]=blockDim.x*1000+blockIdx.x*n+count[127-threadIdx.x];
+}
+"#;
+        let kernel = SynchronousKernel::compile(&session, source, "sparse_abi_probe").unwrap();
+        let m = session.upload(&vec![0i32; 258]).unwrap();
+        let r = session.upload(&vec![0f32; 776]).unwrap();
+        let f = session.upload(&vec![0f32; 392]).unwrap();
+        let mut out = session.upload(&vec![-131072f32; 776]).unwrap();
+        let fm = other.upload(&vec![0i32; 258]).unwrap();
+        let fr = other.upload(&vec![0f32; 776]).unwrap();
+        let ff = other.upload(&vec![0f32; 392]).unwrap();
+        let mut fo = other.upload(&vec![0f32; 776]).unwrap();
+        let small_m = session.upload(&[0i32]).unwrap();
+        let small = session.upload(&[0f32]).unwrap();
+        let mut small_out = session.upload(&[0f32]).unwrap();
+        // SAFETY: Rejection cases return before launch. The accepted probe has
+        // n=128, six disjoint guarded slices, and exactly 128 shared slots.
+        unsafe {
+            for k in 0..4 {
+                assert_eq!(
+                    kernel.launch_sparse_solve(
+                        if k == 0 { &fm } else { &m },
+                        if k == 1 { &fr } else { &r },
+                        if k == 2 { &ff } else { &f },
+                        if k == 3 { &mut fo } else { &mut out },
+                        [128, 0, 2, 3]
+                    ),
+                    Err(TransferError::SessionMismatch)
+                );
+            }
+            for dim in [
+                [128, 0, 0, 3],
+                [128, 0, 2, 0],
+                [128, 0, u32::MAX, 3],
+                [u32::MAX, 0, 2, 3],
+                [128, u32::MAX, 2, 3],
+                [128, 0, 2, u32::MAX],
+            ] {
+                assert!(matches!(
+                    kernel.launch_sparse_solve(&m, &r, &f, &mut out, dim),
+                    Err(TransferError::Input(_))
+                ));
+            }
+            for k in 0..4 {
+                assert!(matches!(
+                    kernel.launch_sparse_solve(
+                        if k == 0 { &small_m } else { &m },
+                        if k == 1 { &small } else { &r },
+                        if k == 2 { &small } else { &f },
+                        if k == 3 { &mut small_out } else { &mut out },
+                        [128, 0, 2, 3]
+                    ),
+                    Err(TransferError::Input(_))
+                ));
+            }
+            kernel
+                .launch_sparse_solve(&m, &r, &f, &mut out, [128, 0, 2, 3])
+                .unwrap();
+        }
+        let mut values = vec![0f32; 776];
+        out.read_range_into(0, &mut values).unwrap();
+        assert!(
+            values[..4]
+                .iter()
+                .chain(&values[772..])
+                .all(|&v| v == -131072.0)
+        );
+        for group in 0..6 {
+            for tid in 0..128 {
+                assert_eq!(
+                    values[4 + group * 128 + tid],
+                    (128000 + group * 128 + 127 - tid) as f32
+                );
+            }
+        }
+    }
 
     #[test]
     fn rejects_generated_physics_precision_promotions_and_demotions() {
