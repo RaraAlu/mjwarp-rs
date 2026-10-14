@@ -217,6 +217,14 @@ impl MassMatrixPlan {
 }
 
 impl MassMatrixData {
+    #[cfg(all(test, feature = "cuda-probe"))]
+    pub(in crate::physics) fn corrupt_output_for_test(
+        &mut self,
+        offset: usize,
+        value: f32,
+    ) -> Result<(), TransferError> {
+        self.output.write_range(offset, &[value])
+    }
     #[cfg(feature = "cuda-probe")]
     pub(in crate::physics) fn matrix_input(&self) -> Result<&TransferBuffer<f32>, TransferError> {
         if !self.ready {

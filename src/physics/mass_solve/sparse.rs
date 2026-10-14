@@ -9,6 +9,9 @@ use crate::runtime::TransferSession;
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
 
+mod resident;
+pub use resident::{SparseMassData, SparseMassOutput, SparseMassPlan, SparseMassWorld};
+
 pub struct SparseMassFactorPlan {
     input: Arc<SparseMassInput>,
     #[cfg(feature = "cuda-probe")]
