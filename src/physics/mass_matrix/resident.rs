@@ -57,6 +57,12 @@ fn check_layout(worlds: usize, nb: usize, nv: usize) -> Result<MassMatrixLayout,
 }
 
 impl MassMatrixPlan {
+    pub(in crate::physics) fn check_data(
+        &self,
+        data: &MassMatrixData,
+    ) -> Result<(), TransferError> {
+        self.position.check_data(&data.position)
+    }
     pub fn new(
         session: &TransferSession,
         model: AttachedModelInput,
@@ -211,6 +217,29 @@ impl MassMatrixPlan {
 }
 
 impl MassMatrixData {
+    #[cfg(feature = "cuda-probe")]
+    pub(in crate::physics) fn matrix_input(&self) -> Result<&TransferBuffer<f32>, TransferError> {
+        if !self.ready {
+            return Err(TransferError::StageNotReady {
+                stage: "resident_mass_matrix",
+            });
+        }
+        Ok(&self.output)
+    }
+
+    // 故障注入只供新缓存测试。
+    // 它故意绕过票据，产品不导出此入口。
+    #[cfg(all(test, feature = "cuda-probe"))]
+    pub(in crate::physics) fn poison_matrix_for_test(
+        &mut self,
+        world: usize,
+    ) -> Result<(), TransferError> {
+        let range = self.layout.output.world_elements(world)?;
+        let values = vec![0.0f32; self.layout.nv * self.layout.nv];
+        self.output
+            .write_range(4 + range.start + 10 * self.layout.nbody, &values)
+    }
+
     pub fn worlds(&self) -> usize {
         self.layout.output.worlds()
     }

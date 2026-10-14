@@ -906,6 +906,11 @@ GPU计算qfrc_bias。
 证据见[速度报告](linux-resident-com-velocity.md)。
 偏置力见[RNE报告](linux-resident-rne-bias.md)。
 随后收口完整G03。
+本轮新增常驻分解与回代辅助。
+它复用CRB设备矩阵与缓存因子。
+RHS更新不再重新分解。
+完整G03仍待收口。
+记录见[常驻求解](resident-mass-solve.md)。
 矩阵乘法与新材料推进G22。
 它们不阻塞G01运动学收口。
 质量矩阵已提供GPU辅助子集。

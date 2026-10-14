@@ -5,6 +5,9 @@ use crate::diagnostics::{InputError, ProbeError, TransferError};
 use crate::model::{BatchLayout, InertialModelInput};
 use crate::runtime::TransferSession;
 
+mod resident;
+pub use resident::{MassSolveData, MassSolvePlan};
+
 /// 每个独立运动树的因子格式。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MassFactorKind {
