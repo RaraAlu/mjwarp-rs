@@ -6,6 +6,10 @@ use std::ops::Range;
 use crate::diagnostics::{InputError, ProbeError, TransferError};
 use crate::model::{BatchLayout, InertialModelInput};
 use crate::runtime::TransferSession;
+mod smooth_force;
+pub use smooth_force::{
+    SmoothForceData, SmoothForceField, SmoothForceOptions, SmoothForceOutput, SmoothForcePlan,
+};
 
 mod mass_matrix;
 pub use mass_matrix::{

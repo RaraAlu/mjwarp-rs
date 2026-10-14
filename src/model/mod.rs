@@ -41,6 +41,8 @@ pub use flex::{
 };
 pub mod sleep;
 pub use sleep::{SleepTreeState, TREE_FULLY_AWAKE, TendonWakeFields, TendonWakeModelInput};
+pub mod smooth_force;
+pub use smooth_force::SmoothForceInput;
 
 /// Windows原生探针的小型DTO。
 /// 计数采用原生有符号64位。
