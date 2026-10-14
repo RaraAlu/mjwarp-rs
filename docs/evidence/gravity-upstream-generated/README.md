@@ -13,6 +13,7 @@ Rust直接加载固定PTX。
 它来自事后静态重建。
 `comparison.json`比较已存输出。
 `executions.json`归档命令回执。
+`raw-executions.json`补充原始输出。
 
 结果共含二十八项。
 二十六项位型一致。

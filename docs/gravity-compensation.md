@@ -178,10 +178,17 @@ Rust会直接加载真实PTX。
 原始位型先完成归档。
 随后执行有限值门禁。
 生成核来自冻结上游。
-中间量仍来自候选链。
-因此不关闭完整链缺口。
+上游现独立生成质心。
+上游也独立生成自由度。
+作者链不读取候选中间量。
+两类中间量逐位一致。
+静态运动学输入仍由作者给定。
+完整qpos链仍不独立。
 
-离线作者流程运行一次。
+离线作者流程运行两次。
+首次归档错指旧缓存。
+第二次修正归档来源。
+两次输出哈希一致。
 产品测试没有启动Python。
 本轮没有执行满额验证。
 
@@ -189,4 +196,6 @@ Rust会直接加载真实PTX。
 
 ```text
 docs/evidence/gravity-upstream-abi/
+docs/evidence/gravity-upstream-generated/
+docs/evidence/gravity-upstream-com/
 ```

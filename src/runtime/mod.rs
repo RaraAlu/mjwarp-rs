@@ -31,6 +31,13 @@ pub use warp_gravity::{
     FrozenWarpGravityArtifact, FrozenWarpGravityInput, FrozenWarpGravityReadback,
     FrozenWarpGravityReceipt,
 };
+#[cfg(feature = "cuda-probe")]
+mod warp_com;
+#[cfg(feature = "cuda-probe")]
+pub use warp_com::{
+    FrozenWarpComArtifact, FrozenWarpComInput, FrozenWarpComOutput, FrozenWarpComReadback,
+    FrozenWarpComReceipt,
+};
 
 const GUARD_ELEMENTS: usize = 16;
 #[cfg(any(feature = "cuda-probe", test))]
