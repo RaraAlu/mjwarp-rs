@@ -65,6 +65,11 @@ mod tendon_velocity;
 pub use tendon_velocity::{
     TendonVelocityData, TendonVelocityPlan, TendonVelocitySnapshot, TendonVelocityView,
 };
+mod tendon_passive;
+pub use tendon_passive::{
+    TendonPassiveData, TendonPassiveOptions, TendonPassiveParameters, TendonPassivePlan,
+    TendonPassiveSnapshot, TendonPassiveView,
+};
 mod spatial_tendon;
 #[cfg(feature = "cuda-probe")]
 mod tendon_wrap;

@@ -109,6 +109,13 @@ pub struct TendonVelocityView<'a, 'p> {
     source: &'a KinematicsData,
     data: &'a TendonVelocityData,
 }
+#[cfg(feature = "cuda-probe")]
+pub(super) struct TendonVelocityDeviceView<'a> {
+    pub metadata: &'a TransferBuffer<i32>,
+    pub source: &'a TransferBuffer<f32>,
+    pub velocity: &'a TransferBuffer<f32>,
+    pub worlds: usize,
+}
 /// 独占历史值，不认证未来状态。
 #[derive(Clone, Debug)]
 pub struct TendonVelocitySnapshot {
@@ -125,6 +132,25 @@ impl TendonVelocitySnapshot {
     }
 }
 impl<'p> TendonVelocityPlan<'p> {
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn tendon_passive_context(
+        &self,
+    ) -> (TransferSession, usize, usize, usize, usize, usize) {
+        let max_row = self.spec.meta[4 + self.spec.nt..4 + 2 * self.spec.nt]
+            .iter()
+            .copied()
+            .max()
+            .unwrap_or(0)
+            .max(1) as usize;
+        (
+            self.session.clone(),
+            self.spec.nv,
+            self.spec.nt,
+            self.spec.nnz,
+            self.spec.stride,
+            max_row,
+        )
+    }
     pub fn new(source: &'p KinematicsPlan) -> Result<Self, TransferError> {
         let (session, nv, rows) = source.tendon_velocity_context()?;
         let s = spec(nv, &rows)?;
@@ -304,6 +330,27 @@ impl TendonVelocityData {
     }
 }
 impl TendonVelocityView<'_, '_> {
+    pub(super) fn belongs_to(&self, plan: &TendonVelocityPlan<'_>) -> bool {
+        std::ptr::eq(self.plan, plan)
+    }
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn tendon_passive_device(
+        &self,
+    ) -> Result<TendonVelocityDeviceView<'_>, TransferError> {
+        if !self.data.ready {
+            return Err(TransferError::StageNotReady {
+                stage: "tendon_velocity",
+            });
+        }
+        self.plan.source.check_data(self.source)?;
+        let source = self.plan.source.tendon_velocity_source(self.source)?;
+        Ok(TendonVelocityDeviceView {
+            metadata: &self.plan.metadata,
+            source,
+            velocity: &self.data.current,
+            worlds: self.data.worlds(),
+        })
+    }
     pub fn snapshot(&self) -> Result<TendonVelocitySnapshot, TransferError> {
         if !self.data.ready {
             return Err(TransferError::StageNotReady {
@@ -760,6 +807,139 @@ mod tests {
         assert_eq!(faults, 54);
         println!(
             "tendon_velocity_private faults={faults} source_updates=1 no_partial_publication=true recovered=true"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "new tendon passive consumer; does not rerun old tendon velocity acceptance"]
+    fn gpu_tendon_passive_consumes_actual_length_jacobian_and_velocity() {
+        use crate::model::ParameterBatch;
+        use crate::physics::{TendonPassiveOptions, TendonPassiveParameters, TendonPassivePlan};
+
+        fn repeated(period: usize, width: usize, row: &[f32]) -> ParameterBatch {
+            assert_eq!(width, row.len());
+            ParameterBatch::new(period, width, row.repeat(period)).unwrap()
+        }
+        fn passive_parameters(periods: [usize; 5]) -> TendonPassiveParameters {
+            let mut stiffness = vec![0.0; 5];
+            stiffness[0] = 0.25;
+            let mut stiffness_poly = vec![0.0; 10];
+            stiffness_poly[0] = 0.125;
+            stiffness_poly[1] = 0.0625;
+            let mut damping = vec![0.0; 5];
+            damping[0] = 0.125;
+            let mut damping_poly = vec![0.0; 10];
+            damping_poly[0] = 0.125;
+            damping_poly[1] = 0.0625;
+            let mut spring = vec![0.0; 10];
+            spring[1] = 1.0;
+            TendonPassiveParameters {
+                stiffness: repeated(periods[0], 5, &stiffness),
+                stiffness_poly: repeated(periods[1], 10, &stiffness_poly),
+                damping: repeated(periods[2], 5, &damping),
+                damping_poly: repeated(periods[3], 10, &damping_poly),
+                length_spring: repeated(periods[4], 10, &spring),
+            }
+        }
+
+        let session = TransferSession::new(0).unwrap();
+        let source_plan = producer(&session, 3);
+        let velocity_plan = TendonVelocityPlan::new(&source_plan).unwrap();
+        let passive_plan = TendonPassivePlan::new(
+            &velocity_plan,
+            passive_parameters([2, 3, 5, 7, 11]),
+            TendonPassiveOptions::default(),
+        )
+        .unwrap();
+        let timer = std::time::Instant::now();
+        let mut slots = 0;
+        for worlds in [1, 2, 257] {
+            let mut source = source_plan.create_data(worlds).unwrap();
+            let mut velocity = velocity_plan.create_data(worlds).unwrap();
+            let mut passive = passive_plan.create_data(worlds).unwrap();
+            assert!(velocity_plan.update(&source, &mut velocity).is_err());
+            source_plan.update(&mut source).unwrap();
+            let mut qvel = vec![0.0; 3 * worlds];
+            for row in qvel.chunks_mut(3) {
+                row[0] = 0.25;
+                row[1] = -0.25;
+            }
+            velocity.write_qvel(&qvel).unwrap();
+            let velocity_view = velocity_plan.update(&source, &mut velocity).unwrap();
+            let velocity_snapshot = velocity_view.snapshot().unwrap();
+            for world in 0..worlds {
+                assert_eq!(velocity_snapshot.world(world).unwrap()[0], -0.5);
+            }
+            let snapshot = passive_plan
+                .update(&velocity_view, &mut passive)
+                .unwrap()
+                .snapshot()
+                .unwrap();
+            for world in 0..worlds {
+                assert_eq!(
+                    bits(snapshot.spring(world).unwrap()),
+                    bits(&[0.4375, -0.4375, 0.0])
+                );
+                assert_eq!(
+                    bits(snapshot.damper(world).unwrap()),
+                    bits(&[-0.1015625, 0.1015625, 0.0])
+                );
+                slots += 6;
+            }
+
+            drop(velocity_view);
+            let before = bits(snapshot.spring(0).unwrap());
+            let source_buffer = source.tendon_velocity_source_for_test();
+            let old_length = raw(source_buffer)[4];
+            source_buffer.write_range(4, &[f32::NAN]).unwrap();
+            let view = velocity_plan.update(&source, &mut velocity).unwrap();
+            assert!(passive_plan.update(&view, &mut passive).is_err());
+            assert_eq!(before, bits(snapshot.spring(0).unwrap()));
+            drop(view);
+            source
+                .tendon_velocity_source_for_test()
+                .write_range(4, &[old_length])
+                .unwrap();
+            let view = velocity_plan.update(&source, &mut velocity).unwrap();
+            passive_plan.update(&view, &mut passive).unwrap();
+
+            let mut wrong_worlds = passive_plan.create_data(worlds + 1).unwrap();
+            assert!(matches!(
+                passive_plan.update(&view, &mut wrong_worlds),
+                Err(TransferError::ModelMismatch)
+            ));
+
+            passive.corrupt_guard_for_test(true, 0, 7.0).unwrap();
+            assert!(passive_plan.update(&view, &mut passive).is_err());
+            passive.corrupt_guard_for_test(true, 0, -131072.0).unwrap();
+            passive_plan.update(&view, &mut passive).unwrap();
+            let end = passive.buffer_len_for_test(false) - 1;
+            passive.corrupt_guard_for_test(false, end, 7.0).unwrap();
+            assert!(passive_plan.update(&view, &mut passive).is_err());
+            passive
+                .corrupt_guard_for_test(false, end, -131072.0)
+                .unwrap();
+            passive_plan.update(&view, &mut passive).unwrap();
+        }
+
+        let foreign_source_plan = producer(&session, 3);
+        let foreign_velocity_plan = TendonVelocityPlan::new(&foreign_source_plan).unwrap();
+        let mut foreign_source = foreign_source_plan.create_data(1).unwrap();
+        foreign_source_plan.update(&mut foreign_source).unwrap();
+        let mut foreign_velocity = foreign_velocity_plan.create_data(1).unwrap();
+        let foreign_view = foreign_velocity_plan
+            .update(&foreign_source, &mut foreign_velocity)
+            .unwrap();
+        let mut passive = passive_plan.create_data(1).unwrap();
+        assert!(matches!(
+            passive_plan.update(&foreign_view, &mut passive),
+            Err(TransferError::ModelMismatch)
+        ));
+        assert_eq!(slots, 1560);
+        println!(
+            "tendon_passive worlds=260 slots={slots} bit_difference=0 atomic_overlap_unproven=true phase_ms={}",
+            timer.elapsed().as_millis()
         );
     }
 }
