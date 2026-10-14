@@ -616,6 +616,93 @@ impl SynchronousKernel {
         })
     }
 
+    /// ABI：五个只读f32缓冲、一个可写缓冲、四项维度。
+    ///
+    /// # Safety
+    /// 调用方证明流体内核的私有ABI与全部跨度。
+    /// 输入只读且输出独占。
+    pub(crate) unsafe fn launch_fluid_force(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        inputs: [&TransferBuffer<f32>; 5],
+        output: &mut TransferBuffer<f32>,
+        dimensions: [u32; 4],
+    ) -> Result<(), TransferError> {
+        for same in std::iter::once(Arc::ptr_eq(&self.session.inner, &metadata.session.inner))
+            .chain(
+                inputs
+                    .iter()
+                    .map(|buffer| Arc::ptr_eq(&self.session.inner, &buffer.session.inner)),
+            )
+            .chain(std::iter::once(Arc::ptr_eq(
+                &self.session.inner,
+                &output.session.inner,
+            )))
+        {
+            if !same {
+                return Err(TransferError::SessionMismatch);
+            }
+        }
+        let count = dimensions[3];
+        if count == 0 || count > u32::MAX - 255 {
+            return Err(InputError::InvalidDimension {
+                field: "kernel_work_items",
+            }
+            .into());
+        }
+        let [first, second, third, fourth, fifth] = inputs;
+        let (
+            Some(metadata),
+            Some(first),
+            Some(second),
+            Some(third),
+            Some(fourth),
+            Some(fifth),
+            Some(output),
+        ) = (
+            metadata.allocation.as_ref(),
+            first.allocation.as_ref(),
+            second.allocation.as_ref(),
+            third.allocation.as_ref(),
+            fourth.allocation.as_ref(),
+            fifth.allocation.as_ref(),
+            output.allocation.as_mut(),
+        )
+        else {
+            return Err(InputError::InvalidDimension {
+                field: "kernel_buffers",
+            }
+            .into());
+        };
+        self.session.run("fluid-force-kernel-launch", || {
+            let mut args = self
+                .session
+                .inner
+                .stream
+                .launch_builder(self.function.as_ref().unwrap());
+            args.arg(metadata)
+                .arg(first)
+                .arg(second)
+                .arg(third)
+                .arg(fourth)
+                .arg(fifth)
+                .arg(output);
+            for value in &dimensions {
+                args.arg(value);
+            }
+            // SAFETY: 调用方证明私有ABI。
+            // run会串行并等待完成。
+            unsafe {
+                args.launch(LaunchConfig {
+                    grid_dim: (count.div_ceil(256), 1, 1),
+                    block_dim: (256, 1, 1),
+                    shared_mem_bytes: 0,
+                })
+            }?;
+            Ok(())
+        })
+    }
+
     /// ABI: (i32*, f32*, f32*, f32*, i32*, f32*, u32).
     /// 六个缓冲保留同一会话。
     ///

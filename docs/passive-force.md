@@ -18,6 +18,7 @@ GPU再合并弹簧与阻尼。
 源码位于以下文件：
 
 - `src/physics/passive_force.rs`
+- `src/physics/fluid_force.rs`
 - `src/physics/gravity_compensation.rs`
 - `src/physics/smooth_force.rs`
 - `src/physics/resident.rs`
@@ -46,6 +47,9 @@ CUDA内部量使用float。
 补偿系数使用f32。
 雅可比与点积使用f32。
 补偿累加使用f32原子。
+流体内部量使用f32。
+黏性乘法保留左结合。
+三次方与四次方用powf。
 最终按既定顺序相加。
 实现未引入f64物理量。
 实现未引入f16或TF32。
@@ -73,6 +77,9 @@ CUDA内部量使用float。
 入口不回传宿主再上传。
 补偿借用刚体设备结果。
 补偿借用质心设备结果。
+流体借用速度设备结果。
+流体借用刚体质心结果。
+五类流体参数独立循环。
 三类参数独立循环。
 失效源会阻止补偿发布。
 禁用补偿不读取物理源。
@@ -173,6 +180,19 @@ CUDA检查执行两次。
 源码与PTX哈希均匹配。
 平滑PTX未发现f64。
 
+流体测试执行两次。
+首次记录保留但已替代。
+修复后测试一次通过。
+旧九十一值仍保留。
+新增四百一十六值。
+合计比较五百零七值。
+原容差保持二乘十负六。
+最大误差小于容差。
+测试覆盖非零旋转。
+测试覆盖质心偏移。
+测试覆盖多刚体投影。
+坏根映射会提前拒绝。
+
 证据位于以下目录：
 
 ```text
@@ -180,6 +200,7 @@ docs/evidence/passive-force/
 docs/evidence/passive-force-sleep/
 docs/evidence/joint-passive-rotation/
 docs/evidence/gravity-compensation/
+docs/evidence/fluid-force/
 ```
 
 ## 未覆盖范围
@@ -191,7 +212,9 @@ docs/evidence/gravity-compensation/
 样本只含一个补偿刚体。
 多刚体原子归约仍未验收。
 本轮未实现柔体体积力。
-本轮未接入流体力。
+惯性盒流体力已独立实现。
+它尚未进入共享合并。
+椭球流体分支仍未实现。
 本轮未接入黏附力。
 本轮未完成完整G04。
 本轮未完成完整U038。

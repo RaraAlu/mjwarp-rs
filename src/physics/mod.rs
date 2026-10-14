@@ -80,6 +80,11 @@ pub use gravity_compensation::{
     GravityCompensationData, GravityCompensationOptions, GravityCompensationParameters,
     GravityCompensationPlan, GravityCompensationSnapshot, GravityCompensationView,
 };
+mod fluid_force;
+pub use fluid_force::{
+    FluidForceData, FluidForceInput, FluidForcePlan, FluidForceSnapshot, FluidForceView,
+    FluidForceWorld,
+};
 mod passive_force;
 pub use passive_force::{
     ClearedPassiveForceView, PassiveForceData, PassiveForcePlan, PassiveForceSnapshot,

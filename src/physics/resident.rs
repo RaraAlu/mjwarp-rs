@@ -531,6 +531,39 @@ impl KinematicsPlan {
         Ok((self.session.clone(), Arc::clone(&self.model), body_mass))
     }
 
+    pub(super) fn fluid_force_context(
+        &self,
+    ) -> Result<
+        (
+            TransferSession,
+            Arc<AttachedModelInput>,
+            ParameterBatch,
+            ParameterBatch,
+        ),
+        TransferError,
+    > {
+        let nbody = self.model.rigid().kinematics().nbody();
+        let inertial = self.model.rigid().fields();
+        let body_mass = self
+            .parameters
+            .get(KinematicsParameter::BodyMass)
+            .cloned()
+            .map(Ok)
+            .unwrap_or_else(|| ParameterBatch::new(1, nbody, inertial.body_mass.clone()))?;
+        let body_inertia = self
+            .parameters
+            .get(KinematicsParameter::BodyInertia)
+            .cloned()
+            .map(Ok)
+            .unwrap_or_else(|| ParameterBatch::new(1, 3 * nbody, inertial.body_inertia.clone()))?;
+        Ok((
+            self.session.clone(),
+            Arc::clone(&self.model),
+            body_mass,
+            body_inertia,
+        ))
+    }
+
     pub fn flex_hessian_fields(&self) -> Option<&FlexHessianFields> {
         self.hessian_fields.as_deref()
     }

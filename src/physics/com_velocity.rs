@@ -5,7 +5,7 @@ use super::{KinematicsData, KinematicsPlan};
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
-use crate::model::{AttachedModelInput, BatchLayout};
+use crate::model::{AttachedModelInput, BatchLayout, KinematicsParameters, ParameterBatch};
 use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
@@ -49,6 +49,13 @@ pub struct ComVelocityData {
 #[cfg(feature = "cuda-probe")]
 pub(super) struct RneInputs<'a> {
     pub qvel: &'a TransferBuffer<f32>,
+    pub com: &'a TransferBuffer<f32>,
+    pub velocity: &'a TransferBuffer<f32>,
+}
+
+#[cfg(feature = "cuda-probe")]
+pub(super) struct FluidInputs<'a> {
+    pub rigid: &'a TransferBuffer<f32>,
     pub com: &'a TransferBuffer<f32>,
     pub velocity: &'a TransferBuffer<f32>,
 }
@@ -161,6 +168,14 @@ impl ComVelocityPlan {
         session: &TransferSession,
         model: AttachedModelInput,
     ) -> Result<Self, TransferError> {
+        Self::with_parameters(session, model, KinematicsParameters::default())
+    }
+
+    pub fn with_parameters(
+        session: &TransferSession,
+        model: AttachedModelInput,
+        parameters: KinematicsParameters,
+    ) -> Result<Self, TransferError> {
         let k = model.rigid().kinematics();
         let (nbody, njnt, nv) = (k.nbody(), k.njnt(), k.nv());
         ComVelocityLayout::new(1, nbody, njnt, nv)?;
@@ -181,7 +196,7 @@ impl ComVelocityPlan {
             }
             values
         };
-        let position = KinematicsPlan::new(session, model)?;
+        let position = KinematicsPlan::with_parameters(session, model, parameters)?;
         #[cfg(feature = "cuda-probe")]
         let metadata = session.upload(&metadata_values)?;
         #[cfg(feature = "cuda-probe")]
@@ -210,6 +225,20 @@ impl ComVelocityPlan {
 
     pub(super) fn check_data(&self, data: &ComVelocityData) -> Result<(), TransferError> {
         self.position.check_data(&data.position)
+    }
+
+    pub(super) fn fluid_force_context(
+        &self,
+    ) -> Result<
+        (
+            TransferSession,
+            std::sync::Arc<AttachedModelInput>,
+            ParameterBatch,
+            ParameterBatch,
+        ),
+        TransferError,
+    > {
+        self.position.fluid_force_context()
     }
 
     /// 创建独立世界与零qvel。
@@ -296,6 +325,33 @@ impl ComVelocityData {
             com: &self.com,
             velocity: &self.output,
         })
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    pub(super) fn fluid_inputs(&self) -> Result<FluidInputs<'_>, TransferError> {
+        if !self.ready {
+            return Err(TransferError::StageNotReady {
+                stage: "com_velocity",
+            });
+        }
+        Ok(FluidInputs {
+            rigid: &self.rigid,
+            com: &self.com,
+            velocity: &self.output,
+        })
+    }
+
+    #[cfg(all(test, feature = "cuda-probe"))]
+    pub(super) fn fluid_snapshot_for_test(
+        &self,
+    ) -> Result<(Vec<f32>, Vec<f32>, Vec<f32>), TransferError> {
+        self.fluid_inputs()?;
+        let read = |buffer: &TransferBuffer<f32>| -> Result<Vec<f32>, TransferError> {
+            let mut values = crate::runtime::host_staging::<f32>(buffer.len())?;
+            buffer.read_range_into(0, &mut values)?;
+            Ok(values)
+        };
+        Ok((read(&self.rigid)?, read(&self.com)?, read(&self.output)?))
     }
 
     pub fn worlds(&self) -> usize {
