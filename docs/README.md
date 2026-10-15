@@ -305,6 +305,7 @@ NP04仍缺公平稳态性能对照。
 56. [Windows完整T4追加验证](windows-t4-g03-retest.md)
 57. [T4精度与性能证据门禁](t4-evidence-gates.md)
 58. [零位形上游运动学证据](evidence/gravity-upstream-kinematics/README.md)
+59. [实时产品质心重力证据](evidence/gravity-product-chain/README.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
@@ -553,8 +554,10 @@ Rust已导入真实PTX。
 七核设备链已完成实测。
 上游1106项保持零位差。
 产品位姿833项保持零位差。
-产品质心未实时对照。
-产品重力未实时对照。
+产品质心实时对照已完成。
+产品重力实时对照已完成。
+新增301项保持零位差。
+零qpos产品链已闭合。
 非零旋转仍未覆盖。
 流体被动力已有GPU子集。
 惯性盒与椭球均已落地。
