@@ -283,6 +283,9 @@ G01映射另列实际公开入口。
 | G27 | 常量计算 | set_const与长度范围 | 输入转换与动态更新 | P2/P7 |
 | G28 | 查询 | jac、ray、rays、contact_force | 单体、批量与无命中 | P7/P8 |
 
+G07至G11及G22的D04分母已冻结。
+详见[D04参考报告](d04-complex-physics-gpu-references.md#正式分母)。
+
 枚举值以冻结版类型为准。
 测试还需覆盖能力开关组合。
 不能只覆盖默认求解器。

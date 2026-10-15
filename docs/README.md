@@ -240,6 +240,7 @@ NP04仍缺公平稳态性能对照。
 8. [兼容与验收矩阵](compatibility-matrix.md)
 9. [详细实施计划](implementation-plan.md)
 10. [复刻执行清单](replication-plan.md)
+    - [D04复杂物理参考](d04-complex-physics-gpu-references.md)
 11. [上游映射草案](upstream-api-map.md)
 12. [GPU探针与路线评估](gpu-probe.md)
 13. [CubeCL双路探针](cubecl-probe.md)
