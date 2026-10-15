@@ -807,6 +807,8 @@ __device__ void store_v(float* p,V v) { p[0]=v.x;p[1]=v.y;p[2]=v.z; }
 __device__ void store_q(float* p,Q q) { p[0]=q.w;p[1]=q.x;p[2]=q.y;p[3]=q.z; }
 __device__ V add(V a,V b) { return {a.x+b.x,a.y+b.y,a.z+b.z}; }
 __device__ V scale(V a,float s) { return {a.x*s,a.y*s,a.z*s}; }
+__device__ float dot_v(V a,V b) { return a.x*b.x+a.y*b.y+a.z*b.z; }
+__device__ V cross_v(V a,V b) { return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x}; }
 __device__ Q normalize(Q q) {
   float n=sqrtf(q.w*q.w+q.x*q.x+q.y*q.y+q.z*q.z);
 #ifdef MJWARP_G01_EQUIVALENT
@@ -822,11 +824,11 @@ __device__ Q multiply(Q a,Q b) {
           a.w*b.z+a.x*b.y-a.y*b.x+a.z*b.w};
 }
 __device__ V rotate(Q q,V v) {
-  float d=q.x*v.x+q.y*v.y+q.z*v.z;
-  float s=q.w*q.w-q.x*q.x-q.y*q.y-q.z*q.z;
-  return {s*v.x+2*d*q.x+2*q.w*(q.y*v.z-q.z*v.y),
-          s*v.y+2*d*q.y+2*q.w*(q.z*v.x-q.x*v.z),
-          s*v.z+2*d*q.z+2*q.w*(q.x*v.y-q.y*v.x)};
+  V u={q.x,q.y,q.z};
+  V lhs=scale(scale(u,dot_v(u,v)),2.0f);
+  float factor=q.w*q.w-dot_v(u,u);
+  V r=add(lhs,scale(v,factor));
+  return add(r,scale(cross_v(u,v),2.0f*q.w));
 }
 __device__ void matrix(float* m,Q q) {
   m[0]=q.w*q.w+q.x*q.x-q.y*q.y-q.z*q.z;
