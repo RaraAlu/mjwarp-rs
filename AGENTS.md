@@ -398,8 +398,8 @@ PR说明目的、范围与验证。
 
 ```text
 project: mjwarp-rs
-dir: /home/zkbot/.codex/normify/normify-mjwarp-rs
-repoRoot: /home/zkbot/work/Rust/mjwarp-rs
+Windows repoRoot: C:/Rust/mjwarp-rs
+Linux repoRoot: /home/zkbot/work/Rust/mjwarp-rs
 ```
 
 保留原树与模块UID。
@@ -422,6 +422,28 @@ repoRoot: /home/zkbot/work/Rust/mjwarp-rs
 | 登记变更 | `normify_change_open` |
 | 同步与刷新 | `normify_sync`、`normify_module_refresh` |
 | 校验与收尾 | `normify_validate`、`normify_change_close` |
+
+### 交付排程强制同步
+
+目录随当前执行主机选择。
+优先用project定位原树。
+不要复用异机绝对目录。
+每次编码先建独立交付任务。
+总门禁不得承载所有开发。
+阶段子集须明确完成边界。
+提交必须附逐文件交付回执。
+回执绑定暂存Git对象。
+回执列真实验证与剩余缺口。
+任务备注绑定回执路径。
+提交钩子拒绝缺失或漂移。
+不得禁用钩子规避检查。
+提交后登记实际提交号。
+逐项核验，再关闭交付任务。
+随后回读排程确认状态。
+下次提交须完成上次收尾。
+阶段门禁只认原验收条件。
+历史通过不转授当前源码。
+流程详见[交付同步](docs/normify-delivery-workflow.md)。
 
 ## 项目进展汇报
 

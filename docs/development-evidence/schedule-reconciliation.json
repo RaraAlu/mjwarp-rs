@@ -1,0 +1,2017 @@
+{
+  "schema": 1,
+  "date": "2026-10-16",
+  "baseline": "8a5bac00fdfa9759f752993b2866098c6ff20819",
+  "range_start": "c19ad6b2ee1459fbc92cfff43df5fac238963575",
+  "original_gate": "2026-10-11-mjwarp-parallel-acceptance",
+  "successor_gate": "2026-10-16-next-t4-gate",
+  "historical_only": true,
+  "original_acceptance": [
+    "MuJoCo是第一数值参考。原生通过即通过该项NP03。无需MJWarp再次通过。",
+    "仅原生超差后启用同条件MJWarp。两路均相对同一原生参考计算误差。本库不劣于上游则放行；略高但未越5%红线也放行；越线禁行。",
+    "原生容差保持冻结。每个字段块取最大归一化误差。红线为MJWarp分数乘1.05。两路采用相同原生值与分母。不跨字段或逐元素拼接通过。",
+    "冻结原生版本与MJWarp提交。记录输入、状态与参考哈希。核对有效输入和量化。版本或语义差异单独登记。",
+    "NP01覆盖内部与公开精度。NP02记录实际内核与编译策略。数值通过不豁免精度偏离。非有限值与结构错误不回退。",
+    "NP03要求判定全覆盖。失败与待验收均须清零。区分原生放行、对照放行与红线内放行。原生通过无需第二参考；缺必要证据、未测与零样本不能冒充通过。",
+    "产品测试读取冻结参考。不得启动Python或生成参考。保留历史原生与上游诊断日志。不因规则变更改写历史结果。",
+    "NP04仍要求公平批量对照。记录设备、预热、同步和计时。稳态耗时与显存仍需实测。",
+    "T4覆盖Windows完整G01。全链与低层入口均须验收。debug与release均需实测。不能用圆柱子集代替全量。",
+    "两级自动判定已局部接入。其余覆盖和参考缺口仍须补齐。结构与产品缺口未清零不关闭主验收变更。修复与补测另记独立变更，不豁免本项。未审查模块不刷新指纹。"
+  ],
+  "records": [
+    {
+      "key": "g03-first",
+      "id": "2026-10-16-done-g03-first",
+      "title": "G03首差修复",
+      "commits": [
+        "c19ad6b2ee1459fbc92cfff43df5fac238963575",
+        "4dc88934aab0aad1d73cf77d4c15a54db583dd2e"
+      ],
+      "evidence": "docs/windows-g03-first-difference.md",
+      "limits": "分解专项双模式各8过。完整G03仍未验收。",
+      "history": [
+        {
+          "sha": "c19ad6b2ee1459fbc92cfff43df5fac238963575",
+          "validation": "\n\n- `cargo test --locked`：226项通过。双模式单元覆盖后续新增断言。\n\n- `cargo fmt --check`通过。`cargo +stable-x86_64-pc-windows-msvc clippy --locked --all-features --all-targets -- -D warnings`通过。\n\n- `cargo +stable-x86_64-pc-windows-msvc test --locked --all-features --test mass_solve_probe block_references_bind_all_configurations_and_native_factor_semantics -- --exact --nocapture`：1项通过。\n\n- `& ./target/g03-block-reference/run.ps1`：双模式各执行一次。矩阵单元各4过。求解单元各8过。矩阵集成各7过。求解集成各5过3败。失败后未重跑。\n\n- 每模式比较1411个世界实例。NP03各10块失败、0块待验收。NP04与Linux未验收。\n\n- Normify校验零错误、两警告。文档审计报告零不匹配。`git diff --cached --check`通过。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "4dc88934aab0aad1d73cf77d4c15a54db583dd2e",
+          "validation": "\n\n- `cargo +stable-x86_64-pc-windows-msvc test --locked --all-features --lib physics::mass_solve::tests:: -- --include-ignored --test-threads=1 --nocapture`\n- `cargo +stable-x86_64-pc-windows-msvc test --locked --all-features --test mass_solve_probe -- --include-ignored --test-threads=1 --nocapture`\n- 两项另加`--release`各运行一次。双模式单元各10过、集成各8过。\n- 每模式比较1411个世界。7027块原生、20块对照放行。失败与待验收均为零。\n- `cargo test --locked`：226项通过。\n- `cargo fmt --check`通过。\n- `cargo +stable-x86_64-pc-windows-msvc clippy --locked --all-features --all-targets -- -D warnings`通过。\n- 文档审计：243源码、82文档。工具报告零处不匹配。\n- 架构校验：零错误、两警告。仅关闭本次数值修复任务。\n- `git diff --cached --check`通过。\n- 未重跑完整T4、G01或393。Linux与稳态性能仍缺验收。\n",
+          "evidence_candidates": []
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "g03-first",
+          "revision": "c19ad6b2ee1459fbc92cfff43df5fac238963575",
+          "path": "docs/README.md",
+          "blob": "4ea74e63c5ddf732c36ddb14c6f558ddaca26520"
+        },
+        {
+          "key": "g03-first",
+          "revision": "4dc88934aab0aad1d73cf77d4c15a54db583dd2e",
+          "path": "docs/README.md",
+          "blob": "2d75fdb58180bc1395a36f91f86a2a2d12fde935"
+        }
+      ]
+    },
+    {
+      "key": "t4-numeric",
+      "id": "2026-10-16-done-t4-numeric",
+      "title": "T4历史双模式数值复验",
+      "commits": [
+        "8c0f8147dac3422724f00abe2d1916bac93e4e14"
+      ],
+      "evidence": "docs/evidence/t4-g03-retest/report.json",
+      "limits": "旧基线双模式各483过。完整T4仍未验收。",
+      "history": [
+        {
+          "sha": "8c0f8147dac3422724f00abe2d1916bac93e4e14",
+          "validation": "\n\n- `target/t4-g03-retest/run.ps1`\n  双模式各执行一次完整产品集。\n  主体各444过，原生各27过。\n  文档各12过，合计各483过。\n  受限原生另各27过。\n  仅原生配置另各1过。\n  GNU宿主与文档另226过。\n- `cargo fmt --check`\n  格式检查通过。\n  双模式MSVC全特性Clippy通过。\n  GNU默认与CUDA Clippy通过。\n  Rustdoc拒绝警告检查通过。\n- 文档工具扫描252源码、83文档。\n  工具报告0处不匹配。\n  归档哈希与文档链接核对通过。\n  Normify校验0错误、2项旧警告。\n- `git diff --cached --check`\n  暂存范围与证据字节核对通过。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/debug-native-report.json",
+            "docs/evidence/t4-g03-retest/release-native-report.json",
+            "docs/evidence/t4-g03-retest/report.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "t4-numeric",
+          "revision": "8c0f8147dac3422724f00abe2d1916bac93e4e14",
+          "path": "docs/evidence/t4-g03-retest/debug-native-report.json",
+          "blob": "d2687b9d092cf2cbf7dba1e0288e32733ad7df87"
+        },
+        {
+          "key": "t4-numeric",
+          "revision": "8c0f8147dac3422724f00abe2d1916bac93e4e14",
+          "path": "docs/evidence/t4-g03-retest/release-native-report.json",
+          "blob": "0062551997dd5432d541f89c87349baf982678cd"
+        },
+        {
+          "key": "t4-numeric",
+          "revision": "8c0f8147dac3422724f00abe2d1916bac93e4e14",
+          "path": "docs/evidence/t4-g03-retest/report.json",
+          "blob": "9d372dea1ac6c66e97bfd314e6d50a9c86252857"
+        }
+      ]
+    },
+    {
+      "key": "t4-mapping",
+      "id": "2026-10-16-done-t4-mapping",
+      "title": "T4入口与内部精度映射",
+      "commits": [
+        "62b92e88100d20939c1a5c0a96f5f5f20626e3d2",
+        "248a28a7242525d5f86871d4b588e50c1a27693b",
+        "78601790d2d09d8d08a93ba6876b388f1ca43174",
+        "9db581d509adbaf487cbe0498e0b7c2b9a5caba1",
+        "20df13fa6ddae17794b334d569e198e938ace6cd",
+        "9753037e7b3a783fa6f8a05a77cfea854923f83a",
+        "dcb1fae771c45ca5df823d0b2517f04724f625b2",
+        "bdcc9d97482d629c40bcabfa52c0c159590bcd4d",
+        "616555bd823b0f4fecdcb383a2e12a9c1ae4e863",
+        "0037caff9e35d34c420bdaace55bad00e7aa4556",
+        "bd6f6efe01fc9369b4224c61ac84f63fa31f7038",
+        "ce010beb2d5e01ceafdcfe2c2cc6a81aaf9fa18c"
+      ],
+      "evidence": "docs/t4-state-packing.md",
+      "limits": "仅静态映射与宿主检查。完整NP01仍有缺口。",
+      "history": [
+        {
+          "sha": "62b92e88100d20939c1a5c0a96f5f5f20626e3d2",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_evidence -- --include-ignored --test-threads=1 --nocapture`\n  新增目标累计三次：10、11、11项通过。\n  最终11过0败0忽略。\n  核对真实归档与文件破坏负例。\n  不执行GPU，不启动Python。\n- `cargo clippy --locked --features cuda-probe --test t4_evidence -- -D warnings`\n- `cargo fmt --check`\n- 文档工具扫描256源码、84文档。\n  工具报告零处不匹配。\n  本地链接与暂存清单哈希通过。\n  Normify校验零错误、两项旧警告。\n- `git diff --cached --check`\n- 本轮未重跑完整T4或Linux。\n  性能正例仅为合成真值表。\n  本轮没有真实稳态性能成绩。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "248a28a7242525d5f86871d4b588e50c1a27693b",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_input_precision -- --include-ignored --test-threads=1 --nocapture`\n- 新配置运行一次，8过0败0忽略。\n- 冻结上游与Warp类型源码实核通过。\n- 测试未启动GPU或Python。\n- `cargo clippy --locked --features cuda-probe --test t4_input_precision -- -D warnings`\n- `cargo fmt --check`\n- `git diff --cached --check`\n- 回执哈希与文档链接检查通过。\n- 文档工具检查259源码、85文档。\n- 工具报告零处不匹配。\n- Normify校验零错误、两项旧警告。\n- 未重跑满额产品验证或Linux。\n- 本轮未采集真实性能。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "78601790d2d09d8d08a93ba6876b388f1ca43174",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_input_precision -- --include-ignored --test-threads=1 --nocapture`\n- 首轮12过1败，定位规则有误。\n- 修正PTX哈希命名后的最终结果：13过0败0忽略。\n- 宿主目标累计三次，停止追加。\n- `cargo clippy --locked --features cuda-probe --test t4_input_precision -- -D warnings`\n- `cargo fmt --check`\n- `git diff --cached --check`\n- 入口旧回执与新实核一致。\n- 新回执哈希与文档链接通过。\n- 文档工具262源码、86文档，零提示。\n- Normify校验零错误、两项旧警告。\n- 未运行GPU、Python或Linux测试。\n- 未重跑完整T4，未测真实性能。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "9db581d509adbaf487cbe0498e0b7c2b9a5caba1",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_input_precision field_internal:: -- --include-ignored --test-threads=1 --nocapture`\n- 新增选择仅执行一次。5过、0败、0忽略，过滤13项旧用例。\n- `cargo clippy --locked --features cuda-probe --test t4_input_precision -- -D warnings`\n- `cargo fmt --check`\n- `git diff --cached --check`\n- 121处本地链接通过。清单及回执哈希一致。\n- 文档工具核对265源码、87文档。修正一处路径提示后零提示。\n- Normify校验零错误、两项旧警告。架构构建通过。\n- 未重跑满额目标与完整T4。未执行GPU、Python或Linux测试。\n- 未开展真实性能实测。NP03继续沿用历史证据。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "20df13fa6ddae17794b334d569e198e938ace6cd",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_input_precision packing_routes:: -- --include-ignored --test-threads=1 --nocapture`：两次均5过、0败、0忽略。每次过滤旧18项。未重跑满额验证。\n- `cargo clippy --locked --features cuda-probe --test t4_input_precision -- -D warnings`：通过。\n- `cargo fmt --check`、`git diff --cached --check`：通过。\n- 核对123条本地文档链接。核对清单哈希与归档回执。文档审计覆盖268份源码及88份文档。报告零不一致。\n- Normify校验零错误。保留两项历史警告。架构构建通过。\n- 本轮未执行产品GPU内核。产品测试未启动Python。未运行Linux与真实性能测试。完整精度及性能仍待验收。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "9753037e7b3a783fa6f8a05a77cfea854923f83a",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_input_precision topology_frames:: -- --include-ignored --test-threads=1 --nocapture`：5过、0败、0忽略。耗时0.49秒。新增选择仅执行一次。过滤旧23项，未重跑满额验证。\n- `cargo clippy --locked --features cuda-probe --test t4_input_precision -- -D warnings`：通过。\n- `cargo fmt --check`、`git diff --cached --check`：通过。\n- 126条本地文档链接通过。清单哈希与归档回执匹配。文档工具核对271源码及89文档。报告零不匹配。\n- Normify校验零错误。保留两项历史警告。架构构建通过。\n- 本轮未运行产品GPU内核。产品测试未启动Python。未运行Linux与真实性能测试。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "dcb1fae771c45ca5df823d0b2517f04724f625b2",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_input_precision rigid_internal:: -- --include-ignored --test-threads=1 --nocapture`：两次均6过、0败、0忽略。每次耗时0.16秒。第二次补齐换行兼容检查。每次过滤旧28项。未重跑满额验证。\n- `cargo clippy --locked --features cuda-probe --test t4_input_precision -- -D warnings`：通过。\n- `cargo fmt --check`、`git diff --cached --check`：通过。\n- 128条本地文档链接通过。清单哈希与归档回执匹配。文档工具核对274源码及90文档。修正一处外部路径提示。最终零不匹配。\n- Normify校验零错误。保留两项历史警告。架构构建通过。\n- 本轮未运行产品GPU内核。产品测试未启动Python。未运行Linux与真实性能测试。上游生成产物尚未核验。完整精度及性能仍待验收。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "bdcc9d97482d629c40bcabfa52c0c159590bcd4d",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_input_precision packing_routes::flex_internal:: -- --include-ignored --test-threads=1`：累计三次。首次缺资料变量，四过一败。补齐后两次各五过零败。旧36项始终过滤。\n\n- `cargo clippy --locked --features cuda-probe --test t4_input_precision -- -D warnings`、`cargo fmt --check`及`git diff --cached --check`均通过。\n\n- 清单回执哈希核对通过。132条本地文档链接通过。文档工具报告282份源码、92份文档、零偏差。\n\n- Normify校验零错误。保留两条历史结构警告。不新增并行资源占用。\n\n- 本轮未执行GPU或Python。未重跑满额、Linux或发布验收。最终宿主测试耗时0.52秒。NP04性能与显存峰值仍未测。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/flex-internal/audit.json"
+          ]
+        },
+        {
+          "sha": "616555bd823b0f4fecdcb383a2e12a9c1ae4e863",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_input_precision field_internal::flex_matrices:: -- --include-ignored --test-threads=1`：累计三次。首次缓存后缀错误，三过一败。修正后四项通过。补齐旋转映射后仍四过零败。旧41项始终过滤。\n\n- `cargo clippy --locked --features cuda-probe --test t4_input_precision -- -D warnings`、`cargo fmt --check`及`git diff --cached --check`均通过。\n\n- 清单回执哈希核对通过。133条本地链接通过。文档工具报告284份源码、92份文档、零偏差。\n\n- Normify校验零错误。保留两条历史结构警告。完整T4继续保持开放。\n\n- 本轮未运行GPU或Python。未重新编译物理内核。未重跑满额及跨平台验收。最终宿主测试耗时0.58秒。不计为性能或显存验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/flex-matrices/audit.json"
+          ]
+        },
+        {
+          "sha": "0037caff9e35d34c420bdaace55bad00e7aa4556",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_camlight_precision -- --test-threads=1 --nocapture`\n  首轮2过1败。\n  修正检查器后3过0败。\n  补强两组覆盖后3过0败。\n  三次完整选择现已冻结。\n- `cargo clippy --locked --features cuda-probe --test t4_camlight_precision -- -D warnings`：通过。\n- `cargo fmt --check`：通过。\n- `git diff --cached --check`：通过。\n- 八份来源及八份产物哈希通过。\n- 三份原始日志哈希通过。\n- 文档钩子报告零偏差。\n- 架构校验零错、两项旧警告。\n- 架构构建通过。\n- 旧满额配置均未重跑。\n- 未启动CUDA编译或GPU。\n- 未测机器码、数值与公平性能。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "bd6f6efe01fc9369b4224c61ac84f63fa31f7038",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_tendon_wake_precision -- --test-threads=1 --nocapture`\n  首次4过0败，耗时0.03秒。\n  通过后未重跑。\n- `cargo clippy --locked --features cuda-probe --test t4_tendon_wake_precision -- -D warnings`：通过。\n- `cargo fmt --check`：通过。\n- `git diff --cached --check`：通过。\n- 六份来源与六份产物哈希通过。\n- 日志、测试与捕获身份核实。\n- 文档钩子报告零偏差。\n- 架构校验零错、两项旧警告。\n- 架构构建通过。\n- 旧满额配置均未重跑。\n- 未跑CUDA编译或GPU物理。\n- 未验收上游生成与并行语义。\n- 未测公平性能及完整休眠。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "ce010beb2d5e01ceafdcfe2c2cc6a81aaf9fa18c",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_spatial_tendon_precision -- --test-threads=1 --nocapture`\n  首次4过0败，耗时0.09秒。\n  通过后未重跑。\n- `cargo clippy --locked --features cuda-probe --test t4_spatial_tendon_precision -- -D warnings`：通过。\n- `cargo fmt --check`：通过。\n- `git diff --cached --check`：通过。\n- 六份来源与十一份产物哈希通过。\n- 日志、测试与捕获身份核实。\n- 文档钩子报告零偏差。\n- 架构校验零错、两项旧警告。\n- 架构构建通过。\n- 旧满额配置均未重跑。\n- 未跑CUDA编译或GPU物理。\n- 未证明累加次序及完整库等价。\n- 未测公平性能与设备数值。\n",
+          "evidence_candidates": []
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "t4-mapping",
+          "revision": "62b92e88100d20939c1a5c0a96f5f5f20626e3d2",
+          "path": "docs/README.md",
+          "blob": "a09d4e4c3e00561d0691e7c619da46fbaca6bdc2"
+        },
+        {
+          "key": "t4-mapping",
+          "revision": "248a28a7242525d5f86871d4b588e50c1a27693b",
+          "path": "docs/README.md",
+          "blob": "1a86850400e20366074fabad62bdf886e4485daa"
+        },
+        {
+          "key": "t4-mapping",
+          "revision": "78601790d2d09d8d08a93ba6876b388f1ca43174",
+          "path": "docs/README.md",
+          "blob": "688c1c011cdca050967c287c7c90d9e74891d3ae"
+        },
+        {
+          "key": "t4-mapping",
+          "revision": "9db581d509adbaf487cbe0498e0b7c2b9a5caba1",
+          "path": "docs/README.md",
+          "blob": "485dbbef3dfec0cd0da773ca3ca9730ab57cd7df"
+        },
+        {
+          "key": "t4-mapping",
+          "revision": "20df13fa6ddae17794b334d569e198e938ace6cd",
+          "path": "docs/README.md",
+          "blob": "f3214bf9fdf768c8d30f7d3ad576156ba9471c3e"
+        },
+        {
+          "key": "t4-mapping",
+          "revision": "9753037e7b3a783fa6f8a05a77cfea854923f83a",
+          "path": "docs/README.md",
+          "blob": "f8ef01f7670096ab4c88cef123f954c514aa4b6a"
+        },
+        {
+          "key": "t4-mapping",
+          "revision": "dcb1fae771c45ca5df823d0b2517f04724f625b2",
+          "path": "docs/README.md",
+          "blob": "2f635c805ab17654ba4f1995916932f66d2572f7"
+        },
+        {
+          "key": "t4-mapping",
+          "revision": "bdcc9d97482d629c40bcabfa52c0c159590bcd4d",
+          "path": "docs/evidence/t4-g03-retest/flex-internal/audit.json",
+          "blob": "e0faed08d162d1c2f342b7a9c0e341026be8ea34"
+        },
+        {
+          "key": "t4-mapping",
+          "revision": "616555bd823b0f4fecdcb383a2e12a9c1ae4e863",
+          "path": "docs/evidence/t4-g03-retest/flex-matrices/audit.json",
+          "blob": "c204061798e0ca93d0b7aef546537438a81d1a91"
+        },
+        {
+          "key": "t4-mapping",
+          "revision": "0037caff9e35d34c420bdaace55bad00e7aa4556",
+          "path": "docs/README.md",
+          "blob": "3230d67696edac1fe228c09d2b8509766caaf1dd"
+        },
+        {
+          "key": "t4-mapping",
+          "revision": "bd6f6efe01fc9369b4224c61ac84f63fa31f7038",
+          "path": "docs/README.md",
+          "blob": "ae2881cf378981489d58ba9fdb734a2938191b99"
+        },
+        {
+          "key": "t4-mapping",
+          "revision": "ce010beb2d5e01ceafdcfe2c2cc6a81aaf9fa18c",
+          "path": "docs/README.md",
+          "blob": "d3b69aebfcd896a751f3dc909d098ef792361e97"
+        }
+      ]
+    },
+    {
+      "key": "rigid-zero",
+      "id": "2026-10-16-done-rigid-zero",
+      "title": "刚体零四元数修复与捕获",
+      "commits": [
+        "af7f8871c7377d016ed04e99440e5a1486dcc318",
+        "e272b1474391c4b875ad89b70a7e865a33eec914"
+      ],
+      "evidence": "docs/t4-rigid-recapture.md",
+      "limits": "历史编译谱系已核对。新旋转修改仍需重捕获。",
+      "history": [
+        {
+          "sha": "af7f8871c7377d016ed04e99440e5a1486dcc318",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_input_precision zero_quaternion:: -- --include-ignored --test-threads=1 --nocapture`：三次依次为1过1败、1过1败、2过0败。首败来自缓存末尾NUL。修复前129处差异；修复后608项一致。该选择已满三次。\n\n- `cargo test --locked --features cuda-probe --test t4_input_precision rigid_internal:: -- --include-ignored --test-threads=1 --nocapture`：累计第三次6过0败，过滤30项。核对17组内部量、七输出及六份历史捕获。\n\n- `cargo +stable-x86_64-pc-windows-msvc check --locked --features cuda-probe,native-model-probe --test g01` 通过。`cargo clippy --locked --features cuda-probe --test t4_input_precision -- -D warnings`、`cargo fmt --check`、`git diff --cached --check` 通过。\n\n- 21项来源戳、两份结果哈希、130条本地链接通过。文档工具检查277源码、91文档，零提示。Normify校验零错误、两项历史警告，架构构建通过。\n\n- 未重跑满额物理验证。未验收完整G01集成、当前完整产物、Linux及公平性能。主T4继续开放；本轮不宣称完整精度达标。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "e272b1474391c4b875ad89b70a7e865a33eec914",
+          "validation": "\n\n- 编译捕获调用两次，各一项通过。第二次覆盖全部十份模板。三十份产物通过原精度门禁。三种文件破坏均触发拒绝。\n\n- `cargo test --locked --features cuda-probe --lib runtime::transfer::kernel::recapture:: -- --test-threads=1`：三次各二过、一忽略。已另行执行忽略的捕获项。该宿主选择已满三次。\n\n- `cargo clippy --locked --features cuda-probe --lib --tests -- -D warnings`、`cargo fmt --check`、`git diff --cached --check`均通过。\n\n- 文档核验覆盖280份源码及92份文档，零偏差。Normify校验零错误。保留两条历史粗粒度警告。\n\n- 本轮未执行物理内核。未重跑满额与跨平台验收。1410毫秒仅为编译核验。NP04未测，完整T4继续开放。\n",
+          "evidence_candidates": []
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "rigid-zero",
+          "revision": "af7f8871c7377d016ed04e99440e5a1486dcc318",
+          "path": "docs/README.md",
+          "blob": "675d2a7114890dc1ec722e39b6334d3ca724a934"
+        },
+        {
+          "key": "rigid-zero",
+          "revision": "e272b1474391c4b875ad89b70a7e865a33eec914",
+          "path": "docs/README.md",
+          "blob": "a54a4f6e0b42d8cf462d76ed5b4eefa9fa3b5298"
+        }
+      ]
+    },
+    {
+      "key": "face-diagnostics",
+      "id": "2026-10-16-done-face-diagnostics",
+      "title": "柔体面诊断与局部修复",
+      "commits": [
+        "d2d7b467f0e96c5ea0795849ce71d0078b4be917",
+        "97a7b54f638552049bd0ffe2efcc7cbb971389bf",
+        "9b5e6162b99abc3e75276b34691661d9868f8cb9",
+        "38803deb7f6264f745896a59e785616d92518692",
+        "cfd37bc1efb0bdf75d35c1cbe2781fa77ae102c3",
+        "7f24a058b0c3265e03fa2336f0fc18b2e064d9fa",
+        "934667a8e958155d4fe7e033e148978d498778e4",
+        "f24679604b9557cb7a538565dd007d28dee8a436",
+        "b05eb6fa2ee0875ee666cc023dc77c4c5a109746",
+        "2d760e8256db0338e37f333796cdbc9d02820414"
+      ],
+      "evidence": "docs/t4-rigid-recapture.md",
+      "limits": "历史失败保留。修后设备数值仍待验收。",
+      "history": [
+        {
+          "sha": "d2d7b467f0e96c5ea0795849ce71d0078b4be917",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_input_precision zero_quaternion::face_polar:: -- --ignored --test-threads=1 --nocapture`：累计三次。前两次终止阻滞进程。修复后第三次1过0败。45项过滤，耗时0.33秒。该选择已满额。\n\n- `cargo clippy --locked --features cuda-probe --test t4_input_precision -- -D warnings` 与 `cargo fmt --check` 通过。\n\n- `git diff --cached --check` 通过。回执哈希及统计核对通过。旧测试正文保持不变。139处本地链接有效。\n\n- Normify校验零错误、两项历史警告。文档审计零不匹配。未重跑旧满额验证。未执行Linux及发布模式。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/face-polar/audit.json",
+            "docs/evidence/t4-g03-retest/face-polar/result.json"
+          ]
+        },
+        {
+          "sha": "97a7b54f638552049bd0ffe2efcc7cbb971389bf",
+          "validation": "\n\n- 新因子实验累计三次。最终严格位差失败，32.68秒。原容差外为零。五组配置跨组位差为零。结论仅限当前样本。\n\n- 新轨迹诊断累计三次。最终1过，3.92秒。新归档累计三次。最终1过，0.70秒。30份PTX类型门禁通过。\n\n- `cargo fmt --check`；`rustfmt --edition 2024 --check tests/support/t4_face_operators.rs tests/support/t4_face_lineage.rs`。\n\n- `cargo clippy --locked --features cuda-probe --test t4_input_precision --lib --tests -- -D warnings`。\n\n- `git diff --cached --check`。核实源码、证据及清单哈希。文档审计零偏差。Normify零错误、两条历史警告。\n\n- 不重跑旧满额选择。最后仅整理导入与格式。此后未重跑物理选择。未运行Linux或发布验收。未重跑完整原生验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/face-operators/audit.json"
+          ]
+        },
+        {
+          "sha": "9b5e6162b99abc3e75276b34691661d9868f8cb9",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_hessian_generation -- --test-threads=1`。后两次各3过0败，0.06秒。\n\n- 新目标累计三次。首次默认特性编译失败。失败也计入总额。补可选特性门控后通过。停止追加重跑。\n\n- `cargo fmt --check`；`cargo clippy --locked --features cuda-probe --test t4_hessian_generation -- -D warnings`。\n\n- `git diff --cached --check`。核实十一份来源与三份日志哈希。四项负向检查通过。文档审计零偏差。Normify零错误、两条历史警告。\n\n- 未重跑旧满额选择。未编译或执行物理内核。未启动Python产品链。未运行Linux或发布验收。NP01至NP04仍有缺口。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/hessian-generation/audit.json"
+          ]
+        },
+        {
+          "sha": "38803deb7f6264f745896a59e785616d92518692",
+          "validation": "\n\n- 静态假设累计三次。首次探索核对14项。第二次跨入口取寄存器失败。第三次19项一致、3处限定差异。另拒绝两项无效图输入。停止追加执行。\n\n- `node --check docs/evidence/t4-g03-retest/face-static/run.cjs`；`cargo fmt --check`；`git diff --cached --check`。\n\n- 核实两份回执及七份来源哈希。文档审计零偏差。Normify零错误、两条历史警告。\n\n- 未重跑旧满额选择。未追加Rust或物理测试。未调用GPU、物理编译器或Python。静态证据不提供NP01至NP04完整准入。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/face-static/audit.json",
+            "docs/evidence/t4-g03-retest/face-static/report.json"
+          ]
+        },
+        {
+          "sha": "cfd37bc1efb0bdf75d35c1cbe2781fa77ae102c3",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_machine_code -- --ignored --test-threads=1 --nocapture`。最终1过0败，1.26秒。\n\n- 新目标累计三次。首次摘要文字错误失败。第二次目标格式断言失败。第三次取得两份加载产物。停止追加捕获。\n\n- 产品反汇编累计三次。上游反汇编一次。标准ELF兼容警告保留。自动数据流关闭，局部归因采用人工操作数追踪。\n\n- `cargo clippy --locked --features cuda-probe --test t4_machine_code -- -D warnings`；`cargo fmt --check`；`git diff --cached --check`。\n\n- 核实三份源码及回执哈希。核实四份产物与三份日志。绑定当前产品清单。文档审计零偏差。Normify零错误、两条历史警告。\n\n- 未重跑旧满额验证。物理输入、内核启动与物理缓冲分配均为零。未启动Python。未运行Linux或发布验收。NP01至NP04仍有缺口。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/face-machine/audit.json"
+          ]
+        },
+        {
+          "sha": "7f24a058b0c3265e03fa2336f0fc18b2e064d9fa",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_face_fusion_repair -- --test-threads=1`。新宿主目标累计两次。每次3过0败，框架0.00秒。八项负向拒绝通过。\n\n- `cargo clippy --locked --features cuda-probe --test t4_face_fusion_repair --lib --tests -- -D warnings`。\n\n- `cargo fmt --check`；`rustfmt --edition 2024 --check tests/support/t4_face_lineage.rs`；`git diff --cached --check`。\n\n- 核实四份当前来源、两份旧证据与两份日志。文档审计零偏差。Normify零错误、两条历史警告。\n\n- 不重跑旧满额面、捕获或矩阵选择。新CUDA未编译。新PTX与机器码未捕获。未执行GPU、原生、Linux或发布复验。当前来源门禁继续拒绝旧捕获，不授予NP01至NP04完整准入。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/face-fusion-repair/audit.json"
+          ]
+        },
+        {
+          "sha": "934667a8e958155d4fe7e033e148978d498778e4",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_face_geometry_domain -- --test-threads=1`。累计一次，3过0败。宿主框架0.00秒。46项非法状态拒绝。\n\n- 首次Clippy提示常量分块写法。最后仅改为as_chunks，未重复测试。`cargo clippy --locked --features cuda-probe --test t4_face_geometry_domain -- -D warnings`最终通过。\n\n- `cargo fmt --check`；`git diff --cached --check`。六份来源与一份日志哈希通过。文档审计零偏差。Normify零错误、两条历史警告。\n\n- 未重跑任何旧满额目标。未执行几何、极分解、三角函数或GPU内核。未调用物理编译器或Python。未运行Linux或发布验收。NP01至NP04仍有缺口。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/face-geometry/audit.json"
+          ]
+        },
+        {
+          "sha": "f24679604b9557cb7a538565dd007d28dee8a436",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --lib runtime::transfer::kernel::recapture::recompile_rigid_variants_without_launching_physics -- --ignored --exact --test-threads=1 --nocapture`。累计第三次，1过0败、238过滤，1.92秒。三个文件破坏反例拒绝。\n\n- `cargo test --locked --features cuda-probe --test t4_face_fusion_repair -- --test-threads=1`。累计第三次，4过0败，0.01秒。两项选择均停止重跑。\n\n- 最后仅冻结相同字节的输入路径。未追加第四次。`cargo clippy --locked --features cuda-probe --test t4_face_fusion_repair --lib --tests -- -D warnings`通过。\n\n- `cargo fmt --check`；`git diff --cached --check`。核实四份来源、五份快照、四份日志和90份捕获文件。文档审计零偏差。Normify零错误、两条历史警告。\n\n- 未运行满额机器码、物理或原宿主谱系选择。未建立GPU会话。未启动Python。未执行Linux、发布或原生数值复验。NP01至NP04仍有缺口。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/face-current-compile/audit.json"
+          ]
+        },
+        {
+          "sha": "b05eb6fa2ee0875ee666cc023dc77c4c5a109746",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_trig_control_domain -- --test-threads=1 --nocapture`\n  首轮3过1败。\n  修正文本断言后4过0败。\n  保留首败，两次后不再重跑。\n- `cargo clippy --locked --features cuda-probe --test t4_trig_control_domain -- -D warnings`：通过。\n- `cargo fmt --check`：通过。\n- `git diff --cached --check`：通过。\n- 核实3来源、2PTX与2日志哈希。\n- 文档钩子报告0偏差。\n- 架构校验零错、两项旧警告。\n- 架构构建通过。\n- 未重跑旧满额配置。\n- 未跑GPU物理与公平性能。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/face-trig/audit.json"
+          ]
+        },
+        {
+          "sha": "2d760e8256db0338e37f333796cdbc9d02820414",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_face_normalization_control -- --test-threads=1 --nocapture`：首轮4过0败，0.07秒。\n- `cargo clippy --locked --features cuda-probe --test t4_face_normalization_control -- -D warnings`：首次通过。\n- `cargo fmt --check`、`git diff --check`、`git diff --cached --check`：通过。核实来源、日志身份与本地链接。\n- 文档审计零偏差。人工核对本轮相关源码。Normify校验零错误，保留五项旧警告。\n- 未重跑满额目标。未执行CUDA编译或设备数值。Linux、发行及公平性能仍未测。\n",
+          "evidence_candidates": [
+            "docs/evidence/t4-g03-retest/face-normalization/audit.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "face-diagnostics",
+          "revision": "d2d7b467f0e96c5ea0795849ce71d0078b4be917",
+          "path": "docs/evidence/t4-g03-retest/face-polar/audit.json",
+          "blob": "edd80e6ebbe28bdda880a463b79d73d4a7cc7bdd"
+        },
+        {
+          "key": "face-diagnostics",
+          "revision": "d2d7b467f0e96c5ea0795849ce71d0078b4be917",
+          "path": "docs/evidence/t4-g03-retest/face-polar/result.json",
+          "blob": "c46ca82e0f8495901cc3498297a637b775fb4f99"
+        },
+        {
+          "key": "face-diagnostics",
+          "revision": "97a7b54f638552049bd0ffe2efcc7cbb971389bf",
+          "path": "docs/evidence/t4-g03-retest/face-operators/audit.json",
+          "blob": "c349835e589e8accf8b6f2cfd3d58dfdf26f0d3b"
+        },
+        {
+          "key": "face-diagnostics",
+          "revision": "9b5e6162b99abc3e75276b34691661d9868f8cb9",
+          "path": "docs/evidence/t4-g03-retest/hessian-generation/audit.json",
+          "blob": "ec2be0147320dbcdcd3f5404df892ef36a9544b7"
+        },
+        {
+          "key": "face-diagnostics",
+          "revision": "38803deb7f6264f745896a59e785616d92518692",
+          "path": "docs/evidence/t4-g03-retest/face-static/audit.json",
+          "blob": "714e26afa2cbb6ea8600308b77f00465f7c60386"
+        },
+        {
+          "key": "face-diagnostics",
+          "revision": "38803deb7f6264f745896a59e785616d92518692",
+          "path": "docs/evidence/t4-g03-retest/face-static/report.json",
+          "blob": "1a03e6fc39b7bd6013ee08357ed6d149a395c799"
+        },
+        {
+          "key": "face-diagnostics",
+          "revision": "cfd37bc1efb0bdf75d35c1cbe2781fa77ae102c3",
+          "path": "docs/evidence/t4-g03-retest/face-machine/audit.json",
+          "blob": "c7cd5c6140056a1cb4aebed90015ca34699067d2"
+        },
+        {
+          "key": "face-diagnostics",
+          "revision": "7f24a058b0c3265e03fa2336f0fc18b2e064d9fa",
+          "path": "docs/evidence/t4-g03-retest/face-fusion-repair/audit.json",
+          "blob": "2fd12247c158301831a9d8c7e03c6f00537aab29"
+        },
+        {
+          "key": "face-diagnostics",
+          "revision": "934667a8e958155d4fe7e033e148978d498778e4",
+          "path": "docs/evidence/t4-g03-retest/face-geometry/audit.json",
+          "blob": "49a204330f94e2b31126c7872667fac3957973ee"
+        },
+        {
+          "key": "face-diagnostics",
+          "revision": "f24679604b9557cb7a538565dd007d28dee8a436",
+          "path": "docs/evidence/t4-g03-retest/face-current-compile/audit.json",
+          "blob": "781102caebe636bf9b80780edcee4d64ab1c61e0"
+        },
+        {
+          "key": "face-diagnostics",
+          "revision": "b05eb6fa2ee0875ee666cc023dc77c4c5a109746",
+          "path": "docs/evidence/t4-g03-retest/face-trig/audit.json",
+          "blob": "0e2d4db53f252f23cbb8389b83c3e7817e095b2d"
+        },
+        {
+          "key": "face-diagnostics",
+          "revision": "2d760e8256db0338e37f333796cdbc9d02820414",
+          "path": "docs/evidence/t4-g03-retest/face-normalization/audit.json",
+          "blob": "d52232244fd3f97c36d7c6323531b6e867bf2e0b"
+        }
+      ]
+    },
+    {
+      "key": "g08-input",
+      "id": "2026-10-16-done-g08-input",
+      "title": "G08原生输入与参数周期",
+      "commits": [
+        "67accab185df661b2a99275418ab2ba22dce193b",
+        "e038f16fdc53e010e5bf9580d93ad14eb7b78357",
+        "df67cdd3a8e5d2ac746feeb36da1dda6df88fdc8",
+        "3f81b01679b182e28f764d07a7a00da33dcd8196",
+        "ba5855bf3325c6c603bf950a76ea75669524b0bc",
+        "3ee5aedaa5caea88cfabd533f8d6472c024150c5"
+      ],
+      "evidence": "docs/evidence/t4-g03-retest/g08-native-capture.json",
+      "limits": "只验收原生及宿主输入。不代表GPU碰撞参考。",
+      "history": [
+        {
+          "sha": "67accab185df661b2a99275418ab2ba22dce193b",
+          "validation": "\n\n- 手工检查计第1次，213条吻合。\n- `pwsh -NoProfile -File scripts/verify-static-gpu-references.ps1 -RepositoryRoot C:/Rust/mjwarp-rs -SelfTest`：第2次六项通过。\n- 修复删项缩分母缺口。\n- `pwsh -NoProfile -File scripts/verify-static-gpu-references.ps1 -RepositoryRoot C:/Rust/mjwarp-rs -SelfTest -RequireComplete`：第3次十四项通过。\n- 215条关联、140文件吻合。\n- 完整准入按预期退出2。\n- 同目的配置现已满额冻结。\n- 脚本语法树解析通过。\n- `git diff --cached --check`：通过。\n- 架构零错、两项旧警告；构建通过。\n- 文档钩子报告零偏差。\n- 未跑GPU/Python或旧满额物理。\n- 未生成新GPU参考。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "e038f16fdc53e010e5bf9580d93ad14eb7b78357",
+          "validation": "\n\n- `pwsh -NoProfile -File scripts/prepare-g08-reference-input.ps1 -RepositoryRoot C:/Rust/mjwarp-rs -SelfTest`\n  第1次因raw/LF摘要混用失败。\n  当次尚未启动原生编译器。\n  第2次成功，五项拒绝检查通过。\n  成功后未重跑。\n- 原生编译、重载各执行一次。\n- 实载3.12.0，nq7/nv6/nbody2/ngeom2。\n- 六份产物与两份日志哈希吻合。\n- 脚本语法树解析通过。\n- `git diff --cached --check`：修正生成产物属性后通过。\n- 暂存产物与原始字节一致。\n- 架构零错、两项旧警告；构建通过。\n- 文档钩子报告零偏差。\n- 未运行旧准入检查、GPU或Python。\n- 未计算CPU物理步进或接触参考。\n- D04及G08物理验收仍开放。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "df67cdd3a8e5d2ac746feeb36da1dda6df88fdc8",
+          "validation": "\n\n- `pwsh -NoProfile -File scripts/collect-g08-native-contacts.ps1 -SelfTest`\n- 首次成功，七状态、三项拒绝通过。\n- MSVC严格警告编译通过。\n- 脚本语法、证据哈希核对通过。\n- `git diff --cached --check`通过。\n- 原始产物与暂存字节一致。\n- Normify零错误、两条历史警告。\n- 文档审计334源码、96文档，零偏差。\n- 未重跑满额验证或执行GPU、Python。\n- 未运行Linux与发布验收。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "3f81b01679b182e28f764d07a7a00da33dcd8196",
+          "validation": "\n\n- `cargo test --locked --test collision_input -- --test-threads=1`\n- 两次各5过、0败、0忽略。\n- 第二轮针对实际分配代码调整。\n- `cargo clippy --locked --test collision_input -- -D warnings`两次通过。\n- `cargo fmt --check`通过。\n- 新证据、日志与旧共享身份核对通过。\n- `git diff --cached --check`通过。\n- 文档审计339源码、98文档，零偏差。\n- Normify零错误、四条粒度警告。\n- 两条历史警告与两条新增警告保留。\n- 未执行FFI、GPU、Python或满额配置。\n- D04与完整P2、NP01至NP04仍未完成。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "ba5855bf3325c6c603bf950a76ea75669524b0bc",
+          "validation": "\n\n- `pwsh -NoProfile -File scripts/test-windows-collision-input.ps1`\n- 首轮4过、0败、0忽略，0.15秒。\n- 实读冻结MJB全部十三字段。\n- 18替身覆盖指针、计数及版本拒绝。\n- 模型释放后快照独立。\n- 版本错误仅卸库，不加载模型。\n- `cargo +stable-x86_64-pc-windows-msvc clippy --locked --features native-model-probe --test native_collision_input -- -D warnings`通过。\n- `cargo fmt --check`通过。\n- 来源、日志及测试二进制摘要通过。\n- `git diff --cached --check`通过。\n- 文档审计345源码、98文档，零偏差。\n- Normify零错误、四条粒度警告。\n- 未重跑旧满额或旧宿主目标。\n- 未执行CPU物理、GPU或Python。\n- Linux、release与完整原生验收未运行。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "3ee5aedaa5caea88cfabd533f8d6472c024150c5",
+          "validation": "\n\n- `cargo test --locked --test collision_parameters -- --test-threads=1`\n- 首轮5过、0败、0忽略。\n- 覆盖七周期、默认行及空几何。\n- 覆盖ABI、溢出、有限性及索引拒绝。\n- `cargo clippy --locked --test collision_parameters -- -D warnings`通过。\n- `cargo fmt --check`通过。\n- 来源、日志及本地链接核对通过。\n- `git diff --cached --check`通过。\n- 文档审计349源码、98文档，零偏差。\n- Normify零错误、五条粒度警告。\n- 其中参数模块粒度警告新增一条。\n- 未重跑旧目标或满额配置。\n- 未执行FFI、CPU物理、GPU或Python。\n- 正式P2与完整NP门禁仍开放。\n",
+          "evidence_candidates": []
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "g08-input",
+          "revision": "67accab185df661b2a99275418ab2ba22dce193b",
+          "path": "docs/replication-plan.md",
+          "blob": "d71721fa820145b5722fc61cb6e5d5c433401dc4"
+        },
+        {
+          "key": "g08-input",
+          "revision": "e038f16fdc53e010e5bf9580d93ad14eb7b78357",
+          "path": "docs/replication-plan.md",
+          "blob": "1ed28513053080e68c923471bcdf8040a1a9a9bf"
+        },
+        {
+          "key": "g08-input",
+          "revision": "df67cdd3a8e5d2ac746feeb36da1dda6df88fdc8",
+          "path": "docs/replication-plan.md",
+          "blob": "ecf400d4daa7b4d50e09f1fcd37a909ff83470df"
+        },
+        {
+          "key": "g08-input",
+          "revision": "3f81b01679b182e28f764d07a7a00da33dcd8196",
+          "path": "docs/replication-plan.md",
+          "blob": "9d1131624ecdf7288d5ef37541417e7cb4ac4399"
+        },
+        {
+          "key": "g08-input",
+          "revision": "ba5855bf3325c6c603bf950a76ea75669524b0bc",
+          "path": "docs/README.md",
+          "blob": "daacece58ad9f88afab297d07e105d3dcb4b147f"
+        },
+        {
+          "key": "g08-input",
+          "revision": "3ee5aedaa5caea88cfabd533f8d6472c024150c5",
+          "path": "docs/replication-plan.md",
+          "blob": "5e323a17dd709a85048114f1a0d19d436650f61a"
+        }
+      ]
+    },
+    {
+      "key": "rne",
+      "id": "2026-10-16-done-rne",
+      "title": "RNE实现与失败取证",
+      "commits": [
+        "23dec0562e9e58557f85bcc742d80e51014056ae"
+      ],
+      "evidence": "docs/evidence/rne-acceleration/",
+      "limits": "历史目标2过1败。false模式1042块超差。只确认实现与诊断归档，不确认数值验收。",
+      "history": [
+        {
+          "sha": "23dec0562e9e58557f85bcc742d80e51014056ae",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test resident_rne_acceleration -- --include-ignored --test-threads=1 --nocapture`：累计3次，最终2过1败。五模型、三重力、八状态及四种世界数共900288标量。true模式450144标量原生通过；false模式1042块仍超差。\n- 新RNE阶段诊断累计3次。最终两状态双模式332标量零位差。布局与守卫专项通过。诊断共享产品前置，不证明完整上游流水线。\n- `cargo clippy --locked --features cuda-probe --lib --test resident_rne_acceleration -- -D warnings`：三次通过。`cargo clippy --locked --lib -- -D warnings`：通过。\n- 默认及特性构建检查通过。`cargo fmt --check`、`git diff --check`、`git diff --cached --check`通过。核对16项实际暂存参考哈希。\n- Normify零错误、六项粒度警告。文档审计零偏差。新独占缓冲最多250608字节，不含复用底座。最终数值部分13.679秒，进程显存峰值未测。\n- 两类新验证现已满额。旧满额目标零调用。Linux、发行与公平性能未测。未运行Python或CPU产品回退。\n",
+          "evidence_candidates": [
+            "docs/evidence/rne-acceleration/audit.json"
+          ]
+        }
+      ],
+      "kind": "implementation-and-failure-evidence",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "rne",
+          "revision": "23dec0562e9e58557f85bcc742d80e51014056ae",
+          "path": "docs/evidence/rne-acceleration/audit.json",
+          "blob": "ee8b3067e1e3bf0da81900b8831821987a7a4230"
+        }
+      ]
+    },
+    {
+      "key": "crb-dense",
+      "id": "2026-10-16-done-crb-dense",
+      "title": "CRB与常驻稠密求解",
+      "commits": [
+        "bd37548f1d9944c35c675ef237c6523eed71e1fa",
+        "cf34ef43917fe68ed4d60f4f40714f59a3669e74",
+        "eef632e688b79df72e5b8d118fe0ff0aac4bc6db"
+      ],
+      "evidence": "docs/resident-mass-solve.md",
+      "limits": "局部设备链已交付。完整G03仍未验收。",
+      "history": [
+        {
+          "sha": "bd37548f1d9944c35c675ef237c6523eed71e1fa",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test resident_mass_matrix -- --include-ignored --test-threads=1 --nocapture`：首轮2过0败，4.85秒。六模型、八状态、五种世界数，每位置刷新两次，共15240416标量满足原生容差。\n- `cargo test --locked --features cuda-probe --lib physics::mass_matrix::resident::tests:: -- --include-ignored --test-threads=1 --nocapture`：首轮2过0败，0.72秒。守卫、工作量与四项原子次正规边界通过。\n- CUDA与默认Clippy首次通过。特性构建通过。测试构建初次类型歧义失败，修正后通过；未把构建失败冒充测试通过。\n- `cargo fmt --check`、`git diff --check`、`git diff --cached --check`通过。核对11份实际Git源码与参考字节。三项新CUDA实编译及f32门禁通过。\n- Normify零错误、七项粒度警告。文档审计零偏差。新缓冲最多511208字节，不含复用底座及驱动。进程显存峰值与公平性能未测。\n- 两类新测试各1/3，通过后未重跑。旧满额与RNE目标零调用。Linux、发行未测。未运行Python或CPU产品后端。\n",
+          "evidence_candidates": [
+            "docs/evidence/resident-crb/audit.json"
+          ]
+        },
+        {
+          "sha": "cf34ef43917fe68ed4d60f4f40714f59a3669e74",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test resident_mass_solve -- --include-ignored --test-threads=1 --nocapture`：首轮两过。509616标量；13503字段块原生放行，21块原规则对照放行。\n\n- 新常驻单元用途族保守3/3。前两次各三过，末次宿主一过。故障矩阵下回代成功，因子位型不变。旧满额与已过CRB配置均零调用。\n\n- CUDA与默认Clippy各两次通过。`cargo fmt --check`及`git diff --cached --check`通过。源码、参考与实际CUDA身份通过。Normify零错误、八项粒度警告。\n\n- Linux、发行模式及公平性能未运行。进程显存峰值未测。完整稀疏等价仍受阻。没有Python执行或推送发布。\n",
+          "evidence_candidates": [
+            "docs/evidence/resident-mass-solve/audit.json"
+          ]
+        },
+        {
+          "sha": "eef632e688b79df72e5b8d118fe0ff0aac4bc6db",
+          "validation": "\n\n- 按实际批量记录与原生模型复算160块。核对509616标量与原始结果哈希不变。文档审计零偏差，人工核对断言。\n\n- `git diff --cached --check`通过。本次只改两份记录，不追加测试或编译捕获。\n",
+          "evidence_candidates": [
+            "docs/evidence/resident-mass-solve/audit.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "crb-dense",
+          "revision": "bd37548f1d9944c35c675ef237c6523eed71e1fa",
+          "path": "docs/evidence/resident-crb/audit.json",
+          "blob": "b77f9288d4e99348ea0f7db2dc8f9d4c1dbe3ecc"
+        },
+        {
+          "key": "crb-dense",
+          "revision": "cf34ef43917fe68ed4d60f4f40714f59a3669e74",
+          "path": "docs/evidence/resident-mass-solve/audit.json",
+          "blob": "1fd24738398d8580dbdde3f743551c889d70df6d"
+        },
+        {
+          "key": "crb-dense",
+          "revision": "eef632e688b79df72e5b8d118fe0ff0aac4bc6db",
+          "path": "docs/evidence/resident-mass-solve/audit.json",
+          "blob": "b9fd65444ed15e3631562b57dc8249951190f3f7"
+        }
+      ]
+    },
+    {
+      "key": "sparse",
+      "id": "2026-10-16-done-sparse",
+      "title": "CSR分解与稀疏回代",
+      "commits": [
+        "2946fcab94ae6ac2a6c26169d0ff24624279fcdc",
+        "51cba27c3f21f0869072eec9bc856d27483bd341",
+        "71f89f81cb960bd15716df8d4857f1ca9a5bbe3f",
+        "85a212b1e599b9014328385af66582b4d91c4e68"
+      ],
+      "evidence": "docs/resident-sparse-mass.md",
+      "limits": "原生CSR与设备子集。完整范围及平台仍有缺口。",
+      "history": [
+        {
+          "sha": "2946fcab94ae6ac2a6c26169d0ff24624279fcdc",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test sparse_mass_factor -- --include-ignored --test-threads=1 --nocapture`：首轮中止，第二次四过4.28秒。保留同一目的2/3账本。1476280标量满足原容差，独立重构满足2e-6。\n\n- 新稀疏私有单元首轮一过0.26秒。设备读取证明矩阵写隔离，两类守卫损坏拒绝并恢复。原生作者保守3/3冻结，不再执行。\n\n- CUDA Clippy三次通过，默认Clippy两次通过。格式、暂存diff、20份实际Git摘要通过。Normify零错误、九项粒度警告。文档审计零偏差。\n\n- 旧满额与成功目的不重跑。没有Python执行。求解残差、完整G03/NP、Linux、发行模式及公平性能未验收。没有推送发布。\n",
+          "evidence_candidates": [
+            "docs/evidence/sparse-mass-factor/audit.json"
+          ]
+        },
+        {
+          "sha": "51cba27c3f21f0869072eec9bc856d27483bd341",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test resident_sparse_mass -- --include-ignored --test-threads=1 --nocapture`：首轮三过7.06秒。1424800设备CSR槽位型相等，1476280因子倒数满足原生容差；重构通过原2e-6。\n\n- 新私有桥接故障单元首轮一过0.82秒。各新目的1/3，成功不重复。状态守卫分支只直接断言采集拒绝，其他分支按实际断言记录。\n\n- CUDA Clippy三次通过，默认Clippy首轮通过。格式、暂存diff及15份Git字节摘要通过。Normify零错误、九项粒度警告。文档审计零偏差。\n\n- 九批3340毫秒包含宿主诊断。新增桥接设备缓冲最多10172字节，不含复用缓冲。旧满额和成功目的均未重跑。旧395007位型差及完整精度、融合回代、残差缺口保持。未运行Linux、发行模式或公平性能。\n",
+          "evidence_candidates": [
+            "docs/evidence/resident-sparse-mass/audit.json"
+          ]
+        },
+        {
+          "sha": "71f89f81cb960bd15716df8d4857f1ca9a5bbe3f",
+          "validation": "\n\n- `scripts/test-windows-native-sparse.ps1 -Attempt 2`：三过0.20秒，C++1190断言。六模型330整数，最大nv13。首轮准备失败仍计数，两新目的各2/3，成功不重复。\n\n- MSVC原生与默认Clippy各首轮通过。格式、暂存diff及32份Git摘要通过。原DLL、MJB、JSON与块参考哈希通过。Normify零错误、十项粒度警告。\n\n- 本轮零物理、零GPU、零Python、零作者及旧目标执行。大块原生实测、融合回代、完整G03/NP及Linux发行模式仍未验收。没有推送发布。\n",
+          "evidence_candidates": [
+            "docs/evidence/native-sparse-mass/audit.json"
+          ]
+        },
+        {
+          "sha": "85a212b1e599b9014328385af66582b4d91c4e68",
+          "validation": "\n\n- `scripts/prepare-sparse-solve-reference.ps1 -Attempt 1`：三模型六矩阵，18列独立参考，作者1/3后冻结。\n\n- `cargo test --locked --features cuda-probe --test resident_sparse_solve -- --include-ignored --test-threads=1 --nocapture`：首次2过1败；621920数值分量通过，残差最大9.046976e-8，保留原容差。\n\n- `cargo test --locked --features cuda-probe --test resident_sparse_solve rejected_inputs_preserve_cache_and_world_writes_remain_independent -- --ignored --test-threads=1 --nocapture`：仅失败项1过、2过滤，同目的累计2/3，不重跑成功数值项。\n\n- `cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::resident::solve::tests:: -- --include-ignored --test-threads=1 --nocapture`：2过；新128线程ABI独立首轮1过。两用途各1/3。\n\n- CUDA Clippy四次全过，同库重复超限一次，保留四命令与未知开始时间；默认Clippy两次全过。`cargo fmt --check`与`git diff --cached --check`通过。\n\n- 86项身份与32份实际暂存blob通过。文档审计416源码、106文档、0偏差；Normify零错误、10项粒度警告。\n\n- 不重跑旧满额、原作者或成功用途。上游融合机器映射、完整G03/NP、Linux、发行模式与公平性能仍未验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/resident-sparse-solve/audit.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "sparse",
+          "revision": "2946fcab94ae6ac2a6c26169d0ff24624279fcdc",
+          "path": "docs/evidence/sparse-mass-factor/audit.json",
+          "blob": "7ffa6c774f72bd3efa82d7be9556615f6d96151f"
+        },
+        {
+          "key": "sparse",
+          "revision": "51cba27c3f21f0869072eec9bc856d27483bd341",
+          "path": "docs/evidence/resident-sparse-mass/audit.json",
+          "blob": "425593190a7db5b5b543b0e054a8f6f762f2919a"
+        },
+        {
+          "key": "sparse",
+          "revision": "71f89f81cb960bd15716df8d4857f1ca9a5bbe3f",
+          "path": "docs/evidence/native-sparse-mass/audit.json",
+          "blob": "8e30c6d8b05b6814f5558243a26c0bdd7f0077ac"
+        },
+        {
+          "key": "sparse",
+          "revision": "85a212b1e599b9014328385af66582b4d91c4e68",
+          "path": "docs/evidence/resident-sparse-solve/audit.json",
+          "blob": "23e1038743486bea3dd2c4d590189fd199b5b463"
+        }
+      ]
+    },
+    {
+      "key": "small-mathdx",
+      "id": "2026-10-16-done-small-mathdx",
+      "title": "Small分解与原生链接",
+      "commits": [
+        "e360a5ced78e7584bc8f6d298430c7aea674b44f",
+        "285dadc3b1b72245b6bc33f8c94577ac8c4bf46f",
+        "b5ef1ba103025f6772031181e1d525ff8972af55",
+        "8009579f2b2d69e90c2736be42299b96fbd7605a"
+      ],
+      "evidence": "docs/small-mass-prefix.md",
+      "limits": "历史失败与诊断保留。不宣称正式SDK路线完成。",
+      "history": [
+        {
+          "sha": "e360a5ced78e7584bc8f6d298430c7aea674b44f",
+          "validation": "\n\n- `cargo test --locked --test sparse_mass_dense -- --test-threads=1 --nocapture`：新宿主函数1过，0.02秒。\n\n- `cargo test --locked --features cuda-probe --test sparse_mass_dense gpu_ -- --ignored --test-threads=1 --nocapture`：新GPU函数2过、1过滤，0.75秒；跨配置同目标累计2/3后冻结。\n\n- `cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::dense::tests:: -- --ignored --test-threads=1 --nocapture`：新私有故障1过、252过滤，0.39秒，1/3后冻结。\n\n- 2187640个主槽与147个世界编辑槽逐位通过。缺项正零实际2046720；原预测2079480多计32760，原契约与覆盖保持。\n\n- `cargo fmt --check`与`git diff --cached --check`通过。41项身份与21份真实暂存blob通过；文档审计424源码、107文档、0偏差。Normify零错误、10项粒度警告。\n\n- 不运行Clippy、旧物理测试或参考作者。混合因子、MathDx实际算序、完整G03/NP、Linux、发行模式与公平性能仍未验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/sparse-mass-dense/audit.json"
+          ]
+        },
+        {
+          "sha": "285dadc3b1b72245b6bc33f8c94577ac8c4bf46f",
+          "validation": "\n\n- `fixtures/small-mass-prefix/generate.ps1 -Attempt 1`：独立解析作者首轮成功，1/3后冻结。\n\n- `cargo test --locked --test small_mass_prefix -- --test-threads=1 --nocapture`：首次编译E0432；第二次零用例与七警告，不作验收。\n\n- `cargo test --locked --features cuda-probe --test small_mass_prefix -- --include-ignored --test-threads=1 --nocapture`：末轮3过1败、3.25秒。同目标累计3/3失败后冻结，无第四次。\n\n- 数值与缓存GPU子项通过。55120因子槽满足原2e-4双容差，最大误差1.400600e-7；原2e-6重构限值通过，最大归一误差7.709478e-8。这不是整个目标通过。\n\n- `cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::dense::small::tests:: -- --include-ignored --test-threads=1 --nocapture`：新私有首轮2过。新64线程ABI独立首轮1过，两用途各1/3后冻结。\n\n- 98项身份与31份实际暂存blob通过。`cargo fmt --check`与`git diff --cached --check`通过。审计434源码、108文档、0偏差；Normify零错误、10粒度警告。\n\n- 不运行Clippy或旧满额/成功用途。宿主修后证书、Small3至6冻结生成物与SASS、MathDx、完整G03/NP及双平台仍未验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/small-mass-prefix/audit.json"
+          ]
+        },
+        {
+          "sha": "b5ef1ba103025f6772031181e1d525ff8972af55",
+          "validation": "\n\n- `scripts/probe-windows-mathdx.ps1 -Attempt 1`：首轮成功，独立目的1/3后冻结；MSVC `/W4 /WX`通过。\n\n- 实际Warp1.15.0、MathDx0.3.1、启用值1。七维编译调用一次并返回true，LTO1034872字节、fatbin506960字节。\n\n- 通用fatbin摘要匹配四份历史缓存；30项来源/许可/产物身份与8份真实暂存blob通过，PS语法与`git diff --cached --check`通过。\n\n- 文档审计438源码、109文档、0偏差。Normify零错误、11项粒度警告，原树与正式前置/资源锁保持。\n\n- 未执行物理内核、Python、旧作者、旧测试或Clippy。Small整体FAILED3/3与修后未验保持；实际链接、混合数值、内部精度/SASS与完整G03/NP仍待验。\n",
+          "evidence_candidates": [
+            "docs/evidence/native-mathdx7/audit.json"
+          ]
+        },
+        {
+          "sha": "8009579f2b2d69e90c2736be42299b96fbd7605a",
+          "validation": "\n\n- `scripts/probe-windows-mathdx7-link.ps1 -Attempt 1`：包含路径准备失败。计入原预算。\n- `scripts/probe-windows-mathdx7-link.ps1 -Attempt 2`：链接与八次设备启动通过。用途2/3成功冻结。\n- 六批覆盖25480因子槽。原abs/rel容差2e-4通过。重构原2e-6通过。\n- 10920下三角正零通过。双端守卫与输入位型通过。坏首末主元info为1与7。\n- 45来源身份与22预跑摘要通过。15份暂存实体摘要通过。PS语法检查通过。\n- `git diff --cached --check`通过。Normify校验零错。十一项粒度警告保持。\n- 未跑旧成功或满额用途。未跑Clippy、Linux、发行或T4。未宣称全NP等价。\n",
+          "evidence_candidates": [
+            "docs/evidence/native-mathdx7-link/audit.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "small-mathdx",
+          "revision": "e360a5ced78e7584bc8f6d298430c7aea674b44f",
+          "path": "docs/evidence/sparse-mass-dense/audit.json",
+          "blob": "9f5564aeff2d561e8835f8287d0f9bd08567783a"
+        },
+        {
+          "key": "small-mathdx",
+          "revision": "285dadc3b1b72245b6bc33f8c94577ac8c4bf46f",
+          "path": "docs/evidence/small-mass-prefix/audit.json",
+          "blob": "40a76046bef5b0e18c2b5d053018b640558fda85"
+        },
+        {
+          "key": "small-mathdx",
+          "revision": "b5ef1ba103025f6772031181e1d525ff8972af55",
+          "path": "docs/evidence/native-mathdx7/audit.json",
+          "blob": "f69f4af2ef9cd463c09230f0877fbba588ee2ca7"
+        },
+        {
+          "key": "small-mathdx",
+          "revision": "8009579f2b2d69e90c2736be42299b96fbd7605a",
+          "path": "docs/evidence/native-mathdx7-link/audit.json",
+          "blob": "a6deadf720b94259809ce42abda1fe40f0631f39"
+        }
+      ]
+    },
+    {
+      "key": "mixed",
+      "id": "2026-10-16-done-mixed",
+      "title": "三路混合分解求解与桥接",
+      "commits": [
+        "17f6c760daf7885ce4e5d5b67d93404b58be2a82",
+        "d8552c2569c4e4c0c6feac82b1bd19a0174819aa",
+        "96f0982f553f44ec6e3a7141661c07224086e30c"
+      ],
+      "evidence": "docs/evidence/resident-mixed-mass/followup-2026-10-14.json",
+      "limits": "桥接追加1过0败。Tile及完整G03仍缺。",
+      "history": [
+        {
+          "sha": "17f6c760daf7885ce4e5d5b67d93404b58be2a82",
+          "validation": "\n\n- `cargo test --locked --lib physics::mass_solve::sparse::mixed::tests:: -- --test-threads=1 --nocapture`：早期宿主2过0.08秒。当前default配置未追加。\n- `cargo test --locked --features cuda-probe --test mixed_mass_factor -- --ignored --test-threads=1 --nocapture`：同代快照产品两函数通过。耗时18.38秒。\n- `cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::tests::mixed_device_guards_and_cached_stage_failures_reject_and_recover -- --ignored --test-threads=1 --nocapture`：新缓存故障1过0.91秒。\n- 六批1236040槽通过。原abs/rel容差2e-4不变。重构原2e-6通过。\n- 原M复制与倒数位型通过。世界256与三类坏主元通过。各缓存拒绝与恢复通过。\n- 初次CUDA有一条导入警告。修复后末轮编译无警告。三次新调用全部冻结。\n- 24实际内核回执匹配。114身份与21暂存实体通过。\n- `cargo fmt --check`与`git diff --cached --check`通过。Normify零错、十一警告。\n- 未跑旧成功或满额用途。未跑Clippy、SDK或参考作者。Linux、发行模式与T4未跑。\n- 七维产品与完整G03仍缺。NP01至NP04仍未验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/mixed-mass-factor/audit.json",
+            "docs/evidence/mixed-mass-factor/numeric.json"
+          ]
+        },
+        {
+          "sha": "d8552c2569c4e4c0c6feac82b1bd19a0174819aa",
+          "validation": "\n\n- `scripts/prepare-mixed-solve-reference.ps1 -Attempt 1`：装配两拓扑、四态、十二列。1/3成功冻结。\n- `cargo test --locked --lib physics::mass_solve::sparse::mixed::solve::tests:: -- --test-threads=1 --nocapture`：早期宿主2过0.01秒。当前default未追加。\n- `cargo test --locked --features cuda-probe --test mixed_mass_solve -- --ignored --test-threads=1 --nocapture`：两函数通过4.67秒。\n- `cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::tests::cached_merged_factor_ignores_old_sources_and_rejects_each_consumer_fault -- --ignored --test-threads=1 --nocapture`：新缓存故障1过1.10秒。产品三调用全冻结。\n- `cargo test --locked --features cuda-probe --lib runtime::transfer::kernel::tests::mixed_solve_128_abi_checks_prefix_stride_sessions_and_grouped_capacity -- --ignored --test-threads=1 --nocapture`：新ABI1过0.22秒。1/3成功冻结。\n- 十四批141592解槽通过。原abs/rel容差2e-4不变。每树原残差2e-5通过。\n- 131大树与129小块跨128通过。RHS更新保留因子位型。各缓存故障拒绝与恢复通过。\n- 29实际入口回执匹配。143身份与26暂存实体通过。旧方法与CUDA逐字不变。\n- `cargo fmt --check`与`git diff --cached --check`通过。Normify零错、十一警告。\n- 静态保留检查首轮PS解析失败。修正变量插值后通过。没有追加物理调用。\n- 未跑旧成功或满额用途。未跑Clippy、SDK、旧作者或Python。Linux、发行模式与T4未跑。\n- 完整G03与NP01至NP04仍缺。未宣称七维或SASS等价。\n",
+          "evidence_candidates": [
+            "docs/evidence/mixed-mass-solve/audit.json",
+            "docs/evidence/mixed-mass-solve/numeric.json"
+          ]
+        },
+        {
+          "sha": "96f0982f553f44ec6e3a7141661c07224086e30c",
+          "validation": "\n\n- `scripts/prepare-resident-mixed-reference.ps1 -Attempt 1`：失败，计入预算。\n- `scripts/prepare-resident-mixed-reference.ps1 -Attempt 2`：两态六列通过，2/3冻结。\n- `cargo test --locked --lib physics::mass_solve::sparse::mixed::solve::resident::tests:: -- --test-threads=1 --nocapture`：2过。\n- `cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::resident::tests::gpu_ -- --ignored --test-threads=1 --nocapture`：1过1败。数值12批通过原容差。\n- `cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::resident::tests::cache_fault_bridge_rejects_full_source_and_target_guards_without_partial_publication -- --exact --ignored --test-threads=1 --nocapture`：1过。\n- 产品组合3/3冻结。状态修后未执行。\n- `cargo fmt`及新helper的`rustfmt --edition 2024`已执行。\n- `git diff --cached --check`通过。40暂存文件逐字节核对。\n- Normify零错误、十一警告。主变更保持进行态。\n- 满额旧用途与Clippy不重跑。完整G03/NP与双平台T4未验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/resident-mixed-mass/audit.json",
+            "docs/evidence/resident-mixed-mass/numeric.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "mixed",
+          "revision": "17f6c760daf7885ce4e5d5b67d93404b58be2a82",
+          "path": "docs/evidence/mixed-mass-factor/audit.json",
+          "blob": "6b1259422ae7d762c5fde33b04a3bbf06e5568c7"
+        },
+        {
+          "key": "mixed",
+          "revision": "17f6c760daf7885ce4e5d5b67d93404b58be2a82",
+          "path": "docs/evidence/mixed-mass-factor/numeric.json",
+          "blob": "c25ec1af85d41cd82c6e49b76a3b960f2789b9d7"
+        },
+        {
+          "key": "mixed",
+          "revision": "d8552c2569c4e4c0c6feac82b1bd19a0174819aa",
+          "path": "docs/evidence/mixed-mass-solve/audit.json",
+          "blob": "3c3778dd7cef323da4d925577c5feacabbaf64ab"
+        },
+        {
+          "key": "mixed",
+          "revision": "d8552c2569c4e4c0c6feac82b1bd19a0174819aa",
+          "path": "docs/evidence/mixed-mass-solve/numeric.json",
+          "blob": "ea766a1ec7bb6ffddd7999d8275c2042d469ec91"
+        },
+        {
+          "key": "mixed",
+          "revision": "96f0982f553f44ec6e3a7141661c07224086e30c",
+          "path": "docs/evidence/resident-mixed-mass/audit.json",
+          "blob": "1cc83dfa138968414247e7a9efd7c7fce076172d"
+        },
+        {
+          "key": "mixed",
+          "revision": "96f0982f553f44ec6e3a7141661c07224086e30c",
+          "path": "docs/evidence/resident-mixed-mass/numeric.json",
+          "blob": "31d5c556ced8f57d4d130818ef2f934bd12f5aa1"
+        }
+      ]
+    },
+    {
+      "key": "multiply",
+      "id": "2026-10-16-done-multiply",
+      "title": "常驻矩阵乘法与设备借用",
+      "commits": [
+        "63f22f809f9ad66f61624b9523dfdb004363fce1",
+        "1a7dfa1ea38be945c4a7680af00346c6fa0e86f5"
+      ],
+      "evidence": "docs/borrowed-mass-multiply.md",
+      "limits": "祖先与步幅拒绝已补测。完整U073仍未验收。",
+      "history": [
+        {
+          "sha": "63f22f809f9ad66f61624b9523dfdb004363fce1",
+          "validation": "\n\n- `cargo test --locked --lib physics::mass_matrix::multiply::tests:: -- --test-threads=1 --nocapture`：2过，0.03秒。\n- `cargo test --locked --features cuda-probe --lib physics::mass_matrix::multiply::tests::gpu_ -- --ignored --test-threads=1 --nocapture`：2过，9.97秒。\n- 72批、1485120槽通过。预冻结abs/rel2e-5不变。\n- 两格式skip、替代M和非对称Dense通过。私有故障与恢复通过。\n- 新组合2/3成功后冻结。旧满额与成功用途不重跑。\n- `cargo fmt`已执行。`git diff --cached --check`通过。\n- 94源预绑定无漂移。暂存Git字节匹配137身份映射。\n- Normify零错误、十一警告。原UID与模块状态保持。\n- 未运行Clippy或参考作者。未放行CRB设备借用、完整G03/NP与双平台T4。\n",
+          "evidence_candidates": [
+            "docs/evidence/mass-multiply/audit.json",
+            "docs/evidence/mass-multiply/numeric.json"
+          ]
+        },
+        {
+          "sha": "1a7dfa1ea38be945c4a7680af00346c6fa0e86f5",
+          "validation": "\n\n- `cargo test --locked --lib borrowed::tests::host_ -- --nocapture`：修复前2过0败。\n\n- `cargo test --locked --features cuda-probe --lib borrowed::tests::gpu_ -- --ignored --test-threads=1 --nocapture`：修复前2过0败。72批210080槽满足原2e-5门槛，102故障通过。\n\n- 一个GPU命令内复用20次生产者update依赖。不重判旧数值或旧失败。新组合2/3成功冻结，无第三次。\n\n- `cargo check --locked --features cuda-probe --lib`通过。最终库完成编译，新增祖先行断言未执行。\n\n- 原GPU编译含1条命名警告。测试名静态规范化，最终测试版本未再编译或运行。\n\n- `cargo fmt --check`与`git diff --cached --check`通过。157身份与83暂存块匹配。\n\n- Normify零错误，保留13项粗叶警告。完整NP、Linux、T4与发行模式未验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/borrowed-mass-multiply/audit.json",
+            "docs/evidence/borrowed-mass-multiply/numeric.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "multiply",
+          "revision": "63f22f809f9ad66f61624b9523dfdb004363fce1",
+          "path": "docs/evidence/mass-multiply/audit.json",
+          "blob": "29fdd7c58639f81980df71ab487981fae61f787c"
+        },
+        {
+          "key": "multiply",
+          "revision": "63f22f809f9ad66f61624b9523dfdb004363fce1",
+          "path": "docs/evidence/mass-multiply/numeric.json",
+          "blob": "b9ef26556fad021247a170cffbd7d67496202977"
+        },
+        {
+          "key": "multiply",
+          "revision": "1a7dfa1ea38be945c4a7680af00346c6fa0e86f5",
+          "path": "docs/evidence/borrowed-mass-multiply/audit.json",
+          "blob": "ce60ec71f201b7f65c20b6ae3ee57b73525008d4"
+        },
+        {
+          "key": "multiply",
+          "revision": "1a7dfa1ea38be945c4a7680af00346c6fa0e86f5",
+          "path": "docs/evidence/borrowed-mass-multiply/numeric.json",
+          "blob": "db9fa7b07c453f336f60a100a289548790ce433e"
+        }
+      ]
+    },
+    {
+      "key": "smooth-external",
+      "id": "2026-10-16-done-smooth-external",
+      "title": "平滑力合并与空间外力",
+      "commits": [
+        "b34e1152db310e4c8fef7dd9ee365946428b7a89",
+        "76ade3e9341e4ff00a891a1228bcc22f5403bf25"
+      ],
+      "evidence": "docs/evidence/applied-force/",
+      "limits": "独立辅助消费者。完整动力学调度仍缺。",
+      "history": [
+        {
+          "sha": "b34e1152db310e4c8fef7dd9ee365946428b7a89",
+          "validation": "\n\n- `cargo test --locked --lib smooth_force::tests:: -- --test-threads=1 --nocapture`：4过，0.00秒。\n- `cargo test --locked --features cuda-probe --lib physics::smooth_force::tests::gpu_ -- --ignored --test-threads=1 --nocapture`：2过，2.73秒。\n- 72批、1204320槽零位差。全部SLEEP/ISLAND组合通过。\n- 休眠正零、活动负零与静态分支通过。私有故障、溢出拒绝及恢复通过。\n- 新用途2/3成功冻结。原容差、全部旧覆盖与旧失败账本保持。\n- 93源预绑定无漂移。四回执与两PTX实际哈希匹配。\n- `cargo fmt`已执行。`git diff --cached --check`通过。\n- 暂存Git字节匹配132身份映射。\n- Normify最终零错误、十二警告。原UID、模块状态与运行占用声明保持。\n- 不重跑旧满额用途、Clippy或参考作者。完整加速度、空间外力、G03/NP与双平台T4未验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/smooth-force/audit.json",
+            "docs/evidence/smooth-force/numeric.json"
+          ]
+        },
+        {
+          "sha": "76ade3e9341e4ff00a891a1228bcc22f5403bf25",
+          "validation": "\n\n- `cargo test --locked --lib physics::applied_force::tests:: -- --test-threads=1 --nocapture`：2过，0.00秒。\n- `cargo test --locked --features cuda-probe --lib physics::applied_force::tests::gpu_ -- --ignored --test-threads=1 --nocapture`：2过，5.12秒。\n- 72批逐字段通过。delta与qfrc各1204320槽零位差。\n- 重复累加、覆盖、世界写入与故障事务通过。\n- FMA样本仅属编译诊断。完整冻结设备对照仍缺。\n- 新用途2/3成功冻结。保留原容差与全部旧覆盖。\n- 96源预绑定无漂移。三个回执与一个PTX哈希吻合。\n- `cargo fmt`已执行。`git diff --cached --check`通过。\n- 暂存Git字节匹配127身份映射。\n- Normify零错误、十二警告。原UID与占用状态保持。\n- 不重跑旧生产者、满额验证、Clippy或作者。完整U075、加速度、G03/NP与双平台T4未验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/applied-force/audit.json",
+            "docs/evidence/applied-force/numeric.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "smooth-external",
+          "revision": "b34e1152db310e4c8fef7dd9ee365946428b7a89",
+          "path": "docs/evidence/smooth-force/audit.json",
+          "blob": "1018a23fbe35607222c05563fbbd89469ad7289f"
+        },
+        {
+          "key": "smooth-external",
+          "revision": "b34e1152db310e4c8fef7dd9ee365946428b7a89",
+          "path": "docs/evidence/smooth-force/numeric.json",
+          "blob": "115750dc4e7ec479aa94318152dfae04424134d3"
+        },
+        {
+          "key": "smooth-external",
+          "revision": "76ade3e9341e4ff00a891a1228bcc22f5403bf25",
+          "path": "docs/evidence/applied-force/audit.json",
+          "blob": "a40792fbe79a8195fe06b7771bacce050b9568e1"
+        },
+        {
+          "key": "smooth-external",
+          "revision": "76ade3e9341e4ff00a891a1228bcc22f5403bf25",
+          "path": "docs/evidence/applied-force/numeric.json",
+          "blob": "f48101cd3008ba9aadf0c56c564eb365c6cb8934"
+        }
+      ]
+    },
+    {
+      "key": "energy",
+      "id": "2026-10-16-done-energy",
+      "title": "设备动能链",
+      "commits": [
+        "0a3f1d444d4053693a60b6edc07b160804d3ae97",
+        "70a6a1562f6578df232ca2348b4b7583d3b65a51"
+      ],
+      "evidence": "docs/kinetic-energy.md",
+      "limits": "默认32线程子集。公平性能与完整U047仍缺。",
+      "history": [
+        {
+          "sha": "0a3f1d444d4053693a60b6edc07b160804d3ae97",
+          "validation": "\n\n- `cargo test --locked --lib kinetic_energy::tests::host_ -- --nocapture`：2过0败。\n\n- `cargo test --locked --features cuda-probe --lib kinetic_energy::tests::gpu_ -- --ignored --test-threads=1 --nocapture`：3过0败。48批4160世界零位差；21项ABI拒绝通过。\n\n- 新组合2/3成功冻结。未重跑旧测试、Clippy或完整回归。\n\n- `cargo fmt --check`与`git diff --cached --check`通过。142条身份与76份暂存块匹配。\n\n- Normify校验构建零错误。保留13项粗叶警告。完整NP及Linux、T4、发行模式未验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/kinetic-energy/audit.json",
+            "docs/evidence/kinetic-energy/numeric.json"
+          ]
+        },
+        {
+          "sha": "70a6a1562f6578df232ca2348b4b7583d3b65a51",
+          "validation": "\n\n- `cargo test --locked --lib device_energy::tests::host_ -- --nocapture`：2过0败。\n\n- `cargo test --locked --features cuda-probe --lib device_energy::tests::gpu_ -- --ignored --test-threads=1 --nocapture`：2过0败，无编译警告。72批6240能量世界零位差，420160配对槽与56故障通过。\n\n- 一个GPU命令内包含source19、Mqvel79次依赖。旧验收选择器、Clippy、SDK、作者及cargo check零调用；新组合2/3成功冻结。\n\n- nv33/65四份原标量CUDA与PTX哈希匹配。该证据不替代冻结上游完整生成核与数值验收。\n\n- `cargo fmt --check`与`git diff --cached --check`通过。211身份与111暂存块精确匹配。\n\n- Normify零错误、13项粗叶警告。Linux、T4、发行模式、完整回归与公平性能均未运行。\n",
+          "evidence_candidates": [
+            "docs/evidence/device-energy/audit.json",
+            "docs/evidence/device-energy/numeric.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "energy",
+          "revision": "0a3f1d444d4053693a60b6edc07b160804d3ae97",
+          "path": "docs/evidence/kinetic-energy/audit.json",
+          "blob": "5be106269b5b8ef056aab64a0dfe22b87b096c3c"
+        },
+        {
+          "key": "energy",
+          "revision": "0a3f1d444d4053693a60b6edc07b160804d3ae97",
+          "path": "docs/evidence/kinetic-energy/numeric.json",
+          "blob": "23830c7763d745768c95cfc54cbf666b6a8b50bc"
+        },
+        {
+          "key": "energy",
+          "revision": "70a6a1562f6578df232ca2348b4b7583d3b65a51",
+          "path": "docs/evidence/device-energy/audit.json",
+          "blob": "5131efedd2bf9ea8e3922b1fe18aa0ffb64cdddd"
+        },
+        {
+          "key": "energy",
+          "revision": "70a6a1562f6578df232ca2348b4b7583d3b65a51",
+          "path": "docs/evidence/device-energy/numeric.json",
+          "blob": "0f24d14d511ec70b9c9df677c2c48026014835ea"
+        }
+      ]
+    },
+    {
+      "key": "passive-producers",
+      "id": "2026-10-16-done-passive-producers",
+      "title": "关节肌腱柔体被动力",
+      "commits": [
+        "2168bc3c7774493e3425f1b7b1e1f6fda4336a1c",
+        "f1bcb0e1f0fc3aacb7f3632cccce8c94748bf57c",
+        "bb73f1851685d7e440916c09785051d1b2bcbbff",
+        "d0845c5253326dd246d61054b02c830e2c02a359",
+        "1014d1e4640c6b6d3049010044f1174ddd841a05",
+        "908082dc2c591c3a9f6158850247efd6d86ea218"
+      ],
+      "evidence": "docs/evidence/flex-edge-passive/",
+      "limits": "生产者与肌腱速度子集。完整G04仍未验收。",
+      "history": [
+        {
+          "sha": "2168bc3c7774493e3425f1b7b1e1f6fda4336a1c",
+          "validation": "\n\n- `cargo test --locked --lib joint_passive::tests::host_ -- --nocapture`：首轮E0432，零用例执行；同命令重试2过0败，0.00秒。\n\n- `cargo test --locked --features cuda-probe --lib joint_passive::tests::gpu_ -- --ignored --test-threads=1 --nocapture`：2过0败，2.47秒。48批三输出各45760槽零位差。51项故障拒绝并恢复。\n\n- 三次合并预算全部计入并冻结。48次旧合并仅作新接线依赖。不重跑旧验收或满额验证。不追加检查、Clippy或SDK探测。\n\n- Normify校验与构建零错误。保留十三项粗叶警告。源码漂移为零。文档钩子报告零不匹配。`git diff --cached --check`通过。104项暂存产物匹配最终身份。\n\n- 尚未验证完整上游生成算子。旋转弹簧与其余被动力仍缺。Linux、发布模式、T4与公平性能未测。1888毫秒不是稳态性能。130604字节不是峰值显存。\n",
+          "evidence_candidates": [
+            "docs/evidence/joint-passive/audit.json",
+            "docs/evidence/joint-passive/numeric.json"
+          ]
+        },
+        {
+          "sha": "f1bcb0e1f0fc3aacb7f3632cccce8c94748bf57c",
+          "validation": "\n\n- `cargo test --locked --lib tendon_velocity::tests::host_ -- --nocapture`：2过0败，211过滤，测试0.00秒。\n\n- `cargo test --locked --features cuda-probe --lib tendon_velocity::tests::gpu_ -- --ignored --test-threads=1 --nocapture`：2过0败，301过滤，测试6.96秒。\n\n- 36批、15600槽达到零位差。额外验证一次单世界速度更新。54项故障拒绝并恢复。\n\n- 新用途按2/3成功冻结。第三次未使用。不重跑旧验收、满额验证、Clippy、SDK或Python。\n\n- Normify终检零错误，保留14项粗叶警告。源码漂移为零。文档钩子核对663个源码、121个文档，零不匹配。\n\n- `git diff --cached --check`通过。70项暂存文件匹配307项最终身份。\n\n- Linux、发布模式、T4、一般空间雅可比、完整生成入口与公平性能未测。5514毫秒不是稳态性能。78856字节不是峰值显存。\n",
+          "evidence_candidates": [
+            "docs/evidence/tendon-velocity/audit.json",
+            "docs/evidence/tendon-velocity/numeric.json"
+          ]
+        },
+        {
+          "sha": "bb73f1851685d7e440916c09785051d1b2bcbbff",
+          "validation": "\n\n- cargo test --locked tendon_passive::tests::host_ -- --nocapture：修复准备错误后2项通过\n\n- 设置项目私有CUDA路径后运行定向GPU测试：1项通过，260世界、1560槽零位差\n\n- git diff --cached --check：通过\n\n- Normify校验：0错误、13条既有粗叶警告\n\n- 未运行满额回归、Python、Clippy、Linux或发布模式\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "d0845c5253326dd246d61054b02c830e2c02a359",
+          "validation": "\n\n- 新条件读取选择：1项通过，属于空行修复前历史源码\n\n- 新空行周期选择：1项通过，11世界覆盖2/3/5/7/11周期\n\n- 最终定向测试1.80秒，编译18.96秒，过滤307项\n\n- git diff --cached --check：通过\n\n- Normify校验：0错误、13条既有粗叶警告\n\n- 未运行旧成功选择器、满额回归、Python、Clippy、Linux或发布模式\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "1014d1e4640c6b6d3049010044f1174ddd841a05",
+          "validation": "\n\n- `cargo test --locked --lib physics::flex_edge_passive::tests::host_checks_native_dimensions_and_derives_flex_ids -- --exact --nocapture`：一项通过\n- `cargo test --locked --features cuda-probe --lib physics::resident::tests::flex_edge_passive_uses_resident_values_and_preserves_conditional_reads -- --ignored --exact --nocapture --test-threads=1`：一项通过\n- `cargo fmt --check`：通过\n- `git diff --cached --check`：通过\n- 文档审计：零处不匹配\n- Normify校验：零错误，十三条历史警告\n- 未运行满额验证\n",
+          "evidence_candidates": [
+            "docs/evidence/flex-edge-passive/audit.json"
+          ]
+        },
+        {
+          "sha": "908082dc2c591c3a9f6158850247efd6d86ea218",
+          "validation": "\n\n- `cargo test --locked --test small_mass_prefix freezes_independent_known_u_and_pairs_existing_native_fractional_cases -- --exact --nocapture`：一项通过\n- `cargo test --locked --lib physics::mass_matrix::multiply::borrowed::tests::host_rejects_wrong_source_topology_and_guarded_source_strides -- --exact --nocapture`：一项通过\n- `cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::resident::tests::gpu_bridge_qpos_changes_invalidate_every_stage_and_rhs_only_reuses_completed_factor -- --ignored --exact --nocapture --test-threads=1`：一项通过\n- 文档审计：零处不匹配\n- Normify校验：零错误，十三条历史警告\n- 未运行满额验证\n",
+          "evidence_candidates": []
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "passive-producers",
+          "revision": "2168bc3c7774493e3425f1b7b1e1f6fda4336a1c",
+          "path": "docs/evidence/joint-passive/audit.json",
+          "blob": "cf0911950617cdc756ed74ef708915573631d2ed"
+        },
+        {
+          "key": "passive-producers",
+          "revision": "2168bc3c7774493e3425f1b7b1e1f6fda4336a1c",
+          "path": "docs/evidence/joint-passive/numeric.json",
+          "blob": "8da6e8330a4e388936c6be795949acd47c308a94"
+        },
+        {
+          "key": "passive-producers",
+          "revision": "f1bcb0e1f0fc3aacb7f3632cccce8c94748bf57c",
+          "path": "docs/evidence/tendon-velocity/audit.json",
+          "blob": "9ee7e0b5329a6d2c36899c2f07cbfc808f6747b0"
+        },
+        {
+          "key": "passive-producers",
+          "revision": "f1bcb0e1f0fc3aacb7f3632cccce8c94748bf57c",
+          "path": "docs/evidence/tendon-velocity/numeric.json",
+          "blob": "d5994a39e088fcbf983dafb928a482917e9ee274"
+        },
+        {
+          "key": "passive-producers",
+          "revision": "bb73f1851685d7e440916c09785051d1b2bcbbff",
+          "path": "docs/tendon-passive.md",
+          "blob": "f068045fff5c8ca2e5ef10f6d8ea4d14d87ecdc4"
+        },
+        {
+          "key": "passive-producers",
+          "revision": "d0845c5253326dd246d61054b02c830e2c02a359",
+          "path": "docs/tendon-passive.md",
+          "blob": "c31daf3afb3e9585a8a4d261971a26a627213826"
+        },
+        {
+          "key": "passive-producers",
+          "revision": "1014d1e4640c6b6d3049010044f1174ddd841a05",
+          "path": "docs/evidence/flex-edge-passive/audit.json",
+          "blob": "3d009f5646ab02f8d91d56e3b17b8fa83414255f"
+        },
+        {
+          "key": "passive-producers",
+          "revision": "908082dc2c591c3a9f6158850247efd6d86ea218",
+          "path": "docs/borrowed-mass-multiply.md",
+          "blob": "e121fff30be337a7dd0d3292774ec7ead75c350e"
+        }
+      ]
+    },
+    {
+      "key": "passive-combine",
+      "id": "2026-10-16-done-passive-combine",
+      "title": "被动力合并休眠与旋转弹簧",
+      "commits": [
+        "1b21e0098602ee27da8a339177ac4b7c63629dbc",
+        "d57fbd8db14b02d60568c8905da63257d2c85e95",
+        "b4e553e88016b6f1c2cee0d1221bab9b9efca129"
+      ],
+      "evidence": "docs/evidence/passive-force-sleep/",
+      "limits": "设备组合与过滤已交付。同代全链仍有缺口。",
+      "history": [
+        {
+          "sha": "1b21e0098602ee27da8a339177ac4b7c63629dbc",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --lib physics::passive_force::tests::gpu_accumulates_joint_tendon_flexedge_in_frozen_order -- --ignored --exact --nocapture --test-threads=1`：第五次一项通过，四次失败保留，过滤三百一十项\n- `cargo check --locked`：通过，保留十一项既有警告\n- `cargo check --locked --features cuda-probe`：通过，无警告\n- `cargo fmt --check`：通过\n- 文档审计：零处不匹配\n- Normify校验与构建：零错误，十四条历史结构警告\n- 未运行满额、发行模式、Linux与完整NP验证\n",
+          "evidence_candidates": [
+            "docs/evidence/passive-force/gpu-5/report.json",
+            "docs/evidence/passive-force/verification.json"
+          ]
+        },
+        {
+          "sha": "d57fbd8db14b02d60568c8905da63257d2c85e95",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --lib physics::passive_force::tests::gpu_filters_resident_sleep_and_recovers_after_midchain_failure -- --ignored --exact --nocapture --test-threads=1`：1项通过，311项过滤。\n- `cargo test --locked --features cuda-probe --lib physics::passive_force::tests::gpu_filters_resident_sleep_and_recovers_after_midchain_failure --no-run`：三次通过。\n- `cargo fmt --check`：通过。\n- `cargo check --locked`：两次通过，保留12条警告。\n- `cargo check --locked --features cuda-probe`：两次通过。\n- 文档审计：0处不匹配。\n- Normify校验：0错误。\n- 未跑满额与性能验证。\n",
+          "evidence_candidates": [
+            "docs/evidence/passive-force-sleep/gpu-1/report.json",
+            "docs/evidence/passive-force-sleep/post-run-audit.json",
+            "docs/evidence/passive-force-sleep/verification.json"
+          ]
+        },
+        {
+          "sha": "b4e553e88016b6f1c2cee0d1221bab9b9efca129",
+          "validation": "\n\n- `cargo test --locked physics::smooth_force::joint_passive::tests::host_accepts_active_rotation_springs_and_rejects_bad_shapes -- --exact --nocapture`：1项通过。\n- 新GPU选择器首次因NVRTC路径缺失失败；修正环境后1项通过，312项过滤。\n- `cargo fmt --check`：通过。\n- `cargo clippy --locked --features cuda-probe --lib -- -D warnings`：两个既有质量矩阵警告导致失败。\n- Normify校验与构建：0错误，14条历史警告。\n- 未运行满额、发行或Linux验证。\n",
+          "evidence_candidates": [
+            "docs/evidence/joint-passive-rotation/audit.json",
+            "docs/evidence/joint-passive-rotation/verification.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "passive-combine",
+          "revision": "1b21e0098602ee27da8a339177ac4b7c63629dbc",
+          "path": "docs/evidence/passive-force/gpu-5/report.json",
+          "blob": "c6b14016c1ac5e23da74384127fccb22ef3736d3"
+        },
+        {
+          "key": "passive-combine",
+          "revision": "1b21e0098602ee27da8a339177ac4b7c63629dbc",
+          "path": "docs/evidence/passive-force/verification.json",
+          "blob": "d7bab648b41cdbdcfc6812e0adc945c7e489b1a6"
+        },
+        {
+          "key": "passive-combine",
+          "revision": "d57fbd8db14b02d60568c8905da63257d2c85e95",
+          "path": "docs/evidence/passive-force-sleep/gpu-1/report.json",
+          "blob": "c330d1f15b3d736eae5d0a8060837d89426d2b78"
+        },
+        {
+          "key": "passive-combine",
+          "revision": "d57fbd8db14b02d60568c8905da63257d2c85e95",
+          "path": "docs/evidence/passive-force-sleep/post-run-audit.json",
+          "blob": "b3fb8f8cec49c1ab058b257045ec7d1e165767a6"
+        },
+        {
+          "key": "passive-combine",
+          "revision": "d57fbd8db14b02d60568c8905da63257d2c85e95",
+          "path": "docs/evidence/passive-force-sleep/verification.json",
+          "blob": "c921e8962525ece7888659ee28213776c9fe8db8"
+        },
+        {
+          "key": "passive-combine",
+          "revision": "b4e553e88016b6f1c2cee0d1221bab9b9efca129",
+          "path": "docs/evidence/joint-passive-rotation/audit.json",
+          "blob": "ca86b92615ac0b314801703fc748c3e90e6f1ba6"
+        },
+        {
+          "key": "passive-combine",
+          "revision": "b4e553e88016b6f1c2cee0d1221bab9b9efca129",
+          "path": "docs/evidence/joint-passive-rotation/verification.json",
+          "blob": "d616c2d57733c2e2eecda524875365d96e65dc38"
+        }
+      ]
+    },
+    {
+      "key": "gravity",
+      "id": "2026-10-16-done-gravity",
+      "title": "重力补偿与归约诊断",
+      "commits": [
+        "1a2ba5463433be27b9e4c57d8e9a9da10e17bf03",
+        "b5aac5868152246a140b1d1ad63c1393f8919c66"
+      ],
+      "evidence": "docs/gravity-compensation.md",
+      "limits": "固定子集已交付。非精确多体原子归约仍缺。",
+      "history": [
+        {
+          "sha": "1a2ba5463433be27b9e4c57d8e9a9da10e17bf03",
+          "validation": "\n\n- `cargo test --locked --lib physics::gravity_compensation::tests::host_ -- --nocapture`：2过，0败，216项过滤。\n- `cargo test --locked --features cuda-probe --lib physics::passive_force::tests::gpu_composes_rotation_tendon_flexedge_and_gravity -- --ignored --exact --nocapture --test-threads=1`：1过，0败，315项过滤。\n- `cargo fmt --check`通过。\n- Normify校验与构建为0错误、13项既有警告。\n- 未运行满额、发布、Linux及性能验证。Clippy未重跑。\n",
+          "evidence_candidates": [
+            "docs/evidence/gravity-compensation/gpu-2/report.json",
+            "docs/evidence/gravity-compensation/verification.json",
+            "docs/evidence/passive-force/verification.json"
+          ]
+        },
+        {
+          "sha": "b5aac5868152246a140b1d1ad63c1393f8919c66",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --lib physics::gravity_compensation::tests::gpu_matches_independent_multi_body_reduction_certificate -- --ignored --exact --nocapture --test-threads=1`：最终严格位型失败，28 槽均满足原 `2e-6` 容差，2 槽相差 4 ULP\n- `cargo fmt --check`\n- `git diff --check`\n- 8 份编译回执与 16 项 CU/PTX 哈希核对通过\n- 文档审计 964 份源码、128 份文档、0 处不匹配\n",
+          "evidence_candidates": [
+            "docs/evidence/gravity-compensation/gpu-multi-body-6/report.json",
+            "docs/evidence/gravity-compensation/multi-body-verification.json",
+            "docs/evidence/gravity-compensation/verification.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "gravity",
+          "revision": "1a2ba5463433be27b9e4c57d8e9a9da10e17bf03",
+          "path": "docs/evidence/gravity-compensation/gpu-2/report.json",
+          "blob": "76dbda928271558e0a9524b8db1b991fba1e75a4"
+        },
+        {
+          "key": "gravity",
+          "revision": "1a2ba5463433be27b9e4c57d8e9a9da10e17bf03",
+          "path": "docs/evidence/gravity-compensation/verification.json",
+          "blob": "6cf8d4508864e4564a5ce3685e0f5cbea8e6e3bf"
+        },
+        {
+          "key": "gravity",
+          "revision": "1a2ba5463433be27b9e4c57d8e9a9da10e17bf03",
+          "path": "docs/evidence/passive-force/verification.json",
+          "blob": "d1a62defacd4d05f14ea1b6af5ef0b4c6a31d9ba"
+        },
+        {
+          "key": "gravity",
+          "revision": "b5aac5868152246a140b1d1ad63c1393f8919c66",
+          "path": "docs/evidence/gravity-compensation/gpu-multi-body-6/report.json",
+          "blob": "cca5953892c970148da558102f21abb78796d735"
+        },
+        {
+          "key": "gravity",
+          "revision": "b5aac5868152246a140b1d1ad63c1393f8919c66",
+          "path": "docs/evidence/gravity-compensation/multi-body-verification.json",
+          "blob": "c3a195f0360a2fd3852386cca89537c3e125c15b"
+        },
+        {
+          "key": "gravity",
+          "revision": "b5aac5868152246a140b1d1ad63c1393f8919c66",
+          "path": "docs/evidence/gravity-compensation/verification.json",
+          "blob": "85905898db2bf90beec7acb8bcc531ce5b2b1670"
+        }
+      ]
+    },
+    {
+      "key": "fluid",
+      "id": "2026-10-16-done-fluid",
+      "title": "惯性盒与椭球流体力",
+      "commits": [
+        "c1f413d3f9b9f713dda79b7fa0eaee10c4a9080d",
+        "40e2395bc63d4305a2f41ecf3d58de92fae6c7d4",
+        "6b941db635bcac59a4517f6291635fd422f736fb"
+      ],
+      "evidence": "docs/fluid-force.md",
+      "limits": "独立椭球288槽通过。共享椭球及上游设备对照仍缺。",
+      "history": [
+        {
+          "sha": "c1f413d3f9b9f713dda79b7fa0eaee10c4a9080d",
+          "validation": "\n\n- `cargo test --locked --lib physics::fluid_force::tests:: -- --nocapture`：2项通过\n- `cargo test --locked --lib physics::fluid_force::tests::viscosity_torque_keeps_frozen_left_associative_rounding -- --exact --nocapture`：因误判漏测而重复1次，仍通过\n- `cargo test --locked --features cuda-probe --lib physics::fluid_force::tests::gpu_matches_independent_inertia_box_reference -- --ignored --exact --nocapture --test-threads=1`：1项通过，507值，最大误差9.5367431640625e-7\n- `cargo check --locked --features cuda-probe --lib`：通过\n- `cargo fmt --check`与`git diff --cached --check`：通过\n- `cargo clippy --locked --features cuda-probe --lib -- -D warnings`：被3项既有告警阻断\n",
+          "evidence_candidates": [
+            "docs/evidence/fluid-force/attempt-1-reordered-reference/audit.json",
+            "docs/evidence/fluid-force/attempt-1-reordered-reference/inertia-box-gpu-result.json",
+            "docs/evidence/fluid-force/attempt-2-left-associative/audit.json",
+            "docs/evidence/fluid-force/attempt-2-left-associative/inertia-box-gpu-result.json"
+          ]
+        },
+        {
+          "sha": "40e2395bc63d4305a2f41ecf3d58de92fae6c7d4",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --lib physics::passive_force::tests::gpu_wires_resident_fluid_into_shared_passive_order -- --ignored --exact --nocapture --test-threads=1`：环境修复后两次各通过一项；首次因NVRTC不可见失败。\n\n- `cargo test --locked --lib physics::fluid_force::tests::checks_fluid_clear_work_bounds -- --exact`：一项通过。\n\n- `cargo fmt --check`、默认与CUDA库检查通过；文档审计零不匹配。\n\n- 严格Clippy仍被既有跨模块警告阻断；未运行满额、发行或Linux验证。\n",
+          "evidence_candidates": [
+            "docs/evidence/passive-fluid/gpu-1/result.json",
+            "docs/evidence/passive-fluid/gpu-2/report.json",
+            "docs/evidence/passive-fluid/gpu-3/report.json",
+            "docs/evidence/passive-fluid/verification.json"
+          ]
+        },
+        {
+          "sha": "6b941db635bcac59a4517f6291635fd422f736fb",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe fluid_force::tests:: -- --nocapture`：4项通过，2项忽略。\n- 椭球GPU定向：1项通过，288槽最大误差4.76837158203125e-7，原容差2e-6。\n- 惯性盒GPU回归：1项通过，507槽最大误差9.5367431640625e-7。\n- 常驻共享流体回归：1项通过，五活动世界与两休眠世界通过。\n- `cargo fmt --check`与`git diff --cached --check`通过。\n- 严格Clippy被三项既有跨模块警告阻断。\n- 文档审计为0处不匹配；Normify校验为0错误、14条历史警告。\n- 未运行满额、发行、Linux或性能验证。\n",
+          "evidence_candidates": [
+            "docs/evidence/fluid-force/ellipsoid-1/result.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "fluid",
+          "revision": "c1f413d3f9b9f713dda79b7fa0eaee10c4a9080d",
+          "path": "docs/evidence/fluid-force/attempt-1-reordered-reference/audit.json",
+          "blob": "861fdf3bae55b405cc92dd516cf373e021d5a87a"
+        },
+        {
+          "key": "fluid",
+          "revision": "c1f413d3f9b9f713dda79b7fa0eaee10c4a9080d",
+          "path": "docs/evidence/fluid-force/attempt-1-reordered-reference/inertia-box-gpu-result.json",
+          "blob": "f31b9ceebccb980dda8c131b13899b10363bbcd2"
+        },
+        {
+          "key": "fluid",
+          "revision": "c1f413d3f9b9f713dda79b7fa0eaee10c4a9080d",
+          "path": "docs/evidence/fluid-force/attempt-2-left-associative/audit.json",
+          "blob": "d5c57b2e1d2b11907d98f7cbaacdb253e8db8bde"
+        },
+        {
+          "key": "fluid",
+          "revision": "c1f413d3f9b9f713dda79b7fa0eaee10c4a9080d",
+          "path": "docs/evidence/fluid-force/attempt-2-left-associative/inertia-box-gpu-result.json",
+          "blob": "89bd70fa4a10f82063844a79e7337dc9dc0fe2d0"
+        },
+        {
+          "key": "fluid",
+          "revision": "40e2395bc63d4305a2f41ecf3d58de92fae6c7d4",
+          "path": "docs/evidence/passive-fluid/gpu-1/result.json",
+          "blob": "91244dab70762a586ae1eaa38dd9dcd438f01414"
+        },
+        {
+          "key": "fluid",
+          "revision": "40e2395bc63d4305a2f41ecf3d58de92fae6c7d4",
+          "path": "docs/evidence/passive-fluid/gpu-2/report.json",
+          "blob": "a8d752e1841331bf3d0b4796e53bb15e5faee98c"
+        },
+        {
+          "key": "fluid",
+          "revision": "40e2395bc63d4305a2f41ecf3d58de92fae6c7d4",
+          "path": "docs/evidence/passive-fluid/gpu-3/report.json",
+          "blob": "485305d29cce319b34c89f44988e985362014137"
+        },
+        {
+          "key": "fluid",
+          "revision": "40e2395bc63d4305a2f41ecf3d58de92fae6c7d4",
+          "path": "docs/evidence/passive-fluid/verification.json",
+          "blob": "fd2d11d32c3cceedb14190094719b16557d9ea5a"
+        },
+        {
+          "key": "fluid",
+          "revision": "6b941db635bcac59a4517f6291635fd422f736fb",
+          "path": "docs/evidence/fluid-force/ellipsoid-1/result.json",
+          "blob": "42c3fb8cf265708e379b55384fa4528f0b394a7a"
+        }
+      ]
+    },
+    {
+      "key": "upstream",
+      "id": "2026-10-16-done-upstream",
+      "title": "冻结上游重力与质心链",
+      "commits": [
+        "420713a06c8a3c100125a55cbbab667b01743df6",
+        "91b2df8ceb6a994f18ae62847d4c99216f858fa5",
+        "57b08ff4ec260642dbac8e37660a0cd922223a59",
+        "31a8c95fa91a6ce7b119d7835710ca51cec82331"
+      ],
+      "evidence": "docs/evidence/gravity-upstream-kinematics/verification.json",
+      "limits": "真实产物及零位形链。完整状态空间仍未验收。",
+      "history": [
+        {
+          "sha": "420713a06c8a3c100125a55cbbab667b01743df6",
+          "validation": "\n\n- cargo fmt --check; cargo test --locked --features cuda-probe --test t4_gravity_upstream_abi -- --nocapture`：2项通过，2项忽略。\n- 本地冻结安装门禁：1项通过。\n- 文档审计：0处不匹配。\n- Normify校验：0项错误，14项历史警告。\n- Clippy仅命中3项既有库警告。\n- 未运行满额回归，未启动Python。\n",
+          "evidence_candidates": []
+        },
+        {
+          "sha": "91b2df8ceb6a994f18ae62847d4c99216f858fa5",
+          "validation": "\n\n- `cargo check --locked --features cuda-probe --lib`：通过。`n- `cargo check --locked --features cuda-probe --tests`：通过。`n- 主机门禁：1 项通过。`n- 运行时单元测试：2 项通过。`n- 真实设备测试：1 项通过，最大绝对误差为 1.1920928955078125e-7。`n- `cargo fmt --check`：通过。`n- 严格 Clippy 被 52 项既有警告阻断。`n- 文档审计：0 项不匹配。`n- 未运行全量、发布版、Linux 和性能验证。\n",
+          "evidence_candidates": [
+            "docs/evidence/gravity-upstream-generated/executions.json",
+            "docs/evidence/gravity-upstream-generated/verification.json"
+          ]
+        },
+        {
+          "sha": "57b08ff4ec260642dbac8e37660a0cd922223a59",
+          "validation": "\n\n- `cargo check --locked --features cuda-probe --test t4_gravity_upstream_com`通过。\n- 主机门禁一项通过。\n- 运行时单测一项通过。\n- 设备测试一项通过。\n- 最大绝对误差为1.1920929e-7。\n- 文档审计无不一致。\n- Clippy受三项旧警告阻断。\n- 未运行全量、发布与Linux验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/gravity-upstream-com/executions.json",
+            "docs/evidence/gravity-upstream-com/verification.json",
+            "docs/evidence/gravity-upstream-generated/raw-executions.json"
+          ]
+        },
+        {
+          "sha": "31a8c95fa91a6ce7b119d7835710ca51cec82331",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_gravity_upstream_kinematics frozen_upstream_qpos_chain_artifact_is_self_consistent -- --exact --nocapture`：1 过。\n- `cargo test --locked --features cuda-probe --lib runtime::warp_kinematics::tests -- --nocapture`：1 过。\n- 新设备门禁第二次通过：上游 1106 项零位差，产品位姿 833 项零位差，重力最大误差 `1.1920929e-7`。\n- `cargo fmt --all --check`：通过。\n- 定向 Clippy 受三项既有库告警阻断，本轮目标未新增告警。\n- 文档审计零处不匹配；未运行满额、发布、Linux 与性能验收。\n",
+          "evidence_candidates": [
+            "docs/evidence/gravity-upstream-kinematics/executions.json",
+            "docs/evidence/gravity-upstream-kinematics/verification.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "upstream",
+          "revision": "420713a06c8a3c100125a55cbbab667b01743df6",
+          "path": "docs/README.md",
+          "blob": "480b6884a0bf2440a8f86285ed9516ee11fada60"
+        },
+        {
+          "key": "upstream",
+          "revision": "91b2df8ceb6a994f18ae62847d4c99216f858fa5",
+          "path": "docs/evidence/gravity-upstream-generated/executions.json",
+          "blob": "583ecaf23011fac3cede92826640b80e3f2d5407"
+        },
+        {
+          "key": "upstream",
+          "revision": "91b2df8ceb6a994f18ae62847d4c99216f858fa5",
+          "path": "docs/evidence/gravity-upstream-generated/verification.json",
+          "blob": "e8171ed2965de1117dce70c82fb81a0d60c4eca7"
+        },
+        {
+          "key": "upstream",
+          "revision": "57b08ff4ec260642dbac8e37660a0cd922223a59",
+          "path": "docs/evidence/gravity-upstream-com/executions.json",
+          "blob": "e3bb367264fe2fa0d354ccd4c8e74aee3e3d1902"
+        },
+        {
+          "key": "upstream",
+          "revision": "57b08ff4ec260642dbac8e37660a0cd922223a59",
+          "path": "docs/evidence/gravity-upstream-com/verification.json",
+          "blob": "5a797c2d733e3a184c8788cee0db8ceab9594802"
+        },
+        {
+          "key": "upstream",
+          "revision": "57b08ff4ec260642dbac8e37660a0cd922223a59",
+          "path": "docs/evidence/gravity-upstream-generated/raw-executions.json",
+          "blob": "ed08a7c98fc15664417a635e0e151e1c29e462d0"
+        },
+        {
+          "key": "upstream",
+          "revision": "31a8c95fa91a6ce7b119d7835710ca51cec82331",
+          "path": "docs/evidence/gravity-upstream-kinematics/executions.json",
+          "blob": "ecefdeaf64590f905ca7986e99064bc39a5052c0"
+        },
+        {
+          "key": "upstream",
+          "revision": "31a8c95fa91a6ce7b119d7835710ca51cec82331",
+          "path": "docs/evidence/gravity-upstream-kinematics/verification.json",
+          "blob": "6033d4fc06fdf645060ebcb0c836af046eaaf0cd"
+        }
+      ]
+    },
+    {
+      "key": "zero-chain",
+      "id": "2026-10-16-done-zero-chain",
+      "title": "零位形实时产品重力链",
+      "commits": [
+        "c74aede3ca45c315e0e8b28e8d68fbead5d0af22"
+      ],
+      "evidence": "docs/evidence/gravity-product-chain/verification.json",
+      "limits": "新增301项零位差。仅覆盖零位形。",
+      "history": [
+        {
+          "sha": "c74aede3ca45c315e0e8b28e8d68fbead5d0af22",
+          "validation": "\n\n- `cargo test --locked --features cuda-probe --test t4_gravity_product_chain frozen_live_product_chain_contract_is_self_consistent -- --exact --nocapture`：1项通过\n\n- `cargo test --locked --features cuda-probe --test t4_gravity_product_chain live_product_com_and_gravity_match_frozen_upstream -- --ignored --exact --nocapture --test-threads=1`：1项通过\n\n- `cargo fmt --all --check`与目标`cargo check`通过\n\n- 目标Clippy通过，仅允许既有两类库告警\n\n- 文档审计报告0处不匹配\n\n- 未运行满额、发布、Linux与性能验证\n",
+          "evidence_candidates": [
+            "docs/evidence/gravity-product-chain/executions.json",
+            "docs/evidence/gravity-product-chain/verification.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "zero-chain",
+          "revision": "c74aede3ca45c315e0e8b28e8d68fbead5d0af22",
+          "path": "docs/evidence/gravity-product-chain/executions.json",
+          "blob": "ca93d2b2f6a126bef7c9ad65a11c726ad6ae0934"
+        },
+        {
+          "key": "zero-chain",
+          "revision": "c74aede3ca45c315e0e8b28e8d68fbead5d0af22",
+          "path": "docs/evidence/gravity-product-chain/verification.json",
+          "blob": "14846a44c36e3bc52b788ccbeea6735368bac2c5"
+        }
+      ]
+    },
+    {
+      "key": "nonzero-chain",
+      "id": "2026-10-16-done-nonzero-chain",
+      "title": "非零位形旋转修复",
+      "commits": [
+        "8a5bac00fdfa9759f752993b2866098c6ff20819"
+      ],
+      "evidence": "docs/evidence/gravity-nonzero-product-chain/verification.json",
+      "limits": "1134项零位差。只覆盖平面铰链状态。",
+      "history": [
+        {
+          "sha": "8a5bac00fdfa9759f752993b2866098c6ff20819",
+          "validation": "\n\n- `cargo fmt --all --check`\n- `cargo check --locked --features cuda-probe --test t4_gravity_nonzero_product_chain`\n- 定向Clippy允许两类既有告警后通过。\n- 非零位形设备目标修复后1过0败，1134项零位差。\n- 文档审计1131份源码、136份文档、0处不匹配。\n- Normify校验与构建0错误，保留16条历史警告。\n- 未运行满额、发布、Linux或性能验证。\n",
+          "evidence_candidates": [
+            "docs/evidence/gravity-nonzero-product-chain/executions.json",
+            "docs/evidence/gravity-nonzero-product-chain/verification.json"
+          ]
+        }
+      ],
+      "kind": "historical-delivery",
+      "product_acceptance": false,
+      "evidence_bindings": [
+        {
+          "key": "nonzero-chain",
+          "revision": "8a5bac00fdfa9759f752993b2866098c6ff20819",
+          "path": "docs/evidence/gravity-nonzero-product-chain/executions.json",
+          "blob": "fb68040526a04c394a67dc34fb67ca4cdfcca205"
+        },
+        {
+          "key": "nonzero-chain",
+          "revision": "8a5bac00fdfa9759f752993b2866098c6ff20819",
+          "path": "docs/evidence/gravity-nonzero-product-chain/verification.json",
+          "blob": "15f1485135bdfa801f4019c895e88617eb4f9907"
+        }
+      ]
+    }
+  ],
+  "existing_records": [
+    {
+      "id": "2026-10-11-roadmap-d01",
+      "commit": "4cf233c"
+    },
+    {
+      "id": "2026-10-11-roadmap-d05",
+      "commit": "7cf37d7"
+    },
+    {
+      "id": "2026-10-11-roadmap-d06",
+      "commit": "81fae4a"
+    }
+  ],
+  "remaining": [
+    {
+      "key": "t4-capture",
+      "id": "2026-10-16-next-t4-capture",
+      "title": {
+        "zh": "01 刚体旋转产物收尾",
+        "en": "Remaining t4-capture"
+      },
+      "intent": {
+        "zh": "拆分原任务剩余工作。保留原验收门槛。",
+        "en": "Track remaining work separately without weakening original acceptance."
+      },
+      "modules": {},
+      "acceptance": [
+        "核查十份受影响变体。保留二十份有效产物。完整三十份分母不减。",
+        "核对既有未提交结果。补齐回执、验证及提交。不得只凭编译放行数值。",
+        "核对未提交检查器的来源覆盖。不得删除旧来源门禁来掩盖漂移。"
+      ],
+      "schedule": {
+        "phase": "P4-T4剩余",
+        "owner": "Codex",
+        "depends_on": [
+          "2026-10-16-done-nonzero-chain"
+        ],
+        "files": [
+          "tests/support/t4_rigid_capture.rs",
+          "fixtures/precision/t4-current-kernels.json",
+          "docs/evidence/t4-g03-retest/rigid-rotate-recapture/"
+        ],
+        "resources": [
+          "gpu:windows-t4"
+        ],
+        "priority": 90
+      },
+      "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。"
+    },
+    {
+      "key": "t4-types",
+      "id": "2026-10-16-next-t4-types",
+      "title": {
+        "zh": "02 T4全路径类型映射",
+        "en": "Remaining t4-types"
+      },
+      "intent": {
+        "zh": "拆分原任务剩余工作。保留原验收门槛。",
+        "en": "Track remaining work separately without weakening original acceptance."
+      },
+      "modules": {},
+      "acceptance": [
+        "逐字段核对输入、中间量、累加及输出。匹配率100%，精度偏离零。",
+        "补齐Hessian生成及原子累加类型。保留21系数与完整范围边界。"
+      ],
+      "schedule": {
+        "phase": "P4-T4剩余",
+        "owner": "Codex",
+        "depends_on": [
+          "2026-10-16-done-t4-mapping",
+          "2026-10-16-done-face-diagnostics"
+        ],
+        "files": [
+          "docs/development-evidence/t4-types/",
+          "fixtures/precision/"
+        ],
+        "resources": [],
+        "priority": 89
+      },
+      "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。"
+    },
+    {
+      "key": "t4-artifacts",
+      "id": "2026-10-16-next-t4-artifacts",
+      "title": {
+        "zh": "03 T4当前内核证据",
+        "en": "Remaining t4-artifacts"
+      },
+      "intent": {
+        "zh": "拆分原任务剩余工作。保留原验收门槛。",
+        "en": "Track remaining work separately without weakening original acceptance."
+      },
+      "modules": {},
+      "acceptance": [
+        "补齐当前内核、编译与必要机器码。核对冻结上游生成来源。",
+        "历史面2078位差不改写。补齐修后面与Hessian实际证据。"
+      ],
+      "schedule": {
+        "phase": "P4-T4剩余",
+        "owner": "Codex",
+        "depends_on": [
+          "2026-10-16-next-t4-capture",
+          "2026-10-16-next-t4-types"
+        ],
+        "files": [
+          "docs/development-evidence/t4-artifacts/",
+          "fixtures/precision/"
+        ],
+        "resources": [
+          "gpu:windows-t4"
+        ],
+        "priority": 88
+      },
+      "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。"
+    },
+    {
+      "key": "t4-numeric",
+      "id": "2026-10-16-next-t4-numeric",
+      "title": {
+        "zh": "04 T4双模式数值复验",
+        "en": "Remaining t4-numeric"
+      },
+      "intent": {
+        "zh": "拆分原任务剩余工作。保留原验收门槛。",
+        "en": "Track remaining work separately without weakening original acceptance."
+      },
+      "modules": {},
+      "acceptance": [
+        "同一源码基线覆盖完整G01及低层入口。调试与发布版均须实测。",
+        "保留全部覆盖与原容差。原生优先，两级判定及5%红线不改。",
+        "保留失败与调用账本。失败和待验收清零。零用例不能通过。"
+      ],
+      "schedule": {
+        "phase": "P4-T4剩余",
+        "owner": "Codex",
+        "depends_on": [
+          "2026-10-16-next-t4-artifacts",
+          "2026-10-11-g03-mjwarp-reference"
+        ],
+        "files": [
+          "scripts/test-windows-g01.ps1",
+          "docs/development-evidence/t4-numeric/"
+        ],
+        "resources": [
+          "gpu:windows-t4",
+          "acceptance:windows-product"
+        ],
+        "priority": 87
+      },
+      "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。"
+    },
+    {
+      "key": "t4-performance",
+      "id": "2026-10-16-next-t4-performance",
+      "title": {
+        "zh": "05 T4公平性能与显存",
+        "en": "Remaining t4-performance"
+      },
+      "intent": {
+        "zh": "拆分原任务剩余工作。保留原验收门槛。",
+        "en": "Track remaining work separately without weakening original acceptance."
+      },
+      "modules": {},
+      "acceptance": [
+        "同输入、精度与覆盖比较冻结上游。登记设备、预热、同步与计时。",
+        "实测稳态耗时与进程显存峰值。板卡快照及冷编译不能替代。"
+      ],
+      "schedule": {
+        "phase": "P4-T4剩余",
+        "owner": "Codex",
+        "depends_on": [
+          "2026-10-16-next-t4-numeric"
+        ],
+        "files": [
+          "docs/development-evidence/t4-performance/"
+        ],
+        "resources": [
+          "gpu:windows-t4",
+          "acceptance:windows-product"
+        ],
+        "priority": 86
+      },
+      "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。"
+    },
+    {
+      "key": "rne-repair",
+      "id": "2026-10-16-next-rne-repair",
+      "title": {
+        "zh": "G02修复RNE剩余超差",
+        "en": "Remaining rne-repair"
+      },
+      "intent": {
+        "zh": "拆分原任务剩余工作。保留原验收门槛。",
+        "en": "Track remaining work separately without weakening original acceptance."
+      },
+      "modules": {},
+      "acceptance": [
+        "定位false模式1042块超差。区分产品、原生与独立上游证据。",
+        "保持容差与全部样本。代码或前提变化后再复验。"
+      ],
+      "schedule": {
+        "phase": "P4-功能剩余",
+        "owner": "Codex",
+        "depends_on": [
+          "2026-10-16-done-rne"
+        ],
+        "files": [
+          "src/physics/rne.rs",
+          "src/physics/rne.cu",
+          "tests/resident_rne_acceleration.rs",
+          "docs/development-evidence/rne-repair/"
+        ],
+        "resources": [
+          "gpu:windows-t4"
+        ],
+        "priority": 85
+      },
+      "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。"
+    },
+    {
+      "key": "g03-parity",
+      "id": "2026-10-16-next-g03-parity",
+      "title": {
+        "zh": "G03完整分支与精度补齐",
+        "en": "Remaining g03-parity"
+      },
+      "intent": {
+        "zh": "拆分原任务剩余工作。保留原验收门槛。",
+        "en": "Track remaining work separately without weakening original acceptance."
+      },
+      "modules": {},
+      "acceptance": [
+        "补Tile与正式编译路线。核对Small及稀疏实际算序。",
+        "保留历史失败与后续修复证据。补双模式平台与NP01至NP04。"
+      ],
+      "schedule": {
+        "phase": "P4-功能剩余",
+        "owner": "Codex",
+        "depends_on": [
+          "2026-10-16-done-mixed",
+          "2026-10-16-done-small-mathdx",
+          "2026-10-16-done-sparse"
+        ],
+        "files": [
+          "src/physics/mass_solve/",
+          "docs/development-evidence/g03-parity/"
+        ],
+        "resources": [
+          "gpu:windows-t4"
+        ],
+        "priority": 84
+      },
+      "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。"
+    },
+    {
+      "key": "u038-shared",
+      "id": "2026-10-16-next-u038-shared",
+      "title": {
+        "zh": "U038共享椭球与同代状态",
+        "en": "Remaining u038-shared"
+      },
+      "intent": {
+        "zh": "拆分原任务剩余工作。保留原验收门槛。",
+        "en": "Track remaining work separately without weakening original acceptance."
+      },
+      "modules": {},
+      "acceptance": [
+        "独立验证共享椭球路径。关节、肌腱及常驻状态同代可核。",
+        "保留失效阻断、故障恢复与原容差。"
+      ],
+      "schedule": {
+        "phase": "P4-功能剩余",
+        "owner": "Codex",
+        "depends_on": [
+          "2026-10-16-done-fluid",
+          "2026-10-16-done-passive-combine"
+        ],
+        "files": [
+          "src/physics/passive_force.rs",
+          "src/physics/fluid_force.rs",
+          "docs/development-evidence/u038-shared/"
+        ],
+        "resources": [
+          "gpu:windows-t4"
+        ],
+        "priority": 83
+      },
+      "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。"
+    },
+    {
+      "key": "u038-reference",
+      "id": "2026-10-16-next-u038-reference",
+      "title": {
+        "zh": "U038独立流体与原子对照",
+        "en": "Remaining u038-reference"
+      },
+      "intent": {
+        "zh": "拆分原任务剩余工作。保留原验收门槛。",
+        "en": "Track remaining work separately without weakening original acceptance."
+      },
+      "modules": {},
+      "acceptance": [
+        "补真实冻结流体设备输出。覆盖非精确多体原子归约。",
+        "不使用候选中间量伪装独立参考。保留原始位型与失败。"
+      ],
+      "schedule": {
+        "phase": "P4-功能剩余",
+        "owner": "Codex",
+        "depends_on": [
+          "2026-10-16-next-u038-shared",
+          "2026-10-16-done-upstream",
+          "2026-10-16-done-gravity"
+        ],
+        "files": [
+          "docs/development-evidence/u038-reference/",
+          "fixtures/gravity-upstream-abi/"
+        ],
+        "resources": [
+          "gpu:windows-t4"
+        ],
+        "priority": 82
+      },
+      "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。"
+    },
+    {
+      "key": "u038-3d",
+      "id": "2026-10-16-next-u038-3d",
+      "title": {
+        "zh": "U038完整三维状态验证",
+        "en": "Remaining u038-3d"
+      },
+      "intent": {
+        "zh": "拆分原任务剩余工作。保留原验收门槛。",
+        "en": "Track remaining work separately without weakening original acceptance."
+      },
+      "modules": {},
+      "acceptance": [
+        "扩展完整三维旋转与组合状态。区分平面既有证据。",
+        "保留容差并核当前同源链。补实际源码与编译产物。"
+      ],
+      "schedule": {
+        "phase": "P4-功能剩余",
+        "owner": "Codex",
+        "depends_on": [
+          "2026-10-16-done-nonzero-chain"
+        ],
+        "files": [
+          "tests/t4_gravity_nonzero_product_chain.rs",
+          "docs/development-evidence/u038-3d/"
+        ],
+        "resources": [
+          "gpu:windows-t4"
+        ],
+        "priority": 81
+      },
+      "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。"
+    },
+    {
+      "key": "g26-complete",
+      "id": "2026-10-16-next-g26-complete",
+      "title": {
+        "zh": "G26能量全链与参考补齐",
+        "en": "Remaining g26-complete"
+      },
+      "intent": {
+        "zh": "拆分原任务剩余工作。保留原验收门槛。",
+        "en": "Track remaining work separately without weakening original acceptance."
+      },
+      "modules": {},
+      "acceptance": [
+        "补完整CRB到动能调度。核实状态标签的真实来源。",
+        "补独立同条件参考、非默认范围及适用NP证据。"
+      ],
+      "schedule": {
+        "phase": "P4-功能剩余",
+        "owner": "Codex",
+        "depends_on": [
+          "2026-10-16-done-energy",
+          "2026-10-16-done-multiply",
+          "2026-10-16-done-smooth-external"
+        ],
+        "files": [
+          "src/physics/kinetic_energy.rs",
+          "src/physics/mass_matrix/multiply/borrowed/device_energy.rs",
+          "docs/development-evidence/g26-complete/"
+        ],
+        "resources": [
+          "gpu:windows-t4"
+        ],
+        "priority": 80
+      },
+      "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。"
+    },
+    {
+      "key": "t4-gate",
+      "id": "2026-10-16-next-t4-gate",
+      "title": {
+        "zh": "06 Windows G01完整T4准入",
+        "en": "Windows G01 full T4 gate"
+      },
+      "intent": {
+        "zh": "T4覆盖Windows完整G01。MuJoCo是第一数值参考。仅原生超差后启用MJWarp。原生通过无需上游再次通过。内部精度要求保持不变。",
+        "en": "T4 covers complete Windows G01 acceptance. Native MuJoCo is the first numerical reference. Only native tolerance failure invokes frozen MJWarp as the second reference; a native pass requires no further MJWarp numerical pass. Computation precision remains unchanged."
+      },
+      "modules": {},
+      "acceptance": [
+        "MuJoCo是第一数值参考。原生通过即通过该项NP03。无需MJWarp再次通过。",
+        "仅原生超差后启用同条件MJWarp。两路均相对同一原生参考计算误差。本库不劣于上游则放行；略高但未越5%红线也放行；越线禁行。",
+        "原生容差保持冻结。每个字段块取最大归一化误差。红线为MJWarp分数乘1.05。两路采用相同原生值与分母。不跨字段或逐元素拼接通过。",
+        "冻结原生版本与MJWarp提交。记录输入、状态与参考哈希。核对有效输入和量化。版本或语义差异单独登记。",
+        "NP01覆盖内部与公开精度。NP02记录实际内核与编译策略。数值通过不豁免精度偏离。非有限值与结构错误不回退。",
+        "NP03要求判定全覆盖。失败与待验收均须清零。区分原生放行、对照放行与红线内放行。原生通过无需第二参考；缺必要证据、未测与零样本不能冒充通过。",
+        "产品测试读取冻结参考。不得启动Python或生成参考。保留历史原生与上游诊断日志。不因规则变更改写历史结果。",
+        "NP04仍要求公平批量对照。记录设备、预热、同步和计时。稳态耗时与显存仍需实测。",
+        "T4覆盖Windows完整G01。全链与低层入口均须验收。debug与release均需实测。不能用圆柱子集代替全量。",
+        "两级自动判定已局部接入。其余覆盖和参考缺口仍须补齐。结构与产品缺口未清零不关闭主验收变更。修复与补测另记独立变更，不豁免本项。未审查模块不刷新指纹。"
+      ],
+      "schedule": {
+        "depends_on": [
+          "2026-10-11-g03-mjwarp-reference",
+          "2026-10-16-next-t4-types",
+          "2026-10-16-next-t4-artifacts",
+          "2026-10-16-next-t4-numeric",
+          "2026-10-16-next-t4-performance"
+        ],
+        "phase": "P4-T4总门禁",
+        "owner": "Codex",
+        "files": [
+          "docs/development-evidence/t4-final-acceptance.json"
+        ],
+        "resources": [
+          "gpu:windows-t4",
+          "acceptance:windows-product"
+        ],
+        "priority": 90
+      },
+      "note": "承接2026-10-11-mjwarp-parallel-acceptance全部验收。原条款逐字保留。旧任务仅终止宽泛执行容器，未通过验收。本节点全部条件满足前不得关闭。独立U038新增功能不无限追加到G01范围；共享模板变化仍须重验G01。"
+    }
+  ],
+  "uncommitted_not_accepted": [
+    "fixtures/precision/t4-current-kernels.json",
+    "tests/support/t4_rigid_capture.rs",
+    "docs/evidence/t4-g03-retest/rigid-rotate-recapture/"
+  ],
+  "warning": "Historical records verify scoped delivery or evidence only. Failed physics remains failed. No product tests are rerun by this reconciliation."
+}
