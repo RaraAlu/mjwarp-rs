@@ -18,9 +18,9 @@ function SaveJson([string]$Path, $Value) {
     [IO.File]::WriteAllText($Path, (ConvertTo-Json -InputObject $Value -Depth 20), [Text.UTF8Encoding]::new($false))
 }
 $checks = [Collections.Generic.List[object]]::new()
-function Check([string]$Name, [string]$Expected = '') {
+function Check([string]$Name, [string]$Expected = '', [string]$Mode = 'Staged', [string]$TaskId = '') {
     $errorText = ''
-    try { & $checker -RepoRoot $repo -NormifyDir $normify -Mode Staged | Out-Null }
+    try { & $checker -RepoRoot $repo -NormifyDir $normify -Mode $Mode -TaskId $TaskId | Out-Null }
     catch { $errorText = $_.Exception.Message }
     if (($Expected -eq '' -and $errorText) -or ($Expected -ne '' -and $errorText -notlike "*$Expected*")) {
         throw "$Name expected '$Expected', got '$errorText'"
@@ -36,21 +36,33 @@ SaveJson "$repo/evidence.json" @{ purpose = 'isolated guard test fixture'; resul
 G @('add', '.') | Out-Null
 G @('-c', 'commit.gpgsign=false', 'commit', '-qm', '测试: 初始化隔离夹具') | Out-Null
 $receiptPath = 'docs/development-evidence/changes/fixture-delivery.json'
-$task = @{ id = 'fixture-delivery'; status = 'in_progress'; note = "delivery-receipt: $receiptPath"; schedule = @{ depends_on = @(); files = @('code.txt') } }
+$task = @{ id = 'fixture-delivery'; status = 'in_progress'; acceptance = @('fixture acceptance'); note = "delivery-receipt: $receiptPath"; schedule = @{ depends_on = @(); files = @('code.txt') }; revision = @{ before = $null; after = $null } }
 $taskFile = "$normify/changes/fixture-delivery.json"
 SaveJson $taskFile $task
 [IO.File]::WriteAllText("$repo/code.txt", 'one')
 G @('add', 'code.txt') | Out-Null
+Check 'valid-preflight' '' 'Preflight' 'fixture-delivery'
 Check 'missing-receipt' 'Stage a per-task'
-$receipt = @{ schema = 1; kind = 'delivery'; task_id = 'fixture-delivery'; files = @(@{ path = 'code.txt'; blob = @(G @('rev-parse', ':code.txt'))[0] }); validation = @(@{ command = 'isolated test'; result = 'pass'; evidence = 'evidence.json' }); remaining = @('not product acceptance') }
+$receipt = @{ schema = 1; kind = 'delivery'; task_id = 'fixture-delivery'; milestones = @{ implementation = 'complete'; validation = 'passed'; delivery_record = 'pending_commit' }; files = @(@{ path = 'code.txt'; blob = @(G @('rev-parse', ':code.txt'))[0] }); validation = @(@{ command = 'isolated test'; result = 'pass'; evidence = 'evidence.json' }); remaining = @('not product acceptance') }
 function StageReceipt { SaveJson "$repo/$receiptPath" $receipt; G @('add', $receiptPath) | Out-Null }
 StageReceipt
 Check 'valid-receipt'
+$milestones = $receipt.milestones
+$receipt.Remove('milestones'); StageReceipt
+Check 'missing-milestones' 'Missing delivery milestones'
+$receipt.milestones = @{ implementation = 'pending'; validation = 'passed'; delivery_record = 'pending_commit' }; StageReceipt
+Check 'implementation-incomplete' 'Implementation milestone is incomplete'
+$receipt.milestones = @{ implementation = 'complete'; validation = 'pending'; delivery_record = 'pending_commit' }; StageReceipt
+Check 'validation-incomplete' 'Validation milestone is incomplete'
+$receipt.milestones = @{ implementation = 'complete'; validation = 'passed'; delivery_record = 'complete' }; StageReceipt
+Check 'premature-delivery-complete' 'must await the commit identity'
+$receipt.milestones = $milestones; StageReceipt
 $task.schedule.Remove('depends_on'); SaveJson $taskFile $task
 Check 'optional-dependency-list'
 $task.schedule.depends_on = @()
 $task.status = 'proposed'; SaveJson $taskFile $task
 Check 'task-not-running' 'must be running'
+Check 'preflight-task-not-running' 'must be running' 'Preflight' 'fixture-delivery'
 $task.status = 'in_progress'; $task.note = ''; SaveJson $taskFile $task
 Check 'missing-task-binding' 'no receipt binding'
 $task.note = "delivery-receipt: $receiptPath"; $task.schedule.files = @('other.txt'); SaveJson $taskFile $task
@@ -74,23 +86,81 @@ $receipt.validation[0].evidence = 'absent.json'; StageReceipt
 Check 'missing-evidence' 'Missing verification evidence'
 $receipt.validation[0].evidence = 'evidence.json'; StageReceipt
 $receipt.task_id = '2026-10-11-roadmap-p10'
-SaveJson "$normify/changes/2026-10-11-roadmap-p10.json" @{ id = $receipt.task_id; status = 'in_progress' }
+SaveJson "$normify/changes/2026-10-11-roadmap-p10.json" @{
+    id = $receipt.task_id
+    status = 'in_progress'
+    acceptance = @('fixture acceptance')
+    note = "delivery-receipt: $receiptPath"
+    schedule = @{ depends_on = @(); files = @('code.txt') }
+}
 StageReceipt
 Check 'umbrella-rejected' 'not an umbrella'
 $receipt.task_id = 'fixture-delivery'; StageReceipt
 Check 'restored-valid-receipt'
 G @('-c', 'commit.gpgsign=false', 'commit', '-qm', '测试: 提交隔离交付回执') | Out-Null
 $previousHead = @(G @('rev-parse', 'HEAD'))[0]
+Check 'post-commit-before-recording' '' 'PostCommit' 'fixture-delivery'
+Check 'recorded-requires-full-sha' 'lacks the full commit identity' 'Recorded' 'fixture-delivery'
 $receiptPath = 'docs/development-evidence/changes/fixture-next.json'
-$next = @{ id = 'fixture-next'; status = 'in_progress'; note = "delivery-receipt: $receiptPath"; schedule = @{ depends_on = @(); files = @('code.txt') } }
+$next = @{ id = 'fixture-next'; status = 'in_progress'; acceptance = @('fixture acceptance'); note = "delivery-receipt: $receiptPath"; schedule = @{ depends_on = @(); files = @('code.txt') }; revision = @{ before = $null; after = $null } }
 SaveJson "$normify/changes/fixture-next.json" $next
 [IO.File]::WriteAllText("$repo/code.txt", 'two'); G @('add', 'code.txt') | Out-Null
 $receipt.task_id = 'fixture-next'; $receipt.files[0].blob = @(G @('rev-parse', ':code.txt'))[0]; StageReceipt
 Check 'previous-not-closed' 'Previous delivery needs'
-$task.status = 'verified'; SaveJson $taskFile $task
-Check 'previous-no-commit' 'lacks its actual commit'
 $task.note += "`n$previousHead"; SaveJson $taskFile $task
+Check 'recorded-full-sha' '' 'Recorded' 'fixture-delivery'
+Check 'previous-still-open' 'Previous delivery needs'
+$task.status = 'verified'; SaveJson $taskFile $task
+Check 'previous-no-revision' 'revision does not match'
+$task.revision.after = $previousHead; SaveJson $taskFile $task
 Check 'previous-closed-and-bound'
+Check 'final-closed-and-bound' '' 'Final' 'fixture-delivery'
+
+$secondReceiptPath = 'docs/development-evidence/changes/fixture-second.json'
+$secondTask = @{ id = 'fixture-second'; status = 'in_progress'; acceptance = @('fixture acceptance'); note = "delivery-receipt: $secondReceiptPath"; schedule = @{ depends_on = @(); files = @('other.txt') }; revision = @{ before = $null; after = $null } }
+$secondTaskFile = "$normify/changes/fixture-second.json"
+SaveJson $secondTaskFile $secondTask
+[IO.File]::WriteAllText("$repo/other.txt", 'other'); G @('add', 'other.txt') | Out-Null
+$secondReceipt = @{
+    schema = 1
+    kind = 'delivery'
+    task_id = 'fixture-second'
+    milestones = @{ implementation = 'complete'; validation = 'passed'; delivery_record = 'pending_commit' }
+    files = @(@{ path = 'other.txt'; blob = @(G @('rev-parse', ':other.txt'))[0] })
+    validation = @(@{ command = 'isolated test'; result = 'pass'; evidence = 'evidence.json' })
+    remaining = @('not product acceptance')
+}
+SaveJson "$repo/$secondReceiptPath" $secondReceipt; G @('add', $secondReceiptPath) | Out-Null
+Check 'multiple-receipts-staged'
+G @('-c', 'commit.gpgsign=false', 'commit', '-qm', '测试: 提交多回执夹具') | Out-Null
+$multipleHead = @(G @('rev-parse', 'HEAD'))[0]
+Check 'multiple-receipts-first-post-commit' '' 'PostCommit' 'fixture-next'
+Check 'multiple-receipts-second-post-commit' '' 'PostCommit' 'fixture-second'
+$next.note += "`n$multipleHead"; SaveJson "$normify/changes/fixture-next.json" $next
+$secondTask.note += "`n$multipleHead"; SaveJson $secondTaskFile $secondTask
+Check 'multiple-receipts-first-recorded' '' 'Recorded' 'fixture-next'
+Check 'multiple-receipts-second-recorded' '' 'Recorded' 'fixture-second'
+$next.status = 'verified'; $next.revision.after = $multipleHead; SaveJson "$normify/changes/fixture-next.json" $next
+$secondTask.status = 'verified'; $secondTask.revision.after = $multipleHead; SaveJson $secondTaskFile $secondTask
+Check 'multiple-receipts-first-final' '' 'Final' 'fixture-next'
+Check 'multiple-receipts-second-final' '' 'Final' 'fixture-second'
+
+$deleteReceiptPath = 'docs/development-evidence/changes/fixture-delete.json'
+$deleteTask = @{ id = 'fixture-delete'; status = 'in_progress'; acceptance = @('fixture acceptance'); note = "delivery-receipt: $deleteReceiptPath"; schedule = @{ depends_on = @(); files = @('code.txt') }; revision = @{ before = $null; after = $null } }
+SaveJson "$normify/changes/fixture-delete.json" $deleteTask
+[IO.File]::WriteAllText("$repo/code.txt", 'three'); G @('add', 'code.txt') | Out-Null
+$deleteReceipt = @{
+    schema = 1
+    kind = 'delivery'
+    task_id = 'fixture-delete'
+    milestones = @{ implementation = 'complete'; validation = 'passed'; delivery_record = 'pending_commit' }
+    files = @(@{ path = 'code.txt'; blob = 'deleted' })
+    validation = @(@{ command = 'isolated test'; result = 'pass'; evidence = 'evidence.json' })
+    remaining = @('not product acceptance')
+}
+SaveJson "$repo/$deleteReceiptPath" $deleteReceipt; G @('add', $deleteReceiptPath) | Out-Null
+G @('-c', 'commit.gpgsign=false', 'commit', '-qm', '测试: 提交错误删除声明') | Out-Null
+Check 'false-delete-rejected' 'Deleted receipt path still exists' 'PostCommit' 'fixture-delete'
 $report = @{ schema = 1; passed = $checks.Count; failed = 0; checks = $checks; sandbox = $sandbox; product_tests_run = 0 }
 SaveJson (Join-Path $sandbox 'report.json') $report
 $report | ConvertTo-Json -Depth 5

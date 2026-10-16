@@ -61,6 +61,32 @@ G26另补完整能量链。
 总门禁不能代替交付节点。
 历史核验节点不能接新代码。
 
+交付分为三个状态。
+三个状态不得互相替代。
+
+| 状态 | 仓库记录 | 完成条件 |
+| --- | --- | --- |
+| 实现完成 | `milestones.implementation` | 本次范围已落地 |
+| 验证通过 | `milestones.validation` | 范围验证已通过 |
+| 交付记录完成 | Normify关闭记录 | 完整SHA已回写 |
+
+提交前不知道自身SHA。
+因此回执先写`pending_commit`。
+提交后再完成交付记录。
+
+先运行任务预检：
+
+```powershell
+pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId <task-id>
+```
+
+预检核对任务仍在进行。
+预检核对验收条件存在。
+预检核对文件范围存在。
+预检核对回执路径绑定。
+预检核对前置均已完成。
+预检核对上次交付收尾。
+
 提交前新增JSON交付回执。
 目录采用以下固定位置：
 
@@ -71,6 +97,11 @@ docs/development-evidence/changes/<task-id>.json
 回执使用`schema: 1`。
 `task_id`引用运行中的节点。
 `kind`采用`delivery`或`governance`。
+`milestones`登记三项状态。
+实现采用`complete`。
+治理可用`not_applicable`。
+验证必须采用`passed`。
+交付先用`pending_commit`。
 `files`逐项登记路径与暂存对象。
 删除项的`blob`写为`deleted`。
 其他`blob`采用Git对象标识。
@@ -98,13 +129,55 @@ delivery-receipt: docs/development-evidence/changes/<task-id>.json
 pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Staged
 ```
 
-提交后登记真实提交号。
-逐项核验后调用关闭工具。
-然后回读排程状态。
+提交后先核验提交对象：
+
+```powershell
+pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode PostCommit -TaskId <task-id>
+```
+
+此时任务必须仍可写。
+核验读取真实HEAD。
+核验联合全部回执范围。
+核验拒绝重复文件归属。
+核验重查提交内证据。
+删除项必须真的不存在。
+核验输出完整SHA。
+
+随后更新任务备注。
+备注登记完整SHA。
+任务仍保持运行状态。
+再核验登记结果：
+
+```powershell
+pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Recorded -TaskId <task-id>
+```
+
+登记核验通过后关闭任务。
+关闭后执行最终核验：
+
+```powershell
+pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Final -TaskId <task-id>
+```
+
+最终核验要求任务已关闭。
+最终核验要求完整SHA。
+最终核验要求修订一致。
 下次提交前须完成上次收尾。
 钩子拒绝悬挂的上次交付。
 检查失败时不得跳过钩子。
 不得用改名回避验收。
+不得使用`--no-verify`。
+关闭失败时必须停止。
+
+已关闭任务不可补写。
+正式接口会返回`change/closed`。
+此时不得直接修改原数据。
+应新建关联纠正任务。
+纠正记录保留原任务ID。
+纠正记录保留完整SHA。
+纠正记录保留真实错误。
+纠正记录保留绕过事实。
+纠正任务也走正常钩子。
 
 ## 安装与限制
 
