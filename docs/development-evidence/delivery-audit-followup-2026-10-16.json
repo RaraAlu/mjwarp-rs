@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-10-16T08:51:00+08:00",
+  "scope": "governance_only",
+  "baseline_commit": "e98b7a525687da049b728bb19ac06a39e25feff9",
+  "observed_failures": [
+    "The property 'status' cannot be found on this object.",
+    "The property 'related_main_records' cannot be found on this object."
+  ],
+  "root_cause": "Legacy snapshot and correction rows omit optional fields while strict mode rejects missing-property access.",
+  "fix": "Check key presence before reading optional fields and default legacy status rows to proposed.",
+  "boundaries": [
+    "legal forward transitions remain enforced",
+    "abandoned tasks still require explicit correction records",
+    "no physical, GPU, or product tests were run"
+  ],
+  "validation": [
+    {
+      "command": "PowerShell AST parse for scripts/check-normify-delivery.ps1",
+      "result": "pass"
+    },
+    {
+      "command": "pwsh -NoProfile -File scripts/test-normify-delivery.ps1",
+      "result": "36 passed; 0 failed; 0 product tests"
+    },
+    {
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Audit",
+      "result": "pass; 21 historical tasks; 77 commits; 109 evidence objects; 2 corrections"
+    }
+  ],
+  "delivery_state": {
+    "preflight": "passed",
+    "staged": "pending",
+    "normal_hook": "pending",
+    "post_commit": "pending",
+    "recorded": "pending",
+    "final": "pending",
+    "audit": "passed"
+  }
+}

@@ -246,7 +246,7 @@ $correctionPath = 'docs/development-evidence/delivery-corrections.json'
 $corrections = JsonFile (Join-Path $RepoRoot $correctionPath)
 foreach ($r in $ledger.remaining) {
     $t = Task $r.id
-    $frozenStatus = if ($r.status) { $r.status } else { 'proposed' }
+    $frozenStatus = if ($r.ContainsKey('status') -and $r.status) { $r.status } else { 'proposed' }
     $allowed = switch ($frozenStatus) {
         'proposed' { @('proposed', 'in_progress', 'verified') }
         'in_progress' { @('in_progress', 'verified') }
@@ -286,7 +286,8 @@ foreach ($correction in $corrections.entries) {
         $originalTask.note.Contains($correction.target_commit) -ne $correction.full_sha_present_in_original_note) {
         throw 'Correction target note state mismatch'
     }
-    foreach ($related in @($correction.related_main_records)) {
+    $relatedRecords = if ($correction.ContainsKey('related_main_records')) { @($correction.related_main_records) } else { @() }
+    foreach ($related in $relatedRecords) {
         $relatedTask = Task $related.task_id
         if ($relatedTask.status -cne $related.status -or $relatedTask.revision.after -cne $related.revision_after) {
             throw 'Related correction task state mismatch'
