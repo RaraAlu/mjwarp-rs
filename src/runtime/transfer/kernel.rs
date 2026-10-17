@@ -4,19 +4,32 @@
 use super::{TransferBuffer, TransferElement, TransferSession};
 use crate::diagnostics::{InputError, ProbeError, TransferError};
 use cudarc::{
-    driver::{CudaFunction, LaunchConfig, PushKernelArg},
+    driver::{CudaFunction, LaunchConfig, PushKernelArg, result},
     nvrtc::{CompileOptions, compile_ptx_with_opts, sys},
 };
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 mod kinetic_energy;
 
 #[cfg(test)]
 #[path = "../../../tests/support/t4_rigid_capture.rs"]
 mod recapture;
 
+#[cfg(test)]
+#[path = "../../../tests/support/launcher_compile_baseline.rs"]
+mod compile_baseline;
+
 // 跟随冻结上游的Warp 1.15策略。
 // fuse_fp开启FMA，且不启用fast-math。
 const PHYSICS_FMAD: bool = true;
+
+// 编译开销基线的输出目录。
+// 未设置时不计时、不查询显存、不写文件。
+const COMPILE_BASELINE_DIR: &str = "MJWARP_LAUNCHER_BASELINE_DIR";
 
 /// ABI: (const int*, const P*, const S*, O*, u32, u32, u32, u32).
 /// 柔体边另用固定三输入ABI。
@@ -374,7 +387,21 @@ impl SynchronousKernel {
         entry: &'static str,
         require_f32: bool,
     ) -> Result<Self, TransferError> {
+        let baseline = std::env::var_os(COMPILE_BASELINE_DIR).map(PathBuf::from);
+        Self::compile_measured(session, source, entry, require_f32, baseline.as_deref())
+    }
+
+    /// `baseline`为空时与原编译路径等价。
+    /// 非空时只追加计时、显存查询与记录文件。
+    fn compile_measured(
+        session: &TransferSession,
+        source: &str,
+        entry: &'static str,
+        require_f32: bool,
+        baseline: Option<&Path>,
+    ) -> Result<Self, TransferError> {
         session.inner.status.check()?;
+        let compile_started = Instant::now();
         // Compiler calls do not enqueue device work. Compile failures need not
         // quarantine a healthy transfer session, and cannot trigger CPU fallback.
         let ptx = std::panic::catch_unwind(|| {
@@ -398,20 +425,49 @@ impl SynchronousKernel {
             })
         })
         .unwrap_or(Err(ProbeError::BackendPanic))?;
+        let compile = compile_started.elapsed();
+        let check_started = Instant::now();
+        let generated = (require_f32 || baseline.is_some()).then(|| ptx.to_src());
         if require_f32 {
-            let generated = ptx.to_src();
-            let precision = check_physics_ptx(&generated, entry);
-            record_physics_ptx(source, &generated, entry, precision.is_ok())?;
+            let generated = generated.as_deref().unwrap_or_default();
+            let precision = check_physics_ptx(generated, entry);
+            record_physics_ptx(source, generated, entry, precision.is_ok())?;
             precision?;
         }
-        let function = session.run("synchronous-kernel-load", || {
-            session
+        let check = check_started.elapsed();
+        let (function, load) = session.run("synchronous-kernel-load", || {
+            // 显存查询只在基线模式执行。
+            let before = baseline.map(|_| result::mem_get_info()).transpose()?;
+            let load_started = Instant::now();
+            let function = session
                 .inner
                 .stream
                 .context()
                 .load_module(ptx)?
-                .load_function(entry)
+                .load_function(entry)?;
+            let elapsed = load_started.elapsed();
+            let after = baseline.map(|_| result::mem_get_info()).transpose()?;
+            Ok((
+                function,
+                LoadSample {
+                    elapsed,
+                    before,
+                    after,
+                },
+            ))
         })?;
+        if let (Some(directory), Some(generated)) = (baseline, generated.as_deref()) {
+            let sample = CompileSample {
+                entry,
+                source,
+                ptx: generated,
+                require_f32,
+                compile,
+                check,
+                load,
+            };
+            record_compile_baseline(directory, &sample)?;
+        }
         Ok(Self {
             session: session.clone(),
             function: Some(function),
@@ -975,6 +1031,120 @@ fn record_physics_ptx(
         stage: "physics-precision-evidence",
         detail: format!("{entry}: {error}"),
     })
+}
+
+/// 模块加载耗时与前后空闲显存。
+/// 显存项只在基线模式填写。
+struct LoadSample {
+    elapsed: Duration,
+    before: Option<(usize, usize)>,
+    after: Option<(usize, usize)>,
+}
+
+/// 一次编译与加载的基线样本。
+struct CompileSample<'a> {
+    entry: &'static str,
+    source: &'a str,
+    ptx: &'a str,
+    require_f32: bool,
+    compile: Duration,
+    check: Duration,
+    load: LoadSample,
+}
+
+// 本进程内各源码摘要的编译次数。
+// 次数大于一即为可被进程内缓存消除的重复编译。
+static COMPILE_OCCURRENCES: Mutex<Option<HashMap<String, u32>>> = Mutex::new(None);
+
+fn next_occurrence(counts: &mut HashMap<String, u32>, source_sha256: &str) -> u32 {
+    let count = counts.entry(source_sha256.to_owned()).or_insert(0);
+    *count += 1;
+    *count
+}
+
+fn compile_baseline_record(
+    sample: &CompileSample<'_>,
+    source_sha256: &str,
+    occurrence: u32,
+    sequence: u32,
+    nvrtc: (i32, i32),
+) -> serde_json::Value {
+    use sha2::{Digest, Sha256};
+    let ptx_sha256 = format!("{:x}", Sha256::digest(sample.ptx.as_bytes()));
+    let free = |memory: Option<(usize, usize)>| memory.map(|(free, _)| free);
+    let total = sample
+        .load
+        .before
+        .or(sample.load.after)
+        .map(|(_, total)| total);
+    serde_json::json!({
+        "schema": 1,
+        "kind": "nvrtc-compile-load",
+        "pid": std::process::id(),
+        "sequence": sequence,
+        "entry": sample.entry,
+        "sourceSha256": source_sha256,
+        "ptxSha256": ptx_sha256,
+        "sourceBytes": sample.source.len(),
+        "ptxBytes": sample.ptx.len(),
+        "occurrence": occurrence,
+        "requireF32": sample.require_f32,
+        "nvrtcVersion": [nvrtc.0, nvrtc.1],
+        "fmad": PHYSICS_FMAD,
+        "useFastMath": false,
+        "options": ["--std=c++17", "--gpu-architecture=compute_70"],
+        "compileNs": sample.compile.as_nanos() as u64,
+        "checkNs": sample.check.as_nanos() as u64,
+        "loadNs": sample.load.elapsed.as_nanos() as u64,
+        "deviceFreeBeforeLoad": free(sample.load.before),
+        "deviceFreeAfterLoad": free(sample.load.after),
+        "deviceTotal": total,
+    })
+}
+
+/// 每个进程写一个JSON行文件，避免并发交错。
+fn record_compile_baseline(directory: &Path, sample: &CompileSample<'_>) -> Result<(), ProbeError> {
+    use sha2::{Digest, Sha256};
+    let failure = |detail: String| ProbeError::Compilation {
+        stage: "launcher-compile-baseline",
+        detail: format!("{}: {detail}", sample.entry),
+    };
+    let (mut major, mut minor) = (0, 0);
+    // SAFETY: Compilation already loaded NVRTC; both output pointers are valid.
+    unsafe { sys::nvrtcVersion(&mut major, &mut minor) }
+        .result()
+        .map_err(|error| failure(format!("NVRTC version: {error:?}")))?;
+    let source_sha256 = format!("{:x}", Sha256::digest(sample.source.as_bytes()));
+    let (occurrence, sequence) = {
+        let mut guard = COMPILE_OCCURRENCES
+            .lock()
+            .map_err(|_| failure("occurrence lock poisoned".into()))?;
+        let counts = guard.get_or_insert_with(HashMap::new);
+        let occurrence = next_occurrence(counts, &source_sha256);
+        (occurrence, counts.values().sum::<u32>())
+    };
+    let record =
+        compile_baseline_record(sample, &source_sha256, occurrence, sequence, (major, minor));
+    append_compile_baseline(directory, &record)
+        .map(|_| ())
+        .map_err(|error| failure(error.to_string()))
+}
+
+fn append_compile_baseline(
+    directory: &Path,
+    record: &serde_json::Value,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    use std::io::Write;
+    let path = directory.join(format!("compile-{}.jsonl", std::process::id()));
+    std::fs::create_dir_all(directory)?;
+    let mut line = serde_json::to_vec(record)?;
+    line.push(b'\n');
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)?
+        .write_all(&line)?;
+    Ok(path)
 }
 
 #[cfg(test)]
