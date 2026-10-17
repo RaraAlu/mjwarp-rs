@@ -398,7 +398,7 @@ PR说明目的、范围与验证。
 
 ```text
 project: mjwarp-rs
-Windows repoRoot: C:/Rust/mjwarp-rs
+Windows repoRoot: D:/Rust/mjwarp-rs
 Linux repoRoot: /home/zkbot/work/Rust/mjwarp-rs
 ```
 
