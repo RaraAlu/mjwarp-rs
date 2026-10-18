@@ -29,7 +29,9 @@ pub struct RnePlan {
     #[cfg(feature = "cuda-probe")]
     metadata: RneMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 3],
+    kernels: [SynchronousKernel; 2],
+    #[cfg(feature = "cuda-probe")]
+    cfrc_kernel: RneCfrcKernel,
     #[cfg(feature = "cuda-probe")]
     qfrc_kernel: RneQfrcKernel,
 }
@@ -126,6 +128,71 @@ impl RneLayout {
 const RNE_QFRC_METADATA_KIND: ProofKind = ProofKind("rne.qfrc.metadata.v1");
 
 #[cfg(any(feature = "cuda-probe", test))]
+const RNE_CFRC_METADATA_KIND: ProofKind = ProofKind("rne.cfrc.metadata.v1");
+
+#[cfg(any(feature = "cuda-probe", test))]
+const RNE_CFRC_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: RNE_CFRC_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::ReadWrite,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(any(feature = "cuda-probe", test))]
 const RNE_QFRC_SLOTS: [SlotDesc; 8] = [
     SlotDesc {
         index: 0,
@@ -199,6 +266,13 @@ struct RneStaticDims {
 #[cfg(any(feature = "cuda-probe", test))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct RneQfrcDims {
+    abi: [u32; 4],
+    static_dims: RneStaticDims,
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RneCfrcDims {
     abi: [u32; 4],
     static_dims: RneStaticDims,
 }
@@ -303,6 +377,73 @@ fn validate_rne_metadata(values: &[i32], dims: RneStaticDims) -> Result<(), Laun
 }
 
 #[cfg(any(feature = "cuda-probe", test))]
+fn rne_cfrc_lengths(dims: &RneCfrcDims) -> Result<[u64; 4], LauncherError> {
+    let [x, y, z, worlds] = dims.abi;
+    let static_dims = dims.static_dims;
+    if [x, y, z] != [0; 3] || worlds == 0 || worlds > u32::MAX - 255 || static_dims.nbody == 0 {
+        return Err(LauncherError::InvalidArray("RNE合力维度无效"));
+    }
+    if static_dims.metadata_elements != rne_metadata_elements(static_dims.nbody, static_dims.nv)? {
+        return Err(LauncherError::InvalidMetadata("RNE元数据长度不匹配"));
+    }
+    let guarded = |width: u64, field| {
+        u64::from(worlds)
+            .checked_mul(width)
+            .and_then(|value| value.checked_add(8))
+            .ok_or(LauncherError::Overflow(field))
+    };
+    let nbody = u64::from(static_dims.nbody);
+    let nv = u64::from(static_dims.nv);
+    let com_width = nbody
+        .checked_mul(14)
+        .and_then(|value| nv.checked_mul(6).and_then(|dof| value.checked_add(dof)))
+        .ok_or(LauncherError::Overflow("rne_cfrc_com"))?;
+    let velocity_width = nbody
+        .checked_mul(6)
+        .and_then(|value| nv.checked_mul(6).and_then(|dof| value.checked_add(dof)))
+        .ok_or(LauncherError::Overflow("rne_cfrc_velocity"))?;
+    let output_width = nbody
+        .checked_mul(12)
+        .and_then(|value| value.checked_add(nv))
+        .ok_or(LauncherError::Overflow("rne_cfrc_output"))?;
+    Ok([
+        static_dims.metadata_elements,
+        guarded(com_width, "rne_cfrc_com")?,
+        guarded(velocity_width, "rne_cfrc_velocity")?,
+        guarded(output_width, "rne_cfrc_output")?,
+    ])
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct RneCfrcSpec;
+
+#[cfg(any(feature = "cuda-probe", test))]
+// SAFETY: 声明逐槽匹配冻结rne_cfrc私有ABI。
+unsafe impl KernelAbi for RneCfrcSpec {
+    const NAME: &'static str = "rne_cfrc";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &RNE_CFRC_SLOTS;
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl KernelSpec for RneCfrcSpec {
+    type Dims = RneCfrcDims;
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        Ok(rne_cfrc_lengths(dims)?
+            .into_iter()
+            .enumerate()
+            .map(|(slot, min_elements)| SlotRequirement { slot, min_elements })
+            .collect())
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        rne_cfrc_lengths(dims)?;
+        LaunchDims::new((dims.abi[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
 fn rne_qfrc_lengths(dims: &RneQfrcDims) -> Result<[u64; 4], LauncherError> {
     let [x, y, z, worlds] = dims.abi;
     let static_dims = dims.static_dims;
@@ -386,6 +527,69 @@ impl MetadataProof for StaticRneMetadata {
 
     fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
         validate_rne_metadata(values, *dims)
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct RneCfrcMetadata;
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl MetadataProof for RneCfrcMetadata {
+    type Dims = RneCfrcDims;
+
+    const KIND: ProofKind = RNE_CFRC_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        validate_rne_metadata(values, dims.static_dims)?;
+        rne_cfrc_lengths(dims).map(|_| ())
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn rne_cfrc_plan(
+    dims: &RneCfrcDims,
+    bindings: &[SlotBinding; 4],
+    proofs: &[CheckedBinding<'_, RneCfrcDims>],
+) -> Result<LaunchDims, LauncherError> {
+    let lengths = rne_cfrc_lengths(dims)?;
+    for (slot, elements) in lengths.into_iter().enumerate() {
+        let required = elements
+            .checked_mul(4)
+            .ok_or(LauncherError::Overflow("rne_cfrc_bytes"))?;
+        if bindings[slot].span.bytes() != required {
+            return Err(LauncherError::Capacity {
+                slot,
+                required,
+                actual: bindings[slot].span.bytes(),
+            });
+        }
+    }
+    Ok(Kernel::<RneCfrcSpec>::new()?
+        .plan(dims, bindings, proofs)?
+        .dims())
+}
+
+#[cfg(feature = "cuda-probe")]
+fn rne_cfrc_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::StaleMetadata
+        | LauncherError::InvalidMetadata(_)
+        | LauncherError::MetadataMismatch(_) => InputError::InvalidTopology {
+            field: "rne_metadata",
+            index: 0,
+            reason: "invalid_or_stale_metadata",
+        }
+        .into(),
+        LauncherError::Overflow(_) => InputError::Overflow {
+            field: "rne_cfrc_abi",
+        }
+        .into(),
+        _ => InputError::InvalidDimension {
+            field: "rne_cfrc_abi",
+        }
+        .into(),
     }
 }
 
@@ -512,12 +716,35 @@ impl RneMetadataBuffer {
         &self.buffer
     }
 
-    fn proof(&self, worlds: u32) -> Result<Checked<RneQfrcMetadata>, TransferError> {
+    fn validate_base(&self) -> Result<crate::runtime::launcher::DeviceSpan, TransferError> {
         let span = self.buffer.launcher_span()?;
         self.checked
             .binding(0)
             .validate_for(span, &self.dims)
             .map_err(rne_qfrc_launch_error)?;
+        Ok(span)
+    }
+
+    fn cfrc_proof(&self, worlds: u32) -> Result<Checked<RneCfrcMetadata>, TransferError> {
+        let span = self.validate_base()?;
+        let dims = RneCfrcDims {
+            abi: [0, 0, 0, worlds],
+            static_dims: self.dims,
+        };
+        // SAFETY: 基础证明已核对真实缓冲、镜像和写入代际。
+        unsafe {
+            Checked::<RneCfrcMetadata>::assume_uploaded(
+                span,
+                &self.values,
+                dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(rne_cfrc_launch_error)
+    }
+
+    fn qfrc_proof(&self, worlds: u32) -> Result<Checked<RneQfrcMetadata>, TransferError> {
+        let span = self.validate_base()?;
         let dims = RneQfrcDims {
             abi: [0, 0, 0, worlds],
             static_dims: self.dims,
@@ -555,6 +782,95 @@ impl RneMetadataBuffer {
         }
         .map_err(rne_qfrc_launch_error)?;
         Ok(())
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct RneCfrcLaunch {
+    proof: Checked<RneCfrcMetadata>,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct RneCfrcKernel {
+    session: TransferSession,
+    kernel: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl RneCfrcKernel {
+    fn compile(session: &TransferSession) -> Result<Self, TransferError> {
+        Ok(Self {
+            session: session.clone(),
+            kernel: SynchronousKernel::compile(session, RNE_CUDA, "rne_cfrc")?,
+        })
+    }
+
+    fn bindings(
+        metadata: &RneMetadataBuffer,
+        com: &TransferBuffer<f32>,
+        velocity: &TransferBuffer<f32>,
+        output: &TransferBuffer<f32>,
+    ) -> Result<[SlotBinding; 4], TransferError> {
+        Ok([
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: com.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: velocity.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: output.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ])
+    }
+
+    fn preflight(
+        &self,
+        session: &TransferSession,
+        metadata: &RneMetadataBuffer,
+        com: &TransferBuffer<f32>,
+        velocity: &TransferBuffer<f32>,
+        output: &TransferBuffer<f32>,
+        worlds: u32,
+    ) -> Result<RneCfrcLaunch, TransferError> {
+        if !self.session.same_session(session) || !metadata.session.same_session(session) {
+            return Err(TransferError::SessionMismatch);
+        }
+        let proof = metadata.cfrc_proof(worlds)?;
+        let bindings = Self::bindings(metadata, com, velocity, output)?;
+        rne_cfrc_plan(proof.dims(), &bindings, &[proof.binding(0)])
+            .map_err(rne_cfrc_launch_error)?;
+        Ok(RneCfrcLaunch { proof })
+    }
+
+    fn launch(
+        &self,
+        launch: &RneCfrcLaunch,
+        metadata: &RneMetadataBuffer,
+        com: &TransferBuffer<f32>,
+        velocity: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+    ) -> Result<(), TransferError> {
+        let dims = *launch.proof.dims();
+        let bindings = Self::bindings(metadata, com, velocity, output)?;
+        rne_cfrc_plan(&dims, &bindings, &[launch.proof.binding(0)])
+            .map_err(rne_cfrc_launch_error)?;
+        // SAFETY: 类型计划核对证明、跨度、会话、别名和256线程网格。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), com, velocity, output, dims.abi)
+        }
     }
 }
 
@@ -620,7 +936,7 @@ impl RneQfrcKernel {
         if !self.session.same_session(session) || !metadata.session.same_session(session) {
             return Err(TransferError::SessionMismatch);
         }
-        let proof = metadata.proof(worlds)?;
+        let proof = metadata.qfrc_proof(worlds)?;
         let bindings = Self::bindings(metadata, com, unused, output)?;
         rne_qfrc_plan(proof.dims(), &bindings, &[proof.binding(0)])
             .map_err(rne_qfrc_launch_error)?;
@@ -695,9 +1011,10 @@ impl RnePlan {
         #[cfg(feature = "cuda-probe")]
         let kernels = [
             SynchronousKernel::compile(session, RNE_CUDA, "rne_cacc")?,
-            SynchronousKernel::compile(session, RNE_CUDA, "rne_cfrc")?,
             SynchronousKernel::compile(session, RNE_CUDA, "rne_backward")?,
         ];
+        #[cfg(feature = "cuda-probe")]
+        let cfrc_kernel = RneCfrcKernel::compile(session)?;
         #[cfg(feature = "cuda-probe")]
         let qfrc_kernel = RneQfrcKernel::compile(session)?;
         Ok(Self {
@@ -712,6 +1029,8 @@ impl RnePlan {
             metadata,
             #[cfg(feature = "cuda-probe")]
             kernels,
+            #[cfg(feature = "cuda-probe")]
+            cfrc_kernel,
             #[cfg(feature = "cuda-probe")]
             qfrc_kernel,
         })
@@ -773,6 +1092,14 @@ impl RnePlan {
         {
             let inputs = data.velocity.rne_inputs()?;
             let worlds = data.worlds() as u32;
+            let cfrc_launch = self.cfrc_kernel.preflight(
+                &self.session,
+                &self.metadata,
+                inputs.com,
+                inputs.velocity,
+                &data.output,
+                worlds,
+            )?;
             let qfrc_launch = self.qfrc_kernel.preflight(
                 &self.session,
                 &self.metadata,
@@ -793,18 +1120,21 @@ impl RnePlan {
                     flg_acc,
                     worlds,
                 )?;
-                self.kernels[1].launch(
-                    self.metadata.as_buffer(),
-                    inputs.com,
-                    inputs.velocity,
-                    &mut data.output,
-                    [0, 0, 0, worlds],
-                )?;
+            }
+            self.cfrc_kernel.launch(
+                &cfrc_launch,
+                &self.metadata,
+                inputs.com,
+                inputs.velocity,
+                &mut data.output,
+            )?;
+            // SAFETY: 已验证的深度表和工作量约束每个原子地址。
+            unsafe {
                 // Depth barriers separate atomic reads from descendant writes.
                 // Same-depth bodies never have a parent at that depth.
                 // Checked worlds*nbody bounds the work-item ABI.
                 for depth in (1..=self.depth).rev() {
-                    self.kernels[2].launch(
+                    self.kernels[1].launch(
                         self.metadata.as_buffer(),
                         inputs.com,
                         inputs.velocity,
@@ -985,6 +1315,189 @@ mod tests {
     }
 
     #[test]
+    fn rne_cfrc_plan_checks_metadata_spans_aliases_and_overflow() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let bind = |slot, context, addr, bytes, elem| SlotBinding {
+            slot,
+            span: DeviceSpan::new(context, addr, bytes).unwrap(),
+            elem,
+        };
+        let static_dims = RneStaticDims {
+            nbody: 2,
+            nv: 1,
+            depth: 1,
+            metadata_elements: 14,
+        };
+        let dims = RneCfrcDims {
+            abi: [0, 0, 0, 2],
+            static_dims,
+        };
+        let values = vec![2, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1];
+        assert_eq!(rne_cfrc_lengths(&dims).unwrap(), [14, 76, 44, 58]);
+        let revision = MetadataRevision::new();
+        let metadata_span = DeviceSpan::new(11, 0x1000, 56).unwrap();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let proof = unsafe {
+            Checked::<RneCfrcMetadata>::assume_uploaded(
+                metadata_span,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        let bindings = [
+            bind(0, 11, 0x1000, 56, ElemType::I32),
+            bind(1, 11, 0x2000, 304, ElemType::F32),
+            bind(2, 11, 0x2000, 176, ElemType::F32),
+            bind(3, 11, 0x4000, 232, ElemType::F32),
+        ];
+        let launch = rne_cfrc_plan(&dims, &bindings, &[proof.binding(0)]).unwrap();
+        assert_eq!(launch.grid(), (1, 1, 1));
+        assert_eq!(launch.block(), (256, 1, 1));
+        assert_eq!(launch.shared_bytes(), 0);
+        assert!(matches!(
+            rne_cfrc_plan(&dims, &bindings, &[]),
+            Err(LauncherError::MissingMetadataProof { slot: 0 })
+        ));
+
+        let addresses = [0x1000, 0x2000, 0x2000, 0x4000];
+        let bytes = [56, 304, 176, 232];
+        for slot in 0..4 {
+            let mut short = bindings;
+            short[slot].span = DeviceSpan::new(11, addresses[slot], bytes[slot] - 4).unwrap();
+            assert!(matches!(
+                rne_cfrc_plan(&dims, &short, &[proof.binding(0)]),
+                Err(LauncherError::Capacity { slot: bad, .. }) if bad == slot
+            ));
+
+            let mut long = bindings;
+            long[slot].span = DeviceSpan::new(11, addresses[slot], bytes[slot] + 4).unwrap();
+            assert!(matches!(
+                rne_cfrc_plan(&dims, &long, &[proof.binding(0)]),
+                Err(LauncherError::Capacity { slot: bad, .. }) if bad == slot
+            ));
+        }
+
+        let mut foreign = bindings;
+        foreign[2].span = DeviceSpan::new(12, 0x2000, 176).unwrap();
+        assert!(matches!(
+            rne_cfrc_plan(&dims, &foreign, &[proof.binding(0)]),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+        let mut alias = bindings;
+        alias[3].span = DeviceSpan::new(11, 0x2000, 232).unwrap();
+        assert!(matches!(
+            rne_cfrc_plan(&dims, &alias, &[proof.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3
+            })
+        ));
+
+        revision.invalidate();
+        assert!(matches!(
+            rne_cfrc_plan(&dims, &bindings, &[proof.binding(0)]),
+            Err(LauncherError::StaleMetadata)
+        ));
+        for invalid in [
+            RneCfrcDims {
+                abi: [1, 0, 0, 2],
+                ..dims
+            },
+            RneCfrcDims {
+                abi: [0, 0, 0, 0],
+                ..dims
+            },
+            RneCfrcDims {
+                abi: [0, 0, 0, u32::MAX - 254],
+                ..dims
+            },
+        ] {
+            assert!(rne_cfrc_lengths(&invalid).is_err());
+        }
+        let signed = RneCfrcDims {
+            abi: [0, 0, 0, 1],
+            static_dims: RneStaticDims {
+                nbody: i32::MAX as u32 + 1,
+                nv: 0,
+                depth: 1,
+                metadata_elements: 0,
+            },
+        };
+        assert!(rne_cfrc_lengths(&signed).is_err());
+        let wide = RneCfrcDims {
+            abi: [0, 0, 0, u32::MAX - 255],
+            static_dims: RneStaticDims {
+                nbody: 400_000_000,
+                nv: 0,
+                depth: 1,
+                metadata_elements: 1_600_000_005,
+            },
+        };
+        assert!(matches!(
+            rne_cfrc_lengths(&wide),
+            Err(LauncherError::Overflow("rne_cfrc_com"))
+        ));
+
+        for (index, value) in [(2, f32::NAN.to_bits() as i32), (6, 1), (11, 2), (12, 2)] {
+            let mut invalid = values.clone();
+            invalid[index] = value;
+            assert!(validate_rne_metadata(&invalid, static_dims).is_err());
+        }
+        let mut incomplete = values;
+        incomplete[8] = 0;
+        assert!(validate_rne_metadata(&incomplete, static_dims).is_err());
+    }
+
+    #[test]
+    fn rne_cfrc_plan_accepts_zero_dof_boundary() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let dims = RneCfrcDims {
+            abi: [0, 0, 0, 2],
+            static_dims: RneStaticDims {
+                nbody: 2,
+                nv: 0,
+                depth: 1,
+                metadata_elements: 13,
+            },
+        };
+        let values = vec![2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+        let revision = MetadataRevision::new();
+        let span = DeviceSpan::new(13, 0x1000, 52).unwrap();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let proof =
+            unsafe { Checked::<RneCfrcMetadata>::assume_uploaded(span, &values, dims, revision) }
+                .unwrap();
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: DeviceSpan::new(13, 0x2000, 256).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: DeviceSpan::new(13, 0x2000, 128).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: DeviceSpan::new(13, 0x3000, 224).unwrap(),
+                elem: ElemType::F32,
+            },
+        ];
+        assert_eq!(rne_cfrc_lengths(&dims).unwrap(), [13, 64, 32, 56]);
+        rne_cfrc_plan(&dims, &bindings, &[proof.binding(0)]).unwrap();
+    }
+
+    #[test]
     fn rne_qfrc_plan_checks_metadata_spans_aliases_and_overflow() {
         use crate::runtime::launcher::DeviceSpan;
 
@@ -1148,6 +1661,236 @@ mod tests {
     #[test]
     #[cfg(feature = "cuda-probe")]
     #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn runs_rne_cfrc_wrapper_and_recovers_after_real_metadata_write() {
+        let session = TransferSession::new(0).unwrap();
+        let model = super::super::tests::test_model(Some(3));
+        let model =
+            AttachedModelInput::new(model, crate::model::AttachedFields::default()).unwrap();
+        let mut plan = RnePlan::new(&session, model, [0.0, 0.0, -9.81]).unwrap();
+        const WORLDS: usize = 513;
+        let mut data = plan.create_data(WORLDS).unwrap();
+        let qvel: Vec<_> = (0..WORLDS)
+            .map(|world| (world as f32 - 256.0) * 0.000_125)
+            .collect();
+        let qacc: Vec<_> = (0..WORLDS)
+            .map(|world| (256.0 - world as f32) * 0.000_25)
+            .collect();
+        data.write_qvel(&qvel).unwrap();
+        data.write_qacc(&qacc).unwrap();
+        plan.update_velocity(&mut data).unwrap();
+        let width = 12 * plan.nbody + plan.nv;
+        let cfrc_offset = 6 * plan.nbody;
+        let sentinel = -777.25f32;
+        let mut initial = vec![sentinel; data.output.len()];
+        initial[..4].fill(-131072.0);
+        let end = initial.len() - 4;
+        initial[end..].fill(-131072.0);
+
+        let (raw, typed) = {
+            let inputs = data.velocity.rne_inputs().unwrap();
+            data.output.write_range(0, &initial).unwrap();
+            // SAFETY: 先用冻结旧ABI生成相同cacc前缀。
+            unsafe {
+                plan.kernels[0].launch_rne_cacc(
+                    plan.metadata.as_buffer(),
+                    (inputs.qvel, &data.qacc, inputs.com, inputs.velocity),
+                    &mut data.output,
+                    true,
+                    WORLDS as u32,
+                )
+            }
+            .unwrap();
+            let mut cacc_ready = vec![0.0; data.output.len()];
+            data.output.read_range_into(0, &mut cacc_ready).unwrap();
+
+            data.output.write_range(0, &cacc_ready).unwrap();
+            // SAFETY: 复用产品计划的同一实际缓冲和冻结私有ABI。
+            unsafe {
+                plan.cfrc_kernel.kernel.launch(
+                    plan.metadata.as_buffer(),
+                    inputs.com,
+                    inputs.velocity,
+                    &mut data.output,
+                    [0, 0, 0, WORLDS as u32],
+                )
+            }
+            .unwrap();
+            let mut raw = vec![0.0; data.output.len()];
+            data.output.read_range_into(0, &mut raw).unwrap();
+
+            data.output.write_range(0, &cacc_ready).unwrap();
+            let launch = plan
+                .cfrc_kernel
+                .preflight(
+                    &plan.session,
+                    &plan.metadata,
+                    inputs.com,
+                    inputs.velocity,
+                    &data.output,
+                    WORLDS as u32,
+                )
+                .unwrap();
+            plan.cfrc_kernel
+                .launch(
+                    &launch,
+                    &plan.metadata,
+                    inputs.com,
+                    inputs.velocity,
+                    &mut data.output,
+                )
+                .unwrap();
+            let mut typed = vec![0.0; data.output.len()];
+            data.output.read_range_into(0, &mut typed).unwrap();
+
+            let short_velocity = session
+                .upload(&vec![0.0; inputs.velocity.len() - 1])
+                .unwrap();
+            assert!(
+                plan.cfrc_kernel
+                    .preflight(
+                        &plan.session,
+                        &plan.metadata,
+                        inputs.com,
+                        &short_velocity,
+                        &data.output,
+                        WORLDS as u32,
+                    )
+                    .is_err()
+            );
+            let proof = plan.metadata.cfrc_proof(WORLDS as u32).unwrap();
+            let mut alias =
+                RneCfrcKernel::bindings(&plan.metadata, inputs.com, inputs.velocity, &data.output)
+                    .unwrap();
+            let output_bytes = rne_cfrc_lengths(proof.dims()).unwrap()[3] * 4;
+            alias[3].span = alias[1].span.view(0, output_bytes).unwrap();
+            assert!(matches!(
+                rne_cfrc_plan(proof.dims(), &alias, &[proof.binding(0)]),
+                Err(LauncherError::Alias {
+                    first: 1,
+                    second: 3
+                })
+            ));
+            (raw, typed)
+        };
+        assert_eq!(
+            raw.iter().map(|value| value.to_bits()).collect::<Vec<_>>(),
+            typed
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        for world in 0..WORLDS {
+            for lane in 0..6 * plan.nbody {
+                assert_ne!(
+                    raw[4 + world * width + cfrc_offset + lane].to_bits(),
+                    sentinel.to_bits()
+                );
+            }
+        }
+
+        let sentinel_workspace = |data: &mut RneData, seed: f32| {
+            let mut values = vec![0.0; data.output.len()];
+            data.output.read_range_into(0, &mut values).unwrap();
+            let end = values.len() - 4;
+            for (index, value) in values[4..end].iter_mut().enumerate() {
+                *value = seed + (index % 31) as f32 * 0.125;
+            }
+            data.output.write_range(0, &values).unwrap();
+            values
+        };
+        plan.update_rne(&mut data, true).unwrap();
+        data.readback().unwrap();
+        let before = sentinel_workspace(&mut data, -4096.0);
+        plan.metadata.overwrite_for_test(0, 1).unwrap();
+        assert!(plan.update_rne(&mut data, true).is_err());
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::StageNotReady { stage: "rne" })
+        ));
+        let mut rejected = vec![0.0; data.output.len()];
+        data.output.read_range_into(0, &mut rejected).unwrap();
+        assert_eq!(
+            before
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            rejected
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        plan.metadata.restore_for_test().unwrap();
+        plan.update_rne(&mut data, true).unwrap();
+        data.readback().unwrap();
+
+        let before_session = sentinel_workspace(&mut data, -8192.0);
+        let foreign_session = TransferSession::new(0).unwrap();
+        let capture = std::env::var_os("MJWARP_PHYSICS_PTX_DIR");
+        if let Some(root) = capture.as_ref() {
+            let foreign = std::path::PathBuf::from(root).join("foreign-session");
+            assert!(!foreign.exists());
+            // SAFETY: 本测试单线程运行，并在编译后立即恢复环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &foreign) };
+        }
+        let foreign_kernel = RneCfrcKernel::compile(&foreign_session).unwrap();
+        if let Some(root) = capture.as_ref() {
+            // SAFETY: 本测试单线程运行，并恢复调用方的原始环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", root) };
+        } else {
+            // SAFETY: 本测试单线程运行，调用前也没有该变量。
+            unsafe { std::env::remove_var("MJWARP_PHYSICS_PTX_DIR") };
+        }
+        let correct_kernel = std::mem::replace(&mut plan.cfrc_kernel, foreign_kernel);
+        assert!(matches!(
+            plan.update_rne(&mut data, true),
+            Err(TransferError::SessionMismatch)
+        ));
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::StageNotReady { stage: "rne" })
+        ));
+        let mut rejected_session = vec![0.0; data.output.len()];
+        data.output
+            .read_range_into(0, &mut rejected_session)
+            .unwrap();
+        assert_eq!(
+            before_session
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            rejected_session
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        plan.cfrc_kernel = correct_kernel;
+        plan.update_rne(&mut data, true).unwrap();
+        data.readback().unwrap();
+
+        let zero = super::super::tests::test_model(None);
+        let zero = AttachedModelInput::new(zero, crate::model::AttachedFields::default()).unwrap();
+        if let Some(root) = capture.as_ref() {
+            let zero_capture = std::path::PathBuf::from(root).join("zero-dof");
+            assert!(!zero_capture.exists());
+            // SAFETY: 本测试单线程运行，并在编译后立即恢复环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &zero_capture) };
+        }
+        let zero_plan = RnePlan::new(&session, zero, [0.0; 3]).unwrap();
+        if let Some(root) = capture.as_ref() {
+            // SAFETY: 本测试单线程运行，并恢复调用方的原始环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", root) };
+        }
+        let mut zero_data = zero_plan.create_data(2).unwrap();
+        zero_plan.update(&mut zero_data, false).unwrap();
+        let zero_output = zero_data.readback().unwrap();
+        for world in 0..2 {
+            assert!(zero_output.world(world).unwrap().qfrc_bias.is_empty());
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
     fn runs_rne_qfrc_wrapper_and_recovers_after_real_metadata_write() {
         let session = TransferSession::new(0).unwrap();
         let model = super::super::tests::test_model(Some(3));
@@ -1228,7 +1971,7 @@ mod tests {
                     )
                     .is_err()
             );
-            let proof = plan.metadata.proof(WORLDS as u32).unwrap();
+            let proof = plan.metadata.qfrc_proof(WORLDS as u32).unwrap();
             let mut alias =
                 RneQfrcKernel::bindings(&plan.metadata, inputs.com, inputs.velocity, &data.output)
                     .unwrap();
