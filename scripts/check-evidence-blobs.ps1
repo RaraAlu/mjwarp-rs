@@ -63,13 +63,29 @@ if (
     $null -eq $identity -or
     $identity.path -cne $Manifest -or
     $identity.bytes -ne $manifestBytes.Length -or
-    $identity.sha256 -cne $manifestHash -or
-    $identity.reference_revision -notmatch '^[0-9a-f]{40}$'
+    $identity.sha256 -cne $manifestHash
 ) {
     throw '旧清单身份不匹配'
 }
-$referenceSpec = "$($identity.reference_revision):$Manifest"
-$referenceObject = GitText @('rev-parse', $referenceSpec)
+$identityNames = @($identity.PSObject.Properties.Name)
+$hasRevision = 'reference_revision' -in $identityNames
+$hasBlob = 'reference_blob' -in $identityNames
+if ($hasRevision -eq $hasBlob) { throw '清单须且只能声明一种不可变身份' }
+$referenceRevision = $null
+$referenceBlob = $null
+if ($hasRevision) {
+    $referenceRevision = [string]$identity.reference_revision
+    if ($referenceRevision -notmatch '^[0-9a-f]{40}$') { throw '旧提交身份无效' }
+    $referenceObject = GitText @('rev-parse', "$referenceRevision`:$Manifest")
+    $referenceKind = 'revision'
+}
+else {
+    $referenceBlob = [string]$identity.reference_blob
+    if ($referenceBlob -notmatch '^[0-9a-f]{40}$') { throw '清单blob身份无效' }
+    if ((GitText @('cat-file', '-t', $referenceBlob)) -cne 'blob') { throw '清单对象不是blob' }
+    $referenceObject = $referenceBlob
+    $referenceKind = 'blob'
+}
 $referenceBytes = GitBlob $referenceObject
 if (
     $referenceBytes.Length -ne $manifestBytes.Length -or
@@ -151,7 +167,9 @@ $result = [ordered]@{
     manifest = $Manifest
     manifest_bytes = $manifestBytes.Length
     manifest_sha256 = $manifestHash
-    manifest_reference_revision = $identity.reference_revision
+    manifest_reference_kind = $referenceKind
+    manifest_reference_revision = $referenceRevision
+    manifest_reference_blob = $referenceBlob
     manifest_reference_object = $referenceObject
     map = $Map
     members = $rows.Count

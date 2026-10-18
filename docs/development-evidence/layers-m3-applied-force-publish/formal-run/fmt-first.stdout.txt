@@ -1,0 +1,56 @@
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\applied_force.rs:1027:
+                 elem: ElemType::F32,
+             },
+         ];
+-        applied_force_publish_plan(&dims, &bindings)
+-            .map_err(applied_force_publish_launch_error)?;
++        applied_force_publish_plan(&dims, &bindings).map_err(applied_force_publish_launch_error)?;
+         // SAFETY: 类型化计划核对四指针、跨度、会话、别名和256线程网格。
+-        unsafe {
+-            self.kernel
+-                .launch(metadata, current, delta, staged, dims)
+-        }
++        unsafe { self.kernel.launch(metadata, current, delta, staged, dims) }
+     }
+ }
+ 
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\applied_force.rs:1622:
+             },
+         ];
+         assert_eq!(AppliedForcePublishSpec::BLOCK, BlockRule::Fixed(256));
+-        assert_eq!(applied_force_publish_lengths(&dims).unwrap(), [1, 14, 14, 14]);
++        assert_eq!(
++            applied_force_publish_lengths(&dims).unwrap(),
++            [1, 14, 14, 14]
++        );
+         assert!(applied_force_publish_plan(&dims, &bindings).is_ok());
+         assert!(applied_force_publish_plan(&[2, 3, 1, 6], &bindings).is_ok());
+ 
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\applied_force.rs:1674:
+         }
+         for slot in 0..4 {
+             let mut foreign = bindings;
+-            foreign[slot].span = DeviceSpan::new(
+-                8,
+-                foreign[slot].span.addr(),
+-                foreign[slot].span.bytes(),
+-            )
+-            .unwrap();
++            foreign[slot].span =
++                DeviceSpan::new(8, foreign[slot].span.addr(), foreign[slot].span.bytes()).unwrap();
+             let expected = if slot == 0 { 1 } else { slot };
+             assert!(matches!(
+                 applied_force_publish_plan(&dims, &foreign),
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\applied_force.rs:2599:
+                     (offset, saved[0])
+                 }
+             };
+-            let expected_index = if kind == 2 {
+-                data.staged.len() - 1
+-            } else {
+-                0
+-            };
++            let expected_index = if kind == 2 { data.staged.len() - 1 } else { 0 };
+             let before = bits(&raw(&data.current));
+             let error = plan.replace(&mut data).unwrap_err();
+             assert!(matches!(

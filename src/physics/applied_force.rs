@@ -297,6 +297,67 @@ const APPLIED_FORCE_DELTA_SLOTS: [SlotDesc; 8] = [
 ];
 
 #[cfg(feature = "cuda-probe")]
+const APPLIED_FORCE_PUBLISH_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        // 内核不解引用meta，但底层四缓冲ABI要求有效分配。
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Write,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(feature = "cuda-probe")]
 struct AppliedForceValidateSpec;
 
 #[cfg(feature = "cuda-probe")]
@@ -456,6 +517,92 @@ fn applied_force_delta_lengths(dims: &[u32; 4]) -> Result<[u64; 4], LauncherErro
 }
 
 #[cfg(feature = "cuda-probe")]
+struct AppliedForcePublishSpec;
+
+#[cfg(feature = "cuda-probe")]
+// SAFETY: 声明逐槽匹配冻结外力发布ABI。
+unsafe impl KernelAbi for AppliedForcePublishSpec {
+    const NAME: &'static str = "applied_force_publish";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &APPLIED_FORCE_PUBLISH_SLOTS;
+}
+
+#[cfg(feature = "cuda-probe")]
+impl KernelSpec for AppliedForcePublishSpec {
+    type Dims = [u32; 4];
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        let [metadata, current, delta, staged] = applied_force_publish_lengths(dims)?;
+        Ok(vec![
+            SlotRequirement {
+                slot: 0,
+                min_elements: metadata,
+            },
+            SlotRequirement {
+                slot: 1,
+                min_elements: current,
+            },
+            SlotRequirement {
+                slot: 2,
+                min_elements: delta,
+            },
+            SlotRequirement {
+                slot: 3,
+                min_elements: staged,
+            },
+        ])
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        applied_force_publish_lengths(dims)?;
+        LaunchDims::new((dims[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn applied_force_publish_lengths(dims: &[u32; 4]) -> Result<[u64; 4], LauncherError> {
+    let [n, worlds, add, work] = *dims;
+    if n == 0 || worlds == 0 || work == 0 || work > u32::MAX - 255 {
+        return Err(LauncherError::InvalidArray("外力发布维度无效"));
+    }
+    if add > 1 {
+        return Err(LauncherError::InvalidArray("外力发布累加开关无效"));
+    }
+    if worlds.checked_mul(n) != Some(work) {
+        return Err(LauncherError::InvalidArray("外力发布工作量不匹配"));
+    }
+    let vector = u64::from(work)
+        .checked_add(8)
+        .ok_or(LauncherError::Overflow("applied_force_publish_vector"))?;
+    // meta未参与CUDA寻址，但底层同步发射仍要求非空设备分配。
+    Ok([1, vector, vector, vector])
+}
+
+#[cfg(feature = "cuda-probe")]
+fn applied_force_publish_plan(
+    dims: &[u32; 4],
+    bindings: &[SlotBinding],
+) -> Result<(), LauncherError> {
+    Kernel::<AppliedForcePublishSpec>::new()?.plan(dims, bindings, &[])?;
+    let current = bindings
+        .iter()
+        .find(|binding| binding.slot == 1)
+        .ok_or(LauncherError::MissingBinding { slot: 1 })?;
+    let delta = bindings
+        .iter()
+        .find(|binding| binding.slot == 2)
+        .ok_or(LauncherError::MissingBinding { slot: 2 })?;
+    // 通用规则允许只读槽重叠；发布语义要求两份输入独立。
+    if current.span.overlaps(&delta.span) {
+        return Err(LauncherError::Alias {
+            first: 1,
+            second: 2,
+        });
+    }
+    Ok(())
+}
+
+#[cfg(feature = "cuda-probe")]
 fn validate_applied_force_metadata(values: &[i32], nb: u32, n: u32) -> Result<(), LauncherError> {
     let expected = u64::from(nb)
         .checked_mul(2)
@@ -556,6 +703,18 @@ fn applied_force_delta_launch_error(error: LauncherError) -> TransferError {
         .into(),
         _ => InputError::InvalidDimension {
             field: "applied_force_delta_abi",
+        }
+        .into(),
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn applied_force_publish_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        _ => InputError::InvalidDimension {
+            field: "applied_force_publish_abi",
         }
         .into(),
     }
@@ -825,6 +984,55 @@ impl AppliedForceDeltaKernel {
     }
 }
 
+#[cfg(feature = "cuda-probe")]
+struct AppliedForcePublishKernel {
+    kernel: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl AppliedForcePublishKernel {
+    fn compile(session: &TransferSession) -> Result<Self, TransferError> {
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, CUDA, "applied_force_publish")?,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        current: &TransferBuffer<f32>,
+        delta: &TransferBuffer<f32>,
+        staged: &mut TransferBuffer<f32>,
+        dims: [u32; 4],
+    ) -> Result<(), TransferError> {
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: current.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: delta.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: staged.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        applied_force_publish_plan(&dims, &bindings).map_err(applied_force_publish_launch_error)?;
+        // SAFETY: 类型化计划核对四指针、跨度、会话、别名和256线程网格。
+        unsafe { self.kernel.launch(metadata, current, delta, staged, dims) }
+    }
+}
+
 pub struct AppliedForcePlan {
     input: Arc<Topology>,
     #[cfg(feature = "cuda-probe")]
@@ -836,7 +1044,7 @@ pub struct AppliedForcePlan {
     #[cfg(feature = "cuda-probe")]
     delta: AppliedForceDeltaKernel,
     #[cfg(feature = "cuda-probe")]
-    publish: SynchronousKernel,
+    publish: AppliedForcePublishKernel,
 }
 pub struct AppliedForceData {
     input: Arc<Topology>,
@@ -902,7 +1110,7 @@ impl AppliedForcePlan {
                 metadata: AppliedForceMetadataBuffer::upload(session, meta, [nb, n])?,
                 validate: AppliedForceValidateKernel::compile(session)?,
                 delta: AppliedForceDeltaKernel::compile(session)?,
-                publish: SynchronousKernel::compile(session, CUDA, "applied_force_publish")?,
+                publish: AppliedForcePublishKernel::compile(session)?,
             })
         }
     }
@@ -997,17 +1205,13 @@ impl AppliedForcePlan {
                 data.layout.vector.total_elements(),
                 "applied_force_delta",
             )?;
-            // SAFETY: Disjoint current/delta/staged guarded vector buffers share
-            // one checked work stride. Final RN add or copy owns one slot/thread.
-            unsafe {
-                self.publish.launch(
-                    self.metadata.as_buffer(),
-                    &data.current,
-                    &data.delta,
-                    &mut data.staged,
-                    [n, worlds, u32::from(add), work],
-                )?;
-            }
+            self.publish.launch(
+                self.metadata.as_buffer(),
+                &data.current,
+                &data.delta,
+                &mut data.staged,
+                [n, worlds, u32::from(add), work],
+            )?;
             read(
                 &data.staged,
                 data.layout.vector.total_elements(),
@@ -1384,6 +1588,123 @@ mod tests {
         assert!(AppliedForceDeltaMetadata::validate(&bad, &dims).is_err());
         assert!(applied_force_delta_lengths(&[2, 1, 2, 1]).is_err());
         assert!(applied_force_delta_lengths(&[1, 1, u32::MAX, u32::MAX]).is_err());
+    }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    fn publish_wrapper_rejects_capacity_context_alias_and_dimension_faults() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let dims = [2, 3, 0, 6];
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: DeviceSpan::new(7, 0x1000, 4).unwrap(),
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: DeviceSpan::new(7, 0x2000, 56).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: DeviceSpan::new(7, 0x3000, 56).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: DeviceSpan::new(7, 0x4000, 56).unwrap(),
+                elem: ElemType::F32,
+            },
+        ];
+        assert_eq!(AppliedForcePublishSpec::BLOCK, BlockRule::Fixed(256));
+        assert_eq!(
+            applied_force_publish_lengths(&dims).unwrap(),
+            [1, 14, 14, 14]
+        );
+        assert!(applied_force_publish_plan(&dims, &bindings).is_ok());
+        assert!(applied_force_publish_plan(&[2, 3, 1, 6], &bindings).is_ok());
+
+        for invalid in [[0, 3, 0, 6], [2, 0, 0, 6], [2, 3, 0, 0]] {
+            assert!(matches!(
+                applied_force_publish_lengths(&invalid),
+                Err(LauncherError::InvalidArray("外力发布维度无效"))
+            ));
+        }
+        assert!(matches!(
+            applied_force_publish_lengths(&[2, 3, 2, 6]),
+            Err(LauncherError::InvalidArray("外力发布累加开关无效"))
+        ));
+        assert!(matches!(
+            applied_force_publish_lengths(&[2, 3, 0, 5]),
+            Err(LauncherError::InvalidArray("外力发布工作量不匹配"))
+        ));
+        assert!(matches!(
+            applied_force_publish_lengths(&[65_536, 65_536, 0, 1]),
+            Err(LauncherError::InvalidArray("外力发布工作量不匹配"))
+        ));
+
+        const MAX_WORK: u32 = u32::MAX - 255;
+        let boundary = [1, MAX_WORK, 0, MAX_WORK];
+        let vector = u64::from(MAX_WORK) + 8;
+        assert_eq!(
+            applied_force_publish_lengths(&boundary).unwrap(),
+            [1, vector, vector, vector]
+        );
+        assert_eq!(
+            AppliedForcePublishSpec::launch_dims(&boundary)
+                .unwrap()
+                .grid(),
+            (16_777_215, 1, 1)
+        );
+        assert!(matches!(
+            applied_force_publish_lengths(&[1, MAX_WORK + 1, 0, MAX_WORK + 1]),
+            Err(LauncherError::InvalidArray("外力发布维度无效"))
+        ));
+        // work受u32上界约束；转为u64后加八不会溢出。
+
+        for (slot, bytes) in [(0, 3), (1, 52), (2, 52), (3, 52)] {
+            let mut short = bindings;
+            short[slot].span = DeviceSpan::new(7, 0x5000 + 0x1000 * slot as u64, bytes).unwrap();
+            assert!(matches!(
+                applied_force_publish_plan(&dims, &short),
+                Err(LauncherError::Capacity { slot: actual, .. }) if actual == slot
+            ));
+        }
+        for slot in 0..4 {
+            let mut foreign = bindings;
+            foreign[slot].span =
+                DeviceSpan::new(8, foreign[slot].span.addr(), foreign[slot].span.bytes()).unwrap();
+            let expected = if slot == 0 { 1 } else { slot };
+            assert!(matches!(
+                applied_force_publish_plan(&dims, &foreign),
+                Err(LauncherError::ContextMismatch { slot: actual }) if actual == expected
+            ));
+        }
+
+        let mut current_delta_alias = bindings;
+        current_delta_alias[2].span = current_delta_alias[1].span;
+        assert!(matches!(
+            applied_force_publish_plan(&dims, &current_delta_alias),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 2
+            })
+        ));
+        for input in 0..3 {
+            let mut staged_alias = bindings;
+            staged_alias[3].span = DeviceSpan::new(
+                7,
+                staged_alias[input].span.addr(),
+                staged_alias[3].span.bytes(),
+            )
+            .unwrap();
+            assert!(matches!(
+                applied_force_publish_plan(&dims, &staged_alias),
+                Err(LauncherError::Alias { first, second })
+                    if first == input && second == 3
+            ));
+        }
     }
     #[test]
     #[cfg(feature = "cuda-probe")]
@@ -2204,5 +2525,158 @@ mod tests {
             plan.replace(&mut data).unwrap();
             assert_eq!(bits(data.readback().unwrap().world(0).unwrap()), expected);
         }
+    }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "M3外力发布类型化包装、真实累加替换、失败不交换与恢复"]
+    fn gpu_m3_publish_wrapper_preserves_bits_and_recovers_faults() {
+        let session = TransferSession::new(0).unwrap();
+        let started = std::time::Instant::now();
+        let v = reference();
+        let plan = AppliedForcePlan::new(
+            &session,
+            ints(&v, "parents"),
+            ints(&v, "roots"),
+            ints(&v, "dof_bodyid"),
+        )
+        .unwrap();
+        let mut data = plan.create_data(1).unwrap();
+        for (field, key) in [
+            (AppliedForceGeometry::Xipos, "xipos"),
+            (AppliedForceGeometry::SubtreeCom, "subtree_com"),
+            (AppliedForceGeometry::Cdof, "cdof"),
+        ] {
+            data.write_geometry(field, &floats(&v, key)).unwrap();
+        }
+        data.write_ft(&floats(&v, "ft_force_torque")).unwrap();
+        data.write_qfrc(&floats(&v, "initial_qfrc")).unwrap();
+        data.current.write_range(4, &[f32::NAN]).unwrap();
+        plan.replace(&mut data).unwrap();
+        let expected = v["delta_bits"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|value| u32::from_str_radix(value.as_str().unwrap(), 16).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(bits(data.readback().unwrap().world(0).unwrap()), expected);
+
+        plan.accumulate(&mut data).unwrap();
+        for (&actual, &single) in data
+            .readback()
+            .unwrap()
+            .world(0)
+            .unwrap()
+            .iter()
+            .zip(&expected)
+        {
+            assert_eq!(actual.to_bits(), (2.0 * f32::from_bits(single)).to_bits());
+        }
+
+        for kind in 0..3 {
+            let (offset, saved) = match kind {
+                0 => {
+                    let mut saved = [0.0];
+                    data.current.read_range_into(0, &mut saved).unwrap();
+                    data.current.write_range(0, &[0.0]).unwrap();
+                    (0, saved[0])
+                }
+                1 => {
+                    let mut saved = [0.0];
+                    data.delta.read_range_into(0, &mut saved).unwrap();
+                    data.delta.write_range(0, &[0.0]).unwrap();
+                    (0, saved[0])
+                }
+                _ => {
+                    let offset = data.staged.len() - 1;
+                    let mut saved = [0.0];
+                    data.staged.read_range_into(offset, &mut saved).unwrap();
+                    data.staged.write_range(offset, &[0.0]).unwrap();
+                    (offset, saved[0])
+                }
+            };
+            let expected_index = if kind == 2 { data.staged.len() - 1 } else { 0 };
+            let before = bits(&raw(&data.current));
+            let error = plan.replace(&mut data).unwrap_err();
+            assert!(matches!(
+                error,
+                TransferError::Backend(crate::diagnostics::ProbeError::Mismatch {
+                    index,
+                    expected,
+                    actual,
+                }) if index == expected_index && expected == -131_072.0 && actual == 0.0
+            ));
+            assert_eq!(bits(&raw(&data.current)), before);
+            assert!(data.readback().is_err());
+            match kind {
+                0 => data.current.write_range(offset, &[saved]).unwrap(),
+                1 => data.delta.write_range(offset, &[saved]).unwrap(),
+                _ => data.staged.write_range(offset, &[saved]).unwrap(),
+            }
+            plan.replace(&mut data).unwrap();
+            assert_eq!(bits(data.readback().unwrap().world(0).unwrap()), expected);
+        }
+
+        let nb = plan.input.parent.len();
+        let n = plan.input.body.len();
+        let dof = plan.input.body.iter().position(|&body| body > 0).unwrap();
+        let body = plan.input.body[dof] as usize;
+        data.write_geometry(AppliedForceGeometry::Xipos, &vec![0.0; 3 * nb])
+            .unwrap();
+        data.write_geometry(AppliedForceGeometry::SubtreeCom, &vec![0.0; 3 * nb])
+            .unwrap();
+        let mut cdof = vec![0.0; 6 * n];
+        cdof[6 * dof + 3] = 1.0;
+        data.write_geometry(AppliedForceGeometry::Cdof, &cdof)
+            .unwrap();
+        let mut ft = vec![0.0; 6 * nb];
+        ft[6 * body] = f32::MAX;
+        data.write_ft(&ft).unwrap();
+        let mut current = vec![0.0; n];
+        current[dof] = f32::MAX;
+        data.write_qfrc(&current).unwrap();
+        let before = bits(&raw(&data.current));
+        let error = plan.accumulate(&mut data).unwrap_err();
+        assert!(matches!(
+            error,
+            TransferError::Input(InputError::NonFinite {
+                field: "qfrc_staged",
+                index,
+            }) if index == dof
+        ));
+        assert_eq!(bits(&raw(&data.current)), before);
+        assert!(data.readback().is_err());
+        plan.replace(&mut data).unwrap();
+        assert_eq!(data.readback().unwrap().world(0).unwrap()[dof], f32::MAX);
+
+        for (field, key) in [
+            (AppliedForceGeometry::Xipos, "xipos"),
+            (AppliedForceGeometry::SubtreeCom, "subtree_com"),
+            (AppliedForceGeometry::Cdof, "cdof"),
+        ] {
+            data.write_geometry(field, &floats(&v, key)).unwrap();
+        }
+        data.write_ft(&floats(&v, "ft_force_torque")).unwrap();
+        data.write_qfrc(&floats(&v, "initial_qfrc")).unwrap();
+        plan.replace(&mut data).unwrap();
+        assert_eq!(bits(data.readback().unwrap().world(0).unwrap()), expected);
+
+        let report = serde_json::json!({
+            "entry": "applied_force_publish",
+            "replace_ignores_old_nan": true,
+            "accumulate_bitwise": true,
+            "guard_failures": 3,
+            "nonfinite_publish_rejected": true,
+            "current_unchanged_on_failure": true,
+            "same_plan_recovered": true,
+            "phase_ms": started.elapsed().as_millis(),
+            "task_gpu_memory": "unknown",
+            "full_U075_NP": false
+        });
+        std::fs::write(
+            std::env::var_os("MJWARP_APPLIED_FORCE_PUBLISH_REPORT").unwrap(),
+            serde_json::to_vec_pretty(&report).unwrap(),
+        )
+        .unwrap();
+        println!("{report}");
     }
 }

@@ -1,0 +1,192 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-applied-force-publish",
+  "base_revision": "6bcf8496477e154d5f904b4aa1884637ecbe5b9e",
+  "environment": {
+    "platform": "Windows",
+    "shell": "PowerShell",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "resource": "gpu:windows-t4",
+    "cuda_root": "target/toolchains/cuda-12.8.1",
+    "python": false
+  },
+  "capture": {
+    "root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/run-01",
+    "directory": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/run-01/gpu-capture",
+    "precondition": "directory must not exist",
+    "expected_entries": ["applied_force_validate", "applied_force_delta", "applied_force_publish"],
+    "expected_entry_compilations": 3,
+    "duplicate_same_entry_allowed": false
+  },
+  "registered_validations": [
+    {
+      "id": "host-wrapper",
+      "purpose": "核对发布ABI、维度、跨度、容量、会话和别名拒绝",
+      "command": "cargo test --locked --features cuda-probe --lib physics::applied_force::tests::publish_wrapper_rejects_capacity_context_alias_and_dimension_faults -- --exact --test-threads=1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-01-host"
+    },
+    {
+      "id": "host-wrapper-retry",
+      "purpose": "按首槽建立上下文基准后复验发布宿主契约",
+      "command": "cargo test --locked --features cuda-probe --lib physics::applied_force::tests::publish_wrapper_rejects_capacity_context_alias_and_dimension_faults -- --exact --test-threads=1",
+      "reason": "首轮仅把槽0错会话的报告槽误认成槽0，实际报告首个不同槽1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-01-host-retry"
+    },
+    {
+      "id": "host-wrapper-assertion-retry",
+      "purpose": "精确区分发布维度门禁、容量门禁和乘法溢出",
+      "command": "cargo test --locked --features cuda-probe --lib physics::applied_force::tests::publish_wrapper_rejects_capacity_context_alias_and_dimension_faults -- --exact --test-threads=1",
+      "reason": "审查发现原is_err断言可能由后续容量门禁满足，需在收紧错误类型后复验",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-01-host-assertion-retry"
+    },
+    {
+      "id": "device-preflight",
+      "purpose": "核对本机T4与CUDA 12.8.1 NVRTC",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-publish/device-preflight.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-02-device"
+    },
+    {
+      "id": "gpu-wrapper",
+      "purpose": "核对真实累加、替换、非有限结果拒绝、状态不变和恢复",
+      "command": "cargo test --locked --features cuda-probe --lib physics::applied_force::tests::gpu_m3_publish_wrapper_preserves_bits_and_recovers_faults -- --ignored --exact --test-threads=1 --nocapture",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/run-01"
+    },
+    {
+      "id": "gpu-wrapper-assertion-retry",
+      "purpose": "精确区分三类守卫失败和发布后非有限结果",
+      "command": "cargo test --locked --features cuda-probe --lib physics::applied_force::tests::gpu_m3_publish_wrapper_preserves_bits_and_recovers_faults -- --ignored --exact --test-threads=1 --nocapture",
+      "reason": "审查发现原is_err断言未证明具体失败阶段，需在收紧错误类型后复验",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/run-02",
+      "capture_directory": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/run-02/gpu-capture",
+      "capture_precondition": "directory must not exist",
+      "expected_entries": ["applied_force_validate", "applied_force_delta", "applied_force_publish"],
+      "expected_entry_compilations": 3,
+      "duplicate_same_entry_allowed": false
+    },
+    {
+      "id": "format",
+      "purpose": "核对Rust格式",
+      "command": "cargo fmt --check",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-03-format"
+    },
+    {
+      "id": "format-retry",
+      "purpose": "应用标准格式后复验Rust格式",
+      "command": "cargo fmt --check",
+      "reason": "首轮发现本切片新增Rust代码尚未应用rustfmt",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-03-format-retry"
+    },
+    {
+      "id": "clippy",
+      "purpose": "核对CUDA库目标警告",
+      "command": "cargo clippy --locked --features cuda-probe --lib -- -D warnings",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-04-clippy"
+    },
+    {
+      "id": "inventory",
+      "purpose": "重分类发布入口并核对剩余入口和调用数量",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-publish/build-inventory.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-05-inventory"
+    },
+    {
+      "id": "evidence",
+      "purpose": "核对源码、PTX、捕获、claims、测试分类和未暂存差异",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-publish/check-evidence.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-06-evidence"
+    },
+    {
+      "id": "manifest",
+      "purpose": "复制真实原件并生成冻结成员清单与映射",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-publish/build-manifest.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-07-manifest"
+    },
+    {
+      "id": "manifest-blob",
+      "purpose": "把本切片清单写成不可变Git blob并登记身份",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-publish/freeze-manifest.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-08-manifest-blob"
+    },
+    {
+      "id": "index-bytes",
+      "purpose": "直接读取索引对象并核对全部正式证据字节",
+      "command": "pwsh -NoProfile -File scripts/check-evidence-blobs.ps1 -Manifest docs/development-evidence/layers-m3-applied-force-publish/formal-run/manifest.json -Map docs/development-evidence/layers-m3-applied-force-publish/source-map.json -Revision INDEX",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-09-index-bytes"
+    },
+    {
+      "id": "delivery-preflight",
+      "purpose": "核对任务可写和前次收尾",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId 2026-10-19-layers-m3-applied-force-publish",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/delivery-01-preflight"
+    },
+    {
+      "id": "receipt",
+      "purpose": "暂存限定范围并生成逐文件对象回执",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-publish/build-delivery-receipt.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/delivery-02-receipt"
+    },
+    {
+      "id": "receipt-retry",
+      "purpose": "递归禁用证据文本转换后重建逐文件对象回执",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-publish/build-delivery-receipt.ps1",
+      "reason": "首轮暂存发现formal-run嵌套捕获未命中非文本属性",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/delivery-02-receipt-retry"
+    },
+    {
+      "id": "receipt-byte-retry",
+      "purpose": "归档索引字节结果后重建逐文件对象回执",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-publish/build-delivery-receipt.ps1",
+      "reason": "暂存核验要求回执中的验证证据本身位于索引",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/delivery-02-receipt-byte-retry"
+    },
+    {
+      "id": "cached-diff",
+      "purpose": "核对暂存空白错误",
+      "command": "git diff --cached --check",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/delivery-03-cached-diff"
+    },
+    {
+      "id": "cached-diff-retry",
+      "purpose": "归档索引字节结果后复验暂存空白错误",
+      "command": "git diff --cached --check",
+      "reason": "暂存范围新增索引字节原始结果",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/delivery-03-cached-diff-retry"
+    },
+    {
+      "id": "delivery-staged",
+      "purpose": "核对逐文件回执与暂存对象",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Staged",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/delivery-04-staged"
+    },
+    {
+      "id": "delivery-staged-retry",
+      "purpose": "归档索引字节结果后复验逐文件回执",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Staged",
+      "reason": "首轮暂存核验发现索引验证证据仍在target目录",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/delivery-04-staged-retry"
+    },
+    {
+      "id": "delivery-post-commit",
+      "purpose": "核对实际提交覆盖",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode PostCommit -TaskId 2026-10-19-layers-m3-applied-force-publish",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/delivery-05-post-commit"
+    },
+    {
+      "id": "commit-bytes",
+      "purpose": "直接读取最终提交对象并核对全部正式证据字节",
+      "command": "pwsh -NoProfile -File scripts/check-evidence-blobs.ps1 -Manifest docs/development-evidence/layers-m3-applied-force-publish/formal-run/manifest.json -Map docs/development-evidence/layers-m3-applied-force-publish/source-map.json -Revision <new-full-sha>",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/check-10-commit-bytes"
+    },
+    {
+      "id": "delivery-recorded",
+      "purpose": "核对完整提交号登记",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Recorded -TaskId 2026-10-19-layers-m3-applied-force-publish",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/delivery-06-recorded"
+    },
+    {
+      "id": "delivery-final",
+      "purpose": "核对关闭后的最终状态",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Final -TaskId 2026-10-19-layers-m3-applied-force-publish",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-publish/delivery-07-final"
+    }
+  ]
+}

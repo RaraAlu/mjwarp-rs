@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-applied-force-publish",
+  "base_revision": "6bcf8496477e154d5f904b4aa1884637ecbe5b9e",
+  "scope": {
+    "migrate": ["applied_force_publish"],
+    "preserve_typed": ["applied_force_validate", "applied_force_delta"],
+    "other_entries_changed": false
+  },
+  "abi": {
+    "pointers": ["meta:i32:read", "current:f32:read", "delta:f32:read", "staged:f32:write"],
+    "scalars": ["n:u32", "worlds:u32", "add:u32", "work:u32"],
+    "block_threads": 256,
+    "dimensions": "work == n * worlds",
+    "add_values": [0, 1],
+    "meta_role": "value pointer not used for CUDA addressing",
+    "meta_min_elements": 1,
+    "float_min_elements": "work + 8"
+  },
+  "publication": {
+    "accumulate_checks_current_payload": true,
+    "replace_ignores_old_current_payload": true,
+    "replace_checks_current_guards": true,
+    "delta_checked_before_publish": true,
+    "staged_checked_before_swap": true,
+    "failure_swaps_current": false,
+    "same_plan_recovery_required": true
+  },
+  "evidence_classes": {
+    "host_rejection": ["zero dimensions", "work mismatch", "multiplication overflow", "grid overflow", "non-boolean add", "capacity", "context", "alias"],
+    "gpu_execution": ["accumulate", "replace", "old NaN replacement", "non-finite staged result rejection", "current unchanged", "same-plan recovery"],
+    "static_unreachable": ["public layout prevents zero work", "owned plan data keeps production buffers nonempty and disjoint"]
+  },
+  "identity": {
+    "manifest_reference": "existing immutable Git blob",
+    "identityless_manifest_allowed": false,
+    "index_byte_check": true,
+    "commit_byte_check": true
+  },
+  "frozen": ["CUDA source", "generated PTX", "fixtures", "tolerances", "__fadd_rn"],
+  "expected_inventory_after": {
+    "actual_cuda_entry_kinds": 88,
+    "typed_actual_entry_kinds": 22,
+    "unmigrated_actual_entry_kinds": 66,
+    "product_low_level_call_sites": 99,
+    "typed_low_level_call_sites": 18,
+    "unmigrated_low_level_call_sites": 81,
+    "wrapper_orchestration_call_sites": 20,
+    "next_candidate": "unselected"
+  },
+  "boundaries": {
+    "product_tests_from_prior_tasks_rerun": false,
+    "linux": "not_run",
+    "release": "not_run",
+    "task_gpu_memory": "unknown",
+    "full_m3": false,
+    "u075": false,
+    "np01_to_np04": false,
+    "python": false
+  }
+}
