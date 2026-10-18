@@ -29,7 +29,7 @@ pub struct RnePlan {
     #[cfg(feature = "cuda-probe")]
     metadata: RneMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 1],
+    backward_kernel: RneBackwardKernel,
     #[cfg(feature = "cuda-probe")]
     cacc_kernel: RneCaccKernel,
     #[cfg(feature = "cuda-probe")]
@@ -131,6 +131,9 @@ const RNE_CACC_METADATA_KIND: ProofKind = ProofKind("rne.cacc.metadata.v1");
 
 #[cfg(any(feature = "cuda-probe", test))]
 const RNE_QFRC_METADATA_KIND: ProofKind = ProofKind("rne.qfrc.metadata.v1");
+
+#[cfg(any(feature = "cuda-probe", test))]
+const RNE_BACKWARD_METADATA_KIND: ProofKind = ProofKind("rne.backward.metadata.v1");
 
 #[cfg(any(feature = "cuda-probe", test))]
 const RNE_CACC_SLOTS: [SlotDesc; 8] = [
@@ -326,6 +329,68 @@ const RNE_QFRC_SLOTS: [SlotDesc; 8] = [
 ];
 
 #[cfg(any(feature = "cuda-probe", test))]
+const RNE_BACKWARD_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: RNE_BACKWARD_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::ReadWrite,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(any(feature = "cuda-probe", test))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct RneStaticDims {
     nbody: u32,
@@ -353,6 +418,14 @@ struct RneQfrcDims {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct RneCfrcDims {
     abi: [u32; 4],
+    static_dims: RneStaticDims,
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RneBackwardDims {
+    abi: [u32; 4],
+    worlds: u32,
     static_dims: RneStaticDims,
 }
 
@@ -663,6 +736,88 @@ impl KernelSpec for RneQfrcSpec {
     }
 }
 
+#[cfg(any(feature = "cuda-probe", test))]
+fn rne_backward_lengths(dims: &RneBackwardDims) -> Result<[u64; 4], LauncherError> {
+    let [nbody_abi, level, zero, work_abi] = dims.abi;
+    let static_dims = dims.static_dims;
+    if dims.worlds == 0
+        || static_dims.nbody == 0
+        || nbody_abi != static_dims.nbody
+        || level == 0
+        || level > static_dims.depth
+        || zero != 0
+    {
+        return Err(LauncherError::InvalidArray("RNE反向层级维度无效"));
+    }
+    if static_dims.metadata_elements != rne_metadata_elements(static_dims.nbody, static_dims.nv)? {
+        return Err(LauncherError::InvalidMetadata("RNE元数据长度不匹配"));
+    }
+    let work = u64::from(dims.worlds)
+        .checked_mul(u64::from(static_dims.nbody))
+        .ok_or(LauncherError::Overflow("rne_backward_work"))?;
+    if work > u64::from(u32::MAX - 255) {
+        return Err(LauncherError::Overflow("rne_backward_work"));
+    }
+    if u64::from(work_abi) != work {
+        return Err(LauncherError::InvalidArray("RNE反向工作量无效"));
+    }
+    let guarded = |width: u64, field| {
+        u64::from(dims.worlds)
+            .checked_mul(width)
+            .and_then(|value| value.checked_add(8))
+            .ok_or(LauncherError::Overflow(field))
+    };
+    let nbody = u64::from(static_dims.nbody);
+    let nv = u64::from(static_dims.nv);
+    let com_width = nbody
+        .checked_mul(14)
+        .and_then(|value| nv.checked_mul(6).and_then(|dof| value.checked_add(dof)))
+        .ok_or(LauncherError::Overflow("rne_backward_com"))?;
+    let velocity_width = nbody
+        .checked_mul(6)
+        .and_then(|value| nv.checked_mul(6).and_then(|dof| value.checked_add(dof)))
+        .ok_or(LauncherError::Overflow("rne_backward_velocity"))?;
+    let output_width = nbody
+        .checked_mul(12)
+        .and_then(|value| value.checked_add(nv))
+        .ok_or(LauncherError::Overflow("rne_backward_output"))?;
+    Ok([
+        static_dims.metadata_elements,
+        guarded(com_width, "rne_backward_com")?,
+        guarded(velocity_width, "rne_backward_velocity")?,
+        guarded(output_width, "rne_backward_output")?,
+    ])
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct RneBackwardSpec;
+
+#[cfg(any(feature = "cuda-probe", test))]
+// SAFETY: 声明逐槽匹配冻结rne_backward私有ABI。
+unsafe impl KernelAbi for RneBackwardSpec {
+    const NAME: &'static str = "rne_backward";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &RNE_BACKWARD_SLOTS;
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl KernelSpec for RneBackwardSpec {
+    type Dims = RneBackwardDims;
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        Ok(rne_backward_lengths(dims)?
+            .into_iter()
+            .enumerate()
+            .map(|(slot, min_elements)| SlotRequirement { slot, min_elements })
+            .collect())
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        rne_backward_lengths(dims)?;
+        LaunchDims::new((dims.abi[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
 #[cfg(feature = "cuda-probe")]
 struct StaticRneMetadata;
 
@@ -866,6 +1021,69 @@ fn rne_qfrc_launch_error(error: LauncherError) -> TransferError {
     }
 }
 
+#[cfg(any(feature = "cuda-probe", test))]
+struct RneBackwardMetadata;
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl MetadataProof for RneBackwardMetadata {
+    type Dims = RneBackwardDims;
+
+    const KIND: ProofKind = RNE_BACKWARD_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        validate_rne_metadata(values, dims.static_dims)?;
+        rne_backward_lengths(dims).map(|_| ())
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn rne_backward_plan(
+    dims: &RneBackwardDims,
+    bindings: &[SlotBinding; 4],
+    proofs: &[CheckedBinding<'_, RneBackwardDims>],
+) -> Result<LaunchDims, LauncherError> {
+    let lengths = rne_backward_lengths(dims)?;
+    for (slot, elements) in lengths.into_iter().enumerate() {
+        let required = elements
+            .checked_mul(4)
+            .ok_or(LauncherError::Overflow("rne_backward_bytes"))?;
+        if bindings[slot].span.bytes() != required {
+            return Err(LauncherError::Capacity {
+                slot,
+                required,
+                actual: bindings[slot].span.bytes(),
+            });
+        }
+    }
+    Ok(Kernel::<RneBackwardSpec>::new()?
+        .plan(dims, bindings, proofs)?
+        .dims())
+}
+
+#[cfg(feature = "cuda-probe")]
+fn rne_backward_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::StaleMetadata
+        | LauncherError::InvalidMetadata(_)
+        | LauncherError::MetadataMismatch(_) => InputError::InvalidTopology {
+            field: "rne_metadata",
+            index: 0,
+            reason: "invalid_or_stale_metadata",
+        }
+        .into(),
+        LauncherError::Overflow(_) => InputError::Overflow {
+            field: "rne_backward_abi",
+        }
+        .into(),
+        _ => InputError::InvalidDimension {
+            field: "rne_backward_abi",
+        }
+        .into(),
+    }
+}
+
 #[cfg(feature = "cuda-probe")]
 struct RneMetadataBuffer {
     session: TransferSession,
@@ -992,6 +1210,34 @@ impl RneMetadataBuffer {
             )
         }
         .map_err(rne_qfrc_launch_error)
+    }
+
+    fn backward_proof(
+        &self,
+        worlds: u32,
+        level: u32,
+    ) -> Result<Checked<RneBackwardMetadata>, TransferError> {
+        let span = self.validate_base()?;
+        let work = worlds
+            .checked_mul(self.dims.nbody)
+            .ok_or(InputError::Overflow {
+                field: "rne_backward_work",
+            })?;
+        let dims = RneBackwardDims {
+            abi: [self.dims.nbody, level, 0, work],
+            worlds,
+            static_dims: self.dims,
+        };
+        // SAFETY: 基础证明已核对真实缓冲、镜像和写入代际。
+        unsafe {
+            Checked::<RneBackwardMetadata>::assume_uploaded(
+                span,
+                &self.values,
+                dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(rne_backward_launch_error)
     }
 
     #[cfg(test)]
@@ -1221,6 +1467,102 @@ impl RneCfrcKernel {
 }
 
 #[cfg(feature = "cuda-probe")]
+struct RneBackwardLaunch {
+    proof: Checked<RneBackwardMetadata>,
+}
+
+#[cfg(feature = "cuda-probe")]
+#[derive(Clone, Copy)]
+struct RneBackwardRequest {
+    worlds: u32,
+    level: u32,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct RneBackwardKernel {
+    session: TransferSession,
+    kernel: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl RneBackwardKernel {
+    fn compile(session: &TransferSession) -> Result<Self, TransferError> {
+        Ok(Self {
+            session: session.clone(),
+            kernel: SynchronousKernel::compile(session, RNE_CUDA, "rne_backward")?,
+        })
+    }
+
+    fn bindings(
+        metadata: &RneMetadataBuffer,
+        com: &TransferBuffer<f32>,
+        velocity: &TransferBuffer<f32>,
+        output: &TransferBuffer<f32>,
+    ) -> Result<[SlotBinding; 4], TransferError> {
+        Ok([
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: com.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: velocity.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: output.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ])
+    }
+
+    fn preflight(
+        &self,
+        session: &TransferSession,
+        metadata: &RneMetadataBuffer,
+        com: &TransferBuffer<f32>,
+        velocity: &TransferBuffer<f32>,
+        output: &TransferBuffer<f32>,
+        request: RneBackwardRequest,
+    ) -> Result<RneBackwardLaunch, TransferError> {
+        if !self.session.same_session(session) || !metadata.session.same_session(session) {
+            return Err(TransferError::SessionMismatch);
+        }
+        let proof = metadata.backward_proof(request.worlds, request.level)?;
+        let bindings = Self::bindings(metadata, com, velocity, output)?;
+        rne_backward_plan(proof.dims(), &bindings, &[proof.binding(0)])
+            .map_err(rne_backward_launch_error)?;
+        Ok(RneBackwardLaunch { proof })
+    }
+
+    fn launch(
+        &self,
+        launch: &RneBackwardLaunch,
+        metadata: &RneMetadataBuffer,
+        com: &TransferBuffer<f32>,
+        velocity: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+    ) -> Result<(), TransferError> {
+        let dims = *launch.proof.dims();
+        let bindings = Self::bindings(metadata, com, velocity, output)?;
+        rne_backward_plan(&dims, &bindings, &[launch.proof.binding(0)])
+            .map_err(rne_backward_launch_error)?;
+        // SAFETY: 类型计划核对证明、跨度、会话、别名和逐层网格。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), com, velocity, output, dims.abi)
+        }
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
 struct RneQfrcLaunch {
     proof: Checked<RneQfrcMetadata>,
 }
@@ -1355,11 +1697,7 @@ impl RnePlan {
         };
         let velocity = ComVelocityPlan::new(session, model)?;
         #[cfg(feature = "cuda-probe")]
-        let kernels = [SynchronousKernel::compile(
-            session,
-            RNE_CUDA,
-            "rne_backward",
-        )?];
+        let backward_kernel = RneBackwardKernel::compile(session)?;
         #[cfg(feature = "cuda-probe")]
         let cacc_kernel = RneCaccKernel::compile(session)?;
         #[cfg(feature = "cuda-probe")]
@@ -1377,7 +1715,7 @@ impl RnePlan {
             #[cfg(feature = "cuda-probe")]
             metadata,
             #[cfg(feature = "cuda-probe")]
-            kernels,
+            backward_kernel,
             #[cfg(feature = "cuda-probe")]
             cacc_kernel,
             #[cfg(feature = "cuda-probe")]
@@ -1470,6 +1808,20 @@ impl RnePlan {
                 &data.output,
                 worlds,
             )?;
+            let mut backward_launches = Vec::with_capacity(self.depth);
+            for level in (1..=self.depth).rev() {
+                backward_launches.push(self.backward_kernel.preflight(
+                    &self.session,
+                    &self.metadata,
+                    inputs.com,
+                    inputs.velocity,
+                    &data.output,
+                    RneBackwardRequest {
+                        worlds,
+                        level: level as u32,
+                    },
+                )?);
+            }
             self.cacc_kernel.launch(
                 &cacc_launch,
                 &self.metadata,
@@ -1486,25 +1838,16 @@ impl RnePlan {
                 inputs.velocity,
                 &mut data.output,
             )?;
-            // SAFETY: 已验证的深度表和工作量约束每个原子地址。
-            unsafe {
-                // Depth barriers separate atomic reads from descendant writes.
-                // Same-depth bodies never have a parent at that depth.
-                // Checked worlds*nbody bounds the work-item ABI.
-                for depth in (1..=self.depth).rev() {
-                    self.kernels[0].launch(
-                        self.metadata.as_buffer(),
-                        inputs.com,
-                        inputs.velocity,
-                        &mut data.output,
-                        [
-                            self.nbody as u32,
-                            depth as u32,
-                            0,
-                            worlds * self.nbody as u32,
-                        ],
-                    )?;
-                }
+            // 每次同步发射形成反向层级屏障。
+            // 同层兄弟仍通过atomicAdd归约。
+            for launch in &backward_launches {
+                self.backward_kernel.launch(
+                    launch,
+                    &self.metadata,
+                    inputs.com,
+                    inputs.velocity,
+                    &mut data.output,
+                )?;
             }
             self.qfrc_kernel.launch(
                 &qfrc_launch,
@@ -2214,6 +2557,503 @@ mod tests {
         ];
         assert_eq!(rne_qfrc_lengths(&dims).unwrap(), [13, 64, 32, 56]);
         rne_qfrc_plan(&dims, &bindings, &[proof.binding(0)]).unwrap();
+    }
+
+    #[test]
+    fn rne_backward_plan_checks_levels_spans_aliases_and_overflow() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let bind = |slot, context, addr, bytes, elem| SlotBinding {
+            slot,
+            span: DeviceSpan::new(context, addr, bytes).unwrap(),
+            elem,
+        };
+        let static_dims = RneStaticDims {
+            nbody: 4,
+            nv: 0,
+            depth: 3,
+            metadata_elements: 21,
+        };
+        let dims = RneBackwardDims {
+            abi: [4, 3, 0, 8],
+            worlds: 2,
+            static_dims,
+        };
+        let values = vec![
+            4, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3,
+        ];
+        assert_eq!(rne_backward_lengths(&dims).unwrap(), [21, 120, 56, 104]);
+        let revision = MetadataRevision::new();
+        let metadata_span = DeviceSpan::new(17, 0x1000, 84).unwrap();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let proof = unsafe {
+            Checked::<RneBackwardMetadata>::assume_uploaded(
+                metadata_span,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        let bindings = [
+            bind(0, 17, 0x1000, 84, ElemType::I32),
+            bind(1, 17, 0x2000, 480, ElemType::F32),
+            bind(2, 17, 0x3000, 224, ElemType::F32),
+            bind(3, 17, 0x4000, 416, ElemType::F32),
+        ];
+        let launch = rne_backward_plan(&dims, &bindings, &[proof.binding(0)]).unwrap();
+        assert_eq!(launch.grid(), (1, 1, 1));
+        assert_eq!(launch.block(), (256, 1, 1));
+        assert_eq!(launch.shared_bytes(), 0);
+        assert!(matches!(
+            rne_backward_plan(&dims, &bindings, &[]),
+            Err(LauncherError::MissingMetadataProof { slot: 0 })
+        ));
+
+        let addresses = [0x1000, 0x2000, 0x3000, 0x4000];
+        let bytes = [84, 480, 224, 416];
+        for slot in 0..4 {
+            let mut short = bindings;
+            short[slot].span = DeviceSpan::new(17, addresses[slot], bytes[slot] - 4).unwrap();
+            assert!(matches!(
+                rne_backward_plan(&dims, &short, &[proof.binding(0)]),
+                Err(LauncherError::Capacity { slot: bad, .. }) if bad == slot
+            ));
+
+            let mut long = bindings;
+            long[slot].span = DeviceSpan::new(17, addresses[slot], bytes[slot] + 4).unwrap();
+            assert!(matches!(
+                rne_backward_plan(&dims, &long, &[proof.binding(0)]),
+                Err(LauncherError::Capacity { slot: bad, .. }) if bad == slot
+            ));
+        }
+
+        let mut foreign = bindings;
+        foreign[2].span = DeviceSpan::new(18, 0x3000, 224).unwrap();
+        assert!(matches!(
+            rne_backward_plan(&dims, &foreign, &[proof.binding(0)]),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+        let mut alias = bindings;
+        alias[3].span = DeviceSpan::new(17, 0x2000, 416).unwrap();
+        assert!(matches!(
+            rne_backward_plan(&dims, &alias, &[proof.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3
+            })
+        ));
+
+        revision.invalidate();
+        assert!(matches!(
+            rne_backward_plan(&dims, &bindings, &[proof.binding(0)]),
+            Err(LauncherError::StaleMetadata)
+        ));
+        for invalid in [
+            RneBackwardDims {
+                abi: [4, 0, 0, 8],
+                ..dims
+            },
+            RneBackwardDims {
+                abi: [4, 4, 0, 8],
+                ..dims
+            },
+            RneBackwardDims {
+                abi: [3, 3, 0, 8],
+                ..dims
+            },
+            RneBackwardDims {
+                abi: [4, 3, 1, 8],
+                ..dims
+            },
+            RneBackwardDims {
+                abi: [4, 3, 0, 7],
+                ..dims
+            },
+            RneBackwardDims { worlds: 0, ..dims },
+        ] {
+            assert!(rne_backward_lengths(&invalid).is_err());
+        }
+        let overflow = RneBackwardDims {
+            abi: [500_000_000, 1, 0, 0],
+            worlds: 9,
+            static_dims: RneStaticDims {
+                nbody: 500_000_000,
+                nv: 0,
+                depth: 1,
+                metadata_elements: 2_000_000_005,
+            },
+        };
+        assert!(matches!(
+            rne_backward_lengths(&overflow),
+            Err(LauncherError::Overflow("rne_backward_work"))
+        ));
+        let max_work = u32::MAX - 255;
+        let max_grid = RneBackwardDims {
+            abi: [2, 1, 0, max_work],
+            worlds: max_work / 2,
+            static_dims: RneStaticDims {
+                nbody: 2,
+                nv: 0,
+                depth: 1,
+                metadata_elements: 13,
+            },
+        };
+        assert!(rne_backward_lengths(&max_grid).is_ok());
+        assert_eq!(
+            RneBackwardSpec::launch_dims(&max_grid).unwrap().grid(),
+            (16_777_215, 1, 1)
+        );
+        let beyond_grid = RneBackwardDims {
+            abi: [2, 1, 0, max_work + 2],
+            worlds: max_work / 2 + 1,
+            ..max_grid
+        };
+        assert!(matches!(
+            rne_backward_lengths(&beyond_grid),
+            Err(LauncherError::Overflow("rne_backward_work"))
+        ));
+        let byte_overflow = RneBackwardDims {
+            abi: [2, 1, 0, max_work],
+            worlds: max_work / 2,
+            static_dims: RneStaticDims {
+                nbody: 2,
+                nv: 600_000_000,
+                depth: 1,
+                metadata_elements: 600_000_013,
+            },
+        };
+        assert!(rne_backward_lengths(&byte_overflow).is_ok());
+        let byte_bindings = [
+            bind(0, 17, 0x1000, 2_400_000_052, ElemType::I32),
+            bind(1, 17, 0x1_0000_0000, 4, ElemType::F32),
+            bind(2, 17, 0x2_0000_0000, 4, ElemType::F32),
+            bind(3, 17, 0x3_0000_0000, 4, ElemType::F32),
+        ];
+        assert!(matches!(
+            rne_backward_plan(&byte_overflow, &byte_bindings, &[]),
+            Err(LauncherError::Overflow("rne_backward_bytes"))
+        ));
+        let root_only = RneBackwardDims {
+            abi: [1, 0, 0, 1],
+            worlds: 1,
+            static_dims: RneStaticDims {
+                nbody: 1,
+                nv: 0,
+                depth: 0,
+                metadata_elements: 9,
+            },
+        };
+        assert!(rne_backward_lengths(&root_only).is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn runs_rne_backward_wrapper_in_reverse_levels_and_recovers() {
+        let session = TransferSession::new(0).unwrap();
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let fixture: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(root.join("fixtures/rne-bias/mixed-joints.json")).unwrap(),
+        )
+        .unwrap();
+        let model = reference_model(&fixture);
+        let mut plan = RnePlan::new(&session, model, [0.0, 0.0, -9.81]).unwrap();
+        assert_eq!((plan.nbody, plan.nv, plan.depth), (6, 11, 4));
+        let parents = [0usize, 0, 1, 2, 3, 0];
+        let depths = [0usize, 1, 2, 3, 4, 1];
+        assert_eq!(
+            plan.metadata.values[5..5 + plan.nbody],
+            parents.map(|value| value as i32)
+        );
+        const WORLDS: usize = 43;
+        let mut data = plan.create_data(WORLDS).unwrap();
+        data.write_qvel(&vec![0.0; WORLDS * plan.nv]).unwrap();
+        plan.update_velocity(&mut data).unwrap();
+
+        let width = 12 * plan.nbody + plan.nv;
+        let mut initial = vec![0.0; data.output.len()];
+        initial[..4].fill(-131072.0);
+        let guard_end = initial.len() - 4;
+        initial[guard_end..].fill(-131072.0);
+        for world in 0..WORLDS {
+            let force = 4 + world * width + 6 * plan.nbody;
+            for body in 0..plan.nbody {
+                for lane in 0..6 {
+                    initial[force + 6 * body + lane] =
+                        (world * 1_000 + body * 16 + lane + 1) as f32;
+                }
+            }
+        }
+        let mut expected = initial.clone();
+        for level in (1..=plan.depth).rev() {
+            for body in 1..plan.nbody {
+                if depths[body] != level {
+                    continue;
+                }
+                for world in 0..WORLDS {
+                    let force = 4 + world * width + 6 * plan.nbody;
+                    for lane in 0..6 {
+                        let child = expected[force + 6 * body + lane];
+                        expected[force + 6 * parents[body] + lane] += child;
+                    }
+                }
+            }
+        }
+
+        let bits = |values: &[f32]| {
+            values
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        };
+        let (raw, typed) = {
+            let inputs = data.velocity.rne_inputs().unwrap();
+            data.output.write_range(0, &initial).unwrap();
+            // SAFETY: 复用产品计划的真实缓冲和冻结私有ABI。
+            unsafe {
+                for level in (1..=plan.depth).rev() {
+                    plan.backward_kernel
+                        .kernel
+                        .launch(
+                            plan.metadata.as_buffer(),
+                            inputs.com,
+                            inputs.velocity,
+                            &mut data.output,
+                            [
+                                plan.nbody as u32,
+                                level as u32,
+                                0,
+                                (WORLDS * plan.nbody) as u32,
+                            ],
+                        )
+                        .unwrap();
+                }
+            }
+            let mut raw = vec![0.0; data.output.len()];
+            data.output.read_range_into(0, &mut raw).unwrap();
+
+            data.output.write_range(0, &initial).unwrap();
+            let mut launches = Vec::with_capacity(plan.depth);
+            for level in (1..=plan.depth).rev() {
+                launches.push(
+                    plan.backward_kernel
+                        .preflight(
+                            &plan.session,
+                            &plan.metadata,
+                            inputs.com,
+                            inputs.velocity,
+                            &data.output,
+                            RneBackwardRequest {
+                                worlds: WORLDS as u32,
+                                level: level as u32,
+                            },
+                        )
+                        .unwrap(),
+                );
+            }
+            for launch in &launches {
+                plan.backward_kernel
+                    .launch(
+                        launch,
+                        &plan.metadata,
+                        inputs.com,
+                        inputs.velocity,
+                        &mut data.output,
+                    )
+                    .unwrap();
+            }
+            let mut typed = vec![0.0; data.output.len()];
+            data.output.read_range_into(0, &mut typed).unwrap();
+
+            let short_com = session.upload(&vec![0.0; inputs.com.len() - 1]).unwrap();
+            assert!(
+                plan.backward_kernel
+                    .preflight(
+                        &plan.session,
+                        &plan.metadata,
+                        &short_com,
+                        inputs.velocity,
+                        &data.output,
+                        RneBackwardRequest {
+                            worlds: WORLDS as u32,
+                            level: plan.depth as u32,
+                        },
+                    )
+                    .is_err()
+            );
+            let proof = plan
+                .metadata
+                .backward_proof(WORLDS as u32, plan.depth as u32)
+                .unwrap();
+            let mut alias = RneBackwardKernel::bindings(
+                &plan.metadata,
+                inputs.com,
+                inputs.velocity,
+                &data.output,
+            )
+            .unwrap();
+            let output_bytes = rne_backward_lengths(proof.dims()).unwrap()[3] * 4;
+            alias[3].span = alias[1].span.view(0, output_bytes).unwrap();
+            assert!(matches!(
+                rne_backward_plan(proof.dims(), &alias, &[proof.binding(0)]),
+                Err(LauncherError::Alias {
+                    first: 1,
+                    second: 3
+                })
+            ));
+
+            let stale_launch = plan
+                .backward_kernel
+                .preflight(
+                    &plan.session,
+                    &plan.metadata,
+                    inputs.com,
+                    inputs.velocity,
+                    &data.output,
+                    RneBackwardRequest {
+                        worlds: WORLDS as u32,
+                        level: plan.depth as u32,
+                    },
+                )
+                .unwrap();
+            let mut before_stale = vec![0.0; data.output.len()];
+            data.output.read_range_into(0, &mut before_stale).unwrap();
+            plan.metadata.overwrite_for_test(0, 1).unwrap();
+            assert!(
+                plan.backward_kernel
+                    .launch(
+                        &stale_launch,
+                        &plan.metadata,
+                        inputs.com,
+                        inputs.velocity,
+                        &mut data.output,
+                    )
+                    .is_err()
+            );
+            let mut rejected_stale = vec![0.0; data.output.len()];
+            data.output.read_range_into(0, &mut rejected_stale).unwrap();
+            assert_eq!(bits(&before_stale), bits(&rejected_stale));
+            plan.metadata.restore_for_test().unwrap();
+            let recovered_launch = plan
+                .backward_kernel
+                .preflight(
+                    &plan.session,
+                    &plan.metadata,
+                    inputs.com,
+                    inputs.velocity,
+                    &data.output,
+                    RneBackwardRequest {
+                        worlds: WORLDS as u32,
+                        level: plan.depth as u32,
+                    },
+                )
+                .unwrap();
+            data.output.write_range(0, &initial).unwrap();
+            plan.backward_kernel
+                .launch(
+                    &recovered_launch,
+                    &plan.metadata,
+                    inputs.com,
+                    inputs.velocity,
+                    &mut data.output,
+                )
+                .unwrap();
+            (raw, typed)
+        };
+        assert_eq!(bits(&raw), bits(&typed));
+        assert_eq!(bits(&raw), bits(&expected));
+
+        plan.update_rne(&mut data, true).unwrap();
+        data.readback().unwrap();
+        let mut before = vec![0.0; data.output.len()];
+        before[..4].fill(-131072.0);
+        let end = before.len() - 4;
+        before[end..].fill(-131072.0);
+        for (index, value) in before[4..end].iter_mut().enumerate() {
+            *value = -4096.0 + (index % 31) as f32 * 0.125;
+        }
+        data.output.write_range(0, &before).unwrap();
+
+        let foreign_session = TransferSession::new(0).unwrap();
+        let capture = std::env::var_os("MJWARP_PHYSICS_PTX_DIR");
+        if let Some(root) = capture.as_ref() {
+            let foreign = std::path::PathBuf::from(root).join("foreign-session");
+            assert!(!foreign.exists());
+            // SAFETY: 本测试单线程运行，并在编译后立即恢复环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &foreign) };
+        }
+        let foreign_kernel = RneBackwardKernel::compile(&foreign_session).unwrap();
+        if let Some(root) = capture.as_ref() {
+            // SAFETY: 本测试单线程运行，并恢复调用方的原始环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", root) };
+        } else {
+            // SAFETY: 本测试单线程运行，调用前也没有该变量。
+            unsafe { std::env::remove_var("MJWARP_PHYSICS_PTX_DIR") };
+        }
+        let correct_kernel = std::mem::replace(&mut plan.backward_kernel, foreign_kernel);
+        assert!(matches!(
+            plan.update_rne(&mut data, true),
+            Err(TransferError::SessionMismatch)
+        ));
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::StageNotReady { stage: "rne" })
+        ));
+        let mut rejected = vec![0.0; data.output.len()];
+        data.output.read_range_into(0, &mut rejected).unwrap();
+        assert_eq!(bits(&before), bits(&rejected));
+        let foreign_kernel = std::mem::replace(&mut plan.backward_kernel, correct_kernel);
+        plan.update_rne(&mut data, true).unwrap();
+        data.readback().unwrap();
+
+        use crate::model::{
+            InertialFields, InertialModelInput, KinematicFields, KinematicModelInput,
+        };
+        let root_model = KinematicModelInput::new(
+            0,
+            KinematicFields {
+                body_parentid: vec![0],
+                body_jntadr: vec![-1],
+                body_jntnum: vec![0],
+                body_pos: vec![0.0; 3],
+                body_quat: vec![1.0, 0.0, 0.0, 0.0],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let root_model = InertialModelInput::new(
+            root_model,
+            InertialFields {
+                body_ipos: vec![0.0; 3],
+                body_iquat: vec![1.0, 0.0, 0.0, 0.0],
+                body_mass: vec![0.0],
+                body_inertia: vec![0.0; 3],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let root_model =
+            AttachedModelInput::new(root_model, crate::model::AttachedFields::default()).unwrap();
+        if let Some(root) = capture.as_ref() {
+            let root_only = std::path::PathBuf::from(root).join("root-only");
+            assert!(!root_only.exists());
+            // SAFETY: 本测试单线程运行，并在编译后立即恢复环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &root_only) };
+        }
+        let mut root_plan = RnePlan::new(&session, root_model, [0.0; 3]).unwrap();
+        if let Some(root) = capture.as_ref() {
+            // SAFETY: 本测试单线程运行，并恢复调用方的原始环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", root) };
+        } else {
+            // SAFETY: 本测试单线程运行，调用前也没有该变量。
+            unsafe { std::env::remove_var("MJWARP_PHYSICS_PTX_DIR") };
+        }
+        assert_eq!(root_plan.depth, 0);
+        root_plan.backward_kernel = foreign_kernel;
+        let mut root_data = root_plan.create_data(2).unwrap();
+        root_plan.update(&mut root_data, false).unwrap();
+        root_data.readback().unwrap();
     }
 
     #[test]
