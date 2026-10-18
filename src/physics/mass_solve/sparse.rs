@@ -13,6 +13,8 @@ use crate::runtime::launcher::{
 };
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
+#[cfg(any(feature = "cuda-probe", test))]
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 mod dense;
@@ -38,12 +40,26 @@ pub use resident::{
 const SPARSE_MASS_COPY_METADATA_KIND: ProofKind = ProofKind("sparse_mass_copy_indices");
 
 #[cfg(any(feature = "cuda-probe", test))]
+const SPARSE_MASS_UPDATE_METADATA_KIND: ProofKind = ProofKind("sparse_mass_update_indices");
+
+#[cfg(any(feature = "cuda-probe", test))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct SparseMassCopyDims {
     launch: [u32; 4],
     nv: u32,
     nc: u32,
     metadata_elements: u32,
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct SparseMassUpdateDims {
+    launch: [u32; 4],
+    nv: u32,
+    nc: u32,
+    metadata_elements: u32,
+    update_count: u32,
+    worlds: u32,
 }
 
 #[cfg(any(feature = "cuda-probe", test))]
@@ -67,6 +83,155 @@ fn validate_sparse_mass_copy_metadata(
     Ok(())
 }
 
+#[cfg(any(feature = "cuda-probe", test))]
+fn sparse_mass_update_regions(
+    nv: u32,
+    update_count: u32,
+) -> Result<(usize, usize, usize), LauncherError> {
+    let nv = usize::try_from(nv).map_err(|_| LauncherError::Overflow("sparse_mass_update_nv"))?;
+    let stored_updates = usize::try_from(update_count.max(1))
+        .map_err(|_| LauncherError::Overflow("sparse_mass_update_count"))?;
+    let rows_end = 2usize
+        .checked_add(nv)
+        .ok_or(LauncherError::Overflow("sparse_mass_update_rows"))?;
+    let updates_start = rows_end
+        .checked_add(nv)
+        .ok_or(LauncherError::Overflow("sparse_mass_update_rows"))?;
+    let metadata_end = stored_updates
+        .checked_mul(3)
+        .and_then(|count| updates_start.checked_add(count))
+        .ok_or(LauncherError::Overflow("sparse_mass_update_metadata"))?;
+    Ok((rows_end, updates_start, metadata_end))
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn validate_sparse_mass_update_metadata(
+    values: &[i32],
+    nv: u32,
+    nc: u32,
+    metadata_elements: u32,
+    update_count: u32,
+) -> Result<(), LauncherError> {
+    let expected = usize::try_from(metadata_elements)
+        .map_err(|_| LauncherError::Overflow("sparse_mass_update_metadata"))?;
+    let (rows_end, updates_start, metadata_end) = sparse_mass_update_regions(nv, update_count)?;
+    if expected != metadata_end || values.len() != expected {
+        return Err(LauncherError::InvalidMetadata("稀疏更新元数据长度无效"));
+    }
+    let nv_i32 =
+        i32::try_from(nv).map_err(|_| LauncherError::InvalidMetadata("稀疏更新自由度越界"))?;
+    let nc_i32 =
+        i32::try_from(nc).map_err(|_| LauncherError::InvalidMetadata("稀疏更新矩阵长度越界"))?;
+    if values[..2] != [nv_i32, nc_i32] {
+        return Err(LauncherError::InvalidMetadata("稀疏更新元数据维度不匹配"));
+    }
+    let nv = usize::try_from(nv_i32)
+        .map_err(|_| LauncherError::InvalidMetadata("稀疏更新自由度无效"))?;
+    let nc = usize::try_from(nc_i32)
+        .map_err(|_| LauncherError::InvalidMetadata("稀疏更新矩阵长度无效"))?;
+    let rownnz = &values[2..rows_end];
+    let rowadr = &values[rows_end..updates_start];
+    let mut next = 0usize;
+    for row in 0..nv {
+        let count = usize::try_from(rownnz[row])
+            .map_err(|_| LauncherError::InvalidMetadata("稀疏更新行长度无效"))?;
+        let address = usize::try_from(rowadr[row])
+            .map_err(|_| LauncherError::InvalidMetadata("稀疏更新行地址无效"))?;
+        if count == 0 || address != next {
+            return Err(LauncherError::InvalidMetadata("稀疏更新CSR分区无效"));
+        }
+        next = address
+            .checked_add(count)
+            .filter(|&end| end <= nc)
+            .ok_or(LauncherError::InvalidMetadata("稀疏更新CSR越界"))?;
+    }
+    if next != nc {
+        return Err(LauncherError::InvalidMetadata("稀疏更新CSR长度不匹配"));
+    }
+    let updates = &values[updates_start..metadata_end];
+    if update_count == 0 {
+        if updates != [0, 0, 0] {
+            return Err(LauncherError::InvalidMetadata("稀疏更新空占位无效"));
+        }
+        return Ok(());
+    }
+    for update in updates.as_chunks::<3>().0 {
+        let i = usize::try_from(update[0])
+            .map_err(|_| LauncherError::InvalidMetadata("稀疏更新目标行无效"))?;
+        let k = usize::try_from(update[1])
+            .map_err(|_| LauncherError::InvalidMetadata("稀疏更新源行无效"))?;
+        let ki = usize::try_from(update[2])
+            .map_err(|_| LauncherError::InvalidMetadata("稀疏更新乘数地址无效"))?;
+        if i >= nv || k >= nv || i >= k || ki >= nc {
+            return Err(LauncherError::InvalidMetadata("稀疏更新三元组越界"));
+        }
+        let target_count = usize::try_from(rownnz[i])
+            .map_err(|_| LauncherError::InvalidMetadata("稀疏更新目标行长度无效"))?;
+        let source_count = usize::try_from(rownnz[k])
+            .map_err(|_| LauncherError::InvalidMetadata("稀疏更新源行长度无效"))?;
+        let source_address = usize::try_from(rowadr[k])
+            .map_err(|_| LauncherError::InvalidMetadata("稀疏更新源行地址无效"))?;
+        let expected_ki = source_address
+            .checked_add(target_count)
+            .and_then(|value| value.checked_sub(1))
+            .ok_or(LauncherError::InvalidMetadata("稀疏更新乘数地址溢出"))?;
+        if target_count >= source_count || ki != expected_ki {
+            return Err(LauncherError::InvalidMetadata("稀疏更新祖先前缀无效"));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn validate_sparse_mass_update_level(
+    values: &[i32],
+    dims: &SparseMassUpdateDims,
+    level_offsets: &[u32],
+    level: usize,
+) -> Result<(), LauncherError> {
+    validate_sparse_mass_update_metadata(
+        values,
+        dims.nv,
+        dims.nc,
+        dims.metadata_elements,
+        dims.update_count,
+    )?;
+    let next_level = level
+        .checked_add(1)
+        .ok_or(LauncherError::InvalidMetadata("稀疏更新层级越界"))?;
+    let Some((&first, &end)) = level_offsets.get(level).zip(level_offsets.get(next_level)) else {
+        return Err(LauncherError::InvalidMetadata("稀疏更新层级越界"));
+    };
+    let count = end
+        .checked_sub(first)
+        .filter(|&value| value != 0)
+        .ok_or(LauncherError::InvalidMetadata("稀疏更新空层级无效"))?;
+    if dims.launch[0] != first || dims.launch[1] != count || end > dims.update_count {
+        return Err(LauncherError::InvalidMetadata("稀疏更新层级切片不匹配"));
+    }
+    let (_, updates_start, _) = sparse_mass_update_regions(dims.nv, dims.update_count)?;
+    let start =
+        usize::try_from(first).map_err(|_| LauncherError::Overflow("sparse_mass_update_first"))?;
+    let end =
+        usize::try_from(end).map_err(|_| LauncherError::Overflow("sparse_mass_update_end"))?;
+    let mut sources = BTreeSet::new();
+    let mut multipliers = BTreeSet::new();
+    let mut targets = BTreeSet::new();
+    for update in values[updates_start + 3 * start..updates_start + 3 * end]
+        .as_chunks::<3>()
+        .0
+    {
+        if !sources.insert(update[1]) || !multipliers.insert(update[2]) {
+            return Err(LauncherError::InvalidMetadata("稀疏更新同层写入不唯一"));
+        }
+        targets.insert(update[0]);
+    }
+    if sources.iter().any(|source| targets.contains(source)) {
+        return Err(LauncherError::InvalidMetadata("稀疏更新同层读写相交"));
+    }
+    Ok(())
+}
+
 #[cfg(feature = "cuda-probe")]
 struct StaticSparseMassCopyMetadata;
 
@@ -78,6 +243,20 @@ impl MetadataProof for StaticSparseMassCopyMetadata {
 
     fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
         validate_sparse_mass_copy_metadata(values, dims[0], dims[1], dims[2])
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct StaticSparseMassUpdateMetadata;
+
+#[cfg(feature = "cuda-probe")]
+impl MetadataProof for StaticSparseMassUpdateMetadata {
+    type Dims = [u32; 4];
+
+    const KIND: ProofKind = SPARSE_MASS_UPDATE_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        validate_sparse_mass_update_metadata(values, dims[0], dims[1], dims[2], dims[3])
     }
 }
 
@@ -93,6 +272,27 @@ impl MetadataProof for SparseMassCopyLaunchMetadata {
     fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
         sparse_mass_copy_lengths(dims)?;
         validate_sparse_mass_copy_metadata(values, dims.nv, dims.nc, dims.metadata_elements)
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct SparseMassUpdateLaunchMetadata;
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl MetadataProof for SparseMassUpdateLaunchMetadata {
+    type Dims = SparseMassUpdateDims;
+
+    const KIND: ProofKind = SPARSE_MASS_UPDATE_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        sparse_mass_update_lengths(dims)?;
+        validate_sparse_mass_update_metadata(
+            values,
+            dims.nv,
+            dims.nc,
+            dims.metadata_elements,
+            dims.update_count,
+        )
     }
 }
 
@@ -260,6 +460,181 @@ fn sparse_mass_copy_launch_error(error: LauncherError) -> TransferError {
     }
 }
 
+#[cfg(any(feature = "cuda-probe", test))]
+const SPARSE_MASS_UPDATE_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: SPARSE_MASS_UPDATE_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::ReadWrite,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct SparseMassUpdateSpec;
+
+#[cfg(any(feature = "cuda-probe", test))]
+// SAFETY: 声明逐项匹配冻结稀疏质量更新ABI。
+unsafe impl KernelAbi for SparseMassUpdateSpec {
+    const NAME: &'static str = "sparse_mass_update";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &SPARSE_MASS_UPDATE_SLOTS;
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl KernelSpec for SparseMassUpdateSpec {
+    type Dims = SparseMassUpdateDims;
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        Ok(sparse_mass_update_lengths(dims)?
+            .into_iter()
+            .enumerate()
+            .map(|(slot, min_elements)| SlotRequirement { slot, min_elements })
+            .collect())
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        sparse_mass_update_lengths(dims)?;
+        LaunchDims::new((dims.launch[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn sparse_mass_update_lengths(dims: &SparseMassUpdateDims) -> Result<[u64; 4], LauncherError> {
+    let [first, count, stride, work] = dims.launch;
+    first
+        .checked_add(count)
+        .filter(|&value| count != 0 && value <= dims.update_count)
+        .ok_or(LauncherError::InvalidArray("稀疏更新区间无效"))?;
+    let expected_stride = dims
+        .nc
+        .checked_add(dims.nv)
+        .filter(|&value| value <= i32::MAX as u32)
+        .ok_or(LauncherError::Overflow("sparse_mass_update_stride"))?;
+    let expected_work = dims
+        .worlds
+        .checked_mul(count)
+        .ok_or(LauncherError::Overflow("sparse_mass_update_work"))?;
+    if stride != expected_stride
+        || dims.worlds == 0
+        || work != expected_work
+        || work == 0
+        || work > u32::MAX - 255
+    {
+        return Err(LauncherError::InvalidArray("稀疏更新维度无效"));
+    }
+    let (_, _, metadata_end) = sparse_mass_update_regions(dims.nv, dims.update_count)?;
+    if usize::try_from(dims.metadata_elements).ok() != Some(metadata_end) {
+        return Err(LauncherError::InvalidMetadata("稀疏更新元数据长度无效"));
+    }
+    let guarded = |elements: u64, field| {
+        elements
+            .checked_add(8)
+            .ok_or(LauncherError::Overflow(field))
+    };
+    let worlds = u64::from(dims.worlds);
+    let matrix = guarded(
+        worlds
+            .checked_mul(u64::from(dims.nc))
+            .ok_or(LauncherError::Overflow("sparse_mass_update_matrix"))?,
+        "sparse_mass_update_matrix",
+    )?;
+    let output = guarded(
+        worlds
+            .checked_mul(u64::from(stride))
+            .ok_or(LauncherError::Overflow("sparse_mass_update_output"))?,
+        "sparse_mass_update_output",
+    )?;
+    Ok([u64::from(dims.metadata_elements), matrix, matrix, output])
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn sparse_mass_update_plan(
+    dims: &SparseMassUpdateDims,
+    bindings: &[SlotBinding; 4],
+    proofs: &[CheckedBinding<'_, SparseMassUpdateDims>],
+) -> Result<LaunchDims, LauncherError> {
+    let lengths = sparse_mass_update_lengths(dims)?;
+    for (slot, elements) in lengths.into_iter().enumerate() {
+        let bytes = elements
+            .checked_mul(4)
+            .ok_or(LauncherError::Overflow("sparse_mass_update_bytes"))?;
+        if bindings[slot].span.bytes() != bytes {
+            return Err(LauncherError::InvalidArray("稀疏更新跨度不符"));
+        }
+    }
+    let plan = Kernel::<SparseMassUpdateSpec>::new()?.plan(dims, bindings, proofs)?;
+    Ok(plan.dims())
+}
+
+#[cfg(feature = "cuda-probe")]
+fn sparse_mass_update_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::Overflow(_) => InputError::Overflow {
+            field: "sparse_mass_update_abi",
+        }
+        .into(),
+        _ => InputError::InvalidDimension {
+            field: "sparse_mass_update_abi",
+        }
+        .into(),
+    }
+}
+
 #[cfg(feature = "cuda-probe")]
 struct SparseMassCopyMetadataBuffer {
     buffer: TransferBuffer<i32>,
@@ -267,8 +642,11 @@ struct SparseMassCopyMetadataBuffer {
     nv: u32,
     nc: u32,
     metadata_elements: u32,
+    update_count: u32,
+    level_offsets: Vec<u32>,
     revision: MetadataRevision,
     checked: Checked<StaticSparseMassCopyMetadata>,
+    checked_update: Checked<StaticSparseMassUpdateMetadata>,
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -278,13 +656,36 @@ impl SparseMassCopyMetadataBuffer {
         values: Vec<i32>,
         nv: u32,
         nc: u32,
+        level_offsets: &[i32],
     ) -> Result<Self, TransferError> {
         let metadata_elements = u32::try_from(values.len()).map_err(|_| InputError::Overflow {
             field: "sparse_mass_copy_metadata",
         })?;
+        let level_offsets = level_offsets
+            .iter()
+            .map(|&value| {
+                u32::try_from(value).map_err(|_| InputError::InvalidDimension {
+                    field: "sparse_mass_update_levels",
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if level_offsets.first() != Some(&0)
+            || level_offsets.windows(2).any(|pair| pair[0] >= pair[1])
+        {
+            return Err(InputError::InvalidDimension {
+                field: "sparse_mass_update_levels",
+            }
+            .into());
+        }
+        let update_count = *level_offsets.last().ok_or(InputError::InvalidDimension {
+            field: "sparse_mass_update_levels",
+        })?;
         let static_dims = [nv, nc, metadata_elements];
         StaticSparseMassCopyMetadata::validate(&values, &static_dims)
             .map_err(sparse_mass_copy_launch_error)?;
+        let update_static_dims = [nv, nc, metadata_elements, update_count];
+        StaticSparseMassUpdateMetadata::validate(&values, &update_static_dims)
+            .map_err(sparse_mass_update_launch_error)?;
         let buffer = session.upload(&values)?;
         let revision = MetadataRevision::new();
         // SAFETY: 上传同步完成且跨度来自同一缓冲。
@@ -297,14 +698,27 @@ impl SparseMassCopyMetadataBuffer {
             )
         }
         .map_err(sparse_mass_copy_launch_error)?;
+        // SAFETY: 同一上传保存完整CSR与生成后的更新元组。
+        let checked_update = unsafe {
+            Checked::<StaticSparseMassUpdateMetadata>::assume_uploaded(
+                buffer.launcher_span()?,
+                &values,
+                update_static_dims,
+                revision.clone(),
+            )
+        }
+        .map_err(sparse_mass_update_launch_error)?;
         Ok(Self {
             buffer,
             values,
             nv,
             nc,
             metadata_elements,
+            update_count,
+            level_offsets,
             revision,
             checked,
+            checked_update,
         })
     }
 
@@ -333,6 +747,33 @@ impl SparseMassCopyMetadataBuffer {
         .map_err(sparse_mass_copy_launch_error)
     }
 
+    fn update_proof(
+        &self,
+        dims: SparseMassUpdateDims,
+        level: usize,
+    ) -> Result<Checked<SparseMassUpdateLaunchMetadata>, TransferError> {
+        let span = self.buffer.launcher_span()?;
+        self.checked_update
+            .binding(0)
+            .validate_for(
+                span,
+                &[self.nv, self.nc, self.metadata_elements, self.update_count],
+            )
+            .map_err(sparse_mass_update_launch_error)?;
+        validate_sparse_mass_update_level(&self.values, &dims, &self.level_offsets, level)
+            .map_err(sparse_mass_update_launch_error)?;
+        // SAFETY: 私有输入生成元组；层级切片与上传代际均已复核。
+        unsafe {
+            Checked::<SparseMassUpdateLaunchMetadata>::assume_uploaded(
+                span,
+                &self.values,
+                dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(sparse_mass_update_launch_error)
+    }
+
     #[cfg(test)]
     fn write_for_test(&mut self, index: usize, value: i32) -> Result<(), TransferError> {
         self.revision.invalidate();
@@ -353,6 +794,16 @@ impl SparseMassCopyMetadataBuffer {
             )
         }
         .map_err(sparse_mass_copy_launch_error)?;
+        // SAFETY: 恢复写入同步完成且完整元数据保持原值。
+        self.checked_update = unsafe {
+            Checked::<StaticSparseMassUpdateMetadata>::assume_uploaded(
+                self.buffer.launcher_span()?,
+                &self.values,
+                [self.nv, self.nc, self.metadata_elements, self.update_count],
+                self.revision.clone(),
+            )
+        }
+        .map_err(sparse_mass_update_launch_error)?;
         Ok(())
     }
 }
@@ -453,6 +904,129 @@ impl SparseMassCopyKernel {
     }
 }
 
+#[cfg(feature = "cuda-probe")]
+struct SparseMassUpdateKernel {
+    kernel: SynchronousKernel,
+    nv: u32,
+    nc: u32,
+    metadata_elements: u32,
+    update_count: u32,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl SparseMassUpdateKernel {
+    fn compile(
+        session: &TransferSession,
+        metadata: &SparseMassCopyMetadataBuffer,
+    ) -> Result<Self, TransferError> {
+        StaticSparseMassUpdateMetadata::validate(
+            &metadata.values,
+            &[
+                metadata.nv,
+                metadata.nc,
+                metadata.metadata_elements,
+                metadata.update_count,
+            ],
+        )
+        .map_err(sparse_mass_update_launch_error)?;
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, CUDA, "sparse_mass_update")?,
+            nv: metadata.nv,
+            nc: metadata.nc,
+            metadata_elements: metadata.metadata_elements,
+            update_count: metadata.update_count,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &SparseMassCopyMetadataBuffer,
+        unused: &TransferBuffer<f32>,
+        unused2: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        worlds: usize,
+        level: usize,
+    ) -> Result<(), TransferError> {
+        if (
+            metadata.nv,
+            metadata.nc,
+            metadata.metadata_elements,
+            metadata.update_count,
+        ) != (self.nv, self.nc, self.metadata_elements, self.update_count)
+        {
+            return Err(InputError::InvalidDimension {
+                field: "sparse_mass_update_static_dims",
+            }
+            .into());
+        }
+        let next_level = level.checked_add(1).ok_or(InputError::InvalidDimension {
+            field: "sparse_mass_update_level",
+        })?;
+        let Some((&first, &end)) = metadata
+            .level_offsets
+            .get(level)
+            .zip(metadata.level_offsets.get(next_level))
+        else {
+            return Err(InputError::InvalidDimension {
+                field: "sparse_mass_update_level",
+            }
+            .into());
+        };
+        let count = end.checked_sub(first).filter(|&value| value != 0).ok_or(
+            InputError::InvalidDimension {
+                field: "sparse_mass_update_level",
+            },
+        )?;
+        let worlds = u32::try_from(worlds).map_err(|_| InputError::Overflow {
+            field: "sparse_mass_update_worlds",
+        })?;
+        let stride = self.nc.checked_add(self.nv).ok_or(InputError::Overflow {
+            field: "sparse_mass_update_stride",
+        })?;
+        let work = worlds.checked_mul(count).ok_or(InputError::Overflow {
+            field: "sparse_mass_update_work",
+        })?;
+        let dims = SparseMassUpdateDims {
+            launch: [first, count, stride, work],
+            nv: self.nv,
+            nc: self.nc,
+            metadata_elements: self.metadata_elements,
+            update_count: self.update_count,
+            worlds,
+        };
+        let proof = metadata.update_proof(dims, level)?;
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: unused.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: unused2.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: output.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        sparse_mass_update_plan(&dims, &bindings, &[proof.binding(0)])
+            .map_err(sparse_mass_update_launch_error)?;
+        // SAFETY: 类型化计划核对真实层级、跨度、代际与写入隔离。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), unused, unused2, output, dims.launch)
+        }
+    }
+}
+
 pub struct SparseMassFactorPlan {
     input: Arc<SparseMassInput>,
     #[cfg(feature = "cuda-probe")]
@@ -462,7 +1036,9 @@ pub struct SparseMassFactorPlan {
     #[cfg(feature = "cuda-probe")]
     copy: SparseMassCopyKernel,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 2],
+    update: SparseMassUpdateKernel,
+    #[cfg(feature = "cuda-probe")]
+    diag: SynchronousKernel,
 }
 pub struct SparseMassFactorData {
     input: Arc<SparseMassInput>,
@@ -629,18 +1205,23 @@ impl SparseMassFactorPlan {
                 }
                 .into());
             }
-            let metadata = SparseMassCopyMetadataBuffer::upload(session, packed, nv, nc)?;
+            let metadata = SparseMassCopyMetadataBuffer::upload(
+                session,
+                packed,
+                nv,
+                nc,
+                input.qld_level_offsets(),
+            )?;
             let copy = SparseMassCopyKernel::compile(session, &metadata)?;
-            let kernels = [
-                SynchronousKernel::compile(session, CUDA, "sparse_mass_update")?,
-                SynchronousKernel::compile(session, CUDA, "sparse_mass_diag")?,
-            ];
+            let update = SparseMassUpdateKernel::compile(session, &metadata)?;
+            let diag = SynchronousKernel::compile(session, CUDA, "sparse_mass_diag")?;
             Ok(Self {
                 input,
                 session: session.clone(),
                 metadata,
                 copy,
-                kernels,
+                update,
+                diag,
             })
         }
     }
@@ -695,31 +1276,20 @@ impl SparseMassFactorPlan {
                 worlds_usize,
             )?;
             for level in (0..self.input.qld_level_offsets().len() - 1).rev() {
-                let offsets = self.input.qld_level_offsets();
-                let count = (offsets[level + 1] - offsets[level]) as u32;
-                // SAFETY: Each update uses proven ancestor-row prefixes. This
-                // level owns its multipliers; atomic targets may overlap, exactly
-                // as frozen _qLD_acc. Checked work count is worlds*level_size.
-                unsafe {
-                    self.kernels[0].launch(
-                        self.metadata.as_buffer(),
-                        &data.matrix,
-                        &data.matrix,
-                        &mut data.output,
-                        [
-                            offsets[level] as u32,
-                            count,
-                            data.output_layout.elements_per_world() as u32,
-                            worlds * count,
-                        ],
-                    )?;
-                }
+                self.update.launch(
+                    &self.metadata,
+                    &data.matrix,
+                    &data.matrix,
+                    &mut data.output,
+                    worlds_usize,
+                    level,
+                )?;
             }
             if self.input.nv() != 0 {
                 // SAFETY: One thread writes each diagonal inverse in its own
                 // checked world. The factor CSR and diagonal output do not overlap.
                 unsafe {
-                    self.kernels[1].launch(
+                    self.diag.launch(
                         self.metadata.as_buffer(),
                         &data.matrix,
                         &data.matrix,
@@ -1025,6 +1595,138 @@ mod tests {
         }
     }
 
+    #[test]
+    fn sparse_mass_update_plan_checks_real_levels_spans_and_aliases() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let bind = |slot, context, addr, bytes, elem| SlotBinding {
+            slot,
+            span: DeviceSpan::new(context, addr, bytes).unwrap(),
+            elem,
+        };
+        let values = vec![
+            3, 6, // nv, nc
+            1, 2, 3, // rownnz
+            0, 1, 3, // rowadr
+            0, 1, 1, // 共享根目标一
+            0, 2, 3, // 共享根目标二
+            1, 2, 4, // 下一层
+        ];
+        let dims = SparseMassUpdateDims {
+            launch: [0, 2, 9, 4],
+            nv: 3,
+            nc: 6,
+            metadata_elements: 17,
+            update_count: 3,
+            worlds: 2,
+        };
+        let levels = [0, 2, 3];
+        validate_sparse_mass_update_level(&values, &dims, &levels, 0).unwrap();
+        assert_eq!(sparse_mass_update_lengths(&dims).unwrap(), [17, 20, 20, 26]);
+
+        let revision = MetadataRevision::new();
+        let metadata_span = DeviceSpan::new(7, 0x1000, 68).unwrap();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let proof = unsafe {
+            Checked::<SparseMassUpdateLaunchMetadata>::assume_uploaded(
+                metadata_span,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        let bindings = [
+            bind(0, 7, 0x1000, 68, ElemType::I32),
+            bind(1, 7, 0x2000, 80, ElemType::F32),
+            bind(2, 7, 0x2000, 80, ElemType::F32),
+            bind(3, 7, 0x3000, 104, ElemType::F32),
+        ];
+        let launch = sparse_mass_update_plan(&dims, &bindings, &[proof.binding(0)]).unwrap();
+        assert_eq!(launch.grid(), (1, 1, 1));
+        assert_eq!(launch.block(), (256, 1, 1));
+        assert_eq!(launch.shared_bytes(), 0);
+        assert!(matches!(
+            sparse_mass_update_plan(&dims, &bindings, &[]),
+            Err(LauncherError::MissingMetadataProof { slot: 0 })
+        ));
+
+        let addresses = [0x1000, 0x2000, 0x2000, 0x3000];
+        let bytes = [68, 80, 80, 104];
+        for slot in 0..4 {
+            let mut short = bindings;
+            short[slot].span = DeviceSpan::new(7, addresses[slot], bytes[slot] - 4).unwrap();
+            assert!(sparse_mass_update_plan(&dims, &short, &[proof.binding(0)]).is_err());
+
+            let mut long = bindings;
+            long[slot].span = DeviceSpan::new(7, addresses[slot], bytes[slot] + 4).unwrap();
+            assert!(sparse_mass_update_plan(&dims, &long, &[proof.binding(0)]).is_err());
+        }
+
+        let mut foreign = bindings;
+        foreign[1].span = DeviceSpan::new(8, 0x2000, 80).unwrap();
+        assert!(matches!(
+            sparse_mass_update_plan(&dims, &foreign, &[proof.binding(0)]),
+            Err(LauncherError::ContextMismatch { slot: 1 })
+        ));
+
+        let mut alias = bindings;
+        alias[3].span = DeviceSpan::new(7, 0x2000, 104).unwrap();
+        assert!(matches!(
+            sparse_mass_update_plan(&dims, &alias, &[proof.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3
+            })
+        ));
+
+        let mut wrong_level = dims;
+        wrong_level.launch = [1, 2, 9, 4];
+        assert!(validate_sparse_mass_update_level(&values, &wrong_level, &levels, 0).is_err());
+        assert!(validate_sparse_mass_update_level(&values, &dims, &levels, usize::MAX).is_err());
+        let mut duplicate_source = values.clone();
+        duplicate_source[11..14].copy_from_slice(&[0, 1, 1]);
+        validate_sparse_mass_update_metadata(&duplicate_source, 3, 6, 17, 3).unwrap();
+        assert!(validate_sparse_mass_update_level(&duplicate_source, &dims, &levels, 0).is_err());
+
+        let empty = [0, 0, 0, 0, 0];
+        validate_sparse_mass_update_metadata(&empty, 0, 0, 5, 0).unwrap();
+        for invalid in [
+            SparseMassUpdateDims {
+                launch: [0, 0, 9, 0],
+                ..dims
+            },
+            SparseMassUpdateDims {
+                launch: [2, 2, 9, 4],
+                ..dims
+            },
+            SparseMassUpdateDims {
+                launch: [0, 2, 8, 4],
+                ..dims
+            },
+            SparseMassUpdateDims {
+                launch: [0, 2, 9, 5],
+                ..dims
+            },
+            SparseMassUpdateDims {
+                launch: [0, 2, 9, 0],
+                worlds: 0,
+                ..dims
+            },
+        ] {
+            assert!(sparse_mass_update_lengths(&invalid).is_err());
+        }
+
+        revision.invalidate();
+        assert!(matches!(
+            sparse_mass_update_plan(&dims, &bindings, &[proof.binding(0)]),
+            Err(LauncherError::StaleMetadata)
+        ));
+        let mut bad_prefix = values;
+        bad_prefix[10] = 0;
+        assert!(validate_sparse_mass_update_metadata(&bad_prefix, 3, 6, 17, 3).is_err());
+    }
+
     #[cfg(feature = "cuda-probe")]
     fn assert_copy_matches_matrix(data: &SparseMassFactorData) {
         let mut matrix = vec![0.0; data.matrix.len()];
@@ -1214,6 +1916,64 @@ mod tests {
         ));
         assert_copy_matches_matrix(&data);
         assert!(!data.ready);
+        let mut before_update_reject = vec![0.0; data.output.len()];
+        data.output
+            .read_range_into(0, &mut before_update_reject)
+            .unwrap();
+        assert!(matches!(
+            plan.update.launch(
+                &plan.metadata,
+                &foreign_matrix,
+                &foreign_matrix,
+                &mut data.output,
+                worlds,
+                0,
+            ),
+            Err(TransferError::SessionMismatch)
+        ));
+        let mut after_update_reject = vec![0.0; data.output.len()];
+        data.output
+            .read_range_into(0, &mut after_update_reject)
+            .unwrap();
+        assert_eq!(
+            before_update_reject
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            after_update_reject
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        let first = plan.metadata.values[0];
+        plan.metadata.write_for_test(0, first + 1).unwrap();
+        assert!(
+            plan.update
+                .launch(
+                    &plan.metadata,
+                    &data.matrix,
+                    &data.matrix,
+                    &mut data.output,
+                    worlds,
+                    0,
+                )
+                .is_err()
+        );
+        let mut after_stale_reject = vec![0.0; data.output.len()];
+        data.output
+            .read_range_into(0, &mut after_stale_reject)
+            .unwrap();
+        assert_eq!(
+            after_update_reject
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            after_stale_reject
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        plan.metadata.restore_for_test().unwrap();
         plan.update_factor(&mut data).unwrap();
         assert_factor_matches_native(&data, m);
         let first = plan.metadata.values[0];
