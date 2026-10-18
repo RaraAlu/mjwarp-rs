@@ -4,11 +4,217 @@ use crate::diagnostics::{InputError, ProbeError, TransferError};
 use crate::model::{BatchLayout, SparseMassInput};
 use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, ElemType, Kernel, KernelAbi, KernelSpec, LaunchDims, LauncherError,
+    SlotBinding, SlotDesc, SlotKind, SlotRequirement, SlotRole,
+};
+#[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
 
 mod small;
 pub use small::{SparseMassSmallData, SparseMassSmallOutput, SparseMassSmallPlan};
+
+#[cfg(feature = "cuda-probe")]
+const DENSE_VALIDATION_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Write,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(feature = "cuda-probe")]
+struct DenseValidationSpec;
+
+#[cfg(feature = "cuda-probe")]
+// SAFETY: 声明匹配冻结稠密校验ABI。
+unsafe impl KernelAbi for DenseValidationSpec {
+    const NAME: &'static str = "sparse_dense_validate";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &DENSE_VALIDATION_SLOTS;
+}
+
+#[cfg(feature = "cuda-probe")]
+impl KernelSpec for DenseValidationSpec {
+    type Dims = [u32; 4];
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        let (matrix, status) = dense_validation_lengths(dims)?;
+        Ok(vec![
+            SlotRequirement {
+                slot: 0,
+                min_elements: 1,
+            },
+            SlotRequirement {
+                slot: 1,
+                min_elements: matrix,
+            },
+            SlotRequirement {
+                slot: 2,
+                min_elements: 1,
+            },
+            SlotRequirement {
+                slot: 3,
+                min_elements: status,
+            },
+        ])
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        dense_validation_lengths(dims)?;
+        LaunchDims::new((dims[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn dense_validation_lengths(dims: &[u32; 4]) -> Result<(u64, u64), LauncherError> {
+    let [nc, _prefix, reserved, worlds] = *dims;
+    if reserved != 0 || worlds == 0 || worlds > u32::MAX - 255 {
+        return Err(LauncherError::InvalidArray("稠密校验维度无效"));
+    }
+    let matrix = u64::from(nc)
+        .checked_mul(u64::from(worlds))
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("dense_validation_matrix"))?;
+    let status = u64::from(worlds)
+        .checked_add(8)
+        .ok_or(LauncherError::Overflow("dense_validation_status"))?;
+    Ok((matrix, status))
+}
+
+#[cfg(feature = "cuda-probe")]
+fn dense_validation_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        _ => InputError::InvalidDimension {
+            field: "dense_validation_abi",
+        }
+        .into(),
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct DenseValidationKernel {
+    kernel: SynchronousKernel,
+    nc: u32,
+    prefix: u32,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl DenseValidationKernel {
+    fn compile(session: &TransferSession, nc: u32, prefix: u32) -> Result<Self, TransferError> {
+        dense_validation_lengths(&[nc, prefix, 0, 1]).map_err(dense_validation_launch_error)?;
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, CUDA, "sparse_dense_validate")?,
+            nc,
+            prefix,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        matrix: &TransferBuffer<f32>,
+        unused: &TransferBuffer<f32>,
+        status: &mut TransferBuffer<f32>,
+        worlds: usize,
+    ) -> Result<(), TransferError> {
+        let worlds = u32::try_from(worlds).map_err(|_| InputError::Overflow {
+            field: "dense_validation_worlds",
+        })?;
+        let dims = [self.nc, self.prefix, 0, worlds];
+        let (matrix_len, status_len) =
+            dense_validation_lengths(&dims).map_err(dense_validation_launch_error)?;
+        if u64::try_from(matrix.len()).ok() != Some(matrix_len)
+            || u64::try_from(status.len()).ok() != Some(status_len)
+        {
+            return Err(InputError::InvalidDimension {
+                field: "dense_validation_abi",
+            }
+            .into());
+        }
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: matrix.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: unused.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: status.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        Kernel::<DenseValidationSpec>::new()
+            .and_then(|kernel| kernel.plan(&dims, &bindings, &[]))
+            .map_err(dense_validation_launch_error)?;
+        // SAFETY: 类型化计划核对真实跨度和固定ABI。
+        unsafe { self.kernel.launch(metadata, matrix, unused, status, dims) }
+    }
+}
 
 pub struct SparseMassDensePlan {
     input: Arc<SparseMassInput>,
@@ -17,7 +223,9 @@ pub struct SparseMassDensePlan {
     #[cfg(feature = "cuda-probe")]
     metadata: TransferBuffer<i32>,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 2],
+    validator: DenseValidationKernel,
+    #[cfg(feature = "cuda-probe")]
+    gather: SynchronousKernel,
 }
 pub struct SparseMassDenseData {
     input: Arc<SparseMassInput>,
@@ -90,14 +298,19 @@ impl SparseMassDensePlan {
             if sources.is_empty() {
                 sources.push(0);
             }
+            let nc = u32::try_from(input.nc()).map_err(|_| InputError::Overflow {
+                field: "dense_validation_nc",
+            })?;
+            let prefix =
+                u32::try_from(input.qld_block_total()).map_err(|_| InputError::Overflow {
+                    field: "dense_validation_prefix",
+                })?;
             Ok(Self {
                 input,
                 session: session.clone(),
                 metadata: session.upload(&sources)?,
-                kernels: [
-                    SynchronousKernel::compile(session, CUDA, "sparse_dense_validate")?,
-                    SynchronousKernel::compile(session, CUDA, "sparse_dense_gather")?,
-                ],
+                validator: DenseValidationKernel::compile(session, nc, prefix)?,
+                gather: SynchronousKernel::compile(session, CUDA, "sparse_dense_gather")?,
             })
         }
     }
@@ -141,20 +354,18 @@ impl SparseMassDensePlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let n = self.input.nc() as u32;
-            let p = self.input.qld_block_total() as u32;
-            let worlds = data.worlds() as u32;
-            // SAFETY: Checked CSR/world strides bound the full guarded source.
-            // One thread owns each status slot. Buffers are disjoint, same-plan.
-            unsafe {
-                self.kernels[0].launch(
-                    &self.metadata,
-                    &data.matrix,
-                    &data.matrix,
-                    &mut data.status,
-                    [n, p, 0, worlds],
-                )?;
-            }
+            let n = self.validator.nc;
+            let p = self.validator.prefix;
+            let worlds = u32::try_from(data.worlds()).map_err(|_| InputError::Overflow {
+                field: "sparse_dense_worlds",
+            })?;
+            self.validator.launch(
+                &self.metadata,
+                &data.matrix,
+                &data.matrix,
+                &mut data.status,
+                worlds as usize,
+            )?;
             let mut status = crate::runtime::host_staging::<f32>(data.worlds() + 8)?;
             data.status.read_range_into(0, &mut status)?;
             crate::physics::check_device_values(&status, "sparse_dense_status")?;
@@ -173,7 +384,7 @@ impl SparseMassDensePlan {
                 // sentinel, which writes +0 without reading out of bounds.
                 // One thread owns one dense slot; all work finishes synchronously.
                 unsafe {
-                    self.kernels[1].launch(
+                    self.gather.launch(
                         &self.metadata,
                         &data.matrix,
                         &data.matrix,
@@ -293,6 +504,194 @@ mod tests {
             "/tests/support/sparse_mass_dense.rs"
         ));
     }
+
+    #[test]
+    fn typed_dense_validation_plan_tracks_actual_access_spans() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let dims = [3, 0, 0, 257];
+        let (matrix_len, status_len) = dense_validation_lengths(&dims).unwrap();
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: DeviceSpan::new(7, 0x1000, 4).unwrap(),
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: DeviceSpan::new(7, 0x2000, matrix_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: DeviceSpan::new(7, 0x4000, 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: DeviceSpan::new(7, 0x6000, status_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+        ];
+        let kernel = Kernel::<DenseValidationSpec>::new().unwrap();
+        let plan = kernel.plan(&dims, &bindings, &[]).unwrap();
+        assert_eq!(plan.dims().grid(), (2, 1, 1));
+        assert_eq!(plan.dims().block(), (256, 1, 1));
+
+        let mut capacity = bindings;
+        capacity[1].span = DeviceSpan::new(7, 0x2000, matrix_len * 4 - 4).unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &capacity, &[]),
+            Err(LauncherError::Capacity { slot: 1, .. })
+        ));
+
+        let mut alias = bindings;
+        alias[3].span = alias[1].span;
+        assert!(matches!(
+            kernel.plan(&dims, &alias, &[]),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3,
+            })
+        ));
+
+        let mut unused_alias = bindings;
+        unused_alias[2].span = unused_alias[3].span;
+        assert!(matches!(
+            kernel.plan(&dims, &unused_alias, &[]),
+            Err(LauncherError::Alias {
+                first: 2,
+                second: 3,
+            })
+        ));
+
+        let mut foreign = bindings;
+        foreign[2].span = DeviceSpan::new(8, 0x4000, 4).unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &foreign, &[]),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+
+        assert!(kernel.plan(&[3, 0, 1, 257], &bindings, &[]).is_err());
+        assert!(kernel.plan(&[3, 0, 0, 0], &bindings, &[]).is_err());
+    }
+
+    #[test]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn gpu_dense_validation_wrapper_preserves_zero_prefix_and_unused_semantics() {
+        let session = TransferSession::new(0).unwrap();
+        let foreign = TransferSession::new(0).unwrap();
+        let mut metadata = session.upload(&[0i32]).unwrap();
+        let unused = session.upload(&[7.0f32]).unwrap();
+        let worlds = 257usize;
+        let nc = 3usize;
+        let mut matrix_values = vec![-131072.0; nc * worlds + 8];
+        let matrix_end = matrix_values.len() - 4;
+        matrix_values[4..matrix_end].fill(0.25);
+        let status_values = vec![-131072.0; worlds + 8];
+        let matrix = session.upload(&matrix_values).unwrap();
+        let mut status = session.upload(&status_values).unwrap();
+        let kernel = DenseValidationKernel::compile(&session, nc as u32, 0).unwrap();
+
+        kernel
+            .launch(&metadata, &matrix, &unused, &mut status, worlds)
+            .unwrap();
+        let mut result = vec![0.0; status.len()];
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(&result[..4], &status_values[..4]);
+        assert_eq!(
+            &result[result.len() - 4..],
+            &status_values[status_values.len() - 4..]
+        );
+        assert!(result[4..4 + worlds].iter().all(|&value| value == 1.0));
+        let stable = result.clone();
+
+        metadata.write_range(0, &[-1]).unwrap();
+        kernel
+            .launch(&metadata, &matrix, &unused, &mut status, worlds)
+            .unwrap();
+        let short_matrix = session
+            .upload(&matrix_values[..matrix_values.len() - 1])
+            .unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &short_matrix, &unused, &mut status, worlds)
+                .is_err()
+        );
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(result, stable);
+
+        let mut short_status = session
+            .upload(&status_values[..status_values.len() - 1])
+            .unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &matrix, &unused, &mut short_status, worlds)
+                .is_err()
+        );
+        let mut short_after = vec![0.0; short_status.len()];
+        short_status.read_range_into(0, &mut short_after).unwrap();
+        assert_eq!(short_after, status_values[..status_values.len() - 1]);
+
+        let wrong_nc_matrix = session
+            .upload(&vec![-131072.0f32; (nc + 1) * worlds + 8])
+            .unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &wrong_nc_matrix, &unused, &mut status, worlds,)
+                .is_err()
+        );
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(result, stable);
+
+        let foreign_unused = foreign.upload(&[7.0f32]).unwrap();
+        assert!(matches!(
+            kernel.launch(&metadata, &matrix, &foreign_unused, &mut status, worlds),
+            Err(TransferError::SessionMismatch)
+        ));
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(result, stable);
+    }
+
+    #[test]
+    #[ignore = "requires NVIDIA/NVRTC; dense validation product-call purpose"]
+    fn gpu_dense_validation_real_update_rejects_before_gather_and_recovers() {
+        let start = std::time::Instant::now();
+        let refs = input::reference();
+        let model = &refs["models"][3];
+        let session = TransferSession::new(0).unwrap();
+        let plan = SparseMassDensePlan::new(&session, input::native(model)).unwrap();
+        let mut data = plan.create_data(2).unwrap();
+        let matrix = input::matrix(&model["cases"][0]);
+        data.write_matrix(&matrix.repeat(2)).unwrap();
+        plan.update(&mut data).unwrap();
+        let bits = |values: &[f32]| {
+            values
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        };
+        let mut stable = vec![0.0; data.dense.len()];
+        data.dense.read_range_into(0, &mut stable).unwrap();
+
+        data.matrix.write_range(0, &[0.0]).unwrap();
+        assert!(plan.update(&mut data).is_err());
+        assert!(!data.ready);
+        assert!(data.readback().is_err());
+        let mut rejected = vec![0.0; data.dense.len()];
+        data.dense.read_range_into(0, &mut rejected).unwrap();
+        assert_eq!(bits(&stable), bits(&rejected));
+
+        data.matrix.write_range(0, &[-131072.0]).unwrap();
+        plan.update(&mut data).unwrap();
+        assert!(data.readback().is_ok());
+        println!(
+            "dense_validation_private worlds=2 recovered=true phase_ms={} status_capacity_bytes={}",
+            start.elapsed().as_millis(),
+            data.status.len() * std::mem::size_of::<f32>()
+        );
+    }
+
     #[test]
     #[ignore = "requires NVIDIA/NVRTC; new dense prefix source/target fault purpose"]
     fn dense_source_guards_unselected_nan_world_writes_and_recovery() {

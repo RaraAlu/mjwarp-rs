@@ -1,0 +1,145 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-18-layers-m3-dense-validation",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/01-host-plan.log",
+      "blob": "359d196c3120febfa82c42cfe7c89c21c7cfa582"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/02-gpu-wrapper.log",
+      "blob": "12814b197f6c5e9ee86b08540a59dacd84061862"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/03-gpu-product-path.log",
+      "blob": "be44c17daf15213647b66795f65af5ce20df0623"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/04-cargo-fmt-check.log",
+      "blob": "acee06445eecb143bfea3ffa8c6742a069e75505"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/05-cargo-check-default.log",
+      "blob": "7d7f5540dfa47043b9b50a8c8c6b71a75ff779c3"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/06-cargo-clippy.log",
+      "blob": "3b0a7a03b067742382ddab2c3a0a1900b3ce885c"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/07-gpu-environment.log",
+      "blob": "bd45c9a4a295a36a22601af29e636ef666070edd"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/08-kernel-comparison.log",
+      "blob": "bff44da957fb721114357cb851f0948c9032d1ea"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/09-artifact-cleanup-attempts.log",
+      "blob": "4a26594166a17d559de6daae3f050c049854b1b3"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/10-delivery-preflight.log",
+      "blob": "36e77f60076fa6abf6ecf46b1e5ebb31775423d3"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/README.md",
+      "blob": "c92084976c502efcd1d926bf995933d976a68008"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/capture-metadata/sparse_dense_gather-eba8479127c4adb44f9e864d952ad9dd6205a6612ac0690e9951cdb1f39cf8a5.json",
+      "blob": "e117240f8338822bb0e20f6cd4ed1518547b6a4a"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/capture-metadata/sparse_dense_validate-eba8479127c4adb44f9e864d952ad9dd6205a6612ac0690e9951cdb1f39cf8a5.json",
+      "blob": "08048200ff2da50fa0a53b1e8762fe395dfc4f7c"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/doc-audit.md",
+      "blob": "baadb71d7e19bf9c5bcbc5bf32f4515db99c57f2"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-dense-validation/kernel-comparison.json",
+      "blob": "2e3509e7852ec41997a015c8bba6542ec1fde90b"
+    },
+    {
+      "path": "src/physics/mass_solve/sparse/dense.rs",
+      "blob": "f9c73c545da92baed5c8709b269281906fc07d3b"
+    }
+  ],
+  "validation": [
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::dense::tests::typed_dense_validation_plan_tracks_actual_access_spans -- --exact --nocapture --test-threads=1",
+      "result": "pass: 1 passed; grid 2 and block 256 checked for 257 worlds",
+      "evidence": "docs/development-evidence/layers-m3-dense-validation/01-host-plan.log"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::dense::tests::gpu_dense_validation_wrapper_preserves_zero_prefix_and_unused_semantics -- --ignored --exact --nocapture --test-threads=1",
+      "result": "pass: 1 passed; exact capacities, zero prefix, unused metadata, session and rejection stability checked",
+      "evidence": "docs/development-evidence/layers-m3-dense-validation/02-gpu-wrapper.log"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::dense::tests::gpu_dense_validation_real_update_rejects_before_gather_and_recovers -- --ignored --exact --nocapture --test-threads=1",
+      "result": "pass: 1 passed; rejected validation preserved Dense output and recovered; phase 232 ms; status 40 bytes",
+      "evidence": "docs/development-evidence/layers-m3-dense-validation/03-gpu-product-path.log"
+    },
+    {
+      "command": "cargo fmt --check",
+      "result": "pass: exit code 0",
+      "evidence": "docs/development-evidence/layers-m3-dense-validation/04-cargo-fmt-check.log"
+    },
+    {
+      "command": "cargo check --locked",
+      "result": "pass: exit code 0",
+      "evidence": "docs/development-evidence/layers-m3-dense-validation/05-cargo-check-default.log"
+    },
+    {
+      "command": "cargo clippy --locked --lib --features cuda-probe -- -D warnings",
+      "result": "pass: exit code 0",
+      "evidence": "docs/development-evidence/layers-m3-dense-validation/06-cargo-clippy.log"
+    },
+    {
+      "command": "nvidia-smi --query-gpu=name,driver_version,memory.total,memory.used --format=csv,noheader,nounits",
+      "result": "pass: RTX 4070 Ti SUPER; driver 596.36; 16376 MiB; whole-card sample only",
+      "evidence": "docs/development-evidence/layers-m3-dense-validation/07-gpu-environment.log"
+    },
+    {
+      "command": "compare current Dense CU, PTX, and metadata against committed gzip history",
+      "result": "pass: validation and gather module artifacts match historical hashes",
+      "evidence": "docs/development-evidence/layers-m3-dense-validation/kernel-comparison.json"
+    },
+    {
+      "command": "attempt raw capture cleanup with PowerShell",
+      "result": "blocked twice by tool policy before process start; apply_patch removed six matched raw files",
+      "evidence": "docs/development-evidence/layers-m3-dense-validation/09-artifact-cleanup-attempts.log"
+    },
+    {
+      "command": "audit-docs",
+      "result": "pass: 1573 source files; 163 documents; 0 mismatches",
+      "evidence": "docs/development-evidence/layers-m3-dense-validation/doc-audit.md"
+    },
+    {
+      "command": "scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId 2026-10-18-layers-m3-dense-validation",
+      "result": "pass: in_progress; 9 acceptance items; 3 scoped paths",
+      "evidence": "docs/development-evidence/layers-m3-dense-validation/10-delivery-preflight.log"
+    }
+  ],
+  "remaining": [
+    "本机显卡不满足T4验收。",
+    "Linux验收未运行。",
+    "发布构建未运行。",
+    "NP01至NP04未验收。",
+    "冻结上游等价未验证。",
+    "SASS和机器码等价未验证。",
+    "sparse_dense_gather安全包装不在本切片。",
+    "其他M3入口仍待独立迁移。",
+    "父任务M3仍未完成。",
+    "M4与A1仍受阻塞。"
+  ]
+}
