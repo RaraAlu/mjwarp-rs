@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-18-default-lib-test-fix",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/default-lib-test-fix.md",
+      "blob": "e211ec2832d3d20fb9db0700395046bd5833599e"
+    },
+    {
+      "path": "docs/development-evidence/default-lib-test-fix/.gitattributes",
+      "blob": "c7b10f0600b0f948691ba9d5f8373b4f157484f9"
+    },
+    {
+      "path": "docs/development-evidence/default-lib-test-fix/diff.log",
+      "blob": "4e8cdc2efbc33455ec7961fe3d7ed291ed365fd2"
+    },
+    {
+      "path": "docs/development-evidence/default-lib-test-fix/fmt.log",
+      "blob": "e0af30e202b4b8c7f4cebe6c526c947aba65cb69"
+    },
+    {
+      "path": "docs/development-evidence/default-lib-test-fix/lib-cuda-probe.log",
+      "blob": "90a890e4a6a274655f348cf29d02aaa990509bba"
+    },
+    {
+      "path": "docs/development-evidence/default-lib-test-fix/lib-default.log",
+      "blob": "a97bc0ca602871ee81499fa2a19b5d5f22947222"
+    },
+    {
+      "path": "docs/development-evidence/default-lib-test-fix/toolchain.log",
+      "blob": "ff51484fb7c364b7aa57d7ee0144fd46e5095bfa"
+    },
+    {
+      "path": "src/physics/fluid_force.rs",
+      "blob": "d3251c5a384b6c411ebd78eaf3a49c7f1af83090"
+    }
+  ],
+  "validation": [
+    {
+      "command": "rustup show active-toolchain; rustc -vV; cargo -V",
+      "result": "stable-x86_64-pc-windows-gnu, rustc 1.99.0 (b940084d7 2026-09-28)",
+      "evidence": "docs/development-evidence/default-lib-test-fix/toolchain.log"
+    },
+    {
+      "command": "cargo fmt --check",
+      "result": "pass",
+      "evidence": "docs/development-evidence/default-lib-test-fix/fmt.log"
+    },
+    {
+      "command": "git diff --stat; git diff",
+      "result": "pass: 1 file, only CUDA cfg attribute and one comment line changed; kernel string untouched",
+      "evidence": "docs/development-evidence/default-lib-test-fix/diff.log"
+    },
+    {
+      "command": "cargo test --locked --lib",
+      "result": "pass: 232 passed, 0 failed, 0 ignored; 4 fluid_force host tests ran",
+      "evidence": "docs/development-evidence/default-lib-test-fix/lib-default.log"
+    },
+    {
+      "command": "cargo +stable-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib",
+      "result": "pass: 262 passed, 0 failed, 83 ignored (existing GPU tests)",
+      "evidence": "docs/development-evidence/default-lib-test-fix/lib-cuda-probe.log"
+    }
+  ],
+  "remaining": [
+    "Default-feature clippy diagnostics are not addressed here (toolchain-clippy-governance).",
+    "Integration tests and GPU tests were not rerun.",
+    "Linux was not verified.",
+    "NP01-NP04 are outside this task."
+  ]
+}

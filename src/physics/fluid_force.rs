@@ -755,7 +755,8 @@ fn read_output(
 
 // 冻结来源：passive.py::_fluid_force与support.py::apply_ft。
 // 基线：71da24d，许可：Apache-2.0。
-#[cfg(feature = "cuda-probe")]
+// 测试只读取源码文本；默认构建也须可见。
+#[cfg(any(test, feature = "cuda-probe"))]
 const CUDA: &str = r#"
 #define FF_MINVAL 1.0e-15f
 #define FF_PI 3.14159265358979323846f
