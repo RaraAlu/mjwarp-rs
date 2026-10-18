@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-18-layers-m3-sparse-mass-copy",
+  "base_commit": "c599f9f8ab0d78e6b5e35dfba1d67f08d5679368",
+  "source_file": "src/physics/mass_solve/sparse.rs",
+  "source_sha256": "ba407e237dd0a1cdf1c5bf27717f6d144a3cf975d3d9104033373a4ec25e6765",
+  "entry": "sparse_mass_copy",
+  "abi": {
+    "slots": 8,
+    "pointer_slots": [
+      {"index": 0, "type": "i32", "access": "read", "role": "address_bearing", "exact_elements": "full packed metadata"},
+      {"index": 1, "type": "f32", "access": "read", "role": "value", "exact_elements": "worlds * nc + 8"},
+      {"index": 2, "type": "f32", "access": "read", "role": "value", "exact_elements": "worlds * nc + 8"},
+      {"index": 3, "type": "f32", "access": "write", "role": "value", "exact_elements": "worlds * (nc + nv) + 8"}
+    ],
+    "scalar_slots": ["first:u32", "count:u32", "stride:u32", "work:u32"],
+    "block": [256, 1, 1],
+    "shared_bytes": 0,
+    "metadata_proof_required": true,
+    "metadata_kind": "sparse_mass_copy_indices"
+  },
+  "metadata": {
+    "ownership": "exclusive wrapper retains device buffer, host snapshot and revision",
+    "full_packed_length_exact": true,
+    "nv_from_word_0": true,
+    "nc_from_word_1": true,
+    "remaining_words_shared_with_update_and_diag": true,
+    "generation_checked_before_launch": true
+  },
+  "alias": {
+    "matrix_and_unused_same_read_only_object": true,
+    "read_read_alias_allowed": true,
+    "output_overlap_rejected": true
+  },
+  "empty_model": {
+    "nv": 0,
+    "nc": 0,
+    "stride": 0,
+    "work": "worlds",
+    "metadata_words": 5,
+    "matrix_elements_with_guards": 8,
+    "output_elements_with_guards": 8
+  },
+  "host_checks": [
+    "checked usize-to-u32 and u32-to-i32 conversions",
+    "checked nc-plus-nv stride arithmetic",
+    "checked exact metadata and buffer spans",
+    "checked positive bounded world count",
+    "checked one CUDA context",
+    "checked metadata revision",
+    "checked writable output alias",
+    "fixed 256-thread launch"
+  ],
+  "ordering": [
+    "ready becomes false",
+    "typed copy plan and launch complete",
+    "raw update launches complete in reverse level order",
+    "raw diagonal launch completes",
+    "values, pivots and guards pass",
+    "ready becomes true"
+  ],
+  "unchanged": {
+    "cuda_source": true,
+    "ptx": true,
+    "nvrtc_options": true,
+    "f32_path": true,
+    "tolerances": true,
+    "fixtures": true,
+    "copy_update_diag_order": true,
+    "private_runtime_launch": true
+  }
+}
