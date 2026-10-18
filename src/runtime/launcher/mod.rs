@@ -10,8 +10,7 @@ mod recipe;
 
 pub use abi::{
     AbiSignature, Access, AliasException, BlockRule, ElemType, KernelAbi, LaunchBounds1,
-    LaunchBounds2, LaunchBounds3, LaunchBounds4, ProofKind, SlotDesc, SlotKind, SlotRole,
-    WarpArray, WarpElement,
+    LaunchBounds2, LaunchBounds3, ProofKind, SlotDesc, SlotKind, SlotRole, WarpArray, WarpElement,
 };
 pub use alias::{DeviceSpan, SlotBinding, SlotRequirement, rebind_values, validate_bindings};
 pub use recipe::{ArchTarget, CompileRecipe, CppStd, PrecisionGate, RecipePurpose};

@@ -63,7 +63,8 @@ pub enum SlotKind {
     WarpArrayData { elem: ElemType, ndim: u8 },
     /// 按值传递的标量。
     Scalar { bytes: u8 },
-    /// Warp的`launch_bounds_t<dims>`。
+    /// Warp的`launch_bounds_t<dims>`，`dims`为发射网格维度。
+    /// 冻结上游只用1至3维；4维不受支持。
     Bounds { dims: u8 },
 }
 
@@ -170,8 +171,8 @@ impl AbiSignature {
                     if position != 0 {
                         return fail("Warp边界只能位于首槽位");
                     }
-                    if !(1..=4).contains(&dims) {
-                        return fail("Warp边界维度须为1至4");
+                    if !(1..=3).contains(&dims) {
+                        return fail("Warp发射边界维度须为1至3");
                     }
                 }
                 SlotKind::WarpArrayData { ndim, .. } => {
@@ -425,16 +426,10 @@ launch_bounds!(
     /// `launch_bounds_t<3>`，与L2`WarpBounds3`一致。
     LaunchBounds3, 3, padding
 );
-launch_bounds!(
-    /// `launch_bounds_t<4>`。
-    LaunchBounds4, 4,
-);
 
 #[cfg(feature = "cuda-probe")]
 mod device {
-    use super::{
-        LaunchBounds1, LaunchBounds2, LaunchBounds3, LaunchBounds4, WarpArray, WarpElement,
-    };
+    use super::{LaunchBounds1, LaunchBounds2, LaunchBounds3, WarpArray, WarpElement};
     use cudarc::driver::DeviceRepr;
 
     // SAFETY: 全部字段为固定宽度整数，填充均为显式字段。
@@ -446,8 +441,6 @@ mod device {
     unsafe impl DeviceRepr for LaunchBounds2 {}
     // SAFETY: 同上。
     unsafe impl DeviceRepr for LaunchBounds3 {}
-    // SAFETY: 同上。
-    unsafe impl DeviceRepr for LaunchBounds4 {}
 }
 
 #[cfg(test)]
@@ -482,7 +475,10 @@ mod tests {
         assert_eq!(size_of::<LaunchBounds1>(), 24);
         assert_eq!(size_of::<LaunchBounds2>(), 24);
         assert_eq!(size_of::<LaunchBounds3>(), 32);
-        assert_eq!(size_of::<LaunchBounds4>(), 32);
+        assert_eq!(align_of::<LaunchBounds1>(), 8);
+        assert_eq!(offset_of!(LaunchBounds1, padding), 4);
+        assert_eq!(offset_of!(LaunchBounds1, size), 8);
+        assert_eq!(offset_of!(LaunchBounds1, coord_mult), 16);
         assert_eq!(offset_of!(LaunchBounds2, size), 8);
         assert_eq!(offset_of!(LaunchBounds2, coord_mult), 16);
         assert_eq!(offset_of!(LaunchBounds3, padding), 12);

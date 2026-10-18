@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-18-m1-bounds-evidence",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/m1-bounds-evidence/.gitattributes",
+      "blob": "c7b10f0600b0f948691ba9d5f8373b4f157484f9"
+    },
+    {
+      "path": "docs/development-evidence/m1-bounds-evidence/clippy-cuda-probe.log",
+      "blob": "b724b1c0e39e2060294d6175b5760637200de9f7"
+    },
+    {
+      "path": "docs/development-evidence/m1-bounds-evidence/clippy-default.log",
+      "blob": "c33350dc05cbbdb25f5593d18c8bab0f9ddb4958"
+    },
+    {
+      "path": "docs/development-evidence/m1-bounds-evidence/diff.log",
+      "blob": "aef0febb179929da6dd820b87112304f05c27d96"
+    },
+    {
+      "path": "docs/development-evidence/m1-bounds-evidence/fmt.log",
+      "blob": "047e230f3386849f1c7913002d31116fc0ca584f"
+    },
+    {
+      "path": "docs/development-evidence/m1-bounds-evidence/launcher-abi-cuda-probe.log",
+      "blob": "8362e2c4b87b83789dae5d46bbedabde72bd92a0"
+    },
+    {
+      "path": "docs/development-evidence/m1-bounds-evidence/launcher-abi-default.log",
+      "blob": "7191a29fe3b0c92a2ab605bd6b91203df30131bc"
+    },
+    {
+      "path": "docs/development-evidence/m1-bounds-evidence/launcher-unit-cuda-probe.log",
+      "blob": "05dea33971539cef2abd444709f795719585a73f"
+    },
+    {
+      "path": "docs/development-evidence/m1-bounds-evidence/lib-default.log",
+      "blob": "efb471841c3be711a5fb40530a40e065ca26a98e"
+    },
+    {
+      "path": "docs/development-evidence/m1-bounds-evidence/samples.json",
+      "blob": "c047c0c6d81f9a4024896612332627726e3d042c"
+    },
+    {
+      "path": "docs/development-evidence/m1-bounds-evidence/toolchain.log",
+      "blob": "ff51484fb7c364b7aa57d7ee0144fd46e5095bfa"
+    },
+    {
+      "path": "docs/m1-bounds-evidence.md",
+      "blob": "be55b3cf988e32debea583a798ca96d003611489"
+    },
+    {
+      "path": "docs/module-contracts.md",
+      "blob": "275086ed258808dfbf74bbf25aa50c4f7d109839"
+    },
+    {
+      "path": "docs/unified-launcher.md",
+      "blob": "6491e06834e4b5e4c5adbd141a8a806901085434"
+    },
+    {
+      "path": "src/runtime/launcher/abi.rs",
+      "blob": "dd6179b64d89618557a37124748424985a1f0f99"
+    },
+    {
+      "path": "src/runtime/launcher/mod.rs",
+      "blob": "6b22427992cc7d6d9c299edbec976bbccd13eb94"
+    },
+    {
+      "path": "tests/launcher_abi.rs",
+      "blob": "127bae24399cba2f1b53328164b69a5cdee6c1de"
+    },
+    {
+      "path": "tests/support/launcher_bounds_evidence.rs",
+      "blob": "0154dee5c5367491986c7bd6dc147012d601546a"
+    }
+  ],
+  "validation": [
+    {
+      "command": "rustup show active-toolchain; rustc -vV; cargo -V",
+      "result": "stable-x86_64-pc-windows-gnu, rustc 1.99.0",
+      "evidence": "docs/development-evidence/m1-bounds-evidence/toolchain.log"
+    },
+    {
+      "command": "cargo fmt --check",
+      "result": "pass",
+      "evidence": "docs/development-evidence/m1-bounds-evidence/fmt.log"
+    },
+    {
+      "command": "cargo test --locked --lib",
+      "result": "pass: 232 passed, 0 failed, 0 ignored",
+      "evidence": "docs/development-evidence/m1-bounds-evidence/lib-default.log"
+    },
+    {
+      "command": "cargo test --locked --test launcher_abi",
+      "result": "pass: 18 passed incl. 1-D PTX first-parameter evidence, 4-D bounds rejection, 4-D array acceptance",
+      "evidence": "docs/development-evidence/m1-bounds-evidence/launcher-abi-default.log"
+    },
+    {
+      "command": "cargo +stable-x86_64-pc-windows-msvc test --locked --features cuda-probe --test launcher_abi",
+      "result": "pass: 19 passed incl. recorded cu/ptx SHA-256 check",
+      "evidence": "docs/development-evidence/m1-bounds-evidence/launcher-abi-cuda-probe.log"
+    },
+    {
+      "command": "cargo +stable-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib runtime::launcher",
+      "result": "pass: 10 passed",
+      "evidence": "docs/development-evidence/m1-bounds-evidence/launcher-unit-cuda-probe.log"
+    },
+    {
+      "command": "cargo clippy --all-targets -- -D warnings",
+      "result": "not clean (pre-existing): 24 diagnostics, 0 in scope; increase from 18 is newly compiled test code after default-lib-test-fix",
+      "evidence": "docs/development-evidence/m1-bounds-evidence/clippy-default.log"
+    },
+    {
+      "command": "cargo clippy --all-targets --features cuda-probe -- -D warnings",
+      "result": "not clean (pre-existing): 52 diagnostics, 0 in scope",
+      "evidence": "docs/development-evidence/m1-bounds-evidence/clippy-cuda-probe.log"
+    },
+    {
+      "command": "fixed static sample list",
+      "result": "3 one-dim + 1 two-dim + 1 three-dim frozen entries; param0 matches LaunchBounds1/2/3; gravity has 11 x 56-byte arrays",
+      "evidence": "docs/development-evidence/m1-bounds-evidence/samples.json"
+    }
+  ],
+  "remaining": [
+    "Static evidence proves size and alignment only; field order and runtime semantics are left to M4.",
+    "Digest check needs sha2 and runs only with cuda-probe; default build checks digest format only.",
+    "fluid_force.rs excessive_precision lints are frozen constants: allow, never shorten (toolchain-clippy-governance).",
+    "No GPU or Linux run; physics calls not migrated; NP01-NP04 not accepted."
+  ]
+}
