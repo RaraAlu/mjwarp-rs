@@ -167,6 +167,41 @@ fn checks_cached_artifact_boundary_and_rejects_forgery() {
 }
 
 #[test]
+fn preserves_frozen_generator_hashes() {
+    const GENERATORS: [(&[u8], &str); 5] = [
+        (
+            include_bytes!("../fixtures/gravity-upstream-abi/independent-kinematics/generate.py"),
+            "7366b81dba2133f1e09eb8c2cbf27121af271edbb8295bc3f3c4b70c6793bd05",
+        ),
+        (
+            include_bytes!(
+                "../fixtures/gravity-upstream-abi/independent-kinematics/attempt-1/generate.py"
+            ),
+            "fcff2ce6ad14438cbdea29a1d511e764eda94bd13b514cabf29e98d44d77a589",
+        ),
+        (
+            include_bytes!(
+                "../fixtures/gravity-upstream-abi/independent-kinematics/attempt-2/generate.py"
+            ),
+            "48a3195bbf4169d46ccae9066c42952e4d78949e22f50ade0341562b8327a20d",
+        ),
+        (
+            include_bytes!(
+                "../fixtures/gravity-upstream-abi/independent-kinematics/attempt-3/generate.py"
+            ),
+            "7366b81dba2133f1e09eb8c2cbf27121af271edbb8295bc3f3c4b70c6793bd05",
+        ),
+        (
+            include_bytes!("../fixtures/gravity-upstream-abi/nonzero-kinematics/generate.py"),
+            "43436c4d73af31bcfc84d5b3dbe58fc171a0641e82c081f8954dded8801342a2",
+        ),
+    ];
+    for (generator, expected) in GENERATORS {
+        assert_eq!(digest(generator), expected);
+    }
+}
+
+#[test]
 fn demonstrates_atomic_order_and_zero_sign_risks() {
     let map = map();
     let texts = sources(&map);

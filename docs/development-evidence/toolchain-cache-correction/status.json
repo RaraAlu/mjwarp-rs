@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-18-toolchain-cache-correction",
+  "associated_task": {
+    "id": "2026-10-18-toolchain-evidence-revalidation",
+    "commit": "4c123c357fc9a6fb9de1297a82d973cb9e077997",
+    "host_checks": {
+      "total": 19,
+      "passed": 18,
+      "failed": 1,
+      "failed_test": "t4_hessian_generation::checks_cached_artifact_boundary_and_rejects_forgery",
+      "failed_reason": "cache denominator"
+    },
+    "evidence_relations": {
+      "total": 50,
+      "revalidated": 45,
+      "not_revalidated": 5,
+      "groups": [
+        {
+          "name": "applied-force",
+          "relations": 4,
+          "status": "pre-existing GPU failure"
+        },
+        {
+          "name": "resident-mixed-mass",
+          "relations": 1,
+          "status": "pre-existing GPU failure"
+        }
+      ]
+    },
+    "correction_conclusion": "The verified status did not satisfy the original all-19-host-checks clause. This task closes only the cache clause and does not grant retroactive full acceptance."
+  },
+  "cache_correction": {
+    "cause": "versioned cache root caused Warp to append a second 1.15.0 directory",
+    "frozen_generators_restored": 5,
+    "successor_tool": "scripts/prepare-gravity-upstream-authoring.ps1",
+    "successor_executes_python": false,
+    "strict_cache_denominator": 3,
+    "archived_files": 3,
+    "archive_manifest": "fixtures/gravity-upstream-abi/cache-quarantine/warp-1.15.0-double-version-2026-10-18/manifest.json"
+  },
+  "verification": {
+    "inherited": {
+      "source_thread": "01a14e4a-369a-7385-8609-510e5606603c",
+      "command": "$env:CARGO_TARGET_DIR='D:\\Rust\\mjwarp-rs\\target-codex-cache-fix'; cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --test t4_hessian_generation",
+      "result": "4 passed; 0 failed",
+      "reuse_reason": "supported thread readback; the original cache relocation remained unchanged"
+    },
+    "current": [
+      {
+        "command": "pwsh -NoProfile -File scripts/prepare-gravity-upstream-authoring.ps1 -SelfTest",
+        "result": "5 sources prepared; frozen hashes preserved; tampered source rejected; dependencies complete; one version layer; Python not executed"
+      },
+      {
+        "command": "cargo +1.99.0-x86_64-pc-windows-msvc fmt --check",
+        "result": "passed"
+      },
+      {
+        "command": "$env:CARGO_TARGET_DIR='D:\\Rust\\mjwarp-rs\\target-codex-cache-correction'; cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --test t4_hessian_generation",
+        "result": "4 passed; 0 failed; 0 ignored"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "command": "PowerShell archive and frozen-hash verification",
+        "result": "3 archive files and 5 frozen generators matched recorded SHA256 values"
+      }
+    ]
+  },
+  "acceptance": {
+    "gpu": false,
+    "t4": false,
+    "np01_to_np04": false,
+    "product_precision": false
+  }
+}
