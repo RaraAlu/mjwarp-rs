@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-18-layers-m3-mixed-solve-capture-evidence-gap",
+  "created_on": "2026-10-19",
+  "baseline": {
+    "head": "f85f92eeec3b99e24a232d91311c3c97cd42ad0f",
+    "original_fused_commit": "7314929caaf18ed0bca0d0c067c8b669d54e802a",
+    "correction_commit": "4ad691e7dab7948e900845e564be647c01938382",
+    "source": "src/physics/mass_solve/sparse/mixed/solve.rs",
+    "source_sha256": "fbf5f8fa5a6dd1d4132aa3940a03eb6238fa9a3b4adaff83c27fe09e9de9b7f6",
+    "source_git_blob": "47c02198d62142fd761dce54630ff514455749c1",
+    "source_matches_original_fused_commit": true
+  },
+  "historical_boundary": {
+    "attempt_3_same_name_files": 42,
+    "attempt_2_pre_overwrite_bytes_recoverable": false,
+    "historical_attempt2_recovered": false,
+    "original_item11_fully_supported": false,
+    "old_tasks_or_evidence_will_change": false
+  },
+  "scope": {
+    "product_source_changes": false,
+    "test_source_changes": false,
+    "new_evidence_only": true,
+    "selected_test_creates_one_plan": true,
+    "selected_entry": "mixed_solve_fused",
+    "other_captures_are_incidental": true,
+    "other_captures_transfer_acceptance": false
+  },
+  "environment": {
+    "os": "Windows",
+    "gpu_channel": "T4",
+    "gpu_model_expected": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "cuda_path": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1",
+    "cuda_bin_prepended_to_path": true,
+    "python_allowed": false,
+    "task_gpu_memory_usage": "unknown",
+    "peak_gpu_memory_measured": false
+  },
+  "input_and_precision": {
+    "fixture": "fixtures/mixed-mass-solve/reference.json",
+    "support": "tests/support/mixed_mass_solve.rs",
+    "worlds": 1,
+    "rhs_count": 129,
+    "product_scalar": "f32",
+    "solution_tolerance": "2e-4 + 2e-4 * abs(reference)",
+    "atomic_bitwise_required": false,
+    "np01_to_np04_accepted": false,
+    "performance_accepted": false
+  },
+  "run_root": "target/normify-evidence/2026-10-18-layers-m3-mixed-solve-capture-evidence-gap/run-01",
+  "capture_directory": "target/normify-evidence/2026-10-18-layers-m3-mixed-solve-capture-evidence-gap/run-01/gpu-capture",
+  "capture_directory_must_not_exist": true,
+  "expected_compile_entries": [
+    "sparse_dense_validate",
+    "sparse_dense_gather",
+    "small_prefix_factor_2",
+    "small_prefix_factor_3",
+    "small_prefix_factor_4",
+    "small_prefix_factor_5",
+    "small_prefix_factor_6",
+    "small_prefix_validate",
+    "sparse_mass_copy",
+    "sparse_mass_update",
+    "sparse_mass_diag",
+    "mixed_factor_merge",
+    "mixed_solve_validate",
+    "mixed_solve_fused"
+  ],
+  "planned": [
+    {
+      "id": "cuda-preflight",
+      "purpose": "verify CUDA 12.8.1 and both NVRTC libraries",
+      "stdout": "run-01/cuda-preflight.stdout.txt",
+      "stderr": "run-01/cuda-preflight.stderr.txt",
+      "exit_code": "run-01/cuda-preflight.exitcode.txt",
+      "elapsed": "run-01/cuda-preflight.elapsed-ms.txt"
+    },
+    {
+      "id": "gpu-info",
+      "purpose": "verify the local T4 device identity",
+      "command": "nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader",
+      "stdout": "run-01/gpu-info.stdout.txt",
+      "stderr": "run-01/gpu-info.stderr.txt",
+      "exit_code": "run-01/gpu-info.exitcode.txt",
+      "elapsed": "run-01/gpu-info.elapsed-ms.txt"
+    },
+    {
+      "id": "gpu-fused",
+      "purpose": "capture and validate the current fused wrapper from one plan",
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::tests::gpu_mixed_solve_fused_wrapper_checks_groups_spans_and_recovery -- --exact --ignored --nocapture --test-threads=1",
+      "environment": ["CUDA_PATH", "Path", "MJWARP_PHYSICS_PTX_DIR"],
+      "stdout": "run-01/gpu-fused.stdout.txt",
+      "stderr": "run-01/gpu-fused.stderr.txt",
+      "exit_code": "run-01/gpu-fused.exitcode.txt",
+      "elapsed": "run-01/gpu-fused.elapsed-ms.txt"
+    },
+    {
+      "id": "compile-cardinality",
+      "purpose": "prove one-plan compile cardinality and exact capture membership",
+      "result": "run-01/compile-cardinality.json"
+    },
+    {
+      "id": "fused-identity",
+      "purpose": "compare the new fused trio with the committed archive-time trio",
+      "result": "run-01/fused-identity.json"
+    }
+  ]
+}
