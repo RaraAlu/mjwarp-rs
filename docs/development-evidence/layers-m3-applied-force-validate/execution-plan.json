@@ -1,0 +1,217 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-applied-force-validate",
+  "recorded_at": "2026-10-19T01:03:25.3853332+08:00",
+  "recorded_at_note": "开始执行前写入；先前零点值仅为未执行模板占位",
+  "base_revision": "485009ddaaf4b08e1e811e2fa60b8aea51aefee0",
+  "scope": {
+    "migrate": [
+      "applied_force_validate"
+    ],
+    "remain_typed": [
+      "applied_force_delta"
+    ],
+    "remain_raw": [
+      "applied_force_publish"
+    ],
+    "next_candidate_started": false
+  },
+  "device": {
+    "role": "T4",
+    "expected_name": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "resource_lock": "gpu:windows-t4",
+    "task_memory": "unknown"
+  },
+  "cuda": {
+    "root": "target/toolchains/cuda-12.8.1",
+    "nvrtc": "target/toolchains/cuda-12.8.1/bin/nvrtc64_120_0.dll",
+    "nvrtc_builtins": "target/toolchains/cuda-12.8.1/bin/nvrtc-builtins64_128.dll"
+  },
+  "capture": {
+    "root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/run-01",
+    "directory": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/run-01/gpu-capture",
+    "precondition": "directory must not exist",
+    "expected_entries": [
+      "applied_force_validate",
+      "applied_force_delta",
+      "applied_force_publish"
+    ],
+    "expected_entry_compilations": 3,
+    "duplicate_same_entry_allowed": false
+  },
+  "registered_validations": [
+    {
+      "id": "host-wrapper",
+      "purpose": "核对独立工作量、ABI、跨度、会话、别名、证明及边界错误",
+      "command": "cargo test --locked --features cuda-probe --lib physics::applied_force::tests::validate_wrapper_rejects_capacity_context_alias_metadata_and_work_faults -- --exact --test-threads=1",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/check-01-host"
+    },
+    {
+      "id": "device-preflight",
+      "purpose": "核对本机T4身份与CUDA 12.8.1 NVRTC文件",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-validate/device-preflight.ps1",
+      "gpu": true,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/check-02-device"
+    },
+    {
+      "id": "gpu-wrapper",
+      "purpose": "核对设备映射、守卫、非有限值、无发布和同计划恢复",
+      "command": "cargo test --locked --features cuda-probe --lib physics::applied_force::tests::gpu_m3_validate_wrapper_preserves_bits_and_recovers_faults -- --ignored --exact --test-threads=1 --nocapture",
+      "gpu": true,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/run-01"
+    },
+    {
+      "id": "format",
+      "purpose": "核对Rust格式",
+      "command": "cargo fmt --check",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/check-04-format"
+    },
+    {
+      "id": "clippy-scope",
+      "purpose": "核对CUDA库目标警告",
+      "command": "cargo clippy --locked --features cuda-probe --lib -- -D warnings",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/check-05-clippy"
+    },
+    {
+      "id": "format-retry",
+      "purpose": "源码按首轮格式差异修正后复验",
+      "command": "cargo fmt --check",
+      "gpu": false,
+      "reason": "首轮仅报告两处rustfmt换行差异",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/check-04-format-retry"
+    },
+    {
+      "id": "inventory-evidence",
+      "purpose": "核对入口分类、冻结身份、捕获唯一性、JSON与未暂存差异",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-validate/check-evidence.ps1",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/check-06-evidence"
+    },
+    {
+      "id": "inventory-generation",
+      "purpose": "继承已核对仓库盘点并重分类验证入口",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-validate/build-inventory.ps1",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/check-06-inventory"
+    },
+    {
+      "id": "host-wrapper-retry",
+      "purpose": "补充元数据首个i32超限点后复验宿主契约",
+      "command": "cargo test --locked --features cuda-probe --lib physics::applied_force::tests::validate_wrapper_rejects_capacity_context_alias_metadata_and_work_faults -- --exact --test-threads=1",
+      "gpu": false,
+      "reason": "首轮缺少MAX_NB与n=2形成i32最大值加一的精确断言",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/check-01-host-retry"
+    },
+    {
+      "id": "format-final",
+      "purpose": "宿主测试补证后的最终格式复验",
+      "command": "cargo fmt --check",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/check-04-format-final"
+    },
+    {
+      "id": "clippy-final",
+      "purpose": "宿主测试补证后的最终告警复验",
+      "command": "cargo clippy --locked --features cuda-probe --lib -- -D warnings",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/check-05-clippy-final"
+    },
+    {
+      "id": "delivery-preflight",
+      "purpose": "核对任务可写和前次收尾",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId 2026-10-19-layers-m3-applied-force-validate",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/delivery-01-preflight"
+    },
+    {
+      "id": "evidence-final",
+      "purpose": "预检记录与最终摘要写入后复核证据",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-validate/check-evidence.ps1",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/check-06-evidence-final"
+    },
+    {
+      "id": "cached-diff",
+      "purpose": "核对暂存空白错误",
+      "command": "git diff --cached --check",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/delivery-02-cached-diff"
+    },
+    {
+      "id": "receipt-generation",
+      "purpose": "暂存限定范围并生成逐文件对象回执",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-validate/build-delivery-receipt.ps1",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/delivery-02-receipt"
+    },
+    {
+      "id": "receipt-regeneration",
+      "purpose": "禁止原始GPU证据文本转换后重建对象回执",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-validate/build-delivery-receipt.ps1",
+      "gpu": false,
+      "reason": "首次暂存暴露原始捕获可能被Git文本转换",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/delivery-02-receipt-final"
+    },
+    {
+      "id": "receipt-regeneration-logs",
+      "purpose": "保留原始日志尾部空行并重建对象回执",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-validate/build-delivery-receipt.ps1",
+      "gpu": false,
+      "reason": "首次暂存检查把原始测试输出尾部空行当作空白错误",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/delivery-02-receipt-logs"
+    },
+    {
+      "id": "cached-diff-retry",
+      "purpose": "禁用原始日志差异解析后复验暂存空白",
+      "command": "git diff --cached --check",
+      "gpu": false,
+      "reason": "首轮仅报告两份原始测试输出的尾部空行",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/delivery-02-cached-diff-retry"
+    },
+    {
+      "id": "receipt-regeneration-all-raw",
+      "purpose": "保护全部正式运行记录字节后重建对象回执",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-validate/build-delivery-receipt.ps1",
+      "gpu": false,
+      "reason": "全部正式运行分流日志与运行记录都应保留原始字节",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/delivery-02-receipt-all-raw"
+    },
+    {
+      "id": "delivery-staged",
+      "purpose": "核对逐文件回执与暂存对象",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Staged",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/delivery-03-staged"
+    },
+    {
+      "id": "delivery-post-commit",
+      "purpose": "核对实际提交覆盖",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode PostCommit -TaskId 2026-10-19-layers-m3-applied-force-validate",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/delivery-04-post-commit"
+    },
+    {
+      "id": "delivery-recorded",
+      "purpose": "核对完整提交号登记",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Recorded -TaskId 2026-10-19-layers-m3-applied-force-validate",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/delivery-05-recorded"
+    },
+    {
+      "id": "delivery-final",
+      "purpose": "核对关闭后的最终状态",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Final -TaskId 2026-10-19-layers-m3-applied-force-validate",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate/delivery-06-final"
+    }
+  ],
+  "boundaries": {
+    "full_u075_np_complete": false,
+    "publish_migrated": false,
+    "task_memory": "unknown",
+    "no_python": true
+  }
+}
