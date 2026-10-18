@@ -1,0 +1,256 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-inventory-derived-correction",
+  "base_revision": "0f3f4b30e8771441354123d159f29e79067fc61c",
+  "environment": {
+    "platform": "Windows",
+    "shell": "PowerShell",
+    "gpu_required": false,
+    "product_tests": false,
+    "python": false
+  },
+  "registration_rules": {
+    "registration_is_create_new": true,
+    "output_root_must_not_exist": true,
+    "stdout_stderr_precreated": true,
+    "result_records_times_exit_and_duration": true,
+    "failed_runs_preserved": true,
+    "retries_require_new_plan_entry": true
+  },
+  "registered_validations": [
+    {
+      "id": "build-snapshot",
+      "purpose": "从当前逐调用明细生成新纠正快照",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/build-corrected-inventory.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-01-build",
+      "registered_before_execution": true
+    },
+    {
+      "id": "check-normal",
+      "purpose": "核对正常快照的派生一致性",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/check-corrected-inventory.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-02-normal",
+      "registered_before_execution": true
+    },
+    {
+      "id": "preserve-build-failure",
+      "purpose": "按字节保存首次失败生成的纠正快照",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/preserve-failed-snapshot.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-01-preserve-failure",
+      "registered_before_execution": true
+    },
+    {
+      "id": "repair-private-sum",
+      "purpose": "核对私有方法汇总改用显式标量累加",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/verify-private-sum-repair.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-01-repair-private-sum",
+      "registered_before_execution": true
+    },
+    {
+      "id": "negative-duplicate",
+      "purpose": "核对重复入口键会被拒绝",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/run-negative-case.ps1", "-Case", "duplicate-entry"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-03-negative-duplicate",
+      "registered_before_execution": true
+    },
+    {
+      "id": "negative-unknown",
+      "purpose": "核对未知分类会被拒绝",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/run-negative-case.ps1", "-Case", "unknown-classification"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-04-negative-unknown",
+      "registered_before_execution": true
+    },
+    {
+      "id": "negative-drift",
+      "purpose": "核对派生计数漂移会被拒绝",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/run-negative-case.ps1", "-Case", "derived-drift"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-05-negative-drift",
+      "registered_before_execution": true
+    },
+    {
+      "id": "negative-empty",
+      "purpose": "核对空候选不会被当作清单完成",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/run-negative-case.ps1", "-Case", "empty-candidate"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-06-negative-empty",
+      "registered_before_execution": true
+    },
+    {
+      "id": "evidence",
+      "purpose": "核对旧快照和产品源码保持不变",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/check-evidence.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-09-evidence",
+      "registered_before_execution": true
+    },
+    {
+      "id": "negative-cross-class",
+      "purpose": "核对同一位置不能换分类后重复登记",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/run-negative-case.ps1", "-Case", "cross-classification"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-07-negative-cross-class",
+      "registered_before_execution": true
+    },
+    {
+      "id": "negative-cross-set",
+      "purpose": "核对低层与编排集合不能共享位置",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/run-negative-case.ps1", "-Case", "cross-set"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-08-negative-cross-set",
+      "registered_before_execution": true
+    },
+    {
+      "id": "negative-private-summary",
+      "purpose": "复现通用launch旧方法汇总漂移",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/run-negative-case.ps1", "-Case", "private-summary-drift"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-08-private-summary-drift",
+      "registered_before_execution": true
+    },
+    {
+      "id": "manifest",
+      "purpose": "复制原件并生成正式成员清单",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/build-manifest.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-10-manifest",
+      "registered_before_execution": true
+    },
+    {
+      "id": "manifest-blob",
+      "purpose": "把正式清单冻结为Git对象",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/freeze-manifest.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-11-manifest-blob",
+      "registered_before_execution": true
+    },
+    {
+      "id": "evidence-final",
+      "purpose": "核对冻结清单、原件和运行登记",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/check-formal-evidence.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-12-evidence-final",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-preflight",
+      "purpose": "核对任务可写和前次收尾",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Preflight", "-TaskId", "2026-10-19-layers-m3-inventory-derived-correction"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-01-preflight",
+      "registered_before_execution": true
+    },
+    {
+      "id": "receipt",
+      "purpose": "暂存新纠正范围并生成逐文件回执",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/build-delivery-receipt.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-02-receipt",
+      "registered_before_execution": true
+    },
+    {
+      "id": "index-bytes",
+      "purpose": "核对索引中的正式证据字节",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-evidence-blobs.ps1", "-Manifest", "docs/development-evidence/layers-m3-inventory-derived-correction/formal-run/manifest.json", "-Map", "docs/development-evidence/layers-m3-inventory-derived-correction/source-map.json", "-Revision", "INDEX"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-13-index-bytes",
+      "registered_before_execution": true
+    },
+    {
+      "id": "receipt-final",
+      "purpose": "归档索引核验并重建回执",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/build-delivery-receipt.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-02-receipt-final",
+      "registered_before_execution": true
+    },
+    {
+      "id": "cached-diff",
+      "purpose": "核对暂存空白错误",
+      "executable": "git",
+      "arguments": ["diff", "--cached", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-03-cached-diff",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-staged",
+      "purpose": "核对逐文件回执和暂存对象",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Staged"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-04-staged",
+      "registered_before_execution": true
+    },
+    {
+      "id": "commit",
+      "purpose": "使用真实多行提交文件运行正常钩子",
+      "executable": "git",
+      "arguments": ["commit", "-F", "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/commit-message.txt"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-commit",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-post-commit",
+      "purpose": "核对实际提交覆盖",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "PostCommit", "-TaskId", "2026-10-19-layers-m3-inventory-derived-correction"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-05-post-commit",
+      "registered_before_execution": true
+    },
+    {
+      "id": "commit-bytes",
+      "purpose": "核对最终提交中的正式证据字节",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-evidence-blobs.ps1", "-Manifest", "docs/development-evidence/layers-m3-inventory-derived-correction/formal-run/manifest.json", "-Map", "docs/development-evidence/layers-m3-inventory-derived-correction/source-map.json", "-Revision", "{HEAD}"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-14-commit-bytes",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-recorded",
+      "purpose": "核对完整提交号登记",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Recorded", "-TaskId", "2026-10-19-layers-m3-inventory-derived-correction"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-06-recorded",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-final",
+      "purpose": "核对关闭后的最终状态",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Final", "-TaskId", "2026-10-19-layers-m3-inventory-derived-correction"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-07-final",
+      "registered_before_execution": true
+    }
+  ]
+}

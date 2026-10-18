@@ -1,0 +1,121 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-inventory-derived-correction",
+  "reason": "delivery retry entries added after the formal evidence manifest was frozen",
+  "registered_validations": [
+    {
+      "id": "delivery-preflight-retry-01",
+      "purpose": "补登记交付回执绑定后重试预检",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "scripts/check-normify-delivery.ps1",
+        "-Mode",
+        "Preflight",
+        "-TaskId",
+        "2026-10-19-layers-m3-inventory-derived-correction"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-01-preflight-retry-01",
+      "registered_before_execution": true
+    },
+    {
+      "id": "receipt-retry-01",
+      "purpose": "修正证据目录后重试逐文件回执",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-inventory-derived-correction/build-delivery-receipt.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-02-receipt-retry-01",
+      "registered_before_execution": true
+    },
+    {
+      "id": "cleanup-misplaced-evidence",
+      "purpose": "安全移除首次回执误建并误暂存的日期目录",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-inventory-derived-correction/cleanup-misplaced-evidence.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-02-cleanup-misplaced",
+      "registered_before_execution": true
+    },
+    {
+      "id": "receipt-retry-02",
+      "purpose": "清理错误目录后再次生成逐文件回执",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-inventory-derived-correction/build-delivery-receipt.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-02-receipt-retry-02",
+      "registered_before_execution": true
+    },
+    {
+      "id": "post-freeze-index",
+      "purpose": "核对收尾日志原件与索引字节",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-inventory-derived-correction/check-post-freeze-blobs.ps1",
+        "-Revision",
+        "INDEX"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-13-post-freeze-index",
+      "registered_before_execution": true
+    },
+    {
+      "id": "receipt-final-retry-01",
+      "purpose": "归档收尾索引核验后重建最终回执",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-inventory-derived-correction/build-delivery-receipt.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/delivery-02-receipt-final-retry-01",
+      "registered_before_execution": true
+    },
+    {
+      "id": "post-freeze-commit",
+      "purpose": "核对收尾日志原件与最终提交字节",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-inventory-derived-correction/check-post-freeze-blobs.ps1",
+        "-Revision",
+        "{HEAD}"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-14-post-freeze-commit",
+      "registered_before_execution": true
+    },
+    {
+      "id": "post-freeze-index-retry-01",
+      "purpose": "修正PowerShell链式调用后重试收尾索引字节",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-inventory-derived-correction/check-post-freeze-blobs.ps1",
+        "-Revision",
+        "INDEX"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-inventory-derived-correction/check-13-post-freeze-index-retry-01",
+      "registered_before_execution": true
+    }
+  ]
+}
