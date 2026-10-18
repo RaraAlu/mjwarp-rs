@@ -1,0 +1,490 @@
+{
+  "schema": 1,
+  "scope": "flex-face-hessian-internal",
+  "product_revision": "bdcc9d97482d629c40bcabfa52c0c159590bcd4d",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "product_sources": [
+    {
+      "path": "src/physics/flex_face.rs",
+      "sha256": "47a17fc2f053e93afaaab408b2c185f0bbef0cce6687deb4120abc94d478c1e6"
+    },
+    {
+      "path": "src/physics/flex_hessian.rs",
+      "sha256": "587e5553148ac53ddb900fb3eb4c1abbe33befdb71c6c640baa106bc873c1eb5"
+    },
+    {
+      "path": "src/physics/resident.rs",
+      "sha256": "b2d63abc3763c38435ab8bb76c866fb307f7e144f1db712ae0abc46d1c7fd9cf"
+    },
+    {
+      "path": "src/model/flex_hessian.rs",
+      "sha256": "30608e8ada8a609124c9f9d3a1279b781df63653f51b067b9768cf674ce2a5fb"
+    },
+    {
+      "path": "src/model/flex.rs",
+      "sha256": "d8df34bc61ce9ed738bf623932942b3eb5389d741ff3ac16a8a8cb0f921e5cc4"
+    },
+    {
+      "path": "src/runtime/transfer.rs",
+      "sha256": "268c351cb4a7048cef7ceb870c8e4a7f1a12633dc474d75065b356f8988e190f"
+    }
+  ],
+  "external_sources": [
+    {
+      "path": "upstream/_src/smooth.py",
+      "sha256": "6268f0e1b6cb4c9ec6bbd3aa29828dfb36224efb2a3a3e1f54e5f87b6623fdef"
+    },
+    {
+      "path": "upstream/_src/support.py",
+      "sha256": "c924593f7be8447c76328bcf7dc5b4ce92b6a54458c4afdbf36806cb8e036d46"
+    },
+    {
+      "path": "upstream/_src/passive.py",
+      "sha256": "d7c89fbe7bc000e2d7d1394a8d8441abb20f13dbdb77f22e6ecc4357723e98ca"
+    },
+    {
+      "path": "upstream/_src/types.py",
+      "sha256": "5ff63b8186bafba2e2d51d5aae84875fb289411d9984f4e06b51813ea088491b"
+    },
+    {
+      "path": "warp/_src/types.py",
+      "sha256": "2ea64925f7c1e551c7d20b6e45091640b548d6c0e6b88275b9fa866578041efa"
+    },
+    {
+      "path": "warp/native/quat.h",
+      "sha256": "1ef29e23117b3da391c12d5e4959f52f8cc83ccb2c8b5ced474a63499a20ccd2"
+    },
+    {
+      "path": "warp/native/builtin.h",
+      "sha256": "99e9ab17698e87ec85d743d416249f7a5f29f5cb8419a2955560350bc564bbe4"
+    }
+  ],
+  "groups": [
+    {
+      "id": "face-nodes",
+      "classification": "linear-only",
+      "scalar": "f32",
+      "source": "src/physics/flex_face.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_face_kinematics",
+      "product": [
+        "if(n<0) {out[0]=out[1]=out[2]=0.0f;continue;}",
+        "out[k]=nx[3*n+k];"
+      ],
+      "upstream": [
+        "face_xpos_out[worldid, face_id, local_idx] = node_pos",
+        "face_xpos_out[worldid, face_id, local_idx] = wp.vec3(0.0)"
+      ]
+    },
+    {
+      "id": "face-gradient",
+      "classification": "linear-only",
+      "scalar": "f32",
+      "source": "src/physics/flex_face.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_face_kinematics",
+      "product": [
+        "float g0=0.5f*(-1+2*(slot/2)),g1=0.5f*(-1+2*(slot%2));"
+      ],
+      "upstream": [
+        "dphi0 = float(l0 - 1) if order_abs == 2 else (-1.0 + 2.0 * float(l0))",
+        "phi1 = wp.where(l1 == 1, 1.0, 0.0) if order_abs == 2 else 0.5",
+        "grad0 = dphi0 * phi1",
+        "grad1 = phi0 * dphi1"
+      ]
+    },
+    {
+      "id": "face-tangents",
+      "classification": "same-loop-order",
+      "scalar": "f32",
+      "source": "src/physics/flex_face.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_face_kinematics",
+      "product": [
+        "float t1[3]={0,0,0},t2[3]={0,0,0};",
+        "for(int slot=0;slot<9;++slot)",
+        "t1[k]+=out[k]*g0;t2[k]+=out[k]*g1;"
+      ],
+      "upstream": [
+        "t1 = wp.vec3(0.0)",
+        "t2 = wp.vec3(0.0)",
+        "for local_idx in range(9):",
+        "t1 += node_pos * grad0",
+        "t2 += node_pos * grad1"
+      ]
+    },
+    {
+      "id": "face-columns",
+      "classification": "column-major-private-layout",
+      "scalar": "f32",
+      "source": "src/physics/flex_face.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_face_kinematics",
+      "product": [
+        "face_cross(normal,t1,t2);float F[3][3];",
+        "if(row[0]==0) {F[0][k]=normal[k];F[1][k]=t1[k];F[2][k]=t2[k];}",
+        "else if(row[0]==1) {F[0][k]=t2[k];F[1][k]=normal[k];F[2][k]=t1[k];}",
+        "else {F[0][k]=t1[k];F[1][k]=t2[k];F[2][k]=normal[k];}"
+      ],
+      "upstream": [
+        "normal = wp.cross(t1, t2)",
+        "if normal_axis == 0:",
+        "elif normal_axis == 1:",
+        "face_quat_out[worldid, face_id] = support.mat33_to_quat_polar(F)"
+      ]
+    },
+    {
+      "id": "polar-initial-stop",
+      "classification": "same-constants",
+      "scalar": "f32",
+      "source": "src/physics/flex_face.rs",
+      "external": "upstream/_src/support.py",
+      "symbol": "mat33_to_quat_polar",
+      "product": [
+        "q[0]=q[1]=q[2]=0.0f;q[3]=1.0f;",
+        "for(int iter=0;iter<50;++iter)",
+        "if(w<1.0e-6f) break;"
+      ],
+      "upstream": [
+        "cell_quat = wp.quat(0.0, 0.0, 0.0, 1.0)",
+        "for _iter in range(50):",
+        "if w < 1.0e-6:"
+      ]
+    },
+    {
+      "id": "polar-rotation-matrix",
+      "classification": "different-unit-quaternion-expression",
+      "scalar": "f32",
+      "source": "src/physics/flex_face.rs",
+      "external": "warp/native/quat.h",
+      "symbol": "",
+      "product": [
+        "float R[3][3]={{1-2*(y*y+z*z),2*(x*y+s*z),2*(x*z-s*y)},",
+        "{2*(x*y-s*z),1-2*(x*x+z*z),2*(y*z+s*x)},",
+        "{2*(x*z+s*y),2*(y*z-s*x),1-2*(x*x+y*y)}};"
+      ],
+      "upstream": [
+        "vec_t<3, Type> c1 = quat_rotate(q, vec_t<3, Type>(1.0, 0.0, 0.0));",
+        "Type c = (Type(2) * q.w * q.w - Type(1));",
+        "Type d = Type(2) * (q.x * x.c[0] + q.y * x.c[1] + q.z * x.c[2]);",
+        "return matrix_from_cols<Type>(c1, c2, c3);"
+      ]
+    },
+    {
+      "id": "polar-omega",
+      "classification": "same-scalar-generated-checked",
+      "scalar": "f32",
+      "source": "src/physics/flex_face.rs",
+      "external": "upstream/_src/support.py",
+      "symbol": "mat33_to_quat_polar",
+      "product": [
+        "float denom=fabsf((face_dot(R[0],F[0])+face_dot(R[1],F[1]))+face_dot(R[2],F[2]))+1.0e-10f;",
+        "omega[k]=((crosses[0][k]+crosses[1][k])+crosses[2][k])/denom;"
+      ],
+      "upstream": [
+        "omega = wp.cross(col1_rot, col1_mat) + wp.cross(col2_rot, col2_mat) + wp.cross(col3_rot, col3_mat)",
+        "denom = wp.abs(wp.dot(col1_rot, col1_mat) + wp.dot(col2_rot, col2_mat) + wp.dot(col3_rot, col3_mat)) + 1.0e-10",
+        "omega = omega / denom"
+      ]
+    },
+    {
+      "id": "polar-axis",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "source": "src/physics/flex_face.rs",
+      "external": "upstream/_src/support.py",
+      "symbol": "mat33_to_quat_polar",
+      "product": [
+        "float w=sqrtf(face_dot(omega,omega));",
+        "rot[k]=(omega[k]/w)*sinf(0.5f*w);rot[3]=cosf(0.5f*w);"
+      ],
+      "upstream": [
+        "w = wp.length(omega)",
+        "axis = omega / w",
+        "half_w = 0.5 * w",
+        "wp.cos(half_w),"
+      ]
+    },
+    {
+      "id": "polar-product",
+      "classification": "different-grouping",
+      "scalar": "f32",
+      "source": "src/physics/flex_face.rs",
+      "external": "warp/native/quat.h",
+      "symbol": "",
+      "product": [
+        "next[k]=(rot[3]*q[k]+q[3]*rot[k])+cross[k];",
+        "next[3]=rot[3]*q[3]-face_dot(rot,q);"
+      ],
+      "upstream": [
+        "a.w * b.x + b.w * a.x + a.y * b.z - b.y * a.z",
+        "a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z"
+      ]
+    },
+    {
+      "id": "polar-normalize",
+      "classification": "divide-versus-reciprocal",
+      "scalar": "f32",
+      "source": "src/physics/flex_face.rs",
+      "external": "warp/native/quat.h",
+      "symbol": "",
+      "product": [
+        "float n=sqrtf(((next[0]*next[0]+next[1]*next[1])+next[2]*next[2])+next[3]*next[3]);",
+        "for(int k=0;k<4;++k) q[k]=next[k]/n;"
+      ],
+      "upstream": [
+        "Type inv_l = Type(1) / l;",
+        "return quat_t<Type>(q.x * inv_l, q.y * inv_l, q.z * inv_l, q.w * inv_l);"
+      ]
+    },
+    {
+      "id": "cache-clear",
+      "classification": "valid-skips-clear",
+      "scalar": "f32",
+      "source": "src/physics/flex_hessian.rs",
+      "external": "upstream/_src/passive.py",
+      "symbol": "_flex_hessian_clear",
+      "product": [
+        "if(flags[f]==1) continue;",
+        "diag[6*(va+v)+k]=0.0f;",
+        "blocks[9*(ea+e)+k]=0.0f;"
+      ],
+      "upstream": [
+        "if f_v >= 0 and not flex_hessian_valid_in[worldid, f_v]:",
+        "flexvert_hessian_out[worldid, tid] = vec6(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)",
+        "if f_e >= 0 and not flex_hessian_valid_in[worldid, f_e]:"
+      ]
+    },
+    {
+      "id": "edge-vectors",
+      "classification": "same-endpoint-order",
+      "scalar": "f32",
+      "source": "src/physics/flex_hessian.rs",
+      "external": "upstream/_src/passive.py",
+      "symbol": "stretch_edge_vectors",
+      "product": [
+        "float x[18],elong[6],metric[36]={0},tension[6]={0};",
+        "x[3*a+k]=vx[3*(va+v[i])+k]-vx[3*(va+v[j])+k];"
+      ],
+      "upstream": [
+        "nedge = 3 if dim == 2 else 6",
+        "edgevec[e] = vert_xpos[edges[e, 0]] - vert_xpos[edges[e, 1]]"
+      ]
+    },
+    {
+      "id": "elongation",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "source": "src/physics/flex_hessian.rs",
+      "external": "upstream/_src/passive.py",
+      "symbol": "stretch_elongation",
+      "product": [
+        "elong[a]=length[e]*length[e]-p[e]*p[e];"
+      ],
+      "upstream": [
+        "elongation[e] = deformed * deformed - reference * reference"
+      ]
+    },
+    {
+      "id": "metric",
+      "classification": "21-coefficient-only",
+      "scalar": "f32",
+      "source": "src/physics/flex_hessian.rs",
+      "external": "upstream/_src/passive.py",
+      "symbol": "stretch_metric",
+      "product": [
+        "const float* s=stiffness+r[10]+21*el;",
+        "metric[6*a+b]=metric[6*b+a]=s[idx++];"
+      ],
+      "upstream": [
+        "metric = mat66(0.0)",
+        "for e2 in range(e1, nedge):",
+        "metric[e1, e2] = val",
+        "metric[e2, e1] = val"
+      ]
+    },
+    {
+      "id": "tension",
+      "classification": "same-row-order",
+      "scalar": "f32",
+      "source": "src/physics/flex_hessian.rs",
+      "external": "upstream/_src/passive.py",
+      "symbol": "stretch_tension",
+      "product": [
+        "tension[a]+=metric[6*a+b]*elong[b];",
+        "tension[a]=fmaxf(tension[a],0.0f);"
+      ],
+      "upstream": [
+        "t_val = float(0.0)",
+        "t_val += metric[e1, e2] * elongation[e2]",
+        "tension[e1] = t_val"
+      ]
+    },
+    {
+      "id": "material-block",
+      "classification": "unscaled-only",
+      "scalar": "f32",
+      "source": "src/physics/flex_hessian.rs",
+      "external": "upstream/_src/passive.py",
+      "symbol": "stretch_stiffness_block",
+      "product": [
+        "float weight=2.0f*metric[6*a+b]*sa*sb;",
+        "block[3*row+col]+=weight*x[3*a+row]*x[3*b+col];"
+      ],
+      "upstream": [
+        "w = 2.0 * scale * metric[a, b] * sa * sb",
+        "blk[r, c] += w * edgevec[a, r] * edgevec[b, c]"
+      ]
+    },
+    {
+      "id": "geometric-block",
+      "classification": "zero-sign-evaluation-differs",
+      "scalar": "f32",
+      "source": "src/physics/flex_hessian.rs",
+      "external": "upstream/_src/passive.py",
+      "symbol": "stretch_stiffness_block",
+      "product": [
+        "float geo=0.0f;",
+        "geo+=tension[a]*hessian_sign(i,a,dim)*hessian_sign(j,a,dim);",
+        "block[0]+=geo;block[4]+=geo;block[8]+=geo;"
+      ],
+      "upstream": [
+        "if sa != 0.0 and sb != 0.0:",
+        "geo += tension[a] * sa * sb",
+        "geo *= scale",
+        "blk[0, 0] += geo"
+      ]
+    },
+    {
+      "id": "edge-scatter",
+      "classification": "serial-versus-atomic",
+      "scalar": "f32",
+      "source": "src/physics/flex_hessian.rs",
+      "external": "upstream/_src/passive.py",
+      "symbol": "_flex_hessian_elem",
+      "product": [
+        "if(endpoints[0]!=v[i]) {int swap=i;i=j;j=swap;}",
+        "blocks[9*edge+k]+=block[k];"
+      ],
+      "upstream": [
+        "if endpoints[0] != elem_verts[i]:",
+        "block = stretch_stiffness_block(metric, tension, edgevec, dim, i, j, 1.0)",
+        "wp.atomic_add(flexedge_hessian_out, worldid, edge_id, block)"
+      ]
+    },
+    {
+      "id": "diagonal-scatter",
+      "classification": "serial-versus-atomic",
+      "scalar": "f32",
+      "source": "src/physics/flex_hessian.rs",
+      "external": "upstream/_src/passive.py",
+      "symbol": "_flex_hessian_diag",
+      "product": [
+        "const int upper[6]={0,1,2,4,5,8},lower[6]={0,3,6,4,7,8};",
+        "d0[k]-=b[upper[k]];d1[k]-=b[lower[k]];"
+      ],
+      "upstream": [
+        "d0 = vec6(-block[0, 0], -block[0, 1], -block[0, 2], -block[1, 1], -block[1, 2], -block[2, 2])",
+        "d1 = vec6(-block[0, 0], -block[1, 0], -block[2, 0], -block[1, 1], -block[2, 1], -block[2, 2])",
+        "wp.atomic_add(flexvert_hessian_out, worldid, va + vert[0], d0)"
+      ]
+    },
+    {
+      "id": "cache-publish",
+      "classification": "private-bool-adapter",
+      "scalar": "i32",
+      "source": "src/physics/flex_hessian.rs",
+      "external": "upstream/_src/passive.py",
+      "symbol": "flex_hessian",
+      "product": [
+        "int* flags=result+4+(unsigned long long)w*nf;",
+        "for(int f=0;f<nf;++f) flags[f]=1;"
+      ],
+      "upstream": [
+        "d.flex_hessian_valid.fill_(True)"
+      ]
+    },
+    {
+      "id": "active-gate",
+      "classification": "host-derived-bool",
+      "scalar": "bool",
+      "source": "src/model/flex_hessian.rs",
+      "external": "upstream/_src/passive.py",
+      "symbol": "_flex_hessian_active",
+      "product": [
+        "positions.flex_interp[f] == 0",
+        "&& !self.flex_rigid[f]",
+        "&& self.flex_dim[f] >= 2",
+        "&& self.flex_stiffnessadr[f] >= 0",
+        "&& self.flex_stiffness[self.flex_stiffnessadr[f] as usize] != 0.0"
+      ],
+      "upstream": [
+        "if flex_interp[f] != 0 or flex_rigid[f] or flex_dim[f] < 2:",
+        "if stiffness_adr < 0:",
+        "return flex_stiffness[stiffness_adr] != 0.0"
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "face_xpos",
+      "scalar": "f32",
+      "source": "src/physics/flex_face.rs",
+      "declaration": "array(\"nworld\", \"nflexface\", 9, wp.vec3)",
+      "pointer": "float* positions=result+4+(unsigned long long)w*31ull*nf;",
+      "write": "out[k]=nx[3*n+k];",
+      "view": "&values[..27 * self.layout.nf]",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_face_kinematics",
+      "upstream_write": "face_xpos_out[worldid, face_id, local_idx] = node_pos"
+    },
+    {
+      "name": "face_quat",
+      "scalar": "f32",
+      "source": "src/physics/flex_face.rs",
+      "declaration": "array(\"nworld\", \"nflexface\", wp.quat)",
+      "pointer": "float* quats=positions+27*nf;",
+      "write": "face_polar(quats+4*f,F);",
+      "view": "&values[27 * self.layout.nf..]",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_face_kinematics",
+      "upstream_write": "face_quat_out[worldid, face_id] = support.mat33_to_quat_polar(F)"
+    },
+    {
+      "name": "flexvert_hessian",
+      "scalar": "f32",
+      "source": "src/physics/flex_hessian.rs",
+      "declaration": "array(\"nworld\", \"nflexvert\", vec6)",
+      "pointer": "float* diag=result+4+(unsigned long long)w*(6ull*nv+9ull*ne);",
+      "write": "d0[k]-=b[upper[k]];d1[k]-=b[lower[k]];",
+      "view": "&v[..6 * self.layout.nv]",
+      "external": "upstream/_src/passive.py",
+      "symbol": "_flex_hessian_diag",
+      "upstream_write": "wp.atomic_add(flexvert_hessian_out, worldid, va + vert[0], d0)"
+    },
+    {
+      "name": "flexedge_hessian",
+      "scalar": "f32",
+      "source": "src/physics/flex_hessian.rs",
+      "declaration": "array(\"nworld\", \"nflexedge\", wp.mat33)",
+      "pointer": "float* blocks=diag+6*nv;",
+      "write": "blocks[9*edge+k]+=block[k];",
+      "view": "&v[6 * self.layout.nv..]",
+      "external": "upstream/_src/passive.py",
+      "symbol": "_flex_hessian_elem",
+      "upstream_write": "wp.atomic_add(flexedge_hessian_out, worldid, edge_id, block)"
+    }
+  ],
+  "remaining": [
+    "polar-matrix-product-and-normalization-order",
+    "serial-versus-atomic-accumulation",
+    "zero-sign-nonfinite-intermediates",
+    "upstream-hessian-generated-artifacts",
+    "higher-order-faces-and-24-coefficient-models",
+    "full-pipeline-current-numerics",
+    "measured-performance"
+  ],
+  "np01_complete": false,
+  "np02_complete": false,
+  "equivalence_eligible": false
+}

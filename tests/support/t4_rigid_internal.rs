@@ -31,7 +31,7 @@ const EXTERNAL: &[&str] = &[
 const STEPS: &[&str] = &[
     "normalize-positive|source-boundary|warp/native/quat.h|normalize|wp.quat|3|5",
     "quaternion-product|same-scalar|upstream/_src/math.py|mul_quat|wp.quat|3|3",
-    "rotation|different-order|upstream/_src/math.py|rot_vec_quat|wp.vec3|3|3",
+    "rotation|same-scalar|upstream/_src/math.py|rot_vec_quat|wp.vec3|3|3",
     "matrix|same-scalar|upstream/_src/math.py|quat_to_mat|wp.mat33|3|4",
     "free-state|normalization-dependent|upstream/_src/smooth.py|_kinematics_branch|wp.vec3+wp.quat|3|5",
     "mocap|same-scalar|upstream/_src/smooth.py|_kinematics_branch|wp.vec3+wp.quat|2|5",
@@ -530,11 +530,33 @@ fn preserves_zero_quaternion_evidence_and_active_macros() {
         (false, false)
     );
     assert!(capture_variant("#define MJWARP_G01_EQUIVALENT").is_err());
-    // 整份历史源码哈希约束唯一差分，也保护严格入口。
+    // 两段已测溯源，各自只回溯一个修复。
+    // 第一段：旋转分组修复（8a5bac0）。整文件还原为c74aede版本。
+    let pre_rotation = super::rotate_lineage::before(PHYSICS).unwrap();
     assert_eq!(
-        digest(&historical_rigid_kernel(PHYSICS).unwrap()),
-        "595d571679b02ebd4705442cc7f07c362d0918519466c22b91d97271e93719f2"
+        digest(&pre_rotation),
+        "71ee8dd5718779bc45430b95ba42c9995ed6c047e8590509ef3e68c4de8d0e6a"
     );
+    // 第二段：零四元数分支。模板还原为历史实测捕获。
+    // 该段之前的整文件差异只有模块导出，故比较刚体模板。
+    let pre_zero = historical_rigid_kernel(
+        between(&pre_rotation, "const KINEMATICS_CUDA: &str = r#\"", "\"#;").unwrap(),
+    )
+    .unwrap();
+    let kernels: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/precision/t4-kernels.json")).unwrap();
+    let captured: Vec<_> = kernels["artifacts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|a| a["entry"] == "rigid_kinematics")
+        .filter(|a| {
+            a["ptx_sha256"] == "7d1db8ebffc8c03d39bec4b615e65847cca505e58dd8fb856ce5b624c3e03eb5"
+        })
+        .collect();
+    assert_eq!(captured.len(), 1);
+    assert_eq!(digest(&pre_zero), captured[0]["source_sha256"]);
+    assert!(super::rotate_lineage::before(&PHYSICS.replace("2.0f*q.w", "2*q.w")).is_err());
     assert!(historical_rigid_kernel(&kernel().replace("{0,0,0,1}", "{1,0,0,0}")).is_err());
     let report: serde_json::Value = serde_json::from_str(include_str!(
         "../../fixtures/precision/g01-zero-quaternion-result.json"

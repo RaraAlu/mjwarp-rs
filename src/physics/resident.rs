@@ -1652,6 +1652,7 @@ impl KinematicsPlan {
         )
     }
 
+    #[cfg(feature = "cuda-probe")]
     pub(super) fn flex_edge_passive_context(
         &self,
     ) -> Result<(TransferSession, usize, Arc<FlexEdgeFields>), TransferError> {
@@ -1668,6 +1669,8 @@ impl KinematicsPlan {
         ))
     }
 
+    // 默认构建的唯一调用者同样无设备路径。
+    #[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
     pub(super) fn passive_sleep_context(&self) -> Option<(usize, &[i32], bool, bool)> {
         self.sleep_info.as_ref().map(|info| {
             (
@@ -5715,11 +5718,10 @@ mod tests {
             let flexid = [0usize, 0, 0, 1, 2];
             let mut spring = vec![0.0f32; 6];
             let mut damper = vec![0.0f32; 6];
-            for e in 0..5 {
+            for (e, &f) in flexid.iter().enumerate() {
                 if input.rigid[e] {
                     continue;
                 }
-                let f = flexid[e];
                 let stiffness = input.stiffness[f];
                 let damping = input.damping[f];
                 if stiffness == 0.0 && damping == 0.0 {

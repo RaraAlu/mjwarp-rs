@@ -1,0 +1,755 @@
+{
+  "schema": 1,
+  "scope": "g01-topology-and-frame-precision",
+  "product_revision": "dcb1fae771c45ca5df823d0b2517f04724f625b2",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "product_sources": [
+    {
+      "path": "src/physics/camlight.rs",
+      "sha256": "593108f3c8f5c79dcbf574e5f40e2e12c86ab38922840a1a5c5245fee510adc0"
+    },
+    {
+      "path": "src/physics/resident.rs",
+      "sha256": "b2d63abc3763c38435ab8bb76c866fb307f7e144f1db712ae0abc46d1c7fd9cf"
+    },
+    {
+      "path": "src/physics/attached.rs",
+      "sha256": "9073a9675298ffe734fbe48de51169a440d816ef7cbb433e41fe1d04f1de9197"
+    },
+    {
+      "path": "src/model/mocap.rs",
+      "sha256": "fc2b500b56d5e20e1be5574189a5c0b9dd6722198896bf686f34ac2e752d8ab6"
+    },
+    {
+      "path": "src/physics/mod.rs",
+      "sha256": "b73b83e788ad159447d18cc2ba21c6d1c5d7228c7d15fd6f75a71bc4cd95d650"
+    }
+  ],
+  "external_sources": [
+    {
+      "root": "upstream",
+      "path": "_src/types.py",
+      "sha256": "5ff63b8186bafba2e2d51d5aae84875fb289411d9984f4e06b51813ea088491b"
+    },
+    {
+      "root": "warp",
+      "path": "_src/types.py",
+      "sha256": "2ea64925f7c1e551c7d20b6e45091640b548d6c0e6b88275b9fa866578041efa"
+    },
+    {
+      "root": "upstream",
+      "path": "_src/smooth.py",
+      "sha256": "6268f0e1b6cb4c9ec6bbd3aa29828dfb36224efb2a3a3e1f54e5f87b6623fdef"
+    },
+    {
+      "root": "warp",
+      "path": "native/vec.h",
+      "sha256": "93994499dfac4b341e1bdf04dd1aec92939844562c58b602b94d0f81a1d6ca62"
+    },
+    {
+      "root": "upstream",
+      "path": "_src/math.py",
+      "sha256": "a6f6ee11b9519c9b247c55eb83fec2842ac56bb05d21ea3d19623b200cfb4778"
+    },
+    {
+      "root": "warp",
+      "path": "native/builtin.h",
+      "sha256": "99e9ab17698e87ec85d743d416249f7a5f29f5cb8419a2955560350bc564bbe4"
+    }
+  ],
+  "routes": [
+    {
+      "group": "rigid",
+      "id": "body_parentid",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&k.body_parentid",
+      "read": "const int* parent=meta;",
+      "upstream": [
+        {
+          "name": "body_parentid",
+          "declaration": "array(\"nbody\", int)"
+        }
+      ]
+    },
+    {
+      "group": "rigid",
+      "id": "body_jntadr",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&k.body_jntadr",
+      "read": "const int* adr=parent+nb;",
+      "upstream": [
+        {
+          "name": "body_jntadr",
+          "declaration": "array(\"nbody\", int)"
+        }
+      ]
+    },
+    {
+      "group": "rigid",
+      "id": "body_jntnum",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&k.body_jntnum",
+      "read": "const int* num=adr+nb;",
+      "upstream": [
+        {
+          "name": "body_jntnum",
+          "declaration": "array(\"nbody\", int)"
+        }
+      ]
+    },
+    {
+      "group": "rigid",
+      "id": "jnt_type",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&k.jnt_type",
+      "read": "const int* type=num+nb;",
+      "upstream": [
+        {
+          "name": "jnt_type",
+          "declaration": "array(\"njnt\", int)"
+        }
+      ]
+    },
+    {
+      "group": "rigid",
+      "id": "jnt_qposadr",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&k.jnt_qposadr",
+      "read": "const int* qa=type+nj;",
+      "upstream": [
+        {
+          "name": "jnt_qposadr",
+          "declaration": "array(\"njnt\", int)"
+        }
+      ]
+    },
+    {
+      "group": "rigid",
+      "id": "nmocap",
+      "kind": "derived",
+      "scalar": "i32",
+      "write": "&[nmocap as i32]",
+      "read": "unsigned nm=desc[0];",
+      "upstream": [
+        {
+          "name": "nmocap",
+          "declaration": "int"
+        },
+        {
+          "name": "body_mocapid",
+          "declaration": "array(\"nbody\", int)"
+        }
+      ]
+    },
+    {
+      "group": "rigid",
+      "id": "body_mocapid",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&body_mocapid",
+      "read": "const int* mocap=desc+1;",
+      "upstream": [
+        {
+          "name": "body_mocapid",
+          "declaration": "array(\"nbody\", int)"
+        }
+      ]
+    },
+    {
+      "group": "com",
+      "id": "body_parentid",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&k.body_parentid",
+      "read": "const int* parent=m;",
+      "upstream": [
+        {
+          "name": "body_parentid",
+          "declaration": "array(\"nbody\", int)"
+        }
+      ]
+    },
+    {
+      "group": "com",
+      "id": "jnt_type",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&k.jnt_type",
+      "read": "const int* type=m+nb;",
+      "upstream": [
+        {
+          "name": "jnt_type",
+          "declaration": "array(\"njnt\", int)"
+        }
+      ]
+    },
+    {
+      "group": "com",
+      "id": "jnt_bodyid",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&k.jnt_bodyid",
+      "read": "const int* body=type+nj;",
+      "upstream": [
+        {
+          "name": "jnt_bodyid",
+          "declaration": "array(\"njnt\", int)"
+        }
+      ]
+    },
+    {
+      "group": "com",
+      "id": "jnt_dofadr",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&k.jnt_dofadr",
+      "read": "const int* adr=body+nj;",
+      "upstream": [
+        {
+          "name": "jnt_dofadr",
+          "declaration": "array(\"njnt\", int)"
+        }
+      ]
+    },
+    {
+      "group": "attached",
+      "id": "rigid-stride",
+      "kind": "stride",
+      "scalar": "i32",
+      "write": "&[fk.output.elements_per_world() as i32]",
+      "read": "const float* xp=body+4+(unsigned long long)w*meta[0];",
+      "upstream": []
+    },
+    {
+      "group": "attached",
+      "id": "geom_bodyid",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&a.geom_bodyid",
+      "read": "int b=meta[1+g];",
+      "upstream": [
+        {
+          "name": "geom_bodyid",
+          "declaration": "array(\"ngeom\", int)"
+        }
+      ]
+    },
+    {
+      "group": "attached",
+      "id": "site_bodyid",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&a.site_bodyid",
+      "read": "int b=meta[1+ng+s];",
+      "upstream": [
+        {
+          "name": "site_bodyid",
+          "declaration": "array(\"nsite\", int)"
+        }
+      ]
+    },
+    {
+      "group": "attached",
+      "id": "static-geom",
+      "kind": "derived",
+      "scalar": "i32",
+      "write": "&static_geom",
+      "read": "if(!initialize && static_geom[g]) continue;",
+      "upstream": [
+        {
+          "name": "geom_bodyid",
+          "declaration": "array(\"ngeom\", int)"
+        },
+        {
+          "name": "body_parentid",
+          "declaration": "array(\"nbody\", int)"
+        },
+        {
+          "name": "body_jntnum",
+          "declaration": "array(\"nbody\", int)"
+        },
+        {
+          "name": "body_mocapid",
+          "declaration": "array(\"nbody\", int)"
+        },
+        {
+          "name": "body_rootid",
+          "declaration": "array(\"nbody\", int)"
+        },
+        {
+          "name": "body_weldid",
+          "declaration": "array(\"nbody\", int)"
+        }
+      ]
+    },
+    {
+      "group": "camlight",
+      "id": "rigid-stride",
+      "kind": "stride",
+      "scalar": "i32",
+      "write": "rigid_stride as i32",
+      "read": "const float* xp=body+4+(unsigned long long)w*meta[0];",
+      "upstream": []
+    },
+    {
+      "group": "camlight",
+      "id": "com-stride",
+      "kind": "stride",
+      "scalar": "i32",
+      "write": "com_stride as i32",
+      "read": "const float* sc=com+4+(unsigned long long)w*meta[1]+nb;",
+      "upstream": []
+    },
+    {
+      "group": "camlight",
+      "id": "cam_mode",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&fields.cam_mode",
+      "read": "const int* cm=meta+2;",
+      "upstream": [
+        {
+          "name": "cam_mode",
+          "declaration": "array(\"ncam\", int)"
+        }
+      ]
+    },
+    {
+      "group": "camlight",
+      "id": "cam_bodyid",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&fields.cam_bodyid",
+      "read": "const int* cb=cm+nc;",
+      "upstream": [
+        {
+          "name": "cam_bodyid",
+          "declaration": "array(\"ncam\", int)"
+        }
+      ]
+    },
+    {
+      "group": "camlight",
+      "id": "cam_targetbodyid",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&fields.cam_targetbodyid",
+      "read": "const int* ct=cb+nc;",
+      "upstream": [
+        {
+          "name": "cam_targetbodyid",
+          "declaration": "array(\"ncam\", int)"
+        }
+      ]
+    },
+    {
+      "group": "camlight",
+      "id": "light_mode",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&fields.light_mode",
+      "read": "const int* lm=ct+nc;",
+      "upstream": [
+        {
+          "name": "light_mode",
+          "declaration": "array(\"nlight\", int)"
+        }
+      ]
+    },
+    {
+      "group": "camlight",
+      "id": "light_bodyid",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&fields.light_bodyid",
+      "read": "const int* lb=lm+nl;",
+      "upstream": [
+        {
+          "name": "light_bodyid",
+          "declaration": "array(\"nlight\", int)"
+        }
+      ]
+    },
+    {
+      "group": "camlight",
+      "id": "light_targetbodyid",
+      "kind": "copy",
+      "scalar": "i32",
+      "write": "&fields.light_targetbodyid",
+      "read": "const int* lt=lb+nl;",
+      "upstream": [
+        {
+          "name": "light_targetbodyid",
+          "declaration": "array(\"nlight\", int)"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "id": "rotation",
+      "file": "src/physics/mod.rs",
+      "classification": "different-order",
+      "scalar": "f32",
+      "upstream_file": "_src/math.py",
+      "symbol": "rot_vec_quat",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "float d=q.x*v.x+q.y*v.y+q.z*v.z;",
+        "float s=q.w*q.w-q.x*q.x-q.y*q.y-q.z*q.z;",
+        "return {s*v.x+2*d*q.x+2*q.w*(q.y*v.z-q.z*v.y),"
+      ],
+      "upstream": [
+        "def rot_vec_quat(vec: wp.vec3, quat: wp.quat) -> wp.vec3:",
+        "r = 2.0 * (wp.dot(u, vec) * u) + (s * s - wp.dot(u, u)) * vec",
+        "r = r + 2.0 * s * wp.cross(u, vec)"
+      ]
+    },
+    {
+      "id": "quaternion-product",
+      "file": "src/physics/mod.rs",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_file": "_src/math.py",
+      "symbol": "mul_quat",
+      "upstream_type": "wp.quat",
+      "product": [
+        "__device__ Q multiply(Q a,Q b) {",
+        "return {a.w*b.w-a.x*b.x-a.y*b.y-a.z*b.z,"
+      ],
+      "upstream": [
+        "def mul_quat(u: wp.quat, v: wp.quat) -> wp.quat:",
+        "u[0] * v[0] - u[1] * v[1] - u[2] * v[2] - u[3] * v[3],"
+      ]
+    },
+    {
+      "id": "quaternion-matrix",
+      "file": "src/physics/mod.rs",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_file": "_src/math.py",
+      "symbol": "quat_to_mat",
+      "upstream_type": "wp.mat33",
+      "product": [
+        "__device__ void matrix(float* m,Q q) {",
+        "m[0]=q.w*q.w+q.x*q.x-q.y*q.y-q.z*q.z;"
+      ],
+      "upstream": [
+        "def quat_to_mat(quat: wp.quat) -> wp.mat33:",
+        "q00 = quat[0] * quat[0]",
+        "q00 + q11 - q22 - q33,"
+      ]
+    },
+    {
+      "id": "normalize",
+      "file": "src/physics/camlight.rs",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_file": "native/vec.h",
+      "symbol": "normalize",
+      "upstream_type": "float",
+      "product": [
+        "float len=sqrtf(v.x*v.x+v.y*v.y+v.z*v.z);",
+        "return len>0.0f ? V{v.x/len,v.y/len,v.z/len} : V{0,0,0};"
+      ],
+      "upstream": [
+        "template <typename Type> inline CUDA_CALLABLE vec_t<3, Type> normalize(vec_t<3, Type> a)",
+        "Type l = sqrt(a.c[0] * a.c[0] + a.c[1] * a.c[1] + a.c[2] * a.c[2]);",
+        "if (l > Type(kEps))",
+        "return vec_t<3, Type>(a.c[0] / l, a.c[1] / l, a.c[2] / l);"
+      ]
+    },
+    {
+      "id": "cross",
+      "file": "src/physics/camlight.rs",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_file": "native/vec.h",
+      "symbol": "cross",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x};"
+      ],
+      "upstream": [
+        "template <typename Type> inline CUDA_CALLABLE vec_t<3, Type> cross(vec_t<3, Type> a, vec_t<3, Type> b)",
+        "return { Type(a[1] * b[2] - a[2] * b[1]), Type(a[2] * b[0] - a[0] * b[2]), Type(a[0] * b[1] - a[1] * b[0]) };"
+      ]
+    },
+    {
+      "id": "geom-pose",
+      "file": "src/physics/attached.rs",
+      "classification": "static-cache",
+      "scalar": "f32",
+      "upstream_file": "_src/smooth.py",
+      "symbol": "_geom_local_to_global",
+      "upstream_type": "wp.vec3+wp.mat33",
+      "product": [
+        "store_v(gx+3*g,add(load_v(xp+3*b),rotate(q,load_v(gp+3*g))));",
+        "matrix(gm+9*g,multiply(q,load_q(gq+4*g)));"
+      ],
+      "upstream": [
+        "geom_xpos_out[worldid, geomid] = xpos + math.rot_vec_quat(geom_pos[worldid % geom_pos.shape[0], geomid], xquat)",
+        "geom_xmat_out[worldid, geomid] = math.quat_to_mat(math.mul_quat(xquat, geom_quat[worldid % geom_quat.shape[0], geomid]))"
+      ]
+    },
+    {
+      "id": "site-pose",
+      "file": "src/physics/attached.rs",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_file": "_src/smooth.py",
+      "symbol": "_site_local_to_global",
+      "upstream_type": "wp.vec3+wp.mat33",
+      "product": [
+        "store_v(sx+3*s,add(load_v(xp+3*b),rotate(q,load_v(sp+3*s))));",
+        "matrix(sm+9*s,multiply(q,load_q(sq+4*s)));"
+      ],
+      "upstream": [
+        "site_xpos_out[worldid, siteid] = xpos + math.rot_vec_quat(site_pos[worldid % site_pos.shape[0], siteid], xquat)",
+        "site_xmat_out[worldid, siteid] = math.quat_to_mat(math.mul_quat(xquat, site_quat[worldid % site_quat.shape[0], siteid]))"
+      ]
+    },
+    {
+      "id": "camera-fixed",
+      "file": "src/physics/camlight.rs",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_file": "_src/smooth.py",
+      "symbol": "_cam_local_to_global",
+      "upstream_type": "wp.vec3+wp.mat33",
+      "product": [
+        "V pos=add(load_v(xp+3*b),rotate(q,load_v(cp+3*c)));",
+        "else matrix(mx+9*c,multiply(q,load_q(cq+4*c)));"
+      ],
+      "upstream": [
+        "cam_xpos_out[worldid, camid] = xpos + math.rot_vec_quat(cam_pos[cam_pos_id, camid], xquat)",
+        "cam_xmat_out[worldid, camid] = math.quat_to_mat(math.mul_quat(xquat, cam_quat[cam_quat_id, camid]))"
+      ]
+    },
+    {
+      "id": "camera-track",
+      "file": "src/physics/camlight.rs",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_file": "_src/smooth.py",
+      "symbol": "_cam_local_to_global",
+      "upstream_type": "wp.vec3+wp.mat33",
+      "product": [
+        "if(mode==1) pos=add(load_v(xp+3*b),load_v(cp0+3*c));",
+        "for(int j=0;j<9;++j) mx[9*c+j]=cmat[9*c+j];"
+      ],
+      "upstream": [
+        "body_xpos + cam_pos0[worldid % cam_pos0.shape[0], camid]",
+        "cam_xmat_out[worldid, camid] = cam_mat0[worldid % cam_mat0.shape[0], camid]"
+      ]
+    },
+    {
+      "id": "camera-com",
+      "file": "src/physics/camlight.rs",
+      "classification": "two-launches",
+      "scalar": "f32",
+      "upstream_file": "_src/smooth.py",
+      "symbol": "_cam_local_to_global",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "if(cm[c]==2) store_v(cx+3*c,add(load_v(sc+3*cb[c]),load_v(cpc+3*c)));"
+      ],
+      "upstream": [
+        "subtree_com_in[worldid, cam_bodyid[camid]] + cam_poscom0[worldid % cam_poscom0.shape[0], camid]"
+      ]
+    },
+    {
+      "id": "camera-target",
+      "file": "src/physics/camlight.rs",
+      "classification": "two-launches",
+      "scalar": "f32",
+      "upstream_file": "_src/smooth.py",
+      "symbol": "_cam_local_to_global",
+      "upstream_type": "wp.vec3+wp.mat33",
+      "product": [
+        "V z=light_normalize(add(pos,scale(target,-1.0f)));",
+        "V x=light_normalize(light_cross(V{0,0,1},z));",
+        "V y=light_normalize(light_cross(z,x));",
+        "mat[0]=x.x;mat[1]=y.x;mat[2]=z.x;",
+        "else if(mode==3 && t>=0) look_at(mx+9*c,pos,load_v(xp+3*t));",
+        "else if(cm[c]==4 && ct[c]>=0) look_at(mx+9*c,load_v(cx+3*c),load_v(sc+3*ct[c]));"
+      ],
+      "upstream": [
+        "mat_3 = wp.normalize(cam_xpos_out[worldid, camid] - pos)",
+        "mat_1 = wp.normalize(wp.cross(wp.vec3(0.0, 0.0, 1.0), mat_3))",
+        "mat_2 = wp.normalize(wp.cross(mat_3, mat_1))",
+        "mat_1[0], mat_2[0], mat_3[0],"
+      ]
+    },
+    {
+      "id": "light-fixed",
+      "file": "src/physics/camlight.rs",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_file": "_src/smooth.py",
+      "symbol": "_light_local_to_global",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "V pos=add(load_v(xp+3*b),rotate(q,load_v(lp+3*l)));",
+        "V dir=rotate(q,load_v(ld+3*l));"
+      ],
+      "upstream": [
+        "light_xpos_out[worldid, lightid] = xpos + math.rot_vec_quat(light_pos[light_pos_id, lightid], xquat)",
+        "light_xdir_out[worldid, lightid] = math.rot_vec_quat(light_dir[light_dir_id, lightid], xquat)"
+      ]
+    },
+    {
+      "id": "light-track",
+      "file": "src/physics/camlight.rs",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "upstream_file": "_src/smooth.py",
+      "symbol": "_light_local_to_global",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "if(mode==1) pos=add(load_v(xp+3*b),load_v(lp0+3*l));",
+        "if(mode==1 || mode==2) dir=load_v(ld0+3*l);"
+      ],
+      "upstream": [
+        "body_xpos + light_pos0[worldid % light_pos0.shape[0], lightid]",
+        "light_xdir_out[worldid, lightid] = light_dir0[worldid % light_dir0.shape[0], lightid]"
+      ]
+    },
+    {
+      "id": "light-com",
+      "file": "src/physics/camlight.rs",
+      "classification": "two-launches",
+      "scalar": "f32",
+      "upstream_file": "_src/smooth.py",
+      "symbol": "_light_local_to_global",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "if(lm[l]==2) store_v(lx+3*l,add(load_v(sc+3*lb[l]),load_v(lpc+3*l)));"
+      ],
+      "upstream": [
+        "subtree_com_in[worldid, light_bodyid[lightid]] + light_poscom0[worldid % light_poscom0.shape[0], lightid]"
+      ]
+    },
+    {
+      "id": "light-target",
+      "file": "src/physics/camlight.rs",
+      "classification": "two-launches",
+      "scalar": "f32",
+      "upstream_file": "_src/smooth.py",
+      "symbol": "_light_local_to_global",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "else if(mode==3 && t>=0) dir=add(load_v(xp+3*t),scale(pos,-1.0f));",
+        "store_v(dx+3*l,light_normalize(add(load_v(sc+3*lt[l]),scale(load_v(lx+3*l),-1.0f))));"
+      ],
+      "upstream": [
+        "light_xdir_out[worldid, lightid] = pos - light_xpos_out[worldid, lightid]",
+        "light_xdir_out[worldid, lightid] = wp.normalize(light_xdir_out[worldid, lightid])"
+      ]
+    },
+    {
+      "id": "light-invalid",
+      "file": "src/physics/camlight.rs",
+      "classification": "skip-normalize",
+      "scalar": "f32",
+      "upstream_file": "_src/smooth.py",
+      "symbol": "_light_local_to_global",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "bool invalid=(mode==3 || mode==4) && t<0;",
+        "store_v(dx+3*l,invalid ? dir : light_normalize(dir));"
+      ],
+      "upstream": [
+        "invalid_target = is_target_light and (light_targetbodyid[lightid] < 0)",
+        "light_xdir_out[worldid, lightid] = math.rot_vec_quat(light_dir[light_dir_id, lightid], xquat)\n    return"
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "geom_xpos",
+      "file": "src/physics/attached.rs",
+      "upstream_type": "wp.vec3",
+      "scalar": "f32",
+      "write": "store_v(gx+3*g,",
+      "view": "&v[..3 * ng]",
+      "upstream_declaration": "array(\"nworld\", \"ngeom\", wp.vec3)"
+    },
+    {
+      "name": "geom_xmat",
+      "file": "src/physics/attached.rs",
+      "upstream_type": "wp.mat33",
+      "scalar": "f32",
+      "write": "matrix(gm+9*g,",
+      "view": "&v[3 * ng..12 * ng]",
+      "upstream_declaration": "array(\"nworld\", \"ngeom\", wp.mat33)"
+    },
+    {
+      "name": "site_xpos",
+      "file": "src/physics/attached.rs",
+      "upstream_type": "wp.vec3",
+      "scalar": "f32",
+      "write": "store_v(sx+3*s,",
+      "view": "&v[12 * ng..12 * ng + 3 * ns]",
+      "upstream_declaration": "array(\"nworld\", \"nsite\", wp.vec3)"
+    },
+    {
+      "name": "site_xmat",
+      "file": "src/physics/attached.rs",
+      "upstream_type": "wp.mat33",
+      "scalar": "f32",
+      "write": "matrix(sm+9*s,",
+      "view": "&v[12 * ng + 3 * ns..]",
+      "upstream_declaration": "array(\"nworld\", \"nsite\", wp.mat33)"
+    },
+    {
+      "name": "cam_xpos",
+      "file": "src/physics/camlight.rs",
+      "upstream_type": "wp.vec3",
+      "scalar": "f32",
+      "write": "store_v(cx+3*c,pos);",
+      "view": "&v[..3 * nc]",
+      "upstream_declaration": "array(\"nworld\", \"ncam\", wp.vec3)"
+    },
+    {
+      "name": "cam_xmat",
+      "file": "src/physics/camlight.rs",
+      "upstream_type": "wp.mat33",
+      "scalar": "f32",
+      "write": "matrix(mx+9*c,",
+      "view": "&v[3 * nc..12 * nc]",
+      "upstream_declaration": "array(\"nworld\", \"ncam\", wp.mat33)"
+    },
+    {
+      "name": "light_xpos",
+      "file": "src/physics/camlight.rs",
+      "upstream_type": "wp.vec3",
+      "scalar": "f32",
+      "write": "store_v(lx+3*l,pos);",
+      "view": "&v[12 * nc..12 * nc + 3 * nl]",
+      "upstream_declaration": "array(\"nworld\", \"nlight\", wp.vec3)"
+    },
+    {
+      "name": "light_xdir",
+      "file": "src/physics/camlight.rs",
+      "upstream_type": "wp.vec3",
+      "scalar": "f32",
+      "write": "store_v(dx+3*l,",
+      "view": "&v[12 * nc + 3 * nl..]",
+      "upstream_declaration": "array(\"nworld\", \"nlight\", wp.vec3)"
+    }
+  ],
+  "np01_complete": false,
+  "np02_complete": false,
+  "remaining": [
+    "other-kernel-internals-and-outputs",
+    "operator-order-and-preprocessing-semantics",
+    "upstream-generated-kernels",
+    "measured-performance"
+  ]
+}

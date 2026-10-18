@@ -105,12 +105,12 @@ fn spec(
             field: "gravity_compensation_metadata",
         })?;
     roots.resize(nb, 0);
-    for body in 1..nb {
+    for (body, slot) in roots.iter_mut().enumerate().skip(1) {
         let mut root = body;
         while topology.body_parentid[root] != 0 {
             root = topology.body_parentid[root] as usize;
         }
-        roots[body] = root as i32;
+        *slot = root as i32;
     }
     let mut ancestry = Vec::new();
     ancestry
@@ -643,8 +643,10 @@ mod tests {
     use super::*;
     use crate::model::{
         AttachedFields, AttachedModelInput, InertialFields, InertialModelInput, KinematicFields,
-        KinematicModelInput, KinematicsParameter, KinematicsParameters,
+        KinematicModelInput,
     };
+    #[cfg(feature = "cuda-probe")]
+    use crate::model::{KinematicsParameter, KinematicsParameters};
 
     fn source_model() -> AttachedModelInput {
         let kinematic = KinematicModelInput::new(
@@ -683,6 +685,7 @@ mod tests {
         AttachedModelInput::new(inertial, AttachedFields::default()).unwrap()
     }
 
+    #[cfg(feature = "cuda-probe")]
     fn multi_body_model() -> AttachedModelInput {
         let kinematic = KinematicModelInput::new(
             4,
@@ -833,7 +836,7 @@ mod tests {
         )
         .unwrap();
         let mut source = source_plan.create_data(WORLDS).unwrap();
-        source.write_qpos(&vec![0.0; WORLDS * 4]).unwrap();
+        source.write_qpos(&[0.0; WORLDS * 4]).unwrap();
         source_plan.update_rigid(&mut source).unwrap();
         source_plan.update_com(&mut source).unwrap();
         let mut data = plan.create_data(WORLDS).unwrap();

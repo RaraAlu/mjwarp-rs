@@ -24,7 +24,7 @@ use std::{fs, path::PathBuf};
 
 const PACKAGE: &str =
     include_str!("../fixtures/gravity-upstream-abi/nonzero-product-chain-package.json");
-const PACKAGE_SHA256: &str = "307df76c7a747bb5336361f601a0530b5a88ee1bd7dc0ff771ebc21357f08592";
+const PACKAGE_SHA256: &str = "9154df31fa852a0df23ac3fb31fc0cfbbcbdb5a678aeb42437b3853f184569ac";
 const REVISION: &str = "71da24d956378a87a703b6e1442b13aec0c4ac29";
 const WARP_VERSION: &str = "1.15.0";
 const TOLERANCE_BITS: u32 = 0x360637bd;
@@ -138,11 +138,11 @@ fn validate_package(package: &Value) -> Result<(), &'static str> {
                 },
                 "resident": {
                     "path": "src/physics/resident.rs",
-                    "sha256": "3bf476d398345513f9c77ecbecd38a9882112219a9e7fe8ff2af98c172618dde"
+                    "sha256": "6389af92c39b687cdf3cd01fa3855d651bf264d6df7e2ff52fd8f230950718eb"
                 },
                 "gravity_compensation": {
                     "path": "src/physics/gravity_compensation.rs",
-                    "sha256": "479cb99b0af78f87944129bb21e20460963e076221deaa1abbf735610e2cb712"
+                    "sha256": "245cf69bb6f4a8502e75b11e9a3eb98b0d9180c4ae7895cc4298181c2a6715fb"
                 }
             })
         || package["dimensions"]

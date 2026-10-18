@@ -1,0 +1,69 @@
+{
+ "schema": 1,
+ "task_id": "2026-10-18-toolchain-evidence-revalidation",
+ "head": "25186895d187aa8a9a4068e09e828a340163589d",
+ "byte_rule": "SHA-256 over file bytes after CRLF->LF, as the guards compute it",
+ "drifted_sources": [
+  {
+   "path": "src/physics/resident.rs",
+   "pinned": "b2d63abc3763c38435ab8bb76c866fb307f7e144f1db712ae0abc46d1c7fd9cf",
+   "pinned_at": "791bcc3",
+   "current": "3bf476d398345513f9c77ecbecd38a9882112219a9e7fe8ff2af98c172618dde",
+   "diff": "+477/-1; host accessor contexts for gravity, fluid, tendon velocity, flex edge passive, sleep, CRB inputs; test code; one import. No kernel string, packer or type change.",
+   "mapping": "holds (temporary re-pin: all resident-bound mapping checks pass)"
+  },
+  {
+   "path": "src/physics/mod.rs",
+   "pinned": "b73b83e788ad",
+   "pinned_at": "af7f887",
+   "current": "e9ec17dbc364",
+   "diff": "+71/-7; module exports; rotate() rewritten to upstream rot_vec_quat grouping plus dot_v/cross_v helpers (8a5bac0).",
+   "mapping": "changed: rotation step anchors in g01-rigid-internal.json and g01-topology-frames.json no longer exist; zero-quaternion whole-file lineage (595d57) no longer reproducible"
+  },
+  {
+   "path": "src/runtime/transfer.rs",
+   "pinned": "268c351cb4a7",
+   "pinned_at": "e9173d7",
+   "current": "eb37132e223f",
+   "diff": "+5: cfg(cuda-probe) same_session()",
+   "mapping": "holds"
+  },
+  {
+   "path": "src/io/inertial.rs",
+   "pinned": "ef20c8992bdb",
+   "pinned_at": "a08ce06",
+   "current": "8990c064fd02",
+   "diff": "+5: native-model-probe sparse submodule and re-export",
+   "mapping": "holds"
+  },
+  {
+   "path": "src/model/inertial.rs",
+   "pinned": "efac7294dfdf",
+   "pinned_at": "a08ce06",
+   "current": "56ce45265e98",
+   "diff": "+3: sparse submodule and re-export",
+   "mapping": "holds"
+  }
+ ],
+ "rotation_lineage": {
+  "before_rotate(current mod.rs) == mod.rs@8a5bac0~1": true,
+  "mod.rs@8a5bac0~1 sha256": "71ee8dd57187",
+  "KINEMATICS_CUDA identical between af7f887 and 8a5bac0~1": true,
+  "historical(zero-quat revert) of af7f887 == 595d57": true,
+  "upstream_grouping": "product rotate matches Warp 1.15.0 rot_vec_quat operand order: dot (a0b0+a1b1+a2b2), mul(s,a)=a[i]*s, cross, add order; FMA contraction at machine level not compared in this task"
+ },
+ "runs": {
+  "baseline": "baseline-host-19.log: 19 failed (same names as governance log)",
+  "temporary_repin": "probe-repin-head-host-19.log: 15 pass; remaining rigid x2 and topology x1 (rotation anchors, lineage) and cache denominator"
+ },
+ "cache": {
+  "dir": "target/mjwarp-parallel/warp-cache/1.15.0",
+  "pinned_three_files": "present and match",
+  "extra": "1.15.0/1.15.0/wp_mujoco_warp._src.smooth_ca013d6/{cu,meta,sm89.ptx}; bytes differ from top level; .cu comments reference upstream\\mujoco_warp instead of venv site-packages",
+  "provenance": "unknown"
+ },
+ "gravity_package": {
+  "path": "fixtures/gravity-upstream-abi/nonzero-product-chain-package.json",
+  "state": "all three source pins match current; also hard-coded in tests/t4_gravity_nonzero_product_chain.rs; fixing the six deferred diagnostics will drift resident.rs and gravity_compensation.rs"
+ }
+}

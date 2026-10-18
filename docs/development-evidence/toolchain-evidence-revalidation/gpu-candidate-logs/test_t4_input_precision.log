@@ -1,0 +1,84 @@
+
+running 12 tests
+test audit_frozen_input_declarations_without_gpu_or_python ... FAILED
+test field_internal::audit_field_internal_sources_and_captures ... FAILED
+test field_internal::flex_matrices::audits_frozen_matrices_and_generated_face_artifacts ... FAILED
+test packing_routes::audit_remaining_packing_sources_and_captures ... FAILED
+test packing_routes::flex_internal::audits_frozen_flex_sources_and_retained_artifacts ... FAILED
+test rigid_internal::audit_frozen_rigid_internal_and_output_sources ... FAILED
+test state_packing::audit_state_packing_sources_and_captured_readers ... FAILED
+test topology_frames::audit_frozen_topology_and_frame_sources ... FAILED
+test zero_quaternion::compares_zero_quaternion_with_actual_upstream_artifact ... ok
+test zero_quaternion::face_polar::compares_face_polar_with_actual_upstream_artifact ... ok
+test zero_quaternion::face_polar::operators::isolates_operators_targets_and_compilers ... FAILED
+test zero_quaternion::face_polar::operators::traces_intermediate_operators ... ok
+
+failures:
+
+---- audit_frozen_input_declarations_without_gpu_or_python stdout ----
+
+thread 'audit_frozen_input_declarations_without_gpu_or_python' (54728) panicked at tests\t4_input_precision.rs:597:71:
+set upstream root
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- field_internal::audit_field_internal_sources_and_captures stdout ----
+
+thread 'field_internal::audit_field_internal_sources_and_captures' (47164) panicked at tests\support\t4_field_internal.rs:1159:64:
+set upstream root
+
+---- field_internal::flex_matrices::audits_frozen_matrices_and_generated_face_artifacts stdout ----
+
+thread 'field_internal::flex_matrices::audits_frozen_matrices_and_generated_face_artifacts' (48488) panicked at tests\support\t4_field_internal.rs:567:46:
+MJWARP_FROZEN_UPSTREAM_ROOT
+
+---- packing_routes::audit_remaining_packing_sources_and_captures stdout ----
+
+thread 'packing_routes::audit_remaining_packing_sources_and_captures' (13732) panicked at tests\support\t4_packing_routes.rs:1117:64:
+set upstream root
+
+---- packing_routes::flex_internal::audits_frozen_flex_sources_and_retained_artifacts stdout ----
+
+thread 'packing_routes::flex_internal::audits_frozen_flex_sources_and_retained_artifacts' (44976) panicked at tests\support\t4_packing_routes.rs:531:46:
+MJWARP_FROZEN_UPSTREAM_ROOT
+
+---- rigid_internal::audit_frozen_rigid_internal_and_output_sources stdout ----
+
+thread 'rigid_internal::audit_frozen_rigid_internal_and_output_sources' (8120) panicked at tests\support\t4_rigid_internal.rs:623:42:
+MJWARP_FROZEN_UPSTREAM_ROOT
+
+---- state_packing::audit_state_packing_sources_and_captured_readers stdout ----
+
+thread 'state_packing::audit_state_packing_sources_and_captured_readers' (21444) panicked at tests\support\t4_state_packing.rs:553:64:
+set upstream root
+
+---- topology_frames::audit_frozen_topology_and_frame_sources stdout ----
+
+thread 'topology_frames::audit_frozen_topology_and_frame_sources' (5408) panicked at tests\support\t4_topology_frames.rs:595:42:
+MJWARP_FROZEN_UPSTREAM_ROOT
+
+---- zero_quaternion::face_polar::operators::isolates_operators_targets_and_compilers stdout ----
+compile 128-70-product
+compile 128-70-warp
+compile 128-89-warp
+compile 129-70-warp
+compile 129-89-warp
+
+thread 'zero_quaternion::face_polar::operators::isolates_operators_targets_and_compilers' (51152) panicked at tests\support\t4_face_operators.rs:376:5:
+assertion `left == right` failed
+  left: "\n__device__ float face_dot(const float* a,const float* b) {\n  return (a[0]*b[0]+a[1]*b[1])+a[2]*b[2];\n}\n__device__ void face_cross(float* r,const float* a,const float* b) {\n  r[0]=a[1]*b[2]-a[2]*b[1];r[1]=a[2]*b[0]-a[0]*b[2];r[2]=a[0]*b[1]-a[1]*b[0];\n}\n__device__ void face_polar(float* q,const float F[3][3]) {\n  q[0]=q[1]=q[2]=0.0f;q[3]=1.0f;\n  for(int iter=0;iter<50;++iter) {\n    // Warp quat_to_matrix rotates each basis vector without renormalizing.\n    float R[3][3];\n    for(int col=0;col<3;++col) {\n      float v[3]={0,0,0};v[col]=1.0f;\n      float c=2.0f*q[3]*q[3]-1.0f;\n      float d=2.0f*(q[0]*v[0]+q[1]*v[1]+q[2]*v[2]);\n      R[col][0]=v[0]*c+q[0]*d+(q[1]*v[2]-q[2]*v[1])*q[3]*2.0f;\n      R[col][1]=v[1]*c+q[1]*d+(q[2]*v[0]-q[0]*v[2])*q[3]*2.0f;\n      R[col][2]=v[2]*c+q[2]*d+(q[0]*v[1]-q[1]*v[0])*q[3]*2.0f;\n    }\n    float crosses[3][3];\n    for(int c=0;c<3;++c) face_cross(crosses[c],R[c],F[c]);\n    float omega[3];float denom=fabsf((face_dot(R[0],F[0])+face_dot(R[1],F[1]))+face_dot(R[2],F[2]))+1.0e-10f;\n    for(int k=0;k<3;++k) omega[k]=((crosses[0][k]+crosses[1][k])+crosses[2][k])/denom;\n    float w=sqrtf(face_dot(omega,omega));if(w<1.0e-6f) break;\n    float rot[4];for(int k=0;k<3;++k) rot[k]=(omega[k]/w)*sinf(0.5f*w);rot[3]=cosf(0.5f*w);\n    // Frozen Warp PTX rounds q.xyz*rot.w before the two fused additions.\n    float next[4];\n    next[0]=__fsub_rn(fmaf(q[2],rot[1],fmaf(q[3],rot[0],__fmul_rn(q[0],rot[3]))),__fmul_rn(q[1],rot[2]));\n    next[1]=__fsub_rn(fmaf(q[0],rot[2],fmaf(q[3],rot[1],__fmul_rn(q[1],rot[3]))),__fmul_rn(q[2],rot[0]));\n    next[2]=__fsub_rn(fmaf(q[1],rot[0],fmaf(q[3],rot[2],__fmul_rn(q[2],rot[3]))),__fmul_rn(q[0],rot[1]));\n    next[3]=rot[3]*q[3]-rot[0]*q[0]-rot[1]*q[1]-rot[2]*q[2];\n    float n=sqrtf(((next[0]*next[0]+next[1]*next[1])+next[2]*next[2])+next[3]*next[3]);\n    // Warp kEps is zero; nonpositive lengths return the identity.\n    if(n>0.0f) {float inv_n=1.0f/n;for(int k=0;k<4;++k) q[k]=next[k]*inv_n;}\n    else {q[0]=q[1]=q[2]=0.0f;q[3]=1.0f;}\n  }\n}\nextern \"C\" __global__ void flex_faces(const int* m,const float* params,const float* nodes,\n    float* result,unsigned a,unsigned b,unsigned c,unsigned worlds) {\n  unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=worlds) return;\n  int nf=m[0];const float* nx=nodes+4+(unsigned long long)w*m[1];\n  float* positions=result+4+(unsigned long long)w*31ull*nf;float* quats=positions+27*nf;\n  for(int f=0;f<nf;++f) {\n    const int* row=m+2+10*f;float t1[3]={0,0,0},t2[3]={0,0,0};\n    for(int slot=0;slot<9;++slot) {\n      int n=row[1+slot];float* out=positions+27*f+3*slot;\n      if(n<0) {out[0]=out[1]=out[2]=0.0f;continue;}\n      float g0=0.5f*(-1+2*(slot/2)),g1=0.5f*(-1+2*(slot%2));\n      for(int k=0;k<3;++k) {out[k]=nx[3*n+k];t1[k]+=out[k]*g0;t2[k]+=out[k]*g1;}\n    }\n    float normal[3];face_cross(normal,t1,t2);float F[3][3];\n    for(int k=0;k<3;++k) {\n      if(row[0]==0) {F[0][k]=normal[k];F[1][k]=t1[k];F[2][k]=t2[k];}\n      else if(row[0]==1) {F[0][k]=t2[k];F[1][k]=normal[k];F[2][k]=t1[k];}\n      else {F[0][k]=t1[k];F[1][k]=t2[k];F[2][k]=normal[k];}\n    }\n    face_polar(quats+4*f,F);\n  }\n}\n"
+ right: "\n__device__ float face_dot(const float* a,const float* b) {\n  return (a[0]*b[0]+a[1]*b[1])+a[2]*b[2];\n}\n__device__ void face_cross(float* r,const float* a,const float* b) {\n  r[0]=a[1]*b[2]-a[2]*b[1];r[1]=a[2]*b[0]-a[0]*b[2];r[2]=a[0]*b[1]-a[1]*b[0];\n}\n__device__ void face_polar(float* q,const float F[3][3]) {\n  q[0]=q[1]=q[2]=0.0f;q[3]=1.0f;\n  for(int iter=0;iter<50;++iter) {\n    // Warp quat_to_matrix rotates each basis vector without renormalizing.\n    float R[3][3];\n    for(int col=0;col<3;++col) {\n      float v[3]={0,0,0};v[col]=1.0f;\n      float c=2.0f*q[3]*q[3]-1.0f;\n      float d=2.0f*(q[0]*v[0]+q[1]*v[1]+q[2]*v[2]);\n      R[col][0]=v[0]*c+q[0]*d+(q[1]*v[2]-q[2]*v[1])*q[3]*2.0f;\n      R[col][1]=v[1]*c+q[1]*d+(q[2]*v[0]-q[0]*v[2])*q[3]*2.0f;\n      R[col][2]=v[2]*c+q[2]*d+(q[0]*v[1]-q[1]*v[0])*q[3]*2.0f;\n    }\n    float crosses[3][3];\n    for(int c=0;c<3;++c) face_cross(crosses[c],R[c],F[c]);\n    float omega[3];float denom=fabsf((face_dot(R[0],F[0])+face_dot(R[1],F[1]))+face_dot(R[2],F[2]))+1.0e-10f;\n    for(int k=0;k<3;++k) omega[k]=((crosses[0][k]+crosses[1][k])+crosses[2][k])/denom;\n    float w=sqrtf(face_dot(omega,omega));if(w<1.0e-6f) break;\n    float rot[4];for(int k=0;k<3;++k) rot[k]=(omega[k]/w)*sinf(0.5f*w);rot[3]=cosf(0.5f*w);\n    // Loaded frozen Warp SASS keeps the first product rounded and fuses all three sums.\n    float next[4];\n    next[0]=fmaf(-q[1],rot[2],fmaf(q[2],rot[1],fmaf(q[3],rot[0],__fmul_rn(q[0],rot[3]))));\n    next[1]=fmaf(-q[2],rot[0],fmaf(q[0],rot[2],fmaf(q[3],rot[1],__fmul_rn(q[1],rot[3]))));\n    next[2]=fmaf(-q[0],rot[1],fmaf(q[1],rot[0],fmaf(q[3],rot[2],__fmul_rn(q[2],rot[3]))));\n    next[3]=rot[3]*q[3]-rot[0]*q[0]-rot[1]*q[1]-rot[2]*q[2];\n    float n=sqrtf(((next[0]*next[0]+next[1]*next[1])+next[2]*next[2])+next[3]*next[3]);\n    // Warp kEps is zero; nonpositive lengths return the identity.\n    if(n>0.0f) {float inv_n=1.0f/n;for(int k=0;k<4;++k) q[k]=next[k]*inv_n;}\n    else {q[0]=q[1]=q[2]=0.0f;q[3]=1.0f;}\n  }\n}\nextern \"C\" __global__ void flex_faces(const int* m,const float* params,const float* nodes,\n    float* result,unsigned a,unsigned b,unsigned c,unsigned worlds) {\n  unsigned w=blockIdx.x*blockDim.x+threadIdx.x;if(w>=worlds) return;\n  int nf=m[0];const float* nx=nodes+4+(unsigned long long)w*m[1];\n  float* positions=result+4+(unsigned long long)w*31ull*nf;float* quats=positions+27*nf;\n  for(int f=0;f<nf;++f) {\n    const int* row=m+2+10*f;float t1[3]={0,0,0},t2[3]={0,0,0};\n    for(int slot=0;slot<9;++slot) {\n      int n=row[1+slot];float* out=positions+27*f+3*slot;\n      if(n<0) {out[0]=out[1]=out[2]=0.0f;continue;}\n      float g0=0.5f*(-1+2*(slot/2)),g1=0.5f*(-1+2*(slot%2));\n      for(int k=0;k<3;++k) {out[k]=nx[3*n+k];t1[k]+=out[k]*g0;t2[k]+=out[k]*g1;}\n    }\n    float normal[3];face_cross(normal,t1,t2);float F[3][3];\n    for(int k=0;k<3;++k) {\n      if(row[0]==0) {F[0][k]=normal[k];F[1][k]=t1[k];F[2][k]=t2[k];}\n      else if(row[0]==1) {F[0][k]=t2[k];F[1][k]=normal[k];F[2][k]=t1[k];}\n      else {F[0][k]=t1[k];F[1][k]=t2[k];F[2][k]=normal[k];}\n    }\n    face_polar(quats+4*f,F);\n  }\n}\n"
+
+
+failures:
+    audit_frozen_input_declarations_without_gpu_or_python
+    field_internal::audit_field_internal_sources_and_captures
+    field_internal::flex_matrices::audits_frozen_matrices_and_generated_face_artifacts
+    packing_routes::audit_remaining_packing_sources_and_captures
+    packing_routes::flex_internal::audits_frozen_flex_sources_and_retained_artifacts
+    rigid_internal::audit_frozen_rigid_internal_and_output_sources
+    state_packing::audit_state_packing_sources_and_captured_readers
+    topology_frames::audit_frozen_topology_and_frame_sources
+    zero_quaternion::face_polar::operators::isolates_operators_targets_and_compilers
+
+test result: FAILED. 3 passed; 9 failed; 0 ignored; 0 measured; 36 filtered out; finished in 22.48s
+

@@ -1,0 +1,54 @@
+   Compiling mjwarp-rs v0.1.0 (D:\Rust\mjwarp-rs)
+warning: manual implementation of `.is_multiple_of()`
+  --> tests\mixed_mass_solve.rs:37:12
+   |
+37 |         if index / n % 3 == 0 {
+   |            ^^^^^^^^^^^^^^^^^^ help: replace with: `(index / n).is_multiple_of(3)`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#manual_is_multiple_of
+   = note: `#[warn(clippy::manual_is_multiple_of)]` on by default
+
+warning: the loop variable `slot` is used to index `matrix`
+  --> tests\mixed_mass_solve.rs:44:21
+   |
+44 |         for slot in f.m_rowadr[i] as usize..(f.m_rowadr[i] + f.m_rownnz[i]) as usize {
+   |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_range_loop
+   = note: `#[warn(clippy::needless_range_loop)]` on by default
+help: consider using an iterator and enumerate()
+   |
+44 -         for slot in f.m_rowadr[i] as usize..(f.m_rowadr[i] + f.m_rownnz[i]) as usize {
+44 +         for (slot, <item>) in matrix.iter().enumerate().take((f.m_rowadr[i] + f.m_rownnz[i]) as usize).skip(f.m_rowadr[i] as usize) {
+   |
+
+warning: the loop variable `slot` is used to index `matrix`
+  --> tests\mixed_mass_solve.rs:59:25
+   |
+59 |             for slot in f.m_rowadr[i] as usize..(f.m_rowadr[i] + f.m_rownnz[i]) as usize {
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+   |
+59 -             for slot in f.m_rowadr[i] as usize..(f.m_rowadr[i] + f.m_rownnz[i]) as usize {
+59 +             for (slot, <item>) in matrix.iter().enumerate().take((f.m_rowadr[i] + f.m_rownnz[i]) as usize).skip(f.m_rowadr[i] as usize) {
+   |
+
+warning: the loop variable `i` is used to index `matrix`
+  --> tests\mixed_mass_factor.rs:51:14
+   |
+51 |     for i in 2145..matrix.len() {
+   |              ^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_range_loop
+   = note: `#[warn(clippy::needless_range_loop)]` on by default
+help: consider using an iterator and enumerate()
+   |
+51 -     for i in 2145..matrix.len() {
+51 +     for (i, <item>) in matrix.iter().enumerate().skip(2145) {
+   |
+
+warning: `mjwarp-rs` (test "mixed_mass_solve") generated 3 warnings (run `cargo clippy --fix --test "mixed_mass_solve" -p mjwarp-rs -- ` to apply 1 suggestion)
+warning: `mjwarp-rs` (test "mixed_mass_factor") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.83s

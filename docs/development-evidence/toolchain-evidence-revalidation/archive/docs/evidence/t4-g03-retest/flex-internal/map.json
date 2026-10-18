@@ -1,0 +1,417 @@
+{
+  "schema": 1,
+  "scope": "g01-flex-position-edge-internal-output",
+  "product_revision": "e272b1474391c4b875ad89b70a7e865a33eec914",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "product_sources": [
+    {
+      "path": "src/physics/flex.rs",
+      "sha256": "cb2977a3418922333d772d237e4b44dfe6e5135b4a9e48c7b82d1346525eb11e"
+    },
+    {
+      "path": "src/physics/flex_edge.rs",
+      "sha256": "05ddb9e94f424e6e7bfa7ae9b04814a48a76618626fb085f59b851987e4f7c4d"
+    },
+    {
+      "path": "src/physics/resident.rs",
+      "sha256": "b2d63abc3763c38435ab8bb76c866fb307f7e144f1db712ae0abc46d1c7fd9cf"
+    },
+    {
+      "path": "src/model/flex.rs",
+      "sha256": "d8df34bc61ce9ed738bf623932942b3eb5389d741ff3ac16a8a8cb0f921e5cc4"
+    },
+    {
+      "path": "src/runtime/transfer.rs",
+      "sha256": "268c351cb4a7048cef7ceb870c8e4a7f1a12633dc474d75065b356f8988e190f"
+    }
+  ],
+  "external_sources": [
+    {
+      "path": "upstream/_src/smooth.py",
+      "sha256": "6268f0e1b6cb4c9ec6bbd3aa29828dfb36224efb2a3a3e1f54e5f87b6623fdef"
+    },
+    {
+      "path": "upstream/_src/math.py",
+      "sha256": "a6f6ee11b9519c9b247c55eb83fec2842ac56bb05d21ea3d19623b200cfb4778"
+    },
+    {
+      "path": "upstream/_src/support.py",
+      "sha256": "c924593f7be8447c76328bcf7dc5b4ce92b6a54458c4afdbf36806cb8e036d46"
+    },
+    {
+      "path": "upstream/_src/types.py",
+      "sha256": "5ff63b8186bafba2e2d51d5aae84875fb289411d9984f4e06b51813ea088491b"
+    },
+    {
+      "path": "warp/_src/types.py",
+      "sha256": "2ea64925f7c1e551c7d20b6e45091640b548d6c0e6b88275b9fa866578041efa"
+    }
+  ],
+  "steps": [
+    {
+      "id": "node-transform",
+      "classification": "same-scalar-order-unverified",
+      "scalar": "f32",
+      "source": "src/physics/flex.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_nodes",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "bool zero=local[0]==0.0f&&local[1]==0.0f&&local[2]==0.0f;",
+        "flex_transform(nx+3*i,local,xp,xm,nodebody[i],row[8]!=0||zero);",
+        "((r[3*k]*local[0]+r[3*k+1]*local[1])+r[3*k+2]*local[2])+p[k];"
+      ],
+      "upstream": [
+        "if flex_centered[f]:",
+        "if local_pos[0] == 0.0 and local_pos[1] == 0.0 and local_pos[2] == 0.0:",
+        "flexnode_xpos_out[worldid, nodeid] = xmat @ local_pos + xpos"
+      ]
+    },
+    {
+      "id": "vertex-direct",
+      "classification": "same-scalar-order-unverified",
+      "scalar": "f32",
+      "source": "src/physics/flex.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_vertices",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "if(row[0]==0) { flex_transform(vx+3*v,verts+3*v,xp,xm,vertbody[v],row[8]!=0);continue; }"
+      ],
+      "upstream": [
+        "if flex_centered[f]:",
+        "flexvert_xpos_out[worldid, vertid] = xmat @ local_pos + xpos"
+      ]
+    },
+    {
+      "id": "cell-lookup",
+      "classification": "f32-to-i32",
+      "scalar": "f32",
+      "source": "src/physics/flex.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_vertices",
+      "upstream_type": "float",
+      "product": [
+        "float coord=coords[3*v+k]*(float)row[1+k];",
+        "cell[k]=max(0,min((int)coord,row[1+k]-1));"
+      ],
+      "upstream": [
+        "ci = wp.min(int(coord[0] * float(cx)), cx - 1)",
+        "ci = wp.max(ci, 0)"
+      ]
+    },
+    {
+      "id": "local-clamp",
+      "classification": "finite-domain",
+      "scalar": "f32",
+      "source": "src/physics/flex.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_vertices",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "float local[3];",
+        "local[k]=fminf(1.0f,fmaxf(0.0f,coord-(float)cell[k]));"
+      ],
+      "upstream": [
+        "local_x = wp.clamp(coord[0] * float(cx) - float(ci), 0.0, 1.0)",
+        "local = wp.vec3(local_x, local_y, local_z)"
+      ]
+    },
+    {
+      "id": "basis",
+      "classification": "same-scalar-order-unverified",
+      "scalar": "f32",
+      "source": "src/physics/flex.rs",
+      "external": "upstream/_src/support.py",
+      "symbol": "eval_basis_trilinear",
+      "upstream_type": "float",
+      "product": [
+        "float weight=(i?local[0]:1-local[0])*(j?local[1]:1-local[1])*(k?local[2]:1-local[2]);"
+      ],
+      "upstream": [
+        "return _phi(local[0], i) * _phi(local[1], j) * _phi(local[2], k)"
+      ]
+    },
+    {
+      "id": "interpolate",
+      "classification": "same-loop-order",
+      "scalar": "f32",
+      "source": "src/physics/flex.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_vertices",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "float p[3]={0,0,0};",
+        "for(int i=0;i<2;++i) for(int j=0;j<2;++j) for(int k=0;k<2;++k)",
+        "for(int d=0;d<3;++d) p[d]+=weight*nx[3*n+d];"
+      ],
+      "upstream": [
+        "result = wp.vec3(0.0, 0.0, 0.0)",
+        "for li in range(2):",
+        "for lj in range(2):",
+        "for lk in range(2):",
+        "result += w * flexnode_xpos_in[worldid, nstart + node_idx]"
+      ]
+    },
+    {
+      "id": "invalidate",
+      "classification": "private-bool-adapter",
+      "scalar": "i32",
+      "source": "src/physics/flex.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "flex",
+      "upstream_type": "bool",
+      "product": [
+        "int* flags=result+4+(unsigned long long)w*nf;",
+        "for(int f=0;f<nf;++f) flags[f]=0;"
+      ],
+      "upstream": [
+        "if m.nflex > 0:",
+        "d.flex_hessian_valid.zero_()"
+      ]
+    },
+    {
+      "id": "edge-difference",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "source": "src/physics/flex_edge.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_edges",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "float dir[3];for(int k=0;k<3;++k) dir[k]=vx[3*v2+k]-vx[3*v1+k];"
+      ],
+      "upstream": [
+        "vec = pos2 - pos1",
+        "edge, edge_length = math.normalize_with_norm(vec)"
+      ]
+    },
+    {
+      "id": "edge-length",
+      "classification": "same-scalar-order-unverified",
+      "scalar": "f32",
+      "source": "src/physics/flex_edge.rs",
+      "external": "upstream/_src/math.py",
+      "symbol": "normalize_with_norm",
+      "upstream_type": "float",
+      "product": [
+        "float norm=sqrtf((dir[0]*dir[0]+dir[1]*dir[1])+dir[2]*dir[2]);len[e]=norm;"
+      ],
+      "upstream": [
+        "norm = wp.length(x)"
+      ]
+    },
+    {
+      "id": "edge-normalize",
+      "classification": "zero-preserved",
+      "scalar": "f32",
+      "source": "src/physics/flex_edge.rs",
+      "external": "upstream/_src/math.py",
+      "symbol": "normalize_with_norm",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "if(norm!=0.0f) for(int k=0;k<3;++k) dir[k]/=norm;"
+      ],
+      "upstream": [
+        "if norm == 0.0:",
+        "return x, 0.0",
+        "return x / norm, norm"
+      ]
+    },
+    {
+      "id": "edge-offset",
+      "classification": "same-scalar",
+      "scalar": "f32",
+      "source": "src/physics/flex_edge.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_edges",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "float off[2][3];",
+        "off[s][k]=vx[3*(s?v2:v1)+k]-sc[3*root[bodies[s]]+k];"
+      ],
+      "upstream": [
+        "offset1 = pos1 - com1",
+        "offset2 = pos2 - com2"
+      ]
+    },
+    {
+      "id": "point-velocity",
+      "classification": "same-scalar-order-unverified",
+      "scalar": "f32",
+      "source": "src/physics/flex_edge.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_edges",
+      "upstream_type": "wp.vec3",
+      "product": [
+        "float p[3]={cd[3]+(cd[1]*o[2]-cd[2]*o[1]),",
+        "cd[4]+(cd[2]*o[0]-cd[0]*o[2]),cd[5]+(cd[0]*o[1]-cd[1]*o[0])};"
+      ],
+      "upstream": [
+        "jacp1 = cdof_lin + wp.cross(cdof_ang, offset1)",
+        "jacp2 = cdof_lin + wp.cross(cdof_ang, offset2)"
+      ]
+    },
+    {
+      "id": "jacobian",
+      "classification": "same-endpoint-order",
+      "scalar": "f32",
+      "source": "src/physics/flex_edge.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_edges",
+      "upstream_type": "float",
+      "product": [
+        "float j=0.0f;",
+        "float dot=(p[0]*dir[0]+p[1]*dir[1])+p[2]*dir[2];j+=s?dot:-dot;",
+        "jac[adr+i]=j;"
+      ],
+      "upstream": [
+        "J_val = float(0.0)",
+        "J_val -= wp.dot(jacp1, edge)",
+        "J_val += wp.dot(jacp2, edge)",
+        "flexedge_J_out[worldid, rowadr + i] = J_val"
+      ]
+    },
+    {
+      "id": "edge-velocity",
+      "classification": "same-row-order",
+      "scalar": "f32",
+      "source": "src/physics/flex_edge.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_edges",
+      "upstream_type": "float",
+      "product": [
+        "vel[e]=0.0f;",
+        "vel[e]+=j*qv[d];"
+      ],
+      "upstream": [
+        "vel = float(0.0)",
+        "vel += J_val * qvel_in[worldid, dofid]",
+        "flexedge_velocity_out[worldid, edgeid] = vel"
+      ]
+    },
+    {
+      "id": "sparse-pool",
+      "classification": "extra-tail-clear",
+      "scalar": "f32",
+      "source": "src/physics/flex_edge.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_edges",
+      "upstream_type": "float",
+      "product": [
+        "for(int i=0;i<nnz;++i) jac[i]=0.0f;"
+      ],
+      "upstream": [
+        "for i in range(rownnz):",
+        "flexedge_J_out[worldid, rowadr + i] = J_val"
+      ]
+    },
+    {
+      "id": "edge-early-return",
+      "classification": "same-velocity-only",
+      "scalar": "f32",
+      "source": "src/physics/flex_edge.rs",
+      "external": "upstream/_src/smooth.py",
+      "symbol": "_flex_edges",
+      "upstream_type": "float",
+      "product": [
+        "if(b1<0||b2<0||num==0) continue;"
+      ],
+      "upstream": [
+        "if b1 < 0 or b2 < 0 or rownnz == 0:",
+        "flexedge_velocity_out[worldid, edgeid] = 0.0",
+        "return"
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "flexnode_xpos",
+      "upstream_name": "flexnode_xpos",
+      "scalar": "f32",
+      "upstream_type": "wp.vec3",
+      "source": "src/physics/flex.rs",
+      "symbol": "_flex_nodes",
+      "declaration": "array(\"nworld\", \"nflexnode\", wp.vec3)",
+      "pointer": "float* nx=result+4+(unsigned long long)w*(3ull*nn+3ull*nv);",
+      "write": "flex_transform(nx+3*i,local,xp,xm,nodebody[i],row[8]!=0||zero);",
+      "view": "&v[..3 * self.layout.nn]",
+      "upstream_write": "flexnode_xpos_out[worldid, nodeid] = xpos"
+    },
+    {
+      "name": "flexvert_xpos",
+      "upstream_name": "flexvert_xpos",
+      "scalar": "f32",
+      "upstream_type": "wp.vec3",
+      "source": "src/physics/flex.rs",
+      "symbol": "_flex_vertices",
+      "declaration": "array(\"nworld\", \"nflexvert\", wp.vec3)",
+      "pointer": "float* vx=nx+3*nn;",
+      "write": "for(int d=0;d<3;++d) vx[3*v+d]=p[d];",
+      "view": "&v[3 * self.layout.nn..]",
+      "upstream_write": "flexvert_xpos_out[worldid, vertid] = result"
+    },
+    {
+      "name": "flexedge_length",
+      "upstream_name": "flexedge_length",
+      "scalar": "f32",
+      "upstream_type": "float",
+      "source": "src/physics/flex_edge.rs",
+      "symbol": "_flex_edges",
+      "declaration": "array(\"nworld\", \"nflexedge\", float)",
+      "pointer": "float* len=out+4+(unsigned long long)w*(2ull*ne+nnz);",
+      "write": "len[e]=norm;",
+      "view": "&v[..ne]",
+      "upstream_write": "flexedge_length_out[worldid, edgeid] = edge_length"
+    },
+    {
+      "name": "flexedge_velocity",
+      "upstream_name": "flexedge_velocity",
+      "scalar": "f32",
+      "upstream_type": "float",
+      "source": "src/physics/flex_edge.rs",
+      "symbol": "_flex_edges",
+      "declaration": "array(\"nworld\", \"nflexedge\", float)",
+      "pointer": "float* vel=len+ne;",
+      "write": "vel[e]+=j*qv[d];",
+      "view": "&v[ne..2 * ne]",
+      "upstream_write": "flexedge_velocity_out[worldid, edgeid] = vel"
+    },
+    {
+      "name": "flexedge_jacobian",
+      "upstream_name": "flexedge_J",
+      "scalar": "f32",
+      "upstream_type": "float",
+      "source": "src/physics/flex_edge.rs",
+      "symbol": "_flex_edges",
+      "declaration": "array(\"nworld\", \"nJfe\", float)",
+      "pointer": "float* jac=vel+ne;",
+      "write": "jac[adr+i]=j;",
+      "view": "&v[2 * ne..]",
+      "upstream_write": "flexedge_J_out[worldid, rowadr + i] = J_val"
+    },
+    {
+      "name": "flex_hessian_valid",
+      "upstream_name": "flex_hessian_valid",
+      "scalar": "bool",
+      "upstream_type": "bool",
+      "source": "src/physics/flex.rs",
+      "symbol": "flex",
+      "declaration": "array(\"nworld\", \"nflex\", bool)",
+      "pointer": "int* flags=result+4+(unsigned long long)w*nf;",
+      "write": "flags[f]=0;",
+      "view": "&self.validity[self.layout.validity.world_elements(world)?]",
+      "upstream_write": "d.flex_hessian_valid.zero_()"
+    }
+  ],
+  "np01_complete": false,
+  "np02_complete": false,
+  "equivalence_eligible": false,
+  "remaining": [
+    "generated-operator-semantics",
+    "sparse-unused-tail-side-effect",
+    "face-hessian-and-other-internals",
+    "full-pipeline-current-numerics",
+    "measured-performance"
+  ]
+}

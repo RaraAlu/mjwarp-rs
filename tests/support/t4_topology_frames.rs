@@ -49,7 +49,7 @@ const ROUTES: &[&str] = &[
     "camlight:light_targetbodyid:copy:light_targetbodyid",
 ];
 const STEPS: &[&str] = &[
-    "rotation:src/physics/mod.rs:different-order:_src/math.py:rot_vec_quat:wp.vec3:3:3",
+    "rotation:src/physics/mod.rs:same-scalar:_src/math.py:rot_vec_quat:wp.vec3:3:3",
     "quaternion-product:src/physics/mod.rs:same-scalar:_src/math.py:mul_quat:wp.quat:2:2",
     "quaternion-matrix:src/physics/mod.rs:same-scalar:_src/math.py:quat_to_mat:wp.mat33:2:3",
     "normalize:src/physics/camlight.rs:same-scalar:native/vec.h:normalize:float:2:4",

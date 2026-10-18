@@ -322,6 +322,7 @@ NP04仍缺公平稳态性能对照。
 59. [实时产品质心重力证据](evidence/gravity-product-chain/README.md)
 60. [统一内核发射器设计](unified-launcher.md)
 61. [三层增量实施排程](three-layer-schedule.md)
+62. [证据复核与六项诊断](toolchain-evidence-revalidation.md)
 
 定位文档明确产品边界。
 架构文档定义模块契约。
