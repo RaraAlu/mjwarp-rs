@@ -48,8 +48,8 @@ fn compare(out: &SparseMassMixedFactorOutput, w: usize, sample: usize) -> (usize
     }
     // Sparse updates never own Small or Compact rows. Copy their original M,
     // not their U. Full-nv reciprocal must use those original M diagonals.
-    for i in 2145..matrix.len() {
-        assert_eq!(world.sparse_factors[i].to_bits(), matrix[i].to_bits());
+    for (&actual, &expected) in world.sparse_factors[2145..].iter().zip(&matrix[2145..]) {
+        assert_eq!(actual.to_bits(), expected.to_bits());
     }
     for dof in 65..out.input().nv() {
         let slot = (f.m_rowadr[dof] + f.m_rownnz[dof] - 1) as usize;

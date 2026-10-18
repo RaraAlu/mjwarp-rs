@@ -34,16 +34,19 @@ fn compare(
         let error = (f64::from(a) - b).abs();
         assert!(a.is_finite() && error <= 2e-4 + 2e-4 * b.abs());
         max = max.max(error);
-        if index / n % 3 == 0 {
+        if (index / n).is_multiple_of(3) {
             assert_eq!(a, 0.0);
             zero += 1;
         }
     }
     let mut row_norm = vec![0.0f64; n];
     for i in 0..n {
-        for slot in f.m_rowadr[i] as usize..(f.m_rowadr[i] + f.m_rownnz[i]) as usize {
+        let start = f.m_rowadr[i] as usize;
+        let end = (f.m_rowadr[i] + f.m_rownnz[i]) as usize;
+        for (offset, &matrix_value) in matrix[start..end].iter().enumerate() {
+            let slot = start + offset;
             let k = f.m_colind[slot] as usize;
-            let value = f64::from(matrix[slot]).abs();
+            let value = f64::from(matrix_value).abs();
             row_norm[i] += value;
             if k != i {
                 row_norm[k] += value;
@@ -56,9 +59,12 @@ fn compare(
         let b = &rhs[r * n..(r + 1) * n];
         let mut ax = vec![0.0f64; n];
         for i in 0..n {
-            for slot in f.m_rowadr[i] as usize..(f.m_rowadr[i] + f.m_rownnz[i]) as usize {
+            let start = f.m_rowadr[i] as usize;
+            let end = (f.m_rowadr[i] + f.m_rownnz[i]) as usize;
+            for (offset, &matrix_value) in matrix[start..end].iter().enumerate() {
+                let slot = start + offset;
                 let k = f.m_colind[slot] as usize;
-                let value = f64::from(matrix[slot]);
+                let value = f64::from(matrix_value);
                 ax[i] += value * f64::from(x[k]);
                 if k != i {
                     ax[k] += value * f64::from(x[i]);
