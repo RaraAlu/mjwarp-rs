@@ -1,0 +1,278 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-smooth-force-validate",
+  "base_revision": "c2fc21e9569128188b74d0321a992f03a2955da6",
+  "environment": {
+    "platform": "Windows",
+    "shell": "PowerShell",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "resource": "gpu:windows-t4",
+    "cuda_root": "target/toolchains/cuda-12.8.1",
+    "python": false
+  },
+  "capture_rules": {
+    "precondition": "capture directory must not exist",
+    "expected_entries_per_directory": [
+      "smooth_force_validate",
+      "smooth_force"
+    ],
+    "expected_entry_compilations_per_directory": 2,
+    "duplicate_same_entry_allowed": false,
+    "sleep_off_plans": 1,
+    "sleep_on_plans": 1,
+    "sleep_on_ntree_zero": "reuse existing validation kernel"
+  },
+  "registered_validations": [
+    {
+      "id": "host-wrapper",
+      "purpose": "核对ABI、跨度、维度、别名、会话和元数据证明",
+      "command": "cargo test --locked --features cuda-probe --lib physics::smooth_force::tests::validate_wrapper_rejects_capacity_context_alias_span_dimension_and_proof_faults -- --exact --test-threads=1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/check-01-host"
+    },
+    {
+      "id": "device-preflight",
+      "purpose": "核对本机T4与CUDA 12.8.1 NVRTC",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-smooth-force-validate/device-preflight.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/check-02-device"
+    },
+    {
+      "id": "gpu-sleep-off",
+      "purpose": "核对关闭休眠时忽略sleep载荷、真实验证拒绝和恢复",
+      "command": "cargo test --locked --features cuda-probe --lib physics::smooth_force::tests::gpu_m3_validate_wrapper_sleep_disabled_preserves_output_and_recovers -- --ignored --exact --test-threads=1 --nocapture",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/run-01-sleep-off",
+      "capture_directory": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/run-01-sleep-off/gpu-capture"
+    },
+    {
+      "id": "gpu-sleep-on",
+      "purpose": "核对内部awake、外部sleep、非零awake、ntree零、真实拒绝和恢复",
+      "command": "cargo test --locked --features cuda-probe --lib physics::smooth_force::tests::gpu_m3_validate_wrapper_sleep_enabled_covers_sources_and_ntree_zero -- --ignored --exact --test-threads=1 --nocapture",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/run-02-sleep-on",
+      "capture_directory": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/run-02-sleep-on/gpu-capture"
+    },
+    {
+      "id": "format",
+      "purpose": "核对Rust格式",
+      "command": "cargo fmt --check",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/check-03-format"
+    },
+    {
+      "id": "clippy",
+      "purpose": "核对CUDA库目标警告",
+      "command": "cargo clippy --locked --features cuda-probe --lib -- -D warnings",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/check-04-clippy"
+    },
+    {
+      "id": "inventory",
+      "purpose": "重分类验证入口并核对剩余入口和调用数量",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-smooth-force-validate/build-inventory.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/check-05-inventory"
+    },
+    {
+      "id": "evidence",
+      "purpose": "核对源码、两种PTX、捕获、测试分类和未暂存差异",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-smooth-force-validate/check-evidence.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/check-06-evidence"
+    },
+    {
+      "id": "manifest",
+      "purpose": "复制真实原件并生成冻结成员清单与映射",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-smooth-force-validate/build-manifest.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/check-07-manifest"
+    },
+    {
+      "id": "manifest-blob",
+      "purpose": "把本切片清单写成不可变Git对象",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-smooth-force-validate/freeze-manifest.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/check-08-manifest-blob"
+    },
+    {
+      "id": "delivery-preflight",
+      "purpose": "核对任务可写和前次收尾",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId 2026-10-19-layers-m3-smooth-force-validate",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-01-preflight"
+    },
+    {
+      "id": "receipt",
+      "purpose": "暂存限定范围并生成逐文件对象回执",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-smooth-force-validate/build-delivery-receipt.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-02-receipt"
+    },
+    {
+      "id": "index-bytes",
+      "purpose": "直接读取索引对象并核对正式证据字节",
+      "command": "pwsh -NoProfile -File scripts/check-evidence-blobs.ps1 -Manifest docs/development-evidence/layers-m3-smooth-force-validate/formal-run/manifest.json -Map docs/development-evidence/layers-m3-smooth-force-validate/source-map.json -Revision INDEX",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/check-09-index-bytes"
+    },
+    {
+      "id": "receipt-final",
+      "purpose": "归档索引核验后重建逐文件对象回执",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-smooth-force-validate/build-delivery-receipt.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-02-receipt-final"
+    },
+    {
+      "id": "cached-diff",
+      "purpose": "核对暂存空白错误",
+      "command": "git diff --cached --check",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-03-cached-diff"
+    },
+    {
+      "id": "delivery-staged",
+      "purpose": "核对逐文件回执与暂存对象",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Staged",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-04-staged"
+    },
+    {
+      "id": "delivery-post-commit",
+      "purpose": "核对实际提交覆盖",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode PostCommit -TaskId 2026-10-19-layers-m3-smooth-force-validate",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-05-post-commit"
+    },
+    {
+      "id": "commit-bytes",
+      "purpose": "读取最终提交对象并核对正式证据字节",
+      "command": "pwsh -NoProfile -File scripts/check-evidence-blobs.ps1 -Manifest docs/development-evidence/layers-m3-smooth-force-validate/formal-run/manifest.json -Map docs/development-evidence/layers-m3-smooth-force-validate/source-map.json -Revision <new-full-sha>",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/check-10-commit-bytes"
+    },
+    {
+      "id": "delivery-recorded",
+      "purpose": "核对完整提交号登记",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Recorded -TaskId 2026-10-19-layers-m3-smooth-force-validate",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-06-recorded"
+    },
+    {
+      "id": "delivery-final",
+      "purpose": "核对关闭后的最终状态",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Final -TaskId 2026-10-19-layers-m3-smooth-force-validate",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-07-final"
+    },
+    {
+      "id": "evidence-final",
+      "purpose": "核对监督侧工具ID、事后登记分类及既有正式证据",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-smooth-force-validate/check-evidence.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/check-06-evidence-final",
+      "registered_before_execution": true
+    },
+    {
+      "id": "cached-diff-final",
+      "purpose": "修复证据脚本尾空行后复核暂存空白错误",
+      "command": "git diff --cached --check",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-03-cached-diff-final",
+      "registered_before_execution": true
+    },
+    {
+      "id": "receipt-final-02",
+      "purpose": "尾空行修复后重建逐文件对象回执",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-smooth-force-validate/build-delivery-receipt.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-02-receipt-final-02",
+      "registered_before_execution": true
+    },
+    {
+      "id": "receipt-final-03",
+      "purpose": "归档空白检查失败后重建逐文件对象回执",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-smooth-force-validate/build-delivery-receipt.ps1",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-02-receipt-final-03",
+      "registered_before_execution": true
+    },
+    {
+      "id": "cached-diff-confirm",
+      "purpose": "归档失败证据后确认最终暂存空白检查",
+      "command": "git diff --cached --check",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-03-cached-diff-confirm",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-staged-confirm",
+      "purpose": "归档失败证据后确认最终逐文件回执",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Staged",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/delivery-04-staged-confirm",
+      "registered_before_execution": true
+    }
+  ],
+  "attempt_history": [
+    {
+      "validation": "host-wrapper",
+      "attempts": [
+        {
+          "root": "check-01-host",
+          "exit_code": 101,
+          "reason": "metadata span assertion expected capacity before proof mismatch"
+        },
+        {
+          "root": "check-01-host-retry-01",
+          "exit_code": 0,
+          "change": "correct metadata span error class"
+        },
+        {
+          "root": "check-01-host-retry-02",
+          "exit_code": 0,
+          "change": "add exact boundaries, aliases and short spans"
+        }
+      ]
+    },
+    {
+      "validation": "gpu-sleep-off",
+      "attempts": [
+        {
+          "root": "run-01-sleep-off",
+          "exit_code": 0,
+          "limitation": "error, status and exact output were not asserted"
+        },
+        {
+          "root": "run-01-sleep-off-retry-01",
+          "exit_code": 0,
+          "change": "assert exact output, error and status"
+        }
+      ]
+    },
+    {
+      "validation": "gpu-sleep-on",
+      "attempts": [
+        {
+          "root": "run-02-sleep-on",
+          "exit_code": 0,
+          "limitation": "exact external output and metadata device fault were not asserted"
+        },
+        {
+          "root": "run-02-sleep-on-retry-01",
+          "exit_code": 0,
+          "change": "assert external output, status, device metadata fault and proof generation"
+        }
+      ]
+    },
+    {
+      "validation": "format",
+      "attempts": [
+        {
+          "root": "check-03-format",
+          "exit_code": 0
+        },
+        {
+          "root": "check-03-format-final",
+          "exit_code": 0,
+          "change": "final cfg-only cleanup"
+        }
+      ]
+    },
+    {
+      "validation": "clippy",
+      "attempts": [
+        {
+          "root": "check-04-clippy",
+          "exit_code": 101,
+          "reason": "test-only import and method visible to non-test lib"
+        },
+        {
+          "root": "check-04-clippy-retry-01",
+          "exit_code": 0,
+          "change": "gate both with cfg(test)"
+        }
+      ]
+    }
+  ],
+  "retry_registration": {
+    "classification": "retrospective",
+    "pre_registration": "missing",
+    "record": "retry-registration-gap.json",
+    "statement": "重试事前登记缺失，现为事后追记。未倒填时间。"
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-smooth-force-validate",
+  "base_revision": "c2fc21e9569128188b74d0321a992f03a2955da6",
+  "scope": {
+    "migrate": [
+      "smooth_force_validate"
+    ],
+    "preserve_raw": [
+      "smooth_force"
+    ],
+    "other_entries_changed": false
+  },
+  "abi": {
+    "pointers": [
+      "meta:i32:read:address",
+      "forces:f32:read:value",
+      "sleep:i32:read:value",
+      "status:f32:write:value"
+    ],
+    "scalars": [
+      "nb:u32",
+      "n:u32",
+      "nt:u32",
+      "worlds:u32"
+    ],
+    "block_threads": 256,
+    "grid": "ceil(worlds / 256)",
+    "metadata_elements": "nb + n + worlds * nt + 8",
+    "forces_elements": "4 * worlds * n + 8",
+    "status_elements": "worlds + 8",
+    "external_sleep_elements": "worlds * (2 * nt + 3) + 8"
+  },
+  "semantics": {
+    "ntree_zero_valid": true,
+    "meta_sleep_exact_alias_valid": true,
+    "sleep_disabled_payload_ignored": true,
+    "sleep_disabled_nonempty_same_session_required": true,
+    "nonzero_awake_is_awake": true,
+    "metadata_proof_binds_actual_span": true,
+    "metadata_proof_binds_write_generation": true,
+    "awake_writes_refresh_host_mirror": true,
+    "validation_failure_preserves_output_bits": true,
+    "validation_failure_clears_ready": true,
+    "same_plan_recovery_required": true,
+    "actual_gpu_error_asserted": true,
+    "actual_gpu_status_asserted": true,
+    "illegal_metadata_entered_validator": true,
+    "awake_write_stales_old_proof_and_refreshes_current_proof": true
+  },
+  "gpu_variants": [
+    {
+      "name": "sleep-off",
+      "capture": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/run-01-sleep-off-retry-01/gpu-capture",
+      "plans_compiled": 1,
+      "entries": [
+        "smooth_force_validate",
+        "smooth_force"
+      ],
+      "preserved_first_capture": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/run-01-sleep-off/gpu-capture"
+    },
+    {
+      "name": "sleep-on",
+      "capture": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/run-02-sleep-on-retry-01/gpu-capture",
+      "plans_compiled": 1,
+      "entries": [
+        "smooth_force_validate",
+        "smooth_force"
+      ],
+      "ntree_zero": "reuses the compiled validation kernel with handcrafted buffers",
+      "preserved_first_capture": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-validate/run-02-sleep-on/gpu-capture"
+    }
+  ],
+  "frozen_baseline": {
+    "root": "docs/evidence/passive-force-sleep/gpu-1/ptx",
+    "sleep_off_source_sha256": "3b80d5c3b9e11b06141a9d886ccee6853db1deddbfc852943669f21bc2de0d5c",
+    "sleep_off_ptx_sha256": "2da1129e0a90e79fe317c7a3d9515d0c69863298e64bb0de0cb47a39bc61cb6d",
+    "sleep_on_source_sha256": "097d1f66aa759c0ddd35333bd04d02e60d10828cef1e49ef0b01179231b5f6b3",
+    "sleep_on_ptx_sha256": "d0e78698a54904f24018564234157da53d5e01c55751158e0e15e082b3d41c0f",
+    "legacy_smooth_force_sleep1_cu_rejected": true
+  },
+  "expected_inventory_after": {
+    "actual_cuda_entry_kinds": 88,
+    "typed_actual_entry_kinds": 23,
+    "unmigrated_actual_entry_kinds": 65,
+    "product_low_level_call_sites": 99,
+    "typed_low_level_call_sites": 19,
+    "unmigrated_low_level_call_sites": 80,
+    "wrapper_orchestration_call_sites": 21,
+    "kernel_abi_families": 19,
+    "next_raw_entry": "smooth_force"
+  },
+  "boundaries": {
+    "python": false,
+    "old_task_suites_rerun": false,
+    "linux": "not_run",
+    "release": "not_run",
+    "task_gpu_memory": "unknown",
+    "full_m3": false,
+    "u016": false,
+    "np01_to_np04": false
+  },
+  "validation_references": {
+    "host": {
+      "first": "check-01-host",
+      "final": "check-01-host-retry-02"
+    },
+    "gpu_sleep_off": {
+      "first": "run-01-sleep-off",
+      "final": "run-01-sleep-off-retry-01"
+    },
+    "gpu_sleep_on": {
+      "first": "run-02-sleep-on",
+      "final": "run-02-sleep-on-retry-01"
+    },
+    "format": {
+      "first": "check-03-format",
+      "final": "check-03-format-final"
+    },
+    "clippy": {
+      "first": "check-04-clippy",
+      "final": "check-04-clippy-retry-01"
+    },
+    "evidence_final": "post-freeze-check/manifest.json"
+  },
+  "process_gap": {
+    "retry_pre_registration": "missing",
+    "record": "retry-registration-gap.json",
+    "historical_gap_closed": false
+  }
+}

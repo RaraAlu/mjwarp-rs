@@ -5,6 +5,14 @@ use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::{BatchLayout, SmoothForceInput};
 use crate::runtime::TransferSession;
+#[cfg(all(feature = "cuda-probe", test))]
+use crate::runtime::launcher::DeviceSpan;
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
@@ -96,20 +104,492 @@ fn layout(worlds: usize, nbody: usize, nv: usize, ntree: usize) -> Result<Layout
         meta_len,
     })
 }
+
+#[cfg(feature = "cuda-probe")]
+const SMOOTH_FORCE_VALIDATE_METADATA_KIND: ProofKind = ProofKind("smooth_force_validate_metadata");
+
+#[cfg(feature = "cuda-probe")]
+const SMOOTH_FORCE_VALIDATE_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: SMOOTH_FORCE_VALIDATE_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Write,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(feature = "cuda-probe")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct SmoothForceValidateDims {
+    abi: [u32; 4],
+    sleep_enabled: bool,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct SmoothForceValidateSpec;
+
+#[cfg(feature = "cuda-probe")]
+// SAFETY: 声明逐槽匹配冻结平滑力验证ABI。
+unsafe impl KernelAbi for SmoothForceValidateSpec {
+    const NAME: &'static str = "smooth_force_validate";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &SMOOTH_FORCE_VALIDATE_SLOTS;
+}
+
+#[cfg(feature = "cuda-probe")]
+impl KernelSpec for SmoothForceValidateSpec {
+    type Dims = SmoothForceValidateDims;
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        let [metadata, forces, _, status] = smooth_force_validate_lengths(dims)?;
+        Ok(vec![
+            SlotRequirement {
+                slot: 0,
+                min_elements: metadata,
+            },
+            SlotRequirement {
+                slot: 1,
+                min_elements: forces,
+            },
+            // 关闭休眠时内核不读载荷，但底层ABI仍要求非空分配。
+            SlotRequirement {
+                slot: 2,
+                min_elements: 1,
+            },
+            SlotRequirement {
+                slot: 3,
+                min_elements: status,
+            },
+        ])
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        smooth_force_validate_lengths(dims)?;
+        LaunchDims::new((dims.abi[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn smooth_force_validate_lengths(
+    dims: &SmoothForceValidateDims,
+) -> Result<[u64; 4], LauncherError> {
+    let [nb, n, nt, worlds] = dims.abi;
+    if nb == 0 || n == 0 || worlds == 0 || worlds > u32::MAX - 255 {
+        return Err(LauncherError::InvalidArray("平滑力验证维度无效"));
+    }
+    let nb = u64::from(nb);
+    let n = u64::from(n);
+    let nt = u64::from(nt);
+    let worlds = u64::from(worlds);
+    let metadata = worlds
+        .checked_mul(nt)
+        .and_then(|value| value.checked_add(nb))
+        .and_then(|value| value.checked_add(n))
+        .and_then(|value| value.checked_add(8))
+        .filter(|&value| value <= i32::MAX as u64)
+        .ok_or(LauncherError::Overflow("smooth_force_validate_metadata"))?;
+    let forces = worlds
+        .checked_mul(n)
+        .and_then(|value| value.checked_mul(4))
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("smooth_force_validate_forces"))?;
+    let sleep = worlds
+        .checked_mul(
+            nt.checked_mul(2)
+                .and_then(|value| value.checked_add(3))
+                .ok_or(LauncherError::Overflow(
+                    "smooth_force_validate_sleep_stride",
+                ))?,
+        )
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("smooth_force_validate_sleep"))?;
+    let status = worlds
+        .checked_add(8)
+        .ok_or(LauncherError::Overflow("smooth_force_validate_status"))?;
+    Ok([metadata, forces, sleep, status])
+}
+
+#[cfg(feature = "cuda-probe")]
+fn smooth_force_validate_plan(
+    dims: &SmoothForceValidateDims,
+    bindings: &[SlotBinding],
+    proofs: &[CheckedBinding<'_, SmoothForceValidateDims>],
+) -> Result<(), LauncherError> {
+    Kernel::<SmoothForceValidateSpec>::new()?.plan(dims, bindings, proofs)?;
+    let lengths = smooth_force_validate_lengths(dims)?;
+    let binding = |slot| {
+        bindings
+            .iter()
+            .find(|binding| binding.slot == slot)
+            .ok_or(LauncherError::MissingBinding { slot })
+    };
+    for slot in [0usize, 1, 3] {
+        let actual = binding(slot)?.span.bytes();
+        let required = lengths[slot]
+            .checked_mul(binding(slot)?.elem.bytes())
+            .ok_or(LauncherError::Overflow("smooth_force_validate_exact_bytes"))?;
+        if actual != required {
+            return Err(LauncherError::Capacity {
+                slot,
+                required,
+                actual,
+            });
+        }
+    }
+    let metadata = binding(0)?;
+    let forces = binding(1)?;
+    let sleep = binding(2)?;
+    let exact_metadata_alias = metadata.span == sleep.span;
+    if dims.sleep_enabled && !exact_metadata_alias {
+        let required = lengths[2]
+            .checked_mul(sleep.elem.bytes())
+            .ok_or(LauncherError::Overflow("smooth_force_validate_sleep_bytes"))?;
+        if sleep.span.bytes() != required {
+            return Err(LauncherError::Capacity {
+                slot: 2,
+                required,
+                actual: sleep.span.bytes(),
+            });
+        }
+    }
+    for (first, a, second, b) in [
+        (0, metadata, 1, forces),
+        (0, metadata, 2, sleep),
+        (1, forces, 2, sleep),
+    ] {
+        if a.span.overlaps(&b.span) && !(first == 0 && second == 2 && exact_metadata_alias) {
+            return Err(LauncherError::Alias { first, second });
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "cuda-probe")]
+fn validate_smooth_force_metadata(
+    values: &[i32],
+    dims: &SmoothForceValidateDims,
+) -> Result<(), LauncherError> {
+    let expected = smooth_force_validate_lengths(dims)?[0];
+    if u64::try_from(values.len()).ok() != Some(expected) {
+        return Err(LauncherError::InvalidMetadata("平滑力元数据长度无效"));
+    }
+    if values[..4] != [-131072; 4] || values[values.len() - 4..] != [-131072; 4] {
+        return Err(LauncherError::InvalidMetadata("平滑力元数据守卫无效"));
+    }
+    let [nb, n, nt, _] = dims.abi;
+    let nb = usize::try_from(nb).map_err(|_| LauncherError::Overflow("smooth_force_nb"))?;
+    let n = usize::try_from(n).map_err(|_| LauncherError::Overflow("smooth_force_n"))?;
+    let tree = &values[4..4 + nb];
+    let body = &values[4 + nb..4 + nb + n];
+    if tree
+        .iter()
+        .any(|&value| value < -1 || (value >= 0 && value as u32 >= nt))
+    {
+        return Err(LauncherError::InvalidMetadata("平滑力树索引越界"));
+    }
+    if body.iter().any(|&value| value < 0 || value as usize >= nb) {
+        return Err(LauncherError::InvalidMetadata("平滑力自由度体索引越界"));
+    }
+    // awake允许任意整数；零表示休眠，其他值表示唤醒。
+    Ok(())
+}
+
+#[cfg(feature = "cuda-probe")]
+struct SmoothForceValidateMetadata;
+
+#[cfg(feature = "cuda-probe")]
+impl MetadataProof for SmoothForceValidateMetadata {
+    type Dims = SmoothForceValidateDims;
+
+    const KIND: ProofKind = SMOOTH_FORCE_VALIDATE_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        validate_smooth_force_metadata(values, dims)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn smooth_force_validate_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::StaleMetadata => InputError::InvalidTopology {
+            field: "smooth_force_metadata",
+            index: 0,
+            reason: "stale_proof",
+        }
+        .into(),
+        LauncherError::InvalidMetadata(_) | LauncherError::MetadataMismatch(_) => {
+            InputError::InvalidTopology {
+                field: "smooth_force_metadata",
+                index: 0,
+                reason: "invalid_metadata",
+            }
+            .into()
+        }
+        _ => InputError::InvalidDimension {
+            field: "smooth_force_validate_abi",
+        }
+        .into(),
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct SmoothForceMetadataBuffer {
+    buffer: TransferBuffer<i32>,
+    values: Vec<i32>,
+    dims: SmoothForceValidateDims,
+    revision: MetadataRevision,
+    checked: Checked<SmoothForceValidateMetadata>,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl SmoothForceMetadataBuffer {
+    fn upload(
+        session: &TransferSession,
+        values: Vec<i32>,
+        dims: SmoothForceValidateDims,
+    ) -> Result<Self, TransferError> {
+        let buffer = session.upload(&values)?;
+        let revision = MetadataRevision::new();
+        // SAFETY: 上传已同步；跨度绑定该实际缓冲。
+        let checked = unsafe {
+            Checked::<SmoothForceValidateMetadata>::assume_uploaded(
+                buffer.launcher_span()?,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .map_err(smooth_force_validate_launch_error)?;
+        Ok(Self {
+            buffer,
+            values,
+            dims,
+            revision,
+            checked,
+        })
+    }
+
+    fn as_buffer(&self) -> &TransferBuffer<i32> {
+        &self.buffer
+    }
+
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        self.buffer.len()
+    }
+
+    fn proof(
+        &self,
+        dims: SmoothForceValidateDims,
+    ) -> Result<&Checked<SmoothForceValidateMetadata>, TransferError> {
+        if self.dims != dims {
+            return Err(InputError::InvalidDimension {
+                field: "smooth_force_validate_metadata_dims",
+            }
+            .into());
+        }
+        self.checked
+            .binding(0)
+            .validate_for(self.buffer.launcher_span()?, &dims)
+            .map_err(smooth_force_validate_launch_error)?;
+        Ok(&self.checked)
+    }
+
+    fn write_range(&mut self, start: usize, values: &[i32]) -> Result<(), TransferError> {
+        let end = start
+            .checked_add(values.len())
+            .filter(|&end| end <= self.values.len())
+            .ok_or(InputError::InvalidDimension {
+                field: "smooth_force_metadata_write",
+            })?;
+        self.revision.invalidate();
+        self.buffer.write_range(start, values)?;
+        self.values[start..end].copy_from_slice(values);
+        self.refresh_proof()
+    }
+
+    fn refresh_proof(&mut self) -> Result<(), TransferError> {
+        // SAFETY: 私有包装同步维护设备值、宿主镜像和写入代际。
+        self.checked = unsafe {
+            Checked::<SmoothForceValidateMetadata>::assume_uploaded(
+                self.buffer.launcher_span()?,
+                &self.values,
+                self.dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(smooth_force_validate_launch_error)?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn corrupt_device_for_validator_test(
+        &mut self,
+        index: usize,
+        value: i32,
+    ) -> Result<(), TransferError> {
+        // 测试故意保留有效证明，让设备验证器读取坏值。
+        self.buffer.write_range(index, &[value])
+    }
+
+    #[cfg(test)]
+    fn proof_snapshot_for_test(
+        &self,
+    ) -> Result<Checked<SmoothForceValidateMetadata>, TransferError> {
+        // SAFETY: 测试快照绑定当前设备值、镜像和代际。
+        unsafe {
+            Checked::<SmoothForceValidateMetadata>::assume_uploaded(
+                self.buffer.launcher_span()?,
+                &self.values,
+                self.dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(smooth_force_validate_launch_error)
+    }
+
+    #[cfg(test)]
+    fn restore_for_test(&mut self) -> Result<(), TransferError> {
+        self.revision.invalidate();
+        self.buffer.write_range(0, &self.values)?;
+        self.refresh_proof()
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct SmoothForceValidateKernel {
+    kernel: SynchronousKernel,
+    sleep_enabled: bool,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl SmoothForceValidateKernel {
+    fn compile(
+        session: &TransferSession,
+        source: &str,
+        sleep_enabled: bool,
+    ) -> Result<Self, TransferError> {
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, source, "smooth_force_validate")?,
+            sleep_enabled,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &SmoothForceMetadataBuffer,
+        forces: &TransferBuffer<f32>,
+        sleep: &TransferBuffer<i32>,
+        status: &mut TransferBuffer<f32>,
+        abi: [u32; 4],
+    ) -> Result<(), TransferError> {
+        let dims = SmoothForceValidateDims {
+            abi,
+            sleep_enabled: self.sleep_enabled,
+        };
+        let proof = metadata.proof(dims)?;
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: forces.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: sleep.launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: status.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        smooth_force_validate_plan(&dims, &bindings, &[proof.binding(0)])
+            .map_err(smooth_force_validate_launch_error)?;
+        // SAFETY: 类型计划已核对证明、跨度、会话、别名和网格。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), forces, sleep, status, abi)
+        }
+    }
+}
+
 pub struct SmoothForcePlan {
     input: Arc<SmoothForceInput>,
     options: SmoothForceOptions,
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 2],
+    validate: SmoothForceValidateKernel,
+    #[cfg(feature = "cuda-probe")]
+    compute: SynchronousKernel,
 }
 pub struct SmoothForceData {
     input: Arc<SmoothForceInput>,
     layout: Layout,
     ready: bool,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: SmoothForceMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
     forces: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
@@ -154,10 +634,12 @@ impl SmoothForcePlan {
                 input: Arc::new(input),
                 options,
                 session: session.clone(),
-                kernels: [
-                    SynchronousKernel::compile(session, &source, "smooth_force_validate")?,
-                    SynchronousKernel::compile(session, &source, "smooth_force")?,
-                ],
+                validate: SmoothForceValidateKernel::compile(
+                    session,
+                    &source,
+                    options.enable_sleep(),
+                )?,
+                compute: SynchronousKernel::compile(session, &source, "smooth_force")?,
             })
         }
     }
@@ -199,7 +681,19 @@ impl SmoothForcePlan {
                 input: self.input.clone(),
                 layout: l,
                 ready: false,
-                metadata: self.session.upload(&meta)?,
+                metadata: SmoothForceMetadataBuffer::upload(
+                    &self.session,
+                    meta,
+                    SmoothForceValidateDims {
+                        abi: [
+                            self.input.nbody() as u32,
+                            self.input.nv() as u32,
+                            self.input.ntree() as u32,
+                            worlds as u32,
+                        ],
+                        sleep_enabled: self.options.enable_sleep(),
+                    },
+                )?,
                 forces: allocate(l.force_len, 0.0)?,
                 output: allocate(l.vector.total_elements(), f32::NAN)?,
                 status: allocate(worlds, f32::NAN)?,
@@ -262,19 +756,14 @@ impl SmoothForcePlan {
                 .into());
             }
         }
-        let sleep = sleep.unwrap_or(&data.metadata);
-        // SAFETY: Checked same-plan metadata owns body/tree mappings. The
-        // optional resident source owns guarded worlds*(2*ntree+3) i32s.
-        // Each validator owns one status slot and checks both source guards.
-        unsafe {
-            self.kernels[0].launch(
-                &data.metadata,
-                &data.forces,
-                sleep,
-                &mut data.status,
-                [nb, n, nt, worlds],
-            )?;
-        }
+        let sleep = sleep.unwrap_or(data.metadata.as_buffer());
+        self.validate.launch(
+            &data.metadata,
+            &data.forces,
+            sleep,
+            &mut data.status,
+            [nb, n, nt, worlds],
+        )?;
         let mut status = crate::runtime::host_staging::<f32>(data.worlds() + 8)?;
         data.status.read_range_into(0, &mut status)?;
         crate::physics::check_device_values(&status, "smooth_force_status")?;
@@ -290,8 +779,8 @@ impl SmoothForcePlan {
         // Field-major input owns4*worlds*n f32s; one thread owns each result.
         // Sleeping threads write positive zero without reading any forces.
         unsafe {
-            self.kernels[1].launch(
-                &data.metadata,
+            self.compute.launch(
+                data.metadata.as_buffer(),
                 &data.forces,
                 sleep,
                 &mut data.output,
@@ -541,6 +1030,250 @@ mod tests {
             );
         }
     }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    fn validate_wrapper_rejects_capacity_context_alias_span_dimension_and_proof_faults() {
+        let dims = SmoothForceValidateDims {
+            abi: [2, 3, 2, 2],
+            sleep_enabled: true,
+        };
+        let lengths = smooth_force_validate_lengths(&dims).unwrap();
+        assert_eq!(lengths, [17, 32, 22, 10]);
+        for abi in [[0, 3, 2, 2], [2, 0, 2, 2], [2, 3, 2, 0]] {
+            assert!(matches!(
+                smooth_force_validate_lengths(&SmoothForceValidateDims {
+                    abi,
+                    sleep_enabled: true,
+                }),
+                Err(LauncherError::InvalidArray("平滑力验证维度无效"))
+            ));
+        }
+        let max_grid_worlds = u32::MAX - 255;
+        assert!(
+            smooth_force_validate_lengths(&SmoothForceValidateDims {
+                abi: [1, 1, 0, max_grid_worlds],
+                sleep_enabled: false,
+            })
+            .is_ok()
+        );
+        assert!(matches!(
+            smooth_force_validate_lengths(&SmoothForceValidateDims {
+                abi: [1, 1, 0, max_grid_worlds + 1],
+                sleep_enabled: false,
+            }),
+            Err(LauncherError::InvalidArray("平滑力验证维度无效"))
+        ));
+        let metadata_limit = SmoothForceValidateDims {
+            abi: [1, 1, i32::MAX as u32 - 10, 1],
+            sleep_enabled: true,
+        };
+        assert_eq!(
+            smooth_force_validate_lengths(&metadata_limit).unwrap()[0],
+            i32::MAX as u64
+        );
+        let metadata_over = SmoothForceValidateDims {
+            abi: [1, 1, i32::MAX as u32 - 9, 1],
+            sleep_enabled: true,
+        };
+        assert!(matches!(
+            smooth_force_validate_lengths(&metadata_over),
+            Err(LauncherError::Overflow("smooth_force_validate_metadata"))
+        ));
+        let forces_over = SmoothForceValidateDims {
+            abi: [1, i32::MAX as u32 - 9, 0, max_grid_worlds],
+            sleep_enabled: false,
+        };
+        assert!(matches!(
+            smooth_force_validate_lengths(&forces_over),
+            Err(LauncherError::Overflow("smooth_force_validate_forces"))
+        ));
+        // status由u32加8构成，静态上界不会触及u64溢出。
+        assert!(u64::from(u32::MAX).checked_add(8).is_some());
+        // 合法meta约束worlds*nt不超过i32上界。
+        // 因此外部sleep的静态上界也远低于u64上界。
+        let sleep_static_upper = 2u64 * i32::MAX as u64 + 3u64 * u64::from(max_grid_worlds) + 8;
+        assert!(sleep_static_upper < u64::MAX);
+        let spans = [
+            DeviceSpan::new(7, 0x1000, lengths[0] * 4).unwrap(),
+            DeviceSpan::new(7, 0x2000, lengths[1] * 4).unwrap(),
+            DeviceSpan::new(7, 0x3000, lengths[2] * 4).unwrap(),
+            DeviceSpan::new(7, 0x4000, lengths[3] * 4).unwrap(),
+        ];
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: spans[0],
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: spans[1],
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: spans[2],
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: spans[3],
+                elem: ElemType::F32,
+            },
+        ];
+        let values = vec![
+            -131072,
+            -131072,
+            -131072,
+            -131072,
+            -1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            -11,
+            2,
+            i32::MAX,
+            -131072,
+            -131072,
+            -131072,
+            -131072,
+        ];
+        let revision = MetadataRevision::new();
+        // SAFETY: 合成跨度与宿主快照长度一致；本测试不访问设备。
+        let checked = unsafe {
+            Checked::<SmoothForceValidateMetadata>::assume_uploaded(
+                spans[0],
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        assert!(smooth_force_validate_plan(&dims, &bindings, &[checked.binding(0)]).is_ok());
+        // SAFETY: 短快照与短跨度一致，只验证宿主内容。
+        assert!(matches!(
+            unsafe {
+                Checked::<SmoothForceValidateMetadata>::assume_uploaded(
+                    DeviceSpan::new(7, 0x5000, (lengths[0] - 1) * 4).unwrap(),
+                    &values[..values.len() - 1],
+                    dims,
+                    MetadataRevision::new(),
+                )
+            },
+            Err(LauncherError::InvalidMetadata(_))
+        ));
+
+        let mut wrong_metadata_span = bindings;
+        wrong_metadata_span[0].span =
+            DeviceSpan::new(7, spans[0].addr(), lengths[0] * 4 + 4).unwrap();
+        assert!(matches!(
+            smooth_force_validate_plan(&dims, &wrong_metadata_span, &[checked.binding(0)]),
+            Err(LauncherError::MetadataMismatch(_))
+        ));
+        for (slot, bytes) in [
+            (1, lengths[1] * 4 - 4),
+            (3, lengths[3] * 4 - 4),
+            (3, lengths[3] * 4 + 4),
+        ] {
+            let mut bad = bindings;
+            bad[slot].span = DeviceSpan::new(7, bad[slot].span.addr(), bytes).unwrap();
+            assert!(matches!(
+                smooth_force_validate_plan(&dims, &bad, &[checked.binding(0)]),
+                Err(LauncherError::Capacity { slot: actual, .. }) if actual == slot
+            ));
+        }
+        let mut bad_sleep = bindings;
+        for bytes in [lengths[2] * 4 - 4, lengths[2] * 4 + 4] {
+            bad_sleep[2].span = DeviceSpan::new(7, 0x3000, bytes).unwrap();
+            assert!(matches!(
+                smooth_force_validate_plan(&dims, &bad_sleep, &[checked.binding(0)]),
+                Err(LauncherError::Capacity { slot: 2, .. })
+            ));
+        }
+        let mut wrong_context = bindings;
+        wrong_context[2].span = DeviceSpan::new(8, 0x3000, lengths[2] * 4).unwrap();
+        assert!(matches!(
+            smooth_force_validate_plan(&dims, &wrong_context, &[checked.binding(0)]),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+        let mut partial_alias = bindings;
+        partial_alias[2].span = DeviceSpan::new(7, spans[0].addr() + 4, lengths[2] * 4).unwrap();
+        assert!(matches!(
+            smooth_force_validate_plan(&dims, &partial_alias, &[checked.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 0,
+                second: 2
+            })
+        ));
+        let mut read_alias = bindings;
+        read_alias[2].span = DeviceSpan::new(7, spans[1].addr(), lengths[2] * 4).unwrap();
+        assert!(matches!(
+            smooth_force_validate_plan(&dims, &read_alias, &[checked.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 2
+            })
+        ));
+        let mut status_alias = bindings;
+        status_alias[3].span = spans[1];
+        assert!(matches!(
+            smooth_force_validate_plan(&dims, &status_alias, &[checked.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3
+            })
+        ));
+        let mut exact_alias = bindings;
+        exact_alias[2].span = spans[0];
+        assert!(smooth_force_validate_plan(&dims, &exact_alias, &[checked.binding(0)]).is_ok());
+
+        let disabled = SmoothForceValidateDims {
+            sleep_enabled: false,
+            ..dims
+        };
+        // SAFETY: 合成跨度与同一有效宿主快照绑定。
+        let disabled_checked = unsafe {
+            Checked::<SmoothForceValidateMetadata>::assume_uploaded(
+                spans[0],
+                &values,
+                disabled,
+                MetadataRevision::new(),
+            )
+        }
+        .unwrap();
+        let mut ignored_sleep = bindings;
+        ignored_sleep[2].span = DeviceSpan::new(7, 0x3000, 4).unwrap();
+        assert!(
+            smooth_force_validate_plan(&disabled, &ignored_sleep, &[disabled_checked.binding(0)])
+                .is_ok()
+        );
+        assert!(matches!(
+            DeviceSpan::new(7, 0x3000, 0),
+            Err(LauncherError::InvalidSpan("区间长度为零"))
+        ));
+
+        revision.invalidate();
+        assert!(matches!(
+            smooth_force_validate_plan(&dims, &bindings, &[checked.binding(0)]),
+            Err(LauncherError::StaleMetadata)
+        ));
+        let mut invalid_values = values.clone();
+        invalid_values[4] = -2;
+        // SAFETY: 合成跨度只用于宿主校验，不触发设备访问。
+        assert!(matches!(
+            unsafe {
+                Checked::<SmoothForceValidateMetadata>::assume_uploaded(
+                    spans[0],
+                    &invalid_values,
+                    dims,
+                    MetadataRevision::new(),
+                )
+            },
+            Err(LauncherError::InvalidMetadata(_))
+        ));
+    }
     #[cfg(feature = "cuda-probe")]
     const FIELDS: [SmoothForceField; 4] = [
         SmoothForceField::Passive,
@@ -579,9 +1312,217 @@ mod tests {
     fn tokens(d: &SmoothForceData) -> (Vec<u32>, Vec<i32>, Vec<u32>) {
         (
             bits(&raw_f32(&d.forces)),
-            raw_i32(&d.metadata),
+            raw_i32(d.metadata.as_buffer()),
             bits(&raw_f32(&d.output)),
         )
+    }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "M3仅验证类型包装：关闭休眠、真实拒绝和同计划恢复"]
+    fn gpu_m3_validate_wrapper_sleep_disabled_preserves_output_and_recovers() {
+        let session = TransferSession::new(0).unwrap();
+        let input = SmoothForceInput::new(2, vec![-1, 0, 1], vec![1, 2, 0]).unwrap();
+        let plan = SmoothForcePlan::new(&session, input, SmoothForceOptions::default()).unwrap();
+        let mut data = plan.create_data(2).unwrap();
+        for (field, value) in FIELDS.iter().zip([5.0, 2.0, 3.0, 4.0]) {
+            data.write_force(*field, &[value; 6]).unwrap();
+        }
+        data.write_awake(&[0, 0, 0, 0]).unwrap();
+        let ignored = session.upload(&[i32::MIN]).unwrap();
+        plan.update_with_sleep_source(&mut data, Some(&ignored))
+            .unwrap();
+        let output = data.readback().unwrap();
+        for world in 0..2 {
+            assert!(
+                output
+                    .world(world)
+                    .unwrap()
+                    .iter()
+                    .all(|value| value.to_bits() == 10.0f32.to_bits())
+            );
+        }
+        let good = bits(&output.values);
+        let output_before = bits(&raw_f32(&data.output));
+
+        data.forces.write_range(4, &[f32::NAN]).unwrap();
+        let error = plan
+            .update_with_sleep_source(&mut data, Some(&ignored))
+            .unwrap_err();
+        assert_eq!(
+            error,
+            TransferError::Input(InputError::InvalidTopology {
+                field: "smooth_force_source",
+                index: 0,
+                reason: "nonfinite_guard_or_mapping",
+            })
+        );
+        assert_eq!(raw_f32(&data.status)[4..6], [0.0, 1.0]);
+        assert!(data.readback().is_err());
+        assert_eq!(bits(&raw_f32(&data.output)), output_before);
+        data.forces.write_range(4, &[5.0]).unwrap();
+        plan.update_with_sleep_source(&mut data, Some(&ignored))
+            .unwrap();
+        assert_eq!(bits(&data.readback().unwrap().values), good);
+
+        let report = serde_json::json!({
+            "variant": "sleep-off",
+            "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+            "plans_compiled": 1,
+            "validation_rejection_entered_gpu": true,
+            "output_bits_unchanged": true,
+            "same_plan_recovery": true,
+            "ignored_sleep_elements": ignored.len(),
+            "task_gpu_memory": "unknown"
+        });
+        if let Some(path) = std::env::var_os("MJWARP_SMOOTH_VALIDATE_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+        }
+        println!("{report}");
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "M3仅验证类型包装：休眠来源、非零awake、ntree零和恢复"]
+    fn gpu_m3_validate_wrapper_sleep_enabled_covers_sources_and_ntree_zero() {
+        let session = TransferSession::new(0).unwrap();
+        let input = SmoothForceInput::new(2, vec![-1, 0, 1], vec![1, 2, 0]).unwrap();
+        let plan = SmoothForcePlan::new(
+            &session,
+            input,
+            SmoothForceOptions {
+                sleep_enabled: true,
+                island_disabled: false,
+            },
+        )
+        .unwrap();
+        let mut data = plan.create_data(2).unwrap();
+        for (field, value) in FIELDS.iter().zip([5.0, 2.0, 3.0, 4.0]) {
+            data.write_force(*field, &[value; 6]).unwrap();
+        }
+        let stale = data.metadata.proof_snapshot_for_test().unwrap();
+        data.write_awake(&[-11, 0, 2, i32::MAX]).unwrap();
+        let metadata_dims = data.metadata.dims;
+        let metadata_span = data.metadata.as_buffer().launcher_span().unwrap();
+        assert!(matches!(
+            stale.binding(0).validate_for(metadata_span, &metadata_dims),
+            Err(LauncherError::StaleMetadata)
+        ));
+        assert!(data.metadata.proof(metadata_dims).is_ok());
+        plan.update(&mut data).unwrap();
+        let internal = data.readback().unwrap();
+        assert_eq!(internal.world(0).unwrap()[0].to_bits(), 10.0f32.to_bits());
+        assert_eq!(internal.world(0).unwrap()[1].to_bits(), 0);
+        assert_eq!(internal.world(0).unwrap()[2].to_bits(), 10.0f32.to_bits());
+        assert!(internal.world(1).unwrap().iter().all(|&v| v == 10.0));
+        let internal_bits = bits(&internal.values);
+
+        let stride = 2 * 2 + 3;
+        let mut external = vec![-131072; 2 * stride + 8];
+        for world in 0..2 {
+            let awake = 4 + world * stride + 2;
+            external[awake..awake + 2].copy_from_slice(if world == 0 {
+                &[0, -11]
+            } else {
+                &[2, i32::MAX]
+            });
+        }
+        let mut external = session.upload(&external).unwrap();
+        plan.update_with_sleep_source(&mut data, Some(&external))
+            .unwrap();
+        let external_output = data.readback().unwrap();
+        assert_eq!(
+            bits(external_output.world(0).unwrap()),
+            [0.0f32, 10.0, 10.0].map(f32::to_bits)
+        );
+        assert_eq!(
+            bits(external_output.world(1).unwrap()),
+            [10.0f32; 3].map(f32::to_bits)
+        );
+        let external_good = bits(&external_output.values);
+        let output_before = bits(&raw_f32(&data.output));
+        external.write_range(0, &[0]).unwrap();
+        let error = plan
+            .update_with_sleep_source(&mut data, Some(&external))
+            .unwrap_err();
+        assert_eq!(
+            error,
+            TransferError::Input(InputError::InvalidTopology {
+                field: "smooth_force_source",
+                index: 0,
+                reason: "nonfinite_guard_or_mapping",
+            })
+        );
+        assert_eq!(raw_f32(&data.status)[4..6], [0.0, 0.0]);
+        assert!(data.readback().is_err());
+        assert_eq!(bits(&raw_f32(&data.output)), output_before);
+        external.write_range(0, &[-131072]).unwrap();
+        plan.update_with_sleep_source(&mut data, Some(&external))
+            .unwrap();
+        assert_eq!(bits(&data.readback().unwrap().values), external_good);
+
+        let output_before_metadata_fault = bits(&raw_f32(&data.output));
+        data.metadata
+            .corrupt_device_for_validator_test(0, 0)
+            .unwrap();
+        let error = plan.update(&mut data).unwrap_err();
+        assert_eq!(
+            error,
+            TransferError::Input(InputError::InvalidTopology {
+                field: "smooth_force_source",
+                index: 0,
+                reason: "nonfinite_guard_or_mapping",
+            })
+        );
+        assert_eq!(raw_f32(&data.status)[4..6], [0.0, 0.0]);
+        assert!(data.readback().is_err());
+        assert_eq!(bits(&raw_f32(&data.output)), output_before_metadata_fault);
+        data.metadata.restore_for_test().unwrap();
+        plan.update(&mut data).unwrap();
+        assert_eq!(bits(&data.readback().unwrap().values), internal_bits);
+
+        let dims = SmoothForceValidateDims {
+            abi: [2, 2, 0, 2],
+            sleep_enabled: true,
+        };
+        let metadata = vec![
+            -131072, -131072, -131072, -131072, -1, -1, 0, 1, -131072, -131072, -131072, -131072,
+        ];
+        let metadata = SmoothForceMetadataBuffer::upload(&session, metadata, dims).unwrap();
+        let mut forces = vec![-131072.0; 4 * 2 * 2 + 8];
+        forces[4..4 + 16].fill(1.0);
+        let forces = session.upload(&forces).unwrap();
+        let mut status_values = vec![-131072.0; 2 + 8];
+        status_values[4..6].fill(f32::NAN);
+        let mut status = session.upload(&status_values).unwrap();
+        plan.validate
+            .launch(
+                &metadata,
+                &forces,
+                metadata.as_buffer(),
+                &mut status,
+                dims.abi,
+            )
+            .unwrap();
+        let status = raw_f32(&status);
+        assert_eq!(status[4..6], [1.0, 1.0]);
+
+        let report = serde_json::json!({
+            "variant": "sleep-on",
+            "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+            "plans_compiled": 1,
+            "internal_awake": true,
+            "external_sleep": true,
+            "nonzero_awake": [-11, 2, i32::MAX],
+            "ntree_zero_reused_validation_kernel": true,
+            "validation_rejection_entered_gpu": true,
+            "output_bits_unchanged": true,
+            "same_plan_recovery": true,
+            "task_gpu_memory": "unknown"
+        });
+        if let Some(path) = std::env::var_os("MJWARP_SMOOTH_VALIDATE_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+        }
+        println!("{report}");
     }
     #[test]
     #[cfg(feature = "cuda-probe")]
@@ -744,10 +1685,10 @@ mod tests {
                 .unwrap();
             plan.update(&mut d).unwrap();
         }
-        let before = raw_i32(&d.metadata);
+        let before = raw_i32(d.metadata.as_buffer());
         let a = 4 + 273 + 65 + 256 * 129;
         d.write_world_awake(256, &[0; 129]).unwrap();
-        let after = raw_i32(&d.metadata);
+        let after = raw_i32(d.metadata.as_buffer());
         for i in (0..a).chain(a + 129..before.len()) {
             assert_eq!(before[i], after[i]);
         }
@@ -855,11 +1796,16 @@ mod tests {
         }
         for (offset, bad) in [(0, 0), (14, 0), (5, -2), (5, 2), (7, -1), (7, 3)] {
             let mut old = [0];
-            d.metadata.read_range_into(offset, &mut old).unwrap();
-            d.metadata.write_range(offset, &[bad]).unwrap();
+            d.metadata
+                .as_buffer()
+                .read_range_into(offset, &mut old)
+                .unwrap();
+            d.metadata
+                .corrupt_device_for_validator_test(offset, bad)
+                .unwrap();
             assert!(plan.update(&mut d).is_err());
             assert!(d.readback().is_err());
-            d.metadata.write_range(offset, &old).unwrap();
+            d.metadata.restore_for_test().unwrap();
             plan.update(&mut d).unwrap();
             assert_eq!(bits(&d.readback().unwrap().values), bits(&good.values));
         }
