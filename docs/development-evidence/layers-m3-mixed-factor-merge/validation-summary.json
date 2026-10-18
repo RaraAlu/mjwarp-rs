@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-18-layers-m3-mixed-factor-merge",
+  "base_commit": "4ad691e7dab7948e900845e564be647c01938382",
+  "runs": [
+    {"id": "01-format-apply-attempt-1", "command": "cargo fmt --all", "exit_code": 0, "duration_ms": 774},
+    {"id": "02-host-plan-attempt-1", "command": "cargo test --locked --lib physics::mass_solve::sparse::mixed::tests::mixed_factor_merge_plan_checks_dims_spans_sessions_and_aliases -- --exact --nocapture", "exit_code": 0, "duration_ms": 4533, "result": "1 passed"},
+    {"id": "03-gpu-identity-attempt-1", "command": "nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader", "exit_code": 0, "duration_ms": 38},
+    {"id": "04-gpu-boundary-attempt-1", "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::tests::mixed_device_guards_and_cached_stage_failures_reject_and_recover -- --ignored --exact --nocapture --test-threads=1", "exit_code": 0, "duration_ms": 11545, "result": "1 passed", "capture_members": 36},
+    {"id": "05-format-boundaries-attempt-2", "command": "cargo fmt --all", "exit_code": 0, "duration_ms": 789},
+    {"id": "06-host-plan-attempt-2", "command": "cargo test --locked --lib physics::mass_solve::sparse::mixed::tests::mixed_factor_merge_plan_checks_dims_spans_sessions_and_aliases -- --exact --nocapture", "exit_code": 0, "duration_ms": 1800, "result": "1 passed after new boundary assertions"},
+    {"id": "07-gpu-product-attempt-1", "command": "cargo test --locked --features cuda-probe --test mixed_mass_factor gpu_mixed_prefix_csr_tail_and_all_dof_inverse_follow_frozen_stage_order -- --ignored --exact --nocapture --test-threads=1", "exit_code": 0, "duration_ms": 23165, "result": "1 passed", "capture_members": 36},
+    {"id": "08-clippy-attempt-1", "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings", "exit_code": 0, "duration_ms": 5585, "result": "zero diagnostics"},
+    {"id": "09-format-check-attempt-1", "command": "cargo fmt --all -- --check", "exit_code": 0, "duration_ms": 805},
+    {"id": "10-kernel-identity-attempt-1", "command": "extract prior archive and compare mixed_factor_merge CU/PTX/JSON bytes with both independent current captures", "exit_code": 0, "duration_ms": 64},
+    {"id": "11-static-inventory-attempt-1", "command": "PowerShell static scan plus current inventory build", "exit_code": 1, "result": "runner rejected null LASTEXITCODE after the scan produced output"},
+    {"id": "12-static-inventory-attempt-2", "command": "PowerShell static scan plus current inventory build with PowerShell-success checks", "exit_code": 1, "result": "classification incorrectly counted wrapper orchestration as another low-level call"},
+    {"id": "13-static-inventory-attempt-3", "command": "PowerShell static scan plus current inventory build with corrected wrapper classification", "exit_code": 0, "duration_ms": 788},
+    {"id": "14-archive-attempt-1", "command": "manifest all run originals, archive them once, extract, and byte-verify every member", "exit_code": 0, "duration_ms": 749}
+  ],
+  "gpu_environment": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "memory_mib": 16376,
+    "cuda_path": "target/toolchains/cuda-12.8.1",
+    "schedule_lock": "gpu:windows-t4",
+    "lock_proves_t4": false,
+    "exclusive_performance_measurement": false
+  },
+  "product_result": {
+    "batches": 6,
+    "slots": 1236040,
+    "copied_small_compact_csr_slots": 29120,
+    "lower_positive_zero_slots": 18200,
+    "non_sparse_inverse_bit_slots": 10920,
+    "max_abs": 3.5649107315016693e-6,
+    "max_reconstruction": 5.689660224682154e-7,
+    "max_owned_device_buffer_bytes": 11794880,
+    "phase_ms": 16760,
+    "full_G03_NP": false,
+    "value_tolerance": "abs(f32_actual - f64_reference) <= 2e-4 + 2e-4 * abs(f64_reference)",
+    "reconstruction_tolerance": "abs(reconstructed - M) / max(abs(M), 1) <= 2e-6",
+    "additional_assertions": [
+      "original CSR slots compare bitwise",
+      "non-Sparse inverse slots compare bitwise",
+      "lower-triangle positive zero compares bitwise"
+    ],
+    "sampling": "two samples at 1, 2, and 257 worlds; six batches",
+    "reference_sources": [
+      "fixtures/sparse-mass-factor/native.json",
+      "fixtures/small-mass-prefix/reference.json"
+    ],
+    "reference_scope": "native sparse factors plus Small analytic parsing; not complete frozen MJWarp numerical equivalence",
+    "integration_test_blob_matches_base": "15300abfd7549eaf50b1dc39f78699fa78400a1e",
+    "f64_scope": "reference and diagnostics only",
+    "observed_max_abs_is_global_acceptance": false
+  },
+  "capture_policy": {
+    "gpu_runs_use_distinct_directories": true,
+    "capture_directory_preexistence_rejected": true,
+    "one_plan_per_gpu_test": true,
+    "foreign_session_compiled_no_kernel": true,
+    "same_entry_overwrite_within_each_run": false,
+    "failed_runs_preserved": true,
+    "python_executed": false
+  },
+  "remaining": [
+    "legitimate recompute bit drift remains",
+    "status 3 has static evidence only",
+    "NP01 through NP04 are not accepted",
+    "Linux was not run",
+    "Release was not run",
+    "T4 hardware was not used",
+    "parent M3 remains incomplete",
+    "mixed_solve_fused capture evidence gap remains proposed",
+    "mixed_solve_fused Small ownership overlap dynamic gap remains proposed",
+    "historical attempt2 bytes remain unrecoverable"
+  ]
+}

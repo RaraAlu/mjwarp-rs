@@ -6,6 +6,11 @@ use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::{BatchLayout, SparseMassInput, SparseMassRoute};
 use crate::runtime::TransferSession;
+#[cfg(any(feature = "cuda-probe", test))]
+use crate::runtime::launcher::{
+    Access, BlockRule, ElemType, Kernel, KernelAbi, KernelSpec, LaunchDims, LauncherError,
+    SlotBinding, SlotDesc, SlotKind, SlotRequirement, SlotRole,
+};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 use std::sync::Arc;
@@ -15,6 +20,269 @@ pub use solve::{
     SparseMassMixedSolveOutput, SparseMassMixedSolvePlan, SparseMassMixedSolveWorld,
 };
 
+#[cfg(any(feature = "cuda-probe", test))]
+const MIXED_FACTOR_MERGE_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Write,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct MixedFactorMergeSpec;
+
+#[cfg(any(feature = "cuda-probe", test))]
+// SAFETY: 声明逐项匹配冻结混合因子合并ABI。
+unsafe impl KernelAbi for MixedFactorMergeSpec {
+    const NAME: &'static str = "mixed_factor_merge";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &MIXED_FACTOR_MERGE_SLOTS;
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl KernelSpec for MixedFactorMergeSpec {
+    type Dims = [u32; 4];
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        let lengths = mixed_factor_merge_lengths(dims)?;
+        Ok(lengths
+            .into_iter()
+            .enumerate()
+            .map(|(slot, min_elements)| SlotRequirement { slot, min_elements })
+            .collect())
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        mixed_factor_merge_lengths(dims)?;
+        LaunchDims::new((dims[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn mixed_factor_merge_lengths(dims: &[u32; 4]) -> Result<[u64; 4], LauncherError> {
+    let [prefix, nc, nv, work] = *dims;
+    let tail = nc
+        .checked_add(nv)
+        .ok_or(LauncherError::Overflow("mixed_factor_merge_tail"))?;
+    let stride = prefix
+        .checked_add(tail)
+        .filter(|&value| value != 0 && value <= i32::MAX as u32)
+        .ok_or(LauncherError::InvalidArray("混合因子合并步长无效"))?;
+    if nc == 0 || nv == 0 || work == 0 || work > u32::MAX - 255 || !work.is_multiple_of(stride) {
+        return Err(LauncherError::InvalidArray("混合因子合并维度无效"));
+    }
+    let worlds = u64::from(work / stride);
+    let guarded = |elements: u64, field| {
+        elements
+            .checked_add(8)
+            .ok_or(LauncherError::Overflow(field))
+    };
+    Ok([
+        1,
+        guarded(
+            worlds
+                .checked_mul(u64::from(prefix))
+                .ok_or(LauncherError::Overflow("mixed_factor_merge_small"))?,
+            "mixed_factor_merge_small",
+        )?,
+        guarded(
+            worlds
+                .checked_mul(u64::from(tail))
+                .ok_or(LauncherError::Overflow("mixed_factor_merge_sparse"))?,
+            "mixed_factor_merge_sparse",
+        )?,
+        guarded(u64::from(work), "mixed_factor_merge_output")?,
+    ])
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn mixed_factor_merge_plan(
+    expected: [u32; 3],
+    dims: &[u32; 4],
+    bindings: &[SlotBinding; 4],
+) -> Result<LaunchDims, LauncherError> {
+    if dims[..3] != expected {
+        return Err(LauncherError::InvalidArray("混合因子合并静态维度不匹配"));
+    }
+    let lengths = mixed_factor_merge_lengths(dims)?;
+    for (slot, elements) in lengths.into_iter().enumerate() {
+        let bytes = elements
+            .checked_mul(4)
+            .ok_or(LauncherError::Overflow("mixed_factor_merge_bytes"))?;
+        if bindings[slot].span.bytes() != bytes {
+            return Err(LauncherError::InvalidArray("混合因子合并跨度不符"));
+        }
+    }
+    let plan = Kernel::<MixedFactorMergeSpec>::new()?.plan(dims, bindings, &[])?;
+    Ok(plan.dims())
+}
+
+#[cfg(feature = "cuda-probe")]
+fn mixed_factor_merge_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::Overflow(_) => InputError::Overflow {
+            field: "mixed_factor_merge_abi",
+        }
+        .into(),
+        _ => InputError::InvalidDimension {
+            field: "mixed_factor_merge_abi",
+        }
+        .into(),
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct MixedFactorMergeKernel {
+    kernel: SynchronousKernel,
+    prefix: u32,
+    nc: u32,
+    nv: u32,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl MixedFactorMergeKernel {
+    fn compile(session: &TransferSession, input: &SparseMassInput) -> Result<Self, TransferError> {
+        let prefix = u32::try_from(input.qld_block_total()).map_err(|_| InputError::Overflow {
+            field: "mixed_factor_merge_prefix",
+        })?;
+        let nc = u32::try_from(input.nc()).map_err(|_| InputError::Overflow {
+            field: "mixed_factor_merge_nc",
+        })?;
+        let nv = u32::try_from(input.nv()).map_err(|_| InputError::Overflow {
+            field: "mixed_factor_merge_nv",
+        })?;
+        let work = prefix
+            .checked_add(nc)
+            .and_then(|value| value.checked_add(nv))
+            .ok_or(InputError::Overflow {
+                field: "mixed_factor_merge_stride",
+            })?;
+        mixed_factor_merge_lengths(&[prefix, nc, nv, work])
+            .map_err(mixed_factor_merge_launch_error)?;
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, CUDA, "mixed_factor_merge")?,
+            prefix,
+            nc,
+            nv,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        small: &TransferBuffer<f32>,
+        sparse: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        worlds: usize,
+    ) -> Result<(), TransferError> {
+        let worlds = u32::try_from(worlds).map_err(|_| InputError::Overflow {
+            field: "mixed_factor_merge_worlds",
+        })?;
+        let stride = self
+            .prefix
+            .checked_add(self.nc)
+            .and_then(|value| value.checked_add(self.nv))
+            .ok_or(InputError::Overflow {
+                field: "mixed_factor_merge_stride",
+            })?;
+        let work = worlds.checked_mul(stride).ok_or(InputError::Overflow {
+            field: "mixed_factor_merge_work",
+        })?;
+        let dims = [self.prefix, self.nc, self.nv, work];
+        let lengths = mixed_factor_merge_lengths(&dims).map_err(mixed_factor_merge_launch_error)?;
+        if [metadata.len(), small.len(), sparse.len(), output.len()]
+            .into_iter()
+            .zip(lengths)
+            .any(|(actual, expected)| u64::try_from(actual).ok() != Some(expected))
+        {
+            return Err(InputError::InvalidDimension {
+                field: "mixed_factor_merge_abi",
+            }
+            .into());
+        }
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: small.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: sparse.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: output.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        mixed_factor_merge_plan([self.prefix, self.nc, self.nv], &dims, &bindings)
+            .map_err(mixed_factor_merge_launch_error)?;
+        // SAFETY: 类型化计划核对实际跨度、会话和写入别名。
+        unsafe { self.kernel.launch(metadata, small, sparse, output, dims) }
+    }
+}
+
 pub struct SparseMassMixedFactorPlan {
     sparse: SparseMassFactorPlan,
     small: SparseMassSmallPlan,
@@ -23,7 +291,7 @@ pub struct SparseMassMixedFactorPlan {
     #[cfg(feature = "cuda-probe")]
     metadata: TransferBuffer<i32>,
     #[cfg(feature = "cuda-probe")]
-    merge: SynchronousKernel,
+    merge: MixedFactorMergeKernel,
 }
 pub struct SparseMassMixedFactorData {
     sparse: SparseMassFactorData,
@@ -133,12 +401,14 @@ impl SparseMassMixedFactorPlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
+            let metadata = session.upload(&[0i32])?;
+            let merge = MixedFactorMergeKernel::compile(session, sparse.input())?;
             Ok(Self {
                 sparse,
                 small,
                 session: session.clone(),
-                metadata: session.upload(&[0i32])?,
-                merge: SynchronousKernel::compile(session, CUDA, "mixed_factor_merge")?,
+                metadata,
+                merge,
             })
         }
     }
@@ -221,23 +491,13 @@ impl SparseMassMixedFactorPlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            // SAFETY: The same plan checked all strides; inputs own separate
-            // guarded buffers. One thread owns each merged output payload slot.
-            // Existing synchronous ABI checks sessions and waits for completion.
-            unsafe {
-                self.merge.launch(
-                    &self.metadata,
-                    data.small.factor_buffer()?,
-                    &data.sparse.output,
-                    &mut data.output,
-                    [
-                        self.input().qld_block_total() as u32,
-                        self.input().nc() as u32,
-                        self.input().nv() as u32,
-                        data.layout.total_elements() as u32,
-                    ],
-                )?;
-            }
+            self.merge.launch(
+                &self.metadata,
+                data.small.factor_buffer()?,
+                &data.sparse.output,
+                &mut data.output,
+                data.layout.worlds(),
+            )?;
             data.checked_values()?;
             data.ready = true;
             Ok(())
@@ -400,6 +660,118 @@ mod tests {
         assert!(output.world(2).is_err());
     }
     #[test]
+    fn mixed_factor_merge_plan_checks_dims_spans_sessions_and_aliases() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let bind = |slot, context, addr, bytes, elem| SlotBinding {
+            slot,
+            span: DeviceSpan::new(context, addr, bytes).unwrap(),
+            elem,
+        };
+        let dims = [2, 3, 4, 18];
+        assert_eq!(mixed_factor_merge_lengths(&dims).unwrap(), [1, 12, 22, 26]);
+        let bindings = [
+            bind(0, 7, 0x1000, 4, ElemType::I32),
+            bind(1, 7, 0x2000, 48, ElemType::F32),
+            bind(2, 7, 0x3000, 88, ElemType::F32),
+            bind(3, 7, 0x4000, 104, ElemType::F32),
+        ];
+        let launch = mixed_factor_merge_plan([2, 3, 4], &dims, &bindings).unwrap();
+        assert_eq!(launch.grid(), (1, 1, 1));
+        assert_eq!(launch.block(), (256, 1, 1));
+        assert_eq!(launch.shared_bytes(), 0);
+        assert!(mixed_factor_merge_plan([1, 3, 4], &dims, &bindings).is_err());
+
+        let addresses = [0x1000, 0x2000, 0x3000, 0x4000];
+        let bytes = [4, 48, 88, 104];
+        for slot in 0..4 {
+            let mut short = bindings;
+            short[slot].span = DeviceSpan::new(
+                7,
+                addresses[slot],
+                if bytes[slot] == 4 { 1 } else { bytes[slot] - 4 },
+            )
+            .unwrap();
+            assert!(mixed_factor_merge_plan([2, 3, 4], &dims, &short).is_err());
+
+            let mut long = bindings;
+            long[slot].span = DeviceSpan::new(7, addresses[slot], bytes[slot] + 4).unwrap();
+            assert!(mixed_factor_merge_plan([2, 3, 4], &dims, &long).is_err());
+        }
+
+        let mut foreign = bindings;
+        foreign[1].span = DeviceSpan::new(8, 0x2000, 48).unwrap();
+        assert!(matches!(
+            mixed_factor_merge_plan([2, 3, 4], &dims, &foreign),
+            Err(LauncherError::ContextMismatch { slot: 1 })
+        ));
+
+        let alias_dims = [0, 3, 4, 14];
+        assert_eq!(
+            mixed_factor_merge_lengths(&alias_dims).unwrap(),
+            [1, 8, 22, 22]
+        );
+        let zero_prefix = [
+            bind(0, 7, 0x1000, 4, ElemType::I32),
+            bind(1, 7, 0x2000, 32, ElemType::F32),
+            bind(2, 7, 0x3000, 88, ElemType::F32),
+            bind(3, 7, 0x4000, 88, ElemType::F32),
+        ];
+        mixed_factor_merge_plan([0, 3, 4], &alias_dims, &zero_prefix).unwrap();
+        let mut alias = zero_prefix;
+        alias[3].span = alias[2].span;
+        assert!(matches!(
+            mixed_factor_merge_plan([0, 3, 4], &alias_dims, &alias),
+            Err(LauncherError::Alias {
+                first: 2,
+                second: 3
+            })
+        ));
+        assert!(mixed_factor_merge_lengths(&[2, 3, 4, 0]).is_err());
+        assert!(mixed_factor_merge_lengths(&[2, 3, 4, 17]).is_err());
+        assert!(mixed_factor_merge_lengths(&[2, 3, 4, u32::MAX - 254]).is_err());
+        assert!(mixed_factor_merge_lengths(&[0, u32::MAX, 1, 1]).is_err());
+        assert!(mixed_factor_merge_lengths(&[i32::MAX as u32, 1, 1, i32::MAX as u32 + 2]).is_err());
+        assert!(mixed_factor_merge_lengths(&[u32::MAX, 3, 4, 1]).is_err());
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    fn assert_merge_matches_producers(data: &SparseMassMixedFactorData) {
+        let prefix = data.sparse.input.qld_block_total();
+        let tail = data.sparse.input.nc() + data.sparse.input.nv();
+        let mut small = vec![0.0; data.small.factor_buffer().unwrap().len()];
+        let mut sparse = vec![0.0; data.sparse.output.len()];
+        let mut merged = vec![0.0; data.output.len()];
+        data.small
+            .factor_buffer()
+            .unwrap()
+            .read_range_into(0, &mut small)
+            .unwrap();
+        data.sparse.output.read_range_into(0, &mut sparse).unwrap();
+        data.output.read_range_into(0, &mut merged).unwrap();
+        for guard in merged[..4].iter().chain(&merged[merged.len() - 4..]) {
+            assert_eq!(guard.to_bits(), (-131072.0f32).to_bits());
+        }
+        for world in 0..data.worlds() {
+            let merged_start = 4 + world * (prefix + tail);
+            let small_start = 4 + world * prefix;
+            let sparse_start = 4 + world * tail;
+            for (actual, expected) in merged[merged_start..merged_start + prefix]
+                .iter()
+                .zip(&small[small_start..small_start + prefix])
+            {
+                assert_eq!(actual.to_bits(), expected.to_bits());
+            }
+            for (actual, expected) in merged[merged_start + prefix..merged_start + prefix + tail]
+                .iter()
+                .zip(&sparse[sparse_start..sparse_start + tail])
+            {
+                assert_eq!(actual.to_bits(), expected.to_bits());
+            }
+        }
+    }
+
+    #[test]
     #[cfg(feature = "cuda-probe")]
     #[ignore = "new mixed main-CSR/merged-output guarded cache failure purpose"]
     fn mixed_device_guards_and_cached_stage_failures_reject_and_recover() {
@@ -409,6 +781,23 @@ mod tests {
         data.write_matrix(&input::mixed_matrix(0).repeat(2))
             .unwrap();
         plan.update(&mut data).unwrap();
+        assert_merge_matches_producers(&data);
+        let foreign = TransferSession::new(0).unwrap();
+        let foreign_small = foreign
+            .upload(&vec![0.0f32; data.small.factor_buffer().unwrap().len()])
+            .unwrap();
+        let worlds = data.worlds();
+        assert!(matches!(
+            plan.merge.launch(
+                &plan.metadata,
+                &foreign_small,
+                &data.sparse.output,
+                &mut data.output,
+                worlds,
+            ),
+            Err(TransferError::SessionMismatch)
+        ));
+        assert_merge_matches_producers(&data);
         // Poisoning old main M cannot affect either captured producer. A fresh
         // gather must detect it, instead of publishing a cross-generation mix.
         let before = data.readback().unwrap();
@@ -433,9 +822,11 @@ mod tests {
             }
         }
         assert!(plan.update_gather(&mut data).is_err());
+        assert!(!data.ready);
         assert!(data.readback().is_err());
         data.matrix.write_range(4, &saved).unwrap();
         plan.update(&mut data).unwrap();
+        assert_merge_matches_producers(&data);
         let end = 4 + data.sparse.matrix_layout.total_elements();
         for offset in [0, end, 4] {
             let mut saved = [0.0];
@@ -443,9 +834,11 @@ mod tests {
             data.matrix.write_range(offset, &[f32::NAN]).unwrap();
             assert!(plan.update_gather(&mut data).is_err());
             assert!(plan.update_factor(&mut data).is_err());
+            assert!(!data.ready);
             assert!(data.readback().is_err());
             data.matrix.write_range(offset, &saved).unwrap();
             plan.update(&mut data).unwrap();
+            assert_merge_matches_producers(&data);
         }
         let end = 4 + data.layout.total_elements();
         for offset in [0, end] {
@@ -455,6 +848,7 @@ mod tests {
             assert!(data.readback().is_err());
             data.output.write_range(offset, &[-131072.0]).unwrap();
             plan.update_factor(&mut data).unwrap();
+            assert_merge_matches_producers(&data);
         }
         for (offset, value) in [(4, f32::NAN), (4, -1.0), (4 + 90 + 2201, -1.0)] {
             data.output.write_range(offset, &[value]).unwrap();
@@ -484,8 +878,10 @@ mod tests {
         // must reject this producer's corrupted snapshot independently.
         data.sparse.matrix.write_range(4, &[f32::NAN]).unwrap();
         assert!(plan.update_factor(&mut data).is_err());
+        assert!(!data.ready);
         assert!(data.readback().is_err());
         plan.update(&mut data).unwrap();
+        assert_merge_matches_producers(&data);
         let mut raw = vec![0.0; data.matrix.len()];
         data.matrix.read_range_into(0, &mut raw).unwrap();
         data.write_world_matrix(1, &input::mixed_matrix(1)).unwrap();
@@ -495,6 +891,7 @@ mod tests {
             assert_eq!(raw[i].to_bits(), next[i].to_bits());
         }
         plan.update(&mut data).unwrap();
+        assert_merge_matches_producers(&data);
         assert!(data.readback().is_ok());
     }
 }

@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-18-layers-m3-mixed-factor-merge",
+  "base_commit": "4ad691e7dab7948e900845e564be647c01938382",
+  "source_file": "src/physics/mass_solve/sparse/mixed.rs",
+  "source_sha256": "277190125bd77254dbd8b57091a20983844567900e8569817f4ecb07b87f6d0c",
+  "entry": "mixed_factor_merge",
+  "abi": {
+    "slots": 8,
+    "pointer_slots": [
+      {"index": 0, "type": "i32", "access": "unused by CUDA", "role": "value", "exact_elements": "1"},
+      {"index": 1, "type": "f32", "access": "read", "role": "value", "exact_elements": "worlds * prefix + 8"},
+      {"index": 2, "type": "f32", "access": "read", "role": "value", "exact_elements": "worlds * (nc + nv) + 8"},
+      {"index": 3, "type": "f32", "access": "write", "role": "value", "exact_elements": "worlds * (prefix + nc + nv) + 8"}
+    ],
+    "scalar_slots": ["prefix:u32", "nc:u32", "nv:u32", "work:u32"],
+    "block": [256, 1, 1],
+    "shared_bytes": 0,
+    "metadata_proof_required": false,
+    "metadata_reason": "The CUDA parameter is present but never dereferenced or used for addressing."
+  },
+  "cuda_access": {
+    "small": "small[4 + world * prefix + i] for i < prefix",
+    "sparse": "sparse[4 + world * (nc + nv) + i - prefix] otherwise",
+    "output": "output[4 + tid] for tid < work",
+    "diagonal_inverse": "the nv suffix remains inside the sparse input tail",
+    "guards": "four f32 elements before and after each producer payload"
+  },
+  "host_checks": [
+    "checked usize-to-u32 conversions",
+    "checked nc-plus-nv and stride arithmetic",
+    "checked worlds-times-stride work arithmetic",
+    "nonzero work and exact divisibility",
+    "exact four-buffer capacities",
+    "single CUDA context",
+    "writable output alias rejection",
+    "fixed 256-thread launch"
+  ],
+  "ordering": [
+    "Small update_factor completes",
+    "Sparse update_factor completes",
+    "typed merge planning completes",
+    "synchronous merge launch completes",
+    "merged values and guards pass",
+    "ready becomes true"
+  ],
+  "unchanged": {
+    "cuda_source": true,
+    "ptx": true,
+    "nvrtc_options": true,
+    "f32_path": true,
+    "tolerances": true,
+    "fixtures": true,
+    "producer_order": true,
+    "private_runtime_launch": true
+  }
+}
