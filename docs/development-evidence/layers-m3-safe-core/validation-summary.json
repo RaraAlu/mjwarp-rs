@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-18-layers-m3-safe-core-evidence",
+  "correction_for": {
+    "task_id": "2026-10-18-layers-m3-safe-core",
+    "commit": "683f6e4a608c78442695259270f3f600d810c8c7",
+    "receipt": "docs/development-evidence/changes/2026-10-18-layers-m3-safe-core.json"
+  },
+  "history_recovery": {
+    "tool": "Codex read_thread API",
+    "result": "The thread responses were truncated before all historical command outputs could be preserved.",
+    "decision": "Do not present chunk summaries as archived historical stdout. Run a new validation against the committed source instead."
+  },
+  "execution": {
+    "output_ref": "chunk:3b99b6",
+    "head": "683f6e4a608c78442695259270f3f600d810c8c7",
+    "source_diff": [],
+    "log": "docs/development-evidence/layers-m3-safe-core/final-validation.log",
+    "commands": [
+      {
+        "command": "cargo fmt --all --check",
+        "exit_code": 0
+      },
+      {
+        "command": "cargo test --locked --test launcher_sync",
+        "exit_code": 0,
+        "result": "5 passed; 0 failed"
+      },
+      {
+        "command": "cargo test --locked --features cuda-probe --test launcher_sync",
+        "exit_code": 0,
+        "result": "5 passed; 0 failed; host-only checks"
+      },
+      {
+        "command": "cargo test --locked",
+        "exit_code": 0
+      },
+      {
+        "command": "cargo clippy --all-targets -- -D warnings",
+        "exit_code": 0
+      }
+    ]
+  },
+  "boundaries": [
+    "The archived execution validates the committed host source only.",
+    "The cuda-probe feature test did not launch GPU work.",
+    "W05 synchronous GPU launch remains incomplete.",
+    "The eleven private methods and 106 product callsites remain unmigrated.",
+    "T4 and NP01-NP04 remain unverified."
+  ]
+}
