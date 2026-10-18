@@ -1,0 +1,215 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-sleep-copy",
+  "prior_map": {
+    "path": "docs/evidence/t4-g03-retest/tendon-wake-internal/map.json",
+    "sha256": "f1e43df3143103193e7ef23a2c6eb0d47748fdb62202f2d4ca0d083753456431",
+    "groups": [
+      {
+        "id": "wrap-tree",
+        "scalar": "i32",
+        "product": "1 => k.jnt_bodyid[id as usize]",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "enable",
+        "scalar": "bool-to-i32",
+        "product": "i32::from(f.sleep_enabled && !f.island_disabled)",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "range-period",
+        "scalar": "f32",
+        "product": "(w%m[3])*2*nt",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "margin-period",
+        "scalar": "f32",
+        "product": "(w%m[4])*nt",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "live-length",
+        "scalar": "f32",
+        "product": "const float* length=lengths+4+(unsigned long long)w*m[5];",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "lower-distance",
+        "scalar": "f32",
+        "product": "length[t]-range[2*t]",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "upper-distance",
+        "scalar": "f32",
+        "product": "range[2*t+1]-length[t]",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "strict-limit",
+        "scalar": "f32-to-predicate",
+        "product": "length[t]-range[2*t]<margin[t]||range[2*t+1]-length[t]<margin[t]",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "input-awake",
+        "scalar": "i32",
+        "product": "tree>=0&&awake[tree]==1",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "wake-initial",
+        "scalar": "i32",
+        "product": "wakeval=-11",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "wake-minimum",
+        "scalar": "i32",
+        "product": "if(asleep[tree]<wakeval) wakeval=asleep[tree];",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "sleeping-target",
+        "scalar": "i32",
+        "product": "tree>=0&&awake[tree]==0",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "already-awake",
+        "scalar": "i32",
+        "product": "if(old<0) { if(wakeval<old) asleep[tree]=wakeval;return; }",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "bounded-cycle",
+        "scalar": "i32",
+        "product": "for(int step=0;step<=ntree;++step)",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "refresh-flag",
+        "scalar": "i32",
+        "product": "awake[i]=asleep[i]<0",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "refresh-count",
+        "scalar": "i32",
+        "product": "count+=awake[i]",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "clear-body-dof",
+        "scalar": "i32",
+        "product": "awake[n]=count;awake[n+1]=0;awake[n+2]=0;",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "id": "copy-noop-boundary",
+        "scalar": "i32 bit-preserving",
+        "product": "result[offset+i]=state[offset+i];",
+        "inheritance": "unchanged_contract"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "tree_asleep",
+        "scalar": "i32",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "name": "tree_awake",
+        "scalar": "i32",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "name": "ntree_awake",
+        "scalar": "i32",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "name": "nbody_awake",
+        "scalar": "i32",
+        "inheritance": "unchanged_contract"
+      },
+      {
+        "name": "nv_awake",
+        "scalar": "i32",
+        "inheritance": "unchanged_contract"
+      }
+    ]
+  },
+  "current_host": {
+    "path": "src/physics/resident.rs",
+    "sha256_lf": "7cab314d3f3255e14174f181f30f9d6b6fec5876aadef3f11046ae91e880e174",
+    "proof": "real session, buffer identity and write generation",
+    "transaction_order": [
+      "sleep_copy",
+      "tendon_wake",
+      "swap"
+    ],
+    "state_span": "worlds * (2 * ntree + 3) + 8",
+    "params_kernel_use": "unused but pointer and session validated"
+  },
+  "frozen_product": {
+    "cuda_body_changed": false,
+    "capture_rows": [
+      {
+        "capture": "target/normify-evidence/2026-10-19-layers-m3-sleep-copy/run-01-product-captured/gpu-capture",
+        "file": "sleep_copy-0f0740d3df05b413ea24faf778f76e32e651183ade60c45b2dc324f97e50d2ff.cu",
+        "sha256": "90f06a049e10a979e44f8d067ec20a9633ab9dc3ff0a3f2698f787478774f7c3",
+        "matches_frozen": true
+      },
+      {
+        "capture": "target/normify-evidence/2026-10-19-layers-m3-sleep-copy/run-01-product-captured/gpu-capture",
+        "file": "sleep_copy-0f0740d3df05b413ea24faf778f76e32e651183ade60c45b2dc324f97e50d2ff.ptx",
+        "sha256": "0f0740d3df05b413ea24faf778f76e32e651183ade60c45b2dc324f97e50d2ff",
+        "matches_frozen": true
+      },
+      {
+        "capture": "target/normify-evidence/2026-10-19-layers-m3-sleep-copy/run-01-product-captured/gpu-capture",
+        "file": "sleep_copy-0f0740d3df05b413ea24faf778f76e32e651183ade60c45b2dc324f97e50d2ff.json",
+        "sha256": "36ded661eff91df90bd7cc925e49c7f9e1acacbf260bc5e34eb62dc41fd544a0",
+        "matches_frozen": true
+      },
+      {
+        "capture": "target/normify-evidence/2026-10-19-layers-m3-sleep-copy/run-02-zero-tree-captured/gpu-capture",
+        "file": "sleep_copy-0f0740d3df05b413ea24faf778f76e32e651183ade60c45b2dc324f97e50d2ff.cu",
+        "sha256": "90f06a049e10a979e44f8d067ec20a9633ab9dc3ff0a3f2698f787478774f7c3",
+        "matches_frozen": true
+      },
+      {
+        "capture": "target/normify-evidence/2026-10-19-layers-m3-sleep-copy/run-02-zero-tree-captured/gpu-capture",
+        "file": "sleep_copy-0f0740d3df05b413ea24faf778f76e32e651183ade60c45b2dc324f97e50d2ff.ptx",
+        "sha256": "0f0740d3df05b413ea24faf778f76e32e651183ade60c45b2dc324f97e50d2ff",
+        "matches_frozen": true
+      },
+      {
+        "capture": "target/normify-evidence/2026-10-19-layers-m3-sleep-copy/run-02-zero-tree-captured/gpu-capture",
+        "file": "sleep_copy-0f0740d3df05b413ea24faf778f76e32e651183ade60c45b2dc324f97e50d2ff.json",
+        "sha256": "36ded661eff91df90bd7cc925e49c7f9e1acacbf260bc5e34eb62dc41fd544a0",
+        "matches_frozen": true
+      }
+    ],
+    "exact_variants": 2,
+    "state_and_scratch_guards_checked": true
+  },
+  "old_identity_gate": {
+    "zero_test_attempt_exit": 0,
+    "enabled_attempt_passed": 1,
+    "enabled_attempt_failed": 3,
+    "failure": "resident.rs whole-file identity drift",
+    "map_modified": false,
+    "accepted_as_current": false
+  },
+  "boundary": {
+    "local_sleep_copy_evidence": "complete for this host wrapper slice",
+    "tendon_wake_contract": "inherited and unchanged",
+    "np01_to_np04_accepted": false,
+    "performance_accepted": false,
+    "linux_run": false
+  }
+}

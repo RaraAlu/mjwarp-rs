@@ -1,0 +1,269 @@
+{
+  "schema": 2,
+  "task": "2026-10-19-layers-m3-sleep-copy",
+  "prior_map": {
+    "path": "docs/evidence/t4-g03-retest/tendon-wake-internal/map.json",
+    "sha256": "f1e43df3143103193e7ef23a2c6eb0d47748fdb62202f2d4ca0d083753456431",
+    "groups": [
+      {
+        "id": "wrap-tree",
+        "scalar": "i32",
+        "product_source": "src/model/sleep.rs",
+        "product_anchor": "1 => k.jnt_bodyid[id as usize]",
+        "product_checked": true,
+        "upstream_anchor": "t = body_treeid[jnt_bodyid[t_objid]]",
+        "upstream_checked": true
+      },
+      {
+        "id": "enable",
+        "scalar": "bool-to-i32",
+        "product_source": "src/physics/resident.rs",
+        "product_anchor": "i32::from(f.sleep_enabled && !f.island_disabled)",
+        "product_checked": true,
+        "upstream_anchor": null,
+        "upstream_checked": false
+      },
+      {
+        "id": "range-period",
+        "scalar": "f32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "(w%m[3])*2*nt",
+        "product_checked": true,
+        "upstream_anchor": "r = tendon_range[worldid % tendon_range.shape[0], tenid]",
+        "upstream_checked": true
+      },
+      {
+        "id": "margin-period",
+        "scalar": "f32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "(w%m[4])*nt",
+        "product_checked": true,
+        "upstream_anchor": "margin = tendon_margin[worldid % tendon_margin.shape[0], tenid]",
+        "upstream_checked": true
+      },
+      {
+        "id": "live-length",
+        "scalar": "f32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "const float* length=lengths+4+(unsigned long long)w*m[5];",
+        "product_checked": true,
+        "upstream_anchor": "length = ten_length[worldid, tenid]",
+        "upstream_checked": true
+      },
+      {
+        "id": "lower-distance",
+        "scalar": "f32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "length[t]-range[2*t]",
+        "product_checked": true,
+        "upstream_anchor": "dist_low = length - r[0]",
+        "upstream_checked": true
+      },
+      {
+        "id": "upper-distance",
+        "scalar": "f32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "range[2*t+1]-length[t]",
+        "product_checked": true,
+        "upstream_anchor": "dist_high = r[1] - length",
+        "upstream_checked": true
+      },
+      {
+        "id": "strict-limit",
+        "scalar": "f32-to-predicate",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "length[t]-range[2*t]<margin[t]||range[2*t+1]-length[t]<margin[t]",
+        "product_checked": true,
+        "upstream_anchor": "if dist_low < margin:",
+        "upstream_checked": true
+      },
+      {
+        "id": "input-awake",
+        "scalar": "i32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "tree>=0&&awake[tree]==1",
+        "product_checked": true,
+        "upstream_anchor": "if tree_awake_in[worldid, t] == 1:",
+        "upstream_checked": true
+      },
+      {
+        "id": "wake-initial",
+        "scalar": "i32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "wakeval=-11",
+        "product_checked": true,
+        "upstream_anchor": "wakeval = int(K_AWAKE_VAL)",
+        "upstream_checked": true
+      },
+      {
+        "id": "wake-minimum",
+        "scalar": "i32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "if(asleep[tree]<wakeval) wakeval=asleep[tree];",
+        "product_checked": true,
+        "upstream_anchor": "if val < wakeval:",
+        "upstream_checked": true
+      },
+      {
+        "id": "sleeping-target",
+        "scalar": "i32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "tree>=0&&awake[tree]==0",
+        "product_checked": true,
+        "upstream_anchor": "if tree_awake_in[worldid, t] == 0:",
+        "upstream_checked": true
+      },
+      {
+        "id": "already-awake",
+        "scalar": "i32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "if(old<0) { if(wakeval<old) asleep[tree]=wakeval;return; }",
+        "product_checked": true,
+        "upstream_anchor": "if wakeval < asleep_val:",
+        "upstream_checked": true
+      },
+      {
+        "id": "bounded-cycle",
+        "scalar": "i32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "for(int step=0;step<=ntree;++step)",
+        "product_checked": true,
+        "upstream_anchor": "for step in range(ntree + 1):",
+        "upstream_checked": true
+      },
+      {
+        "id": "refresh-flag",
+        "scalar": "i32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "awake[i]=asleep[i]<0",
+        "product_checked": true,
+        "upstream_anchor": "is_awake = int(tree_asleep_in[worldid, treeid] < 0)",
+        "upstream_checked": true
+      },
+      {
+        "id": "refresh-count",
+        "scalar": "i32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "count+=awake[i]",
+        "product_checked": true,
+        "upstream_anchor": "wp.atomic_add(ntree_awake_out, worldid, 1)",
+        "upstream_checked": true
+      },
+      {
+        "id": "clear-body-dof",
+        "scalar": "i32",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "awake[n]=count;awake[n+1]=0;awake[n+2]=0;",
+        "product_checked": true,
+        "upstream_anchor": "nbody_awake_out[worldid] = 0",
+        "upstream_checked": true
+      },
+      {
+        "id": "copy-noop-boundary",
+        "scalar": "i32 bit-preserving",
+        "product_source": "src/physics/sleep.rs",
+        "product_anchor": "result[offset+i]=state[offset+i];",
+        "product_checked": true,
+        "upstream_anchor": null,
+        "upstream_checked": false
+      }
+    ],
+    "outputs": [
+      {
+        "name": "tree_asleep",
+        "scalar": "i32",
+        "product_declaration": "pub tree_asleep: &'a [i32]",
+        "upstream_declaration": "tree_asleep: array(\"nworld\", \"ntree\", int)",
+        "checked": true
+      },
+      {
+        "name": "tree_awake",
+        "scalar": "i32",
+        "product_declaration": "pub tree_awake: &'a [i32]",
+        "upstream_declaration": "tree_awake: array(\"nworld\", \"ntree\", int)",
+        "checked": true
+      },
+      {
+        "name": "ntree_awake",
+        "scalar": "i32",
+        "product_declaration": "pub ntree_awake: i32",
+        "upstream_declaration": "ntree_awake: array(\"nworld\", int)",
+        "checked": true
+      },
+      {
+        "name": "nbody_awake",
+        "scalar": "i32",
+        "product_declaration": "pub nbody_awake: i32",
+        "upstream_declaration": "nbody_awake: array(\"nworld\", int)",
+        "checked": true
+      },
+      {
+        "name": "nv_awake",
+        "scalar": "i32",
+        "product_declaration": "pub nv_awake: i32",
+        "upstream_declaration": "nv_awake: array(\"nworld\", int)",
+        "checked": true
+      }
+    ]
+  },
+  "resident_identity": {
+    "base_revision": "15e31190182dd7c58312424851d477d9495b24d6",
+    "base_blob": "bfebf40d257641cbda8f62c78705cc224f298306",
+    "base_raw_sha256": "6389af92c39b687cdf3cd01fa3855d651bf264d6df7e2ff52fd8f230950718eb",
+    "base_lf_sha256": "6389af92c39b687cdf3cd01fa3855d651bf264d6df7e2ff52fd8f230950718eb",
+    "base_evidence": "docs/development-evidence/layers-m3-sleep-copy/base-resident.rs",
+    "current_raw_sha256": "7cab314d3f3255e14174f181f30f9d6b6fec5876aadef3f11046ae91e880e174",
+    "current_lf_sha256": "7cab314d3f3255e14174f181f30f9d6b6fec5876aadef3f11046ae91e880e174",
+    "current_evidence": "docs/development-evidence/layers-m3-sleep-copy/current-resident.rs",
+    "old_identity_gate_passed": false
+  },
+  "generated_product": {
+    "checks": [
+      {
+        "entry": "sleep_copy",
+        "cuda_sha256": "90f06a049e10a979e44f8d067ec20a9633ab9dc3ff0a3f2698f787478774f7c3",
+        "ptx_sha256": "0f0740d3df05b413ea24faf778f76e32e651183ade60c45b2dc324f97e50d2ff",
+        "receipt_sha256": "36ded661eff91df90bd7cc925e49c7f9e1acacbf260bc5e34eb62dc41fd544a0",
+        "integer_load_store": true,
+        "forbidden_precision_absent": true,
+        "float_instruction_contract": true
+      },
+      {
+        "entry": "tendon_wake",
+        "cuda_sha256": "90f06a049e10a979e44f8d067ec20a9633ab9dc3ff0a3f2698f787478774f7c3",
+        "ptx_sha256": "0f0740d3df05b413ea24faf778f76e32e651183ade60c45b2dc324f97e50d2ff",
+        "receipt_sha256": "38ca3c33a7f85ec7ac252a4a1b3015c7592944994fa69c8d610be39896ede889",
+        "integer_load_store": true,
+        "forbidden_precision_absent": true,
+        "float_instruction_contract": true
+      }
+    ],
+    "capture_registration": "target/normify-evidence/2026-10-19-layers-m3-sleep-copy/registrations/gpu-product-captured.json",
+    "capture_registration_sha256": "2adab212ab76e54262bb52cbf014f7dc95c4414e9b2d54163fda21e0d691db01",
+    "capture_result": "target/normify-evidence/2026-10-19-layers-m3-sleep-copy/run-01-product-captured/result.json",
+    "capture_result_sha256": "38c10576815b9568479429b214bbc54efedacdef86aece7cb21170c627ae26e3",
+    "second_variant_exact_match": true
+  },
+  "transaction": {
+    "order": [
+      "sleep_copy",
+      "tendon_wake",
+      "swap"
+    ],
+    "ready_dependency_checked": true,
+    "state_and_scratch_i32": true,
+    "diagnostic_conversion_only": true
+  },
+  "boundaries": {
+    "old_map_modified": false,
+    "old_test_modified": false,
+    "host_migration_rule": "sourceSha256 and ptxSha256 unchanged",
+    "local_slice_evidence": "pass",
+    "np01_complete": false,
+    "np02_complete": false,
+    "np03_complete": false,
+    "np04_complete": false,
+    "performance_accepted": false,
+    "linux_run": false
+  }
+}

@@ -34,6 +34,12 @@ use crate::model::{
 use crate::model::{CamLightParameter, SpatialTendonGeometry, TendonSubset};
 use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
+#[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 
 /// 一次上传并编译的运动学计划。
@@ -105,9 +111,441 @@ pub(super) struct VelocityPositionKernels {
 
 #[cfg(feature = "cuda-probe")]
 struct DeviceSleep {
-    model: super::DeviceModel,
-    copy_kernel: SynchronousKernel,
+    metadata: SleepCopyMetadataBuffer,
+    parameters: TransferBuffer<f32>,
+    copy_kernel: SleepCopyKernel,
     wake_kernel: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
+const SLEEP_COPY_METADATA_KIND: ProofKind = ProofKind("resident.sleep_copy.metadata.v1");
+
+#[cfg(feature = "cuda-probe")]
+const SLEEP_COPY_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: SLEEP_COPY_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Write,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(feature = "cuda-probe")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct SleepCopyStaticDims {
+    ntree: u32,
+    metadata_elements: u64,
+}
+
+#[cfg(feature = "cuda-probe")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct SleepCopyDims {
+    abi: [u32; 4],
+    ntree: u32,
+    metadata_elements: u64,
+    parameter_elements: u64,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct SleepCopySpec;
+
+#[cfg(feature = "cuda-probe")]
+// SAFETY: 声明逐槽匹配冻结sleep_copy ABI。
+unsafe impl KernelAbi for SleepCopySpec {
+    const NAME: &'static str = "sleep_copy";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &SLEEP_COPY_SLOTS;
+}
+
+#[cfg(feature = "cuda-probe")]
+impl KernelSpec for SleepCopySpec {
+    type Dims = SleepCopyDims;
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        let state = sleep_copy_state_elements(dims)?;
+        Ok(vec![
+            SlotRequirement {
+                slot: 0,
+                min_elements: dims.metadata_elements,
+            },
+            SlotRequirement {
+                slot: 1,
+                min_elements: dims.parameter_elements,
+            },
+            SlotRequirement {
+                slot: 2,
+                min_elements: state,
+            },
+            SlotRequirement {
+                slot: 3,
+                min_elements: state,
+            },
+        ])
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        sleep_copy_state_elements(dims)?;
+        LaunchDims::new((dims.abi[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn sleep_copy_state_elements(dims: &SleepCopyDims) -> Result<u64, LauncherError> {
+    let [a, b, c, worlds] = dims.abi;
+    if [a, b, c] != [0; 3]
+        || worlds == 0
+        || worlds > u32::MAX - 255
+        || dims.ntree > i32::MAX as u32
+        || dims.metadata_elements == 0
+        || dims.parameter_elements == 0
+    {
+        return Err(LauncherError::InvalidArray("休眠复制维度无效"));
+    }
+    u64::from(dims.ntree)
+        .checked_mul(2)
+        .and_then(|value| value.checked_add(3))
+        .and_then(|value| value.checked_mul(u64::from(worlds)))
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("sleep_copy_state"))
+}
+
+#[cfg(feature = "cuda-probe")]
+fn sleep_copy_plan(
+    dims: &SleepCopyDims,
+    bindings: &[SlotBinding],
+    proof: CheckedBinding<'_, SleepCopyDims>,
+) -> Result<(), LauncherError> {
+    let exact_bytes = [
+        sleep_copy_buffer_bytes(dims, 0)?,
+        sleep_copy_buffer_bytes(dims, 1)?,
+        sleep_copy_buffer_bytes(dims, 2)?,
+        sleep_copy_buffer_bytes(dims, 3)?,
+    ];
+    Kernel::<SleepCopySpec>::new()?.plan(dims, bindings, &[proof])?;
+    for (slot, required) in exact_bytes.into_iter().enumerate() {
+        let binding = bindings
+            .iter()
+            .find(|binding| binding.slot == slot)
+            .ok_or(LauncherError::MissingBinding { slot })?;
+        if binding.span.bytes() != required {
+            return Err(LauncherError::Capacity {
+                slot,
+                required,
+                actual: binding.span.bytes(),
+            });
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "cuda-probe")]
+fn sleep_copy_buffer_bytes(dims: &SleepCopyDims, slot: usize) -> Result<u64, LauncherError> {
+    let elements = match slot {
+        0 => dims.metadata_elements,
+        1 => dims.parameter_elements,
+        2 | 3 => sleep_copy_state_elements(dims)?,
+        _ => return Err(LauncherError::UnexpectedBinding { slot }),
+    };
+    elements
+        .checked_mul(4)
+        .ok_or(LauncherError::Overflow(match slot {
+            0 => "sleep_copy_metadata_bytes",
+            1 => "sleep_copy_parameter_bytes",
+            2 => "sleep_copy_state_bytes",
+            3 => "sleep_copy_result_bytes",
+            _ => unreachable!(),
+        }))
+}
+
+#[cfg(feature = "cuda-probe")]
+fn validate_sleep_copy_metadata(
+    values: &[i32],
+    dims: SleepCopyStaticDims,
+) -> Result<(), LauncherError> {
+    if u64::try_from(values.len()).ok() != Some(dims.metadata_elements) {
+        return Err(LauncherError::InvalidMetadata("休眠复制元数据长度无效"));
+    }
+    let Some(&ntree) = values.first() else {
+        return Err(LauncherError::InvalidMetadata("休眠复制元数据为空"));
+    };
+    if ntree < 0 || ntree as u32 != dims.ntree {
+        return Err(LauncherError::InvalidMetadata("休眠复制树数量不匹配"));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "cuda-probe")]
+struct StaticSleepCopyMetadata;
+
+#[cfg(feature = "cuda-probe")]
+impl MetadataProof for StaticSleepCopyMetadata {
+    type Dims = SleepCopyStaticDims;
+
+    const KIND: ProofKind = SLEEP_COPY_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        validate_sleep_copy_metadata(values, *dims)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct SleepCopyMetadata;
+
+#[cfg(feature = "cuda-probe")]
+impl MetadataProof for SleepCopyMetadata {
+    type Dims = SleepCopyDims;
+
+    const KIND: ProofKind = SLEEP_COPY_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        validate_sleep_copy_metadata(
+            values,
+            SleepCopyStaticDims {
+                ntree: dims.ntree,
+                metadata_elements: dims.metadata_elements,
+            },
+        )?;
+        sleep_copy_state_elements(dims).map(|_| ())
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn sleep_copy_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::StaleMetadata
+        | LauncherError::InvalidMetadata(_)
+        | LauncherError::MetadataMismatch(_) => InputError::InvalidTopology {
+            field: "sleep_copy_metadata",
+            index: 0,
+            reason: "invalid_or_stale_metadata",
+        }
+        .into(),
+        _ => InputError::InvalidDimension {
+            field: "sleep_copy_abi",
+        }
+        .into(),
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct SleepCopyMetadataBuffer {
+    buffer: TransferBuffer<i32>,
+    values: Vec<i32>,
+    dims: SleepCopyStaticDims,
+    revision: MetadataRevision,
+    checked: Checked<StaticSleepCopyMetadata>,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl SleepCopyMetadataBuffer {
+    fn upload(session: &TransferSession, values: Vec<i32>) -> Result<Self, TransferError> {
+        let ntree = values
+            .first()
+            .copied()
+            .ok_or(InputError::InvalidDimension {
+                field: "sleep_copy_metadata",
+            })?;
+        let ntree = u32::try_from(ntree).map_err(|_| InputError::InvalidDimension {
+            field: "sleep_copy_ntree",
+        })?;
+        let dims = SleepCopyStaticDims {
+            ntree,
+            metadata_elements: u64::try_from(values.len()).map_err(|_| InputError::Overflow {
+                field: "sleep_copy_metadata",
+            })?,
+        };
+        validate_sleep_copy_metadata(&values, dims).map_err(sleep_copy_launch_error)?;
+        let buffer = session.upload(&values)?;
+        let revision = MetadataRevision::new();
+        // SAFETY: 上传已同步；宿主镜像绑定实际设备缓冲。
+        let checked = unsafe {
+            Checked::<StaticSleepCopyMetadata>::assume_uploaded(
+                buffer.launcher_span()?,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .map_err(sleep_copy_launch_error)?;
+        Ok(Self {
+            buffer,
+            values,
+            dims,
+            revision,
+            checked,
+        })
+    }
+
+    fn as_buffer(&self) -> &TransferBuffer<i32> {
+        &self.buffer
+    }
+
+    fn proof(
+        &self,
+        worlds: u32,
+        parameter_elements: u64,
+    ) -> Result<Checked<SleepCopyMetadata>, TransferError> {
+        let span = self.buffer.launcher_span()?;
+        self.checked
+            .binding(0)
+            .validate_for(span, &self.dims)
+            .map_err(sleep_copy_launch_error)?;
+        let dims = SleepCopyDims {
+            abi: [0, 0, 0, worlds],
+            ntree: self.dims.ntree,
+            metadata_elements: self.dims.metadata_elements,
+            parameter_elements,
+        };
+        // SAFETY: 私有包装持有实际缓冲、完整镜像和写入代际。
+        unsafe {
+            Checked::<SleepCopyMetadata>::assume_uploaded(
+                span,
+                &self.values,
+                dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(sleep_copy_launch_error)
+    }
+
+    #[cfg(test)]
+    fn overwrite_for_test(&mut self, index: usize, value: i32) -> Result<(), TransferError> {
+        self.revision.invalidate();
+        self.buffer.write_range(index, &[value])
+    }
+
+    #[cfg(test)]
+    fn restore_for_test(&mut self) -> Result<(), TransferError> {
+        self.revision.invalidate();
+        self.buffer.write_range(0, &self.values)?;
+        // SAFETY: 恢复写入已同步；跨度与镜像重新绑定。
+        self.checked = unsafe {
+            Checked::<StaticSleepCopyMetadata>::assume_uploaded(
+                self.buffer.launcher_span()?,
+                &self.values,
+                self.dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(sleep_copy_launch_error)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct SleepCopyKernel {
+    kernel: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl SleepCopyKernel {
+    fn compile(session: &TransferSession) -> Result<Self, TransferError> {
+        Ok(Self {
+            kernel: SynchronousKernel::compile(
+                session,
+                super::sleep::TENDON_WAKE_CUDA,
+                "sleep_copy",
+            )?,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &SleepCopyMetadataBuffer,
+        parameters: &TransferBuffer<f32>,
+        state: &TransferBuffer<i32>,
+        result: &mut TransferBuffer<i32>,
+        worlds: u32,
+    ) -> Result<(), TransferError> {
+        let parameter_elements =
+            u64::try_from(parameters.len()).map_err(|_| InputError::Overflow {
+                field: "sleep_copy_parameters",
+            })?;
+        let proof = metadata.proof(worlds, parameter_elements)?;
+        let dims = *proof.dims();
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: parameters.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: state.launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: result.launcher_span()?,
+                elem: ElemType::I32,
+            },
+        ];
+        sleep_copy_plan(&dims, &bindings, proof.binding(0)).map_err(sleep_copy_launch_error)?;
+        // SAFETY: 类型计划核对证明、跨度、会话、别名和256线程网格。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), parameters, state, result, dims.abi)
+        }
+    }
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -1237,13 +1675,14 @@ impl KinematicsPlan {
                 None
             };
             let sleep = if let Some(sleep) = sleep {
+                let PackedModel {
+                    metadata,
+                    parameters,
+                } = sleep;
                 Some(DeviceSleep {
-                    model: sleep.upload(session)?,
-                    copy_kernel: SynchronousKernel::compile(
-                        session,
-                        super::sleep::TENDON_WAKE_CUDA,
-                        "sleep_copy",
-                    )?,
+                    metadata: SleepCopyMetadataBuffer::upload(session, metadata)?,
+                    parameters: session.upload(&parameters)?,
+                    copy_kernel: SleepCopyKernel::compile(session)?,
                     wake_kernel: SynchronousKernel::compile(
                         session,
                         super::sleep::TENDON_WAKE_CUDA,
@@ -2274,17 +2713,17 @@ impl KinematicsPlan {
                 // SAFETY: Checked tree cycles and global paths bound all accesses.
                 // Separate guarded buffers never alias. Synchronized copy seeds
                 // scratch before each world-owned wake pass; failures keep state.
+                device.copy_kernel.launch(
+                    &device.metadata,
+                    &device.parameters,
+                    &out.state,
+                    &mut out.scratch,
+                    dims[3],
+                )?;
                 unsafe {
-                    device.copy_kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
-                        &out.state,
-                        &mut out.scratch,
-                        dims,
-                    )?;
                     device.wake_kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
+                        device.metadata.as_buffer(),
+                        &device.parameters,
                         &tendon.values,
                         &mut out.scratch,
                         dims,
@@ -3608,6 +4047,197 @@ mod tests {
                 }))
             ));
         }
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    fn sleep_copy_wrapper_checks_span_session_alias_grid_and_metadata_proof() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let dims = SleepCopyDims {
+            abi: [0, 0, 0, 3],
+            ntree: 2,
+            metadata_elements: 7,
+            parameter_elements: 3,
+        };
+        assert_eq!(sleep_copy_state_elements(&dims).unwrap(), 29);
+        assert_eq!(SleepCopySpec::launch_dims(&dims).unwrap().grid(), (1, 1, 1));
+        let many_worlds = SleepCopyDims {
+            abi: [0, 0, 0, 513],
+            ..dims
+        };
+        assert_eq!(sleep_copy_state_elements(&many_worlds).unwrap(), 3599);
+        assert_eq!(
+            SleepCopySpec::launch_dims(&many_worlds).unwrap().grid(),
+            (3, 1, 1)
+        );
+        let zero_tree = SleepCopyDims {
+            abi: [0, 0, 0, 5],
+            ntree: 0,
+            ..dims
+        };
+        assert_eq!(sleep_copy_state_elements(&zero_tree).unwrap(), 23);
+
+        let metadata = DeviceSpan::new(7, 0x1000, 28).unwrap();
+        let parameters = DeviceSpan::new(7, 0x2000, 12).unwrap();
+        let state = DeviceSpan::new(7, 0x3000, 116).unwrap();
+        let output = DeviceSpan::new(7, 0x4000, 116).unwrap();
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: parameters,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: state,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: output,
+                elem: ElemType::I32,
+            },
+        ];
+        let values = vec![2, 0, 0, 0, 0, 0, 0];
+        let revision = MetadataRevision::new();
+        // SAFETY: 合成跨度仅参与宿主校验，不访问设备。
+        let checked = unsafe {
+            Checked::<SleepCopyMetadata>::assume_uploaded(metadata, &values, dims, revision.clone())
+        }
+        .unwrap();
+        assert!(sleep_copy_plan(&dims, &bindings, checked.binding(0)).is_ok());
+
+        let mut read_alias = bindings;
+        read_alias[1].span = DeviceSpan::new(7, metadata.addr(), 12).unwrap();
+        read_alias[2].span = DeviceSpan::new(7, metadata.addr(), 116).unwrap();
+        assert!(sleep_copy_plan(&dims, &read_alias, checked.binding(0)).is_ok());
+        let mut output_alias = bindings;
+        output_alias[3].span = state;
+        assert!(matches!(
+            sleep_copy_plan(&dims, &output_alias, checked.binding(0)),
+            Err(LauncherError::Alias { .. })
+        ));
+        let mut partial_output_alias = bindings;
+        partial_output_alias[3].span = DeviceSpan::new(7, state.addr() + 4, state.bytes()).unwrap();
+        assert!(matches!(
+            sleep_copy_plan(&dims, &partial_output_alias, checked.binding(0)),
+            Err(LauncherError::Alias {
+                first: 2,
+                second: 3
+            })
+        ));
+
+        for (slot, bytes) in [(0, 24), (1, 8), (2, 112), (2, 120), (3, 120)] {
+            let mut bad = bindings;
+            bad[slot].span = DeviceSpan::new(7, bad[slot].span.addr(), bytes).unwrap();
+            let error = sleep_copy_plan(&dims, &bad, checked.binding(0)).unwrap_err();
+            assert!(matches!(
+                error,
+                LauncherError::Capacity { slot: actual, .. } if actual == slot
+            ));
+        }
+        let mut foreign = bindings;
+        foreign[1].span = DeviceSpan::new(8, parameters.addr(), parameters.bytes()).unwrap();
+        assert!(matches!(
+            sleep_copy_plan(&dims, &foreign, checked.binding(0)),
+            Err(LauncherError::ContextMismatch { slot: 1 })
+        ));
+        let wrong_span = DeviceSpan::new(7, 0x5000, metadata.bytes()).unwrap();
+        // SAFETY: 合成跨度仅参与宿主校验，不访问设备。
+        let wrong_checked = unsafe {
+            Checked::<SleepCopyMetadata>::assume_uploaded(
+                wrong_span,
+                &values,
+                dims,
+                MetadataRevision::new(),
+            )
+        }
+        .unwrap();
+        assert!(matches!(
+            sleep_copy_plan(&dims, &bindings, wrong_checked.binding(0)),
+            Err(LauncherError::MetadataMismatch(_))
+        ));
+        let mut forged = values.clone();
+        forged[0] = 3;
+        // SAFETY: 合成跨度仅参与宿主校验，不访问设备。
+        assert!(matches!(
+            unsafe {
+                Checked::<SleepCopyMetadata>::assume_uploaded(
+                    metadata,
+                    &forged,
+                    dims,
+                    MetadataRevision::new(),
+                )
+            },
+            Err(LauncherError::InvalidMetadata(_))
+        ));
+        revision.invalidate();
+        assert!(matches!(
+            sleep_copy_plan(&dims, &bindings, checked.binding(0)),
+            Err(LauncherError::StaleMetadata)
+        ));
+
+        for bad in [
+            SleepCopyDims {
+                abi: [1, 0, 0, 3],
+                ..dims
+            },
+            SleepCopyDims {
+                abi: [0, 0, 0, 0],
+                ..dims
+            },
+            SleepCopyDims {
+                ntree: i32::MAX as u32 + 1,
+                ..dims
+            },
+        ] {
+            assert!(matches!(
+                sleep_copy_state_elements(&bad),
+                Err(LauncherError::InvalidArray(_))
+            ));
+        }
+        let metadata_byte_overflow = SleepCopyDims {
+            metadata_elements: u64::MAX,
+            ..dims
+        };
+        assert!(matches!(
+            sleep_copy_buffer_bytes(&metadata_byte_overflow, 0),
+            Err(LauncherError::Overflow("sleep_copy_metadata_bytes"))
+        ));
+        let launch_limit = SleepCopyDims {
+            abi: [0, 0, 0, u32::MAX - 255],
+            ..dims
+        };
+        assert!(sleep_copy_state_elements(&launch_limit).is_ok());
+        assert!(SleepCopySpec::launch_dims(&launch_limit).is_ok());
+        assert!(matches!(
+            sleep_copy_state_elements(&SleepCopyDims {
+                abi: [0, 0, 0, u32::MAX - 254],
+                ..dims
+            }),
+            Err(LauncherError::InvalidArray(_))
+        ));
+        let state_byte_overflow = SleepCopyDims {
+            abi: [0, 0, 0, u32::MAX - 255],
+            ntree: i32::MAX as u32,
+            ..dims
+        };
+        let state_upper = sleep_copy_state_elements(&state_byte_overflow).unwrap();
+        assert!(state_upper < u64::MAX && state_upper.checked_mul(4).is_none());
+        assert!(matches!(
+            sleep_copy_buffer_bytes(&state_byte_overflow, 2),
+            Err(LauncherError::Overflow("sleep_copy_state_bytes"))
+        ));
+        assert!(matches!(
+            sleep_copy_buffer_bytes(&state_byte_overflow, 3),
+            Err(LauncherError::Overflow("sleep_copy_result_bytes"))
+        ));
     }
 
     #[cfg(feature = "cuda-probe")]
@@ -5565,6 +6195,139 @@ mod tests {
                 .flexvert_xpos,
             &[0.2, 0.3, 0.4, 0.0, 0.0, 0.0]
         );
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "需要NVIDIA驱动与NVRTC"]
+    fn gpu_m3_sleep_copy_uses_real_resident_buffers_and_recovers() {
+        fn raw(buffer: &TransferBuffer<i32>) -> Vec<i32> {
+            let mut values = crate::runtime::host_staging::<i32>(buffer.len()).unwrap();
+            buffer.read_range_into(0, &mut values).unwrap();
+            values
+        }
+
+        let session = TransferSession::new(0).unwrap();
+        let mut plan = flex_hessian_plan(&session);
+        let mut data = plan.create_data(3).unwrap();
+        plan.update(&mut data).unwrap();
+        let states = [
+            SleepTreeState {
+                tree_asleep: vec![-11],
+                nbody_awake: 2,
+                nv_awake: 6,
+            },
+            SleepTreeState {
+                tree_asleep: vec![0],
+                nbody_awake: 0,
+                nv_awake: 0,
+            },
+            SleepTreeState {
+                tree_asleep: vec![-3],
+                nbody_awake: 1,
+                nv_awake: 2,
+            },
+        ];
+        for (world, state) in states.iter().enumerate() {
+            data.write_world_sleep(world, state).unwrap();
+        }
+        plan.update_tendon_wake(&mut data).unwrap();
+        let output = data.readback().unwrap();
+        for (world, expected) in states.iter().enumerate() {
+            let actual = output.sleep_trees().unwrap().world(world).unwrap();
+            assert_eq!(actual.tree_asleep, expected.tree_asleep);
+            assert_eq!(actual.tree_awake, &[i32::from(expected.tree_asleep[0] < 0)]);
+            assert_eq!(
+                (actual.ntree_awake, actual.nbody_awake, actual.nv_awake),
+                (
+                    i32::from(expected.tree_asleep[0] < 0),
+                    expected.nbody_awake,
+                    expected.nv_awake,
+                )
+            );
+        }
+        let resident = data.sleep.as_ref().unwrap();
+        for buffer in [&resident.state, &resident.scratch] {
+            let values = raw(buffer);
+            assert_eq!(&values[..4], &[-131072; 4]);
+            assert_eq!(&values[values.len() - 4..], &[-131072; 4]);
+        }
+
+        let state_before = raw(&data.sleep.as_ref().unwrap().state);
+        let scratch_before = raw(&data.sleep.as_ref().unwrap().scratch);
+        plan.sleep
+            .as_mut()
+            .unwrap()
+            .metadata
+            .overwrite_for_test(0, 7)
+            .unwrap();
+        assert!(matches!(
+            plan.update_tendon_wake(&mut data),
+            Err(TransferError::Input(InputError::InvalidTopology {
+                field: "sleep_copy_metadata",
+                ..
+            }))
+        ));
+        assert!(!data.ready.sleep);
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::StageNotReady {
+                stage: "tendon_wake"
+            })
+        ));
+        assert_eq!(raw(&data.sleep.as_ref().unwrap().state), state_before);
+        assert_eq!(raw(&data.sleep.as_ref().unwrap().scratch), scratch_before);
+        plan.sleep
+            .as_mut()
+            .unwrap()
+            .metadata
+            .restore_for_test()
+            .unwrap();
+        plan.update_tendon_wake(&mut data).unwrap();
+        data.readback().unwrap();
+
+        let foreign = TransferSession::new(0).unwrap();
+        let replacement = SleepCopyKernel::compile(&foreign).unwrap();
+        let original =
+            std::mem::replace(&mut plan.sleep.as_mut().unwrap().copy_kernel, replacement);
+        let state_before = raw(&data.sleep.as_ref().unwrap().state);
+        let scratch_before = raw(&data.sleep.as_ref().unwrap().scratch);
+        assert_eq!(
+            plan.update_tendon_wake(&mut data),
+            Err(TransferError::SessionMismatch)
+        );
+        assert!(!data.ready.sleep);
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::StageNotReady {
+                stage: "tendon_wake"
+            })
+        ));
+        assert_eq!(raw(&data.sleep.as_ref().unwrap().state), state_before);
+        assert_eq!(raw(&data.sleep.as_ref().unwrap().scratch), scratch_before);
+        plan.sleep.as_mut().unwrap().copy_kernel = original;
+        plan.update_tendon_wake(&mut data).unwrap();
+        data.readback().unwrap();
+
+        let report = serde_json::json!({
+            "entry": "sleep_copy",
+            "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+            "worlds": 3,
+            "ntree": 1,
+            "state_elements": 23,
+            "real_resident_call": true,
+            "valid_rows_exact": true,
+            "guards_preserved": true,
+            "stale_real_buffer_write_rejected_without_output_write": true,
+            "foreign_session_rejected_without_output_write": true,
+            "same_plan_recovery": true,
+            "np01_to_np04_accepted": false,
+            "performance_accepted": false
+        });
+        if let Some(path) = std::env::var_os("MJWARP_SLEEP_COPY_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+        }
+        println!("{report}");
     }
 
     #[cfg(feature = "cuda-probe")]

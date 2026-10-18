@@ -1,0 +1,99 @@
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\resident.rs:298:
+         2 | 3 => sleep_copy_state_elements(dims)?,
+         _ => return Err(LauncherError::UnexpectedBinding { slot }),
+     };
+-    elements.checked_mul(4).ok_or(LauncherError::Overflow(match slot {
+-        0 => "sleep_copy_metadata_bytes",
+-        1 => "sleep_copy_parameter_bytes",
+-        2 => "sleep_copy_state_bytes",
+-        3 => "sleep_copy_result_bytes",
+-        _ => unreachable!(),
+-    }))
++    elements
++        .checked_mul(4)
++        .ok_or(LauncherError::Overflow(match slot {
++            0 => "sleep_copy_metadata_bytes",
++            1 => "sleep_copy_parameter_bytes",
++            2 => "sleep_copy_state_bytes",
++            3 => "sleep_copy_result_bytes",
++            _ => unreachable!(),
++        }))
+ }
+ 
+ #[cfg(feature = "cuda-probe")]
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\resident.rs:391:
+ #[cfg(feature = "cuda-probe")]
+ impl SleepCopyMetadataBuffer {
+     fn upload(session: &TransferSession, values: Vec<i32>) -> Result<Self, TransferError> {
+-        let ntree = values.first().copied().ok_or(InputError::InvalidDimension {
+-            field: "sleep_copy_metadata",
+-        })?;
++        let ntree = values
++            .first()
++            .copied()
++            .ok_or(InputError::InvalidDimension {
++                field: "sleep_copy_metadata",
++            })?;
+         let ntree = u32::try_from(ntree).map_err(|_| InputError::InvalidDimension {
+             field: "sleep_copy_ntree",
+         })?;
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\resident.rs:537:
+         sleep_copy_plan(&dims, &bindings, proof.binding(0)).map_err(sleep_copy_launch_error)?;
+         // SAFETY: 类型计划核对证明、跨度、会话、别名和256线程网格。
+         unsafe {
+-            self.kernel.launch(
+-                metadata.as_buffer(),
+-                parameters,
+-                state,
+-                result,
+-                dims.abi,
+-            )
++            self.kernel
++                .launch(metadata.as_buffer(), parameters, state, result, dims.abi)
+         }
+     }
+ }
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\resident.rs:4108:
+         let revision = MetadataRevision::new();
+         // SAFETY: 合成跨度仅参与宿主校验，不访问设备。
+         let checked = unsafe {
+-            Checked::<SleepCopyMetadata>::assume_uploaded(
+-                metadata,
+-                &values,
+-                dims,
+-                revision.clone(),
+-            )
++            Checked::<SleepCopyMetadata>::assume_uploaded(metadata, &values, dims, revision.clone())
+         }
+         .unwrap();
+         assert!(sleep_copy_plan(&dims, &bindings, checked.binding(0)).is_ok());
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\resident.rs:4129:
+             Err(LauncherError::Alias { .. })
+         ));
+         let mut partial_output_alias = bindings;
+-        partial_output_alias[3].span =
+-            DeviceSpan::new(7, state.addr() + 4, state.bytes()).unwrap();
++        partial_output_alias[3].span = DeviceSpan::new(7, state.addr() + 4, state.bytes()).unwrap();
+         assert!(matches!(
+             sleep_copy_plan(&dims, &partial_output_alias, checked.binding(0)),
+-            Err(LauncherError::Alias { first: 2, second: 3 })
++            Err(LauncherError::Alias {
++                first: 2,
++                second: 3
++            })
+         ));
+ 
+         for (slot, bytes) in [(0, 24), (1, 8), (2, 112), (2, 120), (3, 120)] {
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\resident.rs:6291:
+ 
+         let foreign = TransferSession::new(0).unwrap();
+         let replacement = SleepCopyKernel::compile(&foreign).unwrap();
+-        let original = std::mem::replace(
+-            &mut plan.sleep.as_mut().unwrap().copy_kernel,
+-            replacement,
+-        );
++        let original =
++            std::mem::replace(&mut plan.sleep.as_mut().unwrap().copy_kernel, replacement);
+         let state_before = raw(&data.sleep.as_ref().unwrap().state);
+         let scratch_before = raw(&data.sleep.as_ref().unwrap().scratch);
+         assert_eq!(
