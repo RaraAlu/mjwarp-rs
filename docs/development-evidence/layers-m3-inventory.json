@@ -1,0 +1,342 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-18-layers-m3-inventory",
+  "snapshot_commit": "755310ddfadb54acbdab9477704ed43f8040304a",
+  "scope": "L1 synchronous physical kernel launch inventory before M3 migration",
+  "method_count": 11,
+  "source_of_truth": [
+    "src/runtime/transfer/kernel.rs",
+    "src/runtime/transfer/kernel/kinetic_energy.rs"
+  ],
+  "methodology": {
+    "codegraph": [
+      "codegraph explore unified launcher eleven launch methods and all callers",
+      "codegraph explore exact launch methods, ABI, spans and legal domains",
+      "codegraph node SynchronousKernel::launch",
+      "codegraph node each specialized launch method"
+    ],
+    "callsite_check": "rg over src/physics after CodeGraph exploration",
+    "production_python_executed": false
+  },
+  "common_contract": {
+    "completion": "TransferSession::run serializes the session and synchronizes before returning",
+    "shared_memory_bytes": 0,
+    "same_session_required": true,
+    "cpu_fallback": false,
+    "precision": "The launcher preserves caller element types. Physical callers must retain frozen f32 paths.",
+    "migration_rule": "Replace the private method only after KernelAbi describes every slot and caller span proof."
+  },
+  "methods": [
+    {
+      "id": "launch",
+      "definition": "src/runtime/transfer/kernel.rs:482",
+      "abi": [
+        "i32* metadata",
+        "P* parameters",
+        "S* state",
+        "O* output",
+        "u32 dimensions[0]",
+        "u32 dimensions[1]",
+        "u32 dimensions[2]",
+        "u32 dimensions[3]"
+      ],
+      "threads": {
+        "grid": "ceil(dimensions[3] / 256)",
+        "block": 256
+      },
+      "launcher_checks": [
+        "all four buffers use one session",
+        "dimensions[3] is in 1..=u32::MAX-255",
+        "all four allocations are nonempty"
+      ],
+      "access_span": "Opaque at this boundary. Each caller proves metadata, parameters, state and output spans.",
+      "metadata_proof": "Caller-specific safety comments and constructor checks remain authoritative.",
+      "legal_input_domain": "A nonzero one-dimensional work count with a caller-proven eight-slot ABI.",
+      "physics_call_count": 85,
+      "physics_callers": [
+        { "file": "src/physics/applied_force.rs", "lines": [286, 318, 334] },
+        { "file": "src/physics/attached.rs", "lines": [147] },
+        { "file": "src/physics/com_velocity.rs", "lines": [395, 528] },
+        { "file": "src/physics/flex_edge_passive.rs", "lines": [311, 336, 375, 398, 414] },
+        { "file": "src/physics/gravity_compensation.rs", "lines": [437] },
+        { "file": "src/physics/kinetic_energy.rs", "lines": [210] },
+        { "file": "src/physics/mass_matrix.rs", "lines": [180, 320] },
+        { "file": "src/physics/mass_matrix/multiply.rs", "lines": [276, 298] },
+        { "file": "src/physics/mass_matrix/multiply/borrowed.rs", "lines": [278, 306] },
+        { "file": "src/physics/mass_matrix/multiply/borrowed/device_energy.rs", "lines": [213, 237] },
+        { "file": "src/physics/mass_matrix/resident.rs", "lines": [193, 201, 215, 416, 419] },
+        { "file": "src/physics/mass_solve.rs", "lines": [275] },
+        { "file": "src/physics/mass_solve/resident.rs", "lines": [186, 189, 390, 432] },
+        { "file": "src/physics/mass_solve/sparse.rs", "lines": [251, 266, 284] },
+        { "file": "src/physics/mass_solve/sparse/dense.rs", "lines": [150, 176] },
+        { "file": "src/physics/mass_solve/sparse/dense/small.rs", "lines": [167] },
+        { "file": "src/physics/mass_solve/sparse/mixed.rs", "lines": [228] },
+        { "file": "src/physics/mass_solve/sparse/mixed/solve.rs", "lines": [236] },
+        { "file": "src/physics/mass_solve/sparse/mixed/solve/resident.rs", "lines": [157, 181] },
+        { "file": "src/physics/mass_solve/sparse/resident.rs", "lines": [181, 207] },
+        { "file": "src/physics/mass_solve/sparse/resident/solve.rs", "lines": [195] },
+        { "file": "src/physics/mod.rs", "lines": [374, 630] },
+        { "file": "src/physics/passive_force.rs", "lines": [387, 394, 449, 456, 500, 513] },
+        { "file": "src/physics/resident.rs", "lines": [1588, 1811, 1818, 1870, 1906, 1945, 1984, 1991, 2031, 2073, 2080, 2087, 2134, 2141, 2148, 2187, 2199, 2242, 2278, 2285, 2358] },
+        { "file": "src/physics/rne.rs", "lines": [249, 260, 273] },
+        { "file": "src/physics/smooth_force.rs", "lines": [270, 293] },
+        { "file": "src/physics/smooth_force/joint_passive.rs", "lines": [337, 357, 389, 409, 444] },
+        { "file": "src/physics/tendon_velocity.rs", "lines": [243, 264] }
+      ],
+      "runtime_test_lines": [1486, 1518, 1550, 1554, 1559, 1564, 1590]
+    },
+    {
+      "id": "launch_mixed_solve",
+      "definition": "src/runtime/transfer/kernel.rs:51",
+      "abi": ["i32* metadata", "f32* rhs", "f32* factor", "f32* output", "u32 n", "u32 stride", "u32 nr", "u32 worlds"],
+      "threads": { "grid": "worlds * nr blocks", "block": 128 },
+      "launcher_checks": [
+        "all dimensions fit i32",
+        "n is nonzero",
+        "stride is at least 2*n",
+        "worlds*nr is in 1..=i32::MAX",
+        "rhs and output equal worlds*nr*n+8",
+        "factor equals worlds*stride+8",
+        "metadata has at least 2*n+5 entries"
+      ],
+      "access_span": "Exact guarded rhs, output and factor capacities are checked.",
+      "metadata_proof": "Packed route, diagonal, level and Small descriptors come from MixedSolvePlan.",
+      "legal_input_domain": "Disjoint Small blocks and Sparse-only updates; one block owns one world/RHS.",
+      "physics_callers": [
+        { "file": "src/physics/mass_solve/sparse/mixed/solve.rs", "lines": [263] }
+      ],
+      "runtime_test_lines": [1177, 1181, 1185, 1189, 1202, 1212, 1217, 1222, 1227, 1231]
+    },
+    {
+      "id": "launch_small_factor",
+      "definition": "src/runtime/transfer/kernel.rs:135",
+      "abi": ["i32* metadata", "f32* matrix", "f32* unused", "f32* output", "u32 prefix", "u32 first", "u32 count", "u32 work"],
+      "threads": { "grid": "ceil(work / 64)", "block": 64 },
+      "launcher_checks": [
+        "count and work are nonzero",
+        "work is at most u32::MAX-63",
+        "work is divisible by count",
+        "prefix fits i32",
+        "metadata has at least 3*(first+count) entries",
+        "matrix, unused and output equal (work/count)*prefix+8"
+      ],
+      "access_span": "Each thread owns one guarded dense prefix block.",
+      "metadata_proof": "Static size 2..6 triples store DOF start, prefix address and size.",
+      "legal_input_domain": "Disjoint static blocks with worlds*count work items.",
+      "physics_callers": [
+        { "file": "src/physics/mass_solve/sparse/dense/small.rs", "lines": [193] }
+      ],
+      "runtime_test_lines": [1280, 1299, 1305, 1316]
+    },
+    {
+      "id": "launch_sparse_solve",
+      "definition": "src/runtime/transfer/kernel.rs:217",
+      "abi": ["i32* metadata", "f32* rhs", "f32* factor", "f32* output", "u32 n", "u32 nc", "u32 nr", "u32 worlds"],
+      "threads": { "grid": "worlds * nr blocks", "block": 128 },
+      "launcher_checks": [
+        "all dimensions fit i32",
+        "worlds*nr is in 1..=i32::MAX",
+        "rhs and output equal worlds*nr*n+8",
+        "factor equals worlds*(n+nc)+8",
+        "metadata has at least 2*n+2 entries"
+      ],
+      "access_span": "Exact guarded rhs, output and sparse factor capacities are checked.",
+      "metadata_proof": "Validated sparse row and level metadata bounds every block barrier phase.",
+      "legal_input_domain": "One 128-thread block owns one world/RHS and every lane reaches each barrier.",
+      "physics_callers": [
+        { "file": "src/physics/mass_solve/sparse/resident/solve.rs", "lines": [222] }
+      ],
+      "runtime_test_lines": [1368, 1387, 1393, 1404]
+    },
+    {
+      "id": "launch_rne_cacc",
+      "definition": "src/runtime/transfer/kernel.rs:304",
+      "abi": ["i32* metadata", "f32* qvel", "f32* qacc", "f32* com", "f32* velocity", "f32* output", "u32 flg_acc", "u32 worlds"],
+      "threads": { "grid": "ceil(worlds / 256)", "block": 256 },
+      "launcher_checks": ["all six buffers use one session", "worlds is in 1..=u32::MAX-255", "all allocations are nonempty"],
+      "access_span": "Caller proves guarded strides nv, nv, 14*nbody+6*nv, 6*nbody+6*nv and 12*nbody+nv.",
+      "metadata_proof": "Validated parent and DOF maps bound every index; bool becomes private u32.",
+      "legal_input_domain": "Finite guarded resident RNE inputs for one model identity.",
+      "physics_callers": [
+        { "file": "src/physics/rne.rs", "lines": [242] }
+      ]
+    },
+    {
+      "id": "launch_tendon_passive",
+      "definition": "src/runtime/transfer/kernel.rs:546",
+      "abi": ["i32* metadata", "f32* parameters", "f32* source", "f32* velocity", "f32* output", "u32 d0", "u32 d1", "u32 d2", "u32 count"],
+      "threads": { "grid": "ceil(count / 256)", "block": 256 },
+      "launcher_checks": ["all five buffers use one session", "count is in 1..=u32::MAX-255", "all allocations are nonempty"],
+      "access_span": "Caller proves model, velocity, status and 2*worlds*nv guarded output spans.",
+      "metadata_proof": "The first kernel validates guards, mapping and finite inputs before clear and accumulation.",
+      "legal_input_domain": "Matching model identity, world count, nv, tendon count and maximum sparse row.",
+      "physics_callers": [
+        { "file": "src/physics/tendon_passive.rs", "lines": [269, 296, 336, 360, 378] }
+      ]
+    },
+    {
+      "id": "launch_gravity_compensation",
+      "definition": "src/runtime/transfer/kernel.rs:613",
+      "abi": ["i32* metadata", "f32* parameters", "f32* rigid", "f32* com", "f32* output", "u32 d0", "u32 d1", "u32 d2", "u32 count"],
+      "threads": { "grid": "ceil(count / 256)", "block": 256 },
+      "launcher_checks": ["all five buffers use one session", "count is in 1..=u32::MAX-255", "all allocations are nonempty"],
+      "access_span": "Caller proves rigid, COM, partial-force, gravity and final force spans.",
+      "metadata_proof": "Validation status precedes body/DOF work; checked nb, nv and worlds derive every count.",
+      "legal_input_domain": "Active gravity-compensation spec with matching resident rigid and COM tickets.",
+      "physics_callers": [
+        { "file": "src/physics/gravity_compensation.rs", "lines": [456, 492, 523] }
+      ]
+    },
+    {
+      "id": "launch_fluid_force",
+      "definition": "src/runtime/transfer/kernel.rs:680",
+      "abi": ["i32* metadata", "f32* input0", "f32* input1", "f32* input2", "f32* input3", "f32* input4", "f32* output", "u32 d0", "u32 d1", "u32 d2", "u32 count"],
+      "threads": { "grid": "ceil(count / 256)", "block": 256 },
+      "launcher_checks": ["all seven buffers use one session", "count is in 1..=u32::MAX-255", "all allocations are nonempty"],
+      "access_span": "Caller proves parameters, rigid, COM, velocity, optional attached, body-force, qfrc and status spans.",
+      "metadata_proof": "A validation launch checks guards, mappings and finite values before body force and DOF projection.",
+      "legal_input_domain": "Matching resident velocity inputs; optional attached data falls back to the parameter buffer only where the ABI ignores it.",
+      "physics_callers": [
+        { "file": "src/physics/fluid_force.rs", "lines": [556, 624, 653, 674] }
+      ]
+    },
+    {
+      "id": "launch_flex_hessian",
+      "definition": "src/runtime/transfer/kernel.rs:769",
+      "abi": ["i32* metadata", "f32* parameters", "f32* positions", "f32* edges", "i32* validity", "f32* output", "u32 worlds"],
+      "threads": { "grid": "ceil(worlds / 256)", "block": 256 },
+      "launcher_checks": ["all six buffers use one session", "worlds is in 1..=u32::MAX-255", "all allocations are nonempty"],
+      "access_span": "Caller proves element, edge-pair, node-offset, 21-value and output ranges.",
+      "metadata_proof": "Resident model conversion validates topology; a following validation kernel checks publication.",
+      "legal_input_domain": "Linear flex elements using the existing 21-coefficient product path.",
+      "physics_callers": [
+        { "file": "src/physics/resident.rs", "lines": [2234] }
+      ],
+      "runtime_test_lines": [1630, 1643, 1648, 1652]
+    },
+    {
+      "id": "launch_flex_edges",
+      "definition": "src/runtime/transfer/kernel.rs:841",
+      "abi": ["i32* metadata", "f32* qvel", "f32* com", "f32* flex", "f32* output", "u32 worlds"],
+      "threads": { "grid": "ceil(worlds / 256)", "block": 256 },
+      "launcher_checks": ["all five buffers use one session", "worlds is in 1..=u32::MAX-255", "all allocations are nonempty"],
+      "access_span": "Flex callers prove endpoints, CSR rows and ancestry. RNE bias proves spatial strides and parent/DOF maps.",
+      "metadata_proof": "The method name is semantic, but the ABI is reused by RNE bias. Migration must key by ABI contract.",
+      "legal_input_domain": "Either checked flex-edge data or the separately proven compatible RNE-bias five-pointer ABI.",
+      "physics_callers": [
+        { "file": "src/physics/resident.rs", "lines": [2322] },
+        { "file": "src/physics/rne_bias.rs", "lines": [234] }
+      ],
+      "source_test_lines": [
+        { "file": "src/physics/resident.rs", "lines": [5243, 5255] }
+      ]
+    },
+    {
+      "id": "launch_kinetic_energy32",
+      "definition": "src/runtime/transfer/kernel/kinetic_energy.rs:9",
+      "abi": ["i32* metadata", "f32* pair", "f32* current", "f32* staged", "u32 n", "u32 worlds", "u32 reserved", "u32 work"],
+      "threads": { "grid": "worlds blocks", "block": 32 },
+      "launcher_checks": [
+        "n is in 1..=1024",
+        "worlds is in 1..=i32::MAX",
+        "reserved equals zero",
+        "work equals worlds",
+        "metadata length equals one",
+        "pair equals worlds*2*n+8",
+        "current and staged equal worlds*2+8"
+      ],
+      "access_span": "Exact guarded pair, current and staged capacities are checked.",
+      "metadata_proof": "The caller proves static nv equals metadata and the compiled kernel; every warp lane reaches ballot.",
+      "legal_input_domain": "One warp per world, n at most 1024, finite validated pairs, disjoint staged publication.",
+      "physics_callers": [
+        { "file": "src/physics/kinetic_energy.rs", "lines": [224] },
+        { "file": "src/physics/mass_matrix/multiply/borrowed/device_energy.rs", "lines": [249] }
+      ],
+      "runtime_test_lines": [115, 130, 136, 142, 144, 153, 158, 163, 168, 181]
+    }
+  ],
+  "caller_files": [
+    "src/physics/applied_force.rs",
+    "src/physics/attached.rs",
+    "src/physics/com_velocity.rs",
+    "src/physics/flex_edge_passive.rs",
+    "src/physics/fluid_force.rs",
+    "src/physics/gravity_compensation.rs",
+    "src/physics/kinetic_energy.rs",
+    "src/physics/mass_matrix.rs",
+    "src/physics/mass_matrix/multiply.rs",
+    "src/physics/mass_matrix/multiply/borrowed.rs",
+    "src/physics/mass_matrix/multiply/borrowed/device_energy.rs",
+    "src/physics/mass_matrix/resident.rs",
+    "src/physics/mass_solve.rs",
+    "src/physics/mass_solve/resident.rs",
+    "src/physics/mass_solve/sparse.rs",
+    "src/physics/mass_solve/sparse/dense.rs",
+    "src/physics/mass_solve/sparse/dense/small.rs",
+    "src/physics/mass_solve/sparse/mixed.rs",
+    "src/physics/mass_solve/sparse/mixed/solve.rs",
+    "src/physics/mass_solve/sparse/mixed/solve/resident.rs",
+    "src/physics/mass_solve/sparse/resident.rs",
+    "src/physics/mass_solve/sparse/resident/solve.rs",
+    "src/physics/mod.rs",
+    "src/physics/passive_force.rs",
+    "src/physics/resident.rs",
+    "src/physics/rne.rs",
+    "src/physics/rne_bias.rs",
+    "src/physics/smooth_force.rs",
+    "src/physics/smooth_force/joint_passive.rs",
+    "src/physics/tendon_passive.rs",
+    "src/physics/tendon_velocity.rs"
+  ],
+  "findings": [
+    {
+      "severity": "migration_blocker",
+      "finding": "The generic launch method performs no capacity validation beyond nonempty allocations.",
+      "required_action": "M3 must encode all 85 caller spans before replacing any call."
+    },
+    {
+      "severity": "migration_blocker",
+      "finding": "launch_flex_edges serves both flex edges and RNE bias.",
+      "required_action": "Use separate typed KernelAbi descriptors despite the shared low-level signature."
+    },
+    {
+      "severity": "migration_blocker",
+      "finding": "Seven specialized methods still rely on caller-only topology and span proofs.",
+      "required_action": "Safe wrappers must move those proofs into checked views or explicit span descriptors."
+    },
+    {
+      "severity": "preserve",
+      "finding": "Mixed solve, small factor, sparse solve and kinetic energy already enforce exact capacities.",
+      "required_action": "M3 must preserve their formulas and thread geometry exactly."
+    },
+    {
+      "severity": "preserve",
+      "finding": "Every current method synchronizes before returning.",
+      "required_action": "M3 launch_sync must preserve this completion boundary before later asynchronous phases."
+    }
+  ],
+  "validation": {
+    "attempts": [
+      {
+        "result": "validator_failed",
+        "reason": "The first validator pattern did not account for generic type parameters on launch<P,S,O>."
+      },
+      {
+        "result": "passed",
+        "methods": 11,
+        "covered_physics_calls": 108,
+        "generic_calls": 85,
+        "caller_files": 31,
+        "missing_calls": 0,
+        "extra_calls": 0
+      }
+    ]
+  },
+  "acceptance_boundary": {
+    "inventory_complete": true,
+    "physics_host_modified": false,
+    "gpu_tested": false,
+    "t4_accepted": false,
+    "np01_to_np04_accepted": false
+  }
+}
