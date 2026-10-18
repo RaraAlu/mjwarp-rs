@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-smooth-force-compute",
+  "base_revision": "87a13b7ef921328ddd0554f2dee34aed9ca2de98",
+  "scope": {
+    "migrate": ["smooth_force"],
+    "preserve_typed": ["smooth_force_validate"],
+    "other_entries_changed": false
+  },
+  "abi": {
+    "pointers": [
+      "meta:i32:read:address",
+      "forces:f32:read:value",
+      "sleep:i32:read:value",
+      "output:f32:write:value"
+    ],
+    "scalars": ["nb:u32", "n:u32", "nt:u32", "work:u32"],
+    "block_threads": 256,
+    "grid": "ceil(work / 256)",
+    "worlds": "work / n with exact divisibility",
+    "metadata_elements": "nb + n + worlds * nt + 8",
+    "forces_elements": "4 * work + 8",
+    "output_elements": "work + 8",
+    "external_sleep_elements": "worlds * (2 * nt + 3) + 8"
+  },
+  "semantics": {
+    "n_zero_supported": false,
+    "ntree_zero_valid": true,
+    "meta_sleep_exact_alias_valid": true,
+    "sleep_disabled_payload_ignored": true,
+    "sleep_disabled_nonempty_same_session_required": true,
+    "nonzero_awake_is_awake": true,
+    "metadata_proof_binds_actual_span": true,
+    "metadata_proof_binds_derived_worlds": true,
+    "metadata_proof_binds_write_generation": true,
+    "validation_precedes_compute": true,
+    "prelaunch_rejection_preserves_output_bits": true,
+    "post_compute_nonfinite_may_modify_output": true,
+    "post_compute_nonfinite_clears_ready": true,
+    "failed_result_readback_rejected": true,
+    "same_plan_recovery_required": true,
+    "result_staging_added": false
+  },
+  "frozen_baseline": {
+    "root": "docs/evidence/passive-force-sleep/gpu-1/ptx",
+    "sleep_off_source_sha256": "3b80d5c3b9e11b06141a9d886ccee6853db1deddbfc852943669f21bc2de0d5c",
+    "sleep_off_ptx_sha256": "2da1129e0a90e79fe317c7a3d9515d0c69863298e64bb0de0cb47a39bc61cb6d",
+    "sleep_on_source_sha256": "097d1f66aa759c0ddd35333bd04d02e60d10828cef1e49ef0b01179231b5f6b3",
+    "sleep_on_ptx_sha256": "d0e78698a54904f24018564234157da53d5e01c55751158e0e15e082b3d41c0f",
+    "cuda_body_sha256": "1a6b10c3c953b38982420382fb7284ce8fe472289863dcce20c489ac5d63f0a4",
+    "fixture_sha256": "9be63dc0aff23410814f432db6c15600b656ddcff2fd692d46abd0195bc2fa0a",
+    "f32_order": ["sub.rn", "add.rn", "add.rn"]
+  },
+  "expected_inventory_after": {
+    "actual_cuda_entry_kinds": 88,
+    "typed_actual_entry_kinds": 24,
+    "unmigrated_actual_entry_kinds": 64,
+    "product_low_level_call_sites": 99,
+    "typed_low_level_call_sites": 20,
+    "unmigrated_low_level_call_sites": 79,
+    "wrapper_orchestration_call_sites": 22,
+    "kernel_abi_families": 20
+  },
+  "run_process": {
+    "registration_must_preexist": true,
+    "registration_create_new": true,
+    "output_root_must_not_exist": true,
+    "stdout_stderr_precreated": true,
+    "gpu_preflight_required": true,
+    "retries_need_new_registration": true,
+    "failures_preserved": true
+  },
+  "boundaries": {
+    "python": false,
+    "old_task_suites_rerun": false,
+    "linux": "not_run",
+    "release": "not_run",
+    "task_gpu_memory": "unknown",
+    "full_m3": false,
+    "u016": false,
+    "np01_to_np04": false
+  },
+  "historical_process_gap": {
+    "source_task": "2026-10-19-layers-m3-smooth-force-validate",
+    "missing_retry_registrations": 6,
+    "closed": false
+  }
+}

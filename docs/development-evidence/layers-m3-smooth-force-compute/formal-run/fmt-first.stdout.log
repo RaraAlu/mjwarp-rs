@@ -1,0 +1,132 @@
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\smooth_force.rs:445:
+ }
+ 
+ #[cfg(feature = "cuda-probe")]
+-fn smooth_force_compute_lengths(
+-    dims: &SmoothForceComputeDims,
+-) -> Result<[u64; 4], LauncherError> {
++fn smooth_force_compute_lengths(dims: &SmoothForceComputeDims) -> Result<[u64; 4], LauncherError> {
+     let [nb, n, nt, work] = dims.abi;
+     let worlds = smooth_force_compute_worlds(dims)?;
+     let nb = u64::from(nb);
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\smooth_force.rs:470:
+         .checked_mul(
+             nt.checked_mul(2)
+                 .and_then(|value| value.checked_add(3))
+-                .ok_or(LauncherError::Overflow(
+-                    "smooth_force_compute_sleep_stride",
+-                ))?,
++                .ok_or(LauncherError::Overflow("smooth_force_compute_sleep_stride"))?,
+         )
+         .and_then(|value| value.checked_add(8))
+         .ok_or(LauncherError::Overflow("smooth_force_compute_sleep"))?;
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\smooth_force.rs:723:
+         &self,
+         dims: SmoothForceComputeDims,
+     ) -> Result<Checked<SmoothForceComputeMetadata>, TransferError> {
+-        let worlds = smooth_force_compute_worlds(&dims).map_err(smooth_force_compute_launch_error)?;
++        let worlds =
++            smooth_force_compute_worlds(&dims).map_err(smooth_force_compute_launch_error)?;
+         let [nb, n, nt, _] = dims.abi;
+         let validation_dims = SmoothForceValidateDims {
+             abi: [nb, n, nt, worlds],
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\smooth_force.rs:1701:
+         assert!(u64::from(max_grid_work).checked_add(8).is_some());
+         // 合法meta约束worlds*nt不超过i32上界。
+         // 因此外部sleep的静态上界也远低于u64上界。
+-        let sleep_static_upper =
+-            2u64 * i32::MAX as u64 + 3u64 * u64::from(max_grid_work) + 8;
++        let sleep_static_upper = 2u64 * i32::MAX as u64 + 3u64 * u64::from(max_grid_work) + 8;
+         assert!(sleep_static_upper < u64::MAX);
+ 
+         let spans = [
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\smooth_force.rs:1734:
+             },
+         ];
+         let values = vec![
+-            -131072, -131072, -131072, -131072, -1, 1, 0, 1, 1, 0, -11, 2, i32::MAX,
+-            -131072, -131072, -131072, -131072,
++            -131072,
++            -131072,
++            -131072,
++            -131072,
++            -1,
++            1,
++            0,
++            1,
++            1,
++            0,
++            -11,
++            2,
++            i32::MAX,
++            -131072,
++            -131072,
++            -131072,
++            -131072,
+         ];
+         let revision = MetadataRevision::new();
+         // SAFETY: 合成跨度与宿主快照长度一致；本测试不访问设备。
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\smooth_force.rs:1818:
+         let mut ignored_sleep = bindings;
+         ignored_sleep[2].span = DeviceSpan::new(7, 0x3000, 4).unwrap();
+         assert!(
+-            smooth_force_compute_plan(
+-                &disabled,
+-                &ignored_sleep,
+-                &[disabled_checked.binding(0)]
+-            )
+-            .is_ok()
++            smooth_force_compute_plan(&disabled, &ignored_sleep, &[disabled_checked.binding(0)])
++                .is_ok()
+         );
+         assert!(matches!(
+             DeviceSpan::new(7, 0x3000, 0),
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\smooth_force.rs:2139:
+         );
+         assert_eq!(bits(&raw_f32(&data.output)), before_prelaunch);
+ 
+-        data.write_world_force(
+-            SmoothForceField::Passive,
+-            0,
+-            &[f32::MAX, 5.0, 5.0],
+-        )
+-        .unwrap();
+-        data.write_world_force(
+-            SmoothForceField::Bias,
+-            0,
+-            &[-f32::MAX, 2.0, 2.0],
+-        )
+-        .unwrap();
++        data.write_world_force(SmoothForceField::Passive, 0, &[f32::MAX, 5.0, 5.0])
++            .unwrap();
++        data.write_world_force(SmoothForceField::Bias, 0, &[-f32::MAX, 2.0, 2.0])
++            .unwrap();
+         let before_compute_failure = bits(&raw_f32(&data.output));
+         let error = plan
+             .update_with_sleep_source(&mut data, Some(&ignored))
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\smooth_force.rs:2293:
+             sleep_enabled: true,
+         };
+         let metadata = vec![
+-            -131072, -131072, -131072, -131072, -1, -1, 0, 1, -131072, -131072, -131072,
+-            -131072,
++            -131072, -131072, -131072, -131072, -1, -1, 0, 1, -131072, -131072, -131072, -131072,
+         ];
+-        let metadata = SmoothForceMetadataBuffer::upload(&session, metadata, validate_dims).unwrap();
++        let metadata =
++            SmoothForceMetadataBuffer::upload(&session, metadata, validate_dims).unwrap();
+         let mut forces = vec![-131072.0; 4 * 4 + 8];
+         for (field, value) in [5.0, 2.0, 3.0, 4.0].into_iter().enumerate() {
+             forces[4 + field * 4..4 + (field + 1) * 4].fill(value);
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\smooth_force.rs:2314:
+                 [2, 2, 0, 4],
+             )
+             .unwrap();
+-        assert_eq!(bits(&raw_f32(&output)[4..8]), [10.0f32; 4].map(f32::to_bits));
++        assert_eq!(
++            bits(&raw_f32(&output)[4..8]),
++            [10.0f32; 4].map(f32::to_bits)
++        );
+ 
+         let report = serde_json::json!({
+             "variant": "sleep-on",

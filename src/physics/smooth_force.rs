@@ -109,6 +109,9 @@ fn layout(worlds: usize, nbody: usize, nv: usize, ntree: usize) -> Result<Layout
 const SMOOTH_FORCE_VALIDATE_METADATA_KIND: ProofKind = ProofKind("smooth_force_validate_metadata");
 
 #[cfg(feature = "cuda-probe")]
+const SMOOTH_FORCE_COMPUTE_METADATA_KIND: ProofKind = ProofKind("smooth_force_compute_metadata");
+
+#[cfg(feature = "cuda-probe")]
 const SMOOTH_FORCE_VALIDATE_SLOTS: [SlotDesc; 8] = [
     SlotDesc {
         index: 0,
@@ -171,8 +174,77 @@ const SMOOTH_FORCE_VALIDATE_SLOTS: [SlotDesc; 8] = [
 ];
 
 #[cfg(feature = "cuda-probe")]
+const SMOOTH_FORCE_COMPUTE_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: SMOOTH_FORCE_COMPUTE_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Write,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(feature = "cuda-probe")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct SmoothForceValidateDims {
+    abi: [u32; 4],
+    sleep_enabled: bool,
+}
+
+#[cfg(feature = "cuda-probe")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct SmoothForceComputeDims {
     abi: [u32; 4],
     sleep_enabled: bool,
 }
@@ -317,6 +389,151 @@ fn smooth_force_validate_plan(
 }
 
 #[cfg(feature = "cuda-probe")]
+struct SmoothForceComputeSpec;
+
+#[cfg(feature = "cuda-probe")]
+// SAFETY: 声明逐槽匹配冻结平滑力计算ABI。
+unsafe impl KernelAbi for SmoothForceComputeSpec {
+    const NAME: &'static str = "smooth_force";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &SMOOTH_FORCE_COMPUTE_SLOTS;
+}
+
+#[cfg(feature = "cuda-probe")]
+impl KernelSpec for SmoothForceComputeSpec {
+    type Dims = SmoothForceComputeDims;
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        let [metadata, forces, _, output] = smooth_force_compute_lengths(dims)?;
+        Ok(vec![
+            SlotRequirement {
+                slot: 0,
+                min_elements: metadata,
+            },
+            SlotRequirement {
+                slot: 1,
+                min_elements: forces,
+            },
+            // 关闭休眠时内核不读载荷，但底层ABI仍要求非空分配。
+            SlotRequirement {
+                slot: 2,
+                min_elements: 1,
+            },
+            SlotRequirement {
+                slot: 3,
+                min_elements: output,
+            },
+        ])
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        smooth_force_compute_lengths(dims)?;
+        LaunchDims::new((dims.abi[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn smooth_force_compute_worlds(dims: &SmoothForceComputeDims) -> Result<u32, LauncherError> {
+    let [nb, n, _, work] = dims.abi;
+    if nb == 0 || n == 0 || work == 0 || work > u32::MAX - 255 {
+        return Err(LauncherError::InvalidArray("平滑力计算维度无效"));
+    }
+    if !work.is_multiple_of(n) {
+        return Err(LauncherError::InvalidArray("平滑力计算工作量不匹配"));
+    }
+    Ok(work / n)
+}
+
+#[cfg(feature = "cuda-probe")]
+fn smooth_force_compute_lengths(dims: &SmoothForceComputeDims) -> Result<[u64; 4], LauncherError> {
+    let [nb, n, nt, work] = dims.abi;
+    let worlds = smooth_force_compute_worlds(dims)?;
+    let nb = u64::from(nb);
+    let n = u64::from(n);
+    let nt = u64::from(nt);
+    let work = u64::from(work);
+    let worlds = u64::from(worlds);
+    let metadata = worlds
+        .checked_mul(nt)
+        .and_then(|value| value.checked_add(nb))
+        .and_then(|value| value.checked_add(n))
+        .and_then(|value| value.checked_add(8))
+        .filter(|&value| value <= i32::MAX as u64)
+        .ok_or(LauncherError::Overflow("smooth_force_compute_metadata"))?;
+    let forces = work
+        .checked_mul(4)
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("smooth_force_compute_forces"))?;
+    let sleep = worlds
+        .checked_mul(
+            nt.checked_mul(2)
+                .and_then(|value| value.checked_add(3))
+                .ok_or(LauncherError::Overflow("smooth_force_compute_sleep_stride"))?,
+        )
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("smooth_force_compute_sleep"))?;
+    let output = work
+        .checked_add(8)
+        .ok_or(LauncherError::Overflow("smooth_force_compute_output"))?;
+    Ok([metadata, forces, sleep, output])
+}
+
+#[cfg(feature = "cuda-probe")]
+fn smooth_force_compute_plan(
+    dims: &SmoothForceComputeDims,
+    bindings: &[SlotBinding],
+    proofs: &[CheckedBinding<'_, SmoothForceComputeDims>],
+) -> Result<(), LauncherError> {
+    Kernel::<SmoothForceComputeSpec>::new()?.plan(dims, bindings, proofs)?;
+    let lengths = smooth_force_compute_lengths(dims)?;
+    let binding = |slot| {
+        bindings
+            .iter()
+            .find(|binding| binding.slot == slot)
+            .ok_or(LauncherError::MissingBinding { slot })
+    };
+    for slot in [0usize, 1, 3] {
+        let actual = binding(slot)?.span.bytes();
+        let required = lengths[slot]
+            .checked_mul(binding(slot)?.elem.bytes())
+            .ok_or(LauncherError::Overflow("smooth_force_compute_exact_bytes"))?;
+        if actual != required {
+            return Err(LauncherError::Capacity {
+                slot,
+                required,
+                actual,
+            });
+        }
+    }
+    let metadata = binding(0)?;
+    let forces = binding(1)?;
+    let sleep = binding(2)?;
+    let exact_metadata_alias = metadata.span == sleep.span;
+    if dims.sleep_enabled && !exact_metadata_alias {
+        let required = lengths[2]
+            .checked_mul(sleep.elem.bytes())
+            .ok_or(LauncherError::Overflow("smooth_force_compute_sleep_bytes"))?;
+        if sleep.span.bytes() != required {
+            return Err(LauncherError::Capacity {
+                slot: 2,
+                required,
+                actual: sleep.span.bytes(),
+            });
+        }
+    }
+    for (first, a, second, b) in [
+        (0, metadata, 1, forces),
+        (0, metadata, 2, sleep),
+        (1, forces, 2, sleep),
+    ] {
+        if a.span.overlaps(&b.span) && !(first == 0 && second == 2 && exact_metadata_alias) {
+            return Err(LauncherError::Alias { first, second });
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "cuda-probe")]
 fn validate_smooth_force_metadata(
     values: &[i32],
     dims: &SmoothForceValidateDims,
@@ -361,6 +578,29 @@ impl MetadataProof for SmoothForceValidateMetadata {
 }
 
 #[cfg(feature = "cuda-probe")]
+struct SmoothForceComputeMetadata;
+
+#[cfg(feature = "cuda-probe")]
+impl MetadataProof for SmoothForceComputeMetadata {
+    type Dims = SmoothForceComputeDims;
+
+    const KIND: ProofKind = SMOOTH_FORCE_COMPUTE_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        smooth_force_compute_lengths(dims)?;
+        let worlds = smooth_force_compute_worlds(dims)?;
+        let [nb, n, nt, _] = dims.abi;
+        validate_smooth_force_metadata(
+            values,
+            &SmoothForceValidateDims {
+                abi: [nb, n, nt, worlds],
+                sleep_enabled: dims.sleep_enabled,
+            },
+        )
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
 fn smooth_force_validate_launch_error(error: LauncherError) -> TransferError {
     match error {
         LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
@@ -381,6 +621,32 @@ fn smooth_force_validate_launch_error(error: LauncherError) -> TransferError {
         }
         _ => InputError::InvalidDimension {
             field: "smooth_force_validate_abi",
+        }
+        .into(),
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn smooth_force_compute_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::StaleMetadata => InputError::InvalidTopology {
+            field: "smooth_force_metadata",
+            index: 0,
+            reason: "stale_proof",
+        }
+        .into(),
+        LauncherError::InvalidMetadata(_) | LauncherError::MetadataMismatch(_) => {
+            InputError::InvalidTopology {
+                field: "smooth_force_metadata",
+                index: 0,
+                reason: "invalid_metadata",
+            }
+            .into()
+        }
+        _ => InputError::InvalidDimension {
+            field: "smooth_force_compute_abi",
         }
         .into(),
     }
@@ -447,6 +713,40 @@ impl SmoothForceMetadataBuffer {
             .validate_for(self.buffer.launcher_span()?, &dims)
             .map_err(smooth_force_validate_launch_error)?;
         Ok(&self.checked)
+    }
+
+    fn compute_proof(
+        &self,
+        dims: SmoothForceComputeDims,
+    ) -> Result<Checked<SmoothForceComputeMetadata>, TransferError> {
+        let worlds =
+            smooth_force_compute_worlds(&dims).map_err(smooth_force_compute_launch_error)?;
+        let [nb, n, nt, _] = dims.abi;
+        let validation_dims = SmoothForceValidateDims {
+            abi: [nb, n, nt, worlds],
+            sleep_enabled: dims.sleep_enabled,
+        };
+        if self.dims != validation_dims {
+            return Err(InputError::InvalidDimension {
+                field: "smooth_force_compute_metadata_dims",
+            }
+            .into());
+        }
+        let span = self.buffer.launcher_span()?;
+        self.checked
+            .binding(0)
+            .validate_for(span, &validation_dims)
+            .map_err(smooth_force_compute_launch_error)?;
+        // SAFETY: 私有包装保留实际缓冲、派生维度、宿主镜像和写入代际。
+        unsafe {
+            Checked::<SmoothForceComputeMetadata>::assume_uploaded(
+                span,
+                &self.values,
+                dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(smooth_force_compute_launch_error)
     }
 
     fn write_range(&mut self, start: usize, values: &[i32]) -> Result<(), TransferError> {
@@ -574,6 +874,70 @@ impl SmoothForceValidateKernel {
     }
 }
 
+#[cfg(feature = "cuda-probe")]
+struct SmoothForceComputeKernel {
+    kernel: SynchronousKernel,
+    sleep_enabled: bool,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl SmoothForceComputeKernel {
+    fn compile(
+        session: &TransferSession,
+        source: &str,
+        sleep_enabled: bool,
+    ) -> Result<Self, TransferError> {
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, source, "smooth_force")?,
+            sleep_enabled,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &SmoothForceMetadataBuffer,
+        forces: &TransferBuffer<f32>,
+        sleep: &TransferBuffer<i32>,
+        output: &mut TransferBuffer<f32>,
+        abi: [u32; 4],
+    ) -> Result<(), TransferError> {
+        let dims = SmoothForceComputeDims {
+            abi,
+            sleep_enabled: self.sleep_enabled,
+        };
+        let proof = metadata.compute_proof(dims)?;
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: forces.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: sleep.launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: output.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        smooth_force_compute_plan(&dims, &bindings, &[proof.binding(0)])
+            .map_err(smooth_force_compute_launch_error)?;
+        // SAFETY: 类型计划已核对证明、跨度、会话、别名和网格。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), forces, sleep, output, abi)
+        }
+    }
+}
+
 pub struct SmoothForcePlan {
     input: Arc<SmoothForceInput>,
     options: SmoothForceOptions,
@@ -582,7 +946,7 @@ pub struct SmoothForcePlan {
     #[cfg(feature = "cuda-probe")]
     validate: SmoothForceValidateKernel,
     #[cfg(feature = "cuda-probe")]
-    compute: SynchronousKernel,
+    compute: SmoothForceComputeKernel,
 }
 pub struct SmoothForceData {
     input: Arc<SmoothForceInput>,
@@ -639,7 +1003,11 @@ impl SmoothForcePlan {
                     &source,
                     options.enable_sleep(),
                 )?,
-                compute: SynchronousKernel::compile(session, &source, "smooth_force")?,
+                compute: SmoothForceComputeKernel::compile(
+                    session,
+                    &source,
+                    options.enable_sleep(),
+                )?,
             })
         }
     }
@@ -775,18 +1143,13 @@ impl SmoothForcePlan {
             }
             .into());
         }
-        // SAFETY: Validation proves all mappings and active force payloads.
-        // Field-major input owns4*worlds*n f32s; one thread owns each result.
-        // Sleeping threads write positive zero without reading any forces.
-        unsafe {
-            self.compute.launch(
-                data.metadata.as_buffer(),
-                &data.forces,
-                sleep,
-                &mut data.output,
-                [nb, n, nt, data.layout.vector.total_elements() as u32],
-            )?;
-        }
+        self.compute.launch(
+            &data.metadata,
+            &data.forces,
+            sleep,
+            &mut data.output,
+            [nb, n, nt, data.layout.vector.total_elements() as u32],
+        )?;
         data.checked_values()?;
         data.ready = true;
         Ok(())
@@ -1274,6 +1637,220 @@ mod tests {
             Err(LauncherError::InvalidMetadata(_))
         ));
     }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    fn compute_wrapper_rejects_capacity_context_alias_span_dimension_and_proof_faults() {
+        let dims = SmoothForceComputeDims {
+            abi: [2, 3, 2, 6],
+            sleep_enabled: true,
+        };
+        let lengths = smooth_force_compute_lengths(&dims).unwrap();
+        assert_eq!(lengths, [17, 32, 22, 14]);
+        for abi in [[0, 3, 2, 6], [2, 0, 2, 6], [2, 3, 2, 0]] {
+            assert!(matches!(
+                smooth_force_compute_lengths(&SmoothForceComputeDims {
+                    abi,
+                    sleep_enabled: true,
+                }),
+                Err(LauncherError::InvalidArray("平滑力计算维度无效"))
+            ));
+        }
+        assert!(matches!(
+            smooth_force_compute_lengths(&SmoothForceComputeDims {
+                abi: [2, 3, 2, 5],
+                sleep_enabled: true,
+            }),
+            Err(LauncherError::InvalidArray("平滑力计算工作量不匹配"))
+        ));
+        let max_grid_work = u32::MAX - 255;
+        assert!(
+            smooth_force_compute_lengths(&SmoothForceComputeDims {
+                abi: [1, 1, 0, max_grid_work],
+                sleep_enabled: false,
+            })
+            .is_ok()
+        );
+        assert!(matches!(
+            smooth_force_compute_lengths(&SmoothForceComputeDims {
+                abi: [1, 1, 0, max_grid_work + 1],
+                sleep_enabled: false,
+            }),
+            Err(LauncherError::InvalidArray("平滑力计算维度无效"))
+        ));
+        let metadata_limit = SmoothForceComputeDims {
+            abi: [1, 1, i32::MAX as u32 - 10, 1],
+            sleep_enabled: true,
+        };
+        assert_eq!(
+            smooth_force_compute_lengths(&metadata_limit).unwrap()[0],
+            i32::MAX as u64
+        );
+        let metadata_over = SmoothForceComputeDims {
+            abi: [1, 1, i32::MAX as u32 - 9, 1],
+            sleep_enabled: true,
+        };
+        assert!(matches!(
+            smooth_force_compute_lengths(&metadata_over),
+            Err(LauncherError::Overflow("smooth_force_compute_metadata"))
+        ));
+        // work受u32网格上界约束，力与输出不会触及u64上界。
+        assert!(u64::from(max_grid_work).checked_mul(4).is_some());
+        assert!(u64::from(max_grid_work).checked_add(8).is_some());
+        // 合法meta约束worlds*nt不超过i32上界。
+        // 因此外部sleep的静态上界也远低于u64上界。
+        let sleep_static_upper = 2u64 * i32::MAX as u64 + 3u64 * u64::from(max_grid_work) + 8;
+        assert!(sleep_static_upper < u64::MAX);
+
+        let spans = [
+            DeviceSpan::new(7, 0x1000, lengths[0] * 4).unwrap(),
+            DeviceSpan::new(7, 0x2000, lengths[1] * 4).unwrap(),
+            DeviceSpan::new(7, 0x3000, lengths[2] * 4).unwrap(),
+            DeviceSpan::new(7, 0x4000, lengths[3] * 4).unwrap(),
+        ];
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: spans[0],
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: spans[1],
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: spans[2],
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: spans[3],
+                elem: ElemType::F32,
+            },
+        ];
+        let values = vec![
+            -131072,
+            -131072,
+            -131072,
+            -131072,
+            -1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            -11,
+            2,
+            i32::MAX,
+            -131072,
+            -131072,
+            -131072,
+            -131072,
+        ];
+        let revision = MetadataRevision::new();
+        // SAFETY: 合成跨度与宿主快照长度一致；本测试不访问设备。
+        let checked = unsafe {
+            Checked::<SmoothForceComputeMetadata>::assume_uploaded(
+                spans[0],
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        assert!(smooth_force_compute_plan(&dims, &bindings, &[checked.binding(0)]).is_ok());
+
+        let mut wrong_metadata_span = bindings;
+        wrong_metadata_span[0].span =
+            DeviceSpan::new(7, spans[0].addr(), lengths[0] * 4 + 4).unwrap();
+        assert!(matches!(
+            smooth_force_compute_plan(&dims, &wrong_metadata_span, &[checked.binding(0)]),
+            Err(LauncherError::MetadataMismatch(_))
+        ));
+        for (slot, bytes) in [
+            (1, lengths[1] * 4 - 4),
+            (3, lengths[3] * 4 - 4),
+            (3, lengths[3] * 4 + 4),
+        ] {
+            let mut bad = bindings;
+            bad[slot].span = DeviceSpan::new(7, bad[slot].span.addr(), bytes).unwrap();
+            assert!(matches!(
+                smooth_force_compute_plan(&dims, &bad, &[checked.binding(0)]),
+                Err(LauncherError::Capacity { slot: actual, .. }) if actual == slot
+            ));
+        }
+        for bytes in [lengths[2] * 4 - 4, lengths[2] * 4 + 4] {
+            let mut bad = bindings;
+            bad[2].span = DeviceSpan::new(7, 0x3000, bytes).unwrap();
+            assert!(matches!(
+                smooth_force_compute_plan(&dims, &bad, &[checked.binding(0)]),
+                Err(LauncherError::Capacity { slot: 2, .. })
+            ));
+        }
+        let mut wrong_context = bindings;
+        wrong_context[2].span = DeviceSpan::new(8, 0x3000, lengths[2] * 4).unwrap();
+        assert!(matches!(
+            smooth_force_compute_plan(&dims, &wrong_context, &[checked.binding(0)]),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+        for (slot, address) in [(2, spans[0].addr() + 4), (2, spans[1].addr())] {
+            let mut bad = bindings;
+            bad[slot].span = DeviceSpan::new(7, address, lengths[2] * 4).unwrap();
+            assert!(matches!(
+                smooth_force_compute_plan(&dims, &bad, &[checked.binding(0)]),
+                Err(LauncherError::Alias { .. })
+            ));
+        }
+        let mut output_alias = bindings;
+        output_alias[3].span = spans[1];
+        assert!(matches!(
+            smooth_force_compute_plan(&dims, &output_alias, &[checked.binding(0)]),
+            Err(LauncherError::Alias { .. })
+        ));
+        let mut exact_alias = bindings;
+        exact_alias[2].span = spans[0];
+        assert!(smooth_force_compute_plan(&dims, &exact_alias, &[checked.binding(0)]).is_ok());
+
+        let disabled = SmoothForceComputeDims {
+            sleep_enabled: false,
+            ..dims
+        };
+        // SAFETY: 合成跨度与同一有效宿主快照绑定。
+        let disabled_checked = unsafe {
+            Checked::<SmoothForceComputeMetadata>::assume_uploaded(
+                spans[0],
+                &values,
+                disabled,
+                MetadataRevision::new(),
+            )
+        }
+        .unwrap();
+        let mut ignored_sleep = bindings;
+        ignored_sleep[2].span = DeviceSpan::new(7, 0x3000, 4).unwrap();
+        assert!(
+            smooth_force_compute_plan(&disabled, &ignored_sleep, &[disabled_checked.binding(0)])
+                .is_ok()
+        );
+        assert!(matches!(
+            DeviceSpan::new(7, 0x3000, 0),
+            Err(LauncherError::InvalidSpan("区间长度为零"))
+        ));
+
+        let smaller_worlds = SmoothForceComputeDims {
+            abi: [2, 3, 2, 3],
+            ..dims
+        };
+        assert!(matches!(
+            smooth_force_compute_plan(&smaller_worlds, &bindings, &[checked.binding(0)]),
+            Err(LauncherError::MetadataMismatch(_))
+        ));
+        revision.invalidate();
+        assert!(matches!(
+            smooth_force_compute_plan(&dims, &bindings, &[checked.binding(0)]),
+            Err(LauncherError::StaleMetadata)
+        ));
+    }
     #[cfg(feature = "cuda-probe")]
     const FIELDS: [SmoothForceField; 4] = [
         SmoothForceField::Passive,
@@ -1520,6 +2097,241 @@ mod tests {
             "task_gpu_memory": "unknown"
         });
         if let Some(path) = std::env::var_os("MJWARP_SMOOTH_VALIDATE_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+        }
+        println!("{report}");
+    }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "M3仅验证计算包装：发射前拒绝、计算后非有限和同计划恢复"]
+    fn gpu_m3_compute_wrapper_sleep_disabled_preserves_failure_boundaries() {
+        let session = TransferSession::new(0).unwrap();
+        let input = SmoothForceInput::new(2, vec![-1, 0, 1], vec![1, 2, 0]).unwrap();
+        let plan = SmoothForcePlan::new(&session, input, SmoothForceOptions::default()).unwrap();
+        let mut data = plan.create_data(2).unwrap();
+        for (field, value) in FIELDS.iter().zip([5.0, 2.0, 3.0, 4.0]) {
+            data.write_force(*field, &[value; 6]).unwrap();
+        }
+        let ignored = session.upload(&[i32::MIN]).unwrap();
+        plan.update_with_sleep_source(&mut data, Some(&ignored))
+            .unwrap();
+        let good_output = data.readback().unwrap();
+        for world in 0..2 {
+            assert!(
+                good_output
+                    .world(world)
+                    .unwrap()
+                    .iter()
+                    .all(|value| value.to_bits() == 10.0f32.to_bits())
+            );
+        }
+        let good = bits(&good_output.values);
+
+        let before_prelaunch = bits(&raw_f32(&data.output));
+        let error = plan
+            .compute
+            .launch(
+                &data.metadata,
+                &data.forces,
+                &ignored,
+                &mut data.output,
+                [2, 3, 2, 5],
+            )
+            .unwrap_err();
+        assert_eq!(
+            error,
+            TransferError::Input(InputError::InvalidDimension {
+                field: "smooth_force_compute_abi",
+            })
+        );
+        assert_eq!(bits(&raw_f32(&data.output)), before_prelaunch);
+
+        data.write_world_force(SmoothForceField::Passive, 0, &[f32::MAX, 5.0, 5.0])
+            .unwrap();
+        data.write_world_force(SmoothForceField::Bias, 0, &[-f32::MAX, 2.0, 2.0])
+            .unwrap();
+        let before_compute_failure = bits(&raw_f32(&data.output));
+        let error = plan
+            .update_with_sleep_source(&mut data, Some(&ignored))
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            TransferError::Input(InputError::NonFinite {
+                field: "qfrc_smooth",
+                ..
+            })
+        ));
+        let after_compute_failure = bits(&raw_f32(&data.output));
+        assert_ne!(after_compute_failure, before_compute_failure);
+        assert_eq!(after_compute_failure[4], f32::INFINITY.to_bits());
+        assert!(!data.ready);
+        assert!(data.readback().is_err());
+
+        data.write_world_force(SmoothForceField::Passive, 0, &[5.0; 3])
+            .unwrap();
+        data.write_world_force(SmoothForceField::Bias, 0, &[2.0; 3])
+            .unwrap();
+        plan.update_with_sleep_source(&mut data, Some(&ignored))
+            .unwrap();
+        assert_eq!(bits(&data.readback().unwrap().values), good);
+
+        let report = serde_json::json!({
+            "variant": "sleep-off",
+            "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+            "plans_compiled": 1,
+            "compiled_entries": ["smooth_force_validate", "smooth_force"],
+            "ignored_sleep_elements": ignored.len(),
+            "prelaunch_rejection_output_unchanged": true,
+            "post_compute_nonfinite_wrote_output": true,
+            "failed_result_unreadable": true,
+            "same_plan_recovery": true,
+            "task_gpu_memory": "unknown"
+        });
+        if let Some(path) = std::env::var_os("MJWARP_SMOOTH_COMPUTE_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+        }
+        println!("{report}");
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "M3仅验证计算包装：内部awake、外部sleep、非零awake和ntree零"]
+    fn gpu_m3_compute_wrapper_sleep_enabled_covers_sources_and_ntree_zero() {
+        let session = TransferSession::new(0).unwrap();
+        let input = SmoothForceInput::new(2, vec![-1, 0, 1], vec![1, 2, 0]).unwrap();
+        let plan = SmoothForcePlan::new(
+            &session,
+            input,
+            SmoothForceOptions {
+                sleep_enabled: true,
+                island_disabled: false,
+            },
+        )
+        .unwrap();
+        let mut data = plan.create_data(2).unwrap();
+        for (field, value) in FIELDS.iter().zip([5.0, 2.0, 3.0, 4.0]) {
+            data.write_force(*field, &[value; 6]).unwrap();
+        }
+        let compute_dims = SmoothForceComputeDims {
+            abi: [3, 3, 2, 6],
+            sleep_enabled: true,
+        };
+        let stale = data.metadata.compute_proof(compute_dims).unwrap();
+        data.write_awake(&[-11, 0, 2, i32::MAX]).unwrap();
+        let metadata_span = data.metadata.as_buffer().launcher_span().unwrap();
+        assert!(matches!(
+            stale.binding(0).validate_for(metadata_span, &compute_dims),
+            Err(LauncherError::StaleMetadata)
+        ));
+        assert!(data.metadata.compute_proof(compute_dims).is_ok());
+        plan.update(&mut data).unwrap();
+        let internal = data.readback().unwrap();
+        assert_eq!(
+            bits(internal.world(0).unwrap()),
+            [10.0f32, 0.0, 10.0].map(f32::to_bits)
+        );
+        assert_eq!(
+            bits(internal.world(1).unwrap()),
+            [10.0f32; 3].map(f32::to_bits)
+        );
+
+        let stride = 2 * 2 + 3;
+        let mut external = vec![-131072; 2 * stride + 8];
+        for world in 0..2 {
+            let awake = 4 + world * stride + 2;
+            external[awake..awake + 2].copy_from_slice(if world == 0 {
+                &[0, -11]
+            } else {
+                &[2, i32::MAX]
+            });
+        }
+        let external = session.upload(&external).unwrap();
+        plan.update_with_sleep_source(&mut data, Some(&external))
+            .unwrap();
+        let external_output = data.readback().unwrap();
+        assert_eq!(
+            bits(external_output.world(0).unwrap()),
+            [0.0f32, 10.0, 10.0].map(f32::to_bits)
+        );
+        assert_eq!(
+            bits(external_output.world(1).unwrap()),
+            [10.0f32; 3].map(f32::to_bits)
+        );
+
+        let before_validation_fault = bits(&raw_f32(&data.output));
+        data.metadata
+            .corrupt_device_for_validator_test(0, 0)
+            .unwrap();
+        let error = plan.update(&mut data).unwrap_err();
+        assert_eq!(
+            error,
+            TransferError::Input(InputError::InvalidTopology {
+                field: "smooth_force_source",
+                index: 0,
+                reason: "nonfinite_guard_or_mapping",
+            })
+        );
+        assert_eq!(raw_f32(&data.status)[4..6], [0.0, 0.0]);
+        assert_eq!(bits(&raw_f32(&data.output)), before_validation_fault);
+        assert!(!data.ready);
+        assert!(data.readback().is_err());
+        data.metadata.restore_for_test().unwrap();
+        plan.update(&mut data).unwrap();
+        let recovered = data.readback().unwrap();
+        assert_eq!(
+            bits(recovered.world(0).unwrap()),
+            [10.0f32, 0.0, 10.0].map(f32::to_bits)
+        );
+        assert_eq!(
+            bits(recovered.world(1).unwrap()),
+            [10.0f32; 3].map(f32::to_bits)
+        );
+
+        let validate_dims = SmoothForceValidateDims {
+            abi: [2, 2, 0, 2],
+            sleep_enabled: true,
+        };
+        let metadata = vec![
+            -131072, -131072, -131072, -131072, -1, -1, 0, 1, -131072, -131072, -131072, -131072,
+        ];
+        let metadata =
+            SmoothForceMetadataBuffer::upload(&session, metadata, validate_dims).unwrap();
+        let mut forces = vec![-131072.0; 4 * 4 + 8];
+        for (field, value) in [5.0, 2.0, 3.0, 4.0].into_iter().enumerate() {
+            forces[4 + field * 4..4 + (field + 1) * 4].fill(value);
+        }
+        let forces = session.upload(&forces).unwrap();
+        let mut output = vec![-131072.0; 4 + 8];
+        output[4..8].fill(f32::NAN);
+        let mut output = session.upload(&output).unwrap();
+        plan.compute
+            .launch(
+                &metadata,
+                &forces,
+                metadata.as_buffer(),
+                &mut output,
+                [2, 2, 0, 4],
+            )
+            .unwrap();
+        assert_eq!(
+            bits(&raw_f32(&output)[4..8]),
+            [10.0f32; 4].map(f32::to_bits)
+        );
+
+        let report = serde_json::json!({
+            "variant": "sleep-on",
+            "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+            "plans_compiled": 1,
+            "compiled_entries": ["smooth_force_validate", "smooth_force"],
+            "internal_awake": true,
+            "external_sleep": true,
+            "nonzero_awake": [-11, 2, i32::MAX],
+            "ntree_zero_reused_compute_kernel": true,
+            "validation_precedes_compute": true,
+            "same_plan_recovery": true,
+            "task_gpu_memory": "unknown"
+        });
+        if let Some(path) = std::env::var_os("MJWARP_SMOOTH_COMPUTE_REPORT") {
             std::fs::write(path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
         }
         println!("{report}");

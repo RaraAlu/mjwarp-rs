@@ -1,0 +1,294 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-smooth-force-compute",
+  "base_revision": "87a13b7ef921328ddd0554f2dee34aed9ca2de98",
+  "environment": {
+    "platform": "Windows",
+    "shell": "PowerShell",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "resource": "gpu:windows-t4",
+    "cuda_root": "target/toolchains/cuda-12.8.1",
+    "python": false
+  },
+  "registration_rules": {
+    "registration_script": "register-run.ps1",
+    "runner_script": "invoke-registered-check.ps1",
+    "registration_must_preexist": true,
+    "registration_is_create_new": true,
+    "output_root_must_not_exist": true,
+    "stdout_stderr_precreated": true,
+    "result_records_times_exit_and_duration": true,
+    "failed_runs_preserved": true,
+    "retries_require_new_plan_entry": true
+  },
+  "capture_rules": {
+    "precondition": "capture directory must not exist",
+    "expected_entries_per_directory": [
+      "smooth_force_validate",
+      "smooth_force"
+    ],
+    "expected_entry_compilations_per_directory": 2,
+    "duplicate_same_entry_allowed": false,
+    "sleep_off_plans": 1,
+    "sleep_on_plans": 1,
+    "sleep_on_ntree_zero": "reuse existing compute kernel"
+  },
+  "registered_validations": [
+    {
+      "id": "host-wrapper",
+      "purpose": "核对计算ABI、跨度、维度、别名、会话和元数据证明",
+      "executable": "cargo",
+      "arguments": ["test", "--locked", "--features", "cuda-probe", "--lib", "physics::smooth_force::tests::compute_wrapper_rejects_capacity_context_alias_span_dimension_and_proof_faults", "--", "--exact", "--test-threads=1"],
+      "environment": {"CARGO_TARGET_DIR": "target/codex-m3-smooth-force-compute"},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-01-host",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "device-preflight",
+      "purpose": "核对本机T4与CUDA 12.8.1 NVRTC",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-smooth-force-compute/device-preflight.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-02-device",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "gpu-sleep-off",
+      "purpose": "核对关闭休眠、发射前拒绝、计算后失败和同计划恢复",
+      "executable": "cargo",
+      "arguments": ["test", "--locked", "--features", "cuda-probe", "--lib", "physics::smooth_force::tests::gpu_m3_compute_wrapper_sleep_disabled_preserves_failure_boundaries", "--", "--ignored", "--exact", "--test-threads=1", "--nocapture"],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/codex-m3-smooth-force-compute",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1",
+        "MJWARP_PHYSICS_PTX_DIR": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/run-01-sleep-off/gpu-capture",
+        "MJWARP_SMOOTH_COMPUTE_REPORT": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/run-01-sleep-off/test-report.json"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/run-01-sleep-off",
+      "capture_directory": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/run-01-sleep-off/gpu-capture",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-02-device/result.json"
+    },
+    {
+      "id": "gpu-sleep-on",
+      "purpose": "核对内部awake、外部sleep、非零awake、零树与验证先行",
+      "executable": "cargo",
+      "arguments": ["test", "--locked", "--features", "cuda-probe", "--lib", "physics::smooth_force::tests::gpu_m3_compute_wrapper_sleep_enabled_covers_sources_and_ntree_zero", "--", "--ignored", "--exact", "--test-threads=1", "--nocapture"],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/codex-m3-smooth-force-compute",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1",
+        "MJWARP_PHYSICS_PTX_DIR": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/run-02-sleep-on/gpu-capture",
+        "MJWARP_SMOOTH_COMPUTE_REPORT": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/run-02-sleep-on/test-report.json"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/run-02-sleep-on",
+      "capture_directory": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/run-02-sleep-on/gpu-capture",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-02-device/result.json"
+    },
+    {
+      "id": "format",
+      "purpose": "核对Rust格式",
+      "executable": "cargo",
+      "arguments": ["fmt", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-03-format",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "format-apply",
+      "purpose": "应用首次格式检查要求的Rust排版",
+      "executable": "cargo",
+      "arguments": ["fmt"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-03-format-apply",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "format-retry-01",
+      "purpose": "格式修复后复核Rust排版",
+      "executable": "cargo",
+      "arguments": ["fmt", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-03-format-retry-01",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "clippy",
+      "purpose": "核对CUDA库目标警告",
+      "executable": "cargo",
+      "arguments": ["clippy", "--locked", "--features", "cuda-probe", "--lib", "--", "-D", "warnings"],
+      "environment": {"CARGO_TARGET_DIR": "target/codex-m3-smooth-force-compute"},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-04-clippy",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "inventory",
+      "purpose": "重分类计算入口并核对剩余入口和调用数量",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-smooth-force-compute/build-inventory.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-05-inventory",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "evidence",
+      "purpose": "核对源码、PTX、捕获、运行登记和未暂存差异",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-smooth-force-compute/check-evidence.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-06-evidence",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "manifest",
+      "purpose": "复制真实原件并生成冻结成员清单与映射",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-smooth-force-compute/build-manifest.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-07-manifest",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "manifest-blob",
+      "purpose": "把本切片清单写成不可变Git对象",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-smooth-force-compute/freeze-manifest.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-08-manifest-blob",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "evidence-final",
+      "purpose": "核对冻结清单、原件、归档与基础设施运行登记",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-smooth-force-compute/check-formal-evidence.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-06-evidence-final",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "delivery-preflight",
+      "purpose": "核对任务可写和前次收尾",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Preflight", "-TaskId", "2026-10-19-layers-m3-smooth-force-compute"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/delivery-01-preflight",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "receipt",
+      "purpose": "暂存限定范围并生成逐文件对象回执",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-smooth-force-compute/build-delivery-receipt.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/delivery-02-receipt",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "index-bytes",
+      "purpose": "读取索引对象并核对正式证据字节",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-evidence-blobs.ps1", "-Manifest", "docs/development-evidence/layers-m3-smooth-force-compute/formal-run/manifest.json", "-Map", "docs/development-evidence/layers-m3-smooth-force-compute/source-map.json", "-Revision", "INDEX"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-09-index-bytes",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "receipt-final",
+      "purpose": "归档索引核验后重建逐文件对象回执",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-smooth-force-compute/build-delivery-receipt.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/delivery-02-receipt-final",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "cached-diff",
+      "purpose": "核对暂存空白错误",
+      "executable": "git",
+      "arguments": ["diff", "--cached", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/delivery-03-cached-diff",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "delivery-staged",
+      "purpose": "核对逐文件回执与暂存对象",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Staged"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/delivery-04-staged",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "commit",
+      "purpose": "使用真实多行提交文件运行正常提交钩子",
+      "executable": "git",
+      "arguments": ["commit", "-F", "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/commit-message.txt"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/delivery-commit",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "delivery-post-commit",
+      "purpose": "核对实际提交覆盖",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "PostCommit", "-TaskId", "2026-10-19-layers-m3-smooth-force-compute"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/delivery-05-post-commit",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "commit-bytes",
+      "purpose": "读取最终提交对象并核对正式证据字节",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-evidence-blobs.ps1", "-Manifest", "docs/development-evidence/layers-m3-smooth-force-compute/formal-run/manifest.json", "-Map", "docs/development-evidence/layers-m3-smooth-force-compute/source-map.json", "-Revision", "{HEAD}"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/check-10-commit-bytes",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "delivery-recorded",
+      "purpose": "核对完整提交号登记",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Recorded", "-TaskId", "2026-10-19-layers-m3-smooth-force-compute"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/delivery-06-recorded",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    },
+    {
+      "id": "delivery-final",
+      "purpose": "核对关闭后的最终状态",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Final", "-TaskId", "2026-10-19-layers-m3-smooth-force-compute"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-smooth-force-compute/delivery-07-final",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false
+    }
+  ]
+}
