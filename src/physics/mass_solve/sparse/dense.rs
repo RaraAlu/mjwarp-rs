@@ -5,8 +5,9 @@ use crate::model::{BatchLayout, SparseMassInput};
 use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::launcher::{
-    Access, BlockRule, ElemType, Kernel, KernelAbi, KernelSpec, LaunchDims, LauncherError,
-    SlotBinding, SlotDesc, SlotKind, SlotRequirement, SlotRole,
+    Access, BlockRule, Checked, ElemType, Kernel, KernelAbi, KernelSpec, LaunchDims, LauncherError,
+    MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc, SlotKind, SlotRequirement,
+    SlotRole,
 };
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
@@ -14,6 +15,204 @@ use std::sync::Arc;
 
 mod small;
 pub use small::{SparseMassSmallData, SparseMassSmallOutput, SparseMassSmallPlan};
+
+#[cfg(feature = "cuda-probe")]
+const DENSE_GATHER_METADATA_KIND: ProofKind = ProofKind("dense_gather_sources");
+
+#[cfg(feature = "cuda-probe")]
+struct StaticDenseGatherMetadata;
+
+#[cfg(feature = "cuda-probe")]
+impl MetadataProof for StaticDenseGatherMetadata {
+    type Dims = [u32; 2];
+
+    const KIND: ProofKind = DENSE_GATHER_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        let [nc, prefix] = *dims;
+        let sentinel =
+            i32::try_from(nc).map_err(|_| LauncherError::InvalidMetadata("稠密源数量越界"))?;
+        if prefix == 0 {
+            return if values == [0] {
+                Ok(())
+            } else {
+                Err(LauncherError::InvalidMetadata("零前缀占位无效"))
+            };
+        }
+        let prefix =
+            usize::try_from(prefix).map_err(|_| LauncherError::Overflow("dense_gather_prefix"))?;
+        if values.len() != prefix {
+            return Err(LauncherError::InvalidMetadata("稠密源长度无效"));
+        }
+        if values.iter().any(|&source| source < 0 || source > sentinel) {
+            return Err(LauncherError::InvalidMetadata("稠密源索引越界"));
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct DenseGatherLaunchMetadata;
+
+#[cfg(feature = "cuda-probe")]
+impl MetadataProof for DenseGatherLaunchMetadata {
+    type Dims = [u32; 4];
+
+    const KIND: ProofKind = DENSE_GATHER_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        dense_gather_lengths(dims)?;
+        StaticDenseGatherMetadata::validate(values, &[dims[0], dims[1]])
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+const DENSE_GATHER_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: DENSE_GATHER_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Write,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(feature = "cuda-probe")]
+struct DenseGatherSpec;
+
+#[cfg(feature = "cuda-probe")]
+// SAFETY: 声明匹配冻结稠密聚集ABI。
+unsafe impl KernelAbi for DenseGatherSpec {
+    const NAME: &'static str = "sparse_dense_gather";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &DENSE_GATHER_SLOTS;
+}
+
+#[cfg(feature = "cuda-probe")]
+impl KernelSpec for DenseGatherSpec {
+    type Dims = [u32; 4];
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        let (metadata, matrix, output) = dense_gather_lengths(dims)?;
+        Ok(vec![
+            SlotRequirement {
+                slot: 0,
+                min_elements: metadata,
+            },
+            SlotRequirement {
+                slot: 1,
+                min_elements: matrix,
+            },
+            SlotRequirement {
+                slot: 2,
+                min_elements: 1,
+            },
+            SlotRequirement {
+                slot: 3,
+                min_elements: output,
+            },
+        ])
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        dense_gather_lengths(dims)?;
+        LaunchDims::new((dims[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn dense_gather_lengths(dims: &[u32; 4]) -> Result<(u64, u64, u64), LauncherError> {
+    let [nc, prefix, reserved, work] = *dims;
+    if nc > i32::MAX as u32
+        || prefix == 0
+        || reserved != 0
+        || work == 0
+        || work > u32::MAX - 255
+        || !work.is_multiple_of(prefix)
+    {
+        return Err(LauncherError::InvalidArray("稠密聚集维度无效"));
+    }
+    let worlds = work / prefix;
+    let matrix = u64::from(nc)
+        .checked_mul(u64::from(worlds))
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("dense_gather_matrix"))?;
+    let output = u64::from(work)
+        .checked_add(8)
+        .ok_or(LauncherError::Overflow("dense_gather_output"))?;
+    Ok((u64::from(prefix), matrix, output))
+}
+
+#[cfg(feature = "cuda-probe")]
+fn dense_gather_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::InvalidMetadata(_) | LauncherError::StaleMetadata => {
+            InputError::InvalidTopology {
+                field: "dense_gather_sources",
+                index: 0,
+                reason: "invalid_or_stale_proof",
+            }
+            .into()
+        }
+        _ => InputError::InvalidDimension {
+            field: "dense_gather_abi",
+        }
+        .into(),
+    }
+}
 
 #[cfg(feature = "cuda-probe")]
 const DENSE_VALIDATION_SLOTS: [SlotDesc; 8] = [
@@ -216,16 +415,203 @@ impl DenseValidationKernel {
     }
 }
 
+#[cfg(feature = "cuda-probe")]
+struct DenseGatherMetadataBuffer {
+    buffer: TransferBuffer<i32>,
+    values: Vec<i32>,
+    nc: u32,
+    prefix: u32,
+    revision: MetadataRevision,
+    checked: Checked<StaticDenseGatherMetadata>,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl DenseGatherMetadataBuffer {
+    fn upload(
+        session: &TransferSession,
+        values: Vec<i32>,
+        nc: u32,
+        prefix: u32,
+    ) -> Result<Self, TransferError> {
+        let dims = [nc, prefix];
+        StaticDenseGatherMetadata::validate(&values, &dims).map_err(dense_gather_launch_error)?;
+        let buffer = session.upload(&values)?;
+        let revision = MetadataRevision::new();
+        // SAFETY: 上传同步完成且跨度来自该缓冲。
+        let checked = unsafe {
+            Checked::<StaticDenseGatherMetadata>::assume_uploaded(
+                buffer.launcher_span()?,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .map_err(dense_gather_launch_error)?;
+        Ok(Self {
+            buffer,
+            values,
+            nc,
+            prefix,
+            revision,
+            checked,
+        })
+    }
+
+    fn len(&self) -> usize {
+        self.buffer.len()
+    }
+
+    fn as_buffer(&self) -> &TransferBuffer<i32> {
+        &self.buffer
+    }
+
+    fn proof(&self, dims: [u32; 4]) -> Result<Checked<DenseGatherLaunchMetadata>, TransferError> {
+        let span = self.buffer.launcher_span()?;
+        self.checked
+            .binding(0)
+            .validate_for(span, &[self.nc, self.prefix])
+            .map_err(dense_gather_launch_error)?;
+        // SAFETY: 独占包装保留上传值和写入代际。
+        unsafe {
+            Checked::<DenseGatherLaunchMetadata>::assume_uploaded(
+                span,
+                &self.values,
+                dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(dense_gather_launch_error)
+    }
+
+    #[cfg(test)]
+    fn write_for_test(&mut self, index: usize, value: i32) -> Result<(), TransferError> {
+        self.revision.invalidate();
+        self.buffer.write_range(index, &[value])
+    }
+
+    #[cfg(test)]
+    fn restore_for_test(&mut self) -> Result<(), TransferError> {
+        self.revision.invalidate();
+        self.buffer.write_range(0, &self.values)?;
+        // SAFETY: 恢复写入同步完成且跨度未变。
+        self.checked = unsafe {
+            Checked::<StaticDenseGatherMetadata>::assume_uploaded(
+                self.buffer.launcher_span()?,
+                &self.values,
+                [self.nc, self.prefix],
+                self.revision.clone(),
+            )
+        }
+        .map_err(dense_gather_launch_error)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct DenseGatherKernel {
+    kernel: SynchronousKernel,
+    nc: u32,
+    prefix: u32,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl DenseGatherKernel {
+    fn compile(
+        session: &TransferSession,
+        metadata: &DenseGatherMetadataBuffer,
+    ) -> Result<Self, TransferError> {
+        if metadata.nc > i32::MAX as u32 {
+            return Err(InputError::InvalidDimension {
+                field: "dense_gather_nc",
+            }
+            .into());
+        }
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, CUDA, "sparse_dense_gather")?,
+            nc: metadata.nc,
+            prefix: metadata.prefix,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &DenseGatherMetadataBuffer,
+        matrix: &TransferBuffer<f32>,
+        unused: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        worlds: usize,
+    ) -> Result<(), TransferError> {
+        if metadata.nc != self.nc || metadata.prefix != self.prefix {
+            return Err(InputError::InvalidDimension {
+                field: "dense_gather_static_dims",
+            }
+            .into());
+        }
+        let worlds = u32::try_from(worlds).map_err(|_| InputError::Overflow {
+            field: "dense_gather_worlds",
+        })?;
+        let work = worlds
+            .checked_mul(self.prefix)
+            .ok_or(InputError::Overflow {
+                field: "dense_gather_work",
+            })?;
+        let dims = [self.nc, self.prefix, 0, work];
+        let (metadata_len, matrix_len, output_len) =
+            dense_gather_lengths(&dims).map_err(dense_gather_launch_error)?;
+        if u64::try_from(metadata.len()).ok() != Some(metadata_len)
+            || u64::try_from(matrix.len()).ok() != Some(matrix_len)
+            || unused.is_empty()
+            || u64::try_from(output.len()).ok() != Some(output_len)
+        {
+            return Err(InputError::InvalidDimension {
+                field: "dense_gather_abi",
+            }
+            .into());
+        }
+        let proof = metadata.proof(dims)?;
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: matrix.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: unused.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: output.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        Kernel::<DenseGatherSpec>::new()
+            .and_then(|kernel| kernel.plan(&dims, &bindings, &[proof.binding(0)]))
+            .map_err(dense_gather_launch_error)?;
+        // SAFETY: 类型化计划核对实际跨度和可信索引。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), matrix, unused, output, dims)
+        }
+    }
+}
+
 pub struct SparseMassDensePlan {
     input: Arc<SparseMassInput>,
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: DenseGatherMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
     validator: DenseValidationKernel,
     #[cfg(feature = "cuda-probe")]
-    gather: SynchronousKernel,
+    gather: DenseGatherKernel,
 }
 pub struct SparseMassDenseData {
     input: Arc<SparseMassInput>,
@@ -305,12 +691,15 @@ impl SparseMassDensePlan {
                 u32::try_from(input.qld_block_total()).map_err(|_| InputError::Overflow {
                     field: "dense_validation_prefix",
                 })?;
+            let metadata = DenseGatherMetadataBuffer::upload(session, sources, nc, prefix)?;
+            let validator = DenseValidationKernel::compile(session, nc, prefix)?;
+            let gather = DenseGatherKernel::compile(session, &metadata)?;
             Ok(Self {
                 input,
                 session: session.clone(),
-                metadata: session.upload(&sources)?,
-                validator: DenseValidationKernel::compile(session, nc, prefix)?,
-                gather: SynchronousKernel::compile(session, CUDA, "sparse_dense_gather")?,
+                metadata,
+                validator,
+                gather,
             })
         }
     }
@@ -354,13 +743,12 @@ impl SparseMassDensePlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let n = self.validator.nc;
             let p = self.validator.prefix;
             let worlds = u32::try_from(data.worlds()).map_err(|_| InputError::Overflow {
                 field: "sparse_dense_worlds",
             })?;
             self.validator.launch(
-                &self.metadata,
+                self.metadata.as_buffer(),
                 &data.matrix,
                 &data.matrix,
                 &mut data.status,
@@ -380,18 +768,13 @@ impl SparseMassDensePlan {
                 }
             }
             if p != 0 {
-                // SAFETY: Each index is a checked CSR source slot or the nC
-                // sentinel, which writes +0 without reading out of bounds.
-                // One thread owns one dense slot; all work finishes synchronously.
-                unsafe {
-                    self.gather.launch(
-                        &self.metadata,
-                        &data.matrix,
-                        &data.matrix,
-                        &mut data.dense,
-                        [n, p, 0, worlds * p],
-                    )?;
-                }
+                self.gather.launch(
+                    &self.metadata,
+                    &data.matrix,
+                    &data.matrix,
+                    &mut data.dense,
+                    worlds as usize,
+                )?;
             }
             data.checked_values()?;
             data.ready = true;
@@ -574,6 +957,290 @@ mod tests {
 
         assert!(kernel.plan(&[3, 0, 1, 257], &bindings, &[]).is_err());
         assert!(kernel.plan(&[3, 0, 0, 0], &bindings, &[]).is_err());
+    }
+
+    #[test]
+    fn typed_dense_gather_plan_binds_sources_and_exact_spans() {
+        use crate::runtime::launcher::{DeviceSpan, MetadataRevision};
+
+        assert!(StaticDenseGatherMetadata::validate(&[0], &[3, 0]).is_ok());
+        assert!(StaticDenseGatherMetadata::validate(&[], &[3, 0]).is_err());
+        assert!(StaticDenseGatherMetadata::validate(&[-1], &[3, 1]).is_err());
+        assert!(StaticDenseGatherMetadata::validate(&[4], &[3, 1]).is_err());
+        assert!(StaticDenseGatherMetadata::validate(&[3], &[3, 1]).is_ok());
+        assert!(StaticDenseGatherMetadata::validate(&[0, 1], &[3, 1]).is_err());
+        assert!(StaticDenseGatherMetadata::validate(&[0], &[i32::MAX as u32 + 1, 1]).is_err());
+
+        let dims = [3, 257, 0, 514];
+        let values = vec![3; 257];
+        let metadata_span = DeviceSpan::new(7, 0x1000, 257 * 4).unwrap();
+        let revision = MetadataRevision::new();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let proof = unsafe {
+            Checked::<DenseGatherLaunchMetadata>::assume_uploaded(
+                metadata_span,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata_span,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: DeviceSpan::new(7, 0x2000, 14 * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: DeviceSpan::new(7, 0x3000, 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: DeviceSpan::new(7, 0x4000, 522 * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+        ];
+        let kernel = Kernel::<DenseGatherSpec>::new().unwrap();
+        let plan = kernel.plan(&dims, &bindings, &[proof.binding(0)]).unwrap();
+        assert_eq!(plan.dims().grid(), (3, 1, 1));
+        assert_eq!(plan.dims().block(), (256, 1, 1));
+        assert!(matches!(
+            kernel.plan(&dims, &bindings, &[]),
+            Err(LauncherError::MissingMetadataProof { slot: 0 })
+        ));
+
+        let mut replaced_metadata = bindings;
+        replaced_metadata[0].span = DeviceSpan::new(7, 0x6000, 257 * 4).unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &replaced_metadata, &[proof.binding(0)]),
+            Err(LauncherError::MetadataMismatch(_))
+        ));
+
+        let wrong_dims = [3, 257, 0, 771];
+        let wrong_revision = MetadataRevision::new();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let wrong_dims_proof = unsafe {
+            Checked::<DenseGatherLaunchMetadata>::assume_uploaded(
+                metadata_span,
+                &values,
+                wrong_dims,
+                wrong_revision,
+            )
+        }
+        .unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &bindings, &[wrong_dims_proof.binding(0)]),
+            Err(LauncherError::MetadataMismatch(_))
+        ));
+
+        let mut short_matrix = bindings;
+        short_matrix[1].span = DeviceSpan::new(7, 0x2000, 13 * 4).unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &short_matrix, &[proof.binding(0)]),
+            Err(LauncherError::Capacity { slot: 1, .. })
+        ));
+
+        let mut short_output = bindings;
+        short_output[3].span = DeviceSpan::new(7, 0x4000, 521 * 4).unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &short_output, &[proof.binding(0)]),
+            Err(LauncherError::Capacity { slot: 3, .. })
+        ));
+
+        let mut alias = bindings;
+        alias[1].span = DeviceSpan::new(7, 0x2000, 4096).unwrap();
+        alias[3].span = alias[1].span;
+        assert!(matches!(
+            kernel.plan(&dims, &alias, &[proof.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3,
+            })
+        ));
+
+        let mut foreign = bindings;
+        foreign[2].span = DeviceSpan::new(8, 0x3000, 4).unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &foreign, &[proof.binding(0)]),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+
+        revision.invalidate();
+        assert!(matches!(
+            kernel.plan(&dims, &bindings, &[proof.binding(0)]),
+            Err(LauncherError::StaleMetadata)
+        ));
+        assert!(kernel.plan(&[3, 0, 0, 0], &bindings, &[]).is_err());
+        assert!(kernel.plan(&[3, 257, 1, 514], &bindings, &[]).is_err());
+        assert!(kernel.plan(&[3, 257, 0, 513], &bindings, &[]).is_err());
+        assert!(
+            kernel
+                .plan(&[i32::MAX as u32 + 1, 257, 0, 514], &bindings, &[])
+                .is_err()
+        );
+    }
+
+    #[test]
+    #[ignore = "requires NVIDIA/NVRTC; dense gather wrapper purpose"]
+    fn gpu_dense_gather_wrapper_checks_tail_spans_and_proof_lifecycle() {
+        let start = std::time::Instant::now();
+        let session = TransferSession::new(0).unwrap();
+        let foreign = TransferSession::new(0).unwrap();
+        let nc = 3u32;
+        let prefix = 257u32;
+        let worlds = 2usize;
+        let sources = (0..prefix)
+            .map(|slot| (slot % (nc + 1)) as i32)
+            .collect::<Vec<_>>();
+        let mut metadata =
+            DenseGatherMetadataBuffer::upload(&session, sources.clone(), nc, prefix).unwrap();
+        let mut kernel = DenseGatherKernel::compile(&session, &metadata).unwrap();
+        let mut matrix_values = vec![-131072.0f32; nc as usize * worlds + 8];
+        matrix_values[4..10].copy_from_slice(&[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
+        let matrix = session.upload(&matrix_values).unwrap();
+        let unused = session.upload(&[7.0f32]).unwrap();
+        let output_values = vec![-131072.0f32; prefix as usize * worlds + 8];
+        let mut output = session.upload(&output_values).unwrap();
+
+        kernel
+            .launch(&metadata, &matrix, &unused, &mut output, worlds)
+            .unwrap();
+        let mut actual = vec![0.0; output.len()];
+        output.read_range_into(0, &mut actual).unwrap();
+        assert_eq!(&actual[..4], &output_values[..4]);
+        assert_eq!(
+            &actual[actual.len() - 4..],
+            &output_values[output_values.len() - 4..]
+        );
+        for world in 0..worlds {
+            for (slot, &source) in sources.iter().enumerate() {
+                let expected = if source == nc as i32 {
+                    0.0
+                } else {
+                    matrix_values[4 + world * nc as usize + source as usize]
+                };
+                assert_eq!(
+                    actual[4 + world * prefix as usize + slot].to_bits(),
+                    expected.to_bits()
+                );
+            }
+        }
+        let stable = actual.clone();
+
+        let short_matrix = session
+            .upload(&matrix_values[..matrix_values.len() - 1])
+            .unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &short_matrix, &unused, &mut output, worlds)
+                .is_err()
+        );
+        let mut short_output = session
+            .upload(&output_values[..output_values.len() - 1])
+            .unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &matrix, &unused, &mut short_output, worlds,)
+                .is_err()
+        );
+        let mut short_after = vec![0.0; short_output.len()];
+        short_output.read_range_into(0, &mut short_after).unwrap();
+        assert_eq!(short_after, output_values[..output_values.len() - 1]);
+        let foreign_unused = foreign.upload(&[7.0f32]).unwrap();
+        assert!(matches!(
+            kernel.launch(&metadata, &matrix, &foreign_unused, &mut output, worlds),
+            Err(TransferError::SessionMismatch)
+        ));
+        kernel.nc += 1;
+        assert!(
+            kernel
+                .launch(&metadata, &matrix, &unused, &mut output, worlds)
+                .is_err()
+        );
+        kernel.nc = nc;
+        kernel.prefix -= 1;
+        assert!(
+            kernel
+                .launch(&metadata, &matrix, &unused, &mut output, worlds)
+                .is_err()
+        );
+        kernel.prefix = prefix;
+        output.read_range_into(0, &mut actual).unwrap();
+        assert_eq!(actual, stable);
+        metadata.write_for_test(0, -1).unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &matrix, &unused, &mut output, worlds)
+                .is_err()
+        );
+        output.read_range_into(0, &mut actual).unwrap();
+        assert_eq!(actual, stable);
+
+        metadata.restore_for_test().unwrap();
+        kernel
+            .launch(&metadata, &matrix, &unused, &mut output, worlds)
+            .unwrap();
+        output.read_range_into(0, &mut actual).unwrap();
+        assert_eq!(actual, stable);
+        println!(
+            "dense_gather_wrapper worlds={worlds} prefix={prefix} phase_ms={}",
+            start.elapsed().as_millis()
+        );
+    }
+
+    #[test]
+    #[ignore = "requires NVIDIA/NVRTC; dense gather product-call purpose"]
+    fn gpu_dense_gather_real_update_handles_zero_prefix_and_stale_proof() {
+        let start = std::time::Instant::now();
+        let session = TransferSession::new(0).unwrap();
+
+        let zero_plan = SparseMassDensePlan::new(&session, input::fork(1)).unwrap();
+        assert_eq!(zero_plan.input().qld_block_total(), 0);
+        let mut zero_data = zero_plan.create_data(2).unwrap();
+        zero_data.write_matrix(&[2.0, 3.0]).unwrap();
+        zero_plan.update(&mut zero_data).unwrap();
+        let zero = zero_data.readback().unwrap();
+        assert!(zero.world(0).unwrap().is_empty());
+        assert!(zero.world(1).unwrap().is_empty());
+
+        let refs = input::reference();
+        let model = &refs["models"][3];
+        let mut plan = SparseMassDensePlan::new(&session, input::native(model)).unwrap();
+        let mut data = plan.create_data(2).unwrap();
+        let matrix = input::matrix(&model["cases"][0]);
+        data.write_matrix(&matrix.repeat(2)).unwrap();
+        plan.update(&mut data).unwrap();
+        let stable = data.readback().unwrap().values;
+
+        plan.metadata.write_for_test(0, -1).unwrap();
+        assert!(plan.update(&mut data).is_err());
+        assert!(!data.ready);
+        assert!(data.readback().is_err());
+        let mut rejected = vec![0.0; data.dense.len()];
+        data.dense.read_range_into(0, &mut rejected).unwrap();
+        assert_eq!(
+            rejected.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+            stable.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+        );
+
+        plan.metadata.restore_for_test().unwrap();
+        plan.update(&mut data).unwrap();
+        let recovered = data.readback().unwrap().values;
+        assert_eq!(
+            recovered.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+            stable.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+        );
+        println!(
+            "dense_gather_real worlds=2 zero_prefix=true recovered=true phase_ms={}",
+            start.elapsed().as_millis()
+        );
     }
 
     #[test]
