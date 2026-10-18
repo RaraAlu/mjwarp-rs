@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-post-freeze-checker-fix",
+  "base_revision": "da10228b0e4776fc68532503521fc676c00ca7fc",
+  "environment": {
+    "platform": "Windows",
+    "shell": "PowerShell",
+    "gpu_required": false,
+    "product_tests": false,
+    "python": false
+  },
+  "registration_rules": {
+    "registration_is_create_new": true,
+    "output_root_must_not_exist": true,
+    "stdout_stderr_precreated": true,
+    "result_records_times_exit_and_duration": true,
+    "failed_runs_preserved": true,
+    "retries_require_supplemental_plan": true
+  },
+  "registered_validations": [
+    {
+      "id": "delivery-preflight",
+      "purpose": "核对脚本修正任务可写和前次收尾",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Preflight", "-TaskId", "2026-10-19-layers-m3-post-freeze-checker-fix"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/delivery-01-preflight",
+      "registered_before_execution": true
+    },
+    {
+      "id": "static-mapping",
+      "purpose": "核对空名称、普通名称和索引重试映射",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-post-freeze-checker-fix/check-static-mapping.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/check-01-static-mapping",
+      "registered_before_execution": true
+    },
+    {
+      "id": "prior-commit-objects",
+      "purpose": "用修正脚本核对原提交真实Git对象",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-inventory-derived-correction/check-post-freeze-blobs.ps1", "-Revision", "da10228b0e4776fc68532503521fc676c00ca7fc"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/check-02-prior-commit-objects",
+      "registered_before_execution": true
+    },
+    {
+      "id": "scope",
+      "purpose": "核对产品源码和旧证据保持不变",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-post-freeze-checker-fix/check-scope.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/check-03-scope",
+      "registered_before_execution": true
+    },
+    {
+      "id": "manifest",
+      "purpose": "按字节复制原件并生成正式清单",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-post-freeze-checker-fix/build-manifest.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/check-04-manifest",
+      "registered_before_execution": true
+    },
+    {
+      "id": "manifest-blob",
+      "purpose": "把正式清单冻结为Git对象",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-post-freeze-checker-fix/freeze-manifest.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/check-05-manifest-blob",
+      "registered_before_execution": true
+    },
+    {
+      "id": "evidence-final",
+      "purpose": "核对清单、原件和运行登记",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-post-freeze-checker-fix/check-formal-evidence.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/check-06-evidence-final",
+      "registered_before_execution": true
+    },
+    {
+      "id": "receipt",
+      "purpose": "暂存修正范围并生成逐文件回执",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-post-freeze-checker-fix/build-delivery-receipt.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/delivery-02-receipt",
+      "registered_before_execution": true
+    },
+    {
+      "id": "index-bytes",
+      "purpose": "核对索引中的正式证据字节",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-evidence-blobs.ps1", "-Manifest", "docs/development-evidence/layers-m3-post-freeze-checker-fix/formal-run/manifest.json", "-Map", "docs/development-evidence/layers-m3-post-freeze-checker-fix/source-map.json", "-Revision", "INDEX"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/check-07-index-bytes",
+      "registered_before_execution": true
+    },
+    {
+      "id": "receipt-final",
+      "purpose": "归档索引核验并重建最终回执",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-post-freeze-checker-fix/build-delivery-receipt.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/delivery-03-receipt-final",
+      "registered_before_execution": true
+    },
+    {
+      "id": "post-freeze-index",
+      "purpose": "核对收尾原件与索引字节",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-post-freeze-checker-fix/check-delivery-archives.ps1", "-Revision", "INDEX"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/check-08-post-freeze-index",
+      "registered_before_execution": true
+    },
+    {
+      "id": "cached-diff",
+      "purpose": "核对暂存空白错误",
+      "executable": "git",
+      "arguments": ["diff", "--cached", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/delivery-04-cached-diff",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-staged",
+      "purpose": "核对逐文件回执和暂存对象",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Staged"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/delivery-05-staged",
+      "registered_before_execution": true
+    },
+    {
+      "id": "commit",
+      "purpose": "使用真实多行提交文件运行正常钩子",
+      "executable": "git",
+      "arguments": ["commit", "-F", "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/commit-message.txt"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/delivery-commit",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-post-commit",
+      "purpose": "核对实际提交覆盖",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "PostCommit", "-TaskId", "2026-10-19-layers-m3-post-freeze-checker-fix"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/delivery-06-post-commit",
+      "registered_before_execution": true
+    },
+    {
+      "id": "commit-bytes",
+      "purpose": "核对最终提交中的正式证据字节",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-evidence-blobs.ps1", "-Manifest", "docs/development-evidence/layers-m3-post-freeze-checker-fix/formal-run/manifest.json", "-Map", "docs/development-evidence/layers-m3-post-freeze-checker-fix/source-map.json", "-Revision", "{HEAD}"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/check-09-commit-bytes",
+      "registered_before_execution": true
+    },
+    {
+      "id": "post-freeze-commit",
+      "purpose": "核对收尾原件与最终提交字节",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-post-freeze-checker-fix/check-delivery-archives.ps1", "-Revision", "{HEAD}"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/check-10-post-freeze-commit",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-recorded",
+      "purpose": "核对完整提交号登记",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Recorded", "-TaskId", "2026-10-19-layers-m3-post-freeze-checker-fix"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/delivery-07-recorded",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-final",
+      "purpose": "核对关闭后的最终状态",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Final", "-TaskId", "2026-10-19-layers-m3-post-freeze-checker-fix"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-post-freeze-checker-fix/delivery-08-final",
+      "registered_before_execution": true
+    }
+  ]
+}

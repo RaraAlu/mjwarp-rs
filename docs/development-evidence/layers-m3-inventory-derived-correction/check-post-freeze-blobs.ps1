@@ -23,16 +23,26 @@ function Assert-SameBytes([string]$Source, [string]$Destination) {
 }
 
 $mappings = [Collections.Generic.List[object]]::new()
+function Join-RunArchivePath(
+    [string]$Root,
+    [string]$Name,
+    [string]$NamedSuffix,
+    [string]$EmptySuffix = $NamedSuffix
+) {
+    $file = if ([string]::IsNullOrEmpty($Name)) { $EmptySuffix } else { "$Name.$NamedSuffix" }
+    "$Root/$file"
+}
+
 function Add-RunMappings([string]$Id, [string]$Name, [string]$DestinationRoot) {
     $registration = "$runtime/registrations/$Id.json"
     $record = Get-Content -LiteralPath $registration -Raw | ConvertFrom-Json
     $runRoot = [string]$record.output_root
     foreach ($item in @(
-        @{source=$registration;destination="$DestinationRoot/$Name.registration.json"},
-        @{source="$runRoot/started.json";destination="$DestinationRoot/$Name.started.json"},
-        @{source="$runRoot/result.json";destination="$DestinationRoot/$Name.run.json"},
-        @{source="$runRoot/stdout.log";destination="$DestinationRoot/$Name.stdout.log"},
-        @{source="$runRoot/stderr.log";destination="$DestinationRoot/$Name.stderr.log"}
+        @{source=$registration;destination=(Join-RunArchivePath $DestinationRoot $Name 'registration.json')},
+        @{source="$runRoot/started.json";destination=(Join-RunArchivePath $DestinationRoot $Name 'started.json')},
+        @{source="$runRoot/result.json";destination=(Join-RunArchivePath $DestinationRoot $Name 'run.json' 'result.json')},
+        @{source="$runRoot/stdout.log";destination=(Join-RunArchivePath $DestinationRoot $Name 'stdout.log')},
+        @{source="$runRoot/stderr.log";destination=(Join-RunArchivePath $DestinationRoot $Name 'stderr.log')}
     )) { $mappings.Add($item) }
 }
 
@@ -45,12 +55,11 @@ Add-RunMappings 'receipt' 'receipt-first' "$postRoot/delivery"
 Add-RunMappings 'receipt-retry-01' 'receipt-retry-first' "$postRoot/delivery"
 Add-RunMappings 'index-bytes' '' $indexRoot
 foreach ($mapping in $mappings) {
-    $mapping.destination = $mapping.destination.Replace('/.registration.json', '/registration.json').Replace('/.started.json', '/started.json').Replace('/.run.json', '/result.json').Replace('/.stdout.log', '/stdout.log').Replace('/.stderr.log', '/stderr.log')
     Assert-SameBytes $mapping.source $mapping.destination
 }
 
 if (Test-Path -LiteralPath "$postRoot/index-extra/result.json") {
-    Add-RunMappings 'post-freeze-index' '' "$postRoot/index-extra"
+    Add-RunMappings 'post-freeze-index-retry-01' '' "$postRoot/index-extra"
     foreach ($mapping in @($mappings | Select-Object -Last 5)) {
         Assert-SameBytes $mapping.source $mapping.destination
     }
