@@ -4,6 +4,14 @@
 use crate::diagnostics::{InputError, ProbeError, TransferError};
 use crate::model::{BatchLayout, InertialModelInput};
 use crate::runtime::TransferSession;
+#[cfg(any(feature = "cuda-probe", test))]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::{SynchronousKernel, TransferBuffer};
 
 mod resident;
 pub use resident::{MassSolveData, MassSolvePlan};
@@ -191,6 +199,498 @@ impl MassSolveLayout {
     }
 }
 
+#[cfg(any(feature = "cuda-probe", test))]
+const RIGID_MASS_SOLVE_METADATA_KIND: ProofKind = ProofKind("rigid_mass_solve.blocks.v1");
+
+#[cfg(any(feature = "cuda-probe", test))]
+const RIGID_MASS_SOLVE_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: RIGID_MASS_SOLVE_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::ReadWrite,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(any(feature = "cuda-probe", test))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RigidMassSolveDims {
+    abi: [u32; 4],
+    metadata_elements: u64,
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn rigid_mass_solve_lengths(dims: &RigidMassSolveDims) -> Result<[u64; 4], LauncherError> {
+    let [nbody, nv, rhs_count, worlds] = dims.abi;
+    if worlds == 0 || rhs_count == 0 || worlds > u32::MAX - 255 {
+        return Err(LauncherError::InvalidArray("刚体质量求解维度无效"));
+    }
+    if nv > i32::MAX as u32
+        || rhs_count > i32::MAX as u32
+        || dims.metadata_elements == 0
+        || dims.metadata_elements > i32::MAX as u64
+    {
+        return Err(LauncherError::Overflow("rigid_mass_solve_dimensions"));
+    }
+    let nbody = u64::from(nbody);
+    let nv = u64::from(nv);
+    let rhs_count = u64::from(rhs_count);
+    let worlds = u64::from(worlds);
+    let square = nv
+        .checked_mul(nv)
+        .ok_or(LauncherError::Overflow("rigid_mass_solve_square"))?;
+    let rhs_logical = worlds
+        .checked_mul(rhs_count)
+        .and_then(|value| value.checked_mul(nv))
+        .ok_or(LauncherError::Overflow("rigid_mass_solve_rhs"))?;
+    let rhs = if nv == 0 { 1 } else { rhs_logical };
+    let state_width = nbody
+        .checked_mul(10)
+        .and_then(|value| value.checked_add(square))
+        .ok_or(LauncherError::Overflow("rigid_mass_solve_state"))?;
+    if state_width > i32::MAX as u64 {
+        return Err(LauncherError::Overflow("rigid_mass_solve_state_width"));
+    }
+    let state = worlds
+        .checked_mul(state_width)
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("rigid_mass_solve_state"))?;
+    let output_width = square
+        .checked_add(nv)
+        .and_then(|value| {
+            rhs_count
+                .checked_mul(nv)
+                .and_then(|rhs| value.checked_add(rhs))
+        })
+        .and_then(|value| value.checked_add(3))
+        .ok_or(LauncherError::Overflow("rigid_mass_solve_output"))?;
+    if output_width > i32::MAX as u64 {
+        return Err(LauncherError::Overflow("rigid_mass_solve_output_width"));
+    }
+    let output = worlds
+        .checked_mul(output_width)
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("rigid_mass_solve_output"))?;
+    Ok([dims.metadata_elements, rhs, state, output])
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn validate_rigid_mass_solve_metadata(
+    values: &[i32],
+    dims: RigidMassSolveDims,
+) -> Result<(), LauncherError> {
+    rigid_mass_solve_lengths(&dims)?;
+    let count = values
+        .first()
+        .copied()
+        .filter(|&value| value >= 0)
+        .ok_or(LauncherError::InvalidMetadata("质量求解块数量无效"))? as usize;
+    let expected = count
+        .checked_mul(3)
+        .and_then(|value| value.checked_add(1))
+        .ok_or(LauncherError::Overflow("rigid_mass_solve_metadata"))?;
+    if values.len() != expected || values.len() as u64 != dims.metadata_elements {
+        return Err(LauncherError::InvalidMetadata("质量求解块表长度无效"));
+    }
+    let mut cursor = 0u32;
+    for block in 0..count {
+        let base = 1 + 3 * block;
+        let start = u32::try_from(values[base])
+            .map_err(|_| LauncherError::InvalidMetadata("质量求解块起点无效"))?;
+        let size = u32::try_from(values[base + 1])
+            .ok()
+            .filter(|&value| value > 0)
+            .ok_or(LauncherError::InvalidMetadata("质量求解块长度无效"))?;
+        let kind = values[base + 2];
+        if !matches!(kind, 0..=2) || (kind == 0 && size != 1) || start != cursor {
+            return Err(LauncherError::InvalidMetadata("质量求解块路由无效"));
+        }
+        cursor = start
+            .checked_add(size)
+            .filter(|&value| value <= dims.abi[1])
+            .ok_or(LauncherError::InvalidMetadata("质量求解块越界"))?;
+    }
+    if cursor != dims.abi[1] {
+        return Err(LauncherError::InvalidMetadata("质量求解块未完整覆盖"));
+    }
+    Ok(())
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn pack_rigid_mass_solve_blocks(
+    blocks: &[MassFactorBlock],
+    nv: usize,
+) -> Result<Vec<i32>, LauncherError> {
+    let count = i32::try_from(blocks.len())
+        .map_err(|_| LauncherError::Overflow("rigid_mass_solve_block_count"))?;
+    let nv_u32 = u32::try_from(nv).map_err(|_| LauncherError::Overflow("rigid_mass_solve_nv"))?;
+    let mut packed = Vec::with_capacity(
+        blocks
+            .len()
+            .checked_mul(3)
+            .and_then(|value| value.checked_add(1))
+            .ok_or(LauncherError::Overflow("rigid_mass_solve_metadata"))?,
+    );
+    packed.push(count);
+    for block in blocks {
+        let kind = match block.kind {
+            MassFactorKind::Diagonal => 0,
+            MassFactorKind::Cholesky => 1,
+            MassFactorKind::ReverseLdl => 2,
+        };
+        packed.extend([
+            i32::try_from(block.start)
+                .map_err(|_| LauncherError::Overflow("rigid_mass_solve_block_start"))?,
+            i32::try_from(block.size)
+                .map_err(|_| LauncherError::Overflow("rigid_mass_solve_block_size"))?,
+            kind,
+        ]);
+    }
+    let dims = RigidMassSolveDims {
+        abi: [0, nv_u32, 1, 1],
+        metadata_elements: packed.len() as u64,
+    };
+    validate_rigid_mass_solve_metadata(&packed, dims)?;
+    Ok(packed)
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct RigidMassSolveMetadata;
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl MetadataProof for RigidMassSolveMetadata {
+    type Dims = RigidMassSolveDims;
+
+    const KIND: ProofKind = RIGID_MASS_SOLVE_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        validate_rigid_mass_solve_metadata(values, *dims)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct RigidMassSolveBaseMetadata;
+
+#[cfg(feature = "cuda-probe")]
+impl MetadataProof for RigidMassSolveBaseMetadata {
+    type Dims = RigidMassSolveDims;
+
+    const KIND: ProofKind = ProofKind("rigid_mass_solve.blocks.base.v1");
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        validate_rigid_mass_solve_metadata(values, *dims)
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct RigidMassSolveSpec;
+
+#[cfg(any(feature = "cuda-probe", test))]
+// SAFETY: 声明逐槽匹配冻结rigid_mass_solve私有ABI。
+unsafe impl KernelAbi for RigidMassSolveSpec {
+    const NAME: &'static str = "rigid_mass_solve";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &RIGID_MASS_SOLVE_SLOTS;
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl KernelSpec for RigidMassSolveSpec {
+    type Dims = RigidMassSolveDims;
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        Ok(rigid_mass_solve_lengths(dims)?
+            .into_iter()
+            .enumerate()
+            .map(|(slot, min_elements)| SlotRequirement { slot, min_elements })
+            .collect())
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        rigid_mass_solve_lengths(dims)?;
+        LaunchDims::new((dims.abi[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn rigid_mass_solve_plan(
+    dims: &RigidMassSolveDims,
+    bindings: &[SlotBinding; 4],
+    proofs: &[CheckedBinding<'_, RigidMassSolveDims>],
+) -> Result<LaunchDims, LauncherError> {
+    let lengths = rigid_mass_solve_lengths(dims)?;
+    for (slot, elements) in lengths.into_iter().enumerate() {
+        let required = elements
+            .checked_mul(4)
+            .ok_or(LauncherError::Overflow("rigid_mass_solve_bytes"))?;
+        if bindings[slot].span.bytes() != required {
+            return Err(LauncherError::Capacity {
+                slot,
+                required,
+                actual: bindings[slot].span.bytes(),
+            });
+        }
+    }
+    Ok(Kernel::<RigidMassSolveSpec>::new()?
+        .plan(dims, bindings, proofs)?
+        .dims())
+}
+
+#[cfg(feature = "cuda-probe")]
+fn rigid_mass_solve_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::StaleMetadata
+        | LauncherError::InvalidMetadata(_)
+        | LauncherError::MetadataMismatch(_) => InputError::InvalidTopology {
+            field: "mass_solve_blocks",
+            index: 0,
+            reason: "invalid_or_stale_metadata",
+        }
+        .into(),
+        LauncherError::Overflow(_) => InputError::Overflow {
+            field: "mass_solve_abi",
+        }
+        .into(),
+        _ => InputError::InvalidDimension {
+            field: "mass_solve_abi",
+        }
+        .into(),
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct RigidMassSolveMetadataBuffer {
+    session: TransferSession,
+    buffer: TransferBuffer<i32>,
+    values: Vec<i32>,
+    dims: RigidMassSolveDims,
+    revision: MetadataRevision,
+    checked: Checked<RigidMassSolveBaseMetadata>,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl RigidMassSolveMetadataBuffer {
+    fn upload(
+        session: &TransferSession,
+        values: Vec<i32>,
+        abi: [u32; 4],
+    ) -> Result<Self, TransferError> {
+        let dims = RigidMassSolveDims {
+            abi,
+            metadata_elements: u64::try_from(values.len()).map_err(|_| InputError::Overflow {
+                field: "mass_solve_blocks",
+            })?,
+        };
+        validate_rigid_mass_solve_metadata(&values, dims).map_err(rigid_mass_solve_launch_error)?;
+        let buffer = session.upload(&values)?;
+        let revision = MetadataRevision::new();
+        // SAFETY: 上传已同步；宿主镜像绑定实际设备缓冲。
+        let checked = unsafe {
+            Checked::<RigidMassSolveBaseMetadata>::assume_uploaded(
+                buffer.launcher_span()?,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .map_err(rigid_mass_solve_launch_error)?;
+        Ok(Self {
+            session: session.clone(),
+            buffer,
+            values,
+            dims,
+            revision,
+            checked,
+        })
+    }
+
+    fn as_buffer(&self) -> &TransferBuffer<i32> {
+        &self.buffer
+    }
+
+    fn proof(&self) -> Result<Checked<RigidMassSolveMetadata>, TransferError> {
+        let span = self.buffer.launcher_span()?;
+        self.checked
+            .binding(0)
+            .validate_for(span, &self.dims)
+            .map_err(rigid_mass_solve_launch_error)?;
+        // SAFETY: 私有包装持有实际缓冲、完整镜像和写入代际。
+        unsafe {
+            Checked::<RigidMassSolveMetadata>::assume_uploaded(
+                span,
+                &self.values,
+                self.dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(rigid_mass_solve_launch_error)
+    }
+
+    #[cfg(test)]
+    fn overwrite_for_test(&mut self, index: usize, value: i32) -> Result<(), TransferError> {
+        self.revision.invalidate();
+        self.buffer.write_range(index, &[value])
+    }
+
+    #[cfg(test)]
+    fn restore_for_test(&mut self) -> Result<(), TransferError> {
+        self.revision.invalidate();
+        self.buffer.write_range(0, &self.values)?;
+        // SAFETY: 恢复写入已同步；跨度与镜像重新绑定。
+        self.checked = unsafe {
+            Checked::<RigidMassSolveBaseMetadata>::assume_uploaded(
+                self.buffer.launcher_span()?,
+                &self.values,
+                self.dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(rigid_mass_solve_launch_error)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct RigidMassSolveLaunch {
+    proof: Checked<RigidMassSolveMetadata>,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct RigidMassSolveKernel {
+    session: TransferSession,
+    kernel: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl RigidMassSolveKernel {
+    fn compile(session: &TransferSession) -> Result<Self, TransferError> {
+        Ok(Self {
+            session: session.clone(),
+            kernel: SynchronousKernel::compile(session, MASS_SOLVE_CUDA, "rigid_mass_solve")?,
+        })
+    }
+
+    fn bindings(
+        metadata: &RigidMassSolveMetadataBuffer,
+        rhs: &TransferBuffer<f32>,
+        state: &TransferBuffer<f32>,
+        output: &TransferBuffer<f32>,
+    ) -> Result<[SlotBinding; 4], TransferError> {
+        Ok([
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: rhs.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: state.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: output.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ])
+    }
+
+    fn preflight(
+        &self,
+        session: &TransferSession,
+        metadata: &RigidMassSolveMetadataBuffer,
+        rhs: &TransferBuffer<f32>,
+        state: &TransferBuffer<f32>,
+        output: &TransferBuffer<f32>,
+    ) -> Result<RigidMassSolveLaunch, TransferError> {
+        if !self.session.same_session(session) || !metadata.session.same_session(session) {
+            return Err(TransferError::SessionMismatch);
+        }
+        let proof = metadata.proof()?;
+        let bindings = Self::bindings(metadata, rhs, state, output)?;
+        rigid_mass_solve_plan(proof.dims(), &bindings, &[proof.binding(0)])
+            .map_err(rigid_mass_solve_launch_error)?;
+        Ok(RigidMassSolveLaunch { proof })
+    }
+
+    fn launch(
+        &self,
+        launch: &RigidMassSolveLaunch,
+        metadata: &RigidMassSolveMetadataBuffer,
+        rhs: &TransferBuffer<f32>,
+        state: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+    ) -> Result<(), TransferError> {
+        let dims = *launch.proof.dims();
+        let bindings = Self::bindings(metadata, rhs, state, output)?;
+        rigid_mass_solve_plan(&dims, &bindings, &[launch.proof.binding(0)])
+            .map_err(rigid_mass_solve_launch_error)?;
+        // SAFETY: 类型计划核对块表、精确跨度、会话、别名和网格。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), rhs, state, output, dims.abi)
+        }
+    }
+}
+
 /// 同步GPU分块因子与多右端项求解。
 /// rhs采用`[world,rhs,nv]`布局。
 /// GPU复用已检查的质量矩阵。
@@ -246,45 +746,32 @@ fn solve_device(
     rhs: &[f32],
     blocks: Vec<MassFactorBlock>,
 ) -> Result<MassSolveOutput, TransferError> {
-    let mut packed = vec![blocks.len() as i32];
-    for block in &blocks {
-        let kind = match block.kind {
-            MassFactorKind::Diagonal => 0,
-            MassFactorKind::Cholesky => 1,
-            MassFactorKind::ReverseLdl => 2,
-        };
-        packed.extend([block.start as i32, block.size as i32, kind]);
-    }
-    let metadata = session.upload(&packed)?;
+    let packed =
+        pack_rigid_mass_solve_blocks(&blocks, layout.nv).map_err(rigid_mass_solve_launch_error)?;
+    let abi = [
+        u32::try_from(nbody).map_err(|_| InputError::Overflow {
+            field: "mass_solve_nbody",
+        })?,
+        u32::try_from(layout.nv).map_err(|_| InputError::Overflow {
+            field: "mass_solve_nv",
+        })?,
+        u32::try_from(layout.rhs_count).map_err(|_| InputError::Overflow {
+            field: "mass_solve_rhs_count",
+        })?,
+        u32::try_from(layout.output.worlds()).map_err(|_| InputError::Overflow {
+            field: "mass_solve_worlds",
+        })?,
+    ];
+    let metadata = RigidMassSolveMetadataBuffer::upload(session, packed, abi)?;
     // Preserve a real pointer for the empty zero-DOF vector.
     let parameters = session.upload(if rhs.is_empty() { &[0.0] } else { rhs })?;
     let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
     values.fill(-131072.0);
     values[4..layout.guarded - 4].fill(f32::NAN);
     let mut output = session.upload(&values)?;
-    let kernel =
-        crate::runtime::SynchronousKernel::compile(session, MASS_SOLVE_CUDA, "rigid_mass_solve")?;
-    // SAFETY: Layouts bound every per-world offset and nv*nv by i32::MAX.
-    // The fixed shader and all physical buffers use frozen f32.
-    // State comes from the same-session checked mass matrix with 10*nb+nv*nv
-    // values/world and two four-element guards. Each thread owns one world.
-    // RHS has exactly worlds*nrhs*nv values, or a real zero-DOF placeholder.
-    // Metadata partitions nv into disjoint checked tree intervals.
-    // The fixed-ABI adapter synchronizes and retains all submitted resources.
-    unsafe {
-        kernel.launch(
-            &metadata,
-            &parameters,
-            state,
-            &mut output,
-            [
-                nbody as u32,
-                layout.nv as u32,
-                layout.rhs_count as u32,
-                layout.output.worlds() as u32,
-            ],
-        )?;
-    }
+    let kernel = RigidMassSolveKernel::compile(session)?;
+    let launch = kernel.preflight(session, &metadata, &parameters, state, &output)?;
+    kernel.launch(&launch, &metadata, &parameters, state, &mut output)?;
     output.read_range_into(0, &mut values)?;
     check_result(layout, &values)?;
     Ok(MassSolveOutput {
@@ -562,6 +1049,200 @@ mod tests {
             }))
         ));
     }
+
+    #[test]
+    fn rigid_mass_solve_plan_checks_spans_aliases_blocks_and_overflow() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let bind = |slot, context, address, bytes, elem| SlotBinding {
+            slot,
+            span: DeviceSpan::new(context, address, bytes).unwrap(),
+            elem,
+        };
+        let values = vec![2, 0, 2, 2, 2, 1, 0];
+        let dims = RigidMassSolveDims {
+            abi: [1, 3, 2, 2],
+            metadata_elements: values.len() as u64,
+        };
+        assert_eq!(rigid_mass_solve_lengths(&dims).unwrap(), [7, 12, 46, 50]);
+        let revision = MetadataRevision::new();
+        let metadata_span = DeviceSpan::new(7, 0x1000, 28).unwrap();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let proof = unsafe {
+            Checked::<RigidMassSolveMetadata>::assume_uploaded(
+                metadata_span,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        let bindings = [
+            bind(0, 7, 0x1000, 28, ElemType::I32),
+            bind(1, 7, 0x2000, 48, ElemType::F32),
+            bind(2, 7, 0x3000, 184, ElemType::F32),
+            bind(3, 7, 0x4000, 200, ElemType::F32),
+        ];
+        let launch = rigid_mass_solve_plan(&dims, &bindings, &[proof.binding(0)]).unwrap();
+        assert_eq!(launch.grid(), (1, 1, 1));
+        assert_eq!(launch.block(), (256, 1, 1));
+        assert_eq!(launch.shared_bytes(), 0);
+        assert!(matches!(
+            rigid_mass_solve_plan(&dims, &bindings, &[]),
+            Err(LauncherError::MissingMetadataProof { slot: 0 })
+        ));
+
+        let addresses = [0x1000, 0x2000, 0x3000, 0x4000];
+        let bytes = [28, 48, 184, 200];
+        for slot in 0..4 {
+            let mut short = bindings;
+            short[slot].span = DeviceSpan::new(7, addresses[slot], bytes[slot] - 4).unwrap();
+            assert!(matches!(
+                rigid_mass_solve_plan(&dims, &short, &[proof.binding(0)]),
+                Err(LauncherError::Capacity { slot: bad, .. }) if bad == slot
+            ));
+            let mut long = bindings;
+            long[slot].span = DeviceSpan::new(7, addresses[slot], bytes[slot] + 4).unwrap();
+            assert!(matches!(
+                rigid_mass_solve_plan(&dims, &long, &[proof.binding(0)]),
+                Err(LauncherError::Capacity { slot: bad, .. }) if bad == slot
+            ));
+        }
+
+        let mut foreign = bindings;
+        foreign[2].span = DeviceSpan::new(8, 0x3000, 184).unwrap();
+        assert!(matches!(
+            rigid_mass_solve_plan(&dims, &foreign, &[proof.binding(0)]),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+        let mut alias = bindings;
+        alias[3].span = DeviceSpan::new(7, 0x2000, 200).unwrap();
+        assert!(matches!(
+            rigid_mass_solve_plan(&dims, &alias, &[proof.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3
+            })
+        ));
+        revision.invalidate();
+        assert!(matches!(
+            rigid_mass_solve_plan(&dims, &bindings, &[proof.binding(0)]),
+            Err(LauncherError::StaleMetadata)
+        ));
+
+        for invalid in [
+            vec![-1],
+            vec![1, 1, 2, 2],
+            vec![1, 0, 0, 2],
+            vec![1, 0, 4, 2],
+            vec![1, 0, 3, 3],
+            vec![1, 0, 2, 2],
+        ] {
+            let invalid_dims = RigidMassSolveDims {
+                metadata_elements: invalid.len() as u64,
+                ..dims
+            };
+            assert!(validate_rigid_mass_solve_metadata(&invalid, invalid_dims).is_err());
+        }
+        assert!(
+            pack_rigid_mass_solve_blocks(
+                &[MassFactorBlock {
+                    start: 0,
+                    size: 2,
+                    kind: MassFactorKind::ReverseLdl,
+                }],
+                2,
+            )
+            .is_ok()
+        );
+        assert!(
+            pack_rigid_mass_solve_blocks(
+                &[MassFactorBlock {
+                    start: usize::MAX,
+                    size: 1,
+                    kind: MassFactorKind::Diagonal,
+                }],
+                1,
+            )
+            .is_err()
+        );
+
+        let zero = RigidMassSolveDims {
+            abi: [1, 0, 3, 2],
+            metadata_elements: 1,
+        };
+        assert_eq!(rigid_mass_solve_lengths(&zero).unwrap(), [1, 1, 28, 14]);
+        assert!(validate_rigid_mass_solve_metadata(&[0], zero).is_ok());
+        let grid_overflow = RigidMassSolveDims {
+            abi: [1, 0, 1, u32::MAX - 254],
+            metadata_elements: 1,
+        };
+        assert!(rigid_mass_solve_lengths(&grid_overflow).is_err());
+        let byte_overflow = RigidMassSolveDims {
+            abi: [1, 1, i32::MAX as u32 - 5, u32::MAX - 255],
+            metadata_elements: 4,
+        };
+        let byte_bindings = [
+            bind(0, 7, 0x1000, 16, ElemType::I32),
+            bind(1, 7, 0x2000, 4, ElemType::F32),
+            bind(2, 7, 0x3000, 4, ElemType::F32),
+            bind(3, 7, 0x4000, 4, ElemType::F32),
+        ];
+        assert!(rigid_mass_solve_lengths(&byte_overflow).is_ok());
+        assert!(matches!(
+            rigid_mass_solve_plan(&byte_overflow, &byte_bindings, &[]),
+            Err(LauncherError::Overflow("rigid_mass_solve_bytes"))
+        ));
+    }
+
+    #[test]
+    fn rigid_mass_solve_plan_preserves_i32_layout_and_block_routes() {
+        let state_limit = RigidMassSolveDims {
+            abi: [i32::MAX as u32 / 10, 0, 1, 1],
+            metadata_elements: 1,
+        };
+        assert!(rigid_mass_solve_lengths(&state_limit).is_ok());
+        let state_over = RigidMassSolveDims {
+            abi: [i32::MAX as u32 / 10 + 1, 0, 1, 1],
+            ..state_limit
+        };
+        assert!(matches!(
+            rigid_mass_solve_lengths(&state_over),
+            Err(LauncherError::Overflow("rigid_mass_solve_state_width"))
+        ));
+
+        let output_limit = RigidMassSolveDims {
+            abi: [0, 46_339, 1, 1],
+            metadata_elements: 4,
+        };
+        assert!(rigid_mass_solve_lengths(&output_limit).is_ok());
+        let output_over = RigidMassSolveDims {
+            abi: [0, 46_340, 1, 1],
+            ..output_limit
+        };
+        assert!(matches!(
+            rigid_mass_solve_lengths(&output_over),
+            Err(LauncherError::Overflow("rigid_mass_solve_output_width"))
+        ));
+
+        let reverse_two = RigidMassSolveDims {
+            abi: [1, 2, 1, 1],
+            metadata_elements: 4,
+        };
+        assert!(validate_rigid_mass_solve_metadata(&[1, 0, 2, 2], reverse_two).is_ok());
+        assert!(validate_rigid_mass_solve_metadata(&[1, 0, 2, 0], reverse_two).is_err());
+        assert!(
+            pack_rigid_mass_solve_blocks(
+                &[MassFactorBlock {
+                    start: 0,
+                    size: 2,
+                    kind: MassFactorKind::Diagonal,
+                }],
+                2,
+            )
+            .is_err()
+        );
+    }
     #[cfg(feature = "cuda-probe")]
     #[test]
     #[ignore = "requires NVIDIA driver and NVRTC"]
@@ -718,6 +1399,271 @@ mod tests {
         assert_eq!(w.ld, &[2.0, 1.0, 0.0, 2.0]);
         assert_eq!(w.diagonal_inverse, &[0.0, 0.0]);
         assert_eq!(w.solution, &[1.0, 2.0]);
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn runs_rigid_mass_solve_wrapper_paths_and_recovers() {
+        fn captured<T>(label: &str, run: impl FnOnce() -> T) -> T {
+            let capture = std::env::var_os("MJWARP_PHYSICS_PTX_DIR");
+            if let Some(root) = capture.as_ref() {
+                let child = std::path::PathBuf::from(root).join(label);
+                assert!(!child.exists(), "捕获目录必须为空：{}", child.display());
+                // SAFETY: 本测试单线程运行，并在本次编译后恢复环境。
+                unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &child) };
+            }
+            let result = run();
+            if let Some(root) = capture.as_ref() {
+                // SAFETY: 本测试单线程运行，并恢复调用方环境。
+                unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", root) };
+            } else {
+                // SAFETY: 本测试单线程运行，调用前也没有该变量。
+                unsafe { std::env::remove_var("MJWARP_PHYSICS_PTX_DIR") };
+            }
+            result
+        }
+
+        let session = TransferSession::new(0).unwrap();
+        let worlds = 257usize;
+        let nv = 79usize;
+        let rhs_count = 2usize;
+        let nbody = 1usize;
+        let blocks = vec![
+            MassFactorBlock {
+                start: 0,
+                size: 1,
+                kind: MassFactorKind::Diagonal,
+            },
+            MassFactorBlock {
+                start: 1,
+                size: 6,
+                kind: MassFactorKind::Cholesky,
+            },
+            MassFactorBlock {
+                start: 7,
+                size: 7,
+                kind: MassFactorKind::Cholesky,
+            },
+            MassFactorBlock {
+                start: 14,
+                size: 65,
+                kind: MassFactorKind::ReverseLdl,
+            },
+        ];
+        let layout = MassSolveLayout::new(worlds, nv, rhs_count).unwrap();
+        let abi = [nbody as u32, nv as u32, rhs_count as u32, worlds as u32];
+        let packed = pack_rigid_mass_solve_blocks(&blocks, nv).unwrap();
+        let mut metadata = RigidMassSolveMetadataBuffer::upload(&session, packed, abi).unwrap();
+        let rhs = vec![1.0; worlds * rhs_count * nv];
+        let rhs_buffer = session.upload(&rhs).unwrap();
+        let state_width = 10 * nbody + nv * nv;
+        let mut state = vec![-131072.0; 8 + worlds * state_width];
+        for world in 0..worlds {
+            let start = 4 + world * state_width;
+            state[start..start + 10 * nbody].fill(0.0);
+            let matrix = start + 10 * nbody;
+            state[matrix..matrix + nv * nv].fill(0.0);
+            for dof in 0..nv {
+                state[matrix + dof * nv + dof] = 4.0;
+            }
+        }
+        let state_buffer = session.upload(&state).unwrap();
+        let mut initial = vec![f32::NAN; layout.guarded];
+        initial[..4].fill(-131072.0);
+        let guard = initial.len() - 4;
+        initial[guard..].fill(-131072.0);
+        let mut output = session.upload(&initial).unwrap();
+        let kernel = captured("typed-main", || RigidMassSolveKernel::compile(&session)).unwrap();
+
+        // SAFETY: 复用产品缓冲和冻结私有ABI，建立迁移前位基线。
+        unsafe {
+            kernel
+                .kernel
+                .launch(
+                    metadata.as_buffer(),
+                    &rhs_buffer,
+                    &state_buffer,
+                    &mut output,
+                    abi,
+                )
+                .unwrap();
+        }
+        let mut raw = vec![0.0; output.len()];
+        output.read_range_into(0, &mut raw).unwrap();
+        output.write_range(0, &initial).unwrap();
+        let launch = kernel
+            .preflight(&session, &metadata, &rhs_buffer, &state_buffer, &output)
+            .unwrap();
+        kernel
+            .launch(&launch, &metadata, &rhs_buffer, &state_buffer, &mut output)
+            .unwrap();
+        let mut typed = vec![0.0; output.len()];
+        output.read_range_into(0, &mut typed).unwrap();
+        assert_eq!(
+            raw.iter().map(|value| value.to_bits()).collect::<Vec<_>>(),
+            typed
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        check_result(layout, &typed).unwrap();
+        let typed_output = MassSolveOutput {
+            layout,
+            values: typed,
+            blocks: blocks.clone(),
+        };
+        for world in 0..worlds {
+            assert!(
+                typed_output
+                    .world(world)
+                    .unwrap()
+                    .solution
+                    .iter()
+                    .all(|&value| (value - 0.25).abs() <= 2.0e-5)
+            );
+        }
+
+        let before = {
+            let mut values = vec![0.0; output.len()];
+            output.read_range_into(0, &mut values).unwrap();
+            values
+        };
+        let short_rhs = session.upload(&rhs[..rhs.len() - 1]).unwrap();
+        assert!(
+            kernel
+                .preflight(&session, &metadata, &short_rhs, &state_buffer, &output,)
+                .is_err()
+        );
+        let mut rejected = vec![0.0; output.len()];
+        output.read_range_into(0, &mut rejected).unwrap();
+        assert_eq!(
+            before
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            rejected
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+
+        let stale = kernel
+            .preflight(&session, &metadata, &rhs_buffer, &state_buffer, &output)
+            .unwrap();
+        metadata.overwrite_for_test(0, 1).unwrap();
+        assert!(
+            kernel
+                .launch(&stale, &metadata, &rhs_buffer, &state_buffer, &mut output,)
+                .is_err()
+        );
+        assert!(
+            kernel
+                .preflight(&session, &metadata, &rhs_buffer, &state_buffer, &output)
+                .is_err()
+        );
+        let mut rejected_stale = vec![0.0; output.len()];
+        output.read_range_into(0, &mut rejected_stale).unwrap();
+        assert_eq!(
+            before
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            rejected_stale
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        metadata.restore_for_test().unwrap();
+        let recovered = kernel
+            .preflight(&session, &metadata, &rhs_buffer, &state_buffer, &output)
+            .unwrap();
+        kernel
+            .launch(
+                &recovered,
+                &metadata,
+                &rhs_buffer,
+                &state_buffer,
+                &mut output,
+            )
+            .unwrap();
+
+        let foreign_session = TransferSession::new(0).unwrap();
+        let foreign = captured("foreign-session", || {
+            RigidMassSolveKernel::compile(&foreign_session)
+        })
+        .unwrap();
+        assert!(matches!(
+            foreign.preflight(&session, &metadata, &rhs_buffer, &state_buffer, &output,),
+            Err(TransferError::SessionMismatch)
+        ));
+
+        let scalar_layout = MassSolveLayout::new(2, 1, 1).unwrap();
+        let scalar_blocks = factor_blocks(&[-1]);
+        let mut scalar_state = vec![-131072.0; 30];
+        scalar_state[4..14].fill(0.0);
+        scalar_state[15..25].fill(0.0);
+        scalar_state[14] = 4.0;
+        scalar_state[25] = -1.0;
+        let scalar_buffer = session.upload(&scalar_state).unwrap();
+        assert!(matches!(
+            captured("product-invalid", || solve_device(
+                &session,
+                1,
+                scalar_layout,
+                &scalar_buffer,
+                &[1.0; 2],
+                scalar_blocks.clone(),
+            )),
+            Err(TransferError::InvalidPivot {
+                world: 1,
+                dof: 0,
+                ..
+            })
+        ));
+
+        scalar_state[14] = 1.0e-39;
+        scalar_state[25] = 4.0;
+        let scalar_buffer = session.upload(&scalar_state).unwrap();
+        assert!(matches!(
+            captured("product-nonfinite", || solve_device(
+                &session,
+                1,
+                scalar_layout,
+                &scalar_buffer,
+                &[1.0; 2],
+                scalar_blocks.clone(),
+            )),
+            Err(TransferError::Input(InputError::NonFinite {
+                field: "mass_solve_diagonal_inverse",
+                index: 0
+            }))
+        ));
+
+        scalar_state[14] = 4.0;
+        let scalar_buffer = session.upload(&scalar_state).unwrap();
+        let recovered = captured("product-recovery", || {
+            solve_device(
+                &session,
+                1,
+                scalar_layout,
+                &scalar_buffer,
+                &[1.0; 2],
+                scalar_blocks,
+            )
+        })
+        .unwrap();
+        assert_eq!(recovered.world(0).unwrap().solution, &[0.25]);
+        assert_eq!(recovered.world(1).unwrap().solution, &[0.25]);
+
+        let zero_layout = MassSolveLayout::new(2, 0, 3).unwrap();
+        let zero_state = session.upload(&[-131072.0; 28]).unwrap();
+        let zero = captured("zero-dof", || {
+            solve_device(&session, 1, zero_layout, &zero_state, &[], vec![])
+        })
+        .unwrap();
+        assert!(zero.world(0).unwrap().solution.is_empty());
+        assert!(zero.world(1).unwrap().solution.is_empty());
     }
 
     #[cfg(feature = "cuda-probe")]
