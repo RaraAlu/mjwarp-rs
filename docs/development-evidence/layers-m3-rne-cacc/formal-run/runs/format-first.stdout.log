@@ -1,0 +1,48 @@
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne.rs:458:
+ #[cfg(any(feature = "cuda-probe", test))]
+ fn rne_cacc_lengths(dims: &RneCaccDims) -> Result<[u64; 6], LauncherError> {
+     let static_dims = dims.static_dims;
+-    if dims.flag > 1
+-        || dims.worlds == 0
+-        || dims.worlds > u32::MAX - 255
+-        || static_dims.nbody == 0
+-    {
++    if dims.flag > 1 || dims.worlds == 0 || dims.worlds > u32::MAX - 255 || static_dims.nbody == 0 {
+         return Err(LauncherError::InvalidArray("RNE加速度维度无效"));
+     }
+     if static_dims.metadata_elements != rne_metadata_elements(static_dims.nbody, static_dims.nv)? {
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne.rs:1811:
+         incomplete[8] = 0;
+         assert!(validate_rne_metadata(&incomplete, static_dims).is_err());
+ 
+-        let tail = RneCaccDims { worlds: 513, ..dims };
++        let tail = RneCaccDims {
++            worlds: 513,
++            ..dims
++        };
+         let tail_launch = RneCaccSpec::launch_dims(&tail).unwrap();
+         assert_eq!(tail_launch.grid(), (3, 1, 1));
+     }
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne.rs:2312:
+             assert_eq!(&raw[raw.len() - 4..], &initial[initial.len() - 4..]);
+             for world in 0..WORLDS {
+                 let start = 4 + world * width;
+-                assert!(raw[start..start + cacc_width]
+-                    .iter()
+-                    .all(|value| value.to_bits() != sentinel.to_bits()));
+-                assert!(raw[start + cacc_width..start + width]
+-                    .iter()
+-                    .all(|value| value.to_bits() == sentinel.to_bits()));
++                assert!(
++                    raw[start..start + cacc_width]
++                        .iter()
++                        .all(|value| value.to_bits() != sentinel.to_bits())
++                );
++                assert!(
++                    raw[start + cacc_width..start + width]
++                        .iter()
++                        .all(|value| value.to_bits() == sentinel.to_bits())
++                );
+             }
+         }
+ 

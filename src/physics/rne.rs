@@ -29,7 +29,9 @@ pub struct RnePlan {
     #[cfg(feature = "cuda-probe")]
     metadata: RneMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 2],
+    kernels: [SynchronousKernel; 1],
+    #[cfg(feature = "cuda-probe")]
+    cacc_kernel: RneCaccKernel,
     #[cfg(feature = "cuda-probe")]
     cfrc_kernel: RneCfrcKernel,
     #[cfg(feature = "cuda-probe")]
@@ -125,7 +127,76 @@ impl RneLayout {
 }
 
 #[cfg(any(feature = "cuda-probe", test))]
+const RNE_CACC_METADATA_KIND: ProofKind = ProofKind("rne.cacc.metadata.v1");
+
+#[cfg(any(feature = "cuda-probe", test))]
 const RNE_QFRC_METADATA_KIND: ProofKind = ProofKind("rne.qfrc.metadata.v1");
+
+#[cfg(any(feature = "cuda-probe", test))]
+const RNE_CACC_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: RNE_CACC_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::ReadWrite,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
 
 #[cfg(any(feature = "cuda-probe", test))]
 const RNE_CFRC_METADATA_KIND: ProofKind = ProofKind("rne.cfrc.metadata.v1");
@@ -265,6 +336,14 @@ struct RneStaticDims {
 
 #[cfg(any(feature = "cuda-probe", test))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RneCaccDims {
+    flag: u32,
+    worlds: u32,
+    static_dims: RneStaticDims,
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct RneQfrcDims {
     abi: [u32; 4],
     static_dims: RneStaticDims,
@@ -374,6 +453,74 @@ fn validate_rne_metadata(values: &[i32], dims: RneStaticDims) -> Result<(), Laun
         return Err(LauncherError::InvalidMetadata("RNE最大树深度不匹配"));
     }
     Ok(())
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn rne_cacc_lengths(dims: &RneCaccDims) -> Result<[u64; 6], LauncherError> {
+    let static_dims = dims.static_dims;
+    if dims.flag > 1 || dims.worlds == 0 || dims.worlds > u32::MAX - 255 || static_dims.nbody == 0 {
+        return Err(LauncherError::InvalidArray("RNE加速度维度无效"));
+    }
+    if static_dims.metadata_elements != rne_metadata_elements(static_dims.nbody, static_dims.nv)? {
+        return Err(LauncherError::InvalidMetadata("RNE元数据长度不匹配"));
+    }
+    let guarded = |width: u64, field| {
+        u64::from(dims.worlds)
+            .checked_mul(width)
+            .and_then(|value| value.checked_add(8))
+            .ok_or(LauncherError::Overflow(field))
+    };
+    let nbody = u64::from(static_dims.nbody);
+    let nv = u64::from(static_dims.nv);
+    let com_width = nbody
+        .checked_mul(14)
+        .and_then(|value| nv.checked_mul(6).and_then(|dof| value.checked_add(dof)))
+        .ok_or(LauncherError::Overflow("rne_cacc_com"))?;
+    let velocity_width = nbody
+        .checked_mul(6)
+        .and_then(|value| nv.checked_mul(6).and_then(|dof| value.checked_add(dof)))
+        .ok_or(LauncherError::Overflow("rne_cacc_velocity"))?;
+    let output_width = nbody
+        .checked_mul(12)
+        .and_then(|value| value.checked_add(nv))
+        .ok_or(LauncherError::Overflow("rne_cacc_output"))?;
+    Ok([
+        static_dims.metadata_elements,
+        guarded(nv, "rne_cacc_qvel")?,
+        guarded(nv, "rne_cacc_qacc")?,
+        guarded(com_width, "rne_cacc_com")?,
+        guarded(velocity_width, "rne_cacc_velocity")?,
+        guarded(output_width, "rne_cacc_output")?,
+    ])
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct RneCaccSpec;
+
+#[cfg(any(feature = "cuda-probe", test))]
+// SAFETY: 声明逐槽匹配冻结rne_cacc私有ABI。
+unsafe impl KernelAbi for RneCaccSpec {
+    const NAME: &'static str = "rne_cacc";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &RNE_CACC_SLOTS;
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl KernelSpec for RneCaccSpec {
+    type Dims = RneCaccDims;
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        Ok(rne_cacc_lengths(dims)?
+            .into_iter()
+            .enumerate()
+            .map(|(slot, min_elements)| SlotRequirement { slot, min_elements })
+            .collect())
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        rne_cacc_lengths(dims)?;
+        LaunchDims::new((dims.worlds.div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
 }
 
 #[cfg(any(feature = "cuda-probe", test))]
@@ -527,6 +674,69 @@ impl MetadataProof for StaticRneMetadata {
 
     fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
         validate_rne_metadata(values, *dims)
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct RneCaccMetadata;
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl MetadataProof for RneCaccMetadata {
+    type Dims = RneCaccDims;
+
+    const KIND: ProofKind = RNE_CACC_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        validate_rne_metadata(values, dims.static_dims)?;
+        rne_cacc_lengths(dims).map(|_| ())
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn rne_cacc_plan(
+    dims: &RneCaccDims,
+    bindings: &[SlotBinding; 6],
+    proofs: &[CheckedBinding<'_, RneCaccDims>],
+) -> Result<LaunchDims, LauncherError> {
+    let lengths = rne_cacc_lengths(dims)?;
+    for (slot, elements) in lengths.into_iter().enumerate() {
+        let required = elements
+            .checked_mul(4)
+            .ok_or(LauncherError::Overflow("rne_cacc_bytes"))?;
+        if bindings[slot].span.bytes() != required {
+            return Err(LauncherError::Capacity {
+                slot,
+                required,
+                actual: bindings[slot].span.bytes(),
+            });
+        }
+    }
+    Ok(Kernel::<RneCaccSpec>::new()?
+        .plan(dims, bindings, proofs)?
+        .dims())
+}
+
+#[cfg(feature = "cuda-probe")]
+fn rne_cacc_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::StaleMetadata
+        | LauncherError::InvalidMetadata(_)
+        | LauncherError::MetadataMismatch(_) => InputError::InvalidTopology {
+            field: "rne_metadata",
+            index: 0,
+            reason: "invalid_or_stale_metadata",
+        }
+        .into(),
+        LauncherError::Overflow(_) => InputError::Overflow {
+            field: "rne_cacc_abi",
+        }
+        .into(),
+        _ => InputError::InvalidDimension {
+            field: "rne_cacc_abi",
+        }
+        .into(),
     }
 }
 
@@ -725,6 +935,29 @@ impl RneMetadataBuffer {
         Ok(span)
     }
 
+    fn cacc_proof(
+        &self,
+        flg_acc: bool,
+        worlds: u32,
+    ) -> Result<Checked<RneCaccMetadata>, TransferError> {
+        let span = self.validate_base()?;
+        let dims = RneCaccDims {
+            flag: u32::from(flg_acc),
+            worlds,
+            static_dims: self.dims,
+        };
+        // SAFETY: 基础证明已核对真实缓冲、镜像和写入代际。
+        unsafe {
+            Checked::<RneCaccMetadata>::assume_uploaded(
+                span,
+                &self.values,
+                dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(rne_cacc_launch_error)
+    }
+
     fn cfrc_proof(&self, worlds: u32) -> Result<Checked<RneCfrcMetadata>, TransferError> {
         let span = self.validate_base()?;
         let dims = RneCfrcDims {
@@ -782,6 +1015,119 @@ impl RneMetadataBuffer {
         }
         .map_err(rne_qfrc_launch_error)?;
         Ok(())
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct RneCaccLaunch {
+    proof: Checked<RneCaccMetadata>,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct RneCaccKernel {
+    session: TransferSession,
+    kernel: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl RneCaccKernel {
+    fn compile(session: &TransferSession) -> Result<Self, TransferError> {
+        Ok(Self {
+            session: session.clone(),
+            kernel: SynchronousKernel::compile(session, RNE_CUDA, "rne_cacc")?,
+        })
+    }
+
+    fn bindings(
+        metadata: &RneMetadataBuffer,
+        qvel: &TransferBuffer<f32>,
+        qacc: &TransferBuffer<f32>,
+        com: &TransferBuffer<f32>,
+        velocity: &TransferBuffer<f32>,
+        output: &TransferBuffer<f32>,
+    ) -> Result<[SlotBinding; 6], TransferError> {
+        Ok([
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: qvel.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: qacc.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: com.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 4,
+                span: velocity.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 5,
+                span: output.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ])
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn preflight(
+        &self,
+        session: &TransferSession,
+        metadata: &RneMetadataBuffer,
+        qvel: &TransferBuffer<f32>,
+        qacc: &TransferBuffer<f32>,
+        com: &TransferBuffer<f32>,
+        velocity: &TransferBuffer<f32>,
+        output: &TransferBuffer<f32>,
+        flg_acc: bool,
+        worlds: u32,
+    ) -> Result<RneCaccLaunch, TransferError> {
+        if !self.session.same_session(session) || !metadata.session.same_session(session) {
+            return Err(TransferError::SessionMismatch);
+        }
+        let proof = metadata.cacc_proof(flg_acc, worlds)?;
+        let bindings = Self::bindings(metadata, qvel, qacc, com, velocity, output)?;
+        rne_cacc_plan(proof.dims(), &bindings, &[proof.binding(0)])
+            .map_err(rne_cacc_launch_error)?;
+        Ok(RneCaccLaunch { proof })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn launch(
+        &self,
+        launch: &RneCaccLaunch,
+        metadata: &RneMetadataBuffer,
+        qvel: &TransferBuffer<f32>,
+        qacc: &TransferBuffer<f32>,
+        com: &TransferBuffer<f32>,
+        velocity: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+    ) -> Result<(), TransferError> {
+        let dims = *launch.proof.dims();
+        let bindings = Self::bindings(metadata, qvel, qacc, com, velocity, output)?;
+        rne_cacc_plan(&dims, &bindings, &[launch.proof.binding(0)])
+            .map_err(rne_cacc_launch_error)?;
+        // SAFETY: 类型计划核对证明、六个跨度、会话、别名和256线程网格。
+        unsafe {
+            self.kernel.launch_rne_cacc(
+                metadata.as_buffer(),
+                (qvel, qacc, com, velocity),
+                output,
+                dims.flag != 0,
+                dims.worlds,
+            )
+        }
     }
 }
 
@@ -1009,10 +1355,13 @@ impl RnePlan {
         };
         let velocity = ComVelocityPlan::new(session, model)?;
         #[cfg(feature = "cuda-probe")]
-        let kernels = [
-            SynchronousKernel::compile(session, RNE_CUDA, "rne_cacc")?,
-            SynchronousKernel::compile(session, RNE_CUDA, "rne_backward")?,
-        ];
+        let kernels = [SynchronousKernel::compile(
+            session,
+            RNE_CUDA,
+            "rne_backward",
+        )?];
+        #[cfg(feature = "cuda-probe")]
+        let cacc_kernel = RneCaccKernel::compile(session)?;
         #[cfg(feature = "cuda-probe")]
         let cfrc_kernel = RneCfrcKernel::compile(session)?;
         #[cfg(feature = "cuda-probe")]
@@ -1029,6 +1378,8 @@ impl RnePlan {
             metadata,
             #[cfg(feature = "cuda-probe")]
             kernels,
+            #[cfg(feature = "cuda-probe")]
+            cacc_kernel,
             #[cfg(feature = "cuda-probe")]
             cfrc_kernel,
             #[cfg(feature = "cuda-probe")]
@@ -1092,6 +1443,17 @@ impl RnePlan {
         {
             let inputs = data.velocity.rne_inputs()?;
             let worlds = data.worlds() as u32;
+            let cacc_launch = self.cacc_kernel.preflight(
+                &self.session,
+                &self.metadata,
+                inputs.qvel,
+                &data.qacc,
+                inputs.com,
+                inputs.velocity,
+                &data.output,
+                flg_acc,
+                worlds,
+            )?;
             let cfrc_launch = self.cfrc_kernel.preflight(
                 &self.session,
                 &self.metadata,
@@ -1108,19 +1470,15 @@ impl RnePlan {
                 &data.output,
                 worlds,
             )?;
-            // SAFETY: Validated parent/DOF maps bound every index. Inputs have
-            // guarded f32 strides nv, nv, 14*nbody+6*nv, 6*nbody+6*nv.
-            // The disjoint output stride is 12*nbody+nv with four guards.
-            // The private flag ABI is u32; all launches synchronize one session.
-            unsafe {
-                self.kernels[0].launch_rne_cacc(
-                    self.metadata.as_buffer(),
-                    (inputs.qvel, &data.qacc, inputs.com, inputs.velocity),
-                    &mut data.output,
-                    flg_acc,
-                    worlds,
-                )?;
-            }
+            self.cacc_kernel.launch(
+                &cacc_launch,
+                &self.metadata,
+                inputs.qvel,
+                &data.qacc,
+                inputs.com,
+                inputs.velocity,
+                &mut data.output,
+            )?;
             self.cfrc_kernel.launch(
                 &cfrc_launch,
                 &self.metadata,
@@ -1134,7 +1492,7 @@ impl RnePlan {
                 // Same-depth bodies never have a parent at that depth.
                 // Checked worlds*nbody bounds the work-item ABI.
                 for depth in (1..=self.depth).rev() {
-                    self.kernels[1].launch(
+                    self.kernels[0].launch(
                         self.metadata.as_buffer(),
                         inputs.com,
                         inputs.velocity,
@@ -1312,6 +1670,206 @@ mod tests {
             assert!(check_values("test", 1, &[value]).is_err());
         }
         assert!(check_values("test", 0, &[]).is_ok());
+    }
+
+    #[test]
+    fn rne_cacc_plan_checks_metadata_spans_aliases_and_overflow() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let bind = |slot, context, addr, bytes, elem| SlotBinding {
+            slot,
+            span: DeviceSpan::new(context, addr, bytes).unwrap(),
+            elem,
+        };
+        let static_dims = RneStaticDims {
+            nbody: 2,
+            nv: 1,
+            depth: 1,
+            metadata_elements: 14,
+        };
+        let dims = RneCaccDims {
+            flag: 1,
+            worlds: 2,
+            static_dims,
+        };
+        let values = vec![2, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1];
+        assert_eq!(rne_cacc_lengths(&dims).unwrap(), [14, 10, 10, 76, 44, 58]);
+        let revision = MetadataRevision::new();
+        let metadata_span = DeviceSpan::new(11, 0x1000, 56).unwrap();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let proof = unsafe {
+            Checked::<RneCaccMetadata>::assume_uploaded(
+                metadata_span,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        let bindings = [
+            bind(0, 11, 0x1000, 56, ElemType::I32),
+            bind(1, 11, 0x2000, 40, ElemType::F32),
+            bind(2, 11, 0x2000, 40, ElemType::F32),
+            bind(3, 11, 0x3000, 304, ElemType::F32),
+            bind(4, 11, 0x4000, 176, ElemType::F32),
+            bind(5, 11, 0x5000, 232, ElemType::F32),
+        ];
+        let launch = rne_cacc_plan(&dims, &bindings, &[proof.binding(0)]).unwrap();
+        assert_eq!(launch.grid(), (1, 1, 1));
+        assert_eq!(launch.block(), (256, 1, 1));
+        assert_eq!(launch.shared_bytes(), 0);
+        assert!(matches!(
+            rne_cacc_plan(&dims, &bindings, &[]),
+            Err(LauncherError::MissingMetadataProof { slot: 0 })
+        ));
+
+        let addresses = [0x1000, 0x2000, 0x2000, 0x3000, 0x4000, 0x5000];
+        let bytes = [56, 40, 40, 304, 176, 232];
+        for slot in 0..6 {
+            let mut short = bindings;
+            short[slot].span = DeviceSpan::new(11, addresses[slot], bytes[slot] - 4).unwrap();
+            assert!(matches!(
+                rne_cacc_plan(&dims, &short, &[proof.binding(0)]),
+                Err(LauncherError::Capacity { slot: bad, .. }) if bad == slot
+            ));
+
+            let mut long = bindings;
+            long[slot].span = DeviceSpan::new(11, addresses[slot], bytes[slot] + 4).unwrap();
+            assert!(matches!(
+                rne_cacc_plan(&dims, &long, &[proof.binding(0)]),
+                Err(LauncherError::Capacity { slot: bad, .. }) if bad == slot
+            ));
+        }
+
+        let mut foreign = bindings;
+        foreign[4].span = DeviceSpan::new(12, 0x4000, 176).unwrap();
+        assert!(matches!(
+            rne_cacc_plan(&dims, &foreign, &[proof.binding(0)]),
+            Err(LauncherError::ContextMismatch { slot: 4 })
+        ));
+        let mut alias = bindings;
+        alias[5].span = DeviceSpan::new(11, 0x3000, 232).unwrap();
+        assert!(matches!(
+            rne_cacc_plan(&dims, &alias, &[proof.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 3,
+                second: 5
+            })
+        ));
+
+        revision.invalidate();
+        assert!(matches!(
+            rne_cacc_plan(&dims, &bindings, &[proof.binding(0)]),
+            Err(LauncherError::StaleMetadata)
+        ));
+        for invalid in [
+            RneCaccDims { flag: 2, ..dims },
+            RneCaccDims { worlds: 0, ..dims },
+            RneCaccDims {
+                worlds: u32::MAX - 254,
+                ..dims
+            },
+        ] {
+            assert!(rne_cacc_lengths(&invalid).is_err());
+        }
+        let signed = RneCaccDims {
+            flag: 0,
+            worlds: 1,
+            static_dims: RneStaticDims {
+                nbody: i32::MAX as u32 + 1,
+                nv: 0,
+                depth: 1,
+                metadata_elements: 0,
+            },
+        };
+        assert!(rne_cacc_lengths(&signed).is_err());
+        let wide = RneCaccDims {
+            flag: 0,
+            worlds: u32::MAX - 255,
+            static_dims: RneStaticDims {
+                nbody: 400_000_000,
+                nv: 0,
+                depth: 1,
+                metadata_elements: 1_600_000_005,
+            },
+        };
+        assert!(matches!(
+            rne_cacc_lengths(&wide),
+            Err(LauncherError::Overflow("rne_cacc_com"))
+        ));
+
+        for (index, value) in [(2, f32::NAN.to_bits() as i32), (6, 1), (11, 2), (12, 2)] {
+            let mut invalid = values.clone();
+            invalid[index] = value;
+            assert!(validate_rne_metadata(&invalid, static_dims).is_err());
+        }
+        let mut incomplete = values;
+        incomplete[8] = 0;
+        assert!(validate_rne_metadata(&incomplete, static_dims).is_err());
+
+        let tail = RneCaccDims {
+            worlds: 513,
+            ..dims
+        };
+        let tail_launch = RneCaccSpec::launch_dims(&tail).unwrap();
+        assert_eq!(tail_launch.grid(), (3, 1, 1));
+    }
+
+    #[test]
+    fn rne_cacc_plan_accepts_zero_dof_boundary() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let dims = RneCaccDims {
+            flag: 0,
+            worlds: 2,
+            static_dims: RneStaticDims {
+                nbody: 2,
+                nv: 0,
+                depth: 1,
+                metadata_elements: 13,
+            },
+        };
+        let values = vec![2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+        let revision = MetadataRevision::new();
+        let span = DeviceSpan::new(13, 0x1000, 52).unwrap();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let proof =
+            unsafe { Checked::<RneCaccMetadata>::assume_uploaded(span, &values, dims, revision) }
+                .unwrap();
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: DeviceSpan::new(13, 0x2000, 32).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: DeviceSpan::new(13, 0x2000, 32).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: DeviceSpan::new(13, 0x3000, 256).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 4,
+                span: DeviceSpan::new(13, 0x4000, 128).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 5,
+                span: DeviceSpan::new(13, 0x5000, 224).unwrap(),
+                elem: ElemType::F32,
+            },
+        ];
+        assert_eq!(rne_cacc_lengths(&dims).unwrap(), [13, 8, 8, 64, 32, 56]);
+        rne_cacc_plan(&dims, &bindings, &[proof.binding(0)]).unwrap();
     }
 
     #[test]
@@ -1661,6 +2219,253 @@ mod tests {
     #[test]
     #[cfg(feature = "cuda-probe")]
     #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn runs_rne_cacc_wrapper_and_recovers_after_real_metadata_write() {
+        let session = TransferSession::new(0).unwrap();
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let fixture: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(root.join("fixtures/rne-bias/mixed-joints.json")).unwrap(),
+        )
+        .unwrap();
+        let model = reference_model(&fixture);
+        assert_eq!(
+            model.rigid().kinematics().fields().body_parentid,
+            [0, 0, 1, 2, 3, 0]
+        );
+        let mut plan = RnePlan::new(&session, model, [0.0, 0.0, -9.81]).unwrap();
+        assert_eq!((plan.nbody, plan.nv), (6, 11));
+        const WORLDS: usize = 513;
+        let mut data = plan.create_data(WORLDS).unwrap();
+        let qvel: Vec<_> = (0..WORLDS * plan.nv)
+            .map(|index| (index as f32 - 2821.0) * 0.000_125)
+            .collect();
+        let qacc: Vec<_> = (0..WORLDS * plan.nv)
+            .map(|index| (2821.0 - index as f32) * 0.000_25)
+            .collect();
+        data.write_qvel(&qvel).unwrap();
+        data.write_qacc(&qacc).unwrap();
+        plan.update_velocity(&mut data).unwrap();
+        let width = 12 * plan.nbody + plan.nv;
+        let cacc_width = 6 * plan.nbody;
+        let sentinel = -777.25f32;
+        let mut initial = vec![sentinel; data.output.len()];
+        initial[..4].fill(-131072.0);
+        let end = initial.len() - 4;
+        initial[end..].fill(-131072.0);
+
+        for flg_acc in [false, true] {
+            let (raw, typed) = {
+                let inputs = data.velocity.rne_inputs().unwrap();
+                data.output.write_range(0, &initial).unwrap();
+                // SAFETY: 复用产品计划的同一实际缓冲和冻结私有ABI。
+                unsafe {
+                    plan.cacc_kernel.kernel.launch_rne_cacc(
+                        plan.metadata.as_buffer(),
+                        (inputs.qvel, &data.qacc, inputs.com, inputs.velocity),
+                        &mut data.output,
+                        flg_acc,
+                        WORLDS as u32,
+                    )
+                }
+                .unwrap();
+                let mut raw = vec![0.0; data.output.len()];
+                data.output.read_range_into(0, &mut raw).unwrap();
+
+                data.output.write_range(0, &initial).unwrap();
+                let launch = plan
+                    .cacc_kernel
+                    .preflight(
+                        &plan.session,
+                        &plan.metadata,
+                        inputs.qvel,
+                        &data.qacc,
+                        inputs.com,
+                        inputs.velocity,
+                        &data.output,
+                        flg_acc,
+                        WORLDS as u32,
+                    )
+                    .unwrap();
+                plan.cacc_kernel
+                    .launch(
+                        &launch,
+                        &plan.metadata,
+                        inputs.qvel,
+                        &data.qacc,
+                        inputs.com,
+                        inputs.velocity,
+                        &mut data.output,
+                    )
+                    .unwrap();
+                let mut typed = vec![0.0; data.output.len()];
+                data.output.read_range_into(0, &mut typed).unwrap();
+                (raw, typed)
+            };
+            assert_eq!(
+                raw.iter().map(|value| value.to_bits()).collect::<Vec<_>>(),
+                typed
+                    .iter()
+                    .map(|value| value.to_bits())
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(&raw[..4], &initial[..4]);
+            assert_eq!(&raw[raw.len() - 4..], &initial[initial.len() - 4..]);
+            for world in 0..WORLDS {
+                let start = 4 + world * width;
+                assert!(
+                    raw[start..start + cacc_width]
+                        .iter()
+                        .all(|value| value.to_bits() != sentinel.to_bits())
+                );
+                assert!(
+                    raw[start + cacc_width..start + width]
+                        .iter()
+                        .all(|value| value.to_bits() == sentinel.to_bits())
+                );
+            }
+        }
+
+        {
+            let inputs = data.velocity.rne_inputs().unwrap();
+            let short_qacc = session.upload(&vec![0.0; data.qacc.len() - 1]).unwrap();
+            assert!(
+                plan.cacc_kernel
+                    .preflight(
+                        &plan.session,
+                        &plan.metadata,
+                        inputs.qvel,
+                        &short_qacc,
+                        inputs.com,
+                        inputs.velocity,
+                        &data.output,
+                        true,
+                        WORLDS as u32,
+                    )
+                    .is_err()
+            );
+            let proof = plan.metadata.cacc_proof(true, WORLDS as u32).unwrap();
+            let mut alias = RneCaccKernel::bindings(
+                &plan.metadata,
+                inputs.qvel,
+                &data.qacc,
+                inputs.com,
+                inputs.velocity,
+                &data.output,
+            )
+            .unwrap();
+            let output_bytes = rne_cacc_lengths(proof.dims()).unwrap()[5] * 4;
+            alias[5].span = alias[3].span.view(0, output_bytes).unwrap();
+            assert!(matches!(
+                rne_cacc_plan(proof.dims(), &alias, &[proof.binding(0)]),
+                Err(LauncherError::Alias {
+                    first: 3,
+                    second: 5
+                })
+            ));
+        }
+
+        let sentinel_workspace = |data: &mut RneData, seed: f32| {
+            let mut values = vec![0.0; data.output.len()];
+            data.output.read_range_into(0, &mut values).unwrap();
+            let end = values.len() - 4;
+            for (index, value) in values[4..end].iter_mut().enumerate() {
+                *value = seed + (index % 31) as f32 * 0.125;
+            }
+            data.output.write_range(0, &values).unwrap();
+            values
+        };
+        plan.update_rne(&mut data, true).unwrap();
+        data.readback().unwrap();
+        let before = sentinel_workspace(&mut data, -4096.0);
+        plan.metadata.overwrite_for_test(0, 1).unwrap();
+        assert!(plan.update_rne(&mut data, true).is_err());
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::StageNotReady { stage: "rne" })
+        ));
+        let mut rejected = vec![0.0; data.output.len()];
+        data.output.read_range_into(0, &mut rejected).unwrap();
+        assert_eq!(
+            before
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            rejected
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        plan.metadata.restore_for_test().unwrap();
+        plan.update_rne(&mut data, true).unwrap();
+        data.readback().unwrap();
+
+        let before_session = sentinel_workspace(&mut data, -8192.0);
+        let foreign_session = TransferSession::new(0).unwrap();
+        let capture = std::env::var_os("MJWARP_PHYSICS_PTX_DIR");
+        if let Some(root) = capture.as_ref() {
+            let foreign = std::path::PathBuf::from(root).join("foreign-session");
+            assert!(!foreign.exists());
+            // SAFETY: 本测试单线程运行，并在编译后立即恢复环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &foreign) };
+        }
+        let foreign_kernel = RneCaccKernel::compile(&foreign_session).unwrap();
+        if let Some(root) = capture.as_ref() {
+            // SAFETY: 本测试单线程运行，并恢复调用方的原始环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", root) };
+        } else {
+            // SAFETY: 本测试单线程运行，调用前也没有该变量。
+            unsafe { std::env::remove_var("MJWARP_PHYSICS_PTX_DIR") };
+        }
+        let correct_kernel = std::mem::replace(&mut plan.cacc_kernel, foreign_kernel);
+        assert!(matches!(
+            plan.update_rne(&mut data, true),
+            Err(TransferError::SessionMismatch)
+        ));
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::StageNotReady { stage: "rne" })
+        ));
+        let mut rejected_session = vec![0.0; data.output.len()];
+        data.output
+            .read_range_into(0, &mut rejected_session)
+            .unwrap();
+        assert_eq!(
+            before_session
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            rejected_session
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        plan.cacc_kernel = correct_kernel;
+        plan.update_rne(&mut data, true).unwrap();
+        data.readback().unwrap();
+
+        let zero = super::super::tests::test_model(None);
+        let zero = AttachedModelInput::new(zero, crate::model::AttachedFields::default()).unwrap();
+        if let Some(root) = capture.as_ref() {
+            let zero_capture = std::path::PathBuf::from(root).join("zero-dof");
+            assert!(!zero_capture.exists());
+            // SAFETY: 本测试单线程运行，并在编译后立即恢复环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &zero_capture) };
+        }
+        let zero_plan = RnePlan::new(&session, zero, [0.0; 3]).unwrap();
+        if let Some(root) = capture.as_ref() {
+            // SAFETY: 本测试单线程运行，并恢复调用方的原始环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", root) };
+        }
+        let mut zero_data = zero_plan.create_data(2).unwrap();
+        zero_plan.update(&mut zero_data, false).unwrap();
+        let zero_output = zero_data.readback().unwrap();
+        for world in 0..2 {
+            assert!(zero_output.world(world).unwrap().qfrc_bias.is_empty());
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
     fn runs_rne_cfrc_wrapper_and_recovers_after_real_metadata_write() {
         let session = TransferSession::new(0).unwrap();
         let model = super::super::tests::test_model(Some(3));
@@ -1691,7 +2496,7 @@ mod tests {
             data.output.write_range(0, &initial).unwrap();
             // SAFETY: 先用冻结旧ABI生成相同cacc前缀。
             unsafe {
-                plan.kernels[0].launch_rne_cacc(
+                plan.cacc_kernel.kernel.launch_rne_cacc(
                     plan.metadata.as_buffer(),
                     (inputs.qvel, &data.qacc, inputs.com, inputs.velocity),
                     &mut data.output,
