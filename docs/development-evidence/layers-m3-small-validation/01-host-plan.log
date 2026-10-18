@@ -1,0 +1,31 @@
+command=cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::dense::small::tests::typed_small_validation_plan_tracks_only_dereferenced_spans -- --exact --nocapture --test-threads=1
+device_before=NVIDIA GeForce RTX 4070 Ti SUPER, 596.36, 16376, 4368
+stream=PowerShell merged stdout/stderr
+   Compiling mjwarp-rs v0.1.0 (D:\Rust\mjwarp-rs)
+error[E0502]: cannot borrow `matrix_values` as immutable because it is also borrowed as mutable
+    --> src\physics\mass_solve\sparse\dense\small.rs:1215:26
+     |
+1215 |         matrix_values[4..matrix_values.len() - 4].fill(0.25);
+     |         -----------------^^^^^^^^^^^^^-----------
+     |         |            |   |
+     |         |            |   immutable borrow occurs here
+     |         |            mutable borrow later used here
+     |         mutable borrow occurs here
+     |
+help: try adding a local storing this...
+    --> src\physics\mass_solve\sparse\dense\small.rs:1215:26
+     |
+1215 |         matrix_values[4..matrix_values.len() - 4].fill(0.25);
+     |                          ^^^^^^^^^^^^^^^^^^^
+help: ...and then using that local here
+    --> src\physics\mass_solve\sparse\dense\small.rs:1215:22
+     |
+1215 |         matrix_values[4..matrix_values.len() - 4].fill(0.25);
+     |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0502`.
+error: could not compile `mjwarp-rs` (lib test) due to 1 previous error
+
+exit_code=101
+elapsed_ms=2486
+device_after=NVIDIA GeForce RTX 4070 Ti SUPER, 596.36, 16376, 4377

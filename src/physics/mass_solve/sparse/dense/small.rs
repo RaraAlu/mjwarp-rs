@@ -17,6 +17,137 @@ use std::sync::Arc;
 const SMALL_FACTOR_METADATA_KIND: ProofKind = ProofKind("small_factor_metadata");
 
 #[cfg(feature = "cuda-probe")]
+const SMALL_VALIDATION_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Write,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(feature = "cuda-probe")]
+struct SmallValidationSpec;
+
+#[cfg(feature = "cuda-probe")]
+// SAFETY: 声明匹配冻结Small校验ABI。
+unsafe impl KernelAbi for SmallValidationSpec {
+    const NAME: &'static str = "small_prefix_validate";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &SMALL_VALIDATION_SLOTS;
+}
+
+#[cfg(feature = "cuda-probe")]
+impl KernelSpec for SmallValidationSpec {
+    type Dims = [u32; 4];
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        let (matrix, status) = small_validation_lengths(dims)?;
+        Ok(vec![
+            SlotRequirement {
+                slot: 0,
+                min_elements: 1,
+            },
+            SlotRequirement {
+                slot: 1,
+                min_elements: matrix,
+            },
+            SlotRequirement {
+                slot: 2,
+                min_elements: 1,
+            },
+            SlotRequirement {
+                slot: 3,
+                min_elements: status,
+            },
+        ])
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        small_validation_lengths(dims)?;
+        LaunchDims::new((dims[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn small_validation_lengths(dims: &[u32; 4]) -> Result<(u64, u64), LauncherError> {
+    let [prefix, first, count, worlds] = *dims;
+    if first != 0 || count != 0 || worlds == 0 || worlds > u32::MAX - 255 {
+        return Err(LauncherError::InvalidArray("Small校验维度无效"));
+    }
+    let matrix = u64::from(prefix)
+        .checked_mul(u64::from(worlds))
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("small_validation_matrix"))?;
+    let status = u64::from(worlds)
+        .checked_add(8)
+        .ok_or(LauncherError::Overflow("small_validation_status"))?;
+    Ok((matrix, status))
+}
+
+#[cfg(feature = "cuda-probe")]
+fn small_validation_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        _ => InputError::InvalidDimension {
+            field: "small_validation_abi",
+        }
+        .into(),
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
 struct StaticSmallFactorMetadata;
 
 #[cfg(feature = "cuda-probe")]
@@ -375,6 +506,74 @@ impl SmallFactorMetadataBuffer {
 }
 
 #[cfg(feature = "cuda-probe")]
+struct SmallValidationKernel {
+    kernel: SynchronousKernel,
+    prefix: u32,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl SmallValidationKernel {
+    fn compile(session: &TransferSession, prefix: u32) -> Result<Self, TransferError> {
+        small_validation_lengths(&[prefix, 0, 0, 1]).map_err(small_validation_launch_error)?;
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, CUDA, "small_prefix_validate")?,
+            prefix,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        matrix: &TransferBuffer<f32>,
+        unused: &TransferBuffer<f32>,
+        status: &mut TransferBuffer<f32>,
+        worlds: usize,
+    ) -> Result<(), TransferError> {
+        let worlds = u32::try_from(worlds).map_err(|_| InputError::Overflow {
+            field: "small_validation_worlds",
+        })?;
+        let dims = [self.prefix, 0, 0, worlds];
+        let (matrix_len, status_len) =
+            small_validation_lengths(&dims).map_err(small_validation_launch_error)?;
+        if u64::try_from(matrix.len()).ok() != Some(matrix_len)
+            || u64::try_from(status.len()).ok() != Some(status_len)
+        {
+            return Err(InputError::InvalidDimension {
+                field: "small_validation_abi",
+            }
+            .into());
+        }
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: matrix.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: unused.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: status.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        Kernel::<SmallValidationSpec>::new()
+            .and_then(|kernel| kernel.plan(&dims, &bindings, &[]))
+            .map_err(small_validation_launch_error)?;
+        // SAFETY: 类型化计划核对实际访问跨度和固定ABI。
+        unsafe { self.kernel.launch(metadata, matrix, unused, status, dims) }
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
 struct SmallFactorKernel {
     kernel: SynchronousKernel,
     size: u32,
@@ -489,7 +688,7 @@ pub struct SparseMassSmallPlan {
     #[cfg(feature = "cuda-probe")]
     metadata: SmallFactorMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
-    validator: SynchronousKernel,
+    validator: SmallValidationKernel,
     #[cfg(feature = "cuda-probe")]
     groups: Vec<SmallFactorKernel>,
 }
@@ -581,7 +780,7 @@ impl SparseMassSmallPlan {
                 source,
                 metadata,
                 groups,
-                validator: SynchronousKernel::compile(session, CUDA, "small_prefix_validate")?,
+                validator: SmallValidationKernel::compile(session, prefix)?,
             })
         }
     }
@@ -637,19 +836,14 @@ impl SparseMassSmallPlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let prefix = self.input().qld_block_total() as u32;
-            let worlds = data.worlds() as u32;
-            // SAFETY: Same-plan dense input has worlds*prefix payload and guards.
-            // Validation owns one status slot per world; all inputs are immutable.
-            unsafe {
-                self.validator.launch(
-                    self.metadata.as_buffer(),
-                    &data.source.dense,
-                    &data.source.dense,
-                    &mut data.source.status,
-                    [prefix, 0, 0, worlds],
-                )?;
-            }
+            let worlds = data.worlds();
+            self.validator.launch(
+                self.metadata.as_buffer(),
+                &data.source.dense,
+                &data.source.dense,
+                &mut data.source.status,
+                worlds,
+            )?;
             let mut status = crate::runtime::host_staging::<f32>(data.worlds() + 8)?;
             data.source.status.read_range_into(0, &mut status)?;
             crate::physics::check_device_values(&status, "small_prefix_status")?;
@@ -670,7 +864,9 @@ impl SparseMassSmallPlan {
                     &data.source.dense,
                     &data.source.dense,
                     &mut data.factor,
-                    worlds,
+                    u32::try_from(worlds).map_err(|_| InputError::Overflow {
+                        field: "small_factor_worlds",
+                    })?,
                 )?;
             }
             data.checked_values()?;
@@ -933,6 +1129,170 @@ mod tests {
     }
 
     #[test]
+    fn typed_small_validation_plan_tracks_only_dereferenced_spans() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let dims = [5, 0, 0, 257];
+        let (matrix_len, status_len) = small_validation_lengths(&dims).unwrap();
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: DeviceSpan::new(7, 0x1000, 4).unwrap(),
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: DeviceSpan::new(7, 0x2000, matrix_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: DeviceSpan::new(7, 0x4000, 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: DeviceSpan::new(7, 0x6000, status_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+        ];
+        let kernel = Kernel::<SmallValidationSpec>::new().unwrap();
+        let plan = kernel.plan(&dims, &bindings, &[]).unwrap();
+        assert_eq!(plan.dims().grid(), (2, 1, 1));
+        assert_eq!(plan.dims().block(), (256, 1, 1));
+
+        let mut capacity = bindings;
+        capacity[1].span = DeviceSpan::new(7, 0x2000, matrix_len * 4 - 4).unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &capacity, &[]),
+            Err(LauncherError::Capacity { slot: 1, .. })
+        ));
+
+        let mut alias = bindings;
+        alias[3].span = alias[1].span;
+        assert!(matches!(
+            kernel.plan(&dims, &alias, &[]),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3,
+            })
+        ));
+
+        let mut unused_alias = bindings;
+        unused_alias[2].span = unused_alias[3].span;
+        assert!(matches!(
+            kernel.plan(&dims, &unused_alias, &[]),
+            Err(LauncherError::Alias {
+                first: 2,
+                second: 3,
+            })
+        ));
+
+        let mut foreign = bindings;
+        foreign[2].span = DeviceSpan::new(8, 0x4000, 4).unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &foreign, &[]),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+
+        assert!(kernel.plan(&[5, 1, 0, 257], &bindings, &[]).is_err());
+        let zero_dims = [0, 0, 0, 257];
+        let mut zero = bindings;
+        zero[1].span = DeviceSpan::new(7, 0x2000, 8 * 4).unwrap();
+        assert!(kernel.plan(&zero_dims, &zero, &[]).is_ok());
+    }
+
+    #[test]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn gpu_small_validation_wrapper_preserves_zero_prefix_and_unused_semantics() {
+        let session = TransferSession::new(0).unwrap();
+        let foreign = TransferSession::new(0).unwrap();
+        let mut metadata = session.upload(&[0i32]).unwrap();
+        let unused = session.upload(&[7.0f32]).unwrap();
+        let worlds = 257usize;
+        let prefix = 3usize;
+        let mut matrix_values = vec![-131072.0; prefix * worlds + 8];
+        let matrix_end = matrix_values.len() - 4;
+        matrix_values[4..matrix_end].fill(0.25);
+        let status_values = vec![-131072.0; worlds + 8];
+        let matrix = session.upload(&matrix_values).unwrap();
+        let mut status = session.upload(&status_values).unwrap();
+        let kernel = SmallValidationKernel::compile(&session, prefix as u32).unwrap();
+
+        kernel
+            .launch(&metadata, &matrix, &unused, &mut status, worlds)
+            .unwrap();
+        let mut result = vec![0.0; status.len()];
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(&result[..4], &status_values[..4]);
+        assert_eq!(
+            &result[result.len() - 4..],
+            &status_values[status_values.len() - 4..]
+        );
+        assert!(result[4..4 + worlds].iter().all(|&value| value == 1.0));
+        let stable = result.clone();
+
+        metadata.write_range(0, &[-1]).unwrap();
+        kernel
+            .launch(&metadata, &matrix, &unused, &mut status, worlds)
+            .unwrap();
+        let short_matrix = session
+            .upload(&matrix_values[..matrix_values.len() - 1])
+            .unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &short_matrix, &unused, &mut status, worlds)
+                .is_err()
+        );
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(result, stable);
+        let mut short_status = session
+            .upload(&status_values[..status_values.len() - 1])
+            .unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &matrix, &unused, &mut short_status, worlds,)
+                .is_err()
+        );
+        let mut short_after = vec![0.0; short_status.len()];
+        short_status.read_range_into(0, &mut short_after).unwrap();
+        assert_eq!(short_after, status_values[..status_values.len() - 1]);
+        let wrong_prefix_matrix = session
+            .upload(&vec![-131072.0f32; (prefix + 1) * worlds + 8])
+            .unwrap();
+        assert!(
+            kernel
+                .launch(
+                    &metadata,
+                    &wrong_prefix_matrix,
+                    &unused,
+                    &mut status,
+                    worlds,
+                )
+                .is_err()
+        );
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(result, stable);
+        let foreign_unused = foreign.upload(&[7.0f32]).unwrap();
+        assert!(matches!(
+            kernel.launch(&metadata, &matrix, &foreign_unused, &mut status, worlds),
+            Err(TransferError::SessionMismatch)
+        ));
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(result, stable);
+
+        let zero_kernel = SmallValidationKernel::compile(&session, 0).unwrap();
+        let zero_matrix = session.upload(&[-131072.0f32; 8]).unwrap();
+        let mut zero_status = session.upload(&[-131072.0f32; 11]).unwrap();
+        zero_kernel
+            .launch(&metadata, &zero_matrix, &unused, &mut zero_status, 3)
+            .unwrap();
+        let mut zero_result = vec![0.0; zero_status.len()];
+        zero_status.read_range_into(0, &mut zero_result).unwrap();
+        assert_eq!(&zero_result[4..7], &[1.0, 1.0, 1.0]);
+    }
+
+    #[test]
     #[ignore = "requires NVIDIA driver and NVRTC"]
     fn gpu_small_factor_wrapper_binds_real_spans_and_metadata() {
         let session = TransferSession::new(0).unwrap();
@@ -1012,6 +1372,64 @@ mod tests {
         assert!(check_routes(&input::mixed_input()).is_ok());
         assert!(check_routes(&input::sparse(&input::base()["models"][3])).is_err());
     }
+
+    #[test]
+    #[ignore = "requires NVIDIA/NVRTC; Small validation product-call purpose"]
+    fn gpu_small_validation_real_update_rejects_and_recovers_without_factor_write() {
+        let start = std::time::Instant::now();
+        let session = TransferSession::new(0).unwrap();
+        let mut plan = SparseMassSmallPlan::new(&session, input::mixed_input()).unwrap();
+        let mut data = plan.create_data(2).unwrap();
+        let matrix = input::mixed_matrix(0);
+        data.write_matrix(&matrix.repeat(2)).unwrap();
+        plan.update(&mut data).unwrap();
+        let bits = |values: &[f32]| {
+            values
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        };
+        let mut stable = vec![0.0; data.factor.len()];
+        data.factor.read_range_into(0, &mut stable).unwrap();
+
+        data.source.dense.write_range(0, &[0.0]).unwrap();
+        assert!(plan.update_factor(&mut data).is_err());
+        assert!(!data.ready);
+        assert!(!data.source.ready);
+        let mut rejected = vec![0.0; data.factor.len()];
+        data.factor.read_range_into(0, &mut rejected).unwrap();
+        assert_eq!(bits(&stable), bits(&rejected));
+
+        data.source.dense.write_range(0, &[-131072.0]).unwrap();
+        plan.update_gather(&mut data).unwrap();
+        plan.update_factor(&mut data).unwrap();
+        data.factor.read_range_into(0, &mut stable).unwrap();
+        data.source.status.write_range(4, &[0.0, 0.0]).unwrap();
+        plan.metadata.write_for_test(0, -1).unwrap();
+        assert!(matches!(
+            plan.update_factor(&mut data),
+            Err(TransferError::Input(InputError::InvalidTopology {
+                field: "small_factor_metadata",
+                reason: "stale_proof",
+                ..
+            }))
+        ));
+        let mut status = vec![0.0; data.source.status.len()];
+        data.source.status.read_range_into(0, &mut status).unwrap();
+        assert_eq!(&status[4..6], &[1.0, 1.0]);
+        data.factor.read_range_into(0, &mut rejected).unwrap();
+        assert_eq!(bits(&stable), bits(&rejected));
+
+        plan.metadata.restore_for_test().unwrap();
+        plan.update_factor(&mut data).unwrap();
+        assert!(data.readback().is_ok());
+        println!(
+            "small_validation_private worlds=2 recovered=true phase_ms={} status_capacity_bytes={}",
+            start.elapsed().as_millis(),
+            data.source.status.len() * std::mem::size_of::<f32>()
+        );
+    }
+
     #[test]
     #[ignore = "requires NVIDIA/NVRTC; new Small prefix cached-input/factor fault purpose"]
     fn cache_ignores_old_csr_and_guarded_factor_stages_reject_faults() {
