@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-18-layers-m3-sparse-mass-diag",
+  "base_commit": "9bfb83894342a9e115bda691f7e5b7e7f2509e8c",
+  "source_file": "src/physics/mass_solve/sparse.rs",
+  "source_sha256": "7c564b8071adf16ac854bf92fc8129fb65b62d88ec4c83d6cf49c3176b9da848",
+  "entry": "sparse_mass_diag",
+  "abi": {
+    "slots": 8,
+    "pointer_slots": [
+      {"index": 0, "type": "i32", "access": "read", "role": "address_bearing", "exact_elements": "full packed metadata"},
+      {"index": 1, "type": "f32", "access": "read", "role": "value", "exact_elements": "worlds * nc + 8"},
+      {"index": 2, "type": "f32", "access": "read", "role": "value", "exact_elements": "worlds * nc + 8"},
+      {"index": 3, "type": "f32", "access": "read_write", "role": "value", "exact_elements": "worlds * (nc + nv) + 8"}
+    ],
+    "scalar_slots": ["first:u32", "count:u32", "stride:u32", "work:u32"],
+    "block": [256, 1, 1],
+    "shared_bytes": 0,
+    "metadata_proof_required": true,
+    "metadata_kind": "sparse_mass_diag_indices"
+  },
+  "metadata": {
+    "ownership": "exclusive wrapper retains device buffer, host snapshot and revision",
+    "full_packed_length_exact": true,
+    "nv_from_word_0": true,
+    "nc_from_word_1": true,
+    "rownnz_exact": true,
+    "rowadr_exact": true,
+    "update_triples_exact": true,
+    "generation_checked_before_launch": true
+  },
+  "dimensions": {
+    "first_zero": true,
+    "count_zero": true,
+    "stride": "nc + nv",
+    "work": "worlds * nv",
+    "zero_nv_launches": false,
+    "positive_worlds_required": true
+  },
+  "alias": {
+    "two_unused_slots_same_read_only_object": true,
+    "read_read_alias_allowed": true,
+    "output_overlap_rejected": true,
+    "output_access": "read_write for factor reads and inverse writes"
+  },
+  "host_checks": [
+    "checked usize-to-u32 and u32-to-i32 conversions",
+    "checked nc-plus-nv stride arithmetic",
+    "checked worlds-times-nv work arithmetic",
+    "checked exact metadata and buffer spans",
+    "checked positive bounded world work",
+    "checked one CUDA context",
+    "checked metadata revision",
+    "checked writable output alias",
+    "fixed 256-thread launch"
+  ],
+  "ordering": [
+    "ready becomes false",
+    "typed copy plan and launch complete",
+    "typed update launches complete in reverse level order",
+    "typed diagonal launch completes",
+    "values, pivots and guards pass",
+    "ready becomes true"
+  ],
+  "unchanged": {
+    "cuda_source": true,
+    "ptx": true,
+    "nvrtc_options": true,
+    "f32_path": true,
+    "tolerances": true,
+    "fixtures": true,
+    "copy_update_diag_order": true,
+    "synchronous_launch": true,
+    "private_runtime_launch": true
+  }
+}

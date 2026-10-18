@@ -43,6 +43,9 @@ const SPARSE_MASS_COPY_METADATA_KIND: ProofKind = ProofKind("sparse_mass_copy_in
 const SPARSE_MASS_UPDATE_METADATA_KIND: ProofKind = ProofKind("sparse_mass_update_indices");
 
 #[cfg(any(feature = "cuda-probe", test))]
+const SPARSE_MASS_DIAG_METADATA_KIND: ProofKind = ProofKind("sparse_mass_diag_indices");
+
+#[cfg(any(feature = "cuda-probe", test))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct SparseMassCopyDims {
     launch: [u32; 4],
@@ -54,6 +57,17 @@ struct SparseMassCopyDims {
 #[cfg(any(feature = "cuda-probe", test))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct SparseMassUpdateDims {
+    launch: [u32; 4],
+    nv: u32,
+    nc: u32,
+    metadata_elements: u32,
+    update_count: u32,
+    worlds: u32,
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct SparseMassDiagDims {
     launch: [u32; 4],
     nv: u32,
     nc: u32,
@@ -260,6 +274,20 @@ impl MetadataProof for StaticSparseMassUpdateMetadata {
     }
 }
 
+#[cfg(feature = "cuda-probe")]
+struct StaticSparseMassDiagMetadata;
+
+#[cfg(feature = "cuda-probe")]
+impl MetadataProof for StaticSparseMassDiagMetadata {
+    type Dims = [u32; 4];
+
+    const KIND: ProofKind = SPARSE_MASS_DIAG_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        validate_sparse_mass_update_metadata(values, dims[0], dims[1], dims[2], dims[3])
+    }
+}
+
 #[cfg(any(feature = "cuda-probe", test))]
 struct SparseMassCopyLaunchMetadata;
 
@@ -286,6 +314,27 @@ impl MetadataProof for SparseMassUpdateLaunchMetadata {
 
     fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
         sparse_mass_update_lengths(dims)?;
+        validate_sparse_mass_update_metadata(
+            values,
+            dims.nv,
+            dims.nc,
+            dims.metadata_elements,
+            dims.update_count,
+        )
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct SparseMassDiagLaunchMetadata;
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl MetadataProof for SparseMassDiagLaunchMetadata {
+    type Dims = SparseMassDiagDims;
+
+    const KIND: ProofKind = SPARSE_MASS_DIAG_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        sparse_mass_diag_lengths(dims)?;
         validate_sparse_mass_update_metadata(
             values,
             dims.nv,
@@ -635,6 +684,180 @@ fn sparse_mass_update_launch_error(error: LauncherError) -> TransferError {
     }
 }
 
+#[cfg(any(feature = "cuda-probe", test))]
+const SPARSE_MASS_DIAG_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: SPARSE_MASS_DIAG_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::ReadWrite,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct SparseMassDiagSpec;
+
+#[cfg(any(feature = "cuda-probe", test))]
+// SAFETY: 声明逐项匹配冻结稀疏质量对角ABI。
+unsafe impl KernelAbi for SparseMassDiagSpec {
+    const NAME: &'static str = "sparse_mass_diag";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &SPARSE_MASS_DIAG_SLOTS;
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl KernelSpec for SparseMassDiagSpec {
+    type Dims = SparseMassDiagDims;
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        Ok(sparse_mass_diag_lengths(dims)?
+            .into_iter()
+            .enumerate()
+            .map(|(slot, min_elements)| SlotRequirement { slot, min_elements })
+            .collect())
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        sparse_mass_diag_lengths(dims)?;
+        LaunchDims::new((dims.launch[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn sparse_mass_diag_lengths(dims: &SparseMassDiagDims) -> Result<[u64; 4], LauncherError> {
+    let [first, count, stride, work] = dims.launch;
+    if first != 0 || count != 0 {
+        return Err(LauncherError::InvalidArray("稀疏对角保留维度必须为零"));
+    }
+    let expected_stride = dims
+        .nc
+        .checked_add(dims.nv)
+        .filter(|&value| value <= i32::MAX as u32)
+        .ok_or(LauncherError::Overflow("sparse_mass_diag_stride"))?;
+    let expected_work = dims
+        .worlds
+        .checked_mul(dims.nv)
+        .ok_or(LauncherError::Overflow("sparse_mass_diag_work"))?;
+    if stride != expected_stride
+        || dims.worlds == 0
+        || dims.nv == 0
+        || work != expected_work
+        || work > u32::MAX - 255
+    {
+        return Err(LauncherError::InvalidArray("稀疏对角维度无效"));
+    }
+    let (_, _, metadata_end) = sparse_mass_update_regions(dims.nv, dims.update_count)?;
+    if usize::try_from(dims.metadata_elements).ok() != Some(metadata_end) {
+        return Err(LauncherError::InvalidMetadata("稀疏对角元数据长度无效"));
+    }
+    let guarded = |elements: u64, field| {
+        elements
+            .checked_add(8)
+            .ok_or(LauncherError::Overflow(field))
+    };
+    let worlds = u64::from(dims.worlds);
+    let matrix = guarded(
+        worlds
+            .checked_mul(u64::from(dims.nc))
+            .ok_or(LauncherError::Overflow("sparse_mass_diag_matrix"))?,
+        "sparse_mass_diag_matrix",
+    )?;
+    let output = guarded(
+        worlds
+            .checked_mul(u64::from(stride))
+            .ok_or(LauncherError::Overflow("sparse_mass_diag_output"))?,
+        "sparse_mass_diag_output",
+    )?;
+    Ok([u64::from(dims.metadata_elements), matrix, matrix, output])
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn sparse_mass_diag_plan(
+    dims: &SparseMassDiagDims,
+    bindings: &[SlotBinding; 4],
+    proofs: &[CheckedBinding<'_, SparseMassDiagDims>],
+) -> Result<LaunchDims, LauncherError> {
+    let lengths = sparse_mass_diag_lengths(dims)?;
+    for (slot, elements) in lengths.into_iter().enumerate() {
+        let bytes = elements
+            .checked_mul(4)
+            .ok_or(LauncherError::Overflow("sparse_mass_diag_bytes"))?;
+        if bindings[slot].span.bytes() != bytes {
+            return Err(LauncherError::InvalidArray("稀疏对角跨度不符"));
+        }
+    }
+    let plan = Kernel::<SparseMassDiagSpec>::new()?.plan(dims, bindings, proofs)?;
+    Ok(plan.dims())
+}
+
+#[cfg(feature = "cuda-probe")]
+fn sparse_mass_diag_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::Overflow(_) => InputError::Overflow {
+            field: "sparse_mass_diag_abi",
+        }
+        .into(),
+        _ => InputError::InvalidDimension {
+            field: "sparse_mass_diag_abi",
+        }
+        .into(),
+    }
+}
+
 #[cfg(feature = "cuda-probe")]
 struct SparseMassCopyMetadataBuffer {
     buffer: TransferBuffer<i32>,
@@ -647,6 +870,7 @@ struct SparseMassCopyMetadataBuffer {
     revision: MetadataRevision,
     checked: Checked<StaticSparseMassCopyMetadata>,
     checked_update: Checked<StaticSparseMassUpdateMetadata>,
+    checked_diag: Checked<StaticSparseMassDiagMetadata>,
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -708,6 +932,16 @@ impl SparseMassCopyMetadataBuffer {
             )
         }
         .map_err(sparse_mass_update_launch_error)?;
+        // SAFETY: 同一上传保存完整CSR和对角寻址所需行布局。
+        let checked_diag = unsafe {
+            Checked::<StaticSparseMassDiagMetadata>::assume_uploaded(
+                buffer.launcher_span()?,
+                &values,
+                update_static_dims,
+                revision.clone(),
+            )
+        }
+        .map_err(sparse_mass_diag_launch_error)?;
         Ok(Self {
             buffer,
             values,
@@ -719,6 +953,7 @@ impl SparseMassCopyMetadataBuffer {
             revision,
             checked,
             checked_update,
+            checked_diag,
         })
     }
 
@@ -774,6 +1009,30 @@ impl SparseMassCopyMetadataBuffer {
         .map_err(sparse_mass_update_launch_error)
     }
 
+    fn diag_proof(
+        &self,
+        dims: SparseMassDiagDims,
+    ) -> Result<Checked<SparseMassDiagLaunchMetadata>, TransferError> {
+        let span = self.buffer.launcher_span()?;
+        self.checked_diag
+            .binding(0)
+            .validate_for(
+                span,
+                &[self.nv, self.nc, self.metadata_elements, self.update_count],
+            )
+            .map_err(sparse_mass_diag_launch_error)?;
+        // SAFETY: 独占包装保留完整行布局、上传跨度和写入代际。
+        unsafe {
+            Checked::<SparseMassDiagLaunchMetadata>::assume_uploaded(
+                span,
+                &self.values,
+                dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(sparse_mass_diag_launch_error)
+    }
+
     #[cfg(test)]
     fn write_for_test(&mut self, index: usize, value: i32) -> Result<(), TransferError> {
         self.revision.invalidate();
@@ -804,6 +1063,16 @@ impl SparseMassCopyMetadataBuffer {
             )
         }
         .map_err(sparse_mass_update_launch_error)?;
+        // SAFETY: 恢复写入同步完成且对角行布局保持原值。
+        self.checked_diag = unsafe {
+            Checked::<StaticSparseMassDiagMetadata>::assume_uploaded(
+                self.buffer.launcher_span()?,
+                &self.values,
+                [self.nv, self.nc, self.metadata_elements, self.update_count],
+                self.revision.clone(),
+            )
+        }
+        .map_err(sparse_mass_diag_launch_error)?;
         Ok(())
     }
 }
@@ -1027,6 +1296,110 @@ impl SparseMassUpdateKernel {
     }
 }
 
+#[cfg(feature = "cuda-probe")]
+struct SparseMassDiagKernel {
+    kernel: SynchronousKernel,
+    nv: u32,
+    nc: u32,
+    metadata_elements: u32,
+    update_count: u32,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl SparseMassDiagKernel {
+    fn compile(
+        session: &TransferSession,
+        metadata: &SparseMassCopyMetadataBuffer,
+    ) -> Result<Self, TransferError> {
+        StaticSparseMassDiagMetadata::validate(
+            &metadata.values,
+            &[
+                metadata.nv,
+                metadata.nc,
+                metadata.metadata_elements,
+                metadata.update_count,
+            ],
+        )
+        .map_err(sparse_mass_diag_launch_error)?;
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, CUDA, "sparse_mass_diag")?,
+            nv: metadata.nv,
+            nc: metadata.nc,
+            metadata_elements: metadata.metadata_elements,
+            update_count: metadata.update_count,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &SparseMassCopyMetadataBuffer,
+        unused: &TransferBuffer<f32>,
+        unused2: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        worlds: usize,
+    ) -> Result<(), TransferError> {
+        if (
+            metadata.nv,
+            metadata.nc,
+            metadata.metadata_elements,
+            metadata.update_count,
+        ) != (self.nv, self.nc, self.metadata_elements, self.update_count)
+        {
+            return Err(InputError::InvalidDimension {
+                field: "sparse_mass_diag_static_dims",
+            }
+            .into());
+        }
+        let worlds = u32::try_from(worlds).map_err(|_| InputError::Overflow {
+            field: "sparse_mass_diag_worlds",
+        })?;
+        let stride = self.nc.checked_add(self.nv).ok_or(InputError::Overflow {
+            field: "sparse_mass_diag_stride",
+        })?;
+        let work = worlds.checked_mul(self.nv).ok_or(InputError::Overflow {
+            field: "sparse_mass_diag_work",
+        })?;
+        let dims = SparseMassDiagDims {
+            launch: [0, 0, stride, work],
+            nv: self.nv,
+            nc: self.nc,
+            metadata_elements: self.metadata_elements,
+            update_count: self.update_count,
+            worlds,
+        };
+        let proof = metadata.diag_proof(dims)?;
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: unused.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: unused2.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: output.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        sparse_mass_diag_plan(&dims, &bindings, &[proof.binding(0)])
+            .map_err(sparse_mass_diag_launch_error)?;
+        // SAFETY: 类型化计划核对完整行布局、跨度、代际和写入隔离。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), unused, unused2, output, dims.launch)
+        }
+    }
+}
+
 pub struct SparseMassFactorPlan {
     input: Arc<SparseMassInput>,
     #[cfg(feature = "cuda-probe")]
@@ -1038,7 +1411,7 @@ pub struct SparseMassFactorPlan {
     #[cfg(feature = "cuda-probe")]
     update: SparseMassUpdateKernel,
     #[cfg(feature = "cuda-probe")]
-    diag: SynchronousKernel,
+    diag: SparseMassDiagKernel,
 }
 pub struct SparseMassFactorData {
     input: Arc<SparseMassInput>,
@@ -1214,7 +1587,7 @@ impl SparseMassFactorPlan {
             )?;
             let copy = SparseMassCopyKernel::compile(session, &metadata)?;
             let update = SparseMassUpdateKernel::compile(session, &metadata)?;
-            let diag = SynchronousKernel::compile(session, CUDA, "sparse_mass_diag")?;
+            let diag = SparseMassDiagKernel::compile(session, &metadata)?;
             Ok(Self {
                 input,
                 session: session.clone(),
@@ -1265,9 +1638,6 @@ impl SparseMassFactorPlan {
         #[cfg(feature = "cuda-probe")]
         {
             let worlds_usize = data.worlds();
-            let worlds = u32::try_from(worlds_usize).map_err(|_| InputError::Overflow {
-                field: "sparse_factor_worlds",
-            })?;
             self.copy.launch(
                 &self.metadata,
                 &data.matrix,
@@ -1286,22 +1656,13 @@ impl SparseMassFactorPlan {
                 )?;
             }
             if self.input.nv() != 0 {
-                // SAFETY: One thread writes each diagonal inverse in its own
-                // checked world. The factor CSR and diagonal output do not overlap.
-                unsafe {
-                    self.diag.launch(
-                        self.metadata.as_buffer(),
-                        &data.matrix,
-                        &data.matrix,
-                        &mut data.output,
-                        [
-                            0,
-                            0,
-                            data.output_layout.elements_per_world() as u32,
-                            worlds * self.input.nv() as u32,
-                        ],
-                    )?;
-                }
+                self.diag.launch(
+                    &self.metadata,
+                    &data.matrix,
+                    &data.matrix,
+                    &mut data.output,
+                    worlds_usize,
+                )?;
             }
             data.checked_values()?;
             data.ready = true;
@@ -1727,6 +2088,139 @@ mod tests {
         assert!(validate_sparse_mass_update_metadata(&bad_prefix, 3, 6, 17, 3).is_err());
     }
 
+    #[test]
+    fn sparse_mass_diag_plan_checks_spans_aliases_and_zero_nv() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let bind = |slot, context, addr, bytes, elem| SlotBinding {
+            slot,
+            span: DeviceSpan::new(context, addr, bytes).unwrap(),
+            elem,
+        };
+        let values = vec![
+            3, 6, // nv, nc
+            1, 2, 3, // rownnz
+            0, 1, 3, // rowadr
+            0, 1, 1, // 共享根目标一
+            0, 2, 3, // 共享根目标二
+            1, 2, 4, // 下一层
+        ];
+        let dims = SparseMassDiagDims {
+            launch: [0, 0, 9, 6],
+            nv: 3,
+            nc: 6,
+            metadata_elements: 17,
+            update_count: 3,
+            worlds: 2,
+        };
+        assert_eq!(sparse_mass_diag_lengths(&dims).unwrap(), [17, 20, 20, 26]);
+
+        let revision = MetadataRevision::new();
+        let metadata_span = DeviceSpan::new(7, 0x1000, 68).unwrap();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let proof = unsafe {
+            Checked::<SparseMassDiagLaunchMetadata>::assume_uploaded(
+                metadata_span,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        let bindings = [
+            bind(0, 7, 0x1000, 68, ElemType::I32),
+            bind(1, 7, 0x2000, 80, ElemType::F32),
+            bind(2, 7, 0x2000, 80, ElemType::F32),
+            bind(3, 7, 0x3000, 104, ElemType::F32),
+        ];
+        let launch = sparse_mass_diag_plan(&dims, &bindings, &[proof.binding(0)]).unwrap();
+        assert_eq!(launch.grid(), (1, 1, 1));
+        assert_eq!(launch.block(), (256, 1, 1));
+        assert_eq!(launch.shared_bytes(), 0);
+        assert!(matches!(
+            sparse_mass_diag_plan(&dims, &bindings, &[]),
+            Err(LauncherError::MissingMetadataProof { slot: 0 })
+        ));
+
+        let addresses = [0x1000, 0x2000, 0x2000, 0x3000];
+        let bytes = [68, 80, 80, 104];
+        for slot in 0..4 {
+            let mut short = bindings;
+            short[slot].span = DeviceSpan::new(7, addresses[slot], bytes[slot] - 4).unwrap();
+            assert!(sparse_mass_diag_plan(&dims, &short, &[proof.binding(0)]).is_err());
+
+            let mut long = bindings;
+            long[slot].span = DeviceSpan::new(7, addresses[slot], bytes[slot] + 4).unwrap();
+            assert!(sparse_mass_diag_plan(&dims, &long, &[proof.binding(0)]).is_err());
+        }
+
+        let mut foreign = bindings;
+        foreign[2].span = DeviceSpan::new(8, 0x2000, 80).unwrap();
+        assert!(matches!(
+            sparse_mass_diag_plan(&dims, &foreign, &[proof.binding(0)]),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+
+        let mut alias = bindings;
+        alias[3].span = DeviceSpan::new(7, 0x2000, 104).unwrap();
+        assert!(matches!(
+            sparse_mass_diag_plan(&dims, &alias, &[proof.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3
+            })
+        ));
+
+        for invalid in [
+            SparseMassDiagDims {
+                launch: [1, 0, 9, 6],
+                ..dims
+            },
+            SparseMassDiagDims {
+                launch: [0, 1, 9, 6],
+                ..dims
+            },
+            SparseMassDiagDims {
+                launch: [0, 0, 8, 6],
+                ..dims
+            },
+            SparseMassDiagDims {
+                launch: [0, 0, 9, 5],
+                ..dims
+            },
+            SparseMassDiagDims {
+                launch: [0, 0, 9, 0],
+                worlds: 0,
+                ..dims
+            },
+            SparseMassDiagDims {
+                launch: [0, 0, 9, 1],
+                worlds: u32::MAX,
+                ..dims
+            },
+        ] {
+            assert!(sparse_mass_diag_lengths(&invalid).is_err());
+        }
+
+        let empty_values = [0, 0, 0, 0, 0];
+        validate_sparse_mass_update_metadata(&empty_values, 0, 0, 5, 0).unwrap();
+        let empty_dims = SparseMassDiagDims {
+            launch: [0, 0, 0, 0],
+            nv: 0,
+            nc: 0,
+            metadata_elements: 5,
+            update_count: 0,
+            worlds: 2,
+        };
+        assert!(sparse_mass_diag_lengths(&empty_dims).is_err());
+
+        revision.invalidate();
+        assert!(matches!(
+            sparse_mass_diag_plan(&dims, &bindings, &[proof.binding(0)]),
+            Err(LauncherError::StaleMetadata)
+        ));
+    }
+
     #[cfg(feature = "cuda-probe")]
     fn assert_copy_matches_matrix(data: &SparseMassFactorData) {
         let mut matrix = vec![0.0; data.matrix.len()];
@@ -1823,6 +2317,37 @@ mod tests {
                 .map(|value| value.as_f64().unwrap() as f32)
                 .collect::<Vec<_>>();
             assert_reconstruction(output.input(), view.sparse_factors, &matrix);
+        }
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    fn assert_diag_matches_factors_bitwise(
+        data: &SparseMassFactorData,
+        before: &[f32],
+        after: &[f32],
+    ) {
+        assert_eq!(before.len(), after.len());
+        for index in (0..4).chain(after.len() - 4..after.len()) {
+            assert_eq!(before[index].to_bits(), after[index].to_bits());
+        }
+        let fields = data.input.fields();
+        let nc = data.input.nc();
+        let nv = data.input.nv();
+        let stride = nc + nv;
+        for world in 0..data.worlds() {
+            let start = 4 + world * stride;
+            for index in 0..nc {
+                assert_eq!(
+                    before[start + index].to_bits(),
+                    after[start + index].to_bits()
+                );
+            }
+            for row in 0..nv {
+                let address = fields.m_rowadr[row] as usize;
+                let count = fields.m_rownnz[row] as usize;
+                let expected = 1.0f32 / before[start + address + count - 1];
+                assert_eq!(expected.to_bits(), after[start + nc + row].to_bits());
+            }
         }
     }
 
@@ -1974,6 +2499,97 @@ mod tests {
                 .collect::<Vec<_>>()
         );
         plan.metadata.restore_for_test().unwrap();
+        plan.copy
+            .launch(
+                &plan.metadata,
+                &data.matrix,
+                &data.matrix,
+                &mut data.output,
+                worlds,
+            )
+            .unwrap();
+        for level in (0..plan.input.qld_level_offsets().len() - 1).rev() {
+            plan.update
+                .launch(
+                    &plan.metadata,
+                    &data.matrix,
+                    &data.matrix,
+                    &mut data.output,
+                    worlds,
+                    level,
+                )
+                .unwrap();
+        }
+        let mut before_diag_reject = vec![0.0; data.output.len()];
+        data.output
+            .read_range_into(0, &mut before_diag_reject)
+            .unwrap();
+        assert!(matches!(
+            plan.diag.launch(
+                &plan.metadata,
+                &foreign_matrix,
+                &foreign_matrix,
+                &mut data.output,
+                worlds,
+            ),
+            Err(TransferError::SessionMismatch)
+        ));
+        let mut after_diag_foreign = vec![0.0; data.output.len()];
+        data.output
+            .read_range_into(0, &mut after_diag_foreign)
+            .unwrap();
+        assert_eq!(
+            before_diag_reject
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            after_diag_foreign
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        let first = plan.metadata.values[0];
+        plan.metadata.write_for_test(0, first + 1).unwrap();
+        assert!(
+            plan.diag
+                .launch(
+                    &plan.metadata,
+                    &data.matrix,
+                    &data.matrix,
+                    &mut data.output,
+                    worlds,
+                )
+                .is_err()
+        );
+        let mut after_diag_stale = vec![0.0; data.output.len()];
+        data.output
+            .read_range_into(0, &mut after_diag_stale)
+            .unwrap();
+        assert_eq!(
+            after_diag_foreign
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            after_diag_stale
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        plan.metadata.restore_for_test().unwrap();
+        plan.diag
+            .launch(
+                &plan.metadata,
+                &data.matrix,
+                &data.matrix,
+                &mut data.output,
+                worlds,
+            )
+            .unwrap();
+        let mut after_diag = vec![0.0; data.output.len()];
+        data.output.read_range_into(0, &mut after_diag).unwrap();
+        assert_diag_matches_factors_bitwise(&data, &before_diag_reject, &after_diag);
+        assert!(!data.ready);
+
         plan.update_factor(&mut data).unwrap();
         assert_factor_matches_native(&data, m);
         let first = plan.metadata.values[0];
