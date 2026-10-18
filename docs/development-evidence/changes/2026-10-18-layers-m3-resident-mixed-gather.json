@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-18-layers-m3-resident-mixed-gather",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/layers-m3-resident-mixed-gather/archive-verification.json",
+      "blob": "07660682d515cbc5bf4f82f7a6b17871ef3f8dd1"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-resident-mixed-gather/artifacts/raw-captures.tar.gz",
+      "blob": "d3c5a273de57be8de40d1fd742a400e3672b6eef"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-resident-mixed-gather/artifacts/resident_mixed_gather-752d02446800729dd49616f931e6db9c2a6ccda6d6871e68ab4113e5110c3853.cu.gz",
+      "blob": "80ba925075e750fd72710e9d5d416f1f3e00e7d6"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-resident-mixed-gather/artifacts/resident_mixed_gather-752d02446800729dd49616f931e6db9c2a6ccda6d6871e68ab4113e5110c3853.ptx.gz",
+      "blob": "4f8e1b4d05118e53d734ce899bbbbd0466f8cf44"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-resident-mixed-gather/capture-manifest.json",
+      "blob": "0ad9156551f7b2bf560b4d02ff8fc3df6bedddaf"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-resident-mixed-gather/capture-metadata/resident_mixed_gather-752d02446800729dd49616f931e6db9c2a6ccda6d6871e68ab4113e5110c3853.json",
+      "blob": "a8ce77191f8e6d2d9ff039a60400c4770960bb04"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-resident-mixed-gather/doc-audit.md",
+      "blob": "f711a09c63c9dbfd8f1fc032a9b2e0e3e23dbadd"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-resident-mixed-gather/kernel-comparison.json",
+      "blob": "d31ad2bd0a147755830f8731e43fa9a4e3a7ffcf"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-resident-mixed-gather/normify-summary.json",
+      "blob": "8b6325d43dbb318745964d8c6fda2378042954be"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-resident-mixed-gather/README.md",
+      "blob": "027fc7490c2a717bb1ed8d5c027dc2f2c91bd181"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-resident-mixed-gather/validation-summary.json",
+      "blob": "6df857f0307d31e87d0d90a684db0050f6c422cc"
+    },
+    {
+      "path": "src/physics/mass_solve/sparse/mixed/solve/resident.rs",
+      "blob": "e982f4f49c59e4100a8e7463a543f48f1d5483d6"
+    }
+  ],
+  "validation": [
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::resident::tests::typed_resident_mixed_gather_plan_binds_csr_and_exact_spans -- --exact --nocapture",
+      "result": "attempt 1 hit exact-capacity rejection before alias; corrected test-only span; attempt 2 passed",
+      "evidence": "docs/development-evidence/layers-m3-resident-mixed-gather/validation-summary.json"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::resident::tests::gpu_resident_mixed_gather_wrapper_tracks_tail_and_metadata_revision -- --ignored --exact --nocapture --test-threads=1",
+      "result": "attempt 1 lacked NVRTC; process-local CUDA 12.8.1 enabled; attempt 2 passed 257-world boundary, revision, span and session cases",
+      "evidence": "docs/development-evidence/layers-m3-resident-mixed-gather/validation-summary.json"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::resident::tests::gpu_resident_mixed_gather_stale_metadata_stops_publication -- --ignored --exact --nocapture --test-threads=1",
+      "result": "pass: stale metadata stopped publication; rejection preserved buffers; recovery numeric comparison passed",
+      "evidence": "docs/development-evidence/layers-m3-resident-mixed-gather/validation-summary.json"
+    },
+    {
+      "command": "cargo fmt --check",
+      "result": "pass",
+      "evidence": "docs/development-evidence/layers-m3-resident-mixed-gather/validation-summary.json"
+    },
+    {
+      "command": "cargo check --locked",
+      "result": "pass: default build check",
+      "evidence": "docs/development-evidence/layers-m3-resident-mixed-gather/validation-summary.json"
+    },
+    {
+      "command": "cargo clippy --locked --features cuda-probe --lib -- -D warnings",
+      "result": "pass: zero warnings",
+      "evidence": "docs/development-evidence/layers-m3-resident-mixed-gather/validation-summary.json"
+    },
+    {
+      "command": "compare captured resident_mixed_gather CU and PTX with committed baseline",
+      "result": "pass: source and PTX raw bytes and SHA-256 match",
+      "evidence": "docs/development-evidence/layers-m3-resident-mixed-gather/kernel-comparison.json"
+    },
+    {
+      "command": "archive and verify task captures",
+      "result": "pass: 70 source files match archive members byte-for-byte; originals remain present",
+      "evidence": "docs/development-evidence/layers-m3-resident-mixed-gather/archive-verification.json"
+    },
+    {
+      "command": "audit-docs",
+      "result": "pass: 1612 source files; 170 documents; 0 mismatches",
+      "evidence": "docs/development-evidence/layers-m3-resident-mixed-gather/doc-audit.md"
+    },
+    {
+      "command": "normify_sync, normify_module_refresh, normify_validate and normify_build",
+      "result": "pass: mass-solve refreshed; 0 errors; 16 existing leaf-granularity warnings; build succeeded",
+      "evidence": "docs/development-evidence/layers-m3-resident-mixed-gather/normify-summary.json"
+    },
+    {
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId 2026-10-18-layers-m3-resident-mixed-gather",
+      "result": "pass: in_progress; 11 acceptance items; 3 scoped paths; previous delivery finalized",
+      "evidence": "docs/development-evidence/layers-m3-resident-mixed-gather/validation-summary.json"
+    },
+    {
+      "command": "git diff --cached --check",
+      "result": "attempt 1 rejected direct raw text tail blank lines; exact raw archive retained; attempt 2 packaged index check passed",
+      "evidence": "docs/development-evidence/layers-m3-resident-mixed-gather/validation-summary.json"
+    }
+  ],
+  "remaining": [
+    "本机显卡不是T4。",
+    "Linux验收未运行。",
+    "发布构建未运行。",
+    "NP01至NP04未验收。",
+    "机器码与SASS等价未验证。",
+    "合法重算存在位级差异。",
+    "父任务M3仍未完成。",
+    "其他M3入口仍待独立迁移。",
+    "本轮不声明GPU独占测量。",
+    "原始捕获保留在本地和归档。",
+    "本地.git/info/exclude仅忽略本切片原件。"
+  ]
+}

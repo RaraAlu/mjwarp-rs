@@ -9,8 +9,9 @@ use crate::physics::{MassMatrixData, MassMatrixOutput, MassMatrixPlan};
 use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::launcher::{
-    Access, BlockRule, ElemType, Kernel, KernelAbi, KernelSpec, LaunchDims, LauncherError,
-    SlotBinding, SlotDesc, SlotKind, SlotRequirement, SlotRole,
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
 };
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
@@ -191,6 +192,448 @@ fn resident_mixed_validation_dimension(
 }
 
 #[cfg(feature = "cuda-probe")]
+const RESIDENT_MIXED_GATHER_METADATA_KIND: ProofKind = ProofKind("resident_mixed_gather_metadata");
+
+#[cfg(feature = "cuda-probe")]
+struct StaticResidentMixedGatherMetadata;
+
+#[cfg(feature = "cuda-probe")]
+impl MetadataProof for StaticResidentMixedGatherMetadata {
+    type Dims = [u32; 2];
+
+    const KIND: ProofKind = RESIDENT_MIXED_GATHER_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        let [n, nc] = *dims;
+        if n == 0 || n > i32::MAX as u32 || nc == 0 || nc > i32::MAX as u32 {
+            return Err(LauncherError::InvalidMetadata("常驻混合CSR维度无效"));
+        }
+        let n =
+            usize::try_from(n).map_err(|_| LauncherError::Overflow("resident_mixed_gather_n"))?;
+        let nc =
+            usize::try_from(nc).map_err(|_| LauncherError::Overflow("resident_mixed_gather_nc"))?;
+        let expected = n
+            .checked_mul(2)
+            .and_then(|value| value.checked_add(nc))
+            .ok_or(LauncherError::Overflow("resident_mixed_gather_metadata"))?;
+        if values.len() != expected {
+            return Err(LauncherError::InvalidMetadata("常驻混合CSR长度无效"));
+        }
+        let (rownnz, rest) = values.split_at(n);
+        let (rowadr, colind) = rest.split_at(n);
+        let mut next = 0usize;
+        for row in 0..n {
+            let count = usize::try_from(rownnz[row])
+                .map_err(|_| LauncherError::InvalidMetadata("常驻混合CSR行长度无效"))?;
+            if count == 0 || rowadr[row] < 0 || rowadr[row] as usize != next {
+                return Err(LauncherError::InvalidMetadata("常驻混合CSR行分区无效"));
+            }
+            let end = next
+                .checked_add(count)
+                .filter(|&value| value <= nc)
+                .ok_or(LauncherError::InvalidMetadata("常驻混合CSR行越界"))?;
+            let columns = &colind[next..end];
+            if columns.last() != Some(&(row as i32))
+                || columns
+                    .windows(2)
+                    .any(|pair| pair[0] < 0 || pair[0] >= pair[1])
+                || columns
+                    .last()
+                    .is_some_and(|&column| column < 0 || column as usize >= n)
+            {
+                return Err(LauncherError::InvalidMetadata("常驻混合CSR列索引无效"));
+            }
+            next = end;
+        }
+        if next != nc {
+            return Err(LauncherError::InvalidMetadata("常驻混合CSR分区未覆盖"));
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct ResidentMixedGatherLaunchMetadata;
+
+#[cfg(feature = "cuda-probe")]
+impl MetadataProof for ResidentMixedGatherLaunchMetadata {
+    type Dims = [u32; 4];
+
+    const KIND: ProofKind = RESIDENT_MIXED_GATHER_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        resident_mixed_gather_lengths(dims)?;
+        StaticResidentMixedGatherMetadata::validate(values, &[dims[1], dims[2]])
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+const RESIDENT_MIXED_GATHER_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: RESIDENT_MIXED_GATHER_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Write,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(feature = "cuda-probe")]
+struct ResidentMixedGatherSpec;
+
+#[cfg(feature = "cuda-probe")]
+// SAFETY: 声明匹配冻结常驻混合聚集ABI。
+unsafe impl KernelAbi for ResidentMixedGatherSpec {
+    const NAME: &'static str = "resident_mixed_gather";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &RESIDENT_MIXED_GATHER_SLOTS;
+}
+
+#[cfg(feature = "cuda-probe")]
+impl KernelSpec for ResidentMixedGatherSpec {
+    type Dims = [u32; 4];
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        let (metadata, source, output) = resident_mixed_gather_lengths(dims)?;
+        Ok(vec![
+            SlotRequirement {
+                slot: 0,
+                min_elements: metadata,
+            },
+            SlotRequirement {
+                slot: 1,
+                min_elements: source,
+            },
+            SlotRequirement {
+                slot: 2,
+                min_elements: 1,
+            },
+            SlotRequirement {
+                slot: 3,
+                min_elements: output,
+            },
+        ])
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        resident_mixed_gather_lengths(dims)?;
+        LaunchDims::new((dims[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn resident_mixed_gather_lengths(dims: &[u32; 4]) -> Result<(u64, u64, u64), LauncherError> {
+    let [nb, n, nc, work] = *dims;
+    if n == 0
+        || n > i32::MAX as u32
+        || nc == 0
+        || nc > i32::MAX as u32
+        || work == 0
+        || work > u32::MAX - 255
+        || !work.is_multiple_of(n)
+    {
+        return Err(LauncherError::InvalidArray("常驻混合聚集维度无效"));
+    }
+    let worlds = work / n;
+    let metadata = u64::from(n)
+        .checked_mul(2)
+        .and_then(|value| value.checked_add(u64::from(nc)))
+        .ok_or(LauncherError::Overflow("resident_mixed_gather_metadata"))?;
+    let stride = u64::from(nb)
+        .checked_mul(10)
+        .and_then(|body| {
+            u64::from(n)
+                .checked_mul(u64::from(n))
+                .and_then(|dense| body.checked_add(dense))
+        })
+        .ok_or(LauncherError::Overflow("resident_mixed_gather_stride"))?;
+    let source = stride
+        .checked_mul(u64::from(worlds))
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("resident_mixed_gather_source"))?;
+    let output = u64::from(nc)
+        .checked_mul(u64::from(worlds))
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("resident_mixed_gather_output"))?;
+    Ok((metadata, source, output))
+}
+
+#[cfg(feature = "cuda-probe")]
+fn resident_mixed_gather_dims(
+    nb: u32,
+    n: u32,
+    nc: u32,
+    worlds: u32,
+) -> Result<[u32; 4], LauncherError> {
+    let work = worlds
+        .checked_mul(n)
+        .ok_or(LauncherError::Overflow("resident_mixed_gather_work"))?;
+    let dims = [nb, n, nc, work];
+    resident_mixed_gather_lengths(&dims)?;
+    Ok(dims)
+}
+
+#[cfg(feature = "cuda-probe")]
+fn resident_mixed_gather_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::InvalidMetadata(_) | LauncherError::StaleMetadata => {
+            InputError::InvalidTopology {
+                field: "resident_mixed_gather_metadata",
+                index: 0,
+                reason: "invalid_or_stale_proof",
+            }
+            .into()
+        }
+        _ => InputError::InvalidDimension {
+            field: "resident_mixed_gather_abi",
+        }
+        .into(),
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn resident_mixed_gather_plan(
+    dims: &[u32; 4],
+    bindings: &[SlotBinding; 4],
+    proof: CheckedBinding<'_, [u32; 4]>,
+) -> Result<(), LauncherError> {
+    let (metadata, source, output) = resident_mixed_gather_lengths(dims)?;
+    for (slot, elements) in [(0, metadata), (1, source), (3, output)] {
+        let bytes = elements
+            .checked_mul(4)
+            .ok_or(LauncherError::Overflow("resident_mixed_gather_bytes"))?;
+        if bindings[slot].span.bytes() != bytes {
+            return Err(LauncherError::InvalidArray("常驻混合聚集跨度无效"));
+        }
+    }
+    if bindings[2].span.bytes() < 4 {
+        return Err(LauncherError::InvalidArray("常驻混合聚集未用输入无效"));
+    }
+    Kernel::<ResidentMixedGatherSpec>::new()?.plan(dims, bindings, &[proof])?;
+    Ok(())
+}
+
+#[cfg(feature = "cuda-probe")]
+struct ResidentMixedGatherMetadataBuffer {
+    buffer: TransferBuffer<i32>,
+    values: Vec<i32>,
+    n: u32,
+    nc: u32,
+    revision: MetadataRevision,
+    checked: Checked<StaticResidentMixedGatherMetadata>,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl ResidentMixedGatherMetadataBuffer {
+    fn upload(
+        session: &TransferSession,
+        values: Vec<i32>,
+        n: u32,
+        nc: u32,
+    ) -> Result<Self, TransferError> {
+        StaticResidentMixedGatherMetadata::validate(&values, &[n, nc])
+            .map_err(resident_mixed_gather_launch_error)?;
+        let buffer = session.upload(&values)?;
+        let revision = MetadataRevision::new();
+        // SAFETY: 上传同步完成且跨度来自该缓冲。
+        let checked = unsafe {
+            Checked::<StaticResidentMixedGatherMetadata>::assume_uploaded(
+                buffer.launcher_span()?,
+                &values,
+                [n, nc],
+                revision.clone(),
+            )
+        }
+        .map_err(resident_mixed_gather_launch_error)?;
+        Ok(Self {
+            buffer,
+            values,
+            n,
+            nc,
+            revision,
+            checked,
+        })
+    }
+
+    fn as_buffer(&self) -> &TransferBuffer<i32> {
+        &self.buffer
+    }
+
+    fn proof(
+        &self,
+        dims: [u32; 4],
+    ) -> Result<Checked<ResidentMixedGatherLaunchMetadata>, TransferError> {
+        let span = self.buffer.launcher_span()?;
+        self.checked
+            .binding(0)
+            .validate_for(span, &[self.n, self.nc])
+            .map_err(resident_mixed_gather_launch_error)?;
+        // SAFETY: 独占包装保留上传值和写入代际。
+        unsafe {
+            Checked::<ResidentMixedGatherLaunchMetadata>::assume_uploaded(
+                span,
+                &self.values,
+                dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(resident_mixed_gather_launch_error)
+    }
+
+    #[cfg(test)]
+    fn write_for_test(&mut self, index: usize, value: i32) -> Result<(), TransferError> {
+        self.revision.invalidate();
+        self.buffer.write_range(index, &[value])
+    }
+
+    #[cfg(test)]
+    fn restore_for_test(&mut self) -> Result<(), TransferError> {
+        self.revision.invalidate();
+        self.buffer.write_range(0, &self.values)?;
+        // SAFETY: 恢复写入同步完成且跨度未变。
+        self.checked = unsafe {
+            Checked::<StaticResidentMixedGatherMetadata>::assume_uploaded(
+                self.buffer.launcher_span()?,
+                &self.values,
+                [self.n, self.nc],
+                self.revision.clone(),
+            )
+        }
+        .map_err(resident_mixed_gather_launch_error)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct ResidentMixedGatherKernel {
+    kernel: SynchronousKernel,
+    nb: u32,
+    n: u32,
+    nc: u32,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl ResidentMixedGatherKernel {
+    fn compile(
+        session: &TransferSession,
+        metadata: &ResidentMixedGatherMetadataBuffer,
+        nb: usize,
+    ) -> Result<Self, TransferError> {
+        let nb = resident_mixed_validation_dimension(nb, "resident_mixed_gather_nb")?;
+        resident_mixed_gather_lengths(&[nb, metadata.n, metadata.nc, metadata.n])
+            .map_err(resident_mixed_gather_launch_error)?;
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, CUDA, "resident_mixed_gather")?,
+            nb,
+            n: metadata.n,
+            nc: metadata.nc,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &ResidentMixedGatherMetadataBuffer,
+        source: &TransferBuffer<f32>,
+        unused: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        worlds: usize,
+    ) -> Result<(), TransferError> {
+        if metadata.n != self.n || metadata.nc != self.nc {
+            return Err(InputError::InvalidDimension {
+                field: "resident_mixed_gather_static_dims",
+            }
+            .into());
+        }
+        let worlds = resident_mixed_validation_dimension(worlds, "resident_mixed_gather_worlds")?;
+        let dims = resident_mixed_gather_dims(self.nb, self.n, self.nc, worlds)
+            .map_err(resident_mixed_gather_launch_error)?;
+        let proof = metadata.proof(dims)?;
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: source.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: unused.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: output.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        resident_mixed_gather_plan(&dims, &bindings, proof.binding(0))
+            .map_err(resident_mixed_gather_launch_error)?;
+        // SAFETY: 类型化计划核对真实跨度和可信CSR索引。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), source, unused, output, dims)
+        }
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
 struct ResidentMixedValidationKernel {
     kernel: SynchronousKernel,
     nb: u32,
@@ -279,13 +722,11 @@ pub struct SparseMassMixedResidentPlan {
     matrix: MassMatrixPlan,
     solve: SparseMassMixedSolvePlan,
     #[cfg(feature = "cuda-probe")]
-    nbody: usize,
-    #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: ResidentMixedGatherMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
     validation: ResidentMixedValidationKernel,
     #[cfg(feature = "cuda-probe")]
-    gather: SynchronousKernel,
+    gather: ResidentMixedGatherKernel,
 }
 pub struct SparseMassMixedResidentData {
     matrix: MassMatrixData,
@@ -335,18 +776,23 @@ impl SparseMassMixedResidentPlan {
                 }
                 .into());
             }
-            let metadata = session.upload(&meta)?;
+            let n =
+                resident_mixed_validation_dimension(solve.input().nv(), "resident_mixed_gather_n")?;
+            let nc = resident_mixed_validation_dimension(
+                solve.input().nc(),
+                "resident_mixed_gather_nc",
+            )?;
+            let metadata = ResidentMixedGatherMetadataBuffer::upload(session, meta, n, nc)?;
             let validation = ResidentMixedValidationKernel::compile(
                 session,
                 nbody,
                 solve.input().nv(),
                 solve.input().nc(),
             )?;
-            let gather = SynchronousKernel::compile(session, CUDA, "resident_mixed_gather")?;
+            let gather = ResidentMixedGatherKernel::compile(session, &metadata, nbody)?;
             Ok(Self {
                 matrix,
                 solve,
-                nbody,
                 metadata,
                 validation,
                 gather,
@@ -421,12 +867,9 @@ impl SparseMassMixedResidentPlan {
         #[cfg(feature = "cuda-probe")]
         {
             let source = data.matrix.matrix_input()?;
-            let n = self.input().nv() as u32;
-            let nc = self.input().nc() as u32;
             let world_count = data.worlds();
-            let worlds = world_count as u32;
             self.validation.launch(
-                &self.metadata,
+                self.metadata.as_buffer(),
                 source,
                 source,
                 &mut data.status,
@@ -445,17 +888,13 @@ impl SparseMassMixedResidentPlan {
                     .into());
                 }
             }
-            // SAFETY: Validated CSR rows partition nc, columns fit n, and the
-            // disjoint primary M payload is worlds*nc with persistent guards.
-            unsafe {
-                self.gather.launch(
-                    &self.metadata,
-                    source,
-                    source,
-                    &mut data.solve.mass.matrix,
-                    [self.nbody as u32, n, nc, worlds * n],
-                )?;
-            }
+            self.gather.launch(
+                &self.metadata,
+                source,
+                source,
+                &mut data.solve.mass.matrix,
+                world_count,
+            )?;
             let mut guards = [0.0f32; 8];
             data.solve
                 .mass
@@ -683,6 +1122,274 @@ mod tests {
                     .is_err()
             );
         }
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    fn typed_resident_mixed_gather_plan_binds_csr_and_exact_spans() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let values = vec![1, 2, 3, 0, 1, 3, 0, 0, 1, 0, 1, 2];
+        assert!(StaticResidentMixedGatherMetadata::validate(&values, &[3, 6]).is_ok());
+        for invalid in [
+            vec![1, 2, 3, 0, 2, 3, 0, 0, 1, 0, 1, 2],
+            vec![1, 2, 3, 0, 1, 3, 0, 0, 1, 0, 2, 1],
+            vec![1, 2, 3, 0, 1, 3, 0, 0, 1, 0, 1, 3],
+        ] {
+            assert!(StaticResidentMixedGatherMetadata::validate(&invalid, &[3, 6]).is_err());
+        }
+        assert!(StaticResidentMixedGatherMetadata::validate(&values[..11], &[3, 6]).is_err());
+
+        let dims = [2, 3, 6, 771];
+        let (metadata_len, source_len, output_len) = resident_mixed_gather_lengths(&dims).unwrap();
+        assert_eq!((metadata_len, source_len, output_len), (12, 7461, 1550));
+        let metadata_span = DeviceSpan::new(7, 0x1000, metadata_len * 4).unwrap();
+        let revision = MetadataRevision::new();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let proof = unsafe {
+            Checked::<ResidentMixedGatherLaunchMetadata>::assume_uploaded(
+                metadata_span,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata_span,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: DeviceSpan::new(7, 0x20_0000, source_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: DeviceSpan::new(7, 0x80_0000, 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: DeviceSpan::new(7, 0x90_0000, output_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+        ];
+        resident_mixed_gather_plan(&dims, &bindings, proof.binding(0)).unwrap();
+        let launch = ResidentMixedGatherSpec::launch_dims(&dims).unwrap();
+        assert_eq!(launch.grid(), (4, 1, 1));
+        assert_eq!(launch.block(), (256, 1, 1));
+
+        for (slot, bytes) in [
+            (0, metadata_len * 4),
+            (1, source_len * 4),
+            (3, output_len * 4),
+        ] {
+            let mut short = bindings;
+            short[slot].span = DeviceSpan::new(7, short[slot].span.addr(), bytes - 4).unwrap();
+            assert!(resident_mixed_gather_plan(&dims, &short, proof.binding(0)).is_err());
+            let mut long = bindings;
+            long[slot].span = DeviceSpan::new(7, long[slot].span.addr(), bytes + 4).unwrap();
+            assert!(resident_mixed_gather_plan(&dims, &long, proof.binding(0)).is_err());
+        }
+
+        let mut alias = bindings;
+        alias[3].span = DeviceSpan::new(7, bindings[1].span.addr(), output_len * 4).unwrap();
+        assert!(matches!(
+            resident_mixed_gather_plan(&dims, &alias, proof.binding(0)),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3,
+            })
+        ));
+        let mut foreign = bindings;
+        foreign[2].span = DeviceSpan::new(8, 0x80_0000, 4).unwrap();
+        assert!(matches!(
+            resident_mixed_gather_plan(&dims, &foreign, proof.binding(0)),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+        let replaced = DeviceSpan::new(7, 0xa0_0000, metadata_len * 4).unwrap();
+        let mut wrong_binding = bindings;
+        wrong_binding[0].span = replaced;
+        assert!(matches!(
+            resident_mixed_gather_plan(&dims, &wrong_binding, proof.binding(0)),
+            Err(LauncherError::MetadataMismatch(_))
+        ));
+        revision.invalidate();
+        assert!(matches!(
+            resident_mixed_gather_plan(&dims, &bindings, proof.binding(0)),
+            Err(LauncherError::StaleMetadata)
+        ));
+        assert!(resident_mixed_gather_lengths(&[2, 3, 6, 0]).is_err());
+        assert!(resident_mixed_gather_lengths(&[2, 3, 6, 770]).is_err());
+        assert!(resident_mixed_gather_lengths(&[2, 3, 6, u32::MAX - 254]).is_err());
+        assert!(matches!(
+            resident_mixed_gather_dims(2, 3, 6, u32::MAX),
+            Err(LauncherError::Overflow("resident_mixed_gather_work"))
+        ));
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn gpu_resident_mixed_gather_wrapper_tracks_tail_and_metadata_revision() {
+        let session = TransferSession::new(0).unwrap();
+        let foreign = TransferSession::new(0).unwrap();
+        let (nb, n, nc, worlds) = (2usize, 3usize, 6usize, 257usize);
+        let values = vec![1, 2, 3, 0, 1, 3, 0, 0, 1, 0, 1, 2];
+        let mut metadata = ResidentMixedGatherMetadataBuffer::upload(
+            &session,
+            values.clone(),
+            n as u32,
+            nc as u32,
+        )
+        .unwrap();
+        let kernel = ResidentMixedGatherKernel::compile(&session, &metadata, nb).unwrap();
+        let dims =
+            resident_mixed_gather_dims(nb as u32, n as u32, nc as u32, worlds as u32).unwrap();
+        let (_, source_len, output_len) = resident_mixed_gather_lengths(&dims).unwrap();
+        let stride = 10 * nb + n * n;
+        let mut source_values = vec![-131072.0f32; source_len as usize];
+        for world in 0..worlds {
+            let dense = 4 + world * stride + 10 * nb;
+            for row in 0..n {
+                for column in 0..n {
+                    source_values[dense + row * n + column] =
+                        (1000 * world + 10 * row + column) as f32;
+                }
+            }
+        }
+        let output_values = vec![-131072.0f32; output_len as usize];
+        let source = session.upload(&source_values).unwrap();
+        let mut output = session.upload(&output_values).unwrap();
+        kernel
+            .launch(&metadata, &source, &source, &mut output, worlds)
+            .unwrap();
+        let mut result = vec![0.0; output.len()];
+        output.read_range_into(0, &mut result).unwrap();
+        assert_eq!(&result[..4], &output_values[..4]);
+        assert_eq!(
+            &result[result.len() - 4..],
+            &output_values[output_values.len() - 4..]
+        );
+        let (rownnz, rest) = values.split_at(n);
+        let (rowadr, colind) = rest.split_at(n);
+        for world in [0, 256] {
+            let dense = 4 + world * stride + 10 * nb;
+            for row in 0..n {
+                for slot in 0..rownnz[row] as usize {
+                    let index = rowadr[row] as usize + slot;
+                    let column = colind[index] as usize;
+                    assert_eq!(
+                        result[4 + world * nc + index].to_bits(),
+                        source_values[dense + row * n + column].to_bits()
+                    );
+                }
+            }
+        }
+        let stable = result
+            .iter()
+            .map(|value| value.to_bits())
+            .collect::<Vec<_>>();
+
+        metadata.write_for_test(0, 0).unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &source, &source, &mut output, worlds)
+                .is_err()
+        );
+        output.read_range_into(0, &mut result).unwrap();
+        assert_eq!(
+            result
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            stable
+        );
+        metadata.restore_for_test().unwrap();
+        kernel
+            .launch(&metadata, &source, &source, &mut output, worlds)
+            .unwrap();
+        output.read_range_into(0, &mut result).unwrap();
+        assert_eq!(
+            result
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            stable
+        );
+
+        let short_source = session
+            .upload(&source_values[..source_values.len() - 1])
+            .unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &short_source, &short_source, &mut output, worlds,)
+                .is_err()
+        );
+        let foreign_unused = foreign.upload(&[0.0f32]).unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &source, &foreign_unused, &mut output, worlds,)
+                .is_err()
+        );
+        output.read_range_into(0, &mut result).unwrap();
+        assert_eq!(
+            result
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            stable
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "requires NVIDIA/NVRTC; resident mixed gather publication purpose"]
+    fn gpu_resident_mixed_gather_stale_metadata_stops_publication() {
+        let v = input::reference();
+        let session = TransferSession::new(0).unwrap();
+        let mut plan =
+            SparseMassMixedResidentPlan::new(&session, input::model(false), input::input(false))
+                .unwrap();
+        let mut data = plan.create_data(2, 3).unwrap();
+        data.write_qpos(&input::qpos(0).repeat(2)).unwrap();
+        data.write_rhs(&input::rhs(&v, 0, 3).repeat(2)).unwrap();
+        plan.update(&mut data).unwrap();
+        let bits = |buffer: &TransferBuffer<f32>| {
+            let mut values = vec![0.0; buffer.len()];
+            buffer.read_range_into(0, &mut values).unwrap();
+            values
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        };
+        let stable_csr = bits(&data.solve.mass.matrix);
+        let stable_factor = bits(&data.solve.mass.output);
+        let stable_solution = bits(&data.solve.output);
+
+        plan.metadata.write_for_test(0, 0).unwrap();
+        assert!(plan.update_gather(&mut data).is_err());
+        assert!(!data.gathered);
+        assert!(!data.solve.ready);
+        assert!(!data.solve.mass.ready);
+        assert!(plan.update_factor(&mut data).is_err());
+        assert!(plan.update_solve(&mut data).is_err());
+        assert!(data.readback().is_err());
+        assert_eq!(bits(&data.solve.mass.matrix), stable_csr);
+        assert_eq!(bits(&data.solve.mass.output), stable_factor);
+        assert_eq!(bits(&data.solve.output), stable_solution);
+
+        plan.metadata.restore_for_test().unwrap();
+        plan.update_gather(&mut data).unwrap();
+        assert_eq!(bits(&data.solve.mass.matrix), stable_csr);
+        plan.update_factor(&mut data).unwrap();
+        plan.update_solve(&mut data).unwrap();
+        let restored = data.readback().unwrap();
+        compare_solution(&restored, 0, &v, 0);
+        compare_solution(&restored, 1, &v, 0);
     }
 
     #[test]
