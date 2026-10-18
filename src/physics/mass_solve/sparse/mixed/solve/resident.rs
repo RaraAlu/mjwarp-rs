@@ -8,7 +8,272 @@ use crate::model::{AttachedModelInput, SparseMassInput};
 use crate::physics::{MassMatrixData, MassMatrixOutput, MassMatrixPlan};
 use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, ElemType, Kernel, KernelAbi, KernelSpec, LaunchDims, LauncherError,
+    SlotBinding, SlotDesc, SlotKind, SlotRequirement, SlotRole,
+};
+#[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
+
+#[cfg(feature = "cuda-probe")]
+const RESIDENT_MIXED_VALIDATION_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Write,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(feature = "cuda-probe")]
+struct ResidentMixedValidationSpec;
+
+#[cfg(feature = "cuda-probe")]
+// SAFETY: 声明匹配冻结常驻混合校验ABI。
+unsafe impl KernelAbi for ResidentMixedValidationSpec {
+    const NAME: &'static str = "resident_mixed_validate";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &RESIDENT_MIXED_VALIDATION_SLOTS;
+}
+
+#[cfg(feature = "cuda-probe")]
+impl KernelSpec for ResidentMixedValidationSpec {
+    type Dims = [u32; 4];
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        let (source, status) = resident_mixed_validation_lengths(dims)?;
+        Ok(vec![
+            SlotRequirement {
+                slot: 0,
+                min_elements: 1,
+            },
+            SlotRequirement {
+                slot: 1,
+                min_elements: source,
+            },
+            SlotRequirement {
+                slot: 2,
+                min_elements: 1,
+            },
+            SlotRequirement {
+                slot: 3,
+                min_elements: status,
+            },
+        ])
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        resident_mixed_validation_lengths(dims)?;
+        LaunchDims::new((dims[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn resident_mixed_validation_lengths(dims: &[u32; 4]) -> Result<(u64, u64), LauncherError> {
+    let [nb, n, _nc, worlds] = *dims;
+    if worlds == 0 || worlds > u32::MAX - 255 {
+        return Err(LauncherError::InvalidArray("常驻混合校验维度无效"));
+    }
+    let body = 10u64
+        .checked_mul(u64::from(nb))
+        .ok_or(LauncherError::Overflow("resident_mixed_validation_body"))?;
+    let dense = u64::from(n)
+        .checked_mul(u64::from(n))
+        .ok_or(LauncherError::Overflow("resident_mixed_validation_dense"))?;
+    let stride = body
+        .checked_add(dense)
+        .ok_or(LauncherError::Overflow("resident_mixed_validation_stride"))?;
+    let source = stride
+        .checked_mul(u64::from(worlds))
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("resident_mixed_validation_source"))?;
+    let status = u64::from(worlds)
+        .checked_add(8)
+        .ok_or(LauncherError::Overflow("resident_mixed_validation_status"))?;
+    Ok((source, status))
+}
+
+#[cfg(feature = "cuda-probe")]
+fn resident_mixed_validation_plan(
+    expected: [u32; 3],
+    dims: &[u32; 4],
+    bindings: &[SlotBinding; 4],
+) -> Result<(), LauncherError> {
+    if dims[..3] != expected {
+        return Err(LauncherError::InvalidArray("常驻混合校验静态维度不匹配"));
+    }
+    let (source, status) = resident_mixed_validation_lengths(dims)?;
+    let source_bytes = source.checked_mul(4).ok_or(LauncherError::Overflow(
+        "resident_mixed_validation_source_bytes",
+    ))?;
+    let status_bytes = status.checked_mul(4).ok_or(LauncherError::Overflow(
+        "resident_mixed_validation_status_bytes",
+    ))?;
+    if bindings[0].span.bytes() < 4
+        || bindings[1].span.bytes() != source_bytes
+        || bindings[2].span.bytes() < 4
+        || bindings[3].span.bytes() != status_bytes
+    {
+        return Err(LauncherError::InvalidArray("常驻混合校验跨度无效"));
+    }
+    Kernel::<ResidentMixedValidationSpec>::new()?.plan(dims, bindings, &[])?;
+    Ok(())
+}
+
+#[cfg(feature = "cuda-probe")]
+fn resident_mixed_validation_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        _ => InputError::InvalidDimension {
+            field: "resident_mixed_validation_abi",
+        }
+        .into(),
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn resident_mixed_validation_dimension(
+    value: usize,
+    field: &'static str,
+) -> Result<u32, TransferError> {
+    u32::try_from(value).map_err(|_| InputError::Overflow { field }.into())
+}
+
+#[cfg(feature = "cuda-probe")]
+struct ResidentMixedValidationKernel {
+    kernel: SynchronousKernel,
+    nb: u32,
+    n: u32,
+    nc: u32,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl ResidentMixedValidationKernel {
+    fn compile(
+        session: &TransferSession,
+        nb: usize,
+        n: usize,
+        nc: usize,
+    ) -> Result<Self, TransferError> {
+        let nb = resident_mixed_validation_dimension(nb, "resident_mixed_validation_nb")?;
+        let n = resident_mixed_validation_dimension(n, "resident_mixed_validation_n")?;
+        let nc = resident_mixed_validation_dimension(nc, "resident_mixed_validation_nc")?;
+        resident_mixed_validation_lengths(&[nb, n, nc, 1])
+            .map_err(resident_mixed_validation_launch_error)?;
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, CUDA, "resident_mixed_validate")?,
+            nb,
+            n,
+            nc,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        source: &TransferBuffer<f32>,
+        unused: &TransferBuffer<f32>,
+        status: &mut TransferBuffer<f32>,
+        worlds: usize,
+    ) -> Result<(), TransferError> {
+        let worlds =
+            resident_mixed_validation_dimension(worlds, "resident_mixed_validation_worlds")?;
+        self.launch_dims(
+            metadata,
+            source,
+            unused,
+            status,
+            [self.nb, self.n, self.nc, worlds],
+        )
+    }
+
+    fn launch_dims(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        source: &TransferBuffer<f32>,
+        unused: &TransferBuffer<f32>,
+        status: &mut TransferBuffer<f32>,
+        dims: [u32; 4],
+    ) -> Result<(), TransferError> {
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: source.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: unused.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: status.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        resident_mixed_validation_plan([self.nb, self.n, self.nc], &dims, &bindings)
+            .map_err(resident_mixed_validation_launch_error)?;
+        // SAFETY: 类型化计划核对真实跨度和固定ABI。
+        unsafe { self.kernel.launch(metadata, source, unused, status, dims) }
+    }
+}
 
 pub struct SparseMassMixedResidentPlan {
     matrix: MassMatrixPlan,
@@ -18,7 +283,9 @@ pub struct SparseMassMixedResidentPlan {
     #[cfg(feature = "cuda-probe")]
     metadata: TransferBuffer<i32>,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 2],
+    validation: ResidentMixedValidationKernel,
+    #[cfg(feature = "cuda-probe")]
+    gather: SynchronousKernel,
 }
 pub struct SparseMassMixedResidentData {
     matrix: MassMatrixData,
@@ -68,15 +335,21 @@ impl SparseMassMixedResidentPlan {
                 }
                 .into());
             }
+            let metadata = session.upload(&meta)?;
+            let validation = ResidentMixedValidationKernel::compile(
+                session,
+                nbody,
+                solve.input().nv(),
+                solve.input().nc(),
+            )?;
+            let gather = SynchronousKernel::compile(session, CUDA, "resident_mixed_gather")?;
             Ok(Self {
                 matrix,
                 solve,
                 nbody,
-                metadata: session.upload(&meta)?,
-                kernels: [
-                    SynchronousKernel::compile(session, CUDA, "resident_mixed_validate")?,
-                    SynchronousKernel::compile(session, CUDA, "resident_mixed_gather")?,
-                ],
+                metadata,
+                validation,
+                gather,
             })
         }
     }
@@ -150,18 +423,15 @@ impl SparseMassMixedResidentPlan {
             let source = data.matrix.matrix_input()?;
             let n = self.input().nv() as u32;
             let nc = self.input().nc() as u32;
-            let worlds = data.worlds() as u32;
-            // SAFETY: Source owns guarded worlds*(10*nb+n*n) f32 values. The
-            // validator only reads it and owns one separate status per world.
-            unsafe {
-                self.kernels[0].launch(
-                    &self.metadata,
-                    source,
-                    source,
-                    &mut data.status,
-                    [self.nbody as u32, n, nc, worlds],
-                )?;
-            }
+            let world_count = data.worlds();
+            let worlds = world_count as u32;
+            self.validation.launch(
+                &self.metadata,
+                source,
+                source,
+                &mut data.status,
+                world_count,
+            )?;
             let mut status = crate::runtime::host_staging::<f32>(data.worlds() + 8)?;
             data.status.read_range_into(0, &mut status)?;
             crate::physics::check_device_values(&status, "resident_mixed_source_status")?;
@@ -178,7 +448,7 @@ impl SparseMassMixedResidentPlan {
             // SAFETY: Validated CSR rows partition nc, columns fit n, and the
             // disjoint primary M payload is worlds*nc with persistent guards.
             unsafe {
-                self.kernels[1].launch(
+                self.gather.launch(
                     &self.metadata,
                     source,
                     source,
@@ -330,6 +600,188 @@ mod tests {
         let other = input::model(true);
         assert_eq!(other.rigid().kinematics().nv(), 68);
         assert!(topology(&other, &sparse).is_err());
+    }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    fn typed_resident_mixed_validation_plan_freezes_exact_contract() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let expected = [69, 68, 2149];
+        let dims = [expected[0], expected[1], expected[2], 257];
+        let (source_len, status_len) = resident_mixed_validation_lengths(&dims).unwrap();
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: DeviceSpan::new(7, 0x1000, 4).unwrap(),
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: DeviceSpan::new(7, 0x20_0000, source_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: DeviceSpan::new(7, 0x80_0000, 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: DeviceSpan::new(7, 0x90_0000, status_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+        ];
+        resident_mixed_validation_plan(expected, &dims, &bindings).unwrap();
+        let launch = ResidentMixedValidationSpec::launch_dims(&dims).unwrap();
+        assert_eq!(launch.grid(), (2, 1, 1));
+        assert_eq!(launch.block(), (256, 1, 1));
+
+        for (slot, bytes) in [(1, source_len * 4 - 4), (3, status_len * 4 - 4)] {
+            let mut short = bindings;
+            short[slot].span = DeviceSpan::new(7, short[slot].span.addr(), bytes).unwrap();
+            assert!(resident_mixed_validation_plan(expected, &dims, &short).is_err());
+        }
+        for (slot, bytes) in [(1, source_len * 4 + 4), (3, status_len * 4 + 4)] {
+            let mut long = bindings;
+            long[slot].span = DeviceSpan::new(7, long[slot].span.addr(), bytes).unwrap();
+            assert!(resident_mixed_validation_plan(expected, &dims, &long).is_err());
+        }
+
+        let mut foreign = bindings;
+        foreign[2].span = DeviceSpan::new(8, 0x80_0000, 4).unwrap();
+        assert!(matches!(
+            resident_mixed_validation_plan(expected, &dims, &foreign),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+
+        let mut alias = bindings;
+        alias[3].span = DeviceSpan::new(7, bindings[1].span.addr(), status_len * 4).unwrap();
+        assert!(matches!(
+            resident_mixed_validation_plan(expected, &dims, &alias),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3,
+            })
+        ));
+
+        assert!(
+            resident_mixed_validation_plan(
+                expected,
+                &[expected[0] + 1, expected[1], expected[2], 257],
+                &bindings,
+            )
+            .is_err()
+        );
+        assert!(matches!(
+            resident_mixed_validation_lengths(&[u32::MAX, u32::MAX, 0, 2]),
+            Err(LauncherError::Overflow(_))
+        ));
+        assert!(ResidentMixedValidationSpec::launch_dims(&[1, 1, 0, u32::MAX - 254,]).is_err());
+        if usize::BITS > 32 {
+            assert!(
+                resident_mixed_validation_dimension(usize::MAX, "resident_mixed_validation_test")
+                    .is_err()
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn gpu_resident_mixed_validation_wrapper_rejects_before_launch() {
+        let session = TransferSession::new(0).unwrap();
+        let foreign = TransferSession::new(0).unwrap();
+        let (nb, n, nc, worlds) = (2usize, 3usize, 5usize, 257usize);
+        let dims = [nb as u32, n as u32, nc as u32, worlds as u32];
+        let (source_len, status_len) = resident_mixed_validation_lengths(&dims).unwrap();
+        let mut source_values = vec![-131072.0f32; source_len as usize];
+        let source_end = source_values.len() - 4;
+        source_values[4..source_end].fill(0.25);
+        let status_values = vec![-131072.0f32; status_len as usize];
+        let mut metadata = session.upload(&[17i32]).unwrap();
+        let mut unused = session.upload(&[7.0f32]).unwrap();
+        let source = session.upload(&source_values).unwrap();
+        let mut status = session.upload(&status_values).unwrap();
+        let kernel = ResidentMixedValidationKernel::compile(&session, nb, n, nc).unwrap();
+
+        kernel
+            .launch(&metadata, &source, &unused, &mut status, worlds)
+            .unwrap();
+        let mut result = vec![0.0; status.len()];
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(&result[..4], &status_values[..4]);
+        assert_eq!(
+            &result[result.len() - 4..],
+            &status_values[status_values.len() - 4..]
+        );
+        assert!(result[4..4 + worlds].iter().all(|&value| value == 1.0));
+
+        metadata.write_range(0, &[-19]).unwrap();
+        unused.write_range(0, &[f32::NAN]).unwrap();
+        kernel
+            .launch(&metadata, &source, &unused, &mut status, worlds)
+            .unwrap();
+        let stable = result.clone();
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(result, stable);
+
+        let short_source = session
+            .upload(&source_values[..source_values.len() - 1])
+            .unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &short_source, &unused, &mut status, worlds)
+                .is_err()
+        );
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(result, stable);
+
+        let mut short_status = session
+            .upload(&status_values[..status_values.len() - 1])
+            .unwrap();
+        assert!(
+            kernel
+                .launch(&metadata, &source, &unused, &mut short_status, worlds)
+                .is_err()
+        );
+        let mut short_after = vec![0.0; short_status.len()];
+        short_status.read_range_into(0, &mut short_after).unwrap();
+        assert_eq!(short_after, status_values[..status_values.len() - 1]);
+
+        let foreign_unused = foreign.upload(&[7.0f32]).unwrap();
+        assert!(matches!(
+            kernel.launch(&metadata, &source, &foreign_unused, &mut status, worlds),
+            Err(TransferError::SessionMismatch)
+        ));
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(result, stable);
+
+        assert!(
+            kernel
+                .launch_dims(
+                    &metadata,
+                    &source,
+                    &unused,
+                    &mut status,
+                    [dims[0] + 1, dims[1], dims[2], dims[3]],
+                )
+                .is_err()
+        );
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(result, stable);
+
+        let mut source_after = vec![0.0; source.len()];
+        source.read_range_into(0, &mut source_after).unwrap();
+        assert_eq!(
+            source_after
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            source_values
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
     }
     #[cfg(feature = "cuda-probe")]
     fn close(a: f32, b: f64, tolerance: f64) -> f64 {
@@ -665,6 +1117,120 @@ mod tests {
         drop(session);
         compare_solution(&snapshot, 256, &v, 1);
         assert!(snapshot.world(257).is_err());
+    }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "requires NVIDIA/NVRTC; resident mixed validation product path purpose"]
+    fn gpu_resident_mixed_validation_product_path_stops_publication() {
+        let start = std::time::Instant::now();
+        let v = input::reference();
+        let session = TransferSession::new(0).unwrap();
+        let plan =
+            SparseMassMixedResidentPlan::new(&session, input::model(false), input::input(false))
+                .unwrap();
+        let mut data = plan.create_data(2, 3).unwrap();
+        data.write_qpos(&input::qpos(0).repeat(2)).unwrap();
+        data.write_rhs(&input::rhs(&v, 0, 3).repeat(2)).unwrap();
+        plan.update(&mut data).unwrap();
+
+        let bits = |buffer: &TransferBuffer<f32>| {
+            let mut values = vec![0.0; buffer.len()];
+            buffer.read_range_into(0, &mut values).unwrap();
+            values
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        };
+        let stable_csr = bits(&data.solve.mass.matrix);
+        let source_tail = data.matrix.matrix_input().unwrap().len() - 4;
+        let unselected_dense = 4 + 690 + 67;
+        let assert_bits_unchanged = |label: &str, fault: &str, before: &[u32], after: &[u32]| {
+            assert_eq!(before.len(), after.len());
+            if let Some((index, (&expected, &actual))) = before
+                .iter()
+                .zip(after)
+                .enumerate()
+                .find(|(_, (expected, actual))| expected != actual)
+            {
+                panic!(
+                    "{label} changed during rejected {fault} at {index}: {expected} -> {actual}"
+                );
+            }
+        };
+        let mut recompute_drift = Vec::new();
+
+        for (fault, offset, bad) in [
+            ("head_guard", 0, 0.0),
+            ("tail_guard", source_tail, 0.0),
+            ("nonfinite_crb", 4, f32::NAN),
+            ("nonfinite_unselected_dense", unselected_dense, f32::NAN),
+        ] {
+            let stable_factor = bits(&data.solve.mass.output);
+            let stable_solution = bits(&data.solve.output);
+            let mut original = [0.0];
+            data.matrix
+                .matrix_input()
+                .unwrap()
+                .read_range_into(offset, &mut original)
+                .unwrap();
+            data.matrix.corrupt_output_for_test(offset, bad).unwrap();
+
+            assert!(plan.update_gather(&mut data).is_err());
+            assert!(!data.gathered);
+            assert!(!data.solve.ready);
+            assert!(!data.solve.mass.ready);
+            assert!(plan.update_factor(&mut data).is_err());
+            assert!(plan.update_solve(&mut data).is_err());
+            assert!(data.readback().is_err());
+            assert_bits_unchanged("CSR", fault, &stable_csr, &bits(&data.solve.mass.matrix));
+            assert_bits_unchanged(
+                "factor",
+                fault,
+                &stable_factor,
+                &bits(&data.solve.mass.output),
+            );
+            assert_bits_unchanged(
+                "solution",
+                fault,
+                &stable_solution,
+                &bits(&data.solve.output),
+            );
+
+            data.matrix
+                .corrupt_output_for_test(offset, original[0])
+                .unwrap();
+            plan.update_gather(&mut data).unwrap();
+            assert_bits_unchanged(
+                "restored CSR",
+                fault,
+                &stable_csr,
+                &bits(&data.solve.mass.matrix),
+            );
+            plan.update_factor(&mut data).unwrap();
+            plan.update_solve(&mut data).unwrap();
+            let restored = data.readback().unwrap();
+            compare_solution(&restored, 0, &v, 0);
+            compare_solution(&restored, 1, &v, 0);
+            let recovered_factor = bits(&data.solve.mass.output);
+            let recovered_solution = bits(&data.solve.output);
+            recompute_drift.push((
+                fault,
+                stable_factor
+                    .iter()
+                    .zip(&recovered_factor)
+                    .filter(|(before, after)| before != after)
+                    .count(),
+                stable_solution
+                    .iter()
+                    .zip(&recovered_solution)
+                    .filter(|(before, after)| before != after)
+                    .count(),
+            ));
+        }
+        println!(
+            "resident_mixed_validation_product worlds=2 faults=4 recovered=true recompute_drift={recompute_drift:?} phase_ms={}",
+            start.elapsed().as_millis()
+        );
     }
     #[test]
     #[cfg(feature = "cuda-probe")]
