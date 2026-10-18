@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-18-layers-m3-kinetic-sync-evidence",
+  "milestones": {
+    "implementation": "not_applicable",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/layers-m3-kinetic-sync/validation-evidence.json",
+      "blob": "7de25b634501e16fe52698addbea62dcb356e5c2"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-kinetic-sync/clippy-evidence.json",
+      "blob": "43c6719c12edd38d43d301b00a7f7b4831638d49"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-kinetic-sync/clippy-mixed-mass-factor.jsonl",
+      "blob": "eba185342af09adb5046fc2f762cfefaae88b0fc"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-kinetic-sync/clippy-mixed-mass-solve.jsonl",
+      "blob": "6e23705b00ae8269c3b13c3970ccacd7c7b64e40"
+    }
+  ],
+  "validation": [
+    {
+      "command": "mcp__codex_app__read_thread --thread 01a14ae9-11f3-7ae2-9263-9652274744c9 --include-outputs",
+      "result": "pass: five selected command outputs matched their tool calls and all five report truncated=false",
+      "evidence": "docs/development-evidence/layers-m3-kinetic-sync/validation-evidence.json"
+    },
+    {
+      "command": "ConvertFrom-Json validation-evidence.json",
+      "result": "pass: the evidence document parses as JSON",
+      "evidence": "docs/development-evidence/layers-m3-kinetic-sync/validation-evidence.json"
+    },
+    {
+      "command": "ConvertFrom-Json for each archived Clippy JSONL line",
+      "result": "pass: two factor lines and four solve lines parse; all four compiler diagnostics are present",
+      "evidence": "docs/development-evidence/layers-m3-kinetic-sync/clippy-evidence.json"
+    },
+    {
+      "command": "Get-FileHash -Algorithm SHA256 clippy-mixed-mass-factor.jsonl,clippy-mixed-mass-solve.jsonl",
+      "result": "pass: archived hashes match the correction manifest",
+      "evidence": "docs/development-evidence/layers-m3-kinetic-sync/clippy-evidence.json"
+    },
+    {
+      "command": "git diff --quiet 4c32408f302f9d18ccdb69b6bb259025a28edb76 -- tests/mixed_mass_factor.rs tests/mixed_mass_solve.rs",
+      "result": "pass: neither unchanged diagnostic source file was altered",
+      "evidence": "docs/development-evidence/layers-m3-kinetic-sync/clippy-evidence.json"
+    },
+    {
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Final -TaskId 2026-10-18-layers-m3-kinetic-sync",
+      "result": "pass: the primary task remains verified at 4c32408f302f9d18ccdb69b6bb259025a28edb76",
+      "evidence": "docs/development-evidence/layers-m3-kinetic-sync/validation-evidence.json"
+    },
+    {
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId 2026-10-18-layers-m3-kinetic-sync-evidence",
+      "result": "pass: in_progress, five acceptance items, two scoped paths and previous delivery finalized",
+      "evidence": "docs/development-evidence/layers-m3-kinetic-sync/validation-evidence.json"
+    }
+  ],
+  "remaining": [
+    "The correction preserves the primary receipt and product source without modification.",
+    "No product test was rerun during this evidence-only correction.",
+    "The original combined 232-test and all-target Clippy stream was truncated by its command tool; this correction archives the complete four compiler diagnostics, not the full aggregate stream.",
+    "The four Clippy diagnostics remain unresolved and belong to the independent integration-test task.",
+    "The RTX 4070 Ti SUPER evidence does not constitute Windows T4 acceptance."
+  ]
+}
