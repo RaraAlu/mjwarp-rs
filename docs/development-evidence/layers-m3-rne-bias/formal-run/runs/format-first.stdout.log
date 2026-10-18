@@ -1,0 +1,47 @@
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne_bias.rs:224:
+ }
+ 
+ #[cfg(any(feature = "cuda-probe", test))]
+-fn validate_rne_bias_metadata(
+-    values: &[i32],
+-    dims: RneBiasDims,
+-) -> Result<(), LauncherError> {
++fn validate_rne_bias_metadata(values: &[i32], dims: RneBiasDims) -> Result<(), LauncherError> {
+     let expected = rne_bias_metadata_elements(dims.nbody, dims.nv)?;
+     if dims.metadata_elements != expected
+         || u64::try_from(values.len()).ok() != Some(dims.metadata_elements)
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne_bias.rs:236:
+     }
+     let nbody = usize::try_from(dims.nbody)
+         .map_err(|_| LauncherError::Overflow("rne_bias_metadata_nbody"))?;
+-    let nv = usize::try_from(dims.nv)
+-        .map_err(|_| LauncherError::Overflow("rne_bias_metadata_nv"))?;
++    let nv =
++        usize::try_from(dims.nv).map_err(|_| LauncherError::Overflow("rne_bias_metadata_nv"))?;
+     if values[0] != dims.nbody as i32 || values[1] != dims.nv as i32 {
+         return Err(LauncherError::InvalidMetadata("RNE偏置力元数据维度不匹配"));
+     }
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne_bias.rs:1023:
+             worlds: 1,
+             nbody: i32::MAX as u32 / 12 + 1,
+             nv: 0,
+-            metadata_elements: rne_bias_metadata_elements(i32::MAX as u32 / 12 + 1, 0)
+-                .unwrap(),
++            metadata_elements: rne_bias_metadata_elements(i32::MAX as u32 / 12 + 1, 0).unwrap(),
+         };
+         assert!(matches!(
+             rne_bias_lengths(&layout_wide),
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne_bias.rs:1113:
+         let revision = MetadataRevision::new();
+         let span = DeviceSpan::new(13, 0x1000, 44).unwrap();
+         // SAFETY: 测试跨度代表同一份宿主快照。
+-        let proof = unsafe {
+-            Checked::<RneBiasMetadata>::assume_uploaded(span, &values, dims, revision)
+-        }
+-        .unwrap();
++        let proof =
++            unsafe { Checked::<RneBiasMetadata>::assume_uploaded(span, &values, dims, revision) }
++                .unwrap();
+         let bindings = [
+             SlotBinding {
+                 slot: 0,

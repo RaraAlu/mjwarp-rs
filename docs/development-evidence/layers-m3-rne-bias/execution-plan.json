@@ -1,0 +1,569 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-19-layers-m3-rne-bias",
+  "base_commit": "9f01475c76e47a837f276c429b0e8994b96bb3e6",
+  "resource_lock": "gpu:windows-t4",
+  "device_identity": "NVIDIA GeForce RTX 4070 Ti SUPER",
+  "rules": {
+    "register_before_execution": true,
+    "registration_file_mode": "CreateNew",
+    "output_directory_must_be_absent": true,
+    "stdout_and_stderr_precreated": true,
+    "record_start_end_exit_and_duration": true,
+    "retry_requires_meaningful_change": true,
+    "python_allowed": false
+  },
+  "registered_validations": [
+    {
+      "id": "host-wrapper",
+      "purpose": "验证rne_bias元数据、跨度、会话、别名、零自由度和溢出边界",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--lib",
+        "rne_bias_plan",
+        "--",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/codex-m3-rne-bias"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-01-host",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "format",
+      "purpose": "检查Rust格式",
+      "executable": "cargo",
+      "arguments": ["fmt", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-02-format",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "host-wrapper-retry-01",
+      "purpose": "补充有效宽度下的u64字节溢出及宽度临界值后复验",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--lib",
+        "rne_bias_plan",
+        "--",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/codex-m3-rne-bias"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-01-host-retry-01",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "format-apply",
+      "purpose": "按首次格式差异应用rustfmt",
+      "executable": "cargo",
+      "arguments": ["fmt"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-02-format-apply",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "format-retry-01",
+      "purpose": "应用rustfmt后复验格式",
+      "executable": "cargo",
+      "arguments": ["fmt", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-02-format-retry-01",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "format-after-gpu-code",
+      "purpose": "设备测试落地后检查Rust格式",
+      "executable": "cargo",
+      "arguments": ["fmt", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-02-format-after-gpu-code",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "format-after-gpu-code-apply",
+      "purpose": "按设备测试格式差异应用rustfmt",
+      "executable": "cargo",
+      "arguments": ["fmt"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-02-format-after-gpu-code-apply",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "format-after-gpu-code-retry-01",
+      "purpose": "应用设备测试格式差异后复验",
+      "executable": "cargo",
+      "arguments": ["fmt", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-02-format-after-gpu-code-retry-01",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "default-lib",
+      "purpose": "运行默认库测试并检查宿主回归",
+      "executable": "cargo",
+      "arguments": ["test", "--locked", "--lib", "--", "--test-threads=1"],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/codex-m3-rne-bias"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-03-default-lib",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "clippy-all-targets",
+      "purpose": "执行标准全目标静态检查",
+      "executable": "cargo",
+      "arguments": [
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "cuda-probe",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/codex-m3-rne-bias"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-04-clippy",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "input-tolerance-gate",
+      "purpose": "复验偏置力输入、重力和原容差冻结门禁",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--features",
+        "cuda-probe",
+        "--test",
+        "resident_rne_bias",
+        "reference_hashes_freeze_native_bias_inputs_gravities_and_tolerances",
+        "--",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/codex-m3-rne-bias"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-05-input-tolerance",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "clippy-all-targets-retry-01",
+      "purpose": "沿用同模块参数数量豁免后复验全目标静态检查",
+      "executable": "cargo",
+      "arguments": [
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "cuda-probe",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/codex-m3-rne-bias"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-04-clippy-retry-01",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "device-preflight",
+      "purpose": "核对本机4070 Ti SUPER和固定NVRTC",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rne-bias/device-preflight.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-06-device",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "gpu-product-captured",
+      "purpose": "捕获PTX并验证多级父链、非零qvel、513世界、拒绝和恢复",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "physics::rne_bias::tests::runs_rne_bias_wrapper_and_recovers_after_real_metadata_write",
+        "--",
+        "--ignored",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/codex-m3-rne-bias",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1",
+        "MJWARP_PHYSICS_PTX_DIR": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/run-01-product/gpu-capture"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/run-01-product",
+      "capture_directory": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/run-01-product/gpu-capture",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-06-device/result.json"
+    },
+    {
+      "id": "inventory",
+      "purpose": "从rne_cacc明细重建盘点并只重分类rne_bias",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rne-bias/build-inventory.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-07-inventory",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "precision-map",
+      "purpose": "冻结基线源码、历史原件、当前捕获和精度边界",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rne-bias/build-precision-map.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-08-precision-map",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "precision-map-retry-01",
+      "purpose": "修正冻结清单字段路径后重建精度映射",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rne-bias/build-precision-map.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-08-precision-map-retry-01",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "format-final",
+      "purpose": "参数数量豁免落地后最终检查Rust格式",
+      "executable": "cargo",
+      "arguments": ["fmt", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-02-format-final",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "evidence",
+      "purpose": "核验证据、登记、范围和剩余边界",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rne-bias/check-evidence.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-09-evidence",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "precision-map-retry-02",
+      "purpose": "排除PTX寄存器编号误报后生成精度映射v2",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rne-bias/build-precision-map.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-08-precision-map-retry-02",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "evidence-retry-01",
+      "purpose": "精度映射v2生成后重新核验证据和边界",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rne-bias/check-evidence.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-09-evidence-retry-01",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "delivery-preflight",
+      "purpose": "执行任务交付预检",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "scripts/check-normify-delivery.ps1",
+        "-Mode",
+        "Preflight",
+        "-TaskId",
+        "2026-10-19-layers-m3-rne-bias"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-10-delivery-preflight",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "delivery-preflight-retry-01",
+      "purpose": "补登记交付回执路径后复验任务预检",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "scripts/check-normify-delivery.ps1",
+        "-Mode",
+        "Preflight",
+        "-TaskId",
+        "2026-10-19-layers-m3-rne-bias"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-10-delivery-preflight-retry-01",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "manifest",
+      "purpose": "复制运行原件并构建正式清单",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rne-bias/build-manifest.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-11-manifest",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "manifest-blob",
+      "purpose": "冻结正式清单的Git对象身份",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rne-bias/freeze-manifest.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-12-manifest-blob",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "evidence-final",
+      "purpose": "核验正式清单和原始运行字节",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rne-bias/check-formal-evidence.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-13-evidence-final",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "delivery-stage",
+      "purpose": "生成交付回执并暂存本任务文件",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rne-bias/build-delivery-receipt.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-14-delivery-stage",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "staged-whitespace",
+      "purpose": "检查暂存区空白错误",
+      "executable": "git",
+      "arguments": [
+        "diff",
+        "--cached",
+        "--check"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-15-staged-whitespace",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "delivery-staged",
+      "purpose": "核验暂存区和逐文件回执",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "scripts/check-normify-delivery.ps1",
+        "-Mode",
+        "Staged",
+        "-TaskId",
+        "2026-10-19-layers-m3-rne-bias"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-16-delivery-staged",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "delivery-postcommit",
+      "purpose": "核验提交内容和回执对象",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "scripts/check-normify-delivery.ps1",
+        "-Mode",
+        "PostCommit",
+        "-TaskId",
+        "2026-10-19-layers-m3-rne-bias"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-17-delivery-postcommit",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "delivery-recorded",
+      "purpose": "核验完整提交号登记",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "scripts/check-normify-delivery.ps1",
+        "-Mode",
+        "Recorded",
+        "-TaskId",
+        "2026-10-19-layers-m3-rne-bias"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-18-delivery-recorded",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "delivery-final",
+      "purpose": "核验任务关闭后的最终状态",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "scripts/check-normify-delivery.ps1",
+        "-Mode",
+        "Final",
+        "-TaskId",
+        "2026-10-19-layers-m3-rne-bias"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias/check-19-delivery-final",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    }
+  ]
+}
