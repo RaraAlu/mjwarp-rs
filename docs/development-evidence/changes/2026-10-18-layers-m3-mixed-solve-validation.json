@@ -1,0 +1,134 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-18-layers-m3-mixed-solve-validation",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/layers-m3-mixed-solve-validation/acceptance-review.json",
+      "blob": "975962aed7f3bcae7d0933c5efa1cbb462961485"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-mixed-solve-validation/archive-verification.json",
+      "blob": "c641c1c32bebad704dc82261a6ad2840d991de34"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-mixed-solve-validation/artifacts/raw-captures.tar.gz",
+      "blob": "3b1b2a81c1118d55f6089bd7154248ede5c43f5d"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-mixed-solve-validation/capture-manifest.json",
+      "blob": "38e491f00cc06af51859f04a0b49b6a41fe11f18"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-mixed-solve-validation/doc-audit.md",
+      "blob": "d5318de52092edeaee51a38224a46b87e42847e2"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-mixed-solve-validation/kernel-comparison.json",
+      "blob": "c9acbeb47cbc9b0890e4095bc62aaeecb7a07dc9"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-mixed-solve-validation/normify-summary.json",
+      "blob": "3a59d7c60c39c7485ec292d0927908e87238ad02"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-mixed-solve-validation/README.md",
+      "blob": "3432dee5f2145197894f8531b5c6bf9f114655ad"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-mixed-solve-validation/test-budget-audit.json",
+      "blob": "4dc6a90b1914563b9558edf8d81f996e9c904554"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-mixed-solve-validation/unmigrated-launch-inventory.json",
+      "blob": "eb5cab9d66aa843570ee82fe04d6240d5a418db5"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-mixed-solve-validation/validation-summary.json",
+      "blob": "a91dabdacb13319b688167489f26155dd3aa6f76"
+    },
+    {
+      "path": "src/physics/mass_solve/sparse/mixed/solve.rs",
+      "blob": "3886cc065cea96ba9afc6c92ba23af3083c3d10f"
+    }
+  ],
+  "validation": [
+    {
+      "command": "cargo test --locked --lib mixed_solve_validation -- --nocapture",
+      "result": "pass: 2 host plan and metadata tests",
+      "evidence": "docs/development-evidence/layers-m3-mixed-solve-validation/validation-summary.json"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::tests::gpu_mixed_solve_validation_wrapper_checks_tail_and_rejections -- --ignored --exact --nocapture --test-threads=1",
+      "result": "pass: 257-world tail, span, revision, overflow and session checks",
+      "evidence": "docs/development-evidence/layers-m3-mixed-solve-validation/validation-summary.json"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::tests::cached_merged_factor_ignores_old_sources_and_rejects_each_consumer_fault -- --ignored --exact --nocapture --test-threads=1",
+      "result": "pass: separate factor and RHS faults block publication and recovery succeeds; no dedicated status-3 injection",
+      "evidence": "docs/development-evidence/layers-m3-mixed-solve-validation/validation-summary.json"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --test mixed_mass_solve -- --ignored --nocapture --test-threads=1; then exact failed case with MJWARP_MIXED_SOLVE_REPORT",
+      "result": "first call: 1 pass and 1 avoidable report-path failure; changed-environment exact repair: 1 pass",
+      "evidence": "docs/development-evidence/layers-m3-mixed-solve-validation/test-budget-audit.json"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings",
+      "result": "pass: zero diagnostics",
+      "evidence": "docs/development-evidence/layers-m3-mixed-solve-validation/validation-summary.json"
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "result": "pass",
+      "evidence": "docs/development-evidence/layers-m3-mixed-solve-validation/validation-summary.json"
+    },
+    {
+      "command": "compare captured mixed_solve_validate CU and PTX with prior archive",
+      "result": "pass: CUDA and PTX bytes and SHA-256 match",
+      "evidence": "docs/development-evidence/layers-m3-mixed-solve-validation/kernel-comparison.json"
+    },
+    {
+      "command": "repository-wide current static launch inventory",
+      "result": "pass: 88 actual entries, 10 ABI families, 99 low-level calls, 12 orchestration calls and 4 excluded helpers",
+      "evidence": "docs/development-evidence/layers-m3-mixed-solve-validation/unmigrated-launch-inventory.json"
+    },
+    {
+      "command": "archive and verify task captures",
+      "result": "pass: 44 members match byte-for-byte; originals remain under target; no ignore rule added",
+      "evidence": "docs/development-evidence/layers-m3-mixed-solve-validation/archive-verification.json"
+    },
+    {
+      "command": "audit-docs automatic report",
+      "result": "pass: 1620 source files; 172 documents; 0 mismatches",
+      "evidence": "docs/development-evidence/layers-m3-mixed-solve-validation/doc-audit.md"
+    },
+    {
+      "command": "normify_sync, normify_module_refresh, normify_validate and normify_build",
+      "result": "pass: zero errors; 16 existing leaf-granularity warnings; build succeeded",
+      "evidence": "docs/development-evidence/layers-m3-mixed-solve-validation/normify-summary.json"
+    },
+    {
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId 2026-10-18-layers-m3-mixed-solve-validation",
+      "result": "pass: task in progress; 13 acceptance items; previous delivery finalized",
+      "evidence": "docs/development-evidence/layers-m3-mixed-solve-validation/acceptance-review.json"
+    }
+  ],
+  "remaining": [
+    "合法重算位差仍存在。",
+    "NP01至NP04仍未验收。",
+    "Linux验证未运行。",
+    "发布构建未运行。",
+    "本机显卡不是T4。",
+    "本轮不声明GPU独占测量。",
+    "状态三没有专门注入测试。",
+    "mixed_solve_fused仍未迁移。",
+    "launch_mixed_solve仍未迁移。",
+    "父任务M3仍未完成。"
+  ]
+}

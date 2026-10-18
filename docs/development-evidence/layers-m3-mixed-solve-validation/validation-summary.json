@@ -1,0 +1,157 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-18-layers-m3-mixed-solve-validation",
+  "implementation": {
+    "entry": "mixed_solve_validate",
+    "typed_wrapper": true,
+    "mixed_solve_fused_changed": false,
+    "launch_mixed_solve_changed": false,
+    "cuda_changed": false,
+    "ptx_changed": false,
+    "compiler_options_changed": false,
+    "tolerances_changed": false,
+    "fixtures_changed": false
+  },
+  "runs": [
+    {
+      "command": "cargo test --locked --lib mixed_solve_validation -- --nocapture",
+      "exit_code": 0,
+      "duration_ms": 4113,
+      "result": "2 passed",
+      "evidence": "capture-raw/01-host-plan-attempt-1.*"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::tests::gpu_mixed_solve_validation_wrapper_checks_tail_and_rejections -- --ignored --exact --nocapture --test-threads=1",
+      "exit_code": 0,
+      "duration_ms": 10469,
+      "result": "1 passed",
+      "evidence": "capture-raw/02-gpu-wrapper-attempt-1.*"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::tests::cached_merged_factor_ignores_old_sources_and_rejects_each_consumer_fault -- --ignored --exact --nocapture --test-threads=1",
+      "exit_code": 0,
+      "duration_ms": 1267,
+      "result": "1 passed; factor and RHS faults were injected separately; no dedicated status-3 injection",
+      "evidence": "capture-raw/03-gpu-product-attempt-1.*"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --test mixed_mass_solve -- --ignored --nocapture --test-threads=1",
+      "exit_code": 101,
+      "duration_ms": 8834,
+      "result": "1 passed and 1 failed after numeric work because MJWARP_MIXED_SOLVE_REPORT was absent",
+      "evidence": "capture-raw/04-mixed-solve-integration-attempt-1.*"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --test mixed_mass_solve gpu_mixed_consumes_all_three_routes_without_overwrite_and_crosses_128_groups -- --ignored --exact --nocapture --test-threads=1",
+      "exit_code": 0,
+      "duration_ms": 2210,
+      "result": "1 passed after supplying MJWARP_MIXED_SOLVE_REPORT",
+      "evidence": "capture-raw/05-mixed-solve-numeric-attempt-2.*"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings",
+      "exit_code": 0,
+      "duration_ms": 5553,
+      "result": "pass; zero diagnostics",
+      "evidence": "capture-raw/06-clippy-attempt-1.*"
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "exit_code": 0,
+      "duration_ms": 783,
+      "result": "pass",
+      "evidence": "capture-raw/08-format-check-attempt-1.*"
+    },
+    {
+      "command": "audit-docs automatic report",
+      "exit_code": 0,
+      "result": "1620 source files; 172 documents; 0 mismatches",
+      "evidence": "doc-audit.md"
+    },
+    {
+      "command": "normify_sync, normify_module_refresh, normify_validate and normify_build",
+      "exit_code": 0,
+      "result": "pass; zero errors; sixteen existing leaf-granularity warnings; build succeeded",
+      "evidence": "normify-summary.json"
+    },
+    {
+      "command": "parse all task JSON evidence",
+      "exit_code": 0,
+      "result": "pass",
+      "evidence": "capture-manifest.json"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "pass",
+      "evidence": "capture-manifest.json"
+    },
+    {
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId 2026-10-18-layers-m3-mixed-solve-validation",
+      "exit_code": 0,
+      "result": "pass; task running; thirteen acceptance items; previous delivery finalized",
+      "evidence": "capture-manifest.json"
+    },
+    {
+      "command": "archive and verify task captures",
+      "exit_code": 0,
+      "result": "pass; forty-four members matched byte-for-byte; originals remain present",
+      "evidence": "archive-verification.json"
+    }
+  ],
+  "budget_assessment": {
+    "corrected_verdict": "all three existing-path calls were necessary changed-path checks or a failed-case environment repair",
+    "avoidable_failure": "the first integration call omitted MJWARP_MIXED_SOLVE_REPORT",
+    "unchanged_redundant_reruns": 0,
+    "evidence": "test-budget-audit.json#correction.corrected_verdict"
+  },
+  "kernel_identity": {
+    "cuda_sha256": "6b01821ccb5eedd0217f709ae12757cb9cf179252b3473007f037732b576b081",
+    "ptx_sha256": "9b7829088e94a26dfa23fad24065a2383bb2abd8f5b915af648c7947218bc667",
+    "cuda_bytes_equal_prior": true,
+    "ptx_bytes_equal_prior": true,
+    "nvrtc": "12.8",
+    "options": [
+      "--std=c++17",
+      "--gpu-architecture=compute_70"
+    ],
+    "fmad": true,
+    "fast_math": false
+  },
+  "numeric_observation": {
+    "batches": 14,
+    "slots": 141592,
+    "max_abs": 0.0000247955322265625,
+    "max_block_residual": 3.732701096793292e-7,
+    "max_owned_buffer_bytes": 12352436,
+    "phase_ms": 363,
+    "full_G03_NP": false,
+    "performance_acceptance": false,
+    "precision_acceptance": false
+  },
+  "device": {
+    "name": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "memory_mib": 16376,
+    "schedule_lock": "gpu:windows-t4",
+    "t4_proven": false,
+    "exclusive_measurement": false
+  },
+  "archive": {
+    "path": "artifacts/raw-captures.tar.gz",
+    "sha256": "3629d45fd196c3ac29ac1b27e7aee24447203b345023accfcd93e1772d2f1a49",
+    "members": 44,
+    "byte_preserving": true,
+    "raw_files_preserved": true,
+    "local_ignore_rule_added": false
+  },
+  "remaining": [
+    "legitimate recompute bit drift remains",
+    "NP01 through NP04 are not accepted",
+    "Linux was not run",
+    "Release was not run",
+    "T4 hardware was not used",
+    "parent M3 remains incomplete",
+    "mixed_solve_fused and launch_mixed_solve remain unmigrated"
+  ]
+}

@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-18-layers-m3-mixed-solve-validation",
+  "historical_ledger": {
+    "source": "docs/evidence/mixed-mass-solve/audit.json",
+    "recorded_budget": "3/3 combined host + GPU target + private single function",
+    "recorded_state": "all successful frozen",
+    "count_meaning": "purpose budget, not a resettable per-task counter",
+    "account_quota_resets_purpose": false
+  },
+  "later_evidence": [
+    {
+      "source": "docs/development-evidence/toolchain-clippy-governance/gpu-before-runs.json",
+      "result": "mixed_mass_solve ran; one test failed after numeric work because the report variable was absent"
+    },
+    {
+      "source": "docs/development-evidence/toolchain-clippy-governance/gpu-after-runs.json",
+      "result": "mixed_mass_solve ran again; the same report-variable failure remained"
+    },
+    {
+      "source": "docs/development-evidence/toolchain-evidence-revalidation/gpu-candidate-runs.json",
+      "result": "mixed_mass_solve ran; the same report-variable failure remained"
+    },
+    {
+      "source": "docs/development-evidence/clippy-integration-tests/validation.json",
+      "result": "the report variable was supplied and both integration tests passed"
+    }
+  ],
+  "current_task_calls": [
+    {
+      "evidence": "capture-raw/01-host-plan-attempt-1.*",
+      "purpose": "new typed validation metadata and host plan",
+      "historical_purpose_reused": false,
+      "result": "2 passed"
+    },
+    {
+      "evidence": "capture-raw/02-gpu-wrapper-attempt-1.*",
+      "purpose": "new typed validation wrapper",
+      "historical_purpose_reused": false,
+      "result": "1 passed"
+    },
+    {
+      "evidence": "capture-raw/03-gpu-product-attempt-1.*",
+      "purpose": "existing private mixed consumer product test",
+      "historical_purpose_reused": true,
+      "result": "1 passed"
+    },
+    {
+      "evidence": "capture-raw/04-mixed-solve-integration-attempt-1.*",
+      "purpose": "existing full mixed solve GPU target",
+      "historical_purpose_reused": true,
+      "result": "1 passed and 1 failed after numeric work; report variable absent"
+    },
+    {
+      "evidence": "capture-raw/05-mixed-solve-numeric-attempt-2.*",
+      "purpose": "existing full mixed solve GPU target, narrowed to the failed case",
+      "historical_purpose_reused": true,
+      "environment_change": "supplied MJWARP_MIXED_SOLVE_REPORT",
+      "result": "1 passed"
+    }
+  ],
+  "basis_for_current_calls": {
+    "source_change": "mixed_solve_validate now uses a typed synchronous wrapper",
+    "environment_change": "the failed integration required MJWARP_MIXED_SOLVE_REPORT",
+    "automatic_budget_exemption": false
+  },
+  "verdict": {
+    "historical_budget_was_frozen_before_this_task": true,
+    "current_task_reused_frozen_private_test": true,
+    "current_task_reused_frozen_integration_test": true,
+    "violated_do_not_rerun_full_historical_purpose": true,
+    "attempt_1_resets_budget": false,
+    "further_historical_test_runs_allowed": false,
+    "evidence_may_be_reported_as_observed_output": true,
+    "evidence_may_be_reported_as_budget_compliant": false
+  },
+  "correction": {
+    "supersedes": "verdict",
+    "reason": "A later user rule clarified that the historical count prevents unchanged redundant checks; it is not a hard cap after code, target, input, environment, or purpose changes.",
+    "user_rule": {
+      "date": "2026-10-14",
+      "message_id": "01a13aec-c501-7450-ac81-c1245e7bc0a7",
+      "trusted_source": "parent thread quotation",
+      "quote": "我得修改一下规矩，失败不可怕，也不是说多次失败就放弃，之前我之所以固定次数 是因为不想你做重复的多余检查罢了",
+      "interpretation": "A changed target, input, environment, or purpose does not grant automatic permission; each rerun must still be necessary."
+    },
+    "original_record_preserved": true,
+    "call_assessment": [
+      {
+        "evidence": "capture-raw/03-gpu-product-attempt-1.*",
+        "changed_basis": [
+          "mixed_solve_validate wrapper implementation",
+          "new metadata revision rejection assertions"
+        ],
+        "necessary": true,
+        "redundant_unchanged_repeat": false
+      },
+      {
+        "evidence": "capture-raw/04-mixed-solve-integration-attempt-1.*",
+        "changed_basis": [
+          "current mixed solve product path"
+        ],
+        "necessary": true,
+        "redundant_unchanged_repeat": false,
+        "avoidable_failure": "MJWARP_MIXED_SOLVE_REPORT was not supplied before invocation"
+      },
+      {
+        "evidence": "capture-raw/05-mixed-solve-numeric-attempt-2.*",
+        "changed_basis": [
+          "MJWARP_MIXED_SOLVE_REPORT supplied",
+          "only the failed numeric case selected"
+        ],
+        "necessary": true,
+        "redundant_unchanged_repeat": false,
+        "reason": "verify the prior numeric case after repairing its required environment"
+      }
+    ],
+    "corrected_verdict": {
+      "historical_ledger_is_context_not_hard_cap": true,
+      "unchanged_redundant_reruns": 0,
+      "violation_inferred_from_count_alone": false,
+      "avoidable_configuration_failure_recorded": true,
+      "further_unchanged_reruns_planned": false,
+      "necessary_changed_verification_remains_allowed": true
+    }
+  }
+}
