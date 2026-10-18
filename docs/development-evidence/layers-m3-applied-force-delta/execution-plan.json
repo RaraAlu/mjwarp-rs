@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-applied-force-delta",
+  "recorded_at": "2026-10-19T00:29:40.4578506+08:00",
+  "base_revision": "c2b24aaf6051ac5fb9a4bcde1828e8a5a6ffa592",
+  "scope": {
+    "migrate": [
+      "applied_force_delta"
+    ],
+    "remain_raw": [
+      "applied_force_validate",
+      "applied_force_publish"
+    ],
+    "next_candidate_started": false
+  },
+  "device": {
+    "role": "T4",
+    "name": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "total_memory_mib": 16376,
+    "resource_lock": "gpu:windows-t4"
+  },
+  "cuda": {
+    "root": "target/toolchains/cuda-12.8.1",
+    "nvrtc": "target/toolchains/cuda-12.8.1/bin/nvrtc64_120_0.dll",
+    "nvrtc_builtins": "target/toolchains/cuda-12.8.1/bin/nvrtc-builtins64_128.dll"
+  },
+  "capture": {
+    "root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-delta/run-01",
+    "directory": "target/normify-evidence/2026-10-19-layers-m3-applied-force-delta/run-01/gpu-capture",
+    "precondition": "directory must not exist",
+    "expected_entries": [
+      "applied_force_validate",
+      "applied_force_delta",
+      "applied_force_publish"
+    ],
+    "expected_entry_compilations": 3,
+    "duplicate_same_entry_allowed": false,
+    "expected_precision_members": 9,
+    "expected_baseline_members": 1
+  },
+  "frozen_identity": {
+    "cuda_source_sha256": "edb51d900a9f14c3779e6a411dc1c46998cdd91ca70d880ae4f862cf428ea953",
+    "ptx_sha256": "d422477228822f80786896ccd4d071d03f1d290cf1c8408ca7456563c01fd726",
+    "fixture": "fixtures/applied-force/reference.json",
+    "fixture_sha256": "13391225d2761132a931b63de65e5bd965a2e7eb93a135f9c0db4684bb2c7cde",
+    "tolerances_changed": false
+  },
+  "registered_validations": [
+    {
+      "id": "gpu-wrapper",
+      "command": "cargo test --locked --features cuda-probe --lib physics::applied_force::tests::gpu_m3_delta_wrapper_preserves_bits_and_recovers_stale_metadata -- --ignored --exact --test-threads=1 --nocapture",
+      "gpu": true
+    },
+    {
+      "id": "format",
+      "command": "cargo fmt --check",
+      "gpu": false
+    },
+    {
+      "id": "clippy-scope",
+      "command": "cargo clippy --locked --features cuda-probe --lib -- -D warnings",
+      "gpu": false
+    },
+    {
+      "id": "clippy-scope-retry",
+      "command": "cargo clippy --locked --features cuda-probe --lib -- -D warnings",
+      "gpu": false,
+      "reason": "first run exposed a test-only helper as dead code; cfg(test) now scopes it",
+      "stdout": "formal-run/clippy-retry.stdout.txt",
+      "stderr": "formal-run/clippy-retry.stderr.txt"
+    },
+    {
+      "id": "format-retry",
+      "command": "cargo fmt --check",
+      "gpu": false,
+      "reason": "final cfg(test) source change followed the first format run",
+      "stdout": "formal-run/fmt-retry.stdout.txt",
+      "stderr": "formal-run/fmt-retry.stderr.txt"
+    },
+    {
+      "id": "evidence-parse-and-diff",
+      "command": "parse task JSON files; git diff --check",
+      "gpu": false,
+      "stdout": "formal-run/evidence-check.stdout.txt",
+      "stderr": "formal-run/evidence-check.stderr.txt"
+    },
+    {
+      "id": "evidence-final",
+      "command": "parse final task JSON files; git diff --check",
+      "gpu": false,
+      "reason": "acceptance and Normify summaries were added after the first evidence check",
+      "stdout": "formal-run/evidence-final.stdout.txt",
+      "stderr": "formal-run/evidence-final.stderr.txt"
+    },
+    {
+      "id": "delivery-preflight",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId 2026-10-19-layers-m3-applied-force-delta",
+      "gpu": false,
+      "stdout": "formal-run/preflight.stdout.txt",
+      "stderr": "formal-run/preflight.stderr.txt"
+    },
+    {
+      "id": "delivery-staged",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Staged",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-delta/delivery"
+    },
+    {
+      "id": "delivery-post-commit",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode PostCommit -TaskId 2026-10-19-layers-m3-applied-force-delta",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-delta/delivery"
+    },
+    {
+      "id": "delivery-recorded",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Recorded -TaskId 2026-10-19-layers-m3-applied-force-delta",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-delta/delivery"
+    },
+    {
+      "id": "delivery-final",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Final -TaskId 2026-10-19-layers-m3-applied-force-delta",
+      "gpu": false,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-delta/delivery"
+    }
+  ],
+  "earlier_unregistered_validations": {
+    "record": "docs/development-evidence/layers-m3-applied-force-delta/pre-registration-gap.json",
+    "rerun_for_evidence": false,
+    "zero_test_run_counts_as_acceptance": false
+  },
+  "history_boundary": {
+    "record": "docs/development-evidence/toolchain-evidence-revalidation/gpu-candidate-logs/lib_mjwarp_rs.log",
+    "applied_force_failure": "report path environment variable was absent and Option::unwrap failed",
+    "applied_force_numeric_over_tolerance": false,
+    "gravity_compensation_bit_failure_is_separate": true,
+    "frozen_u075_np_complete": false,
+    "rewrite_history": false
+  }
+}
