@@ -1995,6 +1995,134 @@ mod tests {
     #[test]
     #[cfg(feature = "cuda-probe")]
     #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn gpu_mixed_solve_fused_rejects_in_bounds_small_overlap_without_state_change() {
+        let refs = samples::reference();
+        let model = &refs["models"][0];
+        let session = TransferSession::new(0).unwrap();
+        let plan = SparseMassMixedSolvePlan::new(&session, samples::input(model)).unwrap();
+        let mut data = plan.create_data(1, 129).unwrap();
+        data.write_matrix(&samples::matrix(model, 0)).unwrap();
+        data.write_rhs(&samples::rhs(model, 0, 129)).unwrap();
+        plan.update(&mut data).unwrap();
+
+        let f32_bits = |buffer: &TransferBuffer<f32>| {
+            let mut values = vec![0.0; buffer.len()];
+            buffer.read_range_into(0, &mut values).unwrap();
+            values
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        };
+        let i32_bits = |buffer: &TransferBuffer<i32>| {
+            let mut values = vec![0; buffer.len()];
+            buffer.read_range_into(0, &mut values).unwrap();
+            values
+        };
+        let metadata_before = i32_bits(plan.metadata.as_buffer());
+        let rhs_before = f32_bits(&data.rhs);
+        let factor_before = f32_bits(&data.mass.output);
+        let output_before = f32_bits(&data.output);
+        let status_before = f32_bits(&data.status);
+        let ready_before = data.ready;
+        let factor_ready_before = data.mass.ready;
+        let proof_span = plan.metadata.fused_checked.span();
+        let proof_dims = *plan.metadata.fused_checked.dims();
+        let proof_digest = plan.metadata.fused_checked.digest();
+
+        let mut overlap = plan.metadata.values.clone();
+        let n = usize::try_from(plan.metadata.n).unwrap();
+        let levels = usize::try_from(overlap[0]).unwrap();
+        let diagonal_end = 4 + 2 * n;
+        let offsets_end = diagonal_end + levels + 1;
+        let update_count = usize::try_from(overlap[offsets_end - 1]).unwrap();
+        let small_base = offsets_end + 3 * update_count.max(1);
+        assert!(overlap[3] >= 2);
+        let first = [
+            overlap[small_base],
+            overlap[small_base + 1],
+            overlap[small_base + 2],
+        ];
+        overlap[small_base + 3..small_base + 6].copy_from_slice(&first);
+
+        let start = usize::try_from(first[0]).unwrap();
+        let size = usize::try_from(first[1]).unwrap();
+        let address = usize::try_from(first[2]).unwrap();
+        let prefix = usize::try_from(overlap[1]).unwrap();
+        assert!((2..=6).contains(&size));
+        assert!(start + size <= n);
+        assert!(address + size * size <= prefix);
+        assert_eq!(
+            &overlap[small_base..small_base + 3],
+            &overlap[small_base + 3..small_base + 6]
+        );
+        assert!(
+            overlap[4 + start..4 + start + size]
+                .iter()
+                .all(|&flag| flag == first[2])
+        );
+        assert!(
+            StaticMixedSolveValidationMetadata::validate(
+                &overlap,
+                &[plan.metadata.n, plan.metadata.stride],
+            )
+            .is_ok()
+        );
+        assert!(matches!(
+            StaticMixedSolveFusedMetadata::validate(
+                &overlap,
+                &[plan.metadata.n, plan.metadata.stride],
+            ),
+            Err(LauncherError::InvalidMetadata("混合融合Small分区冲突"))
+        ));
+
+        let rejection = match MixedSolveValidationMetadataBuffer::upload(
+            &session,
+            overlap,
+            n,
+            usize::try_from(plan.metadata.stride).unwrap(),
+        ) {
+            Ok(_) => panic!("Small重叠元数据意外通过"),
+            Err(error) => error,
+        };
+        assert!(matches!(
+            rejection,
+            TransferError::Input(InputError::InvalidTopology {
+                field: "mixed_solve_fused_metadata",
+                index: 0,
+                reason: "invalid_or_stale_proof",
+            })
+        ));
+
+        assert_eq!(
+            plan.metadata.fused_checked.span().context(),
+            proof_span.context()
+        );
+        assert_eq!(plan.metadata.fused_checked.span().addr(), proof_span.addr());
+        assert_eq!(
+            plan.metadata.fused_checked.span().bytes(),
+            proof_span.bytes()
+        );
+        assert_eq!(*plan.metadata.fused_checked.dims(), proof_dims);
+        assert_eq!(plan.metadata.fused_checked.digest(), proof_digest);
+        assert_eq!(i32_bits(plan.metadata.as_buffer()), metadata_before);
+        assert_eq!(f32_bits(&data.rhs), rhs_before);
+        assert_eq!(f32_bits(&data.mass.output), factor_before);
+        assert_eq!(f32_bits(&data.output), output_before);
+        assert_eq!(f32_bits(&data.status), status_before);
+        assert_eq!(data.ready, ready_before);
+        assert_eq!(data.mass.ready, factor_ready_before);
+
+        plan.update_solve(&mut data).unwrap();
+        assert!(data.ready);
+        let expected = samples::solution(model, 0, 129);
+        let recovered = data.readback().unwrap();
+        for (&value, &reference) in recovered.world(0).unwrap().solution.iter().zip(&expected) {
+            assert!((f64::from(value) - reference).abs() <= 2e-4 + 2e-4 * reference.abs());
+        }
+    }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
     fn gpu_mixed_solve_fused_wrapper_checks_groups_spans_and_recovery() {
         let refs = samples::reference();
         let model = &refs["models"][0];
