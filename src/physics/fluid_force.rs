@@ -1244,6 +1244,9 @@ mod tests {
         assert_eq!(regrouped.to_bits(), 0xbfe1_33df);
     }
 
+    // 四项字面量是冻结源码的逐位十进制展开。
+    // 只豁免本测试，禁止缩短或替换。
+    #[allow(clippy::excessive_precision)]
     #[test]
     fn ellipsoid_constants_and_projection_order_match_frozen_source() {
         assert_eq!(4.18879032135009765625f32.to_bits(), 0x4086_0a92);
@@ -1291,10 +1294,13 @@ mod tests {
     }
 
     #[cfg(feature = "cuda-probe")]
+    type FluidSources<'a> = (&'a [f32], &'a [f32], &'a [f32], Option<&'a [f32]>);
+
+    #[cfg(feature = "cuda-probe")]
     fn reference(
         model: &AttachedModelInput,
         world: usize,
-        sources: (&[f32], &[f32], &[f32], Option<&[f32]>),
+        sources: FluidSources<'_>,
         mass: &[f32],
         inertia: &[f32],
         input: &FluidForceInput,
@@ -1323,12 +1329,12 @@ mod tests {
         let cvel = &velocity[..6 * nb];
         let parent = &kinematic.fields().body_parentid;
         let mut roots = vec![0usize; nb];
-        for body in 1..nb {
+        for (body, slot) in roots.iter_mut().enumerate().skip(1) {
             let mut root = body;
             while parent[root] != 0 {
                 root = parent[root] as usize;
             }
-            roots[body] = root;
+            *slot = root;
         }
         let mut body_force = vec![0.0f32; 6 * nb];
         for body in 1..nb {
@@ -1414,9 +1420,14 @@ mod tests {
                             local_torque[index] += linear_torque[index] + angular_torque[index];
                         }
                     }
+                    #[allow(clippy::excessive_precision)]
+                    // 冻结源码的逐位十进制展开；只豁免本项，禁止缩短。
                     const FOUR_THIRDS_PI: f32 = 4.18879032135009765625;
+                    #[allow(clippy::excessive_precision)]
                     const EIGHT_FIFTEENTHS_PI: f32 = 1.6755161285400390625;
+                    #[allow(clippy::excessive_precision)]
                     const TWO_THIRDS: f32 = 0.666666686534881591796875;
+                    #[allow(clippy::excessive_precision)]
                     const THREE_PI: f32 = 9.424777984619140625;
                     let volume = FOUR_THIRDS_PI * semiaxes[0] * semiaxes[1] * semiaxes[2];
                     let maximum = semiaxes[0].max(semiaxes[1]).max(semiaxes[2]);
@@ -1649,7 +1660,7 @@ mod tests {
         let simple_fluid = simple_fluid();
         let simple_fluid_plan = FluidForcePlan::new(&simple_plan, simple_fluid.clone()).unwrap();
         let mut simple_source = simple_plan.create_data(WORLDS).unwrap();
-        simple_source.write_qpos(&vec![0.0; WORLDS]).unwrap();
+        simple_source.write_qpos(&[0.0; WORLDS]).unwrap();
         let simple_qvel = (0..WORLDS)
             .map(|world| (world as f32 - 6.0) * 0.125)
             .collect::<Vec<_>>();

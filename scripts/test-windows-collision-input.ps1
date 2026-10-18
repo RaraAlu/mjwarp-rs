@@ -54,7 +54,7 @@ $env:MJWARP_MUJOCO_ROOT = $package
 $env:MJWARP_MUJOCO_DLL = $library
 $env:MJWARP_COLLISION_MOCKS = $output
 $env:MJWARP_COLLISION_LIFETIME_LOG = Join-Path $output 'lifetime.log'
-$args = @('+stable-x86_64-pc-windows-msvc', 'test', '--locked', '--features', 'native-model-probe', '--test', 'native_collision_input', '--', '--ignored', '--test-threads=1', '--nocapture')
+$args = @('+1.99.0-x86_64-pc-windows-msvc', 'test', '--locked', '--features', 'native-model-probe', '--test', 'native_collision_input', '--', '--ignored', '--test-threads=1', '--nocapture')
 $watch.Restart()
 Push-Location $root
 try {
@@ -66,7 +66,7 @@ $testLog = [IO.File]::ReadAllText((Join-Path $output 'tests.log'))
 Write-Host $testLog
 if ($exit -ne 0 -or $testLog -notmatch 'test result: ok\. 4 passed; 0 failed; 0 ignored;') { throw 'New native capture tests failed' }
 $receipt = [ordered]@{
-    schema=1; command='cargo +stable-x86_64-pc-windows-msvc test --locked --features native-model-probe --test native_collision_input -- --ignored --test-threads=1 --nocapture'
+    schema=1; command='cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features native-model-probe --test native_collision_input -- --ignored --test-threads=1 --nocapture'
     passed=4; failed=0; ignored=0; mock_compilations=$cases.Count
     mock_compile_ms=$compileMs; cargo_test_wall_ms=$watch.ElapsedMilliseconds
     test_log_sha256=Sha (Join-Path $output 'tests.log'); lifetime_log_sha256=Sha $env:MJWARP_COLLISION_LIFETIME_LOG

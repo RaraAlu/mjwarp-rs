@@ -529,7 +529,7 @@ mod tests {
             }
             assert_eq!(energy as f32 as f64, energy);
             expected.push(energy);
-            p.push(if (w + state) % 7 == 0 {
+            p.push(if (w + state).is_multiple_of(7) {
                 -0.0
             } else {
                 ((w + state) % 17) as f32 / 4.0

@@ -27,6 +27,8 @@ pub struct FlexEdgePassiveInput {
     pub rigid: Vec<bool>,
 }
 
+// 默认配置无设备路径；仅cuda-probe读取。
+#[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
 struct Spec {
     nv: usize,
     ne: usize,
@@ -38,6 +40,8 @@ struct Spec {
     flexid: Vec<i32>,
 }
 
+// 默认配置无设备路径；仅cuda-probe读取。
+#[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
 fn spec(
     nv: usize,
     fields: Arc<FlexEdgeFields>,
@@ -138,7 +142,10 @@ pub struct FlexEdgePassiveData {
 }
 
 pub struct FlexEdgePassiveView<'a, 'p> {
+    // 默认配置无设备路径；仅cuda-probe读取。
+    #[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
     plan: &'a FlexEdgePassivePlan<'p>,
+    #[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
     source: &'a KinematicsData,
     data: &'a FlexEdgePassiveData,
 }
@@ -255,6 +262,8 @@ impl<'p> FlexEdgePassivePlan<'p> {
         (self.session.clone(), self.spec.nv, self.options)
     }
 
+    // 默认配置无设备路径；仅cuda-probe读取。
+    #[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
     pub(super) fn shared_sleep_context(&self) -> Option<(usize, &[i32], bool, bool)> {
         self.source.passive_sleep_context()
     }

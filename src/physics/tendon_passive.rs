@@ -27,6 +27,8 @@ pub struct TendonPassiveParameters {
 }
 
 impl TendonPassiveParameters {
+    // 默认配置无设备路径；仅cuda-probe读取。
+    #[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
     fn fields(&self) -> [&ParameterBatch; 5] {
         [
             &self.stiffness,
@@ -38,6 +40,8 @@ impl TendonPassiveParameters {
     }
 }
 
+// 默认配置无设备路径；仅cuda-probe读取。
+#[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
 struct Spec {
     nv: usize,
     nt: usize,
@@ -47,6 +51,8 @@ struct Spec {
     parameters: TendonPassiveParameters,
 }
 
+// 默认配置无设备路径；仅cuda-probe读取。
+#[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
 fn spec(
     context: (usize, usize, usize, usize, usize),
     parameters: TendonPassiveParameters,

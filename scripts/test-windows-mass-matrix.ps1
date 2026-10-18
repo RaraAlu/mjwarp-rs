@@ -19,7 +19,7 @@ if ($AllFeatures) {
 }
 $directory = Join-Path $root ('target\mass-matrix-probe\' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $directory | Out-Null
-$arguments = @('+stable-x86_64-pc-windows-msvc','test','--locked')
+$arguments = @('+1.99.0-x86_64-pc-windows-msvc','test','--locked')
 if ($AllFeatures) { $arguments += '--all-features' } else { $arguments += @('--features','cuda-probe') }
 if ($Release) { $arguments += '--release' }
 $arguments += @('--test','mass_matrix_probe','--','--ignored','--test-threads=1','--nocapture')
@@ -54,7 +54,7 @@ try {
         platform = 'Windows x86_64 MSVC'
         windowsVersion = [Environment]::OSVersion.Version.ToString()
         gpu = @($gpu)
-        rust = (& rustc +stable-x86_64-pc-windows-msvc -V)
+        rust = (& rustc +1.99.0-x86_64-pc-windows-msvc -V)
         gitRevision = (& git rev-parse HEAD)
         workingTreeDirty = [bool](& git status --porcelain)
         recordedAtUtc = [DateTime]::UtcNow.ToString('o')

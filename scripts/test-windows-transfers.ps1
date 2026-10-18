@@ -23,7 +23,7 @@ $executable = Join-Path $stage 'batch-transfer.exe'
 $report = [ordered]@{
     passed = $false
     platform = [System.Environment]::OSVersion.VersionString
-    toolchain = 'stable-x86_64-pc-windows-msvc'
+    toolchain = '1.99.0-x86_64-pc-windows-msvc'
     features = 'cuda-probe'
     restrictedPath = "$env:SystemRoot\System32;$env:SystemRoot"
     executable = $executable
@@ -34,7 +34,7 @@ $report = [ordered]@{
 }
 Push-Location $root
 try {
-    $lines = & cargo +stable-x86_64-pc-windows-msvc test --locked --features cuda-probe --test batch_transfer --no-run --message-format=json
+    $lines = & cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --test batch_transfer --no-run --message-format=json
     if ($LASTEXITCODE -ne 0) { throw '传输测试构建失败' }
     $lines | Set-Content -LiteralPath (Join-Path $stage 'build.jsonl') -Encoding utf8
     $messages = @($lines | ForEach-Object { $_ | ConvertFrom-Json })

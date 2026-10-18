@@ -235,15 +235,15 @@ impl<'plan> MassMatrixMultiplyPlan<'plan> {
             }
             .into());
         }
-        if let Some(v) = skip {
-            if v.len() != data.worlds() {
-                return Err(InputError::LengthMismatch {
-                    field: "borrowed_mul_m_skip",
-                    expected: data.worlds(),
-                    actual: v.len(),
-                }
-                .into());
+        if let Some(v) = skip
+            && v.len() != data.worlds()
+        {
+            return Err(InputError::LengthMismatch {
+                field: "borrowed_mul_m_skip",
+                expected: data.worlds(),
+                actual: v.len(),
             }
+            .into());
         }
         #[cfg(not(feature = "cuda-probe"))]
         {

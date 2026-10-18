@@ -18,7 +18,7 @@ if ($dllHash -ne $manifest.dll_sha256) { throw '原生DLL哈希不符' }
 $env:CUDA_PATH = Join-Path $root 'target\toolchains\cuda-12.8.1'
 if (-not (Test-Path -LiteralPath (Join-Path $env:CUDA_PATH 'bin'))) { throw '请先准备CUDA工具链' }
 $env:PATH = (Join-Path $env:CUDA_PATH 'bin') + ';' + $env:PATH
-$base = @('+stable-x86_64-pc-windows-msvc', 'test', '--locked')
+$base = @('+1.99.0-x86_64-pc-windows-msvc', 'test', '--locked')
 [string[]]$feature = if ($AllFeatures) { @('--all-features') } else { @('--features', 'native-model-probe,cuda-probe') }
 $base += $feature
 if ($Release) { $base += '--release' }
@@ -66,7 +66,7 @@ try {
     Invoke-G01Check 'g01' { cargo @base --test g01 -- --include-ignored --test-threads=1 --nocapture } -Expected 7
     Invoke-G01Check 'native-g01' { cargo @base --test native_g01 -- --include-ignored --test-threads=1 } -Expected 2
     Invoke-G01Check 'native-only-g01' {
-        $args = @('+stable-x86_64-pc-windows-msvc', 'test', '--locked', '--features', 'native-model-probe', '--test', 'native_g01')
+        $args = @('+1.99.0-x86_64-pc-windows-msvc', 'test', '--locked', '--features', 'native-model-probe', '--test', 'native_g01')
         if ($Release) { $args += '--release' }
         cargo @args -- --include-ignored --test-threads=1
     } -Expected 1
@@ -78,7 +78,7 @@ try {
         Invoke-G01Check 'clippy-gnu-cuda' { cargo clippy --locked --all-targets --features cuda-probe -- -D warnings }
     }
     Invoke-G01Check 'clippy-msvc' {
-        $args = @('+stable-x86_64-pc-windows-msvc', 'clippy', '--locked', '--all-targets') + $feature
+        $args = @('+1.99.0-x86_64-pc-windows-msvc', 'clippy', '--locked', '--all-targets') + $feature
         if ($Release) { $args += '--release' }
         cargo @args -- -D warnings
     }
@@ -86,7 +86,7 @@ try {
         $oldFlags = $env:RUSTDOCFLAGS
         try {
             $env:RUSTDOCFLAGS = '-D warnings'
-            cargo +stable-x86_64-pc-windows-msvc doc --locked @feature --no-deps
+            cargo +1.99.0-x86_64-pc-windows-msvc doc --locked @feature --no-deps
         } finally { $env:RUSTDOCFLAGS = $oldFlags }
     }
     Invoke-G01Check 'diff' { git diff --check }
@@ -102,7 +102,7 @@ try {
     [ordered]@{
         platform = 'Windows x86_64 MSVC'
         gpu = @($gpu)
-        rustc = (& rustc +stable-x86_64-pc-windows-msvc --version)
+        rustc = (& rustc +1.99.0-x86_64-pc-windows-msvc --version)
         gitRevision = (& git rev-parse HEAD)
         workingTreeDirty = [bool](& git status --porcelain)
         recordedAtUtc = [DateTime]::UtcNow.ToString('o')

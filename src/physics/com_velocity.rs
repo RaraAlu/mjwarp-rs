@@ -195,6 +195,9 @@ impl ComVelocityLayout {
     }
 }
 
+#[cfg(all(test, feature = "cuda-probe"))]
+type FluidSnapshot = (Vec<f32>, Vec<f32>, Vec<f32>, Option<Vec<f32>>);
+
 impl ComVelocityPlan {
     /// 检查模型后建立严格常驻底座。
     /// 默认位置采用既有qpos0。
@@ -317,7 +320,7 @@ impl ComVelocityPlan {
         &self,
         data: &ComVelocityData,
         require_attached: bool,
-    ) -> Result<(Vec<f32>, Vec<f32>, Vec<f32>, Option<Vec<f32>>), TransferError> {
+    ) -> Result<FluidSnapshot, TransferError> {
         let inputs = self.fluid_inputs(data, require_attached)?;
         let read = |buffer: &TransferBuffer<f32>| -> Result<Vec<f32>, TransferError> {
             let mut values = crate::runtime::host_staging::<f32>(buffer.len())?;

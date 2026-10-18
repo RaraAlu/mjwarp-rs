@@ -50,7 +50,7 @@ function Get-Sum($Items, [string]$Property) {
 Push-Location $root
 try {
     # 构建不计入测量。
-    $cargo = @('+stable-x86_64-pc-windows-msvc', 'test', '--locked', '--features', 'cuda-probe', '--no-run', '--message-format=json')
+    $cargo = @('+1.99.0-x86_64-pc-windows-msvc', 'test', '--locked', '--features', 'cuda-probe', '--no-run', '--message-format=json')
     if ($Release) { $cargo += '--release' }
     $build = [Diagnostics.Stopwatch]::StartNew()
     $messages = & cargo @cargo 2>$null
@@ -74,7 +74,7 @@ try {
     $apps = & nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader 2>&1
     $head = (& git rev-parse HEAD).Trim()
     $dirty = @(& git status --porcelain).Count -gt 0
-    $rustc = (& rustc +stable-x86_64-pc-windows-msvc --version).Trim()
+    $rustc = (& rustc +1.99.0-x86_64-pc-windows-msvc --version).Trim()
     $components = Join-Path $env:CUDA_PATH 'components.json'
 
     function Invoke-Suite([string]$Name, [string]$Cache, [string]$Records) {

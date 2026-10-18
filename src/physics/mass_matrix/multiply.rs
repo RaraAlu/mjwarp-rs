@@ -238,15 +238,15 @@ impl MassMultiplyPlan {
         if !Arc::ptr_eq(&self.input, &data.input) || self.format != data.format {
             return Err(TransferError::ModelMismatch);
         }
-        if let Some(skip) = skip {
-            if skip.len() != data.worlds() {
-                return Err(InputError::LengthMismatch {
-                    field: "mul_m_skip",
-                    expected: data.worlds(),
-                    actual: skip.len(),
-                }
-                .into());
+        if let Some(skip) = skip
+            && skip.len() != data.worlds()
+        {
+            return Err(InputError::LengthMismatch {
+                field: "mul_m_skip",
+                expected: data.worlds(),
+                actual: skip.len(),
             }
+            .into());
         }
         data.ready = false;
         #[cfg(not(feature = "cuda-probe"))]
@@ -678,10 +678,11 @@ mod tests {
         let mut out = vec![0.0; n * n];
         for i in 0..n {
             let a = f.m_rowadr[i] as usize;
-            for k in a..a + f.m_rownnz[i] as usize {
-                let j = f.m_colind[k] as usize;
-                out[i * n + j] = csr[k];
-                out[j * n + i] = csr[k];
+            let row = a..a + f.m_rownnz[i] as usize;
+            for (&j, &value) in f.m_colind[row.clone()].iter().zip(&csr[row]) {
+                let j = j as usize;
+                out[i * n + j] = value;
+                out[j * n + i] = value;
             }
         }
         out

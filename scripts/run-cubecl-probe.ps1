@@ -49,9 +49,9 @@ if ($Backend -eq 'llvm') {
         }
     }
     # 固定调用目标；不设置rustup default。
-    $cargoArgs += '+stable-x86_64-pc-windows-msvc'
+    $cargoArgs += '+1.99.0-x86_64-pc-windows-msvc'
 } else {
-    $cargoArgs += '+stable-x86_64-pc-windows-gnu'
+    $cargoArgs += '+1.99.0-x86_64-pc-windows-gnu'
     $gnu = Join-Path $root 'target\toolchains\mingw\mingw64\bin'
     if (Test-Path -LiteralPath (Join-Path $gnu 'dlltool.exe')) {
         $env:PATH = $gnu + ';' + $env:PATH

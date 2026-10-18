@@ -942,7 +942,7 @@ mod tests {
                 slots += 6;
             }
 
-            drop(velocity_view);
+            let _ = velocity_view;
             let before = bits(snapshot.spring(0).unwrap());
             let source_buffer = source.tendon_velocity_source_for_test();
             let old_length = raw(source_buffer)[4];
@@ -950,7 +950,7 @@ mod tests {
             let view = velocity_plan.update(&source, &mut velocity).unwrap();
             assert!(passive_plan.update(&view, &mut passive).is_err());
             assert_eq!(before, bits(snapshot.spring(0).unwrap()));
-            drop(view);
+            let _ = view;
             source
                 .tendon_velocity_source_for_test()
                 .write_range(4, &[old_length])
@@ -1046,7 +1046,7 @@ mod tests {
         let mut velocity = velocity_plan.create_data(1).unwrap();
         velocity.write_qvel(&[0.25, -0.25, 0.0]).unwrap();
         let initial = velocity_plan.update(&source, &mut velocity).unwrap();
-        drop(initial);
+        let _ = initial;
 
         let source_buffer = source.tendon_velocity_source_for_test();
         let raw_source = raw(source_buffer);
@@ -1073,7 +1073,7 @@ mod tests {
         );
         let mut active_data = active.create_data(1).unwrap();
         assert!(active.update(&view, &mut active_data).is_err());
-        drop(view);
+        let _ = view;
 
         source
             .tendon_velocity_source_for_test()
@@ -1081,7 +1081,7 @@ mod tests {
             .unwrap();
         let view = velocity_plan.update(&source, &mut velocity).unwrap();
         active.update(&view, &mut active_data).unwrap();
-        drop(view);
+        let _ = view;
         source
             .tendon_velocity_source_for_test()
             .write_range(5, &[raw_source[5]])
@@ -1150,14 +1150,14 @@ mod tests {
                 bits(&[-damper_force, damper_force, 0.0])
             );
         }
-        drop(view);
+        let _ = view;
 
         source
             .tendon_velocity_source_for_test()
             .write_range(8, &[f32::NAN])
             .unwrap();
         let ready = velocity_plan.update(&source, &mut velocity).unwrap();
-        drop(ready);
+        let _ = ready;
         for world in 0..worlds {
             velocity
                 .current

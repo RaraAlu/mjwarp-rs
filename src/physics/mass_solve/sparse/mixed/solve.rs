@@ -545,7 +545,13 @@ mod tests {
         let offsets = &m[4 + 2 * n..4 + 2 * n + 65];
         let count = offsets[64] as usize;
         let updates = &m[4 + 2 * n + 65..4 + 2 * n + 65 + 3 * count];
-        assert!(updates.chunks_exact(3).all(|u| u[0] < 65 && u[1] < 65));
+        assert!(
+            updates
+                .as_chunks::<3>()
+                .0
+                .iter()
+                .all(|u| u[0] < 65 && u[1] < 65)
+        );
         assert_eq!(&m[m.len() - 15..m.len() - 12], &[65, 2, 0]);
     }
     #[test]

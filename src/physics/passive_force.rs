@@ -1127,7 +1127,7 @@ mod tests {
                 .to_bits(),
             16_777_218.0f32.to_bits()
         );
-        drop(combined);
+        let _ = combined;
         data.corrupt_parts_guard_for_test(0, 99.0).unwrap();
         assert!(
             plan.update(&joint, &velocity_view, &source, &mut data)
@@ -1137,7 +1137,7 @@ mod tests {
         data.corrupt_parts_guard_for_test(0, -131072.0).unwrap();
         plan.update(&joint, &velocity_view, &source, &mut data)
             .unwrap();
-        drop(velocity_view);
+        let _ = velocity_view;
 
         let moving = (0..worlds)
             .map(|world| (world + 1) as f32 / 16.0)
@@ -1191,7 +1191,7 @@ mod tests {
                 .iter()
                 .any(|value| *value != 0.0)
         );
-        drop(fresh_view);
+        let _ = fresh_view;
 
         let foreign_model = kinematic([0.0, 1.0, 0.0]);
         let foreign_joint = JointPassivePlan::new(
@@ -1377,8 +1377,8 @@ mod tests {
                 );
             }
         }
-        drop(view);
-        drop(velocity_view);
+        let _ = view;
+        let _ = velocity_view;
 
         for (world, tree_asleep) in [(0, vec![0, -11]), (1, vec![-11, 1])] {
             source
@@ -1401,7 +1401,7 @@ mod tests {
         ));
         assert!(data.snapshot().is_err());
         assert!(data.smooth_output().is_err());
-        drop(velocity_view);
+        let _ = velocity_view;
         source_plan.update_tendon_wake(&mut source).unwrap();
         let velocity_view = velocity_plan.update(&source, &mut velocity).unwrap();
         let view = plan
@@ -1424,8 +1424,8 @@ mod tests {
                 );
             }
         }
-        drop(view);
-        drop(velocity_view);
+        let _ = view;
+        let _ = velocity_view;
 
         let changed_qvel = vec![-0.25, 0.5, -0.75, 1.0];
         source.write_qvel(&changed_qvel).unwrap();
@@ -1444,7 +1444,7 @@ mod tests {
         assert!(data.smooth_output().is_err());
         let partial = read_parts(&data.parts, 8).unwrap();
         assert!(partial[4..12].iter().all(|value| value.is_finite()));
-        drop(velocity_view);
+        let _ = velocity_view;
         source_plan.update_flex_edges(&mut source).unwrap();
         let velocity_view = velocity_plan.update(&source, &mut velocity).unwrap();
         let recovered = plan
@@ -1470,8 +1470,8 @@ mod tests {
                 );
             }
         }
-        drop(recovered);
-        drop(velocity_view);
+        let _ = recovered;
+        let _ = velocity_view;
 
         let internal_input = plan.smooth.input().clone();
         let internal_plan = SmoothForcePlan::new(

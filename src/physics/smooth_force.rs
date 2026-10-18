@@ -53,6 +53,8 @@ impl SmoothForceField {
 struct Layout {
     vector: BatchLayout,
     awake: BatchLayout,
+    // 默认配置无设备路径；仅cuda-probe读取。
+    #[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
     force_len: usize,
     meta_len: usize,
 }
@@ -551,13 +553,7 @@ mod tests {
         SmoothForceInput::new(
             129,
             (0..273)
-                .map(|b| {
-                    if b % 11 == 0 {
-                        -1
-                    } else {
-                        (b * 7 % 129) as i32
-                    }
-                })
+                .map(|b| if b % 11 == 0 { -1 } else { b * 7 % 129 })
                 .collect(),
             (0..n).map(|i| ((i * 17 + 1) % 273) as i32).collect(),
         )

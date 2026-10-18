@@ -33,7 +33,7 @@ try {
 } finally { Pop-Location }
 Push-Location $root
 try {
-    $arguments = @('+stable-x86_64-pc-windows-msvc', 'test', '--locked', '--all-features', '--test', 'external_resources')
+    $arguments = @('+1.99.0-x86_64-pc-windows-msvc', 'test', '--locked', '--all-features', '--test', 'external_resources')
     if ($Release) { $arguments += '--release' }
     & cargo @arguments -- --ignored --test-threads=1
     if ($LASTEXITCODE -ne 0) { throw '外部资源GPU探针失败' }

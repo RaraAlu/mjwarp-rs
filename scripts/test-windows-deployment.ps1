@@ -88,15 +88,15 @@ function Invoke-Probe {
 
 Push-Location $root
 try {
-    & cargo +stable-x86_64-pc-windows-msvc build --locked --offline --release --all-features
+    & cargo +1.99.0-x86_64-pc-windows-msvc build --locked --offline --release --all-features
     if ($LASTEXITCODE -ne 0) { throw '产物生产程序构建失败' }
     Copy-Item -LiteralPath (Join-Path $root 'target\release\mjwarp-rs.exe') -Destination $producer
     # 使用独立目录，避免覆盖生产程序。
     $consumerTarget = Join-Path $root 'target\deployment-build'
-    & cargo +stable-x86_64-pc-windows-msvc build --locked --offline --release --no-default-features --features cuda-probe --target-dir $consumerTarget
+    & cargo +1.99.0-x86_64-pc-windows-msvc build --locked --offline --release --no-default-features --features cuda-probe --target-dir $consumerTarget
     if ($LASTEXITCODE -ne 0) { throw '仅驱动程序构建失败' }
     Copy-Item -LiteralPath (Join-Path $consumerTarget 'release\mjwarp-rs.exe') -Destination $consumer
-    $tree = & cargo +stable-x86_64-pc-windows-msvc tree --locked --offline --no-default-features --features cuda-probe
+    $tree = & cargo +1.99.0-x86_64-pc-windows-msvc tree --locked --offline --no-default-features --features cuda-probe
     if ($LASTEXITCODE -ne 0) { throw '依赖树检查失败' }
     $tree | Set-Content -LiteralPath (Join-Path $stage 'consumer-dependencies.txt') -Encoding utf8
     if (($tree -join "`n") -match '(cubecl|pliron|tracel|llvm)') { throw '仅驱动程序含前端依赖' }

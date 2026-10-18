@@ -64,7 +64,7 @@ try {
     }
 } finally { Pop-Location }
 $feature = if ($Gpu) { 'native-model-probe,cuda-probe' } else { 'native-model-probe' }
-$cargoArgs = @('+stable-x86_64-pc-windows-msvc', 'test', '--locked')
+$cargoArgs = @('+1.99.0-x86_64-pc-windows-msvc', 'test', '--locked')
 if ($AllFeatures) {
     $env:CUDA_PATH = Join-Path $root 'target\toolchains\cuda-12.8.1'
     $env:PATH = (Join-Path $env:CUDA_PATH 'bin') + ';' + $env:PATH
@@ -86,7 +86,7 @@ try {
     if ($RestrictedRuntime) {
         # 获取当前feature对应产物。
         # 不从旧产物中猜测程序路径。
-        $buildArgs = @('+stable-x86_64-pc-windows-msvc', 'test', '--locked', '--no-run', '--message-format=json', '--test', 'native_model_probe')
+        $buildArgs = @('+1.99.0-x86_64-pc-windows-msvc', 'test', '--locked', '--no-run', '--message-format=json', '--test', 'native_model_probe')
         if ($AllFeatures) { $buildArgs += '--all-features' } else { $buildArgs += @('--features', $feature) }
         if ($Release) { $buildArgs += '--release' }
         $messages = & cargo @buildArgs

@@ -50,7 +50,7 @@ $env:MJWARP_NATIVE_SPARSE_OUTPUT=$output
 $watch=[Diagnostics.Stopwatch]::StartNew()
 Push-Location $root
 try{
-    & cargo +stable-x86_64-pc-windows-msvc test --locked --features native-model-probe --test native_sparse_mass -- --ignored --test-threads=1 --nocapture *> (Join-Path $output 'tests.log')
+    & cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features native-model-probe --test native_sparse_mass -- --ignored --test-threads=1 --nocapture *> (Join-Path $output 'tests.log')
     $exit=$LASTEXITCODE
 }finally{Pop-Location}
 $watch.Stop()
@@ -58,7 +58,7 @@ $log=Get-Content (Join-Path $output 'tests.log') -Raw
 Write-Host $log
 if($exit -ne 0 -or $log -notmatch 'test result: ok\. 3 passed; 0 failed; 0 ignored;'){throw 'New sparse capture tests failed'}
 $receipt=[ordered]@{schema=1;attempt=$Attempt;passed=3;failed=0;ignored=0;test_wall_ms=$watch.ElapsedMilliseconds;
-    command='cargo +stable-x86_64-pc-windows-msvc test --locked --features native-model-probe --test native_sparse_mass -- --ignored --test-threads=1 --nocapture';
+    command='cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features native-model-probe --test native_sparse_mass -- --ignored --test-threads=1 --nocapture';
     preflight_exe_sha256=(Sha $exe);native_dll_sha256=(Sha $library);test_log_sha256=(Sha (Join-Path $output 'tests.log'));
     cpu_physics_calls=0;gpu_sessions=0;python_calls=0;old_target_calls=0;reference_author_calls=0;full_G03_NP_accepted=$false}
 [IO.File]::WriteAllText((Join-Path $output 'receipt.json'),(($receipt|ConvertTo-Json -Depth 6).Replace("`r`n","`n")+"`n"),[Text.UTF8Encoding]::new($false))

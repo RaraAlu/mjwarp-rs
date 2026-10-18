@@ -12,6 +12,8 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 struct Topology {
     parent: Vec<i32>,
+    // 默认配置无设备路径；仅cuda-probe读取。
+    #[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
     root: Vec<i32>,
     body: Vec<i32>,
 }
@@ -104,6 +106,8 @@ struct Layout {
     vector: BatchLayout,
     geometry: [BatchLayout; 3],
     offsets: [usize; 3],
+    // 默认配置无设备路径；仅cuda-probe读取。
+    #[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
     geometry_len: usize,
     ft: BatchLayout,
 }
@@ -660,11 +664,10 @@ mod tests {
         .unwrap()
     }
     #[cfg(feature = "cuda-probe")]
-    fn scene(
-        t: &Topology,
-        w: usize,
-        sample: usize,
-    ) -> (Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>) {
+    type Scene = (Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>);
+
+    #[cfg(feature = "cuda-probe")]
+    fn scene(t: &Topology, w: usize, sample: usize) -> Scene {
         let nb = t.parent.len();
         let n = t.body.len();
         let x = (0..3 * nb)
@@ -924,6 +927,8 @@ mod tests {
         plan.replace(&mut d).unwrap();
         let before = d.readback().unwrap();
         plan.accumulate(&mut d).unwrap();
+        // 同一下标同时读取回读与参考。
+        #[allow(clippy::needless_range_loop)]
         for w in 0..257 {
             for (i, &value) in d.readback().unwrap().world(w).unwrap().iter().enumerate() {
                 assert_eq!(value.to_bits(), (2.0 * expected[w][i] as f32).to_bits());
@@ -989,7 +994,7 @@ mod tests {
         }
         let old = raw(&d.ft);
         let a = 4 + 256 * 48;
-        d.write_world_ft(256, &vec![-0.0; 48]).unwrap();
+        d.write_world_ft(256, &[-0.0; 48]).unwrap();
         let now = raw(&d.ft);
         for i in (0..a).chain(a + 48..old.len()) {
             assert_eq!(old[i].to_bits(), now[i].to_bits());

@@ -115,6 +115,8 @@ fn input(
 struct Layout {
     state: BatchLayout,
     vector: BatchLayout,
+    // 默认配置无设备路径；仅cuda-probe读取。
+    #[cfg_attr(not(feature = "cuda-probe"), allow(dead_code))]
     parts: BatchLayout,
 }
 fn layout(nq: usize, nv: usize, worlds: usize) -> Result<Layout, InputError> {
@@ -1208,6 +1210,8 @@ mod tests {
             assert_eq!(bits(parts.damper(world).unwrap()), vec![0; 11]);
             expected.push(oracle);
         }
+        // 同一下标同时读取三组参考。
+        #[allow(clippy::needless_range_loop)]
         for index in 3..9 {
             assert!(
                 (expected[2][index] - expected[3][index]).abs() <= ROTATION_ABS_TOLERANCE,

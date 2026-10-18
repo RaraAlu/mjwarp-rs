@@ -443,8 +443,8 @@ mod tests {
                         let hot: Vec<usize> =
                             (0..worlds).map(|w| (w + vector + state) % n).collect();
                         if vector == 1 {
-                            for w in 0..worlds {
-                                assert_ne!(hot[w], (w + state) % n);
+                            for (w, &h) in hot.iter().enumerate() {
+                                assert_ne!(h, (w + state) % n);
                             }
                         }
                         for w in 0..worlds {
@@ -496,7 +496,7 @@ mod tests {
                                 assert_eq!(out.world(w).unwrap()[1].to_bits(), expected);
                                 assert_eq!(out.world(w).unwrap()[0].to_bits(), p[w].to_bits());
                             }
-                            drop(energy);
+                            let _ = energy;
                             if n == 3 && worlds == 2 && state == 0 && vector == 0 {
                                 let mut wrong = plans[f].create_data(1).unwrap();
                                 assert!(plans[f].update(&mut wrong, &mv).is_err());
@@ -599,7 +599,7 @@ mod tests {
                 computed: vec![true; 2],
             }
         }
-        drop(plan.update(&mut data, &ticket(&source, &md)).unwrap());
+        let _ = plan.update(&mut data, &ticket(&source, &md)).unwrap();
         let mut faults = 0;
         for field in 0..4 {
             for edge in 0..8 {
@@ -621,7 +621,7 @@ mod tests {
                     _ => &mut data.status,
                 };
                 b.write_range(index, &[-131072.0]).unwrap();
-                drop(plan.update(&mut data, &ticket(&source, &md)).unwrap());
+                let _ = plan.update(&mut data, &ticket(&source, &md)).unwrap();
                 faults += 1;
             }
         }
@@ -643,7 +643,7 @@ mod tests {
                     &mut md.current
                 };
                 b.write_range(index, &[-131072.0]).unwrap();
-                drop(plan.update(&mut data, &ticket(&source, &md)).unwrap());
+                let _ = plan.update(&mut data, &ticket(&source, &md)).unwrap();
                 faults += 1;
             }
         }
@@ -669,7 +669,7 @@ mod tests {
                 &mut md.current
             };
             b.write_range(index, &[old]).unwrap();
-            drop(plan.update(&mut data, &ticket(&source, &md)).unwrap());
+            let _ = plan.update(&mut data, &ticket(&source, &md)).unwrap();
             faults += 1;
         }
         plan.metadata.write_range(0, &[0]).unwrap();
@@ -677,7 +677,7 @@ mod tests {
         assert!(plan.update(&mut data, &ticket(&source, &md)).is_err());
         assert_eq!(before, bits(&raw(&data.current)));
         plan.metadata.write_range(0, &[3]).unwrap();
-        drop(plan.update(&mut data, &ticket(&source, &md)).unwrap());
+        let _ = plan.update(&mut data, &ticket(&source, &md)).unwrap();
         faults += 1;
         let old = raw(&data.current)[4];
         data.current.write_range(4, &[f32::NAN]).unwrap();
@@ -688,7 +688,7 @@ mod tests {
         faults += 1;
         data.current.write_range(5, &[f32::NAN]).unwrap();
         data.pair.write_range(4, &[f32::NAN]).unwrap();
-        drop(plan.update(&mut data, &ticket(&source, &md)).unwrap());
+        let _ = plan.update(&mut data, &ticket(&source, &md)).unwrap();
         let q = raw(&md.vector);
         let mq = raw(&md.current);
         md.vector.write_range(7, &[f32::MAX]).unwrap();
@@ -698,7 +698,7 @@ mod tests {
         assert_eq!(before, bits(&raw(&data.current)));
         md.vector.write_range(7, &q[7..8]).unwrap();
         md.current.write_range(7, &mq[7..8]).unwrap();
-        drop(plan.update(&mut data, &ticket(&source, &md)).unwrap());
+        let _ = plan.update(&mut data, &ticket(&source, &md)).unwrap();
         faults += 1;
         let before = bits(&raw(&data.current));
         assert!(data.write_potential(&[f32::NAN; 2]).is_err());
