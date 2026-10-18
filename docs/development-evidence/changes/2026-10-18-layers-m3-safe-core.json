@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-18-layers-m3-safe-core",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/runtime/launcher/checked.rs",
+      "blob": "02c98cf6a3394feac751943fbfe579ca982a8a7a"
+    },
+    {
+      "path": "src/runtime/launcher/launch.rs",
+      "blob": "73d526618d2b86a2869c68d0bda5d98615551d73"
+    },
+    {
+      "path": "src/runtime/launcher/mod.rs",
+      "blob": "d0e26b685a2737986a2e25f12e02261a04cb5573"
+    },
+    {
+      "path": "tests/launcher_sync.rs",
+      "blob": "74fe8a8ce3540dc9be010120211d44d51ba54716"
+    }
+  ],
+  "validation": [
+    {
+      "command": "cargo test --locked --test launcher_sync",
+      "result": "pass: 5 passed, 0 failed",
+      "evidence": "tests/launcher_sync.rs"
+    },
+    {
+      "command": "cargo test --locked",
+      "result": "pass",
+      "evidence": "Cargo.lock"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --test launcher_sync",
+      "result": "pass: 5 passed, 0 failed; no GPU work launched",
+      "evidence": "tests/launcher_sync.rs"
+    },
+    {
+      "command": "cargo clippy --all-targets -- -D warnings",
+      "result": "pass",
+      "evidence": "src/runtime/launcher/launch.rs"
+    },
+    {
+      "command": "normify_sync, normify_validate and normify_build",
+      "result": "pass: 0 errors and 16 existing structure warnings",
+      "evidence": "src/runtime/launcher/mod.rs"
+    },
+    {
+      "command": "git diff --cached --check",
+      "result": "pass",
+      "evidence": "docs/development-evidence/changes/2026-10-18-layers-m3-safe-core.json"
+    }
+  ],
+  "remaining": [
+    "W05 synchronous GPU launch remains in the parent M3 task.",
+    "TransferBuffer writes do not yet own MetadataRevision invalidation.",
+    "The eleven private launch methods and 106 product callsites are not migrated.",
+    "No GPU physics, T4 or NP01-NP04 acceptance ran in this slice."
+  ]
+}

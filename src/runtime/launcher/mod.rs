@@ -9,6 +9,8 @@ mod abi;
 mod alias;
 #[cfg(feature = "cuda-probe")]
 mod artifact;
+mod checked;
+mod launch;
 #[cfg(feature = "cuda-probe")]
 mod module;
 mod recipe;
@@ -20,6 +22,8 @@ pub use abi::{
 pub use alias::{DeviceSpan, SlotBinding, SlotRequirement, rebind_values, validate_bindings};
 #[cfg(feature = "cuda-probe")]
 pub use artifact::{Artifact, ArtifactCache, ArtifactKey, ArtifactStats, HeaderFile, NvrtcSource};
+pub use checked::{Checked, CheckedBinding, MetadataProof, MetadataRevision};
+pub use launch::{Kernel, KernelSpec, LaunchDims, LaunchPlan};
 #[cfg(feature = "cuda-probe")]
 pub use module::{KernelHandle, ModuleCache, ModuleStats};
 pub use recipe::{ArchTarget, CompileRecipe, CppStd, PrecisionGate, RecipePurpose};
@@ -84,6 +88,16 @@ pub enum LauncherError {
     Driver(String),
     /// 模块缓存收到其他上下文。
     ModuleContext,
+    /// 元数据内容不满足证明规则。
+    InvalidMetadata(&'static str),
+    /// 元数据证明已经失效。
+    StaleMetadata,
+    /// 元数据证明不属于本次发射。
+    MetadataMismatch(&'static str),
+    /// 地址类槽位缺少证明。
+    MissingMetadataProof { slot: usize },
+    /// 地址类槽位重复提供证明。
+    DuplicateMetadataProof { slot: usize },
 }
 
 impl std::fmt::Display for LauncherError {
@@ -121,6 +135,11 @@ impl std::fmt::Display for LauncherError {
             Self::Cache { stage, detail } => write!(f, "产物缓存失败：{stage}：{detail}"),
             Self::Driver(detail) => write!(f, "驱动加载失败：{detail}"),
             Self::ModuleContext => write!(f, "模块缓存属于其他上下文"),
+            Self::InvalidMetadata(reason) => write!(f, "元数据无效：{reason}"),
+            Self::StaleMetadata => write!(f, "元数据证明已经失效"),
+            Self::MetadataMismatch(reason) => write!(f, "元数据证明不匹配：{reason}"),
+            Self::MissingMetadataProof { slot } => write!(f, "槽位{slot}缺少元数据证明"),
+            Self::DuplicateMetadataProof { slot } => write!(f, "槽位{slot}重复元数据证明"),
         }
     }
 }
