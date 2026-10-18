@@ -6,6 +6,8 @@ use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::BatchLayout;
 #[cfg(feature = "cuda-probe")]
+use crate::physics::kinetic_energy::{KineticEnergy32Kernel, KineticEnergyMetadataBuffer};
+#[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
 use std::sync::Arc;
 
@@ -52,9 +54,13 @@ pub struct MassMatrixEnergyPlan<'plan, 'matrix> {
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: KineticEnergyMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 3],
+    source_validator: SynchronousKernel,
+    #[cfg(feature = "cuda-probe")]
+    scalar_validator: SynchronousKernel,
+    #[cfg(feature = "cuda-probe")]
+    reducer: KineticEnergy32Kernel,
 }
 pub struct MassMatrixEnergyData {
     spec: Arc<EnergySpec>,
@@ -126,21 +132,24 @@ impl<'plan, 'matrix> MassMatrixEnergyPlan<'plan, 'matrix> {
             let source = format!("#define ENERGY_NV {n}\n{SOURCE_VALIDATE}");
             // Exactly the original scalar CUDA string and prefix, not a
             // rewritten reduction or a wider floating-point implementation.
-            let scalar = format!(
-                "#define ENERGY_NV {n}\n{}",
-                crate::physics::kinetic_energy::CUDA
-            );
+            let scalar = KineticEnergy32Kernel::source(n as u32)?;
             Ok(Self {
                 multiply,
                 spec: Arc::new(EnergySpec {
                     mass: multiply.spec.clone(),
                 }),
-                metadata: session.upload(&[n as i32])?,
-                kernels: [
-                    SynchronousKernel::compile(&session, &source, "device_energy_source_validate")?,
-                    SynchronousKernel::compile(&session, &scalar, "kinetic_energy_validate")?,
-                    SynchronousKernel::compile(&session, &scalar, "kinetic_energy_reduce32")?,
-                ],
+                metadata: KineticEnergyMetadataBuffer::upload(&session, n as u32)?,
+                source_validator: SynchronousKernel::compile(
+                    &session,
+                    &source,
+                    "device_energy_source_validate",
+                )?,
+                scalar_validator: SynchronousKernel::compile(
+                    &session,
+                    &scalar,
+                    "kinetic_energy_validate",
+                )?,
+                reducer: KineticEnergy32Kernel::compile(&session, n as u32)?,
                 session,
             })
         }
@@ -210,8 +219,8 @@ impl<'plan, 'matrix> MassMatrixEnergyPlan<'plan, 'matrix> {
             // SAFETY: Actual parent-token identity and exact vector capacities
             // bind both readonly inputs to guarded worlds*nv allocations.
             unsafe {
-                self.kernels[0].launch(
-                    &self.metadata,
+                self.source_validator.launch(
+                    self.metadata.as_buffer(),
                     &input.data.vector,
                     &input.data.current,
                     &mut data.status,
@@ -234,8 +243,8 @@ impl<'plan, 'matrix> MassMatrixEnergyPlan<'plan, 'matrix> {
             // SAFETY: Metadata1, paired worlds*2nv, current worlds*2 and status
             // worlds have the original guarded scalar-validator capacities.
             unsafe {
-                self.kernels[1].launch(
-                    &self.metadata,
+                self.scalar_validator.launch(
+                    self.metadata.as_buffer(),
                     &data.pair,
                     &data.current,
                     &mut data.status,
@@ -243,17 +252,13 @@ impl<'plan, 'matrix> MassMatrixEnergyPlan<'plan, 'matrix> {
                 )?;
             }
             status(&data.status, worlds)?;
-            // SAFETY: Original32 ABI checks all sessions and exact capacities;
-            // all lanes reach ballot and only lane0 publishes each world.
-            unsafe {
-                self.kernels[2].launch_kinetic_energy32(
-                    &self.metadata,
-                    &data.pair,
-                    &data.current,
-                    &mut data.staged,
-                    dims,
-                )?;
-            }
+            self.reducer.launch(
+                &self.metadata,
+                &data.pair,
+                &data.current,
+                &mut data.staged,
+                dims,
+            )?;
             super::read(
                 &data.staged,
                 data.layout.energy.total_elements(),
@@ -672,11 +677,11 @@ mod tests {
             let _ = plan.update(&mut data, &ticket(&source, &md)).unwrap();
             faults += 1;
         }
-        plan.metadata.write_range(0, &[0]).unwrap();
+        plan.metadata.write_for_test(0).unwrap();
         let before = bits(&raw(&data.current));
         assert!(plan.update(&mut data, &ticket(&source, &md)).is_err());
         assert_eq!(before, bits(&raw(&data.current)));
-        plan.metadata.write_range(0, &[3]).unwrap();
+        plan.metadata.restore_for_test().unwrap();
         let _ = plan.update(&mut data, &ticket(&source, &md)).unwrap();
         faults += 1;
         let old = raw(&data.current)[4];

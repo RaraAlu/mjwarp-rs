@@ -1,0 +1,134 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-18-layers-m3-kinetic-sync",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/runtime/transfer.rs",
+      "blob": "e69a9cf4dc1ea9047efc21a65ac44b81dbb709a9"
+    },
+    {
+      "path": "src/physics/kinetic_energy.rs",
+      "blob": "6e0e21c2298adf490fe87cfdf84df0cec537b34a"
+    },
+    {
+      "path": "src/physics/mass_matrix/multiply/borrowed/device_energy.rs",
+      "blob": "a5a087bfe6df79a3ecb53c2958941a5896888581"
+    }
+  ],
+  "validation": [
+    {
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId 2026-10-18-layers-m3-kinetic-sync",
+      "result": "pass: in_progress, 5 acceptance items, 7 scoped paths, previous delivery finalized",
+      "evidence": "docs/normify-delivery-workflow.md"
+    },
+    {
+      "command": "cargo fmt --check",
+      "result": "pass",
+      "evidence": "src/physics/kinetic_energy.rs"
+    },
+    {
+      "command": "cargo check --locked --features cuda-probe",
+      "result": "pass",
+      "evidence": "src/runtime/transfer.rs"
+    },
+    {
+      "command": "cargo test --locked",
+      "result": "pass: exit code 0; 232 library tests plus default integration and documentation tests passed",
+      "evidence": "Cargo.lock"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe typed_kinetic_plan_rejects_capacity_alias_session_and_stale_proof",
+      "result": "pass: 1 passed; capacity, writable overlap, foreign context and stale proof rejected",
+      "evidence": "src/physics/kinetic_energy.rs"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --test launcher_sync",
+      "result": "pass: 5 passed, 0 failed",
+      "evidence": "tests/launcher_sync.rs"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib runtime::transfer::tests::launcher_span_uses_cached_address_and_rejects_quarantined_session -- --ignored --exact --test-threads=1",
+      "result": "pass: cached real address is stable and quarantined sessions reject span queries",
+      "evidence": "src/runtime/transfer.rs"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::kinetic_energy::tests::gpu_safe_wrapper_binds_session_static_nv_revision_and_exact_bits -- --ignored --exact --test-threads=1",
+      "result": "pass: foreign session, static NV and stale revision rejected; legal f32 result kept exact bits",
+      "evidence": "src/physics/kinetic_energy.rs"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::kinetic_energy::tests::gpu_reduces_exact_dyadic_and_fixed_warp_cases_with_paired_world_states -- --ignored --exact --test-threads=1 --nocapture",
+      "result": "pass on final source: 48 batches, 4160 worlds, 12 fixed-bit worlds, max_bit_difference=0",
+      "evidence": "src/physics/kinetic_energy.rs"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_matrix::multiply::borrowed::device_energy::tests::gpu_links_live_matrix_energy_with_exact_one_hot_and_device_pair_bits -- --ignored --exact --test-threads=1 --nocapture",
+      "result": "pass on final source: 72 batches, 6240 worlds, bit_difference=0, 420160 pair bit slots",
+      "evidence": "src/physics/mass_matrix/multiply/borrowed/device_energy.rs"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::kinetic_energy::tests::gpu_rejects_source_guards_and_overflow_without_partial_publication -- --ignored --exact --test-threads=1 --nocapture",
+      "result": "pass before address-cache refinement: 32 guard, 1 metadata, 12 nonfinite, 1 potential and 2 overflow faults; final source reran the real wrapper and legal product paths",
+      "evidence": "src/physics/kinetic_energy.rs"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_matrix::multiply::borrowed::device_energy::tests::gpu_rejects_corrupted_device_inputs_and_stale_source_without_partial_energy -- --ignored --exact --test-threads=1 --nocapture",
+      "result": "pass before address-cache refinement: 56 faults, no partial publication; final source reran the real wrapper and legal product path",
+      "evidence": "src/physics/mass_matrix/multiply/borrowed/device_energy.rs"
+    },
+    {
+      "command": "cargo clippy --locked --lib --features cuda-probe -- -D warnings",
+      "result": "pass",
+      "evidence": "src/runtime/transfer.rs"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings",
+      "result": "blocked by unchanged tests: tests/mixed_mass_factor.rs:51 needless_range_loop; tests/mixed_mass_solve.rs:37 manual_is_multiple_of; lines 44 and 59 needless_range_loop",
+      "evidence": "tests/mixed_mass_factor.rs"
+    },
+    {
+      "command": "normalized raw-string comparison against HEAD plus git diff --name-only -- '*.ptx' 'fixtures/**'",
+      "result": "pass: kinetic CUDA and SOURCE_VALIDATE contents are equal; no PTX or fixture changed",
+      "evidence": "src/physics/kinetic_energy.rs"
+    },
+    {
+      "command": "normify_sync, normify_module_refresh, normify_validate and normify_build",
+      "result": "pass: 0 errors, 16 existing structure warnings",
+      "evidence": "src/runtime/transfer.rs"
+    }
+  ],
+  "validation_runs": [
+    {
+      "tool_call": "exec-3965a2c2-e6c3-4565-80c2-21015c0d2378",
+      "source_stage": "pre-address-cache",
+      "exit_code": 101,
+      "summary": "GPU test stopped before launch because NVRTC was unavailable on PATH."
+    },
+    {
+      "tool_call": "exec-b3b039a5-a3ed-426d-926c-a94a991fe32c",
+      "source_stage": "pre-address-cache",
+      "exit_code": 0,
+      "summary": "After adding target/toolchains/cuda-12.8.1/bin to PATH, both kinetic product tests passed."
+    },
+    {
+      "source_stage": "final",
+      "exit_code": 0,
+      "environment": "Windows; NVIDIA GeForce RTX 4070 Ti SUPER; driver 596.36; bundled CUDA 12.8.1 NVRTC",
+      "summary": "Cached-address isolation, real-wrapper faults and both exact-bit product paths passed."
+    }
+  ],
+  "remaining": [
+    "This slice migrates only the trusted 32-thread kinetic reduction wrapper, not all W05 launch paths.",
+    "The generic validator launch and the other private launch methods retain their existing unsafe boundary.",
+    "Metadata invalidation belongs only to the exclusive kinetic metadata wrapper; generic TransferBuffer writes do not gain a global revision.",
+    "The all-target clippy gate remains blocked by four lints in two unchanged test files; the changed library scope passes clippy.",
+    "GPU evidence uses an RTX 4070 Ti SUPER and does not constitute Windows T4 acceptance.",
+    "Linux, full G01, T4 performance and NP01-NP04 were not run."
+  ]
+}

@@ -4,7 +4,9 @@
 
 use crate::diagnostics::{InputError, ProbeError, TransferError};
 #[cfg(feature = "cuda-probe")]
-use cudarc::driver::{CudaSlice, CudaStream, DriverError};
+use crate::runtime::launcher::DeviceSpan;
+#[cfg(feature = "cuda-probe")]
+use cudarc::driver::{CudaSlice, CudaStream, DevicePtr, DriverError};
 use std::{
     ops::Range,
     sync::{
@@ -181,16 +183,21 @@ impl TransferSession {
         self.inner.status.check()?;
         #[cfg(feature = "cuda-probe")]
         {
-            let allocation = if source.is_empty() {
-                None
+            let (allocation, device_addr) = if source.is_empty() {
+                (None, 0)
             } else {
-                Some(self.run("transfer-allocate", || {
-                    self.inner.stream.alloc_zeros::<T>(source.len())
-                })?)
+                let (allocation, address) = self.run("transfer-allocate", || {
+                    let allocation = self.inner.stream.alloc_zeros::<T>(source.len())?;
+                    let (address, read) = allocation.device_ptr(&self.inner.stream);
+                    drop(read);
+                    Ok((allocation, address))
+                })?;
+                (Some(allocation), address)
             };
             let mut buffer = TransferBuffer {
                 session: self.clone(),
                 allocation,
+                device_addr,
                 len: source.len(),
             };
             buffer.write_range(0, source)?;
@@ -250,6 +257,8 @@ pub struct TransferBuffer<T: TransferElement> {
     len: usize,
     #[cfg(feature = "cuda-probe")]
     allocation: Option<CudaSlice<T>>,
+    #[cfg(feature = "cuda-probe")]
+    device_addr: u64,
     #[cfg(not(feature = "cuda-probe"))]
     marker: std::marker::PhantomData<T>,
 }
@@ -274,6 +283,30 @@ impl<T: TransferElement> TransferBuffer<T> {
     }
     pub fn byte_len(&self) -> usize {
         self.len * size_of::<T>()
+    }
+
+    /// 返回当前会话内的真实设备跨度。
+    ///
+    /// 地址在同步分配阶段缓存。
+    /// 查询不执行任何驱动操作。
+    #[cfg(feature = "cuda-probe")]
+    pub(crate) fn launcher_span(&self) -> Result<DeviceSpan, TransferError> {
+        self.session.inner.status.check()?;
+        if self.allocation.is_none() {
+            return Err(InputError::InvalidDimension {
+                field: "launcher_buffer",
+            }
+            .into());
+        }
+        let bytes = u64::try_from(self.byte_len()).map_err(|_| InputError::Overflow {
+            field: "launcher_buffer_bytes",
+        })?;
+        let context = Arc::as_ptr(&self.session.inner) as usize as u64;
+        DeviceSpan::new(context, self.device_addr, bytes).map_err(|_| {
+            TransferError::Input(InputError::InvalidDimension {
+                field: "launcher_buffer_span",
+            })
+        })
     }
 
     /// 先暂存，再改写调用方切片。
@@ -595,6 +628,19 @@ mod tests {
         assert_eq!(staging.values(), &[0; 3]);
         staging.values_mut().copy_from_slice(&[1, 2, 3]);
         assert_eq!(staging.values(), &[1, 2, 3]);
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "requires NVIDIA driver"]
+    fn launcher_span_uses_cached_address_and_rejects_quarantined_session() {
+        let session = TransferSession::new(0).unwrap();
+        let buffer = session.upload(&[1i32]).unwrap();
+        let first = buffer.launcher_span().unwrap();
+        let second = buffer.launcher_span().unwrap();
+        assert_eq!(first, second);
+        session.inner.status.failed.store(true, Ordering::Release);
+        assert_eq!(buffer.launcher_span(), Err(TransferError::Quarantined));
     }
 
     #[cfg(not(feature = "cuda-probe"))]
