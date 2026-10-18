@@ -194,6 +194,52 @@ impl KernelSpec for KineticEnergy32Spec {
 }
 
 #[cfg(feature = "cuda-probe")]
+struct KineticValidationSpec;
+
+#[cfg(feature = "cuda-probe")]
+// SAFETY: 声明逐项匹配输入校验的四指针与四标量ABI。
+unsafe impl KernelAbi for KineticValidationSpec {
+    const NAME: &'static str = "kinetic_energy_validate";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &KINETIC_SLOTS;
+}
+
+#[cfg(feature = "cuda-probe")]
+impl KernelSpec for KineticValidationSpec {
+    type Dims = [u32; 4];
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        let (pair, energy) = kinetic_lengths(dims)?;
+        let status = u64::from(dims[1])
+            .checked_add(8)
+            .ok_or(LauncherError::Overflow("kinetic_status_elements"))?;
+        Ok(vec![
+            SlotRequirement {
+                slot: 0,
+                min_elements: 1,
+            },
+            SlotRequirement {
+                slot: 1,
+                min_elements: pair,
+            },
+            SlotRequirement {
+                slot: 2,
+                min_elements: energy,
+            },
+            SlotRequirement {
+                slot: 3,
+                min_elements: status,
+            },
+        ])
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        kinetic_lengths(dims)?;
+        LaunchDims::new((dims[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
 fn kinetic_lengths(dims: &[u32; 4]) -> Result<(u64, u64), LauncherError> {
     let [nv, worlds, reserved, work] = *dims;
     if !(1..=1024).contains(&nv)
@@ -312,6 +358,86 @@ impl KineticEnergyMetadataBuffer {
         }
         .map_err(transfer_launch_error)?;
         Ok(())
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct KineticValidationKernel {
+    kernel: SynchronousKernel,
+    nv: u32,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl KineticValidationKernel {
+    fn compile(session: &TransferSession, nv: u32) -> Result<Self, TransferError> {
+        let source = KineticEnergy32Kernel::source(nv)?;
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, &source, "kinetic_energy_validate")?,
+            nv,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &KineticEnergyMetadataBuffer,
+        pair: &TransferBuffer<f32>,
+        current: &TransferBuffer<f32>,
+        status: &mut TransferBuffer<f32>,
+        dims: [u32; 4],
+    ) -> Result<(), TransferError> {
+        if dims[0] != self.nv || metadata.nv != self.nv {
+            return Err(InputError::InvalidDimension {
+                field: "kinetic_energy_validate_static_nv",
+            }
+            .into());
+        }
+        let (pair_len, energy_len) = kinetic_lengths(&dims).map_err(transfer_launch_error)?;
+        let status_len = u64::from(dims[1])
+            .checked_add(8)
+            .ok_or(InputError::Overflow {
+                field: "kinetic_energy_status",
+            })?;
+        if metadata.len() != 1
+            || u64::try_from(pair.len()).ok() != Some(pair_len)
+            || u64::try_from(current.len()).ok() != Some(energy_len)
+            || u64::try_from(status.len()).ok() != Some(status_len)
+        {
+            return Err(InputError::InvalidDimension {
+                field: "kinetic_energy_validate_abi",
+            }
+            .into());
+        }
+        let proof = metadata.proof(dims)?;
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: pair.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: current.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: status.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        Kernel::<KineticValidationSpec>::new()
+            .and_then(|kernel| kernel.plan(&dims, &bindings, &[proof.binding(0)]))
+            .map_err(transfer_launch_error)?;
+        // SAFETY: 类型化计划已核对全部真实跨度和元数据代际。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), pair, current, status, dims)
+        }
     }
 }
 
@@ -448,7 +574,7 @@ pub struct KineticEnergyPlan {
     #[cfg(feature = "cuda-probe")]
     metadata: KineticEnergyMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
-    validator: SynchronousKernel,
+    validator: KineticValidationKernel,
     #[cfg(feature = "cuda-probe")]
     reducer: KineticEnergy32Kernel,
 }
@@ -502,12 +628,11 @@ impl KineticEnergyPlan {
         #[cfg(feature = "cuda-probe")]
         {
             let nv = nv as u32;
-            let source = KineticEnergy32Kernel::source(nv)?;
             Ok(Self {
                 spec: Arc::new(s),
                 session: session.clone(),
                 metadata: KineticEnergyMetadataBuffer::upload(session, nv)?,
-                validator: SynchronousKernel::compile(session, &source, "kinetic_energy_validate")?,
+                validator: KineticValidationKernel::compile(session, nv)?,
                 reducer: KineticEnergy32Kernel::compile(session, nv)?,
             })
         }
@@ -560,17 +685,8 @@ impl KineticEnergyPlan {
         #[cfg(feature = "cuda-probe")]
         {
             let dims = [self.spec.nv as u32, d.worlds() as u32, 0, d.worlds() as u32];
-            // SAFETY: Exact guarded capacities and same-plan static NV bound
-            // pair/current reads; one ordinary validator thread owns each world.
-            unsafe {
-                self.validator.launch(
-                    self.metadata.as_buffer(),
-                    &d.pair,
-                    &d.current,
-                    &mut d.status,
-                    dims,
-                )?;
-            }
+            self.validator
+                .launch(&self.metadata, &d.pair, &d.current, &mut d.status, dims)?;
             let status = read(&d.status, d.worlds(), "kinetic_energy_status")?;
             if let Some(index) = status[4..4 + d.worlds()].iter().position(|&v| v != 1.0) {
                 return Err(InputError::InvalidTopology {
@@ -813,6 +929,86 @@ mod tests {
 
     #[cfg(feature = "cuda-probe")]
     #[test]
+    fn typed_kinetic_validation_rejects_capacity_alias_session_and_stale_proof() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let dims = [65, 257, 0, 257];
+        let (pair_len, energy_len) = kinetic_lengths(&dims).unwrap();
+        let status_len = u64::from(dims[1]) + 8;
+        let metadata_span = DeviceSpan::new(7, 0x1000, 4).unwrap();
+        let revision = MetadataRevision::new();
+        // SAFETY: 本测试把宿主值绑定到等价合成跨度。
+        let metadata = unsafe {
+            Checked::<KineticLaunchMetadata>::assume_uploaded(
+                metadata_span,
+                &[65],
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata_span,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: DeviceSpan::new(7, 0x10000, pair_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: DeviceSpan::new(7, 0x40000, energy_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: DeviceSpan::new(7, 0x50000, status_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+        ];
+        let kernel = Kernel::<KineticValidationSpec>::new().unwrap();
+        let plan = kernel
+            .plan(&dims, &bindings, &[metadata.binding(0)])
+            .unwrap();
+        assert_eq!(plan.dims().grid(), (2, 1, 1));
+        assert_eq!(plan.dims().block(), (256, 1, 1));
+
+        let mut capacity = bindings;
+        capacity[3].span = DeviceSpan::new(7, 0x50000, status_len * 4 - 4).unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &capacity, &[metadata.binding(0)]),
+            Err(LauncherError::Capacity { slot: 3, .. })
+        ));
+
+        let mut alias = bindings;
+        alias[3].span = alias[2].span;
+        assert!(matches!(
+            kernel.plan(&dims, &alias, &[metadata.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 2,
+                second: 3,
+            })
+        ));
+
+        let mut foreign = bindings;
+        foreign[1].span = DeviceSpan::new(8, 0x10000, pair_len * 4).unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &foreign, &[metadata.binding(0)]),
+            Err(LauncherError::ContextMismatch { slot: 1 })
+        ));
+
+        revision.invalidate();
+        assert!(matches!(
+            kernel.plan(&dims, &bindings, &[metadata.binding(0)]),
+            Err(LauncherError::StaleMetadata)
+        ));
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
     #[ignore = "requires NVIDIA driver and NVRTC"]
     fn gpu_safe_wrapper_binds_session_static_nv_revision_and_exact_bits() {
         let session = TransferSession::new(0).unwrap();
@@ -864,6 +1060,89 @@ mod tests {
         staged.read_range_into(0, &mut result).unwrap();
         assert_eq!(result[4].to_bits(), 3.5f32.to_bits());
         assert_eq!(result[5].to_bits(), 65.0f32.to_bits());
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn gpu_validation_wrapper_checks_real_spans_and_preserves_status_guards() {
+        let session = TransferSession::new(0).unwrap();
+        let foreign = TransferSession::new(0).unwrap();
+        let validator = KineticValidationKernel::compile(&session, 65).unwrap();
+        let mut metadata = KineticEnergyMetadataBuffer::upload(&session, 65).unwrap();
+        let foreign_metadata = KineticEnergyMetadataBuffer::upload(&foreign, 65).unwrap();
+        let wrong_metadata = KineticEnergyMetadataBuffer::upload(&session, 64).unwrap();
+        let dims = [65, 257, 0, 257];
+        let mut pair_values = vec![-131072.0; 2 * 65 * 257 + 8];
+        let pair_end = pair_values.len() - 4;
+        pair_values[4..pair_end].fill(0.25);
+        let mut current_values = vec![-131072.0; 2 * 257 + 8];
+        for world in 0..257 {
+            current_values[4 + 2 * world] = world as f32;
+        }
+        let status_values = vec![-131072.0; 257 + 8];
+        let pair = session.upload(&pair_values).unwrap();
+        let current = session.upload(&current_values).unwrap();
+        let mut status = session.upload(&status_values).unwrap();
+
+        validator
+            .launch(&metadata, &pair, &current, &mut status, dims)
+            .unwrap();
+        let mut result = vec![0.0; status.len()];
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(&result[..4], &status_values[..4]);
+        assert_eq!(
+            &result[result.len() - 4..],
+            &status_values[status_values.len() - 4..]
+        );
+        assert!(result[4..4 + 257].iter().all(|&value| value == 1.0));
+
+        let short_pair = session
+            .upload(&pair_values[..pair_values.len() - 1])
+            .unwrap();
+        assert!(
+            validator
+                .launch(&metadata, &short_pair, &current, &mut status, dims)
+                .is_err()
+        );
+        let foreign_pair = foreign.upload(&pair_values).unwrap();
+        assert!(matches!(
+            validator.launch(&metadata, &foreign_pair, &current, &mut status, dims),
+            Err(TransferError::SessionMismatch)
+        ));
+        assert!(matches!(
+            validator.launch(&foreign_metadata, &pair, &current, &mut status, dims),
+            Err(TransferError::SessionMismatch)
+        ));
+        assert!(matches!(
+            validator.launch(&wrong_metadata, &pair, &current, &mut status, dims),
+            Err(TransferError::Input(InputError::InvalidDimension {
+                field: "kinetic_energy_validate_static_nv"
+            }))
+        ));
+        assert!(matches!(
+            validator.launch(&metadata, &pair, &current, &mut status, [64, 257, 0, 257],),
+            Err(TransferError::Input(InputError::InvalidDimension {
+                field: "kinetic_energy_validate_static_nv"
+            }))
+        ));
+
+        metadata.write_for_test(65).unwrap();
+        assert!(matches!(
+            validator.launch(&metadata, &pair, &current, &mut status, dims),
+            Err(TransferError::Input(InputError::InvalidTopology {
+                field: "kinetic_energy_metadata",
+                reason: "stale_proof",
+                ..
+            }))
+        ));
+        let mut after = vec![0.0; status.len()];
+        status.read_range_into(0, &mut after).unwrap();
+        assert_eq!(result, after);
+        metadata.restore_for_test().unwrap();
+        validator
+            .launch(&metadata, &pair, &current, &mut status, dims)
+            .unwrap();
     }
 
     fn tagged(values: &[f32], state_id: u64) -> KineticEnergyVector<'_> {
