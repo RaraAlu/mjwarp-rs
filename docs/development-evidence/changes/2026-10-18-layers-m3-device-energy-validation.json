@@ -1,0 +1,154 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-18-layers-m3-device-energy-validation",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/01-host-typed-source-validation.log",
+      "blob": "f34febd167de44bc0db984d91e924fa80a63bc30"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/02-gpu-source-validation.log",
+      "blob": "963c6bbfdeb4c85d6cc1822738841ead37c0d5b7"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/03-gpu-real-update-faults.log",
+      "blob": "c12b8b8daa1bfab38efd4e876a35ab8db8e7ade3"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/04-cargo-fmt-check.log",
+      "blob": "2cb3f1cfcfb95c2a3035aef686c349c4b5b09a7a"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/05-cargo-check-default.log",
+      "blob": "872af83ff3f2e44990b67df8771f785dfa34f017"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/06-cargo-clippy.log",
+      "blob": "467383bb5ae2d66d4988b4963dc36196aea330b1"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/07-gpu-environment.log",
+      "blob": "d6fbb5c7195688c59bfc79522ae25878f338c0ae"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/08-delivery-preflight.log",
+      "blob": "f4a0e748207fd886e6de6ce05bbaccadc6284b03"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/09-delivery-preflight-after-binding.log",
+      "blob": "f4a0e748207fd886e6de6ce05bbaccadc6284b03"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/10-delivery-preflight.log",
+      "blob": "2a7f8b0c5d006f3ac1aa7d1f862333ff9c16e324"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/capture-metadata/device_energy_source_validate-2f6a61b9a5ef203e61b203fbd1a1fdf32808f42cdec005e2f107db44ccb219cf.json",
+      "blob": "8cb41a0405ca3b405076d502e3a5420a507030ac"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/capture-metadata/device_energy_source_validate-82d99d165b415c6e11f2e2b93afba122d64cc56b48eefca4b12ca76869c215c5.json",
+      "blob": "ecf9589f3583e36a14d5bb8848f7b11be069b73b"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/capture-metadata/kinetic_energy_validate-8686496a54ab272a347d078b3152112c8c78507cf22c006f3ad6f9b194664f6d.json",
+      "blob": "c218e767d849ff5f8de6afa32c19202097b88870"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/doc-audit.md",
+      "blob": "943eccebafc50416c06ae46cd07b6eecfc280d32"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/kernel-comparison.json",
+      "blob": "7c008d448500298f3faad1082bb148488f84aa36"
+    },
+    {
+      "path": "docs/development-evidence/layers-m3-device-energy-validation/README.md",
+      "blob": "c92ae7646ae9c79c47694fb39ad934db2559bc90"
+    },
+    {
+      "path": "src/physics/kinetic_energy.rs",
+      "blob": "31c92c01a2e2ef370fd47f560bfa13d23be256ea"
+    },
+    {
+      "path": "src/physics/mass_matrix/multiply/borrowed/device_energy.rs",
+      "blob": "e7e5d4745a678b691657bcfc3d11579c0d3a124f"
+    }
+  ],
+  "validation": [
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_matrix::multiply::borrowed::device_energy::tests::typed_source_validation_rejects_capacity_alias_session_and_stale_proof -- --exact --nocapture",
+      "result": "pass: 1 passed; 0 failed; 257-world grid is 2x256",
+      "evidence": "docs/development-evidence/layers-m3-device-energy-validation/01-host-typed-source-validation.log"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_matrix::multiply::borrowed::device_energy::tests::gpu_source_validation_wrapper_binds_real_spans_and_metadata -- --ignored --exact --nocapture --test-threads=1",
+      "result": "pass: 1 passed; 0 failed; real spans and metadata checked",
+      "evidence": "docs/development-evidence/layers-m3-device-energy-validation/02-gpu-source-validation.log"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_matrix::multiply::borrowed::device_energy::tests::gpu_rejects_corrupted_device_inputs_and_stale_source_without_partial_energy -- --ignored --exact --nocapture --test-threads=1",
+      "result": "pass: 1 passed; 56 injected faults; recovered without partial publication",
+      "evidence": "docs/development-evidence/layers-m3-device-energy-validation/03-gpu-real-update-faults.log"
+    },
+    {
+      "command": "cargo fmt --check",
+      "result": "pass: exit code 0 and empty output",
+      "evidence": "docs/development-evidence/layers-m3-device-energy-validation/04-cargo-fmt-check.log"
+    },
+    {
+      "command": "cargo check --locked",
+      "result": "pass",
+      "evidence": "docs/development-evidence/layers-m3-device-energy-validation/05-cargo-check-default.log"
+    },
+    {
+      "command": "cargo clippy --locked --lib --features cuda-probe -- -D warnings",
+      "result": "pass: zero diagnostics",
+      "evidence": "docs/development-evidence/layers-m3-device-energy-validation/06-cargo-clippy.log"
+    },
+    {
+      "command": "nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader",
+      "result": "pass: RTX 4070 Ti SUPER, driver 596.36, 16376 MiB",
+      "evidence": "docs/development-evidence/layers-m3-device-energy-validation/07-gpu-environment.log"
+    },
+    {
+      "command": "scripts/check-normify-delivery.ps1 -Mode Preflight",
+      "result": "failed: missing exact delivery-receipt binding",
+      "evidence": "docs/development-evidence/layers-m3-device-energy-validation/08-delivery-preflight.log"
+    },
+    {
+      "command": "scripts/check-normify-delivery.ps1 -Mode Preflight after first note update",
+      "result": "failed: binding prefix still did not match",
+      "evidence": "docs/development-evidence/layers-m3-device-energy-validation/09-delivery-preflight-after-binding.log"
+    },
+    {
+      "command": "scripts/check-normify-delivery.ps1 -Mode Preflight after exact binding",
+      "result": "pass: in_progress, seven acceptance items, four scoped paths",
+      "evidence": "docs/development-evidence/layers-m3-device-energy-validation/10-delivery-preflight.log"
+    },
+    {
+      "command": "CUDA source and historical PTX SHA-256 comparison",
+      "result": "pass: all three source, PTX, and metadata records match",
+      "evidence": "docs/development-evidence/layers-m3-device-energy-validation/kernel-comparison.json"
+    },
+    {
+      "command": "audit-docs",
+      "result": "pass: 0 mismatches",
+      "evidence": "docs/development-evidence/layers-m3-device-energy-validation/doc-audit.md"
+    }
+  ],
+  "remaining": [
+    "Windows GPU为RTX 4070 Ti SUPER，不满足T4验收。",
+    "Linux、发布模式与全库GPU验证未运行。",
+    "NP01至NP04仍未验收。",
+    "设备机器码等价仍未验证。",
+    "父任务M3仍未完成。",
+    "其他通用内核启动不属于本切片。"
+  ]
+}

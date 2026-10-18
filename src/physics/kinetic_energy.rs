@@ -53,7 +53,7 @@ fn layout(worlds: usize, nv: usize) -> Result<Layout, InputError> {
 }
 
 #[cfg(feature = "cuda-probe")]
-const KINETIC_METADATA_KIND: ProofKind = ProofKind("kinetic_energy_nv");
+pub(super) const KINETIC_METADATA_KIND: ProofKind = ProofKind("kinetic_energy_nv");
 
 #[cfg(feature = "cuda-probe")]
 struct StaticKineticMetadata;
@@ -74,7 +74,7 @@ impl MetadataProof for StaticKineticMetadata {
 }
 
 #[cfg(feature = "cuda-probe")]
-struct KineticLaunchMetadata;
+pub(super) struct KineticLaunchMetadata;
 
 #[cfg(feature = "cuda-probe")]
 impl MetadataProof for KineticLaunchMetadata {
@@ -319,7 +319,14 @@ impl KineticEnergyMetadataBuffer {
         &self.buffer
     }
 
-    fn proof(&self, dims: [u32; 4]) -> Result<Checked<KineticLaunchMetadata>, TransferError> {
+    pub(super) fn nv(&self) -> u32 {
+        self.nv
+    }
+
+    pub(super) fn proof(
+        &self,
+        dims: [u32; 4],
+    ) -> Result<Checked<KineticLaunchMetadata>, TransferError> {
         let span = self.buffer.launcher_span()?;
         self.checked
             .binding(0)
@@ -362,14 +369,14 @@ impl KineticEnergyMetadataBuffer {
 }
 
 #[cfg(feature = "cuda-probe")]
-struct KineticValidationKernel {
+pub(super) struct KineticValidationKernel {
     kernel: SynchronousKernel,
     nv: u32,
 }
 
 #[cfg(feature = "cuda-probe")]
 impl KineticValidationKernel {
-    fn compile(session: &TransferSession, nv: u32) -> Result<Self, TransferError> {
+    pub(super) fn compile(session: &TransferSession, nv: u32) -> Result<Self, TransferError> {
         let source = KineticEnergy32Kernel::source(nv)?;
         Ok(Self {
             kernel: SynchronousKernel::compile(session, &source, "kinetic_energy_validate")?,
@@ -377,7 +384,7 @@ impl KineticValidationKernel {
         })
     }
 
-    fn launch(
+    pub(super) fn launch(
         &self,
         metadata: &KineticEnergyMetadataBuffer,
         pair: &TransferBuffer<f32>,

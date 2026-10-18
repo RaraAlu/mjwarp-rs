@@ -6,7 +6,15 @@ use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::BatchLayout;
 #[cfg(feature = "cuda-probe")]
-use crate::physics::kinetic_energy::{KineticEnergy32Kernel, KineticEnergyMetadataBuffer};
+use crate::physics::kinetic_energy::{
+    KINETIC_METADATA_KIND, KineticEnergy32Kernel, KineticEnergyMetadataBuffer,
+    KineticValidationKernel,
+};
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, ElemType, Kernel, KernelAbi, KernelSpec, LaunchDims, LauncherError,
+    SlotBinding, SlotDesc, SlotKind, SlotRequirement, SlotRole,
+};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
 use std::sync::Arc;
@@ -48,6 +56,228 @@ fn all_current(flags: &[bool]) -> Result<(), TransferError> {
     }
     Ok(())
 }
+
+#[cfg(feature = "cuda-probe")]
+const SOURCE_VALIDATION_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: KINETIC_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Write,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(feature = "cuda-probe")]
+struct DeviceEnergySourceValidationSpec;
+
+#[cfg(feature = "cuda-probe")]
+// SAFETY: 声明匹配冻结校验ABI。
+unsafe impl KernelAbi for DeviceEnergySourceValidationSpec {
+    const NAME: &'static str = "device_energy_source_validate";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &SOURCE_VALIDATION_SLOTS;
+}
+
+#[cfg(feature = "cuda-probe")]
+impl KernelSpec for DeviceEnergySourceValidationSpec {
+    type Dims = [u32; 4];
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        let (source, status) = source_validation_lengths(dims)?;
+        Ok(vec![
+            SlotRequirement {
+                slot: 0,
+                min_elements: 1,
+            },
+            SlotRequirement {
+                slot: 1,
+                min_elements: source,
+            },
+            SlotRequirement {
+                slot: 2,
+                min_elements: source,
+            },
+            SlotRequirement {
+                slot: 3,
+                min_elements: status,
+            },
+        ])
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        source_validation_lengths(dims)?;
+        LaunchDims::new((dims[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+fn source_validation_lengths(dims: &[u32; 4]) -> Result<(u64, u64), LauncherError> {
+    let [nv, worlds, reserved, work] = *dims;
+    if !(1..=1024).contains(&nv)
+        || worlds == 0
+        || worlds > i32::MAX as u32
+        || reserved != 0
+        || work != worlds
+    {
+        return Err(LauncherError::InvalidArray("设备动能源校验维度无效"));
+    }
+    let source = u64::from(worlds)
+        .checked_mul(u64::from(nv))
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("device_energy_source_elements"))?;
+    let status = u64::from(worlds)
+        .checked_add(8)
+        .ok_or(LauncherError::Overflow("device_energy_status_elements"))?;
+    Ok((source, status))
+}
+
+#[cfg(feature = "cuda-probe")]
+fn source_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::StaleMetadata => InputError::InvalidTopology {
+            field: "device_energy_source_metadata",
+            index: 0,
+            reason: "stale_proof",
+        }
+        .into(),
+        _ => InputError::InvalidDimension {
+            field: "device_energy_source_validate_abi",
+        }
+        .into(),
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct DeviceEnergySourceValidationKernel {
+    kernel: SynchronousKernel,
+    nv: u32,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl DeviceEnergySourceValidationKernel {
+    fn compile(session: &TransferSession, nv: u32) -> Result<Self, TransferError> {
+        source_validation_lengths(&[nv, 1, 0, 1]).map_err(source_launch_error)?;
+        let source = format!("#define ENERGY_NV {nv}\n{SOURCE_VALIDATE}");
+        Ok(Self {
+            kernel: SynchronousKernel::compile(session, &source, "device_energy_source_validate")?,
+            nv,
+        })
+    }
+
+    fn launch(
+        &self,
+        metadata: &KineticEnergyMetadataBuffer,
+        q: &TransferBuffer<f32>,
+        mq: &TransferBuffer<f32>,
+        status: &mut TransferBuffer<f32>,
+        dims: [u32; 4],
+    ) -> Result<(), TransferError> {
+        if dims[0] != self.nv || metadata.nv() != self.nv {
+            return Err(InputError::InvalidDimension {
+                field: "device_energy_source_validate_static_nv",
+            }
+            .into());
+        }
+        let (source_len, status_len) =
+            source_validation_lengths(&dims).map_err(source_launch_error)?;
+        if metadata.len() != 1
+            || u64::try_from(q.len()).ok() != Some(source_len)
+            || u64::try_from(mq.len()).ok() != Some(source_len)
+            || u64::try_from(status.len()).ok() != Some(status_len)
+        {
+            return Err(InputError::InvalidDimension {
+                field: "device_energy_source_validate_abi",
+            }
+            .into());
+        }
+        let proof = metadata.proof(dims)?;
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: q.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: mq.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: status.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ];
+        Kernel::<DeviceEnergySourceValidationSpec>::new()
+            .and_then(|kernel| kernel.plan(&dims, &bindings, &[proof.binding(0)]))
+            .map_err(source_launch_error)?;
+        // SAFETY: 类型化计划核对真实跨度。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), q, mq, status, dims)
+        }
+    }
+}
+
 pub struct MassMatrixEnergyPlan<'plan, 'matrix> {
     multiply: &'plan MassMatrixMultiplyPlan<'matrix>,
     spec: Arc<EnergySpec>,
@@ -56,9 +286,9 @@ pub struct MassMatrixEnergyPlan<'plan, 'matrix> {
     #[cfg(feature = "cuda-probe")]
     metadata: KineticEnergyMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
-    source_validator: SynchronousKernel,
+    source_validator: DeviceEnergySourceValidationKernel,
     #[cfg(feature = "cuda-probe")]
-    scalar_validator: SynchronousKernel,
+    scalar_validator: KineticValidationKernel,
     #[cfg(feature = "cuda-probe")]
     reducer: KineticEnergy32Kernel,
 }
@@ -129,26 +359,14 @@ impl<'plan, 'matrix> MassMatrixEnergyPlan<'plan, 'matrix> {
         #[cfg(feature = "cuda-probe")]
         {
             let session = multiply.session.clone();
-            let source = format!("#define ENERGY_NV {n}\n{SOURCE_VALIDATE}");
-            // Exactly the original scalar CUDA string and prefix, not a
-            // rewritten reduction or a wider floating-point implementation.
-            let scalar = KineticEnergy32Kernel::source(n as u32)?;
             Ok(Self {
                 multiply,
                 spec: Arc::new(EnergySpec {
                     mass: multiply.spec.clone(),
                 }),
                 metadata: KineticEnergyMetadataBuffer::upload(&session, n as u32)?,
-                source_validator: SynchronousKernel::compile(
-                    &session,
-                    &source,
-                    "device_energy_source_validate",
-                )?,
-                scalar_validator: SynchronousKernel::compile(
-                    &session,
-                    &scalar,
-                    "kinetic_energy_validate",
-                )?,
+                source_validator: DeviceEnergySourceValidationKernel::compile(&session, n as u32)?,
+                scalar_validator: KineticValidationKernel::compile(&session, n as u32)?,
                 reducer: KineticEnergy32Kernel::compile(&session, n as u32)?,
                 session,
             })
@@ -216,17 +434,13 @@ impl<'plan, 'matrix> MassMatrixEnergyPlan<'plan, 'matrix> {
                 return Err(TransferError::ModelMismatch);
             }
             let dims = [n as u32, worlds as u32, 0, worlds as u32];
-            // SAFETY: Actual parent-token identity and exact vector capacities
-            // bind both readonly inputs to guarded worlds*nv allocations.
-            unsafe {
-                self.source_validator.launch(
-                    self.metadata.as_buffer(),
-                    &input.data.vector,
-                    &input.data.current,
-                    &mut data.status,
-                    dims,
-                )?;
-            }
+            self.source_validator.launch(
+                &self.metadata,
+                &input.data.vector,
+                &input.data.current,
+                &mut data.status,
+                dims,
+            )?;
             status(&data.status, worlds)?;
             // These are explicit GPU-to-GPU copies, not a zero-copy pair and
             // never a download/upload round trip of physical values.
@@ -240,17 +454,13 @@ impl<'plan, 'matrix> MassMatrixEnergyPlan<'plan, 'matrix> {
                     n,
                 )?;
             }
-            // SAFETY: Metadata1, paired worlds*2nv, current worlds*2 and status
-            // worlds have the original guarded scalar-validator capacities.
-            unsafe {
-                self.scalar_validator.launch(
-                    self.metadata.as_buffer(),
-                    &data.pair,
-                    &data.current,
-                    &mut data.status,
-                    dims,
-                )?;
-            }
+            self.scalar_validator.launch(
+                &self.metadata,
+                &data.pair,
+                &data.current,
+                &mut data.status,
+                dims,
+            )?;
             status(&data.status, worlds)?;
             self.reducer.launch(
                 &self.metadata,
@@ -329,6 +539,165 @@ extern "C" __global__ void device_energy_source_validate(const int* meta,const f
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    fn typed_source_validation_rejects_capacity_alias_session_and_stale_proof() {
+        use crate::physics::kinetic_energy::KineticLaunchMetadata;
+        use crate::runtime::launcher::{Checked, DeviceSpan, MetadataRevision};
+
+        let dims = [65, 257, 0, 257];
+        let (source_len, status_len) = source_validation_lengths(&dims).unwrap();
+        let metadata_span = DeviceSpan::new(7, 0x1000, 4).unwrap();
+        let revision = MetadataRevision::new();
+        // SAFETY: 本测试绑定等价合成跨度。
+        let metadata = unsafe {
+            Checked::<KineticLaunchMetadata>::assume_uploaded(
+                metadata_span,
+                &[65],
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span: metadata_span,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: DeviceSpan::new(7, 0x10000, source_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: DeviceSpan::new(7, 0x30000, source_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: DeviceSpan::new(7, 0x50000, status_len * 4).unwrap(),
+                elem: ElemType::F32,
+            },
+        ];
+        let kernel = Kernel::<DeviceEnergySourceValidationSpec>::new().unwrap();
+        let plan = kernel
+            .plan(&dims, &bindings, &[metadata.binding(0)])
+            .unwrap();
+        assert_eq!(plan.dims().grid(), (2, 1, 1));
+        assert_eq!(plan.dims().block(), (256, 1, 1));
+
+        let mut capacity = bindings;
+        capacity[1].span = DeviceSpan::new(7, 0x10000, source_len * 4 - 4).unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &capacity, &[metadata.binding(0)]),
+            Err(LauncherError::Capacity { slot: 1, .. })
+        ));
+
+        let mut alias = bindings;
+        alias[3].span = alias[1].span;
+        assert!(matches!(
+            kernel.plan(&dims, &alias, &[metadata.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3,
+            })
+        ));
+
+        let mut foreign = bindings;
+        foreign[2].span = DeviceSpan::new(8, 0x30000, source_len * 4).unwrap();
+        assert!(matches!(
+            kernel.plan(&dims, &foreign, &[metadata.binding(0)]),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+
+        revision.invalidate();
+        assert!(matches!(
+            kernel.plan(&dims, &bindings, &[metadata.binding(0)]),
+            Err(LauncherError::StaleMetadata)
+        ));
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn gpu_source_validation_wrapper_binds_real_spans_and_metadata() {
+        let session = TransferSession::new(0).unwrap();
+        let foreign = TransferSession::new(0).unwrap();
+        let validator = DeviceEnergySourceValidationKernel::compile(&session, 65).unwrap();
+        let mut metadata = KineticEnergyMetadataBuffer::upload(&session, 65).unwrap();
+        let foreign_metadata = KineticEnergyMetadataBuffer::upload(&foreign, 65).unwrap();
+        let wrong_metadata = KineticEnergyMetadataBuffer::upload(&session, 64).unwrap();
+        let dims = [65, 257, 0, 257];
+        let mut source_values = vec![-131072.0; 65 * 257 + 8];
+        let source_end = source_values.len() - 4;
+        source_values[4..source_end].fill(0.25);
+        let status_values = vec![-131072.0; 257 + 8];
+        let q = session.upload(&source_values).unwrap();
+        let mq = session.upload(&source_values).unwrap();
+        let mut status = session.upload(&status_values).unwrap();
+
+        validator
+            .launch(&metadata, &q, &mq, &mut status, dims)
+            .unwrap();
+        let mut result = vec![0.0; status.len()];
+        status.read_range_into(0, &mut result).unwrap();
+        assert_eq!(&result[..4], &status_values[..4]);
+        assert_eq!(
+            &result[result.len() - 4..],
+            &status_values[status_values.len() - 4..]
+        );
+        assert!(result[4..4 + 257].iter().all(|&value| value == 1.0));
+
+        let short_q = session
+            .upload(&source_values[..source_values.len() - 1])
+            .unwrap();
+        assert!(
+            validator
+                .launch(&metadata, &short_q, &mq, &mut status, dims)
+                .is_err()
+        );
+        let foreign_q = foreign.upload(&source_values).unwrap();
+        assert!(matches!(
+            validator.launch(&metadata, &foreign_q, &mq, &mut status, dims),
+            Err(TransferError::SessionMismatch)
+        ));
+        assert!(matches!(
+            validator.launch(&foreign_metadata, &q, &mq, &mut status, dims),
+            Err(TransferError::SessionMismatch)
+        ));
+        assert!(matches!(
+            validator.launch(&wrong_metadata, &q, &mq, &mut status, dims),
+            Err(TransferError::Input(InputError::InvalidDimension {
+                field: "device_energy_source_validate_static_nv"
+            }))
+        ));
+        assert!(matches!(
+            validator.launch(&metadata, &q, &mq, &mut status, [64, 257, 0, 257]),
+            Err(TransferError::Input(InputError::InvalidDimension {
+                field: "device_energy_source_validate_static_nv"
+            }))
+        ));
+
+        metadata.write_for_test(65).unwrap();
+        assert!(matches!(
+            validator.launch(&metadata, &q, &mq, &mut status, dims),
+            Err(TransferError::Input(InputError::InvalidTopology {
+                field: "kinetic_energy_metadata",
+                reason: "stale_proof",
+                ..
+            }))
+        ));
+        let mut after = vec![0.0; status.len()];
+        status.read_range_into(0, &mut after).unwrap();
+        assert_eq!(result, after);
+        metadata.restore_for_test().unwrap();
+        validator
+            .launch(&metadata, &q, &mq, &mut status, dims)
+            .unwrap();
+    }
+
     #[test]
     fn host_checks_pair_world_strides_and_original_scalar32_limits() {
         for n in [1, 3, 33, 65, 1024] {
