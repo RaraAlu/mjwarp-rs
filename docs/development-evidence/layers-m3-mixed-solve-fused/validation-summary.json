@@ -1,0 +1,157 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-18-layers-m3-mixed-solve-fused",
+  "implementation": {
+    "entry": "mixed_solve_fused",
+    "typed_wrapper": true,
+    "private_launch_mixed_solve_changed": false,
+    "runtime_transfer_kernel_changed": false,
+    "shared_metadata_owner_extended": true,
+    "validation_cuda_changed": false,
+    "cuda_changed": false,
+    "ptx_changed": false,
+    "compiler_options_changed": false,
+    "f32_path_changed": false,
+    "accumulation_order_changed": false,
+    "tolerances_changed": false,
+    "fixtures_changed": false,
+    "upload_compile_validation_solve_publication_order_changed": false
+  },
+  "runs": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "duration_ms": 791,
+      "result": "pass",
+      "evidence": "capture-raw/01-format-apply-attempt-1.*"
+    },
+    {
+      "command": "cargo test --locked --lib mixed_solve_fused -- --nocapture",
+      "exit_code": 0,
+      "duration_ms": 3928,
+      "result": "2 passed",
+      "evidence": "capture-raw/02-host-fused-attempt-1.*"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::tests::gpu_mixed_solve_fused_wrapper_checks_groups_spans_and_recovery -- --ignored --exact --nocapture --test-threads=1",
+      "exit_code": 101,
+      "duration_ms": 4962,
+      "result": "compile failed before GPU launch; metadata was moved before fused compile",
+      "evidence": "capture-raw/03-gpu-fused-attempt-1.*"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::tests::gpu_mixed_solve_fused_wrapper_checks_groups_spans_and_recovery -- --ignored --exact --nocapture --test-threads=1",
+      "exit_code": 0,
+      "duration_ms": 9745,
+      "result": "1 passed after compiling fused wrapper before metadata move",
+      "evidence": "capture-raw/04-gpu-fused-attempt-2.*"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "duration_ms": 782,
+      "result": "pass after recovery assertion edit",
+      "evidence": "capture-raw/04b-format-recovery-attempt-2.*"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::mass_solve::sparse::mixed::solve::tests::gpu_mixed_solve_fused_wrapper_checks_groups_spans_and_recovery -- --ignored --exact --nocapture --test-threads=1",
+      "exit_code": 0,
+      "duration_ms": 4443,
+      "result": "1 passed with recovery numeric comparison under existing tolerance",
+      "evidence": "capture-raw/05-gpu-fused-attempt-3.*"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "duration_ms": 765,
+      "result": "pass after same-level crossing assertion edit",
+      "evidence": "capture-raw/05b-format-crossed-attempt-3.*"
+    },
+    {
+      "command": "cargo test --locked --lib physics::mass_solve::sparse::mixed::solve::tests::mixed_solve_fused_metadata_proves_routes_levels_and_small_regions -- --exact --nocapture",
+      "exit_code": 0,
+      "duration_ms": 1712,
+      "result": "1 passed; exact same-level read/write crossing rejected",
+      "evidence": "capture-raw/06-host-crossed-attempt-1.*"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings",
+      "exit_code": 101,
+      "duration_ms": 5153,
+      "result": "failed with one dead-code diagnostic after migration",
+      "evidence": "capture-raw/07-clippy-all-targets-attempt-1.*"
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "exit_code": 0,
+      "duration_ms": 783,
+      "result": "pass",
+      "evidence": "capture-raw/08-format-check-attempt-1.*"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings",
+      "exit_code": 0,
+      "duration_ms": 4261,
+      "result": "pass; zero diagnostics after cfg(test) isolation",
+      "evidence": "capture-raw/09-clippy-all-targets-attempt-2.*"
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "exit_code": 0,
+      "duration_ms": 792,
+      "result": "pass after final source edit",
+      "evidence": "capture-raw/14-format-check-attempt-2.*"
+    }
+  ],
+  "gpu_environment": {
+    "cuda_path": "target/toolchains/cuda-12.8.1",
+    "ptx_capture_variable_set_before_each_gpu_run": true,
+    "report_variable_set_before_each_gpu_run": true,
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "memory_mib": 16376,
+    "schedule_lock": "gpu:windows-t4",
+    "lock_proves_t4": false,
+    "exclusive_measurement": false
+  },
+  "kernel_identity": {
+    "cuda_sha256": "6b01821ccb5eedd0217f709ae12757cb9cf179252b3473007f037732b576b081",
+    "ptx_sha256": "9b7829088e94a26dfa23fad24065a2383bb2abd8f5b915af648c7947218bc667",
+    "cuda_bytes_equal_prior_archive": true,
+    "ptx_bytes_equal_prior_archive": true,
+    "nvrtc": "12.8",
+    "options": [
+      "--std=c++17",
+      "--gpu-architecture=compute_70"
+    ],
+    "fmad": true,
+    "fast_math": false
+  },
+  "capture_boundary": {
+    "successful_gpu_runs_shared_directory": true,
+    "attempt_3_rewrote_named_kernel_captures": 42,
+    "attempt_logs_preserved_separately": true,
+    "attempt_2_kernel_bytes_preserved_separately": false,
+    "current_archive_contains_attempt_3_bytes": true,
+    "evidence": "capture-raw/15-capture-overwrite-boundary.json"
+  },
+  "archive": {
+    "status": "verified",
+    "path": "artifacts/raw-captures.tar.gz",
+    "sha256": "924475d3402f3a6ea4f1c1fd1d77bee1b797ddc638d22013102793f64f80202f",
+    "members": 97,
+    "byte_preserving_at_archive_time": true,
+    "raw_files_present_at_archive_time": true,
+    "attempt_2_same_name_kernel_snapshot_preserved_separately": false
+  },
+  "remaining": [
+    "legitimate recompute bit drift remains",
+    "status 3 has static evidence only",
+    "NP01 through NP04 are not accepted",
+    "Linux was not run",
+    "Release was not run",
+    "T4 hardware was not used",
+    "parent M3 remains incomplete",
+    "performance was not accepted"
+  ]
+}
