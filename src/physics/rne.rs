@@ -7,6 +7,12 @@ use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::{AttachedModelInput, BatchLayout};
 use crate::runtime::TransferSession;
+#[cfg(any(feature = "cuda-probe", test))]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 
@@ -21,9 +27,11 @@ pub struct RnePlan {
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: RneMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 4],
+    kernels: [SynchronousKernel; 3],
+    #[cfg(feature = "cuda-probe")]
+    qfrc_kernel: RneQfrcKernel,
 }
 
 /// 独占qacc与RNE工作区。
@@ -114,6 +122,531 @@ impl RneLayout {
     }
 }
 
+#[cfg(any(feature = "cuda-probe", test))]
+const RNE_QFRC_METADATA_KIND: ProofKind = ProofKind("rne.qfrc.metadata.v1");
+
+#[cfg(any(feature = "cuda-probe", test))]
+const RNE_QFRC_SLOTS: [SlotDesc; 8] = [
+    SlotDesc {
+        index: 0,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::I32,
+        },
+        access: Access::Read,
+        role: SlotRole::AddressBearing {
+            proof: RNE_QFRC_METADATA_KIND,
+        },
+    },
+    SlotDesc {
+        index: 1,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 2,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 3,
+        kind: SlotKind::DevicePtr {
+            elem: ElemType::F32,
+        },
+        access: Access::ReadWrite,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 4,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 5,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 6,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+    SlotDesc {
+        index: 7,
+        kind: SlotKind::Scalar { bytes: 4 },
+        access: Access::Read,
+        role: SlotRole::Value,
+    },
+];
+
+#[cfg(any(feature = "cuda-probe", test))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RneStaticDims {
+    nbody: u32,
+    nv: u32,
+    depth: u32,
+    metadata_elements: u64,
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RneQfrcDims {
+    abi: [u32; 4],
+    static_dims: RneStaticDims,
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn rne_metadata_elements(nbody: u32, nv: u32) -> Result<u64, LauncherError> {
+    if nbody > i32::MAX as u32 || nv > i32::MAX as u32 {
+        return Err(LauncherError::Overflow("rne_metadata_signed_dimensions"));
+    }
+    u64::from(nbody)
+        .checked_mul(4)
+        .and_then(|value| value.checked_add(u64::from(nv)))
+        .and_then(|value| value.checked_add(5))
+        .filter(|&value| value <= i32::MAX as u64)
+        .ok_or(LauncherError::Overflow("rne_metadata_elements"))
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn validate_rne_metadata(values: &[i32], dims: RneStaticDims) -> Result<(), LauncherError> {
+    if dims.nbody == 0 || dims.depth >= dims.nbody {
+        return Err(LauncherError::InvalidMetadata("RNE静态维度无效"));
+    }
+    let expected = rne_metadata_elements(dims.nbody, dims.nv)?;
+    if dims.metadata_elements != expected
+        || u64::try_from(values.len()).ok() != Some(dims.metadata_elements)
+    {
+        return Err(LauncherError::InvalidMetadata("RNE元数据长度无效"));
+    }
+    let nbody =
+        usize::try_from(dims.nbody).map_err(|_| LauncherError::Overflow("rne_metadata_nbody"))?;
+    let nv = usize::try_from(dims.nv).map_err(|_| LauncherError::Overflow("rne_metadata_nv"))?;
+    if values[0] != dims.nbody as i32 || values[1] != dims.nv as i32 {
+        return Err(LauncherError::InvalidMetadata("RNE元数据维度不匹配"));
+    }
+    if values[2..5]
+        .iter()
+        .any(|&bits| !f32::from_bits(bits as u32).is_finite())
+    {
+        return Err(LauncherError::InvalidMetadata("RNE重力不是有限值"));
+    }
+
+    let parent_start = 5;
+    let count_start = parent_start + nbody;
+    let address_start = count_start + nbody;
+    let body_start = address_start + nbody;
+    let depth_start = body_start + nv;
+    let parent = &values[parent_start..count_start];
+    let count = &values[count_start..address_start];
+    let address = &values[address_start..body_start];
+    let body = &values[body_start..depth_start];
+    let depth = &values[depth_start..];
+    if parent[0] != 0 || count[0] != 0 || address[0] != 0 || depth[0] != 0 {
+        return Err(LauncherError::InvalidMetadata("RNE根节点元数据无效"));
+    }
+    let mut covered = vec![false; nv];
+    let mut max_depth = 0usize;
+    for index in 1..nbody {
+        let parent_index = usize::try_from(parent[index])
+            .map_err(|_| LauncherError::InvalidMetadata("RNE父节点为负"))?;
+        if parent_index >= index {
+            return Err(LauncherError::InvalidMetadata("RNE父节点顺序无效"));
+        }
+        let dof_count = usize::try_from(count[index])
+            .map_err(|_| LauncherError::InvalidMetadata("RNE自由度数量为负"))?;
+        let dof_start = usize::try_from(address[index])
+            .map_err(|_| LauncherError::InvalidMetadata("RNE自由度地址为负"))?;
+        let dof_end = dof_start
+            .checked_add(dof_count)
+            .filter(|&end| end <= nv)
+            .ok_or(LauncherError::InvalidMetadata("RNE自由度范围越界"))?;
+        for dof in dof_start..dof_end {
+            if body[dof] != index as i32 || covered[dof] {
+                return Err(LauncherError::InvalidMetadata("RNE自由度归属无效"));
+            }
+            covered[dof] = true;
+        }
+        let expected_depth = depth[parent_index]
+            .checked_add(1)
+            .ok_or(LauncherError::Overflow("rne_tree_depth"))?;
+        if depth[index] != expected_depth {
+            return Err(LauncherError::InvalidMetadata("RNE树深度无效"));
+        }
+        max_depth = max_depth.max(
+            usize::try_from(depth[index])
+                .map_err(|_| LauncherError::InvalidMetadata("RNE树深度为负"))?,
+        );
+    }
+    if covered.contains(&false) {
+        return Err(LauncherError::InvalidMetadata("RNE自由度映射不完整"));
+    }
+    for &body_index in body {
+        let body_index = usize::try_from(body_index)
+            .map_err(|_| LauncherError::InvalidMetadata("RNE自由度体索引为负"))?;
+        if body_index >= nbody {
+            return Err(LauncherError::InvalidMetadata("RNE自由度体索引越界"));
+        }
+    }
+    if max_depth != dims.depth as usize {
+        return Err(LauncherError::InvalidMetadata("RNE最大树深度不匹配"));
+    }
+    Ok(())
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn rne_qfrc_lengths(dims: &RneQfrcDims) -> Result<[u64; 4], LauncherError> {
+    let [x, y, z, worlds] = dims.abi;
+    let static_dims = dims.static_dims;
+    if [x, y, z] != [0; 3] || worlds == 0 || worlds > u32::MAX - 255 || static_dims.nbody == 0 {
+        return Err(LauncherError::InvalidArray("RNE广义力维度无效"));
+    }
+    let backward_work = u64::from(worlds)
+        .checked_mul(u64::from(static_dims.nbody))
+        .ok_or(LauncherError::Overflow("rne_backward_work"))?;
+    if backward_work > u64::from(u32::MAX - 255) {
+        return Err(LauncherError::Overflow("rne_backward_work"));
+    }
+    if static_dims.metadata_elements != rne_metadata_elements(static_dims.nbody, static_dims.nv)? {
+        return Err(LauncherError::InvalidMetadata("RNE元数据长度不匹配"));
+    }
+    let guarded = |width: u64, field| {
+        u64::from(worlds)
+            .checked_mul(width)
+            .and_then(|value| value.checked_add(8))
+            .ok_or(LauncherError::Overflow(field))
+    };
+    let nbody = u64::from(static_dims.nbody);
+    let nv = u64::from(static_dims.nv);
+    let com_width = nbody
+        .checked_mul(14)
+        .and_then(|value| nv.checked_mul(6).and_then(|dof| value.checked_add(dof)))
+        .ok_or(LauncherError::Overflow("rne_qfrc_com"))?;
+    let velocity_width = nbody
+        .checked_mul(6)
+        .and_then(|value| nv.checked_mul(6).and_then(|dof| value.checked_add(dof)))
+        .ok_or(LauncherError::Overflow("rne_qfrc_velocity"))?;
+    let output_width = nbody
+        .checked_mul(12)
+        .and_then(|value| value.checked_add(nv))
+        .ok_or(LauncherError::Overflow("rne_qfrc_output"))?;
+    Ok([
+        static_dims.metadata_elements,
+        guarded(com_width, "rne_qfrc_com")?,
+        guarded(velocity_width, "rne_qfrc_velocity")?,
+        guarded(output_width, "rne_qfrc_output")?,
+    ])
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct RneQfrcSpec;
+
+#[cfg(any(feature = "cuda-probe", test))]
+// SAFETY: 声明逐槽匹配冻结rne_qfrc私有ABI。
+unsafe impl KernelAbi for RneQfrcSpec {
+    const NAME: &'static str = "rne_qfrc";
+    const BLOCK: BlockRule = BlockRule::Fixed(256);
+    const SLOTS: &'static [SlotDesc] = &RNE_QFRC_SLOTS;
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl KernelSpec for RneQfrcSpec {
+    type Dims = RneQfrcDims;
+
+    fn spans(dims: &Self::Dims) -> Result<Vec<SlotRequirement>, LauncherError> {
+        Ok(rne_qfrc_lengths(dims)?
+            .into_iter()
+            .enumerate()
+            .map(|(slot, min_elements)| SlotRequirement { slot, min_elements })
+            .collect())
+    }
+
+    fn launch_dims(dims: &Self::Dims) -> Result<LaunchDims, LauncherError> {
+        rne_qfrc_lengths(dims)?;
+        LaunchDims::new((dims.abi[3].div_ceil(256), 1, 1), (256, 1, 1), 0)
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct StaticRneMetadata;
+
+#[cfg(feature = "cuda-probe")]
+impl MetadataProof for StaticRneMetadata {
+    type Dims = RneStaticDims;
+
+    const KIND: ProofKind = RNE_QFRC_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        validate_rne_metadata(values, *dims)
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+struct RneQfrcMetadata;
+
+#[cfg(any(feature = "cuda-probe", test))]
+impl MetadataProof for RneQfrcMetadata {
+    type Dims = RneQfrcDims;
+
+    const KIND: ProofKind = RNE_QFRC_METADATA_KIND;
+
+    fn validate(values: &[i32], dims: &Self::Dims) -> Result<(), LauncherError> {
+        validate_rne_metadata(values, dims.static_dims)?;
+        rne_qfrc_lengths(dims).map(|_| ())
+    }
+}
+
+#[cfg(any(feature = "cuda-probe", test))]
+fn rne_qfrc_plan(
+    dims: &RneQfrcDims,
+    bindings: &[SlotBinding; 4],
+    proofs: &[CheckedBinding<'_, RneQfrcDims>],
+) -> Result<LaunchDims, LauncherError> {
+    let lengths = rne_qfrc_lengths(dims)?;
+    for (slot, elements) in lengths.into_iter().enumerate() {
+        let required = elements
+            .checked_mul(4)
+            .ok_or(LauncherError::Overflow("rne_qfrc_bytes"))?;
+        if bindings[slot].span.bytes() != required {
+            return Err(LauncherError::Capacity {
+                slot,
+                required,
+                actual: bindings[slot].span.bytes(),
+            });
+        }
+    }
+    Ok(Kernel::<RneQfrcSpec>::new()?
+        .plan(dims, bindings, proofs)?
+        .dims())
+}
+
+#[cfg(feature = "cuda-probe")]
+fn rne_qfrc_launch_error(error: LauncherError) -> TransferError {
+    match error {
+        LauncherError::ContextMismatch { .. } => TransferError::SessionMismatch,
+        LauncherError::Alias { .. } => TransferError::OverlappingCopy,
+        LauncherError::StaleMetadata
+        | LauncherError::InvalidMetadata(_)
+        | LauncherError::MetadataMismatch(_) => InputError::InvalidTopology {
+            field: "rne_metadata",
+            index: 0,
+            reason: "invalid_or_stale_metadata",
+        }
+        .into(),
+        LauncherError::Overflow(_) => InputError::Overflow {
+            field: "rne_qfrc_abi",
+        }
+        .into(),
+        _ => InputError::InvalidDimension {
+            field: "rne_qfrc_abi",
+        }
+        .into(),
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct RneMetadataBuffer {
+    session: TransferSession,
+    buffer: TransferBuffer<i32>,
+    values: Vec<i32>,
+    dims: RneStaticDims,
+    revision: MetadataRevision,
+    checked: Checked<StaticRneMetadata>,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl RneMetadataBuffer {
+    fn upload(
+        session: &TransferSession,
+        values: Vec<i32>,
+        nbody: usize,
+        nv: usize,
+        depth: usize,
+    ) -> Result<Self, TransferError> {
+        let dims = RneStaticDims {
+            nbody: u32::try_from(nbody).map_err(|_| InputError::Overflow {
+                field: "rne_metadata_nbody",
+            })?,
+            nv: u32::try_from(nv).map_err(|_| InputError::Overflow {
+                field: "rne_metadata_nv",
+            })?,
+            depth: u32::try_from(depth).map_err(|_| InputError::Overflow {
+                field: "rne_metadata_depth",
+            })?,
+            metadata_elements: u64::try_from(values.len()).map_err(|_| InputError::Overflow {
+                field: "rne_metadata",
+            })?,
+        };
+        validate_rne_metadata(&values, dims).map_err(rne_qfrc_launch_error)?;
+        let buffer = session.upload(&values)?;
+        let revision = MetadataRevision::new();
+        // SAFETY: 上传已同步；宿主镜像绑定实际设备缓冲。
+        let checked = unsafe {
+            Checked::<StaticRneMetadata>::assume_uploaded(
+                buffer.launcher_span()?,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .map_err(rne_qfrc_launch_error)?;
+        Ok(Self {
+            session: session.clone(),
+            buffer,
+            values,
+            dims,
+            revision,
+            checked,
+        })
+    }
+
+    fn as_buffer(&self) -> &TransferBuffer<i32> {
+        &self.buffer
+    }
+
+    fn proof(&self, worlds: u32) -> Result<Checked<RneQfrcMetadata>, TransferError> {
+        let span = self.buffer.launcher_span()?;
+        self.checked
+            .binding(0)
+            .validate_for(span, &self.dims)
+            .map_err(rne_qfrc_launch_error)?;
+        let dims = RneQfrcDims {
+            abi: [0, 0, 0, worlds],
+            static_dims: self.dims,
+        };
+        // SAFETY: 私有包装持有实际缓冲、完整镜像和写入代际。
+        unsafe {
+            Checked::<RneQfrcMetadata>::assume_uploaded(
+                span,
+                &self.values,
+                dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(rne_qfrc_launch_error)
+    }
+
+    #[cfg(test)]
+    fn overwrite_for_test(&mut self, index: usize, value: i32) -> Result<(), TransferError> {
+        self.revision.invalidate();
+        self.buffer.write_range(index, &[value])
+    }
+
+    #[cfg(test)]
+    fn restore_for_test(&mut self) -> Result<(), TransferError> {
+        self.revision.invalidate();
+        self.buffer.write_range(0, &self.values)?;
+        // SAFETY: 恢复写入已同步；跨度与镜像重新绑定。
+        self.checked = unsafe {
+            Checked::<StaticRneMetadata>::assume_uploaded(
+                self.buffer.launcher_span()?,
+                &self.values,
+                self.dims,
+                self.revision.clone(),
+            )
+        }
+        .map_err(rne_qfrc_launch_error)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "cuda-probe")]
+struct RneQfrcLaunch {
+    proof: Checked<RneQfrcMetadata>,
+}
+
+#[cfg(feature = "cuda-probe")]
+struct RneQfrcKernel {
+    session: TransferSession,
+    kernel: SynchronousKernel,
+}
+
+#[cfg(feature = "cuda-probe")]
+impl RneQfrcKernel {
+    fn compile(session: &TransferSession) -> Result<Self, TransferError> {
+        Ok(Self {
+            session: session.clone(),
+            kernel: SynchronousKernel::compile(session, RNE_CUDA, "rne_qfrc")?,
+        })
+    }
+
+    fn bindings(
+        metadata: &RneMetadataBuffer,
+        com: &TransferBuffer<f32>,
+        unused: &TransferBuffer<f32>,
+        output: &TransferBuffer<f32>,
+    ) -> Result<[SlotBinding; 4], TransferError> {
+        Ok([
+            SlotBinding {
+                slot: 0,
+                span: metadata.as_buffer().launcher_span()?,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: com.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: unused.launcher_span()?,
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: output.launcher_span()?,
+                elem: ElemType::F32,
+            },
+        ])
+    }
+
+    fn preflight(
+        &self,
+        session: &TransferSession,
+        metadata: &RneMetadataBuffer,
+        com: &TransferBuffer<f32>,
+        unused: &TransferBuffer<f32>,
+        output: &TransferBuffer<f32>,
+        worlds: u32,
+    ) -> Result<RneQfrcLaunch, TransferError> {
+        if !self.session.same_session(session) || !metadata.session.same_session(session) {
+            return Err(TransferError::SessionMismatch);
+        }
+        let proof = metadata.proof(worlds)?;
+        let bindings = Self::bindings(metadata, com, unused, output)?;
+        rne_qfrc_plan(proof.dims(), &bindings, &[proof.binding(0)])
+            .map_err(rne_qfrc_launch_error)?;
+        Ok(RneQfrcLaunch { proof })
+    }
+
+    fn launch(
+        &self,
+        launch: &RneQfrcLaunch,
+        metadata: &RneMetadataBuffer,
+        com: &TransferBuffer<f32>,
+        unused: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+    ) -> Result<(), TransferError> {
+        let dims = *launch.proof.dims();
+        let bindings = Self::bindings(metadata, com, unused, output)?;
+        rne_qfrc_plan(&dims, &bindings, &[launch.proof.binding(0)])
+            .map_err(rne_qfrc_launch_error)?;
+        // SAFETY: 类型计划核对证明、跨度、会话、别名和256线程网格。
+        unsafe {
+            self.kernel
+                .launch(metadata.as_buffer(), com, unused, output, dims.abi)
+        }
+    }
+}
+
 impl RnePlan {
     pub fn new(
         session: &TransferSession,
@@ -153,7 +686,10 @@ impl RnePlan {
             m[5 + 3 * nbody..5 + 3 * nbody + nv]
                 .copy_from_slice(&model.rigid().fields().dof_bodyid);
             let depth = *m[5 + 3 * nbody + nv..].iter().max().unwrap() as usize;
-            (session.upload(&m)?, depth)
+            (
+                RneMetadataBuffer::upload(session, m, nbody, nv, depth)?,
+                depth,
+            )
         };
         let velocity = ComVelocityPlan::new(session, model)?;
         #[cfg(feature = "cuda-probe")]
@@ -161,8 +697,9 @@ impl RnePlan {
             SynchronousKernel::compile(session, RNE_CUDA, "rne_cacc")?,
             SynchronousKernel::compile(session, RNE_CUDA, "rne_cfrc")?,
             SynchronousKernel::compile(session, RNE_CUDA, "rne_backward")?,
-            SynchronousKernel::compile(session, RNE_CUDA, "rne_qfrc")?,
         ];
+        #[cfg(feature = "cuda-probe")]
+        let qfrc_kernel = RneQfrcKernel::compile(session)?;
         Ok(Self {
             velocity,
             nbody,
@@ -175,6 +712,8 @@ impl RnePlan {
             metadata,
             #[cfg(feature = "cuda-probe")]
             kernels,
+            #[cfg(feature = "cuda-probe")]
+            qfrc_kernel,
         })
     }
 
@@ -234,20 +773,28 @@ impl RnePlan {
         {
             let inputs = data.velocity.rne_inputs()?;
             let worlds = data.worlds() as u32;
+            let qfrc_launch = self.qfrc_kernel.preflight(
+                &self.session,
+                &self.metadata,
+                inputs.com,
+                inputs.velocity,
+                &data.output,
+                worlds,
+            )?;
             // SAFETY: Validated parent/DOF maps bound every index. Inputs have
             // guarded f32 strides nv, nv, 14*nbody+6*nv, 6*nbody+6*nv.
             // The disjoint output stride is 12*nbody+nv with four guards.
             // The private flag ABI is u32; all launches synchronize one session.
             unsafe {
                 self.kernels[0].launch_rne_cacc(
-                    &self.metadata,
+                    self.metadata.as_buffer(),
                     (inputs.qvel, &data.qacc, inputs.com, inputs.velocity),
                     &mut data.output,
                     flg_acc,
                     worlds,
                 )?;
                 self.kernels[1].launch(
-                    &self.metadata,
+                    self.metadata.as_buffer(),
                     inputs.com,
                     inputs.velocity,
                     &mut data.output,
@@ -258,7 +805,7 @@ impl RnePlan {
                 // Checked worlds*nbody bounds the work-item ABI.
                 for depth in (1..=self.depth).rev() {
                     self.kernels[2].launch(
-                        &self.metadata,
+                        self.metadata.as_buffer(),
                         inputs.com,
                         inputs.velocity,
                         &mut data.output,
@@ -270,14 +817,14 @@ impl RnePlan {
                         ],
                     )?;
                 }
-                self.kernels[3].launch(
-                    &self.metadata,
-                    inputs.com,
-                    inputs.velocity,
-                    &mut data.output,
-                    [0, 0, 0, worlds],
-                )?;
             }
+            self.qfrc_kernel.launch(
+                &qfrc_launch,
+                &self.metadata,
+                inputs.com,
+                inputs.velocity,
+                &mut data.output,
+            )?;
             data.flg_acc = flg_acc;
             data.ready = true;
             Ok(())
@@ -438,6 +985,371 @@ mod tests {
     }
 
     #[test]
+    fn rne_qfrc_plan_checks_metadata_spans_aliases_and_overflow() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let bind = |slot, context, addr, bytes, elem| SlotBinding {
+            slot,
+            span: DeviceSpan::new(context, addr, bytes).unwrap(),
+            elem,
+        };
+        let static_dims = RneStaticDims {
+            nbody: 2,
+            nv: 1,
+            depth: 1,
+            metadata_elements: 14,
+        };
+        let dims = RneQfrcDims {
+            abi: [0, 0, 0, 2],
+            static_dims,
+        };
+        let values = vec![2, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1];
+        assert_eq!(rne_qfrc_lengths(&dims).unwrap(), [14, 76, 44, 58]);
+        let revision = MetadataRevision::new();
+        let metadata_span = DeviceSpan::new(7, 0x1000, 56).unwrap();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let proof = unsafe {
+            Checked::<RneQfrcMetadata>::assume_uploaded(
+                metadata_span,
+                &values,
+                dims,
+                revision.clone(),
+            )
+        }
+        .unwrap();
+        let bindings = [
+            bind(0, 7, 0x1000, 56, ElemType::I32),
+            bind(1, 7, 0x2000, 304, ElemType::F32),
+            bind(2, 7, 0x2000, 176, ElemType::F32),
+            bind(3, 7, 0x4000, 232, ElemType::F32),
+        ];
+        let launch = rne_qfrc_plan(&dims, &bindings, &[proof.binding(0)]).unwrap();
+        assert_eq!(launch.grid(), (1, 1, 1));
+        assert_eq!(launch.block(), (256, 1, 1));
+        assert_eq!(launch.shared_bytes(), 0);
+        assert!(matches!(
+            rne_qfrc_plan(&dims, &bindings, &[]),
+            Err(LauncherError::MissingMetadataProof { slot: 0 })
+        ));
+
+        let addresses = [0x1000, 0x2000, 0x2000, 0x4000];
+        let bytes = [56, 304, 176, 232];
+        for slot in 0..4 {
+            let mut short = bindings;
+            short[slot].span = DeviceSpan::new(7, addresses[slot], bytes[slot] - 4).unwrap();
+            assert!(matches!(
+                rne_qfrc_plan(&dims, &short, &[proof.binding(0)]),
+                Err(LauncherError::Capacity { slot: bad, .. }) if bad == slot
+            ));
+
+            let mut long = bindings;
+            long[slot].span = DeviceSpan::new(7, addresses[slot], bytes[slot] + 4).unwrap();
+            assert!(matches!(
+                rne_qfrc_plan(&dims, &long, &[proof.binding(0)]),
+                Err(LauncherError::Capacity { slot: bad, .. }) if bad == slot
+            ));
+        }
+
+        let mut foreign = bindings;
+        foreign[2].span = DeviceSpan::new(8, 0x2000, 176).unwrap();
+        assert!(matches!(
+            rne_qfrc_plan(&dims, &foreign, &[proof.binding(0)]),
+            Err(LauncherError::ContextMismatch { slot: 2 })
+        ));
+        let mut alias = bindings;
+        alias[3].span = DeviceSpan::new(7, 0x2000, 232).unwrap();
+        assert!(matches!(
+            rne_qfrc_plan(&dims, &alias, &[proof.binding(0)]),
+            Err(LauncherError::Alias {
+                first: 1,
+                second: 3
+            })
+        ));
+
+        revision.invalidate();
+        assert!(matches!(
+            rne_qfrc_plan(&dims, &bindings, &[proof.binding(0)]),
+            Err(LauncherError::StaleMetadata)
+        ));
+        for invalid in [
+            RneQfrcDims {
+                abi: [1, 0, 0, 2],
+                ..dims
+            },
+            RneQfrcDims {
+                abi: [0, 0, 0, 0],
+                ..dims
+            },
+            RneQfrcDims {
+                abi: [0, 0, 0, u32::MAX - 255],
+                ..dims
+            },
+        ] {
+            assert!(rne_qfrc_lengths(&invalid).is_err());
+        }
+        assert!(rne_metadata_elements(i32::MAX as u32 + 1, 0).is_err());
+
+        for (index, value) in [(2, f32::NAN.to_bits() as i32), (6, 1), (11, 2), (12, 2)] {
+            let mut invalid = values.clone();
+            invalid[index] = value;
+            assert!(validate_rne_metadata(&invalid, static_dims).is_err());
+        }
+        let mut incomplete = values;
+        incomplete[8] = 0;
+        assert!(validate_rne_metadata(&incomplete, static_dims).is_err());
+    }
+
+    #[test]
+    fn rne_qfrc_plan_accepts_zero_dof_boundary() {
+        use crate::runtime::launcher::DeviceSpan;
+
+        let dims = RneQfrcDims {
+            abi: [0, 0, 0, 2],
+            static_dims: RneStaticDims {
+                nbody: 2,
+                nv: 0,
+                depth: 1,
+                metadata_elements: 13,
+            },
+        };
+        let values = vec![2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+        let revision = MetadataRevision::new();
+        let span = DeviceSpan::new(9, 0x1000, 52).unwrap();
+        // SAFETY: 测试跨度代表同一份宿主快照。
+        let proof =
+            unsafe { Checked::<RneQfrcMetadata>::assume_uploaded(span, &values, dims, revision) }
+                .unwrap();
+        let bindings = [
+            SlotBinding {
+                slot: 0,
+                span,
+                elem: ElemType::I32,
+            },
+            SlotBinding {
+                slot: 1,
+                span: DeviceSpan::new(9, 0x2000, 256).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 2,
+                span: DeviceSpan::new(9, 0x2000, 128).unwrap(),
+                elem: ElemType::F32,
+            },
+            SlotBinding {
+                slot: 3,
+                span: DeviceSpan::new(9, 0x3000, 224).unwrap(),
+                elem: ElemType::F32,
+            },
+        ];
+        assert_eq!(rne_qfrc_lengths(&dims).unwrap(), [13, 64, 32, 56]);
+        rne_qfrc_plan(&dims, &bindings, &[proof.binding(0)]).unwrap();
+    }
+
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn runs_rne_qfrc_wrapper_and_recovers_after_real_metadata_write() {
+        let session = TransferSession::new(0).unwrap();
+        let model = super::super::tests::test_model(Some(3));
+        let model =
+            AttachedModelInput::new(model, crate::model::AttachedFields::default()).unwrap();
+        let mut plan = RnePlan::new(&session, model, [0.0, 0.0, -9.81]).unwrap();
+        const WORLDS: usize = 513;
+        let mut data = plan.create_data(WORLDS).unwrap();
+        let qvel: Vec<_> = (0..WORLDS)
+            .map(|world| (world as f32 - 256.0) * 0.000_125)
+            .collect();
+        let qacc: Vec<_> = (0..WORLDS)
+            .map(|world| (256.0 - world as f32) * 0.000_25)
+            .collect();
+        data.write_qvel(&qvel).unwrap();
+        data.write_qacc(&qacc).unwrap();
+        plan.update(&mut data, true).unwrap();
+        let mut initial = vec![0.0; data.output.len()];
+        data.output.read_range_into(0, &mut initial).unwrap();
+        let width = 12 * plan.nbody + plan.nv;
+        let qfrc_offset = 12 * plan.nbody;
+        let sentinel = -777.25f32;
+        for world in 0..WORLDS {
+            initial[4 + world * width + qfrc_offset] = sentinel;
+        }
+
+        let (raw, typed) = {
+            let inputs = data.velocity.rne_inputs().unwrap();
+            data.output.write_range(0, &initial).unwrap();
+            // SAFETY: 复用产品计划的同一实际缓冲和冻结私有ABI。
+            unsafe {
+                plan.qfrc_kernel.kernel.launch(
+                    plan.metadata.as_buffer(),
+                    inputs.com,
+                    inputs.velocity,
+                    &mut data.output,
+                    [0, 0, 0, WORLDS as u32],
+                )
+            }
+            .unwrap();
+            let mut raw = vec![0.0; data.output.len()];
+            data.output.read_range_into(0, &mut raw).unwrap();
+
+            data.output.write_range(0, &initial).unwrap();
+            let launch = plan
+                .qfrc_kernel
+                .preflight(
+                    &plan.session,
+                    &plan.metadata,
+                    inputs.com,
+                    inputs.velocity,
+                    &data.output,
+                    WORLDS as u32,
+                )
+                .unwrap();
+            plan.qfrc_kernel
+                .launch(
+                    &launch,
+                    &plan.metadata,
+                    inputs.com,
+                    inputs.velocity,
+                    &mut data.output,
+                )
+                .unwrap();
+            let mut typed = vec![0.0; data.output.len()];
+            data.output.read_range_into(0, &mut typed).unwrap();
+
+            let short_com = session.upload(&vec![0.0; inputs.com.len() - 1]).unwrap();
+            assert!(
+                plan.qfrc_kernel
+                    .preflight(
+                        &plan.session,
+                        &plan.metadata,
+                        &short_com,
+                        inputs.velocity,
+                        &data.output,
+                        WORLDS as u32,
+                    )
+                    .is_err()
+            );
+            let proof = plan.metadata.proof(WORLDS as u32).unwrap();
+            let mut alias =
+                RneQfrcKernel::bindings(&plan.metadata, inputs.com, inputs.velocity, &data.output)
+                    .unwrap();
+            let output_bytes = rne_qfrc_lengths(proof.dims()).unwrap()[3] * 4;
+            alias[3].span = alias[1].span.view(0, output_bytes).unwrap();
+            assert!(matches!(
+                rne_qfrc_plan(proof.dims(), &alias, &[proof.binding(0)]),
+                Err(LauncherError::Alias {
+                    first: 1,
+                    second: 3
+                })
+            ));
+            (raw, typed)
+        };
+        assert_eq!(
+            raw.iter().map(|value| value.to_bits()).collect::<Vec<_>>(),
+            typed
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        for world in 0..WORLDS {
+            assert_ne!(
+                raw[4 + world * width + qfrc_offset].to_bits(),
+                sentinel.to_bits()
+            );
+        }
+
+        let sentinel_workspace = |data: &mut RneData, seed: f32| {
+            let mut values = vec![0.0; data.output.len()];
+            data.output.read_range_into(0, &mut values).unwrap();
+            let end = values.len() - 4;
+            for (index, value) in values[4..end].iter_mut().enumerate() {
+                *value = seed + (index % 31) as f32 * 0.125;
+            }
+            data.output.write_range(0, &values).unwrap();
+            values
+        };
+        let before = sentinel_workspace(&mut data, -4096.0);
+        plan.metadata.overwrite_for_test(0, 1).unwrap();
+        assert!(plan.update_rne(&mut data, true).is_err());
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::StageNotReady { stage: "rne" })
+        ));
+        let mut rejected = vec![0.0; data.output.len()];
+        data.output.read_range_into(0, &mut rejected).unwrap();
+        assert_eq!(
+            before.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+            rejected.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+        );
+        plan.metadata.restore_for_test().unwrap();
+        plan.update_rne(&mut data, true).unwrap();
+        data.readback().unwrap();
+
+        let before_session = sentinel_workspace(&mut data, -8192.0);
+        let foreign_session = TransferSession::new(0).unwrap();
+        let capture = std::env::var_os("MJWARP_PHYSICS_PTX_DIR");
+        if let Some(root) = capture.as_ref() {
+            let foreign = std::path::PathBuf::from(root).join("foreign-session");
+            assert!(!foreign.exists());
+            // SAFETY: 本测试单线程运行，并在编译后立即恢复环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &foreign) };
+        }
+        let foreign_kernel = RneQfrcKernel::compile(&foreign_session).unwrap();
+        if let Some(root) = capture.as_ref() {
+            // SAFETY: 本测试单线程运行，并恢复调用方的原始环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", root) };
+        } else {
+            // SAFETY: 本测试单线程运行，调用前也没有该变量。
+            unsafe { std::env::remove_var("MJWARP_PHYSICS_PTX_DIR") };
+        }
+        let correct_kernel = std::mem::replace(&mut plan.qfrc_kernel, foreign_kernel);
+        assert!(matches!(
+            plan.update_rne(&mut data, true),
+            Err(TransferError::SessionMismatch)
+        ));
+        assert!(matches!(
+            data.readback(),
+            Err(TransferError::StageNotReady { stage: "rne" })
+        ));
+        let mut rejected_session = vec![0.0; data.output.len()];
+        data.output
+            .read_range_into(0, &mut rejected_session)
+            .unwrap();
+        assert_eq!(
+            before_session
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            rejected_session
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+        plan.qfrc_kernel = correct_kernel;
+        plan.update_rne(&mut data, true).unwrap();
+        data.readback().unwrap();
+
+        let zero = super::super::tests::test_model(None);
+        let zero = AttachedModelInput::new(zero, crate::model::AttachedFields::default()).unwrap();
+        if let Some(root) = capture.as_ref() {
+            let zero_capture = std::path::PathBuf::from(root).join("zero-dof");
+            assert!(!zero_capture.exists());
+            // SAFETY: 本测试单线程运行，并在编译后立即恢复环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &zero_capture) };
+        }
+        let zero_plan = RnePlan::new(&session, zero, [0.0; 3]).unwrap();
+        if let Some(root) = capture.as_ref() {
+            // SAFETY: 本测试单线程运行，并恢复调用方的原始环境。
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", root) };
+        }
+        let mut zero_data = zero_plan.create_data(2).unwrap();
+        zero_plan.update(&mut zero_data, false).unwrap();
+        let zero_output = zero_data.readback().unwrap();
+        for world in 0..2 {
+            assert!(zero_output.world(world).unwrap().qfrc_bias.is_empty());
+        }
+    }
+
+    #[test]
     #[cfg(feature = "cuda-probe")]
     #[ignore = "requires NVIDIA driver and NVRTC"]
     fn checks_acceleration_guards_and_unpublished_nonfinite_workspaces() {
@@ -508,7 +1420,10 @@ mod tests {
                 let candidate = data.readback().unwrap();
                 let inputs = data.velocity.rne_inputs().unwrap();
                 let mut m = vec![0; 5 + 4 * plan.nbody + plan.nv];
-                plan.metadata.read_range_into(0, &mut m).unwrap();
+                plan.metadata
+                    .as_buffer()
+                    .read_range_into(0, &mut m)
+                    .unwrap();
                 let mut qvel = vec![0.0; plan.nv];
                 let mut qacc = vec![0.0; plan.nv];
                 let mut com = vec![0.0; 14 * plan.nbody + 6 * plan.nv];

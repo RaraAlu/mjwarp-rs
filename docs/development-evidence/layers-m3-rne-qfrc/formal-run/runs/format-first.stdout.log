@@ -1,0 +1,119 @@
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne.rs:217:
+ }
+ 
+ #[cfg(any(feature = "cuda-probe", test))]
+-fn validate_rne_metadata(
+-    values: &[i32],
+-    dims: RneStaticDims,
+-) -> Result<(), LauncherError> {
++fn validate_rne_metadata(values: &[i32], dims: RneStaticDims) -> Result<(), LauncherError> {
+     if dims.nbody == 0 || dims.depth >= dims.nbody {
+         return Err(LauncherError::InvalidMetadata("RNE静态维度无效"));
+     }
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne.rs:230:
+     {
+         return Err(LauncherError::InvalidMetadata("RNE元数据长度无效"));
+     }
+-    let nbody = usize::try_from(dims.nbody)
+-        .map_err(|_| LauncherError::Overflow("rne_metadata_nbody"))?;
+-    let nv =
+-        usize::try_from(dims.nv).map_err(|_| LauncherError::Overflow("rne_metadata_nv"))?;
++    let nbody =
++        usize::try_from(dims.nbody).map_err(|_| LauncherError::Overflow("rne_metadata_nbody"))?;
++    let nv = usize::try_from(dims.nv).map_err(|_| LauncherError::Overflow("rne_metadata_nv"))?;
+     if values[0] != dims.nbody as i32 || values[1] != dims.nv as i32 {
+         return Err(LauncherError::InvalidMetadata("RNE元数据维度不匹配"));
+     }
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne.rs:285:
+         if depth[index] != expected_depth {
+             return Err(LauncherError::InvalidMetadata("RNE树深度无效"));
+         }
+-        max_depth = max_depth.max(usize::try_from(depth[index]).map_err(|_| {
+-            LauncherError::InvalidMetadata("RNE树深度为负")
+-        })?);
++        max_depth = max_depth.max(
++            usize::try_from(depth[index])
++                .map_err(|_| LauncherError::InvalidMetadata("RNE树深度为负"))?,
++        );
+     }
+     if covered.contains(&false) {
+         return Err(LauncherError::InvalidMetadata("RNE自由度映射不完整"));
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne.rs:309:
+ fn rne_qfrc_lengths(dims: &RneQfrcDims) -> Result<[u64; 4], LauncherError> {
+     let [x, y, z, worlds] = dims.abi;
+     let static_dims = dims.static_dims;
+-    if [x, y, z] != [0; 3]
+-        || worlds == 0
+-        || worlds > u32::MAX - 255
+-        || static_dims.nbody == 0
+-    {
++    if [x, y, z] != [0; 3] || worlds == 0 || worlds > u32::MAX - 255 || static_dims.nbody == 0 {
+         return Err(LauncherError::InvalidArray("RNE广义力维度无效"));
+     }
+     let backward_work = u64::from(worlds)
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne.rs:322:
+     if backward_work > u64::from(u32::MAX - 255) {
+         return Err(LauncherError::Overflow("rne_backward_work"));
+     }
+-    if static_dims.metadata_elements
+-        != rne_metadata_elements(static_dims.nbody, static_dims.nv)?
+-    {
++    if static_dims.metadata_elements != rne_metadata_elements(static_dims.nbody, static_dims.nv)? {
+         return Err(LauncherError::InvalidMetadata("RNE元数据长度不匹配"));
+     }
+     let guarded = |width: u64, field| {
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne.rs:1124:
+         let revision = MetadataRevision::new();
+         let span = DeviceSpan::new(9, 0x1000, 52).unwrap();
+         // SAFETY: 测试跨度代表同一份宿主快照。
+-        let proof = unsafe {
+-            Checked::<RneQfrcMetadata>::assume_uploaded(span, &values, dims, revision)
+-        }
+-        .unwrap();
++        let proof =
++            unsafe { Checked::<RneQfrcMetadata>::assume_uploaded(span, &values, dims, revision) }
++                .unwrap();
+         let bindings = [
+             SlotBinding {
+                 slot: 0,
+Diff in \\?\D:\Rust\mjwarp-rs\src\physics\rne.rs:1225:
+             data.output.read_range_into(0, &mut typed).unwrap();
+ 
+             let short_com = session.upload(&vec![0.0; inputs.com.len() - 1]).unwrap();
+-            assert!(plan
+-                .qfrc_kernel
+-                .preflight(
+-                    &plan.session,
+-                    &plan.metadata,
+-                    &short_com,
+-                    inputs.velocity,
+-                    &data.output,
+-                    WORLDS as u32,
+-                )
+-                .is_err());
++            assert!(
++                plan.qfrc_kernel
++                    .preflight(
++                        &plan.session,
++                        &plan.metadata,
++                        &short_com,
++                        inputs.velocity,
++                        &data.output,
++                        WORLDS as u32,
++                    )
++                    .is_err()
++            );
+             let proof = plan.metadata.proof(WORLDS as u32).unwrap();
+-            let mut alias = RneQfrcKernel::bindings(
+-                &plan.metadata,
+-                inputs.com,
+-                inputs.velocity,
+-                &data.output,
+-            )
+-            .unwrap();
++            let mut alias =
++                RneQfrcKernel::bindings(&plan.metadata, inputs.com, inputs.velocity, &data.output)
++                    .unwrap();
+             let output_bytes = rne_qfrc_lengths(proof.dims()).unwrap()[3] * 4;
+             alias[3].span = alias[1].span.view(0, output_bytes).unwrap();
+             assert!(matches!(
