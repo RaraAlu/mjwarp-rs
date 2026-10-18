@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-18-layers-m3-mixed-solve-fused-evidence-correction",
+  "reviews": {
+    "original_task_id": "2026-10-18-layers-m3-mixed-solve-fused",
+    "original_commit": "7314929caaf18ed0bca0d0c067c8b669d54e802a",
+    "original_status": "verified",
+    "original_acceptance_count": 13,
+    "original_acceptance_changed": false
+  },
+  "items": [
+    {
+      "number": 1,
+      "criterion": "仅修改solve.rs及其模块内测试、专属证据目录、更新后的全M3静态清单和精确交付回执；runtime/transfer/kernel.rs保持不变。",
+      "original_review_status": "pass",
+      "original_review_evidence": "working tree scope contains solve.rs and the dedicated evidence directory; runtime/transfer/kernel.rs blob equals HEAD",
+      "corrected_assessment": "pass",
+      "correction_note": "原提交范围与Git对象相符。"
+    },
+    {
+      "number": 2,
+      "criterion": "mixed_solve_fused使用类型化同步包装；launch_mixed_solve保留现有私有实现，并只由已验证包装调用。",
+      "original_review_status": "pass",
+      "original_review_evidence": "MixedSolveFusedKernel wraps mixed_solve_fused; its only low-level call uses private launch_mixed_solve",
+      "corrected_assessment": "pass",
+      "correction_note": "类型化包装与私有调用关系未变。"
+    },
+    {
+      "number": 3,
+      "criterion": "元数据证明绑定真实设备跨度、完整宿主快照和写入代际，精确覆盖levels、前缀、nc、Small数量、flags、offsets、updates与Small三元组。",
+      "original_review_status": "pass",
+      "original_review_evidence": "fused proof binds device span, complete host snapshot and revision, then validates every metadata region",
+      "corrected_assessment": "pass",
+      "correction_note": "元数据静态证明仍在源码中。"
+    },
+    {
+      "number": 4,
+      "criterion": "证明每层原子写目标与读取源不交叉，允许同层同目标原子归约；Small输出区互不重叠，并与Sparse和Compact初始化区互斥。",
+      "original_review_status": "pass",
+      "original_review_evidence": "host tests reject same-level read/write crossing, allow same atomic target, and reject Small ownership overlap",
+      "corrected_assessment": "pass_with_dynamic_gap",
+      "correction_note": "静态所有权检查直接拒绝重叠；专门动态负例未运行。"
+    },
+    {
+      "number": 5,
+      "criterion": "精确核对元数据、RHS、factor与output容量、设备会话和写入别名；证明world乘RHS分组、128线程与零动态共享内存。",
+      "original_review_status": "pass",
+      "original_review_evidence": "typed plan checks exact four capacities, sessions, writable aliases, world-RHS groups, 128 threads and zero shared bytes",
+      "corrected_assessment": "pass",
+      "correction_note": "容量、会话、别名与发射约束证据不变。"
+    },
+    {
+      "number": 6,
+      "criterion": "拒绝usize到u32、u32分组、u64容量、三倍更新索引、元数据指针及网格计算溢出；正确处理零更新占位元组边界。",
+      "original_review_status": "pass",
+      "original_review_evidence": "host and GPU checks cover usize/u32/u64 bounds, update triples, metadata lengths, grid overflow and zero-update placeholder rules",
+      "corrected_assessment": "pass",
+      "correction_note": "溢出和占位边界证据不变。"
+    },
+    {
+      "number": 7,
+      "criterion": "保留同步完成语义；包装拒绝不写输出且不发布结果，恢复后保持原数值行为。",
+      "original_review_status": "pass",
+      "original_review_evidence": "GPU test proves rejection leaves output unpublished and unchanged, then compares recovered values under the existing tolerance",
+      "corrected_assessment": "pass",
+      "correction_note": "同步、拒绝与恢复证据不变。"
+    },
+    {
+      "number": 8,
+      "criterion": "CUDA、PTX、编译选项、f32中间量、累加顺序、容差、夹具及上传、双入口编译、校验、求解和发布顺序保持不变。",
+      "original_review_status": "pass",
+      "original_review_evidence": "current fused CUDA, PTX and compile metadata equal committed archive members; f32 path, ordering, tolerances, fixtures and stage order remain unchanged",
+      "corrected_assessment": "pass",
+      "correction_note": "冻结内核与执行顺序证据不变。"
+    },
+    {
+      "number": 9,
+      "criterion": "只运行实质影响所需最小测试；记录真实命令、环境、退出码、耗时、失败、修正和复验必要性，并预先设置既有报告路径。",
+      "original_review_status": "pass_with_recorded_failures",
+      "original_review_evidence": "all commands, environments, exits, durations, failures, repairs and necessary reruns are recorded; no unchanged rerun occurred",
+      "corrected_assessment": "pass_with_recorded_failures",
+      "correction_note": "失败、修正与必要复验记录仍在；同名捕获覆盖另记。"
+    },
+    {
+      "number": 10,
+      "criterion": "更新全M3静态清单时重新扫描当前源码；区分实际入口、逻辑ABI族、底层调用、包装编排和辅助方法，不做历史减法。",
+      "original_review_status": "pass",
+      "original_review_evidence": "current-source scan separates 88 actual entries, 11 ABI families, 99 low-level calls, 13 orchestration calls and 4 helpers",
+      "corrected_assessment": "pass",
+      "correction_note": "全M3清单仍绑定原提交。"
+    },
+    {
+      "number": 11,
+      "criterion": "原始捕获写入target专属目录；提交原样归档和逐成员散列，不新增本地忽略规则。",
+      "original_review_status": "pass_with_capture_boundary",
+      "original_review_evidence": "97 files present at archive time match extracted bytes; attempt 3 overwrote 42 same-name kernel captures, so attempt-2 kernel bytes are not separately preserved",
+      "corrected_assessment": "not_fully_supported",
+      "correction_note": "仅能证明归档时现存97项；42项attempt2覆盖前字节未独立保全。"
+    },
+    {
+      "number": 12,
+      "criterion": "提交回执逐文件绑定暂存Git对象；登记完整提交号后依次通过Recorded、关闭和Final核验。",
+      "original_review_status": "pending_commit_lifecycle",
+      "original_review_evidence": "Preflight passed; staged receipt, commit, Recorded, close and Final checks remain",
+      "corrected_assessment": "pass",
+      "correction_note": "原提交已通过完整交付生命周期。"
+    },
+    {
+      "number": 13,
+      "criterion": "保留合法重算位差、状态3仅静态证据、NP01至NP04未验收、非T4设备、Linux和Release未测及M3整体未完成边界。",
+      "original_review_status": "pass",
+      "original_review_evidence": "README and summaries retain recompute drift, static-only status 3, NP01-NP04, non-T4, Linux, Release and parent-M3 boundaries",
+      "corrected_assessment": "pass",
+      "correction_note": "原未验收边界仍由旧证据保留。"
+    }
+  ],
+  "summary": {
+    "fully_supported": 10,
+    "supported_with_dynamic_gap": 1,
+    "supported_with_recorded_failures": 1,
+    "not_fully_supported": 1,
+    "not_fully_supported_item": 11,
+    "historical_task_status_changed": false,
+    "meaning": "本勘误保留旧任务状态，但不把缺失的attempt2独立字节证据视为已满足"
+  }
+}
