@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-18-layers-m1",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/runtime/launcher/abi.rs",
+      "blob": "fab9b91f8fd72c166b299318f9fff683de2b30f7"
+    },
+    {
+      "path": "src/runtime/launcher/alias.rs",
+      "blob": "549af37ead72f97792ade85f1fbf704be2bdf392"
+    },
+    {
+      "path": "src/runtime/launcher/mod.rs",
+      "blob": "21fe76adff84a12a33312724a846e4cb55e1bf72"
+    },
+    {
+      "path": "src/runtime/launcher/recipe.rs",
+      "blob": "a803bf5e34a2edf1d035c5edfc3666bb48a41170"
+    },
+    {
+      "path": "src/runtime/mod.rs",
+      "blob": "7545d5cfe7484c4e3e3e93b7aaedf9050329d481"
+    },
+    {
+      "path": "tests/launcher_abi.rs",
+      "blob": "1a801cd4f115a0324ebeda9404eca7e6ce00b12d"
+    }
+  ],
+  "validation": [
+    {
+      "command": "cargo fmt --check",
+      "result": "pass",
+      "evidence": "src/runtime/launcher/mod.rs"
+    },
+    {
+      "command": "cargo +stable-x86_64-pc-windows-msvc test --locked --test launcher_abi",
+      "result": "pass: 15 passed without cuda-probe (signatures, bindings, alias, rebind, recipes, Warp layout, overflow)",
+      "evidence": "tests/launcher_abi.rs"
+    },
+    {
+      "command": "cargo +stable-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib runtime::launcher",
+      "result": "pass: 10 passed (recipe mirrors L1/L3 source text; WarpArray/LaunchBounds offsets match L2; span overflow)",
+      "evidence": "src/runtime/launcher/abi.rs"
+    },
+    {
+      "command": "cargo clippy --all-targets [--features cuda-probe] -- -D warnings",
+      "result": "not clean (pre-existing): 18 default / 52 cuda-probe diagnostics, 0 in src/runtime/launcher, src/runtime/mod.rs or tests/launcher_abi.rs",
+      "evidence": "src/runtime/launcher/alias.rs"
+    },
+    {
+      "command": "cargo test --lib (default features)",
+      "result": "pre-existing compile failure outside scope: src/physics/fluid_force.rs tests use CUDA const gated by cuda-probe",
+      "evidence": "src/runtime/launcher/recipe.rs"
+    }
+  ],
+  "remaining": [
+    "Only runtime foundation added; no physics call, compile option or kernel string changed (M3 migrates calls).",
+    "Argument packing, launch and proof types (W17/W18/W23) are not implemented.",
+    "Only two WarpArray copies exist in L2 (warp_kinematics, warp_gravity); unified-launcher.md says three.",
+    "LaunchBounds1/4 layouts follow the same rule as L2 2/3 but have no frozen Warp kernel evidence yet.",
+    "clippy -D warnings remains red from pre-existing diagnostics outside this scope.",
+    "Default-feature lib tests do not compile because of a pre-existing fluid_force.rs test issue.",
+    "No GPU, Linux or NP01-NP04 evidence; this slice does not touch physics results."
+  ]
+}

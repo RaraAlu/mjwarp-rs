@@ -4,6 +4,7 @@
 use crate::diagnostics::ProbeError;
 use std::path::{Path, PathBuf};
 pub mod external;
+pub mod launcher;
 mod transfer;
 pub(crate) use transfer::host_staging;
 #[cfg(feature = "cuda-probe")]
