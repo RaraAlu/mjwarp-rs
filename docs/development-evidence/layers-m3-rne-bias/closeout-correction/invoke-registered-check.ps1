@@ -1,0 +1,82 @@
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$Registration
+)
+
+$ErrorActionPreference = 'Stop'
+$taskId = '2026-10-19-layers-m3-rne-bias-record-correction'
+$runtimeRoot = "target/normify-evidence/$taskId"
+$registrationRoot = "$runtimeRoot/registrations/"
+if (-not $Registration.StartsWith($registrationRoot, [StringComparison]::Ordinal)) {
+    throw "运行登记越界：$Registration"
+}
+$record = Get-Content -LiteralPath $Registration -Raw | ConvertFrom-Json
+if ($record.task_id -cne $taskId -or $record.registered_before_execution -ne $true) {
+    throw '运行登记无效'
+}
+$registrationHash = (Get-FileHash -LiteralPath $Registration -Algorithm SHA256).Hash.ToLowerInvariant()
+$outputRoot = [string]$record.output_root
+if (-not $outputRoot.StartsWith("$runtimeRoot/", [StringComparison]::Ordinal)) {
+    throw "输出目录越界：$outputRoot"
+}
+if (Test-Path -LiteralPath $outputRoot) { throw "输出目录已存在：$outputRoot" }
+
+New-Item -ItemType Directory -Path $outputRoot | Out-Null
+$stdout = [string]$record.stdout
+$stderr = [string]$record.stderr
+[IO.File]::WriteAllBytes($stdout, [byte[]]::new(0))
+[IO.File]::WriteAllBytes($stderr, [byte[]]::new(0))
+$started = [DateTime]::UtcNow
+$startedRecord = [ordered]@{
+    schema = 1
+    id = $record.id
+    registration = $Registration
+    registration_sha256 = $registrationHash
+    started_at_utc = $started.ToString('o')
+    stdout_precreated = Test-Path -LiteralPath $stdout
+    stderr_precreated = Test-Path -LiteralPath $stderr
+}
+$startedJson = ($startedRecord | ConvertTo-Json).Replace("`r`n", "`n") + "`n"
+[IO.File]::WriteAllText((Join-Path $outputRoot 'started.json'), $startedJson, [Text.UTF8Encoding]::new($false))
+
+$stopwatch = [Diagnostics.Stopwatch]::StartNew()
+$exitCode = 0
+try {
+    $executable = [string]$record.executable
+    $arguments = @($record.arguments)
+    & $executable @arguments 1>> $stdout 2>> $stderr
+    $exitCode = $LASTEXITCODE
+    if ($null -eq $exitCode) { $exitCode = 0 }
+}
+catch {
+    $_ | Out-String | Add-Content -LiteralPath $stderr -Encoding utf8
+    $exitCode = 9009
+}
+$stopwatch.Stop()
+$ended = [DateTime]::UtcNow
+if ((Get-FileHash -LiteralPath $Registration -Algorithm SHA256).Hash.ToLowerInvariant() -cne $registrationHash) {
+    throw '运行登记在执行期间发生变化'
+}
+$result = [ordered]@{
+    schema = 1
+    id = $record.id
+    registration = $Registration
+    registration_sha256 = $registrationHash
+    started_at_utc = $started.ToString('o')
+    ended_at_utc = $ended.ToString('o')
+    duration_ms = $stopwatch.ElapsedMilliseconds
+    exit_code = $exitCode
+    stdout = $stdout
+    stderr = $stderr
+    result = if ($exitCode -eq 0) { 'pass' } else { 'fail' }
+}
+$resultPath = Join-Path $outputRoot 'result.json'
+$resultJson = ($result | ConvertTo-Json).Replace("`r`n", "`n") + "`n"
+[IO.File]::WriteAllText($resultPath, $resultJson, [Text.UTF8Encoding]::new($false))
+Write-Output '--- stdout ---'
+Get-Content -LiteralPath $stdout
+Write-Output '--- stderr ---'
+Get-Content -LiteralPath $stderr
+Write-Output '--- result ---'
+Get-Content -LiteralPath $resultPath
+exit $exitCode

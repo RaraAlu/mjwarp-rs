@@ -91,7 +91,7 @@ $receipt = [ordered]@{
     )
     preserved_failures=@(
         [ordered]@{gate='format';exit_code=1;evidence="$evidence/formal-run/runs/format-first.run.json";reason='首次rustfmt检查发现差异'},
-        [ordered]@{gate='clippy';exit_code=1;evidence="$evidence/formal-run/runs/clippy-first.run.json";reason='首次检查发现参数数量诊断'},
+        [ordered]@{gate='clippy';exit_code=101;evidence="$evidence/formal-run/runs/clippy-first.run.json";reason='首次检查发现参数数量诊断'},
         [ordered]@{gate='precision-map';exit_code=1;evidence="$evidence/formal-run/runs/precision-first.run.json";reason='首次脚本使用了错误JSON键'},
         [ordered]@{gate='evidence';exit_code=1;evidence="$evidence/formal-run/runs/evidence-first.run.json";reason='首次脚本误把PTX寄存器编号判为f64'},
         [ordered]@{gate='delivery-preflight';exit_code=1;evidence="$evidence/formal-run/runs/delivery-preflight-first.run.json";reason='首次预检缺少回执路径绑定'}
