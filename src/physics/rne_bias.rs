@@ -501,6 +501,14 @@ struct RneBiasLaunch {
 }
 
 #[cfg(feature = "cuda-probe")]
+struct RneBiasInputs<'a> {
+    metadata: &'a RneBiasMetadataBuffer,
+    qvel: &'a TransferBuffer<f32>,
+    com: &'a TransferBuffer<f32>,
+    velocity: &'a TransferBuffer<f32>,
+}
+
+#[cfg(feature = "cuda-probe")]
 struct RneBiasKernel {
     session: TransferSession,
     kernel: SynchronousKernel,
@@ -516,31 +524,28 @@ impl RneBiasKernel {
     }
 
     fn bindings(
-        metadata: &RneBiasMetadataBuffer,
-        qvel: &TransferBuffer<f32>,
-        com: &TransferBuffer<f32>,
-        velocity: &TransferBuffer<f32>,
+        inputs: &RneBiasInputs<'_>,
         output: &TransferBuffer<f32>,
     ) -> Result<[SlotBinding; 5], TransferError> {
         Ok([
             SlotBinding {
                 slot: 0,
-                span: metadata.as_buffer().launcher_span()?,
+                span: inputs.metadata.as_buffer().launcher_span()?,
                 elem: ElemType::I32,
             },
             SlotBinding {
                 slot: 1,
-                span: qvel.launcher_span()?,
+                span: inputs.qvel.launcher_span()?,
                 elem: ElemType::F32,
             },
             SlotBinding {
                 slot: 2,
-                span: com.launcher_span()?,
+                span: inputs.com.launcher_span()?,
                 elem: ElemType::F32,
             },
             SlotBinding {
                 slot: 3,
-                span: velocity.launcher_span()?,
+                span: inputs.velocity.launcher_span()?,
                 elem: ElemType::F32,
             },
             SlotBinding {
@@ -551,22 +556,18 @@ impl RneBiasKernel {
         ])
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn preflight(
         &self,
         session: &TransferSession,
-        metadata: &RneBiasMetadataBuffer,
-        qvel: &TransferBuffer<f32>,
-        com: &TransferBuffer<f32>,
-        velocity: &TransferBuffer<f32>,
+        inputs: &RneBiasInputs<'_>,
         output: &TransferBuffer<f32>,
         worlds: u32,
     ) -> Result<RneBiasLaunch, TransferError> {
-        if !self.session.same_session(session) || !metadata.session.same_session(session) {
+        if !self.session.same_session(session) || !inputs.metadata.session.same_session(session) {
             return Err(TransferError::SessionMismatch);
         }
-        let proof = metadata.proof(worlds)?;
-        let bindings = Self::bindings(metadata, qvel, com, velocity, output)?;
+        let proof = inputs.metadata.proof(worlds)?;
+        let bindings = Self::bindings(inputs, output)?;
         rne_bias_plan(proof.dims(), &bindings, &[proof.binding(0)])
             .map_err(rne_bias_launch_error)?;
         Ok(RneBiasLaunch { proof })
@@ -575,23 +576,20 @@ impl RneBiasKernel {
     fn launch(
         &self,
         launch: &RneBiasLaunch,
-        metadata: &RneBiasMetadataBuffer,
-        qvel: &TransferBuffer<f32>,
-        com: &TransferBuffer<f32>,
-        velocity: &TransferBuffer<f32>,
+        inputs: &RneBiasInputs<'_>,
         output: &mut TransferBuffer<f32>,
     ) -> Result<(), TransferError> {
         let dims = *launch.proof.dims();
-        let bindings = Self::bindings(metadata, qvel, com, velocity, output)?;
+        let bindings = Self::bindings(inputs, output)?;
         rne_bias_plan(&dims, &bindings, &[launch.proof.binding(0)])
             .map_err(rne_bias_launch_error)?;
         // SAFETY: 类型计划核对证明、跨度、会话、别名和256线程网格。
         unsafe {
             self.kernel.launch_flex_edges(
-                metadata.as_buffer(),
-                qvel,
-                com,
-                velocity,
+                inputs.metadata.as_buffer(),
+                inputs.qvel,
+                inputs.com,
+                inputs.velocity,
                 output,
                 dims.worlds,
             )
@@ -711,24 +709,20 @@ impl RneBiasPlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let inputs = data.velocity.rne_inputs()?;
+            let velocity_inputs = data.velocity.rne_inputs()?;
+            let inputs = RneBiasInputs {
+                metadata: &self.metadata,
+                qvel: velocity_inputs.qvel,
+                com: velocity_inputs.com,
+                velocity: velocity_inputs.velocity,
+            };
             let launch = self.kernel.preflight(
                 &self.session,
-                &self.metadata,
-                inputs.qvel,
-                inputs.com,
-                inputs.velocity,
+                &inputs,
                 &data.output,
                 data.layout.output.worlds() as u32,
             )?;
-            self.kernel.launch(
-                &launch,
-                &self.metadata,
-                inputs.qvel,
-                inputs.com,
-                inputs.velocity,
-                &mut data.output,
-            )?;
+            self.kernel.launch(&launch, &inputs, &mut data.output)?;
             data.ready = true;
             Ok(())
         }
@@ -1235,12 +1229,18 @@ mod tests {
         initial[end..].fill(-131072.0);
 
         let (raw, typed) = {
-            let inputs = data.velocity.rne_inputs().unwrap();
+            let velocity_inputs = data.velocity.rne_inputs().unwrap();
+            let inputs = RneBiasInputs {
+                metadata: &plan.metadata,
+                qvel: velocity_inputs.qvel,
+                com: velocity_inputs.com,
+                velocity: velocity_inputs.velocity,
+            };
             data.output.write_range(0, &initial).unwrap();
             // SAFETY: 复用产品计划的同一实际缓冲和冻结私有ABI。
             unsafe {
                 plan.kernel.kernel.launch_flex_edges(
-                    plan.metadata.as_buffer(),
+                    inputs.metadata.as_buffer(),
                     inputs.qvel,
                     inputs.com,
                     inputs.velocity,
@@ -1255,25 +1255,10 @@ mod tests {
             data.output.write_range(0, &initial).unwrap();
             let launch = plan
                 .kernel
-                .preflight(
-                    &plan.session,
-                    &plan.metadata,
-                    inputs.qvel,
-                    inputs.com,
-                    inputs.velocity,
-                    &data.output,
-                    WORLDS as u32,
-                )
+                .preflight(&plan.session, &inputs, &data.output, WORLDS as u32)
                 .unwrap();
             plan.kernel
-                .launch(
-                    &launch,
-                    &plan.metadata,
-                    inputs.qvel,
-                    inputs.com,
-                    inputs.velocity,
-                    &mut data.output,
-                )
+                .launch(&launch, &inputs, &mut data.output)
                 .unwrap();
             let mut typed = vec![0.0; data.output.len()];
             data.output.read_range_into(0, &mut typed).unwrap();
@@ -1298,30 +1283,29 @@ mod tests {
         }
 
         {
-            let inputs = data.velocity.rne_inputs().unwrap();
-            let short_qvel = session.upload(&vec![0.0; inputs.qvel.len() - 1]).unwrap();
+            let velocity_inputs = data.velocity.rne_inputs().unwrap();
+            let short_qvel = session
+                .upload(&vec![0.0; velocity_inputs.qvel.len() - 1])
+                .unwrap();
+            let short_inputs = RneBiasInputs {
+                metadata: &plan.metadata,
+                qvel: &short_qvel,
+                com: velocity_inputs.com,
+                velocity: velocity_inputs.velocity,
+            };
             assert!(
                 plan.kernel
-                    .preflight(
-                        &plan.session,
-                        &plan.metadata,
-                        &short_qvel,
-                        inputs.com,
-                        inputs.velocity,
-                        &data.output,
-                        WORLDS as u32,
-                    )
+                    .preflight(&plan.session, &short_inputs, &data.output, WORLDS as u32)
                     .is_err()
             );
             let proof = plan.metadata.proof(WORLDS as u32).unwrap();
-            let mut alias = RneBiasKernel::bindings(
-                &plan.metadata,
-                inputs.qvel,
-                inputs.com,
-                inputs.velocity,
-                &data.output,
-            )
-            .unwrap();
+            let inputs = RneBiasInputs {
+                metadata: &plan.metadata,
+                qvel: velocity_inputs.qvel,
+                com: velocity_inputs.com,
+                velocity: velocity_inputs.velocity,
+            };
+            let mut alias = RneBiasKernel::bindings(&inputs, &data.output).unwrap();
             let output_bytes = rne_bias_lengths(proof.dims()).unwrap()[4] * 4;
             alias[4].span = alias[2].span.view(0, output_bytes).unwrap();
             assert!(matches!(

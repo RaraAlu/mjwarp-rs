@@ -1,0 +1,214 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-19-layers-m3-rne-bias-clippy-structural-fix",
+  "gpu_runs_forbidden": true,
+  "registered_validations": [
+    {
+      "id": "host",
+      "purpose": "运行偏置力计划的最小宿主测试",
+      "executable": "cargo",
+      "arguments": ["test", "--locked", "--lib", "rne_bias_plan", "--", "--test-threads=1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-01-host",
+      "registered_before_execution": true
+    },
+    {
+      "id": "format",
+      "purpose": "检查结构修复格式",
+      "executable": "cargo",
+      "arguments": ["fmt", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-02-format",
+      "registered_before_execution": true
+    },
+    {
+      "id": "format-apply",
+      "purpose": "按首次格式差异应用rustfmt",
+      "executable": "cargo",
+      "arguments": ["fmt"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-02-format-apply",
+      "registered_before_execution": true
+    },
+    {
+      "id": "format-retry",
+      "purpose": "格式修复后重新检查",
+      "executable": "cargo",
+      "arguments": ["fmt", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-02-format-retry",
+      "registered_before_execution": true
+    },
+    {
+      "id": "format-final",
+      "purpose": "同步cuda-probe测试调用后复核格式",
+      "executable": "cargo",
+      "arguments": ["fmt", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-02-format-final",
+      "registered_before_execution": true
+    },
+    {
+      "id": "clippy",
+      "purpose": "执行原始全目标Clippy命令",
+      "executable": "cargo",
+      "arguments": ["clippy", "--locked", "--all-targets", "--features", "cuda-probe", "--", "-D", "warnings"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-03-clippy",
+      "registered_before_execution": true
+    },
+    {
+      "id": "clippy-retry",
+      "purpose": "同步cuda-probe测试调用后重跑原始全目标Clippy命令",
+      "executable": "cargo",
+      "arguments": ["clippy", "--locked", "--all-targets", "--features", "cuda-probe", "--", "-D", "warnings"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-03-clippy-retry",
+      "registered_before_execution": true
+    },
+    {
+      "id": "inventory",
+      "purpose": "基于最新偏置力清单同步当前文件行号",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-rne-bias-clippy-structural-fix/build-inventory.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-04-inventory",
+      "registered_before_execution": true
+    },
+    {
+      "id": "inventory-retry",
+      "purpose": "修正编排锚点后重新同步当前文件行号",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-rne-bias-clippy-structural-fix/build-inventory.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-04-inventory-retry",
+      "registered_before_execution": true
+    },
+    {
+      "id": "evidence-check",
+      "purpose": "核验无豁免、ABI、语义、内核和三代Clippy证据",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-rne-bias-clippy-structural-fix/check-evidence.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-05-evidence-check",
+      "registered_before_execution": true
+    },
+    {
+      "id": "manifest",
+      "purpose": "归档核心验证日志并构建正式清单",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-rne-bias-clippy-structural-fix/build-manifest.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-06-manifest",
+      "registered_before_execution": true
+    },
+    {
+      "id": "formal-evidence",
+      "purpose": "核对正式清单和归档索引对象",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-rne-bias-clippy-structural-fix/check-formal-evidence.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-07-formal-evidence",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-preflight",
+      "purpose": "执行任务交付预检",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Preflight", "-TaskId", "2026-10-19-layers-m3-rne-bias-clippy-structural-fix"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-08-delivery-preflight",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-stage",
+      "purpose": "生成交付回执并暂存本任务文件",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-rne-bias-clippy-structural-fix/build-delivery-receipt.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-09-delivery-stage",
+      "registered_before_execution": true
+    },
+    {
+      "id": "staged-whitespace",
+      "purpose": "检查暂存区空白错误",
+      "executable": "git",
+      "arguments": ["diff", "--cached", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-10-staged-whitespace",
+      "registered_before_execution": true
+    },
+    {
+      "id": "manifest-retry",
+      "purpose": "标记原始日志不可比较后重建正式清单",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-rne-bias-clippy-structural-fix/build-manifest.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-06-manifest-retry",
+      "registered_before_execution": true
+    },
+    {
+      "id": "formal-evidence-retry",
+      "purpose": "复核重建后的正式清单",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-rne-bias-clippy-structural-fix/check-formal-evidence.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-07-formal-evidence-retry",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-stage-retry",
+      "purpose": "按重建清单刷新回执与暂存区",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "docs/development-evidence/layers-m3-rne-bias-clippy-structural-fix/build-delivery-receipt.ps1"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-09-delivery-stage-retry",
+      "registered_before_execution": true
+    },
+    {
+      "id": "staged-whitespace-retry",
+      "purpose": "排除原始日志差异后复核暂存区空白错误",
+      "executable": "git",
+      "arguments": ["diff", "--cached", "--check"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-10-staged-whitespace-retry",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-staged",
+      "purpose": "核验暂存区和任务回执",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Staged", "-TaskId", "2026-10-19-layers-m3-rne-bias-clippy-structural-fix"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-11-delivery-staged",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-postcommit",
+      "purpose": "核验提交内容和回执对象",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "PostCommit", "-TaskId", "2026-10-19-layers-m3-rne-bias-clippy-structural-fix"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-12-delivery-postcommit",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-recorded",
+      "purpose": "核验完整提交号登记",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Recorded", "-TaskId", "2026-10-19-layers-m3-rne-bias-clippy-structural-fix"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-13-delivery-recorded",
+      "registered_before_execution": true
+    },
+    {
+      "id": "delivery-final",
+      "purpose": "核验任务关闭后的最终状态",
+      "executable": "pwsh",
+      "arguments": ["-NoProfile", "-File", "scripts/check-normify-delivery.ps1", "-Mode", "Final", "-TaskId", "2026-10-19-layers-m3-rne-bias-clippy-structural-fix"],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rne-bias-clippy-structural-fix/check-14-delivery-final",
+      "registered_before_execution": true
+    }
+  ]
+}

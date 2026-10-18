@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-19-layers-m3-rne-bias-clippy-structural-fix",
+  "base_commit": "d029f4ed5fa0402d637a04cb1aa4d0c5d4159f7b",
+  "source": "src/physics/rne_bias.rs",
+  "scope": "host-only internal input grouping for RneBiasKernel",
+  "claims": [
+    "remove the task-added clippy::too_many_arguments allowance",
+    "add no new Clippy allowance",
+    "preserve the five-pointer plus one-u32 product ABI",
+    "preserve session, metadata, span, alias, ready, and synchronization semantics",
+    "preserve CUDA source and frozen PTX bytes",
+    "run the original all-target Clippy command without an allowance",
+    "do not rerun GPU or product acceptance tests"
+  ],
+  "evidence_generations": {
+    "initial_failure": {
+      "result": "docs/development-evidence/layers-m3-rne-bias/formal-run/runs/clippy-first.run.json",
+      "exit_code": 101,
+      "meaning": "the new too_many_arguments diagnostic was active"
+    },
+    "allow_pass": {
+      "result": "docs/development-evidence/layers-m3-rne-bias/formal-run/runs/clippy-final.run.json",
+      "exit_code": 0,
+      "source_blob": "8692a10a1874e266cb68d940fe4f6a86fabc58b7",
+      "meaning": "the command passed only after adding the allowance"
+    },
+    "structural_pass": {
+      "result": "formal-run/runs/clippy/result.json",
+      "required_exit_code": 0,
+      "allowance_required": false
+    }
+  },
+  "acceptance_boundary": {
+    "gpu_rerun": false,
+    "product_precision_accepted": false,
+    "np01_to_np04_accepted": false,
+    "performance_accepted": false,
+    "linux_or_release_run": false,
+    "historical_failed_blocks": 1042
+  }
+}
