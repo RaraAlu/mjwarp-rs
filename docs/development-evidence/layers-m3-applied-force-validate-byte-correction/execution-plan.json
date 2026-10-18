@@ -1,0 +1,140 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-applied-force-validate-byte-correction",
+  "recorded_at": "2026-10-19T01:19:25+08:00",
+  "base_revision": "25cc639be64b404f80be6edd3e0db178362e03b6",
+  "scope": {
+    "drifted_objects": 24,
+    "manifest_members": 49,
+    "product_tests": "not rerun",
+    "publish_migration_started": false,
+    "history_rewritten": false
+  },
+  "environment": {
+    "platform": "Windows",
+    "shell": "PowerShell",
+    "python": false,
+    "gpu_required": false
+  },
+  "registered_validations": [
+    {
+      "id": "old-commit-detection",
+      "purpose": "证明复用核验步骤对旧提交检出恰好24项",
+      "command": "pwsh -NoProfile -File scripts/check-evidence-blobs.ps1 -Manifest docs/development-evidence/layers-m3-applied-force-validate/formal-run/manifest.json -Map docs/development-evidence/layers-m3-applied-force-validate-byte-correction/source-map.json -Revision 25cc639be64b404f80be6edd3e0db178362e03b6",
+      "expected_exit_code": 1,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/check-01-old-commit"
+    },
+      {
+        "id": "old-commit-detection-retry",
+        "purpose": "修正属性输出拆分后再次证明旧提交检出恰好24项",
+        "command": "pwsh -NoProfile -File scripts/check-evidence-blobs.ps1 -Manifest docs/development-evidence/layers-m3-applied-force-validate/formal-run/manifest.json -Map docs/development-evidence/layers-m3-applied-force-validate-byte-correction/source-map.json -Revision 25cc639be64b404f80be6edd3e0db178362e03b6",
+        "expected_exit_code": 1,
+        "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/check-01b-old-commit-retry"
+      },
+      {
+        "id": "old-commit-detection-final",
+        "purpose": "记录原件摘要并用最终校验器检出旧提交24项",
+        "command": "pwsh -NoProfile -File scripts/check-evidence-blobs.ps1 -Manifest docs/development-evidence/layers-m3-applied-force-validate/formal-run/manifest.json -Map docs/development-evidence/layers-m3-applied-force-validate-byte-correction/source-map.json -Revision 25cc639be64b404f80be6edd3e0db178362e03b6",
+        "expected_exit_code": 1,
+        "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/check-01c-old-commit-final"
+      },
+    {
+      "id": "stage-original-bytes",
+      "purpose": "按现有局部属性重新暂存24份真实原件",
+      "command": "git add --renormalize -- <24 registered evidence paths>",
+      "expected_exit_code": 0,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/check-02-stage"
+    },
+    {
+      "id": "index-verification",
+      "purpose": "直接读取暂存对象并证明49项逐字节一致",
+      "command": "pwsh -NoProfile -File scripts/check-evidence-blobs.ps1 -Manifest docs/development-evidence/layers-m3-applied-force-validate/formal-run/manifest.json -Map docs/development-evidence/layers-m3-applied-force-validate-byte-correction/source-map.json -Revision INDEX",
+      "expected_exit_code": 0,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/check-03-index"
+    },
+      {
+        "id": "index-verification-final",
+        "purpose": "记录原件摘要并用最终校验器证明暂存49项一致",
+        "command": "pwsh -NoProfile -File scripts/check-evidence-blobs.ps1 -Manifest docs/development-evidence/layers-m3-applied-force-validate/formal-run/manifest.json -Map docs/development-evidence/layers-m3-applied-force-validate-byte-correction/source-map.json -Revision INDEX",
+        "expected_exit_code": 0,
+        "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/check-03b-index-final"
+      },
+    {
+      "id": "evidence-consistency",
+      "purpose": "核对纠正JSON、漂移映射及未暂存差异",
+      "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-validate-byte-correction/check-correction.ps1",
+      "expected_exit_code": 0,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/check-04-evidence"
+    },
+      {
+        "id": "evidence-consistency-retry",
+        "purpose": "修正证据目录定位后复验纠正映射及暂存范围",
+        "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-validate-byte-correction/check-correction.ps1",
+        "expected_exit_code": 0,
+        "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/check-04b-evidence-retry"
+      },
+      {
+        "id": "evidence-consistency-final",
+        "purpose": "归档失败及复验日志后最终核对纠正证据",
+        "command": "pwsh -NoProfile -File docs/development-evidence/layers-m3-applied-force-validate-byte-correction/check-correction.ps1",
+        "expected_exit_code": 0,
+        "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/check-04c-evidence-final"
+      },
+    {
+      "id": "delivery-preflight",
+      "purpose": "核对纠正任务可写和前次收尾",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId 2026-10-19-layers-m3-applied-force-validate-byte-correction",
+      "expected_exit_code": 0,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/delivery-01-preflight"
+    },
+    {
+      "id": "cached-diff",
+      "purpose": "核对暂存空白错误",
+      "command": "git diff --cached --check",
+      "expected_exit_code": 0,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/delivery-02-cached-diff"
+    },
+      {
+        "id": "cached-diff-retry",
+        "purpose": "移除三个尾部空行后复验暂存差异",
+        "command": "git diff --cached --check",
+        "expected_exit_code": 0,
+        "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/delivery-02b-cached-diff-retry"
+      },
+    {
+      "id": "delivery-staged",
+      "purpose": "核对纠正回执与暂存对象",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Staged",
+      "expected_exit_code": 0,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/delivery-03-staged"
+    },
+    {
+      "id": "delivery-post-commit",
+      "purpose": "核对真实纠正提交覆盖",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode PostCommit -TaskId 2026-10-19-layers-m3-applied-force-validate-byte-correction",
+      "expected_exit_code": 0,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/delivery-04-post-commit"
+    },
+    {
+      "id": "commit-object-verification",
+      "purpose": "直接读取新提交对象并证明49项逐字节一致",
+      "command": "pwsh -NoProfile -File scripts/check-evidence-blobs.ps1 -Manifest docs/development-evidence/layers-m3-applied-force-validate/formal-run/manifest.json -Map docs/development-evidence/layers-m3-applied-force-validate-byte-correction/source-map.json -Revision <new-full-sha>",
+      "expected_exit_code": 0,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/check-09-commit-object"
+    },
+    {
+      "id": "delivery-recorded",
+      "purpose": "核对完整纠正提交号登记",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Recorded -TaskId 2026-10-19-layers-m3-applied-force-validate-byte-correction",
+      "expected_exit_code": 0,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/delivery-05-recorded"
+    },
+    {
+      "id": "delivery-final",
+      "purpose": "核对关闭后的最终纠正状态",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Final -TaskId 2026-10-19-layers-m3-applied-force-validate-byte-correction",
+      "expected_exit_code": 0,
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-validate-byte-correction/delivery-06-final"
+    }
+  ]
+}
