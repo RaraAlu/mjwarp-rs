@@ -1,0 +1,151 @@
+{
+  "schema": 1,
+  "task": "2026-10-19-layers-m3-applied-force-delta-overflow",
+  "baseline_commit": "95924d1db800864d7f52f12162e50869b4444762",
+  "created_before_any_cargo_check": true,
+  "environment": {
+    "host": "Rara Windows",
+    "shell": "PowerShell",
+    "toolchain": "1.99.0-x86_64-pc-windows-msvc",
+    "gpu_required": false,
+    "gpu_lock": "gpu:windows-t4",
+    "python_allowed": false
+  },
+  "unique_run_directory": {
+    "path": "docs/development-evidence/layers-m3-applied-force-delta-overflow/formal-run",
+    "confirmed_absent_before_creation": true,
+    "reuse_allowed": false
+  },
+  "log_protocol": {
+    "precreate_stdout": true,
+    "precreate_stderr": true,
+    "verify_both_exist_after_run": true,
+    "record_exit_code": true,
+    "record_duration_ms": true,
+    "preserve_failures": true,
+    "post_run_placeholder_forbidden": true
+  },
+  "mcp_actions": [
+    {
+      "tool": "normify_sync",
+      "purpose": "核对源码与架构漂移",
+      "transport": "MCP response",
+      "evidence": "normify-summary.json"
+    },
+    {
+      "tool": "normify_module_refresh",
+      "purpose": "刷新mjwarp.physics.core源码指纹",
+      "transport": "MCP response",
+      "evidence": "normify-summary.json"
+    },
+    {
+      "tool": "normify_validate",
+      "purpose": "核对架构与源码证据",
+      "transport": "MCP response",
+      "evidence": "normify-summary.json"
+    }
+  ],
+  "checks": [
+    {
+      "id": "focused-host",
+      "command": "cargo test --locked --features cuda-probe --lib physics::applied_force::tests::delta_metadata_span_accepts_i32_max_and_rejects_next_nb -- --exact --test-threads=1",
+      "purpose": "动态核对i32元数据跨度边界及精确错误分支；不声称覆盖u64算术溢出",
+      "stdout": "focused-host.stdout.txt",
+      "stderr": "focused-host.stderr.txt",
+      "run_record": "focused-host.run.json"
+    },
+    {
+      "id": "focused-host-retry",
+      "command": "cargo test --locked --features cuda-probe --lib physics::applied_force::tests::delta_metadata_span_accepts_i32_max_and_rejects_next_nb -- --exact --test-threads=1",
+      "purpose": "补入首个超界长度i32::MAX+1断言后复验；保留首轮通过记录但不以首轮替代新增覆盖",
+      "requires_change_after": "focused-host",
+      "stdout": "focused-host-retry.stdout.txt",
+      "stderr": "focused-host-retry.stderr.txt",
+      "run_record": "focused-host-retry.run.json"
+    },
+    {
+      "id": "format",
+      "command": "cargo fmt --all -- --check",
+      "purpose": "检查本切片格式",
+      "stdout": "format.stdout.txt",
+      "stderr": "format.stderr.txt",
+      "run_record": "format.run.json"
+    },
+    {
+      "id": "format-retry",
+      "command": "cargo fmt --all -- --check",
+      "purpose": "在按首轮rustfmt差异调整源码后复验格式",
+      "requires_change_after": "format",
+      "stdout": "format-retry.stdout.txt",
+      "stderr": "format-retry.stderr.txt",
+      "run_record": "format-retry.run.json"
+    },
+    {
+      "id": "clippy",
+      "command": "cargo clippy --locked --features cuda-probe --lib -- -D warnings",
+      "purpose": "检查本切片静态诊断",
+      "stdout": "clippy.stdout.txt",
+      "stderr": "clippy.stderr.txt",
+      "run_record": "clippy.run.json"
+    },
+    {
+      "id": "evidence",
+      "command": "prove metadata bounds; compare normalized CUDA string with HEAD; parse task JSON files; git diff --check",
+      "purpose": "核对静态上界、冻结内核身份、结构化证据与工作树空白错误",
+      "stdout": "evidence.stdout.txt",
+      "stderr": "evidence.stderr.txt",
+      "run_record": "evidence.run.json"
+    },
+    {
+      "id": "evidence-final",
+      "command": "parse all task JSON files; verify every run has both logs; git diff --check",
+      "purpose": "在补齐验收与Normify摘要后复核全部证据",
+      "stdout": "evidence-final.stdout.txt",
+      "stderr": "evidence-final.stderr.txt",
+      "run_record": "evidence-final.run.json"
+    },
+    {
+      "id": "preflight",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Preflight -TaskId 2026-10-19-layers-m3-applied-force-delta-overflow",
+      "purpose": "提交前确认任务范围与前次收尾",
+      "stdout": "preflight.stdout.txt",
+      "stderr": "preflight.stderr.txt",
+      "run_record": "preflight.run.json"
+    },
+    {
+      "id": "archive",
+      "command": "generate formal-run manifest excluding manifest.json; verify every member length and SHA-256",
+      "purpose": "冻结并核对全部原始检查成员",
+      "stdout": "archive.stdout.txt",
+      "stderr": "archive.stderr.txt",
+      "run_record": "archive.run.json"
+    },
+    {
+      "id": "staged",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Staged",
+      "purpose": "核对暂存对象、逐文件回执与git diff --cached --check",
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-applied-force-delta-overflow/delivery"
+    },
+    {
+      "id": "post-commit",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode PostCommit -TaskId 2026-10-19-layers-m3-applied-force-delta-overflow",
+      "purpose": "核对实际提交对象"
+    },
+    {
+      "id": "recorded",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Recorded -TaskId 2026-10-19-layers-m3-applied-force-delta-overflow",
+      "purpose": "核对完整提交号登记"
+    },
+    {
+      "id": "final",
+      "command": "pwsh -NoProfile -File scripts/check-normify-delivery.ps1 -Mode Final -TaskId 2026-10-19-layers-m3-applied-force-delta-overflow",
+      "purpose": "核对关闭后的最终交付状态"
+    }
+  ],
+  "commit_protocol": {
+    "message_file": "target/normify-evidence/2026-10-19-layers-m3-applied-force-delta-overflow/commit-message.txt",
+    "inspect_real_multiline_content": true,
+    "command": "git commit -F target/normify-evidence/2026-10-19-layers-m3-applied-force-delta-overflow/commit-message.txt",
+    "amend_forbidden": true
+  }
+}

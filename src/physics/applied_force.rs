@@ -1112,6 +1112,23 @@ mod tests {
         assert!(applied_force_delta_lengths(&[2, 1, 2, 1]).is_err());
         assert!(applied_force_delta_lengths(&[1, 1, u32::MAX, u32::MAX]).is_err());
     }
+    #[test]
+    #[cfg(feature = "cuda-probe")]
+    fn delta_metadata_span_accepts_i32_max_and_rejects_next_nb() {
+        const MAX_NB: u32 = (i32::MAX as u32 - 9) / 2;
+
+        let accepted = applied_force_delta_lengths(&[MAX_NB, 1, 1, 1]).unwrap();
+        assert_eq!(accepted[0], i32::MAX as u64);
+
+        assert!(matches!(
+            applied_force_delta_lengths(&[MAX_NB, 2, 1, 2]),
+            Err(LauncherError::Overflow("applied_force_delta_metadata"))
+        ));
+        assert!(matches!(
+            applied_force_delta_lengths(&[MAX_NB + 1, 1, 1, 1]),
+            Err(LauncherError::Overflow("applied_force_delta_metadata"))
+        ));
+    }
     #[cfg(feature = "cuda-probe")]
     fn model(nb: usize, n: usize) -> Topology {
         let parent = (0..nb)
