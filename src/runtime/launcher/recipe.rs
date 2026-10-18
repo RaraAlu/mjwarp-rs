@@ -47,7 +47,7 @@ pub enum ArchTarget {
 }
 
 impl ArchTarget {
-    fn flag(self) -> String {
+    pub(super) fn flag(self) -> String {
         match self {
             Self::Compute(sm) => format!("--gpu-architecture=compute_{sm}"),
         }
@@ -134,6 +134,10 @@ impl CompileRecipe {
 
     pub fn gate(&self) -> PrecisionGate {
         self.gate
+    }
+
+    pub fn arch(&self) -> ArchTarget {
+        self.arch
     }
 
     /// NVRTC附加选项；顺序与现行L1路径一致。

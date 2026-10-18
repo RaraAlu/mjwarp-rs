@@ -920,7 +920,7 @@ impl Drop for SynchronousKernel {
 // Warp's f32 sin/cos also call CUDA sinf/cosf. CUDA 12.8's slow integer angle
 // reduction emits this exact s64 -> f64 -> f32 triplet. It does not promote a
 // physical f32 value or accumulator. Reject every other non-f32 operation.
-fn check_physics_ptx(ptx: &str, entry: &'static str) -> Result<(), ProbeError> {
+pub(crate) fn check_physics_ptx(ptx: &str, entry: &'static str) -> Result<(), ProbeError> {
     let lines: Vec<_> = ptx
         .lines()
         .map(|line| line.split_once("//").map_or(line, |(code, _)| code).trim())

@@ -1,11 +1,16 @@
-//! 统一发射器的运行时基础（M1）。
-//! 本模块只描述配方、参数布局与绑定校验。
-//! 它不编译、不加载，也不发射内核。
+//! 统一发射器的运行时基础（M1、M2）。
+//! M1描述配方、参数布局与绑定校验。
+//! M2增加产物缓存与上下文模块缓存。
+//! 本模块仍不发射内核。
 //! 物理调用迁移属于M3；接口尚未冻结。
 //! 设计见`docs/unified-launcher.md`。
 
 mod abi;
 mod alias;
+#[cfg(feature = "cuda-probe")]
+mod artifact;
+#[cfg(feature = "cuda-probe")]
+mod module;
 mod recipe;
 
 pub use abi::{
@@ -13,6 +18,10 @@ pub use abi::{
     LaunchBounds2, LaunchBounds3, ProofKind, SlotDesc, SlotKind, SlotRole, WarpArray, WarpElement,
 };
 pub use alias::{DeviceSpan, SlotBinding, SlotRequirement, rebind_values, validate_bindings};
+#[cfg(feature = "cuda-probe")]
+pub use artifact::{Artifact, ArtifactCache, ArtifactKey, ArtifactStats, HeaderFile, NvrtcSource};
+#[cfg(feature = "cuda-probe")]
+pub use module::{KernelHandle, ModuleCache, ModuleStats};
 pub use recipe::{ArchTarget, CompileRecipe, CppStd, PrecisionGate, RecipePurpose};
 
 /// 发射器基础错误。
@@ -61,6 +70,20 @@ pub enum LauncherError {
     AddressSlotRebind { slot: usize },
     /// 重绑缓冲小于原缓冲。
     RebindShrink { slot: usize },
+    /// 内核来源无效。
+    InvalidSource(&'static str),
+    /// 当前阶段不支持该能力。
+    Unsupported(&'static str),
+    /// NVRTC不可用或编译失败。
+    Compiler(String),
+    /// 产物未通过配方的精度检查。
+    Precision(String),
+    /// 磁盘产物读写、损坏或键不符。
+    Cache { stage: &'static str, detail: String },
+    /// 驱动加载模块或函数失败。
+    Driver(String),
+    /// 模块缓存收到其他上下文。
+    ModuleContext,
 }
 
 impl std::fmt::Display for LauncherError {
@@ -91,6 +114,13 @@ impl std::fmt::Display for LauncherError {
             Self::Alias { first, second } => write!(f, "槽位{first}与{second}违反别名约束"),
             Self::AddressSlotRebind { slot } => write!(f, "槽位{slot}属于地址类，禁止重绑"),
             Self::RebindShrink { slot } => write!(f, "槽位{slot}重绑缓冲小于原缓冲"),
+            Self::InvalidSource(reason) => write!(f, "内核来源无效：{reason}"),
+            Self::Unsupported(reason) => write!(f, "暂不支持：{reason}"),
+            Self::Compiler(detail) => write!(f, "编译失败：{detail}"),
+            Self::Precision(detail) => write!(f, "精度检查失败：{detail}"),
+            Self::Cache { stage, detail } => write!(f, "产物缓存失败：{stage}：{detail}"),
+            Self::Driver(detail) => write!(f, "驱动加载失败：{detail}"),
+            Self::ModuleContext => write!(f, "模块缓存属于其他上下文"),
         }
     }
 }
