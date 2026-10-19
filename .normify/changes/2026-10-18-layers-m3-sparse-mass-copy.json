@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-sparse-mass-copy",
+  "title": {
+    "zh": "M3稀疏质量复制安全包装",
+    "en": "M3 sparse mass copy safe wrapper"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "把sparse_mass_copy唯一产品发射迁入类型化同步包装。保持完整共享元数据、空模型、内核、PTX、f32、调用顺序和发布语义。",
+    "en": "Move the sole sparse_mass_copy product launch behind the typed synchronous wrapper while preserving full shared metadata, the empty model, kernel, PTX, f32, call ordering, and publication semantics."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "只修改src/physics/mass_solve/sparse.rs，并新增专属证据目录和精确交付回执。",
+    "sparse_mass_copy唯一产品launch先经过类型化计划；八槽ABI与固定256线程匹配实际CUDA。",
+    "保留完整packed元数据；copy读取meta[0]和meta[1]，后续update与diag继续共享其余项。",
+    "保留nv、nc和stride全零的空模型；work仍等于worlds，空循环继续合法完成。",
+    "精确校验元数据、矩阵与输出容量和guards；两个只读矩阵槽允许同一对象，输出写槽拒绝重叠。",
+    "校验真实设备对象、会话、代际、地址边界、整数转换和乘加溢出；无地址用途的槽不伪造证明。",
+    "拒绝后不发布ready，修复后恢复；确定性的copy和补零逐位核对；含原子的后续分解沿用2e-4+2e-4*abs(reference)容差与2e-6重构上限。",
+    "保持CUDA源码、PTX、编译选项、f32、容差、fixtures、copy-update-diag顺序和同步完成语义。",
+    "GPU测试使用此前不存在的独立空捕获目录；同一入口在单次目录只编译一次，并保留全部原件。",
+    "全M3清单重新扫描当前源码；保留动态位差、状态3静态边界、NP01至NP04、Linux、Release和性能缺口，并记录T4通道实机。",
+    "正常交付钩子通过；登记完整提交号后依次通过PostCommit、Recorded、关闭和Final核验。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-safe-core-evidence",
+      "2026-10-18-layers-m3-mixed-factor-merge"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/sparse.rs",
+      "docs/development-evidence/layers-m3-sparse-mass-copy",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-sparse-mass-copy.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "实际模块：mjwarp.physics.mass-solve。\n资源锁代表项目T4通道；实际型号为NVIDIA GeForce RTX 4070 Ti SUPER。\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-sparse-mass-copy.json\n父级M3保持proposed。\n两个融合求解缺口保持proposed。\n本任务不得转授或消除它们的证据缺口。\n设计预检：0 error / 0 warning。\n空模型的nv、nc与stride全零仍须合法。\n本轮不运行九批冻结PTX产品比较。\n\n正式验收勘误：\n原第7条全文为“拒绝后不发布ready；修复后恢复，并逐位核对实际复制结果和后续分解结果。”\n原条由本轮normify_change_open执行exec-37046c07-f508-4335-8a2b-972fda633c3d额外扩写。\n它不是父M3第4条的准确转写。\n父M3要求“确定性逐位对比，原子沿用冻结门禁”。\ndocs/unified-launcher.md:972-973给出同一分类。\n本轮复制和补零属于确定性路径，已逐位核对。\n后续分解含原子累加，已沿用2e-4+2e-4*abs(reference)容差与2e-6重构上限。\n本轮未执行完整九批冻结PTX位差记录。\n原第7条在正式勘误前属于not_fully_supported。\nexec-8a59fc2e-fd0e-497d-a21b-34125e3dd0a2曾修改第7条。\nexec-afafcba5-835d-42a8-9021-a059e311a506曾修改第10条。\nexec-1cacc4c6-5c9b-4f21-97e9-3da722fcde88随后恢复第7条原文。\n父对话现已授权正式设计条款勘误。\n本次通过官方change_update修正第7条。\n该勘误不降低用户要求或父M3门禁。\n独立证据为docs/development-evidence/layers-m3-sparse-mass-copy/acceptance-erratum.json。\n\n第10条勘误：\n原条把T4通道列为缺口，沿用了旧设备含义。\n用户定义T4为Rara本机RTX 4070 Ti SUPER通道。\n现按真实硬件记录本机通道实测。\n该通道实测不授予完整NP验收。\ndelivery-commit: bbb77689c3778186f367557adb22aa17f01fe322\n提交 bbb77689c3778186f367557adb22aa17f01fe322 已通过PostCommit与Recorded。sparse_mass_copy类型化包装、空模型、独立捕获和逐成员归档均完成。项目T4通道实机为NVIDIA GeForce RTX 4070 Ti SUPER。正式验收勘误保留原条、过程和授权；确定性复制逐位，原子分解沿用冻结容差。九批冻结PTX产品比较、Linux、Release、NP01至NP04和性能验收未在本切片执行。父M3及两项融合缺口保持开放。",
+  "revision": {
+    "before": null,
+    "after": "bbb77689c3778186f367557adb22aa17f01fe322"
+  },
+  "created_at": "2026-10-18T14:51:48.320Z",
+  "updated_at": "2026-10-18T15:12:36.553Z",
+  "closed_at": "2026-10-18T15:12:36.553Z"
+}

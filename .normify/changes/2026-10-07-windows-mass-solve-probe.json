@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-windows-mass-solve-probe",
+  "title": {
+    "zh": "添加Windows质量矩阵求解探针",
+    "en": "Add Windows mass solve probe"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "复用实际设备矩阵。实现GPU反向LDL与多右端项求解。固定原生参考与失败边界。完整阶段继续计划。",
+    "en": "Reuse validated same-session device mass buffers. Implement bounded GPU reverse LDL and multi-RHS solve, with frozen independent native fixtures, reconstruction/residual evidence and explicit invalid-pivot diagnostics. Keep complete physics contracts planned."
+  },
+  "modules": {
+    "create": [
+      "mjwarp.physics.mass-solve"
+    ],
+    "modify": [
+      "mjwarp",
+      "mjwarp.physics",
+      "mjwarp.physics.core",
+      "mjwarp.physics.mass-matrix",
+      "mjwarp.diagnostics",
+      "mjwarp.runtime.transfer.core",
+      "mjwarp.runtime.transfer.kernel",
+      "mjwarp.io.fields",
+      "mjwarp.runtime.transfer",
+      "mjwarp.runtime"
+    ],
+    "api_add": [
+      {
+        "module": "mjwarp.physics.mass-solve",
+        "key": "rpc:mjwarp_rs::physics::probe_mass_solve"
+      },
+      {
+        "module": "mjwarp.physics.mass-solve",
+        "key": "rpc:mjwarp_rs::physics::MassSolveOutput"
+      },
+      {
+        "module": "mjwarp.physics.mass-solve",
+        "key": "rpc:mjwarp_rs::physics::MassSolveWorld"
+      }
+    ]
+  },
+  "acceptance": [
+    "实现独立GPU分解与多右端项求解，不重新上传质量矩阵，不回退CPU。",
+    "六模型固定原生参考匹配，解析链、重构与残差通过原定容限。",
+    "覆盖零自由度、坏主元、非有限数值、多世界边界及健康会话恢复。",
+    "Windows默认、原生、CUDA与全feature检查通过，调试与发布均有显式GPU证据。",
+    "保留既有193项契约，只激活实际辅助叶子，不声明完整G03或Linux验收。"
+  ],
+  "note": "首轮f32矩阵量化失败。测试专用f64分解确认信息损失。修复采用全内部GPU f64链，容限与参考哈希保持不变。物理结果保持f32，坏主元诊断保留原始f64值。连续字段新增原样f64，严格窄化辅助保持原语义。四组普通测试的调试与发布各通过138/144/155/165项，另各通过6项文档测试。全feature显式调试与发布各通过75项。求解四配置各通过5/5/6/6项，比较1363/1363/1411/1411个原生世界，各另通过3项内核边界。旧物理、原生受限22项与仅驱动传输10项均通过。首轮总回归缺模拟DLL，补齐后重跑通过。修复两项文档链接与旧适配脚本计数。四组clippy、格式、拒绝警告文档构建、19项暂存字节哈希与旧193项API归属均通过。完整G03与Linux继续计划。\n本轮辅助已提交e9173d78ddceccb45c2ceeb2fd5e1563a61b7243。清洁提交全feature发布复验通过6项求解、2项分解边界与1项f64 ABI，比较1411个原生世界。证据位于target/mass-solve-probe/1677a7251631448e8772e4a416fb6400/report.json，workingTreeDirty=false。提交前四配置普通调试/发布138/144/155/165项及各6项文档测试均通过。全feature显式调试与发布各75项通过。四配置求解、旧物理、原生受限与仅驱动传输均通过。容限与参考不变。只激活求解辅助，完整核心与七个产品模块继续计划。完整G03及Linux仍待验收。",
+  "revision": {
+    "before": null,
+    "after": "e9173d78ddceccb45c2ceeb2fd5e1563a61b7243"
+  },
+  "created_at": "2026-10-07T02:26:03.161Z",
+  "updated_at": "2026-10-07T03:03:04.994Z",
+  "closed_at": "2026-10-07T03:03:04.994Z"
+}

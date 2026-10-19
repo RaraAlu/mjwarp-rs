@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-dense-validation",
+  "title": {
+    "zh": "M3稠密校验启动安全迁移",
+    "en": "M3 dense validation launch safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "把sparse_dense_validate启动收敛到受控同步包装，并保持冻结CUDA、零前缀与同步失败语义。",
+    "en": "Move sparse_dense_validate behind a trusted synchronous wrapper while preserving frozen CUDA, zero-prefix behavior, and synchronous failure semantics."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "SparseMassDensePlan::update不再直接调用通用SynchronousKernel::launch执行sparse_dense_validate。",
+    "受控包装固定CUDA源码、sparse_dense_validate入口、256线程布局和参数顺序。",
+    "包装绑定静态nc与prefix、动态worlds、真实设备跨度、精确容量、会话和严格别名。",
+    "sources与unused仅按实际未解引用语义要求非空，不虚构元数据证明，不新增别名豁免。",
+    "保持零prefix、原合法输入、校验先于gather、失败ready失效和同步完成语义。",
+    "保持f32、CUDA源码、PTX、容差、fixtures和sparse_dense_gather调用不变。",
+    "宿主计划、GPU包装和真实SparseMassDensePlan产品测试覆盖容量、错会话、写读重叠及静态维度。",
+    "复用历史Dense模块产物对比源码与PTX，日志记录命令、耗时、设备、整卡显存和规范化边界。",
+    "逐文件交付回执、完整提交号与Normify最终门禁通过，父任务M3保持未完成。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-small-validation"
+    ],
+    "phase": "physics/M3-dense-validation",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/sparse/dense.rs",
+      "docs/development-evidence/layers-m3-dense-validation",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-dense-validation.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 3
+  },
+  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-dense-validation.json\ndelivery-commit: fb152c9d229ad76c8fe3703e5c9d1b1edfb217a3\n父任务2026-10-18-layers-m3保持proposed。\n本切片只迁移sparse_dense_validate调用。\nsparse_dense_gather保持原样。\n交付提交fb152c9d229ad76c8fe3703e5c9d1b1edfb217a3已核验。父任务M3保持未完成。",
+  "revision": {
+    "before": null,
+    "after": "fb152c9d229ad76c8fe3703e5c9d1b1edfb217a3"
+  },
+  "created_at": "2026-10-18T11:42:32.766Z",
+  "updated_at": "2026-10-18T11:51:36.495Z",
+  "closed_at": "2026-10-18T11:51:36.495Z"
+}

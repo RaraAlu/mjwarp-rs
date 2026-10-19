@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-velocity-position-g01-correction",
+  "title": {
+    "zh": "M3速度位置FK变体G01纠正",
+    "en": "M3 velocity-position FK G01 variant correction"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "纠正update_velocity_position在等价计划上使用严格rigid_kinematics变体的偏离。复用计划已编译的1590内核，等价计划预置私有工作区body0，删除2211编译点。保持CUDA源码与PTX不变。",
+    "en": "Correct update_velocity_position using the strict rigid_kinematics variant on equivalent plans. Reuse the plan's compiled kernel from resident.rs:1590, seed body0 of the private workspace for equivalent plans, and remove the resident.rs:2211 compile site while keeping CUDA source and PTX unchanged."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.resident",
+      "mjwarp.physics.fluid-force"
+    ]
+  },
+  "acceptance": [
+    "删除src/physics/resident.rs:2211的rigid_kinematics编译点；update_velocity_position改用计划已有rigid_kernel，不新增编译。",
+    "VelocityPositionKernels只保留com内核；rigid_com_position编译点与发射保持原样。",
+    "KINEMATICS_CUDA、FIELD_BATCH_CUDA与1588前缀字节不变；plain、mocap、mocap+G01三种PTX逐字节等于基线捕获。",
+    "等价计划发射前把data.rigid整段设备复制到私有rigid工作区，使body0等于当前导入或初始化的世界位姿；内核覆盖其余FK槽位；非等价路径不复制。",
+    "修复前先登记并运行复现：等价计划经update_velocity_position在零四元数输入下私有FK与update_rigid结果不一致；复现在常驻模块单元层执行，PassiveForcePlan::with_fluid_force可达链只做源码核对。",
+    "定向输入复用正零、负零、1e-30下溢与单位四元数，覆盖自由、球、mocap与末次归一化。",
+    "修复后私有FK七项字段与同输入update_rigid结果逐位一致，含非单位导入世界位姿；流体、被动力与常驻速度GPU回归通过。",
+    "非等价计划回归逐位不变：resident_com_velocity、ComVelocityPlan与passive_force流体GPU测试通过。",
+    "G01回归通过：tests/g01.rs与resident_kinematics相关GPU测试，不放宽任何容差。",
+    "生成新清单且不覆盖旧文件：rigid_kinematics编译点由3处变为2处；未迁移入口仍为56种；2250发射仍记为unmigrated_raw。",
+    "GPU测试使用本机RTX 4070 Ti SUPER，并核对gpu:windows-t4资源准入；每次NVRTC编译使用独立空捕获目录。",
+    "fmt、clippy默认与cuda-probe均通过；不新增Clippy豁免。",
+    "保留1042项历史超差；不宣称NP01至NP04、性能、Linux、release或完整M3验收。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-rigid-mass-matrix"
+    ],
+    "phase": "physics/M3",
+    "owner": "Claude",
+    "files": [
+      "src/physics/resident.rs",
+      "src/physics/com_velocity.rs",
+      "tests/g01.rs",
+      "docs/development-evidence/layers-m3-velocity-position-g01-correction",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-velocity-position-g01-correction.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "base-commit: f40a78af3947142bb31d587d097e42312594edf3\ninventory-baseline: docs/development-evidence/layers-m3-rigid-mass-matrix/unmigrated-launch-inventory.json\n来源：rigid_kinematics拆分调研发现2211变体忽略equivalent。\n可达链：for_g01 → FlexEdgePassivePlan::new → PassiveForcePlan::with_fluid_force → FluidForcePlan::from_resident → ResidentComVelocityPlan::new → compile_velocity_position。\nG01写入只查有限性，接受零四元数。\n冻结上游零范数返回[0,0,0,1]槽位，见docs/t4-zero-quaternion.md。\n严格变体对零范数得NaN。非零输入结果相同。\n仓库内暂无G01加流体的调用或测试。\n本任务先于rigid_kinematics的T2与T3。\n修复后2309与2250共用同一内核，T2可同时覆盖两处。\nT4指本机RTX 4070 Ti SUPER。\n用户于2026-10-19同意登记本纠正任务。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-velocity-position-g01-correction.json\n2026-10-19执行：本会话经SSH调用Normify服务。用户授权本任务全程写入。\n实施前改写验收第4、5、7条：\nG01导入world_pose会写body0，改为复制data.rigid而非预置单位位姿。\n复现在常驻模块单元层执行；流体可达链只做源码核对。\n完整提交：5a1593ba1e7f45d3275c895df1e79e7ff57a8781。\nPostCommit通过，回执覆盖179项文件。\n修复前504槽中280个不一致；修复后0个，导入位姿一致。\nplain、mocap、mocap+G01三种PTX与基线一致。\nfmt、两种clippy、宿主14项、集成16项、G01 7项通过。\n单元GPU回归27项通过、1项失败。\n失败项flex_face溢出测试在基线f40a78a同样失败，为既有失败。\n基线复验经四次环境修正，失败日志全部保留。\n清单：编译点89处；rigid_kinematics剩两处；未迁移56种、71处。\n未端到端运行G01流体路径。NP01至NP04未验收。\nrelease与Linux未运行。显存未记录。保留1042项历史超差。",
+  "revision": {
+    "before": null,
+    "after": "5a1593ba1e7f45d3275c895df1e79e7ff57a8781"
+  },
+  "created_at": "2026-10-19T00:45:30.116Z",
+  "updated_at": "2026-10-19T01:10:44.836Z",
+  "closed_at": "2026-10-19T01:10:44.836Z"
+}

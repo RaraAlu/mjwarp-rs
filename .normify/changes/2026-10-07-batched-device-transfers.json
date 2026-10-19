@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-batched-device-transfers",
+  "title": {
+    "zh": "打通批量GPU字段交换",
+    "en": "Implement batched device transfers"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "继续Windows基础开发。\n打通类型化GPU上传与回读。\n验证指定世界写入与设备复制。\n不冻结模型ABI或正式内核路线。",
+    "en": "Implement a real synchronous typed GPU field transfer loop for future model/state exchange, without Python, CPU fallback, production Model/Data claims or backend/ABI freeze."
+  },
+  "modules": {
+    "create": [
+      "mjwarp.runtime.transfer"
+    ],
+    "modify": [
+      "mjwarp",
+      "mjwarp.runtime",
+      "mjwarp.runtime.driver",
+      "mjwarp.io",
+      "mjwarp.diagnostics",
+      "mjwarp.runtime.tooling"
+    ]
+  },
+  "acceptance": [
+    "TransferSession通过真实NVIDIA驱动创建，缺feature/驱动/设备明确报错；默认工具链和Cargo依赖不变。",
+    "f32、i32、u32类型化缓冲支持上传、范围回读、范围写入和设备复制；边界与字节溢出先校验，空范围合法，不导出裸指针。",
+    "缓冲保留实际会话与所有者。同步接口等待完成；不同会话拒绝设备复制。后端失败隔离会话，输入错误不隔离。回读先使用暂存，失败不修改调用方目标。",
+    "DeviceBatch按BatchLayout提供全量回读和指定世界读写/复制；f64严格转换复用既有辅助，不替代Model、Data或put_data。测试验证其他世界不变与失败边界。",
+    "Windows宿主与真实GPU测试通过，含三种dtype、1及多世界、空字段、所有者移交、线程移交及无效设备。格式、隔离特性clippy、全特性rustdoc通过。",
+    "刷新真实源码证据、同步与全量校验，保持零错误零警告。所有产品节点保持planned；文档及智能提交记录真实验证，不宣称Linux、物理或清洁部署验收。"
+  ],
+  "note": "首次close(activate:false)因create叶子仍planned拒绝。新增transfer只登记三个已实现同步辅助，不含生产设备、异步队列或图契约。按真实Windows证据单独激活该叶子；其余15节点继续planned。该激活不代表生产ABI、GPU路线、Linux、物理、渲染或清洁部署验收。验收标准仍保持不变。源码主提交87c8e75d77bbe9177711c02244714409496a9e62。\nWindows同步字段交换已验证。支持f32、i32与u32。宿主默认99、隔离C++/LLVM各115、全特性调试/发行各116项通过；各另过2项文档测试。全特性GPU调试/发行各26项通过，零失败与零忽略。GNU隔离CUDA与仅驱动MSVC子进程各过新增10项。受限子进程确认NVRTC不可见，退出码零。fmt、五种特性clippy、rustdoc、PowerShell语法、50项本地链接与Git差异检查通过。原141契约与25项运行时映射全部保留，170项契约、28项运行时映射各登记一次。首次close因create叶子仍planned拒绝。transfer只含三个已实现同步辅助，按真实Windows证据单独激活；其余15节点继续planned。正式API与GPU路线仍未冻结。未知完成策略采用宿主模拟，真实GPU故障不注入，可能保留宿主暂存与显存且不提供恢复。无CPU回退、无Python、新增依赖与默认工具链均不变。完整Model/Data、原生模型ABI、物理、渲染、异步/图整合、Linux与清洁机器验收仍未完成。源码主提交87c8e75d77bbe9177711c02244714409496a9e62；状态文档后续提交记录实际收尾。",
+  "revision": {
+    "before": null,
+    "after": "4ab1e3b28f8ee22b184a9c9366d3b4f90ba64885"
+  },
+  "created_at": "2026-10-06T22:25:29.932Z",
+  "updated_at": "2026-10-06T22:40:29.636Z",
+  "closed_at": "2026-10-06T22:40:29.636Z"
+}

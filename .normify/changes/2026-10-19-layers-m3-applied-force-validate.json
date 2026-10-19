@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-applied-force-validate",
+  "title": {
+    "zh": "M3外力验证安全迁移",
+    "en": "M3 applied force validate safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅把applied_force_validate迁移到独立类型化同步包装。保留delta既有包装和publish原始发射，保持GPU验证器的非法映射、守卫与非有限值检查。",
+    "en": "Migrate only applied_force_validate to an independent typed synchronous wrapper while preserving the existing delta wrapper, the raw publish launch, and the GPU validator's mapping, guard, and non-finite checks."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "仅迁移applied_force_validate；applied_force_delta保持既有类型化包装，applied_force_publish保持原始发射。",
+    "验证包装使用独立work==worlds契约和独立元数据证明类型，不复用delta的worlds*n==work契约。",
+    "类型化计划核对八项ABI、固定256线程、参数顺序、四缓冲跨度、容量、会话、别名与元数据证明。",
+    "宿主证明只核对静态元数据与发射安全；GPU仍实际检查设备元数据映射、前后守卫以及geometry和ft的非有限值。",
+    "故障证据覆盖容量、错会话、别名、陈旧证明、工作量不匹配、可达跨度边界、非法映射、非有限值、失败不发布及同计划恢复；静态不可达分支单列证明。",
+    "本机RTX 4070 Ti SUPER正式测试保存真实输出、退出码、耗时及唯一空捕获目录；每个入口只编译一次。",
+    "逐字节保持CUDA源码、冻结PTX、fixtures、容差及原数值门禁不变；保留旧报告路径失败、重力位差和原日志限制。",
+    "完成执行计划、逐文件blob回执、提交、PostCommit、完整SHA登记、Recorded、关闭与Final核验；不宣称U075或NP完成。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-applied-force-delta",
+      "2026-10-19-layers-m3-applied-force-delta-overflow"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/applied_force.rs",
+      "docs/development-evidence/layers-m3-applied-force-validate",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-applied-force-validate.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "父任务：2026-10-18-layers-m3。\n基线提交：485009ddaaf4b08e1e811e2fa60b8aea51aefee0。\n本机T4为RTX 4070 Ti SUPER。\n仅迁移applied_force_validate。\ndelta保持既有类型化包装。\npublish保持原始发射。\nvalidate使用work==worlds。\n不得复用delta维度契约。\nGPU验证覆盖不得被宿主证明静默删除。\n旧历史与证据限制保持原样。\n禁止Python。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-applied-force-validate.json\n提交：25cc639be64b404f80be6edd3e0db178362e03b6\n仅完成applied_force_validate类型化迁移。宿主与本机RTX 4070 Ti SUPER定向验证通过。CUDA、PTX、夹具及容差保持不变。applied_force_publish仍为原始发射。未运行release与Linux。显存占用仍未知。U075与NP01至NP04仍未验收。完整提交：25cc639be64b404f80be6edd3e0db178362e03b6。",
+  "revision": {
+    "before": null,
+    "after": "25cc639be64b404f80be6edd3e0db178362e03b6"
+  },
+  "created_at": "2026-10-18T16:58:38.963Z",
+  "updated_at": "2026-10-18T17:13:51.437Z",
+  "closed_at": "2026-10-18T17:13:51.437Z"
+}

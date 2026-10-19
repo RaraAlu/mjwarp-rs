@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-rigid-mass-solve",
+  "title": {
+    "zh": "M3刚体质量求解入口迁移",
+    "en": "M3 rigid mass solve migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅迁移rigid_mass_solve私有入口。用安全包装绑定真实ABI、分块元数据、精确跨度、会话和别名。保持冻结内核与浮点顺序不变。",
+    "en": "Migrate only the private rigid_mass_solve entry through a safe wrapper that binds the real ABI, block metadata, exact spans, session, and aliasing while preserving the frozen kernel and floating-point order."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "只迁移src/physics/mass_solve.rs中的rigid_mass_solve入口，不启动其他入口。",
+    "保持MASS_SOLVE_CUDA与冻结PTX字节不变，不改变算法、浮点顺序、FMA、容差或覆盖。",
+    "真实ABI保持四个指针和四个u32标量，顺序为blocks、rhs、state、output、nb、n、nr、nw。",
+    "第三个指针保持质量矩阵state；status继续位于output内部，不虚构独立status指针。",
+    "blocks按i32表验证数量、连续区间、正长度、合法kind、索引范围和完整覆盖。",
+    "保留size=2的ReverseLdl合法辅助调用，不把默认分流阈值误作底层安全边界。",
+    "精确核对metadata、RHS、质量矩阵state和output跨度；零DOF继续使用真实单元素RHS占位。",
+    "output声明ReadWrite，因为内核读取因子与解的中间量并写入status与结果。",
+    "每线程仍只处理一个世界；工作量、网格和全部乘加执行溢出检查。",
+    "预检绑定会话与别名；任一拒绝都先于内核写入并保持现有输出字节不变。",
+    "任一世界错误继续阻止整个结果发布；该入口不引入ready状态。",
+    "故障覆盖容量、算术溢出、错会话、别名、失效元数据和非法块索引。",
+    "故障后同一计划可恢复，且真实错误状态仍按现有InvalidPivot与NonFinite语义返回。",
+    "图形测试覆盖单维倒数、六维小Cholesky、七维tile Cholesky和大于64维ReverseLdl。",
+    "图形测试使用本机RTX 4070 Ti SUPER，并核对gpu:windows-t4资源准入。",
+    "每次NVRTC编译使用独立空捕获目录，不覆盖同名PTX。",
+    "全部验证事前登记唯一目录、有效非零filter、结构化命令、独立双日志、退出码、耗时和空捕获状态。",
+    "以rne-backward/unmigrated-launch-inventory-v2.json为基线，生成新版本清单且不覆盖旧文件。",
+    "首次生成产物立即登记摘要；原件、归档、索引和最终Git逐字节核对。",
+    "不新增Clippy豁免；保留1042项历史超差；不宣称NP01至NP04、性能、Linux、release或完整M3验收。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-rne-backward"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve.rs",
+      "docs/development-evidence/layers-m3-rigid-mass-solve",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-rigid-mass-solve.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "base-commit: a2d057618d2884234e9b6779e619cce5abfc2adc\ninventory-baseline: docs/development-evidence/layers-m3-rne-backward/unmigrated-launch-inventory-v2.json\n本任务只迁移rigid_mass_solve。\nT4指本机RTX 4070 Ti SUPER。\n锁名不充当设备证明。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-rigid-mass-solve.json\n2026-10-19收尾：本会话经SSH调用Normify服务。\n完整提交：5c05a22b2942b461e8bc8255b0db096a156f3097。\nPostCommit通过，回执覆盖1574项文件。\nrigid_mass_solve已类型化。\n本机RTX 4070 Ti SUPER包装路径1项通过，257世界。\nfmt与cuda-probe全目标clippy通过。\n正式证据核验343项通过。\n清单v5：未迁移入口57种，底层调用点72处。\n保留1042项历史超差。\nrelease与Linux未运行。显存未记录。\nNP01至NP04未验收。",
+  "revision": {
+    "before": null,
+    "after": "5c05a22b2942b461e8bc8255b0db096a156f3097"
+  },
+  "created_at": "2026-10-18T21:37:53.304Z",
+  "updated_at": "2026-10-18T23:57:02.799Z",
+  "closed_at": "2026-10-18T23:57:02.799Z"
+}

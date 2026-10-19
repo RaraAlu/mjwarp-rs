@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-mixed-solve-validation",
+  "title": {
+    "zh": "M3混合求解校验安全迁移",
+    "en": "M3 mixed solve validation safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅迁移mixed_solve_validate至类型化同步包装。证明其元数据索引、精确容量、写入代际、会话、别名、溢出、同步和发布状态，同时保持mixed_solve_fused、launch_mixed_solve、CUDA、PTX、编译选项、容差、夹具与执行顺序不变。",
+    "en": "Migrate only mixed_solve_validate to the typed synchronous wrapper, proving metadata indices, exact capacities, write revision, session, alias, overflow, synchronization and publication state while preserving mixed_solve_fused, launch_mixed_solve, CUDA, PTX, compiler options, tolerances, fixtures and execution order."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "仅修改solve.rs及其模块内测试、专属证据目录、静态未迁移清单和精确交付回执。",
+    "mixed_solve_validate使用类型化同步包装；mixed_solve_fused与launch_mixed_solve保持现状。",
+    "元数据证明绑定真实设备跨度、宿主快照和写入代际，并证明diag与D区域索引均落在factor跨度内。",
+    "元数据、RHS、factor与status容量按实际布局精确核对，不接受缩短或加长缓冲。",
+    "包装拒绝usize到u32转换、u32工作量、u64容量及256线程网格溢出。",
+    "包装联合检查设备会话和输出别名，并保留返回前同步完成语义。",
+    "factor故障清除factor与solve发布；RHS故障仅阻止solve发布；恢复后保持原数值行为。",
+    "CUDA、PTX、编译选项、容差、夹具及上传、编译、校验、状态读取、求解和发布顺序保持不变。",
+    "只运行实质影响所需最小测试，并记录命令、退出码、耗时、失败、修正和复验原因。",
+    "静态清单区分内核入口种类与产品调用位置，逐项标明当前符号、迁移证据、未迁移与不确定项。",
+    "原始捕获写入target专属目录；提交原样归档和逐成员散列，不新增本地忽略规则。",
+    "提交回执逐文件绑定暂存Git对象，完整SHA登记后完成关闭与最终核验。",
+    "保留合法重算位差、NP01至NP04未验收、非T4设备及M3整体未完成边界。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-resident-mixed-gather",
+      "2026-10-18-layers-m3-safe-core-evidence"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/sparse/mixed/solve.rs",
+      "docs/development-evidence/layers-m3-mixed-solve-validation",
+      "docs/development-evidence/layers-m3-mixed-solve-validation/unmigrated-launch-inventory.json",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-mixed-solve-validation.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-mixed-solve-validation.json\n仅迁移mixed_solve_validate。\n不改mixed_solve_fused或launch_mixed_solve。\n静态清单：docs/development-evidence/layers-m3-mixed-solve-validation/unmigrated-launch-inventory.json\n原始捕获：target/development-evidence/2026-10-18-layers-m3-mixed-solve-validation/capture-raw\n统一使用gpu:windows-t4。\n锁名不是T4设备证明。\n不新增.git/info/exclude规则。\n保留父M3四条验收和既有前置。\ncommit: a993cb1fef397a49e222d41b880231e555257966",
+  "revision": {
+    "before": null,
+    "after": "a993cb1fef397a49e222d41b880231e555257966"
+  },
+  "created_at": "2026-10-18T13:21:38.378Z",
+  "updated_at": "2026-10-18T13:45:07.394Z",
+  "closed_at": "2026-10-18T13:45:07.394Z"
+}

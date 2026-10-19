@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-flex-face-strict-bit-gate",
+  "title": {
+    "zh": "柔体面严格逐位门禁复验",
+    "en": "Flex face strict bitwise gate retest"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "97a7b54记录的2078项面位差属FIX_M旧源码，此后三轴末项改为FUSED_M但未实测。静态对照当前产品与冻结上游SASS定位剩余差异，给face_polar测试加逐位零差断言并复验；同步因子诊断掩码10与测试复测规则。不改产品内核。",
+    "en": "The 2078 face bit differences recorded at 97a7b54 belong to the old FIX_M source; FUSED_M was never measured. Statically compare current product SASS with frozen upstream SASS, add a strict zero-bit assertion to the face_polar test and retest; align factorial mask 10 and the retest rule. Product kernel unchanged."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.flex-face"
+    ]
+  },
+  "acceptance": [
+    "FLEX_FACE_CUDA与全部src源码不变；只改两份测试支撑、AGENTS.md复测规则与面相关文档。",
+    "离线ptxas上游面入口与驱动加载件逐条一致；当前产品一轮迭代SASS与上游符号合一；旧FIX_M阴性对照只在三处末项失配。",
+    "compares_face_polar_with_actual_upstream_artifact新增逐位零差断言，原容差断言保持；本机1033664项比较位置与四元数位差均为零。",
+    "因子诊断掩码10改跟FUSED_M并复测通过，修复产品零位差。",
+    "physics::resident::GPU单元测试全部通过；fmt与两种clippy通过；不新增豁免，不放宽容差。",
+    "如实记录run-01过滤器多选两项诊断及t4_input_precision七项既有源码漂移失败。",
+    "不宣称NP01至NP04、性能、Linux或release验收；三角大角路径未作机器码符号核对。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-flex-face-overflow-upstream-fallback"
+    ],
+    "phase": "physics/M3",
+    "owner": "Claude",
+    "files": [
+      "AGENTS.md",
+      "docs/README.md",
+      "docs/numerical-precision-contract.md",
+      "docs/t4-field-internal.md",
+      "tests/support/t4_face_operators.rs",
+      "tests/support/t4_zero_quaternion.rs",
+      "docs/development-evidence/flex-face-strict-bit-gate",
+      "docs/development-evidence/changes/2026-10-19-flex-face-strict-bit-gate.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "base-commit: 79d449407e05080214fbc6b369c17970744f4b99\n来源：上一任务保留的2078项面位差。\nT4指本机RTX 4070 Ti SUPER。\n用户于2026-10-19批准一次严格门禁复验，并明确上限只防滥用、不拦截修复后复测。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-flex-face-strict-bit-gate.json\n完整提交：129d14dae66db600e4c45a129a13e9e6bb7cb956。\nPostCommit通过，回执覆盖24项文件。\n产品内核不变；2078项属FIX_M旧源码。\n当前SASS与上游符号合一；FIX_M阴性对照只差三处末项。\n严格门禁1033664项零位差；因子复测五配置掩码10零位差。\nresident含忽略项31过；fmt与两种clippy通过。\nrun-01过滤器多选两项诊断；t4_input_precision七项既有漂移失败未变。\n未跑完整GPU回归、Linux与release。NP01至NP04未验收。显存未记录。",
+  "revision": {
+    "before": null,
+    "after": "129d14dae66db600e4c45a129a13e9e6bb7cb956"
+  },
+  "created_at": "2026-10-19T04:46:00.764Z",
+  "updated_at": "2026-10-19T04:58:41.882Z",
+  "closed_at": "2026-10-19T04:58:41.882Z"
+}

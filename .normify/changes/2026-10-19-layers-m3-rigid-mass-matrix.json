@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-rigid-mass-matrix",
+  "title": {
+    "zh": "M3刚体质量矩阵入口迁移",
+    "en": "M3 rigid mass matrix migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅迁移rigid_mass_matrix私有入口。用安全包装绑定真实ABI、拓扑元数据、精确跨度、会话和别名。保持冻结内核与浮点顺序不变。",
+    "en": "Migrate only the private rigid_mass_matrix entry through a safe wrapper that binds the real ABI, topology metadata, exact spans, session, and aliasing while preserving the frozen kernel and floating-point order."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-matrix"
+    ]
+  },
+  "acceptance": [
+    "只迁移src/physics/mass_matrix.rs中的rigid_mass_matrix产品入口，不启动其他入口。",
+    "保持MASS_MATRIX_CUDA源码字节不变，不改变算法、浮点顺序、armature加法、容差或覆盖。",
+    "真实ABI保持四个指针和四个u32标量，顺序为meta、armature、state、output、nb、nv、unused、nw。",
+    "unused标量必须为零；不虚构额外指针或ready状态。",
+    "元数据按i32表验证长度nb+2*nv、body_parentid前序、dof_bodyid范围与dof_parentid前序或-1。",
+    "精确核对元数据、armature、质心state与output跨度；零DOF继续使用真实单元素armature占位。",
+    "state与armature声明Read；output声明ReadWrite，因为内核回读已写复合惯量；可写槽与其他槽重叠即拒绝。",
+    "每线程仍只处理一个世界；工作量、网格和全部乘加执行溢出检查。",
+    "预检绑定会话与元数据代际；任一拒绝都先于内核写入并保持现有输出字节不变。",
+    "故障覆盖容量、算术溢出、错会话、别名、失效元数据和非法拓扑索引。",
+    "故障后同一计划可恢复；类型路径与原始发射在同一输入上逐位一致。",
+    "GPU测试使用本机RTX 4070 Ti SUPER，并核对gpu:windows-t4资源准入。",
+    "每次NVRTC编译使用独立空捕获目录，原始与类型路径PTX逐字节一致。",
+    "以rigid-mass-solve/unmigrated-launch-inventory-v5.json为基线，生成新清单且不覆盖旧文件。",
+    "不新增Clippy豁免；保留1042项历史超差；不宣称NP01至NP04、性能、Linux、release或完整M3验收。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-rigid-mass-solve"
+    ],
+    "phase": "physics/M3",
+    "owner": "Claude",
+    "files": [
+      "src/physics/mass_matrix.rs",
+      "docs/development-evidence/layers-m3-rigid-mass-matrix",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-rigid-mass-matrix.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "base-commit: 5c05a22b2942b461e8bc8255b0db096a156f3097\ninventory-baseline: docs/development-evidence/layers-m3-rigid-mass-solve/unmigrated-launch-inventory-v5.json\n本任务只迁移rigid_mass_matrix。\n清单候选rigid_kinematics含三处变体编译点，另行拆分。\nT4指本机RTX 4070 Ti SUPER。\n锁名不充当设备证明。\n用户于2026-10-19授权本任务全程Normify写入。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-rigid-mass-matrix.json\n2026-10-19执行：本会话经SSH调用Normify服务。\n验收第7条改为output读写访问。\n完整提交：f40a78af3947142bb31d587d097e42312594edf3。\nPostCommit通过，回执覆盖98项文件。\nrigid_mass_matrix已类型化。\n257世界、零DOF与产品模型逐位一致。\n四次PTX捕获等于历史f695b0e8。\nfmt、宿主14项与两种clippy通过。\n质量GPU回归首轮2项缺报告路径失败。\n补齐路径后2项通过，共43项。\n清单：未迁移入口56种，底层调用点71处。\n保留1042项历史超差。\nrelease与Linux未运行。显存未记录。\nNP01至NP04未验收。",
+  "revision": {
+    "before": null,
+    "after": "f40a78af3947142bb31d587d097e42312594edf3"
+  },
+  "created_at": "2026-10-19T00:01:07.748Z",
+  "updated_at": "2026-10-19T00:14:21.497Z",
+  "closed_at": "2026-10-19T00:14:21.497Z"
+}

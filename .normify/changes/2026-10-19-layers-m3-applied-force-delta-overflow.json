@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-applied-force-delta-overflow",
+  "title": {
+    "zh": "M3外力增量跨度边界补证",
+    "en": "M3 applied force delta span boundary evidence"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "关联已关闭外力增量切片及提交95924d1，精确区分元数据i32表示上限、体索引越界、工作量上限和不可达的u64算术溢出。仅补专门边界断言与静态上界证明，不迁移validate或publish。",
+    "en": "Link the closed applied-force delta slice and commit 95924d1, distinguish the metadata i32 representation bound from body-index faults, work limits, and unreachable u64 arithmetic overflow, and add only focused boundary evidence without migrating validate or publish."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "明确关联2026-10-19-layers-m3-applied-force-delta及完整提交95924d1db800864d7f52f12162e50869b4444762，不修改其关闭状态、验收或历史证据。",
+    "逐项证明元数据公式2*nb+n+8的可达输入域，并区分i32表示上限拒绝、体索引越界、工作量上限与u64算术溢出。",
+    "新增专门边界断言：元数据长度恰等于i32::MAX时通过，加一后精确返回applied_force_delta_metadata溢出错误，且不会先命中其他维度拒绝。",
+    "若u64算术溢出在u32输入域不可达，保存可核验静态上界证明；不得把静态证明称为动态测试。",
+    "不迁移applied_force_validate或applied_force_publish，不改冻结CUDA、PTX、fixture、容差或物理逻辑。",
+    "所有新检查先登记执行计划，并使用预创建的独立stdout与stderr、唯一目录、退出码、耗时和归档核对。",
+    "完成逐文件blob回执、提交、PostCommit、完整SHA登记、Recorded、关闭与Final核验；父M3只按真实证据解除本缺口。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-applied-force-delta"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/applied_force.rs",
+      "docs/development-evidence/layers-m3-applied-force-delta-overflow",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-applied-force-delta-overflow.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "父任务：2026-10-18-layers-m3。\n原任务：2026-10-19-layers-m3-applied-force-delta。\n原提交：95924d1db800864d7f52f12162e50869b4444762。\n本任务提交：485009ddaaf4b08e1e811e2fa60b8aea51aefee0。\nPostCommit已通过。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-applied-force-delta-overflow.json\nspan-proof: docs/development-evidence/layers-m3-applied-force-delta-overflow/span-bound-proof.json\nvalidation-summary: docs/development-evidence/layers-m3-applied-force-delta-overflow/validation-summary.json\ni32::MAX元数据长度动态通过。\ni32::MAX+1精确返回元数据Overflow。\n下一刚体数产生i32::MAX+2并精确拒绝。\nu32输入域最大元数据表达式为12884901893。\n该值小于u64::MAX。\nu64算术溢出仅有静态不可达证明。\n本任务不声称动态覆盖u64溢出。\n体索引与工作量上限未冒充该证据。\n仅新增宿主边界测试。\n未迁移validate或publish。\n未改CUDA、PTX、fixture或容差。\n不追认原任务的预登记与分流日志缺口。\n不追认事后stderr占位或设备事后快照。\n正式复验1项通过。\n格式首轮失败后按差异修正。\n格式复验通过。\nClippy通过。\n未运行GPU、Linux或Release。\n父M3仅可解除本边界缺口。\n父M3其余门禁保持未完成。\n未启动validate候选。\n完整提交485009ddaaf4b08e1e811e2fa60b8aea51aefee0。动态断言覆盖i32::MAX接受、i32::MAX+1首个超界和下一刚体数产生的i32::MAX+2。两类超界均精确返回applied_force_delta_metadata错误。静态证明u32输入域内的元数据u64算术溢出不可达；本任务不声称其动态覆盖。仅新增宿主测试。未改物理逻辑、CUDA、PTX、fixture或容差。未迁移validate或publish。原任务已关闭状态、验收、预登记和分流日志缺口、事后stderr占位及设备事后快照均保持。未运行GPU、Linux或Release。父M3仅可解除该元数据跨度证据缺口，其余门禁保持未完成。未启动validate候选。",
+  "revision": {
+    "before": null,
+    "after": "485009ddaaf4b08e1e811e2fa60b8aea51aefee0"
+  },
+  "created_at": "2026-10-18T16:46:21.440Z",
+  "updated_at": "2026-10-18T16:54:35.666Z",
+  "closed_at": "2026-10-18T16:54:35.666Z"
+}

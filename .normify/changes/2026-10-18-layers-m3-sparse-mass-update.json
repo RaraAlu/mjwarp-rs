@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-sparse-mass-update",
+  "title": {
+    "zh": "M3稀疏质量更新安全包装",
+    "en": "M3 sparse mass update safe wrapper"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "把sparse_mass_update唯一产品发射迁入类型化同步包装。保持完整共享元数据、真实层级调度、原子重叠语义、内核、PTX、f32、调用顺序和发布语义。",
+    "en": "Move the sole sparse_mass_update product launch behind the typed synchronous wrapper while preserving full shared metadata, real level scheduling, atomic overlap semantics, kernel, PTX, f32, call ordering, and publication semantics."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "只修改src/physics/mass_solve/sparse.rs，并新增专属证据目录和精确交付回执。",
+    "sparse_mass_update唯一产品launch先经过类型化计划；八槽ABI与固定256线程匹配实际CUDA。",
+    "完整packed元数据精确保留nv、nc、rownnz、rowadr和update三元组；零更新占位不得成为实际update。",
+    "更新只接受SparseMassInput生成的真实非空层级切片；同层k和ki保持唯一，原子目标允许合法共享祖先。",
+    "精确校验元数据、两个未读取槽、输出容量和guards；两个只读槽允许同一对象，输出写槽拒绝重叠。",
+    "校验真实设备对象、会话、代际、地址边界、first、count、stride、work及全部整数溢出。",
+    "保持copy后按逆层级update、随后diag的顺序；拒绝后不发布ready，修复后可恢复。",
+    "原子更新和完整分解沿用2e-4+2e-4*abs(reference)容差与2e-6重构上限；不把原子路径扩写为逐位门禁。",
+    "保持CUDA源码、PTX、编译选项、f32、容差和fixtures不变；同步完成语义不变。",
+    "GPU测试使用此前不存在的独立空捕获目录；同一入口在单次目录只编译一次，并保留全部原件。",
+    "全M3清单重新扫描当前源码；保留动态位差、状态3静态边界、NP01至NP04、Linux、Release、性能及两项融合缺口。",
+    "正常交付钩子通过；登记完整提交号后依次通过PostCommit、Recorded、关闭和Final核验。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-safe-core-evidence",
+      "2026-10-18-layers-m3-sparse-mass-copy"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/sparse.rs",
+      "docs/development-evidence/layers-m3-sparse-mass-update",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-sparse-mass-update.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "实际模块：mjwarp.physics.mass-solve。\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-sparse-mass-update.json\n设计预检：0 error / 0 warning。\n资源锁代表项目T4通道。\n实际型号为NVIDIA GeForce RTX 4070 Ti SUPER。\n本机通道证据不得转授完整T4或NP验收。\n父级2026-10-18-layers-m3保持proposed。\n两项融合求解缺口保持proposed。\n本任务不得转授或消除它们。\n停止边界：完成当前M3全部原验收、必要依赖、开放缺口及正常交付后立即停止。\n禁止推进M4、A1或资产转换M03。\n本切片交付后只报告候选，不自行启动下一片。\ndelivery-commit: 9bfb83894342a9e115bda691f7e5b7e7f2509e8c\n提交 9bfb83894342a9e115bda691f7e5b7e7f2509e8c 已通过PostCommit。sparse_mass_update类型化包装、完整元数据、真实层级、原子重叠语义、独立捕获和逐成员归档均完成。本机T4实机为NVIDIA GeForce RTX 4070 Ti SUPER。GPU库模块测试、宿主边界、Clippy、格式和内核身份均通过。九批冻结PTX产品比较、Linux、Release、NP01至NP04、显存峰值和性能验收未在本切片执行。父M3及两项融合缺口保持开放。\n提交 9bfb83894342a9e115bda691f7e5b7e7f2509e8c 已通过PostCommit与Recorded。技术验收十一项通过，交付回执已绑定暂存对象。本机T4为NVIDIA GeForce RTX 4070 Ti SUPER。Linux、Release、NP01至NP04、显存峰值、性能和两项父级融合缺口仍未完成。",
+  "revision": {
+    "before": null,
+    "after": "9bfb83894342a9e115bda691f7e5b7e7f2509e8c"
+  },
+  "created_at": "2026-10-18T15:20:07.369Z",
+  "updated_at": "2026-10-18T15:39:16.721Z",
+  "closed_at": "2026-10-18T15:39:16.721Z"
+}

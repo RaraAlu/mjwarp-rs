@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-inventory-derived-correction",
+  "title": {
+    "zh": "M3清单派生项纠正",
+    "en": "M3 inventory derived fields correction"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅从当前逐调用明细重建M3清单派生汇总、扫描引用、交叉核验、候选筛选与一致性断言。保留旧快照和旧运行原件，不改产品源码。",
+    "en": "Rebuild only the M3 inventory derived summaries, scan reference, manual cross-checks, candidate filtering, and consistency assertions from current call-site details. Preserve prior snapshots and run originals without changing product source."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics"
+    ]
+  },
+  "acceptance": [
+    "新纠正快照只读取已提交的当前逐调用明细；不得修改旧快照、旧运行原件或产品源码。",
+    "从明细派生实际入口总数88，其中typed_wrapper与typed_safe_wrapper合计24，unmigrated_or_unwrapped为64。",
+    "从明细派生低层调用总数99，其中类型化20，未迁移79；通用launch为17类型化与62未迁移。",
+    "从明细派生编排调用22与ABI族20；不得用手填计数替代派生。",
+    "按当前低层与编排明细重建private_launch_methods，并校验各分组汇总与顶层计数一致。",
+    "校验入口键、低层调用键与编排调用键唯一；拒绝重复记录。",
+    "校验分类集合互斥且只接受已知分类；拒绝未知分类。",
+    "修正methodology.raw_scan旧引用，并清理manual_cross_checks中的15项和publish唯一迁移残留。",
+    "候选筛选使用unmigrated_or_unwrapped；空结果必须显式报错，不能解释为没有剩余任务。",
+    "正常快照通过；重复键、未知分类、派生数漂移与空候选负例均被拒绝。",
+    "每次检查与重试须事前CreateNew登记，使用独立空目录，预建双日志，并记录起止、退出码与耗时。",
+    "冻结原件清单和Git对象，核验索引与最终提交字节；完成回执、完整SHA、Recorded、关闭与Final。",
+    "同一调用位置即使改成另一已知分类也须拒绝；低层与编排集合出现身份交集也须拒绝。",
+    "把通用launch方法汇总改回10类型化、69未迁移与15编排时，检查须精确拒绝私有方法汇总漂移。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-smooth-force-compute"
+    ],
+    "phase": "physics/M3-preflight",
+    "owner": "Codex",
+    "files": [
+      "docs/development-evidence/layers-m3-inventory-derived-correction",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-inventory-derived-correction.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "父任务：2026-10-18-layers-m3。\n基线提交：0f3f4b30e8771441354123d159f29e79067fc61c。\n交付提交：da10228b0e4776fc68532503521fc676c00ca7fc。\n纠正来源：2026-10-19-layers-m3-smooth-force-compute。\n只新增纠正快照与证据。\n不修改旧快照或旧原件。\n不修改产品源码。\n不运行GPU或产品测试。\n禁止Python。\n保留前片六次旧登记缺口。\nsleep_copy只读规划，不启动。\n正常检查与七项负例通过。\n正式清单74项提交字节吻合。\n收尾重试核对45组原件。\n收尾重试核对52份提交文件。\n首次收尾提交核验失败。\n原因是辅助脚本路径缺陷。\n该失败不代表字节漂移。\n修正逻辑重试已经通过。\n辅助脚本另建任务修正。\n父任务仍未完成。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-inventory-derived-correction.json\n提交da10228b0e4776fc68532503521fc676c00ca7fc已通过PostCommit与Recorded。正常检查和七项负例通过。74项正式证据提交字节吻合。修正后的收尾核验确认45组原件与52份提交文件。首次收尾核验因辅助脚本路径处理缺陷失败，失败原件已保留，未发现字节漂移。辅助脚本将由独立纠正任务修复。本任务未运行GPU或产品测试，未启动sleep_copy，M3父任务仍未完成。",
+  "revision": {
+    "before": "0f3f4b30e8771441354123d159f29e79067fc61c",
+    "after": "da10228b0e4776fc68532503521fc676c00ca7fc"
+  },
+  "created_at": "2026-10-18T18:40:27.178Z",
+  "updated_at": "2026-10-18T18:57:11.289Z",
+  "closed_at": "2026-10-18T18:57:11.289Z"
+}

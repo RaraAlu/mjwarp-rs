@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-dense-gather",
+  "title": {
+    "zh": "M3稠密聚集启动安全迁移",
+    "en": "M3 dense gather launch safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "把sparse_dense_gather启动收敛到受控同步包装，并保留原始捕获、冻结CUDA和产品行为。",
+    "en": "Move sparse_dense_gather behind a trusted synchronous wrapper while retaining raw captures, frozen CUDA, and product behavior."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "SparseMassDensePlan::update不再直接调用通用SynchronousKernel::launch执行sparse_dense_gather。",
+    "受控包装固定CUDA源码、sparse_dense_gather入口、256线程布局和八参数顺序。",
+    "包装绑定静态nc与prefix、动态work、真实设备跨度、精确容量、会话和严格别名。",
+    "可信元数据证明绑定实际设备地址、宿主内容和写入代际，并拒绝负索引、越界索引及失效证明。",
+    "保留source等于nc时写入正零，unused只要求真实非空跨度，不虚构其内容证明。",
+    "保留零prefix跳过gather、validate到gather到输出守卫检查到ready的顺序及同步失败语义。",
+    "保持产品f32、CUDA源码、PTX、数学、既有容差、fixtures和其他物理入口不变。",
+    "宿主计划、GPU包装与真实SparseMassDensePlan测试覆盖跨块尾部、真实跨度、错会话、重叠、失败状态和恢复。",
+    "首次GPU执行保留本轮原始CU/PTX，再新增gzip归档与元数据，并记录命令、耗时、设备、整卡显存和规范化边界。",
+    "逐文件交付回执、完整提交号与Normify最终门禁通过，父任务M3新增本切片依赖且保持未完成。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-dense-validation",
+      "2026-10-18-layers-m3-dense-validation-cleanup-correction"
+    ],
+    "phase": "physics/M3-dense-gather",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/sparse/dense.rs",
+      "docs/development-evidence/layers-m3-dense-gather",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-dense-gather.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 3
+  },
+  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-dense-gather.json\ndelivery-commit: 7a1300d57c86a211c89fad9cc172163f2a4370bc\n依赖稠密校验与清理纠正任务。\n只迁移sparse_dense_gather入口。\n禁止删除、清理或恢复捕获文件。\n新原始捕获已经完整保留。\n父任务M3已加入本切片依赖。\n稠密聚集入口安全迁移完成。提交7a1300d57c86a211c89fad9cc172163f2a4370bc。六项原始捕获保持归档。未执行删除、清理或恢复。",
+  "revision": {
+    "before": null,
+    "after": "7a1300d57c86a211c89fad9cc172163f2a4370bc"
+  },
+  "created_at": "2026-10-18T12:08:08.356Z",
+  "updated_at": "2026-10-18T12:24:28.552Z",
+  "closed_at": "2026-10-18T12:24:28.552Z"
+}

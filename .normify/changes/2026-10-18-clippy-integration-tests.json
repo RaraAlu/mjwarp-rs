@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-clippy-integration-tests",
+  "title": {
+    "zh": "清理四项集成测试诊断",
+    "en": "Resolve four integration-test Clippy diagnostics"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "正式纳入两项GPU测试。修复四项静态诊断。保留输入、覆盖与容差。",
+    "en": "Bring the two GPU integration tests into scope and resolve four diagnostics without reducing coverage or changing tolerances."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-matrix",
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "只处置既有四项诊断。mixed_mass_solve包含三项。mixed_mass_factor包含一项。保留每项原位置与规则。",
+    "仅修改宿主测试逻辑。保留迭代顺序与整数边界。保留种子、输入及全部断言。不得改内核或扩大数值容差。",
+    "分别重跑两个GPU测试程序。显式执行忽略的GPU用例。记录平台、GPU、驱动和完整结果。零用例不能算通过。",
+    "原GPU批次中两程序各有失败。先获取可信基线再比较。既有失败单列追踪。新增失败须解决。不得将Clippy通过写成物理验收。",
+    "在库诊断清零后执行完整检查。默认及cuda-probe均用--all-targets。保留-D warnings。要求静态诊断归零。不得靠库报错隐藏集成检查。",
+    "重跑默认库及M1测试。交付四项处置、原始日志与回执。保留release与NP01至NP04边界。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-toolchain-evidence-revalidation"
+    ],
+    "phase": "工程治理/集成诊断",
+    "owner": "待分配；Codex治理收尾",
+    "files": [
+      "tests/mixed_mass_solve.rs",
+      "tests/mixed_mass_factor.rs",
+      "docs/clippy-integration-tests.md",
+      "docs/development-evidence/clippy-integration-tests",
+      "docs/development-evidence/changes/2026-10-18-clippy-integration-tests.json"
+    ],
+    "resources": [
+      "gpu:windows-t4",
+      "build:rust-toolchain"
+    ],
+    "priority": 1
+  },
+  "note": "用户于2026-10-18授权正式迁移。保留原条件及前置。\n来源任务：2026-10-18-toolchain-clippy-governance。\n来源提交：25186895d187aa8a9a4068e09e828a340163589d。\n本轮仅登记排程。不自动开始编码或测试。\n实施前重新核对HEAD与范围。先做设计和交付预检。\n遵守原精度、容差和资源隔离。禁止禁用提交钩子。\nNP01至NP04仍未验收。历史失败不得记为通过。\n原扩围曾触发schedule/running-claims。\n本任务重新登记两文件。不改原运行任务占用。\n规则：needless_range_loop三项。\n规则：manual_is_multiple_of一项。\n本任务补齐全目标检查的覆盖缺口。\n实际提交：40b681805ca2cd019940f747ccce09719cc9d756。\nGPU：RTX 4070 Ti SUPER，非Windows T4。\n两项GPU程序各2项通过。\n默认与cuda-probe全目标Clippy通过。\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-clippy-integration-tests.json\n提交 40b681805ca2cd019940f747ccce09719cc9d756 已完成提交后核验。四项测试诊断清零。RTX 4070 Ti SUPER验证不替代Windows T4验收。",
+  "revision": {
+    "before": null,
+    "after": "40b681805ca2cd019940f747ccce09719cc9d756"
+  },
+  "created_at": "2026-10-18T05:56:51.813Z",
+  "updated_at": "2026-10-18T10:40:11.933Z",
+  "closed_at": "2026-10-18T10:40:11.933Z"
+}

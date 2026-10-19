@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-kinetic-sync",
+  "title": {
+    "zh": "M3动能同步安全迁移",
+    "en": "M3 kinetic synchronous safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "用真实设备缓冲证明迁移动能同步发射，并验证M3首个端到端调用。",
+    "en": "Migrate the kinetic synchronous launch with real device-buffer proofs as the first end-to-end M3 path."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime",
+      "mjwarp.physics"
+    ]
+  },
+  "acceptance": [
+    "安全元数据缓冲只能由真实上传构造，且写入会使既有证明失效。",
+    "launch_kinetic_energy32改用类型化KernelSpec与全部槽位跨度校验。",
+    "两个产品调用方不再使用unsafe，并保持32线程、每世界一块及同步完成语义。",
+    "逐字节保持内核字符串、冻结PTX、f32路径、容差与fixtures。",
+    "故障测试覆盖容量、重叠、错会话和失效证明；合法路径保持逐位结果。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-safe-core-evidence"
+    ],
+    "phase": "physics/M3-kinetic",
+    "owner": "Codex",
+    "files": [
+      "src/runtime/launcher",
+      "src/runtime/transfer.rs",
+      "src/runtime/transfer/kernel/kinetic_energy.rs",
+      "src/physics/kinetic_energy.rs",
+      "src/physics/mass_matrix/multiply/borrowed/device_energy.rs",
+      "tests/launcher_sync.rs",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-kinetic-sync.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "父任务：2026-10-18-layers-m3。\n本切片只迁移动能32线程入口。\n通用launch与其余九种专用方法不在本切片。\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-kinetic-sync.json\n真实设备地址在同步分配阶段缓存。\n独占元数据包装封闭产品写入口。\n测试写入先失效既有证明。\n两条产品动能归约改用安全包装。\n内核字符串、PTX、容差和fixtures未改。\nRTX 4070 Ti SUPER位模式检查通过。\n该证据不授予Windows T4验收。\n全目标Clippy受未改测试四项警告阻断。\n库级Clippy与范围测试通过。\n完整提交：4c32408f302f9d18ccdb69b6bb259025a28edb76。\nPostCommit通过。\n已提交4c32408f302f9d18ccdb69b6bb259025a28edb76。完成32线程动能安全包装、真实设备跨度、独占元数据代际与两条产品调用迁移。RTX 4070 Ti SUPER位模式通过，但不授予T4、完整W05或NP01至NP04验收。全目标Clippy仍受未改测试四项警告阻断。",
+  "revision": {
+    "before": null,
+    "after": "4c32408f302f9d18ccdb69b6bb259025a28edb76"
+  },
+  "created_at": "2026-10-18T09:59:12.453Z",
+  "updated_at": "2026-10-18T10:25:26.470Z",
+  "closed_at": "2026-10-18T10:25:26.470Z"
+}

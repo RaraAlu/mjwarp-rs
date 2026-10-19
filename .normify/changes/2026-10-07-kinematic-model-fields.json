@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-kinematic-model-fields",
+  "title": {
+    "zh": "实现运动学字段转换与上传",
+    "en": "Implement owned kinematic fields and grouped GPU upload"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "推进Windows P2字段实现。\n只交付运动学字段子集。",
+    "en": "Implement 12 compiled kinematic fields, structural validation and grouped immutable GPU ownership; not full Model/ModelInput/put_model or physics acceptance."
+  },
+  "modules": {
+    "create": [
+      "mjwarp.model.core",
+      "mjwarp.model.topology",
+      "mjwarp.io.core",
+      "mjwarp.io.kinematic"
+    ],
+    "modify": [
+      "mjwarp",
+      "mjwarp.model",
+      "mjwarp.io",
+      "mjwarp.diagnostics",
+      "mjwarp.physics",
+      "mjwarp.render"
+    ]
+  },
+  "acceptance": [
+    "保留原16节点、七模块与174项旧API路径。model/io按真实职责下沉四个叶子，并迁移全部API归属及引用；不删除API，不修改规则。产品与新叶子保持planned，传输叶子保持active。",
+    "实现四种关节及qpos/dof宽度。独占12项连续字段，核验父体次序、关节归属、地址分区、容量、精确长度与有限数。验证后只读；不执行物理或放宽容限。",
+    "扩展可选MSVC只读桥接。12字段快照在模型释放后仍有效。Rust/C++核验目标DTO。全部计数和指针检查先于字段写入。原4字段接口保持兼容。",
+    "整组同步GPU上传后才返回只读句柄，失败不公开部分模型。共享字段B_f=1。原生及宿主所有者提前释放后仍可回读，零关节合法，无CPU回退；不声称周期参数、完整身份或完整Model实现。",
+    "保留两份旧MJB。独立制备混合free/ball/slide/hinge及静态体样本，记录哈希来源。产品链不调用Python或MJCF编译器；Windows debug/release、单feature及受限运行检查真实数据。",
+    "运行fmt、默认及相关feature测试/clippy/doc、全量显式Windows回归，以真实数量更新文档。Normify真实刷新、sync/validate/build/render零错误与警告，再自动中文智能提交。Linux与完整物理验收仍未执行。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-12-legacy-scope-review"
+    ],
+    "phase": "P2/P3-历史待续",
+    "owner": "待续复审",
+    "files": [
+      "src/model/",
+      "src/io/",
+      "native/model_probe.cpp",
+      "include/mjwarp_native_probe.h",
+      "tests/native/",
+      "tests/native_model_probe.rs",
+      "fixtures/native-probe/",
+      "docs/windows-kinematic-fields.md"
+    ],
+    "resources": [],
+    "priority": 5
+  },
+  "note": "历史待续须先完成人工范围复审。\n这不是算法开发前置。\n它不要求回退既有实现。\n\n## 2026-10-12阶段与排程对齐\n\n对齐快照：2026-10-12。\n本次没有新增产品测试。\n保留原验收与历史证据。\n十二字段子集已经交付。\n完整模型契约仍待续。\n本次将旧执行标记回队。\n这不撤销历史交付。\n不删除planned创建项。\n不关闭本变更。\n无新增实施前置。\n启动前复审完整写入范围。\n\n以下保留原记录。\n\n提交a17f967交付十二项只读运动学字段。默认112宿主+4文档；全feature debug/release各134宿主+4文档、显式41通过；原生单feature显式及受限各12通过；全feature原生显式及受限各15通过。提交后release受限15再次通过，运行目录f4c14d537806403c8fab951f56397590记录真实HEAD与干净工作区。20节点、178 API、42依赖；174旧API路径全部保留。职责叶子迁移全部API与引用，validate零错误零警告、sync零漂移。第一次单子节点设计已完整撤销；本轮改为四个职责叶子，没有删除API或削弱规则。change_close因四个create叶子仍为planned拒绝关闭；其core叶子含未实现产品契约，不能假称active。因此本变更诚实保持in_progress，不删除create清单绕过门禁。产品和新增叶子继续planned，transfer保持active。完整Model/put_model、身份、周期参数、G01物理、Linux与清洁部署未验收。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-07T00:33:44.157Z",
+  "updated_at": "2026-10-19T09:48:37.562Z"
+}

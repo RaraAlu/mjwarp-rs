@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-toolchain-evidence-revalidation",
+  "title": {
+    "zh": "证据复核与六项诊断治理",
+    "en": "Revalidate evidence and resolve six deferred diagnostics"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "复核当前源码与历史证据。治理六项暂缓诊断。补齐最终状态的验证链。",
+    "en": "Revalidate source/evidence lineage, resolve six deferred diagnostics, and verify the final candidate without laundering historical evidence."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp",
+      "mjwarp.physics.core",
+      "mjwarp.physics.fluid-force",
+      "mjwarp.physics.gravity-compensation",
+      "mjwarp.physics.mass-matrix",
+      "mjwarp.physics.mass-solve",
+      "mjwarp.physics.passive-force",
+      "mjwarp.physics.resident",
+      "mjwarp.physics.tendon-velocity",
+      "mjwarp.physics.tendon-passive",
+      "mjwarp.physics.flex-edge-passive",
+      "mjwarp.io"
+    ]
+  },
+  "acceptance": [
+    "逐项承接六项deferred_pinned。清单来自原diagnostics.json。不得删项或改写为通过。只改宿主逻辑或窄范围豁免。",
+    "保留八处冻结常量字面量。保留位型断言。不得批量屏蔽规则。不得修改内核字符串或编译选项。",
+    "保存原证据及来源提交。对50条记录逐项建继任关系。覆盖原10组证据。新证据须绑定真实源码、环境与测试。不得用新摘要替代重新验证。",
+    "重新实测19项宿主失败。区分旧基线、候选和换行差异。保留失败日志。逐项修复证据来源问题。所有19项须通过原断言与容差。不得仅用Git摘要归因证明基线通过。",
+    "保留非零产品链的全部契约。更改其当前绑定前先归档旧包。核对来源、输入、输出与真实执行。禁止直接覆盖冻结摘要刷绿。",
+    "明确文件摘要的字节口径。验证清洁检出及工作区。覆盖LF与CRLF风险。不得移除摘要守卫。不得批量改写历史证据。",
+    "最终状态必须包含两受保护文件。该状态完成后重跑GPU对比。至少复核原68个程序覆盖。逐项核对279组内核摘要。比较计数、失败名与退出码。分开记录耗时。发现变化先诊断。",
+    "27项既有GPU失败不转为通过。为每项保留基线及候选证据。新增失败须解决。未证明既有的失败不得自动豁免。",
+    "重新运行默认库、M1及受影响宿主测试。两配置执行全目标Clippy。保留-D warnings。六项暂缓必须清零。四项集成诊断由续接任务处理。不得宣称本项已完成全局静态门禁。",
+    "GPU验证独占gpu:windows-t4。记录平台、GPU与驱动。与通道C及M系列隔离。无变化时不重复同项检查。",
+    "交付逐项复核表与原始日志。新记录写入本任务证据目录。旧50条证据文件保持原样。当前选择器仅在审查后更新。新增写入路径须在启动前补登记。",
+    "冻结release与NP01至NP04缺口。不得据此授予产品验收。若发现物理偏差，停止对应等价验收。不得扩大本项去修改物理内核。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-toolchain-clippy-governance",
+      "2026-10-18-m1-bounds-evidence"
+    ],
+    "phase": "工程治理/证据复核",
+    "owner": "待分配；Codex治理收尾",
+    "files": [
+      ".gitattributes",
+      "src/physics/gravity_compensation.rs",
+      "src/physics/resident.rs",
+      "tests/t4_gravity_nonzero_product_chain.rs",
+      "tests/t4_camlight_precision.rs",
+      "tests/t4_hessian_generation.rs",
+      "tests/t4_input_precision.rs",
+      "tests/t4_input_precision",
+      "tests/t4_spatial_tendon_precision.rs",
+      "tests/t4_tendon_wake_precision.rs",
+      "tests/support",
+      "fixtures/gravity-upstream-abi/nonzero-product-chain-package.json",
+      "fixtures/precision",
+      "docs/evidence/t4-g03-retest",
+      "docs/evidence/gravity-nonzero-product-chain",
+      "docs/README.md",
+      "docs/toolchain-evidence-revalidation.md",
+      "docs/development-evidence/toolchain-evidence-revalidation",
+      "docs/development-evidence/changes/2026-10-18-toolchain-evidence-revalidation.json"
+    ],
+    "resources": [
+      "gpu:windows-t4",
+      "build:rust-toolchain"
+    ],
+    "priority": 1
+  },
+  "note": "用户于2026-10-18授权正式迁移。保留原条件及前置。\n来源任务：2026-10-18-toolchain-clippy-governance。\n来源提交：25186895d187aa8a9a4068e09e828a340163589d。\n本轮仅登记排程。不自动开始编码或测试。\n实施前重新核对HEAD与范围。先做设计和交付预检。\n遵守原精度、容差和资源隔离。禁止禁用提交钩子。\nNP01至NP04仍未验收。历史失败不得记为通过。\n六项分别位于gravity_compensation.rs与resident.rs。\n19项涉及五个t4测试目标。真实失败名见原宿主日志。\n50条记录涉及17个旧证据文件。它们保持只读历史。\n需要修改其他选择器时先补范围。运行态不能扩写占用。\nsrc/io/inertial.rs当前仅核对，不授权改产品逻辑。\n新测试或工具不得依赖Python。\n本任务承接原条款3、5、6、7、9、10的剩余工作。\n最终静态门禁仍由2026-10-18-toolchain-clippy-acceptance承接。\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-toolchain-evidence-revalidation.json\n2026-10-18执行：本会话经SSH调用Normify服务。\n启动前把docs/README.md补入范围。\n完整提交：4c123c357fc9a6fb9de1297a82d973cb9e077997。\nPostCommit通过。\n六项暂缓诊断清零。\n19项宿主失败中18项通过。\n缓存集合一项保留失败，来源未查清。\n重力链gpu-3：1134项、0位差。\n68个GPU程序与基线一致，279组摘要相同。\n50条记录中45条复验，5条未复验。\n清洁检出余16项，均缺忽略目录输入。\ncuda-probe仍余4项范围外诊断。\nNP01至NP04未验收。",
+  "revision": {
+    "before": null,
+    "after": "4c123c357fc9a6fb9de1297a82d973cb9e077997"
+  },
+  "created_at": "2026-10-18T05:56:50.403Z",
+  "updated_at": "2026-10-18T07:44:32.405Z",
+  "closed_at": "2026-10-18T07:44:32.405Z"
+}

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-device-energy-validation",
+  "title": {
+    "zh": "M3设备动能校验安全迁移",
+    "en": "M3 device energy validation safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "把设备动能真实更新路径的两处通用内核启动收敛到受控计划，并保留冻结CUDA语义。",
+    "en": "Move both generic launches in the real device-energy update path behind trusted typed plans while preserving frozen CUDA semantics."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core",
+      "mjwarp.physics.mass-matrix"
+    ]
+  },
+  "acceptance": [
+    "MassMatrixEnergyPlan::update不再直接调用通用SynchronousKernel::launch。",
+    "设备源校验绑定会话、真实设备跨度、容量、别名、静态nv和元数据代际。",
+    "标量校验复用受控动能校验计划并保持原参数顺序。",
+    "CUDA源码、PTX、f32精度、容限和夹具保持不变。",
+    "真实MassMatrixEnergyPlan::update覆盖成功、故障及无部分发布路径。",
+    "目标测试、格式检查、静态检查与排程交付门禁通过。",
+    "证据记录完整输出、产物散列和终端空行规范化边界。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-kinetic-validation"
+    ],
+    "phase": "physics/M3-device-energy-validation",
+    "owner": "Codex",
+    "files": [
+      "src/physics/kinetic_energy.rs",
+      "src/physics/mass_matrix/multiply/borrowed/device_energy.rs",
+      "docs/development-evidence/layers-m3-device-energy-validation",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-device-energy-validation.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 3
+  },
+  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-device-energy-validation.json\ncommit: c9ee8ec9a51abed557f1020bf25a217e40455d78\n父任务2026-10-18-layers-m3保持proposed。\n本切片只迁移设备动能校验。\n提交c9ee8ec9a51abed557f1020bf25a217e40455d78已核验。设备源校验与标量校验均经受控计划启动。目标测试、静态检查、源码与PTX对比均通过。RTX 4070 Ti SUPER不构成T4验收。父任务M3仍未完成。",
+  "revision": {
+    "before": null,
+    "after": "c9ee8ec9a51abed557f1020bf25a217e40455d78"
+  },
+  "created_at": "2026-10-18T10:55:58.970Z",
+  "updated_at": "2026-10-18T11:05:01.599Z",
+  "closed_at": "2026-10-18T11:05:01.599Z"
+}

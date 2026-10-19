@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-rne-bias",
+  "title": {
+    "zh": "M3偏置力发射安全迁移",
+    "en": "M3 rne bias safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅迁移rne_bias宿主发射。补齐元数据证明、精确跨度、会话身份、写入代次与失败恢复。保持内核字符串、冻结PTX、容差和夹具不变。",
+    "en": "Migrate only the rne_bias host launch with metadata proof, exact spans, session identity, write generation, and failure recovery while preserving product bytes."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "仅迁移src/physics/rne_bias.rs中的rne_bias入口；其他M3入口保持原状。",
+    "核对五个指针和一个u32标量的真实ABI、顺序、类型与读写角色。",
+    "固定线程块为256；工作量等于worlds；网格计算拒绝溢出。",
+    "元数据证明核对维度、重力、父树、自由度区间与体映射。",
+    "五个指针均按实际worlds、nbody、nv计算精确字节跨度。",
+    "所有会话、跨度、别名与元数据检查均在设备写入前完成。",
+    "元数据实际写入使旧证明失效；恢复后同一计划可再次成功。",
+    "外来会话替换整个内核包装后拒绝；恢复后同一计划可再次成功。",
+    "失败后ready保持无效；读回拒绝旧结果；输出字节保持不变。",
+    "宿主测试覆盖零世界、513世界、零自由度、边界与u64溢出。",
+    "GPU逐位比较原始ABI与包装路径；两者使用相同完整初始状态。",
+    "GPU使用mixed-joints、多层树、非零qvel、513世界与零自由度场景。",
+    "每次执行均先登记不可变命令、用途、环境、设备锁和唯一捕获目录。",
+    "从rne_cacc清单基线重建清点；保存原始日志、递归捕获、归档和清单。",
+    "交付回执绑定暂存对象；登记完整提交号；核验后关闭并最终核验。",
+    "保留1042项历史失败；不宣称NP01至NP04、性能、Linux或release验收。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-rne-cacc"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/rne_bias.rs",
+      "docs/development-evidence/layers-m3-rne-bias",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-rne-bias.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "T4设备为本机NVIDIA GeForce RTX 4070 Ti SUPER。\n资源统一登记为gpu:windows-t4。\n只使用rne_cacc清单作为起始基线。\n不重跑rne_cacc。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-rne-bias.json\ncommit: d735b1bfcea2a60668421c197e96a56947c111ec\nvalidation: post-commit delivery check passed.\nfollow-up: committed receipt records clippy exit_code as 1; original result is 101. An independent correction task will fix the record without amending this commit.\n提交 d735b1bfcea2a60668421c197e96a56947c111ec 已通过提交后核验和登记核验。T4为本机NVIDIA GeForce RTX 4070 Ti SUPER。已发现回执中的clippy历史退出码误记为1，原始记录为101；后续独立纠正任务修正记录，不改写本提交。",
+  "revision": {
+    "before": "9f01475c76e47a837f276c429b0e8994b96bb3e6",
+    "after": "d735b1bfcea2a60668421c197e96a56947c111ec"
+  },
+  "created_at": "2026-10-18T20:34:23.269Z",
+  "updated_at": "2026-10-18T20:49:32.810Z",
+  "closed_at": "2026-10-18T20:49:32.810Z"
+}

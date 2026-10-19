@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-windows-kernel-capabilities",
+  "title": {
+    "zh": "补齐Windows内核能力探针",
+    "en": "Add Windows kernel capability probes"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "继续Windows局部验收。两路共用整数原子、块归约、块扫描、动态分支和固定2x2求解定义。复用缓冲、事件与图重放。不处理Linux，不冻结引擎路线。",
+    "en": "Extend Windows-only P1 evidence with shared Rust definitions for integer atomic sum, block reduction, block scan, dynamic control flow and a fixed 2x2 solve, reusing driver buffers, events and graph replay without freezing the engine route."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime",
+      "mjwarp.diagnostics"
+    ]
+  },
+  "acceptance": [
+    "两路显式编译并运行同一组Rust内核，不回退CPU。",
+    "整数探针精确比较；固定2x2求解采用独立已知解与残差检查。",
+    "覆盖单元素、块边界、跨块和最大容量，保持输出尾部守卫。",
+    "每种探针捕获并重放3轮，更新输入与重置输出。",
+    "原生PTX只支持既有affine，拒绝新内核而不替换路线。",
+    "宿主测试、Windows GPU回归、格式与Clippy检查通过；如实记录限制。",
+    "刷新真实源码证据，校验零错误；保持所有模块计划态。"
+  ],
+  "note": "Windows局部内核能力完成。两路共用六种Rust内核，每路42组配置，3轮图重放；MSVC同组84配置和252轮重放通过。默认24、单路26、全特性27项宿主测试通过。原生GPU回归2项通过。所有特性组合Clippy、格式、脚本解析与Rust文档构建通过。整数精确比较；固定2x2解与f64残差采用固定1e-6界限。保留计划态、GNU默认和原生affine基线。未执行Linux、全局扫描、浮点原子、图参数、外部租约、缓存及清洁部署验收；不冻结引擎主路线。",
+  "revision": {
+    "before": null,
+    "after": "a7a69e6c0cd5fdff62baedcb6de1c9bff53eca35"
+  },
+  "created_at": "2026-10-06T13:22:00.656Z",
+  "updated_at": "2026-10-06T13:33:12.888Z",
+  "closed_at": "2026-10-06T13:33:12.888Z"
+}

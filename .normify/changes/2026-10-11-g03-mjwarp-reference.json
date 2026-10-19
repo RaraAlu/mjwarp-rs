@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-11-g03-mjwarp-reference",
+  "title": {
+    "zh": "修复G03原生门禁阻断",
+    "en": "Repair G03 native numerical blockers"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "按照用户既有路线选择，对齐冻结MJWarp的默认分块分解。用户另授权debug与release各追加一次专项。先冻结同条件静态参考并明确因子格式，再执行唯一追加验证，不试凑舍入顺序。",
+    "en": "Align the frozen default block factorization as previously selected by the user. The user authorized one additional debug and release targeted invocation. Freeze matched static references and explicit factor formats before using that allowance."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve",
+      "mjwarp.physics.mass-matrix",
+      "mjwarp"
+    ]
+  },
+  "acceptance": [
+    "公开记录逐块因子格式，不把Cholesky因子误标为LDL；保持原生容差2e-4与5%红线。",
+    "按冻结默认路由处理单体树分块；f32全链与GPU求解；不给产品接入Python。",
+    "离线参考调用未改动的kinematics/com_pos/crb/factor_m/solve_m，并核验版本、源码、输入、布局与输出哈希。",
+    "原生参考按明确因子语义映射；保留原生矩阵重构、残差、奇异拒绝与恢复，不弱化门禁。",
+    "使用唯一获批的追加debug/release专项，计数持续累计；不重跑满额G01和393诊断。",
+    "记录NP01至NP04实测边界，同步Normify，智能提交实际完成部分；全项达标前不关闭主T4。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-11-two-reference-gates",
+      "2026-10-11-t4-redline-retest"
+    ],
+    "phase": "P4-G03辅助修复",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_matrix.rs",
+      "src/physics/mass_solve.rs",
+      "scripts/test-windows-mass-solve.ps1",
+      "tests/mass_matrix_probe.rs",
+      "tests/mass_solve_probe.rs",
+      "tests/support/",
+      "fixtures/mjwarp-mass-solve/",
+      "fixtures/mass-solve/",
+      "docs/windows-mass-solve-probe.md",
+      "docs/numerical-precision-contract.md"
+    ],
+    "resources": [
+      "gpu:windows-t4",
+      "acceptance:windows-product"
+    ],
+    "priority": 100
+  },
+  "note": "## 2026-10-12阶段与排程对齐\n\n对齐快照：2026-10-12。\n本次没有新增产品测试。\n保留原验收与历史证据。\n当前只推进此产品修复项。\n本项属于P4辅助风险修复。\n它不代表完整G03准入。\n先核对默认分块与因子格式。\n再补7组同条件静态参考。\n保留原生容差与5%红线。\n现有两处修改尚未验收。\n它们只调整累加与精度报告。\n分块分解尚未据此落地。\n专项仅用已有获批追加次数。\n计数不因排程登记而重置。\n不重跑满额G01与393配置。\n本项通过后才恢复T4收尾。\n\n以下保留原记录。\n\n先前LDL舍入实验已撤回。debug的旧失败仍为3项，最后实验有66次待验收。新路线会明确更改小块的因子格式，并据此生成独立原生矩阵派生参考；不沿用原生LDL数组逐项误比。\n\n## 2026-10-12接续预检\n\n已核对冻结上游源码与现有改动。\n设计预检零错误、零警告。\n沿用原任务与模块UID。\n先生成默认分块静态参考。\n明确紧凑对角、Cholesky与LDL格式。\n模型、矩阵、因子、右端项与解全链f32。\n累加、sqrtf、除法及常量均保持f32。\n沿用FMA开启、fast-math关闭。\n原生派生参考与误差诊断可用f64。\n它们不得反馈产品计算。\n维持2e-4容差及5%红线。\n不重跑满额G01或393诊断。\n保留每模式唯一追加专项额度。\n先完成源码与静态证据，再使用额度。\n\n## 静态参考与实现进度\n\n已冻结六模型与全部专项配置。\n离线调用未改动的上游阶段。\n同条件参考涵盖全部批量世界。\n原生矩阵派生f64 Cholesky参考。\n产品测试不执行离线脚本。\n新增因子格式与树区间信息。\n小树采用上三角Cholesky。\n单自由度采用质量倒数。\n大树保留反向LDL辅助。\n未实现tile调度及多自由度紧凑优化。\n完整G03仍不作等价承诺。\n静态参考测试1项通过。\n宿主测试已通过；GPU尚未执行。\n同步发现core因导出类型而漂移。\n它属于既有根模块影响范围。\n排程拒绝运行中改写占用声明。\n保留原声明，不绕过该门禁。\n收尾单独刷新受影响core证据。\n接下来每模式仅执行一次专项。\n\n\n## 2026-10-12专项验证结果\n\ndebug/release各追加一次。\n质量矩阵单元各4过0败。\n质量求解单元各8过0败。\n质量矩阵集成各7过0败。\n质量求解集成各5过3败。\n每模式1411次世界比较。\nNP03摘要双模式逐字节一致。\n原生放行7017块，对照放行20块。\n失败10块，缺参考待验收0块。\n去重失败：mixed-joints状态1的rhs1与rhs2。\n误差分数1.720298988与1.764804612。\n红线0.527503906与0.527692026。\n重构、残差、奇异拒绝与恢复通过。\n四种生成内核通过f32审计。\nNP02未完成tile逐算子核对。\nNP04只有墙钟与板卡显存快照，未验收。\n不放宽容差，不重跑失败配置。\n既有追加额度已用尽。\n主任务保持in_progress，不调用change_close。\n只提交已实现的分块与参考证据。\n证据：docs/windows-g03-block-repair.md。\n\n\n## 本轮智能提交\n\n提交：c19ad6b。\n工作区检查为空。\n归档16个相关文件。\n架构校验零错误、两警告。\n警告涉及flex与tendon-wrap粒度。\n不改无关历史模块。\n任务继续保持in_progress。\n尚未解除G03数值门禁阻断。\n未执行change_close或T4收尾。\n\n\n## 2026-10-12 首差续作\n\n先追踪mixed-joints状态1首差。\n隔离矩阵、分解和回代。\n保持f32全链与既有容差。\nf64仅用于诊断参考。\n用户新增各模式一次专项。\n求解累计最多debug5、release4。\n诊断不替代产品验收。\n不重跑G01或393。\n预检0错误、0警告。\n保留原模块UID和排程。\n验收继续覆盖NP01至NP04。\n\n\n## 首差诊断结果\n\n诊断共执行3次，停止追加。\n未消耗最终验收配置次数。\n状态1的12项阶段字段逐位一致。\n矩阵不是该状态误差源。\n首差位于因子第0项。\n上游采用rsqrt.approx及乘法。\n上游PTX允许乘减融合。\n显式rn会禁止该融合。\n现实现保留相同指令语义。\n状态1同矩阵因子逐位一致。\n其他7状态仅状态7末项差1ULP。\n同因子回代误差符合既有红线。\n保留回代算法，不改容差。\n下一步仅执行debug/release各一次。\n新增同矩阵回归和异常主元测试。\n静态哈希绑定全部诊断文件。\nclippy全特性全目标检查通过。\n\n\n## 本轮最终专项与边界\n\n每模式只追加一次专项。\n调试累计5次、发布累计4次。\n求解单元各10过0败。\n求解集成各8过0败。\n每模式1411次世界比较。\n比较260941个标量、7047个字段块。\n原生放行7027块，对照放行20块。\n失败0块，缺参考待验收0块。\n两模式NP03摘要逐字节一致。\n默认宿主测试226项通过。\n格式、全特性全目标Clippy通过。\n四类生成内核通过f32检查。\n首差与参考哈希检查通过。\n文档工具243源码、82文档、0不匹配。\n架构预收尾0错误、2历史警告。\n只收尾G03辅助误差修复。\n完整G03仍缺路由与协作调度。\n完整逐算子等价仍缺证据。\nNP04只有冷墙钟与板卡显存快照。\nLinux、完整T4与393本轮未重测。\n不宣称全部原生达标。\n不关闭主T4或无关历史任务。\n证据：docs/windows-g03-first-difference.md。\n归档：fixtures/mjwarp-mass-solve/first-difference/acceptance.json。\n\n2026-10-12：完成本项G03辅助剩余误差修复。首差在分解，不在状态1矩阵；同因子回代低于既有红线。双模式专项各18过0败，NP03每模式7027块原生、20块对照、0失败、0待验收。未放宽容差。只关闭本修复项；完整G03、主T4、Linux与NP04均不据此放行。完整逐算子等价仍缺证据。报告 docs/windows-g03-first-difference.md；保留原UID与计划态。",
+  "revision": {
+    "before": null,
+    "after": "c19ad6b2ee1459fbc92cfff43df5fac238963575"
+  },
+  "created_at": "2026-10-11T09:44:29.273Z",
+  "updated_at": "2026-10-12T00:51:01.372Z",
+  "closed_at": "2026-10-12T00:51:01.372Z"
+}

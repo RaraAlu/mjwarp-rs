@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-t4-resident-source-drift",
+  "title": {
+    "zh": "T4常驻源码身份复核",
+    "en": "T4 resident source identity refresh"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "camlight、spatial-tendon、tendon-wake与重力非零链四个测试文件共10项宿主测试因固定resident.rs哈希过期失败。resident.rs自4c123c3后经40aac80、5a1593b、79d4494修改。逐提交核对：被映射的更新函数、sleep_copy内核、ABI、网格与发布顺序均未变，故只更新四份证据中的resident.rs身份及重力测试的两个哈希常量，不改产品源码与映射条目。",
+    "en": "Ten host tests in camlight, spatial-tendon, tendon-wake and the gravity nonzero chain fail on the stale pinned resident.rs hash. resident.rs changed in 40aac80, 5a1593b and 79d4494 after 4c123c3. Per-commit review shows the mapped update functions, sleep_copy kernel, ABI, grid and publication order are unchanged, so only the resident.rs identity in four evidence files and two hash constants in the gravity test are refreshed; product sources and mapping entries stay unchanged."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp",
+      "mjwarp.physics.gravity-compensation"
+    ]
+  },
+  "acceptance": [
+    "只改camlight、spatial-tendon、tendon-wake三份map.json与重力证据包中resident.rs的sha256，以及tests/t4_gravity_nonzero_product_chain.rs的包内身份与PACKAGE_SHA256；src与映射条目不变。",
+    "证据逐提交记录漂移来源40aac80、5a1593b、79d4494，并说明相机光源、空间肌腱与主更新函数未改。",
+    "证据核对40aac80：sleep CUDA未变，ABI仍为[0,0,0,worlds]，256线程网格与复制、唤醒、交换顺序不变，捕获摘要与40aac80证据一致。",
+    "证据说明5a1593b只改G01等价速度位置FK，四份清单与重力实测路径均不使用该路由。",
+    "修复前10项失败；修复后四个测试文件12过0败（1项GPU测试忽略）。",
+    "fmt、clippy默认与cuda-probe全目标均通过；不新增Clippy豁免；不放宽任何容差。",
+    "如实记录重力GPU实测未重跑，gpu-3证据仍绑定旧包摘要。",
+    "不宣称NP01至NP04、精度、性能、Linux或release验收。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-t4-input-precision-source-drift"
+    ],
+    "phase": "physics/M3",
+    "owner": "Claude",
+    "files": [
+      "docs/evidence/t4-g03-retest/camlight-internal/map.json",
+      "docs/evidence/t4-g03-retest/spatial-tendon-internal/map.json",
+      "docs/evidence/t4-g03-retest/tendon-wake-internal/map.json",
+      "fixtures/gravity-upstream-abi/nonzero-product-chain-package.json",
+      "tests/t4_gravity_nonzero_product_chain.rs",
+      "docs/development-evidence/t4-resident-source-drift",
+      "docs/development-evidence/changes/2026-10-19-t4-resident-source-drift.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "base-commit: bc9ff16c064c8d717ca5c212ada805c5af98e846\n来源：t4-input-precision-source-drift记录的同根因剩余10项失败。\n用户经主会话要求修复并按Normify交付流程提交，每次写入前确认。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-t4-resident-source-drift.json\n完整提交：be6ccf756cdf08b1d27264bcdba898f46515c8cf。\nPostCommit通过，回执覆盖16项文件。\n只改三份map.json与重力证据包的resident.rs哈希，及重力测试两个哈希常量；src与映射条目不变。\n漂移来自40aac80、5a1593b、79d4494；相机光源、空间肌腱与主更新函数未改。\n40aac80仍发射同一sleep_copy内核；ABI、256线程网格与复制唤醒交换顺序不变；捕获摘要与40aac80证据一致。\n5a1593b只改等价速度位置FK，四份清单与重力实测路径不用该路由。\n修复前10败；修复后12过0败1忽略；fmt与两种clippy通过。\n重力GPU实测未重跑，gpu-3仍绑定旧包摘要9154df31。\n未跑GPU、Linux与release。NP01至NP04未验收。",
+  "revision": {
+    "before": null,
+    "after": "be6ccf756cdf08b1d27264bcdba898f46515c8cf"
+  },
+  "created_at": "2026-10-19T06:31:34.346Z",
+  "updated_at": "2026-10-19T06:43:52.075Z",
+  "closed_at": "2026-10-19T06:43:52.075Z"
+}

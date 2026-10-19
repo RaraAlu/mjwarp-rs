@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-rne-qfrc",
+  "title": {
+    "zh": "M3广义力投影安全迁移",
+    "en": "M3 rne qfrc safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅迁移RNE链的rne_qfrc宿主发射。用实际设备元数据证明和读写跨度保护既有顺序。",
+    "en": "Migrate only the RNE rne_qfrc host launch to the typed safe wrapper with proof bound to the actual metadata buffer and exact read-write spans while preserving the existing stage order."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "仅迁移rne_qfrc宿主调用；不得迁移rne_cacc、rne_cfrc、rne_backward或其他入口。",
+    "保持RNE_CUDA、冻结PTX、容差、fixtures、f32运算顺序与既有数值门禁逐字节不变。",
+    "类型包装须逐槽声明metadata、com、unused velocity与out；out必须声明读写。",
+    "类型包装须核对固定256线程、work等于worlds及网格向上取整。",
+    "元数据证明须绑定实际设备缓冲、会话、缓冲身份和写入代际。",
+    "元数据须验证nbody、nv、DOF到body索引及完整共享表长度。",
+    "共享元数据须在首个RNE阶段前预检；拒绝后不得发射任何RNE内核。",
+    "精确跨度须覆盖metadata、com、velocity与含守卫的out；容量、会话、别名及溢出必须拒绝。",
+    "拒绝路径须保持ready为false；修复元数据后同一计划必须恢复。",
+    "宿主测试须覆盖正常、零DOF、容量、会话、别名、溢出、真实写入失效与恢复。",
+    "GPU产品测试须覆盖正常和零DOF，并在本机RTX 4070 Ti SUPER上执行。",
+    "确定性投影须逐位对比；backward原子阶段继续沿用冻结门禁。",
+    "所有检查须预登记，并保留唯一目录、stdout、stderr、退出码与耗时。",
+    "更新清单须从结构数组重新派生；只计实际迁移。",
+    "提交前后须完成交付预检、逐文件回执、正常钩子及Normify完整收尾。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-sleep-copy"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/rne.rs",
+      "docs/development-evidence/layers-m3-rne-qfrc",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-rne-qfrc.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "父任务：2026-10-18-layers-m3。\n基线提交：40aac80d4ce361949b70708722eddfe2c0f3bfc8。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-rne-qfrc.json\n本机GPU：NVIDIA GeForce RTX 4070 Ti SUPER。\n旧锁名gpu:windows-t4沿用为排程互斥名。\n历史flg_acc=false仍有1042块超差。\n最大归一化误差为2.762533。\n本片不修复该历史精度问题。\n本片不得转授NP01至NP04或性能验收。\n禁止Python。\n交付提交：26592d49a386b52a32170360be18880d3a449f4b。\n提交26592d49a386b52a32170360be18880d3a449f4b。仅迁移rne_qfrc。宿主2项、默认库242项、clippy和GPU2项通过。本机为RTX 4070 Ti SUPER。冻结CUDA与PTX未变。历史1042块超差及NP01至NP04、性能、Linux、release仍未验收。",
+  "revision": {
+    "before": null,
+    "after": "26592d49a386b52a32170360be18880d3a449f4b"
+  },
+  "created_at": "2026-10-18T19:39:50.649Z",
+  "updated_at": "2026-10-18T19:58:46.380Z",
+  "closed_at": "2026-10-18T19:58:46.380Z"
+}

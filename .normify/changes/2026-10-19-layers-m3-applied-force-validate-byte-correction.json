@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-applied-force-validate-byte-correction",
+  "title": {
+    "zh": "纠正外力验证证据对象",
+    "en": "Correct applied force validate evidence blobs"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅纠正已关闭验证切片中24份正式证据的Git对象换行漂移。保留旧提交与旧关闭记录，复用现存49份原件，不重跑产品测试，不启动publish迁移。",
+    "en": "Correct only the Git blob line-ending drift in 24 formal evidence files from the closed validate slice. Preserve the old commit and close record, reuse the existing 49 originals, rerun no product tests, and do not start publish migration."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "完整登记旧提交25cc639be64b404f80be6edd3e0db178362e03b6中24份漂移路径，并记录旧blob、原件SHA256、原件字节数与纠正后blob。",
+    "保留原49份磁盘原件及manifest摘要；不得改写内容、换行或生成替代日志。",
+    "文件属性仅作用于既有正式证据目录；不得修改全局或仓库级Git配置。",
+    "新增可复用PowerShell核验步骤，输入manifest与原件映射，直接读取暂存或指定提交对象，逐项比较字节数和SHA256，任一漂移须非零失败。",
+    "核验步骤对旧提交必须检出恰好24项，对纠正后的暂存区和新提交必须证明49项原件、归档与Git对象逐字节一致。",
+    "不重跑任何产品测试，不修改源码、CUDA、PTX、夹具、容差、旧提交、旧任务或旧关闭记录，不启动applied_force_publish迁移。",
+    "新逐文件blob回执只覆盖真实纠正范围与新证据；旧63文件回执不作原字节追认。",
+    "完成Preflight、正常钩子提交、PostCommit、完整SHA登记、Recorded、关闭、Final及任务父级排程回读。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-applied-force-validate"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/clippy-final.run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/clippy-final.stderr.txt",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/clippy.run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/clippy.stderr.txt",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/device-preflight.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/device.run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/device.stdout.txt",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/evidence-final.run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/evidence-final.stdout.txt",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/evidence.run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/evidence.stdout.txt",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/fmt-final.run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/fmt-retry.run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/fmt.run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/host-retry.run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/host-retry.stderr.txt",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/host.run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/host.stderr.txt",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/inventory.run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/inventory.stdout.txt",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/preflight.run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/preflight.stdout.txt",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/run.json",
+      "docs/development-evidence/layers-m3-applied-force-validate/formal-run/stderr.txt",
+      "scripts/check-evidence-blobs.ps1",
+      "docs/development-evidence/layers-m3-applied-force-validate-byte-correction",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-applied-force-validate-byte-correction.json"
+    ],
+    "priority": 1
+  },
+  "note": "父任务：2026-10-18-layers-m3。\n纠正对象：25cc639be64b404f80be6edd3e0db178362e03b6。\n旧任务保持verified，不追认其原字节交付。\n仅纠正24份正式证据对象。\n复用49份现存原件。\n不重跑产品测试。\n不启动publish迁移。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-applied-force-validate-byte-correction.json\n提交：6bcf8496477e154d5f904b4aa1884637ecbe5b9e。\nPostCommit：通过。\n新提交对象核验：49/49逐字节一致。\n提交6bcf8496477e154d5f904b4aa1884637ecbe5b9e完成纠正。旧提交仍检出24项漂移。新提交49项逐字节一致。旧manifest保持9e3f413ac26d02856d32cd88caf64082e27dcec9dbd9b291a2143662e45ea127。不重跑产品测试，不改产品源码，不启动publish。",
+  "revision": {
+    "before": null,
+    "after": "6bcf8496477e154d5f904b4aa1884637ecbe5b9e"
+  },
+  "created_at": "2026-10-18T17:18:37.997Z",
+  "updated_at": "2026-10-18T17:30:57.112Z",
+  "closed_at": "2026-10-18T17:30:57.112Z"
+}

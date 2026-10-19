@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-sparse-mass-diag",
+  "title": {
+    "zh": "M3稀疏质量对角安全包装",
+    "en": "M3 sparse mass diag safe wrapper"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "把sparse_mass_diag唯一产品发射迁入类型化同步包装。保持完整共享元数据、确定性对角倒数、内核、PTX、f32、调用顺序和发布语义。",
+    "en": "Move the sole sparse_mass_diag product launch behind the typed synchronous wrapper while preserving full shared metadata, deterministic diagonal reciprocals, kernel, PTX, f32, call ordering, and publication semantics."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "只修改src/physics/mass_solve/sparse.rs，并新增模块内测试、专属证据目录和精确交付回执。",
+    "sparse_mass_diag唯一产品launch先经过类型化计划；八槽ABI与固定256线程匹配实际CUDA。",
+    "完整packed元数据精确保留nv、nc、rownnz、rowadr和update三元组；对角寻址严格落在每行末项。",
+    "first和count保持零占位，stride等于nc+nv，work等于worlds*nv；nv为零时不得发射diag。",
+    "精确校验元数据、两个未读取矩阵槽、输出容量和guards；两个只读槽允许同一对象。",
+    "输出槽按实际先读因子再写对角倒数声明ReadWrite；输出与只读槽重叠必须拒绝。",
+    "校验真实设备对象、会话、代际、地址边界、整数转换和全部乘加溢出。",
+    "错会话与失效元数据负例必须直接到达新diag包装；拒绝后输出逐位不变。",
+    "保持copy后按逆层级update、随后diag、结果检查和ready发布的顺序；修复后可恢复。",
+    "确定性diag按f32除法逐位核对；含原子的完整分解继续使用2e-4+2e-4*abs(reference)容差与2e-6重构上限。",
+    "保持CUDA源码、PTX、编译选项、f32、容差和fixtures不变；同步完成语义不变。",
+    "GPU使用预检通过的CUDA 12.8.1路径和此前不存在的独立捕获目录；重扫全M3清单并保留NP、Linux、Release、性能、九批冻结对照、动态位差、状态3及两项融合缺口；正常交付钩子通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-safe-core-evidence",
+      "2026-10-18-layers-m3-sparse-mass-update"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/sparse.rs",
+      "docs/development-evidence/layers-m3-sparse-mass-diag",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-sparse-mass-diag.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "实际模块：mjwarp.physics.mass-solve。\n模块内测试位于src/physics/mass_solve/sparse.rs。\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-sparse-mass-diag.json\n设计预检：0 error / 0 warning。\n资源锁代表本机T4通道。\n实际型号为NVIDIA GeForce RTX 4070 Ti SUPER。\n上一提交正文含字面`n；修订被门禁拒绝。\n本任务不得重试amend或绕过钩子。\n父级2026-10-18-layers-m3保持proposed。\n两项融合求解缺口保持proposed。\n本任务不得转授或消除它们。\n禁止推进M4、A1或资产转换M03。\n本切片Final后只报告候选。\nCUDA 12.8.1预检通过。\n宿主计划测试一项通过。\n本机GPU模块测试一项通过。\n集成测试没有执行。\n九份CU、PTX和JSON逐字节一致。\n完整分解沿用原容差。\n对角倒数按f32逐位一致。\nClippy零项诊断。\n两次格式检查均通过。\n任务显存用量未知。\n显存峰值没有测量。\nNP01至NP04仍未验收。\nLinux、Release和性能未验收。\n扫描脚本准备曾失败一次。\n失败发生在扫描器运行之前。\n修正换行假设后扫描通过。\n失败输出已纳入证据归档。\n本次提交正文也含字面`n。\n依约不再修订提交。\n该问题只影响正文排版。\n完整提交号：f85f92eeec3b99e24a232d91311c3c97cd42ad0f\n提交f85f92eeec3b99e24a232d91311c3c97cd42ad0f。宿主测试一项通过。本机T4模块测试一项通过。Clippy零诊断。格式检查通过。九份内核产物一致。任务显存未知。未测显存峰值。未运行集成测试。未运行Linux和Release。NP01至NP04未验收。性能未验收。父级M3仍未完成。两项融合缺口继续开放。",
+  "revision": {
+    "before": "9bfb83894342a9e115bda691f7e5b7e7f2509e8c",
+    "after": "f85f92eeec3b99e24a232d91311c3c97cd42ad0f"
+  },
+  "created_at": "2026-10-18T15:43:19.938Z",
+  "updated_at": "2026-10-18T15:55:19.712Z",
+  "closed_at": "2026-10-18T15:55:19.712Z"
+}

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-toolchain-clippy-acceptance",
+  "title": {
+    "zh": "工具链治理完整验收门禁",
+    "en": "Full toolchain and Clippy acceptance gate"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "原十条验收完整迁入。汇总三项续接证据。禁止用子集交付代替治理完成。",
+    "en": "Preserve all ten original acceptance clauses and gate full governance completion on the successor deliveries."
+  },
+  "modules": {},
+  "acceptance": [
+    "先记录实际工具链与诊断基线。选择明确版本并锁定。不得靠降级隐藏诊断。不擅自改变宿主目标或平台边界。",
+    "添加rust-toolchain.toml。逐项核对脚本的+stable覆盖。改为明确版本或遵循统一锁定。验证脚本实际选用版本。rust-version仅声明已验证最低版本。",
+    "再按锁定工具链逐项修复诊断。仅改宿主逻辑及测试。保留所有权、别名、整数边界与浮点位型。不批量屏蔽规则或删除测试。",
+    "运行默认及cuda-probe的clippy全目标检查。保留-D warnings。记录真实诊断数与未覆盖配置。",
+    "重跑默认库、M1及受影响宿主测试。对影响物理输入或调度的修改运行相关GPU验证。资源独占，不与通道C并发。",
+    "逐项对比实际生成内核源码摘要。固定配方及工具链对比PTX摘要。保留原静态产物。只验证文件未改不能替代实际产物核对。",
+    "内核字符串、编译选项与精度保持。不得放宽数值容差。发现摘要或行为漂移先诊断，禁止声称无影响。",
+    "交付诊断清单、测试日志与逐文件回执。列明Linux、release及NP01至NP04缺口。不把治理完成当全产品验收。",
+    "fluid_force.rs的四项excessive_precision仅允许窄范围allow豁免。保留原始冻结字面量与位型断言。不得缩短、替换字面量或删除断言。不得全文件屏蔽该规则。",
+    "默认配置诊断基线更新为24项。cuda-probe记录52项。逐项注明修复或窄范围豁免。新增6项的来源说明引用第2项报告，不误记为本次引入。",
+    "前十条原文承接源任务。它们不是已通过结论。逐条关联实际证据和源码版本。未满足任何一条时不得关闭。",
+    "三个续接任务均须verified。重新核对最终组合源码。历史证据不能自动转授。若源码变化，补受影响验证后再关门禁。",
+    "默认及cuda-probe的全目标Clippy必须通过。四项集成诊断须全部覆盖。不得靠缩小目标或降低警告级别通过。",
+    "核对六项暂缓的真实处置。核对19项宿主失败复核。核对50条证据继任链。核对最终状态的GPU比较。",
+    "保留所有原精度硬指标。保留全部旧阶段门禁。保留未验收的release与产品边界。本门禁不自动完成NP01至NP04。",
+    "本门禁只做汇总验收。源码实现各走独立交付任务。使用独立审查报告与回执。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-m1-bounds-evidence",
+      "2026-10-18-toolchain-clippy-governance",
+      "2026-10-18-toolchain-evidence-revalidation",
+      "2026-10-18-clippy-integration-tests",
+      "2026-10-18-linux-toolchain-validation"
+    ],
+    "phase": "工程治理/完整验收门禁",
+    "owner": "Codex审查",
+    "files": [
+      "docs/toolchain-clippy-acceptance.md",
+      "docs/development-evidence/toolchain-clippy-acceptance",
+      "docs/development-evidence/changes/2026-10-18-toolchain-clippy-acceptance.json"
+    ],
+    "resources": [],
+    "priority": 3
+  },
+  "note": "用户于2026-10-18授权正式迁移。保留原条件及前置。\n来源任务：2026-10-18-toolchain-clippy-governance。\n来源提交：25186895d187aa8a9a4068e09e828a340163589d。\n本轮仅登记排程。不自动开始编码或测试。\n实施前重新核对HEAD与范围。先做设计和交付预检。\n遵守原精度、容差和资源隔离。禁止禁用提交钩子。\nNP01至NP04仍未验收。历史失败不得记为通过。\n原十条验收逐字保留在acceptance前十项。\n用户只授权拆分，不授权放宽条件。\n原任务改为已交付子集。其关闭不释放本门禁。\n原任务没有排程直接后继。本轮将D03-FINAL增补本门禁前置。\nD03-FINAL既有前置和验收全部保留。\n原第1、2条：工具链子集交付；Linux续接复核。\n原第3、5、6、7、9、10条：证据复核任务承接剩余。\n原第4条：集成诊断任务完成全目标通过。\n原第8条：各子项独立报告，总门禁汇总。\n原默认基线为24行、23个位置。cuda-probe为52处。\n原71项分类：39修复、22豁免、6暂缓、4范围外。\n原回执validation=passed只对应交付子集。不得解释为完整治理通过。\n原任务定义快照：\n{\"id\":\"2026-10-18-toolchain-clippy-governance\",\"title\":{\"zh\":\"锁定工具链并治理宿主诊断\",\"en\":\"Pin the Rust toolchain and resolve host Clippy diagnostics\"},\"intent\":{\"zh\":\"固定工具链以控制漂移。统一清理宿主诊断。保留内核、精度与测试覆盖。\",\"en\":\"Control toolchain drift and resolve host diagnostics in one serialized task without changing kernels, precision, or test coverage.\"},\"acceptance\":[\"先记录实际工具链与诊断基线。选择明确版本并锁定。不得靠降级隐藏诊断。不擅自改变宿主目标或平台边界。\",\"添加rust-toolchain.toml。逐项核对脚本的+stable覆盖。改为明确版本或遵循统一锁定。验证脚本实际选用版本。rust-version仅声明已验证最低版本。\",\"再按锁定工具链逐项修复诊断。仅改宿主逻辑及测试。保留所有权、别名、整数边界与浮点位型。不批量屏蔽规则或删除测试。\",\"运行默认及cuda-probe的clippy全目标检查。保留-D warnings。记录真实诊断数与未覆盖配置。\",\"重跑默认库、M1及受影响宿主测试。对影响物理输入或调度的修改运行相关GPU验证。资源独占，不与通道C并发。\",\"逐项对比实际生成内核源码摘要。固定配方及工具链对比PTX摘要。保留原静态产物。只验证文件未改不能替代实际产物核对。\",\"内核字符串、编译选项与精度保持。不得放宽数值容差。发现摘要或行为漂移先诊断，禁止声称无影响。\",\"交付诊断清单、测试日志与逐文件回执。列明Linux、release及NP01至NP04缺口。不把治理完成当全产品验收。\",\"fluid_force.rs的四项excessive_precision仅允许窄范围allow豁免。保留原始冻结字面量与位型断言。不得缩短、替换字面量或删除断言。不得全文件屏蔽该规则。\",\"默认配置诊断基线更新为24项。cuda-probe记录52项。逐项注明修复或窄范围豁免。新增6项的来源说明引用第2项报告，不误记为本次引入。\"],\"modules\":{\"modify\":[\"mjwarp\",\"mjwarp.physics.core\",\"mjwarp.physics.fluid-force\",\"mjwarp.physics.gravity-compensation\",\"mjwarp.physics.mass-matrix\",\"mjwarp.physics.mass-solve\",\"mjwarp.physics.passive-force\",\"mjwarp.physics.resident\",\"mjwarp.physics.tendon-velocity\",\"mjwarp.physics.tendon-passive\",\"mjwarp.physics.flex-edge-passive\"]},\"schedule\":{\"depends_on\":[\"2026-10-18-m1-bounds-evidence\"],\"phase\":\"工程治理/工具链与诊断\",\"owner\":\"用户实现；Codex收尾\",\"files\":[\"rust-toolchain.toml\",\"Cargo.toml\",\"scripts\",\"src/physics/applied_force.rs\",\"src/physics/com_velocity.rs\",\"src/physics/fluid_force.rs\",\"src/physics/gravity_compensation.rs\",\"src/physics/kinetic_energy.rs\",\"src/physics/mass_matrix/multiply.rs\",\"src/physics/mass_matrix/multiply/borrowed.rs\",\"src/physics/mass_matrix/multiply/borrowed/device_energy.rs\",\"src/physics/mass_solve/sparse/mixed/solve.rs\",\"src/physics/passive_force.rs\",\"src/physics/resident.rs\",\"src/physics/smooth_force.rs\",\"src/physics/smooth_force/joint_passive.rs\",\"src/physics/tendon_velocity.rs\",\"docs/toolchain-clippy-governance.md\",\"docs/development-evidence/toolchain-clippy-governance\",\"docs/development-evidence/changes/2026-10-18-toolchain-clippy-governance.json\",\"src/physics/tendon_passive.rs\",\"src/physics/flex_edge_passive.rs\"],\"resources\":[\"gpu:windows-t4\",\"build:rust-toolchain\"],\"priority\":1},\"commit\":\"25186895d187aa8a9a4068e09e828a340163589d\"}\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-toolchain-clippy-acceptance.json",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-18T05:56:54.868Z",
+  "updated_at": "2026-10-18T05:56:54.868Z"
+}

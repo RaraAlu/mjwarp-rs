@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-applied-force-publish",
+  "title": {
+    "zh": "M3外力发布安全迁移",
+    "en": "M3 applied force publish safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅把applied_force_publish迁移到类型化同步包装。保持validate与delta既有包装，保留四指针四u32真实ABI、固定256线程、发布前全检查与失败不交换语义。",
+    "en": "Migrate only applied_force_publish to the typed synchronous wrapper. Preserve the existing validate and delta wrappers, the real four-pointer plus four-u32 ABI, fixed 256-thread launch, complete pre-publication checks, and no-swap-on-failure semantics."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "仅迁移applied_force_publish；applied_force_validate与applied_force_delta保持既有类型化包装，其他入口不变。",
+    "类型化包装精确声明meta、current、delta、staged四指针与n、worlds、add、work四个u32，固定256线程；meta按Value角色处理，但至少绑定1个i32并参与同会话校验。",
+    "发布维度拒绝零n、零worlds、零work、非布尔add、n乘worlds溢出或work不等于n乘worlds，并限制网格索引不回绕。",
+    "current、delta、staged均要求work加8个f32跨度、有效守卫、同上下文及真实语义所需别名隔离；容量、会话或别名失败不得启动GPU。",
+    "累加路径读取并检查current；替换路径只检查current守卫且允许旧NaN载荷；delta和staged全部检查成功后才交换current与staged，失败保持current并支持同计划恢复。",
+    "宿主证据区分发射前拒绝，GPU证据覆盖真实累加、替换、非有限结果拒绝、状态不变及恢复；静态不可达边界单独登记。",
+    "逐字节保持CUDA源码、生成PTX、fixtures、容差和__fadd_rn不变；正式捕获中每个入口只编译一次。",
+    "本机预检须确认CUDA 12.8.1 NVRTC与NVIDIA GeForce RTX 4070 Ti SUPER；使用唯一空捕获目录并保留原始输出、退出码、耗时和成员清单。",
+    "扩展check-evidence-blobs.ps1支持已存在Git blob清单身份；不得接受无身份清单，并证明本切片原件、索引和最终提交逐字节一致。",
+    "不重跑旧任务套件，不运行Python；如实保留显存未知、Linux与Release未测、父M3及U075与NP01至NP04未验收。",
+    "完成逐文件blob回执、正常钩子提交、PostCommit、完整SHA登记、Recorded、关闭、Final及父级排程回读。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-applied-force-validate-byte-correction"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/applied_force.rs",
+      "scripts/check-evidence-blobs.ps1",
+      "docs/development-evidence/layers-m3-applied-force-publish",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-applied-force-publish.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "父任务：2026-10-18-layers-m3。\n基线提交：6bcf8496477e154d5f904b4aa1884637ecbe5b9e。\n本机T4为NVIDIA GeForce RTX 4070 Ti SUPER。\n只迁移applied_force_publish。\nvalidate与delta保持现状。\n禁止Python。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-applied-force-publish.json\n提交：c2fc21e9569128188b74d0321a992f03a2955da6\nPostCommit：通过。\n提交证据字节：53/53匹配。\nLinux与Release未运行。\n显存使用未知。\nU075、NP01至NP04未验收。\n提交c2fc21e9569128188b74d0321a992f03a2955da6。PostCommit与Recorded通过。宿主测试1项通过。本机T4 GPU测试1项通过。CUDA、PTX、夹具、容差和__fadd_rn不变。索引及提交内53项原始证据逐字节一致。Linux与Release未运行。任务显存未知。U075、NP01至NP04及父M3未完成。",
+  "revision": {
+    "before": null,
+    "after": "c2fc21e9569128188b74d0321a992f03a2955da6"
+  },
+  "created_at": "2026-10-18T17:35:20.491Z",
+  "updated_at": "2026-10-18T17:51:03.730Z",
+  "closed_at": "2026-10-18T17:51:03.730Z"
+}

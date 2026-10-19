@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-flex-face-overflow-upstream-fallback",
+  "title": {
+    "zh": "柔体面溢出测试对齐上游单位回退",
+    "en": "Flex face overflow test follows upstream identity fallback"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "flex_face_readback_rejects_guards_nonfinite_and_arithmetic_overflow自97a7b54起失败。97a7b54按冻结Warp normalize改为长度非正或NaN时返回单位四元数，有限溢出输入不再产生非有限输出。产品符合上游，只改测试期望与文档措辞，不改产品内核。",
+    "en": "flex_face_readback_rejects_guards_nonfinite_and_arithmetic_overflow fails since 97a7b54, which made face polar normalization follow frozen Warp normalize (nonpositive or NaN length returns identity). The product matches upstream; only the stale test expectation and doc wording change, not the kernel."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.resident"
+    ]
+  },
+  "acceptance": [
+    "FLEX_FACE_CUDA与全部产品源码不变；只改resident.rs测试溢出段与windows-resident-flex-face.md两句措辞。",
+    "溢出段断言回读成功、world 512的face_xpos全部有限且保留1e20、六个face_quat均为[0,0,0,1]；守卫与NaN/±inf段保持原样。",
+    "证据记录97a7b54父提交d2d7b46该测试通过、HEAD 5a1593b失败，并读回失败时实际输出。",
+    "证据对照冻结上游71da24d9 mat33_to_quat_polar与Warp 1.15.0 quat.h normalize（kEps为0，非正或NaN返回单位四元数）。",
+    "修复后该测试在本机RTX 4070 Ti SUPER通过；physics::resident::单元GPU测试全部通过；核对gpu:windows-t4资源准入。",
+    "fmt、clippy默认与cuda-probe均通过；不新增Clippy豁免；不放宽任何容差。",
+    "不宣称NP01至NP04、柔体面精度、性能、Linux或release验收；保留97a7b54记录的2078项面位差。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-velocity-position-g01-correction"
+    ],
+    "phase": "physics/M3",
+    "owner": "Claude",
+    "files": [
+      "src/physics/resident.rs",
+      "docs/windows-resident-flex-face.md",
+      "docs/development-evidence/flex-face-overflow-upstream-fallback",
+      "docs/development-evidence/changes/2026-10-19-flex-face-overflow-upstream-fallback.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "base-commit: 5a1593ba1e7f45d3275c895df1e79e7ff57a8781\n来源：M3速度位置G01纠正任务GPU回归发现该测试在基线f40a78a同样失败。\n引入提交：97a7b54；最后通过：d2d7b467f0e96c5ea0795849ce71d0078b4be917。\nT4指本机RTX 4070 Ti SUPER。\n用户于2026-10-19要求按Normify交付流程登记并提交，每次写入前确认。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-flex-face-overflow-upstream-fallback.json\n完整提交：79d449407e05080214fbc6b369c17970744f4b99。\nPostCommit通过，回执覆盖14项文件。\n产品内核不变；只改测试溢出段与文档两句。\nHEAD失败时读回：xpos有限含1e20，六个四元数均为单位。\n上游Warp normalize对非正或NaN长度回退单位四元数。\n目标测试1过；resident单元GPU 21过；fmt与两种clippy通过。\n未跑完整GPU回归、Linux与release。NP01至NP04未验收。显存未记录。保留2078项面位差。",
+  "revision": {
+    "before": null,
+    "after": "79d449407e05080214fbc6b369c17970744f4b99"
+  },
+  "created_at": "2026-10-19T01:32:15.072Z",
+  "updated_at": "2026-10-19T02:15:12.859Z",
+  "closed_at": "2026-10-19T02:15:12.859Z"
+}

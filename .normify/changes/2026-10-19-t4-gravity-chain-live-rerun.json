@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-t4-gravity-chain-live-rerun",
+  "title": {
+    "zh": "重力非零链实测复验",
+    "en": "Gravity nonzero chain live rerun"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "be6ccf7刷新重力证据包中resident.rs身份，包摘要由9154df31变为c4752d60。gpu-3实测证据仍绑定旧摘要。本任务在Rara（RTX 4070 Ti SUPER）重跑live_nonzero_product_chain_matches_frozen_upstream，生成绑定新摘要的gpu-4证据，记录耗时与显存，并与gpu-3逐值比较。不改产品源码与测试代码。",
+    "en": "be6ccf7 refreshed the resident.rs identity in the gravity package, changing its digest from 9154df31 to c4752d60. The gpu-3 live evidence still binds the old digest. This task reruns live_nonzero_product_chain_matches_frozen_upstream on Rara (RTX 4070 Ti SUPER), producing gpu-4 evidence bound to the new digest, recording time and VRAM, and comparing value by value against gpu-3. Product sources and test code stay unchanged."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.gravity-compensation"
+    ]
+  },
+  "acceptance": [
+    "gpu-4证据由当前HEAD的ignored GPU测试实际生成，run.json的package_sha256为c4752d60f4871f32282b07ea7440dbdc8aa947983807331dd77833399debd199。",
+    "如实记录比较总数与位差；预期1134项、0位差；若有位差则如实保留，不放宽容差。",
+    "与gpu-3逐字段比较除包摘要外的结果，并记录PTX与编译回执是否一致。",
+    "记录测试耗时、GPU型号、驱动版本与显存占用。",
+    "src、native、include、build.rs与tests不变；产品测试不启动Python。",
+    "不宣称NP01至NP04、完整三维状态、性能、Linux或release验收。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-t4-resident-source-drift"
+    ],
+    "phase": "physics/M3",
+    "owner": "Claude",
+    "files": [
+      "docs/evidence/gravity-nonzero-product-chain/gpu-4",
+      "docs/evidence/gravity-nonzero-product-chain/README.md",
+      "docs/development-evidence/t4-gravity-chain-live-rerun",
+      "docs/development-evidence/changes/2026-10-19-t4-gravity-chain-live-rerun.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "base-commit: be6ccf756cdf08b1d27264bcdba898f46515c8cf\n来源：t4-resident-source-drift剩余项“重力GPU实测未重跑”。\n用户经主会话要求重跑并按Normify交付流程提交，每次写入前确认。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-t4-gravity-chain-live-rerun.json\n完整提交：3379e108225741a03ba33c657dcaa09955c1aae2。\nPostCommit通过，回执覆盖51项文件。\nRara RTX 4070 Ti SUPER，驱动596.36，CUDA 12.8.1。\nrun-01未设PTX捕获，产物原样保留；run-02补设后生成gpu-4。\ngpu-4绑定包摘要c4752d60…d199；1134项0位差，0超容差，最大误差0。\nrun-02 libtest 0.86s，整体1038.9 ms；设备显存4838到峰值5056 MiB（桌面共用，约218 MiB）。\n与gpu-3：30文件，25逐字节一致（含24个CUDA/PTX/回执），5个只差包摘要。\nsrc、native、include、build.rs与tests未变。\n未跑满额回归、release与Linux。NP01至NP04未验收。",
+  "revision": {
+    "before": null,
+    "after": "3379e108225741a03ba33c657dcaa09955c1aae2"
+  },
+  "created_at": "2026-10-19T06:50:33.866Z",
+  "updated_at": "2026-10-19T07:06:15.083Z",
+  "closed_at": "2026-10-19T07:06:15.083Z"
+}

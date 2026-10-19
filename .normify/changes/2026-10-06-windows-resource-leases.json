@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-windows-resource-leases",
+  "title": {
+    "zh": "验证Windows资源租约",
+    "en": "Verify Windows owned resource leases"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "实现字节范围租约与完成队列。GPU验证所有者转移和跨流同步。测试令牌丢弃、泄漏及失败隔离。保持引擎模块计划态。",
+    "en": "Implement internal byte-range leases and a completion retention queue. Validate moved cudarc owners, cross-stream dependencies, dropped/forgotten tokens and graph owners on Windows without claiming a frozen external ABI."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime",
+      "mjwarp.diagnostics"
+    ]
+  },
+  "acceptance": [
+    "检查设备、上下文、范围、对齐、权限与布局版本。拒绝重叠写入。",
+    "队列在提交前保留所有者。丢弃或泄漏令牌不得使GPU指针悬空。",
+    "完成失败保持失败状态并隔离资源。无法证明完成时不释放所有者。",
+    "真实GPU执行跨流内核与图。验证提前释放调用方句柄及队列Drop。",
+    "运行Rust主机与Windows GPU测试。保持依赖版本和所有模块计划态。"
+  ],
+  "note": "Windows内部资源租约原型通过。三路各5种规模。调试及发行GPU资源矩阵各4项通过。每次矩阵90个成功任务、15个模拟宿主失败、240次拒绝、15次图重放。全特性宿主测试51项通过。两路既有74组内核配置及原生GPU回归通过。默认与隔离特性检查通过。仅刷新真实源码证据，不激活计划模块。外部tensor ABI、真实设备故障恢复、缓存、清洁部署与Linux仍未验收。",
+  "revision": {
+    "before": null,
+    "after": "6abbe7674f6f18d5cb102391f9aa48489f34292f"
+  },
+  "created_at": "2026-10-06T14:12:33.803Z",
+  "updated_at": "2026-10-06T14:30:06.443Z",
+  "closed_at": "2026-10-06T14:30:06.443Z"
+}

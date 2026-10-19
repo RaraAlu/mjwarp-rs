@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-resident-mixed-gather",
+  "title": {
+    "zh": "M3常驻混合聚集安全迁移",
+    "en": "M3 resident mixed gather safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅迁移resident_mixed_gather至类型化同步包装。证明CSR元数据、精确跨度、写入代际、绑定、溢出、会话及别名约束，同时保持CUDA、PTX、编译选项、容差、夹具与执行发布顺序不变。",
+    "en": "Migrate only resident_mixed_gather to the typed synchronous wrapper, proving CSR metadata, exact spans, write revision, binding, overflow, session and alias constraints while preserving CUDA, PTX, compiler options, tolerances, fixtures, and execution/publication order."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "仅修改resident.rs、模块内测试、专属证据目录与精确交付回执。",
+    "resident_mixed_gather使用类型化同步包装；resident_mixed_validate保持现状。",
+    "CSR行分区、列索引、元数据真实跨度、写入代际和发射绑定均受检查。",
+    "包装验证work=worlds*n，并拒绝u32、u64、网格和容量溢出。",
+    "源容量严格等于worlds*(10*nb+n*n)+8，输出容量严格等于worlds*nc+8。",
+    "包装检查会话和别名，并保留返回前同步完成语义。",
+    "拒绝路径不发布聚集、分解、求解或回读状态；恢复路径保持原数值行为。",
+    "CUDA、PTX、编译选项、容差、夹具及上传、编译、发射、发布顺序保持不变。",
+    "只运行实质影响所需最小测试，并记录失败、修正和复验原因。",
+    "提交回执逐文件绑定暂存Git对象，完整SHA登记后完成关闭与最终核验。",
+    "保留合法重算位差、NP01至NP04未验收及M3整体未完成边界。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-resident-mixed-validation-replacement",
+      "2026-10-18-layers-m3-dense-gather"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/sparse/mixed/solve/resident.rs",
+      "docs/development-evidence/layers-m3-resident-mixed-gather",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-resident-mixed-gather.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-resident-mixed-gather.json\ndelivery-commit: 256a8fff995b82da0e3469921ef462ea11a849de\nPostCommit已通过。\n仅迁移resident_mixed_gather。\n不重做已核验的resident_mixed_validate。\n统一使用gpu:windows-t4。\n锁名不是T4设备证明。\n保留全部原始证据与捕获。\n原始捕获以同字节归档交付。\n本地.git/info/exclude仅排除本切片原件。\n合法重算位差、NP01至NP04和M3未完成边界保持不变。\n仅迁移resident_mixed_gather。提交256a8fff995b82da0e3469921ef462ea11a849de。PostCommit与Recorded均通过。宿主、GPU包装及产品路径测试通过。CUDA与PTX原始字节保持一致。未执行T4、Linux、Release及NP01至NP04。M3父任务仍未完成。",
+  "revision": {
+    "before": null,
+    "after": "256a8fff995b82da0e3469921ef462ea11a849de"
+  },
+  "created_at": "2026-10-18T13:01:36.229Z",
+  "updated_at": "2026-10-18T13:17:01.468Z",
+  "closed_at": "2026-10-18T13:17:01.468Z"
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-windows-external-resources",
+  "title": {
+    "zh": "Windows外部CUDA资源探针",
+    "en": "Windows external CUDA resource probe"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "落实连续f32外部描述符与真实所有权移交。以驱动信息检查声明，并保持导入器私有unsafe。收口生产事件、别名注册与在途释放边界，不冻结生产tensor ABI。",
+    "en": "Verify versioned contiguous f32 CUDA descriptors, actual allocation identity and bounds, readiness handoff, owner capsules, alias registration and in-flight lifetimes with a private unsafe importer."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime",
+      "mjwarp.diagnostics"
+    ]
+  },
+  "acceptance": [
+    "Rust与C++核对96字节描述符布局、版本与保留字段；主机检查类型、秩、步长、地址溢出与容量；不提供可伪造枚举判别值的FFI布局。",
+    "CUDA适配从真实指针查询设备、上下文、内存类型、managed状态、BUFFER_ID与cuMemGetAddressRange范围；拒绝宿主/managed/异域内存与虚增容量。只验证传统本地cuMemAlloc分配，不冒充池化、IPC或任意tensor支持。",
+    "导入器私有unsafe，要求外部所有者保持分配、上下文和初始生产事件有效且无未经租约的外部竞争。进程内弱注册表在根句柄丢弃而租约在途时仍拒绝同分配重复导入。",
+    "三路通过独立生产/执行/下载流、偏移双守卫、真实图、查询/等待、令牌丢弃/遗忘、队列析构、外部所有者释放计数及宿主提交失败隔离；不注入真实GPU非法访问。",
+    "不新增Python或学习框架依赖；既有缓存、内核和内部租约回归仍通过。核对Windows工具链与GPU版本，更新文档和Normify实际源码证据，保留全部产品模块计划态。"
+  ],
+  "note": "起点HEAD 704968e76284118cd351e27967ffbc9e0e9a3847。仅推进Windows。此前缓存源码指纹会随本次实际源码变更而保守失效。\nWindows外部资源原型通过。Rust/C++核对96字节布局。三路各覆盖五种规模。每次矩阵实际释放225个所有者。MSVC宿主调试与发行各74项通过。GPU回归各16项通过。GNU C++隔离宿主73项通过。GNU外部GPU三项通过。仅驱动部署烟测通过68组配置。fmt、五组合Clippy及rustdoc通过。本地链接42项通过。保留6项既有警告。生产张量与C回调ABI仍待决议。不执行Linux、Python或物理验收。不激活架构模块。提交2887b94f3a91d8576e87183ee8cfc6b8bb909edd。",
+  "revision": {
+    "before": null,
+    "after": "2887b94f3a91d8576e87183ee8cfc6b8bb909edd"
+  },
+  "created_at": "2026-10-06T15:17:52.284Z",
+  "updated_at": "2026-10-06T15:34:03.393Z",
+  "closed_at": "2026-10-06T15:34:03.393Z"
+}

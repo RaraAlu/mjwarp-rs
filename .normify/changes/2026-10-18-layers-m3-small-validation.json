@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-small-validation",
+  "title": {
+    "zh": "M3小块校验启动安全迁移",
+    "en": "M3 small validation launch safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "把small_prefix_validate启动收敛到受控同步包装，并保持冻结CUDA、零前缀与同步语义。",
+    "en": "Move small_prefix_validate behind a trusted synchronous wrapper while preserving frozen CUDA, zero-prefix behavior, and completion semantics."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "SparseMassSmallPlan::update_factor不再直接调用通用SynchronousKernel::launch执行small_prefix_validate。",
+    "受控包装固定CUDA源码、small_prefix_validate入口和256线程布局。",
+    "包装绑定静态prefix、动态worlds、真实设备跨度、容量、会话和别名。",
+    "元数据与unused指针仅按实际未解引用语义要求非空，不虚构元数据证明。",
+    "保持零Small、零prefix、校验先于分组、失败失效状态和同步完成语义。",
+    "保持f32、参数顺序、CUDA源码、PTX、容差和fixtures不变。",
+    "宿主计划、GPU包装和新产品路径测试覆盖容量、错会话、写读重叠、静态维度及无关元数据失效。",
+    "源码与PTX完成历史产物对比，日志记录命令、耗时、设备、整卡显存和规范化边界。",
+    "交付回执、完整提交号与Normify最终门禁通过，父任务M3保持未完成。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-small-factor"
+    ],
+    "phase": "physics/M3-small-validation",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/sparse/dense/small.rs",
+      "docs/development-evidence/layers-m3-small-validation",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-small-validation.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 3
+  },
+  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-small-validation.json\ndelivery-commit: 3a97a2654d9fc608b3fb99496d17846b539ad9f5\n父任务2026-10-18-layers-m3保持proposed。\n本切片只迁移small_prefix_validate调用。\n交付提交3a97a2654d9fc608b3fb99496d17846b539ad9f5已核验。父任务M3保持未完成。",
+  "revision": {
+    "before": null,
+    "after": "3a97a2654d9fc608b3fb99496d17846b539ad9f5"
+  },
+  "created_at": "2026-10-18T11:27:59.905Z",
+  "updated_at": "2026-10-18T11:37:48.997Z",
+  "closed_at": "2026-10-18T11:37:48.997Z"
+}

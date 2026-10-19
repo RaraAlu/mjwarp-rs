@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-toolchain-clippy-governance",
+  "title": {
+    "zh": "工具链锁定与诊断子集交付",
+    "en": "Deliver toolchain pinning and the completed diagnostic subset"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "完成指定提交的子集交付。完整验收另由保留原条款的总门禁承接。",
+    "en": "Close only the delivered subset at the specified commit; preserve full acceptance in the successor gate."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp",
+      "mjwarp.physics.core",
+      "mjwarp.physics.fluid-force",
+      "mjwarp.physics.gravity-compensation",
+      "mjwarp.physics.mass-matrix",
+      "mjwarp.physics.mass-solve",
+      "mjwarp.physics.passive-force",
+      "mjwarp.physics.resident",
+      "mjwarp.physics.tendon-velocity",
+      "mjwarp.physics.tendon-passive",
+      "mjwarp.physics.flex-edge-passive"
+    ]
+  },
+  "acceptance": [
+    "核验提交25186895d187aa8a9a4068e09e828a340163589d。核对提交内回执与51个文件对象。保留原历史报告。",
+    "核验工具链锁定1.99.0。核对32处脚本覆盖替换。核对锁版脚本的10项通过日志。Linux验证不在本子集通过范围。",
+    "核对71项处置清单。已交付39项修复、22项窄范围豁免。其余6项暂缓及4项范围外保持未完成。不得将全部71项记为修复。",
+    "保留冻结常量及位型断言。窄范围豁免不能扩为全文件屏蔽。物理精度与内核不获本项额外验收。",
+    "登记全部已知失败与未测项。严格Clippy默认4项、cuda-probe3项。另有4项集成诊断。宿主19项与GPU27项失败保持原结论。",
+    "区分历史与最终状态证据。记录50条历史身份。记录GPU批次早于两文件回退。记录清洁基线实测未成功。不得据摘要推断完整验收。",
+    "原十条完整验收逐字迁入2026-10-18-toolchain-clippy-acceptance。三项续接任务保持未验收。D03-FINAL须保留原前置并依赖新总门禁。",
+    "保留原任务的前置与占用。登记完整SHA并通过Recorded。仅关闭已交付子集。关闭后执行Final。不得绕过提交钩子。",
+    "明确Linux、release及NP01至NP04仍未验收。本项关闭不表示完整治理或产品通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-m1-bounds-evidence"
+    ],
+    "phase": "工程治理/工具链与诊断",
+    "owner": "用户实现；Codex收尾",
+    "files": [
+      "rust-toolchain.toml",
+      "Cargo.toml",
+      "scripts",
+      "src/physics/applied_force.rs",
+      "src/physics/com_velocity.rs",
+      "src/physics/fluid_force.rs",
+      "src/physics/gravity_compensation.rs",
+      "src/physics/kinetic_energy.rs",
+      "src/physics/mass_matrix/multiply.rs",
+      "src/physics/mass_matrix/multiply/borrowed.rs",
+      "src/physics/mass_matrix/multiply/borrowed/device_energy.rs",
+      "src/physics/mass_solve/sparse/mixed/solve.rs",
+      "src/physics/passive_force.rs",
+      "src/physics/resident.rs",
+      "src/physics/smooth_force.rs",
+      "src/physics/smooth_force/joint_passive.rs",
+      "src/physics/tendon_velocity.rs",
+      "docs/toolchain-clippy-governance.md",
+      "docs/development-evidence/toolchain-clippy-governance",
+      "docs/development-evidence/changes/2026-10-18-toolchain-clippy-governance.json",
+      "src/physics/tendon_passive.rs",
+      "src/physics/flex_edge_passive.rs"
+    ],
+    "resources": [
+      "gpu:windows-t4",
+      "build:rust-toolchain"
+    ],
+    "priority": 1
+  },
+  "note": "用户授权顺序第3项。先锁版本，后统一修复。不按物理模块拆项。\n当前源基线为330132cbb2509e19977a2451c08f31ffe4232507。开始时重新核对诊断清单。\n已列14个诊断文件。新增范围须先补排程预检。保留通道C文件与GPU互斥。\n精度映射要求产品输入、输出、中间量与累加不变。测试常量须保留原位型。\n旧D03与D03-FINAL门禁保持。此项不替代双平台正式工具链验收。\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-toolchain-clippy-governance.json\n2026-10-18 启动前交接。\n第2项提交：775f63c57996e13c0a2ecbeb8a7928f9434827cb。其登记、关闭与最终核验通过。\n已读取第2项报告及原始日志。默认24项，cuda-probe52项。原18项未覆盖恢复编译后的全部测试代码。报告将新增6项归因于条件编译修复。\n四项冻结常量位于fluid_force.rs当前1249至1252行。只能添加最小作用域allow，并说明冻结来源。不得缩短字面量或改变位型断言。\n两种配置联合涉及16个物理文件。已补tendon_passive.rs与flex_edge_passive.rs范围及模块。原14项仅覆盖cuda-probe日志。\n启动前排程显示通道C五项均未启动。工作区干净。可见应用列表未发现其他活跃的本仓库会话。无法排除未登记外部会话，执行者开工前仍须确认。\n保留gpu:windows-t4与build:rust-toolchain资源。只改宿主及测试，不改内核字符串。\n2026-10-18 集成测试诊断扩围申请。\n用户报告lib已无Clippy错误。随后集成测试新增暴露4项既有诊断。本会话未重跑，不将其记为已核验。\ntests/mixed_mass_solve.rs：needless_range_loop两项、manual_is_multiple_of一项。\ntests/mixed_mass_factor.rs：needless_range_loop一项。\n用户计划修改后独立重跑两项GPU测试。保留原输入、覆盖与容差。\n设计预检零错误。正式更新文件范围时，接口返回schedule/running-claims。运行态禁止改写占用。\n两文件尚未纳入正式范围。现有任务保持in_progress。未终止任务，未绕过门禁，未修改源码。\n后续需用户确认正规续接迁移，再登记两项文件与验证要求。\n2026-10-18 提交登记与收尾审查。\n完整提交：25186895d187aa8a9a4068e09e828a340163589d。\n本轮HEAD与提交号一致。工作区干净。\nPostCommit核验通过。回执覆盖51个文件。\n本轮仅核对已提交证据。未重跑产品测试。\n诊断清单共71项。修复39项，窄范围豁免22项。\n范围内6项仍暂缓。范围外集成测试另有4项。\n严格Clippy门禁：默认4项，cuda-probe3项。两项仍失败。\n警告级CUDA清单共7项。它另暴露4项集成测试诊断。\n前述lib清零仅是过程状态。最终提交未保持清零。\ngravity_compensation.rs与resident.rs保留父提交内容。\n50条源码身份记录转为历史。它们涉及10组证据。\n原始宿主日志：默认303通过、0失败。\nCUDA宿主日志：437通过、19失败、237忽略。\n19项既有失败归因采用Git对象摘要核对。清洁基线重跑未成功。\n不得将摘要归因写成成功的基线实测。\n两份内核摘要各279行。逐行比较未发现差异。\nGPU对比记录覆盖68个程序。记录保留27项失败。\n该GPU批次先于两暂缓文件回退。最终提交缺完整GPU批次复验。\n锁版脚本日志记录10项通过。Linux与release未覆盖。\nNP01至NP04仍未验收。\n原验收第3条要求逐项修复。第10条要求注明修复或窄范围豁免。\n六项deferred_pinned不满足该处置要求。仅记录原因不等于通过。\n本轮不改验收条款。不将任务改为verified。\n提交回执的validation=passed不能替代人工验收。\n保留in_progress与原资源锁。暂不关闭，也不运行Final。\n后续须先明确未完项的正式处置。不得只改冻结摘要使测试通过。\n后续建议尚未建项或启动。不得绕过上次收尾门禁。\n2026-10-18 用户授权正式拆分。\n本节记载新决议。前节保留历史状态。\n源提交：25186895d187aa8a9a4068e09e828a340163589d。\n本项转为工具链与诊断子集交付。\n关闭只确认该提交及已交付子集。\n原十条完整验收转入：2026-10-18-toolchain-clippy-acceptance。\n已回读确认十条原文完全一致。\n该总门禁仍为proposed，未通过。\n六项暂缓、19项宿主失败、50条历史身份：\n2026-10-18-toolchain-evidence-revalidation。\n四项集成诊断：\n2026-10-18-clippy-integration-tests。\nLinux锁版验证：\n2026-10-18-linux-toolchain-validation。\n所有续接任务均未启动。\n旧任务不存在直接排程后继。\n迁移后D03-FINAL新增总门禁前置。\n其余四项既有前置原样保留。\n不删除或终止任何旧阶段门禁。\n原任务前置、模块、文件与资源不变。\n迁移仅修改任务职责与验收归属。\n原十条定义快照保存在总门禁备注。\n不得把本项verified解释为Clippy全绿。\n不得把本项verified解释为产品验收。\n原回执保持提交内历史原样。\n回执passed仅记录该交付子集。\n完整治理通过须由总门禁另行确认。\n保留4/3项严格门禁失败。保留另外4项集成诊断。\n保留19项宿主失败与27项GPU失败。\n保留GPU批次先于两文件回退的限制。\n保留清洁基线未成功实测的限制。\n不得直接重写摘要使失败测试通过。\n本轮未改源码，未重跑产品测试。\n后续实现仍须独立预检、回执与提交。\n2026-10-18 首次关闭与修复记录。\n首次关闭停在架构指纹校验。\n错误：mjwarp.runtime指纹漂移。\n已停止后续收尾并执行normify_sync。\n定位到本提交已登记的四个脚本：\nscripts/run-cubecl-probe.ps1\nscripts/test-windows-deployment.ps1\nscripts/test-windows-external.ps1\nscripts/test-windows-transfers.ps1\n四文件只含工具链锁版及报告字段。\n旧模块修订为775f63c57996e13c0a2ecbeb8a7928f9434827cb。\n补做runtime设计预检：零错误。\n通过官方接口只刷新mjwarp.runtime。\n参数activate=false。不改变源码与目标接口。\n未改运行态占用。未激活新的产品模块。\n刷新只更新架构身份，不代表物理证据重验。\n完整架构校验：0错误、16条既有警告。\n保留首次失败记录。修复后重新核验并重试关闭。\n授权迁移后的子集交付收尾。\n完整提交：25186895d187aa8a9a4068e09e828a340163589d。\nPostCommit及Recorded均通过。\n首次关闭发现runtime指纹漂移。\n已核对四项脚本锁版变更。\n官方接口只刷新runtime架构身份。\n修复后校验0错误、16条既有警告。\n原十条完整验收已逐字迁入2026-10-18-toolchain-clippy-acceptance。\n该门禁及三个续接任务尚未通过。\nD03-FINAL保留原前置并依赖新总门禁。\n本次verified仅对应已交付子集。\n不代表全局Clippy或产品验收通过。\n未改源码，未重跑产品测试。",
+  "revision": {
+    "before": null,
+    "after": "25186895d187aa8a9a4068e09e828a340163589d"
+  },
+  "created_at": "2026-10-18T04:09:01.168Z",
+  "updated_at": "2026-10-18T05:59:41.680Z",
+  "closed_at": "2026-10-18T05:59:41.680Z"
+}

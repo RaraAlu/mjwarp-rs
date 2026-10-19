@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-default-lib-test-fix",
+  "title": {
+    "zh": "修复默认库测试条件编译",
+    "en": "Repair default library test conditional compilation"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "先恢复默认库测试反馈。保留流体源码与常量测试。不改变产品物理行为。",
+    "en": "Restore default library test compilation while retaining source and constant assertions without changing physics behavior."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.fluid-force"
+    ]
+  },
+  "acceptance": [
+    "仅扩展CUDA常量可见条件。采用cfg(any(test, feature = \"cuda-probe\"))。不屏蔽原测试。",
+    "运行cargo test --locked --lib。默认配置须通过。记录实际用例数与工具链。",
+    "运行cargo fmt --check。检查差异范围。内核字符串、浮点常量、配方及ABI保持不变。",
+    "留存真实验证日志与交付回执。不把零用例当通过。新增失败先诊断，不放宽容差。",
+    "提交前后完成交付核验。登记完整提交号后关闭。NP01至NP04不在本项验收范围。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m1"
+    ],
+    "phase": "工程修复/默认测试",
+    "owner": "用户实现；Codex收尾",
+    "files": [
+      "src/physics/fluid_force.rs",
+      "docs/default-lib-test-fix.md",
+      "docs/development-evidence/default-lib-test-fix",
+      "docs/development-evidence/changes/2026-10-18-default-lib-test-fix.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "用户授权顺序第1项。基线提交330132cbb2509e19977a2451c08f31ffe4232507。\n精度映射仅涉及条件可见性。物理类型与实际内核不变。无需GPU。不继承全产品验收。\n代码由用户执行。本会话只登记并启动。\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-default-lib-test-fix.json\n2026-10-18 第1项交付登记。\n完整提交号：4c360b9090cff364fc7f08fdaf0dbcf7b6c568dd。\n本会话核验真实HEAD与提交差异。源码仅修改条件编译及注释。内核字符串保持。\n提交后核验通过。回执覆盖8项文件。\n已读取提交内测试日志。默认库232过，零失败。cuda-probe库262过、83忽略。格式检查通过。\n这些测试属于已有提交证据。本会话未重跑测试。\n静态检查诊断留给工具链治理。未重跑集成或GPU测试。Linux及NP01至NP04仍未验收。\n完整提交号：4c360b9090cff364fc7f08fdaf0dbcf7b6c568dd。提交后及登记核验通过。核对源码仅改条件编译和注释。读取日志确认默认库232过，cuda-probe库262过、83忽略。格式检查通过。本会话未重跑测试。仅关闭默认库测试修复。保留静态检查、GPU、Linux及NP01至NP04边界。",
+  "revision": {
+    "before": null,
+    "after": "4c360b9090cff364fc7f08fdaf0dbcf7b6c568dd"
+  },
+  "created_at": "2026-10-18T04:08:10.892Z",
+  "updated_at": "2026-10-18T04:31:20.116Z",
+  "closed_at": "2026-10-18T04:31:20.116Z"
+}

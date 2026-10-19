@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-small-overlap-dynamic-gap",
+  "title": {
+    "zh": "M3 Small所有权重叠动态缺口",
+    "en": "M3 Small ownership overlap dynamic gap"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "补充专门动态负例，使输入通过范围检查后命中Small所有权重叠拒绝，并验证拒绝后的状态与恢复。",
+    "en": "Add a dedicated dynamic negative case that passes bounds checks, reaches Small ownership-overlap rejection, and verifies rejection state and recovery."
+  },
+  "modules": {},
+  "acceptance": [
+    "关联原提交7314929caaf18ed0bca0d0c067c8b669d54e802a与勘误提交4ad691e7dab7948e900845e564be647c01938382，保留原十三条验收和旧记录。",
+    "为mixed_solve_fused构造通过Small范围检查的元数据，并专门命中Small所有权重叠分支。",
+    "动态测试确认重叠被拒绝，原绑定与发布状态保持不变。",
+    "融合求解动态测试确认恢复有效；不得用其他Small路径、范围越界或静态源码检查代替。",
+    "验证使用独立输出路径，并保留原始输出、退出码与耗时。",
+    "本轮保持proposed；未来仅经独立设计与排程准入转in_progress；真实验证与交付通过前不得verified。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-mixed-solve-fused",
+      "2026-10-18-layers-m3-mixed-solve-fused-evidence-correction"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/sparse/mixed/solve.rs",
+      "docs/development-evidence/layers-m3-small-overlap-dynamic-gap",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-small-overlap-dynamic-gap.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "历史原提交：7314929caaf18ed0bca0d0c067c8b669d54e802a\n勘误提交：4ad691e7dab7948e900845e564be647c01938382\n现有bad_small先触发范围越界。\n专门动态重叠负例仍缺失。\n负例只针对mixed_solve_fused所有权重叠。\n其他Small路径不得转授。\n设计预检：0 error / 0 warning。\n两项前置均为verified。\n排程就绪且无运行冲突。\n统一使用gpu:windows-t4。\n本机设备为NVIDIA GeForce RTX 4070 Ti SUPER。\n当前基线HEAD：a8e9aa64ba180196f3d4134ec2c72f7a142ffbd8\n只新增solve.rs模块内GPU负例。\n复制首个合法Small三元组覆盖第二个。\n重复区间保持范围、地址和flag合法。\n静态分支须精确报告Small分区冲突。\n动态安全绑定须报告invalid_or_stale_proof。\n原元数据绑定、发布状态和GPU缓冲须逐位不变。\n拒绝后须复用同一融合路径成功。\n正式命令先写execution-plan.json。\n捕获目录必须此前不存在。\n正式测试只运行一次。\n不重跑a8e9aa6既有测试。\nCUDA路径固定target/toolchains/cuda-12.8.1。\n显存峰值未采集时登记unknown。\n不运行Python、Linux和Release。\n不宣称NP或性能完成。\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-small-overlap-dynamic-gap.json\n正式GPU测试：1 passed，393 filtered。\n测试进程耗时：7026 ms。\n内部拒绝：混合融合Small分区冲突。\n安全绑定错误：invalid_or_stale_proof。\n候选未上传GPU，内核未消费候选。\n原绑定、缓冲和发布状态保持不变。\n同一融合计划恢复成功。\n捕获14入口、42文件，无覆盖。\n与前次新捕获的42文件逐项一致。\n原始归档60成员逐项一致。\ncargo fmt --check通过。\ncargo clippy --features cuda-probe --lib --tests通过。\nNormify校验：0 error / 16 warning。\n历史attempt2仍未恢复。\n原第11条仍不充分。\n父级M3仍需逐入口审查。\n交付提交：c2b24aaf6051ac5fb9a4bcde1828e8a5a6ffa592\n提交c2b24aaf6051ac5fb9a4bcde1828e8a5a6ffa592已完成交付。Small动态重叠负例已通过。候选在宿主安全绑定前被拒绝，未上传GPU，内核未消费候选。原GPU状态保持不变，同一融合计划恢复成功。历史attempt2未恢复，原第11条仍不充分，父级M3仍需逐入口审查。",
+  "revision": {
+    "before": "a8e9aa64ba180196f3d4134ec2c72f7a142ffbd8",
+    "after": "c2b24aaf6051ac5fb9a4bcde1828e8a5a6ffa592"
+  },
+  "created_at": "2026-10-18T14:24:52.076Z",
+  "updated_at": "2026-10-18T16:20:54.036Z",
+  "closed_at": "2026-10-18T16:20:54.036Z"
+}

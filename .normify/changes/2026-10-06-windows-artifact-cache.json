@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-windows-artifact-cache",
+  "title": {
+    "zh": "验证Windows产物缓存与受限部署",
+    "en": "Windows artifact cache and restricted deployment"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "继续P1缓存与部署原型。分离编译产物生成与CUDA驱动执行。保持无Python与无CPU回退。完整清洁部署和Linux仍待验收。",
+    "en": "Separate compiler-side PTX artifact generation from driver-only execution, verify cache integrity and invalidation, and smoke-test restricted Windows deployment without claiming clean-machine acceptance."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime",
+      "mjwarp.diagnostics",
+      "mjwarp"
+    ]
+  },
+  "acceptance": [
+    "缓存键包含源码与依赖摘要、编译配方、路线、内核、SM和驱动API。损坏或过期缓存明确报错，不静默替代。",
+    "结构化产物采用JSON解析与SHA256校验。限制读入大小，拒绝重复或缺少内核、未知字段和不合法ABI参数。完整性校验不充当认证。外部GPU代码执行声明可信产物的unsafe前提。",
+    "原生、C++、LLVM生成产物覆盖既有八项探针及全局扫描辅助内核。仅cuda-probe消费者重用既有缓冲、事件、守卫与图测试，不加载编译库或回退路线。",
+    "独立Windows子进程限制PATH并清除CUDA开发环境，明确确认NVRTC不可用。记录PE依赖、平台、GPU和驱动。仅声明受限环境烟测，不伪称清洁部署。",
+    "执行Rust宿主测试、真实Windows GPU矩阵、格式、Clippy与文档检查。保持冻结上游、141项计划契约及模块计划态。"
+  ],
+  "note": "基线HEAD：6abbe7674f6f18d5cb102391f9aa48489f34292f。外部产物只作为P1可信开发输入。本轮不冻结产品缓存或发布ABI。\nWindows PTX缓存局部增量已验证。默认宿主48项、GNU C++与隔离MSVC LLVM各65项、CUDA隔离62项、MSVC全特性调试及发行宿主各66项；全特性GPU两种构建各12项通过。缓存GPU每次157组配置；独立受限PATH子进程生成17份产物，68组GPU、204轮图重放、240次节点更新及5次预期失败通过。SHA256仅证明完整性，外部代码须unsafe信任；NVRTC补丁、外部头文件及LLVM bundle指纹仍待定。依赖/PE检查不替代独立清洁机器验收。Linux未执行；141项目标契约及全部planned状态不变。源码与文档已自动智能提交；请记录当前真实HEAD。",
+  "revision": {
+    "before": null,
+    "after": "704968e76284118cd351e27967ffbc9e0e9a3847"
+  },
+  "created_at": "2026-10-06T14:37:53.545Z",
+  "updated_at": "2026-10-06T14:52:44.703Z",
+  "closed_at": "2026-10-06T14:52:44.703Z"
+}

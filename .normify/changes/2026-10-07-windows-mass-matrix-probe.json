@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-windows-mass-matrix-probe",
+  "title": {
+    "zh": "添加Windows质量矩阵探针",
+    "en": "Windows rigid mass matrix GPU probe"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "复用设备质心结果。验证刚体质量矩阵子集。",
+    "en": "Implement a bounded shared-model rigid CRB and symmetric dense mass matrix GPU helper using existing FK/COM device buffers; retain full G02/crb, sparse layout, factorization and solve contracts as planned."
+  },
+  "modules": {
+    "create": [
+      "mjwarp.physics.mass-matrix"
+    ],
+    "modify": [
+      "mjwarp",
+      "mjwarp.physics",
+      "mjwarp.physics.core"
+    ],
+    "api_add": [
+      {
+        "module": "mjwarp.physics.mass-matrix",
+        "key": "rpc:mjwarp_rs::physics::probe_mass_matrix"
+      },
+      {
+        "module": "mjwarp.physics.mass-matrix",
+        "key": "rpc:mjwarp_rs::physics::MassMatrixOutput"
+      },
+      {
+        "module": "mjwarp.physics.mass-matrix",
+        "key": "rpc:mjwarp_rs::physics::MassMatrixWorld"
+      }
+    ]
+  },
+  "acceptance": [
+    "GPU computes packed composite rigid inertias and symmetric row-major dense mass matrices, including DOF armature, without CPU physics fallback or intermediate transform reuploads.",
+    "Static independent MuJoCo references cover four joint types, branches/static ancestors, zero DOFs and nonzero armature; freeze absolute/relative tolerances at 2e-5 before GPU execution.",
+    "Host dimension/capacity/view tests and explicit Windows debug/release GPU tests cover symmetry, ancestor sparsity, analytical kinetic energy, semidefinite inputs and nonfinite-result rejection.",
+    "Existing FK/COM/native probes, default/native/CUDA/all-features host tests, fmt and warning-denied Clippy pass; only real evidence updates acceptance.",
+    "Preserve all 190 existing contracts, planned product stages and policy rules; auto-commit scoped changes and close Normify with genuine source fingerprints."
+  ],
+  "note": "质量矩阵已有独立源码文件。架构拆出真实职责叶子。旧66项物理契约迁入计划态core。另立proposed变更管理完整阶段。只在当前代码与测试完成后激活矩阵辅助叶子。不激活完整物理模块。\n提交21ad9dd落实刚体质量矩阵辅助。默认133+6、原生139+6、CUDA149+6、全feature159+6均通过。调试与发布各显式通过66项。矩阵四配置通过5或6项；比较1331或1379世界。固定容限2e-5。最大绝对误差1.7808917590400597e-5。解析动能与半正定检查通过。旧刚体与质心回归通过。14项暂存哈希匹配。提交后全feature发布再过6项与1379世界，报告3ede448259344d9aa1faaa4995c2cc55记录真实HEAD及clean工作区。七个产品模块与完整核心继续计划。旧190契约全部保留；66项物理契约只迁移归属。完整阶段提案保持proposed。Linux继续暂缓。",
+  "revision": {
+    "before": null,
+    "after": "21ad9dd997808b933b437988e53bf3a310806d9c"
+  },
+  "created_at": "2026-10-07T02:10:10.186Z",
+  "updated_at": "2026-10-07T02:23:12.994Z",
+  "closed_at": "2026-10-07T02:23:12.994Z"
+}

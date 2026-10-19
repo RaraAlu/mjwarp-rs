@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3",
+  "title": {
+    "zh": "M3 安全包装同步迁移",
+    "en": "Three layer m3"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "落实2026-10-18三层设计。复用原树与既有物理阶段。不以局部迁移替代正式准入。",
+    "en": "Apply the reviewed three-layer design on the existing tree without replacing formal product gates."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime",
+      "mjwarp.physics",
+      "mjwarp.model"
+    ]
+  },
+  "acceptance": [
+    "完成W05、W17、W18和A3；十一个私有方法改用安全包装。",
+    "仅改清单内宿主调用及校验；逐字节保持内核字符串、冻结PTX、容差与fixtures。",
+    "保留同步完成语义和既有合法输入；故障测试覆盖越界、重叠、错会话及元数据失效。",
+    "逐入口核对源码与PTX、参数顺序、维度、流依赖；确定性逐位对比，原子沿用冻结门禁。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-inventory",
+      "2026-10-18-layers-m3-safe-core",
+      "2026-10-18-layers-m3-safe-core-evidence",
+      "2026-10-18-layers-m3-kinetic-sync",
+      "2026-10-18-layers-m3-kinetic-validation",
+      "2026-10-18-layers-m3-device-energy-validation",
+      "2026-10-18-layers-m3-small-factor",
+      "2026-10-18-layers-m3-small-validation",
+      "2026-10-18-layers-m3-dense-validation",
+      "2026-10-18-layers-m3-dense-gather",
+      "2026-10-18-layers-m3-resident-mixed-validation-replacement",
+      "2026-10-18-layers-m3-resident-mixed-gather",
+      "2026-10-18-layers-m3-mixed-solve-validation",
+      "2026-10-18-layers-m3-mixed-solve-fused",
+      "2026-10-18-layers-m3-mixed-solve-capture-evidence-gap",
+      "2026-10-18-layers-m3-small-overlap-dynamic-gap",
+      "2026-10-18-layers-m3-mixed-factor-merge",
+      "2026-10-18-layers-m3-sparse-mass-copy",
+      "2026-10-18-layers-m3-sparse-mass-update",
+      "2026-10-18-layers-m3-sparse-mass-diag",
+      "2026-10-19-layers-m3-applied-force-delta",
+      "2026-10-19-layers-m3-applied-force-delta-overflow",
+      "2026-10-19-layers-m3-applied-force-validate",
+      "2026-10-19-layers-m3-applied-force-validate-byte-correction",
+      "2026-10-19-layers-m3-applied-force-publish",
+      "2026-10-19-layers-m3-smooth-force-validate",
+      "2026-10-19-layers-m3-smooth-force-compute",
+      "2026-10-19-layers-m3-inventory-derived-correction",
+      "2026-10-19-layers-m3-post-freeze-checker-fix",
+      "2026-10-19-layers-m3-sleep-copy",
+      "2026-10-19-layers-m3-rne-qfrc",
+      "2026-10-19-layers-m3-rne-cfrc",
+      "2026-10-19-layers-m3-rne-cacc",
+      "2026-10-19-layers-m3-rne-bias",
+      "2026-10-19-layers-m3-rne-bias-record-correction",
+      "2026-10-19-layers-m3-rne-bias-verification-link-correction",
+      "2026-10-19-layers-m3-rne-bias-clippy-structural-fix",
+      "2026-10-19-layers-m3-rne-backward",
+      "2026-10-19-layers-m3-rigid-mass-solve",
+      "2026-10-19-layers-m3-velocity-position-g01-correction",
+      "2026-10-19-layers-m3-rigid-mass-matrix"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/runtime/launcher",
+      "src/runtime/transfer/kernel.rs",
+      "src/runtime/transfer/kernel",
+      "src/physics/applied_force.rs",
+      "src/physics/attached.rs",
+      "src/physics/com_velocity.rs",
+      "src/physics/flex_edge_passive.rs",
+      "src/physics/fluid_force.rs",
+      "src/physics/gravity_compensation.rs",
+      "src/physics/kinetic_energy.rs",
+      "src/physics/mass_matrix.rs",
+      "src/physics/mass_matrix/multiply.rs",
+      "src/physics/mass_matrix/multiply/borrowed.rs",
+      "src/physics/mass_matrix/multiply/borrowed/device_energy.rs",
+      "src/physics/mass_matrix/resident.rs",
+      "src/physics/mass_solve.rs",
+      "src/physics/mass_solve/resident.rs",
+      "src/physics/mass_solve/sparse.rs",
+      "src/physics/mass_solve/sparse/dense.rs",
+      "src/physics/mass_solve/sparse/dense/small.rs",
+      "src/physics/mass_solve/sparse/mixed.rs",
+      "src/physics/mass_solve/sparse/mixed/solve.rs",
+      "src/physics/mass_solve/sparse/mixed/solve/resident.rs",
+      "src/physics/mass_solve/sparse/resident.rs",
+      "src/physics/mass_solve/sparse/resident/solve.rs",
+      "src/physics/mod.rs",
+      "src/physics/passive_force.rs",
+      "src/physics/resident.rs",
+      "src/physics/rne.rs",
+      "src/physics/rne_bias.rs",
+      "src/physics/smooth_force.rs",
+      "src/physics/smooth_force/joint_passive.rs",
+      "src/physics/tendon_passive.rs",
+      "src/physics/tendon_velocity.rs",
+      "src/model",
+      "tests/launcher_sync.rs",
+      "docs/development-evidence/changes/2026-10-18-layers-m3.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "依据 docs/architecture.md、docs/unified-launcher.md、docs/module-contracts.md。\n实现、验证和交付分别记录。\n未实现功能保持原模块状态。\n每个代码切片提交前须通过交付预检。\n若阶段继续拆分，保留本节点验收。\n父节点依赖全部独立切片。\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3.json\n2026-10-18统一GPU资源锁。\nRara显卡共用此锁。\n统一采用gpu:windows-t4。\n原gpu:0不再用于本任务。\n锁名不是显卡型号证明。\n执行前须核对实际设备。\n测量仍需排除桌面干扰。\n清点口径纠正：产品调用106处。\n另有两处源码内测试调用。\n两类合计108处。\n不得称108处均为产品调用。\n通用launch调用85处。\n通用调用仍需逐处证明跨度。\n清单概述不代表安全迁移。\n实际调用文件共31个：\nsrc/physics/applied_force.rs\nsrc/physics/attached.rs\nsrc/physics/com_velocity.rs\nsrc/physics/flex_edge_passive.rs\nsrc/physics/fluid_force.rs\nsrc/physics/gravity_compensation.rs\nsrc/physics/kinetic_energy.rs\nsrc/physics/mass_matrix.rs\nsrc/physics/mass_matrix/multiply.rs\nsrc/physics/mass_matrix/multiply/borrowed.rs\nsrc/physics/mass_matrix/multiply/borrowed/device_energy.rs\nsrc/physics/mass_matrix/resident.rs\nsrc/physics/mass_solve.rs\nsrc/physics/mass_solve/resident.rs\nsrc/physics/mass_solve/sparse.rs\nsrc/physics/mass_solve/sparse/dense.rs\nsrc/physics/mass_solve/sparse/dense/small.rs\nsrc/physics/mass_solve/sparse/mixed.rs\nsrc/physics/mass_solve/sparse/mixed/solve.rs\nsrc/physics/mass_solve/sparse/mixed/solve/resident.rs\nsrc/physics/mass_solve/sparse/resident.rs\nsrc/physics/mass_solve/sparse/resident/solve.rs\nsrc/physics/mod.rs\nsrc/physics/passive_force.rs\nsrc/physics/resident.rs\nsrc/physics/rne.rs\nsrc/physics/rne_bias.rs\nsrc/physics/smooth_force.rs\nsrc/physics/smooth_force/joint_passive.rs\nsrc/physics/tendon_passive.rs\nsrc/physics/tendon_velocity.rs\n历史关联：2026-10-18-layers-m3-resident-mixed-validation因占用声明遗漏而abandoned。\n正式替代：2026-10-18-layers-m3-resident-mixed-validation-replacement接管该切片。\n常驻混合聚集切片：2026-10-18-layers-m3-resident-mixed-gather。\n混合求解校验切片：2026-10-18-layers-m3-mixed-solve-validation。\n父任务四条验收保持不变。\n既有十二项前置全部保留。\n融合求解切片：2026-10-18-layers-m3-mixed-solve-fused。\n父任务新增第十四项前置。\n融合求解历史捕获缺口：2026-10-18-layers-m3-mixed-solve-capture-evidence-gap。\nSmall所有权动态缺口：2026-10-18-layers-m3-small-overlap-dynamic-gap。\n两项保持proposed，勘误不代表解决。\n混合因子合并切片：2026-10-18-layers-m3-mixed-factor-merge。\n父任务仅新增依赖，四条验收不变。\n稀疏质量复制切片：2026-10-18-layers-m3-sparse-mass-copy。\n父任务只新增该依赖；四条验收和既有十七项依赖不变。\n稀疏质量对角切片：2026-10-18-layers-m3-sparse-mass-diag。\n父任务只新增该依赖；四条验收和既有十九项依赖不变。\n2026-10-19状态澄清：\n捕获证据缺口已verified。\nSmall动态缺口已准入in_progress。\n“两项保持proposed”仅属历史登记。\n父任务四条验收保持不变。\n新捕获不恢复attempt2原件。\n原融合任务第11条仍不充分。\nSmall任务只补动态分区冲突。\n父任务仍需逐入口最终核验。\n2026-10-19动态缺口收尾：\nSmall动态缺口已verified。\n交付提交：c2b24aaf6051ac5fb9a4bcde1828e8a5a6ffa592\n当前融合Small重叠故障证据已补齐。\n候选在宿主安全绑定校验被拒绝。\n候选未上传GPU，内核未消费候选。\n原GPU状态保持不变。\n同一融合计划恢复成功。\n证据映射：docs/development-evidence/layers-m3-small-overlap-dynamic-gap/historical-and-parent-mapping.json\n该证据只支持当前融合Small路径。\n它不转授其他M3入口。\n捕获证据缺口也已verified。\n历史attempt2原件仍不可恢复。\n原融合任务第11条仍不充分。\n父任务四条验收保持不变。\n父任务不得自动转verified。\n父任务仍需逐入口最终审查。\n2026-10-19外力增量切片：2026-10-19-layers-m3-applied-force-delta。\n父任务只新增该依赖。\n父任务四条验收保持不变。\n该切片不迁移校验与发布入口。\n2026-10-19外力增量覆盖缺口：\n子任务2026-10-19-layers-m3-applied-force-delta已verified。\n交付提交：95924d1db800864d7f52f12162e50869b4444762\n原第3条尚未全覆盖。\n元数据跨度算术溢出尚无专门故障断言。\n体索引越界不能替代算术溢出。\n父M3门禁继续保留未完成。\n宿主故障运行缺少预登记与分流日志。\nevidence-check的stderr属于事后占位，不是原始输出。\ndevice-preflight属于事后快照。\n下一片必须先预登记命令、目的、环境与唯一目录。\n随后预创建独立stdout与stderr，并检查两者存在。\n下一候选applied_force_validate尚未启动。\n2026-10-19跨度边界补证：\n新增前置2026-10-19-layers-m3-applied-force-delta-overflow。\n原四条验收保持不变。\n该任务只补元数据跨度边界。\n它不迁移validate或publish。\n父M3须等待该任务verified。\n静态上界不得冒充动态测试。\n2026-10-19元数据跨度补证收尾：\n子任务2026-10-19-layers-m3-applied-force-delta-overflow已verified。\n交付提交：485009ddaaf4b08e1e811e2fa60b8aea51aefee0\ni32元数据表示上限缺口已解除。\ni32::MAX动态接受。\ni32::MAX+1与+2动态精确拒绝。\nu64元数据算术溢出仅获静态不可达证明。\n不得称其获得动态覆盖。\n不得外推为全部算术overflow已覆盖。\n原宿主预登记和分流日志缺口仍保留。\n事后stderr占位限制仍保留。\n设备事后快照限制仍保留。\n原关闭任务和原验收不追认。\n父M3其余门禁仍未完成。\nvalidate候选尚未启动。\n2026-10-19外力验证切片：\n新增前置2026-10-19-layers-m3-applied-force-validate。\n仅迁移applied_force_validate。\ndelta既有包装保持不变。\npublish继续使用原始发射。\n独立契约要求work等于worlds。\nGPU验证失败覆盖必须保留。\n父任务四条验收保持不变。\n纠正依赖：2026-10-19-layers-m3-applied-force-validate-byte-correction。仅修复已关闭validate切片的原字节交付，不改变父任务验收。\n2026-10-19平滑力验证切片：2026-10-19-layers-m3-smooth-force-validate。\n仅迁移smooth_force_validate。\nsmooth_force计算入口保持原始发射。\n父任务四条验收保持不变。\n2026-10-19清单派生项账本漂移：\nproduct_low_level_call_sites分组为通用launch：17 typed、62 raw，编排22。\nprivate_launch_methods仍写10 typed、69 raw、编排15。\nmanual_cross_checks仍称15项类型化，并称publish为本片唯一迁移。\nmethodology.raw_scan仍指向applied_force.rs。\nbuild-inventory仍筛选不存在的raw_unmigrated状态。\n实际状态值为unmigrated_or_unwrapped。\n顶层入口24/64与低层调用20/79保持一致。\n本片代码、64项原件与102项回执仍通过。\n该漂移须建立独立纠正记录。\n不得修改已关闭记录或追认历史。\n下一最小候选先纠正清单派生项。\n产品候选sleep_copy只读评估，不启动。\n2026-10-19休眠复制切片：2026-10-19-layers-m3-sleep-copy。\n仅迁移sleep_copy。\ntendon_wake继续使用原始发射。\n父任务四条验收保持不变。\n该切片不得转授NP01至NP04或性能验收。\n2026-10-19广义力投影切片：2026-10-19-layers-m3-rne-qfrc。\n仅迁移rne_qfrc。\nrne_cacc、rne_cfrc与rne_backward保持原始发射。\n父任务四条验收保持不变。\n历史flg_acc=false超差继续保留。\n2026-10-19合力计算切片：2026-10-19-layers-m3-rne-cfrc。\n仅迁移rne_cfrc。\nrne_cacc与rne_backward保持原始发射。\nrne_qfrc保留既有安全包装。\n父任务四条验收保持不变。\n历史flg_acc=false超差继续保留。\n2026-10-19加速度发射切片：2026-10-19-layers-m3-rne-cacc。\n仅迁移rne_cacc。\nrne_backward保持原始发射。\nrne_cfrc与rne_qfrc保留既有包装。\n父任务四条验收保持不变。\n历史flg_acc=false超差继续保留。\n2026-10-19偏置力切片：2026-10-19-layers-m3-rne-bias。\n仅迁移rne_bias；父任务四条验收保持不变。\n偏置力交付勘误：2026-10-19-layers-m3-rne-bias-record-correction。保留旧回执并追加权威勘误，不改变父任务四条验收。\n偏置力验证链接勘误：2026-10-19-layers-m3-rne-bias-verification-link-correction。只归档三项验证原件并追加权威链接。\n偏置力静态诊断修复：2026-10-19-layers-m3-rne-bias-clippy-structural-fix。仅移除新增豁免并做宿主输入分组。\n2026-10-19逆向合力累加切片：2026-10-19-layers-m3-rne-backward。\n仅迁移rne_backward；父任务四条验收保持不变。\n逐层逆序与同层原子语义不得重排。\n2026-10-19刚体质量求解切片：2026-10-19-layers-m3-rigid-mass-solve。\n仅迁移rigid_mass_solve；父任务四条验收保持不变。\n现有size=2反向LDL辅助边界继续合法。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-17T18:39:21.206Z",
+  "updated_at": "2026-10-19T00:47:53.326Z"
+}

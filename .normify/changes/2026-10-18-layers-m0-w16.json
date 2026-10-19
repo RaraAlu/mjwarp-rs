@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m0-w16",
+  "title": {
+    "zh": "M0 编译开销基线",
+    "en": "Three layer m0-w16"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "落实2026-10-18三层设计。复用原树与既有物理阶段。不以局部迁移替代正式准入。",
+    "en": "Apply the reviewed three-layer design on the existing tree without replacing formal product gates."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime.transfer.kernel"
+    ]
+  },
+  "acceptance": [
+    "复用当前产品源码与编译配方；不修改物理结果、容差或同步语义。",
+    "记录NVRTC版本、源码与PTX摘要、选项、冷启动、重复编译、加载耗时、显存及样本数。",
+    "区分端到端与编译加载耗时；不把一次采样称为性能达标；形成缓存优先级决议。",
+    "列出NP01至NP04的覆盖及缺口；缺双平台或稳态证据不得宣称完整精度验收。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-baseline"
+    ],
+    "phase": "execution/M0",
+    "owner": "Codex",
+    "files": [
+      "src/runtime/transfer/kernel.rs",
+      "tests/support/launcher_compile_baseline.rs",
+      "scripts/measure-launcher-baseline.ps1",
+      "docs/development-evidence/changes/2026-10-18-layers-m0-w16.json",
+      "docs/evidence/launcher-baseline",
+      "docs/launcher-baseline.md"
+    ],
+    "resources": [
+      "gpu:0"
+    ],
+    "priority": 1
+  },
+  "note": "依据 docs/architecture.md、docs/unified-launcher.md、docs/module-contracts.md。实现、验证和交付分别记录。未实现功能保持原模块状态。每个代码切片提交前须通过交付预检；若阶段继续拆分，保留本节点验收并令其依赖独立切片。delivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m0-w16.json\n\n2026-10-18 M0交付收尾。\n完整提交号：4967ea71906579b182fe9599feec494b7eb2ba7b。\n提交后检查通过。覆盖46项文件及1份回执。\n实现与范围验证已完成。依据 docs/launcher-baseline.md 与回执原始证据。\n既有记录：格式通过。新增宿主5项、GPU1项通过。适配器GPU9项、宿主8项通过。debug两模式各3样本，30次运行及5次预热；每轮23项按原容差通过。\nclippy仍有52项诊断。涉及14个未改物理文件。修改文件诊断为零。\n未测release、Linux、L2冻结PTX及其余套件。GPU未独占。未测模块卸载显存归还与产品稳态。\nNP01至NP04均未验收。M0关闭不代表精度或性能达标。\n本会话只核验交付并收尾。不重做M0，不重跑产品测试。原始测试结论引用提交内证据。\n完整提交号：4967ea71906579b182fe9599feec494b7eb2ba7b。提交后与登记核验通过。仅关闭M0范围交付。既有测试证据见回执。保留clippy失败与全部未测项。NP01至NP04及性能仍未验收。本次未重做M0或重跑产品测试。",
+  "revision": {
+    "before": null,
+    "after": "4967ea71906579b182fe9599feec494b7eb2ba7b"
+  },
+  "created_at": "2026-10-17T18:39:18.538Z",
+  "updated_at": "2026-10-17T19:56:03.769Z",
+  "closed_at": "2026-10-17T19:56:03.769Z"
+}

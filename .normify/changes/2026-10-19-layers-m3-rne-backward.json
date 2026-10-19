@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-rne-backward",
+  "title": {
+    "zh": "M3逆向合力累加迁移",
+    "en": "M3 rne backward migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅迁移rne_backward私有入口。以安全包装绑定逐层逆序、真实ABI、元数据代际、跨度、会话和别名。保持内核字节与浮点顺序不变。",
+    "en": "Migrate only the private rne_backward entry through a safe wrapper that binds reverse depth order, real ABI, metadata generation, spans, session, and aliasing while preserving kernel bytes and floating-point order."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "只迁移src/physics/rne.rs中的rne_backward入口，不启动其他入口。",
+    "保持RNE_CUDA与冻结PTX字节不变，不改变浮点顺序、原子路径、容差或覆盖。",
+    "真实ABI保持四个指针和四个u32标量，顺序为metadata、com、velocity、output、nbody、level、zero、work。",
+    "com与velocity虽未被CUDA读取，仍绑定真实跨度、会话和别名角色。",
+    "逐层预检要求level位于1到最大深度，work等于worlds乘nbody。",
+    "根节点专用树执行零次backward，不使用level零伪执行。",
+    "所有backward预检先于cacc写入完成，拒绝时不修改output。",
+    "每层同步保持子节点先于父节点，禁止跨层并行或重排。",
+    "同父兄弟继续使用原子加；位等价仅用于精确输入，原子一般路径保留原容差边界。",
+    "故障覆盖容量、溢出、错会话、别名、元数据失效和非法层级。",
+    "故障覆盖此前ready为真、拒绝后撤销ready、输出字节不变和同计划恢复。",
+    "图形测试覆盖真实多层树与同父兄弟，并核对本机显卡型号。",
+    "图形运行前核对gpu:windows-t4资源准入；锁名不充当设备证明。",
+    "全部验证事前登记唯一目录、命令、环境、独立输出、退出码、耗时和空捕获状态。",
+    "以偏置力全量清单及结构修复覆盖层为基线，生成新全量盘点且不覆盖旧清单。",
+    "新盘点更新当前行号与派生计数，不复用过时行号。",
+    "不新增Clippy豁免，不削弱检查；宿主参数采用合理分组。",
+    "交付回执绑定暂存对象；登记完整提交号；核验后关闭并最终核验。",
+    "保留1042项历史超差；不宣称NP01至NP04、性能、Linux或release验收。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-rne-bias-clippy-structural-fix"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/rne.rs",
+      "docs/development-evidence/layers-m3-rne-backward",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-rne-backward.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "base-commit: 0f54bcf8c36feeb00032a923925433c8c1dfd9ee\ninventory-baseline: docs/development-evidence/layers-m3-rne-bias/unmigrated-launch-inventory.json\ninventory-overlay: docs/development-evidence/layers-m3-rne-bias-clippy-structural-fix/bias-inventory.json\n本任务只迁移rne_backward。\nT4设备须在运行时核对。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-rne-backward.json\ncommit: a2d057618d2884234e9b6779e619cce5abfc2adc\n提交 a2d057618d2884234e9b6779e619cce5abfc2adc 已核验。仅完成 rne_backward 类型包装。保留原子路径、历史1042项、NP01至NP04、性能、Linux、release与显存未知边界。",
+  "revision": {
+    "before": null,
+    "after": "a2d057618d2884234e9b6779e619cce5abfc2adc"
+  },
+  "created_at": "2026-10-18T21:15:52.590Z",
+  "updated_at": "2026-10-18T21:33:16.456Z",
+  "closed_at": "2026-10-18T21:33:16.456Z"
+}

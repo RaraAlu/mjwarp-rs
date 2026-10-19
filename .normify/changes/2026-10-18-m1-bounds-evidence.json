@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-m1-bounds-evidence",
+  "title": {
+    "zh": "M1发射边界收缩与静态补证",
+    "en": "Narrow M1 launch bounds and add frozen static evidence"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "补齐1维静态证据。删除无当前用途的4维发射边界。保留4维数组契约。",
+    "en": "Add fixed one-dimensional frozen ABI evidence, remove unused four-dimensional launch bounds, and preserve four-dimensional array support."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime"
+    ]
+  },
+  "acceptance": [
+    "固定静态样本清单。记录来源路径、入口和摘要。不依赖全局扫描计数。不改冻结产物。",
+    "核验1维发射边界的PTX首参数。大小24字节，对齐8字节。与Rust类型匹配。静态结果不证明字段顺序或运行语义。",
+    "删除LaunchBounds4及导出、设备表示和相关测试。仅将Bounds维度限制为1至3。增加拒绝4维发射边界测试。",
+    "保留WarpArrayData的1至4维支持。保留shape[4]与strides[4]。增加4维数组正向测试。保留56字节布局与既有字段偏移。",
+    "运行格式、默认库及launcher_abi测试。带cuda-probe执行发射器宿主单测。记录实际结果，不要求GPU运行。",
+    "不迁移物理调用。不改内核、编译配方和精度。将真实冻结内核运行验证留给M4。NP01至NP04仍未验收。",
+    "关联已关闭M1，不修改旧任务。完成逐文件回执及提交收尾。文档只同步本项范围。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-default-lib-test-fix",
+      "2026-10-18-layers-m1"
+    ],
+    "phase": "execution/M1补丁",
+    "owner": "用户实现；Codex收尾",
+    "files": [
+      "src/runtime/launcher",
+      "tests/launcher_abi.rs",
+      "tests/support/launcher_bounds_evidence.rs",
+      "docs/unified-launcher.md",
+      "docs/module-contracts.md",
+      "docs/m1-bounds-evidence.md",
+      "docs/development-evidence/m1-bounds-evidence",
+      "docs/development-evidence/changes/2026-10-18-m1-bounds-evidence.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "用户授权顺序第2项。等待第1项完成收尾。\nBounds是发射网格维度。WarpArrayData是数组维度。两者不能混淆。\n只收缩发射边界，保留4维数组。1维静态证据不等于运行验收。\nM1原交付保持关闭。不新增物理接口或上游参考生成链。\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-m1-bounds-evidence.json\n2026-10-18 第2项交付登记。\n完整提交号：775f63c57996e13c0a2ecbeb8a7928f9434827cb。\n提交后核验通过。回执覆盖18项文件。工作区干净。\n读取提交内日志：格式通过。默认库232过。默认集成18过。cuda-probe集成19过。发射器单测10过。\n本会话未重跑测试。静态证据只证明大小与对齐。字段顺序及运行语义留给M4。\n默认Clippy记录24项诊断。cuda-probe记录52项。报告将新增6项归因于默认测试编译恢复。\n四项流体常量诊断转交第3项。仅允许最小作用域allow。不缩短冻结字面量。\n未运行GPU与Linux。NP01至NP04仍未验收。\n首次关闭因根模块指纹漂移而停止。增量核对仅命中docs/module-contracts.md。该文件已有任务范围与交付回执。\n尝试补列根模块时，接口拒绝修改运行态占用。保留原modules与schedule，不终止或改名任务。\n已通过正式刷新工具更新根模块证据。仅刷新本次契约文档导致的指纹。不激活模块，不更改架构及历史任务。\n刷新后登记核验再次通过。随后重新执行关闭门禁。\n完整提交号：775f63c57996e13c0a2ecbeb8a7928f9434827cb。首次关闭根模块指纹漂移；核对其来源为本次范围内契约文档后，正式刷新证据。运行态占用声明保持不变。登记核验再次通过。已有测试日志232/18/19/10项通过，本次未重跑。四项冻结常量诊断转交治理，禁止缩短字面量。GPU、Linux及NP01至NP04仍未验收。",
+  "revision": {
+    "before": null,
+    "after": "775f63c57996e13c0a2ecbeb8a7928f9434827cb"
+  },
+  "created_at": "2026-10-18T04:08:27.668Z",
+  "updated_at": "2026-10-18T04:57:36.372Z",
+  "closed_at": "2026-10-18T04:57:36.372Z"
+}

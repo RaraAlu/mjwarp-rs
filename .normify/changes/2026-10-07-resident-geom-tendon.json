@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-resident-geom-tendon",
+  "title": {
+    "zh": "常驻球柱肌腱绕行",
+    "en": "Resident sphere and cylinder tendon wrapping"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "扩展空间辅助子集。GPU支持球柱与内侧绕行。保留旧site路径。完整G01仍待实现。",
+    "en": "Extend the resident spatial subset with sphere/cylinder and inside wrapping, preserving site-only behavior and planned full G01."
+  },
+  "modules": {
+    "create": [
+      "mjwarp.physics.tendon-wrap"
+    ],
+    "modify": [
+      "mjwarp",
+      "mjwarp.model",
+      "mjwarp.model.core",
+      "mjwarp.model.spatial-tendon",
+      "mjwarp.physics",
+      "mjwarp.physics.core",
+      "mjwarp.physics.spatial-tendon",
+      "mjwarp.physics.resident",
+      "mjwarp.runtime.transfer.kernel"
+    ],
+    "api_add": [
+      {
+        "module": "mjwarp.model.spatial-tendon",
+        "key": "rpc:mjwarp_rs::model::SpatialTendonGeometry"
+      },
+      {
+        "module": "mjwarp.physics.tendon-wrap",
+        "key": "rpc:mjwarp_rs::physics::tendon_wrap::TENDON_WRAP_CUDA"
+      }
+    ]
+  },
+  "acceptance": [
+    "校验球柱类型、尺寸周期、侧向site与site-geom-site路径。CSR覆盖端点及几何祖先。",
+    "GPU移植冻结圆绕行、球平面、柱螺旋与内侧Newton语义。直接结果容限保持2e-5。",
+    "动态包裹数量与整数字段精确匹配。阶段不回读或重传中间结果。",
+    "静态原生参考覆盖绕行、直连、内侧、转动几何、mocap、滑轮及513世界。测试不生成参考或运行Python。",
+    "Windows调试与发布回归、Clippy和Normify通过。完整G01、全局编号与Linux继续计划。"
+  ],
+  "note": "完成球柱与内侧绕行辅助。Windows调试及发布各209宿主、10文档、118显式探针通过。常驻脚本各48项通过。原生2084世界误差7.624788453952647e-7，解析1042世界误差2.68923144641775e-7。四路Clippy、格式与文档构建通过。只激活绕行辅助叶子。完整G01、全局肌腱编号与Linux继续计划。",
+  "revision": {
+    "before": null,
+    "after": "14a301d92828f3b32a1dae66e9ddf1ebd7aee8c7"
+  },
+  "created_at": "2026-10-07T09:51:17.417Z",
+  "updated_at": "2026-10-07T10:12:23.404Z",
+  "closed_at": "2026-10-07T10:12:23.404Z"
+}

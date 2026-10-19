@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-windows-kinematics-probe",
+  "title": {
+    "zh": "实现Windows刚体运动学探针",
+    "en": "Implement Windows rigid kinematics probe"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "推进G01刚体子集。\n使用固定原生参考。\n保留完整阶段计划。\n",
+    "en": "Implement a bounded four-joint GPU rigid kinematics helper with independent static native reference evidence. Do not claim full G01, U018 or U062 equivalence."
+  },
+  "modules": {
+    "create": [
+      "mjwarp.runtime.transfer.core",
+      "mjwarp.runtime.transfer.kernel"
+    ],
+    "modify": [
+      "mjwarp.physics",
+      "mjwarp.runtime.transfer",
+      "mjwarp.runtime",
+      "mjwarp",
+      "mjwarp.io.fields",
+      "mjwarp.io.kinematic",
+      "mjwarp.io.inertial"
+    ],
+    "api_add": [
+      {
+        "module": "mjwarp.physics",
+        "key": "rpc:mjwarp_rs::physics::probe_kinematics"
+      },
+      {
+        "module": "mjwarp.physics",
+        "key": "rpc:mjwarp_rs::physics::KinematicsOutput"
+      },
+      {
+        "module": "mjwarp.physics",
+        "key": "rpc:mjwarp_rs::physics::KinematicsWorld"
+      }
+    ]
+  },
+  "acceptance": [
+    "Only GPU computes body/joint/inertial transforms; no CPU fallback or Python in product build/tests/runtime.",
+    "Checked qpos batch shape, finite inputs, usable quaternions, canonical world pose and unit model rotations/slide-hinge axes precede device allocation.",
+    "Kernel adapter enforces session identity and synchronous completion with owner retention on uncertainty; unsafe ABI/access assumptions remain internal.",
+    "Static MuJoCo 3.12.0 native C++ reference fixtures cover four joints, off-center rotations, static ancestors, rotated body/inertial frames and multiple independent worlds under predeclared tolerances.",
+    "Run Windows default/CUDA/native/all-feature checks and explicit GPU/native regression tests, preserve existing contracts and keep full product modules planned.",
+    "Refresh real source evidence and validate architecture without weakening existing rules."
+  ],
+  "note": "Linux deferred by user. Native CUDA C++ remains a permitted correctness probe, not a production route. Transfer node now groups two real source leaves (core/kernel); all original public paths remain unchanged and dependencies follow their new owner. Existing acceptance criteria remain unchanged.\nWindows MSVC debug/release full feature matrix: 150 host tests plus 6 doc tests each; 54 explicitly enabled regression tests each. New CUDA-only smoke 5 tests, all-feature smoke 6 tests, each profile. All-feature native and restricted smoke 22 each; native-only/restricted 17. Fixed 2e-5 absolute/relative tolerance; maximum measured absolute error 4.5840667395324886e-7 over 1347 checked worlds per all-feature smoke. Four native references regenerate identically. fmt, clippy feature matrix and warning-denied rustdoc pass. Original 183 contracts preserved; transfer core/kernel reflect two real source responsibilities. Only narrow helper leaves active; seven product modules stay planned. Commit 88f82b3, clean post-commit release smoke at target/kinematics-probe/e3030e9dad46474fad00de779ceb8ccb/report.json. Linux, full G01/U018/U062 and production route remain unaccepted.",
+  "revision": {
+    "before": null,
+    "after": "88f82b3084d72bd6b8afe6fbde1fbfb0dc1df410"
+  },
+  "created_at": "2026-10-07T01:13:28.717Z",
+  "updated_at": "2026-10-07T01:28:45.307Z",
+  "closed_at": "2026-10-07T01:28:45.307Z"
+}

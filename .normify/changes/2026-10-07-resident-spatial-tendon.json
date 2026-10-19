@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-resident-spatial-tendon",
+  "title": {
+    "zh": "实现空间肌腱site子集",
+    "en": "Implement resident spatial site tendon subset"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "GPU计算长度、力臂与包裹字段。完整G01仍待实现。",
+    "en": "Compute site/pulley tendon lengths, sparse moments and wrap outputs on resident GPU buffers without closing full G01."
+  },
+  "modules": {
+    "create": [
+      "mjwarp.model.spatial-tendon",
+      "mjwarp.physics.spatial-tendon"
+    ],
+    "modify": [
+      "mjwarp",
+      "mjwarp.model",
+      "mjwarp.model.core",
+      "mjwarp.model.fixed-tendon",
+      "mjwarp.physics",
+      "mjwarp.physics.core",
+      "mjwarp.physics.resident"
+    ],
+    "delete": [],
+    "api_add": [
+      {
+        "module": "mjwarp.model.spatial-tendon",
+        "key": "rpc:mjwarp_rs::model::SpatialTendonFields"
+      },
+      {
+        "module": "mjwarp.model.spatial-tendon",
+        "key": "rpc:mjwarp_rs::model::SpatialTendonModelInput"
+      },
+      {
+        "module": "mjwarp.model.spatial-tendon",
+        "key": "rpc:mjwarp_rs::model::SpatialTendonRows"
+      },
+      {
+        "module": "mjwarp.physics.spatial-tendon",
+        "key": "rpc:mjwarp_rs::physics::SpatialTendonOutput"
+      },
+      {
+        "module": "mjwarp.physics.spatial-tendon",
+        "key": "rpc:mjwarp_rs::physics::SpatialTendonWorld"
+      }
+    ],
+    "api_remove": []
+  },
+  "acceptance": [
+    "校验site与pulley路径及CSR。拒绝几何绕行与缺失DOF列。",
+    "GPU复用附着与质心缓冲。更新不回读或重新上传。",
+    "GPU输出长度、稀疏力臂及整数包裹字段。检查守卫与失效状态。",
+    "静态原生参考覆盖跨块、关节祖先与pulley。保留旧子集回归。",
+    "产品链不调用Python或原生参考生成。完整G01与Linux仍保留计划。"
+  ],
+  "note": "空间肌腱仅支持site与pulley。GPU输出长度、CSR力臂与包裹字段。两类肌腱各用局部编号。Windows调试与发布各通过207项宿主、10项文档及112项显式探针。常驻脚本各通过41项，含5项宿主与36项GPU。原生2084世界最大误差6.667048912945006e-7；参数1042世界最大误差7.262504873040143e-7。四路Clippy、文档构建、格式均通过。只激活两个新辅助叶子。球柱绕行、完整G01、G06与Linux继续计划。保留旧历史变更。",
+  "revision": {
+    "before": null,
+    "after": "e76191d928ad3a2d73b99b704874a734ce638da5"
+  },
+  "created_at": "2026-10-07T09:21:21.652Z",
+  "updated_at": "2026-10-07T09:45:14.515Z",
+  "closed_at": "2026-10-07T09:45:14.515Z"
+}

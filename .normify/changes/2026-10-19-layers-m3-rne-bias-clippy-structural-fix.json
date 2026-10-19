@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-rne-bias-clippy-structural-fix",
+  "title": {
+    "zh": "M3偏置力静态诊断结构修复",
+    "en": "M3 rne bias clippy structural fix"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "移除偏置力预检的参数数量豁免，以内部输入分组消除静态诊断。保持产品ABI、验证语义与内核字节不变。",
+    "en": "Remove the rne_bias preflight argument-count allowance and eliminate the diagnostic through internal input grouping without changing product ABI, validation semantics, or kernel bytes."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "只修改src/physics/rne_bias.rs中的必要宿主结构，不迁移其他入口。",
+    "移除本片新增的clippy::too_many_arguments豁免，且不新增任何豁免。",
+    "使用合理的内部输入分组消除RneBiasKernel::preflight参数数量诊断。",
+    "保持五个指针和一个u32标量的真实ABI、顺序、类型与读写角色不变。",
+    "保持会话、元数据、跨度、别名、ready语义和同步顺序不变。",
+    "保持CUDA字符串和既有冻结PTX字节不变。",
+    "以最新偏置力清单为基线生成新盘点，不覆盖原清单。",
+    "新盘点同步当前定义、编译、低层发射和编排调用行号。",
+    "事前登记并保留核心验证的登记、启动、结果、标准输出与标准错误。",
+    "原Clippy全目标命令在无新增豁免下通过。",
+    "最小宿主测试和格式检查通过；不重跑无变化GPU测试。",
+    "最终源码与成功检查版本绑定，并核对归档索引对象。",
+    "交付回执绑定暂存对象；登记完整提交号；核验后关闭并最终核验。",
+    "区分首次exit101、此前allow后exit0和本次无allow成功三类证据。",
+    "保留1042项历史失败；不宣称NP01至NP04、性能、Linux或release验收。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-rne-bias-verification-link-correction"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/rne_bias.rs",
+      "docs/development-evidence/layers-m3-rne-bias-clippy-structural-fix",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-rne-bias-clippy-structural-fix.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "base-commit: d029f4ed5fa0402d637a04cb1aa4d0c5d4159f7b\nhistorical-failure: clippy-all-targets exit 101 at 2026-10-18T20:39:41Z.\nhistorical-allow-pass: same command exit 0 at 2026-10-18T20:40:02Z after adding allow.\ncurrent-goal: same command passes after structural fix with no allow.\ninventory-base: docs/development-evidence/layers-m3-rne-bias/unmigrated-launch-inventory.json\nevidence-root: docs/development-evidence/layers-m3-rne-bias-clippy-structural-fix\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-rne-bias-clippy-structural-fix.json\n本任务不使用GPU。\ncommit: 0f54bcf8c36feeb00032a923925433c8c1dfd9ee\nvalidation: post-commit delivery check passed.\nclippy-evidence: historical diagnostic exit 101; historical allowance exit 0; current structural no-allow exit 0.\nstaged-whitespace: initial check found preserved CRLF logs; formal-run log diffs are now disabled without changing their bytes; retry passed.\n提交 0f54bcf8c36feeb00032a923925433c8c1dfd9ee 已通过提交后核验和登记核验。内部输入分组已移除参数数量豁免。宿主测试2项通过，格式检查通过，全目标Clippy在无新增豁免下通过。CUDA字符串、冻结PTX、产品ABI和同步顺序均保持不变。未重跑GPU、产品、Linux或release测试。NP01至NP04和性能仍未验收。",
+  "revision": {
+    "before": "d029f4ed5fa0402d637a04cb1aa4d0c5d4159f7b",
+    "after": "0f54bcf8c36feeb00032a923925433c8c1dfd9ee"
+  },
+  "created_at": "2026-10-18T21:00:54.906Z",
+  "updated_at": "2026-10-18T21:11:17.765Z",
+  "closed_at": "2026-10-18T21:11:17.765Z"
+}

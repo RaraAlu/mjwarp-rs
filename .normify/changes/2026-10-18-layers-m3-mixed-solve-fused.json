@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-mixed-solve-fused",
+  "title": {
+    "zh": "M3混合融合求解安全迁移",
+    "en": "M3 mixed fused solve safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅迁移mixed_solve_fused当前唯一产品调用至类型化同步包装，完整证明融合元数据、精确容量、会话、别名、分组、线程、溢出、同步和发布状态，同时保持私有launch_mixed_solve实现及冻结数值路径不变。",
+    "en": "Migrate the sole mixed_solve_fused product call to a typed synchronous wrapper, proving fused metadata, exact capacities, sessions, aliases, grouping, threads, overflow, completion and publication while preserving the private launch_mixed_solve implementation and frozen numeric path."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "仅修改solve.rs及其模块内测试、专属证据目录、更新后的全M3静态清单和精确交付回执；runtime/transfer/kernel.rs保持不变。",
+    "mixed_solve_fused使用类型化同步包装；launch_mixed_solve保留现有私有实现，并只由已验证包装调用。",
+    "元数据证明绑定真实设备跨度、完整宿主快照和写入代际，精确覆盖levels、前缀、nc、Small数量、flags、offsets、updates与Small三元组。",
+    "证明每层原子写目标与读取源不交叉，允许同层同目标原子归约；Small输出区互不重叠，并与Sparse和Compact初始化区互斥。",
+    "精确核对元数据、RHS、factor与output容量、设备会话和写入别名；证明world乘RHS分组、128线程与零动态共享内存。",
+    "拒绝usize到u32、u32分组、u64容量、三倍更新索引、元数据指针及网格计算溢出；正确处理零更新占位元组边界。",
+    "保留同步完成语义；包装拒绝不写输出且不发布结果，恢复后保持原数值行为。",
+    "CUDA、PTX、编译选项、f32中间量、累加顺序、容差、夹具及上传、双入口编译、校验、求解和发布顺序保持不变。",
+    "只运行实质影响所需最小测试；记录真实命令、环境、退出码、耗时、失败、修正和复验必要性，并预先设置既有报告路径。",
+    "更新全M3静态清单时重新扫描当前源码；区分实际入口、逻辑ABI族、底层调用、包装编排和辅助方法，不做历史减法。",
+    "原始捕获写入target专属目录；提交原样归档和逐成员散列，不新增本地忽略规则。",
+    "提交回执逐文件绑定暂存Git对象；登记完整提交号后依次通过Recorded、关闭和Final核验。",
+    "保留合法重算位差、状态3仅静态证据、NP01至NP04未验收、非T4设备、Linux和Release未测及M3整体未完成边界。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-mixed-solve-validation",
+      "2026-10-18-layers-m3-safe-core-evidence"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/sparse/mixed/solve.rs",
+      "docs/development-evidence/layers-m3-mixed-solve-fused",
+      "docs/development-evidence/layers-m3-mixed-solve-fused/unmigrated-launch-inventory.json",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-mixed-solve-fused.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-mixed-solve-fused.json\n仅迁移mixed_solve_fused。\nlaunch_mixed_solve实现保持不变。\nruntime/transfer/kernel.rs不在写入范围。\n静态清单：docs/development-evidence/layers-m3-mixed-solve-fused/unmigrated-launch-inventory.json\n原始捕获：target/development-evidence/2026-10-18-layers-m3-mixed-solve-fused/capture-raw\n统一使用gpu:windows-t4。\n锁名不是T4设备证明。\n不新增.git/info/exclude规则。\n保留父M3四条验收和十三项既有前置。\ndelivery-commit: 7314929caaf18ed0bca0d0c067c8b669d54e802a\n提交 7314929caaf18ed0bca0d0c067c8b669d54e802a 已通过PostCommit与Recorded。保留合法重算位差、状态3仅静态证据、NP01至NP04未验收、非T4设备、Linux与Release未测、M3整体未完成及第二次内核字节未单存边界。",
+  "revision": {
+    "before": null,
+    "after": "7314929caaf18ed0bca0d0c067c8b669d54e802a"
+  },
+  "created_at": "2026-10-18T13:50:40.655Z",
+  "updated_at": "2026-10-18T14:08:40.648Z",
+  "closed_at": "2026-10-18T14:08:40.648Z"
+}

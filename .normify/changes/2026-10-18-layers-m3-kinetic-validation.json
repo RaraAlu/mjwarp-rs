@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-kinetic-validation",
+  "title": {
+    "zh": "M3动能输入校验安全迁移",
+    "en": "M3 kinetic input validation safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "迁移KineticEnergyPlan输入校验的实际通用发射，并保留冻结内核与同步语义。",
+    "en": "Migrate the real generic launch used by KineticEnergyPlan input validation while preserving the frozen kernel and synchronous semantics."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "KineticEnergyPlan::update不再直接调用unsafe通用launch。",
+    "类型化包装使用真实设备跨度与独占元数据证明，并校验全部四个指针槽。",
+    "拒绝容量不足、缓冲交叠、异会话和失效元数据证明。",
+    "保持原CUDA源码、PTX、256线程布局、参数顺序、f32、容差、fixtures和同步完成语义。",
+    "新增定向宿主与GPU测试，保存完整命令输出并完成交付回执。",
+    "父任务2026-10-18-layers-m3保持未完成。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-kinetic-sync-evidence"
+    ],
+    "phase": "physics/M3-kinetic-validation",
+    "owner": "Codex",
+    "files": [
+      "src/physics/kinetic_energy.rs",
+      "docs/development-evidence/layers-m3-kinetic-validation",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-kinetic-validation.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "父任务：2026-10-18-layers-m3。\n仅迁移动能输入校验发射。\ndevice_energy.rs不在本切片。\ndelivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-kinetic-validation.json\n实现完成：类型化校验规范、固定源码构造、真实跨度与元数据代际校验。\n验证通过：宿主计划、GPU包装、真实update故障恢复、默认与cuda检查、库级Clippy及格式检查。\n首次宿主编译因测试借用失败，修正后通过。\n首次GPU运行因NVRTC路径缺失失败，修正环境后通过。\n第三次GPU运行只补采PTX证据。\n四份成功日志只规范末尾空行，正文不变；不声明逐字节原始流。\nCUDA常量1592字节与基线一致。\n源码与PTX哈希均匹配历史证据。\n当前目录只保留捕获元记录。\n原始同名源码与PTX复用docs/evidence/kinetic-energy/kernels。\nRTX 4070 Ti SUPER不授予Windows T4验收。\n父M3、Linux、发布、NP01至NP04和设备机器码等价仍未验收。\n完整提交：dee615ac813d36dee37bfeb7614a36866d2f2130。\nPostCommit与Recorded通过。\n已提交dee615ac813d36dee37bfeb7614a36866d2f2130。动能输入校验已迁移到类型化同步安全包装。真实跨度、容量、交叠、会话、静态自由度与元数据代际均受检。CUDA源码与PTX哈希保持一致。父M3、T4、Linux、发布、NP01至NP04和设备机器码等价仍未完成。",
+  "revision": {
+    "before": null,
+    "after": "dee615ac813d36dee37bfeb7614a36866d2f2130"
+  },
+  "created_at": "2026-10-18T10:44:12.445Z",
+  "updated_at": "2026-10-18T10:52:32.489Z",
+  "closed_at": "2026-10-18T10:52:32.489Z"
+}

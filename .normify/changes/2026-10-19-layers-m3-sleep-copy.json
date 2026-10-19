@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-sleep-copy",
+  "title": {
+    "zh": "M3休眠状态复制安全迁移",
+    "en": "M3 sleep copy safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅迁移常驻链的sleep_copy宿主发射。用实际设备缓冲绑定元数据证明，并保持复制、唤醒、交换顺序。",
+    "en": "Migrate only the resident sleep_copy host launch to the typed safe wrapper with metadata proof bound to the actual device buffer while preserving copy, wake, and swap order."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.resident"
+    ]
+  },
+  "acceptance": [
+    "仅迁移sleep_copy宿主调用；不得迁移tendon_wake或其他入口。",
+    "保持TENDON_WAKE_CUDA、冻结PTX、容差、fixtures与f32物理路径逐字节不变。",
+    "类型包装须逐槽声明metadata、params、state与result，并核对固定256线程及发射向上取整。",
+    "元数据证明须绑定实际设备缓冲、会话、缓冲身份和写入代际；伪造与过期证明必须拒绝。",
+    "状态跨度必须严格等于worlds乘以二倍ntree加三后再加八，并覆盖算术溢出、容量与会话错误。",
+    "支持ntree为零且worlds非零；params虽未被内核读取，仍须符合指针、容量和会话约定。",
+    "只读输入允许彼此完全别名；输出不得与任何输入重叠，部分重叠必须拒绝。",
+    "保持copy到tendon_wake再到swap的同步顺序；失败不得交换或发布状态，同一计划修复后须恢复。",
+    "宿主边界测试覆盖正常复制、零树、多世界、守卫、无写拒绝、过期证明与恢复。",
+    "GPU产品测试必须经过真实resident调用，并在本机RTX 4070 Ti SUPER上执行。",
+    "所有检查预先登记；每次运行使用唯一空目录，并保留独立stdout、stderr、退出码与耗时。",
+    "更新清单须从结构数组重新派生；只计实际迁移，不得改旧清单或手工修摘要。",
+    "提交前须完成交付预检、逐文件暂存回执、属性冻结与正常钩子。",
+    "提交后须完成PostCommit、完整SHA登记、Recorded、关闭、Final与排程回读。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-post-freeze-checker-fix"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/resident.rs",
+      "docs/development-evidence/layers-m3-sleep-copy",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-sleep-copy.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "父任务：2026-10-18-layers-m3。\n基线提交：15e31190182dd7c58312424851d477d9495b24d6。\n交付提交：40aac80d4ce361949b70708722eddfe2c0f3bfc8。\n逐文件回执：docs/development-evidence/changes/2026-10-19-layers-m3-sleep-copy.json。\n本机GPU：NVIDIA GeForce RTX 4070 Ti SUPER。\n宿主边界测试1项通过；GPU产品测试2项通过。\n严格局部精度映射核对18组、5输出和2个PTX入口。\n两次捕获的sleep_copy源码与PTX逐字节吻合冻结基线。\n旧全文身份门禁按设计仍为1过3败，旧映射与旧测试未修改。\n盘点现有25个类型化入口，63个入口仍未迁移。\nNP01至NP04、性能、发布配置和Linux均未验收。\n父任务四条验收保持不变。\n禁止Python。\n已交付40aac80d4ce361949b70708722eddfe2c0f3bfc8。sleep_copy宿主发射已类型化。宿主边界测试1项通过。本机RTX 4070 Ti SUPER产品测试2项通过。严格局部精度映射核对18组、5输出和2个PTX入口。两次sleep_copy捕获逐字节吻合冻结源码与PTX。旧全文身份门禁仍为1过3败；本任务未改旧映射。NP01至NP04、性能、发布配置和Linux仍未验收。",
+  "revision": {
+    "before": "15e31190182dd7c58312424851d477d9495b24d6",
+    "after": "40aac80d4ce361949b70708722eddfe2c0f3bfc8"
+  },
+  "created_at": "2026-10-18T19:12:47.759Z",
+  "updated_at": "2026-10-18T19:35:34.172Z",
+  "closed_at": "2026-10-18T19:35:34.172Z"
+}

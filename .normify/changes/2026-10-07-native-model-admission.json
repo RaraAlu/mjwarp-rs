@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-native-model-admission",
+  "title": {
+    "zh": "验证原生已编译模型接入",
+    "en": "Probe native compiled model admission"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "继续Windows原生输入验证。\n候选采用MuJoCo 3.12.0。\n只接收已编译MJB。\n验证版本、ABI、字段与寿命。\n不冻结生产绑定或完整模型接口。",
+    "en": "Probe a pinned Windows MuJoCo 3.12.0 candidate through a small C/C++ read-only adapter for compiled MJB inputs. Keep MJCF compilation out of the engine; do not claim complete Model/Data conversion or production ABI freeze."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp",
+      "mjwarp.model",
+      "mjwarp.io",
+      "mjwarp.diagnostics"
+    ]
+  },
+  "acceptance": [
+    "仅可选native-model-probe引入锁定cc构建辅助。默认构建不要求MuJoCo与C++，不改Rust默认GNU工具链，不启动Python。Windows x64以外明确报告本轮探针未支持，不宣称Linux验收。",
+    "头文件与原生DLL必须匹配3.12.0；C++编译检查标量、索引及DTO布局。加载先检查版本和必需符号，才读取模型。Rust不手写完整mjModel结构，不导出裸模型指针。",
+    "已编译MJB从内存接入。句柄独占原生模型并保留DLL所有者；Drop先释放模型再释放库。读取代表性核心字段形成独占宿主快照。严格长度和容量错误先校验，不产生部分目标写入。",
+    "模型编译不进入引擎API、构建与产品测试。静态MJB样本单独记录原生编译器来源、版本、摘要与许可。代表字段快照不冒充完整ModelInput、put_model、物理或数值等价验收。",
+    "Windows真实原生模型测试覆盖普通及零自由度输入、版本/符号缺失、失效输入、长度错误及句柄提前释放。GPU另核对代表字段上传与回读，不能把宿主零用例或忽略算作GPU通过。",
+    "fmt、默认与相关隔离特性测试/clippy、全特性测试/rustdoc通过。Normify刷新真实指纹、同步并校验零错误零警告，保留原有契约与模块状态。文档与智能提交记录实际证据及剩余边界。"
+  ],
+  "note": "原生桥接目前明确限制Windows x64 MSVC。默认GNU构建保持不变。GNU原生试编因缺少g++失败；不引入跨编译器混链或改动默认Rust工具链。MSVC初次静态CRT造成链接警告，已改为动态CRT并重新验证。独立静态样本制备使用官方compile.exe；产品构建/测试/运行不调用它。\n89d68bb完成可选Windows x64 MSVC原生MJB输入探针。默认GNU宿主103+文档2；MSVC原生宿主106+文档2；全feature debug/release各123+文档2，显式探针各34项；原生加CUDA8项，受限debug/release各8项。三组clippy、fmt、doc及样本哈希校验通过。七产品模块仍为planned；传输辅助保持active。原170 API全部保留，新增4辅助API与3依赖。C++桥接显式构造独占所有者，先删模型后卸载DLL；四字段独占快照有效至原生释放后。原生候选3.12.0，未冻结生产版本。产品链无MJCF编译或Python，静态样本另行制备。缺少GNU C++，原生探针明确限制MSVC，不改默认Rust工具链。完整模型、GPU物理/渲染、清洁部署与Linux仍未验收。",
+  "revision": {
+    "before": null,
+    "after": "89d68bb60101c3ebd0383fbba141f6798a3ac263"
+  },
+  "created_at": "2026-10-06T23:24:00.051Z",
+  "updated_at": "2026-10-06T23:38:02.865Z",
+  "closed_at": "2026-10-06T23:38:02.865Z"
+}

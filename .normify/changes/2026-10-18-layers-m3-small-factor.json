@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m3-small-factor",
+  "title": {
+    "zh": "M3小块因子启动安全迁移",
+    "en": "M3 small factor launch safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "把Small前缀分解的专用内核启动收敛到受控计划，并保持冻结CUDA与同步语义。",
+    "en": "Move the specialized Small prefix factor launch behind a trusted typed plan while preserving frozen CUDA and synchronous completion."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "SparseMassSmallPlan::update_factor不再直接调用unsafe launch_small_factor。",
+    "受控包装固定CUDA源码、入口和64线程布局。",
+    "包装绑定真实会话、设备跨度、精确容量、读写别名、静态分组和元数据代际。",
+    "保持f32、参数顺序、原容差、覆盖、fixtures、同步完成与错误发布语义。",
+    "宿主计划测试拒绝容量不足、读写重叠、错会话和失效证明。",
+    "GPU包装测试覆盖真实缓冲，产品测试覆盖真实update_factor及拒绝恢复。",
+    "源码与PTX散列完成历史对比，日志记录命令、耗时、设备、显存和规范化边界。",
+    "交付回执、完整提交号与Normify最终门禁通过。",
+    "父任务M3保持未完成，M4与A1不提前推进。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m3-device-energy-validation"
+    ],
+    "phase": "physics/M3-small-factor",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/sparse/dense/small.rs",
+      "docs/development-evidence/layers-m3-small-factor",
+      "docs/development-evidence/changes/2026-10-18-layers-m3-small-factor.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 3
+  },
+  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m3-small-factor.json\ncommit: 6a9fdc8b81c5cbe850cdd1b0cf82f14381c00e65\n父任务2026-10-18-layers-m3保持proposed。\n本切片只迁移launch_small_factor调用。\n提交6a9fdc8b81c5cbe850cdd1b0cf82f14381c00e65已核验。\n安全包装固定六十四线程。\n目标测试和静态检查通过。\n源码与PTX历史对照通过。\nRTX 4070 Ti SUPER不构成T4验收。\n父任务M3仍未完成。\n提交6a9fdc8b81c5cbe850cdd1b0cf82f14381c00e65已核验。安全包装固定六十四线程，并检查容量、别名、会话、静态分组和元数据代际。目标测试与静态检查通过。历史源码和PTX对照通过。RTX 4070 Ti SUPER不构成T4验收。父任务M3仍未完成。",
+  "revision": {
+    "before": null,
+    "after": "6a9fdc8b81c5cbe850cdd1b0cf82f14381c00e65"
+  },
+  "created_at": "2026-10-18T11:11:04.023Z",
+  "updated_at": "2026-10-18T11:22:49.849Z",
+  "closed_at": "2026-10-18T11:22:49.849Z"
+}

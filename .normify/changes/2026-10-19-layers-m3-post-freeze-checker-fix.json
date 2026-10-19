@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-post-freeze-checker-fix",
+  "title": {
+    "zh": "M3收尾核验脚本修正",
+    "en": "M3 post-freeze verifier fix"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "修正M3清单纠正任务的收尾核验脚本。让索引重试映射使用真实运行，并统一空名称目标路径。保留历史失败与归档原件。",
+    "en": "Fix the post-freeze verifier from the M3 inventory correction task so the archived index retry maps to the real run and empty-name destinations are normalized. Preserve historical failures and archived originals."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics"
+    ]
+  },
+  "acceptance": [
+    "只修改收尾核验脚本，并新增本任务证据；不得修改产品源码、旧归档、旧快照或旧运行原件。",
+    "index-extra必须映射post-freeze-index-retry-01，不得映射首次失败运行。",
+    "空名称映射必须在断言前规范化为registration、started、result、stdout和stderr文件名。",
+    "修正脚本须核对da10228b0e4776fc68532503521fc676c00ca7fc中的全部收尾跟踪文件，并通过真实原件字节比较。",
+    "须保留原失败核验，证明失败来自路径处理缺陷，不得宣称发生字节漂移。",
+    "不运行GPU或产品测试，不启动sleep_copy。",
+    "提交前须完成交付预检、逐文件回执、暂存核验与正常钩子。",
+    "提交后须登记完整SHA，完成Recorded、关闭与Final核验。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-inventory-derived-correction"
+    ],
+    "phase": "physics/M3-preflight",
+    "owner": "Codex",
+    "files": [
+      "docs/development-evidence/layers-m3-inventory-derived-correction/check-post-freeze-blobs.ps1",
+      "docs/development-evidence/layers-m3-post-freeze-checker-fix",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-post-freeze-checker-fix.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "父任务：2026-10-18-layers-m3。\n基线提交：da10228b0e4776fc68532503521fc676c00ca7fc。\n交付提交：15e31190182dd7c58312424851d477d9495b24d6。\n纠正前任务：2026-10-19-layers-m3-inventory-derived-correction。\n只修收尾核验脚本。\n不改产品源码。\n不改旧归档或旧快照。\n不运行GPU或产品测试。\n禁止Python。\nsleep_copy未启动。\n原任务保持关闭。\n原Final不追认旧脚本。\n记录临时修改后还原经过。\n空名称五项映射通过。\n普通名称五项映射通过。\n普通结果保留run后缀。\nindex-extra使用真实重试。\n原提交45组原件吻合。\n原提交52份对象吻合。\n正式清单43项吻合。\n收尾原件10项吻合。\n首次对象复验失败已保留。\n失败原因是普通后缀回归。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-post-freeze-checker-fix.json\n提交15e31190182dd7c58312424851d477d9495b24d6已通过PostCommit与Recorded。空名称和普通名称各五项映射通过，普通结果继续使用run后缀，index-extra改用真实重试运行。修正脚本已核对原提交da10228的45组原件和52份Git对象。43项正式证据及10项收尾原件在索引和最终提交均逐字节吻合。首次对象复验因普通名称后缀回归失败，失败原件已保留。旧关闭任务、旧归档、旧快照和产品源码均未修改。未运行GPU或产品测试，未启动sleep_copy。父M3仍未完成。",
+  "revision": {
+    "before": "da10228b0e4776fc68532503521fc676c00ca7fc",
+    "after": "15e31190182dd7c58312424851d477d9495b24d6"
+  },
+  "created_at": "2026-10-18T18:57:51.532Z",
+  "updated_at": "2026-10-18T19:08:25.322Z",
+  "closed_at": "2026-10-18T19:08:25.322Z"
+}

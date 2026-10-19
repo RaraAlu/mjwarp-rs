@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-11-roadmap-p2-contract",
+  "title": {
+    "zh": "P2-CONTRACT 冻结输入与字段契约",
+    "en": "Roadmap P2-CONTRACT delivery"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "沿用既定开发路线。保留原树与历史变更。",
+    "en": "Track the documented roadmap without replacing architecture or historical changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "先冻结布局与输入精度。",
+    "字段设计可伴随P0。",
+    "记录真实测试与未测项。",
+    "先核对NP01与NP02。",
+    "再验收适用NP03与NP04。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-11-roadmap-p0-04",
+      "2026-10-11-roadmap-p0-05"
+    ],
+    "phase": "P2",
+    "owner": "待分配",
+    "files": [
+      "docs/model-device-contract.md"
+    ],
+    "resources": [],
+    "priority": 50
+  },
+  "note": "## 2026-10-12阶段与排程对齐\n\n本段区分实现与正式准入。\n本次保留原状态与验收条件。\nG01已有78项读字段契约。\n完整模型字段契约仍待续。\n\n证据：docs/README.md；docs/implementation-plan.md；docs/windows-t4-redline-retest.md。\n原草案不覆盖较新实现证据。\n本次仅维护本机排程。\n\n以下保留原记录。\n\n本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：未重新验收\n来源：[{\"file\":\"docs/replication-plan.md\",\"start\":105,\"end\":106},{\"file\":\"docs/replication-plan.md\",\"start\":267,\"end\":268}]\n依赖依据：conservative-cycle-break\n\n2026-10-14 范围细化依据：replication-plan.md105–112允许P2字段设计随P0及小原型先行，设备上传仍需P1/P3。D01的3.12 ABI已verified；本轮仅在原主T4根源码占用内验证G08平面/球十三项宿主字段小原型，复用NativeModelInfo和NativeProbeError，不启动正式P2-host/contract任务、不降低当前depends_on、不修改schedule声明、不认定完整模型契约/上传已完成。P2-contract仍依赖p0-04/p0-05，P2-host仍保留contract及G27/M01–M04全部正式前置；最终阶段准入继续阻断。本原型只验证原生f64/i32到产品f32/i32布局/舍入/有限性/长度/拓扑，不调用FFI、CPU物理或GPU。源码挂既有model.core UID，不新增架构树。\n\n2026-10-14 G08十三字段宿主小原型实际完成：新增model::PrimitiveGeometryFields/Input及io::NativePrimitiveGeometrySnapshot，六i32/七原生f64->f32，宽度1/2/3/5逐项跟随冻结types.Model及原生3.12 mjmodel.h。复用NativeModelInfo、NativeProbeError、共享convert_f64_to_f32_into；拥有式只读结果，所有长度先检，有限性/溢出/身体引用/类型/condim检查，无额外掩码或优先级钳制。明确只支持平面/球、单份参数；不捕获FFI、不扩外部C ABI、不上传、不CPU物理/GPU，不替代完整模型域。新增collision_input配置2次均5过0败0忽略，首轮后发现共享fields.rs cfg改动会使冻结G01输入来源失配，最终恢复其完整69bb5057…身份，分配模式留新文件，第二轮验证实际修复；未更改任何旧清单哈希、旧测试或覆盖，未重跑满额门禁。定向Clippy两次通过、fmt/diff通过，新增来源/日志/外部声明摘要及13分母核实。测试为合成宿主输入，七冻结物理状态与原容差保持。实际全球缓存4候选均未准入，生成产物/来源与非Python前端缺口仍在，D04保持进行。P2原任务proposed及全部前置未改；小原型许可依据计划105–112，不声称正式P2-host启动/上传完成。沿原root/io.core/model.core UID与占用，保持planned；同步五个确实受影响模块。Normify零错误四警告：两历史flex/tendon-wrap，两新增io.core/model.core粒度警告；不隐去或随意拆架构。自动审计339源码98文档零偏差。NP01只覆盖宿主13项、NP02无新GPU产物、NP03/04不验收，完整精度及当前面位差仍未知。证据docs/evidence/t4-g03-retest/g08-host-input.json与g08-cache-discovery.json。\n本批收尾提交3f81b01679b182e28f764d07a7a00da33dcd8196已核，工作区干净。仅宿主13字段切片，不关闭正式P2/D04；下一实质可续补原生桥实际读取这13字段及可复现输入来源，但须先登记范围并检查ABI/调用账本，不伪装已完成捕获或上传。真实冻结GPU生成产物与非Python获取能力仍缺。\n\n2026-10-14 原生十三字段真实捕获完成：NativeModelProbe::primitive_geometry_snapshot复用已冻结3.12加载/拥有者；新独立120字节schema1目标DTO，先查全量公共计数/schema/reserved及13源/目标指针再复制i32/f64，返回独占快照后可用原f32转换。裸C调用者仍负责逐数组容量/对齐/不重叠；接口没有逐数组容量字段，不声称能验证任意指针容量。新扩展TU包含原model_probe.cpp并访问同一私有owner，旧cpp/header/inc、原78字段ID与ABI原字节保持。build.rs编译入口实际变化，旧完整原生构建验收不转授新二进制。新增13读字段与原G01重叠type/bodyid/size三项，不声称净增13或总91。3f81b01的旧g08-host-input.json保持历史原文，src/io/mod.rs因新增方法从e59d…漂移，新增回执明确新摘要与旧提交身份；未改旧哈希，原collision转换/fields/旧host测试均原字节，旧host配置仍2次，本轮0重跑。新native_collision_input/脚本首轮成功，4过0败0忽略0.15s，18隔离DLL编译2913ms，Cargo墙钟4448ms含新构建非物理性能。实读冻结MJB全部13参数，覆盖全部13空目标与13缺源、计数/负/溢出/schema/null DTO、空几何及释放后独立性；错版本1234 loader实际含L探针，首轮前已加入，实际要求仅U无L/D，版本拒绝先于模型调用，成功后不重复。Mock日志32D/20U/0L，正常模型delete先于最终unload。Windows MSVC native-only定向Clippy/fmt通过；Linux路径字节分支及so后缀已实现但本轮Linux/release未执行。无CPU物理、GPU或Python，无旧满额目标执行。README仅把2078改为历史该轮，FMA修复后当前位差未知。文档工具初报一处src/io/mod.rs紧邻中文引起的路径误识别，改为真实Markdown链接后复核，不改产品源码/门禁。Normify零错误四既有粒度警告，root/io/io.core保持UID与planned，正式P2前置及D04未完边界保持。证据docs/evidence/t4-g03-retest/g08-native-capture.json。\n\n2026-10-14 原生十三字段实际捕获已智能提交ba5855bf3325c6c603bf950a76ea75669524b0bc，11份目标文件。工作区干净。新capture配置累计1/3且四通过；旧collision_input保持2/3，本轮未重跑；所有旧满额目标0调用。最终文档审计345源码98文档零偏差（已修路径与中文连写误识别），来源/日志/二进制及cached diff核实通过。仅新原生读取及生命周期范围实测，新编译入口不继承旧完整原生验收。原78 ABI/旧来源文件与旧清单未改，共享mod.rs漂移已归档，真实新capture不冒充GPU参考。正式P2及D04原状态/前置保留，不伪关闭；NP01–04整体、当前面数值与公平性能仍缺。后续优先评估七个浮点字段的独立批量/周期宿主接口，按冻结消费索引和既有ParameterBatch机制处理，不能默认共享周期，也不能绕过P1/P3启动设备上传。\n\n2026-10-14 独立参数宿主切片预检：冻结types.Model七浮点字段各有独立前导批量，collision_core逐字段用worldid%各自shape[0]；size在geom读取处单独取模，margin/gap与solmix/friction/solref/solimp各有独立id。宽度依次solmix1/solref2/solimp5/size3/friction3/margin1/gap1，f32值不做浮点物理运算，六i32拓扑共享。沿P0小原型许可/root/model.core/io.core原UID；原P2正式前置保持，设备上传P1/P3不动。新增PrimitiveGeometryParameter/Parameters及HostBatch，复用原ParameterBatch不改其冻结源码；缺省仍读单份model字段，覆盖字段可独立周期，不要求整除或小于世界数。HostBatch独占模型与参数，world/geometry视图只借用、绑定生命周期，检查正worlds/i32 world地址范围、各行宽度、世界/几何索引；ParameterBatch已查有限性/长度/溢出，NativeSnapshot新adapter复用旧ABI校验及一次f64->f32转换。新独立collision_parameters目标仅验证新参数绑定/取模/视图与native-adapter真实行为，0调用最多3次失败计数；旧collision_input2次、native_collision_input1次，不重跑。新增两个模块文件避免改旧collision/parameters源，只有mod导出会漂移，历史回执按原提交保留并另登记新源身份。无FFI/GPU/CPU物理/Python，不将新宿主周期视为上游GPU产物或正式P2/NP验收。\n\n2026-10-14 七字段独立周期宿主接口已完成：PrimitiveGeometryParameter/Parameters、HostBatch、只读World/Topology视图及NativeSnapshot::into_host_batch实际可调用。复用原ParameterBatch源码；七字段分别取world%自身period，允许不整除与period>worlds，缺省保留单份模型共享行；六i32拓扑不逐世界覆盖。HostBatch独占模型/覆盖参数，视图借用同一寿命，按ngeom×字段宽度绑定，世界正i32范围，越界world/geom先拒绝而非取模掩盖；已有ParameterBatch拒绝零周期、长度、元素容量溢出及全部行非有限值。Native适配先校原3.12 ABI/全字段并一次f64->f32，即使覆盖也不隐藏无效默认值。新collision_parameters首轮5过0败0忽略0.00秒，Clippy首轮通过、fmt/diff/七字段来源及日志身份/本地链接通过。用例为合成宿主五世界，独立周期1..7；不作物理参考。旧collision_input2次、native_collision_input1次均0重跑；参数旧源/原转换/原捕获/构建/原生桥/夹具/Cargo及两个旧回执均无diff，共享model/mod与io/mod的新漂移仅写新回执，旧记录分别绑定3f81b01与ba5855b，不静默刷新。沿原a3e69712参数UID扩充真实宿主批量角色，原运动学13字段保留，active状态保持；io/model/root计划态保持，不新增树或模块UID。Normify零错误五粒度警告（四既有，一新增model.parameters），文档审计349源码98文档零偏差；不隐去警告。原P2前置/P1-P3上传前置/容差/全部旧物理覆盖保持，无FFI/CPU物理/GPU/Python/满额执行；D04及完整NP仍开放。提交后优先预检完整G02的RNE qacc缺口与冻结smooth实际生成ABI/原子累加，先核原P4前置和原型许可，不把发现符号等同参考准入，不并行启动竞争任务。\n\n2026-10-14 七字段独立周期切片已智能提交3ee5aedaa5caea88cfabd533f8d6472c024150c5，七份目标文件。新collision_parameters配置累计1/3且5通过；旧collision_input2/3、native_collision_input1/3均未追加。工作区干净。实际宿主接口/来源/形状/独立周期条件完成，不调用close伪标正式P2或完整NP通过。Normify零错误五粒度警告，参数叶子新增警告保留，原UID/状态与前置资源不改。下一实质预检方向为原G02 RNE qacc路径，须先核P4具体前置、原型许可及冻结smooth缓存真实来源/编译ABI/反向原子顺序；不能借符号存在认定GPU参考准入，不能重跑旧满额捕获/物理配置。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-11T15:26:40.929Z",
+  "updated_at": "2026-10-19T09:48:37.613Z"
+}

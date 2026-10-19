@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-18-layers-m2",
+  "title": {
+    "zh": "M2 两层缓存",
+    "en": "Three layer m2"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "落实2026-10-18三层设计。复用原树与既有物理阶段。不以局部迁移替代正式准入。",
+    "en": "Apply the reviewed three-layer design on the existing tree without replacing formal product gates."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime"
+    ]
+  },
+  "acceptance": [
+    "完成W03；产物键覆盖源码、配方、工具链与目标；模块缓存按上下文身份隔离。",
+    "覆盖损坏、键漂移、多上下文、并发加载及失效；记录冷启动与稳态收益。",
+    "缓存不得复用探针物理配方；源码与PTX分别核验。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m1"
+    ],
+    "phase": "execution/M2",
+    "owner": "Codex",
+    "files": [
+      "src/runtime/launcher",
+      "tests/launcher_cache.rs",
+      "src/runtime/transfer/kernel.rs",
+      "docs/launcher-cache.md",
+      "docs/README.md",
+      "docs/development-evidence/layers-m2",
+      "docs/development-evidence/changes/2026-10-18-layers-m2.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "依据 docs/architecture.md、docs/unified-launcher.md、docs/module-contracts.md。实现、验证和交付分别记录。未实现功能保持原模块状态。每个代码切片提交前须通过交付预检；若阶段继续拆分，保留本节点验收并令其依赖独立切片。delivery-receipt: docs/development-evidence/changes/2026-10-18-layers-m2.json\n2026-10-18 统一GPU资源锁。\n按用户确认，Rara显卡共用此锁。\n统一采用gpu:windows-t4。\n原gpu:0不再用于本任务。\n保留前置、范围与验收条件。\n锁名不是显卡型号证明。\n执行前须核对实际设备。\n测量仍需排除桌面干扰。\n2026-10-18启动前补登记四项范围（用户确认）。\nkernel.rs只把check_physics_ptx改为pub(crate)。\n2026-10-18执行：本会话经SSH调用Normify服务。\n完整提交：a18e7848a4552071b4eb8ecb999240fde712ddc1。\nPostCommit通过。\nW03落地：产物缓存、磁盘层与模块缓存。\n13份L1源码的源码与PTX摘要逐项一致。\n5项GPU用例debug与release通过。\n关闭JIT缓存时冷启动快16%至39%，单次样本。\n物理调用未迁移，属M3。\nNP01至NP04未验收。\n首次关闭失败：fingerprint-drift两项。\n模块为mjwarp与mjwarp.runtime.transfer.kernel。\n原因是kernel.rs的check_physics_ptx改为pub(crate)。\n该文件经用户确认补入范围。\n运行态不能改写模块名单。\n按治理先例只刷新两模块，activate=false。\n不改变源码与目标接口。\n刷新只更新架构身份，不代表物理证据重验。",
+  "revision": {
+    "before": null,
+    "after": "a18e7848a4552071b4eb8ecb999240fde712ddc1"
+  },
+  "created_at": "2026-10-17T18:39:19.835Z",
+  "updated_at": "2026-10-18T08:15:20.163Z",
+  "closed_at": "2026-10-18T08:15:20.163Z"
+}

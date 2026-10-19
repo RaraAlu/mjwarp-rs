@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-19-layers-m3-smooth-force-compute",
+  "title": {
+    "zh": "M3平滑力计算安全迁移",
+    "en": "M3 smooth force compute safe migration"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "仅把smooth_force计算入口迁移到类型化同步包装。保留smooth_force_validate、两种休眠编译变体、既有失败发布边界与冻结f32运算顺序。",
+    "en": "Migrate only the smooth_force compute entry to the typed synchronous wrapper. Preserve smooth_force_validate, both sleep variants, existing failure publication boundaries, and frozen f32 ordering."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "仅迁移smooth_force计算入口；smooth_force_validate类型化包装及其他入口保持不变。",
+    "类型化包装精确声明meta、forces、sleep、output四指针与nb、n、nt、work四个u32，固定256线程并按work发射。",
+    "work必须非零、满足网格上界且能被n整除；worlds等于work除以n；保留n等于0不支持语义。",
+    "精确校验forces为4乘work加8个f32、output为work加8个f32、meta为nb加n加worlds乘nt加8个i32；外部sleep为worlds乘括号2乘nt加3括号加8个i32。",
+    "检查全部乘加、工作量网格上界与i32元数据限制；分别登记动态可达溢出与静态不可达边界。",
+    "保留nt等于0、meta与sleep同址、关闭休眠不读取sleep载荷及任意非零awake唤醒语义；关闭休眠仍要求sleep非空且同会话。",
+    "地址证明绑定实际meta缓冲、派生维度及写入代际；计算入口使用work且不能误用验证入口的worlds。",
+    "保留先同步验证再计算的顺序；发射前拒绝保持输出，计算后非有限拒绝允许输出已写但保持ready为false并阻止readback，同计划修复后恢复。",
+    "GPU覆盖休眠关闭、内部awake、外部sleep、非零awake、nt等于0、发射前拒绝、计算后非有限拒绝与同计划恢复。",
+    "两种编译变体使用独立唯一空捕获目录；每个目录内smooth_force_validate与smooth_force各编译一次。",
+    "逐字节保持CUDA源码、两种生成PTX、fixtures、原容差及sub.rn后两次add.rn的f32顺序不变。",
+    "每次检查与修复重试均须事前生成不可覆盖运行登记，核验唯一空目录，预建stdout与stderr，并记录起止时间、退出码和耗时；GPU检查先通过NVRTC与T4预检。",
+    "正式证据绑定不可变Git对象，并核验原件、归档、索引及最终提交字节；使用真实多行提交文件及正常钩子。",
+    "如实保留前片六次登记缺口、任务显存未知、Linux与Release未测、U016与NP01至NP04及父M3未验收；完成全套交付核验后停轮。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-smooth-force-validate"
+    ],
+    "phase": "physics/M3",
+    "owner": "Codex",
+    "files": [
+      "src/physics/smooth_force.rs",
+      "docs/development-evidence/layers-m3-smooth-force-compute",
+      "docs/development-evidence/changes/2026-10-19-layers-m3-smooth-force-compute.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "父任务：2026-10-18-layers-m3。\n基线提交：87a13b7ef921328ddd0554f2dee34aed9ca2de98。\n本机T4为NVIDIA GeForce RTX 4070 Ti SUPER。\n只迁移smooth_force计算入口。\nsmooth_force_validate保持不变。\n禁止Python。\ndelivery-receipt: docs/development-evidence/changes/2026-10-19-layers-m3-smooth-force-compute.json\n前片六次缺少独立事前登记，继续作为历史流程缺口保留。\n父M3继续保持proposed与未验收。\n完整提交：0f3f4b30e8771441354123d159f29e79067fc61c。\n提交0f3f4b30e8771441354123d159f29e79067fc61c。主机测试通过。两项本机T4测试通过。格式检查最终通过。Clippy检查通过。64项正式证据通过。保留Linux、Release、U016、NP01至NP04和父M3缺口。",
+  "revision": {
+    "before": "87a13b7ef921328ddd0554f2dee34aed9ca2de98",
+    "after": "0f3f4b30e8771441354123d159f29e79067fc61c"
+  },
+  "created_at": "2026-10-18T18:20:29.599Z",
+  "updated_at": "2026-10-18T18:34:57.053Z",
+  "closed_at": "2026-10-18T18:34:57.053Z"
+}
