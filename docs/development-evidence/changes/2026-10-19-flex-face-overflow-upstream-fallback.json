@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-19-flex-face-overflow-upstream-fallback",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/flex-face-overflow-upstream-fallback/.gitattributes",
+      "blob": "8ba4ab3ce39ad6e2599a8ca0307a5708a0aa9299"
+    },
+    {
+      "path": "docs/development-evidence/flex-face-overflow-upstream-fallback/README.md",
+      "blob": "c046b094e7267907d91ba651de75124fb5f3a332"
+    },
+    {
+      "path": "docs/development-evidence/flex-face-overflow-upstream-fallback/diagnosis/head-5a1593b-probe.log",
+      "blob": "afd91687d9ca73a789740a0dddae78883d02ad2d"
+    },
+    {
+      "path": "docs/development-evidence/flex-face-overflow-upstream-fallback/diagnosis/parent-d2d7b46.log",
+      "blob": "9e7de605364df2f3a775df33ec6d545d525160e7"
+    },
+    {
+      "path": "docs/development-evidence/flex-face-overflow-upstream-fallback/diagnosis/readback-probe.patch",
+      "blob": "588a5243f98043fd74f5bdfe7c0b797687d5f7df"
+    },
+    {
+      "path": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/check-03-format.log",
+      "blob": "1a593371e6a9a208bccb9ad4d3348d47d872b4dd"
+    },
+    {
+      "path": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/check-04-clippy-default.log",
+      "blob": "562eaa79ee408be3505f765bf99bc84302d7f01e"
+    },
+    {
+      "path": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/check-05-clippy-cuda.log",
+      "blob": "62712d654dd64281ecf90268f55958bf3b561dfb"
+    },
+    {
+      "path": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/check-06-product-source.log",
+      "blob": "dfc015f89b69c8a0552de4317865d4908bb3ef7c"
+    },
+    {
+      "path": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/run-01-target-test.log",
+      "blob": "6cc19efccc8153e9f531581cd96d3482ad55c455"
+    },
+    {
+      "path": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/run-02-resident-gpu.log",
+      "blob": "9d6292ec34b50bafc3547dc8f2cc76e94ba4af89"
+    },
+    {
+      "path": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/summary.json",
+      "blob": "5c77e9da2d7cbea09789120be7af526f8e55acef"
+    },
+    {
+      "path": "docs/windows-resident-flex-face.md",
+      "blob": "47b29fabcb4c679b5f07fe0a617fcca21b483623"
+    },
+    {
+      "path": "src/physics/resident.rs",
+      "blob": "1ac0055e8ea60e84b6ccac3b1ec1ff5f1424f78f"
+    }
+  ],
+  "validation": [
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::resident::tests::flex_face_readback_rejects_guards_nonfinite_and_arithmetic_overflow -- --ignored --exact --test-threads=1 --nocapture (HEAD 5a1593b copy with readback probe line)",
+      "result": "expected fail before fix: readback Ok; world 512 face_xpos finite with 1e20, all face_quat [0,0,0,1]",
+      "evidence": "docs/development-evidence/flex-face-overflow-upstream-fallback/diagnosis/head-5a1593b-probe.log"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::resident::tests::flex_face_readback_rejects_guards_nonfinite_and_arithmetic_overflow -- --ignored --exact --test-threads=1 (parent d2d7b46 of 97a7b54)",
+      "result": "pass: last passing commit before the upstream normalize fallback",
+      "evidence": "docs/development-evidence/flex-face-overflow-upstream-fallback/diagnosis/parent-d2d7b46.log"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::resident::tests::flex_face_readback_rejects_guards_nonfinite_and_arithmetic_overflow -- --ignored --exact --test-threads=1",
+      "result": "pass on local NVIDIA GeForce RTX 4070 Ti SUPER, 0.79s",
+      "evidence": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/run-01-target-test.log"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib physics::resident:: -- --ignored --test-threads=1",
+      "result": "pass: 21 passed, 25.31s",
+      "evidence": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/run-02-resident-gpu.log"
+    },
+    {
+      "command": "cargo fmt --check",
+      "result": "pass",
+      "evidence": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/check-03-format.log"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets -- -D warnings",
+      "result": "pass",
+      "evidence": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/check-04-clippy-default.log"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings",
+      "result": "pass",
+      "evidence": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/check-05-clippy-cuda.log"
+    },
+    {
+      "command": "git diff --exit-code 5a1593ba1e7f45d3275c895df1e79e7ff57a8781 -- src/physics/flex_face.rs",
+      "result": "pass: product kernel unchanged",
+      "evidence": "docs/development-evidence/flex-face-overflow-upstream-fallback/runs/check-06-product-source.log"
+    }
+  ],
+  "preserved_findings": [
+    {
+      "finding": "97a7b54 made face polar normalization return identity for nonpositive or NaN length, matching frozen Warp 1.15.0 normalize (kEps=0) used by upstream 71da24d9 mat33_to_quat_polar; finite overflow input no longer yields non-finite output",
+      "action": "test expectation updated; product unchanged"
+    },
+    {
+      "finding": "docs/windows-resident-flex-face.md claimed arithmetic overflow returns an error",
+      "action": "two sentences corrected"
+    }
+  ],
+  "remaining": [
+    "full GPU regression was not run",
+    "release and Linux were not run",
+    "97a7b54 recorded 2078 flex face bit differences remain",
+    "NP01 through NP04 remain unaccepted",
+    "flex face precision is not claimed",
+    "task GPU memory usage remains unknown"
+  ]
+}

@@ -6088,7 +6088,7 @@ mod tests {
                 plan.update_flex_faces(&mut data).unwrap();
             }
         }
-        // Finite nodal values can overflow cross products and polar arithmetic.
+        // Overflowed polar arithmetic follows frozen Warp normalize: NaN length returns identity.
         let mut huge = Vec::new();
         for x in 0..2 {
             for y in 0..2 {
@@ -6103,13 +6103,18 @@ mod tests {
             .write_range(4 + 512 * 27, &huge)
             .unwrap();
         plan.update_flex_faces(&mut data).unwrap();
-        assert!(matches!(
-            data.readback(),
-            Err(TransferError::Input(InputError::NonFinite {
-                field: "resident_flex_face_output",
-                ..
-            }))
-        ));
+        let out = data.readback().unwrap();
+        let world = out.flex_faces().unwrap().world(512).unwrap();
+        assert!(world.face_xpos.iter().all(|x| x.is_finite()));
+        assert!(world.face_xpos.contains(&1e20));
+        assert!(
+            world
+                .face_quat
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .all(|q| *q == [0.0, 0.0, 0.0, 1.0])
+        );
         plan.update_flex_positions(&mut data).unwrap();
         plan.update_flex_faces(&mut data).unwrap();
         data.readback().unwrap();

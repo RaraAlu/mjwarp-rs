@@ -1,0 +1,10 @@
+--- a/src/physics/resident.rs
++++ b/src/physics/resident.rs
+@@ -6103,6 +6103,7 @@
+             .write_range(4 + 512 * 27, &huge)
+             .unwrap();
+         plan.update_flex_faces(&mut data).unwrap();
++        match data.readback() { Ok(out) => { let ff = out.flex_faces().unwrap(); for w in [0usize, 511, 512] { let v = ff.world(w).unwrap(); eprintln!("PROBE world={w} xpos_first={:?} xpos_last={:?} quat={:?} all_finite={}", &v.face_xpos[..6], &v.face_xpos[v.face_xpos.len()-3..], v.face_quat, v.face_xpos.iter().chain(v.face_quat.iter()).all(|x| x.is_finite())); } } Err(e) => eprintln!("PROBE readback err={e:?}"), }
+         assert!(matches!(
+             data.readback(),
+             Err(TransferError::Input(InputError::NonFinite {
