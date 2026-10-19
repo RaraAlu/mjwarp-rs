@@ -1,0 +1,56 @@
+{
+  "task_id": "2026-10-19-t4-resident-source-drift",
+  "host": "Rara, Windows x64 MSVC, Rust 1.99.0",
+  "gpu": "not used; host tests only",
+  "head": "bc9ff16c064c8d717ca5c212ada805c5af98e846",
+  "checks": [
+    {
+      "id": "run-01-before",
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --no-fail-fast --test t4_camlight_precision --test t4_spatial_tendon_precision --test t4_tendon_wake_precision --test t4_gravity_nonzero_product_chain -- --test-threads=1",
+      "exit": 101,
+      "seconds": 0.47,
+      "result": "10 failed: camlight 1 passed 2 failed; spatial-tendon 0 passed 4 failed; tendon-wake 1 passed 3 failed; gravity chain 0 passed 1 failed 1 ignored; all on the stale resident.rs identity",
+      "log": "runs/run-01-before.log"
+    },
+    {
+      "id": "run-02-after",
+      "command": "same as run-01",
+      "exit": 0,
+      "seconds": 1.68,
+      "result": "12 passed, 0 failed, 1 ignored: camlight 3/0, spatial-tendon 4/0, tendon-wake 4/0, gravity chain 1/0 with 1 ignored GPU test",
+      "log": "runs/run-02-after.log"
+    },
+    {
+      "id": "check-03-format",
+      "command": "cargo fmt --check",
+      "exit": 0,
+      "log": "runs/check-03-format.log"
+    },
+    {
+      "id": "check-04-clippy-default",
+      "command": "cargo clippy --locked --all-targets -- -D warnings",
+      "exit": 0,
+      "log": "runs/check-04-clippy-default.log"
+    },
+    {
+      "id": "check-05-clippy-cuda",
+      "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings",
+      "exit": 0,
+      "log": "runs/check-05-clippy-cuda.log"
+    },
+    {
+      "id": "check-06-scope",
+      "command": "git diff --stat HEAD -- src native include build.rs tests; git diff -U0 HEAD -- <five pinned files>",
+      "exit": 0,
+      "result": "no product source change; tests change 2 hash constants in one file; five resident.rs sha256 lines and one package sha256 constant",
+      "log": "runs/check-06-scope.log"
+    },
+    {
+      "id": "check-07-sleep-copy-semantics",
+      "command": "git diff 4c123c3 HEAD for sleep sources; update_tendon_wake dims/order; typed wrapper forwarding; capture hashes vs 40aac80 precision-revalidation-v2; route grep",
+      "exit": 0,
+      "result": "sleep CUDA unchanged; abi [0,0,0,worlds], 256-thread grid and copy<wake<swap unchanged; capture cuda/ptx/receipts match 40aac80 evidence; 0 mapped references to changed routes",
+      "log": "runs/check-07-sleep-copy-semantics.log"
+    }
+  ]
+}

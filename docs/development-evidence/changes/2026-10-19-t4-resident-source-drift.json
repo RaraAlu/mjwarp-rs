@@ -1,0 +1,134 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-19-t4-resident-source-drift",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/t4-resident-source-drift/.gitattributes",
+      "blob": "8ba4ab3ce39ad6e2599a8ca0307a5708a0aa9299"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-source-drift/README.md",
+      "blob": "fc35a9df45e24ab58d845e76689a1ca18dd27f56"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-source-drift/diagnosis/source-lineage.txt",
+      "blob": "41f2e35328c386562956cb7eb29bdf7234ad6a53"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-source-drift/runs/check-03-format.log",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-source-drift/runs/check-04-clippy-default.log",
+      "blob": "b09297886f9274d0e8e00fe60c31564035ded9e8"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-source-drift/runs/check-05-clippy-cuda.log",
+      "blob": "860aa58f5961bbee7ad4990ca087fd1b0ab47395"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-source-drift/runs/check-06-scope.log",
+      "blob": "611244f99ac9a6e1181714606adae10fbfb9a9b9"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-source-drift/runs/check-07-sleep-copy-semantics.log",
+      "blob": "ee9aa305e63e9a3185b241499df3356bdcf60fae"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-source-drift/runs/run-01-before.log",
+      "blob": "caebe98a3210a046eb09236ff16bc0ff8c27b93c"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-source-drift/runs/run-02-after.log",
+      "blob": "0e90a99d61c45d4e47dd5d826282afa9e544dd7c"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-source-drift/runs/summary.json",
+      "blob": "e32bf829d8a3b358ce85281bf8f9f65635876043"
+    },
+    {
+      "path": "docs/evidence/t4-g03-retest/camlight-internal/map.json",
+      "blob": "6829316b84b85bbbbec1b021298fa5b4cb1d4980"
+    },
+    {
+      "path": "docs/evidence/t4-g03-retest/spatial-tendon-internal/map.json",
+      "blob": "0aeed355062adc8345a8d3e047bd929f1376bede"
+    },
+    {
+      "path": "docs/evidence/t4-g03-retest/tendon-wake-internal/map.json",
+      "blob": "10037fb19ce8e35daca015755e442b655d562780"
+    },
+    {
+      "path": "fixtures/gravity-upstream-abi/nonzero-product-chain-package.json",
+      "blob": "c24e3bab00b9a294751a0ffbbbffb322abb8008d"
+    },
+    {
+      "path": "tests/t4_gravity_nonzero_product_chain.rs",
+      "blob": "7d08c27b623f95d9bbaec2c5a6092e74b85c3978"
+    }
+  ],
+  "validation": [
+    {
+      "command": "cargo test --locked --features cuda-probe --no-fail-fast --test t4_camlight_precision --test t4_spatial_tendon_precision --test t4_tendon_wake_precision --test t4_gravity_nonzero_product_chain -- --test-threads=1 (before fix)",
+      "result": "expected fail: 10 failed (camlight 2, spatial-tendon 4, tendon-wake 3, gravity chain 1), all on the stale resident.rs identity",
+      "evidence": "docs/development-evidence/t4-resident-source-drift/runs/run-01-before.log"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --no-fail-fast --test t4_camlight_precision --test t4_spatial_tendon_precision --test t4_tendon_wake_precision --test t4_gravity_nonzero_product_chain -- --test-threads=1",
+      "result": "pass: 12 passed, 0 failed, 1 ignored GPU test, 1.68s; all ten target tests pass",
+      "evidence": "docs/development-evidence/t4-resident-source-drift/runs/run-02-after.log"
+    },
+    {
+      "command": "cargo fmt --check",
+      "result": "pass",
+      "evidence": "docs/development-evidence/t4-resident-source-drift/runs/check-03-format.log"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets -- -D warnings",
+      "result": "pass",
+      "evidence": "docs/development-evidence/t4-resident-source-drift/runs/check-04-clippy-default.log"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings",
+      "result": "pass",
+      "evidence": "docs/development-evidence/t4-resident-source-drift/runs/check-05-clippy-cuda.log"
+    },
+    {
+      "command": "git diff --stat HEAD -- src native include build.rs tests; git diff -U0 HEAD -- <five pinned files>",
+      "result": "pass: no product source change; five resident.rs sha256 lines plus the gravity PACKAGE_SHA256 constant",
+      "evidence": "docs/development-evidence/t4-resident-source-drift/runs/check-06-scope.log"
+    },
+    {
+      "command": "sleep_copy semantic review: git diff 4c123c3 HEAD sleep sources, update_tendon_wake window, typed wrapper forwarding, capture hashes vs 40aac80 precision-revalidation-v2, route grep",
+      "result": "pass: sleep CUDA unchanged; ABI [0,0,0,worlds], 256-thread grid and copy<wake<swap unchanged; capture hashes match 40aac80 evidence; changed routes unmapped",
+      "evidence": "docs/development-evidence/t4-resident-source-drift/runs/check-07-sleep-copy-semantics.log"
+    }
+  ],
+  "preserved_findings": [
+    {
+      "finding": "resident.rs drifted from the 4c123c3 identity through 40aac80 (typed sleep_copy launch), 5a1593b (G01-equivalent velocity-position FK reuses the plan kernel) and 79d4494 (test-only); update_camlight, update_spatial_tendons and update are untouched",
+      "action": "source identities refreshed after per-commit review; mapping entries unchanged"
+    },
+    {
+      "finding": "40aac80 wraps the same TENDON_WAKE_CUDA sleep_copy entry in typed checks and forwards the unchanged [0,0,0,worlds] ABI to the same 256-thread SynchronousKernel launch; the tendon-wake capture cuda/ptx/receipt hashes equal 40aac80's precision-revalidation-v2",
+      "action": "tendon-wake mapping semantics confirmed unchanged; identity refreshed"
+    },
+    {
+      "finding": "the gravity test pins both the package's resident identity (line 141) and the whole package digest (PACKAGE_SHA256); refreshing the identity changes the package digest from 9154df31 to c4752d60",
+      "action": "both constants updated; docs/evidence/gravity-nonzero-product-chain/gpu-3 keeps the old package digest as historical live evidence"
+    }
+  ],
+  "remaining": [
+    "live GPU gravity nonzero chain was not rerun; gpu-3 evidence binds the previous package digest 9154df31",
+    "layers-m3-sleep-copy precision-revalidation prior_map hashes record the pre-refresh tendon-wake map as closed-task history",
+    "GPU, release and Linux were not run",
+    "NP01 through NP04 remain unaccepted",
+    "precision is not claimed"
+  ]
+}

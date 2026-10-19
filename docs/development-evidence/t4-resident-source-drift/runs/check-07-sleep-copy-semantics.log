@@ -1,0 +1,47 @@
+## 1. CUDA source of sleep_copy/tendon_wake unchanged since 4c123c3
+$ git diff --stat 4c123c3 HEAD -- src/physics/sleep.rs src/model/sleep.rs src/physics/mod.rs
+exit=0
+
+## 2. update_tendon_wake: 4c123c3 vs HEAD (dims, launch order, swap)
+$ git show 4c123c3:src/physics/resident.rs | grep dims/launch/swap inside update_tendon_wake
+4:            data.ready.require(data.ready.tendon, "tendon")?;
+16:                let dims = [0, 0, 0, data.layout.qpos.worlds() as u32];
+21:                    device.copy_kernel.launch(
+26:                        dims,
+28:                    device.wake_kernel.launch(
+33:                        dims,
+36:                std::mem::swap(&mut out.state, &mut out.scratch);
+$ HEAD src/physics/resident.rs same window
+4:            data.ready.require(data.ready.tendon, "tendon")?;
+16:                let dims = [0, 0, 0, data.layout.qpos.worlds() as u32];
+20:                device.copy_kernel.launch(
+25:                    dims[3],
+28:                    device.wake_kernel.launch(
+33:                        dims,
+36:                std::mem::swap(&mut out.state, &mut out.scratch);
+
+## 3. Typed wrapper forwards to the same SynchronousKernel entry, ABI and grid
+207:    const BLOCK: BlockRule = BlockRule::Fixed(256);
+447:            abi: [0, 0, 0, worlds],
+499:                super::sleep::TENDON_WAKE_CUDA,
+500:                "sleep_copy",
+545:                .launch(metadata.as_buffer(), parameters, state, result, dims.abi)
+1687:                        super::sleep::TENDON_WAKE_CUDA,
+6320:            "entry": "sleep_copy",
+$ src/runtime/transfer/kernel.rs generic launch grid
+19:        let count = dimensions[3];
+44:            for value in &dimensions {
+51:                    grid_dim: (count.div_ceil(256), 1, 1),
+52:                    block_dim: (256, 1, 1),
+
+## 4. Generated product capture: tendon-wake map vs 40aac80 precision-revalidation-v2
+sleep_copy cuda 90f06a049e10a979 ptx 0f0740d3df05b413 receipt 36ded661eff91df9 match_40aac80_v2= True
+tendon_wake cuda 90f06a049e10a979 ptx 0f0740d3df05b413 receipt 38ca3c33a7f85ec7 match_40aac80_v2= True
+
+## 5. Changed routes are not mapped by the four inventories
+docs/evidence/t4-g03-retest/camlight-internal/map.json velocity_position|compile_velocity|SleepCopy|copy_kernel|launcher_span: 0
+docs/evidence/t4-g03-retest/spatial-tendon-internal/map.json velocity_position|compile_velocity|SleepCopy|copy_kernel|launcher_span: 0
+docs/evidence/t4-g03-retest/tendon-wake-internal/map.json velocity_position|compile_velocity|SleepCopy|copy_kernel|launcher_span: 0
+fixtures/gravity-upstream-abi/nonzero-product-chain-package.json velocity_position|compile_velocity|SleepCopy|copy_kernel|launcher_span: 0
+gravity live route: tests/t4_gravity_nonzero_product_chain.rs uses KinematicsPlan::with_parameters + update(); no velocity_position call:
+0
