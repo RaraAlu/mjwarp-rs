@@ -105,7 +105,6 @@ pub struct KinematicsPlan {
 
 #[cfg(feature = "cuda-probe")]
 pub(super) struct VelocityPositionKernels {
-    rigid: SynchronousKernel,
     com: SynchronousKernel,
 }
 
@@ -2206,13 +2205,10 @@ impl KinematicsPlan {
     pub(super) fn compile_velocity_position(
         &self,
     ) -> Result<VelocityPositionKernels, TransferError> {
-        let rigid = super::KINEMATICS_CUDA;
-        let source = format!("{FIELD_BATCH_CUDA}\n#define MJWARP_MOCAP\n{rigid}");
-        let rigid = SynchronousKernel::compile(&self.session, &source, "rigid_kinematics")?;
+        // FK复用计划内核，等价计划保持G01变体。
         let com = super::COM_POSITION_CUDA;
         let source = format!("{FIELD_BATCH_CUDA}\n{com}");
         Ok(VelocityPositionKernels {
-            rigid,
             com: SynchronousKernel::compile(&self.session, &source, "rigid_com_position")?,
         })
     }
@@ -2240,14 +2236,20 @@ impl KinematicsPlan {
                 .into());
             }
         }
+        if self.equivalent {
+            // G01变体读取body0；复制当前导入的世界位姿。
+            // 内核随后覆盖其余全部FK槽位。
+            rigid.copy_range_from(0, &data.rigid, 0, data.rigid.len())?;
+        }
         let k = self.model.rigid().kinematics();
         let worlds = data.worlds() as u32;
-        // SAFETY: This typed kernel pair fixes both ABIs. Existing validated
-        // metadata and f32 model/state allocations bound all reads; the checked
-        // f32 workspaces have identical element strides and disjoint ownership.
+        // SAFETY: The plan's own rigid kernel and the COM kernel fix both ABIs.
+        // Existing validated metadata and f32 model/state allocations bound all
+        // reads; the checked f32 workspaces have identical element strides and
+        // disjoint ownership. Equivalent plans read the copied body0 pose.
         // The adapter enforces one session and waits after each launch.
         unsafe {
-            kernels.rigid.launch(
+            self.rigid_kernel.launch(
                 &self.rigid.metadata,
                 &self.rigid.parameters,
                 &data.state,
@@ -6686,5 +6688,186 @@ mod tests {
             "flex-edge-passive worlds=11 compared_slots={} self_owned_bytes=2960",
             3 * 2 * 11 * 6
         );
+    }
+
+    /// 自由、球关节与mocap体共用退化四元数输入。
+    #[cfg(feature = "cuda-probe")]
+    fn degenerate_quaternion_plan(session: &TransferSession, equivalent: bool) -> KinematicsPlan {
+        let k = KinematicModelInput::new(
+            9,
+            KinematicFields {
+                qpos0: vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+                body_parentid: vec![0, 0, 1, 0],
+                body_jntadr: vec![-1, 0, 1, -1],
+                body_jntnum: vec![0, 1, 1, 0],
+                body_pos: vec![0.0, 0.0, 0.0, 0.1, 0.2, 0.3, 0.0, 0.0, 0.5, 1.0, 2.0, 3.0],
+                body_quat: [1.0, 0.0, 0.0, 0.0].repeat(4),
+                jnt_type: vec![0, 1],
+                jnt_bodyid: vec![1, 2],
+                jnt_qposadr: vec![0, 7],
+                jnt_dofadr: vec![0, 6],
+                jnt_pos: vec![0.0, 0.0, 0.0, 0.05, 0.0, 0.0],
+                jnt_axis: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
+            },
+        )
+        .unwrap();
+        let rigid = InertialModelInput::new(
+            k,
+            InertialFields {
+                body_ipos: vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0],
+                body_iquat: [1.0, 0.0, 0.0, 0.0].repeat(4),
+                body_mass: vec![0.0, 1.0, 2.0, 0.5],
+                body_inertia: [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0].to_vec(),
+                dof_bodyid: vec![1, 1, 1, 1, 1, 1, 2, 2, 2],
+                dof_jntid: vec![0, 0, 0, 0, 0, 0, 1, 1, 1],
+                dof_parentid: (0..9).map(|dof| dof - 1).collect(),
+                dof_armature: vec![0.0; 9],
+                dof_damping: vec![0.0; 9],
+            },
+        )
+        .unwrap();
+        let attached = AttachedModelInput::new(
+            rigid,
+            AttachedFields {
+                geom_bodyid: vec![],
+                geom_pos: vec![],
+                geom_quat: vec![],
+                site_bodyid: vec![],
+                site_pos: vec![],
+                site_quat: vec![],
+            },
+        )
+        .unwrap();
+        let mocap = MocapModelInput::new(attached, vec![-1, -1, -1, 0]).unwrap();
+        let camlight = if equivalent {
+            CamLightModelInput::new_equivalent(mocap, CamLightFields::default())
+        } else {
+            CamLightModelInput::new(mocap, CamLightFields::default())
+        }
+        .unwrap();
+        let fixed = FixedTendonModelInput::new(camlight, FixedTendonFields::default()).unwrap();
+        let model = SpatialTendonModelInput::new(fixed, SpatialTendonFields::default()).unwrap();
+        KinematicsPlan::with_tendon_subsets(
+            session,
+            model,
+            KinematicsParameters::default(),
+            CamLightParameters::default(),
+            OptionalSubsets {
+                equivalent,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+    }
+
+    /// 每世界依次为正零、负零、下溢与单位四元数。
+    #[cfg(feature = "cuda-probe")]
+    fn degenerate_quaternion_state() -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+        let quats: [[f32; 4]; 4] = [
+            [0.0, 0.0, 0.0, 0.0],
+            [-0.0, -0.0, 0.0, -0.0],
+            [1.0e-30, 0.0, -0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+        ];
+        let mut qpos = Vec::new();
+        let mut mocap_pos = Vec::new();
+        let mut mocap_quat = Vec::new();
+        for world in 0..4 {
+            let free = quats[world];
+            let ball = quats[(world + 1) % 4];
+            qpos.extend([0.25 * world as f32, -0.5, 0.75]);
+            qpos.extend(free);
+            qpos.extend(ball);
+            mocap_pos.extend([1.0, -2.0 + world as f32, 0.5]);
+            mocap_quat.extend(quats[(world + 2) % 4]);
+        }
+        (qpos, mocap_pos, mocap_quat)
+    }
+
+    #[cfg(feature = "cuda-probe")]
+    #[test]
+    #[ignore = "requires NVIDIA driver and NVRTC"]
+    fn g01_velocity_position_matches_equivalent_rigid_for_degenerate_quaternions() {
+        fn raw(buffer: &TransferBuffer<f32>) -> Vec<u32> {
+            let mut values = vec![0.0_f32; buffer.len()];
+            buffer.read_range_into(0, &mut values).unwrap();
+            values.iter().map(|value| value.to_bits()).collect()
+        }
+        fn workspace(session: &TransferSession, length: usize) -> TransferBuffer<f32> {
+            let mut values = vec![f32::NAN; length];
+            values[..4].fill(-131072.0);
+            values[length - 4..].fill(-131072.0);
+            session.upload(&values).unwrap()
+        }
+        let session = TransferSession::new(0).unwrap();
+        // 非等价计划只接受单位四元数；两条路径须逐位一致。
+        let strict = degenerate_quaternion_plan(&session, false);
+        let mut strict_data = strict.create_data(4).unwrap();
+        let unit_qpos = (0..4)
+            .flat_map(|world| {
+                let mut values = vec![0.25 * world as f32, -0.5, 0.75];
+                values.extend([0.5, 0.5, -0.5, 0.5, 0.0, 0.6, 0.0, 0.8]);
+                values
+            })
+            .collect::<Vec<_>>();
+        strict_data.write_qpos(&unit_qpos).unwrap();
+        strict_data
+            .write_mocap(&[1.0, -2.0, 0.5].repeat(4), &[0.0, 0.0, 1.0, 0.0].repeat(4))
+            .unwrap();
+        strict.update_rigid(&mut strict_data).unwrap();
+        let strict_kernels = strict.compile_velocity_position().unwrap();
+        let mut strict_rigid = workspace(
+            &session,
+            strict_data.layout.rigid.output.total_elements() + 8,
+        );
+        let mut strict_com =
+            workspace(&session, strict_data.layout.com.output.total_elements() + 8);
+        strict
+            .update_velocity_position(
+                &strict_data,
+                &strict_kernels,
+                &mut strict_rigid,
+                &mut strict_com,
+            )
+            .unwrap();
+        assert_eq!(raw(&strict_data.rigid), raw(&strict_rigid));
+
+        let (qpos, mocap_pos, mocap_quat) = degenerate_quaternion_state();
+        let plan = degenerate_quaternion_plan(&session, true);
+        let mut data = plan.create_data(4).unwrap();
+        data.write_qpos(&qpos).unwrap();
+        data.write_mocap(&mocap_pos, &mocap_quat).unwrap();
+        plan.update_rigid(&mut data).unwrap();
+        let expected = raw(&data.rigid);
+        let kernels = plan.compile_velocity_position().unwrap();
+        let mut rigid = workspace(&session, data.layout.rigid.output.total_elements() + 8);
+        let mut com = workspace(&session, data.layout.com.output.total_elements() + 8);
+        plan.update_velocity_position(&data, &kernels, &mut rigid, &mut com)
+            .unwrap();
+        let actual = raw(&rigid);
+        let mismatched = expected
+            .iter()
+            .zip(&actual)
+            .filter(|(expected, actual)| expected != actual)
+            .count();
+        println!(
+            "g01-velocity-position worlds=4 slots={} mismatched={mismatched}",
+            expected.len()
+        );
+        assert_eq!(expected, actual);
+
+        // 模拟G01导入的非单位世界位姿；私有FK须跟随。
+        let start = 4 + 2 * data.layout.rigid.output.elements_per_world();
+        data.rigid.write_range(start, &[0.5, -1.0, 2.0]).unwrap();
+        data.rigid
+            .write_range(start + 3 * data.layout.rigid.nbody, &[0.0, 0.6, 0.0, 0.8])
+            .unwrap();
+        plan.update_rigid(&mut data).unwrap();
+        let posed = raw(&data.rigid);
+        assert_ne!(posed, expected);
+        plan.update_velocity_position(&data, &kernels, &mut rigid, &mut com)
+            .unwrap();
+        assert_eq!(posed, raw(&rigid));
+        println!("g01-velocity-position imported-world-pose=matched");
     }
 }

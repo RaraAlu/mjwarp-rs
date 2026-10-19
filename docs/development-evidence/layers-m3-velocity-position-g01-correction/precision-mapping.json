@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-19-layers-m3-velocity-position-g01-correction",
+  "entry": "rigid_kinematics",
+  "upstream_commit": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "upstream_reference": "smooth.py kinematics; zero-norm quaternion handling recorded in docs/t4-zero-quaternion.md",
+  "kernel_source_changed": false,
+  "variants": [
+    {"name": "plain", "defines": [], "ptx_sha256": "788c870d787e06d58bce113eef24846c0b14aa43f524189a3508f58fc940f280", "baseline": "layers-m3-rigid-mass-matrix run-01-gpu product-main"},
+    {"name": "mocap", "defines": ["MJWARP_FIELD_BATCHES via FIELD_BATCH_CUDA", "MJWARP_MOCAP"], "ptx_sha256": "93318e85811ad7db5a50c3217eb08201ae0d51b649c6d69feec1f5b6355239a4", "baseline": "runs/run-01-repro"},
+    {"name": "mocap+g01", "defines": ["MJWARP_FIELD_BATCHES via FIELD_BATCH_CUDA", "MJWARP_MOCAP", "MJWARP_G01_EQUIVALENT"], "ptx_sha256": "58cb789359125491c79f2b208717b69fbcf18ef1f9172fbfad27a7fe9d02cdb7", "baseline": "runs/run-01-repro"}
+  ],
+  "change": {
+    "before": "update_velocity_position always compiled and launched the mocap variant, so G01 plans used strict zero-norm handling",
+    "after": "update_velocity_position launches the plan kernel; G01 plans use the mocap+g01 variant and copy data.rigid first so body0 matches"
+  },
+  "types": {
+    "inputs": "i32 metadata, f32 model parameters, f32 qpos and mocap state",
+    "outputs": "f32 xpos, xquat, xmat, xipos, ximat, anchor, axis",
+    "intermediates": "f32 quaternion products, rotations and normalization in the unchanged kernel",
+    "copy": "device-to-device f32 copy with no arithmetic"
+  },
+  "promotion": "none",
+  "demotion": "none",
+  "evidence": {
+    "repro_before_fix": "runs/run-01-repro: 280 of 504 slots differed; strict variant produced NaN",
+    "bitwise_after_fix": "runs/run-02-fix: 0 of 504 slots differed; imported non-unit world pose matched",
+    "ptx": "runs/run-01-repro, runs/run-02-fix and runs/run-03-ptx-plain captures"
+  },
+  "not_claimed": [
+    "NP01 through NP04 acceptance",
+    "frozen MJWarp static comparison for degenerate quaternions",
+    "end-to-end run through PassiveForcePlan::with_fluid_force on a G01 plan",
+    "performance or GPU memory",
+    "release or Linux runs",
+    "complete M3"
+  ]
+}

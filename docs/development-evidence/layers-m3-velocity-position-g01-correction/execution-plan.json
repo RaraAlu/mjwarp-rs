@@ -1,0 +1,506 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-19-layers-m3-velocity-position-g01-correction",
+  "base_commit": "f40a78af3947142bb31d587d097e42312594edf3",
+  "resource_lock": "gpu:windows-t4",
+  "device_identity": "NVIDIA GeForce RTX 4070 Ti SUPER",
+  "rules": {
+    "register_before_execution": true,
+    "registration_file_mode": "CreateNew",
+    "output_directory_must_be_absent": true,
+    "stdout_and_stderr_precreated": true,
+    "record_start_end_exit_and_duration": true,
+    "retry_requires_meaningful_change": true,
+    "nvrtc_capture_per_run": true,
+    "python_allowed": false
+  },
+  "registered_validations": [
+    {
+      "id": "device-preflight",
+      "purpose": "核对本机T4设备与NVRTC 12.8",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-velocity-position-g01-correction/device-preflight.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-00-device",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "repro-format",
+      "purpose": "修复前格式化新增复现测试",
+      "executable": "cargo",
+      "arguments": [
+        "fmt"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-01-repro-format",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "repro-gpu",
+      "purpose": "修复前复现：等价计划私有FK与update_rigid在退化四元数下不一致；预期退出码101",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "physics::resident::tests::g01_velocity_position_matches_equivalent_rigid_for_degenerate_quaternions",
+        "--",
+        "--ignored",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1",
+        "MJWARP_PHYSICS_PTX_DIR": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-01-repro/gpu-capture"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-01-repro",
+      "capture_directory": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-01-repro/gpu-capture",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-00-device/result.json"
+    },
+    {
+      "id": "format-apply",
+      "purpose": "修复后格式化",
+      "executable": "cargo",
+      "arguments": [
+        "fmt"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-02-format-apply",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "format-check",
+      "purpose": "核对Rust格式",
+      "executable": "cargo",
+      "arguments": [
+        "fmt",
+        "--check"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-03-format",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "clippy-default",
+      "purpose": "默认配置全目标静态检查",
+      "executable": "cargo",
+      "arguments": [
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-04-clippy-default",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "clippy-cuda",
+      "purpose": "cuda-probe全目标静态检查",
+      "executable": "cargo",
+      "arguments": [
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "cuda-probe",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-05-clippy-cuda",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "host-resident",
+      "purpose": "常驻、速度与被动力宿主测试",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--lib",
+        "--",
+        "--test-threads=1",
+        "physics::resident::",
+        "physics::com_velocity::",
+        "physics::passive_force::",
+        "physics::fluid_force::"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-06-host",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "gpu-fix",
+      "purpose": "修复后私有FK与update_rigid逐位一致，含导入世界位姿",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "physics::resident::tests::g01_velocity_position_matches_equivalent_rigid_for_degenerate_quaternions",
+        "--",
+        "--ignored",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1",
+        "MJWARP_PHYSICS_PTX_DIR": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-02-fix/gpu-capture"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-02-fix",
+      "capture_directory": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-02-fix/gpu-capture",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-00-device/result.json"
+    },
+    {
+      "id": "ptx-plain",
+      "purpose": "捕获plain运动学变体PTX",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "physics::mass_matrix::tests::runs_rigid_mass_matrix_wrapper_paths_and_recovers",
+        "--",
+        "--ignored",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1",
+        "MJWARP_PHYSICS_PTX_DIR": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-03-ptx-plain/gpu-capture"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-03-ptx-plain",
+      "capture_directory": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-03-ptx-plain/gpu-capture",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-00-device/result.json"
+    },
+    {
+      "id": "gpu-lib-regression",
+      "purpose": "常驻、速度、被动力与流体GPU单元回归",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "--",
+        "--ignored",
+        "--test-threads=1",
+        "physics::resident::",
+        "physics::com_velocity::",
+        "physics::passive_force::",
+        "physics::fluid_force::"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-04-gpu-lib",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-00-device/result.json"
+    },
+    {
+      "id": "gpu-integration",
+      "purpose": "常驻运动学、速度与mocap集成GPU回归",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--features",
+        "cuda-probe",
+        "--test",
+        "resident_kinematics",
+        "--test",
+        "resident_com_velocity",
+        "--test",
+        "resident_mocap",
+        "--",
+        "--ignored",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-05-gpu-integration",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-00-device/result.json"
+    },
+    {
+      "id": "g01",
+      "purpose": "G01完整链与原生参考回归",
+      "executable": "cargo",
+      "arguments": [
+        "+1.99.0-x86_64-pc-windows-msvc",
+        "test",
+        "--locked",
+        "--features",
+        "native-model-probe,cuda-probe",
+        "--test",
+        "g01",
+        "--",
+        "--include-ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction-msvc",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1",
+        "MJWARP_MUJOCO_ROOT": "D:/Rust/mjwarp-rs/target/toolchains/mujoco-3.12.0/package",
+        "MJWARP_MUJOCO_DLL": "D:/Rust/mjwarp-rs/target/toolchains/mujoco-3.12.0/package/bin/mujoco.dll"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-06-g01",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-00-device/result.json"
+    },
+    {
+      "id": "base-flex-face",
+      "purpose": "在基线f40a78a独立工作树复验gpu-lib-regression唯一失败项，判断是否既有失败",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "target/claude/base-wt/Cargo.toml",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "physics::resident::tests::flex_face_readback_rejects_guards_nonfinite_and_arithmetic_overflow",
+        "--",
+        "--ignored",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction-base",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-07-base-flex-face",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-00-device/result.json"
+    },
+    {
+      "id": "base-flex-face-retry-01",
+      "purpose": "在基线f40a78a独立工作树复验gpu-lib-regression唯一失败项，判断是否既有失败",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "target/claude/base-src/Cargo.toml",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "physics::resident::tests::flex_face_readback_rejects_guards_nonfinite_and_arithmetic_overflow",
+        "--",
+        "--ignored",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction-base",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-07-base-flex-face-retry-01",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-00-device/result.json",
+      "retry_of": "base-flex-face",
+      "retry_reason": "git worktree检出因路径过长失败，未生成Cargo.toml；改用git archive导出基线src、native、include、fixtures与清单"
+    },
+    {
+      "id": "base-flex-face-retry-02",
+      "purpose": "在基线f40a78a独立工作树复验gpu-lib-regression唯一失败项，判断是否既有失败",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "target/claude/base-src/Cargo.toml",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "physics::resident::tests::flex_face_readback_rejects_guards_nonfinite_and_arithmetic_overflow",
+        "--",
+        "--ignored",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction-base",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-07-base-flex-face-retry-02",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-00-device/result.json",
+      "retry_of": "base-flex-face-retry-01",
+      "retry_reason": "基线源码引用tests/support；补充导出tests目录"
+    },
+    {
+      "id": "base-flex-face-retry-03",
+      "purpose": "在基线f40a78a独立工作树复验gpu-lib-regression唯一失败项，判断是否既有失败",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "target/claude/base-src/Cargo.toml",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "physics::resident::tests::flex_face_readback_rejects_guards_nonfinite_and_arithmetic_overflow",
+        "--",
+        "--ignored",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction-base",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-07-base-flex-face-retry-03",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-00-device/result.json",
+      "retry_of": "base-flex-face-retry-02",
+      "retry_reason": "基线源码include_str引用docs证据；补充导出docs/evidence/t4-g03-retest与toolchain-evidence-revalidation"
+    },
+    {
+      "id": "base-flex-face-retry-04",
+      "purpose": "在基线f40a78a独立工作树复验gpu-lib-regression唯一失败项，判断是否既有失败",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "target/claude/base-src/Cargo.toml",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "physics::resident::tests::flex_face_readback_rejects_guards_nonfinite_and_arithmetic_overflow",
+        "--",
+        "--ignored",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-g01-correction-base",
+        "PATH_PREPEND": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/run-07-base-flex-face-retry-04",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-00-device/result.json",
+      "retry_of": "base-flex-face-retry-03",
+      "retry_reason": "cargo把测试工作目录设为导出包根，相对PATH_PREPEND失效导致NvrtcUnavailable；改用绝对CUDA bin路径"
+    },
+    {
+      "id": "inventory",
+      "purpose": "扫描器先复现基线resident.rs行，再重建当前行",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-velocity-position-g01-correction/build-inventory.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-08-inventory",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "evidence",
+      "purpose": "核对归档运行、复现顺序、PTX变体、源码范围与清单",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-velocity-position-g01-correction/check-evidence.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-velocity-position-g01-correction/check-09-evidence",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    }
+  ]
+}
