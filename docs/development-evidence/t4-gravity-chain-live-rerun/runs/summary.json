@@ -1,0 +1,48 @@
+{
+  "task_id": "2026-10-19-t4-gravity-chain-live-rerun",
+  "host": "Rara, Windows x64 MSVC, Rust 1.99.0, CUDA 12.8.1 NVRTC",
+  "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER, driver 596.36, 16376 MiB (resource lock gpu:windows-t4)",
+  "head": "be6ccf756cdf08b1d27264bcdba898f46515c8cf",
+  "package_sha256": "c4752d60f4871f32282b07ea7440dbdc8aa947983807331dd77833399debd199",
+  "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --test t4_gravity_nonzero_product_chain -- --ignored --test-threads=1",
+  "environment": {
+    "CUDA_PATH": "D:\\Rust\\mjwarp-rs\\target\\toolchains\\cuda-12.8.1",
+    "MJWARP_GRAVITY_NONZERO_CHAIN_EVIDENCE_DIR": "D:\\Rust\\mjwarp-rs\\docs\\evidence\\gravity-nonzero-product-chain\\gpu-4"
+  },
+  "runs": [
+    {
+      "id": "run-01-no-ptx-capture",
+      "extra_environment": {},
+      "exit": 0,
+      "result": "1 passed, 0 failed, 1 filtered out; libtest 1.14s",
+      "test_wall_ms": 1439.5,
+      "vram_mib": {"idle": 4838, "peak": 5056, "after": 4838, "samples": 47, "interval_ms": 50},
+      "outcome": "1134 values, 0 bit differences; MJWARP_PHYSICS_PTX_DIR was not set, so no PTX was captured unlike gpu-3",
+      "change_before_next_run": "set MJWARP_PHYSICS_PTX_DIR to gpu-4/ptx to capture CUDA, PTX and compile receipts like gpu-3; outputs moved here unchanged",
+      "evidence": "runs/run-01-no-ptx-capture/evidence"
+    },
+    {
+      "id": "run-02-ptx-capture",
+      "extra_environment": {"MJWARP_PHYSICS_PTX_DIR": "D:\\Rust\\mjwarp-rs\\docs\\evidence\\gravity-nonzero-product-chain\\gpu-4\\ptx"},
+      "exit": 0,
+      "result": "1 passed, 0 failed, 1 filtered out; libtest 0.86s",
+      "test_wall_ms": 1038.9,
+      "vram_mib": {"idle": 4838, "peak": 5056, "after": 4838, "samples": 39, "interval_ms": 50},
+      "outcome": "1134 values, 0 bit differences, 0 outside tolerance, max absolute 0.0",
+      "evidence": "../../../evidence/gravity-nonzero-product-chain/gpu-4"
+    }
+  ],
+  "comparison_with_gpu_3": {
+    "log": "comparison/gpu3-vs-gpu4.log",
+    "paths": 30,
+    "byte_identical": 25,
+    "identical_after_package_digest_swap": 5,
+    "other_differences": 0,
+    "ptx_cuda_receipts": "24 files byte-identical (8 entries x cu/ptx/json)"
+  },
+  "measurement_limits": [
+    "VRAM is device-wide nvidia-smi memory.used; the desktop shares this GPU and WDDM reports no per-process memory, so the 218 MiB peak delta is approximate",
+    "test_wall_ms covers the whole cargo invocation after a prior --no-run build; libtest time is reported separately",
+    "single runs; not a performance acceptance"
+  ]
+}

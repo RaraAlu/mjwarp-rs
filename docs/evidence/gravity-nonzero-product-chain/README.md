@@ -68,3 +68,15 @@ Clippy允许两类旧告警。
 本轮未跑Linux验证。
 本轮未跑性能验证。
 产品测试没有启动Python。
+
+## gpu-4复验
+
+日期：2026-10-19。
+`be6ccf7`刷新包内源码身份。
+包摘要变为`c4752d60…d199`。
+`gpu-3`仍绑定旧摘要。
+`gpu-4`在当前提交重跑。
+比较1134项，位差为零。
+PTX与编译回执与`gpu-3`一致。
+数值文件只差包摘要。
+详见[复验记录](../../development-evidence/t4-gravity-chain-live-rerun/README.md)。
