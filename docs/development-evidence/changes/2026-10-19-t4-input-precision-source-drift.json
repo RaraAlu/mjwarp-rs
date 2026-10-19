@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-19-t4-input-precision-source-drift",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/t4-input-precision-source-drift/.gitattributes",
+      "blob": "8ba4ab3ce39ad6e2599a8ca0307a5708a0aa9299"
+    },
+    {
+      "path": "docs/development-evidence/t4-input-precision-source-drift/README.md",
+      "blob": "055e871fffd6c70180f86112c405e4b0c9465367"
+    },
+    {
+      "path": "docs/development-evidence/t4-input-precision-source-drift/diagnosis/source-lineage.txt",
+      "blob": "e69bc1575d9280d0bf89a31f453ba5c0476acc3e"
+    },
+    {
+      "path": "docs/development-evidence/t4-input-precision-source-drift/runs/check-03-format.log",
+      "blob": "b49dbc9c898d0f7ab1ed0b0e26a971054046d6c9"
+    },
+    {
+      "path": "docs/development-evidence/t4-input-precision-source-drift/runs/check-04-clippy-default.log",
+      "blob": "d5e45656a2988e431d1d31e7891caaa7b544bd4b"
+    },
+    {
+      "path": "docs/development-evidence/t4-input-precision-source-drift/runs/check-05-clippy-cuda.log",
+      "blob": "247877cbeb5b060c252977cbcc88462d2d41aa2e"
+    },
+    {
+      "path": "docs/development-evidence/t4-input-precision-source-drift/runs/check-06-scope.log",
+      "blob": "485f38ade74cc37e2b31cbad5cc8a3aa3f3a600a"
+    },
+    {
+      "path": "docs/development-evidence/t4-input-precision-source-drift/runs/check-07-route-scope.log",
+      "blob": "7f82086fed2531ef1e4243607f838c8ba3445da1"
+    },
+    {
+      "path": "docs/development-evidence/t4-input-precision-source-drift/runs/run-01-before.log",
+      "blob": "e36de068cc0ecf5f375e981f5f87b47197018a33"
+    },
+    {
+      "path": "docs/development-evidence/t4-input-precision-source-drift/runs/run-02-after.log",
+      "blob": "a8d66ceab897af69c28f609b642bb48f09830fe0"
+    },
+    {
+      "path": "docs/development-evidence/t4-input-precision-source-drift/runs/summary.json",
+      "blob": "99af3a54e7292f16350431df5cfb5b67ea8bde74"
+    },
+    {
+      "path": "docs/evidence/t4-g03-retest/flex-internal/map.json",
+      "blob": "95d0a4f57c8ebedeb3814c4294f40a3969d2eef4"
+    },
+    {
+      "path": "docs/evidence/t4-g03-retest/flex-matrices/map.json",
+      "blob": "4e53ef6e27d8a68a913309d57d56901617e1018e"
+    },
+    {
+      "path": "fixtures/precision/g01-field-internal.json",
+      "blob": "0fc2319e9dd7b7a626c6fa6ee5184ab183728698"
+    },
+    {
+      "path": "fixtures/precision/g01-packing-routes.json",
+      "blob": "d61250e3d51f45f6cceef70636c4e098809bf7e2"
+    },
+    {
+      "path": "fixtures/precision/g01-rigid-internal.json",
+      "blob": "2c71b73e334ae5fe58c110b5d414d4475f920e31"
+    },
+    {
+      "path": "fixtures/precision/g01-state-packing.json",
+      "blob": "5c51d766755d2460091e467b480c9069d1c9340c"
+    },
+    {
+      "path": "fixtures/precision/g01-topology-frames.json",
+      "blob": "9363e92e0c11ef5d50f4f965cf10786dc9741e03"
+    }
+  ],
+  "validation": [
+    {
+      "command": "cargo test --locked --features cuda-probe --no-fail-fast --test t4_input_precision --test t4_camlight_precision --test t4_spatial_tendon_precision --test t4_tendon_wake_precision --test t4_gravity_nonzero_product_chain -- --test-threads=1 (before fix)",
+      "result": "expected fail: t4_input_precision 29 passed, 7 failed on stale resident.rs/transfer.rs identities; four other binaries 10 failed with the same root cause",
+      "evidence": "docs/development-evidence/t4-input-precision-source-drift/runs/run-01-before.log"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --no-fail-fast --test t4_input_precision -- --test-threads=1",
+      "result": "pass: 36 passed, 0 failed, 12 ignored, 10.19s; all seven target tests pass",
+      "evidence": "docs/development-evidence/t4-input-precision-source-drift/runs/run-02-after.log"
+    },
+    {
+      "command": "cargo fmt --check",
+      "result": "pass",
+      "evidence": "docs/development-evidence/t4-input-precision-source-drift/runs/check-03-format.log"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets -- -D warnings",
+      "result": "pass",
+      "evidence": "docs/development-evidence/t4-input-precision-source-drift/runs/check-04-clippy-default.log"
+    },
+    {
+      "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings",
+      "result": "pass",
+      "evidence": "docs/development-evidence/t4-input-precision-source-drift/runs/check-05-clippy-cuda.log"
+    },
+    {
+      "command": "git diff --stat 129d14dae66db600e4c45a129a13e9e6bb7cb956 -- src tests native include build.rs",
+      "result": "pass: no product or test source change; seven inventories change 11 sha256 lines only",
+      "evidence": "docs/development-evidence/t4-input-precision-source-drift/runs/check-06-scope.log"
+    },
+    {
+      "command": "grep -c -E 'velocity_position|compile_velocity|sleep_copy|SleepCopy|kinetic|launcher_span' <seven inventories>",
+      "result": "pass: 0 matches; no inventory maps a route changed after 4c123c3",
+      "evidence": "docs/development-evidence/t4-input-precision-source-drift/runs/check-07-route-scope.log"
+    }
+  ],
+  "preserved_findings": [
+    {
+      "finding": "resident.rs drifted from the 4c123c3 identity through 40aac80 (typed sleep_copy launch, same kernel), 5a1593b (G01-equivalent velocity-position FK reuses the plan kernel) and 79d4494 (test-only); transfer.rs drifted through 4c32408 (cached device span)",
+      "action": "source identities refreshed after per-commit review; mapping entries unchanged"
+    },
+    {
+      "finding": "5a1593b changes kernel selection for G01-equivalent velocity-position FK toward frozen upstream; none of the seven inventories maps that route",
+      "action": "recorded; no mapping change needed"
+    },
+    {
+      "finding": "flex_face.rs drift (97a7b54, 7f24a05) is covered by face_lineage historical inverse mapping",
+      "action": "identity unchanged"
+    }
+  ],
+  "remaining": [
+    "10 same-root-cause failures remain in t4_camlight_precision, t4_spatial_tendon_precision, t4_tendon_wake_precision and t4_gravity_nonzero_product_chain; tendon-wake maps sleep_copy and needs its own review",
+    "t4-kernels.json and t4-current-kernels.json capture identities stay historical",
+    "GPU, release and Linux were not run",
+    "NP01 through NP04 remain unaccepted",
+    "precision is not claimed"
+  ]
+}
