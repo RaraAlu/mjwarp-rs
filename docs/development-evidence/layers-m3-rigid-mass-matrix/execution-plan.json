@@ -1,0 +1,268 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-19-layers-m3-rigid-mass-matrix",
+  "base_commit": "5c05a22b2942b461e8bc8255b0db096a156f3097",
+  "resource_lock": "gpu:windows-t4",
+  "device_identity": "NVIDIA GeForce RTX 4070 Ti SUPER",
+  "rules": {
+    "register_before_execution": true,
+    "registration_file_mode": "CreateNew",
+    "output_directory_must_be_absent": true,
+    "stdout_and_stderr_precreated": true,
+    "record_start_end_exit_and_duration": true,
+    "retry_requires_meaningful_change": true,
+    "nvrtc_capture_per_compile": true,
+    "python_allowed": false
+  },
+  "registered_validations": [
+    {
+      "id": "format-apply",
+      "purpose": "应用Rust格式",
+      "executable": "cargo",
+      "arguments": [
+        "fmt"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/check-01-format-apply",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "format-check",
+      "purpose": "核对Rust格式",
+      "executable": "cargo",
+      "arguments": [
+        "fmt",
+        "--check"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/check-02-format",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "host-wrapper",
+      "purpose": "宿主计划、跨度、别名、拓扑与溢出边界",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--lib",
+        "physics::mass_matrix::tests::rigid_mass_matrix_plan",
+        "--",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-rigid-mass-matrix"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/check-03-host-wrapper",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "host-module",
+      "purpose": "质量矩阵模块全部宿主测试",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--lib",
+        "physics::mass_matrix::",
+        "--",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-rigid-mass-matrix"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/check-04-host-module",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "clippy-default",
+      "purpose": "默认配置全目标静态检查",
+      "executable": "cargo",
+      "arguments": [
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-rigid-mass-matrix"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/check-05-clippy-default",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "clippy-cuda",
+      "purpose": "cuda-probe全目标静态检查",
+      "executable": "cargo",
+      "arguments": [
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "cuda-probe",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-rigid-mass-matrix"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/check-06-clippy-cuda",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "device-preflight",
+      "purpose": "核对本机T4设备与NVRTC 12.8",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rigid-mass-matrix/device-preflight.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/check-07-device",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "gpu-wrapper",
+      "purpose": "类型路径与原始发射逐位一致、拒绝、恢复、零DOF与产品入口",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "physics::mass_matrix::tests::runs_rigid_mass_matrix_wrapper_paths_and_recovers",
+        "--",
+        "--ignored",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-rigid-mass-matrix",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1",
+        "MJWARP_PHYSICS_PTX_DIR": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/run-01-gpu/gpu-capture"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/run-01-gpu",
+      "capture_directory": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/run-01-gpu/gpu-capture",
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/check-07-device/result.json"
+    },
+    {
+      "id": "gpu-mass-regression",
+      "purpose": "质量矩阵与质量求解GPU回归",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "physics::mass_",
+        "--",
+        "--ignored",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-rigid-mass-matrix",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/run-02-gpu-regression",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/check-07-device/result.json"
+    },
+    {
+      "id": "gpu-report-regression",
+      "purpose": "补齐两项报告路径后复验gpu-mass-regression的两项环境失败",
+      "retry_of": "gpu-mass-regression",
+      "retry_reason": "MJWARP_MUL_M_REPORT与MJWARP_RESIDENT_MIXED_REPORT未设置，测试在断言之后写报告时unwrap失败",
+      "executable": "cargo",
+      "arguments": [
+        "test",
+        "--locked",
+        "--features",
+        "cuda-probe",
+        "--lib",
+        "--",
+        "--ignored",
+        "--exact",
+        "--test-threads=1",
+        "physics::mass_matrix::multiply::tests::gpu_multiplies_dense_and_sparse_with_skip_and_independent_alternate",
+        "physics::mass_solve::sparse::mixed::solve::resident::tests::gpu_complete_bridge_copies_actual_dense_bits_and_keeps_original_field_tolerances"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "target/claude-m3-rigid-mass-matrix",
+        "PATH_PREPEND": "target/toolchains/cuda-12.8.1/bin",
+        "CUDA_PATH": "D:/Rust/mjwarp-rs/target/toolchains/cuda-12.8.1",
+        "MJWARP_MUL_M_REPORT": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/run-03-gpu-report-files/mass-multiply-report.json",
+        "MJWARP_RESIDENT_MIXED_REPORT": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/run-03-gpu-report-files/resident-mixed-report.json"
+      },
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/run-03-gpu-report",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": true,
+      "gpu_preflight_result": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/check-07-device/result.json"
+    },
+    {
+      "id": "inventory",
+      "purpose": "由v5清单重建质量矩阵行并派生计数",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rigid-mass-matrix/build-inventory.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/check-08-inventory",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    },
+    {
+      "id": "evidence",
+      "purpose": "核对归档运行、PTX捕获、源码身份与清单",
+      "executable": "pwsh",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "docs/development-evidence/layers-m3-rigid-mass-matrix/check-evidence.ps1"
+      ],
+      "environment": {},
+      "output_root": "target/normify-evidence/2026-10-19-layers-m3-rigid-mass-matrix/check-09-evidence",
+      "capture_directory": null,
+      "registered_before_execution": true,
+      "requires_gpu_preflight": false,
+      "gpu_preflight_result": null
+    }
+  ]
+}

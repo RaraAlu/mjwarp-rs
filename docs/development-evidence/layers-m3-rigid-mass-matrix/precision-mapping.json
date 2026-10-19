@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-19-layers-m3-rigid-mass-matrix",
+  "entry": "rigid_mass_matrix",
+  "upstream_commit": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "upstream_reference": "smooth.py crb and _M; math.py inert_vec",
+  "kernel_source_changed": false,
+  "kernel_source_sha256": "48048bb6e1da02de252c4231cd09843e61f69df52c265ca9131d1d3f1d2b0b8d",
+  "ptx_sha256": "f695b0e8a44220743d444b6286748b8e1648a12616693e863dccb6e80c2548b0",
+  "historical_ptx_record": "docs/evidence/t4-g03-retest/report.json",
+  "compile_options": {
+    "nvrtc": "12.8",
+    "options": ["--std=c++17", "--gpu-architecture=compute_70"],
+    "fmad": true,
+    "use_fast_math": false
+  },
+  "slots": [
+    {"slot": 0, "name": "meta", "type": "i32", "access": "read", "content": "body_parentid[nb], dof_bodyid[nv], dof_parentid[nv]"},
+    {"slot": 1, "name": "armature", "type": "f32", "access": "read", "content": "dof_armature[nv], or one real placeholder when nv=0"},
+    {"slot": 2, "name": "state", "type": "f32", "access": "read", "content": "guarded COM output, 14*nb+6*nv per world"},
+    {"slot": 3, "name": "output", "type": "f32", "access": "read_write", "content": "guarded crb[10*nb] and dense M[nv*nv] per world"},
+    {"slot": 4, "name": "nb", "type": "u32"},
+    {"slot": 5, "name": "nv", "type": "u32"},
+    {"slot": 6, "name": "unused", "type": "u32", "required_value": 0},
+    {"slot": 7, "name": "nw", "type": "u32"}
+  ],
+  "intermediates": [
+    {"name": "crb accumulation", "type": "f32", "order": "children from nb-1 down to 1, root subtrees not merged into world"},
+    {"name": "buf", "type": "f32[6]", "order": "frozen inert_vec expression order"},
+    {"name": "value", "type": "f32", "order": "six-term dot completed before armature"},
+    {"name": "armature add", "type": "f32", "operation": "__fadd_rn on the diagonal only"}
+  ],
+  "promotion": "none",
+  "demotion": "none",
+  "type_match_rate_claimed_for_this_entry": "unchanged from base; wrapper adds host checks only",
+  "evidence": {
+    "raw_vs_typed_bitwise": "runs/run-01-gpu: 257 synthetic worlds, zero-DOF case and 3-world product model",
+    "ptx_bytewise": "runs/run-01-gpu/gpu-capture: raw-baseline, typed-main, foreign-session and product-main"
+  },
+  "not_claimed": [
+    "NP01 through NP04 acceptance",
+    "frozen MJWarp static equivalence for this entry",
+    "performance or GPU memory",
+    "release or Linux runs",
+    "complete M3"
+  ]
+}
