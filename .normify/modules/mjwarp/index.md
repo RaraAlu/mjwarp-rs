@@ -2,7 +2,7 @@
 uid = "7295f976"
 id = "mjwarp"
 tags = ["planned", "engine", "nvidia", "windows", "linux"]
-fingerprint = "a314cf1d465565e138c35dc76e97dadc65ff8a52314bbc5f1b9081a5988394bb"
+fingerprint = "e96ed8e2ae6adabc1481dec7108595120c7c0910a3181bc5b28b8923c8e11cb3"
 
 [name]
 zh = "MJWarp Rust引擎"
@@ -1164,12 +1164,6 @@ path = "tests/collision_parameters.rs"
 
 [[source]]
 path = "docs/evidence/t4-g03-retest/g08-parameter-batches.json"
-
-[[source]]
-path = "scripts/check-normify-delivery.ps1"
-
-[[source]]
-path = "scripts/test-normify-delivery.ps1"
 
 [[source]]
 path = "docs/normify-delivery-workflow.md"
