@@ -14,3 +14,31 @@ timeout_s = 3600
 cmd = ["cargo", "test", "--locked"]
 parse = "libtest"
 timeout_s = 3600
+
+[gate.clippy-cuda]
+cmd = ["cargo", "clippy", "--all-targets", "--locked", "--features", "cuda-probe", "--", "-D", "warnings"]
+timeout_s = 3600
+
+# G01完整回归：脚本自行核对样本与DLL哈希，并设置CUDA工具链。
+# 只在Rara运行；锁名不证明显卡型号，probe记录实际设备与驱动。
+[gate.g01-full]
+cmd = ["D:\\Rust\\mjwarp-rs\\target\\toolchains\\powershell-7.6.7\\bin\\pwsh.exe", "-NoProfile", "-File", "scripts/test-windows-g01.ps1", "-AllFeatures", "-FullRegression"]
+host = "DarkSea"
+resources = ["gpu:windows-t4"]
+parse = "libtest"
+min_tests = 483
+timeout_s = 14400
+probe = [["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"]]
+sample = { cmd = ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"], name = "gpu_mem_mib" }
+inputs = ["tests", "fixtures", "native", "include", "build.rs", "scripts/test-windows-g01.ps1"]
+
+[gate.g01-full-release]
+cmd = ["D:\\Rust\\mjwarp-rs\\target\\toolchains\\powershell-7.6.7\\bin\\pwsh.exe", "-NoProfile", "-File", "scripts/test-windows-g01.ps1", "-AllFeatures", "-FullRegression", "-Release"]
+host = "DarkSea"
+resources = ["gpu:windows-t4"]
+parse = "libtest"
+min_tests = 483
+timeout_s = 14400
+probe = [["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"]]
+sample = { cmd = ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"], name = "gpu_mem_mib" }
+inputs = ["tests", "fixtures", "native", "include", "build.rs", "scripts/test-windows-g01.ps1"]
