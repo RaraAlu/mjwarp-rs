@@ -148,6 +148,7 @@ mod face_polar {
         let mut batches = Vec::new();
         let mut total = 0;
         let mut violations = 0;
+        let mut bit_differences = [0usize; 2];
         let mut samples = Vec::new();
         for nw in [1usize, 2, 5, 513] {
             for round in 0..4 {
@@ -241,6 +242,8 @@ mod face_polar {
                     }
                 }
                 violations += over.iter().sum::<usize>();
+                bit_differences[0] += changed[0];
+                bit_differences[1] += changed[1];
                 total += nw * WIDTH;
                 batches.push(json!({"worlds":nw,"round":round,"comparisons":nw*WIDTH,"changed_bits":changed,
                     "max_abs_error":max_error,"outside_original_tolerance":over,"upstream_wall_us":upstream_us,
@@ -254,7 +257,7 @@ mod face_polar {
             "block_threads":256,"upstream_static_thread_slots":256,"product_fmad":true,"product_fast_math":false,
             "face_fixture_sha256":hash(FACE.replace("\r\n", "\n").as_bytes()),"node_fixture_sha256":hash(BASE.replace("\r\n", "\n").as_bytes()),
             "comparisons":total,"fields":["face_xpos","face_quat"],"absolute_tolerance":2e-5,"relative_tolerance":2e-5,
-            "batches":batches,"first_bit_differences":samples,"outside_original_tolerance":violations,
+            "batches":batches,"first_bit_differences":samples,"bit_differences":bit_differences,"outside_original_tolerance":violations,
             "elapsed_ms":started.elapsed().as_millis(),"python_executions":0,"np01_complete":false,"np02_complete":false,
             "np03":"historical-unchanged","np04":"unequal-compilers-and-targets-not-performance-acceptance"});
         println!("{report}");
@@ -264,6 +267,12 @@ mod face_polar {
         assert_eq!(
             violations, 0,
             "face product differs outside original tolerance"
+        );
+        // 严格门禁：位置与四元数均须与冻结产物逐位一致。
+        assert_eq!(
+            bit_differences,
+            [0, 0],
+            "face product differs bitwise from frozen artifact"
         );
     }
 }

@@ -132,6 +132,12 @@ NP01至NP04仍不整体放行。
 当前机器码与数值仍未验收。
 状态见[捕获边界](../fixtures/precision/t4-current-capture-status.json)。
 记录见[末项修复](t4-field-internal.md#三轴末项融合源码修复)。
+2026-10-19严格逐位门禁复验通过。
+1033664项比较零位差。
+当前机器码与上游逐项等价。
+本次未改产品内核与容差。
+完整精度与性能仍未验收。
+记录见[严格门禁复验](development-evidence/flex-face-strict-bit-gate/README.md)。
 
 ## 数值参考优先级
 

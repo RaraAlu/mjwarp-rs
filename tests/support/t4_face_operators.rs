@@ -14,8 +14,9 @@ const NEW_M: &str = "    // Preserve Warp's left-associated quaternion product.\
 
 fn variant(base: &str, mask: usize) -> String {
     if mask == 10 {
+        // 掩码10跟随当前产品的三轴末项融合版本。
         return variant(base, 7)
-            .replace(NEW_M, lineage::FIX_M)
+            .replace(NEW_M, lineage::FUSED_M)
             .replace("isolated_7", "isolated_10");
     }
     let mut source = base.to_owned();

@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-19-flex-face-strict-bit-gate",
+  "base_commit": "79d449407e05080214fbc6b369c17970744f4b99",
+  "platform": "Windows",
+  "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+  "driver": "596.36",
+  "product_cuda_sha256": "2548aee52c2601af1f12416338f1ed740dc2ccbf9741099842f3cb1a945aed58",
+  "product_ptx_sha256": "8057e350787cf69170eb945bdcef22a892f6588950936d11980e77827fb43b4a",
+  "product_kernel_changed": false,
+  "python_executions": 0,
+  "runs": [
+    {
+      "id": "run-01",
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --test t4_input_precision zero_quaternion::face_polar:: -- --ignored --test-threads=1 --nocapture",
+      "selected": [
+        "zero_quaternion::face_polar::compares_face_polar_with_actual_upstream_artifact",
+        "zero_quaternion::face_polar::operators::isolates_operators_targets_and_compilers",
+        "zero_quaternion::face_polar::operators::traces_intermediate_operators"
+      ],
+      "result": "strict gate passed: 1033664 comparisons, bit_differences [0,0], outside tolerance 0; factorial failed before physics launch on stale mask-10 lineage assertion; trace passed",
+      "unplanned_extra_selections": 2,
+      "wall_seconds": 32.47,
+      "log": "run-01-face-polar-strict.log",
+      "report": "run-01-face-polar-report.json"
+    },
+    {
+      "id": "run-02",
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --test t4_input_precision zero_quaternion::face_polar::operators::isolates_operators_targets_and_compilers -- --ignored --exact --test-threads=1 --nocapture",
+      "reason": "retest after mask 10 switched from FIX_M to current FUSED_M",
+      "result": "pass: repaired product 0 bit differences; mask 10 and mask 8 zero in all 5 compiler configurations; mask 7 19091",
+      "test_seconds": 33.23,
+      "log": "run-02-factorial.log",
+      "report": "run-02-factorial.json"
+    },
+    {
+      "id": "run-03",
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib physics::resident:: -- --include-ignored --test-threads=1",
+      "result": "pass: 31 passed, 25.07s",
+      "log": "run-03-resident-gpu.log"
+    },
+    {
+      "id": "run-04",
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --test t4_face_fusion_repair -- --test-threads=1",
+      "result": "pass: 4 passed",
+      "log": "run-04-fusion-repair.log"
+    },
+    {"id": "check-05", "command": "cargo fmt --check", "result": "pass", "log": "check-05-format.log"},
+    {"id": "check-06", "command": "cargo clippy --locked --all-targets -- -D warnings", "result": "pass", "log": "check-06-clippy-default.log"},
+    {"id": "check-07", "command": "cargo clippy --locked --features cuda-probe --all-targets -- -D warnings", "result": "pass", "log": "check-07-clippy-cuda.log"}
+  ],
+  "gpu_memory_peak_measured": false,
+  "fair_performance_comparison": false
+}
