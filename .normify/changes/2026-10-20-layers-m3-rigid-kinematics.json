@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-20-layers-m3-rigid-kinematics",
+  "title": {
+    "zh": "M3刚体运动学入口迁移",
+    "en": "M3 rigid kinematics migration"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "仅迁移rigid_kinematics三处底层发射。用安全包装绑定真实ABI、变体元数据、精确跨度、会话和别名。保持冻结内核与浮点顺序不变。",
+    "en": "Migrate only the three raw rigid_kinematics launches through a safe wrapper that binds the real ABI, per-variant metadata, exact spans, session, and aliasing while preserving the frozen kernel and floating-point order."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core",
+      "mjwarp.physics.resident"
+    ]
+  },
+  "acceptance": [
+    "只迁移rigid_kinematics三处底层发射：src/physics/mod.rs:374，src/physics/resident.rs:2252与2311。",
+    "rigid_com_position、camlight_rigid、attached_kinematics及其他入口保持原始发射；resident.rs:2252同块COM发射只拆出unsafe块，不迁移。",
+    "逐字节保持KINEMATICS_CUDA与FIELD_BATCH_CUDA源码；普通、批量mocap、G01等价三种变体PTX逐字节等于基线。",
+    "真实ABI保持四个指针和四个u32标量，顺序为meta、model、state、result、nq、nb、nj、worlds。",
+    "meta、model、state声明Read；result声明ReadWrite，因为内核回读父体位姿，G01变体还读body0；可写槽与其他槽重叠即拒绝。",
+    "元数据证明区分变体：普通变体核对五段拓扑；批量变体另核字段描述符与mocap映射；父体前序、关节区间、关节类型与qposadr均须在范围内。",
+    "精确核对四槽跨度：model按变体计算连续参数或独立周期描述；state含qpos与mocap位置姿态段；result含守卫区；nq为0继续使用真实单元素占位。",
+    "速度位置路径的外部rigid工作区须同会话、长度精确，且不与计划内metadata、parameters与state重叠。",
+    "每线程仍只处理一个世界；工作量、网格和全部乘加执行溢出检查。",
+    "任一拒绝都先于内核写入；输出字节与ready状态保持不变；同一计划修复后可再次成功。",
+    "故障覆盖容量、算术溢出、错会话、别名、失效元数据和非法拓扑索引。",
+    "GPU逐位比较原始与类型路径：覆盖普通探针、严格常驻计划、G01等价计划与速度位置路径，含nq为0、mocap与多世界。",
+    "GPU测试使用本机RTX 4070 Ti SUPER，并核对gpu:windows-t4资源准入。",
+    "每次NVRTC编译使用独立空捕获目录，不覆盖同名PTX。",
+    "开发预检登记精度映射：全部物理输入、中间量与输出保持f32，不改浮点顺序、FMA、容差或fixtures。",
+    "以docs/development-evidence/layers-m3-velocity-position-g01-correction/unmigrated-launch-inventory.json为基线生成新清单且不覆盖旧文件；未迁移底层调用由71降为68。",
+    "不新增Clippy豁免；保留1042项历史超差；不宣称NP01至NP04、性能、Linux、release或完整M3验收。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-19-layers-m3-rigid-mass-matrix",
+      "2026-10-19-layers-m3-velocity-position-g01-correction"
+    ],
+    "phase": "physics/M3",
+    "owner": "Claude",
+    "files": [
+      "src/physics/mod.rs",
+      "src/physics/resident.rs",
+      "docs/development-evidence/layers-m3-rigid-kinematics",
+      "docs/development-evidence/changes/2026-10-20-layers-m3-rigid-kinematics.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "inventory-baseline: docs/development-evidence/layers-m3-velocity-position-g01-correction/unmigrated-launch-inventory.json\n本任务只迁移rigid_kinematics。\n5a1593b已删除速度位置路径的独立编译点。\n现存两处编译点：mod.rs:367与resident.rs:1589。\n现存三处底层发射，均为unmigrated_raw。\n三种预处理变体共用同一入口名。\n一次迁移全部变体，避免入口半类型化。\nT4指本机RTX 4070 Ti SUPER。\n锁名不充当设备证明。\n清单由脚本生成，属声明文件。\ng01-full覆盖resident、G01与全部GPU探针。\ndelivery-receipt: docs/development-evidence/changes/2026-10-20-layers-m3-rigid-kinematics.json",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-19T18:55:00.000Z",
+  "updated_at": "2026-10-19T18:55:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "gate",
+      "gate": "g01-full"
+    },
+    {
+      "kind": "record",
+      "gate": "g01-full",
+      "fields": [
+        "wall_ms",
+        "gpu_mem_mib_peak"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/layers-m3-rigid-kinematics/unmigrated-launch-inventory.json",
+      "pointer": "/counts/unmigrated_low_level_call_sites",
+      "equals": 68
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/layers-m3-rigid-kinematics/unmigrated-launch-inventory.json",
+      "pointer": "/counts/typed_low_level_call_sites",
+      "equals": 31
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/layers-m3-rigid-kinematics/unmigrated-launch-inventory.json",
+      "pointer": "/counts/unmigrated_actual_entry_kinds",
+      "equals": 55
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/layers-m3-rigid-kinematics/unmigrated-launch-inventory.json",
+      "pointer": "/counts/unresolved_dynamic_compile_sites",
+      "equals": 0
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/layers-m3-rigid-kinematics/unmigrated-launch-inventory.json",
+      "pointer": "/uncertain",
+      "equals": []
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures",
+        "native",
+        "include",
+        "build.rs",
+        "docs/evidence",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml",
+        "src/runtime"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
