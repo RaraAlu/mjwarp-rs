@@ -2,7 +2,7 @@
 uid = "cd53f287"
 id = "mjwarp.physics.mass-solve"
 tags = ["implemented-subset", "gpu", "rigid-mass-solve", "windows"]
-fingerprint = "ee96e7033b8e5488e492a6ee81eedcfe81069dbcb43346132b70dedd8134ce11"
+fingerprint = "6b9c5e1b89e56f151e69b8198e6c75a2d9fe546c62aa31dc8e42350e4e05250d"
 
 [name]
 zh = "刚体质量矩阵求解"
@@ -297,6 +297,18 @@ path = "src/physics/mass_solve/sparse/mixed/cuda.rs"
 
 [[source]]
 path = "src/physics/mass_solve/sparse/mixed/tests.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/resident/solve/plan.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/resident/solve/data.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/resident/solve/cuda.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/resident/solve/tests.rs"
 
 [[apis]]
 protocol = "rpc"
