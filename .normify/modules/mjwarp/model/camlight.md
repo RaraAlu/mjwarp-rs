@@ -1,7 +1,7 @@
 +++
 uid = "c97e614a"
 id = "mjwarp.model.camlight"
-fingerprint = "7309711cd7dc86771d5cab2c1b612fd9b0de8b634db71984ea0d400c24062993"
+fingerprint = "260e80291d90d2040f61471b361c712bedfea2367b0ca00f9f2854effe336141"
 
 [name]
 zh = "相机光源字段"
@@ -17,6 +17,15 @@ Checked camera/light topology and parameters with finite nonunit equivalent cons
 
 [[source]]
 path = "src/model/camlight.rs"
+
+[[source]]
+path = "src/model/camlight/model.rs"
+
+[[source]]
+path = "src/model/camlight/parameters.rs"
+
+[[source]]
+path = "src/model/camlight/tests.rs"
 
 [[apis]]
 protocol = "rpc"
