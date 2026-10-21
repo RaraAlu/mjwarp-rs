@@ -2,7 +2,7 @@
 uid = "4098c702"
 id = "mjwarp.runtime"
 tags = ["planned", "engine", "runtime"]
-fingerprint = "7bec277f4818c1d0f8561498f0f15c8141da4f215f054c6a7ea004764a546908"
+fingerprint = "735e9cdd8f393a0d92ae578110b0d22970a5b308ff4fe5f4ad1774c3d44da91d"
 
 [name]
 zh = "GPU运行时"
@@ -132,6 +132,18 @@ path = "src/runtime/cuda/external/task.rs"
 
 [[source]]
 path = "src/runtime/cuda/external/reject.rs"
+
+[[source]]
+path = "src/runtime/config.rs"
+
+[[source]]
+path = "src/runtime/report.rs"
+
+[[source]]
+path = "src/runtime/run.rs"
+
+[[source]]
+path = "src/runtime/tests.rs"
 +++
 
 ## P1局部实现
