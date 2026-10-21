@@ -2,7 +2,7 @@
 uid = "4098c702"
 id = "mjwarp.runtime"
 tags = ["planned", "engine", "runtime"]
-fingerprint = "ecc56273a68f288b9f245f415a58d68ce4b873c1499cdae7e00ea1304aa18db2"
+fingerprint = "265f67a56e7d35bd222b31656e15221e794f2b6ffe143ad6e2cdd41dfcf075db"
 
 [name]
 zh = "GPU运行时"
@@ -162,6 +162,18 @@ path = "src/runtime/cuda/resources/probe.rs"
 
 [[source]]
 path = "src/runtime/cuda/resources/tests.rs"
+
+[[source]]
+path = "src/runtime/launcher/abi/array.rs"
+
+[[source]]
+path = "src/runtime/launcher/abi/bounds.rs"
+
+[[source]]
+path = "src/runtime/launcher/abi/device.rs"
+
+[[source]]
+path = "src/runtime/launcher/abi/tests.rs"
 +++
 
 ## P1局部实现
