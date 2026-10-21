@@ -2,7 +2,7 @@
 uid = "ece0669c"
 id = "mjwarp.physics.core"
 tags = ["planned", "engine", "physics"]
-fingerprint = "0a01c853b0e1320ddaeb353b0311ad2cba5aef0b367c1e1bc420a3d5245158ae"
+fingerprint = "40e8cecdbb241ed9cc9b384faeefa987d2deff61e9c0578cb6986dbdd6d9aac5"
 
 [name]
 zh = "物理阶段与基础探针"
@@ -153,6 +153,42 @@ path = "src/physics/smooth_force/tests/support.rs"
 
 [[source]]
 path = "src/physics/smooth_force/tests/wrappers.rs"
+
+[[source]]
+path = "src/physics/kinetic_energy/buffer.rs"
+
+[[source]]
+path = "src/physics/kinetic_energy/checks.rs"
+
+[[source]]
+path = "src/physics/kinetic_energy/cuda.rs"
+
+[[source]]
+path = "src/physics/kinetic_energy/data.rs"
+
+[[source]]
+path = "src/physics/kinetic_energy/kernels.rs"
+
+[[source]]
+path = "src/physics/kinetic_energy/metadata.rs"
+
+[[source]]
+path = "src/physics/kinetic_energy/plan.rs"
+
+[[source]]
+path = "src/physics/kinetic_energy/tests/support.rs"
+
+[[source]]
+path = "src/physics/kinetic_energy/tests/typed.rs"
+
+[[source]]
+path = "src/physics/kinetic_energy/tests/host.rs"
+
+[[source]]
+path = "src/physics/kinetic_energy/tests/gpu_bits.rs"
+
+[[source]]
+path = "src/physics/kinetic_energy/tests/gpu_guards.rs"
 
 [[apis]]
 protocol = "rpc"
