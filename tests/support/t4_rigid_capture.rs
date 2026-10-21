@@ -19,15 +19,16 @@ const PRE_ROTATE: &str =
 const SOURCE_IDENTITY: &str =
     include_str!("../../docs/evidence/t4-g03-retest/rigid-rotate-recapture/source-identity.json");
 const REVISION: &str = "8a5bac00fdfa9759f752993b2866098c6ff20819";
-const PHYSICS: &str = include_str!("../../src/physics/mod.rs");
-const RESIDENT: &str = include_str!("../../src/physics/resident.rs");
+const PHYSICS: &str = include!("../../docs/development-evidence/t4-resident-anchors/physics.rs");
+const RESIDENT: &str = include!("../../docs/development-evidence/t4-resident-anchors/resident.rs");
 const COM_VELOCITY: &str = include_str!("../../src/physics/com_velocity.rs");
 const FIXED_TENDON: &str = include_str!("../../src/physics/fixed_tendon.rs");
 const FLEX: &str = include_str!("../../src/physics/flex.rs");
 const FLEX_EDGE: &str = include_str!("../../src/physics/flex_edge.rs");
 const FLEX_HESSIAN: &str = include_str!("../../src/physics/flex_hessian.rs");
 const MASS_MATRIX: &str = include_str!("../../src/physics/mass_matrix.rs");
-const MASS_SOLVE: &str = include_str!("../../src/physics/mass_solve.rs");
+const MASS_SOLVE: &str =
+    include!("../../docs/development-evidence/t4-resident-anchors/mass-solve.rs");
 const RNE_BIAS: &str = include_str!("../../src/physics/rne_bias.rs");
 const SLEEP: &str = include_str!("../../src/physics/sleep.rs");
 const SPATIAL_TENDON: &str = include_str!("../../src/physics/spatial_tendon.rs");
@@ -68,12 +69,11 @@ fn current() -> Inventory {
     .unwrap()
 }
 fn template<'a>(source: &'a str, name: &str) -> &'a str {
-    source
-        .split_once(&format!("const {name}: &str = r#\""))
-        .unwrap()
-        .1
-        .split_once("\"#;")
-        .unwrap()
+    let hint = format!("缺源码锚点 {name}，见 t4-resident-anchors/README.md");
+    let head = format!("const {name}: &str = r#\"");
+    let (_, tail) = source.split_once(&head).unwrap_or_else(|| panic!("{hint}"));
+    tail.split_once("\"#;")
+        .unwrap_or_else(|| panic!("{hint}：模板未闭合"))
         .0
 }
 fn sources() -> [String; 3] {

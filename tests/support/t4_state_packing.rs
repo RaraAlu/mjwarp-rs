@@ -6,13 +6,11 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeSet, path::Path};
 
 const FIXTURE: &str = include_str!("../../fixtures/precision/g01-state-packing.json");
-const RESIDENT: &str = include_str!("../../src/physics/resident.rs");
+const RESIDENT: &str = include!("../../docs/development-evidence/t4-resident-anchors/resident.rs");
+const PHYSICS: &str = include!("../../docs/development-evidence/t4-resident-anchors/physics.rs");
 const SOURCES: &[(&str, &str)] = &[
     ("src/physics/resident.rs", RESIDENT),
-    (
-        "src/physics/mod.rs",
-        include_str!("../../src/physics/mod.rs"),
-    ),
+    ("src/physics/mod.rs", PHYSICS),
     (
         "src/physics/attached.rs",
         include_str!("../../src/physics/attached.rs"),

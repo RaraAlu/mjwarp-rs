@@ -1,0 +1,145 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-21-t4-resident-source-anchors",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/t4-resident-anchors/README.md",
+      "blob": "eefd4b17a3ffea752f28a85c7fc637dcd37d1dc8"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-anchors/resident.rs",
+      "blob": "23bdf7ead69c82fdf2c0cbfc120a075dabc5260b"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-anchors/physics.rs",
+      "blob": "729f2fdace673dc2c3ef8192b0f706f651d66748"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-anchors/mass-solve.rs",
+      "blob": "ee3aec489d662acd4855fa13971440f208c34fc9"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-anchors/runs/run-01-t4-input-precision.log",
+      "blob": "fc819219e22dd2faa9540bac8510e1d2587f854d"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-anchors/runs/run-02-lib-recapture.log",
+      "blob": "33ea52d92180175ed999d938f3d1a604a3de9c8c"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-anchors/runs/run-03-launcher-cache.log",
+      "blob": "ac56ae7ba331577171b2b4b9b7047ff25a9c9e54"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-anchors/runs/check-04-fmt.log",
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "docs/development-evidence/t4-resident-anchors/runs/check-05-clippy-cuda.log",
+      "blob": "9f9d63850fe88ec32ffede3cbcd2c23be99d231b"
+    },
+    {
+      "path": "docs/development-evidence/changes/2026-10-21-refactor-split-resident.json",
+      "blob": "ab35387d37208b2a6da7316e66f66276e8d7af3b"
+    },
+    {
+      "path": "tests/launcher_cache.rs",
+      "blob": "b719893cc1dbf64d7ceac65e7bc6fa230fca5d2c"
+    },
+    {
+      "path": "tests/support/t4_field_internal.rs",
+      "blob": "9e2fe2657f9693976a926ee03dbb0940ebc8f873"
+    },
+    {
+      "path": "tests/support/t4_packing_routes.rs",
+      "blob": "a2f45ea1b7a386ff53795cf41a770fd52331c22f"
+    },
+    {
+      "path": "tests/support/t4_rigid_capture.rs",
+      "blob": "f59d09efe23c6e7aac2b9ac13fa21fb51c9baeaa"
+    },
+    {
+      "path": "tests/support/t4_rigid_internal.rs",
+      "blob": "52354e1fa17b976db28c5e67dd17c595fc314bdc"
+    },
+    {
+      "path": "tests/support/t4_state_packing.rs",
+      "blob": "3da4e316248af06627e9a1751c24949be34bf838"
+    },
+    {
+      "path": "tests/support/t4_topology_frames.rs",
+      "blob": "ddd695aa0253b0c6a025de129a2c3e3ddd4cc286"
+    },
+    {
+      "path": "tests/support/t4_zero_quaternion.rs",
+      "blob": "c1b88365846af13a27170a98fb3fa49304c33d7c"
+    }
+  ],
+  "validation": [
+    {
+      "command": "cargo fmt --check",
+      "result": "pass",
+      "evidence": "docs/development-evidence/t4-resident-anchors/runs/check-04-fmt.log"
+    },
+    {
+      "command": "cargo clippy --all-targets --locked --features cuda-probe -- -D warnings",
+      "result": "pass",
+      "evidence": "docs/development-evidence/t4-resident-anchors/runs/check-05-clippy-cuda.log"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --test t4_input_precision",
+      "result": "expected fail: 28 passed, 8 failed, 12 ignored; 全部为旧源码身份漂移，无锚点解析失败",
+      "evidence": "docs/development-evidence/t4-resident-anchors/runs/run-01-t4-input-precision.log"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --lib -- recapture",
+      "result": "expected fail: 1 passed, 1 failed, 3 ignored; 失败项为 t4-current-kernels.json 中 src/physics/mod.rs 的旧摘要",
+      "evidence": "docs/development-evidence/t4-resident-anchors/runs/run-02-lib-recapture.log"
+    },
+    {
+      "command": "cargo test --locked --features cuda-probe --test launcher_cache",
+      "result": "pass: 2 passed, 0 failed, 4 ignored",
+      "evidence": "docs/development-evidence/t4-resident-anchors/runs/run-03-launcher-cache.log"
+    },
+    {
+      "command": "normify gate 2026-10-21-t4-resident-source-anchors (fmt, clippy-cuda, unit)",
+      "result": "pass",
+      "evidence": ".normify/runs/2026-10-21-t4-resident-source-anchors/"
+    }
+  ],
+  "preserved_findings": [
+    {
+      "finding": "八处锚点核对：七处 support 锚点改为模块根加相关子模块的 include! 组合；tests/launcher_cache.rs 的内核文件清单由 22 项补到 25 项，补入 fluid_force/cuda.rs、mass_solve/cuda.rs 与 resident/pack_batches.rs。",
+      "action": "候选集合、L1_DIGESTS 匹配与全部断言保持不变。"
+    },
+    {
+      "finding": "组合锚点表达式存放在任务范围内的证据目录，由测试 include! 注入；未新增 tests/ 文件，也未增长已超 500 行的文件。",
+      "action": "偏差写入证据 README；组合口径为模块根在前、按根 mod 声明顺序排列产品子模块，不含 tests 子模块。"
+    },
+    {
+      "finding": "tests/support/t4_rigid_capture.rs 的 template() 原使用裸 unwrap；现改为抛出锚点名与证据路径的 panic。",
+      "action": "只改诊断信息，未改断言、容差或映射条目。"
+    },
+    {
+      "finding": "本任务不重钉源码身份 sha256：fixtures 与 docs/evidence 的旧摘要仍会使 9 项 cuda-probe 测试报漂移。",
+      "action": "另立 2026-10-22-t4-source-hash-repin 处理，并在其后复跑全量 G01。"
+    },
+    {
+      "finding": "补交 2026-10-21-refactor-split-resident 的交付回执，引用其当时真实门禁结果，并记录验收第 1 条的等价布局偏差。",
+      "action": "回执不补造 G01、精度或性能验收。"
+    }
+  ],
+  "remaining": [
+    "源码身份哈希未重钉：t4_input_precision 8 项、lib recapture 1 项、camlight 2 项、spatial-tendon 4 项、tendon-wake 3 项、gravity nonzero chain 1 项预期仍红，由 2026-10-22-t4-source-hash-repin 处理",
+    "全量 G01 未运行，待身份重钉后执行",
+    "未跑 Linux 与 release",
+    "NP01 至 NP04、精度与 GPU 性能均未宣称",
+    "tests/support/t4_field_internal/flex_matrices.rs 的 RESIDENT 锚点与身份重钉一并在后续任务处理"
+  ]
+}

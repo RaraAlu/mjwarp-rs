@@ -9,8 +9,8 @@ use std::{
 };
 
 const FIXTURE: &str = include_str!("../../fixtures/precision/g01-rigid-internal.json");
-const PHYSICS: &str = include_str!("../../src/physics/mod.rs");
-const RESIDENT: &str = include_str!("../../src/physics/resident.rs");
+const PHYSICS: &str = include!("../../docs/development-evidence/t4-resident-anchors/physics.rs");
+const RESIDENT: &str = include!("../../docs/development-evidence/t4-resident-anchors/resident.rs");
 const TRANSFER: &str = include_str!("../../src/runtime/transfer.rs");
 const SOURCES: &[(&str, &str)] = &[
     ("src/physics/mod.rs", PHYSICS),

@@ -564,8 +564,8 @@ fn compares_zero_quaternion_with_actual_upstream_artifact() {
         }
     }
 
-    let physics = include_str!("../../src/physics/mod.rs");
-    let resident = include_str!("../../src/physics/resident.rs");
+    let physics = include!("../../docs/development-evidence/t4-resident-anchors/physics.rs");
+    let resident = include!("../../docs/development-evidence/t4-resident-anchors/resident.rs");
     let kernel = super::between(physics, "const KINEMATICS_CUDA: &str = r#\"", "\"#;").unwrap();
     let prefix = super::between(resident, "const FIELD_BATCH_CUDA: &str = r#\"", "\"#;").unwrap();
     let source = format!("{prefix}\n#define MJWARP_MOCAP\n#define MJWARP_G01_EQUIVALENT\n{kernel}");

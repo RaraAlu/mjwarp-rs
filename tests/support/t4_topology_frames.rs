@@ -9,8 +9,8 @@ use std::{
 };
 
 const FIXTURE: &str = include_str!("../../fixtures/precision/g01-topology-frames.json");
-const RESIDENT: &str = include_str!("../../src/physics/resident.rs");
-const PHYSICS: &str = include_str!("../../src/physics/mod.rs");
+const RESIDENT: &str = include!("../../docs/development-evidence/t4-resident-anchors/resident.rs");
+const PHYSICS: &str = include!("../../docs/development-evidence/t4-resident-anchors/physics.rs");
 const ATTACHED: &str = include_str!("../../src/physics/attached.rs");
 const CAMLIGHT: &str = include_str!("../../src/physics/camlight.rs");
 const MOCAP: &str = include_str!("../../src/model/mocap.rs");

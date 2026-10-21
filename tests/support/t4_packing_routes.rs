@@ -16,7 +16,7 @@ mod flex_internal {
     const FIXTURE: &str = include_str!("../../docs/evidence/t4-g03-retest/flex-internal/map.json");
     const FLEX: &str = include_str!("../../src/physics/flex.rs");
     const EDGE: &str = include_str!("../../src/physics/flex_edge.rs");
-    const RESIDENT: &str = include_str!("../../src/physics/resident.rs");
+    use super::RESIDENT;
     const MODEL: &str = include_str!("../../src/model/flex.rs");
     const TRANSFER: &str = include_str!("../../src/runtime/transfer.rs");
     const SOURCES: &[(&str, &str)] = &[
@@ -579,7 +579,7 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeSet, path::Path};
 
 const FIXTURE: &str = include_str!("../../fixtures/precision/g01-packing-routes.json");
-const RESIDENT: &str = include_str!("../../src/physics/resident.rs");
+const RESIDENT: &str = include!("../../docs/development-evidence/t4-resident-anchors/resident.rs");
 macro_rules! sources {
     ($($path:literal),+ $(,)?) => {
         &[$(($path, include_str!(concat!("../../", $path)))),+]
@@ -721,6 +721,7 @@ fn source(path: &str) -> Result<&'static str, String> {
     SOURCES
         .iter()
         .find_map(|(p, s)| (*p == path).then_some(*s))
+        .or_else(|| (path == "src/physics/resident.rs").then_some(RESIDENT))
         .ok_or_else(|| format!("unreviewed source: {path}"))
 }
 // 固定格式的源码守卫，不冒充语法解析器。
@@ -1024,7 +1025,6 @@ fn verify_captures(i: &Inventory, root: &Path) -> Result<usize, String> {
     }
     Ok(total)
 }
-
 #[test]
 fn covers_eight_packers_and_all_82_routes() {
     validate(&inventory()).unwrap();

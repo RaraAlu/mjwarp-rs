@@ -22,24 +22,27 @@ const L1_DIGESTS: &str = include_str!(
 );
 
 /// 以原始字符串常量定义内核的物理文件。
-const PHYSICS_FILES: [&str; 22] = [
+const PHYSICS_FILES: [&str; 25] = [
     include_str!("../src/physics/mod.rs"),
     include_str!("../src/physics/applied_force.rs"),
     include_str!("../src/physics/com_velocity.rs"),
     include_str!("../src/physics/flex_edge_passive.rs"),
     include_str!("../src/physics/fluid_force.rs"),
+    include_str!("../src/physics/fluid_force/cuda.rs"),
     include_str!("../src/physics/gravity_compensation.rs"),
     include_str!("../src/physics/mass_matrix.rs"),
     include_str!("../src/physics/mass_matrix/multiply.rs"),
     include_str!("../src/physics/mass_matrix/multiply/borrowed.rs"),
     include_str!("../src/physics/mass_matrix/resident.rs"),
     include_str!("../src/physics/mass_solve.rs"),
+    include_str!("../src/physics/mass_solve/cuda.rs"),
     include_str!("../src/physics/mass_solve/sparse.rs"),
     include_str!("../src/physics/mass_solve/sparse/dense.rs"),
     include_str!("../src/physics/mass_solve/sparse/mixed.rs"),
     include_str!("../src/physics/mass_solve/sparse/resident.rs"),
     include_str!("../src/physics/passive_force.rs"),
     include_str!("../src/physics/resident.rs"),
+    include_str!("../src/physics/resident/pack_batches.rs"),
     include_str!("../src/physics/rne_bias.rs"),
     include_str!("../src/physics/smooth_force.rs"),
     include_str!("../src/physics/smooth_force/joint_passive.rs"),
