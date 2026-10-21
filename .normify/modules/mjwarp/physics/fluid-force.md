@@ -2,7 +2,7 @@
 uid = "3b80fd65"
 id = "mjwarp.physics.fluid-force"
 tags = ["G04", "U038", "NP01", "NP02", "cuda", "fluid"]
-fingerprint = "9b67ed01568f1ad71a107e9e47fee1179b07c7dd5da39874cee85831aa7e3cee"
+fingerprint = "bd5fa332ced5f85550e67d69726f8b31d31baffb355635279ccd52298ba187fa"
 
 [name]
 zh = "流体被动力"
@@ -72,6 +72,24 @@ path = "src/physics/fluid_force/tests/gpu_box.rs"
 
 [[source]]
 path = "src/physics/fluid_force/tests/gpu_ellipsoid.rs"
+
+[[source]]
+path = "src/physics/com_velocity/cuda.rs"
+
+[[source]]
+path = "src/physics/com_velocity/layout.rs"
+
+[[source]]
+path = "src/physics/com_velocity/plan.rs"
+
+[[source]]
+path = "src/physics/com_velocity/resident.rs"
+
+[[source]]
+path = "src/physics/com_velocity/data.rs"
+
+[[source]]
+path = "src/physics/com_velocity/tests.rs"
 
 [[apis]]
 protocol = "rpc"
