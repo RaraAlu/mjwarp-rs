@@ -2,7 +2,7 @@
 uid = "f201cefe"
 id = "mjwarp.physics.tendon-passive"
 tags = ["P4", "U038", "G04"]
-fingerprint = "099a9c1749cf1cb3290a59212816a406b0cd3434cd528470b19fa54a09faa653"
+fingerprint = "1121238df3ad75429ae6d73ed319dfc6ad395b943a7cee7f6c5c33bac3d56c84"
 
 [name]
 zh = "常驻肌腱被动力"
@@ -18,6 +18,18 @@ Direct resident length, Jacobian, and device velocity consumer; not complete G04
 
 [[source]]
 path = "src/physics/tendon_passive.rs"
+
+[[source]]
+path = "src/physics/tendon_passive/plan.rs"
+
+[[source]]
+path = "src/physics/tendon_passive/data.rs"
+
+[[source]]
+path = "src/physics/tendon_passive/cuda.rs"
+
+[[source]]
+path = "src/physics/tendon_passive/tests.rs"
 
 [[apis]]
 protocol = "rpc"
