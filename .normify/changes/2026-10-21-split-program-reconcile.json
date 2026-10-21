@@ -7,8 +7,8 @@
               },
     "status":  "proposed",
     "intent":  {
-                   "zh":  "全部拆分任务验收后重扫仓库，确认没有超过500行的代码文件，并更新拆分记录与模块源码登记说明。",
-                   "en":  "After all split slices are verified, rescan the repository, confirm no code file exceeds 500 lines, and update the split record and module-source documentation."
+                   "zh":  "全部拆分任务验收后重扫仓库，确认没有超过500行的代码文件，跑全量G01回归，并更新拆分记录与模块源码登记说明。",
+                   "en":  "After all split slices are verified, rescan the repository, run the full G01 regression, confirm no code file exceeds 500 lines, and update the split record and module-source documentation."
                },
     "modules":  {
 
@@ -17,7 +17,8 @@
                        "全部拆分切片任务已验收；重扫仓库受检扩展名（rs/cu/c/h/cpp/ps1/sh，排除证据与样本目录），没有任何代码文件超过500行。",
                        "拆分报告 docs/development-evidence/split-program/report.json 由脚本扫描实际文件生成，字段 /over_limit_files 为0。",
                        "更新 docs/module-splitting.md：记录拆分清单、每文件拆分前后行数、新增模块源码登记与未完项。",
-                       "normify validate 0 错误；gate fmt 与 gate unit 通过。",
+                       "normify validate 0 错误；gate fmt、gate clippy-cuda 与 gate unit 通过。",
+                       "全量 G01 回归（gate g01-full）通过，并记录实际 wall_ms 与显存峰值；拆分属纯移动，数值路径不得有变化。",
                        "不宣称 NP01 至 NP04、GPU 性能、Linux 或 release 验收。"
                    ],
     "schedule":  {
@@ -91,17 +92,18 @@
                                    "docs/module-splitting.md"
                                ],
                      "resources":  [
-                                       "build:workspace"
+                                       "build:workspace",
+                                       "gpu:windows-t4"
                                    ],
                      "priority":  99
                  },
-    "note":  "承接2026-10-21全部拆分切片。\n用户要求拆分所有超限代码文件并同步normify数据。\n本任务只做收口、扫描与文档，不改产品代码。",
+    "note":  "承接2026-10-21全部拆分切片。\n用户要求拆分所有超限代码文件并同步normify数据。\n本任务只做收口、扫描、全量G01回归与文档，不改产品代码。\n2026-10-21补登：用户询问拆分后的验证测试，收口增加clippy-cuda与g01-full全量回归，记录wall_ms与显存峰值。",
     "revision":  {
                      "before":  null,
                      "after":  null
                  },
     "created_at":  "2026-10-21T12:37:48.000Z",
-    "updated_at":  "2026-10-21T12:37:48.000Z",
+    "updated_at":  "2026-10-21T12:59:00.000Z",
     "checks":  [
                    {
                        "kind":  "gate",
@@ -109,7 +111,23 @@
                    },
                    {
                        "kind":  "gate",
+                       "gate":  "clippy-cuda"
+                   },
+                   {
+                       "kind":  "gate",
                        "gate":  "unit"
+                   },
+                   {
+                       "kind":  "gate",
+                       "gate":  "g01-full"
+                   },
+                   {
+                       "kind":  "record",
+                       "gate":  "g01-full",
+                       "fields":  [
+                                      "wall_ms",
+                                      "gpu_mem_mib_peak"
+                                  ]
                    },
                    {
                        "kind":  "json",
