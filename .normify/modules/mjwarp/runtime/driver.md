@@ -1,7 +1,7 @@
 +++
 uid = "545c0310"
 id = "mjwarp.runtime.driver"
-fingerprint = "3bea86aac98c06320b14e8ff6c89b02ee03806253b783772dff38bac349344aa"
+fingerprint = "5e29bcd0aa816ea7024a96c5177988856802f2851ee09b51bbc619acfa168be5"
 
 [name]
 zh = "驱动与执行图"
@@ -17,6 +17,18 @@ Own CUDA driver initialization, native kernel execution, graph capture, replay a
 
 [[source]]
 path = "src/runtime/cuda.rs"
+
+[[source]]
+path = "src/runtime/cuda/graph.rs"
+
+[[source]]
+path = "src/runtime/cuda/scan.rs"
+
+[[source]]
+path = "src/runtime/cuda/typed.rs"
+
+[[source]]
+path = "src/runtime/cuda/tests.rs"
 
 [[apis]]
 protocol = "rpc"
