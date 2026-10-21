@@ -2,7 +2,7 @@
 uid = "da95e316"
 id = "mjwarp.runtime.transfer.kernel"
 tags = ["runtime", "prototype"]
-fingerprint = "7297d905cb485b8ec19184da2ebe4a4bf052824098c55b960b8e2a93c9ef9740"
+fingerprint = "a44cfe433d00533e34610a1e4a4407f01bb9f8e7dee69b1da3b180836bd676d7"
 
 [name]
 zh = "同步内核适配"
@@ -21,6 +21,39 @@ path = "src/runtime/transfer/kernel.rs"
 
 [[source]]
 path = "src/runtime/transfer/kernel/kinetic_energy.rs"
+
+[[source]]
+path = "src/runtime/transfer/kernel/baseline.rs"
+
+[[source]]
+path = "src/runtime/transfer/kernel/drop.rs"
+
+[[source]]
+path = "src/runtime/transfer/kernel/launch.rs"
+
+[[source]]
+path = "src/runtime/transfer/kernel/launchers_physics.rs"
+
+[[source]]
+path = "src/runtime/transfer/kernel/launchers_solve.rs"
+
+[[source]]
+path = "src/runtime/transfer/kernel/ptx.rs"
+
+[[source]]
+path = "src/runtime/transfer/kernel/tests/support.rs"
+
+[[source]]
+path = "src/runtime/transfer/kernel/tests/abi.rs"
+
+[[source]]
+path = "src/runtime/transfer/kernel/tests/precision.rs"
+
+[[source]]
+path = "src/runtime/transfer/kernel/tests/adapter.rs"
+
+[[source]]
+path = "src/runtime/transfer/kernel/tests/guards.rs"
 
 [[apis]]
 protocol = "rpc"
