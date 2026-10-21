@@ -10,6 +10,12 @@ const MAP: &str = include_str!("../docs/evidence/t4-g03-retest/spatial-tendon-in
 fn read(path: &str, hash: &str, lf: bool) -> String {
     let bytes = fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join(path)).unwrap();
     let text = String::from_utf8(bytes.clone()).unwrap();
+    let text = match path {
+        "src/physics/resident.rs" => {
+            include!("../docs/development-evidence/t4-resident-anchors/resident.rs").to_owned()
+        }
+        _ => text,
+    };
     let bytes = if lf {
         text.replace("\r\n", "\n").into_bytes()
     } else {

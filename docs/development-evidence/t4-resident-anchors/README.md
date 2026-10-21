@@ -53,9 +53,9 @@
 
 | 源码路径 | 口径 | 文件数 | 组合 sha256 |
 |---|---|---|---|
-| src/physics/resident.rs | 常驻运动学 | 17 | db414eefe797fcae099e79e58254ed05d9e3956ad4164efa513c098ab5d5e2f5 |
+| src/physics/resident.rs | 常驻运动学 | 17 | 919335fb11995e35dc834e8e3be8eb2d2ea6443afb5108b1d6e967e9d5c5aeaf |
 | src/physics/mod.rs | 物理模块根 | 5 | 09da2b796e08fddabd93eba5c99833cadf1e1d0ebb32f46c730910a61dd6fe09 |
-| src/physics/mass_solve.rs | 质量求解（内核解析锚点） | 2 | d0a7492b735bd52f6c75d7915f2aea93ad25df6f9f7f49acbb77c22f5f9f5c75 |
+| src/physics/mass_solve.rs | 质量求解（内核解析与发射点锚点） | 3 | 63b1d4729e2e7f4b72f434ae95032362aa8553271a73da448d6689db528c3267 |
 
 ## 参与文件行数
 
@@ -67,7 +67,7 @@
 | src/physics/resident/layout.rs | 118 |
 | src/physics/resident/output.rs | 69 |
 | src/physics/resident/pack.rs | 344 |
-| src/physics/resident/pack_batches.rs | 218 |
+| src/physics/resident/pack_batches.rs | 220 |
 | src/physics/resident/plan_accessors.rs | 105 |
 | src/physics/resident/plan_constructors.rs | 340 |
 | src/physics/resident/plan_contexts.rs | 157 |
@@ -84,6 +84,7 @@
 | src/physics/history.rs | 90 |
 | src/physics/kinematics.rs | 342 |
 | src/physics/mass_solve.rs | 143 |
+| src/physics/mass_solve/kernel.rs | 100 |
 | src/physics/mass_solve/cuda.rs | 120 |
 
 ## template() 诊断
@@ -114,3 +115,20 @@
 
 - 组合锚点表达式放在任务文件范围内的证据目录，由测试 `include!` 注入。
 - 未新增 `tests/` 支撑文件，也未触碰范围外文件；等价于「模块根加子模块组合」要求。
+
+## 身份重钉阶段的锚点修订
+
+`2026-10-22-t4-source-hash-repin` 在重钉源码身份时补齐了拆分布局带来的锚点差异：
+
+- 恢复拆分时丢失的两行纯注释（`// Descriptors hold …`、`// Wide pointer arithmetic …`），
+  位置在 `src/physics/resident/pack_batches.rs` 的 `FIELD_BATCH_CUDA` 之前；不改任何代码。
+- `src/physics/mass_solve.rs` 组合补入 `kernel.rs`，覆盖内核模板与其发射路由文本。
+- 三个 precision 测试（camlight、spatial-tendon、tendon-wake）对拆分路径读取组合文本，
+  不再直接读取模块根。
+- `tests/support/t4_rigid_capture.rs` 的路由锚点随拆分从 `super::` 改为 `crate::physics::`。
+- `tests/support/t4_rigid_internal.rs` 的历史整源码摘要按组合文本重钉。
+- `tests/support/t4_state_packing.rs` 允许设备字段带 `pub(super) ` 前缀，仍逐字核对字段名与类型。
+- `tests/t4_gravity_nonzero_product_chain.rs` 对拆分路径使用组合文本；该文件行数净不增。
+
+所有断言、容差、映射条目保持不变。
+

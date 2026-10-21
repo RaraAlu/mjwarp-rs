@@ -11,7 +11,8 @@ use std::{
 const FIXTURE: &str = include_str!("../../../docs/evidence/t4-g03-retest/flex-matrices/map.json");
 const FACE: &str = include_str!("../../../src/physics/flex_face.rs");
 const HESSIAN: &str = include_str!("../../../src/physics/flex_hessian.rs");
-const RESIDENT: &str = include_str!("../../../src/physics/resident.rs");
+const RESIDENT: &str =
+    include!("../../../docs/development-evidence/t4-resident-anchors/resident.rs");
 const MODEL: &str = include_str!("../../../src/model/flex_hessian.rs");
 const FLEX: &str = include_str!("../../../src/model/flex.rs");
 const TRANSFER: &str = include_str!("../../../src/runtime/transfer.rs");

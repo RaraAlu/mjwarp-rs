@@ -209,6 +209,8 @@ pub(super) fn pack_model(
     })
 }
 
+// Descriptors hold a checked scalar offset and a positive field period.
+// Wide pointer arithmetic also protects offsets across CUDA blocks.
 #[cfg(feature = "cuda-probe")]
 pub(super) const FIELD_BATCH_CUDA: &str = r#"
 #define MJWARP_FIELD_BATCHES

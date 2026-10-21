@@ -328,16 +328,16 @@ fn preserves_current_sources_and_all_thirty_variants() {
     }
     // 同时绑定模板组合与实际编译调用点。
     for anchor in [
-        "let source = format!(\"{FIELD_BATCH_CUDA}\\n{}\", super::COM_POSITION_CUDA);",
-        "super::fixed_tendon::FIXED_TENDON_CUDA,",
-        "super::tendon_wrap::TENDON_WRAP_CUDA,",
-        "super::spatial_tendon::SPATIAL_TENDON_CUDA",
-        "super::tendon::TENDON_CUDA,",
-        "super::flex::FLEX_POSITION_CUDA,",
-        "super::sleep::TENDON_WAKE_CUDA,",
-        "super::flex_edge::FLEX_EDGE_CUDA,",
-        "super::flex_face::FLEX_FACE_CUDA,",
-        "super::flex_hessian::FLEX_HESSIAN_CUDA,",
+        "let source = format!(\"{FIELD_BATCH_CUDA}\\n{}\", crate::physics::COM_POSITION_CUDA);",
+        "crate::physics::fixed_tendon::FIXED_TENDON_CUDA,",
+        "crate::physics::tendon_wrap::TENDON_WRAP_CUDA,",
+        "crate::physics::spatial_tendon::SPATIAL_TENDON_CUDA",
+        "crate::physics::tendon::TENDON_CUDA,",
+        "crate::physics::flex::FLEX_POSITION_CUDA,",
+        "crate::physics::sleep::TENDON_WAKE_CUDA,",
+        "crate::physics::flex_edge::FLEX_EDGE_CUDA,",
+        "crate::physics::flex_face::FLEX_FACE_CUDA,",
+        "crate::physics::flex_hessian::FLEX_HESSIAN_CUDA,",
     ] {
         assert!(
             RESIDENT.contains(anchor),

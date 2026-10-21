@@ -24,10 +24,12 @@ use std::{fs, path::PathBuf};
 
 const PACKAGE: &str =
     include_str!("../fixtures/gravity-upstream-abi/nonzero-product-chain-package.json");
-const PACKAGE_SHA256: &str = "c4752d60f4871f32282b07ea7440dbdc8aa947983807331dd77833399debd199";
+const PACKAGE_SHA256: &str = "fec9a9fa6733f0d59ad1639ba9fa2156510df165446d9de8ef6bff9024b625c5";
 const REVISION: &str = "71da24d956378a87a703b6e1442b13aec0c4ac29";
 const WARP_VERSION: &str = "1.15.0";
 const TOLERANCE_BITS: u32 = 0x360637bd;
+const PHYSICS: &str = include!("../docs/development-evidence/t4-resident-anchors/physics.rs");
+const RESIDENT: &str = include!("../docs/development-evidence/t4-resident-anchors/resident.rs");
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -54,19 +56,15 @@ struct UpstreamOutput {
     nonzero_rotation_coverage: bool,
     candidate_kinematics_inputs: bool,
 }
-
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
-
 fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
-
 fn usize_value(value: &Value) -> usize {
     usize::try_from(value.as_u64().unwrap()).unwrap()
 }
-
 fn f32_values(value: &Value) -> Vec<f32> {
     value
         .as_array()
@@ -81,7 +79,6 @@ fn f32_values(value: &Value) -> Vec<f32> {
         })
         .collect()
 }
-
 fn i32_values(value: &Value) -> Vec<i32> {
     value
         .as_array()
@@ -90,19 +87,15 @@ fn i32_values(value: &Value) -> Vec<i32> {
         .map(|value| i32::try_from(value.as_i64().unwrap()).unwrap())
         .collect()
 }
-
 fn flatten(rows: &[Vec<f32>]) -> Vec<f32> {
     rows.iter().flatten().copied().collect()
 }
-
 fn bits(values: &[f32]) -> Vec<u32> {
     values.iter().map(|value| value.to_bits()).collect()
 }
-
 fn hex_bits(values: &[u32]) -> Vec<String> {
     values.iter().map(|value| format!("{value:08x}")).collect()
 }
-
 fn bit_digest(values: &[u32]) -> String {
     let bytes = values
         .iter()
@@ -134,11 +127,11 @@ fn validate_package(package: &Value) -> Result<(), &'static str> {
             != serde_json::json!({
                 "physics_core": {
                     "path": "src/physics/mod.rs",
-                    "sha256": "e9ec17dbc364a6e32038872f0a6bd1507d12bcbb04059b90f89e7d9f6235019e"
+                    "sha256": "09da2b796e08fddabd93eba5c99833cadf1e1d0ebb32f46c730910a61dd6fe09"
                 },
                 "resident": {
                     "path": "src/physics/resident.rs",
-                    "sha256": "d0cdb1161c265f7c542fbd7999f4536ba86e8e1036c4122ca906bf63a174216a"
+                    "sha256": "919335fb11995e35dc834e8e3be8eb2d2ea6443afb5108b1d6e967e9d5c5aeaf"
                 },
                 "gravity_compensation": {
                     "path": "src/physics/gravity_compensation.rs",
@@ -368,15 +361,22 @@ fn compare(actual: &[u32], expected: &[u32], tolerance: f32) -> (usize, usize, f
     }
     (bit_differences, outside_tolerance, max_absolute)
 }
-
 #[test]
 fn frozen_nonzero_product_chain_contract_is_self_consistent() {
     let package = load_package();
     let (input, output) = load_case(&package);
     let model_package = model_package(&package);
     for source in package["product_sources"].as_object().unwrap().values() {
-        let bytes = fs::read(root().join(source["path"].as_str().unwrap())).unwrap();
-        assert_eq!(digest(&bytes), source["sha256"]);
+        let path = source["path"].as_str().unwrap();
+        let text = match path {
+            "src/physics/mod.rs" => PHYSICS.to_owned(),
+            "src/physics/resident.rs" => RESIDENT.to_owned(),
+            _ => String::from_utf8(fs::read(root().join(path)).unwrap()).unwrap(),
+        };
+        assert_eq!(
+            digest(text.replace("\r\n", "\n").as_bytes()),
+            source["sha256"]
+        );
     }
     assert_eq!(input.worlds, 7);
     assert_eq!(input.nbranch, 2);

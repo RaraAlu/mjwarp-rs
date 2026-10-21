@@ -2,7 +2,7 @@
 uid = "7295f976"
 id = "mjwarp"
 tags = ["planned", "engine", "nvidia", "windows", "linux"]
-fingerprint = "c1e91e4ea7d013f0e7b3d9ad240921ad28739a9a4a7719596400a6e60219f5e6"
+fingerprint = "8319592f21f35379555261929af490782988f1061b41085c9fa0ff926d20fe18"
 
 [name]
 zh = "MJWarp Rust引擎"

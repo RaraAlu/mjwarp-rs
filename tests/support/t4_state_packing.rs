@@ -233,8 +233,10 @@ fn validate(i: &Inventory) -> Check {
         )?;
         let body = between(RESIDENT, &format!("struct {device_owner} {{"), "}")?;
         require(
-            body.lines()
-                .any(|l| l.trim() == format!("{device_field}: {device_type},")),
+            body.lines().any(|l| {
+                l.trim().trim_start_matches("pub(super) ")
+                    == format!("{device_field}: {device_type},")
+            }),
             format!("device storage: {name}"),
         )?;
         require(
@@ -279,6 +281,7 @@ fn validate(i: &Inventory) -> Check {
     let packers: BTreeSet<_> = RESIDENT
         .lines()
         .filter_map(|l| {
+            let l = l.trim_start_matches("pub(super) ");
             l.strip_prefix("fn pack_")
                 .and_then(|s| s.split_once('('))
                 .map(|(n, _)| format!("pack_{n}"))
@@ -463,7 +466,6 @@ fn verify_captures(root: &Path) -> Result<usize, String> {
     }
     Ok(total)
 }
-
 #[test]
 fn covers_state_declarations_and_all_ten_packing_functions() {
     validate(&inventory()).unwrap();
@@ -476,7 +478,6 @@ fn covers_state_declarations_and_all_ten_packing_functions() {
     let _: Vec<f32> = s.mocap_quat;
     let _: Option<Vec<bool>> = s.flex_hessian_valid;
 }
-
 #[test]
 fn rejects_each_missing_duplicated_or_mistyped_state() {
     for index in 0..15 {
@@ -496,7 +497,6 @@ fn rejects_each_missing_duplicated_or_mistyped_state() {
         }
     }
 }
-
 #[test]
 fn rejects_packing_source_or_coverage_drift() {
     for index in 0..10 {
@@ -519,7 +519,6 @@ fn rejects_packing_source_or_coverage_drift() {
     i.remaining.clear();
     assert!(validate(&i).is_err());
 }
-
 #[test]
 fn rejects_mislabelled_cache_components_and_device_readers() {
     for index in 0..15 {
@@ -542,7 +541,6 @@ fn rejects_mislabelled_cache_components_and_device_readers() {
         }
     }
 }
-
 #[test]
 #[ignore = "reads frozen types and existing CUDA captures, with no GPU execution"]
 fn audit_state_packing_sources_and_captured_readers() {

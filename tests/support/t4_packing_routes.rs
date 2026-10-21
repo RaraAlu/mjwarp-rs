@@ -677,7 +677,6 @@ const FIXED_INTERNAL: &[(&str, &str)] = &[
         "wp.atomic_add(ten_length_out[worldid], tenid, L)",
     ),
 ];
-
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Upstream {
@@ -718,10 +717,12 @@ fn inventory() -> Inventory {
     serde_json::from_str(FIXTURE).unwrap()
 }
 fn source(path: &str) -> Result<&'static str, String> {
+    if path == "src/physics/resident.rs" {
+        return Ok(RESIDENT);
+    }
     SOURCES
         .iter()
         .find_map(|(p, s)| (*p == path).then_some(*s))
-        .or_else(|| (path == "src/physics/resident.rs").then_some(RESIDENT))
         .ok_or_else(|| format!("unreviewed source: {path}"))
 }
 // 固定格式的源码守卫，不冒充语法解析器。
@@ -753,7 +754,6 @@ fn validate_reader(route: &Route, text: &str) -> Check {
         )
     }
 }
-
 // 排除upper[6]等不同标识符。
 fn text_before_access(text: &str, compact_index: usize) -> bool {
     let before = compact(text).as_bytes()[compact_index - 1];

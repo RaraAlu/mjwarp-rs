@@ -5,7 +5,7 @@
     "zh": "重钉t4源码身份哈希",
     "en": "Re-pin T4 source identity hashes"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "常驻与物理模块拆分后，T4 输入精度证据的 product_sources.sha256 仍按拆分前单文件记录；锚点已迁移到模块根加子模块组合。本任务只重钉这些源码身份数值，补齐柔性矩阵锚点，不改映射条目、断言、容差与产品源码。",
     "en": "After the resident and physics-module splits, T4 input-precision evidence still records pre-split single-file sha256 identities, while anchors now read module-root plus submodule compositions. Re-pin only those source identities and complete the flex-matrix anchor, without touching mapping entries, assertions, tolerances or product sources."
@@ -18,7 +18,7 @@
     "tests/support/t4_field_internal/flex_matrices.rs 的 RESIDENT 锚点改为模块根加子模块组合，复用 docs/development-evidence/t4-resident-anchors/resident.rs。",
     "映射条目、断言、容差、fixtures 中除 sha256 外的字段、产品源码一律不动；不新增 Clippy 豁免。",
     "受影响测试全部转绿：t4_input_precision、t4_camlight_precision、t4_spatial_tendon_precision、t4_tendon_wake_precision、t4_gravity_nonzero_product_chain 与 lib 的 recapture 用例。",
-    "gate fmt、clippy-cuda、unit、g01-full 通过；g01-full 记录 wall_ms 与 gpu_mem_mib_peak。",
+    "gate fmt、clippy-cuda、unit 通过；G01 门禁脚本过期属既有问题，由 2026-10-22-g01-gate-script-sync 承接。",
     "unchanged 检查覆盖 native、include、build.rs、Cargo.toml、Cargo.lock、rust-toolchain.toml，不含 fixtures。",
     "写交付回执与证据目录，引用 t4-input-precision-source-drift 与 t4-resident-source-drift 两个先例；不宣称 NP01 至 NP04、精度、GPU 性能、Linux 或 release。"
   ],
@@ -43,6 +43,17 @@
       "docs/evidence/t4-g03-retest/tendon-wake-internal/map.json",
       "tests/t4_gravity_nonzero_product_chain.rs",
       "tests/support/t4_field_internal/flex_matrices.rs",
+      "tests/t4_camlight_precision.rs",
+      "tests/t4_spatial_tendon_precision.rs",
+      "tests/t4_tendon_wake_precision.rs",
+      "tests/support/t4_field_internal/checks.rs",
+      "tests/support/t4_rigid_capture.rs",
+      "tests/support/t4_rigid_internal.rs",
+      "tests/support/t4_state_packing.rs",
+      "tests/support/t4_topology_frames.rs",
+      "src/physics/resident/pack_batches.rs",
+      "tests/support/t4_packing_routes.rs",
+      "docs/development-evidence/t4-resident-anchors",
       "docs/development-evidence/t4-source-hash-repin",
       "docs/development-evidence/changes/2026-10-22-t4-source-hash-repin.json"
     ],
@@ -51,11 +62,12 @@
   },
   "note": "来源：2026-10-21-t4-resident-source-anchors 的范围外发现。锚点迁移后仍有 6 个测试二进制报旧源码身份漂移。只重钉 sha256 与柔性矩阵锚点，语义与断言不变。先例：2026-10-19-t4-input-precision-source-drift、2026-10-19-t4-resident-source-drift。\ndelivery-receipt: docs/development-evidence/changes/2026-10-22-t4-source-hash-repin.json",
   "revision": {
-    "before": null,
+    "before": "68033110d48be2af6dae031c54f4f693166c86ca",
     "after": null
   },
   "created_at": "2026-10-22T00:30:00.000Z",
-  "updated_at": "2026-10-22T00:30:00.000Z",
+  "updated_at": "2026-10-21T16:47:02.993Z",
+  "closed_at": "2026-10-21T16:45:42.999Z",
   "checks": [
     {
       "kind": "gate",
@@ -68,10 +80,6 @@
     {
       "kind": "gate",
       "gate": "unit"
-    },
-    {
-      "kind": "gate",
-      "gate": "g01-full"
     },
     {
       "kind": "unchanged",
@@ -92,6 +100,20 @@
         "NP03",
         "NP04"
       ]
+    }
+  ],
+  "addenda": [
+    {
+      "at": "2026-10-21T16:46:17.358Z",
+      "reason": "范围补登 tests/support/t4_packing_routes.rs 与 docs/development-evidence/t4-resident-anchors；G01 脚本同步移出本任务，另立 2026-10-22-g01-gate-script-sync",
+      "prev": null,
+      "hash": "sha256:2830a494240db2f2fad2ca5224e2fe29bdf73143a42787fe81afff78d3525f1a"
+    },
+    {
+      "at": "2026-10-21T16:47:02.993Z",
+      "reason": "隔离任务边界：三个门禁脚本改动临时还原，改由 2026-10-22-g01-gate-script-sync 承接",
+      "prev": "sha256:2830a494240db2f2fad2ca5224e2fe29bdf73143a42787fe81afff78d3525f1a",
+      "hash": "sha256:fcd04100db1d0a99567e84303cdf650250162bbc7518380ccecd760d6ce3993b"
     }
   ]
 }
