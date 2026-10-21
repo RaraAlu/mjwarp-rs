@@ -1,0 +1,85 @@
+{
+    "schema_version":  1,
+    "id":  "2026-10-21-split-src-physics-mass-solve-resident",
+    "title":  {
+                  "zh":  "拆分 src/physics/mass_solve/resident.rs",
+                  "en":  "Split src/physics/mass_solve/resident.rs"
+              },
+    "status":  "proposed",
+    "intent":  {
+                   "zh":  "按Normify行数标准把 src/physics/mass_solve/resident.rs 按功能拆成子模块，每文件不超过500行；只移动代码，行为不变。",
+                   "en":  "Split src/physics/mass_solve/resident.rs into functional submodules under the Normify 500-line ratchet without behavior changes."
+               },
+    "modules":  {
+                    "modify":  [
+                                   "mjwarp.physics.mass-solve"
+                               ]
+                },
+    "acceptance":  [
+                       "拆分 src/physics/mass_solve/resident.rs：拆分后该文件不超过500行，新增子模块每个文件不超过500行。",
+                       "只移动代码：公开 API、设备 ABI、CUDA 源码字符串、f32 物理精度、容差与 fixtures 不变；不新增 Clippy 豁免。",
+                       "新增源码用 normify module source 登记到所属模块；normify validate 0 错误，normify done 刷新模块指纹。",
+                       "gate fmt、clippy、clippy-cuda、unit 通过。",
+                       "不宣称 NP01 至 NP04、GPU 性能、Linux 或 release 验收。"
+                   ],
+    "schedule":  {
+                     "depends_on":  [
+
+                                    ],
+                     "phase":  "refactor/split-files",
+                     "owner":  "待分配",
+                     "files":  [
+                                   "src/physics/mass_solve/resident.rs"
+                               ],
+                     "resources":  [
+                                       "build:workspace"
+                                   ],
+                     "priority":  56
+                 },
+    "note":  "当前行数：538。\n所属模块：mjwarp.physics.mass-solve。\n拆分纯移动，不改产品数值路径与内核字符串。\n用户于2026-10-21要求拆分全部超限代码文件。",
+    "revision":  {
+                     "before":  null,
+                     "after":  null
+                 },
+    "created_at":  "2026-10-21T12:37:48.000Z",
+    "updated_at":  "2026-10-21T12:37:48.000Z",
+    "checks":  [
+                   {
+                       "kind":  "gate",
+                       "gate":  "fmt"
+                   },
+                   {
+                       "kind":  "gate",
+                       "gate":  "clippy"
+                   },
+                   {
+                       "kind":  "gate",
+                       "gate":  "clippy-cuda"
+                   },
+                   {
+                       "kind":  "gate",
+                       "gate":  "unit"
+                   },
+                   {
+                       "kind":  "unchanged",
+                       "paths":  [
+                                     "fixtures",
+                                     "native",
+                                     "include",
+                                     "build.rs",
+                                     "Cargo.toml",
+                                     "Cargo.lock",
+                                     "rust-toolchain.toml"
+                                 ]
+                   },
+                   {
+                       "kind":  "forbid_claim",
+                       "terms":  [
+                                     "NP01",
+                                     "NP02",
+                                     "NP03",
+                                     "NP04"
+                                 ]
+                   }
+               ]
+}
