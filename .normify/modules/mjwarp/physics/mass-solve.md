@@ -2,7 +2,7 @@
 uid = "cd53f287"
 id = "mjwarp.physics.mass-solve"
 tags = ["implemented-subset", "gpu", "rigid-mass-solve", "windows"]
-fingerprint = "bf9057c4c2dcc966163ad9f978cae292603ea669a5060e83addc041f3edc2108"
+fingerprint = "5ec98d30ea6f6e26e14c295d1ada03231239bb678a465767b2a7d4f3424c2c67"
 
 [name]
 zh = "刚体质量矩阵求解"
@@ -45,6 +45,33 @@ path = "src/physics/mass_solve/sparse/mixed/solve.rs"
 
 [[source]]
 path = "src/physics/mass_solve/sparse/mixed/solve/resident.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/factor.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/kernels.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/launcher_diag.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/launcher_specs.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/metadata_buffer.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/tests/plans.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/tests/runs.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/tests/support.rs"
 
 [[apis]]
 protocol = "rpc"
