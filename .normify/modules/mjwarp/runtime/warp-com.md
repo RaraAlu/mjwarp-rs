@@ -2,7 +2,7 @@
 uid = "9f2c7a31"
 id = "mjwarp.runtime.warp-com"
 tags = ["runtime", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "c053a11aebff8bf44183ed94296cd4c94b8719ef555b652c75af84b8f4e1e226"
+fingerprint = "1c15c1c7c897e8b6cfe279ecb2909792f25ffa60ee496f4660c5a79d566c9c8a"
 
 [name]
 zh = "冻结Warp质心输入"
@@ -27,6 +27,21 @@ path = "fixtures/gravity-upstream-abi/independent-inputs/receipt.json"
 
 [[source]]
 path = "docs/evidence/gravity-upstream-com/verification.json"
+
+[[source]]
+path = "src/runtime/warp_com/util.rs"
+
+[[source]]
+path = "src/runtime/warp_com/validate.rs"
+
+[[source]]
+path = "src/runtime/warp_com/format.rs"
+
+[[source]]
+path = "src/runtime/warp_com/artifact.rs"
+
+[[source]]
+path = "src/runtime/warp_com/tests.rs"
 
 [[apis]]
 protocol = "rpc"
