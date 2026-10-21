@@ -2,7 +2,7 @@
 uid = "4098c702"
 id = "mjwarp.runtime"
 tags = ["planned", "engine", "runtime"]
-fingerprint = "388f9d315f5c856eaf2d243873c777a273f318034b55ff4658190746e2debcde"
+fingerprint = "ab6b2852140c44d4ad69de918b67bad256e1feec2416ae5f7205dd0fd3a35542"
 
 [name]
 zh = "GPU运行时"
@@ -108,6 +108,18 @@ path = "tests/launcher_cache.rs"
 
 [[source]]
 path = "tests/launcher_sync.rs"
+
+[[source]]
+path = "src/runtime/launcher/artifact/cache.rs"
+
+[[source]]
+path = "src/runtime/launcher/artifact/disk.rs"
+
+[[source]]
+path = "src/runtime/launcher/artifact/nvrtc.rs"
+
+[[source]]
+path = "src/runtime/launcher/artifact/tests.rs"
 +++
 
 ## P1局部实现

@@ -1,7 +1,6 @@
 +++
 uid = "bc1e046f"
 id = "mjwarp.runtime.external"
-state = "planned"
 fingerprint = "16fe28fb1793023856de80b6c92bffebddf82a3f34b1a5d7d438a25056de23aa"
 
 [name]

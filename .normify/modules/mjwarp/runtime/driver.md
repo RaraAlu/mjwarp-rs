@@ -1,7 +1,6 @@
 +++
 uid = "545c0310"
 id = "mjwarp.runtime.driver"
-state = "planned"
 fingerprint = "3bea86aac98c06320b14e8ff6c89b02ee03806253b783772dff38bac349344aa"
 
 [name]
