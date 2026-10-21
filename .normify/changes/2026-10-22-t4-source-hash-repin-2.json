@@ -1,95 +1,91 @@
 {
-    "schema_version":  1,
-    "id":  "2026-10-22-t4-source-hash-repin-2",
-    "title":  {
-                  "zh":  "重钉拆分后T4源码身份哈希（第二轮）",
-                  "en":  "Re-pin T4 source identity hashes after the split program"
-              },
-    "status":  "proposed",
-    "intent":  {
-                   "zh":  "拆分程序改动了被 T4 证据钉住的产品源码（transfer、com_velocity、model/flex、model/camlight、gravity_compensation 等），旧 sha256 与锚点组合已过期；本任务只重钉源码身份数值与锚点组合，修复切片中混入的 UTF-8 BOM，不改断言、容差、映射条目与产品逻辑。",
-                   "en":  "The split program changed product sources pinned by T4 evidence; re-pin only source identity hashes and anchor compositions, and remove stray UTF-8 BOMs introduced by the slices."
-               },
-    "modules":  {
-
-                },
-    "acceptance":  [
-                       "五个 fixtures/precision 证据（g01-field-internal、g01-inputs、g01-packing-routes、g01-rigid-internal、g01-state-packing）、gravity 包与三个 docs/evidence/t4-g03-retest map 的源码身份 sha256 重钉到拆分后口径。",
-                       "拆分模块取模块根加产品子模块组合（单换行连接、CRLF→LF 归一）；未拆分文件取当前全文同口径摘要；组合哈希与 repin-1 口径一致。",
-                       "tests/support 的 TRANSFER/MODEL/COM_VELOCITY 锚点改为模块根加产品子模块组合，仅补锚点组合与读取路径。",
-                       "tests/t4_gravity_nonzero_product_chain.rs 的包内身份常量与整包摘要同步更新。",
-                       "仅移除切片在 src/runtime/cuda/resources*、src/runtime/transfer/session.rs、tests/t4_input_precision* 引入的 UTF-8 BOM 字节，无其他内容改动。",
-                       "映射条目、断言、容差、fixtures 中除 sha256 外的字段、产品逻辑一律不动；不新增 Clippy 豁免；不改 fixtures/native/include/build.rs/Cargo.toml/Cargo.lock/rust-toolchain.toml 之外的产品行为。",
-                       "相关目标测试全部转绿：lib recapture、t4_input_precision、t4_camlight_precision、t4_gravity_nonzero_product_chain；cargo test --features cuda-probe --no-fail-fast 无失败目标。",
-                       "gate fmt、clippy-cuda、unit 通过；写交付回执与证据目录，引用 t4-source-hash-repin 与 t4-input-precision-source-drift 先例；不宣称 NP01-NP04、精度、GPU 性能、Linux 或 release。"
-                   ],
-    "schedule":  {
-                     "depends_on":  [
-                                        "2026-10-22-t4-source-hash-repin"
-                                    ],
-                     "phase":  "refactor/M3-split-followup",
-                     "owner":  "待分配",
-                     "files":  [
-                                   "fixtures/precision/g01-field-internal.json",
-                                   "fixtures/precision/g01-inputs.json",
-                                   "fixtures/precision/g01-packing-routes.json",
-                                   "fixtures/precision/g01-rigid-internal.json",
-                                   "fixtures/precision/g01-state-packing.json",
-                                   "fixtures/gravity-upstream-abi/nonzero-product-chain-package.json",
-                                   "docs/evidence/t4-g03-retest/camlight-internal/map.json",
-                                   "docs/evidence/t4-g03-retest/flex-internal/map.json",
-                                   "docs/evidence/t4-g03-retest/flex-matrices/map.json",
-                                   "tests/t4_gravity_nonzero_product_chain.rs",
-                                   "tests/support/t4_rigid_capture.rs",
-                                   "tests/support/t4_rigid_internal.rs",
-                                   "tests/support/t4_state_packing.rs",
-                                   "tests/support/t4_packing_routes/flex_internal.rs",
-                                   "tests/support/t4_field_internal/flex_matrices.rs",
-                                   "src/runtime/cuda/resources.rs",
-                                   "src/runtime/cuda/resources/affine.rs",
-                                   "src/runtime/cuda/resources/fence.rs",
-                                   "src/runtime/cuda/resources/foreign.rs",
-                                   "src/runtime/transfer/session.rs",
-                                   "tests/t4_input_precision.rs",
-                                   "tests/t4_input_precision/external.rs",
-                                   "tests/t4_input_precision/fields.rs",
-                                   "docs/development-evidence/t4-source-hash-repin-2",
-                                   "docs/development-evidence/changes/2026-10-22-t4-source-hash-repin-2.json"
-                               ],
-                     "resources":  [
-
-                                   ],
-                     "priority":  0
-                 },
-    "note":  "第二轮重钉：承接 61 片拆分程序后过期的 pinned 源哈希。先例：2026-10-22-t4-source-hash-repin、2026-10-19-t4-input-precision-source-drift。",
-    "revision":  {
-                     "before":  null,
-                     "after":  null
-                 },
-    "created_at":  "2026-10-22T03:10:00.000Z",
-    "updated_at":  "2026-10-21T19:05:23.252Z",
-    "checks":  [
-                   {
-                       "kind":  "gate",
-                       "gate":  "fmt"
-                   },
-                   {
-                       "kind":  "gate",
-                       "gate":  "clippy-cuda"
-                   },
-                   {
-                       "kind":  "gate",
-                       "gate":  "unit"
-                   },
-                   {
-                       "kind":  "forbid_claim",
-                       "terms":  [
-                                     "NP01",
-                                     "NP02",
-                                     "NP03",
-                                     "NP04"
-                                 ]
-                   }
-               ],
-    "closed_at":  null
+  "schema_version": 1,
+  "id": "2026-10-22-t4-source-hash-repin-2",
+  "title": {
+    "zh": "重钉拆分后T4源码身份哈希（第二轮）",
+    "en": "Re-pin T4 source identity hashes after the split program"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "拆分程序改动了被 T4 证据钉住的产品源码（transfer、com_velocity、model/flex、model/camlight、gravity_compensation 等），旧 sha256 与锚点组合已过期；本任务只重钉源码身份数值与锚点组合，修复切片中混入的 UTF-8 BOM，不改断言、容差、映射条目与产品逻辑。",
+    "en": "The split program changed product sources pinned by T4 evidence; re-pin only source identity hashes and anchor compositions, and remove stray UTF-8 BOMs introduced by the slices."
+  },
+  "modules": {},
+  "acceptance": [
+    "五个 fixtures/precision 证据（g01-field-internal、g01-inputs、g01-packing-routes、g01-rigid-internal、g01-state-packing）、gravity 包与三个 docs/evidence/t4-g03-retest map 的源码身份 sha256 重钉到拆分后口径。",
+    "拆分模块取模块根加产品子模块组合（单换行连接、CRLF→LF 归一）；未拆分文件取当前全文同口径摘要；组合哈希与 repin-1 口径一致。",
+    "tests/support 的 TRANSFER/MODEL/COM_VELOCITY 锚点改为模块根加产品子模块组合，仅补锚点组合与读取路径。",
+    "tests/t4_gravity_nonzero_product_chain.rs 的包内身份常量与整包摘要同步更新。",
+    "仅移除切片在 src/runtime/cuda/resources*、src/runtime/transfer/session.rs、tests/t4_input_precision* 引入的 UTF-8 BOM 字节，无其他内容改动。",
+    "映射条目、断言、容差、fixtures 中除 sha256 外的字段、产品逻辑一律不动；不新增 Clippy 豁免；不改 fixtures/native/include/build.rs/Cargo.toml/Cargo.lock/rust-toolchain.toml 之外的产品行为。",
+    "相关目标测试全部转绿：lib recapture、t4_input_precision、t4_camlight_precision、t4_gravity_nonzero_product_chain；cargo test --features cuda-probe --no-fail-fast 无失败目标。",
+    "gate fmt、clippy-cuda、unit 通过；写交付回执与证据目录，引用 t4-source-hash-repin 与 t4-input-precision-source-drift 先例；不宣称 NP01-NP04、精度、GPU 性能、Linux 或 release。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-t4-source-hash-repin"
+    ],
+    "phase": "refactor/M3-split-followup",
+    "owner": "待分配",
+    "files": [
+      "fixtures/precision/g01-field-internal.json",
+      "fixtures/precision/g01-inputs.json",
+      "fixtures/precision/g01-packing-routes.json",
+      "fixtures/precision/g01-rigid-internal.json",
+      "fixtures/precision/g01-state-packing.json",
+      "fixtures/gravity-upstream-abi/nonzero-product-chain-package.json",
+      "docs/evidence/t4-g03-retest/camlight-internal/map.json",
+      "docs/evidence/t4-g03-retest/flex-internal/map.json",
+      "docs/evidence/t4-g03-retest/flex-matrices/map.json",
+      "tests/t4_gravity_nonzero_product_chain.rs",
+      "tests/support/t4_rigid_capture.rs",
+      "tests/support/t4_rigid_internal.rs",
+      "tests/support/t4_state_packing.rs",
+      "tests/support/t4_packing_routes/flex_internal.rs",
+      "tests/support/t4_field_internal/flex_matrices.rs",
+      "src/runtime/cuda/resources.rs",
+      "src/runtime/cuda/resources/affine.rs",
+      "src/runtime/cuda/resources/fence.rs",
+      "src/runtime/cuda/resources/foreign.rs",
+      "src/runtime/transfer/session.rs",
+      "tests/t4_input_precision.rs",
+      "tests/t4_input_precision/external.rs",
+      "tests/t4_input_precision/fields.rs",
+      "docs/development-evidence/t4-source-hash-repin-2",
+      "docs/development-evidence/changes/2026-10-22-t4-source-hash-repin-2.json"
+    ],
+    "resources": [],
+    "priority": 0
+  },
+  "note": "第二轮重钉：承接 61 片拆分程序后过期的 pinned 源哈希。先例：2026-10-22-t4-source-hash-repin、2026-10-19-t4-input-precision-source-drift。",
+  "revision": {
+    "before": "ed122097f0933c0f4438ab312806ec76c0228a7b",
+    "after": null
+  },
+  "created_at": "2026-10-22T03:10:00.000Z",
+  "updated_at": "2026-10-21T19:05:51.512Z",
+  "closed_at": "2026-10-21T19:05:51.512Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
 }

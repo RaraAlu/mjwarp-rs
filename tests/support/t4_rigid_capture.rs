@@ -31,7 +31,14 @@ const SOURCE_IDENTITY: &str =
 const REVISION: &str = "8a5bac00fdfa9759f752993b2866098c6ff20819";
 const PHYSICS: &str = include!("../../docs/development-evidence/t4-resident-anchors/physics.rs");
 const RESIDENT: &str = include!("../../docs/development-evidence/t4-resident-anchors/resident.rs");
-const COM_VELOCITY: &str = include_str!("../../src/physics/com_velocity.rs");
+const COM_VELOCITY: &str = concat!(
+    include_str!("../../src/physics/com_velocity.rs"),
+    include_str!("../../src/physics/com_velocity/cuda.rs"),
+    include_str!("../../src/physics/com_velocity/layout.rs"),
+    include_str!("../../src/physics/com_velocity/data.rs"),
+    include_str!("../../src/physics/com_velocity/plan.rs"),
+    include_str!("../../src/physics/com_velocity/resident.rs")
+);
 const FIXED_TENDON: &str = include_str!("../../src/physics/fixed_tendon.rs");
 const FLEX: &str = include_str!("../../src/physics/flex.rs");
 const FLEX_EDGE: &str = include_str!("../../src/physics/flex_edge.rs");

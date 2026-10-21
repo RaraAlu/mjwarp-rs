@@ -1,4 +1,4 @@
-﻿//! 设备身份、租约包装与异域上下文。
+//! 设备身份、租约包装与异域上下文。
 
 use super::super::cuda_error;
 use crate::{

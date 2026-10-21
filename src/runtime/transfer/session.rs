@@ -1,4 +1,4 @@
-﻿//! 传输会话状态与同步执行。
+//! 传输会话状态与同步执行。
 
 #[cfg(any(feature = "cuda-probe", test))]
 use super::host_staging;

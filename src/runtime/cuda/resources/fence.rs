@@ -1,4 +1,4 @@
-﻿//! 完成栅栏：查询与等待 CUDA 事件。
+//! 完成栅栏：查询与等待 CUDA 事件。
 
 use super::super::cuda_error;
 use crate::{diagnostics::ProbeError, runtime::completion::Fence};

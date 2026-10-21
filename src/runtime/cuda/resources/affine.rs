@@ -1,4 +1,4 @@
-﻿//! 固定仿射内核的保留资源与图捕获。
+//! 固定仿射内核的保留资源与图捕获。
 
 use super::super::{LoadedKernel, ProbeGraph, TrackingPause, cuda_error};
 use crate::{

@@ -1,4 +1,4 @@
-﻿//! 冻结上游与 Warp 类型源码核验。
+//! 冻结上游与 Warp 类型源码核验。
 
 use super::{Check, Inventory, between, digest, require};
 

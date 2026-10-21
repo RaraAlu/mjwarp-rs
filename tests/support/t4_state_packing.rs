@@ -29,7 +29,13 @@ const SOURCES: &[(&str, &str)] = &[
     ),
     (
         "src/runtime/transfer.rs",
-        include_str!("../../src/runtime/transfer.rs"),
+        concat!(
+            include_str!("../../src/runtime/transfer.rs"),
+            "\n",
+            include_str!("../../src/runtime/transfer/buffer.rs"),
+            "\n",
+            include_str!("../../src/runtime/transfer/session.rs")
+        ),
     ),
 ];
 const REMAINING: [&str; 6] = [

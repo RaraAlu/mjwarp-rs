@@ -7,8 +7,24 @@ const FIXTURE: &str = include_str!("../../../docs/evidence/t4-g03-retest/flex-in
 const FLEX: &str = include_str!("../../../src/physics/flex.rs");
 const EDGE: &str = include_str!("../../../src/physics/flex_edge.rs");
 use super::RESIDENT;
-const MODEL: &str = include_str!("../../../src/model/flex.rs");
-const TRANSFER: &str = include_str!("../../../src/runtime/transfer.rs");
+const MODEL: &str = concat!(
+    include_str!("../../../src/model/flex.rs"),
+    "\n",
+    include_str!("../../../src/model/flex/edge.rs"),
+    "\n",
+    include_str!("../../../src/model/flex/face.rs"),
+    "\n",
+    include_str!("../../../src/model/flex/input.rs"),
+    "\n",
+    include_str!("../../../src/model/flex/position.rs")
+);
+const TRANSFER: &str = concat!(
+    include_str!("../../../src/runtime/transfer.rs"),
+    "\n",
+    include_str!("../../../src/runtime/transfer/buffer.rs"),
+    "\n",
+    include_str!("../../../src/runtime/transfer/session.rs")
+);
 const SOURCES: &[(&str, &str)] = &[
     ("src/physics/flex.rs", FLEX),
     ("src/physics/flex_edge.rs", EDGE),

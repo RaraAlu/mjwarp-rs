@@ -1,4 +1,4 @@
-﻿//! 逐字段 ABI/宿主/上游声明核验。
+//! 逐字段 ABI/宿主/上游声明核验。
 
 use super::{Check, Field, require, source, upstream_scalar};
 

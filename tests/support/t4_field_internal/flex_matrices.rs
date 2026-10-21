@@ -14,8 +14,24 @@ const HESSIAN: &str = include_str!("../../../src/physics/flex_hessian.rs");
 const RESIDENT: &str =
     include!("../../../docs/development-evidence/t4-resident-anchors/resident.rs");
 const MODEL: &str = include_str!("../../../src/model/flex_hessian.rs");
-const FLEX: &str = include_str!("../../../src/model/flex.rs");
-const TRANSFER: &str = include_str!("../../../src/runtime/transfer.rs");
+const FLEX: &str = concat!(
+    include_str!("../../../src/model/flex.rs"),
+    "\n",
+    include_str!("../../../src/model/flex/edge.rs"),
+    "\n",
+    include_str!("../../../src/model/flex/face.rs"),
+    "\n",
+    include_str!("../../../src/model/flex/input.rs"),
+    "\n",
+    include_str!("../../../src/model/flex/position.rs")
+);
+const TRANSFER: &str = concat!(
+    include_str!("../../../src/runtime/transfer.rs"),
+    "\n",
+    include_str!("../../../src/runtime/transfer/buffer.rs"),
+    "\n",
+    include_str!("../../../src/runtime/transfer/session.rs")
+);
 const SOURCES: &[(&str, &str)] = &[
     ("src/physics/flex_face.rs", FACE),
     ("src/physics/flex_hessian.rs", HESSIAN),
