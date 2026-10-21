@@ -2,7 +2,7 @@
 uid = "006c4859"
 id = "mjwarp.physics.mass-matrix"
 tags = ["implemented-subset", "gpu", "rigid-mass-matrix", "windows"]
-fingerprint = "9b00da6baa323bebd1a5d28ec1a061679a73cf8603f73c8153d8a050989d1c54"
+fingerprint = "9233dc8f32808e0f7d3f56e32964156433f4e17d9da2e6bb2fbce5cab123d857"
 
 [name]
 zh = "刚体质量矩阵辅助"
@@ -30,6 +30,24 @@ path = "src/physics/mass_matrix/multiply/borrowed.rs"
 
 [[source]]
 path = "src/physics/mass_matrix/multiply/borrowed/device_energy.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/output.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/rigid.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/buffer.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/tests/host.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/tests/plans.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/tests/gpu.rs"
 
 [[apis]]
 protocol = "rpc"
