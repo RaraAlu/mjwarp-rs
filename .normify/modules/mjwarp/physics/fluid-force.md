@@ -2,7 +2,7 @@
 uid = "3b80fd65"
 id = "mjwarp.physics.fluid-force"
 tags = ["G04", "U038", "NP01", "NP02", "cuda", "fluid"]
-fingerprint = "d1f4dcd4158a90d57ad97a547f4d3c6242d8e24a2bcf512f9d1085b5bb6c552e"
+fingerprint = "9b67ed01568f1ad71a107e9e47fee1179b07c7dd5da39874cee85831aa7e3cee"
 
 [name]
 zh = "流体被动力"
@@ -30,6 +30,48 @@ path = "docs/evidence/fluid-force/attempt-2-left-associative/audit.json"
 
 [[source]]
 path = "docs/evidence/fluid-force/ellipsoid-1/result.json"
+
+[[source]]
+path = "src/physics/fluid_force/cuda.rs"
+
+[[source]]
+path = "src/physics/fluid_force/data.rs"
+
+[[source]]
+path = "src/physics/fluid_force/plan_construct.rs"
+
+[[source]]
+path = "src/physics/fluid_force/plan_data.rs"
+
+[[source]]
+path = "src/physics/fluid_force/plan_launch.rs"
+
+[[source]]
+path = "src/physics/fluid_force/plan_shared.rs"
+
+[[source]]
+path = "src/physics/fluid_force/plan_update.rs"
+
+[[source]]
+path = "src/physics/fluid_force/spec.rs"
+
+[[source]]
+path = "src/physics/fluid_force/tests/support.rs"
+
+[[source]]
+path = "src/physics/fluid_force/tests/reference.rs"
+
+[[source]]
+path = "src/physics/fluid_force/tests/checks.rs"
+
+[[source]]
+path = "src/physics/fluid_force/tests/host_periods.rs"
+
+[[source]]
+path = "src/physics/fluid_force/tests/gpu_box.rs"
+
+[[source]]
+path = "src/physics/fluid_force/tests/gpu_ellipsoid.rs"
 
 [[apis]]
 protocol = "rpc"
