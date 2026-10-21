@@ -2,7 +2,7 @@
 uid = "b59e0d41"
 id = "mjwarp.runtime.warp-gravity"
 tags = ["runtime", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "39fc7e9811331c09f46578de460a5fb7cb1032b1a3ab46f23352b0001a0ede78"
+fingerprint = "c770eb43dee4cd4a0b18a3633ca33ffbc2cf18b2d7ae88c86dbc47899d55b353"
 
 [name]
 zh = "冻结Warp重力导入"
@@ -30,6 +30,24 @@ path = "fixtures/gravity-upstream-abi/generated/receipt.json"
 
 [[source]]
 path = "docs/evidence/gravity-upstream-generated/verification.json"
+
+[[source]]
+path = "src/runtime/warp_gravity/bytes.rs"
+
+[[source]]
+path = "src/runtime/warp_gravity/launch.rs"
+
+[[source]]
+path = "src/runtime/warp_gravity/load.rs"
+
+[[source]]
+path = "src/runtime/warp_gravity/receipt.rs"
+
+[[source]]
+path = "src/runtime/warp_gravity/signature.rs"
+
+[[source]]
+path = "src/runtime/warp_gravity/tests.rs"
 
 [[apis]]
 protocol = "rpc"
