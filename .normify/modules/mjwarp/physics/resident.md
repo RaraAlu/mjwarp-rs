@@ -1,7 +1,7 @@
 +++
 uid = "b1ed0f18"
 id = "mjwarp.physics.resident"
-fingerprint = "83196453707eae8d5355900ed7e74989c751687bec33abbac4f5b251140d68a2"
+fingerprint = "bba44bb20dc013f14a83a6867e83178146361dd576f1cccb67b45bc060601cd5"
 
 [name]
 zh = "常驻运动学与G01"
@@ -14,6 +14,84 @@ zh = """
 en = """
 Complete G01 chain and raw entries. Native MuJoCo is the first numerical reference; frozen MJWarp is second after native tolerance failure.
 """
+
+[[source]]
+path = "src/physics/resident/checks.rs"
+
+[[source]]
+path = "src/physics/resident/data.rs"
+
+[[source]]
+path = "src/physics/resident/layout.rs"
+
+[[source]]
+path = "src/physics/resident/output.rs"
+
+[[source]]
+path = "src/physics/resident/pack.rs"
+
+[[source]]
+path = "src/physics/resident/pack_batches.rs"
+
+[[source]]
+path = "src/physics/resident/plan_accessors.rs"
+
+[[source]]
+path = "src/physics/resident/plan_constructors.rs"
+
+[[source]]
+path = "src/physics/resident/plan_contexts.rs"
+
+[[source]]
+path = "src/physics/resident/plan_data.rs"
+
+[[source]]
+path = "src/physics/resident/plan_subsets.rs"
+
+[[source]]
+path = "src/physics/resident/plan_update_flex.rs"
+
+[[source]]
+path = "src/physics/resident/plan_update_forward.rs"
+
+[[source]]
+path = "src/physics/resident/plan_update_rigid.rs"
+
+[[source]]
+path = "src/physics/resident/public.rs"
+
+[[source]]
+path = "src/physics/resident/sleep_copy.rs"
+
+[[source]]
+path = "src/physics/resident/tests/edges_faces.rs"
+
+[[source]]
+path = "src/physics/resident/tests/g01.rs"
+
+[[source]]
+path = "src/physics/resident/tests/hessian.rs"
+
+[[source]]
+path = "src/physics/resident/tests/kinematics.rs"
+
+[[source]]
+path = "src/physics/resident/tests/parameters.rs"
+
+[[source]]
+path = "src/physics/resident/tests/passive.rs"
+
+[[source]]
+path = "src/physics/resident/tests/reads.rs"
+
+[[source]]
+path = "src/physics/resident/tests/stretch.rs"
+
+[[source]]
+path = "src/physics/resident/tests/support.rs"
+
+[[source]]
+path = "src/physics/resident/tests/tendons.rs"
 
 [[source]]
 path = "src/physics/resident.rs"
