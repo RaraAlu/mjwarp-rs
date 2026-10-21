@@ -34,7 +34,7 @@ function Invoke-CheckedTest {
 Push-Location $root
 try {
     $passed = Invoke-CheckedTest 'attached-kinematics' ($base + @('--test','attached_kinematics_probe','--','--ignored','--test-threads=1','--nocapture')) 4
-    $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib','runtime::transfer::kernel::tests','--','--ignored','--test-threads=1')) 3
+    $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib','runtime::transfer::kernel::tests','--','--ignored','--test-threads=1')) 9
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
     if ($LASTEXITCODE -ne 0) { throw 'GPU信息查询失败' }
     $largest = 0.0

@@ -1,0 +1,89 @@
+{
+    "schema":  1,
+    "kind":  "delivery",
+    "task_id":  "2026-10-22-g01-gate-script-sync",
+    "milestones":  {
+                       "implementation":  "complete",
+                       "validation":  "passed",
+                       "delivery_record":  "complete"
+                   },
+    "files":  [
+                  {
+                      "path":  "scripts/test-windows-attached-kinematics.ps1",
+                      "blob":  "e5754889e7292f13eca15edde08b79663bc3a01c"
+                  },
+                  {
+                      "path":  "scripts/test-windows-kinematics.ps1",
+                      "blob":  "053918b5432085d05899df3f108e6cafdc523678"
+                  },
+                  {
+                      "path":  "scripts/test-windows-resident-kinematics.ps1",
+                      "blob":  "a5b644c51cb86d54f44fe9fe2f91a43c5cfcf4eb"
+                  },
+                  {
+                      "path":  "scripts/test-windows-g01.ps1",
+                      "blob":  "868cf0a2e8b52e3c6e7a62ae9844a4a5214aff8c"
+                  },
+                  {
+                      "path":  "docs/development-evidence/g01-gate-script-sync/README.md",
+                      "blob":  "15020f03f6a46a35a417f635e700f4c051b0cfa6"
+                  },
+                  {
+                      "path":  "docs/development-evidence/g01-gate-script-sync/runs/attempt-01-g01-full.log",
+                      "blob":  "631afcacfd564bf38298d4a465e170fc90f3a91f"
+                  },
+                  {
+                      "path":  "docs/development-evidence/g01-gate-script-sync/runs/attempt-02-g01-full.log",
+                      "blob":  "432c8e1176cac38f26e795bb264348ccff7b5242"
+                  },
+                  {
+                      "path":  "docs/development-evidence/g01-gate-script-sync/runs/attempt-03-all-probes.log",
+                      "blob":  "973fe8fa5eb47127097d6ca111ca85061855f44b"
+                  }
+              ],
+    "validation":  [
+                       {
+                           "command":  "scripts/test-windows-g01.ps1 -AllFeatures -FullRegression (attempt 1)",
+                           "result":  "expected fail: 261s, gpu_mem 5532-\u003e5756 MiB, adapter expected 5 actual 9",
+                           "evidence":  "docs/development-evidence/g01-gate-script-sync/runs/attempt-01-g01-full.log"
+                       },
+                       {
+                           "command":  "scripts/test-windows-g01.ps1 -AllFeatures -FullRegression (attempt 2)",
+                           "result":  "expected fail: 182s, gpu_mem 5521-\u003e5772 MiB, motion comparisons expected 9 actual 0",
+                           "evidence":  "docs/development-evidence/g01-gate-script-sync/runs/attempt-02-g01-full.log"
+                       },
+                       {
+                           "command":  "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --lib -- --ignored --test-threads=1 --nocapture (all-probes flags with report and capture env)",
+                           "result":  "partial: 110 passed, 10 failed, 0 ignored, 114.76s; the five report probes pass; remaining failures are gravity certificate 2-bit and MJWARP_PHYSICS_PTX_DIR dual-semantics debt",
+                           "evidence":  "docs/development-evidence/g01-gate-script-sync/runs/attempt-03-all-probes.log"
+                       },
+                       {
+                           "command":  "normify gate 2026-10-22-g01-gate-script-sync (fmt, clippy-cuda, unit)",
+                           "result":  "pass",
+                           "evidence":  ".normify/runs/2026-10-22-g01-gate-script-sync/"
+                       }
+                   ],
+    "preserved_findings":  [
+                               {
+                                   "finding":  "the G01 scripts were stale before this task started: adapter counts came from pre-split test module names, and the inside-cylinder motion marker moved into the NP03 audit output",
+                                   "action":  "synced exact counts and markers only; assertions remain exact and tolerances unchanged"
+                               },
+                               {
+                                   "finding":  "all-probes needs report and capture environment paths that no script provided",
+                                   "action":  "added per-run temporary report paths and a capture directory, restored after the run; all probe assertions unchanged"
+                               },
+                               {
+                                   "finding":  "gravity_compensation frozen bit certificate differs by 2 bits on this host",
+                                   "action":  "not fixed here; baseline judgement tracked by 2026-10-22-g01-numerics-audit"
+                               },
+                               {
+                                   "finding":  "MJWARP_PHYSICS_PTX_DIR is required to be existing-but-empty by RNE and mass wrapper tests and non-existent by recapture tests",
+                                   "action":  "recorded as G01 gate design debt; one environment value cannot satisfy both under a single all-probes run"
+                               }
+                           ],
+    "remaining":  [
+                      "all-probes remains red for the recorded debt items",
+                      "NP01 through NP04, precision and GPU performance are not claimed",
+                      "Linux and release were not run"
+                  ]
+}

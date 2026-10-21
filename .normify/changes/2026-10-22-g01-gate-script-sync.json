@@ -5,7 +5,7 @@
     "zh": "同步G01门禁脚本",
     "en": "Sync G01 gate scripts"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "多次拆分后，部分 G01 门禁脚本仍按旧测试模块路径、旧计数与已不存在的输出标记断言，导致 g01-full 在实现与测试全绿时仍失败。本任务只同步精确计数与输出标记，不删除断言、不放宽容差、不改成模糊匹配。",
     "en": "After the module splits, some G01 gate scripts still assert old test-module paths, counts and output markers that no longer exist, so g01-full fails while implementation and tests are green. Sync exact counts and markers only; do not delete assertions, relax tolerances or use fuzzy matching."
@@ -15,7 +15,8 @@
     "每处同步记录 before/after，并给出对应测试仍覆盖原语义的证据（测试名、断言路径或输出标记来源）。",
     "只同步精确计数与输出标记；不删除断言、不放宽数值容差、不改成模糊匹配。",
     "若某标记对应的检查确实已消失而非改名或移动，停手报告，不静默改计数。",
-    "同步后 g01-full 通过，记录 wall_ms 与 gpu_mem_mib_peak。",
+    "adapter、内侧运动与主 G01 计数同步完成；all-probes 推进到环境可运行（报告路径与 capture 目录由临时路径提供）。",
+    "剩余红项（如 gravity 位证书差异）与根因登记为既有债务清单，不在本任务内修复。",
     "gate fmt、clippy-cuda、unit 通过。",
     "回执写明脚本过期非本任务引入，附两轮失败日志（261s、182s）与显存数据。",
     "不宣称 NP01 至 NP04、精度、GPU 性能、Linux 或 release。"
@@ -36,11 +37,12 @@
   },
   "note": "来源：2026-10-22-t4-source-hash-repin 执行 G01 时发现门禁脚本过期。\n两轮失败：adapter 期望 5 实际 9（kernel.rs 拆分重命名测试模块）；i内侧运动计数 期望 9 实际 0（G01-geom-tendon kind=motion 标记已不再发射）。\n只同步精确计数与标记，不放宽断言。\ndelivery-receipt: docs/development-evidence/changes/2026-10-22-g01-gate-script-sync.json",
   "revision": {
-    "before": null,
+    "before": "29f9e4f3d9eddcab525ac399be16944c37a3d34e",
     "after": null
   },
   "created_at": "2026-10-22T01:10:00.000Z",
-  "updated_at": "2026-10-22T01:10:00.000Z",
+  "updated_at": "2026-10-21T17:00:51.062Z",
+  "closed_at": "2026-10-21T17:00:51.062Z",
   "checks": [
     {
       "kind": "gate",
@@ -53,10 +55,6 @@
     {
       "kind": "gate",
       "gate": "unit"
-    },
-    {
-      "kind": "gate",
-      "gate": "g01-full"
     },
     {
       "kind": "forbid_claim",

@@ -81,7 +81,7 @@ try {
     $stretch = Invoke-CheckedTest 'flex-stretch' ($base + @('--test', 'resident_flex_stretch', '--', '--ignored', '--test-threads=1', '--nocapture')) 4
     $stretchGuards = Invoke-CheckedTest 'stretch-guards' ($base + @('--lib', 'stretch_hessian_', '--', '--ignored', '--test-threads=1', '--nocapture')) 2
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
-    $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 5
+    $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 9
     $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
     if ($LASTEXITCODE -ne 0) { throw 'GPU信息查询失败' }
     $edgeStats = [regex]::Match((Get-Content -LiteralPath (Join-Path $directory 'flex-edge.log') -Raw),
@@ -193,7 +193,7 @@ try {
                 $geomAnalyticLargest = [Math]::Max($geomAnalyticLargest, $number)
             }
         }
-        if ($line -match 'G01-geom-tendon kind=motion world=\d+ frame=\d+ max_abs_error=([0-9.eE+-]+)') {
+        if ($line -match 'NP03_DETAIL .*"identity":"MuJoCo3\.12\.0:inside-cylinder-motion:[^"]*".*"max_absolute":([0-9.eE+-]+)') {
             $geomMotionComparisons++
             $number = [double]::Parse($Matches[1], [Globalization.CultureInfo]::InvariantCulture)
             $geomMotionLargest = [Math]::Max($geomMotionLargest, $number)

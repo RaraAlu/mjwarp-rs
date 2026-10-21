@@ -70,9 +70,34 @@ try {
         if ($Release) { $args += '--release' }
         cargo @args -- --include-ignored --test-threads=1
     } -Expected 1
-    Invoke-G01Check 'resident' { & scripts/test-windows-resident-kinematics.ps1 -AllFeatures:$AllFeatures -Release:$Release } -Expected 98
+    Invoke-G01Check 'resident' { & scripts/test-windows-resident-kinematics.ps1 -AllFeatures:$AllFeatures -Release:$Release } -Expected 102
     if ($FullRegression) {
-        Invoke-G01Check 'all-probes' { cargo @base -- --ignored --test-threads=1 --nocapture } -Minimum 169
+        Invoke-G01Check 'all-probes' {
+            $reportDirectory = Join-Path $directory 'probe-reports'
+            New-Item -ItemType Directory -Force $reportDirectory | Out-Null
+            $captureDirectory = Join-Path $directory 'physics-ptx'
+            New-Item -ItemType Directory -Force $captureDirectory | Out-Null
+            $probeEnv = [ordered]@{
+                MJWARP_APPLIED_FORCE_REPORT = (Join-Path $reportDirectory 'applied-force.json')
+                MJWARP_APPLIED_FORCE_PUBLISH_REPORT = (Join-Path $reportDirectory 'applied-force-publish.json')
+                MJWARP_MUL_M_REPORT = (Join-Path $reportDirectory 'mass-multiply.json')
+                MJWARP_RESIDENT_MIXED_REPORT = (Join-Path $reportDirectory 'resident-mixed.json')
+                MJWARP_SMOOTH_FORCE_REPORT = (Join-Path $reportDirectory 'smooth-force.json')
+                MJWARP_PHYSICS_PTX_DIR = $captureDirectory
+            }
+            $previous = @{}
+            foreach ($key in $probeEnv.Keys) {
+                $previous[$key] = [Environment]::GetEnvironmentVariable($key)
+                Set-Item -Path "env:$key" -Value $probeEnv[$key]
+            }
+            try { cargo @base -- --ignored --test-threads=1 --nocapture }
+            finally {
+                foreach ($key in $probeEnv.Keys) {
+                    if ($null -eq $previous[$key]) { Remove-Item -Path "env:$key" -ErrorAction SilentlyContinue }
+                    else { Set-Item -Path "env:$key" -Value $previous[$key] }
+                }
+            }
+        } -Minimum 169
         Invoke-G01Check 'host-gnu' { cargo test --locked } -Minimum 200
         Invoke-G01Check 'clippy-gnu' { cargo clippy --locked --all-targets -- -D warnings }
         Invoke-G01Check 'clippy-gnu-cuda' { cargo clippy --locked --all-targets --features cuda-probe -- -D warnings }
