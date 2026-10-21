@@ -2,7 +2,7 @@
 uid = "ece0669c"
 id = "mjwarp.physics.core"
 tags = ["planned", "engine", "physics"]
-fingerprint = "6411f6d6132a1fefe79bfe39c1758b60346d18ecb10b40e81a9fb51220c3ea69"
+fingerprint = "168195d7ef53c1d244c76b0c870482578143b2a9b92c17c1a665799f5fcf38b8"
 
 [name]
 zh = "物理阶段与基础探针"
@@ -219,6 +219,30 @@ path = "src/physics/rne_bias/tests/plans.rs"
 
 [[source]]
 path = "src/physics/rne_bias/tests/gpu.rs"
+
+[[source]]
+path = "src/physics/smooth_force/joint_passive/plan.rs"
+
+[[source]]
+path = "src/physics/smooth_force/joint_passive/data.rs"
+
+[[source]]
+path = "src/physics/smooth_force/joint_passive/tests/support.rs"
+
+[[source]]
+path = "src/physics/smooth_force/joint_passive/tests/oracle.rs"
+
+[[source]]
+path = "src/physics/smooth_force/joint_passive/tests/host.rs"
+
+[[source]]
+path = "src/physics/smooth_force/joint_passive/tests/gpu_joint.rs"
+
+[[source]]
+path = "src/physics/smooth_force/joint_passive/tests/gpu_free_ball.rs"
+
+[[source]]
+path = "src/physics/smooth_force/joint_passive/tests/gpu_guards.rs"
 
 [[apis]]
 protocol = "rpc"
