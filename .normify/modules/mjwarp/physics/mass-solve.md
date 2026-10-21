@@ -2,7 +2,7 @@
 uid = "cd53f287"
 id = "mjwarp.physics.mass-solve"
 tags = ["implemented-subset", "gpu", "rigid-mass-solve", "windows"]
-fingerprint = "7d12f4ab166983c5a09973c17d70d8726de0edb1e5a3362ba7f0b2076b5c0db8"
+fingerprint = "6cda3d3a1507df1a8996dd4f340a80a4483703c090f285c307b92838869a172b"
 
 [name]
 zh = "刚体质量矩阵求解"
@@ -252,6 +252,36 @@ path = "src/physics/mass_solve/sparse/dense/small/tests/gpu_product.rs"
 
 [[source]]
 path = "src/physics/mass_solve/sparse/dense/small/tests/gpu_cache.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/dense/gather_meta.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/dense/validation_meta.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/dense/kernels.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/dense/plan.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/dense/data.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/dense/tests/support.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/dense/tests/plans.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/dense/tests/gpu_gather.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/dense/tests/gpu_validation.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/dense/tests/gpu_guards.rs"
 
 [[apis]]
 protocol = "rpc"
