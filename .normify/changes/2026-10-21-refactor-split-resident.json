@@ -1,0 +1,93 @@
+{
+    "schema_version":  1,
+    "id":  "2026-10-21-refactor-split-resident",
+    "title":  {
+                  "zh":  "拆分常驻运动学超长源码",
+                  "en":  "Split the oversized resident kinematics source"
+              },
+    "status":  "proposed",
+    "intent":  {
+                   "zh":  "按Normify行数标准把src/physics/resident.rs按功能拆成子模块，每个文件不超过500行。只移动代码，不改产品行为、ABI、精度与测试断言。",
+                   "en":  "Split src/physics/resident.rs into functional submodules under the Normify 500-line ratchet while preserving product behavior, ABIs, precision and test assertions."
+               },
+    "modules":  {
+                    "modify":  [
+                                   "mjwarp.physics.resident"
+                               ]
+                },
+    "acceptance":  [
+                       "src/physics/resident.rs 移除，改为 src/physics/resident/ 目录；mod.rs 只保留模块声明、共享类型与必要的转导出。",
+                       "产品实现按功能拆到子模块：休眠复制、设备与布局类型、公共入口、计划实现、数据下载、校验与打包、测试；每个 .rs 文件不超过500行。",
+                       "拆分只移动代码：公开 API 签名、设备 ABI、CUDA 源码字符串、f32 物理精度、容差、fixtures 与测试断言全部不变；不新增 Clippy 豁免。",
+                       "全部新增源码用 normify module source mjwarp.physics.resident --add 登记；架构校验0错误，normify done 刷新模块指纹。",
+                       "拆分报告 docs/development-evidence/layers-m3-split-resident/report.json 记录每个文件行数与总行数，其中 /over_limit_files 为0。",
+                       "不宣称 NP01 至 NP04、GPU 性能、Linux 或 release 验收；不改变任何产品数值路径。"
+                   ],
+    "schedule":  {
+                     "depends_on":  [
+
+                                    ],
+                     "phase":  "refactor/M3-split",
+                     "owner":  "待分配",
+                     "files":  [
+                                   "src/physics/resident",
+                                   "docs/development-evidence/layers-m3-split-resident"
+                               ],
+                     "resources":  [
+
+                                   ],
+                     "priority":  2
+                 },
+    "note":  "基础提交：360718f。用户于2026-10-21要求按Normify标准拆分超长代码文件。\n本任务只拆分 src/physics/resident.rs，不迁移发射点、不改物理实现。\nM3 刚体运动学迁移的中间提交保留在分支 backup/m3-wip，拆分完成后另行登记后继任务。\n原体积：约6872行（产品4020行、测试2851行）。\ndelivery-receipt: docs/development-evidence/changes/2026-10-21-refactor-split-resident.json",
+    "revision":  {
+                     "before":  null,
+                     "after":  null
+                 },
+    "created_at":  "2026-10-21T12:00:00.000Z",
+    "updated_at":  "2026-10-21T12:18:17.808Z",
+    "checks":  [
+                   {
+                       "kind":  "gate",
+                       "gate":  "fmt"
+                   },
+                   {
+                       "kind":  "gate",
+                       "gate":  "clippy"
+                   },
+                   {
+                       "kind":  "gate",
+                       "gate":  "clippy-cuda"
+                   },
+                   {
+                       "kind":  "gate",
+                       "gate":  "unit"
+                   },
+                   {
+                       "kind":  "json",
+                       "path":  "docs/development-evidence/layers-m3-split-resident/report.json",
+                       "pointer":  "/over_limit_files",
+                       "equals":  0
+                   },
+                   {
+                       "kind":  "unchanged",
+                       "paths":  [
+                                     "fixtures",
+                                     "native",
+                                     "include",
+                                     "build.rs",
+                                     "Cargo.toml",
+                                     "Cargo.lock",
+                                     "rust-toolchain.toml"
+                                 ]
+                   },
+                   {
+                       "kind":  "forbid_claim",
+                       "terms":  [
+                                     "NP01",
+                                     "NP02",
+                                     "NP03",
+                                     "NP04"
+                                 ]
+                   }
+               ]
+}
