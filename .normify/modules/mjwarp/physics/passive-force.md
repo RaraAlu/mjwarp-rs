@@ -2,7 +2,7 @@
 uid = "a38c1e7b"
 id = "mjwarp.physics.passive-force"
 tags = ["G04", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "10ca7cdc963a3cc0040fc7451bedf8ab93037a19659a97a644284966f39677cd"
+fingerprint = "b3fbe1e949136a078ef39eeb8bbf9b9f304233671dbaadbc4c670a4fb234120c"
 
 [name]
 zh = "被动力共享累加"
@@ -18,6 +18,33 @@ Combines joint, tendon, flex-edge, gravity-compensation, and fluid forces in fro
 
 [[source]]
 path = "src/physics/passive_force.rs"
+
+[[source]]
+path = "src/physics/passive_force/construct.rs"
+
+[[source]]
+path = "src/physics/passive_force/data.rs"
+
+[[source]]
+path = "src/physics/passive_force/output.rs"
+
+[[source]]
+path = "src/physics/passive_force/update.rs"
+
+[[source]]
+path = "src/physics/passive_force/tests/support.rs"
+
+[[source]]
+path = "src/physics/passive_force/tests/accumulate.rs"
+
+[[source]]
+path = "src/physics/passive_force/tests/sleep.rs"
+
+[[source]]
+path = "src/physics/passive_force/tests/rotation.rs"
+
+[[source]]
+path = "src/physics/passive_force/tests/fluid.rs"
 
 [[apis]]
 protocol = "rpc"
