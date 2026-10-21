@@ -2,7 +2,7 @@
 uid = "ece0669c"
 id = "mjwarp.physics.core"
 tags = ["planned", "engine", "physics"]
-fingerprint = "40e8cecdbb241ed9cc9b384faeefa987d2deff61e9c0578cb6986dbdd6d9aac5"
+fingerprint = "6411f6d6132a1fefe79bfe39c1758b60346d18ecb10b40e81a9fb51220c3ea69"
 
 [name]
 zh = "物理阶段与基础探针"
@@ -189,6 +189,36 @@ path = "src/physics/kinetic_energy/tests/gpu_bits.rs"
 
 [[source]]
 path = "src/physics/kinetic_energy/tests/gpu_guards.rs"
+
+[[source]]
+path = "src/physics/rne_bias/buffer.rs"
+
+[[source]]
+path = "src/physics/rne_bias/data.rs"
+
+[[source]]
+path = "src/physics/rne_bias/metadata.rs"
+
+[[source]]
+path = "src/physics/rne_bias/plan.rs"
+
+[[source]]
+path = "src/physics/rne_bias/snapshot.rs"
+
+[[source]]
+path = "src/physics/rne_bias/spec.rs"
+
+[[source]]
+path = "src/physics/rne_bias/tests/support.rs"
+
+[[source]]
+path = "src/physics/rne_bias/tests/host.rs"
+
+[[source]]
+path = "src/physics/rne_bias/tests/plans.rs"
+
+[[source]]
+path = "src/physics/rne_bias/tests/gpu.rs"
 
 [[apis]]
 protocol = "rpc"
