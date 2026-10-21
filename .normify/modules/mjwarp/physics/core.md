@@ -2,7 +2,7 @@
 uid = "ece0669c"
 id = "mjwarp.physics.core"
 tags = ["planned", "engine", "physics"]
-fingerprint = "168195d7ef53c1d244c76b0c870482578143b2a9b92c17c1a665799f5fcf38b8"
+fingerprint = "6809667f048d2ca249ce1b6d1b2cef5129ac1a07a412bd46bfdb95b755826d3b"
 
 [name]
 zh = "物理阶段与基础探针"
@@ -243,6 +243,21 @@ path = "src/physics/smooth_force/joint_passive/tests/gpu_free_ball.rs"
 
 [[source]]
 path = "src/physics/smooth_force/joint_passive/tests/gpu_guards.rs"
+
+[[source]]
+path = "src/physics/kinematics.rs"
+
+[[source]]
+path = "src/physics/com_position.rs"
+
+[[source]]
+path = "src/physics/device_checks.rs"
+
+[[source]]
+path = "src/physics/history.rs"
+
+[[source]]
+path = "src/physics/tests.rs"
 
 [[apis]]
 protocol = "rpc"
