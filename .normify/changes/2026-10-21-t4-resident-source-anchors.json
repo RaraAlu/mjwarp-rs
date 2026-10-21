@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-21-t4-resident-source-anchors",
+  "title": {
+    "zh": "迁移t4常驻源码锚点",
+    "en": "Migrate t4 resident source anchors"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "常驻源码拆分后，tests/support 的 include_str 锚点仍指向仅剩模块根的 src/physics/resident.rs。逐项核对语义并迁移到新布局，不改产品代码与冻结容差。",
+    "en": "After the resident split, tests/support include_str anchors still point at the 315-line module root. Review each anchor's semantics and migrate it to the new layout without touching product code or frozen tolerances."
+  },
+  "modules": {},
+  "acceptance": [
+    "逐项核对 tests/support 与 tests/launcher_cache.rs 中全部 include_str 锚点的用途：编译期快照、源码身份还是证据回放，并记录原语义。",
+    "锚点指向拆分后的实际源码（模块根加相关子模块的组合），不得把315行模块根冒充完整产品源码。",
+    "若某处证据语义无法等价迁移，记录为待验收或另立任务，不得放宽冻结断言与容差。",
+    "只改 tests/ 下的锚点与必要的夹具说明；不改 src/、fixtures/、Cargo 配置或任何产品数值路径。",
+    "gate fmt、gate clippy-cuda、gate unit 通过；新锚点在默认与 cuda-probe 两种配置下都能编译。",
+    "不宣称 NP01 至 NP04、GPU 性能、Linux 或 release 验收。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-21-refactor-split-resident"
+    ],
+    "phase": "refactor/M3-split-followup",
+    "owner": "待分配",
+    "files": [
+      "tests/support/t4_field_internal.rs",
+      "tests/support/t4_packing_routes.rs",
+      "tests/support/t4_rigid_capture.rs",
+      "tests/support/t4_rigid_internal.rs",
+      "tests/support/t4_state_packing.rs",
+      "tests/support/t4_topology_frames.rs",
+      "tests/support/t4_zero_quaternion.rs",
+      "tests/launcher_cache.rs",
+      "docs/development-evidence/t4-resident-anchors"
+    ],
+    "resources": [],
+    "priority": 2
+  },
+  "note": "来源：2026-10-21-refactor-split-resident 的偏差记录。\n拆分后 src/physics/resident.rs 只剩315行模块根；8处 include_str 锚点语义已变化。\n本任务只迁移测试锚点，不改产品行为。\n用户于2026-10-21要求拆分超长文件；本任务承接其遗留项。\ndelivery-receipt: docs/development-evidence/changes/2026-10-21-t4-resident-source-anchors.json",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-21T12:25:00.000Z",
+  "updated_at": "2026-10-21T12:25:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures",
+        "native",
+        "include",
+        "build.rs",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
