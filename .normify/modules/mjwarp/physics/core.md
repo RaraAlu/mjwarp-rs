@@ -2,7 +2,7 @@
 uid = "ece0669c"
 id = "mjwarp.physics.core"
 tags = ["planned", "engine", "physics"]
-fingerprint = "9dbbf0fe4c0214709f3925f86b03245113fb72105e8c3ca29da4c8b3c5f3abe3"
+fingerprint = "0a01c853b0e1320ddaeb353b0311ad2cba5aef0b367c1e1bc420a3d5245158ae"
 
 [name]
 zh = "物理阶段与基础探针"
@@ -114,6 +114,45 @@ path = "src/physics/applied_force/tests/support.rs"
 
 [[source]]
 path = "src/physics/applied_force/tests/wrappers.rs"
+
+[[source]]
+path = "src/physics/smooth_force/data.rs"
+
+[[source]]
+path = "src/physics/smooth_force/kernels.rs"
+
+[[source]]
+path = "src/physics/smooth_force/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/smooth_force/launcher_meta.rs"
+
+[[source]]
+path = "src/physics/smooth_force/launcher_specs.rs"
+
+[[source]]
+path = "src/physics/smooth_force/metadata_buffer.rs"
+
+[[source]]
+path = "src/physics/smooth_force/plan.rs"
+
+[[source]]
+path = "src/physics/smooth_force/tests/checks.rs"
+
+[[source]]
+path = "src/physics/smooth_force/tests/gpu_compute.rs"
+
+[[source]]
+path = "src/physics/smooth_force/tests/gpu_merge.rs"
+
+[[source]]
+path = "src/physics/smooth_force/tests/gpu_validate.rs"
+
+[[source]]
+path = "src/physics/smooth_force/tests/support.rs"
+
+[[source]]
+path = "src/physics/smooth_force/tests/wrappers.rs"
 
 [[apis]]
 protocol = "rpc"
