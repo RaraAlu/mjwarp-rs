@@ -47,6 +47,8 @@ pub use mass_solve::{
 mod attached;
 pub use attached::{AttachedKinematicsOutput, AttachedKinematicsWorld, probe_attached_kinematics};
 mod resident;
+#[cfg(any(feature = "cuda-probe", test))]
+mod rigid_kinematics;
 pub use resident::{
     G01SleepState, G01State, KinematicsData, KinematicsPlan, KinematicsSnapshot, camlight, com_pos,
     flex, fwd_kinematics, kinematics, tendon,
@@ -365,25 +367,12 @@ fn kinematics_device(
     let mut output = session.upload(&values)?;
     let kernel =
         crate::runtime::SynchronousKernel::compile(session, KINEMATICS_CUDA, "rigid_kinematics")?;
-    // SAFETY: Owned validated topology proves acyclic parent/joint/qpos
-    // ranges. Checked packing matches the fixed CUDA ABI and every offset.
-    // The fixed shader and all physical buffers use f32.
-    // One thread owns each world and processes parents before children.
-    // Guards fit the output allocation; session launch waits for completion.
-    unsafe {
-        kernel.launch(
-            &device.metadata,
-            &device.parameters,
-            &state,
-            &mut output,
-            [
-                layout.nq as u32,
-                layout.nbody as u32,
-                layout.njnt as u32,
-                layout.output.worlds() as u32,
-            ],
-        )?;
-    }
+    rigid_kinematics::RigidKernel::new(session, kernel).launch(
+        &device,
+        &state,
+        &mut output,
+        layout.output.worlds() as u32,
+    )?;
     output.read_range_into(0, &mut values)?;
     check_device_values(&values, "kinematics_output")?;
     Ok((output, values))
@@ -400,7 +389,7 @@ fn upload_kinematics_model(
     session: &TransferSession,
     model: &InertialModelInput,
     layout: KinematicsLayout,
-) -> Result<DeviceModel, TransferError> {
+) -> Result<rigid_kinematics::RigidModel, TransferError> {
     let f = model.kinematics().fields();
     let i = model.fields();
     let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
@@ -429,10 +418,13 @@ fn upload_kinematics_model(
         parameters[cursor..cursor + field.len()].copy_from_slice(field);
         cursor += field.len();
     }
-    Ok(DeviceModel {
-        metadata: session.upload(&metadata)?,
-        parameters: session.upload(&parameters)?,
-    })
+    rigid_kinematics::RigidModel::upload(
+        session,
+        metadata,
+        parameters,
+        rigid_kinematics::RigidVariant::Probe,
+        [layout.nq as u32, layout.nbody as u32, layout.njnt as u32, 0],
+    )
 }
 
 /// 四项质心结果的只读世界视图。

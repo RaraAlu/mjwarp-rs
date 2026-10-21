@@ -18,6 +18,12 @@ Complete G01 chain and raw entries. Native MuJoCo is the first numerical referen
 [[source]]
 path = "src/physics/resident.rs"
 
+[[source]]
+path = "src/physics/resident/rigid_upload.rs"
+
+[[source]]
+path = "src/physics/resident/rigid_kinematics_tests.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::KinematicsPlan"

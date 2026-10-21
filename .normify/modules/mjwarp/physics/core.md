@@ -37,6 +37,15 @@ path = "src/physics/kinetic_energy.rs"
 [[source]]
 path = "src/physics/smooth_force/joint_passive.rs"
 
+[[source]]
+path = "src/physics/rigid_kinematics/mod.rs"
+
+[[source]]
+path = "src/physics/rigid_kinematics/metadata.rs"
+
+[[source]]
+path = "src/physics/rigid_kinematics/tests.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::forward::step"

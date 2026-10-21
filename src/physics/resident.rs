@@ -42,6 +42,11 @@ use crate::runtime::launcher::{
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 
+#[cfg(all(test, feature = "cuda-probe"))]
+mod rigid_kinematics_tests;
+#[cfg(feature = "cuda-probe")]
+mod rigid_upload;
+
 /// 一次上传并编译的运动学计划。
 /// 一个计划可以创建多组独立状态。
 /// 既有模型参数独立按世界取模。
@@ -70,13 +75,13 @@ pub struct KinematicsPlan {
     sleep_info: Option<Arc<TendonWakeInfo>>,
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    rigid: super::DeviceModel,
+    rigid: super::rigid_kinematics::RigidModel,
     #[cfg(feature = "cuda-probe")]
     com: super::DeviceModel,
     #[cfg(feature = "cuda-probe")]
     attached: super::DeviceModel,
     #[cfg(feature = "cuda-probe")]
-    rigid_kernel: SynchronousKernel,
+    rigid_kernel: super::rigid_kinematics::RigidKernel,
     #[cfg(feature = "cuda-probe")]
     com_kernel: SynchronousKernel,
     #[cfg(feature = "cuda-probe")]
@@ -1576,7 +1581,8 @@ impl KinematicsPlan {
                     )
                 })
                 .transpose()?;
-            let rigid = rigid.upload(session)?;
+            let kinematics = model.rigid().kinematics();
+            let rigid = rigid.upload_rigid(session, equivalent, kinematics, nmocap)?;
             let com = com.upload(session)?;
             let attached = attached.upload(session)?;
             let mode = if equivalent {
@@ -1586,7 +1592,10 @@ impl KinematicsPlan {
             };
             let prefix = format!("{FIELD_BATCH_CUDA}\n#define MJWARP_MOCAP\n{mode}");
             let source = format!("{prefix}{}", super::KINEMATICS_CUDA);
-            let rigid_kernel = SynchronousKernel::compile(session, &source, "rigid_kinematics")?;
+            let rigid_kernel = super::rigid_kinematics::RigidKernel::new(
+                session,
+                SynchronousKernel::compile(session, &source, "rigid_kinematics")?,
+            );
             let source = format!("{FIELD_BATCH_CUDA}\n{}", super::COM_POSITION_CUDA);
             let com_kernel = SynchronousKernel::compile(session, &source, "rigid_com_position")?;
             let source = format!(
@@ -2243,19 +2252,14 @@ impl KinematicsPlan {
         }
         let k = self.model.rigid().kinematics();
         let worlds = data.worlds() as u32;
-        // SAFETY: The plan's own rigid kernel and the COM kernel fix both ABIs.
-        // Existing validated metadata and f32 model/state allocations bound all
-        // reads; the checked f32 workspaces have identical element strides and
-        // disjoint ownership. Equivalent plans read the copied body0 pose.
-        // The adapter enforces one session and waits after each launch.
+        // 刚体发射由类型化包装核对证明、精确跨度、同会话与别名。
+        self.rigid_kernel
+            .launch(&self.rigid, &data.state, rigid, worlds)?;
+        // SAFETY: The plan's COM kernel fixes its own ABI; validated metadata
+        // and checked f32 model/state/workspace allocations bound all reads
+        // and writes. The adapter enforces one session and waits after each
+        // launch. Equivalent plans read the copied body0 pose.
         unsafe {
-            self.rigid_kernel.launch(
-                &self.rigid.metadata,
-                &self.rigid.parameters,
-                &data.state,
-                rigid,
-                [k.nq() as u32, k.nbody() as u32, k.njnt() as u32, worlds],
-            )?;
             kernels.com.launch(
                 &self.com.metadata,
                 &self.com.parameters,
@@ -2301,21 +2305,10 @@ impl KinematicsPlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let l = data.layout.rigid;
             let worlds = data.worlds() as u32;
-            // SAFETY: Model validation and checked layouts prove every metadata,
-            // parameter and qpos offset. All allocations belong to this plan's
-            // session. Guarded output is disjoint and each thread owns one world.
-            // The fixed f32 ABI matches rigid_kinematics; launch waits before reuse.
-            unsafe {
-                self.rigid_kernel.launch(
-                    &self.rigid.metadata,
-                    &self.rigid.parameters,
-                    &data.state,
-                    &mut data.rigid,
-                    [l.nq as u32, l.nbody as u32, l.njnt as u32, worlds],
-                )?;
-            }
+            // 类型化包装核对证明、精确跨度、同会话、别名与拒绝先于写入。
+            self.rigid_kernel
+                .launch(&self.rigid, &data.state, &mut data.rigid, worlds)?;
             data.ready.rigid = true;
             Ok(())
         }
