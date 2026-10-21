@@ -2,7 +2,7 @@
 uid = "ece0669c"
 id = "mjwarp.physics.core"
 tags = ["planned", "engine", "physics"]
-fingerprint = "eb743d1a79ca3b17d56775543802fe5a545c595bde373bcbe33ebca2c8ffeb0c"
+fingerprint = "efe40697e35a8f2a3a43db56c77b09bb63f422223657bdb2680fb0c85769bd72"
 
 [name]
 zh = "物理阶段与基础探针"
@@ -36,6 +36,51 @@ path = "src/physics/kinetic_energy.rs"
 
 [[source]]
 path = "src/physics/smooth_force/joint_passive.rs"
+
+[[source]]
+path = "src/physics/rne/data.rs"
+
+[[source]]
+path = "src/physics/rne/kernels.rs"
+
+[[source]]
+path = "src/physics/rne/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/rne/launcher_meta.rs"
+
+[[source]]
+path = "src/physics/rne/launcher_plans.rs"
+
+[[source]]
+path = "src/physics/rne/metadata_buffer.rs"
+
+[[source]]
+path = "src/physics/rne/plan.rs"
+
+[[source]]
+path = "src/physics/rne/tests/backward_check.rs"
+
+[[source]]
+path = "src/physics/rne/tests/backward_run.rs"
+
+[[source]]
+path = "src/physics/rne/tests/cacc_run.rs"
+
+[[source]]
+path = "src/physics/rne/tests/cfrc_qfrc.rs"
+
+[[source]]
+path = "src/physics/rne/tests/cfrc_run.rs"
+
+[[source]]
+path = "src/physics/rne/tests/check.rs"
+
+[[source]]
+path = "src/physics/rne/tests/qfrc_run.rs"
+
+[[source]]
+path = "src/physics/rne/tests/support.rs"
 
 [[apis]]
 protocol = "rpc"
