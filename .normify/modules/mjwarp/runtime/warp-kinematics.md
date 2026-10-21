@@ -2,7 +2,7 @@
 uid = "3ce2a1b7"
 id = "mjwarp.runtime.warp-kinematics"
 tags = ["runtime", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "d107b3c8d02dcde6b6168b97e35304f5b397dca57320f9f82f9d9464ed180bff"
+fingerprint = "5cea4f34a0d97842b059e4bbba993b7695d58b86cc401dc60d68acb98511ec10"
 
 [name]
 zh = "冻结Warp刚体运动学链"
@@ -30,6 +30,30 @@ path = "docs/evidence/gravity-upstream-kinematics/verification.json"
 
 [[source]]
 path = "fixtures/gravity-upstream-abi/nonzero-kinematics/receipt.json"
+
+[[source]]
+path = "src/runtime/warp_kinematics/artifact_launch.rs"
+
+[[source]]
+path = "src/runtime/warp_kinematics/artifact_load.rs"
+
+[[source]]
+path = "src/runtime/warp_kinematics/support.rs"
+
+[[source]]
+path = "src/runtime/warp_kinematics/validate_cuda.rs"
+
+[[source]]
+path = "src/runtime/warp_kinematics/validate_input.rs"
+
+[[source]]
+path = "src/runtime/warp_kinematics/validate_output.rs"
+
+[[source]]
+path = "src/runtime/warp_kinematics/validate_ptx.rs"
+
+[[source]]
+path = "src/runtime/warp_kinematics/validate_receipt.rs"
 
 [[apis]]
 protocol = "rpc"
