@@ -2,7 +2,7 @@
 uid = "b59e0d41"
 id = "mjwarp.runtime.warp-gravity"
 tags = ["runtime", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "acfd5de628018c05c6236a43c2dd568b864421e1256e8406588ba2fbc015193b"
+fingerprint = "39fc7e9811331c09f46578de460a5fb7cb1032b1a3ab46f23352b0001a0ede78"
 
 [name]
 zh = "冻结Warp重力导入"
