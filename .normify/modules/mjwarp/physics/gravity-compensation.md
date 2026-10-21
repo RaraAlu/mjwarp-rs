@@ -2,7 +2,7 @@
 uid = "6f2c1a9d"
 id = "mjwarp.physics.gravity-compensation"
 tags = ["G04", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "de0396dac10fa3cfe49ceba0a00826b554658a7e923917c79a89db73ac8bb058"
+fingerprint = "3224887ac4cf79b5662338163729d2b011ee7df2506efcf4f7a08feaa16ae826"
 
 [name]
 zh = "重力补偿"
@@ -57,6 +57,15 @@ path = "fixtures/gravity-upstream-abi/nonzero-product-chain-package.json"
 
 [[source]]
 path = "docs/evidence/gravity-nonzero-product-chain/verification.json"
+
+[[source]]
+path = "src/physics/gravity_compensation/plan.rs"
+
+[[source]]
+path = "src/physics/gravity_compensation/cuda.rs"
+
+[[source]]
+path = "src/physics/gravity_compensation/tests.rs"
 
 [[apis]]
 protocol = "rpc"
