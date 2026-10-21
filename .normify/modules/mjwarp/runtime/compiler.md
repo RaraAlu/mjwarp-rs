@@ -1,7 +1,6 @@
 +++
 uid = "5cedba77"
 id = "mjwarp.runtime.compiler"
-state = "planned"
 fingerprint = "b40ba0dc6b4b87f517dbeb32694f52a510b2e90313af27c9068524c9ad1d5130"
 
 [name]

@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-18-layers-m7-headers",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "route": {
+    "decision": "verbatim-upstream-source",
+    "status": "approved_for_review_only",
+    "follow_up_task": "2026-10-21-w15-verbatim-headers",
+    "product_kernels_changed": false
+  },
+  "warp": {
+    "tag": "v1.15.0",
+    "commit": "ffa038b1adf3927a8e893d4536f1a7562f17d749",
+    "license": "Apache-2.0",
+    "clone": "target/research/warp",
+    "in_repo": false
+  },
+  "headers": [
+    {
+      "path": "warp/native/builtin.h",
+      "bytes": 94374,
+      "sha256": "0f05d5fb339e5c91effd6c53a03bbcafa60f5b2928e96009aa5af24174b82468"
+    },
+    {
+      "path": "warp/native/mat.h",
+      "bytes": 160812,
+      "sha256": "27510f294838de1f33e0c54dc1bb531b373109008f36b80e7960e8b5a26f2c03"
+    },
+    {
+      "path": "warp/native/vec.h",
+      "bytes": 62325,
+      "sha256": "8a3dbd39c6cea762447699a98d4115b0183077bdcb5f2d3a676bec25ffd3d2fa"
+    },
+    {
+      "path": "warp/native/quat.h",
+      "bytes": 54924,
+      "sha256": "d3e7f43f71dad326919ced3ad5d7f9afcc8124d8e8f957a2ab816b4288a4e905"
+    },
+    {
+      "path": "warp/native/spatial.h",
+      "bytes": 37337,
+      "sha256": "56af9577ceb18cc81758c161feea20add31988be50c59dc8aaa45c2021cc8305"
+    },
+    {
+      "path": "warp/native/warp.h",
+      "bytes": 32905,
+      "sha256": "53303073981c678c81d9e6d07b32afe90f329a7a8c36e99692f36879e451f161"
+    }
+  ],
+  "files": [
+    {
+      "path": "docs/development-evidence/layers-w15.md",
+      "blob": "7d4326ef28fbe3bbfa7c4152c52dfd5c9d6dcf5f"
+    }
+  ],
+  "validation": [
+    {
+      "command": "cargo fmt --check",
+      "result": "pass",
+      "evidence": "workspace"
+    },
+    {
+      "command": "cargo test --locked",
+      "result": "pass: exit code 0",
+      "evidence": "workspace"
+    },
+    {
+      "command": "git clone --depth 1 --branch v1.15.0 https://github.com/NVIDIA/warp.git target/research/warp",
+      "result": "pass: tag v1.15.0, commit ffa038b1adf3927a8e893d4536f1a7562f17d749",
+      "evidence": "target/research/warp"
+    },
+    {
+      "command": "Get-FileHash warp/native/*.h -Algorithm SHA256",
+      "result": "pass: six key headers digested as listed",
+      "evidence": "target/research/warp/warp/native"
+    },
+    {
+      "command": "Select-String builtin.h -Pattern '\\bdouble\\b'",
+      "result": "recorded: builtin.h 69 lines, mat.h 13, vec.h 3, quat.h 1, spatial.h 3",
+      "evidence": "target/research/warp/warp/native"
+    }
+  ],
+  "remaining": [
+    "Review only: no upstream source was compiled and no product kernel changed.",
+    "Verbatim copy needs its own delivery task before any header enters the build.",
+    "Per-field precision mapping is not done; upstream headers contain f64 paths.",
+    "cuda_runtime.h source is not pinned for the copy route.",
+    "License and notice handling for redistribution is not implemented.",
+    "No GPU test, Linux test or legal review was run in this slice."
+  ]
+}
