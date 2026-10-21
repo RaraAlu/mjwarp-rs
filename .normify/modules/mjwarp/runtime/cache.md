@@ -1,7 +1,7 @@
 +++
 uid = "ccf4d023"
 id = "mjwarp.runtime.cache"
-fingerprint = "5aa90d2a4873f43969d4a00ba7804c01475278bdd1b03a8f66c6a6c5d74e9007"
+fingerprint = "7144e8ce66e3ab79327400cfb041d11d1748ee3d408c6150b0667bb4eab0f9f3"
 
 [name]
 zh = "可信产物缓存"
@@ -17,6 +17,9 @@ Own explicit trusted PTX recipes, schema validation, integrity and compiler prov
 
 [[source]]
 path = "src/runtime/cache.rs"
+
+[[source]]
+path = "src/runtime/cache/tests.rs"
 
 [[apis]]
 protocol = "rpc"
