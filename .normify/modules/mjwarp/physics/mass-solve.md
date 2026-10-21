@@ -2,7 +2,7 @@
 uid = "cd53f287"
 id = "mjwarp.physics.mass-solve"
 tags = ["implemented-subset", "gpu", "rigid-mass-solve", "windows"]
-fingerprint = "5ec98d30ea6f6e26e14c295d1ada03231239bb678a465767b2a7d4f3424c2c67"
+fingerprint = "47a85cdd50e575338c1e71ca67e0934b4f935a17267ebc9f71771af7b2f02128"
 
 [name]
 zh = "刚体质量矩阵求解"
@@ -72,6 +72,57 @@ path = "src/physics/mass_solve/sparse/tests/runs.rs"
 
 [[source]]
 path = "src/physics/mass_solve/sparse/tests/support.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/cuda.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/data.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/errors.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/fused_meta.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/fused_spec.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/kernels.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/layout.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/plan.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/validation_buffer.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/validation_meta.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/tests/support.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/tests/layout.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/tests/validation_plan.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/tests/fused_plan.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/tests/gpu_checks.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/tests/gpu_fused.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/mixed/solve/tests/cached_factor.rs"
 
 [[apis]]
 protocol = "rpc"
