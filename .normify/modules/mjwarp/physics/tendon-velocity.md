@@ -2,7 +2,7 @@
 uid = "adb9b6a2"
 id = "mjwarp.physics.tendon-velocity"
 tags = ["P4", "U020", "G02"]
-fingerprint = "b8f64954ee28ec965c327e501645c1c5323bf3636455f75aebf0e3dd810827a9"
+fingerprint = "aa8fa7af5cb961861df108e0feddfb0b88e1b4970b68be1a9fb49aba0a607e6b"
 
 [name]
 zh = "常驻肌腱速度消费者"
@@ -18,6 +18,36 @@ Actual resident global J consumer with owned qvel, not complete U020/G02.
 
 [[source]]
 path = "src/physics/tendon_velocity.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/plan.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/data.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/view.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/tests/support.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/tests/host.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/tests/gpu_consumer.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/tests/gpu_guards.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/tests/gpu_passive.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/tests/gpu_disable.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/tests/gpu_periods.rs"
 
 [[apis]]
 protocol = "rpc"
