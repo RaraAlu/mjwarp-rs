@@ -1,9 +1,8 @@
 +++
 uid = "1dd6441d"
 id = "mjwarp.diagnostics"
-state = "planned"
 tags = ["planned", "engine", "diagnostics"]
-fingerprint = "e2f923fba63ec28f50773dffbadcb4e6250008ddded4bdb3fe21c0596c8c13fa"
+fingerprint = "82a879e8dab2ca4bdd9720e8494f6fca5a5ca9de715120b1214a06cb85198649"
 
 [name]
 zh = "诊断与有效性"
@@ -19,6 +18,18 @@ Plan errors and output validity, preserving warnings, truncation, iteration limi
 
 [[source]]
 path = "src/diagnostics/mod.rs"
+
+[[source]]
+path = "src/diagnostics/input.rs"
+
+[[source]]
+path = "src/diagnostics/transfer.rs"
+
+[[source]]
+path = "src/diagnostics/probe.rs"
+
+[[source]]
+path = "src/diagnostics/tests.rs"
 
 [[apis]]
 protocol = "rpc"
