@@ -2,7 +2,7 @@
 uid = "ece0669c"
 id = "mjwarp.physics.core"
 tags = ["planned", "engine", "physics"]
-fingerprint = "efe40697e35a8f2a3a43db56c77b09bb63f422223657bdb2680fb0c85769bd72"
+fingerprint = "9dbbf0fe4c0214709f3925f86b03245113fb72105e8c3ca29da4c8b3c5f3abe3"
 
 [name]
 zh = "物理阶段与基础探针"
@@ -81,6 +81,39 @@ path = "src/physics/rne/tests/qfrc_run.rs"
 
 [[source]]
 path = "src/physics/rne/tests/support.rs"
+
+[[source]]
+path = "src/physics/applied_force/data.rs"
+
+[[source]]
+path = "src/physics/applied_force/kernels.rs"
+
+[[source]]
+path = "src/physics/applied_force/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/applied_force/launcher_meta.rs"
+
+[[source]]
+path = "src/physics/applied_force/launcher_specs.rs"
+
+[[source]]
+path = "src/physics/applied_force/metadata_buffer.rs"
+
+[[source]]
+path = "src/physics/applied_force/plan.rs"
+
+[[source]]
+path = "src/physics/applied_force/tests/checks.rs"
+
+[[source]]
+path = "src/physics/applied_force/tests/gpu.rs"
+
+[[source]]
+path = "src/physics/applied_force/tests/support.rs"
+
+[[source]]
+path = "src/physics/applied_force/tests/wrappers.rs"
 
 [[apis]]
 protocol = "rpc"
