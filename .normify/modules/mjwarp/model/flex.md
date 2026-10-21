@@ -1,7 +1,7 @@
 +++
 uid = "cf104c21"
 id = "mjwarp.model.flex"
-fingerprint = "840d1dad3a29882bbb5d1ef02d7c408baf228b57eda67f81e0273b633602dde1"
+fingerprint = "ef9a4b289a697350401b0933beb79edfe8fa751b589815a0a01d8426f96f70f6"
 
 [name]
 zh = "柔体运动学输入"
@@ -20,6 +20,21 @@ path = "src/model/flex.rs"
 
 [[source]]
 path = "src/model/flex_hessian.rs"
+
+[[source]]
+path = "src/model/flex/input.rs"
+
+[[source]]
+path = "src/model/flex/face.rs"
+
+[[source]]
+path = "src/model/flex/edge.rs"
+
+[[source]]
+path = "src/model/flex/position.rs"
+
+[[source]]
+path = "src/model/flex/tests.rs"
 
 [[apis]]
 protocol = "rpc"
