@@ -2,7 +2,7 @@
 uid = "541f82db"
 id = "mjwarp.runtime.transfer.core"
 tags = ["runtime", "transfer", "prototype", "windows-verified"]
-fingerprint = "111c62d8b3453dcf191b8a531ebd8caf179c01a982c56a6ff050d7c776ae4ca2"
+fingerprint = "c193555edcee4e1996bfc5784c27a6e121a7c8a54c4982927325588e405b126d"
 
 [name]
 zh = "同步字段底层"
@@ -18,6 +18,15 @@ Own checked typed CUDA transfers with opaque context/buffer lifetimes and conser
 
 [[source]]
 path = "src/runtime/transfer.rs"
+
+[[source]]
+path = "src/runtime/transfer/buffer.rs"
+
+[[source]]
+path = "src/runtime/transfer/session.rs"
+
+[[source]]
+path = "src/runtime/transfer/tests.rs"
 
 [[apis]]
 protocol = "rpc"
