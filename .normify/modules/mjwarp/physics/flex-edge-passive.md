@@ -2,7 +2,7 @@
 uid = "5067644f"
 id = "mjwarp.physics.flex-edge-passive"
 tags = ["G04", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "ed25efa24c5d92a3feb70510fd7bb3361dc8c2631935bfadaaf62f147358e3c2"
+fingerprint = "8bcdeaf564f7905313b4c43ed0e9c3fa376d633f302a34aaae62efd15178afbc"
 
 [name]
 zh = "柔体边被动力"
@@ -18,6 +18,18 @@ Consumes resident edge length, velocity and Jacobian to compute flex-edge spring
 
 [[source]]
 path = "src/physics/flex_edge_passive.rs"
+
+[[source]]
+path = "src/physics/flex_edge_passive/plan.rs"
+
+[[source]]
+path = "src/physics/flex_edge_passive/data.rs"
+
+[[source]]
+path = "src/physics/flex_edge_passive/cuda.rs"
+
+[[source]]
+path = "src/physics/flex_edge_passive/tests.rs"
 
 [[apis]]
 protocol = "rpc"
