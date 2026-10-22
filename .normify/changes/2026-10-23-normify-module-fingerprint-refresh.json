@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-normify-module-fingerprint-refresh",
+  "title": {
+    "zh": "刷新U038后过期模块指纹",
+    "en": "Refresh module fingerprints stale after U038"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "U038-3D 有界收口后，`normify validate --fingerprints` 仍报 2 个模块指纹过期（示例根模块 `mjwarp`；另一项指向 `mjwarp.physics.gravity-compensation`，其登记的 `docs/compatibility-matrix.md`、`docs/gravity-compensation.md` 在 U038 提交中被修改）。本任务用 normify 引擎（normify-gen MCP 工具，不得手写指纹）核对并更新这两个模块的 source 登记（新增的 3D fixture/证据/测试路径是否应登记）与文档内容，重新计算指纹并全项目校验。目标：errors=0、evidence/fingerprint-drift=0，指纹由引擎计算，不伪造验收。",
+    "en": "After the bounded U038-3D close-out, `normify validate --fingerprints` still reports two stale module fingerprints (root `mjwarp` and `mjwarp.physics.gravity-compensation`, whose registered sources docs/compatibility-matrix.md and docs/gravity-compensation.md changed in the U038 commit). Refresh them with the normify engine (normify-gen MCP tools; never hand-write fingerprints), review whether the new 3D fixture/evidence/test paths belong in the module source registrations, update module docs and recompute fingerprints, then run full-project validation. Goal: errors=0 and evidence/fingerprint-drift=0, with engine-computed fingerprints only."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "确认过期模块清单：跑 `normify validate --fingerprints` 记录漂移模块（当前为 2 个，示例 `mjwarp`），与 89e9910/关闭提交改动的登记 source 对应。",
+    "用 normify 引擎（normify-gen MCP：normify_sync/normify_module_upsert/normify_validate）更新这两个模块的 source 登记（是否需要登记新增的 3D fixture、证据、契约测试路径）与模块文档现状，指纹必须由引擎计算，禁止手写或伪造。",
+    "全项目 `normify validate --fingerprints`：errors=0、evidence/fingerprint-drift 告警=0；其余告警（如 structure/leaf-too-coarse）如实记录，不为清零改架构。",
+    "若当前会话缺少 normify-gen MCP/引擎连接：停在预检与登记，不手改指纹，如实记录阻塞（本任务首选在具备引擎的会话执行）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "工程-治理",
+    "owner": "Backend",
+    "files": [
+      ".normify/modules/",
+      "docs/development-evidence/changes/2026-10-23-normify-module-fingerprint-refresh.json"
+    ],
+    "resources": [],
+    "priority": 5
+  },
+  "note": "2026-10-23 由 U038-3D 关闭后登记（proposed，不 start）。触发：Chief 2026-10-23 裁决要求 U038 关闭后复核指纹告警；仍过期则登记真实治理任务，不为清零造任务。当前会话未挂 normify-gen MCP，CLI 无独立指纹刷新命令，因此先登记；执行时用引擎 sync/upsert/validate，指纹不得手写。",
+  "revision": {
+    "before": "cf36a19",
+    "after": null
+  },
+  "created_at": "2026-10-23T02:55:00.000Z",
+  "updated_at": "2026-10-23T02:55:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-normify-module-fingerprint-refresh.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-normify-module-fingerprint-refresh"
+    }
+  ]
+}
