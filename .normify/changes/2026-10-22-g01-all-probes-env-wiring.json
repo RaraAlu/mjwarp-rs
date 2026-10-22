@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-g01-all-probes-env-wiring",
+  "title": {
+    "zh": "接线G01全探针阶段环境依赖",
+    "en": "Wire all-probes environment dependencies in G01 script"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "G01 all-probes 阶段首次跑到全部 ignored 探针后暴露 25 项失败，逐条分类均为 env/外部依赖类（源码漂移 0 项：T4 源码身份已由 repin-9/f1faa15 收口）。本任务把既有可离线满足的环境依赖接到 all-probes 阶段：T4 固定上游源码根、T4 历史证据根、当前捕获根、gravity 证据目录、mixed 报告、machine-code 目录、native/collision mocks 与 lifetime 日志；前置不满足的探针跳过并显式记录 env 未接线，不硬跑、不伪造 env。接线后逐 target 记录结果，仍失败的真实数值/审计缺口另立债务任务。不改断言、容差、W-D5 排除清单。",
+    "en": "The G01 all-probes stage reached the full ignored-probe set for the first time and exposed 25 failures, all classified as environment/external-dependency class (zero source-identity drift; T4 source identity closed by repin-9/f1faa15). This task wires the offline-satisfiable environment dependencies into the all-probes stage: frozen upstream source root, T4 historical evidence root, current capture root, gravity evidence dirs, mixed reports, machine-code dir, native/collision mocks and lifetime logs. Probes whose prerequisites are unavailable are skipped with an explicit env-not-wired record; nothing is hard-run or fabricated. Per-target results are recorded; genuine numeric/audit gaps become separate debt tasks. Assertions, tolerances and the W-D5 exclusion list stay unchanged."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "scripts/test-windows-g01.ps1 的 all-probes 阶段为可离线满足的 env 依赖接线（T4_FROZEN_UPSTREAM_ROOT、T4_EVIDENCE_ROOT、T4_CURRENT_CAPTURE_ROOT、GRAVITY_*_EVIDENCE_DIR、MIXED_*_REPORT、MACHINE_DIR、native/collision mocks 与 lifetime 日志等），复用既有 native 构建脚本且先验证离线可构建。",
+    "前置不满足的探针显式跳过并记录 env 未接线（不伪造 env、不硬跑）；排除清单仍只有 W-D5 的 3 项历史工具。",
+    "接线后逐 target 记录 all-probes 结果；仍失败项按真实数值/审计缺口分类，另立债务任务登记。",
+    "不改断言逻辑、容差与排除清单；证据写 docs/development-evidence/g01-all-probes-env/；回执含 task_id。",
+    "完成后复跑 G01 debug 全脚本并记录各阶段与 all-probes 数字；若只剩 RNE 数值缺口，如实报「除 RNE 外全绿」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-t4-source-hash-repin-9"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "scripts/test-windows-g01.ps1",
+      "scripts/prepare-native-probe.ps1",
+      "scripts/test-windows-native.ps1",
+      "docs/development-evidence/g01-all-probes-env/",
+      "docs/development-evidence/changes/2026-10-22-g01-all-probes-env-wiring.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "依据：repin-9（f1faa15）收口源码身份后，`cargo --all-features -- --ignored --no-fail-fast` 全 target 枚举 25 项失败，逐条分类：MJWARP_FROZEN_UPSTREAM_ROOT 8 项、报告/证据目录 env 6 项、native DLL/环境 10 项、RNE 数值探针 1 项（另立 2026-10-22-g02-rne-acc-native-tolerance-debt，只做证据不修）。既有 G01 脚本 native 阶段已设置 MJWARP_NATIVE_MOCKS/MJWARP_NATIVE_LIFETIME_LOG/MJWARP_MUJOCO_DLL，all-probes 阶段未继承 T4/gravity/mixed/machine 类 env。本任务只做脚本环境接线与逐 target 记录，不改任何测试断言/容差/排除清单；真实数值缺口另立债务。枚举日志 target/allprobes-enum.log、失败明细 target/allprobes-failures-detail.txt。",
+  "revision": {
+    "before": "f1faa150ab75b9c69c0aee70f225125982dc4b3d",
+    "after": null
+  },
+  "created_at": "2026-10-22T22:55:00.000Z",
+  "updated_at": "2026-10-22T14:44:17.246Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g01-all-probes-env-wiring.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g01-all-probes-env-wiring"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
