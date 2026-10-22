@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-layers-m3-flex-edges-abi-fix",
+  "title": {
+    "zh": "修复M3柔体边包装零边ABI回归",
+    "en": "Fix m3 flex-edges zero-edge ABI regression"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "修复M3安全包装迁移（068fd14）引入的柔体边ABI回归：合法单世界体/零nnz输入被维度校验拒绝，G01 resident阶段edge-free-body失败。",
+    "en": "Fix the flex-edges ABI regression introduced by the M3 safe-wrapper migration (068fd14): legal single-world-body / zero-nnz inputs were rejected by dimension checks, failing the G01 resident edge-free-body stage."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.resident"
+    ]
+  },
+  "acceptance": [
+    "柔体边包装的维度与跨度校验与冻结内核真实寻址一致；合法单世界体（nb=1）、零边与零nnz输入不得被拒。",
+    "坏输入拒绝面保留：端点/列索引越界、稀疏行越界、体父链与根体表非法、跨度不符、错会话与别名仍必须拒绝，并补对应反例测试。",
+    "内核字符串、PTX、容差与fixtures不动；flex_edge_free_body_matches_translation_rotation_and_velocity恢复通过，resident_flex_edge定向集通过，G01 resident阶段推进到下一失败点。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-windows"
+    ],
+    "phase": "fix/M3-flex-edges",
+    "owner": "Codex",
+    "files": [
+      "src/physics/resident",
+      "docs/development-evidence/changes/2026-10-22-layers-m3-flex-edges-abi-fix.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 0
+  },
+  "note": "依据 2026-10-18-layers-windows 验收发现 W-D7。基线归属：77e8b55 通过、068fd14 工程(layers): 迁移常驻柔体边与面安全包装 起失败，属M3迁移自身回归。根因：FlexEdgesStaticDims::new 新增 nb<2 与 ne/nvert 非零前提，而冻结 flex_edges 内核按 nb 寻址 parent/root，单世界体（nb=1, nv=0）与零nnz合法；迁移前底层发射只校验会话/世界数/缓冲存在。修复要求对齐内核寻址，保留坏索引与跨度拒绝面。",
+  "revision": {
+    "before": "4ffda93472363099fbd0e8820d57245a03ab063a",
+    "after": null
+  },
+  "created_at": "2026-10-22T05:57:29.000Z",
+  "updated_at": "2026-10-22T05:57:39.648Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-layers-m3-flex-edges-abi-fix.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-layers-m3-flex-edges-abi-fix"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
