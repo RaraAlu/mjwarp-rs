@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-w14-shared-memory-device-limit",
+  "title": {
+    "zh": "W14共享内存设备上限查询修复",
+    "en": "W14 shared-memory device limit query fix"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "修复 QA 独立复核的 W14-F1：冻结要求「产品按设备属性核对共享内存上限」，现状只有注入式 SharedMemoryLimits + 保守 48KiB。补 cudaDeviceGetAttribute（CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK 与 OPTIN，经 cudarc 现有绑定）查询路径，与注入上限取交集；查询不可用时保留保守默认并在文档写清。顺手处理 QA 三条建议：NVRTC 复现命令补 CUDA bin 到 PATH 的说明、wheel_vs_clone 从样本补成 36 项全量、cuda_fp16.h 摘要进键补进 W14 tile 测试登记。不改容差/断言/冻结文档 layers-w14.md。",
+    "en": "Fix QA review finding W14-F1: the frozen constraint requires product-side shared-memory limits to be checked against device attributes, but the implementation only had injected SharedMemoryLimits plus a conservative 48KiB. Add a cudaDeviceGetAttribute path (CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK and OPTIN via existing cudarc bindings) and intersect it with the injected limits; keep the conservative default when the query is unavailable and document it. Also handle QA's three suggestions: PATH note for the NVRTC reproduction command, full 36-file wheel_vs_clone comparison, and cuda_fp16.h digest registration in the W14 tile test. Do not change tolerances, assertions or the frozen layers-w14.md document."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "实现设备共享内存上限查询：DeviceSharedMemoryLimits::query(device) 经 cudarc driver 绑定调用 cuDeviceGetAttribute 读取 MAX_SHARED_MEMORY_PER_BLOCK 与 MAX_SHARED_MEMORY_PER_BLOCK_OPTIN；SharedMemoryLimits 增加 intersect 与 for_device（查询失败回退保守默认），不改变既有注入 API 语义。",
+    "测试覆盖两条路径：宿主单测用模拟设备值验证交集/收紧/回退逻辑；定向 GPU ignored 测试用真实设备查询成功并返回合理上限。",
+    "W14 tile NVRTC 测试补 cuda_fp16.h 外部头摘要进产物键（with_external_header）并断言键变化；NVRTC 复现命令补 target/toolchains/cuda-12.8.1/bin 到 PATH 的说明。",
+    "headers.json 的 wheel_vs_clone 从 7 个样本补成 36 个文件全量对比。",
+    "不改容差/断言/layers-w14.md；证据与回执落 docs/development-evidence/w14-shared-memory-device-limit/ 与 docs/development-evidence/changes/2026-10-23-w14-shared-memory-device-limit.json；gate fmt/clippy/clippy-cuda/unit 通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-23-w14-tile-launcher"
+    ],
+    "phase": "M7-编译路线",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/launcher",
+      "tests/launcher-tile.rs",
+      ".normify/runs/2026-10-23-u038-3d-ptx-order-alignment",
+      "docs/development-evidence/w14-shared-memory-device-limit/",
+      "docs/development-evidence/w14-tile-launcher/",
+      "docs/development-evidence/w15-verbatim-headers/",
+      "docs/development-evidence/w15-w14-independent-check/README.md",
+      "docs/development-evidence/changes/2026-10-23-w14-shared-memory-device-limit.json",
+      ".normify/modules/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 21
+  },
+  "note": "2026-10-23 Chief 指令登记：修 QA 复核 W14-F1（设备属性查询缺失），顺手做 QA 三条建议（NVRTC PATH 说明、wheel_vs_clone 全量、cuda_fp16 摘要进键登记）；同时把已关闭 U038 PTX 对齐任务的引擎 runs 记录随本任务入库（非手改）。不改容差/断言/layers-w14.md，W13/g03-parity 未动。",
+  "revision": {
+    "before": "6086b4ec8a8835c9efdfac112e62593b78ddb355",
+    "after": null
+  },
+  "created_at": "2026-10-23T03:30:00.000Z",
+  "updated_at": "2026-10-22T19:24:27.400Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/physics",
+        "fixtures",
+        "native",
+        "include/mjwarp_native_probe.h",
+        "LICENSES",
+        "docs/development-evidence/layers-w14.md"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-w14-shared-memory-device-limit.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-w14-shared-memory-device-limit"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}

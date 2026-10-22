@@ -15,10 +15,10 @@
 
 | ID | 级别 | 结论 | 说明 |
 | --- | --- | --- | --- |
-| W14-F1 | 一般 | 冻结约束未完全接线 | 冻结要求「产品按设备属性核对共享内存上限」；实现是 `SharedMemoryLimits::new(per_block, opt_in)` 由调用方注入 + 默认保守 48KiB，全仓**无** `cudaDeviceGetAttribute`/`MaxSharedMemoryPerBlock` 查询。当前产品内核 `shared_bytes=0`，无现网影响；tile 内核上线前须接线设备查询，否则 >48KiB 的合法静态/opt-in 上限可能与实际设备不符。`w14 README` 该行表述偏强，建议改写为「可注入设备属性 + 保守默认」。 |
-| REPRO-F1 | 建议 | 复现命令缺环境前置 | W14/W15 README 的 ignored 测试命令只设 `MJWARP_CUDA_INCLUDE`；实测仅设该变量时报 `NVRTC不可用`。把 `target/toolchains/cuda-12.8.1/bin` 加入 `PATH` 后两项 ignored 测试均通过（见 `test-runs.json`）。属环境前置登记缺失，非实现缺陷。 |
+| W14-F1 | 一般 | 冻结约束未完全接线 | 冻结要求「产品按设备属性核对共享内存上限」；实现是 `SharedMemoryLimits::new(per_block, opt_in)` 由调用方注入 + 默认保守 48KiB，全仓**无** `cudaDeviceGetAttribute`/`MaxSharedMemoryPerBlock` 查询。当前产品内核 `shared_bytes=0`，无现网影响；tile 内核上线前须接线设备查询，否则 >48KiB 的合法静态/opt-in 上限可能与实际设备不符。`w14 README` 该行表述偏强，建议改写为「可注入设备属性 + 保守默认」。**2026-10-23 Backend 已修复**：新增 `DeviceSharedMemoryLimits::query`（cudarc 查询 MAX_SHARED_MEMORY_PER_BLOCK/OPTIN）、`SharedMemoryLimits::intersect/for_device`（查询失败回退保守默认），模拟+真实设备测试通过；W14 README 表述已更新。证据 `docs/development-evidence/w14-shared-memory-device-limit/`。 |
+| REPRO-F1 | 建议 | 复现命令缺环境前置 | W14/W15 README 的 ignored 测试命令只设 `MJWARP_CUDA_INCLUDE`；实测仅设该变量时报 `NVRTC不可用`。把 `target/toolchains/cuda-12.8.1/bin` 加入 `PATH` 后两项 ignored 测试均通过（见 `test-runs.json`）。属环境前置登记缺失，非实现缺陷。**2026-10-23 已补**：W14/W15 README 的复现命令已加 `target/toolchains/cuda-12.8.1/bin` 入 `PATH` 说明。 |
 | W15-F1 | 建议 | 清单样本性 | `headers.json.wheel_vs_clone` 只列 7 个代表文件；独立比对显示 36 个文件**全部**与 wheel 不同（36/36 与 clone 一致）。结论被加强而非推翻，建议说明样本性质或补全。 |
-| W15-F2 | 建议 | SDK 头摘要进键的调用点条件 | `cuda_fp16.h` 内容摘要进 `ArtifactKey` 只在 W15 NVRTC probe 测试登记（`with_external_header`）；W14 tile 编译测试只传 include 路径，键中只有路径字符串。当前产品路径未用 Warp 头树，无现网影响；若后续产品走上游源码路线，需在调用点登记 SDK 头摘要，`THIRD_PARTY_NOTICES` 的表述才完全成立。 |
+| W15-F2 | 建议 | SDK 头摘要进键的调用点条件 | `cuda_fp16.h` 内容摘要进 `ArtifactKey` 只在 W15 NVRTC probe 测试登记（`with_external_header`）；W14 tile 编译测试只传 include 路径，键中只有路径字符串。当前产品路径未用 Warp 头树，无现网影响；若后续产品走上游源码路线，需在调用点登记 SDK 头摘要，`THIRD_PARTY_NOTICES` 的表述才完全成立。**2026-10-23 已补**：W14 tile NVRTC 测试登记 `cuda_fp16.h` 摘要进键并断言键变化。 |
 
 ## 测试与核对结果（本次实跑）
 

@@ -35,6 +35,81 @@ impl SharedMemoryLimits {
     pub fn opt_in(&self) -> u32 {
         self.opt_in
     }
+
+    /// 与设备查询上限取交集：注入值更大时收紧到设备值。
+    pub fn intersect(self, device: DeviceSharedMemoryLimits) -> Self {
+        let per_block = self.per_block.min(device.per_block);
+        let opt_in = self.opt_in.min(device.opt_in).max(per_block);
+        Self { per_block, opt_in }
+    }
+
+    /// 查询设备上限（失败时保留保守默认）：调用方无需自行处理查询失败。
+    pub fn for_device(device: usize) -> Self {
+        match DeviceSharedMemoryLimits::query(device) {
+            Some(limits) => Self::DEFAULT.intersect(limits),
+            None => Self::DEFAULT,
+        }
+    }
+}
+
+/// 设备查询得到的共享内存上限。
+///
+/// 经 cudarc driver 绑定调用 `cuDeviceGetAttribute`：
+/// `CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK` 与
+/// `CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK_OPTIN`。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DeviceSharedMemoryLimits {
+    per_block: u32,
+    opt_in: u32,
+}
+
+impl DeviceSharedMemoryLimits {
+    pub fn new(per_block: u32, opt_in: u32) -> Result<Self, LauncherError> {
+        if per_block == 0 || opt_in < per_block {
+            return Err(LauncherError::InvalidArray("设备共享内存上限非法"));
+        }
+        Ok(Self { per_block, opt_in })
+    }
+
+    /// 读取真实设备属性；驱动不可用、属性缺失或数值非法时返回 `None`。
+    pub fn query(device: usize) -> Option<Self> {
+        #[cfg(feature = "cuda-probe")]
+        {
+            use cudarc::driver::sys::CUdevice_attribute;
+            let ordinal = i32::try_from(device).ok()?;
+            std::panic::catch_unwind(|| {
+                cudarc::driver::result::init().ok()?;
+                let raw = cudarc::driver::result::device::get(ordinal).ok()?;
+                let read = |attribute| {
+                    // SAFETY: `raw` 来自 cuDeviceGet；属性查询只写一个 i32 输出。
+                    unsafe { cudarc::driver::result::device::get_attribute(raw, attribute).ok() }
+                };
+                let per_block = u32::try_from(read(
+                    CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK,
+                )?)
+                .ok()?;
+                let opt_in = u32::try_from(read(
+                    CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK_OPTIN,
+                )?)
+                .ok()?;
+                Self::new(per_block, opt_in).ok()
+            })
+            .ok()?
+        }
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = device;
+            None
+        }
+    }
+
+    pub fn per_block(&self) -> u32 {
+        self.per_block
+    }
+
+    pub fn opt_in(&self) -> u32 {
+        self.opt_in
+    }
 }
 
 /// CUDA网格、线程块与共享内存。

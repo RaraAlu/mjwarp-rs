@@ -3,9 +3,9 @@
 //! 产品测试只读静态冻结夹具，不启动上游作者流程。
 
 use mjwarp_rs::runtime::launcher::{
-    AbiSignature, Access, ArtifactCache, BlockRule, CompileRecipe, Kernel, KernelAbi, KernelSpec,
-    LaunchDims, LauncherError, NvrtcSource, RecipePurpose, SharedMemoryLimits, SlotDesc, SlotKind,
-    SlotRequirement, SlotRole,
+    AbiSignature, Access, ArtifactCache, ArtifactKey, BlockRule, CompileRecipe,
+    DeviceSharedMemoryLimits, Kernel, KernelAbi, KernelSpec, LaunchDims, LauncherError,
+    NvrtcSource, RecipePurpose, SharedMemoryLimits, SlotDesc, SlotKind, SlotRequirement, SlotRole,
 };
 use std::path::PathBuf;
 
@@ -161,18 +161,73 @@ fn static_shared_memory_is_checked_against_device_limits() {
     ));
 }
 
+#[test]
+fn device_limits_intersect_with_injected_limits() {
+    let injected = SharedMemoryLimits::new(96 * 1024, 128 * 1024).unwrap();
+    let device = DeviceSharedMemoryLimits::new(64 * 1024, 96 * 1024).unwrap();
+    let merged = injected.intersect(device);
+    assert_eq!(merged.per_block(), 64 * 1024);
+    assert_eq!(merged.opt_in(), 96 * 1024);
+    let conservative = SharedMemoryLimits::DEFAULT
+        .intersect(DeviceSharedMemoryLimits::new(32 * 1024, 32 * 1024).unwrap());
+    assert_eq!(conservative.per_block(), 32 * 1024);
+    assert_eq!(conservative.opt_in(), 32 * 1024);
+    let clamped = SharedMemoryLimits::new(96 * 1024, 128 * 1024)
+        .unwrap()
+        .intersect(DeviceSharedMemoryLimits::new(64 * 1024, 64 * 1024).unwrap());
+    assert_eq!(clamped.per_block(), 64 * 1024);
+    assert_eq!(clamped.opt_in(), 64 * 1024);
+    assert!(DeviceSharedMemoryLimits::new(0, 1).is_err());
+    assert!(DeviceSharedMemoryLimits::new(64 * 1024, 32 * 1024).is_err());
+    // 无 cuda-probe 时查询必须安全返回 None（回退保守默认）。
+    assert!(DeviceSharedMemoryLimits::query(usize::MAX).is_none());
+}
+
+#[cfg(windows)]
+#[test]
+#[ignore = "requires NVIDIA driver (real device attribute query)"]
+fn queries_real_device_shared_memory_limits() {
+    let device = DeviceSharedMemoryLimits::query(0).expect("device shared-memory attributes");
+    assert!(device.per_block() > 0);
+    assert!(device.opt_in() >= device.per_block());
+    let limits = SharedMemoryLimits::for_device(0);
+    assert!(limits.per_block() <= SharedMemoryLimits::DEFAULT.per_block());
+    assert_eq!(limits.per_block(), SharedMemoryLimits::DEFAULT.per_block());
+    assert_eq!(
+        limits,
+        SharedMemoryLimits::DEFAULT.intersect(device),
+        "for_device must intersect the conservative default with device attributes"
+    );
+}
+
 #[cfg(windows)]
 #[test]
 #[ignore = "requires NVRTC and the CUDA SDK include directory (MJWARP_CUDA_INCLUDE)"]
 fn nvrtc_compiles_static_shared_tile_kernel_with_verbatim_warp_headers() {
     let cuda_include = std::env::var("MJWARP_CUDA_INCLUDE")
         .expect("set MJWARP_CUDA_INCLUDE to the CUDA 12.8 include directory");
-    let source = NvrtcSource::new("w14_tile_probe", TILE_SOURCE)
+    let fp16 = PathBuf::from(&cuda_include).join("cuda_fp16.h");
+    let without_external = NvrtcSource::new("w14_tile_probe", TILE_SOURCE)
         .unwrap()
         .with_headers_from_dir(&root().join("include/warp-headers"))
         .unwrap()
-        .with_include_path(cuda_include)
+        .with_include_path(cuda_include.clone())
         .unwrap();
+    let source = without_external
+        .clone()
+        .with_external_header(&fp16)
+        .unwrap();
+    let key_without = ArtifactKey::new(
+        &without_external,
+        &CompileRecipe::WARP_1_15_DIAGNOSTIC,
+        (12, 8),
+    );
+    let key_with = ArtifactKey::new(&source, &CompileRecipe::WARP_1_15_DIAGNOSTIC, (12, 8));
+    assert_ne!(
+        key_without.sha256(),
+        key_with.sha256(),
+        "cuda_fp16.h digest must enter the artifact key"
+    );
     let cache = ArtifactCache::in_memory();
     let artifact = cache
         .compile(

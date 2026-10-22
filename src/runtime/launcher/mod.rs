@@ -35,7 +35,9 @@ pub use graph::{
     Allocation, CaptureGuard, CaptureHost, CapturedGraph, CapturedNode, GraphInstance, GraphState,
     NodeId, RecycleId, ReplayId, SlotUpdate,
 };
-pub use launch::{Kernel, KernelSpec, LaunchDims, LaunchPlan, SharedMemoryLimits};
+pub use launch::{
+    DeviceSharedMemoryLimits, Kernel, KernelSpec, LaunchDims, LaunchPlan, SharedMemoryLimits,
+};
 #[cfg(feature = "cuda-probe")]
 pub use module::{KernelHandle, ModuleCache, ModuleStats};
 pub use recipe::{ArchTarget, CompileRecipe, CppStd, PrecisionGate, RecipePurpose};
