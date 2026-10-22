@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-g03-tile-cholesky-mathdx-alignment",
+  "title": {
+    "zh": "对齐G03分块求解MathDx算序",
+    "en": "Align G03 tile-cholesky solve with MathDx arithmetic"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 Chief 2026-10-22 授权的 A1 有界尝试，分两阶段处理 3 项 mass_solve_probe 准入缺口：第一阶段只用本机离线材料（authoring 缓存生成 CUDA/LTO/fatbin、CUDA nvdisasm 等原生工具）确定上游 MathDx cuSOLVER potrf/potrs 与产品自研列式 Cholesky+回代的 f32 算序差异，并判断「能否反推到可对齐的指令序」；第一阶段判定不可行或逐位一致不可达则停手、如实登记债务，不做第二阶段。仅当第一阶段判定可行且 Chief 确认后，第二阶段才实现算序对齐，并完成 T4 源码身份重钉与双模式定向回归。",
+    "en": "Bounded A1 attempt authorized by Chief on 2026-10-22 for the three mass_solve_probe admission gaps, in two phases: phase 1 uses only local offline artifacts (authoring-cache generated CUDA/LTO/fatbin, CUDA nvdisasm and other native tools) to determine the f32 arithmetic-order difference between upstream MathDx cuSOLVER potrf/potrs and the product's hand-written column Cholesky + substitution, and judge whether it can be reverse-engineered into an alignable instruction order. If phase 1 judges it infeasible or bit-exactness unreachable, stop and record the debt without phase 2. Phase 2 (arithmetic alignment + T4 source identity repin + dual-mode targeted regression) only starts if phase 1 is feasible and Chief confirms."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "第一阶段：用本机离线材料（warp authoring 缓存中的生成 CUDA、LTO/fatbin，CUDA nvdisasm 等原生工具；不启动 Python）确定上游 MathDx potrf/potrs 与产品列式 Cholesky+回代在 case4/world4 等失败块上的 f32 算序差异，给出可复核证据（反推到的指令序、候选算序与冻结上游 factor/solution 的逐位对比结果）。",
+    "第一阶段给出明确可行性判断：可对齐或不可对齐；列出需要改动的 src/physics/mass_solve 面、预期风险、验证方式与是否触发 T4 源码身份重钉。若判定不可行或逐位一致不可达，停手并把结论与债务边界写入证据，不进入第二阶段。",
+    "第一阶段交付：证据 docs/development-evidence/g03-mathdx-alignment/ 与回执 docs/development-evidence/changes/2026-10-22-g03-tile-cholesky-mathdx-alignment.json（含 task_id）；不改产品代码、测试、容差、准入余量、fixtures 或脚本。",
+    "第二阶段（需第一阶段可行且 Chief 确认后才开始）：只对齐算序，不改容差/准入余量/测试断言，不引入外部运行时组件，不用「只提高精度不对齐上游」的手段；完成后 T4 源码身份重钉 + 双模式定向回归 + 3 项 mass_solve_probe 准入通过；门禁 fmt/clippy/clippy-cuda/unit 全过。",
+    "离线分析若需要启动 pinned Python venv 或 authoring 脚本，先报 Chief 确认，不自行启动。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-g03-parity-precheck"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/",
+      "docs/development-evidence/g03-mathdx-alignment/",
+      "docs/development-evidence/changes/2026-10-22-g03-tile-cholesky-mathdx-alignment.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 2
+  },
+  "note": "来源：2026-10-22-g03-parity-precheck（commit 55d8404）结论——缺口可本机观测与尝试修复，根因是产品解算相对上游 MathDx cuSOLVER potrf/potrs 的剩余 f32 算序差异；bisect 显示 c74aede 上 mass_solve_probe 6 过 0 败、8a5bac0（对齐非零位形旋转链）上 3 过 3 败；失败数值 1.318/1.167 对上游 0.925/0.440、红线 0.972/0.462。Chief 2026-10-22 授权 A1 有界尝试，A2/B 不做。本任务先只做第一阶段：离线材料在 target/g03-block-reference/warp-cache/1.15.0/（生成 CUDA 调用 potrf_11_11_1_89_32_1_1_5_x_x_0 / potrs_11_11_1_89_64_1_1_5_x_x_0，含 LTO 与 fatbin）与 target/native-mathdx7*/（7 维 potrf LTO/cubin）；工具链 target/toolchains/cuda-12.8.1 自带 nvdisasm。产品侧现状：src/physics/mass_solve/cuda.rs 的 rigid_mass_solve 为单线程每世界列式 Cholesky+前代/回代，tile 分支已仿真 MathDx rsqrt.approx 与乘减融合约束；首差历史见 docs/windows-g03-first-difference.md 与 fixtures/mjwarp-mass-solve/first-difference/。第一阶段结论先报 Chief，不一口气实现。",
+  "revision": {
+    "before": "55d8404"
+  },
+  "created_at": "2026-10-22T09:20:00.000Z",
+  "updated_at": "2026-10-22T09:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests",
+        "fixtures",
+        "scripts",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g03-tile-cholesky-mathdx-alignment.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g03-tile-cholesky-mathdx-alignment"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
