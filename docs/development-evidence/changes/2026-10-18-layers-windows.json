@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-18-layers-windows",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "partial",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "docs/three-layer-acceptance.md", "blob": "0f656864fd2586cc01288cbe8b6a2359ad5098f7"},
+    {"path": "docs/evidence/three-layer/windows/summary.json", "blob": "d0e420e4de0da4be66ac3f953e1920643b12ddf9"},
+    {"path": "docs/evidence/three-layer/windows/env-rustc.txt", "blob": "865b68d41f8a767bc1cdebd4d33d7db19f2bee6c"},
+    {"path": "docs/evidence/three-layer/windows/env-gpu.txt", "blob": "4b4d9b9e93f0fb78340049cc09de1c0175c219ff"},
+    {"path": "docs/evidence/three-layer/windows/g01-full-debug.log", "blob": "87e6969a1d4e8c12a63907f08ec05f18c572c2a2"},
+    {"path": "docs/evidence/three-layer/windows/g01-full-release.log", "blob": "2963330af86cdf7ad7f0c9049756b593d8e25970"},
+    {"path": "docs/evidence/three-layer/windows/g01-stage-debug.log", "blob": "5d7be90b68f3fce9d19e598221abac866b4a95a9"},
+    {"path": "docs/evidence/three-layer/windows/g01-native-stage-debug.log", "blob": "f5d8a80b90fd0359a2df7349307d38878a7b44e5"},
+    {"path": "docs/evidence/three-layer/windows/g01-stage-resident-debug.log", "blob": "60a1a0245e4c0ed66b4302fda3421e17d3382dba"},
+    {"path": "docs/evidence/three-layer/windows/g01-stage-wake-guards.log", "blob": "9f214fc4ecd6da5e34ee4c08f42ba53eed7ca408"},
+    {"path": "docs/evidence/three-layer/windows/g01-stage-host-gnu-debug.log", "blob": "27c9ce86f5867db734a159aff26126c0b383355b"},
+    {"path": "docs/evidence/three-layer/windows/g01-stage-rustdoc-debug.log", "blob": "cce58e7ca3f2ba42b94dbf8ad2ad2e5bea5c2f3d"},
+    {"path": "docs/evidence/three-layer/windows/g01-stage-git-diff-check.log", "blob": "34ff4d6c589c342c9862996ce855474cc39c0e73"},
+    {"path": "docs/evidence/three-layer/windows/baseline-before-tendon-wake-native_g01.log", "blob": "82c7dabbdaf9afe79f8fd55477f308af6229b704"},
+    {"path": "docs/evidence/three-layer/windows/baseline-m3-final-native_g01.log", "blob": "ac6364268fdb4886f65e17230305689253d1abb0"},
+    {"path": "docs/evidence/three-layer/windows/debug-layer_data-gpu.log", "blob": "f39292be363aa591c04d8561baad2ec9ed156a59"},
+    {"path": "docs/evidence/three-layer/windows/debug-layer_io-gpu.log", "blob": "a18038399e9b4e110a2022314a795cafc0a6d9fc"},
+    {"path": "docs/evidence/three-layer/windows/debug-launcher_async-gpu.log", "blob": "a3bdd2dbdae3489d1b671f4094543da4e5bc8943"},
+    {"path": "docs/evidence/three-layer/windows/debug-launcher_graph-gpu.log", "blob": "be08d7873bf451b846fe4f77ba98f29ea2cfcf32"},
+    {"path": "docs/evidence/three-layer/windows/debug-t4_gravity_product_chain.log", "blob": "450eca50b1c987bba26fdfdba8e11136995ce1a8"},
+    {"path": "docs/evidence/three-layer/windows/release-layer_data-gpu.log", "blob": "4d4f8cef607267c1ea3c031f86487ff66a4a1ff8"},
+    {"path": "docs/evidence/three-layer/windows/release-layer_io-gpu.log", "blob": "368e7fa70c6ea04db2b2bc026a3b848fbf3fb864"},
+    {"path": "docs/evidence/three-layer/windows/release-launcher_async-gpu.log", "blob": "f431734b5200938b7f8563ba4035126d6c8f2d0c"},
+    {"path": "docs/evidence/three-layer/windows/release-launcher_graph-gpu.log", "blob": "bae49e945b9b2629fad3bbb72c81daab298f9f2c"},
+    {"path": "docs/evidence/three-layer/windows/release-t4_gravity_product_chain.log", "blob": "578c198ec0e939cbbe5f4a97a0165eb0a69cd1aa"}
+  ],
+  "note": "V1 Windows三层集成验收：交付 docs/three-layer-acceptance.md 与 docs/evidence/three-layer/windows/（summary.json、环境快照、debug/release定向日志、G01脚本与分阶段日志、基线日志、T4证据目录），记录真实结果与债务边界。环境：Windows x86_64 MSVC、rustc 1.99.0、cargo 1.99.0、RTX 4070 Ti SUPER、驱动 596.36、设备显存 16376 MiB、CUDA 12.8.1 工具链、MuJoCo 3.12.0 包；本轮未采样峰值显存。三层定向回归 debug 与 release 各 17 组命令全部 0 失败：layer_render_layout 6、layer_data 宿主10+设备1、layer_io 宿主4+设备3、launcher_frozen 4、launcher_async 宿主11+设备1、launcher_graph 宿主10+设备1、launcher_abi 19、launcher_sync 5、launcher_cache 设备4、t4 gravity upstream kinematics/com/abi/product_chain 1/1/3/1。G01全量脚本（-AllFeatures -FullRegression）debug 与 release 各执行一次，均在 host-msvc 阶段中止（exit1，耗时 102744ms/65368ms），原因为既有 pinned lineage 用例失败（unexpected lineage change，债务W-D2）；脚本中止后按阶段手工补跑记录：g01 7过0败（2084状态/7704548标量）、native_g01 1过1败、resident 脚本在 wake-guards 中止、host-gnu 273过0败、rustdoc -D warnings 3处既有broken intra-doc links、git diff --check 通过、all-probes未执行。核心发现W-D1（P0）：M3唤醒安全包装的元数据校验（TendonWakeMetadata要求参数批次≥1、7+3*nt+nw布局、ntree>0）与打包睡眠元数据在零树/零批次等合法场景不一致，导致 native_g01 完整链 fwd_kinematics 唤醒阶段被拒（Input(InvalidTopology{sleep_copy_metadata, invalid_or_stale_metadata})）与 wake-guards 失败；基线归属：8f903c5（1551c59父提交）native_g01 2过，64b79b5（M3最终）起1过1败，证明由1551c59引入；本轮Windows任务只交付验收证据与文档（范围仅docs），不改src，需单独立任务修复。其余债务：W-D2 T4 pinned lineage漂移、W-D3 rustdoc链接、W-D4 重力位证书2bit既有口径、W-D5 PTX目录双语义、W-D6 G01脚本resident/all-probes计数同步。NP01/NP02保持未验收；NP03/NP04只记录适用性与未覆盖面；Windows结果不替代Linux。Linux V2（2026-10-18-layers-linux）需要 linux-gpu:0 与 linux-acceptance，本机无Linux环境，未启动并保持阻塞。"
+}
