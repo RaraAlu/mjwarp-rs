@@ -24,7 +24,7 @@ impl TendonVelocityView<'_, '_> {
         self.plan.source.check_data(self.source)?;
         let source = self.plan.source.tendon_velocity_source(self.source)?;
         Ok(TendonVelocityDeviceView {
-            metadata: &self.plan.metadata,
+            metadata: self.plan.metadata.as_buffer(),
             source,
             velocity: &self.data.current,
             worlds: self.data.worlds(),

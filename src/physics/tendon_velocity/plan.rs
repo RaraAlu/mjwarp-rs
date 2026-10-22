@@ -1,5 +1,9 @@
 //! 肌腱速度计划构造、写入与更新入口。
 
+#[cfg(feature = "cuda-probe")]
+use super::launcher_abi::TendonVelocityStaticDims;
+#[cfg(feature = "cuda-probe")]
+use super::launcher_meta::tendon_velocity_validate_launch_error;
 use super::*;
 
 impl<'p> TendonVelocityPlan<'p> {
@@ -40,9 +44,12 @@ impl<'p> TendonVelocityPlan<'p> {
                 "#define TV_NV {nv}\n#define TV_NT {}\n#define TV_NNZ {}\n#define TV_STRIDE {}\n{CUDA}",
                 s.nt, s.nnz, s.stride
             );
-            let metadata = session.upload(&s.meta)?;
-            let validate = SynchronousKernel::compile(&session, &code, "tendon_velocity_validate")?;
-            let compute = SynchronousKernel::compile(&session, &code, "tendon_velocity_compute")?;
+            let static_dims = TendonVelocityStaticDims::new(nv, s.nt, s.nnz, s.stride)
+                .map_err(tendon_velocity_validate_launch_error)?;
+            let metadata =
+                TendonVelocityMetadataBuffer::upload(&session, s.meta.clone(), static_dims)?;
+            let validate = TendonVelocityValidateKernel::compile(&session, &code)?;
+            let compute = TendonVelocityComputeKernel::compile(&session, &code)?;
             Ok(Self {
                 source,
                 spec: Arc::new(s),
@@ -107,18 +114,10 @@ impl<'p> TendonVelocityPlan<'p> {
                 .read_range_into(data.current.len() - 4, &mut g[4..])?;
             crate::physics::check_device_guards(&g)?;
             let w = data.worlds() as u32;
-            // SAFETY: 同计划拥有实际源。
-            // 静态元数据限定读取跨度。
+            // 类型包装核对证明、精确跨度、同会话、别名与256线程网格。
             // 验证先拒绝坏行列号。
-            unsafe {
-                self.validate.launch(
-                    &self.metadata,
-                    j,
-                    &data.qvel,
-                    &mut data.status,
-                    [0, 0, w, w],
-                )?;
-            }
+            self.validate
+                .launch(&self.metadata, j, &data.qvel, &mut data.status, w)?;
             let status = read(&data.status, data.worlds(), "tendon_velocity_status")?;
             if let Some(index) = status[4..4 + data.worlds()].iter().position(|&x| x != 1.0) {
                 return Err(InputError::InvalidTopology {
@@ -128,18 +127,9 @@ impl<'p> TendonVelocityPlan<'p> {
                 }
                 .into());
             }
-            // SAFETY: 每线程只写一项。
-            // 验证已覆盖源与全部索引。
-            // 源和目标持有同一会话。
-            unsafe {
-                self.compute.launch(
-                    &self.metadata,
-                    j,
-                    &data.qvel,
-                    &mut data.staged,
-                    [0, 0, w, w * self.spec.nt as u32],
-                )?;
-            }
+            // 类型包装核对证明、跨度、会话、别名与网格；每线程只写一项。
+            self.compute
+                .launch(&self.metadata, j, &data.qvel, &mut data.staged, w)?;
             read(
                 &data.staged,
                 data.output.total_elements(),

@@ -1,0 +1,106 @@
+{
+    "work": "work-01-tendon-velocity",
+    "summary": "tendon_velocity_validate 与 tendon_velocity_compute 改走类型包装",
+    "remove_low_level": [
+        { "file": "src/physics/tendon_velocity/plan.rs", "line": 114 },
+        { "file": "src/physics/tendon_velocity/plan.rs", "line": 135 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/tendon_velocity/kernels.rs",
+            "line": 73,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "tendon_velocity_validate"
+        },
+        {
+            "file": "src/physics/tendon_velocity/kernels.rs",
+            "line": 138,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "tendon_velocity_compute"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/tendon_velocity/plan.rs",
+            "line": 120,
+            "receiver": "self.validate",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        },
+        {
+            "file": "src/physics/tendon_velocity/plan.rs",
+            "line": 132,
+            "receiver": "self.compute",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/tendon_velocity/plan.rs",
+            "old_line": 44,
+            "new_file": "src/physics/tendon_velocity/kernels.rs",
+            "new_line": 29
+        },
+        {
+            "old_file": "src/physics/tendon_velocity/plan.rs",
+            "old_line": 45,
+            "new_file": "src/physics/tendon_velocity/kernels.rs",
+            "new_line": 93
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "tendon_velocity_validate",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/tendon_velocity/kernels.rs:29" ],
+            "kernel_abi_evidence": [
+                "TendonVelocityValidateSpec at src/physics/tendon_velocity/launcher_specs.rs:115"
+            ]
+        },
+        {
+            "entry": "tendon_velocity_compute",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/tendon_velocity/kernels.rs:93" ],
+            "kernel_abi_evidence": [
+                "TendonVelocityComputeSpec at src/physics/tendon_velocity/launcher_specs.rs:144"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "TendonVelocityValidateSpec",
+            "logical_name": "tendon_velocity_validate",
+            "definition": "src/physics/tendon_velocity/launcher_specs.rs:115",
+            "actual_cuda_entries": "tendon_velocity_validate",
+            "typed_low_level_calls": [ "src/physics/tendon_velocity/kernels.rs:73" ]
+        },
+        {
+            "type": "TendonVelocityComputeSpec",
+            "logical_name": "tendon_velocity_compute",
+            "definition": "src/physics/tendon_velocity/launcher_specs.rs:144",
+            "actual_cuda_entries": "tendon_velocity_compute",
+            "typed_low_level_calls": [ "src/physics/tendon_velocity/kernels.rs:138" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "rigid_com_position",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/com_position.rs:198" ],
+        "reason": "tendon_velocity 已完成；剩余 G01 探针入口优先，宿主侧校验简单"
+    },
+    "manual_cross_checks_add": [
+        "work-01: tendon_velocity 两个入口改走类型包装；raw 行 -2、typed 行 +2、编排行 +2、编译点移入 kernels.rs"
+    ],
+    "acceptance_boundary_set": {
+        "tendon_velocity_raw": false,
+        "tendon_velocity_migrated": true
+    }
+}

@@ -1,10 +1,22 @@
 //! 借用实际设备肌腱雅可比。
 //! 独占速度；不交付完整G02。
+#[cfg(feature = "cuda-probe")]
+use self::kernels::{TendonVelocityComputeKernel, TendonVelocityValidateKernel};
+#[cfg(feature = "cuda-probe")]
+use self::metadata_buffer::TendonVelocityMetadataBuffer;
 use super::{KinematicsData, KinematicsPlan};
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::{BatchLayout, TendonRows};
+#[cfg(all(feature = "cuda-probe", test))]
+use crate::runtime::launcher::DeviceSpan;
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
 use std::sync::Arc;
@@ -82,11 +94,11 @@ pub struct TendonVelocityPlan<'p> {
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: TendonVelocityMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
-    validate: SynchronousKernel,
+    validate: TendonVelocityValidateKernel,
     #[cfg(feature = "cuda-probe")]
-    compute: SynchronousKernel,
+    compute: TendonVelocityComputeKernel,
 }
 /// qvel不借用柔体边状态。
 pub struct TendonVelocityData {
@@ -134,6 +146,11 @@ impl TendonVelocitySnapshot {
 
 // 子模块：纯移动自原单文件，行为不变。
 mod data;
+mod kernels;
+mod launcher_abi;
+mod launcher_meta;
+mod launcher_specs;
+mod metadata_buffer;
 mod plan;
 #[cfg(test)]
 #[path = "tendon_velocity/tests/gpu_consumer.rs"]
@@ -153,6 +170,9 @@ mod tests_gpu_periods;
 #[cfg(test)]
 #[path = "tendon_velocity/tests/host.rs"]
 mod tests_host;
+#[cfg(test)]
+#[path = "tendon_velocity/tests/launcher.rs"]
+mod tests_launcher;
 #[cfg(test)]
 #[path = "tendon_velocity/tests/support.rs"]
 mod tests_support;

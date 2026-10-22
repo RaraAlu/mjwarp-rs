@@ -49,6 +49,21 @@ path = "src/physics/tendon_velocity/tests/gpu_disable.rs"
 [[source]]
 path = "src/physics/tendon_velocity/tests/gpu_periods.rs"
 
+[[source]]
+path = "src/physics/tendon_velocity/kernels.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/launcher_meta.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/launcher_specs.rs"
+
+[[source]]
+path = "src/physics/tendon_velocity/metadata_buffer.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::TendonVelocityPlan"

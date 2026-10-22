@@ -52,15 +52,17 @@ fn gpu_rejects_corrupted_connection_without_partial_publication() {
             faults += 1;
         }
     }
-    let m = plan.metadata.len();
+    let m = plan.metadata.len_for_test();
     for index in [0, 1, 2, 3, m - 4, m - 3, m - 2, m - 1, 4, 9, 14] {
         let before = bits(&raw(&data.current));
         let mut old = [0];
-        plan.metadata.read_range_into(index, &mut old).unwrap();
-        plan.metadata.write_range(index, &[i32::MAX]).unwrap();
+        plan.metadata.read_range_for_test(index, &mut old).unwrap();
+        plan.metadata
+            .write_range_for_test(index, &[i32::MAX])
+            .unwrap();
         assert!(plan.update(&source, &mut data).is_err());
         assert_eq!(before, bits(&raw(&data.current)));
-        plan.metadata.write_range(index, &old).unwrap();
+        plan.metadata.write_range_for_test(index, &old).unwrap();
         plan.update(&source, &mut data).unwrap();
         faults += 1;
     }
@@ -102,6 +104,11 @@ fn gpu_rejects_corrupted_connection_without_partial_publication() {
     plan.update(&source, &mut data).unwrap();
     faults += 1;
     assert_eq!(faults, 54);
+    // 元数据证明失效：设备写入先于发射被拒绝；恢复镜像后再次成功。
+    plan.metadata.overwrite_for_test(0, 1).unwrap();
+    assert!(plan.update(&source, &mut data).is_err());
+    plan.metadata.restore_for_test().unwrap();
+    plan.update(&source, &mut data).unwrap();
     println!(
         "tendon_velocity_private faults={faults} source_updates=1 no_partial_publication=true recovered=true"
     );

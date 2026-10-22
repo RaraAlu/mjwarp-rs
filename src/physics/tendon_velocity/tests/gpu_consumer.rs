@@ -113,7 +113,7 @@ fn gpu_connects_real_mixed_jacobian_to_owned_velocities() {
                 assert_eq!(historical_bits, bits(history.world(1).unwrap()));
             }
             capacity = capacity.max(
-                4 * (plan.metadata.len()
+                4 * (plan.metadata.as_buffer().len()
                     + data.qvel.len()
                     + data.current.len()
                     + data.staged.len()
