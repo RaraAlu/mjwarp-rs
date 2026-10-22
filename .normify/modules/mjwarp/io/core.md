@@ -2,7 +2,7 @@
 uid = "2ab8f906"
 id = "mjwarp.io.core"
 tags = ["planned", "engine"]
-fingerprint = "9c4c377c18d4fabfe79f9bf35ad6e2992f1122dec8e095e1d8aa4c932befb7ab"
+fingerprint = "c3d140805a54fca822e0a54f75a661b22bf467a812adbf479d8db072689a0e58"
 
 [name]
 zh = "原生准入与字段交换"
@@ -10,10 +10,10 @@ en = "Native admission and field exchange"
 
 [description]
 zh = """
-管理可信原生模型与快照。支持MSVC与Linux GNU。完整产品契约仍待完成。
+管理可信原生模型与快照，支持MSVC与Linux GNU。另提供数据交互层安全面：转调执行层上传、回读、视图与完成回执。完整产品契约仍待完成。
 """
 en = """
-Own trusted native models and snapshots on Windows MSVC and Linux GNU; full production IO contracts remain planned.
+Own trusted native models and snapshots on Windows MSVC and Linux GNU. Also provides the data-interaction safety surface forwarding execution-layer uploads, readbacks, views and completion receipts. Full production IO contracts remain planned.
 """
 
 [[source]]
@@ -33,6 +33,48 @@ path = "native/model_probe_collision.cpp"
 
 [[source]]
 path = "src/io/collision_parameters.rs"
+
+[[source]]
+path = "src/io/exchange.rs"
+
+[[source]]
+path = "tests/layer_io.rs"
+
+[[apis]]
+protocol = "rpc"
+path = "mjwarp_rs::io::DataExchange"
+
+[apis.description]
+zh = """
+已实现的数据交互层安全面：转调执行层上传、回读、模型导入导出、视图、局部世界更新与完成回执。
+"""
+en = """
+Implemented data-interaction safety surface: forwards execution-layer uploads, readbacks, model import/export, views, per-world updates and completion receipts.
+"""
+
+[[apis]]
+protocol = "rpc"
+path = "mjwarp_rs::io::WorldView"
+
+[apis.description]
+zh = """
+已实现的只读设备视图：生命周期绑定字段借用，读取经执行层同步接口完成。
+"""
+en = """
+Implemented read-only device view: lifetime bound to the field borrow; reads go through the execution-layer synchronous interface.
+"""
+
+[[apis]]
+protocol = "rpc"
+path = "mjwarp_rs::io::StateReceipt"
+
+[apis.description]
+zh = """
+已实现的完成回执：记录会话设备、可选世界与数据代际；执行层返回前已完成复制。
+"""
+en = """
+Implemented completion receipt: records device, optional world and data generation after the execution layer has completed the copy.
+"""
 
 [[apis]]
 protocol = "rpc"
@@ -331,3 +373,17 @@ G01快照独占78项读字段。
 
 
 2026-10-14补独立120字节目标DTO和13字段复制入口。旧78字段源与ABI保留；原生编译入口改扩展单元，旧完整构建验收不转授新二进制。保留原UID与planned。
+
+## 数据交互层安全面
+
+2026-10-22：I1接入数据交互层。
+DataExchange只持有执行层会话。
+上传、回读、模型导入导出与视图全部转调。
+局部世界写入返回完成回执。
+视图寿命绑定字段借用，编译期拒绝越过字段或重复写借用。
+数据交互层不发射内核。
+step与forward调度仍归计算物理层。
+IO只转调，不含应用或训练逻辑。
+完整put_model与reset流程仍待完成。
+
+证据：C:/Rust/mjwarp-rs/docs/development-evidence/changes/2026-10-18-layers-io.json。

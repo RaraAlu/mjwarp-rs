@@ -1,0 +1,16 @@
+{
+    "schema": 1,
+    "kind": "delivery",
+    "task_id": "2026-10-18-layers-io",
+    "milestones": {
+        "implementation": "partial",
+        "validation": "passed",
+        "delivery_record": "complete"
+    },
+    "files": [
+        {"path": "src/io/exchange.rs", "blob": "bb1a5bd514a1c851201aa065c75aecf308ba2f84"},
+        {"path": "src/io/mod.rs", "blob": "a5ec06f695dd301e9a9a70c2af89f9af1f89de1e"},
+        {"path": "tests/layer_io.rs", "blob": "628c09a272bdd3a00960a2271d6847cedc11a923"}
+    ],
+    "note": "I1 数据交互层接入：新增`src/io/exchange.rs`数据交互层安全面`DataExchange`，只持有执行层传输会话，不发射内核、不含`step`/`forward`调度、不含应用或训练逻辑。模型导入与回读：`import_kinematic`/`export_kinematic`与`import_inertial`/`export_inertial`转调既有`DeviceKinematicModel`/`DeviceInertialModel`执行层上传与回读，转换仍归数据交互层，签名不变。分配与状态交换：`upload`转调设备批量字段上传（失败不发布半成品），`read_back`经执行层同步接口整批回读。视图：`world_view`/`world_view_mut`返回只读/可写世界视图，生命周期显式绑定字段借用（编译期拒绝把视图放宽为`'static`、拒绝同一字段同时存在两个可写视图；两个compile_fail文档用例已通过），视图只经执行层同步接口读取或写入，不提供越过字段或整批重绑入口。局部世界更新：`write_world`、`copy_world_from`、`copy_world_within`先做宿主布局预检再转调执行层，成功返回`StateReceipt`完成回执（记录会话设备、可选世界与单调代际）；执行层同步接口在返回前已等待复制完成，回执供上层核对写入顺序，不替代物理有限值与守卫检查。错误传播：世界越界、长度不符、空区间、跨会话复制等错误原样返回，失败不产生部分写入也不推进代际。验证：`cargo check --locked`与`--features cuda-probe`通过；fmt通过；clippy --all-targets双配置`-D warnings`通过；`cargo test --doc`13项通过（含新增2项视图生命周期compile_fail）；`tests/layer_io.rs`宿主4项通过（世界区间与整批长度预检、空批次、宿主转换拒绝非有限/溢出/长度不符、公开类型）；GPU定向3项通过（RTX 4070 Ti SUPER，驱动596.36）：上传/回读位模式、只读与可写视图读写、完回执代际递增、同字段与世界间复制、跨会话复制拒绝且不产生部分写入、跨会话模型导入导出等价。统计证据：`src/io`无任何`launch`调用，`step`/`forward`仅出现在文档说明。未验收边界：I1不实现完整`put_model`/`put_data`/`get_data_into`/`reset_data`系列上游契约，不接管物理`step`/`forward`调度（仍归物理层），不新增应用或训练逻辑；上传与回读沿用执行层同步语义，未接入M5异步凭证（数据交互层不发射内核，故不引入提交凭证）；视图为世界粒度只读/可写借用，不提供跨世界整批视图或槽位重绑；未验证多线程并发交换、图捕获期间交换或双平台准入；GPU定向用例需NVIDIA驱动与工具链，未在本轮重复运行既有无变化的回归。"
+}

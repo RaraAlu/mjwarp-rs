@@ -28,6 +28,11 @@ pub use kinematic::DeviceKinematicModel;
 #[cfg(feature = "native-model-probe")]
 pub use kinematic::NativeKinematicSnapshot;
 
+mod exchange;
+pub use exchange::{
+    DataExchange, StateReceipt, WorldView, WorldViewMut, plan_field_elements, plan_world_range,
+};
+
 #[cfg(feature = "native-model-probe")]
 pub use native::{NativeCoreSnapshot, NativeModelProbe};
 
