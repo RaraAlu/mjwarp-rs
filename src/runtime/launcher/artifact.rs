@@ -23,7 +23,7 @@ use crate::runtime::transfer::kernel::check_physics_ptx;
 
 pub use cache::ArtifactCache;
 
-const KEY_SCHEMA: u32 = 1;
+const KEY_SCHEMA: u32 = 2;
 const FORMAT: &str = "mjwarp-launcher-artifact-v1";
 const MAX_TEXT_BYTES: usize = 8 << 20;
 const MAX_ARCHIVE_BYTES: u64 = 24 << 20;
@@ -48,6 +48,21 @@ fn valid_name(name: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.'))
 }
 
+/// 头文件相对路径：允许子目录，拒绝绝对路径、`..`、反斜杠与其他分隔符。
+fn valid_header_name(name: &str) -> bool {
+    if name.is_empty() || name.len() > 256 || name.contains('\0') || name.contains('\\') {
+        return false;
+    }
+    name.split('/').all(|segment| {
+        !segment.is_empty()
+            && segment != "."
+            && segment != ".."
+            && segment
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.' | b'+'))
+    })
+}
+
 fn valid_text(text: &str) -> bool {
     !text.is_empty() && text.len() <= MAX_TEXT_BYTES && !text.contains('\0')
 }
@@ -62,13 +77,21 @@ pub struct HeaderFile {
 impl HeaderFile {
     pub fn new(name: impl Into<String>, content: impl Into<String>) -> Result<Self, LauncherError> {
         let (name, content) = (name.into(), content.into());
-        if !valid_name(&name) {
+        if !valid_header_name(&name) {
             return Err(LauncherError::InvalidSource("头文件名非法"));
         }
         if !valid_text(&content) {
             return Err(LauncherError::InvalidSource("头文件内容为空、过大或含NUL"));
         }
         Ok(Self { name, content })
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn content(&self) -> &str {
+        &self.content
     }
 }
 
@@ -78,6 +101,8 @@ pub struct NvrtcSource {
     name: &'static str,
     source: Cow<'static, str>,
     headers: Vec<HeaderFile>,
+    include_paths: Vec<String>,
+    external_headers: Vec<HeaderDigest>,
 }
 
 impl NvrtcSource {
@@ -96,6 +121,8 @@ impl NvrtcSource {
             name,
             source,
             headers: Vec::new(),
+            include_paths: Vec::new(),
+            external_headers: Vec::new(),
         })
     }
 
@@ -107,12 +134,92 @@ impl NvrtcSource {
         Ok(self)
     }
 
+    /// 逐字节读取目录下的 `*.h`（递归，保留 `/` 相对路径）作为编译期头文件。
+    pub fn with_headers_from_dir(mut self, directory: &Path) -> Result<Self, LauncherError> {
+        fn walk(current: &Path, found: &mut Vec<PathBuf>) -> Result<(), LauncherError> {
+            let entries = std::fs::read_dir(current)
+                .map_err(|error| LauncherError::Compiler(format!("头文件目录：{error}")))?;
+            let mut paths = entries
+                .map(|entry| entry.map(|value| value.path()))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|error| LauncherError::Compiler(format!("头文件目录项：{error}")))?;
+            paths.sort();
+            for path in paths {
+                if path.is_dir() {
+                    walk(&path, found)?;
+                } else if path.extension().and_then(|value| value.to_str()) == Some("h") {
+                    found.push(path);
+                }
+            }
+            Ok(())
+        }
+        let mut files = Vec::new();
+        walk(directory, &mut files)?;
+        if files.is_empty() {
+            return Err(LauncherError::InvalidSource("头文件目录为空"));
+        }
+        for path in files {
+            let relative = path
+                .strip_prefix(directory)
+                .map_err(|_| LauncherError::InvalidSource("头文件路径越界"))?;
+            let name = relative
+                .to_str()
+                .ok_or(LauncherError::InvalidSource("头文件路径非UTF-8"))?
+                .replace('\\', "/");
+            let content = std::fs::read_to_string(&path)
+                .map_err(|error| LauncherError::Compiler(format!("头文件读取：{error}")))?;
+            self = self.with_header(HeaderFile::new(name, content)?)?;
+        }
+        Ok(self)
+    }
+
+    /// 外部 include 目录（如 CUDA SDK 头），只作编译选项并进入产物键。
+    pub fn with_include_path(mut self, path: impl Into<String>) -> Result<Self, LauncherError> {
+        let path = path.into();
+        if path.is_empty() || path.len() > 1024 || path.contains('\0') {
+            return Err(LauncherError::InvalidSource("include 路径非法"));
+        }
+        if !self.include_paths.contains(&path) {
+            self.include_paths.push(path);
+        }
+        Ok(self)
+    }
+
+    /// 固定一个外部头文件的摘要（内容不进内存树，由 include path 提供）。
+    pub fn with_external_header(mut self, path: &Path) -> Result<Self, LauncherError> {
+        let name = path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .ok_or(LauncherError::InvalidSource("外部头文件名非法"))?;
+        if !valid_header_name(name) {
+            return Err(LauncherError::InvalidSource("外部头文件名非法"));
+        }
+        if self.external_headers.iter().any(|h| h.name == name) {
+            return Err(LauncherError::InvalidSource("外部头文件重名"));
+        }
+        let bytes = std::fs::read(path)
+            .map_err(|error| LauncherError::Compiler(format!("外部头文件读取：{error}")))?;
+        self.external_headers.push(HeaderDigest {
+            name: name.to_owned(),
+            sha256: digest(&bytes),
+        });
+        Ok(self)
+    }
+
     pub fn name(&self) -> &'static str {
         self.name
     }
 
     pub fn source(&self) -> &str {
         &self.source
+    }
+
+    pub fn headers(&self) -> &[HeaderFile] {
+        &self.headers
+    }
+
+    pub fn include_paths(&self) -> &[String] {
+        &self.include_paths
     }
 }
 
@@ -131,6 +238,8 @@ pub struct ArtifactKey {
     program: String,
     source_sha256: String,
     headers: Vec<HeaderDigest>,
+    include_paths: Vec<String>,
+    external_headers: Vec<HeaderDigest>,
     recipe: String,
     arch: String,
     nvrtc: [i32; 2],
@@ -151,6 +260,8 @@ impl ArtifactKey {
                     sha256: digest(h.content.as_bytes()),
                 })
                 .collect(),
+            include_paths: source.include_paths.clone(),
+            external_headers: source.external_headers.clone(),
             recipe: recipe.fingerprint(),
             arch: recipe.arch().flag(),
             nvrtc: [nvrtc.0, nvrtc.1],
@@ -194,6 +305,8 @@ impl Artifact {
             program: frozen.name().to_owned(),
             source_sha256: frozen.sha256().to_owned(),
             headers: Vec::new(),
+            include_paths: Vec::new(),
+            external_headers: Vec::new(),
             recipe: "frozen-warp-1.15".to_owned(),
             arch: "frozen".to_owned(),
             nvrtc: [0, 0],

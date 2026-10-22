@@ -1,6 +1,5 @@
 //! 产物缓存单元测试。
 
-use super::nvrtc::nvrtc_compile;
 use super::*;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -100,14 +99,86 @@ fn rejects_invalid_sources_and_headers() {
     assert!(NvrtcSource::new("k", "").is_err());
     assert!(NvrtcSource::new("k", "a\0b").is_err());
     assert!(HeaderFile::new("../x.h", "a").is_err());
+    assert!(HeaderFile::new("/x.h", "a").is_err());
+    assert!(HeaderFile::new("a/../x.h", "a").is_err());
+    assert!(HeaderFile::new("a\\x.h", "a").is_err());
+    assert!(HeaderFile::new("a//x.h", "a").is_err());
     assert!(HeaderFile::new("x.h", "").is_err());
+    let nested = HeaderFile::new("nanovdb/PNanoVDB.h", "a").unwrap();
+    assert_eq!(nested.name(), "nanovdb/PNanoVDB.h");
+    assert_eq!(nested.content(), "a");
     let header = HeaderFile::new("x.h", "a").unwrap();
     let source = source("a").with_header(header.clone()).unwrap();
     assert!(source.clone().with_header(header).is_err());
-    assert!(matches!(
-        nvrtc_compile(&source, &CompileRecipe::WARP_1_15_DIAGNOSTIC),
-        Err(LauncherError::Unsupported(_))
-    ));
+    assert!(source.clone().with_include_path("").is_err());
+    assert!(source.with_include_path("a\0b").is_err());
+}
+
+#[test]
+fn headers_from_directory_are_sorted_and_keep_relative_paths() {
+    let directory = Temp::new();
+    let nested = directory.0.join("nanovdb");
+    fs::create_dir_all(&nested).unwrap();
+    fs::write(directory.0.join("b.h"), "b").unwrap();
+    fs::write(directory.0.join("a.h"), "a").unwrap();
+    fs::write(nested.join("c.h"), "c").unwrap();
+    fs::write(directory.0.join("ignored.cuh"), "x").unwrap();
+    let loaded = source("a").with_headers_from_dir(&directory.0).unwrap();
+    let names: Vec<_> = loaded.headers().iter().map(|h| h.name()).collect();
+    assert_eq!(names, vec!["a.h", "b.h", "nanovdb/c.h"]);
+    let empty = Temp::new();
+    assert!(source("a").with_headers_from_dir(&empty.0).is_err());
+}
+
+#[test]
+fn key_covers_include_paths_and_external_headers() {
+    let physics = CompileRecipe::WARP_1_15_PHYSICS;
+    let base = ArtifactKey::new(&source("a"), &physics, NVRTC);
+    let with_path = ArtifactKey::new(
+        &source("a").with_include_path("C:/cuda/include").unwrap(),
+        &physics,
+        NVRTC,
+    );
+    assert_ne!(base.sha256(), with_path.sha256());
+    let directory = Temp::new();
+    let external = directory.0.join("cuda_fp16.h");
+    fs::write(&external, "#pragma once").unwrap();
+    let with_external = ArtifactKey::new(
+        &source("a").with_external_header(&external).unwrap(),
+        &physics,
+        NVRTC,
+    );
+    assert_ne!(base.sha256(), with_external.sha256());
+    fs::write(&external, "#pragma once\n// changed").unwrap();
+    let changed = ArtifactKey::new(
+        &source("a").with_external_header(&external).unwrap(),
+        &physics,
+        NVRTC,
+    );
+    assert_ne!(with_external.sha256(), changed.sha256());
+    assert!(
+        source("a")
+            .with_external_header(&directory.0.join("missing.h"))
+            .is_err()
+    );
+}
+
+#[test]
+fn materializes_headers_without_mutating_sources() {
+    use super::nvrtc::{materialize_headers, remove_headers_dir};
+    let headers = [
+        HeaderFile::new("a.h", "alpha").unwrap(),
+        HeaderFile::new("nanovdb/PNanoVDB.h", "nabo").unwrap(),
+    ];
+    let directory = materialize_headers(&headers).unwrap();
+    assert_eq!(fs::read_to_string(directory.join("a.h")).unwrap(), "alpha");
+    assert_eq!(
+        fs::read_to_string(directory.join("nanovdb/PNanoVDB.h")).unwrap(),
+        "nabo"
+    );
+    assert_eq!(headers[0].content(), "alpha");
+    remove_headers_dir(&directory);
+    assert!(!directory.exists());
 }
 
 #[test]

@@ -317,3 +317,16 @@ CCCL另含开源许可通知。
 产品构建与运行不依赖CUPTI。
 捕获测试只加载模块，不启动内核。
 版本与回执见[机器码记录](docs/t4-field-internal.md#实际加载机器码与末项融合)。
+
+
+## Warp 头文件原样复制（W15）
+
+`include/warp-headers/` 逐字节复制上游 NVIDIA Warp 头文件。
+复制来源固定为 clone tag `v1.15.0`、提交 `ffa038b1adf3927a8e893d4536f1a7562f17d749`。
+上游项目：NVIDIA Warp（https://github.com/NVIDIA/warp）。
+上游许可：Apache License 2.0；许可原文见 `LICENSES/warp-1.15.0/LICENSE.md`。
+复制文件共 36 个，逐文件 SHA-256 与字节数见 `docs/development-evidence/w15-verbatim-headers/headers.json`。
+复制文件不改写、不转译，只作为内核编译期 include 树。
+CUDA SDK 头（`cuda_fp16.h` 等）不复制进仓，按本机 CUDA 12.8.1 工具链固定。
+`cuda_fp16.h` 摘要与 include 路径进入编译产物键。
+本说明不选择项目总许可，只登记分发义务与来源。
