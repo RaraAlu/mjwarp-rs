@@ -283,12 +283,6 @@ pub(in crate::physics) fn kinematics_device(
 }
 
 #[cfg(feature = "cuda-probe")]
-pub(in crate::physics) struct DeviceModel {
-    pub(in crate::physics) metadata: crate::runtime::TransferBuffer<i32>,
-    pub(in crate::physics) parameters: crate::runtime::TransferBuffer<f32>,
-}
-
-#[cfg(feature = "cuda-probe")]
 pub(in crate::physics) fn upload_kinematics_model(
     session: &TransferSession,
     model: &InertialModelInput,

@@ -1,0 +1,104 @@
+{
+    "work": "work-18-resident-flex-hessian",
+    "summary": "常驻柔体Hessian缓存与发布改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/resident/plan_update_flex.rs", "line": 131 },
+        { "file": "src/physics/resident/plan_update_flex.rs", "line": 139 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/resident/flex_hessian_launcher_specs.rs",
+            "line": 222,
+            "receiver": "self.kernel",
+            "method": "launch_flex_hessian",
+            "classification": "typed_wrapper_low_level",
+            "entry": "flex_hessian"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/resident/plan_update_flex.rs",
+            "line": 111,
+            "receiver": "device.kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": "flex_hessian"
+        },
+        {
+            "file": "src/physics/resident/plan_update_flex.rs",
+            "line": 122,
+            "receiver": "device.validate_kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": "flex_hessian_validate"
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 426,
+            "new_file": "src/physics/resident/flex_hessian_launcher_specs.rs",
+            "new_line": 169
+        },
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 431,
+            "new_file": "src/physics/resident/flex_hessian_launcher_specs.rs",
+            "new_line": 249
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "flex_hessian",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/flex_hessian_launcher_specs.rs:169" ],
+            "kernel_abi_evidence": [
+                "FlexHessianSpec at src/physics/resident/flex_hessian_launcher_specs.rs:33",
+                "six-buffer launch at src/physics/resident/flex_hessian_launcher_specs.rs:222"
+            ]
+        },
+        {
+            "entry": "flex_hessian_validate",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/flex_hessian_launcher_specs.rs:249" ],
+            "kernel_abi_evidence": [
+                "FlexHessianValidateSpec at src/physics/resident/flex_hessian_launcher_specs.rs:68",
+                "shared four-buffer launch at src/physics/resident/field_batch.rs:205"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "FlexHessianSpec",
+            "logical_name": "flex_hessian",
+            "definition": "src/physics/resident/flex_hessian_launcher_specs.rs:33",
+            "actual_cuda_entries": "flex_hessian",
+            "typed_low_level_calls": [ "src/physics/resident/flex_hessian_launcher_specs.rs:222" ]
+        },
+        {
+            "type": "FlexHessianValidateSpec",
+            "logical_name": "flex_hessian_validate",
+            "definition": "src/physics/resident/flex_hessian_launcher_specs.rs:68",
+            "actual_cuda_entries": "flex_hessian_validate",
+            "typed_low_level_calls": [ "src/physics/resident/field_batch.rs:205" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "tendon_passive_validate",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/tendon_passive/plan.rs:51" ],
+        "reason": "柔体六项已收口；进入最后六家族（tendon_passive/flex_edge_passive/joint_passive/passive_force/fluid_force/sparse_solve）"
+    },
+    "manual_cross_checks_add": [
+        "work-18: 常驻柔体Hessian缓存与发布改走类型化包装；raw 行 -2、typed 行 +1、编排行 +2",
+        "work-18: Hessian证明校验头、偏移表、每柔体区间与单元/边/21系数区间；未激活柔体只清零对角与块，其维度与地址可为占位值",
+        "work-18: 删除迁移后不再使用的 PackedModel::upload 与 DeviceModel 内部类型，避免死代码；stretch 测试用包装 from_kernel 构造替换外来内核，断言不变",
+        "work-18: plan_subsets 行数保持<500；Hessian设备构造抽到 build_flex_hessian，跨度由字段自身推导"
+    ],
+    "acceptance_boundary_set": {
+        "resident_flex_hessian_migrated": true,
+        "flex_hessian_raw": false,
+        "flex_hessian_validate_raw": false
+    }
+}

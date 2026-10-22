@@ -189,6 +189,15 @@ path = "src/physics/resident/flex_faces_launcher.rs"
 [[source]]
 path = "src/physics/resident/tests/launcher_flex_surfaces.rs"
 
+[[source]]
+path = "src/physics/resident/flex_hessian_launcher.rs"
+
+[[source]]
+path = "src/physics/resident/flex_hessian_launcher_specs.rs"
+
+[[source]]
+path = "src/physics/resident/tests/launcher_flex_hessian.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::KinematicsPlan"

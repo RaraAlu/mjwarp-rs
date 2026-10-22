@@ -329,16 +329,3 @@ pub(super) fn pack_camlight(
         parameters: values,
     })
 }
-
-#[cfg(feature = "cuda-probe")]
-impl PackedModel {
-    pub(super) fn upload(
-        self,
-        session: &TransferSession,
-    ) -> Result<crate::physics::DeviceModel, TransferError> {
-        Ok(crate::physics::DeviceModel {
-            metadata: session.upload(&self.metadata)?,
-            parameters: session.upload(&self.parameters)?,
-        })
-    }
-}

@@ -106,27 +106,26 @@ impl KinematicsPlan {
         #[cfg(feature = "cuda-probe")]
         {
             if let (Some(device), Some(output)) = (&self.hessian, &mut data.hessian) {
-                // SAFETY: Validated elements, edge pairs and 21-value ranges
-                // bound all accesses. Checked node offsets select vertices.
-                // Buffers share one session and disjoint guarded allocations.
-                // Synchronization finishes blocks before publishing valid flags.
-                unsafe {
-                    device.kernel.launch_flex_hessian(
-                        (&device.model.metadata, &device.model.parameters),
+                let worlds = data.layout.qpos.worlds() as u32;
+                // 类型化包装核对证明、精确跨度、同会话与别名。
+                device.kernel.launch(
+                    &device.metadata,
+                    &device.parameters,
+                    (
                         data.flex.as_ref().expect("checked flex positions"),
                         &data.edges.as_ref().expect("checked flex edges").values,
-                        data.flex_validity.as_ref().expect("checked flex validity"),
-                        output,
-                        data.layout.qpos.worlds() as u32,
-                    )?;
-                    device.validate_kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
-                        output,
-                        data.flex_validity.as_mut().expect("checked flex validity"),
-                        [0, 0, 0, data.layout.qpos.worlds() as u32],
-                    )?;
-                }
+                    ),
+                    data.flex_validity.as_ref().expect("checked flex validity"),
+                    output,
+                    worlds,
+                )?;
+                device.validate_kernel.launch(
+                    &device.metadata,
+                    &device.parameters,
+                    output,
+                    data.flex_validity.as_mut().expect("checked flex validity"),
+                    worlds,
+                )?;
             }
             data.ready.hessian = true;
             Ok(())

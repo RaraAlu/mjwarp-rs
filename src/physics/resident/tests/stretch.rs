@@ -164,12 +164,23 @@ fn stretch_hessian_rejects_guards_nonfinite_and_late_publish_failure() {
         )
         .unwrap();
         let device = plan.hessian.as_mut().unwrap();
-        let slot = if publish {
-            &mut device.validate_kernel
+        let (original_validate, original) = if publish {
+            (
+                Some(std::mem::replace(
+                    &mut device.validate_kernel,
+                    FlexHessianValidateKernel::from_kernel(replacement),
+                )),
+                None,
+            )
         } else {
-            &mut device.kernel
+            (
+                None,
+                Some(std::mem::replace(
+                    &mut device.kernel,
+                    FlexHessianKernel::from_kernel(replacement),
+                )),
+            )
         };
-        let original = std::mem::replace(slot, replacement);
         assert_eq!(
             plan.update_flex_hessian(&mut data),
             Err(TransferError::SessionMismatch)
@@ -182,11 +193,12 @@ fn stretch_hessian_rejects_guards_nonfinite_and_late_publish_failure() {
                 .all(|&v| !v)
         );
         let device = plan.hessian.as_mut().unwrap();
-        *if publish {
-            &mut device.validate_kernel
-        } else {
-            &mut device.kernel
-        } = original;
+        if let Some(original) = original_validate {
+            device.validate_kernel = original;
+        }
+        if let Some(original) = original {
+            device.kernel = original;
+        }
         plan.update_flex_hessian(&mut data).unwrap();
         data.readback().unwrap();
     }

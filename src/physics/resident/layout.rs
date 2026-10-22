@@ -19,9 +19,10 @@ pub(super) struct DeviceFlexPositions {
 
 #[cfg(feature = "cuda-probe")]
 pub(super) struct DeviceFlexHessian {
-    pub(super) model: crate::physics::DeviceModel,
-    pub(super) kernel: SynchronousKernel,
-    pub(super) validate_kernel: SynchronousKernel,
+    pub(super) metadata: FlexHessianMetadataBuffer,
+    pub(super) parameters: TransferBuffer<f32>,
+    pub(super) kernel: FlexHessianKernel,
+    pub(super) validate_kernel: FlexHessianValidateKernel,
 }
 
 #[cfg(feature = "cuda-probe")]

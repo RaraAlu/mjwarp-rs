@@ -12,8 +12,6 @@ use super::camlight_launcher::ResidentCamLightKernel;
 use super::camlight_launcher::camlight_launch_error;
 #[cfg(feature = "cuda-probe")]
 use super::field_batch::FieldMetadataBuffer;
-#[cfg(feature = "cuda-probe")]
-#[cfg(feature = "cuda-probe")]
 use super::flex_edges_launcher::FlexEdgesDims;
 #[cfg(feature = "cuda-probe")]
 use super::flex_edges_launcher::FlexEdgesKernel;
@@ -37,6 +35,24 @@ use super::flex_faces_launcher::FlexFacesMetadataBuffer;
 use super::flex_faces_launcher::FlexFacesStaticDims;
 #[cfg(feature = "cuda-probe")]
 use super::flex_faces_launcher::flex_faces_launch_error;
+#[cfg(feature = "cuda-probe")]
+#[cfg(feature = "cuda-probe")]
+#[cfg(feature = "cuda-probe")]
+use super::flex_hessian_launcher::FlexHessianDims;
+#[cfg(feature = "cuda-probe")]
+use super::flex_hessian_launcher::FlexHessianDimsInput;
+#[cfg(feature = "cuda-probe")]
+use super::flex_hessian_launcher::FlexHessianStaticDims;
+#[cfg(feature = "cuda-probe")]
+use super::flex_hessian_launcher_specs::FlexHessianKernel;
+#[cfg(feature = "cuda-probe")]
+use super::flex_hessian_launcher_specs::FlexHessianMetadata;
+#[cfg(feature = "cuda-probe")]
+use super::flex_hessian_launcher_specs::FlexHessianMetadataBuffer;
+#[cfg(feature = "cuda-probe")]
+use super::flex_hessian_launcher_specs::FlexHessianValidateKernel;
+#[cfg(feature = "cuda-probe")]
+use super::flex_hessian_launcher_specs::flex_hessian_launch_error;
 #[cfg(feature = "cuda-probe")]
 use super::flex_positions_launcher::FlexDims;
 #[cfg(feature = "cuda-probe")]
@@ -372,4 +388,79 @@ pub(super) fn upload_flex_faces(
         flex_faces_launch_error,
     )?;
     Ok((metadata, parameters, FlexFacesKernel::compile(session)?))
+}
+/// 上传柔体Hessian元数据、系数并编译缓存与发布内核。
+#[cfg(feature = "cuda-probe")]
+pub(super) fn upload_flex_hessian(
+    session: &TransferSession,
+    packed: PackedModel,
+    flex: &FlexPositionFields,
+    edges: &FlexEdgeFields,
+) -> Result<
+    (
+        FlexHessianMetadataBuffer,
+        TransferBuffer<f32>,
+        FlexHessianKernel,
+        FlexHessianValidateKernel,
+    ),
+    TransferError,
+> {
+    let ne = edges.nflexedge();
+    let pos_stride = 3 * flex.flex_nodebodyid.len() + 3 * flex.flex_vertbodyid.len();
+    let edge_stride = 2 * ne + edges.nnz();
+    let static_dims = FlexHessianStaticDims::new(FlexHessianDimsInput {
+        nf: flex.flex_interp.len(),
+        nv: flex.flex_vertbodyid.len(),
+        nn: flex.flex_nodebodyid.len(),
+        ne,
+        pos_stride,
+        edge_stride,
+        parameters_len: packed.parameters.len(),
+        metadata_elements: packed.metadata.len(),
+    })
+    .map_err(flex_hessian_launch_error)?;
+    let dims = FlexHessianDims {
+        static_dims,
+        worlds: 1,
+    };
+    let (metadata, parameters) = FieldMetadataBuffer::<FlexHessianMetadata>::from_packed(
+        session,
+        packed,
+        dims,
+        flex_hessian_launch_error,
+    )?;
+    Ok((
+        metadata,
+        parameters,
+        FlexHessianKernel::compile(session)?,
+        FlexHessianValidateKernel::compile(session)?,
+    ))
+}
+/// 构造柔体Hessian设备子集；布局为空时返回None。
+#[cfg(feature = "cuda-probe")]
+pub(super) fn build_flex_hessian(
+    session: &TransferSession,
+    layout: Option<FlexHessianLayout>,
+    packed: Option<PackedModel>,
+    flex: Option<&FlexPositionFields>,
+    edges: Option<&FlexEdgeFields>,
+) -> Result<Option<DeviceFlexHessian>, TransferError> {
+    let Some(packed) = packed else {
+        return Ok(None);
+    };
+    if layout.is_none_or(|l| l.output.elements_per_world() == 0) {
+        return Ok(None);
+    }
+    let (metadata, parameters, kernel, validate_kernel) = upload_flex_hessian(
+        session,
+        packed,
+        flex.expect("checked flex fields"),
+        edges.expect("checked edge fields"),
+    )?;
+    Ok(Some(DeviceFlexHessian {
+        metadata,
+        parameters,
+        kernel,
+        validate_kernel,
+    }))
 }

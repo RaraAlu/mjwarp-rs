@@ -443,23 +443,13 @@ impl KinematicsPlan {
             } else {
                 None
             };
-            let hessian = if hessian_layout.is_some_and(|l| l.output.elements_per_world() != 0) {
-                Some(DeviceFlexHessian {
-                    model: hessian.expect("checked hessian fields").upload(session)?,
-                    kernel: SynchronousKernel::compile(
-                        session,
-                        crate::physics::flex_hessian::FLEX_HESSIAN_CUDA,
-                        "flex_hessian",
-                    )?,
-                    validate_kernel: SynchronousKernel::compile(
-                        session,
-                        crate::physics::flex_hessian::FLEX_HESSIAN_CUDA,
-                        "flex_hessian_validate",
-                    )?,
-                })
-            } else {
-                None
-            };
+            let hessian = build_flex_hessian(
+                session,
+                hessian_layout,
+                hessian,
+                flex_fields.as_ref(),
+                edge_fields.as_ref(),
+            )?;
             Ok(Self {
                 equivalent,
                 model: Arc::new(model),
