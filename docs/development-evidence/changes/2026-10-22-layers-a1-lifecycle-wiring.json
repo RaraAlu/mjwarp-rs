@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-layers-a1-lifecycle-wiring",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "src/model/data/versions.rs", "blob": "5531899326e80341347cdbf7dded439f2d441a8a"},
+    {"path": "src/model/data/lifecycle.rs", "blob": "b6a52d2f913356191b36e8f2fd3c6778c43e293d"},
+    {"path": "src/model/data/mod.rs", "blob": "a16c685ee02fd5c1f9708101b30b6df4cec11338"},
+    {"path": "src/physics/resident/data.rs", "blob": "ad5064bd10883dc0401c71065a37d8e59b100e24"},
+    {"path": "src/physics/resident/snapshot.rs", "blob": "3bacae93547a48b38f50639c00c4cfc3a2115296"},
+    {"path": "src/physics/resident.rs", "blob": "9b42c0bc24aa16f654d464e24937af1ae993b69e"},
+    {"path": "src/physics/resident/tests/reads.rs", "blob": "a83e3dbddaf766ef618e7e61fb427d01d1ea0008"},
+    {"path": "tests/layer_data.rs", "blob": "853be4769b8c3ab0d5a0184be88bb3b9c600375c"},
+    {"path": "docs/module-contracts.md", "blob": "b95df5866490a4f6bb6937722d7a8c4478e0b5d7"},
+    {"path": "docs/development-evidence/layers-a1-lifecycle/README.md", "blob": "f2ef6e6d6bb1158228be3e8dbad0190715cb6cff"},
+    {"path": "docs/development-evidence/layers-a1-lifecycle/resident-report.json", "blob": "703adc806dc5cb359e6ce4c36fd47f5664da9ca2"}
+  ],
+  "note": "A1生命周期代际接线（U038共享椭球同代可核的前置）。新增src/model/data/versions.rs：StateField（Qpos/Qvel/Mocap/Sleep）与StateFieldVersions只读快照，字段版本递增与溢出拒绝；DataLifecycle增加field_versions与record_state_write（先校验state_version与字段版本两个计数器再一次写入，失败不递增）、state_field_versions、record_metadata_write（增metadata_generation的语义入口，旧代际check_metadata_generation返回StaleMetadata）。resident接线：write_checked_qpos→Qpos、write_checked_qvel→Qvel、write_checked_mocap→Mocap、write_world_sleep→Sleep，均在设备写入成功后递增；失败路径（长度不符、非有限值、维度错误、特性未启用）在计数器变动前返回。KinematicsData新增只读访问器state_version/state_field_versions/metadata_generation（data_identity已有），全部&self，不新增可变借用；ReadyStages派生就绪语义不变。data.rs把KinematicsSnapshot访问器移入新resident/snapshot.rs以保持<500行；新文件均<500并登记到mjwarp.model.data.lifecycle与mjwarp.physics.resident。元数据边界：常驻元数据缓冲在计划构造期上传、运行期不可改写（grep产品路径无运行时metadata写入），故resident运行期metadata_generation保持构造代际，该不变量写入生命周期契约、模块说明与doc注释；不伪造运行期递增。身份不可变，跨身份/跨会话拒绝语义不变。验证：fmt 1159ms、clippy 3225ms、clippy-cuda 8517ms全过；unit 398过0败（16449ms）；新增GPU定向lifecycle_generations_advance_only_on_successful_state_writes 1过0败（1.20s，RTX 4070 Ti SUPER/596.36，rustc 1.99.0）；scripts/test-windows-resident-kinematics.ps1 -AllFeatures退出码0，全部子项通过，共享参考对比1245世界最大绝对误差7.99e-6（容差2e-5），参数对比3102世界最大绝对误差1.144e-5，报告docs/development-evidence/layers-a1-lifecycle/resident-report.json（原始目录target/resident-kinematics/3dc0561e3f924a96ade20141e28e5b18）。未验收边界：本任务只提供来源代际与只读访问器，关节/肌腱记录来源版本、passive_force同代拒绝与故障恢复在下游2026-10-22-next-u038-shared-2实现；不改原生ABI/内核字符串/PTX/容差/fixtures/Cargo依赖，NP01–NP04状态不变；resident产品源码变化使T4固定源码身份过期，须由2026-10-22-t4-source-hash-repin-4重钉后才宣称矩阵全绿；未重跑Linux验收。"
+}

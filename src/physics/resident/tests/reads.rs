@@ -344,3 +344,57 @@ fn spatial_tendon_readback_rejects_overflow_and_recovers_from_coincident_sites()
     assert_eq!(row.ten_length, &[3.0]);
     assert_eq!(row.ten_jacobian, &[1.0]);
 }
+
+#[cfg(feature = "cuda-probe")]
+#[test]
+#[ignore = "需要NVIDIA驱动与NVRTC"]
+fn lifecycle_generations_advance_only_on_successful_state_writes() {
+    let session = TransferSession::new(0).unwrap();
+    let plan = flex_hessian_plan(&session);
+    let mut data = plan.create_data(2).unwrap();
+    let identity = data.data_identity();
+    assert_eq!(data.state_version(), 0);
+    assert_eq!(data.state_field_versions(), StateFieldVersions::default());
+    assert_eq!(data.metadata_generation(), 0);
+
+    // 失败写入不得递增任何代际。
+    assert!(data.write_qpos(&[]).is_err());
+    assert!(data.write_qvel(&[]).is_err());
+    assert_eq!(data.state_version(), 0);
+    assert_eq!(data.state_field_versions(), StateFieldVersions::default());
+
+    let nq = data.layout.qpos.elements_per_world();
+    let qpos = data.state_values_for_test().unwrap()[..2 * nq].to_vec();
+    data.write_qpos(&qpos).unwrap();
+    assert_eq!(data.state_version(), 1);
+    assert_eq!(data.state_field_versions().qpos(), 1);
+    data.write_world_qpos(1, &qpos[nq..]).unwrap();
+    assert_eq!(data.state_version(), 2);
+    assert_eq!(data.state_field_versions().qpos(), 2);
+
+    let nv = data.layout.edges.unwrap().qvel.elements_per_world();
+    data.write_qvel(&vec![0.0; 2 * nv]).unwrap();
+    assert_eq!(data.state_version(), 3);
+    assert_eq!(data.state_field_versions().qvel(), 1);
+    data.write_world_qvel(0, &vec![0.0; nv]).unwrap();
+    assert_eq!(data.state_version(), 4);
+    assert_eq!(data.state_field_versions().qvel(), 2);
+
+    // 无mocap模型的零长写入仍是合法状态写。
+    data.write_mocap(&[], &[]).unwrap();
+    assert_eq!(data.state_version(), 5);
+    assert_eq!(data.state_field_versions().mocap(), 1);
+
+    let sleep = SleepTreeState {
+        tree_asleep: vec![0],
+        nbody_awake: 1,
+        nv_awake: 0,
+    };
+    data.write_world_sleep(0, &sleep).unwrap();
+    assert_eq!(data.state_version(), 6);
+    assert_eq!(data.state_field_versions().sleep(), 1);
+
+    // 元数据缓冲构造后不可改写，运行期保持构造代际；身份不变。
+    assert_eq!(data.metadata_generation(), 0);
+    assert_eq!(data.data_identity(), identity);
+}

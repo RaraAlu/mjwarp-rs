@@ -7,7 +7,7 @@ use mjwarp_rs::model::BatchLayout;
 use mjwarp_rs::model::data::{
     DataIdentity, DataLifecycle, DeviceBatch as DataDeviceBatch, DeviceDataLayout, DeviceModelData,
     FieldBatch, GUARD_SLOTS, LayoutIdentity, MetadataProofOwner, MetadataProofRevision,
-    ModelIdentity, SessionBinding, WorldBatch,
+    ModelIdentity, SessionBinding, StateField, StateFieldVersions, WorldBatch,
 };
 use std::sync::Arc;
 
@@ -144,6 +144,28 @@ fn lifecycle_invalidates_derived_results_and_proofs() {
     assert_eq!(data.metadata_generation(), 1);
     data.check_metadata_generation(1).unwrap();
     assert!(data.check_metadata_generation(0).is_err());
+}
+
+#[test]
+fn tagged_state_versions_are_reported_per_field() {
+    let mut data = DataLifecycle::new(MockSession { device: 0, id: 3 }, identity());
+    assert_eq!(data.state_field_versions(), StateFieldVersions::default());
+    assert_eq!(data.record_state_write(StateField::Qpos).unwrap(), 1);
+    assert_eq!(data.record_state_write(StateField::Qpos).unwrap(), 2);
+    assert_eq!(data.record_state_write(StateField::Qvel).unwrap(), 3);
+    assert_eq!(data.record_state_write(StateField::Mocap).unwrap(), 4);
+    assert_eq!(data.record_state_write(StateField::Sleep).unwrap(), 5);
+    let versions = data.state_field_versions();
+    assert_eq!(versions.qpos(), 2);
+    assert_eq!(versions.get(StateField::Qvel), 1);
+    assert_eq!(versions.mocap(), 1);
+    assert_eq!(versions.sleep(), 1);
+    assert_eq!(data.state_version(), 5);
+    assert!(!data.derived_fresh());
+    assert_eq!(data.record_metadata_write().unwrap(), 1);
+    assert_eq!(data.metadata_generation(), 1);
+    assert!(data.check_metadata_generation(0).is_err());
+    data.check_metadata_generation(1).unwrap();
 }
 
 #[test]

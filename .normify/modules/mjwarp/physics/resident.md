@@ -1,7 +1,7 @@
 +++
 uid = "b1ed0f18"
 id = "mjwarp.physics.resident"
-fingerprint = "017681d66a354a914fafca7932401b500791556037346c1cb632d9c616904531"
+fingerprint = "7fc596c64c44af4699320a0ed1a283c876a80a9cf744c188bac30cc677b93a22"
 
 [name]
 zh = "常驻运动学与G01"
@@ -197,6 +197,9 @@ path = "src/physics/resident/flex_hessian_launcher_specs.rs"
 
 [[source]]
 path = "src/physics/resident/tests/launcher_flex_hessian.rs"
+
+[[source]]
+path = "src/physics/resident/snapshot.rs"
 
 [[apis]]
 protocol = "rpc"

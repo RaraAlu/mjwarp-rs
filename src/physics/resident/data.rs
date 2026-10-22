@@ -19,6 +19,23 @@ impl KinematicsData {
         &self.lifecycle
     }
 
+    /// A1：状态写入代际；每次成功状态写入加一。
+    pub fn state_version(&self) -> u64 {
+        self.lifecycle.state_version()
+    }
+
+    /// A1：各状态字段的只读写入版本。
+    /// 下游模块据此记录来源版本并核对同代。
+    pub fn state_field_versions(&self) -> StateFieldVersions {
+        self.lifecycle.state_field_versions()
+    }
+
+    /// A1：元数据写入代际。
+    /// 常驻元数据缓冲在计划构造期上传，运行期不可改写。
+    pub fn metadata_generation(&self) -> u64 {
+        self.lifecycle.metadata_generation()
+    }
+
     #[cfg(all(test, feature = "cuda-probe"))]
     pub(in crate::physics) fn tendon_velocity_source_for_test(
         &mut self,
@@ -112,11 +129,15 @@ impl KinematicsData {
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
         #[cfg(feature = "cuda-probe")]
-        self.edges
-            .as_mut()
-            .expect("checked edge state")
-            .qvel
-            .write_range(4 + offset, qvel)
+        {
+            self.edges
+                .as_mut()
+                .expect("checked edge state")
+                .qvel
+                .write_range(4 + offset, qvel)?;
+            self.lifecycle.record_state_write(StateField::Qvel)?;
+            Ok(())
+        }
     }
     /// 检查全部状态后写入一个世界。
     /// 它只废弃树副作用结果。
@@ -142,6 +163,7 @@ impl KinematicsData {
                 .state
                 .write_range(4 + range.start, &state.packed())?;
             self.ready.sleep = false;
+            self.lifecycle.record_state_write(StateField::Sleep)?;
             Ok(())
         }
     }
@@ -193,7 +215,11 @@ impl KinematicsData {
             Err(ProbeError::FeatureDisabled("cuda-probe").into())
         }
         #[cfg(feature = "cuda-probe")]
-        self.state.write_range(offset, qpos)
+        {
+            self.state.write_range(offset, qpos)?;
+            self.lifecycle.record_state_write(StateField::Qpos)?;
+            Ok(())
+        }
     }
 
     pub fn nmocap(&self) -> usize {
@@ -247,7 +273,9 @@ impl KinematicsData {
             let start = self.layout.qpos.total_elements();
             self.state.write_range(start + p, pos)?;
             self.state
-                .write_range(start + self.layout.mocap_pos.total_elements() + q, quat)
+                .write_range(start + self.layout.mocap_pos.total_elements() + q, quat)?;
+            self.lifecycle.record_state_write(StateField::Mocap)?;
+            Ok(())
         }
     }
 
@@ -444,50 +472,5 @@ impl KinematicsData {
                 tendon,
             })
         }
-    }
-}
-
-impl KinematicsSnapshot {
-    /// 显式计算完成才提供矩阵。
-    /// 位置刷新后返回None。
-    pub fn flex_hessian(&self) -> Option<&FlexHessianOutput> {
-        self.hessian.as_ref()
-    }
-    pub fn flex_faces(&self) -> Option<&FlexFaceOutput> {
-        self.faces.as_ref()
-    }
-    pub fn flex_edges(&self) -> Option<&FlexEdgeOutput> {
-        self.edges.as_ref()
-    }
-    pub fn sleep_trees(&self) -> Option<&SleepTreeOutput> {
-        self.sleep.as_ref()
-    }
-    /// 柔体入口提供位置结果。
-    /// 旧入口返回None。
-    pub fn flex_positions(&self) -> Option<&FlexPositionOutput> {
-        self.flex.as_ref()
-    }
-    /// 混合入口提供全局结果。
-    /// 旧局部入口返回None。
-    pub fn tendon(&self) -> Option<&TendonOutput> {
-        self.tendon.as_ref()
-    }
-    pub fn spatial_tendon(&self) -> &SpatialTendonOutput {
-        &self.spatial_tendon
-    }
-    pub fn fixed_tendon(&self) -> &FixedTendonOutput {
-        &self.fixed_tendon
-    }
-    pub fn camlight(&self) -> &CamLightOutput {
-        &self.camlight
-    }
-    pub fn rigid(&self) -> &KinematicsOutput {
-        self.attached.rigid()
-    }
-    pub fn attached(&self) -> &AttachedKinematicsOutput {
-        &self.attached
-    }
-    pub fn com(&self) -> &ComPositionOutput {
-        &self.com
     }
 }

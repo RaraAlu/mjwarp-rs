@@ -79,6 +79,7 @@ mod public;
 #[cfg(feature = "cuda-probe")]
 mod rigid_upload;
 mod sleep_copy;
+mod snapshot;
 #[cfg(feature = "cuda-probe")]
 #[path = "resident/spatial_tendon_launcher.rs"]
 mod spatial_tendon_launcher;
@@ -211,7 +212,9 @@ use super::{
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
-use crate::model::data::{DataIdentity, DataLifecycle, DeviceDataLayout};
+#[cfg(feature = "cuda-probe")]
+use crate::model::data::StateField;
+use crate::model::data::{DataIdentity, DataLifecycle, DeviceDataLayout, StateFieldVersions};
 #[cfg(feature = "cuda-probe")]
 use crate::model::data::{LayoutIdentity, ModelIdentity};
 use crate::model::sleep::TendonWakeInfo;

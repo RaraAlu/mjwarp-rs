@@ -1,10 +1,13 @@
 //! A1-1/A1-4/A1-5：设备数据生命周期、身份与证明所有权。
 //! 会话所有权、模型/布局身份分开记录。
+//! 每次成功的状态写入递增状态代际与对应字段版本。
 //! 状态写入使派生结果失效；元数据写入使证明代际失效。
+//! 身份不可变；跨身份或跨会话一律拒绝。
 //! 证明由统一发射器的`Checked`承担。
 
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::data::layout::DeviceDataLayout;
+use crate::model::data::versions::{StateField, StateFieldVersions};
 use crate::runtime::TransferSession;
 use crate::runtime::launcher::LauncherError;
 use std::sync::Arc;
@@ -128,6 +131,9 @@ impl DataIdentity {
 /// 阶段设备数据的生命周期记录。
 ///
 /// 只记录会话、身份与版本。
+/// 状态写入递增状态代际与字段版本，并使派生结果失效。
+/// 元数据写入递增证明代际，既有证明随即陈旧。
+/// 身份在构造期绑定且不可变。
 /// 不持有设备缓冲；缓冲随所属`Data`类型释放。
 /// 计划只借用`Data`，不取得所有权。
 #[derive(Clone, Debug)]
@@ -137,6 +143,7 @@ pub struct DataLifecycle<S: SessionBinding> {
     state_version: u64,
     derived_version: u64,
     metadata_generation: u64,
+    field_versions: StateFieldVersions,
 }
 
 impl<S: SessionBinding> DataLifecycle<S> {
@@ -147,6 +154,7 @@ impl<S: SessionBinding> DataLifecycle<S> {
             state_version: 0,
             derived_version: 0,
             metadata_generation: 0,
+            field_versions: StateFieldVersions::default(),
         }
     }
 
@@ -186,6 +194,28 @@ impl<S: SessionBinding> DataLifecycle<S> {
         Ok(self.state_version)
     }
 
+    /// 带字段标签的状态写入。
+    ///
+    /// 先校验两个计数器，再一次性递增。
+    /// 失败时状态代际与字段版本均不变。
+    pub fn record_state_write(&mut self, field: StateField) -> Result<u64, TransferError> {
+        let next_state = self
+            .state_version
+            .checked_add(1)
+            .ok_or(InputError::Overflow {
+                field: "state_version",
+            })?;
+        let next_field = self.field_versions.next(field)?;
+        self.state_version = next_state;
+        self.field_versions.set(field, next_field);
+        Ok(next_state)
+    }
+
+    /// 各状态字段的只读写入版本。
+    pub fn state_field_versions(&self) -> StateFieldVersions {
+        self.field_versions
+    }
+
     /// 派生结果发布后对齐状态版本。
     pub fn derived_published(&mut self) -> Result<u64, TransferError> {
         if !self.derived_fresh() {
@@ -203,6 +233,14 @@ impl<S: SessionBinding> DataLifecycle<S> {
                     field: "metadata_generation",
                 })?;
         Ok(self.metadata_generation)
+    }
+
+    /// 元数据写入的语义入口；与`metadata_written`等价。
+    ///
+    /// 数据级元数据缓冲写入后调用。
+    /// 调用方须先使设备写入完成，再递增代际。
+    pub fn record_metadata_write(&mut self) -> Result<u64, TransferError> {
+        self.metadata_written()
     }
 
     /// 跨会话使用一律拒绝。
@@ -369,5 +407,61 @@ mod tests {
         assert!(data.state_written().is_err());
         data.metadata_generation = u64::MAX;
         assert!(data.metadata_written().is_err());
+    }
+
+    #[test]
+    fn tagged_state_writes_advance_state_and_field_versions() {
+        let mut data = lifecycle();
+        assert_eq!(data.state_field_versions(), StateFieldVersions::default());
+        assert_eq!(data.record_state_write(StateField::Qpos).unwrap(), 1);
+        assert_eq!(data.record_state_write(StateField::Qpos).unwrap(), 2);
+        assert_eq!(data.state_field_versions().qpos(), 2);
+        assert_eq!(data.state_field_versions().qvel(), 0);
+        assert_eq!(data.record_state_write(StateField::Qvel).unwrap(), 3);
+        assert_eq!(data.record_state_write(StateField::Mocap).unwrap(), 4);
+        assert_eq!(data.record_state_write(StateField::Sleep).unwrap(), 5);
+        let versions = data.state_field_versions();
+        assert_eq!(
+            (
+                versions.qpos(),
+                versions.qvel(),
+                versions.mocap(),
+                versions.sleep()
+            ),
+            (2, 1, 1, 1)
+        );
+        assert_eq!(data.state_version(), 5);
+        assert!(!data.derived_fresh());
+    }
+
+    #[test]
+    fn failed_tagged_write_leaves_counters_unchanged() {
+        let mut data = lifecycle();
+        data.field_versions.set(StateField::Qvel, u64::MAX);
+        let before = data.state_field_versions();
+        assert!(matches!(
+            data.record_state_write(StateField::Qvel),
+            Err(TransferError::Input(InputError::Overflow { field: "qvel" }))
+        ));
+        assert_eq!(data.state_version(), 0);
+        assert_eq!(data.state_field_versions(), before);
+        data.state_version = u64::MAX;
+        data.field_versions.set(StateField::Qpos, 0);
+        assert!(data.record_state_write(StateField::Qpos).is_err());
+        assert_eq!(data.state_field_versions().qpos(), 0);
+    }
+
+    #[test]
+    fn metadata_write_entry_rejects_stale_generation() {
+        let mut data = lifecycle();
+        assert_eq!(data.metadata_generation(), 0);
+        data.check_metadata_generation(0).unwrap();
+        assert_eq!(data.record_metadata_write().unwrap(), 1);
+        assert_eq!(data.metadata_generation(), 1);
+        assert_eq!(
+            data.check_metadata_generation(0).unwrap_err(),
+            LauncherError::StaleMetadata
+        );
+        data.check_metadata_generation(1).unwrap();
     }
 }
