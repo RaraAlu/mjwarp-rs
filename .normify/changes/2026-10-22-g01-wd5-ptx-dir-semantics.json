@@ -5,7 +5,7 @@
     "zh": "修复G01捕获目录双语义",
     "en": "Fix G01 capture-directory dual semantics"
   },
-  "status": "proposed",
+  "status": "abandoned",
   "intent": {
     "zh": "G01 all-probes 阶段 9 项失败来自测试对 MJWARP_PHYSICS_PTX_DIR 的冲突假设：包装测试把变量当已存在捕获根目录并按固定子目录名写入，重采集与归档测试把变量当必须不存在的输出目录；同一进程内固定子目录名跨测试复用导致断言失败。统一测试侧目录分配语义，不改内核、PTX 生成策略、容差与断言。",
     "en": "The nine G01 all-probes failures come from conflicting test assumptions about MJWARP_PHYSICS_PTX_DIR: wrapper tests treat the variable as an existing capture root and write fixed child names, while recapture and archive tests treat it as an output directory that must not exist; shared fixed child names across tests in one process make the assertions fail. Unify the test-side directory allocation without changing kernels, PTX generation, tolerances or assertions."
@@ -50,13 +50,14 @@
     ],
     "priority": 1
   },
-  "note": "来源：docs/three-layer-acceptance.md 的 W-D5 已知债务与 docs/development-evidence/g01-gate-script-sync/README.md 的双向语义记录。基线 HEAD 7269f9a。根因预判（待实现前复核）：包装测试（mass_matrix、mass_solve、resident、rne、rne_bias）把 MJWARP_PHYSICS_PTX_DIR 当捕获根目录并写固定子目录名（如 foreign-session/zero-dof），重采集与归档测试把同一变量当必须不存在的输出目录；G01 脚本 all-probes 阶段把变量设为已存在的 physics-ptx 目录，导致固定子目录跨测试复用断言失败，recaapture/archive 断言 !exists 失败。修复只改测试侧目录分配与文档，不改产品捕获代码与内核。W-D4 重力位证书 2bit 不在本任务范围。",
+  "note": "来源：docs/three-layer-acceptance.md 的 W-D5 已知债务与 docs/development-evidence/g01-gate-script-sync/README.md 的双向语义记录。基线 HEAD 7269f9a。根因预判（待实现前复核）：包装测试（mass_matrix、mass_solve、resident、rne、rne_bias）把 MJWARP_PHYSICS_PTX_DIR 当捕获根目录并写固定子目录名（如 foreign-session/zero-dof），重采集与归档测试把同一变量当必须不存在的输出目录；G01 脚本 all-probes 阶段把变量设为已存在的 physics-ptx 目录，导致固定子目录跨测试复用断言失败，recaapture/archive 断言 !exists 失败。修复只改测试侧目录分配与文档，不改产品捕获代码与内核。W-D4 重力位证书 2bit 不在本任务范围。\n放弃：任务范围遗漏 src/runtime/mod.rs 的测试辅助重导出，in_progress 态 schedule 冻结无法补充；按正规流程放弃并重登记同义任务（含该文件）。根因调查结论保留在回执与汇报中。",
   "revision": {
-    "before": "7269f9a13aa0a6afc02cc1f10b2560edd183c78d",
+    "before": "0da16e861a2552d47bcde3736bfc03ac5e2939b7",
     "after": null
   },
   "created_at": "2026-10-22T15:40:00.000Z",
-  "updated_at": "2026-10-22T15:40:00.000Z",
+  "updated_at": "2026-10-22T07:40:26.408Z",
+  "closed_at": "2026-10-22T07:40:26.408Z",
   "checks": [
     {
       "kind": "gate",
