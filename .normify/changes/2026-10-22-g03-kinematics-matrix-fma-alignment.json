@@ -5,7 +5,7 @@
     "zh": "对齐G03运动学矩阵非收缩语义",
     "en": "Align G03 kinematics matrix semantics without FMA contraction"
   },
-  "status": "proposed",
+  "status": "abandoned",
   "intent": {
     "zh": "按 Chief 2026-10-22 确认的第二阶段计划实现矩阵链对齐：只改 src/physics/mod.rs 的 KINEMATICS_CUDA 中 matrix(Q q) 的算式顺序/写法，把四元数乘积先算成局部量再加减，对齐上游 math.quat_to_mat 的非 FMA 收缩语义；随后按首差工具→xmat→cdof→matrix_dense_block→MathDx potrf(产品矩阵)==冻结 factor 0/121→potrs 解链→mass_solve_probe 3 项准入→双模式定向回归的顺序验证；并确认 8a5bac0 已对齐的 T4 非零位形旋转链 1134 项仍逐位一致。不改 ABI、类型、容差、准入余量、测试断言、fixtures。",
     "en": "Implement the matrix-chain alignment confirmed by Chief on 2026-10-22: change only the expression order/form of matrix(Q q) inside KINEMATICS_CUDA in src/physics/mod.rs so quaternion products are materialized as locals before add/sub, matching upstream math.quat_to_mat's non-FMA-contracted semantics. Validate in order: first-difference tool -> xmat -> cdof -> matrix_dense_block -> MathDx potrf(product matrix) equals frozen factor 0/121 -> potrs chain -> three mass_solve_probe admissions -> dual-mode targeted regression; confirm the T4 nonzero rotation chain (bit-aligned in 8a5bac0, 1134 items) stays bit-exact. No ABI/type/tolerance/admission-margin/assertion/fixture changes."
@@ -40,12 +40,14 @@
     ],
     "priority": 2
   },
-  "note": "依据：2026-10-22-g03-upstream-matrix-authoring（commit ad6c2e7）——上游矩阵冻结参考已生成且 MathDx potrf 天然校验 0/121；首差定位第一阶段为 kinematics.xmat（17/432，world3/index15），根因为 xmat[6]=2*(x*z-w*y) 的上游 bits 0x3f0077f3（非收缩）vs 产品 0x3f0077f4（fma 收缩）。修复候选：src/physics/mod.rs KINEMATICS_CUDA 的 matrix() 改为上游局部乘积写法。验证复用离线工具：docs/development-evidence/g03-upstream-matrix/tools/first_difference.rs、docs/development-evidence/g03-mathdx-alignment/{oracle.cpp,link11.cpp} 与 cubin 复现说明；上游 matrix 参考 docs/development-evidence/g03-upstream-matrix/。repin-6 另立任务，本任务先完成源码与验证。硬边界：不改容差/准入余量/断言/fixtures；产品测试只跑 cargo 不启动 Python；G03 三项准入转绿与 all-probes 全绿是首要目标。",
+  "note": "依据：2026-10-22-g03-upstream-matrix-authoring（commit ad6c2e7）——上游矩阵冻结参考已生成且 MathDx potrf 天然校验 0/121；首差定位第一阶段为 kinematics.xmat（17/432，world3/index15），根因为 xmat[6]=2*(x*z-w*y) 的上游 bits 0x3f0077f3（非收缩）vs 产品 0x3f0077f4（fma 收缩）。修复候选：src/physics/mod.rs KINEMATICS_CUDA 的 matrix() 改为上游局部乘积写法。验证复用离线工具：docs/development-evidence/g03-upstream-matrix/tools/first_difference.rs、docs/development-evidence/g03-mathdx-alignment/{oracle.cpp,link11.cpp} 与 cubin 复现说明；上游 matrix 参考 docs/development-evidence/g03-upstream-matrix/。repin-6 另立任务，本任务先完成源码与验证。硬边界：不改容差/准入余量/断言/fixtures；产品测试只跑 cargo 不启动 Python；G03 三项准入转绿与 all-probes 全绿是首要目标。\n放弃：首差归零发现残余收缩还位于 mass-matrix 与 mass-solve 模块，原任务 schedule 已冻结且只登记 src/physics/mod.rs，按规范放弃并另立覆盖完整最小面的 2026-10-22-g03-matrix-chain-alignment 任务",
   "revision": {
-    "before": "ad6c2e7602a67768da7334be1329588658eb28f1"
+    "before": "47ca9a3934936440bee32896c23b3105be2f448d",
+    "after": null
   },
   "created_at": "2026-10-22T13:23:02.885Z",
-  "updated_at": "2026-10-22T13:23:02.885Z",
+  "updated_at": "2026-10-22T13:38:34.500Z",
+  "closed_at": "2026-10-22T13:38:34.500Z",
   "checks": [
     {
       "kind": "gate",

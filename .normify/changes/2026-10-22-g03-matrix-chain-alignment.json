@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-g03-matrix-chain-alignment",
+  "title": {
+    "zh": "对齐G03矩阵链非收缩与求解算序",
+    "en": "Align G03 matrix chain contraction and solve order"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 Chief 2026-10-22 确认的矩阵链对齐计划，把冻结上游 MJWarp 的 f32 算序逐位对齐：KINEMATICS_CUDA 的 matrix(Q q) 改为上游局部乘积写法（非 FMA 收缩）；MASS_MATRIX_CUDA 的 rigid_mass_matrix 按上游 _M 的 mul/fma/sub 顺序转录；MASS_SOLVE_CUDA 的 tile 求解改为上游列扫描（对角倒数乘、离对角 fma.rn）。原任务 2026-10-22-g03-kinematics-matrix-fma-alignment 只登记了 src/physics/mod.rs，首差归零过程中发现残余收缩位于 mass-matrix 与 mass-solve 模块，已按规范放弃并另立本任务覆盖完整最小面。验证顺序：首差工具→xmat/cdof/matrix_dense_block 0 位差→MathDx potrf(产品矩阵)==冻结 factor 0/121→产品解==冻结上游解 0/33→mass_solve_probe 三项准入→T4 源码身份重钉（另立 2026-10-22-t4-source-hash-repin-6）→双模式定向回归与 G01 debug。不改 ABI、类型、容差、准入余量、测试断言、fixtures。",
+    "en": "Align the frozen upstream MJWarp f32 arithmetic order bit for bit, as confirmed by Chief on 2026-10-22: KINEMATICS_CUDA matrix(Q q) uses upstream local-product form (no FMA contraction); MASS_MATRIX_CUDA rigid_mass_matrix transcribes upstream _M mul/fma/sub order; MASS_SOLVE_CUDA tile solve switches to the upstream column sweep (reciprocal-multiply diagonal, fma.rn off-diagonal). The superseded task 2026-10-22-g03-kinematics-matrix-fma-alignment only registered src/physics/mod.rs; residual contraction was located in the mass-matrix and mass-solve modules while zeroing first differences, so it was abandoned and this task covers the full minimal surface. Validation order: first-difference tool -> xmat/cdof/matrix_dense_block zero bits -> MathDx potrf(product matrix) equals frozen factor 0/121 -> product solution equals frozen upstream solution 0/33 -> three mass_solve_probe admissions -> T4 source hash repin (separate 2026-10-22-t4-source-hash-repin-6) -> dual-mode targeted regression and G01 debug. No ABI/type/tolerance/admission-margin/assertion/fixture changes."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core",
+      "mjwarp.physics.mass-matrix",
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "只改实现面：src/physics/mod.rs 的 KINEMATICS_CUDA matrix()（上游局部乘积）、src/physics/mass_matrix.rs 的 MASS_MATRIX_CUDA rigid_mass_matrix（上游 _M 算序）、src/physics/mass_solve/cuda.rs 的 tile 求解分支（上游列扫描）；不改 ABI、数据类型、容差、准入余量、测试断言、fixtures。",
+    "重跑离线首差工具（docs/development-evidence/g03-upstream-matrix/tools/first_difference.rs）：first_stage=None，xmat/cdof/matrix_dense_block 等全部 0 位差；残余收缩按首差循环归零，不改容差/断言。",
+    "MathDx potrf(产品矩阵) 与冻结上游 factor 逐位比对 0/121（status=0，复用第一阶段 CUBIN 与 oracle）。",
+    "产品 GPU 解与冻结上游 solution 逐位比对 0/33（case4/world4 三条 rhs），确认求解算序（列扫描、倒数乘、fma.rn）与 MathDx potrs 一致。",
+    "tests/mass_solve_probe 在 all-features 下 6 项全部通过：factors 240、native-snapshots 240、rhs-counts 152 的 NP03 汇总 failed=0，不再出现 case4/world4 失败块。",
+    "登记并完成 2026-10-22-t4-source-hash-repin-6（只改哈希数值与内联字面量），随后跑 cargo --all-features --no-fail-fast 与 G01 debug 全脚本确认无新回归；all-probes 若全绿第一时间报 Chief 并记录证据。",
+    "证据 docs/development-evidence/g03-matrix-chain-alignment/（README + json：改动、每阶段位差、potrf/potrs 结果、准入与 all-probes、repin 引用）；回执含 task_id；门禁 fmt/clippy/clippy-cuda/unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-g03-upstream-matrix-authoring"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mod.rs",
+      "src/physics/mass_matrix.rs",
+      "src/physics/mass_solve/cuda.rs",
+      "docs/development-evidence/g03-matrix-chain-alignment/",
+      "docs/development-evidence/changes/2026-10-22-g03-matrix-chain-alignment.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 2
+  },
+  "note": "依据：2026-10-22-g03-upstream-matrix-authoring（commit ad6c2e7）——上游矩阵冻结参考已生成且 MathDx potrf 天然校验 0/121。原任务 2026-10-22-g03-kinematics-matrix-fma-alignment（登记 47ca9a3）只登记 src/physics/mod.rs，期间首差归零发现 mass-matrix 与 mass-solve 也有残余收缩，schedule 已冻结无法扩范围，故 abandon 后另立本任务（不改验收口径，只覆盖完整最小实现面）。修复后实测：首差 first_stage=None；MathDx potrf(产品矩阵)==冻结 factor 0/121 status=0；产品解==冻结上游解 0/33；mass_solve_probe 6 过 0 败且 NP03 三项 failed=0。硬边界：不改容差/准入余量/断言/fixtures；产品测试只跑 cargo 不启动 Python；离线 authoring 只复用已批准 pinned venv 的冻结产物，不进产品链。T4 源码身份重钉另立 2026-10-22-t4-source-hash-repin-6，完成后再跑全量非 ignored 回归与 G01 debug。",
+  "revision": {
+    "before": "47ca9a3934936440bee32896c23b3105be2f448d",
+    "after": null
+  },
+  "created_at": "2026-10-22T21:40:00.000Z",
+  "updated_at": "2026-10-22T13:38:42.024Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests",
+        "fixtures",
+        "scripts",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g03-matrix-chain-alignment.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g03-matrix-chain-alignment"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
