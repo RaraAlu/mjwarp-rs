@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-dev-overview-repo-adapter",
+  "title": {
+    "zh": "为开发总览增加仓库内Normify数据适配器",
+    "en": "Add in-repo Normify data adapter to development overview"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "开发总览只读看板当前只能经外部dsh-normify引擎读取旧快照，看不到仓库内实时进度。本任务新增自带仓库读取器，直接读取仓库内.normify的changes与config，输出与原api/schedule相同的排程契约；server增加--source开关，默认repo，保留dsh模式回退。不改产品源码、测试、夹具与原生目录，不改.normify既有任务数据。",
+    "en": "The read-only development overview dashboard currently reads an old snapshot through the external dsh-normify engine and cannot see live in-repo progress. This task adds a built-in repository reader that parses the repo .normify changes and config and emits the same schedule JSON contract as api/schedule; the server gains a --source switch defaulting to repo while keeping the dsh mode as a fallback. Product sources, tests, fixtures and native directories stay untouched, as does existing .normify task data."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "新增repo-reader.mjs：读取仓库内.normify/changes/*.json与config.toml，输出的排程JSON与现有api/schedule同契约，validateSchedule可通过。",
+    "任务字段按仓库格式映射：title/title、phase与owner等取自schedule，modules取modules.modify，checks等多余字段不进入输出。",
+    "readiness按规则计算：verified、abandoned、in_progress原样；proposed且前置全部verified或不存在为ready，否则blocked；backlog（待办）记为unscheduled，不计入ready/blocked。",
+    "server默认--source repo读取仓库数据；--source dsh保留原行为，仍用--normify-server，并保持--normify-root原语义。",
+    "test.mjs覆盖readiness各分支、phase与文件映射、缺失依赖、空目录与坏文件；node scripts/development-overview/test.mjs全部通过。",
+    "53643端口看板以repo模式重启并返回新URL；api/schedule返回仓库数据（任务约400项，含2026-10-22-*，2026-10-18-layers-m3为verified）；dsh模式可用一条命令切回。",
+    "证据写入docs/development-evidence/dev-overview-repo-adapter/README.md；通过fmt与unit门禁、unchanged保护路径与回执检查，并用中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "治理-开发总览",
+    "owner": "QA",
+    "files": [
+      "scripts/development-overview",
+      "docs/development-evidence/dev-overview-repo-adapter",
+      "docs/development-evidence/changes/2026-10-22-dev-overview-repo-adapter.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-22-dev-overview-repo-adapter.json\n精度映射：本次只改只读Node看板脚本与文档，无产品浮点或计算路径改动，精度验收不在本任务范围。\n范围仅限scripts/development-overview/与docs/development-evidence/dev-overview-repo-adapter/；不改产品src/tests/fixtures/native/Cargo.*，不改.normify既有任务数据。\n不动Backend正在修改的scripts/test-windows-g01.ps1。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-22T15:24:21.493Z",
+  "updated_at": "2026-10-22T15:30:35.662Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "build.rs",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-dev-overview-repo-adapter.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-dev-overview-repo-adapter"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
