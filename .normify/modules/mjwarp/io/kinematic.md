@@ -1,7 +1,6 @@
 +++
 uid = "c7e40532"
 id = "mjwarp.io.kinematic"
-state = "planned"
 tags = ["planned", "engine"]
 fingerprint = "9fd187755a7933902f2ddab453134c15b77034e4df6efb74a3d8836b5a831a10"
 

@@ -1,0 +1,320 @@
+{
+    "schema": 1,
+    "task_id": "2026-10-18-layers-a1-contract",
+    "generated_from_commit": "64b79b5",
+    "upstream_baseline": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "scope_zh": "逐项分类宿主模型输入、受检元数据与设备 Model/Data 的引用与所有权，并定义 model::data 的布局、生命周期、批量语义与公开兼容路径。只登记契约，不改 src。",
+    "categories": [
+        {
+            "id": "host_model_input",
+            "zh": "宿主模型输入",
+            "owner": "mjwarp.model",
+            "device": false,
+            "rules_zh": [
+                "持有检查后的字段向量与派生索引，不保留无所有者的原生指针。",
+                "按组合链由基础运动学输入逐层包装；外层同时持有内层全部字段。",
+                "构造时完成长度、范围与非有限检查；失败不返回部分对象。"
+            ]
+        },
+        {
+            "id": "host_container",
+            "zh": "宿主布局与参数容器",
+            "owner": "mjwarp.model",
+            "device": false,
+            "rules_zh": [
+                "BatchLayout 只描述世界数、每世界元素数与元素字节，不持有设备资源。",
+                "ParameterBatch 持有宿主 f32 值与其批量布局，由计划在构造期上传。"
+            ]
+        },
+        {
+            "id": "device_model",
+            "zh": "设备模型（只读批次）",
+            "owner": "mjwarp.io",
+            "device": true,
+            "rules_zh": [
+                "只读模型批次：公开 API 不暴露可写缓冲或设备地址。",
+                "每个批次绑定同一 TransferSession；任何一次上传失败即整体丢弃，不逃逸半初始化组。",
+                "模型身份由固定拓扑与布局确定；改拓扑要求重新转换并上传。"
+            ]
+        },
+        {
+            "id": "checked_metadata",
+            "zh": "受检元数据（证明 + 精确跨度）",
+            "owner": "mjwarp.physics",
+            "device": true,
+            "rules_zh": [
+                "每条元数据在计划构造期上传一次，并建立宿主镜像到设备区间的证明。",
+                "证明绑定设备区间、维度与写入代际；写入须先使代际失效，发射前复核。",
+                "每个槽位按入口冻结精确跨度校对；不足与超出都拒绝。"
+            ]
+        },
+        {
+            "id": "stage_data",
+            "zh": "阶段设备数据（世界状态与工作区）",
+            "owner": "mjwarp.physics",
+            "device": true,
+            "rules_zh": [
+                "持有世界状态、工作区与结果缓冲；记录模型身份与布局版本。",
+                "阶段计划只借用 Data，不拥有其缓冲；结果发布前须回读校验与守卫检查。",
+                "同一 Data 只能服务其构造时的布局；世界数或模型不符即拒。"
+            ]
+        }
+    ],
+    "composition_chain": [
+        "KinematicModelInput",
+        "InertialModelInput",
+        "AttachedModelInput",
+        "MocapModelInput",
+        "CamLightModelInput",
+        "FixedTendonModelInput",
+        "SpatialTendonModelInput",
+        "TendonModelInput",
+        "FlexPositionModelInput",
+        "TendonWakeModelInput"
+    ],
+    "items": {
+        "host_model_inputs": [
+            {
+                "id": "KinematicModelInput",
+                "source": "src/model/topology.rs:80",
+                "holds_zh": "自由度数与 KinematicFields 全部字段向量。",
+                "refs_zh": "独占所有权；内层无外部借用。",
+                "batching_zh": "字段本身无世界维；批量参数由 KinematicParameters 承载。"
+            },
+            {
+                "id": "InertialModelInput",
+                "source": "src/model/inertial.rs:46",
+                "holds_zh": "KinematicModelInput + InertialFields。",
+                "refs_zh": "独占所有权；组合持有运动学输入。",
+                "batching_zh": "惯性字段无世界维；批量由参数批量表达。"
+            },
+            {
+                "id": "AttachedModelInput",
+                "source": "src/model/attached.rs:35",
+                "holds_zh": "InertialModelInput + AttachedFields。",
+                "refs_zh": "独占所有权；组合持有惯性输入。",
+                "batching_zh": "几何与 site 映射无世界维。"
+            },
+            {
+                "id": "MocapModelInput",
+                "source": "src/model/mocap.rs:12",
+                "holds_zh": "AttachedModelInput + body_mocapid + static_geom。",
+                "refs_zh": "独占所有权；组合持有附着输入。",
+                "batching_zh": "mocap 映射按体；世界维仅出现在运行期状态。"
+            },
+            {
+                "id": "CamLightModelInput",
+                "source": "src/model/camlight/model.rs:8",
+                "holds_zh": "MocapModelInput + CamLightFields。",
+                "refs_zh": "独占所有权；组合持有 mocap 输入。",
+                "batching_zh": "拓扑与目标体映射无世界维。"
+            },
+            {
+                "id": "FixedTendonModelInput",
+                "source": "src/model/fixed_tendon.rs:107",
+                "holds_zh": "CamLightModelInput + FixedTendonFields + FixedTendonRows。",
+                "refs_zh": "独占所有权；组合持有相机光源输入。",
+                "batching_zh": "CSR 行索引无世界维。"
+            },
+            {
+                "id": "SpatialTendonModelInput",
+                "source": "src/model/spatial_tendon.rs:74",
+                "holds_zh": "FixedTendonModelInput + SpatialTendonFields + rows + 可选几何。",
+                "refs_zh": "独占所有权；组合持有固定肌腱输入。",
+                "batching_zh": "球柱尺寸按参数批量周期取样，路径拓扑无世界维。"
+            },
+            {
+                "id": "TendonModelInput",
+                "source": "src/model/tendon.rs:77",
+                "holds_zh": "SpatialTendonModelInput + 混合行索引 + TendonFields。",
+                "refs_zh": "独占所有权；组合持有空间肌腱输入。",
+                "batching_zh": "全局肌腱编号与混合字段无世界维。"
+            },
+            {
+                "id": "FlexPositionModelInput",
+                "source": "src/model/flex.rs:46",
+                "holds_zh": "TendonModelInput + FlexPositionFields + 可选边/面/Hessian 字段。",
+                "refs_zh": "独占所有权；组合持有肌腱输入；可选子集按存在性区分。",
+                "batching_zh": "节点位置按世界上传；映射表无世界维。"
+            },
+            {
+                "id": "TendonWakeModelInput",
+                "source": "src/model/sleep.rs:28",
+                "holds_zh": "TendonModelInput + 可选柔体子集 + TendonWakeInfo。",
+                "refs_zh": "独占所有权；组合持有肌腱输入。",
+                "batching_zh": "树循环与限位参数按字段批量；设备状态按世界。"
+            },
+            {
+                "id": "PrimitiveGeometryInput",
+                "source": "src/model/collision.rs:30",
+                "holds_zh": "体数与 PrimitiveGeometryFields。",
+                "refs_zh": "独占所有权；独立于组合链。",
+                "batching_zh": "几何尺寸按参数批量周期取样。"
+            },
+            {
+                "id": "SmoothForceInput",
+                "source": "src/model/smooth_force.rs:6",
+                "holds_zh": "树数 + body_treeid + dof_bodyid。",
+                "refs_zh": "独占所有权；独立于组合链。",
+                "batching_zh": "拓扑无世界维；设备元数据按世界批量登记树状态。"
+            },
+            {
+                "id": "SparseMassInput",
+                "source": "src/model/inertial/sparse.rs:35",
+                "holds_zh": "SparseMassFields + 块表 + qLD 前缀地址 + 更新三元组 + 层偏移。",
+                "refs_zh": "独占所有权；独立于组合链。",
+                "batching_zh": "CSR 拓扑无世界维；每世界一份因子与右端项。"
+            }
+        ],
+        "host_containers": [
+            {
+                "id": "BatchLayout",
+                "source": "src/model/mod.rs:119",
+                "holds_zh": "世界数、每世界元素数、元素字节与派生总长/步长。",
+                "refs_zh": "值类型；不持有设备资源。",
+                "batching_zh": "描述世界批量与字段批量长度；允许每世界零元素。"
+            },
+            {
+                "id": "ParameterBatch",
+                "source": "src/model/parameters.rs:11",
+                "holds_zh": "批量数、行宽与宿主 f32 值。",
+                "refs_zh": "独占所有权；由计划在构造期读取并上传。",
+                "batching_zh": "批量周期按世界序号取模；行宽必须与字段宽度一致。"
+            }
+        ],
+        "device_models": [
+            {
+                "id": "DeviceBatch",
+                "source": "src/io/fields.rs:25",
+                "holds_zh": "BatchLayout + TransferBuffer<T>。",
+                "refs_zh": "独占所有权；缓冲绑定上传时的 TransferSession。",
+                "batching_zh": "按世界读写；模型路径只读，写入仅限调用方自持批次。"
+            },
+            {
+                "id": "DeviceKinematicModel",
+                "source": "src/io/kinematic.rs:24",
+                "holds_zh": "十二个只读 DeviceBatch 字段与 nv。",
+                "refs_zh": "拥有设备批次；不暴露可写缓冲或设备地址。",
+                "batching_zh": "按世界读取 qpos0 等字段；上传后只读。"
+            },
+            {
+                "id": "DeviceInertialModel",
+                "source": "src/io/inertial.rs:30",
+                "holds_zh": "DeviceKinematicModel + 九个惯性 DeviceBatch 字段。",
+                "refs_zh": "拥有设备批次；组合持有运动学设备模型。",
+                "batching_zh": "参数按字段批量上传；模型路径只读。"
+            }
+        ],
+        "checked_metadata": [{"id":"AppliedForceDeltaMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/applied_force/launcher_meta.rs:97"},{"id":"AppliedForceValidateMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/applied_force/launcher_meta.rs:82"},{"id":"AttachedMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/attached/launcher_meta.rs:49"},{"id":"BorrowedMassComputeMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_matrix/multiply/borrowed/launcher_meta.rs:111"},{"id":"BorrowedMassValidateMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_matrix/multiply/borrowed/launcher_meta.rs:97"},{"id":"CamLightMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/camlight_launcher.rs:355"},{"id":"ComPositionMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/com_position/launcher_meta.rs:67"},{"id":"ComVelocityMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/com_velocity/launcher_meta.rs:76"},{"id":"DenseGatherLaunchMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/dense/gather_meta.rs:45"},{"id":"FixedTendonMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/fixed_tendon_launcher.rs:274"},{"id":"FlexEdgePassiveMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/flex_edge_passive/launcher_abi.rs:231"},{"id":"FlexEdgesMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/flex_edges_launcher.rs:332"},{"id":"FlexFacesMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/flex_faces_launcher.rs:231"},{"id":"FlexHessianMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/flex_hessian_launcher_specs.rs:106"},{"id":"FlexMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/flex_positions_launcher_specs.rs:105"},{"id":"FluidForceMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/fluid_force/launcher_abi.rs:304"},{"id":"GravityClearMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/gravity_compensation/launcher_meta.rs:63"},{"id":"GravityComputeMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/gravity_compensation/launcher_meta.rs:91"},{"id":"GravitySumMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/gravity_compensation/launcher_meta.rs:105"},{"id":"GravityValidateMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/gravity_compensation/launcher_meta.rs:77"},{"id":"JointPassiveMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/smooth_force/joint_passive/launcher_abi.rs:244"},{"id":"KineticLaunchMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/kinetic_energy/metadata.rs:31"},{"id":"MassMultiplyComputeMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_matrix/multiply/launcher_meta.rs:93"},{"id":"MassMultiplyValidateMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_matrix/multiply/launcher_meta.rs:79"},{"id":"MixedSolveFusedLaunchMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/mixed/solve/fused_meta.rs:215"},{"id":"MixedSolveValidationLaunchMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/mixed/solve/validation_meta.rs:58"},{"id":"PassiveForceMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/passive_force/launcher_abi.rs:180"},{"id":"ResidentAttachedMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/attached_launcher_meta.rs:83"},{"id":"ResidentComMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/com_launcher_meta.rs:90"},{"id":"ResidentCrbAccumulateMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_matrix/resident/launcher_meta.rs:103"},{"id":"ResidentCrbInitMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_matrix/resident/launcher_meta.rs:89"},{"id":"ResidentCrbMatrixMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_matrix/resident/launcher_meta.rs:117"},{"id":"ResidentMassFactorMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/resident/launcher_meta.rs:78"},{"id":"ResidentMassSolveMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/resident/launcher_meta.rs:92"},{"id":"ResidentMixedGatherLaunchMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/mixed/solve/resident/gather_meta.rs:72"},{"id":"RigidMassMatrixMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_matrix/rigid.rs:175"},{"id":"RigidMassSolveBaseMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/proof.rs:34"},{"id":"RigidMassSolveMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/proof.rs:20"},{"id":"RigidMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/rigid_kinematics/metadata.rs:268"},{"id":"RneBackwardMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/rne/launcher_plans.rs:249"},{"id":"RneBiasMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/rne_bias/spec.rs:49"},{"id":"RneCaccMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/rne/launcher_plans.rs:60"},{"id":"RneCfrcMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/rne/launcher_plans.rs:123"},{"id":"RneQfrcMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/rne/launcher_plans.rs:186"},{"id":"SleepCopyMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/sleep_copy.rs:244"},{"id":"SmallFactorLaunchMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/dense/small/factor_meta.rs:61"},{"id":"SmoothForceComputeMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/smooth_force/launcher_meta.rs:68"},{"id":"SmoothForceValidateMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/smooth_force/launcher_meta.rs:54"},{"id":"SparseMassCopyLaunchMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/launcher_abi.rs:271"},{"id":"SparseMassDiagLaunchMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/launcher_abi.rs:307"},{"id":"SparseMassUpdateLaunchMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/launcher_abi.rs:286"},{"id":"SparseResidentGatherMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/resident/launcher_meta.rs:75"},{"id":"SparseResidentValidateMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/resident/launcher_meta.rs:61"},{"id":"SparseSolveMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/resident/solve/launcher_abi.rs:259"},{"id":"SpatialTendonMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/spatial_tendon_launcher_specs.rs:141"},{"id":"StaticAppliedForceMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/applied_force/launcher_meta.rs:68"},{"id":"StaticDenseGatherMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/dense/gather_meta.rs:13"},{"id":"StaticKineticMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/kinetic_energy/metadata.rs:13"},{"id":"StaticMixedSolveFusedMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/mixed/solve/fused_meta.rs:23"},{"id":"StaticMixedSolveValidationMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/mixed/solve/validation_meta.rs:14"},{"id":"StaticResidentMixedGatherMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/mixed/solve/resident/gather_meta.rs:14"},{"id":"StaticRigidMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/rigid_kinematics/metadata.rs:253"},{"id":"StaticRneMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/rne/launcher_plans.rs:46"},{"id":"StaticSleepCopyMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/sleep_copy.rs:230"},{"id":"StaticSmallFactorMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/dense/small/factor_meta.rs:12"},{"id":"StaticSparseMassCopyMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/launcher_abi.rs:229"},{"id":"StaticSparseMassDiagMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/launcher_abi.rs:257"},{"id":"StaticSparseMassUpdateMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/launcher_abi.rs:243"},{"id":"TendonMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/tendon_launcher.rs:376"},{"id":"TendonPassiveMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/tendon_passive/launcher_abi.rs:207"},{"id":"TendonVelocityComputeMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/tendon_velocity/launcher_meta.rs:71"},{"id":"TendonVelocityValidateMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/tendon_velocity/launcher_meta.rs:57"},{"id":"TendonWakeMetadata","kind":"checked_metadata","owner":"mjwarp.physics","source":"src/physics/resident/tendon_wake_launcher.rs:249"}],
+        "stage_data": [{"id":"AppliedForceData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/applied_force.rs:207"},{"id":"ComVelocityData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/com_velocity.rs:70"},{"id":"FlexEdgePassiveData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/flex_edge_passive.rs:132"},{"id":"FluidForceData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/fluid_force.rs:126"},{"id":"GravityCompensationData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/gravity_compensation.rs:249"},{"id":"JointPassiveData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/smooth_force/joint_passive.rs:168"},{"id":"KinematicsData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/resident.rs:400"},{"id":"KineticEnergyData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/kinetic_energy.rs:106"},{"id":"MassMatrixData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_matrix/resident.rs:52"},{"id":"MassMatrixEnergyData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_matrix/multiply/borrowed/device_energy/plan.rs:20"},{"id":"MassMatrixMultiplyData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_matrix/multiply/borrowed.rs:119"},{"id":"MassMultiplyData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_matrix/multiply.rs:63"},{"id":"MassSolveData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_solve/resident.rs:42"},{"id":"PassiveForceData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/passive_force.rs:75"},{"id":"RneBiasData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/rne_bias.rs:37"},{"id":"RneData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/rne.rs:91"},{"id":"SmoothForceData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/smooth_force.rs:151"},{"id":"SparseMassData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/resident.rs:46"},{"id":"SparseMassDenseData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/dense.rs:54"},{"id":"SparseMassFactorData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse.rs:76"},{"id":"SparseMassMixedFactorData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/mixed.rs:35"},{"id":"SparseMassMixedResidentData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/mixed/solve/resident.rs:65"},{"id":"SparseMassMixedSolveData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/mixed/solve.rs:71"},{"id":"SparseMassSmallData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/dense/small.rs:56"},{"id":"SparseMassSolveData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/mass_solve/sparse/resident/solve.rs:35"},{"id":"TendonPassiveData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/tendon_passive.rs:124"},{"id":"TendonVelocityData","kind":"stage_data","owner":"mjwarp.physics","source":"src/physics/tendon_velocity.rs:104"}]
+    },
+    "ownership_rules_zh": [
+        "宿主输入独占其字段；设备模型独占只读批次；阶段计划独占常量与元数据证明。",
+        "阶段 Data 独占世界状态与工作区；计划只借用，不取得所有权。",
+        "任何设备缓冲都绑定唯一 TransferSession；跨会话使用一律拒绝。",
+        "拓扑与布局身份固定：同尺寸不代表同拓扑，身份不符即拒。",
+        "证明与写入代际绑定；失效后必须先重建证明再发射。",
+        "发布结果前完成守卫检查、非有限检查与状态核对；失败不发布部分结果。"
+    ],
+    "data_contract_zh": {
+        "layout": [
+            "全部批量字段使用 BatchLayout：世界数 × 每世界元素数 × 元素字节。",
+            "受保护缓冲在首尾各留四个哨兵槽，共八槽；精确跨度按 8 + 世界数 × 字段步长。",
+            "多阶段工作区按字段拼接同一世界步长；结果缓冲可宽于最小写入宽度，按最小容量校对。"
+        ],
+        "lifecycle": [
+            "构造期：检查宿主输入 → 上传模型/参数/元数据 → 建立证明。",
+            "运行期：每阶段先核对身份、会话、证明与精确跨度，再同步发射。",
+            "失效：状态写入使派生结果失效；元数据写入使证明代际失效。",
+            "销毁：设备缓冲随所属类型 Drop；会话保证完成事件，不遗留不确定状态。"
+        ],
+        "batching": [
+            "世界批量 W 独立推进；单世界可局部写入。",
+            "字段批量 B_f 按周期共享参数；批量下标 = 世界序号对周期取模。",
+            "拓扑与映射只存一份，不随世界复制；设备元数据按世界登记状态。"
+        ],
+        "public_compat": [
+            "保留 io::DeviceKinematicModel 与 io::DeviceInertialModel 公开路径作为兼容门面。",
+            "保留各阶段 Plan/Data 的公开构造与更新入口；model::data 迁移不改变这些签名。",
+            "model::data 目标归属只新增共享布局/批量/生命周期契约；不整体搬迁目录。"
+        ]
+    },
+    "planned_modules": [
+        {
+            "id": "mjwarp.model.data",
+            "zh": "设备数据",
+            "state": "planned",
+            "role_zh": "计算物理层的设备数据归属根。"
+        },
+        {
+            "id": "mjwarp.model.data.layout",
+            "zh": "设备数据布局",
+            "state": "planned",
+            "role_zh": "批量布局、守卫槽与精确跨度契约。"
+        },
+        {
+            "id": "mjwarp.model.data.batch",
+            "zh": "设备数据批量",
+            "state": "planned",
+            "role_zh": "世界批量、字段批量与共享参数周期契约。"
+        },
+        {
+            "id": "mjwarp.model.data.lifecycle",
+            "zh": "设备数据生命周期",
+            "state": "planned",
+            "role_zh": "会话所有权、身份核对与失效传播契约。"
+        }
+    ],
+    "preflight": {
+        "command": "normify impact mjwarp.model.data",
+        "rules": [
+            "boundary-model",
+            "core-no-deprecated-target"
+        ],
+        "allowed_deps": [
+            "mjwarp.runtime",
+            "mjwarp.model",
+            "mjwarp.diagnostics"
+        ],
+        "forbidden_deps": [
+            "mjwarp.physics",
+            "mjwarp.io",
+            "mjwarp.render"
+        ],
+        "result_zh": "计划模块仅受 model 边界规则约束；目标依赖为 runtime/model/diagnostics，禁止反向依赖 physics/io/render，与现有架构三层划分一致。"
+    },
+    "migration_slices": [
+        {
+            "id": "A1-1",
+            "zh": "在 model 增加共享布局与身份宿主类型（只新增，不改现有 Plan/Data）。",
+            "independently_deliverable": true,
+            "risk": "low"
+        },
+        {
+            "id": "A1-2",
+            "zh": "把 KinematicsData 的布局与身份字段抽到共享类型，physics 侧以别名转发。",
+            "independently_deliverable": true,
+            "risk": "medium"
+        },
+        {
+            "id": "A1-3",
+            "zh": "把阶段 Data 的世界批量与工作区通用骨架抽到 model::data，逐阶段替换。",
+            "independently_deliverable": false,
+            "risk": "medium"
+        },
+        {
+            "id": "A1-4",
+            "zh": "把计划级元数据证明缓冲的所有权登记到 model::data 契约（类型别名与文档）。",
+            "independently_deliverable": true,
+            "risk": "low"
+        },
+        {
+            "id": "A1-5",
+            "zh": "建立 io 设备模型的公开兼容转发路径，保留旧签名。",
+            "independently_deliverable": true,
+            "risk": "low"
+        }
+    ],
+    "counts": {"host_model_inputs":13,"host_containers":2,"device_models":3,"checked_metadata":73,"stage_data":27,"planned_modules":4,"migration_slices":5,"total":118}
+}
+
