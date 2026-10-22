@@ -2,7 +2,7 @@
 uid = "006c4859"
 id = "mjwarp.physics.mass-matrix"
 tags = ["implemented-subset", "gpu", "rigid-mass-matrix", "windows"]
-fingerprint = "055ee893dd4ede27ba3649ec798e957da29013f28fee9b10654b5e9938b24d90"
+fingerprint = "436a00e2e5d0032fd4e3b69333de6144ad650acc991b3f571d47d74e038a5dab"
 
 [name]
 zh = "刚体质量矩阵辅助"

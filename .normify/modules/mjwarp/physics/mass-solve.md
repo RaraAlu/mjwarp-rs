@@ -2,7 +2,7 @@
 uid = "cd53f287"
 id = "mjwarp.physics.mass-solve"
 tags = ["implemented-subset", "gpu", "rigid-mass-solve", "windows"]
-fingerprint = "d4650d2e9ddbbb73efd6d493dd7732b2024e481dc77c7f0259940497e520f378"
+fingerprint = "79f6bfcf10db7bbcf0d68e8ce63072d74e91c02f01735a8b2c32787424e31bbc"
 
 [name]
 zh = "刚体质量矩阵求解"

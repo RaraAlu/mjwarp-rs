@@ -241,6 +241,13 @@ pub(super) fn mass_matrix_device(
 // limitations under the License.
 #[cfg(feature = "cuda-probe")]
 const MASS_MATRIX_CUDA: &str = r#"
+// Frozen math.inert_vec / wp.dot emit a specific mul/add/fma order; the driver
+// JIT decides contraction on that exact sequence. Emit the same unqualified
+// PTX operations to reproduce its rounding.
+__device__ float mmul(float a,float b) { float r; asm("mul.f32 %0,%1,%2;" : "=f"(r) : "f"(a),"f"(b)); return r; }
+__device__ float madd(float a,float b) { float r; asm("add.f32 %0,%1,%2;" : "=f"(r) : "f"(a),"f"(b)); return r; }
+__device__ float msub(float a,float b) { float r; asm("sub.f32 %0,%1,%2;" : "=f"(r) : "f"(a),"f"(b)); return r; }
+__device__ float mfma(float a,float b,float c) { float r; asm("fma.rn.f32 %0,%1,%2,%3;" : "=f"(r) : "f"(a),"f"(b),"f"(c)); return r; }
 extern "C" __global__ void rigid_mass_matrix(const int* m,const float* p,
     const float* state,float* output,unsigned nb,unsigned nv,unsigned unused,unsigned nw) {
   unsigned w=blockIdx.x*blockDim.x+threadIdx.x;
@@ -256,20 +263,22 @@ extern "C" __global__ void rigid_mass_matrix(const int* m,const float* p,
     for(int a=0;a<10;a++) crb[10*parent[b]+a]+=crb[10*b+a];
   for(unsigned a=0;a<nv*nv;a++) mat[a]=0.0f;
   for(unsigned d=0;d<nv;d++) {
-    const float* i=crb+10*body[d]; const float* v=cd+6*d;
-    float buf[6]={
-      i[0]*v[0]+i[3]*v[1]+i[4]*v[2]-i[8]*v[4]+i[7]*v[5],
-      i[3]*v[0]+i[1]*v[1]+i[5]*v[2]+i[8]*v[3]-i[6]*v[5],
-      i[4]*v[0]+i[5]*v[1]+i[2]*v[2]-i[7]*v[3]+i[6]*v[4],
-      i[8]*v[1]-i[7]*v[2]+i[9]*v[3],
-      i[6]*v[2]-i[8]*v[0]+i[9]*v[4],
-      i[7]*v[0]-i[6]*v[1]+i[9]*v[5]};
+    const float* i=crb+10*body[d];
+    float i0=i[0],i1=i[1],i2=i[2],i3=i[3],i4=i[4],i5=i[5],i6=i[6],i7=i[7],i8=i[8],i9=i[9];
+    float v0=cd[6*d],v1=cd[6*d+1],v2=cd[6*d+2],v3=cd[6*d+3],v4=cd[6*d+4],v5=cd[6*d+5];
+    float b0=mfma(i7,v5,msub(mfma(i4,v2,mfma(i0,v0,mmul(i3,v1))),mmul(i8,v4)));
+    float b1=msub(mfma(i8,v3,mfma(i5,v2,mfma(i3,v0,mmul(i1,v1)))),mmul(i6,v5));
+    float b2=mfma(i6,v4,msub(mfma(i2,v2,mfma(i4,v0,mmul(i5,v1))),mmul(i7,v3)));
+    float b3=mfma(i9,v3,msub(mmul(i8,v1),mmul(i7,v2)));
+    float b4=mfma(i9,v4,msub(mmul(i6,v2),mmul(i8,v0)));
+    float b5=mfma(i9,v5,msub(mmul(i7,v0),mmul(i6,v1)));
     for(int j=int(d);j>=0;j=dparent[j]) {
-      // Frozen _M finishes wp.dot before adding the diagonal armature.
-      // Seeding the dot with armature changes the f32 rounding sequence.
-      float value=cd[6*j]*buf[0];
-      for(int a=1;a<6;a++) value+=cd[6*j+a]*buf[a];
-      if(j==int(d)) value=__fadd_rn(value,p[d]);
+      const float* w=cd+6*j;
+      // Frozen _M: chained fma dot (seeded with zero) then armature added last.
+      float value=mfma(w[0],b0,0.0f);
+      value=mfma(w[1],b1,value); value=mfma(w[2],b2,value);
+      value=mfma(w[3],b3,value); value=mfma(w[4],b4,value); value=mfma(w[5],b5,value);
+      if(j==int(d)) value=madd(value,p[d]);
       mat[d*nv+j]=value; mat[j*nv+d]=value;
     }
   }

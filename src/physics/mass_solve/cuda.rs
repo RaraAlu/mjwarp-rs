@@ -93,6 +93,21 @@ extern "C" __global__ void rigid_mass_solve(const int* blocks,const float* rhs,
       if(kind==0) {
         v[begin]*=inv[begin];
       } else if(kind==1) {
+        if(end-begin>6) {
+        // Frozen MathDx tile solve sweeps columns: forward U^T y = b then
+        // backward U x = y. Diagonal steps use a rounded reciprocal multiply
+        // and off-diagonal updates are single fma operations.
+        for(int j=begin;j<end;j++) {
+          float reciprocal=__frcp_rn(ld[j*n+j]);
+          v[j]=__fmul_rn(v[j],reciprocal);
+          for(int i=j+1;i<end;i++) v[i]=__fmaf_rn(-ld[j*n+i],v[j],v[i]);
+        }
+        for(int j=end-1;j>=begin;j--) {
+          float reciprocal=__frcp_rn(ld[j*n+j]);
+          v[j]=__fmul_rn(v[j],reciprocal);
+          for(int i=begin;i<j;i++) v[i]=__fmaf_rn(-ld[i*n+j],v[j],v[i]);
+        }
+        } else {
         for(int i=begin;i<end;i++) {
           float value=v[i];
           for(int j=begin;j<i;j++) value-=ld[j*n+i]*v[j];
@@ -102,6 +117,7 @@ extern "C" __global__ void rigid_mass_solve(const int* blocks,const float* rhs,
           float value=v[i];
           for(int j=i+1;j<end;j++) value-=ld[i*n+j]*v[j];
           v[i]=value/ld[i*n+i];
+        }
         }
       } else {
     // 反向LDL块依次执行L^-T、D^-1与L^-1。

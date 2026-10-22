@@ -254,12 +254,46 @@ __device__ V rotate(Q q,V v) {
   V r=add(lhs,scale(v,factor));
   return add(r,scale(cross_v(u,v),2.0f*q.w));
 }
-__device__ void matrix(float* m,Q q) {
+// Frozen Warp math.quat_to_mat emits separate mul.f32/add.f32/sub.f32 (no
+// explicit FMA); the driver JIT decides contraction on that exact sequence.
+// Emitting the same unqualified PTX operations reproduces its rounding.
+__device__ float umul(float a,float b) { float r; asm("mul.f32 %0,%1,%2;" : "=f"(r) : "f"(a),"f"(b)); return r; }
+__device__ float uadd(float a,float b) { float r; asm("add.f32 %0,%1,%2;" : "=f"(r) : "f"(a),"f"(b)); return r; }
+__device__ float usub(float a,float b) { float r; asm("sub.f32 %0,%1,%2;" : "=f"(r) : "f"(a),"f"(b)); return r; }
+__device__ float ufma(float a,float b,float c) { float r; asm("fma.rn.f32 %0,%1,%2,%3;" : "=f"(r) : "f"(a),"f"(b),"f"(c)); return r; }
+__device__ void matrix_from(float* m,float w,float x,float y,float z) {
+  float q00=umul(w,w), q01=umul(w,x), q02=umul(w,y), q03=umul(w,z);
+  float q11=umul(x,x), q12=umul(x,y), q13=umul(x,z);
+  float q22=umul(y,y), q23=umul(y,z), q33=umul(z,z);
+  m[0]=usub(usub(uadd(q00,q11),q22),q33);
+  float t=usub(q12,q03); m[1]=uadd(t,t);
+  t=uadd(q02,q13); m[2]=uadd(t,t);
+  t=uadd(q12,q03); m[3]=uadd(t,t);
+  m[4]=usub(uadd(usub(q00,q11),q22),q33);
+  t=usub(q23,q01); m[5]=uadd(t,t);
+  t=usub(q13,q02); m[6]=uadd(t,t);
+  t=uadd(q01,q23); m[7]=uadd(t,t);
+  t=usub(usub(q00,q11),q22); m[8]=uadd(t,q33);
+}
+__device__ void matrix(float* m,Q q) { matrix_from(m,q.w,q.x,q.y,q.z); }
+// The inertial-frame kernel keeps the natural (compiler-contracted) form: it
+// matches the frozen kernel bit-for-bit, unlike the body-matrix sequence above.
+__device__ void matrix_natural(float* m,Q q) {
   m[0]=q.w*q.w+q.x*q.x-q.y*q.y-q.z*q.z;
   m[1]=2*(q.x*q.y-q.w*q.z); m[2]=2*(q.x*q.z+q.w*q.y);
   m[3]=2*(q.x*q.y+q.w*q.z); m[4]=q.w*q.w-q.x*q.x+q.y*q.y-q.z*q.z;
   m[5]=2*(q.y*q.z-q.w*q.x); m[6]=2*(q.x*q.z-q.w*q.y);
   m[7]=2*(q.y*q.z+q.w*q.x); m[8]=q.w*q.w-q.x*q.x-q.y*q.y+q.z*q.z;
+}
+// Frozen Warp mul_quat inside _compute_body_inertial_frames fuses a subset of
+// the terms (PTX fma.rn) and leaves the rest as mul/sub; transcribe that exact
+// operation order for the inertial-frame matrix.
+__device__ void matrix_inertial(float* m,Q a,Q b) {
+  float rw=usub(usub(usub(umul(a.w,b.w),umul(a.x,b.x)),umul(a.y,b.y)),umul(a.z,b.z));
+  float rx=usub(ufma(a.y,b.z,ufma(a.x,b.w,umul(a.w,b.x))),umul(a.z,b.y));
+  float ry=ufma(a.z,b.x,ufma(a.y,b.w,usub(umul(a.w,b.y),umul(a.x,b.z))));
+  float rz=ufma(a.z,b.w,usub(ufma(a.x,b.y,umul(a.w,b.z)),umul(a.y,b.x)));
+  matrix_from(m,rw,rx,ry,rz);
 }
 extern "C" __global__ void rigid_kinematics(const int* meta,const float* model,
     const float* state,float* result,unsigned nq,unsigned nb,unsigned nj,unsigned worlds) {
@@ -327,7 +361,7 @@ extern "C" __global__ void rigid_kinematics(const int* meta,const float* model,
     }
     store_v(xp+3*b,p); store_q(xq+4*b,r); matrix(xm+9*b,r);
     store_v(xi+3*b,add(p,rotate(r,load_v(ip+3*b))));
-    matrix(im+9*b,multiply(r,load_q(iq+4*b)));
+    matrix_natural(im+9*b,multiply(r,load_q(iq+4*b)));
   }
 }
 "#;

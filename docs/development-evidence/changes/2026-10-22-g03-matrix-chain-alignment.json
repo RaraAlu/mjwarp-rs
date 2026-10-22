@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-g03-matrix-chain-alignment",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "docs/development-evidence/g03-matrix-chain-alignment/README.md", "blob": "f9c0c71374f098013294f15b280389840103643e"},
+    {"path": "docs/development-evidence/g03-matrix-chain-alignment/results.json", "blob": "d56edd058bc2a8ae154d8ef57229357aae1e5644"},
+    {"path": "docs/development-evidence/g03-matrix-chain-alignment/first-difference-after-fix.json", "blob": "0cec1d4eb3330a93b7985afd5d62dbf8166e34a9"},
+    {"path": "src/physics/mod.rs", "blob": "b77edf61bddb520f5dd5548f0704cbbfa02da0b3"},
+    {"path": "src/physics/mass_matrix.rs", "blob": "04ee3e1e2f0c199b017c315186bbb42ebe9a8349"},
+    {"path": "src/physics/mass_solve/cuda.rs", "blob": "4bc25865d63c3176bfadb7e22ffe9b1d49860d64"}
+  ],
+  "note": "按 Chief 2026-10-22 确认的矩阵链对齐计划执行。原任务 2026-10-22-g03-kinematics-matrix-fma-alignment（登记 47ca9a3）只登记 src/physics/mod.rs；首差循环归零过程中确认残余 FMA 收缩还位于 mass-matrix 与 mass-solve 模块，schedule 已冻结无法扩范围，按规范 abandon（放弃记录提交 97e4c69）后另立本任务覆盖完整最小实现面。实现：KINEMATICS_CUDA 的 matrix() 改为上游局部乘积写法（umul/uadd/usub/ufma 显式 PTX，非 FMA 收缩）；MASS_MATRIX_CUDA 的 rigid_mass_matrix 按上游 _M 的 mul/fma/sub 顺序逐项转录（惯量向量六分量、链式 fma 点积、j==d 主对角加法）；MASS_SOLVE_CUDA 的 tile 块（>6 维）求解改为上游 MathDx 列扫描（先 forward U^T y=b、再 backward U x=y，对角 rcp.rn 倒数乘、离对角 fma.rn 单步更新），≤6 维标量块保留既有路径。算序反推：离线工具对冻结上游 factor+rhs+solution 枚举出唯一 diffs=0 组合（列扫描、先 forward 后 backward、融合 fma、倒数乘）。验证：首差工具 first_stage=None（xmat/cdof/matrix_dense_block 等全部 0 位差）；MathDx potrf(产品矩阵) vs 冻结上游 factor status=0、0/121、max_abs=0；产品 GPU 解 vs 冻结上游 solution 0/33 位差、max_abs=0（case4/world4 三条 rhs）；tests/mass_solve_probe all-features 6 过 0 败，NP03 汇总 factors 240/native-snapshots 240/rhs-counts 152 全部 failed=0，case4/world4 三项准入缺口全部转绿。T4 源码身份因产品源码变化到期，另立并跟踪 2026-10-22-t4-source-hash-repin-6（只改哈希数值与内联字面量），完成后再跑全量非 ignored 回归与 G01 debug 全脚本，结果记入该任务证据。硬边界：未改 ABI/类型/容差/准入余量/测试断言/fixtures；产品测试只跑 cargo、不启动 Python；离线 authoring 只复用已批准 pinned venv 的冻结产物，不进产品链；未跑 release/Linux，不宣称 NP01–NP04、精度契约或性能验收通过。",
+  "evidence": {
+    "readme": "docs/development-evidence/g03-matrix-chain-alignment/README.md",
+    "results": "docs/development-evidence/g03-matrix-chain-alignment/results.json",
+    "first_difference": "docs/development-evidence/g03-matrix-chain-alignment/first-difference-after-fix.json",
+    "upstream_reference": "docs/development-evidence/g03-upstream-matrix/upstream-matrix.json",
+    "mathdx_oracle": "docs/development-evidence/g03-mathdx-alignment/README.md",
+    "probe_log_gitignored": "target/mass-solve-after-solve-fix.log",
+    "chain_log_gitignored": "target/g03-fma/chain-verification.log",
+    "follow_up_task": "2026-10-22-t4-source-hash-repin-6"
+  }
+}

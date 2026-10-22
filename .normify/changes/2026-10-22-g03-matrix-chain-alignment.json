@@ -5,7 +5,7 @@
     "zh": "对齐G03矩阵链非收缩与求解算序",
     "en": "Align G03 matrix chain contraction and solve order"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "按 Chief 2026-10-22 确认的矩阵链对齐计划，把冻结上游 MJWarp 的 f32 算序逐位对齐：KINEMATICS_CUDA 的 matrix(Q q) 改为上游局部乘积写法（非 FMA 收缩）；MASS_MATRIX_CUDA 的 rigid_mass_matrix 按上游 _M 的 mul/fma/sub 顺序转录；MASS_SOLVE_CUDA 的 tile 求解改为上游列扫描（对角倒数乘、离对角 fma.rn）。原任务 2026-10-22-g03-kinematics-matrix-fma-alignment 只登记了 src/physics/mod.rs，首差归零过程中发现残余收缩位于 mass-matrix 与 mass-solve 模块，已按规范放弃并另立本任务覆盖完整最小面。验证顺序：首差工具→xmat/cdof/matrix_dense_block 0 位差→MathDx potrf(产品矩阵)==冻结 factor 0/121→产品解==冻结上游解 0/33→mass_solve_probe 三项准入→T4 源码身份重钉（另立 2026-10-22-t4-source-hash-repin-6）→双模式定向回归与 G01 debug。不改 ABI、类型、容差、准入余量、测试断言、fixtures。",
     "en": "Align the frozen upstream MJWarp f32 arithmetic order bit for bit, as confirmed by Chief on 2026-10-22: KINEMATICS_CUDA matrix(Q q) uses upstream local-product form (no FMA contraction); MASS_MATRIX_CUDA rigid_mass_matrix transcribes upstream _M mul/fma/sub order; MASS_SOLVE_CUDA tile solve switches to the upstream column sweep (reciprocal-multiply diagonal, fma.rn off-diagonal). The superseded task 2026-10-22-g03-kinematics-matrix-fma-alignment only registered src/physics/mod.rs; residual contraction was located in the mass-matrix and mass-solve modules while zeroing first differences, so it was abandoned and this task covers the full minimal surface. Validation order: first-difference tool -> xmat/cdof/matrix_dense_block zero bits -> MathDx potrf(product matrix) equals frozen factor 0/121 -> product solution equals frozen upstream solution 0/33 -> three mass_solve_probe admissions -> T4 source hash repin (separate 2026-10-22-t4-source-hash-repin-6) -> dual-mode targeted regression and G01 debug. No ABI/type/tolerance/admission-margin/assertion/fixture changes."
@@ -50,7 +50,8 @@
     "after": null
   },
   "created_at": "2026-10-22T21:40:00.000Z",
-  "updated_at": "2026-10-22T13:38:42.024Z",
+  "updated_at": "2026-10-22T13:39:55.471Z",
+  "closed_at": "2026-10-22T13:39:55.471Z",
   "checks": [
     {
       "kind": "gate",

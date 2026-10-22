@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-22-g03-matrix-chain-alignment",
+  "scope": "g03-matrix-chain-f32-bit-alignment",
+  "boundary": "Product paths only run through cargo; offline authoring reused approved pinned venv frozen artifacts and never entered the product chain. No Python, ABI, tolerance, admission-margin, assertion or fixture changes. NP01-NP04, release, Linux and full G01 are not claimed.",
+  "source_files": [
+    "src/physics/mod.rs",
+    "src/physics/mass_matrix.rs",
+    "src/physics/mass_solve/cuda.rs"
+  ],
+  "changes": {
+    "kinematics": "KINEMATICS_CUDA matrix_from materializes quaternion products as locals with explicit mul/add/sub PTX before assembling xmat, matching upstream _compute_body_matrices; ximat keeps the natural contraction form already matching upstream inertial_frames.",
+    "mass_matrix": "MASS_MATRIX_CUDA rigid_mass_matrix transcribes upstream _M mul/fma/sub order for the six inertia-vector components, the chained-fma dot products and the j==d diagonal add.",
+    "mass_solve": "MASS_SOLVE_CUDA tile solve (>6) uses upstream MathDx column sweep: forward U^T y = b then backward U x = y, rcp.rn diagonal multiply and fma.rn off-diagonal updates; scalar blocks keep the previous path."
+  },
+  "verification": {
+    "first_difference": {
+      "command": "target/g03-precheck-dump bin first_difference",
+      "artifact": "first-difference-after-fix.json",
+      "first_stage": null,
+      "bit_diffs": "all fields 0"
+    },
+    "mathdx_potrf": {
+      "command": "target/mathdx11/oracle.exe <potrf_11 cubin> factor target/g03-fma/product-matrix.f32 target/g03-fma/potrf-product.out mathdx11_factor",
+      "cubin_sha256": "36e7f49ef7ff7900a639bd464c8db559771f3a50884e97842b407e3e96d2c765",
+      "status": 0,
+      "bit_diffs": "0/121",
+      "max_abs": 0.0
+    },
+    "potrs_solution": {
+      "command": "target/g03-precheck-dump bin dump_solution",
+      "artifact": "target/g03-fma/product-solution-world4.f32",
+      "bit_diffs": "0/33",
+      "max_abs": 0.0,
+      "note": "product GPU solution vs frozen upstream solution for case4/world4 three rhs"
+    },
+    "mass_solve_probe": {
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test mass_solve_probe -- --ignored --test-threads=1",
+      "result": "6 passed, 0 failed",
+      "np03_failed_blocks": {
+        "G03-factors-and-rhs": 0,
+        "G03-native-snapshots": 0,
+        "G03-rhs-counts": 0
+      },
+      "log": "target/mass-solve-after-solve-fix.log"
+    }
+  },
+  "t4_source_identity": {
+    "status": "drifted",
+    "detail": "Product source changes invalidate the pinned T4 source identity; library recapture tests report unmapped pre-rotation / retained drift.",
+    "follow_up_task": "2026-10-22-t4-source-hash-repin-6"
+  },
+  "unverified": [
+    "Full non-ignored cargo regression and G01 debug script are executed after 2026-10-22-t4-source-hash-repin-6; results are recorded under that task's evidence.",
+    "Release/Linux, NP01-NP04, precision contract and performance acceptance remain unclaimed."
+  ]
+}
