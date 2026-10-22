@@ -6,8 +6,6 @@ use super::{SparseMassPlan, SparseMassSolveData, SparseMassSolvePlan, layout};
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::TransferError;
 use crate::model::{AttachedModelInput, SparseMassInput};
-#[cfg(feature = "cuda-probe")]
-use crate::runtime::SynchronousKernel;
 use crate::runtime::TransferSession;
 
 impl SparseMassSolvePlan {
@@ -32,13 +30,22 @@ impl SparseMassSolvePlan {
             metadata.extend((0..input.nv()).map(|i| f.m_rowadr[i] + f.m_rownnz[i] - 1));
             metadata.extend(offsets);
             metadata.extend(input.qld_all_updates().iter().flatten());
+            let static_dims = super::launcher_abi::SparseSolveStaticDims::new(
+                input.nv(),
+                input.nc(),
+                offsets.len() - 1,
+                input.qld_all_updates().len(),
+            )
+            .map_err(super::launcher_abi::sparse_solve_launch_error)?;
+            let metadata = super::launcher_abi::SparseSolveMetadataBuffer::from_values(
+                session,
+                metadata,
+                static_dims,
+            )?;
             Ok(Self {
                 mass,
-                metadata: session.upload(&metadata)?,
-                kernels: [
-                    SynchronousKernel::compile(session, CUDA, "sparse_solve_validate")?,
-                    SynchronousKernel::compile(session, CUDA, "sparse_solve_fused")?,
-                ],
+                metadata,
+                kernels: super::kernels::SparseSolveKernels::compile(session, CUDA)?,
             })
         }
     }
@@ -115,24 +122,16 @@ impl SparseMassSolvePlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let dimensions = [
-                self.input().nv() as u32,
-                self.input().nc() as u32,
-                data.rhs_count as u32,
-                data.worlds() as u32,
-            ];
-            // SAFETY: Checked metadata contains n block flags, n diagonal slots,
-            // level offsets and bounded CSR updates. Guarded factor/RHS strides
-            // match this plan; each validation thread owns one world status.
-            unsafe {
-                self.kernels[0].launch(
-                    &self.metadata,
-                    &data.rhs,
-                    &data.mass.factor.output,
-                    &mut data.mass.status,
-                    dimensions,
-                )?;
-            }
+            let worlds = data.worlds() as u32;
+            let rhs_count = data.rhs_count as u32;
+            self.kernels.launch_validate(
+                &self.metadata,
+                &data.rhs,
+                &data.mass.factor.output,
+                &mut data.mass.status,
+                worlds,
+                rhs_count,
+            )?;
             let mut status = crate::runtime::host_staging::<f32>(data.worlds() + 8)?;
             data.mass.status.read_range_into(0, &mut status)?;
             crate::physics::check_device_values(&status, "sparse_solve_status")?;
@@ -149,17 +148,15 @@ impl SparseMassSolvePlan {
                     .into());
                 }
             }
-            // SAFETY: Every block owns one world/RHS and all 128 threads reach
-            // every layer barrier. Only its disjoint output slice changes.
-            unsafe {
-                self.kernels[1].launch_sparse_solve(
-                    &self.metadata,
-                    &data.rhs,
-                    &data.mass.factor.output,
-                    &mut data.output,
-                    dimensions,
-                )?;
-            }
+            // 每块独占一个世界/右端项，128线程全部到达层同步。
+            self.kernels.launch_fused(
+                &self.metadata,
+                &data.rhs,
+                &data.mass.factor.output,
+                &mut data.output,
+                worlds,
+                rhs_count,
+            )?;
             data.checked_solution()?;
             data.ready = true;
             Ok(())

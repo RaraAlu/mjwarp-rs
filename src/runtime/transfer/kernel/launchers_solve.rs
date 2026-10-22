@@ -169,6 +169,70 @@ impl SynchronousKernel {
         })
     }
 
+    /// 固定256线程；每世界一个验证槽。
+    ///
+    /// # Safety
+    /// Caller proves metadata contents and the eight-argument sparse validate ABI.
+    /// Buffers are disjoint; only status changes. The kernel spawns no child work.
+    pub(crate) unsafe fn launch_sparse_solve_validate(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        rhs: &TransferBuffer<f32>,
+        factor: &TransferBuffer<f32>,
+        status: &mut TransferBuffer<f32>,
+        dimensions: [u32; 4],
+    ) -> Result<(), TransferError> {
+        for same in [
+            Arc::ptr_eq(&self.session.inner, &metadata.session.inner),
+            Arc::ptr_eq(&self.session.inner, &rhs.session.inner),
+            Arc::ptr_eq(&self.session.inner, &factor.session.inner),
+            Arc::ptr_eq(&self.session.inner, &status.session.inner),
+        ] {
+            if !same {
+                return Err(TransferError::SessionMismatch);
+            }
+        }
+        let count = dimensions[3];
+        if count == 0 || count > u32::MAX - 255 {
+            return Err(InputError::InvalidDimension {
+                field: "kernel_work_items",
+            }
+            .into());
+        }
+        let (Some(m), Some(r), Some(f), Some(s)) = (
+            metadata.allocation.as_ref(),
+            rhs.allocation.as_ref(),
+            factor.allocation.as_ref(),
+            status.allocation.as_mut(),
+        ) else {
+            return Err(InputError::InvalidDimension {
+                field: "kernel_buffers",
+            }
+            .into());
+        };
+        self.session.run("sparse-solve-validate-launch", || {
+            let mut args = self
+                .session
+                .inner
+                .stream
+                .launch_builder(self.function.as_ref().unwrap());
+            args.arg(m).arg(r).arg(f).arg(s);
+            for value in &dimensions {
+                args.arg(value);
+            }
+            // SAFETY: 调用方证明私有ABI与全部跨度。
+            // run会串行并等待完成。
+            unsafe {
+                args.launch(LaunchConfig {
+                    grid_dim: (count.div_ceil(256), 1, 1),
+                    block_dim: (256, 1, 1),
+                    shared_mem_bytes: 0,
+                })
+            }?;
+            Ok(())
+        })
+    }
+
     /// 固定128线程；每世界每RHS独占一个块。
     ///
     /// # Safety

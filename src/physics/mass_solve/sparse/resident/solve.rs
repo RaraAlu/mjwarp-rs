@@ -4,12 +4,21 @@ use super::{SparseMassData, SparseMassFactorOutput, SparseMassFactorWorld, Spars
 use crate::diagnostics::InputError;
 use crate::model::{BatchLayout, SparseMassInput};
 #[cfg(feature = "cuda-probe")]
-use crate::runtime::{SynchronousKernel, TransferBuffer};
+use crate::runtime::TransferBuffer;
 
 #[path = "solve/cuda.rs"]
 mod cuda;
 #[path = "solve/data.rs"]
 mod data;
+#[cfg(feature = "cuda-probe")]
+#[path = "solve/kernels.rs"]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "solve/launcher_abi.rs"]
+mod launcher_abi;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "solve/launcher_tests.rs"]
+mod launcher_tests;
 #[path = "solve/plan.rs"]
 mod plan;
 #[cfg(all(test, feature = "cuda-probe"))]
@@ -19,9 +28,9 @@ mod tests;
 pub struct SparseMassSolvePlan {
     mass: SparseMassPlan,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: launcher_abi::SparseSolveMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 2],
+    kernels: kernels::SparseSolveKernels,
 }
 pub struct SparseMassSolveData {
     mass: SparseMassData,

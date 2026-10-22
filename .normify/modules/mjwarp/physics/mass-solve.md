@@ -355,6 +355,15 @@ path = "src/physics/mass_solve/sparse/resident/kernels.rs"
 [[source]]
 path = "src/physics/mass_solve/sparse/resident/tests/launcher.rs"
 
+[[source]]
+path = "src/physics/mass_solve/sparse/resident/solve/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/resident/solve/kernels.rs"
+
+[[source]]
+path = "src/physics/mass_solve/sparse/resident/solve/launcher_tests.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::probe_mass_solve"

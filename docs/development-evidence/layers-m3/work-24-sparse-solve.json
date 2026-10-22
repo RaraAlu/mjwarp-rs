@@ -1,0 +1,36 @@
+{
+    "work": "work-24-sparse-solve",
+    "summary": "常驻稀疏求解两入口改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/mass_solve/sparse/resident/solve/plan.rs", "line": 128 },
+        { "file": "src/physics/mass_solve/sparse/resident/solve/plan.rs", "line": 155 }
+    ],
+    "add_low_level": [
+        { "file": "src/physics/mass_solve/sparse/resident/solve/kernels.rs", "line": 230, "receiver": "self.validate", "method": "launch_sparse_solve_validate", "classification": "typed_wrapper_low_level", "entry": "sparse_solve_validate" },
+        { "file": "src/physics/mass_solve/sparse/resident/solve/kernels.rs", "line": 257, "receiver": "self.fused", "method": "launch_sparse_solve", "classification": "typed_wrapper_low_level", "entry": "sparse_solve_fused" }
+    ],
+    "add_orchestration": [
+        { "file": "src/physics/mass_solve/sparse/resident/solve/plan.rs", "line": 127, "receiver": "self.kernels", "method": "launch_validate", "classification": "wrapper_orchestration", "entry": "sparse_solve_validate" },
+        { "file": "src/physics/mass_solve/sparse/resident/solve/plan.rs", "line": 152, "receiver": "self.kernels", "method": "launch_fused", "classification": "wrapper_orchestration", "entry": "sparse_solve_fused" }
+    ],
+    "compile_sites_replace": [
+        { "old_file": "src/physics/mass_solve/sparse/resident/solve/plan.rs", "old_line": 39, "new_file": "src/physics/mass_solve/sparse/resident/solve/kernels.rs", "new_line": 165 },
+        { "old_file": "src/physics/mass_solve/sparse/resident/solve/plan.rs", "old_line": 40, "new_file": "src/physics/mass_solve/sparse/resident/solve/kernels.rs", "new_line": 166 }
+    ],
+    "entry_status": [
+        { "entry": "sparse_solve_validate", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/mass_solve/sparse/resident/solve/kernels.rs:165" ], "kernel_abi_evidence": [ "SparseSolveValidateSpec at src/physics/mass_solve/sparse/resident/solve/kernels.rs", "four-buffer 256-thread launch at src/physics/mass_solve/sparse/resident/solve/kernels.rs:230" ] },
+        { "entry": "sparse_solve_fused", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/mass_solve/sparse/resident/solve/kernels.rs:166" ], "kernel_abi_evidence": [ "SparseSolveFusedSpec", "four-buffer 128-thread launch at src/physics/mass_solve/sparse/resident/solve/kernels.rs:257" ] }
+    ],
+    "families_add": [
+        { "type": "SparseSolveValidateSpec", "logical_name": "sparse_solve_validate", "definition": "src/physics/mass_solve/sparse/resident/solve/kernels.rs", "actual_cuda_entries": "sparse_solve_validate", "typed_low_level_calls": [ "src/physics/mass_solve/sparse/resident/solve/kernels.rs:230" ] },
+        { "type": "SparseSolveFusedSpec", "logical_name": "sparse_solve_fused", "definition": "src/physics/mass_solve/sparse/resident/solve/kernels.rs", "actual_cuda_entries": "sparse_solve_fused", "typed_low_level_calls": [ "src/physics/mass_solve/sparse/resident/solve/kernels.rs:257" ] }
+    ],
+    "next_candidate": { "selected": false, "entry": null, "migration_status": "none", "compile_sites": [], "reason": "最后两入口已收口；未迁移入口与底层调用归零" },
+    "manual_cross_checks_add": [
+        "work-24: 常驻稀疏求解两入口改走类型化包装；raw 行 -2、typed 行 +2、编排行 +2",
+        "work-24: 元数据证明校验层级计数、对角槽上界、层偏移起点/单调/终点以及实际使用更新三元组的自由度与因子槽上界；RHS/因子/状态/解按世界精确跨度校验",
+        "work-24: 验证入口256线程每世界一槽、融合入口128线程每世界每右端项一块；两入口网格由维度推导并在计划期核对会话、别名与证明",
+        "work-24: GPU 定向 resident::solve 1 过；mass_solve 全量 33 过（需 MJWARP_RESIDENT_MIXED_REPORT，缺失属测试环境要求非代码回归）"
+    ],
+    "acceptance_boundary_set": { "sparse_solve_migrated": true, "sparse_solve_raw": false, "unmigrated_zero_reached": true }
+}
