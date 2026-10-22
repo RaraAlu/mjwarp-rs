@@ -2,7 +2,7 @@
 uid = "6f2c1a9d"
 id = "mjwarp.physics.gravity-compensation"
 tags = ["G04", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "e6c24851a5a371118b193582a32981f6dd11928c9fbf12738ae5b96a7e522895"
+fingerprint = "7fb6e08b14e77a449c02e4e7fc2eed046a0d9bd582a387e0ae2ca203c6a6da36"
 
 [name]
 zh = "重力补偿"
@@ -10,10 +10,10 @@ en = "Gravity compensation"
 
 [description]
 zh = """
-计算并合并刚体重力补偿。零与非零位形链均使用同状态实时产品结果。非零平面链1134项逐位一致，完整三维状态与NP03仍开放。
+计算并合并刚体重力补偿。零与非零位形链均使用同状态实时产品结果。非零平面链1134项逐位一致，完整三维状态与NP03仍开放。2026-10-23三维链按有界规则关闭；全链qfrc_gravcomp仍8/77超2e-6，首差定位为NVRTC FMA收缩差异，不宣称通过。
 """
 en = """
-Computes and composes rigid gravity compensation. Zero and nonzero qpos chains use live product results from the same state. The planar nonzero chain is bit-identical across 1,134 values; full 3D state coverage and NP03 remain open.
+Computes and composes rigid gravity compensation. Zero and nonzero qpos chains use live product results from the same state. The planar nonzero chain is bit-identical across 1,134 values; full 3D state coverage and NP03 remain open. The 3D chain was closed under bounded rules on 2026-10-23; full-chain qfrc_gravcomp still has 8/77 values outside 2e-6, with the first difference localized to NVRTC FMA contraction; pass is not claimed.
 """
 
 [[source]]
@@ -84,6 +84,51 @@ path = "src/physics/gravity_compensation/kernels.rs"
 
 [[source]]
 path = "src/physics/gravity_compensation/tests/launcher.rs"
+
+[[source]]
+path = "tests/t4_gravity_3d_product_chain.rs"
+
+[[source]]
+path = "tests/t4_gravity_3d_product_chain/contract.rs"
+
+[[source]]
+path = "tests/t4_gravity_3d_product_chain/live.rs"
+
+[[source]]
+path = "fixtures/gravity-upstream-abi/three-d-package.json"
+
+[[source]]
+path = "fixtures/gravity-upstream-abi/three-d-model-package.json"
+
+[[source]]
+path = "fixtures/gravity-upstream-abi/three-d-kinematics/receipt.json"
+
+[[source]]
+path = "docs/development-evidence/u038-3d/README.md"
+
+[[source]]
+path = "docs/development-evidence/u038-3d/closure.md"
+
+[[source]]
+path = "docs/development-evidence/u038-3d/first-diff-round1.md"
+
+[[source]]
+path = "docs/development-evidence/u038-3d/ptx-order-round2.md"
+
+[[source]]
+path = "scripts/authoring/author-u038-3d.py"
+
+[[source]]
+path = "scripts/authoring/author-u038-3d.ps1"
+
+[[source]]
+path = "scripts/authoring/u038_3d_common.py"
+
+[[source]]
+path = "scripts/authoring/u038_3d_config.py"
+
+[[source]]
+path = "scripts/authoring/u038_3d_reference.py"
 
 [[apis]]
 protocol = "rpc"
@@ -184,3 +229,12 @@ Rust直接加载固定PTX。
 候选链仍提供质心与自由度。
 完整链仍不独立。
 完整U038与NP仍开放。
+
+2026-10-23三维链按有界规则关闭。
+该关闭不表示三维链验收通过。
+运动学1400项与重力算子77/77均为0超差。
+全链qfrc_gravcomp仍有8项超2e-6。
+最大误差4.29e-6，来自f32算序传播。
+首差定位为NVRTC FMA收缩差异。
+债务与算序对齐任务均按有界规则关闭。
+不宣称三维链或NP03通过。
