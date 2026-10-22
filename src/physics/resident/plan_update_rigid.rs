@@ -13,7 +13,7 @@ impl KinematicsPlan {
         let com = crate::physics::COM_POSITION_CUDA;
         let source = format!("{FIELD_BATCH_CUDA}\n{com}");
         Ok(VelocityPositionKernels {
-            com: SynchronousKernel::compile(&self.session, &source, "rigid_com_position")?,
+            com: ResidentComKernel::compile(&self.session, &source)?,
         })
     }
 
@@ -45,24 +45,14 @@ impl KinematicsPlan {
             // 内核随后覆盖其余全部FK槽位。
             rigid.copy_range_from(0, &data.rigid, 0, data.rigid.len())?;
         }
-        let k = self.model.rigid().kinematics();
         let worlds = data.worlds() as u32;
         // 刚体发射由类型化包装核对证明、精确跨度、同会话与别名。
         self.rigid_kernel
             .launch(&self.rigid, &data.state, rigid, worlds)?;
-        // SAFETY: The plan's COM kernel fixes its own ABI; validated metadata
-        // and checked f32 model/state/workspace allocations bound all reads
-        // and writes. The adapter enforces one session and waits after each
-        // launch. Equivalent plans read the copied body0 pose.
-        unsafe {
-            kernels.com.launch(
-                &self.com.metadata,
-                &self.com.parameters,
-                rigid,
-                com,
-                [k.nbody() as u32, k.njnt() as u32, k.nv() as u32, worlds],
-            )?;
-        }
+        // 质心发射读取已同步刚体结果，写互不相交的世界输出。
+        kernels
+            .com
+            .launch(&self.com.metadata, &self.com.parameters, rigid, com, worlds)?;
         Ok(())
     }
 

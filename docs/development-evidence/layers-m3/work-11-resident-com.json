@@ -1,0 +1,89 @@
+{
+    "work": "work-11-resident-com",
+    "summary": "常驻质心位置 FIELD_BATCH 变体改走类型化包装，并收口 rigid_com_position 入口",
+    "remove_low_level": [
+        { "file": "src/physics/resident/plan_update_forward.rs", "line": 29 },
+        { "file": "src/physics/resident/plan_update_rigid.rs", "line": 58 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/resident/com_kernels.rs",
+            "line": 68,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "rigid_com_position"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/resident/plan_update_forward.rs",
+            "line": 24,
+            "receiver": "self.com_kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        },
+        {
+            "file": "src/physics/resident/plan_update_rigid.rs",
+            "line": 55,
+            "receiver": "kernels.com",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 293,
+            "new_file": "src/physics/resident/com_kernels.rs",
+            "new_line": 23
+        },
+        {
+            "old_file": "src/physics/resident/plan_update_rigid.rs",
+            "old_line": 16,
+            "new_file": "src/physics/resident/com_kernels.rs",
+            "new_line": 23
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "rigid_com_position",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [
+                "src/physics/com_position/kernels.rs:23",
+                "src/physics/resident/com_kernels.rs:23"
+            ],
+            "kernel_abi_evidence": [
+                "ComPositionSpec at src/physics/com_position/launcher_specs.rs:53",
+                "ResidentComSpec at src/physics/resident/com_launcher_specs.rs:53"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "ResidentComSpec",
+            "logical_name": "rigid_com_position",
+            "definition": "src/physics/resident/com_launcher_specs.rs:53",
+            "actual_cuda_entries": "rigid_com_position",
+            "typed_low_level_calls": [ "src/physics/resident/com_kernels.rs:68" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "attached_kinematics",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/attached/kernels.rs:23" ],
+        "reason": "常驻质心已收口；下一批常驻附着与初始化附着（同一 FIELD_BATCH ABI）"
+    },
+    "manual_cross_checks_add": [
+        "work-11: 常驻质心 FIELD_BATCH 变体改走类型化包装；探针与两处常驻发射共用同一 ABI 规格；raw 行 -2、typed 行 +1、编排行 +2",
+        "work-11: 元数据证明校验体父链、关节表、自由度地址与两对字段描述符（offset/batches/参数区间）",
+        "work-11: rigid_com_position 入口的探针与常驻编译点均已纳入包装，入口状态typed；清单编译点三条记录中两条合并到 com_kernels.rs:23，compile_call_sites 计数不变"
+    ],
+    "acceptance_boundary_set": {
+        "resident_com_migrated": true,
+        "com_position_fully_typed": true
+    }
+}

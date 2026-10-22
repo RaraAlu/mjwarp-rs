@@ -19,21 +19,15 @@ impl KinematicsPlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let k = self.model.rigid().kinematics();
             let worlds = data.worlds() as u32;
-            // SAFETY: Immutable topology proves parent and DOF ranges. Checked FK
-            // and COM layouts bound every guarded stride. All f32 buffers use the
-            // same session and distinct allocations; each thread owns one world.
-            // This shader reads the synchronized FK buffer without a host copy.
-            unsafe {
-                self.com_kernel.launch(
-                    &self.com.metadata,
-                    &self.com.parameters,
-                    &data.rigid,
-                    &mut data.com,
-                    [k.nbody() as u32, k.njnt() as u32, k.nv() as u32, worlds],
-                )?;
-            }
+            // 类型化包装核对证明、精确跨度、同会话与别名。
+            self.com_kernel.launch(
+                &self.com.metadata,
+                &self.com.parameters,
+                &data.rigid,
+                &mut data.com,
+                worlds,
+            )?;
             data.ready.com = true;
             Ok(())
         }

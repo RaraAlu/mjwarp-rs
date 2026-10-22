@@ -102,6 +102,24 @@ path = "src/physics/resident/rigid_upload.rs"
 [[source]]
 path = "src/physics/resident/rigid_kinematics_tests.rs"
 
+[[source]]
+path = "src/physics/resident/com_launcher_abi.rs"
+
+[[source]]
+path = "src/physics/resident/com_launcher_specs.rs"
+
+[[source]]
+path = "src/physics/resident/com_launcher_meta.rs"
+
+[[source]]
+path = "src/physics/resident/com_metadata_buffer.rs"
+
+[[source]]
+path = "src/physics/resident/com_kernels.rs"
+
+[[source]]
+path = "src/physics/resident/tests/launcher_com.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::KinematicsPlan"

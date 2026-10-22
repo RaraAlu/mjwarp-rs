@@ -276,7 +276,18 @@ impl KinematicsPlan {
                 .transpose()?;
             let rigid =
                 rigid.upload_rigid(session, equivalent, model.rigid().kinematics(), nmocap)?;
-            let com = com.upload(session)?;
+            let kin = model.rigid().kinematics();
+            let (com_metadata, com_parameters) = ResidentComMetadataBuffer::from_packed(
+                session,
+                com,
+                kin.nbody(),
+                kin.njnt(),
+                kin.nv(),
+            )?;
+            let com = DeviceCom {
+                metadata: com_metadata,
+                parameters: com_parameters,
+            };
             let attached = attached.upload(session)?;
             let mode = if equivalent {
                 "#define MJWARP_G01_EQUIVALENT\n"
@@ -290,7 +301,7 @@ impl KinematicsPlan {
                 SynchronousKernel::compile(session, &source, "rigid_kinematics")?,
             );
             let source = format!("{FIELD_BATCH_CUDA}\n{}", crate::physics::COM_POSITION_CUDA);
-            let com_kernel = SynchronousKernel::compile(session, &source, "rigid_com_position")?;
+            let com_kernel = ResidentComKernel::compile(session, &source)?;
             let source = format!(
                 "{prefix}{}\n{}",
                 crate::physics::KINEMATICS_CUDA,

@@ -3,6 +3,21 @@
 
 // 子模块：纯移动自原单文件，行为不变。
 mod checks;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/com_kernels.rs"]
+mod com_kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/com_launcher_abi.rs"]
+mod com_launcher_abi;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/com_launcher_meta.rs"]
+mod com_launcher_meta;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/com_launcher_specs.rs"]
+mod com_launcher_specs;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/com_metadata_buffer.rs"]
+mod com_metadata_buffer;
 mod data;
 mod layout;
 mod output;
@@ -35,6 +50,9 @@ mod tests_hessian;
 #[cfg(test)]
 #[path = "resident/tests/kinematics.rs"]
 mod tests_kinematics;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "resident/tests/launcher_com.rs"]
+mod tests_launcher_com;
 #[cfg(test)]
 #[path = "resident/tests/parameters.rs"]
 mod tests_parameters;
@@ -58,6 +76,10 @@ pub use self::public::{camlight, com_pos, flex, fwd_kinematics, kinematics, tend
 
 use std::sync::Arc;
 
+#[cfg(feature = "cuda-probe")]
+use self::com_kernels::ResidentComKernel;
+#[cfg(feature = "cuda-probe")]
+use self::com_metadata_buffer::ResidentComMetadataBuffer;
 use super::attached::AttachedLayout;
 use super::camlight::CamLightLayout;
 use super::fixed_tendon::FixedTendonLayout;
@@ -88,6 +110,8 @@ use crate::model::{
 #[cfg(feature = "cuda-probe")]
 use crate::model::{CamLightParameter, SpatialTendonGeometry, TendonSubset};
 use crate::runtime::TransferSession;
+#[cfg(all(test, feature = "cuda-probe"))]
+use crate::runtime::launcher::DeviceSpan;
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::launcher::{
     Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
@@ -127,13 +151,13 @@ pub struct KinematicsPlan {
     #[cfg(feature = "cuda-probe")]
     rigid: super::rigid_kinematics::RigidModel,
     #[cfg(feature = "cuda-probe")]
-    com: super::DeviceModel,
+    com: DeviceCom,
     #[cfg(feature = "cuda-probe")]
     attached: super::DeviceModel,
     #[cfg(feature = "cuda-probe")]
     rigid_kernel: super::rigid_kinematics::RigidKernel,
     #[cfg(feature = "cuda-probe")]
-    com_kernel: SynchronousKernel,
+    com_kernel: ResidentComKernel,
     #[cfg(feature = "cuda-probe")]
     attached_kernel: SynchronousKernel,
     #[cfg(feature = "cuda-probe")]
@@ -159,8 +183,14 @@ pub struct KinematicsPlan {
 }
 
 #[cfg(feature = "cuda-probe")]
+pub(super) struct DeviceCom {
+    pub(super) metadata: ResidentComMetadataBuffer,
+    pub(super) parameters: TransferBuffer<f32>,
+}
+
+#[cfg(feature = "cuda-probe")]
 pub(super) struct VelocityPositionKernels {
-    com: SynchronousKernel,
+    pub(super) com: ResidentComKernel,
 }
 
 #[derive(Clone, Copy, Debug)]
