@@ -80,6 +80,8 @@ concat!(
     "\n",
     include_str!("../../../src/physics/resident/sleep_copy.rs"),
     "\n",
+    include_str!("../../../src/physics/resident/snapshot.rs"),
+    "\n",
     include_str!("../../../src/physics/resident/spatial_tendon_launcher.rs"),
     "\n",
     include_str!("../../../src/physics/resident/spatial_tendon_launcher_specs.rs"),

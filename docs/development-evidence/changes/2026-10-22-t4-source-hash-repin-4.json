@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-t4-source-hash-repin-4",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "docs/evidence/t4-g03-retest/resident-source-anchor.rs", "blob": "e016d07a97f21809e03afb593e138bd615203cb9"},
+    {"path": "docs/evidence/t4-g03-retest/camlight-internal/map.json", "blob": "aac9ac6798761d2f56d8a255e64c7193d8b47e6f"},
+    {"path": "docs/evidence/t4-g03-retest/flex-internal/map.json", "blob": "4fa26ebdc584568eb502c47f08754eec9b7e32c9"},
+    {"path": "docs/evidence/t4-g03-retest/flex-matrices/map.json", "blob": "2a3f302716fdf5a4d3934d52139de3de1c076167"},
+    {"path": "docs/evidence/t4-g03-retest/spatial-tendon-internal/map.json", "blob": "5e3209445cd5d8a5cb8d8d99aa1f9d966671b0d1"},
+    {"path": "docs/evidence/t4-g03-retest/tendon-wake-internal/map.json", "blob": "f4cd4f640fd5a1221a086a1be11d39689285992a"},
+    {"path": "fixtures/precision/g01-field-internal.json", "blob": "93301caeb642a55e35340b22170fa16d87c2cb4b"},
+    {"path": "fixtures/precision/g01-packing-routes.json", "blob": "c8b9e440836fd6114b67e5ee397970796a959765"},
+    {"path": "fixtures/precision/g01-rigid-internal.json", "blob": "8be105b8602e0208ed4499b7eadb1432c2dd3f43"},
+    {"path": "fixtures/precision/g01-state-packing.json", "blob": "a0e033c50b5a3ee8189c82142f0f5a442a573b43"},
+    {"path": "fixtures/precision/g01-topology-frames.json", "blob": "ead19cc772a5a257b1766709467cb2a869c95e5c"},
+    {"path": "fixtures/gravity-upstream-abi/nonzero-product-chain-package.json", "blob": "c0df2eaca47d420598d53cf45efbbd14004a7b2b"},
+    {"path": "tests/t4_gravity_nonzero_product_chain.rs", "blob": "7898db9bccd0a72c68d710f7515019771268d800"}
+  ],
+  "note": "重钉A1生命周期接线后过期的T4固定源码身份，保留lineage语义：只改哈希数值、内联字面量与锚点组合，不改断言逻辑、不放宽容差、不删除检查、不改映射条目语义。诱因与基线归属：前置任务2026-10-22-layers-a1-lifecycle-wiring（提交deeb259）改动src/physics/resident产品源码（data.rs重接线、新增snapshot.rs、resident.rs注册子模块），resident组合哈希由3b5ad9154c5d4e84226d61bf3c2e00628bbd8ed461c44ff2306a46f99a354047变为1f5b59d017d55e26d437a793780c8ccb2c6caab0eca2e98c897d8d81ea42fc91（口径：模块根加42个产品子模块、mod声明顺序、换行连接、CRLF→LF归一；snapshot.rs按mod声明顺序插在sleep_copy.rs之后，共43部分/349056字符；用当前锚点表达式逐include_str读取复核一致）。锚点修订：docs/evidence/t4-g03-retest/resident-source-anchor.rs新增snapshot.rs include；五个t4-g03-retest map（camlight-internal、flex-internal、flex-matrices、spatial-tendon-internal、tendon-wake-internal）与五个precision夹具（g01-field-internal、g01-packing-routes、g01-rigid-internal、g01-state-packing、g01-topology-frames）同步resident哈希。gravity包：fixtures/gravity-upstream-abi/nonzero-product-chain-package.json的product_sources.resident更新为新哈希，包内其余字段不动、文件字节数保持2223、行尾不变；整包摘要由c142168ba7fe95b8f2a8ef2fb2e8c25e0e5253cc842122b64937f6cb44516760变为c11e0b95c35ea82e383626afd32e2417b121d7dc17138502004eec0d50e41790，更新tests/t4_gravity_nonzero_product_chain.rs的PACKAGE_SHA256常量与内联product_sources字面量。验证（rustc 1.99.0 MSVC，RTX 4070 Ti SUPER/596.36，CUDA 12.8.1，MuJoCo 3.12.0）：定向t4五目标全绿——t4_camlight_precision 3过0败、t4_input_precision 36过0败12ignored、t4_spatial_tendon_precision 4过0败、t4_tendon_wake_precision 4过0败、t4_gravity_nonzero_product_chain 1过0败1ignored；cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast：EXIT=0，全部测试目标0失败（host-msvc源码身份lineage与t4定向全绿）；cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --no-fail-fast：EXIT=0，全部测试目标0失败；门禁fmt 1108ms、clippy 1059ms、clippy-cuda 5488ms、unit 398过0败（10265ms）。环境说明：默认rustup工具链为x86_64-pc-windows-gnu且缺dlltool，--all-features在GNU宿主下会因getrandom/windows-sys构建失败，属工具链环境差异；按项目验证口径改用MSVC工具链执行，未改仓库配置。未验收边界：未跑Linux与release；未跑G01全量脚本；未宣称NP01至NP04、精度或性能验收；未改产品逻辑、内核、数值容差与测试断言语义。"
+}
