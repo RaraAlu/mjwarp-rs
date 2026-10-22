@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-frozen-inventory",
+  "title": {
+    "zh": "精度冻结清单盘点（冻结提交、符号、生成内核与编译选项）",
+    "en": "Frozen precision inventory (commit, symbols, generated kernels, compile options)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 docs/numerical-precision-contract.md 的 NP02 要求，盘点冻结提交 71da24d…、上游符号、生成内核与编译选项的全量清单；以 NP01 的 30 条产品路径与 10 项待补标记为基线，能补齐的补齐，补不了的标「待 W15/外部条件/历史产物」。只做证据，不改产品/测试/容差/fixtures，不宣称 NP02 通过。",
+    "en": "Per the NP02 section of docs/numerical-precision-contract.md, inventory the frozen upstream commit 71da24d…, upstream symbols, generated kernels and compile options across the 30 NP01 product paths; fill what the repo can prove and mark the rest as pending W15/external/historical artifacts. Evidence only: no product/test/tolerance/fixture changes and no NP02 pass claim."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "基于 NP01 30 条产品路径与 fixtures/precision/t4-kernels.json（24 条目 / 30 变体）产出逐条目清单：冻结提交 71da24d…、上游文件与符号、产品内核 entry、生成内核哈希（source/ptx/receipt）、编译选项与证据位置。",
+    "逐变体对照仓内回执（docs 与 fixtures 下带 ptxSha256 的内核回执）：报告 PTX 哈希定位命中数、回执文件逐字节一致数；逐产品源对照当前 HEAD 给出与冻结捕获身份（4dc88934）的漂移清单；上游 7 个源文件对 pinned checkout 逐一哈希核对；编译选项用仓内回执实测值而非估计。",
+    "覆盖率与缺口必须如实：不得宣称 NP02 覆盖 100% 或通过；缺口按「待 W15 / 外部条件 / 历史产物」分类（上游生成内核与编译器库覆盖、历史捕获实体、产品源漂移、NP01 无内核证据路径、排除条目）。",
+    "证据写 docs/development-evidence/frozen-inventory/（inventory.json、receipts.json、collect.mjs、README.md 与回执），并在 docs/numerical-precision-contract.md 的 NP01 清单入口后补 NP02 清单入口与未验收状态。",
+    "不改产品代码、测试、断言、容差与 fixtures，不跑 GPU；通过 gate fmt、gate unit、unchanged、回执 json 与 forbid_claim；不碰 Backend 的 W15/W13 范围（include/warp-headers、LICENSES、src/runtime/launcher、.normify/config.toml）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P11-精度门禁",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/frozen-inventory",
+      "docs/numerical-precision-contract.md",
+      "docs/development-evidence/changes/2026-10-23-frozen-inventory.json"
+    ],
+    "resources": [],
+    "priority": 2
+  },
+  "note": "承接 NP01（2026-10-23-precision-type-mapping）的 30 条路径与待补标记；任务 id 不含 np02，避免 forbid_claim 自匹配。只读盘点：不跑 GPU、不改产品/断言/容差/fixtures。W15 头文件已提交（b1de2db），可作为上游源码路径对照；W13/nvJitLink 等许可裁决不在此任务。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T03:20:00.000Z",
+  "updated_at": "2026-10-23T03:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "Cargo.toml",
+        "Cargo.lock",
+        "build.rs",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-frozen-inventory.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-frozen-inventory"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP02覆盖100%",
+        "证据齐备",
+        "双平台通过",
+        "完整验收通过"
+      ]
+    }
+  ]
+}
