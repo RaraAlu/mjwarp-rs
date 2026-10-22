@@ -130,9 +130,9 @@ W-D4 证书项转绿后的 lib 计数为 124（W-D5 语义冲突修复后为 123
 W-D5 语义冲突修复：测试侧把 `MJWARP_PHYSICS_PTX_DIR` 统一按捕获根解释，根存在时按 `module_path!()` 与标签分配唯一子目录；mass_solve wrapper 1、rne 4、rne_bias 1 共 6 项稳定转绿（G01 all-probes 等价命令两轮独立空捕获根：122 过 5 败、123 过 4 败）。证据 `docs/development-evidence/g01-wd5-ptx-dir/README.md`。
 
 与历史快照对比：W-D1、W-D2、W-D7 造成的阻塞已消除；resident 阶段从 wake-guards 中止变为 102 项全绿；W-D3 rustdoc 0 警告；all-probes 从“未执行”推进到 lib 123 过 1 败（W-D5 收口）再到 124 过 0 败（W-D4 转绿）。
-本轮未重跑 G01 release；release 现状仍以历史快照为准，不宣称通过。
+G01 release 已于 2026-10-22 补跑，结果见 §4.3；release 同样不宣称全量通过。
 
-结论（当前）：三层迁移范围的 debug 回归无新增 M3 回归；G01 全量仍**不被宣称通过**：W-D4 证书项已转绿（all-probes lib 124 过 0 败），但 all-probes 阶段整体因 G03 `mass_solve_probe` 3 项既有门禁缺口未通过（跟踪任务 `2026-10-22-g01-g03-np03-admission-debt`）；其余六阶段已于同日单独补跑通过（§4.2）。release 与 Linux 未跑。
+结论（当前）：三层迁移范围的 debug 回归无新增 M3 回归；G01 全量仍**不被宣称通过**：W-D4 证书项已转绿（all-probes lib 124 过 0 败），但 all-probes 阶段整体因 G03 `mass_solve_probe` 3 项既有门禁缺口未通过（跟踪任务 `2026-10-22-g01-g03-np03-admission-debt`）；其余六阶段已于同日单独补跑通过（§4.2）。release 已补跑，阶段结果与 debug 一致，同一债务处中止（§4.3）；Linux 未跑。
 
 ### 4.2 未执行阶段补跑（2026-10-22，任务 `2026-10-22-g01-stage-evidence-refresh`）
 
@@ -149,6 +149,25 @@ W-D4 复跑在 all-probes 中止后，其余六阶段用当前源码（`49fd4d9`
 
 证据：`docs/development-evidence/g01-stage-refresh/`（`README.md`、`stage-refresh.json`；原始日志在 gitignored 的 `target/g01-stage-refresh/`）。
 边界：只补跑本轮脚本未执行的阶段，未重复已通过阶段，未重跑 all-probes；不宣称完整 G01 通过。
+
+### 4.3 G01 release 双模式证据（2026-10-22，任务 `2026-10-22-g01-release-mode-evidence`）
+
+`scripts/test-windows-g01.ps1 -AllFeatures -FullRegression -Release`（脚本未修改；源码 `ca94aa0`；运行目录 `target/g01-acceptance/f7c4de41f1024372b74e0b60119824ef`，本机日志 `target/g01-release-final.log`，墙钟约 421 秒）在 **all-probes 阶段中止**：
+
+| 阶段 | 结果 |
+| --- | --- |
+| fmt | 通过（exit 0） |
+| native | 27 过 |
+| host-msvc | **709 过**（`--all-features --release`） |
+| g01 | 7 过（release） |
+| native-g01 | 2 过（release） |
+| native-only-g01 | 1 过（release） |
+| resident | **102 过**（release） |
+| all-probes | lib **124 过 0 败**（461 filtered）；阶段整体**失败**：`mass_solve_probe` 3 项既有准入缺口（与 debug 相同，NP03 失败块 factors 2/240、native 2/240、rhs-counts 6/152） |
+
+脚本中止后未执行阶段按脚本第 112-128 行同一定义单独补跑（host-gnu 404 过 0 败、clippy-gnu/-cuda 0 警告、clippy-msvc 0 警告（`--release --all-features`）、rustdoc 0 警告、diff 通过）。
+证据：`docs/development-evidence/g01-release/`（`README.md`、`run.json`；原始日志在 gitignored 的 `target/g01-release-final.log` 与 `target/g01-release-refresh/`）。
+对比结论：release 与 debug 的阶段计数完全相同（27/709/7/2/1/102、lib 124 过 0 败），在**同一已知债务**处中止，**没有 release 专属的新失败**。release 仍不宣称 G01 全量通过。
 
 ## 5. 债务清单
 
@@ -205,7 +224,7 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
 - all-probes 全探针矩阵已执行但阶段整体未通过：W-D4 证书项已转绿（lib 124 过 0 败）；剩余 3 项 `mass_solve_probe` 的 NP03 门禁失败属完整 G03 已知缺口（非 W-D4/M3 回归，证据见 §4.1），跟踪任务 `2026-10-22-g01-g03-np03-admission-debt`（proposed，只登记不 start），不宣称 G03 通过；3 项历史捕获/归档工具按用户 2026-10-22 裁决 A 显式排除（§5.1）。
 - all-probes `-Minimum` 在 W-D5 排除后按 123 同步（W-D6 收口）；W-D4 转绿后 lib 实际通过 124，`-Minimum 123` 仍满足；`mass_solve_probe` 的 G03 验收缺口不在本轮处理。
 - 本轮 full-debug 运行在 all-probes 阶段中止；脚本后半段 `host-gnu`、`clippy-gnu*`、`clippy-msvc`、`rustdoc`、`diff` 已于同日用相同命令单独补跑并全部通过（§4.2），但它们是单独执行，不等于整脚本一次跑通。
-- G01 release 未在修复后重跑；release 不宣称通过。
+- G01 release 已于 2026-10-22 补跑（§4.3）：阶段计数与 debug 一致（27/709/7/2/1/102、all-probes lib 124 过 0 败），在**同一已知债务**处中止，未出现 release 专属新失败；未执行阶段已按相同定义单独补跑通过；release 仍不宣称全量通过。
 - 未测量 G01 阶段峰值显存。
 - 不转授完整产品数值验收、性能验收或双平台准入。
 - 不修改任何内核、容差、fixtures 或原生 ABI。
@@ -224,7 +243,8 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
   - `2026-10-22-t4-source-hash-repin-5`：`docs/development-evidence/changes/2026-10-22-t4-source-hash-repin-5.json`
   - `2026-10-22-g01-gravity-cert-f32-regen`：`docs/development-evidence/changes/2026-10-22-g01-gravity-cert-f32-regen.json`（W-D4 证书 f32 逐步口径；生成器与证据在 `docs/development-evidence/g01-gravity-cert-f32/`）
   - `2026-10-22-g01-stage-evidence-refresh`：`docs/development-evidence/changes/2026-10-22-g01-stage-evidence-refresh.json`（未执行阶段补跑；证据在 `docs/development-evidence/g01-stage-refresh/`）
+  - `2026-10-22-g01-release-mode-evidence`：`docs/development-evidence/changes/2026-10-22-g01-release-mode-evidence.json`（release 双模式证据；证据在 `docs/development-evidence/g01-release/`）
   - `2026-10-22-g01-g03-np03-admission-debt`：proposed 跟踪任务，登记提交 `de25d4d`，不 start；指代 all-probes 剩余的 3 项 G03 `mass_solve_probe` 准入缺口
-- 提交：`eef9321`、`71638e2`、`28bd15f`、`4ffda93`、`c5c47e0`、`eac3df6`、`341a52c`、`c98e246`、`1e3dd2f`、`24d7937`、`3a44e10`、`a433067`、`e83db38`、`5a636a4`、`f917530`、`de25d4d`；W-D4 修复提交 `49fd4d9` 与阶段补跑提交见本目录回执。
-- 运行证据：`target/g01-final.log`、`target/g01-wd4-final.log`、`target/g01-stage-refresh/`（本机日志，gitignored）、`target/resident-kinematics/` 下的 resident 报告。
+- 提交：`eef9321`、`71638e2`、`28bd15f`、`4ffda93`、`c5c47e0`、`eac3df6`、`341a52c`、`c98e246`、`1e3dd2f`、`24d7937`、`3a44e10`、`a433067`、`e83db38`、`5a636a4`、`f917530`、`de25d4d`；W-D4 修复提交 `49fd4d9`、阶段补跑提交 `10913ce` 与 release 证据提交见本目录回执。
+- 运行证据：`target/g01-final.log`、`target/g01-wd4-final.log`、`target/g01-stage-refresh/`、`target/g01-release-final.log`、`target/g01-release-refresh/`（本机日志，gitignored）、`target/resident-kinematics/` 下的 resident 报告。
 - 历史证据：`docs/evidence/three-layer/windows/summary.json` 与同目录日志。

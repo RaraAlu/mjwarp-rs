@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "kind": "acceptance-evidence",
+  "task_id": "2026-10-22-g01-release-mode-evidence",
+  "source_revision": "ca94aa0b0ed6f9a79626868fe01e761a26ed389f",
+  "mode": "release",
+  "environment": {
+    "platform": "Windows x86_64 MSVC",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "rustc": "1.99.0",
+    "cuda": "12.8.1（target/toolchains/cuda-12.8.1）",
+    "mujoco": "3.12.0（target/toolchains/mujoco-3.12.0/package）"
+  },
+  "release_script_run": {
+    "command": "scripts/test-windows-g01.ps1 -AllFeatures -FullRegression -Release（脚本未修改）",
+    "acceptance_dir": "target/g01-acceptance/f7c4de41f1024372b74e0b60119824ef",
+    "local_log": "target/g01-release-final.log",
+    "started_local": "2026-10-22T17:33:29+08:00",
+    "aborted_local": "2026-10-22T17:40:30+08:00",
+    "elapsed_seconds": 421,
+    "exit_code": 1,
+    "abort_stage": "all-probes",
+    "stages": [
+      {"stage": "fmt", "exit_code": 0, "passed": 0, "note": "checks.json 记录通过；fmt 日志为空"},
+      {"stage": "native", "exit_code": 0, "passed": 27, "ended_local": "17:33:53"},
+      {"stage": "host-msvc", "exit_code": 0, "passed": 709, "ended_local": "17:34:35"},
+      {"stage": "g01", "exit_code": 0, "passed": 7, "ended_local": "17:34:52"},
+      {"stage": "native-g01", "exit_code": 0, "passed": 2, "ended_local": "17:34:57"},
+      {"stage": "native-only-g01", "exit_code": 0, "passed": 1, "ended_local": "17:35:02"},
+      {"stage": "resident", "exit_code": 0, "passed": 102, "ended_local": "17:37:16"},
+      {"stage": "all-probes", "exit_code": null, "passed": 124, "failed_binary": 1, "ended_local": "17:40:27"}
+    ]
+  },
+  "all_probes_detail": {
+    "lib_result": "test result: ok. 124 passed; 0 failed; 0 ignored; 461 filtered out; finished in 115.00s",
+    "integration_failure": "test result: FAILED. 3 passed; 3 failed; 0 ignored; 2 filtered out; finished in 7.64s（tests/mass_solve_probe）",
+    "failed_tests": [
+      "gpu::gpu_factors_and_multiple_rhs_match_independent_native_solves",
+      "gpu::rhs_counts_one_two_three_and_five_reuse_each_world_factor",
+      "native::native_snapshots_feed_gpu_solves_without_native_physics_at_runtime"
+    ],
+    "np03_failed_blocks": {
+      "G03-factors-and-rhs": 2,
+      "G03-batches": 0,
+      "G03-rhs-counts": 6,
+      "G03-recovery": 0,
+      "G03-native-snapshots": 2
+    },
+    "conclusion": "与 debug 完全相同的 3 项既有 mass_solve_probe 准入缺口（case4/world4 等），非 release 专属问题；跟踪任务 2026-10-22-g01-g03-np03-admission-debt，未改动。"
+  },
+  "post_abort_stages": {
+    "reason": "脚本在 all-probes 中止，后半段未执行；按脚本第 112-128 行同一定义单独补跑",
+    "results": [
+      {"stage": "host-gnu", "command": "cargo test --locked", "exit_code": 0, "passed": 404, "failed": 0, "binaries": 78, "minimum_required": 200, "elapsed_ms": 16287, "log": "target/g01-release-refresh/host-gnu.log"},
+      {"stage": "clippy-gnu", "command": "cargo clippy --locked --all-targets -- -D warnings", "exit_code": 0, "warnings": 0, "elapsed_ms": 1777, "log": "target/g01-release-refresh/clippy-gnu.log"},
+      {"stage": "clippy-gnu-cuda", "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings", "exit_code": 0, "warnings": 0, "elapsed_ms": 4909, "log": "target/g01-release-refresh/clippy-gnu-cuda.log"},
+      {"stage": "clippy-msvc", "command": "cargo +1.99.0-x86_64-pc-windows-msvc clippy --locked --all-targets --release --all-features -- -D warnings", "exit_code": 0, "warnings": 0, "elapsed_ms": 17226, "log": "target/g01-release-refresh/clippy-msvc.log"},
+      {"stage": "rustdoc", "command": "RUSTDOCFLAGS=-D warnings cargo +1.99.0-x86_64-pc-windows-msvc doc --locked --all-features --no-deps", "exit_code": 0, "warnings": 0, "elapsed_ms": 4120, "log": "target/g01-release-refresh/rustdoc.log"},
+      {"stage": "diff", "command": "git diff --check", "exit_code": 0, "whitespace_errors": 0, "note": "日志中的一行 warning 是 Git LF/CRLF 工作区提示", "elapsed_ms": 46, "log": "target/g01-release-refresh/diff.log"}
+    ]
+  },
+  "release_vs_debug": {
+    "debug_run_dir": "target/g01-acceptance/9bd3489f5b4542409f104f5feac1c4fb",
+    "stage_counts_equal": true,
+    "all_probes_lib_equal": true,
+    "all_probes_abort_equal": true,
+    "release_specific_failures": [],
+    "conclusion": "release 未出现 debug 未见的新失败；release 与 debug 在同一步中止、同一已知债务。"
+  },
+  "boundary": [
+    "release 不宣称 G01 全量通过：all-probes 在 3 项既有债务处中止",
+    "未改测试、容差、fixtures、scripts 或产品源码",
+    "未宣称精度/性能验收或双平台准入；Linux 未启动",
+    "原始日志位于 target/（gitignored）"
+  ]
+}
