@@ -6,7 +6,8 @@ use super::*;
 #[test]
 #[ignore = "archive already measured face artifact; no compiler or GPU replay"]
 fn archives_face_operator_repair_with_failed_numeric_gate() {
-    let out = PathBuf::from(std::env::var_os("MJWARP_PHYSICS_PTX_DIR").unwrap());
+    let out = crate::runtime::capture_output(module_path!(), "archive-face-repair")
+        .expect("new capture directory");
     assert!(out.is_absolute() && !out.exists());
     assert!(
         out.parent()

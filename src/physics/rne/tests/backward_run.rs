@@ -239,8 +239,7 @@ fn runs_rne_backward_wrapper_in_reverse_levels_and_recovers() {
 
     let foreign_session = TransferSession::new(0).unwrap();
     let capture = std::env::var_os("MJWARP_PHYSICS_PTX_DIR");
-    if let Some(root) = capture.as_ref() {
-        let foreign = std::path::PathBuf::from(root).join("foreign-session");
+    if let Some(foreign) = crate::runtime::capture_child(module_path!(), "foreign-session") {
         assert!(!foreign.exists());
         // SAFETY: 本测试单线程运行，并在编译后立即恢复环境。
         unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &foreign) };
@@ -295,8 +294,7 @@ fn runs_rne_backward_wrapper_in_reverse_levels_and_recovers() {
     .unwrap();
     let root_model =
         AttachedModelInput::new(root_model, crate::model::AttachedFields::default()).unwrap();
-    if let Some(root) = capture.as_ref() {
-        let root_only = std::path::PathBuf::from(root).join("root-only");
+    if let Some(root_only) = crate::runtime::capture_child(module_path!(), "root-only") {
         assert!(!root_only.exists());
         // SAFETY: 本测试单线程运行，并在编译后立即恢复环境。
         unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &root_only) };

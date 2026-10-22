@@ -44,6 +44,8 @@ pub(crate) struct SynchronousKernel {
 
 // 子模块：纯移动自原单文件，行为不变。
 mod baseline;
+#[cfg(test)]
+mod capture_dir;
 mod drop;
 mod launch;
 mod launchers_passive;
@@ -55,6 +57,8 @@ use baseline::{
     COMPILE_OCCURRENCES, append_compile_baseline, compile_baseline_record, next_occurrence,
 };
 use baseline::{CompileSample, LoadSample, record_compile_baseline};
+#[cfg(test)]
+pub(crate) use capture_dir::{capture_child, capture_output};
 pub(crate) use ptx::check_physics_ptx;
 use ptx::record_physics_ptx;
 #[cfg(test)]

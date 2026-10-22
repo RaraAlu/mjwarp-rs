@@ -12,8 +12,8 @@ use super::*;
 #[ignore = "NVRTC compile-only recapture; requires historical captures and frozen upstream sources"]
 fn recompile_rigid_variants_without_launching_physics() {
     let started = Instant::now();
-    let out =
-        PathBuf::from(std::env::var_os("MJWARP_PHYSICS_PTX_DIR").expect("new capture directory"));
+    let out = crate::runtime::capture_output(module_path!(), "recompile-rigid")
+        .expect("new capture directory");
     // 新目录必须位于target，且必须不存在。绝不覆盖历史产物。
     assert!(out.is_absolute());
     let target = root().join("target").canonicalize().unwrap();
@@ -145,8 +145,8 @@ fn recompile_rigid_variants_without_launching_physics() {
 #[ignore = "NVRTC selective recapture after rigid rotation grouping change"]
 fn recaptures_only_missing_rotation_variants() {
     let started = Instant::now();
-    let out =
-        PathBuf::from(std::env::var_os("MJWARP_PHYSICS_PTX_DIR").expect("new capture directory"));
+    let out = crate::runtime::capture_output(module_path!(), "recapture-rotation")
+        .expect("new capture directory");
     assert!(out.is_absolute() && !out.exists());
     assert!(
         out.parent()

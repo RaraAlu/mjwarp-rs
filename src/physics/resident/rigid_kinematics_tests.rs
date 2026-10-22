@@ -29,13 +29,12 @@ struct Capture {
 impl Capture {
     fn new(label: &str) -> Self {
         let root = std::env::var_os("MJWARP_PHYSICS_PTX_DIR");
-        let dir = root.as_ref().map(|root| {
-            let dir = std::path::PathBuf::from(root).join(label);
+        let dir = crate::runtime::capture_child(module_path!(), label);
+        if let Some(dir) = &dir {
             assert!(!dir.exists(), "捕获目录必须不存在：{}", dir.display());
             // SAFETY: 测试单线程运行，环境在Drop中恢复。
-            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &dir) };
-            dir
-        });
+            unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", dir) };
+        }
         Self { root, dir }
     }
 

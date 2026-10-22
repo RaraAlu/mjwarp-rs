@@ -40,8 +40,7 @@ fn device_adds_armature_after_the_completed_spatial_dot() {
 fn runs_rigid_mass_matrix_wrapper_paths_and_recovers() {
     fn captured<T>(label: &str, run: impl FnOnce() -> T) -> T {
         let capture = std::env::var_os("MJWARP_PHYSICS_PTX_DIR");
-        if let Some(root) = capture.as_ref() {
-            let child = std::path::PathBuf::from(root).join(label);
+        if let Some(child) = crate::runtime::capture_child(module_path!(), label) {
             assert!(!child.exists(), "捕获目录必须为空：{}", child.display());
             // SAFETY: 本测试单线程运行，并在本次编译后恢复环境。
             unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &child) };

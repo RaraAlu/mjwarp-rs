@@ -196,8 +196,7 @@ fn runs_rne_cacc_wrapper_and_recovers_after_real_metadata_write() {
     let before_session = sentinel_workspace(&mut data, -8192.0);
     let foreign_session = TransferSession::new(0).unwrap();
     let capture = std::env::var_os("MJWARP_PHYSICS_PTX_DIR");
-    if let Some(root) = capture.as_ref() {
-        let foreign = std::path::PathBuf::from(root).join("foreign-session");
+    if let Some(foreign) = crate::runtime::capture_child(module_path!(), "foreign-session") {
         assert!(!foreign.exists());
         // SAFETY: 本测试单线程运行，并在编译后立即恢复环境。
         unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &foreign) };
@@ -239,8 +238,7 @@ fn runs_rne_cacc_wrapper_and_recovers_after_real_metadata_write() {
 
     let zero = super::super::tests::test_model(None);
     let zero = AttachedModelInput::new(zero, crate::model::AttachedFields::default()).unwrap();
-    if let Some(root) = capture.as_ref() {
-        let zero_capture = std::path::PathBuf::from(root).join("zero-dof");
+    if let Some(zero_capture) = crate::runtime::capture_child(module_path!(), "zero-dof") {
         assert!(!zero_capture.exists());
         // SAFETY: 本测试单线程运行，并在编译后立即恢复环境。
         unsafe { std::env::set_var("MJWARP_PHYSICS_PTX_DIR", &zero_capture) };
