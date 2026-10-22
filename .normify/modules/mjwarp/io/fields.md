@@ -1,7 +1,7 @@
 +++
 uid = "8db34276"
 id = "mjwarp.io.fields"
-fingerprint = "ce4654e25083fb335d8980b0294fc3d31b64f21e35383eef22e3c80aa9c0e977"
+fingerprint = "be8734c87e7e5a59b43f8c5a36fcf303b2b8b8df646ea58b03e9111ca0cb83e2"
 
 [name]
 zh = "连续字段转换与交换"

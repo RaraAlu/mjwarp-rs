@@ -4,7 +4,10 @@
 use super::DeviceBatch;
 use crate::{
     diagnostics::TransferError,
-    model::{BatchLayout, KinematicFields, KinematicModelInput},
+    model::{
+        BatchLayout, KinematicFields, KinematicModelInput,
+        data::{DeviceDataLayout, DeviceModelData, ModelIdentity},
+    },
     runtime::{TransferElement, TransferSession, host_staging},
 };
 
@@ -37,7 +40,30 @@ pub struct DeviceKinematicModel {
     jnt_axis: DeviceBatch<f32>,
 }
 
+/// A1-5：兼容转发面。
+/// 旧签名不变；新访问器只读共享契约类型。
+impl DeviceModelData for DeviceKinematicModel {
+    fn model_identity(&self) -> ModelIdentity {
+        ModelIdentity::of_topology(&self.topology())
+    }
+
+    fn primary_layout(&self) -> DeviceDataLayout {
+        self.qpos0.data_layout()
+    }
+}
+
 impl DeviceKinematicModel {
+    /// 固定拓扑尺寸：nv、nbody、njnt与nq。
+    /// 同尺寸不代表同拓扑；身份按此顺序登记。
+    pub fn topology(&self) -> [usize; 4] {
+        [
+            self.nv,
+            self.body_parentid.layout().elements_per_world(),
+            self.jnt_type.layout().elements_per_world(),
+            self.qpos0.layout().elements_per_world(),
+        ]
+    }
+
     pub fn upload(
         session: &TransferSession,
         input: &KinematicModelInput,

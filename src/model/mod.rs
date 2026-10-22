@@ -39,6 +39,8 @@ pub mod flex;
 pub use flex::{
     FlexEdgeFields, FlexFaceFields, FlexHessianFields, FlexPositionFields, FlexPositionModelInput,
 };
+pub mod data;
+pub use data::{DeviceBatch, DeviceDataLayout, FieldBatch, GUARD_SLOTS, WorldBatch};
 pub mod sleep;
 pub use sleep::{SleepTreeState, TREE_FULLY_AWAKE, TendonWakeFields, TendonWakeModelInput};
 pub mod smooth_force;

@@ -135,6 +135,19 @@ impl KinematicsPlan {
                 edge_fields: self.edge_fields.clone(),
                 face_fields: self.face_fields.clone(),
                 hessian_fields: self.hessian_fields.clone(),
+                // A1：状态缓冲区仍由本类型持有；身份与生命周期改记共享类型。
+                lifecycle: DataLifecycle::new(
+                    self.session.clone(),
+                    DataIdentity::new(
+                        ModelIdentity::of_model(&self.model),
+                        LayoutIdentity::of_parts(&[
+                            worlds,
+                            layout.qpos.elements_per_world(),
+                            layout.mocap_pos.elements_per_world(),
+                            layout.state.elements_per_world(),
+                        ]),
+                    ),
+                ),
                 layout,
                 ready: ReadyStages::default(),
                 flex_validity: layout

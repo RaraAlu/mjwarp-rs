@@ -1,9 +1,7 @@
 +++
 uid = "2cf3e9e5"
 id = "mjwarp.model.data"
-state = "planned"
-fingerprint = "pending"
-source = []
+fingerprint = "8714c985ca0976cdbdb0ebd8a75203a03ff39191cdc7edea45cd9319fa7babdc"
 
 [name]
 zh = "设备数据"
@@ -11,13 +9,19 @@ en = "Device data"
 
 [description]
 zh = """
-按层属于计算物理层的设备数据归属目标。
-它持有世界状态与工作区布局，记录模型身份与布局版本。
-当前目录位置不变，迁移切片见 A1 契约文档。
+按层属于计算物理层的设备数据归属根。目录位置不变，已实现布局、批量与生命周期三个叶子契约。设备批量字段归此处，io保留兼容转发。
 """
 en = """
-Planned compute-physics-layer home for device data ownership.
-It owns world-state and workspace layouts and records model/layout identities.
-The directory stays in place; migration slices are listed in the A1 contract.
+Compute-physics-layer home for device data ownership. The directory stays in place; layout, batching and lifecycle leaf contracts are implemented. Device batch fields live here; io keeps compatibility forwarding.
 """
+
+[[source]]
+path = "src/model/data/mod.rs"
 +++
+
+## 归属边界
+
+本层只新增共享契约类型，不整体搬迁目录。
+物理路径使用本层身份与生命周期记录。
+输入适配仍归数据交互层，外部原生ABI与内核容差不变。
+旧公开路径保留，兼容层不复制设备资源。

@@ -7,7 +7,10 @@ use super::{
 };
 use crate::{
     diagnostics::TransferError,
-    model::{InertialFields, InertialModelInput},
+    model::{
+        InertialFields, InertialModelInput,
+        data::{DeviceDataLayout, DeviceModelData, ModelIdentity},
+    },
     runtime::TransferSession,
 };
 
@@ -39,6 +42,25 @@ pub struct DeviceInertialModel {
     dof_armature: DeviceBatch<f32>,
     dof_damping: DeviceBatch<f32>,
 }
+/// A1-5：兼容转发面。
+/// 模型身份加入自由度尺寸；旧签名不变。
+impl DeviceModelData for DeviceInertialModel {
+    fn model_identity(&self) -> ModelIdentity {
+        let topology = self.kinematics.topology();
+        ModelIdentity::of_topology(&[
+            topology[0],
+            topology[1],
+            topology[2],
+            topology[3],
+            self.dof_bodyid.layout().elements_per_world(),
+        ])
+    }
+
+    fn primary_layout(&self) -> DeviceDataLayout {
+        self.body_mass.data_layout()
+    }
+}
+
 impl DeviceInertialModel {
     pub fn upload(
         session: &TransferSession,

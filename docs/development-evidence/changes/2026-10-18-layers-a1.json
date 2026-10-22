@@ -1,0 +1,26 @@
+{
+    "schema": 1,
+    "kind": "delivery",
+    "task_id": "2026-10-18-layers-a1",
+    "milestones": {
+        "implementation": "partial",
+        "validation": "passed",
+        "delivery_record": "complete"
+    },
+    "files": [
+        {"path": "src/model/data/mod.rs", "blob": "535dc0bc1b65e6adc2357496a49208a7f27b62d4"},
+        {"path": "src/model/data/layout.rs", "blob": "a1f26e99c93c3085950a43b091888b3bdfbdd793"},
+        {"path": "src/model/data/batch.rs", "blob": "13be20fddfdf83700c87e73c92935df395deff57"},
+        {"path": "src/model/data/lifecycle.rs", "blob": "86b506fd5b331028d2d8b39b4b89aa96838e199b"},
+        {"path": "src/model/mod.rs", "blob": "9d0d3c45bb3e9199e09dbad755a1eae99a138f4f"},
+        {"path": "src/io/fields.rs", "blob": "66036bf66b8bbca4a417632fc95041161c4b9d6f"},
+        {"path": "src/io/kinematic.rs", "blob": "b2fe4385390be46cbc54a1df2bf849eb63c75be6"},
+        {"path": "src/io/inertial.rs", "blob": "f1339dc12a49ec87775c3d28a497a7087ceb4d06"},
+        {"path": "src/physics/resident.rs", "blob": "421ac0693844b5360eddee21fa0f243d06af31e8"},
+        {"path": "src/physics/resident/data.rs", "blob": "a6342b576f2049763d686a9bdb944a745dd1d05a"},
+        {"path": "src/physics/resident/layout.rs", "blob": "032b844dcbe8ada0ed821a5327ace6506c902299"},
+        {"path": "src/physics/resident/plan_data.rs", "blob": "4da18142df26a37e9457e85a4438454aa1ef9176"},
+        {"path": "tests/layer_data.rs", "blob": "a01e329b5aae9a55cb051f406a13c00a195d4bf8"}
+    ],
+    "note": "A1 物理设备数据接线：按 A1 清单实现已登记的 4 个计划模块（mjwarp.model.data 容器 + layout/batch/lifecycle 叶子），目录位置不变、不整体搬迁。A1-1：layout.rs 新增 DeviceDataLayout，按世界数/每世界元素数/元素字节描述批量布局，受保护缓冲首尾各四槽（GUARD_SLOTS=8），精确跨度=8+世界数×字段步长，宽输出按最小长度校对，世界越界与容量溢出一律拒绝；batch.rs 新增 WorldBatch（世界下标与越界拒绝）与 FieldBatch（共享参数周期，批量下标=世界序号对周期取模）；lifecycle.rs 新增 SessionBinding（克隆共享会话、跨会话拒绝）、ModelIdentity（宿主实例身份与固定拓扑身份分开）、LayoutIdentity、DataIdentity（模型/布局身份分开记录）与 DataLifecycle（状态版本、派生失效、元数据证明代际、会话/身份/代际复核）。A1-2：ResidentLayout 的 qpos/mocap_pos/mocap_quat/state 四个通用批量字段改用共享 DeviceDataLayout（worlds/world_elements/elements_per_world/total_elements 语义保持不变），KinematicsData 新增 lifecycle: DataLifecycle<TransferSession> 字段并暴露 data_identity()/lifecycle() 访问器，身份由模型实例与布局尺寸构造，缓冲仍由 KinematicsData 独占。A1-4：计划级元数据证明的所有权在 model::data 登记为别名 CheckedMetadata/MetadataProofOwner/MetadataProofRevision，绑定设备区间、维度与写入代际；DataLifecycle::check_metadata_generation 供发射前复核。A1-5：DeviceBatch 从 io::fields 迁到 model::data::batch 作为规范归属，io::DeviceBatch 保留公开兼容转发路径（类型同一、旧签名与 doctest 不变）；io::DeviceKinematicModel/DeviceInertialModel 实现 DeviceModelData，提供只读 model_identity()/primary_layout() 转发，不复制设备资源，旧 upload/readback 签名不变。物理路径不依赖 io 输入适配类型（physics 无 crate::io 引用）；输入适配、原生 ABI、物理内核、容差与 fixtures 均未改。验证：cargo check --locked 与 --features cuda-probe 均通过；cargo fmt 通过；clippy --all-targets 双配置 -D warnings 通过；tests/layer_data.rs 10 项宿主用例通过（守卫跨度精确性、宽输出最小长度、共享周期取样、模型实例/拓扑身份、布局身份分离、跨会话与外来身份拒绝、状态写入使派生失效、元数据写入使证明代际失效、计数器耗尽、io 兼容路径与设备模型转发面）；GPU 定向：real_sessions_bind_and_reject_cross_session_lifecycle 1 项通过（RTX 4070 Ti SUPER，驱动 596.36，真实两会话验证同会话通过、跨会话拒绝、状态写入仍绑定原会话）。未验收边界：A1-3（27 个阶段 Data 的通用骨架逐阶段替换）未在本任务完成，留在 A1 清单作为后续切片；KinematicsData 的共享身份/生命周期仅新增记录与访问器，未改变任何阶段发射、校验或同步语义，因此本任务未把既有物理 GPU 回归当作新增证据；跨会话/失效语义在宿主契约层与真实会话绑定层验证，未对每个阶段 Data 逐一验证；本轮不宣称设备数据迁移整体完成，也不代替任何 NP01-NP04 精度验收。"
+}

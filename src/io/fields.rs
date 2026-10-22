@@ -5,84 +5,15 @@
 use crate::diagnostics::NativeProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::BatchLayout;
-use crate::runtime::{TransferBuffer, TransferElement, TransferSession};
+use crate::runtime::{TransferElement, TransferSession};
 
 /// 连续批量字段的GPU传输辅助。
 /// 不解释物理字段或模型身份。
 /// 不替代Model、Data或put_data。
 ///
-/// ```no_run
-/// use mjwarp_rs::{diagnostics::TransferError, io::DeviceBatch,
-///     model::BatchLayout, runtime::TransferSession};
-/// let session = TransferSession::new(0)?;
-/// let layout = BatchLayout::new(2, 3, 4)?;
-/// let mut field = DeviceBatch::upload(&session, layout, &[0.0_f32; 6])?;
-/// field.write_world(1, &[1.0, 2.0, 3.0])?;
-/// let mut world = [0.0; 3];
-/// field.read_world_into(1, &mut world)?;
-/// # Ok::<(), TransferError>(())
-/// ```
-pub struct DeviceBatch<T: TransferElement> {
-    layout: BatchLayout,
-    buffer: TransferBuffer<T>,
-}
-
-impl<T: TransferElement> DeviceBatch<T> {
-    pub fn upload(
-        session: &TransferSession,
-        layout: BatchLayout,
-        source: &[T],
-    ) -> Result<Self, TransferError> {
-        check_field_layout::<T>(layout, source.len())?;
-        let buffer = session.upload(source)?;
-        Ok(Self { layout, buffer })
-    }
-
-    pub fn layout(&self) -> BatchLayout {
-        self.layout
-    }
-
-    pub fn read_into(&self, target: &mut [T]) -> Result<(), TransferError> {
-        check_length("target", self.layout.total_elements(), target.len())?;
-        self.buffer.read_range_into(0, target)
-    }
-
-    pub fn read_world_into(&self, world: usize, target: &mut [T]) -> Result<(), TransferError> {
-        let range = self.layout.world_elements(world)?;
-        check_length("target", range.len(), target.len())?;
-        self.buffer.read_range_into(range.start, target)
-    }
-
-    pub fn write_world(&mut self, world: usize, source: &[T]) -> Result<(), TransferError> {
-        let range = self.layout.world_elements(world)?;
-        check_length("source", range.len(), source.len())?;
-        self.buffer.write_range(range.start, source)
-    }
-
-    pub fn copy_world_from(
-        &mut self,
-        world: usize,
-        source: &Self,
-        source_world: usize,
-    ) -> Result<(), TransferError> {
-        let target = self.layout.world_elements(world)?;
-        let input = source.layout.world_elements(source_world)?;
-        check_length("source_world", target.len(), input.len())?;
-        self.buffer
-            .copy_range_from(target.start, &source.buffer, input.start, target.len())
-    }
-
-    pub fn copy_world_within(
-        &mut self,
-        world: usize,
-        source_world: usize,
-    ) -> Result<(), TransferError> {
-        let target = self.layout.world_elements(world)?;
-        let source = self.layout.world_elements(source_world)?;
-        self.buffer
-            .copy_range_within(target.start, source.start, target.len())
-    }
-}
+/// A1-5：设备批量归属迁到`model::data::batch`。
+/// 本路径保留为公开兼容转发。
+pub use crate::model::data::DeviceBatch;
 
 /// 先执行严格宿主转换再上传。
 /// 该入口不替代等价状态导入。

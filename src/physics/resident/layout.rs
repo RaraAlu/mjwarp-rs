@@ -97,10 +97,10 @@ impl ResidentLayout {
             faces: None,
             hessian: None,
             sleep: None,
-            qpos: BatchLayout::new(worlds, k.nq(), 4)?,
-            mocap_pos: BatchLayout::new(worlds, nmocap * 3, 4)?,
-            mocap_quat: BatchLayout::new(worlds, nmocap * 4, 4)?,
-            state: BatchLayout::new(worlds, stride, 4)?,
+            qpos: DeviceDataLayout::from_batch(BatchLayout::new(worlds, k.nq(), 4)?),
+            mocap_pos: DeviceDataLayout::from_batch(BatchLayout::new(worlds, nmocap * 3, 4)?),
+            mocap_quat: DeviceDataLayout::from_batch(BatchLayout::new(worlds, nmocap * 4, 4)?),
+            state: DeviceDataLayout::from_batch(BatchLayout::new(worlds, stride, 4)?),
         })
     }
 }

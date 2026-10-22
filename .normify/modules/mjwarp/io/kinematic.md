@@ -2,7 +2,7 @@
 uid = "c7e40532"
 id = "mjwarp.io.kinematic"
 tags = ["planned", "engine"]
-fingerprint = "9fd187755a7933902f2ddab453134c15b77034e4df6efb74a3d8836b5a831a10"
+fingerprint = "0515f34857a3db8a456f6f3770977d1f6b95b9f2cc6ed5f0dcc2145a26682b04"
 
 [name]
 zh = "运动学字段转换与上传"

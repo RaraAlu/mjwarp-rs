@@ -9,6 +9,16 @@ use super::output::read_output;
 use super::*;
 
 impl KinematicsData {
+    /// A1：数据身份；模型身份与布局身份分开记录。
+    pub fn data_identity(&self) -> DataIdentity {
+        self.lifecycle.identity()
+    }
+
+    /// A1：生命周期记录；含会话、状态版本与证明代际。
+    pub fn lifecycle(&self) -> &DataLifecycle<TransferSession> {
+        &self.lifecycle
+    }
+
     #[cfg(all(test, feature = "cuda-probe"))]
     pub(in crate::physics) fn tendon_velocity_source_for_test(
         &mut self,

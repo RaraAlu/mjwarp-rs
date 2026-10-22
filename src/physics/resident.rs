@@ -211,6 +211,9 @@ use super::{
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
+use crate::model::data::{DataIdentity, DataLifecycle, DeviceDataLayout};
+#[cfg(feature = "cuda-probe")]
+use crate::model::data::{LayoutIdentity, ModelIdentity};
 use crate::model::sleep::TendonWakeInfo;
 use crate::model::{
     AttachedModelInput, BatchLayout, CamLightFields, CamLightModelInput, CamLightParameters,
@@ -313,10 +316,10 @@ pub(super) struct VelocityPositionKernels {
 
 #[derive(Clone, Copy, Debug)]
 struct ResidentLayout {
-    qpos: BatchLayout,
-    mocap_pos: BatchLayout,
-    mocap_quat: BatchLayout,
-    state: BatchLayout,
+    qpos: DeviceDataLayout,
+    mocap_pos: DeviceDataLayout,
+    mocap_quat: DeviceDataLayout,
+    state: DeviceDataLayout,
     rigid: KinematicsLayout,
     com: ComPositionLayout,
     attached: AttachedLayout,
@@ -406,6 +409,8 @@ pub struct KinematicsData {
     edge_fields: Option<Arc<FlexEdgeFields>>,
     face_fields: Option<Arc<FlexFaceFields>>,
     hessian_fields: Option<Arc<FlexHessianFields>>,
+    /// A1：共享身份与生命周期记录；缓冲仍随本类型释放。
+    lifecycle: DataLifecycle<TransferSession>,
     layout: ResidentLayout,
     ready: ReadyStages,
     #[cfg(feature = "cuda-probe")]
