@@ -1,0 +1,18 @@
+{
+    "schema": 1,
+    "kind": "delivery",
+    "task_id": "2026-10-18-layers-m5",
+    "milestones": {
+        "implementation": "partial",
+        "validation": "passed",
+        "delivery_record": "complete"
+    },
+    "files": [
+        {"path": "src/runtime/launcher/submit.rs", "blob": "3a909e8bb16f21abad1e9fb89b8423d45c470525"},
+        {"path": "src/runtime/launcher/mod.rs", "blob": "a2e37f347f426a23c7c555ff254dac5a70a1d2ae"},
+        {"path": "src/runtime/launcher/warp.rs", "blob": "7433cb1565a7e4de0869e582126c70a1b5aef6a9"},
+        {"path": "src/runtime/transfer.rs", "blob": "425defa1e8f72ab6a74b30f1a6349deca06144b9"},
+        {"path": "tests/launcher_async.rs", "blob": "9a37d4d259a3a594a221c7180f1041acc7028461"}
+    ],
+    "note": "M5 异步完成与访问账本：新增统一发射器的异步提交面`src/runtime/launcher/submit.rs`（不在捕获与产品调度内启用，产品路径仍为同步）。W06 完成凭证与资源持有：`SubmitQueue<F, R>`先按依赖与访问账本校验，再登记提交并保留栅栏F与资源R；资源在成功等待前不得释放，查询完成不释放（W08待回收列表），令牌侧只有`SubmissionId`，丢弃编号不影响队列所有权；等待成功后回收并归还资源，失败提交隔离资源并保留到队列析构，析构时逐项等待栅栏，无法证明完成时保守保留资源（`mem::forget`）。W07 延迟错误与隔离：栅栏查询或等待的错误归属到该提交并保留首个错误，失败提交的依赖方按`FaultedUpstream`归属失败且资源隔离，无关提交继续完成；提交失败（`fail`）同样保留首个错误、拒绝后续查询覆盖，并保留资源至清理。W20 访问依赖账本：以`StreamKey`（设备/上下文/流）与`BufferAccess`（设备、上下文、字节区间、读写权限）为单位登记；同流访问由流序保证无需依赖，跨流重叠且至少一侧写时必须在依赖闭包中覆盖全部阻断提交（含传递依赖），读读重叠、区间不重叠、跨设备或跨上下文不构成冲突；未知编号、重复依赖、已失败依赖与空/倒置区间一律拒绝，校验失败不保留资源。发射器开放`submit`：`KernelHandle::submit_l2`复用`launch_l2`的全部校验（上下文一致、拒绝捕获、边界/数组/线程规则/容量），入队后创建事件并返回`L2Completion`完成凭证；该凭证持有入口句柄（模块）、流与事件并实现`Fence`；`launch_l2`语义不变，改为共用内部入队助手。`KernelHandle`与`TransferBuffer<T>`实现`RetainedResources`，后者隔离时使所属会话失败以阻止后续传输。验证：`cargo check --locked`与`--features cuda-probe`均通过；fmt通过；clippy --all-targets双配置`-D warnings`通过；`tests/launcher_async.rs`宿主11项通过（凭证保留至等待、查询不释放、同流放行、跨流冲突需依赖、设备/上下文/区间参与判定、传递依赖闭包、延迟错误归属与隔离、上游失败传播、未知/重复/失败依赖拒绝、提交失败隔离至清理、析构等待与保守保留、空/倒置区间拒绝）；GPU定向`gpu_async_submit_completes_and_retains_the_module`1项通过（RTX 4070 Ti SUPER，驱动596.36，NVRTC 12.8：真实NVRTC编译+异步L2发射+完成凭证等待+模块归还+回读校验）。未验收边界：凭证的缓冲持有由调用方把`TransferBuffer`放入资源槽实现（账本不接管缓冲所有权），图实例的凭证位以泛型资源槽预留，具体图类型与捕获互斥属M6（W09/W10/W11/W21），C3/C4尚未冻结；异步`submit`仅在统一发射器与冻结L2诊断链开放，`src/physics/resident.rs`的常驻同步点未改为异步，产品物理路径行为不变；未验证异步路径的性能、双平台准入或与图捕获的组合；账本要求调用方先登记后发射（`submit_l2`辅助入口为诊断便利，入队后登记，拒绝时不会撤销已入队诊断工作）。"
+}

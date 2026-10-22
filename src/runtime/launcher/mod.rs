@@ -16,6 +16,7 @@ mod launch;
 #[cfg(feature = "cuda-probe")]
 mod module;
 mod recipe;
+mod submit;
 #[cfg(feature = "cuda-probe")]
 mod warp;
 
@@ -33,8 +34,12 @@ pub use launch::{Kernel, KernelSpec, LaunchDims, LaunchPlan};
 #[cfg(feature = "cuda-probe")]
 pub use module::{KernelHandle, ModuleCache, ModuleStats};
 pub use recipe::{ArchTarget, CompileRecipe, CppStd, PrecisionGate, RecipePurpose};
+pub use submit::{
+    AccessMode, BufferAccess, Fence, RetainedResources, StreamKey, SubmissionId, SubmissionState,
+    SubmitQueue,
+};
 #[cfg(feature = "cuda-probe")]
-pub use warp::{L2_BLOCK, WarpArg, WarpBounds, WarpLaunch, f32_arg, i32_arg};
+pub use warp::{L2_BLOCK, L2Completion, WarpArg, WarpBounds, WarpLaunch, f32_arg, i32_arg};
 
 /// 发射器基础错误。
 /// 每类错误都指明槽位或字段。
@@ -106,6 +111,14 @@ pub enum LauncherError {
     MissingMetadataProof { slot: usize },
     /// 地址类槽位重复提供证明。
     DuplicateMetadataProof { slot: usize },
+    /// 跨流重叠访问缺少依赖声明；`blocking`为阻断提交编号。
+    AccessConflict { blocking: u64 },
+    /// 提交编号不存在或已回收。
+    UnknownSubmission(u64),
+    /// 重复声明同一依赖。
+    DuplicateDependency(u64),
+    /// 上游提交失败，本提交按归属失败。
+    FaultedUpstream(u64),
 }
 
 impl std::fmt::Display for LauncherError {
@@ -148,6 +161,12 @@ impl std::fmt::Display for LauncherError {
             Self::MetadataMismatch(reason) => write!(f, "元数据证明不匹配：{reason}"),
             Self::MissingMetadataProof { slot } => write!(f, "槽位{slot}缺少元数据证明"),
             Self::DuplicateMetadataProof { slot } => write!(f, "槽位{slot}重复元数据证明"),
+            Self::AccessConflict { blocking } => {
+                write!(f, "跨流访问冲突：须声明对提交{blocking}的依赖")
+            }
+            Self::UnknownSubmission(id) => write!(f, "提交{id}不存在或已回收"),
+            Self::DuplicateDependency(id) => write!(f, "重复声明依赖提交{id}"),
+            Self::FaultedUpstream(id) => write!(f, "上游提交{id}失败，本提交按归属失败"),
         }
     }
 }

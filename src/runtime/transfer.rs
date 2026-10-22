@@ -45,6 +45,24 @@ impl TransferElement for f64 {}
 impl TransferElement for i32 {}
 impl TransferElement for u32 {}
 
+/// M5：设备缓冲可作为异步提交凭证的保留资源。
+/// 隔离时使所属会话失败，阻止后续传输。
+impl<T: TransferElement> crate::runtime::launcher::RetainedResources for TransferBuffer<T> {
+    fn quarantine(&self) {
+        self.session
+            .inner
+            .status
+            .failed
+            .store(true, std::sync::atomic::Ordering::Release);
+        #[cfg(any(feature = "cuda-probe", test))]
+        self.session
+            .inner
+            .status
+            .uncertain
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+}
+
 fn checked_bytes<T: TransferElement>(elements: usize) -> Result<usize, InputError> {
     elements
         .checked_mul(size_of::<T>())

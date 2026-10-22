@@ -150,6 +150,37 @@ impl KernelHandle {
         stream: &CudaStream,
         launch: &WarpLaunch<'_>,
     ) -> Result<(), LauncherError> {
+        self.enqueue_l2(stream, launch)
+    }
+
+    /// M5异步发射：校验与打包同`launch_l2`，只在流上入队。
+    /// 返回的完成凭证持有句柄（模块）与流，并可核验完成。
+    /// 缓冲所有权仍由调用方持有；访问顺序由提交账本覆盖。
+    pub fn submit_l2(
+        &self,
+        stream: &std::sync::Arc<CudaStream>,
+        launch: &WarpLaunch<'_>,
+    ) -> Result<L2Completion, LauncherError> {
+        self.enqueue_l2(stream.as_ref(), launch)?;
+        let event = stream
+            .context()
+            .new_event(None)
+            .map_err(|error| LauncherError::Driver(format!("event: {error:?}")))?;
+        event
+            .record(stream.as_ref())
+            .map_err(|error| LauncherError::Driver(format!("event-record: {error:?}")))?;
+        Ok(L2Completion {
+            handle: self.clone(),
+            stream: std::sync::Arc::clone(stream),
+            event,
+        })
+    }
+
+    fn enqueue_l2(
+        &self,
+        stream: &CudaStream,
+        launch: &WarpLaunch<'_>,
+    ) -> Result<(), LauncherError> {
         if !std::sync::Arc::ptr_eq(self.context(), stream.context()) {
             return Err(LauncherError::ModuleContext);
         }
@@ -217,6 +248,47 @@ impl KernelHandle {
         }
         Ok(())
     }
+}
+
+/// M5：一次异步L2发射的完成凭证。
+/// 持有入口句柄（模块）、流与事件。
+/// 查询与等待只观察完成，不释放调用方缓冲。
+pub struct L2Completion {
+    handle: KernelHandle,
+    stream: std::sync::Arc<CudaStream>,
+    event: cudarc::driver::CudaEvent,
+}
+
+impl L2Completion {
+    pub fn handle(&self) -> &KernelHandle {
+        &self.handle
+    }
+
+    pub fn stream(&self) -> &std::sync::Arc<CudaStream> {
+        &self.stream
+    }
+
+    /// 非阻塞完成查询。
+    pub fn is_complete(&self) -> bool {
+        self.event.is_complete()
+    }
+}
+
+impl super::Fence for L2Completion {
+    fn query(&self) -> Result<bool, LauncherError> {
+        Ok(self.event.is_complete())
+    }
+
+    fn wait(&self) -> Result<(), LauncherError> {
+        self.event
+            .synchronize()
+            .map_err(|error| LauncherError::Driver(format!("event-wait: {error:?}")))
+    }
+}
+
+/// 模块由句柄与缓存共同持有；隔离不释放模块。
+impl super::RetainedResources for KernelHandle {
+    fn quarantine(&self) {}
 }
 
 /// 构造单精度L2数组实参。

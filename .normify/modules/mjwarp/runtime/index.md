@@ -2,7 +2,7 @@
 uid = "4098c702"
 id = "mjwarp.runtime"
 tags = ["planned", "engine", "runtime"]
-fingerprint = "d4dd0b594371d12ef4a5c14703299a4b805e291d0498c461c21a378250243af0"
+fingerprint = "03f08229ba01271a6f3a816d58dab33ddb79c7cd16decb7cb2c049df1b1e6f40"
 
 [name]
 zh = "GPU运行时"
@@ -174,6 +174,12 @@ path = "src/runtime/launcher/abi/device.rs"
 
 [[source]]
 path = "src/runtime/launcher/abi/tests.rs"
+
+[[source]]
+path = "tests/launcher_async.rs"
+
+[[source]]
+path = "src/runtime/launcher/submit.rs"
 +++
 
 ## P1局部实现
