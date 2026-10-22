@@ -99,7 +99,9 @@ impl SparseSolveStaticDims {
             levels: value("sparse_solve_levels", levels)?,
             updates: value("sparse_solve_updates", updates)?,
         };
-        if dims.n == 0 || dims.nc == 0 {
+        // 冻结内核按n循环、因子跨度由nc+n决定；空模型（n=nc=0）是合法计划。
+        // 单侧零维度仍拒绝：跨度与索引关系无冻结语义支撑。
+        if (dims.n == 0) != (dims.nc == 0) {
             return Err(LauncherError::InvalidArray("稀疏求解维度无效"));
         }
         dims.metadata_elements()?;

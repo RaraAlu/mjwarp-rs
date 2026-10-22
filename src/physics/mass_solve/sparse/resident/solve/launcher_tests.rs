@@ -78,8 +78,40 @@ fn lengths_follow_entry_layout_and_reject_invalid_dimensions() {
         .is_err()
     );
     assert!(sparse_solve_lengths(&SparseSolveDims { worlds: 0, ..base }).is_err());
+    // 单侧零维度无冻结语义支撑，仍拒绝。
     assert!(SparseSolveStaticDims::new(0, 6, 2, 2).is_err());
     assert!(SparseSolveStaticDims::new(4, 0, 2, 2).is_err());
+    // 空模型（n=0,nc=0）与零层级、零更新是冻结内核合法输入。
+    let empty = SparseSolveStaticDims::new(0, 0, 0, 0).unwrap();
+    assert_eq!(empty.metadata_elements().unwrap(), 2);
+    assert_eq!(empty.factor_stride(), 0);
+    assert_eq!(empty.rhs_stride(3).unwrap(), 0);
+    assert_eq!(
+        sparse_solve_lengths(&SparseSolveDims {
+            static_dims: empty,
+            worlds: 2,
+            rhs_count: 3,
+            entry: SparseSolveEntry::Validate,
+        }),
+        Ok([2, 8, 8, 10])
+    );
+}
+
+#[test]
+fn empty_static_dims_accept_zero_levels_and_keep_metadata_rejections() {
+    let dims = SparseSolveStaticDims::new(0, 0, 0, 0).unwrap();
+    assert_eq!(validate_sparse_solve_metadata(&[0, 0], dims), Ok(()));
+    for (values, reason) in [
+        (vec![1, 0], "层级计数不符"),
+        (vec![0, -1], "层偏移起点非零"),
+        (vec![0, 1], "层偏移终点越界"),
+    ] {
+        assert!(
+            validate_sparse_solve_metadata(&values, dims).is_err(),
+            "{reason} 应被拒绝"
+        );
+    }
+    assert!(validate_sparse_solve_metadata(&[0], dims).is_err());
 }
 
 #[test]

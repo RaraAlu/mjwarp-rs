@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-layers-m3-sparse-solve-empty-abi-fix",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "src/physics/mass_solve/sparse/resident/solve/launcher_abi.rs", "blob": "adba45b277c96efc73b59c61cc6bfbc82324a3ff"},
+    {"path": "src/physics/mass_solve/sparse/resident/solve/launcher_tests.rs", "blob": "c5e740cf75730ce8b2a1246aab76824ab8d5bd10"}
+  ],
+  "note": "修复M3稀疏求解包装的空计划ABI回归，属W-D7同类的迁移自身回归。基线归属：迁移前底层发射src/runtime/transfer/kernel/launchers_solve.rs::launch_sparse_solve只要求worlds>0且右端项数>0，从不要求n/nc非零；`dims.n == 0 || dims.nc == 0`由38a4960 工程(layers): 迁移稀疏求解安全包装 引入（git log -S唯一引入提交），tests/resident_sparse_solve.rs的rejected_inputs用例在38a4960父提交已存在，故为M3迁移自身回归而非历史债务。根因：SparseSolveStaticDims::new把两侧零维度整体拒绝，而冻结内核sparse_solve_validate/fused按n循环、因子跨度由nc+n决定、网格由worlds与右端项数决定，n=0/nc=0时所有按自由度循环空转、对因子与RHS的有限性/哨兵检查空集合通过，空计划安全。修法：只允许n=0且nc=0的空计划；单侧零维度（n>0,nc=0或n=0,nc>0）仍拒绝，因为跨度与索引关系无冻结语义支撑；全部元数据拒绝面原样保留：层偏移起点非零、非单调、终点越界/为负、层级计数不符、对角槽越界、更新三元组目标/源/槽越界、元数据长度不符。新增宿主测试：空维度接受（metadata_elements=2、factor_stride=0、rhs_stride=0、validate精确跨度[2,8,8,10]）与空元数据反例3项（层级不符、起点-1、终点越界、长度不符）；更新原`new(0,6,2,2)`/`new(4,0,2,2)`断言注释为隔离单侧零维度。内核字符串、PTX、容差与fixtures未改。验证（RTX 4070 Ti SUPER/596.36/rustc 1.99.0，独立空PTX目录）：tests/resident_sparse_solve -- --ignored 2过0败（rejected_inputs用例由Input(InvalidDimension{sparse_solve_abi})恢复通过；coupled_128_thread多右端项+残差用例通过，5.93s）；宿主launcher_tests 5过0败；cargo test --locked --features cuda-probe --no-fail-fast EXIT=0、失败测试0。未验收边界：本轮只修空计划维度语义，不改内核/PTX/容差/fixtures；未跑G01全量脚本（W-D4/W-D5既有债务仍在all-probes边界）；未跑Linux与release；未宣称NP01至NP04、精度或性能验收。"
+}
