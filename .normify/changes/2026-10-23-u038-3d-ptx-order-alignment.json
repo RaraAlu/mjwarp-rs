@@ -5,7 +5,7 @@
     "zh": "U038三维运动学PTX算序对齐",
     "en": "U038 3D kinematics PTX order alignment"
   },
-  "status": "in_progress",
+  "status": "abandoned",
   "intent": {
     "zh": "照 G03 矩阵链打法，对 KINEMATICS_CUDA 的 rotate/multiply/normalize 及必要的 com/cdof 累加表达式按上游生成代码的局部乘积写法重写，使 NVRTC 的 FMA 收缩选择与上游一致；目标是 3D 定向 GPU 链 1477 项全链 qfrc_gravcomp 0 超差（2e-6 不变），且 G03 矩阵链逐位证据（potrf 0/121、解 0/33）不回退。不改容差/断言/排除清单/ABI；产品源码变更后另行 T4 源码身份重钉。W13/g03-parity 不动产。",
     "en": "Follow the G03 matrix-chain playbook: rewrite KINEMATICS_CUDA rotate/multiply/normalize and, if needed, com/cdof accumulation expressions to mirror the upstream generated local-product form so NVRTC's FMA contraction matches upstream. Goal: the 1477-value 3D directed GPU chain reaches 0 qfrc_gravcomp values outside 2e-6, without regressing G03 matrix bit-level evidence (potrf 0/121, solve 0/33). Do not change tolerances, assertions, exclusion lists or ABI; register a separate T4 source-identity repin after product source changes. W13/g03-parity stay untouched."
@@ -42,13 +42,14 @@
     ],
     "priority": 83
   },
-  "note": "2026-10-23 Chief 指令登记（proposed→start 后做第一轮）：U038 首差定位到父姿态旋转+四元数组合，属 NVRTC FMA 收缩选择类（同 G03 矩阵链），按 G03 打法重写局部表达式再试一轮；有界两轮，做不到 0 超差就留差异清单证据交裁决。范围限 KINEMATICS_CUDA 与必要 com/cdof 表达式、测试与证据；T4 repin 另立；不改容差/断言/排除清单/ABI；W13/g03-parity 未动；QA 在 NP02 不撞范围。",
+  "note": "2026-10-23 Chief 指令登记（proposed→start 后做第一轮）：U038 首差定位到父姿态旋转+四元数组合，属 NVRTC FMA 收缩选择类（同 G03 矩阵链），按 G03 打法重写局部表达式再试一轮；有界两轮，做不到 0 超差就留差异清单证据交裁决。范围限 KINEMATICS_CUDA 与必要 com/cdof 表达式、测试与证据；T4 repin 另立；不改容差/断言/排除清单/ABI；W13/g03-parity 未动；QA 在 NP02 不撞范围。\n放弃：两轮有界耗尽、未达 0 超差（不宣称通过）。基线 run6：全链 qfrc 8/77 超差、总位差 122、max 4.2915e-6。第 1 轮 straight-line 局部乘积写法：run7 仍 8/77、位差 123、首差不变。第 2 轮显式 mul/add/sub 禁止 FMA：run8 仍 8/77、位差 147 变差。结论：上游 PTX 为混合收缩模式，全自然/全显式两种极端都无法复现；需按上游 PTX 逐表达式反推每条 mul/add 是否融合并逐项固定，属需 PTX 级对照工具的系统性任务，超出两轮有界。未改容差/断言/排除清单/ABI；产品源码已回退、未做 T4 repin、未跑 GPU 内核。证据 docs/development-evidence/u038-3d/ptx-order-round2.md 与 run7/run8。",
   "revision": {
     "before": "6502ec2dcfb6e54bdcc245df038e69ea415fa2bc",
     "after": null
   },
   "created_at": "2026-10-23T03:30:00.000Z",
-  "updated_at": "2026-10-22T19:13:08.796Z",
+  "updated_at": "2026-10-22T19:13:54.856Z",
+  "closed_at": "2026-10-22T19:13:54.856Z",
   "checks": [
     {
       "kind": "gate",
