@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-w15-w14-independent-check",
+  "title": {
+    "zh": "W15/W14交付独立复核",
+    "en": "Independent check of W15/W14 deliveries"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "以 QC 视角独立复核 W15（Warp 头文件原样复制）与 W14（tile 共享内存声明与发射约束）的交付：只读比对 + 跑测试，不占 GPU、不改 Backend 文件；发现不一致只登记差异，不直接修改。",
+    "en": "Independently QC the W15 (verbatim Warp header copy) and W14 (tile shared-memory launch constraints) deliveries: read-only comparison and test runs, no GPU, no edits to Backend files; register differences without changing them."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "W15：逐字节复核 include/warp-headers 的 36 个头文件与 docs/development-evidence/w15-verbatim-headers/headers.json（bytes/SHA-256、无多/少文件、总字节 1,520,709）以及 clone tag ffa038b1 源码一致；核对 LICENSES/warp-1.15.0/LICENSE.md 与 THIRD_PARTY_NOTICES.md 来源声明；用 wheel 头文件反证「未混用」；复跑 copied_headers_match_the_frozen_manifest 与 NVRTC 头文件编译测试。",
+    "W14：逐条核对拒绝面是否真的被测到（块大小与 Tile 规则不符/未 opt-in 动态共享内存/超默认与 opt-in 上限/静态共享超限/非法 SHARED_BYTES/静态与动态互斥），核对 BlockRule::Tile、SharedMemoryLimits 默认 48KiB、4 字节对齐与 M7-tile 冻结约束（docs/development-evidence/layers-w14.md）的一致性；复跑 tests/launcher-tile.rs（含 NVRTC 编译）并确认只编译 PTX、不启动 GPU 内核。",
+    "结论写 docs/development-evidence/w15-w14-independent-check/（README、check.json、复核脚本）；发现不一致登记差异（严重级别、证据位置、期望/实际），不修改 Backend 的 include/LICENSES/launcher/tests 文件。",
+    "通过 gate fmt、gate unit、unchanged（src/runtime/launcher、tests/launcher-tile.rs、tests/launcher-warp-headers.rs、include/warp-headers、LICENSES、THIRD_PARTY_NOTICES.md、Cargo.toml、Cargo.lock）、回执 json 与 forbid_claim；不跑 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "文档-状态",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/w15-w14-independent-check",
+      "docs/development-evidence/changes/2026-10-23-w15-w14-independent-check.json"
+    ],
+    "resources": [],
+    "priority": 4
+  },
+  "note": "只读复核：不改 include/warp-headers、LICENSES、src/runtime/launcher、tests/launcher-*.rs、THIRD_PARTY_NOTICES.md；只新增证据目录与回执。W15/W14 已提交（b1de2db、f98dc34）。不占 GPU：NVRTC 测试只编译 PTX。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T03:35:00.000Z",
+  "updated_at": "2026-10-23T03:35:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/runtime/launcher",
+        "tests/launcher-tile.rs",
+        "tests/launcher-warp-headers.rs",
+        "include/warp-headers",
+        "LICENSES",
+        "THIRD_PARTY_NOTICES.md",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-w15-w14-independent-check.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-w15-w14-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "W15验收通过",
+        "W14验收通过",
+        "完整验收",
+        "双平台通过"
+      ]
+    }
+  ]
+}
