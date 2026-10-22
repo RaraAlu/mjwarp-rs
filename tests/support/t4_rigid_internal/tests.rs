@@ -85,12 +85,13 @@ fn preserves_zero_quaternion_evidence_and_active_macros() {
     let pre_rotation = super::super::rotate_lineage::before(PHYSICS).unwrap();
     assert_eq!(
         digest(&pre_rotation),
-        "2f893e4eba64907d88ce2adee2dfbb3e01101b58c18529ce4772ec7090c55d01"
+        "714839bfb47674baa504007554ecb5a5eaeffd47a64f5d48974bcdc2ac1de0ab"
     );
     // 第二段：零四元数分支。模板还原为历史实测捕获。
     // 该段之前的整文件差异只有模块导出，故比较刚体模板。
+    let pre_matrix = super::matrix_lineage::before(&pre_rotation).unwrap();
     let pre_zero = historical_rigid_kernel(
-        between(&pre_rotation, "const KINEMATICS_CUDA: &str = r#\"", "\"#;").unwrap(),
+        between(&pre_matrix, "const KINEMATICS_CUDA: &str = r#\"", "\"#;").unwrap(),
     )
     .unwrap();
     let kernels: serde_json::Value =

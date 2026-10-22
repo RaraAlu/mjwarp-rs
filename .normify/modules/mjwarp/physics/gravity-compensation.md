@@ -2,7 +2,7 @@
 uid = "6f2c1a9d"
 id = "mjwarp.physics.gravity-compensation"
 tags = ["G04", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "b51d12f9c1f1af854d8af7fe40090e51880b4c8104c8003c7c7355c2c5d9938c"
+fingerprint = "278a1a53961e7663f3d052580ba3ae435d0e522d472cd7674788375b7e03bdeb"
 
 [name]
 zh = "重力补偿"

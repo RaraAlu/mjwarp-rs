@@ -1,7 +1,7 @@
 +++
 uid = "f9ad621e"
 id = "mjwarp.physics.tendon-wrap"
-fingerprint = "a4a7d8110a01751f52b6f7289ba120e449c3e14c34a05572a33469811e9abf19"
+fingerprint = "e731041350a5a57a2c106ced76c8f8d8daba91df99c07ffac272a9db597a3b71"
 
 [name]
 zh = "球柱绕行CUDA辅助"

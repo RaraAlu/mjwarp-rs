@@ -156,7 +156,7 @@ fn trace_reference() -> Value {
     let value: Value = serde_json::from_slice(bytes).unwrap();
     assert_eq!(
         sha(bytes),
-        "c62c8ed0c4ba7b868c9632baca7cc828d3759b11e6d05a06ac695f60e43b29f4"
+        "b4f887f7a32ba256cea03a2bf14f747979fdfe5ba8760ae7fa4bae1b316c1928"
     );
     assert_eq!(
         value["author_sha256"],

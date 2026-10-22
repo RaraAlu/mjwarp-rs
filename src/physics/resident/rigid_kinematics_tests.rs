@@ -16,9 +16,9 @@ use crate::runtime::SynchronousKernel;
 use crate::runtime::launcher::LauncherError;
 
 // 冻结基线：plain、mocap与mocap+G01三种变体。
-const PLAIN_PTX: &str = "788c870d787e06d58bce113eef24846c0b14aa43f524189a3508f58fc940f280";
-const MOCAP_PTX: &str = "93318e85811ad7db5a50c3217eb08201ae0d51b649c6d69feec1f5b6355239a4";
-const G01_PTX: &str = "58cb789359125491c79f2b208717b69fbcf18ef1f9172fbfad27a7fe9d02cdb7";
+const PLAIN_PTX: &str = "4b5e948bdaec8080a70c74ab301c5a183cf5590dd6f586557c9da9fc24d71405";
+const MOCAP_PTX: &str = "0bbc1f9a3d4dadffa52d905636e80c6fa19a7140aca654934ace6c7753d7cc64";
+const G01_PTX: &str = "442bcf3380006ae5127255cc5ba102a7b56cba8d383f4f6f87f2c4fd0a186992";
 
 /// 独立空捕获目录；未设置根变量时只执行不取证。
 struct Capture {

@@ -7,6 +7,8 @@ mod captures;
 mod external;
 #[path = "t4_rigid_internal/lineage.rs"]
 mod lineage;
+#[path = "t4_rigid_internal/matrix_lineage.rs"]
+pub(super) mod matrix_lineage;
 #[path = "t4_rigid_internal/tests.rs"]
 mod tests;
 #[path = "t4_rigid_internal/types.rs"]
@@ -69,7 +71,7 @@ const OUTPUTS: &[&str] = &[
     "xquat|wp.quat|float* xq=xp+3*nb;|store_q(xq+4*b,r);|&v[3 * nb..7 * nb]|_kinematics_branch",
     "xmat|wp.mat33|float* xm=xq+4*nb;|matrix(xm+9*b,r);|&v[7 * nb..16 * nb]|_compute_body_matrices",
     "xipos|wp.vec3|float* xi=xm+9*nb;|store_v(xi+3*b,add(p,rotate(r,load_v(ip+3*b))));|&v[16 * nb..19 * nb]|_compute_body_inertial_frames",
-    "ximat|wp.mat33|float* im=xi+3*nb;|matrix(im+9*b,multiply(r,load_q(iq+4*b)));|&v[19 * nb..28 * nb]|_compute_body_inertial_frames",
+    "ximat|wp.mat33|float* im=xi+3*nb;|matrix_natural(im+9*b,multiply(r,load_q(iq+4*b)));|&v[19 * nb..28 * nb]|_compute_body_inertial_frames",
     "xanchor|wp.vec3|float* anchor=im+9*nb;|store_v(anchor+3*j,a);|&v[28 * nb..28 * nb + 3 * nj]|_kinematics_branch",
     "xaxis|wp.vec3|float* xa=anchor+3*nj;|store_v(xa+3*j,ax);|&v[28 * nb + 3 * nj..]|_kinematics_branch",
 ];
