@@ -1,0 +1,107 @@
+{
+    "work": "work-04-resident-mass",
+    "summary": "resident_mass_factor 与 resident_mass_substitute 改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/mass_solve/resident/plan.rs", "line": 131 },
+        { "file": "src/physics/mass_solve/resident/plan.rs", "line": 173 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/mass_solve/resident/kernels.rs",
+            "line": 77,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "resident_mass_factor"
+        },
+        {
+            "file": "src/physics/mass_solve/resident/kernels.rs",
+            "line": 139,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "resident_mass_substitute"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/mass_solve/resident/plan.rs",
+            "line": 135,
+            "receiver": "self.factor",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        },
+        {
+            "file": "src/physics/mass_solve/resident/plan.rs",
+            "line": 170,
+            "receiver": "self.substitute",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/mass_solve/resident/plan.rs",
+            "old_line": 45,
+            "new_file": "src/physics/mass_solve/resident/kernels.rs",
+            "new_line": 29
+        },
+        {
+            "old_file": "src/physics/mass_solve/resident/plan.rs",
+            "old_line": 46,
+            "new_file": "src/physics/mass_solve/resident/kernels.rs",
+            "new_line": 91
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "resident_mass_factor",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/mass_solve/resident/kernels.rs:29" ],
+            "kernel_abi_evidence": [
+                "ResidentMassFactorSpec at src/physics/mass_solve/resident/launcher_specs.rs:110"
+            ]
+        },
+        {
+            "entry": "resident_mass_substitute",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/mass_solve/resident/kernels.rs:91" ],
+            "kernel_abi_evidence": [
+                "ResidentMassSolveSpec at src/physics/mass_solve/resident/launcher_specs.rs:139"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "ResidentMassFactorSpec",
+            "logical_name": "resident_mass_factor",
+            "definition": "src/physics/mass_solve/resident/launcher_specs.rs:110",
+            "actual_cuda_entries": "resident_mass_factor",
+            "typed_low_level_calls": [ "src/physics/mass_solve/resident/kernels.rs:77" ]
+        },
+        {
+            "type": "ResidentMassSolveSpec",
+            "logical_name": "resident_mass_substitute",
+            "definition": "src/physics/mass_solve/resident/launcher_specs.rs:139",
+            "actual_cuda_entries": "resident_mass_substitute",
+            "typed_low_level_calls": [ "src/physics/mass_solve/resident/kernels.rs:139" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "resident_crb_matrix",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/mass_matrix/resident.rs:120" ],
+        "reason": "resident_mass 已完成；下一批 resident_crb（resident_crb_matrix/resident_crb_init/resident_crb_accumulate）"
+    },
+    "manual_cross_checks_add": [
+        "work-04: resident_mass 两个入口改走类型化包装；raw 行 -2、typed 行 +2、编排行 +2、编译点移入 kernels.rs",
+        "work-04: 块表元数据证明校验连续分区、块尺寸与因子格式；零自由度边界与解区跨度按冻结布局精确核对"
+    ],
+    "acceptance_boundary_set": {
+        "resident_mass_raw": false,
+        "resident_mass_migrated": true
+    }
+}

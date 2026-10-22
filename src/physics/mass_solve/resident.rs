@@ -2,11 +2,23 @@
 //! 完整G03仍待验收。
 
 #[cfg(feature = "cuda-probe")]
+use self::kernels::{ResidentMassFactorKernel, ResidentMassSubstituteKernel};
+#[cfg(feature = "cuda-probe")]
+use self::metadata_buffer::ResidentMassMetadataBuffer;
+#[cfg(feature = "cuda-probe")]
 use super::MassFactorBlock;
 use super::MassSolveLayout;
 #[cfg(feature = "cuda-probe")]
 use crate::diagnostics::{ProbeError, TransferError};
 use crate::physics::{MassMatrixData, MassMatrixPlan};
+#[cfg(all(feature = "cuda-probe", test))]
+use crate::runtime::launcher::DeviceSpan;
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
 
@@ -15,15 +27,15 @@ pub struct MassSolvePlan {
     matrix: MassMatrixPlan,
     nv: usize,
     #[cfg(feature = "cuda-probe")]
-    nbody: usize,
-    #[cfg(feature = "cuda-probe")]
     blocks: Vec<MassFactorBlock>,
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: ResidentMassMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 2],
+    factor: ResidentMassFactorKernel,
+    #[cfg(feature = "cuda-probe")]
+    substitute: ResidentMassSubstituteKernel,
 }
 
 /// RHS写入保留因子，只废弃解。
@@ -102,8 +114,26 @@ extern "C" __global__ void resident_mass_substitute(const int* blocks,const floa
 
 #[path = "resident/data.rs"]
 mod data;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/kernels.rs"]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/launcher_abi.rs"]
+mod launcher_abi;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/launcher_meta.rs"]
+mod launcher_meta;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/launcher_specs.rs"]
+mod launcher_specs;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/metadata_buffer.rs"]
+mod metadata_buffer;
 #[path = "resident/plan.rs"]
 mod plan;
 #[cfg(all(test, feature = "cuda-probe"))]
 #[path = "resident/tests.rs"]
 mod tests;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "resident/tests/launcher.rs"]
+mod tests_launcher;
