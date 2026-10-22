@@ -19,8 +19,8 @@ pwsh -NoProfile -File scripts/u038-ptx-diff.ps1
 | pinned Warp 缓存（生成 CUDA + 冻结 PTX） | `target/mjwarp-parallel/cache-quarantine/warp-1.15.0-double-version-2026-10-18/wp_mujoco_warp._src.smooth_ca013d6` |
 | Warp wheel native 头文件 | `target/mjwarp-parallel/venv/Lib/site-packages/warp/native` |
 
-工具实现：`scripts/u038-ptx-diff.ps1`（入口）+ `scripts/u038-ptx-diff-tool/`（Rust crate，约 900 行，
-使用与产品相同的 `cudarc 0.18.2` 动态加载 NVRTC）。输出目录默认 `target/u038-ptx-diff-tool/out/`
+工具实现：`scripts/u038-ptx-diff.ps1`（入口）+ `scripts/u038-ptx-diff-tool/`（Rust crate，约 1300 行，
+7 个模块，使用与产品相同的 `cudarc 0.18.2` 动态加载 NVRTC）。输出目录默认 `target/u038-ptx-diff-tool/out/`
 （含 `ptx-diff.json`、产品/上游 PTX、各探针 `.cu/.ptx`）；本目录的 `ptx-diff.json`、产品 PTX 摘录与探针
 源文件是从该输出复制来的证据副本。工具只读产品源码并按产品同源方式组合编译单元，不改任何产品文件。
 
