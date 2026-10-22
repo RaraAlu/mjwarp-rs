@@ -48,41 +48,24 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
         &self,
         data: &mut PassiveForceData,
         worlds: usize,
-        work: u32,
     ) -> Result<(), TransferError> {
         let fluid = match (&self.fluid, &data.fluid) {
             (Some(plan), Some(fluid)) => Some(plan.shared_qfrc(fluid, worlds)?),
             (None, None) => None,
             _ => return Err(TransferError::ModelMismatch),
         };
+        let w = worlds as u32;
         let passive = data.smooth.passive_target();
         if let Some(gravity) = &self.gravity {
             gravity.sum_shared(&data.parts, &data.gravity, passive, worlds)?;
         } else {
-            // SAFETY: 分量缓冲含两个连续字段。
-            // 目标仅写入平滑力的Passive字段。
-            unsafe {
-                self.kernels[1].launch(
-                    &self.metadata,
-                    &self.dummy,
-                    &data.parts,
-                    passive,
-                    [0, self.nv as u32, worlds as u32, work],
-                )?;
-            }
+            self.kernels
+                .launch_sum(&self.metadata, &self.dummy, &data.parts, passive, w)?;
         }
         if let Some(fluid) = fluid {
-            // SAFETY: 流体缓冲与目标都含worlds*nv槽。
             // 本次加法严格位于重力补偿之后。
-            unsafe {
-                self.kernels[3].launch(
-                    &self.metadata,
-                    &self.dummy,
-                    fluid,
-                    passive,
-                    [0, self.nv as u32, worlds as u32, work],
-                )?;
-            }
+            self.kernels
+                .launch_add_fluid(&self.metadata, &self.dummy, fluid, passive, w)?;
         }
         Ok(())
     }
@@ -92,10 +75,9 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
         &self,
         data: &mut PassiveForceData,
         worlds: usize,
-        work: u32,
         sleep: Option<&TransferBuffer<i32>>,
     ) -> Result<(), TransferError> {
-        self.write_passive(data, worlds, work)?;
+        self.write_passive(data, worlds)?;
         self.smooth
             .update_with_sleep_source(&mut data.smooth, sleep)
     }

@@ -117,14 +117,25 @@ pub(super) fn gravity_compute_lengths(
     Ok([metadata, parameters, rigid, com, output])
 }
 
-/// 合并内核五槽精确元素数：分片与重力缓冲同为输出宽度。
+/// 合并内核五槽精确元素数。
+///
+/// 分片缓冲按两字段读取（弹簧与阻尼各一世界段）；
+/// 重力缓冲与输出最小宽度为单字段，输出可为四字段平滑力缓冲。
 #[cfg(feature = "cuda-probe")]
 pub(super) fn gravity_sum_lengths(dims: &GravitySumDims) -> Result<[u64; 5], LauncherError> {
     dims.abi()?;
     let static_dims = dims.static_dims;
     let metadata = static_dims.metadata_elements()?;
-    let parts = output_elements(static_dims, dims.worlds)?;
-    Ok([metadata, parts, parts, parts, parts])
+    let gravity = output_elements(static_dims, dims.worlds)?;
+    let parts = world_count(dims.worlds)?
+        .checked_mul(
+            u64::from(static_dims.nv)
+                .checked_mul(2)
+                .ok_or(LauncherError::Overflow("gravity_compensation_parts"))?,
+        )
+        .and_then(|value| value.checked_add(8))
+        .ok_or(LauncherError::Overflow("gravity_compensation_parts"))?;
+    Ok([metadata, parts, gravity, gravity, gravity])
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -247,8 +258,13 @@ impl KernelSpec for GravitySumSpec {
 }
 
 #[cfg(feature = "cuda-probe")]
-fn exact_lengths(bindings: &[SlotBinding], lengths: &[u64]) -> Result<(), LauncherError> {
-    for (slot, &elements) in lengths.iter().enumerate() {
+fn exact_lengths_selected(
+    bindings: &[SlotBinding],
+    lengths: &[u64],
+    slots: &[usize],
+) -> Result<(), LauncherError> {
+    for &slot in slots {
+        let elements = lengths[slot];
         let binding = bindings
             .iter()
             .find(|binding| binding.slot == slot)
@@ -274,7 +290,7 @@ pub(super) fn gravity_clear_plan(
     proofs: &[CheckedBinding<'_, GravityClearDims>],
 ) -> Result<(), LauncherError> {
     Kernel::<GravityClearSpec>::new()?.plan(dims, bindings, proofs)?;
-    exact_lengths(bindings, &gravity_clear_lengths(dims)?)
+    exact_lengths_selected(bindings, &gravity_clear_lengths(dims)?, &[0, 1, 2, 3])
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -284,7 +300,7 @@ pub(super) fn gravity_validate_plan(
     proofs: &[CheckedBinding<'_, GravityValidateDims>],
 ) -> Result<(), LauncherError> {
     Kernel::<GravityValidateSpec>::new()?.plan(dims, bindings, proofs)?;
-    exact_lengths(bindings, &gravity_validate_lengths(dims)?)
+    exact_lengths_selected(bindings, &gravity_validate_lengths(dims)?, &[0, 1, 2, 3, 4])
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -294,7 +310,7 @@ pub(super) fn gravity_compute_plan(
     proofs: &[CheckedBinding<'_, GravityComputeDims>],
 ) -> Result<(), LauncherError> {
     Kernel::<GravityComputeSpec>::new()?.plan(dims, bindings, proofs)?;
-    exact_lengths(bindings, &gravity_compute_lengths(dims)?)
+    exact_lengths_selected(bindings, &gravity_compute_lengths(dims)?, &[0, 1, 2, 3, 4])
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -304,5 +320,6 @@ pub(super) fn gravity_sum_plan(
     proofs: &[CheckedBinding<'_, GravitySumDims>],
 ) -> Result<(), LauncherError> {
     Kernel::<GravitySumSpec>::new()?.plan(dims, bindings, proofs)?;
-    exact_lengths(bindings, &gravity_sum_lengths(dims)?)
+    // 输出槽可为四字段平滑力缓冲：内核只写前worlds*nv槽，按最小容量校对。
+    exact_lengths_selected(bindings, &gravity_sum_lengths(dims)?, &[0, 1, 2, 3])
 }

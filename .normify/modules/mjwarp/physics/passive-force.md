@@ -46,6 +46,15 @@ path = "src/physics/passive_force/tests/rotation.rs"
 [[source]]
 path = "src/physics/passive_force/tests/fluid.rs"
 
+[[source]]
+path = "src/physics/passive_force/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/passive_force/kernels.rs"
+
+[[source]]
+path = "src/physics/passive_force/launcher_tests.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::PassiveForcePlan"

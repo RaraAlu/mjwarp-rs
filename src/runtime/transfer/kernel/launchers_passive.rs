@@ -117,4 +117,29 @@ impl SynchronousKernel {
             )
         }
     }
+
+    /// ABI: (const int*, const float*, const float*, float*, u32, u32, u32, u32).
+    ///
+    /// # Safety
+    /// 调用方证明私有ABI与全部跨度。
+    pub(crate) unsafe fn launch_passive_force(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        parameters: &TransferBuffer<f32>,
+        input: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        dimensions: [u32; 4],
+    ) -> Result<(), TransferError> {
+        // SAFETY: 由调用方转交的同一组契约。
+        unsafe {
+            self.launch_four_buffers(
+                metadata,
+                parameters,
+                input,
+                output,
+                dimensions,
+                "passive-force-kernel-launch",
+            )
+        }
+    }
 }

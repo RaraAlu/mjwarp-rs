@@ -8,7 +8,7 @@ use crate::model::BatchLayout;
 #[cfg(feature = "cuda-probe")]
 use crate::model::SmoothForceInput;
 #[cfg(feature = "cuda-probe")]
-use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
+use crate::runtime::{TransferBuffer, TransferSession};
 use std::sync::Arc;
 
 #[cfg(feature = "cuda-probe")]
@@ -23,6 +23,15 @@ use super::{
 // 子模块：纯移动自原单文件，行为不变。
 mod construct;
 mod data;
+#[cfg(feature = "cuda-probe")]
+#[path = "passive_force/kernels.rs"]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "passive_force/launcher_abi.rs"]
+mod launcher_abi;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "passive_force/launcher_tests.rs"]
+mod launcher_tests;
 mod output;
 #[cfg(all(test, feature = "cuda-probe"))]
 #[path = "passive_force/tests/accumulate.rs"]
@@ -56,11 +65,11 @@ pub struct PassiveForcePlan<'a, 'v, 'p, 'f> {
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: launcher_abi::PassiveForceMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
     dummy: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 4],
+    kernels: kernels::PassiveForceKernels,
 }
 
 pub struct PassiveForceData {

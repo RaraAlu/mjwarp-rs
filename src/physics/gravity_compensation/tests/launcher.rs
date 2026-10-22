@@ -13,6 +13,8 @@ use super::launcher_abi::GravityValidateDims;
 #[cfg(feature = "cuda-probe")]
 use super::launcher_meta::GravityClearMetadata;
 #[cfg(feature = "cuda-probe")]
+use super::launcher_meta::GravitySumMetadata;
+#[cfg(feature = "cuda-probe")]
 use super::launcher_meta::gravity_launch_error;
 #[cfg(feature = "cuda-probe")]
 use super::launcher_meta::validate_gravity_metadata;
@@ -24,6 +26,8 @@ use super::launcher_specs::gravity_clear_plan;
 use super::launcher_specs::gravity_compute_lengths;
 #[cfg(feature = "cuda-probe")]
 use super::launcher_specs::gravity_sum_lengths;
+#[cfg(feature = "cuda-probe")]
+use super::launcher_specs::gravity_sum_plan;
 #[cfg(feature = "cuda-probe")]
 use super::launcher_specs::gravity_validate_lengths;
 #[cfg(feature = "cuda-probe")]
@@ -81,7 +85,7 @@ fn lengths_follow_frozen_layout_and_reject_invalid_dimensions() {
         static_dims: static_dims(),
         worlds: 2,
     };
-    assert_eq!(gravity_sum_lengths(&sum).unwrap(), [20, 12, 12, 12, 12]);
+    assert_eq!(gravity_sum_lengths(&sum).unwrap(), [20, 16, 12, 12, 12]);
     assert_eq!(sum.abi().unwrap(), [3, 2, 2, 4]);
 
     for static_dims in [
@@ -264,5 +268,58 @@ fn plan_rejects_capacity_alias_context_and_missing_proof() {
     assert!(matches!(
         gravity_validate_plan(&validate, &overlap, &[validate_proof.binding(0)]),
         Err(LauncherError::Alias { .. })
+    ));
+}
+
+#[test]
+#[cfg(feature = "cuda-probe")]
+fn sum_plan_reads_two_field_parts_and_accepts_wide_shared_output() {
+    let dims = GravitySumDims {
+        static_dims: static_dims(),
+        worlds: 2,
+    };
+    let lengths = gravity_sum_lengths(&dims).unwrap();
+    let span = |context: u64, addr: u64, bytes: u64| DeviceSpan::new(context, addr, bytes).unwrap();
+    let binding = |slot: usize, addr: u64, length: u64, elem: ElemType| SlotBinding {
+        slot,
+        span: span(7, addr, length * 4),
+        elem,
+    };
+    let bindings = [
+        binding(0, 0x1000, lengths[0], ElemType::I32),
+        binding(1, 0x2000, lengths[1], ElemType::F32),
+        binding(2, 0x3000, lengths[2], ElemType::F32),
+        binding(3, 0x3000, lengths[3], ElemType::F32),
+        binding(4, 0x4000, lengths[4], ElemType::F32),
+    ];
+    let values = valid_metadata();
+    // SAFETY: 测试用宿主镜像与实际跨度一致；不发射。
+    let proof = unsafe {
+        Checked::<GravitySumMetadata>::assume_uploaded(
+            bindings[0].span,
+            &values,
+            dims,
+            MetadataRevision::new(),
+        )
+    }
+    .unwrap();
+    assert!(gravity_sum_plan(&dims, &bindings, &[proof.binding(0)]).is_ok());
+    // 共享链输出是四字段平滑力缓冲：内核只写首个字段，按最小容量接受。
+    let mut wide = bindings;
+    wide[4].span = span(7, 0x4000, (8 + 4 * 2 * 2) * 4);
+    assert!(gravity_sum_plan(&dims, &wide, &[proof.binding(0)]).is_ok());
+    // 分片缓冲必须容纳弹簧与阻尼两个字段。
+    let mut narrow = bindings;
+    narrow[1].span = span(7, 0x2000, 12 * 4);
+    assert!(matches!(
+        gravity_sum_plan(&dims, &narrow, &[proof.binding(0)]),
+        Err(LauncherError::Capacity { slot: 1, .. })
+    ));
+    // 输出仍须容纳最小单字段。
+    let mut short = bindings;
+    short[4].span = span(7, 0x4000, 11 * 4);
+    assert!(matches!(
+        gravity_sum_plan(&dims, &short, &[proof.binding(0)]),
+        Err(LauncherError::Capacity { slot: 4, .. })
     ));
 }

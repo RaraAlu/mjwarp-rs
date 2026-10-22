@@ -47,9 +47,6 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
         #[cfg(feature = "cuda-probe")]
         {
             let worlds = data.worlds();
-            let work = worlds.checked_mul(self.nv).ok_or(InputError::Overflow {
-                field: "passive_force_work",
-            })? as u32;
             self.joint.write_shared_passive_base(
                 joint,
                 &mut data.parts,
@@ -84,7 +81,7 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
                 None
             };
             read_parts(&data.parts, 2 * data.layout.total_elements())?;
-            self.finish(data, worlds, work, sleep)?;
+            self.finish(data, worlds, sleep)?;
             data.ready = true;
             Ok(PassiveForceView {
                 data,
@@ -116,27 +113,11 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
         #[cfg(feature = "cuda-probe")]
         {
             let worlds = data.worlds();
-            let work = worlds.checked_mul(self.nv).ok_or(InputError::Overflow {
-                field: "passive_force_work",
-            })? as u32;
-            // SAFETY: 每线程清零一个分量槽。
-            // 本分支不读取任何生产者设备缓冲。
-            unsafe {
-                self.kernels[0].launch(
-                    &self.metadata,
-                    &self.dummy,
-                    &self.dummy,
-                    &mut data.parts,
-                    [0, self.nv as u32, worlds as u32, work],
-                )?;
-                self.kernels[2].launch(
-                    &self.metadata,
-                    &self.dummy,
-                    &self.dummy,
-                    &mut data.gravity,
-                    [0, self.nv as u32, worlds as u32, work],
-                )?;
-            }
+            let w = worlds as u32;
+            self.kernels
+                .launch_clear(&self.metadata, &self.dummy, &mut data.parts, w)?;
+            self.kernels
+                .launch_clear_gravity(&self.metadata, &self.dummy, &mut data.gravity, w)?;
             if let Some(fluid) = &self.fluid {
                 fluid.clear_shared(
                     data.fluid.as_mut().ok_or(TransferError::ModelMismatch)?,
@@ -144,7 +125,7 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
                 )?;
             }
             read_parts(&data.parts, 2 * data.layout.total_elements())?;
-            self.write_passive(data, worlds, work)?;
+            self.write_passive(data, worlds)?;
             if !self.smooth.options().enable_sleep() {
                 self.smooth.update(&mut data.smooth)?;
             }
@@ -178,27 +159,11 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
         #[cfg(feature = "cuda-probe")]
         {
             let worlds = data.worlds();
-            let work = worlds.checked_mul(self.nv).ok_or(InputError::Overflow {
-                field: "passive_force_work",
-            })? as u32;
-            // SAFETY: 每线程清零一个分量槽。
-            // 本分支不读取任何物理生产者。
-            unsafe {
-                self.kernels[0].launch(
-                    &self.metadata,
-                    &self.dummy,
-                    &self.dummy,
-                    &mut data.parts,
-                    [0, self.nv as u32, worlds as u32, work],
-                )?;
-                self.kernels[2].launch(
-                    &self.metadata,
-                    &self.dummy,
-                    &self.dummy,
-                    &mut data.gravity,
-                    [0, self.nv as u32, worlds as u32, work],
-                )?;
-            }
+            let w = worlds as u32;
+            self.kernels
+                .launch_clear(&self.metadata, &self.dummy, &mut data.parts, w)?;
+            self.kernels
+                .launch_clear_gravity(&self.metadata, &self.dummy, &mut data.gravity, w)?;
             if let Some(fluid) = &self.fluid {
                 fluid.clear_shared(
                     data.fluid.as_mut().ok_or(TransferError::ModelMismatch)?,
@@ -207,7 +172,7 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
             }
             read_parts(&data.parts, 2 * data.layout.total_elements())?;
             let sleep = self.flex_edge.shared_sleep_source(sleep_source)?;
-            self.finish(data, worlds, work, Some(sleep))?;
+            self.finish(data, worlds, Some(sleep))?;
             data.ready = true;
             Ok(SleepClearedPassiveForceView {
                 data,

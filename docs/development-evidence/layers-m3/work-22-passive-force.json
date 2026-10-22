@@ -1,0 +1,53 @@
+{
+    "work": "work-22-passive-force",
+    "summary": "共享被动力四入口改走类型化包装并修复重力合并跨度回归",
+    "remove_low_level": [
+        { "file": "src/physics/passive_force/update.rs", "line": 125 },
+        { "file": "src/physics/passive_force/update.rs", "line": 132 },
+        { "file": "src/physics/passive_force/update.rs", "line": 187 },
+        { "file": "src/physics/passive_force/update.rs", "line": 194 },
+        { "file": "src/physics/passive_force/output.rs", "line": 65 },
+        { "file": "src/physics/passive_force/output.rs", "line": 78 }
+    ],
+    "add_low_level": [
+        { "file": "src/physics/passive_force/kernels.rs", "line": 284, "receiver": "self.clear", "method": "launch_passive_force", "classification": "typed_wrapper_low_level", "entry": "passive_force_clear" },
+        { "file": "src/physics/passive_force/kernels.rs", "line": 316, "receiver": "self.sum", "method": "launch_passive_force", "classification": "typed_wrapper_low_level", "entry": "passive_force_sum" },
+        { "file": "src/physics/passive_force/kernels.rs", "line": 347, "receiver": "self.clear_gravity", "method": "launch_passive_force", "classification": "typed_wrapper_low_level", "entry": "passive_force_clear_gravity" },
+        { "file": "src/physics/passive_force/kernels.rs", "line": 385, "receiver": "self.add_fluid", "method": "launch_passive_force", "classification": "typed_wrapper_low_level", "entry": "passive_force_add_fluid" }
+    ],
+    "add_orchestration": [
+        { "file": "src/physics/passive_force/update.rs", "line": 118, "receiver": "self.kernels", "method": "launch_clear", "classification": "wrapper_orchestration", "entry": "passive_force_clear" },
+        { "file": "src/physics/passive_force/update.rs", "line": 120, "receiver": "self.kernels", "method": "launch_clear_gravity", "classification": "wrapper_orchestration", "entry": "passive_force_clear_gravity" },
+        { "file": "src/physics/passive_force/update.rs", "line": 164, "receiver": "self.kernels", "method": "launch_clear", "classification": "wrapper_orchestration", "entry": "passive_force_clear" },
+        { "file": "src/physics/passive_force/update.rs", "line": 166, "receiver": "self.kernels", "method": "launch_clear_gravity", "classification": "wrapper_orchestration", "entry": "passive_force_clear_gravity" },
+        { "file": "src/physics/passive_force/output.rs", "line": 63, "receiver": "self.kernels", "method": "launch_sum", "classification": "wrapper_orchestration", "entry": "passive_force_sum" },
+        { "file": "src/physics/passive_force/output.rs", "line": 68, "receiver": "self.kernels", "method": "launch_add_fluid", "classification": "wrapper_orchestration", "entry": "passive_force_add_fluid" }
+    ],
+    "compile_sites_replace": [
+        { "old_file": "src/physics/passive_force/construct.rs", "old_line": 119, "new_file": "src/physics/passive_force/kernels.rs", "new_line": 213 },
+        { "old_file": "src/physics/passive_force/construct.rs", "old_line": 120, "new_file": "src/physics/passive_force/kernels.rs", "new_line": 214 },
+        { "old_file": "src/physics/passive_force/construct.rs", "old_line": 121, "new_file": "src/physics/passive_force/kernels.rs", "new_line": 215 },
+        { "old_file": "src/physics/passive_force/construct.rs", "old_line": 122, "new_file": "src/physics/passive_force/kernels.rs", "new_line": 220 }
+    ],
+    "entry_status": [
+        { "entry": "passive_force_clear", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/passive_force/kernels.rs:213" ], "kernel_abi_evidence": [ "PassiveForceClearSpec at src/physics/passive_force/kernels.rs", "four-buffer launch at src/physics/passive_force/kernels.rs:284" ] },
+        { "entry": "passive_force_sum", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/passive_force/kernels.rs:214" ], "kernel_abi_evidence": [ "PassiveForceSumSpec", "four-buffer launch at src/physics/passive_force/kernels.rs:316" ] },
+        { "entry": "passive_force_clear_gravity", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/passive_force/kernels.rs:215" ], "kernel_abi_evidence": [ "PassiveForceClearGravitySpec", "four-buffer launch at src/physics/passive_force/kernels.rs:347" ] },
+        { "entry": "passive_force_add_fluid", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/passive_force/kernels.rs:220" ], "kernel_abi_evidence": [ "PassiveForceAddFluidSpec", "four-buffer launch at src/physics/passive_force/kernels.rs:385" ] }
+    ],
+    "families_add": [
+        { "type": "PassiveForceClearSpec", "logical_name": "passive_force_clear", "definition": "src/physics/passive_force/kernels.rs", "actual_cuda_entries": "passive_force_clear", "typed_low_level_calls": [ "src/physics/passive_force/kernels.rs:284" ] },
+        { "type": "PassiveForceSumSpec", "logical_name": "passive_force_sum", "definition": "src/physics/passive_force/kernels.rs", "actual_cuda_entries": "passive_force_sum", "typed_low_level_calls": [ "src/physics/passive_force/kernels.rs:316" ] },
+        { "type": "PassiveForceClearGravitySpec", "logical_name": "passive_force_clear_gravity", "definition": "src/physics/passive_force/kernels.rs", "actual_cuda_entries": "passive_force_clear_gravity", "typed_low_level_calls": [ "src/physics/passive_force/kernels.rs:347" ] },
+        { "type": "PassiveForceAddFluidSpec", "logical_name": "passive_force_add_fluid", "definition": "src/physics/passive_force/kernels.rs", "actual_cuda_entries": "passive_force_add_fluid", "typed_low_level_calls": [ "src/physics/passive_force/kernels.rs:385" ] }
+    ],
+    "next_candidate": { "selected": false, "entry": "fluid_force_validate", "migration_status": "unmigrated_or_unwrapped", "compile_sites": [ "src/physics/fluid_force/plan_construct.rs:100" ], "reason": "共享被动力阶段已收口；继续流体四入口" },
+    "manual_cross_checks_add": [
+        "work-22: 共享被动力四入口改走类型化包装；raw 行 -6、typed 行 +4、编排行 +6",
+        "work-22: 元数据为八项守卫证明（内核不读该指针，仍冻结其跨度）；清零/求和/重力清零按精确跨度，写四字段平滑力缓冲的入口按最小容量校对输出",
+        "work-22: 修复 work-10 重力合并包装的跨度回归——冻结内核 gravity_compensation_sum 读取分片缓冲的两字段（parts[4+tid] 与 parts[4+worlds*nv+tid]），原包装把槽1当作单字段且要求输出恰为单字段；现槽1按 8+2*worlds*nv、输出按最小 8+worlds*nv 校对，共享链四字段平滑力缓冲可复用同一内核",
+        "work-22: 根因证据：修复前 passive_force 旋转/流体内核测试报 gravity_compensation_abi InvalidDimension，插桩得到 Capacity{slot:1,required:164,actual:296}；修复后四项 passive_force GPU 测试全绿",
+        "work-22: 重力包装宿主测试同步校正合并跨度断言 [20,12,12,12,12]→[20,16,12,12,12]，并新增宽输出/窄分片/窄输出的计划用例；未改数值容差与映射条目"
+    ],
+    "acceptance_boundary_set": { "passive_force_migrated": true, "passive_force_raw": false, "gravity_shared_chain_regression_fixed": true }
+}

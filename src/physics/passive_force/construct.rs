@@ -99,7 +99,13 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
                     (smooth_input, SmoothForceOptions::default())
                 };
             let smooth = SmoothForcePlan::new(&session, smooth_input, smooth_options)?;
-            let metadata = session.upload(&[-131072; 8])?;
+            let static_dims = launcher_abi::PassiveForceStaticDims::new(nv)
+                .map_err(launcher_abi::passive_force_launch_error)?;
+            let metadata = launcher_abi::PassiveForceMetadataBuffer::from_values(
+                &session,
+                vec![-131072; 8],
+                static_dims,
+            )?;
             let dummy = session.upload(&[-131072.0; 8])?;
             let code = format!("#define PF_NV {nv}\n{CUDA}");
             Ok(Self {
@@ -115,12 +121,7 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
                 disable_damper: joint_options.disable_damper,
                 metadata,
                 dummy,
-                kernels: [
-                    SynchronousKernel::compile(&session, &code, "passive_force_clear")?,
-                    SynchronousKernel::compile(&session, &code, "passive_force_sum")?,
-                    SynchronousKernel::compile(&session, &code, "passive_force_clear_gravity")?,
-                    SynchronousKernel::compile(&session, &code, "passive_force_add_fluid")?,
-                ],
+                kernels: kernels::PassiveForceKernels::compile(&session, &code)?,
                 session,
             })
         }
