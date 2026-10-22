@@ -152,8 +152,6 @@ fn wake_lengths_and_metadata_proof_reject_invalid_inputs() {
         (0, 2, "树数量不符"),
         (1, -1, "肌腱数为负"),
         (2, -1, "包裹数为负"),
-        (3, 0, "参数批次为零"),
-        (4, 0, "参数批次为零"),
         (5, 4, "长度跨度不符"),
         (6, 2, "使能标志无效"),
         (8, 3, "行未连续覆盖"),
@@ -167,6 +165,20 @@ fn wake_lengths_and_metadata_proof_reject_invalid_inputs() {
             "{reason} 应被拒绝"
         );
     }
+    // 冻结内核在禁用或零肌腱时提前返回：空批次合法；
+    // 启用且存在肌腱时必须正批次，否则周期取参数会除零。
+    let mut disabled = wake_metadata();
+    disabled[3] = 0;
+    disabled[4] = 0;
+    assert!(validate_wake_metadata(&disabled, static_dims).is_ok());
+    let mut enabled = wake_metadata();
+    enabled[6] = 1;
+    assert!(validate_wake_metadata(&enabled, static_dims).is_ok());
+    enabled[3] = 0;
+    assert!(validate_wake_metadata(&enabled, static_dims).is_err());
+    enabled[3] = 1;
+    enabled[4] = 0;
+    assert!(validate_wake_metadata(&enabled, static_dims).is_err());
     assert!(validate_wake_metadata(&wake_metadata()[..11], static_dims).is_err());
     // 状态跨度必须为2*ntree+3。
     let bad = TendonWakeStaticDims {

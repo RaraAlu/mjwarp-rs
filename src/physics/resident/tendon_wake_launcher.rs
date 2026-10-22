@@ -137,15 +137,21 @@ pub(super) fn validate_wake_metadata(
     if values[0] < 0 || values[0] as u64 != ntree {
         return Err(LauncherError::InvalidMetadata("常驻肌腱唤醒树数量不符"));
     }
-    if dims.ntree == 0 || dims.scratch_stride != 2 * ntree + 3 {
+    // 冻结内核按 2*ntree+3 定位状态输出；零树时宽度为3，属合法空批次。
+    if dims.scratch_stride != 2 * ntree + 3 {
         return Err(LauncherError::InvalidMetadata("常驻肌腱唤醒状态跨度不符"));
     }
     let nt = u64::try_from(values[1])
         .map_err(|_| LauncherError::InvalidMetadata("常驻肌腱唤醒肌腱数为负"))?;
     let nw = u64::try_from(values[2])
         .map_err(|_| LauncherError::InvalidMetadata("常驻肌腱唤醒包裹数为负"))?;
-    if values[3] < 1 || values[4] < 1 {
+    // 内核仅在启用且存在肌腱时按周期取参数；零肌腱允许空批次。
+    let uses_parameters = nt > 0 && values[6] != 0;
+    if uses_parameters && (values[3] < 1 || values[4] < 1) {
         return Err(LauncherError::InvalidMetadata("常驻肌腱唤醒参数批次无效"));
+    }
+    if values[3] < 0 || values[4] < 0 {
+        return Err(LauncherError::InvalidMetadata("常驻肌腱唤醒参数批次为负"));
     }
     if values[5] < 0 || u64::try_from(values[5]).ok() != Some(dims.lengths_stride) {
         return Err(LauncherError::InvalidMetadata("常驻肌腱唤醒长度跨度不符"));
@@ -369,5 +375,83 @@ impl TendonWakeKernel {
             self.kernel
                 .launch(&metadata.buffer, parameters, lengths, result, dims.abi)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn dims(ntree: u32, lengths_stride: u64, parameter_elements: u64) -> TendonWakeStaticDims {
+        TendonWakeStaticDims {
+            ntree,
+            metadata_elements: 0,
+            parameter_elements,
+            lengths_stride,
+            scratch_stride: 2 * u64::from(ntree) + 3,
+        }
+    }
+
+    fn metadata(values: &[i32], dims: TendonWakeStaticDims) -> TendonWakeStaticDims {
+        TendonWakeStaticDims {
+            metadata_elements: u64::try_from(values.len()).unwrap(),
+            ..dims
+        }
+    }
+
+    #[test]
+    fn accepts_zero_trees_and_zero_tendons() {
+        // 原生G01模型：无树、无肌腱、无包裹，长度为0，禁用标志为0。
+        let values = [0, 0, 0, 1, 1, 0, 0];
+        validate_wake_metadata(&values, metadata(&values, dims(0, 0, 1))).unwrap();
+        // 空批次在零肌腱时合法，内核提前返回。
+        let empty_batches = [0, 0, 0, 0, 0, 0, 1];
+        validate_wake_metadata(&empty_batches, metadata(&empty_batches, dims(0, 0, 1))).unwrap();
+    }
+
+    #[test]
+    fn accepts_zero_trees_with_tendons_and_rows() {
+        // 零树但存在肌腱行：行覆盖仍必须成立，树索引只能为-1。
+        let values = [0, 1, 0, 1, 1, 0, 1, 0, 0, 0];
+        validate_wake_metadata(&values, metadata(&values, dims(0, 0, 3))).unwrap();
+    }
+
+    #[test]
+    fn rejects_stale_or_mismatched_spans() {
+        let mut stale = dims(0, 0, 1);
+        stale.scratch_stride = 4;
+        let values = [0, 0, 0, 1, 1, 0, 0];
+        assert!(validate_wake_metadata(&values, metadata(&values, stale)).is_err());
+        let values = [0, 0, 0, 1, 1, 1, 0];
+        assert!(validate_wake_metadata(&values, metadata(&values, dims(0, 0, 1))).is_err());
+        let values = [1, 0, 0, 1, 1, 0, 0];
+        assert!(validate_wake_metadata(&values, metadata(&values, dims(0, 0, 1))).is_err());
+    }
+
+    #[test]
+    fn rejects_missing_batches_when_enabled_tendons() {
+        // 启用且存在肌腱时必须正批次，否则内核按周期取参数会除零。
+        let values = [0, 1, 0, 0, 1, 0, 1, 0, 0, 0];
+        assert!(validate_wake_metadata(&values, metadata(&values, dims(0, 0, 3))).is_err());
+        let negative = [0, 1, 0, -1, 1, 0, 1, 0, 0, 0];
+        assert!(validate_wake_metadata(&negative, metadata(&negative, dims(0, 0, 3))).is_err());
+    }
+
+    #[test]
+    fn rejects_bad_rows_and_trees() {
+        // 行未从0连续覆盖。
+        let broken_rows = [0, 2, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, -1];
+        assert!(
+            validate_wake_metadata(&broken_rows, metadata(&broken_rows, dims(0, 0, 3))).is_err()
+        );
+        // 零树时树索引不得为非负。
+        let bad_tree = [0, 0, 1, 1, 1, 0, 1, 0];
+        assert!(validate_wake_metadata(&bad_tree, metadata(&bad_tree, dims(0, 0, 1))).is_err());
+    }
+
+    #[test]
+    fn rejects_parameter_range_overrun() {
+        let values = [0, 1, 0, 2, 2, 0, 1, 0, 0, 0];
+        assert!(validate_wake_metadata(&values, metadata(&values, dims(0, 0, 1))).is_err());
     }
 }

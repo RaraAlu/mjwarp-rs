@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-layers-m3-wake-native-chain-fix",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "src/physics/resident/tendon_wake_launcher.rs", "blob": "c45c232342698825de3df587dd87d8377fd81b2a"},
+    {"path": "src/physics/resident/tests/launcher_tendon.rs", "blob": "7774f5a100e6caf09846f04524a24850fa121c1a"}
+  ],
+  "note": "修复W-D1（P0）：M3安全包装迁移（1551c59）引入的唤醒元数据校验回归。根因：`validate_wake_metadata` 按旧假设要求 `dims.ntree > 0` 且 `values[3]>=1 && values[4]>=1` 无条件成立；冻结内核`tendon_wake`只在`m[6]!=0 && nt>0`时按`w%m[3]`/`w%m[4]`取周期参数（否则提前返回），状态输出按`2*ntree+3`定位（零树时宽度3），因此零树/零肌腱/禁用场景下的空批次与零长度跨度均为合法。修法：①去掉`ntree==0`的整体拒绝，仅保留状态跨度必须等于`2*ntree+3`（零树为3）；②参数批次仅在“启用且存在肌腱”（内核确实取周期参数）时要求≥1，禁用或零肌腱允许空批次；③新增批次非负检查；其余拒绝面原样保留：树数量不符、树索引越界（零树时非负树索引仍拒绝）、行未从0连续覆盖、行数与包裹数不符、限位标志无效、长度跨度不符、使能标志无效、元数据结构不符、参数区间越界、负肌腱/包裹数仍全部拒绝。新增宿主反例测试6项（零树零肌腱接受、零树带肌腱行覆盖接受、跨度/长度/树数量不符拒绝、启用且有肌腱时缺批次与负批次拒绝、坏行与越界树拒绝、参数区间越界拒绝）；更新既有`launcher_tendon`测试中“参数批次为零一律拒绝”的过严断言为内核一致语义（禁用时空批次合法、启用且有肌腱时拒绝）。内核字符串、PTX、容差与fixtures未改。验证：基线归属复核——`8f903c5`（1551c59父提交）native_g01 2过；`64b79b5`（M3最终）起1过1败；当前修复后`cargo test --locked --all-features --test native_g01 -- --include-ignored` 2过0败（4.37s）；`cargo test --locked --features cuda-probe --lib tendon_wake_readback -- --ignored` 1过0败（wake-guards）；新增`tendon_wake_launcher::tests` 6过；`launcher_tendon` 5过；`resident_tendon_wake -- --ignored` 5过（14.13s，RTX 4070 Ti SUPER/596.36，独立空PTX目录）；`cargo test --locked --features cuda-probe --lib -- --skip preserves_current_sources_and_all_thirty_variants` 427过0败（跳过项为W-D2 pinned lineage债务，由后继`2026-10-22-t4-lineage-repin`修复）；全量`cargo test --locked --features cuda-probe`在W-D2修复前仍会被既有pinned lineage用例（t4_camlight_precision等）阻断，非本修复引入。门禁：fmt 1161ms、clippy 354ms、clippy-cuda 3976ms、unit 392过0败。未验收边界：本轮只修唤醒元数据证明与内核寻址一致性，不改内核/PTX/容差/fixtures；未重跑Linux；W-D2 lineage与其余G01债务（W-D3至W-D6）不在本任务范围。"
+}
