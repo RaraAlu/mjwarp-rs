@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-t4-source-hash-repin-10",
+  "title": {
+    "zh": "重钉G26后的T4源码身份哈希",
+    "en": "Repin T4 source identities after G26"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "G26 能量全链（任务 2026-10-16-next-g26-complete，提交 f594d4f）修改了 src/physics/mod.rs、src/physics/mass_matrix.rs、src/physics/mass_matrix/multiply、src/physics/kinetic_energy、src/physics/mass_matrix/resident.rs、src/model/data/versions.rs 等产品源（含新增导出与调度 API），使 T4/G01 历史审计记录的源码全文件摘要过期：--all-features 下 11 项身份审计失败（recapture 30 变体、g01 field/rigid/state-packing/topology、t4_camlight/t4_tendon_wake_precision、t4_gravity_nonzero 合约）。本任务只把期望哈希重钉到当前源码文本，保持审计语义、断言逻辑与 lineage 历史变换不变，不改产品代码、容差、断言或门禁。",
+    "en": "The G26 energy-chain task (2026-10-16-next-g26-complete, commit f594d4f) changed product sources (src/physics/mod.rs, mass_matrix.rs, multiply, kinetic_energy, mass_matrix/resident.rs, model/data/versions.rs) including new exports and scheduling APIs, so the whole-file source digests recorded by T4/G01 historical audits went stale: 11 identity audits fail under --all-features (recapture 30 variants, g01 field/rigid/state-packing/topology, t4_camlight/t4_tendon_wake_precision, t4_gravity_nonzero contract). This task only repins the expected hashes to the current source text; audit semantics, assertion logic and lineage historical transforms stay unchanged."
+  },
+  "modules": {},
+  "acceptance": [
+    "逐项枚举 --all-features 下所有源码身份漂移类失败（含 recapture 30 变体、g01 field/rigid/state-packing/topology 夹具、t4_camlight_precision、t4_tendon_wake_precision、t4_gravity_nonzero_product_chain 合约、t4_rigid_internal 矩阵/源码谱系），列出期望值、实际值与来源文件；环境/产物缺失类不计入重钉。",
+    "只更新期望哈希/摘要字面量与既有诚实的谱系重建输入（如历史捕获逆变换输入）；不改断言逻辑、不放宽容差、不伪造历史捕获、不改产品 src（除测试断言模块中的期望字面量）、不改 Cargo/native/include/门禁脚本。",
+    "重钉后 cargo +msvc test --locked --all-features --no-fail-fast 为 0 失败；门禁 fmt/clippy/clippy-cuda/unit 全过；unchanged 保护路径未改；证据 docs/development-evidence/t4-source-hash-repin-10/（README + 漂移清单）与回执含 task_id。",
+    "未跑 release/Linux 时如实登记；不宣称完整 G01/T4 矩阵通过超过重钉范围；若发现非身份漂移类失败立即停手报 Chief。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-16-next-g26-complete"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "fixtures/precision/",
+      "fixtures/g01/",
+      "fixtures/mjwarp-geom-tendon/",
+      "tests/support/t4_rigid_capture/",
+      "tests/support/t4_rigid_internal/",
+      "tests/support/t4_state_packing/",
+      "tests/support/t4_field_internal/",
+      "tests/support/t4_topology_frames/",
+      "tests/support/t4_evidence.rs",
+      "tests/t4_camlight_precision.rs",
+      "tests/t4_tendon_wake_precision.rs",
+      "tests/t4_gravity_nonzero_product_chain.rs",
+      "tests/t4_gravity_product_chain.rs",
+      "src/physics/resident/rigid_kinematics_tests.rs",
+      "docs/evidence/t4-g03-retest/",
+      "docs/development-evidence/toolchain-evidence-revalidation/",
+      "docs/development-evidence/t4-source-hash-repin-10/",
+      "docs/development-evidence/changes/2026-10-23-t4-source-hash-repin-10.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "来源：G26 任务 2026-10-16-next-g26-complete（交付提交 f594d4f，登记 1acdbe3）。重钉原因：G26 改产品源文件（导出与调度 API），T4/G01 历史审计按整文件摘要记录身份，当前摘要漂移；新 src/physics/mod.rs 摘要首个实际值 21e22740b290455ca3004aba287a639d0d22d36d8352df570e6fb33b6175c1f5（旧 9d10f056…）。边界：只改哈希数值/期望字面量与既有谱系重建输入；不改审计断言、容差、产品 ABI、内核/PTX、旧失败记录；不伪造历史捕获；不改 exclusion 清单；不宣称完整 G01/T4 通过。若枚举发现漂移面不合理或含非身份类失败，停手报 Chief。",
+  "revision": {
+    "before": "f594d4f",
+    "after": null
+  },
+  "created_at": "2026-10-22T18:40:00.000Z",
+  "updated_at": "2026-10-22T18:40:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml",
+        "scripts/test-windows-g01.ps1",
+        "scripts/test-windows-native.ps1"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-t4-source-hash-repin-10.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-t4-source-hash-repin-10"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
