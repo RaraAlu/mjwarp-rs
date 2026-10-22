@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-g03-parity-precheck",
+  "title": {
+    "zh": "预检G03质量求解准入缺口可修性",
+    "en": "Precheck feasibility of G03 mass-solve admission gap"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 2026-10-16-next-g03-parity 的 3 项 mass_solve_probe 准入缺口做可行性预检（不 start 原任务）：确认能否在本机、不引入 nvJitLink/Tile/MathDx 外部组件的前提下，从产品算序/规约顺序/数值口径层面修复；需要外部组件或冻结上游参考时逐项列出。只产出证据，不改产品代码、测试、容差或 fixtures。",
+    "en": "Feasibility precheck for the three mass_solve_probe admission gaps tracked by 2026-10-16-next-g03-parity (without starting it): decide whether they can be fixed locally at the product arithmetic/reduction-order level without introducing nvJitLink/Tile/MathDx external components, and list any external component or frozen upstream reference the fix would require. Evidence only; no product code, test, tolerance or fixture changes."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "复现 3 项缺口并记录可复核的逐元素证据：case4/world4 solution 的 rhs1/rhs2 上本库对原生参考的归一化误差 1.318/1.167，冻结上游对照分数 0.925/0.440、红线 0.972/0.462；给出离线诊断工具、命令与报告。",
+    "定位差异来源：区分产品算序/归约顺序/数值口径问题与外部参考或外部组件问题；引用内核 ABI/公式来源、历史首差证据与本次诊断结果，不用猜测。",
+    "给出可修性与条件结论：本机可做需要什么（含影响面、验证路径、是否触发 T4 源码身份重钉）；不可本机闭环的部分明确列出所需外部组件/冻结上游参考/用户裁决项，并说明不建议直接 start 2026-10-16-next-g03-parity 的原因。",
+    "证据放在 docs/development-evidence/g03-parity-precheck/（README、诊断工具、报告），交付回执 docs/development-evidence/changes/2026-10-22-g03-parity-precheck.json 含 task_id。",
+    "不改 src、tests、fixtures、scripts、Cargo.* 或容差；门禁 fmt/unit 通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-g01-g03-np03-admission-debt"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "docs/development-evidence/g03-parity-precheck/",
+      "docs/development-evidence/changes/2026-10-22-g03-parity-precheck.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 2
+  },
+  "note": "背景：W-D4 修复后 G01 all-probes 继续执行到 mass_solve_probe 时暴露 3 项既有准入缺口（跟踪任务 2026-10-22-g01-g03-np03-admission-debt）。原 g03-parity 任务（2026-10-16-next-g03-parity，p84）登记于模块拆分前，验收要求「补齐 file 与正式编译路线、核对 Small 及稀疏实际算序、补双模式平台与 NP01 至 NP04」，范围与外部条件都未冻结，因此先做预检不 start。预检必须回答：本机能否只改产品数值/算序修复；是否需要 nvJitLink/Tile/MathDx（M7/W13 评审结论为仅评审、未实现、许可与部署待决策）；是否需要重制冻结上游参考（authoring 使用 Python 3.12 + mujoco 3.15.0 + warp-lang 1.15.0 + 固定 mujoco_warp 提交，产品测试不得启动 Python）。诊断工具只读冻结 fixtures 与产品 GPU 探针，不参与构建；可用 rustc/cargo 离线编译，禁止 Python。",
+  "revision": {
+    "before": "10913ce9704f33c552d617cef90e93d15d277c2f"
+  },
+  "created_at": "2026-10-22T09:13:34.486Z",
+  "updated_at": "2026-10-22T09:13:34.486Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "scripts",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g03-parity-precheck.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g03-parity-precheck"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
