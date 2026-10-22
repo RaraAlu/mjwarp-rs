@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-22-g03-tile-cholesky-mathdx-alignment",
+  "phase": "phase-1 feasibility",
+  "analysis_only": true,
+  "product_code_changed": false,
+  "python_interpreter_called": false,
+  "offline_tooling": {
+    "linker": "pinned warp.dll（authoring venv）+ wp_cuda_compile_program C ABI；仅离线分析，产品链不读取 venv 或 warp 头文件（沿用 docs/native-mathdx7-link.md 先例）",
+    "toolchain": "MSVC(cl, VS BuildTools) + CUDA 12.8.1 头文件；nvdisasm 12.8.90",
+    "cached_inputs": {
+      "potrf_11": "target/g03-block-reference/warp-cache/1.15.0/lto/cdd46856c1496194.lto（type 3 LTOIR）",
+      "potrs_11": "target/g03-block-reference/warp-cache/1.15.0/lto/004259c22f2bb44f.lto（type 3 LTOIR）",
+      "generic_fatbin": "target/g03-block-reference/warp-cache/1.15.0/lto/004259c22f2bb44f_fatbin.lto（type 4 FATBIN）",
+      "symbols": [
+        "potrf_11_11_1_89_32_1_1_5_x_x_0",
+        "potrs_11_11_1_89_64_1_1_5_x_x_0"
+      ],
+      "note": "四份缓存 LTO 分别对应 11/12 维 potrf 与 potrs；本次以声明符号反推命中 11 维两份"
+    },
+    "linked_cubin": {
+      "potrf_11": {"bytes": 2102928, "sha256": "36E7F49EF7FF7900A639BD464C8DB559771F3A50884E97842B407E3E96D2C765", "kernel": "mathdx11_factor", "block_dim": 32},
+      "potrs_11": {"bytes": 2100608, "sha256": "0B09F03D24306EE233B3CA9984DDF4DBFC3FA7AEF41E35AD2EEFE13AF77AE50C", "kernel": "mathdx11_solve", "block_dim": 64}
+    },
+    "reproduce": "docs/development-evidence/g03-mathdx-alignment/tools/{link11.cpp,oracle.cpp,call-factor11.cu,call-solve11.cu,dump_matrix.rs} 加 README 命令"
+  },
+  "sass_shape": {
+    "potrf_11": {"disasm_bytes": 94138, "sections": [".text.mathdx11_factor"], "opcodes": {"MUFU.RSQ": 12, "BAR.SYNC": 4, "SHFL": 58, "FFMA": 35, "FMUL": 43, "FADD": 2, "FSETP": 43, "LDS": 14, "STS": 37}},
+    "potrs_11": {"disasm_bytes": 81668, "sections": [".text.mathdx11_solve"], "opcodes": {"MUFU.RCP": 6, "BAR.SYNC": 2, "SHFL": 21, "FFMA": 31, "FMUL": 22, "FADD": 4, "FSETP": 1, "LDS": 32, "STS": 38}},
+    "note": "两者均为协作式（barrier + warp shuffle + sqrt/rcp 慢路径）的紧凑代码，指令序可完整读出；SASS 未提交（体量大），只记录摘要与哈希"
+  },
+  "oracle_results": {
+    "method": "linked cubin 经 CUDA driver 加载，在冻结 fixtures 的输入上运行，输出与冻结上游/产品值逐位比较",
+    "potrs_on_upstream_factor": {
+      "input": "fixtures/mjwarp-mass-solve/reference.json 的 mixed-joints world=4 rhs_count=3 的 factor + fixtures/mass-solve/mixed-joints.json case4 rhs",
+      "expected": "reference.json 同 row 的 solution",
+      "results": [
+        {"rhs": 0, "bit_diff": 0, "count": 11},
+        {"rhs": 1, "bit_diff": 0, "count": 11},
+        {"rhs": 2, "bit_diff": 0, "count": 11}
+      ],
+      "conclusion": "冻结上游 solution 恰好等于 MathDx potrs(上游 factor, rhs)，逐位一致"
+    },
+    "potrf_on_product_matrix": {
+      "input": "产品 probe_mass_matrix（8 世界，qpos=fixtures/mass-solve case4）world=4 的 121 项矩阵",
+      "expected": "产品 probe_mass_solve world=4 的 ld（121 项）",
+      "bit_diff": 0,
+      "count": 121,
+      "status": 0,
+      "conclusion": "产品分块因子实现与 MathDx potrf 逐位一致（现有 rsqrt.approx + 融合约束仿真已对齐）"
+    },
+    "potrf_on_native_fixture_matrix": {
+      "input": "fixtures/mass-solve/mixed-joints.json case4 matrix（原生派生 f32）",
+      "expected": "冻结上游 factor",
+      "bit_diff": 56,
+      "count": 121,
+      "max_abs": 1.0347366333007813e-4,
+      "conclusion": "原生矩阵不等于上游矩阵；上游 factor 只能由上游矩阵经 MathDx potrf 得到"
+    },
+    "potrs_on_product_factor": {
+      "input": "产品 world=4 的 121 项 factor + 三条 rhs",
+      "expected": "冻结上游 solution",
+      "results": [
+        {"rhs": 1, "bit_diff": 11, "count": 11, "max_abs": 7.415771484375e-3},
+        {"rhs": 2, "bit_diff": 11, "count": 11, "max_abs": 5.5084228515625e-3}
+      ],
+      "score_vs_native": {"rhs1": 1.29144963390269, "rhs2": 1.18216284179027, "redlines": {"rhs1": 0.9716682187203566, "rhs2": 0.46211970416152026}},
+      "conclusion": "即便用 MathDx 求解，产品 factor 也会让 score 超过红线；准入失败主要由矩阵/因子残差造成"
+    },
+    "product_solution_vs_mathdx": {
+      "input": "同一 factor + rhs：产品解 vs MathDx potrs 输出",
+      "results": [
+        {"rhs": 0, "bit_diff": 0, "count": 11},
+        {"rhs": 1, "bit_diff": 8, "count": 11, "max_abs": 3.0517578125e-5},
+        {"rhs": 2, "bit_diff": 10, "count": 11, "max_abs": 3.0517578125e-5}
+      ],
+      "conclusion": "产品回代与 MathDx potrs 仍有小的末位差异；目标已知且可由 oracle 校验，可对齐"
+    },
+    "matrix_provenance": {
+      "product_matrix_vs_native_fixture": {"bit_diff": 106, "count": 121, "max_abs": 5.7220458984375e-6},
+      "reconstruct_upstream_factor_vs_product_matrix": {
+        "bit_diff": 75,
+        "count": 121,
+        "max_abs": 1.9073486328125e-6,
+        "note": "reconstruct 在 f64 累加后舍入为 f32，自身有舍入，只能作为残差上界参考"
+      },
+      "conclusion": "缺口集中在 kinematics/com_pos/crb/mass_matrix 链条的末位差；参考行不含上游 matrix，无法得到精确上游矩阵"
+    }
+  },
+  "feasibility_verdict": {
+    "reverse_engineering": "可行：11 维 potrf/potrs 的 MathDx 代码已在本机离线链接为 CUBIN 并完成 SASS 级读取（无 Python 解释器参与，产品链不依赖）。",
+    "alignment_targets": "求解目标明确且 oracle 已验证（冻结上游 solution == MathDx potrs(上游 factor, rhs)）；因子实现已与 MathDx potrf 逐位一致。",
+    "blocking_gap": "剩余差异不在 factor/solve 算法，而在上游 matrix 的末位差：上游 factor = MathDx potrf(上游 matrix)，而冻结参考不含上游 matrix；reconstruct 只能给出舍入受限的近似，无法据此证明逐位一致。产品 factor 已等于 MathDx(产品 matrix)，因此把 factor 对齐上游等价于把 matrix 链对齐上游。",
+    "stop_reason": "在本轮约束（不启动 pinned Python/authoring、不改容差与准入规则、不引外部运行时组件）下，逐位一致的闭环不可证明；且准入缺口主因是 matrix 链而非可离线精确反推的 factor/solve。按 Chief 规则停手登记债务，不进入第二阶段。",
+    "what_would_unblock": [
+      "用户/Chief 批准以 pinned authoring 环境（Python 3.12 + mujoco 3.15.0 + warp-lang 1.15.0 + 固定 mujoco_warp 提交）离线生成上游 matrix 静态参考，作为新的冻结证据（需定义范围与边界，产品测试仍禁止 Python）；或",
+      "允许基于上游 factor 作为目标函数的矩阵链末位对齐有界搜索（不保证闭合，需另立任务与预算）；或",
+      "用户裁决接受 A2/B 路线（改数值口径或引外部组件），二者均超出本轮授权。"
+    ],
+    "no_external_runtime_component_needed_for_analysis": true,
+    "phase2_recommended": false
+  },
+  "boundary": [
+    "只做第一阶段可行性验证：未改产品 src、测试、容差、准入余量、fixtures、scripts（unchanged 检查）",
+    "未进入第二阶段实现；未重钉 T4 源码身份",
+    "未宣称 G03/精度契约验收通过；未跑 release/Linux",
+    "offline 分析使用既有 native-mathdx7-link 路线的 pinned warp.dll 作为 LTO 链接提供者（无 Python 解释器）；如需完全不触碰 venv 的路线，需外部 nvJitLink 组件（超出授权）"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-g03-tile-cholesky-mathdx-alignment",
+  "milestones": {
+    "implementation": "phase-1-complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "docs/development-evidence/g03-mathdx-alignment/README.md", "blob": "9b01bc945d0b1f3cd3736f255ccc4299a3107e83"},
+    {"path": "docs/development-evidence/g03-mathdx-alignment/oracle-results.json", "blob": "b65a8736e9bba6f1140dce1b8547a3047106b2b1"},
+    {"path": "docs/development-evidence/g03-mathdx-alignment/tools/link11.cpp", "blob": "767d2e28ea301b70e3d0b4c0f48de9f2b6c5c92a"},
+    {"path": "docs/development-evidence/g03-mathdx-alignment/tools/oracle.cpp", "blob": "f17f0f0dd3b60516f628f0e240779708bc3c7792"},
+    {"path": "docs/development-evidence/g03-mathdx-alignment/tools/call-factor11.cu", "blob": "f452a56cb722a99b3f907497933373349cbfe54a"},
+    {"path": "docs/development-evidence/g03-mathdx-alignment/tools/call-solve11.cu", "blob": "d46abf2bc171338ebaad4c736d7e52f7ba57947c"},
+    {"path": "docs/development-evidence/g03-mathdx-alignment/tools/dump_matrix.rs", "blob": "e53cd4e5e5c6951d478575944c40780775eff585"}
+  ],
+  "note": "只做 Chief 授权的第一阶段可行性验证，结论为停手不进入第二阶段。方法：沿用 native-mathdx7-link 先例的 native 路线（pinned warp.dll 的 wp_cuda_compile_program C ABI，MSVC + CUDA 12.8.1 头文件，未启动 Python 解释器）把 authoring 缓存中的 11 维 MathDx LTO 链接为 CUBIN：potrf_11 = cdd46856c1496194.lto（CUBIN 2102928 B，sha256 36E7F4…C765，kernel mathdx11_factor，32 线程），potrs_11 = 004259c22f2bb44f.lto（CUBIN 2100608 B，sha256 0B09F0…E50C，kernel mathdx11_solve，64 线程）；用 CUDA nvdisasm 读取完整指令序（potrf_11：MUFU.RSQ 12、BAR.SYNC 4、SHFL 58、FFMA 35 等；potrs_11：MUFU.RCP 6、BAR.SYNC 2、SHFL 21、FFMA 31、FADD 4 等），证明离线反推本身可行。写 offline oracle 在冻结 fixtures 上逐位比对，得到关键结论：冻结上游 solution 恰好等于 MathDx potrs(上游 factor, rhs)（3 条 rhs 全部 0/11 位差），产品 factor 与 MathDx potrf(产品矩阵) 逐位一致（0/121），因此产品 factor 与上游 factor 的 20/121 位差全部来自产品矩阵与上游矩阵的末位差；即使改用 MathDx potrs，产品 factor 得到的 score 仍为 1.291/1.182（红线 0.972/0.462），说明只对齐求解不足以过准入；冻结参考不含上游 matrix，reconstruct(U_up^T U_up) 只能给出 75/121 位、1.907e-6 量级的舍入受限近似。判为：反推可行、求解对齐可做，但在本轮约束（不启动 pinned Python/authoring、不改容差与准入规则、不引外部运行时组件）下，逐位一致的闭环不可证明且缺口主因是 matrix 链，故按 Chief 规则停手并登记债务，不进入第二阶段。解除阻塞需 Chief/用户裁决：离线 authoring 生成上游 matrix 冻结参考、或允许以上游 factor 为目标的矩阵链有界对齐搜索、或 A2/B 路线。边界：未改产品 src/测试/容差/准入余量/fixtures/scripts，未重钉 T4，未跑 release/Linux，不宣称 G03/精度/NP 验收通过；离线使用 pinned warp.dll 仅作 LTO 链接提供者（无 Python，不进入产品链）。",
+  "evidence": {
+    "readme": "docs/development-evidence/g03-mathdx-alignment/README.md",
+    "oracle_results": "docs/development-evidence/g03-mathdx-alignment/oracle-results.json",
+    "tools": "docs/development-evidence/g03-mathdx-alignment/tools/",
+    "linked_cubin_hashes": {
+      "potrf_11": "36E7F49EF7FF7900A639BD464C8DB559771F3A50884E97842B407E3E96D2C765",
+      "potrs_11": "0B09F03D24306EE233B3CA9984DDF4DBFC3FA7AEF41E35AD2EEFE13AF77AE50C"
+    },
+    "local_artifacts": "target/mathdx11/（CUBIN、SASS、oracle 输入输出、本机工具二进制，gitignored）",
+    "previous_precheck": "docs/development-evidence/g03-parity-precheck/",
+    "original_task": "2026-10-16-next-g03-parity（proposed，未 start）"
+  }
+}
