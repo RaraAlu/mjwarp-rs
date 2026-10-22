@@ -1,0 +1,107 @@
+{
+    "work": "work-03-borrowed-mass",
+    "summary": "borrowed_mass_validate 与 borrowed_mass_multiply 改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/mass_matrix/multiply/borrowed/plan.rs", "line": 146 },
+        { "file": "src/physics/mass_matrix/multiply/borrowed/plan.rs", "line": 174 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/mass_matrix/multiply/borrowed/kernels.rs",
+            "line": 75,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "borrowed_mass_validate"
+        },
+        {
+            "file": "src/physics/mass_matrix/multiply/borrowed/kernels.rs",
+            "line": 135,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "borrowed_mass_multiply"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/mass_matrix/multiply/borrowed/plan.rs",
+            "line": 153,
+            "receiver": "self.validate",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        },
+        {
+            "file": "src/physics/mass_matrix/multiply/borrowed/plan.rs",
+            "line": 172,
+            "receiver": "self.compute",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/mass_matrix/multiply/borrowed/plan.rs",
+            "old_line": 42,
+            "new_file": "src/physics/mass_matrix/multiply/borrowed/kernels.rs",
+            "new_line": 29
+        },
+        {
+            "old_file": "src/physics/mass_matrix/multiply/borrowed/plan.rs",
+            "old_line": 43,
+            "new_file": "src/physics/mass_matrix/multiply/borrowed/kernels.rs",
+            "new_line": 89
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "borrowed_mass_validate",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/mass_matrix/multiply/borrowed/kernels.rs:29" ],
+            "kernel_abi_evidence": [
+                "BorrowedMassValidateSpec at src/physics/mass_matrix/multiply/borrowed/launcher_specs.rs:69"
+            ]
+        },
+        {
+            "entry": "borrowed_mass_multiply",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/mass_matrix/multiply/borrowed/kernels.rs:89" ],
+            "kernel_abi_evidence": [
+                "BorrowedMassComputeSpec at src/physics/mass_matrix/multiply/borrowed/launcher_specs.rs:98"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "BorrowedMassValidateSpec",
+            "logical_name": "borrowed_mass_validate",
+            "definition": "src/physics/mass_matrix/multiply/borrowed/launcher_specs.rs:69",
+            "actual_cuda_entries": "borrowed_mass_validate",
+            "typed_low_level_calls": [ "src/physics/mass_matrix/multiply/borrowed/kernels.rs:75" ]
+        },
+        {
+            "type": "BorrowedMassComputeSpec",
+            "logical_name": "borrowed_mass_multiply",
+            "definition": "src/physics/mass_matrix/multiply/borrowed/launcher_specs.rs:98",
+            "actual_cuda_entries": "borrowed_mass_multiply",
+            "typed_low_level_calls": [ "src/physics/mass_matrix/multiply/borrowed/kernels.rs:135" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "resident_mass_substitute",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/mass_solve/resident/plan.rs:46" ],
+        "reason": "borrowed_mass 已完成；下一批 resident_mass（resident_mass_substitute/resident_mass_factor）"
+    },
+    "manual_cross_checks_add": [
+        "work-03: borrowed_mass 两个入口改走类型化包装；raw 行 -2、typed 行 +2、编排行 +2、编译点移入 kernels.rs",
+        "work-03: 借用矩阵元数据含下三角地址映射；证明逐行校验行偏移、列与 adr=max*n+min，跳过标志写后刷新证明"
+    ],
+    "acceptance_boundary_set": {
+        "borrowed_mass_raw": false,
+        "borrowed_mass_migrated": true
+    }
+}

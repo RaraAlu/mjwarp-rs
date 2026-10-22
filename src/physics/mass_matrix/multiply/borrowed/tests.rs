@@ -5,6 +5,8 @@ use crate::model::SparseMassFields;
 
 #[cfg(feature = "cuda-probe")]
 mod gpu;
+#[cfg(feature = "cuda-probe")]
+mod launcher;
 
 pub(super) fn input(n: usize, split: bool) -> SparseMassInput {
     let mid = n.div_ceil(2);

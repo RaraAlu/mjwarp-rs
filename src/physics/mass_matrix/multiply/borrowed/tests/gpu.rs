@@ -118,7 +118,7 @@ fn gpu_consumes_the_actual_resident_matrix_without_m_copy_or_host_feedback() {
                         }
                         drop(view);
                         capacity = capacity.max(
-                            4 * (data[index].metadata.len()
+                            4 * (data[index].metadata.len_for_test()
                                 + data[index].vector.len()
                                 + data[index].current.len()
                                 + data[index].staged.len()
@@ -264,8 +264,8 @@ fn gpu_rejects_corrupt_live_sources_and_never_partially_publishes_results() {
         for index in [
             0,
             3,
-            d.metadata.len() - 4,
-            d.metadata.len() - 1,
+            d.metadata.len_for_test() - 4,
+            d.metadata.len_for_test() - 1,
             4,
             5,
             6,
@@ -273,12 +273,12 @@ fn gpu_rejects_corrupt_live_sources_and_never_partially_publishes_results() {
             6 + 3 + 1,
         ] {
             let mut old = [0];
-            d.metadata.read_range_into(index, &mut old).unwrap();
-            d.metadata.write_range(index, &[i32::MAX]).unwrap();
+            d.metadata.read_range_for_test(index, &mut old).unwrap();
+            d.metadata.write_range_for_test(index, &[i32::MAX]).unwrap();
             let before = bits(&raw(&d.current));
             assert!(plan.update(&mut d, &source, None).is_err());
             assert_eq!(before, bits(&raw(&d.current)));
-            d.metadata.write_range(index, &old).unwrap();
+            d.metadata.write_range_for_test(index, &old).unwrap();
             drop(plan.update(&mut d, &source, None).unwrap());
             faults += 1;
         }

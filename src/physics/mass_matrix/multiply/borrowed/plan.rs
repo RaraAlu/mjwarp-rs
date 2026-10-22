@@ -9,6 +9,10 @@ use std::sync::Arc;
 use super::super::{MassMultiplyFormat, layouts};
 #[cfg(feature = "cuda-probe")]
 use super::cuda::CUDA;
+#[cfg(feature = "cuda-probe")]
+use super::launcher_abi::BorrowedMassStaticDims;
+#[cfg(feature = "cuda-probe")]
+use super::launcher_meta::borrowed_mass_validate_launch_error;
 use super::*;
 
 impl<'plan> MassMatrixMultiplyPlan<'plan> {
@@ -38,10 +42,8 @@ impl<'plan> MassMatrixMultiplyPlan<'plan> {
                 matrix,
                 spec: Arc::new(s),
                 session: session.clone(),
-                kernels: [
-                    SynchronousKernel::compile(&session, &code, "borrowed_mass_validate")?,
-                    SynchronousKernel::compile(&session, &code, "borrowed_mass_multiply")?,
-                ],
+                validate: BorrowedMassValidateKernel::compile(&session, &code)?,
+                compute: BorrowedMassComputeKernel::compile(&session, &code)?,
             })
         }
     }
@@ -64,6 +66,11 @@ impl<'plan> MassMatrixMultiplyPlan<'plan> {
         }
         #[cfg(feature = "cuda-probe")]
         {
+            let static_dims = BorrowedMassStaticDims::new(s.nbody, s.nv, s.meta[1] as usize)
+                .map_err(borrowed_mass_validate_launch_error)?;
+            let worlds_u32 = u32::try_from(worlds).map_err(|_| InputError::Overflow {
+                field: "borrowed_mul_m_worlds",
+            })?;
             let mut meta = vec![-131072; 4];
             meta.extend(&s.meta);
             meta.resize(meta.len() + worlds, 0);
@@ -77,7 +84,12 @@ impl<'plan> MassMatrixMultiplyPlan<'plan> {
             Ok(MassMatrixMultiplyData {
                 spec: self.spec.clone(),
                 vector_layout: vl,
-                metadata: self.session.upload(&meta)?,
+                metadata: BorrowedMassMetadataBuffer::upload(
+                    &self.session,
+                    meta,
+                    static_dims,
+                    worlds_u32,
+                )?,
                 vector: alloc(vl.total_elements(), 0.0)?,
                 current: alloc(vl.total_elements(), 0.0)?,
                 staged: alloc(vl.total_elements(), f32::NAN)?,
@@ -126,31 +138,19 @@ impl<'plan> MassMatrixMultiplyPlan<'plan> {
             if m.len() != stride * data.worlds() + 8 {
                 return Err(TransferError::ModelMismatch);
             }
-            let so = 4 + self.spec.meta.len();
             let flags = skip.map_or_else(
                 || vec![0; data.worlds()],
                 |v| v.iter().map(|&v| i32::from(v)).collect(),
             );
-            data.metadata.write_range(so, &flags)?;
+            data.metadata.write_skip(&flags)?;
             read(
                 &data.current,
                 data.vector_layout.total_elements(),
                 "borrowed_mul_m_current",
             )?;
-            let n = self.spec.nv as u32;
-            let nb = self.spec.nbody as u32;
             let w = data.worlds() as u32;
-            // SAFETY: Actual same-plan source owns its guarded CRB-prefix plus
-            // dense-M stride. Constant metadata and vector capacities match it.
-            unsafe {
-                self.kernels[0].launch(
-                    &data.metadata,
-                    m,
-                    &data.vector,
-                    &mut data.status,
-                    [nb, n, so as u32, w],
-                )?;
-            }
+            self.validate
+                .launch(&data.metadata, m, &data.vector, &mut data.status, w)?;
             let status = read(&data.status, data.worlds(), "borrowed_mul_m_status")?;
             if let Some(index) = status[4..4 + data.worlds()].iter().position(|&v| v != 1.0) {
                 return Err(InputError::InvalidTopology {
@@ -168,17 +168,8 @@ impl<'plan> MassMatrixMultiplyPlan<'plan> {
                 4,
                 data.vector_layout.total_elements(),
             )?;
-            // SAFETY: Validated metadata bounds every lower-M address and
-            // column. Each thread owns one staged result; skipped worlds return.
-            unsafe {
-                self.kernels[1].launch(
-                    &data.metadata,
-                    m,
-                    &data.vector,
-                    &mut data.staged,
-                    [nb, n, so as u32, w * n],
-                )?;
-            }
+            self.compute
+                .launch(&data.metadata, m, &data.vector, &mut data.staged, w)?;
             read(
                 &data.staged,
                 data.vector_layout.total_elements(),
