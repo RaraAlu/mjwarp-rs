@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-compat-matrix-status-refresh",
+  "title": {
+    "zh": "刷新兼容矩阵的G01/RNE/G03/U038现状",
+    "en": "Refresh G01/RNE/G03/U038 status in compatibility matrix"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "U038-3D 有界关闭与 RNE 重基线、G01 最终双模式验收、G03 探针/债务落地后，docs/compatibility-matrix.md 的现状叙述需要同步。只补真正过期的状态并保留历史事实与日期行；不重写历史、不宣称 G02/G03/完整 T4 或 NP01–NP04 通过。",
+    "en": "Sync stale status entries in docs/compatibility-matrix.md after the bounded U038-3D closure, RNE fixture rebaseline, final G01 double-mode acceptance and G03 probe/debt closure; keep historical records intact."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "核对 docs/compatibility-matrix.md 与最新证据一致：docs/three-layer-acceptance.md §4.4/§4.5、docs/development-evidence/u038-3d/closure.md、docs/development-evidence/rne-repair-audit/README.md、docs/development-evidence/g03-parity-feasibility/README.md，以及提交 b13d1c5、8a0bfde、89e9910、a139292；只改真正过期处，历史段落与日期行保持原样。",
+    "在状态区补 2026-10-23 现状：G01 debug/release 双模式通过（all-probes 各 340 过 0 败，仅余已登记排除项 10 项）；RNE 参考按裁决重基线、定向 2 过 0 败且历史 521 块转绿、1042 块审计结论为已覆盖；G03 矩阵链对齐后探针 6 过 0 败、G03 准入债务已关闭、G03 parity 可行性预检结论为阻塞；U038 三维链按有界规则关闭（不表示通过）且全链重力仍余 8 项超差、债务任务已登记。",
+    "保留边界：NP01 类型映射清单已产出但未补全；NP01–NP04、完整 T4、Linux、性能与完整上游等价均未验收；不得声称 G02/G03 或双平台完整通过。",
+    "证据与回执写 docs/development-evidence/changes/2026-10-23-compat-matrix-status-refresh.json；通过 gate fmt、unchanged、回执 json 与 forbid_claim；不碰 Backend 的 W15 范围（include/warp-headers、LICENSES、src/runtime/launcher、tests/launcher-warp-headers.rs、docs/launcher-cache.md、docs/unified-launcher.md、.normify/config.toml）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "文档-状态",
+    "owner": "QA",
+    "files": [
+      "docs/compatibility-matrix.md",
+      "docs/development-evidence/changes/2026-10-23-compat-matrix-status-refresh.json"
+    ],
+    "resources": [],
+    "priority": 3
+  },
+  "note": "只做状态同步：不改产品代码/测试/容差/fixtures；不跑 GPU；只改 docs 与回执；使用 --staged 判定避免把 Backend 的 W15 未提交改动纳入指纹。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T03:05:00.000Z",
+  "updated_at": "2026-10-23T03:05:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/physics",
+        "fixtures",
+        "native",
+        "Cargo.toml",
+        "Cargo.lock",
+        "build.rs",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-compat-matrix-status-refresh.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-compat-matrix-status-refresh"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G02完整验收",
+        "G03完整验收",
+        "双平台通过",
+        "完整T4通过",
+        "NP01至NP04通过"
+      ]
+    }
+  ]
+}
