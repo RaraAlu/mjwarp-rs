@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-g01-all-probes-env-wiring",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed_with_known_rne_gap",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "scripts/test-windows-g01.ps1"},
+    {"path": "docs/development-evidence/g01-all-probes-env/README.md"}
+  ],
+  "note": "all-probes 阶段从 25 项失败/6 target 收敛为仅 RNE 数值探针 1 项失败。接线内容：T4 历史证据根/冻结上游源码根/冻结 warp 根/当前捕获根/审计报告、gravity 两个证据目录、mixed 两个报告、machine-code 目录（不存在路径）、sparse preflight 复用既有产物并给每轮新建输出目录；native 与 collision 组复用既有脚本（同进程 env 保留，collision 18 个替身离线构建）。三项可接线项：native_sparse_mass（复用 sparse-preflight.exe）转绿、t4_machine_code（machine 目录语义修正）转绿、com_position_probe（os error 32 瞬态锁，单跑复验通过）。排除清单单列可审计：W-D5 原 3 项不变；新增历史捕获身份 6 项（G03 矩阵链对齐有意变更 f32 算序，历史 BASE/模板先于变更，重生成需被排除重采集工具与冻结流水线，跟踪 2026-10-22-t4-historical-capture-rebaseline）；env/外部产物未接线 1 项（face machine-code 需既有 face-operator 探针重生成 target/t4-face-operators）。all-probes 增加 cargo --no-fail-fast（在 -- 之前）与仅在 os error 32 时用独立捕获目录重试一次的守卫；断言/容差/排除语义未改。最终实测：debug 与 release 各阶段 fmt 0警告/native 27/host-msvc 709/g01 7/native-g01 2/native-only-g01 1/resident 102/all-probes 339过1败79行；唯一失败 computes_both_flags_for_nonzero_accelerations_without_old_bias_replay（G02-RNE-ACC 521 native-tolerance blocks，scalars=900288，models=5 gravities=3 states=8 worlds=[1,2,5,513]）。补跑 host-gnu 404、clippy-gnu/clippy-gnu-cuda/clippy-msvc/clippy-msvc-release 0警告、rustdoc -D warnings 0警告、git diff --check 通过。release 曾出现的 gpu_shared_resident_ellipsoid_matches_independent_reference 失败经查为 physics-precision-evidence 文件写入 os error 32 瞬态锁，非 release FMA/精度差异，复跑后不再出现。按约定口径不宣称 G01 全绿，表述为「除 RNE 数值探针缺口外全绿」；RNE 证据与处置由 2026-10-22-g02-rne-acc-native-tolerance-debt 承接；G01 双模式验收后续由 QA 接手。未改产品源码、断言、容差与 W-D5 清单。",
+  "evidence": {
+    "readme": "docs/development-evidence/g01-all-probes-env/README.md",
+    "debug_run_dir_gitignored": "target/g01-acceptance/a947ee919daf48699d47016d684ebe70",
+    "debug_log_gitignored": "target/g01-debug-final4.log",
+    "release_run_dir_gitignored": "target/g01-acceptance/3afadc22c5b74e9b8e6576aafdcad231",
+    "release_log_gitignored": "target/g01-release-final2.log",
+    "stage_logs_gitignored": "target/g01-stage-*.log",
+    "env_wiring_json_gitignored": "target/g01-acceptance/a947ee919daf48699d47016d684ebe70/probe-reports/env-wiring.json",
+    "exclusions_json_gitignored": "target/g01-acceptance/a947ee919daf48699d47016d684ebe70/probe-reports/exclusions.json",
+    "follow_up_tasks": [
+      "2026-10-22-g02-rne-acc-native-tolerance-debt",
+      "2026-10-22-t4-historical-capture-rebaseline"
+    ]
+  }
+}
