@@ -5,7 +5,7 @@
     "zh": "离线生成G03上游矩阵冻结参考",
     "en": "Author offline frozen upstream G03 matrix reference"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "用户 2026-10-22 批准「离线 authoring 例外」：pinned Python 只跑离线冻结参考生成，不进产品构建/运行/测试链。本任务按 Chief 任务 A 顺序执行：固定并审计 pinned 环境；用仓内脚本离线生成与现有冻结场景完全一致的 mixed-joints case4/world4 11 维上游矩阵参考（带 provenance）；用生成的矩阵喂 MathDx potrf_11 与冻结上游 factor 逐位比对（必须 0/121，否则停手报告，不许调参凑）；校验通过后给出矩阵链（kinematics/com_pos/crb/mass_matrix）对齐可行性与首差计划，先报 Chief，不直接全量实现。",
     "en": "User approved the offline authoring exception on 2026-10-22: pinned Python only runs offline frozen-reference generation and never enters the product build/run/test chain. Follow Chief's task A order: freeze and audit the pinned environment; use an in-repo script to generate the upstream 11-dim matrix reference for mixed-joints case4/world4 identical to the existing frozen scenario, with provenance; feed the generated matrix to MathDx potrf_11 and compare bit-exactly with the frozen upstream factor (must be 0/121, otherwise stop and report without tuning); after validation, produce the matrix-chain (kinematics/com_pos/crb/mass_matrix) alignment feasibility and first-difference plan, report first, and do not implement fully."
@@ -38,10 +38,12 @@
   },
   "note": "依据：2026-10-22-g03-tile-cholesky-mathdx-alignment 第一阶段结论——冻结上游 solution 恰为 MathDx potrs(上游 factor, rhs)（0/11 位差×3）；产品 factor 恰为 MathDx potrf(产品矩阵)（0/121）；故 20/121 的 factor 残差全部来自产品矩阵与上游矩阵的末位差；冻结参考不含上游 matrix，reconstruct 只能给出舍入受限近似。用户批准离线 authoring 后，先补上游 matrix 参考。已完成的只读环境审计（本次）：venv=target/mjwarp-parallel/venv（uv 0.11.3，Python 3.12.13，include-system-site-packages=false）；包版本 mujoco 3.15.0、warp 1.15.0、numpy 2.5.4、mujoco_warp dist 3.15.0；已安装 mujoco_warp 源码与 target/mjwarp-parallel/upstream checkout 75/75 文件 SHA256 一致，上游 HEAD=71da24d956378a87a703b6e1442b13aec0c4ac29 且工作区干净；warp/bin/warp.dll 的 wheel RECORD 校验通过（sha256 7c006eb348a7359810f4d001cbd4141cc5d6d1641fc2989e4c3711e99e6671d6）；authoring 缓存 target/g03-block-reference 与冻结 manifest 的 35/35 cache_hashes 一致；GPU RTX 4070 Ti SUPER / 驱动 596.36。生成算法要点（只读确认）：crb() 内部 d.M.zero_()+_M 产出 CSR 质量矩阵；io.py 为每个 gather tile 预计算 block_elemid（结构缺失项写 nC，越界读 0），tile 稠密块 = d.M[world][block_elemid 切片]；现有 reference.py 使用的 d.M/qLD 等字段可直接导出。本任务在 proposed 态等待 Chief 对计划确认后 start；任何 Python 运行只用于离线 reference 生成与校验，不进产品链。",
   "revision": {
-    "before": "02d2bcdbb1924c8a0d3ce59c084a06c16fd08d4d"
+    "before": "a70bdaba35bcce904d3948f945a128b0e93a6f09",
+    "after": null
   },
   "created_at": "2026-10-22T13:20:00.000Z",
-  "updated_at": "2026-10-22T13:20:00.000Z",
+  "updated_at": "2026-10-22T13:22:25.291Z",
+  "closed_at": "2026-10-22T13:22:25.291Z",
   "checks": [
     {
       "kind": "gate",
