@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-g02-rne-acc-fixture-rebaseline",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "complete",
+    "delivery_record": "complete"
+  },
+  "decision": "user 2026-10-23 option A: rebaseline rne-acceleration expected values to the frozen upstream MJWarp (71da24d…) f32 reference; tolerances, assertions and product code unchanged",
+  "files": [
+    {"path": "fixtures/rne-acceleration/mixed-joints.json"},
+    {"path": "fixtures/rne-acceleration/inertial-tree.json"},
+    {"path": "fixtures/rne-acceleration/rotated-tree.json"},
+    {"path": "fixtures/rne-acceleration/manifest.json"},
+    {"path": "docs/three-layer-acceptance.md"},
+    {"path": "docs/development-evidence/g02-rne-acc-rebaseline/README.md"},
+    {"path": "docs/development-evidence/g02-rne-acc-rebaseline/rebaseline.json"},
+    {"path": "docs/development-evidence/g02-rne-acc-rebaseline/rebaseline-fixture.ps1"},
+    {"path": "docs/development-evidence/g02-rne-acc-rebaseline/historical-f64"}
+  ],
+  "result": {
+    "previous_failed_blocks": 521,
+    "failed_blocks": 0,
+    "scalars": 900288,
+    "targeted_test": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test resident_rne_acceleration -- --ignored --test-threads=1",
+    "targeted_passed": 2,
+    "targeted_failed": 0,
+    "targeted_wall_seconds": 14.5,
+    "targeted_report_elapsed_ms": 12834,
+    "all_features": "709 passed / 0 failed / 346 ignored (78 result lines, EXIT=0)",
+    "all_probes_debug_equivalent": "cargo body 336 passed / 0 failed (78 lines); script-equivalent incl. collision-mocks self-check 340 passed / 0 failed (79 lines), -Minimum 335 satisfied, exit 0"
+  },
+  "evidence": {
+    "readme": "docs/development-evidence/g02-rne-acc-rebaseline/README.md",
+    "rebaseline_mapping": "docs/development-evidence/g02-rne-acc-rebaseline/rebaseline.json",
+    "historical_native_f64": "docs/development-evidence/g02-rne-acc-rebaseline/historical-f64/README.md",
+    "targeted_test_log": "docs/development-evidence/g02-rne-acc-rebaseline/logs/targeted-rne-gpu-debug.log",
+    "targeted_report": "docs/development-evidence/g02-rne-acc-rebaseline/logs/full-numerical-after-rebaseline.json",
+    "all_features_log": "docs/development-evidence/g02-rne-acc-rebaseline/logs/all-features-msvc.log",
+    "all_probes_summary": "docs/development-evidence/g02-rne-acc-rebaseline/logs/all-probes-summary.json",
+    "all_probes_log": "docs/development-evidence/g02-rne-acc-rebaseline/logs/all-probes-result-lines.txt",
+    "all_probes_full_log_gitignored": "target/g02-rebaseline-logs/all-probes-debug-full.log",
+    "upstream_reference": "docs/development-evidence/g02-rne-authoring-diff/upstream-rne.json",
+    "root_cause": "docs/development-evidence/g02-rne-authoring-diff/README.md"
+  },
+  "evidence_note": "all-features / targeted / native-prewarm 日志在首次捕获后因编码问题用同一命令重新捕获（结果不变：709 过 0 败 346 ignored、定向 2 过 0 败 failed_blocks=0、native 27 过），全部日志去除行尾空白以通过 git diff --check；all-probes 未重跑，完整日志在 gitignored 的 target/g02-rebaseline-logs/all-probes-debug-full.log，仓内 all-probes-result-lines.txt 为 78 行结果摘要。",
+  "note": "根因（authoring 任务 1d6ed1e）：失败块产品 qfrc 位串与冻结上游 MJWarp 逐位相同（0/11 位差），且上游自身对冻结原生 MuJoCo 3.12 f64 参考也失败同一块（240 条中 1 条）→ 参考口径问题（原生 f64 vs MJWarp f32）。按用户 2026-10-23 裁决 A 重基线：5 个 fixture 的 qfrc 期望改为 upstream-rne.json 的 qfrc_bias_hex f32 值（240 条记录：5 models × 3 gravities × 8 states × 2 flags）；zero-dof/massless-tree 因 nv=0 字节不变；manifest 同步 3 个 sha256、scope 与期望来源 provenance；旧 f64 参考归档 historical-f64/ 并标注历史。容差 ABS=REL=2e-5、断言、产品 src/tests、scripts 与 all-probes 排除清单一律未改；工具为 PowerShell（非 Python），-VerifyTwice 两次逐字节一致，启动前校验上游证据 SHA256。验证：定向 RNE GPU 2 过 0 败、failed_world_field_blocks 521→0（scalars=900288）；all-features 709 过 0 败 346 ignored；all-probes debug 等价命令脚本口径 340 过 0 败（-Minimum 335 满足）。边界：release 双模式最终验收由 QA 执行，本任务只跑 debug，不宣称 release/G02 全量通过；Linux/性能未测；产品 vs 上游 84/240 条 ULP 差异（最大 normalized 0.743<1）保留为可选后续逐位对齐任务；债务任务 2026-10-22-g02-rne-acc-native-tolerance-debt 与 2026-10-22-g01-g03-np03-admission-debt 已按裁决/已解决关闭。",
+  "closed_debts": [
+    "2026-10-22-g02-rne-acc-native-tolerance-debt",
+    "2026-10-22-g01-g03-np03-admission-debt"
+  ]
+}

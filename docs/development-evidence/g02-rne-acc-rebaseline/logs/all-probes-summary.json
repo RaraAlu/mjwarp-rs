@@ -1,0 +1,75 @@
+{
+  "scope": "equivalent command replicating scripts/test-windows-g01.ps1 all-probes stage (debug, AllFeatures) after RNE fixture rebaseline; excludes the 3 W-D5 historical tools + 6 historical capture audits + 1 env-unwired probe exactly as the script does",
+  "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast -- --ignored --test-threads=1 --nocapture <10 skips>",
+  "run_at": "2026-10-23T01:08:00+08:00",
+  "directory": "target/g01-acceptance/allprobes-d75fed23d30a4492bb980cb0897d5926",
+  "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER / driver 596.36",
+  "cargo_probe": {
+    "log": "docs/development-evidence/g02-rne-acc-rebaseline/logs/all-probes-result-lines.txt",
+    "log_sha256": "f3fdb9a0065b6e69684aa658b4dd76afffc856a1f354a8f7a27a92178c06ae27",
+    "full_log_gitignored": "target/g02-rebaseline-logs/all-probes-debug-full.log",
+    "exit_code": 0,
+    "result_lines": 78,
+    "passed": 336,
+    "failed": 0,
+    "note": "cargo 本体 78 个测试二进制 336 过 0 败；历史 79 行中的额外 1 行来自脚本在同一次检查内执行的 collision-mocks 自检（见下）"
+  },
+  "collision_mocks_validation": {
+    "log": "docs/development-evidence/g02-rne-acc-rebaseline/logs/collision-mocks.log",
+    "log_sha256": "b5f2bac32bf740a759f966c99e0032044ea1d68360bf29c4b15f0014a71200b1",
+    "result_lines": 1,
+    "passed": 4,
+    "failed": 0,
+    "note": "scripts/test-windows-collision-input.ps1 的读数替身自检；脚本 all-probes 检查块会计入其输出，故脚本口径为 79 行"
+  },
+  "script_equivalent": {
+    "result_lines": 79,
+    "passed": 340,
+    "failed": 0,
+    "minimum_expected": 335,
+    "green": true,
+    "comparison": "重基线前同一结构为 79 行、339 过 1 败（唯一失败为 resident_rne_acceleration 的 521 块）；本次该二进制 2 过 0 败，其余不变"
+  },
+  "env_wiring": {
+    "t4_history": "wired",
+    "frozen_upstream": "wired",
+    "frozen_warp": "wired",
+    "t4_current_captures": "fresh-directory",
+    "sparse_preflight": "reused",
+    "collision_mocks": "wired"
+  },
+  "exclusions": {
+    "wd5": [
+      "runtime::transfer::kernel::recapture::tests_recapture::recompile_rigid_variants_without_launching_physics",
+      "runtime::transfer::kernel::recapture::tests_recapture::recaptures_only_missing_rotation_variants",
+      "runtime::transfer::kernel::recapture::tests_archive::archives_face_operator_repair_with_failed_numeric_gate"
+    ],
+    "historical_audits": [
+      "audit_local_t4_precision_without_gpu_execution",
+      "rigid_internal::tests::audit_frozen_rigid_internal_and_output_sources",
+      "field_internal::flex_matrices::tests::audits_frozen_matrices_and_generated_face_artifacts",
+      "packing_routes::flex_internal::audits_frozen_flex_sources_and_retained_artifacts",
+      "packing_routes::routes::audit_remaining_packing_sources_and_captures"
+    ],
+    "env_unwired": [
+      "captures_loaded_face_machine_code_without_launching_physics"
+    ],
+    "note": "排除清单与 scripts/test-windows-g01.ps1 第 82-105 行完全一致，本任务未修改脚本与清单"
+  },
+  "evidence": {
+    "env_wiring_snapshot": "docs/development-evidence/g02-rne-acc-rebaseline/logs/all-probes-env-wiring.json",
+    "exclusions_snapshot": "docs/development-evidence/g02-rne-acc-rebaseline/logs/all-probes-exclusions.json",
+    "targeted_rne_log": "docs/development-evidence/g02-rne-acc-rebaseline/logs/targeted-rne-gpu-debug.log",
+    "targeted_rne_log_sha256": "266731ae7bb6a0a9903f79ba699a38a098f02eef6be16572988fdaf20f5c65e9",
+    "targeted_rne_report": "docs/development-evidence/g02-rne-acc-rebaseline/logs/full-numerical-after-rebaseline.json",
+    "all_features_log": "docs/development-evidence/g02-rne-acc-rebaseline/logs/all-features-msvc.log",
+    "all_features_log_sha256": "0efffac53977182778446bff99360978de6e0329aaf9b685f391b09de77d1aae",
+    "native_prewarm_log": "docs/development-evidence/g02-rne-acc-rebaseline/logs/native-stage-prewarm.log",
+    "native_prewarm_log_sha256": "a4ab26464a915a4a6872c84223315840ab7388eed83404a5f6b957fc6e6b1535"
+  },
+  "notes": [
+    "本文件为等价命令结果；完整脚本的 release 双模式最终验收由 QA 执行，本任务不宣称 release 通过。",
+    "all-probes 退出码 0、failed=0、passed=340 ≥ 脚本 -Minimum 335，满足脚本对 all-probes 阶段的判定。",
+    "all-features / targeted / native-prewarm 三份日志在证据落盘后因捕获编码问题用同一命令重新捕获（结果不变：709/0/346、2 过 0 败 failed_blocks=0、native 27 过），重生成后仍逐行去除行尾空白以通过 git diff --check；all-probes 日志未重跑，完整版在 gitignored 的 target/g02-rebaseline-logs/all-probes-debug-full.log。"
+  ]
+}

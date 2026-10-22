@@ -169,6 +169,23 @@ W-D4 复跑在 all-probes 中止后，其余六阶段用当前源码（`49fd4d9`
 证据：`docs/development-evidence/g01-release/`（`README.md`、`run.json`；原始日志在 gitignored 的 `target/g01-release-final.log` 与 `target/g01-release-refresh/`）。
 对比结论：release 与 debug 的阶段计数完全相同（27/709/7/2/1/102、lib 124 过 0 败），在**同一已知债务**处中止，**没有 release 专属的新失败**。release 仍不宣称 G01 全量通过。
 
+### 4.4 RNE 加速度参考重基线（2026-10-23，用户裁决 A）
+
+G01 all-probes 在 env 接线后首次执行 `resident_rne_acceleration::computes_both_flags_for_nonzero_accelerations_without_old_bias_replay`，报 521 个 native-tolerance 失败块（scalars=900288；5 models × 3 gravities × 8 states × worlds [1,2,5,513] × flags 2）。沿用 G03 打法离线 authoring 定位（`docs/development-evidence/g02-rne-authoring-diff/`）：
+
+- 521 块全部是 `mixed-joints`/gravity2/state7/`flag=false`/worst_dof=3；本库 f32 值 `1.5473079681396484` vs 原生 MuJoCo 3.12 f64 `1.5471062036731382`（差 2.02e-4，normalized 3.96，ABS=REL=2e-5）。
+- 失败块产品 qfrc 位串与冻结上游 MJWarp（`71da24d…`）逐位相同（0/11 位差）；上游自身对同一原生参考也失败同一块（240 条单世界记录中 1 条超限）。
+- 根因：冻结原生 f64 参考 vs MJWarp f32 累加的同口径差异（与 W-D4 重力证书同类），不是产品/上游实现分歧。
+
+用户 2026-10-23 裁决 A：把期望值重基线为冻结上游 MJWarp f32 参考，**容差、断言、产品代码零改动**，旧 f64 参考归档。任务 `2026-10-23-g02-rne-acc-fixture-rebaseline`（登记 `46bdba7`）：
+
+- 只改 `fixtures/rne-acceleration/{mixed-joints,inertial-tree,rotated-tree}.json` 的 qfrc 期望值（改为上游 `qfrc_bias_hex` 的 f32 值，飞块新期望 `1.5473079681396484` 与产品实际值逐位一致）；`zero-dof`/`massless-tree` 因 `nv=0` 字节不变。`manifest.json` 同步 3 个 sha256 与期望来源 provenance（上游提交、pinned 环境、authoring 脚本/证据 SHA256、两次运行一致）。
+- 旧 f64 参考归档 `docs/development-evidence/g02-rne-acc-rebaseline/historical-f64/`（含 README 与 SHA256，标注「历史 f64 原生参考，不再作为期望」）。
+- 重基线工具 `docs/development-evidence/g02-rne-acc-rebaseline/rebaseline-fixture.ps1`（PowerShell、离线证据工具、非 Python；`-VerifyTwice` 两次运行逐字节一致）。
+- 验证：`cargo +msvc test --locked --all-features --test resident_rne_acceleration -- --ignored`（debug）2 过 0 败，`failed_world_field_blocks=0`（此前 521）、scalars=900288、elapsed≈14.1s；`cargo +msvc test --locked --all-features --no-fail-fast` 709 过 0 败 346 ignored（EXIT=0）；all-probes debug 阶段等价命令（复刻脚本 106–215 行、排除清单不变）：cargo 本体 336 过 0 败（78 行），脚本口径含 collision-mocks 自检 4 过为 **79 行、340 过 0 败**（`-Minimum 335` 满足，退出码 0；重基线前同一结构为 339 过 1 败）。
+- 债务：`2026-10-22-g02-rne-acc-native-tolerance-debt` 已按裁决关闭；`2026-10-22-g01-g03-np03-admission-debt` 已由矩阵链对齐（`d5b02d5`）解决并同批关闭（§4.1 的旧快照由 QA 验收文档统一刷新）。
+- 边界：release 双模式最终验收由 QA 执行（本任务只跑 debug all-probes）；Linux/性能未测；产品 vs 上游 84/240 条 ULP 级差异（首差 `cacc`、最大 normalized 0.743<1）仍存在，属可选后续「RNE 逐位对齐」，不混入本次口径裁决；不宣称完整 G02 验收通过。
+
 ## 5. 债务清单
 
 | 编号 | 级别 | 状态 | 内容与证据 |
