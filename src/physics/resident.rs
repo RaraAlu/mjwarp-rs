@@ -2,6 +2,21 @@
 //! 旧探针继续保留严格检查。
 
 // 子模块：纯移动自原单文件，行为不变。
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/attached_kernels.rs"]
+mod attached_kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/attached_launcher_abi.rs"]
+mod attached_launcher_abi;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/attached_launcher_meta.rs"]
+mod attached_launcher_meta;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/attached_launcher_specs.rs"]
+mod attached_launcher_specs;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/attached_metadata_buffer.rs"]
+mod attached_metadata_buffer;
 mod checks;
 #[cfg(feature = "cuda-probe")]
 #[path = "resident/com_kernels.rs"]
@@ -51,6 +66,9 @@ mod tests_hessian;
 #[path = "resident/tests/kinematics.rs"]
 mod tests_kinematics;
 #[cfg(all(test, feature = "cuda-probe"))]
+#[path = "resident/tests/launcher_attached.rs"]
+mod tests_launcher_attached;
+#[cfg(all(test, feature = "cuda-probe"))]
 #[path = "resident/tests/launcher_com.rs"]
 mod tests_launcher_com;
 #[cfg(test)]
@@ -76,6 +94,10 @@ pub use self::public::{camlight, com_pos, flex, fwd_kinematics, kinematics, tend
 
 use std::sync::Arc;
 
+#[cfg(feature = "cuda-probe")]
+use self::attached_kernels::{ResidentAttachedKernel, ResidentInitializeAttachedKernel};
+#[cfg(feature = "cuda-probe")]
+use self::attached_metadata_buffer::ResidentAttachedMetadataBuffer;
 #[cfg(feature = "cuda-probe")]
 use self::com_kernels::ResidentComKernel;
 #[cfg(feature = "cuda-probe")]
@@ -153,15 +175,15 @@ pub struct KinematicsPlan {
     #[cfg(feature = "cuda-probe")]
     com: DeviceCom,
     #[cfg(feature = "cuda-probe")]
-    attached: super::DeviceModel,
+    attached: DeviceAttached,
     #[cfg(feature = "cuda-probe")]
     rigid_kernel: super::rigid_kinematics::RigidKernel,
     #[cfg(feature = "cuda-probe")]
     com_kernel: ResidentComKernel,
     #[cfg(feature = "cuda-probe")]
-    attached_kernel: SynchronousKernel,
+    attached_kernel: ResidentAttachedKernel,
     #[cfg(feature = "cuda-probe")]
-    initialize_kernel: SynchronousKernel,
+    initialize_kernel: ResidentInitializeAttachedKernel,
     #[cfg(feature = "cuda-probe")]
     camlight: Option<DeviceCamLight>,
     #[cfg(feature = "cuda-probe")]
@@ -185,6 +207,12 @@ pub struct KinematicsPlan {
 #[cfg(feature = "cuda-probe")]
 pub(super) struct DeviceCom {
     pub(super) metadata: ResidentComMetadataBuffer,
+    pub(super) parameters: TransferBuffer<f32>,
+}
+
+#[cfg(feature = "cuda-probe")]
+pub(super) struct DeviceAttached {
+    pub(super) metadata: ResidentAttachedMetadataBuffer,
     pub(super) parameters: TransferBuffer<f32>,
 }
 

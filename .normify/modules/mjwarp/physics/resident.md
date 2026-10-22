@@ -120,6 +120,24 @@ path = "src/physics/resident/com_kernels.rs"
 [[source]]
 path = "src/physics/resident/tests/launcher_com.rs"
 
+[[source]]
+path = "src/physics/resident/attached_launcher_abi.rs"
+
+[[source]]
+path = "src/physics/resident/attached_launcher_specs.rs"
+
+[[source]]
+path = "src/physics/resident/attached_launcher_meta.rs"
+
+[[source]]
+path = "src/physics/resident/attached_metadata_buffer.rs"
+
+[[source]]
+path = "src/physics/resident/attached_kernels.rs"
+
+[[source]]
+path = "src/physics/resident/tests/launcher_attached.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::KinematicsPlan"

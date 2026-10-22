@@ -1,0 +1,112 @@
+{
+    "work": "work-12-resident-attached",
+    "summary": "常驻附着与初始化附着 FIELD_BATCH 变体改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/resident/plan_update_forward.rs", "line": 68 },
+        { "file": "src/physics/resident/plan_data.rs", "line": 228 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/resident/attached_kernels.rs",
+            "line": 83,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "attached_kinematics"
+        },
+        {
+            "file": "src/physics/resident/attached_kernels.rs",
+            "line": 124,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "initialize_attached"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/resident/plan_update_forward.rs",
+            "line": 53,
+            "receiver": "self.attached_kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        },
+        {
+            "file": "src/physics/resident/plan_data.rs",
+            "line": 225,
+            "receiver": "self.initialize_kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 300,
+            "new_file": "src/physics/resident/attached_kernels.rs",
+            "new_line": 56
+        },
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 302,
+            "new_file": "src/physics/resident/attached_kernels.rs",
+            "new_line": 97
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "attached_kinematics",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [
+                "src/physics/attached/kernels.rs:23",
+                "src/physics/resident/attached_kernels.rs:56"
+            ],
+            "kernel_abi_evidence": [
+                "AttachedSpec at src/physics/attached/launcher_specs.rs:48",
+                "ResidentAttachedSpec at src/physics/resident/attached_launcher_specs.rs:60"
+            ]
+        },
+        {
+            "entry": "initialize_attached",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/attached_kernels.rs:97" ],
+            "kernel_abi_evidence": [
+                "ResidentInitializeAttachedSpec at src/physics/resident/attached_launcher_specs.rs:89"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "ResidentAttachedSpec",
+            "logical_name": "attached_kinematics",
+            "definition": "src/physics/resident/attached_launcher_specs.rs:60",
+            "actual_cuda_entries": "attached_kinematics",
+            "typed_low_level_calls": [ "src/physics/resident/attached_kernels.rs:83" ]
+        },
+        {
+            "type": "ResidentInitializeAttachedSpec",
+            "logical_name": "initialize_attached",
+            "definition": "src/physics/resident/attached_launcher_specs.rs:89",
+            "actual_cuda_entries": "initialize_attached",
+            "typed_low_level_calls": [ "src/physics/resident/attached_kernels.rs:124" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "fixed_tendon",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/resident/plan_subsets.rs:325" ],
+        "reason": "常驻附着已收口；继续 resident forward 子集（fixed_tendon/camlight/spatial）"
+    },
+    "manual_cross_checks_add": [
+        "work-12: 常驻附着与初始化附着共用同一 FIELD_BATCH ABI、元数据缓冲与证明；raw 行 -2、typed 行 +2、编排行 +2",
+        "work-12: 元数据证明校验刚体跨度、几何/site体索引、静态几何标志与四对字段描述符区间",
+        "work-12: attached_kinematics 与 initialize_attached 入口均由探针/常驻包装覆盖，状态转 typed"
+    ],
+    "acceptance_boundary_set": {
+        "resident_attached_migrated": true,
+        "attached_fully_typed": true
+    }
+}

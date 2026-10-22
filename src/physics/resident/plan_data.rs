@@ -221,23 +221,14 @@ impl KinematicsPlan {
                 }
             }
             self.update_rigid(&mut data)?;
-            // SAFETY: The initialization entry shares the checked attached ABI.
-            // Metadata includes ngeom static flags, followed by four descriptors.
-            // FK is synchronized; each thread writes only its guarded world.
-            unsafe {
-                self.initialize_kernel.launch(
-                    &self.attached.metadata,
-                    &self.attached.parameters,
-                    &data.rigid,
-                    &mut data.attached,
-                    [
-                        layout.rigid.nbody as u32,
-                        self.model.ngeom() as u32,
-                        self.model.nsite() as u32,
-                        worlds as u32,
-                    ],
-                )?;
-            }
+            // 初始化入口与附着入口共用同一冻结ABI与缓冲。
+            self.initialize_kernel.launch(
+                &self.attached.metadata,
+                &self.attached.parameters,
+                &data.rigid,
+                &mut data.attached,
+                worlds as u32,
+            )?;
             data.ready = ReadyStages::default();
             Ok(data)
         }

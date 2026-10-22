@@ -288,7 +288,20 @@ impl KinematicsPlan {
                 metadata: com_metadata,
                 parameters: com_parameters,
             };
-            let attached = attached.upload(session)?;
+            let attached = {
+                let (metadata, parameters) = ResidentAttachedMetadataBuffer::from_packed(
+                    session,
+                    attached,
+                    kin.nbody(),
+                    kin.njnt(),
+                    model.ngeom(),
+                    model.nsite(),
+                )?;
+                DeviceAttached {
+                    metadata,
+                    parameters,
+                }
+            };
             let mode = if equivalent {
                 "#define MJWARP_G01_EQUIVALENT\n"
             } else {
@@ -307,10 +320,8 @@ impl KinematicsPlan {
                 crate::physics::KINEMATICS_CUDA,
                 crate::physics::attached::ATTACHED_CUDA
             );
-            let attached_kernel =
-                SynchronousKernel::compile(session, &source, "attached_kinematics")?;
-            let initialize_kernel =
-                SynchronousKernel::compile(session, &source, "initialize_attached")?;
+            let attached_kernel = ResidentAttachedKernel::compile(session, &source)?;
+            let initialize_kernel = ResidentInitializeAttachedKernel::compile(session, &source)?;
             let camlight = if camlight_layout.is_empty() {
                 None
             } else {

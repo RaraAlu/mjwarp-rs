@@ -48,25 +48,15 @@ impl KinematicsPlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let dimensions = [
-                data.layout.rigid.nbody as u32,
-                self.model.ngeom() as u32,
-                self.model.nsite() as u32,
-                data.worlds() as u32,
-            ];
-            // SAFETY: Validated attachment IDs and checked packed lengths prove
-            // all reads. Empty sets retain nonempty metadata/parameter/guard
-            // allocations. The rigid stride is fixed in metadata; shader ABI is
-            // f32. Outputs are disjoint, same-session and synchronized on return.
-            unsafe {
-                self.attached_kernel.launch(
-                    &self.attached.metadata,
-                    &self.attached.parameters,
-                    &data.rigid,
-                    &mut data.attached,
-                    dimensions,
-                )?;
-            }
+            let worlds = data.worlds() as u32;
+            // 类型化包装核对证明、精确跨度、同会话与别名。
+            self.attached_kernel.launch(
+                &self.attached.metadata,
+                &self.attached.parameters,
+                &data.rigid,
+                &mut data.attached,
+                worlds,
+            )?;
             data.ready.attached = true;
             Ok(())
         }
