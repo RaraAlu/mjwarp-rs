@@ -133,6 +133,24 @@ path = "src/physics/mass_matrix/multiply/borrowed/kernels.rs"
 [[source]]
 path = "src/physics/mass_matrix/multiply/borrowed/tests/launcher.rs"
 
+[[source]]
+path = "src/physics/mass_matrix/resident/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/resident/launcher_specs.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/resident/launcher_meta.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/resident/metadata_buffer.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/resident/kernels.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/resident/tests/launcher.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::probe_mass_matrix"

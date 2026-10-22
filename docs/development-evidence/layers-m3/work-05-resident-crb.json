@@ -1,0 +1,145 @@
+{
+    "work": "work-05-resident-crb",
+    "summary": "resident_crb_init、resident_crb_accumulate 与 resident_crb_matrix 改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/mass_matrix/resident.rs", "line": 193 },
+        { "file": "src/physics/mass_matrix/resident.rs", "line": 201 },
+        { "file": "src/physics/mass_matrix/resident.rs", "line": 215 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/mass_matrix/resident/kernels.rs",
+            "line": 89,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "resident_crb_init"
+        },
+        {
+            "file": "src/physics/mass_matrix/resident/kernels.rs",
+            "line": 133,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "resident_crb_accumulate"
+        },
+        {
+            "file": "src/physics/mass_matrix/resident/kernels.rs",
+            "line": 175,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "resident_crb_matrix"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/mass_matrix/resident.rs",
+            "line": 215,
+            "receiver": "self.init",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        },
+        {
+            "file": "src/physics/mass_matrix/resident.rs",
+            "line": 223,
+            "receiver": "self.accumulate",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        },
+        {
+            "file": "src/physics/mass_matrix/resident.rs",
+            "line": 233,
+            "receiver": "self.matrix",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/mass_matrix/resident.rs",
+            "old_line": 118,
+            "new_file": "src/physics/mass_matrix/resident/kernels.rs",
+            "new_line": 62
+        },
+        {
+            "old_file": "src/physics/mass_matrix/resident.rs",
+            "old_line": 119,
+            "new_file": "src/physics/mass_matrix/resident/kernels.rs",
+            "new_line": 103
+        },
+        {
+            "old_file": "src/physics/mass_matrix/resident.rs",
+            "old_line": 120,
+            "new_file": "src/physics/mass_matrix/resident/kernels.rs",
+            "new_line": 147
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "resident_crb_init",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/mass_matrix/resident/kernels.rs:62" ],
+            "kernel_abi_evidence": [
+                "ResidentCrbInitSpec at src/physics/mass_matrix/resident/launcher_specs.rs:85"
+            ]
+        },
+        {
+            "entry": "resident_crb_accumulate",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/mass_matrix/resident/kernels.rs:103" ],
+            "kernel_abi_evidence": [
+                "ResidentCrbAccumulateSpec at src/physics/mass_matrix/resident/launcher_specs.rs:114"
+            ]
+        },
+        {
+            "entry": "resident_crb_matrix",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/mass_matrix/resident/kernels.rs:147" ],
+            "kernel_abi_evidence": [
+                "ResidentCrbMatrixSpec at src/physics/mass_matrix/resident/launcher_specs.rs:144"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "ResidentCrbInitSpec",
+            "logical_name": "resident_crb_init",
+            "definition": "src/physics/mass_matrix/resident/launcher_specs.rs:85",
+            "actual_cuda_entries": "resident_crb_init",
+            "typed_low_level_calls": [ "src/physics/mass_matrix/resident/kernels.rs:89" ]
+        },
+        {
+            "type": "ResidentCrbAccumulateSpec",
+            "logical_name": "resident_crb_accumulate",
+            "definition": "src/physics/mass_matrix/resident/launcher_specs.rs:114",
+            "actual_cuda_entries": "resident_crb_accumulate",
+            "typed_low_level_calls": [ "src/physics/mass_matrix/resident/kernels.rs:133" ]
+        },
+        {
+            "type": "ResidentCrbMatrixSpec",
+            "logical_name": "resident_crb_matrix",
+            "definition": "src/physics/mass_matrix/resident/launcher_specs.rs:144",
+            "actual_cuda_entries": "resident_crb_matrix",
+            "typed_low_level_calls": [ "src/physics/mass_matrix/resident/kernels.rs:175" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "rigid_com_position",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/com_position.rs:198" ],
+        "reason": "resident_crb 已完成；下一批 G01 三探针（com_position/attached_kinematics/com_velocity）"
+    },
+    "manual_cross_checks_add": [
+        "work-05: resident_crb 三个入口改走类型化包装；raw 行 -3、typed 行 +3、编排行 +3、编译点移入 kernels.rs",
+        "work-05: 拓扑元数据证明校验体父链、关节体、关节父链（多树根负一）与深度表；初始/逐层/矩阵三类发射按冻结网格精确核对"
+    ],
+    "acceptance_boundary_set": {
+        "resident_crb_raw": false,
+        "resident_crb_migrated": true
+    }
+}

@@ -1,5 +1,13 @@
 //! 常驻CRB严格辅助。
 //! 旧一次性探针保持独立。
+#[cfg(feature = "cuda-probe")]
+use self::kernels::{ResidentCrbAccumulateKernel, ResidentCrbInitKernel, ResidentCrbMatrixKernel};
+#[cfg(feature = "cuda-probe")]
+use self::launcher_abi::ResidentCrbStaticDims;
+#[cfg(feature = "cuda-probe")]
+use self::launcher_meta::resident_crb_launch_error;
+#[cfg(feature = "cuda-probe")]
+use self::metadata_buffer::ResidentCrbMetadataBuffer;
 use super::{MassMatrixLayout, MassMatrixOutput};
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
@@ -7,6 +15,14 @@ use crate::diagnostics::{InputError, TransferError};
 use crate::model::{AttachedModelInput, BatchLayout};
 use crate::physics::{KinematicsData, KinematicsPlan};
 use crate::runtime::TransferSession;
+#[cfg(all(feature = "cuda-probe", test))]
+use crate::runtime::launcher::DeviceSpan;
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 
@@ -21,11 +37,15 @@ pub struct MassMatrixPlan {
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: ResidentCrbMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
     armature: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 3],
+    init: ResidentCrbInitKernel,
+    #[cfg(feature = "cuda-probe")]
+    accumulate: ResidentCrbAccumulateKernel,
+    #[cfg(feature = "cuda-probe")]
+    matrix: ResidentCrbMatrixKernel,
 }
 
 /// 独占位置与矩阵设备状态。
@@ -69,6 +89,7 @@ impl MassMatrixPlan {
         {
             let mut parents = crate::runtime::host_staging::<i32>(self.nv)?;
             self.metadata
+                .as_buffer()
                 .read_range_into(2 + self.nbody + self.nv, &mut parents)?;
             Ok((self.nbody, self.nv, self.session.clone(), parents))
         }
@@ -101,9 +122,11 @@ impl MassMatrixPlan {
                 values[start + b] = values[start + k.fields().body_parentid[b] as usize] + 1;
             }
             let depth = *values[start..].iter().max().unwrap() as usize;
+            let static_dims =
+                ResidentCrbStaticDims::new(nbody, nv, depth).map_err(resident_crb_launch_error)?;
             let armature = &rigid.fields().dof_armature;
             (
-                session.upload(&values)?,
+                ResidentCrbMetadataBuffer::upload(session, values, static_dims)?,
                 session.upload(if armature.is_empty() {
                     &[0.0]
                 } else {
@@ -114,11 +137,11 @@ impl MassMatrixPlan {
         };
         let position = KinematicsPlan::new(session, model)?;
         #[cfg(feature = "cuda-probe")]
-        let kernels = [
-            SynchronousKernel::compile(session, CUDA, "resident_crb_init")?,
-            SynchronousKernel::compile(session, CUDA, "resident_crb_accumulate")?,
-            SynchronousKernel::compile(session, CUDA, "resident_crb_matrix")?,
-        ];
+        let (init, accumulate, matrix) = (
+            ResidentCrbInitKernel::compile(session, CUDA)?,
+            ResidentCrbAccumulateKernel::compile(session, CUDA)?,
+            ResidentCrbMatrixKernel::compile(session, CUDA)?,
+        );
         Ok(Self {
             position,
             nbody,
@@ -132,7 +155,11 @@ impl MassMatrixPlan {
             #[cfg(feature = "cuda-probe")]
             armature,
             #[cfg(feature = "cuda-probe")]
-            kernels,
+            init,
+            #[cfg(feature = "cuda-probe")]
+            accumulate,
+            #[cfg(feature = "cuda-probe")]
+            matrix,
         })
     }
 
@@ -184,47 +211,32 @@ impl MassMatrixPlan {
         {
             let input = data.position.mass_matrix_input()?;
             let worlds = data.worlds() as u32;
-            // SAFETY: Validated body/DOF parents precede children. Metadata stores
-            // nb,nv,parent,DOF-owner,DOF-parent,depth; armature has max(nv,1) f32.
-            // The guarded COM stride is 14*nb+6*nv; output is 10*nb+nv*nv f32.
-            // Checked work counts fit u32, field indices fit i32. Buffers are
-            // disjoint in one session; each depth launch synchronizes its atomics.
-            unsafe {
-                self.kernels[0].launch(
+            // 初始化只读质心输入，写互不相交的CRB前缀。
+            self.init.launch(
+                &self.metadata,
+                &self.armature,
+                input,
+                &mut data.output,
+                worlds,
+            )?;
+            for level in (1..=self.depth).rev() {
+                self.accumulate.launch(
                     &self.metadata,
                     &self.armature,
                     input,
                     &mut data.output,
-                    [self.nbody as u32, self.nv as u32, 0, worlds],
+                    worlds,
+                    level as u32,
                 )?;
-                for level in (1..=self.depth).rev() {
-                    self.kernels[1].launch(
-                        &self.metadata,
-                        &self.armature,
-                        input,
-                        &mut data.output,
-                        [
-                            self.nbody as u32,
-                            self.nv as u32,
-                            level as u32,
-                            worlds * self.nbody as u32,
-                        ],
-                    )?;
-                }
-                if self.nv != 0 {
-                    self.kernels[2].launch(
-                        &self.metadata,
-                        &self.armature,
-                        input,
-                        &mut data.output,
-                        [
-                            self.nbody as u32,
-                            self.nv as u32,
-                            0,
-                            worlds * self.nv as u32,
-                        ],
-                    )?;
-                }
+            }
+            if self.nv != 0 {
+                self.matrix.launch(
+                    &self.metadata,
+                    &self.armature,
+                    input,
+                    &mut data.output,
+                    worlds,
+                )?;
             }
             data.ready = true;
             Ok(())
@@ -356,6 +368,25 @@ extern "C" __global__ void resident_crb_matrix(const int* m,const float* p,const
 }
 "#;
 
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/kernels.rs"]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/launcher_abi.rs"]
+mod launcher_abi;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/launcher_meta.rs"]
+mod launcher_meta;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/launcher_specs.rs"]
+mod launcher_specs;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/metadata_buffer.rs"]
+mod metadata_buffer;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "resident/tests/launcher.rs"]
+mod tests_launcher;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -390,7 +421,13 @@ mod tests {
             plan.update_matrix(&mut data).unwrap();
         }
         data.readback().unwrap();
-        let metadata = session.upload(&[2, 1, 0, 0, 1, -1, 0, 1]).unwrap();
+        // 合成两体单自由度夹具：八项拓扑元数据、34元质心跨度与21元CRB跨度。
+        let metadata = ResidentCrbMetadataBuffer::upload(
+            &session,
+            vec![2, 1, 0, 0, 1, -1, 0, 1],
+            ResidentCrbStaticDims::new(2, 1, 1).unwrap(),
+        )
+        .unwrap();
         for (mass, armature, expected) in [
             (f32::from_bits(1), 0.0, 0.0),
             (0.0, f32::from_bits(1), 0.0),
@@ -408,17 +445,12 @@ mod tests {
             initial[..4].fill(-131072.0);
             initial[25..].fill(-131072.0);
             let mut output = session.upload(&initial).unwrap();
-            // SAFETY: This synthetic two-body, one-DOF fixture fixes every
-            // pointer/stride: guarded 34-element COM, 21-element CRB/matrix,
-            // and eight metadata integers in the actual private ABI.
-            unsafe {
-                plan.kernels[0]
-                    .launch(&metadata, &params, &input, &mut output, [2, 1, 0, 1])
-                    .unwrap();
-                plan.kernels[2]
-                    .launch(&metadata, &params, &input, &mut output, [2, 1, 0, 1])
-                    .unwrap();
-            }
+            plan.init
+                .launch(&metadata, &params, &input, &mut output, 1)
+                .unwrap();
+            plan.matrix
+                .launch(&metadata, &params, &input, &mut output, 1)
+                .unwrap();
             output.read_range_into(0, &mut initial).unwrap();
             crate::physics::check_device_values(&initial, "crb_atomic_boundary").unwrap();
             assert_eq!(initial[24].to_bits(), (expected as f32).to_bits());
