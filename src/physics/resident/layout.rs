@@ -4,8 +4,9 @@ use super::*;
 
 #[cfg(feature = "cuda-probe")]
 pub(super) struct DeviceFlex {
-    pub(super) model: crate::physics::DeviceModel,
-    pub(super) kernel: SynchronousKernel,
+    pub(super) metadata: FlexFacesMetadataBuffer,
+    pub(super) parameters: TransferBuffer<f32>,
+    pub(super) kernel: FlexFacesKernel,
 }
 
 #[cfg(feature = "cuda-probe")]
@@ -25,8 +26,8 @@ pub(super) struct DeviceFlexHessian {
 
 #[cfg(feature = "cuda-probe")]
 pub(super) struct DeviceFlexEdges {
-    pub(super) metadata: TransferBuffer<i32>,
-    pub(super) kernel: SynchronousKernel,
+    pub(super) metadata: FlexEdgesMetadataBuffer,
+    pub(super) kernel: FlexEdgesKernel,
 }
 #[cfg(feature = "cuda-probe")]
 pub(super) struct ResidentFlexEdges {

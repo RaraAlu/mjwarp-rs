@@ -407,25 +407,38 @@ impl KinematicsPlan {
                 None
             };
             let edges = if edge_layout.is_some_and(|l| !l.is_empty()) {
-                Some(DeviceFlexEdges {
-                    metadata: session.upload(&edges.expect("checked edge fields"))?,
-                    kernel: SynchronousKernel::compile(
-                        session,
-                        crate::physics::flex_edge::FLEX_EDGE_CUDA,
-                        "flex_edges",
-                    )?,
-                })
+                let (metadata, kernel) = upload_flex_edges(
+                    session,
+                    edges.expect("checked edge fields"),
+                    &model,
+                    edge_fields.as_ref().expect("checked edge fields"),
+                    flex_fields.as_ref().expect("checked flex positions"),
+                    com_stride,
+                    flex_layout
+                        .expect("checked flex layout")
+                        .output
+                        .elements_per_world(),
+                )?;
+                Some(DeviceFlexEdges { metadata, kernel })
             } else {
                 None
             };
             let faces = if face_layout.is_some_and(|l| !l.is_empty()) {
+                let flex = flex_fields.as_ref().expect("checked flex positions");
+                let (metadata, parameters, kernel) = upload_flex_faces(
+                    session,
+                    faces.expect("checked face fields"),
+                    flex,
+                    face_fields.as_ref().expect("checked face fields"),
+                    flex_layout
+                        .expect("checked flex layout")
+                        .output
+                        .elements_per_world(),
+                )?;
                 Some(DeviceFlex {
-                    model: faces.expect("checked face fields").upload(session)?,
-                    kernel: SynchronousKernel::compile(
-                        session,
-                        crate::physics::flex_face::FLEX_FACE_CUDA,
-                        "flex_faces",
-                    )?,
+                    metadata,
+                    parameters,
+                    kernel,
                 })
             } else {
                 None

@@ -13,6 +13,31 @@ use super::camlight_launcher::camlight_launch_error;
 #[cfg(feature = "cuda-probe")]
 use super::field_batch::FieldMetadataBuffer;
 #[cfg(feature = "cuda-probe")]
+#[cfg(feature = "cuda-probe")]
+use super::flex_edges_launcher::FlexEdgesDims;
+#[cfg(feature = "cuda-probe")]
+use super::flex_edges_launcher::FlexEdgesKernel;
+#[cfg(feature = "cuda-probe")]
+use super::flex_edges_launcher::FlexEdgesMetadata;
+#[cfg(feature = "cuda-probe")]
+use super::flex_edges_launcher::FlexEdgesMetadataBuffer;
+#[cfg(feature = "cuda-probe")]
+use super::flex_edges_launcher::FlexEdgesStaticDims;
+#[cfg(feature = "cuda-probe")]
+use super::flex_edges_launcher::flex_edges_launch_error;
+#[cfg(feature = "cuda-probe")]
+use super::flex_faces_launcher::FlexFacesDims;
+#[cfg(feature = "cuda-probe")]
+use super::flex_faces_launcher::FlexFacesKernel;
+#[cfg(feature = "cuda-probe")]
+use super::flex_faces_launcher::FlexFacesMetadata;
+#[cfg(feature = "cuda-probe")]
+use super::flex_faces_launcher::FlexFacesMetadataBuffer;
+#[cfg(feature = "cuda-probe")]
+use super::flex_faces_launcher::FlexFacesStaticDims;
+#[cfg(feature = "cuda-probe")]
+use super::flex_faces_launcher::flex_faces_launch_error;
+#[cfg(feature = "cuda-probe")]
 use super::flex_positions_launcher::FlexDims;
 #[cfg(feature = "cuda-probe")]
 use super::flex_positions_launcher::FlexStaticDims;
@@ -272,4 +297,79 @@ pub(super) fn upload_flex_positions(
         FlexInvalidateKernel::compile(session)?,
         FlexPositionsKernel::compile(session)?,
     ))
+}
+/// 上传柔体边元数据并编译边内核。
+#[cfg(feature = "cuda-probe")]
+pub(super) fn upload_flex_edges(
+    session: &TransferSession,
+    metadata: Vec<i32>,
+    model: &AttachedModelInput,
+    edges: &FlexEdgeFields,
+    flex: &FlexPositionFields,
+    com_stride: usize,
+    flex_stride: usize,
+) -> Result<(FlexEdgesMetadataBuffer, FlexEdgesKernel), TransferError> {
+    let k = model.rigid().kinematics();
+    let static_dims = FlexEdgesStaticDims::new(
+        k.nbody(),
+        k.nv(),
+        edges.nflexedge(),
+        edges.nnz(),
+        flex.flex_vertbodyid.len(),
+        com_stride,
+        flex_stride,
+    )
+    .map_err(flex_edges_launch_error)?;
+    let dims = FlexEdgesDims {
+        static_dims,
+        worlds: 1,
+    };
+    let packed = PackedModel {
+        metadata,
+        parameters: vec![0.0],
+    };
+    let (metadata, parameters) = FieldMetadataBuffer::<FlexEdgesMetadata>::from_packed(
+        session,
+        packed,
+        dims,
+        flex_edges_launch_error,
+    )?;
+    drop(parameters);
+    Ok((metadata, FlexEdgesKernel::compile(session)?))
+}
+
+/// 上传柔体面元数据、参数并编译面内核。
+#[cfg(feature = "cuda-probe")]
+pub(super) fn upload_flex_faces(
+    session: &TransferSession,
+    packed: PackedModel,
+    flex: &FlexPositionFields,
+    faces: &FlexFaceFields,
+    node_stride: usize,
+) -> Result<
+    (
+        FlexFacesMetadataBuffer,
+        TransferBuffer<f32>,
+        FlexFacesKernel,
+    ),
+    TransferError,
+> {
+    let static_dims = FlexFacesStaticDims::new(
+        faces.nflexface(),
+        flex.flex_nodebodyid.len(),
+        node_stride,
+        packed.parameters.len(),
+    )
+    .map_err(flex_faces_launch_error)?;
+    let dims = FlexFacesDims {
+        static_dims,
+        worlds: 1,
+    };
+    let (metadata, parameters) = FieldMetadataBuffer::<FlexFacesMetadata>::from_packed(
+        session,
+        packed,
+        dims,
+        flex_faces_launch_error,
+    )?;
+    Ok((metadata, parameters, FlexFacesKernel::compile(session)?))
 }

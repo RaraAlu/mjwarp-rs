@@ -247,7 +247,8 @@ pub(super) fn validate_flex_metadata(
     let vertbody = &values[5 + 9 * nf + nn..];
     for flex in 0..nf {
         let row = &values[5 + 9 * flex..14 + 9 * flex];
-        if !(0..=3).contains(&row[0]) {
+        // 冻结模型用-1表示非顶点插值来源；内核只区分顶点(0)与插值。
+        if !(-1..=3).contains(&row[0]) {
             return Err(LauncherError::InvalidMetadata("常驻柔体插值类型越界"));
         }
         if row[8] != 0 && row[8] != 1 {

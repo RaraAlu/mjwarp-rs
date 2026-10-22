@@ -107,33 +107,30 @@ fn flex_edge_readback_rejects_guards_nonfinite_and_foreign_inputs() {
     let foreign_qvel = foreign.upload(&vec![0.0; l.guarded_qvel]).unwrap();
     let flex = data.flex.as_ref().unwrap();
     let edges = data.edges.as_mut().unwrap();
-    // SAFETY: These invalid calls exit before launching. Other buffers keep
-    // their checked resident layouts and exact private kernel ABI.
-    unsafe {
+    // 包装在发射前核对证明、跨度、会话与维度；无效调用不发射。
+    assert!(matches!(
+        device.kernel.launch(
+            &device.metadata,
+            &foreign_qvel,
+            &data.com,
+            flex,
+            &mut edges.values,
+            513
+        ),
+        Err(TransferError::SessionMismatch)
+    ));
+    for worlds in [0, u32::MAX] {
         assert!(matches!(
-            device.kernel.launch_flex_edges(
+            device.kernel.launch(
                 &device.metadata,
-                &foreign_qvel,
+                &edges.qvel,
                 &data.com,
                 flex,
                 &mut edges.values,
-                513
+                worlds
             ),
-            Err(TransferError::SessionMismatch)
+            Err(TransferError::Input(InputError::InvalidDimension { .. }))
         ));
-        for worlds in [0, u32::MAX] {
-            assert!(matches!(
-                device.kernel.launch_flex_edges(
-                    &device.metadata,
-                    &edges.qvel,
-                    &data.com,
-                    flex,
-                    &mut edges.values,
-                    worlds
-                ),
-                Err(TransferError::Input(InputError::InvalidDimension { .. }))
-            ));
-        }
     }
     data.readback().unwrap();
 }

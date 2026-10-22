@@ -207,19 +207,15 @@ impl KinematicsPlan {
             if let (Some(device), Some(out), Some(flex)) =
                 (&self.edges, &mut data.edges, &data.flex)
             {
-                // SAFETY: Checked endpoints, disjoint CSR rows, ancestry and
-                // guarded wide strides bound every read/write. Inputs retain
-                // this model/session. The private f32 ABI waits before reuse.
-                unsafe {
-                    device.kernel.launch_flex_edges(
-                        &device.metadata,
-                        &out.qvel,
-                        &data.com,
-                        flex,
-                        &mut out.values,
-                        data.layout.qpos.worlds() as u32,
-                    )?;
-                }
+                // 类型化包装核对证明、精确跨度、同会话与别名。
+                device.kernel.launch(
+                    &device.metadata,
+                    &out.qvel,
+                    &data.com,
+                    flex,
+                    &mut out.values,
+                    data.layout.qpos.worlds() as u32,
+                )?;
             }
             data.ready.edges = true;
             Ok(())
@@ -243,18 +239,14 @@ impl KinematicsPlan {
             if let (Some(device), Some(nodes), Some(out)) =
                 (&self.faces, &data.flex, &mut data.faces)
             {
-                // SAFETY: Canonical checked face rows bound all node references.
-                // Guarded layouts bound each world. Buffers share this session.
-                // The private f32 ABI synchronizes before output reuse.
-                unsafe {
-                    device.kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
-                        nodes,
-                        out,
-                        [0, 0, 0, data.layout.qpos.worlds() as u32],
-                    )?;
-                }
+                // 类型化包装核对证明、精确跨度、同会话与别名。
+                device.kernel.launch(
+                    &device.metadata,
+                    &device.parameters,
+                    nodes,
+                    out,
+                    data.layout.qpos.worlds() as u32,
+                )?;
             }
             data.ready.faces = true;
             Ok(())

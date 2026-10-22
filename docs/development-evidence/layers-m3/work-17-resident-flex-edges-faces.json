@@ -1,0 +1,106 @@
+{
+    "work": "work-17-resident-flex-edges-faces",
+    "summary": "常驻柔体边与面改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/resident/plan_update_flex.rs", "line": 96 },
+        { "file": "src/physics/resident/plan_update_flex.rs", "line": 219 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/resident/flex_edges_launcher.rs",
+            "line": 438,
+            "receiver": "self.kernel",
+            "method": "launch_flex_edges",
+            "classification": "typed_wrapper_low_level",
+            "entry": "flex_edges"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/resident/plan_update_flex.rs",
+            "line": 211,
+            "receiver": "device.kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": "flex_edges"
+        },
+        {
+            "file": "src/physics/resident/plan_update_flex.rs",
+            "line": 243,
+            "receiver": "device.kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": "flex_faces"
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 402,
+            "new_file": "src/physics/resident/flex_edges_launcher.rs",
+            "new_line": 387
+        },
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 414,
+            "new_file": "src/physics/resident/flex_faces_launcher.rs",
+            "new_line": 286
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "flex_edges",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/flex_edges_launcher.rs:387" ],
+            "kernel_abi_evidence": [
+                "FlexEdgesSpec at src/physics/resident/flex_edges_launcher.rs:294",
+                "five-buffer launch at src/physics/resident/flex_edges_launcher.rs:438"
+            ]
+        },
+        {
+            "entry": "flex_faces",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/flex_faces_launcher.rs:286" ],
+            "kernel_abi_evidence": [
+                "FlexFacesSpec at src/physics/resident/flex_faces_launcher.rs:193",
+                "shared four-buffer launch at src/physics/resident/field_batch.rs:205"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "FlexEdgesSpec",
+            "logical_name": "flex_edges",
+            "definition": "src/physics/resident/flex_edges_launcher.rs:294",
+            "actual_cuda_entries": "flex_edges",
+            "typed_low_level_calls": [ "src/physics/resident/flex_edges_launcher.rs:438" ]
+        },
+        {
+            "type": "FlexFacesSpec",
+            "logical_name": "flex_faces",
+            "definition": "src/physics/resident/flex_faces_launcher.rs:193",
+            "actual_cuda_entries": "flex_faces",
+            "typed_low_level_calls": [ "src/physics/resident/field_batch.rs:205" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "flex_hessian",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/resident/plan_subsets.rs:426" ],
+        "reason": "柔体边与面已收口；继续柔体Hessian两项"
+    },
+    "manual_cross_checks_add": [
+        "work-17: 常驻柔体边与面改走类型化包装；raw 行 -2、typed 行 +1、编排行 +2",
+        "work-17: 柔体边证明校验七项头、边端点与稀疏行、列索引、顶点体、体父链、根体表与自由度体；世界体根引用按0寻址",
+        "work-17: 柔体面证明校验两项头、面轴向与九节点索引；面共用 field_batch 单一发射点",
+        "work-17: 柔体插值类型允许-1占位（非顶点来源），内核只区分顶点与插值；既有测试改走包装 launch，断言不变",
+        "work-17: v22把柔体位置原始行记在旧行255，实为faces行；本批以行96补删位置行、以行219删除边行，faces行随本批迁移一并收口，计数闭环"
+    ],
+    "acceptance_boundary_set": {
+        "resident_flex_edges_migrated": true,
+        "flex_edges_raw": false,
+        "resident_flex_faces_migrated": true,
+        "flex_faces_raw": false
+    }
+}
