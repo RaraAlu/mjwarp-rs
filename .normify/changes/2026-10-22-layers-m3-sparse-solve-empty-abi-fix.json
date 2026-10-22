@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-layers-m3-sparse-solve-empty-abi-fix",
+  "title": {
+    "zh": "修复M3稀疏求解包装空计划ABI回归",
+    "en": "Fix m3 sparse-solve empty-plan ABI regression"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "修复M3安全包装迁移（38a4960）引入的稀疏求解ABI回归：合法空模型（n=0、nc=0、零层级、零更新）被SparseSolveStaticDims拒绝，resident_sparse_solve的空计划用例报Input(InvalidDimension{field:\"sparse_solve_abi\"})。",
+    "en": "Fix the sparse-solve ABI regression introduced by the M3 safe-wrapper migration (38a4960): a legal empty model (n=0, nc=0, zero levels and updates) was rejected by SparseSolveStaticDims, so the empty-plan resident_sparse_solve case reported Input(InvalidDimension{field:\"sparse_solve_abi\"})."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "空计划维度（n=0且nc=0、零层级、零更新）按冻结内核语义接受：validate/fused两入口的跨度、元数据证明与发射路径可构造。",
+    "坏输入拒绝面保留：单侧零维度、层偏移非零/非单调/终点越界、对角槽与更新三元组越界、元数据长度不符、世界数/右端项数为零仍拒绝，并补对应反例测试。",
+    "内核字符串、PTX、容差与fixtures不动；tests/resident_sparse_solve的rejected_inputs用例恢复通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-t4-source-hash-repin-3"
+    ],
+    "phase": "fix/M3-sparse-solve",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mass_solve/sparse/resident/solve",
+      "tests/resident_sparse_solve.rs",
+      "docs/development-evidence/changes/2026-10-22-layers-m3-sparse-solve-empty-abi-fix.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "G01全量debug后的全矩阵对照发现。基线归属：迁移前底层发射（src/runtime/transfer/kernel/launchers_solve.rs::launch_sparse_solve）只要求worlds与右端项数非零，不要求n/nc非零；`dims.n == 0 || dims.nc == 0`随38a4960 工程(layers): 迁移稀疏求解安全包装 引入（git log -S确认唯一引入提交），测试tests/resident_sparse_solve.rs在38a4960父提交已存在，属M3迁移自身回归。冻结内核在n=0时所有按自由度循环空转、因子跨度只由nc+n决定、网格由worlds与右端项数决定，空计划安全。",
+  "revision": {
+    "before": "eac3df636954dc2e0446f0c1028d4487bd1a2bbc",
+    "after": null
+  },
+  "created_at": "2026-10-22T06:40:00.000Z",
+  "updated_at": "2026-10-22T06:28:59.315Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-layers-m3-sparse-solve-empty-abi-fix.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-layers-m3-sparse-solve-empty-abi-fix"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
