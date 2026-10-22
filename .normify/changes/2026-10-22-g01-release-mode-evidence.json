@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-g01-release-mode-evidence",
+  "title": {
+    "zh": "补G01 release双模式验收证据",
+    "en": "Add G01 release-mode acceptance evidence"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "验收要求覆盖 debug 与 release 双模式，目前 release 是唯一空白。本任务跑 scripts/test-windows-g01.ps1 -AllFeatures -FullRegression -Release，记录各阶段结果与中止点；脚本因已知债务中止后，按 debug 模式做法用等价命令单独补跑 host-gnu/clippy-gnu*/clippy-msvc/rustdoc/diff 等剩余阶段并记录；证据入 docs/development-evidence/g01-release/，如实写清 release 下哪些阶段绿、哪里因已知债务停，不宣称 G01 全量通过。不改测试/容差/fixtures/脚本。",
+    "en": "Acceptance requires both debug and release modes; release is the only gap. Run scripts/test-windows-g01.ps1 -AllFeatures -FullRegression -Release, record each stage and the abort point; after the known-debt abort, run the remaining stages (host-gnu/clippy-gnu*/clippy-msvc/rustdoc/diff) individually with equivalent commands as done for debug and record them; put evidence in docs/development-evidence/g01-release/, truthfully state which stages are green, where it stops on known debt, and do not claim full G01 pass. No test/tolerance/fixture/script changes."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "执行 scripts/test-windows-g01.ps1 -AllFeatures -FullRegression -Release 并记录逐阶段结果、耗时、退出码与中止点；若在已知债务处中止，如实登记，不宣称全量通过。",
+    "脚本中止后未执行的阶段按脚本等价命令单独补跑并记录（host-gnu、clippy-gnu、clippy-gnu-cuda、clippy-msvc、rustdoc、diff；命令与 --release/--all-features 参数照脚本定义）。",
+    "若 release 出现 debug 未见的新失败，先定位是否与 release 优化/精度相关，登记证据后报 Chief，不自行改代码或放宽断言。",
+    "证据 docs/development-evidence/g01-release/（README + json：命令、环境、耗时、各阶段结果、中止点、未通过项、已知债务引用）；docs/three-layer-acceptance.md 增补 release 现状并更新未验收边界；交付回执含 task_id。",
+    "不改测试、容差、fixtures、scripts、产品源码；门禁 fmt/unit 通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-g01-stage-evidence-refresh"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "docs/development-evidence/g01-release/",
+      "docs/development-evidence/changes/2026-10-22-g01-release-mode-evidence.json",
+      "docs/three-layer-acceptance.md"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 2
+  },
+  "note": "背景：W-D4 与六阶段补跑收口后 debug 全链已绿到 all-probes（lib 124 过 0 败，阶段因 3 项 mass_solve_probe 既有准入缺口中止）；debug 未执行阶段已单独补跑通过，但 release 自历史快照后未再跑。release 预期在 all-probes 同一债务处中止；host-msvc 的 T4 pinned lineage 与 resident 计数需在 release 下重新核对。命令与参数严格照 scripts/test-windows-g01.ps1：host-gnu 为 plain cargo test --locked（脚本不加 --release）、clippy-gnu/clippy-gnu-cuda 不加 --release、clippy-msvc 在 Release 时加 --release、rustdoc 用 --all-features --no-deps + RUSTDOCFLAGS=-D warnings、diff 为 git diff --check。不改脚本；若 release 出现新失败，只登记证据并报 Chief。",
+  "revision": {
+    "before": "ca94aa0b0ed6f9a79626868fe01e761a26ed389f"
+  },
+  "created_at": "2026-10-22T09:33:08.630Z",
+  "updated_at": "2026-10-22T09:33:08.630Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests",
+        "fixtures",
+        "scripts",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g01-release-mode-evidence.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g01-release-mode-evidence"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
