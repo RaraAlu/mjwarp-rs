@@ -123,7 +123,6 @@ pub struct TendonVelocityView<'a, 'p> {
 }
 #[cfg(feature = "cuda-probe")]
 pub(super) struct TendonVelocityDeviceView<'a> {
-    pub metadata: &'a TransferBuffer<i32>,
     pub source: &'a TransferBuffer<f32>,
     pub velocity: &'a TransferBuffer<f32>,
     pub worlds: usize,

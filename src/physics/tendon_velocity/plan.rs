@@ -7,6 +7,11 @@ use super::launcher_meta::tendon_velocity_validate_launch_error;
 use super::*;
 
 impl<'p> TendonVelocityPlan<'p> {
+    /// 被动力计划构造时复制冻结元数据宿主镜像。
+    #[cfg(feature = "cuda-probe")]
+    pub(in crate::physics) fn passive_metadata(&self) -> &[i32] {
+        self.metadata.passive_metadata()
+    }
     #[cfg(feature = "cuda-probe")]
     pub(in crate::physics) fn tendon_passive_context(
         &self,

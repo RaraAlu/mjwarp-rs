@@ -6,7 +6,7 @@ use crate::diagnostics::InputError;
 use crate::diagnostics::TransferError;
 use crate::model::{BatchLayout, ParameterBatch};
 #[cfg(feature = "cuda-probe")]
-use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
+use crate::runtime::{TransferBuffer, TransferSession};
 use std::sync::Arc;
 
 use super::{TendonVelocityPlan, TendonVelocityView};
@@ -116,7 +116,9 @@ pub struct TendonPassivePlan<'v, 'p> {
     #[cfg(feature = "cuda-probe")]
     parameters: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 3],
+    metadata: launcher_abi::TendonPassiveMetadataBuffer,
+    #[cfg(feature = "cuda-probe")]
+    kernels: kernels::TendonPassiveKernels,
 }
 
 pub struct TendonPassiveData {
@@ -174,6 +176,15 @@ fn read(
 mod cuda;
 #[path = "tendon_passive/data.rs"]
 mod data;
+#[cfg(feature = "cuda-probe")]
+#[path = "tendon_passive/kernels.rs"]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "tendon_passive/launcher_abi.rs"]
+mod launcher_abi;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "tendon_passive/launcher_tests.rs"]
+mod launcher_tests;
 #[path = "tendon_passive/plan.rs"]
 mod plan;
 #[cfg(test)]

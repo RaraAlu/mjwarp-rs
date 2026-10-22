@@ -1,0 +1,46 @@
+{
+    "work": "work-19-tendon-passive",
+    "summary": "肌腱被动力三入口改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/tendon_passive/plan.rs", "line": 125 },
+        { "file": "src/physics/tendon_passive/plan.rs", "line": 152 },
+        { "file": "src/physics/tendon_passive/plan.rs", "line": 192 },
+        { "file": "src/physics/tendon_passive/plan.rs", "line": 216 },
+        { "file": "src/physics/tendon_passive/plan.rs", "line": 234 }
+    ],
+    "add_low_level": [
+        { "file": "src/physics/tendon_passive/kernels.rs", "line": 254, "receiver": "self.validate", "method": "launch_tendon_passive", "classification": "typed_wrapper_low_level", "entry": "tendon_passive_validate" },
+        { "file": "src/physics/tendon_passive/kernels.rs", "line": 288, "receiver": "self.clear", "method": "launch_tendon_passive", "classification": "typed_wrapper_low_level", "entry": "tendon_passive_clear" },
+        { "file": "src/physics/tendon_passive/kernels.rs", "line": 322, "receiver": "self.compute", "method": "launch_tendon_passive", "classification": "typed_wrapper_low_level", "entry": "tendon_passive_compute" }
+    ],
+    "add_orchestration": [
+        { "file": "src/physics/tendon_passive/plan.rs", "line": 128, "receiver": "self.kernels", "method": "launch_validate", "classification": "wrapper_orchestration", "entry": "tendon_passive_validate" },
+        { "file": "src/physics/tendon_passive/plan.rs", "line": 151, "receiver": "self.kernels", "method": "launch_compute", "classification": "wrapper_orchestration", "entry": "tendon_passive_compute" },
+        { "file": "src/physics/tendon_passive/plan.rs", "line": 190, "receiver": "self.kernels", "method": "launch_validate", "classification": "wrapper_orchestration", "entry": "tendon_passive_validate" },
+        { "file": "src/physics/tendon_passive/plan.rs", "line": 212, "receiver": "self.kernels", "method": "launch_clear", "classification": "wrapper_orchestration", "entry": "tendon_passive_clear" },
+        { "file": "src/physics/tendon_passive/plan.rs", "line": 229, "receiver": "self.kernels", "method": "launch_compute", "classification": "wrapper_orchestration", "entry": "tendon_passive_compute" }
+    ],
+    "compile_sites_replace": [
+        { "old_file": "src/physics/tendon_passive/plan.rs", "old_line": 51, "new_file": "src/physics/tendon_passive/kernels.rs", "new_line": 184 },
+        { "old_file": "src/physics/tendon_passive/plan.rs", "old_line": 52, "new_file": "src/physics/tendon_passive/kernels.rs", "new_line": 185 },
+        { "old_file": "src/physics/tendon_passive/plan.rs", "old_line": 53, "new_file": "src/physics/tendon_passive/kernels.rs", "new_line": 186 }
+    ],
+    "entry_status": [
+        { "entry": "tendon_passive_validate", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/tendon_passive/kernels.rs:184" ], "kernel_abi_evidence": [ "TendonPassiveValidateSpec at src/physics/tendon_passive/kernels.rs", "five-buffer launch at src/physics/tendon_passive/kernels.rs:254" ] },
+        { "entry": "tendon_passive_clear", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/tendon_passive/kernels.rs:185" ], "kernel_abi_evidence": [ "TendonPassiveClearSpec", "five-buffer launch at src/physics/tendon_passive/kernels.rs:288" ] },
+        { "entry": "tendon_passive_compute", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/tendon_passive/kernels.rs:186" ], "kernel_abi_evidence": [ "TendonPassiveComputeSpec", "five-buffer launch at src/physics/tendon_passive/kernels.rs:322" ] }
+    ],
+    "families_add": [
+        { "type": "TendonPassiveValidateSpec", "logical_name": "tendon_passive_validate", "definition": "src/physics/tendon_passive/kernels.rs", "actual_cuda_entries": "tendon_passive_validate", "typed_low_level_calls": [ "src/physics/tendon_passive/kernels.rs:254" ] },
+        { "type": "TendonPassiveClearSpec", "logical_name": "tendon_passive_clear", "definition": "src/physics/tendon_passive/kernels.rs", "actual_cuda_entries": "tendon_passive_clear", "typed_low_level_calls": [ "src/physics/tendon_passive/kernels.rs:288" ] },
+        { "type": "TendonPassiveComputeSpec", "logical_name": "tendon_passive_compute", "definition": "src/physics/tendon_passive/kernels.rs", "actual_cuda_entries": "tendon_passive_compute", "typed_low_level_calls": [ "src/physics/tendon_passive/kernels.rs:322" ] }
+    ],
+    "next_candidate": { "selected": false, "entry": "flex_edge_passive_validate", "migration_status": "unmigrated_or_unwrapped", "compile_sites": [ "src/physics/flex_edge_passive/plan.rs:56" ], "reason": "肌腱被动力已收口；继续柔体边被动力三入口" },
+    "manual_cross_checks_add": [
+        "work-19: 肌腱被动力三入口改走类型化包装；raw 行 -5、typed 行 +3、编排行 +5",
+        "work-19: 证明复用肌腱速度计划冻结元数据宿主镜像，校验首尾守卫、行偏移/行数与列索引；参数、源、速度、输出按世界精确跨度校验",
+        "work-19: 清零点/计算工作量由静态维度推导（2*worlds*nv 与 worlds*nt*max_row），不再手传",
+        "work-19: passive_force 两条共享链GPU测试在基线提交同样因 gravity_compensation_abi InvalidDimension 失败，属既有债务，非本批引入"
+    ],
+    "acceptance_boundary_set": { "tendon_passive_migrated": true, "tendon_passive_raw": false }
+}

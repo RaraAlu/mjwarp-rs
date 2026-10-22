@@ -6,9 +6,6 @@ use super::*;
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::TransferError;
-#[cfg(feature = "cuda-probe")]
-use crate::runtime::SynchronousKernel;
-
 impl<'v, 'p> TendonPassivePlan<'v, 'p> {
     pub fn new(
         velocity: &'v TendonVelocityPlan<'p>,
@@ -42,16 +39,27 @@ impl<'v, 'p> TendonPassivePlan<'v, 'p> {
                 u32::from(options.disable_spring),
                 u32::from(options.disable_damper),
             );
+            let static_dims = launcher_abi::TendonPassiveStaticDims::new(
+                spec.nt,
+                spec.nv,
+                nnz,
+                stride,
+                spec.parameter_len,
+                spec.max_row,
+            )
+            .map_err(launcher_abi::tendon_passive_launch_error)?;
+            let metadata = launcher_abi::TendonPassiveMetadataBuffer::from_values(
+                &session,
+                velocity.passive_metadata().to_vec(),
+                static_dims,
+            )?;
             Ok(Self {
                 velocity,
                 spec: Arc::new(spec),
                 options,
+                metadata,
                 parameters: session.upload(&packed)?,
-                kernels: [
-                    SynchronousKernel::compile(&session, &code, "tendon_passive_validate")?,
-                    SynchronousKernel::compile(&session, &code, "tendon_passive_clear")?,
-                    SynchronousKernel::compile(&session, &code, "tendon_passive_compute")?,
-                ],
+                kernels: kernels::TendonPassiveKernels::compile(&session, &code)?,
                 session,
             })
         }
@@ -121,16 +129,14 @@ impl<'v, 'p> TendonPassivePlan<'v, 'p> {
         let w = worlds as u32;
         // SAFETY: 速度视图锁定真实源。
         // 共享状态缓冲仅接收验证结果。
-        unsafe {
-            self.kernels[0].launch_tendon_passive(
-                input.metadata,
-                &self.parameters,
-                input.source,
-                input.velocity,
-                status,
-                [self.spec.nt as u32, self.spec.nv as u32, w, w],
-            )?;
-        }
+        self.kernels.launch_validate(
+            &self.metadata,
+            &self.parameters,
+            input.source,
+            input.velocity,
+            status,
+            w,
+        )?;
         let checked = read(status, worlds, "passive_force_tendon_status")?;
         if let Some(index) = checked[4..4 + worlds].iter().position(|&v| v != 1.0) {
             return Err(InputError::InvalidTopology {
@@ -140,24 +146,14 @@ impl<'v, 'p> TendonPassivePlan<'v, 'p> {
             }
             .into());
         }
-        let work = w
-            .checked_mul(self.spec.nt as u32)
-            .and_then(|n| n.checked_mul(self.spec.max_row as u32))
-            .ok_or(InputError::Overflow {
-                field: "passive_force_tendon_work",
-            })?;
-        // SAFETY: 每线程处理一个稀疏槽。
-        // 目标先含关节贡献。
-        unsafe {
-            self.kernels[2].launch_tendon_passive(
-                input.metadata,
-                &self.parameters,
-                input.source,
-                input.velocity,
-                target,
-                [self.spec.nt as u32, self.spec.nv as u32, w, work],
-            )
-        }
+        self.kernels.launch_compute(
+            &self.metadata,
+            &self.parameters,
+            input.source,
+            input.velocity,
+            target,
+            w,
+        )
     }
 
     pub fn update<'a>(
@@ -188,16 +184,14 @@ impl<'v, 'p> TendonPassivePlan<'v, 'p> {
             crate::physics::check_device_guards(&guards)?;
             // SAFETY: 速度视图锁定真实源。
             // 常量限定全部读取跨度。
-            unsafe {
-                self.kernels[0].launch_tendon_passive(
-                    input.metadata,
-                    &self.parameters,
-                    input.source,
-                    input.velocity,
-                    &mut data.status,
-                    [self.spec.nt as u32, self.spec.nv as u32, worlds, worlds],
-                )?;
-            }
+            self.kernels.launch_validate(
+                &self.metadata,
+                &self.parameters,
+                input.source,
+                input.velocity,
+                &mut data.status,
+                worlds,
+            )?;
             let status = read(&data.status, data.worlds(), "tendon_passive_status")?;
             if let Some(index) = status[4..4 + data.worlds()]
                 .iter()
@@ -210,36 +204,22 @@ impl<'v, 'p> TendonPassivePlan<'v, 'p> {
                 }
                 .into());
             }
-            let slots = worlds * self.spec.nv as u32;
-            // SAFETY: 清零线程各自独占结果槽。
-            unsafe {
-                self.kernels[1].launch_tendon_passive(
-                    input.metadata,
-                    &self.parameters,
-                    input.source,
-                    input.velocity,
-                    &mut data.staged,
-                    [0, 0, worlds, 2 * slots],
-                )?;
-            }
-            let work = worlds
-                .checked_mul(self.spec.nt as u32)
-                .and_then(|n| n.checked_mul(self.spec.max_row as u32))
-                .ok_or(InputError::Overflow {
-                    field: "tendon_passive_work",
-                })?;
-            // SAFETY: 每线程处理一个稀疏槽。
-            // 共享DOF严格使用设备原子加。
-            unsafe {
-                self.kernels[2].launch_tendon_passive(
-                    input.metadata,
-                    &self.parameters,
-                    input.source,
-                    input.velocity,
-                    &mut data.staged,
-                    [self.spec.nt as u32, self.spec.nv as u32, worlds, work],
-                )?;
-            }
+            self.kernels.launch_clear(
+                &self.metadata,
+                &self.parameters,
+                input.source,
+                input.velocity,
+                &mut data.staged,
+                worlds,
+            )?;
+            self.kernels.launch_compute(
+                &self.metadata,
+                &self.parameters,
+                input.source,
+                input.velocity,
+                &mut data.staged,
+                worlds,
+            )?;
             read(
                 &data.staged,
                 2 * data.layout.total_elements(),

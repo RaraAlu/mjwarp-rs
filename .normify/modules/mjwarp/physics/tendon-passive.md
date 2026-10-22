@@ -31,6 +31,15 @@ path = "src/physics/tendon_passive/cuda.rs"
 [[source]]
 path = "src/physics/tendon_passive/tests.rs"
 
+[[source]]
+path = "src/physics/tendon_passive/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/tendon_passive/kernels.rs"
+
+[[source]]
+path = "src/physics/tendon_passive/launcher_tests.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::TendonPassivePlan"

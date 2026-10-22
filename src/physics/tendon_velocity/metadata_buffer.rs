@@ -57,6 +57,10 @@ impl TendonVelocityMetadataBuffer {
         })
     }
 
+    /// 下游被动力计划共享的元数据宿主镜像。
+    pub(in crate::physics) fn passive_metadata(&self) -> &[i32] {
+        &self.values
+    }
     pub(super) fn as_buffer(&self) -> &TransferBuffer<i32> {
         &self.buffer
     }
