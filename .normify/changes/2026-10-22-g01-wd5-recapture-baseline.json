@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-g01-wd5-recapture-baseline",
+  "title": {
+    "zh": "跟踪G01历史捕获基线3项",
+    "en": "Track G01 historical capture baseline items"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "跟踪 G01 all-probes 剩余 3 项重采集/归档失败：独立复现确认它们需要历史捕获产物（target/t4-g03-retest 等冻结产物）与冻结源码基线（fixtures/precision/t4-kernels.json 有 7 个产品源身份保持历史），不是 MJWARP_PHYSICS_PTX_DIR 环境语义问题。只登记跟随，不动测试、脚本与基线；等用户裁决 A/B/C 后按裁决执行。",
+    "en": "Track the three remaining G01 all-probes recapture/archive failures: independent reproduction confirms they need historical capture artifacts (frozen target/t4-g03-retest) and a frozen source baseline (seven product source identities in fixtures/precision/t4-kernels.json stay historical), not MJWARP_PHYSICS_PTX_DIR semantics. Registration only; no test, script or baseline changes until the user decides A/B/C."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "只登记跟随，不修改 3 个重采集/归档测试的断言、不改 all-probes 脚本、不伪造或重写历史基线。",
+    "等用户对 A（脚本显式排除）、B（保持已知债务）、C（另立历史捕获重生成任务）裁决后，按裁决方案执行并更新 G01 阶段状态。",
+    "若执行方案需要改产品/测试/脚本，先重登记范围再开工；回执如实记录历史基线缺失证据与最终状态。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-g01-wd5-ptx-dir-semantics-2"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "tests/support/t4_rigid_capture/tests_recapture.rs",
+      "tests/support/t4_rigid_capture/tests_archive.rs",
+      "scripts/test-windows-g01.ps1",
+      "docs/three-layer-acceptance.md",
+      "docs/development-evidence/g01-wd5-recapture/",
+      "docs/development-evidence/changes/2026-10-22-g01-wd5-recapture-baseline.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 2
+  },
+  "note": "来源：任务 2026-10-22-g01-wd5-ptx-dir-semantics-2 的 all-probes 收口。证据：docs/development-evidence/g01-wd5-ptx-dir/README.md 与 target/wd5-allprobes*.log。三项：recompile_rigid_variants_without_launching_physics（source drift: src/physics/attached.rs 等 7 个产品源身份与当前源码不同）、recaptures_only_missing_rotation_variants（capture coverage mismatch）、archives_face_operator_repair_with_failed_numeric_gate（归档计数 left 0 right 2078）。独立复现覆盖绝对/相对路径与存在/不存在根目录，均同因失败，判为历史捕获与冻结源码基线缺失；历史回执明确 t4-kernels 身份保持历史，故不硬修。未启动、未改任何文件；等用户裁决 A/B/C。",
+  "revision": {
+    "before": "a43306757704af344487e34d5a8cddcc75f3a791",
+    "after": null
+  },
+  "created_at": "2026-10-22T16:00:00.000Z",
+  "updated_at": "2026-10-22T16:00:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g01-wd5-recapture-baseline.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g01-wd5-recapture-baseline"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
