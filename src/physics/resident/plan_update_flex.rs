@@ -17,39 +17,31 @@ impl KinematicsPlan {
                 (&self.tendon, &mut data.tendon, data.layout.tendon)
                 && !layout.is_empty()
             {
-                let dimensions = [0, 0, 0, data.layout.qpos.worlds() as u32];
-                // SAFETY: 映射覆盖全部CSR行。
-                // 空间内核限定动态点数量。
-                // 同一会话持有全部缓冲。
-                // 布局限定各缓冲的世界偏移。
-                // 输入与输出独立分配。
-                // 各线程只写一个世界。
-                // 浮点段采用i32索引参数。
-                // 整数段读取i32空间结果。
-                // 同步调用保留全部缓冲寿命。
-                unsafe {
-                    device.values_kernel.launch(
-                        &device.model.metadata,
-                        &data.spatial_wrap,
-                        &data.fixed_tendon,
-                        &mut output.values,
-                        dimensions,
-                    )?;
-                    device.values_kernel.launch(
-                        &device.model.metadata,
-                        &data.spatial_wrap,
-                        &data.spatial_tendon,
-                        &mut output.values,
-                        [1, 0, 0, dimensions[3]],
-                    )?;
-                    device.indices_kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
-                        &data.spatial_wrap,
-                        &mut output.indices,
-                        dimensions,
-                    )?;
-                }
+                let worlds = data.layout.qpos.worlds() as u32;
+                // 类型化包装核对证明、精确跨度、同会话与别名。
+                device.kernel.launch_values(
+                    &device.metadata,
+                    &data.spatial_wrap,
+                    &data.fixed_tendon,
+                    &mut output.values,
+                    worlds,
+                    0,
+                )?;
+                device.kernel.launch_values(
+                    &device.metadata,
+                    &data.spatial_wrap,
+                    &data.spatial_tendon,
+                    &mut output.values,
+                    worlds,
+                    1,
+                )?;
+                device.kernel.launch_indices(
+                    &device.metadata,
+                    &device.parameters,
+                    &data.spatial_wrap,
+                    &mut output.indices,
+                    worlds,
+                )?;
             }
             data.ready.tendon = true;
             Ok(())
@@ -167,26 +159,38 @@ impl KinematicsPlan {
             if let (Some(device), Some(out), Some(tendon)) =
                 (&self.sleep, &mut data.sleep, &data.tendon)
             {
-                let dims = [0, 0, 0, data.layout.qpos.worlds() as u32];
-                // SAFETY: Checked tree cycles and global paths bound all accesses.
-                // Separate guarded buffers never alias. Synchronized copy seeds
-                // scratch before each world-owned wake pass; failures keep state.
+                let worlds = data.layout.qpos.worlds() as u32;
+                let lengths_stride = data
+                    .layout
+                    .tendon
+                    .expect("checked tendon layout")
+                    .output
+                    .elements_per_world() as u64;
+                let scratch_stride = data
+                    .layout
+                    .sleep
+                    .expect("checked sleep layout")
+                    .output
+                    .elements_per_world() as u64;
+                // 类型化包装核对证明、精确跨度、同会话与别名。
                 device.copy_kernel.launch(
                     &device.metadata,
                     &device.parameters,
                     &out.state,
                     &mut out.scratch,
-                    dims[3],
+                    worlds,
                 )?;
-                unsafe {
-                    device.wake_kernel.launch(
-                        device.metadata.as_buffer(),
-                        &device.parameters,
-                        &tendon.values,
-                        &mut out.scratch,
-                        dims,
-                    )?;
-                }
+                device.wake_kernel.launch(
+                    &device.metadata,
+                    &device.parameters,
+                    &tendon.values,
+                    &mut out.scratch,
+                    TendonWakeSpans {
+                        lengths_stride,
+                        scratch_stride,
+                    },
+                    worlds,
+                )?;
                 std::mem::swap(&mut out.state, &mut out.scratch);
             }
             data.ready.sleep = true;

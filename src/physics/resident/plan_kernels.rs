@@ -27,6 +27,16 @@ use super::spatial_tendon_launcher_specs::SpatialTendonMetadataBuffer;
 #[cfg(feature = "cuda-probe")]
 use super::spatial_tendon_launcher_specs::spatial_tendon_launch_error;
 #[cfg(feature = "cuda-probe")]
+use super::tendon_launcher::ResidentTendonKernel;
+#[cfg(feature = "cuda-probe")]
+use super::tendon_launcher::TendonDims;
+#[cfg(feature = "cuda-probe")]
+use super::tendon_launcher::TendonMetadataBuffer;
+#[cfg(feature = "cuda-probe")]
+use super::tendon_launcher::TendonStaticDims;
+#[cfg(feature = "cuda-probe")]
+use super::tendon_launcher::tendon_launch_error;
+#[cfg(feature = "cuda-probe")]
 use super::*;
 
 /// G01基础内核集合。
@@ -166,5 +176,41 @@ pub(super) fn upload_spatial_tendon(
         metadata,
         parameters,
         ResidentSpatialTendonKernel::compile(session, &source)?,
+    ))
+}
+/// 上传肌腱合并元数据、参数并编译合并与索引内核。
+#[cfg(feature = "cuda-probe")]
+pub(super) fn upload_tendon(
+    session: &TransferSession,
+    packed: PackedModel,
+    rows: &TendonRows,
+    fixed: &FixedTendonRows,
+    spatial: &SpatialTendonRows,
+) -> Result<
+    (
+        TendonMetadataBuffer,
+        TransferBuffer<f32>,
+        ResidentTendonKernel,
+    ),
+    TransferError,
+> {
+    let static_dims = TendonStaticDims::new(
+        (rows.ntendon(), rows.nnz(), rows.nwrap()),
+        (fixed.ntendon(), fixed.nnz()),
+        (spatial.ntendon(), spatial.nnz(), spatial.nwrap()),
+        packed.parameters.len(),
+    )
+    .map_err(tendon_launch_error)?;
+    let dims = TendonDims {
+        static_dims,
+        worlds: 1,
+        kind: 0,
+    };
+    let (metadata, parameters) =
+        TendonMetadataBuffer::from_packed(session, packed, dims, tendon_launch_error)?;
+    Ok((
+        metadata,
+        parameters,
+        ResidentTendonKernel::compile(session)?,
     ))
 }

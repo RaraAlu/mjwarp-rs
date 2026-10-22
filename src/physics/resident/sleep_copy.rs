@@ -8,7 +8,7 @@ pub(super) struct DeviceSleep {
     pub(super) metadata: SleepCopyMetadataBuffer,
     pub(super) parameters: TransferBuffer<f32>,
     pub(super) copy_kernel: SleepCopyKernel,
-    pub(super) wake_kernel: SynchronousKernel,
+    pub(super) wake_kernel: TendonWakeKernel,
 }
 
 #[cfg(feature = "cuda-probe")]

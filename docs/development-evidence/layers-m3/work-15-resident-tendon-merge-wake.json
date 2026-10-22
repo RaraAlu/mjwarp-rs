@@ -1,0 +1,145 @@
+{
+    "work": "work-15-resident-tendon-merge-wake",
+    "summary": "常驻肌腱合并、索引与唤醒改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/resident/plan_update_flex.rs", "line": 31 },
+        { "file": "src/physics/resident/plan_update_flex.rs", "line": 38 },
+        { "file": "src/physics/resident/plan_update_flex.rs", "line": 45 },
+        { "file": "src/physics/resident/plan_update_flex.rs", "line": 182 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/resident/tendon_wake_launcher.rs",
+            "line": 369,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "tendon_wake"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/resident/plan_update_flex.rs",
+            "line": 22,
+            "receiver": "device.kernel",
+            "method": "launch_values",
+            "classification": "wrapper_orchestration",
+            "entry": "tendon_values"
+        },
+        {
+            "file": "src/physics/resident/plan_update_flex.rs",
+            "line": 30,
+            "receiver": "device.kernel",
+            "method": "launch_values",
+            "classification": "wrapper_orchestration",
+            "entry": "tendon_values"
+        },
+        {
+            "file": "src/physics/resident/plan_update_flex.rs",
+            "line": 38,
+            "receiver": "device.kernel",
+            "method": "launch_indices",
+            "classification": "wrapper_orchestration",
+            "entry": "tendon_indices"
+        },
+        {
+            "file": "src/physics/resident/plan_update_flex.rs",
+            "line": 183,
+            "receiver": "device.wake_kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": "tendon_wake"
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 350,
+            "new_file": "src/physics/resident/tendon_launcher.rs",
+            "new_line": 432
+        },
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 355,
+            "new_file": "src/physics/resident/tendon_launcher.rs",
+            "new_line": 437
+        },
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 390,
+            "new_file": "src/physics/resident/tendon_wake_launcher.rs",
+            "new_line": 308
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "tendon_values",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/tendon_launcher.rs:432" ],
+            "kernel_abi_evidence": [
+                "TendonValuesSpec at src/physics/resident/tendon_launcher.rs:303",
+                "shared four-buffer launch at src/physics/resident/field_batch.rs:205"
+            ]
+        },
+        {
+            "entry": "tendon_indices",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/tendon_launcher.rs:437" ],
+            "kernel_abi_evidence": [
+                "TendonIndicesSpec at src/physics/resident/tendon_launcher.rs:338",
+                "shared four-buffer launch at src/physics/resident/field_batch.rs:205"
+            ]
+        },
+        {
+            "entry": "tendon_wake",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/tendon_wake_launcher.rs:308" ],
+            "kernel_abi_evidence": [
+                "TendonWakeSpec at src/physics/resident/tendon_wake_launcher.rs:211",
+                "typed launch at src/physics/resident/tendon_wake_launcher.rs:369"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "TendonValuesSpec",
+            "logical_name": "tendon_values",
+            "definition": "src/physics/resident/tendon_launcher.rs:303",
+            "actual_cuda_entries": "tendon_values",
+            "typed_low_level_calls": [ "src/physics/resident/field_batch.rs:205" ]
+        },
+        {
+            "type": "TendonIndicesSpec",
+            "logical_name": "tendon_indices",
+            "definition": "src/physics/resident/tendon_launcher.rs:338",
+            "actual_cuda_entries": "tendon_indices",
+            "typed_low_level_calls": [ "src/physics/resident/field_batch.rs:205" ]
+        },
+        {
+            "type": "TendonWakeSpec",
+            "logical_name": "tendon_wake",
+            "definition": "src/physics/resident/tendon_wake_launcher.rs:211",
+            "actual_cuda_entries": "tendon_wake",
+            "typed_low_level_calls": [ "src/physics/resident/tendon_wake_launcher.rs:369" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "flex_invalidate",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/resident/plan_subsets.rs:367" ],
+        "reason": "常驻肌腱合并与唤醒已收口；继续 resident flex 六项"
+    },
+    "manual_cross_checks_add": [
+        "work-15: 常驻肌腱合并、索引与唤醒改走类型化包装；raw 行 -4、typed 行 +1、编排行 +4",
+        "work-15: 肌腱证明校验八项头与每肌腱类别、局部编号、局部偏移与全局CSR行；两组取值分别校验",
+        "work-15: 唤醒复用睡眠元数据缓冲与写入代际，证明重建时核对树数量、长度跨度、状态跨度、参数区间与树索引",
+        "work-15: 唤醒包装独立发射点 tendon_wake_launcher.rs:369；合并与索引共用 field_batch.rs:205 发射点"
+    ],
+    "acceptance_boundary_set": {
+        "resident_tendon_merge_migrated": true,
+        "tendon_values_raw": false,
+        "tendon_indices_raw": false,
+        "tendon_wake_raw": false
+    }
+}

@@ -360,18 +360,17 @@ impl KinematicsPlan {
                 })
             };
             let tendon = if let Some(tendon) = tendon {
+                let (metadata, parameters, kernel) = upload_tendon(
+                    session,
+                    tendon,
+                    tendon_rows.as_ref().expect("checked global tendons"),
+                    &fixed_tendon_rows,
+                    &spatial_rows,
+                )?;
                 Some(DeviceTendon {
-                    model: tendon.upload(session)?,
-                    values_kernel: SynchronousKernel::compile(
-                        session,
-                        crate::physics::tendon::TENDON_CUDA,
-                        "tendon_values",
-                    )?,
-                    indices_kernel: SynchronousKernel::compile(
-                        session,
-                        crate::physics::tendon::TENDON_CUDA,
-                        "tendon_indices",
-                    )?,
+                    metadata,
+                    parameters,
+                    kernel,
                 })
             } else {
                 None
@@ -402,11 +401,7 @@ impl KinematicsPlan {
                     metadata: SleepCopyMetadataBuffer::upload(session, metadata)?,
                     parameters: session.upload(&parameters)?,
                     copy_kernel: SleepCopyKernel::compile(session)?,
-                    wake_kernel: SynchronousKernel::compile(
-                        session,
-                        crate::physics::sleep::TENDON_WAKE_CUDA,
-                        "tendon_wake",
-                    )?,
+                    wake_kernel: TendonWakeKernel::compile(session)?,
                 })
             } else {
                 None

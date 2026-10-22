@@ -162,6 +162,15 @@ path = "src/physics/resident/spatial_tendon_launcher_specs.rs"
 [[source]]
 path = "src/physics/resident/tests/launcher_spatial.rs"
 
+[[source]]
+path = "src/physics/resident/tendon_launcher.rs"
+
+[[source]]
+path = "src/physics/resident/tendon_wake_launcher.rs"
+
+[[source]]
+path = "src/physics/resident/tests/launcher_tendon.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::KinematicsPlan"

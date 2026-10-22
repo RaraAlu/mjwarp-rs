@@ -35,9 +35,9 @@ pub(super) struct ResidentFlexEdges {
 
 #[cfg(feature = "cuda-probe")]
 pub(super) struct DeviceTendon {
-    pub(super) model: crate::physics::DeviceModel,
-    pub(super) values_kernel: SynchronousKernel,
-    pub(super) indices_kernel: SynchronousKernel,
+    pub(super) metadata: TendonMetadataBuffer,
+    pub(super) parameters: TransferBuffer<f32>,
+    pub(super) kernel: ResidentTendonKernel,
 }
 
 #[cfg(feature = "cuda-probe")]
