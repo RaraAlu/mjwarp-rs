@@ -7,13 +7,16 @@
   },
   "status": "proposed",
   "intent": {
-    "zh": "拆分原任务剩余工作。保留原验收门槛。",
-    "en": "Track remaining work separately without weakening original acceptance."
+    "zh": "拆分原任务剩余工作，保留原验收门槛。现有 fixtures/gravity-upstream-abi/nonzero-* 只覆盖平面铰链（nq=nv=4、四个 hinge、nbranch=2）的 1134 项零位差证据；本任务补完整三维旋转与组合状态：自由/球关节的四元数旋转、混合关节类型（free+ball+hinge+slide）、三维体旋转与分支，生成冻结上游 MJWarp（71da24d…）同条件参考并用同一容差（2e-6）与产品同源链逐位比对；区分平面既有证据与新的三维证据，不改产品源则无需 repin。",
+    "en": "Track the remaining original work without weakening acceptance. The existing fixtures/gravity-upstream-abi/nonzero-* only cover a planar hinge chain (nq=nv=4, four hinges, nbranch=2) with 1134 zero-bit-difference values. This task completes full 3D rotation and combined states: free/ball joint quaternion rotations, mixed joint types (free+ball+hinge+slide), 3D body rotations and branches; author a frozen upstream MJWarp (71da24d...) same-condition reference and compare the product same-source chain bitwise under the same 2e-6 tolerance, separating the planar evidence from the new 3D evidence. No repin needed if product sources stay unchanged."
   },
   "modules": {},
   "acceptance": [
-    "扩展完整三维旋转与组合状态。区分平面既有证据。",
-    "保留容差并核当前同源链。补实际源码与编译产物。"
+    "设计预检先落证据：确认 nonzero-* 只覆盖平面链并列出三维旋转/组合状态算例清单（自由+球+铰+滑组合、四元数非零旋转、三维体旋转、分支与多世界/参数周期），写 docs/development-evidence/u038-3d/precheck.md。",
+    "用已批准离线 authoring 框架生成冻结上游同条件参考（pinned 环境自检、上游 71da24d… clean、两次运行逐位一致、天然校验），产物入仓 docs/evidence 或 fixtures 静态数据；产品测试不启动 Python。",
+    "补齐三维旋转与组合状态验证：扩展契约与实机产品链比对（刚体/质心/cdof/重力），保持既有 2e-6 容差与断言语义不变；平面既有证据保持原样，证据文档区分两者。补实际源码摘要与编译产物身份（上游 CUDA/PTX 模块、产品源哈希）。",
+    "验证：定向 GPU 产品链对比上游参考（记录总项数、位差、超出容差数与最大绝对误差，目标 0 超差）；cargo +msvc test --locked --all-features --no-fail-fast 0 失败；gate fmt/clippy/clippy-cuda/unit 全过；unchanged 保护路径未改。",
+    "证据 docs/development-evidence/u038-3d/（README + precheck + run 数据 + provenance）与回执含 task_id；如产品源进入 T4 身份集合则另立 repin。release/Linux/性能未跑时如实登记。"
   ],
   "schedule": {
     "depends_on": [
@@ -22,19 +25,71 @@
     "phase": "P4-功能剩余",
     "owner": "Codex",
     "files": [
-      "tests/t4_gravity_nonzero_product_chain.rs",
-      "docs/development-evidence/u038-3d/"
+      "tests/t4_gravity_3d_product_chain.rs",
+      "tests/t4_gravity_3d_product_chain/",
+      "fixtures/gravity-upstream-abi/",
+      "scripts/authoring/",
+      "docs/gravity-compensation.md",
+      "docs/compatibility-matrix.md",
+      "docs/development-evidence/u038-3d/",
+      "docs/development-evidence/changes/2026-10-16-next-u038-3d.json"
     ],
     "resources": [
       "gpu:windows-t4"
     ],
     "priority": 81
   },
-  "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。",
+  "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。\n\n2026-10-23 重登记：任务早于模块拆分，files 扩到实际目录（tests/t4_gravity_3d_product_chain*、fixtures/gravity-upstream-abi/、scripts/authoring/、证据与 docs），语义与验收范围未放宽。现状（docs/gravity-compensation.md）：nonzero 链 1134 项零位差但「只覆盖平面铰链状态」；compatibility-matrix 记「完整三维状态仍未覆盖」。方案：新增独立 3D fixture（free+ball+hinge+slide、四元数非零旋转、三维体旋转、分支/多世界/参数周期），离线 authoring 生成上游 kinematics/com/cdof/gravity 参考，新测试逐位对比产品同源链；复用既有冻结重力 CUDA/PTX 产物（上游 kernel 维度运行期参数化，需实测确认）。不改产品源码则无 repin；不改容差/断言/旧平面证据。",
   "revision": {
-    "before": null,
+    "before": "2713483e178934b749c8930073d7b66e60828639",
     "after": null
   },
   "created_at": "2026-10-15T16:54:19.801Z",
-  "updated_at": "2026-10-15T16:54:19.801Z"
+  "updated_at": "2026-10-22T19:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml",
+        "scripts/test-windows-g01.ps1",
+        "scripts/test-windows-native.ps1"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-16-next-u038-3d.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-16-next-u038-3d"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
 }
