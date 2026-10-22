@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "evidence_kind": "u038-3d-body-isdofancestor-root-cause-triage",
+  "generated_at": "2026-10-23",
+  "inputs": {
+    "model_package": "fixtures/gravity-upstream-abi/three-d-model-package.json",
+    "kinematics_output": "fixtures/gravity-upstream-abi/three-d-kinematics/output.json",
+    "product_gravity_raw_pre_fix": "target/u038-3d/run1/final/product-gravity-raw.json",
+    "upstream_gravity_raw_pre_fix": "target/u038-3d/run1/final/upstream-gravity-raw.json",
+    "note": "run1 为修正前证据；run3 为修正后复跑（见 run.json）"
+  },
+  "semantics": {
+    "upstream_definition": "mujoco_warp/_src/io.py (71da24d): body_isdofancestor[body, dof]=1 iff dof is an ancestor of body (walk dof_parentid from body's last own dof)",
+    "fixture_definition_pre_fix": "body is ancestor-or-self of the body owning the dof (transposed relation)",
+    "dof_parentid_expected": [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, -1],
+    "matrix_pre_fix": [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+      [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+    ],
+    "matrix_correct": [
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+    ]
+  },
+  "triage": {
+    "method": "offline numpy f64 recompute of the pinned _gravity_force formula over the frozen kinematics output, compared per world/dof against product and upstream raw qfrc_gravcomp bits",
+    "reversed_matrix": {
+      "product_vs_recompute_max_abs": 80.93250608444214,
+      "upstream_vs_recompute_max_abs": 4.76837158203125e-7,
+      "conclusion": "upstream frozen output matches the reversed relation: the fixture, not the product, encoded the wrong direction"
+    },
+    "corrected_matrix": {
+      "product_vs_recompute_max_abs": 0.000005278156685051272,
+      "upstream_vs_recompute_max_abs": 80.93250393867493,
+      "conclusion": "product output matches the upstream io.py semantics within f32 recompute noise"
+    }
+  },
+  "fix": {
+    "generator": "scripts/authoring/author-u038-3d.py",
+    "natural_validation": "three-d-kinematics/natural-validation.json",
+    "natural_validation_exact_match": true,
+    "matrix_sha256": "aec677ba0ba62c318bb6f0c1e721d90570a38b0f0b6fe3e90701814f121d9fe0",
+    "upstream_io_source_sha256": "7df64bab86c993cb428f78b09e08b5f63c12c4427c5ce3bad50ac6e4af90e445"
+  },
+  "after_fix": {
+    "run": "target/u038-3d/run5/final/run.json",
+    "total_values": 1477,
+    "total_bit_differences": 122,
+    "total_outside_tolerance": 8,
+    "max_absolute": 4.291534423828125e-6,
+    "gravity_operator_bit_differences": 0,
+    "gravity_source_propagation_outside_tolerance": 8,
+    "conclusion": "operator is within tolerance for all 77 values (0 outside; 0-1 bit differences from atomic sum order); the residual 8 are f32 op-order propagation from product kinematics"
+  }
+}

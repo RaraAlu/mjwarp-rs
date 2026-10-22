@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-u038-3d-gravity-propagation-debt",
+  "title": {
+    "zh": "U038三维链重力传播超差债务",
+    "en": "U038 3D chain gravity propagation debt"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "跟踪 2026-10-16-next-u038-3d 收尾遗留：冻结参考修复后，产品链运动学八字段全部 0 超差、重力算子 77/77 位差为 0，但全链 qfrc_gravcomp 仍有 8/77 项超 2e-6（max 4.29e-6）。差额来自产品运动学与上游的 f32 算序末位差（cdof max 1.79e-7 等）经重力高增益（Σm·gc·|g|≈95.6）传播，不是重力算子错误。任务目标：先做首差定位，判断能否把 3D 自由/球关节路径的运动学 f32 算序对齐到上游（目标全链 0 超差）；若对齐不可达或需改验收比较口径，则形成证据报用户/Chief 裁决。不预设允许改容差、断言或排除清单。",
+    "en": "Track the U038-3D close-out gap: after fixing the frozen reference, all 1400 product kinematics values are within 2e-6 and the gravity operator matches upstream bit-exactly (77/77 zero bit differences), yet the full-chain qfrc_gravcomp still has 8/77 values outside 2e-6 (max 4.29e-6). The gap is f32 op-order propagation from product kinematics (cdof max 1.79e-7) amplified by the gravity gain (sum m*gc*|g| ~= 95.6), not an operator error. Goal: first-difference analysis on the free/ball kinematics path; align product f32 op order to upstream if reachable (target full chain 0 outside), otherwise produce evidence for a user/Chief ruling on the acceptance comparison basis. Tolerances, assertions and exclusion lists are not pre-authorized to change."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "首差证据：逐字段/逐 dof 定位产品与上游 3D 运动学（xpos/xquat/xmat/xipos/xanchor/xaxis/subtree_com/cdof）末位差的首个差异点与疑似算序表达式，落 docs/development-evidence/u038-3d/，不改容差断言。",
+    "若判定可对齐：最小改产品源码（不改容差/断言/fixtures 语义），完成 T4 源码身份重钉，复跑定向 GPU 链到 1477 项 0 超差，并跑 unchanged 范围外必要的定向回归。",
+    "若判定对齐不可达：给出不可达依据（首差循环结果、所需外部条件或算序不可控因素），登记选项（运动学逐位对齐 / 验收比较口径裁决）报 Chief，不宣称通过。",
+    "证据与回执落 docs/development-evidence/u038-3d/ 与 docs/development-evidence/changes/2026-10-23-u038-3d-gravity-propagation-debt.json；未验收边界如实登记。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P4-功能剩余",
+    "owner": "Codex",
+    "files": [
+      "src/physics/",
+      "tests/t4_gravity_3d_product_chain.rs",
+      "tests/t4_gravity_nonzero_product_chain.rs",
+      "tests/support/t4_rigid_internal/",
+      "fixtures/gravity-upstream-abi/",
+      "fixtures/precision/",
+      "docs/evidence/",
+      "docs/development-evidence/u038-3d/",
+      "docs/development-evidence/changes/2026-10-23-u038-3d-gravity-propagation-debt.json",
+      "docs/gravity-compensation.md",
+      "docs/compatibility-matrix.md",
+      "scripts/authoring/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 82
+  },
+  "note": "2026-10-23 由 U038-3D 收尾登记（proposed，不 start）。前序证据：docs/development-evidence/u038-3d/README.md、triage.json、run.json。当前实测：运动学 1400 项 0 超差、gravity_operator 0/77 位差、全链 qfrc 8/77 超差 max 4.29e-6；2e-6 容差与断言语义未改。本任务不预设放宽容差或改断言；若需改验收比较口径（例如同源比较 + 传播单列）必须另行裁决。",
+  "revision": {
+    "before": "ae3a2b78e40912c4b03584e2ad7033c5cc24389c",
+    "after": null
+  },
+  "created_at": "2026-10-23T02:45:00.000Z",
+  "updated_at": "2026-10-23T02:45:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-u038-3d-gravity-propagation-debt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-u038-3d-gravity-propagation-debt"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
