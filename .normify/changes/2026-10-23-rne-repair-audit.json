@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-rne-repair-audit",
+  "title": {
+    "zh": "审计RNE剩余超差是否已被覆盖",
+    "en": "Audit whether remaining RNE deviations are covered"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "2026-10-16-next-rne-repair 的验收仍引用「false 模式 1042 块超差」这一 2026-10-14 历史数字。当前 RNE 参考已按用户裁决重基线（b13d1c5），resident_rne_acceleration 的 failed_world_field_blocks 由 521 降到 0。本任务用重基线后的数据做基线归属：拆解 1042 块的构成（历史文档给出两组 mixed-joints 状态各 521），用当前产品位串分别对照历史原生 f64 期望与重基线后的上游 f32 期望，判断这 1042 块是已覆盖、部分覆盖还是未覆盖，并按规范关闭或保留原任务。不改产品代码、容差、断言与夹具。",
+    "en": "The acceptance of 2026-10-16-next-rne-repair still cites the 2026-10-14 historical number of 1042 false-mode out-of-tolerance blocks. The RNE reference has since been rebaselined by user ruling A (b13d1c5) and failed_world_field_blocks dropped from 521 to 0. This task performs baseline attribution with the post-rebaseline data: decompose the 1042 blocks using the documented two mixed-joints state groups (521 each), compare the current product bit dump against both the historical native f64 expectations and the rebaselined upstream f32 expectations, and conclude covered/partially covered/not covered. The original task is then closed or kept per the ruling. Product code, tolerances, assertions and fixtures stay untouched."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "拆解 2026-10-14 的 false 模式 1042 块构成：两组 mixed-joints 状态（state3/gravity0 与 state7/gravity2）各 521，说明不是单一组 521 的统计扩大。",
+    "用当前产品位串对照历史原生 f64 期望：列出失败记录、最大归一化误差与超差 dof；再用重基线后的上游 f32 期望复核，给出覆盖判定。",
+    "给出明确结论（已覆盖/部分覆盖/未覆盖）与覆盖路径：哪一组由参考重基线覆盖、哪一组由后续产品变更消失；未覆盖时列剩余清单并登记。",
+    "若判定已覆盖，按规范关闭 2026-10-16-next-rne-repair 并在回执写明依据；不改产品代码、容差、断言、排除清单与夹具。",
+    "用 scripts/g01-fast.ps1 跑一次当前 RNE target 确认 failed_world_field_blocks=0；证据写 docs/development-evidence/rne-repair-audit/（README、attribution.json、复现脚本）；通过 fmt/unit 门禁、unchanged 产品路径、回执 json 与 forbid_claim。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "测试-G02验收",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/rne-repair-audit",
+      "docs/development-evidence/changes/2026-10-23-rne-repair-audit.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-23-rne-repair-audit.json\n输入：用户裁决 A 的重基线 b13d1c5；authoring 证据 docs/development-evidence/g02-rne-authoring-diff/；历史 f64 归档 docs/development-evidence/g02-rne-acc-rebaseline/historical-f64/。\n精度映射：本任务只做只读归属分析并用现有探针确认 0 失败，不改产品浮点路径、断言、容差与夹具。\nGPU窗口：只跑一次 RNE target（约 15s），与 Backend 的 G26 authoring 串行，起跑前看 GPU 空闲。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T02:00:00.000Z",
+  "updated_at": "2026-10-23T02:00:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "build.rs",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-rne-repair-audit.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-rne-repair-audit"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
