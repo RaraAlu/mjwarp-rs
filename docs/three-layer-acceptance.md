@@ -117,11 +117,11 @@ Windows 结果不替代 Linux。
 | native-only-g01 | 1 过 |
 | resident | **102 过**（不再中止） |
 | all-probes | lib **124 过 0 败**（461 filtered，重力位证书项已转绿）；all-probes 阶段整体仍**未通过**，见下 |
-| all-probes 之后的阶段 | 本轮未执行（`host-gnu`、`clippy-gnu*`、`clippy-msvc`、`rustdoc`、`diff` 因 all-probes 抛错中止）；`rustdoc -D warnings` 的 0 警告结论来自 W-D3 修复任务（§5），不是本轮脚本 |
+| all-probes 之后的阶段 | 本轮 all-probes 中止后未随脚本执行；已于 2026-10-22 用同一命令单独补跑，见 §4.2 |
 
 all-probes 的剩余失败明细（非 W-D4、非 M3 回归）：
 
-- G03 `mass_solve_probe` ×3（`gpu::gpu_factors_and_multiple_rhs_match_independent_native_solves`、`gpu::rhs_counts_one_two_three_and_five_reuse_each_world_factor`、`native::native_snapshots_feed_gpu_solves_without_native_physics_at_runtime`）在 NP03 两级判定上 `np03_admitted=false`（案例 4 world 4：native 归一化误差 1.318 超过 mjwarp 红线 0.972，`native_error_exceeds_mjwarp_redline`）。这是完整 G03 的已知验收缺口（`docs/windows-mass-solve-probe.md` 第 7 行「最新结果仍有数值门禁失败」、`docs/windows-g03-block-repair.md` 的 NP03「10 块失败、0 块待验收、不放行」），与 W-D4/M3 无关；此前 cargo 在 lib 的首个失败（W-D4）处 fail-fast 停止，未执行到该测试二进制，本轮 lib 转绿后才暴露。未修改这些测试、容差、断言语义或 fixtures，也不宣称 G03 通过。
+- G03 `mass_solve_probe` ×3（`gpu::gpu_factors_and_multiple_rhs_match_independent_native_solves`、`gpu::rhs_counts_one_two_three_and_five_reuse_each_world_factor`、`native::native_snapshots_feed_gpu_solves_without_native_physics_at_runtime`）在 NP03 两级判定上 `np03_admitted=false`（案例 4 world 4：native 归一化误差 1.318 超过 mjwarp 红线 0.972，`native_error_exceeds_mjwarp_redline`）。这是完整 G03 的已知验收缺口（`docs/windows-mass-solve-probe.md` 第 7 行「最新结果仍有数值门禁失败」、`docs/windows-g03-block-repair.md` 的 NP03「10 块失败、0 块待验收、不放行」），与 W-D4/M3 无关；此前 cargo 在 lib 的首个失败（W-D4）处 fail-fast 停止，未执行到该测试二进制，本轮 lib 转绿后才暴露。未修改这些测试、容差、断言语义或 fixtures，也不宣称 G03 通过；已登记跟踪任务 `2026-10-22-g01-g03-np03-admission-debt`（proposed，只登记不 start）。
 - W-D4 ×1 已修复：`physics::gravity_compensation::tests::gpu_matches_independent_multi_body_reduction_certificate` 在 all-probes lib 中通过（`bit_differences=0`、`max_absolute=0`、`max_ulp=0`），证书按用户 2026-10-22 裁决改为 f32 逐步口径（§5）。
 - 历史基线缺失 ×3（已显式排除，不算验收探针）：`runtime::transfer::kernel::recapture` 的 2 项重采集与 1 项归档。经独立复现确认不是 `MJWARP_PHYSICS_PTX_DIR` 语义问题，而是需要历史捕获产物（`target/t4-g03-retest` 等 10/17 冻结产物）与冻结源码基线（`fixtures/precision/t4-kernels.json` 有 7 个产品源身份漂移，历史回执明确保持历史身份）。用户 2026-10-22 裁决 A：从 all-probes 显式排除并写清债务边界，工具保留，手动运行命令见 §5.1。
 
@@ -129,10 +129,26 @@ W-D4 证书项转绿后的 lib 计数为 124（W-D5 语义冲突修复后为 123
 
 W-D5 语义冲突修复：测试侧把 `MJWARP_PHYSICS_PTX_DIR` 统一按捕获根解释，根存在时按 `module_path!()` 与标签分配唯一子目录；mass_solve wrapper 1、rne 4、rne_bias 1 共 6 项稳定转绿（G01 all-probes 等价命令两轮独立空捕获根：122 过 5 败、123 过 4 败）。证据 `docs/development-evidence/g01-wd5-ptx-dir/README.md`。
 
-与历史快照对比：W-D1、W-D2、W-D7 造成的阻塞已消除；resident 阶段从 wake-guards 中止变为 102 项全绿；W-D3 rustdoc 0 警告；all-probes 从“未执行”推进到 123 过 1 败（仅 W-D4）。
+与历史快照对比：W-D1、W-D2、W-D7 造成的阻塞已消除；resident 阶段从 wake-guards 中止变为 102 项全绿；W-D3 rustdoc 0 警告；all-probes 从“未执行”推进到 lib 123 过 1 败（W-D5 收口）再到 124 过 0 败（W-D4 转绿）。
 本轮未重跑 G01 release；release 现状仍以历史快照为准，不宣称通过。
 
-结论（当前）：三层迁移范围的 debug 回归无新增 M3 回归；G01 全量仍**不被宣称通过**，唯一剩余失败项为 W-D4（证书口径，等用户裁决）。
+结论（当前）：三层迁移范围的 debug 回归无新增 M3 回归；G01 全量仍**不被宣称通过**：W-D4 证书项已转绿（all-probes lib 124 过 0 败），但 all-probes 阶段整体因 G03 `mass_solve_probe` 3 项既有门禁缺口未通过（跟踪任务 `2026-10-22-g01-g03-np03-admission-debt`）；其余六阶段已于同日单独补跑通过（§4.2）。release 与 Linux 未跑。
+
+### 4.2 未执行阶段补跑（2026-10-22，任务 `2026-10-22-g01-stage-evidence-refresh`）
+
+W-D4 复跑在 all-probes 中止后，其余六阶段用当前源码（`49fd4d9` 之后，本任务只改文档）单独补跑，命令与环境同 `scripts/test-windows-g01.ps1` 第 112-128 行（脚本未修改）：
+
+| 阶段 | 结果 |
+| --- | --- |
+| host-gnu | **404 过 0 败**（78 个测试二进制，门槛 ≥200，20.9s） |
+| clippy-gnu | 通过，0 警告（2.8s） |
+| clippy-gnu-cuda | 通过，0 警告（7.6s） |
+| clippy-msvc | 通过，0 警告（22.5s） |
+| rustdoc -D warnings | 通过，0 警告（4.5s） |
+| diff | 通过（`git diff --check`，仅 Git 的 LF/CRLF 提示，无空白错误） |
+
+证据：`docs/development-evidence/g01-stage-refresh/`（`README.md`、`stage-refresh.json`；原始日志在 gitignored 的 `target/g01-stage-refresh/`）。
+边界：只补跑本轮脚本未执行的阶段，未重复已通过阶段，未重跑 all-probes；不宣称完整 G01 通过。
 
 ## 5. 债务清单
 
@@ -186,9 +202,9 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
 ## 7. 未验收边界
 
 - 只验收 Windows；Linux V2 未启动（需要 `linux-gpu:0` 与 `linux-acceptance`）。
-- all-probes 全探针矩阵已执行但阶段整体未通过：W-D4 证书项已转绿（lib 124 过 0 败）；剩余 3 项 `mass_solve_probe` 的 NP03 门禁失败属完整 G03 已知缺口（非 W-D4/M3 回归，证据见 §4.1），不宣称 G03 通过；3 项历史捕获/归档工具按用户 2026-10-22 裁决 A 显式排除（§5.1）。
+- all-probes 全探针矩阵已执行但阶段整体未通过：W-D4 证书项已转绿（lib 124 过 0 败）；剩余 3 项 `mass_solve_probe` 的 NP03 门禁失败属完整 G03 已知缺口（非 W-D4/M3 回归，证据见 §4.1），跟踪任务 `2026-10-22-g01-g03-np03-admission-debt`（proposed，只登记不 start），不宣称 G03 通过；3 项历史捕获/归档工具按用户 2026-10-22 裁决 A 显式排除（§5.1）。
 - all-probes `-Minimum` 在 W-D5 排除后按 123 同步（W-D6 收口）；W-D4 转绿后 lib 实际通过 124，`-Minimum 123` 仍满足；`mass_solve_probe` 的 G03 验收缺口不在本轮处理。
-- 本轮 full-debug 运行在 all-probes 阶段中止，`host-gnu`、`clippy-gnu*`、`clippy-msvc`、`rustdoc`、`diff` 阶段未在本轮执行；`rustdoc -D warnings` 的 0 警告结论来自 W-D3 修复任务，不是本轮脚本。
+- 本轮 full-debug 运行在 all-probes 阶段中止；脚本后半段 `host-gnu`、`clippy-gnu*`、`clippy-msvc`、`rustdoc`、`diff` 已于同日用相同命令单独补跑并全部通过（§4.2），但它们是单独执行，不等于整脚本一次跑通。
 - G01 release 未在修复后重跑；release 不宣称通过。
 - 未测量 G01 阶段峰值显存。
 - 不转授完整产品数值验收、性能验收或双平台准入。
@@ -207,6 +223,8 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
   - `2026-10-22-g01-wd3-rustdoc-links`：`docs/development-evidence/changes/2026-10-22-g01-wd3-rustdoc-links.json`
   - `2026-10-22-t4-source-hash-repin-5`：`docs/development-evidence/changes/2026-10-22-t4-source-hash-repin-5.json`
   - `2026-10-22-g01-gravity-cert-f32-regen`：`docs/development-evidence/changes/2026-10-22-g01-gravity-cert-f32-regen.json`（W-D4 证书 f32 逐步口径；生成器与证据在 `docs/development-evidence/g01-gravity-cert-f32/`）
-- 提交：`eef9321`、`71638e2`、`28bd15f`、`4ffda93`、`c5c47e0`、`eac3df6`、`341a52c`、`c98e246`、`1e3dd2f`、`24d7937`、`3a44e10`、`a433067`、`e83db38`、`5a636a4`、`f917530`；W-D4 修复提交见本目录回执。
-- 运行证据：`target/g01-final.log`、`target/g01-wd4-final.log`（本机日志，gitignored）、`target/resident-kinematics/` 下的 resident 报告。
+  - `2026-10-22-g01-stage-evidence-refresh`：`docs/development-evidence/changes/2026-10-22-g01-stage-evidence-refresh.json`（未执行阶段补跑；证据在 `docs/development-evidence/g01-stage-refresh/`）
+  - `2026-10-22-g01-g03-np03-admission-debt`：proposed 跟踪任务，登记提交 `de25d4d`，不 start；指代 all-probes 剩余的 3 项 G03 `mass_solve_probe` 准入缺口
+- 提交：`eef9321`、`71638e2`、`28bd15f`、`4ffda93`、`c5c47e0`、`eac3df6`、`341a52c`、`c98e246`、`1e3dd2f`、`24d7937`、`3a44e10`、`a433067`、`e83db38`、`5a636a4`、`f917530`、`de25d4d`；W-D4 修复提交 `49fd4d9` 与阶段补跑提交见本目录回执。
+- 运行证据：`target/g01-final.log`、`target/g01-wd4-final.log`、`target/g01-stage-refresh/`（本机日志，gitignored）、`target/resident-kinematics/` 下的 resident 报告。
 - 历史证据：`docs/evidence/three-layer/windows/summary.json` 与同目录日志。

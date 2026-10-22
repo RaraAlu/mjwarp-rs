@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "kind": "stage-evidence",
+  "task_id": "2026-10-22-g01-stage-evidence-refresh",
+  "source_revision": "49fd4d9f9b249432f1b5273da558f6316f70af43",
+  "ran_at": "2026-10-22T09:10:00.000Z",
+  "reason": "W-D4 证书 f32 逐步口径重生成后的 full-debug 运行（target/g01-acceptance/9bd3489f5b4542409f104f5feac1c4fb）在 all-probes 阶段中止，脚本后半段六阶段未执行；本轮用当前源码单独补跑。",
+  "environment": {
+    "platform": "Windows x86_64 MSVC",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "rustc": "1.99.0",
+    "toolchains": [
+      "rustup default GNU（host-gnu/clippy-gnu 使用 plain cargo）",
+      "1.99.0-x86_64-pc-windows-msvc（显式 +toolchain：clippy-msvc/rustdoc）"
+    ],
+    "cuda": "12.8.1（target/toolchains/cuda-12.8.1，PATH 前置 bin）",
+    "mujoco": "3.12.0（target/toolchains/mujoco-3.12.0/package；MJWARP_MUJOCO_ROOT/MJWARP_MUJOCO_DLL 已设）"
+  },
+  "script_source": "scripts/test-windows-g01.ps1 第 112-128 行；脚本未修改",
+  "stages": [
+    {
+      "stage": "host-gnu",
+      "command": "cargo test --locked",
+      "exit_code": 0,
+      "passed": 404,
+      "failed": 0,
+      "binaries": 78,
+      "minimum_required": 200,
+      "elapsed_ms": 20964,
+      "log": "target/g01-stage-refresh/host-gnu.log"
+    },
+    {
+      "stage": "clippy-gnu",
+      "command": "cargo clippy --locked --all-targets -- -D warnings",
+      "exit_code": 0,
+      "warnings": 0,
+      "elapsed_ms": 2807,
+      "log": "target/g01-stage-refresh/clippy-gnu.log"
+    },
+    {
+      "stage": "clippy-gnu-cuda",
+      "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings",
+      "exit_code": 0,
+      "warnings": 0,
+      "elapsed_ms": 7602,
+      "log": "target/g01-stage-refresh/clippy-gnu-cuda.log"
+    },
+    {
+      "stage": "clippy-msvc",
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc clippy --locked --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "warnings": 0,
+      "elapsed_ms": 22473,
+      "log": "target/g01-stage-refresh/clippy-msvc.log"
+    },
+    {
+      "stage": "rustdoc",
+      "command": "RUSTDOCFLAGS=-D warnings cargo +1.99.0-x86_64-pc-windows-msvc doc --locked --all-features --no-deps",
+      "exit_code": 0,
+      "warnings": 0,
+      "elapsed_ms": 4459,
+      "log": "target/g01-stage-refresh/rustdoc.log"
+    },
+    {
+      "stage": "diff",
+      "command": "git diff --check",
+      "exit_code": 0,
+      "whitespace_errors": 0,
+      "note": "日志中的一行 warning 是 Git 的 LF/CRLF 工作区提示，不是空白错误",
+      "elapsed_ms": 55,
+      "log": "target/g01-stage-refresh/diff.log"
+    }
+  ],
+  "not_rerun": [
+    "fmt/native/host-msvc/g01/native-g01/native-only-g01/resident：W-D4 复跑（9bd3489f…）已通过，本轮不重复",
+    "all-probes：现状为 lib 124 过 0 败，阶段在 mass_solve_probe 的 3 项既有 G03 门禁缺口处失败，已登记 2026-10-22-g01-g03-np03-admission-debt 跟踪"
+  ],
+  "boundary": [
+    "六阶段在补跑时刻的工作区执行；本任务只改文档，之后源码未再变化",
+    "日志位于 target/（gitignored），本文件记录可复现命令与实测计数",
+    "不宣称完整 G01 通过；release 与 Linux 仍未跑"
+  ]
+}
