@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-g02-rne-acc-fixture-rebaseline",
+  "title": {
+    "zh": "重基线G02 RNE加速度参考",
+    "en": "Rebaseline the G02 RNE acceleration reference"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "G02 RNE 加速度 521 块 native-tolerance 缺口的根因已由 2026-10-23-g02-rne-acc-authoring-diff 定位：失败块的产品 qfrc 位串与冻结上游 MJWarp（71da24d…）逐位相同，超差来自「冻结原生 MuJoCo 3.12 f64 参考 vs MJWarp f32 累加」的参考口径差异，与 G01 W-D4 重力证书同类；上游自身对同一原生参考也失败同一块（240 条中 1 条）。用户 2026-10-23 裁决 A：把 fixtures/rne-acceleration 的期望值重基线为离线 authoring 的冻结上游 MJWarp f32 参考，容差（ABS=REL=2e-5）不动、产品零改动。本任务只改期望值、manifest 哈希与来源标注、证据与 docs 的 RNE 段落；不改测试断言、容差、产品 src/tests。",
+    "en": "The root cause of the G02 RNE acceleration 521 native-tolerance failing blocks was localized by 2026-10-23-g02-rne-acc-authoring-diff: the product qfrc bit patterns on the failing block are identical to the frozen upstream MJWarp (71da24d...) reference, and the excess error comes from the reference-caliber gap between the frozen native MuJoCo 3.12 f64 reference and the MJWarp f32 accumulation, the same class as the G01 W-D4 gravity certificate; upstream itself also fails the same block against the native reference (1 of 240 records). On 2026-10-23 the user decided option A: rebaseline the fixtures/rne-acceleration expected values to the offline-authored frozen upstream MJWarp f32 reference, keeping tolerances (ABS=REL=2e-5) unchanged and leaving the product untouched. This task only changes expected values, manifest hashes and source annotations, evidence, and the RNE section of the docs; it does not change test assertions, tolerances, or product src/tests."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "以 docs/development-evidence/g02-rne-authoring-diff/upstream-rne.json 为准，把 5 个 fixtures/rne-acceleration/*.json 的 qfrc 期望值替换为上游 MJWarp f32 位串（qfrc_bias_hex）解出的值；cases 的 qpos/qvel/qacc 输入与 nq/nv/nbody/gravities/容差一字不动，reference.cpp 与 .mjb、rne-bias 参考不动。",
+    "原 native f64 参考归档到 docs/development-evidence/g02-rne-acc-rebaseline/historical-f64/ 并明确标注「历史 f64 原生参考，不再作为期望」；manifest.json 同步 5 个 JSON 的新 sha256 与期望来源 provenance（冻结上游提交 71da24d…、pinned 环境版本、authoring 脚本 SHA256、两次运行逐位一致、用户裁决来源），不改测试读取字段语义（native_version、容差、files 哈希）。",
+    "重基线工具进仓 docs/development-evidence/g02-rne-acc-rebaseline/rebaseline-fixture.ps1（PowerShell，非 Python，离线证据工具、产品链不读取），一条命令可复现；连续两次运行产物逐字节一致，并记录工具与上游参考文件的 SHA256。",
+    "验证一：tests/resident_rne_acceleration.rs 的定向 ignored GPU 探针 computes_both_flags_for_nonzero_accelerations_without_old_bias_replay 通过，failed_world_field_blocks=0（此前 521），scalars=900288；同文件其余 ignored 测试（qacc 写入保护）不受重基线影响并保持通过。",
+    "验证二：cargo +msvc test --locked --all-features --no-fail-fast 为 0 失败；all-probes debug 阶段在已登记排除清单之外 0 失败（排除清单保持现状不动）。",
+    "证据 docs/development-evidence/g02-rne-acc-rebaseline/（README + rebaseline.json + historical-f64/ + 运行日志）说明重基线映射、旧值归档、验证命令与结果、未验收边界；回执含 task_id；门禁 fmt/clippy/clippy-cuda/unit 与 unchanged 全过；docs/three-layer-acceptance.md 只改 RNE 相关段落（历史捕获身份债务小节由 QA 写）。",
+    "release 双模式最终验收由 QA 接手，本任务不宣称 release 通过；不碰 QA 的 scripts/g01-fast.ps1、2026-10-23-g01-acceptance-fast-loop 与 g01-fast-loop 证据目录。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-23-g02-rne-acc-authoring-diff"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "fixtures/rne-acceleration/",
+      "docs/development-evidence/g02-rne-acc-rebaseline/",
+      "docs/development-evidence/changes/2026-10-23-g02-rne-acc-fixture-rebaseline.json",
+      "docs/three-layer-acceptance.md"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "裁决来源：用户 2026-10-23 选择「重基线参考」（方案 A），由 Chief 转达。证据：docs/development-evidence/g02-rne-authoring-diff/（upstream-rne.json、natural-validation.json、product-vs-upstream-tolerance.json：产品 vs 上游 240 条 0 失败、worst normalized 0.743）。失败块：mixed-joints/gravity2/state7/flag=false/worst_dof=3，actual=1.5473079681396484（=上游位串 f32），旧期望（原生 f64）=1.5471062036731382，normalized 3.96。边界：不改容差/准入余量/断言；不改产品 src/tests；不删除旧参考（归档保留）；不宣称 release 与 Linux 通过；if 重基线后仍有失败块，停手如实登记不调参凑数。与 QA 的 2026-10-23-g01-acceptance-fast-loop 存在 fixtures 与 docs/three-layer-acceptance.md 时序交错，开工前先与 QA 对齐窗口，避免撞车。",
+  "revision": {
+    "before": "1d6ed1ed0de67bc8872e7f38f270606a017951b5",
+    "after": null
+  },
+  "created_at": "2026-10-22T16:52:00.000Z",
+  "updated_at": "2026-10-22T16:52:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "native",
+        "include",
+        "scripts",
+        "build.rs",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-g02-rne-acc-fixture-rebaseline.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-g02-rne-acc-fixture-rebaseline"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
