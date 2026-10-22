@@ -1,0 +1,72 @@
+{
+    "work": "work-07-attached-kinematics",
+    "summary": "attached_kinematics 探针入口改走类型化包装（常驻变体待后续批次）",
+    "remove_low_level": [
+        { "file": "src/physics/attached.rs", "line": 147 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/attached/kernels.rs",
+            "line": 67,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "attached_kinematics"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/attached.rs",
+            "line": 157,
+            "receiver": "kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/attached.rs",
+            "old_line": 139,
+            "new_file": "src/physics/attached/kernels.rs",
+            "new_line": 23
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "attached_kinematics",
+            "compile_sites": [
+                "src/physics/attached/kernels.rs:23",
+                "src/physics/resident/plan_subsets.rs:300"
+            ],
+            "kernel_abi_evidence": [
+                "AttachedSpec at src/physics/attached/launcher_specs.rs:48"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "AttachedSpec",
+            "logical_name": "attached_kinematics",
+            "definition": "src/physics/attached/launcher_specs.rs:48",
+            "actual_cuda_entries": "attached_kinematics",
+            "typed_low_level_calls": [ "src/physics/attached/kernels.rs:67" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "com_velocity",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/com_velocity/plan.rs:54" ],
+        "reason": "attached_kinematics 探针已完成；下一批 com_velocity（探针与常驻变体）"
+    },
+    "manual_cross_checks_add": [
+        "work-07: attached_kinematics 探针改走类型化包装；raw 行 -1、typed 行 +1、编排行 +1、编译点移入 kernels.rs",
+        "work-07: 该入口常驻 plan_subsets 编译点仍用原始发射，入口状态保持未迁移，待后续批次收口",
+        "work-07: 附着元数据证明校验首项刚体跨度与几何/site体索引，空附着集合跨度合法"
+    ],
+    "acceptance_boundary_set": {
+        "attached_probe_migrated": true,
+        "attached_resident_pending": true
+    }
+}

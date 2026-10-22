@@ -18,6 +18,24 @@ Probe-only geometry and site transforms; not a complete G01 stage.
 [[source]]
 path = "src/physics/attached.rs"
 
+[[source]]
+path = "src/physics/attached/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/attached/launcher_specs.rs"
+
+[[source]]
+path = "src/physics/attached/launcher_meta.rs"
+
+[[source]]
+path = "src/physics/attached/metadata_buffer.rs"
+
+[[source]]
+path = "src/physics/attached/kernels.rs"
+
+[[source]]
+path = "src/physics/attached/tests/launcher.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::probe_attached_kinematics"

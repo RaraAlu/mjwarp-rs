@@ -1,12 +1,30 @@
 //! G01几何与site位姿辅助探针。
 //! 不实现完整运动学阶段。
 
+#[cfg(feature = "cuda-probe")]
+use self::kernels::AttachedKernel;
+#[cfg(feature = "cuda-probe")]
+use self::launcher_abi::AttachedStaticDims;
+#[cfg(feature = "cuda-probe")]
+use self::launcher_meta::attached_launch_error;
+#[cfg(feature = "cuda-probe")]
+use self::metadata_buffer::AttachedMetadataBuffer;
 use super::{KinematicsOutput, check_kinematics};
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::{AttachedModelInput, BatchLayout};
 use crate::runtime::TransferSession;
+#[cfg(all(feature = "cuda-probe", test))]
+use crate::runtime::launcher::DeviceSpan;
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::{SynchronousKernel, TransferBuffer};
 
 /// 四项附着位姿的只读世界视图。
 /// 位置用米，矩阵按行展开。
@@ -129,34 +147,14 @@ pub fn probe_attached_kinematics(
     #[cfg(feature = "cuda-probe")]
     {
         let (body, rigid_values) = super::kinematics_device(session, model.rigid(), fk, qpos)?;
-        let device = upload_attached_model(session, model, fk, layout)?;
+        let (metadata, parameters) = upload_attached_model(session, model, fk, layout)?;
         let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
         values.fill(-131072.0);
         values[4..layout.guarded - 4].fill(f32::NAN);
         let mut output = session.upload(&values)?;
         let source = format!("{}\n{}", super::KINEMATICS_CUDA, ATTACHED_CUDA);
-        let kernel =
-            crate::runtime::SynchronousKernel::compile(session, &source, "attached_kinematics")?;
-        // SAFETY: Validated owned fields prove every body ID and parameter offset.
-        // Checked layouts bound all per-world strides to i32; world offsets use u64.
-        // The first metadata word is the checked FK stride, including joint fields.
-        // All pointers use same-session allocations and the fixed f32 ABI.
-        // Empty sets retain real metadata/parameter/guard buffers with no reads.
-        // Each thread owns one world's output; launch waits before any owner drops.
-        unsafe {
-            kernel.launch(
-                &device.metadata,
-                &device.parameters,
-                &body,
-                &mut output,
-                [
-                    fk.nbody as u32,
-                    model.ngeom() as u32,
-                    model.nsite() as u32,
-                    worlds as u32,
-                ],
-            )?;
-        }
+        let kernel = AttachedKernel::compile(session, &source)?;
+        kernel.launch(&metadata, &parameters, &body, &mut output, worlds as u32)?;
         output.read_range_into(0, &mut values)?;
         super::check_device_values(&values, "attached_kinematics_output")?;
         Ok(AttachedKinematicsOutput {
@@ -171,27 +169,29 @@ pub fn probe_attached_kinematics(
 }
 
 #[cfg(feature = "cuda-probe")]
-pub(super) fn upload_attached_model(
+fn upload_attached_model(
     session: &TransferSession,
     model: &AttachedModelInput,
     fk: super::KinematicsLayout,
     layout: AttachedLayout,
-) -> Result<super::DeviceModel, TransferError> {
+) -> Result<(AttachedMetadataBuffer, TransferBuffer<f32>), TransferError> {
     let f = model.fields();
     let mut metadata = crate::runtime::host_staging::<i32>(layout.metadata)?;
     metadata[0] = fk.output.elements_per_world() as i32;
     metadata[1..1 + model.ngeom()].copy_from_slice(&f.geom_bodyid);
     metadata[1 + model.ngeom()..].copy_from_slice(&f.site_bodyid);
+    let static_dims = AttachedStaticDims::new(fk.nbody, fk.njnt, model.ngeom(), model.nsite())
+        .map_err(attached_launch_error)?;
     let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
     let mut cursor = 0;
     for field in [&f.geom_pos, &f.geom_quat, &f.site_pos, &f.site_quat] {
         parameters[cursor..cursor + field.len()].copy_from_slice(field);
         cursor += field.len();
     }
-    Ok(super::DeviceModel {
-        metadata: session.upload(&metadata)?,
-        parameters: session.upload(&parameters)?,
-    })
+    Ok((
+        AttachedMetadataBuffer::upload(session, metadata, static_dims)?,
+        session.upload(&parameters)?,
+    ))
 }
 
 // Adapted from mujoco_warp/_src/smooth.py at
@@ -254,6 +254,25 @@ extern "C" __global__ void initialize_attached(const int* meta,const float* mode
 }
 #endif
 "#;
+
+#[cfg(feature = "cuda-probe")]
+#[path = "attached/kernels.rs"]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "attached/launcher_abi.rs"]
+mod launcher_abi;
+#[cfg(feature = "cuda-probe")]
+#[path = "attached/launcher_meta.rs"]
+mod launcher_meta;
+#[cfg(feature = "cuda-probe")]
+#[path = "attached/launcher_specs.rs"]
+mod launcher_specs;
+#[cfg(feature = "cuda-probe")]
+#[path = "attached/metadata_buffer.rs"]
+mod metadata_buffer;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "attached/tests/launcher.rs"]
+mod tests_launcher;
 
 #[cfg(test)]
 mod tests {
