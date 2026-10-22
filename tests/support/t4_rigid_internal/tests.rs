@@ -85,7 +85,7 @@ fn preserves_zero_quaternion_evidence_and_active_macros() {
     let pre_rotation = super::super::rotate_lineage::before(PHYSICS).unwrap();
     assert_eq!(
         digest(&pre_rotation),
-        "714839bfb47674baa504007554ecb5a5eaeffd47a64f5d48974bcdc2ac1de0ab"
+        "d9c8cfabde82f7364b508742675783a2c535fd83753c7606f2e61c94d9ebe525"
     );
     // 第二段：零四元数分支。模板还原为历史实测捕获。
     // 该段之前的整文件差异只有模块导出，故比较刚体模板。
