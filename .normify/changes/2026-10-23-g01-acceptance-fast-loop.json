@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-g01-acceptance-fast-loop",
+  "title": {
+    "zh": "建立G01验收快验环路并执行双模式验收",
+    "en": "Build G01 acceptance fast loop and run dual-mode acceptance"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "G01完整验收逐段执行 cargo check/build，开发迭代反馈慢。本任务先只读统计现有日志与验收目录的阶段耗时基线，再新增只用于开发迭代的 scripts/g01-fast.ps1：按target或测试名过滤、复用已构建产物、一次构建后直接跑测试二进制、输出pass/fail与逐项耗时，可选Release；验收语义与判定口径不变，不替代 test-windows-g01.ps1。Backend 交接后用完整脚本执行 debug 与 release 双模式验收并整理逐target数字、排除清单与剩余债务；再评估多target并行与每进程单线程的实测提速与风险。不改断言、容差、排除清单与环境接线。",
+    "en": "The full G01 acceptance is slow to iterate because each stage rebuilds or rechecks. This task first derives per-stage timing baselines from existing logs and acceptance directories, then adds a development-only scripts/g01-fast.ps1 that filters by target or test name, reuses already-built artifacts, runs test binaries directly after a single build, and reports pass/fail with per-item timings, with an optional Release switch. Acceptance semantics and judgment rules stay unchanged and the fast loop never replaces test-windows-g01.ps1. After the Backend handoff, run the full script in debug and release modes and record per-target numbers, exclusion lists and remaining debt. Finally measure multi-target parallelism with one test thread per process, recording speedup and risks. Assertions, tolerances, exclusion lists and environment wiring stay untouched."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "从 target/g01-debug-final4.log、target/g01-release-final2.log、target/g01-acceptance/** 与 target/run-g01-both.ps1 统计各阶段耗时基线，列出耗时大头。",
+    "新增 scripts/g01-fast.ps1：支持按 target 或测试名过滤、复用已构建测试二进制、一次构建后直接运行、输出 pass/fail 摘要与逐项耗时，可选 -Release；不改变测量与判定口径。",
+    "快验脚本明确标注为开发迭代工具，不替代 test-windows-g01.ps1；不修改 scripts/test-windows-g01.ps1。",
+    "Backend 交接后用完整 test-windows-g01.ps1 执行 debug 与 release 双模式验收，产出逐 target 数字、排除清单与剩余债务，证据写入 docs/development-evidence/g01-fast-loop/。",
+    "评估多 target 并行与每进程 --test-threads=1 的可行性，实测提速倍数并记录风险；不改断言、容差、排除清单与环境接线。",
+    "通过 fmt 与 unit 门禁、unchanged 保护路径与回执检查，用中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "测试-G01验收",
+    "owner": "QA",
+    "files": [
+      "scripts/g01-fast.ps1",
+      "docs/development-evidence/g01-fast-loop",
+      "docs/development-evidence/changes/2026-10-23-g01-acceptance-fast-loop.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-23-g01-acceptance-fast-loop.json\n精度映射：本任务只测速与验收编排，不改产品浮点路径、断言、容差或PTX捕获。\nGPU独占：与 Backend 的 g01-all-probes 任务串行，交接后执行；阶段1只做只读统计与新脚本，不占用GPU。\n不动 scripts/test-windows-g01.ps1（Backend 正在修改，交接后再用完整脚本执行验收）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-22T16:29:36.634Z",
+  "updated_at": "2026-10-22T16:29:36.634Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "build.rs",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-g01-acceptance-fast-loop.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-g01-acceptance-fast-loop"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
