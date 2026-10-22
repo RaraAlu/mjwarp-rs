@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-g03-kinematics-matrix-fma-alignment",
+  "title": {
+    "zh": "对齐G03运动学矩阵非收缩语义",
+    "en": "Align G03 kinematics matrix semantics without FMA contraction"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 Chief 2026-10-22 确认的第二阶段计划实现矩阵链对齐：只改 src/physics/mod.rs 的 KINEMATICS_CUDA 中 matrix(Q q) 的算式顺序/写法，把四元数乘积先算成局部量再加减，对齐上游 math.quat_to_mat 的非 FMA 收缩语义；随后按首差工具→xmat→cdof→matrix_dense_block→MathDx potrf(产品矩阵)==冻结 factor 0/121→potrs 解链→mass_solve_probe 3 项准入→双模式定向回归的顺序验证；并确认 8a5bac0 已对齐的 T4 非零位形旋转链 1134 项仍逐位一致。不改 ABI、类型、容差、准入余量、测试断言、fixtures。",
+    "en": "Implement the matrix-chain alignment confirmed by Chief on 2026-10-22: change only the expression order/form of matrix(Q q) inside KINEMATICS_CUDA in src/physics/mod.rs so quaternion products are materialized as locals before add/sub, matching upstream math.quat_to_mat's non-FMA-contracted semantics. Validate in order: first-difference tool -> xmat -> cdof -> matrix_dense_block -> MathDx potrf(product matrix) equals frozen factor 0/121 -> potrs chain -> three mass_solve_probe admissions -> dual-mode targeted regression; confirm the T4 nonzero rotation chain (bit-aligned in 8a5bac0, 1134 items) stays bit-exact. No ABI/type/tolerance/admission-margin/assertion/fixture changes."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "只改 src/physics/mod.rs 的 KINEMATICS_CUDA 中 matrix(Q q)：先把 q 的四元数乘积算成局部 float（对齐上游 math.quat_to_mat 的 q00..q33 写法），再组装 9 项；不改 ABI、数据类型、容差、准入余量、测试断言、fixtures。",
+    "重跑离线首差工具（docs/development-evidence/g03-upstream-matrix/tools/first_difference.rs）：期望 xmat 0 位差、随后 cdof 0、matrix_dense_block 0；若仍有残余收缩差异，按首差循环继续归零（每轮记录差异字段与位差数），不得改容差/断言；多轮仍不可归零则停手报 Chief。",
+    "MathDx potrf(产品矩阵) 与冻结上游 factor 逐位比对必须 0/121（复用第一阶段同哈希 CUBIN 与 oracle，判定同天然校验）；再用 MathDx potrs(上游 factor, rhs) 的解链确认产品 factor/solution 目标未被破坏。",
+    "tests/mass_solve_probe 3 项准入在 all-features 下全部通过（NP03 admitted），不再出现 case4/world4 的 factors/native/rhs-counts 失败块；记录 NP03 汇总与失败块数。",
+    "确认 8a5bac0 的 T4 非零位形旋转链仍逐位一致（相关 t4/kinematics 定向测试与 1134 项逐位结论重跑），并跑双模式定向回归（kinematics/G01 相关 GPU 定向测试），无新失败。",
+    "产品源码变化后登记并完成 2026-10-22-t4-source-hash-repin-6（只改哈希数值、断言语义不变），随后跑 cargo --all-features --no-fail-fast 与 G01 debug 全脚本确认无新回归；all-probes 若全绿第一时间报 Chief 并记录证据。",
+    "证据 docs/development-evidence/g03-kinematics-matrix-alignment/（README + json：改动、每阶段结果、T4 逐位结论、准入与 all-probes 结果、repin 引用）；回执含 task_id；门禁 fmt/clippy/clippy-cuda/unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-g03-upstream-matrix-authoring"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mod.rs",
+      "docs/development-evidence/g03-kinematics-matrix-alignment/",
+      "docs/development-evidence/changes/2026-10-22-g03-kinematics-matrix-fma-alignment.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 2
+  },
+  "note": "依据：2026-10-22-g03-upstream-matrix-authoring（commit ad6c2e7）——上游矩阵冻结参考已生成且 MathDx potrf 天然校验 0/121；首差定位第一阶段为 kinematics.xmat（17/432，world3/index15），根因为 xmat[6]=2*(x*z-w*y) 的上游 bits 0x3f0077f3（非收缩）vs 产品 0x3f0077f4（fma 收缩）。修复候选：src/physics/mod.rs KINEMATICS_CUDA 的 matrix() 改为上游局部乘积写法。验证复用离线工具：docs/development-evidence/g03-upstream-matrix/tools/first_difference.rs、docs/development-evidence/g03-mathdx-alignment/{oracle.cpp,link11.cpp} 与 cubin 复现说明；上游 matrix 参考 docs/development-evidence/g03-upstream-matrix/。repin-6 另立任务，本任务先完成源码与验证。硬边界：不改容差/准入余量/断言/fixtures；产品测试只跑 cargo 不启动 Python；G03 三项准入转绿与 all-probes 全绿是首要目标。",
+  "revision": {
+    "before": "ad6c2e7602a67768da7334be1329588658eb28f1"
+  },
+  "created_at": "2026-10-22T13:23:02.885Z",
+  "updated_at": "2026-10-22T13:23:02.885Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests",
+        "fixtures",
+        "scripts",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g03-kinematics-matrix-fma-alignment.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g03-kinematics-matrix-fma-alignment"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
