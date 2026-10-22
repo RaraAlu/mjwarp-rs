@@ -134,6 +134,8 @@ G01 release 已于 2026-10-22 补跑，结果见 §4.3；release 同样不宣称
 
 结论（当前）：三层迁移范围的 debug 回归无新增 M3 回归；G01 全量仍**不被宣称通过**：W-D4 证书项已转绿（all-probes lib 124 过 0 败），但 all-probes 阶段整体因 G03 `mass_solve_probe` 3 项既有门禁缺口未通过（跟踪任务 `2026-10-22-g01-g03-np03-admission-debt`）；其余六阶段已于同日单独补跑通过（§4.2）。release 已补跑，阶段结果与 debug 一致，同一债务处中止（§4.3）；Linux 未跑。
 
+2026-10-23 更新（QA 最终验收）：上述 G03 `mass_solve_probe` NP03 缺口已由矩阵链对齐（`d5b02d5`）解决，跟踪任务已关闭；all-probes 在 env 接线（`6cb5a71`）与 RNE 重基线（`b13d1c5`，§4.4）后，debug/release 均为 **340 过 0 败**，仅余 §5.2 的历史捕获身份等文档化排除项。G01 现状以 §4.5 为准。
+
 ### 4.2 未执行阶段补跑（2026-10-22，任务 `2026-10-22-g01-stage-evidence-refresh`）
 
 W-D4 复跑在 all-probes 中止后，其余六阶段用当前源码（`49fd4d9` 之后，本任务只改文档）单独补跑，命令与环境同 `scripts/test-windows-g01.ps1` 第 112-128 行（脚本未修改）：
@@ -186,6 +188,32 @@ G01 all-probes 在 env 接线后首次执行 `resident_rne_acceleration::compute
 - 债务：`2026-10-22-g02-rne-acc-native-tolerance-debt` 已按裁决关闭；`2026-10-22-g01-g03-np03-admission-debt` 已由矩阵链对齐（`d5b02d5`）解决并同批关闭（§4.1 的旧快照由 QA 验收文档统一刷新）。
 - 边界：release 双模式最终验收由 QA 执行（本任务只跑 debug all-probes）；Linux/性能未测；产品 vs 上游 84/240 条 ULP 级差异（首差 `cacc`、最大 normalized 0.743<1）仍存在，属可选后续「RNE 逐位对齐」，不混入本次口径裁决；不宣称完整 G02 验收通过。
 
+### 4.5 最终双模式验收（2026-10-23，QA）
+
+RNE 重基线 `b13d1c5` 入库后，按交接文档执行完整脚本（debug 与 release），14 个阶段全部通过：
+
+| 阶段 | debug | release |
+| --- | --- | --- |
+| native | 27 过 | 27 过 |
+| host-msvc | 709 过 | 709 过 |
+| g01 | 7 过 | 7 过 |
+| native-g01 | 2 过 | 2 过 |
+| native-only-g01 | 1 过 | 1 过 |
+| resident | 102 过 | 102 过 |
+| all-probes | **340 过 / 0 败**（78 个 result 行） | **340 过 / 0 败**（78 个 result 行） |
+| host-gnu | 404 过 | 404 过 |
+| clippy-gnu / clippy-gnu-cuda | 0 警告 | 0 警告 |
+| clippy-msvc | 0 警告 | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 | 0 警告 |
+| diff | 通过 | 通过 |
+| 全脚本墙钟 | 789.1s | 652.9s |
+
+- 运行目录：debug `target/g01-acceptance/90e611aeee0b4f1fbbefc2681bdcae84`、release `target/g01-acceptance/9bf374a9fd4c428bb65ef059442932bc`；本机日志 `target/g01-qa-20261023-012436/`。
+- 排除清单见各 run 的 `probe-reports/exclusions.json`：W-D5 3 项（§5.1）、历史捕获身份 6 项（§5.2）、env/外部产物未接线 1 项；未改断言、容差或排除清单。
+- fixtures 来源：`git log --oneline -- fixtures/rne-acceleration` 最新为 `b13d1c5`（RNE 重基线），`git status --short fixtures` 为空；QA 任务未改夹具。
+- 证据：`docs/development-evidence/g01-fast-loop/`（README、`final-acceptance.json`、`baseline-timings.json`）。
+- 结论：**G01 debug/release 双模式通过（含文档化排除项；RNE 已按裁决重基线）**。Linux、性能与完整上游等价仍未验收。
+
 ## 5. 债务清单
 
 | 编号 | 级别 | 状态 | 内容与证据 |
@@ -227,6 +255,21 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
 
 前提与边界：需要 `target/t4-g03-retest` 等冻结捕获产物与匹配的冻结源码基线；当前源码身份已前进时这些工具会报 source drift/capture coverage/归档计数不符，属预期历史债务，不修改断言、不伪造基线。复采成功后的基线更新另立证据任务。
 
+### 5.2 历史捕获身份债务（all-probes 显式排除，2026-10-23）
+
+以下 6 项 audit 以历史 BASE 捕获身份/历史模板对照当前源码，从 all-probes 显式排除（`<run>/probe-reports/exclusions.json` 的 `historical_audits`），不是验收探针：
+
+1. `audit_local_t4_precision_without_gpu_execution`
+2. `rigid_internal::tests::audit_frozen_rigid_internal_and_output_sources`
+3. `field_internal::flex_matrices::tests::audits_frozen_matrices_and_generated_face_artifacts`
+4. `packing_routes::flex_internal::audits_frozen_flex_sources_and_retained_artifacts`
+5. `packing_routes::routes::audit_remaining_packing_sources_and_captures`
+6. `topology_frames::tests::audit_frozen_topology_and_frame_sources`
+
+原因：G03 矩阵链对齐（`d5b02d5`）有意变更 f32 算序，这些 audit 的历史捕获/模板先于该变更；重生成需要被排除的重采集工具与冻结捕获流水线（跟踪任务 `2026-10-22-t4-historical-capture-rebaseline`，proposed）。
+证据：debug/release 运行目录的 `probe-reports/exclusions.json`（三组单列可审计：W-D5 原 3 项、历史捕获身份 6 项、env/外部产物未接线 1 项）。
+恢复条件：重基线任务完成重采集/重基线后解除排除；在此之前不把它们当静默跳过，也不伪造基线。
+
 ## 6. NP01–NP04 缺口
 
 - NP01/NP02 仍为未验收；重复修复不改变该状态。
@@ -238,13 +281,12 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
 ## 7. 未验收边界
 
 - 只验收 Windows；Linux V2 未启动（需要 `linux-gpu:0` 与 `linux-acceptance`）。
-- all-probes 全探针矩阵已执行但阶段整体未通过：W-D4 证书项已转绿（lib 124 过 0 败）；剩余 3 项 `mass_solve_probe` 的 NP03 门禁失败属完整 G03 已知缺口（非 W-D4/M3 回归，证据见 §4.1），跟踪任务 `2026-10-22-g01-g03-np03-admission-debt`（proposed，只登记不 start），不宣称 G03 通过；3 项历史捕获/归档工具按用户 2026-10-22 裁决 A 显式排除（§5.1）。
-- all-probes `-Minimum` 在 W-D5 排除后按 123 同步（W-D6 收口）；W-D4 转绿后 lib 实际通过 124，`-Minimum 123` 仍满足；`mass_solve_probe` 的 G03 验收缺口不在本轮处理。
-- 本轮 full-debug 运行在 all-probes 阶段中止；脚本后半段 `host-gnu`、`clippy-gnu*`、`clippy-msvc`、`rustdoc`、`diff` 已于同日用相同命令单独补跑并全部通过（§4.2），但它们是单独执行，不等于整脚本一次跑通。
-- G01 release 已于 2026-10-22 补跑（§4.3）：阶段计数与 debug 一致（27/709/7/2/1/102、all-probes lib 124 过 0 败），在**同一已知债务**处中止，未出现 release 专属新失败；未执行阶段已按相同定义单独补跑通过；release 仍不宣称全量通过。
+- G01 现状（2026-10-23，§4.5）：debug/release 双模式通过（含文档化排除项；RNE 已按裁决重基线）；all-probes 340 过 0 败，仅余 W-D5 3 项（§5.1）、历史捕获身份 6 项（§5.2）、env/外部产物未接线 1 项。不宣称 G02 完整验收。
+- all-probes `-Minimum 335` 满足（340 过）；旧 `-Minimum 123` 记录属历史阶段，W-D6 已收口。
+- 历史记录：2026-10-22 的 full-debug 曾中止在 all-probes（§4.1–§4.3），相关债务已由 `d5b02d5`、`6cb5a71`、`b13d1c5` 收口；保留原文作为变更轨迹。
 - 未测量 G01 阶段峰值显存。
 - 不转授完整产品数值验收、性能验收或双平台准入。
-- 不修改任何内核、容差、fixtures 或原生 ABI。
+- 不修改任何内核、容差、fixtures 或原生 ABI（RNE 期望值按用户裁决重基线，见 §4.4）。
 
 ## 8. 引用
 
@@ -261,7 +303,9 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
   - `2026-10-22-g01-gravity-cert-f32-regen`：`docs/development-evidence/changes/2026-10-22-g01-gravity-cert-f32-regen.json`（W-D4 证书 f32 逐步口径；生成器与证据在 `docs/development-evidence/g01-gravity-cert-f32/`）
   - `2026-10-22-g01-stage-evidence-refresh`：`docs/development-evidence/changes/2026-10-22-g01-stage-evidence-refresh.json`（未执行阶段补跑；证据在 `docs/development-evidence/g01-stage-refresh/`）
   - `2026-10-22-g01-release-mode-evidence`：`docs/development-evidence/changes/2026-10-22-g01-release-mode-evidence.json`（release 双模式证据；证据在 `docs/development-evidence/g01-release/`）
+  - `2026-10-23-g01-acceptance-fast-loop`：`docs/development-evidence/changes/2026-10-23-g01-acceptance-fast-loop.json`（快验脚本、耗时基线与最终双模式验收证据，`docs/development-evidence/g01-fast-loop/`）
+  - `2026-10-23-g01-acceptance-doc-refresh`：`docs/development-evidence/changes/2026-10-23-g01-acceptance-doc-refresh.json`（本文档现状刷新与历史捕获身份债务小节）
   - `2026-10-22-g01-g03-np03-admission-debt`：proposed 跟踪任务，登记提交 `de25d4d`，不 start；指代 all-probes 剩余的 3 项 G03 `mass_solve_probe` 准入缺口
-- 提交：`eef9321`、`71638e2`、`28bd15f`、`4ffda93`、`c5c47e0`、`eac3df6`、`341a52c`、`c98e246`、`1e3dd2f`、`24d7937`、`3a44e10`、`a433067`、`e83db38`、`5a636a4`、`f917530`、`de25d4d`；W-D4 修复提交 `49fd4d9`、阶段补跑提交 `10913ce` 与 release 证据提交见本目录回执。
+- 提交：`eef9321`、`71638e2`、`28bd15f`、`4ffda93`、`c5c47e0`、`eac3df6`、`341a52c`、`c98e246`、`1e3dd2f`、`24d7937`、`3a44e10`、`a433067`、`e83db38`、`5a636a4`、`f917530`、`de25d4d`；W-D4 修复提交 `49fd4d9`、阶段补跑提交 `10913ce`；2026-10-23 RNE 重基线 `b13d1c5`、债务关闭 `8a0bfde`。
 - 运行证据：`target/g01-final.log`、`target/g01-wd4-final.log`、`target/g01-stage-refresh/`、`target/g01-release-final.log`、`target/g01-release-refresh/`（本机日志，gitignored）、`target/resident-kinematics/` 下的 resident 报告。
 - 历史证据：`docs/evidence/three-layer/windows/summary.json` 与同目录日志。
