@@ -521,6 +521,7 @@ G01历史参考通过继续保留。
 本表不代替全库精度审计。
 其他路径仍需补齐精度证据。
 2026-10-23 NP01 清单入口：逐产品路径/逐内核的类型映射（输入/输出/中间量/累加、编译配方、上游位置、「已有证据/待补」两栏）见 `docs/development-evidence/np01-type-mapping/inventory.json`。当前建立 30 条产品路径清单；完整类型映射与偏离归零仍未验收，待补项以清单为准；上游源码复制路径待 W15 落地后补充。
+2026-10-23 NP02 冻结清单入口：冻结提交 71da24d…、上游文件与符号、生成内核 PTX/回执哈希、编译选项与缺口见 `docs/development-evidence/frozen-inventory/inventory.json`（回执目录 `receipts.json`，方法与边界见同目录 README）。当前 24 条目/30 变体、仓内 688 份回执编译选项一致、上游 7/7 源哈希对齐 pinned checkout；上游生成内核与编译器库覆盖、历史捕获实体与产品源漂移仍待补，NP02 未验收。W15 头文件已落地（`b1de2db`），上游源码路径逐符号对照待后续补。
 本次证据见[f32修复](linux-f32-precision-restoration.md)。
 本机后续证据见[两级补测](windows-two-reference-acceptance.md)。
 
