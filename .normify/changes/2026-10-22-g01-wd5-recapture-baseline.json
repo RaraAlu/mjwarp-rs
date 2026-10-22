@@ -7,16 +7,18 @@
   },
   "status": "proposed",
   "intent": {
-    "zh": "跟踪 G01 all-probes 剩余 3 项重采集/归档失败：独立复现确认它们需要历史捕获产物（target/t4-g03-retest 等冻结产物）与冻结源码基线（fixtures/precision/t4-kernels.json 有 7 个产品源身份保持历史），不是 MJWARP_PHYSICS_PTX_DIR 环境语义问题。只登记跟随，不动测试、脚本与基线；等用户裁决 A/B/C 后按裁决执行。",
-    "en": "Track the three remaining G01 all-probes recapture/archive failures: independent reproduction confirms they need historical capture artifacts (frozen target/t4-g03-retest) and a frozen source baseline (seven product source identities in fixtures/precision/t4-kernels.json stay historical), not MJWARP_PHYSICS_PTX_DIR semantics. Registration only; no test, script or baseline changes until the user decides A/B/C."
+    "zh": "用户 2026-10-22 裁决 A：G01 all-probes 显式排除 3 项历史捕获/归档工具（recompile_rigid_variants_without_launching_physics、recaptures_only_missing_rotation_variants、archives_face_operator_repair_with_failed_numeric_gate），做成可审计排除而不是静默跳过——排除清单集中在一处并写清依据，3 个测试一行不改，文档给出有冻结产物时的手动运行命令，同步债务表与 -Minimum 计数。",
+    "en": "User decision A on 2026-10-22: explicitly exclude the three historical capture/archive tools from G01 all-probes (recompile_rigid_variants_without_launching_physics, recaptures_only_missing_rotation_variants, archives_face_operator_repair_with_failed_numeric_gate) as an auditable exclusion rather than a silent skip — one centralized skip list with rationale, tests untouched, manual run commands documented for when frozen artifacts exist, and debt table plus -Minimum count synchronized."
   },
   "modules": {
     "modify": []
   },
   "acceptance": [
-    "只登记跟随，不修改 3 个重采集/归档测试的断言、不改 all-probes 脚本、不伪造或重写历史基线。",
-    "等用户对 A（脚本显式排除）、B（保持已知债务）、C（另立历史捕获重生成任务）裁决后，按裁决方案执行并更新 G01 阶段状态。",
-    "若执行方案需要改产品/测试/脚本，先重登记范围再开工；回执如实记录历史基线缺失证据与最终状态。"
+    "scripts/test-windows-g01.ps1 的 all-probes 阶段显式排除 3 项：排除清单集中写在一处并注释“历史捕获/归档工具、需 10/17 冻结产物与冻结源码基线、不是验收探针、用户 2026-10-22 裁决 A”；不得静默跳过。",
+    "3 个测试文件一行不改（不删除、不改断言、不改 fixture），并通过任务 unchanged 检查机器核对。",
+    "docs/three-layer-acceptance.md 债务表登记 3 项为“历史基线缺失、all-probes 显式排除、需冻结产物才能复采”并引用用户裁决；同时给出有冻结产物时的手动运行命令，工具不被废弃；跟踪任务保持 proposed 历史债务。",
+    "重跑 all-probes 阶段：只剩 W-D4 1 项红（已知债务，不碰）；`-Minimum` 按实际通过数 123 同步（W-D6 收口）。",
+    "不改内核、容差、fixtures、产品逻辑与测试断言语义；W-D4 不碰。"
   ],
   "schedule": {
     "depends_on": [
@@ -37,9 +39,9 @@
     ],
     "priority": 2
   },
-  "note": "来源：任务 2026-10-22-g01-wd5-ptx-dir-semantics-2 的 all-probes 收口。证据：docs/development-evidence/g01-wd5-ptx-dir/README.md 与 target/wd5-allprobes*.log。三项：recompile_rigid_variants_without_launching_physics（source drift: src/physics/attached.rs 等 7 个产品源身份与当前源码不同）、recaptures_only_missing_rotation_variants（capture coverage mismatch）、archives_face_operator_repair_with_failed_numeric_gate（归档计数 left 0 right 2078）。独立复现覆盖绝对/相对路径与存在/不存在根目录，均同因失败，判为历史捕获与冻结源码基线缺失；历史回执明确 t4-kernels 身份保持历史，故不硬修。未启动、未改任何文件；等用户裁决 A/B/C。",
+  "note": "用户 2026-10-22 裁决 A（显式排除并写清债务边界）后由“只登记”转为执行。依据：任务 2026-10-22-g01-wd5-ptx-dir-semantics-2 的 all-probes 收口证据（docs/development-evidence/g01-wd5-ptx-dir/README.md、target/wd5-allprobes*.log）。三项：recompile_rigid_variants_without_launching_physics（source drift: src/physics/attached.rs 等 7 个产品源身份保持历史）、recaptures_only_missing_rotation_variants（capture coverage mismatch）、archives_face_operator_repair_with_failed_numeric_gate（归档计数 left 0 right 2078）；独立复现覆盖绝对/相对路径与存在/不存在根目录均同因失败，判为历史捕获产物与冻结源码基线缺失。执行：脚本 all-probes 阶段集中排除清单（含依据注释），3 个测试文件一行不改并由 unchanged 检查核对，文档给出手动运行命令与债务边界，-Minimum 按实际通过数同步；不碰 W-D4。",
   "revision": {
-    "before": "a43306757704af344487e34d5a8cddcc75f3a791",
+    "before": "a911934286b2279097a3e120f33759aeaeafe45b",
     "after": null
   },
   "created_at": "2026-10-22T16:00:00.000Z",
@@ -62,6 +64,13 @@
         "Cargo.toml",
         "Cargo.lock",
         "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests/support/t4_rigid_capture/tests_recapture.rs",
+        "tests/support/t4_rigid_capture/tests_archive.rs"
       ]
     },
     {
