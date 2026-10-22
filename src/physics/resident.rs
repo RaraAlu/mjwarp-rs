@@ -61,6 +61,12 @@ mod public;
 #[cfg(feature = "cuda-probe")]
 mod rigid_upload;
 mod sleep_copy;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/spatial_tendon_launcher.rs"]
+mod spatial_tendon_launcher;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/spatial_tendon_launcher_specs.rs"]
+mod spatial_tendon_launcher_specs;
 
 #[cfg(all(test, feature = "cuda-probe"))]
 mod rigid_kinematics_tests;
@@ -85,6 +91,9 @@ mod tests_launcher_com;
 #[cfg(all(test, feature = "cuda-probe"))]
 #[path = "resident/tests/launcher_forward.rs"]
 mod tests_launcher_forward;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "resident/tests/launcher_spatial.rs"]
+mod tests_launcher_spatial;
 #[cfg(test)]
 #[path = "resident/tests/parameters.rs"]
 mod tests_parameters;
@@ -123,7 +132,13 @@ use self::fixed_tendon_launcher::{
     FixedTendonKernel, FixedTendonMetadataBuffer, upload_fixed_tendon,
 };
 #[cfg(feature = "cuda-probe")]
-use self::plan_kernels::{BaseKernels, compile_base_kernels, upload_camlight};
+use self::plan_kernels::{
+    BaseKernels, compile_base_kernels, upload_camlight, upload_spatial_tendon,
+};
+#[cfg(feature = "cuda-probe")]
+use self::spatial_tendon_launcher_specs::{
+    ResidentSpatialTendonKernel, SpatialTendonMetadataBuffer,
+};
 use super::attached::AttachedLayout;
 use super::camlight::CamLightLayout;
 use super::fixed_tendon::FixedTendonLayout;

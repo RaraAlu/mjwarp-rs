@@ -153,6 +153,15 @@ path = "src/physics/resident/tests/launcher_forward.rs"
 [[source]]
 path = "src/physics/resident/plan_kernels.rs"
 
+[[source]]
+path = "src/physics/resident/spatial_tendon_launcher.rs"
+
+[[source]]
+path = "src/physics/resident/spatial_tendon_launcher_specs.rs"
+
+[[source]]
+path = "src/physics/resident/tests/launcher_spatial.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::KinematicsPlan"

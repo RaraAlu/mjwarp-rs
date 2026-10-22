@@ -1,0 +1,125 @@
+{
+    "work": "work-14-resident-spatial-tendon",
+    "summary": "常驻空间肌腱三项改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/resident/plan_update_forward.rs", "line": 196 },
+        { "file": "src/physics/resident/plan_update_forward.rs", "line": 203 },
+        { "file": "src/physics/resident/plan_update_forward.rs", "line": 210 }
+    ],
+    "add_low_level": [],
+    "add_orchestration": [
+        {
+            "file": "src/physics/resident/plan_update_forward.rs",
+            "line": 148,
+            "receiver": "device.kernel",
+            "method": "launch_site",
+            "classification": "wrapper_orchestration",
+            "entry": "spatial_site"
+        },
+        {
+            "file": "src/physics/resident/plan_update_forward.rs",
+            "line": 155,
+            "receiver": "device.kernel",
+            "method": "launch_moment",
+            "classification": "wrapper_orchestration",
+            "entry": "spatial_moment"
+        },
+        {
+            "file": "src/physics/resident/plan_update_forward.rs",
+            "line": 162,
+            "receiver": "device.kernel",
+            "method": "launch_wrap",
+            "classification": "wrapper_orchestration",
+            "entry": "spatial_wrap"
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 339,
+            "new_file": "src/physics/resident/spatial_tendon_launcher_specs.rs",
+            "new_line": 195
+        },
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 340,
+            "new_file": "src/physics/resident/spatial_tendon_launcher_specs.rs",
+            "new_line": 196
+        },
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 341,
+            "new_file": "src/physics/resident/spatial_tendon_launcher_specs.rs",
+            "new_line": 197
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "spatial_site",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/spatial_tendon_launcher_specs.rs:195" ],
+            "kernel_abi_evidence": [
+                "SpatialSiteSpec at src/physics/resident/spatial_tendon_launcher_specs.rs:33",
+                "shared four-buffer launch at src/physics/resident/field_batch.rs:205"
+            ]
+        },
+        {
+            "entry": "spatial_moment",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/spatial_tendon_launcher_specs.rs:196" ],
+            "kernel_abi_evidence": [
+                "SpatialMomentSpec at src/physics/resident/spatial_tendon_launcher_specs.rs:68",
+                "shared four-buffer launch at src/physics/resident/field_batch.rs:205"
+            ]
+        },
+        {
+            "entry": "spatial_wrap",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/spatial_tendon_launcher_specs.rs:197" ],
+            "kernel_abi_evidence": [
+                "SpatialWrapSpec at src/physics/resident/spatial_tendon_launcher_specs.rs:103",
+                "shared four-buffer launch at src/physics/resident/field_batch.rs:205"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "SpatialSiteSpec",
+            "logical_name": "spatial_site",
+            "definition": "src/physics/resident/spatial_tendon_launcher_specs.rs:33",
+            "actual_cuda_entries": "spatial_site",
+            "typed_low_level_calls": [ "src/physics/resident/field_batch.rs:205" ]
+        },
+        {
+            "type": "SpatialMomentSpec",
+            "logical_name": "spatial_moment",
+            "definition": "src/physics/resident/spatial_tendon_launcher_specs.rs:68",
+            "actual_cuda_entries": "spatial_moment",
+            "typed_low_level_calls": [ "src/physics/resident/field_batch.rs:205" ]
+        },
+        {
+            "type": "SpatialWrapSpec",
+            "logical_name": "spatial_wrap",
+            "definition": "src/physics/resident/spatial_tendon_launcher_specs.rs:103",
+            "actual_cuda_entries": "spatial_wrap",
+            "typed_low_level_calls": [ "src/physics/resident/field_batch.rs:205" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "tendon_values",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/resident/plan_subsets.rs:350" ],
+        "reason": "常驻空间肌腱已收口；继续 resident forward 的肌腱合并与唤醒三入口"
+    },
+    "manual_cross_checks_add": [
+        "work-14: 常驻空间肌腱三项改走类型化包装；raw 行 -3、编排行 +3；四缓冲FIELD_BATCH共用单一发射点",
+        "work-14: 空间肌腱证明校验头计数、附着跨度、体父/根体表、自由度表、肌腱行连续覆盖、CSR行、包裹类型/对象/体/侧点与列索引",
+        "work-14: 附件布局跨度为12*(几何+site)对象；无几何包裹时几何尺寸参数不被索引，证明按实际包裹类型收紧参数区间",
+        "work-14: 类型2占位包裹用负值哨兵，body/objid仅在包裹分支校验"
+    ],
+    "acceptance_boundary_set": {
+        "resident_spatial_tendon_migrated": true,
+        "spatial_tendon_raw": false
+    }
+}

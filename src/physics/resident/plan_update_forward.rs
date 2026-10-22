@@ -143,40 +143,29 @@ impl KinematicsPlan {
         #[cfg(feature = "cuda-probe")]
         {
             if let Some(device) = &self.spatial_tendon {
-                let dimensions = [
-                    self.model.rigid().kinematics().nv() as u32,
-                    0,
-                    0,
-                    data.worlds() as u32,
-                ];
-                // SAFETY: Validated paths, CSR and derived body descriptors bound
-                // all accesses. Checked layouts bound each wide world offset.
-                // The first two entries use f32; the third reads f32 and writes i32.
-                // All outputs are distinct allocations from their immutable inputs.
-                // Synchronous launches preserve site -> moment ordering and owners.
-                unsafe {
-                    device.site_kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
-                        &data.attached,
-                        &mut data.spatial_tendon,
-                        dimensions,
-                    )?;
-                    device.moment_kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
-                        &data.com,
-                        &mut data.spatial_tendon,
-                        dimensions,
-                    )?;
-                    device.wrap_kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
-                        &data.spatial_tendon,
-                        &mut data.spatial_wrap,
-                        dimensions,
-                    )?;
-                }
+                let worlds = data.worlds() as u32;
+                // 类型化包装核对证明、精确跨度、同会话与别名；同步发射保留顺序。
+                device.kernel.launch_site(
+                    &device.metadata,
+                    &device.parameters,
+                    &data.attached,
+                    &mut data.spatial_tendon,
+                    worlds,
+                )?;
+                device.kernel.launch_moment(
+                    &device.metadata,
+                    &device.parameters,
+                    &data.com,
+                    &mut data.spatial_tendon,
+                    worlds,
+                )?;
+                device.kernel.launch_wrap(
+                    &device.metadata,
+                    &device.parameters,
+                    &data.spatial_tendon,
+                    &mut data.spatial_wrap,
+                    worlds,
+                )?;
             }
             data.ready.spatial_tendon = true;
             Ok(())

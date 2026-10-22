@@ -1,4 +1,4 @@
-//! 计划内核编译：G01基础内核与相机光源设备上传。
+//! 计划内核编译：G01基础内核与可选设备上传。
 
 #[cfg(feature = "cuda-probe")]
 use super::camlight_launcher::CamLightDims;
@@ -14,6 +14,18 @@ use super::camlight_launcher::camlight_launch_error;
 use super::pack::PackedModel;
 #[cfg(feature = "cuda-probe")]
 use super::pack_batches::FIELD_BATCH_CUDA;
+#[cfg(feature = "cuda-probe")]
+use super::spatial_tendon_launcher::SpatialTendonDims;
+#[cfg(feature = "cuda-probe")]
+use super::spatial_tendon_launcher::SpatialTendonDimsInput;
+#[cfg(feature = "cuda-probe")]
+use super::spatial_tendon_launcher::SpatialTendonStaticDims;
+#[cfg(feature = "cuda-probe")]
+use super::spatial_tendon_launcher_specs::ResidentSpatialTendonKernel;
+#[cfg(feature = "cuda-probe")]
+use super::spatial_tendon_launcher_specs::SpatialTendonMetadataBuffer;
+#[cfg(feature = "cuda-probe")]
+use super::spatial_tendon_launcher_specs::spatial_tendon_launch_error;
 #[cfg(feature = "cuda-probe")]
 use super::*;
 
@@ -99,5 +111,60 @@ pub(super) fn upload_camlight(
         metadata,
         parameters,
         ResidentCamLightKernel::compile(session, &source)?,
+    ))
+}
+
+/// 上传空间肌腱元数据、参数并编译三项内核。
+#[cfg(feature = "cuda-probe")]
+pub(super) fn upload_spatial_tendon(
+    session: &TransferSession,
+    packed: PackedModel,
+    model: &AttachedModelInput,
+    rows: &SpatialTendonRows,
+    fields: &SpatialTendonFields,
+) -> Result<
+    (
+        SpatialTendonMetadataBuffer,
+        TransferBuffer<f32>,
+        ResidentSpatialTendonKernel,
+    ),
+    TransferError,
+> {
+    let k = model.rigid().kinematics();
+    let attached_stride = AttachedLayout::new(1, model.ngeom(), model.nsite())
+        .map_err(TransferError::from)?
+        .output
+        .elements_per_world();
+    let static_dims = SpatialTendonStaticDims::new(SpatialTendonDimsInput {
+        nb: k.nbody(),
+        nv: k.nv(),
+        nt: rows.ntendon(),
+        nnz: rows.nnz(),
+        nw: fields.wrap_type.len(),
+        ngeom: model.ngeom(),
+        nsite: model.nsite(),
+        attached_stride,
+        parameters_len: packed.parameters.len(),
+    })
+    .map_err(spatial_tendon_launch_error)?;
+    let dims = SpatialTendonDims {
+        static_dims,
+        worlds: 1,
+    };
+    let (metadata, parameters) = SpatialTendonMetadataBuffer::from_packed(
+        session,
+        packed,
+        dims,
+        spatial_tendon_launch_error,
+    )?;
+    let source = format!(
+        "{}\n{}",
+        crate::physics::tendon_wrap::TENDON_WRAP_CUDA,
+        crate::physics::spatial_tendon::SPATIAL_TENDON_CUDA
+    );
+    Ok((
+        metadata,
+        parameters,
+        ResidentSpatialTendonKernel::compile(session, &source)?,
     ))
 }

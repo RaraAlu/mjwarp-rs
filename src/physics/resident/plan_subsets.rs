@@ -346,16 +346,17 @@ impl KinematicsPlan {
             let spatial_tendon = if spatial_layout.is_empty() {
                 None
             } else {
-                let source = format!(
-                    "{}\n{}",
-                    crate::physics::tendon_wrap::TENDON_WRAP_CUDA,
-                    crate::physics::spatial_tendon::SPATIAL_TENDON_CUDA
-                );
+                let (metadata, parameters, kernel) = upload_spatial_tendon(
+                    session,
+                    spatial_tendon,
+                    &model,
+                    &spatial_rows,
+                    &spatial_fields,
+                )?;
                 Some(DeviceSpatialTendon {
-                    model: spatial_tendon.upload(session)?,
-                    site_kernel: SynchronousKernel::compile(session, &source, "spatial_site")?,
-                    moment_kernel: SynchronousKernel::compile(session, &source, "spatial_moment")?,
-                    wrap_kernel: SynchronousKernel::compile(session, &source, "spatial_wrap")?,
+                    metadata,
+                    parameters,
+                    kernel,
                 })
             };
             let tendon = if let Some(tendon) = tendon {

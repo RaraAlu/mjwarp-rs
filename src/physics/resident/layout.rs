@@ -48,10 +48,9 @@ pub(super) struct ResidentTendon {
 
 #[cfg(feature = "cuda-probe")]
 pub(super) struct DeviceSpatialTendon {
-    pub(super) model: crate::physics::DeviceModel,
-    pub(super) site_kernel: SynchronousKernel,
-    pub(super) moment_kernel: SynchronousKernel,
-    pub(super) wrap_kernel: SynchronousKernel,
+    pub(super) metadata: SpatialTendonMetadataBuffer,
+    pub(super) parameters: TransferBuffer<f32>,
+    pub(super) kernel: ResidentSpatialTendonKernel,
 }
 
 #[cfg(feature = "cuda-probe")]
