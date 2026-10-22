@@ -102,19 +102,19 @@ Windows 结果不替代 Linux。
 
 ## 4.1 2026-10-22 债务修复后 G01 现状
 
-修复提交后的最新 full-debug 运行（`scripts/test-windows-g01.ps1 -AllFeatures -FullRegression`，工作区干净；本机日志 `target/g01-final.log`）：
+修复提交后的最新 full-debug 运行（`scripts/test-windows-g01.ps1 -AllFeatures -FullRegression`，工作区干净；本机日志 `target/g01-final.log`；W-D5/W-D3/重钉后最终复跑目录 `target/g01-acceptance/b0dce6add88645cfa7e674f7a93a569e`）：
 
 | 阶段 | 结果 |
 | --- | --- |
 | fmt | 通过 |
 | native | 27 过 |
-| host-msvc | **697 过** |
+| host-msvc | **709 过**（repin-5 重钉 U038 后的 resident 源码身份后恢复） |
 | g01 | 7 过 |
 | native-g01 | **2 过** |
 | native-only-g01 | 1 过 |
 | resident | **102 过**（不再中止） |
 | rustdoc -D warnings | 通过（0 警告，W-D3 已修复） |
-| all-probes | **123 过 1 败**（仅 W-D4；3 项历史捕获/归档工具已按用户 2026-10-22 裁决 A 显式排除，见 §5.1） |
+| all-probes | **123 过 1 败**（461 filtered，3 项历史捕获/归档工具按用户 2026-10-22 裁决 A 显式排除生效；唯一失败为 W-D4，见 §5.1） |
 
 all-probes 的剩余失败明细：
 
@@ -197,6 +197,7 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
   - `2026-10-22-g01-wd5-ptx-dir-semantics-2`：`docs/development-evidence/changes/2026-10-22-g01-wd5-ptx-dir-semantics-2.json`
   - `2026-10-22-g01-wd5-recapture-baseline`：`docs/development-evidence/changes/2026-10-22-g01-wd5-recapture-baseline.json`
   - `2026-10-22-g01-wd3-rustdoc-links`：`docs/development-evidence/changes/2026-10-22-g01-wd3-rustdoc-links.json`
-- 提交：`eef9321`、`71638e2`、`28bd15f`、`4ffda93`、`c5c47e0`、`eac3df6`、`341a52c`、`c98e246`、`1e3dd2f`、`24d7937`、`3a44e10`、`a433067`、`e83db38`。
+  - `2026-10-22-t4-source-hash-repin-5`：`docs/development-evidence/changes/2026-10-22-t4-source-hash-repin-5.json`
+- 提交：`eef9321`、`71638e2`、`28bd15f`、`4ffda93`、`c5c47e0`、`eac3df6`、`341a52c`、`c98e246`、`1e3dd2f`、`24d7937`、`3a44e10`、`a433067`、`e83db38`、`5a636a4`、`f917530`。
 - 运行证据：`target/g01-final.log`（本机日志，gitignored）、`target/resident-kinematics/` 下的 resident 报告。
 - 历史证据：`docs/evidence/three-layer/windows/summary.json` 与同目录日志。
