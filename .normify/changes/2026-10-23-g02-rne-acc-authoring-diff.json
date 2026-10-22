@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-g02-rne-acc-authoring-diff",
+  "title": {
+    "zh": "离线生成RNE加速度上游参考并定位缺口",
+    "en": "Author upstream RNE acceleration reference offline and localize the gap"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "G01 all-probes 首次跑到 resident_rne_acceleration 探针后暴露 521 个 native-tolerance 失败块（scalars=900288，worlds=[1,2,5,513]，5 models × 3 gravities × 8 states × 2 flags）。本任务沿用 G03 矩阵链对齐的打法：在已批准例外的 pinned 环境中离线生成上游 MJWarp（冻结提交 71da24d…）的 RNE 加速度参考，场景与 resident_rne_acceleration 完全对齐；先用仓内现有冻结原生数据做天然校验，再用首差定位差异阶段（kinematics/com/crb/力臂/累加/FMA 顺序等）。只报根因与修复计划，不改产品代码；若定位到明确单点再另立实施任务。",
+    "en": "After G01 all-probes reached resident_rne_acceleration for the first time, 521 native-tolerance blocks fail (scalars=900288, worlds=[1,2,5,513], 5 models x 3 gravities x 8 states x 2 flags). This task reuses the G03 matrix-chain playbook: in the approved-exception pinned environment, author the upstream MJWarp (frozen commit 71da24d...) RNE acceleration reference with scenarios exactly matching resident_rne_acceleration; first do a natural validation against the existing frozen native data, then use first-difference analysis to localize the divergent stage (kinematics/com/crb/moment arms/accumulation/FMA order, etc.). Report root cause and fix plan only; no product code changes. If a single clear site is identified, register a separate implementation task."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "环境审计与冻结：pinned 环境（Python 3.12 + mujoco 3.15.0 + warp-lang 1.15.0 + 冻结 mjwarp 71da24d…）、上游 checkout HEAD/clean、warp.dll 与缓存哈希复核；生成脚本进仓 scripts/authoring/，启动前自动复核环境，不一致拒绝运行；一条命令可复现。",
+    "离线生成上游 RNE 加速度参考：5 models × 3 gravities × 8 states × worlds [1,2,5,513] 与 resident_rne_acceleration 场景一致；产物带 provenance（环境版本、上游提交、输入哈希、命令、产物 SHA256），存证据目录，不进产品 fixtures。",
+    "天然校验：用生成的输入/中间量与仓内现有冻结原生数据（fixtures/rne-acceleration 的 qfrc 与 native MuJoCo 参考）对齐，给出校验结果；不通过则停手报阻塞，不调参凑。",
+    "首差定位：把产品与上游逐阶段对比（kinematics/com/crb/力臂/累加/FMA），定位到具体阶段并给出修复计划；只报根因，不改产品 src、不改测试/容差/fixtures。",
+    "证据 docs/development-evidence/g02-rne-authoring-diff/（README + json + provenance + 首差数据）；回执含 task_id；门禁 fmt/clippy/clippy-cuda/unit 与 unchanged 全过。",
+    "若需要上游里没有的中间量或外部组件：停手报 Chief，不猜、不硬造。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-g01-all-probes-env-wiring"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "scripts/authoring/",
+      "docs/development-evidence/g02-rne-authoring-diff/",
+      "docs/development-evidence/changes/2026-10-23-g02-rne-acc-authoring-diff.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "来源：2026-10-22-g01-all-probes-env-wiring（提交 6cb5a71）接线后 all-probes 首次执行 resident_rne_acceleration，报 521 个 native-tolerance 失败块（ABS=REL=2e-5；scalars=900288；models=mixed-joints/inertial-tree/rotated-tree/zero-dof/massless-tree；gravities=3；states=8；worlds=[1,2,5,513]；flags=2）。首个失败块示例：model=mixed-joints gravity=2 state=7 world=0 worlds=1 worst_dof=3 actual=1.5473079681396484 native=1.5471062036731382 max_normalized_error=3.9606606552025867（完整清单 target/rne-acceleration-validation/full-numerical.json）。打法照搬 G03：先离线 authoring 上游参考，天然校验后再首差；不直接改产品代码、不改断言/容差/fixtures。上游冻结提交 71da24d956378a87a703b6e1442b13aec0c4ac29；authoring 例外与隔离要求见 scripts/authoring/README.md。若定位到明确单点（如 FMA 收缩）再另立实施任务。",
+  "revision": {
+    "before": "5129ee4c38771fa32fecd35fab7f184b12d25d9b",
+    "after": null
+  },
+  "created_at": "2026-10-23T00:45:00.000Z",
+  "updated_at": "2026-10-22T16:35:59.926Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-g02-rne-acc-authoring-diff.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-g02-rne-acc-authoring-diff"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
