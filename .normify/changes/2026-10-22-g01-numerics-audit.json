@@ -5,7 +5,7 @@
     "zh": "审计G01重力位证书",
     "en": "Audit G01 gravity bit certificate"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "G01 全量回归的 all-probes 中，重力补偿冻结位证书在干净基线 360718f 与当前 HEAD 上都差 2 个比特，属既有数值问题而非拆分回归。本任务定位这 2 位差异的来源，不改断言、不放宽容差。",
     "en": "In the G01 full all-probes run, the gravity-compensation frozen bit certificate differs by 2 bits on both the clean baseline 360718f and current HEAD, so it is pre-existing rather than a split regression. Locate the source of the 2-bit difference without changing assertions or relaxations."
@@ -30,12 +30,40 @@
   },
   "note": "来源：2026-10-22-g01-gate-script-sync 的 all-probes 失败项。\n复现：cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --lib -- --ignored gravity_compensation::tests::gpu_matches --nocapture --test-threads=1。\n设备：NVIDIA GeForce RTX 4070 Ti SUPER，驱动 596.36，Windows x64 MSVC。\n两版结果：基线 worktree 360718f 失败 left=2 right=0；当前 HEAD 347319b 失败 left=2 right=0。\n结论：既有数值问题，非拆分回归；不阻塞切片程序，收口文档需列明。\n基线 worktree 已删除，日志摘录保留在 target/baseline-gravity.log。\ndelivery-receipt: docs/development-evidence/changes/2026-10-22-g01-numerics-audit.json",
   "revision": {
-    "before": null,
+    "before": "ef99e38862c5d8881ddad5e4e2fe34828f69f47b",
     "after": null
   },
   "created_at": "2026-10-22T01:35:00.000Z",
-  "updated_at": "2026-10-22T01:35:00.000Z",
+  "updated_at": "2026-10-22T01:56:32.918Z",
+  "closed_at": "2026-10-22T01:56:32.918Z",
   "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g01-numerics-audit.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g01-numerics-audit"
+    },
     {
       "kind": "forbid_claim",
       "terms": [

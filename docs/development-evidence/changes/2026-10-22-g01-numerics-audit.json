@@ -1,0 +1,37 @@
+{
+    "schema":  1,
+    "kind":  "delivery",
+    "task_id":  "2026-10-22-g01-numerics-audit",
+    "milestones":  {
+                       "implementation":  "complete",
+                       "validation":  "passed",
+                       "delivery_record":  "complete"
+                   },
+    "files":  [
+                  {
+                      "path":  "docs/development-evidence/g01-numerics-audit/README.md",
+                      "blob":  "9e2e75ae491393e0c0a909663e39f2bb65371f4a"
+                  },
+                  {
+                      "path":  "docs/development-evidence/g01-numerics-audit/sim.rs",
+                      "blob":  "e0db36ec13aca7fd1005ff15f15e55f0cacb345d"
+                  },
+                  {
+                      "path":  "docs/development-evidence/g01-numerics-audit/runs/run-01-ptx-summary.txt",
+                      "blob":  "69291b48a5e41fa05bc706fd167362f16ecf7d58"
+                  },
+                  {
+                      "path":  "docs/development-evidence/g01-numerics-audit/runs/run-01-report-head.json",
+                      "blob":  "e3aab5866c5720f6cdb9f3cefdb0f468564694b7"
+                  },
+                  {
+                      "path":  "docs/development-evidence/g01-numerics-audit/runs/run-01-repro-head.log",
+                      "blob":  "7cc335a2f22c476a0f535385b7c59aa91a1b5ae4"
+                  },
+                  {
+                      "path":  "docs/development-evidence/g01-numerics-audit/runs/run-01-sim.log",
+                      "blob":  "a5c56ac8ded22eb801a4e23b24891a0ba2ed4587"
+                  }
+              ],
+    "note":  "只诊断，不改 src/tests/fixtures 与断言容差。复现：cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --lib -- --ignored gravity_compensation::tests::gpu_matches --nocapture --test-threads=1，设备 RTX 4070 Ti SUPER/驱动 596.36，结果 left=2 right=0。差异槽：world1 与 world4 的 dof2，各 4 ulp；actual 0x3efffffc（0.49999988079071045），expected 0x3f000000（0.5）；max_abs 1.192e-7，容差 2e-6 通过。定位：(1) 归约顺序排除：root/ancestor 定义下 dof2 只有 body3 一个贡献者，clear 后单次 atomicAdd，PTX 仅一个 atom.global.add.f32。(2) FMA/编译选项排除：compute PTX 无 fma.rn.f32，mul.f32 15、add.f32 3、add.rn.f32 2、sub.f32 8；主机模拟在无 FMA/FMA/单次舍入三种写法下 bits 相同。(3) 设备特性排除：主机 f32 逐步模拟精确复现 GPU bits，差异无需设备行为即可解释。根因：精确证书用有理算术（body1 子树 COM 17/7、cdof4 -25/7、力臂 32/7、jy 1、结果 0.5），内核按 f32 输入计算：COM 与 cdof4 各偏 +3.4e-8，减法得到力臂 4.5714282990（偏 -2.7e-7），jy 0.99999976158，结果 0.49999988079（4 ulp 低）。影响：数值容差通过、位证书零容忍失败；基线 360718f 同样失败，与拆分无关；不构成产品精度偏差判定，NP01 至 NP04 状态不变、仍未验收；不得据此宣称精度达标或失败。后续建议另立任务处理证书口径（ULP 容差/按 f32 逐步生成/记录已知边界），本任务不实现。"
+}
