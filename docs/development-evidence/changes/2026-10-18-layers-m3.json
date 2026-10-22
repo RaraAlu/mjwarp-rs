@@ -1,0 +1,73 @@
+{
+    "schema": 1,
+    "kind": "delivery",
+    "task_id": "2026-10-18-layers-m3",
+    "milestones": {
+        "implementation": "complete",
+        "validation": "passed",
+        "delivery_record": "complete"
+    },
+    "files": [
+        {
+            "path": "docs/development-evidence/layers-m3/README.md",
+            "blob": "21781ebf793740a0b4d90099142309d82125e572"
+        },
+        {
+            "path": "docs/development-evidence/layers-m3/refresh-inventory.ps1",
+            "blob": "352a8c4ecbbb2e060156a8889a8cfbfa1bf0c89c"
+        },
+        {
+            "path": "docs/development-evidence/layers-m3/unmigrated-launch-inventory.json",
+            "blob": "9ec387c3c7d69f802cc4c78a976a03efb3e144c6"
+        },
+        {
+            "path": "docs/development-evidence/layers-m3/work-22-passive-force.json",
+            "blob": "2badb180c97cfb13fa9aa43e3ce791a7491c0e46"
+        },
+        {
+            "path": "docs/development-evidence/layers-m3/work-24-sparse-solve.json",
+            "blob": "1475dff549af269b797869434934fd366c18f642"
+        },
+        {
+            "path": "docs/development-evidence/layers-m3/runs/work-19-gpu-tests.log",
+            "blob": "4eb692e7174609645cdf7b76fa2cb2d68dc5453f"
+        },
+        {
+            "path": "docs/development-evidence/layers-m3/runs/work-21-gpu-tests.log",
+            "blob": "975ee0b65c911a2db457412e9cf24f2724d3b7ce"
+        },
+        {
+            "path": "docs/development-evidence/layers-m3/runs/work-22-gpu-tests.log",
+            "blob": "ed6e0b85f59e49a02138d3fb48e2e6a915aa9408"
+        },
+        {
+            "path": "docs/development-evidence/layers-m3/runs/work-24-gpu-tests.log",
+            "blob": "7e2ed05f2584e5d2c4ce872448721aea04464885"
+        },
+        {
+            "path": "src/runtime/transfer/kernel/launchers_passive.rs",
+            "blob": "3fd1d0c3d5c5bd1ef28fda0415defb4aed5c8dfd"
+        },
+        {
+            "path": "src/runtime/transfer/kernel/launchers_solve.rs",
+            "blob": "8559e376a7fb35770a13f6038071a69b53dcb68f"
+        },
+        {
+            "path": "src/physics/gravity_compensation/launcher_specs.rs",
+            "blob": "75bc1d570e3650f51568e20dfdb4e8969eb52529"
+        },
+        {
+            "path": "src/physics/passive_force/kernels.rs",
+            "blob": "ddb5ec4f457c5fb01623eaadb36ce0dc9863e903"
+        },
+        {
+            "path": "src/physics/fluid_force/kernels.rs",
+            "blob": "0c5a0ac6fd4f51316738b85b4409179e48e1dab6"
+        },
+        {
+            "path": "src/physics/mass_solve/sparse/resident/solve/kernels.rs",
+            "blob": "296f4db76a3e23ff3ea5b62b18087497a47ab6c3"
+        }
+    ],
+    "note": "M3 安全包装同步迁移完成：24 个 Work 提交（work-01 至 work-24）把 src/physics、src/runtime 剩余底层同步内核发射全部改走统一类型化包装（KernelAbi + KernelSpec + MetadataProof + 精确跨度 + 会话/别名检查），每批一个可回滚提交并刷新清单。终版清单 v30 达成四项归零：unmigrated_low_level_call_sites 0（自 68）、unmigrated_actual_entry_kinds 0（自 55）、unresolved_dynamic_compile_sites 0、uncertain 空；typed_actual_entry_kinds 88/88、typed_low_level_call_sites 77/77、kernel_abi_families 85、wrapper_orchestration_call_sites 98。验证：每批双配置 cargo check、cargo fmt、双配置 clippy -D warnings、cargo test --locked --lib（256 过 0 败），每批新增宿主故障测试 3-5 项；GPU 定向日志 runs/work-01..24-gpu-tests.log，RTX 4070 Ti SUPER、驱动 596.36、CUDA 12.8.1，每次 NVRTC 独立空捕获目录。work-10 重力补偿迁移引入的共享链回归（gravity_compensation_sum 分片缓冲两字段与四字段平滑力输出跨度）已在 work-22 定位并以插桩证据（Capacity slot 1 required 164 actual 296）说明，修复后 passive_force 共享链 GPU 测试全绿；work-19/20/21 日志中的两条红项即该回归表现，非历史债务。未验收边界：G01 全量门禁属既有债务（重力位证书 2 bit / 4 ulp 由 f32 输入舍入导致，基线 360718f 同样失败，max_abs 1.19e-7 <= 2e-6，归 g01-numerics-audit）；PTX 捕获目录双语义属既有债务；锚点分层、可见性、fixtures 契约为开放项。本任务只覆盖 M3 同步迁移，不宣称完整上游等价、性能、Linux、release 或精度硬指标全量验收。"
+}

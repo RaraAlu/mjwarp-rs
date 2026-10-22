@@ -1,7 +1,7 @@
 +++
 uid = "90a67df6"
 id = "mjwarp.physics.attached"
-fingerprint = "942ee2dac799361ed28a97bba1b017e7557b74e884443311e71d09ffa82ea877"
+fingerprint = "391ed87705b0e645a9e30a3a39605573fe23f4c94e29e48efecd6c1492873f2a"
 
 [name]
 zh = "附着位姿GPU探针"

@@ -2,7 +2,7 @@
 uid = "f201cefe"
 id = "mjwarp.physics.tendon-passive"
 tags = ["P4", "U038", "G04"]
-fingerprint = "1121238df3ad75429ae6d73ed319dfc6ad395b943a7cee7f6c5c33bac3d56c84"
+fingerprint = "9b872b31903866e65e9536c911b12fffc232b1a2ab6d8fd057d075d6caa919a1"
 
 [name]
 zh = "常驻肌腱被动力"

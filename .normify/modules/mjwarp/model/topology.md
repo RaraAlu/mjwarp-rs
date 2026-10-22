@@ -1,7 +1,6 @@
 +++
 uid = "824ac735"
 id = "mjwarp.model.topology"
-state = "planned"
 tags = ["planned", "engine"]
 fingerprint = "658583fe0a50b1faf93cd45b508dce01ac3dab88ea9b8389e33f81fb9e6ae21b"
 

@@ -2,7 +2,7 @@
 uid = "a38c1e7b"
 id = "mjwarp.physics.passive-force"
 tags = ["G04", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "b3fbe1e949136a078ef39eeb8bbf9b9f304233671dbaadbc4c670a4fb234120c"
+fingerprint = "a2d074daf1d5c0fc76ae7f4c6cf9c0e35269921544e38392aa42d5f5702f2679"
 
 [name]
 zh = "被动力共享累加"

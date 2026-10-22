@@ -2,7 +2,7 @@
 uid = "da95e316"
 id = "mjwarp.runtime.transfer.kernel"
 tags = ["runtime", "prototype"]
-fingerprint = "a44cfe433d00533e34610a1e4a4407f01bb9f8e7dee69b1da3b180836bd676d7"
+fingerprint = "65bb2ae85723bcbb98d383b9bcf747c465b00012250f0d9285ca588043736d70"
 
 [name]
 zh = "同步内核适配"

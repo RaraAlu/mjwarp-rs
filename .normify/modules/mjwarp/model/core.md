@@ -1,7 +1,6 @@
 +++
 uid = "2697aa91"
 id = "mjwarp.model.core"
-state = "planned"
 tags = ["planned", "engine"]
 fingerprint = "38edc23a7750441eadfccaa325056f8c8f349df936716b7fc752e2624185dec3"
 

@@ -2,7 +2,7 @@
 uid = "5067644f"
 id = "mjwarp.physics.flex-edge-passive"
 tags = ["G04", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "8bcdeaf564f7905313b4c43ed0e9c3fa376d633f302a34aaae62efd15178afbc"
+fingerprint = "e5b39c3c8818ad799eb92c42a38961cfde3a889c8f36ae2d8044a78de7114e5e"
 
 [name]
 zh = "柔体边被动力"
