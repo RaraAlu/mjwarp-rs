@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-g01-wd5-ptx-dir-semantics-2",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "partial",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "src/runtime/mod.rs", "blob": "20b80230a4d5a4572cc732fb81ce830b641ef280"},
+    {"path": "src/runtime/transfer/kernel.rs", "blob": "3def73d208240cf815b154db8350396cd07b59d2"},
+    {"path": "src/runtime/transfer/kernel/capture_dir.rs", "blob": "a06ccce08b2652c0452ec355842c2a2128473739"},
+    {"path": "src/physics/mass_matrix/tests/gpu.rs", "blob": "4c679df32c1b31ecec2026bca5a01f0fdf97778d"},
+    {"path": "src/physics/mass_solve/tests/device_wrapper.rs", "blob": "00696e238833270166fa51ff9042e907d2863b0a"},
+    {"path": "src/physics/resident/rigid_kinematics_tests.rs", "blob": "b0e8b6bc6bd84ce06ee0ac8c47310cd3888b2ebf"},
+    {"path": "src/physics/rne/tests/backward_run.rs", "blob": "0461d53e876f2fde4cbe26f92a6c066711e06265"},
+    {"path": "src/physics/rne/tests/cacc_run.rs", "blob": "10967361ccef7474be901d44829bf29062c8f0b4"},
+    {"path": "src/physics/rne/tests/cfrc_run.rs", "blob": "7e77aa04e259c23f00b18ec5248191cc6ffb9040"},
+    {"path": "src/physics/rne/tests/qfrc_run.rs", "blob": "0708277eb9528eb199d9cf836dbaeb46282919ef"},
+    {"path": "src/physics/rne_bias/tests/gpu.rs", "blob": "aee85356561314c4c51b6df1edfb625484800cb2"},
+    {"path": "tests/support/t4_rigid_capture/tests_recapture.rs", "blob": "cddd73c029795649029808d4b5f85eaef084a941"},
+    {"path": "tests/support/t4_rigid_capture/tests_archive.rs", "blob": "dd0389c4f1a7d372d75a71a37477cccdc286c3ab"},
+    {"path": "docs/three-layer-acceptance.md", "blob": "3a6e3f6874d1af1021bbb3be61acbbfd14312b5e"},
+    {"path": "docs/development-evidence/g01-wd5-ptx-dir/README.md", "blob": "53f7c385f37b52e3dfb7bc60cd28cf7c73abe19f"}
+  ],
+  "note": "W-D5 捕获目录双语义按实际达成收口：原 9 项 all-probes 失败中 6 项转绿（mass_solve wrapper 1、rne backward/cacc/cfrc/qfrc 4、rne_bias 1），另 3 项重采集/归档为历史基线缺失、另案跟踪（2026-10-22-g01-wd5-recapture-baseline，proposed，未 start）。根因：MJWARP_PHYSICS_PTX_DIR 在产品捕获层只有“捕获根目录”语义；测试侧并存两种冲突假设——包装测试把变量当已存在根并写固定子目录名（foreign-session/zero-dof/root-only），同进程跨测试复用导致 !exists 断言失败；重采集/归档把变量当必须不存在的输出目录。修复：新增测试侧 capture_child/capture_output（src/runtime/transfer/kernel/capture_dir.rs，仅 cfg(test)，经 src/runtime/mod.rs 重导出）——根存在时按 module_path!()+标签分配唯一子目录，根不存在时重采集/归档保留旧口径；十个测试文件改用统一分配。不改内核字符串/PTX 生成策略/数值容差/fixtures/产品逻辑。验证：cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features -- --ignored --test-threads=1（all-probes 等价环境，两次独立空捕获根）第一轮 122 过 5 败、第二轮 123 过 4 败；6 项原失败稳定转绿；首次出现的捕获文件锁（os error 32）独立复跑通过且第二轮未复现，判为环境瞬态。剩余 4 项：W-D4 重力位证书 1 项（已知债务，未动容差/断言）；重采集 2 项与归档 1 项经独立复现（绝对/相对路径、存在/不存在根目录）均同因失败——recompile 报 source drift: src/physics/attached.rs（t4-kernels.json 有 7 个产品源身份与当前源码不同，历史回执明确保持历史身份）、recapture 报 capture coverage mismatch、archive 计数 left 0 right 2078；属需要历史捕获产物（target/t4-g03-retest 等 10/17 冻结产物）与冻结源码基线，按约定不改断言、不改 all-probes 脚本、不伪造基线，等用户对 A/B/C 裁决。未验收边界：不宣称 G01 all-probes 全绿；W-D4 与 3 项历史基线仍开；W-D6 all-probes -Minimum 计数调整与这 3 项处置一起做，本轮不动脚本；未跑 release/Linux/整脚本两遍。",
+  "evidence": {
+    "readme": "docs/development-evidence/g01-wd5-ptx-dir/README.md",
+    "all_probes_logs": ["target/wd5-allprobes.log", "target/wd5-allprobes2.log"],
+    "commits": ["6be5ce6", "1dceff6", "3a44e10"]
+  }
+}

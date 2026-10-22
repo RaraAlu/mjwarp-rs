@@ -8,7 +8,7 @@ mod transfer;
 pub(crate) use transfer::host_staging;
 #[cfg(feature = "cuda-probe")]
 pub(crate) use transfer::kernel::SynchronousKernel;
-#[cfg(test)]
+#[cfg(all(test, feature = "cuda-probe"))]
 pub(crate) use transfer::kernel::{capture_child, capture_output};
 pub use transfer::{TransferBuffer, TransferElement, TransferSession};
 

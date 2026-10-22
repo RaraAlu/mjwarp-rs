@@ -5,13 +5,13 @@
 //! 根目录不存在时由调用方决定沿用旧口径。
 //! 同一进程内多次捕获因此不会共享目录。
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn root() -> Option<PathBuf> {
     std::env::var_os("MJWARP_PHYSICS_PTX_DIR").map(PathBuf::from)
 }
 
-fn unique(root: &PathBuf, scope: &str, label: &str) -> PathBuf {
+fn unique(root: &Path, scope: &str, label: &str) -> PathBuf {
     let scope = scope.replace("::", "-");
     root.join(format!("{scope}-{label}"))
 }

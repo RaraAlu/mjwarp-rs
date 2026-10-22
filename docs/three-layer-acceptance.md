@@ -113,18 +113,19 @@ Windows 结果不替代 Linux。
 | native-g01 | **2 过** |
 | native-only-g01 | 1 过 |
 | resident | **102 过**（不再中止） |
-| all-probes | 执行后中止：lib 114 过 10 败，10 项全部为 W-D4/W-D5 已知债务 |
+| all-probes | **123 过 4 败**（W-D4 1 + 历史基线缺失 3；W-D5 语义冲突 6 项已转绿） |
 
-all-probes 的 10 项已知失败明细：
+all-probes 的 4 项剩余失败明细：
 
 - W-D4 ×1：`physics::gravity_compensation::tests::gpu_matches_independent_multi_body_reduction_certificate`（2 bit / 4 ulp，证书口径，基线同样失败）。
-- W-D5 ×9：`physics::mass_solve::tests_device_wrapper::runs_rigid_mass_solve_wrapper_paths_and_recovers`；`physics::rne::{backward,cacc,cfrc,qfrc}` 4 项；`physics::rne_bias::tests_gpu::runs_rne_bias_wrapper...`；`runtime::transfer::kernel::recapture` 3 项。
-  上述 9 项均来自 `MJWARP_PHYSICS_PTX_DIR` 的“NVRTC 捕获目录 vs 固定 PTX 加载”双语义在单次 all-probes 运行中无法同时满足。
+- 历史基线缺失 ×3（W-D5 另案）：`runtime::transfer::kernel::recapture` 的 2 项重采集与 1 项归档。经独立复现确认不是 `MJWARP_PHYSICS_PTX_DIR` 语义问题，而是需要历史捕获产物（`target/t4-g03-retest` 等 10/17 冻结产物）与冻结源码基线（`fixtures/precision/t4-kernels.json` 有 7 个产品源身份漂移，历史回执明确保持历史身份）；由 proposed 任务 `2026-10-22-g01-wd5-recapture-baseline` 跟踪，等用户裁决 A/B/C，未改断言、未改脚本、未伪造基线。
 
-与历史快照对比：W-D1、W-D2、W-D7 造成的阻塞已消除；resident 阶段从 wake-guards 中止变为 102 项全绿；all-probes 从“未执行”变为“执行但只余 W-D4/W-D5”。
+W-D5 语义冲突修复：测试侧把 `MJWARP_PHYSICS_PTX_DIR` 统一按捕获根解释，根存在时按 `module_path!()` 与标签分配唯一子目录；mass_solve wrapper 1、rne 4、rne_bias 1 共 6 项稳定转绿（G01 all-probes 等价命令两轮独立空捕获根：122 过 5 败、123 过 4 败）。证据 `docs/development-evidence/g01-wd5-ptx-dir/README.md`。
+
+与历史快照对比：W-D1、W-D2、W-D7 造成的阻塞已消除；resident 阶段从 wake-guards 中止变为 102 项全绿；all-probes 从“未执行”推进到 123 过 4 败。
 本轮未重跑 G01 release；release 现状仍以历史快照为准，不宣称通过。
 
-结论（当前）：三层迁移范围的 debug 回归已推进到 all-probes 且无新增 M3 回归；G01 全量仍**不被宣称通过**，剩余项为 W-D4/W-D5 已知债务。
+结论（当前）：三层迁移范围的 debug 回归已推进到 all-probes 且无新增 M3 回归；G01 全量仍**不被宣称通过**，剩余项为 W-D4 与 3 项历史基线缺失。
 
 ## 5. 债务清单
 
@@ -134,13 +135,14 @@ all-probes 的 10 项已知失败明细：
 | W-D2 | P1 | **已修复** | T4 pinned lineage 漂移，阻塞 host-msvc。重钉提交 `28bd15f`（登记）+ `4ffda93`；W-D7 修复改变 resident 源码后由 `2026-10-22-t4-source-hash-repin-3` 再次重钉：`c5c47e0`（登记）+ `eac3df6`。host-msvc 697 过，lineage 不再中止。 |
 | W-D3 | P2 | 未修复（既有） | rustdoc `-D warnings` 三处既有 broken intra-doc links（kinetic_energy.rs:134、device_energy/plan.rs:47、mass_solve/sparse/resident/solve.rs:55）。本轮 all-probes 失败后脚本中止在 rustdoc 之前，未重跑，维持既有记录。 |
 | W-D4 | 已知债务 | 未修复（用户未裁决） | G01 重力位证书 2 bit 差异：f32 输入舍入导致 4 ulp，证书用有理精确值；基线同样失败，属证书口径问题。定性与证据见 `2026-10-22-g01-numerics-audit` 回执。**容差未修改；不宣称通过；用户尚未裁决口径。** |
-| W-D5 | 已知债务 | 未修复 | `MJWARP_PHYSICS_PTX_DIR` 双语义（NVRTC 捕获目录与固定 PTX 加载）；本轮 all-probes 的 9 项失败即该债务。门禁不以此豁免；需要独立空捕获目录的运行方式继续沿用。 |
-| W-D6 | 既有债务 | 部分解除 | G01 脚本 resident/all-probes 期望计数与拆分后布局同步：`2026-10-22-g01-gate-script-sync` 已同步；本轮 resident 期望 102 与实测一致并通过；all-probes 期望最少 169 因 W-D4/W-D5 失败未达到（lib 114 过 10 败），待 all-probes 全绿后收口。 |
+| W-D5 | 已知债务 | **部分修复** | `MJWARP_PHYSICS_PTX_DIR` 测试侧目录分配语义冲突：已统一为“捕获根 + 唯一子目录”，6/9 转绿（mass_solve wrapper 1、rne 4、rne_bias 1），修复提交 `3a44e10`（任务 `2026-10-22-g01-wd5-ptx-dir-semantics-2`），证据 `docs/development-evidence/g01-wd5-ptx-dir/README.md`。剩余 3 项重采集/归档属历史捕获与冻结源码基线缺失，另案 `2026-10-22-g01-wd5-recapture-baseline`（proposed）跟踪，等用户裁决 A/B/C；未改断言、脚本或基线。 |
+| W-D6 | 既有债务 | 部分解除 | G01 脚本 resident/all-probes 期望计数与拆分后布局同步：`2026-10-22-g01-gate-script-sync` 已同步；resident 期望 102 与实测一致并已收口；all-probes 期望最少 169 与当前 123 过 4 败不一致，计数调整与剩余 3 项处置一起改，本轮不动脚本。 |
 | W-D7 | P0 | **已修复** | M3 柔体边安全包装空 ABI 回归（`068fd14` 引入）：`FlexEdgesStaticDims` 误拒单世界体/零 nnz 合法输入。修复提交 `341a52c`（登记）+ `c98e246`（修复），任务 `2026-10-22-layers-m3-flex-edges-abi-fix` 已验证；`flex_edge_free_body...` 恢复、resident 脚本 102 项全绿。 |
 | W-D8 | P1 | **已修复** | M3 稀疏求解包装空计划 ABI 回归（`38a4960` 引入）：`SparseSolveStaticDims` 误拒 n=0/nc=0 合法空计划。修复提交 `1e3dd2f`（登记）+ `24d7937`（修复），任务 `2026-10-22-layers-m3-sparse-solve-empty-abi-fix` 已验证；`tests/resident_sparse_solve -- --ignored` 2 过 0 败。 |
 
 W-D1、W-D7、W-D8 是迁移自身回归，已在独立任务中修复，未被当作历史债务豁免。
-W-D4/W-D5/W-D3/W-D6 仍保持开放；不得以本记录豁免任何原容差或门禁。
+W-D4 仍开放且用户未裁决；W-D5 语义冲突已部分修复（6/9），剩余 3 项历史基线缺失另案；W-D3/W-D6 的收口见对应任务。
+不得以本记录豁免任何原容差或门禁。
 
 ## 6. NP01–NP04 缺口
 
@@ -153,7 +155,8 @@ W-D4/W-D5/W-D3/W-D6 仍保持开放；不得以本记录豁免任何原容差或
 ## 7. 未验收边界
 
 - 只验收 Windows；Linux V2 未启动（需要 `linux-gpu:0` 与 `linux-acceptance`）。
-- all-probes 全探针矩阵已执行但未通过：剩余 W-D4/W-D5 共 10 项已知债务。
+- all-probes 全探针矩阵已执行但未通过：剩余 W-D4 1 项与历史基线缺失 3 项（W-D5 另案）共 4 项。
+- all-probes 的 `-Minimum` 计数调整与历史基线 3 项处置一起改；本轮不动脚本（W-D6）。
 - G01 release 未在修复后重跑；release 不宣称通过。
 - 未测量 G01 阶段峰值显存。
 - 不转授完整产品数值验收、性能验收或双平台准入。
