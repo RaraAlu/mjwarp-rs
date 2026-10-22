@@ -1,5 +1,13 @@
 //! 常驻CRB直接采集为CSR，再复用稀疏分解。
 //! 宿主只读取诊断状态，不上传计算后的物理输入。
+#[cfg(feature = "cuda-probe")]
+use self::kernels::{SparseResidentGatherKernel, SparseResidentValidateKernel};
+#[cfg(feature = "cuda-probe")]
+use self::launcher_abi::SparseResidentStaticDims;
+#[cfg(feature = "cuda-probe")]
+use self::launcher_meta::sparse_resident_launch_error;
+#[cfg(feature = "cuda-probe")]
+use self::metadata_buffer::SparseResidentMetadataBuffer;
 use super::{
     SparseMassFactorData, SparseMassFactorOutput, SparseMassFactorPlan, SparseMassFactorWorld,
 };
@@ -7,6 +15,14 @@ use crate::diagnostics::{InputError, ProbeError, TransferError};
 use crate::model::{AttachedModelInput, BatchLayout, SparseMassInput};
 use crate::physics::{MassMatrixData, MassMatrixOutput, MassMatrixPlan, MassMatrixWorld};
 use crate::runtime::TransferSession;
+#[cfg(all(feature = "cuda-probe", test))]
+use crate::runtime::launcher::DeviceSpan;
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer};
 
@@ -19,13 +35,13 @@ pub struct SparseMassPlan {
     matrix: MassMatrixPlan,
     factor: SparseMassFactorPlan,
     #[cfg(feature = "cuda-probe")]
-    nbody: usize,
-    #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: SparseResidentMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 2],
+    validate: SparseResidentValidateKernel,
+    #[cfg(feature = "cuda-probe")]
+    gather: SparseResidentGatherKernel,
 }
 pub struct SparseMassData {
     matrix: MassMatrixData,
@@ -98,18 +114,19 @@ impl SparseMassPlan {
             if metadata.is_empty() {
                 metadata.push(0);
             }
-            let metadata = session.upload(&metadata)?;
-            let kernels = [
-                SynchronousKernel::compile(session, CUDA, "resident_sparse_validate")?,
-                SynchronousKernel::compile(session, CUDA, "resident_sparse_gather")?,
-            ];
+            let static_dims =
+                SparseResidentStaticDims::new(nbody, factor.input().nv(), factor.input().nc())
+                    .map_err(sparse_resident_launch_error)?;
+            let metadata = SparseResidentMetadataBuffer::upload(session, metadata, static_dims)?;
+            let validate = SparseResidentValidateKernel::compile(session, CUDA)?;
+            let gather = SparseResidentGatherKernel::compile(session, CUDA)?;
             Ok(Self {
                 matrix,
                 factor,
-                nbody,
                 metadata,
                 session: session.clone(),
-                kernels,
+                validate,
+                gather,
             })
         }
     }
@@ -172,20 +189,10 @@ impl SparseMassPlan {
         {
             let source = data.matrix.matrix_input()?;
             let worlds = data.worlds() as u32;
-            let n = self.input().nv() as u32;
-            let nc = self.input().nc() as u32;
-            // SAFETY: Same-plan CRB stride is10*nb+n*n; source has4+4 guards.
-            // Each validation thread owns one status slot inside worlds+8.
-            // No source buffer is mutable and all launches finish synchronously.
-            unsafe {
-                self.kernels[0].launch(
-                    &self.metadata,
-                    source,
-                    source,
-                    &mut data.status,
-                    [self.nbody as u32, n, nc, worlds],
-                )?;
-            }
+            let n = self.input().nv();
+            // 验证内核只读源缓冲，写互不相交的状态槽。
+            self.validate
+                .launch(&self.metadata, source, &mut data.status, worlds)?;
             let mut status = crate::runtime::host_staging::<f32>(worlds as usize + 8)?;
             data.status.read_range_into(0, &mut status)?;
             crate::physics::check_device_values(&status, "sparse_mass_source_status")?;
@@ -200,18 +207,9 @@ impl SparseMassPlan {
                 }
             }
             if n != 0 {
-                // SAFETY: Checked CSR columns fit n, rows partition nC and work
-                // count worlds*n is bounded by the factor data layout. Gather
-                // writes only the disjoint CSR payload, preserving both guards.
-                unsafe {
-                    self.kernels[1].launch(
-                        &self.metadata,
-                        source,
-                        source,
-                        &mut data.factor.matrix,
-                        [self.nbody as u32, n, nc, worlds * n],
-                    )?;
-                }
+                // 采集内核只读源缓冲，写互不相交的CSR结果区。
+                self.gather
+                    .launch(&self.metadata, source, &mut data.factor.matrix, worlds)?;
             }
             // 只回读目标守卫；物理输入仍留在设备上。
             let mut guards = [0.0f32; 8];
@@ -307,6 +305,25 @@ extern "C" __global__ void resident_sparse_gather(const int* meta,const float* s
  for(int j=0;j<rownnz[row];++j) {int a=rowadr[row]+j;output[a]=dense[(unsigned long long)row*n+colind[a]];}
 }
 "#;
+
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/kernels.rs"]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/launcher_abi.rs"]
+mod launcher_abi;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/launcher_meta.rs"]
+mod launcher_meta;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/launcher_specs.rs"]
+mod launcher_specs;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/metadata_buffer.rs"]
+mod metadata_buffer;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "resident/tests/launcher.rs"]
+mod tests_launcher;
 
 #[cfg(all(test, feature = "cuda-probe"))]
 mod tests {

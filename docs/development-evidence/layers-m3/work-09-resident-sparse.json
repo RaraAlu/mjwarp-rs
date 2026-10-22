@@ -1,0 +1,108 @@
+{
+    "work": "work-09-resident-sparse",
+    "summary": "resident_sparse_validate 与 resident_sparse_gather 改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/mass_solve/sparse/resident.rs", "line": 181 },
+        { "file": "src/physics/mass_solve/sparse/resident.rs", "line": 207 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/mass_solve/sparse/resident/kernels.rs",
+            "line": 71,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "resident_sparse_validate"
+        },
+        {
+            "file": "src/physics/mass_solve/sparse/resident/kernels.rs",
+            "line": 130,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "resident_sparse_gather"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/mass_solve/sparse/resident.rs",
+            "line": 195,
+            "receiver": "self.validate",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        },
+        {
+            "file": "src/physics/mass_solve/sparse/resident.rs",
+            "line": 212,
+            "receiver": "self.gather",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/mass_solve/sparse/resident.rs",
+            "old_line": 103,
+            "new_file": "src/physics/mass_solve/sparse/resident/kernels.rs",
+            "new_line": 27
+        },
+        {
+            "old_file": "src/physics/mass_solve/sparse/resident.rs",
+            "old_line": 104,
+            "new_file": "src/physics/mass_solve/sparse/resident/kernels.rs",
+            "new_line": 85
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "resident_sparse_validate",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/mass_solve/sparse/resident/kernels.rs:27" ],
+            "kernel_abi_evidence": [
+                "SparseResidentValidateSpec at src/physics/mass_solve/sparse/resident/launcher_specs.rs:80"
+            ]
+        },
+        {
+            "entry": "resident_sparse_gather",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/mass_solve/sparse/resident/kernels.rs:85" ],
+            "kernel_abi_evidence": [
+                "SparseResidentGatherSpec at src/physics/mass_solve/sparse/resident/launcher_specs.rs:109"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "SparseResidentValidateSpec",
+            "logical_name": "resident_sparse_validate",
+            "definition": "src/physics/mass_solve/sparse/resident/launcher_specs.rs:80",
+            "actual_cuda_entries": "resident_sparse_validate",
+            "typed_low_level_calls": [ "src/physics/mass_solve/sparse/resident/kernels.rs:71" ]
+        },
+        {
+            "type": "SparseResidentGatherSpec",
+            "logical_name": "resident_sparse_gather",
+            "definition": "src/physics/mass_solve/sparse/resident/launcher_specs.rs:109",
+            "actual_cuda_entries": "resident_sparse_gather",
+            "typed_low_level_calls": [ "src/physics/mass_solve/sparse/resident/kernels.rs:130" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "tendon_wake",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/resident/plan_subsets.rs:390" ],
+        "reason": "resident_sparse 已完成；下一批 resident plan 子集（从 tendon_wake 起）"
+    },
+    "manual_cross_checks_add": [
+        "work-09: resident_sparse 两个入口改走类型化包装；raw 行 -2、typed 行 +2、编排行 +2、编译点移入 kernels.rs",
+        "work-09: 第一、二槽指向同一只读源缓冲，别名校验允许只读重叠；状态/CSR可写槽不得与源重叠",
+        "work-09: 稀疏元数据证明校验行计数、行地址区间与列索引，零自由度保留单项占位"
+    ],
+    "acceptance_boundary_set": {
+        "resident_sparse_raw": false,
+        "resident_sparse_migrated": true
+    }
+}
