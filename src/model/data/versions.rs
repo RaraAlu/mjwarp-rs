@@ -131,6 +131,29 @@ impl SourceState {
     pub fn same_field_generation(self, other: Self, field: StateField) -> bool {
         self.same_identity(other) && self.fields.get(field) == other.fields.get(field)
     }
+
+    /// 来源标签：由数据身份、状态代际与字段版本稳定派生。
+    ///
+    /// 供下游记录可核的来源标签，不认证数值内容或生产者。
+    /// 同一快照重复调用结果相同；任一代际或身份变化即变化。
+    pub fn token(self) -> u64 {
+        // FNV-1a over the seven pieces; fixed algorithm so downstream labels are
+        // reproducible and auditable instead of caller-invented integers.
+        let mut hash = 0xcbf2_9ce4_8422_2325u64;
+        for value in [
+            self.identity.model().value(),
+            self.identity.layout().value(),
+            self.state_version,
+            self.fields.qpos,
+            self.fields.qvel,
+            self.fields.mocap,
+            self.fields.sleep,
+        ] {
+            hash ^= value;
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+        hash
+    }
 }
 
 #[cfg(test)]
@@ -214,5 +237,29 @@ mod tests {
         assert!(versions.next(StateField::Qpos).is_err());
         versions.set(StateField::Qpos, u64::MAX - 1);
         assert_eq!(versions.next(StateField::Qpos).unwrap(), u64::MAX);
+    }
+
+    #[test]
+    fn source_tokens_are_stable_and_generation_derived() {
+        let first = source(2, 3);
+        assert_eq!(first.token(), first.token());
+        assert_ne!(first.token(), 0);
+        let advanced = SourceState::new(first.identity(), first.state_version() + 1, {
+            let mut fields = first.fields();
+            fields.set(StateField::Qvel, 4);
+            fields
+        });
+        assert_ne!(first.token(), advanced.token());
+        let same = source(2, 3);
+        assert_eq!(first.token(), same.token());
+        let foreign = SourceState::new(
+            DataIdentity::new(
+                ModelIdentity::of_topology(&[9, 9, 9, 9]),
+                LayoutIdentity::of_parts(&[9, 9, 9]),
+            ),
+            5,
+            first.fields(),
+        );
+        assert_ne!(first.token(), foreign.token());
     }
 }

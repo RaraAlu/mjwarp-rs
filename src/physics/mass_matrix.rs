@@ -15,6 +15,7 @@ use crate::runtime::{SynchronousKernel, TransferBuffer};
 mod resident;
 pub use resident::{MassMatrixData, MassMatrixPlan};
 mod multiply;
+pub use multiply::schedule_energy_chain;
 pub use multiply::{
     MassMatrixEnergyData, MassMatrixEnergyPlan, MassMatrixEnergySnapshot, MassMatrixEnergyView,
 };

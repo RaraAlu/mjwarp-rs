@@ -244,3 +244,11 @@ core与根模块继续保持计划态。
 旧祖先拒绝与旧失败仍未追认。
 Linux、发行模式与T4本轮未测。
 本轮不推送、部署或发布。
+
+## 2026-10-23 全链调度入口（G26）
+
+- 新入口 `physics::schedule_energy_chain` 串起本页 `CRB -> M -> Mqvel -> paired buffer -> kinetic energy` 链。
+- 入口要求同一 CRB 生产者与乘积计划；位置更新前后 A1 来源代际一致。
+- 返回快照携带 `source_state()`（身份+状态代际+字段版本），可复算 `token()` 核对来源。
+- 上游同条件参考与产品对比见 `docs/kinetic-energy.md` 的 G26 小节与 `docs/development-evidence/g26-complete/`。
+- 原有严格当前态借用契约、零位差证书与容差保持不变。

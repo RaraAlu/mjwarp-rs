@@ -4,6 +4,7 @@
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::BatchLayout;
+use crate::model::data::SourceState;
 use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::launcher::{
@@ -90,6 +91,20 @@ pub struct KineticEnergyVector<'a> {
     pub model_id: u64,
     pub state_id: u64,
     pub values: &'a [f32],
+}
+
+impl<'a> KineticEnergyVector<'a> {
+    /// 由 A1 来源快照派生标签：模型标签取模型身份，状态标签取来源 token。
+    ///
+    /// 与调用方自造整数不同，该标签可由同一 `SourceState` 稳定复算；
+    /// 它仍不认证数值内容或外部矩阵，需调用方保证同模型同状态。
+    pub fn from_source(source: SourceState, values: &'a [f32]) -> Self {
+        Self {
+            model_id: source.identity().model().value(),
+            state_id: source.token(),
+            values,
+        }
+    }
 }
 
 pub struct KineticEnergyPlan {

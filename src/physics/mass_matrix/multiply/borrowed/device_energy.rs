@@ -21,6 +21,7 @@ pub(super) use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSessi
 pub(super) use std::sync::Arc;
 
 mod plan;
+mod schedule;
 mod spec;
 #[cfg(test)]
 mod tests;
@@ -30,3 +31,4 @@ mod validation;
 pub use plan::{
     MassMatrixEnergyData, MassMatrixEnergyPlan, MassMatrixEnergySnapshot, MassMatrixEnergyView,
 };
+pub use schedule::schedule_energy_chain;

@@ -40,6 +40,34 @@ fn host_rejects_shapes_tags_and_both_invalid_vectors_before_pairing() {
     }
 }
 #[test]
+fn host_derives_kinetic_labels_from_a1_source_state() {
+    use crate::model::data::{
+        DataIdentity, LayoutIdentity, ModelIdentity, SourceState, StateField, StateFieldVersions,
+    };
+    let identity = DataIdentity::new(
+        ModelIdentity::of_topology(&[2, 3, 4]),
+        LayoutIdentity::of_parts(&[2, 6, 4]),
+    );
+    let mut fields = StateFieldVersions::default();
+    fields.set(StateField::Qpos, 2);
+    fields.set(StateField::Qvel, 3);
+    let source = SourceState::new(identity, 5, fields);
+    let values = [0.0f32, 1.0];
+    let q = KineticEnergyVector::from_source(source, &values);
+    assert_eq!(q.model_id, identity.model().value());
+    assert_eq!(q.state_id, source.token());
+    // 标签可由同一快照复算，且随字段代际变化。
+    assert_eq!(
+        q.state_id,
+        KineticEnergyVector::from_source(source, &values).state_id
+    );
+    let mut advanced_fields = fields;
+    advanced_fields.set(StateField::Qvel, 4);
+    let advanced = SourceState::new(identity, 6, advanced_fields);
+    assert_ne!(q.state_id, advanced.token());
+}
+
+#[test]
 fn host_certifies_register_tail_shuffle_tree_and_signed_subnormal_bits() {
     let v = fixture();
     assert_eq!(v["block_dim"], 32);

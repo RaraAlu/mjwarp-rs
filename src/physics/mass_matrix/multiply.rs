@@ -19,6 +19,7 @@ mod tests;
 #[path = "multiply/tests/launcher.rs"]
 mod tests_launcher;
 
+pub use borrowed::schedule_energy_chain;
 pub use borrowed::{
     MassMatrixEnergyData, MassMatrixEnergyPlan, MassMatrixEnergySnapshot, MassMatrixEnergyView,
 };

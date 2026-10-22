@@ -245,3 +245,27 @@ NP04仅记录耗时与自有容量。
 Linux、T4与发行模式本轮未测。
 旧失败用途继续冻结。
 架构校验不替代物理验收。
+
+## 2026-10-23 全链调度与上游 energy_vel 参考（G26）
+
+任务：`2026-10-16-next-g26-complete`。
+本轮补齐拆分后布局的剩余项。
+
+- 全链调度入口：`physics::schedule_energy_chain`（`src/physics/mass_matrix/multiply/borrowed/device_energy/schedule.rs`）。
+- 它在一次调用内执行常驻位置→CRB（含 M）→宿主 qvel 写入→M·qvel→默认32线程动能。
+- qvel 走既有乘积缓冲，全程无宿主物理回传；势能仍由调用方显式给出。
+- 快照新增 `source_state()`：返回 A1 `SourceState`（身份+状态代际+字段版本）。
+- 位置更新前后来源代际必须一致，否则以 `StageNotReady` 拒绝，不部分发布能量。
+- 状态标签改由 `KineticEnergyVector::from_source(SourceState, values)` 派生：模型标签取模型身份，状态标签取来源 `token()`。
+- `SourceState::token()` 为固定 FNV-1a 派生（身份、状态代际、四字段版本），可由同一快照复算。
+- `KineticEnergyPlan::new_from_source` 用来源模型身份构造计划；旧整数标签入口保留兼容。
+- 上游参考：`fixtures/kinetic-energy/upstream-energy-vel.json`（静态夹具，产品测试只读）。
+- 生成链：离线 authoring `scripts/authoring/author-g26-energy-vel.{ps1,py}`（pinned 3.12/3.15/warp1.15，上游 `71da24d…`）。
+- 场景：5 个质量矩阵夹具模型 + armature-chain + 合成链 nv=3/33/65；每场景 8 状态×2 个 f32 qvel 向量。
+- 上游算子：`fwd_position`（CRB 与 M）→`mul_m`→`energy_vel`，动能分量取 `0.5 q^T M q`。
+- 天然校验：同一宿主模型用原生 MuJoCo 3.15 f64（`mj_forward`+`mj_mulM`）复算，144 条全部在 ABS=REL=2e-5 内（最坏归一化 2.1e-2）。
+- 产品验证：定向 GPU 全链测试 `tests/g26_energy_chain.rs` 覆盖 Sparse/Dense 两种乘积格式、worlds 1 与 5。
+- 结果：468 个能量槽 0 失败、最坏归一化 9.99e-3；`failed_blocks=0`，报告 `target/g26-complete/energy-chain-report.json`。
+- 零自由度模型（zero-dof、massless-tree）在乘积/动能布局处被显式拒绝，属边界而非静默回退。
+- 证据：`docs/development-evidence/g26-complete/`（README、provenance、natural-validation、upstream 参考、对比报告）。
+- 边界：不宣称完整 U047/G02 传感器调度、完整 NP 放行、Linux 与性能；T4 源码身份漂移另行重钉。

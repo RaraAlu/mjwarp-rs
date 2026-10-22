@@ -19,6 +19,7 @@ pub use smooth_force::{
 };
 
 mod mass_matrix;
+pub use mass_matrix::schedule_energy_chain;
 pub use mass_matrix::{
     MassMatrixData, MassMatrixOutput, MassMatrixPlan, MassMatrixWorld, probe_mass_matrix,
 };

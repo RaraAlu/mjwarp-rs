@@ -38,6 +38,7 @@ use crate::runtime::launcher::{
 };
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
+pub use device_energy::schedule_energy_chain;
 pub use device_energy::{
     MassMatrixEnergyData, MassMatrixEnergyPlan, MassMatrixEnergySnapshot, MassMatrixEnergyView,
 };

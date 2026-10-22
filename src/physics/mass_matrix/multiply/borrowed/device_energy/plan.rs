@@ -39,6 +39,7 @@ pub struct MassMatrixEnergyView<'energy, 'source> {
 pub struct MassMatrixEnergySnapshot {
     pub(super) layout: BatchLayout,
     pub(super) values: Vec<f32>,
+    pub(super) source: crate::model::data::SourceState,
 }
 impl MassMatrixEnergySnapshot {
     pub fn worlds(&self) -> usize {
@@ -48,6 +49,10 @@ impl MassMatrixEnergySnapshot {
     pub fn world(&self, world: usize) -> Result<&[f32], InputError> {
         let r = self.layout.world_elements(world)?;
         Ok(&self.values[4 + r.start..4 + r.end])
+    }
+    /// 全链计算时的 A1 来源快照；同一快照 token 可供下游复算核对。
+    pub fn source_state(&self) -> crate::model::data::SourceState {
+        self.source
     }
 }
 impl MassMatrixEnergyView<'_, '_> {
@@ -69,6 +74,7 @@ impl MassMatrixEnergyView<'_, '_> {
                     self.data.layout.energy.total_elements(),
                     "device_energy",
                 )?,
+                source: self.input.source.source_state(),
             })
         }
     }

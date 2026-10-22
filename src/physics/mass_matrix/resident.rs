@@ -245,6 +245,12 @@ impl MassMatrixPlan {
 }
 
 impl MassMatrixData {
+    /// A1：当前常驻位置来源快照（数据身份、状态代际与字段版本）。
+    ///
+    /// 供下游按代际核验 CRB→M→动能全链来源；只读，不携带可变借用。
+    pub fn source_state(&self) -> crate::model::data::SourceState {
+        self.position.source_state()
+    }
     #[cfg(all(test, feature = "cuda-probe"))]
     pub(in crate::physics) fn state_values_for_test(&self) -> Result<Vec<f32>, TransferError> {
         self.position.state_values_for_test()

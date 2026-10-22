@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-16-next-g26-complete",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "complete",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "src/physics/kinetic_energy.rs"},
+    {"path": "src/physics/kinetic_energy/plan.rs"},
+    {"path": "src/physics/kinetic_energy/tests/host.rs"},
+    {"path": "src/physics/mass_matrix.rs"},
+    {"path": "src/physics/mod.rs"},
+    {"path": "src/physics/mass_matrix/resident.rs"},
+    {"path": "src/physics/mass_matrix/multiply.rs"},
+    {"path": "src/physics/mass_matrix/multiply/borrowed.rs"},
+    {"path": "src/physics/mass_matrix/multiply/borrowed/device_energy.rs"},
+    {"path": "src/physics/mass_matrix/multiply/borrowed/device_energy/plan.rs"},
+    {"path": "src/physics/mass_matrix/multiply/borrowed/device_energy/schedule.rs"},
+    {"path": "src/model/data/versions.rs"},
+    {"path": "scripts/authoring/author-g26-energy-vel.ps1"},
+    {"path": "scripts/authoring/author-g26-energy-vel.py"},
+    {"path": "fixtures/kinetic-energy/upstream-energy-vel.json"},
+    {"path": "fixtures/kinetic-energy/manifest.json"},
+    {"path": "tests/g26_energy_chain.rs"},
+    {"path": "tests/support/g26_energy.rs"},
+    {"path": "docs/kinetic-energy.md"},
+    {"path": "docs/device-energy.md"},
+    {"path": "docs/development-evidence/g26-complete"},
+    {"path": ".normify/gates.toml"}
+  ],
+  "result": {
+    "chain_entry": "physics::schedule_energy_chain (CRB -> M -> Mqvel -> 32-thread kinetic energy)",
+    "state_label_source": "A1 SourceState (identity + state_version + field versions); SourceState::token() FNV-1a; snapshot carries source_state()",
+    "upstream_reference": "fixtures/kinetic-energy/upstream-energy-vel.json (frozen upstream MJWarp energy_vel, 71da24d...)",
+    "scenarios": 9,
+    "records": 144,
+    "product_scalars_compared": 468,
+    "failed_blocks": 0,
+    "worst_normalized_error": 0.009985237824400405,
+    "gpu_elapsed_ms": 7253,
+    "natural_validation_within_tolerance": true,
+    "default_features_tests": "406 passed / 0 failed",
+    "all_features_test_boundary": "701 passed / 0 failed / 347 ignored, 11 T4 source-identity audit failures caused by module export drift; repin task registered separately"
+  },
+  "evidence": {
+    "readme": "docs/development-evidence/g26-complete/README.md",
+    "provenance": "docs/development-evidence/g26-complete/provenance.json",
+    "upstream_reference": "docs/development-evidence/g26-complete/upstream-energy-vel.json",
+    "natural_validation": "docs/development-evidence/g26-complete/natural-validation.json",
+    "product_comparison": "docs/development-evidence/g26-complete/energy-chain-report.json",
+    "authoring_log": "docs/development-evidence/g26-complete/authoring-run.log",
+    "fixture_manifest": "fixtures/kinetic-energy/manifest.json",
+    "gate": "g26-energy"
+  },
+  "note": "补完整 CRB 到动能调度：新增 physics::schedule_energy_chain（src/physics/mass_matrix/multiply/borrowed/device_energy/schedule.rs），一次调用执行常驻位置→CRB（含 M）→宿主 qvel 写入乘积缓冲→M·qvel→默认32线程动能，非宿主物理回传；位置更新前后 A1 SourceState 代际必须一致否则拒绝。核实状态标签真实来源：MassMatrixData::source_state() 只读暴露；MassMatrixEnergySnapshot 携带 source_state()；SourceState::token() 固定 FNV-1a 派生标签；KineticEnergyVector::from_source / KineticEnergyPlan::new_from_source 由来源构造，旧整数标签入口保留兼容；新增宿主单测。补独立同条件参考：离线 authoring（pinned 3.12.13/mujoco3.15.0/warp1.15.0/numpy2.5.4/mujoco-warp3.15.0，上游 71da24d… clean，安装源逐文件一致、warp.dll RECORD 一致、两次运行逐位一致）生成上游 MJWarp energy_vel 参考 9 场景×16 条=144 条（含 mixed-joints/inertial-tree/rotated-tree/armature-chain 等 6 个质量矩阵夹具模型与合成链 nv=3/33/65），天然校验用原生 MuJoCo 3.15 f64 复算 144 条全部在 ABS=REL=2e-5 内（最坏 2.1e-2）。产品验证：定向 GPU 全链测试覆盖 Sparse/Dense 格式、worlds 1/5，468 个能量槽 0 失败、最坏归一化 9.99e-3；默认特性 cargo test 406 过 0 败。零自由度模型在乘积/动能布局处显式拒绝（边界）。未改容差/断言语义/产品 ABI/冻结 CUDA 模板/旧失败记录；未宣称完整 U047/G02 传感器调度、完整 NP 放行、Linux 与性能。已知边界：模块导出变化导致 T4 历史源码身份审计 11 项失败（--all-features），按规范另立 T4 源码身份重钉任务处理，重钉完成前不宣称 T4 矩阵全绿。",
+  "following_tasks": [
+    "2026-10-23-t4-source-hash-repin-10"
+  ]
+}

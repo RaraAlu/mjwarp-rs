@@ -25,6 +25,16 @@ impl KineticEnergyPlan {
             })
         }
     }
+    /// 由 A1 来源快照构造：模型标签直接取来源的模型身份。
+    ///
+    /// 之后用 `KineticEnergyVector::from_source` 写入同源标签，标签可按来源复算。
+    pub fn new_from_source(
+        session: &TransferSession,
+        source: crate::model::data::SourceState,
+        nv: usize,
+    ) -> Result<Self, TransferError> {
+        Self::new(session, source.identity().model().value(), nv)
+    }
     pub fn create_data(&self, worlds: usize) -> Result<KineticEnergyData, TransferError> {
         let l = layout(worlds, self.spec.nv)?;
         #[cfg(not(feature = "cuda-probe"))]
