@@ -39,6 +39,7 @@ impl<'p> FluidForcePlan<'p> {
         index: usize,
         value: i32,
     ) -> Result<(), TransferError> {
-        self.metadata.write_range(index, &[value])
+        self.metadata
+            .corrupt_device_for_validator_test(index, &[value])
     }
 }

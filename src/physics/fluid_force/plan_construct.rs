@@ -91,17 +91,28 @@ impl<'p> FluidForcePlan<'p> {
                 velocity_stride,
                 12 * (spec.ng + model.nsite()),
             );
+            let attached = spec.input.body_fluid_ellipsoid.iter().any(|&value| value);
+            let static_dims = launcher_abi::FluidForceStaticDims::new(
+                spec.nb,
+                spec.nj,
+                spec.nv,
+                spec.ng,
+                model.nsite(),
+                spec.parameter_len,
+                attached,
+            )
+            .map_err(launcher_abi::fluid_force_launch_error)?;
+            let metadata = launcher_abi::FluidForceMetadataBuffer::from_values(
+                &session,
+                spec.metadata.clone(),
+                static_dims,
+            )?;
             Ok(Self {
                 source,
                 spec: spec.clone(),
-                metadata: session.upload(&spec.metadata)?,
+                metadata,
                 parameters: session.upload(&packed)?,
-                kernels: [
-                    SynchronousKernel::compile(&session, &code, "fluid_force_validate")?,
-                    SynchronousKernel::compile(&session, &code, "fluid_force_body")?,
-                    SynchronousKernel::compile(&session, &code, "fluid_force_project")?,
-                    SynchronousKernel::compile(&session, &code, "fluid_force_clear")?,
-                ],
+                kernels: kernels::FluidForceKernels::compile(&session, &code)?,
                 session,
             })
         }

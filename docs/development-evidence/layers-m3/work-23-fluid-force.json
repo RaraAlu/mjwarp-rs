@@ -1,0 +1,48 @@
+{
+    "work": "work-23-fluid-force",
+    "summary": "流体被动力四入口改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/fluid_force/plan_launch.rs", "line": 48 },
+        { "file": "src/physics/fluid_force/plan_launch.rs", "line": 77 },
+        { "file": "src/physics/fluid_force/plan_launch.rs", "line": 98 },
+        { "file": "src/physics/fluid_force/plan_shared.rs", "line": 56 }
+    ],
+    "add_low_level": [
+        { "file": "src/physics/fluid_force/kernels.rs", "line": 316, "receiver": "self.validate", "method": "launch_fluid_force", "classification": "typed_wrapper_low_level", "entry": "fluid_force_validate" },
+        { "file": "src/physics/fluid_force/kernels.rs", "line": 362, "receiver": "self.body", "method": "launch_fluid_force", "classification": "typed_wrapper_low_level", "entry": "fluid_force_body" },
+        { "file": "src/physics/fluid_force/kernels.rs", "line": 408, "receiver": "self.project", "method": "launch_fluid_force", "classification": "typed_wrapper_low_level", "entry": "fluid_force_project" },
+        { "file": "src/physics/fluid_force/kernels.rs", "line": 459, "receiver": "self.clear", "method": "launch_fluid_force", "classification": "typed_wrapper_low_level", "entry": "fluid_force_clear" }
+    ],
+    "add_orchestration": [
+        { "file": "src/physics/fluid_force/plan_launch.rs", "line": 42, "receiver": "self.kernels", "method": "launch_validate", "classification": "wrapper_orchestration", "entry": "fluid_force_validate" },
+        { "file": "src/physics/fluid_force/plan_launch.rs", "line": 56, "receiver": "self.kernels", "method": "launch_body", "classification": "wrapper_orchestration", "entry": "fluid_force_body" },
+        { "file": "src/physics/fluid_force/plan_launch.rs", "line": 63, "receiver": "self.kernels", "method": "launch_project", "classification": "wrapper_orchestration", "entry": "fluid_force_project" },
+        { "file": "src/physics/fluid_force/plan_shared.rs", "line": 53, "receiver": "self.kernels", "method": "launch_clear", "classification": "wrapper_orchestration", "entry": "fluid_force_clear" }
+    ],
+    "compile_sites_replace": [
+        { "old_file": "src/physics/fluid_force/plan_construct.rs", "old_line": 100, "new_file": "src/physics/fluid_force/kernels.rs", "new_line": 229 },
+        { "old_file": "src/physics/fluid_force/plan_construct.rs", "old_line": 101, "new_file": "src/physics/fluid_force/kernels.rs", "new_line": 230 },
+        { "old_file": "src/physics/fluid_force/plan_construct.rs", "old_line": 102, "new_file": "src/physics/fluid_force/kernels.rs", "new_line": 231 },
+        { "old_file": "src/physics/fluid_force/plan_construct.rs", "old_line": 103, "new_file": "src/physics/fluid_force/kernels.rs", "new_line": 232 }
+    ],
+    "entry_status": [
+        { "entry": "fluid_force_validate", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/fluid_force/kernels.rs:229" ], "kernel_abi_evidence": [ "FluidForceValidateSpec at src/physics/fluid_force/kernels.rs", "eleven-buffer launch at src/physics/fluid_force/kernels.rs:316" ] },
+        { "entry": "fluid_force_body", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/fluid_force/kernels.rs:230" ], "kernel_abi_evidence": [ "FluidForceBodySpec", "eleven-buffer launch at src/physics/fluid_force/kernels.rs:362" ] },
+        { "entry": "fluid_force_project", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/fluid_force/kernels.rs:231" ], "kernel_abi_evidence": [ "FluidForceProjectSpec", "eleven-buffer launch at src/physics/fluid_force/kernels.rs:408" ] },
+        { "entry": "fluid_force_clear", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/fluid_force/kernels.rs:232" ], "kernel_abi_evidence": [ "FluidForceClearSpec", "eleven-buffer launch at src/physics/fluid_force/kernels.rs:459" ] }
+    ],
+    "families_add": [
+        { "type": "FluidForceValidateSpec", "logical_name": "fluid_force_validate", "definition": "src/physics/fluid_force/kernels.rs", "actual_cuda_entries": "fluid_force_validate", "typed_low_level_calls": [ "src/physics/fluid_force/kernels.rs:316" ] },
+        { "type": "FluidForceBodySpec", "logical_name": "fluid_force_body", "definition": "src/physics/fluid_force/kernels.rs", "actual_cuda_entries": "fluid_force_body", "typed_low_level_calls": [ "src/physics/fluid_force/kernels.rs:362" ] },
+        { "type": "FluidForceProjectSpec", "logical_name": "fluid_force_project", "definition": "src/physics/fluid_force/kernels.rs", "actual_cuda_entries": "fluid_force_project", "typed_low_level_calls": [ "src/physics/fluid_force/kernels.rs:408" ] },
+        { "type": "FluidForceClearSpec", "logical_name": "fluid_force_clear", "definition": "src/physics/fluid_force/kernels.rs", "actual_cuda_entries": "fluid_force_clear", "typed_low_level_calls": [ "src/physics/fluid_force/kernels.rs:459" ] }
+    ],
+    "next_candidate": { "selected": false, "entry": "sparse_solve_validate", "migration_status": "unmigrated_or_unwrapped", "compile_sites": [ "src/physics/mass_solve/sparse/resident/solve/plan.rs:39" ], "reason": "流体被动力已收口；只剩质量求解稀疏两入口" },
+    "manual_cross_checks_add": [
+        "work-23: 流体被动力四入口改走类型化包装；raw 行 -4、typed 行 +4、编排行 +4",
+        "work-23: 元数据证明校验守卫、父表、根表、自由度体、几何体、几何类型与椭球标记；刚体/质心/速度/附着/刚体力/自由度力按世界精确跨度校验",
+        "work-23: 第五槽按椭球标记选择附着位姿或参数占位，跨度公式分别为 8+worlds*12*(ng+ns) 与参数长度；清零入口按输出元素数工作（沿用 clear_work 口径）",
+        "work-23: 三阶段输入以 FluidForceInputs 聚合，避免新增参数过多豁免；GPU 定向 fluid_force 2 过、passive_force 链 4 过（含椭球附着路径）"
+    ],
+    "acceptance_boundary_set": { "fluid_force_migrated": true, "fluid_force_raw": false }
+}

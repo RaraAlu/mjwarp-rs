@@ -109,6 +109,15 @@ path = "src/physics/com_velocity/kernels.rs"
 [[source]]
 path = "src/physics/com_velocity/tests/launcher.rs"
 
+[[source]]
+path = "src/physics/fluid_force/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/fluid_force/kernels.rs"
+
+[[source]]
+path = "src/physics/fluid_force/launcher_tests.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::FluidForcePlan"

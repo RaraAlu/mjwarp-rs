@@ -10,15 +10,24 @@ use super::{ComVelocityData, ComVelocityPlan, KinematicsData, KinematicsPlan};
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::{AttachedModelInput, BatchLayout, ParameterBatch};
-use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
-use crate::runtime::{SynchronousKernel, TransferBuffer};
+use crate::runtime::TransferBuffer;
+use crate::runtime::TransferSession;
 
 use self::spec::Spec;
 
 // 子模块：纯移动自原单文件，行为不变。
 mod cuda;
 mod data;
+#[cfg(feature = "cuda-probe")]
+#[path = "fluid_force/kernels.rs"]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "fluid_force/launcher_abi.rs"]
+mod launcher_abi;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "fluid_force/launcher_tests.rs"]
+mod launcher_tests;
 mod plan_construct;
 mod plan_data;
 mod plan_launch;
@@ -107,11 +116,11 @@ pub struct FluidForcePlan<'p> {
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: launcher_abi::FluidForceMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
     parameters: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 4],
+    kernels: kernels::FluidForceKernels,
 }
 
 pub struct FluidForceData {

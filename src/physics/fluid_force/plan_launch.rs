@@ -30,41 +30,21 @@ impl<'p> FluidForcePlan<'p> {
     ) -> Result<(), TransferError> {
         check_guards(body)?;
         check_guards(qfrc)?;
-        let worlds = layout.qfrc.worlds();
-        let body_work = worlds
-            .checked_mul(self.spec.nb)
-            .ok_or(InputError::Overflow {
-                field: "fluid_force_work",
-            })?;
-        let qfrc_work = worlds
-            .checked_mul(self.spec.nv)
-            .ok_or(InputError::Overflow {
-                field: "fluid_force_work",
-            })?;
-        let attached = inputs.attached.unwrap_or(&self.parameters);
-        // SAFETY: 输入来自同一已就绪速度票据。
-        // 验证核先检查守卫、映射与参数。
-        unsafe {
-            self.kernels[0].launch_fluid_force(
-                &self.metadata,
-                [
-                    &self.parameters,
-                    inputs.rigid,
-                    inputs.com,
-                    inputs.velocity,
-                    attached,
-                ],
-                status_buffer,
-                [
-                    self.spec.nb as u32,
-                    self.spec.nv as u32,
-                    worlds as u32,
-                    worlds as u32,
-                ],
-            )?;
-        }
-        let status = read_output(status_buffer, worlds, "fluid_force_status")?;
-        if let Some(index) = status[4..4 + worlds].iter().position(|&value| value != 1.0) {
+        let worlds = layout.qfrc.worlds() as u32;
+        let velocity_inputs = kernels::FluidForceInputs {
+            parameters: &self.parameters,
+            rigid: inputs.rigid,
+            com: inputs.com,
+            fourth: inputs.velocity,
+            attached: inputs.attached,
+        };
+        self.kernels
+            .launch_validate(&self.metadata, velocity_inputs, status_buffer, worlds)?;
+        let status = read_output(status_buffer, worlds as usize, "fluid_force_status")?;
+        if let Some(index) = status[4..4 + worlds as usize]
+            .iter()
+            .position(|&value| value != 1.0)
+        {
             return Err(InputError::InvalidTopology {
                 field: "fluid_force_source",
                 index,
@@ -72,41 +52,15 @@ impl<'p> FluidForcePlan<'p> {
             }
             .into());
         }
-        // SAFETY: 每线程独占一个刚体空间力槽。
-        unsafe {
-            self.kernels[1].launch_fluid_force(
-                &self.metadata,
-                [
-                    &self.parameters,
-                    inputs.rigid,
-                    inputs.com,
-                    inputs.velocity,
-                    attached,
-                ],
-                body,
-                [
-                    self.spec.nb as u32,
-                    self.spec.nv as u32,
-                    worlds as u32,
-                    body_work as u32,
-                ],
-            )?;
-        }
+        self.kernels
+            .launch_body(&self.metadata, velocity_inputs, body, worlds)?;
         read_output(body, layout.body.total_elements(), "fluid_force_body")?;
-        // SAFETY: 每线程按bodyid升序投影自由度。
-        unsafe {
-            self.kernels[2].launch_fluid_force(
-                &self.metadata,
-                [&self.parameters, inputs.rigid, inputs.com, body, attached],
-                qfrc,
-                [
-                    self.spec.nb as u32,
-                    self.spec.nv as u32,
-                    worlds as u32,
-                    qfrc_work as u32,
-                ],
-            )?;
-        }
+        let body_inputs = kernels::FluidForceInputs {
+            fourth: body,
+            ..velocity_inputs
+        };
+        self.kernels
+            .launch_project(&self.metadata, body_inputs, qfrc, worlds)?;
         read_output(qfrc, layout.qfrc.total_elements(), "qfrc_fluid")?;
         Ok(())
     }

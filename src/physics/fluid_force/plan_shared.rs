@@ -50,27 +50,13 @@ impl<'p> FluidForcePlan<'p> {
             (&mut data.qfrc, qfrc_work),
             (&mut data.status, status_work),
         ] {
-            // SAFETY: 每线程清零一个独占槽。
-            // 五个参数缓冲只满足私有ABI。
-            unsafe {
-                self.kernels[3].launch_fluid_force(
-                    &self.metadata,
-                    [
-                        &self.parameters,
-                        &self.parameters,
-                        &self.parameters,
-                        &self.parameters,
-                        &self.parameters,
-                    ],
-                    output,
-                    [
-                        self.spec.nb as u32,
-                        self.spec.nv as u32,
-                        worlds as u32,
-                        work,
-                    ],
-                )?;
-            }
+            self.kernels.launch_clear(
+                &self.metadata,
+                &self.parameters,
+                output,
+                worlds as u32,
+                work,
+            )?;
         }
         read_output(&data.body, layout.body.total_elements(), "fluid_force_body")?;
         read_output(&data.qfrc, layout.qfrc.total_elements(), "qfrc_fluid")?;
