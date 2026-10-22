@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-t4-source-hash-repin-3",
+  "title": {
+    "zh": "重钉W-D7修复后T4源码身份哈希",
+    "en": "Repin T4 source identity hashes after the W-D7 fix"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "W-D7修复改动常驻柔体边产品源码后，T4固定源码身份（resident组合哈希、gravity包整包哈希与内联contract）过期，host-msvc在camlight/spatial/tendon-wake/input-precision/gravity链路上中止；本任务只重钉哈希数值到当前源码文本，保留lineage语义。",
+    "en": "The W-D7 fix changed resident flex-edge product source, so the pinned T4 source identities (resident composite hash, gravity package digest and inline contract) went stale and host-msvc aborted on camlight/spatial/tendon-wake/input-precision/gravity targets; this task repins only the hash values to the current source text and preserves lineage semantics."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "重钉后源码身份期望与当前源码文本一致：resident按模块根加41个产品子模块组合口径（换行连接、CRLF→LF归一）；未拆分路径按全文同口径。",
+    "只更新哈希数值与内联字面量；不改断言逻辑、不放宽数值容差、不删除检查、不改映射条目语义。",
+    "host-msvc恢复：lib lineage用例与t4_camlight_precision、t4_spatial_tendon_precision、t4_tendon_wake_precision、t4_input_precision、t4_gravity_nonzero_product_chain目标转绿。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-layers-m3-flex-edges-abi-fix"
+    ],
+    "phase": "fix/T4-lineage",
+    "owner": "Codex",
+    "files": [
+      "fixtures/precision",
+      "fixtures/gravity-upstream-abi",
+      "docs/evidence/t4-g03-retest",
+      "tests/t4_camlight_precision.rs",
+      "tests/t4_spatial_tendon_precision.rs",
+      "tests/t4_tendon_wake_precision.rs",
+      "tests/t4_input_precision.rs",
+      "tests/t4_gravity_nonzero_product_chain.rs",
+      "tests/t4_gravity_nonzero_product_chain",
+      "tests/support/t4_rigid_capture.rs",
+      "tests/support/t4_rigid_capture",
+      "tests/support/t4_rigid_internal.rs",
+      "tests/support/t4_rigid_internal",
+      "tests/support/t4_state_packing.rs",
+      "tests/support/t4_state_packing",
+      "tests/support/t4_field_internal.rs",
+      "tests/support/t4_field_internal",
+      "tests/support/t4_topology_frames.rs",
+      "tests/support/t4_topology_frames",
+      "tests/support/t4_packing_routes.rs",
+      "tests/support/t4_packing_routes",
+      "docs/development-evidence/changes/2026-10-22-t4-source-hash-repin-3.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "基线归属：W-D7修复（2026-10-22-layers-m3-flex-edges-abi-fix，提交c98e246）改动src/physics/resident/flex_edges_launcher.rs产品源码，导致resident组合哈希由51d488a5变为3b5ad915…；这是修复后必需的证据重钉，不是产品回归。重钉先例：2026-10-22-t4-source-hash-repin及-repin-2（2026-10-22-t4-lineage-repin）。口径：resident=模块根加41个产品子模块（mod声明顺序、排除tests、换行连接、CRLF→LF归一）；gravity包=当前全文摘要，包内resident行与测试内联product_sources同步后重算PACKAGE_SHA256。",
+  "revision": {
+    "before": "c98e246a3a9b139d6f2b57eddfab3a9ccf0343cd",
+    "after": null
+  },
+  "created_at": "2026-10-22T06:20:00.000Z",
+  "updated_at": "2026-10-22T06:18:47.253Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-t4-source-hash-repin-3.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-t4-source-hash-repin-3"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
