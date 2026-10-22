@@ -68,31 +68,22 @@ impl KinematicsPlan {
         #[cfg(feature = "cuda-probe")]
         {
             if let (Some(device), Some(out)) = (&self.flex, &mut data.flex) {
-                // SAFETY: This private entry shares the checked flex metadata.
-                // It ignores float inputs and writes only world*nf i32 slots.
-                // Guarded validity owns the same session and checked dimensions.
-                // Clear before position work, even when positions later fail.
-                unsafe {
-                    device.invalidate_kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
-                        &data.rigid,
-                        data.flex_validity.as_mut().expect("checked flex validity"),
-                        [0, 0, 0, data.layout.qpos.worlds() as u32],
-                    )?;
-                }
-                // SAFETY: Checked immutable fields partition nodes and vertices.
-                // Each synchronized thread reads an initialized rigid world and owns
-                // its guarded output; wide strides match checked batch layouts.
-                unsafe {
-                    device.kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
-                        &data.rigid,
-                        out,
-                        [0, 0, 0, data.layout.qpos.worlds() as u32],
-                    )?;
-                }
+                let worlds = data.layout.qpos.worlds() as u32;
+                // 类型化包装核对证明、精确跨度、同会话与别名；先失效再算位置。
+                device.invalidate_kernel.launch(
+                    &device.metadata,
+                    &device.parameters,
+                    &data.rigid,
+                    data.flex_validity.as_mut().expect("checked flex validity"),
+                    worlds,
+                )?;
+                device.kernel.launch(
+                    &device.metadata,
+                    &device.parameters,
+                    &data.rigid,
+                    out,
+                    worlds,
+                )?;
             }
             data.ready.flex = true;
             Ok(())

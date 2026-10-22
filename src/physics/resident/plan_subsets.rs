@@ -376,18 +376,18 @@ impl KinematicsPlan {
                 None
             };
             let flex = if flex_layout.is_some_and(|l| !l.is_empty()) {
+                let fields = flex_fields.as_ref().expect("checked flex fields");
+                let (metadata, parameters, invalidate_kernel, kernel) = upload_flex_positions(
+                    session,
+                    flex.expect("checked flex fields"),
+                    &model,
+                    fields,
+                )?;
                 Some(DeviceFlexPositions {
-                    model: flex.expect("checked flex fields").upload(session)?,
-                    invalidate_kernel: SynchronousKernel::compile(
-                        session,
-                        crate::physics::flex::FLEX_POSITION_CUDA,
-                        "flex_invalidate",
-                    )?,
-                    kernel: SynchronousKernel::compile(
-                        session,
-                        crate::physics::flex::FLEX_POSITION_CUDA,
-                        "flex_positions",
-                    )?,
+                    metadata,
+                    parameters,
+                    invalidate_kernel,
+                    kernel,
                 })
             } else {
                 None

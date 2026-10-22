@@ -208,7 +208,10 @@ fn flex_hessian_rejects_guards_nonboolean_slots_and_late_launch_failure() {
         "flex_positions",
     )
     .unwrap();
-    let original = std::mem::replace(&mut plan.flex.as_mut().unwrap().kernel, replacement);
+    let original = std::mem::replace(
+        &mut plan.flex.as_mut().unwrap().kernel,
+        FlexPositionsKernel::from_kernel(replacement),
+    );
     assert_eq!(
         plan.update_flex_positions(&mut data),
         Err(TransferError::SessionMismatch)
@@ -241,7 +244,7 @@ fn flex_hessian_rejects_guards_nonboolean_slots_and_late_launch_failure() {
     .unwrap();
     let original = std::mem::replace(
         &mut plan.flex.as_mut().unwrap().invalidate_kernel,
-        replacement,
+        FlexInvalidateKernel::from_kernel(replacement),
     );
     assert_eq!(
         plan.update_flex_positions(&mut data),

@@ -11,6 +11,22 @@ use super::camlight_launcher::ResidentCamLightKernel;
 #[cfg(feature = "cuda-probe")]
 use super::camlight_launcher::camlight_launch_error;
 #[cfg(feature = "cuda-probe")]
+use super::field_batch::FieldMetadataBuffer;
+#[cfg(feature = "cuda-probe")]
+use super::flex_positions_launcher::FlexDims;
+#[cfg(feature = "cuda-probe")]
+use super::flex_positions_launcher::FlexStaticDims;
+#[cfg(feature = "cuda-probe")]
+use super::flex_positions_launcher_specs::FlexInvalidateKernel;
+#[cfg(feature = "cuda-probe")]
+use super::flex_positions_launcher_specs::FlexMetadata;
+#[cfg(feature = "cuda-probe")]
+use super::flex_positions_launcher_specs::FlexMetadataBuffer;
+#[cfg(feature = "cuda-probe")]
+use super::flex_positions_launcher_specs::FlexPositionsKernel;
+#[cfg(feature = "cuda-probe")]
+use super::flex_positions_launcher_specs::flex_launch_error;
+#[cfg(feature = "cuda-probe")]
 use super::pack::PackedModel;
 #[cfg(feature = "cuda-probe")]
 use super::pack_batches::FIELD_BATCH_CUDA;
@@ -212,5 +228,48 @@ pub(super) fn upload_tendon(
         metadata,
         parameters,
         ResidentTendonKernel::compile(session)?,
+    ))
+}
+/// 上传柔体位置元数据、参数并编译失效与位置内核。
+#[cfg(feature = "cuda-probe")]
+pub(super) fn upload_flex_positions(
+    session: &TransferSession,
+    packed: PackedModel,
+    model: &AttachedModelInput,
+    fields: &FlexPositionFields,
+) -> Result<
+    (
+        FlexMetadataBuffer,
+        TransferBuffer<f32>,
+        FlexInvalidateKernel,
+        FlexPositionsKernel,
+    ),
+    TransferError,
+> {
+    let k = model.rigid().kinematics();
+    let rigid_stride = KinematicsLayout::new(1, k.nq(), k.nbody(), k.njnt())
+        .map_err(TransferError::from)?
+        .output
+        .elements_per_world();
+    let static_dims = FlexStaticDims::new(
+        fields.flex_interp.len(),
+        fields.flex_nodebodyid.len(),
+        fields.flex_vertbodyid.len(),
+        k.nbody(),
+        rigid_stride,
+        packed.parameters.len(),
+    )
+    .map_err(flex_launch_error)?;
+    let dims = FlexDims {
+        static_dims,
+        worlds: 1,
+    };
+    let (metadata, parameters) =
+        FieldMetadataBuffer::<FlexMetadata>::from_packed(session, packed, dims, flex_launch_error)?;
+    Ok((
+        metadata,
+        parameters,
+        FlexInvalidateKernel::compile(session)?,
+        FlexPositionsKernel::compile(session)?,
     ))
 }

@@ -1,0 +1,95 @@
+{
+    "work": "work-16-resident-flex-positions",
+    "summary": "常驻柔体失效与位置改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/resident/plan_update_flex.rs", "line": 84 },
+        { "file": "src/physics/resident/plan_update_flex.rs", "line": 255 }
+    ],
+    "add_low_level": [],
+    "add_orchestration": [
+        {
+            "file": "src/physics/resident/plan_update_flex.rs",
+            "line": 73,
+            "receiver": "device.invalidate_kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": "flex_invalidate"
+        },
+        {
+            "file": "src/physics/resident/plan_update_flex.rs",
+            "line": 80,
+            "receiver": "device.kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": "flex_positions"
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 367,
+            "new_file": "src/physics/resident/flex_positions_launcher_specs.rs",
+            "new_line": 168
+        },
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 372,
+            "new_file": "src/physics/resident/flex_positions_launcher_specs.rs",
+            "new_line": 211
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "flex_invalidate",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/flex_positions_launcher_specs.rs:168" ],
+            "kernel_abi_evidence": [
+                "FlexInvalidateSpec at src/physics/resident/flex_positions_launcher_specs.rs:32",
+                "shared four-buffer launch at src/physics/resident/field_batch.rs:205"
+            ]
+        },
+        {
+            "entry": "flex_positions",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/flex_positions_launcher_specs.rs:211" ],
+            "kernel_abi_evidence": [
+                "FlexPositionsSpec at src/physics/resident/flex_positions_launcher_specs.rs:67",
+                "shared four-buffer launch at src/physics/resident/field_batch.rs:205"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "FlexInvalidateSpec",
+            "logical_name": "flex_invalidate",
+            "definition": "src/physics/resident/flex_positions_launcher_specs.rs:32",
+            "actual_cuda_entries": "flex_invalidate",
+            "typed_low_level_calls": [ "src/physics/resident/field_batch.rs:205" ]
+        },
+        {
+            "type": "FlexPositionsSpec",
+            "logical_name": "flex_positions",
+            "definition": "src/physics/resident/flex_positions_launcher_specs.rs:67",
+            "actual_cuda_entries": "flex_positions",
+            "typed_low_level_calls": [ "src/physics/resident/field_batch.rs:205" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "flex_edges",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/resident/plan_subsets.rs:402" ],
+        "reason": "柔体失效与位置已收口；继续柔体边与面两项"
+    },
+    "manual_cross_checks_add": [
+        "work-16: 常驻柔体失效与位置改走类型化包装；raw 行 -2、编排行 +2；共用 field_batch 单一发射点",
+        "work-16: 柔体证明校验五项头、每柔体行区间、居中标志、插值网格节点覆盖与节点/顶点体索引",
+        "work-16: 顶点类型读取顶点体，非顶点类型顶点体为占位负值；插值网格按(r1+1)*(r2+1)*(r3+1)覆盖收紧",
+        "work-16: 测试用包装 from_kernel 构造替换外来会话内核，断言与覆盖不变；包装文件按ABI/规格拆分保持<500行"
+    ],
+    "acceptance_boundary_set": {
+        "resident_flex_positions_migrated": true,
+        "flex_invalidate_raw": false,
+        "flex_positions_raw": false
+    }
+}

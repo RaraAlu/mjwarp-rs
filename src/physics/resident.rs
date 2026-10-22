@@ -43,6 +43,12 @@ mod field_batch;
 #[cfg(feature = "cuda-probe")]
 #[path = "resident/fixed_tendon_launcher.rs"]
 mod fixed_tendon_launcher;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/flex_positions_launcher.rs"]
+mod flex_positions_launcher;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/flex_positions_launcher_specs.rs"]
+mod flex_positions_launcher_specs;
 mod layout;
 mod output;
 mod pack;
@@ -95,6 +101,9 @@ mod tests_launcher_attached;
 #[path = "resident/tests/launcher_com.rs"]
 mod tests_launcher_com;
 #[cfg(all(test, feature = "cuda-probe"))]
+#[path = "resident/tests/launcher_flex_positions.rs"]
+mod tests_launcher_flex_positions;
+#[cfg(all(test, feature = "cuda-probe"))]
 #[path = "resident/tests/launcher_forward.rs"]
 mod tests_launcher_forward;
 #[cfg(all(test, feature = "cuda-probe"))]
@@ -141,8 +150,13 @@ use self::fixed_tendon_launcher::{
     FixedTendonKernel, FixedTendonMetadataBuffer, upload_fixed_tendon,
 };
 #[cfg(feature = "cuda-probe")]
+use self::flex_positions_launcher_specs::{
+    FlexInvalidateKernel, FlexMetadataBuffer, FlexPositionsKernel,
+};
+#[cfg(feature = "cuda-probe")]
 use self::plan_kernels::{
-    BaseKernels, compile_base_kernels, upload_camlight, upload_spatial_tendon, upload_tendon,
+    BaseKernels, compile_base_kernels, upload_camlight, upload_flex_positions,
+    upload_spatial_tendon, upload_tendon,
 };
 #[cfg(feature = "cuda-probe")]
 use self::spatial_tendon_launcher_specs::{
