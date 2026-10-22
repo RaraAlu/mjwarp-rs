@@ -17,9 +17,8 @@
     "从 target/g01-debug-final4.log、target/g01-release-final2.log、target/g01-acceptance/** 与 target/run-g01-both.ps1 统计各阶段耗时基线，列出耗时大头。",
     "新增 scripts/g01-fast.ps1：支持按 target 或测试名过滤、复用已构建测试二进制、一次构建后直接运行、输出 pass/fail 摘要与逐项耗时，可选 -Release；不改变测量与判定口径。",
     "快验脚本明确标注为开发迭代工具，不替代 test-windows-g01.ps1；不修改 scripts/test-windows-g01.ps1。",
-    "Backend 交接后用完整 test-windows-g01.ps1 执行 debug 与 release 双模式验收，产出逐 target 数字、排除清单与剩余债务，证据写入 docs/development-evidence/g01-fast-loop/。",
+    "Backend 完成 RNE 重基线且 debug all-probes 0 失败后，用完整 test-windows-g01.ps1 执行 debug 与 release 双模式最终验收，产出逐 target 数字、排除清单与结论，证据写入 docs/development-evidence/g01-fast-loop/；结论口径为「含文档化排除项通过」，同时保留 Linux、性能与完整上游等价未验收。",
     "评估多 target 并行与每进程 --test-threads=1 的可行性，实测提速倍数并记录风险；不改断言、容差、排除清单与环境接线。",
-    "按 Backend 交接文本在 docs/three-layer-acceptance.md 落「历史捕获身份债务」小节，并把 G01 现状写为「除 RNE 数值探针缺口外全绿（debug+release 同数）」，不宣称全绿。",
     "通过 fmt 与 unit 门禁、unchanged 保护路径与回执检查，用中文提交。"
   ],
   "schedule": {
@@ -29,19 +28,18 @@
     "files": [
       "scripts/g01-fast.ps1",
       "docs/development-evidence/g01-fast-loop",
-      "docs/three-layer-acceptance.md",
       "docs/development-evidence/changes/2026-10-23-g01-acceptance-fast-loop.json"
     ],
     "resources": [],
     "priority": 1
   },
-  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-23-g01-acceptance-fast-loop.json\n精度映射：本任务只测速与验收编排，不改产品浮点路径、断言、容差或PTX捕获。\nGPU占用：Backend 的 g01-all-probes 任务已交接；本任务执行完整双模式验收时独占GPU，不与其他重负载并行。\n不动 scripts/test-windows-g01.ps1；按交接文档只复跑与记录。\n复跑时另有一个 python GPU 进程在跑离线 authoring，耗时可能偏大，证据里会注明并发条件。",
+  "note": "delivery-receipt: docs/development-evidence/changes/2026-10-23-g01-acceptance-fast-loop.json\n精度映射：本任务只测速与验收编排，不改产品浮点路径、断言、容差或PTX捕获。\nGPU窗口：按 Chief 裁决，RNE 重基线（Backend）优先；本任务已让出 docs/three-layer-acceptance.md 与 fixtures 保护路径，等重基线提交并 debug all-probes 0 失败后再跑最终双模式验收。\n不动 scripts/test-windows-g01.ps1；历史捕获身份债务小节改由后续文档任务在 Backend 提交后写入。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-22T16:29:36.634Z",
-  "updated_at": "2026-10-22T16:41:13.284Z",
+  "updated_at": "2026-10-22T17:01:39.048Z",
   "checks": [
     {
       "kind": "gate",
@@ -56,7 +54,6 @@
       "paths": [
         "src",
         "tests",
-        "fixtures",
         "native",
         "include",
         "build.rs",
@@ -79,6 +76,26 @@
         "NP03",
         "NP04"
       ]
+    }
+  ],
+  "waivers": [
+    {
+      "at": "2026-10-22T17:01:39.048Z",
+      "check": {
+        "kind": "unchanged",
+        "paths": [
+          "src",
+          "tests",
+          "fixtures",
+          "native",
+          "include",
+          "build.rs",
+          "Cargo.toml",
+          "Cargo.lock",
+          "rust-toolchain.toml"
+        ]
+      },
+      "reason": "让出 fixtures 保护路径给 Backend 的 RNE 重基线；本任务不改产品源码与夹具"
     }
   ]
 }
