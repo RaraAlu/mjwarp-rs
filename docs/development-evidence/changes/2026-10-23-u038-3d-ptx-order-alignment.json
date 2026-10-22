@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-u038-3d-ptx-order-alignment",
+  "milestones": {
+    "implementation": "blocked",
+    "validation": "failed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/u038-3d/ptx-order-round2.md",
+      "blob": "90c2d40c5d327520f5dcd8a701064a8e8e2ed286"
+    },
+    {
+      "path": "docs/development-evidence/u038-3d/run7-ptx-round1.json",
+      "blob": "226dfe4bdf7eb8751e3cccd2b86069e40c891375"
+    },
+    {
+      "path": "docs/development-evidence/u038-3d/run8-ptx-round2.json",
+      "blob": "ab6ff29f4038d7725706dd60cb0521f94dfb2d25"
+    }
+  ],
+  "note": "两轮有界结果（未达 0 超差）：基线 run6 全链 qfrc 8/77 超差、总位差 122、max 4.2915e-6。第 1 轮把 normalize/multiply/rotate 改为上游生成代码风格的 straight-line 局部乘积写法 → run7 仍 8/77 超差、位差 123；第 2 轮改用显式 mul.f32/add.f32/sub.f32 内联汇编禁止 FMA → run8 仍 8/77 超差、位差 147（变差）。结论：上游 PTX 是混合收缩模式（部分融合部分分离），全自然/全显式两种极端都无法复现，需要按上游 PTX 逐表达式反推收缩点并逐项固定，属需 PTX 级对照工具的独立系统性任务，超出两轮有界。未改容差/断言/排除清单/ABI；产品源码已回退，未做 T4 repin；未跑 GPU 内核。证据：docs/development-evidence/u038-3d/ptx-order-round2.md 与 run7/run8 记录。建议 Chief/用户裁决：另立逐表达式 PTX 转录任务，或登记已知债务/比较口径。"
+}

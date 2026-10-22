@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-u038-3d-ptx-order-alignment",
+  "title": {
+    "zh": "U038三维运动学PTX算序对齐",
+    "en": "U038 3D kinematics PTX order alignment"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "照 G03 矩阵链打法，对 KINEMATICS_CUDA 的 rotate/multiply/normalize 及必要的 com/cdof 累加表达式按上游生成代码的局部乘积写法重写，使 NVRTC 的 FMA 收缩选择与上游一致；目标是 3D 定向 GPU 链 1477 项全链 qfrc_gravcomp 0 超差（2e-6 不变），且 G03 矩阵链逐位证据（potrf 0/121、解 0/33）不回退。不改容差/断言/排除清单/ABI；产品源码变更后另行 T4 源码身份重钉。W13/g03-parity 不动产。",
+    "en": "Follow the G03 matrix-chain playbook: rewrite KINEMATICS_CUDA rotate/multiply/normalize and, if needed, com/cdof accumulation expressions to mirror the upstream generated local-product form so NVRTC's FMA contraction matches upstream. Goal: the 1477-value 3D directed GPU chain reaches 0 qfrc_gravcomp values outside 2e-6, without regressing G03 matrix bit-level evidence (potrf 0/121, solve 0/33). Do not change tolerances, assertions, exclusion lists or ABI; register a separate T4 source-identity repin after product source changes. W13/g03-parity stay untouched."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "定位并重写产品 KINEMATICS_CUDA 中被 NVRTC 显著收缩的 rotate/multiply/normalize 表达式为上上游生成代码的显式局部乘加结构；必要时同样处理 COM_POSITION_CUDA 的 com/cdof 累加；不改公式语义。",
+    "定向 GPU 验收：3D 链 1477 项全部 0 超差（全链 qfrc_gravcomp 8/77 超差归零，2e-6 容差与断言语义不变）。",
+    "回归：G03 矩阵链逐位证据不回退（MathDx potrf 0/121、解 0/33 或等价定向测试全绿）；`cargo test --locked --all-features --no-fail-fast` 0 失败（或按有界规则如实记录剩余项）。",
+    "产品源码变更后完成 T4 源码身份重钉（另立任务或按规范登记），gate fmt/unit 通过，证据与回执落 docs/development-evidence/u038-3d/ 与 docs/development-evidence/changes/2026-10-23-u038-3d-ptx-order-alignment.json。",
+    "有界两轮：两轮内做不到 0 超差则停手，留下系统性 PTX 算序剩余差异清单证据，交 Chief/用户裁决继续投入或登记已知债务。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P4-功能剩余",
+    "owner": "Codex",
+    "files": [
+      "src/physics/mod.rs",
+      "src/physics/",
+      "tests/t4_gravity_3d_product_chain.rs",
+      "tests/t4_gravity_3d_product_chain/",
+      "tests/t4_gravity_nonzero_product_chain.rs",
+      "tests/t4_mass_solve_probe.rs",
+      "fixtures/gravity-upstream-abi/",
+      "docs/development-evidence/u038-3d/",
+      "docs/development-evidence/changes/2026-10-23-u038-3d-ptx-order-alignment.json",
+      "docs/gravity-compensation.md",
+      "docs/compatibility-matrix.md"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 83
+  },
+  "note": "2026-10-23 Chief 指令登记（proposed→start 后做第一轮）：U038 首差定位到父姿态旋转+四元数组合，属 NVRTC FMA 收缩选择类（同 G03 矩阵链），按 G03 打法重写局部表达式再试一轮；有界两轮，做不到 0 超差就留差异清单证据交裁决。范围限 KINEMATICS_CUDA 与必要 com/cdof 表达式、测试与证据；T4 repin 另立；不改容差/断言/排除清单/ABI；W13/g03-parity 未动；QA 在 NP02 不撞范围。",
+  "revision": {
+    "before": "6502ec2dcfb6e54bdcc245df038e69ea415fa2bc",
+    "after": null
+  },
+  "created_at": "2026-10-23T03:30:00.000Z",
+  "updated_at": "2026-10-22T19:13:08.796Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-u038-3d-ptx-order-alignment.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-u038-3d-ptx-order-alignment"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
