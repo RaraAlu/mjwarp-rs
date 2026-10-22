@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "modules": {
+    "modify": []
+  },
+  "status": "proposed",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "id": "2026-10-23-w14-tile-launcher",
+  "title": {
+    "zh": "实现W14 tile发射器",
+    "en": "Implement W14 tile launcher"
+  },
+  "intent": {
+    "zh": "按 layers-w14.md 冻结的 tile 约束实现共享内存声明、线程参与与发射校验；内核来源路线依赖 W13/W15 落地后择一。",
+    "en": "Implement W14 tile launcher"
+  },
+  "acceptance": [
+    "冻结并实现 KernelAbi 共享内存声明（ABI 常量或产物属性核对）；`LaunchDims` 增加共享内存上限与 opt-in 校验。",
+    "`BlockRule` 与编译参数一致校验；固定 32 线程 tile 路径，发射器不得改写块大小；动态共享内存非零值走独立评审。",
+    "完成 tile 装卸、清零、屏障与失败路径测试；共享内存超限与块大小不符必须拒绝。",
+    "按 W13 或 W15 路线选定内核来源并写明；tile 输入/输出/共享缓冲全 f32，SDK 内部精度不当作验收。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m7-tile",
+      "2026-10-23-w13-nvjitlink-binding",
+      "2026-10-23-w15-verbatim-headers"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 20,
+    "phase": "M7-编译路线",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/launcher",
+      "src/physics",
+      "docs/development-evidence/w14-tile/"
+    ]
+  },
+  "note": "只登记，未 start；Backend 在 U038-3D 后执行（Chief 安排）。无需外部组件，但内核来源依赖 W13/W15 的落地结论。",
+  "created_at": "2026-10-23T02:55:00.000Z",
+  "updated_at": "2026-10-23T02:55:00.000Z"
+}

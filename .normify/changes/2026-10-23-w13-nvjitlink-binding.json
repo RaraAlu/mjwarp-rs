@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "modules": {
+    "modify": []
+  },
+  "status": "proposed",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "id": "2026-10-23-w13-nvjitlink-binding",
+  "title": {
+    "zh": "实现nvJitLink自建动态绑定（W13）",
+    "en": "Implement self-built nvJitLink binding (W13)"
+  },
+  "intent": {
+    "zh": "按 docs/development-evidence/layers-w13.md 的评审结论落地 nvJitLink 动态绑定，替代依赖 Python venv 的 warp.dll 离线链；先补组件、许可与部署裁决，再冻结 ABI、并发与拒绝面。",
+    "en": "Implement self-built nvJitLink binding (W13)"
+  },
+  "acceptance": [
+    "固定 cuda_nvjitlink 组件版本与摘要（或明确运行期依赖用户 CUDA 库），启动时核对版本并显式报错，不静默回退。",
+    "Rust 侧手写 extern \"C\" + 动态加载 nvJitLink create/addData/complete/getLinkedCubin/destroy；不新增 C/C++ 组件，不依赖 Python/venv。",
+    "覆盖库缺失、版本不符、符号缺失、链接错误、空产物、非 CUBIN ELF 的拒绝面；冻结并发与生命周期策略。",
+    "与既有离线证据对照：同一 LTOIR/FATBIN 输入（7 维 POTRF 与矩阵链 LTO）的产物摘要一致。",
+    "按用户裁决登记 CUDA Toolkit 许可文本/第三方通知并落地部署方式（随构建缓存固定组件或运行期依赖用户 CUDA）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-m7-link"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 10,
+    "phase": "M7-编译路线",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/launcher",
+      "scripts/prepare-cuda-probe.ps1",
+      "LICENSES",
+      "docs/development-evidence/w13-nvjitlink/"
+    ]
+  },
+  "note": "只登记，未 start；等用户裁决 nvJitLink 许可与部署方式。前置评审已 verified（layers-m7-link）。实施后需重钉 T4 源码身份、重跑双模式门禁。外部前置：CUDA Toolkit EULA 是否允许随二进制再分发、或无系统 CUDA 时的组件钉死方案。",
+  "created_at": "2026-10-23T02:55:00.000Z",
+  "updated_at": "2026-10-23T02:55:00.000Z"
+}
