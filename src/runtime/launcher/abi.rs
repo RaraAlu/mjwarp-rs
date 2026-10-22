@@ -98,12 +98,14 @@ pub enum BlockRule {
     Fixed(u32),
     /// Warp默认256线程网格。
     WarpGrid,
+    /// tile协作线程块：线程数须与内核编译线程数一致。
+    Tile(u32),
 }
 
 impl BlockRule {
     pub const fn threads(self) -> u32 {
         match self {
-            Self::Fixed(threads) => threads,
+            Self::Fixed(threads) | Self::Tile(threads) => threads,
             Self::WarpGrid => 256,
         }
     }
@@ -125,6 +127,8 @@ pub struct AliasException {
 pub unsafe trait KernelAbi {
     const NAME: &'static str;
     const BLOCK: BlockRule;
+    /// 内核源码内静态声明的 `__shared__` 字节数；0表示无静态共享内存。
+    const SHARED_BYTES: u32 = 0;
     const SLOTS: &'static [SlotDesc];
     const ALIAS_EXCEPTIONS: &'static [AliasException] = &[];
 }
@@ -134,6 +138,7 @@ pub unsafe trait KernelAbi {
 pub struct AbiSignature {
     name: &'static str,
     block: BlockRule,
+    shared_bytes: u32,
     slots: &'static [SlotDesc],
     exceptions: &'static [AliasException],
 }
@@ -141,21 +146,41 @@ pub struct AbiSignature {
 impl AbiSignature {
     /// 校验一个`KernelAbi`实现的声明。
     pub fn of<A: KernelAbi>() -> Result<Self, LauncherError> {
-        Self::check(A::NAME, A::BLOCK, A::SLOTS, A::ALIAS_EXCEPTIONS)
+        Self::check_with_shared(
+            A::NAME,
+            A::BLOCK,
+            A::SHARED_BYTES,
+            A::SLOTS,
+            A::ALIAS_EXCEPTIONS,
+        )
     }
 
-    /// 校验声明自身是否成立。
+    /// 校验声明自身是否成立；默认静态共享内存为0。
     pub fn check(
         name: &'static str,
         block: BlockRule,
         slots: &'static [SlotDesc],
         exceptions: &'static [AliasException],
     ) -> Result<Self, LauncherError> {
+        Self::check_with_shared(name, block, 0, slots, exceptions)
+    }
+
+    /// 校验声明自身是否成立，并记录内核静态 `__shared__` 字节数。
+    pub fn check_with_shared(
+        name: &'static str,
+        block: BlockRule,
+        shared_bytes: u32,
+        slots: &'static [SlotDesc],
+        exceptions: &'static [AliasException],
+    ) -> Result<Self, LauncherError> {
         let fail = |reason| Err(LauncherError::InvalidSignature { abi: name, reason });
-        if let BlockRule::Fixed(threads) = block
+        if let BlockRule::Fixed(threads) | BlockRule::Tile(threads) = block
             && (threads == 0 || threads > 1024 || !threads.is_multiple_of(32))
         {
-            return fail("固定线程数须为32的倍数且不超过1024");
+            return fail("固定或tile线程数须为32的倍数且不超过1024");
+        }
+        if !shared_bytes.is_multiple_of(4) {
+            return fail("静态共享内存字节数须按4字节对齐");
         }
         if slots.is_empty() {
             return fail("签名没有槽位");
@@ -222,6 +247,7 @@ impl AbiSignature {
         Ok(Self {
             name,
             block,
+            shared_bytes,
             slots,
             exceptions,
         })
@@ -233,6 +259,11 @@ impl AbiSignature {
 
     pub fn block(&self) -> BlockRule {
         self.block
+    }
+
+    /// 内核源码静态声明的 `__shared__` 字节数。
+    pub fn shared_bytes(&self) -> u32 {
+        self.shared_bytes
     }
 
     pub fn slots(&self) -> &'static [SlotDesc] {

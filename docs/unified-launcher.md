@@ -880,7 +880,7 @@ impl ExecGraph {
 | W11 | 预分配`Data`显存 | W06 | 捕获期间禁止分配 |
 | W12 | 条件图节点 | W09、feature升级 | G14、G15迭代 |
 | W13 | nvJitLink动态绑定 | 无 | cudarc不含此库 |
-| W14 | 共享内存与tile发射 | W04 | 上游tile内核 |
+| W14 | 共享内存与tile发射 | W04 | 已落地：静态`__shared__`与tile发射约束（产品内核未切换） |
 | W15 | Warp头文件管理 | W13（LTO链接时） | 已落地：上游头文件原样复制（36文件） |
 | W16 | 编译开销实测 | 无 | 确定缓存优先级 |
 | W17 | 安全内核包装与`spans` | W04 | 计算物理层无需unsafe |
@@ -895,7 +895,7 @@ W12与W13须先做独立评审。
 W15取决于内核来源决议。
 若只加载冻结PTX，则不需要W15。
 
-2026-10-23 评审状态：W13 有条件批准、实施延后（`docs/development-evidence/layers-w13.md`）；W14 tile 约束已冻结、实施延后（`layers-w14.md`）；W15 已落地（`include/warp-headers` 36文件，`docs/development-evidence/w15-verbatim-headers/`），产品内核来源未切换。
+2026-10-23 评审状态：W13 有条件批准、实施延后（`docs/development-evidence/layers-w13.md`）；W14 tile 约束已落地（`layers-w14.md`）；W15 已落地（`include/warp-headers` 36文件，`docs/development-evidence/w15-verbatim-headers/`），产品内核来源未切换。
 
 ## 迁移步骤
 

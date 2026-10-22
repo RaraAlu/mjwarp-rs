@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-w14-tile-launcher",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/w14-tile-launcher/README.md",
+      "blob": "172dbf721e70523046a71c65f0f8c6a913e80ea4"
+    }
+  ],
+  "note": "W14 落地（依赖拆分为 m7-tile + W15，W13/nvJitLink 不阻塞）：KernelAbi::SHARED_BYTES 静态共享内存声明（4 字节对齐）、LaunchDims 上限与动态共享内存 opt-in（产品路径 shared_bytes=0，默认 48KiB 不沿用探针 128KiB）、BlockRule::Tile 且块大小必须等于编译线程数、plan_with_limits 核对静态上限与静态/动态互斥。内核来源走 W15 头文件原样复制路线（NVRTC + include/warp-headers），未引 nvJitLink/MathDx，未切换产品内核。验证：宿主拒绝面 3 测试通过（超限/未 opt-in/块大小不符/静态超限/非法声明）；NVRTC 编译静态 __shared__ tile 内核出 PTX 且含 .shared；lib 测试 447 过 0 败；gate fmt/clippy/clippy-cuda/unit 全过。未验收：未启动 GPU 内核（仅 PTX 编译）、动态共享内存未启用、产品内核未切换、逐字段精度映射未做、未跑 Linux/性能。"
+}

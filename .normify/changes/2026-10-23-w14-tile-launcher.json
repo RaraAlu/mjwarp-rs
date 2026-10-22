@@ -1,47 +1,94 @@
 {
   "schema_version": 1,
-  "modules": {
-    "modify": []
-  },
-  "status": "proposed",
-  "revision": {
-    "before": null,
-    "after": null
-  },
   "id": "2026-10-23-w14-tile-launcher",
   "title": {
     "zh": "实现W14 tile发射器",
     "en": "Implement W14 tile launcher"
   },
+  "status": "verified",
   "intent": {
-    "zh": "按 layers-w14.md 冻结的 tile 约束实现共享内存声明、线程参与与发射校验；内核来源路线依赖 W13/W15 落地后择一。",
-    "en": "Implement W14 tile launcher"
+    "zh": "按 layers-w14.md 冻结的 tile 约束实现共享内存声明、线程参与与发射校验；内核来源走 W15 头文件原样复制路线（不引 nvJitLink/MathDx），不切换产品内核。W13/nvJitLink 只是 LTO 内核来源路线且需用户许可裁决，不阻塞 tile 发射器实现，故本任务 depends_on 只保留 m7-tile 与 W15。",
+    "en": "Implement the frozen W14 tile constraints: static shared-memory ABI declaration, thread-participation/launch validation, and a static __shared__ tile kernel compiled through the W15 verbatim headers route (no nvJitLink/MathDx, no product kernel switch). W13/nvJitLink is only an LTO kernel-source route awaiting the user license/deployment ruling and must not block the tile launcher, so depends_on keeps only m7-tile and W15."
+  },
+  "modules": {
+    "modify": []
   },
   "acceptance": [
-    "冻结并实现 KernelAbi 共享内存声明（ABI 常量或产物属性核对）；`LaunchDims` 增加共享内存上限与 opt-in 校验。",
-    "`BlockRule` 与编译参数一致校验；固定 32 线程 tile 路径，发射器不得改写块大小；动态共享内存非零值走独立评审。",
-    "完成 tile 装卸、清零、屏障与失败路径测试；共享内存超限与块大小不符必须拒绝。",
-    "按 W13 或 W15 路线选定内核来源并写明；tile 输入/输出/共享缓冲全 f32，SDK 内部精度不当作验收。"
+    "冻结并实现 KernelAbi 共享内存声明（静态 __shared__ 字节数常量 SHARED_BYTES，按4字节对齐）；`LaunchDims` 增加共享内存上限与动态共享内存 opt-in 校验，产品路径 `shared_bytes=0`。",
+    "`BlockRule` 补 Tile 变体并要求块大小等于内核编译线程数；发射器不得改写块大小，不一致即拒绝；动态共享内存非零值必须显式 opt-in，未 opt-in 拒绝。",
+    "静态 `__shared__` tile 内核走 W15 头文件原样复制路线编译（NVRTC + include/warp-headers），不引 nvJitLink/MathDx；tile 输入/输出/共享缓冲保持 f32。",
+    "宿主单测覆盖拒绝面：shared_bytes 超限、未 opt-in、块大小与编译线程数不符、静态共享内存超设备上限、动态共享内存请求；NVRTC 编译静态 `__shared__` tile 内核成功出 PTX 且含 .shared 声明。",
+    "不改产品容差、断言与既有发射路径；证据与回执落 docs/development-evidence/w14-tile-launcher/ 与 docs/development-evidence/changes/2026-10-23-w14-tile-launcher.json；未验收边界如实登记。"
   ],
   "schedule": {
     "depends_on": [
       "2026-10-18-layers-m7-tile",
-      "2026-10-23-w13-nvjitlink-binding",
       "2026-10-23-w15-verbatim-headers"
     ],
-    "resources": [
-      "gpu:windows-t4"
-    ],
-    "priority": 20,
     "phase": "M7-编译路线",
     "owner": "Backend",
     "files": [
       "src/runtime/launcher",
-      "src/physics",
-      "docs/development-evidence/w14-tile/"
-    ]
+      "tests/launcher-tile.rs",
+      "docs/unified-launcher.md",
+      "docs/development-evidence/w14-tile-launcher/",
+      "docs/development-evidence/changes/2026-10-23-w14-tile-launcher.json",
+      ".normify/modules/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 20
   },
-  "note": "只登记，未 start；Backend 在 U038-3D 后执行（Chief 安排）。无需外部组件，但内核来源依赖 W13/W15 的落地结论。",
+  "note": "2026-10-23 登记（proposed）。Chief 2026-10-23 指令：W13/nvJitLink 只是 LTO 内核来源路线且需用户许可/部署裁决，不应阻塞 tile 发射器；depends_on 从「m7-tile + W13 + W15」改为「m7-tile + W15」，files 收窄到 launcher/tests/evidence/docs（不再含 src/physics），补 checks 与 gpu 资源。实现按 layers-w14.md 冻结约束：静态 __shared__ 由内核源码声明、发射参数 shared_mem_bytes=0、块大小=编译线程数、动态共享内存本轮不启用；内核来源走 W15 头文件路线，不引 nvJitLink/MathDx。不改产品内核、容差与断言；未跑 GPU 内核。",
+  "revision": {
+    "before": "b1de2db6da630786791e8359c9092e40711262f6",
+    "after": null
+  },
   "created_at": "2026-10-23T02:55:00.000Z",
-  "updated_at": "2026-10-23T02:55:00.000Z"
+  "updated_at": "2026-10-22T19:04:46.954Z",
+  "closed_at": "2026-10-22T19:04:46.954Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/physics",
+        "fixtures",
+        "native",
+        "include/mjwarp_native_probe.h",
+        "LICENSES"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-w14-tile-launcher.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-w14-tile-launcher"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
 }
