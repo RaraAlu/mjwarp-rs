@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-g01-stage-evidence-refresh",
+  "title": {
+    "zh": "补跑G01未执行阶段并刷新证据",
+    "en": "Re-run unexecuted G01 stages and refresh evidence"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "W-D4 证书项转绿后 full-debug 运行在 all-probes 阶段中止，脚本后半段 host-gnu、clippy-gnu、clippy-gnu-cuda、clippy-msvc、rustdoc、diff 未在该轮执行。本任务用当前源码逐项单独执行这六个阶段（与脚本相同命令与环境），记录真实退出码与计数，刷新 docs/three-layer-acceptance.md 的阶段证据，并登记新债务任务 2026-10-22-g01-g03-np03-admission-debt 作为 all-probes 剩余红项的跟踪项。",
+    "en": "After the W-D4 certificate item went green, the full-debug run aborted at all-probes, so host-gnu, clippy-gnu, clippy-gnu-cuda, clippy-msvc, rustdoc and diff did not run in that round. Re-run these six stages individually with the same commands and environment as the script, record real exit codes and counts, refresh the stage evidence in docs/three-layer-acceptance.md, and register the new debt task 2026-10-22-g01-g03-np03-admission-debt for the remaining all-probes red items."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "逐项单独执行 host-gnu（cargo test --locked，至少 200 过）、clippy-gnu、clippy-gnu-cuda、clippy-msvc、rustdoc（RUSTDOCFLAGS=-D warnings）、diff（git diff --check）六个阶段，命令与环境与 scripts/test-windows-g01.ps1 一致；每阶段记录退出码、通过/失败计数、耗时与日志路径，失败项如实登记，不宣称全绿。",
+    "docs/three-layer-acceptance.md §4.1 增补本轮补跑结果，并把「all-probes 之后的阶段未执行」更新为按本轮实测状态；§7 未验收边界同步；文档引用新登记的债务任务 2026-10-22-g01-g03-np03-admission-debt。",
+    "证据目录 docs/development-evidence/g01-stage-refresh/ 含 README.md 与 stage-refresh.json，记录每阶段命令、环境、退出码、计数与日志路径；交付回执 docs/development-evidence/changes/2026-10-22-g01-stage-evidence-refresh.json 含 task_id。",
+    "不改 scripts/test-windows-g01.ps1、产品源码、测试、容差、fixtures 或原生 ABI；unchanged 检查机器核对。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-g01-gravity-cert-f32-regen"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "docs/three-layer-acceptance.md",
+      "docs/development-evidence/g01-stage-refresh/",
+      "docs/development-evidence/changes/2026-10-22-g01-stage-evidence-refresh.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 2
+  },
+  "note": "来源：2026-10-22-g01-gravity-cert-f32-regen 的 full-debug 复跑（target/g01-acceptance/9bd3489f5b4542409f104f5feac1c4fb，日志 target/g01-wd4-final.log）在 all-probes 阶段因 G03 mass_solve_probe 3 项既有 NP03 准入失败中止，脚本此后的 host-gnu/clippy-gnu/clippy-gnu-cuda/clippy-msvc/rustdoc/diff 未执行。本轮不重跑整脚本也无需重跑已通过的 fmt/native/host-msvc/g01/native-g01/native-only-g01/resident；只按脚本同一命令补跑缺失阶段。环境：rustc 1.99.0（GNU 默认工具链 + x86_64-pc-windows-msvc 显式 +1.99.0），CUDA 12.8.1（target/toolchains/cuda-12.8.1），MuJoCo 3.12.0（target/toolchains/mujoco-3.12.0/package），GPU RTX 4070 Ti SUPER、驱动 596.36。脚本命令源：scripts/test-windows-g01.ps1 第 112-128 行。不改脚本与源码；all-probes 现状与债务引用只写文档。",
+  "revision": {
+    "before": "de25d4dc1bce7dd240b89b40dab1eb89ab33f16e"
+  },
+  "created_at": "2026-10-22T09:06:00.000Z",
+  "updated_at": "2026-10-22T09:06:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "scripts",
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g01-stage-evidence-refresh.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g01-stage-evidence-refresh"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
