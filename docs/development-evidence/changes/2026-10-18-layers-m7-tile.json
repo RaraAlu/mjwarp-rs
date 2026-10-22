@@ -1,0 +1,17 @@
+{
+    "schema":  1,
+    "kind":  "delivery",
+    "task_id":  "2026-10-18-layers-m7-tile",
+    "milestones":  {
+                       "implementation":  "complete",
+                       "validation":  "passed",
+                       "delivery_record":  "complete"
+                   },
+    "files":  [
+                  {
+                      "path":  "docs/development-evidence/layers-w14.md",
+                      "blob":  "08b6ce8bf3903088280df8ab611b11fc409ed57a"
+                  }
+              ],
+    "note":  "仅评审，不改内核、不加依赖、不改代码。结论：批准 tile 约束冻结，实施延后并另立交付任务，不自动批准实现。现状：LaunchDims 已留 shared_bytes 但只校验网格与线程数；BlockRule 只有 Fixed/WarpGrid；旧同步发射全部写死 shared_mem_bytes 0 与块 256；探针缓存 128KiB 共享内存上限只服务探针；产品路径当前无 tile 内核。上游证据：native-mathdx7-call.cu 照抄 Warp v1.15.0 tile_cholesky MathDx 分支，__shared__ 静态 tile[49] 与 info[1]、32 线程块、三处 __syncthreads 配对、每 block 一个世界、共享与公开数据 f32。冻结：tile 共享内存走内核静态声明且发射参数为 0，本轮不启用动态共享内存；线程块必须等于内核编译线程数（MathDx 用 Fixed(32)，Warp 默认 WarpGrid(256)）；每 block 一个 tile 单元；共享内存上限按设备属性核对，不沿用探针常数；精度全 f32，SDK 内部精度未接受。内核来源两条路线（W13 链接或 W15 源码编译）由实施任务择一。前置条件：冻结 ABI 共享内存声明、设备属性与 opt-in 策略、线程参与检查、内核来源、GPU 测试覆盖（超限拒绝、块大小拒绝、装卸清零、失败路径、精度对照）、不新增 Python 链。本轮未新增内核、未改发射器、未加依赖、未跑 GPU。"
+}
