@@ -36,6 +36,15 @@ impl KinematicsData {
         self.lifecycle.metadata_generation()
     }
 
+    /// A1：当前源状态快照；供下游记录并核对来源代际。
+    pub fn source_state(&self) -> SourceState {
+        SourceState::new(
+            self.lifecycle.identity(),
+            self.lifecycle.state_version(),
+            self.lifecycle.state_field_versions(),
+        )
+    }
+
     #[cfg(all(test, feature = "cuda-probe"))]
     pub(in crate::physics) fn tendon_velocity_source_for_test(
         &mut self,

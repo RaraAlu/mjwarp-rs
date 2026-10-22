@@ -84,9 +84,9 @@ fn gpu_wires_resident_fluid_into_shared_passive_order() {
     source.write_qpos(&qpos).unwrap();
     source.write_qvel(&qvel).unwrap();
     source_plan.update(&mut source).unwrap();
-    velocity.write_qvel(&qvel).unwrap();
-    joint.write_qpos(&qpos).unwrap();
-    joint.write_qvel(&qvel).unwrap();
+    velocity.write_qvel_from(&source, &qvel).unwrap();
+    joint.write_qpos_from(&source, &qpos).unwrap();
+    joint.write_qvel_from(&source, &qvel).unwrap();
     joint_plan.update_joint(&mut joint).unwrap();
     let velocity_view = velocity_plan.update(&source, &mut velocity).unwrap();
     let base = base_plan
@@ -467,7 +467,7 @@ fn gpu_wires_resident_fluid_into_shared_passive_order() {
         "healthy_repair_recovered": true,
         "same_source_resident_kinematics": true,
         "joint_state_caller_synchronized": true,
-        "full_chain_same_generation": false,
+        "full_chain_same_generation": true,
         "frozen_upstream_device_output": false,
         "absolute_tolerance": 2.0e-6,
         "diagnostic_elapsed_ms": timer.elapsed().as_millis(),

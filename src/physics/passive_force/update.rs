@@ -1,5 +1,6 @@
 //! 被动合力更新、清零与休眠过滤入口。
 
+use super::data::check_shared_source_generation;
 use super::*;
 
 impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
@@ -37,6 +38,12 @@ impl<'a, 'v, 'p, 'f> PassiveForcePlan<'a, 'v, 'p, 'f> {
         {
             return Err(TransferError::ModelMismatch);
         }
+        // 同代核对先于任何设备写入：声明来源必须与常驻源字段版本一致。
+        check_shared_source_generation(
+            joint.source_state(),
+            tendon_velocity.published_state(),
+            flex_source.source_state(),
+        )?;
         data.ready = false;
         data.smooth.invalidate();
         #[cfg(not(feature = "cuda-probe"))]

@@ -1,7 +1,7 @@
 +++
 uid = "6b66bd50"
 id = "mjwarp.model.data.lifecycle"
-fingerprint = "696506b4791fe379d9a72a766f3653a942bcd279d0fb981ff362042d568a2924"
+fingerprint = "fdf9e476f6fd21d74251fa4631bb9e1a6453dfff6021ebcd857f68ad73df2171"
 
 [name]
 zh = "设备数据生命周期"

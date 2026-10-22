@@ -7,6 +7,7 @@ use crate::diagnostics::{InputError, TransferError};
 use crate::model::BatchLayout;
 #[cfg(feature = "cuda-probe")]
 use crate::model::SmoothForceInput;
+use crate::model::data::{SourceState, StateField};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{TransferBuffer, TransferSession};
 use std::sync::Arc;
@@ -39,6 +40,9 @@ mod tests_accumulate;
 #[cfg(all(test, feature = "cuda-probe"))]
 #[path = "passive_force/tests/fluid.rs"]
 mod tests_fluid;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "passive_force/tests/generation.rs"]
+mod tests_generation;
 #[cfg(all(test, feature = "cuda-probe"))]
 #[path = "passive_force/tests/rotation.rs"]
 mod tests_rotation;

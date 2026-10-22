@@ -5,6 +5,7 @@ use super::{
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
+use crate::model::data::SourceState;
 use crate::model::topology::JointType;
 use crate::model::{BatchLayout, KinematicModelInput, ParameterBatch, SmoothForceInput};
 #[cfg(feature = "cuda-probe")]
@@ -170,6 +171,8 @@ pub struct JointPassiveData {
     layout: Layout,
     ready: bool,
     smooth: SmoothForceData,
+    /// A1：qpos/qvel副本的常驻来源快照；旧写入入口清空声明。
+    source: Option<SourceState>,
     #[cfg(feature = "cuda-probe")]
     state: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]

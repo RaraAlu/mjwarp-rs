@@ -1,7 +1,7 @@
 +++
 uid = "b1ed0f18"
 id = "mjwarp.physics.resident"
-fingerprint = "7fc596c64c44af4699320a0ed1a283c876a80a9cf744c188bac30cc677b93a22"
+fingerprint = "70d53a19bb51ece18170c464bde40a44bfa59b704264af56cb0d1dfcce02e368"
 
 [name]
 zh = "常驻运动学与G01"

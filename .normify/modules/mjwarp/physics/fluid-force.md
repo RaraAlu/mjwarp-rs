@@ -2,7 +2,7 @@
 uid = "3b80fd65"
 id = "mjwarp.physics.fluid-force"
 tags = ["G04", "U038", "NP01", "NP02", "cuda", "fluid"]
-fingerprint = "1f4c897cfaeeb0bfd9f111815827719bc3ba8cbc6e98ae7165e7be7e3fee5108"
+fingerprint = "34f40f936f153900b595c5d63e1cf3e369808ff534f4e852286b5ab6c7ec8816"
 
 [name]
 zh = "流体被动力"

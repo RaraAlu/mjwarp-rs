@@ -1,7 +1,7 @@
 +++
 uid = "2cf3e9e5"
 id = "mjwarp.model.data"
-fingerprint = "abefcdc6054977cfce2d79a54123fdb6897400bd7b9d4ceebd1dd4543c2bb51f"
+fingerprint = "154cd981d5fd09ccf12df5e30d9de02209922bd238470dfae5ea8fcf97273e33"
 
 [name]
 zh = "设备数据"

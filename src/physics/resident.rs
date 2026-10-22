@@ -214,7 +214,9 @@ use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 #[cfg(feature = "cuda-probe")]
 use crate::model::data::StateField;
-use crate::model::data::{DataIdentity, DataLifecycle, DeviceDataLayout, StateFieldVersions};
+use crate::model::data::{
+    DataIdentity, DataLifecycle, DeviceDataLayout, SourceState, StateFieldVersions,
+};
 #[cfg(feature = "cuda-probe")]
 use crate::model::data::{LayoutIdentity, ModelIdentity};
 use crate::model::sleep::TendonWakeInfo;

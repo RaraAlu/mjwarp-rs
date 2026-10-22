@@ -1,11 +1,69 @@
 //! 关节被动数据写入、检查与回读。
 
 use super::*;
+use crate::physics::KinematicsData;
 
 impl JointPassiveData {
     pub fn worlds(&self) -> usize {
         debug_assert_eq!(self.layout.state.worlds(), self.layout.vector.worlds());
         self.layout.vector.worlds()
+    }
+    /// A1：最近一次声明的常驻来源；旧写入入口为`None`。
+    pub fn source_state(&self) -> Option<SourceState> {
+        self.source
+    }
+    fn check_source(&self, source: &KinematicsData) -> Result<(), TransferError> {
+        if source.worlds() == self.worlds() {
+            Ok(())
+        } else {
+            Err(TransferError::ModelMismatch)
+        }
+    }
+    /// 从常驻源写入全部qpos并记录来源代际。
+    pub fn write_qpos_from(
+        &mut self,
+        source: &KinematicsData,
+        values: &[f32],
+    ) -> Result<(), TransferError> {
+        self.check_source(source)?;
+        self.write(false, None, values)?;
+        self.source = Some(source.source_state());
+        Ok(())
+    }
+    /// 从常驻源写入全部qvel并记录来源代际。
+    pub fn write_qvel_from(
+        &mut self,
+        source: &KinematicsData,
+        values: &[f32],
+    ) -> Result<(), TransferError> {
+        self.check_source(source)?;
+        self.write(true, None, values)?;
+        self.source = Some(source.source_state());
+        Ok(())
+    }
+    /// 从常驻源写入指定世界的qpos并记录来源代际。
+    pub fn write_world_qpos_from(
+        &mut self,
+        source: &KinematicsData,
+        world: usize,
+        values: &[f32],
+    ) -> Result<(), TransferError> {
+        self.check_source(source)?;
+        self.write(false, Some(world), values)?;
+        self.source = Some(source.source_state());
+        Ok(())
+    }
+    /// 从常驻源写入指定世界的qvel并记录来源代际。
+    pub fn write_world_qvel_from(
+        &mut self,
+        source: &KinematicsData,
+        world: usize,
+        values: &[f32],
+    ) -> Result<(), TransferError> {
+        self.check_source(source)?;
+        self.write(true, Some(world), values)?;
+        self.source = Some(source.source_state());
+        Ok(())
     }
     pub fn write_qpos(&mut self, values: &[f32]) -> Result<(), TransferError> {
         self.write(false, None, values)
@@ -68,7 +126,10 @@ impl JointPassiveData {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            self.state.write_range(offset, values)
+            self.state.write_range(offset, values)?;
+            // 旧写入入口不声明来源；来源代际快照在此清空。
+            self.source = None;
+            Ok(())
         }
     }
     /// 调用方显式提供其余三项；不能覆盖本生产者的Passive字段。

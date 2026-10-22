@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-next-u038-shared-2",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "src/model/data/versions.rs", "blob": "b7eb75ad1d9c6da8de058857be9d201aaa722ccf"},
+    {"path": "src/model/data/mod.rs", "blob": "34712b89bc45f2d480bc03535b671916c0adac06"},
+    {"path": "src/physics/resident/data.rs", "blob": "ef1edf37e32217bf1bbc6f6c41f1ff4bc6ce201b"},
+    {"path": "src/physics/resident.rs", "blob": "d67f9662afb25c96e8b32cb98613af420cd1dc2d"},
+    {"path": "src/physics/smooth_force/joint_passive.rs", "blob": "c92f43a946635e0bf7d665fd718888d665968ec0"},
+    {"path": "src/physics/smooth_force/joint_passive/data.rs", "blob": "3b26911a429bcdaef0fa3a4ff0956e69dfcc0383"},
+    {"path": "src/physics/smooth_force/joint_passive/plan.rs", "blob": "4782afc52b704a1421e40a8a1351cc8fe6faead1"},
+    {"path": "src/physics/tendon_velocity.rs", "blob": "46a112662c690b9440474390f5f14ce7f1214454"},
+    {"path": "src/physics/tendon_velocity/data.rs", "blob": "c51371f82bec03dbca1658edfaf22d87d8c1695d"},
+    {"path": "src/physics/tendon_velocity/plan.rs", "blob": "12364e030eb4d786eb3d50f48cbbea5e90eaaa34"},
+    {"path": "src/physics/tendon_velocity/view.rs", "blob": "ec39246fb5333f6ce54fefc9d3e92854841b5532"},
+    {"path": "src/physics/passive_force.rs", "blob": "d30ff039ef07ebf2f636992f3edfa325453b5690"},
+    {"path": "src/physics/passive_force/data.rs", "blob": "105e32d03a69fb240093852d0b96c1b535a73481"},
+    {"path": "src/physics/passive_force/update.rs", "blob": "af34aada81783eb9a27660aed7380d2324f695ee"},
+    {"path": "src/physics/passive_force/tests/fluid.rs", "blob": "8dd51a5c13389bea504c7a5bf4b70f1220fa2055"},
+    {"path": "src/physics/passive_force/tests/generation.rs", "blob": "4bcd1f34191942b5dcf2a771115177300bd79522"},
+    {"path": "src/physics/fluid_force/tests/gpu_ellipsoid.rs", "blob": "0a5d9968b5eec13336b1aa279fde3695fb2448a4"},
+    {"path": "docs/fluid-force.md", "blob": "a946bd2db15505775b1ba3eacf01553f7db3fcb1"},
+    {"path": "docs/development-evidence/u038-shared/README.md", "blob": "422c88d312eca62d7c4fd01b2b49430f2b8a35bd"},
+    {"path": "docs/development-evidence/u038-shared/passive-fluid-report.json", "blob": "911fd1e457d082da7a03169a1d0b2143c6ab97e0"},
+    {"path": "docs/development-evidence/u038-shared/shared-ellipsoid-report.json", "blob": "05308db9b7f5d546a3e63fb939c2696e44a0bb73"},
+    {"path": "docs/development-evidence/u038-shared/shared-generation-report.json", "blob": "dd2a2f3097bc2326a8e5b8966df16aacd3e66d18"}
+  ],
+  "note": "U038共享椭球与同代状态（重登记，验收与原任务逐字一致）。实现：①`model::data::SourceState`新增（身份+state_version+字段版本，same_identity/same_field_generation），`KinematicsData::source_state()`只读快照；②`JointPassiveData`新增来源声明与`write_qpos_from`/`write_qvel_from`/`write_world_qpos_from`/`write_world_qvel_from`，`TendonVelocityData`新增输入声明与已发布代际及`write_qvel_from`/`write_world_qvel_from`，旧`write_*`保持兼容并在成功后清空声明；`TendonVelocityPlan::update`入口核对输入声明与当前源qvel代际、成功后记录已发布快照；③`passive_force::check_shared_source_generation`在`PassiveForcePlan::update`的设备写入前核对关节副本qpos/qvel与肌腱输出qvel，不一致分阶段返回`StageNotReady{stage:\"passive_force_joint_generation\"}`或`\"passive_force_tendon_generation\"}`，上一代已发布结果保持、重同步后恢复；④共享椭球新增GPU测试：`FluidForcePlan::from_resident`对`fluid_force/tests/reference.rs`独立参考，9世界288槽最大绝对误差4.77e-7（容差2e-6不变），box输入共享链回归保持；⑤新增`passive_force/tests/generation.rs`（已登记模块源码，152行）：关节副本过期拒绝、肌腱历史声明过期拒绝、重同步恢复、旧`write_*`兼容四项GPU断言；共享链`tests/fluid.rs`保持480行未越限并改用声明来源。容差、fixtures、内核字符串/PTX与产品物理公式未改。验证（rustc 1.99.0 MSVC，RTX 4070 Ti SUPER/596.36，CUDA 12.8.1，MuJoCo 3.12.0）：宿主单测SourceState 2过、同代拒绝/重同步/旧入口兼容4过；GPU `gpu_wires_resident_fluid_into_shared_passive_order` 1过0败（6.05s，报告full_chain_same_generation=true）；GPU `gpu_shared_resident_ellipsoid_matches_independent_reference` 1过0败（1.80s，288槽max_abs=4.77e-7）；GPU `gpu_shared_source_generation_rejects_stale_copies_and_recovers` 1过0败（1.31s，报告四项断言全true）；模块定向passive_force、fluid_force、tendon_velocity、joint_passive全部0败；physics::resident::tests_ 22过0败；门禁fmt/clippy/clippy-cuda/unit见normify记录。未验收边界：旧`write_*`入口保持兼容但不同代拒绝（同代可核只覆盖声明来源的`*_from`路径）；共享椭球只验证椭球几何与流体分量在冻结容差内一致，不宣称完整流体物理/完整G04/U038验收；未跑G01全量脚本、Linux与release；未宣称NP01至NP04、精度或性能验收。"
+}

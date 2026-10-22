@@ -15,4 +15,4 @@ pub use lifecycle::{
     CheckedMetadata, DataIdentity, DataLifecycle, DeviceModelData, LayoutIdentity,
     MetadataProofOwner, MetadataProofRevision, ModelIdentity, SessionBinding,
 };
-pub use versions::{StateField, StateFieldVersions};
+pub use versions::{SourceState, StateField, StateFieldVersions};

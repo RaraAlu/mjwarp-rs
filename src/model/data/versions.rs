@@ -1,10 +1,11 @@
-//! A1-4：常驻状态字段版本。
+//! A1-4：常驻状态字段版本与来源代际快照。
 //!
 //! 每个状态字段独立记录写入版本。
 //! 下游模块按字段版本核对来源是否同代。
 //! 版本只读快照可跨模块传递，不携带可变借用。
 
 use crate::diagnostics::InputError;
+use crate::model::data::lifecycle::DataIdentity;
 
 /// 常驻状态字段；与设备缓冲一一对应。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -88,9 +89,101 @@ impl StateFieldVersions {
     }
 }
 
+/// 常驻源状态快照：身份、状态代际与字段版本。
+///
+/// 由常驻数据在写入或更新时记录。
+/// 下游按身份与字段版本核对来源是否同代。
+/// 只读快照不携带可变借用。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SourceState {
+    identity: DataIdentity,
+    state_version: u64,
+    fields: StateFieldVersions,
+}
+
+impl SourceState {
+    pub fn new(identity: DataIdentity, state_version: u64, fields: StateFieldVersions) -> Self {
+        Self {
+            identity,
+            state_version,
+            fields,
+        }
+    }
+
+    pub fn identity(self) -> DataIdentity {
+        self.identity
+    }
+
+    pub fn state_version(self) -> u64 {
+        self.state_version
+    }
+
+    pub fn fields(self) -> StateFieldVersions {
+        self.fields
+    }
+
+    /// 数据身份是否一致；同尺寸不代表同拓扑。
+    pub fn same_identity(self, other: Self) -> bool {
+        self.identity.matches(&other.identity)
+    }
+
+    /// 指定字段版本是否同代；身份必须一致。
+    pub fn same_field_generation(self, other: Self, field: StateField) -> bool {
+        self.same_identity(other) && self.fields.get(field) == other.fields.get(field)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::data::lifecycle::{LayoutIdentity, ModelIdentity};
+
+    fn identity() -> DataIdentity {
+        DataIdentity::new(
+            ModelIdentity::of_topology(&[2, 3, 4]),
+            LayoutIdentity::of_parts(&[2, 6, 4]),
+        )
+    }
+
+    fn source(qpos: u64, qvel: u64) -> SourceState {
+        let mut fields = StateFieldVersions::default();
+        fields.set(StateField::Qpos, qpos);
+        fields.set(StateField::Qvel, qvel);
+        SourceState::new(identity(), qpos + qvel, fields)
+    }
+
+    #[test]
+    fn source_state_compares_identity_and_field_generations() {
+        let first = source(2, 3);
+        let same = source(2, 3);
+        assert!(first.same_identity(same));
+        assert!(first.same_field_generation(same, StateField::Qpos));
+        assert!(first.same_field_generation(same, StateField::Qvel));
+        let advanced_qpos = SourceState::new(identity(), first.state_version() + 1, {
+            let mut fields = first.fields();
+            fields.set(StateField::Qpos, 3);
+            fields
+        });
+        assert!(first.same_identity(advanced_qpos));
+        assert!(!first.same_field_generation(advanced_qpos, StateField::Qpos));
+        assert!(first.same_field_generation(advanced_qpos, StateField::Qvel));
+        assert_eq!(first.state_version(), 5);
+        assert_eq!(advanced_qpos.state_version(), 6);
+    }
+
+    #[test]
+    fn source_state_rejects_foreign_identity() {
+        let foreign = SourceState::new(
+            DataIdentity::new(
+                ModelIdentity::of_topology(&[9, 9, 9, 9]),
+                LayoutIdentity::of_parts(&[9, 9, 9]),
+            ),
+            0,
+            StateFieldVersions::default(),
+        );
+        assert!(!source(1, 1).same_identity(foreign));
+        assert!(!source(1, 1).same_field_generation(foreign, StateField::Qvel));
+    }
 
     #[test]
     fn versions_start_at_zero_and_advance_per_field() {

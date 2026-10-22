@@ -90,6 +90,7 @@ impl JointPassivePlan {
                 layout: l,
                 ready: false,
                 smooth,
+                source: None,
                 state,
                 current: alloc(l.parts.total_elements(), f32::NAN)?,
                 staged: alloc(l.parts.total_elements(), f32::NAN)?,

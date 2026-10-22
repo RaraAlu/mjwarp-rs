@@ -2,7 +2,7 @@
 uid = "a38c1e7b"
 id = "mjwarp.physics.passive-force"
 tags = ["G04", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "a2d074daf1d5c0fc76ae7f4c6cf9c0e35269921544e38392aa42d5f5702f2679"
+fingerprint = "1de0f46d0d5e096cdee6000d210fe6c0cad49d5191c44dec4ba2448813afd245"
 
 [name]
 zh = "被动力共享累加"
@@ -54,6 +54,9 @@ path = "src/physics/passive_force/kernels.rs"
 
 [[source]]
 path = "src/physics/passive_force/launcher_tests.rs"
+
+[[source]]
+path = "src/physics/passive_force/tests/generation.rs"
 
 [[apis]]
 protocol = "rpc"

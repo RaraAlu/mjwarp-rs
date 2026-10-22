@@ -12,6 +12,10 @@ impl TendonVelocityView<'_, '_> {
     pub(in crate::physics) fn worlds(&self) -> usize {
         self.data.worlds()
     }
+    /// A1：最近一次成功更新消费的常驻来源代际。
+    pub(in crate::physics) fn published_state(&self) -> Option<SourceState> {
+        self.data.published_state()
+    }
     #[cfg(feature = "cuda-probe")]
     pub(in crate::physics) fn tendon_passive_device(
         &self,

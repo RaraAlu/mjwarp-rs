@@ -86,6 +86,8 @@ impl<'p> TendonVelocityPlan<'p> {
                 velocity,
                 output,
                 ready: false,
+                source: None,
+                published: None,
                 qvel: alloc(velocity.total_elements(), 0.0)?,
                 current: alloc(output.total_elements(), f32::NAN)?,
                 staged: alloc(output.total_elements(), f32::NAN)?,
@@ -104,6 +106,14 @@ impl<'p> TendonVelocityPlan<'p> {
         self.source.check_data(source)?;
         if source.worlds() != data.worlds() {
             return Err(TransferError::ModelMismatch);
+        }
+        let current = source.source_state();
+        if let Some(declared) = data.source
+            && !declared.same_field_generation(current, crate::model::data::StateField::Qvel)
+        {
+            return Err(TransferError::StageNotReady {
+                stage: "tendon_velocity_source_generation",
+            });
         }
         #[cfg(not(feature = "cuda-probe"))]
         {
@@ -141,6 +151,9 @@ impl<'p> TendonVelocityPlan<'p> {
                 "tendon_velocity_staged",
             )?;
             std::mem::swap(&mut data.current, &mut data.staged);
+            // 本次输出绑定消费时的常驻来源代际；输入声明随即消费。
+            data.source = None;
+            data.published = Some(current);
             data.ready = true;
             Ok(TendonVelocityView {
                 plan: self,

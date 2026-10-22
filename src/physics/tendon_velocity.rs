@@ -8,6 +8,7 @@ use super::{KinematicsData, KinematicsPlan};
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
+use crate::model::data::SourceState;
 use crate::model::{BatchLayout, TendonRows};
 #[cfg(all(feature = "cuda-probe", test))]
 use crate::runtime::launcher::DeviceSpan;
@@ -106,6 +107,10 @@ pub struct TendonVelocityData {
     velocity: BatchLayout,
     output: BatchLayout,
     ready: bool,
+    /// A1：qvel副本的常驻来源声明；旧写入入口清空。
+    source: Option<SourceState>,
+    /// A1：最近一次成功更新消费的常驻来源代际。
+    published: Option<SourceState>,
     #[cfg(feature = "cuda-probe")]
     qvel: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]

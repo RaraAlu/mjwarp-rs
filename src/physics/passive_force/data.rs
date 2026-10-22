@@ -90,3 +90,97 @@ impl SleepClearedPassiveForceView<'_> {
         self.data.smooth_output()
     }
 }
+
+/// 同代核对：关节副本与肌腱输出必须与常驻源一致。
+///
+/// 旧写入入口不声明来源（`None`），保持兼容不拒绝。
+/// 不一致分阶段返回`StageNotReady`，先于任何设备写入。
+pub(in crate::physics) fn check_shared_source_generation(
+    joint: Option<SourceState>,
+    tendon: Option<SourceState>,
+    current: SourceState,
+) -> Result<(), TransferError> {
+    if let Some(joint) = joint
+        && (!joint.same_field_generation(current, StateField::Qpos)
+            || !joint.same_field_generation(current, StateField::Qvel))
+    {
+        return Err(TransferError::StageNotReady {
+            stage: "passive_force_joint_generation",
+        });
+    }
+    if let Some(tendon) = tendon
+        && !tendon.same_field_generation(current, StateField::Qvel)
+    {
+        return Err(TransferError::StageNotReady {
+            stage: "passive_force_tendon_generation",
+        });
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::data::{DataIdentity, LayoutIdentity, ModelIdentity, StateFieldVersions};
+
+    fn identity() -> DataIdentity {
+        DataIdentity::new(
+            ModelIdentity::of_topology(&[2, 3, 4]),
+            LayoutIdentity::of_parts(&[2, 6, 4]),
+        )
+    }
+
+    fn state(qpos: u64, qvel: u64) -> SourceState {
+        let mut fields = StateFieldVersions::default();
+        fields.set(StateField::Qpos, qpos);
+        fields.set(StateField::Qvel, qvel);
+        SourceState::new(identity(), qpos + qvel, fields)
+    }
+
+    #[test]
+    fn legacy_writes_without_source_declaration_stay_compatible() {
+        let current = state(2, 3);
+        check_shared_source_generation(None, None, current).unwrap();
+        check_shared_source_generation(Some(current), Some(current), current).unwrap();
+    }
+
+    #[test]
+    fn rejects_stale_joint_generation_before_device_writes() {
+        let current = state(2, 3);
+        let stale = state(1, 3);
+        assert_eq!(
+            check_shared_source_generation(Some(stale), None, current).unwrap_err(),
+            TransferError::StageNotReady {
+                stage: "passive_force_joint_generation"
+            }
+        );
+        let stale = state(2, 2);
+        assert_eq!(
+            check_shared_source_generation(Some(stale), None, current).unwrap_err(),
+            TransferError::StageNotReady {
+                stage: "passive_force_joint_generation"
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_stale_tendon_generation() {
+        let current = state(2, 3);
+        let stale = state(2, 2);
+        assert_eq!(
+            check_shared_source_generation(None, Some(stale), current).unwrap_err(),
+            TransferError::StageNotReady {
+                stage: "passive_force_tendon_generation"
+            }
+        );
+    }
+
+    #[test]
+    fn resync_restores_same_generation() {
+        let current = state(2, 3);
+        let stale = state(1, 2);
+        assert!(check_shared_source_generation(Some(stale), Some(stale), current).is_err());
+        // 重新同步后两方均取自当前源。
+        check_shared_source_generation(Some(current), Some(current), current).unwrap();
+    }
+}
