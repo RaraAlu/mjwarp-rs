@@ -10,6 +10,9 @@ Linux V2：需要 Linux 机器，未启动，保持未验收。
 它不宣称 NP01–NP04 精度达标。
 Windows 结果不替代 Linux。
 
+第 3、4 节保留 `ae89f43` 时点的历史快照，不改写。
+2026-10-22 债务修复后的 G01 现状追加在第 4.1 节与第 5 节。
+
 证据目录：[docs/evidence/three-layer/windows](evidence/three-layer/windows/summary.json)。
 
 ## 1. 环境
@@ -41,7 +44,7 @@ Windows 结果不替代 Linux。
 - A1/A2：设备数据归属与渲染布局归属。
 - I1：数据交互层安全面（不发射内核）。
 
-## 3. 三层定向回归（debug 与 release）
+## 3. 三层定向回归（debug 与 release，历史快照）
 
 命令：`cargo test --locked --features cuda-probe …`。
 `--ignored` 用例单独列出。
@@ -65,8 +68,9 @@ Windows 结果不替代 Linux。
 
 迁移触达的 G01 完整链另见下节。
 逐用例日志与耗时见证据目录。
+上表未在 2026-10-22 修复后重跑；本轮新增代码只涉及 W-D7/W-D8 修复与证据重钉，不改变三层定向用例语义。
 
-## 4. 全量 G01 回归
+## 4. 全量 G01 回归（历史快照，`ae89f43`）
 
 命令：`scripts/test-windows-g01.ps1 -AllFeatures -FullRegression`（debug 与 release 各一次）。
 两次均在 `host-msvc` 阶段中止，退出码 1。
@@ -94,32 +98,75 @@ Windows 结果不替代 Linux。
 | git diff --check | 通过 |
 | all-probes 全探针矩阵 | **未执行**（脚本提前中止，本轮未单独启动） |
 
-结论：三层定向回归全绿；G01 全量**不通过**，失败项已登记为债务，不宣称全量通过。
+结论（历史快照）：三层定向回归全绿；G01 全量**不通过**，失败项已登记为债务，不宣称全量通过。
+
+## 4.1 2026-10-22 债务修复后 G01 现状
+
+修复提交后的最新 full-debug 运行（`scripts/test-windows-g01.ps1 -AllFeatures -FullRegression`，工作区干净；本机日志 `target/g01-final.log`）：
+
+| 阶段 | 结果 |
+| --- | --- |
+| fmt | 通过 |
+| native | 27 过 |
+| host-msvc | **697 过** |
+| g01 | 7 过 |
+| native-g01 | **2 过** |
+| native-only-g01 | 1 过 |
+| resident | **102 过**（不再中止） |
+| all-probes | 执行后中止：lib 114 过 10 败，10 项全部为 W-D4/W-D5 已知债务 |
+
+all-probes 的 10 项已知失败明细：
+
+- W-D4 ×1：`physics::gravity_compensation::tests::gpu_matches_independent_multi_body_reduction_certificate`（2 bit / 4 ulp，证书口径，基线同样失败）。
+- W-D5 ×9：`physics::mass_solve::tests_device_wrapper::runs_rigid_mass_solve_wrapper_paths_and_recovers`；`physics::rne::{backward,cacc,cfrc,qfrc}` 4 项；`physics::rne_bias::tests_gpu::runs_rne_bias_wrapper...`；`runtime::transfer::kernel::recapture` 3 项。
+  上述 9 项均来自 `MJWARP_PHYSICS_PTX_DIR` 的“NVRTC 捕获目录 vs 固定 PTX 加载”双语义在单次 all-probes 运行中无法同时满足。
+
+与历史快照对比：W-D1、W-D2、W-D7 造成的阻塞已消除；resident 阶段从 wake-guards 中止变为 102 项全绿；all-probes 从“未执行”变为“执行但只余 W-D4/W-D5”。
+本轮未重跑 G01 release；release 现状仍以历史快照为准，不宣称通过。
+
+结论（当前）：三层迁移范围的 debug 回归已推进到 all-probes 且无新增 M3 回归；G01 全量仍**不被宣称通过**，剩余项为 W-D4/W-D5 已知债务。
 
 ## 5. 债务清单
 
-| 编号 | 级别 | 内容 |
-| --- | --- | --- |
-| W-D1 | P0 | M3 唤醒安全包装元数据校验与打包布局不一致：`TendonWakeMetadata` 要求参数批次≥1、`7+3*nt+nw` 布局与 ntree>0，零树/零批次合法场景被拒（`Input(InvalidTopology{sleep_copy_metadata, invalid_or_stale_metadata})`）。由 `1551c59` 引入。基线 `8f903c5` native_g01 2 过，`64b79b5` 起 1 过 1 败。影响 sleep/tendon-wake 使能的 native G01 链与 wake-guards。 |
-| W-D2 | P1 | T4 pinned lineage 漂移：`preserves_current_sources_and_all_thirty_variants` 报 `unexpected lineage change`，阻塞 G01 脚本 host-msvc。 |
-| W-D3 | P2 | rustdoc `-D warnings` 三处既有 broken intra-doc links（kinetic_energy.rs:134、device_energy/plan.rs:47、mass_solve/sparse/resident/solve.rs:55）。 |
-| W-D4 | 既有 | G01 重力位证书 2bit 差异：f32 输入舍入导致 4 ulp，证书用有理精确值；基线同样失败，属证书口径问题。 |
-| W-D5 | 既有 | `MJWARP_PHYSICS_PTX_DIR` 双语义（NVRTC 捕获目录与固定 PTX 加载）；本轮用独立空捕获目录规避，未当门禁。 |
-| W-D6 | 既有 | G01 脚本 resident/all-probes 期望计数需与拆分后布局同步；本轮 resident 在计数检查前被 W-D1 阻断。 |
+| 编号 | 级别 | 状态 | 内容与证据 |
+| --- | --- | --- | --- |
+| W-D1 | P0 | **已修复** | M3 唤醒安全包装零树/零批次元数据回归，由 `1551c59` 引入。修复提交 `eef9321`（登记）+ `71638e2`（修复），任务 `2026-10-22-layers-m3-wake-native-chain-fix` 已验证。`native_g01 --include-ignored` 2 过；wake-guards 1 过；resident 脚本不再在 wake-guards 中止。 |
+| W-D2 | P1 | **已修复** | T4 pinned lineage 漂移，阻塞 host-msvc。重钉提交 `28bd15f`（登记）+ `4ffda93`；W-D7 修复改变 resident 源码后由 `2026-10-22-t4-source-hash-repin-3` 再次重钉：`c5c47e0`（登记）+ `eac3df6`。host-msvc 697 过，lineage 不再中止。 |
+| W-D3 | P2 | 未修复（既有） | rustdoc `-D warnings` 三处既有 broken intra-doc links（kinetic_energy.rs:134、device_energy/plan.rs:47、mass_solve/sparse/resident/solve.rs:55）。本轮 all-probes 失败后脚本中止在 rustdoc 之前，未重跑，维持既有记录。 |
+| W-D4 | 已知债务 | 未修复（用户未裁决） | G01 重力位证书 2 bit 差异：f32 输入舍入导致 4 ulp，证书用有理精确值；基线同样失败，属证书口径问题。定性与证据见 `2026-10-22-g01-numerics-audit` 回执。**容差未修改；不宣称通过；用户尚未裁决口径。** |
+| W-D5 | 已知债务 | 未修复 | `MJWARP_PHYSICS_PTX_DIR` 双语义（NVRTC 捕获目录与固定 PTX 加载）；本轮 all-probes 的 9 项失败即该债务。门禁不以此豁免；需要独立空捕获目录的运行方式继续沿用。 |
+| W-D6 | 既有债务 | 部分解除 | G01 脚本 resident/all-probes 期望计数与拆分后布局同步：`2026-10-22-g01-gate-script-sync` 已同步；本轮 resident 期望 102 与实测一致并通过；all-probes 期望最少 169 因 W-D4/W-D5 失败未达到（lib 114 过 10 败），待 all-probes 全绿后收口。 |
+| W-D7 | P0 | **已修复** | M3 柔体边安全包装空 ABI 回归（`068fd14` 引入）：`FlexEdgesStaticDims` 误拒单世界体/零 nnz 合法输入。修复提交 `341a52c`（登记）+ `c98e246`（修复），任务 `2026-10-22-layers-m3-flex-edges-abi-fix` 已验证；`flex_edge_free_body...` 恢复、resident 脚本 102 项全绿。 |
+| W-D8 | P1 | **已修复** | M3 稀疏求解包装空计划 ABI 回归（`38a4960` 引入）：`SparseSolveStaticDims` 误拒 n=0/nc=0 合法空计划。修复提交 `1e3dd2f`（登记）+ `24d7937`（修复），任务 `2026-10-22-layers-m3-sparse-solve-empty-abi-fix` 已验证；`tests/resident_sparse_solve -- --ignored` 2 过 0 败。 |
 
-W-D1 是迁移自身回归，不能当历史债务豁免；需在数值主线继续前单独立任务修复。
+W-D1、W-D7、W-D8 是迁移自身回归，已在独立任务中修复，未被当作历史债务豁免。
+W-D4/W-D5/W-D3/W-D6 仍保持开放；不得以本记录豁免任何原容差或门禁。
 
 ## 6. NP01–NP04 缺口
 
-- NP01/NP02 仍为未验收；本轮只做迁移范围回归，不宣称精度等价通过。
+- NP01/NP02 仍为未验收；重复修复不改变该状态。
 - NP03/NP04 只记录适用性与未覆盖面；未提供新的双平台或性能证据。
 - Windows 结果不替代 Linux；无 Linux 环境时保持未验收。
 - 缺少证据时报告精度未验收，不以本记录豁免精度契约。
+- 本轮修复不修改任何内核、容差、fixtures 或原生 ABI。
 
 ## 7. 未验收边界
 
 - 只验收 Windows；Linux V2 未启动（需要 `linux-gpu:0` 与 `linux-acceptance`）。
-- all-probes 全探针矩阵本轮未执行。
+- all-probes 全探针矩阵已执行但未通过：剩余 W-D4/W-D5 共 10 项已知债务。
+- G01 release 未在修复后重跑；release 不宣称通过。
 - 未测量 G01 阶段峰值显存。
 - 不转授完整产品数值验收、性能验收或双平台准入。
 - 不修改任何内核、容差、fixtures 或原生 ABI。
+
+## 8. 引用
+
+- 修复任务与回执：
+  - `2026-10-22-layers-m3-wake-native-chain-fix`：`docs/development-evidence/changes/2026-10-22-layers-m3-wake-native-chain-fix.json`
+  - `2026-10-22-t4-lineage-repin`：`docs/development-evidence/changes/2026-10-22-t4-lineage-repin.json`
+  - `2026-10-22-t4-source-hash-repin-3`：`docs/development-evidence/changes/2026-10-22-t4-source-hash-repin-3.json`
+  - `2026-10-22-layers-m3-flex-edges-abi-fix`：`docs/development-evidence/changes/2026-10-22-layers-m3-flex-edges-abi-fix.json`
+  - `2026-10-22-layers-m3-sparse-solve-empty-abi-fix`：`docs/development-evidence/changes/2026-10-22-layers-m3-sparse-solve-empty-abi-fix.json`
+- 提交：`eef9321`、`71638e2`、`28bd15f`、`4ffda93`、`c5c47e0`、`eac3df6`、`341a52c`、`c98e246`、`1e3dd2f`、`24d7937`。
+- 运行证据：`target/g01-final.log`（本机日志，gitignored）、`target/resident-kinematics/` 下的 resident 报告。
+- 历史证据：`docs/evidence/three-layer/windows/summary.json` 与同目录日志。
