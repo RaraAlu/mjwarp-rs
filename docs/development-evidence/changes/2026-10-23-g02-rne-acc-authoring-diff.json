@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-g02-rne-acc-authoring-diff",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "root_cause_localized",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "scripts/authoring/author-g02-rne-acceleration.ps1"},
+    {"path": "scripts/authoring/author-g02-rne-acceleration.py"},
+    {"path": "docs/development-evidence/g02-rne-authoring-diff/README.md"},
+    {"path": "docs/development-evidence/g02-rne-authoring-diff/provenance.json"},
+    {"path": "docs/development-evidence/g02-rne-authoring-diff/upstream-rne.json"},
+    {"path": "docs/development-evidence/g02-rne-authoring-diff/natural-validation.json"},
+    {"path": "docs/development-evidence/g02-rne-authoring-diff/product-rne.json"},
+    {"path": "docs/development-evidence/g02-rne-authoring-diff/product-vs-upstream.json"},
+    {"path": "docs/development-evidence/g02-rne-authoring-diff/product-vs-upstream-tolerance.json"},
+    {"path": "docs/development-evidence/g02-rne-authoring-diff/analysis.json"}
+  ],
+  "note": "沿用 G03 打法完成 RNE 加速度 521 块缺口的根因定位（只出证据，未改产品代码）。离线 authoring：pinned venv（Python 3.12.13/mujoco 3.15.0/warp-lang 1.15.0/numpy 2.5.4/mujoco-warp 3.15.0）、上游 71da24d…+clean、已安装 75 个 .py 逐文件一致、warp.dll 与 pinned RECORD 一致；模型用 XML host + fixtures/rne-bias 产品输入数组重建（3.15 无法直接载入 3.12 冻结 .mjb），生成链 kinematics→com_pos→crb→com_vel→rne，240 条记录两次运行逐位一致。天然校验：上游参考 vs 冻结原生 MuJoCo 3.12 f64（ABS=REL=2e-5）仅 mixed-joints/gravity2/state7/flag=false 一条超限（normalized 3.961），其余 239 条通过。首差：521 块全部为该组合、worst_dof=3；该记录产品 qfrc 位串与上游逐位相同（0 位差），且上游自身也超原生容差 → 根因为原生 f64 参考与 MJWarp f32 同口径差异（与 G01 W-D4 同类），不是产品/上游实现分歧。产品 vs 上游参考在冻结容差下 240 条 0 失败、worst normalized 0.743；因此建议用户裁决把 fixtures/rne-acceleration 期望重基线为 MJWarp f32 参考（容差不动、产品零改动），重基线后 521 块应全绿；备选放宽该 state 容差属削弱门禁不推荐。次要发现：产品 vs 上游 84/240 条有 ULP 级差异，首差在 cacc 阶段、最大 normalized 0.743<1，若要求逐位一致另立 RNE 逐位对齐任务。边界：未改 src/tests/fixtures/容差；Python 仅离线 authoring，产品测试只跑 cargo；参考重基线未做，等用户裁决。",
+  "evidence": {
+    "readme": "docs/development-evidence/g02-rne-authoring-diff/README.md",
+    "provenance": "docs/development-evidence/g02-rne-authoring-diff/provenance.json",
+    "upstream_reference": "docs/development-evidence/g02-rne-authoring-diff/upstream-rne.json",
+    "natural_validation": "docs/development-evidence/g02-rne-authoring-diff/natural-validation.json",
+    "analysis": "docs/development-evidence/g02-rne-authoring-diff/analysis.json",
+    "tolerance_summary": "docs/development-evidence/g02-rne-authoring-diff/product-vs-upstream-tolerance.json",
+    "authoring_scripts": "scripts/authoring/author-g02-rne-acceleration.ps1",
+    "authoring_run_log_gitignored": "target/g02-authoring-run4.log",
+    "following_task": "2026-10-22-g02-rne-acc-native-tolerance-debt"
+  }
+}
