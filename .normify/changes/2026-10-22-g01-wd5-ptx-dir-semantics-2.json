@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-g01-wd5-ptx-dir-semantics-2",
+  "title": {
+    "zh": "修复G01捕获目录双语义（重登记）",
+    "en": "Fix G01 capture-directory dual semantics (re-registered)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "G01 all-probes 阶段 9 项失败中 6 项来自测试对 MJWARP_PHYSICS_PTX_DIR 的冲突假设：包装测试把变量当已存在捕获根目录并按固定子目录名写入，跨测试固定子目录名复用导致断言失败；统一测试侧目录分配语义。其余 3 项重采集/归档失败经复现确认需要历史捕获与冻结源码基线，不在本任务内硬修。",
+    "en": "Six of the nine G01 all-probes failures come from conflicting test assumptions about MJWARP_PHYSICS_PTX_DIR: wrapper tests treat the variable as an existing capture root and write fixed child names, and fixed child names reused across tests make the assertions fail; unify the test-side directory allocation. The other three recapture/archive failures reproduce as needing historical captures and a frozen source baseline, so they are not forced here."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime.transfer.kernel",
+      "mjwarp.physics.core",
+      "mjwarp.physics.mass-matrix",
+      "mjwarp.physics.mass-solve",
+      "mjwarp.physics.resident"
+    ]
+  },
+  "acceptance": [
+    "根因有证据支撑：定位 9 项失败的断言与环境变量假设，区分语义冲突与缺失外部基线；若属缺失外部基线则停手登记而不修。",
+    "统一捕获目录分配：存在根目录时按调用作用域与标签分配唯一子目录；根目录不存在时保留既有单测命令口径；同一进程内多次捕获不共享目录。",
+    "all-probes 等价命令中原 9 项失败里语义冲突的 6 项稳定转绿；W-D4 重力位证书项仍按已知债务记录，重采集/归档 3 项按基线缺失边界登记，不修改其容差或断言。",
+    "不改内核字符串/PTX 生成策略、数值容差、fixtures 与产品逻辑；仅测试与文档/脚本作用域。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-windows"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "src/runtime/mod.rs",
+      "src/runtime/transfer/kernel.rs",
+      "src/runtime/transfer/kernel/capture_dir.rs",
+      "src/physics/mass_matrix/tests/gpu.rs",
+      "src/physics/mass_solve/tests/device_wrapper.rs",
+      "src/physics/resident/rigid_kinematics_tests.rs",
+      "src/physics/rne/tests",
+      "src/physics/rne_bias/tests/gpu.rs",
+      "tests/support/t4_rigid_capture/tests_recapture.rs",
+      "tests/support/t4_rigid_capture/tests_archive.rs",
+      "docs/three-layer-acceptance.md",
+      "docs/development-evidence/g01-wd5-ptx-dir/",
+      "docs/development-evidence/changes/2026-10-22-g01-wd5-ptx-dir-semantics-2.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "重登记自 2026-10-22-g01-wd5-ptx-dir-semantics：原任务范围遗漏 src/runtime/mod.rs 的测试辅助重导出，in_progress 态 schedule 冻结无法补充，按正规流程放弃并重登记。根因证据（commit 0da16e8 前工作区与 target/wd5-allprobes2.log）：包装测试（mass_matrix、mass_solve、resident、rne、rne_bias）把 MJWARP_PHYSICS_PTX_DIR 当捕获根目录并写固定子目录名（foreign-session/zero-dof/root-only），跨测试复用导致 !exists 断言失败；已被唯一子目录分配修复，all-probes 等价命令 123 过 4 败。剩余 3 项重采集/归档失败经独立复现（绝对/相对目录、存在/不存在根目录）均失败：重采集报 source drift（fixtures/precision/t4-kernels.json 有 7 个产品源身份漂移，历史回执明确保持历史身份），归档计数与历史产物不符；属需要历史捕获与冻结源码基线，按约定停手登记，不伪造基线。W-D4 重力位证书 2bit 不在本任务范围。",
+  "revision": {
+    "before": "6be5ce640e524c97f498269d0353432a1cd11c47",
+    "after": null
+  },
+  "created_at": "2026-10-22T15:50:00.000Z",
+  "updated_at": "2026-10-22T15:50:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g01-wd5-ptx-dir-semantics-2.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g01-wd5-ptx-dir-semantics-2"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
