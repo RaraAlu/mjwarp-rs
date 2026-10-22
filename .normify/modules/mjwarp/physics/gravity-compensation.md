@@ -67,6 +67,24 @@ path = "src/physics/gravity_compensation/cuda.rs"
 [[source]]
 path = "src/physics/gravity_compensation/tests.rs"
 
+[[source]]
+path = "src/physics/gravity_compensation/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/gravity_compensation/launcher_specs.rs"
+
+[[source]]
+path = "src/physics/gravity_compensation/launcher_meta.rs"
+
+[[source]]
+path = "src/physics/gravity_compensation/metadata_buffer.rs"
+
+[[source]]
+path = "src/physics/gravity_compensation/kernels.rs"
+
+[[source]]
+path = "src/physics/gravity_compensation/tests/launcher.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::GravityCompensationPlan"

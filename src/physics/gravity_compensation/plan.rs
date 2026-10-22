@@ -4,7 +4,7 @@
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::TransferError;
 #[cfg(feature = "cuda-probe")]
-use crate::runtime::{SynchronousKernel, TransferBuffer};
+use crate::runtime::TransferBuffer;
 use std::sync::Arc;
 
 #[cfg(feature = "cuda-probe")]
@@ -56,18 +56,27 @@ impl<'p> GravityCompensationPlan<'p> {
                 com_stride,
                 u32::from(!options.disable_gravity),
             );
+            let static_dims = GravityStaticDims::new(spec.nb, spec.nj, spec.nv, spec.parameter_len)
+                .map_err(gravity_launch_error)?;
+            let metadata =
+                GravityMetadataBuffer::upload(&session, spec.metadata.clone(), static_dims)?;
+            let parameters = session.upload(&packed)?;
+            let (clear, validate, compute, sum) = (
+                GravityClearKernel::compile(&session, &code)?,
+                GravityValidateKernel::compile(&session, &code)?,
+                GravityComputeKernel::compile(&session, &code)?,
+                GravitySumKernel::compile(&session, &code)?,
+            );
             Ok(Self {
                 source,
                 spec: spec.clone(),
                 options,
-                metadata: session.upload(&spec.metadata)?,
-                parameters: session.upload(&packed)?,
-                kernels: [
-                    SynchronousKernel::compile(&session, &code, "gravity_compensation_validate")?,
-                    SynchronousKernel::compile(&session, &code, "gravity_compensation_clear")?,
-                    SynchronousKernel::compile(&session, &code, "gravity_compensation_compute")?,
-                    SynchronousKernel::compile(&session, &code, "gravity_compensation_sum")?,
-                ],
+                metadata,
+                parameters,
+                clear,
+                validate,
+                compute,
+                sum,
                 session,
             })
         }
@@ -148,7 +157,7 @@ impl<'p> GravityCompensationPlan<'p> {
         body: usize,
         value: i32,
     ) -> Result<(), TransferError> {
-        self.metadata.write_range(4 + body, &[value])
+        self.metadata.write_range_for_test(4 + body, &[value])
     }
 
     #[cfg(all(test, feature = "cuda-probe"))]
@@ -159,7 +168,7 @@ impl<'p> GravityCompensationPlan<'p> {
         value: i32,
     ) -> Result<(), TransferError> {
         self.metadata
-            .write_range(4 + self.spec.nb + body * self.spec.nv + dof, &[value])
+            .write_range_for_test(4 + self.spec.nb + body * self.spec.nv + dof, &[value])
     }
 
     #[cfg(all(test, feature = "cuda-probe"))]
@@ -168,7 +177,7 @@ impl<'p> GravityCompensationPlan<'p> {
         dof: usize,
         value: i32,
     ) -> Result<(), TransferError> {
-        self.metadata.write_range(
+        self.metadata.write_range_for_test(
             4 + self.spec.nb + self.spec.nb * self.spec.nv + dof,
             &[value],
         )
@@ -200,50 +209,26 @@ impl<'p> GravityCompensationPlan<'p> {
         status: &mut TransferBuffer<f32>,
         worlds: usize,
     ) -> Result<(), TransferError> {
-        let slots = worlds
-            .checked_mul(self.spec.nv)
-            .ok_or(InputError::Overflow {
-                field: "gravity_compensation_work",
-            })?;
         let mut guards = [0.0; 8];
         target.read_range_into(0, &mut guards[..4])?;
         target.read_range_into(target.len() - 4, &mut guards[4..])?;
         crate::physics::check_device_guards(&guards)?;
-        // SAFETY: 每线程独占一个输出槽。
-        unsafe {
-            self.kernels[1].launch(
-                &self.metadata,
-                &self.parameters,
-                &self.parameters,
-                target,
-                [
-                    self.spec.nb as u32,
-                    self.spec.nv as u32,
-                    worlds as u32,
-                    slots as u32,
-                ],
-            )?;
-        }
+        // 清零内核只写互不相交的输出槽。
+        self.clear
+            .launch(&self.metadata, &self.parameters, target, worlds as u32)?;
         if !self.spec.active {
             return Ok(());
         }
         let (rigid, com) = self.source.gravity_compensation_source(source)?;
-        // SAFETY: 校验线程只写本世界状态。
-        unsafe {
-            self.kernels[0].launch_gravity_compensation(
-                &self.metadata,
-                &self.parameters,
-                rigid,
-                com,
-                status,
-                [
-                    self.spec.nb as u32,
-                    self.spec.nv as u32,
-                    worlds as u32,
-                    worlds as u32,
-                ],
-            )?;
-        }
+        // 校验内核只写本世界状态。
+        self.validate.launch(
+            &self.metadata,
+            &self.parameters,
+            rigid,
+            com,
+            status,
+            worlds as u32,
+        )?;
         let checked = read_output(status, worlds, "gravity_compensation_status")?;
         if let Some(index) = checked[4..4 + worlds]
             .iter()
@@ -256,30 +241,15 @@ impl<'p> GravityCompensationPlan<'p> {
             }
             .into());
         }
-        let work = worlds
-            .checked_mul(self.spec.nb - 1)
-            .and_then(|value| value.checked_mul(self.spec.nv))
-            .filter(|&value| value <= (u32::MAX - 255) as usize)
-            .ok_or(InputError::Overflow {
-                field: "gravity_compensation_work",
-            })?;
-        // SAFETY: 每线程处理一个刚体自由度对。
-        // 共享自由度继续使用设备原子加。
-        unsafe {
-            self.kernels[2].launch_gravity_compensation(
-                &self.metadata,
-                &self.parameters,
-                rigid,
-                com,
-                target,
-                [
-                    self.spec.nb as u32,
-                    self.spec.nv as u32,
-                    worlds as u32,
-                    work as u32,
-                ],
-            )
-        }
+        // 计算内核每线程处理一个刚体自由度对；共享自由度使用设备原子加。
+        self.compute.launch(
+            &self.metadata,
+            &self.parameters,
+            rigid,
+            com,
+            target,
+            worlds as u32,
+        )
     }
 
     #[cfg(feature = "cuda-probe")]
@@ -290,27 +260,9 @@ impl<'p> GravityCompensationPlan<'p> {
         output: &mut TransferBuffer<f32>,
         worlds: usize,
     ) -> Result<(), TransferError> {
-        let work = worlds
-            .checked_mul(self.spec.nv)
-            .ok_or(InputError::Overflow {
-                field: "gravity_compensation_sum",
-            })?;
-        // SAFETY: 每线程独占一个最终被动力槽。
-        unsafe {
-            self.kernels[3].launch_gravity_compensation(
-                &self.metadata,
-                parts,
-                gravity,
-                gravity,
-                output,
-                [
-                    self.spec.nb as u32,
-                    self.spec.nv as u32,
-                    worlds as u32,
-                    work as u32,
-                ],
-            )
-        }
+        // 合并内核每线程独占一个最终被动力槽。
+        self.sum
+            .launch(&self.metadata, parts, gravity, output, worlds as u32)
     }
 }
 

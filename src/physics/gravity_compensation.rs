@@ -2,12 +2,45 @@
 //! 它借用常驻位姿与质心。
 
 mod cuda;
+#[cfg(feature = "cuda-probe")]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+mod launcher_abi;
+#[cfg(feature = "cuda-probe")]
+mod launcher_meta;
+#[cfg(feature = "cuda-probe")]
+mod launcher_specs;
+#[cfg(feature = "cuda-probe")]
+mod metadata_buffer;
 mod plan;
 #[cfg(test)]
 mod tests;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "gravity_compensation/tests/launcher.rs"]
+mod tests_launcher;
 
+#[cfg(feature = "cuda-probe")]
+use self::kernels::{
+    GravityClearKernel, GravityComputeKernel, GravitySumKernel, GravityValidateKernel,
+};
+#[cfg(feature = "cuda-probe")]
+use self::launcher_abi::GravityStaticDims;
+#[cfg(feature = "cuda-probe")]
+use self::launcher_meta::gravity_launch_error;
+#[cfg(feature = "cuda-probe")]
+use self::metadata_buffer::GravityMetadataBuffer;
 use crate::diagnostics::InputError;
+#[cfg(feature = "cuda-probe")]
+use crate::diagnostics::TransferError;
 use crate::model::{AttachedModelInput, BatchLayout, ParameterBatch};
+#[cfg(all(feature = "cuda-probe", test))]
+use crate::runtime::launcher::DeviceSpan;
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
 use std::sync::Arc;
@@ -200,11 +233,17 @@ pub struct GravityCompensationPlan<'p> {
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: GravityMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
     parameters: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 4],
+    clear: GravityClearKernel,
+    #[cfg(feature = "cuda-probe")]
+    validate: GravityValidateKernel,
+    #[cfg(feature = "cuda-probe")]
+    compute: GravityComputeKernel,
+    #[cfg(feature = "cuda-probe")]
+    sum: GravitySumKernel,
 }
 
 pub struct GravityCompensationData {
