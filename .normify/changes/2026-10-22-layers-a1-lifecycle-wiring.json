@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-layers-a1-lifecycle-wiring",
+  "title": {
+    "zh": "接线A1生命周期代际",
+    "en": "Wire A1 lifecycle generations"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "U038共享椭球冻结验收要求「关节、肌腱及常驻状态同代可核」；设计预检发现resident写路径从未递增A1生命周期代际、qpos/qvel缓冲版本无法只读核对。本任务为下游提供代际来源与只读访问器，不改原生ABI、内核与数值容差。",
+    "en": "The frozen u038-shared acceptance requires joint, tendon and resident state to be verifiable as the same generation; the design precheck found that resident write paths never advance the A1 lifecycle generations and that qpos/qvel buffer versions cannot be checked read-only. This task provides the generation sources and read-only accessors without changing native ABI, kernels or numeric tolerances."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.model.data.lifecycle",
+      "mjwarp.model.data",
+      "mjwarp.physics.resident"
+    ]
+  },
+  "acceptance": [
+    "常驻状态写路径（qpos/qvel/mocap/sleep 的整批与世界写）写入成功后递增 DataLifecycle::state_version 并分别递增对应字段版本；写入失败（长度不符、非有限值、维度错误）不得递增。",
+    "KinematicsData 暴露只读访问器 state_version、state_field_versions（qpos/qvel/mocap/sleep）、metadata_generation、data_identity 与 derived_fresh，不新增可变借用也不放宽既有借用。",
+    "元数据写入使证明代际失效：DataLifecycle::record_metadata_write 递增 metadata_generation，check_metadata_generation 对旧代际返回 StaleMetadata；resident 元数据缓冲在构造后不可改写，其代际不变量写入生命周期契约与模块说明。",
+    "qpos 与 qvel 的来源版本可分别只读取得，供下游模块记录来源版本并在方向不一致时拒绝；本任务只提供来源，不实现下游校验。",
+    "不改原生 ABI、内核字符串与 PTX、数值容差、fixtures 与 Cargo 依赖；resident 相关 GPU 定向回归 0 失败。",
+    "宿主单测覆盖递增、失效与错误路径（长度不符、非有限值、计数溢出、跨身份、跨会话）；语义写入 model::data::lifecycle 模块文档。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-a1"
+    ],
+    "phase": "layers/A1-lifecycle",
+    "owner": "Codex",
+    "files": [
+      "src/model/data",
+      "src/physics/resident",
+      "tests/layer_data.rs",
+      "docs/module-contracts.md",
+      "docs/development-evidence/changes/2026-10-22-layers-a1-lifecycle-wiring.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "基线 c76665c。设计预检证据 docs/development-evidence/u038-shared/design-precheck.md（同一 HEAD）：原任务 2026-10-16-next-u038-shared 在 schedule 冻结后发现同代可核前置缺失（resident 写路径不递增 DataLifecycle 代际、祖先 qpos/qvel 缓冲版本不可只读核对），已按正规流程放弃并另立本前置任务与重登记任务。本任务只接线代际与只读访问器，不改原生 ABI/内核/容差/fixtures；落地后 resident 产品源码变化会使 T4 源码身份哈希漂移，须立刻登记并执行 2026-10-22-t4-source-hash-repin-4，再宣称矩阵全绿。",
+  "revision": {
+    "before": "c76665cf593049dc1823010a1a2aa87d17d8b9ac",
+    "after": null
+  },
+  "created_at": "2026-10-22T15:00:00.000Z",
+  "updated_at": "2026-10-22T15:00:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-layers-a1-lifecycle-wiring.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-layers-a1-lifecycle-wiring"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
