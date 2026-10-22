@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-t4-source-hash-repin-3",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "tests/t4_gravity_nonzero_product_chain.rs", "blob": "ba7dd6db5b546b0e47558f70600f7449555c2b37"},
+    {"path": "fixtures/gravity-upstream-abi/nonzero-product-chain-package.json", "blob": "11097a3f7b65bc726ff8ee3f614d3698c7f70dc1"},
+    {"path": "fixtures/precision/g01-field-internal.json", "blob": "2b520c536496e7d4e63135c41acefa580b849dfe"},
+    {"path": "fixtures/precision/g01-packing-routes.json", "blob": "679fadbce94e8fa0852dab791d0b7e1c1ed4dab4"},
+    {"path": "fixtures/precision/g01-state-packing.json", "blob": "02e6ad2dcb932460484e81323f9f3a6452d94e22"},
+    {"path": "fixtures/precision/g01-rigid-internal.json", "blob": "b36b72fe7932051df5773882907a0dd5e6605f0a"},
+    {"path": "fixtures/precision/g01-topology-frames.json", "blob": "bc974e2047c92327cdb6b67b648ac6a7e4124b65"},
+    {"path": "docs/evidence/t4-g03-retest/camlight-internal/map.json", "blob": "b4213382f70072dc81b0a022fd28158bed947d37"},
+    {"path": "docs/evidence/t4-g03-retest/flex-matrices/map.json", "blob": "6d1156def8cebb4ac87e19299bdecf768eb6ee82"},
+    {"path": "docs/evidence/t4-g03-retest/flex-internal/map.json", "blob": "51b541a8bb95985f693888adaafcd7344402e8cd"},
+    {"path": "docs/evidence/t4-g03-retest/tendon-wake-internal/map.json", "blob": "6d6c43d7160e4b8c2b329156a8a156881c6824f2"},
+    {"path": "docs/evidence/t4-g03-retest/spatial-tendon-internal/map.json", "blob": "95b202c0d9a354480893bb915f73f992150bc669"}
+  ],
+  "note": "重钉W-D7修复后过期的T4固定源码身份，保留lineage语义：只改哈希数值与内联字面量，不改断言逻辑、不放宽容差、不删除检查、不改映射条目语义。诱因与基线归属：W-D7修复（2026-10-22-layers-m3-flex-edges-abi-fix，修复提交c98e246）改动src/physics/resident/flex_edges_launcher.rs产品源码，resident组合哈希由51d488a5061b9b1e52a38033697fe98ba45b1726b86431f19440cf77a6acd9cd变为3b5ad9154c5d4e84226d61bf3c2e00628bbd8ed461c44ff2306a46f99a354047（模块根加41个产品子模块、mod声明顺序、换行连接、CRLF→LF归一，独立脚本按锚点include_str顺序复核一致，42部分/348025字符）；G01 host-msvc在此前因source drift中止的17项非ignore用例全部由该哈希漂移导致。重钉口径沿用2026-10-22-t4-source-hash-repin与-repin-2：五个t4-g03-retest map、五个precision夹具同步resident哈希；gravity非零产品链包内resident行同步后整包摘要由685869d2…变为c142168ba7fe95b8f2a8ef2fb2e8c25e0e5253cc842122b64937f6cb44516760，更新tests/t4_gravity_nonzero_product_chain.rs的PACKAGE_SHA256常量与内联product_sources字面量；包文件字节数保持2223、行尾不变。验证（rustc 1.99.0，RTX 4070 Ti SUPER/596.36，MuJoCo 3.12.0 all-features）：①定向t4五目标：t4_camlight_precision 3过0败、t4_gravity_nonzero_product_chain 1过1ignored、t4_input_precision 36过0败12ignored、t4_spatial_tendon_precision 4过0败、t4_tendon_wake_precision 4过0败；②cargo test --locked --all-features --no-fail-fast：EXIT=0、失败测试0（host-msvc恢复，此前17项失败全部转绿）；③cargo test --locked --features cuda-probe --no-fail-fast：EXIT=0、失败测试0。未验收边界：带MJWARP_FROZEN_UPSTREAM_ROOT等外部冻结源根的环境诊断用ignore审计用例仍按既有环境约束不可运行（非哈希漂移，本轮不提供外部产物）；未跑G01全量脚本（另轮执行）、Linux与release；未宣称NP01至NP04、精度或性能验收。"
+}
