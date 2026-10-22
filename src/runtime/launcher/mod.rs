@@ -12,6 +12,7 @@ mod artifact;
 mod checked;
 #[cfg(feature = "cuda-probe")]
 mod frozen;
+mod graph;
 mod launch;
 #[cfg(feature = "cuda-probe")]
 mod module;
@@ -30,6 +31,10 @@ pub use artifact::{Artifact, ArtifactCache, ArtifactKey, ArtifactStats, HeaderFi
 pub use checked::{Checked, CheckedBinding, MetadataProof, MetadataRevision};
 #[cfg(feature = "cuda-probe")]
 pub use frozen::FrozenPtx;
+pub use graph::{
+    Allocation, CaptureGuard, CaptureHost, CapturedGraph, CapturedNode, GraphInstance, GraphState,
+    NodeId, RecycleId, ReplayId, SlotUpdate,
+};
 pub use launch::{Kernel, KernelSpec, LaunchDims, LaunchPlan};
 #[cfg(feature = "cuda-probe")]
 pub use module::{KernelHandle, ModuleCache, ModuleStats};
@@ -119,6 +124,14 @@ pub enum LauncherError {
     DuplicateDependency(u64),
     /// 上游提交失败，本提交按归属失败。
     FaultedUpstream(u64),
+    /// 同一上下文已有捕获，或捕获已结束。
+    CaptureBusy,
+    /// 图节点不存在。
+    UnknownNode(u64),
+    /// 重放编号不存在或已完成。
+    UnknownReplay(u64),
+    /// 图实例已作废，须重新捕获。
+    GraphInvalid,
 }
 
 impl std::fmt::Display for LauncherError {
@@ -167,6 +180,10 @@ impl std::fmt::Display for LauncherError {
             Self::UnknownSubmission(id) => write!(f, "提交{id}不存在或已回收"),
             Self::DuplicateDependency(id) => write!(f, "重复声明依赖提交{id}"),
             Self::FaultedUpstream(id) => write!(f, "上游提交{id}失败，本提交按归属失败"),
+            Self::CaptureBusy => write!(f, "同一上下文已有捕获，拒绝嵌套"),
+            Self::UnknownNode(node) => write!(f, "图节点{node}不存在"),
+            Self::UnknownReplay(id) => write!(f, "重放{id}不存在或已完成"),
+            Self::GraphInvalid => write!(f, "图实例已作废，须重新捕获"),
         }
     }
 }

@@ -63,6 +63,44 @@ impl<T: TransferElement> crate::runtime::launcher::RetainedResources for Transfe
     }
 }
 
+impl TransferSession {
+    /// M6：捕获前预分配显存；不写入内容。
+    /// 捕获期间的分配由捕获守卫在调用路径上拒绝。
+    pub fn preallocate<T: TransferElement>(
+        &self,
+        elements: usize,
+    ) -> Result<TransferBuffer<T>, TransferError> {
+        checked_bytes::<T>(elements)?;
+        self.inner.status.check()?;
+        #[cfg(feature = "cuda-probe")]
+        {
+            use cudarc::driver::DevicePtr;
+            let (allocation, device_addr) = if elements == 0 {
+                (None, 0)
+            } else {
+                let (allocation, address) = self.run("preallocate", || {
+                    let allocation = self.inner.stream.alloc_zeros::<T>(elements)?;
+                    let (address, read) = allocation.device_ptr(&self.inner.stream);
+                    drop(read);
+                    Ok((allocation, address))
+                })?;
+                (Some(allocation), address)
+            };
+            Ok(TransferBuffer {
+                session: self.clone(),
+                allocation,
+                device_addr,
+                len: elements,
+            })
+        }
+        #[cfg(not(feature = "cuda-probe"))]
+        {
+            let _ = elements;
+            Err(crate::diagnostics::ProbeError::FeatureDisabled("cuda-probe").into())
+        }
+    }
+}
+
 fn checked_bytes<T: TransferElement>(elements: usize) -> Result<usize, InputError> {
     elements
         .checked_mul(size_of::<T>())

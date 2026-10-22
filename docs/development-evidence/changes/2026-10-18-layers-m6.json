@@ -1,0 +1,17 @@
+{
+    "schema": 1,
+    "kind": "delivery",
+    "task_id": "2026-10-18-layers-m6",
+    "milestones": {
+        "implementation": "partial",
+        "validation": "passed",
+        "delivery_record": "complete"
+    },
+    "files": [
+        {"path": "src/runtime/launcher/graph.rs", "blob": "a78d0902c7f8940380780ba0f3e63544bdac41d0"},
+        {"path": "src/runtime/launcher/mod.rs", "blob": "c111301b5ed8509c9672367641ad5eeb3f6da066"},
+        {"path": "src/runtime/transfer.rs", "blob": "c8c9d881588e317bc59e396056b4e3ab5341fc28"},
+        {"path": "tests/launcher_graph.rs", "blob": "b6dec0b3639a380ce4a190cd3c8bdc9545362f57"}
+    ],
+    "note": "M6 捕获与数值槽重绑：新增统一发射器图面`src/runtime/launcher/graph.rs`（宿主契约层，不改既有探针图实现）。W09 捕获隔离：`CaptureHost`为上下文级互斥，同一上下文同时只允许一个捕获，嵌套与并行捕获一律`CaptureBusy`；`CaptureGuard::enqueue`只记录节点（签名、绑定、最小跨度），返回`NodeId`，不执行内核也不返回完成凭证；作用域显式拒绝`launch_sync`、`submit`、无关流入队、流同步/事件查询与编译；捕获前记录原事件跟踪开关并关闭，结束后按原值恢复；守卫析构负责恢复捕获互斥与事件跟踪，恐慌展开路径同样恢复（测试用`catch_unwind`核对）；空捕获直接销毁并报错。W11 预分配：`CaptureHost::allocate`在捕获前登记预分配字节，捕获期间拒绝任何分配；`TransferSession::preallocate<T>`在同步边界做真实设备显存预分配（不写内容），供捕获前工作区准备；捕获期间的分配合规性由调用方先经捕获守卫。W21 捕获作用域入队：节点记录含ABI签名、整组绑定与每槽最小元素数，入队前执行W19联合校验（覆盖、元素类型、上下文、对齐、容量与别名）。W10 数值槽重绑：`GraphInstance::rebind_values`以`SlotUpdate { node, binding }`为更新单位，先构造提案再逐节点联合校验、全部通过后一次提交；拒绝地址类槽位（`AddressSlotRebind`）、非缓冲槽、重复更新、未知节点/槽位、元素类型不符、跨上下文、容量变小与空批次；整批校验失败返回错误与新资源且原绑定不变（事务回滚，无部分更新），别名冲突在联合校验阶段发现，作废态图拒绝重放与重绑。资源与回收：图实例持有当前资源R；重绑成功后旧资源移入待回收列表并标记重绑时已开始的重放代际，只有全部在途重放完成后才真正释放（测试证明在途重放未完成时旧资源存活、完成后释放）；图实例实现`RetainedResources`，隔离即作废图（`GraphState::Invalid`），可直接放入M5`SubmitQueue`的泛型资源槽，凭证持有图实例直到成功等待后归还。验证：`cargo check --locked`与`--features cuda-probe`通过；fmt通过；clippy --all-targets双配置`-D warnings`通过；`tests/launcher_graph.rs`宿主10项通过（互斥与嵌套拒绝、异常路径恢复、节点记录与无关工作拒绝、捕获期间分配拒绝与事件跟踪恢复、空图销毁、作用域内绑定校验、地址槽/类型/上下文/容量/重复拒绝、别名整批回滚、在途重放旧资源保留与释放、作废图拒绝、M5凭证槽接合）；GPU定向`gpu_preallocates_before_capture_and_rejects_during_capture`1项通过（RTX 4070 Ti SUPER，驱动596.36：真实设备预分配+捕获期间分配拒绝+结束后恢复）。未验收边界：M6在发射器内以宿主契约模型实现捕获记录与重绑校验，未接管既有探针图`cuda/graph.rs`的真实捕获/实例化/重放路径（该文件不在本任务范围，产品图路径未启用）；捕获守卫不与`TransferSession`内部分配路径强绑定（会话级分配守卫待产品接线）；图重放的完成凭证仍由既有探针图事件路径承担，M6只提供重放编号与待回收代际；节点槽位联合校验为宿主级，不宣称设备侧事务；未验证异步图捕获与M5提交组合、图性能或双平台准入。"
+}
