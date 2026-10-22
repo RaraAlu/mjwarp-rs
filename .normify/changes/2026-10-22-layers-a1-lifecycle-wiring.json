@@ -19,7 +19,7 @@
   },
   "acceptance": [
     "常驻状态写路径（qpos/qvel/mocap/sleep 的整批与世界写）写入成功后递增 DataLifecycle::state_version 并分别递增对应字段版本；写入失败（长度不符、非有限值、维度错误）不得递增。",
-    "KinematicsData 暴露只读访问器 state_version、state_field_versions（qpos/qvel/mocap/sleep）、metadata_generation、data_identity 与 derived_fresh，不新增可变借用也不放宽既有借用。",
+    "KinematicsData 暴露只读访问器 state_version、state_field_versions（qpos/qvel/mocap/sleep）、metadata_generation 与 data_identity；不新增可变借用也不放宽既有借用；resident 派生就绪仍由 ReadyStages 承担且语义不变。",
     "元数据写入使证明代际失效：DataLifecycle::record_metadata_write 递增 metadata_generation，check_metadata_generation 对旧代际返回 StaleMetadata；resident 元数据缓冲在构造后不可改写，其代际不变量写入生命周期契约与模块说明。",
     "qpos 与 qvel 的来源版本可分别只读取得，供下游模块记录来源版本并在方向不一致时拒绝；本任务只提供来源，不实现下游校验。",
     "不改原生 ABI、内核字符串与 PTX、数值容差、fixtures 与 Cargo 依赖；resident 相关 GPU 定向回归 0 失败。",
