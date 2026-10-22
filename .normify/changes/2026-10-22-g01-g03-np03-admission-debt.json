@@ -5,7 +5,7 @@
     "zh": "跟踪G03质量求解NP03准入缺口",
     "en": "Track G03 mass-solve NP03 admission gap"
   },
-  "status": "proposed",
+  "status": "abandoned",
   "intent": {
     "zh": "W-D4 证书项转绿后，G01 all-probes 阶段继续执行到 mass_solve_probe 时暴露 3 项既有 NP03 准入缺口：case4/world4 上本库解对原生参考的归一化误差为 1.318（rhs1）、1.167（rhs2），超过冻结上游对照分数 0.925（rhs1）、0.440（rhs2）经 5% 余量得到的红线 0.972、0.462，判定为失败不放行。该项属完整 G03 的已知历史缺口，不是 W-D4/M3 回归，只登记跟踪，不在本任务内修改。",
     "en": "After the W-D4 certificate went green, the G01 all-probes stage ran further into mass_solve_probe and exposed three pre-existing NP03 admission gaps: on case4/world4 our solution's normalized error against the native reference is 1.318 (rhs1) and 1.167 (rhs2), above the redlines 0.972 and 0.462 derived from the frozen upstream comparison scores 0.925 and 0.440 with 5% slack, so the blocks fail closed. This is a known historical gap of complete G03, not a W-D4/M3 regression; register for tracking only."
@@ -36,13 +36,14 @@
     ],
     "priority": 2
   },
-  "note": "来源：W-D4 修复提交 49fd4d9 后的 full-debug 复跑（target/g01-acceptance/9bd3489f5b4542409f104f5feac1c4fb，日志 target/g01-wd4-final.log）：all-probes lib 124 过 0 败后 cargo 继续执行到 tests/mass_solve_probe，3 项失败并打印 NP03 gate failed。此前因 lib 的 W-D4 失败触发 cargo fail-fast，该二进制从未被脚本执行，故该缺口一直被掩盖。历史定性与证据：docs/windows-mass-solve-probe.md 第 7 行「最新结果仍有数值门禁失败」；docs/windows-g03-block-repair.md 的 NP03 判定「双模式 10 块失败、0 块待验收、不放行」，target/g03-block-reference/debug-solve.log（2026-10-12）已出现同类 NP03 失败。判定实现见 tests/support/two_reference.rs 的 native_error_v2：先算本库对原生的归一化误差 actual_score，再算冻结上游对照值对同一原生数组的误差 upstream_score，红线为 upstream_score*(1+5%)；actual_score 超红线即失败不放行。当前口径与门禁一律不动。只登记、不 start：是否推进、是否需要外部组件/契约变更由 Chief 与用户裁决；若开始，必须先做设计预检并保持上述 3 项测试、容差与 fixtures unchanged（本任务 unchanged 检查已登记）。",
+  "note": "来源：W-D4 修复提交 49fd4d9 后的 full-debug 复跑（target/g01-acceptance/9bd3489f5b4542409f104f5feac1c4fb，日志 target/g01-wd4-final.log）：all-probes lib 124 过 0 败后 cargo 继续执行到 tests/mass_solve_probe，3 项失败并打印 NP03 gate failed。此前因 lib 的 W-D4 失败触发 cargo fail-fast，该二进制从未被脚本执行，故该缺口一直被掩盖。历史定性与证据：docs/windows-mass-solve-probe.md 第 7 行「最新结果仍有数值门禁失败」；docs/windows-g03-block-repair.md 的 NP03 判定「双模式 10 块失败、0 块待验收、不放行」，target/g03-block-reference/debug-solve.log（2026-10-12）已出现同类 NP03 失败。判定实现见 tests/support/two_reference.rs 的 native_error_v2：先算本库对原生的归一化误差 actual_score，再算冻结上游对照值对同一原生数组的误差 upstream_score，红线为 upstream_score*(1+5%)；actual_score 超红线即失败不放行。当前口径与门禁一律不动。只登记、不 start：是否推进、是否需要外部组件/契约变更由 Chief 与用户裁决；若开始，必须先做设计预检并保持上述 3 项测试、容差与 fixtures unchanged（本任务 unchanged 检查已登记）。\n放弃：用户 2026-10-23 裁决：该 NP03 准入缺口已由 G03 矩阵链对齐（提交 d5b02d5）解决——mass_solve_probe 6 项全过、NP03 失败块 0；本债务任务无需保留，关闭。",
   "revision": {
     "before": "49fd4d9f9b249432f1b5273da558f6316f70af43",
     "after": null
   },
   "created_at": "2026-10-22T09:03:03.927Z",
-  "updated_at": "2026-10-22T09:03:03.927Z",
+  "updated_at": "2026-10-22T17:23:54.313Z",
+  "closed_at": "2026-10-22T17:23:54.313Z",
   "checks": [
     {
       "kind": "gate",
