@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-layers-m3-wake-native-chain-fix",
+  "title": {
+    "zh": "修复M3唤醒包装零树元数据回归",
+    "en": "Fix m3 wake metadata regression"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "修复M3安全包装迁移（1551c59）引入的唤醒元数据校验回归：合法零树/零批次被拒，native G01完整链与wake-guards失败。",
+    "en": "Fix the wake-metadata validation regression introduced by the M3 safe-wrapper migration (1551c59): legal zero-tree/zero-batch cases were rejected, breaking the native G01 chain and wake guards."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.resident"
+    ]
+  },
+  "acceptance": [
+    "唤醒安全包装的元数据证明与冻结内核真实寻址一致；合法零树与零批次不得被拒。",
+    "不得整体放开校验：非零树坏索引、越界、行未覆盖、批次非法仍必须拒绝，并补对应反例测试。",
+    "内核字符串、PTX、容差与fixtures不动；native_g01 完整链2项恢复通过，wake-guards恢复通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-windows"
+    ],
+    "phase": "fix/M3-wake",
+    "owner": "Codex",
+    "files": [
+      "src/physics/resident",
+      "docs/development-evidence/changes/2026-10-22-layers-m3-wake-native-chain-fix.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 0
+  },
+  "note": "依据 2026-10-18-layers-windows 验收发现 W-D1。基线归属：8f903c5（1551c59父提交）native_g01 2过；64b79b5（M3最终）起1过1败；由1551c59 工程(layers): 迁移常驻肌腱合并与唤醒安全包装 引入。根因：TendonWakeMetadata 校验假设参数批次≥1、ntree>0，而冻结内核在 nt==0/ntree==0 时早退或安全使用；合法零树/零批次被拒。修复要求与冻结内核寻址一致，保留坏索引/越界/行未覆盖拒绝面。",
+  "revision": {
+    "before": "09a430e3ec8fcfc7becc46ba453e6094479c1fb4",
+    "after": null
+  },
+  "created_at": "2026-10-22T05:40:00.000Z",
+  "updated_at": "2026-10-22T05:30:35.410Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-layers-m3-wake-native-chain-fix.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-layers-m3-wake-native-chain-fix"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
