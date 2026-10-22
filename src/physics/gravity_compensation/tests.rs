@@ -151,15 +151,33 @@ fn host_rejects_shapes_and_noncanonical_actuator_flags() {
 #[ignore = "new G04 multi-body gravity reduction certificate"]
 fn gpu_matches_independent_multi_body_reduction_certificate() {
     const WORLDS: usize = 7;
-    const EXPECTED: [[f32; 4]; WORLDS] = [
-        [35.0, 22.0, 4.0, 8.0],
-        [5.5, 3.0, 0.5, 0.5],
-        [10.5, 4.5, 0.5, 2.0],
-        [8.25, 5.25, 1.0, 4.0],
-        [10.0, 4.5, 0.5, 2.0],
-        [13.25, 7.0, 1.0, 0.5],
-        [62.5, 42.0, 8.0, 2.0],
-    ];
+    // 证书由 docs/development-evidence/g01-gravity-cert-f32/gen.rs 独立生成：
+    // 上游公式 + f32 逐步舍入；不读取 GPU 输出。旧精确有理证书归档在同目录
+    // legacy-exact-certificate.json（用户 2026-10-22 裁决 W-D4 口径第 1 项）。
+    const CERTIFICATE: &str =
+        include_str!("../../../docs/development-evidence/g01-gravity-cert-f32/certificate.json");
+    let certificate: serde_json::Value = serde_json::from_str(CERTIFICATE).unwrap();
+    assert_eq!(
+        certificate["semantics"].as_str().unwrap(),
+        "upstream-formula + stepwise f32 rounding; independent of GPU outputs"
+    );
+    let expected_bits = certificate["expected_bits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| {
+            let mut bits = [0u32; 4];
+            for (dof, value) in row.as_array().unwrap().iter().enumerate() {
+                bits[dof] =
+                    u32::from_str_radix(value.as_str().unwrap().trim_start_matches("0x"), 16)
+                        .unwrap();
+            }
+            bits
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(expected_bits.len(), WORLDS);
+    // 旧证书与本口径的差异固定为 2 槽（world 1/4 的 dof 2，各 4 ulp）。
+    assert_eq!(certificate["differences"].as_array().unwrap().len(), 2);
 
     let timer = std::time::Instant::now();
     let session = TransferSession::new(0).unwrap();
@@ -210,9 +228,10 @@ fn gpu_matches_independent_multi_body_reduction_certificate() {
     let mut max_absolute = 0.0f32;
     let mut max_ulp = 0u32;
     let mut comparisons = Vec::with_capacity(WORLDS * 4);
-    for (world, expected) in EXPECTED.iter().enumerate() {
+    for (world, expected) in expected_bits.iter().enumerate() {
         let actual = output.world(world).unwrap();
-        for (dof, (&actual, &expected)) in actual.iter().zip(expected).enumerate() {
+        for (dof, &actual) in actual.iter().enumerate() {
+            let expected = f32::from_bits(expected[dof]);
             let absolute = (actual - expected).abs();
             let ulp = actual.to_bits().abs_diff(expected.to_bits());
             max_absolute = max_absolute.max(absolute);
@@ -261,7 +280,9 @@ fn gpu_matches_independent_multi_body_reduction_certificate() {
         "cross_root_ancestor_exclusion": true,
         "nonzero_rotational_moments": true,
         "independent_periods": [2, 3, 5],
-        "reference_source": "frozen analytic lever-arm certificate",
+        "reference_source": "f32 stepwise certificate (docs/development-evidence/g01-gravity-cert-f32/certificate.json)",
+        "certificate_semantics": "upstream-formula + stepwise f32 rounding; independent of GPU outputs",
+        "legacy_exact_certificate": "docs/development-evidence/g01-gravity-cert-f32/legacy-exact-certificate.json",
         "candidate_snapshot_used_by_reference": false,
         "frozen_upstream_device_output": false,
         "nonexact_reduction_order_verified": false,

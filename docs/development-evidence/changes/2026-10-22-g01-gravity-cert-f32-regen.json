@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-g01-gravity-cert-f32-regen",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "src/physics/gravity_compensation/tests.rs", "blob": "633f1ce40a57a07d61cc5e55e06cfb153bbba2f2"},
+    {"path": "docs/development-evidence/g01-gravity-cert-f32/gen.rs", "blob": "1f9026c444cc306969140bb1c592f1879ceaf679"},
+    {"path": "docs/development-evidence/g01-gravity-cert-f32/certificate.json", "blob": "5607eb176152df04391671953aa85fb1b20141c7"},
+    {"path": "docs/development-evidence/g01-gravity-cert-f32/legacy-exact-certificate.json", "blob": "fad6d93bc148413241cd2bd9f935f0add719a582"},
+    {"path": "docs/development-evidence/g01-gravity-cert-f32/CERTIFICATE.md", "blob": "d8c6833fdae3ea21c64a3219a54b273f7c4def45"},
+    {"path": "docs/development-evidence/g01-gravity-cert-f32/README.md", "blob": "ba30cb9e5cac5a86981ebfd7ddd6e86e5accc89a"},
+    {"path": "docs/development-evidence/g01-gravity-cert-f32/gpu-verification-report.json", "blob": "5fe74702db4e16236ce3bd5e97267827d84d07f4"},
+    {"path": "docs/three-layer-acceptance.md", "blob": "a4bf91599d3612a303eaf6a76952a4ba51491d74"}
+  ],
+  "note": "W-D4 按用户 2026-10-22 裁决（口径第 1 项：按 f32 逐步重算证书）重生成重力位证书。独立性：生成器 docs/development-evidence/g01-gravity-cert-f32/gen.rs（离线 rustc 编译、非 Python、无第三方依赖、不参与构建）只读取测试模型/参数批与上游公式，不读取 GPU 输出，也不回读产品快照作为期望；生成前用精确有理算术复算旧证书，28/28 槽逐位复现旧精确证书后再输出 f32 逐步证书。口径：输入全部精确可表示，舍入点逐项落在 xipos 加法、子树 COM 的乘/树序加/除（如 17/7 -> 0x401b6db7）、cdof 的 subtree_com-xanchor 减法（如 -25/7 -> 0xc0649249）与 cross、force、力臂减法（32/7 -> 0x40924924）、jacobian 乘减加（0x3f7ffffc）、点积左结合与按 body 升序的原子累加；PTX 无 fma，按独立 mul/add/sub/div 建模。公式来源：71da24d956378a87a703b6e1442b13aec0c4ac29 基线的 mujoco_warp/_src/smooth.py（_subtree_com_init/_subtree_com_acc/_subtree_div/_cdof）与仓库冻结 kernel src/physics/gravity_compensation/cuda.rs。新旧差异：world 1 与 world 4 的 dof 2 由 0x3f000000 变为 0x3efffffc（4 ulp，max_abs 1.1920928955078125e-7 <= 2.0e-6），其余 26 槽逐位一致；旧精确证书归档 legacy-exact-certificate.json 并写入口径变更依据。测试改为 include_str! 读取 certificate.json 的 expected_bits，并断言 semantics 与 2 处固定差异；容差（2.0e-6）与零位差断言逻辑未变，内核/PTX 生成策略/fixtures 未改。验证：定向 GPU gravity 测试 1 过 0 败（bit_differences=0、max_absolute=0、max_ulp=0）；full-debug 脚本 fmt 通过、native 27、host-msvc 709、g01 7、native-g01 2、native-only-g01 1、resident 102，all-probes lib 124 过 0 败（重力位证书项转绿）。all-probes 阶段整体仍因 G03 mass_solve_probe 3 项既有 NP03 门禁失败未通过（docs/windows-mass-solve-probe.md 与 docs/windows-g03-block-repair.md 已记录的历史缺口，非本任务回归；此前被 lib 的 W-D4 失败 fail-fast 掩盖），未修改这 3 项测试、容差或 fixtures，不宣称 G03/NP 验收通过。边界：未跑 release 与 Linux；不改容差/断言/内核/PTX/fixtures；不转授精度、性能或双平台验收。",
+  "evidence": {
+    "generator": "docs/development-evidence/g01-gravity-cert-f32/gen.rs",
+    "certificate": "docs/development-evidence/g01-gravity-cert-f32/certificate.json",
+    "legacy_certificate": "docs/development-evidence/g01-gravity-cert-f32/legacy-exact-certificate.json",
+    "readme": "docs/development-evidence/g01-gravity-cert-f32/README.md",
+    "gpu_report": "docs/development-evidence/g01-gravity-cert-f32/gpu-verification-report.json",
+    "certificate_run": [
+      "rustc -O docs/development-evidence/g01-gravity-cert-f32/gen.rs -o target/g01-cert/gen.exe",
+      "target/g01-cert/gen.exe docs/development-evidence/g01-gravity-cert-f32"
+    ],
+    "gpu_test": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --lib -- --ignored gravity_compensation::tests::gpu_matches --nocapture --test-threads=1",
+    "full_regression": "scripts/test-windows-g01.ps1 -AllFeatures -FullRegression",
+    "full_regression_run": "target/g01-acceptance/9bd3489f5b4542409f104f5feac1c4fb",
+    "full_regression_log": "target/g01-wd4-final.log"
+  }
+}
