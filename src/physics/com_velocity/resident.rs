@@ -35,14 +35,20 @@ impl<'p> ResidentComVelocityPlan<'p> {
                 values[cursor..cursor + field.len()].copy_from_slice(field);
                 cursor += field.len();
             }
+            let static_dims =
+                ComVelocityStaticDims::new(nbody, njnt, nv).map_err(com_velocity_launch_error)?;
             Ok(Self {
                 source,
                 identity: std::sync::Arc::new(()),
                 nbody,
                 njnt,
                 nv,
-                metadata: session.upload(&values)?,
-                kernel: SynchronousKernel::compile(&session, COM_VELOCITY_CUDA, "com_velocity")?,
+                metadata: Box::new(ComVelocityMetadataBuffer::upload(
+                    &session,
+                    values,
+                    static_dims,
+                )?),
+                kernel: ComVelocityKernel::compile(&session, COM_VELOCITY_CUDA)?,
                 position_kernels: source.compile_velocity_position()?,
                 session,
             })
@@ -124,17 +130,8 @@ impl<'p> ResidentComVelocityPlan<'p> {
                 &mut data.com,
             )?;
             let worlds = source.worlds() as u32;
-            // SAFETY: qvel与位置来自同一KinematicsData。
-            // 私有输出按已检查布局分配。
-            unsafe {
-                self.kernel.launch(
-                    &self.metadata,
-                    qvel,
-                    &data.com,
-                    &mut data.output,
-                    [self.nbody as u32, self.njnt as u32, self.nv as u32, worlds],
-                )?;
-            }
+            self.kernel
+                .launch(&self.metadata, qvel, &data.com, &mut data.output, worlds)?;
             data.ready = true;
             Ok(())
         }

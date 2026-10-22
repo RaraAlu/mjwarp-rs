@@ -1,0 +1,85 @@
+{
+    "work": "work-08-com-velocity",
+    "summary": "com_velocity 探针与常驻两个入口全部改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/com_velocity/plan.rs", "line": 212 },
+        { "file": "src/physics/com_velocity/resident.rs", "line": 130 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/com_velocity/kernels.rs",
+            "line": 68,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "com_velocity"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/com_velocity/plan.rs",
+            "line": 209,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        },
+        {
+            "file": "src/physics/com_velocity/resident.rs",
+            "line": 134,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/com_velocity/plan.rs",
+            "old_line": 54,
+            "new_file": "src/physics/com_velocity/kernels.rs",
+            "new_line": 23
+        },
+        {
+            "old_file": "src/physics/com_velocity/resident.rs",
+            "old_line": 45,
+            "new_file": "src/physics/com_velocity/kernels.rs",
+            "new_line": 23
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "com_velocity",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/com_velocity/kernels.rs:23" ],
+            "kernel_abi_evidence": [
+                "ComVelocitySpec at src/physics/com_velocity/launcher_specs.rs:53"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "ComVelocitySpec",
+            "logical_name": "com_velocity",
+            "definition": "src/physics/com_velocity/launcher_specs.rs:53",
+            "actual_cuda_entries": "com_velocity",
+            "typed_low_level_calls": [ "src/physics/com_velocity/kernels.rs:68" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "resident_sparse_validate",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/mass_solve/sparse/resident.rs:103" ],
+        "reason": "G01 三探针完成；下一批 resident_sparse（validate/gather）"
+    },
+    "manual_cross_checks_add": [
+        "work-08: com_velocity 探针与常驻两个入口全部改走同一类型化包装；raw 行 -2、typed 行 +1、编排行 +2",
+        "work-08: 两个原编译点合并为同一包装编译点 kernels.rs:23，清单两条记录保留，compile_call_sites 计数不变",
+        "work-08: 空间速度元数据证明校验体父链、体关节计数与地址、关节类型与自由度地址宽度"
+    ],
+    "acceptance_boundary_set": {
+        "com_velocity_probe_migrated": true,
+        "com_velocity_resident_migrated": true
+    }
+}

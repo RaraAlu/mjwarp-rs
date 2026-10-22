@@ -49,9 +49,13 @@ impl ComVelocityPlan {
         };
         let position = KinematicsPlan::with_parameters(session, model, parameters)?;
         #[cfg(feature = "cuda-probe")]
-        let metadata = session.upload(&metadata_values)?;
+        let metadata = {
+            let static_dims =
+                ComVelocityStaticDims::new(nbody, njnt, nv).map_err(com_velocity_launch_error)?;
+            ComVelocityMetadataBuffer::upload(session, metadata_values, static_dims)?
+        };
         #[cfg(feature = "cuda-probe")]
-        let kernel = SynchronousKernel::compile(session, COM_VELOCITY_CUDA, "com_velocity")?;
+        let kernel = ComVelocityKernel::compile(session, COM_VELOCITY_CUDA)?;
         #[cfg(feature = "cuda-probe")]
         let position_kernels = position.compile_velocity_position()?;
         Ok(Self {
@@ -202,21 +206,13 @@ impl ComVelocityPlan {
                 &mut data.com,
             )?;
             let worlds = data.worlds() as u32;
-            // SAFETY: Validated topology bounds joint/DOF indices and parent order.
-            // The checked layouts bound all guarded offsets. Model, state and
-            // private FK, COM and velocity workspaces all use frozen f32.
-            // All buffers use this plan's session; one thread owns one world.
-            // COM remains on-device with stride 14*nbody+6*nv. The adapter waits
-            // before any buffer or compiled module can drop or be reused.
-            unsafe {
-                self.kernel.launch(
-                    &self.metadata,
-                    &data.qvel,
-                    &data.com,
-                    &mut data.output,
-                    [self.nbody as u32, self.njnt as u32, self.nv as u32, worlds],
-                )?;
-            }
+            self.kernel.launch(
+                &self.metadata,
+                &data.qvel,
+                &data.com,
+                &mut data.output,
+                worlds,
+            )?;
             data.ready = true;
             Ok(())
         }

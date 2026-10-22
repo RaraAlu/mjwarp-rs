@@ -2,17 +2,46 @@
 //! 完整G02与等价阶段仍待实现。
 mod cuda;
 mod data;
+#[cfg(feature = "cuda-probe")]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+mod launcher_abi;
+#[cfg(feature = "cuda-probe")]
+mod launcher_meta;
+#[cfg(feature = "cuda-probe")]
+mod launcher_specs;
 mod layout;
+#[cfg(feature = "cuda-probe")]
+mod metadata_buffer;
 mod plan;
 mod resident;
 #[cfg(test)]
 mod tests;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "com_velocity/tests/launcher.rs"]
+mod tests_launcher;
 
+#[cfg(feature = "cuda-probe")]
+use self::kernels::ComVelocityKernel;
+#[cfg(feature = "cuda-probe")]
+use self::launcher_abi::ComVelocityStaticDims;
+#[cfg(feature = "cuda-probe")]
+use self::launcher_meta::com_velocity_launch_error;
+#[cfg(feature = "cuda-probe")]
+use self::metadata_buffer::ComVelocityMetadataBuffer;
 use super::{KinematicsData, KinematicsPlan};
 use crate::diagnostics::InputError;
 #[cfg(feature = "cuda-probe")]
 use crate::diagnostics::TransferError;
 use crate::model::BatchLayout;
+#[cfg(all(feature = "cuda-probe", test))]
+use crate::runtime::launcher::DeviceSpan;
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
 
@@ -28,9 +57,9 @@ pub struct ComVelocityPlan {
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: ComVelocityMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
-    kernel: SynchronousKernel,
+    kernel: ComVelocityKernel,
     #[cfg(feature = "cuda-probe")]
     position_kernels: super::resident::VelocityPositionKernels,
 }
@@ -64,9 +93,9 @@ pub(super) struct ResidentComVelocityPlan<'p> {
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: Box<ComVelocityMetadataBuffer>,
     #[cfg(feature = "cuda-probe")]
-    kernel: SynchronousKernel,
+    kernel: ComVelocityKernel,
     #[cfg(feature = "cuda-probe")]
     position_kernels: super::resident::VelocityPositionKernels,
 }

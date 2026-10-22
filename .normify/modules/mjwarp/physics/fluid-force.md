@@ -91,6 +91,24 @@ path = "src/physics/com_velocity/data.rs"
 [[source]]
 path = "src/physics/com_velocity/tests.rs"
 
+[[source]]
+path = "src/physics/com_velocity/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/com_velocity/launcher_specs.rs"
+
+[[source]]
+path = "src/physics/com_velocity/launcher_meta.rs"
+
+[[source]]
+path = "src/physics/com_velocity/metadata_buffer.rs"
+
+[[source]]
+path = "src/physics/com_velocity/kernels.rs"
+
+[[source]]
+path = "src/physics/com_velocity/tests/launcher.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::FluidForcePlan"
