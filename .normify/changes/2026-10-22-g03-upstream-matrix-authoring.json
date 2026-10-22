@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-g03-upstream-matrix-authoring",
+  "title": {
+    "zh": "离线生成G03上游矩阵冻结参考",
+    "en": "Author offline frozen upstream G03 matrix reference"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-10-22 批准「离线 authoring 例外」：pinned Python 只跑离线冻结参考生成，不进产品构建/运行/测试链。本任务按 Chief 任务 A 顺序执行：固定并审计 pinned 环境；用仓内脚本离线生成与现有冻结场景完全一致的 mixed-joints case4/world4 11 维上游矩阵参考（带 provenance）；用生成的矩阵喂 MathDx potrf_11 与冻结上游 factor 逐位比对（必须 0/121，否则停手报告，不许调参凑）；校验通过后给出矩阵链（kinematics/com_pos/crb/mass_matrix）对齐可行性与首差计划，先报 Chief，不直接全量实现。",
+    "en": "User approved the offline authoring exception on 2026-10-22: pinned Python only runs offline frozen-reference generation and never enters the product build/run/test chain. Follow Chief's task A order: freeze and audit the pinned environment; use an in-repo script to generate the upstream 11-dim matrix reference for mixed-joints case4/world4 identical to the existing frozen scenario, with provenance; feed the generated matrix to MathDx potrf_11 and compare bit-exactly with the frozen upstream factor (must be 0/121, otherwise stop and report without tuning); after validation, produce the matrix-chain (kinematics/com_pos/crb/mass_matrix) alignment feasibility and first-difference plan, report first, and do not implement fully."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "环境审计并固定：记录 pinned venv 路径、隔离方式、Python/uv/mujoco/warp-lang/numpy/mujoco_warp 版本、已安装 mujoco_warp 源码与固定上游 checkout 的哈希一致性、上游 HEAD 与工作区干净状态、warp.dll 的 wheel RECORD 校验与 SHA256、authoring 缓存与冻结 manifest 的哈希一致性、GPU/驱动；证据写入证据目录 env-audit.json，生成脚本启动前自动复核关键项。",
+    "仓内一条命令可复现：scripts/authoring/author-g03-upstream-matrix.ps1 固定并校验 pinned 环境后调用 scripts/authoring/author-g03-upstream-matrix.py（-B，无网络依赖），按 fixtures/mjwarp-mass-solve/reference.py 相同方式构造 mixed-joints 模型与 8 世界 qpos，跑 kinematics/com_pos/crb，导出上游 d.M CSR 与 case4/world4 的 11 维稠密块（经 M_tiles 的 block_elemid 采集，结构缺失项按 0），同时导出 cdof/cinert/crb/subtree_com 等中间量供后续首差定位，产物写入 evidence 目录并带 provenance（版本、上游提交、输入文件哈希、命令、产物 SHA256）；同一进程内跑两次并断言逐字节一致。",
+    "天然校验：用生成的 11 维矩阵喂已链接的 MathDx potrf_11 CUBIN，与冻结上游 factor 逐位比对必须为 0/121（同一 world、同一 rhs 配置）；若不为 0 立即停手，把差异与 provenance 写入证据并报 Chief，禁止调参、换输入或改判定。",
+    "校验通过后：用同一份上游中间量与产品探针（probe_mass_matrix 的 crb/matrix、com_position/kinematics 输出等）做首差定位，给出矩阵链对齐可行性与首差计划（疑似差异阶段、候选舍入点、需要改动的文件面、验证方式、T4 重钉影响），先报 Chief，不直接全量实现。",
+    "边界：不改容差、不改准入余量、不改测试断言、不改产品 fixtures；产品构建与测试不启动 Python、不读取 evidence 产物；证据写明「离线 authoring，非产品链」；门禁 fmt/unit 通过；回执含 task_id。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-g03-tile-cholesky-mathdx-alignment"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "scripts/authoring/",
+      "docs/development-evidence/g03-upstream-matrix/",
+      "docs/development-evidence/changes/2026-10-22-g03-upstream-matrix-authoring.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 2
+  },
+  "note": "依据：2026-10-22-g03-tile-cholesky-mathdx-alignment 第一阶段结论——冻结上游 solution 恰为 MathDx potrs(上游 factor, rhs)（0/11 位差×3）；产品 factor 恰为 MathDx potrf(产品矩阵)（0/121）；故 20/121 的 factor 残差全部来自产品矩阵与上游矩阵的末位差；冻结参考不含上游 matrix，reconstruct 只能给出舍入受限近似。用户批准离线 authoring 后，先补上游 matrix 参考。已完成的只读环境审计（本次）：venv=target/mjwarp-parallel/venv（uv 0.11.3，Python 3.12.13，include-system-site-packages=false）；包版本 mujoco 3.15.0、warp 1.15.0、numpy 2.5.4、mujoco_warp dist 3.15.0；已安装 mujoco_warp 源码与 target/mjwarp-parallel/upstream checkout 75/75 文件 SHA256 一致，上游 HEAD=71da24d956378a87a703b6e1442b13aec0c4ac29 且工作区干净；warp/bin/warp.dll 的 wheel RECORD 校验通过（sha256 7c006eb348a7359810f4d001cbd4141cc5d6d1641fc2989e4c3711e99e6671d6）；authoring 缓存 target/g03-block-reference 与冻结 manifest 的 35/35 cache_hashes 一致；GPU RTX 4070 Ti SUPER / 驱动 596.36。生成算法要点（只读确认）：crb() 内部 d.M.zero_()+_M 产出 CSR 质量矩阵；io.py 为每个 gather tile 预计算 block_elemid（结构缺失项写 nC，越界读 0），tile 稠密块 = d.M[world][block_elemid 切片]；现有 reference.py 使用的 d.M/qLD 等字段可直接导出。本任务在 proposed 态等待 Chief 对计划确认后 start；任何 Python 运行只用于离线 reference 生成与校验，不进产品链。",
+  "revision": {
+    "before": "02d2bcdbb1924c8a0d3ce59c084a06c16fd08d4d"
+  },
+  "created_at": "2026-10-22T13:20:00.000Z",
+  "updated_at": "2026-10-22T13:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g03-upstream-matrix-authoring.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g03-upstream-matrix-authoring"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
