@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-g01-wd3-rustdoc-links",
+  "title": {
+    "zh": "修复G01 rustdoc三处断链",
+    "en": "Fix three G01 rustdoc broken links"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "G01 rustdoc -D warnings 阶段的三处既有 broken intra-doc links（文中的量纲记号被当成 intra-doc 链接）。只改文档文字/转义，不改代码语义、不放宽门禁、不新增 allow 豁免；修后 rustdoc 阶段 0 警告通过。",
+    "en": "The three pre-existing broken intra-doc links in the G01 rustdoc -D warnings stage come from quantity notation treated as intra-doc links. Only documentation text/escaping changes; no code semantics, no gate relaxation, no new allow exceptions; the rustdoc stage must pass with zero warnings."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core",
+      "mjwarp.physics.mass-matrix",
+      "mjwarp.physics.mass-solve"
+    ]
+  },
+  "acceptance": [
+    "三处 broken intra-doc links 修复：kinetic_energy.rs、device_energy/plan.rs、mass_solve/sparse/resident/solve.rs 的方括号量纲记号不再被解析为链接。",
+    "只改文档文字/转义；不改代码语义、不改容差、不删除任何检查、不新增 allow 豁免。",
+    "cargo +1.99.0-x86_64-pc-windows-msvc doc --locked --all-features --no-deps（RUSTDOCFLAGS=-D warnings）0 警告通过，并记录到回执。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-18-layers-windows"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "src/physics/kinetic_energy.rs",
+      "src/physics/mass_matrix/multiply/borrowed/device_energy/plan.rs",
+      "src/physics/mass_solve/sparse/resident/solve.rs",
+      "docs/three-layer-acceptance.md",
+      "docs/development-evidence/g01-wd3-rustdoc/",
+      "docs/development-evidence/changes/2026-10-22-g01-wd3-rustdoc-links.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "来源：docs/three-layer-acceptance.md 债务表 W-D3 与 G01 脚本 rustdoc 阶段记录。基线 HEAD 45a623e。三处均为中文量纲记号被 rustdoc 当作 intra-doc link：`返回[势能,动能]`（kinetic_energy.rs:134）、`返回历史[势能,动能]`（device_energy/plan.rs:47）、`行优先[RHS,nv]`（solve.rs:55）。修法用反引号包裹为代码文本，不新增 allow。与 W-D5 历史基线 3 项无关，不处理它们。",
+  "revision": {
+    "before": "45a623ecdd890d6af2df1c50bbe4e4e694c20a0a",
+    "after": null
+  },
+  "created_at": "2026-10-22T16:10:00.000Z",
+  "updated_at": "2026-10-22T16:10:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g01-wd3-rustdoc-links.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g01-wd3-rustdoc-links"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
