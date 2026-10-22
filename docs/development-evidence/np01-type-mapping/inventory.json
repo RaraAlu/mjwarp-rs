@@ -1,0 +1,1419 @@
+{
+  "schema": 1,
+  "task": "2026-10-23-precision-type-mapping",
+  "scope": "产品侧逐路径/逐内核精度类型映射清单（NP01 输入）；不含 W15 上游源码复制后的路径映射。",
+  "upstream": {
+    "commit": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "root": "target/mjwarp-parallel/upstream/mujoco_warp/_src（pinned checkout，HEAD=71da24d…）"
+  },
+  "compileRecipe": {
+    "name": "warp-1.15-physics",
+    "fmad": true,
+    "fast_math": false,
+    "std": "--std=c++17",
+    "arch": "compute_70",
+    "nvrtc": "12.8.93",
+    "precision_gate": "f32-physics（拒绝非 f32 物理运算）"
+  },
+  "frozenPtxSources": [
+    {
+      "file": "src/runtime/warp_kinematics.rs",
+      "sha256": "4179acd01fe8e7064fa97566cfe4158dd9ad4b89761dcab0da88001d9b521f57"
+    },
+    {
+      "file": "src/runtime/warp_com.rs",
+      "sha256": "4179acd01fe8e7064fa97566cfe4158dd9ad4b89761dcab0da88001d9b521f57"
+    },
+    {
+      "file": "src/runtime/warp_gravity.rs",
+      "sha256": "d06154da63f64118e8fdb19c0b646a59c5b485d580f4716e5edea97a57c1dd70"
+    }
+  ],
+  "method": [
+    "用正则枚举 src/physics/**/*.rs|cu 中所有 __global__ 内核签名，统计参数类型与 double/fma/atomicAdd/__shared__ 出现次数。",
+    "产品 CUDA 源共 49 个含内核文件、0 处 double（库级 sinf/cosf 慢路径例外按契约单列）；编译配方取 src/runtime/launcher/recipe.rs 的 warp-1.15-physics。",
+    "上游映射以 pinned checkout target/mjwarp-parallel/upstream/mujoco_warp/_src（HEAD=71da24d…）为准，函数级已核对者标 confidence=函数级，其余为文件级待补。",
+    "「已有证据」只列可复核路径/命令；「待补」写清缺什么，不把待补写成通过。"
+  ],
+  "summary": {
+    "rows": 30,
+    "statuses": {
+      "部分（探针逐位证据齐；缺逐字段表）": 1,
+      "部分": 17,
+      "部分（数值准入已过；缺逐字段表）": 1,
+      "部分（数值口径已裁决；缺逐字段表）": 1,
+      "待补": 10
+    },
+    "doublesInProduct": 0
+  },
+  "rows": [
+    {
+      "id": "kinematics",
+      "layer": "G01 前向/运动学",
+      "paths": [
+        "xpos",
+        "xquat",
+        "xmat",
+        "xipos",
+        "ximat",
+        "xanchor",
+        "xaxis",
+        "subtree_com",
+        "cinert",
+        "crb",
+        "cdof",
+        "matrix_dense_block"
+      ],
+      "productFiles": [
+        "src/physics/mod.rs"
+      ],
+      "constants": [
+        "KINEMATICS_CUDA"
+      ],
+      "kernels": [
+        "rigid_kinematics",
+        "rigid_com_position",
+        "（内联 device 函数约 20 个）"
+      ],
+      "types": {
+        "input": "f32（const float*：qpos/qvel、body/geom 参数、树结构常量）",
+        "intermediate": "f32（xpos/xquat/xmat/xipos/xanchor/xaxis 等）",
+        "accumulation": "f32；矩阵链含链式 fma（fma 计数 7）",
+        "output": "f32（float*）",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "_compute_body_matrices",
+          "_kinematics_branch",
+          "_site_local_to_global"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/g03-matrix-chain-alignment/README.md（xmat 等逐位 0 差）",
+          "docs/development-evidence/g01-fast-loop/README.md（双模式 340/0）"
+        ],
+        "missing": [
+          "12 个输出的逐字段输入→输出类型表（含每个中间量）",
+          "手写内联源与冻结 PTX（src/runtime/warp_kinematics.rs，PTX_SHA256 4179acd0…）的逐字段对照"
+        ]
+      },
+      "status": "部分（探针逐位证据齐；缺逐字段表）"
+    },
+    {
+      "id": "com_position",
+      "layer": "G01 前向/质心",
+      "paths": [
+        "com_pos"
+      ],
+      "productFiles": [
+        "src/physics/mod.rs"
+      ],
+      "constants": [
+        "COM_POSITION_CUDA"
+      ],
+      "kernels": [
+        "rigid_com_position"
+      ],
+      "types": {
+        "input": "f32（质量、xipos、xmat 等）",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "com_pos"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/g01-fast-loop/README.md",
+          "docs/development-evidence/layers-m3-rigid-mass-matrix/"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "冻结 PTX（src/runtime/warp_com.rs，PTX_SHA256 4179acd0…）对照"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "com_velocity",
+      "layer": "G01 前向/质心速度",
+      "paths": [
+        "com_vel",
+        "cdof_dot"
+      ],
+      "productFiles": [
+        "src/physics/com_velocity/cuda.rs"
+      ],
+      "constants": [
+        "COM_VELOCITY_CUDA"
+      ],
+      "kernels": [
+        "com_velocity"
+      ],
+      "types": {
+        "input": "f32（xpos/xquat/xmat、qvel、cdof 等）",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "com_vel"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [
+          "docs/linux-resident-com-velocity.md",
+          "docs/development-evidence/g01-fast-loop/README.md"
+        ],
+        "missing": [
+          "逐字段类型表（cvel/cdof_dot）",
+          "通用空间雅可比精度证据"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "crb",
+      "layer": "G01 前向/惯量",
+      "paths": [
+        "crb",
+        "cinert 组合"
+      ],
+      "productFiles": [
+        "src/physics/mass_matrix.rs",
+        "src/physics/mass_matrix/resident.rs"
+      ],
+      "constants": [
+        "MASS_MATRIX_CUDA",
+        "（resident 三条 kernel 的 const）"
+      ],
+      "kernels": [
+        "rigid_mass_matrix",
+        "resident_crb_init",
+        "resident_crb_accumulate",
+        "resident_crb_matrix"
+      ],
+      "types": {
+        "input": "f32（惯量 10 分量、xmat/xipos、body 参数）",
+        "intermediate": "f32",
+        "accumulation": "f32（fma 19 + atomicAdd 2）",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "crb",
+          "_crb_accumulate"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/layers-m3-rigid-mass-matrix/",
+          "docs/development-evidence/g01-fast-loop/README.md"
+        ],
+        "missing": [
+          "逐字段类型表（惯量 10 分量与矩阵 36 槽）",
+          "常驻与一次性路径的逐字段一致性对照"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "mass_multiply",
+      "layer": "G01 质量矩阵乘",
+      "paths": [
+        "mass_multiply",
+        "borrowed_mass_multiply",
+        "resident 乘"
+      ],
+      "productFiles": [
+        "src/physics/mass_matrix/multiply/cuda.rs",
+        "src/physics/mass_matrix/multiply/borrowed/cuda.rs"
+      ],
+      "constants": [
+        "（模块内 CUDA 源）"
+      ],
+      "kernels": [
+        "mass_multiply_validate",
+        "mass_multiply",
+        "borrowed_mass_validate",
+        "borrowed_mass_multiply"
+      ],
+      "types": {
+        "input": "f32（M、向量、累加器）",
+        "intermediate": "f32",
+        "accumulation": "f32（列序追加）",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "（文件级映射；具体点积/矩阵函数待逐函数核对）"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/borrowed-mass-multiply.md",
+          "docs/sparse-mass-dense.md"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "上游具体函数定位"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "mass_solve",
+      "layer": "G01 质量求解",
+      "paths": [
+        "rigid_mass_solve",
+        "sparse dense/small/mixed/resident",
+        "substitute"
+      ],
+      "productFiles": [
+        "src/physics/mass_solve/cuda.rs",
+        "src/physics/mass_solve/sparse/**"
+      ],
+      "constants": [
+        "MASS_SOLVE_CUDA",
+        "（各 sparse 模块 CUDA 源）"
+      ],
+      "kernels": [
+        "rigid_mass_solve",
+        "resident_mass_substitute",
+        "sparse_mass_copy/update/diag",
+        "sparse_dense_validate/gather",
+        "mixed_factor_merge",
+        "mixed_solve_validate/fused",
+        "resident_mixed_*",
+        "sparse_solve_validate/fused"
+      ],
+      "types": {
+        "input": "f32（矩阵、因子、rhs）",
+        "intermediate": "f32（L/U 因子、前代回代中间量）",
+        "accumulation": "f32（fma 4；MathDx 列扫描 rcp/fma 语义）",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "math.py",
+          "block_cholesky.py",
+          "smooth.py"
+        ],
+        "functions": [
+          "solve_LD",
+          "cholesky/tile 求解（MathDx cuSOLVER 分支）"
+        ],
+        "confidence": "文件级 + 求解函数级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/g03-matrix-chain-alignment/README.md（6/0，NP03 三项 failed=0）",
+          "docs/windows-mass-solve-probe.md",
+          "docs/windows-g03-block-repair.md"
+        ],
+        "missing": [
+          "逐内核/逐字段类型表（含 small/dense/mixed 分支）",
+          "每模式 20 块上游对照放行记录",
+          "MathDx SDK 内部精度边界声明"
+        ]
+      },
+      "status": "部分（数值准入已过；缺逐字段表）"
+    },
+    {
+      "id": "rne_bias",
+      "layer": "G02 偏置力",
+      "paths": [
+        "rne_bias"
+      ],
+      "productFiles": [
+        "src/physics/rne_bias.rs"
+      ],
+      "constants": [
+        "RNE_BIAS_CUDA"
+      ],
+      "kernels": [
+        "rne_bias"
+      ],
+      "types": {
+        "input": "f32（cdof、qvel、cacc、惯量等）",
+        "intermediate": "f32",
+        "accumulation": "f32（分段原子加）",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "rne"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/layers-m3-rne-bias/",
+          "docs/windows-two-reference-acceptance.md",
+          "docs/linux-resident-rne-bias.md"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "Linux 双平台复验记录"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "rne_acc",
+      "layer": "G02 RNE 加速度",
+      "paths": [
+        "rne_cacc",
+        "rne_cfrc",
+        "rne_backward",
+        "rne_qfrc"
+      ],
+      "productFiles": [
+        "src/physics/rne.cu"
+      ],
+      "constants": [
+        "RNE_CUDA"
+      ],
+      "kernels": [
+        "rne_cacc",
+        "rne_cfrc",
+        "rne_backward",
+        "rne_qfrc"
+      ],
+      "types": {
+        "input": "f32（惯量、cdof、qvel、qacc）",
+        "intermediate": "f32",
+        "accumulation": "f32（原子加 1；fma 1）",
+        "output": "f32（cacc/cfrc_int/qfrc_bias）",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "rne",
+          "_rne_cacc_world"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/g02-rne-authoring-diff/README.md（产品=上游 0/11 位差）",
+          "docs/development-evidence/rne-repair-audit/README.md（1042 块已覆盖）",
+          "docs/development-evidence/g02-rne-acc-rebaseline/README.md"
+        ],
+        "missing": [
+          "84/240 条 ULP 级差异的逐字段映射（可选逐位对齐）",
+          "逐字段类型表"
+        ]
+      },
+      "status": "部分（数值口径已裁决；缺逐字段表）"
+    },
+    {
+      "id": "gravity_compensation",
+      "layer": "G02 重力补偿",
+      "paths": [
+        "gravity_compensation"
+      ],
+      "productFiles": [
+        "src/physics/gravity_compensation/cuda.rs"
+      ],
+      "constants": [
+        "（模块内 CUDA 源）"
+      ],
+      "kernels": [
+        "gravity_compensation_clear/validate/compute/sum"
+      ],
+      "types": {
+        "input": "f32（rigid/com、raw 参数、gravity）",
+        "intermediate": "f32",
+        "accumulation": "f32（atomicAdd 1）",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "passive.py",
+          "smooth.py"
+        ],
+        "functions": [
+          "_gravity_force"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/g01-gravity-cert-f32/README.md（证书按 f32 逐步口径）",
+          "docs/development-evidence/t4-gravity-chain-live-rerun/"
+        ],
+        "missing": [
+          "全链逐字段类型表",
+          "多体原子归约的逐位对照记录"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "joint_passive",
+      "layer": "G02 关节被动力",
+      "paths": [
+        "joint_passive"
+      ],
+      "productFiles": [
+        "src/physics/smooth_force/joint_passive.rs"
+      ],
+      "constants": [
+        "（模块内 CUDA 源）"
+      ],
+      "kernels": [
+        "joint_passive_validate/compute/sum"
+      ],
+      "types": {
+        "input": "f32（qpos/qvel、5 项参数、周期）",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "passive.py"
+        ],
+        "functions": [
+          "（文件级映射）"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/joint-passive.md",
+          "docs/development-evidence/layers-m3-smooth-force-*"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "上游具体函数定位"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "smooth_force",
+      "layer": "G02 平滑力",
+      "paths": [
+        "smooth_force"
+      ],
+      "productFiles": [
+        "src/physics/smooth_force.rs"
+      ],
+      "constants": [
+        "（模块内 CUDA 源）"
+      ],
+      "kernels": [
+        "smooth_force_validate",
+        "smooth_force"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "passive.py"
+        ],
+        "functions": [
+          "（文件级映射）"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/layers-m3-smooth-force-compute/",
+          "layers-m3-smooth-force-validate/"
+        ],
+        "missing": [
+          "逐字段类型表"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "passive_force",
+      "layer": "G02 被动合力",
+      "paths": [
+        "passive_force_clear/sum/gravity/fluid"
+      ],
+      "productFiles": [
+        "src/physics/passive_force.rs"
+      ],
+      "constants": [
+        "（模块内 CUDA 源）"
+      ],
+      "kernels": [
+        "passive_force_clear",
+        "passive_force_sum",
+        "passive_force_clear_gravity",
+        "passive_force_add_fluid"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "passive.py"
+        ],
+        "functions": [
+          "_passive（文件级）"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "src/physics/passive_force/tests/**"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "上游逐项映射"
+        ]
+      },
+      "status": "待补"
+    },
+    {
+      "id": "fixed_tendon",
+      "layer": "G02 固定肌腱",
+      "paths": [
+        "fixed_tendon"
+      ],
+      "productFiles": [
+        "src/physics/fixed_tendon.rs"
+      ],
+      "constants": [
+        "FIXED_TENDON_CUDA"
+      ],
+      "kernels": [
+        "fixed_tendon"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "_tendon_armature",
+          "transmission"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/g01-fast-loop/README.md"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "上游函数定位"
+        ]
+      },
+      "status": "待补"
+    },
+    {
+      "id": "spatial_tendon",
+      "layer": "G02 空间肌腱",
+      "paths": [
+        "spatial_site",
+        "spatial_moment",
+        "spatial_wrap"
+      ],
+      "productFiles": [
+        "src/physics/spatial_tendon.rs"
+      ],
+      "constants": [
+        "SPATIAL_TENDON_CUDA"
+      ],
+      "kernels": [
+        "spatial_site",
+        "spatial_moment",
+        "spatial_wrap"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py",
+          "util_misc.py"
+        ],
+        "functions": [
+          "transmission",
+          "（wrap 路径见 util_misc）"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/g01-fast-loop/README.md"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "上游 wrap 函数定位"
+        ]
+      },
+      "status": "待补"
+    },
+    {
+      "id": "tendon_wrap",
+      "layer": "G02 肌腱包裹",
+      "paths": [
+        "tendon_wrap（26 个内联 kernel）"
+      ],
+      "productFiles": [
+        "src/physics/tendon_wrap.rs"
+      ],
+      "constants": [
+        "TENDON_WRAP_CUDA"
+      ],
+      "kernels": [
+        "（26 个内联 kernel，含球柱与内侧绕行）"
+      ],
+      "types": {
+        "input": "f32（局部投影、牛顿迭代）",
+        "intermediate": "f32；库级 sinf/cosf 慢路径含 f64 归约",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double（但库级 sinf/cosf 慢路径属已知例外，见契约）"
+      },
+      "upstream": {
+        "files": [
+          "util_misc.py"
+        ],
+        "functions": [
+          "（wrap 数学路径）"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/windows-geom-tendon-frame-review.md",
+          "docs/windows-t4-g03-retest.md"
+        ],
+        "missing": [
+          "26 个 kernel 的逐字段类型表",
+          "三方误差与 5% 红线证据"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "tendon",
+      "layer": "G02 肌腱混合",
+      "paths": [
+        "tendon_values",
+        "tendon_indices"
+      ],
+      "productFiles": [
+        "src/physics/tendon.rs"
+      ],
+      "constants": [
+        "TENDON_CUDA"
+      ],
+      "kernels": [
+        "tendon_values",
+        "tendon_indices"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32/int（索引）",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "transmission"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [],
+        "missing": [
+          "逐字段类型表",
+          "上游函数定位"
+        ]
+      },
+      "status": "待补"
+    },
+    {
+      "id": "tendon_velocity",
+      "layer": "G02 肌腱速度",
+      "paths": [
+        "tendon_velocity_validate/compute"
+      ],
+      "productFiles": [
+        "src/physics/tendon_velocity.rs"
+      ],
+      "constants": [
+        "（模块内 CUDA 源）"
+      ],
+      "kernels": [
+        "tendon_velocity_validate",
+        "tendon_velocity_compute"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32（局部和从正零开始）",
+        "accumulation": "f32（CSR 行序）",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "passive.py",
+          "smooth.py"
+        ],
+        "functions": [
+          "（文件级映射）"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/tendon-velocity.md",
+          "docs/development-evidence/layers-m3-velocity-position-g01-correction/"
+        ],
+        "missing": [
+          "一般空间雅可比精度证据",
+          "逐字段类型表"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "tendon_passive",
+      "layer": "G02 肌腱被动力",
+      "paths": [
+        "tendon_passive_validate/clear/compute"
+      ],
+      "productFiles": [
+        "src/physics/tendon_passive/cuda.rs"
+      ],
+      "constants": [
+        "（模块内 CUDA 源）"
+      ],
+      "kernels": [
+        "tendon_passive_validate",
+        "tendon_passive_clear",
+        "tendon_passive_compute"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32（atomicAdd 2）",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "passive.py"
+        ],
+        "functions": [
+          "（文件级映射）"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [],
+        "missing": [
+          "逐字段类型表",
+          "上游函数定位"
+        ]
+      },
+      "status": "待补"
+    },
+    {
+      "id": "flex_position",
+      "layer": "G02 柔体位置",
+      "paths": [
+        "flex_positions",
+        "flex_invalidate"
+      ],
+      "productFiles": [
+        "src/physics/flex.rs"
+      ],
+      "constants": [
+        "FLEX_POSITION_CUDA"
+      ],
+      "kernels": [
+        "flex_positions",
+        "flex_invalidate"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "_flex_vertices"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [
+          "docs/windows-resident-flex-position.md",
+          "docs/windows-native-flex-position.md"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "共享位置字段的边界说明"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "flex_edge",
+      "layer": "G02 柔体边",
+      "paths": [
+        "flex_edges"
+      ],
+      "productFiles": [
+        "src/physics/flex_edge.rs"
+      ],
+      "constants": [
+        "FLEX_EDGE_CUDA"
+      ],
+      "kernels": [
+        "flex_edges"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "_flex_edges"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/layers-m3-*（flex-edges-abi-fix 等）",
+          "docs/windows-resident-flex-edge.md"
+        ],
+        "missing": [
+          "逐字段类型表"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "flex_face",
+      "layer": "G02 柔体面",
+      "paths": [
+        "flex_faces"
+      ],
+      "productFiles": [
+        "src/physics/flex_face.rs"
+      ],
+      "constants": [
+        "FLEX_FACE_CUDA"
+      ],
+      "kernels": [
+        "flex_faces"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32（极分解）",
+        "accumulation": "f32（fma 9；库级 sinf/cosf 慢路径例外）",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "_flex_face_kinematics"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [
+          "docs/windows-resident-flex-face.md",
+          "docs/development-evidence/flex-face-strict-bit-gate/",
+          "docs/development-evidence/flex-face-overflow-upstream-fallback/"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "四条归约链的逐位对照"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "flex_hessian",
+      "layer": "G02 柔体 Hessian",
+      "paths": [
+        "flex_hessian"
+      ],
+      "productFiles": [
+        "src/physics/flex_hessian.rs"
+      ],
+      "constants": [
+        "FLEX_HESSIAN_CUDA"
+      ],
+      "kernels": [
+        "flex_hessian",
+        "flex_hessian_validate"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32（拉伸投影矩阵缓存）",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py",
+          "math.py"
+        ],
+        "functions": [
+          "（文件级映射）"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/windows-resident-flex-hessian.md"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "上游函数定位"
+        ]
+      },
+      "status": "待补"
+    },
+    {
+      "id": "flex_edge_passive",
+      "layer": "G02 柔体边被动力",
+      "paths": [
+        "flex_edge_passive_validate/clear/compute"
+      ],
+      "productFiles": [
+        "src/physics/flex_edge_passive/cuda.rs"
+      ],
+      "constants": [
+        "（模块内 CUDA 源）"
+      ],
+      "kernels": [
+        "flex_edge_passive_validate",
+        "flex_edge_passive_clear",
+        "flex_edge_passive_compute"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32（atomicAdd 2）",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "passive.py"
+        ],
+        "functions": [
+          "_flex_gather_kernel"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [
+          "docs/flex-edge-passive.md"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "上游函数逐字段映射"
+        ]
+      },
+      "status": "待补"
+    },
+    {
+      "id": "fluid_force",
+      "layer": "G02 流体接触力",
+      "paths": [
+        "fluid_force_validate/body/project/clear"
+      ],
+      "productFiles": [
+        "src/physics/fluid_force/cuda.rs"
+      ],
+      "constants": [
+        "（模块内 CUDA 源）"
+      ],
+      "kernels": [
+        "fluid_force_validate",
+        "fluid_force_body",
+        "fluid_force_project",
+        "fluid_force_clear"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "passive.py",
+          "derivative.py"
+        ],
+        "functions": [
+          "_fluid_force"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [],
+        "missing": [
+          "逐字段类型表",
+          "上游导数实现定位"
+        ]
+      },
+      "status": "待补"
+    },
+    {
+      "id": "applied_force",
+      "layer": "G01/G02 外加载荷",
+      "paths": [
+        "applied_force_validate/delta/publish"
+      ],
+      "productFiles": [
+        "src/physics/applied_force.rs"
+      ],
+      "constants": [
+        "（模块内 CUDA 源）"
+      ],
+      "kernels": [
+        "applied_force_validate",
+        "applied_force_delta",
+        "applied_force_publish"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "passive.py",
+          "smooth.py"
+        ],
+        "functions": [
+          "_apply_face_forces（文件级）"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/layers-m3-applied-force-*"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "上游函数定位"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "kinetic_energy",
+      "layer": "G02 动能",
+      "paths": [
+        "kinetic_energy_validate/reduce32",
+        "device_energy",
+        "borrowed multiply energy"
+      ],
+      "productFiles": [
+        "src/physics/kinetic_energy/cuda.rs",
+        "src/physics/mass_matrix/multiply/borrowed/device_energy/plan.rs"
+      ],
+      "constants": [
+        "（模块内 CUDA 源）"
+      ],
+      "kernels": [
+        "kinetic_energy_validate",
+        "kinetic_energy_reduce32",
+        "device_energy_source_validate"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32（32 线程模板）",
+        "accumulation": "f32（移位顺序归约）",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "math.py",
+          "smooth.py"
+        ],
+        "functions": [
+          "（文件级映射）"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/kinetic-energy.md",
+          "docs/device-energy.md",
+          "docs/development-evidence/layers-m3-kinetic-*"
+        ],
+        "missing": [
+          "冻结完整生成入口证据",
+          "逐字段类型表"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "attached",
+      "layer": "G01 附着位姿",
+      "paths": [
+        "attached_kinematics",
+        "initialize_attached"
+      ],
+      "productFiles": [
+        "src/physics/attached.rs"
+      ],
+      "constants": [
+        "ATTACHED_CUDA"
+      ],
+      "kernels": [
+        "attached_kinematics",
+        "initialize_attached"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "_site_local_to_global"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/g01-fast-loop/README.md"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "site/geom 六项字段的上游对照"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "camlight",
+      "layer": "G01 相机/光源",
+      "paths": [
+        "camlight_rigid",
+        "camlight_com"
+      ],
+      "productFiles": [
+        "src/physics/camlight.rs"
+      ],
+      "constants": [
+        "CAMLIGHT_CUDA"
+      ],
+      "kernels": [
+        "camlight_rigid",
+        "camlight_com"
+      ],
+      "types": {
+        "input": "f32",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "smooth.py"
+        ],
+        "functions": [
+          "_light_local_to_global"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [],
+        "missing": [
+          "逐字段类型表",
+          "上游 camlight 包装定位"
+        ]
+      },
+      "status": "待补"
+    },
+    {
+      "id": "sleep_wake",
+      "layer": "G02 睡眠/唤醒",
+      "paths": [
+        "sleep_copy",
+        "tendon_wake"
+      ],
+      "productFiles": [
+        "src/physics/sleep.rs"
+      ],
+      "constants": [
+        "TENDON_WAKE_CUDA"
+      ],
+      "kernels": [
+        "sleep_copy",
+        "tendon_wake"
+      ],
+      "types": {
+        "input": "f32/int（树标记、树计数、周期）",
+        "intermediate": "f32",
+        "accumulation": "f32",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "sleep.py"
+        ],
+        "functions": [
+          "_sleep_cycle",
+          "_wake_tree"
+        ],
+        "confidence": "函数级已核对"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/layers-m3-sleep-copy/"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "完整休眠等价调度"
+        ]
+      },
+      "status": "部分"
+    },
+    {
+      "id": "field_batch",
+      "layer": "G01 字段批打包（非物理）",
+      "paths": [
+        "字段批打包"
+      ],
+      "productFiles": [
+        "src/physics/resident/pack_batches.rs"
+      ],
+      "constants": [
+        "FIELD_BATCH_CUDA"
+      ],
+      "kernels": [
+        "（批打包内联源）"
+      ],
+      "types": {
+        "input": "f32/整型字段批",
+        "intermediate": "f32",
+        "accumulation": "无",
+        "output": "f32",
+        "doubleInProduct": "0 处 double"
+      },
+      "upstream": {
+        "files": [
+          "io.py",
+          "types.py"
+        ],
+        "functions": [
+          "（文件级映射）"
+        ],
+        "confidence": "文件级"
+      },
+      "evidence": {
+        "existing": [
+          "docs/development-evidence/g01-fast-loop/README.md"
+        ],
+        "missing": [
+          "逐字段类型表",
+          "上游字段批打包对照"
+        ]
+      },
+      "status": "待补"
+    }
+  ]
+}

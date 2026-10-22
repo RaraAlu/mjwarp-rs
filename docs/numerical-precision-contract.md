@@ -520,6 +520,7 @@ G01历史参考通过继续保留。
 历史通过不免除其他NP指标。
 本表不代替全库精度审计。
 其他路径仍需补齐精度证据。
+2026-10-23 NP01 清单入口：逐产品路径/逐内核的类型映射（输入/输出/中间量/累加、编译配方、上游位置、「已有证据/待补」两栏）见 `docs/development-evidence/np01-type-mapping/inventory.json`。当前建立 30 条产品路径清单；完整类型映射与偏离归零仍未验收，待补项以清单为准；上游源码复制路径待 W15 落地后补充。
 本次证据见[f32修复](linux-f32-precision-restoration.md)。
 本机后续证据见[两级补测](windows-two-reference-acceptance.md)。
 
