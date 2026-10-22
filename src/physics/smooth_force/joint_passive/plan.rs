@@ -41,7 +41,18 @@ impl JointPassivePlan {
                 u32::from(options.disable_spring),
                 u32::from(options.disable_damper)
             );
-            let metadata = session.upload(&i.meta)?;
+            let static_dims = launcher_abi::JointPassiveStaticDims::new(
+                i.model.nq(),
+                i.model.nv(),
+                i.model.njnt(),
+                i.param_len,
+            )
+            .map_err(launcher_abi::joint_passive_launch_error)?;
+            let metadata = launcher_abi::JointPassiveMetadataBuffer::from_values(
+                session,
+                i.meta.clone(),
+                static_dims,
+            )?;
             Ok(Self {
                 input: Arc::new(i),
                 options,
@@ -49,11 +60,7 @@ impl JointPassivePlan {
                 session: session.clone(),
                 metadata,
                 parameters: session.upload(&p)?,
-                kernels: [
-                    SynchronousKernel::compile(session, &code, "joint_passive_validate")?,
-                    SynchronousKernel::compile(session, &code, "joint_passive_compute")?,
-                    SynchronousKernel::compile(session, &code, "joint_passive_sum")?,
-                ],
+                kernels: kernels::JointPassiveKernels::compile(session, &code)?,
             })
         }
     }
@@ -132,20 +139,9 @@ impl JointPassivePlan {
         target.read_range_into(0, &mut guards[..4])?;
         target.read_range_into(target.len() - 4, &mut guards[4..])?;
         crate::physics::check_device_guards(&guards)?;
-        let n = self.input.model.nv() as u32;
-        let nq = self.input.model.nq() as u32;
         let w = worlds as u32;
-        // SAFETY: 计划锁定状态与静态元数据。
-        // 调用方提供同会话的受保护目标。
-        unsafe {
-            self.kernels[0].launch(
-                &self.metadata,
-                &self.parameters,
-                &data.state,
-                status,
-                [nq, n, w, w],
-            )?;
-        }
+        self.kernels
+            .launch_validate(&self.metadata, &self.parameters, &data.state, status, w)?;
         let checked = read(status, worlds, "passive_force_joint_status")?;
         if let Some(index) = checked[4..4 + worlds].iter().position(|&v| v != 1.0) {
             return Err(InputError::InvalidTopology {
@@ -155,17 +151,8 @@ impl JointPassivePlan {
             }
             .into());
         }
-        // SAFETY: 每线程直接写一个弹簧槽和阻尼槽。
-        // 该写入先于后续两个原子累加阶段。
-        unsafe {
-            self.kernels[1].launch(
-                &self.metadata,
-                &self.parameters,
-                &data.state,
-                target,
-                [nq, n, w, w * n],
-            )
-        }
+        self.kernels
+            .launch_compute(&self.metadata, &self.parameters, &data.state, target, w)
     }
     pub fn update_joint(&self, data: &mut JointPassiveData) -> Result<(), TransferError> {
         if !Arc::ptr_eq(&self.input, &data.input) {
@@ -179,25 +166,19 @@ impl JointPassivePlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let n = self.input.model.nv() as u32;
-            let nq = self.input.model.nq() as u32;
             let w = data.worlds() as u32;
             let mut guards = [0.0; 8];
             data.current.read_range_into(0, &mut guards[..4])?;
             data.current
                 .read_range_into(data.current.len() - 4, &mut guards[4..])?;
             crate::physics::check_device_guards(&guards)?;
-            // SAFETY: Static constants bound all guarded arrays. Validation
-            // checks DOF kind/joint/qpos indexes before any dependent read.
-            unsafe {
-                self.kernels[0].launch(
-                    &self.metadata,
-                    &self.parameters,
-                    &data.state,
-                    &mut data.status,
-                    [nq, n, w, w],
-                )?;
-            }
+            self.kernels.launch_validate(
+                &self.metadata,
+                &self.parameters,
+                &data.state,
+                &mut data.status,
+                w,
+            )?;
             let status = read(&data.status, data.worlds(), "joint_passive_status")?;
             if let Some(index) = status[4..4 + data.worlds()].iter().position(|&v| v != 1.0) {
                 return Err(InputError::InvalidTopology {
@@ -207,17 +188,13 @@ impl JointPassivePlan {
                 }
                 .into());
             }
-            // SAFETY: Each thread owns one spring and damper slot; validated
-            // scalars use independent constant batch periods and fixed offsets.
-            unsafe {
-                self.kernels[1].launch(
-                    &self.metadata,
-                    &self.parameters,
-                    &data.state,
-                    &mut data.staged,
-                    [nq, n, w, w * n],
-                )?;
-            }
+            self.kernels.launch_compute(
+                &self.metadata,
+                &self.parameters,
+                &data.state,
+                &mut data.staged,
+                w,
+            )?;
             read(
                 &data.staged,
                 data.layout.parts.total_elements(),
@@ -240,19 +217,14 @@ impl JointPassivePlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let n = self.input.model.nv() as u32;
             let w = data.worlds() as u32;
-            // SAFETY: Same-plan parts own2*worlds*nv; the actual owned smooth
-            // buffer owns4*worlds*nv and only its first field receives the sum.
-            unsafe {
-                self.kernels[2].launch(
-                    &self.metadata,
-                    &data.current,
-                    &data.current,
-                    &mut data.smooth.forces,
-                    [0, n, w, w * n],
-                )?;
-            }
+            self.kernels.launch_sum(
+                &self.metadata,
+                &data.current,
+                &data.current,
+                &mut data.smooth.forces,
+                w,
+            )?;
             self.smooth.update(&mut data.smooth)
         }
     }

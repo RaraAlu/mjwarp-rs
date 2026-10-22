@@ -7,9 +7,9 @@ use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::topology::JointType;
 use crate::model::{BatchLayout, KinematicModelInput, ParameterBatch, SmoothForceInput};
-use crate::runtime::TransferSession;
 #[cfg(feature = "cuda-probe")]
-use crate::runtime::{SynchronousKernel, TransferBuffer};
+use crate::runtime::TransferBuffer;
+use crate::runtime::TransferSession;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -159,11 +159,11 @@ pub struct JointPassivePlan {
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: launcher_abi::JointPassiveMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
     parameters: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 3],
+    kernels: kernels::JointPassiveKernels,
 }
 pub struct JointPassiveData {
     input: Arc<Input>,
@@ -201,6 +201,15 @@ impl JointPassiveOutput {
 
 // 子模块：纯移动自原单文件，行为不变。
 mod data;
+#[cfg(feature = "cuda-probe")]
+#[path = "joint_passive/kernels.rs"]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "joint_passive/launcher_abi.rs"]
+mod launcher_abi;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "joint_passive/launcher_tests.rs"]
+mod launcher_tests;
 mod plan;
 #[cfg(test)]
 #[path = "joint_passive/tests/gpu_free_ball.rs"]

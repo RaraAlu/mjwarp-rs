@@ -244,11 +244,15 @@ fn gpu_produces_free_ball_springs_with_warp_quaternion_edges() {
     plan.metadata
         .read_range_into(local_index, &mut old_local)
         .unwrap();
-    plan.metadata.write_range(local_index, &[i32::MAX]).unwrap();
+    plan.metadata
+        .corrupt_device_for_validator_test(local_index, &[i32::MAX])
+        .unwrap();
     let before_rejection = bits(&raw(&data.current));
     assert!(plan.update_joint(&mut data).is_err());
     assert_eq!(before_rejection, bits(&raw(&data.current)));
-    plan.metadata.write_range(local_index, &old_local).unwrap();
+    plan.metadata
+        .corrupt_device_for_validator_test(local_index, &old_local)
+        .unwrap();
     plan.update_joint_only_smooth(&mut data).unwrap();
     let disabled = JointPassivePlan::new(
         &session,

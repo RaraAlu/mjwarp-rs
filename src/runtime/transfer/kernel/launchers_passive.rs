@@ -3,23 +3,24 @@
 use super::*;
 
 impl SynchronousKernel {
-    /// ABI: (const int*, const float*, const float*, float*, u32, u32, u32, u32).
+    /// 四缓冲被动力共用的私有ABI执行体。
     ///
     /// # Safety
     /// 调用方证明私有ABI与全部跨度。
     /// 输入只读且输出独占。
-    pub(crate) unsafe fn launch_flex_edge_passive(
+    unsafe fn launch_four_buffers(
         &self,
         metadata: &TransferBuffer<i32>,
-        parameters: &TransferBuffer<f32>,
-        source: &TransferBuffer<f32>,
+        first: &TransferBuffer<f32>,
+        second: &TransferBuffer<f32>,
         output: &mut TransferBuffer<f32>,
         dimensions: [u32; 4],
+        stage: &'static str,
     ) -> Result<(), TransferError> {
         for same in [
             Arc::ptr_eq(&self.session.inner, &metadata.session.inner),
-            Arc::ptr_eq(&self.session.inner, &parameters.session.inner),
-            Arc::ptr_eq(&self.session.inner, &source.session.inner),
+            Arc::ptr_eq(&self.session.inner, &first.session.inner),
+            Arc::ptr_eq(&self.session.inner, &second.session.inner),
             Arc::ptr_eq(&self.session.inner, &output.session.inner),
         ] {
             if !same {
@@ -33,10 +34,10 @@ impl SynchronousKernel {
             }
             .into());
         }
-        let (Some(m), Some(p), Some(s), Some(o)) = (
+        let (Some(m), Some(a), Some(b), Some(o)) = (
             metadata.allocation.as_ref(),
-            parameters.allocation.as_ref(),
-            source.allocation.as_ref(),
+            first.allocation.as_ref(),
+            second.allocation.as_ref(),
             output.allocation.as_mut(),
         ) else {
             return Err(InputError::InvalidDimension {
@@ -44,13 +45,13 @@ impl SynchronousKernel {
             }
             .into());
         };
-        self.session.run("flex-edge-passive-kernel-launch", || {
+        self.session.run(stage, || {
             let mut args = self
                 .session
                 .inner
                 .stream
                 .launch_builder(self.function.as_ref().unwrap());
-            args.arg(m).arg(p).arg(s).arg(o);
+            args.arg(m).arg(a).arg(b).arg(o);
             for value in &dimensions {
                 args.arg(value);
             }
@@ -65,5 +66,55 @@ impl SynchronousKernel {
             }?;
             Ok(())
         })
+    }
+
+    /// ABI: (const int*, const float*, const float*, float*, u32, u32, u32, u32).
+    ///
+    /// # Safety
+    /// 调用方证明私有ABI与全部跨度。
+    pub(crate) unsafe fn launch_flex_edge_passive(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        parameters: &TransferBuffer<f32>,
+        source: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        dimensions: [u32; 4],
+    ) -> Result<(), TransferError> {
+        // SAFETY: 由调用方转交的同一组契约。
+        unsafe {
+            self.launch_four_buffers(
+                metadata,
+                parameters,
+                source,
+                output,
+                dimensions,
+                "flex-edge-passive-kernel-launch",
+            )
+        }
+    }
+
+    /// ABI: (const int*, const float*, const float*, float*, u32, u32, u32, u32).
+    ///
+    /// # Safety
+    /// 调用方证明私有ABI与全部跨度。
+    pub(crate) unsafe fn launch_joint_passive(
+        &self,
+        metadata: &TransferBuffer<i32>,
+        parameters: &TransferBuffer<f32>,
+        state: &TransferBuffer<f32>,
+        output: &mut TransferBuffer<f32>,
+        dimensions: [u32; 4],
+    ) -> Result<(), TransferError> {
+        // SAFETY: 由调用方转交的同一组契约。
+        unsafe {
+            self.launch_four_buffers(
+                metadata,
+                parameters,
+                state,
+                output,
+                dimensions,
+                "joint-passive-kernel-launch",
+            )
+        }
     }
 }

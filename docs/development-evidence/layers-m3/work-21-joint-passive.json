@@ -1,0 +1,46 @@
+{
+    "work": "work-21-joint-passive",
+    "summary": "关节被动力三入口改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/smooth_force/joint_passive/plan.rs", "line": 141 },
+        { "file": "src/physics/smooth_force/joint_passive/plan.rs", "line": 161 },
+        { "file": "src/physics/smooth_force/joint_passive/plan.rs", "line": 193 },
+        { "file": "src/physics/smooth_force/joint_passive/plan.rs", "line": 213 },
+        { "file": "src/physics/smooth_force/joint_passive/plan.rs", "line": 248 }
+    ],
+    "add_low_level": [
+        { "file": "src/physics/smooth_force/joint_passive/kernels.rs", "line": 239, "receiver": "self.validate", "method": "launch_joint_passive", "classification": "typed_wrapper_low_level", "entry": "joint_passive_validate" },
+        { "file": "src/physics/smooth_force/joint_passive/kernels.rs", "line": 275, "receiver": "self.compute", "method": "launch_joint_passive", "classification": "typed_wrapper_low_level", "entry": "joint_passive_compute" },
+        { "file": "src/physics/smooth_force/joint_passive/kernels.rs", "line": 312, "receiver": "self.sum", "method": "launch_joint_passive", "classification": "typed_wrapper_low_level", "entry": "joint_passive_sum" }
+    ],
+    "add_orchestration": [
+        { "file": "src/physics/smooth_force/joint_passive/plan.rs", "line": 144, "receiver": "self.kernels", "method": "launch_validate", "classification": "wrapper_orchestration", "entry": "joint_passive_validate" },
+        { "file": "src/physics/smooth_force/joint_passive/plan.rs", "line": 155, "receiver": "self.kernels", "method": "launch_compute", "classification": "wrapper_orchestration", "entry": "joint_passive_compute" },
+        { "file": "src/physics/smooth_force/joint_passive/plan.rs", "line": 175, "receiver": "self.kernels", "method": "launch_validate", "classification": "wrapper_orchestration", "entry": "joint_passive_validate" },
+        { "file": "src/physics/smooth_force/joint_passive/plan.rs", "line": 191, "receiver": "self.kernels", "method": "launch_compute", "classification": "wrapper_orchestration", "entry": "joint_passive_compute" },
+        { "file": "src/physics/smooth_force/joint_passive/plan.rs", "line": 221, "receiver": "self.kernels", "method": "launch_sum", "classification": "wrapper_orchestration", "entry": "joint_passive_sum" }
+    ],
+    "compile_sites_replace": [
+        { "old_file": "src/physics/smooth_force/joint_passive/plan.rs", "old_line": 53, "new_file": "src/physics/smooth_force/joint_passive/kernels.rs", "new_line": 182 },
+        { "old_file": "src/physics/smooth_force/joint_passive/plan.rs", "old_line": 54, "new_file": "src/physics/smooth_force/joint_passive/kernels.rs", "new_line": 183 },
+        { "old_file": "src/physics/smooth_force/joint_passive/plan.rs", "old_line": 55, "new_file": "src/physics/smooth_force/joint_passive/kernels.rs", "new_line": 184 }
+    ],
+    "entry_status": [
+        { "entry": "joint_passive_validate", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/smooth_force/joint_passive/kernels.rs:182" ], "kernel_abi_evidence": [ "JointPassiveValidateSpec at src/physics/smooth_force/joint_passive/kernels.rs", "four-buffer launch at src/physics/smooth_force/joint_passive/kernels.rs:239" ] },
+        { "entry": "joint_passive_compute", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/smooth_force/joint_passive/kernels.rs:183" ], "kernel_abi_evidence": [ "JointPassiveComputeSpec", "four-buffer launch at src/physics/smooth_force/joint_passive/kernels.rs:275" ] },
+        { "entry": "joint_passive_sum", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/smooth_force/joint_passive/kernels.rs:184" ], "kernel_abi_evidence": [ "JointPassiveSumSpec", "four-buffer launch at src/physics/smooth_force/joint_passive/kernels.rs:312" ] }
+    ],
+    "families_add": [
+        { "type": "JointPassiveValidateSpec", "logical_name": "joint_passive_validate", "definition": "src/physics/smooth_force/joint_passive/kernels.rs", "actual_cuda_entries": "joint_passive_validate", "typed_low_level_calls": [ "src/physics/smooth_force/joint_passive/kernels.rs:239" ] },
+        { "type": "JointPassiveComputeSpec", "logical_name": "joint_passive_compute", "definition": "src/physics/smooth_force/joint_passive/kernels.rs", "actual_cuda_entries": "joint_passive_compute", "typed_low_level_calls": [ "src/physics/smooth_force/joint_passive/kernels.rs:275" ] },
+        { "type": "JointPassiveSumSpec", "logical_name": "joint_passive_sum", "definition": "src/physics/smooth_force/joint_passive/kernels.rs", "actual_cuda_entries": "joint_passive_sum", "typed_low_level_calls": [ "src/physics/smooth_force/joint_passive/kernels.rs:312" ] }
+    ],
+    "next_candidate": { "selected": false, "entry": "passive_force_clear", "migration_status": "unmigrated_or_unwrapped", "compile_sites": [ "src/physics/passive_force/construct.rs:119" ], "reason": "关节被动力已收口；继续共享被动力阶段四入口" },
+    "manual_cross_checks_add": [
+        "work-21: 关节被动力三入口改走类型化包装；raw 行 -5、typed 行 +3、编排行 +5",
+        "work-21: 元数据证明校验首尾守卫、关节种类、qpos偏移区间、关节号与局部自由度；状态与输出按世界精确跨度校验",
+        "work-21: 求和入口槽位1为共享分部宽度（2*worlds*nv）、槽位2未读只要求非空，结果缓冲按四字段满载宽度精确校对；工作量由静态维度推导",
+        "work-21: 三入口复用四缓冲raw helper（launchers_passive.rs 新增 launch_joint_passive 与共用执行体）；GPU 定向 joint_passive 3 过、passive 过滤 9 过 2 红（仍为 gravity 共享链回归）"
+    ],
+    "acceptance_boundary_set": { "joint_passive_migrated": true, "joint_passive_raw": false }
+}

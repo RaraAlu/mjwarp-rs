@@ -286,6 +286,15 @@ path = "src/physics/com_position/kernels.rs"
 [[source]]
 path = "src/physics/com_position/tests/launcher.rs"
 
+[[source]]
+path = "src/physics/smooth_force/joint_passive/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/smooth_force/joint_passive/kernels.rs"
+
+[[source]]
+path = "src/physics/smooth_force/joint_passive/launcher_tests.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::forward::step"

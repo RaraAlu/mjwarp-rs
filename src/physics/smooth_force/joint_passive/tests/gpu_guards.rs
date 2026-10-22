@@ -56,11 +56,15 @@ fn gpu_rejects_bad_joint_sources_without_publishing_partial_parts() {
     ] {
         let mut old = [0];
         plan.metadata.read_range_into(index, &mut old).unwrap();
-        plan.metadata.write_range(index, &[i32::MAX]).unwrap();
+        plan.metadata
+            .corrupt_device_for_validator_test(index, &[i32::MAX])
+            .unwrap();
         let before = bits(&raw(&d.current));
         assert!(plan.update_joint(&mut d).is_err());
         assert_eq!(before, bits(&raw(&d.current)));
-        plan.metadata.write_range(index, &old).unwrap();
+        plan.metadata
+            .corrupt_device_for_validator_test(index, &old)
+            .unwrap();
         plan.update_joint(&mut d).unwrap();
         faults += 1;
     }
