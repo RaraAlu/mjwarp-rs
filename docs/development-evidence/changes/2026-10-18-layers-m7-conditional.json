@@ -1,0 +1,17 @@
+{
+    "schema":  1,
+    "kind":  "delivery",
+    "task_id":  "2026-10-18-layers-m7-conditional",
+    "milestones":  {
+                       "implementation":  "complete",
+                       "validation":  "passed",
+                       "delivery_record":  "complete"
+                   },
+    "files":  [
+                  {
+                      "path":  "docs/development-evidence/layers-w12.md",
+                      "blob":  "c872d82893362809ceb8faf82923f0c5cb31ff06"
+                  }
+              ],
+    "note":  "仅评审，不实现、不升级依赖、不改代码。结论：有条件批准 W12 条件图节点路线，实施延后并另立交付任务，不自动批准实现；不宣称条件图或 G14/G15 已实现。事实基线：cudarc 0.18.2 已有 cuda-12030 feature 与条件节点绑定（CUgraphNodeParams.conditional、CUDA_CONDITIONAL_NODE_PARAMS、CU_GRAPH_NODE_TYPE_CONDITIONAL=13、CUgraphConditionalNodeType IF/WHILE、cuGraphConditionalHandleCreate），当前 Cargo.toml 锁 cuda-12000 因而未编译进产品；cuGraphAddNode 自 12020、条件句柄自 12030；本机 nvidia-smi 驱动 596.36/CUDA 13.2、驱动 API 13020，满足接口门槛；冻结 Warp 对 <12.3 判定捕获不可靠、<12.4 条件节点不可用，建议产品按 12.4 保守冻结。G14/G15 需求：设备端整数条件量（每图 1 个 i32，语义为未收敛世界数）、条件 while 节点包裹一个 body 图，body 含一个或多个既有安全包装内核；循环体内核写 0 终止，宿主不逐次查询，重放返回完成凭证并按捕获节点读写集登记账本；graph_conditional=false 回退宿主循环，两路径等价由 G14/G15 任务验收。上游用法：冻结 solver.py:3994 wp.capture_while、derivative.py PCG、collision_flex.py FPS；capture_if 未在求解路径出现，列入后续扩展不冻结。现状缺口：统一发射器图面（M6 9ea28e9）只是宿主策略层，无真实 CUDA 图捕获/实例化/重放调用；旧 ProbeGraph 只接受内核节点、无通用加节点与条件句柄，不能作为产品基础；M4 c0a56b8 的 launch_l2 已拒绝捕获期发射，M5 fbbefd9 提供完成凭证与账本，M6 提供上下文互斥与真实预分配（TransferSession::preallocate），可作为边界前置。feature 升级影响：cuda-12000→cuda-12030 只改编译期绑定集合，现有 sys 符号 cfg 仍包含、CUDA_KERNEL_NODE_PARAMS 对 12.0-12.3 仍为 v2，旧探针图预期兼容；建议升级与条件节点实现分两个提交、两个验收面；回退方案为手写 extern C 动态加载但须另立评审。前置条件：冻结条件节点 ABI（WHILE、图内句柄、条件缓冲 i32 单元素且按地址类禁重绑）、驱动门槛与 cuDriverGetVersion/设备能力核对及回退、feature 升级单独全量 gate、真实图捕获/实例化/重放与 M5/M6 接线、graph_conditional 默认与回退语义、GPU 测试覆盖（版本不足拒绝、while 多轮、地址禁重绑、捕获期禁止分配/同步、失败隔离、完成凭证、资源回收）、内核/PTX/容差/fixtures 不动、无 Python、Linux 另行评审。本轮未升级 feature、未实现条件节点、未改图捕获、未跑 GPU 条件图测试，未宣称 G14/G15 或精度验收。"
+}
