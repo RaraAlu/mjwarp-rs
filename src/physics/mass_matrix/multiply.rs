@@ -2,17 +2,44 @@
 mod borrowed;
 mod cuda;
 mod data;
+#[cfg(feature = "cuda-probe")]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+mod launcher_abi;
+#[cfg(feature = "cuda-probe")]
+mod launcher_meta;
+#[cfg(feature = "cuda-probe")]
+mod launcher_specs;
+#[cfg(feature = "cuda-probe")]
+mod metadata_buffer;
 mod plan;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+#[path = "multiply/tests/launcher.rs"]
+mod tests_launcher;
 
 pub use borrowed::{
     MassMatrixEnergyData, MassMatrixEnergyPlan, MassMatrixEnergySnapshot, MassMatrixEnergyView,
 };
 pub use borrowed::{MassMatrixMultiplyData, MassMatrixMultiplyPlan, MassMatrixMultiplyView};
 
+#[cfg(feature = "cuda-probe")]
+use self::kernels::{MassMultiplyComputeKernel, MassMultiplyValidateKernel};
+#[cfg(feature = "cuda-probe")]
+use self::metadata_buffer::MassMultiplyMetadataBuffer;
 use crate::diagnostics::InputError;
+#[cfg(feature = "cuda-probe")]
+use crate::diagnostics::TransferError;
 use crate::model::{BatchLayout, SparseMassInput};
+#[cfg(all(feature = "cuda-probe", test))]
+use crate::runtime::launcher::DeviceSpan;
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
 #[cfg(feature = "cuda-probe")]
 use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
 use std::sync::Arc;
@@ -29,18 +56,18 @@ pub struct MassMultiplyPlan {
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 2],
+    validate: MassMultiplyValidateKernel,
+    #[cfg(feature = "cuda-probe")]
+    compute: MassMultiplyComputeKernel,
 }
 pub struct MassMultiplyData {
     input: Arc<SparseMassInput>,
     format: MassMultiplyFormat,
     matrix_layout: BatchLayout,
     vector_layout: BatchLayout,
-    #[cfg(feature = "cuda-probe")]
-    skip_offset: usize,
     ready: bool,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: MassMultiplyMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
     matrix: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]

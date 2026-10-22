@@ -9,6 +9,10 @@ use std::sync::Arc;
 
 #[cfg(feature = "cuda-probe")]
 use super::cuda::CUDA;
+#[cfg(feature = "cuda-probe")]
+use super::launcher_abi::MassMultiplyStaticDims;
+#[cfg(feature = "cuda-probe")]
+use super::launcher_meta::mass_multiply_validate_launch_error;
 use super::*;
 
 impl MassMultiplyPlan {
@@ -48,10 +52,8 @@ impl MassMultiplyPlan {
                 format,
                 metadata: meta,
                 session: session.clone(),
-                kernels: [
-                    SynchronousKernel::compile(session, &source, "mass_multiply_validate")?,
-                    SynchronousKernel::compile(session, &source, "mass_multiply")?,
-                ],
+                validate: MassMultiplyValidateKernel::compile(session, &source)?,
+                compute: MassMultiplyComputeKernel::compile(session, &source)?,
             })
         }
     }
@@ -82,6 +84,21 @@ impl MassMultiplyPlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
+            let count = self
+                .metadata
+                .len()
+                .checked_sub(n + 1)
+                .map(|value| value / 2)
+                .ok_or(InputError::InvalidTopology {
+                    field: "mul_m_metadata",
+                    index: 0,
+                    reason: "missing_row_offsets",
+                })?;
+            let static_dims = MassMultiplyStaticDims::new(n, mc, count)
+                .map_err(mass_multiply_validate_launch_error)?;
+            let worlds_u32 = u32::try_from(worlds).map_err(|_| InputError::Overflow {
+                field: "mul_m_worlds",
+            })?;
             let allocate = |len, initial| {
                 let mut v = crate::runtime::host_staging::<f32>(len + 8)?;
                 v.fill(-131072.0);
@@ -93,9 +110,13 @@ impl MassMultiplyPlan {
                 format: self.format,
                 matrix_layout,
                 vector_layout,
-                skip_offset: self.metadata.len(),
                 ready: false,
-                metadata: self.session.upload(&meta)?,
+                metadata: MassMultiplyMetadataBuffer::upload(
+                    &self.session,
+                    meta,
+                    static_dims,
+                    worlds_u32,
+                )?,
                 matrix: allocate(matrix_layout.total_elements(), 0.0)?,
                 alternate: allocate(matrix_layout.total_elements(), f32::NAN)?,
                 vector: allocate(vector_layout.total_elements(), 0.0)?,
@@ -139,27 +160,15 @@ impl MassMultiplyPlan {
                 || vec![0; data.worlds()],
                 |v| v.iter().map(|&s| i32::from(s)).collect::<Vec<_>>(),
             );
-            data.metadata.write_range(data.skip_offset, &flags)?;
-            let n = self.input.nv() as u32;
-            let mc = data.matrix_layout.elements_per_world() as u32;
+            data.metadata.write_skip(&flags)?;
             let w = data.worlds() as u32;
-            let so = data.skip_offset as u32;
             let matrix = if alternate {
                 &data.alternate
             } else {
                 &data.matrix
             };
-            // SAFETY: Same-plan buffers own checked guarded world strides. The
-            // validator only reads inputs and writes one disjoint status/world.
-            unsafe {
-                self.kernels[0].launch(
-                    &data.metadata,
-                    matrix,
-                    &data.vector,
-                    &mut data.status,
-                    [n, mc, so, w],
-                )?;
-            }
+            self.validate
+                .launch(&data.metadata, matrix, &data.vector, &mut data.status, w)?;
             let mut status = crate::runtime::host_staging::<f32>(data.worlds() + 8)?;
             data.status.read_range_into(0, &mut status)?;
             crate::physics::check_device_values(&status, "mul_m_status")?;
@@ -171,17 +180,9 @@ impl MassMultiplyPlan {
                 }
                 .into());
             }
-            // SAFETY: Metadata mirrors validated CSR addresses, or static dense
-            // columns fit n. Each thread owns one output; skip never writes it.
-            unsafe {
-                self.kernels[1].launch(
-                    &data.metadata,
-                    matrix,
-                    &data.vector,
-                    &mut data.output,
-                    [n, mc, so, w * n],
-                )?;
-            }
+            // 计算内核读取已证明的CSR地址或静态稠密列；每线程独占一个输出。
+            self.compute
+                .launch(&data.metadata, matrix, &data.vector, &mut data.output, w)?;
             data.checked_values()?;
             data.ready = true;
             Ok(())

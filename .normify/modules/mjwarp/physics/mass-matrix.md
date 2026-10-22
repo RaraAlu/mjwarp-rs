@@ -97,6 +97,24 @@ path = "src/physics/mass_matrix/multiply/cuda.rs"
 [[source]]
 path = "src/physics/mass_matrix/multiply/tests.rs"
 
+[[source]]
+path = "src/physics/mass_matrix/multiply/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/multiply/launcher_specs.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/multiply/launcher_meta.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/multiply/metadata_buffer.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/multiply/kernels.rs"
+
+[[source]]
+path = "src/physics/mass_matrix/multiply/tests/launcher.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::probe_mass_matrix"

@@ -113,7 +113,7 @@ fn gpu_multiplies_dense_and_sparse_with_skip_and_independent_alternate() {
                                 + data.vector.len()
                                 + data.output.len()
                                 + data.status.len()
-                                + data.metadata.len()),
+                                + data.metadata.as_buffer().len()),
                         );
                         batches += 1;
                     }
