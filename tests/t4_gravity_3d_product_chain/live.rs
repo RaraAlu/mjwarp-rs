@@ -158,6 +158,31 @@ fn live_three_d_product_chain_matches_frozen_upstream() {
     }
     let product_rigid_bits: Vec<Vec<u32>> = product_rigid.iter().map(|f| bits(f)).collect();
     let (product_subtree_bits, product_cdof_bits) = (bits(&product_subtree), bits(&product_cdof));
+    if std::env::var_os("MJWARP_U038_DUMP_PRODUCT").is_some() {
+        let names = ["xpos", "xquat_wxyz", "xmat", "xipos", "xanchor", "xaxis"];
+        let mut fields = Vec::new();
+        for (name, bits) in names.iter().zip(&product_rigid_bits) {
+            fields.push(serde_json::json!({
+                "field": name,
+                "count": bits.len(),
+                "bits": hex_bits(bits),
+            }));
+        }
+        fields.push(serde_json::json!({
+            "field": "subtree_com",
+            "count": product_subtree_bits.len(),
+            "bits": hex_bits(&product_subtree_bits),
+        }));
+        fields.push(serde_json::json!({
+            "field": "cdof",
+            "count": product_cdof_bits.len(),
+            "bits": hex_bits(&product_cdof_bits),
+        }));
+        write_json(
+            evidence_directory.join("product-fields-raw.json"),
+            &serde_json::json!({"schema": 1, "provenance": "u038_first_diff", "fields": fields}),
+        );
+    }
     let mut product_source_input = gravity_input(&model_package, &input, &upstream);
     product_source_input.xipos = product_rigid[3].clone();
     product_source_input.subtree_com = product_subtree.clone();

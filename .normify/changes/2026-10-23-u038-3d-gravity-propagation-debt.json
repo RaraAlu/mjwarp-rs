@@ -5,7 +5,7 @@
     "zh": "U038三维链重力传播超差债务",
     "en": "U038 3D chain gravity propagation debt"
   },
-  "status": "proposed",
+  "status": "abandoned",
   "intent": {
     "zh": "跟踪 2026-10-16-next-u038-3d 收尾遗留：冻结参考修复后，产品链运动学八字段全部 0 超差、重力算子 77/77 位差为 0，但全链 qfrc_gravcomp 仍有 8/77 项超 2e-6（max 4.29e-6）。差额来自产品运动学与上游的 f32 算序末位差（cdof max 1.79e-7 等）经重力高增益（Σm·gc·|g|≈95.6）传播，不是重力算子错误。任务目标：先做首差定位，判断能否把 3D 自由/球关节路径的运动学 f32 算序对齐到上游（目标全链 0 超差）；若对齐不可达或需改验收比较口径，则形成证据报用户/Chief 裁决。不预设允许改容差、断言或排除清单。",
     "en": "Track the U038-3D close-out gap: after fixing the frozen reference, all 1400 product kinematics values are within 2e-6 and the gravity operator matches upstream bit-exactly (77/77 zero bit differences), yet the full-chain qfrc_gravcomp still has 8/77 values outside 2e-6 (max 4.29e-6). The gap is f32 op-order propagation from product kinematics (cdof max 1.79e-7) amplified by the gravity gain (sum m*gc*|g| ~= 95.6), not an operator error. Goal: first-difference analysis on the free/ball kinematics path; align product f32 op order to upstream if reachable (target full chain 0 outside), otherwise produce evidence for a user/Chief ruling on the acceptance comparison basis. Tolerances, assertions and exclusion lists are not pre-authorized to change."
@@ -29,6 +29,7 @@
     "files": [
       "src/physics/",
       "tests/t4_gravity_3d_product_chain.rs",
+      "tests/t4_gravity_3d_product_chain/",
       "tests/t4_gravity_nonzero_product_chain.rs",
       "tests/support/t4_rigid_internal/",
       "fixtures/gravity-upstream-abi/",
@@ -45,13 +46,14 @@
     ],
     "priority": 82
   },
-  "note": "2026-10-23 由 U038-3D 收尾登记（proposed，不 start）。前序证据：docs/development-evidence/u038-3d/README.md、triage.json、run.json。当前实测：运动学 1400 项 0 超差、gravity_operator 0/77 位差、全链 qfrc 8/77 超差 max 4.29e-6；2e-6 容差与断言语义未改。本任务不预设放宽容差或改断言；若需改验收比较口径（例如同源比较 + 传播单列）必须另行裁决。\n\n2026-10-23 Chief 裁决 B：U038-3D 按有界规则 abandon 收口（不宣称通过），本任务为遗留债务跟踪，保持 proposed，等用户是否优先修。验收已补：1477 项 0 超差、容差/断言不变、产品须覆盖 free+ball+hinge+slide 混合关节。",
+  "note": "2026-10-23 由 U038-3D 收尾登记（proposed，不 start）。前序证据：docs/development-evidence/u038-3d/README.md、triage.json、run.json。当前实测：运动学 1400 项 0 超差、gravity_operator 0/77 位差、全链 qfrc 8/77 超差 max 4.29e-6；2e-6 容差与断言语义未改。本任务不预设放宽容差或改断言；若需改验收比较口径（例如同源比较 + 传播单列）必须另行裁决。\n\n2026-10-23 Chief 裁决 B：U038-3D 按有界规则 abandon 收口（不宣称通过），本任务为遗留债务跟踪，保持 proposed，等用户是否优先修。验收已补：1477 项 0 超差、容差/断言不变、产品须覆盖 free+ball+hinge+slide 混合关节。\n放弃：2026-10-23 有界两轮收口（第 1 轮定位即达有界结论，未开第 2 轮实现）。首差定位：加环境变量开关导出产品八字段原始位（不改断言/容差），与冻结上游逐字段比对——xpos/xipos/xanchor 最早位差在 world2 body3（b3 hinge，父为 b2 ball），而 body2 自身 xpos/xquat 逐位一致；结论首差在「用父姿态旋转子体/关节局部量 + 四元数组合」路径（rotate/multiply/normalize），排除重力算子、参数映射与参考矩阵。与生成参考同一 Warp 缓存 smooth.cu 逐式对照：产品基元与上游生成代码代数和乘加顺序一致，差异属 NVRTC FMA 收缩选择不同（同 G03 矩阵链类），单点不可达；需按上游 PTX 逐表达式固定算序的系统性任务（产品源码 + T4 repin），超出本轮有界范围。未改容差/断言/排除清单，产品源码未改。证据 docs/development-evidence/u038-3d/first-diff-round1.md 与 product-fields-raw.json。建议另立「三维运动学 PTX 算序对齐」任务或由用户裁决保留为已知债务。",
   "revision": {
-    "before": "ae3a2b78e40912c4b03584e2ad7033c5cc24389c",
+    "before": "f98dc343e76872f8d5c6edd78154be6c3144e817",
     "after": null
   },
   "created_at": "2026-10-23T02:45:00.000Z",
-  "updated_at": "2026-10-23T02:45:00.000Z",
+  "updated_at": "2026-10-22T19:10:00.673Z",
+  "closed_at": "2026-10-22T19:10:00.673Z",
   "checks": [
     {
       "kind": "gate",

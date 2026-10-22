@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-u038-3d-gravity-propagation-debt",
+  "milestones": {
+    "implementation": "blocked",
+    "validation": "partial",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/u038-3d/first-diff-round1.md",
+      "blob": "0e9af0262182b402632d90d69084df847d2807a0"
+    },
+    {
+      "path": "docs/development-evidence/u038-3d/product-fields-raw.json",
+      "blob": "1c7d19f936cfb2bb4c53382252bf31479d78185f"
+    }
+  ],
+  "note": "有界两轮第 1 轮定位结论：先加环境变量开关 dump 产品八字段原始位（不改变断言/容差/比较逻辑），与冻结上游逐字段比对。首差映射：xpos/xipos/xanchor 最早出现在 world2 body3（b3 hinge，父为 b2 ball），而 body2 自身 xpos/xquat 逐位一致 → 首差在「用父姿态旋转子体/关节局部量 + 四元数组合」路径（rotate/multiply/normalize），不是重力算子、参数映射或参考矩阵（这些此前已分别验证/修复）。与生成参考所用同一 Warp 缓存 smooth.cu 逐式对照：产品 rotate/multiply/normalize 与上游生成代码代数与乘法/加法顺序一致，差异属 NVRTC FMA 收缩选择不同（与 G03 矩阵链同类）。结论：单点不可达，需按上游 PTX 逐表达式固定算序的系统性任务（产品源码 + T4 repin），本轮有界停手；未改容差/断言/排除清单，产品源码未改。证据：docs/development-evidence/u038-3d/first-diff-round1.md 与 product-fields-raw.json。"
+}
