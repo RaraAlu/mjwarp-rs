@@ -1,0 +1,18 @@
+{
+    "schema": 1,
+    "kind": "delivery",
+    "task_id": "2026-10-18-layers-a2",
+    "milestones": {
+        "implementation": "complete",
+        "validation": "passed",
+        "delivery_record": "complete"
+    },
+    "files": [
+        {"path": "src/model/data/layout.rs", "blob": "35fb8da2e550b99e846e89eb863569785c7b675e"},
+        {"path": "src/model/data/mod.rs", "blob": "a3d9c59ecd024726141dfe17d465fbf5f076517d"},
+        {"path": "src/model/mod.rs", "blob": "72569a7fc71ee2d4d27d51719eed0675b5394bf5"},
+        {"path": "src/render/mod.rs", "blob": "c7fc3821e287444bb92627ffa4c310c1e7f40d7a"},
+        {"path": "tests/layer_render_layout.rs", "blob": "e44a3b25774f1e15b9a088e068b1baf0021e1bcf"}
+    ],
+    "note": "A2 渲染布局归属：按A1设备数据契约把连续批量布局`BatchLayout`从`model`根迁入`model::data::layout`（A1 布局契约文件），定义、方法与其四个宿主单测一并迁移；`model`根保留`pub use data::layout::BatchLayout`兼容导出，旧路径`mjwarp_rs::model::BatchLayout`、`crate::model::BatchLayout`全部保留，所有既有调用点不改。`model::data`同时再导出`BatchLayout`，使设备数据归属自洽。渲染侧`ImageBatchLayout`不再持有根模块批量类型，改持`model::data::DeviceDataLayout`（设备数据布局契约），像素批次、四字节深/RGB与八字节分割尺寸检查语义保持不变；渲染因此只依赖设备布局契约。验证：`cargo check --locked`与`--features cuda-probe`通过；fmt通过；clippy --all-targets双配置`-D warnings`通过；lib单测270项通过；新增`tests/layer_render_layout.rs`6项通过：兼容导出类型同一、密集世界区间、空批次、零世界/零元素字节/越界世界拒绝、步长与切片容量溢出拒绝、设备布局守卫跨度与宽输出最小长度、ImageBatchLayout尺寸/世界数/像素索引/RGB深度分割缓冲区字节与分割双标量区间、空世界/零宽/零高/乘积溢出/禁用输出/行列入界拒绝。未验收边界：本任务只迁移布局归属，不实现像素生成、BVH、图编排或GPU批量渲染，不宣称批量渲染功能完成；渲染对外公开签名保持不变；不改相机列表、内核与容差；未新增双平台或性能证据。"
+}

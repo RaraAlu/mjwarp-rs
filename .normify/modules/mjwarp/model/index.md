@@ -2,7 +2,7 @@
 uid = "b1afcc5a"
 id = "mjwarp.model"
 tags = ["planned", "engine", "model"]
-fingerprint = "273759ab6f43ab44d1439dd2218388c72382ca3ebd74e2979db0e2eef5079af0"
+fingerprint = "f4012e400d323013a8fa347d283ad96f7fa8677a8f974c6eda92af0b207c6f1c"
 
 [name]
 zh = "模型与状态布局"

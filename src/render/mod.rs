@@ -4,7 +4,7 @@
 use std::ops::Range;
 
 use crate::diagnostics::InputError;
-use crate::model::BatchLayout;
+use crate::model::data::DeviceDataLayout;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct OutputChannels {
@@ -23,9 +23,10 @@ pub enum ImageOutput {
 /// 连续布局 `[world, row, column]`。
 /// RGB为u32，深度为f32。
 /// 分割包含i32的ID与类型。
+/// A2起像素布局只依赖设备数据布局契约。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ImageBatchLayout {
-    pixels: BatchLayout,
+    pixels: DeviceDataLayout,
     width: usize,
     height: usize,
     channels: OutputChannels,
@@ -47,12 +48,12 @@ impl ImageBatchLayout {
         let pixels_per_world = width.checked_mul(height).ok_or(InputError::Overflow {
             field: "image_layout",
         })?;
-        let pixels = BatchLayout::new(worlds, pixels_per_world, 1)?;
+        let pixels = DeviceDataLayout::new(worlds, pixels_per_world, 1)?;
         if channels.rgb || channels.depth {
-            BatchLayout::new(worlds, pixels_per_world, 4)?;
+            DeviceDataLayout::new(worlds, pixels_per_world, 4)?;
         }
         if channels.segmentation {
-            BatchLayout::new(worlds, pixels_per_world, 8)?;
+            DeviceDataLayout::new(worlds, pixels_per_world, 8)?;
         }
         Ok(Self {
             pixels,

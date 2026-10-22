@@ -1,9 +1,8 @@
 +++
 uid = "a66a7856"
 id = "mjwarp.render"
-state = "planned"
 tags = ["planned", "engine", "render"]
-fingerprint = "6575f51f593535bfed06c4a7deac4a0f6d62d7bac433e964774b3e8f32f91f42"
+fingerprint = "7a48f69009f078acee75f14d785124385f219ea51f77102fddad1f3e0890cf1a"
 
 [name]
 zh = "GPU批量渲染"
@@ -225,3 +224,14 @@ BVH与GPU批量渲染仍待实现。
 本轮不激活产品模块。
 
 证据：C:/Rust/mjwarp-rs/docs/foundation-architecture.md。
+
+## A2 布局归属
+
+2026-10-22：渲染布局改依赖设备数据定义。
+ImageBatchLayout只持有设备数据布局。
+批量布局宿主类型已迁入model::data。
+旧model::BatchLayout路径保留兼容。
+本归属不改变渲染功能状态。
+BVH与GPU批量渲染仍待实现。
+
+证据：C:/Rust/mjwarp-rs/docs/development-evidence/changes/2026-10-18-layers-a2.json。

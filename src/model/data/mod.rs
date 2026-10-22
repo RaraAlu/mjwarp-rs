@@ -8,7 +8,7 @@ pub mod layout;
 pub mod lifecycle;
 
 pub use batch::{DeviceBatch, FieldBatch, WorldBatch};
-pub use layout::{DeviceDataLayout, GUARD_SLOTS, GUARD_SLOTS_PER_END};
+pub use layout::{BatchLayout, DeviceDataLayout, GUARD_SLOTS, GUARD_SLOTS_PER_END};
 pub use lifecycle::{
     CheckedMetadata, DataIdentity, DataLifecycle, DeviceModelData, LayoutIdentity,
     MetadataProofOwner, MetadataProofRevision, ModelIdentity, SessionBinding,
