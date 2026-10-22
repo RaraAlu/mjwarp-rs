@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-22-g03-parity-precheck",
+  "probe": "tests/mass_solve_probe（cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test mass_solve_probe -- --ignored --test-threads=1 --nocapture）",
+  "environment": {
+    "platform": "Windows x86_64 MSVC",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "cuda": "12.8.1（target/toolchains/cuda-12.8.1）",
+    "mujoco": "3.12.0（target/toolchains/mujoco-3.12.0/package）",
+    "cargo_target_dir": "target/bisect-rotate（两个 worktree 共用）"
+  },
+  "bisec": [
+    {
+      "commit": "c74aede",
+      "date": "2026-10-15",
+      "description": "8a5bac0（旋转分组重写）之前",
+      "passed": 6,
+      "failed": 0,
+      "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 2 filtered out",
+      "log": "target/bisect-before-rotate.log"
+    },
+    {
+      "commit": "8a5bac0",
+      "date": "2026-10-15 09:11",
+      "description": "修复(U038): 对齐非零位形旋转链（rotate 改为冻结 Warp 的 dot/cross 分组）",
+      "passed": 3,
+      "failed": 3,
+      "result": "test result: FAILED. 3 passed; 3 failed; 0 ignored; 2 filtered out",
+      "np03_failed_blocks": {
+        "G03-factors-and-rhs": 2,
+        "G03-native-snapshots": 2,
+        "G03-rhs-counts": 6
+      },
+      "log": "target/bisect-after-rotate.log"
+    }
+  ],
+  "current_master": {
+    "commit": "10913ce",
+    "np03_failed_blocks": {
+      "G03-factors-and-rhs": 2,
+      "G03-native-snapshots": 2,
+      "G03-rhs-counts": 6
+    },
+    "failed_elements": [
+      {"case": 4, "world": 4, "rhs": 1, "index": 0, "native": -0.413783492, "our": -0.414156, "upstream": -0.414045155, "our_normalized": 1.3181156248560328, "upstream_normalized": 0.9253983035431967, "redline": 0.9716682187203566},
+      {"case": 4, "world": 4, "rhs": 2, "index": 3, "our_normalized": 1.1674567649562604, "upstream_normalized": 0.4401140039633526, "redline": 0.46211970416152026}
+    ],
+    "source": "target/g01-acceptance/9bd3489f5b4542409f104f5feac1c4fb/all-probes.log"
+  },
+  "historical_evidence_2026_10_12": {
+    "source": "fixtures/mjwarp-mass-solve/first-difference/acceptance.json",
+    "np03_failed_blocks": {
+      "G03-factors-and-rhs": 0,
+      "G03-batches": 0,
+      "G03-native-snapshots": 0,
+      "G03-rhs-counts": 0,
+      "G03-recovery": 0
+    },
+    "evaluated_blocks": {
+      "G03-factors-and-rhs": 240,
+      "G03-batches": 6410,
+      "G03-native-snapshots": 240,
+      "G03-rhs-counts": 152,
+      "G03-recovery": 5
+    }
+  },
+  "root_cause_evidence": {
+    "upstream_block": "mixed-joints 单个 11 维 tile_cholesky 块（upstream_address=0）",
+    "upstream_generated_cuda": {
+      "factorize": "wp.tile_cholesky_inplace 生成调用 potrf_11_11_1_89_32_1_1_5_x_x_0（MathDx cuSOLVER potrf LTO）",
+      "solve": "wp.tile_cholesky_solve 生成调用 potrs_11_11_1_89_64_1_1_5_x_x_0（MathDx cuSOLVER potrs LTO）",
+      "source": "target/g03-block-reference/warp-cache/1.15.0/wp__tile_cholesky_{factorize,solve}_block__locals__kernel_*/*.cu（本机 authoring 缓存，gitignored）"
+    },
+    "product_side": "src/physics/mass_solve/cuda.rs 的 rigid_mass_solve 内核：自研列式 Cholesky + 前代/回代，tile 分支仿真 MathDx 的 rsqrt.approx 与 mul/sub 融合约束；自 2026-10-12 首差修复后内核文本未变",
+    "kinematics_change": "8a5bac0 将 rotate 从直接展开改成冻结 Warp 的 dot/cross 分组（T4 非零链 1134 项逐位一致），改变 f32 舍入并暴露 mass_solve 剩余差异",
+    "reference_authoring": "fixtures/mjwarp-mass-solve/reference.py：Python 3.12 + mujoco 3.15.0 + warp-lang 1.15.0 + 固定 mujoco_warp 提交；module_options fuse_fp=true、fast_math=false；产品测试不得启动 Python"
+  },
+  "reproduce": {
+    "offline_dump": "docs/development-evidence/g03-parity-precheck/dump_probe.rs（复制进临时 cargo 包，path 依赖仓库根 + features=[\"cuda-probe\"]，cargo +1.99.0-x86_64-pc-windows-msvc run --offline）",
+    "dump_report": "docs/development-evidence/g03-parity-precheck/report.json",
+    "bisect": "git worktree add <repo>\\target\\wt-before 8a5bac0~1；git worktree add <repo>\\target\\wt-after 8a5bac0；共用 CARGO_TARGET_DIR=target/bisect-rotate，按 README 的命令运行 mass_solve_probe"
+  },
+  "boundary": [
+    "只预检、未实现修复；未改产品代码、测试、容差、fixtures、脚本",
+    "未宣称 G03/NP01–NP04/release/Linux 通过",
+    "未重制冻结参考、未启用 MathDx 或 nvJitLink",
+    "不 start 2026-10-16-next-g03-parity；路线选择需 Chief/用户裁决"
+  ]
+}

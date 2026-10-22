@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-g03-parity-precheck",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "docs/development-evidence/g03-parity-precheck/README.md", "blob": "58f37b1243924fd2d6f3bf66a3783570b87a5424"},
+    {"path": "docs/development-evidence/g03-parity-precheck/dump_probe.rs", "blob": "8dc402daf4caa2a7995eb0869387e037b6d6e21d"},
+    {"path": "docs/development-evidence/g03-parity-precheck/report.json", "blob": "fe01ed693d6c5e978964966380093a295e5da7b2"},
+    {"path": "docs/development-evidence/g03-parity-precheck/bisect.json", "blob": "a0e1621513e6e598aec2ed3db71b7059040ae05d"}
+  ],
+  "note": "对 3 项 mass_solve_probe 准入缺口做可行性预检（不 start 2026-10-16-next-g03-parity，不改产品代码/测试/容差/fixtures）。复现：离线诊断工具 dump_probe.rs 只读冻结 fixtures 与产品 GPU 探针，精确复现 NP03 值——case4/world4 solution 的 rhs1/rhs2 本库归一化误差 1.3181156248560328/1.1674567649562604，冻结上游对照分数 0.9253983035431967/0.4401140039633526，红线 0.9716682187203566/0.46211970416152026；失败元素为 rhs1 idx0 与 rhs2 idx3；同块因子（ld/diagonal_inverse）仍被准入，缺口集中在求解阶段。逐提交对照：c74aede 上 mass_solve_probe 6 过 0 败，8a5bac0（对齐非零位形旋转链，rotate 改为冻结 Warp 的 dot/cross 分组）上 3 过 3 败，缺口在该提交出现；该提交本身是对上游的正确对齐（T4 非零链 1134 项逐位一致），它暴露了产品解算相对上游 MathDx cuSOLVER potrf/potrs 的剩余 f32 算序差异（authoring 缓存生成 CUDA 调用 potrf_11_.../potrs_11_...；产品侧 src/physics/mass_solve/cuda.rs 为自研列式 Cholesky+回代并仿真 MathDx 的 rsqrt.approx 与乘减融合约束）。历史对照：2026-10-12 首差专项 NP03 三域 0 失败（240/240/152 块），当前 2/240、2/240、6/152 失败。可修性结论：缺口可本机观测与尝试修复，测量不需要外部参考/nvJitLink/MathDx；推荐路线 A1 为继续首差方法、用本机离线材料（pinned venv、authoring 缓存 LTO/fatbin、CUDA nvdisasm）反推并对齐 MathDx potrf/potrs 指令序，改动面在 src/physics/mass_solve，需 T4 源码身份重钉与双模式定向回归，风险是 potrs 闭源反推工作量大且逐位一致不保证；路线 A2（只提高精度不对齐上游）改变数值口径需精度契约解释；路线 B（nvJitLink 链接 MathDx LTO、重制冻结参考、调整 5% 准入策略）分别受 M7/W13 未实现与许可部署决策、需 pinned Python authoring 与基线口径用户裁决、用户 2026-10-11 冻结余量约束，均超出本机不引入外部组件前提。不建议直接 start 原 g03-parity：验收含完整双模式平台与 NP 全验收，范围旧、外部条件未冻结，应先由 Chief/用户裁决路线。边界：只预检未实现；未改产品/测试/容差/fixtures/脚本（unchanged 检查）；未宣称 G03 或 NP 验收通过；未跑 release/Linux；未启用 MathDx/nvJitLink。",
+  "evidence": {
+    "readme": "docs/development-evidence/g03-parity-precheck/README.md",
+    "dump_tool": "docs/development-evidence/g03-parity-precheck/dump_probe.rs",
+    "dump_report": "docs/development-evidence/g03-parity-precheck/report.json",
+    "bisect": "docs/development-evidence/g03-parity-precheck/bisect.json",
+    "bisect_logs": "target/bisect-before-rotate.log、target/bisect-after-rotate.log（本机日志，gitignored）",
+    "current_failure_log": "target/g01-acceptance/9bd3489f5b4542409f104f5feac1c4fb/all-probes.log（本机日志，gitignored）",
+    "historical_np03": "fixtures/mjwarp-mass-solve/first-difference/acceptance.json",
+    "original_task": "2026-10-16-next-g03-parity（proposed，未 start）"
+  }
+}
