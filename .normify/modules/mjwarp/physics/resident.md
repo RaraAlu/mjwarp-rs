@@ -1,7 +1,7 @@
 +++
 uid = "b1ed0f18"
 id = "mjwarp.physics.resident"
-fingerprint = "36aa97ba7a99998bb399433f2418be1842d5b3e0f40df17ff74850f44279e903"
+fingerprint = "cca5436344a6977bc98b6fa6361b9a1473fcf22671199e0c2d6ff2ce8701fabb"
 
 [name]
 zh = "常驻运动学与G01"
@@ -95,6 +95,12 @@ path = "src/physics/resident/tests/tendons.rs"
 
 [[source]]
 path = "src/physics/resident.rs"
+
+[[source]]
+path = "src/physics/resident/rigid_upload.rs"
+
+[[source]]
+path = "src/physics/resident/rigid_kinematics_tests.rs"
 
 [[apis]]
 protocol = "rpc"

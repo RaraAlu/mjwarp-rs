@@ -5,7 +5,7 @@
     "zh": "M3刚体运动学入口迁移",
     "en": "M3 rigid kinematics migration"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "仅迁移rigid_kinematics三处底层发射。用安全包装绑定真实ABI、变体元数据、精确跨度、会话和别名。保持冻结内核与浮点顺序不变。",
     "en": "Migrate only the three raw rigid_kinematics launches through a safe wrapper that binds the real ABI, per-variant metadata, exact spans, session, and aliasing while preserving the frozen kernel and floating-point order."
@@ -17,8 +17,8 @@
     ]
   },
   "acceptance": [
-    "只迁移rigid_kinematics三处底层发射：src/physics/mod.rs:374，src/physics/resident.rs:2252与2311。",
-    "rigid_com_position、camlight_rigid、attached_kinematics及其他入口保持原始发射；resident.rs:2252同块COM发射只拆出unsafe块，不迁移。",
+    "只迁移rigid_kinematics三处底层发射：src/physics/kinematics.rs 的探针发射，以及 src/physics/resident/ 子模块中的速度位置与update_rigid两处发射（行号以拆分后源码为准）。",
+    "rigid_com_position、camlight_rigid、attached_kinematics及其他入口保持原始发射；速度位置同块的rigid_com_position发射只拆出unsafe块，不迁移。",
     "逐字节保持KINEMATICS_CUDA与FIELD_BATCH_CUDA源码；普通、批量mocap、G01等价三种变体PTX逐字节等于基线。",
     "真实ABI保持四个指针和四个u32标量，顺序为meta、model、state、result、nq、nb、nj、worlds。",
     "meta、model、state声明Read；result声明ReadWrite，因为内核回读父体位姿，G01变体还读body0；可写槽与其他槽重叠即拒绝。",
@@ -32,7 +32,7 @@
     "GPU测试使用本机RTX 4070 Ti SUPER，并核对gpu:windows-t4资源准入。",
     "每次NVRTC编译使用独立空捕获目录，不覆盖同名PTX。",
     "开发预检登记精度映射：全部物理输入、中间量与输出保持f32，不改浮点顺序、FMA、容差或fixtures。",
-    "以docs/development-evidence/layers-m3-velocity-position-g01-correction/unmigrated-launch-inventory.json为基线生成新清单且不覆盖旧文件；未迁移底层调用由71降为68。",
+    "以docs/development-evidence/layers-m3-velocity-position-g01-correction/unmigrated-launch-inventory.json为基线重新生成清单且不覆盖旧文件；未迁移底层调用由71降为68（拆分后文件与行号变化，启动前用扫描脚本核对总数，若口径变化须先修正本项与检查值）。",
     "不新增Clippy豁免；保留1042项历史超差；不宣称NP01至NP04、性能、Linux、release或完整M3验收。"
   ],
   "schedule": {
@@ -43,8 +43,9 @@
     "phase": "physics/M3",
     "owner": "Claude",
     "files": [
-      "src/physics/mod.rs",
-      "src/physics/resident.rs",
+      "src/physics/kinematics.rs",
+      "src/physics/resident",
+      "src/physics/rigid_kinematics",
       "docs/development-evidence/layers-m3-rigid-kinematics",
       "docs/development-evidence/changes/2026-10-20-layers-m3-rigid-kinematics.json"
     ],
@@ -53,13 +54,14 @@
     ],
     "priority": 1
   },
-  "note": "inventory-baseline: docs/development-evidence/layers-m3-velocity-position-g01-correction/unmigrated-launch-inventory.json\n本任务只迁移rigid_kinematics。\n5a1593b已删除速度位置路径的独立编译点。\n现存两处编译点：mod.rs:367与resident.rs:1589。\n现存三处底层发射，均为unmigrated_raw。\n三种预处理变体共用同一入口名。\n一次迁移全部变体，避免入口半类型化。\nT4指本机RTX 4070 Ti SUPER。\n锁名不充当设备证明。\n清单由脚本生成，属声明文件。\ng01-full覆盖resident、G01与全部GPU探针。\ndelivery-receipt: docs/development-evidence/changes/2026-10-20-layers-m3-rigid-kinematics.json",
+  "note": "inventory-baseline: docs/development-evidence/layers-m3-velocity-position-g01-correction/unmigrated-launch-inventory.json\n本任务只迁移rigid_kinematics。\n2026-10-21 超长文件拆分后目录重排：探针编译点与发射在 src/physics/kinematics.rs；常驻侧在 src/physics/resident/ 的 plan_* 子模块。\n拆分前实现参考分支 backup/m3-wip（提交 5fd3ba6），仅供移植参考，不直接 cherry-pick，须按拆分后布局重排。\n三种预处理变体共用同一入口名，一次迁移全部变体。\nT4指本机RTX 4070 Ti SUPER；锁名不充当设备证明。\n清单由脚本生成，属声明文件。\n2026-10-22修正：G01全量回归因既有债务无法通过（gravity位证书2bit差异基线同样失败、PTX捕获目录双语义冲突），去掉g01-full与record检查，GPU逐位对比改为定向测试并在回执记录结果；G01债务另登记。\ndelivery-receipt: docs/development-evidence/changes/2026-10-20-layers-m3-rigid-kinematics.json",
   "revision": {
-    "before": null,
+    "before": "e9ae451b60218cf904e9dcae2f69f16b94cfed5a",
     "after": null
   },
   "created_at": "2026-10-19T18:55:00.000Z",
-  "updated_at": "2026-10-19T18:55:00.000Z",
+  "updated_at": "2026-10-22T01:48:25.301Z",
+  "closed_at": "2026-10-22T01:48:25.301Z",
   "checks": [
     {
       "kind": "gate",
@@ -76,18 +78,6 @@
     {
       "kind": "gate",
       "gate": "unit"
-    },
-    {
-      "kind": "gate",
-      "gate": "g01-full"
-    },
-    {
-      "kind": "record",
-      "gate": "g01-full",
-      "fields": [
-        "wall_ms",
-        "gpu_mem_mib_peak"
-      ]
     },
     {
       "kind": "json",

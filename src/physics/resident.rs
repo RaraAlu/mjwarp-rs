@@ -17,8 +17,12 @@ mod plan_update_flex;
 mod plan_update_forward;
 mod plan_update_rigid;
 mod public;
+#[cfg(feature = "cuda-probe")]
+mod rigid_upload;
 mod sleep_copy;
 
+#[cfg(all(test, feature = "cuda-probe"))]
+mod rigid_kinematics_tests;
 #[cfg(test)]
 #[path = "resident/tests/edges_faces.rs"]
 mod tests_edges_faces;
@@ -121,13 +125,13 @@ pub struct KinematicsPlan {
     sleep_info: Option<Arc<TendonWakeInfo>>,
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    rigid: super::DeviceModel,
+    rigid: super::rigid_kinematics::RigidModel,
     #[cfg(feature = "cuda-probe")]
     com: super::DeviceModel,
     #[cfg(feature = "cuda-probe")]
     attached: super::DeviceModel,
     #[cfg(feature = "cuda-probe")]
-    rigid_kernel: SynchronousKernel,
+    rigid_kernel: super::rigid_kinematics::RigidKernel,
     #[cfg(feature = "cuda-probe")]
     com_kernel: SynchronousKernel,
     #[cfg(feature = "cuda-probe")]

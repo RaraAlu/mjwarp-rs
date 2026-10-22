@@ -274,7 +274,8 @@ impl KinematicsPlan {
                     )
                 })
                 .transpose()?;
-            let rigid = rigid.upload(session)?;
+            let rigid =
+                rigid.upload_rigid(session, equivalent, model.rigid().kinematics(), nmocap)?;
             let com = com.upload(session)?;
             let attached = attached.upload(session)?;
             let mode = if equivalent {
@@ -284,7 +285,10 @@ impl KinematicsPlan {
             };
             let prefix = format!("{FIELD_BATCH_CUDA}\n#define MJWARP_MOCAP\n{mode}");
             let source = format!("{prefix}{}", crate::physics::KINEMATICS_CUDA);
-            let rigid_kernel = SynchronousKernel::compile(session, &source, "rigid_kinematics")?;
+            let rigid_kernel = crate::physics::rigid_kinematics::RigidKernel::new(
+                session,
+                SynchronousKernel::compile(session, &source, "rigid_kinematics")?,
+            );
             let source = format!("{FIELD_BATCH_CUDA}\n{}", crate::physics::COM_POSITION_CUDA);
             let com_kernel = SynchronousKernel::compile(session, &source, "rigid_com_position")?;
             let source = format!(

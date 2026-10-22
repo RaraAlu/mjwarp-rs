@@ -1,0 +1,77 @@
+{
+    "schema":  1,
+    "kind":  "delivery",
+    "task_id":  "2026-10-20-layers-m3-rigid-kinematics",
+    "milestones":  {
+                       "implementation":  "complete",
+                       "validation":  "passed",
+                       "delivery_record":  "complete"
+                   },
+    "files":  [
+                  {
+                      "path":  "docs/development-evidence/layers-m3-rigid-kinematics/README.md",
+                      "blob":  "bcecff466c839c74755bf537bc51a999efca2153"
+                  },
+                  {
+                      "path":  "docs/development-evidence/layers-m3-rigid-kinematics/build-inventory.ps1",
+                      "blob":  "5ef8acfb639f340c023fd260316c29cbed195ca2"
+                  },
+                  {
+                      "path":  "docs/development-evidence/layers-m3-rigid-kinematics/unmigrated-launch-inventory.json",
+                      "blob":  "c6092456cff7866edd554d8b9740e351e88cbc17"
+                  },
+                  {
+                      "path":  "docs/development-evidence/layers-m3-rigid-kinematics/runs/run-01-gpu-tests.log",
+                      "blob":  "55ca8378162bc63ca20977e8f259b5499d796d4d"
+                  },
+                  {
+                      "path":  "src/physics/rigid_kinematics/mod.rs",
+                      "blob":  "2842dc932e69c3fc213d965899f0f2b28ad26cc5"
+                  },
+                  {
+                      "path":  "src/physics/rigid_kinematics/metadata.rs",
+                      "blob":  "0e54cee40a1085510adae76515d65ba5a0e8a2ab"
+                  },
+                  {
+                      "path":  "src/physics/rigid_kinematics/tests.rs",
+                      "blob":  "560f578d9ebc9a3d4ed276da9d4f1bf4273c2c0f"
+                  },
+                  {
+                      "path":  "src/physics/resident/rigid_upload.rs",
+                      "blob":  "bf34dd34637839ab1e35d88339064c883440e469"
+                  },
+                  {
+                      "path":  "src/physics/resident/rigid_kinematics_tests.rs",
+                      "blob":  "2d718faf977d73d3d697db33adcdb78e986abdd1"
+                  },
+                  {
+                      "path":  "src/physics/kinematics.rs",
+                      "blob":  "78ce51748e0beaee4fd9b9ba7098deb243fea9ea"
+                  },
+                  {
+                      "path":  "src/physics/mod.rs",
+                      "blob":  "e4d9ebdee25007afc0519d136adfd7620c9b431f"
+                  },
+                  {
+                      "path":  "src/physics/resident.rs",
+                      "blob":  "32540a2456e4758809b32841f78e57aae029d554"
+                  },
+                  {
+                      "path":  "src/physics/resident/plan_subsets.rs",
+                      "blob":  "99b328a0a72b2013414dfb2be45dd0b4dc598dad"
+                  },
+                  {
+                      "path":  "src/physics/resident/plan_update_rigid.rs",
+                      "blob":  "4cb83f67b1d685535b03ef799d7ea9bc6832514e"
+                  },
+                  {
+                      "path":  ".normify/modules/mjwarp/physics/core.md",
+                      "blob":  "3631ecd9aacac85d2d39d0977ad86ce2d0431e54"
+                  },
+                  {
+                      "path":  ".normify/modules/mjwarp/physics/resident.md",
+                      "blob":  "1d19c93a715441dbd40da5ddd94b05e0017c0623"
+                  }
+              ],
+    "note":  "只迁移 rigid_kinematics 三处底层发射（探针 kinematics.rs、速度位置与 update_rigid 的 plan_update_rigid.rs），经类型包装绑定四指针加四 u32 的真实 ABI、变体元数据、精确跨度、会话与别名。KINEMATICS_CUDA 与 FIELD_BATCH_CUDA 源码逐字节未改，普通、mocap 批量与 G01 等价三种变体 PTX 逐字节等于冻结基线。GPU 逐位对比 4 项在 RTX 4070 Ti SUPER（驱动 596.36）两轮通过（2.62s/2.64s），每次 NVRTC 使用独立空捕获目录。清单以 v5 为基线重定位到拆分后布局：unmigrated_low_level_call_sites 68、typed_low_level_call_sites 31、unmigrated_actual_entry_kinds 55、unresolved_dynamic_compile_sites 0、uncertain 空。门禁：fmt 960ms、clippy 2624ms、clippy-cuda 6049ms、unit 332 过 0 败（14259ms）。精度映射：物理路径全 f32，不改浮点顺序、FMA、容差与 fixtures。未验收：G01 全量属既有债务（gravity 位证书 2bit 在基线 360718f 同样失败，归 2026-10-22-g01-numerics-audit；PTX 捕获目录双语义冲突由独立空目录规避），不宣称 NP01 至 NP04、性能、Linux、release 或完整 M3。"
+}

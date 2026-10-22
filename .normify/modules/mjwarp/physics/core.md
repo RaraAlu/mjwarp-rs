@@ -2,7 +2,7 @@
 uid = "ece0669c"
 id = "mjwarp.physics.core"
 tags = ["planned", "engine", "physics"]
-fingerprint = "6809667f048d2ca249ce1b6d1b2cef5129ac1a07a412bd46bfdb95b755826d3b"
+fingerprint = "2f6d63c66d4a17a9b02a2ba71fe7d4c45e71d3dde9561f95f7564e60aeb562ae"
 
 [name]
 zh = "物理阶段与基础探针"
@@ -258,6 +258,15 @@ path = "src/physics/history.rs"
 
 [[source]]
 path = "src/physics/tests.rs"
+
+[[source]]
+path = "src/physics/rigid_kinematics/mod.rs"
+
+[[source]]
+path = "src/physics/rigid_kinematics/metadata.rs"
+
+[[source]]
+path = "src/physics/rigid_kinematics/tests.rs"
 
 [[apis]]
 protocol = "rpc"

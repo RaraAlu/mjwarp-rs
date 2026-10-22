@@ -42,6 +42,8 @@ pub use mass_solve::{
 mod attached;
 pub use attached::{AttachedKinematicsOutput, AttachedKinematicsWorld, probe_attached_kinematics};
 mod resident;
+#[cfg(any(feature = "cuda-probe", test))]
+mod rigid_kinematics;
 pub use resident::{
     G01SleepState, G01State, KinematicsData, KinematicsPlan, KinematicsSnapshot, camlight, com_pos,
     flex, fwd_kinematics, kinematics, tendon,

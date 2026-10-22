@@ -47,19 +47,14 @@ impl KinematicsPlan {
         }
         let k = self.model.rigid().kinematics();
         let worlds = data.worlds() as u32;
-        // SAFETY: The plan's own rigid kernel and the COM kernel fix both ABIs.
-        // Existing validated metadata and f32 model/state allocations bound all
-        // reads; the checked f32 workspaces have identical element strides and
-        // disjoint ownership. Equivalent plans read the copied body0 pose.
-        // The adapter enforces one session and waits after each launch.
+        // 刚体发射由类型化包装核对证明、精确跨度、同会话与别名。
+        self.rigid_kernel
+            .launch(&self.rigid, &data.state, rigid, worlds)?;
+        // SAFETY: The plan's COM kernel fixes its own ABI; validated metadata
+        // and checked f32 model/state/workspace allocations bound all reads
+        // and writes. The adapter enforces one session and waits after each
+        // launch. Equivalent plans read the copied body0 pose.
         unsafe {
-            self.rigid_kernel.launch(
-                &self.rigid.metadata,
-                &self.rigid.parameters,
-                &data.state,
-                rigid,
-                [k.nq() as u32, k.nbody() as u32, k.njnt() as u32, worlds],
-            )?;
             kernels.com.launch(
                 &self.com.metadata,
                 &self.com.parameters,
@@ -105,21 +100,10 @@ impl KinematicsPlan {
         }
         #[cfg(feature = "cuda-probe")]
         {
-            let l = data.layout.rigid;
             let worlds = data.worlds() as u32;
-            // SAFETY: Model validation and checked layouts prove every metadata,
-            // parameter and qpos offset. All allocations belong to this plan's
-            // session. Guarded output is disjoint and each thread owns one world.
-            // The fixed f32 ABI matches rigid_kinematics; launch waits before reuse.
-            unsafe {
-                self.rigid_kernel.launch(
-                    &self.rigid.metadata,
-                    &self.rigid.parameters,
-                    &data.state,
-                    &mut data.rigid,
-                    [l.nq as u32, l.nbody as u32, l.njnt as u32, worlds],
-                )?;
-            }
+            // 类型化包装核对证明、精确跨度、同会话、别名与拒绝先于写入。
+            self.rigid_kernel
+                .launch(&self.rigid, &data.state, &mut data.rigid, worlds)?;
             data.ready.rigid = true;
             Ok(())
         }
