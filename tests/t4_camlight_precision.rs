@@ -16,9 +16,11 @@ fn read(path: &str, expected: &str, normalized: bool) -> String {
     let bytes = fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join(path)).unwrap();
     let text = String::from_utf8(bytes.clone()).unwrap();
     let text = match path {
-        "src/physics/resident.rs" => {
-            include!("../docs/development-evidence/t4-resident-anchors/resident.rs").to_owned()
-        }
+        "src/physics/resident.rs" => include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/docs/evidence/t4-g03-retest/resident-source-anchor.rs"
+        ))
+        .to_owned(),
         "src/physics/mod.rs" => {
             include!("../docs/development-evidence/t4-resident-anchors/physics.rs").to_owned()
         }
@@ -280,8 +282,8 @@ fn checks_two_stage_dependencies_and_keeps_numerical_admission_open() {
         .unwrap();
     assert!(update.contains("self.require_input(data, data.ready.rigid, \"rigid\")?;"));
     assert!(update.contains("self.require_input(data, data.ready.com, \"com\")?;"));
-    let rigid = update.find("device.rigid_kernel.launch(").unwrap();
-    let com = update.find("device.com_kernel.launch(").unwrap();
+    let rigid = update.find("device.kernel.launch_rigid(").unwrap();
+    let com = update.find("device.kernel.launch_com(").unwrap();
     let ready = update.find("data.ready.camlight = true;").unwrap();
     assert!(rigid < com && com < ready);
     assert!(!update.contains("readback"));

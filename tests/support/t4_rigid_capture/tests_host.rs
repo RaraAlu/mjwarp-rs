@@ -53,7 +53,10 @@ fn preserves_current_sources_and_all_thirty_variants() {
         );
     }
     for (source, anchor) in [
-        (COM_VELOCITY, "COM_VELOCITY_CUDA, \"com_velocity\""),
+        (
+            COM_VELOCITY,
+            "ComVelocityKernel::compile(session, COM_VELOCITY_CUDA)",
+        ),
         (MASS_MATRIX, "MASS_MATRIX_CUDA, \"rigid_mass_matrix\""),
         (MASS_SOLVE, "MASS_SOLVE_CUDA, \"rigid_mass_solve\""),
         (RNE_BIAS, "RNE_BIAS_CUDA, \"rne_bias\""),

@@ -16,12 +16,15 @@ use std::{fs, path::PathBuf};
 
 const PACKAGE: &str =
     include_str!("../fixtures/gravity-upstream-abi/nonzero-product-chain-package.json");
-const PACKAGE_SHA256: &str = "35c6fd8407e3a19c466e533e789b45ed1a7f0b1e200edc867404d13f41d07962";
+const PACKAGE_SHA256: &str = "685869d2dcd1aaa94a5ed95a78815492cdcb02c28d786b1b7d97ca57e44409f1";
 const REVISION: &str = "71da24d956378a87a703b6e1442b13aec0c4ac29";
 const WARP_VERSION: &str = "1.15.0";
 const TOLERANCE_BITS: u32 = 0x360637bd;
 const PHYSICS: &str = include!("../docs/development-evidence/t4-resident-anchors/physics.rs");
-const RESIDENT: &str = include!("../docs/development-evidence/t4-resident-anchors/resident.rs");
+const RESIDENT: &str = include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/docs/evidence/t4-g03-retest/resident-source-anchor.rs"
+));
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -119,15 +122,15 @@ fn validate_package(package: &Value) -> Result<(), &'static str> {
             != serde_json::json!({
                 "physics_core": {
                     "path": "src/physics/mod.rs",
-                    "sha256": "09da2b796e08fddabd93eba5c99833cadf1e1d0ebb32f46c730910a61dd6fe09"
+                    "sha256": "ecc55abca8e75d3e32df5932de9faf1784a1e6f85079c87261bdc4e9256d38b5"
                 },
                 "resident": {
                     "path": "src/physics/resident.rs",
-                    "sha256": "919335fb11995e35dc834e8e3be8eb2d2ea6443afb5108b1d6e967e9d5c5aeaf"
+                    "sha256": "51d488a5061b9b1e52a38033697fe98ba45b1726b86431f19440cf77a6acd9cd"
                 },
                 "gravity_compensation": {
                     "path": "src/physics/gravity_compensation.rs",
-                    "sha256": "1e57203630c8b74dca32786b5e4f60ac79f5689b4b71804be815d726bacee69f"
+                    "sha256": "6135a4f252c13deae162ec186aaa7845cadfe87ff1ea31cac42ad824b0fd69d3"
                 }
             })
         || package["dimensions"]

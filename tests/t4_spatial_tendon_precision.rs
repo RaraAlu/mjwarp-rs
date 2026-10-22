@@ -11,9 +11,11 @@ fn read(path: &str, hash: &str, lf: bool) -> String {
     let bytes = fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join(path)).unwrap();
     let text = String::from_utf8(bytes.clone()).unwrap();
     let text = match path {
-        "src/physics/resident.rs" => {
-            include!("../docs/development-evidence/t4-resident-anchors/resident.rs").to_owned()
-        }
+        "src/physics/resident.rs" => include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/docs/evidence/t4-g03-retest/resident-source-anchor.rs"
+        ))
+        .to_owned(),
         _ => text,
     };
     let bytes = if lf {
@@ -250,9 +252,9 @@ fn checks_stage_order_without_admitting_atomic_or_device_equivalence() {
         .split("pub fn ")
         .next()
         .unwrap();
-    let site = update.find("device.site_kernel.launch(").unwrap();
-    let moment = update.find("device.moment_kernel.launch(").unwrap();
-    let wrap = update.find("device.wrap_kernel.launch(").unwrap();
+    let site = update.find("device.kernel.launch_site(").unwrap();
+    let moment = update.find("device.kernel.launch_moment(").unwrap();
+    let wrap = update.find("device.kernel.launch_wrap(").unwrap();
     let ready = update.find("data.ready.spatial_tendon = true;").unwrap();
     assert!(site < moment && moment < wrap && wrap < ready);
     assert!(update.contains("data.ready.attached"));

@@ -213,8 +213,8 @@ pub(super) fn validate(i: &Inventory) -> Check {
     for anchor in [
         "metadata: Vec<i32>",
         "parameters: Vec<f32>",
-        "metadata: session.upload(&self.metadata)?",
-        "parameters: session.upload(&self.parameters)?",
+        "metadata: SleepCopyMetadataBuffer::upload(session, metadata)?",
+        "parameters: session.upload(&parameters)?",
         "self.state.write_range(offset, qpos)",
         "self.state.write_range(start + p, pos)?",
         ".write_range(start + self.layout.mocap_pos.total_elements() + q, quat)",

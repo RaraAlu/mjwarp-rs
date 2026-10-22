@@ -30,7 +30,10 @@ const SOURCE_IDENTITY: &str =
     include_str!("../../docs/evidence/t4-g03-retest/rigid-rotate-recapture/source-identity.json");
 const REVISION: &str = "8a5bac00fdfa9759f752993b2866098c6ff20819";
 const PHYSICS: &str = include!("../../docs/development-evidence/t4-resident-anchors/physics.rs");
-const RESIDENT: &str = include!("../../docs/development-evidence/t4-resident-anchors/resident.rs");
+const RESIDENT: &str = include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/docs/evidence/t4-g03-retest/resident-source-anchor.rs"
+));
 const COM_VELOCITY: &str = concat!(
     include_str!("../../src/physics/com_velocity.rs"),
     include_str!("../../src/physics/com_velocity/cuda.rs"),

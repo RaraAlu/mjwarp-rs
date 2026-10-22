@@ -48,9 +48,7 @@ pub(super) fn boundaries() -> Check {
         "data.ready.require(data.ready.edges, \"flex_edges\")?;",
     )?;
     require(
-        stage
-            .find("device.kernel.launch_flex_hessian(")
-            .ok_or("matrix stage")?
+        stage.find("device.kernel.launch(").ok_or("matrix stage")?
             < stage
                 .find("device.validate_kernel.launch(")
                 .ok_or("validity stage")?,

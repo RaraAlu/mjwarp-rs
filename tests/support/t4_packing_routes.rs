@@ -6,4 +6,7 @@ mod flex_internal;
 #[path = "t4_packing_routes/routes.rs"]
 mod routes;
 
-const RESIDENT: &str = include!("../../docs/development-evidence/t4-resident-anchors/resident.rs");
+const RESIDENT: &str = include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/docs/evidence/t4-g03-retest/resident-source-anchor.rs"
+));

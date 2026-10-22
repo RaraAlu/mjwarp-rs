@@ -142,7 +142,7 @@ pub(super) fn validate(i: &Inventory) -> Check {
         }
     }
     for anchor in [
-        "parameters: session.upload(&self.parameters)?",
+        "parameters: session.upload(&parameters)?",
         "return p+desc[0]+(unsigned long long)(world % (unsigned)desc[1])*width;",
     ] {
         require(RESIDENT.contains(anchor), "upload and independent period")?;

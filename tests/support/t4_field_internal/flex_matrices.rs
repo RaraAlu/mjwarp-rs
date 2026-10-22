@@ -11,8 +11,10 @@ use std::{
 const FIXTURE: &str = include_str!("../../../docs/evidence/t4-g03-retest/flex-matrices/map.json");
 const FACE: &str = include_str!("../../../src/physics/flex_face.rs");
 const HESSIAN: &str = include_str!("../../../src/physics/flex_hessian.rs");
-const RESIDENT: &str =
-    include!("../../../docs/development-evidence/t4-resident-anchors/resident.rs");
+const RESIDENT: &str = include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/docs/evidence/t4-g03-retest/resident-source-anchor.rs"
+));
 const MODEL: &str = include_str!("../../../src/model/flex_hessian.rs");
 const FLEX: &str = concat!(
     include_str!("../../../src/model/flex.rs"),

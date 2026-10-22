@@ -16,7 +16,10 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeSet, path::Path};
 
 const FIXTURE: &str = include_str!("../../fixtures/precision/g01-field-internal.json");
-const RESIDENT: &str = include!("../../docs/development-evidence/t4-resident-anchors/resident.rs");
+const RESIDENT: &str = include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/docs/evidence/t4-g03-retest/resident-source-anchor.rs"
+));
 const PHYSICS: &str = include!("../../docs/development-evidence/t4-resident-anchors/physics.rs");
 const PARAMETERS: &str = include_str!("../../src/model/parameters.rs");
 const CAMLIGHT: &str = include_str!("../../src/model/camlight.rs");

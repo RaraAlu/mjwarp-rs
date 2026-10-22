@@ -18,7 +18,10 @@ pub(super) use lineage::historical_rigid_kernel;
 
 const FIXTURE: &str = include_str!("../../fixtures/precision/g01-rigid-internal.json");
 const PHYSICS: &str = include!("../../docs/development-evidence/t4-resident-anchors/physics.rs");
-const RESIDENT: &str = include!("../../docs/development-evidence/t4-resident-anchors/resident.rs");
+const RESIDENT: &str = include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/docs/evidence/t4-g03-retest/resident-source-anchor.rs"
+));
 const TRANSFER: &str = concat!(
     include_str!("../../src/runtime/transfer.rs"),
     "\n",

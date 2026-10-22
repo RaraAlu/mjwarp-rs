@@ -5,8 +5,10 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 const FIXTURE: &str = include_str!("../../../fixtures/precision/g01-packing-routes.json");
-const RESIDENT: &str =
-    include!("../../../docs/development-evidence/t4-resident-anchors/resident.rs");
+const RESIDENT: &str = include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/docs/evidence/t4-g03-retest/resident-source-anchor.rs"
+));
 macro_rules! sources {
     ($($path:literal),+ $(,)?) => {
         &[$(($path, include_str!(concat!("../../../", $path)))),+]

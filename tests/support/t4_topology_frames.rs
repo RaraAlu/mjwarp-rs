@@ -14,7 +14,10 @@ mod tests;
 mod validate;
 
 const FIXTURE: &str = include_str!("../../fixtures/precision/g01-topology-frames.json");
-const RESIDENT: &str = include!("../../docs/development-evidence/t4-resident-anchors/resident.rs");
+const RESIDENT: &str = include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/docs/evidence/t4-g03-retest/resident-source-anchor.rs"
+));
 const PHYSICS: &str = include!("../../docs/development-evidence/t4-resident-anchors/physics.rs");
 const ATTACHED: &str = include_str!("../../src/physics/attached.rs");
 const CAMLIGHT: &str = include_str!("../../src/physics/camlight.rs");
