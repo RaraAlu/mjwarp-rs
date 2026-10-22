@@ -186,6 +186,31 @@ pub struct Artifact {
 }
 
 impl Artifact {
+    /// L2冻结PTX产物：摘要绑定L2既有常量。
+    /// 它不进入NVRTC编译缓存，也不套用物理精度门禁。
+    pub(crate) fn from_frozen(frozen: &super::FrozenPtx) -> Result<Self, LauncherError> {
+        let key = ArtifactKey {
+            schema: KEY_SCHEMA,
+            program: frozen.name().to_owned(),
+            source_sha256: frozen.sha256().to_owned(),
+            headers: Vec::new(),
+            recipe: "frozen-warp-1.15".to_owned(),
+            arch: "frozen".to_owned(),
+            nvrtc: [0, 0],
+        };
+        let ptx = frozen.ptx().to_owned();
+        if !valid_text(&ptx) {
+            return Err(LauncherError::InvalidSource("冻结PTX为空、过大或含NUL"));
+        }
+        Ok(Self {
+            key_sha256: digest(&serde_json::to_vec(&key).expect("artifact key serializes")),
+            key,
+            purpose: RecipePurpose::Diagnostic,
+            ptx_sha256: digest(ptx.as_bytes()),
+            ptx,
+        })
+    }
+
     /// 每份产物都经过同一核验，不论来自编译或磁盘。
     fn verified(
         key: ArtifactKey,

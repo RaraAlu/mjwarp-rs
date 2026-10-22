@@ -1,0 +1,85 @@
+{
+    "schema": 1,
+    "kind": "delivery",
+    "task_id": "2026-10-18-layers-m4",
+    "milestones": {
+        "implementation": "complete",
+        "validation": "passed",
+        "delivery_record": "complete"
+    },
+    "files": [
+        {
+            "path": "src/runtime/launcher/frozen.rs",
+            "blob": "0cfa6a416b6b639ec227eef5ce7b5b768596ee22"
+        },
+        {
+            "path": "src/runtime/launcher/warp.rs",
+            "blob": "7e0a9bd848921404e2bdc6cb60f5320e468f8c8a"
+        },
+        {
+            "path": "src/runtime/launcher/artifact.rs",
+            "blob": "4932786e3d7bb575abf3f75a82124fe5227738c1"
+        },
+        {
+            "path": "src/runtime/launcher/module.rs",
+            "blob": "4b28379772b5e634b7efb1d5dec7058a07d6295b"
+        },
+        {
+            "path": "src/runtime/launcher/mod.rs",
+            "blob": "45977f84fc59f321fe129acdb9d362a2b93b5b2c"
+        },
+        {
+            "path": "src/runtime/launcher/abi/array.rs",
+            "blob": "f80014cba8c84fb44f34e12e07aeac6768b0c23c"
+        },
+        {
+            "path": "src/runtime/warp_kinematics.rs",
+            "blob": "68730c8e7e88d9488efd6834a389d6a60ef67c50"
+        },
+        {
+            "path": "src/runtime/warp_kinematics/artifact_load.rs",
+            "blob": "0ffcac3595509e6a3b72ee27583d2798818f9c7c"
+        },
+        {
+            "path": "src/runtime/warp_kinematics/artifact_launch.rs",
+            "blob": "0bdc44fa8ceccadf48e87b0cfee8ec7895688fea"
+        },
+        {
+            "path": "src/runtime/warp_kinematics/support.rs",
+            "blob": "dddbe622903de70efdba5b745f624d5d6288be0d"
+        },
+        {
+            "path": "src/runtime/warp_kinematics/validate_cuda.rs",
+            "blob": "3f0de4b378fef7feb2153b0b54cff47a708fd018"
+        },
+        {
+            "path": "src/runtime/warp_com.rs",
+            "blob": "3bb9527c322e0edb1c89f88e7989abb239d3378b"
+        },
+        {
+            "path": "src/runtime/warp_com/artifact.rs",
+            "blob": "c19a832e38a9e1e838a892e99d227127185b0661"
+        },
+        {
+            "path": "src/runtime/warp_gravity.rs",
+            "blob": "190d8116ae74efcada7a2c75dcee2e8fc71a9f2f"
+        },
+        {
+            "path": "src/runtime/warp_gravity/load.rs",
+            "blob": "7340d8c3eface7194606fe160d558961b9027580"
+        },
+        {
+            "path": "src/runtime/warp_gravity/launch.rs",
+            "blob": "ee65c929c2750b11998feb13a647f00398800703"
+        },
+        {
+            "path": "tests/launcher_frozen.rs",
+            "blob": "a97a4633fd788e1483743500a5039b4a22da9d9a"
+        },
+        {
+            "path": "docs/windows-transfer-probe.md",
+            "blob": "28418b06734db6cc24353a1161293475abc202cc"
+        }
+    ],
+    "note": "M4 冻结产物接入：三个L2文件改走统一发射器。发射器新增 FrozenPtx（按L2既有摘要常量准入冻结PTX，文件字节允许一个尾部NUL）、ModuleCache::frozen_function（按PTX摘要缓存模块与入口，KernelHandle 记录所属上下文）、KernelHandle::launch_l2（二维或三维 launch_bounds 加 Warp 数组实参），并在发射前逐项核对：句柄上下文与流一致、流不处于图捕获、边界各维非零且总数不超u32、每个数组的指针/维度/形状/元素宽度/对齐/实际容量、固定256线程块规则与网格不溢出；失败不发射。warp_kinematics 以 FrozenPtx 准入并按 launch_l2 发射七段（kinematics/matrices/inertial/com-init/com-acc/div/cdof），warp_com 以 FrozenPtx 准入冻结PTX（无发射路径），warp_gravity 以 FrozenPtx 准入并三维 launcher 发。保留冻结JSON回执、CU/PTX/元数据摘要常量与文件名、输入校验、输出回读与有限值门禁；删除三文件各自私有的 WarpArray/WarpBounds 定义与 contiguous 辅助，统一到 launcher::abi。诊断路径不进入产品调度，诊断结果不反馈产品数值。验证：双配置 cargo check 通过；fmt 通过；双配置 clippy --all-targets -D warnings 通过；新增宿主用例 tests/launcher_frozen.rs 4 项通过（摘要准入、尾部NUL、行主序描述、边界拒绝）；warp 内部单测 1 项通过（容量/宽度/对齐）。GPU 定向：t4_gravity_upstream_kinematics 1 过、t4_gravity_upstream_com 1 过、t4_gravity_upstream_abi 3 过、t4_gravity_product_chain 1 过（设备 RTX 4070 Ti SUPER，驱动 596.36；product_chain 证据目录用临时 target 路径，未提交）。未验收边界：只验证既有 T4 冻结链探针，不宣称完整产品数值验收、性能或双平台准入；诊断结果仍不作为产品输入。"
+}

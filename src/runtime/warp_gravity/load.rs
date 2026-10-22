@@ -2,9 +2,11 @@
 
 use super::bytes::{read, safe_file, validate_cuda, validate_ptx};
 use super::receipt::validate_receipt;
-use super::{FrozenWarpGravityArtifact, FrozenWarpGravityReceipt, artifact, cuda_error, digest};
+use super::{
+    FrozenPtx, FrozenWarpGravityArtifact, FrozenWarpGravityReceipt, ModuleCache, artifact, digest,
+    launcher_error,
+};
 use crate::diagnostics::ProbeError;
-use cudarc::nvrtc::Ptx;
 use std::path::Path;
 
 impl FrozenWarpGravityArtifact {
@@ -49,18 +51,18 @@ impl FrozenWarpGravityArtifact {
             }
         }
         validate_cuda(&cu, &receipt.entry)?;
-        let ptx = validate_ptx(&ptx, &receipt.entry, receipt.target_arch)?;
+        validate_ptx(&ptx, &receipt.entry, receipt.target_arch)?;
+        let frozen =
+            FrozenPtx::from_file_bytes("frozen-warp-gravity", &ptx, receipt.ptx_sha256.as_str())
+                .map_err(launcher_error("frozen-warp-gravity-ptx"))?;
         let stream = super::super::cuda::transfer_stream(device)?;
-        let module = stream
-            .context()
-            .load_module(Ptx::from_src(ptx))
-            .map_err(cuda_error("frozen-warp-gravity-load"))?;
-        let function = module
-            .load_function(&receipt.entry)
-            .map_err(cuda_error("frozen-warp-gravity-entry"))?;
+        let cache = ModuleCache::new(stream.context().clone());
+        let handle = cache
+            .frozen_function(stream.context(), &frozen, receipt.entry.as_str())
+            .map_err(launcher_error("frozen-warp-gravity-entry"))?;
         Ok(Self {
             stream,
-            function,
+            handle,
             receipt,
         })
     }

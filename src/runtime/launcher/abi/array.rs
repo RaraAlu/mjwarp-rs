@@ -89,4 +89,52 @@ impl<T: WarpElement> WarpArray<T> {
             .iter()
             .fold(T::ELEM.bytes(), |total, &axis| total * axis as u64)
     }
+
+    /// 元素宽度显式给定的行主序连续数组。
+    /// 供L2的向量与矩阵数组复用同一描述符定义。
+    pub fn with_element_bytes(
+        data: u64,
+        shape: &[usize],
+        element_bytes: u64,
+    ) -> Result<Self, LauncherError> {
+        if data == 0 {
+            return Err(LauncherError::InvalidArray("数据指针为空"));
+        }
+        if element_bytes == 0 {
+            return Err(LauncherError::InvalidArray("元素宽度为零"));
+        }
+        if !(1..=4).contains(&shape.len()) || shape.contains(&0) {
+            return Err(LauncherError::InvalidArray("形状须为1至4维且各维非零"));
+        }
+        let mut array = Self {
+            data,
+            grad: 0,
+            shape: [0; 4],
+            strides: [0; 4],
+            ndim: shape.len() as u16,
+            flags: 0,
+            padding: 0,
+            marker: PhantomData,
+        };
+        let mut stride = element_bytes;
+        for axis in (0..shape.len()).rev() {
+            array.shape[axis] = i32::try_from(shape[axis])
+                .map_err(|_| LauncherError::Overflow("warp_array_shape"))?;
+            array.strides[axis] =
+                i32::try_from(stride).map_err(|_| LauncherError::Overflow("warp_array_stride"))?;
+            stride = stride
+                .checked_mul(shape[axis] as u64)
+                .ok_or(LauncherError::Overflow("warp_array_bytes"))?;
+        }
+        Ok(array)
+    }
+
+    /// 供发射前逐项核对的最低限度只读视图。
+    #[cfg(feature = "cuda-probe")]
+    pub(crate) fn check_parts(&self) -> (u64, usize, bool, &[i32], u64) {
+        let ndim = self.ndim as usize;
+        let shape = self.shape();
+        let shape_ok = (1..=4).contains(&ndim) && shape.iter().all(|&axis| axis > 0);
+        (self.data, ndim, shape_ok, shape, self.byte_len())
+    }
 }

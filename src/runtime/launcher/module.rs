@@ -24,19 +24,25 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 pub struct KernelHandle {
     function: CudaFunction,
     artifact: Arc<Artifact>,
-    entry: &'static str,
+    entry: String,
+    context: Arc<CudaContext>,
 }
 
 impl KernelHandle {
-    pub fn entry(&self) -> &'static str {
-        self.entry
+    pub fn entry(&self) -> &str {
+        &self.entry
     }
 
     pub fn artifact(&self) -> &Arc<Artifact> {
         &self.artifact
     }
 
-    /// 发射接口属于M3；此处只供运行时内部使用。
+    /// 句柄所属上下文；L2发射前据此核对流归属。
+    pub fn context(&self) -> &Arc<CudaContext> {
+        &self.context
+    }
+
+    /// 发射接口属于M3/M4；此处只供运行时内部使用。
     #[allow(dead_code)]
     pub(crate) fn function(&self) -> &CudaFunction {
         &self.function
@@ -57,7 +63,7 @@ type ModuleSlot = Arc<OnceLock<Result<Arc<CudaModule>, LauncherError>>>;
 pub struct ModuleCache {
     context: Arc<CudaContext>,
     modules: Mutex<HashMap<String, ModuleSlot>>,
-    functions: Mutex<HashMap<(String, &'static str), CudaFunction>>,
+    functions: Mutex<HashMap<(String, String), CudaFunction>>,
     module_loads: AtomicU64,
     function_loads: AtomicU64,
     hits: AtomicU64,
@@ -84,7 +90,7 @@ impl ModuleCache {
         &self,
         context: &Arc<CudaContext>,
         artifact: &Arc<Artifact>,
-        entry: &'static str,
+        entry: &str,
     ) -> Result<KernelHandle, LauncherError> {
         self.check_context(context)?;
         if let Some(handle) = self.lookup(artifact, entry) {
@@ -99,14 +105,27 @@ impl ModuleCache {
             .map_err(|e| LauncherError::Driver(format!("{entry}: {e:?}")))?;
         self.function_loads.fetch_add(1, Ordering::Relaxed);
         let function = lock(&self.functions)
-            .entry((artifact.key_sha256().to_owned(), entry))
+            .entry((artifact.key_sha256().to_owned(), entry.to_owned()))
             .or_insert(function)
             .clone();
         Ok(KernelHandle {
             function,
             artifact: Arc::clone(artifact),
-            entry,
+            entry: entry.to_owned(),
+            context: Arc::clone(&self.context),
         })
+    }
+
+    /// 取L2冻结PTX入口；模块与函数同样按摘要缓存。
+    /// 摘要来自L2既有常量，不重新签发。
+    pub fn frozen_function(
+        &self,
+        context: &Arc<CudaContext>,
+        frozen: &super::FrozenPtx,
+        entry: &str,
+    ) -> Result<KernelHandle, LauncherError> {
+        let artifact = Arc::new(Artifact::from_frozen(frozen)?);
+        self.function(context, &artifact, entry)
     }
 
     /// 只查缓存，绝不调用驱动加载；供捕获期间使用。
@@ -114,7 +133,7 @@ impl ModuleCache {
         &self,
         context: &Arc<CudaContext>,
         artifact: &Arc<Artifact>,
-        entry: &'static str,
+        entry: &str,
     ) -> Result<Option<KernelHandle>, LauncherError> {
         self.check_context(context)?;
         Ok(self.lookup(artifact, entry))
@@ -148,15 +167,16 @@ impl ModuleCache {
         }
     }
 
-    fn lookup(&self, artifact: &Arc<Artifact>, entry: &'static str) -> Option<KernelHandle> {
+    fn lookup(&self, artifact: &Arc<Artifact>, entry: &str) -> Option<KernelHandle> {
         let function = lock(&self.functions)
-            .get(&(artifact.key_sha256().to_owned(), entry))
+            .get(&(artifact.key_sha256().to_owned(), entry.to_owned()))
             .cloned()?;
         self.hits.fetch_add(1, Ordering::Relaxed);
         Some(KernelHandle {
             function,
             artifact: Arc::clone(artifact),
-            entry,
+            entry: entry.to_owned(),
+            context: Arc::clone(&self.context),
         })
     }
 

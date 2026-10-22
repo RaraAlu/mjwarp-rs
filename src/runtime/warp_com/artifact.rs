@@ -103,6 +103,8 @@ impl FrozenWarpComArtifact {
 
         validate_cuda(&cu)?;
         validate_ptx(&ptx, receipt.target_arch)?;
+        let frozen = FrozenPtx::from_file_bytes("frozen-warp-com", &ptx, PTX_SHA256)
+            .map_err(|error| artifact("ptx", format!("{error:?}")))?;
         validate_meta(&meta)?;
         let input: FrozenWarpComInput = serde_json::from_slice(&input_bytes)
             .map_err(|error| artifact("input", error.to_string()))?;
@@ -116,6 +118,7 @@ impl FrozenWarpComArtifact {
         Ok(Self {
             receipt,
             input,
+            frozen,
             readback: FrozenWarpComReadback {
                 subtree_com: output.subtree_com,
                 cdof: output.cdof,
@@ -131,6 +134,11 @@ impl FrozenWarpComArtifact {
 
     pub fn input(&self) -> &FrozenWarpComInput {
         &self.input
+    }
+
+    /// 已通过摘要准入的冻结PTX来源。
+    pub fn frozen_ptx(&self) -> &FrozenPtx {
+        &self.frozen
     }
 
     /// 调用方先归档位模式，再执行有限值门禁。

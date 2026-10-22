@@ -10,7 +10,8 @@ mod signature;
 mod tests;
 
 use crate::diagnostics::ProbeError;
-use cudarc::driver::{CudaFunction, CudaStream, DeviceRepr, DriverError};
+use crate::runtime::launcher::{FrozenPtx, KernelHandle, LauncherError, ModuleCache};
+use cudarc::driver::{CudaStream, DriverError};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
@@ -31,33 +32,6 @@ const GENERATION_EXECUTION_SHA256: &str =
     "8247ab2031fdccfd47d12ca8c3856150aed1c3d5539006cc65a0fd0f57edfd12";
 const PYTHON_SHA256: &str = "feeec36120097a03201a96ae17a0e2c1fba70dd6241cb4bfdd9e7c2a00bada77";
 const WARP_DLL_SHA256: &str = "7c006eb348a7359810f4d001cbd4141cc5d6d1641fc2989e4c3711e99e6671d6";
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct WarpArray {
-    data: u64,
-    grad: u64,
-    shape: [i32; 4],
-    strides: [i32; 4],
-    ndim: u16,
-    flags: u16,
-    padding: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct WarpBounds3 {
-    shape: [i32; 3],
-    padding: u32,
-    size: u64,
-    coord_mult: u64,
-}
-
-// SAFETY: 两个类型只含固定宽度值。
-// repr(C)绑定冻结Warp 1.15头文件。
-unsafe impl DeviceRepr for WarpArray {}
-// SAFETY: 布局匹配launch_bounds_t<3>。
-unsafe impl DeviceRepr for WarpBounds3 {}
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -121,7 +95,7 @@ pub struct FrozenWarpGravityInput {
 
 pub struct FrozenWarpGravityArtifact {
     stream: Arc<CudaStream>,
-    function: CudaFunction,
+    handle: KernelHandle,
     receipt: FrozenWarpGravityReceipt,
 }
 
@@ -163,6 +137,10 @@ fn artifact(stage: &'static str, detail: impl Into<String>) -> ProbeError {
         stage,
         detail: detail.into(),
     }
+}
+
+fn launcher_error(stage: &'static str) -> impl FnOnce(LauncherError) -> ProbeError {
+    move |error| artifact(stage, format!("{error:?}"))
 }
 
 fn cuda_error(stage: &'static str) -> impl FnOnce(DriverError) -> ProbeError {

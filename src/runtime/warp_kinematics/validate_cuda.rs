@@ -5,36 +5,6 @@ use super::support::compact;
 use super::support::signature_lines;
 use super::*;
 
-pub(super) fn contiguous(
-    data: u64,
-    shape: &[usize],
-    element_bytes: usize,
-) -> Result<WarpArray, ProbeError> {
-    if data == 0 || !(1..=4).contains(&shape.len()) || shape.contains(&0) {
-        return Err(artifact("input", "invalid array shape"));
-    }
-    let mut array = WarpArray {
-        data,
-        grad: 0,
-        shape: [0; 4],
-        strides: [0; 4],
-        ndim: shape.len() as u16,
-        flags: 0,
-        padding: 0,
-    };
-    let mut stride = element_bytes;
-    for axis in (0..shape.len()).rev() {
-        array.shape[axis] =
-            i32::try_from(shape[axis]).map_err(|_| artifact("input", "shape overflow"))?;
-        array.strides[axis] =
-            i32::try_from(stride).map_err(|_| artifact("input", "stride overflow"))?;
-        stride = stride
-            .checked_mul(shape[axis])
-            .ok_or_else(|| artifact("input", "stride overflow"))?;
-    }
-    Ok(array)
-}
-
 pub(super) fn validate_cuda(bytes: &[u8]) -> Result<(), ProbeError> {
     if bytes.contains(&0) {
         return Err(artifact("cu", "embedded nul"));

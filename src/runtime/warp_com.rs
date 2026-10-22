@@ -7,6 +7,7 @@ mod tests;
 mod util;
 mod validate;
 
+use crate::runtime::launcher::FrozenPtx;
 use serde::Deserialize;
 
 const REVISION: &str = "71da24d956378a87a703b6e1442b13aec0c4ac29";
@@ -131,6 +132,7 @@ pub struct FrozenWarpComArtifact {
     receipt: FrozenWarpComReceipt,
     input: FrozenWarpComInput,
     readback: FrozenWarpComReadback,
+    frozen: FrozenPtx,
 }
 
 #[derive(Debug, Deserialize)]

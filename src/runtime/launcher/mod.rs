@@ -10,10 +10,14 @@ mod alias;
 #[cfg(feature = "cuda-probe")]
 mod artifact;
 mod checked;
+#[cfg(feature = "cuda-probe")]
+mod frozen;
 mod launch;
 #[cfg(feature = "cuda-probe")]
 mod module;
 mod recipe;
+#[cfg(feature = "cuda-probe")]
+mod warp;
 
 pub use abi::{
     AbiSignature, Access, AliasException, BlockRule, ElemType, KernelAbi, LaunchBounds1,
@@ -23,10 +27,14 @@ pub use alias::{DeviceSpan, SlotBinding, SlotRequirement, rebind_values, validat
 #[cfg(feature = "cuda-probe")]
 pub use artifact::{Artifact, ArtifactCache, ArtifactKey, ArtifactStats, HeaderFile, NvrtcSource};
 pub use checked::{Checked, CheckedBinding, MetadataProof, MetadataRevision};
+#[cfg(feature = "cuda-probe")]
+pub use frozen::FrozenPtx;
 pub use launch::{Kernel, KernelSpec, LaunchDims, LaunchPlan};
 #[cfg(feature = "cuda-probe")]
 pub use module::{KernelHandle, ModuleCache, ModuleStats};
 pub use recipe::{ArchTarget, CompileRecipe, CppStd, PrecisionGate, RecipePurpose};
+#[cfg(feature = "cuda-probe")]
+pub use warp::{L2_BLOCK, WarpArg, WarpBounds, WarpLaunch, f32_arg, i32_arg};
 
 /// 发射器基础错误。
 /// 每类错误都指明槽位或字段。

@@ -2,7 +2,7 @@
 uid = "3ce2a1b7"
 id = "mjwarp.runtime.warp-kinematics"
 tags = ["runtime", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "5cea4f34a0d97842b059e4bbba993b7695d58b86cc401dc60d68acb98511ec10"
+fingerprint = "322ef2cf43c405b39187250e557816a2cab15413e76f3ed0156af7019fc3f1d0"
 
 [name]
 zh = "冻结Warp刚体运动学链"

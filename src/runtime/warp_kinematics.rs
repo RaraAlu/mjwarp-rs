@@ -2,13 +2,11 @@
 //! 它从固定模型与qpos生成重力前置量。
 
 use crate::diagnostics::ProbeError;
-use cudarc::{
-    driver::{
-        CudaFunction, CudaStream, DevicePtr, DevicePtrMut, DeviceRepr, DriverError, LaunchConfig,
-        PushKernelArg,
-    },
-    nvrtc::Ptx,
+use crate::runtime::launcher::{
+    FrozenPtx, KernelHandle, LaunchBounds2, LauncherError, ModuleCache, WarpArg, WarpBounds,
+    WarpLaunch,
 };
+use cudarc::driver::{DevicePtr, DevicePtrMut, DriverError};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{fs, path::Path};
@@ -116,32 +114,6 @@ const ATTEMPT_FILES: [(&str, &str); 32] = [
     ("smooth.meta", META_SHA256),
     ("smooth.ptx", PTX_SHA256),
 ];
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct WarpArray {
-    data: u64,
-    grad: u64,
-    shape: [i32; 4],
-    strides: [i32; 4],
-    ndim: u16,
-    flags: u16,
-    padding: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct WarpBounds2 {
-    shape: [i32; 2],
-    size: u64,
-    coord_mult: u64,
-}
-
-// SAFETY: 两个类型只含固定宽度值。
-// repr(C)绑定冻结Warp 1.15头文件。
-unsafe impl DeviceRepr for WarpArray {}
-// SAFETY: 布局匹配launch_bounds_t<2>。
-unsafe impl DeviceRepr for WarpBounds2 {}
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -300,7 +272,7 @@ pub struct FrozenWarpKinematicsArtifact {
     receipt: FrozenWarpKinematicsReceipt,
     input: FrozenWarpKinematicsInput,
     readback: FrozenWarpKinematicsReadback,
-    ptx: String,
+    frozen: FrozenPtx,
 }
 
 #[derive(Debug, Deserialize)]
@@ -347,42 +319,6 @@ struct RawField {
     bits: Vec<String>,
 }
 
-fn launch2(
-    stream: &CudaStream,
-    function: &CudaFunction,
-    shape: [usize; 2],
-    arrays: &[WarpArray],
-    stage: &'static str,
-) -> Result<(), ProbeError> {
-    let size = checked_product(shape[0], shape[1])?;
-    let work = u32::try_from(size).map_err(|_| artifact("input", "launch overflow"))?;
-    let bounds = WarpBounds2 {
-        shape: [
-            i32::try_from(shape[0]).map_err(|_| artifact("input", "shape overflow"))?,
-            i32::try_from(shape[1]).map_err(|_| artifact("input", "shape overflow"))?,
-        ],
-        size: u64::from(work),
-        coord_mult: 1,
-    };
-    let mut launch = stream.launch_builder(function);
-    launch.arg(&bounds);
-    for array in arrays {
-        launch.arg(array);
-    }
-    // SAFETY: 固定签名已逐项核验。
-    // 已验证描述符覆盖全部缓冲。
-    unsafe {
-        launch
-            .launch(LaunchConfig {
-                grid_dim: (work.div_ceil(256), 1, 1),
-                block_dim: (256, 1, 1),
-                shared_mem_bytes: 0,
-            })
-            .map_err(cuda_error(stage))?;
-    }
-    Ok(())
-}
-
 // 子模块：纯移动自原单文件，行为不变。
 mod artifact_launch;
 mod artifact_load;
@@ -393,8 +329,6 @@ mod validate_output;
 mod validate_ptx;
 mod validate_receipt;
 use self::support::artifact;
-use self::support::checked_product;
-use self::support::cuda_error;
 #[cfg(test)]
 use self::validate_input::validate_input;
 

@@ -134,3 +134,45 @@ pub(super) fn cuda_error(stage: &'static str) -> impl FnOnce(DriverError) -> Pro
         code: error.0 as u32,
     }
 }
+
+pub(super) fn launcher_error(stage: &'static str) -> impl FnOnce(LauncherError) -> ProbeError {
+    move |error| artifact(stage, format!("{error:?}"))
+}
+
+/// 冻结PTX来源：摘要取L2既有常量。
+pub(super) fn frozen_ptx(bytes: &[u8]) -> Result<FrozenPtx, ProbeError> {
+    FrozenPtx::from_file_bytes("frozen-warp-kinematics", bytes, PTX_SHA256)
+        .map_err(launcher_error("frozen-warp-ptx"))
+}
+
+/// 冻结L2单精度数组实参：元素宽度显式给定。
+pub(super) fn f32_arg(
+    data: u64,
+    shape: &[usize],
+    element_bytes: u64,
+    capacity: u64,
+) -> Result<WarpArg, ProbeError> {
+    crate::runtime::launcher::f32_arg(data, shape, element_bytes, capacity)
+        .map_err(launcher_error("frozen-warp-array"))
+}
+
+/// 冻结L2整数数组实参。
+pub(super) fn i32_arg(data: u64, shape: &[usize], capacity: u64) -> Result<WarpArg, ProbeError> {
+    crate::runtime::launcher::i32_arg(data, shape, capacity)
+        .map_err(launcher_error("frozen-warp-array"))
+}
+
+/// 二维边界加数组实参的统一发射。
+pub(super) fn launch2(
+    stream: &cudarc::driver::CudaStream,
+    handle: &KernelHandle,
+    shape: [usize; 2],
+    args: &[WarpArg],
+    stage: &'static str,
+) -> Result<(), ProbeError> {
+    let bounds =
+        WarpBounds::Two(LaunchBounds2::new(shape).map_err(launcher_error("frozen-warp-bounds"))?);
+    handle
+        .launch_l2(stream, &WarpLaunch { bounds, args })
+        .map_err(launcher_error(stage))
+}

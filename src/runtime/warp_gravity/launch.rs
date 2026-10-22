@@ -2,11 +2,12 @@
 
 use super::receipt::validate_input;
 use super::{
-    FrozenWarpGravityArtifact, FrozenWarpGravityInput, FrozenWarpGravityReadback, WarpArray,
-    WarpBounds3, artifact, cuda_error,
+    FrozenWarpGravityArtifact, FrozenWarpGravityInput, FrozenWarpGravityReadback, cuda_error,
+    launcher_error,
 };
 use crate::diagnostics::ProbeError;
-use cudarc::driver::{DevicePtr, DevicePtrMut, LaunchConfig, PushKernelArg};
+use crate::runtime::launcher::{LaunchBounds3, WarpBounds, WarpLaunch, f32_arg, i32_arg};
+use cudarc::driver::{DevicePtr, DevicePtrMut};
 
 impl FrozenWarpGravityArtifact {
     pub fn launch(&self, input: &FrozenWarpGravityInput) -> Result<Vec<f32>, ProbeError> {
@@ -65,55 +66,67 @@ impl FrozenWarpGravityArtifact {
         let (xipos_ptr, xipos_record) = xipos.device_ptr(stream);
         let (subtree_ptr, subtree_record) = subtree.device_ptr(stream);
         let (cdof_ptr, cdof_record) = cdof.device_ptr(stream);
+        let output_capacity = u64::try_from(output.len()).unwrap_or(u64::MAX) * 4;
         let (output_ptr, output_record) = output.device_ptr_mut(stream);
         let mass_batches = input.body_mass.len() / input.nbody;
         let gravcomp_batches = input.body_gravcomp.len() / input.nbody;
-        let descriptors = [
-            contiguous(gravity_ptr, &[input.opt_gravity.len() / 3], 12)?,
-            contiguous(parent_ptr, &[input.nbody], 4)?,
-            contiguous(roots_ptr, &[input.nbody], 4)?,
-            contiguous(mass_ptr, &[mass_batches, input.nbody], 4)?,
-            contiguous(gravcomp_ptr, &[gravcomp_batches, input.nbody], 4)?,
-            contiguous(dof_ptr, &[input.nv], 4)?,
-            contiguous(ancestor_ptr, &[input.nbody, input.nv], 4)?,
-            contiguous(xipos_ptr, &[input.worlds, input.nbody], 12)?,
-            contiguous(subtree_ptr, &[input.worlds, input.nbody], 12)?,
-            contiguous(cdof_ptr, &[input.worlds, input.nv], 24)?,
-            contiguous(output_ptr, &[input.worlds, input.nv], 4)?,
-        ];
+        let cap = |elements: usize| u64::try_from(elements).unwrap_or(u64::MAX) * 4;
+
         let dynamic_bodies = input.nbody - 1;
-        let size = input
-            .worlds
-            .checked_mul(dynamic_bodies)
-            .and_then(|value| value.checked_mul(input.nv))
-            .ok_or_else(|| artifact("input", "launch size overflow"))?;
-        let work = u32::try_from(size).map_err(|_| artifact("input", "launch overflow"))?;
-        let bounds = WarpBounds3 {
-            shape: [
-                i32::try_from(input.worlds).map_err(|_| artifact("input", "world overflow"))?,
-                i32::try_from(dynamic_bodies).map_err(|_| artifact("input", "body overflow"))?,
-                i32::try_from(input.nv).map_err(|_| artifact("input", "dof overflow"))?,
-            ],
-            padding: 0,
-            size: u64::from(work),
-            coord_mult: 1,
+        let bounds = WarpBounds::Three(
+            LaunchBounds3::new([input.worlds, dynamic_bodies, input.nv])
+                .map_err(launcher_error("frozen-warp-gravity-bounds"))?,
+        );
+        let f32a = |data: u64, shape: &[usize], width: u64, capacity: u64| {
+            f32_arg(data, shape, width, capacity)
+                .map_err(launcher_error("frozen-warp-gravity-array"))
         };
-        let mut launch = stream.launch_builder(&self.function);
-        launch.arg(&bounds);
-        for descriptor in &descriptors {
-            launch.arg(descriptor);
-        }
-        // SAFETY: 验证后的描述符覆盖全部输入。
-        // 每线程只原子累加一个输出槽。
-        unsafe {
-            launch
-                .launch(LaunchConfig {
-                    grid_dim: (work.div_ceil(256), 1, 1),
-                    block_dim: (256, 1, 1),
-                    shared_mem_bytes: 0,
-                })
-                .map_err(cuda_error("frozen-warp-gravity-launch"))?;
-        }
+        let i32a = |data: u64, shape: &[usize], capacity: u64| {
+            i32_arg(data, shape, capacity).map_err(launcher_error("frozen-warp-gravity-array"))
+        };
+        let args = [
+            f32a(
+                gravity_ptr,
+                &[input.opt_gravity.len() / 3],
+                12,
+                cap(gravity.len()),
+            )?,
+            i32a(parent_ptr, &[input.nbody], cap(parent.len()))?,
+            i32a(roots_ptr, &[input.nbody], cap(roots.len()))?,
+            f32a(mass_ptr, &[mass_batches, input.nbody], 4, cap(mass.len()))?,
+            f32a(
+                gravcomp_ptr,
+                &[gravcomp_batches, input.nbody],
+                4,
+                cap(gravcomp.len()),
+            )?,
+            i32a(dof_ptr, &[input.nv], cap(dof.len()))?,
+            i32a(ancestor_ptr, &[input.nbody, input.nv], cap(ancestors.len()))?,
+            f32a(
+                xipos_ptr,
+                &[input.worlds, input.nbody],
+                12,
+                cap(xipos.len()),
+            )?,
+            f32a(
+                subtree_ptr,
+                &[input.worlds, input.nbody],
+                12,
+                cap(subtree.len()),
+            )?,
+            f32a(cdof_ptr, &[input.worlds, input.nv], 24, cap(cdof.len()))?,
+            f32a(output_ptr, &[input.worlds, input.nv], 4, output_capacity)?,
+        ];
+
+        self.handle
+            .launch_l2(
+                stream,
+                &WarpLaunch {
+                    bounds,
+                    args: &args,
+                },
+            )
+            .map_err(launcher_error("frozen-warp-gravity-launch"))?;
         drop(output_record);
         drop(cdof_record);
         drop(subtree_record);
@@ -131,30 +144,4 @@ impl FrozenWarpGravityArtifact {
         let bits = values.iter().map(|value| value.to_bits()).collect();
         Ok(FrozenWarpGravityReadback { values, bits })
     }
-}
-
-fn contiguous(data: u64, shape: &[usize], element_bytes: usize) -> Result<WarpArray, ProbeError> {
-    if data == 0 || !(1..=4).contains(&shape.len()) || shape.contains(&0) {
-        return Err(artifact("input", "invalid array shape"));
-    }
-    let mut array = WarpArray {
-        data,
-        grad: 0,
-        shape: [0; 4],
-        strides: [0; 4],
-        ndim: shape.len() as u16,
-        flags: 0,
-        padding: 0,
-    };
-    let mut stride = element_bytes;
-    for axis in (0..shape.len()).rev() {
-        array.shape[axis] =
-            i32::try_from(shape[axis]).map_err(|_| artifact("input", "shape overflow"))?;
-        array.strides[axis] =
-            i32::try_from(stride).map_err(|_| artifact("input", "stride overflow"))?;
-        stride = stride
-            .checked_mul(shape[axis])
-            .ok_or_else(|| artifact("input", "stride overflow"))?;
-    }
-    Ok(array)
 }

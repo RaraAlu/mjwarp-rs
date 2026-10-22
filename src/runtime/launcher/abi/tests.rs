@@ -2,7 +2,9 @@ use super::*;
 use std::mem::{align_of, offset_of, size_of};
 
 const L2_KINEMATICS: &str = include_str!("../../warp_kinematics.rs");
+const L2_KINEMATICS_LAUNCH: &str = include_str!("../../warp_kinematics/artifact_launch.rs");
 const L2_GRAVITY: &str = include_str!("../../warp_gravity.rs");
+const L2_GRAVITY_LAUNCH: &str = include_str!("../../warp_gravity/launch.rs");
 
 #[test]
 fn warp_array_matches_frozen_l2_layout() {
@@ -16,11 +18,14 @@ fn warp_array_matches_frozen_l2_layout() {
     assert_eq!(offset_of!(WarpArray<f32>, flags), 50);
     assert_eq!(offset_of!(WarpArray<f32>, padding), 52);
     assert_eq!(size_of::<WarpArray<f64>>(), 56);
-    let fields = "    data: u64,\n    grad: u64,\n    shape: [i32; 4],\n    strides: [i32; 4],\n    ndim: u16,\n    flags: u16,\n    padding: u32,\n}";
-    // `warp_com.rs`不定义数组结构；重复定义只有两份。
+    // M4：数组描述只保留统一发射器一份定义，L2不再各自复写。
     for source in [L2_KINEMATICS, L2_GRAVITY] {
-        assert!(source.contains(&format!("struct WarpArray {{\n{fields}")));
+        assert!(!source.contains("struct WarpArray {"));
     }
+    assert!(L2_KINEMATICS.contains("FrozenPtx"));
+    assert!(L2_KINEMATICS_LAUNCH.contains("launch2"));
+    assert!(L2_GRAVITY.contains("FrozenPtx"));
+    assert!(L2_GRAVITY_LAUNCH.contains("launch_l2"));
 }
 
 #[test]
@@ -37,13 +42,12 @@ fn launch_bounds_match_frozen_l2_layouts() {
     assert_eq!(offset_of!(LaunchBounds3, padding), 12);
     assert_eq!(offset_of!(LaunchBounds3, size), 16);
     assert_eq!(offset_of!(LaunchBounds3, coord_mult), 24);
-    assert!(L2_KINEMATICS.contains(
-        "struct WarpBounds2 {\n    shape: [i32; 2],\n    size: u64,\n    coord_mult: u64,\n}"
-    ));
-    assert!(L2_GRAVITY.contains(
-            "struct WarpBounds3 {\n    shape: [i32; 3],\n    padding: u32,\n    size: u64,\n    coord_mult: u64,\n}"
-        ));
-    assert!(L2_KINEMATICS.contains("coord_mult: 1,"));
+    // M4：边界描述只保留统一发射器一份定义。
+    assert!(!L2_KINEMATICS.contains("struct WarpBounds2"));
+    assert!(!L2_GRAVITY.contains("struct WarpBounds3"));
+    let bounds = LaunchBounds2::new([2, 3]).unwrap();
+    assert_eq!(bounds.coord_mult, 1);
+    assert_eq!(bounds.size(), 6);
 }
 
 #[test]

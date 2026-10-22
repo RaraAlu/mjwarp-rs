@@ -1,11 +1,12 @@
 //! 冻结工件诊断启动入口。
 
-use super::launch2;
 use super::support::artifact;
 use super::support::cuda_error;
+use super::support::f32_arg;
 use super::support::flatten;
+use super::support::i32_arg;
+use super::support::launch2;
 use super::support::repeat_rows;
-use super::validate_cuda::contiguous;
 use super::validate_input::validate_input;
 use super::*;
 
@@ -17,31 +18,21 @@ impl FrozenWarpKinematicsArtifact {
         let input = &self.input;
         validate_input(input)?;
         let stream = crate::runtime::cuda::transfer_stream(device)?;
-        let module = stream
-            .context()
-            .load_module(Ptx::from_src(self.ptx.clone()))
-            .map_err(cuda_error("frozen-warp-kinematics-load"))?;
-        let kinematics = module
-            .load_function(KIN_ENTRY)
-            .map_err(cuda_error("frozen-warp-kinematics-entry"))?;
-        let matrices = module
-            .load_function(MATRIX_ENTRY)
-            .map_err(cuda_error("frozen-warp-matrices-entry"))?;
-        let inertial = module
-            .load_function(INERTIAL_ENTRY)
-            .map_err(cuda_error("frozen-warp-inertial-entry"))?;
-        let init = module
-            .load_function(INIT_ENTRY)
-            .map_err(cuda_error("frozen-warp-com-init-entry"))?;
-        let acc = module
-            .load_function(ACC_ENTRY)
-            .map_err(cuda_error("frozen-warp-com-acc-entry"))?;
-        let div = module
-            .load_function(DIV_ENTRY)
-            .map_err(cuda_error("frozen-warp-com-div-entry"))?;
-        let cdof_kernel = module
-            .load_function(CDOF_ENTRY)
-            .map_err(cuda_error("frozen-warp-cdof-entry"))?;
+        let cache = ModuleCache::new(stream.context().clone());
+        let handle = |entry| {
+            cache
+                .frozen_function(stream.context(), &self.frozen, entry)
+                .map_err(super::support::launcher_error(
+                    "frozen-warp-kinematics-entry",
+                ))
+        };
+        let kinematics = handle(KIN_ENTRY)?;
+        let matrices = handle(MATRIX_ENTRY)?;
+        let inertial = handle(INERTIAL_ENTRY)?;
+        let init = handle(INIT_ENTRY)?;
+        let acc = handle(ACC_ENTRY)?;
+        let div = handle(DIV_ENTRY)?;
+        let cdof_kernel = handle(CDOF_ENTRY)?;
 
         let qpos0_values = flatten(&input.qpos0);
         let body_pos_values = flatten(&input.body_pos);
@@ -194,6 +185,18 @@ impl FrozenWarpKinematicsArtifact {
         let (body_mass_ptr, body_mass_record) = body_mass.device_ptr(&stream);
         let (body_subtreemass_ptr, body_subtreemass_record) = body_subtreemass.device_ptr(&stream);
         let (tree_ptr, tree_record) = tree.device_ptr(&stream);
+
+        let cap = |elements: usize| u64::try_from(elements).unwrap_or(u64::MAX) * 4;
+        let qpos0_cap = cap(qpos0.len());
+        let xpos_cap = cap(xpos.len());
+        let xquat_cap = cap(xquat.len());
+        let xanchor_cap = cap(xanchor.len());
+        let xaxis_cap = cap(xaxis.len());
+        let xmat_cap = cap(xmat.len());
+        let xipos_cap = cap(xipos.len());
+        let ximat_cap = cap(ximat.len());
+        let subtree_cap = cap(subtree.len());
+        let cdof_cap = cap(cdof.len());
         let (xpos_ptr, xpos_record) = xpos.device_ptr_mut(&stream);
         let (xquat_ptr, xquat_record) = xquat.device_ptr_mut(&stream);
         let (xanchor_ptr, xanchor_record) = xanchor.device_ptr_mut(&stream);
@@ -209,30 +212,64 @@ impl FrozenWarpKinematicsArtifact {
             &kinematics,
             [input.worlds, input.nbranch],
             &[
-                contiguous(qpos0_ptr, &[input.qpos0.len(), input.nq], 4)?,
-                contiguous(parent_ptr, &[input.nbody], 4)?,
-                contiguous(mocapid_ptr, &[input.nbody], 4)?,
-                contiguous(jntnum_ptr, &[input.nbody], 4)?,
-                contiguous(jntadr_ptr, &[input.nbody], 4)?,
-                contiguous(body_pos_ptr, &[input.body_pos.len(), input.nbody], 12)?,
-                contiguous(
+                f32_arg(qpos0_ptr, &[input.qpos0.len(), input.nq], 4, qpos0_cap)?,
+                i32_arg(parent_ptr, &[input.nbody], cap(parent.len()))?,
+                i32_arg(mocapid_ptr, &[input.nbody], cap(mocapid.len()))?,
+                i32_arg(jntnum_ptr, &[input.nbody], cap(jntnum.len()))?,
+                i32_arg(jntadr_ptr, &[input.nbody], cap(jntadr.len()))?,
+                f32_arg(
+                    body_pos_ptr,
+                    &[input.body_pos.len(), input.nbody],
+                    12,
+                    cap(body_pos.len()),
+                )?,
+                f32_arg(
                     body_quat_ptr,
                     &[input.body_quat_wxyz.len(), input.nbody],
                     16,
+                    cap(body_quat.len()),
                 )?,
-                contiguous(jnt_type_ptr, &[input.njnt], 4)?,
-                contiguous(jnt_qposadr_ptr, &[input.njnt], 4)?,
-                contiguous(jnt_pos_ptr, &[input.jnt_pos.len(), input.njnt], 12)?,
-                contiguous(jnt_axis_ptr, &[input.jnt_axis.len(), input.njnt], 12)?,
-                contiguous(branches_ptr, &[input.body_branches.len()], 4)?,
-                contiguous(branch_start_ptr, &[input.body_branch_start.len()], 4)?,
-                contiguous(qpos_ptr, &[input.worlds, input.nq], 4)?,
-                contiguous(mocap_pos_ptr, &[input.worlds, input.nmocap], 12)?,
-                contiguous(mocap_quat_ptr, &[input.worlds, input.nmocap], 16)?,
-                contiguous(xpos_ptr, &[input.worlds, input.nbody], 12)?,
-                contiguous(xquat_ptr, &[input.worlds, input.nbody], 16)?,
-                contiguous(xanchor_ptr, &[input.worlds, input.njnt], 12)?,
-                contiguous(xaxis_ptr, &[input.worlds, input.njnt], 12)?,
+                i32_arg(jnt_type_ptr, &[input.njnt], cap(jnt_type.len()))?,
+                i32_arg(jnt_qposadr_ptr, &[input.njnt], cap(jnt_qposadr.len()))?,
+                f32_arg(
+                    jnt_pos_ptr,
+                    &[input.jnt_pos.len(), input.njnt],
+                    12,
+                    cap(jnt_pos.len()),
+                )?,
+                f32_arg(
+                    jnt_axis_ptr,
+                    &[input.jnt_axis.len(), input.njnt],
+                    12,
+                    cap(jnt_axis.len()),
+                )?,
+                i32_arg(
+                    branches_ptr,
+                    &[input.body_branches.len()],
+                    cap(branches.len()),
+                )?,
+                i32_arg(
+                    branch_start_ptr,
+                    &[input.body_branch_start.len()],
+                    cap(branch_start.len()),
+                )?,
+                f32_arg(qpos_ptr, &[input.worlds, input.nq], 4, cap(qpos.len()))?,
+                f32_arg(
+                    mocap_pos_ptr,
+                    &[input.worlds, input.nmocap],
+                    12,
+                    cap(mocap_pos.len()),
+                )?,
+                f32_arg(
+                    mocap_quat_ptr,
+                    &[input.worlds, input.nmocap],
+                    16,
+                    cap(mocap_quat.len()),
+                )?,
+                f32_arg(xpos_ptr, &[input.worlds, input.nbody], 12, xpos_cap)?,
+                f32_arg(xquat_ptr, &[input.worlds, input.nbody], 16, xquat_cap)?,
+                f32_arg(xanchor_ptr, &[input.worlds, input.njnt], 12, xanchor_cap)?,
+                f32_arg(xaxis_ptr, &[input.worlds, input.njnt], 12, xaxis_cap)?,
             ],
             "frozen-warp-kinematics-launch",
         )?;
@@ -241,8 +278,8 @@ impl FrozenWarpKinematicsArtifact {
             &matrices,
             [input.worlds, input.nbody],
             &[
-                contiguous(xquat_ptr, &[input.worlds, input.nbody], 16)?,
-                contiguous(xmat_ptr, &[input.worlds, input.nbody], 36)?,
+                f32_arg(xquat_ptr, &[input.worlds, input.nbody], 16, xquat_cap)?,
+                f32_arg(xmat_ptr, &[input.worlds, input.nbody], 36, xmat_cap)?,
             ],
             "frozen-warp-matrices-launch",
         )?;
@@ -251,16 +288,22 @@ impl FrozenWarpKinematicsArtifact {
             &inertial,
             [input.worlds, input.nbody],
             &[
-                contiguous(body_ipos_ptr, &[input.body_ipos.len(), input.nbody], 12)?,
-                contiguous(
+                f32_arg(
+                    body_ipos_ptr,
+                    &[input.body_ipos.len(), input.nbody],
+                    12,
+                    cap(body_ipos.len()),
+                )?,
+                f32_arg(
                     body_iquat_ptr,
                     &[input.body_iquat_wxyz.len(), input.nbody],
                     16,
+                    cap(body_iquat.len()),
                 )?,
-                contiguous(xpos_ptr, &[input.worlds, input.nbody], 12)?,
-                contiguous(xquat_ptr, &[input.worlds, input.nbody], 16)?,
-                contiguous(xipos_ptr, &[input.worlds, input.nbody], 12)?,
-                contiguous(ximat_ptr, &[input.worlds, input.nbody], 36)?,
+                f32_arg(xpos_ptr, &[input.worlds, input.nbody], 12, xpos_cap)?,
+                f32_arg(xquat_ptr, &[input.worlds, input.nbody], 16, xquat_cap)?,
+                f32_arg(xipos_ptr, &[input.worlds, input.nbody], 12, xipos_cap)?,
+                f32_arg(ximat_ptr, &[input.worlds, input.nbody], 36, ximat_cap)?,
             ],
             "frozen-warp-inertial-launch",
         )?;
@@ -269,9 +312,14 @@ impl FrozenWarpKinematicsArtifact {
             &init,
             [input.worlds, input.nbody],
             &[
-                contiguous(body_mass_ptr, &[input.body_mass.len(), input.nbody], 4)?,
-                contiguous(xipos_ptr, &[input.worlds, input.nbody], 12)?,
-                contiguous(subtree_ptr, &[input.worlds, input.nbody], 12)?,
+                f32_arg(
+                    body_mass_ptr,
+                    &[input.body_mass.len(), input.nbody],
+                    4,
+                    cap(body_mass.len()),
+                )?,
+                f32_arg(xipos_ptr, &[input.worlds, input.nbody], 12, xipos_cap)?,
+                f32_arg(subtree_ptr, &[input.worlds, input.nbody], 12, subtree_cap)?,
             ],
             "frozen-warp-com-init-launch",
         )?;
@@ -290,10 +338,10 @@ impl FrozenWarpKinematicsArtifact {
                 &acc,
                 [input.worlds, level.len()],
                 &[
-                    contiguous(parent_ptr, &[input.nbody], 4)?,
-                    contiguous(subtree_ptr, &[input.worlds, input.nbody], 12)?,
-                    contiguous(level_ptr, &[level.len()], 4)?,
-                    contiguous(subtree_ptr, &[input.worlds, input.nbody], 12)?,
+                    i32_arg(parent_ptr, &[input.nbody], cap(parent.len()))?,
+                    f32_arg(subtree_ptr, &[input.worlds, input.nbody], 12, subtree_cap)?,
+                    i32_arg(level_ptr, &[level.len()], cap(level.len()))?,
+                    f32_arg(subtree_ptr, &[input.worlds, input.nbody], 12, subtree_cap)?,
                 ],
                 "frozen-warp-com-acc-launch",
             )?;
@@ -303,13 +351,14 @@ impl FrozenWarpKinematicsArtifact {
             &div,
             [input.worlds, input.nbody],
             &[
-                contiguous(
+                f32_arg(
                     body_subtreemass_ptr,
                     &[input.body_subtreemass.len(), input.nbody],
                     4,
+                    cap(body_subtreemass.len()),
                 )?,
-                contiguous(subtree_ptr, &[input.worlds, input.nbody], 12)?,
-                contiguous(subtree_ptr, &[input.worlds, input.nbody], 12)?,
+                f32_arg(subtree_ptr, &[input.worlds, input.nbody], 12, subtree_cap)?,
+                f32_arg(subtree_ptr, &[input.worlds, input.nbody], 12, subtree_cap)?,
             ],
             "frozen-warp-com-div-launch",
         )?;
@@ -318,15 +367,15 @@ impl FrozenWarpKinematicsArtifact {
             &cdof_kernel,
             [input.worlds, input.njnt],
             &[
-                contiguous(roots_ptr, &[input.nbody], 4)?,
-                contiguous(jnt_type_ptr, &[input.njnt], 4)?,
-                contiguous(jnt_dofadr_ptr, &[input.njnt], 4)?,
-                contiguous(jnt_bodyid_ptr, &[input.njnt], 4)?,
-                contiguous(xmat_ptr, &[input.worlds, input.nbody], 36)?,
-                contiguous(xanchor_ptr, &[input.worlds, input.njnt], 12)?,
-                contiguous(xaxis_ptr, &[input.worlds, input.njnt], 12)?,
-                contiguous(subtree_ptr, &[input.worlds, input.nbody], 12)?,
-                contiguous(cdof_ptr, &[input.worlds, input.nv], 24)?,
+                i32_arg(roots_ptr, &[input.nbody], cap(roots.len()))?,
+                i32_arg(jnt_type_ptr, &[input.njnt], cap(jnt_type.len()))?,
+                i32_arg(jnt_dofadr_ptr, &[input.njnt], cap(jnt_dofadr.len()))?,
+                i32_arg(jnt_bodyid_ptr, &[input.njnt], cap(jnt_bodyid.len()))?,
+                f32_arg(xmat_ptr, &[input.worlds, input.nbody], 36, xmat_cap)?,
+                f32_arg(xanchor_ptr, &[input.worlds, input.njnt], 12, xanchor_cap)?,
+                f32_arg(xaxis_ptr, &[input.worlds, input.njnt], 12, xaxis_cap)?,
+                f32_arg(subtree_ptr, &[input.worlds, input.nbody], 12, subtree_cap)?,
+                f32_arg(cdof_ptr, &[input.worlds, input.nv], 24, cdof_cap)?,
             ],
             "frozen-warp-cdof-launch",
         )?;
