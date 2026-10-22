@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-precision-source-paths",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/np01-type-mapping/inventory.json",
+      "blob": "56cc3ece7fb9270d68a8e099cb54060c1f1ae45b"
+    },
+    {
+      "path": "docs/development-evidence/np01-type-mapping/README.md",
+      "blob": "f21f8ed4fb2a13a0b5f5aefeba319dd9c9336b4f"
+    },
+    {
+      "path": "docs/development-evidence/np01-type-mapping/warp-headers.json",
+      "blob": "ff4d98a3ab153dade389daf40d5aa83cb042476b"
+    },
+    {
+      "path": "docs/development-evidence/np01-type-mapping/map-warp-headers.mjs",
+      "blob": "cf39622560808d2557b2ad2f795607a71cd7ec05"
+    }
+  ],
+  "results": {
+    "rows_total": 30,
+    "rows_with_header_evidence": 28,
+    "rows_without_header_evidence": ["tendon", "sleep_wake"],
+    "upgraded_from_todo": 9,
+    "remaining_todo": 1,
+    "remaining_todo_ids": ["tendon"],
+    "rows_with_function_level_upstream": 19,
+    "rows_with_file_level_only_upstream": 11,
+    "distinct_headers_mapped": 9,
+    "headers": ["array.h", "builtin.h", "cuda_crt.h", "mat.h", "quat.h", "spatial.h", "tile.h", "tile_cholesky.h", "vec.h"],
+    "per_field_tables_still_missing": 30,
+    "np01_admitted": false
+  },
+  "note": "承接 NP01 清单（2026-10-23-precision-type-mapping），用 W15 原样复制的 Warp v1.15.0 头文件（b1de2db，clone ffa038b1，36 个）补「产品内核 → 上游头文件实现」路径证据：上游侧取 pinned Python（71da24d…）的 wp.* 调用（函数级优先、文件级如实标注），产品侧取手写 CUDA 原语，按定义行在头树中定位符号与行号。原 10 条待补中 9 条升级为部分（头文件路径已对），剩余待补 1 条（tendon：纯索引合并、头树无直接函数对应）；sleep_wake 无头文件证据保留部分并注明。30 条路径仍全部缺逐字段类型表，不宣称 NP01 通过。",
+  "boundaries": [
+    "只补清单与证据：未改产品代码、测试、断言、容差、fixtures；未跑 GPU；未改 include/warp-headers（只读）。",
+    "路径级证据不等于逐字段类型映射；NP01 仍未验收，待补项与部分项不写成通过。",
+    "CUDA 内建（__fadd_rn/__fmul_rn/__fmaf_rn/__syncthreads、标量 atomicAdd）不冒充 Warp 头树实现；标量 atomicAdd 只映射到 Warp atomic_add 重载族。",
+    "与 Backend 的 W14-F1 修复范围（src/runtime/launcher、tests/launcher-*.rs）无重叠。"
+  ]
+}
