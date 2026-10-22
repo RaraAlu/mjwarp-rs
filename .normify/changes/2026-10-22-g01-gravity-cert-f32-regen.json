@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-g01-gravity-cert-f32-regen",
+  "title": {
+    "zh": "按f32逐步口径重生成重力位证书",
+    "en": "Regenerate gravity certificate with stepwise f32 semantics"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-10-22 裁决 W-D4 口径第 1 项：按上游同样的 f32 逐步舍入口径重生成 G01 重力位证书；证书只从上游公式与 f32 输入独立推导，不用 GPU 实际输出反推，不改断言迁就；容差与精度要求不动；all-probes 该项转绿。",
+    "en": "User decision on 2026-10-22 for W-D4 option 1: regenerate the G01 gravity certificate using the same stepwise f32 rounding semantics as upstream. The certificate must be derived independently from upstream formulas and f32 inputs, never from GPU outputs, with no assertion relaxation; tolerance and precision requirements stay; the all-probes item must go green."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.gravity-compensation"
+    ]
+  },
+  "acceptance": [
+    "证书按上游公式 + f32 输入逐步舍入生成：列出每个输入的 f32 舍入、每个中间量（子树COM、cdof、力臂、雅可比、力、点积、累加）的 f32 舍入点与精确有理值（含 32/7、17/7、25/7 类），并引用上游公式/常量来源（71da24d 基线、docs/evidence/gravity-*、2026-10-22-g01-numerics-audit 结论）。",
+    "独立推导：生成器不读取 GPU 实际输出、不回读产品结果作为期望；原证书归档为历史证据并写明口径变更依据（用户 2026-10-22 裁决）与新旧差异（actual 0x3efffffc vs 旧期望 0x3f000000、max_abs 1.19e-7 ≤ 2e-6）。",
+    "生成器为非 Python、可复现（PowerShell/C++/Rust），命令与产物写入证据；证书 JSON 可由生成器重新生成并校验一致。",
+    "不改容差、不删除断言、不改内核/PTX 生成策略与 fixtures；定向 GPU gravity 测试转绿；all-probes 阶段复跑该项 0 红（只报剩余项）。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过；gate/check/done + 中文提交 + 回执。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-g01-wd5-recapture-baseline"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Codex",
+    "files": [
+      "src/physics/gravity_compensation/tests.rs",
+      "docs/development-evidence/g01-gravity-cert-f32/",
+      "docs/three-layer-acceptance.md",
+      "docs/development-evidence/changes/2026-10-22-g01-gravity-cert-f32-regen.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "来源：docs/three-layer-acceptance.md 债务表 W-D4 与 docs/development-evidence/g01-numerics-audit/README.md 的结论（2 槽各 4 ulp 来自 f32 输入/中间舍入，不是归约顺序/设备问题；旧证书用精确有理值）。用户 2026-10-22 裁决 W-D4 口径第 1 项：按 f32 逐步重算证书。基线 HEAD df3179f。上游公式来源：target/mjwarp-parallel/upstream/mujoco_warp/_src/smooth.py 的 _subtree_com_init/_subtree_com_acc/_subtree_div/_cdof（71da24d 基线）与仓库冻结 kernel src/physics/gravity_compensation/cuda.rs；审计先例 sim.rs 已证明主机 f32 逐步模拟与 GPU bits 一致。证书生成器放 docs/development-evidence/g01-gravity-cert-f32/gen.rs（rustc 直接编译，不参与构建、无第三方依赖）；旧精确证书归档在同一证据目录。W-D4 之前“不改容差、不改断言”的边界继续遵守：本任务只改证书期望值的生成口径。",
+  "revision": {
+    "before": "df3179f34ca0ea63ec93f7ba15af98cf0e5587bc",
+    "after": null
+  },
+  "created_at": "2026-10-22T17:00:00.000Z",
+  "updated_at": "2026-10-22T17:00:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-g01-gravity-cert-f32-regen.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-g01-gravity-cert-f32-regen"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
