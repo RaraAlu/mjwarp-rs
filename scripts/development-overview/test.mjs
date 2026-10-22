@@ -7,6 +7,7 @@ import { once } from 'node:events';
 import { get } from 'node:http';
 import { counts, stageOf, crossLinks, related, ancestors, filterTasks, validateSchedule, layerPrefix } from './model.mjs';
 import { createOverviewServer, readReceipt, NormifyReader } from './server.mjs';
+import { RepoReader, buildRepoPlan, loadRepoChanges, parseProjectName } from './repo-reader.mjs';
 
 const task = (id, deps = [], readiness = 'blocked', phase = 'P4') => ({ id, title: { zh: id },
   depends_on: deps, readiness, phase, modules: ['mjwarp.physics'], files: ['src/physics/mod.rs'] });
@@ -126,4 +127,131 @@ test('回环服务查询原排程，保护只读边界并显式返回故障', as
       assert.match((await response.json()).error, /模拟服务失效/);
     });
   } finally { server.closeAllConnections(); await new Promise(resolve=>server.close(resolve)); }
+});
+
+const repoChange = (id, status, schedule, extra = {}) => ({ schema_version: 1, id,
+  title: { zh: '任务' + id, en: id }, status, intent: { zh: '意图', en: 'intent' },
+  modules: { modify: [] }, acceptance: ['验收条件'], note: '',
+  created_at: '2026-10-01T00:00:00.000Z', updated_at: '2026-10-01T00:00:00.000Z',
+  checks: [{ kind: 'gate', gate: 'unit' }], closed_at: '2026-10-02T00:00:00.000Z',
+  revision: { before: null, after: null }, ...(schedule ? { schedule } : {}), ...extra });
+
+test('仓库读取器保留排程契约并按规则计算readiness', () => {
+  const plan = buildRepoPlan([
+    repoChange('a-verified', 'verified', { depends_on: [], phase: 'P1', owner: 'QA' }),
+    repoChange('b-abandoned', 'abandoned', {}),
+    repoChange('c-running', 'in_progress', { depends_on: ['a-verified'] }),
+    repoChange('d-ready', 'proposed', { depends_on: ['a-verified'] }),
+    repoChange('e-missing', 'proposed', { depends_on: ['archived-task'] }),
+    repoChange('f-blocked', 'proposed', { depends_on: ['d-ready'] }),
+    repoChange('g-backlog', 'backlog', { depends_on: [] }),
+    repoChange('h-unscheduled', 'proposed'),
+  ]);
+  assert.equal(validateSchedule(plan), plan);
+  const byId = new Map(plan.tasks.map(t => [t.id, t]));
+  assert.equal(byId.get('a-verified').readiness, 'verified');
+  assert.equal(byId.get('b-abandoned').readiness, 'abandoned');
+  assert.equal(byId.get('c-running').readiness, 'in_progress');
+  assert.equal(byId.get('d-ready').readiness, 'ready');
+  assert.equal(byId.get('e-missing').readiness, 'ready');
+  assert.equal(byId.get('f-blocked').readiness, 'blocked');
+  assert.deepEqual(byId.get('f-blocked').blockers, ['dependency:d-ready']);
+  assert.equal(byId.get('g-backlog').readiness, 'unscheduled');
+  assert.equal(byId.get('h-unscheduled').readiness, 'unscheduled');
+  assert.deepEqual([...plan.ready].sort(), ['d-ready', 'e-missing']);
+  assert.deepEqual(plan.running, ['c-running']);
+  assert.deepEqual(plan.blocked, ['f-blocked']);
+  assert.deepEqual(plan.completed, ['a-verified']);
+  assert.deepEqual([...plan.unscheduled].sort(), ['g-backlog', 'h-unscheduled']);
+  assert.equal(plan.warnings[0].code, 'schedule/dependency-missing');
+  assert.deepEqual(plan.waves, [['c-running'], ['d-ready', 'e-missing'], ['f-blocked']]);
+  assert.equal(plan.ok, true);
+  assert.match(plan.mermaid, /^flowchart TD/);
+});
+test('仓库字段映射只保留排程契约字段', () => {
+  const plan = buildRepoPlan([repoChange('mapped', 'proposed', { depends_on: [], phase: 'P2',
+    owner: 'QA', files: ['scripts/a'], resources: ['gpu:x'], priority: 3 },
+  { modules: { modify: ['mjwarp.physics'], create: ['mjwarp.new'] } })]);
+  const [task] = plan.tasks;
+  assert.equal(task.phase, 'P2');
+  assert.equal(task.owner, 'QA');
+  assert.deepEqual(task.files, ['scripts/a']);
+  assert.deepEqual(task.resources, ['gpu:x']);
+  assert.equal(task.priority, 3);
+  assert.deepEqual(task.modules, ['mjwarp.physics']);
+  for (const key of ['checks', 'closed_at', 'intent', 'schema_version', 'revision']) assert.equal(key in task, false);
+  assert.equal(task.readiness, 'ready');
+});
+test('同文件候选任务记为冲突并分波', () => {
+  const plan = buildRepoPlan([
+    repoChange('x', 'proposed', { depends_on: [], files: ['scripts/dev'] }),
+    repoChange('y', 'proposed', { depends_on: [], files: ['scripts/dev/main.mjs'] }),
+  ]);
+  assert.equal(plan.conflicts.length, 1);
+  assert.deepEqual(plan.conflicts[0].files, ['scripts/dev']);
+  assert.deepEqual(plan.waves, [['x'], ['y']]);
+});
+test('候选任务与运行任务同文件时阻塞', () => {
+  const plan = buildRepoPlan([
+    repoChange('run', 'in_progress', { depends_on: [], files: ['scripts/dev'] }),
+    repoChange('wait', 'proposed', { depends_on: [], files: ['scripts/dev/x.mjs'] }),
+  ]);
+  const wait = plan.tasks.find(task => task.id === 'wait');
+  assert.deepEqual(wait.blockers, ['conflict:run']);
+  assert.equal(wait.readiness, 'blocked');
+  assert.deepEqual(plan.running, ['run']);
+});
+test('空目录拒绝、坏文件跳过并保留诊断', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mjwarp-repo-'));
+  try {
+    const normify = join(root, '.normify');
+    await mkdir(join(normify, 'changes'), { recursive: true });
+    await assert.rejects(new RepoReader(normify).call('normify_change_list', { view: 'schedule' }), /没有可读任务/);
+    await writeFile(join(normify, 'config.toml'), '[project]\nname = "repo-sample"\n');
+    await writeFile(join(normify, 'changes', 'good.json'), JSON.stringify(repoChange('good', 'proposed', { depends_on: [] })));
+    await writeFile(join(normify, 'changes', 'broken.json'), '{oops');
+    const { changes, warnings } = await loadRepoChanges(normify);
+    assert.deepEqual(changes.map(c => c.id), ['good']);
+    assert.equal(warnings[0].code, 'schedule/change-unreadable');
+    assert.equal(await new RepoReader(normify).project(), 'repo-sample');
+    const plan = await new RepoReader(normify).call('normify_change_list', { view: 'schedule' });
+    assert.deepEqual(plan.ready, ['good']);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+test('config.toml只提取项目名，仓库读取器拒绝写入', async () => {
+  assert.equal(parseProjectName('[project]\nname = "mjwarp-rs"\n\n[commit]\ntypes = []\n'), 'mjwarp-rs');
+  assert.equal(parseProjectName('[commit]\nname = "wrong"\n[project]\nname = "right"\n'), 'right');
+  assert.equal(parseProjectName('schema_version = 1'), null);
+  const root = await mkdtemp(join(tmpdir(), 'mjwarp-repo-'));
+  try {
+    const normify = join(root, '.normify');
+    await mkdir(join(normify, 'changes'), { recursive: true });
+    await writeFile(join(normify, 'changes', 'good.json'), JSON.stringify(repoChange('good', 'proposed', { depends_on: [] })));
+    const reader = new RepoReader(normify);
+    await assert.rejects(reader.call('normify_change_update', {}), /非只读/);
+    assert.equal((await reader.call('normify_change_list', { id: 'good' })).change.id, 'good');
+    assert.equal((await reader.call('normify_change_list', { id: 'missing' })).change, null);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+test('回环服务以仓库读取器提供排程与详情', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mjwarp-repo-'));
+  try {
+    const normify = join(root, '.normify');
+    await mkdir(join(normify, 'changes'), { recursive: true });
+    await writeFile(join(normify, 'config.toml'), '[project]\nname = "repo-sample"\n');
+    await writeFile(join(normify, 'changes', '2026-10-22-sample.json'),
+      JSON.stringify(repoChange('2026-10-22-sample', 'proposed', { depends_on: [] })));
+    const { server, basePath } = createOverviewServer(new RepoReader(normify), { token: 'repo-token', root });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const url = `http://127.0.0.1:${server.address().port}` + basePath;
+    try {
+      const value = await (await fetch(url + 'api/schedule')).json();
+      assert.equal(value.schedule.tasks.length, 1);
+      assert.deepEqual(value.schedule.ready, ['2026-10-22-sample']);
+      const detail = await (await fetch(url + 'api/task?id=2026-10-22-sample')).json();
+      assert.equal(detail.change.acceptance[0], '验收条件');
+      assert.equal(detail.delivery.status, '未绑定回执');
+    } finally { server.closeAllConnections(); await new Promise(resolve=>server.close(resolve)); }
+  } finally { await rm(root, { recursive: true, force: true }); }
 });

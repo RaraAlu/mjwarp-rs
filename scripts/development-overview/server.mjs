@@ -2,11 +2,12 @@ import http from 'node:http';
 import { spawn, execFileSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { readFile, realpath } from 'node:fs/promises';
-import { dirname, resolve, relative, isAbsolute, sep } from 'node:path';
+import { dirname, resolve, relative, isAbsolute, sep, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { randomBytes } from 'node:crypto';
 import { validateSchedule } from './model.mjs';
+import { RepoReader } from './repo-reader.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
@@ -112,7 +113,7 @@ export function createOverviewServer(reader, { project = 'mjwarp-rs', root = rep
       if (route === 'api/schedule') {
         const schedule = validateSchedule(await reader.call('normify_change_list', { project, view: 'schedule' }));
         let head = '无法读取';
-        try { head = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true }).trim(); } catch { /* 不用未知提交冒充证据。 */ }
+        try { head = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { /* 不用未知提交冒充证据。 */ }
         return json(200, { schedule, fetchedAt: new Date().toISOString(), project, head });
       }
       if (route === 'api/task') {
@@ -133,21 +134,33 @@ export function createOverviewServer(reader, { project = 'mjwarp-rs', root = rep
 }
 
 async function main() {
-  const { values } = parseArgs({ options: { 'normify-server': { type: 'string' },
-    'normify-root': { type: 'string' }, port: { type: 'string', default: '0' } } });
-  const entry = values['normify-server'] || process.env.NORMIFY_SERVER;
-  if (!entry) throw new Error('请用 --normify-server 指定已安装的 stdio.mjs');
-  const root = values['normify-root'] || dirname(execFileSync('git', ['-C', repoRoot, 'config', '--get', 'normify.directory'], { encoding: 'utf8', windowsHide: true }).trim());
+  const { values } = parseArgs({ options: { source: { type: 'string', default: 'repo' },
+    'normify-server': { type: 'string' }, 'normify-root': { type: 'string' },
+    port: { type: 'string', default: '0' } } });
   const port = Number(values.port);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('端口无效');
-  const reader = new NormifyReader(entry, root);
+  const source = values.source;
+  if (source !== 'repo' && source !== 'dsh') throw new Error('--source 只支持 repo 或 dsh');
+  let reader;
+  let project = 'mjwarp-rs';
+  if (source === 'repo') {
+    // 仓库内格式与 dsh-normify 引擎不兼容，直接读仓库 .normify，不走引擎。
+    if (values['normify-root']) console.error(`repo 模式忽略 --normify-root；仓库数据固定读取 ${join(repoRoot, '.normify')}`);
+    reader = new RepoReader(join(repoRoot, '.normify'));
+    project = (await reader.project()) || project;
+  } else {
+    const entry = values['normify-server'] || process.env.NORMIFY_SERVER;
+    if (!entry) throw new Error('dsh 模式请用 --normify-server 指定已安装的 stdio.mjs');
+    const root = values['normify-root'] || dirname(execFileSync('git', ['-C', repoRoot, 'config', '--get', 'normify.directory'], { encoding: 'utf8', windowsHide: true }).trim());
+    reader = new NormifyReader(entry, root);
+  }
   try {
-    await reader.initialize();
-    const { server, basePath } = createOverviewServer(reader);
-    server.on('error', error => { console.error(error.message); reader.close(); process.exitCode = 1; });
+    if (typeof reader.initialize === 'function') await reader.initialize();
+    const { server, basePath } = createOverviewServer(reader, { project });
+    server.on('error', error => { console.error(error.message); reader.close?.(); process.exitCode = 1; });
     server.listen(port, '127.0.0.1', () => console.log(`http://127.0.0.1:${server.address().port}${basePath}`));
-    for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { reader.close(); server.close(); });
-  } catch (error) { reader.close(); throw error; }
+    for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { reader.close?.(); server.close(); });
+  } catch (error) { reader.close?.(); throw error; }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().catch(error => { console.error(error.message); process.exitCode = 1; });
