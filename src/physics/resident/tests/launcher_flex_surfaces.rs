@@ -95,7 +95,14 @@ fn edge_lengths_follow_frozen_layout_and_reject_invalid_dimensions() {
     assert!(FlexEdgesStaticDims::new(2, 2, 1, 1, 2, 39, 6).is_err());
     // 柔体位置跨度至少覆盖3*nvert。
     assert!(FlexEdgesStaticDims::new(2, 2, 1, 1, 2, 40, 5).is_err());
-    assert!(FlexEdgesStaticDims::new(1, 2, 1, 1, 2, 19, 6).is_err());
+    // 单世界体（nb=1, nv=0）与零nnz是冻结内核合法输入。
+    let single = FlexEdgesStaticDims::new(1, 0, 1, 0, 2, 14, 6).unwrap();
+    assert_eq!(single.metadata_elements().unwrap(), 15);
+    assert_eq!(single.output_stride().unwrap(), 2);
+    // 零边保留稀疏槽（nnz>0）同样合法：内核只按ne/nvert循环。
+    assert!(FlexEdgesStaticDims::new(2, 2, 0, 2, 0, 40, 0).is_ok());
+    // 刚体数为零仍拒绝：parent/root寻址不存在根体表。
+    assert!(FlexEdgesStaticDims::new(0, 0, 1, 0, 2, 14, 6).is_err());
 }
 
 #[test]
@@ -123,6 +130,54 @@ fn edge_metadata_proof_rejects_rows_bodies_and_parents() {
         );
     }
     assert!(validate_flex_edges_metadata(&edges_metadata()[..19], dims).is_err());
+}
+
+#[test]
+#[cfg(feature = "cuda-probe")]
+fn single_body_edge_metadata_allows_zero_nnz_and_keeps_rejections() {
+    let dims = FlexEdgesStaticDims::new(1, 0, 1, 0, 2, 14, 6).unwrap();
+    // 单世界体：头(1,0,1,0,14,6,2)、单边行、无列索引、顶点体0、父链0、根体0、无自由度体。
+    let metadata = vec![1, 0, 1, 0, 14, 6, 2, 0, 1, 0, 0, 0, 0, 0, 0];
+    assert!(validate_flex_edges_metadata(&metadata, dims).is_ok());
+    for (index, value, reason) in [
+        (2, 2, "边数不符"),
+        (4, 13, "质心跨度不符"),
+        (8, 2, "边端点越界"),
+        (9, -1, "稀疏行为负"),
+        (12, 1, "顶点体越界"),
+        (13, 1, "根体父引用无效"),
+        (14, 1, "根体索引越界"),
+    ] {
+        let mut values = metadata.clone();
+        values[index] = value;
+        assert!(
+            validate_flex_edges_metadata(&values, dims).is_err(),
+            "{reason} 应被拒绝"
+        );
+    }
+    assert!(validate_flex_edges_metadata(&metadata[..14], dims).is_err());
+}
+
+#[test]
+#[cfg(feature = "cuda-probe")]
+fn zero_edge_metadata_proof_accepts_reserved_sparse_slots() {
+    let dims = FlexEdgesStaticDims::new(2, 2, 0, 2, 0, 40, 0).unwrap();
+    // 零边保留两个稀疏槽：头(2,2,0,2,40,0,0)、列索引、父链、根体与自由度体。
+    let metadata = vec![2, 2, 0, 2, 40, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0];
+    assert!(validate_flex_edges_metadata(&metadata, dims).is_ok());
+    for (index, value, reason) in [
+        (3, 1, "稀疏槽数不符"),
+        (8, 2, "列索引越界"),
+        (10, 2, "体父链越界"),
+        (13, -1, "自由度体为负"),
+    ] {
+        let mut values = metadata.clone();
+        values[index] = value;
+        assert!(
+            validate_flex_edges_metadata(&values, dims).is_err(),
+            "{reason} 应被拒绝"
+        );
+    }
 }
 
 #[test]

@@ -96,7 +96,9 @@ impl FlexEdgesStaticDims {
             com_stride: value("resident_flex_edges_com", com_stride)?,
             flex_stride: value("resident_flex_edges_flex", flex_stride)?,
         };
-        if dims.nb < 2 || dims.ne == 0 || dims.nvert == 0 {
+        // 冻结内核按nb寻址parent/root；单世界体（nb=1）模型合法。
+        // 零边/零顶点也安全：内核只按ne/nvert循环，越界由元数据证明拦截。
+        if dims.nb == 0 {
             return Err(LauncherError::InvalidArray("常驻柔体边维度无效"));
         }
         let expected_com = u64::from(dims.nb)

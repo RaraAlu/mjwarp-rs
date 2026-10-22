@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-layers-m3-flex-edges-abi-fix",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "src/physics/resident/flex_edges_launcher.rs", "blob": "cbc89523f96ef70b12aa7537a14e05b519e54ae5"},
+    {"path": "src/physics/resident/tests/launcher_flex_surfaces.rs", "blob": "25c311ae09f9b93437b093774e03a60fbb49d1d5"}
+  ],
+  "note": "修复W-D7（P0）：M3安全包装迁移（068fd14 工程(layers): 迁移常驻柔体边与面安全包装）引入的柔体边ABI回归。基线归属：77e8b55（迁移父提交）通过、068fd14起失败；G01 resident脚本在edge-free-body阶段失败，报Input(InvalidDimension{field:\"resident_flex_edges_abi\"})。根因：新增`FlexEdgesStaticDims::new`校验硬性要求`nb >= 2`且`ne != 0`、`nvert != 0`；而冻结`flex_edges`内核按元数据头`nb`寻址parent/root表并按`ne`/`nvert`循环，单世界体模型（body_parentid=[0]、nb=1、nv=0）加上零nnz边行是合法输入；迁移前的底层发射只校验会话、世界数与缓冲存在，从未要求nb>=2。修法：①只保留`nb == 0`拒绝（parent/root表无根体可寻址，模型层也保证nb>=1）；②移除`ne == 0`与`nvert == 0`的整体拒绝，零边/零顶点由元数据证明的数组切片与端点/列索引校验兜底（ne>0而nvert=0时端点校验必然拒绝）；③坏输入拒绝面全部保留：七项头不符、端点越界、稀疏行为负、稀疏行越界、列索引越界、顶点体越界、根体父引用无效、体父链非递增、根体表越界、自由度体越界与长度不符。新增宿主测试2项（单世界体+零nnz元数据接受并保留7类反例拒绝；零边保留稀疏槽接受并保留4类反例拒绝），更新`launcher_flex_surfaces`中原`new(1,...)`过严断言为内核一致语义，并把单世界体跨度断言改为`metadata_elements=15`、`output_stride=2`。内核字符串、PTX、容差与fixtures未改。验证（RTX 4070 Ti SUPER/驱动596.36/rustc 1.99.0，每次NVRTC用独立空捕获目录）：`flex_edge_free_body_matches_translation_rotation_and_velocity`恢复通过（1过0败）；宿主`tests_launcher_flex_surfaces` 7过0败；`resident_flex_edge -- --ignored` 4过0败（11.02s：coincident/reversed/static/same-body edges、native uneven worlds、qvel readiness ownership、wake composition）；G01 resident脚本`scripts/test-windows-resident-kinematics.ps1 -AllFeatures`全量102项通过exit 0（证据target/resident-kinematics/fdc4408dfd03479b91d62a540c7f3355/report.json：flexEdgeComparedWorlds 2084、flexEdgeCount 284、flexEdgeMaxAbsoluteError 2.88e-7、flexEdgeFreeBodyPassed 1、flexFacePassed 3、flexStretchPassed 4、adapterPassed 9），resident阶段不再停在edge-free-body。门禁：fmt 1159ms、clippy 354ms、clippy-cuda 4181ms、unit 392过0败；双配置`cargo check --locked`与`--features cuda-probe`通过。未验收边界：本轮只修柔体边维度/跨度校验，不改内核/PTX/容差/fixtures；G01全量debug脚本与all-probes未在本任务重跑（W-D4重力位证书口径、W-D5 PTX目录双语义、W-D6计数同步为已知债务，不在本任务范围）；未重跑Linux。"
+}
