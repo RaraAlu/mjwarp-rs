@@ -1,0 +1,46 @@
+{
+    "work": "work-20-flex-edge-passive",
+    "summary": "柔体边被动力三入口改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/flex_edge_passive/plan.rs", "line": 152 },
+        { "file": "src/physics/flex_edge_passive/plan.rs", "line": 177 },
+        { "file": "src/physics/flex_edge_passive/plan.rs", "line": 216 },
+        { "file": "src/physics/flex_edge_passive/plan.rs", "line": 239 },
+        { "file": "src/physics/flex_edge_passive/plan.rs", "line": 255 }
+    ],
+    "add_low_level": [
+        { "file": "src/physics/flex_edge_passive/kernels.rs", "line": 239, "receiver": "self.validate", "method": "launch_flex_edge_passive", "classification": "typed_wrapper_low_level", "entry": "flex_edge_passive_validate" },
+        { "file": "src/physics/flex_edge_passive/kernels.rs", "line": 277, "receiver": "self.clear", "method": "launch_flex_edge_passive", "classification": "typed_wrapper_low_level", "entry": "flex_edge_passive_clear" },
+        { "file": "src/physics/flex_edge_passive/kernels.rs", "line": 314, "receiver": "self.compute", "method": "launch_flex_edge_passive", "classification": "typed_wrapper_low_level", "entry": "flex_edge_passive_compute" }
+    ],
+    "add_orchestration": [
+        { "file": "src/physics/flex_edge_passive/plan.rs", "line": 157, "receiver": "self.kernels", "method": "launch_validate", "classification": "wrapper_orchestration", "entry": "flex_edge_passive_validate" },
+        { "file": "src/physics/flex_edge_passive/plan.rs", "line": 168, "receiver": "self.kernels", "method": "launch_compute", "classification": "wrapper_orchestration", "entry": "flex_edge_passive_compute" },
+        { "file": "src/physics/flex_edge_passive/plan.rs", "line": 197, "receiver": "self.kernels", "method": "launch_validate", "classification": "wrapper_orchestration", "entry": "flex_edge_passive_validate" },
+        { "file": "src/physics/flex_edge_passive/plan.rs", "line": 216, "receiver": "self.kernels", "method": "launch_clear", "classification": "wrapper_orchestration", "entry": "flex_edge_passive_clear" },
+        { "file": "src/physics/flex_edge_passive/plan.rs", "line": 223, "receiver": "self.kernels", "method": "launch_compute", "classification": "wrapper_orchestration", "entry": "flex_edge_passive_compute" }
+    ],
+    "compile_sites_replace": [
+        { "old_file": "src/physics/flex_edge_passive/plan.rs", "old_line": 56, "new_file": "src/physics/flex_edge_passive/kernels.rs", "new_line": 181 },
+        { "old_file": "src/physics/flex_edge_passive/plan.rs", "old_line": 57, "new_file": "src/physics/flex_edge_passive/kernels.rs", "new_line": 182 },
+        { "old_file": "src/physics/flex_edge_passive/plan.rs", "old_line": 58, "new_file": "src/physics/flex_edge_passive/kernels.rs", "new_line": 183 }
+    ],
+    "entry_status": [
+        { "entry": "flex_edge_passive_validate", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/flex_edge_passive/kernels.rs:181" ], "kernel_abi_evidence": [ "FlexEdgePassiveValidateSpec at src/physics/flex_edge_passive/kernels.rs", "four-buffer launch at src/physics/flex_edge_passive/kernels.rs:239" ] },
+        { "entry": "flex_edge_passive_clear", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/flex_edge_passive/kernels.rs:182" ], "kernel_abi_evidence": [ "FlexEdgePassiveClearSpec at src/physics/flex_edge_passive/kernels.rs", "four-buffer launch at src/physics/flex_edge_passive/kernels.rs:277" ] },
+        { "entry": "flex_edge_passive_compute", "migration_status": "typed_safe_wrapper", "compile_sites": [ "src/physics/flex_edge_passive/kernels.rs:183" ], "kernel_abi_evidence": [ "FlexEdgePassiveComputeSpec at src/physics/flex_edge_passive/kernels.rs", "four-buffer launch at src/physics/flex_edge_passive/kernels.rs:314" ] }
+    ],
+    "families_add": [
+        { "type": "FlexEdgePassiveValidateSpec", "logical_name": "flex_edge_passive_validate", "definition": "src/physics/flex_edge_passive/kernels.rs", "actual_cuda_entries": "flex_edge_passive_validate", "typed_low_level_calls": [ "src/physics/flex_edge_passive/kernels.rs:239" ] },
+        { "type": "FlexEdgePassiveClearSpec", "logical_name": "flex_edge_passive_clear", "definition": "src/physics/flex_edge_passive/kernels.rs", "actual_cuda_entries": "flex_edge_passive_clear", "typed_low_level_calls": [ "src/physics/flex_edge_passive/kernels.rs:277" ] },
+        { "type": "FlexEdgePassiveComputeSpec", "logical_name": "flex_edge_passive_compute", "definition": "src/physics/flex_edge_passive/kernels.rs", "actual_cuda_entries": "flex_edge_passive_compute", "typed_low_level_calls": [ "src/physics/flex_edge_passive/kernels.rs:314" ] }
+    ],
+    "next_candidate": { "selected": false, "entry": "joint_passive_validate", "migration_status": "unmigrated_or_unwrapped", "compile_sites": [ "src/physics/smooth_force/joint_passive/plan.rs:53" ], "reason": "柔体边被动力已收口；继续关节被动力三入口" },
+    "manual_cross_checks_add": [
+        "work-20: 柔体边被动力三入口改走类型化包装；raw 行 -5、typed 行 +3、编排行 +5",
+        "work-20: 元数据证明校验首尾守卫、行偏移/行数与列索引、柔体号与刚体标记；参数、源与输出按世界精确跨度校验",
+        "work-20: 清零点与计算工作量由静态维度推导（2*worlds*nv、worlds*ne），不再手传；新增专用四缓冲raw helper（src/runtime/transfer/kernel/launchers_passive.rs）",
+        "work-20: GPU 定向复跑 passive 过滤 9 通过 2 失败；两条失败仍为 gravity_compensation_abi InvalidDimension，属 M3 迁移自身回归，将在 passive_force 批次修复"
+    ],
+    "acceptance_boundary_set": { "flex_edge_passive_migrated": true, "flex_edge_passive_raw": false }
+}

@@ -55,6 +55,9 @@ path = "src/runtime/transfer/kernel/tests/adapter.rs"
 [[source]]
 path = "src/runtime/transfer/kernel/tests/guards.rs"
 
+[[source]]
+path = "src/runtime/transfer/kernel/launchers_passive.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::runtime::transfer::kernel::SynchronousKernel"

@@ -6,7 +6,7 @@ use crate::diagnostics::InputError;
 use crate::diagnostics::TransferError;
 use crate::model::{BatchLayout, FlexEdgeFields};
 #[cfg(feature = "cuda-probe")]
-use crate::runtime::{SynchronousKernel, TransferBuffer, TransferSession};
+use crate::runtime::{TransferBuffer, TransferSession};
 use std::sync::Arc;
 
 use super::{KinematicsData, KinematicsPlan};
@@ -122,11 +122,11 @@ pub struct FlexEdgePassivePlan<'p> {
     #[cfg(feature = "cuda-probe")]
     session: TransferSession,
     #[cfg(feature = "cuda-probe")]
-    metadata: TransferBuffer<i32>,
+    metadata: launcher_abi::FlexEdgePassiveMetadataBuffer,
     #[cfg(feature = "cuda-probe")]
     parameters: TransferBuffer<f32>,
     #[cfg(feature = "cuda-probe")]
-    kernels: [SynchronousKernel; 3],
+    kernels: kernels::FlexEdgePassiveKernels,
 }
 
 pub struct FlexEdgePassiveData {
@@ -187,6 +187,15 @@ fn read(
 mod cuda;
 #[path = "flex_edge_passive/data.rs"]
 mod data;
+#[cfg(feature = "cuda-probe")]
+#[path = "flex_edge_passive/kernels.rs"]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "flex_edge_passive/launcher_abi.rs"]
+mod launcher_abi;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "flex_edge_passive/launcher_tests.rs"]
+mod launcher_tests;
 #[path = "flex_edge_passive/plan.rs"]
 mod plan;
 #[cfg(test)]

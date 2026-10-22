@@ -6,8 +6,6 @@ use super::*;
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::TransferError;
-#[cfg(feature = "cuda-probe")]
-use crate::runtime::SynchronousKernel;
 
 impl<'p> FlexEdgePassivePlan<'p> {
     pub fn new(
@@ -46,17 +44,26 @@ impl<'p> FlexEdgePassivePlan<'p> {
                 u32::from(options.disable_spring),
                 u32::from(options.disable_damper),
             );
+            let static_dims = launcher_abi::FlexEdgePassiveStaticDims::new(
+                spec.nv,
+                spec.ne,
+                spec.nf,
+                spec.nnz,
+                spec.stride,
+            )
+            .map_err(launcher_abi::flex_edge_passive_launch_error)?;
+            let metadata = launcher_abi::FlexEdgePassiveMetadataBuffer::from_values(
+                &session,
+                metadata,
+                static_dims,
+            )?;
             Ok(Self {
                 source,
                 spec: Arc::new(spec),
                 options,
-                metadata: session.upload(&metadata)?,
+                metadata,
                 parameters: session.upload(&parameters)?,
-                kernels: [
-                    SynchronousKernel::compile(&session, &code, "flex_edge_passive_validate")?,
-                    SynchronousKernel::compile(&session, &code, "flex_edge_passive_clear")?,
-                    SynchronousKernel::compile(&session, &code, "flex_edge_passive_compute")?,
-                ],
+                kernels: kernels::FlexEdgePassiveKernels::compile(&session, &code)?,
                 session,
             })
         }
@@ -146,17 +153,8 @@ impl<'p> FlexEdgePassivePlan<'p> {
             return Err(TransferError::ModelMismatch);
         }
         let w = worlds as u32;
-        // SAFETY: 计划锁定常驻边源。
-        // 共享状态缓冲仅接收验证结果。
-        unsafe {
-            self.kernels[0].launch(
-                &self.metadata,
-                &self.parameters,
-                input,
-                status,
-                [self.spec.ne as u32, self.spec.nv as u32, w, w],
-            )?;
-        }
+        self.kernels
+            .launch_validate(&self.metadata, &self.parameters, input, status, w)?;
         let checked = read(status, worlds, "passive_force_flex_edge_status")?;
         if let Some(index) = checked[4..4 + worlds].iter().position(|&v| v != 1.0) {
             return Err(InputError::InvalidTopology {
@@ -166,22 +164,8 @@ impl<'p> FlexEdgePassivePlan<'p> {
             }
             .into());
         }
-        let work = w
-            .checked_mul(self.spec.ne as u32)
-            .ok_or(InputError::Overflow {
-                field: "passive_force_flex_edge_work",
-            })?;
-        // SAFETY: 每线程处理一条边。
-        // 目标已含关节和肌腱贡献。
-        unsafe {
-            self.kernels[2].launch(
-                &self.metadata,
-                &self.parameters,
-                input,
-                target,
-                [self.spec.ne as u32, self.spec.nv as u32, w, work],
-            )
-        }
+        self.kernels
+            .launch_compute(&self.metadata, &self.parameters, input, target, w)
     }
 
     pub fn update<'a>(
@@ -210,17 +194,13 @@ impl<'p> FlexEdgePassivePlan<'p> {
             data.current
                 .read_range_into(data.current.len() - 4, &mut guards[4..])?;
             crate::physics::check_device_guards(&guards)?;
-            // SAFETY: 计划锁定真实常驻边源。
-            // 静态元数据限定全部跨度。
-            unsafe {
-                self.kernels[0].launch(
-                    &self.metadata,
-                    &self.parameters,
-                    input,
-                    &mut data.status,
-                    [self.spec.ne as u32, self.spec.nv as u32, worlds, worlds],
-                )?;
-            }
+            self.kernels.launch_validate(
+                &self.metadata,
+                &self.parameters,
+                input,
+                &mut data.status,
+                worlds,
+            )?;
             let status = read(&data.status, data.worlds(), "flex_edge_passive_status")?;
             if let Some(index) = status[4..4 + data.worlds()]
                 .iter()
@@ -233,33 +213,20 @@ impl<'p> FlexEdgePassivePlan<'p> {
                 }
                 .into());
             }
-            let slots = worlds * self.spec.nv as u32;
-            // SAFETY: 每线程只清零一个结果槽。
-            unsafe {
-                self.kernels[1].launch(
-                    &self.metadata,
-                    &self.parameters,
-                    input,
-                    &mut data.staged,
-                    [0, 0, worlds, 2 * slots],
-                )?;
-            }
-            let work = worlds
-                .checked_mul(self.spec.ne as u32)
-                .ok_or(InputError::Overflow {
-                    field: "flex_edge_passive_work",
-                })?;
-            // SAFETY: 每线程处理一条边。
-            // 共享自由度使用设备原子加。
-            unsafe {
-                self.kernels[2].launch(
-                    &self.metadata,
-                    &self.parameters,
-                    input,
-                    &mut data.staged,
-                    [self.spec.ne as u32, self.spec.nv as u32, worlds, work],
-                )?;
-            }
+            self.kernels.launch_clear(
+                &self.metadata,
+                &self.parameters,
+                input,
+                &mut data.staged,
+                worlds,
+            )?;
+            self.kernels.launch_compute(
+                &self.metadata,
+                &self.parameters,
+                input,
+                &mut data.staged,
+                worlds,
+            )?;
             read(
                 &data.staged,
                 2 * data.layout.total_elements(),

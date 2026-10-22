@@ -46,6 +46,7 @@ pub(crate) struct SynchronousKernel {
 mod baseline;
 mod drop;
 mod launch;
+mod launchers_passive;
 mod launchers_physics;
 mod launchers_solve;
 mod ptx;
