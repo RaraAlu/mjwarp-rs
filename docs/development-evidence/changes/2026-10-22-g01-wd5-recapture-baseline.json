@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-22-g01-wd5-recapture-baseline",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "complete"
+  },
+  "files": [
+    {"path": "scripts/test-windows-g01.ps1", "blob": "23e1b1e2796f4f4e8c173628605cfd3fdefea3e9"},
+    {"path": "docs/three-layer-acceptance.md", "blob": "98dca61276a1ee29708fb937d02cc186a70e923d"},
+    {"path": "docs/development-evidence/g01-wd5-recapture/README.md", "blob": "3a1d054de9dc607c80d2490761a1adf75c60782f"},
+    {"path": "tests/support/t4_rigid_capture/tests_recapture.rs", "blob": "cddd73c029795649029808d4b5f85eaef084a941"},
+    {"path": "tests/support/t4_rigid_capture/tests_archive.rs", "blob": "dd0389c4f1a7d372d75a71a37477cccdc286c3ab"}
+  ],
+  "note": "用户 2026-10-22 裁决 A（显式排除并写清债务边界）执行。改动：①scripts/test-windows-g01.ps1 的 all-probes 阶段新增集中排除清单 `$script:excludedAllProbes`（3 个历史捕获/归档工具测试全名），附注释写清“历史捕获/归档工具、需 10/17 冻结产物与冻结源码基线、不是验收探针、用户 2026-10-22 裁决 A”，通过 libtest `--skip` 显式排除，命令与计数仍写入日志，不是静默跳过；②3 个测试文件一行未改（任务 unchanged 检查机器核对 tests_recapture.rs/tests_archive.rs 的 blob 与 a433067 基线一致）；③docs/three-layer-acceptance.md 债务表登记 3 项为历史基线缺失、all-probes 显式排除、需冻结产物才能复采，引用用户裁决；新增 §5.1 给出有冻结产物时的手动运行命令（绝对路径、target 下、不存在的新目录 + 三个测试全名），工具保留；④W-D6 收口：all-probes `-Minimum` 由 169 改为实际通过数 123（仅 W-D4 仍红；W-D4 转绿后应核对 124）。验证：等价命令 `cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features -- --ignored --test-threads=1 --skip <3 项>`（独立空捕获根）123 过 1 败，唯一失败为 W-D4 gpu_matches_independent_multi_body_reduction_certificate；W-D4 未碰（证书口径，等用户裁决）。全脚本复跑在 host-msvc 阶段被任务外的新 T4 源码身份漂移挡住（source drift: src/physics/resident.rs：u038-shared-2 改动 resident 产品源后需 repin-5），该漂移在本任务改动前已存在，已另案处理；本任务未改动任何 resident 产品源。边界：不伪造基线、不改 3 个测试、不改内核/容差/fixtures、W-D4 不动；未跑 release 与 Linux。",
+  "evidence": {
+    "readme": "docs/development-evidence/g01-wd5-recapture/README.md",
+    "all_probes_log": "target/wd5a-allprobes.log",
+    "full_script_log": "target/g01-wd5a-script.log",
+    "user_decision": "2026-10-22 用户裁决 A（显式排除并写清债务边界，由 Chief 转达）"
+  }
+}

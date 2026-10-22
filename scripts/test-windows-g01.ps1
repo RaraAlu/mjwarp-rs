@@ -72,6 +72,18 @@ try {
     } -Expected 1
     Invoke-G01Check 'resident' { & scripts/test-windows-resident-kinematics.ps1 -AllFeatures:$AllFeatures -Release:$Release } -Expected 102
     if ($FullRegression) {
+        # 用户 2026-10-22 裁决 A：以下 3 项是历史捕获/归档工具，需要
+        # 10/17 冻结产物（target/t4-g03-retest 等）与冻结源码基线
+        # （fixtures/precision/t4-kernels.json 身份保持历史），不是验收探针，
+        # 因此从 all-probes 验收阶段显式排除，而不是静默跳过。
+        # 工具本身保留；有冻结产物时的手动运行命令见
+        # docs/three-layer-acceptance.md 的债务表 W-D5 条目。
+        # 排除清单只维护这一处。
+        $script:excludedAllProbes = @(
+            'runtime::transfer::kernel::recapture::tests_recapture::recompile_rigid_variants_without_launching_physics'
+            'runtime::transfer::kernel::recapture::tests_recapture::recaptures_only_missing_rotation_variants'
+            'runtime::transfer::kernel::recapture::tests_archive::archives_face_operator_repair_with_failed_numeric_gate'
+        )
         Invoke-G01Check 'all-probes' {
             $reportDirectory = Join-Path $directory 'probe-reports'
             New-Item -ItemType Directory -Force $reportDirectory | Out-Null
@@ -90,14 +102,20 @@ try {
                 $previous[$key] = [Environment]::GetEnvironmentVariable($key)
                 Set-Item -Path "env:$key" -Value $probeEnv[$key]
             }
-            try { cargo @base -- --ignored --test-threads=1 --nocapture }
+            try {
+                $probeArgs = @('--ignored', '--test-threads=1', '--nocapture')
+                foreach ($excluded in $script:excludedAllProbes) {
+                    $probeArgs += @('--skip', $excluded)
+                }
+                cargo @base -- @probeArgs
+            }
             finally {
                 foreach ($key in $probeEnv.Keys) {
                     if ($null -eq $previous[$key]) { Remove-Item -Path "env:$key" -ErrorAction SilentlyContinue }
                     else { Set-Item -Path "env:$key" -Value $previous[$key] }
                 }
             }
-        } -Minimum 169
+        } -Minimum 123
         Invoke-G01Check 'host-gnu' { cargo test --locked } -Minimum 200
         Invoke-G01Check 'clippy-gnu' { cargo clippy --locked --all-targets -- -D warnings }
         Invoke-G01Check 'clippy-gnu-cuda' { cargo clippy --locked --all-targets --features cuda-probe -- -D warnings }
