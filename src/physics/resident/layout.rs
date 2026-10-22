@@ -56,15 +56,16 @@ pub(super) struct DeviceSpatialTendon {
 
 #[cfg(feature = "cuda-probe")]
 pub(super) struct DeviceFixedTendon {
-    pub(super) model: crate::physics::DeviceModel,
-    pub(super) kernel: SynchronousKernel,
+    pub(super) metadata: FixedTendonMetadataBuffer,
+    pub(super) parameters: TransferBuffer<f32>,
+    pub(super) kernel: FixedTendonKernel,
 }
 
 #[cfg(feature = "cuda-probe")]
 pub(super) struct DeviceCamLight {
-    pub(super) model: crate::physics::DeviceModel,
-    pub(super) rigid_kernel: SynchronousKernel,
-    pub(super) com_kernel: SynchronousKernel,
+    pub(super) metadata: CamLightMetadataBuffer,
+    pub(super) parameters: TransferBuffer<f32>,
+    pub(super) kernel: ResidentCamLightKernel,
 }
 
 impl ResidentLayout {

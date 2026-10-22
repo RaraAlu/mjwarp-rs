@@ -76,33 +76,22 @@ impl KinematicsPlan {
         #[cfg(feature = "cuda-probe")]
         {
             if let Some(device) = &self.camlight {
-                let dimensions = [
-                    data.layout.rigid.nbody as u32,
-                    self.ncam as u32,
-                    self.nlight as u32,
-                    data.worlds() as u32,
-                ];
-                // SAFETY: Checked topology, field descriptors and layouts bound
-                // all reads/writes. The fixed f32 ABI matches both entry points.
-                // Each thread owns one guarded world. The COM launch reads that
-                // world's output only after the synchronous FK launch completes.
-                // All allocations share this plan's session; no owners can drop.
-                unsafe {
-                    device.rigid_kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
-                        &data.rigid,
-                        &mut data.camlight,
-                        dimensions,
-                    )?;
-                    device.com_kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
-                        &data.com,
-                        &mut data.camlight,
-                        dimensions,
-                    )?;
-                }
+                let worlds = data.worlds() as u32;
+                // 类型化包装核对证明、精确跨度、同会话与别名。
+                device.kernel.launch_rigid(
+                    &device.metadata,
+                    &device.parameters,
+                    &data.rigid,
+                    &mut data.camlight,
+                    worlds,
+                )?;
+                device.kernel.launch_com(
+                    &device.metadata,
+                    &device.parameters,
+                    &data.com,
+                    &mut data.camlight,
+                    worlds,
+                )?;
             }
             data.ready.camlight = true;
             Ok(())
@@ -123,26 +112,15 @@ impl KinematicsPlan {
         #[cfg(feature = "cuda-probe")]
         {
             if let Some(device) = &self.fixed_tendon {
-                let l = data.layout.fixed_tendon;
-                let dimensions = [
-                    data.layout.qpos.elements_per_world() as u32,
-                    l.ntendon as u32,
-                    l.nnz as u32,
-                    data.worlds() as u32,
-                ];
-                // SAFETY: Validated scalar joint references and CSR coverage prove
-                // every packed qpos address and Jacobian slot. Checked layouts
-                // bound the wide world strides. Buffers share this session and
-                // distinct allocations; each thread owns one guarded output row.
-                unsafe {
-                    device.kernel.launch(
-                        &device.model.metadata,
-                        &device.model.parameters,
-                        &data.state,
-                        &mut data.fixed_tendon,
-                        dimensions,
-                    )?;
-                }
+                let worlds = data.worlds() as u32;
+                // 类型化包装核对证明、精确跨度、同会话与别名。
+                device.kernel.launch(
+                    &device.metadata,
+                    &device.parameters,
+                    &data.state,
+                    &mut data.fixed_tendon,
+                    worlds,
+                )?;
             }
             data.ready.fixed_tendon = true;
             Ok(())

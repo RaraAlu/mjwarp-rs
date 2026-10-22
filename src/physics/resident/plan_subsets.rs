@@ -25,8 +25,6 @@ use super::pack::pack_sleep;
 #[cfg(feature = "cuda-probe")]
 use super::pack::pack_tendon;
 #[cfg(feature = "cuda-probe")]
-use super::pack_batches::FIELD_BATCH_CUDA;
-#[cfg(feature = "cuda-probe")]
 use super::pack_batches::pack_fixed_tendon;
 #[cfg(feature = "cuda-probe")]
 use super::pack_batches::pack_model;
@@ -302,50 +300,47 @@ impl KinematicsPlan {
                     parameters,
                 }
             };
-            let mode = if equivalent {
-                "#define MJWARP_G01_EQUIVALENT\n"
-            } else {
-                ""
-            };
-            let prefix = format!("{FIELD_BATCH_CUDA}\n#define MJWARP_MOCAP\n{mode}");
-            let source = format!("{prefix}{}", crate::physics::KINEMATICS_CUDA);
-            let rigid_kernel = crate::physics::rigid_kinematics::RigidKernel::new(
-                session,
-                SynchronousKernel::compile(session, &source, "rigid_kinematics")?,
-            );
-            let source = format!("{FIELD_BATCH_CUDA}\n{}", crate::physics::COM_POSITION_CUDA);
-            let com_kernel = ResidentComKernel::compile(session, &source)?;
-            let source = format!(
-                "{prefix}{}\n{}",
-                crate::physics::KINEMATICS_CUDA,
-                crate::physics::attached::ATTACHED_CUDA
-            );
-            let attached_kernel = ResidentAttachedKernel::compile(session, &source)?;
-            let initialize_kernel = ResidentInitializeAttachedKernel::compile(session, &source)?;
+            let BaseKernels {
+                rigid: rigid_kernel,
+                com: com_kernel,
+                attached: attached_kernel,
+                initialize_attached: initialize_kernel,
+            } = compile_base_kernels(session, equivalent)?;
             let camlight = if camlight_layout.is_empty() {
                 None
             } else {
-                let source = format!(
-                    "{FIELD_BATCH_CUDA}\n{}\n{}",
-                    crate::physics::KINEMATICS_CUDA,
-                    crate::physics::camlight::CAMLIGHT_CUDA
+                let k = model.rigid().kinematics();
+                let dims = (
+                    k.nbody(),
+                    fk.output.elements_per_world(),
+                    com_stride,
+                    ncam,
+                    nlight,
                 );
+                let (metadata, parameters, kernel) = upload_camlight(session, camlight, dims)?;
                 Some(DeviceCamLight {
-                    model: camlight.upload(session)?,
-                    rigid_kernel: SynchronousKernel::compile(session, &source, "camlight_rigid")?,
-                    com_kernel: SynchronousKernel::compile(session, &source, "camlight_com")?,
+                    metadata,
+                    parameters,
+                    kernel,
                 })
             };
             let fixed_tendon = if fixed_tendon_layout.is_empty() {
                 None
             } else {
+                let k = model.rigid().kinematics();
+                let dims = (
+                    k.nq(),
+                    fixed_tendon_rows.ntendon(),
+                    fixed_tendon_rows.nnz(),
+                    fixed_tendon_fields.wrap_objid.len(),
+                    nmocap,
+                );
+                let (metadata, parameters, kernel) =
+                    upload_fixed_tendon(session, fixed_tendon, dims)?;
                 Some(DeviceFixedTendon {
-                    model: fixed_tendon.upload(session)?,
-                    kernel: SynchronousKernel::compile(
-                        session,
-                        crate::physics::fixed_tendon::FIXED_TENDON_CUDA,
-                        "fixed_tendon",
-                    )?,
+                    metadata,
+                    parameters,
+                    kernel,
                 })
             };
             let spatial_tendon = if spatial_layout.is_empty() {

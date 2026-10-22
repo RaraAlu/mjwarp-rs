@@ -138,6 +138,21 @@ path = "src/physics/resident/attached_kernels.rs"
 [[source]]
 path = "src/physics/resident/tests/launcher_attached.rs"
 
+[[source]]
+path = "src/physics/resident/field_batch.rs"
+
+[[source]]
+path = "src/physics/resident/fixed_tendon_launcher.rs"
+
+[[source]]
+path = "src/physics/resident/camlight_launcher.rs"
+
+[[source]]
+path = "src/physics/resident/tests/launcher_forward.rs"
+
+[[source]]
+path = "src/physics/resident/plan_kernels.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::KinematicsPlan"

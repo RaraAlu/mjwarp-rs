@@ -17,6 +17,9 @@ mod attached_launcher_specs;
 #[cfg(feature = "cuda-probe")]
 #[path = "resident/attached_metadata_buffer.rs"]
 mod attached_metadata_buffer;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/camlight_launcher.rs"]
+mod camlight_launcher;
 mod checks;
 #[cfg(feature = "cuda-probe")]
 #[path = "resident/com_kernels.rs"]
@@ -34,6 +37,12 @@ mod com_launcher_specs;
 #[path = "resident/com_metadata_buffer.rs"]
 mod com_metadata_buffer;
 mod data;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/field_batch.rs"]
+mod field_batch;
+#[cfg(feature = "cuda-probe")]
+#[path = "resident/fixed_tendon_launcher.rs"]
+mod fixed_tendon_launcher;
 mod layout;
 mod output;
 mod pack;
@@ -42,6 +51,8 @@ mod plan_accessors;
 mod plan_constructors;
 mod plan_contexts;
 mod plan_data;
+#[cfg(feature = "cuda-probe")]
+mod plan_kernels;
 mod plan_subsets;
 mod plan_update_flex;
 mod plan_update_forward;
@@ -71,6 +82,9 @@ mod tests_launcher_attached;
 #[cfg(all(test, feature = "cuda-probe"))]
 #[path = "resident/tests/launcher_com.rs"]
 mod tests_launcher_com;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "resident/tests/launcher_forward.rs"]
+mod tests_launcher_forward;
 #[cfg(test)]
 #[path = "resident/tests/parameters.rs"]
 mod tests_parameters;
@@ -99,9 +113,17 @@ use self::attached_kernels::{ResidentAttachedKernel, ResidentInitializeAttachedK
 #[cfg(feature = "cuda-probe")]
 use self::attached_metadata_buffer::ResidentAttachedMetadataBuffer;
 #[cfg(feature = "cuda-probe")]
+use self::camlight_launcher::{CamLightMetadataBuffer, ResidentCamLightKernel};
+#[cfg(feature = "cuda-probe")]
 use self::com_kernels::ResidentComKernel;
 #[cfg(feature = "cuda-probe")]
 use self::com_metadata_buffer::ResidentComMetadataBuffer;
+#[cfg(feature = "cuda-probe")]
+use self::fixed_tendon_launcher::{
+    FixedTendonKernel, FixedTendonMetadataBuffer, upload_fixed_tendon,
+};
+#[cfg(feature = "cuda-probe")]
+use self::plan_kernels::{BaseKernels, compile_base_kernels, upload_camlight};
 use super::attached::AttachedLayout;
 use super::camlight::CamLightLayout;
 use super::fixed_tendon::FixedTendonLayout;

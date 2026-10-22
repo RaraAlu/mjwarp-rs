@@ -1,0 +1,136 @@
+{
+    "work": "work-13-resident-forward-camlight-fixed-tendon",
+    "summary": "常驻固定肌腱与相机光源 FIELD_BATCH 变体改走类型化包装",
+    "remove_low_level": [
+        { "file": "src/physics/resident/plan_update_forward.rs", "line": 107 },
+        { "file": "src/physics/resident/plan_update_forward.rs", "line": 114 },
+        { "file": "src/physics/resident/plan_update_forward.rs", "line": 154 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/resident/field_batch.rs",
+            "line": 205,
+            "receiver": "kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": null
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/resident/plan_update_forward.rs",
+            "line": 81,
+            "receiver": "device.kernel",
+            "method": "launch_rigid",
+            "classification": "wrapper_orchestration",
+            "entry": "camlight_rigid"
+        },
+        {
+            "file": "src/physics/resident/plan_update_forward.rs",
+            "line": 88,
+            "receiver": "device.kernel",
+            "method": "launch_com",
+            "classification": "wrapper_orchestration",
+            "entry": "camlight_com"
+        },
+        {
+            "file": "src/physics/resident/plan_update_forward.rs",
+            "line": 117,
+            "receiver": "device.kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": "fixed_tendon"
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 313,
+            "new_file": "src/physics/resident/camlight_launcher.rs",
+            "new_line": 411
+        },
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 314,
+            "new_file": "src/physics/resident/camlight_launcher.rs",
+            "new_line": 412
+        },
+        {
+            "old_file": "src/physics/resident/plan_subsets.rs",
+            "old_line": 325,
+            "new_file": "src/physics/resident/fixed_tendon_launcher.rs",
+            "new_line": 329
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "fixed_tendon",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/fixed_tendon_launcher.rs:329" ],
+            "kernel_abi_evidence": [
+                "FixedTendonSpec at src/physics/resident/fixed_tendon_launcher.rs:236",
+                "shared four-buffer launch at src/physics/resident/field_batch.rs:205"
+            ]
+        },
+        {
+            "entry": "camlight_rigid",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/camlight_launcher.rs:411" ],
+            "kernel_abi_evidence": [
+                "CamLightRigidSpec at src/physics/resident/camlight_launcher.rs:282",
+                "shared four-buffer launch at src/physics/resident/field_batch.rs:205"
+            ]
+        },
+        {
+            "entry": "camlight_com",
+            "migration_status": "typed_safe_wrapper",
+            "compile_sites": [ "src/physics/resident/camlight_launcher.rs:412" ],
+            "kernel_abi_evidence": [
+                "CamLightComSpec at src/physics/resident/camlight_launcher.rs:321",
+                "shared four-buffer launch at src/physics/resident/field_batch.rs:205"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "FixedTendonSpec",
+            "logical_name": "fixed_tendon",
+            "definition": "src/physics/resident/fixed_tendon_launcher.rs:236",
+            "actual_cuda_entries": "fixed_tendon",
+            "typed_low_level_calls": [ "src/physics/resident/field_batch.rs:205" ]
+        },
+        {
+            "type": "CamLightRigidSpec",
+            "logical_name": "camlight_rigid",
+            "definition": "src/physics/resident/camlight_launcher.rs:282",
+            "actual_cuda_entries": "camlight_rigid",
+            "typed_low_level_calls": [ "src/physics/resident/field_batch.rs:205" ]
+        },
+        {
+            "type": "CamLightComSpec",
+            "logical_name": "camlight_com",
+            "definition": "src/physics/resident/camlight_launcher.rs:321",
+            "actual_cuda_entries": "camlight_com",
+            "typed_low_level_calls": [ "src/physics/resident/field_batch.rs:205" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "spatial_site",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/resident/plan_subsets.rs:339" ],
+        "reason": "常驻固定肌腱与相机光源已收口；继续 resident forward 的空间肌腱三项"
+    },
+    "manual_cross_checks_add": [
+        "work-13: 常驻固定肌腱与相机光源三入口改走类型化包装；raw 行 -3、typed 行 +1、编排行 +3",
+        "work-13: 四缓冲FIELD_BATCH共用单一发射点 field_batch.rs:205；每入口以独立Spec声明冻结SLOTS与精确跨度",
+        "work-13: 固定肌腱证明校验行连续覆盖、qpos地址与力臂槽范围；相机证明校验跨度头、模式、体索引与十对描述符区间",
+        "work-13: 相机目标体负值为无目标哨兵（含-2），内核只在非负时使用"
+    ],
+    "acceptance_boundary_set": {
+        "resident_fixed_tendon_migrated": true,
+        "fixed_tendon_raw": false,
+        "resident_camlight_migrated": true,
+        "camlight_raw": false
+    }
+}
