@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-t4-source-hash-repin-9",
+  "title": {
+    "zh": "重钉G03矩阵链对齐后T4源码身份哈希",
+    "en": "Repin T4 source identity hashes after G03 matrix chain alignment"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "G03矩阵链对齐任务（d5b02d5）改动 src/physics/mod.rs、mass_matrix.rs、mass_solve/cuda.rs 后，T4固定源码身份（PHYSICS锚点组合、CUDA模板摘要、precision夹具、gravity内联contract、rigid重采集清单与L1摘要表）过期；本任务只重钉哈希数值与内联字面量到当前源码文本，保留lineage语义与断言逻辑。",
+    "en": "The G03 matrix-chain alignment task (d5b02d5) changed src/physics/mod.rs, mass_matrix.rs and mass_solve/cuda.rs, so the pinned T4 source identities (PHYSICS anchor composition, CUDA template digests, precision fixtures, gravity inline contract, rigid recapture inventory and L1 digest table) went stale; this task repins only hash values and inline literals to the current source text and preserves lineage semantics and assertions."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "重钉后源码身份期望与当前源码文本一致：PHYSICS 锚点组合、mass-matrix/mass-solve 模板摘要、KINEMATICS 相关十个旋转变体的源码与 PTX 摘要、source-identity 保留行、gravity 包 PHYSICS_CORE 行与 L1 摘要表的三个变化内核行均按当前源码重算。",
+    "只更新哈希数值与内联字面量；不改断言逻辑、不放宽数值容差、不删除检查、不改映射条目语义、不动排除清单。",
+    "host-msvc恢复：全量非 ignored 测试 0 目标失败（此前 6 个失败目标：lib 重采集两项、launcher_cache L1、t4_camlight_precision、t4_gravity_nonzero_product_chain contract、t4_input_precision 五项、t4_tendon_wake_precision 三项）。",
+    "完成后跑 G01 debug 与 release 全脚本，记录各阶段结果与 all-probes 数字；若 all-probes 全绿第一时间报 Chief。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过；回执含 task_id。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-22-g03-matrix-chain-alignment"
+    ],
+    "phase": "fix/T4-lineage",
+    "owner": "Codex",
+    "files": [
+      "fixtures/precision",
+      "fixtures/gravity-upstream-abi",
+      "fixtures/mjwarp-geom-tendon",
+      "docs/evidence/t4-g03-retest",
+      "docs/development-evidence/toolchain-evidence-revalidation",
+      "tests/t4_camlight_precision.rs",
+      "tests/t4_spatial_tendon_precision.rs",
+      "tests/t4_tendon_wake_precision.rs",
+      "tests/t4_input_precision.rs",
+      "tests/t4_gravity_nonzero_product_chain.rs",
+      "tests/t4_gravity_nonzero_product_chain",
+      "tests/frame393_trace.rs",
+      "src/physics/resident/rigid_kinematics_tests.rs",
+      "tests/support/t4_rigid_capture.rs",
+      "tests/support/t4_rigid_capture",
+      "tests/support/t4_rigid_internal.rs",
+      "tests/support/t4_rigid_internal",
+      "tests/support/t4_state_packing.rs",
+      "tests/support/t4_state_packing",
+      "tests/support/t4_field_internal.rs",
+      "tests/support/t4_field_internal",
+      "tests/support/t4_topology_frames.rs",
+      "tests/support/t4_topology_frames",
+      "tests/support/t4_packing_routes.rs",
+      "tests/support/t4_packing_routes",
+      "docs/development-evidence/t4-source-hash-repin-9/",
+      "docs/development-evidence/changes/2026-10-22-t4-source-hash-repin-9.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "来源：任务 2026-10-22-g03-matrix-chain-alignment（提交 d5b02d5）改动三个物理产品源码后，T4 固定源码身份到期。前身 2026-10-22-t4-source-hash-repin-6/-7 因诊断发现还需更新 docs/development-evidence/toolchain-evidence-revalidation/gpu-candidate-digests.txt（L1 摘要表）等未登记路径，已放弃并另立本任务（-8），验收口径不变。诊断日志：target/host-msvc-repin-diagnostics.log；交接计划：target/repin6-handoff.md。口径沿用锚点组合（模块根加子模块、换行连接、CRLF→LF 归一）；十个旋转变体用重采集工具重编译并更新源码/PTX/receipt 摘要，mass-matrix 与 mass-solve 两个保留变体按当前 CUDA 模板摘要与重编译 PTX 更新，L1 摘要表补三个变化内核的源码与 PTX 摘要。硬边界：不改断言语义、容差、映射条目与 W-D5 排除清单；不碰内核字符串与产品逻辑；产品测试只跑 cargo 不启动 Python。\n放弃：all-probes 诊断发现还应重钉 src/physics/resident/rigid_kinematics_tests.rs 的冻结 PTX 常量（PLAIN/MOCAP/G01 三个变体），该路径不在已登记 files；schedule 冻结，按规范放弃并另立 -8\n放弃：all-probes 诊断发现 frame393 诊断轨迹夹具（fixtures/mjwarp-geom-tendon 与 tests/frame393_trace.rs）也需按对齐后产品重钉，原 files 未含；按规范放弃并另立 -9",
+  "revision": {
+    "before": "1f16ca8d31eb40f383b1102f1d4bf718a86d71b6",
+    "after": null
+  },
+  "created_at": "2026-10-22T22:40:00.000Z",
+  "updated_at": "2026-10-22T14:18:21.309Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-22-t4-source-hash-repin-9.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-22-t4-source-hash-repin-9"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
