@@ -4,8 +4,10 @@
 本报告保留历史实现与验收。
 内部f64路线已退出产品。
 当前接口按树声明因子格式。
-最新结果仍有数值门禁失败。
+历史结果曾有数值门禁失败（2026-10-23 已收口，见下）。
 详见[分块修复](windows-g03-block-repair.md)。
+
+2026-10-23 现状更新（QA）：G03 矩阵链对齐 `d5b02d5` 后，`mass_solve_probe` 6 过 0 败，NP03 的 factors/native-snapshots/rhs-counts 三项均 `failed=0`；G01 debug/release 双模式全脚本 340 过 0 败（含文档化排除项）。G03 数值缺口已由 `2026-10-22-g01-g03-np03-admission-debt` 关闭。下文为 2026-10-07 历史记录，不重写；精度四类指标、Linux 与性能仍未验收。证据：`docs/development-evidence/g03-matrix-chain-alignment/README.md`、`docs/development-evidence/g01-fast-loop/README.md`。
 范围：G03正定刚体辅助子集。
 本轮只验收Windows。
 U060、U065与完整G03仍待实现。
