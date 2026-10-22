@@ -113,6 +113,7 @@ Windows 结果不替代 Linux。
 | native-g01 | **2 过** |
 | native-only-g01 | 1 过 |
 | resident | **102 过**（不再中止） |
+| rustdoc -D warnings | 通过（0 警告，W-D3 已修复） |
 | all-probes | **123 过 4 败**（W-D4 1 + 历史基线缺失 3；W-D5 语义冲突 6 项已转绿） |
 
 all-probes 的 4 项剩余失败明细：
@@ -133,7 +134,7 @@ W-D5 语义冲突修复：测试侧把 `MJWARP_PHYSICS_PTX_DIR` 统一按捕获�
 | --- | --- | --- | --- |
 | W-D1 | P0 | **已修复** | M3 唤醒安全包装零树/零批次元数据回归，由 `1551c59` 引入。修复提交 `eef9321`（登记）+ `71638e2`（修复），任务 `2026-10-22-layers-m3-wake-native-chain-fix` 已验证。`native_g01 --include-ignored` 2 过；wake-guards 1 过；resident 脚本不再在 wake-guards 中止。 |
 | W-D2 | P1 | **已修复** | T4 pinned lineage 漂移，阻塞 host-msvc。重钉提交 `28bd15f`（登记）+ `4ffda93`；W-D7 修复改变 resident 源码后由 `2026-10-22-t4-source-hash-repin-3` 再次重钉：`c5c47e0`（登记）+ `eac3df6`。host-msvc 697 过，lineage 不再中止。 |
-| W-D3 | P2 | 未修复（既有） | rustdoc `-D warnings` 三处既有 broken intra-doc links（kinetic_energy.rs:134、device_energy/plan.rs:47、mass_solve/sparse/resident/solve.rs:55）。本轮 all-probes 失败后脚本中止在 rustdoc 之前，未重跑，维持既有记录。 |
+| W-D3 | P2 | **已修复** | rustdoc `-D warnings` 三处既有 broken intra-doc links（kinetic_energy.rs、device_energy/plan.rs、mass_solve/sparse/resident/solve.rs）为中文量纲记号被当作 intra-doc link。任务 `2026-10-22-g01-wd3-rustdoc-links` 用代码文本包裹修复，未放宽门禁、未新增豁免；`cargo +1.99.0-x86_64-pc-windows-msvc doc --locked --all-features --no-deps`（`RUSTDOCFLAGS=-D warnings`）0 警告通过。 |
 | W-D4 | 已知债务 | 未修复（用户未裁决） | G01 重力位证书 2 bit 差异：f32 输入舍入导致 4 ulp，证书用有理精确值；基线同样失败，属证书口径问题。定性与证据见 `2026-10-22-g01-numerics-audit` 回执。**容差未修改；不宣称通过；用户尚未裁决口径。** |
 | W-D5 | 已知债务 | **部分修复** | `MJWARP_PHYSICS_PTX_DIR` 测试侧目录分配语义冲突：已统一为“捕获根 + 唯一子目录”，6/9 转绿（mass_solve wrapper 1、rne 4、rne_bias 1），修复提交 `3a44e10`（任务 `2026-10-22-g01-wd5-ptx-dir-semantics-2`），证据 `docs/development-evidence/g01-wd5-ptx-dir/README.md`。剩余 3 项重采集/归档属历史捕获与冻结源码基线缺失，另案 `2026-10-22-g01-wd5-recapture-baseline`（proposed）跟踪，等用户裁决 A/B/C；未改断言、脚本或基线。 |
 | W-D6 | 既有债务 | 部分解除 | G01 脚本 resident/all-probes 期望计数与拆分后布局同步：`2026-10-22-g01-gate-script-sync` 已同步；resident 期望 102 与实测一致并已收口；all-probes 期望最少 169 与当前 123 过 4 败不一致，计数调整与剩余 3 项处置一起改，本轮不动脚本。 |
@@ -141,7 +142,7 @@ W-D5 语义冲突修复：测试侧把 `MJWARP_PHYSICS_PTX_DIR` 统一按捕获�
 | W-D8 | P1 | **已修复** | M3 稀疏求解包装空计划 ABI 回归（`38a4960` 引入）：`SparseSolveStaticDims` 误拒 n=0/nc=0 合法空计划。修复提交 `1e3dd2f`（登记）+ `24d7937`（修复），任务 `2026-10-22-layers-m3-sparse-solve-empty-abi-fix` 已验证；`tests/resident_sparse_solve -- --ignored` 2 过 0 败。 |
 
 W-D1、W-D7、W-D8 是迁移自身回归，已在独立任务中修复，未被当作历史债务豁免。
-W-D4 仍开放且用户未裁决；W-D5 语义冲突已部分修复（6/9），剩余 3 项历史基线缺失另案；W-D3/W-D6 的收口见对应任务。
+W-D4 仍开放且用户未裁决；W-D5 语义冲突已部分修复（6/9），剩余 3 项历史基线缺失另案；W-D3 已修复；W-D6 resident 计数已对齐，all-probes 计数待 3 项处置后一起改。
 不得以本记录豁免任何原容差或门禁。
 
 ## 6. NP01–NP04 缺口

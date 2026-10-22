@@ -52,7 +52,7 @@ pub struct SparseMassSolveOutput {
 #[derive(Clone, Copy, Debug)]
 pub struct SparseMassSolveWorld<'a> {
     pub factor: SparseMassFactorWorld<'a>,
-    /// 行优先[RHS,nv]，不包含守卫。
+    /// 行优先`[RHS,nv]`，不包含守卫。
     pub solution: &'a [f32],
 }
 impl SparseMassSolveOutput {

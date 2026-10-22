@@ -44,7 +44,7 @@ impl MassMatrixEnergySnapshot {
     pub fn worlds(&self) -> usize {
         self.layout.worlds()
     }
-    /// 返回历史[势能,动能]，不携带伪造状态标签。
+    /// 返回历史`[势能,动能]`，不携带伪造状态标签。
     pub fn world(&self, world: usize) -> Result<&[f32], InputError> {
         let r = self.layout.world_elements(world)?;
         Ok(&self.values[4 + r.start..4 + r.end])

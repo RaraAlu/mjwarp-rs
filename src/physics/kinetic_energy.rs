@@ -131,7 +131,7 @@ impl KineticEnergyOutput {
     pub fn model_id(&self) -> u64 {
         self.model_id
     }
-    /// 返回[势能,动能]；状态标签仅描述动能输入。
+    /// 返回`[势能,动能]`；状态标签仅描述动能输入。
     pub fn world(&self, world: usize) -> Result<&[f32], InputError> {
         let r = self.layout.world_elements(world)?;
         Ok(&self.values[4 + r.start..4 + r.end])
