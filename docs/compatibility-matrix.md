@@ -5,6 +5,7 @@
 G01更新：2026-10-09。
 T4补测：2026-10-12。
 红线更新：2026-10-11。
+状态刷新：2026-10-23。
 
 完整G01入口已实现。
 Windows双模式验收通过。
@@ -21,6 +22,29 @@ NP04仍缺公平稳态性能对照。
 G01仍保留既有辅助入口。
 证据见[G01报告](windows-g01-acceptance.md)。
 Linux证据见[复验报告](linux-g01-acceptance.md)。
+
+2026-10-23状态更新：
+
+G01最终双模式验收通过。
+all-probes两模式均为340过0败。
+仅余已登记排除项共10项。
+RNE加速度参考按裁决重基线到上游f32。
+容差、断言与产品代码零改动。
+定向测试2过0败且历史521块转绿。
+1042块历史超差审计结论为已覆盖。
+G03矩阵链对齐后探针6过0败。
+G03准入债务已按裁决关闭。
+G03 parity可行性预检结论为阻塞。
+U038三维链按有界规则关闭。
+关闭不表示三维链验收通过。
+全链重力仍余8项超差。
+三维传播债务已登记待裁决。
+NP01类型映射清单已产出但未补全。
+NP01至NP04与完整T4仍未验收。
+Linux与性能及完整上游等价仍未验收。
+历史验收记录保持原样。
+
+详见[三层验收](three-layer-acceptance.md)、[RNE审计](development-evidence/rne-repair-audit/README.md)、[G03预检](development-evidence/g03-parity-feasibility/README.md)与[U038收口](development-evidence/u038-3d/closure.md)。
 
 ### G02子集实现边界
 
