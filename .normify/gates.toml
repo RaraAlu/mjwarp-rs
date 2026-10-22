@@ -19,6 +19,16 @@ timeout_s = 3600
 cmd = ["cargo", "clippy", "--all-targets", "--locked", "--features", "cuda-probe", "--", "-D", "warnings"]
 timeout_s = 3600
 
+# G26动能全链：定向GPU全链测试（离线authoring生成的上游energy_vel同条件参考）。
+# 需要CUDA工具链与NVIDIA驱动；host与resources按需新增。
+[gate.g26-energy]
+cmd = ["cargo", "+1.99.0-x86_64-pc-windows-msvc", "test", "--locked", "--all-features", "--test", "g26_energy_chain", "--", "--ignored", "--test-threads=1"]
+host = "DarkSea"
+resources = ["gpu:windows-t4"]
+timeout_s = 3600
+probe = [["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"]]
+inputs = ["tests", "fixtures"]
+
 # G01完整回归：脚本自行核对样本与DLL哈希，并设置CUDA工具链。
 # 只在Rara运行；锁名不证明显卡型号，probe记录实际设备与驱动。
 # 脚本按子项核对用例数并以退出码报告；控制台不含libtest汇总。

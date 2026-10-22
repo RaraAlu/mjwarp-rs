@@ -5,15 +5,19 @@
     "zh": "G26能量全链与参考补齐",
     "en": "Remaining g26-complete"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
-    "zh": "拆分原任务剩余工作。保留原验收门槛。",
-    "en": "Track remaining work separately without weakening original acceptance."
+    "zh": "拆分原任务剩余工作，保留原验收门槛。按模块拆分后的实际布局补齐 G26：接通常驻 CRB→M→Mqvel→动能调度，把动能状态标签改成可核的真实来源（A1 SourceState 代际），并用已批准的离线 authoring 例外生成冻结上游 MJWarp energy_vel 同条件参考与天然校验，补非默认 nv 范围与适用 NP 证据。不改变原容差、断言语义、产品 ABI；若产品源进入 T4 身份集合则另立 repin。",
+    "en": "Track the remaining original work after the module split, without weakening original acceptance. Complete G26 against the post-split layout: wire the resident CRB->M->Mqvel->kinetic scheduling chain, make kinetic state labels come from a verifiable A1 SourceState generation instead of arbitrary integers, and use the approved offline-authoring exception to author a frozen upstream MJWarp energy_vel same-condition reference plus natural validation, covering non-default nv ranges and applicable NP evidence. Tolerances, assertion semantics and product ABI stay unchanged; register a repin if the product source enters the T4 identity set."
   },
   "modules": {},
   "acceptance": [
-    "补完整CRB到动能调度。核实状态标签的真实来源。",
-    "补独立同条件参考、非默认范围及适用NP证据。"
+    "补完整CRB到动能调度：提供从常驻位置（CRB）→质量矩阵→M·qvel→默认32线程动能的全链调度入口，复用既有已验证计划/数据与设备内复制，不引入宿主物理回传；覆盖现有 fixtures/kinetic-energy 与 fixtures/mass-matrix 的模型/状态/世界范围，并给出非默认 nv 范围用例。",
+    "核实状态标签的真实来源：动能状态标签必须来自可核的 A1 SourceState（数据身份 + 状态代际 + 字段版本），派生标签稳定可复算；跨代/跨身份/不同步输入拒绝，保留旧就绪与位型。全链快照携带该来源。",
+    "补独立同条件参考：用已批准离线 authoring 例外（pinned Python 3.12 + mujoco 3.15.0 + warp-lang 1.15.0 + 冻结上游 71da24d…）生成上游 MJWarp energy_vel 同条件参考（场景对齐 fixtures/mass-matrix 的模型与 qpos、固定 f32 qvel 向量），启动前自检环境/上游提交/clean；产物带 provenance 与两次运行一致性。",
+    "天然校验：用冻结原生质量矩阵（fixtures/mass-matrix cases 的 f64 matrix）与同一 qvel 组合计算 f64 能量，与上游 f32 能量比对（ABS=REL=2e-5）；不通过则停手报阻塞，不调参、不伪造参考。",
+    "验证：定向 GPU 全链测试对比上游参考（记录逐案例/最坏归一化误差与适用范围），宿主单测覆盖标签派生、代际拒绝与全链守卫；不改容差/断言；不宣称完整 NP01–NP04 或完整 G02/U047 传感器调度。",
+    "证据 docs/development-evidence/g26-complete/（README + provenance + upstream reference + natural validation + 对比数据）；回执含 task_id；门禁 fmt/clippy/clippy-cuda/unit 与定向 GPU 门禁、unchanged、json 回执、forbid_claim 全过；如产品源进入 T4 身份集合，另立并完成 repin 任务后再宣称矩阵全绿。"
   ],
   "schedule": {
     "depends_on": [
@@ -25,19 +29,80 @@
     "owner": "Codex",
     "files": [
       "src/physics/kinetic_energy.rs",
-      "src/physics/mass_matrix/multiply/borrowed/device_energy.rs",
-      "docs/development-evidence/g26-complete/"
+      "src/physics/kinetic_energy/",
+      "src/physics/mass_matrix.rs",
+      "src/physics/mass_matrix/",
+      "src/physics/mod.rs",
+      "src/model/data/versions.rs",
+      "tests/g26_energy_chain.rs",
+      "tests/support/g26_energy.rs",
+      "scripts/authoring/",
+      "fixtures/kinetic-energy/",
+      "docs/kinetic-energy.md",
+      "docs/device-energy.md",
+      "docs/development-evidence/g26-complete/",
+      "docs/development-evidence/changes/2026-10-16-next-g26-complete.json",
+      ".normify/gates.toml"
     ],
     "resources": [
       "gpu:windows-t4"
     ],
     "priority": 80
   },
-  "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。",
+  "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。\n\n2026-10-23 重登记：任务早于模块拆分，files 扩到实际目录（src/physics/kinetic_energy/、src/physics/mass_matrix/、tests、fixtures、authoring、证据、gates.toml），语义与验收范围未放宽；新增定向 GPU 门禁 g26-energy。G26 现状（docs/kinetic-energy.md、docs/device-energy.md）：默认32线程动能子集与 CRB→M→Mqvel→能量接线已冻结零位差证书，但完整 CRB 到动能调度仍缺、状态标签仍为调用方整数标签、独立上游 energy_vel 参考与非默认范围/NP 证据仍缺。离线 authoring 例外与 pinned 环境已由 G03/G02 验证（上游 71da24d…，产物只进证据/仓内 fixture，不进产品构建/测试链，产品测试只跑 cargo）。边界：不改容差、断言、产品 ABI、门禁语义；不宣称完整 NP01–NP04、完整 U047/G02 传感器调度、Linux 与性能；不改旧失败用例；发现上游参考天然校验不通过立即停手报 Chief。",
   "revision": {
-    "before": null,
+    "before": "f7dd5c2d90099a5a6c154b0a2cd740735d7ce9af",
     "after": null
   },
   "created_at": "2026-10-15T16:54:20.607Z",
-  "updated_at": "2026-10-15T16:54:20.607Z"
+  "updated_at": "2026-10-22T17:59:10.798Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "gate",
+      "gate": "g26-energy"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml",
+        "scripts/test-windows-g01.ps1",
+        "scripts/test-windows-native.ps1"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-16-next-g26-complete.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-16-next-g26-complete"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
 }
