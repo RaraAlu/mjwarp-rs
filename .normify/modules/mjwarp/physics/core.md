@@ -268,6 +268,24 @@ path = "src/physics/rigid_kinematics/metadata.rs"
 [[source]]
 path = "src/physics/rigid_kinematics/tests.rs"
 
+[[source]]
+path = "src/physics/com_position/launcher_abi.rs"
+
+[[source]]
+path = "src/physics/com_position/launcher_specs.rs"
+
+[[source]]
+path = "src/physics/com_position/launcher_meta.rs"
+
+[[source]]
+path = "src/physics/com_position/metadata_buffer.rs"
+
+[[source]]
+path = "src/physics/com_position/kernels.rs"
+
+[[source]]
+path = "src/physics/com_position/tests/launcher.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::forward::step"

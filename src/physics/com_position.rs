@@ -1,11 +1,29 @@
 //! 质心位置世界视图、探针与设备上传。
 
+#[cfg(feature = "cuda-probe")]
+use self::kernels::ComPositionKernel;
+#[cfg(feature = "cuda-probe")]
+use self::launcher_abi::ComPositionStaticDims;
+#[cfg(feature = "cuda-probe")]
+use self::launcher_meta::com_position_launch_error;
+#[cfg(feature = "cuda-probe")]
+use self::metadata_buffer::ComPositionMetadataBuffer;
 use super::*;
 #[cfg(not(feature = "cuda-probe"))]
 use crate::diagnostics::ProbeError;
 use crate::diagnostics::{InputError, TransferError};
 use crate::model::{BatchLayout, InertialModelInput};
 use crate::runtime::TransferSession;
+#[cfg(all(feature = "cuda-probe", test))]
+use crate::runtime::launcher::DeviceSpan;
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::launcher::{
+    Access, BlockRule, Checked, CheckedBinding, ElemType, Kernel, KernelAbi, KernelSpec,
+    LaunchDims, LauncherError, MetadataProof, MetadataRevision, ProofKind, SlotBinding, SlotDesc,
+    SlotKind, SlotRequirement, SlotRole,
+};
+#[cfg(feature = "cuda-probe")]
+use crate::runtime::{SynchronousKernel, TransferBuffer};
 
 /// 四项质心结果的只读世界视图。
 /// cdof按角向量、线向量排列。
@@ -186,48 +204,30 @@ pub(in crate::physics) fn com_position_device(
     // Its host checkpoint proves finite values; no CPU transform feeds COM.
     let (state, checkpoint) = kinematics_device(session, model, fk, qpos)?;
     drop(checkpoint);
-    let k = model.kinematics();
-    let device = upload_com_model(session, model, layout)?;
+    let (metadata, parameters) = upload_com_model(session, model, layout)?;
     let mut values = crate::runtime::host_staging::<f32>(layout.guarded)?;
     values.fill(-131072.0);
     values[4..layout.guarded - 4].fill(f32::NAN);
     let mut output = session.upload(&values)?;
-    let kernel = crate::runtime::SynchronousKernel::compile(
-        session,
-        COM_POSITION_CUDA,
-        "rigid_com_position",
+    let kernel = ComPositionKernel::compile(session, COM_POSITION_CUDA)?;
+    kernel.launch(
+        &metadata,
+        &parameters,
+        &state,
+        &mut output,
+        layout.output.worlds() as u32,
     )?;
-    // SAFETY: Checked layouts bound all packed offsets by i32::MAX.
-    // The fixed shader and all physical buffers use f32.
-    // Validated topology proves parent order and joint/body/DOF addresses.
-    // FK state has precisely 28*nbody+6*njnt elements per world plus guards.
-    // Each thread owns one output world, with no cross-thread reads/writes.
-    // The same-session adapter waits before any buffer or module can drop.
-    unsafe {
-        kernel.launch(
-            &device.metadata,
-            &device.parameters,
-            &state,
-            &mut output,
-            [
-                k.nbody() as u32,
-                k.njnt() as u32,
-                k.nv() as u32,
-                layout.output.worlds() as u32,
-            ],
-        )?;
-    }
     output.read_range_into(0, &mut values)?;
     check_device_values(&values, "com_position_output")?;
     Ok((output, values))
 }
 
 #[cfg(feature = "cuda-probe")]
-pub(in crate::physics) fn upload_com_model(
+fn upload_com_model(
     session: &TransferSession,
     model: &InertialModelInput,
     layout: ComPositionLayout,
-) -> Result<DeviceModel, TransferError> {
+) -> Result<(ComPositionMetadataBuffer, TransferBuffer<f32>), TransferError> {
     let k = model.kinematics();
     let f = k.fields();
     let i = model.fields();
@@ -237,11 +237,32 @@ pub(in crate::physics) fn upload_com_model(
         metadata[cursor..cursor + field.len()].copy_from_slice(field);
         cursor += field.len();
     }
+    let static_dims = ComPositionStaticDims::new(k.nbody(), k.njnt(), k.nv())
+        .map_err(com_position_launch_error)?;
     let mut parameters = crate::runtime::host_staging::<f32>(layout.parameters)?;
     parameters[..k.nbody()].copy_from_slice(&i.body_mass);
     parameters[k.nbody()..].copy_from_slice(&i.body_inertia);
-    Ok(DeviceModel {
-        metadata: session.upload(&metadata)?,
-        parameters: session.upload(&parameters)?,
-    })
+    Ok((
+        ComPositionMetadataBuffer::upload(session, metadata, static_dims)?,
+        session.upload(&parameters)?,
+    ))
 }
+
+#[cfg(feature = "cuda-probe")]
+#[path = "com_position/kernels.rs"]
+mod kernels;
+#[cfg(feature = "cuda-probe")]
+#[path = "com_position/launcher_abi.rs"]
+mod launcher_abi;
+#[cfg(feature = "cuda-probe")]
+#[path = "com_position/launcher_meta.rs"]
+mod launcher_meta;
+#[cfg(feature = "cuda-probe")]
+#[path = "com_position/launcher_specs.rs"]
+mod launcher_specs;
+#[cfg(feature = "cuda-probe")]
+#[path = "com_position/metadata_buffer.rs"]
+mod metadata_buffer;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "com_position/tests/launcher.rs"]
+mod tests_launcher;

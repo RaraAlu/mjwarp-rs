@@ -1,0 +1,73 @@
+{
+    "work": "work-06-com-position",
+    "summary": "rigid_com_position 探针入口改走类型化包装（常驻变体待后续批次）",
+    "remove_low_level": [
+        { "file": "src/physics/com_position.rs", "line": 207 }
+    ],
+    "add_low_level": [
+        {
+            "file": "src/physics/com_position/kernels.rs",
+            "line": 68,
+            "receiver": "self.kernel",
+            "method": "launch",
+            "classification": "typed_wrapper_low_level",
+            "entry": "rigid_com_position"
+        }
+    ],
+    "add_orchestration": [
+        {
+            "file": "src/physics/com_position.rs",
+            "line": 213,
+            "receiver": "kernel",
+            "method": "launch",
+            "classification": "wrapper_orchestration",
+            "entry": null
+        }
+    ],
+    "compile_sites_replace": [
+        {
+            "old_file": "src/physics/com_position.rs",
+            "old_line": 198,
+            "new_file": "src/physics/com_position/kernels.rs",
+            "new_line": 23
+        }
+    ],
+    "entry_status": [
+        {
+            "entry": "rigid_com_position",
+            "compile_sites": [
+                "src/physics/com_position/kernels.rs:23",
+                "src/physics/resident/plan_subsets.rs:293",
+                "src/physics/resident/plan_update_rigid.rs:16"
+            ],
+            "kernel_abi_evidence": [
+                "ComPositionSpec at src/physics/com_position/launcher_specs.rs:53"
+            ]
+        }
+    ],
+    "families_add": [
+        {
+            "type": "ComPositionSpec",
+            "logical_name": "rigid_com_position",
+            "definition": "src/physics/com_position/launcher_specs.rs:53",
+            "actual_cuda_entries": "rigid_com_position",
+            "typed_low_level_calls": [ "src/physics/com_position/kernels.rs:68" ]
+        }
+    ],
+    "next_candidate": {
+        "selected": false,
+        "entry": "attached_kinematics",
+        "migration_status": "unmigrated_or_unwrapped",
+        "compile_sites": [ "src/physics/attached.rs:139" ],
+        "reason": "com_position 探针已完成；下一批 attached_kinematics（探针与常驻变体）"
+    },
+    "manual_cross_checks_add": [
+        "work-06: rigid_com_position 探针改走类型化包装；raw 行 -1、typed 行 +1、编排行 +1、编译点移入 kernels.rs",
+        "work-06: 该入口仍有常驻 plan_subsets/plan_update_rigid 两个编译点使用原始发射，入口状态保持未迁移，待后续批次收口",
+        "work-06: 质心元数据证明校验体父链、关节类型、关节体与关节自由度地址宽度"
+    ],
+    "acceptance_boundary_set": {
+        "com_position_probe_migrated": true,
+        "com_position_resident_pending": true
+    }
+}
