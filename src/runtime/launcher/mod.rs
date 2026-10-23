@@ -29,7 +29,11 @@ pub use abi::{
 };
 pub use alias::{DeviceSpan, SlotBinding, SlotRequirement, rebind_values, validate_bindings};
 #[cfg(feature = "cuda-probe")]
-pub use artifact::{Artifact, ArtifactCache, ArtifactKey, ArtifactStats, HeaderFile, NvrtcSource};
+pub use artifact::{
+    Artifact, ArtifactCache, ArtifactKey, ArtifactStats, HeaderFile, LTOIR_OPTION_COUNT, Ltoir,
+    LtoirCubin, LtoirInput, MAX_ARCH, MAX_LTOIR_SOURCE_BYTES, MIN_ARCH, NvrtcSource, compile_ltoir,
+    link_ltoir, ltoir_options,
+};
 pub use checked::{Checked, CheckedBinding, MetadataProof, MetadataRevision};
 #[cfg(feature = "cuda-probe")]
 pub use frozen::FrozenPtx;

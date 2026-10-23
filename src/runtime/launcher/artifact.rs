@@ -6,6 +6,7 @@
 
 mod cache;
 mod disk;
+mod ltoir;
 mod nvrtc;
 #[cfg(test)]
 mod tests;
@@ -22,6 +23,10 @@ use super::{CompileRecipe, LauncherError, PrecisionGate, RecipePurpose};
 use crate::runtime::transfer::kernel::check_physics_ptx;
 
 pub use cache::ArtifactCache;
+pub use ltoir::{
+    LTOIR_OPTION_COUNT, Ltoir, LtoirCubin, LtoirInput, MAX_ARCH, MAX_LTOIR_SOURCE_BYTES, MIN_ARCH,
+    compile_ltoir, link_ltoir, ltoir_options,
+};
 
 const KEY_SCHEMA: u32 = 2;
 const FORMAT: &str = "mjwarp-launcher-artifact-v1";

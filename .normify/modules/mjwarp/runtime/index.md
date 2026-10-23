@@ -2,7 +2,7 @@
 uid = "4098c702"
 id = "mjwarp.runtime"
 tags = ["planned", "engine", "runtime"]
-fingerprint = "14def218ff8ac858af1064b0a2ae0abd48652a2b73082fe58c11a570aa7b9f36"
+fingerprint = "d5d42e2b13c8946a8e26637f01b19cff0816a24cf7b9b8b627e9619f44ce75a3"
 
 [name]
 zh = "GPU运行时"
@@ -198,6 +198,15 @@ path = "src/runtime/launcher/jitlink/tests.rs"
 
 [[source]]
 path = "tests/nvjitlink_probe.rs"
+
+[[source]]
+path = "src/runtime/launcher/artifact/ltoir.rs"
+
+[[source]]
+path = "src/runtime/launcher/artifact/ltoir/tests.rs"
+
+[[source]]
+path = "tests/compile_ltoir_probe.rs"
 +++
 
 ## P1局部实现
