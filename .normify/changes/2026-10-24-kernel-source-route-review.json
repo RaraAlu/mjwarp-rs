@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-kernel-source-route-review",
+  "title": {
+    "zh": "内核来源路线交付独立复核（快验口径）",
+    "en": "Independent review of the kernel-source-route delivery (fast-loop scope)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按用户 2026-10-24 决定的新节奏（快验迭代、完整双模式只在真正里程碑跑），对 2026-10-24-kernel-source-route-mathdx-wire（提交 687754c）做独立复核：核对 RouteKey/拒绝面/不切物理配方/两环境探针/证据与门禁，并用 scripts/g01-fast.ps1 的受影响 target 与定向测试复验；**不跑完整 G01 debug/release 双模式**，如实记录本批未被全量双模式覆盖、最近一次全绿 HEAD 为 4f362f2。",
+    "en": "Under the 2026-10-24 user decision (fast-loop iteration; full dual-mode only at real milestones), independently review the kernel-source-route delivery (687754c): RouteKey, refusal surface, no physics-recipe switch, two-environment probe, evidence and gates; re-verify with scripts/g01-fast.ps1 affected targets plus targeted tests. Do not run the full G01 debug/release dual-mode; record honestly that this batch is not covered by a full dual-mode run and the last fully green HEAD is 4f362f2."
+  },
+  "modules": {},
+  "acceptance": [
+    "核对交付 687754c：`RouteKey` 字段（路线、源摘要、头文件摘要、include 路径、13 项冻结选项与顺序、arch、配方/求解器指纹、NVRTC/nvJitLink/libmathdx 版本）与测试；同输入键稳定、任一因子变化键变；路线未启用、NVRTC 非 12.9、架构不一致、键/内容篡改、空产物、非 CUBIN ELF 的拒绝面。",
+    "核对「不切物理配方」：新路线默认不启用（RouteOptIn::none()）、既有 artifact/launch 与内核字符串/容差/f32 未改；既有配方产物键基线 b515f1ebfbf8127e13e3e76b737cf30625bb2cd8662213a5a7cc6f665dc16b29 复跑一致。",
+    "核对两环境 GPU 探针各 1 过 0 败（普通 + G01 环境变量集）、四项冻结摘要（LTOIR 1,034,872 B 98c01ce6…、FATBIN 506,960 B c00d6412…、CUBIN 2,086,544 B de660b5d…、设备输出 104,528 B 51e1a99b…）、8 次发射、repeat_build_identical=true；新文件 ≤500 行且已挂 `mjwarp.runtime`；无 C/C++、无 Python、SDK 二进制只在 target/；T4 源码身份未漂移。",
+    "复核用快验与定向测试：`scripts/g01-fast.ps1` 相关 target + 定向 lib 测试（RouteKey/拒绝面/探针），记录真实命令与数字；**不跑** `scripts/test-windows-g01.ps1` 全量双模式；不改产品/测试/容差/排除清单/G01 脚本。",
+    "证据写 docs/development-evidence/kernel-source-route-independent-check/（README + json 含 task_id），如实写明：本批未跑全量双模式（用户 2026-10-24 节奏决定）、最近一次全绿 HEAD 为 4f362f2、本批复核用的快验/定向命令与数字；不改 G01 通过声明；门禁 fmt 与 json 检查通过；中文 path-limited 提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-kernel-source-route-mathdx-wire"
+    ],
+    "phase": "M7-编译路线",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/kernel-source-route-independent-check/",
+      "docs/three-layer-acceptance.md"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 10
+  },
+  "note": "承接已 abandon 的 2026-10-24-kernel-source-route-review-g01-rerun：用户 2026-10-24 决定停止逐次全量 G01，改为快验迭代 + 真正里程碑才跑完整双模式，本任务只做复核（快验 + 定向测试 + 两环境探针），不跑 G01 全量。允许的 GPU 用量仅为两环境探针（秒级），不启动全量脚本。若复核发现交付声明不成立，停手报 Chief；不得自行补跑全量或改排除清单。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T20:20:00.000Z",
+  "updated_at": "2026-10-23T20:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/kernel-source-route-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-kernel-source-route-review"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G01双模式通过",
+        "全量已验证",
+        "本批已全量验收"
+      ]
+    }
+  ]
+}
