@@ -12,7 +12,7 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.physics"
+      "mjwarp.physics.core"
     ]
   },
   "acceptance": [
@@ -21,21 +21,84 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "本片只覆盖所列阶段。",
+    "新增计划 API `physics::derivative::deriv_smooth_vel` 的宿主侧切片：上游 `deriv_smooth_vel` 的被动阻尼贡献子集——`qDeriv = -(线性 + 多项式阻尼对速度的导数)`（`poly_force_deriv`），`out = M - dt*qDeriv` 写回 `d.M` 结构地址；`M`、`dof_damping`/`dof_dampingpoly`、`qvel` 冻结输入，不做执行器/肌腱/流体导数项。",
+    "解析导数与有限差分：冻结模型（双摆 + 滑块，nv=3、无执行器/肌腱/流体）两套配置——(a) 合成多项式阻尼（`dof_dampingpoly` 直接覆盖，覆盖 `_poly_force_deriv` 多项式分支），3 组状态；(b) 线性阻尼（原生可对照），2 组状态。产品输出与冻结上游逐位对照；解析 `M - dt*qDeriv` 对角与上游 f32 中央差分（eps=1e-3）及原生 f64 中央差分对照。",
+    "未验收边界：执行器 actuation/moment 导数、肌腱阻尼导数、椭球/盒流体力导数、`has_fluid` 分支、`efm`/隐式积分组合、世界批量广播、GPU 内核与图执行均不做并如实登记。",
+    "NP01：新增路径全 f32；NP02：记录冻结上游提交、`deriv_smooth_vel` 函数名、模型 sha256、M 结构/mulm 布局与阻尼参数；NP03：原生 f64 中央差分一级判定 + MJWarp f32 二级对照；NP04 不适用（不发射内核、不跑性能）。",
+    "证据落 `docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g21-p7/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g21-p7.json`；gate fmt/clippy/unit 通过，不宣称完整 G21 或精度验收。"
   ],
   "schedule": {
     "depends_on": [],
     "phase": "P7",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/physics/derivative.rs",
+      "src/physics/derivative/",
+      "src/physics/mod.rs",
+      "fixtures/deriv/",
+      "scripts/authoring/",
+      "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g21-p7/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g21-p7.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":274,\"end\":274},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5, 2026-10-11-roadmap-p6] → 新依赖 []。依据：平滑速度导数所需动力学与平滑力已 verified；删除旧 P4/P5/P6 聚合门禁。",
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":274,\"end\":274},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5, 2026-10-11-roadmap-p6] → 新依赖 []。依据：平滑速度导数所需动力学与平滑力已 verified；删除旧 P4/P5/P6 聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次2）：原图只有 G21@P7 粗切片（旧计划语义：deriv_smooth_vel；验收「解析导数与有限差分」）。按当前代码布局，本片最小可交付 = 计划 API `deriv_smooth_vel` 的被动阻尼导数子集与 `M - dt*qDeriv` 组装（多项式阻尼分支经合成 `dof_dampingpoly` 覆盖）；执行器/肌腱/流体导数、efm/隐式组合与 GPU 内核登记为未验收边界；不改既有产品路径、容差与测试。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-11T15:26:48.069Z",
-  "updated_at": "2026-10-23T04:57:02.522Z"
+  "updated_at": "2026-10-23T04:57:02.522Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/runtime",
+        "src/model",
+        "native",
+        "include",
+        "tests",
+        "fixtures/g01",
+        "fixtures/set-const",
+        "fixtures/local-reset",
+        "fixtures/actuation",
+        "fixtures/ray-query",
+        "fixtures/broadphase",
+        "fixtures/integrator",
+        "fixtures/inverse",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-g21-p7.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-g21-p7"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ]
 }
