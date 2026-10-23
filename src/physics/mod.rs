@@ -140,10 +140,16 @@ mod sleep;
 pub use sleep::{SleepTreeOutput, SleepTreeWorld};
 
 // 子模块：纯移动自原单文件，行为不变。
+mod callback;
 mod com_position;
 mod device_checks;
 mod history;
 mod kinematics;
+pub use callback::{
+    CALLBACK_SYNC_CONTRACT, Callback, CallbackContract, CallbackError, CallbackGate, CallbackGates,
+    CallbackInvocation, CallbackKind, CallbackStage, CallbackSyncContract, CallbackTarget,
+    SyncRequirement, UserTypeField,
+};
 #[cfg(feature = "cuda-probe")]
 pub(in crate::physics) use com_position::com_position_device;
 pub(in crate::physics) use com_position::{ComPositionLayout, check_com_position};

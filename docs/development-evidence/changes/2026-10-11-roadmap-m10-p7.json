@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-m10-p7",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/physics/callback.rs",
+      "blob": "6eed9b85a4ef3e9b3647c5f78f252590facf5cce"
+    },
+    {
+      "path": "src/physics/callback/tests.rs",
+      "blob": "1e13867bdbb39cfd8a812791bd83e802d64eb8ae"
+    },
+    {
+      "path": "src/physics/mod.rs",
+      "blob": "bc841e4e4de962408cef674f45a0b401765f6b9f"
+    },
+    {
+      "path": "fixtures/callback/contract.json",
+      "blob": "ec663b2440f55b78e23530bc038088adad79a1ed"
+    },
+    {
+      "path": "scripts/authoring/author-m10-callback.ps1",
+      "blob": "ad260616772d6061bba62c6ca76af04f941d8cef"
+    },
+    {
+      "path": "scripts/authoring/author-m10-callback.py",
+      "blob": "2888c7df27d5524b007a063a0d21a9c5341cee0a"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch3/2026-10-11-roadmap-m10-p7/README.md",
+      "blob": "36182eba94a9faf8146ecbc26c3525ce6876f1f4"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch3/2026-10-11-roadmap-m10-p7/authoring.json",
+      "blob": "39b2a1820f06ecac69e96c7c74101a209226f5c1"
+    },
+    {
+      "path": ".normify/modules/mjwarp/physics/core.md",
+      "blob": "e66605f4afc7b604b2abd865e5843d37d1ae6bcb"
+    }
+  ],
+  "results": {
+    "slice": {
+      "family": "M10 Rust 回调",
+      "phase": "P7（时序、状态与同步契约）",
+      "planned_api": "mjwarp_rs::physics::callback::Callback（U079 类型契约）",
+      "delivered": "七个回调槽位的契约表（阶段/写入字段/门控/USER 类型前提）、不执行的调用计划（contactfilter→sensor POS→passive→sensor VEL→control→act_dyn→act_gain→act_bias→sensor ACC）、登记/移除错误面与同步契约；不实现 forward 阶段调度与回调执行"
+    },
+    "references": {
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29（Warp 1.15.0）types.Callback/types.Stage 与 forward/passive/sensor/collision_driver 调用点",
+      "frozen_artifact": "fixtures/callback/contract.json（字段顺序/默认值/Stage 数值）",
+      "call_sites": "证据 README §3.1 的 file:line 映射表",
+      "numeric_reference": "不适用（契约切片，无物理数值计算）"
+    },
+    "verification": {
+      "fields": "Rust CallbackKind::ALL 与上游 dataclasses.fields(Callback) 逐项一致；7 默认值均 None",
+      "stage_values": "SensorPos/SensorVel/SensorAcc = 1/2/3，与冻结 types.Stage 及 MuJoCo mjtStage 一致",
+      "plan_order": "全槽位计划阶段严格非降序且固定顺序；act_dyn→act_gain→act_bias",
+      "gating": "ACTUATION 禁用时 control 跳过；sensor 仍 POS/VEL/ACC 三次触发",
+      "targets": "7 槽位写入字段（qfrc_passive/ctrl/act_dot/actuator_force×2/sensordata/contact）与上游 docstring 一致",
+      "sync": "前/后流序；allows_host_readback=false，禁止静默回退 CPU"
+    },
+    "np_mapping": {
+      "NP01": "不适用：契约切片无物理数值路径，无 f32/f64 精度映射",
+      "NP02": "记录冻结提交、types.Callback/Stage 字段与数值、调用点 file:line、环境",
+      "NP03": "不适用（无物理数值对照）；以冻结上游字段/Stage 数值 + 调用点映射作契约对照",
+      "NP04": "不适用：不发射内核、不测性能"
+    },
+    "gates": {
+      "fmt": "通过（cargo fmt --check）",
+      "clippy": "通过（cargo clippy --all-targets --locked -- -D warnings）",
+      "unit": "通过（cargo test --locked）"
+    }
+  },
+  "note": "批次 3 M10@P7 按 Chief 边界交付回调契约切片：七槽位类型/时序/状态/同步契约、不执行调用计划与错误面；冻结上游 dataclass 字段/Stage 数值与调用点 file:line。不做 forward 阶段调度与回调执行，不冒充阶段回调。",
+  "boundaries": [
+    "不实现 forward/step/step1/step2 阶段调度与任何回调执行；本片不是阶段回调。",
+    "不实现回调钩子本体、设备内核、状态租约/同步原语接线、inverse 路径回调、sensor 延迟/interval 与 contactfilter 全量语义、GPU/图执行。",
+    "契约等价不等同产品数值验收；不宣称完整 M10 或 P7 验收通过，NP03/NP04 不适用。"
+  ]
+}
