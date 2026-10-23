@@ -12,8 +12,7 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.runtime.external",
-      "mjwarp.io.core"
+      "mjwarp.physics.core"
     ]
   },
   "acceptance": [
@@ -24,7 +23,12 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "新增计划 API `physics::callback::Callback` 的宿主侧契约切片：七槽位 `CallbackKind`（passive/control/act_dyn/act_gain/act_bias/sensor/contactfilter）与上游 `mujoco_warp._src.types.Callback`（U079）字段一一对应；`CallbackContract` 给出阶段位置、写入 Data 字段、调用门控与 USER 类型状态前提；`Callback::plan` 按上游 `forward`/`step` 时序（collision→sensor POS→passive→sensor VEL→control→actuation(act_dyn→act_gain→act_bias)→sensor ACC）产出**不执行**的调用计划；`CallbackSyncContract` 明确流序/完成事件/不静默回退 CPU 的同步契约。",
+    "时序、状态与同步契约：冻结上游 `types.Callback` dataclass 字段顺序与 `Stage` 数值（authoring 导出 `fixtures/callback/contract.json`），Rust 契约表逐项一致；调用时序与门控对照上游 `forward.py`/`passive.py`/`sensor.py`/`collision_driver.py` 调用点（证据 README 列 file:line 映射）；断言 ACTUATION 禁用时 control 回调被跳过、sensor 回调在 POS/VEL/ACC 三次触发、act_dyn→act_gain→act_bias 固定次序；安装/移除/重复/未安装错误面。",
+    "未验收边界：本片不实现 `forward`/`step`/`step1`/`step2` 阶段调度与回调执行（它不是阶段回调，只冻结类型/时序/状态/同步契约）；不实现回调钩子函数本体与设备内核、状态租约与同步原语、`inverse` 路径、sensor 延迟/interval 与 contactfilter 全量语义、GPU/图执行。",
+    "NP01：本片为契约切片，不含物理数值路径，f32 精度映射不适用（如实登记）；NP02：记录冻结上游提交、`types.Callback` 字段/`Stage` 数值、调用点 file:line 与环境；NP03/NP04：不适用（无物理数值对照、不发射内核、不测性能）。",
+    "证据落 `docs/development-evidence/backlog-batch3/2026-10-11-roadmap-m10-p7/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-m10-p7.json`；gate fmt/clippy/unit 通过，不宣称完整 M10 或 P7 验收。"
   ],
   "schedule": {
     "depends_on": [
@@ -32,16 +36,77 @@
       "2026-10-11-roadmap-g23-p7"
     ],
     "phase": "P7",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/physics/callback.rs",
+      "src/physics/callback/",
+      "src/physics/mod.rs",
+      "fixtures/callback/",
+      "scripts/authoring/",
+      "docs/development-evidence/backlog-batch3/2026-10-11-roadmap-m10-p7/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-m10-p7.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":302,\"end\":302},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5, 2026-10-11-roadmap-p6] → 新依赖 [2026-10-11-roadmap-g05-p4, 2026-10-11-roadmap-g23-p7]。依据：Rust 回调用于执行器/传感钩子，依赖 G05/G23；删除旧 P4/P5/P6 聚合门禁。",
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":302,\"end\":302},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5, 2026-10-11-roadmap-p6] → 新依赖 [2026-10-11-roadmap-g05-p4, 2026-10-11-roadmap-g23-p7]。依据：Rust 回调用于执行器/传感钩子，依赖 G05/G23；删除旧 P4/P5/P6 聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次3）：按 Chief 裁决，M10@P7 只交可独立成立的回调契约部分（类型/时序/状态/同步契约与错误面/登记表），不做 forward/阶段调度执行、不用宿主回调桩冒充阶段回调。数值等价不适用，改为冻结上游 dataclass 字段/Stage 数值 + 调用点 file:line 映射；其余边界如实登记。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-11T15:26:50.355Z",
-  "updated_at": "2026-10-23T04:57:07.500Z"
+  "updated_at": "2026-10-23T04:57:07.500Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/runtime",
+        "src/model",
+        "native",
+        "include",
+        "tests",
+        "fixtures/g01",
+        "fixtures/set-const",
+        "fixtures/local-reset",
+        "fixtures/actuation",
+        "fixtures/ray-query",
+        "fixtures/broadphase",
+        "fixtures/integrator",
+        "fixtures/inverse",
+        "fixtures/deriv",
+        "fixtures/narrowphase",
+        "fixtures/discrete",
+        "fixtures/history",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-m10-p7.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-m10-p7"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ]
 }
