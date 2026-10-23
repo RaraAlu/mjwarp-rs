@@ -290,7 +290,7 @@ sha256/size/mtime 清单在同目录 `manifest.json`，可用 `make-archive.ps1 
 
 ## 7. 未验收边界
 
-- 只验收 Windows；Linux V2 未启动（需要 `linux-gpu:0` 与 `linux-acceptance`）。
+- 只验收 Windows；Linux 侧按用户 2026-10-23 决定**暂缓（deferred）**，当前程序以 Windows 单平台完成为目标；Linux V2 未启动（原需 `linux-gpu:0` 与 `linux-acceptance`），细节见 §7.1。
 - G01 现状（2026-10-23，§4.5）：debug/release 双模式通过（含文档化排除项；RNE 已按裁决重基线）；all-probes 340 过 0 败，仅余 W-D5 3 项（§5.1）、历史捕获身份 6 项（§5.2）、env/外部产物未接线 1 项。不宣称 G02 完整验收。
 - all-probes `-Minimum 335` 满足（340 过）；旧 `-Minimum 123` 记录属历史阶段，W-D6 已收口。
 - 历史记录：2026-10-22 的 full-debug 曾中止在 all-probes（§4.1–§4.3），相关债务已由 `d5b02d5`、`6cb5a71`、`b13d1c5` 收口；保留原文作为变更轨迹。
@@ -298,6 +298,19 @@ sha256/size/mtime 清单在同目录 `manifest.json`，可用 `make-archive.ps1 
 - 不转授完整产品数值验收、性能验收或双平台准入。
 - 不修改任何内核、容差、fixtures 或原生 ABI（RNE 期望值按用户裁决重基线，见 §4.4）。
 - U038-3D 三维链：全链 `qfrc_gravcomp` **8/77 超 2e-6**（max 4.29e-6、总位差 122；运动学 1400 项 0 超差，`gravity_operator` 77/77 0 超差）。用户 2026-10-23 裁决 B 登记为**已知债务**，**U038-3D 未验收、不宣称通过**（`docs/development-evidence/u038-3d/known-deviation.md`；PTX 逐表达式对照工具 `scripts/u038-ptx-diff.ps1`、证据 `docs/development-evidence/u038-3d/ptx-diff/`）。根因：三表达式源形态收缩一致但内核内 FMA 收缩由内联上下文决定，且 com/cdof 与上游分层原子累加存在内核分解/累加顺序差异；债务跟踪任务 `2026-10-23-u038-3d-gravity-propagation-debt-2`（proposed，不 start，验收条件不变）。
+
+### 7.1 Linux 暂缓清单（用户 2026-10-23 决定）
+
+用户 2026-10-23 决定：**Linux 暂不考虑，全部开发在 Windows 上完成**；Linux 侧验收暂不进行，当前程序以 Windows 单平台完成为目标。以下任务/范围登记为 **deferred（用户决定）**，保持原 status（proposed）不变，不 abandon、不算阻塞、不伪造：
+
+- `2026-10-18-layers-linux`（V2 Linux 三层集成）
+- `2026-10-18-linux-toolchain-validation`（Linux 锁版工具链验证）
+- `2026-10-18-toolchain-clippy-acceptance`（其 Linux 前置已 deferred，门禁保持 proposed/blocked）
+- `2026-10-23-np03-dual-platform` 与 `2026-10-23-np04-performance` 的 **Linux 部分**
+
+替代/后续（仅登记，未 start，等派执行）：Windows 单平台证据任务 `2026-10-23-np03-windows-evidence`（数值等价）与 `2026-10-23-np04-windows-performance`（耗时与峰值显存）；两者明确单平台边界，不宣称双平台通过。以上任务的 `note` 均记录 defer 依据与恢复条件。
+
+恢复条件：用户重新安排 Linux RTX 5080 环境与 `linux-acceptance` 资源后，恢复上述 Linux 范围任务。在此之前不宣称 Linux/双平台验收，也不把 deferred 当作通过。
 
 ## 8. 引用
 

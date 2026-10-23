@@ -43,10 +43,23 @@ U038三维链按有界规则关闭。
 U038-3D未验收且不宣称通过。
 NP01类型映射清单已产出但未补全。
 NP01至NP04与完整T4仍未验收。
-Linux与性能及完整上游等价仍未验收。
+Linux验收按用户2026-10-23决定暂缓（deferred）；性能与完整上游等价仍未验收。
 历史验收记录保持原样。
 
 详见[三层验收](three-layer-acceptance.md)、[RNE审计](development-evidence/rne-repair-audit/README.md)、[G03预检](development-evidence/g03-parity-feasibility/README.md)、[U038收口](development-evidence/u038-3d/closure.md)与[U038已知债务](development-evidence/u038-3d/known-deviation.md)。
+
+2026-10-23 Linux暂缓（用户决定）：
+
+用户决定Linux暂不考虑。
+全部开发在Windows上完成。
+Linux侧验收暂不进行。
+当前程序以Windows单平台完成为目标。
+layers-linux、linux-toolchain-validation、toolchain-clippy-acceptance与NP03/NP04的Linux部分登记为deferred。
+上述任务保持proposed状态，不abandon。
+deferred不算阻塞、不算通过、不伪造。
+恢复条件为用户重新安排Linux环境与linux-acceptance资源。
+Windows单平台证据任务另立np03-windows-evidence与np04-windows-performance（仅登记）。
+细节见[三层验收](three-layer-acceptance.md) §7.1。
 
 ### G02子集实现边界
 
@@ -173,8 +186,8 @@ checked_on: 2026-10-06
 | --- | --- | --- | --- |
 | NP01 | 上游计算精度一致 | 类型映射率100%；实际精度偏离0项 | 四类已知链恢复f32；完整产品待验收 |
 | NP02 | 精度依据完整 | 涉及字段与内核证据覆盖100%；缺失0项 | 历史30份集合已漂移；十份依赖刚体模板；其余可逐项沿用；本轮八入口通过 |
-| NP03 | 原生优先、上游次级复核 | 两级判定覆盖100%；失败与待验收均0项 | 本轮完整产品范围通过；每模式65733块原生放行、29块对照放行；不代表未来完整引擎验收 |
-| NP04 | 批量对照条件一致 | 同输入、同精度；缺失记录0项 | 条件检查器已落地；冷启动与板卡快照不准入；真实稳态和进程分配峰值对照仍待补齐 |
+| NP03 | 原生优先、上游次级复核 | 两级判定覆盖100%；失败与待验收均0项 | 本轮完整产品范围通过；每模式65733块原生放行、29块对照放行；不代表未来完整引擎验收；Linux部分按用户2026-10-23决定deferred |
+| NP04 | 批量对照条件一致 | 同输入、同精度；缺失记录0项 | 条件检查器已落地；冷启动与板卡快照不准入；真实稳态和进程分配峰值对照仍待补齐；Linux部分按用户2026-10-23决定deferred |
 
 NP01覆盖内部工作区与累加。
 它不只检查公开接口类型。

@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-np04-windows-performance",
+  "title": {
+    "zh": "补齐Windows单平台性能与显存证据（NP04-Windows）",
+    "en": "Windows-only performance and memory evidence (NP04-Windows)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "在 Windows 单平台上补齐 NP04 耗时与峰值显存证据：固定输入、同精度、固定重复次数与热身，debug/release 分开记录；不含 Linux 对比，标注单平台边界，不据性能结果反推精度通过。",
+    "en": "Complete NP04 elapsed-time and peak-memory evidence on Windows only with fixed inputs, same precision, fixed repetitions and warm-up, debug and release separated; no Linux comparison, single-platform boundary stated, and correctness is not inferred from performance."
+  },
+  "modules": {},
+  "acceptance": [
+    "固定输入、同精度、固定热身与重复次数（≥5 次，记录中位数/最大/全部样本）测量每项耗时与峰值显存（含进程峰值），记录测量命令、代码版本与机器/驱动信息；debug/release 分开。",
+    "性能记录缺项为 0；失败或异常运行如实记录并写明剔除规则；不得改容差、断言或排除清单，不得伪造样本。",
+    "报告写明平台边界：仅 Windows（RTX 4070 Ti SUPER / DarkSea）；不含 Linux 对比，不宣称双平台性能/显存验收、不宣称 NP04 完整验收。",
+    "证据写 docs/development-evidence/np04-windows/（README + 机器可判定摘要 + 原始样本），交付回执 json 含 task_id；gate 与 unchanged 检查通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-23-precision-type-mapping",
+      "2026-10-23-precision-source-paths",
+      "2026-10-23-np02-frozen-inventory"
+    ],
+    "phase": "P11-精度门禁",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np04-windows/",
+      "docs/development-evidence/changes/2026-10-23-np04-windows-performance.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 51
+  },
+  "note": "只登记，未 start；等用户/Chief 派执行。范围：Windows 单平台（RTX 4070 Ti SUPER / DarkSea）。Linux 对比按用户 2026-10-23 决定 deferred，不在本任务范围内；不宣称双平台性能/显存验收。恢复条件（若将来恢复 Linux）：用户重新安排 Linux RTX 5080 环境后另立双平台任务或扩范围。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T02:12:00.000Z",
+  "updated_at": "2026-10-23T02:12:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures/precision",
+        "Cargo.toml",
+        "Cargo.lock",
+        "scripts/test-windows-g01.ps1"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-np04-windows-performance.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-np04-windows-performance"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "Linux已验收",
+        "双平台通过",
+        "NP04已通过",
+        "完整验收"
+      ]
+    }
+  ]
+}

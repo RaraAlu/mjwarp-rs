@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-np03-windows-evidence",
+  "title": {
+    "zh": "补齐Windows单平台数值等价证据（NP03-Windows）",
+    "en": "Windows-only numeric equivalence evidence (NP03-Windows)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "在 Windows 单平台上补齐 NP03 数值等价证据：复用现有 G01/G02/G03/RNE 数字与 debug/release 双模式回归，覆盖全部目标路径，逐项标注来源、模式、容差与结论；Linux 侧按用户 2026-10-23 决定 deferred，缺失如实标注，不宣称双平台等价通过。",
+    "en": "Complete NP03 numeric-equivalence evidence on Windows only: reuse the existing G01/G02/G03/RNE numbers and debug/release regressions for all target paths with per-item source, mode, tolerance and verdict; Linux is deferred by the user decision of 2026-10-23, its absence is reported and dual-platform equivalence is not claimed."
+  },
+  "modules": {},
+  "acceptance": [
+    "汇总 Windows 上现有 G01/G02/G03/RNE 及全产品路径数值证据：逐项标注来源提交/证据路径、debug/release 模式、容差、结论；已知超差与未测项不得遗漏或隐藏。",
+    "对需要复跑的项目用固定命令复跑并记录真实通过/失败计数与失败原因；不得改容差、断言或排除清单，不得伪造结果。",
+    "报告写明平台边界：仅 Windows（RTX 4070 Ti SUPER / DarkSea）；Linux 部分按用户 2026-10-23 决定 deferred，缺失如实标注；不宣称双平台等价通过、不宣称 NP03 完整验收。",
+    "证据写 docs/development-evidence/np03-windows/（README + 机器可判定摘要），交付回执 json 含 task_id；gate 与 unchanged 检查通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-23-precision-type-mapping",
+      "2026-10-23-precision-source-paths",
+      "2026-10-23-np02-frozen-inventory"
+    ],
+    "phase": "P11-精度门禁",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np03-windows/",
+      "docs/development-evidence/changes/2026-10-23-np03-windows-evidence.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 41
+  },
+  "note": "只登记，未 start；等用户/Chief 派执行。范围：Windows 单平台（RTX 4070 Ti SUPER / DarkSea）。Linux 部分按用户 2026-10-23 决定 deferred，不在本任务范围内；不宣称双平台等价通过。恢复条件（若将来恢复 Linux）：用户重新安排 Linux RTX 5080 环境后另立双平台任务或扩范围。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T02:12:00.000Z",
+  "updated_at": "2026-10-23T02:12:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures/precision",
+        "Cargo.toml",
+        "Cargo.lock",
+        "scripts/test-windows-g01.ps1"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-np03-windows-evidence.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-np03-windows-evidence"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "Linux已验收",
+        "双平台通过",
+        "NP03已通过",
+        "完整验收"
+      ]
+    }
+  ]
+}
