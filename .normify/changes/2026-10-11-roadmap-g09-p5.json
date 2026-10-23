@@ -12,7 +12,7 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.physics"
+      "mjwarp.physics.core"
     ]
   },
   "acceptance": [
@@ -21,7 +21,13 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "本片只覆盖所列阶段。",
+    "新增计划 API `physics::collision::plane_box` 宿主侧切片：对齐上游 `collision_primitive.plane_convex` 的 plane-box 分支（凸体顶点全搜索、支撑点 a/b/c/d 选择、按唯一顶点索引去重后最多 4 个接触）与 `plane_box_wrapper` 的接触写入；复用 G08 窄相框架（冻结位姿/尺寸参数，不建 BVH、不加载网格/地形资产）。",
+    "退化几何与多接触：冻结上游 plane+box 场景（平放 4 接触、棱接触 2 接触、角接触 1 接触、斜面/超 margin 0 接触、薄板退化尺寸）的接触数量与 dist/pos/normal，产品逐项对照（浮点 1e-6、整数逐位）；另以 MuJoCo 3.15.0 f64 `mj_collision` 做原生一级判定（1e-5）；退化输入（尺寸非正/非有限）显式拒绝。",
+    "未验收边界：box-box/capsule/cylinder/ellipsoid/cone 等其余凸体对与多接触路径、mesh/convex 的 GJK/EPA、CCD/multiccd、hfield/SDF 地形、flex、显式 pair、EFC/约束求解、GPU 内核均不做并如实登记；不以本片代表完整 G09/P5。",
+    "NP01：新增路径全 f32（顶点、法线、距离、接触位置），不升精度；NP02：记录冻结上游提交、`plane_convex`/`plane_box_wrapper` 函数名、模型 sha256、几何布局与环境；NP03：原生 C f64 一级判定（1e-5）+ MJWarp f32 二级对照（1e-6）；NP04 不适用（不发射内核、不跑性能）。",
+    "证据落 `docs/development-evidence/backlog-batch3/2026-10-11-roadmap-g09-p5/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g09-p5.json`；gate fmt/clippy/unit 通过，不宣称完整 G09 或 P5 验收。"
   ],
   "schedule": {
     "depends_on": [
@@ -29,16 +35,79 @@
       "2026-10-11-roadmap-g08-p5"
     ],
     "phase": "P5",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/physics/collision/plane_box.rs",
+      "src/physics/collision/plane_box/",
+      "src/physics/collision.rs",
+      "src/physics/mod.rs",
+      "fixtures/plane-box/",
+      "scripts/authoring/",
+      "docs/development-evidence/backlog-batch3/2026-10-11-roadmap-g09-p5/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g09-p5.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":262,\"end\":262},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p3, 2026-10-11-roadmap-p4] → 新依赖 [2026-10-11-roadmap-g07-p5, 2026-10-11-roadmap-g08-p5]。依据：凸体/网格碰撞依赖宽相与基本几何；删除旧 P3/P4 聚合门禁。",
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":262,\"end\":262},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p3, 2026-10-11-roadmap-p4] → 新依赖 [2026-10-11-roadmap-g07-p5, 2026-10-11-roadmap-g08-p5]。依据：凸体/网格碰撞依赖宽相与基本几何；删除旧 P3/P4 聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次4）：原图 G09@P5 覆盖 GJK/EPA/CCD 与凸体/网格（验收「退化几何与多接触」），当前无 BVH/网格资产管线与 GJK/EPA 实现。按 Chief 边界只做不依赖 BVH 的凸体原语部分：plane-box 多接触（上游 `plane_convex` 全搜索 + 唯一索引去重，最多 4 接触）与退化尺寸/边角接触处理；box-box、mesh/convex GJK/EPA、CCD、hfield/SDF 登记未验收边界，不改既有产品路径/容差。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-11T15:26:44.995Z",
-  "updated_at": "2026-10-23T04:57:01.315Z"
+  "updated_at": "2026-10-23T04:57:01.315Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/runtime",
+        "src/model",
+        "native",
+        "include",
+        "tests",
+        "fixtures/g01",
+        "fixtures/set-const",
+        "fixtures/local-reset",
+        "fixtures/actuation",
+        "fixtures/ray-query",
+        "fixtures/broadphase",
+        "fixtures/integrator",
+        "fixtures/inverse",
+        "fixtures/deriv",
+        "fixtures/narrowphase",
+        "fixtures/discrete",
+        "fixtures/history",
+        "fixtures/callback",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-g09-p5.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-g09-p5"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ]
 }
