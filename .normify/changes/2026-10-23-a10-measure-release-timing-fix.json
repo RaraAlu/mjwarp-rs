@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-a10-measure-release-timing-fix",
+  "title": {
+    "zh": "修复A10 measure release计时断言",
+    "en": "Fix A10 measure release timing assertion"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "重钉后 G01 release 终验在 host-msvc 阶段暴露一条 release 敏感测试失败：`runtime::tooling::tests::measure_is_headless_and_rejects_zero_iterations`（src/runtime/tooling/tests.rs:39）对 3 次自增的极短负载断言 `nanos > 0`，release 优化下实测耗时落在 `Instant` 计时粒度内为 0 ns，断言不成立；debug 下通过。来源为批次 2 A10@P10 交付 3757567（批次复核只跑 debug）。本任务只改该测试：把不可测负载换成可测负载（每次迭代做 1 万次 `black_box` 自增），保留 `nanos > 0` 严格断言与原意图（无头计时可执行、迭代计数正确、零迭代拒绝），不改为 `nanos >= 0` 等放宽写法，不改产品路径、断言口径、排除清单与 G01 脚本。",
+    "en": "The post-repin G01 release acceptance exposed a release-sensitive test failure: runtime::tooling::tests::measure_is_headless_and_rejects_zero_iterations (src/runtime/tooling/tests.rs:39) asserts nanos > 0 for three increments; under release optimization the elapsed time falls inside the Instant clock granularity and reads 0 ns, so the assertion fails, while debug passes. Source: batch-2 A10@P10 delivery 3757567 (batch review ran debug only). This task changes only that test: replace the unmeasurable workload with a measurable one (10k black_box increments per iteration), keeping the strict nanos > 0 assertion and original intent (headless timing works, iteration count exact, zero iterations rejected); no nanos >= 0 or other relaxation, no product path, assertion-baseline, exclusion-list or G01-script change."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime.tooling"
+    ]
+  },
+  "acceptance": [
+    "只改 `src/runtime/tooling/tests.rs` 的 `measure_is_headless_and_rejects_zero_iterations`：把 3 次自增的不可测负载改为每次迭代 1 万次 `std::hint::black_box` 自增的可测负载，保留 `nanos > 0` 严格断言与迭代计数断言（`counter == 30_000`）；不改为 `nanos >= 0`、不删除断言、不放宽任何口径；零迭代拒绝断言保持不变。",
+    "复现记录：修复前 `cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --release --lib measure_is_headless_and_rejects_zero_iterations` 0 过 1 败（`assertion failed: nanos > 0`，release 下 3 次自增耗时为 0 ns）；修复后同命令 1 过 0 败；debug 下同过滤测试 1 过 0 败。",
+    "release 预检：`cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --release`（与 G01 host-msvc 阶段同命令）0 失败，记录 passed/failed/ignored 计数，确认无其它 release 敏感测试。",
+    "不改产品代码（`measure`/`BenchmarkRecorder` 等）、不改断言口径与容差、不改排除清单与 G01 脚本、不碰 QA 任务文件与证据；门禁 fmt/clippy/clippy-cuda/unit 通过。",
+    "证据落 `docs/development-evidence/a10-measure-release-timing-fix/`（修复前后 release 失败/通过日志与 release 预检计数），回执含 task_id；中文 path-limited 提交；本次只证明该测试在 release 下稳定通过，不宣称 G01 双模式通过（由 QA 复跑终验判定）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-11-roadmap-a10-p10"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/tooling/tests.rs",
+      "docs/development-evidence/a10-measure-release-timing-fix/",
+      "docs/development-evidence/changes/2026-10-23-a10-measure-release-timing-fix.json",
+      ".normify/changes/",
+      ".normify/runs/",
+      ".normify/modules/"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "来源：QA 在 2026-10-23-g01-final-acceptance-2 的 release host-msvc 阶段发现（debug 14 阶段全绿），归因批次 2 A10@P10 交付 3757567。性质：测试断言对计时粒度过于敏感，不是产品数值/功能回归；无需新排除、不涉及容差。按 QA 建议方案 2 处理：保留 `nanos > 0` 严格断言，只把被测负载改为可测，避免用放宽断言掩盖问题。不占 GPU（仅宿主侧单测）。",
+  "revision": {
+    "before": "bb621d9ed6414627a73cad2c0e2558bf664147cb",
+    "after": null
+  },
+  "created_at": "2026-10-23T15:35:00.000Z",
+  "updated_at": "2026-10-23T15:35:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "scripts",
+        "src/physics",
+        "src/io",
+        "src/model",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-a10-measure-release-timing-fix.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-a10-measure-release-timing-fix"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收",
+        "性能已验收"
+      ]
+    }
+  ]
+}
