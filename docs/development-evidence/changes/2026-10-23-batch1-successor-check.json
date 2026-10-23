@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-batch1-successor-check",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/batch1-successor-check/README.md",
+      "blob": "80729d8054d3b59277baa71a5ba9bf8d3d22ae5a"
+    }
+  ],
+  "results": {
+    "scope": "批次 1 后继四条（g27-p7/m08-p7/g05-p7/g28-p8，提交 a1fa5b5/b92e55d/e7a7859/00b8b60）独立复核",
+    "verdict": "四条数值声明均被证据与独立复跑支持；未发现伪造、容差放宽或 acceptance 削弱；G28@P8 模块范围改落 physics.core 的理由成立；仅 1 类已登记的一般级回执追溯差异。",
+    "claims_checked": {
+      "g27-p7": {"upstream": "2 案例 × 8 组常量逐位一致（容差 0）", "native_max_abs": 1.192e-7, "native_tolerance": 1e-5, "independent_rerun": "lib qpos 5 passed 0 failed"},
+      "m08-p7": {"upstream": "6 用例 × 9 字段逐位一致（容差 0）", "native_max_abs": 0.0, "independent_rerun": "lib extended 3 passed 0 failed"},
+      "g05-p7": {"upstream": "transmission（length/velocity/moment）与端到端三组（act_dot/actuator_force/qfrc_actuator）逐位一致", "native_max_abs": 9.537e-8, "native_tolerance": 1e-5, "independent_rerun": "lib transmission 3 passed 0 failed"},
+      "g28-p8": {"upstream": "2 世界 × 5 射线 geomid 一致，dist/normal 在 1e-6 内", "native_max_abs_dist": 1.192e-8, "native_tolerance": 1e-5, "independent_rerun": "lib batch 11 passed 0 failed"}
+    },
+    "sha256_check": {"model_files_checked": 4, "matching_authoring": 4, "files": ["set-const/qpos-model.xml 707a599f…", "local-reset/extended-model.xml 413e5728…", "actuation/model.xml f6d484da…", "ray-query/batch-model.xml e03a503b…"]},
+    "compliance": {
+      "checks": "四条均含 gate fmt/clippy/unit、unchanged、json、forbid_claim；gate 运行记录 passed=true。",
+      "acceptance_relaxed": false,
+      "acceptance_note": "细化提交仅追加切片说明/边界（末条连接行加逗号+新增 48 行级内容），交付提交 acceptance 0 行改动；无删除验收要求、无放宽容差。"
+    },
+    "g28_p8_module_scope": {
+      "change": "modules 从 [mjwarp.render] 改为 [mjwarp.physics.core]（1ed0f7a），files 收窄到 src/physics/query.rs、src/physics/query/、fixtures/ray-query/、scripts/authoring/、证据与回执",
+      "implementation_location": "src/physics/query/batch.rs（rays_batch），复用 P7 ray，未引入 render/BVH",
+      "evidence_statement": "README §1 明确原映射指向 render/BVH、本片不引入 render/BVH；§6 登记 BVH/RenderContext、mesh/hfield/flex/SDF、过滤与设备视图边界",
+      "verdict": "理由成立：模块归属与代码实际位置一致；未以改名替代实现，原 render/BVH 能力登记为未验收边界"
+    },
+    "discrepancies": [
+      {"severity": "一般", "item": "4 个共享模块索引回执 blob 与提交版本不一致（g27-p7/g05-p7/g28-p8 physics/core.md、m08-p7 io/core.md）", "detail": "done 刷新导致；属 batch1-independent-check §9 已登记已知追溯项，不重复修正历史回执", "blocks": false},
+      {"severity": "建议", "item": "authoring 未独立重生成（需 pinned venv+GPU）", "detail": "4 个 author-*.py 均 pin 71da24d…；按复核范围未占 GPU 重跑", "blocks": false}
+    ],
+    "blocking_issues": 0
+  },
+  "note": "独立复核批次 1 后继四条：逐条核对声明、独立复跑 CPU lib 测试（qpos 5/0、extended 3/0、transmission 3/0、batch 11/0）、抽验模型 sha256（4/4 一致）与回执 blob、核对 checks/acceptance、核对 G28@P8 模块范围改落 physics.core 的理由。结论：声明成立、无阻断问题；仅 4 个共享模块索引回执 blob 属已登记已知追溯差异，1 条 authoring 未重生成建议。未改产品/测试/容差/fixtures/回执；未碰批次 2。",
+  "boundaries": [
+    "只读复核 + 证据目录；未改产品/测试/容差/fixtures/回执；未 start/回退任务。",
+    "未重新生成 offline authoring 参考（需 pinned venv + GPU）；未复核 GPU 内核（四条均 host 侧切片）。",
+    "未碰 Backend 正在做的批次 2（g07 等 8 条）。"
+  ]
+}
