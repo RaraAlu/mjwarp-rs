@@ -287,6 +287,7 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
 - 未测量 G01 阶段峰值显存。
 - 不转授完整产品数值验收、性能验收或双平台准入。
 - 不修改任何内核、容差、fixtures 或原生 ABI（RNE 期望值按用户裁决重基线，见 §4.4）。
+- U038-3D 三维链：全链 `qfrc_gravcomp` **8/77 超 2e-6**（max 4.29e-6、总位差 122；运动学 1400 项 0 超差，`gravity_operator` 77/77 0 超差）。用户 2026-10-23 裁决 B 登记为**已知债务**，**U038-3D 未验收、不宣称通过**（`docs/development-evidence/u038-3d/known-deviation.md`；PTX 逐表达式对照工具 `scripts/u038-ptx-diff.ps1`、证据 `docs/development-evidence/u038-3d/ptx-diff/`）。根因：三表达式源形态收缩一致但内核内 FMA 收缩由内联上下文决定，且 com/cdof 与上游分层原子累加存在内核分解/累加顺序差异；债务跟踪任务 `2026-10-23-u038-3d-gravity-propagation-debt-2`（proposed，不 start，验收条件不变）。
 
 ## 8. 引用
 
@@ -306,6 +307,8 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
   - `2026-10-23-g01-acceptance-fast-loop`：`docs/development-evidence/changes/2026-10-23-g01-acceptance-fast-loop.json`（快验脚本、耗时基线与最终双模式验收证据，`docs/development-evidence/g01-fast-loop/`）
   - `2026-10-23-g01-acceptance-doc-refresh`：`docs/development-evidence/changes/2026-10-23-g01-acceptance-doc-refresh.json`（本文档现状刷新与历史捕获身份债务小节）
   - `2026-10-22-g01-g03-np03-admission-debt`：proposed 跟踪任务，登记提交 `de25d4d`，不 start；指代 all-probes 剩余的 3 项 G03 `mass_solve_probe` 准入缺口
+  - `2026-10-23-u038-3d-known-deviation`：U038-3D 已知债务登记（用户 2026-10-23 裁决 B，不宣称通过），证据 `docs/development-evidence/u038-3d/known-deviation.md` 与 `docs/development-evidence/changes/2026-10-23-u038-3d-known-deviation.json`；PTX 对照证据提交 `71d9d42`、`722e979`
+  - `2026-10-23-u038-3d-gravity-propagation-debt-2`：proposed 债务跟踪任务（承接已 abandon 的 `2026-10-23-u038-3d-gravity-propagation-debt`，验收条件不变，不 start）
 - 提交：`eef9321`、`71638e2`、`28bd15f`、`4ffda93`、`c5c47e0`、`eac3df6`、`341a52c`、`c98e246`、`1e3dd2f`、`24d7937`、`3a44e10`、`a433067`、`e83db38`、`5a636a4`、`f917530`、`de25d4d`；W-D4 修复提交 `49fd4d9`、阶段补跑提交 `10913ce`；2026-10-23 RNE 重基线 `b13d1c5`、债务关闭 `8a0bfde`。
 - 运行证据：`target/g01-final.log`、`target/g01-wd4-final.log`、`target/g01-stage-refresh/`、`target/g01-release-final.log`、`target/g01-release-refresh/`（本机日志，gitignored）、`target/resident-kinematics/` 下的 resident 报告。
 - 历史证据：`docs/evidence/three-layer/windows/summary.json` 与同目录日志。

@@ -38,13 +38,15 @@ G03 parity可行性预检结论为阻塞。
 U038三维链按有界规则关闭。
 关闭不表示三维链验收通过。
 全链重力仍余8项超差。
-三维传播债务已登记待裁决。
+用户裁决B登记为已知债务。
+债务跟踪任务保持proposed。
+U038-3D未验收且不宣称通过。
 NP01类型映射清单已产出但未补全。
 NP01至NP04与完整T4仍未验收。
 Linux与性能及完整上游等价仍未验收。
 历史验收记录保持原样。
 
-详见[三层验收](three-layer-acceptance.md)、[RNE审计](development-evidence/rne-repair-audit/README.md)、[G03预检](development-evidence/g03-parity-feasibility/README.md)与[U038收口](development-evidence/u038-3d/closure.md)。
+详见[三层验收](three-layer-acceptance.md)、[RNE审计](development-evidence/rne-repair-audit/README.md)、[G03预检](development-evidence/g03-parity-feasibility/README.md)、[U038收口](development-evidence/u038-3d/closure.md)与[U038已知债务](development-evidence/u038-3d/known-deviation.md)。
 
 ### G02子集实现边界
 
@@ -462,9 +464,13 @@ Rust会直接加载固定PTX。
 产品重力算子与上游保持零位差。
 全链重力仍有八项超差。
 差距源于运动学f32算序传播。
+收缩还受内联上下文决定。
+质心累积与上游分层顺序不同。
 原2e-6容差未放宽。
 完整三维链尚未验收。
-债务任务已登记待裁决。
+用户裁决B登记为已知债务。
+债务跟踪任务保持proposed。
+U038-3D未验收且不宣称通过。
 旧30份集合不再证明当前源码。
 十份依赖刚体模板。
 其余二十份可逐项沿用。
@@ -497,6 +503,9 @@ Rust会直接加载固定PTX。
 详见[被动力共享累加](passive-force.md)。
 详见[重力补偿](gravity-compensation.md)。
 详见[惯性盒流体力](fluid-force.md)。
+详见[U038收口](development-evidence/u038-3d/closure.md)。
+详见[U038已知债务](development-evidence/u038-3d/known-deviation.md)。
+详见[U038 PTX对照](development-evidence/u038-3d/ptx-diff/README.md)。
 
 ## U073常驻矩阵借用
 

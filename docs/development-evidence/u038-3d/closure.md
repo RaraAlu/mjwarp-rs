@@ -44,6 +44,24 @@
 - 保留：离线 authoring 夹具（`fixtures/gravity-upstream-abi/three-d-*`、生成器与天然校验）、
   契约测试（`tests/t4_gravity_3d_product_chain*`）、证据（`docs/development-evidence/u038-3d/`）、
   文档现状登记（`docs/gravity-compensation.md`、`docs/compatibility-matrix.md`）。
-- 遗留债务：proposed 任务 `2026-10-23-u038-3d-gravity-propagation-debt`
-  （验收已补：1477 项 0 超差、容差/断言不变、产品须覆盖 free+ball+hinge+slide 混合关节）。
+- 遗留债务：旧任务 `2026-10-23-u038-3d-gravity-propagation-debt` 已 abandon。
+  用户 2026-10-23 裁决 B：8/77 超差登记为**已知债务**、U038-3D **不宣称通过**
+  （`known-deviation.md`）；债务跟踪任务 `2026-10-23-u038-3d-gravity-propagation-debt-2`
+  保持 proposed、不 start，验收条件不变（1477 项 0 超差、2e-6 容差/断言不变、
+  覆盖 free+ball+hinge+slide 混合关节）。
 - 未验收边界：完整三维状态空间、NP03/NP04、release/Linux、性能、满额回归。
+
+## 用户裁决 B（2026-10-23）：已知债务登记
+
+- 裁决：用户选择 B——登记已知债务，不宣称通过。
+- 偏差：全链 `qfrc_gravcomp` 8/77 超 2e-6（max 4.29e-6），总位差 122；容差与断言未改。
+- 根因补充（PTX 逐表达式对照，提交 `71d9d42`/`722e979`，证据 `ptx-diff/`）：
+  - 本机 NVRTC 12.8.93 重编译 pinned 生成 CUDA 与冻结 12.9.86 PTX 48/48 入口指令流一致；
+  - `rotate`/`multiply`/`normalize` 源形态收缩一致，但内核内 FMA 收缩由内联上下文决定，
+    源级转录不能复现上游收缩（候选转录与现状同码；上游同源码换包装加载顺序 13↔10 fma）；
+  - com/cdof：上游 4 个独立内核 + `atom.global.add.f32` 分层累加，产品单内核顺序反向累加，
+    属内核分解/累加顺序差异。
+- 复现入口：`pwsh -NoProfile -File scripts/u038-ptx-diff.ps1`；
+  完整数据 `docs/development-evidence/u038-3d/ptx-diff/`。
+- 未宣称：U038-3D 未验收、未宣称精度达标、未宣称完整验收；未改产品/测试/容差/断言/
+  fixtures/ABI；未做 T4 repin。

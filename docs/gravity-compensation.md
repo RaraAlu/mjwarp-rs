@@ -306,11 +306,17 @@ NP03与NP04仍未完成。
 七十七项重力保持零位差。
 全链重力仍有八项超差。
 最大超差为四点二九乘十负六。
+总位差为一百二十二项。
 该差距来自运动学f32算序传播。
+收缩还受内联上下文决定。
+质心累积与上游分层顺序不同。
 原2e-6容差未放宽。
 完整三维链尚未验收。
-债务任务已登记待裁决。
-详见`docs/development-evidence/u038-3d/`。
+用户裁决B登记为已知债务。
+债务跟踪任务保持proposed。
+复现入口见`scripts/u038-ptx-diff.ps1`。
+PTX证据见`docs/development-evidence/u038-3d/ptx-diff/`。
+详见`docs/development-evidence/u038-3d/known-deviation.md`。
 
 证据见以下目录：
 

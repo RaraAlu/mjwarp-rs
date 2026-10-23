@@ -8,8 +8,12 @@
 - 全链 `qfrc_gravcomp` 仍有 **8/77 项超 2e-6**（max 4.29e-6）。该差距来自产品运动学 f32 算序差
   （cdof max 1.79e-7、xipos 5.96e-8、subtree_com 8.94e-8）经重力高增益（Σm·gc·|g|≈95.6）放大，
   不是重力算子错误；容差与断言均未改动。
-- 因此 `2026-10-16-next-u038-3d` **未完成**；已登记 proposed 债务任务
-  `2026-10-23-u038-3d-gravity-propagation-debt` 待裁决（算序逐位对齐或验收比较口径）。
+- 因此 `2026-10-16-next-u038-3d` **未完成**。用户 2026-10-23 裁决 B：该 8/77 超差登记为
+  **已知债务**，U038-3D **不宣称通过**（详见 `known-deviation.md`）。旧债务任务
+  `2026-10-23-u038-3d-gravity-propagation-debt` 已 abandon；跟踪任务
+  `2026-10-23-u038-3d-gravity-propagation-debt-2` 保持 proposed、不 start。
+- PTX 逐表达式对照证据（提交 `71d9d42`、`722e979`，`ptx-diff/`）：三表达式源形态收缩一致，
+  但 FMA 收缩由内联上下文决定；com/cdof 上游分层原子累加与产品单内核顺序累加存在结构差异。
 
 ## 根因（authoring 参考错误，非产品错误）
 
@@ -79,9 +83,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/authoring/author-u03
   最大 1.79e-7，均远低于 2e-6）。
 - 重力算子灵敏度：每自由度 ∂qfrc/∂cdof ≈ Σ m·gc·|g| = (1.5·1+2.5·0.5+3.5·2)·9.81 = 95.6，
   1.79e-7 × 95.6 ≈ 1.7e-5 的理论上界；实测 8 项超差 max 4.29e-6，与传播量级一致。
-- 结论：剩余 8 项不能通过改重力算子或放宽容差消除；要么把产品运动学对上游的 f32 算序
-  逐位对齐（产品源码变更 + T4 源码身份重钉），要么另议验收比较口径（同源比较 =
-  `gravity_operator` 已 0 超差（位差 0~1））。两者都需 Chief 裁决，已登记 proposed 债务任务。
+- 结论：剩余 8 项不能通过改重力算子或放宽容差消除。PTX 对照已确认：源级表达式收缩一致，
+  但内核内 FMA 收缩受内联上下文决定，源级转录不能复现上游收缩；com/cdof 还存在上游分层
+  原子累加与产品顺序累加的结构差异。用户 2026-10-23 裁决 B：登记为已知债务，不宣称通过；
+  债务跟踪任务 `2026-10-23-u038-3d-gravity-propagation-debt-2` 保持 proposed、不 start。
+  详见 `known-deviation.md` 与 `ptx-diff/`。
 
 ## 未验收边界
 
@@ -92,6 +98,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/authoring/author-u03
 
 ## 文件
 
+- `known-deviation.md`：用户裁决 B 已知债务登记（偏差数据、根因、复现入口、未验收边界）。
+- `ptx-diff/`：PTX 逐表达式对照证据（`ptx-diff.json`、产品 PTX 摘录、探针源码；工具 `scripts/u038-ptx-diff.ps1`）。
 - `precheck.md`：设计预检与场景清单。
 - `triage.json`：根因反证数据。
 - `run.json` / `product-gravity-raw.json` / `upstream-gravity-raw.json`：

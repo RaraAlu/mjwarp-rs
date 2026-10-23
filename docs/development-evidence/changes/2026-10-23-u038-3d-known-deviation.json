@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-u038-3d-known-deviation",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "complete",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/u038-3d/known-deviation.md",
+      "blob": "3798fdf809e1aa840d28e85448cce52561dc0c98"
+    },
+    {
+      "path": "docs/development-evidence/u038-3d/README.md",
+      "blob": "1ace4cbab52f83228c3a6691ae187446191847cc"
+    },
+    {
+      "path": "docs/development-evidence/u038-3d/closure.md",
+      "blob": "d7a4617e6d412e7651a09a169732e2f4524463b4"
+    },
+    {
+      "path": "docs/compatibility-matrix.md",
+      "blob": "ea5fdb28cdba65b160863671ba32770f4b7e9854"
+    },
+    {
+      "path": "docs/gravity-compensation.md",
+      "blob": "473ed9e3201c9a0132b23bdde314d607c154a5bb"
+    },
+    {
+      "path": "docs/three-layer-acceptance.md",
+      "blob": "0e98f0733c26000170a201fe489f6ef0a2b41d20"
+    }
+  ],
+  "note": "用户 2026-10-23 裁决 B：U038-3D 全链 qfrc_gravcomp 8/77 超差（max 4.291534423828125e-6、容差 2e-6 未放宽、总位差 122）登记为已知债务，U038-3D 未验收、不宣称通过（不宣称精度达标、不宣称完整验收）。根因按 PTX 逐表达式对照证据（提交 71d9d42 + 722e979，docs/development-evidence/u038-3d/ptx-diff/）：本机 NVRTC 12.8.93 重编译 pinned 生成 CUDA 与冻结 12.9.86 PTX 48/48 入口指令流一致；rotate/multiply/normalize 产品与上游源码在同编译器/同选项/同形状包装下指令计数与融合数一致，但内核内 FMA 收缩由内联上下文决定、源级转录不能复现上游收缩（候选转录与现状同码；上游同源码换包装加载顺序 13↔10 fma；冻结上游内核命中 v-first 3/5、候选 0/5），解释此前两轮有界失败；com/cdof 上游为 4 个独立内核 + atom.global.add.f32 分层累加，产品单内核顺序反向累加，属内核分解/累加顺序差异。复现入口 scripts/u038-ptx-diff.ps1 + docs/development-evidence/u038-3d/ptx-diff/；数值定向测试命令见 known-deviation.md。旧债务任务 2026-10-23-u038-3d-gravity-propagation-debt 已 abandon，后继跟踪任务 2026-10-23-u038-3d-gravity-propagation-debt-2 以 proposed 登记（验收条件不变：1477 项 0 超差、2e-6 容差/断言不变、覆盖 free+ball+hinge+slide），不 start。未改产品源码/测试/容差/断言/fixtures/排除清单/ABI，未做 T4 repin；W13、Linux、g03-parity 不动。未验收边界：完整三维状态空间、NP03/NP04、release/Linux、性能、满额回归、完整上游等价。"
+}
