@@ -17,7 +17,7 @@ path-limited 提交、Normify 范围与回执、证据/回执双落盘。
 
 | # | 任务 | 提交 | 验证核心数字 | 未验收边界（摘要） |
 | --- | --- | --- | --- | --- |
-| 1 | `g09-p5` 凸体与网格（plane-box 多接触原语） | 见同批提交 | 7 场景 15 接触：平放/偏航 45° 4 接触、棱 2、角 1、间隙 0、薄板 4、薄板间隙 0；产品 vs 冻结上游 max abs **5.96e-08**（≤1e-6）；原生 f64 `mj_collision` max abs **1.19e-07**（≤1e-5）；接触数逐世界 4/2/1/0/4/4/0 | box-box/capsule/cylinder/ellipsoid、mesh/convex GJK/EPA、CCD/multiccd、hfield/SDF、flex、显式 pair、EFC/约束、GPU |
+| 1 | `g09-p5` 凸体与网格（plane-box 多接触原语） | `c757e3d`（登记 `18b3fb5`） | 7 场景 15 接触：平放/偏航 45° 4 接触、棱 2、角 1、间隙 0、薄板 4、薄板间隙 0；产品 vs 冻结上游 max abs **5.96e-08**（≤1e-6）；原生 f64 `mj_collision` max abs **1.19e-07**（≤1e-5）；接触数逐世界 4/2/1/0/4/4/0 | box-box/capsule/cylinder/ellipsoid、mesh/convex GJK/EPA、CCD/multiccd、hfield/SDF、flex、显式 pair、EFC/约束、GPU |
 
 证据目录：`docs/development-evidence/backlog-batch4/2026-10-11-roadmap-g09-p5/`
 （README + authoring.json）；回执：
