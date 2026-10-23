@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-batch3-independent-check",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/batch3-independent-check/README.md",
+      "blob": "5d684c20aa7fffda79c0fc8c0f5482122b2c7afb"
+    }
+  ],
+  "results": {
+    "scope": "独立复核批次 3 四条交付（g08-p5/g18-p6/g24-p7/m10-p7）+ 证据目录迁移 + a10-p11 顺延登记；只读交付与记录，只写本证据目录",
+    "reviewed_commits": {
+      "g08_p5": "2269b04",
+      "g18_p6": "9239fa5",
+      "g24_p7": "9cdf5de",
+      "m10_p7": "b9cd236",
+      "migration": ["f31cfc2", "5ccfe1e", "c7b0cfb"],
+      "index_refresh": ["7544a45", "6e3c427"],
+      "a10_p11_deferral": "02faa66",
+      "head_at_review": "18b3fb5"
+    },
+    "claims": {
+      "g08": "成立：候选 5 条逐条一致；接触数 5=上游 nacon=原生 ncon 之和（3+2）；接触字段 vs 上游 max abs 7.451e-09；原生 5.960e-08；材质混合由 dim/friction/solref/solimp/adhesion 逐字段对照间接覆盖",
+      "g18": "成立：单步位型 18/22、max abs 5.960e-08；原生 5.960e-08；与 euler 直接分支 assert_eq 逐位等价；DampedEuler 返回 UnsupportedDiscreteAcc、恒等分支位型一致",
+      "g24": "成立：4 场景缓冲字逐位一致；33 次读取 51 值实测 0 不一致、max abs 0；4 重置用例 + SO3+QUAT 逐位一致；原生 C f64 2.682e-09",
+      "m10": "成立：七槽位顺序/默认值与冻结上游一致（并用真实上游快照 71da24d9 的 types.py:1061-1067 独立核对）；Stage 1/2/3；9 调用计划顺序非降序；ACTUATION 门控；sensor 三阶段；7 测试；证据 README §1/§6 明确『不是阶段回调』，实现无回调执行"
+    },
+    "reruns": {
+      "lib_narrowphase": "3 过 0 败",
+      "lib_discrete": "2 过 0 败",
+      "lib_history": "6 过 0 败",
+      "lib_callback": "7 过 0 败",
+      "full_cargo_test_locked": "477 过 0 败（lib 357；复核时 HEAD 18b3fb5；本任务门禁重跑时为 478，含 Backend 批次 4 在途 WIP）",
+      "fmt": "通过",
+      "clippy": "通过（--all-targets --locked -D warnings）"
+    },
+    "nocapture_observed": {
+      "narrowphase": "candidates=5 contacts=5 upstream_max=7.451e-9 native_max=5.960e-8",
+      "discrete": "bitwise=18/22 upstream_max=5.960e-8 native_max=5.960e-8",
+      "history": "读取 51 值，位型不一致 0，max abs 0.000e0；重置用例 4 个，native 2.682e-9"
+    },
+    "fixtures_sha256": {
+      "fixtures/narrowphase/model.xml": "686a4ff5c89ceda992568293477b431ef7128b2eff7037fefce60ee134ae4680",
+      "fixtures/discrete/model.xml": "e49453585b3c700eae03b51716b3b8c9cc7fa5d9203d68c8027be6ca327bd279",
+      "fixtures/history/model.xml": "5f52046d922a8b67751d41d2293534a3ac5a03bb27c3e6e344d288f491660fda",
+      "fixtures/callback/contract.json": "ba2b2a3fb9ab8f647c1eddc88fd82c351faa68da8c7a16d79eed7f97b7063183"
+    },
+    "blob_consistency": {
+      "evidence_fixture_authoring": "24/24 与 HEAD 一致",
+      "source_files": "除共享 src/physics/mod.rs 与 .normify/modules/mjwarp/physics/core.md 外全部一致",
+      "shared_files": "两共享文件在各自交付提交内逐位一致（g08 93d09434、g18 18a4589f、g24 7d0bffd8、m10 bc841e4e；core.md 同理），后续任务刷新属已知类",
+      "run_records": "G24 交付时 470、M10 477；G08/G18 的 unit.json 被迁移 fix 重跑覆盖为 470（fix 提交已写明）"
+    },
+    "migration": {
+      "renames": "f31cfc2 对 g08/g18 共 4 个证据文件为 R100，迁移前后 blob EQUAL（37386fd7…/8e4af0a6…/5d4f772d…/910c52a4…）",
+      "receipt_paths": "两条回执只改 files[].path（batch2→batch3），blob 未变",
+      "fix_records": "5ccfe1e/c7b0cfb 仅追加 addenda 并重跑门禁，未触碰证据文件",
+      "directories": "backlog-batch3 索引 4 条 vs 实际 4 目录一致；backlog-batch2 只剩批次 2 七条 + 迁移说明",
+      "known_gap": "g08/g18 已关闭任务记录 acceptance/schedule.files 仍含旧 backlog-batch2 路径（不可改写，addenda 已记录）"
+    },
+    "a10_p11": {
+      "status": "proposed",
+      "checks": 0,
+      "runs_dir": "不存在",
+      "evidence_dir": "不存在",
+      "delivery_receipt": "不存在",
+      "note": "裁决 A 顺延：阻塞 Linux RTX5080/真实 GPU 计时与显存统计/清洁部署/双平台准入；P10 3757567 已覆盖宿主侧能力；恢复条件=Linux 与完整 GPU 引擎具备后重评；不硬做 main.rs CLI 接线",
+      "index": "批次 3 索引 §2 由 6e3c427 更新为『顺延·裁决 A』，与 note 一致；未发现交付声明"
+    },
+    "checks_acceptance": "四条均含 gate fmt/clippy/unit + unchanged + json + forbid_claim，无豁免；acceptance 为最小切片并有明确未验收边界、未放宽；交付提交未改既有产品路径/容差/既有测试（仅新增模块 + mod.rs 挂接 + integrator.rs 新错误变体）；模块归属 modify mjwarp.physics.core 与代码位置一致"
+  },
+  "differences": [
+    {
+      "severity": "一般",
+      "item": "G24 读取『逐位一致』断言弱于声明",
+      "detail": "history/tests.rs 读取值仅断言 abs<=1e-6，read_mismatches 只打印未断言为 0；本次实测 0 不一致、max abs 0，但回归保护弱于『逐位一致』声明。建议补 assert_eq!(read_mismatches,0)。"
+    },
+    {
+      "severity": "建议",
+      "item": "G08 solreffriction/geomcollisionid 未直接对照",
+      "detail": "solreffriction fixture 冻结（全 0）但测试未断言；geomcollisionid 断言产品=0 未与 fixture 比较。两字段均为常量 0，风险低；建议补断言或注明常量字段。"
+    },
+    {
+      "severity": "建议",
+      "item": "G08 接触键集合断言可加强",
+      "detail": "现有断言为长度相等 + 每个产品键可在上游找到 + 上游键不重复，未显式断言产品键集合==上游键集合；重复键可掩盖缺失键。实测无重复无缺失。"
+    },
+    {
+      "severity": "建议",
+      "item": "G08/G18 原生 f64 对照经 f32 存储",
+      "detail": "fixture 中原生值以 f32 存储（测试 f32_list 读取），实际为产品 f32 vs 原生 f32 舍入值；容差 1e-5 远大于 ULP，不影响结论，建议口径注明或保留 f64。"
+    },
+    {
+      "severity": "建议",
+      "item": "已关闭任务旧路径文本（已知追溯差异）",
+      "detail": "g08/g18 的 acceptance 与 schedule.files 仍写 backlog-batch2 路径（迁移后不存在）；规范禁止改写已关闭任务声明，addenda 已记录，登记为已知差异、不重写历史。"
+    },
+    {
+      "severity": "建议",
+      "item": "批次 2 迁移说明措辞",
+      "detail": "backlog-batch2/README.md 把 g24-p7 也列入『已原样迁至』，实际 g24 从未落在 batch2；建议只列 g08/g18。"
+    },
+    {
+      "severity": "建议",
+      "item": "G18 authoring 原生对照数值未说明",
+      "detail": "authoring.json native_cross_check.max_abs=3.02e-08（上游 f32 vs 原生）与证据 README 5.96e-08（产品 vs 原生 f32 存储）为不同比较对象；均成立，建议注明避免误读。"
+    },
+    {
+      "severity": "建议",
+      "item": "交付提交说明含控制字符",
+      "detail": "2269b04/9239fa5 各含 1 个 \\x0c、b9cd236 含 2 个 \\x09，导致日志显示字符缺失（如 fixtures→ixtures、types→ypes）；仅影响可读性，不建议改写历史。"
+    }
+  ],
+  "note": "按 Chief 指派独立复核批次 3：四条声明全部成立；独立复跑 narrowphase 3/0、discrete 2/0、history 6/0、callback 7/0 与全量 477/0，并用 --nocapture 实测数值与声明一致；抽验 fixtures sha256 与回执登记 blob（证据/fixture/authoring 24/24 一致）；核迁移（R100、回执只改路径、fix 记录只追加不改证据）与 a10-p11 顺延登记（proposed、无 runs/证据/回执、note 含阻塞与恢复条件）；checks/acceptance 未放宽、模块归属一致。差异 1 条一般 + 7 条建议，均不阻断。",
+  "boundaries": [
+    "只读复核 + 证据目录；未改产品/测试/容差/fixtures/回执，未触碰批次 4 WIP（g09-p5/g10-p5/m10-p10）与 W13/Linux 任务。",
+    "a10-p11 仅为顺延对象（proposed），不在本任务交付范围；未宣称其交付。",
+    "四条声明成立不等于完整矩阵族验收；各任务未验收边界以其证据 README 为准。"
+  ]
+}
