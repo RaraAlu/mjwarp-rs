@@ -33,6 +33,12 @@ pub use exchange::{
     DataExchange, StateReceipt, WorldView, WorldViewMut, plan_field_elements, plan_world_range,
 };
 
+mod state;
+pub use state::{
+    KeyframeSelection, Keyframes, ResetError, ResetMask, WorldState, reset_data,
+    reset_data_keyframe,
+};
+
 #[cfg(feature = "native-model-probe")]
 pub use native::{NativeCoreSnapshot, NativeModelProbe};
 

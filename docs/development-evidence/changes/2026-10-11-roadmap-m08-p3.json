@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-m08-p3",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    { "path": "src/io/state.rs", "blob": "e1b78bc2832135bf9e9edd93d8417b9ada5a29c1" },
+    { "path": "src/io/state/tests.rs", "blob": "5f8a07742305d3114a021daa014a21ca0ff59b9e" },
+    { "path": "src/io/mod.rs", "blob": "cc029401c8c07d676bc7f5de9b371817f532cdd9" },
+    { "path": "fixtures/local-reset/model.xml", "blob": "704d4ce4cd88da8eda0635a70f7071ff099fc32c" },
+    { "path": "fixtures/local-reset/reset-cases.json", "blob": "398bcdb256b8675b1c61fd81a2dbbafd2ebfbcc1" },
+    { "path": "scripts/authoring/author-m08-reset.ps1", "blob": "e09f1c8432e97aed4c6ff4bac7203175a7b9dc17" },
+    { "path": "scripts/authoring/author-m08-reset.py", "blob": "74d687003dbe93b4b6f11dd7a908752990620732" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-m08-p3/README.md", "blob": "7b6f4259aaadf3ff4d9150e8c9e99b8281893662" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-m08-p3/authoring.json", "blob": "3fd71437d3c4953ac8aa0401bd7e2430c95be257" },
+    { "path": ".normify/modules/mjwarp/io/core.md", "blob": "34568ea2e667543a8f9739ddb4beeb2f7b5dbc82" }
+  ],
+  "results": {
+    "slice": {
+      "family": "M08 局部重置",
+      "phase": "P3（状态/缓冲/重置侧）",
+      "planned_apis": [
+        "mjwarp_rs::io::state::reset_data（U035；M08；P3/P7）",
+        "mjwarp_rs::io::state::reset_data_keyframe（U036；M08；P3/P7）"
+      ],
+      "delivered": "最小世界批量状态 time/qpos/qvel（f32）与掩码重置、关键帧重置（全局整数/逐世界整数数组，越界不重置）"
+    },
+    "references": {
+      "model": "fixtures/local-reset/model.xml",
+      "model_sha256": "5251f712816a4bddacc051815c0aa1778f39a8029c869397a5edfeaa153663ec",
+      "nq": 2,
+      "nv": 2,
+      "nkey": 3,
+      "nworld": 3,
+      "native": "MuJoCo 3.15.0 mj_resetData / mj_resetDataKeyframe（一级）",
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29，Warp 1.15.0，reset_data / reset_data_keyframe（二级）",
+      "cases": 7
+    },
+    "comparison": {
+      "product_vs_upstream": "7/7 用例 time/qpos/qvel 逐元素位型一致（容差 0）",
+      "native_cross_check_max_abs": 0.0,
+      "mask_isolation": "未掩码世界保持原值",
+      "keyframe_world_skip": "越界/负索引世界不重置"
+    },
+    "np_mapping": {
+      "NP01": "新增路径全 f32，无 f64 中间量",
+      "NP02": "记录冻结提交/函数/模型 sha256/环境与 7 用例清单",
+      "NP03": "两级判定：原生参考先行（max abs 0），再做 MJWarp 参考逐位比较",
+      "NP04": "不适用/未测：不发射内核、无批量对照与性能记录"
+    },
+    "gates": {
+      "fmt": "通过",
+      "clippy": "通过（--all-targets -D warnings，exit 0）",
+      "unit": "通过（lib 298 过 0 败，全测试套件 exit 0）"
+    }
+  },
+  "note": "批次 1 旧计划细化落地：M08@P3 按架构计划 API U035/U036 交付宿主侧局部重置切片——最小世界批量状态 time/qpos/qvel（f32）、布尔/整数世界掩码重置（掩码内 time=0、qpos=qpos0、qvel=0）与关键帧重置（全局整数索引越界报错；逐世界整数数组越界世界不重置）。7 个冻结用例与上游 reset_data/reset_data_keyframe 逐位一致，原生一级判定 max abs 0。P3 只覆盖状态/重置侧：完整 Data 字段、G24 历史与设备内核全部登记为未验收边界。未改既有产品路径、容差与测试。",
+  "boundaries": [
+    "未实现完整 Data：act/ctrl/qfrc_applied/xfrc_applied/mocap/qacc/act_dot/sensordata/cfrc_ext/接触/约束/能量/睡眠字段均未包含。",
+    "历史未交付：reset_history、init_ctrl_history/init_sensor_history 依赖未实现的 G24；关键帧的 act/ctrl/mocap 字段未包含。",
+    "无设备内核与上传路径；不宣称完整 M08 或精度验收通过；NP04 未测。"
+  ]
+}
