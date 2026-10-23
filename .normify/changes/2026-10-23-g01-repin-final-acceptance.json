@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-g01-repin-final-acceptance",
+  "title": {
+    "zh": "重钉后G01 debug/release双模式最终验收复跑",
+    "en": "Final G01 dual-mode acceptance rerun after the T4 source repin"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "在 T4 源码身份重钉（2026-10-23-t4-source-hash-repin-12，HEAD e4f7481）后，按同一命令重跑 G01 debug/release 双模式：记录 14 阶段数字、host-msvc 是否全绿、all-probes 通过/失败/result 行数与排除清单一致性（11 项文档化排除是否仍足够、新模块的 ignored 测试是否带来新失败）；若有新失败或需要新增排除，停手报 Chief 批准，不自行改断言/容差/排除清单。通过则更新 docs/development-evidence/g01-fast-loop/ 与 docs/three-layer-acceptance.md 的数字与记录。只改证据与文档，不改产品/测试/容差/fixtures/夹具。",
+    "en": "After the T4 source-identity repin (task 2026-10-23-t4-source-hash-repin-12, HEAD e4f7481), rerun G01 debug/release with the same commands: record 14 stage counts, host-msvc green status, all-probes pass/fail/result lines and exclusion-list consistency; if new failures or new exclusions are needed, stop and report to Chief for approval without changing assertions/tolerances/exclusions. On success update g01-fast-loop evidence and three-layer-acceptance numbers. Evidence/docs only."
+  },
+  "modules": {},
+  "acceptance": [
+    "在 HEAD e4f7481 上按同一命令运行 debug 与 release：scripts/test-windows-g01.ps1 -AllFeatures -FullRegression 与 ... -Release，GPU 独占，记录运行目录与本机日志。",
+    "记录 14 阶段数字（fmt/native/host-msvc/g01/native-g01/native-only-g01/resident/all-probes/host-gnu/clippy-gnu/clippy-gnu-cuda/clippy-msvc/rustdoc/diff）与全脚本墙钟；host-msvc 必须 0 败。",
+    "核对 all-probes 通过/失败/result 行数与排除清单：probe-reports/exclusions.json 是否仍为 11 项（W-D5 3 + 历史捕获 6 + env 1 + U038-3D known-debt 1）；若新模块 ignored 测试需要新增排除，停手报 Chief 批准，不自行修改排除清单/断言/容差。",
+    "若 all-probes 出现新失败：按实际报告 target、原因与是否阻塞声明，不改断言/容差/排除清单。",
+    "通过则更新 docs/development-evidence/g01-fast-loop/（README 新增 §5.2 与运行 json：HEAD、运行目录、各阶段数字、all-probes、排除项、环境接线）与 docs/three-layer-acceptance.md 相关数字；回执 json 含 task_id；gate fmt/unit 通过；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-23-t4-source-hash-repin-12"
+    ],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g01-fast-loop/",
+      "docs/development-evidence/changes/2026-10-23-g01-repin-final-acceptance.json",
+      "docs/three-layer-acceptance.md"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "GPU 独占执行（debug/release 各一轮，约 11–13 分钟/轮）；只改证据与验收文档，不改产品/测试/容差/fixtures/排除清单/脚本；若需新增排除或出现新失败，停手报 Chief。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T22:45:00.000Z",
+  "updated_at": "2026-10-23T22:45:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-g01-repin-final-acceptance.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-g01-repin-final-acceptance"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "未跑 release",
+        "排除清单已修改"
+      ]
+    }
+  ]
+}
