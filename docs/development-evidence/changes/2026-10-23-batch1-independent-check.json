@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-batch1-independent-check",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/batch1-independent-check/README.md",
+      "blob": "670ac88dd63bb9c07a6546e888c03079b3ccf9e1"
+    }
+  ],
+  "results": {
+    "scope": "批次 1 前四条（g27-p2/m08-p3/g05-p4/g28-p7，提交 70b36b7/e63b296/9850ee0/8764ced）独立复核",
+    "verdict": "四条核心数值声明均被证据与独立复跑支持；未发现伪造、容差放宽或验收口径削弱；发现 2 类一般/建议级回执追溯差异，不影响声明与后续。",
+    "claims_checked": {
+      "g27-p2": {"upstream": "5 次运行逐位一致（runs=5, distinct_bit_patterns=1, spread=0）", "native_max_abs": 2.980232238769531e-07, "native_tolerance": 1e-06, "independent_rerun": "lib constants 7 passed 0 failed"},
+      "m08-p3": {"upstream": "7/7 用例 time/qpos/qvel 逐位一致（容差 0）", "native_max_abs": 0.0, "independent_rerun": "lib state 16 passed 0 failed"},
+      "g05-p4": {"upstream": "act_dot/actuator_force/qfrc_actuator 三组逐位一致（容差 0）", "native_max_abs": 9.536743172944284e-08, "native_tolerance": 1e-05, "independent_rerun": "lib actuator 4 passed 0 failed"},
+      "g28-p7": {"upstream": "9/9 geomid 一致，dist/normal 在 1e-6 内", "native_max_abs_dist": 1.6763955057452762e-07, "native_max_abs_normal": 1.830425819249193e-07, "independent_rerun": "lib query 6 passed 0 failed"}
+    },
+    "sha256_check": {
+      "model_files_checked": 4,
+      "model_files_matching_authoring": 4,
+      "outputs_present": ["fixtures/set-const/g27-fixed.json", "fixtures/local-reset/reset-cases.json", "fixtures/actuation/actuation-cases.json", "fixtures/ray-query/ray-cases.json"],
+      "note": "模型源 sha256 与 authoring.json 4/4 一致；fixtures 被对应 lib 测试读取并通过。"
+    },
+    "compliance": {
+      "checks_refined": "四条均含 gate fmt/clippy/unit、unchanged（含前序 fixtures 保护）、json、forbid_claim；gate 运行记录 passed=true/exit=0。",
+      "acceptance_relaxed": false,
+      "acceptance_evidence": "细化提交与交付提交对 acceptance 数组 diff 0 行；只新增 checks、收窄 files、补细化说明。",
+      "m08_fix_record": "3 条 addenda 均为范围/模块源码登记与指纹刷新；check 种类前后一致；files 7→8。fix 声称「验收口径、证据与检查不变」。"
+    },
+    "discrepancies": [
+      {
+        "severity": "一般",
+        "item": "回执 blob × 4：.normify/modules/mjwarp/physics/core.md（g27/g05/g28）与 .normify/modules/mjwarp/io/core.md（m08）",
+        "detail": "回执记录的 blob 等于 done 刷新指纹前/中间版本，提交内为刷新后版本；仅影响回执追溯，不影响数值声明。建议 done 后生成回执或不在回执登记模块索引。",
+        "blocks": false
+      },
+      {
+        "severity": "一般",
+        "item": "回执 blob × 1：m08-p3 README",
+        "detail": "回执记录 7b6f4259…，提交/HEAD 为 f9ef2abd…；README 内容声明与 fixture/测试一致，但字节级无法确认 fix 期间证据未改；建议刷新回执。",
+        "blocks": false
+      },
+      {
+        "severity": "建议",
+        "item": "authoring 未独立重生成",
+        "detail": "5 次位型与原生 max_abs 依赖 authoring.json 与冻结 fixture 自洽；重新生成需 pinned venv+GPU，本轮按范围未重跑（未占 GPU）。4 个 author-*.py 均 pin 71da24d…。",
+        "blocks": false
+      }
+    ],
+    "blocking_issues": 0,
+    "conclusion": "批次 1 前四条可接受、不阻塞后续；差异为一般/建议级回执追溯问题。"
+  },
+  "note": "独立复核 Backend 批次 1 前四条：逐条核对声明、独立复跑 CPU lib 测试（constants 7/0、state 16/0、actuator 4/0、query 6/0）、抽验模型 sha256（4/4 一致）与回执 blob、核对 checks/files/acceptance 与 m08 fix 记录。结论：声明成立、无阻断问题；发现 2 类一般级回执 blob 追溯差异（4 个模块索引 blob、m08 README blob）与 1 条 authoring 未重生成的建议。未改产品/测试/容差/fixtures/回执；未碰同族后继四条。",
+  "boundaries": [
+    "只读复核 + 证据目录；未改产品/测试/容差/fixtures/回执；未 start/回退任务。",
+    "未重新生成 offline authoring 参考（需 pinned venv + GPU）；未复核 GPU 内核（本批四条均 host 侧切片）。",
+    "未碰 Backend 正在做的 g27-p7/m08-p7/g05-p7/g28-p8。"
+  ]
+}
