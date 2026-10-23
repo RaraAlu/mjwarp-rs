@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-backlog-triage-2",
+  "title": {
+    "zh": "待办池分诊（124条backlog四类评估与动作）",
+    "en": "Backlog triage: classify 124 backlog tasks and apply actions"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "前置任务（Windows 范围）清完后，对 124 条 backlog（原排程 P0–P11 候选池）逐条做四类分诊：a 已过时/被替代、b 已被现有工作覆盖、c 仍有效但需外部前提、d 现在可在 Windows 本地执行。产出逐条 triage.json 与 README（计数、方法、批次建议、风险、悬空依赖）；对 a/b 类按规范 abandon（reason 引依据），对 d 类 promote（不 start），不确定的保留并标「待用户/待证据」；不改产品代码。",
+    "en": "After the Windows-scope prerequisites are cleared, triage the 124 backlog tasks into four categories: superseded, already covered by verified work, still valid but externally blocked, and locally executable on Windows now. Produce per-task triage.json plus a README with counts, method, batch plan, risks and dangling dependencies; abandon category a/b tasks with evidence, promote category d tasks without starting them, keep uncertain ones and mark them for user/evidence. No product changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "对 124 条 backlog 逐条给出四类之一（a 已过时/被替代、b 已被现有工作覆盖、c 仍有效但需外部前提、d 现在可执行）与依据（引用替代/覆盖它的 verified 任务、证据路径或外部解锁条件）；不确定项明确标「待用户/待证据」，不强行归类。",
+    "产出 docs/development-evidence/backlog-triage/triage.json（逐条 id/标题/phase/依赖/分类/依据/建议动作）与 README.md（计数、方法、批次建议、风险、悬空依赖清单、恢复条件）；动作仅经 normify CLI 写入（abandon a/b、promote d），不改产品代码。",
+    "依赖检查：列出 backlog 之间 depends_on 指向已 abandon 或已 verified 的悬空项，并说明是否在分类依据中处理（不硬改依赖、不 start promoted 任务）。",
+    "回执 json 含 task_id；gate fmt/unit 与 unchanged（src/native/include/tests/fixtures/scripts/Cargo.toml/Cargo.lock）通过；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/backlog-triage/",
+      ".normify/changes/",
+      ".normify/runs/"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "用户要求「先做完前置任务再分诊」；Windows 范围前置已清完（G01 双模式通过，2026-10-23 ef4a0fb），现开始分诊。只做 backlog 四类评估与 CLI 状态动作（abandon/promote），不 start 任何任务、不动产品代码；不确定项保留并标注。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T04:52:00.000Z",
+  "updated_at": "2026-10-23T04:52:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-backlog-triage-2.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-backlog-triage-2"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "全部任务已验证",
+        "待办池已清零"
+      ]
+    }
+  ]
+}
