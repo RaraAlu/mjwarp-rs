@@ -166,6 +166,38 @@ $pwsh = 'target\toolchains\powershell-7.6.7\bin\pwsh.exe'
 - **与 §5.1 的差异**：HEAD `6e8c79a`→`66256c9`；host-msvc 722→796、host-gnu 406→480（批次 1–4 新增 20 条切片测试）；all-probes 346 过/0 败、83 个 result 行两轮不变；排除项 11 不变；墙钟 689s/656s→709s/627s。
 - 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 66256c9；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
 
+### 5.3 W13 后双模式复验（2026-10-24，QA，任务 `2026-10-24-g01-acceptance-after-w13`）
+
+背景：W13（`1de8c11`）新增 `cuda-probe` 下的 nvJitLink 绑定源码、8 项单元测试与 2 项 GPU 测试（`tests/nvjitlink_probe.rs`），并把工具链 nvJitLink 改为 12.9.86。T4 源码身份清单不覆盖这些文件，未重钉。
+
+命令与 §5 相同；运行前重跑 `scripts/prepare-cuda-probe.ps1`，`components.json` 含 `libnvjitlink` 12.9.86。
+源码 HEAD `f9f1f66`（W13 `1de8c11` 之上只多一条任务登记提交）；工作区无产品/测试/夹具改动。
+运行目录：debug `target/g01-acceptance/355a5a9e66504d288702e3ab6e87e24a`，release `target/g01-acceptance/a73659c1f1fd4acb835f902447b95d98`；本机日志 `target/final-g01-check/{debug,release}-w13.log`；机器数据 `final-acceptance-w13.json`。
+
+| 阶段 | debug | release |
+| --- | --- | --- |
+| fmt | 通过 | 通过 |
+| native | 27 过 | 27 过 |
+| host-msvc | 804 过 | 804 过 |
+| g01 | 7 过 | 7 过 |
+| native-g01 | 2 过 | 2 过 |
+| native-only-g01 | 1 过 | 1 过 |
+| resident | 102 过 | 102 过 |
+| all-probes | **348 过 / 0 败**（84 个 result 行） | **348 过 / 0 败**（84 个 result 行） |
+| host-gnu | 480 过 | 480 过 |
+| clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 | 0 警告 |
+| diff | 通过 | 通过 |
+| **全脚本墙钟** | **839s（14.0 分钟）** | **656s（10.9 分钟）** |
+
+- **排除清单**：仍为 11 项（W-D5 3、历史捕获身份 6、env 未接线 1、U038-3D 已知债务 1），两模式逐项相同，**未新增排除**，未改断言/容差/排除清单/G01 脚本。
+- **环境接线**：与 §5.2 相同；`cuda_include`/`cuda_bin_path`/`t4_history`/`frozen_upstream`/`frozen_warp`/`collision_mocks` = wired，`t4_current_captures`/`gravity_3d_evidence` = fresh-directory，`sparse_preflight` = reused。
+- **G01 浮点比较**：两模式均 `states=2084 scalars=7704548 max_abs_error=1.2514791880302578e-6`、原始 `scalars=50512 max_abs_error=5.553492985477249e-7`，与 §5.2 相同。
+- **W13 项**：all-probes 内 `nvjitlink_probe` 2 项通过；冻结 MathDx 链接后设备输出与离线证据逐字节一致（两模式各 1 次）。
+- **与 §5.2 的差异**：HEAD `66256c9`→`f9f1f66`；host-msvc 796→804（W13 单元测试 8 项）；all-probes 346→348、result 行 83→84（W13 新测试二进制 2 项）；host-gnu 480 不变（W13 只在 `cuda-probe` 下编译）；排除项 11 不变；墙钟 709s/627s→839s/656s（未分析墙钟变化原因）。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9f1f66；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
+
+
 ## 6. 并行评估（开发迭代用途）
 
 子集：8 个独立 resident target（`resident_rne_bias`、`resident_tendon_wake`、`resident_flex_edge`、`resident_flex_position`、`resident_flex_face`、`resident_sparse_mass`、`resident_kinematics`、`resident_spatial_tendon`），每进程 `--test-threads=1`，`-NoBuild`。

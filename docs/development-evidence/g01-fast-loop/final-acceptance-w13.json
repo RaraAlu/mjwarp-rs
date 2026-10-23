@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-24-g01-acceptance-after-w13",
+  "date": "2026-10-24",
+  "scope": "W13 nvJitLink 绑定落地后的 G01 debug/release 双模式复验",
+  "head": "f9f1f66f6c183922885ffa098f09aff8662e8e78",
+  "source_commit": "1de8c11",
+  "prerequisite_tasks": ["2026-10-23-w13-nvjitlink-binding"],
+  "toolchain": {
+    "prepare": "scripts/prepare-cuda-probe.ps1 rerun before both runs",
+    "nvrtc": "12.8.93",
+    "nvjitlink": "12.9.86"
+  },
+  "platform": {
+    "os": "Windows",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36"
+  },
+  "commands": {
+    "debug": "scripts/test-windows-g01.ps1 -AllFeatures -FullRegression",
+    "release": "scripts/test-windows-g01.ps1 -AllFeatures -FullRegression -Release",
+    "executor": "target/toolchains/powershell-7.6.7/bin/pwsh.exe -NoProfile -File"
+  },
+  "runs": {
+    "debug": {
+      "run_directory": "target/g01-acceptance/355a5a9e66504d288702e3ab6e87e24a",
+      "host_log": "target/final-g01-check/debug-w13.log",
+      "started_local": "2026-10-24T01:45:14+08:00",
+      "wall_seconds": 839,
+      "exit": 0,
+      "stages": {
+        "fmt": {"exit": 0},
+        "native": {"exit": 0, "passed": 27},
+        "host-msvc": {"exit": 0, "passed": 804},
+        "g01": {"exit": 0, "passed": 7},
+        "native-g01": {"exit": 0, "passed": 2},
+        "native-only-g01": {"exit": 0, "passed": 1},
+        "resident": {"exit": 0, "passed": 102},
+        "all-probes": {"exit": 0, "passed": 348, "failed": 0, "result_lines": 84},
+        "host-gnu": {"exit": 0, "passed": 480},
+        "clippy-gnu": {"exit": 0, "warnings": 0},
+        "clippy-gnu-cuda": {"exit": 0, "warnings": 0},
+        "clippy-msvc": {"exit": 0, "warnings": 0},
+        "rustdoc": {"exit": 0, "warnings": 0},
+        "diff": {"exit": 0}
+      },
+      "g01_complete": {"states": 2084, "scalars": 7704548, "max_abs_error": 1.2514791880302578e-6},
+      "g01_raw": {"scalars": 50512, "max_abs_error": 5.553492985477249e-7},
+      "w13_device_output_matches_evidence": true,
+      "exclusions_total": 11
+    },
+    "release": {
+      "run_directory": "target/g01-acceptance/a73659c1f1fd4acb835f902447b95d98",
+      "host_log": "target/final-g01-check/release-w13.log",
+      "started_local": "2026-10-24T01:59:32+08:00",
+      "wall_seconds": 656,
+      "exit": 0,
+      "stages": {
+        "fmt": {"exit": 0},
+        "native": {"exit": 0, "passed": 27},
+        "host-msvc": {"exit": 0, "passed": 804},
+        "g01": {"exit": 0, "passed": 7},
+        "native-g01": {"exit": 0, "passed": 2},
+        "native-only-g01": {"exit": 0, "passed": 1},
+        "resident": {"exit": 0, "passed": 102},
+        "all-probes": {"exit": 0, "passed": 348, "failed": 0, "result_lines": 84},
+        "host-gnu": {"exit": 0, "passed": 480},
+        "clippy-gnu": {"exit": 0, "warnings": 0},
+        "clippy-gnu-cuda": {"exit": 0, "warnings": 0},
+        "clippy-msvc": {"exit": 0, "warnings": 0},
+        "rustdoc": {"exit": 0, "warnings": 0},
+        "diff": {"exit": 0}
+      },
+      "g01_complete": {"states": 2084, "scalars": 7704548, "max_abs_error": 1.2514791880302578e-6},
+      "g01_raw": {"scalars": 50512, "max_abs_error": 5.553492985477249e-7},
+      "w13_device_output_matches_evidence": true,
+      "exclusions_total": 11
+    }
+  },
+  "exclusions": {
+    "file": "<run>/probe-reports/exclusions.json",
+    "groups": {"wd5": 3, "historical_audits": 6, "env_unwired": 1, "known_debt": 1},
+    "identical_between_modes": true,
+    "new_exclusions_needed": false
+  },
+  "env_wiring": {
+    "t4_history": "wired",
+    "frozen_upstream": "wired",
+    "frozen_warp": "wired",
+    "cuda_include": "wired",
+    "cuda_bin_path": "wired",
+    "t4_current_captures": "fresh-directory",
+    "gravity_3d_evidence": "fresh-directory",
+    "sparse_preflight": "reused",
+    "collision_mocks": "wired"
+  },
+  "diff_vs_previous_acceptance": "HEAD 66256c9→f9f1f66；host-msvc 796→804；all-probes 346→348、result 行 83→84；host-gnu 480 不变；排除 11 项不变；G01 浮点摘要不变；墙钟 709/627→839/656",
+  "conclusion": "G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9f1f66；U038-3D 已知债务显式排除、未验收）。Linux（deferred）、性能与完整上游等价仍未验收。"
+}

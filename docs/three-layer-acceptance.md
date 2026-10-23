@@ -290,6 +290,34 @@ Backend 接线（`45baa0e`）入库后，QA 按同一命令执行 debug 与 rele
 - 证据：`docs/development-evidence/g01-fast-loop/`（README §5.2、`final-acceptance-final.json`）与本文件。
 - 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 66256c9；U038-3D 已知债务显式排除、未验收）**。Linux（按用户 2026-10-24 决定暂时终止，待 Windows 全量完成后集中回测，§7.1）、性能与完整上游等价仍未验收。
 
+### 4.9 W13 后 debug/release 双模式复验（2026-10-24，QA，任务 `2026-10-24-g01-acceptance-after-w13`）
+
+W13（`1de8c11`）新增 `cuda-probe` 下的 nvJitLink 绑定源码与测试，工具链 nvJitLink 改为 12.9.86；T4 源码身份清单不覆盖这些文件，未重钉。运行前重跑 `scripts/prepare-cuda-probe.ps1`，QA 在 HEAD `f9f1f66` 按同一命令执行 debug 与 release 两轮完整脚本，**14 个阶段均 exit 0**。
+
+| 阶段 | debug | release |
+| --- | --- | --- |
+| fmt | 通过 | 通过 |
+| native | 27 过 | 27 过 |
+| host-msvc | 804 过 | 804 过 |
+| g01 | 7 过 | 7 过 |
+| native-g01 | 2 过 | 2 过 |
+| native-only-g01 | 1 过 | 1 过 |
+| resident | 102 过 | 102 过 |
+| all-probes | **348 过 / 0 败**（84 result 行；11 项排除） | **348 过 / 0 败**（84 result 行；11 项排除） |
+| host-gnu | 480 过 | 480 过 |
+| clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 | 0 警告 |
+| diff | 通过 | 通过 |
+| 全脚本墙钟 | 839s | 656s |
+
+- 运行目录：debug `target/g01-acceptance/355a5a9e66504d288702e3ab6e87e24a`、release `target/g01-acceptance/a73659c1f1fd4acb835f902447b95d98`；本机日志 `target/final-g01-check/{debug,release}-w13.log`。
+- 排除清单仍为 **11 项**，两模式逐项相同，**未新增排除**；`env-wiring.json` 与 §4.8 一致。
+- G01 浮点比较两模式均 `max_abs_error=1.2514791880302578e-6`（2084 状态、7704548 标量），原始比较 `5.553492985477249e-7`（50512 标量），与 §4.8 相同。
+- 与 §4.8 差异：host-msvc 796→804（W13 单元测试 8 项）；all-probes 346→348、result 行 83→84（`nvjitlink_probe` 2 项，设备输出与离线证据逐字节一致）；host-gnu 480 不变；墙钟 709s/627s→839s/656s。
+- 证据：`docs/development-evidence/g01-fast-loop/`（README §5.3、`final-acceptance-w13.json`）与本文件。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9f1f66；U038-3D 已知债务显式排除、未验收）**。Linux（§7.1）、性能与完整上游等价仍未验收。
+
+
 ## 5. 债务清单
 
 | 编号 | 级别 | 状态 | 内容与证据 |
@@ -380,10 +408,10 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_grav
 ## 7. 未验收边界
 
 - 只验收 Windows；Linux 侧按用户 2026-10-24 决定**暂时终止**（开发、验收与回测均暂停），等 Windows 全量开发完成后集中回测一次，不零散开跑；当前程序以 Windows 单平台完成为目标；Linux V2 未启动（原需 `linux-gpu:0` 与 `linux-acceptance`），细节见 §7.1。
-- G01 现状（2026-10-23/24，§4.8，最终 HEAD `66256c9`）：debug/release 双模式通过（含 11 项文档化排除项；T4 源码身份已重钉、rustdoc 私链与 A10 release 计时断言已修复；U038-3D 已知债务显式排除、未验收）；两模式 14 阶段均 exit 0，host-msvc **796 过**、all-probes **346 过 0 败**（各 83 result 行）；仅余 W-D5 3 项（§5.1）、历史捕获身份 6 项（§5.2）、env/外部产物未接线 1 项、U038-3D 已知债务 1 项（§5.3），共 11 项文档化排除，未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）
-- all-probes `-Minimum 346` 满足（debug/release 均 346 过，§4.8）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
+- G01 现状（2026-10-24，§4.9，HEAD `f9f1f66`）：W13 后 debug/release 双模式通过，host-msvc **804 过**、all-probes **348 过 0 败**（各 84 result 行），排除仍为 11 项。此前（§4.8，HEAD `66256c9`）：debug/release 双模式通过（含 11 项文档化排除项；T4 源码身份已重钉、rustdoc 私链与 A10 release 计时断言已修复；U038-3D 已知债务显式排除、未验收）；两模式 14 阶段均 exit 0，host-msvc **796 过**、all-probes **346 过 0 败**（各 83 result 行）；仅余 W-D5 3 项（§5.1）、历史捕获身份 6 项（§5.2）、env/外部产物未接线 1 项、U038-3D 已知债务 1 项（§5.3），共 11 项文档化排除，未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）
+- all-probes `-Minimum 346` 满足（W13 后 debug/release 均 348 过，§4.9；§4.8 为 346 过）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
 - 历史记录：2026-10-22 的 full-debug 曾中止在 all-probes（§4.1–§4.3），相关债务已由 `d5b02d5`、`6cb5a71`、`b13d1c5` 收口；保留原文作为变更轨迹。
-- W13（2026-10-24）在 §4.8 的 HEAD `66256c9` 之后新增 `cuda-probe` 下的 nvJitLink 绑定源码与 2 项 GPU 测试（`tests/nvjitlink_probe.rs`）；T4 源码身份清单不覆盖这些文件，未重钉。all-probes 会纳入这 2 项，运行前须重跑 `scripts/prepare-cuda-probe.ps1`（取 nvJitLink 12.9.86），对照测试还需 `target/native-mathdx7/attempt-1/` 的离线证据输入。§4.8 结论不覆盖 W13 之后的 HEAD；G01 双模式复跑由 QA 另立任务，复跑前不宣称新 HEAD 的 G01 通过。
+- W13（2026-10-24）在 §4.8 的 HEAD `66256c9` 之后新增 `cuda-probe` 下的 nvJitLink 绑定源码与 2 项 GPU 测试（`tests/nvjitlink_probe.rs`）；T4 源码身份清单不覆盖这些文件，未重钉。all-probes 已纳入这 2 项，运行前须重跑 `scripts/prepare-cuda-probe.ps1`（取 nvJitLink 12.9.86），对照测试还需 `target/native-mathdx7/attempt-1/` 的离线证据输入。W13 后 G01 双模式复验已通过（§4.9）。
 - 未测量 G01 阶段峰值显存。
 - 不转授完整产品数值验收、性能验收或双平台准入。
 - 不修改任何内核、容差、fixtures 或原生 ABI（RNE 期望值按用户裁决重基线，见 §4.4）。
