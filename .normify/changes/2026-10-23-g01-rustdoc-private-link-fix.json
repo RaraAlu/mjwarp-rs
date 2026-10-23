@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-g01-rustdoc-private-link-fix",
+  "title": {
+    "zh": "修复G01 rustdoc私有项断链",
+    "en": "Fix G01 rustdoc private intra-doc link"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "重钉后 G01 debug/release 终验在 rustdoc 阶段暴露一处新回归：批次2 G07 交付（12151dc）在 src/physics/collision.rs 的公开文档 BroadphaseModel::full_pairid 中用 [`upper_tri_index`] 链接到 pub(crate) 私有项，RUSTDOCFLAGS=-D warnings（-D rustdoc::private-intra-doc-links）报错，两模式一致；host-msvc 796 过 0 败、all-probes 346 过 0 败、排除清单仍 11 项。本任务只把该处改为反引号代码文本，修复文档断链，不改代码语义、断言、容差、排除清单、测试与门禁脚本；修后用同一 rustdoc 命令证明 0 警告，并交回 QA 复跑 debug/release 终验。",
+    "en": "The post-repin G01 debug/release acceptance exposed a new regression in the rustdoc stage: the batch-2 G07 delivery (12151dc) documents BroadphaseModel::full_pairid with a link to the pub(crate) private item upper_tri_index in src/physics/collision.rs, which fails RUSTDOCFLAGS=-D warnings (-D rustdoc::private-intra-doc-links) in both modes; host-msvc 796/0, all-probes 346/0, exclusion list still 11. This task only changes that link to backticked code text; no semantics, assertions, tolerances, exclusion list, tests or gate scripts change. The same rustdoc command must then report zero warnings, and QA reruns the debug/release acceptance."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core"
+    ]
+  },
+  "acceptance": [
+    "修复 `src/physics/collision.rs` 中公开文档 `BroadphaseModel::full_pairid` 的私有项 intra-doc 链接：`[`upper_tri_index`]` 改为反引号代码文本（或等价不解析为链接的写法）；只改文档文字/转义，不改代码语义、签名、断言、容差、排除清单、测试、门禁脚本；不新增 allow 豁免。",
+    "复现记录：修复前 `RUSTDOCFLAGS='-D warnings' cargo +1.99.0-x86_64-pc-windows-msvc doc --locked --all-features --no-deps` 退出码 101，报 `error: public documentation for full_pairid links to private item upper_tri_index`（src/physics/collision.rs:124:47，`rustdoc::private-intra-doc-links`）；修复后同命令退出码 0、0 警告。",
+    "同口径补充验证：`--features native-model-probe,cuda-probe` 下 rustdoc（RUSTDOCFLAGS=-D warnings、--no-deps）0 警告。",
+    "门禁 fmt/clippy/clippy-cuda/unit 通过；不改 fixtures、native、include、scripts、Cargo.toml/Cargo.lock/rust-toolchain，不碰 QA 的 `2026-10-23-g01-repin-final-acceptance` 任务文件与证据。",
+    "证据 `docs/development-evidence/g01-rustdoc-private-link-fix/`（README 记录复现错误、修法、两条 rustdoc 命令结果）与回执含 task_id；提交为 path-limited 中文提交；本次只证明 rustdoc 断链已修，不宣称 G01 双模式通过（由 QA 复跑终验）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-11-roadmap-g07-p5"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "Backend",
+    "files": [
+      "src/physics/collision.rs",
+      "docs/development-evidence/g01-rustdoc-private-link-fix/",
+      "docs/development-evidence/changes/2026-10-23-g01-rustdoc-private-link-fix.json",
+      ".normify/changes/",
+      ".normify/runs/",
+      ".normify/modules/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "来源：QA 在 2026-10-23-g01-repin-final-acceptance 的 debug/release 终验中发现 rustdoc 阶段失败（两模式同一处），归因批次2 G07 交付 12151dc；host-msvc 796/0、all-probes 346/0、排除清单 11 项不变。只改一行文档文字，不涉及数值/断言/容差/排除清单。修后 HEAD 变化会使 QA 在 0ab7841 上启动的验收任务需要按新 HEAD 重新登记/复跑。GPU 非必需，仅沿用资源声明。",
+  "revision": {
+    "before": "0ab7841e1145971083c8097cb1a3b6d52081c89b",
+    "after": null
+  },
+  "created_at": "2026-10-23T15:10:00.000Z",
+  "updated_at": "2026-10-23T15:10:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-g01-rustdoc-private-link-fix.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-g01-rustdoc-private-link-fix"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ]
+}
