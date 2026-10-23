@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-receipt-practice-fixup",
+  "title": {
+    "zh": "回执口径修正与已知追溯差异登记",
+    "en": "Fix receipt wording and record known traceability gaps"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "收尾批次 1 独立复核发现的两类回执追溯差异：① 用 normify fix 给 m08-p3 追加修正记录，写清 README 于 e63b296 添加后未再修改、回执当前权威值以 HEAD 为准（只改回执登记/口径，不改证据内容）；② 不重写历史回执，改为在 docs/development-evidence/batch1-independent-check/README.md 增补「回执口径实践」一节：以后回执在 done 之后生成、不登记共享模块索引或登记其 done 后稳定值，并把 4 条共享模块索引 blob 差异登记为已知追溯差异。不改产品代码。",
+    "en": "Close the two receipt-traceability gaps found in the batch-1 review: append a normify fix record to m08-p3 stating the README was added in e63b296 and never changed afterwards (authoritative receipt value follows HEAD); add a receipt-practice section to the review README (generate receipts after done; do not register shared module indexes or register their post-done stable values) and record the four module-index blob gaps as known traceability differences. No product changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "用 normify fix 给 2026-10-11-roadmap-m08-p3 追加修正记录，说明 README 仅在 e63b296 添加、其后未修改，回执中该文件权威值以 HEAD 为准；只改回执登记/口径，不改证据内容。",
+    "在 docs/development-evidence/batch1-independent-check/README.md 增补「回执口径实践」一节：以后回执在 done 之后生成；不登记共享模块索引文件（如 .normify/modules/**/core.md）或登记其 done 后稳定值；把 4 条模块索引回执 blob 差异登记为已知追溯差异、不改历史回执。",
+    "同步修正相关回执登记值（m08-p3 README 的权威 blob、本复核 README 自身 blob），使登记与 HEAD 一致且可审计。",
+    "gate fmt/unit 与 unchanged 通过；回执 json 含 task_id；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-23-batch1-independent-check"
+    ],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      ".normify/changes/",
+      "docs/development-evidence/batch1-independent-check/README.md",
+      "docs/development-evidence/changes/2026-10-23-receipt-practice-fixup.json",
+      "docs/development-evidence/changes/2026-10-11-roadmap-m08-p3.json",
+      "docs/development-evidence/changes/2026-10-23-batch1-independent-check.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "只做回执登记/口径修正与已知差异登记；不重写历史回执、不改证据内容、不改产品/测试/容差。m08-p3 由 QA 代为追加 fix 记录（Backend 的交付内容不变）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T06:05:00.000Z",
+  "updated_at": "2026-10-23T06:05:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-receipt-practice-fixup.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-receipt-practice-fixup"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "回执已全部修正",
+        "无追溯差异"
+      ]
+    }
+  ]
+}
