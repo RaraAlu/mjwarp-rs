@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-mathdx-review-g01-rerun",
+  "title": {
+    "zh": "MathDx交付独立复核与当前HEAD的G01双模式复验",
+    "en": "Independent review of the MathDx delivery and G01 dual-mode rerun at the current HEAD"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "独立复核 MathDx 三块交付：2025a57（libmathdx 0.3.1 组件+许可）、e5f1559（MathDx Solver LTO 绑定与冻结产物对照）、4f362f2（NVRTC 12.9.86 组件化+MathDx 路径解耦）。核对数字与声明（LTOIR 1,034,872 B/98c01ce6…、FATBIN 506,960 B/c00d6412…、CUBIN 2,086,544 B/de660b5d…、设备输出 104,528 B/51e1a99b…、8 次发射）、mathdx64_0.dll 描述符 API、无 C/C++/Python、仅 cuda-probe、mathdx.rs/deps.rs ≤500 行、SDK 二进制未入库、LICENSES 许可与 provenance、产品内核仍用 NVRTC 12.8.93、拒绝面真实、证据与门禁一致、三条位稳定边界（CWD 进 LTOIR、NVRTC 版本决定字节、跨目录/跨机位不成立、MATHDX_EVIDENCE_CWD 仅测试）如实写入。随后准备环境（prepare-cuda-probe.ps1 exit 0、NVRTC 12.9.86 与 libmathdx 组件就位）并抽查 mathdx 探针普通/G01 环境各一次（2 过 0 败、四摘要一致），再在 HEAD 4f362f2 复跑 G01 debug/release 双模式，记录 14 阶段、host-msvc、all-probes（mathdx 探针自动纳入）、rustdoc、排除清单 11 项与 diff；若需新增排除或出现新失败停手报 Chief。通过则更新 g01-fast-loop 与 three-layer-acceptance。只做复核与复跑，不修产品代码。",
+    "en": "Independently review the MathDx delivery (2025a57/e5f1559/4f362f2): verify numbers, mathdx64_0.dll descriptor API, no C/C++/Python, cuda-probe-only, mathdx.rs/deps.rs <=500 lines, SDK binaries not committed, LICENSES/provenance, product kernels still NVRTC 12.8.93, real rejection surface, evidence/gate consistency and the three bit-stability boundaries. Then prepare the environment (prepare-cuda-probe.ps1 exit 0; NVRTC 12.9.86 and libmathdx present) and spot-run the mathdx probe in normal and G01 environments (2/0, four identical digests), then rerun G01 debug/release at HEAD 4f362f2 and record 14 stages, host-msvc, all-probes (mathdx probe auto-included), rustdoc, 11 exclusions and diff; stop and report if new exclusions/failures appear. Update g01-fast-loop and three-layer-acceptance on success. Review/rerun only; no product changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "核对三个提交交付声明与数字：LTOIR 1,034,872 B/98c01ce6…、FATBIN 506,960 B/c00d6412…、CUBIN 2,086,544 B/de660b5d…、设备输出 104,528 B/51e1a99b…、8 次发射；mathdx64_0.dll 描述符 API；无新增 C/C++/Python/venv/warp.dll；mathdx.rs/deps.rs ≤500 行；仅 cuda-probe 门控。",
+    "核对许可与组件：SDK 二进制未入库（只在 target/）；LICENSES/libmathdx-0.3.1 有许可原文（sha256 8cfdcfcb…）与 provenance；component.json 记录组件/pinned NVRTC/产品内核仍用 12.8.93（product_kernel_path）。",
+    "核对拒绝面与门禁：缺库/符号/版本/描述符失败/空产物/非 CUBIN 等测试真实；.normify/runs/ 三个任务记录（fmt/clippy/clippy-cuda/unit）与证据一致；三条位稳定边界（CWD 进 LTOIR、NVRTC 版本决定字节、跨目录/跨机位不成立、MATHDX_EVIDENCE_CWD 仅测试、产品 API 不 chdir）如实写入证据。",
+    "环境准备：重跑 scripts/prepare-cuda-probe.ps1（pwsh 7.6.7）确认 exit 0、NVRTC 12.9.86（target/toolchains/cuda-12.9.1-nvrtc，包 sha256 1aa0644f…）与 libmathdx 0.3.1 组件就位；mathdx 探针在普通环境与 G01 环境各跑一次（均 2 过 0 败、四项冻结摘要一致）。",
+    "在 HEAD 4f362f2 运行 G01 debug 与 release（GPU 独占）：记录运行目录、墙钟、14 阶段数字（host-msvc 实测；all-probes 如实并核实 mathdx 2 项自动纳入；排除清单仍 11 项两模式一致；rustdoc 0 警告；diff 通过）。若需新增排除或出现新失败：停手报 Chief，不自行改排除/断言/容差。",
+    "通过则更新 docs/development-evidence/g01-fast-loop/（README 新小节 + 运行 json）与 docs/three-layer-acceptance.md 数字/日期；复核证据写 docs/development-evidence/mathdx-independent-check/；回执 json 含 task_id；gate fmt/unit 通过；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-mathdx-libmathdx-prep",
+      "2026-10-24-mathdx-solver-lto",
+      "2026-10-24-nvrtc-12-9-mathdx-component"
+    ],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/mathdx-independent-check/",
+      "docs/development-evidence/g01-fast-loop/",
+      "docs/development-evidence/changes/2026-10-24-mathdx-review-g01-rerun.json",
+      "docs/three-layer-acceptance.md"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "只做复核与 G01 复跑，不修产品代码；GPU 独占（debug/release 各一轮，约 11–14 分钟/轮）；若 mathdx 探针在 G01 环境失败（CWD/NVRTC 解析等），按实际报 target/原因，不自行改 G01 脚本/排除清单/断言/容差，需新增排除先报 Chief。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-24T19:31:37.765Z",
+  "updated_at": "2026-10-24T19:31:37.765Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-24-mathdx-review-g01-rerun.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-mathdx-review-g01-rerun"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "排除清单已修改",
+        "未跑 release"
+      ]
+    }
+  ]
+}
