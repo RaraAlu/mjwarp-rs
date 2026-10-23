@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-np03-windows-evidence",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/np03-windows-evidence/README.md",
+      "blob": "86d25d8575fede99f70324cebbe8c7264bd9281c"
+    },
+    {
+      "path": "docs/development-evidence/np03-windows-evidence/np03-windows.json",
+      "blob": "6cb00984c6ff41e0d8978fac6ccd036c7c148eba"
+    }
+  ],
+  "results": {
+    "scope": "Windows 单平台 NP03 数值等价证据汇总 + 当前 HEAD 轻量复跑",
+    "platform": "Windows 11 / RTX 4070 Ti SUPER / 驱动 596.36 / CUDA 12.8.1（非独占 GPU：桌面图形常驻，无其他 CUDA 计算进程）",
+    "heads": {
+      "debug_full_script": "f14009f19168f6866f8db3f2b016ccfa88bca7f3",
+      "release_targeted": "621f36e96aa254a850d97f2af52bd88877f41063",
+      "historical_g01_double_mode": "f266802"
+    },
+    "debug_full_script": {
+      "stages_passed": {
+        "fmt": "0 warnings",
+        "native": 27,
+        "host-msvc": 722,
+        "g01": 7,
+        "native-g01": 2,
+        "native-only-g01": 1,
+        "resident": 102
+      },
+      "all_probes": {
+        "passed": 344,
+        "failed_targets": 3,
+        "result_lines": 83,
+        "failed": [
+          "launcher-tile: nvrtc_compiles_static_shared_tile_kernel_with_verbatim_warp_headers（缺 MJWARP_CUDA_INCLUDE；补该环境后 6/6 通过）",
+          "launcher-warp-headers: nvrtc_compiles_probe_with_verbatim_warp_headers（缺 MJWARP_CUDA_INCLUDE；补该环境后 3/3 通过）",
+          "t4_gravity_3d_product_chain: live::live_three_d_product_chain_matches_frozen_upstream（缺 MJWARP_GRAVITY_3D_EVIDENCE_DIR；补后到达已知 8/77 断言，属裁决 B 已知债务）"
+        ]
+      },
+      "stage_seconds_to_all_probes_end": 781,
+      "not_executed": ["host-gnu", "clippy-gnu", "clippy-gnu-cuda", "clippy-msvc", "rustdoc", "diff"]
+    },
+    "np03_summary_current_head_debug": {
+      "scopes": 9,
+      "evaluated_blocks": 79286,
+      "native_passed": 79202,
+      "mjwarp_passed_secondary_reference": 84,
+      "failed": 0,
+      "pending": 0,
+      "compared_scalars": 8527795
+    },
+    "release_targeted": {
+      "g01": "7 过 0 败（16.12s）",
+      "resident_rne_acceleration": "2 过 0 败（13.49s）",
+      "mass_solve_probe": "6 过 0 败（7.55s）",
+      "g26_energy_chain": "1 过 0 败（6.98s）"
+    },
+    "historical_items": {
+      "g01_double_mode": "340 过 0 败（debug/release 各 78 result 行；789.1s/652.9s；排除项 10 个单列）",
+      "g02_rne": "521 块 → 0 失败块；scalars=900288；worst 0.743；容差 2e-5 未改（b13d1c5）",
+      "rne_repair_audit": "1042 = 2×521；重基线后 0 失败",
+      "g03_matrix_chain": "mass_solve_probe 6/0；potrf 0/121；解 0/33；5 个 NP03 scope 0 失败 0 待验收（d5b02d5）",
+      "g26_energy": "468 槽 0 失败；worst 9.985e-3；144 条上游参考天然校验全过（f594d4f）",
+      "u038_3d": "1477 项；全链 qfrc_gravcomp 8/77 超 2e-6（max 4.29e-6）；运动学 1400/0；算子 77/77 0 超差；裁决 B 已知债务，未验收",
+      "t4_exclusions": "10 项显式排除（W-D5 3 + 历史身份 6 + env 1）；历史捕获归档 724 文件",
+      "np01": "30 条路径、28 条有 W15 头文件路径、30 条缺逐字段类型表",
+      "np02": "30 条路径、3 条缺生成内核证据（rne_acc/tendon_wrap/field_batch）"
+    },
+    "verdict": {
+      "windows_recorded_numeric_gates_failed": 0,
+      "np03_admitted": false,
+      "dual_platform_equivalent": false,
+      "reason": "U038-3D 8/77 已知债务未验收；T4 10 项排除；NP01/NP02 未验收；Linux deferred（用户 2026-10-23 决定）"
+    },
+    "new_finding": "当前 HEAD 上 all-probes 因 2 个 W14/W15 NVRTC 测试缺 MJWARP_CUDA_INCLUDE、1 个 U038-3D 测试缺 MJWARP_GRAVITY_3D_EVIDENCE_DIR 而失败；G01 脚本（本任务 unchanged 保护）未接线，建议另立小任务补环境并复跑双模式。"
+  },
+  "note": "本任务只做 Windows 单平台的 NP03 证据汇总与当前 HEAD 轻量复跑（debug 全脚本 + release 定向 4 个数值门禁），复用 G01/G02/G03/G26/RNE 审计的既有实测数字并逐项标注来源、模式、计数与结论；发现 all-probes 3 个失败目标并完成环境归因（2 个缺 MJWARP_CUDA_INCLUDE、1 个缺 MJWARP_GRAVITY_3D_EVIDENCE_DIR，补环境后前者全过、后者到达已知 8/77 断言）。未改产品源码/测试/容差/fixtures/脚本/排除清单；Linux 侧按用户决定 deferred，缺失如实标注；不宣称双平台等价或 NP03 整体通过。",
+  "boundaries": [
+    "仅 Windows 单平台；Linux deferred，未测，不当作通过或失败。",
+    "不宣称双平台等价或 NP03 整体通过；deferred 不是通过结论。",
+    "未改产品源码/测试/容差/fixtures/scripts（含 scripts/test-windows-g01.ps1 与排除清单）。",
+    "G01 双模式 340/0 为 2026-10-23 01:24（HEAD f266802）历史证据；本次只补当前 HEAD debug 全脚本与 release 定向复跑。",
+    "U038-3D 8/77 为已知债务（裁决 B），不修复、不放宽、不宣称通过。"
+  ]
+}

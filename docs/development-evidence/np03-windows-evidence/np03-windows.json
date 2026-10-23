@@ -1,0 +1,220 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-23-np03-windows-evidence",
+  "generated_at": "2026-10-23T10:35:00+08:00",
+  "platform": {
+    "scope": "windows-only",
+    "linux": "deferred (user decision 2026-10-23)",
+    "os": "Microsoft Windows 11 Pro 10.0.26200 build 26200",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "gpu_total_mib": 16376,
+    "driver": "596.36",
+    "cuda_toolkit": "12.8.1",
+    "nvrtc": "12.8.93",
+    "native_reference": "MuJoCo 3.12.0",
+    "rustc": "1.99.0 (b940084d7 2026-09-28) x86_64-pc-windows-msvc",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "toolchain_exclusivity": "GPU 非独占：桌面图形进程常驻（约 3.2 GiB 图形占用），无其他 CUDA 计算进程"
+  },
+  "code": {
+    "head_recheck_debug": "f14009f19168f6866f8db3f2b016ccfa88bca7f3",
+    "head_recheck_release": "621f36e96aa254a850d97f2af52bd88877f41063",
+    "head_g01_double_mode_acceptance": "f266802",
+    "head_note": "两次复跑间新增提交 621f36e 仅改 .normify/changes/，产品/测试/fixtures 无变化"
+  },
+  "policy": {
+    "name": "native_error_v2",
+    "schema": 2,
+    "relative_slack": 0.05,
+    "native_first": true,
+    "tolerances_frozen": {
+      "G01": "2e-5 + 2e-5*abs(expected)",
+      "G02-RNE": "ABS=REL=2e-5",
+      "G03-factor-solve": "2e-4 + 2e-4*abs(reference); rhs residual 2e-5",
+      "T4-internal": "2e-5 + 2e-5*abs(expected)",
+      "G26-energy": "ABS=REL=2e-5",
+      "U038-3D": "2e-6"
+    },
+    "changed_by_this_task": false
+  },
+  "verdict": {
+    "windows_recorded_numeric_gates_failed": 0,
+    "windows_recorded_numeric_gates_pending": 0,
+    "np03_admitted": false,
+    "dual_platform_equivalent": false,
+    "reason_not_admitted": [
+      "U038-3D 全链 qfrc_gravcomp 8/77 超 2e-6（max 4.29e-6），用户 2026-10-23 裁决 B 登记为已知债务，未验收",
+      "T4 历史捕获 10 项显式排除（不是数值探针，未恢复）",
+      "NP01/NP02 未验收（3 条缺生成内核证据、30 条缺逐字段类型表）",
+      "Linux 未测（deferred）"
+    ]
+  },
+  "items": [
+    {
+      "id": "g01-double-mode-final",
+      "scope": "G01 主链与低层",
+      "source": "docs/development-evidence/g01-fast-loop/README.md §5; docs/three-layer-acceptance.md §4.5",
+      "commit": "f266802",
+      "modes": ["debug", "release"],
+      "counts": {"all_probes_passed": 340, "all_probes_failed": 0, "result_lines": 78, "host_msvc": 709, "g01": 7, "native_g01": 2, "native_only_g01": 1, "resident": 102, "native": 27},
+      "wall_seconds": {"debug": 789.1, "release": 652.9},
+      "exclusions": {"w_d5": 3, "historical_identity": 6, "env_unwired": 1},
+      "verdict": "pass_with_documented_exclusions"
+    },
+    {
+      "id": "g01-current-head-recheck",
+      "scope": "G01 主链与低层（含 2026-10-23 新增测试）",
+      "source": "docs/development-evidence/np03-windows-evidence/README.md §3; run target/g01-acceptance/e86e82e44eda435ebc894e362ad9f283",
+      "commit": "f14009f",
+      "modes": ["debug"],
+      "counts": {"fmt": "0 warnings", "native": 27, "host_msvc": 722, "g01": 7, "native_g01": 2, "native_only_g01": 1, "resident": 102, "all_probes_passed": 344, "all_probes_failed_targets": 3, "all_probes_result_lines": 83},
+      "wall_seconds": {"to_all_probes_end": 781},
+      "stage_seconds": {"native": 31, "host-msvc": 89, "g01": 19, "native-g01": 5, "native-only-g01": 3, "resident": 142, "all-probes": 492},
+      "failed_targets": [
+        {"target": "launcher-tile", "test": "nvrtc_compiles_static_shared_tile_kernel_with_verbatim_warp_headers", "error": "set MJWARP_CUDA_INCLUDE to the CUDA 12.8 include directory: NotPresent", "attribution": "environment wiring missing (G01 script does not set MJWARP_CUDA_INCLUDE)", "attribution_check": "with MJWARP_CUDA_INCLUDE set: launcher-tile 6 passed 0 failed"},
+        {"target": "launcher-warp-headers", "test": "nvrtc_compiles_probe_with_verbatim_warp_headers", "error": "set MJWARP_CUDA_INCLUDE to the CUDA 12.8 include directory: NotPresent", "attribution": "environment wiring missing", "attribution_check": "with MJWARP_CUDA_INCLUDE set: launcher-warp-headers 3 passed 0 failed"},
+        {"target": "t4_gravity_3d_product_chain", "test": "live::live_three_d_product_chain_matches_frozen_upstream", "error": "Option::unwrap() on None at live.rs:87 (MJWARP_GRAVITY_3D_EVIDENCE_DIR not set)", "attribution": "environment wiring missing + known U038-3D deviation", "attribution_check": "with MJWARP_GRAVITY_3D_EVIDENCE_DIR set: contract test 1 passed, live test fails assertion left=8 right=0 (known debt 8/77)"}
+      ],
+      "np03_scope_totals": {"scopes": 9, "evaluated_blocks": 79286, "native_passed": 79202, "mjwarp_passed": 84, "failed": 0, "pending": 0, "compared_scalars": 8527795},
+      "verdict": "numeric_gates_pass; all_probes_stage_failed_on_environment_and_known_debt; script_aborted after all-probes"
+    },
+    {
+      "id": "g02-rne-rebaseline",
+      "scope": "G02 RNE 加速度（5 models × 3 gravities × 8 states × 2 flags = 240 记录）",
+      "source": "docs/development-evidence/g02-rne-acc-rebaseline/README.md",
+      "commit": "b13d1c5",
+      "modes": ["debug"],
+      "counts": {"targeted_passed": 2, "targeted_failed": 0, "failed_world_field_blocks_before": 521, "failed_world_field_blocks_after": 0, "scalars": 900288, "records": 240, "worst_normalized": 0.743},
+      "verdict": "pass"
+    },
+    {
+      "id": "rne-repair-audit",
+      "scope": "历史「false 模式 1042 块超差」归属",
+      "source": "docs/development-evidence/rne-repair-audit/README.md",
+      "commit": "b13d1c5",
+      "modes": ["debug"],
+      "counts": {"blocks": 1042, "group1": 521, "group2": 521, "failed_after_rebaseline": 0},
+      "verdict": "covered; no product gap"
+    },
+    {
+      "id": "g03-matrix-chain",
+      "scope": "G03 因子/求解/批/快照/右端项/错误恢复",
+      "source": "docs/development-evidence/g03-matrix-chain-alignment/README.md",
+      "commit": "d5b02d5",
+      "modes": ["debug"],
+      "counts": {"mass_solve_probe_passed": 6, "mass_solve_probe_failed": 0, "potrf_bit_differences": "0/121", "solution_bit_differences": "0/33", "np03_scopes_failed": 0, "np03_scopes_pending": 0},
+      "verdict": "pass"
+    },
+    {
+      "id": "g26-energy-chain",
+      "scope": "G26 能量全链（9 场景 × 8 状态 × 2 f32 向量）",
+      "source": "docs/development-evidence/g26-complete/README.md",
+      "commit": "f594d4f (+ repin 08e7983/2713483)",
+      "modes": ["debug"],
+      "counts": {"energy_slots": 468, "failed": 0, "worst_normalized": 9.985e-3, "upstream_reference_records": 144, "natural_validation_passed": 144},
+      "verdict": "pass"
+    },
+    {
+      "id": "u038-3d-known-deviation",
+      "scope": "U038-3D 三维重力链（运动学 1400 + gravity_operator 77 + 全链 qfrc_gravcomp 77）",
+      "source": "docs/development-evidence/u038-3d/known-deviation.md; task 2026-10-23-u038-3d-known-deviation",
+      "commit": "db44056 (+ 6502ec2 evidence)",
+      "modes": ["debug"],
+      "counts": {"compared_items": 1477, "qfrc_gravcomp_outside_tolerance": "8/77", "max_absolute": 4.291534423828125e-6, "tolerance": 2e-6, "bit_differences": 122, "kinematics_outside_tolerance": "0/1400", "gravity_operator_outside_tolerance": "0/77"},
+      "verdict": "known_debt_not_admitted"
+    },
+    {
+      "id": "t4-historical-capture-exclusions",
+      "scope": "T4 历史捕获/归档工具与身份审计（10 项显式排除）",
+      "source": "docs/three-layer-acceptance.md §5.1/§5.2; docs/development-evidence/t4-historical-capture-archive/",
+      "commit": "7cea496 (+ d5b02d5 origin)",
+      "modes": ["debug", "release"],
+      "counts": {"w_d5": 3, "historical_identity": 6, "env_unwired": 1, "archive_files": 724, "archive_sha256": "95e7b430…a915"},
+      "verdict": "excluded_not_numeric_probe; not falsified"
+    },
+    {
+      "id": "np01-type-mapping",
+      "scope": "NP01 类型映射（30 条产品路径）",
+      "source": "docs/development-evidence/np01-type-mapping/inventory.json",
+      "commit": "3756487, 9c411de",
+      "modes": ["static"],
+      "counts": {"paths": 30, "paths_with_header_evidence": 28, "paths_without_header_evidence": 2, "rows_without_field_type_table": 30, "status_partial": 20, "status_todo": 10},
+      "verdict": "not_accepted"
+    },
+    {
+      "id": "np02-frozen-inventory",
+      "scope": "NP02 冻结清单（30 条路径，冻结 71da24d…）",
+      "source": "docs/development-evidence/frozen-inventory/inventory.json",
+      "commit": "721e85a",
+      "modes": ["static"],
+      "counts": {"paths": 30, "t4_entries": 24, "t4_variants": 30, "receipts": 688, "compile_option_sets": 1, "missing_generated_kernel_evidence": 3, "complete": 0},
+      "missing_generated_kernel_paths": ["rne_acc", "tendon_wrap", "field_batch"],
+      "verdict": "not_accepted"
+    },
+    {
+      "id": "two-reference-policy-host-rule",
+      "scope": "两级判定规则本体（宿主规则）",
+      "source": "tests/two_reference_policy.rs; host-msvc stage of current recheck",
+      "commit": "f14009f",
+      "modes": ["debug"],
+      "counts": {"tests": 20, "failed": 0},
+      "verdict": "pass"
+    },
+    {
+      "id": "linux-scope",
+      "scope": "Linux 平台",
+      "source": "user decision 2026-10-23; docs/three-layer-acceptance.md §7.1",
+      "modes": [],
+      "counts": {},
+      "verdict": "deferred_not_tested"
+    }
+  ],
+  "recheck": {
+    "debug_full_script": {
+      "command": "target\\toolchains\\powershell-7.6.7\\bin\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File scripts\\test-windows-g01.ps1 -AllFeatures -FullRegression",
+      "run_directory": "target/g01-acceptance/e86e82e44eda435ebc894e362ad9f283",
+      "head": "f14009f",
+      "started_local": "2026-10-23T10:14:49+08:00",
+      "all_probes_end_local": "2026-10-23T10:27:50+08:00",
+      "total_seconds_to_all_probes_end": 781,
+      "aborted_after": "all-probes",
+      "not_executed_stages": ["host-gnu", "clippy-gnu", "clippy-gnu-cuda", "clippy-msvc", "rustdoc", "diff"]
+    },
+    "release_targeted": {
+      "command_template": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --release --test <target> -- <args> --test-threads=1",
+      "head": "621f36e",
+      "started_local": "2026-10-23T10:30:00+08:00",
+      "ended_local": "2026-10-23T10:31:20+08:00",
+      "targets": [
+        {"target": "g01", "args": "--include-ignored", "passed": 7, "failed": 0, "seconds": 16.12, "exit_code": 0},
+        {"target": "resident_rne_acceleration", "args": "--ignored", "passed": 2, "failed": 0, "filtered": 1, "seconds": 13.49, "exit_code": 0},
+        {"target": "mass_solve_probe", "args": "--ignored", "passed": 6, "failed": 0, "filtered": 2, "seconds": 7.55, "exit_code": 0},
+        {"target": "g26_energy_chain", "args": "--ignored", "passed": 1, "failed": 0, "filtered": 1, "seconds": 6.98, "exit_code": 0}
+      ]
+    }
+  },
+  "coverage": {
+    "recorded_numeric_scopes_current_head_debug": ["G01-complete", "G01-raw", "G01-geom-motion", "G03-factors-and-rhs", "G03-batches", "G03-native-snapshots", "G03-rhs-counts", "G03-recovery", "new resident cached factor/RHS stream"],
+    "historical_full_product_2026_10_12": {"native_passed_per_mode": 65733, "reference_passed_per_mode": 29, "failed_per_mode": 0, "pending_per_mode": 0, "tests_per_mode": 483},
+    "numeric_failures_recorded": 0,
+    "numeric_pending_recorded": 0,
+    "known_numeric_deviation": "U038-3D 8/77 exceed 2e-6",
+    "excluded_non_numeric": 10,
+    "linux": "not measured (deferred)"
+  },
+  "gaps": [
+    {"id": "u038-3d", "severity": "known-debt", "detail": "全链 qfrc_gravcomp 8/77 超 2e-6（max 4.29e-6），跟踪任务 2026-10-23-u038-3d-gravity-propagation-debt-2（proposed）"},
+    {"id": "t4-historical-identity", "severity": "excluded", "detail": "6 项身份审计 + W-D5 3 项 + env 1 项显式排除；恢复需重采集/重基线（2026-10-22-t4-historical-capture-rebaseline，proposed）"},
+    {"id": "np01-np02", "severity": "documentary", "detail": "NP02 缺 3 条生成内核证据；NP01/NP02 均缺逐字段类型表"},
+    {"id": "linux", "severity": "deferred", "detail": "用户 2026-10-23 决定 deferred，未测"},
+    {"id": "g01-script-env-wiring", "severity": "new-finding", "detail": "10-23 新增 3 个测试需 MJWARP_CUDA_INCLUDE（launcher-tile/launcher-warp-headers）与 MJWARP_GRAVITY_3D_EVIDENCE_DIR（t4_gravity_3d_product_chain）；G01 脚本未接线。建议另立任务修改 scripts/test-windows-g01.ps1 并复跑双模式；本任务因 unchanged 保护未改。"}
+  ],
+  "boundaries": [
+    "仅 Windows 单平台（RTX 4070 Ti SUPER）；所有数字不延伸到 Linux。",
+    "不宣称双平台等价通过、不宣称 NP03 整体通过；deferred 不算通过、不算失败。",
+    "未改产品源码/测试/容差/fixtures/scripts（含 scripts/test-windows-g01.ps1 排除清单）。",
+    "G01 双模式完整脚本与 340/0 数字是 2026-10-23 01:24（HEAD f266802）的历史证据；本任务只补当前 HEAD 的 debug 全脚本与 release 定向复跑，未重跑 release 全脚本。",
+    "U038-3D 8/77 为已知债务，本任务不复述为通过、不修复、不放宽。"
+  ]
+}
