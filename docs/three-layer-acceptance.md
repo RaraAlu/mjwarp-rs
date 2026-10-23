@@ -270,6 +270,16 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
 证据：debug/release 运行目录的 `probe-reports/exclusions.json`（三组单列可审计：W-D5 原 3 项、历史捕获身份 6 项、env/外部产物未接线 1 项）。
 恢复条件：重基线任务完成重采集/重基线后解除排除；在此之前不把它们当静默跳过，也不伪造基线。
 
+用户 2026-10-23 裁决 B（维持排除 + 归档，不重基线）：上述 10 项排除维持现状，
+`scripts/test-windows-g01.ps1` 的排除清单保持不动；4 个历史捕获目录
+（`target/t4-g03-retest`、`target/t4-face-operators`、`target/t4-final-face-compile`、`target/t4-rigid-recapture`）
+已归档为证据 `docs/development-evidence/t4-historical-capture-archive/t4-historical-captures.tar.gz`
+（724 文件、原始 23 842 480 字节、压缩后 4 006 399 字节、sha256 `95e7b430…a915`），逐文件
+sha256/size/mtime 清单在同目录 `manifest.json`，可用 `make-archive.ps1 -Verify` 一条命令校验；
+归档与 QA 预检证据见 `docs/development-evidence/t4-historical-capture-archive/README.md` 与
+`docs/development-evidence/t4-rebaseline-precheck/`。跟踪任务 `2026-10-22-t4-historical-capture-rebaseline`
+保持 proposed（不 abandon），恢复条件不变：将来完成重采集/重基线后解除排除；在此之前不伪造历史身份、不宣称完整通过。
+
 ## 6. NP01–NP04 缺口
 
 - NP01/NP02 仍为未验收；重复修复不改变该状态。
