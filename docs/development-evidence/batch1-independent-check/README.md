@@ -78,3 +78,23 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --lib query       -> 6 passed
 - 本文件：逐条声明核对、复跑计数、sha256 抽验、差异清单。
 - 被复核证据：`docs/development-evidence/backlog-batch1/<task-id>/{README.md,authoring.json}`、`docs/development-evidence/changes/<task-id>.json`、`.normify/runs/<task-id>/`。
 - 复跑命令见 §3。
+
+## 9. 回执口径实践（2026-10-23 增补，任务 `2026-10-23-receipt-practice-fixup`）
+
+本节把 §5 发现的回执追溯差异转为长期口径，不重写历史回执。
+
+**规则（自 2026-10-23 起执行）**：
+
+1. **回执在 `normify done` 之后生成**：`done` 会刷新模块指纹与任务字段，回执若在 `done` 前生成，`files[].blob` 可能记录中间版本。以后先 gate/check/done，再写回执并提交。
+2. **不登记共享模块索引文件**：`.normify/modules/**/core.md`、`.normify/modules/**/index.md` 是跨任务共享、每次 `done` 都会刷新的文件，不应作为单个交付回执的文件哈希登记；如确需登记，只登记 `done` 之后的稳定值。
+3. **回执 blob 以提交内版本为权威**：发现回执 blob 与提交不一致时，用 `normify fix` 追加修正记录并写明权威值，不重写历史回执、不改证据内容。
+
+**已知追溯差异登记（不改历史）**：
+
+| 任务 | 文件 | 差异 |
+| --- | --- | --- |
+| g27-p2 / g05-p4 / g28-p7 | `.normify/modules/mjwarp/physics/core.md` | 回执 blob 为 `done` 刷新前/中间版本；模块索引随每次任务 `done` 刷新，历史回执不重写 |
+| m08-p3 | `.normify/modules/mjwarp/io/core.md` | 同上 |
+| m08-p3 | `docs/development-evidence/backlog-batch1/2026-10-11-roadmap-m08-p3/README.md` | 回执 blob 曾为交付前中间版本；已用 `normify fix`（2026-10-23）声明权威值以 HEAD 为准，并把回执登记值修正为提交内版本 |
+
+上述 4 条模块索引差异为已知项，不影响数值声明与验收结论；后续回执按本节规则执行。
