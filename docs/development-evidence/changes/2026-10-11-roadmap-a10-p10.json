@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-a10-p10",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/runtime/mod.rs",
+      "blob": "378f39d230c79074e40da0ce45d4ae766c3f04cf"
+    },
+    {
+      "path": "src/runtime/tooling/mod.rs",
+      "blob": "c9b420776ae4cb8e3d584601e01c8850a7d811bb"
+    },
+    {
+      "path": "src/runtime/tooling/tests.rs",
+      "blob": "4a706072d547203b6a3122fd085b26a0d19c88c7"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-a10-p10/README.md",
+      "blob": "f78c5b06a696f3ebeac85de4ef944a330a5ea4a3"
+    },
+    {
+      "path": ".normify/modules/mjwarp/runtime/tooling.md",
+      "blob": "8b56a8bf91afd3f6c31a296e72e2fde8ff3735ac"
+    },
+    {
+      "path": ".normify/modules/mjwarp/runtime/index.md",
+      "blob": "2042f4c779c7c3f2b9ef4877c1711af9747d64e4"
+    }
+  ],
+  "results": {
+    "slice": {
+      "family": "A10 记录与性能工具",
+      "phase": "P10（Rust 无头测速与状态导出）",
+      "planned_api": "mjwarp_rs::runtime::tooling（planned: mjwarp.runtime.tooling）",
+      "delivered": "BenchmarkRecorder 阶段记录与统计报告、measure 宿主闭包无头计时、StateExport 与确定性 JSON 导出（状态/报告）、批次 2 公开 API 冒烟复核"
+    },
+    "verification": {
+      "phase_aggregation": "3 相样本 → count/total/min/max/mean/median 正确，阶段按首次出现顺序",
+      "headless_timing": "measure(3) 执行 3 次且纳秒 > 0；measure(0) 拒绝",
+      "state_export": "JSON 经 serde_json 回读：time/nworld/qpos/qvel 位型一致",
+      "report_export": "JSON 解析 total_samples/total_ns/阶段名与统计正确",
+      "rejections": "空阶段名、非有限值、nworld=0、qpos/qvel 长度不匹配",
+      "batch_two_recheck": "G07/G16/G20/G21/G23/A08 公开 API 冒烟复核全部通过",
+      "tests": "cargo test --locked --lib tooling：5 过 0 败"
+    },
+    "np_mapping": {
+      "NP01": "物理状态字段全 f32；mean/median 仅诊断统计（f64，不反馈产品物理）",
+      "NP02": "记录无头/无 Python/无 GPU 内核的测速与导出契约、JSON 结构与拒绝面",
+      "NP03": "不适用（无物理数值对照）",
+      "NP04": "不适用（不做 GPU 性能测量，resources 置空不占 GPU 窗口）"
+    },
+    "gates": {
+      "fmt": "通过",
+      "clippy": "通过（--all-targets -D warnings，exit 0）",
+      "unit": "通过（tooling 5 过；全量 lib 461 过 0 败）"
+    }
+  },
+  "note": "批次 2 末片：A10@P10 按条款「Rust无头测速与状态导出」交付宿主侧记录器/无头计时/状态与报告 JSON 导出，并完成批次 2 此前全部切片公开 API 冒烟复核。GPU 事件计时/显存/真实批次性能门槛与跨平台性能对照登记为未验收边界；resources 置空不占 GPU 窗口；未改 main.rs 与其他运行时路径。",
+  "boundaries": [
+    "未实现 GPU 事件计时、CUDA 图耗时与显存统计。",
+    "未做真实仿真批次的性能门槛测量（需独占 GPU 的 NP04 测量）。",
+    "未实现 CSV/二进制导出格式与 T4/Linux 跨平台性能对照。",
+    "不宣称完整 A10 或性能验收。"
+  ]
+}

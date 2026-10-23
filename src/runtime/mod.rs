@@ -4,6 +4,7 @@
 use crate::diagnostics::ProbeError;
 pub mod external;
 pub mod launcher;
+pub mod tooling;
 mod transfer;
 pub(crate) use transfer::host_staging;
 #[cfg(feature = "cuda-probe")]

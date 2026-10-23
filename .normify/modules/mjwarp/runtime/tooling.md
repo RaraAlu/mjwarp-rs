@@ -1,7 +1,7 @@
 +++
 uid = "26d0e749"
 id = "mjwarp.runtime.tooling"
-fingerprint = "27c0c52ec120ce18b5cdb6ae193b8fe91d7df22642f0d3d3581e667c3fe6be6c"
+fingerprint = "7310b538767eadcbe049789dcf959f7189cb8e87645ff744ef8c4090dce6bd7b"
 
 [name]
 zh = "工具与命令入口"
@@ -17,6 +17,12 @@ Own probe CLI parsing and explicit route/configuration selection. Script integra
 
 [[source]]
 path = "src/main.rs"
+
+[[source]]
+path = "src/runtime/tooling/mod.rs"
+
+[[source]]
+path = "src/runtime/tooling/tests.rs"
 
 [[apis]]
 protocol = "file"
