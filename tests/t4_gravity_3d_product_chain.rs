@@ -24,7 +24,7 @@ mod contract;
 mod live;
 
 const PACKAGE: &str = include_str!("../fixtures/gravity-upstream-abi/three-d-package.json");
-const PACKAGE_SHA256: &str = "476d648cf949414b6a0d19d5a1e832259640499dd33996c1322606ae65e19710";
+const PACKAGE_SHA256: &str = "95b6818d5ab330c1b6578a88a61afb062b8c31b2e0f81dcc6713293a4eab3dbd";
 const REVISION: &str = "71da24d956378a87a703b6e1442b13aec0c4ac29";
 const WARP_VERSION: &str = "1.15.0";
 const TOLERANCE_BITS: u32 = 0x360637bd;
