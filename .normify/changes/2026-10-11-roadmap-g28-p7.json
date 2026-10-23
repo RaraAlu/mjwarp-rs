@@ -12,7 +12,7 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.physics"
+      "mjwarp.physics.core"
     ]
   },
   "acceptance": [
@@ -23,21 +23,79 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "新增计划 API `physics::query::{ray, rays}`（U039/U040；G28；P7/P8）的宿主侧原语切片：对冻结的六个原语 geom（plane/sphere/capsule/ellipsoid/cylinder/box）做射线求交，返回最近命中距离、geom 编号与法线；覆盖单体 `ray`、批量 `rays` 与无命中（距离 -1、geomid -1、法线零）。求交公式逐分支对齐上游 `ray_geom`/`ray_plane`/`ray_sphere`/`ray_capsule`/`ray_ellipsoid`/`ray_cylinder`/`ray_box`。",
+    "冻结上游对照：以 `fixtures/ray-query/model.xml`（6 个原语 geom、nworld=1、9 条射线含两次无命中与一次多命中）为模型源，离线 authoring 用 pinned MJWarp `rays` 产出 geom 位姿/尺寸、射线输入与三组输出，并用原生 `mj_ray` 做 NP03 一级判定；产品逐元素位型比较（二级）。",
+    "显式拒绝非原语 geom 类型（mesh/hfield/flex/SDF）与不支持的过滤参数；本片不做 geomgroup/flg_static/bodyexclude 过滤、不构建 BVH、不实现 `jac` 与 `contact_force`（依赖碰撞与约束子系统）。",
+    "NP01：新增路径全 f32，无 f64 中间量；NP02：记录冻结上游提交、模型 sha256、函数名、环境与射线清单；NP04 不适用（不发射内核、不跑性能），如实登记未测项。",
+    "证据落 `docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g28-p7/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g28-p7.json`；gate fmt/clippy/unit 通过，不宣称完整 G28 或精度验收。"
   ],
   "schedule": {
     "depends_on": [],
     "phase": "P7",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/physics/query.rs",
+      "src/physics/query/",
+      "src/physics/mod.rs",
+      "fixtures/ray-query/",
+      "scripts/authoring/",
+      "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g28-p7/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g28-p7.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":281,\"end\":281},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5, 2026-10-11-roadmap-p6] → 新依赖 []。依据：原前置 P4/P5/P6 为旧聚合门禁（keep，未完成）；查询能力所需运动学/动力学族已 verified，故删除聚合门禁。",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/runtime",
+        "src/model",
+        "native",
+        "include",
+        "tests",
+        "fixtures/g01",
+        "fixtures/set-const",
+        "fixtures/local-reset",
+        "fixtures/actuation",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-g28-p7.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-g28-p7"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ],
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":281,\"end\":281},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5, 2026-10-11-roadmap-p6] → 新依赖 []。依据：原前置 P4/P5/P6 为旧聚合门禁（keep，未完成）；查询能力所需运动学/动力学族已 verified，故删除聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次1）：原图只有 G28@P7 粗切片（矩阵 G28 = 「查询｜jac、ray、rays、contact_force｜单体、批量与无命中｜P7/P8」）。按当前代码布局，本片最小可交付 = 架构计划 API `mjwarp_rs::physics::query::{ray, rays}`（U039/U040；G28；P7/P8）的宿主侧原语切片：对冻结的六个原语 geom 求交，输出最近命中距离/geom 编号/法线，覆盖单体、批量与无命中；求交公式逐分支对齐上游。P7 阶段只覆盖「原语射线查询」侧：不构建 BVH、不覆盖 mesh/hfield/flex/SDF、不做 geomgroup/flg_static/bodyexclude 过滤；`jac`（U072）依赖运动学链、`contact_force`（U070）依赖碰撞与约束子系统（G07–G18 未实现），二者如实列为未验收边界。验收口径未放宽：矩阵核心验收「单体、批量与无命中」逐项交付并有上游/原生双参考；完整 G28 如实登记未验收。范围收窄到 src/physics/query.rs、src/physics/query/、src/physics/mod.rs、fixtures/ray-query/、scripts/authoring/、证据与回执；不改既有产品路径与容差。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-11T15:26:49.480Z",
-  "updated_at": "2026-10-23T04:57:03.940Z"
+  "updated_at": "2026-10-23T06:20:00.000Z"
 }
