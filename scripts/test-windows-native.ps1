@@ -1,6 +1,24 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([switch]$Gpu, [switch]$Release, [switch]$AllFeatures, [switch]$RestrictedRuntime)
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 turns redirected native stderr into a terminating
+# NativeCommandError under Stop; native exit codes are checked explicitly.
+function Invoke-WithNativeStderr {
+    param([scriptblock]$Block)
+    $previous = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $Block 2>&1 | ForEach-Object {
+            if ($_ -is [System.Management.Automation.ErrorRecord]) {
+                $_.Exception.Message
+            } else {
+                $_
+            }
+        }
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+}
 $root = Split-Path -Parent $PSScriptRoot
 $package = Join-Path $root 'target\toolchains\mujoco-3.12.0\package'
 if (-not (Test-Path -LiteralPath (Join-Path $package 'bin\mujoco.dll'))) {
@@ -74,7 +92,8 @@ if ($Release) { $cargoArgs += '--release' }
 $cargoArgs += @('--test', 'native_model_probe', '--', '--ignored', '--test-threads=1')
 Push-Location $root
 try {
-    $output = & cargo @cargoArgs 2>&1 | Tee-Object -FilePath (Join-Path $env:MJWARP_NATIVE_MOCKS 'tests.log')
+    $output = Invoke-WithNativeStderr { & cargo @cargoArgs 2>&1 }
+    $output | Set-Content -LiteralPath (Join-Path $env:MJWARP_NATIVE_MOCKS 'tests.log') -Encoding utf8
     if ($LASTEXITCODE -ne 0) { throw '原生模型探针失败' }
     $match = [regex]::Match(($output -join "`n"), 'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;')
     $expected = if ($Gpu -or $AllFeatures) { 27 } else { 22 }
@@ -89,7 +108,7 @@ try {
         $buildArgs = @('+1.99.0-x86_64-pc-windows-msvc', 'test', '--locked', '--no-run', '--message-format=json', '--test', 'native_model_probe')
         if ($AllFeatures) { $buildArgs += '--all-features' } else { $buildArgs += @('--features', $feature) }
         if ($Release) { $buildArgs += '--release' }
-        $messages = & cargo @buildArgs
+        $messages = Invoke-WithNativeStderr { & cargo @buildArgs 2>$null }
         if ($LASTEXITCODE -ne 0) { throw '测试产物定位失败' }
         $artifact = $messages | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object {
             $_.reason -eq 'compiler-artifact' -and $_.target.name -eq 'native_model_probe' -and $_.executable
@@ -98,8 +117,8 @@ try {
         $oldPath = $env:PATH
         try {
             $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
-            $restricted = & $artifact.executable --ignored --test-threads=1 2>&1 |
-                Tee-Object -FilePath (Join-Path $env:MJWARP_NATIVE_MOCKS 'restricted.log')
+            $restricted = Invoke-WithNativeStderr { & $artifact.executable --ignored --test-threads=1 2>&1 }
+            $restricted | Set-Content -LiteralPath (Join-Path $env:MJWARP_NATIVE_MOCKS 'restricted.log') -Encoding utf8
             if ($LASTEXITCODE -ne 0) { throw '受限运行失败' }
             $result = [regex]::Match(($restricted -join "`n"), 'test result: ok\. (\d+) passed; 0 failed; 0 ignored;')
             if (-not $result.Success) { throw '受限测试计数无效' }

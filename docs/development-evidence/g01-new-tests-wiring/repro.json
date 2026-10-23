@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "kind": "g01-new-tests-wiring-repro",
+  "task_id": "2026-10-23-g01-script-new-tests-wiring",
+  "before": {
+    "command_set": [
+      "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test launcher-tile -- --ignored --test-threads=1",
+      "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test launcher-warp-headers -- --ignored --test-threads=1",
+      "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_gravity_3d_product_chain -- --ignored --test-threads=1"
+    ],
+    "env": ["MJWARP_MUJOCO_ROOT", "MJWARP_MUJOCO_DLL", "CUDA_PATH", "PATH"],
+    "results": {
+      "launcher-tile": {
+        "exit": 101,
+        "passed": 1,
+        "failed": 1,
+        "failure": "nvrtc_compiles_static_shared_tile_kernel_with_verbatim_warp_headers panicked: set MJWARP_CUDA_INCLUDE to the CUDA 12.8 include directory: NotPresent",
+        "log": "before-launcher-tile.log",
+        "log_sha256": "4c77b199a9d164d3bf65f5a6dcd459493ab14ee8d178a3714753cf54cbf3031b"
+      },
+      "launcher-warp-headers": {
+        "exit": 101,
+        "passed": 0,
+        "failed": 1,
+        "failure": "nvrtc_compiles_probe_with_verbatim_warp_headers panicked: set MJWARP_CUDA_INCLUDE to the CUDA 12.8 include directory: NotPresent",
+        "log": "before-launcher-warp-headers.log",
+        "log_sha256": "6646677e09a09955020b6485fb4005a7d2714fc0a4b54aca3ddd8f893083c761"
+      },
+      "t4_gravity_3d_product_chain": {
+        "exit": 101,
+        "passed": 0,
+        "failed": 1,
+        "failure": "live::live_three_d_product_chain_matches_frozen_upstream panicked: MJWARP_GRAVITY_3D_EVIDENCE_DIR missing (unwrap); with the directory wired the test reaches the U038-3D 8/77 known-debt assertion",
+        "log": "before-t4_gravity_3d_product_chain.log",
+        "log_sha256": "23be8674f60c848ce4ffc2b1f85ed92fc7c178cfb29721b64ca0d4be475e9ff9"
+      }
+    }
+  },
+  "after": {
+    "wiring": {
+      "MJWARP_CUDA_INCLUDE": "target/toolchains/cuda-12.8.1/include in the all-probes env section",
+      "cuda_bin_path": "target/toolchains/cuda-12.8.1/bin prepended to PATH in the all-probes env section",
+      "MJWARP_GRAVITY_3D_EVIDENCE_DIR": "fresh <run>/gravity-3d-chain directory in the all-probes env section",
+      "recorded_in": "probe-reports/env-wiring.json (cuda_include=wired, cuda_bin_path=wired, gravity_3d_evidence=fresh-directory)"
+    },
+    "targeted_checks": {
+      "launcher-tile": "test result: ok. 2 passed; 0 failed; 0 ignored",
+      "launcher-warp-headers": "test result: ok. 1 passed; 0 failed; 0 ignored",
+      "t4_gravity_3d_product_chain": "with --skip live::live_three_d_product_chain_matches_frozen_upstream: test result: ok. 0 passed; 0 failed; 0 ignored (excluded explicitly, not silently)"
+    },
+    "full_debug_run": "debug-run.json (14 stages exit 0; all-probes 346 passed / 0 failed; 83 result lines)"
+  },
+  "root_causes": {
+    "launcher-tile": "W14 tile probe is ignored and requires MJWARP_CUDA_INCLUDE; the all-probes env section never wired it.",
+    "launcher-warp-headers": "W15 verbatim-Warp-headers probe is ignored and requires MJWARP_CUDA_INCLUDE; same missing wiring.",
+    "t4_gravity_3d_product_chain": "U038-3D live probe requires MJWARP_GRAVITY_3D_EVIDENCE_DIR; after wiring it asserts total_outside==0, which is the registered 8/77 known debt."
+  },
+  "host_compatibility": {
+    "host": "Windows PowerShell 5.1.26100.7920, codepage 936; no pwsh 7 installed and shell network unavailable",
+    "changes": [
+      "UTF-8 BOM added to the 4 G01 scripts so PowerShell 5.1 reads the existing Chinese comments as UTF-8 instead of ANSI.",
+      "Invoke-WithNativeStderr helper wraps redirected native commands under EAP Continue and maps native stderr ErrorRecords back to raw text; explicit LASTEXITCODE checks and assertions unchanged.",
+      "test-windows-collision-input.ps1: #Requires -Version 5.1 and SHA-256 hex via SHA256.Create()+BitConverter (equivalent to the previous Convert.ToHexString/HashData call).",
+      "Collision script: capture output then write the log (instead of *> redirect) and avoid $args shadowing inside the helper (renamed to $cargoTestArguments)."
+    ],
+    "note": "No assertion, tolerance, fixture, or product source change; the changes only make the same acceptance stages executable on this host."
+  }
+}

@@ -1,7 +1,25 @@
-#Requires -Version 7.0
+﻿#Requires -Version 5.1
 [CmdletBinding()]
 param([string]$OutputDirectory = 'target/g08-native-capture/attempt-1')
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 turns redirected native stderr into a terminating
+# NativeCommandError under Stop; native exit codes are checked explicitly.
+function Invoke-WithNativeStderr {
+    param([scriptblock]$Block)
+    $previous = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $Block 2>&1 | ForEach-Object {
+            if ($_ -is [System.Management.Automation.ErrorRecord]) {
+                $_.Exception.Message
+            } else {
+                $_
+            }
+        }
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+}
 Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
 $root = [IO.Path]::GetFullPath($root)
@@ -20,7 +38,11 @@ $inventory = Get-Content (Join-Path $root 'fixtures/precision/g01-inputs.json') 
 foreach ($path in @('native/model_probe.cpp', 'native/g01_fields.inc', 'include/mjwarp_native_probe.h')) {
     $expected = @($inventory.product_sources | Where-Object path -eq $path)
     $text = [IO.File]::ReadAllText((Join-Path $root $path)).Replace("`r`n", "`n")
-    $actual = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($text))).ToLowerInvariant()
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        $hash = $sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($text))
+    } finally { $sha256.Dispose() }
+    $actual = ([BitConverter]::ToString($hash)).Replace('-', '').ToLowerInvariant()
     if ($expected.Count -ne 1 -or $actual -ne $expected[0].sha256) { throw 'Original native ABI source changed' }
 }
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
@@ -44,8 +66,11 @@ $watch = [Diagnostics.Stopwatch]::StartNew()
 foreach ($case in $cases) {
     $dll = Join-Path $output "$($case.Name).dll"
     $log = Join-Path $output "$($case.Name)-compile.log"
-    & cl.exe /nologo /LD /MD /std:c++17 /utf-8 /W4 /WX "/I$(Join-Path $package 'include')" @($case.Define) `
-        (Join-Path $root 'tests/native/mock_collision.cpp') "/Fe:$dll" "/Fo:$(Join-Path $output "$($case.Name).obj")" *> $log
+    $compileOutput = Invoke-WithNativeStderr {
+        & cl.exe /nologo /LD /MD /std:c++17 /utf-8 /W4 /WX "/I$(Join-Path $package 'include')" @($case.Define) `
+            (Join-Path $root 'tests/native/mock_collision.cpp') "/Fe:$dll" "/Fo:$(Join-Path $output "$($case.Name).obj")" 2>&1
+    }
+    $compileOutput | Set-Content -LiteralPath $log -Encoding utf8
     if ($LASTEXITCODE -ne 0) { Get-Content $log; throw "Reader double compilation failed: $($case.Name)" }
 }
 $watch.Stop()
@@ -54,11 +79,12 @@ $env:MJWARP_MUJOCO_ROOT = $package
 $env:MJWARP_MUJOCO_DLL = $library
 $env:MJWARP_COLLISION_MOCKS = $output
 $env:MJWARP_COLLISION_LIFETIME_LOG = Join-Path $output 'lifetime.log'
-$args = @('+1.99.0-x86_64-pc-windows-msvc', 'test', '--locked', '--features', 'native-model-probe', '--test', 'native_collision_input', '--', '--ignored', '--test-threads=1', '--nocapture')
+$cargoTestArguments = @('+1.99.0-x86_64-pc-windows-msvc', 'test', '--locked', '--features', 'native-model-probe', '--test', 'native_collision_input', '--', '--ignored', '--test-threads=1', '--nocapture')
 $watch.Restart()
 Push-Location $root
 try {
-    & cargo @args *> (Join-Path $output 'tests.log')
+    $testOutput = Invoke-WithNativeStderr { & cargo @cargoTestArguments 2>&1 }
+    $testOutput | Set-Content -LiteralPath (Join-Path $output 'tests.log') -Encoding utf8
     $exit = $LASTEXITCODE
 } finally { Pop-Location }
 $watch.Stop()

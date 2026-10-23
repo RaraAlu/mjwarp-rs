@@ -1,6 +1,25 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([switch]$AllFeatures, [switch]$Release, [switch]$FullRegression)
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 turns redirected native stderr (cargo/probes/cl.exe) into a
+# terminating NativeCommandError under Stop. Native exit codes are checked explicitly
+# below, so run those invocations with Continue and restore Stop afterwards.
+function Invoke-WithNativeStderr {
+    param([scriptblock]$Block)
+    $previous = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $Block 2>&1 | ForEach-Object {
+            if ($_ -is [System.Management.Automation.ErrorRecord]) {
+                $_.Exception.Message
+            } else {
+                $_
+            }
+        }
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+}
 if ($FullRegression -and -not $AllFeatures) { throw '完整回归需要AllFeatures' }
 $root = Split-Path -Parent $PSScriptRoot
 $directory = Join-Path $root ('target\g01-acceptance\' + [Guid]::NewGuid().ToString('N'))
@@ -27,7 +46,7 @@ function Invoke-G01Check {
     param([string]$Name, [scriptblock]$Command, [int]$Expected = -1, [int]$Minimum = 0)
     $log = Join-Path $directory "$Name.log"
     $global:LASTEXITCODE = 0
-    $output = & $Command *>&1
+    $output = Invoke-WithNativeStderr { & $Command *>&1 }
     $code = $LASTEXITCODE
     $output | Set-Content -LiteralPath $log -Encoding utf8
     if ($code -ne 0) { $output | Select-Object -Last 60 | Write-Host; throw "$Name 失败" }
@@ -103,11 +122,26 @@ try {
         $script:excludedEnvUnwired = @(
             'captures_loaded_face_machine_code_without_launching_physics'
         )
+        # Known-debt probes (explicit, never silent): with the CUDA SDK/NVRTC wiring
+        # below the live 3D product chain now reaches its final assertion, which
+        # documents the U038-3D full-chain qfrc_gravcomp debt (8/77 values outside
+        # 2e-6; user ruling 2026-10-23 B registers it as known debt and acceptance is
+        # not claimed). Keep the probe excluded explicitly; the manual command and
+        # debt text stay documented in docs/three-layer-acceptance.md.
+        $script:excludedKnownDebt = @(
+            'live::live_three_d_product_chain_matches_frozen_upstream'
+        )
         Invoke-G01Check 'all-probes' {
             $reportDirectory = Join-Path $directory 'probe-reports'
             New-Item -ItemType Directory -Force $reportDirectory | Out-Null
             $captureDirectory = Join-Path $directory 'physics-ptx'
             New-Item -ItemType Directory -Force $captureDirectory | Out-Null
+            # W14/W15 NVRTC probes need the CUDA SDK include directory and CUDA bin on PATH.
+            $cudaInclude = Join-Path $env:CUDA_PATH 'include'
+            $cudaBin = Join-Path $env:CUDA_PATH 'bin'
+            if (($env:PATH -split ';') -notcontains $cudaBin) {
+                $env:PATH = $cudaBin + ';' + $env:PATH
+            }
             # Offline-satisfiable external dependencies; unavailable ones are skipped
             # and explicitly recorded in probe-reports/exclusions.json + env-wiring.json.
             $t4History = Join-Path $root 'target/t4-g03-retest'
@@ -117,14 +151,18 @@ try {
             $machineDirectory = Join-Path $directory 'machine-code-captures'
             $gravityNonzeroDirectory = Join-Path $directory 'gravity-nonzero-chain'
             $gravityProductDirectory = Join-Path $directory 'gravity-product-chain'
-            foreach ($path in @($t4CurrentCaptures, $machineDirectory, $gravityNonzeroDirectory, $gravityProductDirectory)) {
+            $gravity3dDirectory = Join-Path $directory 'gravity-3d-chain'
+            foreach ($path in @($t4CurrentCaptures, $machineDirectory, $gravityNonzeroDirectory, $gravityProductDirectory, $gravity3dDirectory)) {
                 if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force }
             }
             $envWiring = [ordered]@{
                 t4_history = if (Test-Path -LiteralPath (Join-Path $t4History 'debug-ptx')) { 'wired' } else { 'missing' }
                 frozen_upstream = if (Test-Path -LiteralPath (Join-Path $frozenUpstream '_src')) { 'wired' } else { 'missing' }
                 frozen_warp = if (Test-Path -LiteralPath $frozenWarp) { 'wired' } else { 'missing' }
+                cuda_include = if (Test-Path -LiteralPath (Join-Path $cudaInclude 'cuda_fp16.h')) { 'wired' } else { 'missing' }
+                cuda_bin_path = if (($env:PATH -split ';') -contains $cudaBin) { 'wired' } else { 'missing' }
                 t4_current_captures = 'fresh-directory'
+                gravity_3d_evidence = 'fresh-directory'
                 sparse_preflight = 'missing'
                 collision_mocks = 'missing'
             }
@@ -143,7 +181,7 @@ try {
             if ($AllFeatures) {
                 $collisionDirectory = Join-Path $directory 'collision-mocks'
                 $collisionRelative = 'target/g01-acceptance/' + (Split-Path $directory -Leaf) + '/collision-mocks'
-                & scripts/test-windows-collision-input.ps1 -OutputDirectory $collisionRelative 2>&1 | Out-Null
+                Invoke-WithNativeStderr { & scripts/test-windows-collision-input.ps1 -OutputDirectory $collisionRelative 2>&1 | Out-Null }
                 $envWiring.collision_mocks = if ($env:MJWARP_COLLISION_MOCKS) { 'wired' } else { 'missing' }
             }
             $probeEnv = [ordered]@{
@@ -163,6 +201,8 @@ try {
                 MJWARP_MACHINE_DIR = $machineDirectory
                 MJWARP_GRAVITY_NONZERO_CHAIN_EVIDENCE_DIR = $gravityNonzeroDirectory
                 MJWARP_GRAVITY_PRODUCT_CHAIN_EVIDENCE_DIR = $gravityProductDirectory
+                MJWARP_CUDA_INCLUDE = $cudaInclude
+                MJWARP_GRAVITY_3D_EVIDENCE_DIR = $gravity3dDirectory
             }
             if ($sparsePreflight) { foreach ($key in $sparseEnv.Keys) { $probeEnv[$key] = $sparseEnv[$key] } }
             $envWiring | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $reportDirectory 'env-wiring.json') -Encoding utf8
@@ -170,8 +210,10 @@ try {
                 wd5 = $script:excludedAllProbes
                 historical_audits = $script:excludedHistoricalAudits
                 env_unwired = $script:excludedEnvUnwired
+                known_debt = $script:excludedKnownDebt
                 historical_audits_reason = 'G03 matrix-chain alignment (d5b02d5) intentionally changed f32 arithmetic order; audits assert historical BASE capture identity/templates against current source; regeneration requires the excluded recapture tool and frozen capture pipeline (2026-10-22-t4-historical-capture-rebaseline).'
                 env_unwired_reason = 'Face machine-code probe needs target/t4-face-operators regenerated by the existing face-operator probe; artifact not re-wired in this task.'
+                known_debt_reason = 'U038-3D known debt: full-chain qfrc_gravcomp has 8/77 values outside the frozen 2e-6 tolerance (max 4.29e-6); user ruling 2026-10-23 B registered it as known debt and acceptance is not claimed. The live test asserts 0 outside tolerance, so it is excluded explicitly rather than silently skipped.'
             }
             $exclusions | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $reportDirectory 'exclusions.json') -Encoding utf8
             $previous = @{}
@@ -190,7 +232,10 @@ try {
                 foreach ($excluded in $script:excludedEnvUnwired) {
                     $probeArgs += @('--skip', $excluded)
                 }
-                $probeOut = & cargo @base --no-fail-fast -- @probeArgs *>&1
+                foreach ($excluded in $script:excludedKnownDebt) {
+                    $probeArgs += @('--skip', $excluded)
+                }
+                $probeOut = Invoke-WithNativeStderr { & cargo @base --no-fail-fast -- @probeArgs *>&1 }
                 $probeCode = $LASTEXITCODE
                 # Windows 偶发 os error 32（杀软/索引器持有刚写入的捕获文件）；
                 # 仅在出现该瞬态错误时以独立捕获目录重试一次，不改断言/只数。
@@ -200,7 +245,7 @@ try {
                     $retryCapture = Join-Path $directory 'physics-ptx-retry'
                     New-Item -ItemType Directory -Force $retryCapture | Out-Null
                     $env:MJWARP_PHYSICS_PTX_DIR = $retryCapture
-                    $probeOut = & cargo @base --no-fail-fast -- @probeArgs *>&1
+                    $probeOut = Invoke-WithNativeStderr { & cargo @base --no-fail-fast -- @probeArgs *>&1 }
                     $probeCode = $LASTEXITCODE
                 }
                 $global:LASTEXITCODE = $probeCode
@@ -212,7 +257,7 @@ try {
                     else { Set-Item -Path "env:$key" -Value $previous[$key] }
                 }
             }
-        } -Minimum 335
+        } -Minimum 346
         Invoke-G01Check 'host-gnu' { cargo test --locked } -Minimum 200
         Invoke-G01Check 'clippy-gnu' { cargo clippy --locked --all-targets -- -D warnings }
         Invoke-G01Check 'clippy-gnu-cuda' { cargo clippy --locked --all-targets --features cuda-probe -- -D warnings }
@@ -237,7 +282,7 @@ try {
         [int]$stats.Groups[2].Value -ne 7704548 -or -not $raw.Success -or [int]$raw.Groups[1].Value -ne 50512) {
         throw 'G01浮点比较计数无效'
     }
-    $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
+    $gpu = Invoke-WithNativeStderr { & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1 }
     if ($LASTEXITCODE -ne 0) { throw 'GPU信息查询失败' }
     [ordered]@{
         platform = 'Windows x86_64 MSVC'

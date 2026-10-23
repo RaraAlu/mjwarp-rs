@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-g01-script-new-tests-wiring",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    { "path": "scripts/test-windows-g01.ps1", "blob": "fff5aadaebf0d4c01fca6476811a92fa1197dee0" },
+    { "path": "scripts/test-windows-native.ps1", "blob": "4d8ccc9a954dde10a92f475e7d7941b6f7641763" },
+    { "path": "scripts/test-windows-resident-kinematics.ps1", "blob": "7e6ef5e88f28b654fa10402aafb8c21ca232fd6d" },
+    { "path": "scripts/test-windows-collision-input.ps1", "blob": "2bf0758bcd29f785f329b41447e4d2e4bc6a3a25" },
+    { "path": "docs/three-layer-acceptance.md", "blob": "4d9a0a6118cee13b97bac49a36f3ff271c14a712" },
+    { "path": "docs/development-evidence/g01-new-tests-wiring/README.md", "blob": "66f7c68a73214ef39e35d692b270133621197ff8" },
+    { "path": "docs/development-evidence/g01-new-tests-wiring/debug-run.json", "blob": "827e83d3932527f405b8192a4b55be520841680b" },
+    { "path": "docs/development-evidence/g01-new-tests-wiring/repro.json", "blob": "c7165eec98ddc13784944a94d33f1de8f058ff04" },
+    { "path": "docs/development-evidence/g01-new-tests-wiring/checks.json", "blob": "162d391dff8537087224b1370d0b8082683f5725" },
+    { "path": "docs/development-evidence/g01-new-tests-wiring/env-wiring.json", "blob": "7d2de49f9d4ed14a10e0843e7c3d4fc302a89326" },
+    { "path": "docs/development-evidence/g01-new-tests-wiring/exclusions.json", "blob": "8a0926663a4d68fb102fe74ecd31074718d8278e" },
+    { "path": "docs/development-evidence/g01-new-tests-wiring/all-probes-summary.txt", "blob": "5f92822ba49b7e28501fc29ba378ea010ce98bce" },
+    { "path": "docs/development-evidence/g01-new-tests-wiring/before-launcher-tile.log", "blob": "0c7fc1d0d07e24ba2285435d7628cf7f2a842de0" },
+    { "path": "docs/development-evidence/g01-new-tests-wiring/before-launcher-warp-headers.log", "blob": "eb17aecc71758ec5764e557bd14d1545f2c6a711" },
+    { "path": "docs/development-evidence/g01-new-tests-wiring/before-t4_gravity_3d_product_chain.log", "blob": "5a54dfe7ca11b88abd53fa15a2635eb9cd44853c" }
+  ],
+  "results": {
+    "wiring": {
+      "MJWARP_CUDA_INCLUDE": "target/toolchains/cuda-12.8.1/include (all-probes env)",
+      "cuda_bin_path": "target/toolchains/cuda-12.8.1/bin prepended to PATH (all-probes env)",
+      "MJWARP_GRAVITY_3D_EVIDENCE_DIR": "fresh <run>/gravity-3d-chain directory",
+      "env_wiring_json": "cuda_include=wired, cuda_bin_path=wired, gravity_3d_evidence=fresh-directory"
+    },
+    "known_debt_exclusion": {
+      "list": "excludedKnownDebt",
+      "test": "live::live_three_d_product_chain_matches_frozen_upstream",
+      "reason": "U038-3D known debt 8/77 outside 2e-6; user ruling 2026-10-23 B; acceptance not claimed",
+      "placement": "probe-reports/exclusions.json known_debt + known_debt_reason (explicit, not silent)"
+    },
+    "counts_sync": {
+      "all_probes_minimum": 346,
+      "all_probes_passed": 346,
+      "all_probes_failed": 0,
+      "all_probes_result_lines": 83,
+      "documented_exclusions_total": 11,
+      "previous_minimum": 335
+    },
+    "debug_run": {
+      "command": "scripts\\test-windows-g01.ps1 -AllFeatures -FullRegression",
+      "exit_code": 0,
+      "wall_clock_seconds": 686.4,
+      "stages": "14/14 exit 0",
+      "all_probes": "346 passed / 0 failed / 83 result lines",
+      "evidence_directory": "target/g01-acceptance/d53081155f704909b098627b0936a57c",
+      "host": "Windows PowerShell 5.1.26100.7920 (codepage 936), RTX 4070 Ti SUPER 596.36"
+    },
+    "before_failures": [
+      "launcher-tile: MJWARP_CUDA_INCLUDE missing",
+      "launcher-warp-headers: MJWARP_CUDA_INCLUDE missing",
+      "t4_gravity_3d_product_chain: MJWARP_GRAVITY_3D_EVIDENCE_DIR missing; after wiring reaches U038-3D 8/77 assertion"
+    ],
+    "host_compatibility": "UTF-8 BOM + Invoke-WithNativeStderr raw-stderr wrapper on 4 G01 scripts; collision script #Requires 5.1 + equivalent SHA-256 API; no assertion/tolerance/fixture/product changes",
+    "release_status": "not run; QA runs final debug+release dual-mode acceptance"
+  },
+  "note": "修复当前 HEAD 上 G01 all-probes 的 3 个 target 失败：launcher-tile/launcher-warp-headers 在 all-probes env 接上 MJWARP_CUDA_INCLUDE 与 CUDA bin PATH 后真实执行并通过；t4_gravity_3d_product_chain 接线到 U038-3D 8/77 已知债务断言，按用户 2026-10-23 裁决 B 加入显式 excludedKnownDebt 清单（exclusions.json 单列理由，不静默跳过）；-Minimum 同步 346，docs §4.6/§5.3/§7 同步数字与说明。debug 全脚本 14 阶段 exit 0、all-probes 346 过 0 败、墙钟 686.4s；release 双模式由 QA 最终验收。另为本机 Windows PowerShell 5.1（codepage 936、无 pwsh7 且无法联网安装）补齐脚本可执行性（BOM、原生 stderr 包装、collision SHA API 等价改写），断言/容差/检查语义不变。",
+  "boundaries": [
+    "只完成 debug 全脚本；release 双模式待 QA，执行前不宣称双模式通过。",
+    "U038-3D 8/77 仍为已知债务，未修复、未改断言/容差；排除项显式登记。",
+    "未改产品源码、测试、容差、fixtures；未跑 Linux/性能。"
+  ]
+}

@@ -134,7 +134,7 @@ G01 release 已于 2026-10-22 补跑，结果见 §4.3；release 同样不宣称
 
 结论（当前）：三层迁移范围的 debug 回归无新增 M3 回归；G01 全量仍**不被宣称通过**：W-D4 证书项已转绿（all-probes lib 124 过 0 败），但 all-probes 阶段整体因 G03 `mass_solve_probe` 3 项既有门禁缺口未通过（跟踪任务 `2026-10-22-g01-g03-np03-admission-debt`）；其余六阶段已于同日单独补跑通过（§4.2）。release 已补跑，阶段结果与 debug 一致，同一债务处中止（§4.3）；Linux 未跑。
 
-2026-10-23 更新（QA 最终验收）：上述 G03 `mass_solve_probe` NP03 缺口已由矩阵链对齐（`d5b02d5`）解决，跟踪任务已关闭；all-probes 在 env 接线（`6cb5a71`）与 RNE 重基线（`b13d1c5`，§4.4）后，debug/release 均为 **340 过 0 败**，仅余 §5.2 的历史捕获身份等文档化排除项。G01 现状以 §4.5 为准。
+2026-10-23 更新（QA 最终验收）：上述 G03 `mass_solve_probe` NP03 缺口已由矩阵链对齐（`d5b02d5`）解决，跟踪任务已关闭；all-probes 在 env 接线（`6cb5a71`）与 RNE 重基线（`b13d1c5`，§4.4）后，debug/release 均为 **340 过 0 败**，仅余 §5.2 的历史捕获身份等文档化排除项。G01 现状以 §4.5 为准；W14/W15/U038 新测试接线后的 debug 复跑见 §4.6，release 由 QA 复验后更新双模式声明。
 
 ### 4.2 未执行阶段补跑（2026-10-22，任务 `2026-10-22-g01-stage-evidence-refresh`）
 
@@ -212,7 +212,31 @@ RNE 重基线 `b13d1c5` 入库后，按交接文档执行完整脚本（debug �
 - 排除清单见各 run 的 `probe-reports/exclusions.json`：W-D5 3 项（§5.1）、历史捕获身份 6 项（§5.2）、env/外部产物未接线 1 项；未改断言、容差或排除清单。
 - fixtures 来源：`git log --oneline -- fixtures/rne-acceleration` 最新为 `b13d1c5`（RNE 重基线），`git status --short fixtures` 为空；QA 任务未改夹具。
 - 证据：`docs/development-evidence/g01-fast-loop/`（README、`final-acceptance.json`、`baseline-timings.json`）。
-- 结论：**G01 debug/release 双模式通过（含文档化排除项；RNE 已按裁决重基线）**。Linux、性能与完整上游等价仍未验收。
+- 结论：**G01 debug/release 双模式通过（含文档化排除项；RNE 已按裁决重基线）**。Linux、性能与完整上游等价仍未验收。此结论对应接线前版本（all-probes 340 过 0 败、10 项排除）；W14/W15/U038 新测试接线后的 debug 复跑见 §4.6，release 由 QA 复验后更新。
+
+### 4.6 W14/W15/U038 新测试接线后的 debug 复跑（2026-10-23，任务 `2026-10-23-g01-script-new-tests-wiring`）
+
+当前 HEAD 的 all-probes 一度有 3 个 target 失败：`launcher-tile`、`launcher-warp-headers` 的 ignored NVRTC 测试缺 `MJWARP_CUDA_INCLUDE`/CUDA bin PATH；`t4_gravity_3d_product_chain` 缺 `MJWARP_GRAVITY_3D_EVIDENCE_DIR`，接线后会到达 U038-3D 8/77 已知债务断言。修复：在 all-probes env 接线段落补 CUDA include/PATH、补 3D 证据目录；该 live 探针按用户 2026-10-23 裁决 B 加入显式 known-debt 排除（§5.3）；`-Minimum` 同步为 346。另为使脚本在本机 Windows PowerShell 5.1（codepage 936，无 pwsh7 且无法联网安装）可执行，4 个 G01 脚本补 UTF-8 BOM、原生 stderr 兼容包装与 collision 脚本的 PS 5.1 SHA API 等价改写；断言、容差与检查语义不变。
+
+`scripts/test-windows-g01.ps1 -AllFeatures -FullRegression`（debug；源码 `b0b4b8a` + 本任务脚本改动；运行目录 `target/g01-acceptance/10a6e9fd1b164c0fa84d3e0c56191188`；墙钟 728.8s）14 个阶段全部通过：
+
+| 阶段 | 结果 |
+| --- | --- |
+| fmt | 通过（exit 0） |
+| native | 27 过（受限 27） |
+| host-msvc | 722 过 |
+| g01 | 7 过 |
+| native-g01 | 2 过 |
+| native-only-g01 | 1 过 |
+| resident | 102 过 |
+| all-probes | **346 过 / 0 败**（83 个 result 行；W-D5 3 + 历史捕获 6 + env 1 + U038-3D known-debt 1 = 11 项文档化排除） |
+| host-gnu | 406 过 |
+| clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 |
+| diff | 通过 |
+
+- 证据：`docs/development-evidence/g01-new-tests-wiring/`（README、`debug-run.json`、接线/排除项/前后失败记录）。
+- release 双模式由 QA 复验；在此之前 §4.5 的双模式声明只对应接线前版本，不覆盖 W14/W15/U038 新测试。Linux、性能与完整上游等价仍未验收。
 
 ## 5. 债务清单
 
@@ -280,6 +304,19 @@ sha256/size/mtime 清单在同目录 `manifest.json`，可用 `make-archive.ps1 
 `docs/development-evidence/t4-rebaseline-precheck/`。跟踪任务 `2026-10-22-t4-historical-capture-rebaseline`
 保持 proposed（不 abandon），恢复条件不变：将来完成重采集/重基线后解除排除；在此之前不伪造历史身份、不宣称完整通过。
 
+### 5.3 U038-3D 已知债务排除（all-probes 显式排除，2026-10-23）
+
+`t4_gravity_3d_product_chain` 的 live 探针 `live::live_three_d_product_chain_matches_frozen_upstream` 在环境接线后会到达全链 `qfrc_gravcomp` 8/77 超 2e-6 的已知债务断言（`assert_eq!(total_outside, 0)`）。按用户 2026-10-23 裁决 B 登记为 U038-3D 已知债务，加入 `scripts/test-windows-g01.ps1` 的 `excludedKnownDebt` 清单，并在 `<run>/probe-reports/exclusions.json` 的 `known_debt` 字段单列理由（`known_debt_reason`）；不静默跳过、不改断言与容差。
+
+手动复核命令（需要 GPU、冻结产物与全新的证据目录；预期在 8/77 断言处失败，属已知债务，不作为验收探针）：
+
+```powershell
+$env:MJWARP_GRAVITY_3D_EVIDENCE_DIR = '<repo>\target\<全新目录>'
+cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_gravity_3d_product_chain -- --ignored --test-threads=1 --nocapture
+```
+
+证据：`docs/development-evidence/u038-3d/known-deviation.md`、`docs/development-evidence/g01-new-tests-wiring/`。
+
 ## 6. NP01–NP04 缺口
 
 - NP01/NP02 仍为未验收；重复修复不改变该状态。
@@ -291,8 +328,8 @@ sha256/size/mtime 清单在同目录 `manifest.json`，可用 `make-archive.ps1 
 ## 7. 未验收边界
 
 - 只验收 Windows；Linux 侧按用户 2026-10-23 决定**暂缓（deferred）**，当前程序以 Windows 单平台完成为目标；Linux V2 未启动（原需 `linux-gpu:0` 与 `linux-acceptance`），细节见 §7.1。
-- G01 现状（2026-10-23，§4.5）：debug/release 双模式通过（含文档化排除项；RNE 已按裁决重基线）；all-probes 340 过 0 败，仅余 W-D5 3 项（§5.1）、历史捕获身份 6 项（§5.2）、env/外部产物未接线 1 项。不宣称 G02 完整验收。
-- all-probes `-Minimum 335` 满足（340 过）；旧 `-Minimum 123` 记录属历史阶段，W-D6 已收口。
+- G01 现状（2026-10-23）：§4.5 为接线前 QA 双模式记录；W14/W15/U038 新测试接线后 debug 已复跑 **346 过 0 败**（§4.6），release 待 QA 复验。all-probes 仅余 W-D5 3 项（§5.1）、历史捕获身份 6 项（§5.2）、env/外部产物未接线 1 项、U038-3D 已知债务 1 项（§5.3），共 11 项文档化排除。不宣称 G02 完整验收。
+- all-probes `-Minimum 346` 满足（346 过；W14/W15/U038 接线后同步，见 §4.6）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
 - 历史记录：2026-10-22 的 full-debug 曾中止在 all-probes（§4.1–§4.3），相关债务已由 `d5b02d5`、`6cb5a71`、`b13d1c5` 收口；保留原文作为变更轨迹。
 - 未测量 G01 阶段峰值显存。
 - 不转授完整产品数值验收、性能验收或双平台准入。

@@ -1,6 +1,24 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([switch]$AllFeatures, [switch]$Release)
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 turns redirected native stderr into a terminating
+# NativeCommandError under Stop; native exit codes are checked explicitly.
+function Invoke-WithNativeStderr {
+    param([scriptblock]$Block)
+    $previous = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $Block 2>&1 | ForEach-Object {
+            if ($_ -is [System.Management.Automation.ErrorRecord]) {
+                $_.Exception.Message
+            } else {
+                $_
+            }
+        }
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+}
 $root = Split-Path -Parent $PSScriptRoot
 foreach ($name in @('kinematics', 'com-position', 'attached-kinematics', 'mocap-kinematics', 'camlight', 'fixed-tendon', 'spatial-tendon', 'geom-tendon', 'flex-position', 'tendon-wake', 'flex-edge', 'flex-face', 'flex-stretch')) {
     $fixtures = Join-Path $root "fixtures\$name"
@@ -27,7 +45,8 @@ if ($AllFeatures) { $base += '--all-features' } else { $base += @('--features', 
 if ($Release) { $base += '--release' }
 function Invoke-CheckedTest {
     param([string]$Name, [string[]]$Arguments, [int]$Expected)
-    $output = & cargo @Arguments 2>&1 | Tee-Object -FilePath (Join-Path $directory "$Name.log")
+    $output = Invoke-WithNativeStderr { & cargo @Arguments 2>&1 }
+    $output | Set-Content -LiteralPath (Join-Path $directory "$Name.log") -Encoding utf8
     if ($LASTEXITCODE -ne 0) { throw "$Name 失败" }
     $match = [regex]::Match(($output -join "`n"), 'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;')
     if (-not $match.Success -or [int]$match.Groups[1].Value -ne $Expected -or
@@ -82,7 +101,7 @@ try {
     $stretchGuards = Invoke-CheckedTest 'stretch-guards' ($base + @('--lib', 'stretch_hessian_', '--', '--ignored', '--test-threads=1', '--nocapture')) 2
     $staticCache = Invoke-CheckedTest 'static-cache' ($base + @('--lib', 'static_geom_cache', '--', '--ignored', '--test-threads=1')) 1
     $adapter = Invoke-CheckedTest 'adapter' ($base + @('--lib', 'runtime::transfer::kernel::tests', '--', '--ignored', '--test-threads=1')) 9
-    $gpu = & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1
+    $gpu = Invoke-WithNativeStderr { & nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1 }
     if ($LASTEXITCODE -ne 0) { throw 'GPU信息查询失败' }
     $edgeStats = [regex]::Match((Get-Content -LiteralPath (Join-Path $directory 'flex-edge.log') -Raw),
         'G01-flex-edge states=(\d+) scalars=(\d+) max_abs_error=([0-9.eE+-]+)')
