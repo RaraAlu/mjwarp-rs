@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-g21-p7",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/physics/derivative.rs",
+      "blob": "7a5af61c6f92ba747adaa546dbe2935fb56f3481"
+    },
+    {
+      "path": "src/physics/derivative/tests.rs",
+      "blob": "884a0b64a6c03941760319699e6e29ae1b1fdab9"
+    },
+    {
+      "path": "src/physics/mod.rs",
+      "blob": "f4e9b3016eb50b4aedb337b1d1eb78b5e026978e"
+    },
+    {
+      "path": "fixtures/deriv/model.xml",
+      "blob": "d3a8118daa5af1401111c2f800f5ddf2fd0b2e42"
+    },
+    {
+      "path": "fixtures/deriv/cases.json",
+      "blob": "3c0a8dbc4722b92c0a3ba1855f602345ff31e106"
+    },
+    {
+      "path": "scripts/authoring/author-g21-deriv.ps1",
+      "blob": "9d17712d209679511fab36b9f0668a4e592c21f7"
+    },
+    {
+      "path": "scripts/authoring/author-g21-deriv.py",
+      "blob": "088769d11b41f825b081433a691a48849f89656e"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g21-p7/README.md",
+      "blob": "494bcf2563e7399ea1d21184b1f0adca64e1ad4e"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g21-p7/authoring.json",
+      "blob": "014984c3c34759bdd393f51ae9c5930d40fdc9d0"
+    },
+    {
+      "path": ".normify/modules/mjwarp/physics/core.md",
+      "blob": "99fc134bf578801c005aeda1927de4b5492877be"
+    }
+  ],
+  "results": {
+    "slice": {
+      "family": "G21 平滑速度导数",
+      "phase": "P7（解析导数与有限差分）",
+      "planned_api": "mjwarp_rs::physics::derivative::deriv_smooth_vel（G21；P7）",
+      "delivered": "被动阻尼导数子集：poly_force_deriv + qDeriv 组装 + out = M - dt*qDeriv（写回 d.M 结构地址）"
+    },
+    "references": {
+      "model": "fixtures/deriv/model.xml",
+      "model_sha256": "7e3b9bbe7f7b40d9ec96701b3322cb14a48dac1fda926705637bf7a7a62f3d5d",
+      "nv": 3,
+      "nnz": 6,
+      "fullm_size": 6,
+      "poly_cases": 3,
+      "linear_cases": 2,
+      "native": "MuJoCo 3.15.0 f64 mj_forward qfrc_passive 中央差分（eps=1e-3）",
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29，Warp 1.15.0，deriv_smooth_vel"
+    },
+    "comparison": {
+      "product_vs_upstream": "多项式配置 18/18 元素逐位一致（max abs 0）；线性配置同样 max abs 0",
+      "analytic_vs_upstream_fd": "对角 M - dt*qDeriv 与上游 f32 中央差分 max abs 1.55e-06 ≤ 1e-4",
+      "analytic_vs_native_fd": "与原生 f64 中央差分 max abs 4.67e-08 ≤ 1e-4",
+      "poly_branch": "dof_dampingpoly 直接覆盖，2p0|v|+3p1v² 项三方一致"
+    },
+    "np_mapping": {
+      "NP01": "全链 f32，无 f64 中间量",
+      "NP02": "记录冻结提交/函数/模型 sha256/M 结构与阻尼参数",
+      "NP03": "两级判定：原生 f64 中央差分先行（4.67e-08），MJWarp f32 参考逐位对照（max abs 0）",
+      "NP04": "不适用/未测"
+    },
+    "gates": {
+      "fmt": "通过",
+      "clippy": "通过（--all-targets -D warnings，exit 0）",
+      "unit": "通过（derivative 2 过；全量 lib 通过）"
+    }
+  },
+  "note": "批次 2 旧计划细化落地：G21@P7 按计划 API 交付 deriv_smooth_vel 被动阻尼子集与 M-dt*qDeriv 组装；产品输出与冻结上游逐位一致（max abs 0），解析导数与上游 f32 中央差分 1.55e-06、原生 f64 差分 4.67e-08。执行器/肌腱/流体导数、efm/隐式组合与 GPU 内核登记为未验收边界。未改既有产品路径、容差与测试。",
+  "boundaries": [
+    "未实现执行器 actuation/moment 导数、肌腱阻尼导数、椭球/盒流体力导数与 has_fluid 分支。",
+    "未实现 efm/隐式积分组合、dense 紧凑块、世界批量广播语义。",
+    "未实现 forward/fwd_velocity 链（输入冻结）；无 GPU 内核与图执行。",
+    "多项式阻尼为 MJWarp 专属字段，原生差分只用线性阻尼配置对照；不宣称完整 G21 或精度验收通过；NP04 未测。"
+  ]
+}
