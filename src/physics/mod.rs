@@ -2,7 +2,11 @@
 //! 其余完整物理阶段仍待实现。
 
 mod actuator;
-pub use actuator::{ActuationData, ActuationError, ActuationOutput, ActuatorModel, fwd_actuation};
+pub use actuator::{
+    ActuationData, ActuationError, ActuationOutput, ActuatorModel, JOINT_HINGE, JOINT_SLIDE,
+    JointActuatorModel, JointTransmission, JointTransmissionData, TRN_JOINT, fwd_actuation,
+    transmission,
+};
 mod constants;
 pub use constants::{
     FixedConstants, FixedConstantsInput, QposDependentConstants, QposDependentInput, set_const_0,

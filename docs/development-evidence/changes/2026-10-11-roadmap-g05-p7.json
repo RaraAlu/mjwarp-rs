@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-g05-p7",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    { "path": "src/physics/actuator.rs", "blob": "63b81e66a4d25ce54f8c99dec0556fee9931403f" },
+    { "path": "src/physics/actuator/transmission.rs", "blob": "74466cd30108a7961a0e59e3799c7a883fc4caa6" },
+    { "path": "src/physics/actuator/transmission/tests.rs", "blob": "e579d5c10936b44801d1d8a1790cd7d36af0dc7b" },
+    { "path": "src/physics/mod.rs", "blob": "f9c4728be9f7f3c14a8de8297a737f804f09be27" },
+    { "path": "fixtures/actuation/transmission-cases.json", "blob": "6b0b3fd22e51cdd66f92e285ec5dc37c35d2c624" },
+    { "path": "scripts/authoring/author-g05-transmission.ps1", "blob": "a34b3d2b70b105524832ea06078cc4b44760bfb7" },
+    { "path": "scripts/authoring/author-g05-transmission.py", "blob": "7af2d77bb88b46f8bfc73023d8d0eb4167510774" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g05-p7/README.md", "blob": "f4d070e35cc6c0ba4a36fa67180663399a177d5c" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g05-p7/authoring.json", "blob": "92b97c76f2da17e93a3b51e1d9d1063d79b99c48" },
+    { "path": ".normify/modules/mjwarp/physics/core.md", "blob": "7c41266faec5c044888a319bcfad4e92e60459ce" }
+  ],
+  "results": {
+    "slice": {
+      "family": "G05 执行器",
+      "phase": "P7（关节传动 + 端到端执行器链）",
+      "planned_api": "mjwarp_rs::physics::actuator::transmission（U068；G05/G06；P4/P7）",
+      "delivered": "hinge/slide 关节传动 length/moment/velocity，并接 P4 fwd_actuation 端到端"
+    },
+    "references": {
+      "model": "fixtures/actuation/model.xml",
+      "model_sha256": "f6d484da8767ece54ad3901716eae7637588740527b30b002ab8de7cc2e4b078",
+      "nq": 2,
+      "nv": 2,
+      "nu": 3,
+      "na": 1,
+      "nactuator": 3,
+      "nworld": 2,
+      "native": "MuJoCo 3.15.0 mj_fwdPosition/mj_fwdVelocity/mj_fwdActuation（一级）",
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29，Warp 1.15.0（二级）"
+    },
+    "comparison": {
+      "transmission_vs_upstream": "actuator_length/actuator_velocity 逐位一致；每执行器 moment (colind, value) 逐位一致",
+      "chain_vs_upstream": "act_dot/actuator_force/qfrc_actuator 逐位一致",
+      "native_cross_check_max_abs": 9.537e-08,
+      "native_tolerance_abs": 1e-05,
+      "explicit_rejections": "JOINTINPARENT 传动、ball 关节"
+    },
+    "np_mapping": {
+      "NP01": "全链 f32，无 f64 中间量",
+      "NP02": "记录冻结提交/三个上游函数/模型 sha256/环境与初始状态",
+      "NP03": "两级判定：原生 f64 链先行（9.54e-08），MJWarp f32 逐位一致",
+      "NP04": "不适用/未测"
+    },
+    "gates": {
+      "fmt": "通过",
+      "clippy": "通过（--all-targets -D warnings，exit 0）",
+      "unit": "通过"
+    }
+  },
+  "note": "批次 1 后继细化落地：G05@P7 按计划 API U068 交付 hinge/slide 关节传动宿主侧切片（length/moment/velocity），并与 P4 fwd_actuation 组合成 transmission→velocity→actuation 端到端链；传动与执行器输出均与上游逐位一致，原生 f64 一级判定 max abs 9.54e-08 ≤ 1e-5。free/ball/JOINTINPARENT、tendon/site/body 传动、transmission-body-moment、设备内核与完整 forward 登记为未验收边界并显式拒绝。未改既有产品路径、容差与测试。",
+  "boundaries": [
+    "未实现 free/ball/JOINTINPARENT 关节传动、tendon/site/body 传动与 transmission-body-moment（nacttrnbody）。",
+    "未实现设备内核、完整 forward 调度与图捕获；执行器模型字段转换仍属 M 族边界。",
+    "不宣称完整 G05 或精度验收通过；NP04 未测。"
+  ]
+}

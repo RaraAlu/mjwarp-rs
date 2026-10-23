@@ -386,5 +386,11 @@ fn validate_data(data: ActuationData<'_>, nact: usize) -> Result<(), ActuationEr
     Ok(())
 }
 
+mod transmission;
+pub use transmission::{
+    JOINT_HINGE, JOINT_SLIDE, JointActuatorModel, JointTransmission, JointTransmissionData,
+    TRN_JOINT, transmission,
+};
+
 #[cfg(test)]
 mod tests;
