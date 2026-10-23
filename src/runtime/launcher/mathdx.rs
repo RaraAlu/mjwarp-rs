@@ -52,6 +52,7 @@ const API_SMEM: c_longlong = 0;
 /// 对应`commondxExecution::COMMONDX_EXECUTION_BLOCK`。
 const EXECUTION_BLOCK: c_longlong = 1;
 
+mod deps;
 mod ffi;
 
 /// 求解器规格；数值直接对应冻结证据的 contract。
@@ -212,12 +213,22 @@ impl std::fmt::Debug for MathDx {
 }
 
 impl MathDx {
-    /// 从显式目录加载平台库文件。
+    /// 从显式目录加载平台库文件（依赖解析见`load_file`）。
     pub fn load_from_dir(directory: &Path) -> Result<Self, LauncherError> {
         Self::load_file(&directory.join(LIBRARY_FILE))
     }
 
+    /// 从显式目录加载库，并从显式 NVRTC bin 目录预加载 pinned 12.9.86 依赖。
+    /// 缺 pinned 组件时显式报错，不回退到其他 NVRTC。
+    pub fn load_from_dir_with_nvrtc(
+        directory: &Path,
+        nvrtc_bin_directory: &Path,
+    ) -> Result<Self, LauncherError> {
+        Self::load_file_with_nvrtc(&directory.join(LIBRARY_FILE), nvrtc_bin_directory)
+    }
+
     /// 从`MATHDX_PATH`安装根加载`bin`目录下的库文件；变量缺失时报错。
+    /// 设置`MATHDX_NVRTC_DIR`时按其显式预加载 pinned NVRTC。
     pub fn load_from_env() -> Result<Self, LauncherError> {
         let root = std::env::var_os("MATHDX_PATH")
             .ok_or_else(|| LauncherError::Linker("未设置MATHDX_PATH".into()))?;
@@ -225,10 +236,24 @@ impl MathDx {
     }
 
     /// 按绝对路径加载指定库文件。
-    /// Windows 上先从`CUDA_PATH/bin`或同目录预加载`nvrtc64_120_0.dll`，
-    /// 让按名解析命中已加载模块，不修改进程 DLL 搜索目录。
+    /// 依赖预加载顺序：`MATHDX_NVRTC_DIR`（显式）→ 库同目录 → `CUDA_PATH/bin`。
+    /// 显式 pinned 路径请用`load_file_with_nvrtc`。
     pub fn load_file(path: &Path) -> Result<Self, LauncherError> {
-        let dependencies = preload_dependencies(path)?;
+        let dependencies = deps::preload_dependencies(path)?;
+        Self::finish(path, dependencies)
+    }
+
+    /// 按绝对路径加载，强制从显式 NVRTC bin 目录预加载 pinned 12.9.86 依赖。
+    /// 缺组件时显式报错，不静默回退。
+    pub fn load_file_with_nvrtc(
+        path: &Path,
+        nvrtc_bin_directory: &Path,
+    ) -> Result<Self, LauncherError> {
+        let dependencies = deps::preload_nvrtc(nvrtc_bin_directory)?;
+        Self::finish(path, dependencies)
+    }
+
+    fn finish(path: &Path, dependencies: Vec<libloading::Library>) -> Result<Self, LauncherError> {
         let api = ffi::Api::open(path)?;
         Ok(Self {
             api,
@@ -459,32 +484,6 @@ pub(crate) fn check_version(version: (i32, i32, i32)) -> Result<(), LauncherErro
 fn sha256_hex(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     format!("{:x}", Sha256::digest(bytes))
-}
-
-/// Windows：`mathdx64_0.dll`静态依赖`nvrtc64_120_0.dll`。
-/// 先从显式`CUDA_PATH/bin`或库同目录预加载；找不到时交由加载错误显式报告。
-#[cfg(windows)]
-fn preload_dependencies(path: &Path) -> Result<Vec<libloading::Library>, LauncherError> {
-    let mut directories = Vec::new();
-    if let Some(root) = std::env::var_os("CUDA_PATH") {
-        directories.push(PathBuf::from(root).join("bin"));
-    }
-    if let Some(parent) = path.parent() {
-        directories.push(parent.to_path_buf());
-    }
-    for directory in directories {
-        let nvrtc = directory.join("nvrtc64_120_0.dll");
-        if nvrtc.is_file() {
-            return Ok(vec![ffi::preload(&nvrtc)?]);
-        }
-    }
-    Ok(Vec::new())
-}
-
-#[cfg(unix)]
-fn preload_dependencies(_path: &Path) -> Result<Vec<libloading::Library>, LauncherError> {
-    // Linux 部署未验收：依赖由系统动态链接器解析。
-    Ok(Vec::new())
 }
 
 #[cfg(test)]

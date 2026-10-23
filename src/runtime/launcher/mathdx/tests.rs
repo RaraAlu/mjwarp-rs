@@ -104,6 +104,16 @@ fn missing_library_is_rejected() {
     assert!(error.to_string().contains("库缺失"), "错误面不符：{error}");
 }
 
+#[test]
+fn pinned_nvrtc_component_is_required() {
+    let missing_library = std::env::temp_dir().join("mjwarp-mathdx-missing-directory");
+    let missing_nvrtc = std::env::temp_dir().join("mjwarp-nvrtc-12.9.86-missing");
+    let error = MathDx::load_from_dir_with_nvrtc(&missing_library, &missing_nvrtc).unwrap_err();
+    let text = error.to_string();
+    assert!(text.contains("12.9.86"), "错误面不符：{text}");
+    assert!(!text.contains("库加载失败"), "应先报组件缺失：{text}");
+}
+
 #[cfg(windows)]
 #[test]
 fn missing_symbol_is_rejected() {

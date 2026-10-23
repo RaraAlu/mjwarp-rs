@@ -2,6 +2,7 @@
   "schema": 1,
   "kind": "delivery",
   "task_id": "2026-10-24-mathdx-solver-lto",
+  "follow_up_task": "2026-10-24-nvrtc-12-9-mathdx-component",
   "date": "2026-10-24",
   "prerequisite": {
     "task": "2026-10-24-mathdx-libmathdx-prep",
@@ -19,14 +20,38 @@
     "driver": "596.36",
     "compute_capability": [8, 9],
     "mathdx": "libmathdx 0.3.1 (mathdx64_0.dll)",
-    "nvrtc": "12.9.86 (冻结字节口径)",
+    "nvrtc": "12.9.86 pinned component (target/toolchains/cuda-12.9.1-nvrtc)",
     "nvjitlink": "12.9.86"
+  },
+  "components": {
+    "libmathdx": {
+      "version": "0.3.1",
+      "archive_bytes": 30920469,
+      "archive_sha256": "64488decd3bf6e09a717cec966ad96b10fe2e9db7935185ecb491cfd6c2ec514",
+      "dll_sha256": "5ce7528e8a78b4863a423a9c2e2d1c8e3a62b39e593a001d44d2339ea9433f39"
+    },
+    "cuda_nvrtc": {
+      "version": "12.9.86",
+      "release": "12.9.1",
+      "archive_bytes": 314608748,
+      "archive_sha256": "1aa0644fa53c8ca34cdc73db17bcc73530557bdd3f582c7bfdbd7916c8b48f65",
+      "dll_bytes": 89832960,
+      "dll_sha256": "0cc63349fedffeec1660b30955e8028b6e4e4c26cf1e41c56dc4569fd5eca82c",
+      "builtins_bytes": 7217664,
+      "builtins_sha256": "c405226b0b394ed8bdc593bb1419b94a989f93248ed2873e8f2e0e27c1688ca1",
+      "install_path": "target/toolchains/cuda-12.9.1-nvrtc/"
+    }
   },
   "files": [
     {
       "path": "src/runtime/launcher/mathdx.rs",
-      "blob": "c3db33a24aed99ba278114e0581eda58039f19ee",
-      "lines": 454
+      "blob": "89e080ed49cd2ec25aee858cace0f528c0283bbb",
+      "lines": 490
+    },
+    {
+      "path": "src/runtime/launcher/mathdx/deps.rs",
+      "blob": "4f8ddfd67c81a0a66b175eb2d8c06f2b83197755",
+      "lines": 74
     },
     {
       "path": "src/runtime/launcher/mathdx/ffi.rs",
@@ -35,33 +60,41 @@
     },
     {
       "path": "src/runtime/launcher/mathdx/tests.rs",
-      "blob": "bd521b84b85ba7b59575ec030235c78a499fd106",
-      "lines": 126
-    },
-    {
-      "path": "src/runtime/launcher/mod.rs",
-      "blob": "53f1becb0846a8e936d14929f173f03d1ef1c54b"
+      "blob": "5cba0677f4068ca6b1ce2c3fc337fda008d62d2f",
+      "lines": 136
     },
     {
       "path": "tests/mathdx_solver_probe.rs",
-      "blob": "0590c8faa1fc82fb53ad0fdbf25efd78262b35e3",
-      "lines": 281
+      "blob": "f446b6be49452f69fc94526604dadf7868555275",
+      "lines": 311
+    },
+    {
+      "path": "scripts/prepare-cuda-probe.ps1",
+      "blob": "03203ec5d209fbe0de423f3b9ddb1ee86395a65b"
+    },
+    {
+      "path": "docs/development-evidence/mathdx-lto/component.json",
+      "blob": "d077ea571335a995819367f6ded0e1720867947e"
     },
     {
       "path": "docs/development-evidence/mathdx-lto/README.md",
-      "blob": "9d0cf9acc385832d228a1806dcc421e70bf10e68"
+      "blob": "b18980e0dcd7696f2b646a3ea075ffabf8aced43"
     },
     {
       "path": "docs/development-evidence/mathdx-lto/unit-tests.log",
-      "blob": "187bc2ecccca19467676b4709ffa5d03a16c5116"
+      "blob": "d143db172cac41e0adc08679733186a73bb5757c"
     },
     {
       "path": "docs/development-evidence/mathdx-lto/probe.log",
-      "blob": "1557731327319d8549b9c49498ce733308c90eb1"
+      "blob": "30094278701478318eb5c16abf9b551d5841704e"
+    },
+    {
+      "path": "docs/development-evidence/mathdx-lto/probe-g01-env.log",
+      "blob": "e0a722a97054b8a7b6292b1ab7c7ed1db8cba603"
     }
   ],
   "results": {
-    "interface": "MathDx::load_from_dir/load_from_env/load_file（绝对路径）+ mathdxGetVersionEx 核对 0.3.1；SolverSpec::potrf_7d_sm89 冻结 contract；generate_solver_lto 输出 LTOIR/FATBIN 字节、SHA-256 与 libmathdx 版本。描述符调用序与 warp.cu::wp_cuda_compile_solver 一致。",
+    "interface": "MathDx::load_from_dir/load_from_dir_with_nvrtc/load_from_env/load_file/load_file_with_nvrtc（绝对路径）+ mathdxGetVersionEx 核对 0.3.1；显式 pinned NVRTC 12.9.86 解析（显式目录或 MATHDX_NVRTC_DIR），缺组件显式报错不回退；SolverSpec::potrf_7d_sm89 冻结 contract；generate_solver_lto 输出 LTOIR/FATBIN 字节与摘要。描述符调用序与 warp.cu::wp_cuda_compile_solver 一致。",
     "frozen_artifacts": {
       "ltoir_bytes": 1034872,
       "ltoir_sha256": "98c01ce64f55d31af5d4eb001c1e9fc4c8456173a9f0bbe97be479c804a981eb",
@@ -73,6 +106,7 @@
       "link_order": "调用 LTOIR → MathDx LTOIR → FATBIN，复用 W13 NvJitLink::link_cubin",
       "call_ltoir_bytes": 3632,
       "call_ltoir_sha256": "a323db381e0793b03837c95179965eb90aeb44c110eae042f16ede1d587da953",
+      "call_nvrtc_version": [12, 9],
       "cubin_bytes": 2086544,
       "cubin_sha256": "de660b5d5095516549c053bf51e13c05b9bc55a3dfe5cfeb0a0833c068be55ae",
       "cubin_matches_evidence": true,
@@ -80,29 +114,30 @@
       "device_output_bytes": 104528,
       "device_output_sha256": "51e1a99b11990d259411de58816a6344cec85f224c6a541fa088030749126d3f",
       "device_output_matches_evidence": true,
-      "device_phase_ms": 6.6907,
+      "device_phase_ms_range": [6.22, 7.01],
       "repeat_generate_identical": true,
       "repeat_link_identical": true
     },
     "environment_facts": {
-      "cwd_embedded_in_ltoir": "libmathdx 将进程工作目录写入 LTOIR；同参数下 D:\\Rust\\mjwarp-rs → 9fd948c3…、C:\\Windows\\Temp → e75d9ea0…、C:\\Rust\\mjwarp-rs（冻结证据工作目录）→ 98c01ce6…。探针在测试内切到冻结目录（MATHDX_EVIDENCE_CWD 可覆盖）并在结束/panic 时恢复；产品 API 不 chdir。",
-      "nvrtc_version_matters": "NVRTC 12.8.93 → LTOIR 1,035,080 B（不同摘要）；NVRTC 12.9.86 → 1,034,872 B 与证据一致。本机 12.9.86 来自 W13 诊断目录 target/w13/diag-12.9.86（CUDA 12.9.1 redist cuda_nvrtc 12.9.86）。"
+      "cwd_embedded_in_ltoir": "libmathdx 将进程工作目录写入 LTOIR：同参数下 D:\\Rust\\mjwarp-rs → 9fd948c3…、C:\\Windows\\Temp → e75d9ea0…、C:\\Rust\\mjwarp-rs（冻结证据工作目录）→ 98c01ce6…。探针在测试内切到冻结目录（MATHDX_EVIDENCE_CWD 可覆盖）并在结束/panic 时恢复；产品 API 不 chdir。",
+      "nvrtc_version_matters": "NVRTC 12.8.93 → LTOIR 1,035,080 B（不同摘要）；NVRTC 12.9.86 → 1,034,872 B 与证据一致。12.9.86 已组件化到 target/toolchains/cuda-12.9.1-nvrtc（prepare-cuda-probe.ps1），探针显式解析，与 CUDA_PATH 解耦。",
+      "g01_env_decoupled": "在 CUDA_PATH=target/toolchains/cuda-12.8.1（NVRTC 12.8.93）的普通环境与 G01 环境变量集下各跑一次探针，均 2 过 0 败、四项冻结摘要一致；call_nvrtc_version=[12,9] 证明显式解析生效。未改 G01 脚本与排除清单。"
     },
     "tests": {
-      "unit": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib mathdx → mathdx 模块 10 项通过",
-      "gpu_probe": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --test mathdx_solver_probe -- --ignored --test-threads=1 --nocapture → 2 过 0 败",
-      "gpu_probe_command_env": "CUDA_PATH 指向含 NVRTC 12.9.86 与 nvJitLink 12.9.86 的 bin；PATH 追加其 bin 与 12.8.1 bin"
+      "unit": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib mathdx → mathdx 模块 11 项通过",
+      "gpu_probe_normal_env": "CUDA_PATH=target/toolchains/cuda-12.8.1 + PATH 加其 bin → 2 过 0 败（probe.log）",
+      "gpu_probe_g01_env": "另加 MJWARP_MUJOCO_ROOT/MJWARP_MUJOCO_DLL → 2 过 0 败（probe-g01-env.log）"
     },
-    "gates": "见 .normify/runs/2026-10-24-mathdx-solver-lto/（fmt/clippy/clippy-cuda/unit）"
+    "gates": "见 .normify/runs/2026-10-24-mathdx-solver-lto/ 与 2026-10-24-nvrtc-12-9-mathdx-component 的门禁记录"
   },
   "boundaries": [
     "不接产品物理配方、既有 PTX/cubin 路径、内核字符串、容差与 f32；绑定仅在 cuda-probe feature 下编译。",
     "不新增 C/C++ 组件；不调用 warp.dll、不启动 Python。",
-    "libmathdx 会将工作目录写入 LTOIR：产物字节与运行工作目录绑定，跨目录/跨机器位稳定不成立；冻结字节对照需在 C:\\Rust\\mjwarp-rs（2026-10-14 证据工作目录）运行。",
-    "冻结字节需 NVRTC 12.9.86；本机该组件来自 W13 诊断目录，尚未纳入 scripts/prepare-cuda-probe.ps1。",
-    "G01 接线缺口：新 ignored 探针会被 G01 all-probes 的 --ignored 自动纳入，而 G01 当前 CUDA_PATH 为 12.8.1（NVRTC 12.8.93），冻结字节对照会失败；需 QA 复跑时排除或先完成 NVRTC 12.9.86 接线，不得静默跳过。",
+    "libmathdx 会将工作目录写入 LTOIR：产物字节与运行工作目录绑定，跨目录/跨机位稳定不成立；冻结字节对照需在 C:\\Rust\\mjwarp-rs（2026-10-14 证据工作目录）运行。",
+    "冻结字节需 NVRTC 12.9.86（已在 prepare-cuda-probe.ps1 组件化）；现有产品内核编译路径仍用 12.8.93，未全局升级。",
+    "G01 环境已解耦并验证通过；未改 scripts/test-windows-g01.ps1 与排除清单。",
     "Linux 未验收，归 2026-10-24-linux-batch-retest；SDK 二进制/静态库只在 target/，再分发边界未定。",
-    "T4 源码身份：改动只在 src/runtime/launcher 与 tests（cuda-probe 门控），不在 T4 锚点集合（physics/resident/mass-solve）内，未漂移，无需重钉。"
+    "T4 源码身份：改动只在 src/runtime/launcher、tests 与 scripts/prepare-cuda-probe.ps1（cuda-probe 门控），不在 T4 锚点集合（physics/resident/mass-solve）内，未漂移，无需重钉。"
   ],
-  "note": "用户 2026-10-24 裁决 A 的代码落地：Rust 动态绑定 libmathdx 0.3.1 生成冻结 7 维 POTRF LTOIR/FATBIN，复用 W13 nvJitLink 链接并跑 GPU 对照。冻结产物、CUBIN 与设备输出均与 2026-10-14 证据逐字节一致；同时实测记录工作目录与 NVRTC 版本两项环境依赖。未接 MathDx 进产品物理路径，未宣称完整上游等价、G03 或 NP 验收。"
+  "note": "用户 2026-10-24 裁决 A 的代码落地与缺口收口：Rust 动态绑定 libmathdx 0.3.1 生成冻结 7 维 POTRF LTOIR/FATBIN，复用 W13 nvJitLink 链接并跑 GPU 对照；随后把 NVRTC 12.9.86 组件化并显式接给 MathDx 路径，使探针在 G01 环境（CUDA_PATH=12.8.1）下也通过。冻结产物、CUBIN 与设备输出均与 2026-10-14 证据逐字节一致；工作目录与 NVRTC 版本两项环境依赖已记录。未接 MathDx 进产品物理路径，未宣称完整上游等价、G03 或 NP 验收。"
 }

@@ -5,7 +5,7 @@
     "zh": "引入NVRTC 12.9.86组件并接MathDx路径",
     "en": "Add the pinned NVRTC 12.9.86 component and wire it to the MathDx path"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "按 MathDx 落地任务的实测发现收口两个缺口：① 把 libmathdx 0.3.1 需要的 NVRTC 12.9.86 按组件模式固定并只落地 target/（当前它只存在于 W13 诊断目录 target/w13/diag-12.9.86，不可复现）；② 让 MathDx 绑定与探针显式使用该 pinned NVRTC 12.9.86（libmathdx 内部调 NVRTC 生成 LTOIR，12.8.93 产出 1,035,080 B 不匹配、12.9.86 产出 1,034,872 B 匹配冻结证据）。现有产品内核编译路径仍用 12.8.93，不全局升级；不改 G01 脚本与排除清单。",
     "en": "Close the two gaps found by the MathDx delivery: (1) pin the NVRTC 12.9.86 that libmathdx 0.3.1 needs as a prepared component under target/ (it currently exists only in the W13 diagnostic directory target/w13/diag-12.9.86 and is not reproducible); (2) make the MathDx binding and probe explicitly use that pinned NVRTC 12.9.86 (libmathdx calls NVRTC internally to generate LTOIR: 12.8.93 yields 1,035,080 B mismatch, 12.9.86 yields 1,034,872 B matching the frozen evidence). The existing product kernel compile path keeps NVRTC 12.8.93; no global upgrade; no G01 script or exclusion-list changes."
@@ -37,11 +37,12 @@
   },
   "note": "2026-10-24 Backend 实测发现：libmathdx 0.3.1 的求解器 API 内部调用 NVRTC 生成 LTOIR；12.8.93 产出 1,035,080 B（不匹配冻结证据），12.9.86 产出 1,034,872 B（匹配）。NVRTC 12.9.86 目前来自 W13 诊断目录 target/w13/diag-12.9.86，未纳入 prepare 脚本，G01 环境（CUDA_PATH=12.8.1）跑 all-probes 会因版本不匹配失败。本任务把 12.9.86 组件化并显式接给 MathDx 路径；现有产品内核仍用 12.8.93，不做全局升级。完成后由 QA 另立任务复跑 G01 双模式。许可/再分发口径不变（SDK 二进制只在 target/，产品分发另议）。",
   "revision": {
-    "before": null,
+    "before": "8a72932240c0703ef1d4c987eaa1251891350a32",
     "after": null
   },
   "created_at": "2026-10-23T19:30:00.000Z",
-  "updated_at": "2026-10-23T19:30:00.000Z",
+  "updated_at": "2026-10-23T19:29:25.705Z",
+  "closed_at": "2026-10-23T19:29:25.705Z",
   "checks": [
     {
       "kind": "gate",

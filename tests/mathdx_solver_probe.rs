@@ -1,5 +1,6 @@
 //! MathDx libmathdx 0.3.1 求解器 LTO 生成与冻结产物的字节对照。
-//! 需要`CUDA_PATH`指向带 NVRTC 12.9.86 与 nvJitLink 12.9.86 的目录。
+//! NVRTC 12.9.86 从显式 pinned 组件解析（`target/toolchains/cuda-12.9.1-nvrtc/bin`，
+//! 可用`MATHDX_NVRTC_DIR`覆盖），与`CUDA_PATH`解耦；缺组件时显式失败。
 //! 还需要组件 `target/toolchains/libmathdx-0.3.1/`（2026-10-24-mathdx-libmathdx-prep）。
 //! libmathdx 会把进程工作目录写进 LTOIR；本探针在冻结证据的工作目录
 //! （默认`C:\Rust\mjwarp-rs`，可用`MATHDX_EVIDENCE_CWD`覆盖）下生成，结束后恢复。
@@ -46,6 +47,32 @@ fn pinned(relative: &str, sha: &str, lf: bool) -> Vec<u8> {
 
 fn mathdx_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/toolchains/libmathdx-0.3.1/bin")
+}
+
+/// pinned NVRTC 12.9.86 的 bin 目录；显式`MATHDX_NVRTC_DIR`优先。
+fn nvrtc_dir() -> PathBuf {
+    std::env::var_os("MATHDX_NVRTC_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("target/toolchains/cuda-12.9.1-nvrtc/bin")
+        })
+}
+
+fn load_mathdx() -> MathDx {
+    let directory = mathdx_dir();
+    assert!(
+        directory.is_dir(),
+        "缺少 libmathdx 组件：{}（先运行 scripts/prepare-cuda-probe.ps1）",
+        directory.display()
+    );
+    let nvrtc = nvrtc_dir();
+    assert!(
+        nvrtc.join("nvrtc64_120_0.dll").is_file(),
+        "缺少pinned NVRTC 12.9.86组件：{}（先运行 scripts/prepare-cuda-probe.ps1）",
+        nvrtc.display()
+    );
+    MathDx::load_from_dir_with_nvrtc(&directory, &nvrtc).unwrap()
 }
 
 type Matrix = [f32; 49];
@@ -162,13 +189,7 @@ fn enter_evidence_working_directory() -> EvidenceWorkingDirectory {
 #[ignore = "需要 libmathdx 组件、CUDA_PATH（NVRTC+nvJitLink）与 SM89 GPU"]
 fn solver_lto_matches_frozen_evidence_and_device_output() {
     let _cwd = enter_evidence_working_directory();
-    let directory = mathdx_dir();
-    assert!(
-        directory.is_dir(),
-        "缺少 libmathdx 组件：{}（先运行 scripts/prepare-cuda-probe.ps1）",
-        directory.display()
-    );
-    let mathdx = MathDx::load_from_dir(&directory).unwrap();
+    let mathdx = load_mathdx();
     assert_eq!(mathdx.version(), (0, 3, 1));
     let spec = SolverSpec::potrf_7d_sm89();
     let first = mathdx.generate_solver_lto(&spec).unwrap();
@@ -197,6 +218,19 @@ fn solver_lto_matches_frozen_evidence_and_device_output() {
     .unwrap();
     let call_ltoir = compile_ltoir(&input).unwrap();
     assert!(!call_ltoir.bytes().is_empty(), "调用 LTOIR 为空");
+    // 证明与 CUDA_PATH 解耦：NVRTC 必须绑定到 pinned 12.9（G01 环境 CUDA_PATH 为 12.8.1）。
+    assert_eq!(
+        call_ltoir.nvrtc_version().0,
+        12,
+        "调用 LTOIR 未使用 NVRTC 12.x：{:?}",
+        call_ltoir.nvrtc_version()
+    );
+    assert_eq!(
+        call_ltoir.nvrtc_version().1,
+        9,
+        "调用 LTOIR 未使用 pinned NVRTC 12.9：{:?}",
+        call_ltoir.nvrtc_version()
+    );
 
     let linker = NvJitLink::load_from_cuda_path().unwrap();
     let extras = [
@@ -262,6 +296,7 @@ fn solver_lto_matches_frozen_evidence_and_device_output() {
             "repeat_generate_identical": first.ltoir_sha256() == second.ltoir_sha256(),
             "call_ltoir_bytes": call_ltoir.bytes().len(),
             "call_ltoir_sha256": call_ltoir.sha256(),
+            "call_nvrtc_version": [call_ltoir.nvrtc_version().0, call_ltoir.nvrtc_version().1],
             "evidence_cwd": std::env::current_dir().unwrap().to_string_lossy(),
             "cubin_bytes": cubin.bytes().len(),
             "cubin_sha256": cubin.sha256(),
@@ -280,9 +315,7 @@ fn solver_lto_matches_frozen_evidence_and_device_output() {
 #[test]
 #[ignore = "需要 libmathdx 组件"]
 fn descriptor_rejection_reports_error() {
-    let directory = mathdx_dir();
-    assert!(directory.is_dir(), "缺少 libmathdx 组件");
-    let mathdx = MathDx::load_from_dir(&directory).unwrap();
+    let mathdx = load_mathdx();
     let mut spec = SolverSpec::potrf_7d_sm89();
     spec.n = 8; // POTRF 需要方阵；非方阵应在描述符阶段被拒绝。
     let error = mathdx.generate_solver_lto(&spec).unwrap_err();

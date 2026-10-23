@@ -120,5 +120,62 @@ foreach ($required in @('LICENSE.txt', 'include\libcommondx.h', 'include\libcuso
     }
 }
 Write-Host "MATHdx_ROOT=$mathdxDestination"
+
+# NVRTC 12.9.86（CUDA 12.9.1 redist，任务 2026-10-24-nvrtc-12-9-mathdx-component）。
+# libmathdx 0.3.1 生成冻结 LTOIR 需要该版本；12.8.93 产出的字节不同。
+# 只解包到 target/toolchains/cuda-12.9.1-nvrtc/；现有内核编译路径仍用 12.8.93，不全局升级。
+$nvrtc129Version = '12.9.86'
+$nvrtc129Url = 'https://developer.download.nvidia.com/compute/cuda/redist/cuda_nvrtc/windows-x86_64/cuda_nvrtc-windows-x86_64-12.9.86-archive.zip'
+$nvrtc129ArchiveBytes = 314608748
+$nvrtc129ArchiveSha = '1aa0644fa53c8ca34cdc73db17bcc73530557bdd3f582c7bfdbd7916c8b48f65'
+$nvrtc129DllBytes = 89832960
+$nvrtc129DllSha = '0cc63349fedffeec1660b30955e8028b6e4e4c26cf1e41c56dc4569fd5eca82c'
+$nvrtc129BuiltinsBytes = 7217664
+$nvrtc129BuiltinsSha = 'c405226b0b394ed8bdc593bb1419b94a989f93248ed2873e8f2e0e27c1688ca1'
+$nvrtc129Destination = Join-Path $root 'target\toolchains\cuda-12.9.1-nvrtc'
+$nvrtc129Downloads = Join-Path $nvrtc129Destination 'downloads'
+New-Item -ItemType Directory -Path $nvrtc129Downloads -Force | Out-Null
+$nvrtc129File = Join-Path $nvrtc129Downloads 'cuda_nvrtc-windows-x86_64-12.9.86-archive.zip'
+if (-not (Test-Path -LiteralPath $nvrtc129File)) {
+    Write-Host "下载cuda_nvrtc $nvrtc129Version"
+    Invoke-WebRequest -Uri $nvrtc129Url -OutFile $nvrtc129File
+}
+if ((Get-Item -LiteralPath $nvrtc129File).Length -ne $nvrtc129ArchiveBytes) {
+    throw 'NVRTC 12.9.86压缩包大小不符'
+}
+$nvrtc129Hash = (Get-FileHash -LiteralPath $nvrtc129File -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($nvrtc129Hash -ne $nvrtc129ArchiveSha) {
+    throw 'NVRTC 12.9.86压缩包校验失败'
+}
+$nvrtc129Dll = Join-Path $nvrtc129Destination 'bin\nvrtc64_120_0.dll'
+if (-not (Test-Path -LiteralPath $nvrtc129Dll)) {
+    $nvrtc129PackageRoot = Join-Path $nvrtc129Destination 'package'
+    Expand-Archive -LiteralPath $nvrtc129File -DestinationPath $nvrtc129PackageRoot
+    $nvrtc129Package = @(Get-ChildItem -LiteralPath $nvrtc129PackageRoot -Directory)
+    if ($nvrtc129Package.Count -ne 1) {
+        throw 'NVRTC 12.9.86包目录错误'
+    }
+    foreach ($folder in @('bin', 'include', 'lib')) {
+        $source = Join-Path $nvrtc129Package[0].FullName $folder
+        if (Test-Path -LiteralPath $source) {
+            $target = Join-Path $nvrtc129Destination $folder
+            New-Item -ItemType Directory -Path $target -Force | Out-Null
+            Get-ChildItem -LiteralPath $source | Copy-Item -Destination $target -Recurse -Force
+        }
+    }
+}
+$nvrtc129DllItem = Get-Item -LiteralPath $nvrtc129Dll
+$nvrtc129DllHash = (Get-FileHash -LiteralPath $nvrtc129Dll -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($nvrtc129DllItem.Length -ne $nvrtc129DllBytes -or $nvrtc129DllHash -ne $nvrtc129DllSha) {
+    throw 'NVRTC 12.9.86 DLL大小或摘要不符'
+}
+$nvrtc129Builtins = Join-Path $nvrtc129Destination 'bin\nvrtc-builtins64_129.dll'
+$nvrtc129BuiltinsItem = Get-Item -LiteralPath $nvrtc129Builtins
+$nvrtc129BuiltinsHash = (Get-FileHash -LiteralPath $nvrtc129Builtins -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($nvrtc129BuiltinsItem.Length -ne $nvrtc129BuiltinsBytes -or $nvrtc129BuiltinsHash -ne $nvrtc129BuiltinsSha) {
+    throw 'NVRTC 12.9.86 builtins大小或摘要不符'
+}
+Write-Host "NVRTC_12_9_ROOT=$nvrtc129Destination"
+
 Write-Host "CUDA_PATH=$destination"
 Write-Host '运行探针时再设置进程PATH。'
