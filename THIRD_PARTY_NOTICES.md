@@ -353,3 +353,17 @@ CUDA SDK 头（`cuda_fp16.h` 等）不复制进仓，按本机 CUDA 12.8.1 工�
 
 [CUDA 12.9.1 清单](https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.9.1.json)
 [W13 落地记录](docs/development-evidence/w13-nvjitlink/README.md)
+
+## MathDx（libmathdx 0.3.1）
+
+Warp 1.15.0 冻结依赖的 MathDx 求解器 LTO 来自 NVIDIA MathDx SDK。
+组件：`libmathdx` 0.3.1（cuda12、win32-x86_64）。
+来源：`https://developer.nvidia.com/downloads/compute/cublasdx/redist/cublasdx/cuda12/libmathdx-win32-x86_64-0.3.1-cuda12.0.zip`。
+压缩包大小与 SHA-256：`30,920,469` 字节、`64488decd3bf6e09a717cec966ad96b10fe2e9db7935185ecb491cfd6c2ec514`。
+许可标签：NVIDIA Math Libraries SDK License Agreement（包内 `LICENSE.txt`）。
+许可原文按包内原文逐字节保存于 `LICENSES/libmathdx-0.3.1/LICENSE.txt`（16,818 字节，SHA-256 `8cfdcfcbf70537e504233cf0e13f40d56f5bfd8be6e43ae4e5976fa26817703f`）。
+来源与摘要见 `LICENSES/libmathdx-0.3.1/PROVENANCE.md`。
+二进制与静态库只存放于 `target/toolchains/libmathdx-0.3.1/` 忽略目录。
+本项目不提交 SDK 二进制，也不随构建分发。
+本轮不引产品构建或运行依赖，不做再分发结论。
+组件记录见 [MathDx组件记录](docs/development-evidence/mathdx-lto/component.json)。

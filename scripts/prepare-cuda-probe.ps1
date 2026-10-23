@@ -79,5 +79,46 @@ foreach ($entry in $components) {
     $records += [ordered]@{ component = $name; release = $entry.release; version = $component.version; license = $component.license; license_sha256 = $licenseHash; url = $base + $archive.relative_path; sha256 = $hash }
 }
 $records | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $destination 'components.json') -Encoding utf8
+
+# MathDx：libmathdx 0.3.1（用户 2026-10-24 裁决 A）。
+# 它是 Warp 1.15.0 冻结依赖的同一 Windows cuda12 包。
+# 它不属 CUDA redistrib 清单，按固定 URL、大小与摘要下载。
+# 二进制与静态库只落地 target/ 忽略目录。
+$mathdxVersion = '0.3.1'
+$mathdxUrl = 'https://developer.nvidia.com/downloads/compute/cublasdx/redist/cublasdx/cuda12/libmathdx-win32-x86_64-0.3.1-cuda12.0.zip'
+$mathdxArchiveBytes = 30920469
+$mathdxArchiveSha = '64488decd3bf6e09a717cec966ad96b10fe2e9db7935185ecb491cfd6c2ec514'
+$mathdxDllBytes = 14854656
+$mathdxDllSha = '5ce7528e8a78b4863a423a9c2e2d1c8e3a62b39e593a001d44d2339ea9433f39'
+$mathdxDestination = Join-Path $root 'target\toolchains\libmathdx-0.3.1'
+$mathdxDownloads = Join-Path $mathdxDestination 'downloads'
+New-Item -ItemType Directory -Path $mathdxDownloads -Force | Out-Null
+$mathdxFile = Join-Path $mathdxDownloads 'libmathdx-win32-x86_64-0.3.1-cuda12.0.zip'
+if (-not (Test-Path -LiteralPath $mathdxFile)) {
+    Write-Host "下载libmathdx $mathdxVersion"
+    Invoke-WebRequest -Uri $mathdxUrl -OutFile $mathdxFile
+}
+if ((Get-Item -LiteralPath $mathdxFile).Length -ne $mathdxArchiveBytes) {
+    throw 'libmathdx压缩包大小不符'
+}
+$mathdxHash = (Get-FileHash -LiteralPath $mathdxFile -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($mathdxHash -ne $mathdxArchiveSha) {
+    throw 'libmathdx压缩包校验失败'
+}
+$mathdxDll = Join-Path $mathdxDestination 'bin\mathdx64_0.dll'
+if (-not (Test-Path -LiteralPath $mathdxDll)) {
+    Expand-Archive -LiteralPath $mathdxFile -DestinationPath $mathdxDestination
+}
+$mathdxDllItem = Get-Item -LiteralPath $mathdxDll
+$mathdxDllHash = (Get-FileHash -LiteralPath $mathdxDll -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($mathdxDllItem.Length -ne $mathdxDllBytes -or $mathdxDllHash -ne $mathdxDllSha) {
+    throw 'libmathdx DLL大小或摘要不符'
+}
+foreach ($required in @('LICENSE.txt', 'include\libcommondx.h', 'include\libcusolverdx.h', 'lib\x64\mathdx.lib')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $mathdxDestination $required))) {
+        throw "libmathdx包内容缺失：$required"
+    }
+}
+Write-Host "MATHdx_ROOT=$mathdxDestination"
 Write-Host "CUDA_PATH=$destination"
 Write-Host '运行探针时再设置进程PATH。'
