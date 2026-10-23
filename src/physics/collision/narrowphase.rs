@@ -6,6 +6,9 @@
 //! - `plane_sphere`：`dist = dot(sphere_pos - plane_pos, normal) - radius`，
 //!   `pos = sphere_pos - normal * (radius + 0.5*dist)`，法线取平面旋转矩阵第三列。
 //! - `sphere_sphere`：中心距减半径和，`pos` 在连心线上，法线为单位连心向量。
+//! - `plane_box`（G09）：`collision_primitive_core.plane_box` 的 8 角点距离/位置；
+//!   wrapper 对 8 个角点依次 `write_contact`，按 margin/gap 检测后最多写出 8 个
+//!   候选（面接触通常 4 个、棱 2 个、角 1 个、间隙外 0 个）。
 //! - `make_frame`：法线为第一行，`orthogonals` 构造正交基（b 取 y 或 z 轴投影后
 //!   归一化，c = a × b）。
 //! - `write_contact`/`contact_params`：`margin/gap` 检测、`solmix`/`priority`
@@ -16,12 +19,11 @@
 //! 结构（`dist/pos/frame/includemargin/dim/geom/worldid/friction/solref/
 //! solreffriction/solimp/adhesion/type/geomcollisionid`）。
 //!
-//! 未验收边界：其余几何对（capsule/box/ellipsoid/cylinder/mesh/hfield/SDF）、
-//! convex/CCD/multiccd、flex 接触、显式 `<pair>` 覆盖（pair_dim/pair_solref/
-//! pair_friction 等）、collision sensor 接触类型位、EFC 行地址与约束求解、
-//! 世界批量参数、GPU 内核与图执行。
+//! 未验收边界：capsule/ellipsoid/cylinder/mesh/hfield/SDF、box-box、convex/CCD/
+//! multiccd、flex 接触、显式 `<pair>` 覆盖（pair_dim/pair_solref/pair_friction 等）、
+//! collision sensor 接触类型位、EFC 行地址与约束求解、世界批量参数、GPU 内核与图执行。
 
-use super::{BroadphaseOutput, GEOM_PLANE, GEOM_SPHERE};
+use super::{BroadphaseOutput, GEOM_BOX, GEOM_PLANE, GEOM_SPHERE};
 
 /// 上游 `mjMINVAL` 与 `mjMINMU`。
 pub const MJ_MINVAL: f32 = 1.0e-15;
@@ -124,90 +126,9 @@ impl std::fmt::Display for NarrowphaseError {
 
 impl std::error::Error for NarrowphaseError {}
 
-fn dot3(left: [f32; 3], right: [f32; 3]) -> f32 {
-    left[0] * right[0] + left[1] * right[1] + left[2] * right[2]
-}
-
-fn cross3(left: [f32; 3], right: [f32; 3]) -> [f32; 3] {
-    [
-        left[1] * right[2] - left[2] * right[1],
-        left[2] * right[0] - left[0] * right[2],
-        left[0] * right[1] - left[1] * right[0],
-    ]
-}
-
-fn length3(vector: [f32; 3]) -> f32 {
-    dot3(vector, vector).sqrt()
-}
-
-fn normalize3(vector: [f32; 3]) -> [f32; 3] {
-    let norm = length3(vector);
-    [vector[0] / norm, vector[1] / norm, vector[2] / norm]
-}
-
-fn sub3(left: [f32; 3], right: [f32; 3]) -> [f32; 3] {
-    [left[0] - right[0], left[1] - right[1], left[2] - right[2]]
-}
-
-fn scale3(vector: [f32; 3], factor: f32) -> [f32; 3] {
-    [vector[0] * factor, vector[1] * factor, vector[2] * factor]
-}
-
-/// 列向量：上游 `wp.vec3(rot[0, k], rot[1, k], rot[2, k])`。
-fn column(matrix: &[f32; 9], column: usize) -> [f32; 3] {
-    [matrix[column], matrix[3 + column], matrix[6 + column]]
-}
-
-/// 上游 `math.make_frame`：以法线为第一行的接触坐标系（行优先）。
-pub fn make_frame(normal: [f32; 3]) -> [f32; 9] {
-    let a = normalize3(normal);
-    let y = [0.0_f32, 1.0, 0.0];
-    let z = [0.0_f32, 0.0, 1.0];
-    let selector = if -0.5 < a[1] && a[1] < 0.5 { y } else { z };
-    let mut b = sub3(selector, scale3(a, dot3(a, selector)));
-    b = normalize3(b);
-    if length3(a) == 0.0 {
-        b = [0.0; 3];
-    }
-    let c = cross3(a, b);
-    [a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]]
-}
-
-/// 上游 `collision_primitive_core.plane_sphere`。
-pub fn plane_sphere(
-    plane_normal: [f32; 3],
-    plane_pos: [f32; 3],
-    sphere_pos: [f32; 3],
-    sphere_radius: f32,
-) -> (f32, [f32; 3]) {
-    let dist = dot3(sub3(sphere_pos, plane_pos), plane_normal) - sphere_radius;
-    let pos = sub3(sphere_pos, scale3(plane_normal, sphere_radius + 0.5 * dist));
-    (dist, pos)
-}
-
-/// 上游 `collision_primitive_core.sphere_sphere`。
-pub fn sphere_sphere(
-    pos1: [f32; 3],
-    radius1: f32,
-    pos2: [f32; 3],
-    radius2: f32,
-) -> (f32, [f32; 3], [f32; 3]) {
-    let mut dir = sub3(pos2, pos1);
-    let mut dist = length3(dir);
-    if dist == 0.0 {
-        dir = [1.0, 0.0, 0.0];
-    } else {
-        dir = scale3(dir, 1.0 / dist);
-    }
-    let normal = dir;
-    dist -= radius1 + radius2;
-    let pos = [
-        pos1[0] + normal[0] * (radius1 + 0.5 * dist),
-        pos1[1] + normal[1] * (radius1 + 0.5 * dist),
-        pos1[2] + normal[2] * (radius1 + 0.5 * dist),
-    ];
-    (dist, pos, normal)
-}
+mod primitive;
+use primitive::column;
+pub use primitive::{make_frame, plane_box, plane_sphere, sphere_sphere};
 
 fn safe_div(numerator: f32, denominator: f32) -> f32 {
     numerator
@@ -472,6 +393,62 @@ pub fn primitive_narrowphase(
                     solimp,
                     adhesion,
                 );
+            }
+            (GEOM_PLANE, GEOM_BOX) => {
+                let normal = column(&state.geom_xmat[index_base + geom1], 2);
+                let (dists, positions) = plane_box(
+                    normal,
+                    pos1,
+                    pos2,
+                    state.geom_xmat[index_base + geom2],
+                    model.geom_size[geom2],
+                );
+                for index in 0..8 {
+                    write_contact(
+                        &mut output,
+                        worldid,
+                        [geom1 as i32, geom2 as i32],
+                        pairid,
+                        dists[index],
+                        positions[index],
+                        normal,
+                        margin,
+                        gap,
+                        condim,
+                        friction,
+                        solref,
+                        solimp,
+                        adhesion,
+                    );
+                }
+            }
+            (GEOM_BOX, GEOM_PLANE) => {
+                let normal = column(&state.geom_xmat[index_base + geom2], 2);
+                let (dists, positions) = plane_box(
+                    normal,
+                    pos2,
+                    pos1,
+                    state.geom_xmat[index_base + geom1],
+                    model.geom_size[geom1],
+                );
+                for index in 0..8 {
+                    write_contact(
+                        &mut output,
+                        worldid,
+                        [geom1 as i32, geom2 as i32],
+                        pairid,
+                        dists[index],
+                        positions[index],
+                        normal,
+                        margin,
+                        gap,
+                        condim,
+                        friction,
+                        solref,
+                        solimp,
+                        adhesion,
+                    );
+                }
             }
             _ => {
                 return Err(NarrowphaseError::UnsupportedPair {

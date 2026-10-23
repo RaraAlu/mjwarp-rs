@@ -5,7 +5,7 @@
     "zh": "G09@P5 凸体与网格",
     "en": "Roadmap G09@P5 delivery"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "沿用既定开发路线。保留原树与历史变更。",
     "en": "Track the documented roadmap without replacing architecture or historical changes."
@@ -27,7 +27,8 @@
     "退化几何与多接触：冻结上游 plane+box 场景（平放 4 接触、棱接触 2 接触、角接触 1 接触、斜面/超 margin 0 接触、薄板退化尺寸）的接触数量与 dist/pos/normal，产品逐项对照（浮点 1e-6、整数逐位）；另以 MuJoCo 3.15.0 f64 `mj_collision` 做原生一级判定（1e-5）；退化输入（尺寸非正/非有限）显式拒绝。",
     "未验收边界：box-box/capsule/cylinder/ellipsoid/cone 等其余凸体对与多接触路径、mesh/convex 的 GJK/EPA、CCD/multiccd、hfield/SDF 地形、flex、显式 pair、EFC/约束求解、GPU 内核均不做并如实登记；不以本片代表完整 G09/P5。",
     "NP01：新增路径全 f32（顶点、法线、距离、接触位置），不升精度；NP02：记录冻结上游提交、`plane_convex`/`plane_box_wrapper` 函数名、模型 sha256、几何布局与环境；NP03：原生 C f64 一级判定（1e-5）+ MJWarp f32 二级对照（1e-6）；NP04 不适用（不发射内核、不跑性能）。",
-    "证据落 `docs/development-evidence/backlog-batch3/2026-10-11-roadmap-g09-p5/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g09-p5.json`；gate fmt/clippy/unit 通过，不宣称完整 G09 或 P5 验收。"
+    "证据落 `docs/development-evidence/backlog-batch4/2026-10-11-roadmap-g09-p5/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g09-p5.json`；gate fmt/clippy/unit 通过，不宣称完整 G09 或 P5 验收。",
+    "批次 4 索引：新建 `docs/development-evidence/backlog-batch4/README.md`，登记 g09-p5 交付（plane-box 多接触 4/2/1/0 场景）与 g10-p5、m10-p10 两条停手/裁决 A 顺延，不宣称顺延任务交付。"
   ],
   "schedule": {
     "depends_on": [
@@ -37,13 +38,13 @@
     "phase": "P5",
     "owner": "Backend",
     "files": [
-      "src/physics/collision/plane_box.rs",
-      "src/physics/collision/plane_box/",
+      "src/physics/collision/narrowphase.rs",
+      "src/physics/collision/narrowphase/",
       "src/physics/collision.rs",
       "src/physics/mod.rs",
       "fixtures/plane-box/",
       "scripts/authoring/",
-      "docs/development-evidence/backlog-batch3/2026-10-11-roadmap-g09-p5/",
+      "docs/development-evidence/backlog-batch4/",
       "docs/development-evidence/changes/2026-10-11-roadmap-g09-p5.json",
       ".normify/modules/"
     ],
@@ -52,11 +53,12 @@
   },
   "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":262,\"end\":262},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p3, 2026-10-11-roadmap-p4] → 新依赖 [2026-10-11-roadmap-g07-p5, 2026-10-11-roadmap-g08-p5]。依据：凸体/网格碰撞依赖宽相与基本几何；删除旧 P3/P4 聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次4）：原图 G09@P5 覆盖 GJK/EPA/CCD 与凸体/网格（验收「退化几何与多接触」），当前无 BVH/网格资产管线与 GJK/EPA 实现。按 Chief 边界只做不依赖 BVH 的凸体原语部分：plane-box 多接触（上游 `plane_convex` 全搜索 + 唯一索引去重，最多 4 接触）与退化尺寸/边角接触处理；box-box、mesh/convex GJK/EPA、CCD、hfield/SDF 登记未验收边界，不改既有产品路径/容差。",
   "revision": {
-    "before": null,
+    "before": "35c26c9c977e25f5e095482add680f2a26b1b762",
     "after": null
   },
   "created_at": "2026-10-11T15:26:44.995Z",
-  "updated_at": "2026-10-23T04:57:01.315Z",
+  "updated_at": "2026-10-23T07:34:19.838Z",
+  "closed_at": "2026-10-23T07:34:19.838Z",
   "checks": [
     {
       "kind": "gate",

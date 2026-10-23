@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-g09-p5",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/physics/collision/narrowphase.rs",
+      "blob": "94e92f5ce01089a2b98a859df528355f77a4bb3f"
+    },
+    {
+      "path": "src/physics/collision/narrowphase/primitive.rs",
+      "blob": "618a26c99e0b5a8b78064d5e2fb34459320a806e"
+    },
+    {
+      "path": "src/physics/collision/narrowphase/tests.rs",
+      "blob": "e4ba4b4d6473b46115ce8c5dd5521c5474319bde"
+    },
+    {
+      "path": "src/physics/collision/narrowphase/tests/plane_box.rs",
+      "blob": "edcf59c5b295d78154e4c9359f4680cee385dd2c"
+    },
+    {
+      "path": "src/physics/collision.rs",
+      "blob": "8b84affbce21ce70431883f2078f5e572324de4e"
+    },
+    {
+      "path": "src/physics/mod.rs",
+      "blob": "25f3ca36351370f0d4dc89bdc7f496baf8b9b26f"
+    },
+    {
+      "path": "fixtures/plane-box/model.xml",
+      "blob": "63743a8a72d2cd965ef46e2205aedec809789adf"
+    },
+    {
+      "path": "fixtures/plane-box/cases.json",
+      "blob": "640dbfd683de4f7cfdd253efd728293d8d5a3737"
+    },
+    {
+      "path": "scripts/authoring/author-g09-plane-box.ps1",
+      "blob": "3e820290b71bddae8b5863415cb7d9c652ed2d6f"
+    },
+    {
+      "path": "scripts/authoring/author-g09-plane-box.py",
+      "blob": "f990f55adce9ec52091b689b58bd9c7ae910a07a"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch4/2026-10-11-roadmap-g09-p5/README.md",
+      "blob": "5c11506eaf36e70c3d5f317bca4f758913549957"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch4/2026-10-11-roadmap-g09-p5/authoring.json",
+      "blob": "484732527d93de8af1d83ac6a6c8d825a2f76fad"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch4/README.md",
+      "blob": "213ef7a5a56ae13203cf8c75e0bc387eea8c8274"
+    },
+    {
+      "path": ".normify/modules/mjwarp/physics/core.md",
+      "blob": "4816486fbd0477d62d8a51e47ca4c24189f9ca5f"
+    }
+  ],
+  "results": {
+    "slice": {
+      "family": "G09 凸体与网格",
+      "phase": "P5（plane-box 多接触与退化几何原语）",
+      "planned_api": "mjwarp_rs::physics::collision::plane_box",
+      "delivered": "上游 plane_box 8 角点核心 + primitive_narrowphase 的 (plane,box)/(box,plane) 分支；复用 G08 write_contact 的 margin/gap/材质/字段语义；不依赖 BVH/网格/地形资产"
+    },
+    "references": {
+      "model": "fixtures/plane-box/model.xml",
+      "model_sha256": "63743a8a72d2cd965ef46e2205aedec809789adf",
+      "ngeom": 3,
+      "nworld": 7,
+      "scenarios": [
+        "flat4",
+        "edge2",
+        "corner1",
+        "gap0",
+        "yaw45_flat4",
+        "thin_flat4",
+        "thin_gap0"
+      ],
+      "contacts": 15,
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29（Warp 1.15.0）kinematics + collision（plane_box_wrapper）",
+      "native": "MuJoCo 3.15.0 f64 mj_kinematics + mj_collision"
+    },
+    "comparison": {
+      "vs_upstream": "15 接触逐字段 max abs 5.960e-08 ≤ 1e-6（按 (worldid, geom) 分组、组内顺序一致）",
+      "vs_native": "dist/pos/frame max abs 1.192e-07 ≤ 1e-5；接触数逐世界一致",
+      "multi_contact_counts": "每世界 4 / 2 / 1 / 0 / 4 / 4 / 0；上游 15 = 原生 [4,2,1,0,4,4,0]"
+    },
+    "np_mapping": {
+      "NP01": "全链 f32（角点、法线、距离、接触位置），无 f64 中间量",
+      "NP02": "记录冻结上游提交/函数名/模型 sha256/几何布局/环境",
+      "NP03": "原生 f64 mj_collision 一级判定（1.192e-07）+ MJWarp f32 二级对照（5.960e-08）",
+      "NP04": "不适用：不发射内核、不测性能"
+    },
+    "gates": {
+      "fmt": "通过（cargo fmt --check）",
+      "clippy": "通过（cargo clippy --all-targets --locked -- -D warnings）",
+      "unit": "通过（cargo test --locked 478 过 0 败；本片新增 plane-box 1 测试）"
+    }
+  },
+  "note": "批次 4 旧计划细化落地：G09@P5 按 Chief 边界只交不依赖 BVH 的 plane-box 凸体原语切片（8 角点多接触 + 退化薄板/边角），产品 vs 冻结上游 5.960e-08、原生 f64 1.192e-07，接触数 4/2/1/0/4/4/0；证据落 backlog-batch4。box-box、GJK/EPA、mesh/convex、CCD、hfield/SDF、GPU 登记未验收边界。",
+  "boundaries": [
+    "不实现 box-box/capsule/cylinder/ellipsoid 等其余凸体对、GJK/EPA、mesh/convex、CCD/multiccd。",
+    "不实现 hfield/SDF 地形、flex、显式 pair、collision sensor 位、EFC/约束求解、世界批量、GPU/图执行；非 plane-box 候选仍返回 UnsupportedPair。",
+    "不宣称完整 G09 或 P5 验收；批次 4 中 g10-p5、m10-p10 为停手/顺延，不计交付。"
+  ]
+}
