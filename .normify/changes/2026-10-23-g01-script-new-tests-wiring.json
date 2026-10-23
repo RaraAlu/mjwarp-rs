@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-g01-script-new-tests-wiring",
+  "title": {
+    "zh": "G01脚本接线W14/W15新测试并登记U038已知债务排除",
+    "en": "Wire W14/W15 tests into the G01 script and record the U038 known-debt exclusion"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "修复当前 HEAD 上 G01 all-probes 的 3 个 target 失败：为 W14/W15 新增的 launcher-tile、launcher-warp-headers 在 all-probes 接上 MJWARP_CUDA_INCLUDE 与 CUDA bin PATH（复用现有 env 接线段落），使其真实执行并通过；t4_gravity_3d_product_chain 的 live 测试接线后会到达 U038-3D 已知 8/77 债务断言，按用户 2026-10-23 裁决 B 加入显式 known-debt 排除清单（写明理由、不静默跳过）；同步 -Minimum 与 docs 数字；跑 G01 debug 全脚本确认各阶段绿、all-probes 只剩文档化排除项（release 交 QA 最终验收）。不改产品/测试/容差/fixtures。",
+    "en": "Fix the three failing all-probes targets on current HEAD: wire MJWARP_CUDA_INCLUDE and the CUDA bin PATH into the existing all-probes env section for the new W14/W15 probes (launcher-tile, launcher-warp-headers) so they execute and pass; after wiring, the t4_gravity_3d_product_chain live probe would hit the known U038-3D 8/77 debt assertion, so add it to an explicit known-debt exclusion list under the user ruling of 2026-10-23 B (reason recorded, never a silent skip); sync -Minimum and docs; run the full G01 debug script and confirm every stage is green with all-probes showing only documented exclusions (release is QA's final acceptance). No product/test/tolerance/fixture changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "scripts/test-windows-g01.ps1 在 all-probes env 接线段落为 launcher-tile、launcher-warp-headers 接上 MJWARP_CUDA_INCLUDE 与 CUDA bin PATH；两 target 的 ignored NVRTC 测试在 all-probes 中真实执行并通过，env-wiring.json 逐项记录 wired。",
+    "t4_gravity_3d_product_chain 的 live 测试（live::live_three_d_product_chain_matches_frozen_upstream）加入显式 known-debt 排除清单，理由写明「U038-3D 已知债务（8/77 超 2e-6），用户 2026-10-23 裁决 B」；exclusions.json 单列 known_debt 与理由，不静默跳过。",
+    "排除清单与 -Minimum 计数同步；G01 debug 全脚本各阶段绿、all-probes 0 失败且仅剩文档化排除项；docs/three-layer-acceptance.md 的计数与排除项说明同步；release 双模式交 QA 执行。",
+    "不改产品源码/测试/容差/fixtures；证据写 docs/development-evidence/g01-new-tests-wiring/；交付回执 json 含 task_id；gate fmt 与 unchanged（src/tests/fixtures/precision/Cargo.toml/Cargo.lock 等）检查通过。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "工程-治理",
+    "owner": "Backend",
+    "files": [
+      "scripts/test-windows-g01.ps1",
+      "docs/development-evidence/g01-new-tests-wiring/",
+      "docs/three-layer-acceptance.md",
+      "docs/development-evidence/changes/2026-10-23-g01-script-new-tests-wiring.json",
+      ".normify/modules/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 2
+  },
+  "note": "用户 2026-10-23 要求：修复 W14/W15/U038 新增测试导致的 G01 all-probes 3 个 target 失败。只改 scripts/test-windows-g01.ps1、证据与文档数字；不改产品/测试/容差/fixtures，不改已有排除项含义。本机 GPU 独占；release 验收由 QA 执行。为让无 BOM UTF-8 脚本在 PowerShell 5.1/codepage 936 下可执行，脚本补 UTF-8 BOM（内容不改）。",
+  "revision": {
+    "before": "b0b4b8a0b1729e824e8d52b6c40a9dbdfc4e621f",
+    "after": null
+  },
+  "created_at": "2026-10-23T03:13:54.325Z",
+  "updated_at": "2026-10-23T03:13:54.325Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures/precision",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-g01-script-new-tests-wiring.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-g01-script-new-tests-wiring"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G01双模式通过",
+        "双平台通过",
+        "完整验收"
+      ]
+    }
+  ]
+}
