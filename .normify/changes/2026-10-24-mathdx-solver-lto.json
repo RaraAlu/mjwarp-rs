@@ -5,7 +5,7 @@
     "zh": "MathDx Solver LTO生成与产物对照",
     "en": "Generate MathDx solver LTO and match the frozen artifacts"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "按用户 2026-10-24 裁决 A 落地 MathDx LTO 接入（仅 Windows）：用 Rust 动态加载 libmathdx 0.3.1 的 mathdx64_0.dll，手写 cusolverdx 描述符 API 的 C ABI（cusolverdxCreateDescriptor/SetOperator*/GetLTOIR*/GetUniversalFATBIN*/DestroyDescriptor），复刻 Warp 1.15.0 `wp_cuda_compile_solver` 的求解器参数，生成 7 维 POTRF 的 LTOIR/FATBIN；与冻结离线证据逐字节对照后，再复用 W13 nvJitLink 绑定把「调用 LTOIR + MathDx LTOIR + FATBIN」链接成 CUBIN，跑 GPU 探针对照设备输出。不改产品物理配方、f32 路径、容差与既有 PTX/cubin 编译路径。",
     "en": "Implement MathDx LTO integration (Windows only) per the 2026-10-24 decision A: dynamically load libmathdx 0.3.1's mathdx64_0.dll from Rust with a hand-written C ABI for the cusolverdx descriptor API (create/set-operator/get-LTOIR/get-universal-FATBIN/destroy), mirror Warp 1.15.0's `wp_cuda_compile_solver` parameters, and generate the 7-D POTRF LTOIR/FATBIN. Byte-compare with the frozen offline evidence, then reuse the W13 nvJitLink binding to link call-LTOIR + MathDx-LTOIR + FATBIN into a CUBIN and verify the device output in a GPU probe. Do not change physics recipes, f32 paths, tolerances or the existing PTX/cubin compile path."
@@ -41,11 +41,12 @@
   },
   "note": "用户 2026-10-24 裁决 A 的代码落地。关键事实：libmathdx 0.3.1 包内 bin/mathdx64_0.dll 提供 cusolverdx 描述符 API（Warp 1.15.0 `warp.cu` 的 wp_cuda_compile_solver 就是走这个 API，不是 NVRTC 编译源码）；因此本任务走 Rust 动态绑定而不是移植 codegen。先完成 2026-10-24-mathdx-libmathdx-prep 再 start 本任务。只做 Windows；Linux 归集中回测。分发口径：SDK 二进制只在 target/，产品分发另议。若产物与冻结证据有差异，按有界纪律停手报 Chief。",
   "revision": {
-    "before": null,
+    "before": "2025a5777e54d6b020359f77a84761a8c3f2f198",
     "after": null
   },
   "created_at": "2026-10-23T19:22:00.000Z",
-  "updated_at": "2026-10-23T19:22:00.000Z",
+  "updated_at": "2026-10-23T19:22:11.632Z",
+  "closed_at": "2026-10-23T19:22:11.632Z",
   "checks": [
     {
       "kind": "gate",

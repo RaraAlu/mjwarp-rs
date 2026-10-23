@@ -2,7 +2,7 @@
 uid = "4098c702"
 id = "mjwarp.runtime"
 tags = ["planned", "engine", "runtime"]
-fingerprint = "64f3630cb39766aa504e23c91500287c5d87b3fd1d6880ce4a7e5c7797a2b643"
+fingerprint = "2e92f2623551f8bc48d89be488871e409a9f9aefd5544c792aba8d56a46a31b2"
 
 [name]
 zh = "GPU运行时"
@@ -207,6 +207,18 @@ path = "src/runtime/launcher/artifact/ltoir/tests.rs"
 
 [[source]]
 path = "tests/compile_ltoir_probe.rs"
+
+[[source]]
+path = "src/runtime/launcher/mathdx.rs"
+
+[[source]]
+path = "src/runtime/launcher/mathdx/ffi.rs"
+
+[[source]]
+path = "src/runtime/launcher/mathdx/tests.rs"
+
+[[source]]
+path = "tests/mathdx_solver_probe.rs"
 +++
 
 ## P1局部实现

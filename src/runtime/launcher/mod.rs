@@ -17,6 +17,8 @@ mod graph;
 mod jitlink;
 mod launch;
 #[cfg(feature = "cuda-probe")]
+mod mathdx;
+#[cfg(feature = "cuda-probe")]
 mod module;
 mod recipe;
 mod submit;
@@ -49,6 +51,8 @@ pub use jitlink::{
 pub use launch::{
     DeviceSharedMemoryLimits, Kernel, KernelSpec, LaunchDims, LaunchPlan, SharedMemoryLimits,
 };
+#[cfg(feature = "cuda-probe")]
+pub use mathdx::{MATHDX_VERSION, MAX_DIM, MAX_THREADS, MathDx, SolverLto, SolverSpec};
 #[cfg(feature = "cuda-probe")]
 pub use module::{KernelHandle, ModuleCache, ModuleStats};
 pub use recipe::{ArchTarget, CompileRecipe, CppStd, PrecisionGate, RecipePurpose};
