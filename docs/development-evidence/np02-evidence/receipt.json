@@ -1,0 +1,301 @@
+{
+    "schema":  1,
+    "task_id":  "2026-10-24-np02-missing-capture",
+    "title":  "NP02 缺失内核补采（Windows 单平台）",
+    "date":  "2026-10-24",
+    "head_commit":  "dae32b645d24133479e61a9d25e7cb6acae37b31",
+    "capture":  {
+                    "tool":  "src/runtime/transfer/kernel/ptx.rs record_physics_ptx（产品现有捕获管线）",
+                    "pipeline":  "cargo test --locked --features cuda-probe --lib \u003cfilter\u003e -- --ignored --test-threads=1，MJWARP_PHYSICS_PTX_DIR 指定捕获根",
+                    "env":  {
+                                "CUDA_PATH":  "target/toolchains/cuda-12.8.1",
+                                "MJWARP_MUJOCO_ROOT":  "target/toolchains/mujoco-3.12.0/package",
+                                "MJWARP_MUJOCO_DLL":  ".../bin/mujoco.dll",
+                                "report_env":  [
+                                                   "MJWARP_MUL_M_REPORT",
+                                                   "MJWARP_RESIDENT_MIXED_REPORT",
+                                                   "MJWARP_MIXED_FACTOR_REPORT",
+                                                   "MJWARP_MIXED_SOLVE_REPORT"
+                                               ]
+                            },
+                    "commands":  [
+                                     "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib physics::passive_force -- --ignored --test-threads=1",
+                                     "... physics::mass_matrix::multiply ...",
+                                     "... physics::mass_solve::sparse::resident ..."
+                                 ],
+                    "results":  {
+                                    "passive_force":  "5 过 0 败（15.11s）",
+                                    "mass_matrix_multiply":  "7 过 0 败（17.30s）",
+                                    "mass_solve_sparse_resident":  "2 过 0 败（1.87s）",
+                                    "wall_total_seconds":  34.3
+                                }
+                },
+    "receipts":  [
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/fluid_force_clear-1e0010fe2229eda10e2842cf58e026ff3c4b4307f523634c785dea2b376c6a53.json",
+                         "fileSha256":  "02b6ad7e13c4ce14aa26588cae1585c118ccf55b880d5817da67c3247382210e",
+                         "entry":  "fluid_force_clear",
+                         "ptxSha256":  "1e0010fe2229eda10e2842cf58e026ff3c4b4307f523634c785dea2b376c6a53",
+                         "sourceSha256":  "c3307af8fe598447aaea83625f58218623bfb4faab60636995c23b7196bec1a3",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     },
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/fluid_force_clear-ecc6320fddc7c1fef9b171e3977261913ae36c29f3e38a8f63a2041821196603.json",
+                         "fileSha256":  "9516800b9a8a83b9fa1faffc3f3af6621a7b6e65c1781cf0daaaa7163b129e62",
+                         "entry":  "fluid_force_clear",
+                         "ptxSha256":  "ecc6320fddc7c1fef9b171e3977261913ae36c29f3e38a8f63a2041821196603",
+                         "sourceSha256":  "f77e34f859aab178a88929888f15308b1e9de8cc649ef66f2a2ebee1530ceebd",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     },
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/mass_multiply-dc8ea76f272f973c517d5e80cc47c5e0480be7520f367fe3fe36ef8e419fbaab.json",
+                         "fileSha256":  "e53e2dbe0212a2f2ddd24b01e09307751f026db488154b353826d1aa7d7ea13b",
+                         "entry":  "mass_multiply",
+                         "ptxSha256":  "dc8ea76f272f973c517d5e80cc47c5e0480be7520f367fe3fe36ef8e419fbaab",
+                         "sourceSha256":  "77df4ec1e8692e58e2da31687365390a42f2999b04c15ca1732f1730a0b033f1",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     },
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/mass_multiply-dfa99a6fdcca4a4fa70e9e98753c8e0f2a1504fc925d68f9ac921e999b3a590b.json",
+                         "fileSha256":  "760e4de4c79e5048498d4a9aadaf8e8b9751915b8d40fd7411810f427c2d26cd",
+                         "entry":  "mass_multiply",
+                         "ptxSha256":  "dfa99a6fdcca4a4fa70e9e98753c8e0f2a1504fc925d68f9ac921e999b3a590b",
+                         "sourceSha256":  "c7e258d4c62b4a0bb653d668c4e992320c66b05a9f84cea22268959d7aa1f291",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     },
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/mass_multiply-ed0094a033339911be6e298251b52b2e04d054172783212c44ab26e6cf63db6e.json",
+                         "fileSha256":  "9b5a23a7375a6a3bc57b3e3a7170ff8b439805b38e1c8ae15bf494a39766ea9a",
+                         "entry":  "mass_multiply",
+                         "ptxSha256":  "ed0094a033339911be6e298251b52b2e04d054172783212c44ab26e6cf63db6e",
+                         "sourceSha256":  "c0edfdb52079f65ec76fe71578797fa3dbea8a5772b4c195711284dddfe33f24",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     },
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/mass_multiply_validate-dc8ea76f272f973c517d5e80cc47c5e0480be7520f367fe3fe36ef8e419fbaab.json",
+                         "fileSha256":  "93815f39fef2419f3b9f68c52026f132d0e04171933601ccc71570e91cb0eed6",
+                         "entry":  "mass_multiply_validate",
+                         "ptxSha256":  "dc8ea76f272f973c517d5e80cc47c5e0480be7520f367fe3fe36ef8e419fbaab",
+                         "sourceSha256":  "77df4ec1e8692e58e2da31687365390a42f2999b04c15ca1732f1730a0b033f1",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     },
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/mass_multiply_validate-dfa99a6fdcca4a4fa70e9e98753c8e0f2a1504fc925d68f9ac921e999b3a590b.json",
+                         "fileSha256":  "a36ddd55d2254fc2986adb77f9057f3ea41ddfa91400e476b13cffe5777bb35a",
+                         "entry":  "mass_multiply_validate",
+                         "ptxSha256":  "dfa99a6fdcca4a4fa70e9e98753c8e0f2a1504fc925d68f9ac921e999b3a590b",
+                         "sourceSha256":  "c7e258d4c62b4a0bb653d668c4e992320c66b05a9f84cea22268959d7aa1f291",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     },
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/mass_multiply_validate-ed0094a033339911be6e298251b52b2e04d054172783212c44ab26e6cf63db6e.json",
+                         "fileSha256":  "25888d2757791bea80ccebdd60c9ecf73d30b1aba2e567595fd3c0eb97de279e",
+                         "entry":  "mass_multiply_validate",
+                         "ptxSha256":  "ed0094a033339911be6e298251b52b2e04d054172783212c44ab26e6cf63db6e",
+                         "sourceSha256":  "c0edfdb52079f65ec76fe71578797fa3dbea8a5772b4c195711284dddfe33f24",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     },
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/passive_force_add_fluid-e0bbb7238bb63c46b4612c2e8f8210db9d76e9c42dfbae24949232239514fb9d.json",
+                         "fileSha256":  "5892c8deaa9126b8e950c677cec0cf8d5319afea751a576e1f5aca6aee4f3021",
+                         "entry":  "passive_force_add_fluid",
+                         "ptxSha256":  "e0bbb7238bb63c46b4612c2e8f8210db9d76e9c42dfbae24949232239514fb9d",
+                         "sourceSha256":  "acbf7601c12e9897485bd300f431f052147117556f7be0583785df3b29f92b0d",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     },
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/resident_sparse_gather-c42c538e734fe08c6f0d51878062dcc534c5530c4353584d890c630bc58b2525.json",
+                         "fileSha256":  "7c7f393b50344e53277c1fcfe1283c395056b53f4c2307a4d39b27bbd2c313e4",
+                         "entry":  "resident_sparse_gather",
+                         "ptxSha256":  "c42c538e734fe08c6f0d51878062dcc534c5530c4353584d890c630bc58b2525",
+                         "sourceSha256":  "f26f8146aae96cedf78ff2b76f9ce5b5593a573c20c2b70b534f50b8f38f4a30",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     },
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/resident_sparse_validate-c42c538e734fe08c6f0d51878062dcc534c5530c4353584d890c630bc58b2525.json",
+                         "fileSha256":  "ece21d99cf6042f5dff7fe2878c9713481d7982a4f8c91f648283628620e4867",
+                         "entry":  "resident_sparse_validate",
+                         "ptxSha256":  "c42c538e734fe08c6f0d51878062dcc534c5530c4353584d890c630bc58b2525",
+                         "sourceSha256":  "f26f8146aae96cedf78ff2b76f9ce5b5593a573c20c2b70b534f50b8f38f4a30",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     },
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/sparse_solve_fused-774db15acb46452aeeaf5d024366917ca93590e0549c104e2228cc46cd4b3f29.json",
+                         "fileSha256":  "f846463dfb9b66c89e1b073b285591a838e65ae3e22bc6cec22e87fd4aab8f1c",
+                         "entry":  "sparse_solve_fused",
+                         "ptxSha256":  "774db15acb46452aeeaf5d024366917ca93590e0549c104e2228cc46cd4b3f29",
+                         "sourceSha256":  "710ff34dcd875de4eb8b5ee8ba5ffebbc8519db95b503674844b2a71461ef1f6",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     },
+                     {
+                         "path":  "docs/development-evidence/np02-evidence/missing-capture/receipts/sparse_solve_validate-774db15acb46452aeeaf5d024366917ca93590e0549c104e2228cc46cd4b3f29.json",
+                         "fileSha256":  "b5cabfb2ad6924c90073130b7863724bfa44bb754986c3e9fb320a2f0c011adf",
+                         "entry":  "sparse_solve_validate",
+                         "ptxSha256":  "774db15acb46452aeeaf5d024366917ca93590e0549c104e2228cc46cd4b3f29",
+                         "sourceSha256":  "710ff34dcd875de4eb8b5ee8ba5ffebbc8519db95b503674844b2a71461ef1f6",
+                         "options":  [
+                                         "--std=c++17",
+                                         "--gpu-architecture=compute_70"
+                                     ],
+                         "fmad":  true,
+                         "useFastMath":  false,
+                         "nvrtcVersion":  [
+                                              12,
+                                              8
+                                          ],
+                         "precisionGate":  "f32-physics",
+                         "passed":  true,
+                         "ptxEntityOk":  true
+                     }
+                 ],
+    "boundaries":  [
+                       "只补采缺失 entry，不改产品/测试/容差/fixtures；未用旧名回退或伪造",
+                       "捕获原始产物保留在 target/np02-capture/final（未入库），入库为 13 份回执 + PTX/CU 实体",
+                       "未跑全量 G01；GPU 独占使用（本轮仅上述三次定向 GPU 测试）",
+                       "证据目录行尾由目录内 .gitattributes 固定 -text -diff，避免 CRLF 转换破坏哈希"
+                   ]
+}

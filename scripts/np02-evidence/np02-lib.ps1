@@ -35,6 +35,9 @@ function Invoke-ReceiptAudit([string]$ProductRoot, $ReceiptsIndex) {
             $ptxOk = ($ptxHash -eq $r.ptxSha256)
             $ptxPathRel = Get-RepoRel $ProductRoot $ptxPath
         }
+        $cuPath = Join-Path (Split-Path -Parent $full) ("{0}-{1}.cu" -f $r.entry, $r.ptxSha256)
+        $cuPathRel = if (Test-Path -LiteralPath $cuPath) { Get-RepoRel $ProductRoot $cuPath } else { '' }
+        $cuHashOk = if ($cuPathRel) { (Get-Sha256File $cuPath) -eq $r.sourceSha256 } else { $false }
         $rows += [pscustomobject]@{
             path = $r.path
             entry = $r.entry
@@ -48,6 +51,8 @@ function Invoke-ReceiptAudit([string]$ProductRoot, $ReceiptsIndex) {
             fileHashOk = $ok
             ptxEntity = $ptxPathRel
             ptxEntityOk = $ptxOk
+            cuEntity = $cuPathRel
+            cuEntityHashOk = $cuHashOk
         }
     }
     return [pscustomobject]@{ Rows = $rows; Verified = $verified; Failed = $failed }
@@ -78,13 +83,17 @@ function Get-SourceUnits([string]$ProductRoot, [hashtable]$ExcludedFiles) {
                 $sourcePath = Get-RepoRel $ProductRoot $incFull
             }
             if ([string]::IsNullOrEmpty($sourceText)) { continue }
-            $kernels = @($kernelPattern.Matches($sourceText) | ForEach-Object { $_.Groups['name'].Value })
+            # rustc 读取源码时把 CRLF 规范化为 LF（字符串字面量同样生效），捕获源哈希按 LF 口径；
+            # 工作区可能因 core.autocrlf 检出为 CRLF，这里统一按 LF 规范化后再比对。
+            $normalized = $sourceText -replace "`r`n", "`n"
+            $kernels = @($kernelPattern.Matches($normalized) | ForEach-Object { $_.Groups['name'].Value })
             if ($kernels.Count -eq 0) { continue }
             $units += [pscustomobject]@{
                 relFile = $relFile
                 path = $sourcePath
                 const = $m.Groups['name'].Value
-                sha256 = Get-Sha256Text $sourceText
+                sha256 = Get-Sha256Text $normalized
+                text = $normalized
                 kernels = $kernels
             }
         }

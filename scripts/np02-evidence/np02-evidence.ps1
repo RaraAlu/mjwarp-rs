@@ -54,7 +54,22 @@ $routeReceipt = Read-Json (Resolve-RepoPath $spec.inputs.kernel_source_route_rec
 $routeProbe = Read-Utf8 (Resolve-RepoPath $spec.inputs.kernel_source_route_probe)
 $routeG01Probe = Read-Utf8 (Resolve-RepoPath $spec.inputs.kernel_source_route_g01_probe)
 
-# ---------- 3. 回执索引复核（逐份实体哈希） ----------
+# ---------- 3. 回执索引复核（逐份实体哈希；含补采索引） ----------
+$extraIndexPath = $null
+if ($spec.inputs.PSObject.Properties.Name -contains 'receipt_extra' -and $spec.inputs.receipt_extra) {
+    $candidate = Join-Path $ProductRoot $spec.inputs.receipt_extra
+    if (Test-Path -LiteralPath $candidate) {
+        $extra = Read-Json $candidate
+        if ($extra.PSObject.Properties.Name -contains 'receipts') {
+            $extraIndexPath = $spec.inputs.receipt_extra
+            $receiptsIndex = [pscustomobject]@{
+                schema = $receiptsIndex.schema
+                note = "主索引 + 补采索引（$extraIndexPath）"
+                receipts = @($receiptsIndex.receipts) + @($extra.receipts)
+            }
+        }
+    }
+}
 $audit = Invoke-ReceiptAudit -ProductRoot $ProductRoot -ReceiptsIndex $receiptsIndex
 $receiptRows = $audit.Rows
 $receiptVerified = $audit.Verified
@@ -120,6 +135,19 @@ foreach ($unit in $sourceUnits) {
         $t4 = if ($t4ByEntry.ContainsKey($k)) { @($t4ByEntry[$k]) } else { @() }
         $ptxVerified = @($evidence | Where-Object { $_.ptxEntityOk })
         $srcMatch = @($evidence | Where-Object { $_.sourceSha256 -eq $unit.sha256 }).Count -gt 0
+        $identityBasis = if ($srcMatch) { 'source-sha256（编译源 = 当前 const 源）' } else { 'source-sha256-mismatch' }
+        if (-not $srcMatch -and $evidence.Count -gt 0) {
+            # 参数化/拼接编译单元（#define 前导、多源拼接）：捕获的 .cu 实体须完整包含当前 const 源文本
+            foreach ($e in $evidence) {
+                if ([string]::IsNullOrEmpty($e.cuEntity) -or -not $e.cuEntityHashOk) { continue }
+                $cuText = Read-Utf8 (Join-Path $ProductRoot $e.cuEntity)
+                if ($cuText.Contains($unit.text)) {
+                    $srcMatch = $true
+                    $identityBasis = 'captured-cu-contains-current-const（参数化/拼接编译单元）'
+                    break
+                }
+            }
+        }
         $state = if ($evidence.Count -eq 0) { 'missing' } elseif ($renamedFrom.Count -gt 0) { 'renamed-evidence' } elseif ($srcMatch) { 'verified' } else { 'source-drift' }
         $kernelRows += [pscustomobject]@{
             id = "kernel:$k"
@@ -150,6 +178,7 @@ foreach ($unit in $sourceUnits) {
             }
             evidence_state = $state
             source_identity_matches_capture = $srcMatch
+            identity_basis = $identityBasis
             upstream = [ordered]@{ mjwarp_revision = $spec.pins.mjwarp.revision; np01_module = $null; functions = @(); header_paths = @() }
             conclusion = switch ($state) {
                 'verified' { '证据完整：回执存在且与当前源码身份一致（PTX 实体在仓者逐一复核哈希）' }
@@ -355,7 +384,7 @@ foreach ($row in $missing) {
     $gapItems += [ordered]@{ id = $row.id; name = $row.name; status = '缺失证据'; route = $row.route; module = $row.module; reason = $row.conclusion }
 }
 foreach ($row in $sourceDrift) {
-    $gapItems += [ordered]@{ id = $row.id; name = $row.name; status = '源身份漂移'; route = $row.route; module = $row.module; reason = $row.conclusion; evidence_paths = @($row.artifact.evidence_paths) }
+    $gapItems += [ordered]@{ id = $row.id; name = $row.name; status = '已知漂移（裁决 B：历史版本证据，不重采不重基线）'; route = $row.route; module = $row.module; reason = $row.conclusion; evidence_paths = @($row.artifact.evidence_paths) }
 }
 foreach ($row in $derived) {
     $gapItems += [ordered]@{ id = $row.id; name = $row.name; status = '派生（证据由基核承担）'; route = $row.route; module = $row.module; reason = $row.conclusion; base = $row.source.derived_from; evidence_paths = @($row.artifact.evidence_paths) }
@@ -400,6 +429,7 @@ $inventory = [ordered]@{
     pins = $pinReport
     inputs = [ordered]@{
         receipts_index = $spec.inputs.receipts_index
+        receipt_extra = $extraIndexPath
         receipts_total = $receiptRows.Count
         receipts_file_hash_ok = $receiptVerified
         receipts_failed = $receiptFailedItems.Count
@@ -454,8 +484,8 @@ if ($Check) {
 } else {
     if (-not (Test-Path -LiteralPath $outFull)) { New-Item -ItemType Directory -Force -Path $outFull | Out-Null }
     $utf8 = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText((Join-Path $outFull 'inventory.json'), ($inventory | ConvertTo-Json -Depth 12), $utf8)
-    [System.IO.File]::WriteAllText((Join-Path $outFull 'gap.json'), ($gapDoc | ConvertTo-Json -Depth 8), $utf8)
+    [System.IO.File]::WriteAllText((Join-Path $outFull 'inventory.json'), (($inventory | ConvertTo-Json -Depth 12) -replace "`r`n", "`n"), $utf8)
+    [System.IO.File]::WriteAllText((Join-Path $outFull 'gap.json'), (($gapDoc | ConvertTo-Json -Depth 8) -replace "`r`n", "`n"), $utf8)
     Write-Output ("已写出：{0}、{1}" -f (Join-Path $outFull 'inventory.json'), (Join-Path $outFull 'gap.json'))
 }
 
