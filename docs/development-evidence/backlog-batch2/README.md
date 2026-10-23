@@ -22,6 +22,9 @@ warnings/unit` 门禁、path-limited 提交、Normify 范围与回执、证据/�
 各任务证据目录：`docs/development-evidence/backlog-batch2/<task-id>/`（README +
 authoring.json，A08/A10 无 authoring）；回执：`docs/development-evidence/changes/<task-id>.json`。
 
+批次 3 任务（`g08-p5`、`g18-p6`、`g24-p7`）的证据不属于本批，已原样迁至
+`docs/development-evidence/backlog-batch3/`；本目录只保留批次 2 的 7 条证据目录。
+
 ## 2. 顺延 1 条：`r01-p8` 渲染上下文（Chief 裁决 A）
 
 - 任务保持 `proposed`、未启动；note 已登记阻塞原因（`ed7de14`）。
