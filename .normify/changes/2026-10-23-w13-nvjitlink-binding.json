@@ -38,10 +38,49 @@
       "src/runtime/launcher",
       "scripts/prepare-cuda-probe.ps1",
       "LICENSES",
+      "THIRD_PARTY_NOTICES.md",
+      "Cargo.toml",
+      "Cargo.lock",
+      "tests/",
+      "docs/unified-launcher.md",
+      "docs/project-positioning.md",
+      "docs/three-layer-acceptance.md",
       "docs/development-evidence/w13-nvjitlink/"
     ]
   },
-  "note": "只登记，未 start；等用户裁决 nvJitLink 许可与部署方式。前置评审已 verified（layers-m7-link）。实施后需重钉 T4 源码身份、重跑双模式门禁。外部前置：CUDA Toolkit EULA 是否允许随二进制再分发、或无系统 CUDA 时的组件钉死方案。 | 资源核实 2026-10-23：gpu:windows-t4 本机可满足；但需用户先裁决 nvJitLink 许可与部署方式（外部组件/许可），裁决前不宜启动。",
+  "note": "只登记，未 start；等用户裁决 nvJitLink 许可与部署方式。前置评审已 verified（layers-m7-link）。实施后需重钉 T4 源码身份、重跑双模式门禁。外部前置：CUDA Toolkit EULA 是否允许随二进制再分发、或无系统 CUDA 时的组件钉死方案。 | 资源核实 2026-10-23：gpu:windows-t4 本机可满足；但需用户先裁决 nvJitLink 许可与部署方式（外部组件/许可），裁决前不宜启动。\n\n2026-10-24 用户裁决 A（引入并实施）：按 W13 评审的前置 7 项落地自建 nvJitLink 动态绑定，仅 Windows；Linux 部分按 2026-10-24 决定 deferred、并入 2026-10-24-linux-batch-retest，本任务不评审 Linux 部署。部署口径：随构建缓存固定组件——prepare-cuda-probe.ps1 按既有组件模式补 cuda_nvjitlink（须与 CUDA 12.8.1 manifest 匹配），把 version/license/url/sha256 记入 components.json；运行期从 target/toolchains/cuda-12.8.1/bin 或显式配置的用户 CUDA 路径加载，启动核对版本并显式报错、不静默回退、不依赖 Python/venv/warp.dll。仓库不提交 SDK 二进制（只进 target/ 忽略目录）；LICENSES/ 与 THIRD_PARTY_NOTICES.md 登记 CUDA Toolkit EULA 文本与第三方通知（不臆造条款，来源如实记录）。不改 f32/容差/内核字符串，不放宽断言。完成后如改动产品源码，按需重钉 T4 源码身份并由 QA 另立任务复跑 G01 debug/release 双模式。",
   "created_at": "2026-10-23T02:55:00.000Z",
-  "updated_at": "2026-10-23T02:55:00.000Z"
+  "updated_at": "2026-10-23T16:47:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/w13-nvjitlink/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-w13-nvjitlink-binding"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "允许再分发",
+        "已通过Linux",
+        "跳过版本核对"
+      ]
+    }
+  ]
 }
