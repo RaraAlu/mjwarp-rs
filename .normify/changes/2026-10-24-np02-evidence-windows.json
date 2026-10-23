@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-np02-evidence-windows",
+  "title": {
+    "zh": "NP02证据清单与缺口登记（Windows）",
+    "en": "NP02 evidence inventory and gap register (Windows)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "补齐 NP02 证据门禁的 Windows 单平台部分：用只读脚本扫描产品已实现的内核与配方，逐项登记来源类型、源码摘要、编译选项与顺序、arch、NVRTC/nvJitLink 版本、产物（PTX/cubin）摘要与证据路径、上游参考（MJWarp 71da24d… 的模块/函数、Warp v1.15.0 内核），产出 inventory.json 与 gap.json；Windows 已实现路径要求证据覆盖 100%、缺失 0，未实现路径与 Linux 侧如实列缺口/不适用。只做证据与工具，不改产品、不宣称完整 NP02 通过。",
+    "en": "Complete the Windows-only part of the NP02 evidence gate: a read-only script inventories implemented kernels and recipes with source route, source digest, compile options/order, arch, NVRTC/nvJitLink versions, artifact (PTX/cubin) digests plus evidence paths, and upstream references (MJWarp 71da24d… modules/functions, Warp v1.15.0 kernels), producing inventory.json and gap.json. Windows implemented paths must reach 100% coverage and zero missing evidence; unimplemented paths and Linux are registered as explicit gaps/not-applicable. Evidence and tooling only; no product changes and no claim that full NP02 passes."
+  },
+  "modules": {},
+  "acceptance": [
+    "只读脚本进仓（`scripts/np02-evidence/`，Rust 或 PowerShell，不得启动 Python）：输入产品源码根与证据根，输出 `inventory.json`（内核/配方名、来源类型、源码摘要、编译选项与顺序、arch、NVRTC/nvJitLink/libmathdx 版本、产物 PTX/cubin 摘要、证据路径、上游参考、结论）与 `gap.json`（缺失/未实现/不适用项）。",
+    "覆盖口径：Windows 单平台**已实现**路径逐项必须有证据（缺失 0，覆盖 100%）；未实现路径（渲染/BVH、地形/SDF、GJK/EPA、flex 碰撞、constraint、solver、island 等）列「未实现」；Linux 侧列「deferred」；均不计入 Windows 缺失但必须列出。",
+    "上游参考须落到具体来源：冻结 MJWarp `71da24d956378a87a703b6e1442b13aec0c4ac29` 的模块/函数与 Warp `v1.15.0`（`ffa038b1adf3927a8e893d4536f1a7562f17d749`）内核；不得用「文件未改」替代实际产物核对；无法判定项列「未判定」并写明原因。",
+    "结论口径：只写「Windows 已实现路径覆盖数/缺失数 + 缺口清单 + 未判定清单」；缺口为 0 时也只能表述为 Windows 范围内为 0，**不得写完整 NP02 通过或双平台通过**。",
+    "证据写 docs/development-evidence/np02-evidence/（README + inventory.json + gap.json，含复现命令与真实数字，inventory.json 含 task_id）；不改产品源码/测试/容差/fixtures；门禁 fmt、unchanged（src/tests/fixtures/Cargo.*）与 json 检查通过；中文 path-limited 提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P11-精度门禁",
+    "owner": "QA",
+    "files": [
+      "scripts/",
+      "docs/development-evidence/np02-evidence/"
+    ],
+    "resources": [],
+    "priority": 10
+  },
+  "note": "用户 2026-10-24 选择继续走完 part 3（编译链收口）后的 NP02 前置证据。只做 Windows 单平台、只读扫描与清单登记；引用 NP01 映射（2026-10-24-np01-field-precision-map）与内核来源路线（2026-10-24-kernel-source-route-mathdx-wire）的产物键口径；不跑全量 G01（按用户新节奏，全量只在 g03-parity 收口里程碑跑一次）。Linux deferred，并入集中回测。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T20:36:00.000Z",
+  "updated_at": "2026-10-23T20:36:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np02-evidence/inventory.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-np02-evidence-windows"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP02完整验收",
+        "双平台通过",
+        "NP02已通过"
+      ]
+    }
+  ]
+}
