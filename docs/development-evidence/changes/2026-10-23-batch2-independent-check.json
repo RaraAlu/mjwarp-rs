@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-batch2-independent-check",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/batch2-independent-check/README.md",
+      "blob": "1edb203326520430ed7d09233a7d2dc0c240df47"
+    }
+  ],
+  "results": {
+    "scope": "批次 2 七条交付（g07-p5/g16-p6/g20-p7/g21-p7/g23-p7/a08-p10/a10-p10）与 r01-p8 顺延记录独立复核",
+    "verdict": "七条数值/契约声明均被证据与独立复跑支持；r01-p8 顺延记录如实、无交付声明；未发现伪造/容差放宽/acceptance 削弱/模块归属错误；发现 1 条一般级回执 blob 追溯差异 + 1 条建议级文档标注问题，无阻断。",
+    "claims_checked": {
+      "g07-p5": {"claim": "47 用例候选集合逐案相等；原生接触对 27/27 包含；边距 6/6 计数相等", "evidence": "fixture 47 cases + authoring native_cross_check{27,27,0,6,6} + collision/tests.rs:226", "rerun": "lib collision 5/0"},
+      "g16-p6": {"claim": "euler 位型 64/72、RK4 67/72、max abs 5.96e-08；原生 1.19e-07/6.26e-06", "evidence": "authoring native_cross_check + fixture tolerance{upstream_mul:1,native_abs:1e-5}", "rerun": "lib integrator 3/0"},
+      "g20-p7": {"claim": "qfrc_inverse 1.91e-06；原生 2.62e-06；回代 2.62e-06", "evidence": "receipt comparison + fixture tolerance{1e-5,1e-5,1e-5}", "rerun": "lib inverse（模块 2 项）全过"},
+      "g21-p7": {"claim": "18/18 逐位一致；上游 f32 差分 1.55e-06；原生 f64 差分 4.67e-08", "evidence": "authoring analytic_vs_finite_difference + fixture tolerance{1e-6,1e-4}", "rerun": "lib derivative 2/0"},
+      "g23-p7": {"claim": "sensordata 1.19e-07；原生 5.96e-08；cutoff 0.8→0.4", "evidence": "receipt + fixture tolerance{1e-6,1e-5} + 3 用例", "rerun": "lib sensor 2/0"},
+      "a08-p10": {"claim": "指针==原缓冲+offset；5 类拒绝", "evidence": "src/runtime/external/view/tests.rs 5 测试 + 回执 verification", "rerun": "lib external::view 5/0"},
+      "a10-p10": {"claim": "JSON 往返/拒绝面/公开 API 冒烟", "evidence": "src/runtime/tooling/tests.rs 5 测试 + 回执", "rerun": "lib tooling 5/0"}
+    },
+    "reruns": {
+      "collision": "5 passed 0 failed",
+      "integrator": "3 passed 0 failed",
+      "inverse": "4 passed 0 failed（inverse 模块 2 项 + 2 项跨模块同名匹配）",
+      "derivative": "2 passed 0 failed",
+      "sensor": "2 passed 0 failed",
+      "external::view": "5 passed 0 failed",
+      "tooling": "5 passed 0 failed",
+      "full_unit_gate_command": "cargo test --locked -> 461 passed 0 failed（82 result 行）",
+      "lib_only": "cargo test --locked --lib -> 341 passed 0 failed"
+    },
+    "sha256_check": {"model_files_checked": 8, "matching_authoring": 8, "files": ["broadphase mixed/filters/margin/mesh.xml", "integrator/model.xml", "inverse/model.xml", "deriv/model.xml", "sensor/model.xml"]},
+    "receipt_blob_check": {"receipts_checked": 7, "clean": 6, "mismatch": [{"task": "2026-10-11-roadmap-g20-p7", "file": "README.md", "receipt_blob": "ecd16262…", "committed_blob": "2638ad1c…"}]},
+    "compliance": {
+      "checks": "七条均含 gate fmt/clippy/unit、unchanged、json、forbid_claim；gate 运行记录 passed=true。",
+      "acceptance_relaxed": false,
+      "acceptance_note": "细化提交仅追加切片说明/边界；交付提交 acceptance 0 行改动；未删除验收要求、未放宽容差。",
+      "module_ownership": "G07/G16/G20/G21/G23→mjwarp.physics.core；A08→mjwarp.runtime.external；A10→mjwarp.runtime+runtime.tooling，均与代码位置一致。"
+    },
+    "r01_deferral": {
+      "status": "proposed（未启动、未交付）",
+      "evidence_dir": "无",
+      "note_truthful": true,
+      "index_consistent": "docs/development-evidence/backlog-batch2/README.md §2 顺延说明一致，无交付声明",
+      "commits": "ed7de14 仅改任务 note",
+      "delivery_claim_found": false
+    },
+    "discrepancies": [
+      {"severity": "一般", "item": "g20-p7 README 回执 blob 与提交内文件不一致", "detail": "receipt ecd16262… vs committed 2638ad1c…；README 仅在 a10aea5 添加后未改，内容与 fixture/测试一致；建议按 §9 回执口径用 normify fix 记录权威值并刷新回执", "blocks": false},
+      {"severity": "建议", "item": "批次 2 索引/A10 回执把 unit 门禁命令写成 `cargo test --locked --lib`（461）", "detail": "实际 gates.toml 的 unit 命令为 `cargo test --locked`（全目标，461）；`--lib` 单独为 341。数字无误，命令名/口径需修正", "blocks": false}
+    ],
+    "blocking_issues": 0
+  },
+  "note": "独立复核批次 2 七条交付与 r01-p8 顺延记录：逐条核对声明、独立复跑对应 lib 测试、抽验 8 个模型 sha256、核对回执 blob/checks/acceptance/模块归属，并核对 r01-p8 顺延记录是否如实。结论：七条声明成立、r01 顺延如实、无阻断问题；发现 g20-p7 README 回执 blob 追溯差异（一般）与 unit 门禁命令标注错误（建议）。未改产品/测试/容差/fixtures/回执；未碰批次 3。",
+  "boundaries": [
+    "只读复核 + 证据目录；未改产品/测试/容差/fixtures/回执；未 start/回退任务。",
+    "未重新生成 offline authoring 参考（需 pinned venv + GPU）；未复核 GPU 内核（七条均 host 侧切片）。",
+    "未碰 Backend 正在做的批次 3（g08-p5 等 5 条）。"
+  ]
+}
