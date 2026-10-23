@@ -12,7 +12,7 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.physics"
+      "mjwarp.physics.core"
     ]
   },
   "acceptance": [
@@ -21,23 +21,89 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "本片只覆盖所列阶段。",
+    "新增计划 API `physics::integrator::discrete` 与 `discrete_acc` 的宿主侧切片：`discrete` = 上游 `_advance(m, d, d.qacc)`（先用 qacc 推进速度、再用新速度推进位置并 `time += timestep`，quat 积分复用 G16 实现）；`discrete_acc` 实现恒等分支（DISCRETE 积分器 / 禁用 EULERDAMP 的 EULER），有效度量 `(M + dt·diag(damping))` 求解分支显式拒绝。",
+    "有效度量与约束一致性：冻结模型（ball+hinge+slide 三关节、integrator=DISCRETE、无自由关节，nq=6/nv=5）2 组状态；上游 `forward` 产生 qacc 后 `discrete` 单步 qpos/qvel/time 与产品对照（FMA 末位差按 1e-6 冻结容差，位型一致率记录）；原生 f64 `mj_forward` + `_next_velocity` 公式 + `mj_integratePos` 一级判定（1e-5）；恒等分支位型与拒绝面断言。约束求解与有效度量求解分支在边界登记。",
+    "未验收边界：`(M + dt·diag(damping))` 有效度量求解分支、IMPLICITFAST 的 deriv_smooth_vel+factor-solve、`_launch_discrete_free_gyro` 自由体陀螺修正、约束求解与约束一致性、`check_discrete` 配置校验、GPU 内核与图执行均不做并如实登记。",
+    "NP01：新增路径全 f32；NP02：记录冻结上游提交、`forward`/`discrete` 函数名、模型 sha256、关节布局与环境；NP03：原生 f64 一级判定 + MJWarp f32 二级对照；NP04 不适用（不发射内核、不跑性能）。",
+    "证据落 `docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g18-p6/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g18-p6.json`；gate fmt/clippy/unit 通过，不宣称完整 G18 或精度验收。"
   ],
   "schedule": {
     "depends_on": [
       "2026-10-11-roadmap-g16-p6"
     ],
     "phase": "P6",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/physics/integrator.rs",
+      "src/physics/integrator/discrete.rs",
+      "src/physics/integrator/discrete/",
+      "src/physics/mod.rs",
+      "fixtures/discrete/",
+      "scripts/authoring/",
+      "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g18-p6/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g18-p6.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":271,\"end\":271},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5] → 新依赖 [2026-10-11-roadmap-g16-p6]。依据：离散积分依赖基础积分；删除旧 P4/P5 聚合门禁。",
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":271,\"end\":271},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5] → 新依赖 [2026-10-11-roadmap-g16-p6]。依据：离散积分依赖基础积分；删除旧 P4/P5 聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次3）：原图只有 G18@P6 粗切片（旧计划语义：DISCRETE 步进映射；验收「有效度量与约束一致性」）。按当前代码布局，本片最小可交付 = `discrete`（`_advance(qacc)`）单步映射与 `discrete_acc` 恒等分支（DISCRETE/禁用 EULERDAMP 的 EULER），无自由关节模型避开 gyro 修正；有效度量求解分支、约束求解与 gyro 修正登记为未验收边界；不改既有产品路径、容差与测试。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-11T15:26:46.653Z",
-  "updated_at": "2026-10-23T04:57:02.228Z"
+  "updated_at": "2026-10-23T04:57:02.228Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/runtime",
+        "src/model",
+        "native",
+        "include",
+        "tests",
+        "fixtures/g01",
+        "fixtures/set-const",
+        "fixtures/local-reset",
+        "fixtures/actuation",
+        "fixtures/ray-query",
+        "fixtures/broadphase",
+        "fixtures/integrator",
+        "fixtures/inverse",
+        "fixtures/deriv",
+        "fixtures/narrowphase",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-g18-p6.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-g18-p6"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ]
 }
