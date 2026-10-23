@@ -13,7 +13,9 @@ pub use constants::{
     set_const_fixed,
 };
 mod query;
-pub use query::{GeomPrimitive, QueryError, Ray, RayHit, ray, ray_geom, rays};
+pub use query::{
+    GeomPrimitive, QueryError, Ray, RayHit, WorldGeoms, ray, ray_geom, rays, rays_batch,
+};
 mod kinetic_energy;
 pub use kinetic_energy::{
     KineticEnergyData, KineticEnergyOutput, KineticEnergyPlan, KineticEnergyVector,

@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-g28-p8",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    { "path": "src/physics/query.rs", "blob": "1372cc21e1bb4b6cfb081223ede4f2af0060e847" },
+    { "path": "src/physics/query/batch.rs", "blob": "576af74eae3f4f2cfff6e95ca8177d832293f8fc" },
+    { "path": "src/physics/query/batch/tests.rs", "blob": "ead697e9efc630e07c396184a086ef8f7049d79a" },
+    { "path": "src/physics/mod.rs", "blob": "febbf231e5ae9c19b663d4847e5cb7872c7dfdee" },
+    { "path": "fixtures/ray-query/batch-model.xml", "blob": "dc6e31dd655e4b45193cd4b7b3757fadb0c7d4c0" },
+    { "path": "fixtures/ray-query/batch-cases.json", "blob": "286503eb55a086a5bfa05b5ff4e32ccba67b2650" },
+    { "path": "scripts/authoring/author-g28-batch-query.ps1", "blob": "f1d369fc3bba7f2637fafec48c631cfd08a0aafe" },
+    { "path": "scripts/authoring/author-g28-batch-query.py", "blob": "ddf4a599c1b8b3bad620c78b561886238303e8a6" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g28-p8/README.md", "blob": "25c86db3880fade309b4cbfa6260347e2ef43ec9" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g28-p8/authoring.json", "blob": "001fc9cd7693b01c266f2e9a88a510c07993a0e5" },
+    { "path": ".normify/modules/mjwarp/physics/core.md", "blob": "ed1e92d8b5da17a860bf7d427f294dca8abc11d5" }
+  ],
+  "results": {
+    "slice": {
+      "family": "G28 查询",
+      "phase": "P8（多世界批量）",
+      "planned_api": "mjwarp_rs::physics::query::rays（U040；G28；P7/P8）",
+      "delivered": "rays_batch：每世界冻结 geom 位姿 × 共享射线列表 → nworld×nray 最近命中结果"
+    },
+    "references": {
+      "model": "fixtures/ray-query/batch-model.xml",
+      "model_sha256": "e03a503ba8c08e19653c0b60b725ddeebbb24f730cde38b24a030171e63cd052",
+      "nworld": 2,
+      "nray": 5,
+      "ngeom": 3,
+      "native": "MuJoCo 3.15.0 逐世界 mj_kinematics+mj_ray（一级）",
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29，Warp 1.15.0，逐世界 kinematics+ray（二级）"
+    },
+    "comparison": {
+      "product_vs_upstream": "2 世界 × 5 射线 geomid 全部一致；距离/法线在 1e-6 容差内",
+      "native_cross_check_max_abs": 1.192e-08,
+      "native_tolerance_abs": 1e-05,
+      "no_hit": "每世界 2 条无命中（-1/-1/零法线）",
+      "per_world_difference": "世界 1 身体旋转后结果与世界 0 不同，均与上游一致"
+    },
+    "np_mapping": {
+      "NP01": "全链 f32，无 f64 中间量",
+      "NP02": "记录冻结提交/函数/模型 sha256/环境与批量形状",
+      "NP03": "两级判定：原生逐世界 mj_ray 先行（1.19e-08），MJWarp f32 二级比较",
+      "NP04": "不适用/未测"
+    },
+    "gates": {
+      "fmt": "通过",
+      "clippy": "通过（--all-targets -D warnings，exit 0）",
+      "unit": "通过"
+    }
+  },
+  "note": "批次 1 后继细化落地：G28@P8 按计划 API U040 交付多世界批量射线查询 rays_batch（每世界不同冻结 geom 位姿 × 共享射线），复用 P7 原语求交与无命中语义；2 世界 × 5 射线与上游一致，原生 mj_ray 一级判定 max abs 1.19e-08。BVH/RenderContext、mesh/hfield/flex/SDF、geomgroup/flg_static/bodyexclude 过滤与设备视图登记为未验收边界。未改既有产品路径、容差与测试。",
+  "boundaries": [
+    "未实现 BVH/RenderContext（rc）、mesh/hfield/flex/SDF 求交与设备视图。",
+    "未实现 geomgroup/flg_static/bodyexclude 过滤（批量接口不接受过滤参数）。",
+    "无设备内核/图执行；不宣称完整 G28 或 P8 验收通过；NP04 未测。"
+  ]
+}

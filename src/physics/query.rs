@@ -31,8 +31,18 @@ const MJ_MAXVAL: f32 = 1.0e10;
 /// 原语查询错误。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum QueryError {
-    UnsupportedGeom { index: usize, geom_type: i32 },
-    DegenerateSize { index: usize },
+    UnsupportedGeom {
+        index: usize,
+        geom_type: i32,
+    },
+    DegenerateSize {
+        index: usize,
+    },
+    InvalidLength {
+        field: &'static str,
+        expected: usize,
+        actual: usize,
+    },
 }
 
 impl fmt::Display for QueryError {
@@ -44,6 +54,14 @@ impl fmt::Display for QueryError {
             Self::DegenerateSize { index } => {
                 write!(formatter, "退化尺寸：geom[{index}] 的 size 含 0")
             }
+            Self::InvalidLength {
+                field,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "长度不匹配：{field} 期望 {expected}，实际 {actual}"
+            ),
         }
     }
 }
@@ -107,6 +125,15 @@ pub fn ray(geoms: &[GeomPrimitive], query: Ray) -> Result<RayHit, QueryError> {
                 geom_type: geom.geom_type,
             },
             QueryError::DegenerateSize { .. } => QueryError::DegenerateSize { index },
+            QueryError::InvalidLength {
+                field,
+                expected,
+                actual,
+            } => QueryError::InvalidLength {
+                field,
+                expected,
+                actual,
+            },
         })?;
         if dist >= 0.0 && dist < best {
             best = dist;
@@ -419,6 +446,9 @@ fn scale(v: [f32; 3], factor: f32) -> [f32; 3] {
 fn mul(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] * b[0], a[1] * b[1], a[2] * b[2]]
 }
+
+mod batch;
+pub use batch::{WorldGeoms, rays_batch};
 
 #[cfg(test)]
 mod tests;
