@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-np04-windows-performance",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {"path": "docs/development-evidence/np04-windows-performance/README.md", "blob": "cc15d6055a81072e40be5539ecda3224e39bf9ae"},
+    {"path": "docs/development-evidence/np04-windows-performance/np04-windows.json", "blob": "77182fd8e70a96149dfd5fa005580cef3d59edb1"},
+    {"path": "docs/development-evidence/np04-windows-performance/bench.ps1", "blob": "c70fdea4de6db8841e74d0a363626e4365fbf740"},
+    {"path": "docs/development-evidence/np04-windows-performance/raw/debug/20261023T023645Z/environment.json", "blob": "d3f07381fa276e818fb6e72da2e6b914e8df906e"},
+    {"path": "docs/development-evidence/np04-windows-performance/raw/debug/20261023T023645Z/runs.json", "blob": "eb0a1d90f29fbbfae23dad51107d6d96e9911aae"},
+    {"path": "docs/development-evidence/np04-windows-performance/raw/debug/20261023T023645Z/summary.json", "blob": "ad67d7416924482642fe6e4f6235f098322aba56"},
+    {"path": "docs/development-evidence/np04-windows-performance/raw/release/20261023T025312Z/environment.json", "blob": "58399e6e8b2d390b37ad11900b9539ee9ca34913"},
+    {"path": "docs/development-evidence/np04-windows-performance/raw/release/20261023T025312Z/runs.json", "blob": "ed41f15db802718aa6b32e78a623143ee9127d08"},
+    {"path": "docs/development-evidence/np04-windows-performance/raw/release/20261023T025312Z/summary.json", "blob": "d74f31d8eda3bd588a0bc70e4d80efdc26103681"}
+  ],
+  "results": {
+    "scope": "Windows 单平台 9 个代表 GPU 测试套件的耗时与峰值显存采样",
+    "platform": "Windows 11 build 26200 / Ryzen 9 9950X3D / RTX 4070 Ti SUPER 16,376 MiB / 驱动 596.36 / CUDA 12.8.1（NVRTC 12.8.93）",
+    "head": "0c4db70efd8e01cb6607b06aac21587b7a03996d",
+    "fixed_inputs": {"fixtures_tree": "见 raw/*/environment.json", "src_tree": "HEAD", "tests_tree": "HEAD", "precision": "产品 f32；既有容差/断言未改"},
+    "suites": ["resident_kinematics", "resident_mass_matrix", "resident_mass_solve", "resident_rne_bias", "resident_com_velocity", "resident_rne_acceleration", "mass_solve_probe", "g01", "g26_energy_chain"],
+    "design": "9 套件 × 每项 5 样本 × driver-cold/driver-warm × debug/release = 180 次独立进程运行",
+    "all_runs_passed": true,
+    "run_count": {"debug": 90, "release": 90},
+    "wall_time_minutes": {"debug": 17, "release": 15, "total": 32, "bounded_limit": 90, "shrunk": false},
+    "steady_state_median_seconds": {
+      "debug": {"resident_kinematics": 7.575, "resident_mass_matrix": 4.898, "resident_mass_solve": 6.818, "resident_rne_bias": 14.172, "resident_com_velocity": 5.941, "resident_rne_acceleration": 14.531, "mass_solve_probe": 9.111, "g01": 17.56, "g26_energy_chain": 7.358},
+      "release": {"resident_kinematics": 7.206, "resident_mass_matrix": 4.001, "resident_mass_solve": 4.967, "resident_rne_bias": 13.65, "resident_com_velocity": 5.733, "resident_rne_acceleration": 13.562, "mass_solve_probe": 7.627, "g01": 16.358, "g26_energy_chain": 7.096}
+    },
+    "release_vs_debug_warm_percent": {"resident_kinematics": -4.87, "resident_mass_matrix": -18.31, "resident_mass_solve": -27.15, "resident_rne_bias": -3.68, "resident_com_velocity": -3.5, "resident_rne_acceleration": -6.67, "mass_solve_probe": -16.29, "g01": -6.85, "g26_energy_chain": -3.56},
+    "cold_vs_warm_percent_range": {"debug": "0.84–6.86", "release": "0.84–6.19"},
+    "gpu_peak_delta_mib": {"range": "216–219", "limitation": "进程 CUDA 上下文（约 218 MiB）主导；套件间差异 ≤3 MiB 低于采样噪声，不作套件级显存排序"},
+    "host_peak_working_set_mib_range": {"debug": "153.6–202.2", "release": "151.6–200.2"},
+    "coverage_note": "9 个代表套件；非全部 30 条产品路径；无 Linux 对比；非单内核微基准；上传/冷启动未拆分；GPU 非独占（桌面图形常驻）"
+  },
+  "note": "本任务只记录 Windows 单平台既有 GPU 测试套件的耗时与峰值显存：9 个代表套件 × 每项 5 样本 × 冷/热两种驱动缓存 × debug/release，共 180 次独立进程运行，每次校验通过数等于冻结期望（无失败、无剔除）。耗时给出中位数与极值，冷启动与稳态分开，debug/release 分开；显存用 nvidia-smi 100ms 采样给出总占用增量并如实标注上下文主导与分辨率限制。总时长约 32 分钟（debug 17 + release 15），在既定 90 分钟有界要求内，未缩样板。未改产品源码/测试/容差/fixtures/脚本；不含 Linux 对比；不宣称双平台性能/显存达标或 NP04 整体通过，性能数字不反推精度验收。",
+  "boundaries": [
+    "仅 Windows 单平台（RTX 4070 Ti SUPER / 驱动 596.36 / CUDA 12.8.1）；不含 Linux 对比。",
+    "不宣称双平台性能/显存验收通过、不宣称 NP04 整体通过；性能证据不反推精度验收。",
+    "峰值显存只能给出总占用增量（进程 CUDA 上下文约 218 MiB 主导），不作套件级显存排序。",
+    "上传与冷启动耗时未从进程墙钟中拆分；套件耗时含进程启动与 PTX 编译/JIT/加载，不是纯内核微基准。",
+    "未改产品源码/测试/容差/fixtures/脚本与 G01 排除清单。"
+  ]
+}
