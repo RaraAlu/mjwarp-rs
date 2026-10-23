@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-g28-p7",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    { "path": "src/physics/query.rs", "blob": "919677ddbe1129a6d2edbe48df39736a5384a0d1" },
+    { "path": "src/physics/query/tests.rs", "blob": "fd4a3ea5ce3d7a19d519d23ce7b4e06f473687e8" },
+    { "path": "src/physics/mod.rs", "blob": "9cddf6cd134f8c9cdc7eb41879b7060ec808f788" },
+    { "path": "fixtures/ray-query/model.xml", "blob": "ad817733ff5d186e4a44c270be4f28ab4b461d2f" },
+    { "path": "fixtures/ray-query/ray-cases.json", "blob": "f992137a43028ab05816b738e9d671dc32e38055" },
+    { "path": "scripts/authoring/author-g28-ray-query.ps1", "blob": "4adc7fae1bf44f1a920bf8103ffb0f69e4cb9acd" },
+    { "path": "scripts/authoring/author-g28-ray-query.py", "blob": "c11e66367e86e406f4ee4f2d5c765d8a17109d63" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g28-p7/README.md", "blob": "7e9a4112b01e84215ee381ffcf1530d49d1bb9bd" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g28-p7/authoring.json", "blob": "57bb099a14b49bb652e61b51efbfaf4332ffbf9c" },
+    { "path": ".normify/modules/mjwarp/physics/core.md", "blob": "7a34df1ac86bbff0dba8dbd0ef02742f943145d4" }
+  ],
+  "results": {
+    "slice": {
+      "family": "G28 查询",
+      "phase": "P7（原语射线查询侧）",
+      "planned_apis": [
+        "mjwarp_rs::physics::query::ray（U039；G28；P7/P8）",
+        "mjwarp_rs::physics::query::rays（U040；G28；P7/P8）"
+      ],
+      "delivered": "六原语（plane/sphere/capsule/ellipsoid/cylinder/box）射线求交：单体 ray、批量 rays、无命中（-1/-1/零法线）与最近命中"
+    },
+    "references": {
+      "model": "fixtures/ray-query/model.xml",
+      "model_sha256": "e866f1054d5d2d95fe0a87854a763e8d53009d864fd089cf0bc00da697aa8c34",
+      "ngeom": 6,
+      "nray": 9,
+      "native": "MuJoCo 3.15.0 mj_ray + mj_kinematics（一级）",
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29，Warp 1.15.0，mujoco_warp.ray（二级）",
+      "ray_set": "6 种原语各 1 次命中 + 2 次无命中 + 1 次多命中取最近"
+    },
+    "comparison": {
+      "product_vs_upstream": "geomid 9/9 一致；距离与法线逐分量在冻结容差 1e-6 内",
+      "native_cross_check_max_abs_dist": 1.676e-07,
+      "native_cross_check_max_abs_normal": 1.830e-07,
+      "native_cross_check_geomid_mismatch": 0,
+      "single_batch_equivalence": "rays[i] == ray(rays[i]) 逐条相等",
+      "coverage": "六种原语 geom 编号 {0,1,2,3,4,5} 全部命中；无命中 2 条"
+    },
+    "np_mapping": {
+      "NP01": "全链 f32，无 f64 中间量",
+      "NP02": "记录冻结提交/上游函数/模型 sha256/环境与射线清单",
+      "NP03": "两级判定：原生 mj_ray 先行（1.68e-07/1.83e-07、geomid 0 不符），MJWarp f32 二级比较",
+      "NP04": "不适用/未测：不发射内核、无批量对照与性能记录"
+    },
+    "gates": {
+      "fmt": "通过",
+      "clippy": "通过（--all-targets -D warnings，exit 0）",
+      "unit": "通过（lib 305 过 0 败，全测试套件 exit 0）"
+    }
+  },
+  "note": "批次 1 旧计划细化落地：G28@P7 按架构计划 API U039/U040 交付原语射线查询宿主侧切片——plane/sphere/capsule/ellipsoid/cylinder/box 六个原语的 ray/rays 求交，覆盖单体、批量与无命中，最近命中取正距离最小值。9 条冻结射线与上游 geomid 全一致、距离/法线在 1e-6 容差内；原生 mj_ray 一级判定 max abs 1.68e-07/1.83e-07、geomid 0 不符。mesh/hfield/flex/SDF、BVH、geomgroup/flg_static/bodyexclude 过滤、jac 与 contact_force 全部登记为未验收边界并显式拒绝非原语类型。未改既有产品路径、容差与测试。",
+  "boundaries": [
+    "未实现 BVH、mesh/hfield/flex/SDF 求交与 geomgroup/flg_static/bodyexclude 过滤；单世界冻结输入，无多世界广播。",
+    "jac（U072）依赖运动学链集成、contact_force（U070）依赖碰撞（G07–G11）与约束/求解（G12–G18）子系统，均未实现。",
+    "无设备内核与上传路径；不宣称完整 G28 或精度验收通过；NP04 未测。"
+  ]
+}
