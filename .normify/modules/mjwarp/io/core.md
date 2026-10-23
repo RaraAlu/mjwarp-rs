@@ -2,7 +2,7 @@
 uid = "2ab8f906"
 id = "mjwarp.io.core"
 tags = ["planned", "engine"]
-fingerprint = "829e4425e8a2a859e7b721da901c70363d561a1d5b095f8abc0a065f670812bd"
+fingerprint = "8b706d7a7d28d871b14a68a6bf343f629815400964c8157b0bfe88789ff147d4"
 
 [name]
 zh = "原生准入与字段交换"
@@ -42,6 +42,12 @@ path = "tests/layer_io.rs"
 
 [[source]]
 path = "src/io/state.rs"
+
+[[source]]
+path = "src/io/state/extended.rs"
+
+[[source]]
+path = "src/io/state/extended/tests.rs"
 
 [[apis]]
 protocol = "rpc"

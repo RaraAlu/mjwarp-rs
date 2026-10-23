@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-m08-p7",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    { "path": "src/io/state.rs", "blob": "226e2c914a5d92fdf2d4781aa01988ef3fb68363" },
+    { "path": "src/io/state/extended.rs", "blob": "239ed5854a8c27c4f9df724b06f94e164e8d76ba" },
+    { "path": "src/io/state/extended/tests.rs", "blob": "d535f7b8aa4e856ed5b366128745b9151dbbbd17" },
+    { "path": "src/io/mod.rs", "blob": "60b920b80559f6c32c20713763e1f9223939ccb0" },
+    { "path": "fixtures/local-reset/extended-model.xml", "blob": "dca5e902ef666acab857c8e5a2251afb9eec1d5d" },
+    { "path": "fixtures/local-reset/extended-cases.json", "blob": "9ea23b920a6bcba64eb98a7bcd9cf04b5d48072c" },
+    { "path": "scripts/authoring/author-m08-extended-reset.ps1", "blob": "d73b63647d1772d3a929289700d45c37216ae224" },
+    { "path": "scripts/authoring/author-m08-extended-reset.py", "blob": "b80a06d02eb680be668f3a9a4da5974219392c8f" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-m08-p7/README.md", "blob": "d45c0a54d446adce90ad8dc960056000b77a7a6f" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-m08-p7/authoring.json", "blob": "0a4aea4742ad95da84d3aab9732bfde74a1d2070" },
+    { "path": ".normify/modules/mjwarp/io/core.md", "blob": "2505cdd7c4d69c6dfb73698fe9691ae25a86c513" }
+  ],
+  "results": {
+    "slice": {
+      "family": "M08 局部重置",
+      "phase": "P7（Data 字段扩展）",
+      "planned_apis": [
+        "mjwarp_rs::io::state::reset_data（U035；M08；P3/P7）",
+        "mjwarp_rs::io::state::reset_data_keyframe（U036；M08；P3/P7）"
+      ],
+      "delivered": "ctrl/act/qfrc_applied/xfrc_applied/mocap_pos/mocap_quat 的掩码重置与关键帧附加字段写入"
+    },
+    "references": {
+      "model": "fixtures/local-reset/extended-model.xml",
+      "model_sha256": "413e57286bb467cec505c63e1737a439de24560f70213f72062d5aec8f71e37e",
+      "dims": "nbody=4、nq=2、nv=2、nu=1、na=1、nmocap=1、nkey=2、nworld=2",
+      "native": "MuJoCo 3.15.0 mj_resetData/mj_resetDataKeyframe（一级）",
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29，Warp 1.15.0（二级）",
+      "cases": 6,
+      "fields": 9
+    },
+    "comparison": {
+      "product_vs_upstream": "6 用例 × 9 字段逐元素位型一致（容差 0）",
+      "native_cross_check_max_abs": 0.0,
+      "mask_isolation": "未掩码世界保持初始值",
+      "keyframe_semantics": "有效 key 世界清零 qfrc/xfrc 后写入关键帧字段；越界 key 世界保持原状态",
+      "mocap_reset": "重置为 mocap 身体 body_pos/body_quat；关键帧写入 key_mpos/key_mquat"
+    },
+    "np_mapping": {
+      "NP01": "九组字段全 f32，无 f64 中间量",
+      "NP02": "记录冻结提交/两个上游函数/模型 sha256/环境与用例-字段清单",
+      "NP03": "两级判定：原生 mj_resetData/mj_resetDataKeyframe 先行（max abs 0），MJWarp f32 逐位一致",
+      "NP04": "不适用/未测"
+    },
+    "gates": {
+      "fmt": "通过",
+      "clippy": "通过（--all-targets -D warnings，exit 0）",
+      "unit": "通过（lib 312 过 0 败）"
+    }
+  },
+  "note": "批次 1 后继细化落地：M08@P7 按计划 API U035/U036 扩展局部重置的 Data 字段切片——ctrl/act/qfrc_applied/xfrc_applied 置零、mocap 复位为模型 mocap 身体位姿、关键帧附加字段写入；6 用例 × 9 字段与上游逐位一致，原生一级判定 max abs 0。P7 只覆盖 Data 字段扩展：G24 历史、eq_active、qacc_warmstart/act_dot/sensordata/userdata、能量/睡眠字段与设备内核登记为未验收边界。未改既有产品路径、容差与测试。",
+  "boundaries": [
+    "G24 历史（reset_history/init_ctrl_history/init_sensor_history）未实现。",
+    "eq_active（依赖等式约束字段）、qacc_warmstart/act_dot/sensordata/userdata、能量/接触/约束/睡眠字段与完整 Data 未包含。",
+    "无设备内核与上传路径；不宣称完整 M08 或精度验收通过；NP04 未测。"
+  ]
+}

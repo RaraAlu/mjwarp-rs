@@ -307,5 +307,11 @@ fn apply_keyframe(state: &mut WorldState, keyframes: Keyframes<'_>, key: usize, 
         .copy_from_slice(&keyframes.qvel[key * nv..(key + 1) * nv]);
 }
 
+mod extended;
+pub use extended::{
+    ExtendedBatches, ExtendedKeyframes, ExtendedLayout, ExtendedState, MocapDefaults,
+    reset_data_extended, reset_data_keyframe_extended,
+};
+
 #[cfg(test)]
 mod tests;

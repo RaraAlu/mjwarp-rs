@@ -35,8 +35,9 @@ pub use exchange::{
 
 mod state;
 pub use state::{
-    KeyframeSelection, Keyframes, ResetError, ResetMask, WorldState, reset_data,
-    reset_data_keyframe,
+    ExtendedBatches, ExtendedKeyframes, ExtendedLayout, ExtendedState, KeyframeSelection,
+    Keyframes, MocapDefaults, ResetError, ResetMask, WorldState, reset_data, reset_data_extended,
+    reset_data_keyframe, reset_data_keyframe_extended,
 };
 
 #[cfg(feature = "native-model-probe")]
