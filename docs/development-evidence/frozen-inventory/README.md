@@ -66,3 +66,71 @@ node docs/development-evidence/frozen-inventory/collect.mjs
 - 本清单**不构成 NP02 通过**：覆盖率不是 100%，缺口仍存在；也不代表 NP01/NP03/NP04 或完整 T4 验收。
 - 所有数字均来自脚本实测/已提交回执；未验证项明确标为待补/外部条件，不写成通过。
 - 未改 `fixtures/`、产品源码、测试与容差；未跑 GPU；未引用 Python/venv 产物。
+
+## NP02 全产品覆盖清单（2026-10-23）
+
+任务：`2026-10-23-np02-frozen-inventory`。以上文冻结清单（T4 24 条目/30 变体、688 份仓内回执、冻结证据链）与 NP01 清单（30 条路径、28 条含 W15 头文件路径）为基础，逐路径汇总冻结提交、上游符号、生成内核与编译选项，并给出「已有证据/待补」两栏。明细见 `np02-coverage.json`。
+
+### 计数（分母 = NP01 30 条产品路径）
+
+| 项 | 值 |
+| --- | --- |
+| 清单条目（分母） | 30 |
+| 证据链完整（含逐字段表） | **0** |
+| 部分：三类证据齐但缺逐字段类型表 | 27 |
+| 待补：生成内核证据缺失 | **3**（rne_acc、tendon_wrap、field_batch） |
+| 有 T4 冻结变体的路径 | 16 |
+| 有仓内核回执的路径 | 24 |
+| 有 W15 头文件路径的路径 | 28 |
+| 有 fixtures 冻结证据链的路径 | 3 |
+
+基础证据：冻结提交 `71da24d…`（Warp 1.15.0）；T4 24 条目/30 变体；仓内回执 688 份/79 个 entry/98 个不同 PTX；**编译选项 1 种**（回执实测一致：fmad=true、fastMath=false、`--std=c++17`、`--gpu-architecture=compute_70`、f32-physics，nvrtc 12.8）；上游 7/7 源哈希对齐 pinned checkout；产品源 HEAD 漂移 10/20。
+
+### 逐路径清单
+
+| # | 路径 | NP01 状态 | T4 变体 | 仓内回执(份) | 头文件路径 | NP02 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | kinematics | 部分（探针逐位证据齐；缺逐字段表）；W15 头文件路径已对 | rigid_kinematics×3 | 43 | 4 | partial-field-tables |
+| 2 | com_position | 部分；W15 头文件路径已对 | rigid_com_position×2 | 38 | 2 | partial-field-tables |
+| 3 | com_velocity | 部分；W15 头文件路径已对 | com_velocity×1 | 12 | 1 | partial-field-tables |
+| 4 | crb | 部分；W15 头文件路径已对 | rigid_mass_matrix×1 | 9 | 2 | partial-field-tables |
+| 5 | mass_multiply | 部分；W15 头文件路径已对 | — | 24 | 8 | partial-field-tables |
+| 6 | mass_solve | 部分（数值准入已过；缺逐字段表）；W15 头文件路径已对 | rigid_mass_solve×1 | 12 | 8 | partial-field-tables |
+| 7 | rne_bias | 部分；W15 头文件路径已对 | rne_bias×1 | 0 | 1 | partial-field-tables |
+| 8 | rne_acc | 部分（数值口径已裁决；缺逐字段表）；W15 头文件路径已对 | — | 0 | 2 | missing-kernel-evidence |
+| 9 | gravity_compensation | 部分；W15 头文件路径已对 | — | 44 | 9 | partial-field-tables |
+| 10 | joint_passive | 部分；W15 头文件路径已对 | — | 54 | 6 | partial-field-tables |
+| 11 | smooth_force | 部分；W15 头文件路径已对 | — | 28 | 6 | partial-field-tables |
+| 12 | passive_force | 部分（W15 头文件路径已对；上游函数定位与逐字段表仍缺） | — | 11 | 6 | partial-field-tables |
+| 13 | fixed_tendon | 部分（W15 头文件路径已对；缺逐字段表） | fixed_tendon×1 | 6 | 1 | partial-field-tables |
+| 14 | spatial_tendon | 部分（W15 头文件路径已对；缺逐字段表） | spatial_site×1、spatial_moment×1、spatial_wrap×1 | 3 | 3 | partial-field-tables |
+| 15 | tendon_wrap | 部分；W15 头文件路径已对 | — | 0 | 4 | missing-kernel-evidence |
+| 16 | tendon | 待补 | tendon_values×1、tendon_indices×1 | 18 | 0 | partial-field-tables |
+| 17 | tendon_velocity | 部分；W15 头文件路径已对 | — | 16 | 8 | partial-field-tables |
+| 18 | tendon_passive | 部分（W15 头文件路径已对；上游函数定位与逐字段表仍缺） | — | 24 | 5 | partial-field-tables |
+| 19 | flex_position | 部分；W15 头文件路径已对 | flex_positions×1、flex_invalidate×1 | 16 | 3 | partial-field-tables |
+| 20 | flex_edge | 部分；W15 头文件路径已对 | flex_edges×1 | 7 | 3 | partial-field-tables |
+| 21 | flex_face | 部分；W15 头文件路径已对 | flex_faces×1 | 0 | 5 | partial-field-tables |
+| 22 | flex_hessian | 部分（W15 头文件路径已对；上游函数定位与逐字段表仍缺） | flex_hessian×1、flex_hessian_validate×1 | 0 | 8 | partial-field-tables |
+| 23 | flex_edge_passive | 部分（W15 头文件路径已对；缺逐字段表） | — | 30 | 2 | partial-field-tables |
+| 24 | fluid_force | 部分（W15 头文件路径已对；缺逐字段表） | — | 9 | 7 | partial-field-tables |
+| 25 | applied_force | 部分；W15 头文件路径已对 | — | 12 | 9 | partial-field-tables |
+| 26 | kinetic_energy | 部分；W15 头文件路径已对 | — | 29 | 8 | partial-field-tables |
+| 27 | attached | 部分；W15 头文件路径已对 | attached_kinematics×3、initialize_attached×2 | 77 | 3 | partial-field-tables |
+| 28 | camlight | 部分（W15 头文件路径已对；缺逐字段表） | camlight_rigid×1、camlight_com×1 | 2 | 3 | partial-field-tables |
+| 29 | sleep_wake | 部分 | sleep_copy×1、tendon_wake×1 | 6 | 0 | partial-field-tables |
+| 30 | field_batch | 部分（W15 头文件路径已对；上游函数定位与逐字段表仍缺） | — | 0 | 4 | missing-kernel-evidence |
+
+### 待补与缺口
+
+1. **逐字段类型表**：30/30 条仍缺（NP01 遗留），因此没有任何路径达到「证据链完整」；这是 NP02 不能判通过的首要原因。
+2. **生成内核证据缺失 3 条**：`rne_acc`、`tendon_wrap`、`field_batch`（无 T4 变体/仓内回执/冻结链）。
+3. **W15 头文件路径缺失 2 条**：`tendon`、`sleep_wake`（纯索引/整型搬运；上游只检出运行时 API）。
+4. **上游生成内核/编译器库覆盖**：T4 只覆盖 7 个上游源文件的显式符号，Warp codegen/builtin 库级符号无逐项清单（W15 头文件已可作对照输入）。
+5. **历史捕获实体**：22/30 变体可按 PTX 哈希定位回执、19/30 回执逐字节一致；其余依赖历史 `target/t4-g03-retest` 产物。
+6. **产品源漂移**：10/20 产品源与冻结捕获身份（`4dc88934`）不一致，旧 30 份集合不能直接证明当前源码。
+
+### 解锁与边界
+
+- 本任务 verified 后，`2026-10-23-np03-dual-platform` / `np04-performance` 的 np02 前置满足（依赖规则上变 ready）；两者仍需外部 Linux RTX 5080 才能执行。
+- **NP02 未通过**：complete 为 0，待补与全局缺口如上；本清单是证据覆盖登记，不是放行结论。未改产品代码/测试/容差/fixtures，未跑 GPU。

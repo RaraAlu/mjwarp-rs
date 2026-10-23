@@ -1,41 +1,79 @@
 {
   "schema_version": 1,
-  "modules": {
-    "modify": []
-  },
-  "status": "proposed",
-  "revision": {
-    "before": null,
-    "after": null
-  },
   "id": "2026-10-23-np02-frozen-inventory",
   "title": {
     "zh": "补齐全产品精度证据清单（NP02）",
     "en": "Complete full-product evidence inventory (NP02)"
   },
+  "status": "verified",
   "intent": {
     "zh": "列出每条产品物理路径的冻结提交、具体符号、生成内核与编译选项，形成可审计的精度证据清单。",
     "en": "Complete full-product evidence inventory (NP02)"
   },
+  "modules": {
+    "modify": []
+  },
   "acceptance": [
-    "证据覆盖 100%、缺失 0；每条路径记录冻结提交、符号、生成内核、编译选项与复现命令。",
-    "覆盖现有手写移植与冻结 PTX 两条来源；W15 路线落地后补上游源码产物。",
-    "与 NP01 映射表互相引用；未测项单独列出，不用零用例充数。"
+    "以 NP01 的 30 条产品路径为分母，逐条记录：冻结提交 71da24d…、上游文件与符号（结合 W15 头文件路径）、生成内核（T4 变体与仓内回执的 source/ptx/receipt 哈希）、编译选项与复现入口；能补齐的补齐，补不了的写明原因。",
+    "交付 docs/development-evidence/frozen-inventory/：np02-coverage.json（逐路径「已有证据/待补」两栏、覆盖状态 covered/partial/missing）与 README（条目数、待补数、方法、缺口与解锁说明），并与 NP01 清单（np01-type-mapping/inventory.json、warp-headers.json）互相引用；未覆盖项单列，不用零用例充数。",
+    "不得宣称 NP02 覆盖 100% 或通过：上游生成内核/编译器库覆盖、历史捕获实体等缺口如实登记；不改产品代码、测试、断言、容差与 fixtures；不跑 GPU；不开始 NP03/NP04。",
+    "通过 gate fmt、unchanged、回执 json（docs/development-evidence/changes/2026-10-23-np02-frozen-inventory.json）与 forbid_claim。"
   ],
   "schedule": {
     "depends_on": [
       "2026-10-23-precision-type-mapping",
       "2026-10-23-precision-source-paths"
     ],
-    "resources": [],
-    "priority": 30,
     "phase": "P11-精度门禁",
     "owner": "QA",
     "files": [
-      "docs/development-evidence/np02/"
-    ]
+      "docs/development-evidence/frozen-inventory/",
+      "docs/development-evidence/changes/2026-10-23-np02-frozen-inventory.json"
+    ],
+    "resources": [],
+    "priority": 30
   },
-  "note": "只登记，未 start；等用户裁决与排期。先于 NP03/NP04。 | 资源核实：纯本地证据整理，无需 GPU。依赖修复 2026-10-23：旧 2026-10-23-np01-type-mapping 已 abandon（任务 id 触发 forbid_claim 自匹配），替换为其 verified 后继 2026-10-23-precision-type-mapping 与后续 verified 2026-10-23-precision-source-paths。",
+  "note": "只登记，未 start；等用户裁决与排期。先于 NP03/NP04。 | 资源核实：纯本地证据整理，无需 GPU。依赖修复 2026-10-23：旧 2026-10-23-np01-type-mapping 已 abandon（任务 id 触发 forbid_claim 自匹配），替换为其 verified 后继 2026-10-23-precision-type-mapping 与后续 verified 2026-10-23-precision-source-paths。 | 2026-10-23 启动前补检查与范围：证据目录按 Chief 指令改为 docs/development-evidence/frozen-inventory/（承接 2026-10-23-frozen-inventory 的 inventory/receipts）；验收改为「全量清单 + 逐路径已有证据/待补」，不硬凑 100%。",
+  "revision": {
+    "before": "aa8c935014e2d41c7830f429008f059cb8d3776d",
+    "after": null
+  },
   "created_at": "2026-10-23T02:55:00.000Z",
-  "updated_at": "2026-10-23T02:55:00.000Z"
+  "updated_at": "2026-10-23T00:53:07.470Z",
+  "closed_at": "2026-10-23T00:53:07.470Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "build.rs",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-np02-frozen-inventory.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-np02-frozen-inventory"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP02通过",
+        "覆盖100%",
+        "完整验收",
+        "双平台通过"
+      ]
+    }
+  ]
 }
