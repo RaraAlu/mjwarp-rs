@@ -12,8 +12,7 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.runtime.external",
-      "mjwarp.runtime.completion"
+      "mjwarp.runtime.external"
     ]
   },
   "acceptance": [
@@ -22,21 +21,75 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "本片只覆盖所列阶段。",
+    "新增计划 API `runtime::external::view` 的宿主侧零拷贝切片：`MirrorBuffer`（设备序号/上下文/分配身份/流/代数/数据所有者）、`StreamFence`（复刻 completion 的流+代数+完成位契约）、`FieldLayout`（连续/跨步字段）、`ZeroCopyView`（借用式视图，`field()`/`elements()` 返回指向原缓冲的切片）与 `copy_field` 显式复制对照。",
+    "上下文/所有权/跨流事件：视图只在同流、已完成、同代数事件下构造；事件未完成返回 `EventPending`，跨流返回 `StreamMismatch`，代数过期返回 `GenerationMismatch`；所有权由借用生命周期承担（视图不持有数据、可判定切片指针等于原缓冲地址）。测试断言：切片指针 == 原缓冲指针 + offset（零拷贝证明）、视图不延长所有者、写入后代数递增且旧事件失效、越界/空缓冲拒绝。",
+    "未验收边界：真实 CUDA 事件与设备指针（`runtime::completion` 的 submit/wait 实机路径）、设备内存分配/跨流并发、零拷贝 GPU 数据路径性能、A07 设备数据视图的复制路径与同步契约、GPU 内核与图执行均不做并如实登记。",
+    "NP01：新增路径全 f32 数据，无精度计算；NP02：记录宿主侧契约、流/代数/完成位语义与指针相等证明；NP03：不适用（无物理数值输出，仅契约与所有权判定）；NP04 不适用（不做 GPU 性能测量，不宣称零拷贝性能）。",
+    "证据落 `docs/development-evidence/backlog-batch2/2026-10-11-roadmap-a08-p10/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-a08-p10.json`；gate fmt/clippy/unit 通过，不宣称完整 A08 或零拷贝支持结论。"
   ],
   "schedule": {
     "depends_on": [],
     "phase": "P10",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/runtime/external.rs",
+      "src/runtime/external/view.rs",
+      "src/runtime/external/view/",
+      "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-a08-p10/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-a08-p10.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":344,\"end\":344},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p6, 2026-10-11-roadmap-p7, 2026-10-11-roadmap-p8, 2026-10-11-roadmap-p9] → 新依赖 []。依据：零拷贝优化建立在已 verified 的 A07/M07 数据视图之上；删除旧 P6/P7/P8/P9 聚合门禁。",
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":344,\"end\":344},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p6, 2026-10-11-roadmap-p7, 2026-10-11-roadmap-p8, 2026-10-11-roadmap-p9] → 新依赖 []。依据：零拷贝优化建立在已 verified 的 A07/M07 数据视图之上；删除旧 P6/P7/P8/P9 聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次2）：原图只有 A08@P10 粗切片（旧计划语义：上下文、所有权与跨流事件）。按当前代码布局，本片最小可交付 = 宿主侧零拷贝契约与借用式视图（`runtime::external::view`），复刻 completion 的流+代数+完成位事件语义并以切片指针相等证明零拷贝；真实 CUDA 事件/设备指针、跨流并发与零拷贝 GPU 性能登记为未验收边界。不改 `runtime::completion` 实机路径与其他运行时模块。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-11T15:26:57.224Z",
-  "updated_at": "2026-10-23T04:57:00.235Z"
+  "updated_at": "2026-10-23T04:57:00.235Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/model",
+        "src/physics",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-a08-p10.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-a08-p10"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ]
 }
