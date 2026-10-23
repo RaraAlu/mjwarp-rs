@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-g16-p6",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    { "path": "src/physics/integrator.rs", "blob": "46cf2387d9661a4768be66e698752396fbdb6266" },
+    { "path": "src/physics/integrator/tests.rs", "blob": "f82996134e049a777fd6adce3815d2aaed6f884a" },
+    { "path": "src/physics/mod.rs", "blob": "43b39c2a5bcbb3fdcc554200ba95218c88a8fd39" },
+    { "path": "fixtures/integrator/model.xml", "blob": "00dd00a265242d2097a166feed1049c91842c174" },
+    { "path": "fixtures/integrator/cases.json", "blob": "ceb21efbadfc1d73cbbe49d55964f070899eb1e0" },
+    { "path": "scripts/authoring/author-g16-integrator.ps1", "blob": "d543bb4315f84ab9a72ac7e12ebf2b6b43d31bbf" },
+    { "path": "scripts/authoring/author-g16-integrator.py", "blob": "283ad5d74d9fcceca38610d885399cd7a3876c46" },
+    { "path": "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g16-p6/README.md", "blob": "ed9bf0d1e096bda965880fd77c5571f37628c672" },
+    { "path": "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g16-p6/authoring.json", "blob": "7cfe951d0a289d36ca4d3ee77989ef25b331a521" },
+    { "path": ".normify/modules/mjwarp/physics/core.md", "blob": "5495e13813fd35ca5e70782f4238f721184689e6" }
+  ],
+  "results": {
+    "slice": {
+      "family": "G16 积分器",
+      "phase": "P6（Euler 与 RK4）",
+      "planned_api": "mjwarp_rs::physics::forward::{euler, rungekutta4}（U014/U015 家族；G16；P6）",
+      "delivered": "宿主侧 next_position/next_velocity/quat_integrate + 半隐式 euler + RK4 组合与推进（4 级导数冻结输入）"
+    },
+    "references": {
+      "model": "fixtures/integrator/model.xml",
+      "model_sha256": "0bc4a4170dc814d26b75f6542824dd017984369a64a7beef425ad7febd0a7f2a",
+      "nq": 13,
+      "nv": 11,
+      "njnt": 4,
+      "timestep": 0.01,
+      "cases": 3,
+      "native": "MuJoCo 3.15.0 f64：mj_forward + mj_integratePos + _next_velocity 公式；RK4 原生 f64 复刻并对照 mj_step(RK4)",
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29，Warp 1.15.0，euler/rungekutta4"
+    },
+    "comparison": {
+      "euler_vs_upstream": "位型一致 64/72，max abs 5.96e-08（FMA 收缩末位差，1e-6 冻结容差）",
+      "rk4_vs_upstream": "位型一致 67/72，max abs 5.96e-08（同上）",
+      "frozen_stage_replay": "用冻结 4 级导数在上游内核重放组合，与上游 rungekutta4 最终状态 max abs 0",
+      "native_euler_max_abs": 1.1920928955078125e-07,
+      "native_rk4_max_abs": 6.258487701416016e-06,
+      "native_rk4_compose_vs_step": 6.258487701416016e-06,
+      "convergence": "合成调和 ODE（T=1，步数 2/4/8/16）：Euler 误差 2.455e-1/1.206e-1/6.097e-2/3.081e-2（比值≈2）；RK4 误差 5.195e-4/3.250e-5/1.926e-6/1.522e-7（比值 16.0/16.9/12.7）"
+    },
+    "np_mapping": {
+      "NP01": "全链 f32，无 f64 中间量",
+      "NP02": "记录冻结提交/函数/模型 sha256/表与联合布局/环境",
+      "NP03": "两级判定：原生 f64 先行（1.19e-07、6.26e-06），MJWarp f32 二级对照（1e-6）",
+      "NP04": "不适用/未测"
+    },
+    "gates": {
+      "fmt": "通过",
+      "clippy": "通过（--all-targets -D warnings，exit 0）",
+      "unit": "通过（integrator 3 过；全量 lib 通过）"
+    }
+  },
+  "note": "批次 2 旧计划细化落地：G16@P6 按计划 API U014/U015 交付宿主侧积分器状态推进（Euler 半隐式与 RK4 组合 + _advance）；冻结上游单步对照 max abs 5.96e-08、原生 f64 一级判定 1.19e-07/6.26e-06、合成 ODE 上验证一阶/四阶收敛。activation/mocap、阻尼隐式分支、forward() 逐级求导、DISCRETE/IMPLICIT 与 GPU 内核登记为未验收边界。未改既有产品路径、容差与测试。",
+  "boundaries": [
+    "未实现 activation/mocap 推进、_next_time 的 overflow/efc 统计与 history 写入。",
+    "未实现阻尼隐式分支（EULERDAMP/DAMPER）与 forward() 逐级求导。",
+    "未实现 DISCRETE/IMPLICIT/IMPLICITFAST 积分器、GPU 内核与 CUDA 图条件。",
+    "不宣称完整 G16 或 P6 验收通过；NP04 未测。"
+  ]
+}

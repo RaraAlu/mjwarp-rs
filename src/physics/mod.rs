@@ -22,6 +22,11 @@ mod query;
 pub use query::{
     GeomPrimitive, QueryError, Ray, RayHit, WorldGeoms, ray, ray_geom, rays, rays_batch,
 };
+mod integrator;
+pub use integrator::{
+    IntegratorError, IntegratorState, IntegratorStep, JOINT_BALL, JOINT_FREE, JointLayout,
+    Rk4Stage, advance, euler, next_position, next_velocity, quat_integrate, rungekutta4,
+};
 mod kinetic_energy;
 pub use kinetic_energy::{
     KineticEnergyData, KineticEnergyOutput, KineticEnergyPlan, KineticEnergyVector,
