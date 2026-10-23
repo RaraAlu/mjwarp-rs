@@ -226,6 +226,35 @@ $pwsh = 'target\toolchains\powershell-7.6.7\bin\pwsh.exe'
 - **与 §5.3 的差异**：HEAD `f9f1f66`→`f9da799`；host-msvc 804→812（LTOIR 8 项单测）；all-probes 348→350、result 行 84→85（`compile_ltoir_probe` 2 项）；host-gnu 480 不变（LTOIR 仅在 `cuda-probe` 下编译）；排除项 11 不变；墙钟 839s/656s→787s/633s。
 - 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9da799；LTOIR 探针已纳入 all-probes 并通过；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
 
+### 5.5 MathDx 交付后双模式复验（2026-10-24，QA，任务 `2026-10-24-mathdx-review-g01-rerun`）
+
+背景：MathDx 三块交付（`2025a57` libmathdx 0.3.1 组件+许可、`e5f1559` Solver LTO 绑定与冻结产物对照、`4f362f2` NVRTC 12.9.86 组件化+路径解耦）经 QA 独立复核（见 `docs/development-evidence/mathdx-independent-check/`）后复跑双模式。G01 前重跑 `scripts/prepare-cuda-probe.ps1`（exit 0），确认 libmathdx 0.3.1 与 pinned NVRTC 12.9.86 组件就位；mathdx 探针在普通与 G01 环境各跑一次均 2 过 0 败、四项冻结摘要一致。
+
+命令与 §5 相同；运行 HEAD `384842f`（源码 `4f362f2` 之上仅一条任务登记提交）。G01 的 `CUDA_PATH` 仍为 12.8.1（NVRTC 12.8.93），MathDx 绑定/探针通过显式目录解析 pinned 12.9.86，与 CUDA_PATH 解耦。
+运行目录：debug `target/g01-acceptance/7095eee44fcf4d08a7423a20485a664b`，release `target/g01-acceptance/95c7dc56d5e44843a1b132ce6b338bb3`；本机日志 `target/final-g01-check/{debug,release}-mathdx.log`；机器数据 `final-acceptance-mathdx.json`。
+
+| 阶段 | debug | release |
+| --- | --- | --- |
+| fmt | 通过 | 通过 |
+| native | 27 过 | 27 过 |
+| host-msvc | 823 过 | 823 过 |
+| g01 | 7 过 | 7 过 |
+| native-g01 | 2 过 | 2 过 |
+| native-only-g01 | 1 过 | 1 过 |
+| resident | 102 过 | 102 过 |
+| all-probes | **352 过 / 0 败**（86 个 result 行） | **352 过 / 0 败**（86 个 result 行） |
+| host-gnu | 480 过 | 480 过 |
+| clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 | 0 警告 |
+| diff | 通过 | 通过 |
+| **全脚本墙钟** | **788s（13.1 分钟）** | **619s（10.3 分钟）** |
+
+- **排除清单**：仍为 11 项（W-D5 3、历史捕获身份 6、env 未接线 1、U038-3D 已知债务 1），两模式逐项相同，**未新增排除**，未改断言/容差/排除清单/G01 脚本。
+- **MathDx 探针纳入**：all-probes 执行 `cargo test --all-features -- --ignored`（全部 target、无白名单），`mathdx_solver_probe` 的 2 项 ignored GPU 测试被**自动纳入并通过**（all-probes 350→352、result 行 85→86）。
+- **环境接线**：与 §5.4 相同；MathDx 探针在 all-probes 中按 pinned 组件解析 NVRTC（`call_nvrtc_version=[12,9]`），与 `CUDA_PATH=12.8.1` 解耦。
+- **与 §5.4 的差异**：HEAD `f9da799`→`4f362f2`；host-msvc 812→823（mathdx 11 项单测）；all-probes 350→352、result 行 85→86（mathdx 探针 2 项）；host-gnu 480 不变；排除项 11 不变；墙钟 787s/633s→788s/619s。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 4f362f2；MathDx 探针已纳入 all-probes 并通过；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
+
 ## 6. 并行评估（开发迭代用途）
 
 子集：8 个独立 resident target（`resident_rne_bias`、`resident_tendon_wake`、`resident_flex_edge`、`resident_flex_position`、`resident_flex_face`、`resident_sparse_mass`、`resident_kinematics`、`resident_spatial_tendon`），每进程 `--test-threads=1`，`-NoBuild`。

@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-24-mathdx-review-g01-rerun",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/mathdx-independent-check/README.md",
+      "blob": "d9b810b9679fbe77b1dc636aa8218fda62ef3e5d"
+    },
+    {
+      "path": "docs/development-evidence/mathdx-independent-check/mathdx-independent-check.json",
+      "blob": "c6138a884604066df3a5d68e241184ec67b3ed5a"
+    },
+    {
+      "path": "docs/development-evidence/g01-fast-loop/README.md",
+      "blob": "e8264bf70786dc669c397ccc1c2fb0d71ba250e1"
+    },
+    {
+      "path": "docs/development-evidence/g01-fast-loop/final-acceptance-mathdx.json",
+      "blob": "a67abb982f9ee44af58659bc23a774d3d4adebf5"
+    },
+    {
+      "path": "docs/three-layer-acceptance.md",
+      "blob": "08f176677c86a8f1c2c9c3fa463b9262e6500c07"
+    }
+  ],
+  "results": {
+    "scope": "MathDx 三块交付（2025a57/e5f1559/4f362f2）独立复核 + HEAD 4f362f2 的 G01 debug/release 双模式复验；只改证据与验收文档",
+    "mathdx_review": {
+      "reviewed_commits": ["2025a57", "e5f1559", "4f362f2"],
+      "frozen_artifacts": "LTOIR 1,034,872 B/98c01ce6…；FATBIN 506,960 B/c00d6412…；CUBIN 2,086,544 B/de660b5d…；设备输出 104,528 B/51e1a99b…；8 次发射——探针复跑逐字节一致",
+      "binding": "手写 C ABI 动态加载 mathdx64_0.dll 描述符 API（顺序与 warp.cu 一致）；无新增 C/C++、无 Python/venv/warp.dll",
+      "gating_and_size": "仅 cuda-probe 门控；mathdx.rs 490 行、deps.rs 81 行（≤500）",
+      "sdk_not_committed": "git 仅跟踪 LICENSES/libmathdx-0.3.1/{LICENSE.txt,PROVENANCE.md}；SDK 二进制只在 target/",
+      "license": "LICENSE.txt 16,818 B sha256 8cfdcfcb…（与 component.json 一致）；PROVENANCE 记录来源包 30,920,469 B/64488dec… 与登记任务",
+      "product_kernel_path": "现有产品内核仍用 NVRTC 12.8.93（component.json.nvrtc.product_kernel_path），未全局升级",
+      "rejection_surface": "单测覆盖缺库/相对路径/缺符号/版本不符/非法形状枚举符号线程/缺 pinned NVRTC；GPU 探针以非方阵 POTRF 触发真实描述符/编译失败并断言 MathDx 错误日志",
+      "bit_stability_boundaries": "如实写入：CWD 进 LTOIR（9fd948c3/e75d9ea0/98c01ce6）、NVRTC 版本决定字节（12.8.93→1,035,080 B vs 12.9.86→1,034,872 B）、跨目录/跨机位不成立且需固定 CWD=C:\\Rust\\mjwarp-rs + pinned NVRTC；MATHDX_EVIDENCE_CWD 仅测试内切目录，产品 API 不 chdir（grep 确认）",
+      "gates": ".normify/runs/ 三个任务记录齐全：prep fmt；solver-lto 与 nvrtc-component 的 fmt/clippy/clippy-cuda/unit（480/0）",
+      "findings": [
+        {"severity": "建议", "item": "receipt.json 行数字段陈旧", "detail": "deps.rs 74→81、ffi.rs 224→256、tests.rs 136→138、probe.rs 311→325；blob 均与 HEAD 一致，≤500 行约束不受影响。"},
+        {"severity": "建议", "item": "README 接口节 mathdx.rs 行数不符", "detail": "README 写 454 行，实际 490（receipt 490 正确），建议同步。"}
+      ]
+    },
+    "environment_prep": {
+      "script": "target/toolchains/powershell-7.6.7/bin/pwsh.exe -NoProfile -File scripts/prepare-cuda-probe.ps1 → exit 0",
+      "components": "mathdx64_0.dll 14,854,656 B/5ce7528e…；nvrtc64_120_0.dll 89,832,960 B/0cc63349…；nvrtc-builtins64_129.dll 7,217,664 B/c405226b…（与 component.json 一致）",
+      "probe_spot_checks": "普通环境与 G01 环境各 2 过 0 败；四项冻结摘要逐字节相同；call_nvrtc_version=[12,9]；evidence_cwd=C:\\Rust\\mjwarp-rs"
+    },
+    "g01_acceptance": {
+      "source_head": "4f362f2（运行 HEAD 384842f，仅多一条任务登记提交）",
+      "debug": {"run_directory": "target/g01-acceptance/7095eee44fcf4d08a7423a20485a664b", "host_log": "target/final-g01-check/debug-mathdx.log", "wall_seconds": 788},
+      "release": {"run_directory": "target/g01-acceptance/95c7dc56d5e44843a1b132ce6b338bb3", "host_log": "target/final-g01-check/release-mathdx.log", "wall_seconds": 619},
+      "stages_exit0": 14,
+      "host_msvc": 823,
+      "all_probes": "352 过 / 0 败（86 result 行）；MathDx 探针 2 项自动纳入并通过",
+      "host_gnu": 480,
+      "rustdoc": "0 警告",
+      "diff": "通过",
+      "exclusions": {"total": 11, "groups": {"wd5": 3, "historical_audits": 6, "env_unwired": 1, "known_debt": 1}, "unchanged": true, "new_exclusions_needed": false},
+      "diff_vs_previous": "host-msvc 812→823（mathdx 11 单测）；all-probes 350→352、result 行 85→86（mathdx 探针 2 项）；host-gnu 480 不变；排除 11 不变；墙钟 787/633→788/619",
+      "conclusion": "G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 4f362f2；MathDx 探针已纳入 all-probes 并通过；U038-3D 已知债务显式排除、未验收）"
+    }
+  },
+  "note": "按 Chief 指派完成：① 独立复核 MathDx 三块交付（2025a57/e5f1559/4f362f2）——冻结产物数字、描述符 API 绑定、无 C/C++/Python、仅 cuda-probe、≤500 行、SDK 未入库、许可与 provenance、产品内核仍 12.8.93、拒绝面真实、三条位稳定边界如实，均成立；发现 2 条建议（回执行数字段陈旧、README mathdx.rs 行数 454 vs 490）。② 环境准备脚本 exit 0，组件哈希一致；mathdx 探针普通/G01 环境各 2/0 且四摘要一致。③ HEAD 4f362f2 复跑 G01 debug/release：14 阶段均 exit 0，host-msvc 823、all-probes 352/0（86 行）、rustdoc 0、diff 通过、排除 11 项无新增。已更新 g01-fast-loop（§5.5 + final-acceptance-mathdx.json）与 three-layer-acceptance（§4.11、§7 数字）。未改产品/测试/容差/fixtures/排除清单/G01 脚本。",
+  "boundaries": [
+    "只做复核与复跑；未改产品代码/测试/容差/fixtures，未改排除清单或 G01 脚本。",
+    "只验证 Windows 单平台；Linux deferred、SDK 再分发边界未定、性能与完整上游等价未验收。",
+    "MathDx 位稳定仅限固定 CWD=C:\\Rust\\mjwarp-rs + pinned NVRTC 12.9.86；跨目录/跨机位不成立。排除项仍 11 项（U038-3D known-debt 显式排除、未验收），无新增。"
+  ]
+}

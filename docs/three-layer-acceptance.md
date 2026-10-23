@@ -344,6 +344,33 @@ LTOIR 交付（`f9da799`，任务 `2026-10-24-compile-chain-ltoir`：`cuda-probe
 - 证据：`docs/development-evidence/g01-fast-loop/`（README §5.4、`final-acceptance-ltoir.json`）与 `docs/development-evidence/ltoir-independent-check/`。
 - 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9da799；LTOIR 探针已纳入 all-probes 并通过；U038-3D 已知债务显式排除、未验收）**。Linux（§7.1）、性能与完整上游等价仍未验收。
 
+### 4.11 MathDx 交付后 debug/release 双模式复验（2026-10-24，QA，任务 `2026-10-24-mathdx-review-g01-rerun`）
+
+MathDx 三块交付（`2025a57` libmathdx 0.3.1 组件与许可、`e5f1559` Solver LTO 绑定与冻结产物对照、`4f362f2` NVRTC 12.9.86 组件化与路径解耦）经 QA 独立复核（`docs/development-evidence/mathdx-independent-check/`）后复跑：G01 前重跑 `prepare-cuda-probe.ps1`（exit 0），mathdx 探针在普通与 G01 环境各一次均 2 过 0 败、四项冻结摘要一致；随后在运行 HEAD `384842f`（源码 `4f362f2` 之上仅一条任务登记提交）执行 debug 与 release 两轮完整脚本，**14 个阶段均 exit 0**。
+
+| 阶段 | debug | release |
+| --- | --- | --- |
+| fmt | 通过 | 通过 |
+| native | 27 过 | 27 过 |
+| host-msvc | 823 过 | 823 过 |
+| g01 | 7 过 | 7 过 |
+| native-g01 | 2 过 | 2 过 |
+| native-only-g01 | 1 过 | 1 过 |
+| resident | 102 过 | 102 过 |
+| all-probes | **352 过 / 0 败**（86 result 行；11 项排除） | **352 过 / 0 败**（86 result 行；11 项排除） |
+| host-gnu | 480 过 | 480 过 |
+| clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 | 0 警告 |
+| diff | 通过 | 通过 |
+| 全脚本墙钟 | 788s | 619s |
+
+- 运行目录：debug `target/g01-acceptance/7095eee44fcf4d08a7423a20485a664b`、release `target/g01-acceptance/95c7dc56d5e44843a1b132ce6b338bb3`；本机日志 `target/final-g01-check/{debug,release}-mathdx.log`。
+- 排除清单仍为 **11 项**（W-D5 3、历史捕获身份 6、env 未接线 1、U038-3D 已知债务 1），两模式逐项相同，**未新增排除**；`env-wiring.json` 与 §4.10 一致。
+- **MathDx 探针**：all-probes 执行 `cargo test --all-features -- --ignored`（全部 target、无白名单），`mathdx_solver_probe` 的 2 项 ignored GPU 测试被**自动纳入并通过**（all-probes 350→352、result 行 85→86）；探针按 pinned 组件解析 NVRTC（`call_nvrtc_version=[12,9]`），与 `CUDA_PATH=12.8.1` 解耦。
+- 与 §4.10 差异：host-msvc 812→823（mathdx 11 项单测）；all-probes 350→352、result 行 85→86（mathdx 探针 2 项）；host-gnu 480 不变；排除 11 项不变；墙钟 787s/633s→788s/619s。
+- 证据：`docs/development-evidence/g01-fast-loop/`（README §5.5、`final-acceptance-mathdx.json`）与 `docs/development-evidence/mathdx-independent-check/`。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 4f362f2；MathDx 探针已纳入 all-probes 并通过；U038-3D 已知债务显式排除、未验收）**。Linux（§7.1）、性能与完整上游等价仍未验收。
+
 ## 5. 债务清单
 
 | 编号 | 级别 | 状态 | 内容与证据 |
@@ -434,8 +461,8 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_grav
 ## 7. 未验收边界
 
 - 只验收 Windows；Linux 侧按用户 2026-10-24 决定**暂时终止**（开发、验收与回测均暂停），等 Windows 全量开发完成后集中回测一次，不零散开跑；当前程序以 Windows 单平台完成为目标；Linux V2 未启动（原需 `linux-gpu:0` 与 `linux-acceptance`），细节见 §7.1。
-- G01 现状（2026-10-24，§4.10，HEAD `f9da799`）：LTOIR 交付后 debug/release 双模式通过，host-msvc **812 过**、all-probes **350 过 0 败**（各 85 result 行；LTOIR GPU 探针 2 项已被 all-probes 自动纳入并通过），排除仍为 11 项、未新增。此前（§4.9，HEAD `f9f1f66`）：W13 后 debug/release 双模式通过，host-msvc **804 过**、all-probes **348 过 0 败**（各 84 result 行），排除仍为 11 项；更早（§4.8，HEAD `66256c9`）：debug/release 双模式通过（T4 源码身份已重钉、rustdoc 私链与 A10 release 计时断言已修复），host-msvc **796 过**、all-probes **346 过 0 败**（各 83 result 行）。三节均为 11 项文档化排除（W-D5 3、历史捕获身份 6、env/外部产物 1、U038-3D 已知债务 1），未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）
-- all-probes `-Minimum 346` 满足（LTOIR 后 debug/release 均 350 过，§4.10；§4.9 为 348 过、§4.8 为 346 过）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
+- G01 现状（2026-10-24，§4.11，HEAD `4f362f2`）：MathDx 交付后 debug/release 双模式通过，host-msvc **823 过**、all-probes **352 过 0 败**（各 86 result 行；MathDx GPU 探针 2 项已被 all-probes 自动纳入并通过），排除仍为 11 项、未新增。此前（§4.10，HEAD `f9da799`）：LTOIR 交付后 debug/release 双模式通过，host-msvc **812 过**、all-probes **350 过 0 败**（各 85 result 行，LTOIR 探针 2 项）；§4.9（`f9f1f66`）804/348（84 行）；§4.8（`66256c9`）796/346（83 行）。以上四节均为 11 项文档化排除（W-D5 3、历史捕获身份 6、env/外部产物 1、U038-3D 已知债务 1），未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）
+- all-probes `-Minimum 346` 满足（MathDx 后 debug/release 均 352 过，§4.11；§4.10 为 350 过、§4.9 为 348 过、§4.8 为 346 过）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
 - 历史记录：2026-10-22 的 full-debug 曾中止在 all-probes（§4.1–§4.3），相关债务已由 `d5b02d5`、`6cb5a71`、`b13d1c5` 收口；保留原文作为变更轨迹。
 - W13（2026-10-24）在 §4.8 的 HEAD `66256c9` 之后新增 `cuda-probe` 下的 nvJitLink 绑定源码与 2 项 GPU 测试（`tests/nvjitlink_probe.rs`）；T4 源码身份清单不覆盖这些文件，未重钉。all-probes 已纳入这 2 项，运行前须重跑 `scripts/prepare-cuda-probe.ps1`（取 nvJitLink 12.9.86），对照测试还需 `target/native-mathdx7/attempt-1/` 的离线证据输入。W13 后 G01 双模式复验已通过（§4.9）。
 - 未测量 G01 阶段峰值显存。

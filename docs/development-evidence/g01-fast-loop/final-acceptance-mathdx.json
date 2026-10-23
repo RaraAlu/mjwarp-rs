@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-24-mathdx-review-g01-rerun",
+  "date": "2026-10-24",
+  "scope": "MathDx 交付（2025a57/e5f1559/4f362f2）后 G01 debug/release 双模式复验",
+  "head": "4f362f24850d18967f3b6467cc6e46235df5b448",
+  "head_at_run": "384842f（4f362f2 之上仅一条任务登记提交，无源码/测试/夹具改动）",
+  "commands": {
+    "debug": "scripts/test-windows-g01.ps1 -AllFeatures -FullRegression",
+    "release": "scripts/test-windows-g01.ps1 -AllFeatures -FullRegression -Release",
+    "executor": "target/toolchains/powershell-7.6.7/bin/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File"
+  },
+  "preparation": "G01 前重跑 scripts/prepare-cuda-probe.ps1（exit 0）：libmathdx 0.3.1 + pinned NVRTC 12.9.86 就位；mathdx 探针普通/G01 环境各一次均 2 过 0 败、四摘要一致",
+  "runs": {
+    "debug": {
+      "run_directory": "target/g01-acceptance/7095eee44fcf4d08a7423a20485a664b",
+      "host_log": "target/final-g01-check/debug-mathdx.log",
+      "started_local": "2026-10-24T03:32:13+08:00",
+      "finished_local": "2026-10-24T03:45:21+08:00",
+      "wall_seconds": 788,
+      "stages": {
+        "fmt": {"exit": 0, "warnings": 0},
+        "native": {"exit": 0, "passed": 27},
+        "host-msvc": {"exit": 0, "passed": 823},
+        "g01": {"exit": 0, "passed": 7},
+        "native-g01": {"exit": 0, "passed": 2},
+        "native-only-g01": {"exit": 0, "passed": 1},
+        "resident": {"exit": 0, "passed": 102},
+        "all-probes": {"exit": 0, "passed": 352, "failed": 0, "result_lines": 86},
+        "host-gnu": {"exit": 0, "passed": 480},
+        "clippy-gnu": {"exit": 0, "warnings": 0},
+        "clippy-gnu-cuda": {"exit": 0, "warnings": 0},
+        "clippy-msvc": {"exit": 0, "warnings": 0},
+        "rustdoc": {"exit": 0, "warnings": 0},
+        "diff": {"exit": 0}
+      },
+      "all_probes_passed": 352,
+      "all_probes_failed": 0,
+      "all_probes_result_lines": 86,
+      "mathdx_probe_included": "mathdx_solver_probe 2 项 ignored 测试被 all-probes 自动纳入并通过",
+      "exclusions_total": 11
+    },
+    "release": {
+      "run_directory": "target/g01-acceptance/95c7dc56d5e44843a1b132ce6b338bb3",
+      "host_log": "target/final-g01-check/release-mathdx.log",
+      "started_local": "2026-10-24T03:45:48+08:00",
+      "finished_local": "2026-10-24T03:56:07+08:00",
+      "wall_seconds": 619,
+      "stages": {
+        "fmt": {"exit": 0, "warnings": 0},
+        "native": {"exit": 0, "passed": 27},
+        "host-msvc": {"exit": 0, "passed": 823},
+        "g01": {"exit": 0, "passed": 7},
+        "native-g01": {"exit": 0, "passed": 2},
+        "native-only-g01": {"exit": 0, "passed": 1},
+        "resident": {"exit": 0, "passed": 102},
+        "all-probes": {"exit": 0, "passed": 352, "failed": 0, "result_lines": 86},
+        "host-gnu": {"exit": 0, "passed": 480},
+        "clippy-gnu": {"exit": 0, "warnings": 0},
+        "clippy-gnu-cuda": {"exit": 0, "warnings": 0},
+        "clippy-msvc": {"exit": 0, "warnings": 0},
+        "rustdoc": {"exit": 0, "warnings": 0},
+        "diff": {"exit": 0}
+      },
+      "all_probes_passed": 352,
+      "all_probes_failed": 0,
+      "all_probes_result_lines": 86,
+      "mathdx_probe_included": "mathdx_solver_probe 2 项 ignored 测试被 all-probes 自动纳入并通过",
+      "exclusions_total": 11
+    }
+  },
+  "exclusions": {
+    "file": "<run>/probe-reports/exclusions.json",
+    "groups": {"wd5": 3, "historical_audits": 6, "env_unwired": 1, "known_debt": 1},
+    "total": 11,
+    "unchanged_from_previous_acceptance": true,
+    "new_exclusions_needed": false
+  },
+  "env_wiring": "两模式一致：cuda_include/cuda_bin_path/t4_history/frozen_upstream/frozen_warp/collision_mocks=wired；t4_current_captures/gravity_3d_evidence=fresh-directory；sparse_preflight=reused",
+  "diff_vs_previous_acceptance": {
+    "previous_head": "f9da799",
+    "host_msvc": "812 → 823（mathdx 新增 11 项单元测试）",
+    "all_probes": "350 → 352 过、0 败；result 行 85 → 86（mathdx_solver_probe 2 项 GPU 探针被 all-probes 自动纳入并通过）",
+    "host_gnu": "480（不变，mathdx 仅在 cuda-probe 下编译）",
+    "exclusions": "11 项不变，无新增",
+    "rustdoc": "0 警告（不变）",
+    "wall_seconds": "787/633 → 788/619"
+  },
+  "conclusion": "G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 4f362f2；MathDx 探针自动纳入 all-probes 并通过；U038-3D 已知债务显式排除、未验收）。Linux（deferred）、性能与完整上游等价仍未验收。",
+  "boundaries": [
+    "只验证 Windows 单平台 G01 debug/release 双模式；Linux deferred、性能与完整上游等价未验收。",
+    "未改断言/容差/fixtures/排除清单/G01 脚本；本任务只改证据与验收文档。",
+    "MathDx 位稳定仅限固定 CWD=C:\\Rust\\mjwarp-rs + pinned NVRTC 12.9.86；跨目录/跨机位不成立。"
+  ]
+}
