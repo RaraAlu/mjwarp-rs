@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-linux-batch-retest",
+  "title": {
+    "zh": "Windows全量完成后的Linux集中回测",
+    "en": "Consolidated Linux retest after Windows development completes"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "落实用户 2026-10-24 决定：Linux 相关开发与回测暂时终止，等 Windows 全量开发完成后集中回测一次，不零散开跑。本任务是该一次性 Linux 回测的唯一载体：触发条件为 Windows 全量完成并经用户确认，届时一次性申请 Linux RTX 5080 与 linux-acceptance 资源，在同一环境集中执行 Linux 三层集成、锁版工具链、G01 双模式与 NP03/NP04 的 Linux 侧证据；未跑通前不宣称 Linux/双平台通过。",
+    "en": "Apply the user decision of 2026-10-24: Linux development and retest are suspended and one consolidated Linux retest runs after Windows development fully completes. This task is the single carrier of that one-shot retest; when triggered, reserve the Linux RTX 5080 and linux-acceptance resources once and run the Linux layer integration, pinned toolchain, G01 dual mode and NP03/NP04 Linux evidence together. No Linux or dual-platform pass is claimed before the run."
+  },
+  "modules": {},
+  "acceptance": [
+    "触发条件：Windows 全量开发完成（用户确认；Windows 侧可执行任务清空且不再开新 Windows 开发）后才 promote 本任务并一次性申请 Linux RTX 5080 与 linux-acceptance；Windows 未完成时保持 backlog，不开跑。",
+    "在同一 Linux 环境按仓库脚本集中执行并记录 HEAD、锁版工具链（1.99.0）、驱动、GPU、命令与墙钟：bash scripts/prepare-linux-native.sh、bash scripts/prepare-linux-cuda.sh、bash scripts/test-linux-g01.sh --all-features --full-regression 与 --release。",
+    "集中覆盖四条 Linux 范围并逐项记录真实通过与失败计数及失败原因：2026-10-18-layers-linux（V2 三层集成）、2026-10-18-linux-toolchain-validation（锁版工具链与 fmt/clippy 全目标）、NP03 Linux 侧数值等价、NP04 Linux 侧耗时与峰值显存；不零散重复，不把旧历史数字当本次结果。",
+    "不改容差、断言、排除清单、fixtures、脚本与产品源码；失败或环境缺失如实报告，未跑通项保持未验收，不宣称 Linux/双平台通过。",
+    "产出单一集中证据 docs/development-evidence/linux-batch-retest/（README 加机器可判定 json：HEAD、环境、命令、逐阶段数字、排除项、失败清单）；回执 json 含 task_id；gate fmt、unchanged 与 json 检查通过；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "cross/V2-Linux",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/linux-batch-retest/",
+      "docs/development-evidence/changes/2026-10-24-linux-batch-retest.json",
+      "docs/three-layer-acceptance.md",
+      "docs/compatibility-matrix.md"
+    ],
+    "resources": [
+      "gpu:linux-rtx5080",
+      "linux-acceptance"
+    ],
+    "priority": 90
+  },
+  "note": "用户 2026-10-24 决定：Linux 相关暂时终止，等 Windows 全量开发完成后再集中回测。本任务为 backlog（远期），不 start、不占 Windows GPU 与开发窗口；触发时一次性申请 Linux RTX 5080 与 linux-acceptance，把 2026-10-18-layers-linux、2026-10-18-linux-toolchain-validation、2026-10-23-np03-dual-platform、2026-10-23-np04-performance 四条 backlog 范围合并为一轮跑完，并由本任务收敛为单一证据。Linux 环境未就绪或任一项失败时保持未验收、如实报告。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T16:35:00.000Z",
+  "updated_at": "2026-10-23T16:35:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-24-linux-batch-retest.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-linux-batch-retest"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "Linux已验收",
+        "双平台通过"
+      ]
+    }
+  ]
+}

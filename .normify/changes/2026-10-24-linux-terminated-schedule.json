@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-linux-terminated-schedule",
+  "title": {
+    "zh": "Linux相关终止与Windows完工后集中回测排程",
+    "en": "Suspend Linux scope and schedule one consolidated retest after Windows completes"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "落实用户 2026-10-24 决定：Linux 相关开发、验收与回测暂时终止，等 Windows 全量开发完成后再集中回测一次。把四条 Linux 范围任务从 proposed 移到 backlog（不再占就绪队列），note 记录新依据与恢复路径；新增 backlog 任务 2026-10-24-linux-batch-retest 承载那次集中回测；同步改写 docs/three-layer-acceptance.md §7/§7.1 与 docs/compatibility-matrix.md 的 Linux 状态。不改产品，不宣称 Linux/双平台验收，不放弃任务、不伪造。",
+    "en": "Apply the 2026-10-24 user decision: suspend all Linux development, acceptance and retest until Windows development fully completes, then run one consolidated retest. Move the four Linux-scope tasks from proposed to backlog with notes recording the new basis and resume path, register the backlog task 2026-10-24-linux-batch-retest for the consolidated run, and update the Linux status in the three-layer acceptance doc and compatibility matrix. Do not abandon or falsify."
+  },
+  "modules": {},
+  "acceptance": [
+    "docs/three-layer-acceptance.md §7 首条与 §7.1 改写为：Linux 相关按用户 2026-10-24 决定暂时终止（不再只是 deferred），等 Windows 全量开发完成后集中回测一次；列出四条 backlog 范围与集中回测任务，写明不宣称 Linux/双平台通过。",
+    "docs/compatibility-matrix.md 增加 2026-10-24 段：Linux 相关终止、集中回测计划（Windows 完工后一次性执行）、Windows 单平台边界与未验收结论不变。",
+    "四条 Linux 范围任务（2026-10-18-layers-linux、2026-10-18-linux-toolchain-validation、2026-10-23-np03-dual-platform、2026-10-23-np04-performance）status 改为 backlog（就绪队列不再出现），note 追加 2026-10-24 依据、集中回测入口与恢复条件；不 abandon、不伪造；2026-10-18-toolchain-clippy-acceptance 保持 proposed/blocked（其 Linux 前置已转 backlog）。",
+    "新增 backlog 任务 2026-10-24-linux-batch-retest（触发条件、Linux 命令、覆盖范围、证据路径、边界与 checks 写全，不 start），作为 Windows 完工后一次性集中回测的唯一入口。",
+    "交付回执 docs/development-evidence/changes/2026-10-24-linux-terminated-schedule.json（含 task_id、任务列表、文档变更与边界）；gate fmt、unchanged（src/tests/fixtures/scripts 等）与 json 检查通过；中文提交。不改产品源码/测试/容差/fixtures/脚本与 G01 排除清单。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "工程-治理",
+    "owner": "Chief",
+    "files": [
+      "docs/three-layer-acceptance.md",
+      "docs/compatibility-matrix.md",
+      "docs/development-evidence/changes/2026-10-24-linux-terminated-schedule.json",
+      ".normify/changes/"
+    ],
+    "resources": [],
+    "priority": 2
+  },
+  "note": "用户 2026-10-24 决定：Linux 相关暂时终止，等 Windows 全量开发完成后再集中回测；本轮只改文档、任务登记与排程状态（4 条转 backlog、新增 1 条 backlog 集中回测任务），不 start 任何任务、不改产品/测试/容差/fixtures/脚本、不改 G01 排除清单；不宣称 Linux/双平台通过。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T16:36:00.000Z",
+  "updated_at": "2026-10-23T16:36:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-24-linux-terminated-schedule.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-linux-terminated-schedule"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "Linux已验收",
+        "双平台通过",
+        "Linux通过"
+      ]
+    }
+  ]
+}
