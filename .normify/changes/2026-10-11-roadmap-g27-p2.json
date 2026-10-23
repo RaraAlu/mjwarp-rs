@@ -12,7 +12,6 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.model.core",
       "mjwarp.physics.core"
     ]
   },
@@ -24,21 +23,75 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "新增 `physics::constants::set_const_fixed` 宿主实现（U053；G27；P2/P7）：由 body_mass 与 body_parentid 按深度倒序做 f32 累加得到 body_subtreemass，并拒绝长度不符、负质量、非法父体与父体环。",
+    "固定常量对照以 `fixtures/g01/scene.mjb` 为模型源：离线 authoring 用 pinned MJWarp `set_const_fixed` 与原生 MuJoCo `mj_setConst` 产出参考；产品值先与原生参考逐元素比较（NP03 一级），再与 MJWarp f32 参考比较并记录上游多次运行的位差分布（NP03 二级）。",
+    "NP01：新增路径全部 f32，内部无 f64 提升；NP02：证据记录冻结上游提交、模型源 sha256、编译选项与运行次数；NP04 不适用（本片不发射内核、不跑性能），如实登记未测项。",
+    "证据落 `docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g27-p2/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g27-p2.json`；gate fmt/clippy/unit 通过，不宣称完整 G27 或精度验收。"
   ],
   "schedule": {
     "depends_on": [],
     "phase": "P2",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/physics/constants.rs",
+      "src/physics/mod.rs",
+      "fixtures/set-const/",
+      "scripts/authoring/",
+      "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g27-p2/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g27-p2.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":280,\"end\":280},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p2-contract] → 新依赖 []。依据：原前置 P2-CONTRACT 属旧聚合门禁（已 abandon/被 M1 契约覆盖）；常量计算的输入契约已由 layers-m1 与 fixtures 覆盖，故删除。",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/runtime",
+        "src/model",
+        "native",
+        "include",
+        "tests",
+        "fixtures/g01",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-g27-p2.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-g27-p2"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ],
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":280,\"end\":280},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p2-contract] → 新依赖 []。依据：原前置 P2-CONTRACT 属旧聚合门禁（已 abandon/被 M1 契约覆盖）；常量计算的输入契约已由 layers-m1 与 fixtures 覆盖，故删除。\n\n2026-10-23 旧计划细化（Backend，批次1）：原图只有 G27@P2 粗切片（矩阵 G27 = 「常量计算｜set_const与长度范围｜输入转换与动态更新｜P2/P7」）。按当前代码布局，本片最小可交付 = 计划 API `mjwarp_rs::physics::constants::set_const_fixed`（U053；G27；P2/P7）的宿主侧实现：由 body_mass/body_parentid 计算 body_subtreemass（f32 深度倒序累加），只做固定常量，不发射内核、不改模型布局、不引入 Model/Data 类型。验收口径未放宽：P2 切片只覆盖「输入转换」侧的固定常量；qpos0 依赖常量（invweight/tendon_length0/camlight pos0）、执行器常量与长度范围（依赖 G05 字段）以及动态更新（@P7）全部如实列为未验收边界。范围收窄到 src/physics/constants.rs、src/physics/mod.rs、fixtures/set-const/、scripts/authoring/、证据与回执；不改产品既有物理路径与容差。"
+  ,
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-11T15:26:41.139Z",
-  "updated_at": "2026-10-23T04:56:45.572Z"
+  "updated_at": "2026-10-23T05:30:00.000Z"
 }
