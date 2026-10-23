@@ -197,6 +197,34 @@ $pwsh = 'target\toolchains\powershell-7.6.7\bin\pwsh.exe'
 - **与 §5.2 的差异**：HEAD `66256c9`→`f9f1f66`；host-msvc 796→804（W13 单元测试 8 项）；all-probes 346→348、result 行 83→84（W13 新测试二进制 2 项）；host-gnu 480 不变（W13 只在 `cuda-probe` 下编译）；排除项 11 不变；墙钟 709s/627s→839s/656s（未分析墙钟变化原因）。
 - 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9f1f66；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
 
+### 5.4 LTOIR 交付后双模式复验（2026-10-24，QA，任务 `2026-10-24-ltoir-review-g01-rerun`）
+
+背景：LTOIR 交付（`f9da799`，任务 `2026-10-24-compile-chain-ltoir`）在 `cuda-probe` 下新增产品侧 LTOIR 输出/nvJitLink 端到端接口、8 项单元测试与 1 个 GPU 探针（2 项 ignored 测试）。QA 独立复核该交付（见 `docs/development-evidence/ltoir-independent-check/`）后按同一命令复跑双模式。
+
+命令与 §5 相同；运行前重跑 `scripts/prepare-cuda-probe.ps1`（`libnvjitlink` 12.9.86）。运行 HEAD `e48f89a`（源码 `f9da799` 之上仅一条任务登记提交，无产品/测试/夹具改动）。
+运行目录：debug `target/g01-acceptance/465d8515c0e04e99857a642c452753f9`，release `target/g01-acceptance/a863e1a3ae91456296ef575b4102537a`；本机日志 `target/final-g01-check/{debug,release}-ltoir.log`；机器数据 `final-acceptance-ltoir.json`。
+
+| 阶段 | debug | release |
+| --- | --- | --- |
+| fmt | 通过 | 通过 |
+| native | 27 过 | 27 过 |
+| host-msvc | 812 过 | 812 过 |
+| g01 | 7 过 | 7 过 |
+| native-g01 | 2 过 | 2 过 |
+| native-only-g01 | 1 过 | 1 过 |
+| resident | 102 过 | 102 过 |
+| all-probes | **350 过 / 0 败**（85 个 result 行） | **350 过 / 0 败**（85 个 result 行） |
+| host-gnu | 480 过 | 480 过 |
+| clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 | 0 警告 |
+| diff | 通过 | 通过 |
+| **全脚本墙钟** | **787s（13.1 分钟）** | **633s（10.6 分钟）** |
+
+- **排除清单**：仍为 11 项（W-D5 3、历史捕获身份 6、env 未接线 1、U038-3D 已知债务 1），两模式逐项相同，**未新增排除**，未改断言/容差/排除清单/G01 脚本。
+- **LTOIR 探针纳入**：all-probes 执行 `cargo test --all-features -- --ignored`（覆盖全部测试 target、无白名单），因此 `compile_ltoir_probe` 的 2 项 ignored GPU 测试被**自动纳入并通过**（两模式 `all-probes.log` 各命中 2 次）；这与交付证据中「探针未接入 all-probes 列表」的边界描述不符，已在独立复核中登记为建议项（不影响通过性）。
+- **环境接线**：与 §5.3 相同（`cuda_include`/`cuda_bin_path`/`t4_history`/`frozen_upstream`/`frozen_warp`/`collision_mocks` = wired，`t4_current_captures`/`gravity_3d_evidence` = fresh-directory，`sparse_preflight` = reused）。
+- **与 §5.3 的差异**：HEAD `f9f1f66`→`f9da799`；host-msvc 804→812（LTOIR 8 项单测）；all-probes 348→350、result 行 84→85（`compile_ltoir_probe` 2 项）；host-gnu 480 不变（LTOIR 仅在 `cuda-probe` 下编译）；排除项 11 不变；墙钟 839s/656s→787s/633s。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9da799；LTOIR 探针已纳入 all-probes 并通过；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
 
 ## 6. 并行评估（开发迭代用途）
 

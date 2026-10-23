@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-24-ltoir-review-g01-rerun",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/ltoir-independent-check/README.md",
+      "blob": "1b0ca7dc2af77487572296d4282578d65474f2d4"
+    },
+    {
+      "path": "docs/development-evidence/ltoir-independent-check/ltoir-independent-check.json",
+      "blob": "6db265bbef3205982914d9e3f85d035f34f5cd2c"
+    },
+    {
+      "path": "docs/development-evidence/g01-fast-loop/README.md",
+      "blob": "d91cb379c438a27e91ba183a2d5fe14d6189f7bf"
+    },
+    {
+      "path": "docs/development-evidence/g01-fast-loop/final-acceptance-ltoir.json",
+      "blob": "6c4a586ed0a47bb6dcf433be72e119f4747d9cb6"
+    },
+    {
+      "path": "docs/three-layer-acceptance.md",
+      "blob": "15c8f0c7e451e9759ece9b17118fc2b14b048336"
+    }
+  ],
+  "results": {
+    "scope": "LTOIR 交付（f9da799 / 2026-10-24-compile-chain-ltoir）独立复核 + HEAD f9da799 上 G01 debug/release 双模式复验；只改证据与验收文档",
+    "ltoir_review": {
+      "reviewed_commit": "f9da799731b6ee3d5795928b576943109846f002",
+      "files": "ltoir.rs 320 行、ltoir/tests.rs 125 行、tests/compile_ltoir_probe.rs 249 行；artifact.rs/mod.rs 仅挂载导出",
+      "gating": "仅 cuda-probe feature；artifact/nvrtc.rs PTX/CUBIN 路径未改；内核字符串/容差/f32 未改；无 C/C++/Python/venv；未接 MathDx SDK",
+      "rerun": "lib ltoir 8 过 0 败；GPU 探针 2 过 0 败（CUDA_PATH=target/toolchains/cuda-12.8.1）",
+      "numbers_match": "LTOIR 3632 B/1415be10…、CUBIN 2086544 B/1086284b…、设备输出 104528 B/51e1a99b…、8 次发射、6.92 ms（6.8 ms 级）、repeat_compile/link_identical=true，与证据逐项一致",
+      "gate_records": ".normify/runs/2026-10-24-compile-chain-ltoir/：fmt/clippy/clippy-cuda exit 0、0 警告；unit 480 过 0 败",
+      "boundaries": "不接 MathDx、Linux deferred、G01 未在本任务复跑（本次 QA 已另行复跑）、T4 锚点不含 launcher（未漂移、无需重钉）——均成立",
+      "findings": [
+        {"severity": "建议", "item": "证据标注行数陈旧（288/123/241 vs 实际 320/125/249；blob 与回执一致）"},
+        {"severity": "建议", "item": "「新 GPU 探针未接入 all-probes」声明不准确：all-probes 执行 cargo test --all-features -- --ignored 自动纳入，本次实测 2/0 通过"}
+      ]
+    },
+    "g01_acceptance": {
+      "source_head": "f9da799（运行 HEAD e48f89a，仅多一条任务登记提交）",
+      "debug": {
+        "run_directory": "target/g01-acceptance/465d8515c0e04e99857a642c452753f9",
+        "host_log": "target/final-g01-check/debug-ltoir.log",
+        "wall_seconds": 787
+      },
+      "release": {
+        "run_directory": "target/g01-acceptance/a863e1a3ae91456296ef575b4102537a",
+        "host_log": "target/final-g01-check/release-ltoir.log",
+        "wall_seconds": 633
+      },
+      "stages_exit0": 14,
+      "host_msvc": 812,
+      "all_probes": "350 过 / 0 败（85 result 行）；LTOIR 探针 2 项已纳入并通过",
+      "host_gnu": 480,
+      "rustdoc": "0 警告",
+      "diff": "通过",
+      "exclusions": {"total": 11, "groups": {"wd5": 3, "historical_audits": 6, "env_unwired": 1, "known_debt": 1}, "unchanged": true, "new_exclusions_needed": false},
+      "diff_vs_previous": "host-msvc 804→812（LTOIR 8 单测）；all-probes 348→350、result 行 84→85（LTOIR 探针 2 项）；host-gnu 480 不变；排除 11 不变；墙钟 839/656→787/633",
+      "conclusion": "G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9da799；LTOIR 探针已纳入 all-probes 并通过；U038-3D 已知债务显式排除、未验收）"
+    }
+  },
+  "note": "按 Chief 指派完成两项：① 独立复核 LTOIR 交付（f9da799）：交付声明全部成立，复跑 lib 8/0 与 ignored GPU 探针 2/0，LTOIR/CUBIN/设备输出摘要与证据逐项一致；发现 2 条建议（证据行数陈旧、探针未接入 all-probes 的声明不准确——实际自动纳入并通过）。② 在 HEAD f9da799 复跑 G01 debug/release：两模式 14 阶段均 exit 0，host-msvc 812、all-probes 350/0（85 result 行）、rustdoc 0 警告、diff 通过、排除清单 11 项无新增。已更新 g01-fast-loop（README §5.4、final-acceptance-ltoir.json）与 three-layer-acceptance（§4.10、§7 现状数字）。未改产品/测试/容差/fixtures/排除清单/G01 脚本。",
+  "boundaries": [
+    "只做复核与复跑；未改产品代码/编译链源码/测试/容差/fixtures，未改排除清单或 G01 脚本。",
+    "只验证 Windows 单平台；Linux deferred、MathDx SDK 未接入、性能与完整上游等价未验收。",
+    "排除项仍为 11 项（U038-3D known-debt 显式排除、未验收），无新增；LTOIR 探针为正常纳入、不属于排除项。"
+  ]
+}

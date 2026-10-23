@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-24-ltoir-review-g01-rerun",
+  "date": "2026-10-24",
+  "scope": "LTOIR 交付（f9da799）后 G01 debug/release 双模式复验",
+  "head": "f9da799731b6ee3d5795928b576943109846f002",
+  "head_at_run": "e48f89a（f9da799 之上仅一条任务登记提交，无源码/测试/夹具改动）",
+  "commands": {
+    "debug": "scripts/test-windows-g01.ps1 -AllFeatures -FullRegression",
+    "release": "scripts/test-windows-g01.ps1 -AllFeatures -FullRegression -Release",
+    "executor": "target/toolchains/powershell-7.6.7/bin/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File"
+  },
+  "preparation": "运行前重跑 scripts/prepare-cuda-probe.ps1（components.json 含 libnvjitlink 12.9.86），与 §5.3 相同",
+  "runs": {
+    "debug": {
+      "run_directory": "target/g01-acceptance/465d8515c0e04e99857a642c452753f9",
+      "host_log": "target/final-g01-check/debug-ltoir.log",
+      "started_local": "2026-10-24T02:38:08+08:00",
+      "finished_local": "2026-10-24T02:51:15+08:00",
+      "wall_seconds": 787,
+      "stages": {
+        "fmt": {"exit": 0, "warnings": 0},
+        "native": {"exit": 0, "passed": 27},
+        "host-msvc": {"exit": 0, "passed": 812},
+        "g01": {"exit": 0, "passed": 7},
+        "native-g01": {"exit": 0, "passed": 2},
+        "native-only-g01": {"exit": 0, "passed": 1},
+        "resident": {"exit": 0, "passed": 102},
+        "all-probes": {"exit": 0, "passed": 350, "failed": 0, "result_lines": 85},
+        "host-gnu": {"exit": 0, "passed": 480},
+        "clippy-gnu": {"exit": 0, "warnings": 0},
+        "clippy-gnu-cuda": {"exit": 0, "warnings": 0},
+        "clippy-msvc": {"exit": 0, "warnings": 0},
+        "rustdoc": {"exit": 0, "warnings": 0},
+        "diff": {"exit": 0}
+      },
+      "all_probes_passed": 350,
+      "all_probes_failed": 0,
+      "all_probes_result_lines": 85,
+      "ltoir_probe_included": "compile_ltoir_probe 2 项 ignored 测试被 all-probes 自动纳入并通过（all-probes.log 中 compile_ltoir 命中 2 次）",
+      "exclusions_total": 11
+    },
+    "release": {
+      "run_directory": "target/g01-acceptance/a863e1a3ae91456296ef575b4102537a",
+      "host_log": "target/final-g01-check/release-ltoir.log",
+      "started_local": "2026-10-24T02:51:40+08:00",
+      "finished_local": "2026-10-24T03:02:13+08:00",
+      "wall_seconds": 633,
+      "stages": {
+        "fmt": {"exit": 0, "warnings": 0},
+        "native": {"exit": 0, "passed": 27},
+        "host-msvc": {"exit": 0, "passed": 812},
+        "g01": {"exit": 0, "passed": 7},
+        "native-g01": {"exit": 0, "passed": 2},
+        "native-only-g01": {"exit": 0, "passed": 1},
+        "resident": {"exit": 0, "passed": 102},
+        "all-probes": {"exit": 0, "passed": 350, "failed": 0, "result_lines": 85},
+        "host-gnu": {"exit": 0, "passed": 480},
+        "clippy-gnu": {"exit": 0, "warnings": 0},
+        "clippy-gnu-cuda": {"exit": 0, "warnings": 0},
+        "clippy-msvc": {"exit": 0, "warnings": 0},
+        "rustdoc": {"exit": 0, "warnings": 0},
+        "diff": {"exit": 0}
+      },
+      "all_probes_passed": 350,
+      "all_probes_failed": 0,
+      "all_probes_result_lines": 85,
+      "ltoir_probe_included": "compile_ltoir_probe 2 项 ignored 测试被 all-probes 自动纳入并通过",
+      "exclusions_total": 11
+    }
+  },
+  "exclusions": {
+    "file": "<run>/probe-reports/exclusions.json",
+    "groups": {"wd5": 3, "historical_audits": 6, "env_unwired": 1, "known_debt": 1},
+    "total": 11,
+    "unchanged_from_previous_acceptance": true,
+    "new_exclusions_needed": false
+  },
+  "env_wiring": "两模式一致：cuda_include/cuda_bin_path/t4_history/frozen_upstream/frozen_warp/collision_mocks=wired；t4_current_captures/gravity_3d_evidence=fresh-directory；sparse_preflight=reused",
+  "diff_vs_previous_acceptance": {
+    "previous_head": "f9f1f66",
+    "host_msvc": "804 → 812（LTOIR 新增 8 项单元测试）",
+    "all_probes": "348 → 350 过、0 败；result 行 84 → 85（compile_ltoir_probe 2 项 GPU 探针被 all-probes 自动纳入并通过）",
+    "host_gnu": "480（不变，LTOIR 仅在 cuda-probe 下编译）",
+    "exclusions": "11 项不变，无新增",
+    "rustdoc": "0 警告（不变）",
+    "wall_seconds": "839/656 → 787/633"
+  },
+  "conclusion": "G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9da799；LTOIR 探针自动纳入 all-probes 并通过；U038-3D 已知债务显式排除、未验收）。Linux（deferred）、性能与完整上游等价仍未验收。",
+  "boundaries": [
+    "只验证 Windows 单平台 G01 debug/release 双模式；Linux deferred、性能与完整上游等价未验收。",
+    "未改断言/容差/fixtures/排除清单/G01 脚本；本任务只改证据与验收文档。",
+    "all-probes 的 11 项排除不变、无新增；LTOIR 探针为正常纳入，不属于排除项。"
+  ]
+}

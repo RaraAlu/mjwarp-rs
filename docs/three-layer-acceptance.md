@@ -315,8 +315,34 @@ W13（`1de8c11`）新增 `cuda-probe` 下的 nvJitLink 绑定源码与测试，�
 - G01 浮点比较两模式均 `max_abs_error=1.2514791880302578e-6`（2084 状态、7704548 标量），原始比较 `5.553492985477249e-7`（50512 标量），与 §4.8 相同。
 - 与 §4.8 差异：host-msvc 796→804（W13 单元测试 8 项）；all-probes 346→348、result 行 83→84（`nvjitlink_probe` 2 项，设备输出与离线证据逐字节一致）；host-gnu 480 不变；墙钟 709s/627s→839s/656s。
 - 证据：`docs/development-evidence/g01-fast-loop/`（README §5.3、`final-acceptance-w13.json`）与本文件。
-- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9f1f66；U038-3D 已知债务显式排除、未验收）**。Linux（§7.1）、性能与完整上游等价仍未验收。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9f1f66；U038-3D 已知债务显式排除、未验收）**。Linux（§7.1）、性能与完整上游等价仍未验收。（LTOIR 交付后的复验见 §4.10，HEAD `f9da799`。）
 
+### 4.10 LTOIR 交付后 debug/release 双模式复验（2026-10-24，QA，任务 `2026-10-24-ltoir-review-g01-rerun`）
+
+LTOIR 交付（`f9da799`，任务 `2026-10-24-compile-chain-ltoir`：`cuda-probe` 下的产品侧 LTOIR 输出/nvJitLink 端到端接口、8 项单元测试、1 个 GPU 探针含 2 项 ignored 测试）经 QA 独立复核后，在运行 HEAD `e48f89a`（源码 `f9da799` 之上仅一条任务登记提交）按同一命令执行 debug 与 release 两轮完整脚本，**14 个阶段均 exit 0**。
+
+| 阶段 | debug | release |
+| --- | --- | --- |
+| fmt | 通过 | 通过 |
+| native | 27 过 | 27 过 |
+| host-msvc | 812 过 | 812 过 |
+| g01 | 7 过 | 7 过 |
+| native-g01 | 2 过 | 2 过 |
+| native-only-g01 | 1 过 | 1 过 |
+| resident | 102 过 | 102 过 |
+| all-probes | **350 过 / 0 败**（85 result 行；11 项排除） | **350 过 / 0 败**（85 result 行；11 项排除） |
+| host-gnu | 480 过 | 480 过 |
+| clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 | 0 警告 |
+| diff | 通过 | 通过 |
+| 全脚本墙钟 | 787s | 633s |
+
+- 运行目录：debug `target/g01-acceptance/465d8515c0e04e99857a642c452753f9`、release `target/g01-acceptance/a863e1a3ae91456296ef575b4102537a`；本机日志 `target/final-g01-check/{debug,release}-ltoir.log`。
+- 排除清单仍为 **11 项**（W-D5 3、历史捕获身份 6、env 未接线 1、U038-3D 已知债务 1），两模式逐项相同，**未新增排除**；`env-wiring.json` 与 §4.9 一致。
+- **LTOIR 探针**：all-probes 执行 `cargo test --all-features -- --ignored`（全部 target、无白名单），`compile_ltoir_probe` 的 2 项 ignored GPU 测试被**自动纳入并通过**（两模式各 2 次命中）；交付证据中「探针未接入 all-probes 列表」的描述不准确，已在独立复核 `docs/development-evidence/ltoir-independent-check/` 登记为建议项，不影响通过性。
+- 与 §4.9 差异：host-msvc 804→812（LTOIR 8 项单测）；all-probes 348→350、result 行 84→85（LTOIR 探针 2 项）；host-gnu 480 不变；排除 11 项不变；墙钟 839s/656s→787s/633s。
+- 证据：`docs/development-evidence/g01-fast-loop/`（README §5.4、`final-acceptance-ltoir.json`）与 `docs/development-evidence/ltoir-independent-check/`。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9da799；LTOIR 探针已纳入 all-probes 并通过；U038-3D 已知债务显式排除、未验收）**。Linux（§7.1）、性能与完整上游等价仍未验收。
 
 ## 5. 债务清单
 
@@ -408,8 +434,8 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_grav
 ## 7. 未验收边界
 
 - 只验收 Windows；Linux 侧按用户 2026-10-24 决定**暂时终止**（开发、验收与回测均暂停），等 Windows 全量开发完成后集中回测一次，不零散开跑；当前程序以 Windows 单平台完成为目标；Linux V2 未启动（原需 `linux-gpu:0` 与 `linux-acceptance`），细节见 §7.1。
-- G01 现状（2026-10-24，§4.9，HEAD `f9f1f66`）：W13 后 debug/release 双模式通过，host-msvc **804 过**、all-probes **348 过 0 败**（各 84 result 行），排除仍为 11 项。此前（§4.8，HEAD `66256c9`）：debug/release 双模式通过（含 11 项文档化排除项；T4 源码身份已重钉、rustdoc 私链与 A10 release 计时断言已修复；U038-3D 已知债务显式排除、未验收）；两模式 14 阶段均 exit 0，host-msvc **796 过**、all-probes **346 过 0 败**（各 83 result 行）；仅余 W-D5 3 项（§5.1）、历史捕获身份 6 项（§5.2）、env/外部产物未接线 1 项、U038-3D 已知债务 1 项（§5.3），共 11 项文档化排除，未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）
-- all-probes `-Minimum 346` 满足（W13 后 debug/release 均 348 过，§4.9；§4.8 为 346 过）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
+- G01 现状（2026-10-24，§4.10，HEAD `f9da799`）：LTOIR 交付后 debug/release 双模式通过，host-msvc **812 过**、all-probes **350 过 0 败**（各 85 result 行；LTOIR GPU 探针 2 项已被 all-probes 自动纳入并通过），排除仍为 11 项、未新增。此前（§4.9，HEAD `f9f1f66`）：W13 后 debug/release 双模式通过，host-msvc **804 过**、all-probes **348 过 0 败**（各 84 result 行），排除仍为 11 项；更早（§4.8，HEAD `66256c9`）：debug/release 双模式通过（T4 源码身份已重钉、rustdoc 私链与 A10 release 计时断言已修复），host-msvc **796 过**、all-probes **346 过 0 败**（各 83 result 行）。三节均为 11 项文档化排除（W-D5 3、历史捕获身份 6、env/外部产物 1、U038-3D 已知债务 1），未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）
+- all-probes `-Minimum 346` 满足（LTOIR 后 debug/release 均 350 过，§4.10；§4.9 为 348 过、§4.8 为 346 过）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
 - 历史记录：2026-10-22 的 full-debug 曾中止在 all-probes（§4.1–§4.3），相关债务已由 `d5b02d5`、`6cb5a71`、`b13d1c5` 收口；保留原文作为变更轨迹。
 - W13（2026-10-24）在 §4.8 的 HEAD `66256c9` 之后新增 `cuda-probe` 下的 nvJitLink 绑定源码与 2 项 GPU 测试（`tests/nvjitlink_probe.rs`）；T4 源码身份清单不覆盖这些文件，未重钉。all-probes 已纳入这 2 项，运行前须重跑 `scripts/prepare-cuda-probe.ps1`（取 nvJitLink 12.9.86），对照测试还需 `target/native-mathdx7/attempt-1/` 的离线证据输入。W13 后 G01 双模式复验已通过（§4.9）。
 - 未测量 G01 阶段峰值显存。

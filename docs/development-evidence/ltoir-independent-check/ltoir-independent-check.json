@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-24-ltoir-review-g01-rerun",
+  "date": "2026-10-24",
+  "scope": "LTOIR 交付（f9da799 / 2026-10-24-compile-chain-ltoir）独立复核 + HEAD f9da799 的 G01 debug/release 双模式复验",
+  "reviewed_commit": "f9da799731b6ee3d5795928b576943109846f002",
+  "platform": {
+    "os": "Windows",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "compute_capability": [8, 9],
+    "cuda_path": "target/toolchains/cuda-12.8.1",
+    "rustc": "1.99.0-x86_64-pc-windows-msvc"
+  },
+  "files_checked": {
+    "src/runtime/launcher/artifact/ltoir.rs": {"lines": 320, "bytes": 10612, "blob": "d2d0f5ce82caa7ee462bf7d3d9ba860be31a405c"},
+    "src/runtime/launcher/artifact/ltoir/tests.rs": {"lines": 125, "blob": "1c63ac41728a22e9ef62a3caccfa3143533260e5"},
+    "tests/compile_ltoir_probe.rs": {"lines": 249, "blob": "ac7c58c8e59e923fa48355f86d34605ab935b8b4"}
+  },
+  "checks": {
+    "cuda_probe_only": true,
+    "nvrtc_path_untouched": "artifact/nvrtc.rs 未被提交改动",
+    "kernel_strings_tolerances_f32_untouched": true,
+    "no_c_cpp_python_venv": true,
+    "no_mathdx_sdk": "仅冻结选项含 WP_ENABLE_MATHDX=1，未链接 SDK",
+    "module_ownership": "modify mjwarp.runtime 与 src/runtime/launcher/artifact/ 一致",
+    "t4_anchor_set": "t4-resident-anchors 组合仅含 physics 5 文件，不含 launcher → 未漂移、无需重钉"
+  },
+  "reruns": {
+    "lib_ltoir": "8 过 0 败（与证据一致）",
+    "gpu_probe": "2 过 0 败（--ignored）",
+    "probe_json": {
+      "call_ltoir_bytes": 3632,
+      "call_ltoir_sha256": "1415be10987abafe56520b7f4e525023702bbd7c475164641f774271c934c34b",
+      "cubin_bytes": 2086544,
+      "cubin_sha256": "1086284ba5d1bd525d7320faee63978f6db79f955599d02232128da783433fe1",
+      "device_output_bytes": 104528,
+      "device_output_sha256": "51e1a99b11990d259411de58816a6344cec85f224c6a541fa088030749126d3f",
+      "device_phase_ms": 6.92,
+      "launches": 8,
+      "nvrtc_version": [12, 8],
+      "nvjitlink_version": [12, 9],
+      "repeat_compile_identical": true,
+      "repeat_link_identical": true
+    },
+    "gate_records": ".normify/runs/2026-10-24-compile-chain-ltoir/：fmt/clippy/clippy-cuda exit 0、0 警告；unit 480 过 0 败"
+  },
+  "findings": [
+    {
+      "severity": "建议",
+      "item": "证据标注行数与实际不符",
+      "detail": "README/receipt 记 ltoir.rs 288 / tests.rs 123 / probe 241 行；实际 320 / 125 / 249 行（blob 与回执一致，仅行数字段陈旧）。"
+    },
+    {
+      "severity": "建议",
+      "item": "「新 GPU 探针未接入 all-probes」声明不准确",
+      "detail": "all-probes 执行 cargo test --all-features -- --ignored，覆盖全部 target 无白名单；compile_ltoir_probe 两项被自动纳入。本次 G01 两模式实测 all-probes 348→350、result 行 84→85，探针 2/0 通过。"
+    }
+  ],
+  "g01_acceptance": {
+    "head_at_run": "e48f89a（源码 f9da799 + 一条任务登记提交）",
+    "debug": {"run_directory": "target/g01-acceptance/465d8515c0e04e99857a642c452753f9", "wall_seconds": 787},
+    "release": {"run_directory": "target/g01-acceptance/a863e1a3ae91456296ef575b4102537a", "wall_seconds": 633},
+    "stages_exit0": 14,
+    "host_msvc": 812,
+    "all_probes": "350 过 0 败（85 result 行）",
+    "rustdoc": "0 警告",
+    "diff": "通过",
+    "exclusions": {"total": 11, "groups": {"wd5": 3, "historical_audits": 6, "env_unwired": 1, "known_debt": 1}, "unchanged": true},
+    "conclusion": "G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD f9da799；U038-3D 已知债务显式排除、未验收）"
+  },
+  "boundaries": [
+    "只做复核与复跑，未改产品/测试/容差/fixtures/编译链源码、排除清单或 G01 脚本。",
+    "Linux deferred、MathDx SDK 未接入、完整上游等价未验收。"
+  ]
+}
