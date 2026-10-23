@@ -262,7 +262,7 @@ Backend 接线（`45baa0e`）入库后，QA 按同一命令执行 debug 与 rele
 - 环境接线（两模式 `probe-reports/env-wiring.json`）：`cuda_include`、`cuda_bin_path`、`gravity_3d_evidence` 均 wired；`probe-reports/exclusions.json` 的 `known_debt` 单列 `live::live_three_d_product_chain_matches_frozen_upstream` 与理由（U038-3D 8/77 已知债务，用户 2026-10-23 裁决 B），不静默跳过。
 - NP03 两级判定汇总（两模式一致）：9 个 scope、**79,286 块**（79,202 原生放行 + 84 二级参考），`failed=0`、`pending=0`，比较标量 8,527,795。
 - 证据：`docs/development-evidence/g01-fast-loop/`（README §5.1、`final-acceptance-wiring.json`）与本文件。
-- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；RNE 已按裁决重基线；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。（批次 1–4 交付与三处修复后的最终复验见 §4.8，HEAD `66256c9`。）
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；RNE 已按裁决重基线；U038-3D 已知债务显式排除、未验收）**。Linux（按用户 2026-10-24 决定暂时终止，待 Windows 全量完成后集中回测，§7.1）、性能与完整上游等价仍未验收。（批次 1–4 交付与三处修复后的最终复验见 §4.8，HEAD `66256c9`。）
 
 ### 4.8 重钉与三处修复后 debug/release 双模式最终验收（2026-10-23/24，QA，任务 `2026-10-23-g01-final-acceptance-3`）
 
@@ -288,7 +288,7 @@ Backend 接线（`45baa0e`）入库后，QA 按同一命令执行 debug 与 rele
 - 排除清单（`probe-reports/exclusions.json`）：仍为 **11 项**（W-D5 3 + 历史捕获身份 6 + env/外部产物 1 + U038-3D 已知债务 1），与 §4.7 一致，**未新增排除**；`probe-reports/env-wiring.json` 两模式一致（`t4_current_captures`/`gravity_3d_evidence` = fresh-directory，其余 wired/reused）。
 - 与 §4.7 差异（HEAD `6e8c79a`→`66256c9`）：host-msvc 722→796、host-gnu 406→480（批次 1–4 新增 20 条切片测试）；all-probes 346/0、83 result 行、11 项排除均不变；rustdoc 0 警告；墙钟 689s/656s→709s/627s。
 - 证据：`docs/development-evidence/g01-fast-loop/`（README §5.2、`final-acceptance-final.json`）与本文件。
-- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 66256c9；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 66256c9；U038-3D 已知债务显式排除、未验收）**。Linux（按用户 2026-10-24 决定暂时终止，待 Windows 全量完成后集中回测，§7.1）、性能与完整上游等价仍未验收。
 
 ## 5. 债务清单
 
@@ -379,7 +379,7 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_grav
 
 ## 7. 未验收边界
 
-- 只验收 Windows；Linux 侧按用户 2026-10-23 决定**暂缓（deferred）**，当前程序以 Windows 单平台完成为目标；Linux V2 未启动（原需 `linux-gpu:0` 与 `linux-acceptance`），细节见 §7.1。
+- 只验收 Windows；Linux 侧按用户 2026-10-24 决定**暂时终止**（开发、验收与回测均暂停），等 Windows 全量开发完成后集中回测一次，不零散开跑；当前程序以 Windows 单平台完成为目标；Linux V2 未启动（原需 `linux-gpu:0` 与 `linux-acceptance`），细节见 §7.1。
 - G01 现状（2026-10-23/24，§4.8，最终 HEAD `66256c9`）：debug/release 双模式通过（含 11 项文档化排除项；T4 源码身份已重钉、rustdoc 私链与 A10 release 计时断言已修复；U038-3D 已知债务显式排除、未验收）；两模式 14 阶段均 exit 0，host-msvc **796 过**、all-probes **346 过 0 败**（各 83 result 行）；仅余 W-D5 3 项（§5.1）、历史捕获身份 6 项（§5.2）、env/外部产物未接线 1 项、U038-3D 已知债务 1 项（§5.3），共 11 项文档化排除，未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）
 - all-probes `-Minimum 346` 满足（debug/release 均 346 过，§4.8）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
 - 历史记录：2026-10-22 的 full-debug 曾中止在 all-probes（§4.1–§4.3），相关债务已由 `d5b02d5`、`6cb5a71`、`b13d1c5` 收口；保留原文作为变更轨迹。
@@ -388,18 +388,23 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_grav
 - 不修改任何内核、容差、fixtures 或原生 ABI（RNE 期望值按用户裁决重基线，见 §4.4）。
 - U038-3D 三维链：全链 `qfrc_gravcomp` **8/77 超 2e-6**（max 4.29e-6、总位差 122；运动学 1400 项 0 超差，`gravity_operator` 77/77 0 超差）。用户 2026-10-23 裁决 B 登记为**已知债务**，**U038-3D 未验收、不宣称通过**（`docs/development-evidence/u038-3d/known-deviation.md`；PTX 逐表达式对照工具 `scripts/u038-ptx-diff.ps1`、证据 `docs/development-evidence/u038-3d/ptx-diff/`）。根因：三表达式源形态收缩一致但内核内 FMA 收缩由内联上下文决定，且 com/cdof 与上游分层原子累加存在内核分解/累加顺序差异；债务跟踪任务 `2026-10-23-u038-3d-gravity-propagation-debt-2`（proposed，不 start，验收条件不变）。
 
-### 7.1 Linux 暂缓清单（用户 2026-10-23 决定）
+### 7.1 Linux 终止与 Windows 完工后集中回测（用户 2026-10-24 决定）
 
-用户 2026-10-23 决定：**Linux 暂不考虑，全部开发在 Windows 上完成**；Linux 侧验收暂不进行，当前程序以 Windows 单平台完成为目标。以下任务/范围登记为 **deferred（用户决定）**，保持原 status（proposed）不变，不 abandon、不算阻塞、不伪造：
+用户 2026-10-24 决定：**Linux 相关暂时终止**——开发、验收与回测全部暂停；等 Windows 全量开发完成后，再在 Linux 环境集中回测一次，不零散开跑。此前 2026-10-23 的 deferred 登记由本节取代。
+
+排程调整（`.normify`，2026-10-24）：以下任务 status 由 proposed 改为 **backlog**（远期待办；不 abandon、不伪造、不算阻塞，不再占就绪队列），`note` 已记录依据、集中回测入口与恢复路径：
 
 - `2026-10-18-layers-linux`（V2 Linux 三层集成）
 - `2026-10-18-linux-toolchain-validation`（Linux 锁版工具链验证）
-- `2026-10-18-toolchain-clippy-acceptance`（其 Linux 前置已 deferred，门禁保持 proposed/blocked）
-- `2026-10-23-np03-dual-platform` 与 `2026-10-23-np04-performance` 的 **Linux 部分**
+- `2026-10-23-np03-dual-platform`（Windows 单平台数值等价已由 `2026-10-23-np03-windows-evidence` 交付，剩余仅 Linux 侧）
+- `2026-10-23-np04-performance`（Windows 单平台耗时与峰值显存已由 `2026-10-23-np04-windows-performance` 交付，剩余仅 Linux 侧）
+- `2026-10-18-toolchain-clippy-acceptance` 保持 proposed/blocked（其 Linux 前置已转 backlog）
 
-替代/后续（仅登记，未 start，等派执行）：Windows 单平台证据任务 `2026-10-23-np03-windows-evidence`（数值等价）与 `2026-10-23-np04-windows-performance`（耗时与峰值显存）；两者明确单平台边界，不宣称双平台通过。以上任务的 `note` 均记录 defer 依据与恢复条件。
+集中回测载体：**`2026-10-24-linux-batch-retest`**（backlog）。触发条件 = Windows 全量开发完成并经用户确认；届时一次性申请 Linux RTX 5080 与 `linux-acceptance` 资源，按 `scripts/prepare-linux-native.sh`、`scripts/prepare-linux-cuda.sh` 与 `scripts/test-linux-g01.sh --all-features --full-regression`（debug 与 `--release`）集中执行，合并覆盖上列四条范围，产出单一证据 `docs/development-evidence/linux-batch-retest/`。
 
-恢复条件：用户重新安排 Linux RTX 5080 环境与 `linux-acceptance` 资源后，恢复上述 Linux 范围任务。在此之前不宣称 Linux/双平台验收，也不把 deferred 当作通过。
+边界：Windows 结果不替代 Linux；集中回测实际跑通前，不宣称 Linux、双平台或 NP03/NP04 完整验收；不复用历史 Linux 数字当作本次结果；不改容差、断言、排除清单与 fixtures。
+
+恢复条件：Windows 全量开发完成（用户确认）后 promote 上述 backlog 任务，安排 Linux RTX 5080 与 `linux-acceptance`，一次性集中回测；在此之前 Linux 保持未验收。
 
 ## 8. 引用
 
