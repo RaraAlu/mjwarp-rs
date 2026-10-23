@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-batch4-independent-check",
+  "title": {
+    "zh": "独立复核批次4 G09交付与G10/M10-P10顺延登记",
+    "en": "Independent review of batch-4 G09 delivery and deferral records"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对批次 4 做独立复核：读 docs/development-evidence/backlog-batch4/ 与回执，核对 g09-p5 声明（7 世界 15 接触、逐世界接触数 4/2/1/0/4/4/0、产品 vs 上游 max 5.960e-08、原生 f64 1.192e-07）、独立复跑 lib 测试与全量测试、抽验 fixture sha256、核 checks/acceptance 未放宽并确认没有引入 BVH/网格/地形资产（边界如实）；核 g10-p5（42df446）与 m10-p10（1ec0257）保持 proposed、无 start、无交付声明、note 写清阻塞与恢复条件、索引一致；核证据目录 backlog-batch4 与索引一致且未混入 batch2/3。只写证据目录，不改产品/测试/容差。",
+    "en": "Independently review batch 4: read backlog-batch4 evidence and receipt, verify the g09-p5 claims (7 worlds/15 contacts, per-world counts 4/2/1/0/4/4/0, product-vs-upstream 5.960e-08, native f64 1.192e-07), rerun lib and full tests, spot-check fixture sha256, confirm checks/acceptance not weakened and no BVH/mesh/terrain assets are introduced; verify g10-p5 and m10-p10 deferral records (proposed, no start, no delivery claim, note with blockers/recovery) and that backlog-batch4 matches its index without mixing batch2/3. Evidence-only; no product/test/tolerance changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "逐条读 docs/development-evidence/backlog-batch4/{README.md,<g09 目录>/{README.md,authoring.json}} 与回执，核对 g09-p5 声明：7 场景 15 接触、逐世界接触数 4/2/1/0/4/4/0 与上游/原生一致、产品 vs 冻结上游 max abs 5.960e-08（≤1e-6）、原生 f64 1.192e-07（≤1e-5）；核对未验收边界（box-box/capsule/cylinder/ellipsoid、GJK/EPA、mesh/convex、CCD、hfield/SDF、flex、EFC、GPU）。",
+    "独立复跑 cargo test --locked --lib plane_box -- --nocapture 与 cargo test --locked 全量、fmt/clippy，记录真实通过数与实测数值；抽验 fixtures/plane-box/model.xml 与 cases.json 的 sha256 与 authoring/回执登记值一致。",
+    "核对 checks（fmt/clippy/unit/unchanged/json/forbid_claim）与 acceptance 是否被放宽、模块归属与实际代码位置一致；确认交付提交未引入 BVH/网格/地形资产或新依赖（无 bvh/hfield/sdf/mesh 代码符号、Cargo 未改、fixtures 只增 plane-box）。",
+    "核对 g10-p5（42df446）与 m10-p10（1ec0257）：保持 proposed、无 .normify/runs 与证据目录/交付回执、note 写明阻塞与恢复条件、批次 4 索引 §2 一致，不得宣称交付。",
+    "核对证据目录：backlog-batch4 索引与实际一致（g09 目录在 batch4，未出现在 batch2/3 历史），backlog-batch2/batch3 未被混入批次 4 文件；结论写 docs/development-evidence/batch4-independent-check/README.md；回执 json 含 task_id；gate fmt/unit 与 unchanged 通过；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-11-roadmap-g09-p5"
+    ],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/batch4-independent-check/",
+      "docs/development-evidence/changes/2026-10-23-batch4-independent-check.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "只读复核 + 证据目录；不改产品/测试/容差/fixtures/回执；g10-p5 与 m10-p10 仅为顺延对象（proposed），不在本任务交付范围；不碰 Backend 新登记的跨批次收口审计任务。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T07:37:49.769Z",
+  "updated_at": "2026-10-23T07:37:49.769Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-batch4-independent-check.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-batch4-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "全部通过",
+        "无差异"
+      ]
+    }
+  ]
+}
