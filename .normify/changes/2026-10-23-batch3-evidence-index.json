@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-batch3-evidence-index",
+  "title": {
+    "zh": "建立批次3独立证据索引并迁移证据目录",
+    "en": "Create independent batch-3 evidence index and relocate evidence directories"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "批次 3 任务（g08-p5、g18-p6、g24-p7）的证据误放在 docs/development-evidence/backlog-batch2/ 下，与批次 1/2 各自独立证据目录的做法不一致（batch3 尚未建立）。本任务新建 docs/development-evidence/backlog-batch3/（含 README 索引），把三条证据迁移过去，批次 2 目录只保留 g07/g16/g20/g21/g23/a08/a10 七条；同步更新 g08-p5/g18-p6 回执中的证据路径（文件内容与 blob 不变），并用 normify fix 给两条已关闭任务追加路径迁移修正记录。不改证据结论、数字、产品/测试/容差/fixtures/脚本。",
+    "en": "Batch-3 evidence (g08-p5, g18-p6, g24-p7) was stored under backlog-batch2 instead of its own batch directory. Create docs/development-evidence/backlog-batch3/ with a README index, move the three evidence directories there, keep only the seven batch-2 entries under backlog-batch2, update the g08-p5/g18-p6 receipts' evidence paths (content and blobs unchanged), and append relocation correction records to the two closed tasks via normify fix. No evidence conclusions, numbers, product/test/tolerance/fixture/script changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "新建 `docs/development-evidence/backlog-batch3/README.md` 索引：列出 g08-p5、g18-p6、g24-p7 三条的提交、验证核心数字与未验收边界摘要，并写明后续 m10-p7、a10-p11 证据追加到本目录。",
+    "将 `docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g08-p5/` 与 `.../2026-10-11-roadmap-g18-p6/` 原样迁移到 `docs/development-evidence/backlog-batch3/`（文件内容不变）；`backlog-batch2/` 只保留批次 2 七条证据目录，并在其 README 增补迁移说明。",
+    "同步更新 `docs/development-evidence/changes/2026-10-11-roadmap-g08-p5.json` 与 `...-g18-p6.json` 中证据 README/authoring 路径为 backlog-batch3（blob 不变，因内容未改）；g24-p7 回执/README/任务 JSON 已使用 backlog-batch3。",
+    "对已关闭任务 `2026-10-11-roadmap-g08-p5`、`2026-10-11-roadmap-g18-p6` 执行 `normify fix` 追加「证据目录迁移至 backlog-batch3、回执路径已更新、内容/结论不变」修正记录；提交带 `Normify-Fixes: <task-id>`；不手改 `.normify/runs/` 历史文件。",
+    "不改证据结论/数字、产品代码、测试、容差、fixtures 与 authoring 脚本；gate fmt/unit 与 unchanged（src/native/include/tests/fixtures/scripts/Cargo）通过；回执 json 含 /task_id；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-11-roadmap-g08-p5",
+      "2026-10-11-roadmap-g18-p6",
+      "2026-10-11-roadmap-g24-p7"
+    ],
+    "phase": "工程-治理",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/backlog-batch3/",
+      "docs/development-evidence/backlog-batch2/README.md",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g08-p5.json",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g18-p6.json",
+      "docs/development-evidence/batch3-evidence-index/",
+      "docs/development-evidence/changes/2026-10-23-batch3-evidence-index.json",
+      ".normify/changes/",
+      ".normify/runs/"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "证据组织治理：只迁移目录与更新路径引用，不改任何证据内容、数字与结论；g08/g18 已关闭任务的路径修正通过 normify fix addendum 记录，不手改历史 runs。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T07:09:00.000Z",
+  "updated_at": "2026-10-23T07:09:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-batch3-evidence-index.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-batch3-evidence-index"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ]
+}
