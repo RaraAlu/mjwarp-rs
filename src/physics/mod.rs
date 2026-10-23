@@ -27,6 +27,8 @@ pub use integrator::{
     IntegratorError, IntegratorState, IntegratorStep, JOINT_BALL, JOINT_FREE, JointLayout,
     Rk4Stage, advance, euler, next_position, next_velocity, quat_integrate, rungekutta4,
 };
+mod inverse;
+pub use inverse::{InverseError, SparseMass, inverse_dynamics, mul_m};
 mod kinetic_energy;
 pub use kinetic_energy::{
     KineticEnergyData, KineticEnergyOutput, KineticEnergyPlan, KineticEnergyVector,
