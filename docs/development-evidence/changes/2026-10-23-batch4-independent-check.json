@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-batch4-independent-check",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/batch4-independent-check/README.md",
+      "blob": "72babe319174760ac6fc47a889df18a6fe5757b6"
+    }
+  ],
+  "results": {
+    "scope": "独立复核批次 4：g09-p5 交付声明 + g10-p5/m10-p10 顺延登记 + 证据目录；只读交付与记录，只写本证据目录",
+    "reviewed_commits": {
+      "g09_p5": "c757e3d",
+      "g09_registration": "18b3fb5",
+      "batch4_index": "8566d42",
+      "g10_p5_deferral": "42df446",
+      "m10_p10_deferral": "1ec0257",
+      "head_at_review": "a3214de"
+    },
+    "claims": {
+      "g09": "成立：7 世界 15 接触；逐世界 4/2/1/0/4/4/0 与上游/原生一致；产品 vs 上游 max abs 5.960e-08；原生 f64 1.192e-07；多接触/退化场景与 fixture authoring 一致；未引入 BVH/网格/地形资产（无 bvh/hfield/sdf/mesh 代码符号、Cargo 未改、fixtures 仅新增 plane-box）"
+    },
+    "upstream_cross_check": {
+      "checkout": "target/mjwarp-parallel/upstream HEAD 71da24d956…",
+      "plane_box": "collision_primitive_core.py:343-390 与 narrowphase/primitive.rs:101-143 逐行对应（center_dist、i&1/2/4 位序、dot(normal,rot*corner)、pos=corner+box_pos-0.5*normal*cdist）",
+      "wrapper": "collision_primitive.py:761-834 plane_box_wrapper 对 8 候选逐个 write_contact，与 Rust 分支一致"
+    },
+    "reruns": {
+      "lib_plane_box": "1 过 0 败（--nocapture 实测 contacts=15 upstream_max=5.960e-8 native_max=1.192e-7 counts=[4,2,1,0,4,4,0]）",
+      "full_cargo_test_locked": "478 过 0 败（lib 358）",
+      "fmt": "通过",
+      "clippy": "通过（--all-targets --locked -D warnings）",
+      "gate_unit_record": ".normify/runs/2026-10-11-roadmap-g09-p5/unit.json = 478 过 0 败"
+    },
+    "sha256": {
+      "fixtures/plane-box/model.xml": "a78b15472ffe8d0e3a8f6e61b8c4512dfc94c889ceca8ea344b76dab3cdf1586（与 authoring.json、cases.json 一致）",
+      "receipt_registered_value": "63743a8a72d2cd965ef46e2205aedec809789adf（实为 git blob hash，见差异 7.1）",
+      "receipt_files_blob": "14/14 与 HEAD 一致"
+    },
+    "deferrals": {
+      "g10_p5": "proposed、checks 0；无 runs/证据目录/回执；note 含裁决 A、阻塞（hfield/SDF 资产管线与碰撞实现缺失）、恢复条件、不宣称交付；索引 §2 一致",
+      "m10_p10": "proposed、checks 0；无 runs/证据目录/回执；note 含裁决 A、阻塞（forward/step 调度或图集成缺失、无冻结 callback-graph）、恢复条件、P7 b9cd236 已交付、不宣称交付；索引 §2 一致",
+      "commit_scope": "42df446/1ec0257 各仅改对应 .normify/changes note 1 行，未改源码、未 start"
+    },
+    "directories": {
+      "backlog_batch4": "1 交付（g09 目录 README+authoring）+ 2 顺延，与索引一致",
+      "no_mixing": "backlog-batch2 7 个目录、backlog-batch3 4 个目录未混入批次 4；g09 从未提交到 batch3（git log 为空）"
+    },
+    "checks_acceptance": "g09 checks 含 gate fmt/clippy/unit + unchanged + json + forbid_claim，无豁免；acceptance 为最小切片并含未验收边界（除尺寸校验一项外未放宽，见差异 7.2）；模块归属 modify mjwarp.physics.core 与代码位置一致；交付提交未改既有断言/容差/Cargo"
+  },
+  "differences": [
+    {
+      "severity": "一般",
+      "item": "g09 回执 model_sha256 登记为 git blob hash",
+      "detail": "回执 results.references.model_sha256=63743a8a…（实为 model.xml 的 git blob），实际文件 sha256=a78b1547…（authoring.json/cases.json 一致）；证据本身正确，数值结论不受影响，但回执追溯字段写错算法。建议 normify fix 追加修正并刷新回执值。"
+    },
+    {
+      "severity": "一般",
+      "item": "acceptance 条款「退化输入（尺寸非正/非有限）显式拒绝」未实现且未登记边界",
+      "detail": "narrowphase::validate 只校验数组长度；plane_box/primitive_narrowphase 对 geom_size 无符号/有限性校验；无拒绝测试；证据 README §6 与回执 boundaries 未登记该项。建议补实现+测试或补登边界。"
+    },
+    {
+      "severity": "建议",
+      "item": "primitive_narrowphase 文档注释仍写「两类基础几何对」",
+      "detail": "narrowphase.rs:322 注释为 plane-sphere / sphere-sphere 两类；加入 plane-box 后为三类，模块头已更新，仅该函数注释遗漏。"
+    },
+    {
+      "severity": "建议",
+      "item": "g09 证据 README 未直接给出模型 sha256 值",
+      "detail": "§3 只写「sha256 见 fixture 登记」；本次回执恰在该字段写错，建议证据直接写 a78b1547… 便于核验。"
+    },
+    {
+      "severity": "建议",
+      "item": "「去重后最多 4 个接触」措辞与实现/上游不符",
+      "detail": "上游 plane_box_wrapper 对 8 候选逐个 write_contact，接触数由 margin/gap 过滤决定，无去重步骤；≤4 是几何结论。建议改为「margin/gap 过滤后通常 ≤4」。"
+    },
+    {
+      "severity": "建议",
+      "item": "未直接覆盖 box-box 候选拒绝",
+      "detail": "边界声明非 plane-box 候选返回 UnsupportedPair，但 fixture candidates 只含 plane-box 对（box-box 被排除），拒绝面仅由 G08 旧测试（capsule 类型 3）覆盖；建议补 box-box 拒绝用例。"
+    }
+  ],
+  "note": "按 Chief 指派独立复核批次 4：g09-p5 声明（7 世界 15 接触、逐世界 4/2/1/0/4/4/0、上游 5.960e-08、原生 1.192e-07）全部成立，独立复跑 lib plane_box 1/0 与全量 478/0、fmt/clippy 通过，并用真实上游快照核对 plane_box 公式与 wrapper 一致；确认未引入 BVH/网格/地形资产；g10-p5/m10-p10 顺延登记如实（proposed、无交付物、note 含阻塞与恢复条件）；证据目录未混入 batch2/3。差异 2 条一般（回执 model_sha256 写成 git blob、尺寸校验验收条款未实现且未登记）+ 4 条建议，均不阻断。",
+  "boundaries": [
+    "只读复核 + 证据目录；未改产品/测试/容差/fixtures/回执，未触碰 Backend 新登记的跨批次收口审计任务与 W13/Linux 任务。",
+    "g10-p5 与 m10-p10 仅为顺延对象（proposed），不在本任务交付范围；未宣称其交付。",
+    "g09 声明成立不等于完整 G09/P5 验收；未验收边界以其证据 README §6 为准。"
+  ]
+}
