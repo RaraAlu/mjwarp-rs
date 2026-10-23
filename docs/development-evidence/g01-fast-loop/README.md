@@ -136,7 +136,35 @@ $pwsh = 'target\toolchains\powershell-7.6.7\bin\pwsh.exe'
 - **NP03 两级判定汇总（两模式一致）**：9 个 scope、79,286 块（79,202 原生放行 + 84 二级参考），`failed=0`、`pending=0`，比较标量 8,527,795。
 - **与 §5（接线前 340/0）的差异**：all-probes 通过数 340→346（+6：launcher-tile 2、launcher-warp-headers 1、其余新测试/计数同步），result 行 78→83；排除项 10→11（新增 U038-3D known-debt 1 项）；host-msvc 709→722；host-gnu 404→406；墙钟 789.1s/652.9s→689s/656s。
 - **与 Backend debug 首跑（`g01-new-tests-wiring`）对比**：计数完全一致（346 过 0 败、83 result 行、11 项排除）；其 README/§4.6 记录的运行目录 `10a6e9fd…`（墙钟 728.8s）与消息中的 `d5308115…` 属两次不同运行，本次 QA 记录以本轮 `fff94fdd…`/`f0bb413b…` 为准。
-- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；RNE 已按裁决重基线；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；RNE 已按裁决重基线；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。（历史快照：批次 1–4 与三处修复后的最终复验见 §5.2）
+
+### 5.2 重钉与三处修复后双模式最终复验（2026-10-23/24，QA，任务 `2026-10-23-g01-final-acceptance-3`）
+
+背景：批次 1–4 共 20 条切片交付合法改动 `src/physics/mod.rs`/`history.rs` 等，使 T4 冻结捕获身份审计（`preserves_current_sources_and_all_thirty_variants`）漂移、G01 host-msvc 一度失败（失败记录见 `docs/development-evidence/g01-head-drift/`）。随后按用户裁决 A 依次完成：① T4 源码身份重钉（`2026-10-23-t4-source-hash-repin-12`，只改哈希字面量，组合摘要 `7eb6e7a3…`→`d7f6c7d1…`）；② rustdoc 私有项断链修复（`2026-10-23-g01-rustdoc-private-link-fix`，`collision.rs` 一行文档）；③ A10 measure release 计时断言修复（`2026-10-23-a10-measure-release-timing-fix`，测试负载改为可测的 `black_box` 自增，保留 `nanos > 0` 严格断言）。
+
+命令与 §5 相同；源码 HEAD `66256c9`；工作区无产品/测试/夹具改动（本任务只改证据与文档）。
+运行目录：debug `target/g01-acceptance/383d4b51c15c462982a5b06cd47503de`，release `target/g01-acceptance/7d4d70d46e7f4fc3a86f3963de4e878a`；本机日志 `target/final-g01-check/{debug,release}-final3.log`；机器数据 `final-acceptance-final.json`。
+
+| 阶段 | debug | release |
+| --- | --- | --- |
+| fmt | 通过 | 通过 |
+| native | 27 过 | 27 过 |
+| host-msvc | 796 过 | 796 过 |
+| g01 | 7 过 | 7 过 |
+| native-g01 | 2 过 | 2 过 |
+| native-only-g01 | 1 过 | 1 过 |
+| resident | 102 过 | 102 过 |
+| all-probes | **346 过 / 0 败**（83 个 result 行） | **346 过 / 0 败**（83 个 result 行） |
+| host-gnu | 480 过 | 480 过 |
+| clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 | 0 警告 |
+| diff | 通过 | 通过 |
+| **全脚本墙钟** | **709s（11.8 分钟）** | **627s（10.5 分钟）** |
+
+- **排除清单（11 项文档化排除，四组单列）**：W-D5 3 项、历史捕获身份 6 项、env/外部产物未接线 1 项、U038-3D 已知债务 1 项；与 §5.1 完全一致，**未新增排除**，未改断言/容差/排除清单/G01 脚本。
+- **环境接线（`probe-reports/env-wiring.json`，两模式一致）**：`cuda_include`/`cuda_bin_path`/`t4_history`/`frozen_upstream`/`frozen_warp`/`collision_mocks` = wired，`t4_current_captures`/`gravity_3d_evidence` = fresh-directory，`sparse_preflight` = reused。
+- **与 §5.1 的差异**：HEAD `6e8c79a`→`66256c9`；host-msvc 722→796、host-gnu 406→480（批次 1–4 新增 20 条切片测试）；all-probes 346 过/0 败、83 个 result 行两轮不变；排除项 11 不变；墙钟 689s/656s→709s/627s。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 66256c9；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
 
 ## 6. 并行评估（开发迭代用途）
 

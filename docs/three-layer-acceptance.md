@@ -262,7 +262,33 @@ Backend 接线（`45baa0e`）入库后，QA 按同一命令执行 debug 与 rele
 - 环境接线（两模式 `probe-reports/env-wiring.json`）：`cuda_include`、`cuda_bin_path`、`gravity_3d_evidence` 均 wired；`probe-reports/exclusions.json` 的 `known_debt` 单列 `live::live_three_d_product_chain_matches_frozen_upstream` 与理由（U038-3D 8/77 已知债务，用户 2026-10-23 裁决 B），不静默跳过。
 - NP03 两级判定汇总（两模式一致）：9 个 scope、**79,286 块**（79,202 原生放行 + 84 二级参考），`failed=0`、`pending=0`，比较标量 8,527,795。
 - 证据：`docs/development-evidence/g01-fast-loop/`（README §5.1、`final-acceptance-wiring.json`）与本文件。
-- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；RNE 已按裁决重基线；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；RNE 已按裁决重基线；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。（批次 1–4 交付与三处修复后的最终复验见 §4.8，HEAD `66256c9`。）
+
+### 4.8 重钉与三处修复后 debug/release 双模式最终验收（2026-10-23/24，QA，任务 `2026-10-23-g01-final-acceptance-3`）
+
+批次 1–4（20 条切片）交付后，T4 冻结捕获身份审计（`preserves_current_sources_and_all_thirty_variants`）因 `src/physics/mod.rs`/`history.rs` 合法改动而漂移，G01 host-msvc 一度失败（失败记录见 `docs/development-evidence/g01-head-drift/`）。按用户裁决 A 依次完成：T4 源码身份重钉（`2026-10-23-t4-source-hash-repin-12`，只改哈希字面量，组合摘要 `7eb6e7a3…`→`d7f6c7d1…`）、rustdoc 私有项断链修复（`2026-10-23-g01-rustdoc-private-link-fix`，`collision.rs` 一行文档）、A10 measure release 计时断言修复（`2026-10-23-a10-measure-release-timing-fix`，测试负载改为可测的 `black_box` 自增，保留 `nanos > 0` 严格断言）后，QA 在 HEAD `66256c9` 按同一命令执行 debug 与 release 两轮完整脚本，**14 个阶段均 exit 0**。
+
+| 阶段 | debug | release |
+| --- | --- | --- |
+| fmt | 通过 | 通过 |
+| native | 27 过 | 27 过 |
+| host-msvc | 796 过 | 796 过 |
+| g01 | 7 过 | 7 过 |
+| native-g01 | 2 过 | 2 过 |
+| native-only-g01 | 1 过 | 1 过 |
+| resident | 102 过 | 102 过 |
+| all-probes | **346 过 / 0 败**（83 result 行；11 项排除） | **346 过 / 0 败**（83 result 行；11 项排除） |
+| host-gnu | 480 过 | 480 过 |
+| clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 | 0 警告 |
+| diff | 通过 | 通过 |
+| 全脚本墙钟 | 709s | 627s |
+
+- 运行目录：debug `target/g01-acceptance/383d4b51c15c462982a5b06cd47503de`、release `target/g01-acceptance/7d4d70d46e7f4fc3a86f3963de4e878a`；本机日志 `target/final-g01-check/{debug,release}-final3.log`。
+- 排除清单（`probe-reports/exclusions.json`）：仍为 **11 项**（W-D5 3 + 历史捕获身份 6 + env/外部产物 1 + U038-3D 已知债务 1），与 §4.7 一致，**未新增排除**；`probe-reports/env-wiring.json` 两模式一致（`t4_current_captures`/`gravity_3d_evidence` = fresh-directory，其余 wired/reused）。
+- 与 §4.7 差异（HEAD `6e8c79a`→`66256c9`）：host-msvc 722→796、host-gnu 406→480（批次 1–4 新增 20 条切片测试）；all-probes 346/0、83 result 行、11 项排除均不变；rustdoc 0 警告；墙钟 689s/656s→709s/627s。
+- 证据：`docs/development-evidence/g01-fast-loop/`（README §5.2、`final-acceptance-final.json`）与本文件。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 66256c9；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
 
 ## 5. 债务清单
 
@@ -354,8 +380,8 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_grav
 ## 7. 未验收边界
 
 - 只验收 Windows；Linux 侧按用户 2026-10-23 决定**暂缓（deferred）**，当前程序以 Windows 单平台完成为目标；Linux V2 未启动（原需 `linux-gpu:0` 与 `linux-acceptance`），细节见 §7.1。
-- G01 现状（2026-10-23，§4.7）：debug/release 双模式通过（含文档化排除项；RNE 已按裁决重基线；U038-3D 已知债务显式排除、未验收）；两模式 all-probes 均 **346 过 0 败**（各 83 result 行），仅余 W-D5 3 项（§5.1）、历史捕获身份 6 项（§5.2）、env/外部产物未接线 1 项、U038-3D 已知债务 1 项（§5.3），共 11 项文档化排除。不宣称 G02 完整验收。
-- all-probes `-Minimum 346` 满足（debug/release 均 346 过，§4.7）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
+- G01 现状（2026-10-23/24，§4.8，最终 HEAD `66256c9`）：debug/release 双模式通过（含 11 项文档化排除项；T4 源码身份已重钉、rustdoc 私链与 A10 release 计时断言已修复；U038-3D 已知债务显式排除、未验收）；两模式 14 阶段均 exit 0，host-msvc **796 过**、all-probes **346 过 0 败**（各 83 result 行）；仅余 W-D5 3 项（§5.1）、历史捕获身份 6 项（§5.2）、env/外部产物未接线 1 项、U038-3D 已知债务 1 项（§5.3），共 11 项文档化排除，未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）
+- all-probes `-Minimum 346` 满足（debug/release 均 346 过，§4.8）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
 - 历史记录：2026-10-22 的 full-debug 曾中止在 all-probes（§4.1–§4.3），相关债务已由 `d5b02d5`、`6cb5a71`、`b13d1c5` 收口；保留原文作为变更轨迹。
 - 未测量 G01 阶段峰值显存。
 - 不转授完整产品数值验收、性能验收或双平台准入。
