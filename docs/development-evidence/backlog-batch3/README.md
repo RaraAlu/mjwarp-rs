@@ -1,4 +1,4 @@
-# 批次 3 证据索引：G08/G18/G24/M10（已交付 4 条，A10 停手待裁决）
+# 批次 3 证据索引：G08/G18/G24/M10（已交付 4 条，A10 顺延·裁决 A）
 
 日期：2026-10-23。执行：Backend。批次范围：Chief 派单的 5 条 ready 路线图任务
 （`g08-p5`、`g18-p6`、`g24-p7`、`m10-p7`、`a10-p11`），逐条按「旧计划细化 →
@@ -20,7 +20,7 @@ warnings/unit` 门禁、path-limited 提交、Normify 范围与回执、证据/�
 各任务证据目录：`docs/development-evidence/backlog-batch3/<task-id>/`（README +
 authoring.json）；回执：`docs/development-evidence/changes/<task-id>.json`。
 
-## 2. 停手 1 条：`a10-p11` 记录与性能工具阶段切片（待 Chief 裁决）
+## 2. 顺延 1 条：`a10-p11` 记录与性能工具阶段切片（Chief 裁决 A）
 
 - 原验收「Rust无头测速与状态导出」的宿主侧能力已由 **P10** 交付
   （`2026-10-11-roadmap-a10-p10`，提交 `3757567`：`runtime::tooling` 记录/计时/
@@ -32,8 +32,9 @@ authoring.json）；回执：`docs/development-evidence/changes/<task-id>.json`�
   批次（GPU 引擎尚待实现）、GPU 事件计时与显存统计、清洁部署与双平台性能对照。
   只做 `src/main.rs` CLI 接线会与 P10 重复且无法通过 P11 双平台验收（假语义），
   故按 Chief 指示**停手报裁决，不硬做最小切片**。
-- 现状：`a10-p11` 保持 `proposed`、未 start；是否顺延到 Linux/完整引擎具备后或
-  改派独立「性能测量平台」计划，待 Chief 决定。
+- 现状：Chief 裁决 **A 顺延**——`a10-p11` 保持 `proposed`、不 start，note 已登记
+  阻塞项与恢复条件；恢复条件 = Linux RTX5080 与完整 GPU 引擎具备后重评，
+  不改派「性能测量平台」新计划（做 main.rs CLI 接线属假语义）。
 
 ## 3. 批次门禁与状态（收口时实测）
 
