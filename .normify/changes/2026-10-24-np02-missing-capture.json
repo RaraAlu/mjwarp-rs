@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-np02-missing-capture",
+  "title": {
+    "zh": "补采NP02缺失的8条内核证据（漂移按裁决B归档）",
+    "en": "Capture the 8 missing NP02 kernel evidences (drift archived per decision B)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按用户 2026-10-24 裁决 B 处理 NP02 覆盖缺口：补采 8 条从未采集的内核证据（passive_force_add_fluid、fluid_force_clear、mass_multiply、mass_multiply_validate、resident_sparse_gather、resident_sparse_validate、sparse_solve_fused、sparse_solve_validate），按现有捕获管线生成回执/PTX 摘要并更新 NP02 清单为 88/88 有证据；38 条源身份漂移按裁决 B 登记为「已知漂移/历史版本证据」（不重采、不重基线）；51 份回执 PTX 实体不在仓的依赖项继续注明。不改产品/容差/fixtures，不跑全量 G01。",
+    "en": "Apply the 2026-10-24 decision B: capture the 8 never-collected kernels (passive_force_add_fluid, fluid_force_clear, mass_multiply, mass_multiply_validate, resident_sparse_gather, resident_sparse_validate, sparse_solve_fused, sparse_solve_validate) with the existing capture pipeline, producing receipts/PTX digests and updating the NP02 inventory to 88/88 with evidence; register the 38 source-identity drifts as known drift/historical-version evidence (no re-capture, no rebaseline); keep noting the 51 receipt PTX entities absent from the repo. No product/tolerance/fixture changes; no full G01."
+  },
+  "modules": {},
+  "acceptance": [
+    "按现有捕获管线补采 8 条内核（列表见 intent）：逐条生成可复算的证据（回执、PTX/cubin 实体或摘要、源哈希、编译选项与 arch、版本），源哈希对当前 HEAD；每条记录真实命令与耗时，不得用旧名回退或伪造。",
+    "更新 docs/development-evidence/np02-evidence/ 的 inventory.json 与 gap.json：8 条状态由「缺失」改为「有证据」；38 条源身份漂移按用户裁决 B 标注为「已知漂移（历史版本证据，不重采不重基线）」；51 份回执 PTX 实体不在仓继续标注依赖 target/；不得宣称 NP02 完整通过或漂移为 0。",
+    "不改产品源码/测试/容差/fixtures/编译选项；新捕获只生成证据（必要产物放 docs/development-evidence/np02-evidence/ 或既有 gitignored 证据目录，按现有管线约定），GPU 独占窗口。",
+    "若 8 条中有不可采/采集失败：如实登记失败原因并停在那条，不造假、不把失败当有证据；整体结果按实际报告。",
+    "证据写 docs/development-evidence/np02-evidence/（README 更新 + receipt.json 含 task_id，记录真实命令/数字/时间与漂移口径）；门禁 fmt、unchanged（src/tests/fixtures/Cargo.*）与 json 检查通过；不跑全量 G01；中文 path-limited 提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-np02-evidence-windows"
+    ],
+    "phase": "P11-精度门禁",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/np02-evidence/",
+      "scripts/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 10
+  },
+  "note": "用户 2026-10-24 裁决 B：只补 8 条从未采集的缺失，38 条源身份漂移按「已知漂移/历史版本证据」归档（同 T4 历史捕获裁决 B 口径，不重采不重基线）。完成后 g03-parity（已重划 Windows 单平台收口）可 start；g03-parity 是里程碑，届时才跑一次全量 G01 debug/release。Linux 不涉及；不改产品。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T20:50:00.000Z",
+  "updated_at": "2026-10-23T20:50:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np02-evidence/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-np02-missing-capture"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP02完整通过",
+        "漂移已清零",
+        "双平台通过"
+      ]
+    }
+  ]
+}
