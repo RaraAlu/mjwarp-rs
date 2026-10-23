@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-kernel-source-route-mathdx-wire",
+  "title": {
+    "zh": "内核来源路线标准化与MathDx LTO接入编译链",
+    "en": "Standardize kernel-source routes and wire MathDx LTO into the compile chain"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "把产品编译链的内核来源统一成可枚举的路线（手写 CUDA、冻结 PTX、W15 上游源码、MathDx LTO），为每条路线定义确定的产物键（源摘要、头文件摘要、选项、arch、NVRTC/nvJitLink/libmathdx 版本），并把 MathDx LTO 的「生成 LTOIR/FATBIN → 与调用 LTOIR 一起经 nvJitLink 链接 → CUBIN + 产物元数据」接进 launcher artifact 管线。本任务只做路线与管线能力，**不切换任何物理配方**，既有 PTX/cubin 路径、内核字符串、容差与 f32 精度不变。",
+    "en": "Unify the product compile chain's kernel sources into enumerable routes (hand-written CUDA, frozen PTX, W15 upstream source, MathDx LTO) with deterministic artifact keys (source digest, headers digest, options, arch, NVRTC/nvJitLink/libmathdx versions), and wire MathDx LTO generation and linking (LTOIR/FATBIN + call LTOIR via nvJitLink to CUBIN with artifact metadata) into the launcher artifact pipeline. Routes and pipeline only; no physics recipe is switched; existing PTX/cubin paths, kernel strings, tolerances and f32 precision stay unchanged."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.runtime"
+    ]
+  },
+  "acceptance": [
+    "在 src/runtime/launcher 内定义 `KernelSourceRoute` 与产物键（新文件 ≤500 行，仅 cuda-probe 门控）：至少覆盖 HandWrittenCuda、FrozenPtx、UpstreamSource（W15 头文件）、MathDxLto 四类；产物键纳入源摘要、头文件摘要、选项与顺序、arch、NVRTC 版本、nvJitLink 版本、libmathdx 版本；同输入键稳定、任一因子变化键变化，并有测试锁定。",
+    "MathDx LTO 接入 artifact 管线：给出从求解器参数（复用 2026-10-24-mathdx-solver-lto 的描述符调用）生成 LTOIR/FATBIN 的入口，以及「调用 LTOIR → MathDx LTOIR → FATBIN」经 W13 `NvJitLink` 链接为 CUBIN 的入口；产物元数据记录路线、版本组合与各级摘要，便于追溯；不新增 C/C++、不依赖 Python/venv/warp.dll。",
+    "不切物理配方：既有 recipe/发射路径行为不变；新路线只经显式 API 暴露，默认路径不启用；有测试确认既有配方产物键/行为不因本任务变化（或如实记录并说明）。",
+    "拒绝面：路线未启用、组件缺失（libmathdx/NVRTC 12.9.86/nvJitLink）、版本不符、产物键与内容不一致、空产物、非 CUBIN ELF，全部显式报错并附真实日志；不回退到其他 NVRTC 版本。",
+    "GPU 探针：用新 API 生成 7 维 POTRF 的 LTOIR/FATBIN 并链接，对照冻结证据（LTOIR 1,034,872 B `98c01ce6…`、FATBIN 506,960 B `c00d6412…`、CUBIN 2,086,544 B 口径、设备输出 104,528 B `51e1a99b…`、8 次发射），重复生成一致；探针在普通环境与 G01 环境变量集下各跑一次。",
+    "证据写 docs/development-evidence/kernel-source-route/（README + receipt.json 含 task_id，记录真实命令/数字/边界）；不改内核字符串、容差、f32、物理配方；新文件 ≤500 行并登记模块源码；门禁 fmt/clippy/clippy-cuda/unit 全过；中文 path-limited 提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-nvrtc-12-9-mathdx-component",
+      "2026-10-23-w14-tile-launcher",
+      "2026-10-23-w15-verbatim-headers"
+    ],
+    "phase": "M7-编译路线",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/launcher",
+      "tests/",
+      "docs/development-evidence/kernel-source-route/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 10
+  },
+  "note": "用户 2026-10-24 选择继续编译链（part 3 第一块）。前置：W13 nvJitLink 绑定、LTOIR 输出接口、W14 tile、W15 头文件、libmathdx 0.3.1 + NVRTC 12.9.86 组件均已 verified；本任务把四类内核来源标准化并给 MathDx LTO 一个产品级入口，但不切换物理配方。完成后由 QA 独立复核并视需要复跑 G01 双模式（新探针会被 all-probes 自动纳入）。Linux 不涉及；SDK 再分发口径不变（SDK 二进制只在 target/）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T20:05:00.000Z",
+  "updated_at": "2026-10-23T20:05:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/kernel-source-route/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-kernel-source-route-mathdx-wire"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "物理配方已切换",
+        "MathDx已验收",
+        "Linux已验收"
+      ]
+    }
+  ]
+}

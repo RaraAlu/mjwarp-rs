@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-np01-field-precision-map",
+  "title": {
+    "zh": "NP01逐字段精度映射证据（Windows）",
+    "en": "NP01 per-field precision mapping evidence (Windows)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "为 NP01 精度门禁补齐「上游→产品」逐字段/逐中间量精度映射证据（Windows 可做）：对照冻结上游（MJWarp 71da24d956… 与 Warp v1.15.0 头文件/源码）与产品已实现物理路径，逐个字段与关键中间量记录上游类型、上游累加类型、产品类型、产品累加类型、是否 f64/混合、结论与证据位置；用脚本生成可复算的机器可判定清单与差异清单。只做证据与工具，不改产品类型、不升 f64、不降 f16/TF32；未覆盖项如实列为缺口，不宣称 NP01 通过。",
+    "en": "Produce per-field and per-intermediate precision-mapping evidence from frozen upstream (MJWarp 71da24d956… and Warp v1.15.0 headers/sources) to the implemented product physics paths on Windows: record upstream type, upstream accumulator type, product type, product accumulator type, f64/mixed usage, verdict and evidence location; generate a recomputable machine-checkable mapping and diff list with a committed script. Evidence and tooling only: no product type changes, no f64 promotion, no f16/TF32 downgrade; uncovered items stay as explicit gaps and NP01 is not claimed as passed."
+  },
+  "modules": {},
+  "acceptance": [
+    "脚本进仓（如 scripts/np01-field-map/，可用 Rust 或 PowerShell，只读输入、不启动 Python）：输入冻结上游源码根（Warp v1.15.0 提交 ffa038b1…；缺失时显式报错要求提供路径）与产品源码根，输出 mapping.json（逐字段/中间量：模块、对象、上游类型、上游累加类型、产品类型、产品累加类型、f64/混合标记、结论、证据路径）与 diff.json（不一致/未覆盖项清单）。",
+    "覆盖范围：产品当前已实现的物理路径（src/physics 下已实现模块与内核输入/输出/关键累加量、以及 src/runtime 中与精度相关的编译选项如 fmad/fast-math/arch）；未实现的路线/模块列入缺口清单，不冒充覆盖。",
+    "逐项核对上游实际生成内核与常量（不只看公开接口）：若上游为 f32 则产品全链 f32；发现 f64 提升/降精度/靠放宽容差的地方一律列为偏离项（diff），不得修改产品或容差；无法判定的项列“未判定”并写明原因。",
+    "结论口径：只输出「映射清单 + 偏离/缺口清单 + 本轮可证结论」，**不得写 NP01 通过或完整验收**；未覆盖/未判定项逐条列明。",
+    "证据写 docs/development-evidence/np01-field-mapping/（README + mapping.json + diff.json，含复现命令与真实数字）；不改产品源码/测试/容差/fixtures；门禁 fmt、unchanged（src/tests/fixtures/Cargo.*）与 json 检查（mapping.json 含 task_id）通过；中文 path-limited 提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P11-精度门禁",
+    "owner": "QA",
+    "files": [
+      "scripts/",
+      "docs/development-evidence/np01-field-mapping/"
+    ],
+    "resources": [],
+    "priority": 10
+  },
+  "note": "用户 2026-10-24 选择继续编译链（part 3 第二块，为上游源码/MathDx LTO 产物进入物理配方铺 NP01 硬前置）。本任务只产出证据与工具：不改产品类型、不升 f64/不降 f16、不动容差；冻结上游以 MJWarp 71da24d956… 与 Warp v1.15.0（ffa038b1…，本地 target/research/warp）为准，克隆缺失时按显式输入报错。Linux 不涉及。后续 next-g03-parity 重划 Windows-only 时复用本证据。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T20:06:00.000Z",
+  "updated_at": "2026-10-23T20:06:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/np01-field-mapping/mapping.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-np01-field-precision-map"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01已通过",
+        "NP01完整验收",
+        "精度已达标"
+      ]
+    }
+  ]
+}
