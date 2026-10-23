@@ -12,7 +12,7 @@
 - 与 W13 证据逐项一致：调用 LTOIR 3632 B（`1415be10…`）、CUBIN 2086544 B（`1086284b…`）、设备输出 104528 B（`51e1a99b…`，8 次发射）。
 - 不改既有 PTX/CUBIN 编译路径、内核字符串、容差与 f32；不接 MathDx SDK；不调用 warp.dll，不启动 Python。
 
-## 接口（`src/runtime/launcher/artifact/ltoir.rs`，288 行）
+## 接口（`src/runtime/launcher/artifact/ltoir.rs`，320 行；测试 `ltoir/tests.rs` 125 行、`tests/compile_ltoir_probe.rs` 249 行）
 
 | 对象 | 说明 |
 | --- | --- |
@@ -57,7 +57,7 @@
 - 不接 MathDx SDK（L5 仍在仓外，许可与部署待用户裁决）；不新增 C/C++ 组件；无 Python/venv/warp.dll。
 - 既有 PTX 编译路径 `artifact/nvrtc.rs` 与内核字符串、容差、f32 未改；新接口仅 `cuda-probe` feature 下编译。
 - Linux 绑定 deferred，并入 `2026-10-24-linux-batch-retest`。
-- G01 双模式未在本任务复跑：新单元测试 8 项会在下次 all-features host-msvc 计入（804→812）；新 GPU 探针未接入 G01 脚本 all-probes 列表，是否接线由后续任务/QA 复跑决定。
+- G01 双模式未在本任务复跑：新单元测试 8 项在后续 all-features host-msvc 计入（实测 804→812）；新 GPU 探针**由 G01 all-probes 自动纳入**——all-probes 执行 `cargo test --all-features -- --ignored`（覆盖全部测试 target，无白名单），无需额外接线。2026-10-24 QA 复跑 debug/release 两模式各命中 2 次，all-probes 两模式均 **350 过 / 0 败**（85 result 行，11 项文档化排除不变）。
 - T4 源码身份：改动只在 `src/runtime/launcher`（cuda-probe 门控），不在 T4 锚点集合（physics/resident/mass-solve）内，未漂移，无需重钉。
 
 ## 复现
