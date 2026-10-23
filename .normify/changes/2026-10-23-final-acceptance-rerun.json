@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-final-acceptance-rerun",
+  "title": {
+    "zh": "G01新测试接线后debug/release双模式最终验收",
+    "en": "Final debug/release acceptance rerun after wiring the new G01 tests"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "在 Backend 完成 G01 脚本新测试接线（45baa0e：MJWARP_CUDA_INCLUDE/CUDA PATH/MJWARP_GRAVITY_3D_EVIDENCE_DIR 接线、U038-3D known-debt 显式排除、-Minimum 346）后，由 QA 执行 debug 与 release 两轮完整脚本，确认 14 阶段全绿且 all-probes 仅剩文档化排除项；记录各阶段数字、运行目录与墙钟，更新 g01-fast-loop 最终验收证据与 docs/three-layer-acceptance.md §4.5/§4.6/§7 的双模式结论（新 HEAD、11 项排除）。不改产品/测试/容差/fixtures/脚本，失败项原样报告。",
+    "en": "After Backend wired the new G01 tests (45baa0e), QA runs the full debug and release scripts, confirms all 14 stages pass and all-probes has only documented exclusions, records stage counts/run dirs/wall time, and updates the g01-fast-loop final acceptance evidence plus docs/three-layer-acceptance.md sections 4.5/4.6/7 with the new HEAD and 11 documented exclusions. No product/test/tolerance/fixture/script changes; failures are reported as-is."
+  },
+  "modules": {},
+  "acceptance": [
+    "按 Backend 交接命令分别执行 scripts/test-windows-g01.ps1 -AllFeatures -FullRegression（debug）与 ... -Release，记录 14 个阶段结果、all-probes 计数（含 83 result 行与 11 项文档化排除）、运行目录与墙钟；release 以本次实测为准。",
+    "逐阶段核对 debug/release 数字与 Backend 报的 debug 数字及上一轮 2026-10-23 01:24（340/0）的差异并解释；任何失败项原样报告，不改判、不静默跳过。",
+    "更新 docs/development-evidence/g01-fast-loop/ 的最终验收记录（新 HEAD、双模式数字、新排除清单、运行目录与证据）并同步 docs/three-layer-acceptance.md §4.5/§4.6/§7；仅在双模式实测全绿且仅剩文档化排除项时恢复「G01 debug/release 双模式通过（含文档化排除项）」表述，不宣称超出证据的结论。",
+    "不改产品源码/测试/容差/fixtures/scripts；交付回执 json 含 task_id；gate fmt/unit 与 unchanged（src/native/include/tests/fixtures/scripts/Cargo.toml/Cargo.lock）检查通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-23-g01-script-new-tests-wiring"
+    ],
+    "phase": "fix/G01-debt",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g01-fast-loop/",
+      "docs/three-layer-acceptance.md",
+      "docs/development-evidence/changes/2026-10-23-final-acceptance-rerun.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "最终验收复跑由 QA 执行，GPU 串行（debug 后 release）；只更新验收证据与文档，不改产品/测试/容差/fixtures/脚本；若 release 出现失败项，保持失败并如实记录，不恢复双模式通过表述。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T04:22:00.000Z",
+  "updated_at": "2026-10-23T04:22:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-final-acceptance-rerun.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-final-acceptance-rerun"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "Linux已验收",
+        "双平台通过",
+        "G01全量通过"
+      ]
+    }
+  ]
+}
