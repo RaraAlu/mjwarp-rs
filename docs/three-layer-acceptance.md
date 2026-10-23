@@ -371,6 +371,18 @@ MathDx 三块交付（`2025a57` libmathdx 0.3.1 组件与许可、`e5f1559` Solv
 - 证据：`docs/development-evidence/g01-fast-loop/`（README §5.5、`final-acceptance-mathdx.json`）与 `docs/development-evidence/mathdx-independent-check/`。
 - 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 4f362f2；MathDx 探针已纳入 all-probes 并通过；U038-3D 已知债务显式排除、未验收）**。Linux（§7.1）、性能与完整上游等价仍未验收。
 
+### 4.12 内核来源路线交付后快验复核（2026-10-24，QA，任务 `2026-10-24-kernel-source-route-review`）
+
+用户 2026-10-24 决定停止逐次全量 G01（改为快验迭代，完整双模式只在真正里程碑由 Chief 点名时执行），因此 `687754c`（内核来源路线标准化与 MathDx LTO 接入）之后**未做全量双模式复跑**。本节的结论只是快验口径，不代表该 HEAD 的双模式验收：G01 最近一次全量全绿仍为 §4.11 的 HEAD `4f362f2`（host-msvc 823、all-probes 352 过 0 败、86 result 行、11 项文档化排除）。
+
+快验实测（运行 HEAD `2dee442`，其 `src`/`tests` 与 `687754c` 相同）：
+
+- `scripts/g01-fast.ps1 -Target mjwarp_rs -Test launcher::route` → **12 过 0 败**；既有配方产物键基线 `b515f1eb…` 复跑一致。
+- GPU 探针普通环境与 G01 环境变量集各 **1 过 0 败**，元数据逐字段一致：LTOIR 1,034,872 B `98c01ce6…`、FATBIN 506,960 B `c00d6412…`、CUBIN 2,086,544 B `de660b5d…`、设备输出 104,528 B `51e1a99b…`、8 次发射、route key `27c33a4e…`、`repeat_build_identical=true`。
+- 未改排除清单（仍 **11 项**）、未改 G01 脚本；`687754c` 之后的 G01 计数变化（预期 host-msvc 823→约 835、all-probes 352→约 353）**未实测、不宣称**。
+- 证据：`docs/development-evidence/kernel-source-route-independent-check/`。
+- 结论：内核来源路线交付的快验复核通过；G01 双模式在该 HEAD 未复跑，其验收状态停留在 §4.11。
+
 ## 5. 债务清单
 
 | 编号 | 级别 | 状态 | 内容与证据 |
@@ -461,7 +473,7 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_grav
 ## 7. 未验收边界
 
 - 只验收 Windows；Linux 侧按用户 2026-10-24 决定**暂时终止**（开发、验收与回测均暂停），等 Windows 全量开发完成后集中回测一次，不零散开跑；当前程序以 Windows 单平台完成为目标；Linux V2 未启动（原需 `linux-gpu:0` 与 `linux-acceptance`），细节见 §7.1。
-- G01 现状（2026-10-24，§4.11，HEAD `4f362f2`）：MathDx 交付后 debug/release 双模式通过，host-msvc **823 过**、all-probes **352 过 0 败**（各 86 result 行；MathDx GPU 探针 2 项已被 all-probes 自动纳入并通过），排除仍为 11 项、未新增。此前（§4.10，HEAD `f9da799`）：LTOIR 交付后 debug/release 双模式通过，host-msvc **812 过**、all-probes **350 过 0 败**（各 85 result 行，LTOIR 探针 2 项）；§4.9（`f9f1f66`）804/348（84 行）；§4.8（`66256c9`）796/346（83 行）。以上四节均为 11 项文档化排除（W-D5 3、历史捕获身份 6、env/外部产物 1、U038-3D 已知债务 1），未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）
+- G01 现状（2026-10-24，§4.11，HEAD `4f362f2`）：MathDx 交付后 debug/release 双模式通过，host-msvc **823 过**、all-probes **352 过 0 败**（各 86 result 行；MathDx GPU 探针 2 项已被 all-probes 自动纳入并通过），排除仍为 11 项、未新增。此前（§4.10，HEAD `f9da799`）：LTOIR 交付后 debug/release 双模式通过，host-msvc **812 过**、all-probes **350 过 0 败**（各 85 result 行，LTOIR 探针 2 项）；§4.9（`f9f1f66`）804/348（84 行）；§4.8（`66256c9`）796/346（83 行）。以上四节均为 11 项文档化排除（W-D5 3、历史捕获身份 6、env/外部产物 1、U038-3D 已知债务 1），未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）`687754c`（内核来源路线）之后按用户 2026-10-24 节奏决定未做全量双模式复跑（见 §4.12），G01 全量实测数字仍以 HEAD `4f362f2`（§4.11）为最新。
 - all-probes `-Minimum 346` 满足（MathDx 后 debug/release 均 352 过，§4.11；§4.10 为 350 过、§4.9 为 348 过、§4.8 为 346 过）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
 - 历史记录：2026-10-22 的 full-debug 曾中止在 all-probes（§4.1–§4.3），相关债务已由 `d5b02d5`、`6cb5a71`、`b13d1c5` 收口；保留原文作为变更轨迹。
 - W13（2026-10-24）在 §4.8 的 HEAD `66256c9` 之后新增 `cuda-probe` 下的 nvJitLink 绑定源码与 2 项 GPU 测试（`tests/nvjitlink_probe.rs`）；T4 源码身份清单不覆盖这些文件，未重钉。all-probes 已纳入这 2 项，运行前须重跑 `scripts/prepare-cuda-probe.ps1`（取 nvJitLink 12.9.86），对照测试还需 `target/native-mathdx7/attempt-1/` 的离线证据输入。W13 后 G01 双模式复验已通过（§4.9）。

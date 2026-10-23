@@ -1,0 +1,190 @@
+{
+  "schema": 1,
+  "kind": "independent-check",
+  "task_id": "2026-10-24-kernel-source-route-review",
+  "reviewed_task": "2026-10-24-kernel-source-route-mathdx-wire",
+  "reviewed_commit": "687754cc0817debd07d51c97719da838f042ff99",
+  "review_head": "2dee442",
+  "date": "2026-10-24",
+  "reviewer": "QA",
+  "platform": {
+    "os": "Windows",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "compute_capability": [8, 9],
+    "rustc": "1.99.0-x86_64-pc-windows-msvc",
+    "cuda_env": "target/toolchains/cuda-12.8.1",
+    "nvrtc": "12.9.86 (pinned component)",
+    "nvjitlink": "12.9.86",
+    "libmathdx": "0.3.1"
+  },
+  "verdict": "delivery_claims_hold",
+  "full_dual_mode_g01": {
+    "run_in_this_batch": false,
+    "reason": "用户 2026-10-24 决定停止逐次全量 G01：快验迭代，完整双模式只在真正里程碑由 Chief 点名时执行",
+    "last_full_green_head": "4f362f2",
+    "last_full_green_reference": "docs/three-layer-acceptance.md §4.11（host-msvc 823、all-probes 352 过 0 败、86 result 行、11 项文档化排除）",
+    "unmeasured_expected_deltas": {
+      "host_msvc": "823 → 约 835（+12 成功单测，未实测）",
+      "all_probes": "352 → 约 353（+1 ignored GPU 探针自动纳入，未实测）"
+    }
+  },
+  "source_identity": {
+    "src_tests_cargo_changed_since_reviewed_commit": false,
+    "note": "git diff --name-only 687754c..HEAD -- src tests fixtures Cargo.toml Cargo.lock scripts 只命中 scripts/np01-field-map/*（NP01 只读映射工具，与编译链无关）"
+  },
+  "results": {
+    "targeted_unit": {
+      "command": "scripts/g01-fast.ps1 -Target mjwarp_rs -Test launcher::route -NoBuild",
+      "passed": 12,
+      "failed": 0,
+      "seconds": 0.55,
+      "includes": [
+        "four_routes_are_enumerable_and_disabled_by_default",
+        "route_opt_in_is_required_and_checked",
+        "nvrtc_version_gate_rejects_other_versions",
+        "cuda_route_keys_are_stable_and_factor_sensitive",
+        "cuda_route_rejects_non_cuda_routes",
+        "headers_and_option_order_change_key",
+        "generic_key_rejects_invalid_digests",
+        "frozen_ptx_route_key_is_stable",
+        "mathdx_route_key_tracks_versions_and_solver",
+        "mathdx_route_rejects_arch_mismatch",
+        "artifact_verify_accepts_consistent_and_rejects_tampering",
+        "existing_recipe_artifact_key_baseline_is_locked"
+      ]
+    },
+    "gpu_probe_normal_env": {
+      "command": "同一 debug 构建的 kernel_source_route_probe 测试二进制 --ignored --nocapture（去掉 MJWARP_MUJOCO_*，保留 CUDA_PATH + PATH）",
+      "passed": 1,
+      "failed": 0,
+      "seconds": 2.1,
+      "device_phase_ms": 7.19
+    },
+    "gpu_probe_g01_env": {
+      "command": "scripts/g01-fast.ps1 -Target kernel_source_route_probe -IgnoredOnly -Nocapture -NoBuild",
+      "passed": 1,
+      "failed": 0,
+      "seconds": 2.3,
+      "device_phase_ms": 8.21
+    },
+    "probe_metadata_both_envs_equal": {
+      "route": "MathDxLto",
+      "route_key_sha256": "27c33a4ebd30c6b8ce8f4602abb4560121545575b7d9147880bb1e2f68b01010",
+      "arch": 89,
+      "source_sha256": "abfc8c777014708ed9b33c7a80798e8d2160f102f49a21d01fbf203911968853",
+      "header_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "nvrtc_version": [12, 9],
+      "nvjitlink_version": [12, 9],
+      "libmathdx_version": [0, 3, 1],
+      "call_ltoir_bytes": 3632,
+      "call_ltoir_sha256": "a323db381e0793b03837c95179965eb90aeb44c110eae042f16ede1d587da953",
+      "solver_ltoir_bytes": 1034872,
+      "solver_ltoir_sha256": "98c01ce64f55d31af5d4eb001c1e9fc4c8456173a9f0bbe97be479c804a981eb",
+      "solver_fatbin_bytes": 506960,
+      "solver_fatbin_sha256": "c00d6412780b18f67e11a1d93fc34d51db9cdd687f26ec7bc926efbff5ddbd1f",
+      "cubin_bytes": 2086544,
+      "cubin_sha256": "de660b5d5095516549c053bf51e13c05b9bc55a3dfe5cfeb0a0833c068be55ae",
+      "device_output_bytes": 104528,
+      "device_output_sha256": "51e1a99b11990d259411de58816a6344cec85f224c6a541fa088030749126d3f",
+      "launches": 8,
+      "repeat_build_identical": true
+    }
+  },
+  "checks": {
+    "route_key_fields": {
+      "fields": [
+        "route",
+        "source_sha256",
+        "header_sha256",
+        "include_paths",
+        "options (ordered, 13 frozen LTOIR options + --include-path)",
+        "arch",
+        "recipe_fingerprint (CUDA routes)",
+        "solver_fingerprint (MathDx route)",
+        "nvrtc",
+        "nvjitlink",
+        "libmathdx"
+      ],
+      "constructor_validation": "源/头文件摘要必须为 64 位十六进制；MathDx 路线调用源与求解器 arch 必须一致",
+      "confirmed": true
+    },
+    "rejection_surface": {
+      "route_not_enabled": "RouteOptIn::none() → 「路线未启用：MathDxLto」",
+      "route_mismatch": "「路线不符」，显式报错无回退",
+      "nvrtc_version": "非 12.9 → 「NVRTC版本不符…不回退」",
+      "arch_mismatch": "「架构不一致：调用源sm_…，求解器sm_…」",
+      "artifact_tampering": "键/路线/键字段/各级摘要/CUBIN 摘要不一致、空产物 → 显式报错",
+      "non_cubin": "check_cubin：非 ELF / 非 64 位小端 → 显式报错",
+      "confirmed": true
+    },
+    "no_recipe_switch": {
+      "default_disabled": true,
+      "existing_paths_changed": false,
+      "kernel_strings_tolerance_f32_changed": false,
+      "existing_recipe_artifact_key_baseline": "b515f1ebfbf8127e13e3e76b737cf30625bb2cd8662213a5a7cc6f665dc16b29",
+      "baseline_retested": true,
+      "note": "提交仅新增 route/ 三文件与 tests/kernel_source_route_probe.rs，既有源码只改 launcher/mod.rs（cuda-probe 门控挂载与导出）"
+    },
+    "module_mounting": {
+      "module": "mjwarp.runtime",
+      "sources_listed": [
+        "src/runtime/launcher/route.rs",
+        "src/runtime/launcher/route/artifact.rs",
+        "src/runtime/launcher/route/tests.rs",
+        "tests/kernel_source_route_probe.rs"
+      ],
+      "confirmed": true
+    },
+    "file_lines": {
+      "method": "LF 计数 / ReadAllLines / git show --numstat 三者一致",
+      "src/runtime/launcher/route.rs": 323,
+      "src/runtime/launcher/route/artifact.rs": 232,
+      "src/runtime/launcher/route/tests.rs": 363,
+      "tests/kernel_source_route_probe.rs": 275,
+      "all_under_500": true,
+      "delivery_evidence_annotated": {
+        "src/runtime/launcher/route.rs": 303,
+        "src/runtime/launcher/route/artifact.rs": 222,
+        "src/runtime/launcher/route/tests.rs": 361,
+        "tests/kernel_source_route_probe.rs": 267
+      }
+    },
+    "no_foreign_sources": {
+      "c_cpp_added": false,
+      "python_added": false,
+      "sdk_binaries_tracked": false,
+      "sdk_location": "target/toolchains/libmathdx-0.3.1、target/toolchains/cuda-12.9.1-nvrtc（.gitignore:/target）"
+    },
+    "t4_identity": {
+      "drifted": false,
+      "evidence": "git diff --name-only 66256c9..HEAD -- src/physics src/runtime/resident src/runtime/mass_solve src/runtime/mass_matrix 为空；本交付文件不在 fixtures/precision/t4-current-kernels.json 锚点集合内"
+    },
+    "gates_record": {
+      "path": ".normify/runs/2026-10-24-kernel-source-route-mathdx-wire/",
+      "fmt_exit": 0,
+      "fmt_wall_ms": 1362,
+      "unit_passed": 480,
+      "unit_failed": 0
+    }
+  },
+  "suggestions": [
+    "交付证据 README/receipt 与提交信息的行数标注 303/222/361/267 与实测 323/232/363/275 相差 20/10/2/8（疑为按 Get-Content 计数），建议后续按 normify fix 只改行数字段；不影响结论。"
+  ],
+  "boundaries": [
+    "本批未跑全量 G01 debug/release 双模式（用户 2026-10-24 节奏决定）；最近一次全绿 HEAD 4f362f2，本批不宣称该 HEAD 之后的 G01 计数。",
+    "未验证 Linux；未宣称 MathDx 完整验收、上游数值等价或物理配方切换。",
+    "性能无结论（单次毫秒级采样）。",
+    "排除清单未动（11 项：W-D5 3、历史捕获身份 6、env/外部产物 1、U038-3D 已知债务 1）。",
+    "未改产品/测试/容差/fixtures/G01 脚本。"
+  ],
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "lib-route-tests.log",
+    "fast-loop-summary.json",
+    "probe-g01-env.log",
+    "probe-normal.log"
+  ],
+  "note": "快验口径独立复核：定向单测 12/0、两环境 GPU 探针各 1/0、四摘要与 route key 一致、既有配方键基线 b515f1eb… 复跑一致；全量 G01 未在本批执行，如实登记。"
+}
