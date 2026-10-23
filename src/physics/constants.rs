@@ -12,6 +12,9 @@
 //! tendon_length0、cam/light pos0）、执行器常量与长度范围
 //! 依赖尚未实现的 G05 字段与 G01/G02/G03 链；动态更新属 @P7。
 
+mod qpos;
+pub use qpos::{QposDependentConstants, QposDependentInput, set_const_0};
+
 use crate::diagnostics::InputError;
 
 /// `set_const_fixed` 的最小输入：模型级 f32 质量与父身体索引。

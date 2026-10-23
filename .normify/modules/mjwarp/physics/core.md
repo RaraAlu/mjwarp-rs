@@ -2,7 +2,7 @@
 uid = "ece0669c"
 id = "mjwarp.physics.core"
 tags = ["planned", "engine", "physics"]
-fingerprint = "f1497c4c9200a4773148cbd749c426e62422309a6eeb0c31b24b42f9d45e3ebc"
+fingerprint = "f2803530c3a5f30a153ad474d82132c19ce6611a4b06ac062a038989bcab25ae"
 
 [name]
 zh = "物理阶段与基础探针"
@@ -309,6 +309,12 @@ path = "src/physics/query.rs"
 
 [[source]]
 path = "src/physics/query/tests.rs"
+
+[[source]]
+path = "src/physics/constants/qpos.rs"
+
+[[source]]
+path = "src/physics/constants/qpos/tests.rs"
 
 [[apis]]
 protocol = "rpc"

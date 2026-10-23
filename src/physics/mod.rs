@@ -4,7 +4,10 @@
 mod actuator;
 pub use actuator::{ActuationData, ActuationError, ActuationOutput, ActuatorModel, fwd_actuation};
 mod constants;
-pub use constants::{FixedConstants, FixedConstantsInput, set_const_fixed};
+pub use constants::{
+    FixedConstants, FixedConstantsInput, QposDependentConstants, QposDependentInput, set_const_0,
+    set_const_fixed,
+};
 mod query;
 pub use query::{GeomPrimitive, QueryError, Ray, RayHit, ray, ray_geom, rays};
 mod kinetic_energy;

@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-g27-p7",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    { "path": "src/physics/constants.rs", "blob": "0e496ca0b9527d696b1a5a79816a6ea57633c17a" },
+    { "path": "src/physics/constants/qpos.rs", "blob": "204d48a72bc49bb9d942dd74ee9c2ebd07093dbf" },
+    { "path": "src/physics/constants/qpos/tests.rs", "blob": "70f2411a86f564e6fc5094b0938b904201916d92" },
+    { "path": "fixtures/set-const/qpos-model.xml", "blob": "df7bd3111444124fa7c54d395626d3e5bc363268" },
+    { "path": "fixtures/set-const/qpos-dependent.json", "blob": "a34237a0edeac8a55b9924e2f453acac1762a90e" },
+    { "path": "scripts/authoring/author-g27-qpos-constants.ps1", "blob": "3f9d6c92f9a906b7c9b11825c1b9cbcbea924504" },
+    { "path": "scripts/authoring/author-g27-qpos-constants.py", "blob": "98c74ea6b37a0d2d10d691155536879f6018635c" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g27-p7/README.md", "blob": "11f1fb5c96676ee3ffa5bd7f0b8e0fcf6c75a9a5" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g27-p7/authoring.json", "blob": "ad166d2151f2a0fd9547c95ca1311d19018a0fa4" },
+    { "path": ".normify/modules/mjwarp/physics/core.md", "blob": "49aac2441ca87b1b12318349976e8493197faf05" }
+  ],
+  "results": {
+    "slice": {
+      "family": "G27 常量计算",
+      "phase": "P7（qpos0 依赖常量，动态重算）",
+      "planned_api": "mjwarp_rs::physics::constants::set_const_0（U052；G27；P2/P7）",
+      "delivered": "冻结 qpos0 中间量 → tendon_length0、cam_pos0/poscom0/mat0、light_pos0/poscom0/dir0、meaninertia（M CSR 对角线均值）"
+    },
+    "references": {
+      "model": "fixtures/set-const/qpos-model.xml",
+      "model_sha256": "707a599feb756bb1d90cb59c87b3c2267e22b0e0169c532d744aa12d6c9ef4f8",
+      "dims": "nbody=3、nq=5、nv=4、ncam=2、nlight=2、ntendon=1",
+      "cases": ["default", "modified（球关节 qpos0 旋转 30° + 滑动 0.1）"],
+      "native": "MuJoCo 3.15.0 mj_setConst（一级）",
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29，Warp 1.15.0，set_const_0(restore=False)（二级）"
+    },
+    "comparison": {
+      "product_vs_upstream": "两案例 × 8 组常量逐元素位型一致（容差 0）",
+      "native_cross_check_max_abs": 1.192e-07,
+      "native_tolerance_abs": 1e-05,
+      "dynamic_recompute": "两案例 tendon_length0/cam_pos0/cam_poscom0/light_pos0 均不同且各自匹配上游；同输入重复调用相等",
+      "meaninertia": "两案例 0.42；nv=0 默认 1.0（单元测试）"
+    },
+    "np_mapping": {
+      "NP01": "全链 f32，无 f64 中间量",
+      "NP02": "记录冻结提交/函数/模型 sha256/环境与两案例",
+      "NP03": "两级判定：原生 mj_setConst 先行（1.19e-07 ≤ 1e-5），MJWarp f32 逐位一致",
+      "NP04": "不适用/未测"
+    },
+    "gates": {
+      "fmt": "通过",
+      "clippy": "通过（--all-targets -D warnings，exit 0）",
+      "unit": "通过"
+    }
+  },
+  "note": "批次 1 后继细化落地：G27@P7 按计划 API U052 交付 set_const_0 的宿主侧 qpos0 依赖常量切片（tendon_length0、cam/light 参考常量、meaninertia），输入为冻结 qpos0 中间量，不重跑链、不发射内核；两套 qpos0（默认/修改后）重算结果与上游逐位一致，演示动态更新不缓存。invweight0（依赖 M 求解）、eq_data0、执行器常量、set_const_spring/全量 set_const 与设备内核登记为未验收边界。未改既有产品路径、容差与测试。",
+  "boundaries": [
+    "未实现 dof/body/tendon_invweight0（依赖 G02/G03 M 求解链）、eq_data0、执行器常量（依赖 G05）、set_const_spring/全量 set_const。",
+    "无链式重算（kinematics/com/camlight/tendon/crb/factor_m）与设备内核；输入为冻结中间量。",
+    "不宣称完整 G27 或精度验收通过；NP04 未测。"
+  ]
+}
