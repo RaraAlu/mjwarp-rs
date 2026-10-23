@@ -10,8 +10,9 @@ pub use actuator::{
 mod collision;
 pub use collision::{
     BroadphaseError, BroadphaseFilter, BroadphaseModel, BroadphaseOptions, BroadphaseOutput,
-    BroadphaseState, BroadphaseType, GEOM_MESH, GEOM_PLANE, GeomPair, nxn_broadphase,
-    sap_broadphase,
+    BroadphaseState, BroadphaseType, GEOM_MESH, GEOM_PLANE, GEOM_SPHERE, GeomContact, GeomPair,
+    MJ_MINMU, MJ_MINVAL, NarrowphaseError, PrimitiveModel, PrimitiveState, make_frame,
+    nxn_broadphase, plane_sphere, primitive_narrowphase, sap_broadphase, sphere_sphere,
 };
 mod constants;
 pub use constants::{

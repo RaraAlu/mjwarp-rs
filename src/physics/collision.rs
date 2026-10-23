@@ -24,6 +24,11 @@ use std::error::Error;
 use std::fmt;
 
 mod filter;
+mod narrowphase;
+pub use narrowphase::{
+    GeomContact, MJ_MINMU, MJ_MINVAL, NarrowphaseError, PrimitiveModel, PrimitiveState, make_frame,
+    plane_sphere, primitive_narrowphase, sphere_sphere,
+};
 mod nxn;
 mod sap;
 #[cfg(test)]
@@ -31,6 +36,7 @@ mod tests;
 
 /// 上游 `mjtGeom` 的平面与网格编号。
 pub const GEOM_PLANE: i32 = 0;
+pub const GEOM_SPHERE: i32 = 2;
 pub const GEOM_MESH: i32 = 7;
 /// 上游 `mjMAXVAL`（f32）。
 pub(crate) const MJ_MAXVAL: f32 = 1.0e10;
