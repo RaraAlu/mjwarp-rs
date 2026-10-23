@@ -12,7 +12,7 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.physics"
+      "mjwarp.physics.core"
     ]
   },
   "acceptance": [
@@ -21,21 +21,83 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "本片只覆盖所列阶段。",
+    "新增计划 API `physics::collision::nxn_broadphase` 与 `physics::collision::sap_broadphase` 的宿主侧宽相切片：输入冻结模型字段（geom 类型/bodyid/dataid/rbound/AABB/margin/gap、上游过滤后的 geom 对表与全量 pairid 上三角）、冻结状态（每世界 geom_xpos/xmat）与选项（BroadphaseFilter 位模式、naconmax 容量），输出候选对（按 geom 类型排序的 pair）、pairid、worldid 与 ncollision。",
+    "候选完整性：NXN 与两类 SAP（SAP_TILE/SAP_SEGMENTED）在相同输入下候选集合一致；排除对（pairid 双负跳过）、平面 rbound=0 的 plane filter、缺失 mesh（geom_dataid 世界批量下为 -1）、collision sensor 强制包含（pairid[1]>=0 绕过过滤）与四位过滤（PLANE/SPHERE/AABB/OBB）语义逐案复刻。",
+    "容量边界：ncollision 统计全部通过候选（可超 naconmax），写出的候选截断到 naconmax；与冻结上游对照一致。",
+    "冻结上游对照：离线 authoring 用 pinned MJWarp `71da24d` 在冻结模型/状态下运行 `nxn_broadphase`/`sap_broadphase`，产出逐案候选；原生 MuJoCo 3.15 f64 `mj_kinematics`+`mj_collision` 接触对做 NP03 一级判定（候选必须包含全部原生接触对；margin 案例候选计数与原生接触计数逐案相等）。",
+    "未验收边界：SLEEP 睡眠跳过、incremental awake 复跑、geom_aabb/rbound/margin/gap 的世界批量、flex/mesh/SDF 窄相、GPU 内核与图条件、`collision()` 完整驱动与 contact 输出均不做并如实登记。",
+    "NP01：新增路径全 f32；NP02：记录冻结上游提交、函数名、模型 sha256 与运行环境；NP03：原生 f64 一级判定 + MJWarp f32 二级逐位对照；NP04 不适用（不发射内核、不跑性能）。",
+    "证据落 `docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g07-p5/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g07-p5.json`；gate fmt/clippy/unit 通过，不宣称完整 G07 或精度验收。"
   ],
   "schedule": {
     "depends_on": [],
     "phase": "P5",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/physics/collision.rs",
+      "src/physics/collision/",
+      "src/physics/mod.rs",
+      "fixtures/broadphase/",
+      "scripts/authoring/",
+      "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g07-p5/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g07-p5.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":260,\"end\":260},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p3, 2026-10-11-roadmap-p4] → 新依赖 []。依据：宽相碰撞所需模型/资产输入已由 M03/M04 verified 覆盖；删除旧 P3/P4 聚合门禁。",
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":260,\"end\":260},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p3, 2026-10-11-roadmap-p4] → 新依赖 []。依据：宽相碰撞所需模型/资产输入已由 M03/M04 verified 覆盖；删除旧 P3/P4 聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次2）：原图只有 G07@P5 粗切片（旧计划语义：NXN、两类 SAP、过滤；验收「候选完整性与容量边界」）。按当前代码布局，本片最小可交付 = 计划 API `nxn_broadphase`（U007）与 `sap_broadphase`（U008）的宿主侧候选生成：冻结模型字段 + 上游 geom 对表/pairid 上三角 + 冻结每世界 geom 位姿 → 候选 pair/pairid/worldid 与 ncollision，复刻平面/球/AABB/OBB 四位过滤、排除对、缺失 mesh、collision sensor 强制包含与 naconmax 容量截断。睡眠跳过、incremental awake、AABB/rbound/margin/gap 世界批量、窄相与 GPU 内核全部登记为未验收边界；不改既有产品路径、容差与测试。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-11T15:26:44.723Z",
-  "updated_at": "2026-10-23T04:57:01.171Z"
+  "updated_at": "2026-10-23T04:57:01.171Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/runtime",
+        "src/model",
+        "native",
+        "include",
+        "tests",
+        "fixtures/g01",
+        "fixtures/set-const",
+        "fixtures/local-reset",
+        "fixtures/actuation",
+        "fixtures/ray-query",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-g07-p5.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-g07-p5"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ]
 }
