@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-backlog-triage",
+  "title": {
+    "zh": "待办池分诊与排程重启准备",
+    "en": "Backlog triage and schedule restart preparation"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对当前 124 条 backlog（原排程 P0–P11 候选池）逐条分诊：已过时/被替代（a）、已被现有工作覆盖（b）、仍有效但有外部前提（c）、现在可执行（d）。产出 triage.json 与 README（计数、方法、执行批次、风险、悬空依赖），按分类执行 abandon（a/b）与 promote（d，不 start），不确定者保留 backlog。只做治理与证据，不改产品代码，不 start 任何功能任务。",
+    "en": "Triage the 124 backlog tasks (original P0–P11 candidate pool) into: obsolete/superseded (a), covered by existing verified work (b), valid but externally blocked (c), executable now (d). Produce triage.json and README (counts, method, execution batches, risks, dangling dependencies); run abandon for a/b and promote for d (without starting); keep uncertain tasks in backlog. Governance/evidence only: no product changes, no functional task starts."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "逐条覆盖 124 条 backlog 任务：triage.json 每条形如 { id, title, phase, depends_on, resources, classification, rationale, evidence, action }，分类为 a/b/c/d/待定 之一并给出可复核依据（引用已验证/已放弃任务 id、证据路径或外部条件）。",
+    "README 给出四类计数、方法、建议执行批次（d 类按本地无外部依赖与当前范围排序）、风险与「待用户/待证据」清单；并列出 backlog 任务 depends_on 指向已 abandon/verified 的悬空项。",
+    "动作只经 CLI：a/b 类执行 normify abandon 并在 reason 写依据；d 类执行 normify promote（候选态，不 start）；不确定的保留 backlog 并在报告中标注。",
+    "不改产品代码、测试、容差、fixtures，不 start 任何功能任务；path-limited 提交；任务 id 不含 np0x/G0x 等 claim 关键词；通过 gate fmt、unchanged、回执 json 与 forbid_claim。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      ".normify/changes/",
+      "docs/development-evidence/backlog-triage",
+      "docs/development-evidence/changes/2026-10-23-backlog-triage.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "用户 2026-10-23 要求先分诊 124 条待办再重启排程。只做治理：abandon/promote 均由 normify CLI 执行，不手改 status；不 start 功能任务；不动 Backend 的 src/runtime/launcher、tests/launcher-*、include/warp-headers 等范围。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T08:50:00.000Z",
+  "updated_at": "2026-10-23T08:50:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "build.rs",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-backlog-triage.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-backlog-triage"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "全部验收",
+        "完整验收",
+        "所有任务完成",
+        "双平台通过"
+      ]
+    }
+  ]
+}
