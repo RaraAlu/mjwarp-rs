@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-batch1-successor-check",
+  "title": {
+    "zh": "独立复核批次1后继四条交付（G27@P7/M08@P7/G05@P7/G28@P8）",
+    "en": "Independent review of the four batch-1 successor deliveries"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Backend 交付的批次 1 后继四条（提交 a1fa5b5/b92e55d/e7a7859/00b8b60：G27@P7、M08@P7、G05@P7、G28@P8）做独立复核：读证据与回执、核对声明、独立复跑 cargo test --lib qpos/extended/transmission/batch、抽验 fixtures sha256、核对 checks/acceptance 是否放宽、核对 G28@P8 模块范围从 render/BVH 改落 physics.core 的理由。只写证据目录，不改产品/测试/容差。",
+    "en": "Independently review the four batch-1 successor deliveries: read evidence/receipts, verify claims, rerun cargo test --lib qpos/extended/transmission/batch, spot-check fixture sha256, check checks/acceptance, and verify the rationale for G28@P8 moving its module scope from render/BVH to physics.core. Evidence-only; no product/test/tolerance changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "逐条读 docs/development-evidence/backlog-batch1/<task-id>/{README.md,authoring.json} 与交付回执，核对四条声明的数值与证据支持。",
+    "独立复跑 cargo test --lib qpos / extended / transmission / batch（CPU，默认特性），记录真实通过计数；抽验模型源与输出 fixtures 的 sha256/blob 与证据一致。",
+    "核对四条任务 checks 是否含 fmt/clippy/unit/unchanged/json/forbid_claim、acceptance 是否被放宽；核对 G28@P8 模块范围从 render/BVH 改落 physics.core 的理由是否成立（并核对未验收边界）。",
+    "结论写 docs/development-evidence/batch1-successor-check/README.md（逐项核对表、复跑计数、sha256 抽验、差异与严重级别）；回执 json 含 task_id；gate fmt/unit 与 unchanged 通过；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-11-roadmap-g27-p7",
+      "2026-10-11-roadmap-m08-p7",
+      "2026-10-11-roadmap-g05-p7",
+      "2026-10-11-roadmap-g28-p8"
+    ],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/batch1-successor-check/",
+      "docs/development-evidence/changes/2026-10-23-batch1-successor-check.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "只读复核 + 证据目录；不改产品/测试/容差/fixtures/回执；不碰 Backend 正在做的批次 2（g07-p5 等 8 条）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T06:05:00.000Z",
+  "updated_at": "2026-10-23T06:05:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-batch1-successor-check.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-batch1-successor-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "四条全部通过",
+        "后继四条已验收"
+      ]
+    }
+  ]
+}
