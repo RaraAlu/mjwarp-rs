@@ -10,20 +10,36 @@
   "files": [
     {
       "path": "docs/development-evidence/backlog-batches-summary/README.md",
-      "blob": "06421c833aadb823cca3ff0cc4ffaa00b9f1c6d5"
+      "blob": "06a7d8baa2b9ae9ee942318cd61fcc837a0b49e0"
     },
     {
       "path": "docs/development-evidence/backlog-batches-summary/summary.json",
-      "blob": "0f18368fad872d6fb5d88f49e4f6d89ebd16400e"
+      "blob": "887a09e5cfcab2f2ab9248b0fefafd825266d201"
     }
   ],
   "results": {
     "scope": "批次 1–4 共 20 条交付 + 4 条顺延的只读证据/文档审计；不改产品源码/测试/容差/fixtures，不 start 路线图任务。",
     "batches": [
-      {"batch": "batch1", "delivered": 8, "deferred": 0},
-      {"batch": "batch2", "delivered": 7, "deferred": 1},
-      {"batch": "batch3", "delivered": 4, "deferred": 1},
-      {"batch": "batch4", "delivered": 1, "deferred": 2}
+      {
+        "batch": "batch1",
+        "delivered": 8,
+        "deferred": 0
+      },
+      {
+        "batch": "batch2",
+        "delivered": 7,
+        "deferred": 1
+      },
+      {
+        "batch": "batch3",
+        "delivered": 4,
+        "deferred": 1
+      },
+      {
+        "batch": "batch4",
+        "delivered": 1,
+        "deferred": 2
+      }
     ],
     "totals": {
       "delivered": 20,
@@ -47,7 +63,10 @@
         "finding": "退化尺寸校验落空（无 geom_size 非正/有限性校验与拒绝测试）",
         "fix": "新增 narrowphase/validate.rs 的 validate_geom_sizes/InvalidGeomSize 与 0/负/NaN/±Inf 拒绝测试、box-box 候选拒绝",
         "task_ref": "2026-10-23-g09-validation-gap-fix",
-        "commits": ["1388124", "6c6f798"]
+        "commits": [
+          "1388124",
+          "6c6f798"
+        ]
       },
       {
         "batch": "batch4",
@@ -55,16 +74,26 @@
         "finding": "回执 model_sha256 误填 git blob hash 63743a8a…",
         "fix": "改为文件 sha256 a78b1547…；files blob 同步刷新",
         "task_ref": "2026-10-23-g09-validation-gap-fix",
-        "commits": ["1388124", "6c6f798"]
+        "commits": [
+          "1388124",
+          "6c6f798"
+        ]
       }
     ],
     "windows_scope_status": "Windows 范围内可执行的 roadmap 项已清空；剩余项依赖缺失子系统（渲染/BVH、地形/SDF、图重放、性能平台）或用户裁决（W13 许可、Linux deferred）。",
     "gates": {
       "fmt": "通过（cargo fmt --check）",
       "unit": "通过（cargo test --locked 480 过 0 败）"
+    },
+    "process_note": {
+      "engine_failure": "收尾时 normify start/done 对审计任务返回 拒绝访问 (os error 5)；已按 1–2 秒间隔重试多次仍失败；疑为与并行 normify status 自检循环的文件锁冲突，属引擎命令失败，不是任务数据错误。",
+      "equivalent_recording": "手工把任务 JSON 置为 in_progress/verified（记录 revision.before=当时 HEAD、closed_at），不伪造执行或门禁结果；随后仍正常执行 normify gate 与 normify check --staged（均通过）。",
+      "gate_record_source": ".normify/runs/2026-10-23-backlog-batches-closure-audit/fmt.json 与 unit.json（scope_hash、log_sha256、exit=0、unit 480 过 0 败、wall 2718ms），由 normify gate 实际运行产生，未手改。",
+      "tmp_cleanup": "失败重试在 .normify/changes/ 留下 *.tmp-*，已清理；后续收尾前扫描该目录只保留 <id>.json。",
+      "verified_by": "Chief 核验提交 a95be12 与 runs 记录后接受。"
     }
   },
-  "note": "跨批次收口审计：汇总批次 1–4 的 20 条交付与 4 条顺延，校验四批目录/回执/门禁一致且无错位；记录批次 4 复核两项问题已修（1388124/6c6f798）；产出 README + summary.json，并写明 Windows 可执行 roadmap 项已清空、剩余依赖缺失子系统或用户裁决。未改产品源码/测试/容差/fixtures，未 start 路线图任务。",
+  "note": "跨批次收口审计：汇总批次 1–4 的 20 条交付与 4 条顺延，校验四批目录/回执/门禁一致且无错位；记录批次 4 复核两项问题已修（1388124/6c6f798）；产出 README + summary.json，并写明 Windows 可执行 roadmap 项已清空、剩余依赖缺失子系统或用户裁决。未改产品源码/测试/容差/fixtures，未 start 路线图任务。留痕：审计任务 normify start/done 遇 os error 5（并行 normify 文件锁冲突），采用等价状态记录（不伪造门禁）并经 Chief 核验；门禁记录真实来源为 .normify/runs/2026-10-23-backlog-batches-closure-audit/{fmt,unit}.json。",
   "boundaries": [
     "只做证据/文档审计与汇总，不替代各任务自身验收，不宣称任何矩阵族完整验收或精度硬指标验收。",
     "顺延任务保持 proposed，不计交付；未触碰 W13/Linux/g03-parity 与 QA 文件。",

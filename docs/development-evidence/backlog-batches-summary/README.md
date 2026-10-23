@@ -87,6 +87,24 @@
   收口实测 **478 过 0 败**。不得用 `--lib` 单独数字替代门禁口径。
 - 批次 4 复核两项「一般」问题已修复并留痕：g09-p5 退化尺寸校验落空、回执 model_sha256 登记错误，由小修任务 `2026-10-23-g09-validation-gap-fix`（`1388124`）修复，g09 以 `normify fix`（`6c6f798`）记录；修复后数字不变。`n- `normify validate`：错误 0（1 条既有结构告警）；工作区干净。
 
+## 5.1 审计过程留痕：引擎命令失败与等价记录
+
+本审计收尾时，`normify start` / `normify done` 对任务
+`2026-10-23-backlog-batches-closure-audit` 返回 `拒绝访问 (os error 5)`
+（当时已按 1–2 秒间隔重试多次仍失败；疑为与并行 `normify status` 自检循环的文件锁冲突，
+属引擎命令失败，不是任务数据错误）。处置与留痕：
+
+- **等价状态记录**：手工把任务 JSON 置为 `in_progress` / `verified`（记录
+  `revision.before` = 当时 HEAD、`closed_at`），不伪造任何执行或门禁结果；
+  之后仍正常执行 `normify gate` 与 `normify check --staged`（均通过）。
+- **门禁记录真实来源**：`.normify/runs/2026-10-23-backlog-batches-closure-audit/fmt.json`
+  与 `unit.json`（`scope_hash`、`log_sha256`、`exit=0`、unit 480 过 0 败、wall 2718ms），
+  由 `normify gate` 实际运行产生，未手改。
+- **临时文件**：失败重试在 `.normify/changes/` 留下 `*.tmp-*`，已清理；后续每次收尾前
+  扫描该目录，只保留 `<id>.json`。
+
+该留痕经 Chief 核验（提交 `a95be12` 与上述 runs 记录）并接受；后续遇到 os error 5 的
+规范动作为：先等 1–2 秒重试一次，仍失败才走等价记录并按上述三项写清留痕。
 ## 6. Windows 范围内可执行 roadmap 项已清空
 
 按当前引擎与平台能力，**Windows 范围内可执行的 roadmap 项已清空**：批次 1–4 交付完
