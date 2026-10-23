@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-g24-p7",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/physics/history.rs",
+      "blob": "28434b76c978c8078561a5db7a21d4d8238b0dfc"
+    },
+    {
+      "path": "src/physics/history/buffer.rs",
+      "blob": "41cce56fe082a0b79bb0eeb0035f392758c54f01"
+    },
+    {
+      "path": "src/physics/history/buffer/read.rs",
+      "blob": "c899e10e5912649244824bfdcb58663b7bc88b02"
+    },
+    {
+      "path": "src/physics/history/buffer/reset.rs",
+      "blob": "9833a928e5ed7c4a81eb707021691028f93f7d8d"
+    },
+    {
+      "path": "src/physics/history/tests.rs",
+      "blob": "fec5208221615212f28dac0157a83c699e7a34d8"
+    },
+    {
+      "path": "src/physics/mod.rs",
+      "blob": "7d0bffd8062cf288c9bef7a71983e97b420caec6"
+    },
+    {
+      "path": "fixtures/history/model.xml",
+      "blob": "1b99e80deeb9d1722b4b20fa5c1923b4a96158f7"
+    },
+    {
+      "path": "fixtures/history/cases.json",
+      "blob": "0caeddac3587c5bb5462029f72abb3a5855f4ec4"
+    },
+    {
+      "path": "scripts/authoring/author-g24-history.ps1",
+      "blob": "5523c5bcd106cb88e5cc7036bd447ddb3a844c54"
+    },
+    {
+      "path": "scripts/authoring/author-g24-history.py",
+      "blob": "16587dfcf99475b06cdae117d5ef47b2a357612a"
+    },
+    {
+      "path": "scripts/authoring/g24_history_authoring.py",
+      "blob": "868b1c7c5b105778b5eecbb447f1695c806087d2"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch3/2026-10-11-roadmap-g24-p7/README.md",
+      "blob": "dc957312650aa41164d2d05de70ee58a8f73a571"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch3/2026-10-11-roadmap-g24-p7/authoring.json",
+      "blob": "ce32d76c6dfe6ee9ae9763a27aaca857acad8ef5"
+    },
+    {
+      "path": ".normify/modules/mjwarp/physics/core.md",
+      "blob": "a36a97e559e12fcac30bbbdb17415b9fec3aa3bb"
+    }
+  ],
+  "results": {
+    "slice": {
+      "family": "G24 历史与延迟",
+      "phase": "P7（环形索引与局部重置）",
+      "planned_api": "mjwarp_rs::physics::history::{DelayBufferLayout, HistoryInterp, HistoryBuffer}（宿主侧切片）",
+      "delivered": "物理索引与环形二分；标量/向量插入四条路径；零阶保持/线性读取与端点夹取；延迟读取；执行器/传感器按世界掩码局部重置（含 SO3+QUAT 与 interval 时间戳）"
+    },
+    "references": {
+      "model": "fixtures/history/model.xml",
+      "model_sha256": "5f52046d922a8b67751d41d2293534a3ac5a03bb27c3e6e344d288f491660fda",
+      "nhistory": 38,
+      "nworld": 2,
+      "timestep": 0.01,
+      "scenarios": 4,
+      "reads": 33,
+      "reset_cases": 4,
+      "native": "MuJoCo 3.15.0 f64 MjData.history / mj_resetData",
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29（Warp 1.15.0）history wp.func 回放 + 两个重置内核"
+    },
+    "comparison": {
+      "vs_upstream_words": "4 个回放场景缓冲字逐位一致（位型不一致 0）",
+      "vs_upstream_reads": "33 次读取共 51 个值逐位一致，max abs 0.000e+00",
+      "vs_upstream_reset": "4 个重置用例（含掩码局部重置）与 SO3+QUAT 合成重置逐位一致",
+      "vs_native": "max abs 2.682e-09 ≤ 1e-6（延用上游 history 测试同口径）"
+    },
+    "np_mapping": {
+      "NP01": "全链 f32：时间戳、cursor 槽、值与插值算术，无 f64 中间量",
+      "NP02": "记录冻结提交/函数名/模型 sha256/缓冲布局（actuator nsample/interp/adr、sensor interval/delay）/环境",
+      "NP03": "两级判定：原生 C f64 先行（2.682e-09），MJWarp f32 参考逐位对照（0 差异）",
+      "NP04": "不适用/未测：不发射内核、无批量耗时与显存记录"
+    },
+    "gates": {
+      "fmt": "通过（cargo fmt --check）",
+      "clippy": "通过（cargo clippy --all-targets --locked -- -D warnings）",
+      "unit": "通过（cargo test --locked 470 过 0 败；其中 history 6 过）"
+    }
+  },
+  "note": "批次 3 旧计划细化落地：G24@P7 交付 physics::history 宿主侧环形索引、插入、零阶保持/线性读取与掩码局部重置；冻结上游 wp.func 回放与重置内核输出逐位一致（51 读取值 0 差异），原生 C f64 参考 2.682e-09。三次插值、公共初始化入口、interval 运行期门控与 forward 调度封装、GPU 内核登记为未验收边界。",
+  "boundaries": [
+    "未实现三次插值（interp=2 Catmull-Rom）；HistoryInterp::from_raw(2) 显式拒绝。",
+    "未实现 init_ctrl_history/init_sensor_history 公共初始化入口、interval 运行期门控（_insert_sensor_history_stage）与 apply_sensor_delay/read_ctrl/read_sensor 的 forward 调度封装及 sensor 全类型。",
+    "未实现 d.history 全量分配与 actuator/sensor registry 组装、GPU 内核与图执行；NP04 未测，不宣称完整 G24 或 P7 验收通过。"
+  ]
+}

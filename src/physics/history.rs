@@ -1,8 +1,17 @@
-//! 连续历史布局。
+//! 连续历史布局与 G24@P7 环形历史缓冲切片。
+//!
+//! `HistoryLayout` 是既有基础辅助（检查扁平历史值与时间间隔），保持行为不变；
+//! 子模块 [`buffer`] 交付 G24@P7 的宿主侧环形索引/插入/读取与局部重置。
 
 use crate::diagnostics::InputError;
 use crate::model::BatchLayout;
 use std::{mem::size_of, ops::Range};
+
+mod buffer;
+pub use buffer::{DelayBufferLayout, HISTORY_EPSILON, HistoryBuffer, HistoryError, HistoryInterp};
+
+#[cfg(test)]
+mod tests;
 
 /// 连续历史布局 `[world, sample, channel]`。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

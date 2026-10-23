@@ -150,7 +150,9 @@ pub(in crate::physics) use com_position::{ComPositionLayout, check_com_position}
 pub use com_position::{ComPositionOutput, ComPositionWorld, probe_com_position};
 #[cfg(any(feature = "cuda-probe", test))]
 pub(in crate::physics) use device_checks::{check_device_guards, check_device_values};
-pub use history::HistoryLayout;
+pub use history::{
+    DelayBufferLayout, HISTORY_EPSILON, HistoryBuffer, HistoryError, HistoryInterp, HistoryLayout,
+};
 #[cfg(feature = "cuda-probe")]
 pub(in crate::physics) use kinematics::kinematics_device;
 pub(in crate::physics) use kinematics::{KinematicsLayout, check_kinematics, norm_squared};

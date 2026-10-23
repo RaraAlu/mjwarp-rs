@@ -5,7 +5,7 @@
     "zh": "G24@P7 历史与延迟",
     "en": "Roadmap G24@P7 delivery"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "沿用既定开发路线。保留原树与历史变更。",
     "en": "Track the documented roadmap without replacing architecture or historical changes."
@@ -24,10 +24,10 @@
     "再验收适用NP03与NP04。",
     "本片只覆盖所列阶段。",
     "新增计划 API `physics::history` 的宿主侧最小切片：物理索引映射 `phys=(cursor+1+logical)%n`、环形 `find_index` 二分、标量/向量插入（精确替换/早于最旧替换最旧/新于最新推进 cursor/乱序左移插入）、零阶保持与线性读取（精确匹配、端点外夹取）、按世界掩码的局部重置（执行器时间戳与 SO3+QUAT 初值、传感器 delay/interval 时间戳与 phase）。",
-    "环形索引与局部重置：冻结真实模型（actuator delay nsample=3/2、sensor delay nsample=3、sensor interval phase 0 与 0.01 nsample=4/2，nworld=2）的缓冲布局与初始字；用上游 `history._history_*` wp.func 自定义内核回放插入/读取脚本，产品逐字对照冻结上游；用上游 `_reset_actuator_history_kernel`/`_reset_sensor_history_kernel` 冻结全量重置与掩码局部重置结果，产品对照；另以 MuJoCo 3.15.0 C `mj_resetData` 的 `d.history`（f64）做原生一级判定（上游自身以 atol 1e-6 对照该参考）。",
+    "环形索引与局部重置：冻结真实模型（actuator delay nsample=3/2、sensor delay nsample=3、sensor interval phase -0.02 与 0 nsample=4/2，nworld=2）的缓冲布局与初始字；用上游 `history._history_*` wp.func 自定义内核回放插入/读取脚本，产品逐字对照冻结上游；用上游 `_reset_actuator_history_kernel`/`_reset_sensor_history_kernel` 冻结全量重置与掩码局部重置结果，产品对照；另以 MuJoCo 3.15.0 C `mj_resetData` 的 `d.history`（f64）做原生一级判定（上游自身以 atol 1e-6 对照该参考）。",
     "未验收边界：三次插值（interp=2 Catmull-Rom）、`init_ctrl_history`/`init_sensor_history` 公共初始化入口、interval 运行期门控（`_insert_sensor_history_stage` 的 period 推进）、`apply_sensor_delay`/`read_ctrl`/`read_sensor` 的 forward 调度封装与 sensor 全类型、`d.history` 全量分配与 actuator/sensor registry 组装、GPU 内核与图执行均不做并如实登记。",
     "NP01：新增路径全 f32（时间戳、cursor、值与插值均为 f32）；NP02：记录冻结上游提交、`history._history_*` 与重置内核名、模型 sha256、缓冲布局与环境；NP03：原生 C f64 一级判定 + MJWarp f32 二级对照；NP04 不适用（不发射内核、不跑性能）。",
-    "证据落 `docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g24-p7/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g24-p7.json`；gate fmt/clippy/unit 通过，不宣称完整 G24 或 P7 验收。"
+    "证据落 `docs/development-evidence/backlog-batch3/2026-10-11-roadmap-g24-p7/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g24-p7.json`；gate fmt/clippy/unit 通过，不宣称完整 G24 或 P7 验收。"
   ],
   "schedule": {
     "depends_on": [
@@ -42,7 +42,7 @@
       "src/physics/mod.rs",
       "fixtures/history/",
       "scripts/authoring/",
-      "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g24-p7/",
+      "docs/development-evidence/backlog-batch3/2026-10-11-roadmap-g24-p7/",
       "docs/development-evidence/changes/2026-10-11-roadmap-g24-p7.json",
       ".normify/modules/"
     ],
@@ -51,11 +51,12 @@
   },
   "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":277,\"end\":277},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5, 2026-10-11-roadmap-p6] → 新依赖 [2026-10-11-roadmap-m08-p3, 2026-10-11-roadmap-g23-p7]。依据：历史与延迟需要局部重置（M08）与传感器（G23）语义；删除旧 P4/P5/P6 聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次3）：原图只有 G24@P7 粗切片（旧计划语义：控制与传感历史、时钟；验收「环形索引与局部重置」）。按当前代码布局，本片最小可交付 = `physics::history` 宿主侧环形缓冲语义（物理索引/环形二分/插入/零阶保持+线性读取/掩码局部重置），用冻结上游 wp.func 回放与重置内核输出对照；三次插值、公共初始化与 forward 调度封装登记为未验收边界；不改既有产品路径、容差与测试。",
   "revision": {
-    "before": null,
+    "before": "9d9e3e57ac00fe9caff216a6d59b5d642a8b2942",
     "after": null
   },
   "created_at": "2026-10-11T15:26:48.665Z",
-  "updated_at": "2026-10-23T04:57:02.863Z",
+  "updated_at": "2026-10-23T07:07:38.110Z",
+  "closed_at": "2026-10-23T07:07:38.110Z",
   "checks": [
     {
       "kind": "gate",
