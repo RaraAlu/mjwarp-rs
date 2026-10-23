@@ -34,8 +34,15 @@ fn recorder_aggregates_phases_in_insertion_order() {
 fn measure_is_headless_and_rejects_zero_iterations() {
     assert_eq!(measure(0, || {}).unwrap_err(), ToolingError::ZeroIterations);
     let mut counter = 0_u64;
-    let nanos = measure(3, || counter += 1).unwrap();
-    assert_eq!(counter, 3);
+    // release 优化下极短负载的耗时可能落在 Instant 计时粒度内（0 ns 合法），
+    // 因此每次迭代做可测的 black_box 自增，保留 nanos > 0 的严格断言。
+    let nanos = measure(3, || {
+        for _ in 0..10_000 {
+            counter = std::hint::black_box(counter + 1);
+        }
+    })
+    .unwrap();
+    assert_eq!(counter, 30_000);
     assert!(nanos > 0);
 }
 

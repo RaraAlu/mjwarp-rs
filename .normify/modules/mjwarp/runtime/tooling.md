@@ -1,7 +1,7 @@
 +++
 uid = "26d0e749"
 id = "mjwarp.runtime.tooling"
-fingerprint = "7310b538767eadcbe049789dcf959f7189cb8e87645ff744ef8c4090dce6bd7b"
+fingerprint = "78676faa298ab7fff810617d40c39a68b5cb855bf37554c282c94f325632d542"
 
 [name]
 zh = "工具与命令入口"

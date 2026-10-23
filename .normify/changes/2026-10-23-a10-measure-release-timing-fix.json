@@ -5,7 +5,7 @@
     "zh": "修复A10 measure release计时断言",
     "en": "Fix A10 measure release timing assertion"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "重钉后 G01 release 终验在 host-msvc 阶段暴露一条 release 敏感测试失败：`runtime::tooling::tests::measure_is_headless_and_rejects_zero_iterations`（src/runtime/tooling/tests.rs:39）对 3 次自增的极短负载断言 `nanos > 0`，release 优化下实测耗时落在 `Instant` 计时粒度内为 0 ns，断言不成立；debug 下通过。来源为批次 2 A10@P10 交付 3757567（批次复核只跑 debug）。本任务只改该测试：把不可测负载换成可测负载（每次迭代做 1 万次 `black_box` 自增），保留 `nanos > 0` 严格断言与原意图（无头计时可执行、迭代计数正确、零迭代拒绝），不改为 `nanos >= 0` 等放宽写法，不改产品路径、断言口径、排除清单与 G01 脚本。",
     "en": "The post-repin G01 release acceptance exposed a release-sensitive test failure: runtime::tooling::tests::measure_is_headless_and_rejects_zero_iterations (src/runtime/tooling/tests.rs:39) asserts nanos > 0 for three increments; under release optimization the elapsed time falls inside the Instant clock granularity and reads 0 ns, so the assertion fails, while debug passes. Source: batch-2 A10@P10 delivery 3757567 (batch review ran debug only). This task changes only that test: replace the unmeasurable workload with a measurable one (10k black_box increments per iteration), keeping the strict nanos > 0 assertion and original intent (headless timing works, iteration count exact, zero iterations rejected); no nanos >= 0 or other relaxation, no product path, assertion-baseline, exclusion-list or G01-script change."
@@ -41,11 +41,12 @@
   },
   "note": "来源：QA 在 2026-10-23-g01-final-acceptance-2 的 release host-msvc 阶段发现（debug 14 阶段全绿），归因批次 2 A10@P10 交付 3757567。性质：测试断言对计时粒度过于敏感，不是产品数值/功能回归；无需新排除、不涉及容差。按 QA 建议方案 2 处理：保留 `nanos > 0` 严格断言，只把被测负载改为可测，避免用放宽断言掩盖问题。不占 GPU（仅宿主侧单测）。",
   "revision": {
-    "before": "bb621d9ed6414627a73cad2c0e2558bf664147cb",
+    "before": "8ad2ff9ba3fba43418d2f6598864b72491a49df0",
     "after": null
   },
   "created_at": "2026-10-23T15:35:00.000Z",
-  "updated_at": "2026-10-23T15:35:00.000Z",
+  "updated_at": "2026-10-23T15:35:02.367Z",
+  "closed_at": "2026-10-23T15:35:02.367Z",
   "checks": [
     {
       "kind": "gate",

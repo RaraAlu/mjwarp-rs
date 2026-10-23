@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-a10-measure-release-timing-fix",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/runtime/tooling/tests.rs",
+      "blob": "eded59b285d9b86b8ab4b735af3c82b2d1c0c06a"
+    },
+    {
+      "path": ".normify/modules/mjwarp/runtime/tooling.md",
+      "blob": "f8683b91ffb27726f79dc33ee87b3146d0a5aed9"
+    },
+    {
+      "path": "docs/development-evidence/a10-measure-release-timing-fix/README.md",
+      "blob": "b09a999ff74e29cd4fbbc868a3dfd5de9bef207c"
+    },
+    {
+      "path": "docs/development-evidence/a10-measure-release-timing-fix/pre-fix-release-failure.log",
+      "blob": "f16d2c3cc344ccf63158f4f8f9bee21366c34e71"
+    },
+    {
+      "path": "docs/development-evidence/a10-measure-release-timing-fix/post-fix-release-pass.log",
+      "blob": "c1606d1600ca91a930651f04c2fa1b4ba1c4f688"
+    },
+    {
+      "path": "docs/development-evidence/a10-measure-release-timing-fix/post-fix-debug-pass.log",
+      "blob": "a479c194b980861f2efae026a12bb353416c5dbf"
+    },
+    {
+      "path": "docs/development-evidence/a10-measure-release-timing-fix/release-host-msvc-precheck.log",
+      "blob": "2783b4bd1d1d745335f749e16b5e60ac39537d70"
+    }
+  ],
+  "results": {
+    "finding": "QA 在 2026-10-23-g01-final-acceptance-2 的 release host-msvc 阶段发现 runtime::tooling::tests::measure_is_headless_and_rejects_zero_iterations 失败（assertion failed: nanos > 0，src/runtime/tooling/tests.rs:39）：release 优化下 3 次自增的耗时落在 Instant 计时粒度内为 0 ns；debug 下通过。来源批次 2 A10@P10 交付 3757567。",
+    "fix": "保留 nanos > 0 严格断言与迭代计数/零迭代拒绝意图，把被测负载改为可测：每次迭代 10,000 次 std::hint::black_box(counter + 1)，3 次迭代共 30,000 次；断言 counter == 30,000 与 nanos > 0。未用 nanos >= 0 或删除断言等放宽写法，未改 measure 产品实现。",
+    "reproduction": {
+      "release_before": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --release --lib measure_is_headless_and_rejects_zero_iterations → 退出 101，0 过 1 败（pre-fix-release-failure.log）",
+      "release_after": "同命令 → 退出 0，1 过 0 败（post-fix-release-pass.log）",
+      "debug_after": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --lib measure_is_headless_and_rejects_zero_iterations → 退出 0，1 过 0 败（post-fix-debug-pass.log）",
+      "release_full_precheck": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --release（G01 host-msvc 同命令）→ 退出 0，全部 target 0 失败；lib 537 过 0 败 129 ignored；墙钟 43.9 s（release-host-msvc-precheck.log）"
+    },
+    "gates": {
+      "fmt": "通过（cargo fmt --check，1211ms）",
+      "clippy": "通过（cargo clippy --all-targets --locked -- -D warnings，2166ms）",
+      "clippy-cuda": "通过（cargo clippy --all-targets --locked --features cuda-probe -- -D warnings，4933ms）",
+      "unit": "通过（cargo test --locked，480 过 0 败，17159ms）"
+    },
+    "environment": "Windows；MJWARP_MUJOCO_ROOT/MJWARP_MUJOCO_DLL 指向 target/toolchains/mujoco-3.12.0/package；CUDA_PATH=target/toolchains/cuda-12.8.1（仅构建）。"
+  },
+  "note": "来源：QA 在 2026-10-23-g01-final-acceptance-2 的 release host-msvc 阶段发现（同轮 debug 14 阶段全绿），归因批次 2 A10@P10 交付 3757567。性质：测试断言对计时粒度过于敏感，不是产品数值/功能回归；无需新排除、不涉及容差。只改该测试为可测负载并保留 nanos>0 严格断言；不改产品路径、断言口径、排除清单与 G01 脚本。未宣称 G01 双模式通过，由 QA 复跑终验判定。",
+  "boundaries": [
+    "只改 src/runtime/tooling/tests.rs 的 measure_is_headless_and_rejects_zero_iterations 与证据/回执；未改 measure 产品实现、其它测试、src 其它路径。",
+    "未改排除清单、G01 脚本、断言口径与容差；未新增 allow 豁免。",
+    "未跑 G01 debug/release 全脚本与 Linux/release 跨平台；G01 双模式全绿由 QA 复跑判定。"
+  ]
+}
