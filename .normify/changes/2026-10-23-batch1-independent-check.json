@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-batch1-independent-check",
+  "title": {
+    "zh": "独立复核批次1前四条交付（G27@P2/M08@P3/G05@P4/G28@P7）",
+    "en": "Independent review of the first four batch-1 deliveries"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Backend 交付的批次 1 前四条（提交 70b36b7/e63b296/9850ee0/8764ced）做独立复核：逐条读证据与回执，核对四大声明（G27 5 次逐位/原生 max_abs；M08 7/7 逐位与 mj_resetData/Keyframe；G05 三组输出逐位/原生 max_abs；G28 9/9 geomid 与 mj_ray max_abs）；独立复跑 cargo test --lib constants/state/actuator/query 确认计数；抽验 fixtures/authoring 产物 sha256；检查四条任务的 checks/files 是否按规范细化、验收口径是否放宽、m08-p3 的 fix 记录是否只改登记不改证据。只写证据目录，不改产品/测试/容差。结论按实际写，不迁就。",
+    "en": "Independently review the first four batch-1 deliveries: read evidence/receipts from commits 70b36b7/e63b296/9850ee0/8764ced and verify the four claims; rerun cargo test --lib constants/state/actuator/query to confirm counts; spot-check fixtures/authoring sha256; check checks/files compliance, acceptance wording, and that the m08-p3 fix record only changed registration. Evidence-only changes; no product/test/tolerance edits; report discrepancies as found."
+  },
+  "modules": {},
+  "acceptance": [
+    "逐条读 docs/development-evidence/backlog-batch1/<task-id>/README.md、authoring.json 与交付回执，核对四大声明（G27 5 次逐位一致与原生 f64 max_abs 2.98e-07≤1e-6；M08 7/7 逐位与 mj_resetData/Keyframe max_abs 0；G05 三组逐位与原生 max_abs 9.54e-08≤1e-5；G28 9/9 geomid 与 mj_ray max_abs 1.68e-07/1.83e-07）是否被证据支持。",
+    "独立复跑 cargo test --lib constants / state / actuator / query（CPU，不占 GPU），记录真实通过计数；对 fixtures 与 authoring 产物抽验 sha256 与证据记录一致。",
+    "核对四条任务的 normify show（checks/files 是否细化、验收口径是否被放宽）与 m08-p3 的 normify fix 记录（是否只改登记不改证据）；发现不一致按实际记录，不迁就。",
+    "结论写 docs/development-evidence/batch1-independent-check/README.md（逐项核对表、复跑计数、sha256 抽验、差异清单与严重级别）；回执 json 含 task_id；gate fmt/unit 与 unchanged 通过；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-11-roadmap-g27-p2",
+      "2026-10-11-roadmap-m08-p3",
+      "2026-10-11-roadmap-g05-p4",
+      "2026-10-11-roadmap-g28-p7"
+    ],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/batch1-independent-check/",
+      "docs/development-evidence/changes/2026-10-23-batch1-independent-check.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "只读复核 + 证据目录；不改产品/测试/容差/fixtures/回执；不碰 Backend 正在做的 g27-p7/m08-p7/g05-p7/g28-p8 范围。发现不一致按实际报告并给严重级别。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T05:36:00.000Z",
+  "updated_at": "2026-10-23T05:36:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-batch1-independent-check.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-batch1-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "四条全部通过",
+        "无差异"
+      ]
+    }
+  ]
+}
