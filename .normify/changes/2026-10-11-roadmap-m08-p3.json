@@ -12,7 +12,7 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.runtime.buffers"
+      "mjwarp.io.core"
     ]
   },
   "acceptance": [
@@ -23,21 +23,75 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "新增 `io::state` 最小世界批量状态（f32 time/qpos/qvel）与计划 API `reset_data`（世界布尔掩码）和 `reset_data_keyframe`（全局整数或逐世界整数数组；越界世界不重置）的宿主侧实现（U035/U036；M08；P3/P7）：掩码内世界 time=0、qpos=qpos0、qvel=0；关键帧路径按 key 写 qpos/qvel/time。",
+    "冻结上游对照：以 `fixtures/local-reset/model.xml`（含 3 个关键帧）为模型源，离线 authoring 用 pinned MJWarp `reset_data(mask)`、`reset_data_keyframe(int)` 与逐世界关键帧数组三路径产出输入与期望状态；产品输出与上游结果逐元素位型比较（NP03 两级：原生参考先行，MJWarp 参考其次）。",
+    "NP01：新增路径全 f32（time/qpos/qvel/keyframe 数组）；NP02：记录冻结上游提交、模型 sha256、函数名与运行环境；NP04 不适用（本片不发射内核、不跑性能），如实登记未测项。",
+    "证据落 `docs/development-evidence/backlog-batch1/2026-10-11-roadmap-m08-p3/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-m08-p3.json`；gate fmt/clippy/unit 通过，不宣称完整 M08 或精度验收。"
   ],
   "schedule": {
     "depends_on": [],
     "phase": "P3",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/io/state.rs",
+      "src/io/mod.rs",
+      "fixtures/local-reset/",
+      "scripts/authoring/",
+      "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-m08-p3/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-m08-p3.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":300,\"end\":300},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p3-base] → 新依赖 []。依据：原前置 P3-BASE 属旧聚合门禁（已 abandon）；状态交换/缓冲底座已由 layers-m3/m5 verified 覆盖，故删除。",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/physics",
+        "src/runtime",
+        "src/model",
+        "native",
+        "include",
+        "tests",
+        "fixtures/g01",
+        "fixtures/set-const",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-m08-p3.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-m08-p3"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ],
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":300,\"end\":300},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p3-base] → 新依赖 []。依据：原前置 P3-BASE 属旧聚合门禁（已 abandon）；状态交换/缓冲底座已由 layers-m3/m5 verified 覆盖，故删除。\n\n2026-10-23 旧计划细化（Backend，批次1）：原图只有 M08@P3 粗切片（矩阵 M08 = 「局部重置｜世界掩码、关键帧｜隔离、历史与时钟｜P3/P7」）。按当前代码布局，本片最小可交付 = 架构计划 API `mjwarp_rs::io::state::reset_data`（U035）与 `reset_data_keyframe`（U036）的宿主侧实现，附带最小世界批量状态（time/qpos/qvel，f32）与关键帧选择语义（全局整数或逐世界整数数组，越界不重置）。P3 阶段只覆盖「重置/状态」侧：不实现完整 Data、不发射 GPU 内核、不接设备缓冲。验收口径未放宽：矩阵核心验收「隔离、历史与时钟」中，本片交付世界隔离（掩码）与时钟（time 归零）；「历史」依赖尚未实现的 G24 history 模块，如实列为未验收边界；act/ctrl/xfrc_applied/mocap/历史与关键帧的其余字段同样列为边界。范围收窄到 src/io/state.rs、src/io/mod.rs、fixtures/local-reset/、scripts/authoring/、证据与回执；不改既有产品路径与容差。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-11T15:26:43.277Z",
-  "updated_at": "2026-10-23T04:57:06.526Z"
+  "updated_at": "2026-10-23T05:45:00.000Z"
 }
