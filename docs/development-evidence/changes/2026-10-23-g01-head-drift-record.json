@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-g01-head-drift-record",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/g01-head-drift/README.md",
+      "blob": "82e016ed1487e4c3c9711b2a08c7bb8e411efc5c"
+    },
+    {
+      "path": "docs/development-evidence/g01-head-drift/g01-head-drift.json",
+      "blob": "a5f8a2862ab4b6a16fe52c234522a5b57f05be0b"
+    }
+  ],
+  "results": {
+    "scope": "记录 2026-10-23 最新 HEAD 上 G01 debug/release 双模式失败与冻结捕获源组合漂移；只记录、不修",
+    "head": "b3aa8542c607b10e7708d8cf697d2d2b4ff7a132",
+    "runs": {
+      "debug": {
+        "run_directory": "target/g01-acceptance/975f40f3f588433ba9fdfb05fc56ee85",
+        "host_log": "target/final-g01-check/debug.log",
+        "stages_done": "fmt 通过；native 27/0；host-msvc 536 过/1 败/129 ignored",
+        "aborted_at": "host-msvc"
+      },
+      "release": {
+        "run_directory": "target/g01-acceptance/0f65aed62f8b47f291fb2a5ede0eb1a9",
+        "host_log": "target/final-g01-check/release.log",
+        "stages_done": "fmt 通过；native 27/0；host-msvc 536 过/1 败/129 ignored",
+        "aborted_at": "host-msvc"
+      }
+    },
+    "failure": {
+      "target": "lib unit tests (--all-features)",
+      "test": "runtime::transfer::kernel::recapture::tests_host::preserves_current_sources_and_all_thirty_variants",
+      "panic": "tests/support/t4_rigid_capture/tests_host.rs:10 lineage(&value) -> Err(\"unexpected lineage change\")",
+      "unique": "all-features --no-fail-fast 全仓库仅此 1 条失败"
+    },
+    "drift": {
+      "frozen_digest": "7eb6e7a3c49ea2812f9b7b2ac579d9ced635d7c790613723297ba33d2718079d",
+      "head_measured_digest": "d7f6c7d19a17307d281f6e43c9866d0da67bfcbe9af4af3bad305d77ee3a187c",
+      "pinned_by": "08e7983f10f3f715657b68436e457e8518d3a2db",
+      "last_matching_head": "6e8c79aae0d2d1ff83b14f8732d4060bf952b490",
+      "first_breaking_commit": "70b36b7fa358302e02f900782525a479553e3258",
+      "affected_files": [
+        "src/physics/mod.rs",
+        "src/physics/com_position.rs",
+        "src/physics/device_checks.rs",
+        "src/physics/history.rs",
+        "src/physics/kinematics.rs"
+      ],
+      "commits_since_last_match": 16
+    },
+    "attribution": "冻结捕获身份审计的预期源码漂移（批次 1–4 合法在 src/physics/mod.rs 注册模块、G24 改 history.rs），不是产品数值回归；同 HEAD 默认特性 cargo test --locked 480 过 0 败，all-features 仅此 1 失败",
+    "claim_status": "本 HEAD 不宣称 G01 双模式通过；all-probes 与 11 项排除清单未在本 HEAD 复核；上次全绿 6e8c79a（346/0、11 项）仅对该 HEAD 有效",
+    "recovery_options_pending_user": "① T4 历史捕获重基线重钉 fixture 与锚点；② 或经批准将测试纳入文档化排除"
+  },
+  "note": "按 Chief 指示登记证据：当前 HEAD 双模式失败如实落盘（失败 target、运行目录、冻结值 7eb6e7a3… vs HEAD 实测 d7f6c7d1…、首个破坏提交 70b36b7、受影响组合文件与 16 个提交、非数值回归归因）。未改断言/夹具/排除清单/产品/验收文档；不声明 G01 通过；恢复方式待用户裁决。",
+  "boundaries": [
+    "只新增证据目录与回执；未改断言、夹具、排除清单、产品、脚本与 docs/three-layer-acceptance.md。",
+    "未修改 fixtures/precision/t4-current-kernels.json 与 docs/development-evidence/t4-resident-anchors/physics.rs。",
+    "本记录不构成任何 G01 通过声明；G01 恢复与否待用户裁决。"
+  ]
+}
