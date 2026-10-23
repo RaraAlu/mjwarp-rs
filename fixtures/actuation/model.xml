@@ -1,0 +1,26 @@
+<mujoco model="actuation">
+  <compiler angle="radian"/>
+  <option timestep="0.002"/>
+  <worldbody>
+    <body name="b1" pos="0 0 0.1">
+      <joint name="j1" type="hinge" axis="0 1 0"/>
+      <inertial pos="0 0 0" mass="1.2" diaginertia="0.02 0.02 0.02"/>
+      <geom name="g1" type="capsule" size="0.02" fromto="0 0 0 0 0 0.1"/>
+    </body>
+    <body name="b2" pos="0.15 0 0.1">
+      <joint name="j2" type="hinge" axis="0 0 1"/>
+      <inertial pos="0 0 0" mass="0.9" diaginertia="0.02 0.02 0.02"/>
+      <geom name="g2" type="capsule" size="0.02" fromto="0 0 0 0 0 0.1"/>
+    </body>
+  </worldbody>
+  <actuator>
+    <general name="servo" joint="j1" gear="1.5" gaintype="fixed" gainprm="2.0"
+             biastype="affine" biasprm="0 -3.0 -0.5"
+             ctrllimited="true" ctrlrange="-1 1"
+             forcelimited="true" forcerange="-5 5"/>
+    <motor name="motor" joint="j2" gear="2.0"/>
+    <general name="filtered" joint="j1" gear="-1.2" dyntype="filter" dynprm="0.25"
+             gaintype="affine" gainprm="1.0 0.5 -0.25" biastype="none"
+             actlimited="true" actrange="-2 2" actearly="true"/>
+  </actuator>
+</mujoco>

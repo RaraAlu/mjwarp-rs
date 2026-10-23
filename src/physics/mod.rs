@@ -1,6 +1,8 @@
 //! G01运动学与GPU辅助阶段。
 //! 其余完整物理阶段仍待实现。
 
+mod actuator;
+pub use actuator::{ActuationData, ActuationError, ActuationOutput, ActuatorModel, fwd_actuation};
 mod constants;
 pub use constants::{FixedConstants, FixedConstantsInput, set_const_fixed};
 mod kinetic_energy;

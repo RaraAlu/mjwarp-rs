@@ -5,7 +5,7 @@
     "zh": "G05@P4 执行器阶段切片",
     "en": "Roadmap G05@P4 delivery"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "沿用既定开发路线。保留原树与历史变更。",
     "en": "Track the documented roadmap without replacing architecture or historical changes."
@@ -36,6 +36,7 @@
     "owner": "Backend",
     "files": [
       "src/physics/actuator.rs",
+      "src/physics/actuator/",
       "src/physics/mod.rs",
       "fixtures/actuation/",
       "scripts/authoring/",
@@ -46,6 +47,14 @@
     "resources": [],
     "priority": 50
   },
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":258,\"end\":258},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p2-upload, 2026-10-11-roadmap-p3] → 新依赖 []。依据：原前置 P2-UPLOAD/P3 为旧聚合门禁（已 abandon）；参数上传与状态底座已 verified（M1/M3），执行器实现不再依赖它们。\n\n2026-10-23 旧计划细化（Backend，批次1）：原图只有 G05@P4 粗切片（矩阵 G05 = 「执行器｜增益、偏置、动态、传动｜限幅、激活状态、控制输入｜P4/P7」）。按当前代码布局，本片最小可交付 = 架构计划 API `mjwarp_rs::physics::forward::fwd_actuation`（U017；G05；P4/P7）的宿主侧实现：joint 传动执行器的 ctrl 限幅、增益/偏置、激活状态推进与限幅、力限幅、act_dot/actuator_force/qfrc_actuator 输出。transmission（U068，G06/P4/P7）与执行器模型字段转换不在本片，冻结输入由 authoring 产出；muscle/dcmotor/user 三类与 tendon/site/body 传动显式拒绝。P4 阶段只覆盖「执行器力」侧，不实现完整 forward、不做设备内核。验收口径未放宽：矩阵核心验收「限幅、激活状态、控制输入」逐项交付并有冻结上游对照；完整 G05、设备内核与其余传动类型如实列为未验收边界。范围收窄到 src/physics/actuator.rs、src/physics/mod.rs、fixtures/actuation/、scripts/authoring/、证据与回执；不改既有产品路径与容差。",
+  "revision": {
+    "before": "f4210457130e7e1f454e8cfc45e44722f7cbc66d",
+    "after": null
+  },
+  "created_at": "2026-10-11T15:26:44.085Z",
+  "updated_at": "2026-10-23T05:28:09.444Z",
+  "closed_at": "2026-10-23T05:28:09.444Z",
   "checks": [
     {
       "kind": "gate",
@@ -88,12 +97,5 @@
         "精度已验收"
       ]
     }
-  ],
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":258,\"end\":258},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p2-upload, 2026-10-11-roadmap-p3] → 新依赖 []。依据：原前置 P2-UPLOAD/P3 为旧聚合门禁（已 abandon）；参数上传与状态底座已 verified（M1/M3），执行器实现不再依赖它们。\n\n2026-10-23 旧计划细化（Backend，批次1）：原图只有 G05@P4 粗切片（矩阵 G05 = 「执行器｜增益、偏置、动态、传动｜限幅、激活状态、控制输入｜P4/P7」）。按当前代码布局，本片最小可交付 = 架构计划 API `mjwarp_rs::physics::forward::fwd_actuation`（U017；G05；P4/P7）的宿主侧实现：joint 传动执行器的 ctrl 限幅、增益/偏置、激活状态推进与限幅、力限幅、act_dot/actuator_force/qfrc_actuator 输出。transmission（U068，G06/P4/P7）与执行器模型字段转换不在本片，冻结输入由 authoring 产出；muscle/dcmotor/user 三类与 tendon/site/body 传动显式拒绝。P4 阶段只覆盖「执行器力」侧，不实现完整 forward、不做设备内核。验收口径未放宽：矩阵核心验收「限幅、激活状态、控制输入」逐项交付并有冻结上游对照；完整 G05、设备内核与其余传动类型如实列为未验收边界。范围收窄到 src/physics/actuator.rs、src/physics/mod.rs、fixtures/actuation/、scripts/authoring/、证据与回执；不改既有产品路径与容差。",
-  "revision": {
-    "before": null,
-    "after": null
-  },
-  "created_at": "2026-10-11T15:26:44.085Z",
-  "updated_at": "2026-10-23T06:00:00.000Z"
+  ]
 }
