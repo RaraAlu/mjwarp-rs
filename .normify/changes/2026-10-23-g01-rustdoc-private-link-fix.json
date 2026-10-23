@@ -5,7 +5,7 @@
     "zh": "修复G01 rustdoc私有项断链",
     "en": "Fix G01 rustdoc private intra-doc link"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "重钉后 G01 debug/release 终验在 rustdoc 阶段暴露一处新回归：批次2 G07 交付（12151dc）在 src/physics/collision.rs 的公开文档 BroadphaseModel::full_pairid 中用 [`upper_tri_index`] 链接到 pub(crate) 私有项，RUSTDOCFLAGS=-D warnings（-D rustdoc::private-intra-doc-links）报错，两模式一致；host-msvc 796 过 0 败、all-probes 346 过 0 败、排除清单仍 11 项。本任务只把该处改为反引号代码文本，修复文档断链，不改代码语义、断言、容差、排除清单、测试与门禁脚本；修后用同一 rustdoc 命令证明 0 警告，并交回 QA 复跑 debug/release 终验。",
     "en": "The post-repin G01 debug/release acceptance exposed a new regression in the rustdoc stage: the batch-2 G07 delivery (12151dc) documents BroadphaseModel::full_pairid with a link to the pub(crate) private item upper_tri_index in src/physics/collision.rs, which fails RUSTDOCFLAGS=-D warnings (-D rustdoc::private-intra-doc-links) in both modes; host-msvc 796/0, all-probes 346/0, exclusion list still 11. This task only changes that link to backticked code text; no semantics, assertions, tolerances, exclusion list, tests or gate scripts change. The same rustdoc command must then report zero warnings, and QA reruns the debug/release acceptance."
@@ -36,18 +36,17 @@
       ".normify/runs/",
       ".normify/modules/"
     ],
-    "resources": [
-      "gpu:windows-t4"
-    ],
+    "resources": [],
     "priority": 1
   },
-  "note": "来源：QA 在 2026-10-23-g01-repin-final-acceptance 的 debug/release 终验中发现 rustdoc 阶段失败（两模式同一处），归因批次2 G07 交付 12151dc；host-msvc 796/0、all-probes 346/0、排除清单 11 项不变。只改一行文档文字，不涉及数值/断言/容差/排除清单。修后 HEAD 变化会使 QA 在 0ab7841 上启动的验收任务需要按新 HEAD 重新登记/复跑。GPU 非必需，仅沿用资源声明。",
+  "note": "来源：QA 在 2026-10-23-g01-repin-final-acceptance 的 debug/release 终验中发现 rustdoc 阶段失败（两模式同一处），归因批次2 G07 交付 12151dc；host-msvc 796/0、all-probes 346/0、排除清单 11 项不变。只改一行文档文字，不涉及数值/断言/容差/排除清单；本任务不占 GPU（rustdoc/门禁均为宿主侧）。修后 HEAD 变化会使 QA 在 0ab7841 上启动的验收任务需要按新 HEAD 重新登记/复跑。",
   "revision": {
-    "before": "0ab7841e1145971083c8097cb1a3b6d52081c89b",
+    "before": "daed736b08f95973562f1c0bb905169f57edff63",
     "after": null
   },
   "created_at": "2026-10-23T15:10:00.000Z",
-  "updated_at": "2026-10-23T15:10:00.000Z",
+  "updated_at": "2026-10-23T15:13:50.268Z",
+  "closed_at": "2026-10-23T15:13:50.268Z",
   "checks": [
     {
       "kind": "gate",

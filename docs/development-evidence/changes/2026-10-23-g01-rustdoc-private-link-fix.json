@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-g01-rustdoc-private-link-fix",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/physics/collision.rs",
+      "blob": "88899db0a6469cd47c0a28b0957d8a59a6de9379"
+    },
+    {
+      "path": "docs/development-evidence/g01-rustdoc-private-link-fix/README.md",
+      "blob": "e646988519c4e90fa75767788753453d9b816844"
+    },
+    {
+      "path": "docs/development-evidence/g01-rustdoc-private-link-fix/pre-fix-error.txt",
+      "blob": "42bdeeb042597ef427cae8769dc5250953a95902"
+    },
+    {
+      "path": "docs/development-evidence/g01-rustdoc-private-link-fix/post-fix-rustdoc-all-features.log",
+      "blob": "4c29395dfe05c8bb1dee526eb30e3c5d8b159c1c"
+    },
+    {
+      "path": "docs/development-evidence/g01-rustdoc-private-link-fix/post-fix-rustdoc-features.log",
+      "blob": "76a2a1a79458b88104099013ccc46bb4535ae1c4"
+    }
+  ],
+  "results": {
+    "finding": "QA 在 2026-10-23-g01-repin-final-acceptance 的 debug/release 终验第 13 阶段 rustdoc 失败（两模式同一处）：BroadphaseModel::full_pairid 公开文档用 [`upper_tri_index`] 链接到 pub(crate) 私有项，-D warnings 下触发 rustdoc::private-intra-doc-links；归因批次 2 G07 交付 12151dc。",
+    "fix": "src/physics/collision.rs:124 的 [`upper_tri_index`] 改为反引号代码文本 `upper_tri_index`，只改文档文字。",
+    "rustdoc": {
+      "all_features_before": "RUSTDOCFLAGS=-D warnings cargo +1.99.0-x86_64-pc-windows-msvc doc --locked --all-features --no-deps → 退出码 101，1 error（src/physics/collision.rs:124:47，private-intra-doc-links）",
+      "all_features_after": "同命令 → 退出码 0，0 警告（post-fix-rustdoc-all-features.log）",
+      "features_after": "RUSTDOCFLAGS=-D warnings cargo +1.99.0-x86_64-pc-windows-msvc doc --locked --features native-model-probe,cuda-probe --no-deps → 退出码 0，0 警告（post-fix-rustdoc-features.log）"
+    },
+    "gates": {
+      "fmt": "通过（cargo fmt --check，1159ms）",
+      "clippy": "通过（cargo clippy --all-targets --locked -- -D warnings，2266ms）",
+      "clippy-cuda": "通过（cargo clippy --all-targets --locked --features cuda-probe -- -D warnings，4732ms）",
+      "unit": "通过（cargo test --locked，480 过 0 败，18158ms）"
+    },
+    "environment": "Windows；RUSTDOCFLAGS=-D warnings；all-features 构建需 MJWARP_MUJOCO_ROOT/MJWARP_MUJOCO_DLL 指向 target\\toolchains\\mujoco-3.12.0\\package。"
+  },
+  "note": "只修一行文档文字（方括号链接改反引号），不改逻辑/签名/断言/容差/排除清单/测试/门禁脚本，不新增 allow 豁免。本任务只证明 rustdoc 断链已修；G01 debug/release 双模式全绿由 QA 在新 HEAD 复跑终验判定，不在本回执宣称。修后 HEAD 变化：QA 原在 0ab7841 上启动的终验任务需按新 HEAD 重新登记/复跑。",
+  "boundaries": [
+    "只改 src/physics/collision.rs 一行文档文字 + 本任务证据/回执；不碰 QA 的 2026-10-23-g01-repin-final-acceptance 任务文件与证据。",
+    "未改产品逻辑、测试、fixtures、native/include/scripts、Cargo.toml/Cargo.lock/rust-toolchain，未改排除清单与 G01 脚本。",
+    "未跑 G01 debug/release 全脚本与 release/Linux；不宣称 G01 双模式通过或完整验收。"
+  ]
+}

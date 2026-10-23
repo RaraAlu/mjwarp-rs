@@ -121,7 +121,7 @@ pub struct BroadphaseModel<'a> {
     pub geom_gap: &'a [f32],
     /// 上游 `nxn_geom_pair_filtered` + `nxn_pairid_filtered`。
     pub pairs: &'a [GeomPair],
-    /// 上游 `nxn_pairid` 全量上三角（`i < j` 行优先，见 [`upper_tri_index`]）。
+    /// 上游 `nxn_pairid` 全量上三角（`i < j` 行优先，见 `upper_tri_index`）。
     pub full_pairid: &'a [[i32; 2]],
 }
 

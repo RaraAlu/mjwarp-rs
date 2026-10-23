@@ -1,0 +1,27 @@
+G01 rustdoc 修复前实测输出摘录
+=================================
+
+复现条件：HEAD 0ab7841（重钉后），Windows，PowerShell
+环境：MJWARP_MUJOCO_ROOT=target\toolchains\mujoco-3.12.0\package
+      MJWARP_MUJOCO_DLL=target\toolchains\mujoco-3.12.0\package\bin\mujoco.dll
+      RUSTDOCFLAGS=-D warnings
+
+命令：
+  cargo +1.99.0-x86_64-pc-windows-msvc doc --locked --all-features --no-deps
+
+实测输出（stderr，退出码 101）：
+
+error: public documentation for `full_pairid` links to private item `upper_tri_index`
+   --> src\physics\collision.rs:124:47
+    |
+124 |     /// 上游 `nxn_pairid` 全量上三角（`i < j` 行优先，见 [`upper_tri_index`]）。
+    |                                                            ^^^^^^^^^^^^^^^ this item is private
+    |
+    = note: this link will resolve properly if you pass `--document-private-items`
+    = note: `-D rustdoc::private-intra-doc-links` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(rustdoc::private_intra_doc_links)]`
+error: could not document `mjwarp-rs`
+
+RUSTDOC_EXIT=101
+
+说明：该错误与 QA 终验 debug/release 第 13 阶段 rustdoc 的失败一致（两模式同一处）。
