@@ -1,0 +1,171 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-24-np02-evidence-windows",
+  "scope": "Windows 单平台已实现内核/配方的 NP02 证据清单",
+  "pins": {
+    "mjwarp": {
+      "revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+      "path": "target/mjwarp-parallel/upstream",
+      "label": "MJWarp 冻结上游"
+    },
+    "warp": {
+      "version": "1.15.0",
+      "revision": "ffa038b1adf3927a8e893d4536f1a7562f17d749",
+      "path": "target/research/warp",
+      "label": "Warp 上游源码"
+    }
+  },
+  "inputs": {
+    "receipts_index": "docs/development-evidence/frozen-inventory/receipts.json",
+    "t4_current": "fixtures/precision/t4-current-kernels.json",
+    "t4_frozen": "fixtures/precision/t4-kernels.json",
+    "np01_mapping": "docs/development-evidence/np01-field-mapping/mapping.json",
+    "np01_diff": "docs/development-evidence/np01-field-mapping/diff.json",
+    "np02_coverage": "docs/development-evidence/frozen-inventory/np02-coverage.json",
+    "kernel_source_route_receipt": "docs/development-evidence/kernel-source-route/receipt.json",
+    "kernel_source_route_probe": "docs/development-evidence/kernel-source-route/probe.log",
+    "kernel_source_route_g01_probe": "docs/development-evidence/kernel-source-route/probe-g01-env.log"
+  },
+  "product_recipe": {
+    "recipe": "warp-1.15-physics",
+    "fmad": true,
+    "fast_math": false,
+    "std": "--std=c++17",
+    "arch_option": "--gpu-architecture=compute_70",
+    "target_arch": 70,
+    "nvrtc": [12, 8],
+    "precision_gate": "f32-physics",
+    "source": "src/runtime/launcher/recipe.rs"
+  },
+  "frozen_chains": [
+    {
+      "id": "warp-independent-kinematics-com-cdof",
+      "module": "src/runtime/warp_kinematics.rs",
+      "ptx_entity": "fixtures/gravity-upstream-abi/independent-inputs/smooth.ptx",
+      "receipt_entity": "fixtures/gravity-upstream-abi/independent-inputs/receipt.json",
+      "upstream": {
+        "revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+        "warp_version": "1.15.0",
+        "source_files": ["mujoco_warp/_src/smooth.py", "mujoco_warp/_src/math.py", "mujoco_warp/_src/types.py"],
+        "generation": "Warp 1.15.0 codegen（release, fuse_fp=true, fast_math=false, arch=89）"
+      }
+    },
+    {
+      "id": "warp-independent-com",
+      "module": "src/runtime/warp_com.rs",
+      "ptx_entity": "fixtures/gravity-upstream-abi/independent-inputs/smooth.ptx",
+      "receipt_entity": "fixtures/gravity-upstream-abi/independent-inputs/receipt.json",
+      "upstream": {
+        "revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+        "warp_version": "1.15.0",
+        "source_files": ["mujoco_warp/_src/smooth.py", "mujoco_warp/_src/math.py", "mujoco_warp/_src/types.py"],
+        "generation": "Warp 1.15.0 codegen（同 independent-kinematics PTX 实体，按 entry 取用）"
+      }
+    },
+    {
+      "id": "warp-generated-gravity",
+      "module": "src/runtime/warp_gravity.rs",
+      "ptx_entity": "fixtures/gravity-upstream-abi/generated/module.ptx",
+      "receipt_entity": "fixtures/gravity-upstream-abi/generated/receipt.json",
+      "upstream": {
+        "revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+        "warp_version": "1.15.0",
+        "source_files": ["mujoco_warp/_src/passive.py", "mujoco_warp/_src/support.py"],
+        "generation": "Warp 1.15.0 codegen（release, fuse_fp=true, fast_math=false, arch=89）"
+      }
+    }
+  ],
+  "mathdx_route": {
+    "id": "mathdx-solver-lto",
+    "name": "MathDx Solver LTO（调用 LTOIR → MathDx LTOIR → FATBIN → nvJitLink CUBIN）",
+    "entry": "build_mathdx_lto_kernel",
+    "source": "src/runtime/launcher/route/artifact.rs",
+    "route": "MathDxLto",
+    "versions": {
+      "nvrtc": "12.9.86",
+      "nvjitlink": "12.9.86",
+      "libmathdx": "0.3.1"
+    },
+    "options": "冻结 13 项 NVRTC LTOIR 选项 + --include-path=（src/runtime/launcher/artifact/ltoir.rs）",
+    "expected_digests": {
+      "route_key_sha256": "27c33a4ebd30c6b8ce8f4602abb4560121545575b7d9147880bb1e2f68b01010",
+      "call_ltoir_bytes": 3632,
+      "call_ltoir_sha256": "a323db381e0793b03837c95179965eb90aeb44c110eae042f16ede1d587da953",
+      "solver_ltoir_bytes": 1034872,
+      "solver_ltoir_sha256": "98c01ce64f55d31af5d4eb001c1e9fc4c8456173a9f0bbe97be479c804a981eb",
+      "solver_fatbin_bytes": 506960,
+      "solver_fatbin_sha256": "c00d6412780b18f67e11a1d93fc34d51db9cdd687f26ec7bc926efbff5ddbd1f",
+      "cubin_bytes": 2086544,
+      "cubin_sha256": "de660b5d5095516549c053bf51e13c05b9bc55a3dfe5cfeb0a0833c068be55ae",
+      "device_output_bytes": 104528,
+      "device_output_sha256": "51e1a99b11990d259411de58816a6344cec85f224c6a541fa088030749126d3f",
+      "launches": 8
+    },
+    "evidence": [
+      "docs/development-evidence/kernel-source-route/receipt.json",
+      "docs/development-evidence/kernel-source-route/probe.log",
+      "docs/development-evidence/kernel-source-route/probe-g01-env.log",
+      "docs/development-evidence/kernel-source-route-independent-check/receipt.json"
+    ]
+  },
+  "helper_sources": [
+    {
+      "path": "src/physics/tendon_wrap.rs",
+      "const": "TENDON_WRAP_CUDA",
+      "status": "不适用（辅助源，无独立内核）",
+      "reason": "该源只提供 __device__ 辅助函数，由 src/physics/resident/plan_kernels.rs 与 SPATIAL_TENDON_CUDA 拼接后编译为 resident 路径内核；本身不是独立 __global__ 条目"
+    }
+  ],
+  "undetermined": [
+    {
+      "id": "rne_acc",
+      "name": "RNE 加速度（np01 路径 rne_acc）",
+      "status": "不适用（无可独立计数内核）",
+      "reason": "产品 RNE 加速度由 rne.cu 的 rne_cacc/rne_qfrc/rne_backward 组合实现，源码中无名为 rne_acc 的 __global__ 条目；NP01 该路径的逐字段表已由 NP01 映射登记"
+    },
+    {
+      "id": "field_batch",
+      "name": "FIELD_BATCH 数据传输/打包路径",
+      "status": "不适用（非内核路径）",
+      "reason": "产品以 FIELD_BATCH 计划包装 resident 内核（src/runtime/transfer 与 resident plan），不产生独立 CUDA 内核与 PTX 产物；其证据由对应 resident 内核与传输层测试承担"
+    }
+  ],
+  "global_gaps": [
+    {
+      "id": "upstream-generated-kernels",
+      "status": "未判定",
+      "reason": "上游 Warp 生成内核仅覆盖 T4/冻结链中出现的显式符号；Warp codegen/builtin 头文件级（include/warp-headers/）逐符号映射未在本任务展开，无法判定覆盖完整"
+    },
+    {
+      "id": "compiler-library-precision",
+      "status": "未判定",
+      "reason": "回执只证明 NVRTC 12.8 + 统一选项 + f32-physics 门禁；Warp 编译器库内部精度边界（codegen 库）无逐项证据"
+    },
+    {
+      "id": "historical-capture-entities",
+      "status": "部分缺失",
+      "reason": "T4 30 变体中部分历史捕获实体不在仓（依赖历史 target 产物），已在 all-probes 按用户裁决显式排除 11 项；本任务不重采集"
+    }
+  ],
+  "deferred": [
+    {"id": "linux-layers-v2", "name": "Linux 三层集成（2026-10-18-layers-linux）", "status": "deferred", "reason": "用户 2026-10-24 决定 Linux 暂时终止，等 Windows 全量完成后集中回测（2026-10-24-linux-batch-retest）"},
+    {"id": "linux-toolchain-validation", "name": "Linux 锁版工具链验证", "status": "deferred", "reason": "同上，并入集中回测"},
+    {"id": "np03-linux", "name": "NP03 Linux 侧数值等价", "status": "deferred", "reason": "Windows 单平台证据已由 2026-10-23-np03-windows-evidence 交付，Linux 侧并入集中回测"},
+    {"id": "np04-linux", "name": "NP04 Linux 侧性能", "status": "deferred", "reason": "Windows 单平台证据已由 2026-10-23-np04-windows-performance 交付，Linux 侧并入集中回测"}
+  ],
+  "excluded_compile_names": ["fill_one", "fill_two", "kinetic_energy32_abi_probe"],
+  "derived_kernels": [
+    {
+      "name": "resident_mass_factor",
+      "base": "rigid_mass_solve",
+      "source_anchor": "src/physics/mass_solve/resident.rs:83（ENTRY 替换：void rigid_mass_solve( → void resident_mass_factor(，并额外清零 x 槽）",
+      "reason": "派生内核：与 rigid_mass_solve 同一 MASS_SOLVE_CUDA 模板体派生（运行时拆分/重命名），不来自独立 const 源；证据由 rigid_mass_solve 的仓内回执与 T4 变体承担"
+    },
+    {
+      "name": "resident_mass_substitute",
+      "base": "rigid_mass_solve",
+      "source_anchor": "src/physics/mass_solve/resident.rs:91（内联 raw 源，复用同一 MASS_SOLVE_CUDA 模板布局）",
+      "reason": "派生内核：resident 替换路径与 rigid_mass_solve 同模板体，内联源非独立 const；证据由 rigid_mass_solve 回执与 T4 变体承担"
+    }
+  ]
+}
