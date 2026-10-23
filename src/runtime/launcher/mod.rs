@@ -21,6 +21,8 @@ mod mathdx;
 #[cfg(feature = "cuda-probe")]
 mod module;
 mod recipe;
+#[cfg(feature = "cuda-probe")]
+mod route;
 mod submit;
 #[cfg(feature = "cuda-probe")]
 mod warp;
@@ -56,6 +58,11 @@ pub use mathdx::{MATHDX_VERSION, MAX_DIM, MAX_THREADS, MathDx, SolverLto, Solver
 #[cfg(feature = "cuda-probe")]
 pub use module::{KernelHandle, ModuleCache, ModuleStats};
 pub use recipe::{ArchTarget, CompileRecipe, CppStd, PrecisionGate, RecipePurpose};
+#[cfg(feature = "cuda-probe")]
+pub use route::{
+    KernelArtifact, KernelArtifactMetadata, KernelSourceRoute, MATHDX_NVRTC_VERSION, RouteKey,
+    RouteOptIn, build_mathdx_lto_kernel, require_mathdx_nvrtc, require_route_enabled,
+};
 pub use submit::{
     AccessMode, BufferAccess, Fence, RetainedResources, StreamKey, SubmissionId, SubmissionState,
     SubmitQueue,

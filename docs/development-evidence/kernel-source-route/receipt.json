@@ -1,0 +1,125 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-24-kernel-source-route-mathdx-wire",
+  "date": "2026-10-24",
+  "platform": {
+    "os": "Windows",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "compute_capability": [8, 9],
+    "nvrtc": "12.9.86 (pinned component)",
+    "nvjitlink": "12.9.86",
+    "libmathdx": "0.3.1"
+  },
+  "files": [
+    {
+      "path": "src/runtime/launcher/route.rs",
+      "blob": "39ab09a40f365d22d252f3fd4ef28c483ce75c26",
+      "lines": 303
+    },
+    {
+      "path": "src/runtime/launcher/route/artifact.rs",
+      "blob": "38fad5837001588712249f96d2c30624fc24acd5",
+      "lines": 222
+    },
+    {
+      "path": "src/runtime/launcher/route/tests.rs",
+      "blob": "d5541046aa256070a8bc706e0548ccf38f1e69bf",
+      "lines": 361
+    },
+    {
+      "path": "src/runtime/launcher/mod.rs",
+      "blob": "70ebfa841cc029609f38ba99aed928eb36761520"
+    },
+    {
+      "path": "tests/kernel_source_route_probe.rs",
+      "blob": "d3015f66ff85935d317b6c052d2b2f583f0c41f1",
+      "lines": 267
+    },
+    {
+      "path": "docs/development-evidence/kernel-source-route/README.md",
+      "blob": "c4eada0fb9e5d7d8ccb53da3e101f4aa6bc82871"
+    },
+    {
+      "path": "docs/development-evidence/kernel-source-route/unit-tests.log",
+      "blob": "307792d50ddc91a7dd153de1e45cdf145d068268"
+    },
+    {
+      "path": "docs/development-evidence/kernel-source-route/probe.log",
+      "blob": "adab80849edfc0d03624e4c5462bd23216419fff"
+    },
+    {
+      "path": "docs/development-evidence/kernel-source-route/probe-g01-env.log",
+      "blob": "ebec368f1d2ee764184d03d32480621cb636178e"
+    }
+  ],
+  "results": {
+    "routes": ["HandWrittenCuda", "FrozenPtx", "UpstreamSource", "MathDxLto"],
+    "routes_enabled_by_default": false,
+    "route_key": {
+      "fields": [
+        "route",
+        "source_sha256",
+        "header_sha256",
+        "include_paths",
+        "options (ordered)",
+        "arch",
+        "recipe_fingerprint (CUDA routes)",
+        "solver_fingerprint (MathDx route)",
+        "nvrtc",
+        "nvjitlink",
+        "libmathdx"
+      ],
+      "mathdx_route_key_sha256": "27c33a4ebd30c6b8ce8f4602abb4560121545575b7d9147880bb1e2f68b01010",
+      "stability": "同输入键与 sha256 稳定；源/头文件/选项顺序/配方/求解器/arch/三级版本任一变化键即变化（单元测试锁定）"
+    },
+    "mathdx_pipeline": {
+      "entry": "build_mathdx_lto_kernel(opt_in, mathdx, linker, call, solver) -> KernelArtifact",
+      "link_order": "调用 LTOIR → MathDx LTOIR → FATBIN（W13 NvJitLink::link_cubin）",
+      "metadata_digests": {
+        "call_ltoir_bytes": 3632,
+        "call_ltoir_sha256": "a323db381e0793b03837c95179965eb90aeb44c110eae042f16ede1d587da953",
+        "solver_ltoir_bytes": 1034872,
+        "solver_ltoir_sha256": "98c01ce64f55d31af5d4eb001c1e9fc4c8456173a9f0bbe97be479c804a981eb",
+        "solver_fatbin_bytes": 506960,
+        "solver_fatbin_sha256": "c00d6412780b18f67e11a1d93fc34d51db9cdd687f26ec7bc926efbff5ddbd1f",
+        "cubin_bytes": 2086544,
+        "cubin_sha256": "de660b5d5095516549c053bf51e13c05b9bc55a3dfe5cfeb0a0833c068be55ae",
+        "device_output_bytes": 104528,
+        "device_output_sha256": "51e1a99b11990d259411de58816a6344cec85f224c6a541fa088030749126d3f",
+        "launches": 8,
+        "device_phase_ms_range": [6.92, 7.13]
+      },
+      "repeat_build_identical": true,
+      "frozen_evidence_match": true,
+      "versions_in_metadata": {"nvrtc": [12, 9], "nvjitlink": [12, 9], "libmathdx": [0, 3, 1]}
+    },
+    "existing_recipe_baseline": {
+      "artifact_key_sha256": "b515f1ebfbf8127e13e3e76b737cf30625bb2cd8662213a5a7cc6f665dc16b29",
+      "note": "既有物理配方产物键行为由测试锁定；本任务未改 artifact/launch 路径，新路线默认不启用"
+    },
+    "rejection_surface": {
+      "route_not_enabled": "RouteOptIn::none() → 显式报「路线未启用：MathDxLto」（GPU 探针与单元测试）",
+      "version_gate": "NVRTC 非 12.9、libmathdx 非 0.3.1、nvJitLink 非 12.9 → 显式报错且不回退（单元测试覆盖版本门）",
+      "component_missing": "libmathdx/NVRTC 12.9.86/nvJitLink 组件缺失由加载器显式报错（前序任务单元测试覆盖，本任务直接传播）",
+      "artifact_inconsistent": "键摘要/路线/源/头文件/arch/各级产物摘要或 CUBIN ELF 不一致 → verify 显式报错（单元测试覆盖篡改、空产物、非 ELF）"
+    },
+    "tests": {
+      "unit": "cargo test --locked --features cuda-probe --lib launcher::route → 12 过 0 败",
+      "gpu_probe_normal_env": "CUDA_PATH=target/toolchains/cuda-12.8.1 + PATH → 1 过 0 败（probe.log）",
+      "gpu_probe_g01_env": "另加 MJWARP_MUJOCO_ROOT/MJWARP_MUJOCO_DLL → 1 过 0 败（probe-g01-env.log）"
+    },
+    "gates": "见 .normify/runs/2026-10-24-kernel-source-route-mathdx-wire/（fmt/clippy/clippy-cuda/unit）"
+  },
+  "boundaries": [
+    "不切换任何物理配方；新路线默认不启用，仅显式 RouteOptIn；既有 PTX/cubin 路径、内核字符串、容差与 f32 未改。",
+    "既有配方产物键基线锁定 b515f1eb…；artifact.rs 等既有文件未改（仅新增 route 文件与 launcher/mod.rs 挂载导出）。",
+    "新文件 303/222/361/267 行均 ≤500 并登记模块源码；不新增 C/C++、不跑 Python；SDK 二进制只在 target/。",
+    "路线键面向产品级追溯；MathDx LTO 仍依赖 libmathdx（工作目录写入 LTOIR）与 pinned NVRTC 12.9.86 的环境约束，探针在冻结证据工作目录下生成（仅测试内切目录）。",
+    "G01 影响待 QA 复跑确认：all-features host-msvc 新增 12 项单元测试；all-probes 自动纳入新增 1 项 ignored GPU 探针（已在 G01 环境变量集下验证）。未改 G01 脚本与排除清单。",
+    "Linux 未涉及；T4 源码身份未漂移（改动在 src/runtime/launcher 与 tests，不在 physics/resident/mass-solve 锚点集合内）。",
+    "未宣称 MathDx 完整验收、上游等价或物理配方切换。"
+  ],
+  "note": "用户 2026-10-24 选择继续编译链：把四类内核来源标准化为可枚举路线与确定性产物键，并把 MathDx LTO 的生成与链接接进 launcher（显式启用、默认关闭），用新 API 复现冻结证据。未切换任何物理配方，既有配方键行为以基线测试锁定。"
+}
