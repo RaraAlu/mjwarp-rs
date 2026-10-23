@@ -12,7 +12,7 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.physics"
+      "mjwarp.physics.core"
     ]
   },
   "acceptance": [
@@ -21,21 +21,83 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "本片只覆盖所列阶段。",
+    "新增计划 API `physics::forward::euler` 与 `physics::forward::rungekutta4` 的宿主侧切片：`next_position`（free 平移 + 四元数积分、ball 四元数积分、hinge/slide 标量积分，含 `math.quat_integrate` 转写）、`next_velocity`、半隐式 `euler` 与 RK4 `1/6,1/3,1/3,1/6` 组合 + `_advance`；RK4 的 4 级导数由冻结输入提供，本片不实现 `forward()` 动力学链。",
+    "单步误差：冻结模型（free/ball/hinge/slide，nq=13/nv=11）3 组状态，产品单步 qpos/qvel/time 与冻结上游 `euler`/`rungekutta4` 对照；上游 CUDA 内核的 FMA 收缩导致末位差时按 1e-6 冻结容差判定并记录位型一致率。原生 f64 一级判定：`mj_forward`+`mj_integratePos` 与 `_next_velocity` 公式复刻 euler、原生 f64 复刻 RK4 4 级组合并对照原生 `mj_step`(RK4)，容差 1e-5。",
+    "步长收敛：合成调和 ODE（q'=v、v'=-q，两个标量 slide 关节承载）上 Euler 误差比值≈2、RK4 比值>10（T=1，步数 2/4/8/16）；该判定属积分器数学语义验证，不宣称物理链收敛。",
+    "未验收边界：activation/mocap 推进、`_next_time` 的 overflow/efc 统计、阻尼隐式分支（EULERDAMP/DAMPER）、`forward()` 逐级求导、DISCRETE/IMPLICIT 积分器、设备内核与图执行均不做并如实登记。",
+    "NP01：新增路径全 f32；NP02：记录冻结上游提交、`euler`/`rungekutta4` 函数名、模型 sha256 与环境；NP03：原生 f64 一级判定 + MJWarp f32 二级对照；NP04 不适用（不发射内核、不跑性能）。",
+    "证据落 `docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g16-p6/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g16-p6.json`；gate fmt/clippy/unit 通过，不宣称完整 G16 或精度验收。"
   ],
   "schedule": {
     "depends_on": [],
     "phase": "P6",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/physics/integrator.rs",
+      "src/physics/integrator/",
+      "src/physics/mod.rs",
+      "fixtures/integrator/",
+      "scripts/authoring/",
+      "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g16-p6/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g16-p6.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":269,\"end\":269},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5] → 新依赖 []。依据：Euler/RK4 所需动力学（G02）与状态底座已 verified；删除旧 P4/P5 聚合门禁。",
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":269,\"end\":269},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：documented-stage-entry\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5] → 新依赖 []。依据：Euler/RK4 所需动力学（G02）与状态底座已 verified；删除旧 P4/P5 聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次2）：原图只有 G16@P6 粗切片（旧计划语义：Euler 与 RK4；验收「单步误差与步长收敛」）。按当前代码布局，本片最小可交付 = 计划 API `euler`（U014）与 `rungekutta4`（U015 家族）的宿主侧状态推进：`_next_position`/`_next_velocity`/`_advance` 与 RK4 组合算术，RK4 4 级导数由冻结输入提供（不实现 forward()）。activation/mocap、阻尼隐式分支、forward() 逐级求导、DISCRETE/IMPLICIT 与 GPU 内核登记为未验收边界；不改既有产品路径、容差与测试。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-11T15:26:46.307Z",
-  "updated_at": "2026-10-23T04:57:01.983Z"
+  "updated_at": "2026-10-23T04:57:01.983Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/runtime",
+        "src/model",
+        "native",
+        "include",
+        "tests",
+        "fixtures/g01",
+        "fixtures/set-const",
+        "fixtures/local-reset",
+        "fixtures/actuation",
+        "fixtures/ray-query",
+        "fixtures/broadphase",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-g16-p6.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-g16-p6"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ]
 }
