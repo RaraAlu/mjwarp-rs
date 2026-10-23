@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-mathdx-libmathdx-prep",
+  "title": {
+    "zh": "引入libmathdx 0.3.1组件与许可登记",
+    "en": "Introduce the pinned libmathdx 0.3.1 component and register its license"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按用户 2026-10-24 裁决 A 为 MathDx LTO 接入做前置：把 Warp 1.15.0 冻结依赖的 libmathdx 0.3.1（cuda12 Windows 包）按既有组件模式固定下载、校验与解包，只落地到 target/ 忽略目录；记录版本、URL、大小、压缩包与 DLL 摘要、许可标签；把包内 LICENSE.txt 原文登记到 LICENSES/ 并写明 provenance。本轮不改产品代码、不接 MathDx API、不提交 SDK 二进制。",
+    "en": "Precondition for MathDx LTO integration per the 2026-10-24 decision A: pin, download, verify and unpack the same libmathdx 0.3.1 (cuda12 Windows) package that Warp 1.15.0 pins, into the gitignored target/ tree; record version, URL, size, archive and DLL digests and license label; register the package LICENSE.txt verbatim under LICENSES/ with provenance. No product code, no MathDx API wiring, no SDK binaries in the repository."
+  },
+  "modules": {},
+  "acceptance": [
+    "在 scripts/prepare-cuda-probe.ps1 或同级新脚本中按既有组件模式加入 libmathdx 0.3.1（cuda12、win32-x86_64）：下载 URL 固定为 https://developer.nvidia.com/downloads/compute/cublasdx/redist/cublasdx/cuda12/libmathdx-win32-x86_64-0.3.1-cuda12.0.zip，压缩包大小 30,920,469 字节、sha256 64488decd3bf6e09a717cec966ad96b10fe2e9db7935185ecb491cfd6c2ec514；校验失败即报错退出。",
+    "解包只落地 target/toolchains/libmathdx-0.3.1/（gitignored）：bin/mathdx64_0.dll、include/libcommondx.h 与 lib{cublasdx,cufftdx,curanddx,cusolverdx,mathdx}.h、lib/x64/mathdx.lib 与 mathdx_static.lib、LICENSE.txt；记录 DLL 实测大小与 sha256。",
+    "组件记录 json（组件名/版本/许可标签/URL/size/sha256/DLL 摘要/落盘路径）写入 docs/development-evidence/mathdx-lto/，内容与实测一致、可复算；不登记未实测值。",
+    "LICENSES/ 新增 libmathdx 许可原文（来自包内 LICENSE.txt，逐字节/逐行原样，注明来源包版本与 sha256；如需重排仅允许加 provenance 头，不改条款文本），并更新 THIRD_PARTY_NOTICES.md 条目。",
+    "不提交 SDK 二进制/静态库；不改 src/tests/fixtures/Cargo.*/排除清单；不启 Python；gate fmt 通过、unchanged（src/tests/fixtures/scripts 之外的 Cargo.*）与证据 json 检查通过；中文 path-limited 提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "M7-编译路线",
+    "owner": "Backend",
+    "files": [
+      "scripts/prepare-cuda-probe.ps1",
+      "scripts/",
+      "LICENSES/",
+      "THIRD_PARTY_NOTICES.md",
+      "docs/development-evidence/mathdx-lto/"
+    ],
+    "resources": [],
+    "priority": 10
+  },
+  "note": "用户 2026-10-24 裁决 A（按 0.3.1 引入并开工）；分发口径：不随仓库提交二进制、产品分发另议。本任务只做组件引入与许可登记，为 2026-10-24-mathdx-solver-lto 提供冻结 SDK；下载与解包可在无 GPU 下完成。与 Warp 1.15.0 的 deps/libmathdx-deps.packman.xml 对齐；不要改成 PyPI 的 25.6.0（版本口径不同，复现不了冻结产物）。Linux 不涉及。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T19:20:00.000Z",
+  "updated_at": "2026-10-23T19:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mathdx-lto/component.json",
+      "pointer": "/version",
+      "equals": "0.3.1"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "MathDx已接入",
+        "SDK二进制已入库"
+      ]
+    }
+  ]
+}
