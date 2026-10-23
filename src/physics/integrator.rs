@@ -76,6 +76,7 @@ pub enum IntegratorError {
         index: usize,
         limit: usize,
     },
+    UnsupportedDiscreteAcc,
 }
 
 impl fmt::Display for IntegratorError {
@@ -94,6 +95,12 @@ impl fmt::Display for IntegratorError {
                 index,
                 limit,
             } => write!(formatter, "索引越界：{field}[{index}]，上限 {limit}"),
+            Self::UnsupportedDiscreteAcc => {
+                write!(
+                    formatter,
+                    "未实现的有效度量离散映射分支（需要 M+dt*damping 求解）"
+                )
+            }
         }
     }
 }
@@ -354,6 +361,9 @@ pub fn rungekutta4(
     }
     advance(layout, state, &qacc_rk, &qvel_rk, timestep, time)
 }
+
+mod discrete;
+pub use discrete::{DiscreteAccBranch, discrete, discrete_acc};
 
 #[cfg(test)]
 mod tests;

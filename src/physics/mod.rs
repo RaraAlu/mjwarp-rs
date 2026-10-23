@@ -25,8 +25,9 @@ pub use query::{
 };
 mod integrator;
 pub use integrator::{
-    IntegratorError, IntegratorState, IntegratorStep, JOINT_BALL, JOINT_FREE, JointLayout,
-    Rk4Stage, advance, euler, next_position, next_velocity, quat_integrate, rungekutta4,
+    DiscreteAccBranch, IntegratorError, IntegratorState, IntegratorStep, JOINT_BALL, JOINT_FREE,
+    JointLayout, Rk4Stage, advance, discrete, discrete_acc, euler, next_position, next_velocity,
+    quat_integrate, rungekutta4,
 };
 mod derivative;
 pub use derivative::{DerivativeError, DerivativeLayout, deriv_smooth_vel, poly_force_deriv};

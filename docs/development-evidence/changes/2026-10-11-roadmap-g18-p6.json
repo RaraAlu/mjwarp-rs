@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-g18-p6",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/physics/integrator.rs",
+      "blob": "8e63acbb979d173ceff468e3d427d9485ad13624"
+    },
+    {
+      "path": "src/physics/integrator/discrete.rs",
+      "blob": "86ce929d911c48686a2fedba8499dd2b460a0bb7"
+    },
+    {
+      "path": "src/physics/integrator/discrete/tests.rs",
+      "blob": "5808fe8e6de7b9a2e629d51443a5f9f985f9b3b8"
+    },
+    {
+      "path": "src/physics/mod.rs",
+      "blob": "18a4589f81e82c25859f1d01ebbdd3b089072eb9"
+    },
+    {
+      "path": "fixtures/discrete/model.xml",
+      "blob": "167dcc06bff5e68009fbcd8e21d9e1d94f889771"
+    },
+    {
+      "path": "fixtures/discrete/cases.json",
+      "blob": "d9422e189c1d3bf384d4992ab0067980c3212d7e"
+    },
+    {
+      "path": "scripts/authoring/author-g18-discrete.ps1",
+      "blob": "24b7aa7270d73d5edb560ce0b9606c95eb028287"
+    },
+    {
+      "path": "scripts/authoring/author-g18-discrete.py",
+      "blob": "e76789f3b8b58f8c06c40f49b9fbb3c5f163c0a7"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g18-p6/README.md",
+      "blob": "5d4f772dbde1c48b6309f1e1293ead9d6024cf12"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g18-p6/authoring.json",
+      "blob": "910c52a4f586ce784da6205f83384f01324ce3fa"
+    },
+    {
+      "path": ".normify/modules/mjwarp/physics/core.md",
+      "blob": "541b97c2d94e57b524b4b767d538188f91e825ee"
+    }
+  ],
+  "results": {
+    "slice": {
+      "family": "G18 离散积分",
+      "phase": "P6（DISCRETE 步进映射）",
+      "planned_api": "mjwarp_rs::physics::integrator::{discrete, discrete_acc}（G18；P6）",
+      "delivered": "discrete = _advance(qacc) 单步映射；discrete_acc 恒等分支（DISCRETE/禁用 EULERDAMP 的 EULER），有效度量求解分支显式拒绝"
+    },
+    "references": {
+      "model": "fixtures/discrete/model.xml",
+      "model_sha256": "e49453585b3c700eae03b51716b3b8c9cc7fa5d9203d68c8027be6ca327bd279",
+      "nq": 6,
+      "nv": 5,
+      "timestep": 0.01,
+      "cases": 2,
+      "native": "MuJoCo 3.15.0 f64 mj_forward + _next_velocity 公式 + mj_integratePos",
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29，Warp 1.15.0，forward + discrete"
+    },
+    "comparison": {
+      "vs_upstream": "单步 qpos/qvel 位型 18/22，max abs 5.96e-08（FMA 末位，1e-6 冻结容差）；time 逐位",
+      "vs_native": "max abs 5.96e-08 ≤ 1e-5",
+      "euler_equivalence": "同一 qacc 下 discrete 与 euler 的 qpos/qvel 逐位相等",
+      "discrete_acc_identity": "恒等分支位型一致；DampedEuler 返回 UnsupportedDiscreteAcc"
+    },
+    "np_mapping": {
+      "NP01": "全链 f32，无 f64 中间量",
+      "NP02": "记录冻结提交/函数/模型 sha256/关节布局/环境",
+      "NP03": "两级判定：原生 f64 先行（5.96e-08），MJWarp f32 二级对照（1e-6）",
+      "NP04": "不适用/未测"
+    },
+    "gates": {
+      "fmt": "通过",
+      "clippy": "通过（--all-targets -D warnings）",
+      "unit": "通过（discrete 2 过；全量 lib 466 过 0 败）"
+    }
+  },
+  "note": "批次 3 旧计划细化落地：G18@P6 交付 DISCRETE 单步映射（_advance(qacc)）与 discrete_acc 恒等分支；上游单步位型 18/22、max abs 5.96e-08，原生 f64 5.96e-08，与 Euler 直接分支逐位等价。有效度量求解分支、约束求解、gyro 修正与 GPU 内核登记为未验收边界。",
+  "boundaries": [
+    "未实现 (M + dt·diag(damping)) 有效度量求解分支。",
+    "未实现 IMPLICITFAST deriv_smooth_vel+factor-solve、_launch_discrete_free_gyro（模型无自由关节）、约束求解与一致性、check_discrete。",
+    "未实现 GPU 内核与图执行；不宣称完整 G18 或 P6 验收通过；NP04 未测。"
+  ]
+}
