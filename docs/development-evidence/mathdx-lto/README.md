@@ -21,7 +21,7 @@
 2. **NVRTC 版本决定 LTOIR 字节**：NVRTC 12.8.93 → LTOIR 1,035,080 B（不同摘要）；NVRTC 12.9.86 → 1,034,872 B，与证据一致。NVRTC 12.9.86 已按组件模式固定：`scripts/prepare-cuda-probe.ps1` 只解包到 `target/toolchains/cuda-12.9.1-nvrtc/`（CUDA 12.9.1 redist，压缩包 314,608,748 B，sha256 `1aa0644f…`；DLL 89,832,960 B `0cc63349…`，builtins 7,217,664 B `c405226b…`，见 `component.json` 的 `nvrtc` 节）。
    MathDx 绑定与探针通过显式目录（`load_from_dir_with_nvrtc`）或 `MATHDX_NVRTC_DIR` 解析该 pinned 组件，与 `CUDA_PATH` 解耦；缺组件显式报错，不回退到 12.8.93。现有产品内核编译路径仍用 12.8.93（不全局升级）。
 
-## 接口（`src/runtime/launcher/mathdx.rs`，454 行）
+## 接口（`src/runtime/launcher/mathdx.rs`，490 行）
 
 | 对象 | 说明 |
 | --- | --- |
