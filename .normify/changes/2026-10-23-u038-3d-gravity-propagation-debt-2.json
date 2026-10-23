@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-u038-3d-gravity-propagation-debt-2",
+  "title": {
+    "zh": "U038三维链重力传播超差债务（裁决B跟踪）",
+    "en": "U038 3D chain gravity propagation debt (decision B follow-up)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-10-23 裁决 B 后的债务跟踪任务：U038-3D 三维链全链 qfrc_gravcomp 8/77 超差（max 4.29e-6、容差 2e-6、总位差 122）已登记为已知债务，不宣称通过。本任务承接旧债务任务 2026-10-23-u038-3d-gravity-propagation-debt（已 abandon）的同一验收条件，等待用户/Chief 决定是否优先投入修复。修复若进行，需按 PTX 对照结论处理两类根因：FMA 收缩受内联上下文决定（需逐调用点显式 fma.rn/mul/add 算序转录，5 个 rotate 调用点目前只能自动分离 3 个）；com/cdof 与上游分层原子累加存在内核分解/累加顺序差异（需改为分层累加或等价顺序）。验收条件不变，容差/断言/fixtures/排除清单不得改。",
+    "en": "Debt-tracking task after user decision B (2026-10-23): the U038-3D full-chain qfrc_gravcomp 8/77 out-of-tolerance values (max 4.29e-6, tolerance 2e-6, 122 total bit differences) are registered as a known deviation and are not claimed as accepted. This task inherits the unchanged acceptance criteria of the abandoned predecessor 2026-10-23-u038-3d-gravity-propagation-debt and waits for the user/Chief decision on prioritizing a fix. A fix must address two root causes per the PTX diff evidence: FMA contraction is decided by the inlining context (requiring per-call-site explicit fma.rn/mul/add transcription; only 3 of the 5 rotate call sites can currently be isolated automatically), and com/cdof has a kernel-decomposition/accumulation-order difference versus the upstream layered atomic accumulation. Acceptance criteria unchanged; tolerances, assertions, fixtures and exclusion lists must not change."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "首差证据：逐字段/逐 dof 定位产品与上游 3D 运动学（xpos/xquat/xmat/xipos/xanchor/xaxis/subtree_com/cdof）末位差的首个差异点与疑似算序表达式，落 docs/development-evidence/u038-3d/，不改容差断言。",
+    "若判定可对齐：最小改产品源码（不改容差/断言/fixtures 语义），完成 T4 源码身份重钉，复跑定向 GPU 链到 1477 项 0 超差，并跑 unchanged 范围外必要的定向回归。",
+    "若判定对齐不可达：给出不可达依据（首差循环结果、所需外部条件或算序不可控因素），登记选项（运动学逐位对齐 / 验收比较口径裁决）报 Chief，不宣称通过。",
+    "目标验收：3D 定向 GPU 链 1477 项全部 0 超差（绝对容差 2e-6 不变），不通过则不得宣称通过。",
+    "容差与断言不变：不得放宽容差、不得删改断言或比较结构、不得改排除清单；compare 语义与 2e-6 冻结容差保持。",
+    "产品覆盖混合关节：验证必须覆盖 free+ball+hinge+slide 混合关节与三维非零旋转场景，不得只测平面/单关节类型来规避自由/球关节路径。",
+    "证据与回执落 docs/development-evidence/u038-3d/ 与 docs/development-evidence/changes/2026-10-23-u038-3d-gravity-propagation-debt-2.json；未验收边界如实登记。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P4-功能剩余",
+    "owner": "Backend",
+    "files": [
+      "src/physics/",
+      "tests/t4_gravity_3d_product_chain.rs",
+      "tests/t4_gravity_3d_product_chain/",
+      "tests/t4_gravity_nonzero_product_chain.rs",
+      "tests/support/t4_rigid_internal/",
+      "fixtures/gravity-upstream-abi/",
+      "fixtures/precision/",
+      "docs/evidence/",
+      "docs/development-evidence/u038-3d/",
+      "docs/development-evidence/changes/2026-10-23-u038-3d-gravity-propagation-debt-2.json",
+      "docs/gravity-compensation.md",
+      "docs/compatibility-matrix.md",
+      "scripts/authoring/",
+      "scripts/u038-ptx-diff-tool/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 82
+  },
+  "note": "2026-10-23 用户裁决 B 后登记（proposed，不 start）；替代已 abandon 的旧债务任务 2026-10-23-u038-3d-gravity-propagation-debt，验收条件不变（1477 项 0 超差、2e-6 容差/断言不变、覆盖 free+ball+hinge+slide 混合关节）。当前实测与已知债务登记：8/77 超差、max 4.29e-6、总位差 122，容差/断言语义未改，不宣称通过。PTX 对照证据：docs/development-evidence/u038-3d/ptx-diff/（工具提交 71d9d42、修正 722e979；复现入口 scripts/u038-ptx-diff.ps1）。根因结论：rotate/multiply/normalize 两侧源码在相同编译选项/同形状包装下指令计数与融合数一致，但 FMA 收缩由内联上下文决定，源级转录不能复现上游内核收缩（候选转录实测与现状同码；上游同源码换包装加载顺序 13↔10 fma）；com/cdof 上游为 4 个独立内核 + atom.global.add.f32 分层累加，产品为单内核顺序反向累加，属内核分解/累加顺序差异。若后续修复：需逐调用点显式算序转录 + subtree_com 分层累加对齐，并 T4 repin；不许放宽容差/改断言/改排除清单。W13、Linux、g03-parity 保持不动。",
+  "revision": {
+    "before": "722e979268c2677bfb6a6a65e4ab8e49cb8582f2",
+    "after": null
+  },
+  "created_at": "2026-10-23T08:50:00.000Z",
+  "updated_at": "2026-10-23T08:50:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ]
+}

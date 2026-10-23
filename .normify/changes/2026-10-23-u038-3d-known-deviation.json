@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-u038-3d-known-deviation",
+  "title": {
+    "zh": "U038三维链已知债务登记（用户裁决B）",
+    "en": "Register U038 3D chain known deviation (user decision B)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-10-23 裁决 B：U038-3D 三维链的全链 qfrc_gravcomp 8/77 超差（max 4.29e-6、容差 2e-6、总位差 122）登记为已知债务，不宣称通过。用 U038 PTX 对照工具（提交 71d9d42、722e979）的证据写清根因：rotate/multiply/normalize 的产品与上游源码在同一编译选项/同形状包装下指令计数与融合数一致，但 NVRTC 的 FMA 收缩受内联上下文决定，源级转录不能复现上游内核收缩；com/cdof 上游为 4 个独立内核 + 原子分层累加，产品为单内核顺序反向累加，属内核分解/累加顺序差异。同步登记债务跟踪任务（proposed，验收条件不变，不 start）并更新旧 abandoned 债务任务的修正记录。不改产品源码、测试、容差、断言、fixtures、排除清单或 ABI，不涉 T4 repin。",
+    "en": "User decision B (2026-10-23): register the U038-3D full-chain qfrc_gravcomp 8/77 tolerance violations (max 4.29e-6, tolerance 2e-6, 122 total bit differences) as a known deviation and do not claim acceptance. Use the U038 PTX diff tooling evidence (commits 71d9d42, 722e979) to record the root cause: rotate/multiply/normalize product and upstream sources compile to identical instruction counts/fusion counts under the same compiler options and wrapper shape, but NVRTC FMA contraction is decided by the inlining context, so source-level transcription cannot reproduce the upstream kernel contraction; upstream com/cdof uses four separate kernels with layered atomic accumulation while the product uses one kernel with a sequential reverse accumulation, i.e. a kernel-decomposition/accumulation-order difference. Also register a proposed debt-tracking successor task with unchanged acceptance and do not start it, and add a correction record to the abandoned debt task. No product source, tests, tolerances, assertions, fixtures, exclusion lists or ABI changes; no T4 repin."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "docs/three-layer-acceptance.md：在未验收边界登记 U038-3D 8/77 qfrc_gravcomp 超差（max 4.29e-6、容差 2e-6 不变、总位差 122）、用户裁决 B 已知债务、不宣称通过，并给出 PTX 对照工具与证据路径。",
+    "docs/compatibility-matrix.md：在 2026-10-23 状态更新与 U038 小节把「债务待裁决」同步为用户裁决 B 已知债务（不宣称通过），写明 8 项超差与 PTX 对照证据链接。",
+    "docs/gravity-compensation.md：三维链段落同步已知债务状态与根因（FMA 收缩由内联上下文决定；com/cdof 分层累加结构差异），给出复现入口 scripts/u038-ptx-diff.ps1 与 docs/development-evidence/u038-3d/ptx-diff/。",
+    "docs/development-evidence/u038-3d/known-deviation.md：新增已知债务记录（编号/裁决、偏差数据与 8 项清单、PTX 对照自然校验与根因结论、复现入口、债务跟踪任务 id、未验收边界）；同步更新 README.md 与 closure.md 的债务状态表述。",
+    "债务跟踪任务以 proposed 登记（验收条件不变：1477 项 0 超差、容差/断言不变、覆盖 free+ball+hinge+slide 混合关节），不 start；旧 abandoned 债务任务以 Normify-Fixes 追加 B 裁决、ptx-diff 证据路径与后继任务指引。",
+    "不改产品源码/测试/容差/断言/fixtures/排除清单/ABI，不涉 T4 repin；gate fmt/unit 通过；回执落 docs/development-evidence/changes/2026-10-23-u038-3d-known-deviation.json。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P4-功能剩余",
+    "owner": "Backend",
+    "files": [
+      "docs/three-layer-acceptance.md",
+      "docs/compatibility-matrix.md",
+      "docs/gravity-compensation.md",
+      "docs/development-evidence/u038-3d/",
+      "docs/development-evidence/changes/2026-10-23-u038-3d-known-deviation.json",
+      ".normify/modules/"
+    ],
+    "resources": [],
+    "priority": 82
+  },
+  "note": "2026-10-23 Chief 转达用户裁决 B：U038-3D 三维链 8/77 qfrc_gravcomp 超差登记为已知债务，不宣称通过（不宣称精度达标、不宣称完整验收）。范围限三份文档 + u038-3d 证据 + 回执；不改产品/测试/容差/fixtures/ABI，不涉 T4 repin。PTX 对照证据：docs/development-evidence/u038-3d/ptx-diff/（提交 71d9d42 工具 + 722e979 修正），复现入口 scripts/u038-ptx-diff.ps1。债务跟踪任务以 proposed 登记、不 start，验收条件不变（1477 项 0 超差、容差/断言不变、覆盖 free+ball+hinge+slide）。W13、Linux、g03-parity 保持不动。",
+  "revision": {
+    "before": "722e979268c2677bfb6a6a65e4ab8e49cb8582f2",
+    "after": null
+  },
+  "created_at": "2026-10-23T08:50:00.000Z",
+  "updated_at": "2026-10-23T08:50:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-u038-3d-known-deviation.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-u038-3d-known-deviation"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收",
+        "U038通过"
+      ]
+    }
+  ]
+}
