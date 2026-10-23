@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-t4-rebaseline-precheck",
+  "title": {
+    "zh": "T4历史捕获重基线可行性预检",
+    "en": "T4 historical capture rebaseline feasibility precheck"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "只读预检 2026-10-22-t4-historical-capture-rebaseline 的可行性：手动复跑 3 个被 all-probes 排除的重采集/归档测试，抓全当前真实失败点；盘点 target/t4-g03-retest（247 文件）、target/t4-face-operators（194 文件）等历史捕获与重采集工具，判断能否就地重生成当前源码捕获、会覆盖/新增哪些文件、旧产物能否先完整归档；给出 A/B/C 三种裁决对应的工作量、风险与产物清单，支撑用户决策。不开始主任务、不改历史产物/脚本/产品/测试/容差，不跑 G01 全脚本。",
+    "en": "Read-only feasibility precheck for the T4 historical-capture rebaseline task: rerun the three excluded recapture/archive tests to capture the real current failures; inventory the historical captures (target/t4-g03-retest, target/t4-face-operators, etc.) and recapture tooling; judge whether in-place regeneration of current-source captures is possible, which files would be overwritten/added, and whether old artifacts can be archived first; present cost/risk/artifact lists for options A/B/C. Do not start the main task, do not modify historical artifacts/scripts/product/tests/tolerances, and do not run the full G01 script."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "手动复跑 3 个被排除测试（recompile_rigid_variants_without_launching_physics、recaptures_only_missing_rotation_variants、archives_face_operator_repair_with_failed_numeric_gate），记录命令、退出码、首个失败断言与完整失败链；运行前后对历史捕获目录做文件数+SHA 清单，证明未被修改。",
+    "盘点历史捕获与工具：target/t4-g03-retest、target/t4-face-operators、target/t4-final-face-compile、target/t4-rigid-recapture 的文件数/结构/时间戳；tests/support/t4_rigid_capture 的 recipe/lineage/archive 逻辑；判断「就地重生成当前源码捕获」需要什么（历史模板锚点、冻结上游源、旧 debug/release-ptx 产物、fixtures/precision 身份）。",
+    "给出 A/B/C 三种裁决的对比：各自工作量（步骤/是否需重建历史模板/是否需 GPU/是否需改 scripts/test-windows-g01.ps1 排除清单）、风险（覆盖历史、身份漂移、断言口径变更、审计不可回退）、产物清单（新增/覆盖文件、证据目录）；结论写 docs/development-evidence/t4-rebaseline-precheck/（README + check.json）。",
+    "不改产品/测试/容差/历史捕获/脚本；不 start 主任务 2026-10-22-t4-historical-capture-rebaseline；不跑 G01 全脚本；通过 gate fmt、unchanged（src/tests/fixtures/docs/evidence/scripts）、回执 json 与 forbid_claim。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/t4-rebaseline-precheck",
+      "docs/development-evidence/changes/2026-10-23-t4-rebaseline-precheck.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "只读预检：允许运行被排除的 ignored 测试（它们只在 target/ 下新建唯一捕获目录，不覆盖历史），不修改历史产物/脚本/产品/测试/容差；不 start 主任务；不跑 G01 全脚本；Backend 同时在跑 u038-reference（GPU），本任务仅在运行 NVRTC 编译时占用 CPU，若需 GPU 先报窗口。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T09:10:00.000Z",
+  "updated_at": "2026-10-23T09:10:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "docs/evidence",
+        "scripts"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-t4-rebaseline-precheck.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-t4-rebaseline-precheck"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "重基线完成",
+        "恢复6项",
+        "T4通过",
+        "完整验收"
+      ]
+    }
+  ]
+}
