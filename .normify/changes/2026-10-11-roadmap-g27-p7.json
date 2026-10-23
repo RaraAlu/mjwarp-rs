@@ -12,7 +12,6 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.model.core",
       "mjwarp.physics.core"
     ]
   },
@@ -24,23 +23,81 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "新增计划 API `physics::constants::set_const_0` 的宿主侧 qpos0 依赖常量切片（U052；G27；P2/P7）：由冻结的 qpos0 中间量计算 `tendon_length0`、`cam_pos0/cam_poscom0/cam_mat0`、`light_pos0/light_poscom0/light_dir0` 与 `meaninertia`（M CSR 对角线均值，nv=0 取上游默认 1.0）。公式逐分支对齐上游 `_copy_tendon_length0`/`_compute_cam_pos0`/`_compute_light_pos0`/`_compute_meaninertia`。",
+    "动态更新语义：同一函数对两套 qpos0（模型默认与运行时修改后）的冻结中间量分别重算，结果与上游两次 `set_const_0` 输出一致；不缓存、不依赖前一状态。",
+    "冻结上游对照：`fixtures/set-const/qpos-model.xml`（2 相机/2 光源/1 固定肌腱、nq=2、nv=2、nworld=1）离线 authoring 用 pinned MJWarp `set_const_0(restore=False)` 产出中间量与常量，产品逐元素位型比较；原生 MuJoCo `mj_setConst` 做 NP03 一级判定。",
+    "未验收边界：`dof/body/tendon_invweight0`（依赖质量矩阵求解链）、`eq_data0`、执行器常量、`set_const_spring` 与 `set_const` 全量重算、设备内核与链式重算（kinematics/com/camlight/tendon/crb/factor_m）均不做并如实登记。",
+    "NP01：新增路径全 f32，无 f64 中间量；NP02：记录冻结上游提交、函数名、模型 sha256、环境与两案例；NP04 不适用（不发射内核、不跑性能），如实登记未测项。",
+    "证据落 `docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g27-p7/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g27-p7.json`；gate fmt/clippy/unit 通过，不宣称完整 G27 或精度验收。"
   ],
   "schedule": {
     "depends_on": [
       "2026-10-11-roadmap-g27-p2"
     ],
     "phase": "P7",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/physics/constants.rs",
+      "src/physics/constants/",
+      "fixtures/set-const/",
+      "scripts/authoring/",
+      "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g27-p7/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g27-p7.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":280,\"end\":280},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5, 2026-10-11-roadmap-p6, 2026-10-11-roadmap-g27-p2] → 新依赖 [2026-10-11-roadmap-g27-p2]。依据：P7 常量刷新依赖 P2 常量计算切片，保留同族真实前置；删除旧 P4/P5/P6 聚合门禁。",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/runtime",
+        "src/model",
+        "native",
+        "include",
+        "tests",
+        "fixtures/g01",
+        "fixtures/local-reset",
+        "fixtures/actuation",
+        "fixtures/ray-query",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-g27-p7.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-g27-p7"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ],
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":280,\"end\":280},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5, 2026-10-11-roadmap-p6, 2026-10-11-roadmap-g27-p2] → 新依赖 [2026-10-11-roadmap-g27-p2]。依据：P7 常量刷新依赖 P2 常量计算切片，保留同族真实前置；删除旧 P4/P5/P6 聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次1后继）：原图只有 G27@P7 粗切片。按当前代码布局，本片最小可交付 = 计划 API `mjwarp_rs::physics::constants::set_const_0`（U052；G27；P2/P7）的宿主侧 qpos0 依赖常量切片：tendon_length0、cam_pos0/poscom0/mat0、light_pos0/poscom0/dir0 与 meaninertia（M CSR 对角线均值），输入为冻结 qpos0 中间量。动态更新以两套 qpos0（默认与修改后）各自重算验证，不做缓存。P7 阶段只覆盖「部分 qpos0 依赖常量」：invweight0 依赖质量矩阵求解链（G02/G03 集成）、eq_data0、执行器常量、set_const_spring/全量 set_const、设备内核与链式重算全部登记为未验收边界。范围收窄到 src/physics/constants.rs 与 src/physics/constants/、fixtures/set-const/、scripts/authoring/、证据与回执；不改既有产品路径与容差。",
   "revision": {
     "before": null,
     "after": null
   },
-  "created_at": "2026-10-11T15:26:49.272Z",
-  "updated_at": "2026-10-23T04:57:03.752Z"
+  "created_at": "2026-10-11T15:26:41.139Z",
+  "updated_at": "2026-10-23T06:40:00.000Z"
 }
