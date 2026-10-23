@@ -12,7 +12,7 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.physics"
+      "mjwarp.physics.core"
     ]
   },
   "acceptance": [
@@ -23,21 +23,77 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "新增计划 API `physics::forward::fwd_actuation`（U017；G05；P4/P7）的宿主侧切片：joint 传动执行器，支持 dyntype none/integrator/filter/filterexact、gaintype fixed/affine、biastype none/affine，覆盖 ctrl 限幅（ctrllimited/ctrlrange）、激活状态推进与限幅（actearly/actlimited/actrange）、力限幅（forcelimited/forcerange），输出每世界的 `act_dot`、`actuator_force` 与按 CSR moment 累加的 `qfrc_actuator`。",
+    "冻结上游对照：以 `fixtures/actuation/model.xml`（3 个 joint 传动执行器、nworld=2）为模型源，离线 authoring 用 pinned MJWarp 依次调用 transmission/fwd_velocity/fwd_actuation 产出 `actuator_length`/`actuator_velocity`/moment CSR 与三组输出；产品把这些视为冻结输入并逐元素位型比较（NP03 两级：原生 mj_fwdPosition/mj_fwdVelocity/mj_fwdActuation 先行，MJWarp 参考其次）。",
+    "不支持的 dyntype（muscle/dcmotor/user）、gaintype（muscle/dcmotor）、biastype（muscle/dcmotor）、非 joint 传动（tendon/site/body）必须显式报错，不得静默回退；transmission 本身、设备内核与动态图未包含。",
+    "NP01：新增路径全 f32，无 f64 中间量；NP02：记录冻结上游提交、模型 sha256、函数名、环境与用例；NP04 不适用（不发射内核、不跑性能），如实登记未测项。",
+    "证据落 `docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g05-p4/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g05-p4.json`；gate fmt/clippy/unit 通过，不宣称完整 G05 或精度验收。"
   ],
   "schedule": {
     "depends_on": [],
     "phase": "P4",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/physics/actuator.rs",
+      "src/physics/mod.rs",
+      "fixtures/actuation/",
+      "scripts/authoring/",
+      "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g05-p4/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g05-p4.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":258,\"end\":258},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p2-upload, 2026-10-11-roadmap-p3] → 新依赖 []。依据：原前置 P2-UPLOAD/P3 为旧聚合门禁（已 abandon）；参数上传与状态底座已 verified（M1/M3），执行器实现不再依赖它们。",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/runtime",
+        "src/model",
+        "native",
+        "include",
+        "tests",
+        "fixtures/g01",
+        "fixtures/set-const",
+        "fixtures/local-reset",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-g05-p4.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-g05-p4"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ],
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":258,\"end\":258},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p2-upload, 2026-10-11-roadmap-p3] → 新依赖 []。依据：原前置 P2-UPLOAD/P3 为旧聚合门禁（已 abandon）；参数上传与状态底座已 verified（M1/M3），执行器实现不再依赖它们。\n\n2026-10-23 旧计划细化（Backend，批次1）：原图只有 G05@P4 粗切片（矩阵 G05 = 「执行器｜增益、偏置、动态、传动｜限幅、激活状态、控制输入｜P4/P7」）。按当前代码布局，本片最小可交付 = 架构计划 API `mjwarp_rs::physics::forward::fwd_actuation`（U017；G05；P4/P7）的宿主侧实现：joint 传动执行器的 ctrl 限幅、增益/偏置、激活状态推进与限幅、力限幅、act_dot/actuator_force/qfrc_actuator 输出。transmission（U068，G06/P4/P7）与执行器模型字段转换不在本片，冻结输入由 authoring 产出；muscle/dcmotor/user 三类与 tendon/site/body 传动显式拒绝。P4 阶段只覆盖「执行器力」侧，不实现完整 forward、不做设备内核。验收口径未放宽：矩阵核心验收「限幅、激活状态、控制输入」逐项交付并有冻结上游对照；完整 G05、设备内核与其余传动类型如实列为未验收边界。范围收窄到 src/physics/actuator.rs、src/physics/mod.rs、fixtures/actuation/、scripts/authoring/、证据与回执；不改既有产品路径与容差。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-11T15:26:44.085Z",
-  "updated_at": "2026-10-23T04:57:00.896Z"
+  "updated_at": "2026-10-23T06:00:00.000Z"
 }
