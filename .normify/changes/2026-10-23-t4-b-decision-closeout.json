@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-t4-b-decision-closeout",
+  "title": {
+    "zh": "T4裁决B收尾：abandon历史任务并核查依赖",
+    "en": "T4 ruling-B closeout: abandon superseded tasks and audit dependencies"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按用户 2026-10-23 裁决 B 收尾：两个以「重基线恢复 audit」为前提的 T4 历史任务（2026-10-16-next-t4-artifacts、2026-10-16-next-t4-gate）按规范 abandon（历史捕获不重基线、维持 10 项排除、归档证据 7cea496、恢复需另立任务）；核查 2026-10-18-toolchain-clippy-acceptance 的依赖是否存在已 abandon 的悬空项（若有则标注、仍 deferred、不启动）；不改产品，不动其他 blocked 任务。",
+    "en": "Close out per the user ruling B of 2026-10-23: abandon the two T4 tasks whose prerequisite was rebaselining the historical captures (historical captures stay frozen, ten exclusions kept, archive commit 7cea496, recovery needs a new task); audit the dependencies of 2026-10-18-toolchain-clippy-acceptance for abandoned dangling entries (annotate if found, keep deferred, do not start); no product changes and no other blocked task touched."
+  },
+  "modules": {},
+  "acceptance": [
+    "2026-10-16-next-t4-artifacts 与 2026-10-16-next-t4-gate 状态改为 abandoned，reason 逐字包含「用户 2026-10-23 裁决 B：历史捕获不重基线、维持 10 项排除；归档证据 7cea496；恢复需另立任务」。",
+    "复核 2026-10-18-toolchain-clippy-acceptance 的直接与传递依赖，列出是否存在 abandoned 悬空项；若存在按规则标注，任务保持 deferred（不启动）；若不存在也在该任务 note 写明核查结论与 deferred 依据。",
+    "不动其他 blocked/proposed 任务（除上述两个 abandon 与 clippy-acceptance 的依赖核查注记）；不改产品/测试/容差/fixtures/脚本。",
+    "交付回执 json 含 task_id；gate fmt 与 unchanged（src/tests/fixtures/docs/evidence/scripts）检查通过；normify validate 无新增错误。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-23-t4-historical-capture-archive",
+      "2026-10-23-linux-deferred-scope"
+    ],
+    "phase": "工程-治理",
+    "owner": "Backend",
+    "files": [
+      ".normify/changes/2026-10-16-next-t4-artifacts.json",
+      ".normify/changes/2026-10-16-next-t4-gate.json",
+      ".normify/changes/2026-10-18-toolchain-clippy-acceptance.json",
+      "docs/development-evidence/changes/2026-10-23-t4-b-decision-closeout.json"
+    ],
+    "resources": [],
+    "priority": 2
+  },
+  "note": "用户 2026-10-23 裁决 B 的收尾动作：只 abandon 两个前提被否定的历史 T4 任务，不动其他 blocked 任务；clippy-acceptance 只做依赖核查注记、保持 deferred 且不启动。例外：若依赖核查发现已 abandon 的悬空项，仅按规则在 note 标注（不改其 status、不 start）。",
+  "revision": {
+    "before": "305a2ebe04835002d1dd3a3abdcd454d6c518c3d",
+    "after": null
+  },
+  "created_at": "2026-10-23T02:13:05.396Z",
+  "updated_at": "2026-10-23T02:13:05.396Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "docs/evidence",
+        "scripts"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-t4-b-decision-closeout.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-t4-b-decision-closeout"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "T4通过",
+        "完整验收"
+      ]
+    }
+  ]
+}
