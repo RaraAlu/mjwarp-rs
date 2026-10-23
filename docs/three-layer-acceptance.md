@@ -383,6 +383,31 @@ MathDx 三块交付（`2025a57` libmathdx 0.3.1 组件与许可、`e5f1559` Solv
 - 证据：`docs/development-evidence/kernel-source-route-independent-check/`。
 - 结论：内核来源路线交付的快验复核通过；G01 双模式在该 HEAD 未复跑，其验收状态停留在 §4.11。
 
+### 4.13 G03 Windows 单平台收口里程碑终验（2026-10-24，QA，任务 `2026-10-16-next-g03-parity`）
+
+按用户 2026-10-24 决定把 g03-parity 重划为 Windows 单平台收口；这是新节奏下**唯一一次全量 G01**，在最终 HEAD **`c4c1058`** 执行 debug 与 release 两轮完整脚本，**各 14/14 阶段 exit 0**。
+
+| 阶段 | debug | release |
+| --- | --- | --- |
+| fmt | 通过 | 通过 |
+| native | 27 过 | 27 过 |
+| host-msvc | **835 过 0 败** | **835 过 0 败** |
+| g01 | 7 过 | 7 过 |
+| native-g01 | 2 过 | 2 过 |
+| native-only-g01 | 1 过 | 1 过 |
+| resident | 102 过 | 102 过 |
+| all-probes | **353 过 / 0 败**（87 result 行；11 项排除） | **353 过 / 0 败**（87 result 行；11 项排除） |
+| host-gnu | 480 过 | 480 过 |
+| clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 | 0 警告 |
+| diff | 通过 | 通过 |
+| 全脚本墙钟 | **775.5s** | **641.1s** |
+
+- 运行目录：debug `target/g01-acceptance/b9fb775e067e451daa99fbdaec33e922`、release `target/g01-acceptance/0c2d6e4355794126b65e0a383c09c7d5`；证据：`docs/development-evidence/g03-parity/`（README、`receipt.json`、`final-acceptance-g03-parity.json`）。
+- 与 §4.11（HEAD `4f362f2`）差异：host-msvc 823→835（+12 内核来源路线单测）、all-probes 352→353（+1 ignored `kernel_source_route_probe`，自动纳入）、result 行 86→87；host-gnu 480 不变；排除仍 **11 项**、两模式逐项一致、未新增；rustdoc/diff 保持 0。
+- 收口引用 verified 交付：W14 `f98dc34`、W13 `1de8c11`、W15 `b1de2db`、LTOIR `f9da799`、内核来源路线 `687754c`、MathDx `2025a57`/`e5f1559`/`4f362f2`、Small/稀疏/混合历史交付（verified）；精度四类：NP01 191 行/类型偏离 0/内部字段 20、NP02 88/88 有证据 + 9 条已知漂移（裁决 B）、NP03 79,286 块 0 失败、NP04 180 次运行。
+- 未满足项（不宣称）：NP01 20 个内部布局字段、NP02 9 条已知漂移与 51 份历史实体不在仓、MathDx 再分发口径未定、性能与完整上游等价未验收、产品 `compute_70` 与设备 SM89 差异未评估、U038-3D 已知债务（`qfrc_gravcomp` 8/77 超 2e-6）、Linux deferred。只对 Windows 已覆盖范围下结论，**不宣称双平台、不宣称完整上游等价、不宣称完整 g03-parity 全量通过**。
+
 ## 5. 债务清单
 
 | 编号 | 级别 | 状态 | 内容与证据 |
@@ -473,7 +498,7 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_grav
 ## 7. 未验收边界
 
 - 只验收 Windows；Linux 侧按用户 2026-10-24 决定**暂时终止**（开发、验收与回测均暂停），等 Windows 全量开发完成后集中回测一次，不零散开跑；当前程序以 Windows 单平台完成为目标；Linux V2 未启动（原需 `linux-gpu:0` 与 `linux-acceptance`），细节见 §7.1。
-- G01 现状（2026-10-24，§4.11，HEAD `4f362f2`）：MathDx 交付后 debug/release 双模式通过，host-msvc **823 过**、all-probes **352 过 0 败**（各 86 result 行；MathDx GPU 探针 2 项已被 all-probes 自动纳入并通过），排除仍为 11 项、未新增。此前（§4.10，HEAD `f9da799`）：LTOIR 交付后 debug/release 双模式通过，host-msvc **812 过**、all-probes **350 过 0 败**（各 85 result 行，LTOIR 探针 2 项）；§4.9（`f9f1f66`）804/348（84 行）；§4.8（`66256c9`）796/346（83 行）。以上四节均为 11 项文档化排除（W-D5 3、历史捕获身份 6、env/外部产物 1、U038-3D 已知债务 1），未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）`687754c`（内核来源路线）之后按用户 2026-10-24 节奏决定未做全量双模式复跑（见 §4.12），G01 全量实测数字仍以 HEAD `4f362f2`（§4.11）为最新。
+- G01 现状（2026-10-24，§4.13，HEAD `c4c1058`）：G03 Windows 单平台收口里程碑终验，debug/release 双模式各 14/14 阶段 exit 0，host-msvc **835 过**、all-probes **353 过 0 败**（各 87 result 行），排除仍 11 项、rustdoc 0、diff 通过；墙钟 debug 775.5s / release 641.1s。此前（§4.11，HEAD `4f362f2`）：host-msvc **823 过**、all-probes **352 过 0 败**（各 86 result 行）；§4.10（`f9da799`）812/350（85 行）；§4.9（`f9f1f66`）804/348（84 行）；§4.8（`66256c9`）796/346（83 行）。以上各节均为 11 项文档化排除（W-D5 3、历史捕获身份 6、env/外部产物 1、U038-3D 已知债务 1），未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）`687754c`（内核来源路线）之后按用户 2026-10-24 节奏决定未做全量双模式复跑（§4.12），本轮 §4.13 为最终 HEAD `c4c1058` 的里程碑全量终验。
 - all-probes `-Minimum 346` 满足（MathDx 后 debug/release 均 352 过，§4.11；§4.10 为 350 过、§4.9 为 348 过、§4.8 为 346 过）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
 - 历史记录：2026-10-22 的 full-debug 曾中止在 all-probes（§4.1–§4.3），相关债务已由 `d5b02d5`、`6cb5a71`、`b13d1c5` 收口；保留原文作为变更轨迹。
 - W13（2026-10-24）在 §4.8 的 HEAD `66256c9` 之后新增 `cuda-probe` 下的 nvJitLink 绑定源码与 2 项 GPU 测试（`tests/nvjitlink_probe.rs`）；T4 源码身份清单不覆盖这些文件，未重钉。all-probes 已纳入这 2 项，运行前须重跑 `scripts/prepare-cuda-probe.ps1`（取 nvJitLink 12.9.86），对照测试还需 `target/native-mathdx7/attempt-1/` 的离线证据输入。W13 后 G01 双模式复验已通过（§4.9）。

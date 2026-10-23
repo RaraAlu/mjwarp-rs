@@ -108,6 +108,21 @@ GPU计算qfrc_bias。
 | G01双平台门禁 | 历史双平台双模式通过；当前f32完整T4尚未通过 |
 | 完整产品双平台门禁 | 物理、渲染与清洁部署仍待完成 |
 
+### G03 Windows 单平台收口（2026-10-24，任务 `2026-10-16-next-g03-parity`）
+
+用户 2026-10-24 决定把 g03-parity 重划为 **Windows 单平台收口**，Linux/双平台条款 deferred 并入 `2026-10-24-linux-batch-retest`；上表 Linux 行属历史快照，本轮不据此宣称双平台。
+
+| 项目 | 本轮证据（最终 HEAD `c4c1058`） |
+| --- | --- |
+| Windows G01 debug/release 双模式 | 各 **14/14 阶段 exit 0**；host-msvc **835 过 0 败**、all-probes **353 过 0 败**（各 87 result 行）、排除 **11 项**两模式一致、rustdoc 0、diff 通过；墙钟 775.5s / 641.1s |
+| Tile 与正式编译路线 | W14 `f98dc34`、W13 `1de8c11`、W15 `b1de2db`、LTOIR `f9da799`、内核来源路线 `687754c`、MathDx `2025a57`/`e5f1559`/`4f362f2`（均 verified） |
+| Small / 稀疏 / 混合算序 | 首差工具全 0 位差；MathDx potrf **0/121**、GPU 解 **0/33**；`mass_solve_probe` 6 过 0 败 |
+| 精度四类 | NP01 191 行（类型偏离 0，内部字段 20 未映射）；NP02 88/88 有证据 + 9 条已知漂移（裁决 B）；NP03 79,286 块 0 失败；NP04 180 次运行 |
+| 未满足项 | NP01 20 内部字段、NP02 9 条已知漂移与 51 份历史实体不在仓、MathDx 再分发口径未定、性能/完整上游等价未验收、`compute_70` 与设备 SM89 差异未评估、U038-3D 已知债务、Linux deferred |
+| 结论边界 | 只对 Windows 已覆盖范围下结论；不宣称双平台、不宣称完整上游等价、不宣称完整 g03-parity 全量通过 |
+
+证据：`docs/development-evidence/g03-parity/`（README、`receipt.json`、`final-acceptance-g03-parity.json`）与 `docs/three-layer-acceptance.md` §4.13。
+
 以下条目保留既有增量证据。
 
 mocap证据见[增量报告](windows-resident-mocap.md)。
