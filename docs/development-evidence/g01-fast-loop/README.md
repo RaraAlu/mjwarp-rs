@@ -81,6 +81,8 @@ $pwsh = 'target\toolchains\powershell-7.6.7\bin\pwsh.exe'
 
 ## 5. 最终双模式验收（2026-10-23，RNE 重基线后）
 
+> 接线后（新 HEAD、11 项排除）的 debug/release 双模式最终复验见 §5.1；本节保留接线前版本作为历史。
+
 命令与交接文档一致：`scripts/test-windows-g01.ps1 -AllFeatures -FullRegression` 与 `... -Release`。
 源码：RNE 重基线 `b13d1c5` 已入库（HEAD `f266802` 时执行），工作区无产品/夹具改动。
 运行目录：debug `target/g01-acceptance/90e611aeee0b4f1fbbefc2681bdcae84`，release `target/g01-acceptance/9bf374a9fd4c428bb65ef059442932bc`；本机日志 `target/g01-qa-20261023-012436/{debug,release}.log`；机器数据 `final-acceptance.json`。
@@ -105,6 +107,36 @@ $pwsh = 'target\toolchains\powershell-7.6.7\bin\pwsh.exe'
 - 排除清单（`<run>/probe-reports/exclusions.json`，三组单列）：W-D5 3 项、历史捕获身份 6 项、env/外部产物未接线 1 项；未改断言、容差或排除清单。
 - fixtures 来源：`git log --oneline -- fixtures/rne-acceleration` 最新为 `b13d1c5`（Backend 重基线），`git status --short fixtures` 为空；本任务未改任何夹具。
 - 结论：**G01 debug/release 双模式通过（含文档化排除项；RNE 已按裁决重基线）**。Linux、性能与完整上游等价仍未验收。
+
+### 5.1 接线后双模式最终复验（2026-10-23，QA，任务 `2026-10-23-final-acceptance-rerun`）
+
+背景：W14/W15/U038 新测试接线（Backend `45baa0e`：补 `MJWARP_CUDA_INCLUDE`/CUDA bin PATH、补 `MJWARP_GRAVITY_3D_EVIDENCE_DIR`、U038-3D live 探针按裁决 B 加入显式 known-debt 排除、`-Minimum` 346）后，由 QA 按同一命令重跑 debug 与 release，确认双模式全绿且仅剩文档化排除项。
+
+命令与 §5 相同；源码 HEAD `6e8c79a`（脚本为 `45baa0e` 接线版本）；工作区无产品/测试/夹具改动（本任务只改证据与文档）。
+运行目录：debug `target/g01-acceptance/fff94fdd2e7c4e489362480b369c454b`，release `target/g01-acceptance/f0bb413b3de5423d91a82484c8a9d5de`；本机日志 `target/final-accept-debug.log`、`target/final-accept-release.log`；机器数据 `final-acceptance-wiring.json`。
+
+| 阶段 | debug | release |
+| --- | --- | --- |
+| fmt | 通过 | 通过 |
+| native | 27 过 | 27 过 |
+| host-msvc | 722 过 | 722 过 |
+| g01 | 7 过 | 7 过 |
+| native-g01 | 2 过 | 2 过 |
+| native-only-g01 | 1 过 | 1 过 |
+| resident | 102 过 | 102 过 |
+| all-probes | **346 过 / 0 败**（83 个 result 行） | **346 过 / 0 败**（83 个 result 行） |
+| host-gnu | 406 过 | 406 过 |
+| clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 | 0 警告 |
+| diff | 通过 | 通过 |
+| **全脚本墙钟** | **689s（11.5 分钟）** | **656s（10.9 分钟）** |
+
+- **排除清单（11 项文档化排除，`<run>/probe-reports/exclusions.json`，四组单列）**：W-D5 3 项、历史捕获身份 6 项、env/外部产物未接线 1 项、U038-3D 已知债务 1 项（`live::live_three_d_product_chain_matches_frozen_upstream`，reason 单列）；未改断言、容差或排除清单。
+- **环境接线（`probe-reports/env-wiring.json`，两模式一致）**：`cuda_include=wired`、`cuda_bin_path=wired`、`gravity_3d_evidence=fresh-directory`；原 3 个失败 target 中 `launcher-tile`/`launcher-warp-headers` 真实执行通过，3D live 探针按 known-debt 显式排除。
+- **NP03 两级判定汇总（两模式一致）**：9 个 scope、79,286 块（79,202 原生放行 + 84 二级参考），`failed=0`、`pending=0`，比较标量 8,527,795。
+- **与 §5（接线前 340/0）的差异**：all-probes 通过数 340→346（+6：launcher-tile 2、launcher-warp-headers 1、其余新测试/计数同步），result 行 78→83；排除项 10→11（新增 U038-3D known-debt 1 项）；host-msvc 709→722；host-gnu 404→406；墙钟 789.1s/652.9s→689s/656s。
+- **与 Backend debug 首跑（`g01-new-tests-wiring`）对比**：计数完全一致（346 过 0 败、83 result 行、11 项排除）；其 README/§4.6 记录的运行目录 `10a6e9fd…`（墙钟 728.8s）与消息中的 `d5308115…` 属两次不同运行，本次 QA 记录以本轮 `fff94fdd…`/`f0bb413b…` 为准。
+- 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；RNE 已按裁决重基线；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
 
 ## 6. 并行评估（开发迭代用途）
 
