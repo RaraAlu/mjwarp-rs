@@ -37,6 +37,9 @@ mod spec;
 #[cfg(test)]
 #[path = "fluid_force/tests/checks.rs"]
 mod tests_checks;
+#[cfg(all(test, feature = "cuda-probe"))]
+#[path = "fluid_force/tests/frozen_device.rs"]
+mod tests_frozen_device;
 #[cfg(test)]
 #[path = "fluid_force/tests/gpu_box.rs"]
 mod tests_gpu_box;

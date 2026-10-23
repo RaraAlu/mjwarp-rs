@@ -298,3 +298,7 @@ fn gpu_matches_independent_multi_body_reduction_certificate() {
         "frozen bit certificate differs; see the diagnostic report"
     );
 }
+
+#[cfg(feature = "cuda-probe")]
+#[path = "tests/frozen_device.rs"]
+mod frozen_device;

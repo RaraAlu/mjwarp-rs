@@ -5,7 +5,7 @@
     "zh": "U038独立流体与原子对照",
     "en": "Remaining u038-reference"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "拆分原任务剩余工作。保留原验收门槛。",
     "en": "Track remaining work separately without weakening original acceptance."
@@ -24,19 +24,82 @@
     "phase": "P4-功能剩余",
     "owner": "Codex",
     "files": [
+      "scripts/authoring/",
+      "fixtures/gravity-upstream-abi/",
+      "src/physics/fluid_force/tests/",
+      "src/physics/fluid_force.rs",
+      "src/physics/gravity_compensation/tests.rs",
+      "src/physics/gravity_compensation/tests/",
       "docs/development-evidence/u038-reference/",
-      "fixtures/gravity-upstream-abi/"
+      "docs/development-evidence/changes/2026-10-16-next-u038-reference.json",
+      ".normify/modules/"
     ],
     "resources": [
       "gpu:windows-t4"
     ],
     "priority": 82
   },
-  "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。 | 依赖修复 2026-10-23：旧 2026-10-16-next-u038-shared 已 abandon（设计预检前置未落地），verified 后继为 2026-10-22-next-u038-shared-2（重登记，verified）。资源核实：gpu:windows-t4 本机可满足。",
+  "note": "2026-10-16用户授权排程拆分。此节点未完成。不是产品通过记录。启动前补目标模块设计预检。保留原阶段前置；局部补证不表示P10启动。 | 依赖修复 2026-10-23：旧 2026-10-16-next-u038-shared 已 abandon（设计预检前置未落地），verified 后继为 2026-10-22-next-u038-shared-2（重登记，verified）。资源核实：gpu:windows-t4 本机可满足。\n\n2026-10-23 重钉（start 前）：任务早于模块拆分，files 扩到实际目录（scripts/authoring、fixtures/gravity-upstream-abi、src/physics/fluid_force/tests、src/physics/fluid_force.rs 测试模块注册、src/physics/gravity_compensation/tests.rs、证据与回执、.normify/modules），补标准 checks（gate fmt/clippy/clippy-cuda/unit、unchanged 内核与 plan/ABI 源、json 回执、forbid_claim）。实现口径：离线 pinned authoring 生成冻结上游真实设备输出（流体 `_fluid_force` 多体/椭球场景 + 多体原子 `_gravity_force` 场景），产品侧只新增定向测试对照（`#[cfg(test)]`），不改产品内核/PTX/容差/断言/ABI/fixtures 语义；不新增依赖、产品测试不启动 Python；2e-6 容差不变；保留原始位型与失败。设计预检 docs/development-evidence/u038-reference/design-precheck.md。\n\n2026-10-23 ????????????? 500 ????? src/physics/gravity_compensation/tests/frozen_device.rs ????tests.rs ????files ? src/physics/gravity_compensation/tests/???????????????",
   "revision": {
-    "before": null,
+    "before": "5691b075b0ded4b9aab17c6277afcd1aca5a6ae9",
     "after": null
   },
   "created_at": "2026-10-15T16:54:18.991Z",
-  "updated_at": "2026-10-15T16:54:18.991Z"
+  "updated_at": "2026-10-23T01:20:01.244Z",
+  "closed_at": "2026-10-23T01:17:46.334Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/physics/fluid_force/cuda.rs",
+        "src/physics/fluid_force/kernels.rs",
+        "src/physics/fluid_force/launcher_abi.rs",
+        "src/physics/fluid_force/plan_construct.rs",
+        "src/physics/fluid_force/plan_launch.rs",
+        "src/physics/fluid_force/plan_update.rs",
+        "src/physics/fluid_force/spec.rs",
+        "src/physics/gravity_compensation/cuda.rs",
+        "src/physics/gravity_compensation/kernels.rs",
+        "src/physics/gravity_compensation/launcher_abi.rs",
+        "src/physics/gravity_compensation/plan.rs",
+        "fixtures/precision",
+        "tests/",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-16-next-u038-reference.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-16-next-u038-reference"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04",
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ]
 }

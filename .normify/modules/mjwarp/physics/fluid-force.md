@@ -2,7 +2,7 @@
 uid = "3b80fd65"
 id = "mjwarp.physics.fluid-force"
 tags = ["G04", "U038", "NP01", "NP02", "cuda", "fluid"]
-fingerprint = "34f40f936f153900b595c5d63e1cf3e369808ff534f4e852286b5ab6c7ec8816"
+fingerprint = "b753719c6452de22e2b8cf8a7f4306d89da168d41e0bce59dbd5bb2cc6e3afa4"
 
 [name]
 zh = "流体被动力"
@@ -117,6 +117,9 @@ path = "src/physics/fluid_force/kernels.rs"
 
 [[source]]
 path = "src/physics/fluid_force/launcher_tests.rs"
+
+[[source]]
+path = "src/physics/fluid_force/tests/frozen_device.rs"
 
 [[apis]]
 protocol = "rpc"
