@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-backlog-triage-2",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/backlog-triage/README.md",
+      "blob": "b550d83baac55f7ffbd942416ef2d40e8cfafe1f"
+    },
+    {
+      "path": "docs/development-evidence/backlog-triage/triage.json",
+      "blob": "d8f487e92ae1defa06ffc35a683760c79c990343"
+    }
+  ],
+  "results": {
+    "scope": "124 条 backlog（原排程 P0–P11 候选池）四类分诊与 CLI 状态动作",
+    "counts": {
+      "a_superseded": 1,
+      "b_covered": 52,
+      "c_external": 13,
+      "d_local_executable": 43,
+      "keep_uncertain": 15,
+      "total": 124
+    },
+    "actions": {
+      "abandoned": 53,
+      "promoted": 43,
+      "kept_backlog": 28,
+      "abandoned_ids": "见 triage.json.actions_executed.abandoned",
+      "promoted_ids": "见 triage.json.actions_executed.promoted",
+      "kept_ids": "c 13 + keep 15，见 triage.json.actions_executed.external/kept"
+    },
+    "post_action_status": {
+      "backlog": 28,
+      "proposed": 54,
+      "abandoned": 74,
+      "verified": 287,
+      "in_progress": 1,
+      "errors": 0
+    },
+    "batches": {
+      "1-foundation": ["G27 常量计算(P2/P7)", "M08 局部重置(P3/P7)", "G05 执行器(P4/P7)", "G28 查询(P7/P8)"],
+      "2-constraints-integrators": ["G12", "G13", "G14", "G15", "G16", "G17", "G18"],
+      "3-collision": ["G07", "G08", "G09", "G10", "G11"],
+      "4-complex-physics": ["G20", "G21", "G23", "G24", "G25"],
+      "5-rendering": ["R01-R10", "M03@P8"],
+      "6-optimization-tools": ["A08", "A10(P10/P11)", "M10"]
+    },
+    "dangling_dependencies": {
+      "before_action": 33,
+      "after_action": 36,
+      "after_action_all_point_to": "abandoned",
+      "impact": "43 条 promoted 任务当前在 normify status 中显示为阻塞（旧排程 depends_on 未重排）；未硬改依赖，建议另立依赖重排任务后再排程。"
+    },
+    "method": "逐条按族/门禁分类，b 类引用 verified 任务/证据（见 triage.json evidence 字段）；d 类按 src 未实现且本地可做判定；c 类为 Linux/双平台/跨厂商/NP 门禁外部前提；a 类为旧计划被正式架构取代；不确定项保留并标注。",
+    "constraints_respected": "只经 normify CLI 做 abandon/promote；不 start 任何任务；不改产品代码；不硬改 depends_on。"
+  },
+  "note": "前置任务（Windows 范围）清完后按用户要求重启分诊：对 124 条 backlog 逐条评估并落动作。结果 a=1、b=52、c=13、d=43、keep=15；abandon 53 条（a/b，reason 引依据）、promote 43 条（d，未 start，按批次 1–6 给出优先级）、保持 backlog 28 条（c 外部前提已写解锁条件 + keep 待用户/待证据）。分诊后 status：待办 28、阻塞 46、已验收 287、放弃 74、错误 0。重要发现：promoted 43 条当前全部阻塞（旧排程 depends_on 未重排，其中 36 条指向已 abandon 任务），建议先立依赖清理任务再启动批次 1。未改产品/测试/容差/fixtures/脚本。",
+  "boundaries": [
+    "b 类按族/切片覆盖判断，未逐条做代码级深验；若发现覆盖不完整可重新登记（abandoned 任务不走 fix）。",
+    "c 类保持 backlog，解锁条件=Linux RTX 5080 + linux-acceptance（用户 2026-10-23 决定 deferred）；A12 另需其他厂商硬件/驱动。",
+    "keep 15 条为待用户/待证据，未做动作；P4–P10 门禁需在批次完成后重评。",
+    "promoted 任务未 start；依赖未重排，排程前需先做依赖清理。",
+    "未改产品源码/测试/容差/fixtures/scripts。"
+  ]
+}
