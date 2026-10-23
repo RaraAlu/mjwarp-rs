@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-g01-final-acceptance-2",
+  "title": {
+    "zh": "新HEAD（重钉+rustdoc修复后）G01双模式最终验收复跑",
+    "en": "Final G01 dual-mode acceptance rerun on the new HEAD after repin and rustdoc fix"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "在 T4 源码身份重钉（2026-10-23-t4-source-hash-repin-12，HEAD e4f7481）与 rustdoc 私有项断链修复（2026-10-23-g01-rustdoc-private-link-fix，HEAD bb621d9）之后，按同一命令在新 HEAD 上重跑 G01 debug/release 双模式：记录 14 阶段数字（重点 host-msvc/all-probes/rustdoc）、all-probes 通过/失败/result 行数、排除清单是否仍为 11 项；若有新失败或需要新增排除，停手报 Chief 批准，不自行改断言/容差/排除清单。通过则更新 docs/development-evidence/g01-fast-loop/ 与 docs/three-layer-acceptance.md 的数字与记录。只改证据与文档，不改产品/测试/容差/fixtures/脚本。",
+    "en": "After the T4 source-identity repin (task 2026-10-23-t4-source-hash-repin-12, HEAD e4f7481) and the rustdoc private-link fix (task 2026-10-23-g01-rustdoc-private-link-fix, HEAD bb621d9), rerun G01 debug/release on the new HEAD: record 14 stage counts (host-msvc/all-probes/rustdoc), all-probes pass/fail/result lines, exclusion-list still 11; if new failures or new exclusions are needed, stop and report to Chief without changing assertions/tolerances/exclusions. On success update g01-fast-loop evidence and three-layer-acceptance numbers. Evidence/docs only."
+  },
+  "modules": {},
+  "acceptance": [
+    "在 HEAD bb621d9 上按同一命令运行 debug 与 release：scripts/test-windows-g01.ps1 -AllFeatures -FullRegression 与 ... -Release，GPU 独占，记录运行目录与本机日志。",
+    "记录 14 阶段数字（fmt/native/host-msvc/g01/native-g01/native-only-g01/resident/all-probes/host-gnu/clippy-gnu/clippy-gnu-cuda/clippy-msvc/rustdoc/diff）与全脚本墙钟；host-msvc 0 败、rustdoc 0 警告。",
+    "核对 all-probes 通过/失败/result 行数与排除清单：probe-reports/exclusions.json 仍为 11 项（W-D5 3 + 历史捕获 6 + env 1 + U038-3D known-debt 1），env-wiring 一致；若新模块 ignored 测试需要新增排除，停手报 Chief 批准，不自行修改排除清单/断言/容差。",
+    "若 all-probes 出现新失败：按实际报告 target、原因与是否阻塞声明，不改断言/容差/排除清单。",
+    "通过则更新 docs/development-evidence/g01-fast-loop/（README 新增 §5.2 与运行 json：HEAD、运行目录、各阶段数字、all-probes、排除项、环境接线）与 docs/three-layer-acceptance.md 相关数字；回执 json 含 task_id；gate fmt/unit 通过；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-23-t4-source-hash-repin-12",
+      "2026-10-23-g01-rustdoc-private-link-fix"
+    ],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g01-fast-loop/",
+      "docs/development-evidence/changes/2026-10-23-g01-final-acceptance-2.json",
+      "docs/three-layer-acceptance.md"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "接替已 abandon 的 2026-10-23-g01-repin-final-acceptance（其 0ab7841 基线因 rustdoc 修复提交 bb621d9 失效，数字保留为历史）。GPU 独占，debug/release 各一轮；只改证据与验收文档；若需新增排除或出现新失败，停手报 Chief。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T23:16:00.000Z",
+  "updated_at": "2026-10-23T23:16:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-g01-final-acceptance-2.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-g01-final-acceptance-2"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "未跑 release",
+        "排除清单已修改"
+      ]
+    }
+  ]
+}
