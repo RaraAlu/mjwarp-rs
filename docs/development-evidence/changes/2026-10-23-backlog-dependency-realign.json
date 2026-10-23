@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-backlog-dependency-realign",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/backlog-realign/README.md",
+      "blob": "0cbfcceb3eddbca9a6e0e7bdaa1cc242de61b679"
+    },
+    {
+      "path": "docs/development-evidence/backlog-realign/realign.json",
+      "blob": "4147a566e5c69f6bf1544f920e291f2012d24f07"
+    }
+  ],
+  "results": {
+    "scope": "43 条 promoted backlog 任务的 depends_on 重排（仅改 proposed 任务 JSON 的依赖与 note）",
+    "source_task": "2026-10-23-backlog-triage-2（95786c3）",
+    "counts": {
+      "promoted_total": 43,
+      "ready": 12,
+      "blocked": 31
+    },
+    "ready_ids": [
+      "2026-10-11-roadmap-a08-p10",
+      "2026-10-11-roadmap-a10-p10",
+      "2026-10-11-roadmap-g05-p4",
+      "2026-10-11-roadmap-g07-p5",
+      "2026-10-11-roadmap-g16-p6",
+      "2026-10-11-roadmap-g20-p7",
+      "2026-10-11-roadmap-g21-p7",
+      "2026-10-11-roadmap-g23-p7",
+      "2026-10-11-roadmap-g27-p2",
+      "2026-10-11-roadmap-g28-p7",
+      "2026-10-11-roadmap-m08-p3",
+      "2026-10-11-roadmap-r01-p8"
+    ],
+    "batch1": {
+      "ready": ["2026-10-11-roadmap-g27-p2", "2026-10-11-roadmap-m08-p3", "2026-10-11-roadmap-g05-p4", "2026-10-11-roadmap-g28-p7"],
+      "blocked_by_same_family": [
+        "2026-10-11-roadmap-g27-p7 ← g27-p2",
+        "2026-10-11-roadmap-m08-p7 ← m08-p3",
+        "2026-10-11-roadmap-g05-p7 ← g05-p4",
+        "2026-10-11-roadmap-g28-p8 ← g28-p7"
+      ],
+      "verdict": "依赖层面 4 条可进入 start 准备；另 4 条为同族 P2/P7 真实串行，前序验证后自动就绪。"
+    },
+    "realign_rules": [
+      "旧 P0–P11 聚合门禁（P2-CONTRACT、P3-BASE、P4/P5/P6/P7/P8-ENTRY、P9、P10）删除：聚合门禁不是可执行前置。",
+      "指向已 abandon 的兄弟任务删除，note 记录被现有工作覆盖的依据（如 P2-CONTRACT→layers-m1、P3-BASE→layers-m3/m5）。",
+      "同族阶段切片保留真实串行（g27-p7←g27-p2、m08-p7←m08-p3、g05-p7←g05-p4、g28-p8←g28-p7、g25-p10←g25-p7、m10-p10←m10-p7、a10-p11←a10-p10、r10-p10←r10-p8）。",
+      "跨族真实依赖具体化：约束 G12←G07–G10；G13/G14/G15←G12；G17←G15+G16；G11←G07–G10；G25←G07–G10+G12；G24←M08+G23；M10←G05+G23；R02–R09←R01；R10←R01–R09；M03@P8←R01。",
+      "已 verified 的基础族不写依赖（避免假依赖）。"
+    ],
+    "post_status": {
+      "ready_total": 20,
+      "blocked_total": 34,
+      "backlog": 28,
+      "errors": 0,
+      "note": "就绪 8→20（新增 12）；阻塞 46→34（31 promoted 真阻塞 + 3 既有）"
+    },
+    "start_preflight_gap": "43 条 promoted 任务均无 checks、schedule.files 为空（旧计划未细化）。依赖就绪不等于可直接 start；执行阶段须先补 checks（gate fmt/unit、unchanged、json 回执、forbid_claim）并按当前布局收窄 files。本任务范围只含依赖字段，未代做。"
+  },
+  "note": "分诊后 43 条 promoted 全部阻塞，本任务按当前真实状态重排 depends_on：删除旧聚合门禁与已 abandon 依赖、保留同族串行与跨族真实前置；结果 12 条 ready、31 条 blocked（真实未完成前置），`normify status` 就绪 8→20、阻塞 46→34、错误 0。批次 1 中 4 条依赖就绪（g27-p2/m08-p3/g05-p4/g28-p7），另 4 条由同族前序阻塞（预期串行）。每条重排均在任务 note 记录原依赖→新依赖→依据，并汇总到 realign.json。未 start 任何任务、未改产品代码、未动 .normify/runs/。",
+  "boundaries": [
+    "只重排依赖：未改 checks/files，未 start 任务，未改产品源码/测试/容差/fixtures/脚本。",
+    "31 条 blocked 是真实未完成前置，未强行清空依赖。",
+    "43 条 promoted 任务仍缺机器可判定 checks 与当前布局 files，start 前须由执行任务补全。",
+    "W13 等用户裁决的任务未触碰。"
+  ]
+}
