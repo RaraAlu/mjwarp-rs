@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-g27-p2",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    { "path": "src/physics/constants.rs", "blob": "7d84b0b1fb62e8ef18a2e384c21032ecaaaeff6f" },
+    { "path": "src/physics/mod.rs", "blob": "2bc8b174e8de5c9646f6cf7d99313a06c0204ed5" },
+    { "path": "fixtures/set-const/model.xml", "blob": "ad38c8ce174095f1c86cc62784d29499b0539631" },
+    { "path": "fixtures/set-const/g27-fixed.json", "blob": "78680659c92684288bd784a571c22fbadb58cb40" },
+    { "path": "scripts/authoring/author-g27-set-const.ps1", "blob": "2dbc6f4b5f248e84563ed645dd92329d6263d807" },
+    { "path": "scripts/authoring/author-g27-set-const.py", "blob": "6d8c78b58c553dcdc6b83f6689d466807b0e102e" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g27-p2/README.md", "blob": "7cb1a0612a56748cdcc895e84ed9cdb777d67c4e" },
+    { "path": "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g27-p2/authoring.json", "blob": "5fdf30d96d4a8dfcb91c6680051813b9e112ac8b" },
+    { "path": ".normify/modules/mjwarp/physics/core.md", "blob": "12ceb9586f79cc7872dde58533ff3d394380bbfa" }
+  ],
+  "results": {
+    "slice": {
+      "family": "G27 常量计算",
+      "phase": "P2（输入转换侧固定常量）",
+      "planned_api": "mjwarp_rs::physics::constants::set_const_fixed（U053；G27；P2/P7）",
+      "delivered": "宿主侧 body_subtreemass（身体及全部后代 f32 质量累加），深度倒序对齐上游 body_tree 顺序"
+    },
+    "references": {
+      "model": "fixtures/set-const/model.xml",
+      "model_sha256": "63b335216448f147c7dbd856e02f9ee8bb698fc0a954a33e7e4adde796fa52d1",
+      "nbody": 9,
+      "native": "MuJoCo 3.15.0 mj_setConst（输入先量化到 f32）",
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29，Warp 1.15.0，set_const_fixed",
+      "runs": 5
+    },
+    "comparison": {
+      "product_vs_upstream": "逐元素位型完全一致（0 位差；上游 5 次运行 1 种位型、最大运行间差 0）",
+      "product_vs_native_f64_max_abs": 2.980232238769531e-07,
+      "native_tolerance_abs": 1e-06,
+      "upstream_tolerance_abs": 1e-06,
+      "native_independent_f64_recompute_max_abs": 0.0,
+      "deterministic": true
+    },
+    "np_mapping": {
+      "NP01": "全链 f32，无内部 f64 提升或中间量",
+      "NP02": "记录冻结提交/函数/模型 sha256/环境与 5 次运行",
+      "NP03": "两级判定：原生参考先行通过（2.98e-07 ≤ 1e-6），再做 MJWarp 参考逐位比较",
+      "NP04": "不适用/未测：本片不发射内核、无批量对照与性能记录"
+    },
+    "gates": {
+      "fmt": "通过 1110ms",
+      "clippy": "通过 305ms",
+      "unit": "通过 2519ms，412 过 0 败"
+    }
+  },
+  "note": "批次 1 旧计划细化落地：G27@P2 按架构计划 API U053 交付 set_const_fixed 宿主侧固定常量（body_subtreemass），累加顺序对齐冻结上游 set_const_fixed 的 body_tree 深度倒序；产品值与上游 5 次运行逐位一致，与原生 f64 参考 max_abs 2.98e-07 ≤ 1e-6。P2 只覆盖输入转换侧固定常量；其余 set_const 常量、执行器常量/长度范围（依赖 G05）与动态更新（@P7）全部登记为未验收边界。未改既有物理路径、容差、ABI 与测试。",
+  "boundaries": [
+    "只交付固定常量 body_subtreemass；qpos0 依赖常量、cam/light pos0、tendon_length0、invweight0、meaninertia、eq_data0 未做。",
+    "执行器常量与长度范围依赖尚未实现的 G05 字段，未做。",
+    "动态更新（set_const/set_const_0/set_const_spring 与 GPU 内核）属 @P7 切片，未做。",
+    "本片为宿主侧实现，无设备内核、无上传路径；不宣称完整 G27 或精度验收通过；NP04 未测。"
+  ]
+}

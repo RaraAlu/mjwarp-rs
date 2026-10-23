@@ -2,7 +2,7 @@
 uid = "ece0669c"
 id = "mjwarp.physics.core"
 tags = ["planned", "engine", "physics"]
-fingerprint = "a98c7bb55c71e2e1120d0e6752cfc0848b7c3c4eb53abfe5c773bc495c32f73e"
+fingerprint = "3461327fd720e74732a16014c6b467bca3fe189952cbc561f253cc48e73fb272"
 
 [name]
 zh = "物理阶段与基础探针"
@@ -294,6 +294,9 @@ path = "src/physics/smooth_force/joint_passive/kernels.rs"
 
 [[source]]
 path = "src/physics/smooth_force/joint_passive/launcher_tests.rs"
+
+[[source]]
+path = "src/physics/constants.rs"
 
 [[apis]]
 protocol = "rpc"

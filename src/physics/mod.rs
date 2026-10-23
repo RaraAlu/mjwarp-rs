@@ -1,6 +1,8 @@
 //! G01运动学与GPU辅助阶段。
 //! 其余完整物理阶段仍待实现。
 
+mod constants;
+pub use constants::{FixedConstants, FixedConstantsInput, set_const_fixed};
 mod kinetic_energy;
 pub use kinetic_energy::{
     KineticEnergyData, KineticEnergyOutput, KineticEnergyPlan, KineticEnergyVector,
