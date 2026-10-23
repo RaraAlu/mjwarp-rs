@@ -12,7 +12,7 @@
   },
   "modules": {
     "modify": [
-      "mjwarp.physics"
+      "mjwarp.physics.core"
     ]
   },
   "acceptance": [
@@ -23,23 +23,80 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "新增计划 API `physics::actuator::transmission`（U068；G05/G06；P4/P7）的宿主侧关节传动切片：对 hinge/slide 关节计算 `actuator_length = qpos[jnt_qposadr] * gear[0]`、逐执行器 moment 行（nnz=1、colind=jnt_dofadr、moment=gear[0]）与 `actuator_velocity = moment·qvel`，并接 P4 的 `fwd_actuation` 完成 transmission→velocity→actuation 端到端链。",
+    "冻结上游对照：`fixtures/actuation/transmission-model.xml`（hinge/slide + 3 个 joint 传动执行器、nworld=2）离线 authoring 用 pinned MJWarp `transmission`→`fwd_velocity`→`fwd_actuation` 产出 length/velocity/moment CSR 与 act_dot/actuator_force/qfrc_actuator，产品端到端逐元素位型比较；原生 `mj_fwdPosition`→`mj_fwdVelocity`→`mj_fwdActuation` 做 NP03 一级判定。",
+    "不支持的 trntype（tendon/site/body）、joint 类型（free/ball/JOINTINPARENT 子集外）与 transmission-body-moment 必须显式报错，不得静默回退；设备内核与动态图未包含。",
+    "NP01：新增路径全 f32；NP02：记录冻结上游提交、模型 sha256、函数名、环境与用例；NP04 不适用（不发射内核、不跑性能），如实登记未测项。",
+    "证据落 `docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g05-p7/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-g05-p7.json`；gate fmt/clippy/unit 通过，不宣称完整 G05 或精度验收。"
   ],
   "schedule": {
     "depends_on": [
       "2026-10-11-roadmap-g05-p4"
     ],
     "phase": "P7",
-    "owner": "待分配",
-    "files": [],
+    "owner": "Backend",
+    "files": [
+      "src/physics/actuator.rs",
+      "src/physics/actuator/",
+      "fixtures/actuation/",
+      "scripts/authoring/",
+      "docs/development-evidence/backlog-batch1/2026-10-11-roadmap-g05-p7/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g05-p7.json",
+      ".normify/modules/"
+    ],
     "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":258,\"end\":258},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5, 2026-10-11-roadmap-p6, 2026-10-11-roadmap-g05-p4] → 新依赖 [2026-10-11-roadmap-g05-p4]。依据：P7 执行器动态/传动切片依赖 P4 基础执行器切片；删除旧聚合门禁。",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/runtime",
+        "src/model",
+        "native",
+        "include",
+        "tests",
+        "fixtures/g01",
+        "fixtures/set-const",
+        "fixtures/local-reset",
+        "fixtures/ray-query",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-g05-p7.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-g05-p7"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收"
+      ]
+    }
+  ],
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":258,\"end\":258},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p4, 2026-10-11-roadmap-p5, 2026-10-11-roadmap-p6, 2026-10-11-roadmap-g05-p4] → 新依赖 [2026-10-11-roadmap-g05-p4]。依据：P7 执行器动态/传动切片依赖 P4 基础执行器切片；删除旧聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次1后继）：原图只有 G05@P7 粗切片。按当前代码布局，本片最小可交付 = 计划 API `mjwarp_rs::physics::actuator::transmission`（U068；G05/G06；P4/P7）的 hinge/slide 关节传动宿主侧实现：由 qpos/qvel 计算 actuator_length、逐执行器 moment 行与 actuator_velocity，并接 P4 fwd_actuation 做端到端对照（长度/速度/moment/act_dot/force/qfrc）。P7 阶段只覆盖「joint 传动 + 执行器力」：free/ball/JOINTINPARENT、tendon/site/body 传动、transmission-body-moment、设备内核与完整 forward 均登记为未验收边界并显式拒绝。范围收窄到 src/physics/actuator.rs 与 src/physics/actuator/、fixtures/actuation/、scripts/authoring/、证据与回执；不改既有产品路径与容差。",
   "revision": {
     "before": null,
     "after": null
   },
-  "created_at": "2026-10-11T15:26:47.195Z",
-  "updated_at": "2026-10-23T04:57:00.966Z"
+  "created_at": "2026-10-11T15:26:44.085Z",
+  "updated_at": "2026-10-23T07:20:00.000Z"
 }
