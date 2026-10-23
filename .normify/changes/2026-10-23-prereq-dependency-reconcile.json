@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-prereq-dependency-reconcile",
+  "title": {
+    "zh": "前置任务依赖修复与资源核实",
+    "en": "Prerequisite dependency reconcile and resource verification"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "当前 9 个 blocked 任务中存在假阻塞：depends_on 指向已 abandon 的旧任务（旧 np01、旧 u038-shared、旧 t4-types 等）。逐条校到当前真实状态：有 verified 后继的替换、已 verified 的保留、无后继的标出不强改；同时核实 resources（gpu:windows-t4 本机可满足，Linux RTX 5080 等外部资源标注清楚）。产出 reconcile.json 与 README，不改产品代码、不 start 被修任务、不动 backlog 条目。",
+    "en": "Several blocked tasks are falsely blocked because depends_on points at abandoned predecessors (old np01, old u038-shared, old t4-types). Reconcile each dependency to the current true state: replace with verified successors where they exist, keep verified predecessors, flag ones without successors without forcing changes; verify resources (gpu:windows-t4 is locally satisfiable; external Linux RTX 5080 etc. must be marked). Produce reconcile.json and README. No product changes, no starts, no backlog edits."
+  },
+  "modules": {
+    "modify": []
+  },
+  "acceptance": [
+    "逐条覆盖当前 7 个 ready + 9 个 blocked 的 proposed 任务：reconcile.json 每条形如 { id, title, phase, priority, old_depends_on, new_depends_on, dep_status_before, dep_status_after, readiness_before, readiness_after, rationale, action }；替换必须有 verified 后继任务 id 作依据，无后继的标「无 verified 后继，待用户裁决」且不硬改。",
+    "resources 核实：逐个任务标注 gpu:windows-t4 是否本机可满足（是，Windows RTX 4070 Ti SUPER / DarkSea），真正需要外部硬件的（Linux RTX 5080、Linux acceptance、历史 T4 冻结产物、nvJitLink/MathDx 许可）写清；在任务 note 中补简短资源说明。",
+    "README 给出修复前后 ready/blocked 计数、原依赖→新依赖→依据表、修复后 ready 清单与建议执行顺序、仍 blocked 及原因、仍缺外部资源（Linux/T4/许可）清单；另列出不改动的 backlog 任务中指向 abandon 的悬空依赖（只读观察，不动 backlog 条目）。",
+    "只用 JSON 字段更新 proposed 任务（不 start 被修任务，不改 backlog 条目）；不开始任何功能任务；通过 gate fmt、unchanged（src/tests/fixtures/native/include/Cargo.*）、回执 json 与 forbid_claim。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      ".normify/changes/",
+      "docs/development-evidence/prereq-reconcile",
+      "docs/development-evidence/changes/2026-10-23-prereq-dependency-reconcile.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "用户 2026-10-23 要求先修复前置任务依赖再做分诊。只改 proposed 任务的 depends_on/note 与产出证据；不 start 被修任务、不 abandon/promote 任何任务、不动 backlog 条目、不改产品代码。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T08:55:00.000Z",
+  "updated_at": "2026-10-23T08:55:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock",
+        "build.rs",
+        "rust-toolchain.toml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-prereq-dependency-reconcile.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-prereq-dependency-reconcile"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "全部验收",
+        "完整验收",
+        "所有任务完成",
+        "双平台通过"
+      ]
+    }
+  ]
+}
