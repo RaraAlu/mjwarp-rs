@@ -12,6 +12,7 @@
   },
   "modules": {
     "modify": [
+      "mjwarp.runtime",
       "mjwarp.runtime.tooling"
     ]
   },
@@ -23,24 +24,76 @@
     "性能测试须独占GPU。",
     "记录真实测试与未测项。",
     "先核对NP01与NP02。",
-    "再验收适用NP03与NP04。"
+    "再验收适用NP03与NP04。",
+    "新增计划 API `runtime::tooling` 的宿主侧切片：`BenchmarkRecorder`（阶段样本记录 + count/total/min/max/mean/median 报告，均值/中位数为诊断用 f64）、`measure`（宿主闭包无头计时，零迭代拒绝）、`StateExport`（time/nworld/qpos/qvel 的 f32 物理字段）与 `export_state_json`/`export_report_json` 确定性 JSON 导出。",
+    "Rust无头测速：不启动 Python、不开窗口、不发射 GPU 内核；`measure` 在宿主闭包上计时并校验迭代次数；`BenchmarkRecorder::report` 逐阶段聚合（多相样本排序后 min/max/中位数/均值）与总计。状态导出：f32 最短往返格式，导出 JSON 经 `serde_json` 解析回读且 qpos/qvel 位型一致；非有限值、空世界数、qpos/qvel 长度不匹配显式拒绝。",
+    "末片复核：`batch_two_public_apis_still_work` 冒烟复核批次 2 此前切片的公开 API（G07 过滤位/类型、G16 quat_integrate/next_velocity、G20 SparseMass/mul_m、G21 poly_force_deriv、G23 sensor_pos、A08 ZeroCopyView 指针相等），不重跑物理参考。",
+    "未验收边界：GPU 事件计时/CUDA 图耗时与显存统计、真实仿真批次性能门槛（需独占 GPU 的 NP04 测量）、CSV/二进制导出格式、T4/Linux 跨平台性能对照均不做并如实登记（本片 `resources` 置空，不占用 GPU 窗口）。",
+    "NP01：物理状态字段全 f32，均值/中位数仅为诊断统计（f64，不反馈产品物理）；NP02：记录无头/无 Python/无 GPU 内核的测速与导出契约、JSON 结构与拒绝面；NP03：不适用（无物理数值对照）；NP04：不适用（本片不做 GPU 性能测量）。",
+    "证据落 `docs/development-evidence/backlog-batch2/2026-10-11-roadmap-a10-p10/`，回执落 `docs/development-evidence/changes/2026-10-11-roadmap-a10-p10.json`；gate fmt/clippy/unit 通过，不宣称完整 A10 或性能验收。"
   ],
   "schedule": {
     "depends_on": [],
     "phase": "P10",
-    "owner": "待分配",
-    "files": [],
-    "resources": [
-      "gpu:windows-t4",
-      "gpu:linux-rtx5080"
+    "owner": "Backend",
+    "files": [
+      "src/runtime/mod.rs",
+      "src/runtime/tooling/",
+      "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-a10-p10/",
+      "docs/development-evidence/changes/2026-10-11-roadmap-a10-p10.json",
+      ".normify/modules/"
     ],
+    "resources": [],
     "priority": 50
   },
-  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":346,\"end\":346},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p6, 2026-10-11-roadmap-p7, 2026-10-11-roadmap-p8, 2026-10-11-roadmap-p9] → 新依赖 []。依据：性能工具建立在已 verified 的测量/缓存能力之上；删除旧 P6/P7/P8/P9 聚合门禁。",
+  "note": "本次只登记候选排程。\n不自动启动或关闭任务。\n先决条件只认verified。\n阶段拆片属于保守建模。\n本图暂不细分片内次序。\n仍遵守阶段明文次序。\n写入范围采用保守声明。\n启动前须补细分模块契约。\n负责人和工期尚未确定。\n各物理批次须列精度映射。\nNP01与NP02须先行。\n进度：完整族未验收；局部状态待核\n来源：[{\"file\":\"docs/compatibility-matrix.md\",\"start\":346,\"end\":346},{\"file\":\"docs/replication-plan.md\",\"start\":265,\"end\":276}]\n依赖依据：conservative-phase-slice\n\n2026-10-23 依赖重排（任务 2026-10-23-backlog-dependency-realign）：原依赖 [2026-10-11-roadmap-p6, 2026-10-11-roadmap-p7, 2026-10-11-roadmap-p8, 2026-10-11-roadmap-p9] → 新依赖 []。依据：性能工具建立在已 verified 的测量/缓存能力之上；删除旧 P6/P7/P8/P9 聚合门禁。\n\n2026-10-23 旧计划细化（Backend，批次2）：原图只有 A10@P10 粗切片（旧计划语义：Rust无头测速与状态导出；末片复核）。按当前代码布局，本片最小可交付 = 宿主侧 `runtime::tooling`（记录器/宿主计时/状态 JSON 导出）与批次 2 公开 API 冒烟复核；GPU 事件计时/显存/真实批次性能门槛与跨平台性能对照登记为未验收边界，`resources` 置空不占 GPU 窗口。不改 main.rs（已 492 行）与其他运行时路径。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-11T15:26:57.694Z",
-  "updated_at": "2026-10-23T04:57:00.431Z"
+  "updated_at": "2026-10-23T04:57:00.431Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/io",
+        "src/model",
+        "src/physics",
+        "src/main.rs",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-a10-p10.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-11-roadmap-a10-p10"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整验收",
+        "精度已验收",
+        "性能已验收"
+      ]
+    }
+  ]
 }
