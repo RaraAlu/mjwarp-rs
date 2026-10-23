@@ -118,6 +118,8 @@ pub use passive_force::{
     ClearedPassiveForceView, PassiveForceData, PassiveForcePlan, PassiveForceSnapshot,
     PassiveForceView, SleepClearedPassiveForceView,
 };
+mod sensor;
+pub use sensor::{SensorError, SensorLayout, sensor_pos, sensor_vel};
 mod spatial_tendon;
 #[cfg(feature = "cuda-probe")]
 mod tendon_wrap;
