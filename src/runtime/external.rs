@@ -5,6 +5,8 @@ use crate::diagnostics::{ProbeError, ResourceError};
 #[cfg(any(feature = "cuda-probe", test))]
 use std::{collections::HashMap, sync::Weak};
 
+pub mod view;
+
 pub const EXTERNAL_PROBE_ABI_VERSION: u32 = 1;
 pub const EXTERNAL_PROBE_F32: u32 = 1;
 pub const EXTERNAL_PROBE_WRITABLE: u32 = 1;

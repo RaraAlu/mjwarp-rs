@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-a08-p10",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/runtime/external.rs",
+      "blob": "d234380931d6f122ff652887ee1ae068dac3c1d3"
+    },
+    {
+      "path": "src/runtime/external/view.rs",
+      "blob": "3e09445e4c2f3a517fb5028a2afe64add5920eb5"
+    },
+    {
+      "path": "src/runtime/external/view/tests.rs",
+      "blob": "3205e24ae486056ab21999b021484f8885dca254"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-a08-p10/README.md",
+      "blob": "42467be4c4d966a091ecea9c65f89a277f225b9d"
+    },
+    {
+      "path": ".normify/modules/mjwarp/runtime/external.md",
+      "blob": "68fcff7bd428fb64d3c3f1aafa4e8e4ee7855214"
+    }
+  ],
+  "results": {
+    "slice": {
+      "family": "A08 零拷贝优化",
+      "phase": "P10（上下文、所有权与跨流事件）",
+      "planned_api": "mjwarp_rs::runtime::external::view（planned: runtime::device_view）",
+      "delivered": "MirrorBuffer 所有者 + StreamFence 事件 + FieldLayout + ZeroCopyView 借用视图 + copy_field 对照；视图指针等于原缓冲（零拷贝可判定）"
+    },
+    "verification": {
+      "zero_copy_pointer_proof": "view.field() 指针 == 原缓冲指针 + offset*4；copy_field 与视图值一致",
+      "ownership": "视图仅借用所有者；接口无复制 API；owner() 指针等于 &MirrorBuffer",
+      "cross_stream_events": "未完成 EventPending；异流 StreamMismatch；代数过期 GenerationMismatch；重复完成 AlreadyCompleted",
+      "generation": "write 递增 generation；旧事件失效、新事件可建视图读到新值",
+      "bounds": "空缓冲 EmptyBuffer；越界字段/写入 OutOfBounds",
+      "tests": "cargo test --locked --lib external::view：5 过 0 败"
+    },
+    "np_mapping": {
+      "NP01": "数据路径全 f32，视图无精度变换",
+      "NP02": "记录宿主侧契约、流/代数/完成位语义与指针相等证明",
+      "NP03": "不适用（无物理数值输出）",
+      "NP04": "不适用（不做 GPU 性能测量）"
+    },
+    "gates": {
+      "fmt": "通过",
+      "clippy": "通过（--all-targets -D warnings，exit 0）",
+      "unit": "通过（view 5 过；全量 lib 456 过 0 败）"
+    }
+  },
+  "note": "批次 2 旧计划细化落地：A08@P10 按条款「上下文、所有权与跨流事件」交付宿主侧零拷贝契约与借用式视图；以切片指针相等证明零拷贝，复刻 completion 的流+代数+完成位事件语义并覆盖拒绝路径。真实 CUDA 事件/设备指针、跨流并发与零拷贝 GPU 性能登记为未验收边界；未改既有运行时路径。",
+  "boundaries": [
+    "未实现真实 CUDA 事件与设备指针（runtime::completion 的 submit/wait 实机路径）。",
+    "未实现设备内存分配、空闲池化与跨流并发（A03/A04）。",
+    "未验收零拷贝 GPU 数据路径性能与 A07 设备数据视图的复制/同步契约。",
+    "不宣称完整 A08 或零拷贝支持结论。"
+  ]
+}
