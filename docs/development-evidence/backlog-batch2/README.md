@@ -36,7 +36,8 @@ authoring.json，A08/A10 无 authoring）；回执：`docs/development-evidence/
 ## 3. 批次门禁与状态（收口时实测）
 
 - `cargo fmt --check`：通过；`cargo clippy --all-targets -- -D warnings`：通过。
-- `cargo test --locked --lib`：**461 过 0 败**（A10 门禁记录）。
+- `cargo test --locked`（gates.unit，全目标）：**461 过 0 败**（A10 门禁记录；
+  `--lib` 单独为 341，仅是定向复跑过滤，不是门禁命令）。
 - `normify validate --fingerprints`：错误 0；工作区干净；每任务 gate/check/done
   均在 path-limited 提交前通过 `check --staged`。
 - 精度：所有切片全链 f32；仅 A10 诊断统计使用 f64（不反馈产品物理）；未改动任何
