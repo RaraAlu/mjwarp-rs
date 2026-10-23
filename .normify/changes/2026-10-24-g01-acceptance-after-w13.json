@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-g01-acceptance-after-w13",
+  "title": {
+    "zh": "W13后G01双模式终验",
+    "en": "G01 dual-mode acceptance rerun after W13"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "W13（1de8c11）在 §4.8 验收 HEAD 66256c9 之后新增 cuda-probe 下的 nvJitLink 绑定源码与 2 项 GPU 测试，并把工具链的 nvJitLink 改为 12.9.86。按同一命令在新 HEAD 上重跑 G01 debug/release 双模式：记录 14 阶段数字、all-probes 通过/失败/result 行数（预期新增 W13 的 2 项）、排除清单是否仍为 11 项。若出现新失败或需要新增排除，停手上报，不自行改断言/容差/排除清单。通过则更新 docs/development-evidence/g01-fast-loop/ 与 docs/three-layer-acceptance.md。只改证据与文档。",
+    "en": "Rerun G01 debug/release on the post-W13 HEAD; evidence and docs only."
+  },
+  "modules": {},
+  "acceptance": [
+    "运行前重跑 scripts/prepare-cuda-probe.ps1，确认工具链含 nvJitLink 12.9.86。",
+    "在 W13 后 HEAD 上按同一命令运行 debug 与 release：scripts/test-windows-g01.ps1 -AllFeatures -FullRegression 与 ... -Release，GPU 独占，记录运行目录与本机日志。",
+    "记录 14 阶段数字与全脚本墙钟；host-msvc 0 败、rustdoc 0 警告。",
+    "核对 all-probes 通过/失败/result 行数与 probe-reports/exclusions.json 仍为 11 项；若需新增排除，停手上报，不自行修改排除清单/断言/容差。",
+    "若出现新失败：按实际报告 target、原因与是否阻塞，不改断言/容差/排除清单。",
+    "通过则更新 g01-fast-loop README 新增小节与运行 json、three-layer-acceptance 相关数字；回执 json 含 task_id；gate fmt/unit 通过；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-23-w13-nvjitlink-binding"
+    ],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g01-fast-loop/",
+      "docs/development-evidence/changes/2026-10-24-g01-acceptance-after-w13.json",
+      "docs/three-layer-acceptance.md"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 1
+  },
+  "note": "用户 2026-10-24 要求：登记 QA 任务后在新 HEAD 重跑 G01 debug/release 全量回归并记录证据。T4 源码身份清单不覆盖 W13 文件，无需重钉。GPU 独占，debug/release 各一轮；只改证据与验收文档。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-24T02:00:00.000Z",
+  "updated_at": "2026-10-24T02:00:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-24-g01-acceptance-after-w13.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-g01-acceptance-after-w13"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "未跑 release",
+        "排除清单已修改"
+      ]
+    }
+  ]
+}
