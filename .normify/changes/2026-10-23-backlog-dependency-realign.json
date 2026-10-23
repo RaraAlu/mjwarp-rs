@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-backlog-dependency-realign",
+  "title": {
+    "zh": "重排分诊后43条promoted任务的依赖",
+    "en": "Realign dependencies of the 43 promoted backlog tasks"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "分诊后 43 条 d 类 backlog 已 promote 为 proposed，但 depends_on 仍指向旧排程（已 abandon 的门禁/兄弟任务），导致全部阻塞。按当前真实状态重排依赖：旧门禁/已覆盖前置删除并在 note 写依据；确实必要且未完成的前置保留（指向当前 proposed/待做切片）；使可 ready 的尽量 ready，并产出 realign.json 与 README（ready 清单、仍 blocked 原因、批次 1 八条就绪情况）。不改产品代码、不 start 任何任务。",
+    "en": "After triage, 43 promoted tasks still depend on old-plan gates/siblings that are abandoned or backlog, so all are blocked. Realign depends_on to current real state: remove obsolete/covered prerequisites with basis in note; keep only necessary unfinished prerequisites pointing at current proposed slices; maximize readiness; produce realign.json and README. No product changes, no task starts."
+  },
+  "modules": {},
+  "acceptance": [
+    "对 43 条 promoted 任务逐条重排 depends_on：指向已 abandon 的任务替换为当前真实前置（verified 对应任务）或删除并 note 写依据；指向旧 P0–P11 门禁的校到具体已 verified/未完成族切片或删除；只保留确实必要且未完成的前置。",
+    "动作仅改 proposed 任务的 depends_on 与 note（不改 .normify/runs/、不改产品、不 start 任何任务）；重排后各任务 JSON 通过 normify validate。",
+    "产出 docs/development-evidence/backlog-realign/realign.json（逐条：原依赖→新依赖→依据→新 readiness）与 README.md（重排后 ready 清单、仍 blocked 原因、批次 1 八条是否可 start）；回执 json 含 task_id。",
+    "gate fmt/unit 与 unchanged（src/native/include/tests/fixtures/scripts/Cargo.toml/Cargo.lock）通过；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-23-backlog-triage-2"
+    ],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      ".normify/changes/",
+      "docs/development-evidence/backlog-realign/",
+      "docs/development-evidence/changes/2026-10-23-backlog-dependency-realign.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "分诊（2026-10-23-backlog-triage-2，95786c3）后 43 条 promoted 全部阻塞；本任务只重排 proposed 任务的 depends_on 与 note，使批次 1 可启动；不 start、不改产品、不动 runs。W13 等用户裁决，不涉及。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T05:20:00.000Z",
+  "updated_at": "2026-10-23T05:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-backlog-dependency-realign.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-backlog-dependency-realign"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "全部就绪",
+        "依赖已清空"
+      ]
+    }
+  ]
+}
