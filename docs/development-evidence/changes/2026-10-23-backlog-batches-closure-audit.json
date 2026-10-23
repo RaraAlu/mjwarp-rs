@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "kind": "governance",
+  "task_id": "2026-10-23-backlog-batches-closure-audit",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/backlog-batches-summary/README.md",
+      "blob": "06421c833aadb823cca3ff0cc4ffaa00b9f1c6d5"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batches-summary/summary.json",
+      "blob": "0f18368fad872d6fb5d88f49e4f6d89ebd16400e"
+    }
+  ],
+  "results": {
+    "scope": "批次 1–4 共 20 条交付 + 4 条顺延的只读证据/文档审计；不改产品源码/测试/容差/fixtures，不 start 路线图任务。",
+    "batches": [
+      {"batch": "batch1", "delivered": 8, "deferred": 0},
+      {"batch": "batch2", "delivered": 7, "deferred": 1},
+      {"batch": "batch3", "delivered": 4, "deferred": 1},
+      {"batch": "batch4", "delivered": 1, "deferred": 2}
+    ],
+    "totals": {
+      "delivered": 20,
+      "deferred": 4,
+      "unit_command": "cargo test --locked",
+      "unit_latest_passed": 480,
+      "unit_latest_failed": 0
+    },
+    "consistency": {
+      "directories": "batch1=8、batch2=7、batch3=4、batch4=1；无错位",
+      "receipts": "20 条交付回执存在、/task_id 一致、证据路径指向本批目录且文件存在",
+      "gates": "20 条交付的 fmt/clippy/unit 记录在 .normify/runs/<id>/ 中 passed（exit=0）",
+      "deferred": "r01-p8/a10-p11/g10-p5/m10-p10 均 proposed、无证据目录与回执、无交付声明",
+      "unit_convention": "以 .normify/gates.toml [gate.unit] = cargo test --locked 为准；收口 480 过 0 败",
+      "issues": []
+    },
+    "review_findings_fixed": [
+      {
+        "batch": "batch4",
+        "task": "2026-10-11-roadmap-g09-p5",
+        "finding": "退化尺寸校验落空（无 geom_size 非正/有限性校验与拒绝测试）",
+        "fix": "新增 narrowphase/validate.rs 的 validate_geom_sizes/InvalidGeomSize 与 0/负/NaN/±Inf 拒绝测试、box-box 候选拒绝",
+        "task_ref": "2026-10-23-g09-validation-gap-fix",
+        "commits": ["1388124", "6c6f798"]
+      },
+      {
+        "batch": "batch4",
+        "task": "2026-10-11-roadmap-g09-p5",
+        "finding": "回执 model_sha256 误填 git blob hash 63743a8a…",
+        "fix": "改为文件 sha256 a78b1547…；files blob 同步刷新",
+        "task_ref": "2026-10-23-g09-validation-gap-fix",
+        "commits": ["1388124", "6c6f798"]
+      }
+    ],
+    "windows_scope_status": "Windows 范围内可执行的 roadmap 项已清空；剩余项依赖缺失子系统（渲染/BVH、地形/SDF、图重放、性能平台）或用户裁决（W13 许可、Linux deferred）。",
+    "gates": {
+      "fmt": "通过（cargo fmt --check）",
+      "unit": "通过（cargo test --locked 480 过 0 败）"
+    }
+  },
+  "note": "跨批次收口审计：汇总批次 1–4 的 20 条交付与 4 条顺延，校验四批目录/回执/门禁一致且无错位；记录批次 4 复核两项问题已修（1388124/6c6f798）；产出 README + summary.json，并写明 Windows 可执行 roadmap 项已清空、剩余依赖缺失子系统或用户裁决。未改产品源码/测试/容差/fixtures，未 start 路线图任务。",
+  "boundaries": [
+    "只做证据/文档审计与汇总，不替代各任务自身验收，不宣称任何矩阵族完整验收或精度硬指标验收。",
+    "顺延任务保持 proposed，不计交付；未触碰 W13/Linux/g03-parity 与 QA 文件。",
+    "unit 口径以 gates.toml 全目标命令为准；单任务历史记录可能因回执修正重跑而晚于交付时点。"
+  ]
+}
