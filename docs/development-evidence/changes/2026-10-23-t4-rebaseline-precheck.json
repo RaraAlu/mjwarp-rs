@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-t4-rebaseline-precheck",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "docs/development-evidence/t4-rebaseline-precheck/check.json",
+      "blob": "57dbe36a6cd55bc54da3f5230c58a8b115883288"
+    },
+    {
+      "path": "docs/development-evidence/t4-rebaseline-precheck/README.md",
+      "blob": "d4e694f26da8dfcfc7434ffcbad3f1f74d1e4db2"
+    }
+  ],
+  "results": {
+    "excluded_tests_run": 3,
+    "excluded_tests_failed": 3,
+    "failures": {
+      "recompile_rigid_variants_without_launching_physics": "verify_sources -> source drift: src/physics/attached.rs（测试只更新 3 个源身份，当前漂移 10 个）",
+      "recaptures_only_missing_rotation_variants": "verify_capture(previous) -> capture coverage mismatch（t4-final-face-compile/current 与 t4-current-kernels.json 有 12 个变体不一致）",
+      "archives_face_operator_repair_with_failed_numeric_gate": "断言 repaired_product.bit_differences==2078 实际为 0（target/t4-face-operators 已于 10/22 重生成），失败数值门前提取消失"
+    },
+    "can_regenerate_in_place": false,
+    "template_mapping": {
+      "rotate_variants": 10,
+      "rotate_current_match": 0,
+      "retained_variants": 19,
+      "retained_current_match": 17,
+      "retained_needs_new_anchor": ["rigid_mass_matrix", "rigid_mass_solve"],
+      "face_lineage_variants": 1
+    },
+    "historical_artifacts": {
+      "t4-g03-retest": { "files": 247, "MB": 7.6 },
+      "t4-face-operators": { "files": 194, "MB": 11.2 },
+      "t4-final-face-compile": { "files": 94, "MB": 1.3 },
+      "t4-rigid-recapture": { "files": 189, "MB": 2.7 },
+      "total_MB": 22.8,
+      "archive_feasible": true,
+      "modified_by_precheck": false
+    },
+    "options": {
+      "A_full_rebaseline": "3–5 天；恢复 6 项 audit；改写 fixtures 身份；工具/锚点改动越出主任务范围",
+      "B_keep_exclusions": "0.5 天；仅文档登记长期债务；不恢复 audit",
+      "C_frozen_identity_baseline": "1–2 天；审计基准切到冻结源码身份；不证明当前源码"
+    }
+  },
+  "note": "T4 历史捕获重基线只读预检：复跑 3 个被 all-probes 排除的 ignored 测试（均失败，失败点各不相同），复刻 recipe/retained 模板映射（10 旋转族 0/10 匹配、retained 17/19 匹配、2 个需重建锚点），盘点 target/ 下 4 个历史捕获目录（合计 22.8MB，测试前后未修改、可先归档），核对 fixtures 身份漂移 10/20 与 face 归档已重生成事实，给出 A/B/C 三种裁决的工作量/风险/产物。结论：现有工具不能就地重生成当前源码捕获，需先重建历史模板锚点（选项 A 系统性工作）。未改历史产物/脚本/产品/测试/容差，未 start 主任务，未跑 G01 全脚本，未使用 GPU 内核。",
+  "boundaries": [
+    "只读预检：未改历史捕获、scripts/、tests/、fixtures/、产品代码；未 start 2026-10-22-t4-historical-capture-rebaseline；未跑 G01 全脚本。",
+    "测试只在 target/qa-t4-precheck/ 下创建新目录；历史目录文件数与最新 mtime 未变。",
+    "不宣称 audit 恢复或 T4 通过；A/B/C 工作量为基于实测的估算。"
+  ]
+}

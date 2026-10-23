@@ -1,0 +1,446 @@
+{
+  "schema": 1,
+  "task": "2026-10-23-t4-rebaseline-precheck",
+  "date": "2026-10-23",
+  "conclusion": {
+    "summary": "3 个被排除工具当前全部失败，失败点各不相同；用现有捕获与工具不能就地重生成当前源码捕获，需要先重建历史模板锚点（12 个变体）并更新测试输入/期望，或改口径。",
+    "canRegenerateInPlace": false,
+    "blockers": [
+      "recipe 模板锚点只覆盖旧的 rotation-grouping 变更场景；当前 10 个旋转族变体全部不匹配、2 个 retained 变体（rigid_mass_matrix/rigid_mass_solve）模板已因 G03 对齐改变。",
+      "test1 假设只更新 3 个产品源身份，当前实际漂移 10 个（含 attached 等），在 verify_sources 即失败。",
+      "test2 的 previous 捕获（target/t4-final-face-compile/current）与 fixtures/precision/t4-current-kernels.json 有 12 个变体不一致。",
+      "test3 依赖的 target/t4-face-operators/factorial.json 已于 10/22 由 d2d7b467 重生成（bit_differences=0），“失败数值门”前提不再成立。"
+    ]
+  },
+  "testRuns": [
+    {
+      "name": "recompile_rigid_variants_without_launching_physics",
+      "target": "lib runtime::transfer::kernel::recapture::tests_recapture",
+      "command": "cargo test --locked --features cuda-probe --lib runtime::transfer::kernel::recapture::tests_recapture::recompile_rigid_variants_without_launching_physics -- --ignored --exact --nocapture",
+      "env": [
+        "MJWARP_PHYSICS_PTX_DIR=<fresh path under target/ with existing parent>",
+        "MJWARP_CUDA_INCLUDE=target/toolchains/cuda-12.8.1/include",
+        "PATH+=target/toolchains/cuda-12.8.1/bin"
+      ],
+      "exit": 101,
+      "failure": "tests_recapture.rs:50:48 unwrap -> \"source drift: src/physics/attached.rs\"（verify_sources 在更新 3 个源身份后仍见其余漂移源）",
+      "firstFailureStage": "verify_sources（尚未进入模板映射/编译）"
+    },
+    {
+      "name": "recaptures_only_missing_rotation_variants",
+      "command": "cargo test --locked --features cuda-probe --lib runtime::transfer::kernel::recapture::tests_recapture::recaptures_only_missing_rotation_variants -- --ignored --exact --nocapture",
+      "exit": 101,
+      "failure": "tests_recapture.rs:161:46 unwrap -> \"capture coverage mismatch\"（target/t4-final-face-compile/current 与 t4-current-kernels.json 不匹配）",
+      "firstFailureStage": "verify_capture(previous)"
+    },
+    {
+      "name": "archives_face_operator_repair_with_failed_numeric_gate",
+      "command": "cargo test --locked --features cuda-probe --lib runtime::transfer::kernel::recapture::tests_archive::archives_face_operator_repair_with_failed_numeric_gate -- --ignored --exact --nocapture",
+      "exit": 101,
+      "failure": "tests_archive.rs:35:5 assert_eq!(factorial.json repaired_product.bit_differences, 2078) -> left Number(0)",
+      "firstFailureStage": "归档数值门断言（product.cu 模板断言在此之前已通过）"
+    }
+  ],
+  "envPrereqs": [
+    "MJWARP_PHYSICS_PTX_DIR 必须指向一个不存在的唯一输出路径，且父目录已存在（capture_output 语义；否则 expect 或 parent canonicalize 失败）。",
+    "NVRTC 需要 MJWARP_CUDA_INCLUDE + target/toolchains/cuda-12.8.1/bin 在 PATH（否则 NVRTC不可用）。"
+  ],
+  "historicalInventory": {
+    "target/t4-g03-retest": {
+      "exists": true,
+      "count": 247
+    },
+    "target/t4-face-operators": {
+      "exists": true,
+      "count": 194
+    },
+    "target/t4-final-face-compile": {
+      "exists": true,
+      "count": 94
+    },
+    "target/t4-rigid-recapture": {
+      "exists": true,
+      "count": 189
+    }
+  },
+  "historicalIntegrity": {
+    "note": "测试前后历史目录文件数与最新 mtime 不变（见 dirs 之外的 mtime 记录）；测试代码只读历史目录（verify_capture/read_under），写入目标是 capture_output 新目录；本次未修改历史产物。",
+    "mtimes": {
+      "target/t4-g03-retest": "2026-10-12T01:45:48Z",
+      "target/t4-face-operators": "2026-10-22T17:48:15Z",
+      "target/t4-final-face-compile": "2026-10-13T17:41:48Z",
+      "target/t4-rigid-recapture": "2026-10-12T16:23:56Z"
+    },
+    "sizesMB": {
+      "target/t4-g03-retest": 7.6,
+      "target/t4-face-operators": 11.2,
+      "target/t4-final-face-compile": 1.3,
+      "target/t4-rigid-recapture": 2.7
+    },
+    "archiveFeasible": true,
+    "archiveNote": "历史捕获均在 target/（未入库，合计约 22.8MB）；可整目录复制到 target/archive/ 或提交快照后重生成。已入库的身份在 fixtures/precision/t4-kernels.json 与 docs/evidence/t4-g03-retest 中，可经 git 历史回溯。"
+  },
+  "identity": {
+    "baseRevision": "4dc88934aab0aad1d73cf77d4c15a54db583dd2e",
+    "currentRevision": "8a5bac00fdfa9759f752993b2866098c6ff20819",
+    "baseArtifacts": 30,
+    "currentArtifacts": 30,
+    "currentProductSourceDrift": [
+      "src/physics/attached.rs",
+      "src/physics/com_velocity.rs",
+      "src/physics/flex_face.rs",
+      "src/physics/mass_matrix.rs",
+      "src/physics/mass_solve.rs",
+      "src/physics/mod.rs",
+      "src/physics/resident.rs",
+      "src/physics/rne_bias.rs",
+      "src/runtime/transfer.rs",
+      "src/runtime/transfer/kernel.rs"
+    ]
+  },
+  "templateMapping": {
+    "summary": {
+      "rotateEntries": 10,
+      "rotateCurrentMatch": 0,
+      "retainedEntries": 19,
+      "retainedCurrentMatch": 17,
+      "retainedNeedsAnchor": [
+        "rigid_mass_matrix",
+        "rigid_mass_solve"
+      ],
+      "faceLineage": [
+        "flex_faces"
+      ]
+    },
+    "rows": [
+      {
+        "entry": "attached_kinematics",
+        "kind": "rotate",
+        "sourceSha256": "2951a0fe1637",
+        "canRegenerate": false,
+        "expectation": "needs-new-anchor"
+      },
+      {
+        "entry": "attached_kinematics",
+        "kind": "rotate",
+        "sourceSha256": "4bc27225b2ea",
+        "canRegenerate": false,
+        "expectation": "needs-new-anchor"
+      },
+      {
+        "entry": "attached_kinematics",
+        "kind": "rotate",
+        "sourceSha256": "0e9adff035f2",
+        "canRegenerate": false,
+        "expectation": "needs-new-anchor"
+      },
+      {
+        "entry": "camlight_com",
+        "kind": "rotate",
+        "sourceSha256": "296b6001643e",
+        "canRegenerate": false,
+        "expectation": "needs-new-anchor"
+      },
+      {
+        "entry": "camlight_rigid",
+        "kind": "rotate",
+        "sourceSha256": "296b6001643e",
+        "canRegenerate": false,
+        "expectation": "needs-new-anchor"
+      },
+      {
+        "entry": "com_velocity",
+        "kind": "retained",
+        "sourceSha256": "569282871671",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "fixed_tendon",
+        "kind": "retained",
+        "sourceSha256": "d58c829311fa",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "flex_edges",
+        "kind": "retained",
+        "sourceSha256": "8b6fe79ddfd1",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "flex_faces",
+        "kind": "face-lineage",
+        "sourceSha256": "890180caec7c",
+        "canRegenerate": null,
+        "expectation": "unknown(face lineage)"
+      },
+      {
+        "entry": "flex_hessian_validate",
+        "kind": "retained",
+        "sourceSha256": "7cfb8a26ed59",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "flex_hessian",
+        "kind": "retained",
+        "sourceSha256": "7cfb8a26ed59",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "flex_invalidate",
+        "kind": "retained",
+        "sourceSha256": "6411859a8f7f",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "flex_positions",
+        "kind": "retained",
+        "sourceSha256": "6411859a8f7f",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "initialize_attached",
+        "kind": "rotate",
+        "sourceSha256": "2951a0fe1637",
+        "canRegenerate": false,
+        "expectation": "needs-new-anchor"
+      },
+      {
+        "entry": "initialize_attached",
+        "kind": "rotate",
+        "sourceSha256": "0e9adff035f2",
+        "canRegenerate": false,
+        "expectation": "needs-new-anchor"
+      },
+      {
+        "entry": "rigid_com_position",
+        "kind": "retained",
+        "sourceSha256": "b8599070beb7",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "rigid_com_position",
+        "kind": "retained",
+        "sourceSha256": "5e938552482b",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "rigid_kinematics",
+        "kind": "rotate",
+        "sourceSha256": "023475a8096a",
+        "canRegenerate": false,
+        "expectation": "needs-new-anchor"
+      },
+      {
+        "entry": "rigid_kinematics",
+        "kind": "rotate",
+        "sourceSha256": "cd7813883f7b",
+        "canRegenerate": false,
+        "expectation": "needs-new-anchor"
+      },
+      {
+        "entry": "rigid_kinematics",
+        "kind": "rotate",
+        "sourceSha256": "5da2015241ca",
+        "canRegenerate": false,
+        "expectation": "needs-new-anchor"
+      },
+      {
+        "entry": "rigid_mass_matrix",
+        "kind": "retained",
+        "sourceSha256": "48048bb6e1da",
+        "canRegenerate": false,
+        "expectation": "needs-new-anchor"
+      },
+      {
+        "entry": "rigid_mass_solve",
+        "kind": "retained",
+        "sourceSha256": "be4cb52b7ce1",
+        "canRegenerate": false,
+        "expectation": "needs-new-anchor"
+      },
+      {
+        "entry": "rne_bias",
+        "kind": "retained",
+        "sourceSha256": "78239ca47c56",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "sleep_copy",
+        "kind": "retained",
+        "sourceSha256": "90f06a049e10",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "spatial_moment",
+        "kind": "retained",
+        "sourceSha256": "b519b69671a4",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "spatial_site",
+        "kind": "retained",
+        "sourceSha256": "b519b69671a4",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "spatial_wrap",
+        "kind": "retained",
+        "sourceSha256": "b519b69671a4",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "tendon_indices",
+        "kind": "retained",
+        "sourceSha256": "ec6554a456d8",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "tendon_values",
+        "kind": "retained",
+        "sourceSha256": "ec6554a456d8",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      },
+      {
+        "entry": "tendon_wake",
+        "kind": "retained",
+        "sourceSha256": "90f06a049e10",
+        "canRegenerate": true,
+        "expectation": "current-template-matches"
+      }
+    ]
+  },
+  "test2Mismatch": {
+    "previousDir": "target/t4-final-face-compile/current",
+    "previousFileCount": 90,
+    "currentArtifacts": 30,
+    "missingCurrentFilesInPrevious": 36,
+    "missingSample": [
+      "attached_kinematics-71621cce969cb2b3892be419e40cca05686a21a99b261bc3e34f350d43defc6e.cu",
+      "attached_kinematics-71621cce969cb2b3892be419e40cca05686a21a99b261bc3e34f350d43defc6e.ptx",
+      "attached_kinematics-71621cce969cb2b3892be419e40cca05686a21a99b261bc3e34f350d43defc6e.json",
+      "attached_kinematics-f9c2724d278851469914bf9f3d42a570af967fe35202b3b5a51d6990d0f097b2.cu",
+      "attached_kinematics-f9c2724d278851469914bf9f3d42a570af967fe35202b3b5a51d6990d0f097b2.ptx",
+      "attached_kinematics-f9c2724d278851469914bf9f3d42a570af967fe35202b3b5a51d6990d0f097b2.json",
+      "attached_kinematics-3c0ebca5479444260ec5f26afc90b455061c3d31265ab08949a90d3a7535c64c.cu",
+      "attached_kinematics-3c0ebca5479444260ec5f26afc90b455061c3d31265ab08949a90d3a7535c64c.ptx",
+      "attached_kinematics-3c0ebca5479444260ec5f26afc90b455061c3d31265ab08949a90d3a7535c64c.json",
+      "camlight_com-ba27e2c3f8d37e1fa6926a3df6a080c20de46e53f21e634ebf302215754244f4.cu",
+      "camlight_com-ba27e2c3f8d37e1fa6926a3df6a080c20de46e53f21e634ebf302215754244f4.ptx",
+      "camlight_com-ba27e2c3f8d37e1fa6926a3df6a080c20de46e53f21e634ebf302215754244f4.json"
+    ],
+    "extraFilesInPrevious": 36,
+    "extraSample": [
+      "attached_kinematics-88661987143a308e0e8f90254d4b5c5f945aa50e4937b72f1144321cce28d698.cu",
+      "attached_kinematics-88661987143a308e0e8f90254d4b5c5f945aa50e4937b72f1144321cce28d698.json",
+      "attached_kinematics-88661987143a308e0e8f90254d4b5c5f945aa50e4937b72f1144321cce28d698.ptx",
+      "attached_kinematics-afa07eaf23c176bd21c3557d87aa7641993129bc8c545ba99bc9111335938d55.cu",
+      "attached_kinematics-afa07eaf23c176bd21c3557d87aa7641993129bc8c545ba99bc9111335938d55.json",
+      "attached_kinematics-afa07eaf23c176bd21c3557d87aa7641993129bc8c545ba99bc9111335938d55.ptx",
+      "attached_kinematics-d3a04ada6bb1b81b1fd4f5b6c195ff179748da6e3ea371f88ce5bed030d88894.cu",
+      "attached_kinematics-d3a04ada6bb1b81b1fd4f5b6c195ff179748da6e3ea371f88ce5bed030d88894.json",
+      "attached_kinematics-d3a04ada6bb1b81b1fd4f5b6c195ff179748da6e3ea371f88ce5bed030d88894.ptx",
+      "camlight_com-a23d98ef5d774c635a67fdab86b6504a2ec957157d288ddb20307f1c55d34be9.cu",
+      "camlight_com-a23d98ef5d774c635a67fdab86b6504a2ec957157d288ddb20307f1c55d34be9.json",
+      "camlight_com-a23d98ef5d774c635a67fdab86b6504a2ec957157d288ddb20307f1c55d34be9.ptx"
+    ]
+  },
+  "archiveArtifact": {
+    "factorialPath": "target/t4-face-operators/factorial.json",
+    "sourceRevision": "d2d7b467f0e96c5ea0795849ce71d0078b4be917",
+    "repairedBitDifferences": 0,
+    "fullAcceptance": false,
+    "expectedByTest": 2078,
+    "implication": "归档产物已被 10/22 的 face 修复重生成（bit_differences=0），测试仍在断言旧的“失败数值门 2078”。"
+  },
+  "options": [
+    {
+      "id": "A",
+      "name": "全量重基线并恢复 6 项历史 audit（当前源码身份）",
+      "work": [
+        "改 tests/support/t4_rigid_capture：source 身份列表由 3 项扩到当前 10 项漂移；recipe/rotate 模板锚点重建 12 个变体（10 个刚体旋转族 + rigid_mass_matrix/rigid_mass_solve），复核 flex_faces lineage。",
+        "重生成 debug-ptx/release-ptx 全 30 变体（compile-only）与 t4-current 30 变体；更新 fixtures/precision/t4-kernels.json 与 t4-current-kernels.json 的 source/ptx/receipt 身份。",
+        "重跑 6 项历史 audit；从 scripts/test-windows-g01.ps1 的 3 处排除清单移除对应项（W-D5 3 + 历史 6），刷新 docs/three-layer-acceptance.md 历史债务小节。",
+        "跑一次 G01 双模式回归确认无新失败。"
+      ],
+      "gpu": "捕获编译为 CPU/NVRTC；all-probes 复跑需本机 GPU（gpu:windows-t4 可满足，需窗口）",
+      "artifacts": [
+        "tests/support/t4_rigid_capture/{recipe.rs,lineage.rs} 更新（或新增锚点）",
+        "fixtures/precision/t4-kernels.json / t4-current-kernels.json 身份重写",
+        "target/t4-g03-retest 新捕获目录（debug-ptx/release-ptx 或新版）+ 归档旧目录",
+        "docs/evidence/t4-g03-retest 快照更新 + docs/development-evidence/t4-historical-capture-rebaseline/",
+        "scripts/test-windows-g01.ps1 排除清单缩项 + docs/three-layer-acceptance.md"
+      ],
+      "risk": [
+        "历史 BASE 身份被重写：既有 T4 483 双模式数字与旧捕获身份绑定，须在文档明确身份变更；回退只能靠 git 历史。",
+        "工具改动越出主任务 files（tests/support 不在 2026-10-22-t4-historical-capture-rebaseline 范围），需扩范围或另立任务。",
+        "锚点重建后仍需验证 30 变体 PTX 精度门禁与 lineage；若环境/编译器非确定会引入新 hash，需要固定工具链记录。",
+        "W-D5 三个“被排除工具”本身要改，改动后其作为审计工具的独立性需重新说明。"
+      ],
+      "restoresAudits": true,
+      "rewritesCommittedIdentity": true,
+      "eta": "3–5 天（含一次双模式回归）"
+    },
+    {
+      "id": "B",
+      "name": "维持排除，登记为长期已知债务（不重基线）",
+      "work": [
+        "不动 tests/fixtures/捕获；把 W-D5 3 项 + 历史 6 项 + env 1 项在三个文档中登记为长期债务与恢复条件（scripts 排除清单保持现状即可）。",
+        "每次回归按 exclusions.json 判读，不宣称完整 T4/G01。"
+      ],
+      "gpu": "无需新增 GPU",
+      "artifacts": [
+        "docs/three-layer-acceptance.md 债务小节更新",
+        "docs/development-evidence/ 债务登记（可复用本预检证据）"
+      ],
+      "risk": [
+        "G01/T4 门禁永久带 10 项排除，不能宣称完整；每次回归少覆盖 10 项。",
+        "历史捕获与当前源码身份持续分叉，未来改动越多重基线成本越高。"
+      ],
+      "restoresAudits": false,
+      "rewritesCommittedIdentity": false,
+      "eta": "0.5 天（文档）"
+    },
+    {
+      "id": "C",
+      "name": "改为冻结历史源码身份对照（不重采集，只切审计基准）",
+      "work": [
+        "引入冻结源码身份（4dc88934 对应源码快照/锚点，可从 git 历史或现有 anchors 生成），把 6 项历史 audit 的对照基准从“当前源码”切到“冻结源码身份”。",
+        "不改捕获、不改断言/容差；更新脚本排除清单与文档，说明该口径只证明历史捕获自洽，不证明当前源码。"
+      ],
+      "gpu": "无需 GPU（纯文本/宿主审计）",
+      "artifacts": [
+        "冻结源码快照/锚点（仓内 docs/evidence 或 fixtures）",
+        "tests/support 审计输入切换",
+        "scripts/test-windows-g01.ps1 排除清单 + docs/three-layer-acceptance.md"
+      ],
+      "risk": [
+        "比较口径变化需用户/Chief 批准；仍不提供“当前源码身份”证据。",
+        "引入冻结源码快照会新增仓储体积与维护点；若快照不全仍会缺项。"
+      ],
+      "restoresAudits": "partial（按冻结身份执行，不覆盖当前源码）",
+      "rewritesCommittedIdentity": false,
+      "eta": "1–2 天"
+    }
+  ],
+  "boundaries": [
+    "只读预检：未改历史捕获、未改 scripts/tests/fixtures/产品；未 start 主任务；未跑 G01 全脚本。",
+    "测试在 target/qa-t4-precheck/ 下创建新目录（capture_output 语义），未覆盖历史。",
+    "A/B/C 口径为按「历史捕获债务处置」定义的三种选择；若用户 A/B/C 指其他维度，可按本表同样字段替换。"
+  ]
+}
