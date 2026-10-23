@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-batch2-doc-receipt-fixup",
+  "title": {
+    "zh": "修正批次2回执追溯与门禁命令名标注",
+    "en": "Fix batch-2 receipt traceability and gate command labels"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "收尾批次 2 独立复核发现的两处差异（不阻断项）：① 用 normify fix 给 g20-p7 追加回执修正记录，写清 evidence README 于 a10aea5 添加后未再修改、回执记录的 blob ecd16262… 为交付前中间版本、权威值以提交内版本 2638ad1c… 为准，并同步刷新回执登记值；② 把批次 2 证据索引与 A10 回执中 unit 门禁命令名由 `cargo test --locked --lib` 改为 gates.toml 实际命令 `cargo test --locked`（全目标 461；--lib 单独 341），数字不动；③ 在批次 1 复核 README §9「回执口径实践」增补「门禁命令名以 gates.toml 为准」一句。不改产品/测试/容差/证据结论。",
+    "en": "Close the two non-blocking findings of the batch-2 review: append a normify fix record to g20-p7 (README added in a10aea5 and unchanged since; receipt blob ecd16262… was a pre-delivery intermediate version, authoritative value 2638ad1c… follows the commit) and refresh the registered value; correct the unit gate command label in the batch-2 evidence index and the A10 receipt from `cargo test --locked --lib` to gates.toml's `cargo test --locked` (all targets 461; --lib alone 341), keeping numbers unchanged; add one sentence to §9 of the batch-1 review README that gate command names follow gates.toml. No product/test/tolerance/conclusion changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "用 normify fix 给 2026-10-11-roadmap-g20-p7 追加修正记录：evidence README 于 a10aea5 添加后未再修改（git log 仅 a10aea5），回执原记录 blob ecd16262… 为交付前中间版本，该文件权威值以提交内版本为准 = 2638ad1c03c4a8f9b4d3400843df9fb0519958d8；只改回执登记/口径，不改证据内容。",
+    "同步刷新 g20-p7 交付回执中该 README 的 blob 登记值为 2638ad1c…，使登记与提交内版本一致且可审计。",
+    "把 docs/development-evidence/backlog-batch2/README.md 与 A10 回执中的 unit 门禁命令名改为 gates.toml 实际命令 `cargo test --locked`，并说明全目标 461、--lib 单独 341；461/0 等数字不变。",
+    "在 docs/development-evidence/batch1-independent-check/README.md §9「回执口径实践」增补：门禁命令名以 .normify/gates.toml 为准，证据/回执引用命令须与 gates.toml 一致。",
+    "gate fmt/unit 与 unchanged 通过；回执 json 含 task_id；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-23-batch2-independent-check",
+      "2026-10-11-roadmap-g20-p7",
+      "2026-10-11-roadmap-a10-p10"
+    ],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/backlog-batch2/README.md",
+      "docs/development-evidence/changes/2026-10-11-roadmap-g20-p7.json",
+      "docs/development-evidence/changes/2026-10-11-roadmap-a10-p10.json",
+      "docs/development-evidence/batch1-independent-check/README.md",
+      "docs/development-evidence/batch2-doc-receipt-fixup/",
+      "docs/development-evidence/changes/2026-10-23-batch2-doc-receipt-fixup.json",
+      ".normify/changes/"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "只做回执登记/命令名标注修正；不重写历史回执、不改证据结论与数字、不改产品/测试/容差/fixtures/脚本；不碰 Backend 正在做的批次 3 WIP（g08-p5 等）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T06:47:32.633Z",
+  "updated_at": "2026-10-23T06:47:32.633Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-batch2-doc-receipt-fixup.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-batch2-doc-receipt-fixup"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "回执已全部修正",
+        "无追溯差异"
+      ]
+    }
+  ]
+}
