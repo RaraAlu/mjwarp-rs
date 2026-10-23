@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-batch3-independent-check",
+  "title": {
+    "zh": "独立复核批次3四条交付、证据迁移与A10顺延登记",
+    "en": "Independent review of batch-3 deliveries, evidence migration and A10 deferral"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 Backend 交付的批次 3 四条（g08-p5/g18-p6/g24-p7/m10-p7）做独立复核：读 backlog-batch3 证据目录与回执、逐条核对数值/契约声明、独立复跑 lib 测试与全量测试、抽验 fixtures sha256 与 authoring、核 checks/acceptance 未放宽与模块归属；同时核对证据目录迁移（backlog-batch3 索引与实际目录一致、backlog-batch2 只剩批次 2 七条与迁移说明、g08/g18 的 normify fix 迁移记录只改路径不改证据内容、blob 不变）与 a10-p11 顺延登记（保持 proposed、无交付、note 写明阻塞与恢复条件，不得宣称交付）。只写证据目录，不改产品/测试/容差。",
+    "en": "Independently review batch-3 deliveries (g08-p5/g18-p6/g24-p7/m10-p7): read evidence and receipts, verify numeric/contract claims, rerun lib and full tests, spot-check fixtures sha256 and authoring, check checks/acceptance and module ownership; also verify evidence-directory migration (batch3 index matches dirs, batch2 keeps only its seven, migration fix records change paths only with unchanged blobs) and the a10-p11 deferral record (proposed, no delivery, blocked reason/recovery condition). Evidence-only; no product/test/tolerance changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "逐条读 docs/development-evidence/backlog-batch3/<task-id>/{README.md,authoring.json} 与回执，核对四项声明：G08 接触数 5=上游 nacon=原生 ncon（世界 0:3、1:2）、14 项接触字段 vs 上游 max 7.45e-09、原生 5.96e-08；G18 DISCRETE 18/22、max 5.96e-08、与 G16 euler 逐位等价、有效度量分支返回 UnsupportedDiscreteAcc；G24 4 场景缓冲字逐位、33 次读取 51 值逐位（max abs 0）、4 重置+SO3/QUAT 逐位、原生 mj_resetData 2.682e-09；M10 七槽位契约、Stage 1/2/3、调用计划顺序、ACTUATION 门控、7 测试，且证据 README 明确「不是阶段回调」。",
+    "独立复跑 cargo test --locked --lib narrowphase/discrete/history/callback 与 cargo test --locked 全量，记录真实通过计数；用 --nocapture 实测数值与声明对照；抽验 fixtures sha256 与 authoring.json、回执登记值一致。",
+    "核对证据目录迁移：backlog-batch3/README.md 索引与实际 4 个证据目录一致；backlog-batch2/ 只剩批次 2 七条证据目录并含迁移说明；迁移提交对 g08/g18 为 R100（内容与 blob 不变）；g08/g18 的 normify fix 迁移修正记录只改路径/登记，不改证据内容；回执中证据路径与 blob 与 HEAD/交付提交一致。",
+    "核对 a10-p11 顺延登记：保持 proposed、无 .normify/runs 与证据目录/交付回执、note 写明阻塞项与恢复条件、批次 3 索引 §2 与裁决 A 一致，不得宣称交付。",
+    "核对四条 normify show 的 checks（fmt/clippy/unit/unchanged/json/forbid_claim）与 acceptance 是否被放宽、模块归属与实际代码位置一致；结论写 docs/development-evidence/batch3-independent-check/README.md（逐项核对、复跑计数、sha256、差异与严重级别）；回执 json 含 task_id；gate fmt/unit 与 unchanged 通过；中文提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-11-roadmap-g08-p5",
+      "2026-10-11-roadmap-g18-p6",
+      "2026-10-11-roadmap-g24-p7",
+      "2026-10-11-roadmap-m10-p7",
+      "2026-10-23-batch3-evidence-index"
+    ],
+    "phase": "工程-治理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/batch3-independent-check/",
+      "docs/development-evidence/changes/2026-10-23-batch3-independent-check.json"
+    ],
+    "resources": [],
+    "priority": 1
+  },
+  "note": "只读复核 + 证据目录；不改产品/测试/容差/fixtures/回执；a10-p11 仅为顺延对象（proposed），不在本任务交付范围；不碰 Backend 正在做的批次 4（g09-p5/g10-p5/m10-p10）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T07:28:21.070Z",
+  "updated_at": "2026-10-23T07:28:21.070Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "native",
+        "include",
+        "tests",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-23-batch3-independent-check.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-23-batch3-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "四条全部通过",
+        "无差异"
+      ]
+    }
+  ]
+}
