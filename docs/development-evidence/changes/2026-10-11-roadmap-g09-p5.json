@@ -10,7 +10,7 @@
   "files": [
     {
       "path": "src/physics/collision/narrowphase.rs",
-      "blob": "94e92f5ce01089a2b98a859df528355f77a4bb3f"
+      "blob": "7e06a58e2df911e73e272be33eeff65e16ddd8ea"
     },
     {
       "path": "src/physics/collision/narrowphase/primitive.rs",
@@ -22,7 +22,7 @@
     },
     {
       "path": "src/physics/collision/narrowphase/tests/plane_box.rs",
-      "blob": "edcf59c5b295d78154e4c9359f4680cee385dd2c"
+      "blob": "109dfec963530c5150a9a57fdb3ee7e123cdec0a"
     },
     {
       "path": "src/physics/collision.rs",
@@ -50,7 +50,7 @@
     },
     {
       "path": "docs/development-evidence/backlog-batch4/2026-10-11-roadmap-g09-p5/README.md",
-      "blob": "5c11506eaf36e70c3d5f317bca4f758913549957"
+      "blob": "0ebfaf58bf081564d3fcb6840912d410d861ffc7"
     },
     {
       "path": "docs/development-evidence/backlog-batch4/2026-10-11-roadmap-g09-p5/authoring.json",
@@ -74,7 +74,7 @@
     },
     "references": {
       "model": "fixtures/plane-box/model.xml",
-      "model_sha256": "63743a8a72d2cd965ef46e2205aedec809789adf",
+      "model_sha256": "a78b15472ffe8d0e3a8f6e61b8c4512dfc94c889ceca8ea344b76dab3cdf1586",
       "ngeom": 3,
       "nworld": 7,
       "scenarios": [
@@ -93,7 +93,8 @@
     "comparison": {
       "vs_upstream": "15 接触逐字段 max abs 5.960e-08 ≤ 1e-6（按 (worldid, geom) 分组、组内顺序一致）",
       "vs_native": "dist/pos/frame max abs 1.192e-07 ≤ 1e-5；接触数逐世界一致",
-      "multi_contact_counts": "每世界 4 / 2 / 1 / 0 / 4 / 4 / 0；上游 15 = 原生 [4,2,1,0,4,4,0]"
+      "multi_contact_counts": "每世界 4 / 2 / 1 / 0 / 4 / 4 / 0；上游 15 = 原生 [4,2,1,0,4,4,0]",
+      "degenerate_rejection": "plane/sphere/box 非正/NaN/±Inf 尺寸逐项返回 InvalidGeomSize；box-box 候选返回 UnsupportedPair；新增 2 个拒绝测试"
     },
     "np_mapping": {
       "NP01": "全链 f32（角点、法线、距离、接触位置），无 f64 中间量",
@@ -107,10 +108,22 @@
       "unit": "通过（cargo test --locked 478 过 0 败；本片新增 plane-box 1 测试）"
     }
   },
-  "note": "批次 4 旧计划细化落地：G09@P5 按 Chief 边界只交不依赖 BVH 的 plane-box 凸体原语切片（8 角点多接触 + 退化薄板/边角），产品 vs 冻结上游 5.960e-08、原生 f64 1.192e-07，接触数 4/2/1/0/4/4/0；证据落 backlog-batch4。box-box、GJK/EPA、mesh/convex、CCD、hfield/SDF、GPU 登记未验收边界。",
+  "note": "批次 4 旧计划细化落地：G09@P5 按 Chief 边界只交不依赖 BVH 的 plane-box 凸体原语切片（8 角点多接触 + 退化薄板/边角），产品 vs 冻结上游 5.960e-08、原生 f64 1.192e-07，接触数 4/2/1/0/4/4/0；证据落 backlog-batch4。box-box、GJK/EPA、mesh/convex、CCD、hfield/SDF、GPU 登记未验收边界。复核修正：补 geom_size 非正/有限性校验与拒绝测试、修正 model_sha256 登记、按 QA 建议修正注释/多接触措辞并补 box-box 拒绝用例（修复任务 2026-10-23-g09-validation-gap-fix）。",
   "boundaries": [
     "不实现 box-box/capsule/cylinder/ellipsoid 等其余凸体对、GJK/EPA、mesh/convex、CCD/multiccd。",
     "不实现 hfield/SDF 地形、flex、显式 pair、collision sensor 位、EFC/约束求解、世界批量、GPU/图执行；非 plane-box 候选仍返回 UnsupportedPair。",
     "不宣称完整 G09 或 P5 验收；批次 4 中 g10-p5、m10-p10 为停手/顺延，不计交付。"
+  ],
+  "corrections": [
+    {
+      "finding": "退化尺寸校验落空：validate 只校验数组长度，无 geom_size 非正/有限性校验与拒绝测试",
+      "fix": "新增 validate_geom_sizes 与 NarrowphaseError::InvalidGeomSize；补 plane/sphere/box 0/负/NaN/±Inf 拒绝测试（验收条款落实）",
+      "task": "2026-10-23-g09-validation-gap-fix"
+    },
+    {
+      "finding": "results.references.model_sha256 误填 model.xml 的 git blob hash 63743a8a…",
+      "fix": "改为文件 sha256 a78b1547…；files blob 登记同步刷新",
+      "task": "2026-10-23-g09-validation-gap-fix"
+    }
   ]
 }

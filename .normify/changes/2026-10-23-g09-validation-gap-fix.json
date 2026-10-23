@@ -5,7 +5,7 @@
     "zh": "修复G09退化尺寸校验落空与回执sha256登记",
     "en": "Fix G09 degenerate-size validation gap and receipt sha256 registration"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "批次 4 复核发现两项一般问题并派小修：① g09-p5 acceptance 要求「退化输入（尺寸非正/非有限）显式拒绝」，但 narrowphase::validate 只校验数组长度，plane_box/primitive_narrowphase 对 geom_size 无符号/有限性校验、也无拒绝测试；补实现与拒绝测试，落实验收条款。② g09 回执 results.references.model_sha256 误填为 model.xml 的 git blob hash（63743a8a…），实际文件 sha256 为 a78b1547…；用 normify fix 修正回执登记值。另按 QA 建议修正注释措辞（三类基础几何对）、证据 README 直列 model sha256、把「去重后最多 4 接触」按上游实际（无去重，数量由 margin/gap 过滤决定）改正，并补 box-box 候选拒绝用例。范围限定 src/physics/collision/ 窄相校验 + 测试 + 证据/回执，不改其他产品路径。",
     "en": "Batch-4 review raised two general issues: (1) G09 acceptance requires explicit rejection of degenerate geom sizes but validate only checked array lengths and there was no rejection test; add size sign/finiteness validation and rejection tests. (2) G09 receipt model_sha256 was the git blob hash instead of the file sha256; fix via normify fix. Also apply QA suggestions: comment wording, list model sha256 in evidence README, correct multi-contact wording (no dedupe; count by margin/gap filtering), and add a box-box candidate rejection test. Scope limited to src/physics/collision/ narrowphase validation + tests + evidence/receipt."
@@ -33,6 +33,7 @@
       "src/physics/collision/",
       "docs/development-evidence/backlog-batch4/2026-10-11-roadmap-g09-p5/",
       "docs/development-evidence/backlog-batch4/README.md",
+      "docs/development-evidence/g09-validation-gap-fix/",
       "docs/development-evidence/changes/2026-10-11-roadmap-g09-p5.json",
       "docs/development-evidence/changes/2026-10-23-g09-validation-gap-fix.json",
       ".normify/changes/",
@@ -43,11 +44,12 @@
   },
   "note": "批次 4 复核修正：只动 src/physics/collision/ 窄相校验与测试、g09 证据/回执与批次 4 索引；不改其它产品路径、既有容差与 QA 文件；g09-p5 本身保持 verified，通过 normify fix addendum 记录修正。",
   "revision": {
-    "before": null,
+    "before": "01e64a625a419a0ac176831de56d7aee3aca465b",
     "after": null
   },
   "created_at": "2026-10-23T08:30:00.000Z",
-  "updated_at": "2026-10-23T08:30:00.000Z",
+  "updated_at": "2026-10-23T07:44:26.774Z",
+  "closed_at": "2026-10-23T07:44:26.774Z",
   "checks": [
     {
       "kind": "gate",

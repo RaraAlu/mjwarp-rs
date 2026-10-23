@@ -6,6 +6,50 @@ fn plane_box_fixture() -> Value {
     serde_json::from_str(include_str!("../../../../../fixtures/plane-box/cases.json")).unwrap()
 }
 
+fn plane_box_state(value: &Value) -> (usize, Vec<[f32; 3]>, Vec<[f32; 9]>) {
+    let mut positions = Vec::new();
+    let mut matrices = Vec::new();
+    for world in value["worlds"].as_array().unwrap() {
+        positions.extend(vec3_flat(&world["geom_xpos"]));
+        matrices.extend(vec9_flat(&world["geom_xmat"]));
+    }
+    (
+        value["nworld"].as_u64().unwrap() as usize,
+        positions,
+        matrices,
+    )
+}
+
+fn plane_box_candidates(value: &Value) -> BroadphaseOutput {
+    let candidate_value = &value["candidates"];
+    let pairs = vec2_i32_list(&candidate_value["pairs"]);
+    let pairids = vec2_i32_list(&candidate_value["pairids"]);
+    let worldids = i32_list(&candidate_value["worldids"]);
+    BroadphaseOutput {
+        ncollision: pairs.len(),
+        pairs,
+        pairids,
+        worldids,
+    }
+}
+
+/// 用冻结 fixture 的模型/状态/候选跑一次窄相。
+fn run_plane_box(
+    fixture: &Value,
+    model: &OwnedNarrowphase,
+    candidates: &BroadphaseOutput,
+) -> Result<Vec<GeomContact>, NarrowphaseError> {
+    let ngeom = fixture["narrowphase"]["ngeom"].as_u64().unwrap() as usize;
+    let nworld = fixture["nworld"].as_u64().unwrap() as usize;
+    let (_, positions, matrices) = plane_box_state(fixture);
+    let state = PrimitiveState {
+        nworld,
+        geom_xpos: &positions,
+        geom_xmat: &matrices,
+    };
+    primitive_narrowphase(&model.view(ngeom), &state, candidates)
+}
+
 /// G09：plane-box 多接触/退化场景 vs 冻结上游与原生 f64 mj_collision。
 #[test]
 fn plane_box_contacts_match_frozen_upstream_and_native() {
@@ -20,27 +64,13 @@ fn plane_box_contacts_match_frozen_upstream_and_native() {
     let native_tolerance = fixture["tolerance"]["native_abs"].as_f64().unwrap();
 
     let model = OwnedNarrowphase::new(&fixture["narrowphase"]);
-    let mut positions = Vec::new();
-    let mut matrices = Vec::new();
-    for world in fixture["worlds"].as_array().unwrap() {
-        positions.extend(vec3_flat(&world["geom_xpos"]));
-        matrices.extend(vec9_flat(&world["geom_xmat"]));
-    }
+    let (_, positions, matrices) = plane_box_state(&fixture);
     let state = PrimitiveState {
         nworld,
         geom_xpos: &positions,
         geom_xmat: &matrices,
     };
-    let candidate_value = &fixture["candidates"];
-    let pairs = vec2_i32_list(&candidate_value["pairs"]);
-    let pairids = vec2_i32_list(&candidate_value["pairids"]);
-    let worldids = i32_list(&candidate_value["worldids"]);
-    let candidates = BroadphaseOutput {
-        ncollision: pairs.len(),
-        pairs,
-        pairids,
-        worldids,
-    };
+    let candidates = plane_box_candidates(&fixture);
     let contacts = primitive_narrowphase(&model.view(ngeom), &state, &candidates).unwrap();
 
     // 1) 冻结上游接触逐字段对照（按 (worldid, geom) 分组、组内保持生成顺序）。
@@ -186,4 +216,67 @@ fn plane_box_contacts_match_frozen_upstream_and_native() {
         "plane-box contacts={} upstream_max={contact_max:.3e} native_max={native_max:.3e} counts={world_counts:?}",
         contacts.len()
     );
+}
+
+/// 退化尺寸显式拒绝：非正/NaN/Inf 的 plane/sphere/box 尺寸。
+#[test]
+fn rejects_degenerate_geom_sizes() {
+    let fixture = plane_box_fixture();
+    let candidates = plane_box_candidates(&fixture);
+    let check = |size: [f32; 3], geom_type: Option<i32>, expected_geom: usize, axis: usize| {
+        let mut model = OwnedNarrowphase::new(&fixture["narrowphase"]);
+        if let Some(geom_type) = geom_type {
+            model.geom_type[expected_geom] = geom_type;
+        }
+        model.geom_size[expected_geom] = size;
+        let error = run_plane_box(&fixture, &model, &candidates).unwrap_err();
+        assert_eq!(
+            error,
+            NarrowphaseError::InvalidGeomSize {
+                geom: expected_geom,
+                axis
+            }
+        );
+    };
+    // box（geom 1）三轴半尺寸：0 / 负 / NaN / ±Inf。
+    for bad in [0.0_f32, -0.5, f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        check([0.5, 0.4, bad], None, 1, 2);
+    }
+    check([0.0, 0.4, 0.3], None, 1, 0);
+    check([0.5, -0.1, 0.3], None, 1, 1);
+    // sphere（把 geom 1 改为 sphere）：半径 0 / 负 / NaN / Inf。
+    for bad in [0.0_f32, -0.1, f32::NAN, f32::INFINITY] {
+        check([bad, 0.0, 0.0], Some(GEOM_SPHERE), 1, 0);
+    }
+    // plane（geom 0）：x/y 非正、z 负、NaN/Inf。
+    check([0.0, 5.0, 0.1], None, 0, 0);
+    check([5.0, -1.0, 0.1], None, 0, 1);
+    check([5.0, 5.0, -0.1], None, 0, 2);
+    check([f32::NAN, 5.0, 0.1], None, 0, 0);
+    check([5.0, f32::INFINITY, 0.1], None, 0, 1);
+    // 合法 fixture 仍通过。
+    let model = OwnedNarrowphase::new(&fixture["narrowphase"]);
+    assert!(run_plane_box(&fixture, &model, &candidates).is_ok());
+}
+
+/// box-box 候选显式拒绝；fixture 候选仅含 plane-box 对。
+#[test]
+fn rejects_box_box_candidates() {
+    let fixture = plane_box_fixture();
+    let mut candidates = plane_box_candidates(&fixture);
+    for pair in &candidates.pairs {
+        assert_eq!(pair[0], GEOM_PLANE, "fixture 候选只应含 plane-box 对");
+    }
+    candidates.pairs[0] = [1, 2];
+    candidates.worldids[0] = 0;
+    let model = OwnedNarrowphase::new(&fixture["narrowphase"]);
+    let error = run_plane_box(&fixture, &model, &candidates).unwrap_err();
+    assert!(matches!(
+        error,
+        NarrowphaseError::UnsupportedPair {
+            index: 0,
+            geom_type1: GEOM_BOX,
+            geom_type2: GEOM_BOX,
+        }
+    ));
 }

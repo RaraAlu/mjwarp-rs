@@ -94,6 +94,8 @@ pub enum NarrowphaseError {
         index: usize,
         limit: usize,
     },
+    /// 受支持几何的尺寸非正或非有限（退化输入显式拒绝）。
+    InvalidGeomSize { geom: usize, axis: usize },
 }
 
 impl std::fmt::Display for NarrowphaseError {
@@ -120,6 +122,9 @@ impl std::fmt::Display for NarrowphaseError {
                 index,
                 limit,
             } => write!(formatter, "索引越界：{field}[{index}]，上限 {limit}"),
+            Self::InvalidGeomSize { geom, axis } => {
+                write!(formatter, "几何尺寸非正或非有限：geom_size[{geom}][{axis}]")
+            }
         }
     }
 }
@@ -156,46 +161,8 @@ fn geom_slice(
     Ok(())
 }
 
-fn validate(
-    model: &PrimitiveModel<'_>,
-    state: &PrimitiveState<'_>,
-) -> Result<(), NarrowphaseError> {
-    let ngeom = model.ngeom;
-    for (field, actual) in [
-        ("geom_type", model.geom_type.len()),
-        ("geom_condim", model.geom_condim.len()),
-        ("geom_priority", model.geom_priority.len()),
-        ("geom_solmix", model.geom_solmix.len()),
-        ("geom_solref", model.geom_solref.len()),
-        ("geom_solimp", model.geom_solimp.len()),
-        ("geom_friction", model.geom_friction.len()),
-        ("geom_margin", model.geom_margin.len()),
-        ("geom_gap", model.geom_gap.len()),
-        ("geom_adhesion", model.geom_adhesion.len()),
-        ("geom_size", model.geom_size.len()),
-    ] {
-        if actual != ngeom {
-            return Err(NarrowphaseError::InvalidLength {
-                field,
-                expected: ngeom,
-                actual,
-            });
-        }
-    }
-    for (field, actual) in [
-        ("geom_xpos", state.geom_xpos.len()),
-        ("geom_xmat", state.geom_xmat.len()),
-    ] {
-        if actual != state.nworld * ngeom {
-            return Err(NarrowphaseError::InvalidLength {
-                field,
-                expected: state.nworld * ngeom,
-                actual,
-            });
-        }
-    }
-    Ok(())
-}
+mod validate;
+use validate::validate;
 
 fn material_params(
     model: &PrimitiveModel<'_>,
@@ -319,7 +286,7 @@ fn write_contact(
     });
 }
 
-/// 上游 `primitive_narrowphase` 的两类基础几何对（plane-sphere / sphere-sphere）。
+/// 上游 `primitive_narrowphase` 的三类基础几何对（plane-sphere / plane-box / sphere-sphere）。
 pub fn primitive_narrowphase(
     model: &PrimitiveModel<'_>,
     state: &PrimitiveState<'_>,

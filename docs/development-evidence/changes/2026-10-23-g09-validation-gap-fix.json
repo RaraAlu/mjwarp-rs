@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-23-g09-validation-gap-fix",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    {
+      "path": "src/physics/collision/narrowphase.rs",
+      "blob": "7e06a58e2df911e73e272be33eeff65e16ddd8ea"
+    },
+    {
+      "path": "src/physics/collision/narrowphase/validate.rs",
+      "blob": "1078329181cffffa68e8903033d000f8dd1cfa5c"
+    },
+    {
+      "path": "src/physics/collision/narrowphase/tests/plane_box.rs",
+      "blob": "109dfec963530c5150a9a57fdb3ee7e123cdec0a"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch4/2026-10-11-roadmap-g09-p5/README.md",
+      "blob": "0ebfaf58bf081564d3fcb6840912d410d861ffc7"
+    },
+    {
+      "path": "docs/development-evidence/changes/2026-10-11-roadmap-g09-p5.json",
+      "blob": "52d4fbc1e9962cd0c96d138f17b098f938ab6412"
+    },
+    {
+      "path": "docs/development-evidence/backlog-batch4/README.md",
+      "blob": "93d8a890e0e730fe7be725ca4e6d3b787ad02acd"
+    },
+    {
+      "path": "docs/development-evidence/g09-validation-gap-fix/README.md",
+      "blob": "b8abca3a4a5ba545dddd390f5e9343b3f4ef7812"
+    },
+    {
+      "path": ".normify/modules/mjwarp/physics/core.md",
+      "blob": "4816486fbd0477d62d8a51e47ca4c24189f9ca5f"
+    }
+  ],
+  "results": {
+    "findings_fixed": [
+      "退化尺寸校验落空：新增 validate_geom_sizes + NarrowphaseError::InvalidGeomSize，窄相入口显式拒绝 plane/sphere/box 的非正/NaN/±Inf 尺寸（验收条款落实）。",
+      "g09 回执 model_sha256 误填 git blob hash：改为文件 sha256 a78b15472ffe8d0e3a8f6e61b8c4512dfc94c889ceca8ea344b76dab3cdf1586，files blob 同步刷新。"
+    ],
+    "qa_suggestions_applied": [
+      "primitive_narrowphase 注释改为「三类基础几何对」（plane-sphere / plane-box / sphere-sphere）。",
+      "g09 证据 README 直列 model sha256；多接触措辞改为「上游无去重步骤，8 候选全部参与，数量由 margin/gap 过滤决定（面/棱/角 4/2/1）」。",
+      "新增 box-box 候选拒绝测试并说明 fixture 候选只含 plane-box 对。"
+    ],
+    "tests": {
+      "plane_box": "3 过 0 败（对照 + 退化尺寸拒绝 + box-box 拒绝）",
+      "lib": "360 过 0 败"
+    },
+    "physics_numbers_unchanged": "15 接触、逐世界 4/2/1/0/4/4/0、上游 5.960e-08、原生 1.192e-07 全部保持成立",
+    "gates": {
+      "fmt": "通过（cargo fmt --check）",
+      "clippy": "通过（cargo clippy --all-targets --locked -- -D warnings）",
+      "unit": "通过（cargo test --locked 480 过 0 败；新增 2 拒绝测试）"
+    }
+  },
+  "note": "批次 4 复核修正：补 geom_size 非正/有限性校验与拒绝测试（落实验收条款）、修正 g09 回执 model_sha256 登记、按 QA 建议修正注释/多接触措辞并补 box-box 拒绝用例；g09-p5 本身保持 verified，随后用 normify fix 追加修正记录。未改变任何物理数字与既有容差/断言。",
+  "boundaries": [
+    "只改 src/physics/collision/ 窄相校验与测试、g09 证据/回执与批次 4 索引；不改其他产品路径、fixtures/authoring 脚本与 QA 文件。",
+    "未新增几何对支持；box-box 等未支持对仍显式返回 UnsupportedPair；不宣称完整 G09/P5 验收。"
+  ]
+}

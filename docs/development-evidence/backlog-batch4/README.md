@@ -34,7 +34,16 @@ g09-p5 属批次 4，证据与目录均在 `backlog-batch4/` 下。
 两条均已登记 note；不宣称交付，不计入批次完成数。与 `r01-p8`、`a10-p11` 同属
 「因引擎能力缺失而顺延」清单，最终汇总统一列出。
 
-## 3. 批次门禁与状态
+
+## 2.1 复核修正（已修，2026-10-23）
+
+- `g09-p5`：复核发现①退化尺寸校验落空 → 补 `validate_geom_sizes`/`InvalidGeomSize`
+  与 plane/sphere/box 的 0/负/NaN/±Inf 拒绝测试、补 box-box 候选拒绝用例；
+  ②回执 `results.references.model_sha256` 由 git blob hash 改为文件 sha256
+  `a78b1547…`；按 QA 建议修正「三类基础几何对」注释与「去重后最多 4 接触」措辞
+  （上游无去重，数量由 margin/gap 过滤决定）。
+- 修复任务：`2026-10-23-g09-validation-gap-fix`；`g09-p5` 保持 verified，经
+  `normify fix` 追加修正记录。核心数字（15 接触 / 4-2-1-0 / 5.960e-08 / 1.192e-07）不变。## 3. 批次门禁与状态
 
 - `cargo fmt --check`：通过；`cargo clippy --all-targets -- -D warnings`：通过。
 - `cargo test --locked`（gates.unit，全目标）：见同批门禁记录（G09 交付时实测）。
