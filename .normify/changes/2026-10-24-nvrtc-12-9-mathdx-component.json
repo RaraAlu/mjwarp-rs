@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-nvrtc-12-9-mathdx-component",
+  "title": {
+    "zh": "引入NVRTC 12.9.86组件并接MathDx路径",
+    "en": "Add the pinned NVRTC 12.9.86 component and wire it to the MathDx path"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 MathDx 落地任务的实测发现收口两个缺口：① 把 libmathdx 0.3.1 需要的 NVRTC 12.9.86 按组件模式固定并只落地 target/（当前它只存在于 W13 诊断目录 target/w13/diag-12.9.86，不可复现）；② 让 MathDx 绑定与探针显式使用该 pinned NVRTC 12.9.86（libmathdx 内部调 NVRTC 生成 LTOIR，12.8.93 产出 1,035,080 B 不匹配、12.9.86 产出 1,034,872 B 匹配冻结证据）。现有产品内核编译路径仍用 12.8.93，不全局升级；不改 G01 脚本与排除清单。",
+    "en": "Close the two gaps found by the MathDx delivery: (1) pin the NVRTC 12.9.86 that libmathdx 0.3.1 needs as a prepared component under target/ (it currently exists only in the W13 diagnostic directory target/w13/diag-12.9.86 and is not reproducible); (2) make the MathDx binding and probe explicitly use that pinned NVRTC 12.9.86 (libmathdx calls NVRTC internally to generate LTOIR: 12.8.93 yields 1,035,080 B mismatch, 12.9.86 yields 1,034,872 B matching the frozen evidence). The existing product kernel compile path keeps NVRTC 12.8.93; no global upgrade; no G01 script or exclusion-list changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "scripts/prepare-cuda-probe.ps1 按既有组件模式新增 cuda_nvrtc 12.9.86（CUDA 12.9.1 redist：https://developer.download.nvidia.com/compute/cuda/redist/cuda_nvrtc/windows-x86_64/cuda_nvrtc-windows-x86_64-12.9.86-archive.zip，大小 314,608,748 字节，sha256 1aa0644fa53c8ca34cdc73db17bcc73530557bdd3f582c7bfdbd7916c8b48f65），校验后只解包到 target/toolchains/cuda-12.9.1-nvrtc/（gitignored），记录组件 json（版本/URL/size/sha256/关键 DLL 摘要）；校验失败即报错。",
+    "MathDx 绑定与探针显式使用 pinned NVRTC 12.9.86：通过显式目录或环境变量解析（如 MATHDX_NVRTC_DIR / 预留 CUDA_PATH 组合），不得再依赖 target/w13/diag-12.9.86；缺组件时显式报错，不静默回退到 12.8.93。",
+    "重新验证冻结对照：mathdx 求解器探针在 pinned NVRTC 12.9.86 下复现 LTOIR 1,034,872 B（sha256 98c01ce6…）、FATBIN 506,960 B（c00d6412…）、CUBIN 2,086,544 B（de660b5d…）、设备输出 104,528 B（51e1a99b…）、8 次发射；重复生成/链接摘要一致。",
+    "在 G01 环境（CUDA_PATH=target/toolchains/cuda-12.8.1）下探针也须通过（pinned 12.9.86 从显式路径解析，与 CUDA_PATH 解耦）；若无法满足，停手报 Chief 并写明原因，不改 scripts/test-windows-g01.ps1 与排除清单。",
+    "证据更新 docs/development-evidence/mathdx-lto/（component.json 加 NVRTC 记录；README 写明：libmathdx 把进程工作目录写进 LTOIR（CWD 影响位型）、NVRTC 版本决定 LTOIR 字节、跨目录/跨机位稳定不成立、产品 API 不 chdir、探针切目录仅测试内）；门禁 fmt/clippy/clippy-cuda/unit 全过；中文 path-limited 提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-mathdx-solver-lto"
+    ],
+    "phase": "M7-编译路线",
+    "owner": "Backend",
+    "files": [
+      "scripts/prepare-cuda-probe.ps1",
+      "src/runtime/launcher",
+      "tests/",
+      "docs/development-evidence/mathdx-lto/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 10
+  },
+  "note": "2026-10-24 Backend 实测发现：libmathdx 0.3.1 的求解器 API 内部调用 NVRTC 生成 LTOIR；12.8.93 产出 1,035,080 B（不匹配冻结证据），12.9.86 产出 1,034,872 B（匹配）。NVRTC 12.9.86 目前来自 W13 诊断目录 target/w13/diag-12.9.86，未纳入 prepare 脚本，G01 环境（CUDA_PATH=12.8.1）跑 all-probes 会因版本不匹配失败。本任务把 12.9.86 组件化并显式接给 MathDx 路径；现有产品内核仍用 12.8.93，不做全局升级。完成后由 QA 另立任务复跑 G01 双模式。许可/再分发口径不变（SDK 二进制只在 target/，产品分发另议）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-23T19:30:00.000Z",
+  "updated_at": "2026-10-23T19:30:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mathdx-lto/component.json",
+      "pointer": "/nvrtc/version",
+      "equals": "12.9.86"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "Linux已验收",
+        "全局已升级NVRTC"
+      ]
+    }
+  ]
+}
