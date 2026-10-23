@@ -2,7 +2,7 @@
 uid = "ece0669c"
 id = "mjwarp.physics.core"
 tags = ["planned", "engine", "physics"]
-fingerprint = "6d48ba3ba10110d1c05595b26e2547eff840784b028751719f3c77d43c4fa114"
+fingerprint = "66b8aeb21495f10ef5af3f03dff613d3bdefe252322cba913ff799f878b453a9"
 
 [name]
 zh = "物理阶段与基础探针"

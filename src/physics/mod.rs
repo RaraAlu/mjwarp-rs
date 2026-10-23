@@ -7,6 +7,12 @@ pub use actuator::{
     JointActuatorModel, JointTransmission, JointTransmissionData, TRN_JOINT, fwd_actuation,
     transmission,
 };
+mod collision;
+pub use collision::{
+    BroadphaseError, BroadphaseFilter, BroadphaseModel, BroadphaseOptions, BroadphaseOutput,
+    BroadphaseState, BroadphaseType, GEOM_MESH, GEOM_PLANE, GeomPair, nxn_broadphase,
+    sap_broadphase,
+};
 mod constants;
 pub use constants::{
     FixedConstants, FixedConstantsInput, QposDependentConstants, QposDependentInput, set_const_0,

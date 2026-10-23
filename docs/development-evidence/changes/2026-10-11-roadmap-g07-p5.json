@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "kind": "delivery",
+  "task_id": "2026-10-11-roadmap-g07-p5",
+  "milestones": {
+    "implementation": "complete",
+    "validation": "passed",
+    "delivery_record": "pending_commit"
+  },
+  "files": [
+    { "path": "src/physics/collision.rs", "blob": "bda73598a3ecdf857844295368a486b85c7e0d52" },
+    { "path": "src/physics/collision/filter.rs", "blob": "60607b8ad220d1607bef9daa3a48ad45cd5f037b" },
+    { "path": "src/physics/collision/nxn.rs", "blob": "064323f74294a79e092d89c7cc5af4577ad508e3" },
+    { "path": "src/physics/collision/sap.rs", "blob": "2c2571ee61ef69aa81b859fe0f128088adcaa845" },
+    { "path": "src/physics/collision/tests.rs", "blob": "25cafe88768e4b5c5251ea1741c54c1c5009dae1" },
+    { "path": "src/physics/mod.rs", "blob": "393fbae1fdb8f683f36c36bc428ac6a7cd350c34" },
+    { "path": "fixtures/broadphase/mixed.xml", "blob": "84778d82fc221f3bb03e5f229a0b53a59cc86bc6" },
+    { "path": "fixtures/broadphase/filters.xml", "blob": "5591420c632965abc088f32b4b93e9aa3be633c7" },
+    { "path": "fixtures/broadphase/margin.xml", "blob": "34c1d423b3ec80c2875cdec724b19fdc536a2847" },
+    { "path": "fixtures/broadphase/mesh.xml", "blob": "078c88ef53a52dcb66b71ac407d70547c13f03d1" },
+    { "path": "fixtures/broadphase/broadphase-cases.json", "blob": "2155fa47f1d7b56d58af033906e6c28ccb0d0905" },
+    { "path": "scripts/authoring/author-g07-broadphase.ps1", "blob": "264b81fa2478fb17b4da84b17b8d5454e6039b85" },
+    { "path": "scripts/authoring/author-g07-broadphase.py", "blob": "b83d3558d2af718a8a7b355fc662d9cc9dcf4a4d" },
+    { "path": "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g07-p5/README.md", "blob": "071f854c484d8919772a796bf05150c1085d69b5" },
+    { "path": "docs/development-evidence/backlog-batch2/2026-10-11-roadmap-g07-p5/authoring.json", "blob": "54b3a1b63316b98977f5fa65a887f65bc62176ed" },
+    { "path": ".normify/modules/mjwarp/physics/core.md", "blob": "553e630adc11bd04348bf9c288d9f94e28bd5008" }
+  ],
+  "results": {
+    "slice": {
+      "family": "G07 宽相碰撞",
+      "phase": "P5（候选完整性与容量边界）",
+      "planned_api": "mjwarp_rs::physics::collision::{nxn_broadphase, sap_broadphase}（U007/U008；G07～G11；P5/P7）",
+      "delivered": "宿主侧宽相候选生成：NXN 对表遍历 + SAP 投影排序扫描，四位过滤、排除对、缺失 mesh、collision sensor 强制包含、naconmax 容量截断"
+    },
+    "references": {
+      "models": [
+        "fixtures/broadphase/mixed.xml",
+        "fixtures/broadphase/filters.xml",
+        "fixtures/broadphase/margin.xml",
+        "fixtures/broadphase/mesh.xml"
+      ],
+      "model_variants": 10,
+      "cases": 47,
+      "modes": { "NXN": 34, "SAP_TILE": 7, "SAP_SEGMENTED": 6 },
+      "filters": { "ALL": 31, "PLANE": 4, "PLANE_SPHERE": 4, "PLANE_AABB": 4, "PLANE_OBB": 4 },
+      "capacity_cases": 2,
+      "multi_world_cases": 4,
+      "native": "MuJoCo 3.15.0 逐世界 mj_kinematics+mj_collision（f64，一级）",
+      "upstream": "mujoco_warp 3.15.0 @ 71da24d956378a87a703b6e1442b13aec0c4ac29，Warp 1.15.0，nxn_broadphase/sap_broadphase（二级）"
+    },
+    "comparison": {
+      "product_vs_upstream": "47 用例 ncollision 全部相等；候选 (worldid, pair, pairid) 规范化多集合逐案相等",
+      "mode_agreement": "mixed 4 keyframe 的 NXN/SAP_TILE/SAP_SEGMENTED 候选集合相等；filters-near 与 mesh 缺失的 NXN/SAP 相等",
+      "capacity": "2 用例 naconmax=1：ncollision=4 不截断，写出 1 条且属于全容量候选集合，三条输出数组长度同步为 1",
+      "native_cross_check": "27 例原生对照：原生接触对 27 条全部包含在候选集中（0 缺失）；边距 6 用例候选计数与原生接触计数逐案相等",
+      "missing_mesh": "世界批量 geom_dataid：世界 0（-1）零候选，世界 1 产生 [0,1]，ncollision=1",
+      "ordering": "上游候选写出顺序由原子计数决定（非确定性），本片按 (worldid, pair, pairid) 规范化比较"
+    },
+    "np_mapping": {
+      "NP01": "全链 f32，无 f64 中间量",
+      "NP02": "记录冻结提交/函数/四个模型 sha256/环境与用例形状",
+      "NP03": "两级判定：原生 f64 接触包含性 27/27 与边距 6/6 先行，MJWarp f32 二级逐案候选集合相等",
+      "NP04": "不适用/未测"
+    },
+    "gates": {
+      "fmt": "通过",
+      "clippy": "通过（--all-targets -D warnings，exit 0）",
+      "unit": "通过（cargo test --locked --lib：322 过 0 败，其中 collision 5 过）"
+    }
+  },
+  "note": "批次 2 旧计划细化落地：G07@P5 按计划 API U007/U008 交付宿主侧宽相候选生成（NXN + 两类 SAP），复刻四位过滤、排除对、世界批量缺失 mesh、collision sensor 强制包含与 naconmax 容量截断；47 用例与冻结上游候选集合逐案相等，原生 f64 接触对包含性 27/27、边距计数 6/6。SLEEP、incremental awake、AABB/rbound/margin/gap 世界批量语义、窄相与 GPU 内核登记为未验收边界。未改既有产品路径、容差与测试。",
+  "boundaries": [
+    "未实现 SLEEP 睡眠跳过（enableflags.SLEEP + body_awake）与 incremental awake 复跑（awake_prev）。",
+    "AABB/rbound/margin/gap 的世界批量语义未验收（按 world % batches 取批，参考只用单批）；geom_dataid 批量按上游语义实现。",
+    "未实现 collision() 完整驱动、窄相（primitive/convex/SDF/flex）、接触写入、naconmax 溢出告警与 CUDA 图条件。",
+    "无 GPU 内核/图执行；不宣称完整 G07 或 P5 验收通过；NP04 未测。"
+  ]
+}
