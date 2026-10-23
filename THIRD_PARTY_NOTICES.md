@@ -330,3 +330,26 @@ CCCL另含开源许可通知。
 CUDA SDK 头（`cuda_fp16.h` 等）不复制进仓，按本机 CUDA 12.8.1 工具链固定。
 `cuda_fp16.h` 摘要与 include 路径进入编译产物键。
 本说明不选择项目总许可，只登记分发义务与来源。
+
+## nvJitLink 动态绑定（W13）
+
+`src/runtime/launcher/jitlink.rs` 手写 nvJitLink C ABI。
+它只在 `cuda-probe` feature 下编译。
+本项目不复制 nvJitLink 头文件或源码。
+运行期动态加载 NVIDIA 二进制库。
+组件：NVIDIA CUDA `libnvjitlink` 12.9.86。
+来源：CUDA 12.9.1 官方 redist 清单。
+压缩包 SHA-256：`ee7175da9628d47ccc92dce6d28d57ca77633e79079a2aee90e2a645edcd1384`。
+许可：CUDA Toolkit EULA（清单标为 `CUDA Toolkit`）。
+许可原文按组件随附 `LICENSE` 原样保存。
+本地许可：`LICENSES/CUDA-Toolkit-EULA-12.9.86.txt`。
+原文 SHA-256：`72c22161fc1ebf242443d45158a7dd382d68597b00eeb7a7f539be5c6114be33`。
+二进制只存放于 `target/` 忽略目录。
+本项目不提交该二进制库。
+再分发边界本轮未做结论。
+
+动态加载使用 `libloading` 0.8.8。
+其许可为 ISC，原已由 cudarc 引入。
+
+[CUDA 12.9.1 清单](https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.9.1.json)
+[W13 落地记录](docs/development-evidence/w13-nvjitlink/README.md)

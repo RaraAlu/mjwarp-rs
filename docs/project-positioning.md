@@ -315,6 +315,7 @@ P0-08只登记版本、许可与部署边界。
 | --- | --- | --- | --- | --- |
 | Rust工具链 | 1.99.0，锁定于`rust-toolchain.toml` | Rust标准许可 | 构建期依赖 | 升级须单独评审 |
 | cudarc | 0.18.2，锁定于`Cargo.lock` | MIT或Apache-2.0 | Rust绑定，运行时动态加载CUDA库 | 只经发射器与底座使用 |
+| libloading | 0.8.8，锁定于`Cargo.lock` | ISC | Rust动态加载，供nvJitLink绑定 | 仅cuda-probe启用；原已由cudarc引入 |
 | NVIDIA驱动 | 测试机596.36 | NVIDIA驱动许可 | 用户系统提供，不随产品分发 | 版本门槛待冻结 |
 | CUDA运行时 | 12.8.1，`cudart64_12.dll` | CUDA Toolkit EULA | 由动态加载发现 | 再分发边界待决 |
 | NVRTC | 12.8.1，`nvrtc64_120_0.dll`等 | CUDA Toolkit EULA | 运行时编译内核 | 再分发边界待决 |
@@ -322,10 +323,10 @@ P0-08只登记版本、许可与部署边界。
 | 冻结MJWarp | 提交`71da24d956378a87a703b6e1442b13aec0c4ac29` | Apache-2.0 | 只读参考与公式移植 | 不进入运行时 |
 | Warp | v1.15.0，提交`ffa038b1adf3927a8e893d4536f1a7562f17d749` | Apache-2.0 | 仅离线证据链 | 产品链不依赖 |
 | cubecl | git提交`1f73b9f63de50a17398c1d5278e2a5f11612c7e1` | 待核对（仓库未登记） | 仅探针feature启用 | 默认构建不启用 |
-| nvJitLink | 未引入 | CUDA Toolkit EULA，待核 | 未部署 | W13评审有条件批准，实施另立任务 |
+| nvJitLink | 12.9.86（CUDA 12.9.1清单），`nvJitLink_120_0.dll` | CUDA Toolkit EULA，原文见`LICENSES/CUDA-Toolkit-EULA-12.9.86.txt` | 构建缓存于`target/toolchains`；运行期从`CUDA_PATH/bin`或显式目录加载并核对版本 | W13仅Windows验收；再分发边界待决 |
 
-- 本地许可目录只有`LICENSES/Apache-2.0.txt`。
-- CUDA组件许可未登记到本地目录。
+- 本地许可目录含Apache-2.0、Warp 1.15.0许可与nvJitLink 12.9.86随附EULA。
+- 其余CUDA 12.8.1组件许可未登记到本地目录。
 - MuJoCo专属通知与冻结上游归属见`THIRD_PARTY_NOTICES.md`。
 - 表中的“待决”“待核”均为未完成项。
 - 它们不得由实现方自行标注为已解决。
@@ -363,8 +364,8 @@ P0-08只登记版本、许可与部署边界。
 
 ### 部署与未测项
 
-已实测：CUDA 12.8.1的NVRTC与cudart、MuJoCo 3.12.0的 DLL、RTX 4070 Ti SUPER与驱动596.36、G01历史双平台验收。
-未测：Linux锁版工具链验证、release部署、nvJitLink部署、跨机器动态库发现、许可再分发确认。
+已实测：CUDA 12.8.1的NVRTC与cudart、nvJitLink 12.9.86的Windows绑定与链接对照、MuJoCo 3.12.0的 DLL、RTX 4070 Ti SUPER与驱动596.36、G01历史双平台验收。
+未测：Linux锁版工具链验证、release部署、nvJitLink的Linux部署、跨机器动态库发现、许可再分发确认。
 NP状态见[精度契约](numerical-precision-contract.md)。
 本节不改变任何NP验收状态。
 

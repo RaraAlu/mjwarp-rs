@@ -210,7 +210,7 @@ std, driver, nvrtc, dynamic-loading, cuda-12000
 
 | 能力 | 影响 |
 | --- | --- |
-| nvJitLink绑定 | MathDx的LTO无法链接 |
+| nvJitLink绑定 | MathDx的LTO无法链接；W13已于2026-10-24落地自建绑定 |
 | Warp参数类型 | 需要自建`repr(C)`结构 |
 | 模块缓存 | 需要自建两层缓存 |
 | Warp头文件 | 编译上游源码需另备 |
@@ -879,7 +879,7 @@ impl ExecGraph {
 | W10 | 节点槽位更新 | W04、W08、C4冻结 | 替代裸地址替换 |
 | W11 | 预分配`Data`显存 | W06 | 捕获期间禁止分配 |
 | W12 | 条件图节点 | W09、feature升级 | G14、G15迭代 |
-| W13 | nvJitLink动态绑定 | 无 | cudarc不含此库 |
+| W13 | nvJitLink动态绑定 | 无 | 已落地：自建动态绑定，钉nvJitLink 12.9.86（仅Windows验收） |
 | W14 | 共享内存与tile发射 | W04 | 已落地：静态`__shared__`与tile发射约束（产品内核未切换） |
 | W15 | Warp头文件管理 | W13（LTO链接时） | 已落地：上游头文件原样复制（36文件） |
 | W16 | 编译开销实测 | 无 | 确定缓存优先级 |
@@ -896,6 +896,8 @@ W15取决于内核来源决议。
 若只加载冻结PTX，则不需要W15。
 
 2026-10-23 评审状态：W13 有条件批准、实施延后（`docs/development-evidence/layers-w13.md`）；W14 tile 约束已落地（`layers-w14.md`）；W15 已落地（`include/warp-headers` 36文件，`docs/development-evidence/w15-verbatim-headers/`），产品内核来源未切换。
+
+2026-10-24 W13 落地：`src/runtime/launcher/jitlink.rs` 手写 C ABI 加动态加载，钉 nvJitLink 12.9.86（与冻结 Warp 1.15.0 内置链接器同版；12.8.93 不能读取冻结 MathDx LTO）；冻结输入下设备输出与离线证据逐字节一致（`docs/development-evidence/w13-nvjitlink/`）。Linux 并入集中回测。
 
 ## 迁移步骤
 
@@ -1005,7 +1007,7 @@ M3之前不改变同步语义。
 | L2 | 并入发射器；保留摘要核验 |
 | L3 | 探针命令保留；图能力按C4重写 |
 | L4 | 待决：保留探针或移除 |
-| L5 | 保持仓外；W13完成后再评估 |
+| L5 | 保持仓外；W13已落地，接入另行评估 |
 
 ## 待决与待核实
 
@@ -1013,7 +1015,7 @@ M3之前不改变同步语义。
 - feature升至`cuda-12030`以上的影响。
 - CubeCL探针是否继续保留。
 - 产品内核来源：手写移植与冻结PTX 保留；W15 头文件原样复制已落地为第三条来源的编译前置，产品内核切换另行评审。
-- nvJitLink的许可与部署方式（W13 已有条件批准、实施延后，待用户裁决）。
+- nvJitLink再分发边界（W13 已按构建缓存部署 12.9.86 并登记许可原文；再分发未做结论）。
 - 多线程宿主调用的上下文策略。
 - 粘滞错误的判定清单。
 

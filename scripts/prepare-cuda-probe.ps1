@@ -10,14 +10,31 @@ New-Item -ItemType Directory -Path $downloads -Force | Out-Null
 # 只安装项目私有文件。
 # 脚本不改全局PATH，不启动Python。
 $base = 'https://developer.download.nvidia.com/compute/cuda/redist/'
-$manifestUrl = $base + 'redistrib_12.8.1.json'
-$manifest = Invoke-RestMethod -Uri $manifestUrl
-if ($manifest.release_label -ne '12.8.1') {
-    throw 'CUDA清单版本不匹配'
+$manifests = @{}
+foreach ($release in @('12.8.1', '12.9.1')) {
+    $manifests[$release] = Invoke-RestMethod -Uri ($base + 'redistrib_' + $release + '.json')
+    if ($manifests[$release].release_label -ne $release) {
+        throw "CUDA清单版本不匹配：$release"
+    }
 }
+# W13：nvJitLink 取 12.9.1 清单的 12.9.86。
+# 它与冻结 Warp 1.15.0 内置链接器同版。
+# 12.8 链接器不能读取 12.9 生成的 LTOIR。
+# 其余组件仍属 12.8.1，现有内核不变。
+$components = @(
+    @{ name = 'cuda_nvrtc'; release = '12.8.1'; version = $null },
+    @{ name = 'cuda_cudart'; release = '12.8.1'; version = $null },
+    @{ name = 'cuda_cccl'; release = '12.8.1'; version = $null },
+    @{ name = 'cuda_nvcc'; release = '12.8.1'; version = $null },
+    @{ name = 'libnvjitlink'; release = '12.9.1'; version = '12.9.86' }
+)
 $records = @()
-foreach ($name in @('cuda_nvrtc', 'cuda_cudart', 'cuda_cccl', 'cuda_nvcc')) {
-    $component = $manifest.$name
+foreach ($entry in $components) {
+    $name = $entry.name
+    $component = $manifests[$entry.release].$name
+    if ($entry.version -and $component.version -ne $entry.version) {
+        throw "CUDA组件版本不符：$name"
+    }
     $archive = $component.'windows-x86_64'
     if (-not $archive -or $archive.sha256 -notmatch '^[a-f0-9]{64}$' -or
         $archive.relative_path -notmatch ('^' + $name + '/windows-x86_64/[a-zA-Z0-9_.-]+\.zip$')) {
@@ -32,7 +49,9 @@ foreach ($name in @('cuda_nvrtc', 'cuda_cudart', 'cuda_cccl', 'cuda_nvcc')) {
     if ($hash -ne $archive.sha256) {
         throw "CUDA组件校验失败：$name"
     }
-    $unpacked = Join-Path $destination $name
+    # 跨清单组件按版本解包，避免复用旧版目录。
+    $folderName = if ($entry.version) { $name + '-' + $entry.version } else { $name }
+    $unpacked = Join-Path $destination $folderName
     if (-not (Test-Path -LiteralPath $unpacked)) {
         Expand-Archive -LiteralPath $file -DestinationPath $unpacked
     }
@@ -48,7 +67,16 @@ foreach ($name in @('cuda_nvrtc', 'cuda_cudart', 'cuda_cccl', 'cuda_nvcc')) {
             Get-ChildItem -LiteralPath $source | Copy-Item -Destination $target -Recurse -Force
         }
     }
-    $records += [ordered]@{ component = $name; version = $component.version; license = $component.license; url = $base + $archive.relative_path; sha256 = $hash }
+    # 保留组件随附许可原文，供通知核对。
+    $licenseText = Join-Path $package[0].FullName 'LICENSE'
+    $licenseHash = $null
+    if (Test-Path -LiteralPath $licenseText) {
+        $licenses = Join-Path $destination 'licenses'
+        New-Item -ItemType Directory -Path $licenses -Force | Out-Null
+        Copy-Item -LiteralPath $licenseText -Destination (Join-Path $licenses ($name + '-LICENSE.txt')) -Force
+        $licenseHash = (Get-FileHash -LiteralPath $licenseText -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+    $records += [ordered]@{ component = $name; release = $entry.release; version = $component.version; license = $component.license; license_sha256 = $licenseHash; url = $base + $archive.relative_path; sha256 = $hash }
 }
 $records | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $destination 'components.json') -Encoding utf8
 Write-Host "CUDA_PATH=$destination"

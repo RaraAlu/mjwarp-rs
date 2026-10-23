@@ -13,6 +13,8 @@ mod checked;
 #[cfg(feature = "cuda-probe")]
 mod frozen;
 mod graph;
+#[cfg(feature = "cuda-probe")]
+mod jitlink;
 mod launch;
 #[cfg(feature = "cuda-probe")]
 mod module;
@@ -34,6 +36,11 @@ pub use frozen::FrozenPtx;
 pub use graph::{
     Allocation, CaptureGuard, CaptureHost, CapturedGraph, CapturedNode, GraphInstance, GraphState,
     NodeId, RecycleId, ReplayId, SlotUpdate,
+};
+#[cfg(feature = "cuda-probe")]
+pub use jitlink::{
+    LinkInput, LinkInputKind, LinkedCubin, MAX_LINK_INPUT_BYTES, MAX_LINK_INPUTS,
+    NVJITLINK_VERSION, NvJitLink,
 };
 pub use launch::{
     DeviceSharedMemoryLimits, Kernel, KernelSpec, LaunchDims, LaunchPlan, SharedMemoryLimits,
@@ -100,6 +107,8 @@ pub enum LauncherError {
     Unsupported(&'static str),
     /// NVRTC不可用或编译失败。
     Compiler(String),
+    /// nvJitLink加载、版本、链接或产物检查失败。
+    Linker(String),
     /// 产物未通过配方的精度检查。
     Precision(String),
     /// 磁盘产物读写、损坏或键不符。
@@ -167,6 +176,7 @@ impl std::fmt::Display for LauncherError {
             Self::InvalidSource(reason) => write!(f, "内核来源无效：{reason}"),
             Self::Unsupported(reason) => write!(f, "暂不支持：{reason}"),
             Self::Compiler(detail) => write!(f, "编译失败：{detail}"),
+            Self::Linker(detail) => write!(f, "nvJitLink失败：{detail}"),
             Self::Precision(detail) => write!(f, "精度检查失败：{detail}"),
             Self::Cache { stage, detail } => write!(f, "产物缓存失败：{stage}：{detail}"),
             Self::Driver(detail) => write!(f, "驱动加载失败：{detail}"),

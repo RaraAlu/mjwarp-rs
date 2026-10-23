@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-23-w13-nvjitlink-binding",
+  "date": "2026-10-24",
+  "platform": {
+    "os": "Windows",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "compute_capability": [8, 9]
+  },
+  "toolchain": {
+    "rust": "1.99.0-x86_64-pc-windows-msvc",
+    "nvrtc": "12.8.93 (CUDA 12.8.1)",
+    "nvjitlink": {
+      "release": "12.9.1",
+      "version": "12.9.86",
+      "archive_sha256": "ee7175da9628d47ccc92dce6d28d57ca77633e79079a2aee90e2a645edcd1384",
+      "dll": "nvJitLink_120_0.dll",
+      "dll_sha256": "998494a8eff0d8382b41ba443d668e3eaea7b67852256ca2982c841cd5bed47a",
+      "license_sha256": "72c22161fc1ebf242443d45158a7dd382d68597b00eeb7a7f539be5c6114be33"
+    },
+    "libloading": "0.8.8"
+  },
+  "compatibility": [
+    { "nvrtc": "12.8.93", "nvjitlink": "12.8.93", "link": "rejected: ERROR 4 in nvvmAddNVVMContainerToProgram" },
+    { "nvrtc": "12.8.93", "nvjitlink": "12.9.86", "link": "ok", "device_output_matches_evidence": true },
+    { "nvrtc": "12.9.86", "nvjitlink": "12.9.86", "link": "ok", "device_output_matches_evidence": true, "diagnostic_only": true }
+  ],
+  "comparison": {
+    "inputs_sha256": {
+      "potrf7.lto": "98c01ce64f55d31af5d4eb001c1e9fc4c8456173a9f0bbe97be479c804a981eb",
+      "potrf7_fatbin.lto": "c00d6412780b18f67e11a1d93fc34d51db9cdd687f26ec7bc926efbff5ddbd1f",
+      "native-mathdx7-call.cu": "abfc8c777014708ed9b33c7a80798e8d2160f102f49a21d01fbf203911968853"
+    },
+    "options": ["-dlto", "-arch=sm_89"],
+    "call_ltoir_bytes": 3632,
+    "call_ltoir_sha256": "1415be10987abafe56520b7f4e525023702bbd7c475164641f774271c934c34b",
+    "cubin_bytes": 2086544,
+    "cubin_sha256": "1086284ba5d1bd525d7320faee63978f6db79f955599d02232128da783433fe1",
+    "evidence_cubin_sha256": "de660b5d5095516549c053bf51e13c05b9bc55a3dfe5cfeb0a0833c068be55ae",
+    "cubin_differing_bytes": 1,
+    "cubin_difference": "offset 951680: line-table compile directory drive letter D vs C",
+    "cubin_sha256_after_restoring_drive_letter": "de660b5d5095516549c053bf51e13c05b9bc55a3dfe5cfeb0a0833c068be55ae",
+    "repeat_link_identical": true,
+    "device_output_bytes": 104528,
+    "device_output_sha256": "51e1a99b11990d259411de58816a6344cec85f224c6a541fa088030749126d3f",
+    "evidence_device_output_sha256": "51e1a99b11990d259411de58816a6344cec85f224c6a541fa088030749126d3f",
+    "launches": 8,
+    "device_phase_ms": 6.8033,
+    "max_batch_device_bytes": 101796
+  },
+  "tests": [
+    { "command": "cargo test --locked --features cuda-probe --lib jitlink", "result": "8 passed" },
+    { "command": "cargo test --locked --features cuda-probe --test nvjitlink_probe -- --ignored --test-threads=1", "result": "2 passed" }
+  ],
+  "python_called": false,
+  "warp_dll_loaded": false,
+  "linux": "deferred to 2026-10-24-linux-batch-retest",
+  "redistribution": "undecided",
+  "follow_up": "QA task: re-pin T4 source identity and rerun G01 debug/release"
+}
