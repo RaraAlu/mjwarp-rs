@@ -8,7 +8,7 @@
 
 1. **复跑结果不变**：1477 项、**122 位差**、**8 项超差**、max **4.291534423828125e-6**，容差
    `2e-6` 未改；`gravity_operator`（同输入算子对照）77/77 **0 超差**（1 位差、max 1.19e-7），
-   `gravity_source_propagation` **8 超差**。与 2026-10-23 的 run5/closure 数字逐项一致。
+   `gravity_source_propagation` **8 超差**。与 2026-10-23 的 run5/closure 数字在总量与字段级一致；`gravity_operator` 统一按「0 超差、位差 0~1」表述（run5 位差 0、本次位差 1，均 0 超差，见 §11）。
 2. **首差已逐字段/逐 world/逐 dof 定位**（`first-diff.json`）：
    - 首个运动学差异在**父姿态旋转路径**：w2 body3 的 `xpos/xipos` 2 ULP（`xquat/xmat` 在该 world
      逐位一致），`xanchor` 继承该差异；对应表达式为 `rotate(parent_xquat, body_pos)`。
@@ -199,3 +199,10 @@ target\toolchains\powershell-7.6.7\bin\pwsh.exe -NoProfile -ExecutionPolicy Bypa
 
 历史证据（不改动）：`../README.md`、`../known-deviation.md`、`../ptx-diff/`、`../first-diff-round1.md`、
 `../ptx-order-round2.md`、`../closure.md`。
+
+## 11. 修正记录（2026-10-24，用户裁决 B）
+
+- 用户 2026-10-24 裁决 **B：维持已知债务、不宣称 U038-3D 通过**；本任务判定「最小改动不可对齐」结论保留，复跑数字不变：1477 项 / 122 位差 / 8 超差 / max 4.291534423828125e-6；容差 2e-6（f32 位 0x360637BD）未动。
+- 有界两轮 run7（源形态改写）与 run8（全显式非融合）记录在案：均 8/77 超差不变，位差 122→123 / 122→147（更差）。
+- `gravity_operator` 统一表述为「**0 超差、位差 0~1**」（run5 位差 0、2026-10-24 复跑位差 1，max 1.19e-7，均 0 超差）；总量/字段级与 run5 一致。
+- 本修正只改证据表述，不改产品源码/测试/容差/断言/fixtures/排除清单/ABI；`three-layer-acceptance` 留在 Windows 小项收口里程碑统一更新。
