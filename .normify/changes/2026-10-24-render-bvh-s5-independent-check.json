@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s5-independent-check",
+  "title": {
+    "zh": "渲染/BVH S5 独立复核（17 context 全网格 SHA-256/射线层/拒绝面/边界）",
+    "en": "Render/BVH S5 independent review (17-context full-grid SHA-256, ray layer, rejection, boundaries)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "对渲染/BVH S5（1df634d）做独立复核：独立重跑 17 个相机 context 的全网格 SHA-256（canonical「全部 dirs 再全部 offsets」，LE f32）、逐相机 128 抽样位型与元数据；核 spp=1/2、dynamic==precomputed（spp=1）、正交合成、相机筛选 bool/name/index/[]、异构分辨率、空列表 SHA、7 项拒绝面；核 1,465,865 B 夹具与哈希、GPU 2/0 与主机 4/0、516/0 门禁；核 AA 图像延后 S7b/S8、世界系归 S7b、单夹具/未跑全量 G01 的边界声明。CPU+GPU 窗口（30 分钟上限），不改产品/夹具/原证据。",
+    "en": "Independent review of render/BVH S5 (1df634d): independently rerun the 17-context full-grid SHA-256 (canonical all-dirs-then-all-offsets, LE f32), 128 sampled bits plus metadata per camera; verify spp=1/2, dynamic==precomputed (spp=1), orthographic synthetic, camera filtering bool/name/index/[], heterogeneous resolutions, empty-list SHA, and 7 rejection cases; verify the 1,465,865-byte fixture/hash, GPU 2/0 and host 4/0, 516/0 gate; verify the AA-image deferral to S7b/S8, world transform to S7b, single-fixture/no-full-G01 boundaries. CPU+GPU window (30-minute cap); no product/fixture/original-evidence changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "17 context 全网格 SHA-256 独立重算与冻结参考位等；canonical 字节序明确为「全部 dirs 再全部 offsets」、LE f32；每相机 128 抽样位型/元数据一致。",
+    "射线层：spp=1/2 条数/子样本偏移/顺序正确；dynamic==precomputed（spp=1）位等；正交合成参考成立；相机筛选 bool/name/index/[] 与异构分辨率语义一致；空列表 SHA 正确。",
+    "拒绝面 7 项逐项在写前拒绝，InputError 字段映射与上游异常关键字对应；不实现渲染内核/AA 图像（明确 deferral）。",
+    "证据/门禁：夹具 1,465,865 B 与 sha256、GPU 2/0、主机 4/0、516/0、README/receipt 哈希与行数一致；无产品/夹具/原证据修改；新文件 ≤500 行；产品测试不启动 Python。",
+    "GPU 窗口 30 分钟独占，开始核对设备/驱动/显存，结束记录回桌面基线；与任何满载任务冲突即停手报 Arch/Chief。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s5"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/s5-independent-check/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 84
+  },
+  "note": "Arch 2026-10-24 排程：S5 已 verified（1df634d），GPU 空闲；QA 先复核 S5（30 分钟独占），Backend 同时做 S4 只读/CPU 准备。S4 不在 QA 释放前 start，避免 GPU 资源冲突。",
+  "revision": {
+    "before": "9e3fac9a32ebe95c586dcb691e108df1fd749b22",
+    "after": null
+  },
+  "created_at": "2026-10-25T05:05:00.000Z",
+  "updated_at": "2026-10-24T21:01:18.791Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/camera.rs",
+        "src/render/rays.rs",
+        "src/render/camera/cuda/",
+        "src/render/mod.rs",
+        "tests/render_camera_rays.rs",
+        "scripts/authoring/render-bvh-s5/",
+        "fixtures/render-bvh/scene-a/s5/",
+        "docs/development-evidence/render-bvh/s5-camera-rays/",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s5-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s5-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S4已实现",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
