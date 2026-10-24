@@ -5,7 +5,7 @@
     "zh": "渲染/BVH S7b1：渲染内核主射线/深度/分割（primitive+mesh）",
     "en": "Render/BVH S7b1: render kernel primary rays, depth and segmentation (primitive+mesh)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "渲染/BVH 第十一片（plan S7b 拆分第一片，S5/S6a/S6b/S7a 已 verified）：实现手写通用 CUDA 渲染内核的**主射线阶段**——按 S5 预计算/动态射线做相机系→世界系变换（含 max_cam_dist）、场景 BVH 与网格 BVH 求交、写入平面深度（米，0=无命中）与 (object_id, object_type) 分割，输出走 S6b OutputResources；对照冻结参考 depth.npz/seg.npz 验收（seg 全等、depth ≤4 ULP、两相机）。不含着色/RGB（S7b2）、不含阴影/天空盒/splat/flex/hfield/多相机、不含 AA。",
     "en": "Eleventh render/BVH slice (first split of plan S7b; S5/S6a/S6b/S7a verified): implement the primary-ray stage of the hand-written generic CUDA render kernel - camera-space to world-space transform of S5 precomputed/dynamic rays (including max_cam_dist), scene BVH and mesh BVH intersection, planar depth in meters (0 = miss) and (object_id, object_type) segmentation written through S6b OutputResources; validate against the frozen depth.npz/seg.npz references (seg exact, depth <=4 ULP, two cameras). No shading/RGB (S7b2), no shadows/skybox/splats/flex/hfield/multi-camera, no AA."
@@ -36,7 +36,10 @@
       "src/render/kernel/cuda/render.cu",
       "src/render/mod.rs",
       "src/render/context.rs",
+      "src/render/context/lifecycle.rs",
       "tests/render_kernel_depth_seg.rs",
+      "fixtures/render-bvh/scene-a/s7b/",
+      "scripts/authoring/render-bvh-s7b/",
       "docs/development-evidence/render-bvh/s7b1-depth-seg/"
     ],
     "resources": [
@@ -46,12 +49,11 @@
   },
   "note": "Arch 2026-10-25 结构裁决：plan 的 S7b（渲染内核，估 12 人日）按输出阶段拆为 S7b1（主射线/深度/分割，本任务）→ S7b2（着色/RGB）→ S7b3（flag 变体矩阵+authoring 参考），顺序依赖、各自独立验收；理由：单任务 12 人日 + 单一 GPU 窗口不现实，分片后每片有可判定参考（depth/seg 已有冻结夹具，RGB 也有），且符合新文件 ≤500 行棘轮。launch.rs 已恰 500 行，本片任何新增不得改长该文件，先拆再写。",
   "revision": {
-    "before": "372c453c1127dbb835dcc7cc63587c770c9a6981",
+    "before": "90be14d7968f8f2a852f37a4c5840b11be2dcfa8",
     "after": null
   },
   "created_at": "2026-10-25T06:12:00.000Z",
-  "updated_at": "2026-10-25T06:12:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-24T22:11:26.147Z",
   "checks": [
     {
       "kind": "gate",
