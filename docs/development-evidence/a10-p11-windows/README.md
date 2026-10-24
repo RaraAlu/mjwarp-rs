@@ -12,7 +12,7 @@
    `cuEventRecord`/`cuEventElapsedTime` 夹住调用方阶段闭包，固定温机 10 次、
    重复 50 次；两档两阶段各 50 个纳秒样本全部为正，中位数均为 **7168 ns**
    （分区间 min 6144–6560 ns、max 7200–8192 ns）。
-2. **设备显存采样可用**：`cuMemGetInfo` 采样给出设备总量 16376.5 MiB；
+2. **设备显存采样可用**：`cuMemGetInfo` 采样给出设备总量 16375.5 MiB；
    空闲基线 1264.5 MiB，分配固定工作集（2×4 MiB f32）后为 1296.5 MiB
    （+32.0 MiB，驱动分配粒度/开销未拆解），释放后回到 1264.5 MiB；
    阶段内峰值 = 基线（阶段内无分配），采样 53 次/阶段。
@@ -43,12 +43,12 @@ A10 验收为「Rust无头测速与状态导出」；P11 阶段在本仓库长�
 
 | 文件 | 行数 | 内容 |
 | --- | ---: | --- |
-| `src/runtime/tooling/perf.rs` | 462 | `BenchmarkPlan`（温机/重复必须 >0）、`TimingStats`/`PhaseTiming`（聚合与一致性校验）、`MemoryStats`/`MemoryCheckpoint`、`EnvironmentFacts`、`PerformanceReport`（校验 + 确定性 JSON 导出 + 转义） |
-| `src/runtime/tooling/gpu.rs` | 197 | `GpuTimingSession`（驱动/设备探测、设备事实、PTX 内核加载、`cuMemGetInfo` 采样、事件计时 `time_phase`）；`cuda-probe` 门控 |
-| `src/runtime/tooling/mod.rs` | 256 | 模块挂载与导出；`ToolingError` 增加 `ZeroWarmup`/`InvalidRecord`/`DeviceUnavailable`/`Cuda` |
-| `src/runtime/tooling/tests.rs` | 429 | 新增 5 项宿主侧单测：计划拒绝面、统计与 P10 报告口径一致、记录 JSON 往返/转义/确定性、报告一致性拒绝面、档位绑定 |
-| `tests/a10_p11_gpu_perf_probe.rs` | 183 | ignored GPU 探针：固定负载计时两阶段 + 输出正确性 + 显存检查点 + 记录落盘 |
-| `scripts/test-windows-a10-p11.ps1` | 79 | debug/release 各跑一次探针并校验记录，落盘 `debug.json`/`release.json`/日志 |
+| `src/runtime/tooling/perf.rs` | 491 | `BenchmarkPlan`（温机/重复必须 >0）、`TimingStats`/`PhaseTiming`（聚合与一致性校验）、`MemoryStats`/`MemoryCheckpoint`、`EnvironmentFacts`、`PerformanceReport`（校验 + 确定性 JSON 导出 + 转义） |
+| `src/runtime/tooling/gpu.rs` | 220 | `GpuTimingSession`（驱动/设备探测、设备事实、PTX 内核加载、`cuMemGetInfo` 采样、事件计时 `time_phase`）；`cuda-probe` 门控 |
+| `src/runtime/tooling/mod.rs` | 275 | 模块挂载与导出；`ToolingError` 增加 `ZeroWarmup`/`InvalidRecord`/`DeviceUnavailable`/`Cuda` |
+| `src/runtime/tooling/tests.rs` | 445 | 新增 5 项宿主侧单测：计划拒绝面、统计与 P10 报告口径一致、记录 JSON 往返/转义/确定性、报告一致性拒绝面、档位绑定 |
+| `tests/a10_p11_gpu_perf_probe.rs` | 198 | ignored GPU 探针：固定负载计时两阶段 + 输出正确性 + 显存检查点 + 记录落盘 |
+| `scripts/test-windows-a10-p11.ps1` | 84 | debug/release 各跑一次探针并校验记录，落盘 `debug.json`/`release.json`/日志 |
 
 所有新增/改动文件均 ≤500 行；`perf.rs`、`gpu.rs` 与探针测试已用
 `normify module source mjwarp.runtime.tooling --add …` 挂到 `mjwarp.runtime.tooling`。
@@ -60,7 +60,7 @@ A10 验收为「Rust无头测速与状态导出」；P11 阶段在本仓库长�
 | 系统 | Windows（本机，`os=windows`、`arch=x86_64`） |
 | GPU | NVIDIA GeForce RTX 4070 Ti SUPER，计算能力 8.9 |
 | 驱动 | 596.36；驱动 API 版本 13020 |
-| 设备显存 | 17,170,956,288 B（16376.5 MiB） |
+| 设备显存 | 17,170,956,288 B（16375.5 MiB） |
 | 工具链 | rustc 1.99.0（`+1.99.0-x86_64-pc-windows-msvc`），`--features cuda-probe` |
 | 固定负载 | 内置 `src/runtime/probe.ptx` 的 `affine_probe`：双指针 + u32 元素数；797 B，SHA-256 `520b9ac7ee24cd1f284ec12f55102124871b17e5e5b0fc2a5dd1b00f19c833d1` |
 | 输入规模 | 1,048,576 个 f32（4 MiB 输入 + 4 MiB 输出）；网格 8192 块 × 128 线程 |
