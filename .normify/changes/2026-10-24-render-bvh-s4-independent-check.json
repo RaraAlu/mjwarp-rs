@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s4-independent-check",
+  "title": {
+    "zh": "渲染/BVH S4 独立复核（u8转换/硬件纹理采样/注册表/拒绝面）",
+    "en": "Render/BVH S4 independent review (u8 conversion, hardware texture sampling, registry, rejection)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "对渲染/BVH S4（3e3426d）做独立复核：独立重算 u8→f32/255 RGBA 转换（缺 g/b=0、缺 a=255），在 GPU 上重跑 3 纹理 × 1040 uv × 4 通道的硬件纹理对象采样并与冻结 3.15 参考逐位对照；核 use_textures 开/关、纹理注册表、6 类拒绝面、纹理对象生命周期与 524/0 门禁；核 PTX 的 tex.2d.v4.f32.f32 与坐标后缀、cudarc DESC 逐字段构造、显存回基线；核图像级 patch 延后 S7b/S8。GPU 30 分钟窗口，不改产品/夹具/原证据。",
+    "en": "Independent review of render/BVH S4 (3e3426d): independently recompute u8->f32/255 RGBA conversion (g/b=0 and a=255 when missing), rerun GPU hardware-texture-object sampling for 3 textures x 1040 uv x 4 channels against the frozen 3.15 reference bit-for-bit; verify use_textures on/off, texture registry, 6 rejection cases, texture-object lifetime, and the 524/0 gate; verify tex.2d.v4.f32.f32 coordinate suffix, cudarc DESC field-wise construction, and GPU memory return to baseline; verify image-level patch deferral to S7b/S8. GPU 30-minute window; no product/fixture/original-evidence changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "转换：u8→f32/255、4 通道补齐（缺 g/b=0、缺 a=255）与参考逐元素一致；textures.json 325,755 B 真实数据。",
+    "采样：GPU 硬件纹理对象 3 纹理 × 1040 uv × 4 通道与冻结参考逐位相等（max_abs_diff=0）；硬件 vs Warp CPU 软件路径差异如实记录（约 5.96e-8），不宣称为等价。",
+    "注册表/拒绝面：use_textures 开/关、多纹理索引、6 类拒绝、纹理对象生命周期/drop 全部成立；不实现图像级 patch（deferral 写 receipt）。",
+    "证据/门禁：GPU 2/0、host 5/0、524/0；README/receipt/产物哈希/行数一致；PTX `tex.2d.v4.f32.f32` 与坐标后缀、cudarc DESC 逐字段构造的坑有复核；无产品/夹具/原证据修改；新文件 ≤500 行。",
+    "GPU 窗口 30 分钟独占，开始核对设备/驱动/显存，结束记录回桌面基线；冲突停手报 Arch/Chief。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s4"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/s4-independent-check/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 84
+  },
+  "note": "Arch 2026-10-24 排程：S4 已 verified（3e3426d），GPU 空闲；QA 复核 S4（30 分钟独占），Backend 同时做 S6a（context 参数/默认值，无 GPU）准备与实现，互不冲突。S6b/S7a 等 S6a/S4 复核后再排。结构裁决：S6a 会合法修改 src/render/mod.rs 挂载 context 模块，故 S4 复核 unchanged 不含该文件；QA receipt 记录 git diff 3e3426d..HEAD 并说明仅 S6a 自有路径变化。",
+  "revision": {
+    "before": "f15f6cb3ef158ebf2615da251627a5197607a715",
+    "after": null
+  },
+  "created_at": "2026-10-25T05:22:00.000Z",
+  "updated_at": "2026-10-24T21:20:20.118Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/texture.rs",
+        "src/render/texture/",
+        "tests/render_texture.rs",
+        "fixtures/render-bvh/scene-a/s4/",
+        "docs/development-evidence/render-bvh/s4-texture/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s4-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s4-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S7已实现",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
