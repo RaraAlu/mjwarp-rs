@@ -1,0 +1,503 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s7a-independent-check",
+  "task_id": "2026-10-25-render-bvh-s7a-independent-check",
+  "date": "2026-10-25",
+  "reviewed_commit": "a0d9af0",
+  "review_baseline_head": "04f5ceb",
+  "outcome": "pass",
+  "scope": "Independent QA re-verification of the S7a render launch ABI and the A' render PTX gate: exact allowlist of the two W15 _svd_config<double> dead-data constants (uniqueness across the whole PTX incl. symbol/literal bytes), independent mutation/rejection matrix, physics gate unchanged; 81-slot ABI / 13 element layouts / 56-byte RenderArray recomputation; W15+NVRTC compile, ABI round-trip and texture-handle lifecycle re-runs; artifact hashes and launch.rs 500-line ratchet. Fast-loop scope; no full G01; no product/fixture/original-evidence changes.",
+  "gate_a_prime": {
+    "real_ptx_bytes": 25996,
+    "real_ptx_sha256": "d075f329132b5ffec750f004682fde52236880c7a85e1fde641edcedefba501e",
+    "source_sha256": "0a319b89585e67d74c7c1e63d6e03f3903582221e62c58d6bb8b7c6654126a5d",
+    "f64_globals_in_whole_ptx": 2,
+    "non_global_f64_lines": 0,
+    "allowlist_byte_exact": true,
+    "globals": [
+      ".global .align 8 .f64 _ZN2wp11_svd_configIdE11SVD_EPSILONE = 0d3D719799812DEA11;",
+      ".global .align 8 .f64 _ZN2wp11_svd_configIdE17QR_GIVENS_EPSILONE = 0d3D719799812DEA11;"
+    ],
+    "mutation_verdicts_qa_vs_product": {
+      "real": true,
+      "third_f64_global": true,
+      "symbol_off_by_one": true,
+      "literal_changed": true,
+      "duplicate_allowed": true,
+      "misplaced_allowed": true,
+      "f16_token": true,
+      "mul_f64_instruction": true,
+      "f64_reg_without_triplet": true,
+      "sin_cos_triplet": true,
+      "missing_entry": true
+    },
+    "mutation_matches_expected": true,
+    "precision_gate": "f32-render",
+    "recipe_gate": "F32Render",
+    "physics_gate_file_unchanged": true,
+    "conclusion": "The two W15 _svd_config<double> constants are the only f64 tokens in the whole render PTX (byte-exact symbol + literal); every injected/unknown/mutated f64, duplicate, misplaced, f16 token, standalone mul.f64 and unexplained .reg .f64 is rejected, while a sanctioned sin/cos reduction triplet is accepted. This is an exact allowlist for W15 dead-data constants, not a tolerance relaxation; check_physics_ptx is untouched."
+  },
+  "abi": {
+    "slot_checks": {
+      "slots_81": true,
+      "arrays_73": true,
+      "scalars_7": true,
+      "one_bounds_slot": true,
+      "all_classes_present": true,
+      "texture2d_size_24": true,
+      "texture2d_align_8": true,
+      "render_array_56": true,
+      "texture2d_bytes_const_24": true,
+      "signature_len_81": true,
+      "signature_name": true,
+      "block_threads_256": true,
+      "plan_block_256": true
+    },
+    "element_checks": {
+      "i32": {
+        "expected": [
+          4,
+          4
+        ],
+        "actual": [
+          4,
+          4
+        ],
+        "ok": true
+      },
+      "u32": {
+        "expected": [
+          4,
+          4
+        ],
+        "actual": [
+          4,
+          4
+        ],
+        "ok": true
+      },
+      "u64": {
+        "expected": [
+          8,
+          8
+        ],
+        "actual": [
+          8,
+          8
+        ],
+        "ok": true
+      },
+      "bool": {
+        "expected": [
+          1,
+          1
+        ],
+        "actual": [
+          1,
+          1
+        ],
+        "ok": true
+      },
+      "f32": {
+        "expected": [
+          4,
+          4
+        ],
+        "actual": [
+          4,
+          4
+        ],
+        "ok": true
+      },
+      "vec2f": {
+        "expected": [
+          8,
+          4
+        ],
+        "actual": [
+          8,
+          4
+        ],
+        "ok": true
+      },
+      "vec3f": {
+        "expected": [
+          12,
+          4
+        ],
+        "actual": [
+          12,
+          4
+        ],
+        "ok": true
+      },
+      "vec4f": {
+        "expected": [
+          16,
+          4
+        ],
+        "actual": [
+          16,
+          4
+        ],
+        "ok": true
+      },
+      "vec2i": {
+        "expected": [
+          8,
+          4
+        ],
+        "actual": [
+          8,
+          4
+        ],
+        "ok": true
+      },
+      "vec3i": {
+        "expected": [
+          12,
+          4
+        ],
+        "actual": [
+          12,
+          4
+        ],
+        "ok": true
+      },
+      "mat33f": {
+        "expected": [
+          36,
+          4
+        ],
+        "actual": [
+          36,
+          4
+        ],
+        "ok": true
+      },
+      "quatf": {
+        "expected": [
+          16,
+          4
+        ],
+        "actual": [
+          16,
+          4
+        ],
+        "ok": true
+      },
+      "texture2d_t": {
+        "expected": [
+          24,
+          8
+        ],
+        "actual": [
+          24,
+          8
+        ],
+        "ok": true
+      }
+    },
+    "per_kind": {
+      "array:bool": 6,
+      "array:f32": 8,
+      "array:i32": 22,
+      "array:mat33f": 2,
+      "array:quatf": 1,
+      "array:texture2d_t": 1,
+      "array:u32": 1,
+      "array:u64": 3,
+      "array:vec2f": 3,
+      "array:vec2i": 3,
+      "array:vec3f": 16,
+      "array:vec3i": 2,
+      "array:vec4f": 5,
+      "scalar:bool": 1,
+      "scalar:int32": 4,
+      "scalar:uint64": 2
+    },
+    "sizes": {
+      "texture2d": [
+        24,
+        8
+      ],
+      "render_array": 56
+    },
+    "signature": {
+      "len": 81,
+      "name": "_render_megakernel",
+      "threads": 256
+    }
+  },
+  "rejections": {
+    "arg_count": {
+      "rejected": true,
+      "error": "RenderArgCount { expected: 4, actual: 3 }",
+      "ok": true
+    },
+    "arg_kind": {
+      "rejected": true,
+      "error": "RenderArgKind { slot: 2, expected: \"uint64\", actual: \"int32\" }",
+      "ok": true
+    },
+    "bounds_slot": {
+      "rejected": true,
+      "error": "InvalidSignature { abi: \"bad\", reason: \"渲染签名首槽位须为launch_bounds_t<2>\" }",
+      "ok": true
+    },
+    "block_rule": {
+      "rejected": true,
+      "error": "RenderBounds { slot: 0 }",
+      "ok": true
+    },
+    "align_vec3": {
+      "rejected": true,
+      "error": "RenderArrayAlign { slot: 0 }",
+      "ok": true
+    },
+    "align_texture2d": {
+      "rejected": true,
+      "error": "RenderArrayAlign { slot: 0 }",
+      "ok": true
+    },
+    "capacity": {
+      "rejected": true,
+      "error": "Capacity { slot: 0, required: 48, actual: 24 }",
+      "ok": true
+    },
+    "context_mismatch": {
+      "rejected": true,
+      "error": "ContextMismatch { slot: 3 }",
+      "ok": true
+    },
+    "shape_empty": {
+      "rejected": true,
+      "error": "InvalidArray(\"渲染数组形状须为1至4维且非零\")",
+      "ok": true
+    },
+    "shape_zero": {
+      "rejected": true,
+      "error": "InvalidArray(\"渲染数组形状须为1至4维且非零\")",
+      "ok": true
+    }
+  },
+  "recipe": {
+    "purpose_render": true,
+    "gate_f32_render": true,
+    "fmad": true,
+    "fast_math_off": true,
+    "render_admitted": true,
+    "diagnostic_rejected_for_render": true,
+    "physics_gate_distinct": true
+  },
+  "artifacts": {
+    "checked": {
+      "src/runtime/launcher/render.rs": {
+        "lines": 211,
+        "recorded_lines": 211,
+        "bytes": 7337,
+        "recorded_bytes": 7337,
+        "hash_ok": true,
+        "lines_ok": true
+      },
+      "src/runtime/launcher/render/args.rs": {
+        "lines": 494,
+        "recorded_lines": 494,
+        "bytes": 14078,
+        "recorded_bytes": 14078,
+        "hash_ok": true,
+        "lines_ok": true
+      },
+      "src/render/kernel/mod.rs": {
+        "lines": 310,
+        "recorded_lines": 310,
+        "bytes": 11746,
+        "recorded_bytes": 11746,
+        "hash_ok": true,
+        "lines_ok": true
+      },
+      "src/render/kernel/launch.rs": {
+        "lines": 500,
+        "recorded_lines": 500,
+        "bytes": 20677,
+        "recorded_bytes": 20677,
+        "hash_ok": true,
+        "lines_ok": true
+      },
+      "tests/render_launch_abi.rs": {
+        "lines": 302,
+        "recorded_lines": 302,
+        "bytes": 11629,
+        "recorded_bytes": 11629,
+        "hash_ok": true,
+        "lines_ok": true
+      },
+      "src/runtime/launcher/recipe.rs": {
+        "lines": 359,
+        "recorded_lines": 359,
+        "bytes": 11937,
+        "recorded_bytes": 11937,
+        "hash_ok": true,
+        "lines_ok": true
+      },
+      "src/runtime/launcher/mod.rs": {
+        "lines": 250,
+        "recorded_lines": 250,
+        "bytes": 10984,
+        "recorded_bytes": 10984,
+        "hash_ok": true,
+        "lines_ok": true
+      },
+      "src/runtime/transfer/session.rs": {
+        "lines": 240,
+        "recorded_lines": 240,
+        "bytes": 8062,
+        "recorded_bytes": 8062,
+        "hash_ok": true,
+        "lines_ok": true
+      },
+      "src/render/texture/cuda.rs": {
+        "lines": 323,
+        "recorded_lines": 323,
+        "bytes": 11511,
+        "recorded_bytes": 11511,
+        "hash_ok": true,
+        "lines_ok": true
+      },
+      "src/render/mod.rs": {
+        "lines": 370,
+        "recorded_lines": 370,
+        "bytes": 11440,
+        "recorded_bytes": 11440,
+        "hash_ok": true,
+        "lines_ok": true
+      }
+    },
+    "mismatches": []
+  },
+  "tests": {
+    "w15_nvrtc": "2 passed / 0 failed (source_sha256=0a319b89..., ptx_bytes=25996, ptx_sha256=d075f329...)",
+    "gpu_roundtrip_lifecycle": "2 passed / 0 failed; texture baseline=after_cycles=15,809,380,352 B, bytes_per_cycle=1,200,000, tex=0x1",
+    "host_abi": "4 passed / 0 failed",
+    "render_lib": "42 passed / 0 failed",
+    "full_cpu_suite": "532 passed / 0 failed",
+    "launch_rs_lines": 500,
+    "product_test_starts_python": false
+  },
+  "gpu_window": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "cuda_version": "13.2",
+    "start_memory_mib": 2870,
+    "roundtrip_test_memory_mib": [
+      2878,
+      2871
+    ],
+    "final_memory_mib": 2871,
+    "returned_to_desktop_baseline": true,
+    "no_other_full_load_task": true,
+    "qa_gpu_occupancy": "about 2 seconds of GPU tests (the W15 compile case is NVRTC/CPU only); CPU-side QA harness iteration continued past the 30-minute window with the GPU idle"
+  },
+  "known_deviation": {
+    "module_split": "normify structure rule blocks the `mjwarp.render.kernel` leaf module (parent mjwarp.render declares APIs); S7a registers kernel sources under mjwarp.render and the launcher under mjwarp.runtime, validate 0 errors. Arch registered backlog task 2026-10-25-render-bvh-module-split (after S7b2); S7a acceptance is not reopened for this registered deviation."
+  },
+  "limitations": [
+    "real render megakernel / per-pixel shading / AA image / shadows / skybox / spot lights / texture-normal-specular-emission evaluation is S7b; this slice only covers the launch ABI and the W15 gate",
+    "the use_fast_math=true render variant is not implemented (S7b)",
+    "W15 headers come from the NVRTC-bundled CUDA SDK include (WP_NO_CRT Jitify replacement); other CUDA versions are not covered",
+    "texture2d_t device arrays are uploaded as 6 x u32 (the session supports f32/f64/i32/u32); byte layout matches the 24 B / align 8 C++ struct",
+    "no full G01 in this round (fast-loop scope)"
+  ],
+  "not_claimed": [
+    "full renderer or product rendering acceptance",
+    "complete R01",
+    "S7b implementation"
+  ],
+  "evidence": {
+    "README.md": {
+      "sha256": "dc33159e20b4e214eb5821a2c6a9fdc716e271a1bff4c08e906bdaff51df76c5",
+      "bytes": 8683
+    },
+    "artifact-check.json": {
+      "sha256": "ab63f1370ceaaf718a65ca922b1633d8846f8d3bd7d3617e680a9f06d3db2b60",
+      "bytes": 1844
+    },
+    "gpu-roundtrip.log": {
+      "sha256": "d4ea6fc0c6991755af2e205760a0f2af1aefd880bd331e5086f17a143acbf381",
+      "bytes": 1140
+    },
+    "gpu-window.txt": {
+      "sha256": "771bf696092e6b48834bf4cf7be0b71a167671fcf4ef853cb55af51c0b4feee6",
+      "bytes": 530
+    },
+    "harness-compare.json": {
+      "sha256": "8c77f6f07daeb213c3db70b7841ae7f29965f97ba102897b85c42f7162140f95",
+      "bytes": 9394
+    },
+    "harness-report.json": {
+      "sha256": "3cb61f2a2bc0fc32243264f57b0404b4fc2cc08dca80a24969c047a1950dc8de",
+      "bytes": 7155
+    },
+    "qa_gate_abi_reference.py": {
+      "sha256": "e6f4d1668eca86dfa5b5aff6724b6befa3aa35863603bb36c523e55f3581f505",
+      "bytes": 13238
+    },
+    "unit-tests-summary.txt": {
+      "sha256": "2bc3a8f553ae3c38f2c81a73012721db5b3f799929b9d49125a98654d9a840e1",
+      "bytes": 9168
+    },
+    "variant-duplicate_allowed.ptx": {
+      "sha256": "43e16357ed1a60c1058256d93206595e44ffbf24b2f92bb2dd35a30ab9de6637",
+      "bytes": 26078
+    },
+    "variant-f16_token.ptx": {
+      "sha256": "d2d095d8d3c6a373cb253a68e7498ea1b924156f4ed3b491132fea051a7d745c",
+      "bytes": 26014
+    },
+    "variant-f64_reg_without_triplet.ptx": {
+      "sha256": "c46ba10a62550ba74a0e649a8fa2e9846213ae3bfb8f85cbf86fdcd2f85deedd",
+      "bytes": 26015
+    },
+    "variant-literal_changed.ptx": {
+      "sha256": "cc6813b34b5be32347a01d6e41d43b095e2be8199d8c8a9365500742c041c567",
+      "bytes": 26078
+    },
+    "variant-misplaced_allowed.ptx": {
+      "sha256": "510179098d684980c2b91c06e881e3dfad4fb86fc7c0d9ab6e65d2f426ec64f0",
+      "bytes": 26070
+    },
+    "variant-missing_entry.ptx": {
+      "sha256": "d075f329132b5ffec750f004682fde52236880c7a85e1fde641edcedefba501e",
+      "bytes": 25996
+    },
+    "variant-mul_f64_instruction.ptx": {
+      "sha256": "8d5f40ce19cd12331e7ffadcd11b4af04f2b430feaae09f3a4a26023c0118fc9",
+      "bytes": 26023
+    },
+    "variant-real.ptx": {
+      "sha256": "d075f329132b5ffec750f004682fde52236880c7a85e1fde641edcedefba501e",
+      "bytes": 25996
+    },
+    "variant-sin_cos_triplet.ptx": {
+      "sha256": "4635ba9e45c6aae8fa4104caf4b2341f25d409fca50cde851eecf96ad6607631",
+      "bytes": 26110
+    },
+    "variant-symbol_off_by_one.ptx": {
+      "sha256": "65544d99ee8df617f6d812bf37dab388f823df8c1a99351456822372607e4ec3",
+      "bytes": 26078
+    },
+    "variant-third_f64_global.ptx": {
+      "sha256": "c4eed4d78a135e073909965a222c449e3dac4a22338a5d1c0349439932a222ab",
+      "bytes": 26080
+    },
+    "w15-real.ptx": {
+      "sha256": "d075f329132b5ffec750f004682fde52236880c7a85e1fde641edcedefba501e",
+      "bytes": 25996
+    },
+    "w15-test.log": {
+      "sha256": "8b8a8a96846b90f25f4874b2e2a4899bfa27dda82988135bcb421fe636345ffd",
+      "bytes": 1103
+    }
+  },
+  "hash_basis": "artifact hashes are LF-normalized git blob semantics; evidence hashes are the committed file bytes"
+}
