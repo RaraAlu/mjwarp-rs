@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s3-independent-check",
+  "title": {
+    "zh": "渲染/BVH S3 独立复核（436射线/0ULP/边界/refit/退化/设备位姿）",
+    "en": "Render/BVH S3 independent review (436 rays/0 ULP/boundaries/refit/degenerate/device poses)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "对渲染/BVH S3（8efd4ad）做独立复核：重跑 GPU 网格射线对照，独立重算 5 场景 × 436 条射线的 geomid/face/distance/u/v/normal（0 ULP 口径）；核 tight_above 29 命中/tight_below 0 的边界、set_points+refit 32 条变化集合、双 world 436×2 零跨命中、退化三角网格 16 条/9 命中/2 ULP 无 panic；核 S2b 冻结命中交叉校验、两次捕获逐位一致、捕获脚本 bug 修复、测试侧 world_to_local 修正；核 512/0 门禁、夹具 434 KB 真实数据、无占位、证据/产物哈希与行数。CPU+GPU 窗口（约几分钟，30 分钟上限），不修改产品/夹具/原证据。",
+    "en": "Independent review of render/BVH S3 (8efd4ad): rerun GPU mesh-ray comparisons and independently recompute geomid/face/distance/u/v/normal for 5 scene cases x 436 rays (0 ULP policy); verify tight_above 29 hits / tight_below 0, set_points+refit 32 changed rays, two-world 436x2 zero cross-hit, degenerate triangle mesh 16 rays / 9 hits / 2 ULP without panic; verify frozen S2b cross-check, two capture reruns bit-identical, capture-script bug fix, test-side world_to_local fix, 512/0 gate, 434 KB real fixture data, no placeholder, evidence/artifact hashes and line counts. CPU+GPU window (a few minutes, 30-minute cap); no product/fixture/original-evidence changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "436 射线 × 5 用例：geomid/face 全等、distance/u/v 全 0 ULP、normal ≤1e-4 rad（交付 4.0e-8）；tight_above 29 命中、tight_below 0；测试不得跳过射线，不得放宽容差。",
+    "set_points+refit 变化集合 32 条与参考一致；双 world 436×2 查询 0 跨命中；退化三角网格 16 条/9 命中/2 ULP 且无 panic。",
+    "参考/捕获：两次捕获逐位一致；与 S2b 冻结命中交叉校验全 true；捕获脚本 bug 修复和测试侧 world_to_local 修正有独立复核；设备侧 f32 位型口径一致。",
+    "证据/门禁：夹具 434 KB 真实数据非占位；receipt/README/产物哈希/行数一致；512 passed/0 failed；无产品/夹具/原证据修改；新文件 ≤500 行；产品测试不启动 Python。",
+    "GPU 窗口：30 分钟独占，开始核对设备/驱动/显存，结束记录回桌面基线；与任何满载任务冲突即停手报 Arch/Chief。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s3"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/s3-independent-check/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 84
+  },
+  "note": "Arch 2026-10-24 排程：S3 已 verified（8efd4ad），GPU 已空闲；QA 先复核 S3（30 分钟独占），Backend 同时做 S5 无 GPU 准备。重点核 0 ULP、精确穿共享顶点/边的射线替换是否诚实、捕获脚本 bug 与 world_to_local 修正。S4 暂不启动。",
+  "revision": {
+    "before": "c108c8d7042d107791fa96c85f81ecac57874aea",
+    "after": null
+  },
+  "created_at": "2026-10-25T04:30:00.000Z",
+  "updated_at": "2026-10-24T20:28:39.695Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/bvh/mesh.rs",
+        "src/render/bvh/mesh_query.rs",
+        "src/render/bvh/cuda/mesh.cu",
+        "src/render/bvh/mod.rs",
+        "tests/render_mesh_bvh.rs",
+        "tests/support/render_bvh/mesh.rs",
+        "scripts/authoring/render-bvh/capture_s3_mesh.py",
+        "scripts/authoring/render-bvh/s3_mesh_capture_support.py",
+        "scripts/authoring/render-bvh/s3_mesh_replay.py",
+        "fixtures/render-bvh/scene-a/s3/",
+        "docs/development-evidence/render-bvh/s3-mesh-bvh/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s3-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s3-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S4已实现",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
