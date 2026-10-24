@@ -24,6 +24,13 @@ import sys
 import mujoco
 import numpy as np
 
+from model_parity_judge import (
+    APPROVED_JUDGING,
+    EXCLUDED_FIELDS,
+    classify_differences,
+    judge_fields,
+)
+
 TASK_ID = "2026-10-24-render-bvh-s0a"
 SCHEMA = 1
 
@@ -326,57 +333,17 @@ def build_parity(args) -> tuple[dict, bool]:
     counts_match = counts_312 == counts_315
     versions_ok = "3.12" in dump_312["mujoco_version"] and "3.15" in dump_315["mujoco_version"]
     deterministic = compile_315_result["deterministic"] and result_312["deterministic"]
-    passed = not mismatched and counts_match and versions_ok and deterministic
+    version_differences, f32_tail_only, other_differences = classify_differences(
+        parity_fields, mismatched
+    )
+    judged = judge_fields(parity_fields, counts_match, versions_ok, deterministic)
+    passed = judged["passed"]
+    render_relevance = EXCLUDED_FIELDS
     worst = sorted(
         (field for field in parity_fields if not field["equal"]),
         key=lambda field: field.get("bit_differences", 0),
         reverse=True,
     )
-    render_relevance = {
-        "geom_sameframe": {
-            "render_relevant": False,
-            "reason": "collision frame-reuse flag, not read by the scene renderer; "
-            "3.12 reports BODY(1) while 3.15 reports BODYROT(3) for geoms whose frame "
-            "differs from the body frame only in position (semantic enum change)",
-        }
-    }
-    version_differences = []
-    for name in mismatched:
-        comparison = next(field for field in parity_fields if field["field"] == name)
-        category = "value_difference"
-        detail = {}
-        if comparison.get("kind") == "float64" and comparison.get("f32_bits_equal"):
-            category = "float64_tail_f32_identical"
-            detail = {
-                "max_abs": comparison["max_absolute"],
-                "max_ulp_f64": comparison["max_ulp"],
-                "f32_bit_differences": 0,
-            }
-        elif comparison.get("kind") in ("int32", "int64"):
-            category = "integer_value_difference"
-            detail = {"mismatches": comparison.get("mismatches", [])[:8]}
-        version_differences.append(
-            {
-                "field": name,
-                "kind": comparison["kind"],
-                "category": category,
-                "render_relevant": render_relevance.get(name, {"render_relevant": True})[
-                    "render_relevant"
-                ],
-                "note": render_relevance.get(name, {}).get("reason", ""),
-                "detail": detail,
-            }
-        )
-    f32_tail_only = [
-        item["field"]
-        for item in version_differences
-        if item["category"] == "float64_tail_f32_identical"
-    ]
-    other_differences = [
-        item["field"]
-        for item in version_differences
-        if item["category"] != "float64_tail_f32_identical"
-    ]
     parity = {
         "schema": SCHEMA,
         "task_id": TASK_ID,
@@ -384,15 +351,21 @@ def build_parity(args) -> tuple[dict, bool]:
         "slice": "S0a",
         "conclusion": {
             "parity": "pass" if passed else "fail",
+            "judged_by": "approved S0a criterion (user 2026-10-24, option A)",
+            "strict_elementwise_parity": "fail" if mismatched else "pass",
             "hard_gate": "S0b reference capture is allowed only when parity=pass",
             "fields_compared": len(FIELDS),
             "fields_equal": len(FIELDS) - len(mismatched),
             "mismatched_fields": mismatched,
+            "judged_failures": judged["judged_failures"],
+            "excluded_fields": EXCLUDED_FIELDS,
+            "approved_judgement": APPROVED_JUDGING,
             "counts_match": counts_match,
             "versions_ok": versions_ok,
             "deterministic": deterministic,
             "tolerance": "plan 4.3: model integers exact; model floats f32_bits first, "
-            "else <=1 ULP; S0a frozen expectation is element-wise equality",
+            "else <=1 ULP; the strict element-wise result is preserved under "
+            "version_difference_classification",
         },
         "sources": {
             "scene_xml": {"path": str(scene), "sha256": digest(scene)},
@@ -453,16 +426,18 @@ def build_parity(args) -> tuple[dict, bool]:
             "float64_tail_f32_identical": f32_tail_only,
             "semantic_or_f32_differences": other_differences,
             "version_differences": version_differences,
-            "render_relevance_overrides": render_relevance,
+            "render_relevance_overrides": EXCLUDED_FIELDS,
+            "approved_judgement": judged,
             "s0b_hard_gate": (
-                "met" if passed else
-                "NOT met under strict element-wise parity; S0b blocked pending ruling "
-                "on version-difference classification (no tolerance relaxation applied)"
+                "met"
+                if passed
+                else "NOT met under the approved criterion (no tolerance relaxation applied)"
             ),
         },
         "not_claimed": [
             "render output parity (S0b, needs GPU)",
             "product acceptance (S1+ not started)",
+            *APPROVED_JUDGING["not_claimed"],
         ],
     }
     return parity, passed
@@ -482,6 +457,11 @@ def main() -> int:
         json.dumps(
             {
                 "parity": parity["conclusion"]["parity"],
+                "judged_by": parity["conclusion"]["judged_by"],
+                "strict_elementwise_parity": parity["conclusion"][
+                    "strict_elementwise_parity"
+                ],
+                "judged_failures": parity["conclusion"]["judged_failures"],
                 "fields_compared": parity["conclusion"]["fields_compared"],
                 "fields_equal": parity["conclusion"]["fields_equal"],
                 "mismatched_fields": parity["conclusion"]["mismatched_fields"],

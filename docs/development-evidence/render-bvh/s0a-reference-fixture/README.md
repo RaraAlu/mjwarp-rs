@@ -1,23 +1,26 @@
-# 渲染/BVH S0a：3.12 与 3.15 双 MJB 参考夹具与模型 parity（parity 未成立，S0b 阻塞）
+# 渲染/BVH S0a：3.12 与 3.15 双 MJB 参考夹具与模型 parity（按裁决口径 pass）
 
 任务：`2026-10-24-render-bvh-s0a`。日期：2026-10-24。执行：Backend。
 依据：`docs/development-evidence/render-bvh-precheck/plan.json` 的 S0a 切片、README §6 与用户
-批准的 D1 双 MJB parity 口径。**CPU/离线 authoring，无 GPU。**
+批准的 D1 双 MJB parity 口径；判据改判见 §5（用户 2026-10-24 裁决 A）。**CPU/离线 authoring，无 GPU。**
 
 ## 1. 结论（先给）
 
-1. **S0a 硬门未成立**：按 S0a 验收「渲染相关模型数组逐元素相等」，133 个字段中 **126 个逐位一致、
-   7 个不一致**（`geom_size`、`geom_aabb`、`geom_rbound`、`geom_quat`、`mesh_quat`、
-   `mesh_polynormal`、`geom_sameframe`）→ `parity.json` 记录 `parity=fail`，
-   **S0b（3.15 参考图）不得启动**，本任务不做放宽容差或调参凑。
-2. **7 个差异分两类**（分类为诊断，不改变 fail 判定）：
+1. **S0a 按已批准判据成立（`parity=pass`），初始严格逐元素结论为 fail 并原样保留**：
+   133 个字段中 126 个逐位一致、7 个存在版本差异（`geom_size`、`geom_aabb`、`geom_rbound`、
+   `geom_quat`、`mesh_quat`、`mesh_polynormal`、`geom_sameframe`）。
+   `parity.json` 同时保留：`conclusion.parity=pass`（批准判据）、
+   `conclusion.strict_elementwise_parity=fail`、
+   `version_difference_classification.strict_elementwise_parity=fail`（初始严格逐位结论）。
+2. **7 个差异分两类，double 层数字全部保留**：
    - **6 个派生 float64 字段只差 double 尾数**：`geom_size/aabb/rbound/quat`、`mesh_quat`、
-     `mesh_polynormal`；最大绝对差 **7.9e-14…2.6e-12**（约 1e-12 相对量级），
-     **转 f32 后位型完全相同（0 位差）**。这些量由 mesh 资产帧/包围体在编译期派生，
-     产品渲染路径按 f32 上传模型，故在 f32 口径下无差异。
+     `mesh_polynormal`；最大绝对差 **7.9e-14…2.6e-12**，`max_ulp_f64` 与 `f32_bit_differences`
+     （全部 0）逐字段保留在 `version_difference_classification.version_differences`。
+     按任务验收第 3 条「float f32_bits 优先」判等：**f32 位型完全相同（0 位差）**。
    - **1 个整型语义差异**：`geom_sameframe` 在 3.12 为 `BODY(1)`、3.15 为 `BODYROT(3)`
-     （差 3 个 geom：base-sphere、tri-cyl、tri-ellip）。该字段是**碰撞帧复用的内部标志**，
-     渲染器不读取；属 MuJoCo 3.12→3.15 的语义修正/变更，不是夹具误差。
+     （差 3 个 geom：base-sphere、tri-cyl、tri-ellip）。按裁决登记为
+     `render_relevant=false` 排除：上游 MJWarp 渲染器 `_src` 全树无 sameframe 引用
+     （Chief 2026-10-24 grep 核实）+ MuJoCo 3.15 枚举语义修正；该字段是碰撞帧复用内部标志。
 3. `counts` 完全一致（26 个计数项）；两份 MJB 均能由对应版本加载；脚本与 MJB **确定性通过**
    （3.12/3.15 各编译两次字节一致）。其余 126 个字段（geom 类型/尺寸/位姿/rgba/材质/纹理像素/
    相机/光源/名称表/vis/stat/mesh 顶点/面/法线/纹理坐标等）**逐位相等**。
@@ -26,6 +29,8 @@
    geom_size/aabb/rbound、mesh_polynormal` 传播；`geom_sameframe` 则是枚举语义修正
    （3.15 对「仅位置不同、旋转相同」的帧改标 `BODYROT`）。两条均为版本差异，
    不是同一 XML 在两版下解析出的数据漂移。
+5. **不宣称**：两版模型逐位一致、3.12 与 3.15 等价模型、严格逐元素 parity 通过；
+   只宣称**渲染相关模型数组在 f32 位型上等价**，范围限定见 §5。
 
 ## 2. 交付物
 
@@ -38,6 +43,7 @@
 | `fixtures/render-bvh/scene-a/model-315.json` | 3.15 侧同一字段集 dump |
 | `scripts/authoring/render-bvh/compile_scene_312.cpp` | 3.12 C API：load XML → 存 MJB → 重载 MJB → JSON dump |
 | `scripts/authoring/render-bvh/model_parity.py` | 3.15 Python：编译/存 MJB/重载/dump + 逐字段 parity + provenance |
+| `scripts/authoring/render-bvh/model_parity_judge.py` | 用户 2026-10-24 裁决 A 的改判模块（严格结论保留 + 批准判据/排除/不宣称） |
 | `scripts/authoring/render-bvh/run_s0a.ps1` | MSVC 环境 + 编译 3.12 工具 + 顺序执行 parity（单命令复现） |
 | `parity.json` | 含 `task_id`；环境/命令/哈希/逐字段结果/差异分类/确定性 |
 | `receipt.json` | 回执与未满足项 |
@@ -86,32 +92,36 @@ stat.extent/center、名称表（`name_*adr` + `names` 字节）；字段表与 
 最差字段：`mesh_polynormal`（2.56e-12）> `geom_quat`/`mesh_quat`（9.55e-13）> `geom_aabb`
 （1.27e-13）> `geom_size`（9.42e-14）> `geom_rbound`（7.93e-14）；`geom_sameframe` 见上。
 
-## 5. 判定与待裁决
+## 5. 判据与改判记录（用户 2026-10-24 裁决 A）
 
-- **按 S0a 验收原文（逐元素相等）**：`parity=fail`，**S0b 硬门未满足**，不启动参考图捕获；
-  未放宽任何容差、未挑字段、未调参凑（`parity.json` 的 `conclusion` 与
-  `version_difference_classification.s0b_hard_gate` 均如实记录）。
-- **按 plan §4.3 的模型浮点口径**（`f32_bits` 优先，不可达时 ≤1 ULP）：6 个派生 float64 字段
-  **f32 位型完全一致**，在 f32 口径下无差异；`geom_sameframe` 为整型语义版本差异，
-  且渲染器不读取该字段。
-- 需 Chief/用户裁决的口径（本任务不自行选择）：
-  - **A（f32 语义口径）**：模型浮点按 §4.3 f32_bits 判等；`geom_sameframe` 作为
-    「非渲染内部标志 + 3.15 语义修正」登记排除（仅此 1 个字段），S0b 放行。
-  - **B（严格 double 口径）**：保持 `parity=fail`，S0b 阻塞；若需要严格相等，只能评估
-    产品切 3.15 native（D1 备选，影响全部现有原生测试，工作量大）或放弃 mesh 派生字段覆盖
-    （会削弱 S0b 的 mesh 渲染验收，不建议）。
-  - **C（严格记录 + 渲染级验证）**：保留 fail 记录，但允许 S0b 以 §4.3 渲染容差
-    （法向 1e-4 rad、距离 4 ULP/1e-5 等）验证差异影响；本轮模型差异 ~1e-12 量级，
-    远低于渲染容差，可在 S0b 证据中显式量化。
-- 无论哪种口径，**不得**把本轮 parity 说成严格逐元素通过；MJB/模型差异记录保持原样。
+1. **初版结论（严格逐位）**：2026-10-24 首轮按 S0a 验收原文「逐元素相等」判
+   **fail**：7/133 字段不一致；该结论与全部 double 层差异数字（`max_abs`、`max_ulp_f64`、
+   `f32_bit_differences`、逐字段 mismatch 值）**原样保留**在
+   `version_difference_classification` 与 `fields` 中，未删除、未改写。
+2. **用户裁决（2026-10-24，选项 A）**：按项目已批准容差收口。判据为：
+   - 范围限定 **渲染相关模型数组**（plan S0a 验收第 3 条）；
+   - 整型/字节数组按 exact；float32 按 f32 位型；**float64 按任务验收「float f32_bits
+     优先」= f32 位型判等**（6 个派生字段 f32 位差 0）；
+   - `geom_sameframe` 登记 `render_relevant=false` 排除：上游 MJWarp 渲染器 `_src` 全树
+     无 sameframe 引用（Chief 2026-10-24 grep 核实）+ MuJoCo 3.15 枚举语义修正
+     （`BODY(1)→BODYROT(3)`，碰撞帧复用内部标志）。
+   - **不改任何容差、不删任何 double 差异数字、不逐元素择优**。
+3. **改判结果**：`conclusion.parity=pass`（批准判据），`judged_failures=[]`；
+   `conclusion.strict_elementwise_parity=fail` 与
+   `version_difference_classification.strict_elementwise_parity=fail` 作为初始严格结论保留；
+   S0b 硬门按批准判据为 `met`。
+4. **不宣称**（固定口径）：不宣称两版模型逐位一致，不宣称 MuJoCo 3.12/3.15 等价，
+   不宣称严格逐元素 parity 通过；只宣称**渲染相关模型数组在 f32 位型上等价**
+   （6 个 float64 字段 f32 位差 0 + 126 字段逐位一致 + geom_sameframe 按上述理由排除）。
 
 ## 6. 未满足项与边界
 
-- S0a 硬门未满足（7/133 字段不一致），S0b 未启动（GPU 窗口未使用）。
+- 初始严格逐元素 parity 仍为 fail（7/133 字段），本轮为按用户批准判据的改判，
+  不是两版模型逐位一致的证明。
 - 未定位 MuJoCo 3.15 引起 mesh 资产帧计算差异的具体源码改动；当前为原因假设（§1.4）。
 - 未做 3.15 native 产品化评估与 D1 备选（升级产品 ABI）影响面分析；未跑任何渲染/GPU 任务。
-- `geom_sameframe` 为碰撞内部标志，渲染链路不读取；该判断附依据（muJoCo 渲染器使用
-  `mjvScene`/`mjr`，不消费该字段），如需要可让 QA 复核。
+- `geom_sameframe` 排除依据：上游 MJWarp 渲染器 `_src` 无 sameframe 引用（Chief grep 核实）
+  + 3.15 枚举语义修正；如需要可让 QA 复核。
 - 未改产品 `src/tests/Cargo.*`；产品测试不启动 Python；本切片全部 CPU/离线。
 
 ## 7. 复现
@@ -122,13 +132,15 @@ target\toolchains\powershell-7.6.7\bin\pwsh.exe -NoProfile -ExecutionPolicy Bypa
 ```
 
 单命令完成：MSVC 编译 `compile_scene_312.cpp` → 3.12 编译/重载/dump → 3.15 编译/重载/dump →
-逐字段 parity → 写 `parity.json`。退出码非 0 表示 parity 未成立（本切片即此情况）。
+逐字段 parity → 写 `parity.json`。退出码 0 表示按批准判据 parity 成立（严格逐位结果另存于
+`version_difference_classification`）；退出码非 0 表示批准判据下也不成立。
 
 ## 8. 证据索引
 
 - `parity.json`：机器可判定的 parity 结果（含 `task_id`、环境、命令、哈希、133 字段明细、
-  7 字段差异分类、确定性、硬门结论）。
-- `receipt.json`：回执（结论/产物摘要/未满足项）。
+  批准判据 `conclusion.parity=pass`、初始严格结论 `strict_elementwise_parity=fail`、
+  7 字段差异分类与全部 double 数字、确定性、硬门结论）。
+- `receipt.json`：回执（改判结论/产物摘要/未满足项）。
 - `run.log`：本次运行输出。
 - `fixtures/render-bvh/scene-a/`：XML、双 MJB、双 model JSON（逐字段原始值）。
-- `scripts/authoring/render-bvh/`：C++ 3.12 工具、Python parity 脚本、单命令包装。
+- `scripts/authoring/render-bvh/`：C++ 3.12 工具、Python parity + 改判模块、单命令包装。

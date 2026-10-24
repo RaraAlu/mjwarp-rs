@@ -4,7 +4,9 @@
   "kind": "render-bvh-s0a-model-parity",
   "slice": "S0a",
   "conclusion": {
-    "parity": "fail",
+    "parity": "pass",
+    "judged_by": "approved S0a criterion (user 2026-10-24, option A)",
+    "strict_elementwise_parity": "fail",
     "hard_gate": "S0b reference capture is allowed only when parity=pass",
     "fields_compared": 133,
     "fields_equal": 126,
@@ -17,10 +19,48 @@
       "mesh_polynormal",
       "geom_sameframe"
     ],
+    "judged_failures": [],
+    "excluded_fields": {
+      "geom_sameframe": {
+        "render_relevant": false,
+        "reason": "collision frame-reuse flag, not read by the scene renderer (upstream MJWarp renderer _src tree has no sameframe reference, grep-verified by Chief 2026-10-24); MuJoCo 3.15 also changed the enum semantics for geoms whose frame differs from the body frame only in position (3.12 BODY(1) vs 3.15 BODYROT(3))",
+        "values_312": [
+          1,
+          0,
+          1,
+          0,
+          0,
+          1,
+          1
+        ],
+        "values_315": [
+          1,
+          0,
+          3,
+          0,
+          0,
+          3,
+          3
+        ]
+      }
+    },
+    "approved_judgement": {
+      "decision": "user 2026-10-24 ruling, option A: close S0a under the already approved tolerance hierarchy",
+      "applies_to": "render-relevant model arrays (plan S0a acceptance item 3)",
+      "criterion": "int/byte exact; float32 f32_bits exact; float64 f32_bits first (f32_bit_differences == 0); excluded non-render field: geom_sameframe",
+      "tolerance_changed": false,
+      "double_layer_numbers_removed": false,
+      "not_claimed": [
+        "both model versions are bit-identical",
+        "MuJoCo 3.12 and 3.15 are equivalent models",
+        "strict element-wise parity passed"
+      ],
+      "record": "strict_elementwise_parity=fail is preserved as the initial strict conclusion in version_difference_classification"
+    },
     "counts_match": true,
     "versions_ok": true,
     "deterministic": true,
-    "tolerance": "plan 4.3: model integers exact; model floats f32_bits first, else <=1 ULP; S0a frozen expectation is element-wise equality"
+    "tolerance": "plan 4.3: model integers exact; model floats f32_bits first, else <=1 ULP; the strict element-wise result is preserved under version_difference_classification"
   },
   "sources": {
     "scene_xml": {
@@ -74,10 +114,10 @@
     "parity": "D:\\Rust\\mjwarp-rs\\target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B D:\\Rust\\mjwarp-rs\\scripts\\authoring\\render-bvh\\model_parity.py --exe D:\\Rust\\mjwarp-rs\\target\\render-bvh\\s0a\\compile_scene_312.exe --scene fixtures\\render-bvh\\scene-a\\scene.xml --out fixtures\\render-bvh\\scene-a --evidence docs\\development-evidence\\render-bvh\\s0a-reference-fixture"
   },
   "hashes": {
-    "model_parity_py_sha256": "a8505720a96a347f1cc833849b5c962cc12378fa439b91490ac23a166eb7b084",
+    "model_parity_py_sha256": "832b8736098c37da3ae73776e39f509b6e14c43c91f3e47bb0a0d9bfcdfaae61",
     "compile_scene_312_exe": {
       "path": "D:\\Rust\\mjwarp-rs\\target\\render-bvh\\s0a\\compile_scene_312.exe",
-      "sha256": "b3fc692dea49ccde0bebe21e009163b5d39c8bd29b4d560b93da5a4aea96cffb"
+      "sha256": "87ddb38123a2b55f90de588f68933864b8c12b48b50733e1d0cc1fb3505381f4"
     },
     "compile_scene_312_cpp_sha256": "8049b9e2a728bb25fa87c3f183ff9f5b1a067922ca240a805f9452e04aa85dc7",
     "scene_xml_sha256": "8e723f9d48f2fb926522fb149c406ea8f59d8560effe6fa81d021f938726c406"
@@ -2077,20 +2117,193 @@
         "kind": "byte",
         "category": "value_difference",
         "render_relevant": false,
-        "note": "collision frame-reuse flag, not read by the scene renderer; 3.12 reports BODY(1) while 3.15 reports BODYROT(3) for geoms whose frame differs from the body frame only in position (semantic enum change)",
+        "note": "collision frame-reuse flag, not read by the scene renderer (upstream MJWarp renderer _src tree has no sameframe reference, grep-verified by Chief 2026-10-24); MuJoCo 3.15 also changed the enum semantics for geoms whose frame differs from the body frame only in position (3.12 BODY(1) vs 3.15 BODYROT(3))",
         "detail": {}
       }
     ],
     "render_relevance_overrides": {
       "geom_sameframe": {
         "render_relevant": false,
-        "reason": "collision frame-reuse flag, not read by the scene renderer; 3.12 reports BODY(1) while 3.15 reports BODYROT(3) for geoms whose frame differs from the body frame only in position (semantic enum change)"
+        "reason": "collision frame-reuse flag, not read by the scene renderer (upstream MJWarp renderer _src tree has no sameframe reference, grep-verified by Chief 2026-10-24); MuJoCo 3.15 also changed the enum semantics for geoms whose frame differs from the body frame only in position (3.12 BODY(1) vs 3.15 BODYROT(3))",
+        "values_312": [
+          1,
+          0,
+          1,
+          0,
+          0,
+          1,
+          1
+        ],
+        "values_315": [
+          1,
+          0,
+          3,
+          0,
+          0,
+          3,
+          3
+        ]
       }
     },
-    "s0b_hard_gate": "NOT met under strict element-wise parity; S0b blocked pending ruling on version-difference classification (no tolerance relaxation applied)"
+    "approved_judgement": {
+      "passed": true,
+      "judged_failures": [],
+      "basis": {
+        "geom_rgba": "strict_equal",
+        "cam_sensorsize": "strict_equal",
+        "cam_intrinsic": "strict_equal",
+        "light_bulbradius": "strict_equal",
+        "light_intensity": "strict_equal",
+        "light_range": "strict_equal",
+        "light_attenuation": "strict_equal",
+        "light_cutoff": "strict_equal",
+        "light_softness": "strict_equal",
+        "light_exponent": "strict_equal",
+        "light_ambient": "strict_equal",
+        "light_diffuse": "strict_equal",
+        "light_specular": "strict_equal",
+        "mat_texrepeat": "strict_equal",
+        "mat_emission": "strict_equal",
+        "mat_specular": "strict_equal",
+        "mat_shininess": "strict_equal",
+        "mat_reflectance": "strict_equal",
+        "mat_metallic": "strict_equal",
+        "mat_roughness": "strict_equal",
+        "mat_rgba": "strict_equal",
+        "mesh_vert": "strict_equal",
+        "mesh_normal": "strict_equal",
+        "mesh_texcoord": "strict_equal",
+        "vis.headlight.ambient": "strict_equal",
+        "vis.headlight.diffuse": "strict_equal",
+        "vis.headlight.specular": "strict_equal",
+        "vis.map.znear": "strict_equal",
+        "vis.map.zfar": "strict_equal",
+        "geom_solmix": "strict_equal",
+        "geom_solref": "strict_equal",
+        "geom_solimp": "strict_equal",
+        "geom_size": "f32_bits",
+        "geom_aabb": "f32_bits",
+        "geom_rbound": "f32_bits",
+        "geom_pos": "strict_equal",
+        "geom_quat": "f32_bits",
+        "geom_friction": "strict_equal",
+        "geom_margin": "strict_equal",
+        "geom_gap": "strict_equal",
+        "geom_surfacevel": "strict_equal",
+        "geom_adhesion": "strict_equal",
+        "geom_fluid": "strict_equal",
+        "cam_pos": "strict_equal",
+        "cam_quat": "strict_equal",
+        "cam_poscom0": "strict_equal",
+        "cam_pos0": "strict_equal",
+        "cam_mat0": "strict_equal",
+        "cam_fovy": "strict_equal",
+        "cam_ipd": "strict_equal",
+        "light_pos": "strict_equal",
+        "light_dir": "strict_equal",
+        "light_poscom0": "strict_equal",
+        "light_pos0": "strict_equal",
+        "light_dir0": "strict_equal",
+        "mesh_scale": "strict_equal",
+        "mesh_pos": "strict_equal",
+        "mesh_quat": "f32_bits",
+        "mesh_polynormal": "f32_bits",
+        "stat.extent": "strict_equal",
+        "stat.center": "strict_equal",
+        "geom_type": "strict_equal",
+        "geom_contype": "strict_equal",
+        "geom_conaffinity": "strict_equal",
+        "geom_condim": "strict_equal",
+        "geom_bodyid": "strict_equal",
+        "geom_dataid": "strict_equal",
+        "geom_matid": "strict_equal",
+        "geom_group": "strict_equal",
+        "geom_priority": "strict_equal",
+        "geom_plugin": "strict_equal",
+        "cam_mode": "strict_equal",
+        "cam_bodyid": "strict_equal",
+        "cam_targetbodyid": "strict_equal",
+        "cam_projection": "strict_equal",
+        "cam_resolution": "strict_equal",
+        "cam_output": "strict_equal",
+        "light_mode": "strict_equal",
+        "light_bodyid": "strict_equal",
+        "light_targetbodyid": "strict_equal",
+        "light_type": "strict_equal",
+        "light_texid": "strict_equal",
+        "mat_texid": "strict_equal",
+        "tex_type": "strict_equal",
+        "tex_colorspace": "strict_equal",
+        "tex_height": "strict_equal",
+        "tex_width": "strict_equal",
+        "tex_nchannel": "strict_equal",
+        "tex_pathadr": "strict_equal",
+        "mesh_vertadr": "strict_equal",
+        "mesh_vertnum": "strict_equal",
+        "mesh_faceadr": "strict_equal",
+        "mesh_facenum": "strict_equal",
+        "mesh_bvhadr": "strict_equal",
+        "mesh_bvhnum": "strict_equal",
+        "mesh_octadr": "strict_equal",
+        "mesh_octnum": "strict_equal",
+        "mesh_normaladr": "strict_equal",
+        "mesh_normalnum": "strict_equal",
+        "mesh_texcoordadr": "strict_equal",
+        "mesh_texcoordnum": "strict_equal",
+        "mesh_graphadr": "strict_equal",
+        "mesh_extrema": "strict_equal",
+        "mesh_face": "strict_equal",
+        "mesh_facenormal": "strict_equal",
+        "mesh_facetexcoord": "strict_equal",
+        "mesh_graph": "strict_equal",
+        "mesh_pathadr": "strict_equal",
+        "mesh_polynum": "strict_equal",
+        "mesh_polyadr": "strict_equal",
+        "mesh_polyvertadr": "strict_equal",
+        "mesh_polyvertnum": "strict_equal",
+        "mesh_polyvert": "strict_equal",
+        "mesh_polymapadr": "strict_equal",
+        "mesh_polymapnum": "strict_equal",
+        "mesh_polymap": "strict_equal",
+        "vis.headlight.active": "strict_equal",
+        "name_bodyadr": "strict_equal",
+        "name_jntadr": "strict_equal",
+        "name_geomadr": "strict_equal",
+        "name_siteadr": "strict_equal",
+        "name_camadr": "strict_equal",
+        "name_lightadr": "strict_equal",
+        "name_meshadr": "strict_equal",
+        "name_texadr": "strict_equal",
+        "name_matadr": "strict_equal",
+        "tex_adr": "strict_equal",
+        "geom_sameframe": "excluded_non_render",
+        "light_castshadow": "strict_equal",
+        "light_active": "strict_equal",
+        "mat_texuniform": "strict_equal",
+        "tex_data": "strict_equal",
+        "names": "strict_equal"
+      },
+      "criterion": {
+        "decision": "user 2026-10-24 ruling, option A: close S0a under the already approved tolerance hierarchy",
+        "applies_to": "render-relevant model arrays (plan S0a acceptance item 3)",
+        "criterion": "int/byte exact; float32 f32_bits exact; float64 f32_bits first (f32_bit_differences == 0); excluded non-render field: geom_sameframe",
+        "tolerance_changed": false,
+        "double_layer_numbers_removed": false,
+        "not_claimed": [
+          "both model versions are bit-identical",
+          "MuJoCo 3.12 and 3.15 are equivalent models",
+          "strict element-wise parity passed"
+        ],
+        "record": "strict_elementwise_parity=fail is preserved as the initial strict conclusion in version_difference_classification"
+      }
+    },
+    "s0b_hard_gate": "met"
   },
   "not_claimed": [
     "render output parity (S0b, needs GPU)",
-    "product acceptance (S1+ not started)"
+    "product acceptance (S1+ not started)",
+    "both model versions are bit-identical",
+    "MuJoCo 3.12 and 3.15 are equivalent models",
+    "strict element-wise parity passed"
   ]
 }
