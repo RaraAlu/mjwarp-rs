@@ -280,3 +280,5 @@ extern "C" int32_t mjwarp_native_copy_kinematic(
   }
   return 0;
 }
+
+#include "model_probe_render.cpp"

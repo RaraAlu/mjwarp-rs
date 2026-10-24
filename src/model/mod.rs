@@ -3,6 +3,11 @@
 
 use crate::diagnostics::{InputError, NativeProbeError};
 
+pub mod render;
+pub use render::{
+    CountUnit, FieldData, FieldSpec, RENDER_FIELDS, RENDER_OBJECTS, RenderFieldKind, RenderFields,
+    RenderModelCounts, RenderObject,
+};
 pub mod topology;
 pub use topology::{KinematicFields, KinematicModelInput};
 pub mod inertial;
@@ -119,6 +124,114 @@ impl NativeModelInfo {
 /// A2：批量布局归属`model::data::layout`。
 /// 本路径保留为兼容导出。
 pub use data::layout::BatchLayout;
+
+/// 渲染模型的名称表/纹理/网格地址前置校验。
+/// 在分配任何设备缓冲之前由 `io::render` 调用。
+pub fn validate_render_tables(
+    counts: RenderModelCounts,
+    fields: &RenderFields,
+) -> Result<(), NativeProbeError> {
+    let names = match fields.field("names") {
+        Some(FieldData::Flag(values)) => values.as_slice(),
+        _ => return Err(InputError::InvalidDimension { field: "names" }.into()),
+    };
+    if names.len() as i64 != counts.nnames || names.is_empty() {
+        return Err(InputError::InvalidDimension { field: "names" }.into());
+    }
+    for object in RENDER_OBJECTS {
+        let table = fields
+            .ints(object.table())
+            .map_err(NativeProbeError::from)?;
+        if table.len() as i64 != object.count(counts) {
+            return Err(InputError::InvalidDimension {
+                field: object.table(),
+            }
+            .into());
+        }
+        for (index, &adr) in table.iter().enumerate() {
+            if adr < 0 || adr as usize >= names.len() {
+                return Err(InputError::InvalidTopology {
+                    field: object.table(),
+                    index,
+                    reason: "name_address_out_of_range",
+                }
+                .into());
+            }
+        }
+    }
+    if names.last() != Some(&0) {
+        return Err(InputError::InvalidTopology {
+            field: "names",
+            index: names.len() - 1,
+            reason: "missing_name_terminator",
+        }
+        .into());
+    }
+    for (index, &size) in fields
+        .ints("cam_resolution")
+        .map_err(NativeProbeError::from)?
+        .iter()
+        .enumerate()
+    {
+        if size < 0 {
+            return Err(InputError::NegativeValue {
+                field: "cam_resolution",
+                index,
+            }
+            .into());
+        }
+    }
+    for (field, limit) in [
+        ("light_texid", counts.ntex),
+        ("mat_texid", counts.ntex),
+        ("geom_matid", counts.nmat),
+    ] {
+        for (index, &value) in fields
+            .ints(field)
+            .map_err(NativeProbeError::from)?
+            .iter()
+            .enumerate()
+        {
+            if value < -1 || i64::from(value) >= limit {
+                return Err(InputError::InvalidIndex {
+                    field,
+                    index,
+                    limit: usize::try_from(limit).unwrap_or(usize::MAX),
+                }
+                .into());
+            }
+        }
+    }
+    for &adr in fields.sizes("tex_adr").map_err(NativeProbeError::from)? {
+        if adr < 0 || adr > counts.ntexdata {
+            return Err(InputError::InvalidRange {
+                field: "tex_adr",
+                offset: usize::try_from(adr.max(0)).unwrap_or(usize::MAX),
+                elements: 1,
+                capacity: usize::try_from(counts.ntexdata).unwrap_or(usize::MAX),
+            }
+            .into());
+        }
+    }
+    for field in ["mesh_bvhadr", "mesh_octadr", "mesh_pathadr"] {
+        for (index, &value) in fields
+            .ints(field)
+            .map_err(NativeProbeError::from)?
+            .iter()
+            .enumerate()
+        {
+            if value < -1 {
+                return Err(InputError::InvalidIndex {
+                    field,
+                    index,
+                    limit: 1usize << 31,
+                }
+                .into());
+            }
+        }
+    }
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {

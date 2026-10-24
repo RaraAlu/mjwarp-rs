@@ -18,6 +18,12 @@ pub use fields::{DeviceBatch, convert_f64_to_f32_into, copy_world_f32, upload_f6
 pub use flex::NativeFlexPositionSnapshot;
 #[cfg(feature = "native-model-probe")]
 pub use g01::NativeG01Snapshot;
+#[cfg(feature = "native-model-probe")]
+mod render;
+#[cfg(feature = "native-model-probe")]
+pub use crate::model::render::RenderModelCounts;
+#[cfg(feature = "native-model-probe")]
+pub use render::{NativeRenderSnapshot, RenderModelInput};
 
 mod inertial;
 mod kinematic;
@@ -261,6 +267,24 @@ mod native {
             // SAFETY: Self retains the immutable owner and DLL on this thread.
             // Each snapshot owns separate buffers; the bridge checks its field ABI.
             unsafe { super::NativeG01Snapshot::capture(self.owner.as_ptr(), inertial, positions) }
+        }
+
+        /// 复制渲染相关模型字段（相机/光源/材质/纹理/网格/vis/名称表）。
+        /// 只读；不创建纹理对象、不建BVH、不使用GPU。
+        pub fn render_snapshot(&self) -> Result<super::NativeRenderSnapshot, NativeProbeError> {
+            // SAFETY: Self retains the immutable owner and its DLL on this thread;
+            // the capture owns every output buffer and the bridge preflights counts.
+            unsafe { super::NativeRenderSnapshot::capture(self.owner.as_ptr(), self.info) }
+        }
+
+        /// `mj_id2name` 语义对照：返回名称字节或 `None`。
+        pub fn render_name_oracle(
+            &self,
+            object: crate::model::RenderObject,
+            id: i64,
+        ) -> Result<Option<Vec<u8>>, NativeProbeError> {
+            // SAFETY: Self retains the immutable owner and its DLL on this thread.
+            unsafe { super::render::native_name(self.owner.as_ptr(), object.mj_obj(), id) }
         }
     }
 

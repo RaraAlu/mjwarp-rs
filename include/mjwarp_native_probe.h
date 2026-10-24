@@ -110,4 +110,7 @@ int32_t mjwarp_native_copy_flex_position(const mjwarp_native_owner* owner,
 #ifdef __cplusplus
 }
 #endif
+// Render-model probe (S1) keeps its own schema and field IDs; the G01 ABI above
+// is unchanged. Including it here keeps one native include root for probes.
+#include "mjwarp_render_probe.h"
 #endif

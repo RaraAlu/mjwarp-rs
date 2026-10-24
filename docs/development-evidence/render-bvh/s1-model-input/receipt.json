@@ -1,0 +1,225 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s1-model-input",
+  "task_id": "2026-10-24-render-bvh-s1",
+  "date": "2026-10-24",
+  "slice": "S1",
+  "outcome": "pass",
+  "scope": "host-only native render model input; no GPU, no texture objects, no BVH, no Python at test time",
+  "environment": {
+    "product_native": "MuJoCo 3.12.0 (target/toolchains/mujoco-3.12.0/package, trusted DLL)",
+    "toolchain": "Rust 1.99.0 x86_64-pc-windows-msvc",
+    "features": "native-model-probe only (no cuda-probe)",
+    "feature_invariance": "existing G01 45-field ABI, collision, flex and sparse probes unchanged",
+    "gpu": "not used",
+    "mjb": {
+      "path": "fixtures/render-bvh/scene-a/scene-312.mjb",
+      "bytes": 101328,
+      "sha256": "c6f5f9f17118067ad39fb2ea6be4f1c274e4d932b553bbe9a4e59b464c56aad1"
+    },
+    "reference": {
+      "path": "fixtures/render-bvh/scene-a/model-312.json",
+      "bytes": 312635,
+      "sha256": "cdd490f0209dd16a57b2685f3139548af8a2b73195cdb0e01a74ab094ef1df00"
+    }
+  },
+  "field_parity": {
+    "fields_compared": 116,
+    "scalars_compared": 89941,
+    "fields_mismatched": 0,
+    "scalars_mismatched": 0,
+    "groups": {
+      "geom": {
+        "fields": 9,
+        "scalars": 133
+      },
+      "cam": {
+        "fields": 15,
+        "scalars": 74
+      },
+      "light": {
+        "fields": 22,
+        "scalars": 120
+      },
+      "mat": {
+        "fields": 10,
+        "scalars": 69
+      },
+      "tex": {
+        "fields": 8,
+        "scalars": 89109
+      },
+      "mesh": {
+        "fields": 34,
+        "scalars": 203
+      },
+      "vis": {
+        "fields": 6,
+        "scalars": 12
+      },
+      "stat": {
+        "fields": 2,
+        "scalars": 4
+      },
+      "names": {
+        "fields": 10,
+        "scalars": 217
+      }
+    },
+    "comparison": "native 3.12 values vs reference JSON number text; integers parsed at native width, float64/float32 via Rust std correctly-rounded parser, strict equality",
+    "excluded_fields": [
+      "geom_contype",
+      "geom_conaffinity",
+      "geom_condim",
+      "geom_priority",
+      "geom_plugin",
+      "geom_sameframe",
+      "geom_solmix",
+      "geom_solref",
+      "geom_solimp",
+      "geom_aabb",
+      "geom_rbound",
+      "geom_friction",
+      "geom_margin",
+      "geom_gap",
+      "geom_surfacevel",
+      "geom_adhesion",
+      "geom_fluid"
+    ],
+    "excluded_reason": "collision/constraint/solver-only arrays not read by the renderer; covered by existing G01/collision probes; 116 + 17 = 133 reference arrays"
+  },
+  "name_lookup": {
+    "objects": [
+      "body",
+      "joint",
+      "geom",
+      "site",
+      "camera",
+      "light",
+      "mesh",
+      "texture",
+      "material"
+    ],
+    "semantics": "mj_id2name: id out of range or negative address -> None; empty name -> empty bytes; missing NUL -> None",
+    "oracle": "mj_id2name symbol resolved from the loaded MuJoCo 3.12 library",
+    "comparisons": 87,
+    "mismatches": 0
+  },
+  "rejection_surface": {
+    "construct_cases": 11,
+    "cases": [
+      "negative count",
+      "count overflow",
+      "short field",
+      "wrong kind",
+      "negative resolution",
+      "texture id out of range",
+      "texture address out of range",
+      "name address out of range",
+      "mesh range past capacity",
+      "unterminated names",
+      "empty names"
+    ],
+    "checks": [
+      "19 counts non-negative",
+      "expected scalars = unit x width with checked multiply",
+      "field length equals expected",
+      "name address in names buffer and NUL-terminated",
+      "camera resolution non-negative",
+      "light_texid/mat_texid/geom_matid range",
+      "tex_adr in [0, ntexdata]",
+      "mesh adr/num start+count within capacity",
+      "C++ bridge preflights kinds/counts/source before writing; product allocation is host Vec only"
+    ]
+  },
+  "tests": {
+    "host_pure": {
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features native-model-probe --test render_model_input",
+      "passed": 4,
+      "ignored": 2
+    },
+    "native_acceptance": {
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features native-model-probe --test render_model_input -- --ignored --test-threads=1",
+      "passed": 2,
+      "failed": 0,
+      "requires": "MJWARP_MUJOCO_ROOT + MJWARP_MUJOCO_DLL (trusted MuJoCo 3.12.0 package)"
+    },
+    "gates": "normify gate 2026-10-24-render-bvh-s1 (fmt/clippy/clippy-cuda/unit); timings and pass counts are recorded in the task run records and commit body"
+  },
+  "artifacts": {
+    "include/mjwarp_render_probe.h": {
+      "lines": 50,
+      "bytes": 2370,
+      "sha256": "12bf51fb752a40e1c92d2f66b0b180953b81857d9896da8e7f0e82806ae215ad"
+    },
+    "src/model/render.rs": {
+      "lines": 500,
+      "bytes": 15725,
+      "sha256": "625536ee08d96de3b463276ca58a5abd2068028b0ec1b5c013df0dfd4e9b1437"
+    },
+    "src/io/render.rs": {
+      "lines": 453,
+      "bytes": 14465,
+      "sha256": "4b7d76434fbc1f94a95d4dc6f499809e637e036df8c8d20601c44ebe0367903b"
+    },
+    "tests/render_model_input.rs": {
+      "lines": 384,
+      "bytes": 14643,
+      "sha256": "cf1d3d1ce98ad78e2def6c55202cfc925c0add82b5a050fe4c8781ef69e8594c"
+    },
+    "native/model_probe.cpp": {
+      "lines": 284,
+      "bytes": 13019,
+      "sha256": "f60047c05103aca9cc4ac1b1e3cca255de78b5ec2764bca04b2a79f7033117ae"
+    },
+    "native/model_probe_render.cpp": {
+      "lines": 233,
+      "bytes": 16864,
+      "sha256": "0d628abdfbf57f9f2b5e63faacaf57b66fe72311d7d49afccfb4a80a16734235"
+    },
+    "build.rs": {
+      "lines": 51,
+      "bytes": 2055,
+      "sha256": "6bca392949c0e5658cb3c14c63e23cab0251c3b15781260b88371ae6a62ed32c"
+    },
+    "src/model/mod.rs": {
+      "lines": 333,
+      "bytes": 10692,
+      "sha256": "9635ae8becc6cff51479e12e208391eda6921edd64d3115bdcdd9f2badaeb10f"
+    },
+    "src/io/mod.rs": {
+      "lines": 418,
+      "bytes": 16040,
+      "sha256": "99423fe68292a3417bce5f1d2e5c55bc6c6493ed33e644b4f01d9b046c8d94cf"
+    },
+    "include/mjwarp_native_probe.h": {
+      "lines": 116,
+      "bytes": 4669,
+      "sha256": "cd857b979d24782e8dd460c9a43b3acbad986b08bd53c8b459683ff4626b8bc1"
+    },
+    "evidence/field-diff.json": {
+      "lines": 725,
+      "bytes": 13173,
+      "sha256": "8ed81083cef9f2658d7d942a0dc16287f578311c6b4be3277b1b692c19d5ed3f"
+    },
+    "evidence/README.md": {
+      "lines": 123,
+      "bytes": 10340,
+      "sha256": "ca7c182a3df0f0aea5234454e21f1a86d530ea4240e5cab70e71696347551e7c"
+    }
+  },
+  "not_claimed": [
+    "complete renderer or product rendering acceptance",
+    "S2 scene BVH (not started)",
+    "GPU upload, texture object creation or any GPU kernel",
+    "G01 existing 45-field ABI or semantics changed",
+    "material/texture GPU parity; only host values are checked"
+  ],
+  "unmet": [
+    "single frozen scene-a fixture only; no fuzz/arbitrary-MJB property tests",
+    "geom_dataid only checked >= -1 (mesh vs hfield ambiguity; hfield not read in S1)",
+    "name oracle verified for ASCII fixture names; non-UTF-8 names only via name_bytes (name() returns None)",
+    "native bridge is split into the existing TU native/model_probe.cpp (282 -> 284 lines, include only) and the new native/model_probe_render.cpp (233 lines); all new files are <= 500 lines",
+    "no GPU path, texture objects, BVH, camera rays or context parameters (S2-S7 scope)"
+  ]
+}

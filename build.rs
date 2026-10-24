@@ -32,6 +32,7 @@ fn build_native_probe() {
     println!("cargo:rerun-if-changed=native/model_probe_collision.cpp");
     println!("cargo:rerun-if-changed=native/model_probe_sparse.cpp");
     println!("cargo:rerun-if-changed=native/g01_fields.inc");
+    println!("cargo:rerun-if-changed=native/model_probe_render.cpp");
     println!("cargo:rerun-if-changed=include/mjwarp_native_probe.h");
     println!("cargo:rerun-if-changed=include/mjwarp_collision_probe.h");
     println!("cargo:rerun-if-changed=include/mjwarp_sparse_probe.h");

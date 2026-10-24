@@ -5,7 +5,7 @@
     "zh": "渲染/BVH S1：渲染模型输入（相机/光源/材质/纹理/网格/vis/名称表）",
     "en": "Render/BVH S1: render model input (camera/light/material/texture/mesh/vis/names)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "渲染/BVH 解冻后的第三片（plan S1，S0a 已 verified）：扩展原生模型 ABI 与 Rust 模型，只读相机/光源/材质/纹理/网格/vis/名称表等渲染相关字段，并做宿主校验（计数/长度/乘积溢出、名称表与地址范围、负尺寸、非法 id）；不分配设备缓冲、不创建纹理对象、不建 BVH、不使用 GPU。字段值必须与 fixtures/render-bvh/scene-a/model-312.json 逐元素相等；名称查找语义必须与加载库的 mj_id2name 一致。",
     "en": "Third render/BVH slice (plan S1, S0a verified): extend the native model ABI and the Rust model with read-only render fields (camera/light/material/texture/mesh/vis/name tables) and host validation (counts/lengths/product overflow, name/address ranges, negative sizes, invalid ids). No device buffers, texture objects, BVH or GPU. Field values must equal fixtures/render-bvh/scene-a/model-312.json element-wise and name lookup must match the loaded library's mj_id2name."
@@ -26,24 +26,29 @@
     "phase": "P8-渲染与BVH",
     "owner": "Backend",
     "files": [
-      "src/model/",
-      "src/io/",
-      "native/",
-      "include/",
-      "tests/",
-      "docs/development-evidence/render-bvh/"
+      "src/model/render.rs",
+      "src/model/mod.rs",
+      "src/io/render.rs",
+      "src/io/mod.rs",
+      "native/model_probe.cpp",
+      "include/mjwarp_render_probe.h",
+      "include/mjwarp_native_probe.h",
+      "tests/render_model_input.rs",
+      "docs/development-evidence/render-bvh/s1-model-input/",
+      "build.rs",
+      "native/model_probe_render.cpp"
     ],
     "resources": [],
     "priority": 88
   },
   "note": "来源：docs/development-evidence/render-bvh-precheck/plan.json slices[id=S1] 与 README §6「S1 渲染模型输入」；用户已批准 D1-D4 口径。产品 native 保持 MuJoCo 3.12.0，3.15 只在 authoring；不越到 S2（场景 BVH）。",
   "revision": {
-    "before": null,
+    "before": "f314cade98223fd84dc975b12b17c1e137d4c2ce",
     "after": null
   },
   "created_at": "2026-10-24T14:55:00.000Z",
-  "updated_at": "2026-10-24T14:55:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-24T15:05:16.094Z",
+  "closed_at": "2026-10-24T15:03:33.592Z",
   "checks": [
     {
       "kind": "gate",
@@ -75,6 +80,14 @@
         "完整R01通过",
         "S2已实现"
       ]
+    }
+  ],
+  "addenda": [
+    {
+      "at": "2026-10-24T15:05:16.094Z",
+      "reason": "原生桥抽出 native/model_probe_render.cpp 以满足既有文件行数门禁并刷新模块指纹",
+      "prev": null,
+      "hash": "sha256:a0aa46d7883d9538d9e75f18da5d4561fec714ecb2e322f694ada665e9ea8495"
     }
   ]
 }
