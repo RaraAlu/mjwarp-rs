@@ -269,6 +269,8 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 
 合计约 60 人日。S0a/S0b 是 authoring/夹具，不是产品能力；S1–S8 才进入产品代码。每片交付独立证据目录 `docs/development-evidence/render-bvh/<slice-id>/README.md` + JSON/LOG；切片完成只代表该片验收，不代表 R01 整体通过。
 
+> 排程拆分：S2 已拆为 S2a/S2b/S2-close；S7b 已按输出阶段拆为 S7b1/S7b2/S7b3（见 6.1 推进表与 plan.json `structural_decisions`）。拆分只影响交付顺序与验收面，不改切片范围语义。
+
 ### 6.1 推进表（滚动，截至 2026-10-24）
 
 本表只更新「切片 → 任务 id → owner → 状态 → 证据路径」，不改切片、验收与容差语义。
@@ -297,7 +299,11 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 | S6a 复核 | `2026-10-24-render-bvh-s6a-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s6a-independent-check/` | `1c0929e`；34/34、15/15 拒绝、531/0、无 GPU |
 | S6b | `2026-10-24-render-bvh-s6b` | Backend | verified | `docs/development-evidence/render-bvh/s6b-context-lifecycle/` | `a171044`；100 次增长 0、显式 refit、531/0 |
 | S6b 复核 | `2026-10-24-render-bvh-s6b-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s6b-independent-check/` | `e3ea82c`；100 循环 growth 0 B、drop retained 0 B、5/5、531/0；1 条非阻断（5 个产物行数陈旧，sha256/bytes 一致） |
-| S7a | `2026-10-24-render-bvh-s7a` | Backend | in_progress | `docs/development-evidence/render-bvh/s7a-launch-abi/` | 发射 ABI：vec/u64/texture/新 Render recipe；S6b 复核已释放 GPU，60 分钟窗口 |
+| S7a | `2026-10-24-render-bvh-s7a` | Backend | verified | `docs/development-evidence/render-bvh/s7a-launch-abi/` | `a0d9af0`；81 槽 ABI（13 类元素/56B RenderArray）、`WARP_1_15_RENDER`+`F32Render`、PTX 25996 B、GPU 2/2、532/0 |
+| S7a 复核 | `2026-10-25-render-bvh-s7a-independent-check` | QA | in_progress | `docs/development-evidence/render-bvh/s7a-independent-check/` | 30 分钟 GPU；重点：f64 精确放行面「恰好两条 svd.h 死数据常量」、81 槽 ABI 独立复算、round-trip |
+| S7b1 | `2026-10-25-render-bvh-s7b1-depth-seg` | Backend | proposed（blocked: S7a 复核） | `docs/development-evidence/render-bvh/s7b1-depth-seg/` | 主射线/世界系变换/深度/分割；seg 全等、depth ≤4 ULP |
+| S7b2 | `2026-10-25-render-bvh-s7b2-shading` | Backend | proposed（blocked: S7b1） | `docs/development-evidence/render-bvh/s7b2-shading/` | 着色+RGB；每通道 ≤1 LSB |
+| S7b3 | `2026-10-25-render-bvh-s7b3-flags` | Backend | proposed（blocked: S7b2） | `docs/development-evidence/render-bvh/s7b3-flags/` | flag 变体矩阵 + AA(spp=2) 图像级参考（新 authoring 捕获） |
 
 结构说明：
 - 原 `2026-10-24-render-bvh-s2` 已 abandon（`8d4357f`，理由：运行中父任务写路径锁与派生任务冲突、冻结字段不可改）；拆分前参考捕获 `75166cf` 保留在 git 历史与 `fixtures/render-bvh/scene-a/s2/`，S2b 继续引用。
@@ -310,7 +316,10 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 - S4 已 verified（`3e3426d`）：硬件纹理对象 3×1040×4 逐位、524/0；S4 复核 `cc5d223` 已 verified；证据哈希修正 `9c8eb81` 已挂。
 - S6a 已 verified（`dad622f`）：34 resolved/15 拒绝、531/0；S6a 复核 `1c0929e` 已 verified。
 - S6b 已 verified（`a171044`）：100 次 create/destroy 增长 0、显式 refit、531/0；S6b 复核 `e3ea82c` 已 verified（QA 独立重算 growth 0 B、drop retained 0 B、5/5、531/0），1 条非阻断证据问题（5 个产物行数陈旧，sha256/bytes 全一致）按 `normify fix` 修正，不改验收结论。
-- S7a 已在 S6b 复核释放 GPU 后 start（in_progress）：发射 ABI 的 vec/u64/texture + 新 Render recipe `WARP_1_15_RENDER`（F32Physics 门禁）、`session.rs` crate 可见 stream、`texture/cuda.rs` 只读 CUtexObject、登记 `mjwarp.render.kernel`；只做 ABI/编译/round-trip，不做像素内核（S7b）。
+- S7a 已 verified（`a0d9af0`，22 文件）：81 槽渲染发射 ABI（1 bounds + 73 数组 + 7 标量 + 4 输出、13 类元素宽度/对齐、56 字节 `RenderArray`）、`RecipePurpose::Render` + `WARP_1_15_RENDER`（fmad=true/fast-math=false/C++17/compute_70/`PrecisionGate::F32Render`）、W15+NVRTC PTX 25,996 B、GPU round-trip 2/2、门禁 532/0；S7a 复核已 start（30 分钟 GPU）。
+- **S7a 口径新增（A′，物理门禁不变）**：W15 `svd.h` 经 `builtin.h` 固定带两条 `_svd_config<double>` 死数据常量（`SVD_EPSILONE`/`QR_GIVENS_EPSILONE` = `0d3D719799812DEA11`）；渲染门禁精确放行这两条（符号名+字面量+行尾逐字节、各一次），其余 f64/f16/bf16/tf32 与无 sin/cos 归约三元组的 `.reg .f64` 一律拒绝，`check_physics_ptx` 未改。这是精确白名单，不是容差放宽；QA 复核列为必查项。
+- S7a 偏差（已被接受）：裁决④ `mjwarp.render.kernel` 叶子模块被 normify 结构规则阻塞（父模块 `mjwarp.render` 声明了 API）；表现为 kernel 源码登记进 `mjwarp.render`、launcher 源码登记进 `mjwarp.runtime`，validate 0 错误。另登记 backlog `2026-10-25-render-bvh-module-split`（S7b2 后 promote：先拆 `mjwarp.render` API 再建叶子）。
+- **S7b 拆片（`74928dd`）**：plan 的 S7b（渲染内核，估 12 人日）按输出阶段拆为 S7b1（主射线/世界系变换/深度/分割）→ S7b2（着色/RGB）→ S7b3（flag 变体矩阵 + AA 图像级参考，需新 authoring 捕获，结掉 S5 的 AA deferral）。理由：单任务单窗口单验收面不可交付，三片各有可判定冻结参考；`src/render/kernel/launch.rs` 已恰 500 行，后续片不得改长该文件。
 - `gpu:windows-t4` 是项目排程互斥名，不等于 T4 硬件；本机实际为 RTX 4070 Ti SUPER / SM89 / 驱动 596.36。开窗前核对设备，GPU 满载任务串行。
 - S1 复核的 `unchanged` 结构裁决已由 QA 在 receipt/addenda 留痕；normify 0.7.0 不允许改已 verified 检查，记录保持登记宽口径，实际门禁按 S1 自有路径执行。
 - S3 前排程注记：先补两个新叶子模块 `mjwarp.model.render-model`、`mjwarp.io.render` 的 layout order/apis；`src/model/render.rs` 当前正好 500 行，后续任何加功能必须先拆文件，S3+ 切片不得撞 500 行棘轮。

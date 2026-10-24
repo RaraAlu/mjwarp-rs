@@ -381,10 +381,46 @@
         "slice": "S7a",
         "task_id": "2026-10-24-render-bvh-s7a",
         "owner": "Backend",
-        "normify_status": "in_progress",
-        "execution": "60-minute GPU window after S6b review released the GPU",
+        "normify_status": "verified",
+        "execution": "done",
         "evidence": "docs/development-evidence/render-bvh/s7a-launch-abi/",
-        "note": "vec/u64/texture launch ABI; new Render recipe WARP_1_15_RENDER (F32Physics gate); crate-visible transfer session stream; read-only CUtexObject; mjwarp.render.kernel module; ABI/compile/round-trip only, no pixel kernel (S7b)"
+        "note": "commit a0d9af0; 81-slot render launch ABI (13 element classes, 56-byte RenderArray), WARP_1_15_RENDER with PrecisionGate::F32Render (exact allowance for the two W15 svd.h f64 dead-data constants only), W15+NVRTC PTX 25996 B, GPU round-trip 2/2, 532/0; deviation: mjwarp.render.kernel leaf module blocked by normify structure rule, kernel sources registered under mjwarp.render"
+      },
+      {
+        "slice": "S7a review",
+        "task_id": "2026-10-25-render-bvh-s7a-independent-check",
+        "owner": "QA",
+        "normify_status": "in_progress",
+        "execution": "30-minute GPU window",
+        "evidence": "docs/development-evidence/render-bvh/s7a-independent-check/",
+        "note": "independent ABI recompute (81 slots, 13 element classes, 56-byte RenderArray), independent W15+NVRTC compile, independent f64 exact-allowance verification for the render gate, GPU round-trip and texture-handle lifetime"
+      },
+      {
+        "slice": "S7b1",
+        "task_id": "2026-10-25-render-bvh-s7b1-depth-seg",
+        "owner": "Backend",
+        "normify_status": "proposed",
+        "execution": "after S7a review releases the GPU; 90-minute GPU window",
+        "evidence": "docs/development-evidence/render-bvh/s7b1-depth-seg/",
+        "note": "render kernel primary rays: S5 rays + camera-to-world transform + max_cam_dist, scene/mesh BVH intersection, planar depth (m, 0=miss) and (object_id, object_type) segmentation; seg exact, depth <=4 ULP on two cameras; no shading/RGB (S7b2)"
+      },
+      {
+        "slice": "S7b2",
+        "task_id": "2026-10-25-render-bvh-s7b2-shading",
+        "owner": "Backend",
+        "normify_status": "proposed",
+        "execution": "blocked by S7b1",
+        "evidence": "docs/development-evidence/render-bvh/s7b2-shading/",
+        "note": "shading and RGB output: headlight groups, background, base color, texture sampling, vertex/face normals, emission/specular, backface culling; RGB <=1 LSB per channel on two cameras"
+      },
+      {
+        "slice": "S7b3",
+        "task_id": "2026-10-25-render-bvh-s7b3-flags",
+        "owner": "Backend",
+        "normify_status": "proposed",
+        "execution": "blocked by S7b2",
+        "evidence": "docs/development-evidence/render-bvh/s7b3-flags/",
+        "note": "flag variant matrix (texture / vertex-normal / specular-emission / backface culling on-off) plus AA spp=2 image-level reference via new offline authoring capture; closes the S5 AA image-level deferral; fixtures under fixtures/render-bvh/scene-a/s7b/"
       }
     ],
     "structural_decisions": [
@@ -403,6 +439,18 @@
         "decision": "narrow S1 review unchanged paths",
         "reason": "S2a legitimately writes src/render, so global src/tests/fixtures/Cargo.* would fail",
         "effect": "S1-owned product files and original S1 evidence remain protected; QA receipt must record git diff d642c03 -- src tests fixtures Cargo.* and explain S2a-owned changes"
+      },
+      {
+        "decision": "split S7b into S7b1/S7b2/S7b3",
+        "commit": "74928dd",
+        "reason": "single 12-estimate-day slice with one GPU window and one acceptance surface is not deliverable; each split has a judgeable frozen reference (depth/seg for S7b1, rgb.npz for S7b2, new authoring variants + AA for S7b3) and respects the 500-line ratchet (launch.rs is exactly 500 lines and must not grow)",
+        "state": "S7b1 registered and next; S7b2 depends on S7b1; S7b3 depends on S7b2"
+      },
+      {
+        "decision": "accept S7a deviation on mjwarp.render.kernel leaf module",
+        "reason": "normify structure rule rejects a leaf under a module that declares APIs (mjwarp.render); moving APIs is governance surgery outside S7a files and does not affect render functionality",
+        "effect": "S7a registers kernel sources under mjwarp.render and launcher sources under mjwarp.runtime with validate 0 errors; follow-up backlog task 2026-10-25-render-bvh-module-split (split mjwarp.render APIs, then create mjwarp.render.kernel) to be promoted after S7b2",
+        "addendum": "render f32 gate adds an exact allowance for the two W15 svd.h `_svd_config<double>` dead-data constants (symbol name + literal + line end, each once); every other f64/f16/bf16/tf32 token and any `.reg .f64` without the documented sin/cos reduction triplet is still rejected; physics gate check_physics_ptx is unchanged"
       }
     ],
     "scheduling_notes": [
