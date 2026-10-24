@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s5",
+  "title": {
+    "zh": "渲染/BVH S5：相机/射线/AA/预计算射线与拒绝面",
+    "en": "Render/BVH S5: camera rays, AA sampling, precomputed rays, and rejection surface"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "渲染/BVH 第六片（plan S5，S1 已 verified）：实现 create_render_context 的相机筛选与射线生成路径——compute_ray 的透视/正交、fovy/sensorsize/intrinsic/aspect/znear、samples_per_pixel AA 子采样、use_precomputed_rays 开关、ray/ray_offset 缓冲布局、相机 id 映射；对冻结 MJWarp 3.15 参考逐像素对照方向/偏移与 AA 图像，保留上游组合限制（samples>1 需预计算射线且至少一路 RGB）。纹理/渲染内核/阴影不在本片。",
+    "en": "Sixth render/BVH slice (plan S5, S1 verified): implement the camera-selection and ray-generation path of create_render_context - compute_ray for perspective/orthographic, fovy/sensorsize/intrinsic/aspect/znear, samples_per_pixel AA subsampling, use_precomputed_rays on/off, ray/ray_offset buffer layout, and camera id mapping; compare per-pixel direction/offset and AA images against the frozen MJWarp 3.15 reference, preserving upstream combination limits (samples>1 requires precomputed rays and at least one RGB output). Textures/render kernel/shadows stay out."
+  },
+  "modules": {},
+  "acceptance": [
+    "相机空间射线：每相机/投影的 local ray direction/offset 与参考一致（优先逐位，否则 ≤1 ULP）；透视/正交、fovy/sensorsize/intrinsic/aspect/znear 覆盖；世界系 cam_xmat @ dir / ortho 平移属 S7b，不在 S5。",
+    "AA：samples_per_pixel=1 与 2 的射线条数/子样本偏移/顺序正确，全网格 SHA-256 位等；AA 合成图像延后 S7b/S8（S5 无渲染内核，明确 deferral）；use_precomputed_rays=false 仅 spp=1 动态路径与预计算位型一致。",
+    "正交相机：允许 authoring 在 3.15 MjModel 副本上把 cam_projection 改为 ORTHO 捕获合成参考，provenance 写清；产品测试只读位型，不改产品模型/夹具语义。",
+    "相机筛选：bool/name/index/空列表语义与上游一致；相机 id vs 输出序号分离；异构分辨率/空相机列表不越界。",
+    "拒绝面：samples>1 缺预计算射线或没有 RGB 输出、非法 camera 选择/分辨率长度在写前拒绝；不声称纹理/渲染内核/阴影。",
+    "证据/门禁：全网格 SHA-256 + 每相机 128 抽样位型 + 元数据 + 拒绝面矩阵的夹具策略；SHA-256 而非 FNV；README + receipt 含 task_id；fmt/clippy/clippy-cuda/unit 全过；新文件 ≤500 行；GPU 窗口独占并记录设备/驱动/显存；不启动 Python 产品测试。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s1"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/camera.rs",
+      "src/render/rays.rs",
+      "src/render/camera/cuda/",
+      "src/render/mod.rs",
+      "tests/render_camera_rays.rs",
+      "Cargo.toml",
+      "Cargo.lock",
+      "scripts/authoring/render-bvh-s5/",
+      "fixtures/render-bvh/scene-a/s5/",
+      "docs/development-evidence/render-bvh/s5-camera-rays/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 84
+  },
+  "note": "Arch 2026-10-24 派活：按 S3→S5→S4；S5 依赖 S1 已满足，先做无 GPU 准备。为避开 QA S3 复核对 scripts/authoring/render-bvh/ 的在途 unchanged 锁，本片 authoring 放独立目录 scripts/authoring/render-bvh-s5/。GPU 窗口等 QA 的 S3 复核窗口释放后再开；不得与 QA S3 复核并行占 GPU。S4 CPU 准备可重叠，但不启动 S4 任务。裁决：S5 只验相机空间射线层（世界系变换归 S7b）；AA 图像延后 S7b/S8；正交参考允许 authoring 改 3.15 模型副本；夹具用全网格 SHA-256 + 128 抽样位型，不用 FNV。哈希依赖用 sha2 dev-dependency（与既有 optional dep 同 pinned 0.10.9，Cargo.lock 已含，不新引入第三方），不手写 SHA-256；因此 files 增加 Cargo.toml/Cargo.lock。",
+  "revision": {
+    "before": "f592e2b73f95ae9ba5bcb4b82a45679db38875cb",
+    "after": null
+  },
+  "created_at": "2026-10-25T04:32:00.000Z",
+  "updated_at": "2026-10-24T20:33:48.451Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s5-camera-rays/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s5"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S4已实现",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
