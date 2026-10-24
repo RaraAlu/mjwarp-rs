@@ -1,0 +1,19 @@
+# S7a GPU 参数 round-trip 与纹理生命周期用例（2026-10-25 约 06:00，Arch 分配窗口）
+# 设备：NVIDIA GeForce RTX 4070 Ti SUPER / 驱动 596.36 / SM89；开窗 2870 MiB、跑完 2870 MiB
+# 命令：
+#   $env:CUDA_PATH = (Resolve-Path 'target\toolchains\cuda-12.8.1').Path
+#   $env:PATH = "$env:CUDA_PATH\bin;$env:PATH"
+#   cargo test --locked --features cuda-probe --lib render::kernel -- --ignored --test-threads=1 --nocapture
+
+running 2 tests
+test render::kernel::launch::tests::round_trips_every_render_argument_class ... ok
+test render::kernel::launch::tests::texture_handle_survives_launch_and_drop_releases_device_array ... s7a texture: baseline=15809380352 after_cycles=15809380352 bytes_per_cycle=1200000 tex=0x1
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 732 filtered out; finished in 0.45s
+
+# 说明：
+# - round_trip：1 bounds + 13 类数组（i32/u32/u64/bool/f32/vec2/vec3/vec4/vec2i/vec3i/mat33/quat/texture2d_t）
+#   + 3 标量（int32/uint64/bool）+ 4 输出（u32/u64/vec2i/f32）逐位比对；两次发射 module_loads=1。
+# - texture：CUtexObject 只读句柄（tex=0x1、2x2x4）经 texture2d_t 设备数组在 kernel 往返一致；
+#   5 轮 1,200,000 B 数组 create/drop 显存零增长（drop 释放到驱动池）。

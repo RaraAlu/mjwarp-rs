@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-24-render-bvh-s7a",
+  "status": "final",
+  "outcome": "pass_with_deviation",
+  "slice": "S7a",
+  "title": "渲染/BVH S7a：渲染发射 ABI（标量/vec/u64/texture-array/新Render recipe）",
+  "date": "2026-10-25",
+  "conclusion": "覆盖范围内通过（GPU 独占窗口）：按冻结上游 _render_megakernel 的真实签名实现 81 槽渲染发射 ABI（1 bounds + 73 数组 + 7 标量，13 类元素宽度/对齐），数量/种类/对齐/容量/上下文/线程块在发射前拒绝；新增 RecipePurpose::Render 与 WARP_1_15_RENDER（fmad=true、fast-math=false、C++17、compute_70、PrecisionGate::F32Render），W15 头树（builtin.h+bvh.h+texture.h）经 NVRTC 编译出 25,996 B PTX、entry 与 tex.2d 正确，f32 渲染门禁精确放行 W15 svd.h 的两条死数据常量后通过；13 类数组 + 3 类标量 + 4 输出的参数 round-trip 逐位相等，两次发射只加载 1 个模块；CUtexObject 只读句柄经 texture2d_t 设备数组在 kernel 往返（tex=0x1、2/2/4），5 轮 1.2 MB 数组 create/drop 显存零增长。偏差：mjwarp.render.kernel 叶子模块登记被 normify 结构规则阻塞（父模块 mjwarp.render 声明 API），源码改登记到 mjwarp.render 与 mjwarp.runtime，叶子拆分建议另立治理任务。像素内核属 S7b，本片不实现。",
+  "precision_gate": {
+    "name": "f32-render",
+    "recipe": "WARP_1_15_RENDER",
+    "purpose": "Render",
+    "fmad": true,
+    "use_fast_math": false,
+    "std": "--std=c++17",
+    "arch": "compute_70",
+    "enforced_by": "src/render/kernel/mod.rs::check_render_ptx，唯一编译入口 compile_render_artifact / RenderKernel::compile",
+    "allowlist": [
+      ".global .align 8 .f64 _ZN2wp11_svd_configIdE11SVD_EPSILONE = 0d3D719799812DEA11;",
+      ".global .align 8 .f64 _ZN2wp11_svd_configIdE17QR_GIVENS_EPSILONE = 0d3D719799812DEA11;"
+    ],
+    "allowlist_basis": "W15 svd.h 的 template<> _svd_config<double> 两条 static constexpr 成员；builtin.h 无条件包含 svd.h，array.h/bvh.h/texture.h 又包含 builtin.h，因此渲染 PTX 必然带这两条声明。它们是死数据常量，不被任何 f32 运算使用；精确放行（符号名+字面量+行尾逐字节、各一次）不是容差放宽，其余 f64/f16/bf16/tf32 一律拒绝。",
+    "rejections_locked": [
+      "第三条未知 f64 全局",
+      "符号差一个字符",
+      "字面量被改（DEB11）",
+      "无 sin/cos 归约三元组的 .reg .f64",
+      "f16 / mul.f64",
+      "重复或位置错误的放行常量",
+      "缺失入口名"
+    ]
+  },
+  "w15_compile": {
+    "headers_dir": "include/warp-headers",
+    "needs_cuda_sdk_include": false,
+    "source_sha256": "0a319b89585e67d74c7c1e63d6e03f3903582221e62c58d6bb8b7c6654126a5d",
+    "ptx_bytes": 25996,
+    "ptx_sha256": "d075f329132b5ffec750f004682fde52236880c7a85e1fde641edcedefba501e",
+    "entry": "s7a_w15_probe",
+    "tex_instruction": "tex.2d",
+    "source_defines": ["WP_NO_CRT", "WP_NO_BFLOAT16"]
+  },
+  "abi": {
+    "megakernel_slots": 81,
+    "bounds": 1,
+    "arrays": 73,
+    "scalars": 7,
+    "array_element_classes": 13,
+    "elements": {
+      "i32": {"bytes": 4, "align": 4},
+      "u32": {"bytes": 4, "align": 4},
+      "u64": {"bytes": 8, "align": 8},
+      "bool": {"bytes": 1, "align": 1},
+      "f32": {"bytes": 4, "align": 4},
+      "vec2f": {"bytes": 8, "align": 4},
+      "vec3f": {"bytes": 12, "align": 4},
+      "vec4f": {"bytes": 16, "align": 4},
+      "vec2i": {"bytes": 8, "align": 4},
+      "vec3i": {"bytes": 12, "align": 4},
+      "mat33f": {"bytes": 36, "align": 4},
+      "quatf": {"bytes": 16, "align": 4},
+      "texture2d_t": {"bytes": 24, "align": 8}
+    },
+    "array_descriptor_bytes": 56,
+    "outputs": ["rgb_out(u32)", "aa_accum_out(vec3f)", "depth_out(f32)", "seg_out(vec2i)"],
+    "rejections": [
+      "RenderArgCount", "RenderArgKind", "RenderArrayLayout", "RenderArrayAlign",
+      "RenderBounds", "Capacity", "ContextMismatch", "ModuleContext"
+    ],
+    "session_access": "TransferSession::{stream_ref,run_crate,span_context} 均为 pub(crate)，公共 API 未变",
+    "texture_handle": "TextureHandle2d{tex,width,height,channels} 只读视图，不转移 CUtexObject 所有权"
+  },
+  "tests": {
+    "integration_host": {
+      "command": "cargo test --locked --features cuda-probe --test render_launch_abi",
+      "result": "4 passed / 0 failed / 2 ignored",
+      "cases": [
+        "megakernel_signature_covers_upstream_argument_classes",
+        "element_widths_and_layouts_match_w15_device_static_asserts",
+        "render_recipe_is_frozen_and_gate_is_enforced",
+        "render_plan_rejects_wrong_count_kind_alignment_capacity_context_and_block"
+      ]
+    },
+    "integration_nvrtc": {
+      "command": "cargo test --locked --features cuda-probe --test render_launch_abi -- --ignored --test-threads=1",
+      "result": "2 passed / 0 failed（0.45 s）",
+      "cases": [
+        "nvrtc_compiles_w15_headers_under_render_recipe",
+        "render_gate_rejects_ptx_without_allowlisted_constants_or_with_extra_f64"
+      ]
+    },
+    "unit_gate_checks": {
+      "command": "cargo test --locked --features cuda-probe --lib render::kernel",
+      "result": "8 passed / 0 failed（渲染门禁拒绝面）"
+    },
+    "gpu_round_trip": {
+      "command": "cargo test --locked --features cuda-probe --lib render::kernel -- --ignored --test-threads=1",
+      "result": "2 passed / 0 failed（0.45 s）",
+      "cases": [
+        "round_trips_every_render_argument_class",
+        "texture_handle_survives_launch_and_drop_releases_device_array"
+      ]
+    }
+  },
+  "round_trip": {
+    "arrays": ["i32[4]", "u32[1]", "u64[1]", "bool[4]", "f32[4]", "vec2[2]", "vec3[2]", "vec4[1]", "vec2i[2]", "vec3i[1]", "mat33[1]", "quat[1]", "texture2d_t[1]"],
+    "scalars": {"int32": 7, "uint64": "0x1122334455667788", "bool": true},
+    "outputs": {"u32_compared": 27, "u64_compared": 2, "vec2i_compared": 1, "f32_compared": 2},
+    "result": "全部逐位相等（含 f32 位型与 texture2d 字段）",
+    "module_loads_after_two_launches": 1
+  },
+  "texture_lifetime": {
+    "handle_tex": "0x1",
+    "width": 2,
+    "height": 2,
+    "channels": 4,
+    "bytes_per_cycle": 1200000,
+    "cycles": 5,
+    "free_baseline_bytes": 15809380352,
+    "free_after_cycles_bytes": 15809380352,
+    "growth_bytes": 0,
+    "notes": "会话缓冲仅支持 f32/f64/i32/u32，texture2d_t 按 6×u32 打包（与 C++ 布局逐字节一致）；CUtexObject 仍由 TextureObjects(S4) 销毁"
+  },
+  "gpu": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER / 驱动 596.36 / SM89",
+    "window": "Arch 分配的 60 分钟独占窗口（2026-10-25 约 06:00 起），无并发满载任务",
+    "baseline_before_mib": 2870,
+    "baseline_after_mib": 2870,
+    "notes": "同进程首次加载 scene/sample 模块时驱动保留一次性代码缓存（约 32 MiB，S6b 已记录）；本片纹理释放判定用循环泄漏下界，不受一次性缓存影响"
+  },
+  "gates": {
+    "fmt": "通过 1259ms",
+    "clippy": "通过（--all-targets，0 警告）",
+    "clippy-cuda": "通过（--all-targets --features cuda-probe，0 警告）",
+    "unit": "通过，测试 532 过 0 败（默认 feature；新用例在 cuda-probe 下执行）"
+  },
+  "artifacts": {
+    "src/runtime/launcher/render.rs": {"lines": 211, "bytes": 7337, "sha256": "4e38c5ed059f4d3a86d06d44751f04e3a8ecd11feb8c37995553aa91d864c901"},
+    "src/runtime/launcher/render/args.rs": {"lines": 494, "bytes": 14078, "sha256": "c89124071b787e85d8b904816d055bcf97624aabae9302ca8098281677186f5c"},
+    "src/render/kernel/mod.rs": {"lines": 310, "bytes": 11746, "sha256": "e13cc4c7bbecbf7abf511f9ca7077f15f39c3123b6b01f180c89fb9be9ed52b1"},
+    "src/render/kernel/launch.rs": {"lines": 500, "bytes": 20677, "sha256": "04c8617c84f6122272cfb5e15d28cf5b877cb329a66936ac21b82b2e7ab5217a"},
+    "tests/render_launch_abi.rs": {"lines": 302, "bytes": 11629, "sha256": "fba0b6df8c00d5bd638e311a2f2387b40a5e6a09db22fdc023cf0207eba35c66"},
+    "src/runtime/launcher/recipe.rs": {"lines": 359, "bytes": 11937, "sha256": "3f1ad960de35fe665863e35ac8b76c450cf4cb77fb79a2341b654443f0d0215c"},
+    "src/runtime/launcher/mod.rs": {"lines": 250, "bytes": 10984, "sha256": "425994efe1ecae29c3035978de85cbee5e3a9442968c7828cb1fd957cb6fea22"},
+    "src/runtime/transfer/session.rs": {"lines": 240, "bytes": 8062, "sha256": "8ab4e9ceca9a03653daf8c499b04eb3be8b6bc9c2f9d8eb90ef667538ab9b71c"},
+    "src/render/texture/cuda.rs": {"lines": 323, "bytes": 11511, "sha256": "0d678b1d6ab296fdcf722f42fc94f6ac7cd3abce8b61837269f03bc4a6305d11"},
+    "src/render/mod.rs": {"lines": 370, "bytes": 11440, "sha256": "5b83a8a99cdcc3b586916675244cfbf6f52d2fbe853f7f498fe7607560edb298"}
+  },
+  "deviations": [
+    {
+      "item": "mjwarp.render.kernel 叶子模块登记",
+      "status": "blocked_by_normify_structure_rule",
+      "detail": "normify module add 报「父模块 mjwarp.render 声明了 API；容器不能有 API」；手动建文件后 validate 7 个结构错误。改为把 kernel 源码登记到 mjwarp.render（25 source），launcher render 源码登记到 mjwarp.runtime（75 source）；validate 0 错误。叶子拆分需先迁移 mjwarp.render 的 API，属治理任务，建议另立。",
+      "arch_decision_requested": true
+    }
+  ],
+  "notes": [
+    "渲染配方冻结 fast-math=false（确定性优先）；上游 use_fast_math 默认 true 属 S7b 内核选项，本片未引入变体。",
+    "texture2d_t 设备数组按 6×u32 上传：会话缓冲只支持 f32/f64/i32/u32，布局与 C++ 24 B/align8 逐字节一致。",
+    "W15 头树在 NVRTC 下无需 CUDA SDK include（WP_NO_CRT 提供 Jitify 替代）；采样路径编译出 tex.2d。",
+    "MEGAKERNEL_SLOTS 的 81 槽来自 S7a 预检缓存的 Warp 1.15 生成源真实签名；本片不发射真实 megakernel（S7b）。"
+  ],
+  "unmet": [
+    "像素渲染内核、AA、阴影/天空盒/聚光灯、纹理/顶点法线/镜面/自发光求值属 S7b",
+    "mjwarp.render.kernel 叶子模块登记被结构规则阻塞（见 deviations）",
+    "上游 use_fast_math=true 渲染变体未引入（S7b 决定）",
+    "真实 megakernel 的实参填充与全网格多 world 发射属 S7b",
+    "未跑全量 G01（fast-loop 口径：本片主机/GPU 用例 + 四门禁）"
+  ],
+  "deferral": {
+    "render_kernel": "S7b",
+    "end_to_end_images": "S8",
+    "module_leaf_split": "governance task"
+  },
+  "gpu_required": true,
+  "authoring_only": false,
+  "product_python_dependency": false
+}

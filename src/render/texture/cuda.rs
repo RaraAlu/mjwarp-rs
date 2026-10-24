@@ -88,6 +88,20 @@ struct CudaTexture {
     height: u32,
 }
 
+/// CUtexObject 的只读句柄视图（S7a）：值拷贝，不转移纹理对象所有权。
+///
+/// `TextureObjects` 析构时仍按 S4 路径销毁 `CUtexObject` 与底层 `CUarray`；本视图只供
+/// 渲染发射 ABI 组装 `texture2d_t` 设备数组与回读句柄值，不承担释放责任。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TextureHandle2d {
+    /// `CUtexObject` 句柄值。
+    pub tex: u64,
+    pub width: u32,
+    pub height: u32,
+    /// CUDA 纹理对象固定 RGBA 4 通道（与上游 `create_warp_texture` 一致）。
+    pub channels: u32,
+}
+
 /// 模型纹理的 CUDA 对象集合与采样器；与上游 `RenderContext.textures` 对应。
 pub struct TextureObjects {
     session: TransferSession,
@@ -120,6 +134,17 @@ impl TextureObjects {
 
     pub fn is_empty(&self) -> bool {
         self.textures.is_empty()
+    }
+
+    /// 按模型纹理 id 取只读句柄视图；越界返回 `None`。
+    pub fn handle(&self, texture: usize) -> Option<TextureHandle2d> {
+        let entry = self.textures.get(texture)?;
+        Some(TextureHandle2d {
+            tex: entry.texture,
+            width: entry.width,
+            height: entry.height,
+            channels: TEXTURE_CHANNELS,
+        })
     }
 
     /// 按模型纹理 id 采样固定 uv 列表；返回每查询 RGBA。

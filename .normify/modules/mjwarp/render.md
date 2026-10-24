@@ -2,7 +2,7 @@
 uid = "a66a7856"
 id = "mjwarp.render"
 tags = ["planned", "engine", "render"]
-fingerprint = "6c76bc37e0d0f4909ab73e9abfcfa10b5854f340dc4c5b1a41651292fd560458"
+fingerprint = "47f1a961a47258b33653424a55fa0c5b78208e68521cb8beb206a5ae84e8f49f"
 
 [name]
 zh = "GPU批量渲染"
@@ -84,6 +84,12 @@ path = "src/render/context/owner.rs"
 
 [[source]]
 path = "src/render/context/lifecycle.rs"
+
+[[source]]
+path = "src/render/kernel/mod.rs"
+
+[[source]]
+path = "src/render/kernel/launch.rs"
 
 [[apis]]
 protocol = "rpc"

@@ -2,7 +2,7 @@
 uid = "4098c702"
 id = "mjwarp.runtime"
 tags = ["planned", "engine", "runtime"]
-fingerprint = "ccc56d0594213180d0ec45ea299128e0dfcad64499dcd361e9d161529436514b"
+fingerprint = "6e9831971b7b683c19688d7e8e259b0b1715912a9fa6d91669fd7a4b24d40337"
 
 [name]
 zh = "GPU运行时"
@@ -234,6 +234,12 @@ path = "tests/kernel_source_route_probe.rs"
 
 [[source]]
 path = "src/runtime/launcher/route/artifact.rs"
+
+[[source]]
+path = "src/runtime/launcher/render.rs"
+
+[[source]]
+path = "src/runtime/launcher/render/args.rs"
 +++
 
 ## P1局部实现

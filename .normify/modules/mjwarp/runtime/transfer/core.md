@@ -2,7 +2,7 @@
 uid = "541f82db"
 id = "mjwarp.runtime.transfer.core"
 tags = ["runtime", "transfer", "prototype", "windows-verified"]
-fingerprint = "6ed7edd91573d9cc8d64343ae726cf146167904b083a7622a099b78fa8146ca0"
+fingerprint = "686656e7e768cb3b38c1436a2413a890096dafbad3296da2053698fbc7781b9e"
 
 [name]
 zh = "同步字段底层"

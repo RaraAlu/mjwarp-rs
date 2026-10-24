@@ -132,6 +132,32 @@ impl TransferSession {
         self.inner.device
     }
 
+    /// 渲染发射使用的会话流（crate 可见；不扩大公共 API）。
+    #[cfg(feature = "cuda-probe")]
+    pub(crate) fn stream_ref(&self) -> &Arc<CudaStream> {
+        &self.inner.stream
+    }
+
+    /// 渲染发射使用的同步设备执行包装（crate 可见；不扩大公共 API）。
+    ///
+    /// 与内部 `run` 同语义：绑定上下文、执行、等待完成并检查驱动错误。
+    #[cfg(feature = "cuda-probe")]
+    pub(crate) fn run_crate<R>(
+        &self,
+        stage: &'static str,
+        operation: impl FnOnce() -> Result<R, DriverError>,
+    ) -> Result<R, TransferError> {
+        self.run(stage, operation)
+    }
+
+    /// 会话标识（与 `TransferBuffer::launcher_span` 的 context 同源，crate 可见）。
+    ///
+    /// 渲染发射据此确认所有缓冲与执行会话相同。
+    #[cfg(feature = "cuda-probe")]
+    pub(crate) fn span_context(&self) -> u64 {
+        Arc::as_ptr(&self.inner) as usize as u64
+    }
+
     #[cfg(feature = "cuda-probe")]
     pub(crate) fn same_session(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.inner, &other.inner)

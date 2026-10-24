@@ -4,6 +4,8 @@
 pub mod bvh;
 pub mod camera;
 pub mod context;
+#[cfg(feature = "cuda-probe")]
+pub mod kernel;
 pub mod rays;
 pub mod texture;
 

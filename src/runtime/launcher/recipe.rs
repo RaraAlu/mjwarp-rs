@@ -5,11 +5,13 @@
 use super::LauncherError;
 
 /// 配方用途。
-/// 物理内核只接受`Physics`。
+/// 物理内核只接受`Physics`；渲染内核只接受`Render`。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RecipePurpose {
     /// 产品物理内核。
     Physics,
+    /// 产品渲染内核（S7a 起）。
+    Render,
     /// 纯参考与诊断内核；结果不得反馈物理路径。
     Diagnostic,
     /// P1路线探针。
@@ -20,6 +22,7 @@ impl RecipePurpose {
     fn tag(self) -> &'static str {
         match self {
             Self::Physics => "physics",
+            Self::Render => "render",
             Self::Diagnostic => "diagnostic",
             Self::Probe => "probe",
         }
@@ -59,6 +62,9 @@ impl ArchTarget {
 pub enum PrecisionGate {
     /// 现行`check_physics_ptx`：拒绝非f32物理运算。
     F32Physics,
+    /// 渲染内核f32检查：由`render::kernel`的渲染门禁执行，允许W15头文件自带的
+    /// `_svd_config<double>`两条常量声明（不是f32运算），其余非f32仍拒绝。
+    F32Render,
     /// 不做精度检查；仅限诊断与探针。
     Unchecked,
 }
@@ -102,6 +108,22 @@ impl CompileRecipe {
         arch: ArchTarget::Compute(70),
         defines: &[],
         gate: PrecisionGate::Unchecked,
+    };
+
+    /// 冻结Warp 1.15渲染配方（S7a）。
+    ///
+    /// 编译选项与物理配方一致（fmad开、fast-math关、C++17、compute_70）；f32门禁由
+    /// `render::kernel` 的渲染门禁执行：W15 头树（经 `builtin.h`）固定带两条
+    /// `_svd_config<double>` 常量声明，渲染门禁精确放行这两条，其余非 f32 仍拒绝。
+    pub const WARP_1_15_RENDER: Self = Self {
+        name: "warp-1.15-render",
+        purpose: RecipePurpose::Render,
+        fmad: true,
+        fast_math: false,
+        std: CppStd::Cpp17,
+        arch: ArchTarget::Compute(70),
+        defines: &[],
+        gate: PrecisionGate::F32Render,
     };
 
     /// P1探针配方；对应`cache.rs`的`fmad=false;fastmath=false`。
@@ -168,6 +190,7 @@ impl CompileRecipe {
             self.arch.flag(),
             match self.gate {
                 PrecisionGate::F32Physics => "f32-physics",
+                PrecisionGate::F32Render => "f32-render",
                 PrecisionGate::Unchecked => "unchecked",
             },
             defines.join(",")
@@ -176,13 +199,24 @@ impl CompileRecipe {
 
     /// 校验配方自身的用途约束。
     pub fn validate(&self) -> Result<(), LauncherError> {
-        if self.purpose == RecipePurpose::Physics {
-            if self.gate != PrecisionGate::F32Physics {
-                return Err(LauncherError::InvalidRecipe("物理配方必须启用f32检查"));
+        match self.purpose {
+            RecipePurpose::Physics => {
+                if self.gate != PrecisionGate::F32Physics {
+                    return Err(LauncherError::InvalidRecipe("物理配方必须启用f32检查"));
+                }
+                if self.fast_math {
+                    return Err(LauncherError::InvalidRecipe("物理配方禁止fast-math"));
+                }
             }
-            if self.fast_math {
-                return Err(LauncherError::InvalidRecipe("物理配方禁止fast-math"));
+            RecipePurpose::Render => {
+                if self.gate != PrecisionGate::F32Render {
+                    return Err(LauncherError::InvalidRecipe("渲染配方必须启用渲染f32检查"));
+                }
+                if self.fast_math {
+                    return Err(LauncherError::InvalidRecipe("渲染配方禁止fast-math"));
+                }
             }
+            RecipePurpose::Diagnostic | RecipePurpose::Probe => {}
         }
         for (key, value) in self.defines {
             let valid = |text: &str| {
@@ -242,6 +276,48 @@ mod tests {
         assert_eq!(diagnostic.fmad(), physics.fmad());
         assert_eq!(diagnostic.fast_math(), physics.fast_math());
         assert_eq!(diagnostic.gate(), PrecisionGate::Unchecked);
+    }
+
+    #[test]
+    fn render_recipe_is_frozen_and_admits_only_render() {
+        let render = CompileRecipe::WARP_1_15_RENDER;
+        render.validate().unwrap();
+        assert_eq!(render.name(), "warp-1.15-render");
+        assert_eq!(render.purpose(), RecipePurpose::Render);
+        assert!(render.fmad());
+        assert!(!render.fast_math());
+        assert_eq!(render.gate(), PrecisionGate::F32Render);
+        // 编译选项与物理配方逐项一致（只有用途与门禁不同）。
+        assert_eq!(
+            render.nvrtc_options(),
+            CompileRecipe::WARP_1_15_PHYSICS.nvrtc_options()
+        );
+        assert!(render.admit(RecipePurpose::Render).is_ok());
+        assert!(matches!(
+            render.admit(RecipePurpose::Physics),
+            Err(LauncherError::RecipePurpose { .. })
+        ));
+        assert!(matches!(
+            CompileRecipe::WARP_1_15_DIAGNOSTIC.admit(RecipePurpose::Render),
+            Err(LauncherError::RecipePurpose { .. })
+        ));
+        // 渲染配方不得降级到无检查或 fast-math。
+        let mut invalid = CompileRecipe::WARP_1_15_RENDER;
+        invalid.gate = PrecisionGate::Unchecked;
+        assert!(matches!(
+            invalid.validate(),
+            Err(LauncherError::InvalidRecipe(_))
+        ));
+        let mut invalid = CompileRecipe::WARP_1_15_RENDER;
+        invalid.fast_math = true;
+        assert!(invalid.validate().is_err());
+        // 指纹区分用途/门禁。
+        assert_ne!(
+            render.fingerprint(),
+            CompileRecipe::WARP_1_15_PHYSICS.fingerprint()
+        );
+        assert!(render.fingerprint().contains("purpose=render"));
+        assert!(render.fingerprint().contains("gate=f32-render"));
     }
 
     #[test]

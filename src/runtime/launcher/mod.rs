@@ -22,6 +22,8 @@ mod mathdx;
 mod module;
 mod recipe;
 #[cfg(feature = "cuda-probe")]
+mod render;
+#[cfg(feature = "cuda-probe")]
 mod route;
 mod submit;
 #[cfg(feature = "cuda-probe")]
@@ -58,6 +60,11 @@ pub use mathdx::{MATHDX_VERSION, MAX_DIM, MAX_THREADS, MathDx, SolverLto, Solver
 #[cfg(feature = "cuda-probe")]
 pub use module::{KernelHandle, ModuleCache, ModuleStats};
 pub use recipe::{ArchTarget, CompileRecipe, CppStd, PrecisionGate, RecipePurpose};
+#[cfg(feature = "cuda-probe")]
+pub use render::{
+    MEGAKERNEL_SLOTS, RenderArg, RenderArgKind, RenderArray, RenderArrayValue, RenderElem,
+    RenderFamily, RenderPlan, RenderScalar, RenderScalarKind, RenderSignature, Texture2d,
+};
 #[cfg(feature = "cuda-probe")]
 pub use route::{
     KernelArtifact, KernelArtifactMetadata, KernelSourceRoute, MATHDX_NVRTC_VERSION, RouteKey,
@@ -112,6 +119,20 @@ pub enum LauncherError {
     },
     /// 两个槽位违反别名约束。
     Alias { first: usize, second: usize },
+    /// 渲染 ABI：实参数量与声明不符。
+    RenderArgCount { expected: usize, actual: usize },
+    /// 渲染 ABI：槽位实参种类与声明不符。
+    RenderArgKind {
+        slot: usize,
+        expected: &'static str,
+        actual: &'static str,
+    },
+    /// 渲染 ABI：数组形状或步长与声明不符。
+    RenderArrayLayout { slot: usize },
+    /// 渲染 ABI：数组地址未按元素对齐。
+    RenderArrayAlign { slot: usize },
+    /// 渲染 ABI：发射边界或线程块与声明不符。
+    RenderBounds { slot: usize },
     /// 首版禁止重绑地址类槽位。
     AddressSlotRebind { slot: usize },
     /// 重绑缓冲小于原缓冲。
@@ -186,6 +207,17 @@ impl std::fmt::Display for LauncherError {
                 "槽位{slot}容量不足：需要{required}字节，实际{actual}字节"
             ),
             Self::Alias { first, second } => write!(f, "槽位{first}与{second}违反别名约束"),
+            Self::RenderArgCount { expected, actual } => {
+                write!(f, "渲染实参数量{actual} != 声明{expected}")
+            }
+            Self::RenderArgKind {
+                slot,
+                expected,
+                actual,
+            } => write!(f, "渲染槽位{slot}种类{actual} != 声明{expected}"),
+            Self::RenderArrayLayout { slot } => write!(f, "渲染槽位{slot}数组形状或步长不符"),
+            Self::RenderArrayAlign { slot } => write!(f, "渲染槽位{slot}数组地址未按元素对齐"),
+            Self::RenderBounds { slot } => write!(f, "渲染槽位{slot}发射边界或线程块不符"),
             Self::AddressSlotRebind { slot } => write!(f, "槽位{slot}属于地址类，禁止重绑"),
             Self::RebindShrink { slot } => write!(f, "槽位{slot}重绑缓冲小于原缓冲"),
             Self::InvalidSource(reason) => write!(f, "内核来源无效：{reason}"),
