@@ -5,7 +5,7 @@
     "zh": "U038按native_error_v2补做原生f64两级判定",
     "en": "Re-judge U038 with the native-first two-reference rule (native_error_v2)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "按用户重申的项目误差判定规则（docs/numerical-precision-contract.md 的 native_error_v2）重判 U038-3D：先以原生 MuJoCo f64 CPU 为第一参考（t_i = atol_native + rtol_native*|native_i|，E_candidate = max|产品-native|/t_i），原生达标即放行；仅原生超差时才读 MJWarp 第二参考，计算 E_mjwarp 与 redline=1.05*E_mjwarp，按 E_candidate<=E_mjwarp（对照放行）/<=redline（红线内放行）/>redline（不合格）判定。此前 U038 只按上游严格 2e-6 口径判为已知债务、未先跑原生 f64 对照，本轮补齐这项并给正式判定。只做只读参考生成与判定，不改产品源码/容差/断言/fixtures 语义；不得用产品结果反推原生值，不得逐元素择优拼接。",
     "en": "Re-judge U038-3D under the user's restated rule (native_error_v2 in docs/numerical-precision-contract.md): native MuJoCo f64 CPU is the first reference (t_i = atol_native + rtol_native*|native_i|, E_candidate = max|product-native|/t_i); native pass admits the item. Only when native fails is the MJWarp secondary reference read, computing E_mjwarp and redline = 1.05*E_mjwarp, then admitting on E_candidate<=E_mjwarp (comparison pass) or <=redline (within redline), failing above redline. The earlier U038 verdict used only the strict upstream 2e-6 tolerance and skipped the native f64 first reference; this task adds it and issues the formal verdict. Read-only reference generation and judgment only; no product/tolerance/assertion/fixture-semantics changes; no reverse-engineering native values from product, no per-element best-of picking."
@@ -31,11 +31,12 @@
   },
   "note": "用户 2026-10-24 重申项目判定规则（先原生 f64 MuJoCo CPU；原生超差才看上游；仅当原生与上游都超差/候选越红线才判不合格）。现行 U038 判定（2026-10-24 c0ac14c）只用了上游严格 2e-6 口径、未做原生 f64 对照，属于顺序缺失，本任务补齐并重判。合同依据：docs/numerical-precision-contract.md 第142–199行（native_error_v2、5% 红线、放行类别）与第326–339行（NP03 原生优先）。原生参考生成走离线 authoring 例外（脚本进仓、可复现、带 provenance），不得进入产品构建或产品测试。",
   "revision": {
-    "before": null,
+    "before": "2412c11989cc46c4ca095c42004b3c7f54c68c5c",
     "after": null
   },
   "created_at": "2026-10-23T22:35:00.000Z",
-  "updated_at": "2026-10-23T22:35:00.000Z",
+  "updated_at": "2026-10-24T08:40:13.545Z",
+  "closed_at": "2026-10-24T08:40:13.545Z",
   "checks": [
     {
       "kind": "gate",

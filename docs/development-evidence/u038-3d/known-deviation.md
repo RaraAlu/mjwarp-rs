@@ -68,9 +68,36 @@ $env:MJWARP_GRAVITY_3D_EVIDENCE_DIR = "<新证据目录>"
 cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_gravity_3d_product_chain -- --ignored --test-threads=1
 ```
 
+## 2026-10-24 native_error_v2 两级补判（原生 f64 第一参考）
+
+用户 2026-10-24 重申判定顺序后，任务 `2026-10-24-u038-native-two-reference` 补齐
+「先原生 MuJoCo f64 CPU，原生超差才读 MJWarp」的两级判定，并给出正式重判：
+
+- **原生参考**：pinned 离线 authoring 环境（Python 3.12.13 / MuJoCo 3.15.0 f64 CPU /
+  NumPy 2.5.4）对同一冻结 7-world 三维场景（同模型、同 qpos、同重力开关、f32 量化输入）
+  生成 `xpos/xquat/xmat/xipos/xanchor/xaxis/subtree_com/cdof/qfrc_gravcomp` 的 f64
+  原始值；`qfrc_gravcomp` 映射原生 `mjData.qfrc_gravcomp`（广义反重力力，与候选同定义；
+  `qfrc_bias` 不含 `body_gravcomp` 缩放，仅存档说明映射）。原生 f64→f32 与冻结上游
+  f32 原始位自检：运动学 max_abs ≤ 2.04e-7、`qfrc_gravcomp` ≤ 1.01e-5（f32 舍入量级）。
+- **判定结果**：按 `native_error_v2`（容差：运动学 `2e-5+2e-5*|native|`、重力位证书块
+  U `2e-4+2e-4*|native|`）**9/9 字段块全部原生放行**，`E_candidate=0.0034–0.0129`
+  （全部 ≤1），覆盖 1435 个比较标量；`secondary_reference_used=false`
+  （合同：原生通过项无需第二参考）。放行类别为**「原生放行」**、`np03_admitted=true`，
+  仅限本任务记录的字段块。
+- **上游严格口径保留**：上游逐位 `2e-6` 口径仍为 **8/77 超差、max 4.29e-6、位差 122**；
+  它不是本次准入依据，不得写成上游逐位对齐。
+- **覆盖排除**：`xaxis` 只有 slide/hinge 有原生单一轴语义；free/ball 的 `xaxis` 不是同义
+  字段，按合同排除 42 项（判定前固定，不逐元素择优）。
+- **G01 排除清单未动**；若要据此调整排除口径，需另报 Chief 走用户批准。
+- 证据：`native-two-reference/`（`README.md`、`native-reference.json`、`authoring.json`、
+  `verdict.json`）；复现：`scripts/authoring/author-u038-native.ps1`。
+- 未宣称：完整 U038、完整三维状态空间、完整产品精度或 NP01–NP04 全量验收通过。
+
 ## 不宣称与边界
 
-- 未宣称 U038-3D 通过；8/77 超差如实保留为已知债务。
+- 未宣称 U038-3D 通过；8/77 超差如实保留为已知债务（上游逐位 2e-6 口径）。
+- 2026-10-24 native_error_v2 补判：上述 9 个字段块按合同为「原生放行」，
+  与上游逐位口径并存，不互相改写。
 - 未改产品源码、测试、容差、断言、fixtures、排除清单或 ABI；未做 T4 repin。
 - 未验收边界：完整三维状态空间、NP03/NP04、release/Linux、性能、满额回归、完整上游等价。
 - W13（nvJitLink）、Linux、`g03-parity` 保持不动。

@@ -110,6 +110,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/authoring/author-u03
 - 选项（A 系统性对齐 / B 维持已知债务 / C 比较口径裁决）见 `debt-2/README.md` §7，已报 Chief。
 - 未改产品源码/测试/fixtures/容差/断言；未做 T4 repin；未宣称 U038-3D 或精度验收通过。
 
+## 2026-10-24 native_error_v2 两级补判
+
+- 任务 `2026-10-24-u038-native-two-reference`：先原生 MuJoCo f64 CPU 第一参考，
+  原生超差才读 MJWarp。判定结果：**9/9 字段块原生放行**（`E_candidate` 0.0034–0.0129，
+  1435 个比较标量），`secondary_reference_used=false`，放行类别「原生放行」
+  （仅限已记录字段块）。
+- 上游逐位 `2e-6` 严格口径仍为 8/77 超差、max 4.29e-6，原样保留、不是本次准入依据；
+  不得写成上游逐位对齐。
+- 覆盖：`xaxis` 仅 slide/hinge 有原生单轴语义，free/ball 的 42 项按合同排除。
+- 证据与口径见 `native-two-reference/README.md`、`native-two-reference/verdict.json`；
+  G01 排除清单未动。
+
 ## 文件
 
 - `known-deviation.md`：用户裁决 B 已知债务登记（偏差数据、根因、复现入口、未验收边界）。

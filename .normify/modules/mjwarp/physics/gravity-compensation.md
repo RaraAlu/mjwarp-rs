@@ -2,7 +2,7 @@
 uid = "6f2c1a9d"
 id = "mjwarp.physics.gravity-compensation"
 tags = ["G04", "U038", "NP01", "NP02", "cuda"]
-fingerprint = "586df81f4689e8d054c2040de466a1b175e8f369fd61684e03651518ef83289b"
+fingerprint = "7db6ad22e1731ad831a66f50baf4a110df1d96031d199eb9393e8eaf061c9ba2"
 
 [name]
 zh = "重力补偿"
@@ -132,6 +132,15 @@ path = "scripts/authoring/u038_3d_reference.py"
 
 [[source]]
 path = "src/physics/gravity_compensation/tests/frozen_device.rs"
+
+[[source]]
+path = "scripts/authoring/author-u038-native.py"
+
+[[source]]
+path = "scripts/authoring/judge-u038-native-two-reference.py"
+
+[[source]]
+path = "scripts/authoring/author-u038-native.ps1"
 
 [[apis]]
 protocol = "rpc"
