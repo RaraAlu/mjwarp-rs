@@ -109,10 +109,15 @@ cargo test --locked --features cuda-probe --test render_context_lifecycle -- --i
 
 | 路径 | 行数 | bytes | sha256 |
 | --- | --- | --- | --- |
-| `src/render/context/owner.rs` | 364 | 13,054 | `717628612a85b2037d0f51f874154c02432671598ca53f2648d679bdf6f9636d` |
-| `src/render/context/lifecycle.rs` | 322 | 12,157 | `4e4aae9726081e3eaf90000cefc85b513ca2c190d9bb3a893d5649b35051c71b` |
-| `src/render/context.rs`（改） | 397 | 14,743 | `c4838c2ebb76b3c056784d9eecc9ff135fc7b5f62f2d25147eea10c609f17bed` |
-| `src/render/mod.rs`（改） | 359 | 11,393 | `4081dbd27764c2889fc43baeeab44645f00f0d1bdfde24f70bfe1b7d916b9ddd` |
-| `tests/render_context_lifecycle.rs` | 477 | 18,258 | `d965753722720e92c6ae466ed9ee02dc0ece10d25d71ed477e3c72bf9374cfe0` |
+| `src/render/context/owner.rs` | 403 | 13,054 | `717628612a85b2037d0f51f874154c02432671598ca53f2648d679bdf6f9636d` |
+| `src/render/context/lifecycle.rs` | 358 | 12,157 | `4e4aae9726081e3eaf90000cefc85b513ca2c190d9bb3a893d5649b35051c71b` |
+| `src/render/context.rs`（改） | 426 | 14,743 | `c4838c2ebb76b3c056784d9eecc9ff135fc7b5f62f2d25147eea10c609f17bed` |
+| `src/render/mod.rs`（改） | 368 | 11,393 | `4081dbd27764c2889fc43baeeab44645f00f0d1bdfde24f70bfe1b7d916b9ddd` |
+| `tests/render_context_lifecycle.rs` | 497 | 18,258 | `d965753722720e92c6ae466ed9ee02dc0ece10d25d71ed477e3c72bf9374cfe0` |
+
+行数口径：LF 换行计数（等价 `wc -l` / .NET `ReadAllLines`；三个文件 sha256 与 bytes 与本表一致）。
+2026-10-25 修正记录（`Normify-Fixes: 2026-10-24-render-bvh-s6b`）：首版证据的 lines 字段取自 PowerShell
+`Get-Content` 的计数，在该口径下分别为 364/322/397/359/477，与 LF 计数不符；本次只改 lines 字段，
+sha256/bytes/验收结论/阈值/行为证据均未变，仍全部 ≤500 行（最大 497）。
 
 新文件行数全部 ≤500；`src/render/context.rs` 与 `src/render/mod.rs` 保持 <500 行且只增少量导出行。

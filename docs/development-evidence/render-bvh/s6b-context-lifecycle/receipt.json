@@ -51,7 +51,7 @@
     "disabled_outputs": "rgb_pixels=120000、rgb_bytes=480000；depth/seg 禁用时 byte_len 与 read 均 InputError::DisabledOutput；新分配 rgb 全零且长度=rgb_pixels*nworld",
     "drop_releases": "预热后基线 free 15,811,477,504 B；context 占用 2,097,152 B；destroy 后 free 回基线与 retained 0 B；销毁后可再次创建；纹理 3 个、网格 stale=-1→fresh=0、mesh_refits=1、纹理采样 [0.49803925,0.14901961,0.49803925,1.0]",
     "host": "SceneState::bounds 与 S2a compute_leaf_aabb 逐 leaf 位等；空场景/world 0/长度不符/set_poses 长度不符/hfield/非有限位姿均在分配前拒绝；world 数与 context 不一致 → OwnerError::WorldsMismatch",
-    "new_file_limit": "owner.rs 364 行、lifecycle.rs 322 行、测试 477 行；context.rs 397 行、mod.rs 359 行（均 ≤500）"
+    "new_file_limit": "owner.rs 403 行、lifecycle.rs 358 行、测试 497 行；context.rs 426 行、mod.rs 368 行（均 ≤500；LF 行数口径）"
   },
   "reference": {
     "upstream_submit": "71da24d956378a87a703b6e1442b13aec0c4ac29",
@@ -106,18 +106,19 @@
     "unit": "通过 22561ms，测试 531 过 0 败（默认 feature；本片 host/GPU 用例在 --features cuda-probe 下另行执行，见 tests）"
   },
   "artifacts": {
-    "src/render/context/owner.rs": {"lines": 364, "bytes": 13054, "sha256": "717628612a85b2037d0f51f874154c02432671598ca53f2648d679bdf6f9636d"},
-    "src/render/context/lifecycle.rs": {"lines": 322, "bytes": 12157, "sha256": "4e4aae9726081e3eaf90000cefc85b513ca2c190d9bb3a893d5649b35051c71b"},
-    "src/render/context.rs": {"lines": 397, "bytes": 14743, "sha256": "c4838c2ebb76b3c056784d9eecc9ff135fc7b5f62f2d25147eea10c609f17bed"},
-    "src/render/mod.rs": {"lines": 359, "bytes": 11393, "sha256": "4081dbd27764c2889fc43baeeab44645f00f0d1bdfde24f70bfe1b7d916b9ddd"},
-    "tests/render_context_lifecycle.rs": {"lines": 477, "bytes": 18258, "sha256": "d965753722720e92c6ae466ed9ee02dc0ece10d25d71ed477e3c72bf9374cfe0"}
+    "src/render/context/owner.rs": {"lines": 403, "bytes": 13054, "sha256": "717628612a85b2037d0f51f874154c02432671598ca53f2648d679bdf6f9636d"},
+    "src/render/context/lifecycle.rs": {"lines": 358, "bytes": 12157, "sha256": "4e4aae9726081e3eaf90000cefc85b513ca2c190d9bb3a893d5649b35051c71b"},
+    "src/render/context.rs": {"lines": 426, "bytes": 14743, "sha256": "c4838c2ebb76b3c056784d9eecc9ff135fc7b5f62f2d25147eea10c609f17bed"},
+    "src/render/mod.rs": {"lines": 368, "bytes": 11393, "sha256": "4081dbd27764c2889fc43baeeab44645f00f0d1bdfde24f70bfe1b7d916b9ddd"},
+    "tests/render_context_lifecycle.rs": {"lines": 497, "bytes": 18258, "sha256": "d965753722720e92c6ae466ed9ee02dc0ece10d25d71ed477e3c72bf9374cfe0"}
   },
   "notes": [
     "GPU 用例的 render 是「渲染消费 BVH」的查询代理（S2b 查询 + 当前 leaf 位姿），不是像素渲染；S7b 才实现内核与图像验收。",
     "陈旧 BVH 的判定用两侧 miss + refit 后命中，避免对节点布局做断言（S2/S3 口径）。",
     "一次性驱动代码缓存 32 MiB 记录在 gpu 字段；阈值仍按 16 MiB 且实测 0 B，未放宽。",
     "任务 files 不含纹理/网格/BVH 源码，本片只在其上组合（不修改 S2/S3/S4 产品文件与证据）。",
-    "S6a 的 context.rs 只增加两个 cfg(cuda-probe) 模块与导出行，参数解析语义未改。"
+    "S6a 的 context.rs 只增加两个 cfg(cuda-probe) 模块与导出行，参数解析语义未改。",
+    "2026-10-25 修正（Normify-Fixes: 2026-10-24-render-bvh-s6b）：5 个产物行的 lines 字段改用 LF 行数口径（wc -l / .NET ReadAllLines）：403/358/426/368/497；首版误用 PowerShell Get-Content 计数（364/322/397/359/477）。sha256、bytes、验收结论、阈值与行为证据均未变。"
   ],
   "unmet": [
     "像素渲染内核、AA、阴影/天空盒/聚光灯、纹理/顶点法线/镜面/自发光求值属 S7b（依赖 S7a 发射 ABI）",
