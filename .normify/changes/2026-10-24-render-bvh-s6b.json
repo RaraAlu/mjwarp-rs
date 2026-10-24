@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s6b",
+  "title": {
+    "zh": "渲染/BVH S6b：render context 生命周期/所有权/显式 refit",
+    "en": "Render/BVH S6b: render context lifecycle, ownership, explicit refit"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "渲染/BVH 第九片（plan S6b，S6a/S2/S3/S4 已 verified）：给 RenderContext 建立资源所有权与生命周期——BVH/网格/纹理/输出 buffer 的 owner、create/destroy/drop、重复创建释放、显存稳定性；显式 refit_bvh 语义（render 不隐式刷新物理/BVH、陈旧 BVH 仍可渲染）；禁用输出不可读、布局/寿命检查。GPU 窗口独占；不改 S2/S3/S4 证据，不做渲染内核/S7b。",
+    "en": "Ninth render/BVH slice (plan S6b, S6a/S2/S3/S4 verified): establish RenderContext resource ownership and lifecycle - owners for BVH/mesh/texture/output buffers, create/destroy/drop, repeated create/release, memory stability; explicit refit_bvh semantics (render never implicitly refreshes physics/BVH; stale BVH remains renderable); disabled outputs unreadable; layout/lifetime checks. Exclusive GPU window; no S2/S3/S4 evidence changes, no render kernel/S7b."
+  },
+  "modules": {},
+  "acceptance": [
+    "100 次 create/destroy 显存稳定（阈值记录）、无 UAF、drop 释放 BVH/网格/纹理/输出资源；上下文 retain/push/pop 成对。",
+    "显式 refit：移动几何后 render 仍用旧 BVH；refit_bvh 后使用新 BVH；render 不触发物理/BVH 隐式刷新；陈旧 BVH 可渲染。",
+    "禁用输出不可读；布局/寿命检查强制；所有权字段不能在 context 外悬垂。",
+    "证据/门禁：README + receipt 含 task_id；fmt/clippy/clippy-cuda/unit 全过；GPU 独占并记录设备/显存；新文件 ≤500 行；不启动 Python；不改 S2/S3/S4 证据。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s6a",
+      "2026-10-24-render-bvh-s2b",
+      "2026-10-24-render-bvh-s3",
+      "2026-10-24-render-bvh-s4"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/context.rs",
+      "src/render/context/lifecycle.rs",
+      "src/render/context/owner.rs",
+      "src/render/mod.rs",
+      "tests/render_context_lifecycle.rs",
+      "docs/development-evidence/render-bvh/s6b-context-lifecycle/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 84
+  },
+  "note": "Arch 2026-10-24 排程：S6b 等 QA S6a 复核通过后再 start，避免 context 文件写路径冲突；GPU 窗口由 Arch 排，不与他人重叠。S6b 只做生命周期/所有权，不做渲染内核/S7b。",
+  "revision": {
+    "before": "3750e760993d6ca9722ff16351e1b1ea6c130db4",
+    "after": null
+  },
+  "created_at": "2026-10-25T05:38:00.000Z",
+  "updated_at": "2026-10-25T05:38:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s6b-context-lifecycle/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s6b"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S7已实现",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
