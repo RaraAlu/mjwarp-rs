@@ -3,6 +3,7 @@
 
 pub mod bvh;
 pub mod camera;
+pub mod context;
 pub mod rays;
 pub mod texture;
 
@@ -10,6 +11,7 @@ pub use camera::{
     Camera, CameraActive, CameraModel, CameraOutput, CameraPlan, CameraRequest, Projection,
     RenderTargets, resolve_cameras,
 };
+pub use context::{ContextError, ContextParams, ResolvedContext, resolve_context};
 #[cfg(feature = "cuda-probe")]
 pub use rays::RayBuilder;
 pub use rays::{RayBuffer, RayMode, planned_ray_count};

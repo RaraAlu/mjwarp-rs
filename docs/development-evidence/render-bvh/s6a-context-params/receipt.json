@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-24-render-bvh-s6a",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "S6a",
+  "title": "渲染/BVH S6a：render context 参数/默认值/输出偏移/拒绝面",
+  "date": "2026-10-25",
+  "conclusion": "覆盖范围内 pass（纯宿主、无 GPU）：以 S0b 冻结 MJWarp 3.15 的 create_render_context 参数与解析结果为参考，默认调用解析出的 34 个 resolved 字段逐项相等（nrender/cam_id_map/cam_res/render 掩码/rgb·depth·seg 偏移/total_rays/开关/background_color_unpacked/bvh_ngeom/enabled_geom_ids/znear/zfar/headlight/splat_count/geom_ray_types），camera_paths 与 rgb/depth/seg 输出形状一致；28 个公开参数默认值与上游签名一致，None 推导、bool/name/index/空列表、元组/单元素/异构分辨率、输出偏移与缓冲大小、samples/AA 约束、splat/背景色/天空盒派生与 18 类拒绝面均有测试。资源所有权/生命周期留 S6b，渲染内核/AA 图像留 S7b；未新增夹具、未改 S0b/S1/S4 证据。",
+  "scope": {
+    "product": [
+      "src/render/context.rs",
+      "src/render/context/params.rs",
+      "src/render/context/output.rs",
+      "src/render/context/model.rs",
+      "src/render/mod.rs"
+    ],
+    "tests": [
+      "tests/render_context_params.rs",
+      "src/render/context/tests.rs（cfg(test)）"
+    ],
+    "not_changed": [
+      "fixtures/render-bvh/**",
+      "docs/development-evidence/render-bvh/s0b-reference-capture/**",
+      "docs/development-evidence/render-bvh/s1-model-input/**",
+      "docs/development-evidence/render-bvh/s4-texture/**"
+    ],
+    "out_of_scope": [
+      "设备缓冲分配与 RenderContext 生命周期 (S6b)",
+      "渲染内核/AA 图像 (S7b)",
+      "渲染发射 ABI (S7a)",
+      "阴影/天空盒着色"
+    ]
+  },
+  "semantics": {
+    "upstream": "mujoco_warp/_src/render_util.py::create_render_context（MJWarp 3.15，71da24d956378a87a703b6e1442b13aec0c4ac29）",
+    "params_28": "ContextParams 字段与上游签名一一对应：nworld/cam_res/render_rgb/render_depth/render_seg/use_textures/use_fast_math/use_shadows/use_ambient_lighting/enabled_geom_groups/cam_active/background_color/flex_render_smooth/use_precomputed_rays/render_skybox/enable_backface_culling/shadow_light_fraction/samples_per_pixel/enable_vertex_normals/enable_specular/enable_emission/enable_per_light_ambient/splat_position/splat_rotation/splat_scale/splat_rgba/splat_adr/splat_group_id",
+    "defaults": "cam_res=None → 模型分辨率；render_* = None → 由模型 cam_output 推导；cam_active=None → 全部相机；enabled_geom_groups=[0,1,2]；background_color=(0,0,0,1)；shadow_light_fraction=0.3；samples_per_pixel=1；其余与上游签名一致",
+    "input_normalization": "cam_res tuple→全相机同值（空选择展开为空列表）；list 长度 1 且多相机→复制；render_* bool→全相机；list 长度=模型相机数且存在筛选→按 active 重排，长度 1 复制，否则长度须=激活相机数（归一后由 S5 resolve_cameras 执行）",
+    "camera_selection": "复用 S5 CameraModel/resolve_cameras：bool mask/name/index/空列表；相机 id 与输出序号分离（cam_id_map 顺序=输出顺序）",
+    "output_layout": "rgb_adr/depth_adr/seg_adr 逐相机累加（未启用=-1）；total_rays=Σ像素；nsamples=spp²；ray_count=total_rays*nsamples；seg_slots=max(seg_pixels,1)；aa_accum_width=nsamples>1?rgb_pixels:1；字节数按 nworld 乘 world 维（rgb u32、depth f32、seg vec2i、ray/ray_offset vec3、aa_accum vec3）；全部 checked_* 溢出检查",
+    "znear_zfar": "上游 float(vis.map.znear * stat.extent)；MjModel 中 vis.map.* 为 f32、stat.extent 为 f64，乘积按 f64；ResolvedContext.znear/zfar 存 f64（与 context.json 逐位相等）；S5 CameraPlan 的 f32 版本保留给射线内核",
+    "geom_lights_headlight_skybox": "enabled_geom_ids=np.isin(geom_group,groups)；geom_ray_types=enabled raw geom_type 去重升序；bvh_ngeom=ids.len()；light_attenuation_is_default=np.allclose(atten,(1,0,0),rtol=1e-5,atol=1e-8)；has_spot_lights=any(light_type==mjLIGHT_SPOT)；头灯取 vis.headlight.*；render_skybox 仅在请求且模型含 mjTEXTURE_SKYBOX 时为 true 并记录 texture_id/face_width",
+    "splat": "六参数须同时提供；position=None 时其它必须为 None；提供时 rotation/scale/rgba 必须存在且长度相等；group_id 长度须=nworld；splat_count=position.len()",
+    "background_color": "pack_rgba_to_uint32(r*255,g*255,b*255,a*255)（整数截断），并给出 unpacked=[r,g,b,a]（0..255 f64）；分量越界/非有限显式拒绝（产品防御性硬化，上游不校验）",
+    "rejection_surface": "相机选择/分辨率/输出开关/samples → CameraError（含字段）；模型字段 → MissingField/FieldKind/LengthMismatch{field}；splat → SplatAttributeMismatch/SplatMissing/SplatShape/SplatGroupCount；背景色 → BackgroundColor{channel}；计数 → CountOverflow{field}；全部在分配前"
+  },
+  "acceptance": {
+    "default_call_all_28_params": "34 个 resolved 字段 + 2 条 camera_paths + rgb/depth/seg 输出形状与 S0b context.json 逐项相等",
+    "call_matrix": "bool mask/name/index（含反序）/空列表/空列表+tuple/异构分辨率/元组/单元素复制；输出开关 bool 与 list（含按 active 重排）",
+    "outputs": "rgb/depth/seg 偏移、total_rays、ray_count、缓冲字节数、aa_accum、seg_slots 与上游公式一致",
+    "rejections": "相机 8 类 + splat 4 类 + 背景色 + 模型字段 2 类（共 15 个断言组，覆盖 18 个错误分支），均映射到 ContextError 字段",
+    "no_gpu": "全部主机测试，无 NVRTC/GPU/Python"
+  },
+  "reference": {
+    "s0b_context_json": {
+      "path": "fixtures/render-bvh/scene-a/reference/context.json",
+      "sha256": "e08cce0ad1783b2cadd533115ee0ea0bf1defa8db7ad8ed5a5e8ed1c2c62f2df",
+      "used_for": "create_render_context_parameters(28)+resolved(34)+camera_paths+outputs shapes；只读"
+    },
+    "s1_model_312": {
+      "path": "fixtures/render-bvh/scene-a/model-312.json",
+      "sha256": "cdd490f0209dd16a57b2685f3139548af8a2b73195cdb0e01a74ab094ef1df00",
+      "used_for": "116 个渲染字段还原成 RenderFields 作为解析输入；只读"
+    },
+    "no_new_fixture": true,
+    "no_capture": true,
+    "matrix_expectations": "S0b 只捕获默认调用；矩阵用例是上游代码语义的行为断言（bool/name/index/空列表/复制/重排/偏移/spp 等），不是新增夹具"
+  },
+  "tests": {
+    "integration": {
+      "command": "cargo test --locked --test render_context_params",
+      "result": "3 passed / 0 failed",
+      "cases": [
+        "default_call_resolves_like_context_json",
+        "geom_groups_spp_splats_skybox_and_background_resolve",
+        "invalid_camera_and_output_combinations_are_rejected"
+      ]
+    },
+    "unit": {
+      "command": "cargo test --locked --lib render::context",
+      "result": "4 passed / 0 failed",
+      "cases": [
+        "defaults_match_upstream_create_render_context_signature (params.rs)",
+        "camera_and_output_matrix_resolves_like_upstream",
+        "rejects_invalid_splats_and_background",
+        "rejects_invalid_model_field_kinds_and_lengths"
+      ]
+    },
+    "no_python": true,
+    "no_gpu": true
+  },
+  "gates": {
+    "fmt": "通过",
+    "clippy": "通过（--all-targets，0 警告）",
+    "clippy-cuda": "通过（--all-targets --features cuda-probe，0 警告）",
+    "unit": "通过，测试 531 过 0 败（S6a 新增 3 个集成用例 + 4 个 lib 单元测试）"
+  },
+  "artifacts": {
+    "src/render/context.rs": {"lines": 415, "bytes": 14339, "sha256": "d374434cf382d5ce46cedcf65a55c2ff7e66ac881e0108e60a6beb02560aeff1"},
+    "src/render/context/params.rs": {"lines": 183, "bytes": 7133, "sha256": "777dd6c726152f469a2995f3ba914458622d04546f47f9e3e69f1433e3faf1ba"},
+    "src/render/context/output.rs": {"lines": 151, "bytes": 6071, "sha256": "34f645268dfb9b255bda0320f3bc9201f5305a484fa97b047ea81bfc8fdd83d8"},
+    "src/render/context/model.rs": {"lines": 213, "bytes": 7331, "sha256": "789670379f1665fe163c55d52c730784b1dc36d2658a0886d666969864e2cff5"},
+    "src/render/context/tests.rs": {"lines": 255, "bytes": 8938, "sha256": "86b97a1ff943d5ded124796561a86a8fadcce6b59967a5f185b4245d992e8b55"},
+    "src/render/mod.rs": {"lines": 363, "bytes": 11207, "sha256": "ea432c3a1cccbb5a7355ab8dd10551040aff78498c54d4741fe76635baee26ea"},
+    "tests/render_context_params.rs": {"lines": 409, "bytes": 14305, "sha256": "2feedff8e43622cd82997a381542bbdf84014a5007f9a841757d728262c91eeb"}
+  },
+  "notes": [
+    "znear/zfar 上游用 f64 乘（f32 vis.map 输入升到 f64），所以 ResolvedContext 存 f64 才能与 context.json 的 0.024999999441206455 逐位相等；S5 CameraPlan.znear 的 f32 是内核参数口径，两者不冲突，已在代码注释说明。",
+    "本片把模型派生值拆到 context/model.rs、输出布局拆到 context/output.rs、参数结构拆到 context/params.rs，context.rs 保持 <500 行；cfg(test) 矩阵/拒绝面测试放 context/tests.rs，避免集成测试文件超 500 行。",
+    "splat 提供 position 但缺 rotation/scale/rgba 时上游会 AttributeError，本片映射为 SplatMissing{field}（产品错误类别清晰化），其余 splat 形状/组长度与上游 ValueError 对齐。",
+    "背景色越界/非有限是产品新增的防御性拒绝（上游不校验），属于写前拒绝面硬化，不影响合法输入。",
+    "'长度=模型相机数且存在筛选时按 active 重排' 与 '长度 1 复制' 是上游 render_* 列表的独有规则，S5 camera.rs 已实现，本片只做输入归一并用矩阵测试覆盖。",
+    "未改 S0b/S1/S4 证据与夹具；未新增夹具（S0b context.json 已含 28 参数与 34 个 resolved 字段，足以覆盖默认调用对照）。"
+  ],
+  "unmet": [
+    "设备缓冲分配/所有权/生命周期/释放属 S6b；ResolvedContext 不含设备资源",
+    "渲染内核、AA 图像、阴影/天空盒着色、渲染发射 ABI 属 S7a/S7b",
+    "S1 RenderFields 无 flex/hfield/splat 模型数组，bvh_nflexgeom/hfield BVH 等派生量未覆盖；splat 只做参数校验与计数",
+    "调用矩阵期望来自上游代码语义（S0b 只捕获默认调用），未新增矩阵参考夹具",
+    "未跑全量 G01；按 fast-loop 口径验收"
+  ],
+  "gpu_required": false,
+  "authoring_only": false,
+  "product_python_dependency": false
+}

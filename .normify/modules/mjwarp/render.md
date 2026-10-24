@@ -2,7 +2,7 @@
 uid = "a66a7856"
 id = "mjwarp.render"
 tags = ["planned", "engine", "render"]
-fingerprint = "a820636acb197aec95f9cff802a24be81b648aa7d10487d515b535471ee7f9c5"
+fingerprint = "832345f9b6023a008013b4d6cc920448d91ebd52c29b3cb633e6247e1be0f7ec"
 
 [name]
 zh = "GPU批量渲染"
@@ -66,6 +66,18 @@ path = "src/render/texture/cuda.rs"
 
 [[source]]
 path = "src/render/texture/sample.cu"
+
+[[source]]
+path = "src/render/context.rs"
+
+[[source]]
+path = "src/render/context/params.rs"
+
+[[source]]
+path = "src/render/context/output.rs"
+
+[[source]]
+path = "src/render/context/model.rs"
 
 [[apis]]
 protocol = "rpc"
