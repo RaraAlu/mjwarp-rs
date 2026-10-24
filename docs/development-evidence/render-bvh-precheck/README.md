@@ -290,10 +290,12 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 | S3 复核 | `2026-10-24-render-bvh-s3-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s3-independent-check/` | `96e50d3`；436×5/0 ULP/边界/refit/退化独立复核 |
 | S3 覆盖修正 | `2026-10-25-render-bvh-s3-coverage-fix` | Backend | verified | `docs/development-evidence/render-bvh/s3-mesh-bvh/` | `7b60e74` 修复 / `e02e01a` S3 追加；face 1/2/3 全覆盖、removed_rays |
 | S4 | `2026-10-24-render-bvh-s4` | Backend | verified | `docs/development-evidence/render-bvh/s4-texture/` | `3e3426d`；硬件纹理对象 3×1040×4 逐位、524/0 |
-| S4 复核 | `2026-10-24-render-bvh-s4-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s4-independent-check/` | `cc5d223`；12,480 通道逐位、524/0；1 个非阻断证据哈希修正待挂 |
+| S4 复核 | `2026-10-24-render-bvh-s4-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s4-independent-check/` | `cc5d223`；12,480 通道逐位、524/0；证据哈希修正 `9c8eb81` |
 | S5 | `2026-10-24-render-bvh-s5` | Backend | verified | `docs/development-evidence/render-bvh/s5-camera-rays/` | `1df634d`；17 context 全网格 SHA-256、516/0 |
 | S5 复核 | `2026-10-24-render-bvh-s5-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s5-independent-check/` | `742e6d1`；17/17 全网格、123 抽样、7 拒绝、PTX f64 仅为已知 sin/cos 归约 |
-| S6a | `2026-10-24-render-bvh-s6a` | Backend | in_progress | `docs/development-evidence/render-bvh/s6a-context-params/` | 无 GPU；28 参数/默认值/偏移/拒绝面 |
+| S6a | `2026-10-24-render-bvh-s6a` | Backend | verified | `docs/development-evidence/render-bvh/s6a-context-params/` | `dad622f`；34 resolved/15 拒绝、531/0 |
+| S6a 复核 | `2026-10-24-render-bvh-s6a-independent-check` | QA | in_progress | `docs/development-evidence/render-bvh/s6a-independent-check/` | CPU/无 GPU；28 参数/偏移/拒绝面独立复核 |
+| S6b | `2026-10-24-render-bvh-s6b` | Backend | proposed（blocked: S6a 复核） | `docs/development-evidence/render-bvh/s6b-context-lifecycle/` | 生命周期/所有权/显式 refit；等 S6a 复核释放 |
 
 结构说明：
 - 原 `2026-10-24-render-bvh-s2` 已 abandon（`8d4357f`，理由：运行中父任务写路径锁与派生任务冲突、冻结字段不可改）；拆分前参考捕获 `75166cf` 保留在 git 历史与 `fixtures/render-bvh/scene-a/s2/`，S2b 继续引用。
@@ -303,8 +305,8 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 - S3 覆盖修正已完成（`7b60e74` 修复 / `e02e01a` S3 追加）：退化网格 17 条/10 命中，face 1/2/3 全覆盖；S3 原验收结论不变。
 - S5 已 verified（`1df634d`）：17 context 全网格 SHA-256 位等，GPU 2/0、主机 4/0、516/0；AA 图像延后 S7b/S8，世界系归 S7b，正交 authoring 副本，`sha2` dev-dep。
 - S5 复核已 verified（`742e6d1`）：17/17 全网格、123 抽样、7 拒绝面、516/0；PTX 4 处 f64 token 均为已知 sin/cos 整数角归约，无物理 f32 提升。
-- S4 已 verified（`3e3426d`）：硬件纹理对象 3×1040×4 逐位、524/0；S4 复核 `cc5d223` 已 verified；1 个非阻断证据哈希修正由 Backend 走 normify fix。S6a 继续。
-- S6a 已 start（in_progress，无 GPU）：28 参数默认/None 推导/相机筛选/输出偏移/拒绝面，与 S4 复核并行；S6b 等 S6a。
+- S4 已 verified（`3e3426d`）：硬件纹理对象 3×1040×4 逐位、524/0；S4 复核 `cc5d223` 已 verified；证据哈希修正 `9c8eb81` 已挂。
+- S6a 已 verified（`dad622f`）：34 resolved/15 拒绝、531/0；S6a 复核已开 CPU/无 GPU 窗口。S6b 已登记，等 S6a 复核通过后 start。
 - `gpu:windows-t4` 是项目排程互斥名，不等于 T4 硬件；本机实际为 RTX 4070 Ti SUPER / SM89 / 驱动 596.36。开窗前核对设备，GPU 满载任务串行。
 - S1 复核的 `unchanged` 结构裁决已由 QA 在 receipt/addenda 留痕；normify 0.7.0 不允许改已 verified 检查，记录保持登记宽口径，实际门禁按 S1 自有路径执行。
 - S3 前排程注记：先补两个新叶子模块 `mjwarp.model.render-model`、`mjwarp.io.render` 的 layout order/apis；`src/model/render.rs` 当前正好 500 行，后续任何加功能必须先拆文件，S3+ 切片不得撞 500 行棘轮。
