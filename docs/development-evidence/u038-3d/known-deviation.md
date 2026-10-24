@@ -4,8 +4,10 @@
 - 任务：`2026-10-23-u038-3d-known-deviation`。
 - 裁决：用户 2026-10-23 裁决 **B**——U038-3D 三维链的全链 `qfrc_gravcomp` **8/77 超差**
   登记为**已知债务**，**不宣称通过**（不宣称三维链验收、不宣称精度达标、不宣称完整验收）。
-- 债务跟踪任务：`2026-10-23-u038-3d-gravity-propagation-debt-2`（proposed，不 start；
-  验收条件不变：1477 项 0 超差、2e-6 容差/断言不变、覆盖 free+ball+hinge+slide 混合关节）。
+- 债务跟踪任务：`2026-10-23-u038-3d-gravity-propagation-debt-2`（2026-10-24 启动；已完成有界
+  判定：**不改容差/断言/fixtures 语义且最小改产品源码时不可达 1477 项 0 超差**，
+  复跑 122 位差 / 8 超差 / max 4.29e-6 不变，见 `debt-2/README.md`）。
+  验收条件不变（1477 项 0 超差、2e-6 容差/断言不变、覆盖 free+ball+hinge+slide 混合关节）。
   旧任务 `2026-10-23-u038-3d-gravity-propagation-debt` 在有界修复尝试后已 **abandon**；
   引擎不允许对 abandoned 任务追加修正记录（`normify fix` 拒绝，直接改 note 被迁移校验拒绝），
   故 B 裁决、PTX 证据路径与后继任务指引改由本文件与后继 proposed 任务承接。

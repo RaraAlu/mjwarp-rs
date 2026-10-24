@@ -11,7 +11,8 @@
 - 因此 `2026-10-16-next-u038-3d` **未完成**。用户 2026-10-23 裁决 B：该 8/77 超差登记为
   **已知债务**，U038-3D **不宣称通过**（详见 `known-deviation.md`）。旧债务任务
   `2026-10-23-u038-3d-gravity-propagation-debt` 已 abandon；跟踪任务
-  `2026-10-23-u038-3d-gravity-propagation-debt-2` 保持 proposed、不 start。
+  `2026-10-23-u038-3d-gravity-propagation-debt-2` 于 2026-10-24 启动并完成有界判定
+  （未对齐，见 `debt-2/README.md`）。
 - PTX 逐表达式对照证据（提交 `71d9d42`、`722e979`，`ptx-diff/`）：三表达式源形态收缩一致，
   但 FMA 收缩由内联上下文决定；com/cdof 上游分层原子累加与产品单内核顺序累加存在结构差异。
 
@@ -95,6 +96,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/authoring/author-u03
 - NP03/NP04 未宣称完成；未跑满额回归（本任务只跑定向 GPU 测试）。
 - release/Linux/性能未验证。
 - 产品源码未改（`src` 保持 unchanged），因此本任务未触发 T4 源码身份重钉。
+
+## 2026-10-24 debt-2 有界复跑（未对齐，维持已知债务）
+
+- 任务 `2026-10-23-u038-3d-gravity-propagation-debt-2` 在 HEAD `245c461` 复跑：**1477 项、
+  122 位差、8 超差、max 4.2915e-6** 与 run5 逐项一致；容差/断言未改。
+- 首差逐字段/逐 world/逐 dof 定位：首个运动学差异在 w2 body3 的父姿态旋转 `rotate`（`xquat/xmat`
+  在该 world 逐位一致）；第二类在 w6 的 `multiply`/`xmat`；`subtree_com` 根体差异（11/82 ULP）
+  大于子体（1–2 ULP），属累加顺序；`cdof` 差异与 `xmat`、`xipos - subtree_com` offset 一致。
+- 判定：不改容差/断言/fixtures 语义且**最小改产品源码**的约束下不可达 1477 项 0 超差；
+  根因（内联上下文决定的混合 FMA 收缩 + subtree_com 内核分解/原子累加顺序）与
+  `ptx-diff/`、两轮有界结论一致，逐调用点对齐还需缺失的 PTX 调用点切片工具。
+- 选项（A 系统性对齐 / B 维持已知债务 / C 比较口径裁决）见 `debt-2/README.md` §7，已报 Chief。
+- 未改产品源码/测试/fixtures/容差/断言；未做 T4 repin；未宣称 U038-3D 或精度验收通过。
 
 ## 文件
 

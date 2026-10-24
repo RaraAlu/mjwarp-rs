@@ -313,7 +313,13 @@ NP03与NP04仍未完成。
 原2e-6容差未放宽。
 完整三维链尚未验收。
 用户裁决B登记为已知债务。
-债务跟踪任务保持proposed。
+债务跟踪任务已完成有界判定。
+复跑仍为八项超差且数字不变。
+首差定位到父姿态旋转路径。
+质心累积顺序差异仍在。
+最小改动对齐不可达。
+选项已上报待裁决。
+判定依据见`docs/development-evidence/u038-3d/debt-2/README.md`。
 复现入口见`scripts/u038-ptx-diff.ps1`。
 PTX证据见`docs/development-evidence/u038-3d/ptx-diff/`。
 详见`docs/development-evidence/u038-3d/known-deviation.md`。
