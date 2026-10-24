@@ -295,7 +295,9 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 | S5 复核 | `2026-10-24-render-bvh-s5-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s5-independent-check/` | `742e6d1`；17/17 全网格、123 抽样、7 拒绝、PTX f64 仅为已知 sin/cos 归约 |
 | S6a | `2026-10-24-render-bvh-s6a` | Backend | verified | `docs/development-evidence/render-bvh/s6a-context-params/` | `dad622f`；34 resolved/15 拒绝、531/0 |
 | S6a 复核 | `2026-10-24-render-bvh-s6a-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s6a-independent-check/` | `1c0929e`；34/34、15/15 拒绝、531/0、无 GPU |
-| S6b | `2026-10-24-render-bvh-s6b` | Backend | in_progress | `docs/development-evidence/render-bvh/s6b-context-lifecycle/` | 生命周期/所有权/显式 refit；60 分钟 GPU 窗口 |
+| S6b | `2026-10-24-render-bvh-s6b` | Backend | verified | `docs/development-evidence/render-bvh/s6b-context-lifecycle/` | `a171044`；100 次增长 0、显式 refit、531/0 |
+| S6b 复核 | `2026-10-24-render-bvh-s6b-independent-check` | QA | in_progress | `docs/development-evidence/render-bvh/s6b-independent-check/` | 30 分钟 GPU；生命周期/所有权/显存独立复核 |
+| S7a | `2026-10-24-render-bvh-s7a` | Backend | proposed（blocked: S6b 复核） | `docs/development-evidence/render-bvh/s7a-launch-abi/` | 发射 ABI：vec/u64/texture/新 Render recipe；等 GPU 锁释放 |
 
 结构说明：
 - 原 `2026-10-24-render-bvh-s2` 已 abandon（`8d4357f`，理由：运行中父任务写路径锁与派生任务冲突、冻结字段不可改）；拆分前参考捕获 `75166cf` 保留在 git 历史与 `fixtures/render-bvh/scene-a/s2/`，S2b 继续引用。
@@ -306,7 +308,9 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 - S5 已 verified（`1df634d`）：17 context 全网格 SHA-256 位等，GPU 2/0、主机 4/0、516/0；AA 图像延后 S7b/S8，世界系归 S7b，正交 authoring 副本，`sha2` dev-dep。
 - S5 复核已 verified（`742e6d1`）：17/17 全网格、123 抽样、7 拒绝面、516/0；PTX 4 处 f64 token 均为已知 sin/cos 整数角归约，无物理 f32 提升。
 - S4 已 verified（`3e3426d`）：硬件纹理对象 3×1040×4 逐位、524/0；S4 复核 `cc5d223` 已 verified；证据哈希修正 `9c8eb81` 已挂。
-- S6a 已 verified（`dad622f`）：34 resolved/15 拒绝、531/0；S6a 复核 `1c0929e` 已 verified。S6b 已 start，60 分钟 GPU 窗口。
+- S6a 已 verified（`dad622f`）：34 resolved/15 拒绝、531/0；S6a 复核 `1c0929e` 已 verified。
+- S6b 已 verified（`a171044`）：100 次 create/destroy 增长 0、显式 refit、531/0；S6b 复核已开 30 分钟 GPU 窗口。
+- S7a 已登记（proposed）：发射 ABI 的 vec/u64/texture + 新 Render recipe；等 S6b 复核释放 GPU 后 start。
 - `gpu:windows-t4` 是项目排程互斥名，不等于 T4 硬件；本机实际为 RTX 4070 Ti SUPER / SM89 / 驱动 596.36。开窗前核对设备，GPU 满载任务串行。
 - S1 复核的 `unchanged` 结构裁决已由 QA 在 receipt/addenda 留痕；normify 0.7.0 不允许改已 verified 检查，记录保持登记宽口径，实际门禁按 S1 自有路径执行。
 - S3 前排程注记：先补两个新叶子模块 `mjwarp.model.render-model`、`mjwarp.io.render` 的 layout order/apis；`src/model/render.rs` 当前正好 500 行，后续任何加功能必须先拆文件，S3+ 切片不得撞 500 行棘轮。
