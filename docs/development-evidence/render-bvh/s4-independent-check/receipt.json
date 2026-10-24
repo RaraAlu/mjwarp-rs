@@ -1,0 +1,305 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s4-independent-check",
+  "task_id": "2026-10-24-render-bvh-s4-independent-check",
+  "date": "2026-10-25",
+  "reviewed_commit": "3e3426d",
+  "review_baseline_head": "65688fd",
+  "outcome": "pass",
+  "scope": "Independent QA re-verification of the S4 texture slice (u8->f32/255 RGBA conversion incl. channel padding, 3 textures x 1040 uv x 4-channel hardware LINEAR sampling, use_textures/registry toggle, lifecycle, 8 rejection cases covering 6 categories, PTX tex suffix and DESC construction), fast-loop scope, no full G01, no product/fixture/original-evidence changes. AA image patch deferred to S7b/S8.",
+  "independent_method": {
+    "conversion": "QA harness target/qa-s4-harness (product crate path dependency, no delivered test/support import) rebuilt every texture from the fixture metadata + model-312 tex_data and exported RGBA f32 bits; QA Python independently recomputed the u8*f32(0x3B808081) formula with g/b=0 and a=1.0 padding and compared product/QA/fixture three ways",
+    "sampling": "product TextureObjects built CUDA texture objects with the frozen descriptor and sampled the fixture's 1040 uvs; QA Python compared all 12,480 channels bit-for-bit and computed max_abs_diff, plus the 350 out-of-range (CLAMP) uvs",
+    "registry_lifecycle": "use_textures off/on registry lengths/metadata/texel totals, out-of-range sample rejection, two create/sample/drop rounds",
+    "rejections": "8 RenderFields cases covering the 6 rejection categories, all required to fail before texture-object creation",
+    "evidence": "8 artifacts re-hashed from git blobs; fixture bytes/lines/cross-checks; src/runtime unchanged since S2b",
+    "ptx_descriptor": "PTX captured from the product NVRTC compile path (tex.2d.v4.f32.f32 presence, zero f64 tokens, source hash vs committed sample.cu blob); CUDA array/resource/texture descriptors reviewed field by field (explicit construction, no zeroed enum fields)"
+  },
+  "results": {
+    "conversions": {
+      "0": {
+        "product_sha256": "3fe88455cc01221a090fafecb44c2f3a55ed52f579fb1f49d26b217ee80c71bb",
+        "qa_recomputed_sha256": "3fe88455cc01221a090fafecb44c2f3a55ed52f579fb1f49d26b217ee80c71bb",
+        "fixture_sha256": "3fe88455cc01221a090fafecb44c2f3a55ed52f579fb1f49d26b217ee80c71bb",
+        "texels": 4096,
+        "match": true
+      },
+      "1": {
+        "product_sha256": "e525ac7241b72f56ac8c771fb2387ec47948fb8820b4430609fb0c07d94d309e",
+        "qa_recomputed_sha256": "e525ac7241b72f56ac8c771fb2387ec47948fb8820b4430609fb0c07d94d309e",
+        "fixture_sha256": "e525ac7241b72f56ac8c771fb2387ec47948fb8820b4430609fb0c07d94d309e",
+        "texels": 1024,
+        "match": true
+      },
+      "2": {
+        "product_sha256": "affe484f4eb7d1dc57b11d9358317af569d50e07c5f18f2e17e2fa074d9eb9a3",
+        "qa_recomputed_sha256": "affe484f4eb7d1dc57b11d9358317af569d50e07c5f18f2e17e2fa074d9eb9a3",
+        "fixture_sha256": "affe484f4eb7d1dc57b11d9358317af569d50e07c5f18f2e17e2fa074d9eb9a3",
+        "texels": 24576,
+        "match": true
+      }
+    },
+    "synthetic_padding": {
+      "nc1": {
+        "texels": 48,
+        "product_equal_fixture_equal_qa": true
+      },
+      "nc2": {
+        "texels": 30,
+        "product_equal_fixture_equal_qa": true
+      },
+      "nc4": {
+        "texels": 20,
+        "product_equal_fixture_equal_qa": true
+      }
+    },
+    "sampling": {
+      "0": {
+        "queries": 1040,
+        "unequal_channels": 0,
+        "max_abs_diff": 0.0,
+        "bit_equal": true
+      },
+      "1": {
+        "queries": 1040,
+        "unequal_channels": 0,
+        "max_abs_diff": 0.0,
+        "bit_equal": true
+      },
+      "2": {
+        "queries": 1040,
+        "unequal_channels": 0,
+        "max_abs_diff": 0.0,
+        "bit_equal": true
+      }
+    },
+    "sampling_channels_total": 12480,
+    "sampling_unequal_channels": 0,
+    "registry_ok": true,
+    "lifecycle_ok": true,
+    "rejections": [
+      {
+        "case": "zero_width",
+        "error": "ZeroSize",
+        "rejected": true
+      },
+      {
+        "case": "zero_height",
+        "error": "ZeroSize",
+        "rejected": true
+      },
+      {
+        "case": "channels_zero",
+        "error": "InvalidChannels",
+        "rejected": true
+      },
+      {
+        "case": "channels_five",
+        "error": "InvalidChannels",
+        "rejected": true
+      },
+      {
+        "case": "negative_adr",
+        "error": "NegativeAddress",
+        "rejected": true
+      },
+      {
+        "case": "data_range",
+        "error": "DataRange",
+        "rejected": true
+      },
+      {
+        "case": "length_mismatch",
+        "error": "LengthMismatch",
+        "rejected": true
+      },
+      {
+        "case": "field_kind",
+        "error": "FieldKind",
+        "rejected": true
+      }
+    ],
+    "rejections_ok": true,
+    "uv_out_of_range": 350,
+    "fixture": {
+      "sha256": "cbeb58ca4e854639ee500e31ccb0d9b4549d059d657d63a19d98999857b8fb16",
+      "bytes": 325755,
+      "lines": 15332,
+      "task_id": "2026-10-24-render-bvh-s4",
+      "textures": 3,
+      "uv_count": 1040,
+      "out_of_range_uvs": 350,
+      "cross_check_312": {
+        "tex_metadata_equal": true,
+        "tex_data_equal": true,
+        "tex_data_bytes": 89088,
+        "tex_data_sha256": "fa1b4cdfac39b42d59230c9f7f783806611790770e70f0140eabee1a435741d2"
+      },
+      "hardware_vs_software_max_abs_diff": 5.960464477539063e-08,
+      "determinism": {
+        "repeat": 2,
+        "bitwise_identical": true,
+        "second_pass_seconds": 1.033709
+      },
+      "registry": {
+        "ntex": 3,
+        "registry_off": 0,
+        "registry_on": 3,
+        "use_textures_off": false,
+        "use_textures_on": true
+      },
+      "model_312_tex_data_bytes": 89088
+    },
+    "artifacts": {
+      "src/render/texture.rs": {
+        "sha256": "ec21970331de9f4cfb9d42ba8aea5563518379c61fbcd79656d4a6218e292b88",
+        "bytes": 17275,
+        "lines": 486
+      },
+      "src/render/texture/cuda.rs": {
+        "sha256": "d79512ae4d446c91afd4f52f361bca6c7a37d3ea9917f1c94e3243471ceb11c7",
+        "bytes": 10540,
+        "lines": 298
+      },
+      "src/render/texture/sample.cu": {
+        "sha256": "145087f2de1c7127ed3cbc36a97bfef8e3ab227927bae053c812b513583e42da",
+        "bytes": 2071,
+        "lines": 43
+      },
+      "src/render/mod.rs": {
+        "sha256": "e89f28f71a1458402c37458cf45e95044e8e662b44621d9ce3784bb66c938887",
+        "bytes": 11108,
+        "lines": 361
+      },
+      "tests/render_texture.rs": {
+        "sha256": "7e54955f22b94610787dfcc7891df1cc66fe7af0b5d70d904927a490f013693e",
+        "bytes": 14109,
+        "lines": 410
+      },
+      "scripts/authoring/render-bvh-s4/capture_s4_textures.py": {
+        "sha256": "72f170e5622b5ae77825970142f9f015ea413ad0549afdec3bbe3c5bdfb2fe0d",
+        "bytes": 11156,
+        "lines": 281
+      },
+      "scripts/authoring/render-bvh-s4/s4_texture_support.py": {
+        "sha256": "051ff743f737d0c185df7753622eb78234a379476641ea5fdd58e4de27875af9",
+        "bytes": 6407,
+        "lines": 184
+      },
+      "fixtures/render-bvh/scene-a/s4/textures.json": {
+        "sha256": "cbeb58ca4e854639ee500e31ccb0d9b4549d059d657d63a19d98999857b8fb16",
+        "bytes": 325755,
+        "lines": 15332
+      }
+    },
+    "artifact_mismatches": [
+      "src/render/texture.rs"
+    ],
+    "runtime_changed_since_s2b": false,
+    "changed_paths_since_delivery": [
+      ".normify/changes/2026-10-24-render-bvh-s4-independent-check.json",
+      ".normify/changes/2026-10-24-render-bvh-s6a.json",
+      ".normify/changes/2026-10-24-render-bvh-schedule-log.json",
+      ".normify/runs/2026-10-24-render-bvh-schedule-log/fmt.json",
+      "docs/development-evidence/render-bvh-precheck/README.md",
+      "docs/development-evidence/render-bvh-precheck/plan.json"
+    ],
+    "product_paths_changed_since_delivery": [],
+    "runtime_paths_changed_since_delivery": []
+  },
+  "precision": {
+    "entry": "sample_texture2d",
+    "fmad": true,
+    "use_fast_math": false,
+    "options": [
+      "--std=c++17",
+      "--gpu-architecture=compute_70"
+    ],
+    "nvrtc_version": [
+      12,
+      8
+    ],
+    "source_sha256": "145087f2de1c7127ed3cbc36a97bfef8e3ab227927bae053c812b513583e42da",
+    "ptx_sha256": "a880edca421f32df956470e0f2ab37dc967f843f1d3135ab607bb1a4e6545ce8",
+    "tex_2d_v4_f32_f32": 1,
+    "f64_tokens": 0,
+    "descriptor": "CU_AD_FORMAT_FLOAT, 4 channels, 1 mip, normalized coords, CLAMP x3, LINEAR filter; explicit field construction"
+  },
+  "tests": {
+    "delivered_gpu_test": "2 passed / 0 failed (texture_objects_match_frozen_linear_samples + texture_objects_follow_use_textures_toggle_and_lifecycle)",
+    "delivered_host_test": "5 passed / 0 failed (cargo test --locked --test render_texture)",
+    "full_cpu_suite": "524 passed / 0 failed (cargo test --locked)",
+    "code_files_over_500_lines": [],
+    "product_test_starts_python": false
+  },
+  "gpu_window": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "cuda_version": "13.2",
+    "owner": "Arch (30-minute exclusive window)",
+    "start_memory_mib": 2899,
+    "harness_memory_mib": 2880,
+    "product_test_before_after_mib": [
+      2878,
+      2871
+    ],
+    "final_memory_mib": 2871,
+    "returned_to_desktop_baseline": true,
+    "no_other_full_load_task": true,
+    "actual_gpu_time": "about 1 minute"
+  },
+  "findings_non_blocking": [
+    {
+      "severity": "一般",
+      "title": "delivered S4 receipt/README hash for src/render/texture.rs does not match the committed blob",
+      "detail": "receipt/README record sha256 54d39a6d295d1be898e5282af9be4a9bc2bdd23211910513509d2824a73bad32 for 486 lines; the committed blob at 3e3426d and HEAD is 17,275 B / 486 lines / sha256 ec21970331de9f4cfb9d42ba8aea5563518379c61fbcd79656d4a6218e292b88 (raw, LF-normalized and blob hashes all agree, so this is not a CRLF-basis issue). The other 7 artifacts match. Behavioural evidence is unaffected; recommend a normify fix on the S4 README/receipt hash row (same treatment as the S1 field-diff line-count fix)."
+    }
+  ],
+  "limitations": [
+    "image-level patch (RGB difference with textures on/off) deferred to S7b/S8; no image/AA equivalence claimed",
+    "skybox shading, 3D textures, mipmaps and texture UV mapping are out of scope; the formal render launch ABI (u64/texture-array/scalar) is S6, so this slice packs the u64 handle into two meta i32 slots",
+    "single fixture (3 textures + synthetic nc cases + 1040 uvs), no fuzz/large textures/anisotropic filtering; GPU/driver-specific hardware filter precision not validated (5.96e-8 recorded only)",
+    "zero-size/length/type rejections are defensive product checks (not constructible at the MuJoCo model layer; upstream only raises in wp.Texture2D construction)",
+    "no full G01 in this round"
+  ],
+  "not_claimed": [
+    "full renderer or product rendering acceptance",
+    "complete R01",
+    "image/AA equivalence"
+  ],
+  "evidence": {
+    "README.md": {
+      "sha256": "fc284d81d45a19423b62363225a1853b2804d6beb369847f111cd123946aafe5",
+      "bytes": 8864
+    },
+    "harness-compare.json": {
+      "sha256": "108590d3c3226ab73087593325c974c2a7d4706eefdfbe9ee2b40a3cac70ef2b",
+      "bytes": 3578
+    },
+    "static-check.json": {
+      "sha256": "e33d2d48a6b66266056eb88ecbd06ecf9f61d7e33471c868b4b7e74d8c539f1e",
+      "bytes": 2874
+    },
+    "ptx-record.json": {
+      "sha256": "6979578b991c6d0711302280d063829c49c71e146a9abfb806ede577fe56782a",
+      "bytes": 483
+    },
+    "ptx-fma-summary.txt": {
+      "sha256": "27f88d23b77ce9abe98d9ac5a6cd1fc6b172686043f4bc28e7def2dce7588f41",
+      "bytes": 1218
+    },
+    "product-gpu-test.log": {
+      "sha256": "d59022544c088f6c90c5f00562f0bad41fb4c49c7eca5edf622b95804a71fe32",
+      "bytes": 1158
+    },
+    "unit-tests-summary.txt": {
+      "sha256": "6a938dd6397ee45d2e204dd45a4eeae8e54ef750e3f584d1cf061f2eb1266fa3",
+      "bytes": 8883
+    },
+    "gpu-window.txt": {
+      "sha256": "04cde7c266b5a9e769ef3650e0d64c33ba690d80525d78665557a08fd1026fed",
+      "bytes": 328
+    }
+  },
+  "hash_basis": "fixture/source hashes are LF-normalized git blob semantics; evidence hashes are the committed file bytes"
+}
