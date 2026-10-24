@@ -1,0 +1,174 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s2a-independent-check",
+  "task_id": "2026-10-24-render-bvh-s2a-independent-check",
+  "date": "2026-10-24",
+  "task_under_review": "2026-10-24-render-bvh-s2a",
+  "reviewed_commit": "f9adf14b2f6c18b9bb8787189c15a908becfb29f",
+  "review_head": "59bec435656851e9fd707be76a0582bf5f2680d0",
+  "scope": "fast-loop CPU-only independent review; no GPU, no full G01, no product/fixture/original-evidence modification",
+  "verdict": {
+    "overall": "pass",
+    "items": [
+      {
+        "id": 1,
+        "name": "AABB parity 56/56",
+        "status": "pass",
+        "evidence": "QA independent Python reimplementation of the upstream bvh.py formulas (explicit f32 steps, documented fma contraction) over the fixture poses: 56 leaves / 336 f32 components, 0 bit differences, max ULP 0; model inputs geom_size (f64->f32) and mesh bounds also 0 diff vs model-312.json"
+      },
+      {
+        "id": 2,
+        "name": "build/refit invariants",
+        "status": "pass",
+        "evidence": "QA Rust harness over a clean f9adf14 worktree: 8 poses, 0 errors; leaf bounds equal fixture, group root = union of leaves, internal node = union(children), every leaf reachable exactly once, changed leaves after refit = [1,2,3,4,5,6]"
+      },
+      {
+        "id": 3,
+        "name": "two-world grouping + 32x2 queries + rejection surface",
+        "status": "pass",
+        "evidence": "32 rays x 2 worlds -> 64/64 hits, 0 cross-world candidates, identical per-world geom sets; QA extra 24 rays x 2 -> 48/48 hits; 8 upward rays -> 0 candidates; 14/14 concrete rejection calls rejected (all 13 required behaviours plus two equivalent entry points)"
+      },
+      {
+        "id": 4,
+        "name": "evidence hashes / tests / claims",
+        "status": "pass",
+        "evidence": "delivery receipt 12 artifacts: 12/12 sha256, 12/12 bytes, 12/12 lines match the f9adf14 blobs; delivered tests rerun in a clean worktree: 5 passed/0, 16 passed/0, full suite 506 passed/0/0 ignored; s2 npz cross-check 4/4 bit-equal"
+      },
+      {
+        "id": 5,
+        "name": "boundary and concurrency",
+        "status": "pass",
+        "evidence": "CPU-only (no GPU command), product tests never spawn Python, new code files <= 500 lines (aabb 400 / builder 440 / refit 123 / query 111 / mod 184, tests 472), module mjwarp.render lists all BVH sources; git diff f9adf14..HEAD -- src tests fixtures scripts is empty and the uncommitted S2b WIP only touches S2b-owned paths, leaving the S2a unchanged files untouched"
+      }
+    ]
+  },
+  "measurements": {
+    "aabb": {
+      "poses": 8,
+      "leaves": 56,
+      "components": 336,
+      "bit_mismatches": 0,
+      "max_ulp": 0,
+      "model_input_diffs": {
+        "geom_size": 0,
+        "mesh_bounds": 0
+      }
+    },
+    "bvh_semantics": {
+      "poses": 8,
+      "invariant_errors": 0,
+      "changed_leaves": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "two_world": {
+        "rays": 32,
+        "worlds": 2,
+        "hits": "64/64",
+        "cross_world_errors": 0,
+        "qa_extra_queries": 48,
+        "qa_extra_hits": 48,
+        "upward_miss_candidates": 0
+      }
+    },
+    "rejections": {
+      "checked": 14,
+      "rejected": 14
+    },
+    "tests": {
+      "targeted": 5,
+      "module_unit": 16,
+      "full_locked": 506,
+      "failed": 0,
+      "ignored": 0
+    },
+    "s2_cross_check": {
+      "comparisons": 4,
+      "bit_equal": 4
+    },
+    "artifact_hashes": {
+      "artifacts": 12,
+      "sha256_matches": 12,
+      "bytes_matches": 12,
+      "line_matches": 12
+    },
+    "line_counts": {
+      "src/render/bvh/aabb.rs": 400,
+      "src/render/bvh/builder.rs": 440,
+      "src/render/bvh/refit.rs": 123,
+      "src/render/bvh/query.rs": 111,
+      "src/render/bvh/mod.rs": 184,
+      "src/render/mod.rs": 242,
+      "tests/render_scene_bvh_host.rs": 472
+    }
+  },
+  "concurrent_changes": {
+    "baseline_commit": "f9adf14b2f6c18b9bb8787189c15a908becfb29f",
+    "command": "git diff f9adf14..HEAD -- src tests fixtures scripts",
+    "committed_diff": "S2b implementation landed during the review (c7b5d7f); paths are S2b-owned only: fixtures/render-bvh/scene-a/s2/reference_hits.json, scripts/authoring/render-bvh/capture_s2b_query.py, src/render/bvh/cuda/mod.rs, src/render/bvh/cuda/scene.cu, src/render/bvh/mod.rs, tests/render_scene_bvh_gpu.rs, tests/support/render_bvh/mod.rs",
+    "worktree_wip": "none after S2b commit; the S2a unchanged files are untouched",
+    "unchanged_scope": "src/render/bvh/{aabb,builder,refit,query}.rs, tests/render_scene_bvh_host.rs, fixtures/render-bvh/scene-a/s2a/, capture_s2a_bounds.py, verify_s2a_aabb.py, docs/development-evidence/render-bvh/s2a-scene-bvh-host/"
+  },
+  "observations": [
+    "the '13 rejection cases' count is not stated consistently (task 13, delivery README 10 groups, delivery test 11 assertions, this review 14 concrete calls); recommend fixing one named rejection list at S2 closeout",
+    "src/render/bvh/mod.rs is being modified by the concurrent S2b WIP (pub mod cuda); it is outside this review's unchanged scope, but the mod.rs mount semantics need their own verification in S2b",
+    "rotated-plane AABB has no GPU bit reference (static identity floor); already recorded in the delivery README"
+  ],
+  "commands": [
+    "python -B target/qa-render-bvh-s2a/aabb_recompute.py",
+    "cargo run --quiet (target/qa-s2a-harness, path dependency on a clean worktree of f9adf14)",
+    "cargo test --locked --test render_scene_bvh_host (clean worktree)",
+    "cargo test --locked --lib render::bvh (clean worktree)",
+    "cargo test --locked (clean worktree)",
+    "python -B target/qa-render-bvh-s2a/evidence_gen.py"
+  ],
+  "gates": {
+    "fmt": {
+      "command": "cargo fmt --check",
+      "result": "通过"
+    },
+    "unchanged": {
+      "paths": [
+        "src/render/bvh/aabb.rs",
+        "src/render/bvh/builder.rs",
+        "src/render/bvh/refit.rs",
+        "src/render/bvh/query.rs",
+        "tests/render_scene_bvh_host.rs",
+        "fixtures/render-bvh/scene-a/s2a/",
+        "scripts/authoring/render-bvh/capture_s2a_bounds.py",
+        "scripts/authoring/render-bvh/verify_s2a_aabb.py",
+        "docs/development-evidence/render-bvh/s2a-scene-bvh-host/"
+      ],
+      "result": "通过"
+    },
+    "json": {
+      "path": "docs/development-evidence/render-bvh/s2a-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "result": "通过"
+    }
+  },
+  "full_g01": {
+    "run_this_task": false,
+    "note": "S2a is host-only; the last full G01 dual-mode run is the T2 closeout at HEAD 959be10 (commit 6494fe8)"
+  },
+  "not_claimed": [
+    "S2b 已实现 / GPU 遍历或射线命中",
+    "完整渲染通过 / 产品渲染验收",
+    "mesh 三角形 BVH 或 mesh 命中语义（S3）",
+    "hfield 完整语义",
+    "平台无关 IEEE fma：host 为 fixture 验证的 f64 复刻",
+    "任意 MJB 的 fuzz/性质测试",
+    "本轮全量 G01 或双平台结论"
+  ],
+  "unmet": [
+    "no GPU traversal/hit: plan S2 items 1 and the ray layer of item 3 belong to S2b",
+    "rotated-plane AABB has no GPU bit reference (static identity floor); covered only by the shared formula/unit tests",
+    "host fma emulation may differ from CUDA fma.rn by <=1 ULP on arbitrary inputs; only the 56 captured leaves are verified",
+    "AABB reference inputs are MJWarp device-side f32 poses; product integration must use the same GPU kinematics path",
+    "no fuzz/arbitrary-MJB property tests; single frozen scene-a fixture; hfield/SDF full semantics out of scope"
+  ]
+}
