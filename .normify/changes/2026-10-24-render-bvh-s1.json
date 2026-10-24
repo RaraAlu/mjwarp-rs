@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s1",
+  "title": {
+    "zh": "渲染/BVH S1：渲染模型输入（相机/光源/材质/纹理/网格/vis/名称表）",
+    "en": "Render/BVH S1: render model input (camera/light/material/texture/mesh/vis/names)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "渲染/BVH 解冻后的第三片（plan S1，S0a 已 verified）：扩展原生模型 ABI 与 Rust 模型，只读相机/光源/材质/纹理/网格/vis/名称表等渲染相关字段，并做宿主校验（计数/长度/乘积溢出、名称表与地址范围、负尺寸、非法 id）；不分配设备缓冲、不创建纹理对象、不建 BVH、不使用 GPU。字段值必须与 fixtures/render-bvh/scene-a/model-312.json 逐元素相等；名称查找语义必须与加载库的 mj_id2name 一致。",
+    "en": "Third render/BVH slice (plan S1, S0a verified): extend the native model ABI and the Rust model with read-only render fields (camera/light/material/texture/mesh/vis/name tables) and host validation (counts/lengths/product overflow, name/address ranges, negative sizes, invalid ids). No device buffers, texture objects, BVH or GPU. Field values must equal fixtures/render-bvh/scene-a/model-312.json element-wise and name lookup must match the loaded library's mj_id2name."
+  },
+  "modules": {},
+  "acceptance": [
+    "逐元素：116 个渲染字段与 fixtures/render-bvh/scene-a/model-312.json 完全相等（0 差异），其余 17 个碰撞/约束专用字段登记为排除面。",
+    "计数/长度/stride/乘积：原生计数非负、字段期望标量数 = 基数×宽度且检查乘加溢出，长度不符即拒绝。",
+    "名称查找：相机/光源/材质/纹理/网格及其它名称表对象的查找与加载库的 mj_id2name 语义一致（含越界与空名）。",
+    "拒绝面：非法计数、负尺寸/负地址、越界纹理 id、越界名称偏移、超容量网格范围、未终止名称缓冲在分配与写入前被拒绝。",
+    "无 GPU：仅 native-model-probe feature 与可信 MuJoCo 3.12 DLL；不启动 Python、不改 G01 既有 45 字段路径与语义。",
+    "证据 docs/development-evidence/render-bvh/s1-model-input/（README + receipt.json 含 task_id + 字段对照 JSON）；新文件 ≤500 行。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s0a"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/model/",
+      "src/io/",
+      "native/",
+      "include/",
+      "tests/",
+      "docs/development-evidence/render-bvh/"
+    ],
+    "resources": [],
+    "priority": 88
+  },
+  "note": "来源：docs/development-evidence/render-bvh-precheck/plan.json slices[id=S1] 与 README §6「S1 渲染模型输入」；用户已批准 D1-D4 口径。产品 native 保持 MuJoCo 3.12.0，3.15 只在 authoring；不越到 S2（场景 BVH）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-24T14:55:00.000Z",
+  "updated_at": "2026-10-24T14:55:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s1-model-input/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s1"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "产品渲染验收通过",
+        "完整R01通过",
+        "S2已实现"
+      ]
+    }
+  ]
+}
