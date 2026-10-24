@@ -1,0 +1,104 @@
+{
+    "schema":  1,
+    "kind":  "independent-check",
+    "task_id":  "2026-10-24-windows-small-review",
+    "title":  "Windows 小项交付独立复核（a10-p11 + U038，快验口径）",
+    "date":  "2026-10-24",
+    "head_commit":  "c0ac14cfa75da1963ad3027427e41146da8ac1d8",
+    "reviewed":  {
+                     "a10_p11":  "245c461",
+                     "u038":  "c0ac14c"
+                 },
+    "full_g01":  {
+                     "run_in_this_batch":  false,
+                     "last_full_green_head":  "4e07852",
+                     "last_full_green_ref":  "docs/three-layer-acceptance.md §4.13 (debug/release 14/14, host-msvc 835, all-probes 353/0, 87 result lines, 11 exclusions, rustdoc 0)",
+                     "next_full_run_expectation_only":  {
+                                                            "host_msvc":  "835 -\u003e 840 (a10-p11 adds 5 unit tests; not measured)",
+                                                            "all_probes":  "353 -\u003e 354 (a10-p11 adds 1 ignored GPU probe; not measured)"
+                                                        }
+                 },
+    "a10_p11":  {
+                    "verdict":  "claims_hold",
+                    "independent_runs":  3,
+                    "medians":  "7168/7168 ns in all 3 runs (debug x2 + release x1)",
+                    "min_ns":  6144,
+                    "max_ns_range":  "7328-8192",
+                    "memory":  "idle=1325924352, allocated=1359478784 (+33554432 = 32 MiB), released back to 1325924352; phase baseline=peak=end",
+                    "debug_release_split":  true,
+                    "json_roundtrip":  true,
+                    "p10_untouched":  true,
+                    "unit_gate":  "485 passed 0 failed (5 new)",
+                    "tooling_tests":  "10 passed 0 failed",
+                    "file_lines_actual":  {
+                                              "src/runtime/tooling/perf.rs":  491,
+                                              "src/runtime/tooling/gpu.rs":  220,
+                                              "src/runtime/tooling/mod.rs":  275,
+                                              "src/runtime/tooling/tests.rs":  445,
+                                              "tests/a10_p11_gpu_perf_probe.rs":  198,
+                                              "scripts/test-windows-a10-p11.ps1":  84
+                                          },
+                    "file_lines_annotated":  {
+                                                 "src/runtime/tooling/perf.rs":  462,
+                                                 "src/runtime/tooling/gpu.rs":  197,
+                                                 "src/runtime/tooling/mod.rs":  256,
+                                                 "src/runtime/tooling/tests.rs":  429,
+                                                 "tests/a10_p11_gpu_perf_probe.rs":  183,
+                                                 "scripts/test-windows-a10-p11.ps1":  79
+                                             },
+                    "all_under_500":  true,
+                    "module_mount":  "mjwarp.runtime.tooling lists perf.rs, gpu.rs, a10_p11_gpu_perf_probe.rs",
+                    "suggestions":  [
+                                        "行数标注 462/197/256/429/183/79 与实测 491/220/275/445/198/84 不符（仍全部 ≤500）",
+                                        "设备总量标注 16376.5 MiB 与实测 16375.5 MiB（17,170,956,288 B）差 1 MiB"
+                                    ]
+                },
+    "u038":  {
+                 "verdict":  "claims_hold",
+                 "product_diff":  "empty (git diff 3b22f5f..c0ac14c -- src tests fixtures Cargo.*)",
+                 "totals":  {
+                                "compared_values":  1477,
+                                "bit_differences":  122,
+                                "outside_tolerance":  8,
+                                "max_absolute":  4.291534423828125E-06,
+                                "absolute_tolerance":  1.9999999949504854E-06
+                            },
+                 "tolerance_bits":  "0x360637BD = f32(2e-6), test constant unchanged",
+                 "gravity_operator":  "77 values / 0 outside / max 1.1920928955078125e-7",
+                 "gravity_source_propagation":  "77 values / 8 outside / max 4.291534423828125e-6",
+                 "first_diff_recheck":  "all substantive sections equal to committed first-diff.json; only provenance paths differ",
+                 "bounded_rounds":  "run7: 122-\u003e123, 8/77 unchanged; run8: 122-\u003e147, 8/77 unchanged",
+                 "options_documented":  "A/B/C in debt-2/README.md section 7",
+                 "claimed_passing":  false,
+                 "suggestion":  "gravity_operator bit diff 1 vs historical run5 0 (both 0 outside); suggest uniform wording \"0 outside, bit diff 0~1\""
+             },
+    "gates":  {
+                  "fmt":  "see .normify/runs/2026-10-24-windows-small-review/fmt.json",
+                  "unchanged":  "src/tests/fixtures/Cargo.* untouched",
+                  "json":  "receipt task_id",
+                  "note":  "this task only adds documentation and evidence; gate records under .normify/runs/2026-10-24-windows-small-review/"
+              },
+    "unmet":  [
+                  "full G01 not run this batch (fast-loop only); next-run counts are expectations only",
+                  "U038-3D acceptance target still unmet (8/77, max 4.29e-6); known debt under ruling B, not claimed passing",
+                  "a10-p11 evidence line-count annotations and device-total annotation off (documentation suggestions)",
+                  "a10-p11 boundaries: microbenchmark not physical stage, no perf threshold, Windows-only, sampled memory"
+              ],
+    "boundaries":  [
+                       "read-only review; no product/test/tolerance/fixtures/exclusion-list/G01-script changes",
+                       "GPU used only for second-scale probes (debug x2 + release x1); U038 not re-run on GPU, read-only recomputation only",
+                       "does not claim full G01 or dual-platform; last full-green HEAD remains 4e07852"
+                   ],
+    "evidence":  [
+                     "README.md",
+                     "a10-independent-recheck.json",
+                     "a10-probe-debug-run1.json",
+                     "a10-probe-debug-run2.json",
+                     "a10-probe-release.json",
+                     "fast-loop-lib-tooling.json",
+                     "fast-loop-probe-run1.json",
+                     "fast-loop-probe-run2.json",
+                     "u038-independent-recheck.json",
+                     "commands.log"
+                 ]
+}

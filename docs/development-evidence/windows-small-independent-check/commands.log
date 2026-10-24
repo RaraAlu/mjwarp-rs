@@ -1,0 +1,23 @@
+# Windows 小项独立复核（a10-p11 + U038，快验口径）
+
+HEAD at review: c0ac14cfa75da1963ad3027427e41146da8ac1d8
+
+## 命令与结果
+1) g01-fast lib tooling tests
+   scripts\g01-fast.ps1 -Target mjwarp_rs -Test runtime::tooling
+   -> passed=10 failed=0 (summary: fast-loop-lib-tooling.json)
+2) new ignored GPU probe (debug) x2
+   scripts\g01-fast.ps1 -Target a10_p11_gpu_perf_probe -IgnoredOnly -Nocapture
+   -> 1 passed each run; records a10-probe-debug-run1.json / a10-probe-debug-run2.json
+   -> medians 7168/7168 ns in both runs; checkpoints byte-identical to evidence
+3) new ignored GPU probe (release)
+   cargo +1.99.0-x86_64-pc-windows-msvc test --release --locked --features cuda-probe --test a10_p11_gpu_perf_probe -- --ignored
+   -> 1 passed; record a10-probe-release.json; medians 7168/7168 ns; wall 10.6s
+4) U038 read-only first-diff recheck
+   scripts\authoring\compare-u038-first-diff.ps1 -RunDirectory docs\development-evidence\u038-3d\debt-2 -OutputPath target\qa-windows-small\first-diff-recheck.json
+   -> regenerated content equals committed first-diff.json on all substantive sections; only provenance input paths differ
+5) U038 product diff check
+   git diff --name-only 3b22f5f..c0ac14c -- src tests fixtures Cargo.toml Cargo.lock -> empty
+
+NOT RUN: full G01 (both modes). Last full-green HEAD remains 4e07852 (docs/three-layer-acceptance.md section 4.13).
+Next full-run expectation only (not measured): all-probes 354, host-msvc 840.

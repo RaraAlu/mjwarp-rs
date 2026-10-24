@@ -1,75 +1,73 @@
 {
-    "schema_version":  1,
-    "id":  "2026-10-24-windows-small-review",
-    "title":  {
-                  "zh":  "Windows 小项交付独立复核（a10-p11 + U038，快验口径）",
-                  "en":  "Independent fast-loop review of Windows small deliveries (a10-p11 + U038)"
-              },
-    "status":  "proposed",
-    "intent":  {
-                   "zh":  "按用户 2026-10-24 的新节奏（快验迭代，完整双模式只在真正里程碑跑），对两笔 Windows 小项交付做独立复核：a10-p11（`245c461`，CUDA events 计时与显存采样工具）与 U038（`c0ac14c`，三维重力传播超差判定为最小改动不可对齐）。核对交付声明、证据数字与当前 HEAD 一致性，用 g01-fast 受影响 target + 定向测试 + 秒级 GPU 探针复核，不跑全量 G01；U038 只读复核 + 定向复跑比对脚本。",
-                   "en":  "Under the 2026-10-24 fast-loop cadence, independently review the two Windows small deliveries: a10-p11 (245c461, CUDA events timing and memory sampling) and U038 (c0ac14c, 3D gravity propagation over-tolerance judged non-alignable with minimal changes). Verify claims, evidence numbers and HEAD consistency with g01-fast affected targets, targeted tests and second-scale GPU probes; no full G01; U038 read-only review plus directed re-run of the comparison script."
-               },
-    "modules":  {
-
-                },
-    "acceptance":  [
-                       "复核 a10-p11（提交 245c461）：核对声明——温机 10 / 重复 50、两阶段两档中位数均 7168 ns（min/max/mean 见证据）、设备总量 16376.5 MiB、空闲 1264.5 → 工作集 1296.5（+32 MiB）→ 释放回基线、阶段内峰值 = 基线；debug/release 分档；记录 JSON 可回读校验确定性；核对「不重做 P10、不碰物理/容差/断言」；新文件 ≤500 行并挂 `mjwarp.runtime.tooling`；门禁记录一致（unit 485 过 0 败、新增 5 项单测）。",
-                       "a10-p11 复核手段：`scripts/g01-fast.ps1` 的 lib tooling 定向测试 + 新 ignored GPU 探针（`--test a10_p11_gpu_perf_probe -- --ignored`，GPU 秒级）；核对计时/显存数字与证据一致、重复运行稳定；如实记录本轮未跑全量 G01、最近全绿 HEAD 4e07852（§4.13）、下一轮全量预期计数（all-probes 354、host-msvc 840）仅作预期不实测。",
-                       "复核 U038（提交 c0ac14c）：`git diff 3b22f5f..c0ac14c -- src tests fixtures Cargo.*` 为空（unchanged 通过、无需 T4 repin）；run.json 数字 1477 项/122 位差/8 超差/max 4.291534423828125e-6、容差 2e-6 未改、与 run5 逐项一致；`gravity_operator` 77/77 0 超差；首差结论（w2 body3 父姿态 rotate 2 ULP、w6 multiply/xmat、subtree_com 累加顺序、cdof 55 位差）与证据文件一致；有界两轮尝试记录在案；三个选项（A 系统性对齐 / B 维持已知债务 / C 比较口径裁决）已写入证据。",
-                       "U038 复核手段：只读复核 + 定向复跑 `scripts/authoring/compare-u038-first-diff.ps1`（只读工具，GPU 定向链按需，秒级到分钟级）；不跑全量 G01；不修改产品/测试/容差/排除清单/G01 脚本。",
-                       "证据写 docs/development-evidence/windows-small-independent-check/（README + receipt.json 含 task_id），如实写明未跑全量、最近全绿 HEAD 4e07852、下一轮全量预期计数；门禁 fmt + json 通过；中文 path-limited 提交。"
-                   ],
-    "schedule":  {
-                     "depends_on":  [
-                                        "2026-10-11-roadmap-a10-p11",
-                                        "2026-10-23-u038-3d-gravity-propagation-debt-2"
-                                    ],
-                     "phase":  "P11",
-                     "owner":  "QA",
-                     "files":  [
-                                   "docs/development-evidence/windows-small-independent-check/"
-                               ],
-                     "resources":  [
-                                       "gpu:windows-t4"
-                                   ],
-                     "priority":  10
-                 },
-    "note":  "Chief 2026-10-24 指令：Backend 两笔 Windows 小项落库并 verified 后做快验口径独立复核。a10-p11 用 g01-fast 的 lib tooling 定向测试 + 新 ignored GPU 探针（秒级）；U038 只读 + 定向复跑比对脚本。不跑全量 G01（下一轮全量只在里程碑跑）；证据如实写未跑全量与最近全绿 HEAD 4e07852。Backend 报的 all-probes 348→349 / host-msvc 480→485 属旧基线口径，当前里程碑实际为 all-probes 353 / host-msvc 835，本轮新增 1 探针 + 5 单测，下一轮全量预期 354 / 840，仅记录预期不实测。",
-    "revision":  {
-                     "before":  null,
-                     "after":  null
-                 },
-    "created_at":  "2026-10-24T08:20:00.000Z",
-    "updated_at":  "2026-10-24T08:27:18.966Z",
-    "closed_at":  null,
-    "checks":  [
-                   {
-                       "kind":  "gate",
-                       "gate":  "fmt"
-                   },
-                   {
-                       "kind":  "unchanged",
-                       "paths":  [
-                                     "src",
-                                     "tests",
-                                     "fixtures",
-                                     "Cargo.toml",
-                                     "Cargo.lock"
-                                 ]
-                   },
-                   {
-                       "kind":  "json",
-                       "path":  "docs/development-evidence/windows-small-independent-check/receipt.json",
-                       "pointer":  "/task_id",
-                       "equals":  "2026-10-24-windows-small-review"
-                   },
-                   {
-                       "kind":  "forbid_claim",
-                       "terms":  [
-                                     "全量G01通过",
-                                     "本轮已全量验收"
-                                 ]
-                   }
-               ]
+  "schema_version": 1,
+  "id": "2026-10-24-windows-small-review",
+  "title": {
+    "zh": "Windows 小项交付独立复核（a10-p11 + U038，快验口径）",
+    "en": "Independent fast-loop review of Windows small deliveries (a10-p11 + U038)"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "按用户 2026-10-24 的新节奏（快验迭代，完整双模式只在真正里程碑跑），对两笔 Windows 小项交付做独立复核：a10-p11（`245c461`，CUDA events 计时与显存采样工具）与 U038（`c0ac14c`，三维重力传播超差判定为最小改动不可对齐）。核对交付声明、证据数字与当前 HEAD 一致性，用 g01-fast 受影响 target + 定向测试 + 秒级 GPU 探针复核，不跑全量 G01；U038 只读复核 + 定向复跑比对脚本。",
+    "en": "Under the 2026-10-24 fast-loop cadence, independently review the two Windows small deliveries: a10-p11 (245c461, CUDA events timing and memory sampling) and U038 (c0ac14c, 3D gravity propagation over-tolerance judged non-alignable with minimal changes). Verify claims, evidence numbers and HEAD consistency with g01-fast affected targets, targeted tests and second-scale GPU probes; no full G01; U038 read-only review plus directed re-run of the comparison script."
+  },
+  "modules": {},
+  "acceptance": [
+    "复核 a10-p11（提交 245c461）：核对声明——温机 10 / 重复 50、两阶段两档中位数均 7168 ns（min/max/mean 见证据）、设备总量 16376.5 MiB、空闲 1264.5 → 工作集 1296.5（+32 MiB）→ 释放回基线、阶段内峰值 = 基线；debug/release 分档；记录 JSON 可回读校验确定性；核对「不重做 P10、不碰物理/容差/断言」；新文件 ≤500 行并挂 `mjwarp.runtime.tooling`；门禁记录一致（unit 485 过 0 败、新增 5 项单测）。",
+    "a10-p11 复核手段：`scripts/g01-fast.ps1` 的 lib tooling 定向测试 + 新 ignored GPU 探针（`--test a10_p11_gpu_perf_probe -- --ignored`，GPU 秒级）；核对计时/显存数字与证据一致、重复运行稳定；如实记录本轮未跑全量 G01、最近全绿 HEAD 4e07852（§4.13）、下一轮全量预期计数（all-probes 354、host-msvc 840）仅作预期不实测。",
+    "复核 U038（提交 c0ac14c）：`git diff 3b22f5f..c0ac14c -- src tests fixtures Cargo.*` 为空（unchanged 通过、无需 T4 repin）；run.json 数字 1477 项/122 位差/8 超差/max 4.291534423828125e-6、容差 2e-6 未改、与 run5 逐项一致；`gravity_operator` 77/77 0 超差；首差结论（w2 body3 父姿态 rotate 2 ULP、w6 multiply/xmat、subtree_com 累加顺序、cdof 55 位差）与证据文件一致；有界两轮尝试记录在案；三个选项（A 系统性对齐 / B 维持已知债务 / C 比较口径裁决）已写入证据。",
+    "U038 复核手段：只读复核 + 定向复跑 `scripts/authoring/compare-u038-first-diff.ps1`（只读工具，GPU 定向链按需，秒级到分钟级）；不跑全量 G01；不修改产品/测试/容差/排除清单/G01 脚本。",
+    "证据写 docs/development-evidence/windows-small-independent-check/（README + receipt.json 含 task_id），如实写明未跑全量、最近全绿 HEAD 4e07852、下一轮全量预期计数；门禁 fmt + json 通过；中文 path-limited 提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-11-roadmap-a10-p11",
+      "2026-10-23-u038-3d-gravity-propagation-debt-2"
+    ],
+    "phase": "P11",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/windows-small-independent-check/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 10
+  },
+  "note": "Chief 2026-10-24 指令：Backend 两笔 Windows 小项落库并 verified 后做快验口径独立复核。a10-p11 用 g01-fast 的 lib tooling 定向测试 + 新 ignored GPU 探针（秒级）；U038 只读 + 定向复跑比对脚本。不跑全量 G01（下一轮全量只在里程碑跑）；证据如实写未跑全量与最近全绿 HEAD 4e07852。Backend 报的 all-probes 348→349 / host-msvc 480→485 属旧基线口径，当前里程碑实际为 all-probes 353 / host-msvc 835，本轮新增 1 探针 + 5 单测，下一轮全量预期 354 / 840，仅记录预期不实测。",
+  "revision": {
+    "before": "5b1a32677f51ad798eedffc687542de33c643a17",
+    "after": null
+  },
+  "created_at": "2026-10-24T08:20:00.000Z",
+  "updated_at": "2026-10-24T08:27:58.480Z",
+  "closed_at": "2026-10-24T08:27:58.480Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/windows-small-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-windows-small-review"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "全量G01通过",
+        "本轮已全量验收"
+      ]
+    }
+  ]
 }
