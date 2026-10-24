@@ -4,6 +4,7 @@
 pub mod bvh;
 pub mod camera;
 pub mod rays;
+pub mod texture;
 
 pub use camera::{
     Camera, CameraActive, CameraModel, CameraOutput, CameraPlan, CameraRequest, Projection,
@@ -12,6 +13,9 @@ pub use camera::{
 #[cfg(feature = "cuda-probe")]
 pub use rays::RayBuilder;
 pub use rays::{RayBuffer, RayMode, planned_ray_count};
+#[cfg(feature = "cuda-probe")]
+pub use texture::TextureObjects;
+pub use texture::{TextureData, TextureError, TextureRegistry};
 
 use std::ops::Range;
 

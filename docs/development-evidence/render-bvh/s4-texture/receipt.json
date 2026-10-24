@@ -1,0 +1,177 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-24-render-bvh-s4",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "S4",
+  "title": "渲染/BVH S4：纹理转换、CUDA 纹理对象采样与注册表",
+  "date": "2026-10-25",
+  "conclusion": "覆盖范围内 pass：3 个模型纹理的 u8→RGBA f32/255 转换与冻结上游 _convert_texture_data 逐 texel 位等（3.12 夹具 tex_data 与 3.15 MjModel 逐字节相等后转换，SHA-256 全量摘要相等）；3 个纹理 × 1040 个固定 uv 查询的硬件 LINEAR 采样与冻结参考逐位相等（max_abs_diff=0，预算 1e-6/通道）；use_textures 开关（关→0、开→3）与上游一致；零尺寸/通道/寻址/越界/长度/类型 6 类拒绝在分配前；纹理对象 2 轮 create/sample/drop 后再建仍可采样。图像级 patch 延后 S7b/S8；天空盒/3D/mipmap 不做；正式渲染发射 ABI 属 S6。",
+  "scope": {
+    "product": [
+      "src/render/texture.rs",
+      "src/render/texture/cuda.rs",
+      "src/render/texture/sample.cu",
+      "src/render/mod.rs"
+    ],
+    "tests": [
+      "tests/render_texture.rs",
+      "src/render/texture.rs（内联单元测试）"
+    ],
+    "authoring": [
+      "scripts/authoring/render-bvh-s4/capture_s4_textures.py",
+      "scripts/authoring/render-bvh-s4/s4_texture_support.py"
+    ],
+    "fixture": "fixtures/render-bvh/scene-a/s4/textures.json"
+  },
+  "semantics": {
+    "conversion": "冻结上游 render_util._convert_texture_data：ug8 按 (y*width+x)*nchannel 取样，缺 g/b 补 0、缺 a 补 255，逐通道乘 wp.static(1.0/255.0)（double 1/255 舍入后的 f32 常量 0x3B808081）；产品用同一常量与乘法顺序",
+    "sampling": "冻结上游 render_util.create_warp_texture：float4 CUDA 数组 + wp.Texture2D(filter_mode=LINEAR, address=CLAMP, normalized_coords=True, 1 mip)，设备端 wp.texture_sample 走 texture.h 的 tex2D<float4>；产品用驱动 API 建同描述符纹理对象，内核用 PTX tex.2d.v4.f32.f32 取指（PTX ISA 纹理对象取指需要坐标类型后缀），因此与参考逐位相等",
+    "texture_object_descriptor": {
+      "array": "CU_AD_FORMAT_FLOAT, NumChannels=4, Width/Height 来自 tex_width/tex_height",
+      "address_mode": "CU_TR_ADDRESS_MODE_CLAMP (u/v/w)",
+      "filter_mode": "CU_TR_FILTER_MODE_LINEAR",
+      "flags": "CU_TRSF_NORMALIZED_COORDINATES",
+      "mip": "单层（num_mip_levels=1，mipmapFilterMode 仍为 LINEAR，clamp 0）"
+    },
+    "context": "传输会话使用设备主上下文；纹理对象创建/销毁时 cuDevicePrimaryCtxRetain + cuCtxPushCurrent_v2，结束 pop + release；采样发射仍走 SynchronousKernel（同一会话/流，四缓冲 ABI）",
+    "registry": "use_textures=True 时按 ntex 逐纹理创建（顺序=模型纹理 id）；False 时注册表为空（上游无天空盒请求时 registry 长度 0）；skybox 占位纹理路径属 S7b，不实现",
+    "launch_abi": "四缓冲 ABI 无 u64 参数，S4 在 meta 两个 i32 槽打包纹理句柄；正式 u64/texture-handle 渲染 ABI 属 S6"
+  },
+  "acceptance": {
+    "conversion_bits": "3 模型纹理（nc=3，a 补齐）+ 合成 nc=1/2/4 用例：产品转换 RGBA f32 位型 SHA-256 与参考全量摘要相等",
+    "dimensions_channels": "逐纹理 width/height/nchannel 与参考相等；texel 数 = w*h*4 校验",
+    "sample_uv_grid": "3 纹理 × 1040 uv × 4 通道与冻结硬件 LINEAR 参考逐位相等（max_abs_diff=0，预算 1e-6）",
+    "texture_toggle": "use_textures=False 注册表为空、采样越界纹理 id 拒绝；True 时 3 个纹理对象按 id 顺序可采样",
+    "lifecycle": "2 轮 create/sample/drop 无错误；释放后重建仍可采样",
+    "rejection_surface": "零宽/零高、tex_nchannel 0/5、负 tex_adr、tex_data 越界、纹理属性长度不一致、字段类型不符，全部在创建纹理对象/分配前拒绝",
+    "no_python_in_product_tests": true,
+    "new_files_line_limit": true
+  },
+  "reference": {
+    "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "semantics_sources": [
+      "mujoco_warp/_src/render_util.py::_convert_texture_data",
+      "mujoco_warp/_src/render_util.py::create_warp_texture",
+      "mujoco_warp/_src/render_util.py::create_render_context (texture registry)",
+      "mujoco_warp/_src/render.py::_make_sample_texture -> wp.texture_sample"
+    ],
+    "cross_check_312": {
+      "tex_metadata_equal": true,
+      "tex_data_equal": true,
+      "tex_data_bytes": 89088,
+      "tex_data_sha256": "fa1b4cdfac39b42d59230c9f7f783806611790770e70f0140eabee1a435741d2"
+    },
+    "conversion": {
+      "method": "逐纹理直接 launch 上游 _convert_texture_data（与 create_warp_texture 同内核/同参数）读取 RGBA f32 位型；夹具按小端 u32 串联算 SHA-256 全量摘要",
+      "textures": [
+        {"tex_id": 0, "width": 64, "height": 64, "nchannel": 3, "type": 0, "adr": 0, "converted_texels": 4096, "data_sha256": "83433f6ec8b2e007fd301c19463ac60ea67e3110a7fb1ed2c85c743c612e694c", "converted_sha256": "3fe88455cc01221a090fafecb44c2f3a55ed52f579fb1f49d26b217ee80c71bb"},
+        {"tex_id": 1, "width": 32, "height": 32, "nchannel": 3, "type": 0, "adr": 12288, "converted_texels": 1024, "data_sha256": "08df65578c15adb9ce7d8c916f046220e27445cf64da41ae6ba162f3d4817712", "converted_sha256": "e525ac7241b72f56ac8c771fb2387ec47948fb8820b4430609fb0c07d94d309e"},
+        {"tex_id": 2, "width": 64, "height": 384, "nchannel": 3, "type": 2, "adr": 15360, "converted_texels": 24576, "data_sha256": "9a54289247b6a6a78ad8eddbb5ad5969637e6af6e4fcab00982cb5187155d1e7", "converted_sha256": "affe484f4eb7d1dc57b11d9358317af569d50e07c5f18f2e17e2fa074d9eb9a3"}
+      ],
+      "synthetic": ["nc1: 8x6", "nc2: 6x5", "nc4: 5x4"]
+    },
+    "sampling": {
+      "uv_grid": "32x32 轴 [-0.125,1.125]（含越界钳制）+ 16 个边界/纹素中心/越界点 = 1040 个查询",
+      "method": "create_warp_texture(mjm, tex_id) 后内核 wp.texture_sample(tex, uv, dtype=vec4) 捕获 3×1040×4 f32 位型",
+      "product_result": "max_abs_diff 0，unequal_channels 0（3 个纹理全 1040 查询）"
+    },
+    "registry": {
+      "ntex": 3,
+      "registry_off": 0,
+      "registry_on": 3,
+      "use_textures_off": false,
+      "use_textures_on": true
+    },
+    "zero_size_rejection": {
+      "upstream_exception": "ValueError",
+      "upstream_keyword": "Texture height must be a positive integer",
+      "product_error": "TextureError::ZeroSize"
+    },
+    "hardware_vs_software": {
+      "purpose": "仅记录硬件浮点线性过滤与 Warp CPU 软件路径的差异，不作为验收参考；产品选择硬件路径以与冻结参考逐位一致",
+      "per_texture": [
+        {"tex_id": 0, "max_abs_diff": 0.0, "unequal_channels": 0},
+        {"tex_id": 1, "max_abs_diff": 5.9604644775390625e-08, "unequal_channels": 416},
+        {"tex_id": 2, "max_abs_diff": 5.9604644775390625e-08, "unequal_channels": 340}
+      ],
+      "max_abs_diff": 5.9604644775390625e-08
+    },
+    "determinism": {"repeat": 2, "bitwise_identical": true, "second_pass_seconds": 1.033709},
+    "fixture": {
+      "path": "fixtures/render-bvh/scene-a/s4/textures.json",
+      "bytes": 325755,
+      "lines": 15332,
+      "sha256": "cbeb58ca4e854639ee500e31ccb0d9b4549d059d657d63a19d98999857b8fb16",
+      "note": "含 second_pass_seconds/显存等计时字段，重采时文件哈希会变；位型与摘要由 determinism.bitwise_identical 断言"
+    },
+    "offline_nvrtc": {
+      "command": "target/s4_nvrtc_check.py（ctypes 直调本机 nvrtc DLL，不占 GPU）",
+      "ptx_bytes": 1690,
+      "f32_only": true,
+      "entry": "sample_texture2d",
+      "tex_instruction": "tex.2d.v4.f32.f32",
+      "ptxas": "ptxas -arch=sm_89 通过"
+    }
+  },
+  "artifacts": {
+    "src/render/texture.rs": {"lines": 486, "sha256": "54d39a6d295d1be898e5282af9be4a9bc2bdd23211910513509d2824a73bad32"},
+    "src/render/texture/cuda.rs": {"lines": 298, "sha256": "d79512ae4d446c91afd4f52f361bca6c7a37d3ea9917f1c94e3243471ceb11c7"},
+    "src/render/texture/sample.cu": {"lines": 43, "sha256": "145087f2de1c7127ed3cbc36a97bfef8e3ab227927bae053c812b513583e42da"},
+    "src/render/mod.rs": {"lines": 361, "sha256": "e89f28f71a1458402c37458cf45e95044e8e662b44621d9ce3784bb66c938887"},
+    "tests/render_texture.rs": {"lines": 410, "sha256": "7e54955f22b94610787dfcc7891df1cc66fe7af0b5d70d904927a490f013693e"},
+    "scripts/authoring/render-bvh-s4/capture_s4_textures.py": {"lines": 281, "sha256": "72f170e5622b5ae77825970142f9f015ea413ad0549afdec3bbe3c5bdfb2fe0d"},
+    "scripts/authoring/render-bvh-s4/s4_texture_support.py": {"lines": 184, "sha256": "051ff743f737d0c185df7753622eb78234a379476641ea5fdd58e4de27875af9"},
+    "fixtures/render-bvh/scene-a/s4/textures.json": {"lines": 15332, "sha256": "cbeb58ca4e854639ee500e31ccb0d9b4549d059d657d63a19d98999857b8fb16"}
+  },
+  "gpu": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "window": "Arch 90 分钟独占窗口；UI 基线约 2.87–2.89 GiB；跑前报开始、跑完释放",
+    "memory_mib": {"capture_baseline": 2885, "capture_after": 3098, "after_release": 2870},
+    "versions": {
+      "python": "3.12.13",
+      "warp": "1.15.0",
+      "mujoco": "3.15.0",
+      "mujoco_warp": "3.15.0",
+      "numpy": "2.5.4",
+      "warp_cuda_toolkit": [12, 9],
+      "warp_cuda_driver": [13, 2]
+    },
+    "commands": {
+      "capture": "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/authoring/render-bvh-s4/capture_s4_textures.py",
+      "gpu_test": "cargo test --locked --features cuda-probe --test render_texture -- --ignored --test-threads=1"
+    },
+    "gpu_test_result": "2 passed / 0 failed（测试体内 0.30 s；采样 3×1040×4 位型全等、生命周期 2 轮）"
+  },
+  "gates": {
+    "fmt": "通过",
+    "clippy": "通过（--all-targets，0 警告）",
+    "clippy-cuda": "通过（--all-targets --features cuda-probe，0 警告）",
+    "unit": "通过，测试 524 过 0 败（含 S4 新增 5 个集成主机用例 + 3 个内联单元测试）"
+  },
+  "deferral": {
+    "image_level_patch": "纹理开/关的 RGB 图像差异延后 S7b/S8（本片无渲染内核，plan S4 第 4 条 acceptance 标 deferral）",
+    "skybox_3d_mipmap": "天空盒着色/3D 纹理/mipmap 与 UV 映射（_texture_* 系列）不在本片",
+    "render_launch_abi": "正式 u64/texture-array/scalar 渲染发射 ABI 属 S6；S4 用四缓冲 ABI + meta 两槽打包纹理句柄"
+  },
+  "notes": [
+    "转换公式的 f32 常量来自上游 wp.static(1.0/255.0)：double 1/255 舍入到 0x3B808081；离线 CPU dry-run（Warp cpu device 调上游同一内核）对 3 个模型纹理 + nc=1/2/4 合成用例全部 0 位差，验证了该常量与乘积顺序。",
+    "纹理对象必须用驱动 API 的 CUDA_RESOURCE_DESC/CUDA_TEXTURE_DESC 显式构造：cudarc sys 的 bindgen 结构含无 0 值的枚举字段（CUmemorytype 从 1 起、CUarray_format 无 0 值），std::mem::zeroed() 会在 debug 下 panic（首次 GPU 测试即因此失败），已改为逐字段构造。",
+    "PTX 纹理对象取指必须写坐标类型后缀：tex.2d.v4.f32.f32；漏写时 NVRTC 可编译但 cuModuleLoadData 报 CUDA_ERROR_INVALID_PTX（218），离线 ptxas -arch=sm_89 预检能在不占 GPU 时发现该类错误。",
+    "本机 Ada 硬件浮点线性过滤与 Warp CPU 软件路径最大差 5.96e-8（1 ulp 级）；产品选择硬件路径是为了与冻结参考逐位一致，而不是依赖 1e-6 容差。",
+    "夹具哈希随 second_pass_seconds 等计时字段变化；重采时以 determinism.bitwise_identical 与转换/SHA-256 摘要为准。",
+    "上游零尺寸纹理在 MuJoCo 模型层不可构造；零尺寸/长度/类型拒绝属产品防御性校验，上游可捕获的只有 wp.Texture2D 构造处的 ValueError。",
+    "未改 runtime/BVH/相机/射线代码；纹理采样复用既有 SynchronousKernel 四缓冲发射，未引入新依赖。"
+  ],
+  "unmet": [
+    "图像级 patch 延后 S7b/S8（本片无渲染内核）",
+    "天空盒、3D 纹理、mipmap 与纹理 UV 映射不在本片",
+    "正式渲染发射 ABI（u64/texture-array/scalar）属 S6；S4 四缓冲 ABI 打包句柄非最终形态",
+    "单 fixture（3 纹理 + 合成 nc 用例 + 1040 uv），无 fuzz/随机大纹理/各向异性过滤",
+    "不同 GPU/驱动的硬件过滤精度未验证（本机仅记录 5.96e-8 差）",
+    "未跑全量 G01；按 fast-loop 口径验收"
+  ],
+  "authoring_only": false,
+  "product_python_dependency": false
+}
