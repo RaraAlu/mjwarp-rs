@@ -255,6 +255,31 @@ $pwsh = 'target\toolchains\powershell-7.6.7\bin\pwsh.exe'
 - **与 §5.4 的差异**：HEAD `f9da799`→`4f362f2`；host-msvc 812→823（mathdx 11 项单测）；all-probes 350→352、result 行 85→86（mathdx 探针 2 项）；host-gnu 480 不变；排除项 11 不变；墙钟 787s/633s→788s/619s。
 - 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 4f362f2；MathDx 探针已纳入 all-probes 并通过；U038-3D 已知债务显式排除、未验收）**。Linux（deferred）、性能与完整上游等价仍未验收。
 
+### 5.6 Windows 小项收口里程碑全量终验（2026-10-24，QA，任务 `2026-10-24-windows-small-closeout`）
+
+T2 里程碑（用户在 2026-10-24 批准，全量只跑一次）：在 Windows 小项（a10-p11 `245c461`、U038 债务 `c0ac14c`、工具链门禁 `3b22f5f`）全部 verified 且 a10-p11/U038 证据小修（`a50b288`/`dc18c68`）落库后，于 HEAD **`959be10`** 执行 debug/release 两轮完整脚本，**各 14/14 阶段 exit 0**。
+
+| 阶段 | debug | release |
+| --- | --- | --- |
+| fmt | 通过 | 通过 |
+| native | 27 过 | 27 过 |
+| host-msvc | **840 过 0 败** | **840 过 0 败** |
+| g01 | 7 过 | 7 过 |
+| native-g01 | 2 过 | 2 过 |
+| native-only-g01 | 1 过 | 1 过 |
+| resident | 102 过 | 102 过 |
+| all-probes | **354 过 / 0 败**（88 result 行；11 项排除） | **354 过 / 0 败**（88 result 行；11 项排除） |
+| host-gnu | **485 过** | **485 过** |
+| clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 | 0 警告 |
+| rustdoc（`-D warnings`） | 0 警告 | 0 警告 |
+| diff | 通过 | 通过 |
+| 全脚本墙钟 | **833.8s** | **649.9s** |
+
+- 运行目录：debug `target/g01-acceptance/d4a4364b0f584f5685181b1e93a7f385`、release `target/g01-acceptance/f6e41b7e46984686af4e03663558dc79`；脚本 stdout：`target/windows-small-closeout/{g01-debug,g01-release}.log`。
+- 数值报告（两模式相同）：`completeStates=2084`、`completeScalars=7,704,548`、`maxAbsoluteError=1.25147918803026e-06`；`rawScalars=50,512`、`rawMaxAbsoluteError=5.55349298547725e-07`。
+- 与 §4.13（HEAD `c4c1058`，835/353、87 行、11 项排除）差异：host-msvc 835→**840**（a10-p11 新增 5 项单测）、all-probes 353→**354**（新增 1 项 ignored GPU 探针自动纳入）、result 行 87→**88**、host-gnu 480→**485**；排除仍 11 项、两模式逐项一致、未新增；rustdoc/diff 保持 0。
+- HEAD 说明：debug 运行期间并行落地了 U038 原生 f64 两级判定证据提交（`2412c11`/`959be10`）；`git diff 5a0a348..959be10 -- src tests fixtures Cargo.toml Cargo.lock` **为空**，即两轮测试的产品源码身份与 T2 起点一致，报告 `gitRevision=959be10`；之后无产品改动。
+- 证据：`final-acceptance-t2.json`（机器记录）与 `docs/development-evidence/windows-small-closeout/`。
 ## 6. 并行评估（开发迭代用途）
 
 子集：8 个独立 resident target（`resident_rne_bias`、`resident_tendon_wake`、`resident_flex_edge`、`resident_flex_position`、`resident_flex_face`、`resident_sparse_mass`、`resident_kinematics`、`resident_spatial_tendon`），每进程 `--test-threads=1`，`-NoBuild`。
