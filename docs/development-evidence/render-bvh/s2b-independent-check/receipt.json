@@ -1,0 +1,226 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s2b-independent-check",
+  "task_id": "2026-10-24-render-bvh-s2b-independent-check",
+  "date": "2026-10-24",
+  "reviewed_commit": "c7b5d7f",
+  "review_baseline_head": "f43b576",
+  "outcome": "pass",
+  "scope": "Independent QA re-verification of S2b GPU scene-BVH traversal in an exclusive 45-minute GPU window; product outputs compared against the committed reference by QA-side math only; mesh hits (initial ray 91, moved rays 91/92) remain deferred to S3 and are excluded from the pass criteria; no full G01; no product/fixture/original-evidence changes.",
+  "independent_method": {
+    "reference_source": "QA recomputed the 7/7 cross-check from S0b rays.npz and S2 bvh_initial/moved.npz without reading the fixture booleans; re-ran the authoring capture into target/ (fixtures untouched) with the pinned venv and compared every semantic field",
+    "product_hits": "QA Rust harness at target/qa-s2b-harness (product crate as path dependency, no delivered test/support import) built the BVH from QA-Python-recomputed S2a AABBs (frozen bvh.py formulas with documented fma contraction) and dumped raw distance/geomid/normal bits; QA Python re-derived every pass criterion",
+    "precision": "PTX captured from the product NVRTC compile path (MJWARP_PHYSICS_PTX_DIR), source hash checked against the committed scene.cu blob, instruction mix inspected"
+  },
+  "results": {
+    "initial": {
+      "compared": 383,
+      "hits": 157,
+      "misses": 226,
+      "skipped_mesh": 1,
+      "max_ulp": 0,
+      "max_normal_angle": 4.592324766198791e-08,
+      "geomid_mismatches": 0
+    },
+    "moved": {
+      "compared": 382,
+      "hits": 155,
+      "misses": 227,
+      "skipped_mesh": 2,
+      "max_ulp": 0,
+      "max_normal_angle": 2.87230070133462e-08,
+      "geomid_mismatches": 0
+    },
+    "mesh_skip": {
+      "initial": [
+        91
+      ],
+      "moved": [
+        91,
+        92
+      ]
+    },
+    "refit_changed_set": [
+      99,
+      109,
+      116,
+      117,
+      155
+    ],
+    "refit_vs_fresh_differences": 0,
+    "two_world": {
+      "world0_errors": 0,
+      "world1_errors": 0
+    },
+    "rejections": [
+      "reject empty_rays true",
+      "reject world_out_of_range true",
+      "reject geometry_length_mismatch true",
+      "reject hfield_type true",
+      "reject empty_scene_build true"
+    ],
+    "bounds": {
+      "qa_python_aabbs_vs_product_compute_leaf_aabb": "14/14 leaf x case combos bit-identical (7 leaves x initial/moved)",
+      "source": "harness bounds_checked line; no bounds_mismatch lines"
+    },
+    "reference_cross_check_7_of_7": {
+      "initial_geomid_vs_s0b": true,
+      "initial_dist_bits_vs_s0b": true,
+      "initial_normal_bits_vs_s0b": true,
+      "initial_geomid_vs_s2": true,
+      "moved_geomid_vs_s2": true,
+      "moved_dist_bits_vs_s2": true,
+      "moved_normal_bits_vs_s2": true
+    },
+    "capture_rerun": {
+      "semantic_mismatches": [],
+      "environment_equal": true,
+      "determinism": {
+        "repeat": 2,
+        "bitwise_identical": true,
+        "second_pass_seconds": 0.139384
+      },
+      "committed_sha256": "609ffc527e8216654cb7b6576f998659026d0e5324429c31c7a67f058c225f84",
+      "rerun_sha256": "67d3bbd78c7e5b85090e1ae023b627e8073a972452adb29c1b7a6fc8dec869d8",
+      "note": "file hashes differ only in timestamps/memory/task-id fields; all semantic fields equal"
+    },
+    "device_pose_vs_cpu_pose": {
+      "xpos": {
+        "components": 21,
+        "differing": 8,
+        "max_ulp": 31
+      },
+      "xmat": {
+        "components": 63,
+        "differing": 39,
+        "max_ulp": 11
+      }
+    },
+    "hit_stats": {
+      "initial_total_hits": 158,
+      "moved_total_hits": 157,
+      "reference_full_change_set": [
+        92,
+        99,
+        109,
+        116,
+        117,
+        155
+      ]
+    }
+  },
+  "precision": {
+    "fmad": true,
+    "use_fast_math": false,
+    "options": [
+      "--std=c++17",
+      "--gpu-architecture=compute_70"
+    ],
+    "nvrtc_version": [
+      12,
+      8
+    ],
+    "source_sha256": "8dad4d61235a8686d8b43fecef450535816c5a9423f15d256be4aab9a714d56d",
+    "ptx_sha256": "37cea6a50776f39c862ef2885dedf8b32d45d89392626bbe264b60d89f2699c3",
+    "fma_rn_f32_instructions": 166,
+    "mul_rn_f32_instructions": 0,
+    "unrounded_mul_f32_instructions": 132,
+    "sqrt_rn_f32_instructions": 13,
+    "div_rn_f32_instructions": 15,
+    "f64_instructions": 0,
+    "conclusion": "device path is f32-only with true fma.rn.f32 fusion; host f64 emulation absent from the device path"
+  },
+  "tests": {
+    "delivered_gpu_test": "3 passed / 0 failed (cargo test --locked --features cuda-probe --test render_scene_bvh_gpu -- --ignored --test-threads=1)",
+    "full_cpu_suite": "506 passed / 0 failed (cargo test --locked)",
+    "artifact_hashes": {
+      "src/render/bvh/cuda/scene.cu": "verified 8/8 sha256+bytes+lines vs git blob",
+      "src/render/bvh/cuda/mod.rs": "verified",
+      "src/render/bvh/mod.rs": "verified (+4 lines vs f9adf14: cuda module mount + re-export)",
+      "tests/render_scene_bvh_gpu.rs": "verified",
+      "tests/support/render_bvh/mod.rs": "verified",
+      "scripts/authoring/render-bvh/capture_s2b_query.py": "verified",
+      "fixtures/render-bvh/scene-a/s2/reference_hits.json": "verified",
+      "docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/README.md": "verified"
+    },
+    "product_test_starts_python": false,
+    "runtime_files_changed_between_f9adf14_and_c7b5d7f": "none",
+    "new_files_all_under_500_lines": true
+  },
+  "gpu_window": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "cuda_version": "13.2",
+    "owner": "Arch (exclusive 45 min)",
+    "start_memory_mib": 3522,
+    "capture_baseline_in_process_after_mib": [
+      3484,
+      3693,
+      3470
+    ],
+    "product_test_before_after_mib": [
+      3782,
+      3813
+    ],
+    "final_memory_mib": 3518,
+    "returned_to_desktop_baseline": true,
+    "no_other_full_load_task": true
+  },
+  "limitations": [
+    "mesh triangle intersection and mesh hit semantics deferred to S3; initial ray 91 and moved rays 91/92 are excluded from the pass criteria",
+    "hfield unimplemented (explicit rejection); SDF returns miss on the MESH branch; rotated-plane hit path has no independent GPU reference",
+    "single frozen scene-a fixture and 384 fixed rays; no fuzz or random ray sets",
+    "only the default capture elimination flags are implemented (bodyexclude/geomgroup/flg_static/invisible materials not parameterized)",
+    "fixed 128-entry traversal stack; deeper BVHs are rejected before packing (not exercised by this fixture)",
+    "reference is a frozen 3.15 artifact; no 3.12/3.15 render equivalence claimed",
+    "no full G01 in this round (fast-loop scope)"
+  ],
+  "observations": [
+    "capture compiles with rc.use_fast_math=True while the product kernel compiles with use_fast_math=false; this fixture still shows 0 ULP distance differences, so no divergence was observed, but the compile-flag difference should be watched in later slices"
+  ],
+  "not_claimed": [
+    "full renderer or product rendering acceptance",
+    "complete R01",
+    "S2 closure (separate s2-close task)",
+    "All 384 rays for every case (compared set is 383 initial and 382 moved)"
+  ],
+  "evidence": {
+    "README.md": {
+      "sha256": "1684a0ccf03638b675bfbeac93bd48bc46db94f1e37db80bf47ae2fbd8becfa0",
+      "bytes": 9591
+    },
+    "static-check.json": {
+      "sha256": "1df0f09639a3e8f738a49c9bb1f27fcdd0441c85278dab433b3ae5abc9ef5b89",
+      "bytes": 5059
+    },
+    "rerun-compare.json": {
+      "sha256": "3f8fb5bd42391fe6a6c9f093062c724dd4030861eeeb647c80c01a17d32bdea3",
+      "bytes": 1172
+    },
+    "harness-compare.json": {
+      "sha256": "104c8c3680e22163ebcdcf93cf879bca57d98c5fd94745182a8a85c7c84ed10a",
+      "bytes": 1157
+    },
+    "harness-product-hits.txt": {
+      "sha256": "c262810679749a117491ee7714c43a2d6b5ec7079414b1afcc34222e495092ec",
+      "bytes": 112490
+    },
+    "ptx-record.json": {
+      "sha256": "e201ca6d824f0d539fe5d6fe6eb1c32a43788b511e214cab8e99b4d017c7a64b",
+      "bytes": 480
+    },
+    "ptx-fma-summary.txt": {
+      "sha256": "c481b9b563cb7d67ba2e3abb97e523aeba6271d6991227bfcf23dc962af99b3e",
+      "bytes": 652
+    },
+    "product-gpu-test.log": {
+      "sha256": "caf572aa8117d7732550ca5fb4249b2d9f569446ee9d509eb0aaa9d7a3206b52",
+      "bytes": 909
+    },
+    "unit-tests-summary.txt": {
+      "sha256": "302236addc3e04ff2892592516d271b538ef28eef82767b04a86ced2555cc0d6",
+      "bytes": 8580
+    }
+  },
+  "hash_basis": "fixture/source hashes are LF-normalized git blob semantics; evidence hashes are the committed file bytes"
+}
