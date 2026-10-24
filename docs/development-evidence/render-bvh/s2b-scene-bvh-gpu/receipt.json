@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s2b-gpu-scene-bvh",
+  "task_id": "2026-10-24-render-bvh-s2b",
+  "date": "2026-10-24",
+  "slice": "S2b",
+  "outcome": "pass",
+  "scope": "GPU scene BVH traversal with 6-primitive ray intersection and per-ray semantic hits; mesh hit semantics deferred to S3; default capture elimination flags only; no node-layout assertions",
+  "environment": {
+    "product_toolchain": "rustc 1.99.0 (host x86_64-pc-windows-gnu)",
+    "product_gpu_test": {
+      "command": "cargo test --locked --features cuda-probe --test render_scene_bvh_gpu -- --ignored --test-threads=1",
+      "requires": "NVIDIA driver + NVRTC on CUDA_PATH/PATH (target/toolchains/cuda-12.8.1)",
+      "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+      "driver": "596.36"
+    },
+    "authoring": {
+      "purpose": "one-off offline capture of device-side f32 poses plus reference hits (not part of product build/test/gate chain)",
+      "venv": "target/mjwarp-parallel/venv",
+      "versions": {
+        "python": "3.12.13",
+        "warp": "1.15.0",
+        "mujoco": "3.15.0",
+        "mujoco_warp": "3.15.0",
+        "numpy": "2.5.4"
+      },
+      "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+      "gpu_memory_mib": {"baseline": 3434, "in_process": 3692},
+      "determinism": "two full captures bitwise identical; second pass 0.216 s; capture wall time 15.9 s including first NVRTC module compiles",
+      "capture_command": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/render-bvh/capture_s2b_query.py"
+    },
+    "gpu_window": {
+      "owner": "Arch",
+      "exclusive": true,
+      "product_test_memory_mib": {"before": 3439, "after": 3475},
+      "note": "no other full-load GPU task running; memory returned to desktop baseline after the run"
+    }
+  },
+  "launcher_wiring": {
+    "path": "src/runtime/transfer/kernel (SynchronousKernel)",
+    "compile_recipe": "NVRTC, fmad=true, fast_math=false, --std=c++17, compute_70, PTX gate allows only f32",
+    "launch": "existing generic four-buffer launch (i32 metadata, f32 parameters, f32 rays, f32 output, 4 u32 dims, 256 threads); runtime files unchanged",
+    "not_used": "src/runtime/launcher is the unified launcher artifact/cache layer (M1/M2); W15 include/warp-headers/bvh.h consumes Warp's internal BVH layout and is not reused by the custom node layout",
+    "device_fma": "real fma.rn.f32 via NVRTC fmad=true; the S2a host f64 emulation is not used on the device path"
+  },
+  "fixture": {
+    "path": "fixtures/render-bvh/scene-a/s2/reference_hits.json",
+    "bytes": 101097,
+    "sha256": "609ffc527e8216654cb7b6576f998659026d0e5324429c31c7a67f058c225f84",
+    "content": "384 ray origins/directions (f32 bits), initial and moved cases with device-side f32 geom poses and reference dist/geomid/normal bits, source hashes, environment",
+    "sources": {
+      "rays_npz": "fixtures/render-bvh/scene-a/reference/rays.npz",
+      "s2_initial_npz": "fixtures/render-bvh/scene-a/s2/bvh_initial.npz",
+      "s2_moved_npz": "fixtures/render-bvh/scene-a/s2/bvh_moved.npz",
+      "scene_xml": "a9f1f0a35464f4df17f191e1d68431bda0f17648273578e58fa08f84b0449289",
+      "mjb_315": "8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4"
+    },
+    "cross_check_s0b_s2": {
+      "initial_geomid_vs_s0b": true,
+      "initial_dist_bits_vs_s0b": true,
+      "initial_normal_bits_vs_s0b": true,
+      "moved_geomid_vs_s2": true,
+      "moved_dist_bits_vs_s2": true,
+      "moved_normal_bits_vs_s2": true,
+      "initial_geomid_vs_s2": true
+    }
+  },
+  "reference_input_correction": {
+    "finding": "S0b/S2 reference hits come from MJWarp device-side f32 geom poses; the S2 npz geom_xpos is the CPU pose",
+    "symptom": "feeding CPU poses to the product kernel shifted an initial cylinder hit by 124 ULP on ray 92 (4 ULP budget)",
+    "fix": "new authoring capture records the exact device-side f32 pose bits plus the reference hits and cross-checks them against the committed S0b/S2 npz references (7/7 equal)",
+    "note": "S2a host AABB acceptance is unchanged: it is a CPU-pose-input layer check; S2b builds its BVH from the recorded device poses"
+  },
+  "results": {
+    "initial": {
+      "rays": 384,
+      "compared": 383,
+      "primitive_hits": 157,
+      "misses": 226,
+      "skipped_mesh": 1,
+      "geomid_mismatches": 0,
+      "max_distance_ulp": 0,
+      "max_normal_angle_rad": 4.592e-08
+    },
+    "moved": {
+      "rays": 384,
+      "compared": 382,
+      "primitive_hits": 155,
+      "misses": 227,
+      "skipped_mesh": 2,
+      "geomid_mismatches": 0,
+      "max_distance_ulp": 0,
+      "max_normal_angle_rad": 2.872e-08
+    },
+    "normal_angle_metric": "f64 atan2(|cross|, dot) between unit normals; a naive f32 dot+acos inflates ~1e-7 rad angles to ~1e-3 rad and is not used",
+    "refit": {
+      "compared_change_rays": [99, 109, 116, 117, 155],
+      "reference_change_rays_all": [92, 99, 109, 116, 117, 155],
+      "deferred_mesh_change_ray": 92,
+      "conclusion": "geomid change set matches the reference on every non-mesh ray; distance for those rays is 0 ULP"
+    },
+    "world_groups": {
+      "worlds": 2,
+      "rays_per_world": 384,
+      "cross_world_candidates": 0,
+      "world0_matches_single_world": true,
+      "world1_geom_ids_offset": 100,
+      "world1_distance_bits_equal_to_world0": true
+    },
+    "rejection_surface": [
+      "empty ray set",
+      "world out of range",
+      "leaf geometry length mismatch",
+      "hfield geom type",
+      "empty scene at the S2a build layer"
+    ],
+    "node_layout_assertions": "none; tests assert only semantic hits and group separation"
+  },
+  "tests": {
+    "gpu_command": "cargo test --locked --features cuda-probe --test render_scene_bvh_gpu -- --ignored --test-threads=1",
+    "gpu_result": "3 passed / 0 failed (0.53 s test body, 5.17 s wall including cargo NVRTC build)",
+    "gpu_tests": [
+      "ray_hits_match_reference_for_initial_and_refit",
+      "world_groups_do_not_cross_hit",
+      "rejects_invalid_query_inputs"
+    ],
+    "gates": {
+      "normify_gate": "normify gate 2026-10-24-render-bvh-s2b",
+      "fmt": "通过 1260ms",
+      "clippy": "通过 354ms",
+      "clippy-cuda": "通过 5033ms",
+      "unit": "通过 16856ms 测试506过0败"
+    }
+  },
+  "artifacts": {
+    "src/render/bvh/cuda/scene.cu": {"lines": 462, "bytes": 17315, "sha256": "8dad4d61235a8686d8b43fecef450535816c5a9423f15d256be4aab9a714d56d"},
+    "src/render/bvh/cuda/mod.rs": {"lines": 283, "bytes": 10797, "sha256": "a947d0e3851f6c74bd7de21948c901cb160cc5599486274bc0db68154e4a4a88"},
+    "src/render/bvh/mod.rs": {"lines": 188, "bytes": 6656, "sha256": "cc847264e10469920d07a84041d000160ad07a474f6397911283d64bd5936b73"},
+    "tests/render_scene_bvh_gpu.rs": {"lines": 336, "bytes": 12060, "sha256": "b40b71d2f83c60d813cf11fcd41c913460ca341b843623fc2f26c35944e92829"},
+    "tests/support/render_bvh/mod.rs": {"lines": 251, "bytes": 8347, "sha256": "dcbc11df9360191147018adb57a031322e5ede475f147a75166e0cbd340847e1"},
+    "scripts/authoring/render-bvh/capture_s2b_query.py": {"lines": 368, "bytes": 14145, "sha256": "2de6f3f59b7c270ea8e2eba74e939af86fbf09ab4e9f690f922847b840f2df11"},
+    "fixtures/render-bvh/scene-a/s2/reference_hits.json": {"lines": 6453, "bytes": 101097, "sha256": "609ffc527e8216654cb7b6576f998659026d0e5324429c31c7a67f058c225f84"},
+    "docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/README.md": {"lines": 146, "bytes": 9786, "sha256": "0e9b90dc98d613bee397c87d44a86b0411b981e2ed2ad7813cda5a479ab1a558"}
+  },
+  "acceptance_mapping": {
+    "plan_s2_1_ray_semantics": "pass for primitive hits and misses: 383 initial + 382 moved rays, geomid exact, max distance ULP 0, max normal angle 4.6e-8 rad <= 1e-4",
+    "plan_s2_2_aabb_bit_equal": "S2a verified (56/56, max ULP 0); not re-asserted here",
+    "plan_s2_3_refit_change": "geomid change set matches on compared rays; ray 92 becomes a mesh hit and is deferred to S3",
+    "plan_s2_4_world_groups": "pass: 2 worlds x 384 rays, 0 cross-world candidates, world1 ids offset by 100 with identical distance bits",
+    "plan_s2_5_rejections": "pass: empty rays / world out of range / geometry length mismatch / hfield; empty scene covered at the S2a build layer",
+    "plan_s2_6_no_layout_assertions": "pass: only semantic hit and grouping results are asserted"
+  },
+  "not_claimed": [
+    "mesh triangle intersection or mesh hit distance/normals (S3); mesh rays are excluded from the pass criteria",
+    "all 384 rays for every case: the compared set is 383 initial and 382 moved (mesh hits excluded)",
+    "hfield intersection",
+    "parameterized bodyexclude / geomgroup / flg_static / invisible-material elimination",
+    "full renderer or product rendering acceptance",
+    "S2 closure mapping (separate s2-close task)"
+  ],
+  "unmet": [
+    "initial ray 91 (mesh hit) and moved rays 91/92 are deferred to S3; the 6th geomid change ray 92 is mesh-related and not compared",
+    "single frozen scene-a fixture and 384 fixed rays; no fuzz or random ray sets",
+    "rotated plane hit path has no independent GPU reference (scene-a floor is static identity)",
+    "kernel supports only the default elimination flags used by the frozen capture",
+    "fixed 128-entry traversal stack; deeper BVHs are rejected before packing",
+    "S2b rebuilds AABBs from the reference device poses; those may differ by <=1 ULP from the S2a initial CPU-pose AABBs (S2a acceptance semantics unchanged)"
+  ],
+  "hash_basis": "artifact sha256/bytes/lines are LF-normalized content (committed git blob semantics), not the Windows working-tree CRLF forms"
+}

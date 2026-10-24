@@ -8,6 +8,8 @@
 
 mod aabb;
 mod builder;
+#[cfg(feature = "cuda-probe")]
+pub mod cuda;
 mod query;
 mod refit;
 
@@ -15,6 +17,8 @@ use std::fmt;
 
 pub use aabb::{GeomKind, LeafGeometry, compute_leaf_aabb, mesh_half_extents};
 pub use builder::{BvhNode, NodeKind, SceneBvh, SceneBvhInput, build_scene_bvh};
+#[cfg(feature = "cuda-probe")]
+pub use cuda::{LeafRayGeometry, Ray, RayHit, SceneBvhQuery};
 pub use refit::refit_bvh;
 
 /// 轴对齐包围盒，分量保持 f32 位型。
