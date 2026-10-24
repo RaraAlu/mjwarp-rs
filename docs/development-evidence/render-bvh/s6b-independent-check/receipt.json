@@ -1,0 +1,208 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s6b-independent-check",
+  "task_id": "2026-10-24-render-bvh-s6b-independent-check",
+  "date": "2026-10-25",
+  "reviewed_commit": "a171044",
+  "review_baseline_head": "562b1b7",
+  "outcome": "pass",
+  "scope": "Independent QA re-verification of the S6b render-context lifecycle slice: 100 create/destroy cycles (memory growth), stale BVH until explicit refit, no implicit refresh during render, disabled-output rejection, drop releasing mesh/texture/output resources back to baseline, world-count mismatch rejection, 5/5 GPU + 531-test gate, and the one-time 32 MiB driver code-cache observation. Fast-loop scope; no full G01; no product/fixture/original-evidence changes.",
+  "independent_method": {
+    "lifecycle": "QA harness target/qa-s6b-harness (product crate path dependency, no delivered test/support import) warmed up once, took a device_memory() baseline, ran 100 create->render->destroy cycles sampling free bytes every 10 cycles and comparing release_stats() counters",
+    "stale_refit": "single-box scene: initial hit, pose update without refit (A/B both miss), explicit refit (B hit, A miss), refit counters and pose-left-untouched checks around render calls",
+    "outputs": "rgb-only context: byte_len/read of depth and seg must be DisabledOutput, rgb bytes/values/all-zero checks against the S6a layout",
+    "drop": "warmup-then-measure with mesh + 3 textures: occupied bytes, mesh set_points stale->refit fresh semantics, texture sample, destroy retained bytes, recreate after destroy",
+    "evidence": "5 artifacts re-hashed from git blobs (sha256/bytes/lines); 531-test suite; GPU window records"
+  },
+  "results": {
+    "cycles": {
+      "baseline_free": 15811477504,
+      "created_delta": 100,
+      "destroyed_delta": 100,
+      "elapsed_ms": 6161,
+      "free_after": 15811477504,
+      "growth": 0,
+      "samples_all_equal_baseline": true,
+      "samples_free": [
+        15811477504,
+        15811477504,
+        15811477504,
+        15811477504,
+        15811477504,
+        15811477504,
+        15811477504,
+        15811477504,
+        15811477504,
+        15811477504
+      ],
+      "threshold": 16777216
+    },
+    "stale_bvh": {
+      "fresh_a_geom": -1,
+      "fresh_b_distance": 4.0,
+      "fresh_b_geom": 0,
+      "initial_distance": 4.0,
+      "initial_geom": 0,
+      "refits_after_refit": 1,
+      "refits_after_render": 0,
+      "refits_after_update": 0,
+      "refits_final": 1,
+      "render_changed_poses": true,
+      "stale_a_geom": -1,
+      "stale_b_geom": -1
+    },
+    "disabled_outputs": {
+      "depth_seg_disabled": true,
+      "expected_rgb_bytes": 480000,
+      "rgb_all_zero": true,
+      "rgb_bytes": 480000,
+      "rgb_pixels": 120000,
+      "rgb_values_len": 120000
+    },
+    "drop": {
+      "after_free": 15811477504,
+      "baseline_free": 15811477504,
+      "in_use_free": 15809380352,
+      "mesh_fresh_geom": 0,
+      "mesh_refits_after": 1,
+      "mesh_refits_before": 0,
+      "mesh_stale_geom": -1,
+      "occupied": 2097152,
+      "recreated_after_destroy": true,
+      "retained": 0,
+      "texture_sample": [
+        0.49803924560546875,
+        0.14901961386203766,
+        0.49803924560546875,
+        1.0
+      ],
+      "textures": 3,
+      "warmup_retention": 0
+    },
+    "worlds_mismatch_rejected": true,
+    "harness_failures": [],
+    "artifact_check": {
+      "src/render/context/owner.rs": {
+        "actual_lines": 403,
+        "recorded_lines": 364,
+        "actual_bytes": 13054,
+        "recorded_bytes": 13054,
+        "hash_ok": true
+      },
+      "src/render/context/lifecycle.rs": {
+        "actual_lines": 358,
+        "recorded_lines": 322,
+        "actual_bytes": 12157,
+        "recorded_bytes": 12157,
+        "hash_ok": true
+      },
+      "src/render/context.rs": {
+        "actual_lines": 426,
+        "recorded_lines": 397,
+        "actual_bytes": 14743,
+        "recorded_bytes": 14743,
+        "hash_ok": true
+      },
+      "src/render/mod.rs": {
+        "actual_lines": 368,
+        "recorded_lines": 359,
+        "actual_bytes": 11393,
+        "recorded_bytes": 11393,
+        "hash_ok": true
+      },
+      "tests/render_context_lifecycle.rs": {
+        "actual_lines": 497,
+        "recorded_lines": 477,
+        "actual_bytes": 18258,
+        "recorded_bytes": 18258,
+        "hash_ok": true
+      }
+    },
+    "artifact_line_count_mismatches": [
+      "src/render/context/owner.rs",
+      "src/render/context/lifecycle.rs",
+      "src/render/context.rs",
+      "src/render/mod.rs",
+      "tests/render_context_lifecycle.rs"
+    ],
+    "changed_paths_since_delivery": [
+      ".normify/changes/2026-10-24-render-bvh-s6b-independent-check.json",
+      ".normify/changes/2026-10-24-render-bvh-s7a.json",
+      ".normify/changes/2026-10-24-render-bvh-schedule-log.json",
+      ".normify/runs/2026-10-24-render-bvh-schedule-log/fmt.json",
+      "docs/development-evidence/render-bvh-precheck/README.md",
+      "docs/development-evidence/render-bvh-precheck/plan.json"
+    ],
+    "product_paths_changed_since_delivery": []
+  },
+  "tests": {
+    "delivered_gpu_test": "5 passed / 0 failed (tests body 7.56 s); numbers identical to the delivered evidence",
+    "delivered_host_test": "2 passed / 0 failed (part of the 531 default-feature suite)",
+    "full_cpu_suite": "531 passed / 0 failed (cargo test --locked)",
+    "code_files_over_500_lines": [],
+    "product_test_starts_python": false
+  },
+  "gpu_window": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "cuda_version": "13.2",
+    "owner": "Arch (30-minute exclusive window)",
+    "start_memory_mib": 2899,
+    "harness_memory_mib": 2871,
+    "product_test_before_after_mib": [
+      2878,
+      2878
+    ],
+    "final_memory_mib": 2871,
+    "returned_to_desktop_baseline": true,
+    "no_other_full_load_task": true,
+    "actual_gpu_time": "about 1 minute (harness 6.2 s + delivered GPU test 7.6 s)"
+  },
+  "findings_non_blocking": [
+    {
+      "severity": "一般",
+      "title": "delivered S6b receipt/README line counts do not match the committed blobs",
+      "detail": "owner.rs 364 vs 403, lifecycle.rs 322 vs 358, context.rs 397 vs 426, render/mod.rs 359 vs 368, tests/render_context_lifecycle.rs 477 vs 497. sha256 and byte counts match the committed blobs exactly, so this is a stale line-count field, not a content difference; the <=500-line rule still holds (max 497). Recommend a normify fix on the S6b README/receipt line fields (same treatment as the S1 field-diff line-count fix)."
+    }
+  ],
+  "limitations": [
+    "pixel render kernel (RGB/depth/seg shading, AA resolve, shadows/skybox/spot lights, texture/normal/specular/emission evaluation) is S7b and depends on the S7a launch ABI; render_rays is only a BVH-consuming query proxy, no image acceptance claimed",
+    "precomputed ray buffers remain with the S5 RayBuilder on demand; wiring them into the render context is S7b/S8",
+    "GPU cases use worlds=1 (multi-world BVH grouping was verified in S2a/S2b); no new multi-world fixture",
+    "upstream context retain/push/pop only needed by the S4 texture path; S6b adds no context operations",
+    "the one-time 32 MiB driver code cache was reproduced by the delivered GPU case (warmup retention 33,554,432 B) but not by the QA harness process this round (warmup retention 0 B); the 100-cycle growth 0 B and drop retained 0 B conclusions are identical",
+    "no full G01 in this round (fast-loop scope)"
+  ],
+  "not_claimed": [
+    "full renderer or product rendering acceptance",
+    "complete R01",
+    "S7 pixel kernel implementation"
+  ],
+  "evidence": {
+    "README.md": {
+      "sha256": "f4cfcf8c7c0b90b814094c8543aaf7dee457e1e64164d38d21aa7123bf29e579",
+      "bytes": 7139
+    },
+    "harness-report.json": {
+      "sha256": "68cad36c01f7376b62309848ff654d99d018b1419ee289f78a48496842b2c2d5",
+      "bytes": 1535
+    },
+    "artifact-check.json": {
+      "sha256": "cbdb23b545ee5d1453a2fea32d48d79161b6d8bfd647273501b6094b91ab5002",
+      "bytes": 874
+    },
+    "product-gpu-test.log": {
+      "sha256": "7e50eeb8bc71c1e5791b2cbf1063496380cf7ab20c2da240a8132eba97130ff9",
+      "bytes": 1751
+    },
+    "unit-tests-summary.txt": {
+      "sha256": "b408a13e3ede8a60ee3e516dc289639d0750d6d6e6781eb3da7c66acb772a1d5",
+      "bytes": 9073
+    },
+    "gpu-window.txt": {
+      "sha256": "291ecf37fc69c9351d9042685ca7790f6a06159735a4e6c386b3b885c41d8625",
+      "bytes": 423
+    }
+  },
+  "hash_basis": "artifact hashes are LF-normalized git blob semantics; evidence hashes are the committed file bytes"
+}
