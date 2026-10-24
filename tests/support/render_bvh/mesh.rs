@@ -113,6 +113,69 @@ impl MeshFixture {
     }
 }
 
+/// 退化网格覆盖审计：有效面（面积非零）必须全部被命中，退化面不得命中。
+pub struct DegenerateCoverage {
+    pub ray_count: usize,
+    pub hit_count: usize,
+    pub valid_faces: Vec<i32>,
+    pub hit_faces: Vec<i32>,
+}
+
+impl MeshFixture {
+    /// 由夹具自身审计退化网格覆盖：有效面按索引三角形面积非零判定。
+    pub fn degenerate_coverage(&self) -> DegenerateCoverage {
+        let degenerate = &self.degenerate;
+        let mut valid_faces = Vec::new();
+        for face in 0..degenerate.indices.len() / 3 {
+            let vertex =
+                |corner: usize| degenerate.vertices[degenerate.indices[3 * face + corner] as usize];
+            let (v0, v1, v2) = (vertex(0), vertex(1), vertex(2));
+            let edge1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+            let edge2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
+            let cross = [
+                edge1[1] * edge2[2] - edge1[2] * edge2[1],
+                edge1[2] * edge2[0] - edge1[0] * edge2[2],
+                edge1[0] * edge2[1] - edge1[1] * edge2[0],
+            ];
+            if cross != [0.0; 3] {
+                valid_faces.push(face as i32);
+            }
+        }
+        let mut hit_faces: Vec<i32> = degenerate
+            .hit
+            .iter()
+            .zip(degenerate.face.iter())
+            .filter(|(hit, _)| **hit)
+            .map(|(_, face)| *face)
+            .collect();
+        hit_faces.sort_unstable();
+        hit_faces.dedup();
+        DegenerateCoverage {
+            ray_count: degenerate.origins.len(),
+            hit_count: degenerate.hit.iter().filter(|hit| **hit).count(),
+            valid_faces,
+            hit_faces,
+        }
+    }
+}
+
+/// 覆盖修正（`2026-10-25-render-bvh-s3-coverage-fix`）主机断言：17 条确定性射线、
+/// 10 条命中；有效面 face 1/2/3 全部命中、退化面不命中（原 face 1 覆盖缺口关闭）。
+pub fn assert_degenerate_coverage(fixture: &MeshFixture) {
+    let coverage = fixture.degenerate_coverage();
+    assert_eq!(
+        coverage.valid_faces,
+        vec![1, 2, 3],
+        "退化网格有效面应为 face 1/2/3"
+    );
+    assert_eq!(coverage.ray_count, 17, "覆盖修正后的射线数");
+    assert_eq!(coverage.hit_count, 10, "覆盖修正后的命中数");
+    assert_eq!(
+        coverage.hit_faces, coverage.valid_faces,
+        "每个有效面都必须被命中"
+    );
+}
+
 /// 把世界系射线映射到网格局部系（镜射上游 `_ray_map`：lpnt = R^T (p - pos)，lvec = R^T v）。
 pub fn world_to_local(
     origin: [f32; 3],

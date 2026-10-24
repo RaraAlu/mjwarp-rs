@@ -16,7 +16,7 @@ use mjwarp_rs::render::bvh::{MeshBvh, vertices_from_f64};
 mod support;
 #[cfg(feature = "cuda-probe")]
 use support::MeshFixture;
-use support::{MeshCase, load, model_312_mesh_vert};
+use support::{MeshCase, assert_degenerate_coverage, load, model_312_mesh_vert};
 
 #[cfg(feature = "cuda-probe")]
 const ULP_TOLERANCE: i64 = 4;
@@ -141,6 +141,7 @@ fn fixture_cross_checks_and_static_replay_are_clean() {
     assert_eq!(fixture.case("moved").geom_id, 103);
     assert!(fixture.case("initial").cull_backfaces);
     assert!(!fixture.case("no_cull").cull_backfaces);
+    assert_degenerate_coverage(&fixture);
 }
 
 #[cfg(feature = "cuda-probe")]

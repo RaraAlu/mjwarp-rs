@@ -188,12 +188,56 @@ def degenerate_rays():
             direction[axis] = np.float32(sign)
             origins.append(np.asarray(center - direction * np.float32(3.0), dtype=np.float32))
             directions.append(direction)
-    # The last two rays avoid exact vertex/edge hits: a hit through a shared vertex
-    # is a layout-dependent tie (face index would differ between BVH constructions).
+    # Four deterministic extras (indices 12..15): axis and diagonal rays. They can cross
+    # an edge/vertex exactly, but only where the competing candidate is degenerate,
+    # coplanar or culled, so each ray keeps a single valid nearest candidate. The set
+    # therefore avoids the *ambiguous ties that remain after culling*, not every exact
+    # crossing; the evidence records the 10 exact edge/vertex crossings and that they
+    # leave the decision unique.
     for origin, direction in (
         ([0.5, -2.0, 0.0], [0.0, 1.0, 0.0]), ([3.0, 0.0, 0.0], [-1.0, 0.0, 0.0]),
         ([3.0, 3.0, 5.0], [0.0, 0.0, -1.0]), ([-1.4, -1.1, -0.9], [1.0, 1.0, 1.0]),
     ):
         origins.append(np.asarray(origin, dtype=np.float32))
         directions.append(np.asarray(direction, dtype=np.float32))
+    # Coverage-fix ray (index 16, task 2026-10-25-render-bvh-s3-coverage-fix): valid face
+    # 1 = (0,1,3) lies in z=0 and needs a -z front hit, while the 12 centre rays only use
+    # +-x, +y and +z, so face 1 used to be the only valid face never hit. Aim inside face
+    # 1 at x < y: no face-2 triangle is above the point and face 3 (back-facing from
+    # above) is culled first, so the nearest valid hit is face 1, unambiguously.
+    origins.append(np.asarray([0.25, 0.5, 3.0], dtype=np.float32))
+    directions.append(np.asarray([0.0, 0.0, -1.0], dtype=np.float32))
     return np.asarray(origins, dtype=np.float32), np.asarray(directions, dtype=np.float32)
+
+
+def degenerate_coverage(degenerate: dict) -> dict:
+    """Valid faces are the non-zero-area triangles; the coverage fix requires all of them.
+
+    The 2026-10-25 fix added the -z ray that reaches valid face 1 = (0,1,3); this audit
+    turns the former coverage gap into a captured, machine-checked property.
+    """
+    face_count = DEGENERATE_INDICES.shape[0] // 3
+    valid_faces = []
+    for face in range(face_count):
+        v0, v1, v2 = (DEGENERATE_VERTICES[DEGENERATE_INDICES[3 * face + corner]] for corner in range(3))
+        if np.linalg.norm(np.cross(v1 - v0, v2 - v0)) > 0.0:
+            valid_faces.append(face)
+    faces = np.asarray(degenerate["face"], dtype=np.int32)
+    hit = np.asarray(degenerate["hit"], dtype=bool)
+    hit_faces = sorted({int(face) for face in faces[hit]})
+    return {
+        "ray_count": int(hit.shape[0]),
+        "hit_count": int(hit.sum()),
+        "valid_faces": valid_faces,
+        "hit_faces": hit_faces,
+        "uncovered_valid_faces": [face for face in valid_faces if face not in hit_faces],
+        "invalid_face_hits": sorted({int(face) for face in faces[hit] if face not in valid_faces}),
+    }
+
+
+def checked_degenerate_coverage(degenerate: dict) -> dict:
+    """`degenerate_coverage` plus the coverage-fix invariant: every valid face is hit."""
+    coverage = degenerate_coverage(degenerate)
+    if coverage["uncovered_valid_faces"] or coverage["invalid_face_hits"]:
+        raise SystemExit(f"S3 mesh reference capture mismatch: degenerate coverage {coverage}")
+    return coverage

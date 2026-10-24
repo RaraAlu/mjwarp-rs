@@ -76,7 +76,8 @@ import mujoco  # noqa: E402
 import mujoco_warp as mjw  # noqa: E402
 from s3_mesh_replay import replay  # noqa: E402
 from s3_mesh_capture_support import (  # noqa: E402
-    DEGENERATE_INDICES, DEGENERATE_VERTICES, cast, degenerate_rays, design_mesh_rays, world_to_local,
+    DEGENERATE_INDICES, DEGENERATE_VERTICES, cast, checked_degenerate_coverage, degenerate_rays,
+    design_mesh_rays, world_to_local,
 )
 
 
@@ -407,6 +408,7 @@ def main() -> int:
     problems = case_bits_equal(first, second)
     if problems:
         fail(f"two captures differ: {problems}")
+    coverage = checked_degenerate_coverage(first["degenerate"])
 
     cross = s2b_cross_check(first)
     initial_case, dynamic_case = find_case(first, "initial"), find_case(first, "dynamic")
@@ -459,7 +461,7 @@ def main() -> int:
             for group, payload in first["groups"].items()
             for name, case in payload["cases"].items()
         },
-        "degenerate": first["degenerate"],
+        "degenerate": first["degenerate"], "degenerate_coverage": coverage,
         "stats": {
             "hits": {name: int(sum(case["hit"])) for group in first["groups"].values()
                      for name, case in group["cases"].items()},
