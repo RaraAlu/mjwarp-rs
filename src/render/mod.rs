@@ -2,6 +2,16 @@
 //! 不生成像素。
 
 pub mod bvh;
+pub mod camera;
+pub mod rays;
+
+pub use camera::{
+    Camera, CameraActive, CameraModel, CameraOutput, CameraPlan, CameraRequest, Projection,
+    RenderTargets, resolve_cameras,
+};
+#[cfg(feature = "cuda-probe")]
+pub use rays::RayBuilder;
+pub use rays::{RayBuffer, RayMode, planned_ray_count};
 
 use std::ops::Range;
 
@@ -124,6 +134,111 @@ impl ImageBatchLayout {
             return Err(InputError::DisabledOutput);
         }
         Ok(scalars)
+    }
+}
+
+/// 相机/射线计划错误；全部在分配前给出。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CameraError {
+    ActiveMaskLength {
+        expected: usize,
+        actual: usize,
+    },
+    UnknownCameraName {
+        position: usize,
+    },
+    CameraIndexOutOfRange {
+        position: usize,
+        camera: i32,
+        limit: usize,
+    },
+    ResolutionCount {
+        expected: usize,
+        actual: usize,
+    },
+    NegativeResolution {
+        camera: usize,
+    },
+    RenderFlagLength {
+        field: &'static str,
+        expected: usize,
+        actual: usize,
+    },
+    SamplesPerPixelZero,
+    SamplesRequirePrecomputedRays {
+        samples: u32,
+    },
+    SamplesRequireRgb,
+    CountOverflow {
+        field: &'static str,
+    },
+    MissingField {
+        field: &'static str,
+    },
+    FieldKind {
+        field: &'static str,
+    },
+    LengthMismatch {
+        field: &'static str,
+        expected: usize,
+        actual: usize,
+    },
+    UnsupportedProjection {
+        code: i32,
+    },
+}
+
+impl std::error::Error for CameraError {}
+
+impl std::fmt::Display for CameraError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ActiveMaskLength { expected, actual } => {
+                write!(
+                    formatter,
+                    "cam_active 掩码长度 {actual} != 相机数 {expected}"
+                )
+            }
+            Self::UnknownCameraName { position } => {
+                write!(formatter, "第 {position} 个相机名不存在")
+            }
+            Self::CameraIndexOutOfRange {
+                position,
+                camera,
+                limit,
+            } => write!(
+                formatter,
+                "第 {position} 个相机 id {camera} 超出 [0,{limit})"
+            ),
+            Self::ResolutionCount { expected, actual } => {
+                write!(formatter, "cam_res 数量 {actual} != 相机数 {expected}")
+            }
+            Self::NegativeResolution { camera } => write!(formatter, "相机 {camera} 分辨率为负"),
+            Self::RenderFlagLength {
+                field,
+                expected,
+                actual,
+            } => write!(formatter, "{field} 长度 {actual} != 相机数 {expected}"),
+            Self::SamplesPerPixelZero => write!(formatter, "samples_per_pixel 至少为 1"),
+            Self::SamplesRequirePrecomputedRays { samples } => {
+                write!(
+                    formatter,
+                    "samples_per_pixel={samples} 需要 use_precomputed_rays=true"
+                )
+            }
+            Self::SamplesRequireRgb => {
+                write!(formatter, "samples_per_pixel>1 需要至少一个 RGB 输出")
+            }
+            Self::CountOverflow { field } => write!(formatter, "{field} 计数溢出"),
+            Self::MissingField { field } => write!(formatter, "缺少渲染字段 {field}"),
+            Self::FieldKind { field } => write!(formatter, "渲染字段 {field} 类型不符"),
+            Self::LengthMismatch {
+                field,
+                expected,
+                actual,
+            } => write!(formatter, "{field} 长度 {actual} != {expected}"),
+            Self::UnsupportedProjection { code } => write!(formatter, "不支持的投影码 {code}"),
+        }
     }
 }
 

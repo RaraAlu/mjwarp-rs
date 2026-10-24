@@ -2,7 +2,7 @@
 uid = "a66a7856"
 id = "mjwarp.render"
 tags = ["planned", "engine", "render"]
-fingerprint = "dd193d29710b37120696e52f657d11e5ae43b9304d32475cfa8c4536945b0969"
+fingerprint = "3e4d7fd966180dc8c6b74e815a920f7b85adf646b364a53695f1d5bac7b612e0"
 
 [name]
 zh = "GPU批量渲染"
@@ -48,6 +48,15 @@ path = "src/render/bvh/mesh_query.rs"
 
 [[source]]
 path = "src/render/bvh/cuda/mesh.cu"
+
+[[source]]
+path = "src/render/camera.rs"
+
+[[source]]
+path = "src/render/rays.rs"
+
+[[source]]
+path = "src/render/camera/cuda/build_rays.cu"
 
 [[apis]]
 protocol = "rpc"

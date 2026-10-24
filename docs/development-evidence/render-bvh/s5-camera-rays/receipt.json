@@ -1,0 +1,162 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-24-render-bvh-s5",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "S5",
+  "title": "渲染/BVH S5：相机/射线/AA 采样/预计算射线与拒绝面",
+  "date": "2026-10-25",
+  "conclusion": "覆盖范围内 pass：17 个相机 context 的全网格相机空间射线与冻结上游 rc.ray/rc.ray_offset 逐位相等（SHA-256 全等 + 每相机 128 抽样位型全等），覆盖透视 intrinsic/fovy、正交单/混合、spp=2、选择矩阵、异构分辨率、znear 变体、动态射线模式；拒绝面 7 项映射。AA 图像级验收按 Arch 裁决延后 S7b/S8；世界系变换归 S7b。",
+  "scope": {
+    "product": [
+      "src/render/camera.rs",
+      "src/render/rays.rs",
+      "src/render/camera/cuda/build_rays.cu",
+      "src/render/mod.rs"
+    ],
+    "tests": ["tests/render_camera_rays.rs"],
+    "authoring": [
+      "scripts/authoring/render-bvh-s5/capture_s5_camera_rays.py",
+      "scripts/authoring/render-bvh-s5/s5_capture_support.py"
+    ],
+    "fixture": "fixtures/render-bvh/scene-a/s5/camera_rays.json",
+    "not_covered": [
+      "world-space transform (cam_xmat @ dir, ortho origin shift) and max_cam_dist -> S7b",
+      "AA composite image -> S7b/S8 (Arch ruling)",
+      "textures/materials/lighting/shadows/full R01"
+    ]
+  },
+  "semantics": {
+    "upstream": "mujoco_warp/_src/render_util.py compute_ray / _build_rays and create_render_context camera resolution (71da24d956378a87a703b6e1442b13aec0c4ac29)",
+    "space": "camera-space local dir/offset only",
+    "layout": "[sample][camera(active order)][row][column], x fastest; nsamples = samples_per_pixel^2; px = xid*spp + sample%spp, py = yid*spp + sample//spp",
+    "camera_id_vs_output_index": "cameras[] is cam_id_map order; indices_reversed context verifies separation",
+    "znear_zfar": "f32(f64(vis.map.znear|zfar as native float) * stat.extent double)",
+    "dynamic_mode": "use_precomputed_rays=false computes the same compute_ray per pixel; spp=1 bitwise equal to precomputed"
+  },
+  "reference": {
+    "method": "read frozen upstream RenderContext rc.ray / rc.ray_offset f32 vec3 arrays directly (device-side), plus rc metadata",
+    "orthographic_provenance": {
+      "method": "copy frozen 3.15 MjModel and override cam_projection[1]=mjPROJ_ORTHOGRAPHIC (Arch-approved)",
+      "original_mjb_sha256": "8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4",
+      "overrides": ["cam_projection[1] = 1 (ORTHOGRAPHIC)"],
+      "note": "product test reads captured bits only; no Python in product tests"
+    },
+    "znear_variant": {
+      "override": "vis.map.znear *= 2 (f32 0.02)",
+      "observation": "digest equals default because normalized direction is invariant under exact factor-2 znear scaling; variant guards against wrong znear usage"
+    },
+    "canonical_digest": "SHA-256(dir[0..n] LE f32 bytes concat offset[0..n] LE f32 bytes)",
+    "sampling": "128 evenly spaced pixels per camera x all sub-samples, raw dir/offset f32 bits + global index stored",
+    "determinism": {"repeat": 2, "bitwise_identical": true, "second_pass_seconds": 1.645556},
+    "pinned_environment": {
+      "python": "3.12.13",
+      "warp": "1.15.0",
+      "mujoco": "3.15.0",
+      "mujoco_warp": "3.15.0",
+      "numpy": "2.5.4",
+      "warp_cuda_toolkit": [12, 9],
+      "warp_cuda_driver": [13, 2],
+      "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29"
+    },
+    "fixture": {
+      "path": "fixtures/render-bvh/scene-a/s5/camera_rays.json",
+      "bytes": 1465865,
+      "lines": 69762,
+      "sha256": "545a1442fc5ac67d8de9abd6d7f7cf0a24e5a86baa3b473f660d8aae83842022"
+    }
+  },
+  "contexts": {
+    "default_all": {"sha256": "d4e8a21a485f24373a6b4d41ba0876b8d7389cf4cbd35ffdbc494a80047a8c46", "count": 120000, "total_rays": 120000, "samples": 1, "cameras": [0, 1]},
+    "mask_first": {"sha256": "63a38f024076b572dfe161e023d4b79720cc1a487b367fcf7cec3753e7ffab53", "count": 76800, "total_rays": 76800, "samples": 1, "cameras": [0]},
+    "mask_second": {"sha256": "be4ebe207858732f4f38be6653cdfcfb4fe7a25a4c645c44da146f07c66860a3", "count": 43200, "total_rays": 43200, "samples": 1, "cameras": [1]},
+    "names_track": {"sha256": "be4ebe207858732f4f38be6653cdfcfb4fe7a25a4c645c44da146f07c66860a3", "count": 43200, "total_rays": 43200, "samples": 1, "cameras": [1]},
+    "indices_reversed": {"sha256": "7758643c0d2ca28272b2b36a87e3823c057c8eded210a317f709ea0f300860f1", "count": 120000, "total_rays": 120000, "samples": 1, "cameras": [1, 0]},
+    "empty_active": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "count": 0, "total_rays": 0, "samples": 1, "cameras": []},
+    "empty_mask": {"sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "count": 0, "total_rays": 0, "samples": 1, "cameras": []},
+    "res_tuple": {"sha256": "25c55f133107ddb0b8f02ae07b732120339b6a0c8f277423bd93d168c494b787", "count": 10000, "total_rays": 10000, "samples": 1, "cameras": [0, 1]},
+    "res_hetero": {"sha256": "e5706ca82e30ced20264c8c4aa7eb7e23f3fcf2145fddaad1bcc9b1af618e584", "count": 5063, "total_rays": 5063, "samples": 1, "cameras": [0, 1]},
+    "res_single_list": {"sha256": "9bc78d6476032960f507d5aaeb5b44b6d93a2021b6edb890deb8e066c763a582", "count": 38400, "total_rays": 38400, "samples": 1, "cameras": [0, 1]},
+    "render_rgb_first": {"sha256": "d4e8a21a485f24373a6b4d41ba0876b8d7389cf4cbd35ffdbc494a80047a8c46", "count": 120000, "total_rays": 120000, "samples": 1, "cameras": [0, 1]},
+    "spp2_default": {"sha256": "1f828e0b9ad5e0b0a6d6a2ceff4973c3d488f5a8abab4de018d982e3fbd5a41c", "count": 480000, "total_rays": 120000, "samples": 4, "cameras": [0, 1]},
+    "ortho_single": {"sha256": "e9b9ef4ae996dfa773fb4ab277dc77cde4f96dbfc7846153d80582aad849f129", "count": 43200, "total_rays": 43200, "samples": 1, "cameras": [1]},
+    "ortho_mixed": {"sha256": "002d69a7b62504dfb9b36c930a4ef29030f9ac03069db676d640ba149b932d33", "count": 120000, "total_rays": 120000, "samples": 1, "cameras": [0, 1]},
+    "znear_x2_default": {"sha256": "d4e8a21a485f24373a6b4d41ba0876b8d7389cf4cbd35ffdbc494a80047a8c46", "count": 120000, "total_rays": 120000, "samples": 1, "cameras": [0, 1]},
+    "dynamic_default": {"sha256": "d4e8a21a485f24373a6b4d41ba0876b8d7389cf4cbd35ffdbc494a80047a8c46", "count": 120000, "total_rays": 120000, "samples": 1, "cameras": [0, 1], "equals": "default_all"},
+    "dynamic_ortho": {"sha256": "002d69a7b62504dfb9b36c930a4ef29030f9ac03069db676d640ba149b932d33", "count": 120000, "total_rays": 120000, "samples": 1, "cameras": [0, 1], "equals": "ortho_mixed"}
+  },
+  "dynamic_equalities": {"dynamic_default": "default_all", "dynamic_ortho": "ortho_mixed"},
+  "rejections": [
+    {"name": "spp_zero", "upstream_type": "ValueError", "upstream_keyword": "at least 1", "product_field": "samples_per_pixel"},
+    {"name": "spp2_dynamic", "upstream_type": "ValueError", "upstream_keyword": "use_precomputed_rays", "product_field": "precomputed_rays_required"},
+    {"name": "spp2_no_rgb", "upstream_type": "ValueError", "upstream_keyword": "render_rgb", "product_field": "render_rgb_required"},
+    {"name": "res_count_mismatch", "upstream_type": "ValueError", "upstream_keyword": "Camera resolutions count", "product_field": "cam_res"},
+    {"name": "mask_length_mismatch", "upstream_type": "AssertionError", "upstream_keyword": "cam_active must have length", "product_field": "cam_active"},
+    {"name": "unknown_camera_name", "upstream_type": "ValueError", "upstream_keyword": "not found in model", "product_field": "cam_active_name"},
+    {"name": "camera_index_out_of_range", "upstream_type": "IndexError", "upstream_keyword": "index 5 is out of bounds", "product_field": "cam_active_index", "note": "upstream does not validate integer cam_active; product rejects before writing (acceptance requires pre-write rejection)"}
+  ],
+  "gpu": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "window": "Arch conditional go; QA S3 review GPU lock released; single-GPU rule respected",
+    "memory_mib": {"capture_baseline": 2871, "capture_after": 3111, "after_release": 2865},
+    "commands": {
+      "capture": "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/authoring/render-bvh-s5/capture_s5_camera_rays.py",
+      "gpu_test": "cargo test --locked --features cuda-probe --test render_camera_rays -- --ignored --test-threads=1"
+    },
+    "gpu_test_result": "2 passed / 0 failed（17 contexts checked + builder rejection surface；测试体内 1.11 s）",
+    "host_test_result": "cargo test --locked --test render_camera_rays -> 4 passed / 0 failed"
+  },
+  "gates": {
+    "fmt": "通过",
+    "clippy": "通过",
+    "clippy-cuda": "通过",
+    "unit": "通过，测试 516 过 0 败"
+  },
+  "dependencies": {
+    "dev_sha2": "=0.10.9（同 crate 可选依赖版本；夹具 SHA-256 用，不手写实现）",
+    "dev_serde": "=1.0.229（同 crate 可选依赖版本；夹具反序列化）",
+    "cargo_lock": "无变化（两依赖已在 lock 中）"
+  },
+  "artifacts": {
+    "src/render/camera.rs": {"lines": 469, "sha256": "e2295f169161dca48a2b88a8808480487ef7fd1f518b8ba0d83cd734ce019b14"},
+    "src/render/rays.rs": {"lines": 299, "sha256": "fdec43c79b1547a6083c468ddf78a56cdfa2c4b125f1753e82d8194a888d7697"},
+    "src/render/camera/cuda/build_rays.cu": {"lines": 169, "sha256": "e38cdf2a29d529ee3cae76f88db476fc999ff555f992b8219c938664ac063577"},
+    "src/render/mod.rs": {"lines": 357, "sha256": "231c119668cb935ab47db75446242edbd02a08228c4211e5a2aa536dab018a13"},
+    "tests/render_camera_rays.rs": {"lines": 498, "sha256": "c4d3ea5402869f79dcd14283b5f9902b3e4b7ecb696ce27819472909387121d8"},
+    "scripts/authoring/render-bvh-s5/capture_s5_camera_rays.py": {"lines": 345, "sha256": "57f6fa6b716bdc7f0b86227dffba25e3114cb43bb2b5c5b2cac7927b66a864a6"},
+    "scripts/authoring/render-bvh-s5/s5_capture_support.py": {"lines": 184, "sha256": "ce1deef3ed99141f1813f21a4504788352857d84c1438d7ede971d3cbde86943"},
+    "fixtures/render-bvh/scene-a/s5/camera_rays.json": {"lines": 69762, "sha256": "545a1442fc5ac67d8de9abd6d7f7cf0a24e5a86baa3b473f660d8aae83842022"}
+  },
+  "acceptance": {
+    "per_pixel_direction_offset_bits": "17 contexts 全网格 SHA-256 全等 + 每相机 128 抽样位型全等（位等）",
+    "perspective_and_orthographic": "透视 intrinsic/fovy 两分支 + 正交单相机/混合 context",
+    "samples_per_pixel_1_and_2": "spp=2 context 480000 条射线全网格位等；AA 图像延后 S7b/S8",
+    "dynamic_rays_use_precomputed_false": "dynamic_default==default_all、dynamic_ortho==ortho_mixed 位等",
+    "camera_selection": "bool mask/name/index/空列表；id vs 输出序号分离（indices_reversed）；异构分辨率；空列表合法",
+    "rejection_surface": "7 项上游异常映射 + 设备侧 4 项打包前校验",
+    "no_python_in_product_tests": true,
+    "new_files_line_limit": true
+  },
+  "aa_deferral": {
+    "decision": "Arch 2026-10-25：AA 图像级验收延后 S7b/S8；S5 只验射线层",
+    "s5_verified": "spp=1/2 射线条数、子样本偏移、顺序与全网格位等",
+    "not_verified": "samples_per_pixel=2 的 AA 合成图像"
+  },
+  "notes": [
+    "frozen reference 的 compute_ray 由 Warp/NVRTC 12.9 编译，产品内核由 NVRTC 12.8 编译；两者对 normalize 模长与 x/y 的 add-mul 的 FMA 收缩不同。产品内核显式使用 fmaf（长度 = fma(z,z,fma(y,y,x*x))、x = fma(right-left,u,left) 等）钉死与参考相同的收缩顺序后全网格 0 差异。",
+    "canonical 哈希字节序在实现初期产品（逐射线交错）与 authoring（先 dirs 后 offsets）不一致，导致一次误报；统一为「全部 dirs 再全部 offsets」后通过（数值从未有差异，逐位比对确认）。",
+    "上游 cam_active 整数越界未校验（IndexError 崩溃）；产品写前显式拒绝，符合本任务验收「非法 camera 选择在写前拒绝」，差异记录在案。",
+    "znear ×2 context 与默认位型相同（归一化方向对精确 factor-2 缩放不变）；变体用于防错误 znear 用法，不构成独立数值证据。",
+    "mask_second / names_track 同 SHA、render_rgb_first 与 default_all 同 SHA、dynamic 与预计算对应 context 同 SHA，均为预期语义。",
+    "空相机列表合法：射线数组长度 0，canonical SHA-256 为空字节摘要 e3b0c442…。",
+    "非 git 跟踪的临时调试文件（target/s5-debug 等）不入库。"
+  ],
+  "unmet": [
+    "AA 图像级验收延后 S7b/S8（产品无渲染内核）",
+    "世界系射线与 max_cam_dist（zfar 截断）属 S7b",
+    "单 fixture（scene-a 2 相机 + 17 context），无 fuzz/任意相机属性组合",
+    "正交参考来自 3.15 MjModel 副本覆盖（provenance 在夹具内），非独立 MJB",
+    "未跑全量 G01（fast-loop 口径）"
+  ]
+}
