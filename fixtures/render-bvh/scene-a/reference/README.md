@@ -15,7 +15,7 @@
 | GPU / 驱动 / arch | RTX 4070 Ti SUPER / 596.36 / sm_89（CUDA toolkit 12.9） |
 | 场景 | `scene.xml` sha256 `a9f1f0a35464f4df17f191e1d68431bda0f17648273578e58fa08f84b0449289`（LF 归一化，S0a/S0b 同一算法） |
 | 编译模型 | `scene-315.mjb` sha256 `8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4`（101,320 B） |
-| 捕获脚本 | `capture_reference.py` sha256 `b0f091f1093271f764650301be215d0ecc6760c007e4b6b63b4ff7caa3e5b8d5`（484 行）；射线构造 `capture_reference_rays.py` sha256 `fafd6d91f680b2394048980cef7b1a2e0eb0395e9b0f7baea6fb8f08fc92c5bd`（167 行） |
+| 捕获脚本 | `capture_reference.py` sha256 `6cb7f016e0be1dcae064925a56f6b4186e1031ea6c57df18430bdc02d04ee952`（484 行；自哈希按 LF 归一化字节计算）；射线构造 `capture_reference_rays.py` sha256 `fafd6d91f680b2394048980cef7b1a2e0eb0395e9b0f7baea6fb8f08fc92c5bd`（167 行） |
 | 包装脚本 | `run_s0b.ps1` sha256 `9e72b229bd355d9e1cad744c3677ba571d94f9318acb8f0f9d65053358f66476` |
 | 复现 | `target\toolchains\powershell-7.6.7\bin\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File scripts\authoring\render-bvh\run_s0b.ps1` |
 

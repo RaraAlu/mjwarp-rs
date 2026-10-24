@@ -29,7 +29,7 @@
     "source_identity": "S0a verified commit a8a608c (fixture fix) on top of edaca66; S0a/S0b bind the same scene.xml hash"
   },
   "acceptance": [
-    {"item": "two consecutive captures produce identical sha256 for every output", "status": "pass", "evidence": "provenance.capture.identical_sha256=true; rgb/depth/seg/rays npz and context.json hashes identical; additionally identical across two independent process runs"},
+    {"item": "two consecutive captures produce identical sha256 for every output", "status": "pass", "evidence": "provenance.capture.identical_sha256=true; rgb/depth/seg/rays npz and context.json hashes identical; additionally identical across three independent process runs (including one after normalizing capture script line endings/self-hash)"},
     {"item": "ray set covers camera pixels, seeded random rays, grazing rays, no-hit rays", "status": "pass", "evidence": "context.json.outputs.ray_stats: camera_pixels 128/74 hits, seeded_random 128/20, grazing 64/64 (geom must be floor, max|n.d|=0.00499994), no_hit 64/0"},
     {"item": "context receipt contains resolved values for all 28 create_render_context parameters and output offsets", "status": "pass", "evidence": "context.json.parameter_count=28; create_render_context_parameters lists nworld..splat_group_id; resolved.rgb_adr=[0,76800], depth_adr=[0,76800], seg_adr=[0,76800], total_rays=120000, bvh_ngeom=7, znear=0.024999999441206455, zfar=125.0"},
     {"item": "provenance is complete and the script does not read from the product tree", "status": "pass", "evidence": "scene-a/provenance.json: versions/upstream/MJB+XML+script hashes/command/seed/repeat hashes/GPU memory; script reads only fixtures/render-bvh and the pinned environment"},
@@ -47,8 +47,8 @@
     "seg_npz": {"path": "fixtures/render-bvh/scene-a/reference/seg.npz", "bytes": 960478, "sha256": "2153fa728d634c032cf38847761803c4faa806aa554e108a2e0bd7b8ac8e6a97", "arrays": {"seg_cam0": [240, 320, 2], "seg_cam1": [180, 240, 2]}, "semantics": "(object_id, object_type) pairs, background (-1,-1)"},
     "rays_npz": {"path": "fixtures/render-bvh/scene-a/reference/rays.npz", "bytes": 18700, "sha256": "83146ae50946537401be817a44bfe3af58320df475dabc49206aa47eec9d50ab", "ray_count": 384, "arrays": {"ray_origin": [384, 3], "ray_direction": [384, 3], "ray_category": [384], "ray_geomid": [384], "ray_dist": [384], "ray_normal": [384, 3]}},
     "context_json": {"path": "fixtures/render-bvh/scene-a/reference/context.json", "bytes": 6026, "sha256": "e08cce0ad1783b2cadd533115ee0ea0bf1defa8db7ad8ed5a5e8ed1c2c62f2df", "task_id_check": "passed", "parameter_count": 28},
-    "provenance_json": {"path": "fixtures/render-bvh/scene-a/provenance.json", "bytes": 5922, "sha256": "c13715a07953300aaf85233f2bd361a94a4863d97779fef6910d2ba25c30a90b", "task_id_check": "passed", "note": "rewritten on every run; GPU-memory fields vary by run and are not determinism inputs"},
-    "reference_readme": {"path": "fixtures/render-bvh/scene-a/reference/README.md", "bytes": 5633, "sha256": "00921062fc5c18187dc6ff402d83ddac4bd96b779be8f7914fe24aaa4d921b8f"}
+    "provenance_json": {"path": "fixtures/render-bvh/scene-a/provenance.json", "bytes": 5923, "sha256": "ade617893922e81c9747c5789cd4312477b7680695fa6fc2e615bc9f303e526c", "task_id_check": "passed", "note": "rewritten on every run; GPU-memory fields vary by run and are not determinism inputs"},
+    "reference_readme": {"path": "fixtures/render-bvh/scene-a/reference/README.md", "bytes": 5673, "sha256": "8befc52692c434cefeffdf80e7d3f06bdfabccc5f52e9e298929b1b0dede18e3"}
   },
   "image_stats": {
     "cam0_cam_persp": {"rgb_mean": 0.758664, "rgb_std": 0.405097, "depth_hits": 59805, "depth_total": 76800, "depth_min_m": 0.599852, "depth_max_m": 1.68258, "seg_background": 16995, "seg_geom_ids": [-1, 0]},
@@ -63,26 +63,27 @@
   },
   "determinism": {
     "two_captures_same_process_identical": true,
-    "two_independent_processes_identical": true,
+    "independent_process_runs_identical": 3,
     "compared_outputs": ["rgb.npz", "depth.npz", "seg.npz", "rays.npz", "context.json"],
-    "note": "render_seconds lives in provenance only and is excluded from compared outputs"
+    "note": "render_seconds lives in provenance only and is excluded from compared outputs; three independent process runs (including one after normalizing the capture script line endings/self-hash) produced identical compared outputs"
   },
   "gpu_memory_mib": {
-    "baseline_in_script": 3282,
-    "after_capture_in_script": 3523,
-    "after_process_exit_nvidia_smi": 3276,
-    "desktop_baseline_range": [3264, 3346],
+    "baseline_in_script": 3727,
+    "after_capture_in_script": 3972,
+    "before_run_nvidia_smi": 3759,
+    "after_run_nvidia_smi": 3720,
+    "desktop_note": "desktop applications (browser/desktop services) move the GPU baseline between about 3.2 and 4.0 GiB; memory numbers are per-run samples in run.log and provenance.json",
     "gpu_released": true,
-    "other_compute_processes": "none during capture"
+    "other_compute_processes": "no capture CUDA compute process remained after exit"
   },
   "scripts": {
-    "capture_reference_py": {"path": "scripts/authoring/render-bvh/capture_reference.py", "lines": 484, "bytes": 19737, "sha256": "b0f091f1093271f764650301be215d0ecc6760c007e4b6b63b4ff7caa3e5b8d5"},
+    "capture_reference_py": {"path": "scripts/authoring/render-bvh/capture_reference.py", "lines": 484, "bytes": 19258, "sha256": "6cb7f016e0be1dcae064925a56f6b4186e1031ea6c57df18430bdc02d04ee952", "hash_note": "LF-normalized bytes (CRLF->LF); the script hashes itself with the same algorithm so provenance.script.sha256 matches the committed blob"},
     "capture_reference_rays_py": {"path": "scripts/authoring/render-bvh/capture_reference_rays.py", "lines": 167, "bytes": 6508, "sha256": "fafd6d91f680b2394048980cef7b1a2e0eb0395e9b0f7baea6fb8f08fc92c5bd"},
     "run_s0b_ps1": {"path": "scripts/authoring/render-bvh/run_s0b.ps1", "lines": 39, "bytes": 2325, "sha256": "9e72b229bd355d9e1cad744c3677ba571d94f9318acb8f0f9d65053358f66476"}
   },
   "evidence": {
-    "readme": {"path": "docs/development-evidence/render-bvh/s0b-reference-capture/README.md", "bytes": 8548, "sha256": "3a0825dfbef16bcac6c78d18c6e5ba4f0d4f15decc6908b25d65a02fa557dc86"},
-    "run_log": {"path": "docs/development-evidence/render-bvh/s0b-reference-capture/run.log", "bytes": 7710, "sha256": "b376543037b40ffe708d9a8eae6405f1e558b4ea9a8dbb029a54abcf0f0ce798", "encoding": "UTF-8 (no BOM), LF", "runs": 1}
+    "readme": {"path": "docs/development-evidence/render-bvh/s0b-reference-capture/README.md", "bytes": 8945, "sha256": "6b55b980f646f245583ae42a6dd63a847ea2f7226aa90074b496e11df375d989"},
+    "run_log": {"path": "docs/development-evidence/render-bvh/s0b-reference-capture/run.log", "bytes": 7710, "sha256": "82eb49fa32da53801192bca6df14f602f5fbe5b98a96a677b89b5a4f08298ae4", "encoding": "UTF-8 (no BOM), LF", "runs": 1}
   },
   "not_claimed": [
     "MuJoCo native GL rasterizer reference (this is an MJWarp 3.15 reference)",

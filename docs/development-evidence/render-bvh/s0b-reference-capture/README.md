@@ -23,8 +23,9 @@
    脚本哈希/命令/种子/重复哈希/GPU 显存，脚本只读 `fixtures/render-bvh/` 与 pinned 环境。
 6. **环境不符大声失败**：版本、venv 前缀、上游 revision/dirty、MJB/XML 哈希、GPU 名称/arch/
    驱动任一不符即 `SystemExit`，无静默降级（本次运行前已实测旧哈希会失败退出）。
-7. **GPU 已释放**：运行前后无其他计算任务；进程退出后 `nvidia-smi` = 3276 MiB，
-   与桌面基线（3264–3346 MiB 波动）一致。
+7. **GPU 已释放**：运行前后无本任务以外的 CUDA 计算进程；捕获进程退出后 `nvidia-smi`=3,720 MiB
+   （运行前 3,759 MiB），回到运行前桌面水平。桌面其它应用（浏览器/桌面服务）使显存基线在
+   3.2–4.0 GiB 间波动，故显存数字以 `run.log` 与 `provenance.json` 的当次采样为准。
 
 ## 2. 验收对照
 
@@ -47,7 +48,7 @@
 | `reference/seg.npz` | 960,478 | `2153fa728d634c032cf38847761803c4faa806aa554e108a2e0bd7b8ac8e6a97` | (240,320,2)+(180,240,2) int32 `(id,type)` |
 | `reference/rays.npz` | 18,700 | `83146ae50946537401be817a44bfe3af58320df475dabc49206aa47eec9d50ab` | 384 条射线 + 命中/dist/normal |
 | `reference/context.json` | 6,026 | `e08cce0ad1783b2cadd533115ee0ea0bf1defa8db7ad8ed5a5e8ed1c2c62f2df` | 28 参数 + resolved + camera_paths + ray_stats（含 task_id） |
-| `scene-a/provenance.json` | 5,922 | `c13715a07953300aaf85233f2bd361a94a4863d97779fef6910d2ba25c30a90b` | 环境/哈希/命令/种子/显存（含 task_id；显存字段随运行变化） |
+| `scene-a/provenance.json` | 5,923 | `ade617893922e81c9747c5789cd4312477b7680695fa6fc2e615bc9f303e526c` | 环境/哈希/命令/种子/显存（含 task_id；显存字段随运行变化） |
 
 相机输出统计（同一份 npz 实测）：
 
@@ -76,15 +77,16 @@
 | 冻结上游 | `71da24d956378a87a703b6e1442b13aec0c4ac29`，clean |
 | GPU / 驱动 / arch | RTX 4070 Ti SUPER / 596.36 / sm_89 |
 | 输入夹具 | `scene.xml` `a9f1f0a3…`（LF 归一化）；`scene-315.mjb` `8953988f…`（101,320 B） |
-| GPU 显存 | 脚本内采样 baseline=3,282 MiB → after=3,523 MiB（进程内 mempool 尚未释放）；进程退出后 `nvidia-smi`=3,276 MiB，回桌面基线 |
+| GPU 显存 | 当次：`run.log` 记录 before=3,759 MiB / after=3,720 MiB；脚本内采样 baseline=3,727 MiB → after=3,972 MiB（进程内 mempool 尚未释放）。捕获进程已退出，无本任务 CUDA 计算进程残留 |
 | 独占性 | 运行前后 `nvidia-smi --query-compute-apps` 无本任务以外的 CUDA 计算进程 |
 
 ## 6. 确定性
 
 - 同一进程两次捕获：`provenance.capture.identical_sha256=true`，四份 npz 与 `context.json`
   sha256 一致；`context` 的两次构建也逐字节比较一致（脚本内断言）。
-- 跨进程：本次先跑一次、换新进程再跑一次，四份 npz 与 `context.json` sha256 仍一致
-  （`render_seconds` 仅在 provenance，不参与比较）。
+- 跨进程：本次共 3 次独立进程运行（含脚本行尾/自哈希口径归一化后的一次重跑），四份 npz 与
+  `context.json` sha256 始终一致（`render_seconds` 只在 provenance，不参与比较；provenance 的
+  GPU 显存字段随运行变化，也不作为确定性输入）。
 - NPZ 固定 zip 时间戳与 key 顺序；`context.json`/`provenance.json` 以 UTF-8 + LF 写入。
 
 ## 7. 未满足项与边界
@@ -112,7 +114,7 @@ target\toolchains\powershell-7.6.7\bin\pwsh.exe -NoProfile -ExecutionPolicy Bypa
 
 ## 9. 证据索引
 
-- `run.log`（sha256 `b376543037b40ffe708d9a8eae6405f1e558b4ea9a8dbb029a54abcf0f0ce798`）：
+- `run.log`（sha256 `82eb49fa32da53801192bca6df14f602f5fbe5b98a96a677b89b5a4f08298ae4`）：
   单次运行的 GPU 前后状态、命令、环境日志与捕获汇总。
 - `receipt.json`：回执（task_id、验收、哈希、环境、未满足项）。
 - `fixtures/render-bvh/scene-a/reference/`：`README.md` + 四份 npz + `context.json`。

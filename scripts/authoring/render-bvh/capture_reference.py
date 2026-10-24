@@ -434,7 +434,7 @@ def main() -> int:
         "camera_pixel_rays_per_camera": first["camera_pixel_counts"],
         "script": {
             "path": "scripts/authoring/render-bvh/capture_reference.py",
-            "sha256": digest(pathlib.Path(__file__).resolve()),
+            "sha256": digest_text(pathlib.Path(__file__).resolve()),
         },
         "parameters": {name: jsonify(value) for name, value in PARAMS_28.items()},
         "seed": SEED,
