@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s3",
+  "title": {
+    "zh": "渲染/BVH S3：网格三角 BVH 构建/重拟合与射线 uv/face 语义命中",
+    "en": "Render/BVH S3: mesh triangle BVH build/refit with per-ray uv/face semantic hits"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "渲染/BVH 第五片（plan S3，S2 已收口）：从 S1 的 mesh_vert/mesh_face 构建三角 BVH，支持构建/重拟合/顶点更新，手写 CUDA 网格射线查询返回 geomid/face/u/v/normal；对 S0b/S2 固定射线集中延后的 mesh ray 91/92 与新增网格射线逐条对照，参考必须使用 MJWarp 设备侧 f32 位姿/顶点位型（沿用 S2b 的设备位姿捕获口径），u/v 与 normal 在冻结容差内。hfield/flex/SDF 与完整渲染留后续切片；不做节点布局断言。",
+    "en": "Fifth render/BVH slice (plan S3, S2 closed): build a triangle BVH from S1 mesh_vert/mesh_face with build/refit/vertex-update support, and a hand-written CUDA mesh ray query returning geomid/face/u/v/normal; compare the deferred mesh rays 91/92 from S0b/S2 plus new mesh rays, using MJWarp device-side f32 pose/vertex bits (same device-pose capture discipline as S2b), with u/v and normal inside frozen tolerances. hfield/flex/SDF and full render stay later; no node-layout assertions."
+  },
+  "modules": {},
+  "acceptance": [
+    "网格射线：initial/moved 的 mesh ray 91/92 与新增网格射线逐条 geomid/face 精确一致；u/v ≤4 ULP；normal ≤1e-4 rad；命中/未命中/背面/擦边案例与参考一致。",
+    "构建/重拟合：三角 BVH 从 mesh_vert/mesh_face 构建；顶点更新后 refit 命中变化与参考一致；set_points/顶点移动后的旧/新命中差异可复算；group/world 不串。",
+    "参考输入：使用 MJWarp 设备侧 f32 位姿/顶点位型捕获，与 S0b/S2 冻结命中做位型交叉校验；产品测试不启动 Python，fixture 入库。",
+    "拒绝面：空网格、非法 face 索引、非有限顶点、长度不符、hfield 请求在分配/构建前拒绝；不引入 hfield/flex/SDF 能力。",
+    "证据/门禁：README + receipt.json 含 task_id；fmt/clippy/clippy-cuda/unit 全过；新文件 ≤500 行；GPU 窗口独占并记录设备/驱动/显存；不宣称完整渲染/R01。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s2-close"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/bvh/mesh.rs",
+      "src/render/bvh/mesh_query.rs",
+      "src/render/bvh/cuda/",
+      "src/render/bvh/mod.rs",
+      "tests/render_mesh_bvh.rs",
+      "tests/support/render_bvh/",
+      "scripts/authoring/render-bvh/",
+      "fixtures/render-bvh/scene-a/s3/",
+      "docs/development-evidence/render-bvh/s3-mesh-bvh/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 85
+  },
+  "note": "Arch 2026-10-24 派活：S2 里程碑已收口；S3 为关键路径，先于 S4/S5。GPU 窗口由 Arch 排，开窗前核对设备；参考用设备侧 f32 位型（S2b 已证明 CPU 位姿会造成 ULP 偏差）。hfield/flex 不在本片。",
+  "revision": {
+    "before": "bf5e70b2e3c5db9681ce5b7b25acb05e4a90b2b5",
+    "after": null
+  },
+  "created_at": "2026-10-25T00:15:00.000Z",
+  "updated_at": "2026-10-24T16:07:10.980Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s3-mesh-bvh/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s3"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S4已实现",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
