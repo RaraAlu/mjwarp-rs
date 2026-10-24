@@ -176,7 +176,7 @@
     "gpu_policy": {
       "mutex": "gpu:windows-t4",
       "mutex_note": "Project convention: the lock name is a mutex, not proof of T4 hardware. Actual device is RTX 4070 Ti SUPER / SM89 / driver 596.36.",
-      "rule": "One full-load GPU task at a time. S2b is ready: CPU prep first, then a 90-minute exclusive GPU window; QA S2a review runs CPU in parallel; QA S2b review gets a separate 45-minute GPU window. Notify Chief before opening either window."
+      "rule": "One full-load GPU task at a time. S2 is complete; S3 is the next implementation window (mesh BVH), then S5 and S4 serial. Each review gets a separate GPU window. Notify Chief before opening a window."
     },
     "rows": [
       {
@@ -246,37 +246,64 @@
         "slice": "S2a review",
         "task_id": "2026-10-24-render-bvh-s2a-independent-check",
         "owner": "QA",
-        "normify_status": "proposed",
-        "execution": "ready; Chief approved start now (CPU/offline)",
+        "normify_status": "verified",
+        "execution": "done",
         "evidence": "docs/development-evidence/render-bvh/s2a-independent-check/",
-        "note": "unchanged limited to S2a-owned files; shared mod.rs excluded to avoid S2b write conflict"
+        "note": "commit eb80566; 5/5 items"
       },
       {
         "slice": "S2b",
         "task_id": "2026-10-24-render-bvh-s2b",
         "owner": "Backend",
-        "normify_status": "in_progress",
-        "execution": "CPU prep, then 90-minute exclusive GPU window",
+        "normify_status": "verified",
+        "execution": "done",
         "evidence": "docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/",
-        "note": "device fma.rn required; reference inputs from GPU poses; QA S2b review gets a separate 45-minute window"
+        "note": "commit c7b5d7f; 383/382 comparisons, 0 ULP, two-world zero cross-hit"
+      },
+      {
+        "slice": "S2b review",
+        "task_id": "2026-10-24-render-bvh-s2b-independent-check",
+        "owner": "QA",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/s2b-independent-check/",
+        "note": "commit 5ef8cb6; 9/9 items, no blocker"
       },
       {
         "slice": "S2 close",
         "task_id": "2026-10-24-render-bvh-s2-close",
         "owner": "Backend",
-        "normify_status": "proposed",
-        "execution": "blocked: S2b",
+        "normify_status": "verified",
+        "execution": "done",
         "evidence": "docs/development-evidence/render-bvh/s2-scene-bvh/",
-        "note": "six plan acceptance mappings + total receipt"
+        "note": "commit 651e253; six mappings and R01-R19 rejection register; S2 milestone complete"
       },
       {
-        "slice": "S3-S8",
+        "slice": "S3",
         "task_id": null,
-        "owner": "Backend/QA",
+        "owner": "Backend",
+        "normify_status": "unregistered",
+        "execution": "next; critical path",
+        "evidence": "docs/development-evidence/render-bvh/s3-mesh-bvh/",
+        "note": "mesh triangle BVH; register after S2 close"
+      },
+      {
+        "slice": "S4",
+        "task_id": null,
+        "owner": "Backend",
         "normify_status": "unregistered",
         "execution": "planned",
-        "evidence": "per-slice paths in slices[]",
-        "note": "register after S2 close; serial GPU windows"
+        "evidence": "docs/development-evidence/render-bvh/s4-texture/",
+        "note": "texture; write scope disjoint from S5, but single Backend and single GPU serialize"
+      },
+      {
+        "slice": "S5",
+        "task_id": null,
+        "owner": "Backend",
+        "normify_status": "unregistered",
+        "execution": "planned",
+        "evidence": "docs/development-evidence/render-bvh/s5-camera-rays/",
+        "note": "camera/rays; write scope disjoint from S4, but single Backend and single GPU serialize"
       }
     ],
     "structural_decisions": [
@@ -317,6 +344,16 @@
         "id": "N4",
         "note": "S1 review field-diff.json 725/726 line count is an annotation-only issue; QA handles it with normify fix.",
         "source": "QA / Chief 2026-10-24"
+      },
+      {
+        "id": "N5",
+        "note": "S2 milestone complete: S2a f9adf14, S2b c7b5d7f, S2-close 651e253; QA reviews eb80566 and 5ef8cb6. Next is S3 mesh BVH (critical path), then S5 and S4 serial.",
+        "source": "Arch 2026-10-24"
+      },
+      {
+        "id": "N6",
+        "note": "Non-blocking observation from QA S2b review: reference capture uses use_fast_math=True while product kernel uses use_fast_math=false; this fixture is 0 ULP, but later slices must track the compile-option difference and not treat it as equivalence.",
+        "source": "QA S2b review 5ef8cb6"
       }
     ]
   },
