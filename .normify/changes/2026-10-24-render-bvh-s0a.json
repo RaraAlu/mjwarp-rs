@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s0a",
+  "title": {
+    "zh": "渲染/BVH S0a：3.12与3.15双MJB参考夹具与模型parity",
+    "en": "Render/BVH S0a: dual-MJB reference fixture and model parity"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "渲染/BVH 解冻后的第一片（plan S0a，D1 双 MJB parity 已获用户批准）：提交一份 scene-a XML，用 MuJoCo 3.12.0（C API）与 3.15.0（pinned venv Python）各编译一份 MJB 入库 fixtures/render-bvh/scene-a/，逐字段比较两版渲染相关模型数组（geom_*/cam_*/light_*/mat_*/tex_*/mesh_*/vis.headlight/vis.map.znear,zfar/stat.extent/名称表）并给出 parity.json；parity 是 S0b 用 3.15 参考图做 3.12 产品验收的硬前提。只做 CPU 编译与数组 dump，不涉及产品代码、GPU、渲染输出。",
+    "en": "First render/BVH post-unfreeze slice (plan S0a, approved D1 dual-MJB parity): commit one scene-a XML, compile MuJoCo 3.12.0 (C API) and 3.15.0 (pinned venv Python) MJBs into fixtures/render-bvh/scene-a/, compare all render-relevant model arrays field by field and record parity.json. Parity is the hard prerequisite for S0b using 3.15 reference images for 3.12 product acceptance. CPU compile and array dump only; no product code, GPU or render capture."
+  },
+  "modules": {},
+  "acceptance": [
+    "提交 fixtures/render-bvh/scene-a/scene.xml，并用 MuJoCo 3.12.0（C API，target/toolchains/mujoco-3.12.0/package）与 3.15.0（target/mjwarp-parallel/venv pinned Python）各编译一份 MJB：scene-312.mjb、scene-315.mjb，入库并记录命令、版本锁与 sha256。",
+    "两份 MJB 均能用对应版本加载（3.12 C API mj_loadModel；3.15 MjModel.from_binary_path），dump 渲染相关模型数组：geom_*、cam_*、light_*、mat_*、tex_*、mesh_*、vis.headlight、vis.map.znear/zfar、stat.extent、名称表。",
+    "model_parity.py 逐字段比较两版模型数组（类型/尺寸/数量/int/float），输出每字段 max abs diff、位差与结论；容差按 plan §4.3：模型整数 exact，float f32_bits 优先、不可达时 ≤1 ULP。任一份字段不一致即 parity 失败并写 field/index/expected/actual。",
+    "硬门：parity 成立才允许 S0b 拿 3.15 参考做 3.12 产品验收；不成立立即停并报告不一致字段/量级/原因假设，不调参凑、不放宽容差。",
+    "证据 docs/development-evidence/render-bvh/s0a-reference-fixture/（README + parity.json 含 task_id + receipt）；脚本进 scripts/authoring/render-bvh/，每个新文件 ≤500 行并带 provenance（命令/版本/venv 路径/哈希）；不改产品 src/tests/Cargo.*，产品测试不启动 Python。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "fixtures/render-bvh/",
+      "scripts/authoring/render-bvh/",
+      "docs/development-evidence/render-bvh/"
+    ],
+    "resources": [],
+    "priority": 90
+  },
+  "note": "来源：docs/development-evidence/render-bvh-precheck/plan.json slices[id=S0a] 与 README §6「S0a 参考夹具与模型 parity」；用户 2026-10-24 批准 D1 双 MJB parity 口径。S0a 是渲染/BVH 解冻后的第一片，只做参考夹具与模型 parity，不做渲染输出捕获（S0b，需 GPU 窗口），不越到 S1+。离线 authoring 例外已批准（脚本进仓、可复现、带 provenance），不得从产品测试启动 Python；产品仍用 MuJoCo 3.12，参考用 3.15。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-24T10:50:00.000Z",
+  "updated_at": "2026-10-24T10:50:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s0a-reference-fixture/parity.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s0a"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    }
+  ]
+}
