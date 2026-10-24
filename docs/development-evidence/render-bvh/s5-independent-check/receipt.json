@@ -1,0 +1,236 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s5-independent-check",
+  "task_id": "2026-10-24-render-bvh-s5-independent-check",
+  "date": "2026-10-25",
+  "reviewed_commit": "1df634d",
+  "review_baseline_head": "b3f6439",
+  "outcome": "pass",
+  "scope": "Independent QA re-verification of the S5 camera-space ray layer (17 contexts: full-grid canonical SHA-256, 128 samples per camera, spp=1/2, dynamic==precomputed, orthographic, camera filtering/heterogeneous/empty lists, 7 resolve + 4 builder rejections), fast-loop scope, no full G01, no product/fixture/original-evidence changes. AA image acceptance deferred to S7b/S8 per Arch decision.",
+  "independent_method": {
+    "rays": "QA harness target/qa-s5-harness (product crate path dependency, no delivered test/support import) rebuilt all 17 plans from the fixture camera-model bits and request specs, generated rays with the product RayBuilder, wrote canonical bytes to binary files; QA Python computed SHA-256 itself and decoded the dirs-then-offsets LE f32 layout",
+    "metadata": "plan metadata (selection/resolution/render flags/total_rays/rgb_pixels/samples/spp/znear/zfar/count) compared field by field against the fixture",
+    "rejections": "7 resolve-layer rejections rebuilt through the product API and mapped to CameraError fields; 4 builder-layer rejections exercised before packing",
+    "evidence": "8 artifacts re-hashed from git blobs; fixture size/line count; cross-context sample consistency; context hash relations",
+    "precision": "PTX captured from the product NVRTC compile path; source hash vs committed build_rays.cu blob; instruction mix inspected"
+  },
+  "results": {
+    "contexts_checked": 17,
+    "canonical_sha_matches": 17,
+    "canonical_bytes_total": 37916712,
+    "layout_dirs_then_offsets_ok": true,
+    "sampled_entries_total": 4031,
+    "sampled_bit_mismatches": 0,
+    "plan_metadata_mismatches": 0,
+    "dynamic_equalities": {
+      "dynamic_default": {
+        "static": "default_all",
+        "sha_equal": true
+      },
+      "dynamic_ortho": {
+        "static": "ortho_mixed",
+        "sha_equal": true
+      }
+    },
+    "spp2": {
+      "samples": 4,
+      "samples_per_pixel": 2,
+      "count_ratio_ok": true,
+      "znear_equal_default": true
+    },
+    "orthographic": {
+      "ortho_single_has_ortho": true,
+      "ortho_mixed_has_ortho": true
+    },
+    "rejections": [
+      {
+        "product_field": "samples_per_pixel",
+        "upstream_type": "ValueError",
+        "rejected": true,
+        "mapped_field": "samples_per_pixel",
+        "ok": true
+      },
+      {
+        "product_field": "precomputed_rays_required",
+        "upstream_type": "ValueError",
+        "rejected": true,
+        "mapped_field": "precomputed_rays_required",
+        "ok": true
+      },
+      {
+        "product_field": "render_rgb_required",
+        "upstream_type": "ValueError",
+        "rejected": true,
+        "mapped_field": "render_rgb_required",
+        "ok": true
+      },
+      {
+        "product_field": "cam_res",
+        "upstream_type": "ValueError",
+        "rejected": true,
+        "mapped_field": "cam_res",
+        "ok": true
+      },
+      {
+        "product_field": "cam_active",
+        "upstream_type": "AssertionError",
+        "rejected": true,
+        "mapped_field": "cam_active",
+        "ok": true
+      },
+      {
+        "product_field": "cam_active_name",
+        "upstream_type": "ValueError",
+        "rejected": true,
+        "mapped_field": "cam_active_name",
+        "ok": true
+      },
+      {
+        "product_field": "cam_active_index",
+        "upstream_type": "IndexError",
+        "rejected": true,
+        "mapped_field": "cam_active_index",
+        "ok": true
+      }
+    ],
+    "builder_rejections": [
+      {
+        "case": "samples_mismatch",
+        "rejected": true
+      },
+      {
+        "case": "camera_out_of_range",
+        "rejected": true
+      },
+      {
+        "case": "zero_resolution",
+        "rejected": true
+      },
+      {
+        "case": "dynamic_spp_gt_one",
+        "rejected": true
+      }
+    ],
+    "context_hash_groups": {
+      "distinct_hashes": 11,
+      "dynamic_sha_equal": {
+        "dynamic_default": true,
+        "dynamic_ortho": true
+      },
+      "znear_x2_equals_default": true,
+      "empty_sha_is_empty": true
+    },
+    "cross_context_consistency": {
+      "mask_first_camera0_common": 128,
+      "mask_first_mismatches": 0,
+      "znear_common": 256,
+      "znear_mismatches": 0
+    },
+    "fixture": {
+      "sha256": "545a1442fc5ac67d8de9abd6d7f7cf0a24e5a86baa3b473f660d8aae83842022",
+      "bytes": 1465865,
+      "lines": 69762,
+      "models": [
+        "default",
+        "ortho",
+        "znear_x2"
+      ],
+      "contexts": 17,
+      "rejections": 7
+    }
+  },
+  "precision": {
+    "entry": "build_rays",
+    "fmad": true,
+    "use_fast_math": false,
+    "options": [
+      "--std=c++17",
+      "--gpu-architecture=compute_70"
+    ],
+    "nvrtc_version": [
+      12,
+      8
+    ],
+    "source_sha256": "e38cdf2a29d529ee3cae76f88db476fc999ff555f992b8219c938664ac063577",
+    "fma_rn_f32": 15,
+    "mul_rn_f32": 2,
+    "unrounded_mul_f32": 21,
+    "sqrt_rn_f32": 1,
+    "div_rn_f32": 9,
+    "f64_tokens": 4,
+    "f64_detail": "all four are the sanctioned CUDA-12.8 sinf/cosf integer-angle-reduction triplet; no physical f32 value is promoted to f64"
+  },
+  "tests": {
+    "delivered_gpu_test": "2 passed / 0 failed (cargo test --locked --features cuda-probe --test render_camera_rays -- --ignored --test-threads=1): camera-ray contexts checked: 17 / builder rejection surface ok",
+    "full_cpu_suite": "516 passed / 0 failed (cargo test --locked)",
+    "artifacts_verified": "8/8 sha256+bytes+lines vs git blob",
+    "code_files_over_500_lines": [],
+    "product_test_starts_python": false
+  },
+  "gpu_window": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "cuda_version": "13.2",
+    "owner": "Arch (30-minute exclusive window)",
+    "start_memory_mib": 2899,
+    "harness_memory_mib": 2880,
+    "product_test_before_after_mib": [
+      2878,
+      2871
+    ],
+    "final_memory_mib": 2871,
+    "returned_to_desktop_baseline": true,
+    "no_other_full_load_task": true,
+    "actual_gpu_time": "about 2 minutes (harness + delivered GPU test)"
+  },
+  "limitations": [
+    "AA image-level acceptance deferred to S7b/S8 (Arch decision); no AA image equivalence claimed",
+    "world-space ray transform (cam_xmat @ dir, orthographic origin + cam_xmat @ offset) and max_cam_dist are S7b, not covered here",
+    "znear_x2 context has identical ray bits to the default context (normalized directions are invariant to uniform znear scaling); it validates the plan znear bits/formula path, not independent numeric evidence",
+    "single fixture (scene-a 2 cameras + 17 contexts), no fuzz/random camera attributes; camera names are ASCII fixture names",
+    "reference is a frozen 3.15 artifact; orthographic reference comes from a 3.15 MjModel copy override (provenance in fixture), product input from S1-accepted 3.12 fields",
+    "the authoring capture was not re-run this round; the fixture declares two bitwise-identical capture passes, and QA independently verified product output vs fixture bits",
+    "no full G01 in this round"
+  ],
+  "not_claimed": [
+    "full renderer or product rendering acceptance",
+    "complete R01",
+    "AA image equivalence",
+    "S7b world-space rays"
+  ],
+  "evidence": {
+    "README.md": {
+      "sha256": "64a5a4751b34dcdeb42e4dc5e90018c374ccb72d031f28808aba01f6fff1f5c7",
+      "bytes": 8743
+    },
+    "harness-compare.json": {
+      "sha256": "caec5e3d0d3aae2ce3a263920b2b77b9c8c04e04bd57f42032d0a21d9bc0dd9e",
+      "bytes": 10052
+    },
+    "static-check.json": {
+      "sha256": "0d4003e4421fa7212e3bfa4867380cf97ed7420bbc7062cb99b3ccc2f17babb7",
+      "bytes": 2594
+    },
+    "ptx-record.json": {
+      "sha256": "adf872ce0924ec05b4b128ef2385ec69bf73c74e303319ef921cf67f78217262",
+      "bytes": 477
+    },
+    "ptx-fma-summary.txt": {
+      "sha256": "d3d9df2e7685b03fb7a61eb753464f04f99aa1b0fdde9866a5e7d79cd232b797",
+      "bytes": 868
+    },
+    "product-gpu-test.log": {
+      "sha256": "d90987afc07125f1c2f2a8b9a2f01ed829fdcc00220a3c6e7ab4c72abbdafd58",
+      "bytes": 919
+    },
+    "unit-tests-summary.txt": {
+      "sha256": "d30ce0350e8a6c1a0b9c3a78e81a557d32fef77d9144a83871c8d8d04c259f9a",
+      "bytes": 8770
+    },
+    "gpu-window.txt": {
+      "sha256": "317fd1ca9d4cdfcc0df2c964720f7ea023588a4d9661897b4b298c78987844dc",
+      "bytes": 295
+    }
+  },
+  "hash_basis": "fixture and source hashes are LF-normalized git blob semantics; evidence hashes are the committed file bytes"
+}

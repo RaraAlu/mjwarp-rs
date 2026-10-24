@@ -1,0 +1,14 @@
+entry: build_rays
+compiled_by: product SynchronousKernel::compile (NVRTC) during cargo test --features cuda-probe
+options: --std=c++17 --gpu-architecture=compute_70, fmad=true, use_fast_math=false
+source_sha256: e38cdf2a29d529ee3cae76f88db476fc999ff555f992b8219c938664ac063577 (== committed build_rays.cu blob)
+ptx_sha256: 3666ff54b3dc052a0d0ea6a2317f447875445b78361f75285a1b73985e2d21a1
+fma.rn.f32: 15
+mul.rn.f32: 2
+mul.f32 (default rn): 21
+sqrt.rn.f32: 1
+div.rn.f32: 9
+f64 tokens: 4 - all are the sanctioned CUDA-12.8 sinf/cosf integer angle reduction triplet
+  (.reg .f64 decl; cvt.rn.f64.s64 + mul.f64 0d3BF921FB54442D19 + cvt.rn.f32.f64),
+  the exact exception documented in check_physics_ptx; no physical f32 value is promoted to f64.
+conclusion: ray math is f32 with true fma.rn.f32; the only f64 ops are the allowed sinf/cosf reduction; precision gate passes.
