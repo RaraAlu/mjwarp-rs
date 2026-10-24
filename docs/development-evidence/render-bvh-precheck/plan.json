@@ -170,6 +170,134 @@
       "MuJoCo 3.12 vs 3.15 model equivalence without the S0a parity gate"
     ]
   },
+  "delivery_tracking": {
+    "updated_at": "2026-10-24",
+    "policy": "Rolling table only: slice -> task id -> owner -> status -> evidence path. Do not change slice scope, acceptance, or tolerances here.",
+    "gpu_policy": {
+      "mutex": "gpu:windows-t4",
+      "mutex_note": "Project convention: the lock name is a mutex, not proof of T4 hardware. Actual device is RTX 4070 Ti SUPER / SM89 / driver 596.36.",
+      "rule": "One full-load GPU task at a time. S2b is ready: CPU prep first, then a 90-minute exclusive GPU window; QA S2a review runs CPU in parallel; QA S2b review gets a separate 45-minute GPU window. Notify Chief before opening either window."
+    },
+    "rows": [
+      {
+        "slice": "precheck",
+        "task_id": "2026-10-24-r01-p8-render-bvh-precheck",
+        "owner": "Arch",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh-precheck/",
+        "note": "commit d0ab630"
+      },
+      {
+        "slice": "S0a",
+        "task_id": "2026-10-24-render-bvh-s0a",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/s0a-reference-fixture/",
+        "note": "dual-MJB parity"
+      },
+      {
+        "slice": "S0b",
+        "task_id": "2026-10-24-render-bvh-s0b",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/s0b-reference-capture/",
+        "note": "frozen reference capture"
+      },
+      {
+        "slice": "S0a+S0b review",
+        "task_id": "2026-10-24-render-bvh-s0ab-independent-check",
+        "owner": "QA",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/independent-check/",
+        "note": "independent check"
+      },
+      {
+        "slice": "S1",
+        "task_id": "2026-10-24-render-bvh-s1",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/s1-model-input/",
+        "note": "116 fields / 89,941 scalars, 0 diff"
+      },
+      {
+        "slice": "S1 review",
+        "task_id": "2026-10-24-render-bvh-s1-independent-check",
+        "owner": "QA",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/s1-independent-check/",
+        "note": "structural fix recorded; QA commit pending at time of update"
+      },
+      {
+        "slice": "S2a",
+        "task_id": "2026-10-24-render-bvh-s2a",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/s2a-scene-bvh-host/",
+        "note": "commit f9adf14; AABB 56/56 bit-equal, max ULP 0; 506 passed / 0 failed"
+      },
+      {
+        "slice": "S2a review",
+        "task_id": "2026-10-24-render-bvh-s2a-independent-check",
+        "owner": "QA",
+        "normify_status": "proposed",
+        "execution": "queued after S1 review; CPU/offline",
+        "evidence": "docs/development-evidence/render-bvh/s2a-independent-check/",
+        "note": "unchanged limited to S2a-owned files; shared mod.rs excluded to avoid S2b write conflict"
+      },
+      {
+        "slice": "S2b",
+        "task_id": "2026-10-24-render-bvh-s2b",
+        "owner": "Backend",
+        "normify_status": "proposed",
+        "execution": "ready; CPU prep, then 90-minute exclusive GPU window",
+        "evidence": "docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/",
+        "note": "open GPU window after prep; notify Chief; device fma.rn required, GPU poses as reference inputs"
+      },
+      {
+        "slice": "S2 close",
+        "task_id": "2026-10-24-render-bvh-s2-close",
+        "owner": "Backend",
+        "normify_status": "proposed",
+        "execution": "blocked: S2b",
+        "evidence": "docs/development-evidence/render-bvh/s2-scene-bvh/",
+        "note": "six plan acceptance mappings + total receipt"
+      },
+      {
+        "slice": "S3-S8",
+        "task_id": null,
+        "owner": "Backend/QA",
+        "normify_status": "unregistered",
+        "execution": "planned",
+        "evidence": "per-slice paths in slices[]",
+        "note": "register after S2 close; serial GPU windows"
+      }
+    ],
+    "structural_decisions": [
+      {
+        "decision": "abandon 2026-10-24-render-bvh-s2",
+        "commit": "8d4357f",
+        "reason": "in_progress parent task write-path lock conflicted with derived tasks; frozen fields were not editable",
+        "preserved": "reference capture 75166cf (fixtures/render-bvh/scene-a/s2/)"
+      },
+      {
+        "decision": "open S2a/S2b/S2-close",
+        "commit": "2a62e2b",
+        "state": "S2a in_progress; S2b and S2-close depend on it"
+      },
+      {
+        "decision": "narrow S1 review unchanged paths",
+        "reason": "S2a legitimately writes src/render, so global src/tests/fixtures/Cargo.* would fail",
+        "effect": "S1-owned product files and original S1 evidence remain protected; QA receipt must record git diff d642c03 -- src tests fixtures Cargo.* and explain S2a-owned changes"
+      }
+    ]
+  },
   "slices": [
     {
       "id": "S0a",
