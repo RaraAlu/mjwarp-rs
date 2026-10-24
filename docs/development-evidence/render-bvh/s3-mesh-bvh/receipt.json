@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-24-render-bvh-s3",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "S3",
+  "title": "渲染/BVH S3：网格三角 BVH 构建/重拟合与射线 uv/face 语义命中",
+  "date": "2026-10-25",
+  "conclusion": "覆盖范围内 pass：5 个场景用例 x 436 条射线逐条 geomid/face 全等，distance max ULP 0、u/v max ULP 0、normal max 4.0e-8 rad；no_cull 40 命中覆盖背面；set_points+refit 变化集合 32 条与参考相等；tight_above 29 命中 / tight_below 0 命中；双 world 0 跨；退化三角网格 16 条/9 命中、distance max 2 ULP、无 panic。冻结 S2b 交叉校验（位姿位型、mesh ray 91/92 distance/normal 位型）全部成立。",
+  "scope": {
+    "product": [
+      "src/render/bvh/mesh.rs",
+      "src/render/bvh/mesh_query.rs",
+      "src/render/bvh/cuda/mesh.cu",
+      "src/render/bvh/mod.rs"
+    ],
+    "tests": [
+      "tests/render_mesh_bvh.rs",
+      "tests/support/render_bvh/mesh.rs"
+    ],
+    "authoring": [
+      "scripts/authoring/render-bvh/capture_s3_mesh.py",
+      "scripts/authoring/render-bvh/s3_mesh_capture_support.py",
+      "scripts/authoring/render-bvh/s3_mesh_replay.py"
+    ],
+    "fixture": "fixtures/render-bvh/scene-a/s3/mesh_query.json"
+  },
+  "acceptance": {
+    "mesh_ray_face_exact": "5 用例 x 436 条逐条 geomid/face 全等",
+    "uv_ulp_le_4": "max ULP 0（预算 4）",
+    "normal_angle_le_1e-4": "max 4.0e-8 rad（f64 atan2(|cross|,dot) 度量）",
+    "distance_ulp_le_4": "max ULP 0（预算 4，与 S2 同口径；mesh 验收未强制 distance）",
+    "hit_miss_and_backface": "5 用例逐条一致；no_cull 40 命中（含 11 条背面）；S0b mesh ray 91/92 与 S2b 位型相等",
+    "set_points_refit_changes": "变化集合 32 条与参考完全相等",
+    "tight_max_t": "tight_above 29 命中 / tight_below 0 命中，命中距离严格小于 max_t",
+    "degenerate_no_panic": "主机单测 + 退化网格 GPU 用例 16 条/9 命中逐条一致（distance max 2 ULP）",
+    "no_node_layout_assertions": true,
+    "two_worlds": "world0/world1 各 436 条，0 跨；world0 重复查询逐位一致（无状态）",
+    "rejection_surface": "空射线集 / max_t 长度或符号或 NaN / 非有限位姿 / 负 geom_id 拒绝；宿主构建拒绝空网格、索引越界、非有限顶点"
+  },
+  "reference": {
+    "semantics": "冻结上游 ray.py::ray_mesh_with_bvh（渲染路径同一函数），静态用例用 render context 的 cubql mesh BVH，动态 refit 用例用 sah mesh + mesh.refit()",
+    "device_pose_bits": "记录 d.geom_xpos/d.geom_xmat 设备侧 f32 位型（S2b 口径）",
+    "cross_checks": {
+      "initial_pose_bits_equal_s2b": true,
+      "moved_pose_bits_equal_s2b": true,
+      "hit_miss_match_initial": true,
+      "hit_miss_match_moved": true,
+      "mesh_hit_rays_s2b_initial": [91],
+      "mesh_hit_rays_s2b_moved": [91, 92],
+      "mesh_hit_distance_bits_equal_s2b": true,
+      "mesh_hit_normal_bits_equal_s2b": true,
+      "model_312_vertex_bits_equal": true
+    },
+    "f64_fallback_replay": {
+      "scene_degenerate_woop_queries": 0,
+      "degenerate_mesh_woop_queries": 80,
+      "fallback_decision_changes": 0,
+      "note": "f32-only 产品内核与上游 f64 兜底在本夹具上判定一致；精确退化且会改变判定的输入不在覆盖内"
+    },
+    "determinism": {
+      "repeat": 2,
+      "bitwise_identical": true,
+      "second_pass_seconds": 0.23934
+    },
+    "fixture": {
+      "path": "fixtures/render-bvh/scene-a/s3/mesh_query.json",
+      "bytes": 434588,
+      "lines": 31331,
+      "sha256": "4cf448c187c746f0f6a0bc7fe43faa7c01a81f8845fca33fe2396dd1c065a753",
+      "rays": 436,
+      "s0b_rays": 384,
+      "designed_rays": {"front": 4, "back": 4, "graze": 12, "miss": 8, "axis": 24},
+      "hits": {
+        "initial": 29,
+        "moved": 27,
+        "no_cull": 40,
+        "dynamic": 28,
+        "dynamic_moved": 24,
+        "tight_above": 29,
+        "tight_below": 0
+      },
+      "set_points_changed_rays": 32
+    }
+  },
+  "gpu": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "window": "Arch 条件 go；DeltaForce 退出、GPU util <10%、显存回桌面基线后独占",
+    "memory_mib": {"capture_baseline": 2869, "capture_after": 3112, "after_release": 2868},
+    "versions": {
+      "python": "3.12.13",
+      "warp": "1.15.0",
+      "mujoco": "3.15.0",
+      "mujoco_warp": "3.15.0",
+      "numpy": "2.5.4",
+      "warp_cuda_toolkit": [12, 9],
+      "warp_cuda_driver": [13, 2]
+    },
+    "commands": {
+      "capture": "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/authoring/render-bvh/capture_s3_mesh.py",
+      "gpu_test": "cargo test --locked --features cuda-probe --test render_mesh_bvh -- --ignored --test-threads=1"
+    },
+    "gpu_test_result": "6 passed / 0 failed（测试体内 0.78 s）"
+  },
+  "gates": {
+    "fmt": "通过 1209ms",
+    "clippy": "通过 304ms",
+    "clippy-cuda": "通过 4981ms",
+    "unit": "通过 6034ms，测试 512 过 0 败"
+  },
+  "artifacts": {
+    "src/render/bvh/mesh.rs": {"lines": 485, "sha256": "f63aab10844ef72554dd1eec3b34d34a30cb52757e2f20f46a5c3279e90c4059"},
+    "src/render/bvh/mesh_query.rs": {"lines": 371, "sha256": "2bd3e8bbc04778680203703c2ba91f4710e19d6a6c7708ed1ef83c975b1bb7e5"},
+    "src/render/bvh/cuda/mesh.cu": {"lines": 383, "sha256": "75ae35acc44125e4c4fa18eac7086f68be325167c22b5a3443ca841eef42fd46"},
+    "src/render/bvh/mod.rs": {"lines": 244, "sha256": "5f1f225be9e5fe97cd61c942cc5eb7bccdc4c95d73f9285cdc1f13102011671a"},
+    "tests/render_mesh_bvh.rs": {"lines": 493, "sha256": "ad1edfb480fcd43132a2594a7ba17bb7f2b702261e7f473c8498e5dc1c94cb9d"},
+    "tests/support/render_bvh/mesh.rs": {"lines": 320, "sha256": "0dc1e865ca43ce52a92ec23607bc84473ce97e38b13d2981609973c4c52ed88e"},
+    "scripts/authoring/render-bvh/capture_s3_mesh.py": {"lines": 498, "sha256": "a224d564cba7e157e8358f27dabafd34776891c2b7f1ed3e55e7ecceb9a223e2"},
+    "scripts/authoring/render-bvh/s3_mesh_capture_support.py": {"lines": 199, "sha256": "68f924c45be9012034ef5422cd3e8271f4f444122b6ef9621c8032ab1deda014"},
+    "scripts/authoring/render-bvh/s3_mesh_replay.py": {"lines": 146, "sha256": "d8f5042bead9a3d391cd78e81d15a49e297f7ac265218b887762283522002d2d"},
+    "fixtures/render-bvh/scene-a/s3/mesh_query.json": {"lines": 31331, "sha256": "4cf448c187c746f0f6a0bc7fe43faa7c01a81f8845fca33fe2396dd1c065a753"}
+  },
+  "notes": [
+    "首版捕获在 S2b 交叉校验处因 authoring 脚本字段遗漏（逐用例位姿位型只写进最终文档、未写进中间 pass 数据）失败，修复脚本后重采；产品代码未因此改动。",
+    "首版退化网格用例有一条射线精确穿过共享顶点 (0,0,0)，同 t 多候选使 face 取决于 BVH 遍历顺序；改为不穿过顶点/边的确定性射线后重采，未放宽容差、未跳过射线。",
+    "首轮 unit 门禁失败是主机测试 bug：候选覆盖检查用世界系射线直接查局部系网格，已改为 world_to_local 后通过（非放宽断言）。",
+    "mesh.rs 首版超 500 行（rustfmt 展开），把 MeshBvhError 的 Display/Error 实现移到 mod.rs、压缩后用 485 行。"
+  ],
+  "unmet": [
+    "上游 Woop f64 兜底分支未翻译（f32-only PTX 门禁）；静态重放证明本夹具判定不变，不宣称泛化等价",
+    "hfield/flex/SDF/splat BVH 不实现",
+    "纹理/材质/光照/相机不在本片",
+    "单 fixture（scene-a 四面体网格 + 436 条射线），无 fuzz/大网格/随机射线集",
+    "深树（>128 层）栈限制未实测",
+    "精确穿共享顶点/边的布局相关平局不在覆盖内",
+    "未跑全量 G01"
+  ],
+  "authoring_only": false,
+  "product_python_dependency": false
+}

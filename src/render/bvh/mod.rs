@@ -1,5 +1,7 @@
 //! 场景 BVH 的宿主构建、重拟合与语义查询（渲染/BVH S2a）。
-//! 只覆盖 primitive geoms 与 mesh 包围盒；网格三角形 BVH 属 S3。
+//! 场景层覆盖 primitive geoms 与 mesh 包围盒；网格三角形 BVH 在 `mesh` 子模块
+//! （S3：构建/重拟合/顶点更新），设备命中在 `cuda/scene.cu`（S2b）与
+//! `cuda/mesh.cu`（S3）。
 //!
 //! AABB 的 f32 运算顺序按冻结 MJWarp 3.15 参考钉死（NVRTC 对 `wp::mul` /
 //! `wp::dot` 的乘加收缩顺序，见 `aabb` 子模块与
@@ -10,6 +12,9 @@ mod aabb;
 mod builder;
 #[cfg(feature = "cuda-probe")]
 pub mod cuda;
+mod mesh;
+#[cfg(feature = "cuda-probe")]
+mod mesh_query;
 mod query;
 mod refit;
 
@@ -19,6 +24,9 @@ pub use aabb::{GeomKind, LeafGeometry, compute_leaf_aabb, mesh_half_extents};
 pub use builder::{BvhNode, NodeKind, SceneBvh, SceneBvhInput, build_scene_bvh};
 #[cfg(feature = "cuda-probe")]
 pub use cuda::{LeafRayGeometry, Ray, RayHit, SceneBvhQuery};
+pub use mesh::{MeshBvh, MeshBvhError, MeshBvhInput, MeshNode, MeshNodeKind};
+#[cfg(feature = "cuda-probe")]
+pub use mesh_query::{MeshBvhQuery, MeshRayGeometry, MeshRayHit};
 pub use refit::refit_bvh;
 
 /// 轴对齐包围盒，分量保持 f32 位型。
@@ -186,3 +194,51 @@ impl fmt::Display for BvhError {
 }
 
 impl std::error::Error for BvhError {}
+
+impl std::fmt::Display for MeshBvhError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EmptyMesh => write!(formatter, "网格没有三角形"),
+            Self::InvalidIndexCount { len } => write!(formatter, "索引长度 {len} 不是 3 的倍数"),
+            Self::TriangleCountOverflow { triangles } => {
+                write!(formatter, "三角形数 {triangles} 溢出")
+            }
+            Self::IndexOutOfRange {
+                index, vertices, ..
+            } => {
+                write!(formatter, "索引 {index} 超出顶点数 {vertices}")
+            }
+            Self::NonFiniteVertex { index } => write!(formatter, "顶点 {index} 不是有限数"),
+            Self::VertexCountMismatch { expected, actual } => {
+                write!(formatter, "顶点数 {expected}/{actual} 不符")
+            }
+            Self::InvalidBounds { triangle } => write!(formatter, "三角形 {triangle} 的包围盒非法"),
+        }
+    }
+}
+
+impl std::error::Error for MeshBvhError {}
+
+/// f64 模型字段转 f32 顶点；每分量一次正确舍入（与 MJWarp `dtype=wp.vec3` 一致）。
+pub fn vertices_from_f64(values: &[f64]) -> Result<Vec<[f32; 3]>, BvhError> {
+    if !values.len().is_multiple_of(3) {
+        return Err(BvhError::LengthMismatch {
+            field: "mesh_vert",
+            expected: values.len() / 3 * 3,
+            actual: values.len(),
+        });
+    }
+    values
+        .chunks(3)
+        .enumerate()
+        .map(|(index, chunk)| {
+            if chunk.iter().any(|value| !value.is_finite()) {
+                return Err(BvhError::NonFinite {
+                    field: "mesh_vert",
+                    index,
+                });
+            }
+            Ok([chunk[0] as f32, chunk[1] as f32, chunk[2] as f32])
+        })
+        .collect()
+}
