@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s4",
+  "title": {
+    "zh": "渲染/BVH S4：纹理转换、上传/采样与拒绝面",
+    "en": "Render/BVH S4: texture conversion, upload/sampling, and rejection surface"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "渲染/BVH 第七片（plan S4，S1 已 verified）：实现 MuJoCo 纹理数据 u8→f32/255 的 4 通道转换（nc<4 时 g/b=0、a=255）、纹理对象创建/采样（LINEAR、CLAMP、归一化坐标）、纹理注册表与尺寸/通道校验；对冻结 MJWarp 3.15 参考逐 texel/固定 uv 网格对照采样值，并验证纹理开/关、缺失/零尺寸拒绝。渲染图像级 patch 延后 S7b/S8（本片无渲染内核）。天空盒/3D 纹理/多级 mip 不做。",
+    "en": "Seventh render/BVH slice (plan S4, S1 verified): implement MuJoCo texture u8 -> f32/255 four-channel conversion (g/b=0 and a=255 when nc<4), texture object creation/sampling (LINEAR, CLAMP, normalized coordinates), texture registry, and size/channel validation; compare sampled values against the frozen MJWarp 3.15 reference per texel and on a fixed uv grid, and verify texture on/off plus missing/zero-size rejection. Image-level render patches are deferred to S7b/S8 (no render kernel here). Skybox/3D textures/mipmaps are out."
+  },
+  "modules": {},
+  "acceptance": [
+    "转换：tex_data 的 u8→f32/255、4 通道补齐（nc<4 时 g/b=0、a=255）、width/height/nchannel 与参考逐元素一致（f32 位等）。",
+    "采样：固定 uv 网格（含边界/越界/clamp）的 texture sample 每通道 ≤1e-6 绝对误差；LINEAR/CLAMP 语义与参考一致。",
+    "注册表/生命周期：多纹理索引、尺寸/通道校验、缺失/零尺寸拒绝；纹理对象在 context 生命周期内有效、drop 释放。",
+    "图像级 patch 明确延后 S7b/S8（deferral 写 receipt）；不实现渲染内核/天空盒/3D/mipmap。",
+    "证据/门禁：README + receipt 含 task_id；fmt/clippy/clippy-cuda/unit 全过；新文件 ≤500 行；GPU 窗口独占并记录设备/驱动/显存；产品测试不启动 Python。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s1"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/texture.rs",
+      "src/render/texture/",
+      "src/render/mod.rs",
+      "tests/render_texture.rs",
+      "scripts/authoring/render-bvh-s4/",
+      "fixtures/render-bvh/scene-a/s4/",
+      "docs/development-evidence/render-bvh/s4-texture/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 84
+  },
+  "note": "Arch 2026-10-24 排活：S4 在 S5 之后；先只读/CPU 准备，等 QA S5 复核释放 GPU 后再 start。为避开 scripts 锁，authoring 独立放 scripts/authoring/render-bvh-s4/。纹理对象若无法复用四缓冲 SynchronousKernel ABI，可走独立 CUDA texture object/软件采样路径，但必须与 Warp texture.h 采样语义对齐并在证据说明。",
+  "revision": {
+    "before": "9e3fac9a32ebe95c586dcb691e108df1fd749b22",
+    "after": null
+  },
+  "created_at": "2026-10-25T05:08:00.000Z",
+  "updated_at": "2026-10-25T05:08:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s4-texture/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s4"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S7已实现",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
