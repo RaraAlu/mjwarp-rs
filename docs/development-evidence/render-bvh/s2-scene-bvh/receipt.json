@@ -1,0 +1,292 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s2-closure",
+  "task_id": "2026-10-24-render-bvh-s2-close",
+  "date": "2026-10-24",
+  "slice": "S2 closure",
+  "status": "final",
+  "outcome": "pass",
+  "note": "S2 closure receipt. plan S2's six acceptance items are mapped to the verified S2a (f9adf14) and S2b (c7b5d7f) slices; QA independently reviewed both slices (S2a eb80566, S2b 5ef8cb6, object c7b5d7f, baseline f43b576) with no blockers. Scope limits (mesh triangles -> S3, hfield, rotated plane reference, fuzz, deep stack, frozen 3.15 reference, no full G01) are listed under not_claimed/unmet. S2a/S2b verified evidence is not rewritten; this task added only docs/development-evidence/render-bvh/s2-scene-bvh/.",
+  "structure": {
+    "original_task": "2026-10-24-render-bvh-s2 (abandoned, split reason: running parent write scope vs derived tasks conflict in normify 0.7.0 schedule.rs; frozen fields not editable)",
+    "registration_commit": "2a62e2b",
+    "abandon_commit": "8d4357f",
+    "reference_capture_commit_under_abandoned_s2": "75166cf",
+    "s2a_commit": "f9adf14",
+    "s2b_commit": "c7b5d7f",
+    "s2a_review_commit": "eb80566",
+    "s2b_review_commit": "5ef8cb6",
+    "s2b_review_baseline_head": "f43b576",
+    "this_task_files": ["docs/development-evidence/render-bvh/s2-scene-bvh/"]
+  },
+  "acceptance_mapping": [
+    {
+      "item": "1",
+      "requirement": "for every fixed ray: geomid exact; distance <=4 ULP; normal <=1e-4 rad",
+      "evidence": [
+        "docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/README.md",
+        "docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/receipt.json",
+        "docs/development-evidence/render-bvh/s2b-independent-check/README.md",
+        "tests/render_scene_bvh_gpu.rs::ray_hits_match_reference_for_initial_and_refit"
+      ],
+      "status": "pass_primitive_scope",
+      "numbers": {
+        "initial_compared": 383,
+        "initial_primitive_hits": 157,
+        "initial_misses": 226,
+        "moved_compared": 382,
+        "moved_primitive_hits": 155,
+        "moved_misses": 227,
+        "geomid_mismatches": 0,
+        "max_distance_ulp": 0,
+        "max_normal_angle_rad": 4.592e-08
+      },
+      "qa_independent": "5ef8cb6 recomputed the same 383/382 comparison with its own harness (0 geomid mismatch, 0 ULP)",
+      "excluded": "mesh-hit rays: initial 91; moved 91, 92 (deferred to S3)"
+    },
+    {
+      "item": "2",
+      "requirement": "AABBs element-wise bit-equal to the reference before build",
+      "evidence": [
+        "docs/development-evidence/render-bvh/s2a-scene-bvh-host/README.md",
+        "docs/development-evidence/render-bvh/s2a-scene-bvh-host/aabb-parity.json",
+        "docs/development-evidence/render-bvh/s2a-independent-check/README.md",
+        "tests/render_scene_bvh_host.rs::leaf_aabbs_match_reference_bit_for_bit"
+      ],
+      "status": "pass",
+      "numbers": {"leaf_checks": 56, "bit_equal": 56, "max_ulp": 0},
+      "qa_independent": "eb80566 recomputed the 56 AABB bits independently (56/56, max ULP 0)"
+    },
+    {
+      "item": "3",
+      "requirement": "after moving a body and calling refit, the same ray set changes exactly as the reference",
+      "evidence": [
+        "docs/development-evidence/render-bvh/s2a-scene-bvh-host/README.md",
+        "docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/README.md",
+        "docs/development-evidence/render-bvh/s2b-independent-check/README.md",
+        "tests/render_scene_bvh_gpu.rs::ray_hits_match_reference_for_initial_and_refit"
+      ],
+      "status": "pass_primitive_scope",
+      "numbers": {
+        "leaf_change_set": [1, 2, 3, 4, 5, 6],
+        "compared_geomid_change_rays": [99, 109, 116, 117, 155],
+        "reference_all_change_rays": [92, 99, 109, 116, 117, 155],
+        "deferred_mesh_change_ray": 92
+      },
+      "qa_independent": "5ef8cb6 refit changed set [99,109,116,117,155], refit-vs-fresh differences 0"
+    },
+    {
+      "item": "4",
+      "requirement": "per-world group root; world groups do not cross-hit",
+      "evidence": [
+        "docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/README.md",
+        "docs/development-evidence/render-bvh/s2b-independent-check/README.md",
+        "tests/render_scene_bvh_gpu.rs::world_groups_do_not_cross_hit"
+      ],
+      "status": "pass",
+      "numbers": {"worlds": 2, "rays_per_world": 384, "cross_world_candidates": 0, "world1_geom_id_offset": 100},
+      "qa_independent": "5ef8cb6 independent two-world rerun: world0/world1 errors 0"
+    },
+    {
+      "item": "5",
+      "requirement": "empty scene and out-of-range group are rejected",
+      "evidence": [
+        "docs/development-evidence/render-bvh/s2a-scene-bvh-host/README.md",
+        "docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/README.md",
+        "tests/render_scene_bvh_host.rs::rejects_empty_out_of_range_and_invalid_inputs",
+        "tests/render_scene_bvh_gpu.rs::rejects_invalid_query_inputs"
+      ],
+      "status": "pass",
+      "canonical_register": "R01-R19 (see rejection_register)",
+      "qa_independent": "5ef8cb6 rejection calls 5/5 (empty rays, world out of range, geometry length mismatch, hfield, empty scene build)"
+    },
+    {
+      "item": "6",
+      "requirement": "no BVH node-layout assertions",
+      "evidence": [
+        "docs/development-evidence/render-bvh/s2a-scene-bvh-host/README.md",
+        "docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/README.md"
+      ],
+      "status": "pass",
+      "note": "both slices assert only semantic invariants (reachability, child-union bounds, semantic hits, group separation) and never node indices/order/internal layout"
+    }
+  ],
+  "qa_reviews": {
+    "s2a": {
+      "task": "2026-10-24-render-bvh-s2a-independent-check",
+      "commit": "eb80566",
+      "outcome": "pass",
+      "independent_numbers": "56/56 AABB bits (max ULP 0), build/refit invariants, 64/64 two-world hits, 14/14 rejection calls",
+      "observation": "rejection-surface counting calibers inconsistent (task 13 / README 10 groups / delivered test 11 assertions / QA 14 calls); unified by the R01-R19 register below"
+    },
+    "s2b": {
+      "task": "2026-10-24-render-bvh-s2b-independent-check",
+      "commit": "5ef8cb6",
+      "reviewed_commit": "c7b5d7f",
+      "baseline_head": "f43b576",
+      "outcome": "pass",
+      "items_verified": "9/9, no blockers",
+      "independent_numbers": {
+        "ray_compare": "initial 383 / moved 382, geomid mismatch 0",
+        "max_distance_ulp": 0,
+        "refit_changed_set": [99, 109, 116, 117, 155],
+        "refit_vs_fresh_differences": 0,
+        "two_world_errors": {"world0": 0, "world1": 0},
+        "rejections": "5/5 (empty rays, world out of range, geometry length mismatch, hfield, empty scene build)",
+        "ptx_precision": {"fma_rn_f32": 166, "f64_instructions": 0, "mul_rn_f32": 0, "sqrt_rn_f32": 13, "div_rn_f32": 15},
+        "device_vs_cpu_pose": {"xpos_differing_components": 8, "xpos_components": 21, "xpos_max_ulp": 31, "xmat_differing_components": 39, "xmat_components": 63, "xmat_max_ulp": 11, "reference_cross_check": "7/7"},
+        "full_cpu_suite": "506 passed / 0 failed",
+        "delivered_gpu_test": "3 passed / 0 failed",
+        "artifact_hashes": "8/8 source/fixture/evidence sha256+bytes+lines verified",
+        "runtime_files_changed_f9adf14_c7b5d7f": "none",
+        "product_test_starts_python": false
+      },
+      "observation_non_blocking": "reference capture compiles with rc.use_fast_math=True while the product kernel compiles with use_fast_math=false; this fixture still shows 0 ULP distance differences (no divergence observed), but the compile-flag difference must be watched in later slices and is not a general equivalence claim",
+      "gpu_window": {
+        "owner": "Arch (exclusive 45 min)",
+        "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+        "driver": "596.36",
+        "start_memory_mib": 3522,
+        "final_memory_mib": 3518,
+        "returned_to_desktop_baseline": true
+      }
+    }
+  },
+  "gates": {
+    "s2a": {"fmt": "1260ms", "clippy": "354ms", "clippy-cuda": "8099ms", "unit": "16060ms 506 passed / 0 failed"},
+    "s2b": {"fmt": "1260ms", "clippy": "354ms", "clippy-cuda": "5033ms", "unit": "16856ms 506 passed / 0 failed"}
+  },
+  "tests": {
+    "s2a_host": {"command": "cargo test --locked --test render_scene_bvh_host", "passed": 5, "failed": 0},
+    "s2a_unit": {"command": "cargo test --locked --lib render::bvh", "passed": 16, "failed": 0},
+    "s2b_gpu": {
+      "command": "cargo test --locked --features cuda-probe --test render_scene_bvh_gpu -- --ignored --test-threads=1",
+      "passed": 3,
+      "failed": 0,
+      "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER / driver 596.36",
+      "memory_mib": {"before": 3439, "after": 3475}
+    }
+  },
+  "device_fma": {
+    "claim": "device kernels use real fma.rn.f32 via NVRTC (fmad=true, fast_math=false, compute_70, PTX f32-only gate)",
+    "qa_ptx_evidence": "5ef8cb6: fma.rn.f32 166 instructions, f64 0 instructions",
+    "host_emulation_boundary": "S2a host f64 product+sum emulation only covers host AABB and is not a device fma proof",
+    "compile_flag_observation": "reference capture use_fast_math=True vs product use_fast_math=false; fixture shows 0 ULP, no divergence, watch in later slices"
+  },
+  "reference_chain": {
+    "frozen_upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "s2_reference_capture": {
+      "commit": "75166cf",
+      "fixtures": [
+        "fixtures/render-bvh/scene-a/s2/bvh_initial.npz",
+        "fixtures/render-bvh/scene-a/s2/bvh_moved.npz",
+        "fixtures/render-bvh/scene-a/s2/context.json",
+        "fixtures/render-bvh/scene-a/s2/provenance.json"
+      ]
+    },
+    "s2a_reference": "fixtures/render-bvh/scene-a/s2a/bounds.json",
+    "s2b_reference": "fixtures/render-bvh/scene-a/s2/reference_hits.json",
+    "product_tests_start_python": false,
+    "key_correction": "S2b ray hits require MJWarp device-side f32 poses; CPU poses shift a cylinder hit by 124 ULP (4 ULP budget). New capture records device pose bits and 7/7 bitwise cross-checks the committed S0b/S2 hits; QA recomputed the same 7/7 independently."
+  },
+  "rejection_register": {
+    "canonical": true,
+    "count": 19,
+    "note": "single named source for the S2 rejection-surface counting calibers; S2a/S2b verified evidence is not rewritten, historical counts map to these ids (see legacy_counts)",
+    "items": [
+      {"id": "R01", "condition": "empty scene (no leaves)", "layer": "build", "error": "EmptyScene", "enforced_at": "build_scene_bvh", "verified_at": "host test + builder unit test + QA S2b 5/5"},
+      {"id": "R02", "condition": "groups length != bounds", "layer": "build", "error": "LengthMismatch(groups)", "enforced_at": "build_scene_bvh", "verified_at": "host test + builder unit test"},
+      {"id": "R03", "condition": "geom_ids length != bounds", "layer": "build", "error": "LengthMismatch(geom_ids)", "enforced_at": "build_scene_bvh", "verified_at": "builder unit test"},
+      {"id": "R04", "condition": "worlds == 0", "layer": "build", "error": "InvalidWorldCount", "enforced_at": "build_scene_bvh", "verified_at": "host test + builder unit test"},
+      {"id": "R05", "condition": "leaf group >= worlds", "layer": "build", "error": "GroupOutOfRange", "enforced_at": "build_scene_bvh", "verified_at": "host test + builder unit test"},
+      {"id": "R06", "condition": "world group has no leaf", "layer": "build", "error": "EmptyWorld", "enforced_at": "build_scene_bvh", "verified_at": "host test + builder unit test"},
+      {"id": "R07", "condition": "invalid build AABB (non-finite or lower > upper)", "layer": "build", "error": "InvalidAabb", "enforced_at": "build_scene_bvh", "verified_at": "host test + builder unit test"},
+      {"id": "R08", "condition": "refit bounds length mismatch", "layer": "refit", "error": "LengthMismatch(bounds)", "enforced_at": "refit_bvh", "verified_at": "host test + refit unit test"},
+      {"id": "R09", "condition": "refit invalid AABB", "layer": "refit", "error": "InvalidAabb", "enforced_at": "refit_bvh", "verified_at": "host test + refit unit test"},
+      {"id": "R10", "condition": "unsupported geom type (hfield=1 / unknown)", "layer": "leaf-aabb", "error": "UnsupportedGeomType", "enforced_at": "LeafGeometry::from_geom_type", "verified_at": "host test"},
+      {"id": "R11", "condition": "non-finite leaf pose/size/xmat/mesh vertex", "layer": "leaf-aabb", "error": "NonFinite", "enforced_at": "compute_leaf_aabb / mesh_half_extents", "verified_at": "host test"},
+      {"id": "R12", "condition": "empty mesh vertices (missing mesh bounds)", "layer": "leaf-aabb", "error": "MissingMeshBounds", "enforced_at": "mesh_half_extents", "verified_at": "host test"},
+      {"id": "R13", "condition": "Aabb::new non-finite or lower > upper (public constructor)", "layer": "base-type", "error": "InvalidAabb(usize::MAX)", "enforced_at": "Aabb::new", "verified_at": "QA S2a harness equivalent entry"},
+      {"id": "R14", "condition": "host semantic query world out of range", "layer": "host-query", "error": "WorldOutOfRange", "enforced_at": "SceneBvh::ray_leaf_candidates", "verified_at": "query unit test"},
+      {"id": "R15", "condition": "leaf count 0 or node-capacity overflow (2n-1)", "layer": "build-capacity", "error": "LeafCountOverflow", "enforced_at": "node_capacity", "verified_at": "builder unit test (no allocation)"},
+      {"id": "R16", "condition": "GPU query empty ray set", "layer": "gpu-query", "error": "InvalidDimension(rays)", "enforced_at": "SceneBvhQuery::query", "verified_at": "S2b GPU test + QA S2b 5/5"},
+      {"id": "R17", "condition": "GPU query world out of range", "layer": "gpu-query", "error": "InvalidIndex(world)", "enforced_at": "SceneBvhQuery::query", "verified_at": "S2b GPU test + QA S2b 5/5"},
+      {"id": "R18", "condition": "GPU query leaf geometry length mismatch", "layer": "gpu-query", "error": "LengthMismatch(leaf_geometry)", "enforced_at": "SceneBvhQuery::query", "verified_at": "S2b GPU test + QA S2b 5/5"},
+      {"id": "R19", "condition": "GPU query hfield geom type", "layer": "gpu-query", "error": "InvalidDimension(geom_type_hfield)", "enforced_at": "SceneBvhQuery::query", "verified_at": "S2b GPU test + QA S2b 5/5"}
+    ],
+    "internal_defensive_not_counted": [
+      "BVH depth exceeds the 128-entry stack (bvh_depth)",
+      "node child/leaf index out of range (bvh_child/bvh_leaf)",
+      "missing leaf_geom_id",
+      "packing count overflow",
+      "session mismatch"
+    ],
+    "legacy_counts": {
+      "s2a_task_acceptance_text": {"count": "3 groups", "maps_to": "classification text over R01-R19, not a concrete count"},
+      "s2a_receipt_rejection_surface_cases": {"count": 13, "maps_to": "R01-R12 + R15"},
+      "s2a_readme_rejection_categories": {"count": 10, "maps_to": "R01, R04, R02+R03, R05, R06, R07, R08, R10, R11, R12"},
+      "delivered_host_test_assertions": {"count": 11, "maps_to": "R01, R02, R04, R05, R06, R07, R08, R09, R10, R11, R12"},
+      "qa_s2a_review_concrete_calls": {"count": 14, "maps_to": "R01-R14 (same names as the QA harness)"},
+      "qa_s2b_review_concrete_calls": {"count": 5, "maps_to": "R01 (empty scene build) + R16-R19"},
+      "s2b_gpu_test_assertions": {"count": 4, "maps_to": "R16-R19 (plus the R01 build rejection)"}
+    },
+    "qa_observation": "QA S2a review (eb80566) flagged inconsistent rejection counting; this register is the S2-closeout unification"
+  },
+  "not_claimed": [
+    "complete renderer or product rendering acceptance",
+    "mesh triangle intersection or mesh hit semantics (S3)",
+    "all 384 rays of every case (mesh-hit rays excluded: initial 1, moved 2)",
+    "hfield intersection",
+    "parameterized elimination flags (bodyexclude/geomgroup/flg_static/invisible material)",
+    "complete R01",
+    "full G01 regression in this round (fast-loop caliber)",
+    "S3/S4/S5 work; those are scheduled separately by Arch"
+  ],
+  "unmet": [
+    "mesh triangle intersection and mesh hit semantics deferred to S3; initial ray 91 and moved rays 91/92 are excluded from the S2 pass criteria",
+    "hfield unimplemented (explicit rejection); SDF returns miss on the MESH branch; rotated-plane hit path has no independent GPU reference",
+    "single frozen scene-a fixture and 384 fixed rays; no fuzz or random ray sets",
+    "only the default capture elimination flags are implemented (bodyexclude/geomgroup/flg_static/invisible materials not parameterized)",
+    "fixed 128-entry traversal stack; deeper BVHs are rejected before packing (not exercised by this fixture)",
+    "reference is a frozen 3.15 artifact; no 3.12/3.15 render equivalence claimed",
+    "no full G01 in this round (fast-loop scope)",
+    "S2a host f64 fma emulation may differ by <=1 ULP from CUDA fma.rn on arbitrary inputs (host AABB only; device path does not use it)",
+    "reference capture use_fast_math=True vs product use_fast_math=false; this fixture shows 0 ULP divergence but the compile-flag difference is only an observation, not an equivalence claim"
+  ],
+  "evidence": {
+    "closure_readme": {
+      "path": "docs/development-evidence/render-bvh/s2-scene-bvh/README.md",
+      "lines": 150,
+      "bytes": 12856,
+      "sha256": "fcb7690b2eae7190e9d3453c8bc1c680416f9dab06149462638ce2f1dd5f4728"
+    },
+    "s2a_evidence": {
+      "README.md": "c68850567e9110ae5a8a5daa57f07d3dc037052faeae965b3b19f85e9bb32c14",
+      "receipt.json": "dde7615eb5e0f52468e2e8e11dcfba46f117993129ec423b66b838190fad3fd1"
+    },
+    "s2b_evidence": {
+      "README.md": "0e9b90dc98d613bee397c87d44a86b0411b981e2ed2ad7813cda5a479ab1a558",
+      "receipt.json": "9c14f354ec45716f4ed7cd1f1b252337fc7655b2e84ac656134d98a470631ad1"
+    },
+    "s2a_qa_review": {
+      "README.md": "d129fbc9bb9bfa92397ee3467a80cdfdff5af6fe18c929e9cbbabb3624150f97",
+      "receipt.json": "f57b76a3eff1b14a6ddcfc9f974190539d3c7b503cd10637d679edd920db528c"
+    },
+    "s2b_qa_review": {
+      "README.md": "1684a0ccf03638b675bfbeac93bd48bc46db94f1e37db80bf47ae2fbd8becfa0",
+      "receipt.json": "d4ebaa668f7d48bddcb0f0faaa73a513ee9927ecfb6cc01e2b13d103bd12abb0"
+    }
+  },
+  "finalization": {
+    "qa_s2a_review": "verified at eb80566",
+    "qa_s2b_review": "verified at 5ef8cb6 (object c7b5d7f, baseline f43b576); 9/9 items, no blockers",
+    "checks": "normify check 2026-10-24-render-bvh-s2-close (json task_id / unchanged src,tests,fixtures/render-bvh,scripts/authoring/render-bvh / forbid_claim)",
+    "steps_done": [
+      "QA S2a/S2b conclusions and review commits recorded in README/receipt",
+      "R01-R19 canonical rejection register with legacy-count mapping kept",
+      "QA use_fast_math observation recorded as non-blocking",
+      "artifact hashes refreshed for README and referenced evidence"
+    ]
+  },
+  "hash_basis": "artifact sha256/bytes/lines are LF-normalized content (committed git blob semantics), not the Windows working-tree CRLF forms"
+}
