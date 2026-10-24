@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s0ab-independent-check",
+  "title": {
+    "zh": "渲染/BVH S0a+S0b 独立复核（哈希/GPU重跑/确定性/28参数/射线/守卫/判据）",
+    "en": "Render/BVH S0a+S0b independent review (hashes, GPU rerun, determinism, 28 params, rays, guard, judging)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对渲染/BVH S0a 修正（a8a608c + 改判 edaca66）与 S0b 冻结参考捕获（f28c3a4 + 435fa5a）做快验独立复核：哈希自洽（LF 归一化口径）、pinned 环境把 capture_reference.py 重跑到 target/ 临时目录逐文件比哈希、两次捕获/三次独立进程确定性、create_render_context 28 参数与输出偏移（对照 module-contracts.md L653–672，含两条相机路径）、384 条射线四类覆盖与命中自洽、camera_sanity 非空壳（改坏副本反例 + run_s0a 串联）、判据无放宽（f32_bits 与渲染相关范围、strict fail 与 double 数字保留、不宣称逐位一致/版本等价）。不改产品/夹具/原证据，不跑全量 G01。",
+    "en": "Fast-loop independent review of render/BVH S0a fix (a8a608c, re-judgement edaca66) and S0b frozen reference capture (f28c3a4, 435fa5a): hash self-consistency (LF-normalized caliber), pinned-environment rerun of capture_reference.py into a temp dir with per-file hash comparison, two-capture/three-process determinism, all 28 create_render_context parameters and output offsets vs module-contracts.md L653-672 (both camera paths), 384-ray four-category coverage and hit arithmetic, camera_sanity not a shell (broken-copy negative cases + run_s0a chaining), no loosened judging (f32_bits and render-relevant scope, strict fail and double-layer numbers preserved, no bit-identical/version-equivalence claim). No product/fixture/original-evidence changes, no full G01."
+  },
+  "modules": {},
+  "acceptance": [
+    "哈希自洽：fixtures/render-bvh/scene-a/ 的 scene.xml、两份 MJB、两份 model JSON、reference/ 四份 npz + context.json + provenance.json，以及证据与 authoring 脚本的 sha256 与 receipt/provenance/README 记录逐一对上；按 LF 归一化（CRLF->LF）同一算法重算，并同时核对 git blob，不按工作树原样算。",
+    "重跑捕获：用 pinned venv 把 capture_reference.py 重跑到 target/ 临时目录（不覆盖仓库 fixtures），两次独立进程，与入库 reference 逐文件比对 sha256；环境不符时显式失败退出（反例实测）。",
+    "两次确定性：核实「同进程两次捕获」由脚本断言强制且成立；核实「三次独立进程、四份 npz + context.json sha256 全一致」——区分原交付证据（run.log 份数/文字声明）与本轮补跑的独立进程。",
+    "28/28 参数：context.json 覆盖 create_render_context 全部 28 参数与输出偏移，逐项对照 docs/module-contracts.md L653–672；两条相机路径（cam-persp intrinsic 0.018/0.016、cam-track fovy 40°）都在 receipt 与射线集里。",
+    "射线四类：384 条覆盖相机像素 128、种子随机 128、掠射 64（全部命中 floor、max|n·d|≈0.005）、无命中 64，命中数自洽；独立加载 npz 重算统计并与 receipt/context 对表。",
+    "camera_sanity 不是空壳：断言在 intrinsic=0 / 180 哨兵 fovy / fovy=0 的临时改坏副本上确实失败（仓库夹具不动），未改副本通过；run_s0a.ps1 真串联（非 0 退出即失败），并以 temp 输出端到端重跑两次。",
+    "判据无放宽：S0a 改判只按已批准容差（int/byte exact、f32_bits）与渲染相关范围；独立重算 133/126/7；strict_elementwise_parity=fail 与全部 double 差异数字保留；仍明写不宣称逐位一致/版本等价。",
+    "证据写 docs/development-evidence/render-bvh/independent-check/（README + 各复核 JSON/日志 + receipt.json 含 task_id + GPU 使用与释放），如实写未跑全量 G01、GPU 用量与释放、未满足项；不改产品/夹具/原证据；门禁 fmt/unchanged(json task_id) 通过；中文 path-limited 提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s0a",
+      "2026-10-24-render-bvh-s0b"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/independent-check/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 90
+  },
+  "note": "Chief 2026-10-24 指令：S0a（a8a608c 修正 + edaca66 改判）与 S0b（f28c3a4 + 435fa5a）已 verified，QA 做独立复核。GPU 窗口约 10 分钟、独占；跑前报开始、跑完释放并报显存回桌面基线。不跑全量 G01；不改产品/夹具/原证据；若有一处对不上停手报 Chief。",
+  "revision": {
+    "before": "435fa5abca62222e6ed267df00969d25ff7a194d",
+    "after": null
+  },
+  "created_at": "2026-10-24T14:50:00.000Z",
+  "updated_at": "2026-10-24T14:50:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s0ab-independent-check"
+    }
+  ]
+}
