@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-render-bvh-s7b1-depth-seg",
+  "title": {
+    "zh": "渲染/BVH S7b1：渲染内核主射线/深度/分割（primitive+mesh）",
+    "en": "Render/BVH S7b1: render kernel primary rays, depth and segmentation (primitive+mesh)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "渲染/BVH 第十一片（plan S7b 拆分第一片，S5/S6a/S6b/S7a 已 verified）：实现手写通用 CUDA 渲染内核的**主射线阶段**——按 S5 预计算/动态射线做相机系→世界系变换（含 max_cam_dist）、场景 BVH 与网格 BVH 求交、写入平面深度（米，0=无命中）与 (object_id, object_type) 分割，输出走 S6b OutputResources；对照冻结参考 depth.npz/seg.npz 验收（seg 全等、depth ≤4 ULP、两相机）。不含着色/RGB（S7b2）、不含阴影/天空盒/splat/flex/hfield/多相机、不含 AA。",
+    "en": "Eleventh render/BVH slice (first split of plan S7b; S5/S6a/S6b/S7a verified): implement the primary-ray stage of the hand-written generic CUDA render kernel - camera-space to world-space transform of S5 precomputed/dynamic rays (including max_cam_dist), scene BVH and mesh BVH intersection, planar depth in meters (0 = miss) and (object_id, object_type) segmentation written through S6b OutputResources; validate against the frozen depth.npz/seg.npz references (seg exact, depth <=4 ULP, two cameras). No shading/RGB (S7b2), no shadows/skybox/splats/flex/hfield/multi-camera, no AA."
+  },
+  "modules": {},
+  "acceptance": [
+    "两相机（320x240、240x180）默认 context：分割 (object_id, object_type) 与 depth.npz 背景 (-1,-1) 语义逐像素**全等**；平面深度（米、0=无命中）与 depth.npz 最大差 ≤4 ULP；逐像素 diff 报告含首个不匹配位置与计数。",
+    "射线来源：use_precomputed_rays=true 走 S5 缓冲、dynamic 模式同参数逐像素；相机系→世界系 `cam_xmat @ dir`、正交 `cam_xpos + cam_xmat@offset`、`max_cam_dist` 由内核完成（S5 未覆盖部分），两种模式输出逐位一致。",
+    "命中链路：primitive（球/胶囊/盒/圆柱等 S2b 覆盖类型）+ 网格（S3 射线 uv/face）都进入同一深度/分割缓冲；双 world 各自 BVH 不跨；set_points+显式 refit 后重渲染变化像素非空且两次运行逐位一致（refit 帧无冻结参考，只做结构断言，不宣称与上游一致）。",
+    "禁用 depth/seg 时保持 S6b 的 DisabledOutput（byte_len/read 拒绝）；RGB 缓冲本片不写（S7b2），输出资源仍按 S6a 布局分配/释放。",
+    "范围/证据：不改 S2–S6 证据与夹具、不改 src/render/kernel/launch.rs（已 500 行）、新文件 ≤500 行；README/receipt 含 task_id、GPU 设备/显存与窗口、未满足项；GPU 90 分钟独占，结束回桌面基线。",
+    "门禁：fmt/clippy/clippy-cuda/unit 全过；receipt 记 PTX 精度门禁为 f32-render 且不含未放行的 f64/f16。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s2b",
+      "2026-10-24-render-bvh-s3",
+      "2026-10-24-render-bvh-s5",
+      "2026-10-24-render-bvh-s6b",
+      "2026-10-24-render-bvh-s7a"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/mod.rs",
+      "src/render/kernel/cast.rs",
+      "src/render/kernel/output.rs",
+      "src/render/kernel/cuda/render.cu",
+      "src/render/mod.rs",
+      "src/render/context.rs",
+      "tests/render_kernel_depth_seg.rs",
+      "docs/development-evidence/render-bvh/s7b1-depth-seg/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 86
+  },
+  "note": "Arch 2026-10-25 结构裁决：plan 的 S7b（渲染内核，估 12 人日）按输出阶段拆为 S7b1（主射线/深度/分割，本任务）→ S7b2（着色/RGB）→ S7b3（flag 变体矩阵+authoring 参考），顺序依赖、各自独立验收；理由：单任务 12 人日 + 单一 GPU 窗口不现实，分片后每片有可判定参考（depth/seg 已有冻结夹具，RGB 也有），且符合新文件 ≤500 行棘轮。launch.rs 已恰 500 行，本片任何新增不得改长该文件，先拆再写。",
+  "revision": {
+    "before": "372c453c1127dbb835dcc7cc63587c770c9a6981",
+    "after": null
+  },
+  "created_at": "2026-10-25T06:12:00.000Z",
+  "updated_at": "2026-10-25T06:12:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s7b1-depth-seg/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-render-bvh-s7b1-depth-seg"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S7b已实现",
+        "完整R01通过",
+        "产品渲染验收通过",
+        "S7b2已实现"
+      ]
+    }
+  ]
+}

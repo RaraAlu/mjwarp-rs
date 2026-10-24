@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-render-bvh-s7a-independent-check",
+  "title": {
+    "zh": "渲染/BVH S7a 独立复核（发射ABI/Render门禁F32Render/W15+NVRTC/纹理句柄）",
+    "en": "Render/BVH S7a independent review (launch ABI, F32Render gate, W15+NVRTC, texture handle)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对渲染/BVH S7a（a0d9af0）做独立复核：独立 harness 重算 81 槽渲染发射 ABI（1 bounds + 73 数组 + 7 标量 + 4 输出、13 类元素宽度/对齐、56 字节 RenderArray）、独立重跑 W15+NVRTC 编译与 PTX 门禁、独立复算 render 门禁的 f64 精确放行面、独立重跑 GPU 参数 round-trip 与纹理句柄生命周期、核门禁数字与证据哈希。GPU 30 分钟窗口；不改产品/夹具/原证据。",
+    "en": "Independent review of render/BVH S7a (a0d9af0): recompute the 81-slot render launch ABI (1 bounds + 73 arrays + 7 scalars + 4 outputs, 13 element classes with widths/alignments, 56-byte RenderArray), independently rerun W15+NVRTC compilation and the PTX gate, independently recompute the f64 exact-allowance surface of the render gate, rerun the GPU argument round-trip and texture-handle lifetime, and verify gate numbers and evidence hashes. 30-minute GPU window; no product/fixture/original-evidence changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "ABI 独立复算：13 类元素宽度/对齐（vec2 8、vec3 12、vec4/quat 16、mat33 36、bool 1、u64 8、texture2d_t 24 align8、array_t 56）与 56 字节 RenderArray 独立核对；81 槽布局（1 bounds + 73 数组 + 7 标量 + 4 输出）与上游 _render_megakernel 签名一致；数量/种类/对齐/容量/跨上下文/线程块的写前拒绝面独立复算成立。",
+    "Render 门禁必查项（A′）：独立编译含 builtin.h+bvh.h+texture.h 的源码，PTX 中 f64 token 恰为 W15 svd.h 的两条死数据常量（符号名+字面量逐字节），且注入第三条未知 f64 全局、改符号名、改字面量、重复、无 sin/cos 归约三元组的 .reg .f64、f16/mul.f64 全部被拒；确认放行是精确白名单而非容差放宽，物理门禁 check_physics_ptx 未被改动。",
+    "GPU 独立重跑：13 类数组 + 3 类标量 + 4 输出的 round-trip 逐位相等、两次发射 module_loads=1；CUtexObject 只读句柄经 texture2d_t 数组往返一致、drop 释放且多轮 create/drop 显存零增长；复核交付数字 2/2 GPU、4/4 host、render:: 42/0、532/0。",
+    "证据/边界：s7a-launch-abi 的 README/receipt/log 哈希与 git blob 一致；src/render/kernel/launch.rs 恰 500 行（棘轮未破）；不改 S2–S6 证据与夹具、不改产品代码；receipt 记录 git diff a0d9af0..HEAD 仅 S7b 登记类变化且产品路径 0 个。",
+    "GPU 30 分钟独占窗口，开始核对设备/驱动/显存并记录回桌面基线；冲突停手报 Arch。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s7a"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/s7a-independent-check/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 85
+  },
+  "note": "Arch 2026-10-25 排程：S7a 已 verified（a0d9af0，22 文件），GPU 已回 2870 MiB 基线；QA 复核 S7a（30 分钟独占），Backend 同时做 S7b1 的 CPU/只读准备。重点工作：A′ render 门禁的 f64 精确放行面（W15 svd.h 两条死数据常量）必须独立验证「恰好这两条、其余仍拒」，这是本片唯一新增的口径点。",
+  "revision": {
+    "before": "372c453c1127dbb835dcc7cc63587c770c9a6981",
+    "after": null
+  },
+  "created_at": "2026-10-25T06:10:00.000Z",
+  "updated_at": "2026-10-25T06:10:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/runtime/launcher/render.rs",
+        "src/runtime/launcher/render/args.rs",
+        "src/runtime/launcher/recipe.rs",
+        "src/render/kernel/launch.rs",
+        "src/render/kernel/mod.rs",
+        "src/render/texture/cuda.rs",
+        "src/runtime/transfer/session.rs",
+        "tests/render_launch_abi.rs",
+        "docs/development-evidence/render-bvh/s7a-launch-abi/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s7a-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-render-bvh-s7a-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S7b已实现",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

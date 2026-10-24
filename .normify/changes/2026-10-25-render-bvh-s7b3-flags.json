@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-render-bvh-s7b3-flags",
+  "title": {
+    "zh": "渲染/BVH S7b3：flag 变体矩阵与 AA 图像级参考（authoring 捕获+S7b 图像验收）",
+    "en": "Render/BVH S7b3: flag variant matrix and AA image-level reference (authoring capture + S7b image acceptance)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "渲染/BVH 第十三片（plan S7b 拆分第三片，S7b2 已 verified）：补齐 plan S7b 的开关矩阵与图像级 AA 验收——用离线 authoring（3.15 参考）在 scene-a 上捕获 texture on/off、vertex-normal on/off、specular/emission on/off、backface culling on/off、spp=2 AA 的冻结 RGB/depth/seg 参考，进仓后由产品测试只读位型对照；结掉 S5 的 AA 图像级 deferral。不含阴影/天空盒/splat/flex/hfield/多相机（R05–R10）。",
+    "en": "Thirteenth render/BVH slice (third split of plan S7b; S7b2 verified): complete the plan S7b switch matrix and image-level AA acceptance - use offline authoring (3.15 reference) on scene-a to capture frozen RGB/depth/seg references for texture on/off, vertex-normal on/off, specular/emission on/off, backface culling on/off and spp=2 AA, commit them, and have product tests compare read-only bit patterns; this closes S5's AA image-level deferral. No shadows/skybox/splats/flex/hfield/multi-camera (R05-R10)."
+  },
+  "modules": {},
+  "acceptance": [
+    "authoring 捕获：至少 4 组 flag 变体 + 1 组 spp=2 AA，覆盖两相机；provenance 记 MJB sha256、上游提交、覆盖字段与值、捕获脚本哈希；两次捕获逐位一致。",
+    "产品侧只读位型对照：每组变体 RGB 每通道 ≤1 LSB、depth ≤4 ULP、seg 全等；flag 关闭时相应贡献消失（例如 texture off 后不再采样纹理、culling off 背面被命中）；AA spp=2 子样本顺序与 S5 一致且合成图像与参考一致。",
+    "S5 的 AA 图像级 deferral 在此结项（receipt 记录从 `aa_deferral` 到本片验收的映射），但仍不宣称 R01 整体通过；阴影/天空盒/splat/flex/hfield/多相机保持拒绝或缺失。",
+    "范围/证据：authoring 脚本进仓且 ≤500 行/文件，夹具进 fixtures/render-bvh/scene-a/s7b/，测试不改产品内核语义；README/receipt 含 task_id、捕获脚本哈希、未满足项；GPU 120 分钟独占（authoring + 产品测试），结束回桌面基线。",
+    "门禁：fmt/clippy/clippy-cuda/unit 全过；f32-render PTX 门禁通过；不改 S2–S6 证据与夹具。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-render-bvh-s7b2-shading"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/authoring/render-bvh-s7b/",
+      "fixtures/render-bvh/scene-a/s7b/",
+      "src/render/kernel/shade.rs",
+      "src/render/kernel/cuda/render.cu",
+      "tests/render_kernel_flags.rs",
+      "docs/development-evidence/render-bvh/s7b3-flags/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 88
+  },
+  "note": "Arch 2026-10-25 结构裁决：S7b 拆为 S7b1/S7b2/S7b3。S7b3 拆出来是因为 flag 变体与 AA 需要新的 authoring 捕获（Python 3.15 参考、离线 GPU 作者侧），与内核实现混在一片会同时扩产品代码与夹具，难以独立验收；单列后产品侧只读位型，符合 S5/S4 「参考捕获只在 authoring」的既有边界。",
+  "revision": {
+    "before": "372c453c1127dbb835dcc7cc63587c770c9a6981",
+    "after": null
+  },
+  "created_at": "2026-10-25T06:16:00.000Z",
+  "updated_at": "2026-10-25T06:16:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s7b3-flags/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-render-bvh-s7b3-flags"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S7b已实现",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
