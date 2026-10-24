@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s6b-independent-check",
+  "title": {
+    "zh": "渲染/BVH S6b 独立复核（生命周期/所有权/显式refit/显存）",
+    "en": "Render/BVH S6b independent review (lifecycle, ownership, explicit refit, memory)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "对渲染/BVH S6b（a171044）做独立复核：独立 harness 重跑 100 次 create/destroy 显存增长、陈旧 BVH 可渲染+显式 refit 更新、render 不隐式刷新、禁用 depth/seg 不可读、drop 释放回基线；核 5/5 GPU、2/2 host、531/0、32 MiB 一次性代码缓存观察、S2/S3/S4 证据未改。GPU 30 分钟窗口，不改产品/夹具/原证据。",
+    "en": "Independent review of render/BVH S6b (a171044): an independent harness reruns 100 create/destroy cycles for memory growth, stale-BVH render plus explicit refit update, no implicit refresh by render, disabled depth/seg unreadable, and drop returning to baseline; verify 5/5 GPU, 2/2 host, 531/0, the 32 MiB one-time code-cache observation, and that S2/S3/S4 evidence is unchanged. GPU 30-minute window; no product/fixture/original-evidence changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "100 次 create/destroy 增长 0 B（阈值 16,777,216 B），采样全等基线；drop 后 retained 0 B 并可重建。",
+    "陈旧 BVH：移动不 refit 时 A/B 均 miss；显式 refit 后 B 命中 d=4.0、A miss；refits 只由 refit 增加；render 不触发隐式物理/BVH 刷新。",
+    "禁用 depth/seg 的 byte_len/read 均 DisabledOutput；网格 set_points→refit、3 个纹理对象释放成立；上下文 retain/push/pop 成对。",
+    "证据/门禁：5/5 GPU、2/2 host、531/0；README/receipt/gpu-test.log 哈希一致；32 MiB 一次性模块缓存观察按预热后第二轮判定；无产品/夹具/原证据修改；新文件 ≤500 行。",
+    "GPU 窗口 30 分钟独占，开始核对设备/驱动/显存，结束记录回桌面基线；冲突停手报 Arch/Chief。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s6b"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/s6b-independent-check/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 84
+  },
+  "note": "Arch 2026-10-24 排程：S6b 已 verified（a171044），GPU 空闲；QA 复核 S6b（30 分钟独占），Backend 同时做 S7a 的 CPU/只读准备。结构裁决：S7a 会合法修改 src/render/mod.rs 挂载 kernel 模块，S6b 复核 unchanged 不含该文件；receipt 记录 git diff a171044..HEAD 仅 S7a 自有路径变化。",
+  "revision": {
+    "before": "5af2db000da770d761cc832070d10d0c4f6250b8",
+    "after": null
+  },
+  "created_at": "2026-10-25T05:48:00.000Z",
+  "updated_at": "2026-10-24T21:46:39.338Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/context.rs",
+        "src/render/context/lifecycle.rs",
+        "src/render/context/owner.rs",
+        "tests/render_context_lifecycle.rs",
+        "docs/development-evidence/render-bvh/s6b-context-lifecycle/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s6b-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s6b-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S7已实现",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
