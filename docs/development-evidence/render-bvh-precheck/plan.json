@@ -1,0 +1,981 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-24-r01-p8-render-bvh-precheck",
+  "kind": "render-bvh-slice-plan",
+  "status": "planned",
+  "generated_at": "2026-10-24",
+  "baseline": {
+    "repo_head": "294c9446b94e73b38e98dc39bc73539ded585601",
+    "worktree_clean_at_start": true,
+    "warp": {
+      "repo": "target/research/warp",
+      "tag": "v1.15.0",
+      "commit": "ffa038b1adf3927a8e893d4536f1a7562f17d749"
+    },
+    "mjwarp": {
+      "repo": "target/mjwarp-parallel/upstream",
+      "commit": "71da24d956378a87a703b6e1442b13aec0c4ac29"
+    },
+    "w15_headers": {
+      "path": "include/warp-headers",
+      "count": 36,
+      "bytes": 1520709,
+      "manifest": "docs/development-evidence/w15-verbatim-headers/headers.json"
+    },
+    "reference_env": {
+      "python": "3.12.13",
+      "warp": "1.15.0",
+      "mujoco_warp": "3.15.0",
+      "mujoco": "3.15.0",
+      "numpy": "2.5.4",
+      "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+      "driver": "596.36",
+      "arch": 89
+    },
+    "product_mujoco": {
+      "version": "3.12.0",
+      "header": 3012000,
+      "native_probe": "native/model_probe.cpp"
+    }
+  },
+  "upstream_inventory": {
+    "warp_render_module": {
+      "result": "absent",
+      "detail": "Warp v1.15.0 has no warp/_src/render.py and no offline CUDA renderer. warp/_src/render/ is render_opengl.py + render_usd.py + imgui_manager.py + utils.py; it requires a window/GL context and conflicts with AGENTS.md no-window boundary.",
+      "files": [
+        "target/research/warp/warp/_src/render/render_opengl.py",
+        "target/research/warp/warp/_src/render/render_usd.py",
+        "target/research/warp/warp/_src/render/imgui_manager.py",
+        "target/research/warp/warp/_src/render/utils.py"
+      ]
+    },
+    "warp_native_low_level": {
+      "bvh": {
+        "header": "target/research/warp/warp/native/bvh.h",
+        "struct": "L175-L206",
+        "query": "L442-L563",
+        "host_api_declarations": "L570-L581",
+        "device_api_declarations": "L585-L607",
+        "host_builder": "target/research/warp/warp/native/bvh.cpp",
+        "device_builder": "target/research/warp/warp/native/bvh.cu",
+        "cubql": "target/research/warp/warp/native/bvh_cubql.cpp + bvh_cubql.cu",
+        "w15_copy": "header only"
+      },
+      "mesh": {
+        "header": "target/research/warp/warp/native/mesh.h",
+        "ray_query": "L1764",
+        "anyhit": "L740 in MJWarp ray.py wrapper; mesh.h query surface L1764-L2558",
+        "host_create": "mesh.cpp L118",
+        "host_refit": "mesh.cpp L210",
+        "host_set_points": "mesh.cpp L241",
+        "w15_copy": "header only"
+      },
+      "texture": {
+        "header": "target/research/warp/warp/native/texture.h",
+        "texture2d_t": "L182",
+        "device_sample": "L819",
+        "host_create": "texture.cpp L21",
+        "device_create": "texture.cpp L149",
+        "texture_object_create": "texture.cpp L363",
+        "w15_copy": "header only"
+      },
+      "python_lifecycle": {
+        "Bvh": "warp/_src/types.py L5545-L5817",
+        "Mesh": "warp/_src/types.py L5822-L6050",
+        "Texture2D": "warp/_src/texture.py L1192-L1270"
+      }
+    },
+    "mjwarp_references": {
+      "inventory": "upstream-references.tsv",
+      "total_lines": 964,
+      "source_lines": 464,
+      "test_lines": 500,
+      "production_files": [
+        "__init__.py",
+        "_src/types.py",
+        "_src/render.py",
+        "_src/render_util.py",
+        "_src/bvh.py",
+        "_src/ray.py",
+        "_src/cli.py",
+        "_src/set_const.py",
+        "record.py",
+        "testspeed.py"
+      ],
+      "key_lines": {
+        "__init__.py": "L32-L33, L69-L73, L123",
+        "_src/types.py": "L123-L124, L1200-L1345, L2629-L2821",
+        "_src/render.py": "L55-L568, L585-L973, L976-L988, L991-L1487, L1490-L1604",
+        "_src/render_util.py": "L29-L69, L72-L160, L163-L281, L285-L309, L312-L342, L403-L796",
+        "_src/bvh.py": "L38-L43, L177-L311, L314-L379, L382-L424, L427-L450, L994-L1180, L1221-L1273",
+        "_src/ray.py": "L695-L757, L1022-L1092, L1094-L1177, L1179-L1310"
+      }
+    }
+  },
+  "reference": {
+    "mode": "offline-authoring",
+    "why": "MJWarp render/render_util/bvh are Python @wp.kernel code; Warp v1.15.0 provides no offline renderer. The only faithful reference is the frozen MJWarp Python stack, used only for authoring.",
+    "environment": "target/mjwarp-parallel/venv",
+    "product_boundary": "No Python in product build/test; tests read frozen XML/MJB/NPZ/JSON only.",
+    "fixture_policy": "One XML; compile two MJBs (MuJoCo 3.12 for product, 3.15 for reference); prove render-relevant model arrays equal before comparing outputs.",
+    "provenance": [
+      "script sha256",
+      "xml sha256",
+      "mjb-312 sha256",
+      "mjb-315 sha256",
+      "warp/mjwarp/mujoco/python versions",
+      "gpu/driver/cuda arch",
+      "command line",
+      "repeat count"
+    ],
+    "observed_smoke": {
+      "fixture": "1 camera 32x32, 1 light, plane+box+sphere, 1 checker texture, no mesh",
+      "rgb_sha256": "d3a98fa8af96dcba0a9ede125a53c6f62c9ef634763efa896dffabb09e5a8b8f",
+      "depth_sha256": "8bd927176900d55fb2497bed3beb40534b1608ad28648fb736450ae4196b1a7b",
+      "seg_sha256": "68923a3c0130732ab01ccb6ab16aab8e719cb8b5e8a9825caf4d13b5323bbd49",
+      "repeatable": true
+    },
+    "mjb_version_lock_observed": {
+      "3.15_to_3.12": "rejected: mj_loadModel returned null; warning 'Model and executable have different number of sizes in mjModel'",
+      "3.12_to_3.15": "rejected: ValueError mj_loadModel: failed to load from mjb; same warning",
+      "consequence": "dual MJB + parity gate is mandatory"
+    }
+  },
+  "evidence_policy": {
+    "principles": [
+      "semantic evidence only: ray hits, images, depth, segmentation, resolved context values, lifecycle behavior",
+      "no fake semantic probes and no layout probes",
+      "frozen references generated offline with provenance; product tests never start Python",
+      "dual-version model parity before any image comparison",
+      "fail with first difference and ULP/diff counts; no tolerance widening to hide errors",
+      "unverified items are reported as unverified with a reason"
+    ],
+    "tolerance_proposed": {
+      "model_arrays_and_context_ints": "exact",
+      "model_f32_and_context_f32": "bits if possible; otherwise <=1 ULP",
+      "ray_distance_and_depth": "<=4 ULP or 1e-5 relative, whichever is stricter",
+      "ray_normal": "<=1e-4 rad or <=8 ULP",
+      "rgb": "every channel <=1 LSB (u8)",
+      "segmentation": "exact (id, type) pairs",
+      "texture_sample_float4": "<=1e-6 absolute per channel",
+      "repeat_run": "sha256 equal",
+      "status": "proposed; needs sign-off"
+    },
+    "non_verifiable": [
+      "BVH internal node layout and traversal order (not public semantics)",
+      "bit-exact transcendental/fast-math results across NVRTC and Warp compilers",
+      "hardware texture filtering across GPU/driver generations",
+      "splat/flex/hfield ordering (deferred to R06/R07/R05)",
+      "multi-world scheduling order (outputs are per-world; scheduling is not semantic)",
+      "MuJoCo 3.12 vs 3.15 model equivalence without the S0a parity gate"
+    ]
+  },
+  "slices": [
+    {
+      "id": "S0a",
+      "name": "reference-fixture-parity",
+      "category": "reference-harness",
+      "depends_on": [],
+      "priority": 1,
+      "scope": "Commit one scene XML, compile MuJoCo 3.12 and 3.15 MJBs, dump render-relevant model arrays from both, and prove parity before any render comparison.",
+      "deliverables": [
+        "scripts/authoring/render-bvh/compile_scene_312.cpp",
+        "scripts/authoring/render-bvh/model_parity.py",
+        "fixtures/render-bvh/scene-a/scene.xml",
+        "fixtures/render-bvh/scene-a/scene-312.mjb",
+        "fixtures/render-bvh/scene-a/scene-315.mjb",
+        "fixtures/render-bvh/scene-a/model-312.json",
+        "fixtures/render-bvh/scene-a/model-315.json",
+        "fixtures/render-bvh/scene-a/parity.json"
+      ],
+      "acceptance": [
+        "both MJBs load with their matching MuJoCo version",
+        "all render-relevant arrays are element-wise equal: geom_*, cam_*, light_*, mat_*, tex_*, mesh_*, vis.headlight, vis.map.znear/zfar, stat.extent, name tables",
+        "any mismatch is written to parity.json with field/index/expected/actual and fails the slice",
+        "scripts are deterministic and their hashes are recorded"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/s0a-fixture-parity/",
+      "new_file_limit": 500,
+      "new_files": [
+        "scripts/authoring/render-bvh/compile_scene_312.cpp",
+        "scripts/authoring/render-bvh/model_parity.py",
+        "scripts/authoring/render-bvh/README.md"
+      ],
+      "modifies": [
+        "fixtures/render-bvh/"
+      ],
+      "gpu": {
+        "required": false,
+        "reason": "CPU compile and array dump only"
+      },
+      "estimate_days": 2,
+      "out_of_scope": [
+        "render output capture (S0b)"
+      ]
+    },
+    {
+      "id": "S0b",
+      "name": "reference-capture",
+      "category": "reference-harness",
+      "depends_on": [
+        "S0a"
+      ],
+      "priority": 2,
+      "scope": "Use the frozen MJWarp 3.15 stack to capture RGB/depth/seg images, fixed ray-hit traces, and context default receipts; run twice and record provenance.",
+      "deliverables": [
+        "scripts/authoring/render-bvh/capture_reference.py",
+        "fixtures/render-bvh/scene-a/reference/rgb.npz",
+        "fixtures/render-bvh/scene-a/reference/depth.npz",
+        "fixtures/render-bvh/scene-a/reference/seg.npz",
+        "fixtures/render-bvh/scene-a/reference/rays.npz",
+        "fixtures/render-bvh/scene-a/reference/context.json",
+        "fixtures/render-bvh/scene-a/provenance.json"
+      ],
+      "acceptance": [
+        "two consecutive captures produce identical sha256 for every output",
+        "ray set covers camera pixels, seeded random rays, grazing rays, and no-hit rays",
+        "context receipt contains resolved values for all 28 create_render_context parameters and output offsets",
+        "provenance is complete and the script does not read from the product tree",
+        "capture fails loudly if the reference environment differs"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/s0b-reference-capture/",
+      "new_file_limit": 500,
+      "new_files": [
+        "scripts/authoring/render-bvh/capture_reference.py",
+        "fixtures/render-bvh/scene-a/reference/README.md"
+      ],
+      "modifies": [
+        "fixtures/render-bvh/scene-a/"
+      ],
+      "gpu": {
+        "required": true,
+        "kind": "windows-sm89",
+        "reason": "MJWarp render kernels require CUDA"
+      },
+      "estimate_days": 2,
+      "out_of_scope": [
+        "product code",
+        "shadow/skybox/splat/flex captures"
+      ]
+    },
+    {
+      "id": "S1",
+      "name": "render-model-input",
+      "category": "assets-topology",
+      "depends_on": [
+        "S0a"
+      ],
+      "priority": 3,
+      "scope": "Extend the native model ABI and Rust model with render-relevant camera, light, material, texture, mesh, vis, and name-table fields; host validation only.",
+      "deliverables": [
+        "include/mjwarp_render_probe.h",
+        "src/model/render.rs",
+        "src/io/render.rs",
+        "tests/render_model_input.rs"
+      ],
+      "acceptance": [
+        "every render-relevant field read from the 3.12 MJB equals model-312.json element-wise",
+        "counts, lengths, strides, and products are checked for overflow/consistency",
+        "camera/light/material/texture/mesh name lookup matches mj_id2name semantics",
+        "invalid counts and negative sizes are rejected before allocation",
+        "no GPU is used"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/s1-model-input/",
+      "new_file_limit": 500,
+      "new_files": [
+        "include/mjwarp_render_probe.h",
+        "src/model/render.rs",
+        "src/io/render.rs",
+        "tests/render_model_input.rs"
+      ],
+      "modifies": [
+        "native/model_probe.cpp",
+        "src/model/mod.rs",
+        "src/io/mod.rs",
+        "include/mjwarp_native_probe.h"
+      ],
+      "gpu": {
+        "required": false
+      },
+      "estimate_days": 5,
+      "out_of_scope": [
+        "GPU upload",
+        "texture object creation",
+        "BVH"
+      ]
+    },
+    {
+      "id": "S2",
+      "name": "scene-bvh",
+      "category": "bvh",
+      "depends_on": [
+        "S1"
+      ],
+      "priority": 4,
+      "scope": "Build/refit/query a scene BVH for primitive geoms with per-world groups; expose semantic ray hits (geomid, distance, normal).",
+      "deliverables": [
+        "src/render/bvh/mod.rs",
+        "src/render/bvh/builder.rs",
+        "src/render/bvh/query.rs",
+        "src/render/bvh/refit.rs",
+        "src/render/bvh/cuda/scene.cu",
+        "tests/render_scene_bvh.rs"
+      ],
+      "acceptance": [
+        "for every fixed ray: geomid exact; distance <=4 ULP; normal <=1e-4 rad",
+        "AABBs are element-wise bit-equal to the reference before build",
+        "after moving a body and calling refit, the same ray set changes exactly as the reference",
+        "world groups do not cross-hit",
+        "empty scene and out-of-range group are rejected",
+        "no BVH node-layout assertions"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/s2-scene-bvh/",
+      "new_file_limit": 500,
+      "new_files": [
+        "src/render/bvh/mod.rs",
+        "src/render/bvh/builder.rs",
+        "src/render/bvh/query.rs",
+        "src/render/bvh/refit.rs",
+        "src/render/bvh/cuda/scene.cu",
+        "tests/render_scene_bvh.rs"
+      ],
+      "modifies": [
+        "src/render/mod.rs",
+        "src/runtime/launcher/mod.rs"
+      ],
+      "gpu": {
+        "required": true,
+        "kind": "windows-sm89"
+      },
+      "estimate_days": 8,
+      "out_of_scope": [
+        "mesh BVH (S3)",
+        "flex/splat BVH"
+      ]
+    },
+    {
+      "id": "S3",
+      "name": "mesh-bvh",
+      "category": "bvh",
+      "depends_on": [
+        "S2"
+      ],
+      "priority": 5,
+      "scope": "Build/refit a triangle BVH from mesh_vert/mesh_face and implement mesh ray hits with u/v/face/normal; support dynamic point updates.",
+      "deliverables": [
+        "src/render/bvh/mesh.rs",
+        "src/render/bvh/mesh_query.rs",
+        "src/render/bvh/cuda/mesh.cu",
+        "tests/render_mesh_bvh.rs"
+      ],
+      "acceptance": [
+        "for every fixed mesh ray: triangle/face exact; u/v within 4 ULP; normal within 1e-4 rad",
+        "hit and miss agree with the reference, including backface cases",
+        "set_points + refit changes hits exactly as the reference",
+        "degenerate triangles are handled without panic",
+        "no node-layout assertions"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/s3-mesh-bvh/",
+      "new_file_limit": 500,
+      "new_files": [
+        "src/render/bvh/mesh.rs",
+        "src/render/bvh/mesh_query.rs",
+        "src/render/bvh/cuda/mesh.cu",
+        "tests/render_mesh_bvh.rs"
+      ],
+      "modifies": [
+        "src/render/bvh/mod.rs"
+      ],
+      "gpu": {
+        "required": true,
+        "kind": "windows-sm89"
+      },
+      "estimate_days": 8,
+      "out_of_scope": [
+        "hfield BVH",
+        "flex BVH",
+        "splat BVH"
+      ]
+    },
+    {
+      "id": "S4",
+      "name": "texture-upload",
+      "category": "render-kernel",
+      "depends_on": [
+        "S1"
+      ],
+      "priority": 6,
+      "scope": "Convert MuJoCo uint8 texture data to float4, create/sample a CUDA texture object, keep a texture registry; skybox is interface-only.",
+      "deliverables": [
+        "src/render/texture.rs",
+        "src/render/texture/cuda.rs",
+        "src/render/texture/sample.cu",
+        "tests/render_texture.rs"
+      ],
+      "acceptance": [
+        "converted texels equal reference (u8/255) element-wise",
+        "dimensions and channel counts equal the reference",
+        "fixed uv-grid samples are <=1e-6 per channel versus reference",
+        "texture on/off render patch is within RGB tolerance",
+        "missing/zero-size textures are rejected"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/s4-texture/",
+      "new_file_limit": 500,
+      "new_files": [
+        "src/render/texture.rs",
+        "src/render/texture/cuda.rs",
+        "src/render/texture/sample.cu",
+        "tests/render_texture.rs"
+      ],
+      "modifies": [
+        "src/render/mod.rs"
+      ],
+      "gpu": {
+        "required": true,
+        "kind": "windows-sm89"
+      },
+      "estimate_days": 5,
+      "out_of_scope": [
+        "skybox shading",
+        "mipmaps",
+        "3D textures"
+      ]
+    },
+    {
+      "id": "S5",
+      "name": "camera-rays",
+      "category": "render-kernel",
+      "depends_on": [
+        "S1"
+      ],
+      "priority": 7,
+      "scope": "Implement compute_ray, camera selection, ray buffers, znear/aspect/intrinsics, samples_per_pixel AA, and use_precomputed_rays=false.",
+      "deliverables": [
+        "src/render/camera.rs",
+        "src/render/rays.rs",
+        "src/render/camera/cuda/build_rays.cu",
+        "tests/render_camera_rays.rs"
+      ],
+      "acceptance": [
+        "for each camera/projection: every pixel direction/offset matches reference (bits preferred, else <=1 ULP)",
+        "perspective and orthographic both covered",
+        "samples_per_pixel=1 and 2 produce reference-equal rays and AA image",
+        "empty camera list is valid",
+        "samples_per_pixel>1 without precomputed rays or without RGB is rejected"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/s5-camera-rays/",
+      "new_file_limit": 500,
+      "new_files": [
+        "src/render/camera.rs",
+        "src/render/rays.rs",
+        "src/render/camera/cuda/build_rays.cu",
+        "tests/render_camera_rays.rs"
+      ],
+      "modifies": [
+        "src/render/mod.rs"
+      ],
+      "gpu": {
+        "required": true,
+        "kind": "windows-sm89"
+      },
+      "estimate_days": 4,
+      "out_of_scope": [
+        "heterogeneous multi-camera acceptance (R08)",
+        "dynamic per-world intrinsics beyond the reference fixture"
+      ]
+    },
+    {
+      "id": "S6a",
+      "name": "context-params",
+      "category": "context",
+      "depends_on": [
+        "S1"
+      ],
+      "priority": 8,
+      "scope": "Implement RenderContext parameter parsing, None derivation, camera filtering, output offsets, znear/zfar, buffer sizes, and the rejection surface.",
+      "deliverables": [
+        "src/render/context.rs",
+        "src/render/context/params.rs",
+        "src/render/context/output.rs",
+        "tests/render_context_params.rs"
+      ],
+      "acceptance": [
+        "default call resolves all 28 parameters exactly like context.json",
+        "bool/list/name/index/empty-list/heterogeneous-resolution call matrix resolves exactly",
+        "rgb/depth/seg offsets and buffer sizes match the reference",
+        "each invalid combination maps to the matching error category and field",
+        "no GPU render is required"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/s6a-context-params/",
+      "new_file_limit": 500,
+      "new_files": [
+        "src/render/context.rs",
+        "src/render/context/params.rs",
+        "src/render/context/output.rs",
+        "tests/render_context_params.rs"
+      ],
+      "modifies": [
+        "src/render/mod.rs"
+      ],
+      "gpu": {
+        "required": false,
+        "reason": "pure host resolution; GPU buffers are exercised in S6b"
+      },
+      "estimate_days": 4,
+      "out_of_scope": [
+        "resource ownership and destruction (S6b)"
+      ]
+    },
+    {
+      "id": "S6b",
+      "name": "context-lifecycle",
+      "category": "context",
+      "depends_on": [
+        "S6a",
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "priority": 9,
+      "scope": "Give RenderContext ownership of BVH, mesh, texture, and output resources; explicit create/destroy/refit; no implicit physics or BVH refresh.",
+      "deliverables": [
+        "src/render/context/lifecycle.rs",
+        "src/render/context/owner.rs",
+        "tests/render_context_lifecycle.rs"
+      ],
+      "acceptance": [
+        "100 create/destroy cycles keep GPU memory within a recorded threshold and show no use-after-free",
+        "moving geometry then render uses the old BVH; refit_bvh then render uses the new BVH (upstream semantics)",
+        "render never triggers physics or implicit refit",
+        "disabled outputs cannot be read",
+        "context drop releases all owned resources"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/s6b-context-lifecycle/",
+      "new_file_limit": 500,
+      "new_files": [
+        "src/render/context/lifecycle.rs",
+        "src/render/context/owner.rs",
+        "tests/render_context_lifecycle.rs"
+      ],
+      "modifies": [
+        "src/render/context.rs"
+      ],
+      "gpu": {
+        "required": true,
+        "kind": "windows-sm89"
+      },
+      "estimate_days": 3,
+      "out_of_scope": [
+        "strict freshness facade (optional; not required by R01)"
+      ]
+    },
+    {
+      "id": "S7a",
+      "name": "render-launch-abi",
+      "category": "render-kernel",
+      "depends_on": [
+        "S2",
+        "S5"
+      ],
+      "priority": 10,
+      "scope": "Add a render launch ABI for scalars, vec3/vec4, u64, texture arrays/handles, and output buffers; keep NVRTC + W15 as the compile path.",
+      "deliverables": [
+        "src/runtime/launcher/render.rs",
+        "src/runtime/launcher/render/args.rs",
+        "src/render/kernel/launch.rs",
+        "tests/render_launch_abi.rs"
+      ],
+      "acceptance": [
+        "a test kernel round-trips every argument class with equal semantic values",
+        "wrong argument count/kind/alignment is rejected before launch",
+        "NVRTC compiles a compile-only kernel that includes builtin.h + bvh.h + texture.h from W15",
+        "texture handle lifetime survives the launch and is released on drop"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/s7a-launch-abi/",
+      "new_file_limit": 500,
+      "new_files": [
+        "src/runtime/launcher/render.rs",
+        "src/runtime/launcher/render/args.rs",
+        "src/render/kernel/launch.rs",
+        "tests/render_launch_abi.rs"
+      ],
+      "modifies": [
+        "src/runtime/launcher/mod.rs",
+        "src/render/mod.rs"
+      ],
+      "gpu": {
+        "required": true,
+        "kind": "windows-sm89"
+      },
+      "estimate_days": 3,
+      "out_of_scope": [
+        "full megakernel (S7b)",
+        "LTOIR/nvJitLink path"
+      ]
+    },
+    {
+      "id": "S7b",
+      "name": "render-kernel",
+      "category": "render-kernel",
+      "depends_on": [
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6a",
+        "S7a"
+      ],
+      "priority": 11,
+      "scope": "Hand-write a generic CUDA render kernel for primitive + mesh + texture scenes: ray cast, shading, RGB/depth/seg output, ambient/headlight/background, backface culling, vertex normals, specular/emission.",
+      "deliverables": [
+        "src/render/kernel/mod.rs",
+        "src/render/kernel/cast.rs",
+        "src/render/kernel/shade.rs",
+        "src/render/kernel/output.rs",
+        "src/render/kernel/cuda/render.cu",
+        "tests/render_kernel.rs"
+      ],
+      "acceptance": [
+        "fixture RGB every channel <=1 LSB, depth <=4 ULP, segmentation exact",
+        "two runs produce identical output hashes",
+        "texture on/off, vertex-normal on/off, specular/emission on/off, backface culling on/off match the reference",
+        "shadows, skybox, splats, flex, hfield are rejected or absent by design",
+        "per-pixel diff report lists the first mismatch and counts"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/s7b-render-kernel/",
+      "new_file_limit": 500,
+      "new_files": [
+        "src/render/kernel/mod.rs",
+        "src/render/kernel/cast.rs",
+        "src/render/kernel/shade.rs",
+        "src/render/kernel/output.rs",
+        "src/render/kernel/cuda/render.cu",
+        "tests/render_kernel.rs"
+      ],
+      "modifies": [
+        "src/render/mod.rs",
+        "src/render/context.rs"
+      ],
+      "gpu": {
+        "required": true,
+        "kind": "windows-sm89"
+      },
+      "estimate_days": 12,
+      "out_of_scope": [
+        "shadows (R09)",
+        "skybox (R02/R09)",
+        "splats (R07)",
+        "flex (R06)",
+        "hfield (R05)",
+        "multi-camera (R08)"
+      ]
+    },
+    {
+      "id": "S8",
+      "name": "e2e-acceptance",
+      "category": "e2e",
+      "depends_on": [
+        "S0b",
+        "S6b",
+        "S7b"
+      ],
+      "priority": 12,
+      "scope": "Run the frozen fixture end to end: primitive + mesh + texture + two cameras, refit between frames, default context, RGB/depth/seg, lifecycle, and negative controls.",
+      "deliverables": [
+        "tests/render_e2e.rs",
+        "fixtures/render-bvh/scene-e2e/README.md",
+        "docs/development-evidence/render-bvh/s8-e2e/README.md"
+      ],
+      "acceptance": [
+        "all outputs pass the agreed tolerance",
+        "no Python is started by the test",
+        "repeat run hashes are identical",
+        "wrong camera, stale BVH, and disabled output are detected by the negative controls",
+        "receipt records versions, hashes, tolerances, and unverified items"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/s8-e2e/",
+      "new_file_limit": 500,
+      "new_files": [
+        "tests/render_e2e.rs",
+        "fixtures/render-bvh/scene-e2e/README.md",
+        "docs/development-evidence/render-bvh/s8-e2e/README.md"
+      ],
+      "modifies": [],
+      "gpu": {
+        "required": true,
+        "kind": "windows-sm89"
+      },
+      "estimate_days": 4,
+      "out_of_scope": [
+        "performance acceptance",
+        "T4/Linux",
+        "R05-R10 feature families"
+      ]
+    }
+  ],
+  "r01_p8_mapping": [
+    {
+      "item": "worlds",
+      "slices": [
+        "S6a",
+        "S8"
+      ],
+      "status": "planned",
+      "note": "nworld=1 default and single-world behavior; nworld>1 is deferred to R10"
+    },
+    {
+      "item": "cameras",
+      "slices": [
+        "S1",
+        "S5",
+        "S6a"
+      ],
+      "status": "planned",
+      "note": "fields, filtering by bool/name/index/empty list, resolution/intrinsics"
+    },
+    {
+      "item": "assets",
+      "slices": [
+        "S1",
+        "S3",
+        "S4"
+      ],
+      "status": "planned",
+      "note": "mesh/texture/material input and GPU upload"
+    },
+    {
+      "item": "bvh",
+      "slices": [
+        "S2",
+        "S3"
+      ],
+      "status": "planned",
+      "note": "scene and mesh build/refit/query"
+    },
+    {
+      "item": "all_default_parameters",
+      "slices": [
+        "S6a"
+      ],
+      "status": "planned",
+      "note": "28 create_render_context parameters resolved exactly; defaults table at module-contracts.md L657-L672"
+    },
+    {
+      "item": "lifecycle",
+      "slices": [
+        "S6b",
+        "S8"
+      ],
+      "status": "planned",
+      "note": "ownership, create/destroy, explicit refit, no implicit refresh"
+    },
+    {
+      "item": "rgb_output",
+      "slices": [
+        "S7b",
+        "S8"
+      ],
+      "status": "planned",
+      "note": "packed u32, channel order, image tolerance"
+    },
+    {
+      "item": "depth_output",
+      "slices": [
+        "S7b",
+        "S8"
+      ],
+      "status": "planned",
+      "note": "raw depth, 0 on miss, get_depth scaling"
+    },
+    {
+      "item": "segmentation_output",
+      "slices": [
+        "S7b",
+        "S8"
+      ],
+      "status": "planned",
+      "note": "(id,type) pairs, background (-1,-1)"
+    },
+    {
+      "item": "resource_and_layout_checks",
+      "slices": [
+        "S6b"
+      ],
+      "status": "planned",
+      "note": "mandatory layout/lifetime checks; strict freshness facade optional"
+    },
+    {
+      "item": "rejection_surface",
+      "slices": [
+        "S6a"
+      ],
+      "status": "planned",
+      "note": "upstream combination limits and invalid inputs"
+    },
+    {
+      "item": "shadows_skybox_splats_flex_hfield_multicamera",
+      "slices": [],
+      "status": "deferred",
+      "note": "R09/R02/R07/R06/R05/R08; defaults off or no assets in the MVP fixture"
+    }
+  ],
+  "risks": [
+    {
+      "id": "R1",
+      "risk": "Warp v1.15.0 has no offline renderer; the original render.py premise is wrong",
+      "impact": "cannot use Warp as the render reference",
+      "mitigation": "use frozen MJWarp Python reference; Warp provides low-level headers only; no OpenGL viewport"
+    },
+    {
+      "id": "R2",
+      "risk": "MuJoCo 3.12 product vs 3.15 reference model mismatch",
+      "impact": "reference images may not apply",
+      "mitigation": "S0a dual MJB + per-field parity gate; stop on mismatch"
+    },
+    {
+      "id": "R3",
+      "risk": "W15 has headers but not bvh.cpp/cu, mesh.cpp/cu, texture.cpp, cuBQL",
+      "impact": "large host/device implementation effort",
+      "mitigation": "S2/S3/S4 split; SAH/LBVH first; cuBQL only if needed"
+    },
+    {
+      "id": "R4",
+      "risk": "render kernel is large and Warp specializes it per model/context",
+      "impact": "500-line slices and generic product kernel are hard",
+      "mitigation": "hand-written generic CUDA with runtime branches; generated Warp CUDA only as oracle; split S7b/S8"
+    },
+    {
+      "id": "R5",
+      "risk": "existing launch ABI accepts arrays only",
+      "impact": "render kernel cannot be launched",
+      "mitigation": "S7a dedicated render launch ABI; follow existing per-kernel launcher pattern"
+    },
+    {
+      "id": "R6",
+      "risk": "NVRTC/Warp fast-math differences",
+      "impact": "not bit-exact",
+      "mitigation": "freeze recipe; ULP budgets; record worst error"
+    },
+    {
+      "id": "R7",
+      "risk": "hardware texture filtering differs across GPUs",
+      "impact": "cross-GPU images differ",
+      "mitigation": "same-GPU reference; software sampling fallback with separate acceptance"
+    },
+    {
+      "id": "R8",
+      "risk": "license/provenance for cuBQL, CUDA, generated Warp code",
+      "impact": "redistribution unclear",
+      "mitigation": "Apache-2.0 notices; generated-source provenance; CUDA EULA needs decision"
+    },
+    {
+      "id": "R9",
+      "risk": "Python boundary",
+      "impact": "reference generation vs product chain",
+      "mitigation": "authoring scripts only; product tests read frozen files; CI check no Python"
+    },
+    {
+      "id": "R10",
+      "risk": "scope creep to full R01",
+      "impact": "schedule and false claims",
+      "mitigation": "MVP scope; R05-R10 separate; explicit non-claims"
+    }
+  ],
+  "blockers": [
+    {
+      "id": "B1",
+      "condition": "MuJoCo 3.12 vs 3.15 reference/product version policy",
+      "impact": "reference cannot be accepted until parity policy is approved",
+      "mitigation": "dual MJB + parity; otherwise upgrade product native ABI (large)",
+      "needs_decision": true
+    },
+    {
+      "id": "B2",
+      "condition": "kernel route: hand-written generic CUDA vs frozen Warp-generated CUDA",
+      "impact": "affects S7b/S8 effort and generality",
+      "mitigation": "recommend hand-written generic kernel; generated source as oracle only",
+      "needs_decision": true
+    },
+    {
+      "id": "B3",
+      "condition": "mesh BVH builder: cuBQL vs SAH/LBVH",
+      "impact": "tie/uv differences vs implementation cost",
+      "mitigation": "start SAH/LBVH + semantic ray/image acceptance; evaluate cuBQL on mismatch",
+      "needs_decision": true
+    },
+    {
+      "id": "B4",
+      "condition": "MVP scope excludes shadows/skybox/splats/flex/hfield/multi-camera",
+      "impact": "full R01 expectation",
+      "mitigation": "map to R05-R10; confirm scope",
+      "needs_decision": true
+    },
+    {
+      "id": "B5",
+      "condition": "image/depth tolerance policy",
+      "impact": "pass/fail definition",
+      "mitigation": "proposed tolerance table in evidence_policy; require sign-off",
+      "needs_decision": true
+    },
+    {
+      "id": "B6",
+      "condition": "reference environment reproducibility on a clean machine",
+      "impact": "offline authoring cannot be recreated",
+      "mitigation": "commit venv lock/spec + provenance; verify on clean machine before S0b sign-off",
+      "needs_decision": false
+    },
+    {
+      "id": "B7",
+      "condition": "T4/Linux references unavailable",
+      "impact": "platform coverage",
+      "mitigation": "MVP only Windows SM89; T4/Linux deferred",
+      "needs_decision": false
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "topic": "MuJoCo version policy",
+      "recommendation": "Keep product MuJoCo 3.12; reference uses 3.15; gate with dual MJB + per-field parity.",
+      "alternatives": [
+        "Upgrade product native ABI to 3.15 (touches all existing native tests; not recommended in this item)"
+      ],
+      "needs_user": true
+    },
+    {
+      "id": "D2",
+      "topic": "render kernel source route",
+      "recommendation": "Hand-write a generic CUDA kernel compiled through NVRTC + W15; use frozen Warp-generated CUDA only as an oracle.",
+      "alternatives": [
+        "Freeze Warp-generated specialized CUDA for the fixture e2e (faster, but not general and not proof of product capability)"
+      ],
+      "needs_user": true
+    },
+    {
+      "id": "D3",
+      "topic": "mesh BVH builder",
+      "recommendation": "Start with SAH/LBVH and semantic ray/image acceptance; add cuBQL only if tie/uv mismatches block acceptance.",
+      "alternatives": [
+        "Port cuBQL up front (closer to upstream, more work and third-party surface)"
+      ],
+      "needs_user": true
+    },
+    {
+      "id": "D4",
+      "topic": "MVP scope and tolerances",
+      "recommendation": "Accept the S0-S8 MVP scope and the proposed tolerance table.",
+      "alternatives": [
+        "Expand to shadows/skybox/splats/flex/hfield/multi-camera now (not recommended)"
+      ],
+      "needs_user": true
+    }
+  ],
+  "non_claims": [
+    "The render or BVH capability is not implemented by this precheck.",
+    "No acceptance item is marked as passing by this precheck.",
+    "No performance, memory, T4, Linux, or multi-GPU claim is made.",
+    "No shadow, skybox, splat, flex, hfield, or multi-camera capability is claimed.",
+    "Frozen references do not replace product tests.",
+    "W15 headers alone are not sufficient for BVH/asset/context; host and device implementations are still missing."
+  ]
+}

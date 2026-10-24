@@ -1,0 +1,964 @@
+﻿__init__.py	32	source	from mujoco_warp._src.bvh import refit_bvh as refit_bvh
+__init__.py	33	source	from mujoco_warp._src.bvh import refit_splat_bvh as refit_splat_bvh
+__init__.py	69	source	from mujoco_warp._src.render import render as render
+__init__.py	70	source	from mujoco_warp._src.render_util import create_render_context as create_render_context
+__init__.py	71	source	from mujoco_warp._src.render_util import get_depth as get_depth
+__init__.py	72	source	from mujoco_warp._src.render_util import get_rgb as get_rgb
+__init__.py	73	source	from mujoco_warp._src.render_util import get_segmentation as get_segmentation
+__init__.py	123	source	from mujoco_warp._src.types import RenderContext as RenderContext
+_src\bvh.py	29	source	from mujoco_warp._src.types import RenderContext
+_src\bvh.py	34	source	# Render splats out to this density response, balancing extent and coverage.
+_src\bvh.py	39	source	def refit_bvh(m: Model, d: Data, rc: RenderContext):
+_src\bvh.py	40	source	"""Refit the dynamic BVH structures in the render context."""
+_src\bvh.py	41	source	refit_scene_bvh(m, d, rc)
+_src\bvh.py	43	source	refit_flex_bvh(m, d, rc)
+_src\bvh.py	178	source	def _compute_bvh_bounds(
+_src\bvh.py	187	source	bvh_ngeom: int,
+_src\bvh.py	235	source	lower_out[worldid * bvh_ngeom + geom_local_id] = lower_bound
+_src\bvh.py	236	source	upper_out[worldid * bvh_ngeom + geom_local_id] = upper_bound
+_src\bvh.py	237	source	group_out[worldid * bvh_ngeom + geom_local_id] = worldid
+_src\bvh.py	241	source	def compute_bvh_group_roots(
+_src\bvh.py	243	source	bvh_id: wp.uint64,
+_src\bvh.py	248	source	root = wp.bvh_get_group_root(bvh_id, tid)
+_src\bvh.py	266	source	def _compute_flex_bvh_bounds(
+_src\bvh.py	277	source	bvh_ngeom: int,
+_src\bvh.py	278	source	total_bvh_size: int,
+_src\bvh.py	288	source	out_idx = worldid * total_bvh_size + bvh_ngeom + flexlocalid
+_src\bvh.py	314	source	def build_scene_bvh(mjm: mujoco.MjModel, mjd: mujoco.MjData, rc: RenderContext, nworld: int):
+_src\bvh.py	315	source	"""Build a global BVH for all geometries in all worlds."""
+_src\bvh.py	316	source	total_bvh_size = rc.bvh_ngeom + rc.bvh_nflexgeom
+_src\bvh.py	330	source	kernel=_compute_bvh_bounds,
+_src\bvh.py	331	source	dim=(nworld, rc.bvh_ngeom),
+_src\bvh.py	338	source	total_bvh_size,
+_src\bvh.py	350	source	kernel=_compute_flex_bvh_bounds,
+_src\bvh.py	351	source	dim=(nworld, rc.bvh_nflexgeom),
+_src\bvh.py	360	source	rc.bvh_ngeom,
+_src\bvh.py	361	source	total_bvh_size,
+_src\bvh.py	368	source	bvh = wp.Bvh(rc.lower, rc.upper, groups=rc.group, constructor="sah")
+_src\bvh.py	370	source	# BVH handle must be stored to avoid garbage collection
+_src\bvh.py	371	source	rc.bvh = bvh
+_src\bvh.py	372	source	rc.bvh_id = bvh.id
+_src\bvh.py	375	source	kernel=compute_bvh_group_roots,
+_src\bvh.py	377	source	inputs=[bvh.id],
+_src\bvh.py	382	source	def refit_scene_bvh(m: Model, d: Data, rc: RenderContext):
+_src\bvh.py	383	source	total_bvh_size = rc.bvh_ngeom + rc.bvh_nflexgeom
+_src\bvh.py	386	source	kernel=_compute_bvh_bounds,
+_src\bvh.py	387	source	dim=(d.nworld, rc.bvh_ngeom),
+_src\bvh.py	394	source	total_bvh_size,
+_src\bvh.py	404	source	if rc.bvh_nflexgeom > 0:
+_src\bvh.py	406	source	kernel=_compute_flex_bvh_bounds,
+_src\bvh.py	407	source	dim=(d.nworld, rc.bvh_nflexgeom),
+_src\bvh.py	416	source	rc.bvh_ngeom,
+_src\bvh.py	417	source	total_bvh_size,
+_src\bvh.py	424	source	rc.bvh.refit()
+_src\bvh.py	427	source	def build_mesh_bvh(
+_src\bvh.py	433	source	"""Create a Warp mesh BVH from mesh data."""
+_src\bvh.py	448	source	mesh = wp.Mesh(points=points, indices=indices, bvh_constructor=constructor, bvh_leaf_size=leaf_size)
+_src\bvh.py	581	source	def build_hfield_bvh(
+_src\bvh.py	587	source	"""Create a Warp mesh BVH from heightfield data."""
+_src\bvh.py	618	source	bvh_constructor=constructor,
+_src\bvh.py	619	source	bvh_leaf_size=leaf_size,
+_src\bvh.py	994	source	def build_flex_bvh(
+_src\bvh.py	1002	source	"""Create a Warp mesh BVH for a single 2D or 3D flex."""
+_src\bvh.py	1097	source	bvh_constructor=constructor,
+_src\bvh.py	1098	source	bvh_leaf_size=leaf_size,
+_src\bvh.py	1112	source	def refit_flex_bvh(m: Model, d: Data, rc: RenderContext):
+_src\bvh.py	1113	source	"""Refit per-flex BVHs."""
+_src\bvh.py	1160	source	rc.flex_render_smooth,
+_src\bvh.py	1221	source	def build_splat_bvh(
+_src\bvh.py	1230	source	"""Creates a splat BVH for a set of splats."""
+_src\bvh.py	1251	source	splat_bvh = wp.Bvh(lower, upper, groups=groups, constructor=constructor)
+_src\bvh.py	1255	source	kernel=compute_bvh_group_roots,
+_src\bvh.py	1257	source	inputs=[splat_bvh.id],
+_src\bvh.py	1262	source	return splat_position, splat_rotation, splat_scale, splat_rgba, splat_bvh, splat_bvh.id, lower, upper, splat_group_root, count
+_src\bvh.py	1265	source	def refit_splat_bvh(rc: RenderContext):
+_src\bvh.py	1266	source	"""Refits splat BVHs."""
+_src\bvh.py	1273	source	rc.splat_bvh.refit()
+_src\bvh_test.py	15	test	"""Tests for BVH functions."""
+_src\bvh_test.py	24	test	from mujoco_warp._src import bvh
+_src\bvh_test.py	34	test	class MinimalRenderContext:
+_src\bvh_test.py	35	test	bvh_ngeom: int
+_src\bvh_test.py	36	test	bvh_nflexgeom: int
+_src\bvh_test.py	46	test	bvh: wp.Bvh = None
+_src\bvh_test.py	47	test	bvh_id: wp.uint64 = None
+_src\bvh_test.py	55	test	bvh_ngeom = len(geom_enabled_idx)
+_src\bvh_test.py	57	test	return MinimalRenderContext(
+_src\bvh_test.py	58	test	bvh_ngeom=bvh_ngeom,
+_src\bvh_test.py	59	test	bvh_nflexgeom=0,
+_src\bvh_test.py	65	test	lower=wp.zeros(nworld * bvh_ngeom, dtype=wp.vec3),
+_src\bvh_test.py	66	test	upper=wp.zeros(nworld * bvh_ngeom, dtype=wp.vec3),
+_src\bvh_test.py	67	test	group=wp.zeros(nworld * bvh_ngeom, dtype=int),
+_src\bvh_test.py	72	test	class BvhTest(absltest.TestCase):
+_src\bvh_test.py	73	test	def test_compute_bvh_bounds(self):
+_src\bvh_test.py	74	test	"""Tests that _compute_bvh_bounds kernel computes valid bounds."""
+_src\bvh_test.py	79	test	kernel=bvh._compute_bvh_bounds,
+_src\bvh_test.py	80	test	dim=(d.nworld, rc.bvh_ngeom),
+_src\bvh_test.py	87	test	rc.bvh_ngeom,
+_src\bvh_test.py	102	test	def test_compute_bvh_bounds_multiworld(self):
+_src\bvh_test.py	108	test	kernel=bvh._compute_bvh_bounds,
+_src\bvh_test.py	109	test	dim=(d.nworld, rc.bvh_ngeom),
+_src\bvh_test.py	116	test	rc.bvh_ngeom,
+_src\bvh_test.py	126	test	self.assertEqual(rc.lower.shape[0], 4 * rc.bvh_ngeom, "lower")
+_src\bvh_test.py	127	test	_assert_eq(rc.group.numpy(), np.repeat(np.arange(4), rc.bvh_ngeom), "group")
+_src\bvh_test.py	129	test	def test_build_scene_bvh(self):
+_src\bvh_test.py	130	test	"""Tests that build_scene_bvh creates a valid BVH."""
+_src\bvh_test.py	134	test	bvh.build_scene_bvh(mjm, mjd, rc, 1)
+_src\bvh_test.py	136	test	self.assertIsNotNone(rc.bvh, "bvh")
+_src\bvh_test.py	137	test	self.assertIsNotNone(rc.bvh_id, "bvh_id")
+_src\bvh_test.py	139	test	def test_build_scene_bvh_multiworld(self):
+_src\bvh_test.py	140	test	"""Tests BVH construction with multiple worlds."""
+_src\bvh_test.py	144	test	bvh.build_scene_bvh(mjm, mjd, rc, 8)
+_src\bvh_test.py	146	test	self.assertEqual(rc.lower.shape, (8 * rc.bvh_ngeom,), "lower")
+_src\bvh_test.py	149	test	def test_refit_scene_bvh(self):
+_src\bvh_test.py	150	test	"""Tests that refit_scene_bvh updates bounds correctly."""
+_src\bvh_test.py	154	test	bvh.build_scene_bvh(mjm, mjd, rc, 1)
+_src\bvh_test.py	162	test	bvh.refit_scene_bvh(m, d, rc)
+_src\bvh_test.py	167	test	def test_compute_bvh_group_roots(self):
+_src\bvh_test.py	172	test	bvh.build_scene_bvh(mjm, mjd, rc, 1)
+_src\bvh_test.py	177	test	def test_compute_bvh_group_roots_multiworld(self):
+_src\bvh_test.py	182	test	bvh.build_scene_bvh(mjm, mjd, rc, 16)
+_src\bvh_test.py	188	test	def test_build_mesh_bvh(self):
+_src\bvh_test.py	189	test	"""Tests that build_mesh_bvh creates a valid BVH."""
+_src\bvh_test.py	192	test	mesh, half = bvh.build_mesh_bvh(mjm, 0)
+_src\bvh_test.py	197	test	def test_build_hfield_bvh(self):
+_src\bvh_test.py	198	test	"""Tests that build_hfield_bvh creates a valid BVH."""
+_src\bvh_test.py	201	test	hmesh, half = bvh.build_hfield_bvh(mjm, 0)
+_src\cli.py	55	source	RENDER_WIDTH = flags.DEFINE_multi_integer("render_width", [64], "render width (pixels) for each camera")
+_src\cli.py	56	source	RENDER_HEIGHT = flags.DEFINE_multi_integer("render_height", [64], "render height (pixels) for each camera")
+_src\cli.py	57	source	RENDER_RGB = flags.DEFINE_multi_enum("render_rgb", ["true"], ["true", "false", "True", "False", "1", "0"], "render RGB image")
+_src\cli.py	58	source	RENDER_DEPTH = flags.DEFINE_multi_enum(
+_src\cli.py	59	source	"render_depth", ["true"], ["true", "false", "True", "False", "1", "0"], "render depth image"
+_src\cli.py	61	source	RENDER_SEG = flags.DEFINE_multi_enum(
+_src\cli.py	62	source	"render_seg", ["false"], ["true", "false", "True", "False", "1", "0"], "render segmentation image"
+_src\cli.py	65	source	"cam_active", [], ["true", "false", "True", "False", "1", "0"], "which cameras to include in rendering"
+_src\cli.py	67	source	CAMERA_NAME = flags.DEFINE_multi_string("camera_name", [], "specific camera name(s) to render")
+_src\cli.py	68	source	RENDER_TEXTURES = flags.DEFINE_bool("render_textures", True, "use textures")
+_src\cli.py	69	source	RENDER_SHADOWS = flags.DEFINE_bool("render_shadows", False, "use shadows")
+_src\cli.py	70	source	RENDER_BACKFACE_CULLING = flags.DEFINE_bool(
+_src\cli.py	71	source	"render_backface_culling",
+_src\cli.py	73	source	"enable renderer backface culling (RenderContext.enable_backface_culling)",
+_src\cli.py	75	source	RENDER_SKYBOX = flags.DEFINE_bool("render_skybox", True, "render skybox texture if available")
+_src\cli.py	150	source	) -> Tuple[mjw.Model, mjw.Data, mjw.RenderContext | None, list[np.ndarray] | None]:
+_src\cli.py	181	source	if mjw.RenderContext not in get_type_hints(fn).values():
+_src\cli.py	184	source	widths = RENDER_WIDTH.value
+_src\cli.py	185	source	heights = RENDER_HEIGHT.value
+_src\cli.py	211	source	("render_width", widths),
+_src\cli.py	212	source	("render_height", heights),
+_src\cli.py	213	source	("render_rgb", RENDER_RGB.value),
+_src\cli.py	214	source	("render_depth", RENDER_DEPTH.value),
+_src\cli.py	215	source	("render_seg", RENDER_SEG.value if flags.FLAGS["render_seg"].present else []),
+_src\cli.py	221	source	raise ValueError(f"Mismatched render setting lengths: {details}")
+_src\cli.py	223	source	rc = mjw.create_render_context(
+_src\cli.py	227	source	render_rgb=_parse_bool_list(RENDER_RGB.value),
+_src\cli.py	228	source	render_depth=_parse_bool_list(RENDER_DEPTH.value),
+_src\cli.py	229	source	render_seg=_parse_bool_list(RENDER_SEG.value) if flags.FLAGS["render_seg"].present else None,
+_src\cli.py	231	source	use_textures=RENDER_TEXTURES.value,
+_src\cli.py	232	source	use_shadows=RENDER_SHADOWS.value,
+_src\cli.py	233	source	enable_backface_culling=RENDER_BACKFACE_CULLING.value,
+_src\cli.py	234	source	render_skybox=RENDER_SKYBOX.value,
+_src\cli.py	244	source	rc: mjw.RenderContext | None,
+_src\cli.py	254	source	rc: Render context (optional).
+_src\flex_test.py	28	test	from mujoco_warp._src import bvh
+_src\flex_test.py	4217	test	class FlexBVHTest(parameterized.TestCase):
+_src\flex_test.py	4218	test	"""Tests for flex BVH functions."""
+_src\flex_test.py	4242	test	kernel=bvh.accumulate_flex_vertex_normals,
+_src\flex_test.py	4262	test	kernel=bvh.normalize_vertex_normals,
+_src\flex_test.py	4274	test	def test_build_flex_bvh(self, nworld):
+_src\flex_test.py	4275	test	"""Tests that build_flex_bvh creates a valid BVH."""
+_src\flex_test.py	4278	test	flex_mesh, group_root = bvh.build_flex_bvh(mjm, mjd, nworld, 0)
+_src\io_test.py	575	test	@parameterized.parameters(types.Model, types.Data, types.RenderContext)
+_src\io_test.py	579	test	if dataclass_type is types.RenderContext:
+_src\io_test.py	580	test	obj = mjwarp.create_render_context(fixture_outputs[0], nworld=1)
+_src\ray.py	26	source	from mujoco_warp._src.types import RenderContext
+_src\ray.py	234	source	# accept only within rendered rectangle
+_src\ray.py	695	source	def ray_mesh_with_bvh(
+_src\ray.py	697	source	mesh_bvh_id: wp.array[wp.uint64],
+_src\ray.py	711	source	local-space frame. This matches MuJoCo OpenGL rendering's backface culling rule.
+_src\ray.py	721	source	mesh_bvh = mesh_bvh_id[mesh_geom_id]
+_src\ray.py	727	source	hit = wp.mesh_query_ray(mesh_bvh, lpnt + lvec * offset, lvec, max_t - offset, t, u, v, sign, n, f)
+_src\ray.py	740	source	def ray_mesh_with_bvh_anyhit(
+_src\ray.py	742	source	mesh_bvh_id: wp.array[wp.uint64],
+_src\ray.py	756	source	return wp.mesh_query_ray_anyhit(mesh_bvh_id[mesh_geom_id], lpnt, lvec, max_t)
+_src\ray.py	760	source	def ray_flex_with_bvh(
+_src\ray.py	762	source	flex_bvh_id: wp.array[wp.uint64],
+_src\ray.py	780	source	hit = wp.mesh_query_ray(flex_bvh_id[flexid], pnt, vec, max_t, t, u, v, sign, n, f, group_root)
+_src\ray.py	789	source	def ray_flex_with_bvh_anyhit(
+_src\ray.py	791	source	flex_bvh_id: wp.array[wp.uint64],
+_src\ray.py	802	source	return wp.mesh_query_ray_anyhit(flex_bvh_id[flexid], pnt, vec, max_t, group_root)
+_src\ray.py	1022	source	def _ray_geom_mesh_bvh(
+_src\ray.py	1044	source	mesh_bvh_id: wp.array[wp.uint64],
+_src\ray.py	1045	source	hfield_bvh_id: wp.array[wp.uint64],
+_src\ray.py	1065	source	bvh_ids = mesh_bvh_id if gtype == GeomType.MESH else hfield_bvh_id
+_src\ray.py	1068	source	t, n, u, v, f, geom_mesh_id = ray_mesh_with_bvh(
+_src\ray.py	1069	source	bvh_ids,
+_src\ray.py	1094	source	def _ray_bvh(
+_src\ray.py	1115	source	bvh_id: wp.uint64,
+_src\ray.py	1118	source	mesh_bvh_id: wp.array[wp.uint64],
+_src\ray.py	1119	source	hfield_bvh_id: wp.array[wp.uint64],
+_src\ray.py	1135	source	query = wp.bvh_query_ray(bvh_id, ray_origin, ray_dir, group_root[worldid])
+_src\ray.py	1138	source	while wp.bvh_query_next(query, bounds_nr, min_dist):
+_src\ray.py	1139	source	bvh_local = bounds_nr - (worldid * ngeom)
+_src\ray.py	1140	source	geomid = enabled_geom_ids[bvh_local]
+_src\ray.py	1142	source	dist, normal = _ray_geom_mesh_bvh(
+_src\ray.py	1161	source	mesh_bvh_id,
+_src\ray.py	1162	source	hfield_bvh_id,
+_src\ray.py	1187	source	rc: RenderContext | None = None,
+_src\ray.py	1199	source	rc: Optional Render context containing BVH information for BVH accelerated ray
+_src\ray.py	1237	source	rc: RenderContext | None = None,
+_src\ray.py	1255	source	rc: Optional Render context containing BVH information for BVH accelerated ray
+_src\ray.py	1305	source	_ray_bvh,
+_src\ray.py	1308	source	rc.bvh_ngeom,
+_src\ray.py	1325	source	rc.bvh_id,
+_src\ray.py	1328	source	rc.mesh_bvh_id,
+_src\ray.py	1329	source	rc.hfield_bvh_id,
+_src\ray_test.py	53	test	# test that bvh accelerated produces the same results
+_src\ray_test.py	54	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	56	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	57	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	58	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	59	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	60	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	61	test	_assert_eq(bvh_normal_np, normal_np, "normal")
+_src\ray_test.py	82	test	# test that bvh raycast produces the same results
+_src\ray_test.py	83	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	85	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	86	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	87	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	88	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	89	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	90	test	_assert_eq(bvh_normal_np, normal_np, "normal")
+_src\ray_test.py	100	test	# test that bvh raycast produces the same results
+_src\ray_test.py	102	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	103	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	104	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	105	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	126	test	# test that bvh raycast produces the same results
+_src\ray_test.py	127	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	129	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	130	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	131	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	132	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	133	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	134	test	_assert_eq(bvh_normal_np, normal_np, "normal")
+_src\ray_test.py	155	test	# test that bvh raycast produces the same results
+_src\ray_test.py	156	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	158	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	159	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	160	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	161	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	162	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	163	test	_assert_eq(bvh_normal_np, normal_np, "normal")
+_src\ray_test.py	180	test	# test that bvh raycast produces the same results
+_src\ray_test.py	182	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	183	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	184	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	185	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	186	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	187	test	_assert_eq(bvh_normal_np, normal_np, "normal")
+_src\ray_test.py	204	test	# test that bvh raycast produces the same results
+_src\ray_test.py	206	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	207	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	208	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	209	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	210	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	211	test	_assert_eq(bvh_normal_np, normal_np, "normal")
+_src\ray_test.py	232	test	# test that bvh raycast produces the same results
+_src\ray_test.py	233	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	235	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	236	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	237	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	238	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	239	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	240	test	_assert_eq(bvh_normal_np, normal_np, "normal")
+_src\ray_test.py	261	test	# test that bvh raycast produces the same results
+_src\ray_test.py	262	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	264	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	265	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	266	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	267	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	268	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	269	test	_assert_eq(bvh_normal_np, normal_np, "normal")
+_src\ray_test.py	286	test	# test that bvh raycast produces the same results
+_src\ray_test.py	288	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	289	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	290	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	291	test	_assert_eq(bvh_geomid_np, geomid_np, "bvh geom_id")
+_src\ray_test.py	292	test	_assert_eq(bvh_dist_np, dist_np, "bvh dist")
+_src\ray_test.py	293	test	_assert_eq(bvh_normal_np, normal_np, "bvh normal")
+_src\ray_test.py	315	test	# test that bvh raycast produces the same results
+_src\ray_test.py	316	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	318	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	319	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	320	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	321	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	322	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	323	test	_assert_eq(bvh_normal_np, normal_np, "normal")
+_src\ray_test.py	332	test	# test that bvh raycast produces the same results
+_src\ray_test.py	334	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	335	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	353	test	# test that bvh raycast produces the same results
+_src\ray_test.py	355	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	356	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	357	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	358	test	_assert_eq(bvh_geomid_np, geomid_np, "bvh geom_id")
+_src\ray_test.py	359	test	_assert_eq(bvh_dist_np, dist_np, "bvh dist")
+_src\ray_test.py	360	test	_assert_eq(bvh_normal_np, normal_np, "bvh normal")
+_src\ray_test.py	377	test	# test that bvh raycast produces the same results
+_src\ray_test.py	378	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	380	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	381	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	382	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	383	test	_assert_eq(bvh_dist_np, dist_np, "bvh dist")
+_src\ray_test.py	403	test	# test that bvh raycast produces the same results
+_src\ray_test.py	404	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	406	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	407	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	408	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	409	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	421	test	# test that bvh raycast produces the same results
+_src\ray_test.py	423	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	424	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	425	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	426	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	441	test	# test that bvh raycast produces the same results
+_src\ray_test.py	442	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	444	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	445	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	446	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	447	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	464	test	# test that bvh raycast produces the same results
+_src\ray_test.py	465	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	467	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	468	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	469	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	470	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	471	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	472	test	_assert_eq(bvh_normal_np, normal_np, "normal")
+_src\ray_test.py	492	test	# test that bvh raycast produces the same results
+_src\ray_test.py	493	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	495	test	bvh_geomid_np = geomid.numpy()[0, 0]
+_src\ray_test.py	496	test	bvh_dist_np = dist.numpy()[0, 0]
+_src\ray_test.py	497	test	bvh_normal_np = normal.numpy()[0, 0]
+_src\ray_test.py	498	test	_assert_eq(bvh_geomid_np, geomid_np, "geom_id")
+_src\ray_test.py	499	test	_assert_eq(bvh_dist_np, dist_np, "dist")
+_src\ray_test.py	500	test	_assert_eq(bvh_normal_np, normal_np, "normal")
+_src\ray_test.py	530	test	# Non-BVH path
+_src\ray_test.py	543	test	# BVH-accelerated path
+_src\ray_test.py	544	test	rc = mjw.create_render_context(mjm, nworld=nworld)
+_src\ray_test.py	545	test	dist_bvh, geomid_bvh, normal_bvh = mjw.ray(m, d, pnt, vec, rc=rc)
+_src\ray_test.py	547	test	self.assertEqual(dist_bvh.shape, (nworld, 1))
+_src\ray_test.py	548	test	self.assertEqual(geomid_bvh.shape, (nworld, 1))
+_src\ray_test.py	549	test	self.assertEqual(normal_bvh.shape, (nworld, 1))
+_src\ray_test.py	551	test	_assert_eq(geomid_bvh.numpy(), geomid.numpy(), "geom_id bvh")
+_src\ray_test.py	552	test	_assert_eq(dist_bvh.numpy(), dist.numpy(), "dist bvh")
+_src\ray_test.py	553	test	_assert_eq(normal_bvh.numpy()[hits], normal.numpy()[hits], "normal bvh")
+_src\ray_test.py	574	test	rc = mjw.create_render_context(mjm)
+_src\ray_test.py	575	test	dist_bvh, geomid_bvh, _ = mjw.ray(m, d, pnt_miss_y_pos, vec_up, rc=rc)
+_src\ray_test.py	576	test	_assert_eq(geomid_bvh.numpy()[0, 0], -1, "geom_id_bvh_miss_y_pos")
+_src\ray_test.py	577	test	_assert_eq(dist_bvh.numpy()[0, 0], -1.0, "dist_bvh_miss_y_pos")
+_src\ray_test.py	589	test	dist_bvh, geomid_bvh, _ = mjw.ray(m, d, pnt_miss_y_neg, vec_up, rc=rc)
+_src\ray_test.py	590	test	_assert_eq(geomid_bvh.numpy()[0, 0], -1, "geom_id_bvh_miss_y_neg")
+_src\ray_test.py	591	test	_assert_eq(dist_bvh.numpy()[0, 0], -1.0, "dist_bvh_miss_y_neg")
+_src\ray_test.py	602	test	dist_bvh, geomid_bvh, _ = mjw.ray(m, d, pnt_miss_down, vec_down, rc=rc)
+_src\ray_test.py	603	test	_assert_eq(geomid_bvh.numpy()[0, 0], geomid.numpy()[0, 0], "geom_id_bvh_miss_box")
+_src\ray_test.py	604	test	_assert_eq(dist_bvh.numpy()[0, 0], dist.numpy()[0, 0], "dist_bvh_miss_box")
+_src\ray_test.py	697	test	# BVH path
+_src\ray_test.py	698	test	rc = mjw.create_render_context(mjm, nworld=nworld)
+_src\ray_test.py	699	test	dist_bvh = wp.empty((nworld, nray), dtype=float)
+_src\ray_test.py	700	test	geomid_bvh = wp.empty((nworld, nray), dtype=int)
+_src\ray_test.py	701	test	normal_bvh = wp.empty((nworld, nray), dtype=wp.vec3)
+_src\ray_test.py	703	test	mjw.rays(m, d, pnt, vec, geomgroup, True, bodyexclude, dist_bvh, geomid_bvh, normal_bvh, rc=rc)
+_src\ray_test.py	705	test	_assert_eq(geomid_bvh.numpy(), geomid.numpy(), "bvh geomid")
+_src\ray_test.py	706	test	_assert_eq(dist_bvh.numpy(), dist.numpy(), "bvh dist")
+_src\ray_test.py	707	test	_assert_eq(normal_bvh.numpy()[:, :2], normal.numpy()[:, :2], "bvh normal")
+_src\render.py	22	source	from mujoco_warp._src.bvh import SPLAT_MIN_RESPONSE
+_src\render.py	29	source	from mujoco_warp._src.ray import ray_flex_with_bvh
+_src\render.py	30	source	from mujoco_warp._src.ray import ray_flex_with_bvh_anyhit
+_src\render.py	31	source	from mujoco_warp._src.ray import ray_mesh_with_bvh
+_src\render.py	32	source	from mujoco_warp._src.ray import ray_mesh_with_bvh_anyhit
+_src\render.py	35	source	from mujoco_warp._src.render_util import compute_ray
+_src\render.py	36	source	from mujoco_warp._src.render_util import pack_rgba_to_uint32
+_src\render.py	42	source	from mujoco_warp._src.types import RenderContext
+_src\render.py	47	source	# Limit each BVH traversal pass so splat compositing uses bounded local storage.
+_src\render.py	91	source	bvh_id: wp.uint64,
+_src\render.py	114	source	query = wp.bvh_query_ray(bvh_id, ray_origin, ray_direction, group_root)
+_src\render.py	115	source	while wp.bvh_query_next(query, index, hit_distances[_MAX_SPLAT_HITS - 1]):
+_src\render.py	183	source	# (render_context.c lines 211 & 219)
+_src\render.py	340	source	# render_context.c lines 465-500
+_src\render.py	387	source	# Fallback to OBJECT_PLANE texgen for untextured mesh (render_gl3.c:163-200)
+_src\render.py	501	source	# (see render_gl3.c: S=x, T=z, R=-y). Faces in tex_data are stacked vertically
+_src\render.py	616	source	bvh_id: wp.uint64,
+_src\render.py	619	source	bvh_ngeom: int,
+_src\render.py	620	source	flex_bvh_ngeom: int,
+_src\render.py	622	source	mesh_bvh_id: wp.array[wp.uint64],
+_src\render.py	623	source	hfield_bvh_id: wp.array[wp.uint64],
+_src\render.py	627	source	flex_bvh_id: wp.array[wp.uint64],
+_src\render.py	642	source	query = wp.bvh_query_ray(bvh_id, ray_origin_world, ray_dir_world, group_root)
+_src\render.py	644	source	ngeom = bvh_ngeom + flex_bvh_ngeom
+_src\render.py	647	source	while wp.bvh_query_next(query, bounds_nr, dist * (1.0 + RAY_TOL_REL) + RAY_TOL_ABS):
+_src\render.py	661	source	if local_id < bvh_ngeom:
+_src\render.py	668	source	gi = local_id - bvh_ngeom
+_src\render.py	684	source	d, n, u, v, f, geom_hfield_id = ray_mesh_with_bvh(
+_src\render.py	685	source	hfield_bvh_id,
+_src\render.py	741	source	hit = ray_mesh_with_bvh_anyhit(
+_src\render.py	742	source	mesh_bvh_id,
+_src\render.py	752	source	d, n, u, v, f, hit_mesh_id = ray_mesh_with_bvh(
+_src\render.py	753	source	mesh_bvh_id,
+_src\render.py	787	source	hit = ray_flex_with_bvh_anyhit(
+_src\render.py	788	source	flex_bvh_id,
+_src\render.py	798	source	d, n, u, v, f = ray_flex_with_bvh(flex_bvh_id, flexid, flex_gr, ray_origin_world, ray_dir_world, query_dist)
+_src\render.py	803	source	# matching ray_mesh_with_bvh's `dot(lvec, n) < 0` rule. Strict `> 0` keeps
+_src\render.py	851	source	bvh_id: wp.uint64,
+_src\render.py	853	source	bvh_ngeom: int,
+_src\render.py	854	source	bvh_nflexgeom: int,
+_src\render.py	857	source	mesh_bvh_id: wp.array[wp.uint64],
+_src\render.py	858	source	hfield_bvh_id: wp.array[wp.uint64],
+_src\render.py	862	source	flex_bvh_id: wp.array[wp.uint64],
+_src\render.py	941	source	bvh_id,
+_src\render.py	944	source	bvh_ngeom,
+_src\render.py	945	source	bvh_nflexgeom,
+_src\render.py	947	source	mesh_bvh_id,
+_src\render.py	948	source	hfield_bvh_id,
+_src\render.py	952	source	flex_bvh_id,
+_src\render.py	991	source	def _build_megakernel(m: Model, rc: RenderContext):
+_src\render.py	1034	source	def _render_megakernel(
+_src\render.py	1076	source	nrender: int,
+_src\render.py	1078	source	bvh_ngeom: int,
+_src\render.py	1079	source	bvh_nflexgeom: int,
+_src\render.py	1088	source	render_rgb: wp.array[bool],
+_src\render.py	1089	source	render_depth: wp.array[bool],
+_src\render.py	1090	source	render_seg: wp.array[bool],
+_src\render.py	1091	source	bvh_id: wp.uint64,
+_src\render.py	1093	source	flex_bvh_id: wp.array[wp.uint64],
+_src\render.py	1096	source	mesh_bvh_id: wp.array[wp.uint64],
+_src\render.py	1101	source	hfield_bvh_id: wp.array[wp.uint64],
+_src\render.py	1112	source	splat_bvh_id: wp.uint64,
+_src\render.py	1126	source	for i in range(nrender):
+_src\render.py	1136	source	if not render_rgb[camid] and not render_depth[camid] and not render_seg[camid]:
+_src\render.py	1186	source	bvh_id,
+_src\render.py	1189	source	bvh_ngeom,
+_src\render.py	1190	source	bvh_nflexgeom,
+_src\render.py	1192	source	mesh_bvh_id,
+_src\render.py	1193	source	hfield_bvh_id,
+_src\render.py	1197	source	flex_bvh_id,
+_src\render.py	1237	source	splat_bvh_id,
+_src\render.py	1245	source	if ray_base == 0 and render_seg[camid] and geom_id != -1:
+_src\render.py	1253	source	if ray_base == 0 and render_depth[camid]:
+_src\render.py	1259	source	if wp.static(rc_static["render_skybox"]) and render_rgb[camid]:
+_src\render.py	1269	source	elif render_rgb[camid]:
+_src\render.py	1285	source	if ray_base == 0 and render_depth[camid]:
+_src\render.py	1296	source	if not render_rgb[camid]:
+_src\render.py	1390	source	bvh_id,
+_src\render.py	1392	source	bvh_ngeom,
+_src\render.py	1393	source	bvh_nflexgeom,
+_src\render.py	1396	source	mesh_bvh_id,
+_src\render.py	1397	source	hfield_bvh_id,
+_src\render.py	1401	source	flex_bvh_id,
+_src\render.py	1444	source	bvh_id,
+_src\render.py	1446	source	bvh_ngeom,
+_src\render.py	1447	source	bvh_nflexgeom,
+_src\render.py	1450	source	mesh_bvh_id,
+_src\render.py	1451	source	hfield_bvh_id,
+_src\render.py	1455	source	flex_bvh_id,
+_src\render.py	1487	source	return _render_megakernel
+_src\render.py	1491	source	def render(m: Model, d: Data, rc: RenderContext):
+_src\render.py	1492	source	"""Render the current frame.
+_src\render.py	1494	source	Outputs are stored in buffers within the render context.
+_src\render.py	1499	source	rc: The render context on device.
+_src\render.py	1506	source	_render_megakernel = rc._megakernel
+_src\render.py	1514	source	kernel=_render_megakernel,
+_src\render.py	1555	source	rc.nrender,
+_src\render.py	1557	source	rc.bvh_ngeom,
+_src\render.py	1558	source	rc.bvh_nflexgeom,
+_src\render.py	1567	source	rc.render_rgb,
+_src\render.py	1568	source	rc.render_depth,
+_src\render.py	1569	source	rc.render_seg,
+_src\render.py	1570	source	rc.bvh_id,
+_src\render.py	1572	source	rc.flex_bvh_id,
+_src\render.py	1575	source	rc.mesh_bvh_id,
+_src\render.py	1580	source	rc.hfield_bvh_id,
+_src\render.py	1591	source	rc.splat_bvh_id,
+_src\render.py	1600	source	block_dim=m.block_dim.render,
+_src\render_test.py	15	test	"""Tests for render functions."""
+_src\render_test.py	27	test	mujoco.Renderer(mujoco.MjModel.from_xml_string("<mujoco/>"))
+_src\render_test.py	28	test	_HAS_RENDERER = True
+_src\render_test.py	30	test	_HAS_RENDERER = False
+_src\render_test.py	47	test	"""Creates one splat with an identity rotation for renderer tests."""
+_src\render_test.py	56	test	class RenderTest(parameterized.TestCase):
+_src\render_test.py	57	test	def test_render_splat(self):
+_src\render_test.py	67	test	rc = mjw.create_render_context(mjm, cam_res=(48, 48), render_rgb=True)
+_src\render_test.py	68	test	mjw.render(m, d, rc)
+_src\render_test.py	70	test	rc = mjw.create_render_context(
+_src\render_test.py	73	test	render_rgb=True,
+_src\render_test.py	76	test	mjw.render(m, d, rc)
+_src\render_test.py	93	test	rc = mjw.create_render_context(mjm, cam_res=(33, 33), render_rgb=True)
+_src\render_test.py	94	test	mjw.render(m, d, rc)
+_src\render_test.py	96	test	rc = mjw.create_render_context(
+_src\render_test.py	99	test	render_rgb=True,
+_src\render_test.py	102	test	mjw.render(m, d, rc)
+_src\render_test.py	108	test	def test_render(self, nworld: int):
+_src\render_test.py	111	test	rc = mjw.create_render_context(
+_src\render_test.py	115	test	render_rgb=True,
+_src\render_test.py	116	test	render_depth=True,
+_src\render_test.py	119	test	mjw.render(m, d, rc)
+_src\render_test.py	130	test	def test_render_humanoid(self):
+_src\render_test.py	132	test	rc = mjw.create_render_context(
+_src\render_test.py	135	test	render_rgb=True,
+_src\render_test.py	136	test	render_depth=True,
+_src\render_test.py	138	test	mjw.render(m, d, rc)
+_src\render_test.py	144	test	def test_render_graph_capture(self):
+_src\render_test.py	146	test	rc = mjw.create_render_context(
+_src\render_test.py	149	test	render_rgb=True,
+_src\render_test.py	150	test	render_depth=True,
+_src\render_test.py	153	test	mjw.render(m, d, rc)
+_src\render_test.py	157	test	mjw.render(m, d, rc)
+_src\render_test.py	164	test	def test_render_segmentation(self, nworld: int):
+_src\render_test.py	167	test	rc = mjw.create_render_context(
+_src\render_test.py	171	test	render_rgb=False,
+_src\render_test.py	172	test	render_depth=False,
+_src\render_test.py	173	test	render_seg=True,
+_src\render_test.py	176	test	mjw.render(m, d, rc)
+_src\render_test.py	184	test	def test_render_rgb_and_segmentation(self):
+_src\render_test.py	187	test	rc = mjw.create_render_context(
+_src\render_test.py	191	test	render_rgb=True,
+_src\render_test.py	192	test	render_seg=True,
+_src\render_test.py	195	test	mjw.render(m, d, rc)
+_src\render_test.py	203	test	def test_render_spot_light_with_attenuation(self):
+_src\render_test.py	220	test	rc = mjw.create_render_context(mjm, cam_res=(32, 32), render_rgb=True)
+_src\render_test.py	223	test	mjw.render(m, d, rc)
+_src\render_test.py	227	test	def test_render_with_features_disabled(self):
+_src\render_test.py	243	test	rc = mjw.create_render_context(
+_src\render_test.py	246	test	render_rgb=True,
+_src\render_test.py	251	test	mjw.render(m, d, rc)
+_src\render_test.py	255	test	def test_render_per_world_mat_texid_batch_size(self):
+_src\render_test.py	256	test	"""Tests render uses per-world material texture IDs allocated by put_model."""
+_src\render_test.py	286	test	rc = mjw.create_render_context(
+_src\render_test.py	290	test	render_rgb=True,
+_src\render_test.py	295	test	mjw.render(m, d, rc)
+_src\render_test.py	302	test	# Swap textures and re-render to verify dynamic updates
+_src\render_test.py	305	test	mjw.render(m, d, rc)
+_src\render_test.py	312	test	def test_render_textured_mesh_texcoords_handling(self):
+_src\render_test.py	333	test	rc = mjw.create_render_context(mjm, cam_res=(32, 32), render_rgb=True, render_seg=True)
+_src\render_test.py	337	test	mjw.render(m, d, rc)
+_src\render_test.py	363	test	rc = mjw.create_render_context(
+_src\render_test.py	366	test	render_rgb=True,
+_src\render_test.py	367	test	render_seg=True,
+_src\render_test.py	369	test	mjw.render(m, d, rc)
+_src\render_test.py	378	test	rc = mjw.create_render_context(
+_src\render_test.py	381	test	render_rgb=True,
+_src\render_test.py	382	test	render_seg=True,
+_src\render_test.py	385	test	mjw.render(m, d, rc)
+_src\render_test.py	392	test	@absltest.skipIf(not _HAS_RENDERER, "MuJoCo rendering requires OpenGL")
+_src\render_test.py	398	test	rc = mjw.create_render_context(
+_src\render_test.py	402	test	render_seg=[True],
+_src\render_test.py	404	test	mjw.render(m, d, rc)
+_src\render_test.py	408	test	with mujoco.Renderer(mjm, height=cam_h, width=cam_w) as renderer:
+_src\render_test.py	409	test	renderer.update_scene(mjd, camera=0)
+_src\render_test.py	410	test	renderer.enable_segmentation_rendering()
+_src\render_test.py	411	test	mj_seg = renderer.render().reshape(-1, 2)
+_src\render_test.py	429	test	def test_render_segmentation_orthographic(self):
+_src\render_test.py	433	test	rc = mjw.create_render_context(mjm, nworld=1, cam_res=(64, 64), render_rgb=False, render_depth=False, render_seg=True)
+_src\render_test.py	434	test	mjw.render(m, d, rc)
+_src\render_test.py	443	test	@absltest.skipIf(not _HAS_RENDERER, "MuJoCo rendering requires OpenGL")
+_src\render_test.py	450	test	rc = mjw.create_render_context(
+_src\render_test.py	454	test	render_seg=[True],
+_src\render_test.py	457	test	mjw.render(m, d, rc)
+_src\render_test.py	460	test	with mujoco.Renderer(mjm, height=cam_h, width=cam_w) as renderer:
+_src\render_test.py	461	test	renderer.update_scene(mjd, camera="cam")
+_src\render_test.py	462	test	renderer.enable_segmentation_rendering()
+_src\render_test.py	463	test	mj_seg = renderer.render().reshape(-1, 2)
+_src\render_test.py	472	test	rc = mjw.create_render_context(mjm, nworld=1, cam_res=(cam_w, cam_h), render_depth=[True], render_seg=[True])
+_src\render_test.py	473	test	mjw.render(m, d, rc)
+_src\render_test.py	489	test	rc = mjw.create_render_context(mjm, nworld=1, cam_res=(cam_w, cam_h), render_rgb=[True], render_seg=[True])
+_src\render_test.py	490	test	mjw.render(m, d, rc)
+_src\render_test.py	508	test	@absltest.skipIf(not _HAS_RENDERER, "MuJoCo rendering requires OpenGL")
+_src\render_test.py	515	test	rc = mjw.create_render_context(
+_src\render_test.py	519	test	render_rgb=[False],
+_src\render_test.py	520	test	render_depth=[True],
+_src\render_test.py	522	test	mjw.render(m, d, rc)
+_src\render_test.py	526	test	with mujoco.Renderer(mjm, height=cam_h, width=cam_w) as renderer:
+_src\render_test.py	527	test	renderer.update_scene(mjd, camera=0)
+_src\render_test.py	528	test	renderer.enable_depth_rendering()
+_src\render_test.py	529	test	mj_depth = renderer.render().flatten()
+_src\render_test.py	542	test	# camera) well outside the enclosure. A correctly backface-culling renderer
+_src\render_test.py	573	test	"""Camera inside a geom must not render that geom's back face."""
+_src\render_test.py	578	test	rc = mjw.create_render_context(
+_src\render_test.py	582	test	render_rgb=True,
+_src\render_test.py	583	test	render_depth=True,
+_src\render_test.py	584	test	render_seg=True,
+_src\render_test.py	586	test	mjw.render(m, d, rc)
+_src\render_test.py	612	test	@absltest.skipIf(not _HAS_RENDERER, "MuJoCo rendering requires OpenGL")
+_src\render_test.py	620	test	rc = mjw.create_render_context(
+_src\render_test.py	624	test	render_seg=[True],
+_src\render_test.py	626	test	mjw.render(m, d, rc)
+_src\render_test.py	629	test	with mujoco.Renderer(mjm, height=cam_h, width=cam_w) as renderer:
+_src\render_test.py	630	test	renderer.update_scene(mjd, camera=0)
+_src\render_test.py	631	test	renderer.enable_segmentation_rendering()
+_src\render_test.py	632	test	mj_seg = renderer.render().reshape(-1, 2)
+_src\render_test.py	643	test	rc = mjw.create_render_context(
+_src\render_test.py	647	test	render_seg=True,
+_src\render_test.py	650	test	mjw.render(m, d, rc)
+_src\render_test.py	666	test	rc = mjw.create_render_context(
+_src\render_test.py	670	test	render_rgb=True,
+_src\render_test.py	671	test	render_skybox=True,
+_src\render_test.py	681	test	mjw.render(m, d, rc)
+_src\render_test.py	687	test	# Verify that the two worlds rendered different skybox backgrounds
+_src\render_test.py	709	test	rc = mjw.create_render_context(mjm, cam_res=(64, 64), render_seg=True)
+_src\render_test.py	710	test	mjw.render(m, d, rc)
+_src\render_test.py	722	test	# whichever the BVH reaches first.
+_src\render_test.py	739	test	rc = mjw.create_render_context(mjm, cam_res=(32, 32), render_seg=True)
+_src\render_test.py	740	test	mjw.render(m, d, rc)
+_src\render_test.py	760	test	# must not let it win. The extra geoms reshuffle the BVH traversal order so
+_src\render_test.py	774	test	rc = mjw.create_render_context(mjm, cam_res=(32, 32), render_seg=True)
+_src\render_test.py	775	test	mjw.render(m, d, rc)
+_src\render_test.py	798	test	rc = mjw.create_render_context(mjm, cam_res=(32, 32), render_seg=True, enable_backface_culling=True)
+_src\render_test.py	799	test	mjw.render(m, d, rc)
+_src\render_test.py	818	test	rc = mjw.create_render_context(
+_src\render_test.py	819	test	mjm, cam_res=(32, 32), render_rgb=True, enable_backface_culling=False, use_ambient_lighting=False
+_src\render_test.py	821	test	mjw.render(m, d, rc)
+_src\render_test.py	829	test	# against the face normal must render the hull exactly like the primitive.
+_src\render_test.py	847	test	rc = mjw.create_render_context(mjm, cam_res=(64, 64), render_rgb=True, use_ambient_lighting=False)
+_src\render_test.py	848	test	mjw.render(m, d, rc)
+_src\render_test.py	877	test	rc = mjw.create_render_context(
+_src\render_test.py	880	test	render_rgb=True,
+_src\render_test.py	881	test	render_seg=True,
+_src\render_test.py	885	test	mjw.render(m, d, rc)
+_src\render_test.py	897	test	def test_megakernel_cached_across_renders(self):
+_src\render_test.py	909	test	rc = mjw.create_render_context(mjm, cam_res=(32, 32), render_rgb=True)
+_src\render_test.py	911	test	mjw.render(m, d, rc)
+_src\render_test.py	914	test	mjw.render(m, d, rc)
+_src\render_test.py	919	test	# How much of a light survives its own shadow: 0 renders the shadowed floor
+_src\render_test.py	934	test	rc = mjw.create_render_context(
+_src\render_test.py	937	test	render_rgb=True,
+_src\render_test.py	938	test	render_seg=True,
+_src\render_test.py	944	test	mjw.render(m, d, rc)
+_src\render_test.py	973	test	rc = mjw.create_render_context(mjm, cam_res=(64, 64), render_rgb=True, samples_per_pixel=samples)
+_src\render_test.py	974	test	mjw.render(m, d, rc)
+_src\render_test.py	1001	test	rc = mjw.create_render_context(
+_src\render_test.py	1002	test	mjm, cam_res=(64, 64), render_rgb=True, render_depth=True, render_seg=True, samples_per_pixel=samples
+_src\render_test.py	1004	test	mjw.render(m, d, rc)
+_src\render_test.py	1023	test	mjw.create_render_context(mjm, samples_per_pixel=0)
+_src\render_test.py	1025	test	mjw.create_render_context(mjm, samples_per_pixel=2, use_precomputed_rays=False)
+_src\render_test.py	1026	test	with self.assertRaisesRegex(ValueError, "render_rgb"):
+_src\render_test.py	1027	test	mjw.create_render_context(mjm, samples_per_pixel=2, render_rgb=False)
+_src\render_test.py	1042	test	rc = mjw.create_render_context(
+_src\render_test.py	1045	test	render_rgb=[True, False],
+_src\render_test.py	1046	test	render_depth=[False, True],
+_src\render_test.py	1049	test	mjw.render(m, d, rc)
+_src\render_test.py	1068	test	rc = mjw.create_render_context(mjm, nworld=4, cam_res=(32, 32), render_rgb=True, samples_per_pixel=2)
+_src\render_test.py	1069	test	mjw.render(m, d, rc)
+_src\render_test.py	1075	test	@absltest.skipIf(not _HAS_RENDERER, "MuJoCo rendering requires OpenGL")
+_src\render_test.py	1083	test	def test_render_primitive_canonical_textures_match_mujoco(self, geom_type: str, geom_size: str):
+_src\render_test.py	1103	test	rc = mjw.create_render_context(
+_src\render_test.py	1107	test	render_rgb=True,
+_src\render_test.py	1111	test	mjw.render(m, d, rc)
+_src\render_test.py	1114	test	with mujoco.Renderer(mjm, height=cam_h, width=cam_w) as renderer:
+_src\render_test.py	1115	test	renderer.update_scene(mjd, camera=0)
+_src\render_test.py	1116	test	mj_rgb = renderer.render()
+_src\render_test.py	1132	test	@absltest.skipIf(not _HAS_RENDERER, "MuJoCo rendering requires OpenGL")
+_src\render_test.py	1157	test	rc = mjw.create_render_context(
+_src\render_test.py	1161	test	render_rgb=True,
+_src\render_test.py	1165	test	mjw.render(m, d, rc)
+_src\render_test.py	1168	test	with mujoco.Renderer(mjm, height=cam_h, width=cam_w) as renderer:
+_src\render_test.py	1169	test	renderer.update_scene(mjd, camera=0)
+_src\render_test.py	1170	test	mj_rgb = renderer.render()
+_src\render_test.py	1200	test	rc = mjw.create_render_context(
+_src\render_test.py	1204	test	render_rgb=True,
+_src\render_test.py	1208	test	mjw.render(m, d, rc)
+_src\render_test.py	1231	test	rc = mjw.create_render_context(
+_src\render_test.py	1235	test	render_rgb=True,
+_src\render_test.py	1239	test	mjw.render(m, d, rc)
+_src\render_test.py	1250	test	def test_mesh_and_sdf_rendering(self, geom_type: str):
+_src\render_test.py	1251	test	"""Mesh and SDF geoms render using the underlying mesh geometry."""
+_src\render_test.py	1270	test	rc = mjw.create_render_context(
+_src\render_test.py	1274	test	render_rgb=True,
+_src\render_test.py	1275	test	render_seg=True,
+_src\render_test.py	1279	test	mjw.render(m, d, rc)
+_src\render_test.py	1288	test	"""When use_textures=False and render_skybox=True, only the skybox texture is uploaded."""
+_src\render_test.py	1305	test	rc = mjw.create_render_context(
+_src\render_test.py	1309	test	render_rgb=True,
+_src\render_test.py	1311	test	render_skybox=True,
+_src\render_test.py	1313	test	mjw.render(m, d, rc)
+_src\render_test.py	1317	test	@absltest.skipIf(not _HAS_RENDERER, "MuJoCo rendering requires OpenGL")
+_src\render_test.py	1337	test	rc = mjw.create_render_context(
+_src\render_test.py	1341	test	render_rgb=True,
+_src\render_test.py	1345	test	mjw.render(m, d, rc)
+_src\render_test.py	1348	test	with mujoco.Renderer(mjm, height=cam_h, width=cam_w) as renderer:
+_src\render_test.py	1349	test	renderer.update_scene(mjd, camera=0)
+_src\render_test.py	1350	test	mj_rgb = renderer.render()
+_src\render_test.py	1383	test	rc = mjw.create_render_context(
+_src\render_test.py	1387	test	render_rgb=True,
+_src\render_test.py	1391	test	mjw.render(m, d, rc)
+_src\render_test.py	1396	test	if _HAS_RENDERER:
+_src\render_test.py	1397	test	with mujoco.Renderer(mjm, height=cam_h, width=cam_w) as renderer:
+_src\render_test.py	1398	test	renderer.update_scene(mjd, camera=0)
+_src\render_test.py	1399	test	mj_rgb = renderer.render()
+_src\render_test.py	1426	test	rc = mjw.create_render_context(
+_src\render_test.py	1430	test	render_rgb=True,
+_src\render_test.py	1434	test	mjw.render(m, d, rc)
+_src\render_test.py	1471	test	rc = mjw.create_render_context(
+_src\render_test.py	1475	test	render_rgb=True,
+_src\render_test.py	1476	test	render_depth=True,
+_src\render_test.py	1477	test	render_seg=True,
+_src\render_test.py	1487	test	mjw.render(m, d, rc)
+_src\render_test.py	1521	test	rc = mjw.create_render_context(
+_src\render_test.py	1525	test	render_rgb=True,
+_src\render_test.py	1526	test	render_depth=True,
+_src\render_test.py	1528	test	mjw.render(m, d, rc)
+_src\render_test.py	1559	test	rc = mjw.create_render_context(
+_src\render_test.py	1563	test	render_rgb=True,
+_src\render_test.py	1565	test	mjw.render(m, d, rc)
+_src\render_util.py	20	source	from mujoco_warp._src import bvh
+_src\render_util.py	24	source	from mujoco_warp._src.types import RenderContext
+_src\render_util.py	202	source	"""Extract the depth data from the render context buffers for a given camera index."""
+_src\render_util.py	212	source	def get_rgb(rc: RenderContext, camera_index: int, rgb_out: wp.array3d[wp.vec3]):
+_src\render_util.py	213	source	"""Get the RGB data output from the render context buffers for a given camera index.
+_src\render_util.py	216	source	rc: The render context on device.
+_src\render_util.py	228	source	def get_depth(rc: RenderContext, camera_index: int, depth_scale: float, depth_out: wp.array3d[float]):
+_src\render_util.py	229	source	"""Get the depth data output from the render context buffers for a given camera index.
+_src\render_util.py	232	source	rc: The render context on device.
+_src\render_util.py	264	source	def get_segmentation(rc: RenderContext, camera_index: int, seg_out: wp.array3d[wp.vec2i]):
+_src\render_util.py	265	source	"""Get the segmentation data from the render context buffers for a given camera index.
+_src\render_util.py	272	source	rc: The render context on device.
+_src\render_util.py	312	source	def create_render_context(
+_src\render_util.py	316	source	render_rgb: list[bool] | bool | None = None,
+_src\render_util.py	317	source	render_depth: list[bool] | bool | None = None,
+_src\render_util.py	318	source	render_seg: list[bool] | bool | None = None,
+_src\render_util.py	326	source	flex_render_smooth: bool = True,
+_src\render_util.py	328	source	render_skybox: bool = False,
+_src\render_util.py	342	source	) -> RenderContext:
+_src\render_util.py	343	source	"""Creates a render context on device.
+_src\render_util.py	348	source	cam_res: The width and height to render each camera image. If None, uses the
+_src\render_util.py	350	source	render_rgb: Whether to render RGB images. If None, uses the MuJoCo model values.
+_src\render_util.py	351	source	render_depth: Whether to render depth images. If None, uses the MuJoCo model values.
+_src\render_util.py	352	source	render_seg: Whether to render segmentation (per-pixel object ID/type pairs).
+_src\render_util.py	355	source	use_fast_math: Whether to enable fast math for the render kernel.
+_src\render_util.py	360	source	enabled_geom_groups: The geom groups to render.
+_src\render_util.py	362	source	which cameras to include in rendering. If None, all cameras are included.
+_src\render_util.py	364	source	flex_render_smooth: Whether to render flex meshes smoothly.
+_src\render_util.py	365	source	use_precomputed_rays: Use precomputed rays instead of computing during rendering.
+_src\render_util.py	367	source	render_skybox: Whether to shade missed rays with the MuJoCo skybox texture.
+_src\render_util.py	371	source	samples_per_pixel: Sub-pixel samples per axis, averaged. Costs n*n renders.
+_src\render_util.py	378	source	background_color: The color to use for background pixels when no skybox is rendered.
+_src\render_util.py	401	source	The render context containing rendering fields and output arrays on device.
+_src\render_util.py	408	source	# Build grouped splat BVH.
+_src\render_util.py	418	source	splat_bvh = None
+_src\render_util.py	419	source	splat_bvh_id = wp.uint64(0)
+_src\render_util.py	447	source	splat_bvh,
+_src\render_util.py	448	source	splat_bvh_id,
+_src\render_util.py	453	source	) = bvh.build_splat_bvh(*splat_attribute, splat_adr, splat_group_id, constructor="sah")
+_src\render_util.py	455	source	# Mesh BVHs – build for all meshes so per-world variants are available
+_src\render_util.py	461	source	mesh_bvh_id = [wp.uint64(0) for _ in range(nmesh)]
+_src\render_util.py	465	source	mesh, half = bvh.build_mesh_bvh(mjm, mid, constructor=constructor)
+_src\render_util.py	467	source	mesh_bvh_id[mid] = mesh.id
+_src\render_util.py	470	source	mesh_bvh_id_arr = wp.array(mesh_bvh_id, dtype=wp.uint64)
+_src\render_util.py	473	source	# HField BVHs
+_src\render_util.py	478	source	hfield_bvh_id = [wp.uint64(0) for _ in range(nhfield)]
+_src\render_util.py	482	source	hmesh, hhalf = bvh.build_hfield_bvh(mjm, hid, constructor=constructor)
+_src\render_util.py	484	source	hfield_bvh_id[hid] = hmesh.id
+_src\render_util.py	487	source	hfield_bvh_id_arr = wp.array(hfield_bvh_id, dtype=wp.uint64)
+_src\render_util.py	490	source	# Flex BVHs
+_src\render_util.py	494	source	# Scene BVH flex primitives: 1D → one capsule per edge, 2D/3D → one box per flex
+_src\render_util.py	497	source	flex_bvh_id = np.full(nflex, 0, dtype=np.uint64)
+_src\render_util.py	509	source	fmesh, group_root = bvh.build_flex_bvh(mjm, mjd, nworld, f)
+_src\render_util.py	511	source	flex_bvh_id[f] = fmesh.id
+_src\render_util.py	516	source	has_skybox = render_skybox and skybox_tex_ids.size > 0
+_src\render_util.py	521	source	render_skybox = False
+_src\render_util.py	540	source	# Empty selection renders no cameras, and is the only valid mask when ncam == 0.
+_src\render_util.py	574	source	if render_rgb is None:
+_src\render_util.py	575	source	render_rgb = [bool(np.any(mjm.cam_output[i] & mujoco.mjtCamOutBit.mjCAMOUT_RGB)) for i in active_cam_indices]
+_src\render_util.py	576	source	elif isinstance(render_rgb, bool):
+_src\render_util.py	577	source	render_rgb = [render_rgb] * ncam
+_src\render_util.py	578	source	elif isinstance(render_rgb, (list, np.ndarray)):
+_src\render_util.py	579	source	if len(render_rgb) == mjm.ncam and ncam != mjm.ncam:
+_src\render_util.py	580	source	render_rgb = [bool(render_rgb[i]) for i in active_cam_indices]
+_src\render_util.py	581	source	elif len(render_rgb) == 1 and ncam > 1:
+_src\render_util.py	582	source	render_rgb = [bool(render_rgb[0])] * ncam
+_src\render_util.py	584	source	render_rgb = [bool(x) for x in render_rgb]
+_src\render_util.py	586	source	if render_depth is None:
+_src\render_util.py	587	source	render_depth = [bool(np.any(mjm.cam_output[i] & mujoco.mjtCamOutBit.mjCAMOUT_DEPTH)) for i in active_cam_indices]
+_src\render_util.py	588	source	elif isinstance(render_depth, bool):
+_src\render_util.py	589	source	render_depth = [render_depth] * ncam
+_src\render_util.py	590	source	elif isinstance(render_depth, (list, np.ndarray)):
+_src\render_util.py	591	source	if len(render_depth) == mjm.ncam and ncam != mjm.ncam:
+_src\render_util.py	592	source	render_depth = [bool(render_depth[i]) for i in active_cam_indices]
+_src\render_util.py	593	source	elif len(render_depth) == 1 and ncam > 1:
+_src\render_util.py	594	source	render_depth = [bool(render_depth[0])] * ncam
+_src\render_util.py	596	source	render_depth = [bool(x) for x in render_depth]
+_src\render_util.py	598	source	if render_seg is None:
+_src\render_util.py	599	source	render_seg = [bool(np.any(mjm.cam_output[i] & mujoco.mjtCamOutBit.mjCAMOUT_SEG)) for i in active_cam_indices]
+_src\render_util.py	600	source	elif isinstance(render_seg, bool):
+_src\render_util.py	601	source	render_seg = [render_seg] * ncam
+_src\render_util.py	602	source	elif isinstance(render_seg, (list, np.ndarray)):
+_src\render_util.py	603	source	if len(render_seg) == mjm.ncam and ncam != mjm.ncam:
+_src\render_util.py	604	source	render_seg = [bool(render_seg[i]) for i in active_cam_indices]
+_src\render_util.py	605	source	elif len(render_seg) == 1 and ncam > 1:
+_src\render_util.py	606	source	render_seg = [bool(render_seg[0])] * ncam
+_src\render_util.py	608	source	render_seg = [bool(x) for x in render_seg]
+_src\render_util.py	610	source	if len(render_rgb) != ncam:
+_src\render_util.py	611	source	raise ValueError(f"render_rgb length ({len(render_rgb)}) does not match active camera count ({ncam}).")
+_src\render_util.py	612	source	if len(render_depth) != ncam:
+_src\render_util.py	613	source	raise ValueError(f"render_depth length ({len(render_depth)}) does not match active camera count ({ncam}).")
+_src\render_util.py	614	source	if len(render_seg) != ncam:
+_src\render_util.py	615	source	raise ValueError(f"render_seg length ({len(render_seg)}) does not match active camera count ({ncam}).")
+_src\render_util.py	627	source	if render_rgb[idx]:
+_src\render_util.py	630	source	if render_depth[idx]:
+_src\render_util.py	633	source	if render_seg[idx]:
+_src\render_util.py	647	source	raise ValueError("samples_per_pixel > 1 requires at least one camera with render_rgb=True.")
+_src\render_util.py	687	source	bvh_ngeom = len(geom_enabled_idx)
+_src\render_util.py	707	source	rc = RenderContext(
+_src\render_util.py	708	source	nrender=ncam,
+_src\render_util.py	719	source	render_skybox=render_skybox,
+_src\render_util.py	726	source	bvh_ngeom=bvh_ngeom,
+_src\render_util.py	729	source	mesh_bvh_id=mesh_bvh_id_arr,
+_src\render_util.py	738	source	hfield_bvh_id=hfield_bvh_id_arr,
+_src\render_util.py	742	source	flex_bvh_id=wp.array(flex_bvh_id, dtype=wp.uint64),
+_src\render_util.py	744	source	flex_render_smooth=flex_render_smooth,
+_src\render_util.py	745	source	bvh_nflexgeom=len(flex_geom_flexid),
+_src\render_util.py	749	source	bvh=None,
+_src\render_util.py	750	source	bvh_id=None,
+_src\render_util.py	751	source	lower=wp.zeros(nworld * (bvh_ngeom + len(flex_geom_flexid)), dtype=wp.vec3),
+_src\render_util.py	752	source	upper=wp.zeros(nworld * (bvh_ngeom + len(flex_geom_flexid)), dtype=wp.vec3),
+_src\render_util.py	753	source	group=wp.zeros(nworld * (bvh_ngeom + len(flex_geom_flexid)), dtype=int),
+_src\render_util.py	761	source	render_rgb=wp.array(render_rgb, dtype=bool),
+_src\render_util.py	762	source	render_depth=wp.array(render_depth, dtype=bool),
+_src\render_util.py	765	source	render_seg=wp.array(render_seg, dtype=bool),
+_src\render_util.py	785	source	splat_bvh=splat_bvh,
+_src\render_util.py	786	source	splat_bvh_id=splat_bvh_id,
+_src\render_util.py	793	source	bvh.build_scene_bvh(mjm, mjd, rc, nworld)
+_src\render_util_test.py	15	test	"""Tests for render utility functions."""
+_src\render_util_test.py	25	test	from mujoco_warp._src import render_util
+_src\render_util_test.py	50	test	class RenderUtilTest(parameterized.TestCase):
+_src\render_util_test.py	54	test	texture = render_util.create_warp_texture(mjm, 0)
+_src\render_util_test.py	68	test	persp_dir, persp_offset = render_util.compute_ray(
+_src\render_util_test.py	79	test	ortho_dir, ortho_offset = render_util.compute_ray(
+_src\render_util_test.py	117	test	rc = mjw.create_render_context(
+_src\render_util_test.py	121	test	render_seg=True,
+_src\render_util_test.py	124	test	mjw.render(m, d, rc)
+_src\render_util_test.py	144	test	rc = mjw.create_render_context(
+_src\render_util_test.py	148	test	render_seg=True,
+_src\render_util_test.py	151	test	mjw.render(m, d, rc)
+_src\render_util_test.py	163	test	def test_bvh_creation(self, nworld):
+_src\render_util_test.py	164	test	"""Test that the BVH is created correctly for single world and multiple worlds."""
+_src\render_util_test.py	166	test	rc = mjw.create_render_context(mjm, nworld=nworld, cam_res=(64, 64), use_textures=False)
+_src\render_util_test.py	169	test	self.assertEqual(rc.nrender, mjm.ncam)
+_src\render_util_test.py	171	test	self.assertEqual(rc.lower.shape, (nworld * rc.bvh_ngeom,), "lower")
+_src\render_util_test.py	172	test	self.assertEqual(rc.upper.shape, (nworld * rc.bvh_ngeom,), "upper")
+_src\render_util_test.py	173	test	self.assertEqual(rc.group.shape, (nworld * rc.bvh_ngeom,), "group")
+_src\render_util_test.py	176	test	self.assertIsNotNone(rc.bvh_id)
+_src\render_util_test.py	177	test	self.assertNotEqual(rc.bvh_id, 0, "bvh_id")
+_src\render_util_test.py	180	test	_assert_eq(group_np, np.repeat(np.arange(nworld), rc.bvh_ngeom), "render context group values")
+_src\render_util_test.py	183	test	"""create_render_context honors use_textures: skip texture materialization when False."""
+_src\render_util_test.py	201	test	rc_off = mjw.create_render_context(mjm, cam_res=(16, 16), use_textures=False)
+_src\render_util_test.py	205	test	rc_on = mjw.create_render_context(mjm, cam_res=(16, 16), use_textures=True)
+_src\render_util_test.py	213	test	rc = mjw.create_render_context(mjm, cam_res=(width, height), render_rgb=True, render_depth=True)
+_src\render_util_test.py	217	test	self.assertEqual(rc.nrender, 3, "nrender")
+_src\render_util_test.py	227	test	"""Tests render context with different resolutions and output."""
+_src\render_util_test.py	230	test	rc = mjw.create_render_context(mjm, cam_res=cam_res, render_rgb=True, render_depth=True)
+_src\render_util_test.py	232	test	self.assertEqual(rc.nrender, 3, "nrender")
+_src\render_util_test.py	245	test	rc_xml = mjw.create_render_context(mjm, render_rgb=True, render_depth=True)
+_src\render_util_test.py	255	test	rc = mjw.create_render_context(mjm, cam_res=(width, height), cam_active=[True, False, True])
+_src\render_util_test.py	257	test	self.assertEqual(rc.nrender, 2, "nrender")
+_src\render_util_test.py	272	test	self.assertEqual(mjw.create_render_context(mjm_nocam, cam_active=[]).nrender, 0, "nrender")
+_src\render_util_test.py	275	test	self.assertEqual(mjw.create_render_context(mjm, cam_active=[]).nrender, 0, "nrender")
+_src\render_util_test.py	276	test	self.assertEqual(mjw.create_render_context(mjm, cam_active=[False] * mjm.ncam).nrender, 0, "nrender")
+_src\render_util_test.py	284	test	rc = mjw.create_render_context(
+_src\render_util_test.py	287	test	render_rgb=[True, False, True],
+_src\render_util_test.py	288	test	render_depth=[False, True, True],
+_src\render_util_test.py	295	test	_assert_eq(rc.render_rgb.numpy(), [True, False, True], "render_rgb")
+_src\render_util_test.py	296	test	_assert_eq(rc.render_depth.numpy(), [False, True, True], "render_depth")
+_src\render_util_test.py	299	test	rc_xml = mjw.create_render_context(mjm, cam_res=(width, height))
+_src\render_util_test.py	304	test	_assert_eq(rc.render_rgb.numpy(), rc_xml.render_rgb.numpy(), "render_rgb")
+_src\render_util_test.py	305	test	_assert_eq(rc.render_depth.numpy(), rc_xml.render_depth.numpy(), "render_depth")
+_src\render_util_test.py	328	test	rc = mjw.create_render_context(mjm, nworld=1, cam_res=(32, 32))
+_src\render_util_test.py	333	test	_assert_eq(rc.render_seg.numpy(), [True], "render_seg")
+_src\render_util_test.py	335	test	def test_render_context_with_textures(self):
+_src\render_util_test.py	337	test	rc = mjw.create_render_context(mjm, render_rgb=True, render_depth=True, use_textures=True)
+_src\render_util_test.py	341	test	def test_render_context_lighting_flags(self):
+_src\render_util_test.py	355	test	rc = mjw.create_render_context(
+_src\render_util_test.py	358	test	render_rgb=True,
+_src\set_const.py	867	source	body_pos, body_quat                 Unsafe for static bodies (invalidates BVH).
+_src\types.py	87	source	render: render block dimension (render)
+_src\types.py	123	source	# render
+_src\types.py	124	source	render: int = 64
+_src\types.py	1200	source	geom_matid: material id for rendering                    (*, ngeom,)
+_src\types.py	1218	source	site_type: geom type for rendering (GeomType)            (nsite,)
+_src\types.py	1220	source	site_size: geom size for rendering                       (nsite, 3)
+_src\types.py	1343	source	mat_texid: texture id for rendering                      (*, nmat, mjNTEXROLE)
+_src\types.py	1345	source	mat_texrepeat: texture repeat for rendering              (*, nmat, 2)
+_src\types.py	2629	source	class RenderContext:
+_src\types.py	2630	source	"""Context for rendering.
+_src\types.py	2633	source	nrender: number of actively rendering cameras
+_src\types.py	2634	source	cam_res: camera resolution for actively rendering cameras
+_src\types.py	2637	source	use_fast_math: whether to enable fast math for the render kernel
+_src\types.py	2640	source	background_color: color used for missed rays when no skybox is rendered
+_src\types.py	2642	source	bvh_ngeom: number of geometries in the BVH
+_src\types.py	2644	source	mesh_registry: mesh BVH id to warp mesh mapping
+_src\types.py	2645	source	mesh_bvh_id: mesh BVH ids
+_src\types.py	2655	source	hfield_registry: hfield BVH id to warp mesh mapping
+_src\types.py	2656	source	hfield_bvh_id: hfield BVH ids
+_src\types.py	2658	source	flex_mesh_registry: per-flex mesh BVH registry (prevents garbage collection)
+_src\types.py	2660	source	flex_bvh_id: per-flex BVH ids
+_src\types.py	2661	source	flex_group_root: per-flex group roots (nworld x n_flex_bvh)
+_src\types.py	2662	source	flex_render_smooth: whether to render flex meshes smoothly
+_src\types.py	2663	source	bvh_nflexgeom: number of flex geometries in the BVH
+_src\types.py	2667	source	bvh: scene BVH
+_src\types.py	2668	source	bvh_id: scene BVH id
+_src\types.py	2680	source	render_rgb: per-camera RGB render flags
+_src\types.py	2681	source	render_depth: per-camera depth render flags
+_src\types.py	2684	source	render_seg: per-camera segmentation render flags
+_src\types.py	2688	source	render_skybox: whether to shade missed rays with a MuJoCo skybox texture
+_src\types.py	2702	source	mesh-ray rule. When False, the renderer reports inner-surface hits, which
+_src\types.py	2703	source	is faster but causes a camera placed inside a geom to render that geom's
+_src\types.py	2713	source	has_orthographic_camera: True iff any actively rendering camera uses
+_src\types.py	2736	source	splat_bvh: Splat BVH
+_src\types.py	2739	source	splat_bvh_id: Splat BVH id
+_src\types.py	2740	source	splat_group_root: Per-world selected splat BVH root
+_src\types.py	2744	source	nrender: int
+_src\types.py	2753	source	render_skybox: bool
+_src\types.py	2760	source	bvh_ngeom: int
+_src\types.py	2763	source	mesh_bvh_id: array("nmesh", wp.uint64)
+_src\types.py	2774	source	hfield_bvh_id: array("nhfield", wp.uint64)
+_src\types.py	2778	source	flex_bvh_id: array("*", wp.uint64)
+_src\types.py	2780	source	flex_render_smooth: bool
+_src\types.py	2781	source	bvh_nflexgeom: int
+_src\types.py	2785	source	bvh: wp.Bvh
+_src\types.py	2786	source	bvh_id: wp.uint64
+_src\types.py	2797	source	render_rgb: array("ncam", bool)
+_src\types.py	2798	source	render_depth: array("ncam", bool)
+_src\types.py	2801	source	render_seg: array("ncam", bool)
+_src\types.py	2818	source	splat_bvh: Optional[wp.Bvh]
+_src\types.py	2821	source	splat_bvh_id: wp.uint64
+record.py	44	source	_RENDER_MODE = flags.DEFINE_enum("render_mode", "python", ["warp", "python"], "rendering backend to use")
+record.py	45	source	_CHANNEL = flags.DEFINE_enum("channel", "rgb", ["rgb", "depth", "segmentation"], "rendering channel to record in the video")
+record.py	74	source	if _RENDER_MODE.value == "warp":
+record.py	75	source	# TODO(team): Add support for Warp renderer to match the MuJoCo free camera, possibly by adding
+record.py	79	source	"Warp rendering requested, but the model has no cameras. Please define at least one camera in the scene."
+record.py	81	source	m, d, rc, ctrls = cli.init_structs(mjw.render, mjm)
+record.py	82	source	if _CHANNEL.value == "depth" and not rc.render_depth.numpy()[0]:
+record.py	83	source	raise ValueError("Depth channel requested for recording, but depth rendering is disabled.")
+record.py	84	source	if _CHANNEL.value == "segmentation" and not rc.render_seg.numpy()[0]:
+record.py	85	source	raise ValueError("Segmentation channel requested for recording, but segmentation rendering is disabled.")
+record.py	88	source	raise ValueError(f"{_CHANNEL.value} channel recording is only supported under the 'warp' rendering mode.")
+record.py	91	source	renderer = mujoco.Renderer(mjm, height=cli.RENDER_HEIGHT.value[0], width=cli.RENDER_WIDTH.value[0])
+record.py	102	source	render_every = max(1, int(1.0 / (_FPS.value * mjm.opt.timestep)))
+record.py	106	source	if step % render_every != 0:
+record.py	109	source	if _RENDER_MODE.value == "warp":
+record.py	110	source	mjw.refit_bvh(m, d, rc)
+record.py	111	source	mjw.render(m, d, rc)
+record.py	143	source	renderer.update_scene(mjd, camera=cam)
+record.py	144	source	frames.append(Image.fromarray(renderer.render()))
+record.py	155	source	duration=int(render_every * mjm.opt.timestep * 1000),
+record.py	173	source	flags.FLAGS.set_default("render_width", [320])
+record.py	174	source	flags.FLAGS.set_default("render_height", [240])
+testspeed.py	186	source	# RenderContext
+testspeed.py	188	source	print("RenderContext")
+testspeed.py	189	source	print(f"  shadows: {rc.use_shadows} textures: {rc.use_textures} nlight: {m.nlight} bvh_ngeom: {rc.bvh_ngeom}")
+testspeed.py	190	source	print(f"  ncam: {rc.nrender} cam_res: {[(int(x[0]), int(x[1])) for x in rc.cam_res.numpy()]}")
+testspeed.py	282	source	if _FUNCTION.value == "render":
+testspeed.py	286	source	def render_callback(step, step_trace, latency):
+testspeed.py	292	source	# e.g., `mjwarp-testspeed --function=refit_bvh --function=render`
+testspeed.py	293	source	def refit_and_render(m, d, rc):
+testspeed.py	294	source	mjw.refit_bvh(m, d, rc)
+testspeed.py	295	source	mjw.render(m, d, rc)
+testspeed.py	297	source	jit_duration = cli.unroll(refit_and_render, m, d, rc, render_callback, ctrls)
