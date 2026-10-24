@@ -280,30 +280,48 @@
       },
       {
         "slice": "S3",
-        "task_id": null,
+        "task_id": "2026-10-24-render-bvh-s3",
         "owner": "Backend",
-        "normify_status": "unregistered",
-        "execution": "next; critical path",
+        "normify_status": "verified",
+        "execution": "done",
         "evidence": "docs/development-evidence/render-bvh/s3-mesh-bvh/",
-        "note": "mesh triangle BVH; register after S2 close"
+        "note": "commit 8efd4ad; 436x5 rays, distance/u/v 0 ULP, refit 32, degenerate mesh"
+      },
+      {
+        "slice": "S3 review",
+        "task_id": "2026-10-24-render-bvh-s3-independent-check",
+        "owner": "QA",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/s3-independent-check/",
+        "note": "commit 96e50d3; independent 436x5, 0 ULP, boundaries/refit/degenerate"
+      },
+      {
+        "slice": "S3 coverage fix",
+        "task_id": "2026-10-25-render-bvh-s3-coverage-fix",
+        "owner": "Backend",
+        "normify_status": "proposed",
+        "execution": "blocked: S5; 2-minute GPU window after S5",
+        "evidence": "docs/development-evidence/render-bvh/s3-mesh-bvh/",
+        "note": "degenerate face 1/2/3 coverage, wording, removed_rays; append normify fix to S3"
       },
       {
         "slice": "S4",
         "task_id": null,
         "owner": "Backend",
         "normify_status": "unregistered",
-        "execution": "planned",
+        "execution": "planned; after S5",
         "evidence": "docs/development-evidence/render-bvh/s4-texture/",
         "note": "texture; write scope disjoint from S5, but single Backend and single GPU serialize"
       },
       {
         "slice": "S5",
-        "task_id": null,
+        "task_id": "2026-10-24-render-bvh-s5",
         "owner": "Backend",
-        "normify_status": "unregistered",
-        "execution": "planned",
+        "normify_status": "in_progress",
+        "execution": "CPU prep, then 90-minute GPU window",
         "evidence": "docs/development-evidence/render-bvh/s5-camera-rays/",
-        "note": "camera/rays; write scope disjoint from S4, but single Backend and single GPU serialize"
+        "note": "camera-space ray layer only; AA image deferred S7b/S8; world transform S7b; SHA-256 + 128 samples; sha2 dev-dep"
       }
     ],
     "structural_decisions": [
@@ -354,6 +372,11 @@
         "id": "N6",
         "note": "Non-blocking observation from QA S2b review: reference capture uses use_fast_math=True while product kernel uses use_fast_math=false; this fixture is 0 ULP, but later slices must track the compile-option difference and not treat it as equivalence.",
         "source": "QA S2b review 5ef8cb6"
+      },
+      {
+        "id": "N7",
+        "note": "S3 milestone complete: S3 8efd4ad, S3 review 96e50d3. S3 coverage fix 2026-10-25-render-bvh-s3-coverage-fix is registered and waits for S5 (2-minute GPU window; face 1/2/3 coverage, wording, removed_rays). S5 is in_progress (d2bcfab): camera-space ray layer only, AA image deferred S7b/S8, world transform S7b, orthographic authoring copy, SHA-256 + 128 samples, sha2 dev-dependency. S4 waits for S5.",
+        "source": "Arch 2026-10-24"
       }
     ]
   },
