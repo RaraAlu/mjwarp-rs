@@ -141,7 +141,7 @@ unit 通过 测试524过0败
 
 | 文件 | 行数 | sha256 |
 | --- | --- | --- |
-| `src/render/texture.rs` | 486 | `54d39a6d295d1be898e5282af9be4a9bc2bdd23211910513509d2824a73bad32` |
+| `src/render/texture.rs` | 486 | `ec21970331de9f4cfb9d42ba8aea5563518379c61fbcd79656d4a6218e292b88` |
 | `src/render/texture/cuda.rs` | 298 | `d79512ae4d446c91afd4f52f361bca6c7a37d3ea9917f1c94e3243471ceb11c7` |
 | `src/render/texture/sample.cu` | 43 | `145087f2de1c7127ed3cbc36a97bfef8e3ab227927bae053c812b513583e42da` |
 | `src/render/mod.rs` | 361 | `e89f28f71a1458402c37458cf45e95044e8e662b44621d9ce3784bb66c938887` |
@@ -149,6 +149,11 @@ unit 通过 测试524过0败
 | `scripts/authoring/render-bvh-s4/capture_s4_textures.py` | 281 | `72f170e5622b5ae77825970142f9f015ea413ad0549afdec3bbe3c5bdfb2fe0d` |
 | `scripts/authoring/render-bvh-s4/s4_texture_support.py` | 184 | `051ff743f737d0c185df7753622eb78234a379476641ea5fdd58e4de27875af9` |
 | `fixtures/render-bvh/scene-a/s4/textures.json` | 15332 | `cbeb58ca4e854639ee500e31ccb0d9b4549d059d657d63a19d98999857b8fb16` |
+
+工程修正（2026-10-25，Arch/QA 复核发现）：`src/render/texture.rs` 原记录 hash `54d39a6d…`
+是最后一次单元测试断言修正前的旧值；实际提交 blob 为 17,275 B / 486 行 / `ec219703…`
+（raw 与 LF 归一化口径相同），git blob sha1 `25b9f10e…`。已用 `normify fix` 修正，产品代码
+与 S4 验收结论不变。
 
 ## 7. 验收映射（plan S4 五条）
 

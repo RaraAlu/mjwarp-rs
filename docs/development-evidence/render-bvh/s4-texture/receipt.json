@@ -115,7 +115,7 @@
     }
   },
   "artifacts": {
-    "src/render/texture.rs": {"lines": 486, "sha256": "54d39a6d295d1be898e5282af9be4a9bc2bdd23211910513509d2824a73bad32"},
+    "src/render/texture.rs": {"lines": 486, "bytes": 17275, "sha256": "ec21970331de9f4cfb9d42ba8aea5563518379c61fbcd79656d4a6218e292b88", "git_blob_sha1": "25b9f10eae0628ad0d7d09161a6577b72efce49d"},
     "src/render/texture/cuda.rs": {"lines": 298, "sha256": "d79512ae4d446c91afd4f52f361bca6c7a37d3ea9917f1c94e3243471ceb11c7"},
     "src/render/texture/sample.cu": {"lines": 43, "sha256": "145087f2de1c7127ed3cbc36a97bfef8e3ab227927bae053c812b513583e42da"},
     "src/render/mod.rs": {"lines": 361, "sha256": "e89f28f71a1458402c37458cf45e95044e8e662b44621d9ce3784bb66c938887"},
@@ -156,6 +156,7 @@
     "render_launch_abi": "正式 u64/texture-array/scalar 渲染发射 ABI 属 S6；S4 用四缓冲 ABI + meta 两槽打包纹理句柄"
   },
   "notes": [
+    "工程修正（2026-10-25，Arch/QA 复核发现）：S4 证据里 `src/render/texture.rs` 的 sha256 原记录为 `54d39a6d…`，那是最后一次单元测试断言修正前的取值，属记录错误；实际提交 blob 为 17,275 B / 486 行 / raw=LF sha256 `ec21970331de9f4cfb9d42ba8aea5563518379c61fbcd79656d4a6218e292b88`，git blob sha1 `25b9f10eae0628ad0d7d09161a6577b72efce49d`（blob 对象 sha256 `1b1c17ed…`）。已用 `normify fix` 修正该行，产品代码与 S4 验收结论不变。",
     "转换公式的 f32 常量来自上游 wp.static(1.0/255.0)：double 1/255 舍入到 0x3B808081；离线 CPU dry-run（Warp cpu device 调上游同一内核）对 3 个模型纹理 + nc=1/2/4 合成用例全部 0 位差，验证了该常量与乘积顺序。",
     "纹理对象必须用驱动 API 的 CUDA_RESOURCE_DESC/CUDA_TEXTURE_DESC 显式构造：cudarc sys 的 bindgen 结构含无 0 值的枚举字段（CUmemorytype 从 1 起、CUarray_format 无 0 值），std::mem::zeroed() 会在 debug 下 panic（首次 GPU 测试即因此失败），已改为逐字段构造。",
     "PTX 纹理对象取指必须写坐标类型后缀：tex.2d.v4.f32.f32；漏写时 NVRTC 可编译但 cuModuleLoadData 报 CUDA_ERROR_INVALID_PTX（218），离线 ptxas -arch=sm_89 预检能在不占 GPU 时发现该类错误。",
