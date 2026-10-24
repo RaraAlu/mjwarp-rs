@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-24-render-bvh-s6b",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "S6b",
+  "title": "渲染/BVH S6b：render context 生命周期/所有权/显式 refit",
+  "date": "2026-10-25",
+  "conclusion": "覆盖范围内 pass（GPU 独占窗口）：RenderContext 显式拥有场景/网格 BVH、纹理对象与 rgb/depth/seg 输出缓冲，create/destroy/drop 成对；100 次 create/destroy 的 10 次显存采样全部等于基线（增长 0 B，阈值 16 MiB）；移动位姿后 render 仍用旧 BVH，显式 refit_bvh 后命中新位置且 render 前后 refits 计数不变（不隐式刷新、不触发物理）；禁用输出 byte_len/read 均拒绝（DisabledOutput）；destroy 后显存回基线（retained 0 B）并可再次创建。渲染像素内核属 S7b，本片用 S2b/S3 查询代理验证生命周期语义，不宣称图像验收。",
+  "scope": {
+    "product": [
+      "src/render/context/owner.rs",
+      "src/render/context/lifecycle.rs",
+      "src/render/context.rs",
+      "src/render/mod.rs"
+    ],
+    "tests": [
+      "tests/render_context_lifecycle.rs"
+    ],
+    "not_changed": [
+      "fixtures/render-bvh/**",
+      "src/render/bvh/**",
+      "src/render/texture/**",
+      "src/render/camera/**",
+      "docs/development-evidence/render-bvh/s2a-scene-bvh-host/**",
+      "docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/**",
+      "docs/development-evidence/render-bvh/s3-mesh-bvh/**",
+      "docs/development-evidence/render-bvh/s4-texture/**",
+      "docs/development-evidence/render-bvh/s6a-context-params/**"
+    ],
+    "out_of_scope": [
+      "像素渲染内核/AA/阴影/天空盒 (S7b)",
+      "渲染发射 ABI (S7a)",
+      "预计算射线缓冲所有权 (S7b/S8)",
+      "多 world 夹具"
+    ]
+  },
+  "semantics": {
+    "upstream": "mujoco_warp/_src/render.py、render_util.py、types.RenderContext（MJWarp 3.15，71da24d956378a87a703b6e1442b13aec0c4ac29）",
+    "ownership": "RenderContext 拥有 SceneResources(SceneBvh+SceneBvhQuery)、MeshResources(MeshBvh+MeshBvhQuery)、TextureResources(TextureObjects)、OutputResources(rgb u32/depth f32/seg vec2i)；字段顺序即释放顺序，Drop 兜底，destroy(self) 消费 context",
+    "explicit_refit": "SceneState 保存 leaf 静态参数与当前位姿；refit_bvh() 是唯一重拟合入口（SceneResources::refits 计数），按 S2a compute_leaf_aabb 重算边界后 refit_bvh；render_rays/mesh_rays 只读当前 BVH 与当前位姿，不重拟合、不触发物理",
+    "stale_bvh": "上游语义：context 创建后物理只写 geom_xpos/xmat，陈旧 BVH 仍可渲染。产品可观测定义：位姿移动但未 refit 时，旧位置射线在 BVH 内但几何已移走 → miss；新位置射线被旧包围盒拒绝 → miss；显式 refit 后新位置命中",
+    "mesh_refit": "复用 S3：set_points 更新顶点不自动重拟合；refit_mesh() 显式重拟合并计数；查询在网格局部系（世界变换属渲染内核）",
+    "outputs": "按 S6a OutputLayout 分配：rgb_pixels/depth_pixels × nworld × 4 B、seg_slots × nworld × 8 B；未启用通道不分配，read/byte_len 返回 InputError::DisabledOutput（与 ImageBatchLayout 口径一致）",
+    "uaf": "资源不以裸句柄逃逸，全部访问经 RenderContext 借用；destroy(self) 后编译器禁止再使用；TransferBuffer/TextureObjects/查询器析构释放设备资源"
+  },
+  "acceptance": {
+    "cycle_100": "100 次 create/destroy（每次一次 render 查询）：基线 free 15,811,477,504 B，10 次采样全部相同，growth 0 B（阈值 16,777,216 B），elapsed 6,575 ms；release_stats created/destroyed 各 +100",
+    "stale_until_refit": "初始 geom_id=0 distance 4.0；不 refit 时 B/A 均 geom_id=-1；refit 后 B geom_id=0 distance 4.0、A -1；refits 从 0→1 只由显式 refit_bvh 触发",
+    "render_never_refits": "render_rays 前后 refits() 不变（0 或 1），当前位姿输入不被渲染修改；render 模块不引用 physics",
+    "disabled_outputs": "rgb_pixels=120000、rgb_bytes=480000；depth/seg 禁用时 byte_len 与 read 均 InputError::DisabledOutput；新分配 rgb 全零且长度=rgb_pixels*nworld",
+    "drop_releases": "预热后基线 free 15,811,477,504 B；context 占用 2,097,152 B；destroy 后 free 回基线与 retained 0 B；销毁后可再次创建；纹理 3 个、网格 stale=-1→fresh=0、mesh_refits=1、纹理采样 [0.49803925,0.14901961,0.49803925,1.0]",
+    "host": "SceneState::bounds 与 S2a compute_leaf_aabb 逐 leaf 位等；空场景/world 0/长度不符/set_poses 长度不符/hfield/非有限位姿均在分配前拒绝；world 数与 context 不一致 → OwnerError::WorldsMismatch",
+    "new_file_limit": "owner.rs 364 行、lifecycle.rs 322 行、测试 477 行；context.rs 397 行、mod.rs 359 行（均 ≤500）"
+  },
+  "reference": {
+    "upstream_submit": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "s0b_context_json": {
+      "path": "fixtures/render-bvh/scene-a/reference/context.json",
+      "sha256": "e08cce0ad1783b2cadd533115ee0ea0bf1defa8db7ad8ed5a5e8ed1c2c62f2df",
+      "used_for": "默认 context 的三通道输出形状/像素数（120,000 像素、420x240 与 240x180）与 nworld；只读"
+    },
+    "s1_model_312": {
+      "path": "fixtures/render-bvh/scene-a/model-312.json",
+      "sha256": "cdd490f0209dd16a57b2685f3139548af8a2b73195cdb0e01a74ab094ef1df00",
+      "used_for": "RenderFields 输入（相机/纹理/输出开关）；只读"
+    },
+    "no_new_fixture": true,
+    "no_capture": true,
+    "no_python": true
+  },
+  "tests": {
+    "integration_host": {
+      "command": "cargo test --locked --features cuda-probe --test render_context_lifecycle",
+      "result": "2 passed / 0 failed / 5 ignored",
+      "cases": [
+        "scene_state_bounds_match_s2a_leaf_aabb",
+        "scene_state_rejects_invalid_inputs_before_allocation"
+      ]
+    },
+    "integration_gpu": {
+      "command": "cargo test --locked --features cuda-probe --test render_context_lifecycle -- --ignored --test-threads=1",
+      "result": "5 passed / 0 failed（测试体内 7.56 s）",
+      "device": "NVIDIA GeForce RTX 4070 Ti SUPER / 驱动 596.36 / SM89",
+      "cases": [
+        "stale_bvh_until_explicit_refit_and_render_never_refits",
+        "disabled_outputs_cannot_be_read_and_sizes_follow_layout",
+        "hundred_create_destroy_cycles_keep_memory_stable",
+        "drop_releases_mesh_texture_and_output_resources",
+        "world_count_mismatch_is_rejected_before_buffers"
+      ]
+    }
+  },
+  "gpu": {
+    "window": "Arch 分配的 60 分钟独占窗口（2026-10-25 05:38 起），无并发满载任务",
+    "baseline_before_mib": 2870,
+    "baseline_after_mib": 2870,
+    "baseline_bytes_free": 15811477504,
+    "one_time_driver_retention_bytes": 33554432,
+    "notes": "首次加载 scene/mesh/sample 三个模块时驱动保留 32 MiB 代码缓存（一次性，之后 100 次循环增长 0 B）；drop 判定用预热后第二轮，不计一次性驱动缓存"
+  },
+  "gates": {
+    "fmt": "通过 1259ms",
+    "clippy": "通过 2873ms（--all-targets，0 警告）",
+    "clippy-cuda": "通过 5442ms（--all-targets --features cuda-probe，0 警告）",
+    "unit": "通过 22561ms，测试 531 过 0 败（默认 feature；本片 host/GPU 用例在 --features cuda-probe 下另行执行，见 tests）"
+  },
+  "artifacts": {
+    "src/render/context/owner.rs": {"lines": 364, "bytes": 13054, "sha256": "717628612a85b2037d0f51f874154c02432671598ca53f2648d679bdf6f9636d"},
+    "src/render/context/lifecycle.rs": {"lines": 322, "bytes": 12157, "sha256": "4e4aae9726081e3eaf90000cefc85b513ca2c190d9bb3a893d5649b35051c71b"},
+    "src/render/context.rs": {"lines": 397, "bytes": 14743, "sha256": "c4838c2ebb76b3c056784d9eecc9ff135fc7b5f62f2d25147eea10c609f17bed"},
+    "src/render/mod.rs": {"lines": 359, "bytes": 11393, "sha256": "4081dbd27764c2889fc43baeeab44645f00f0d1bdfde24f70bfe1b7d916b9ddd"},
+    "tests/render_context_lifecycle.rs": {"lines": 477, "bytes": 18258, "sha256": "d965753722720e92c6ae466ed9ee02dc0ece10d25d71ed477e3c72bf9374cfe0"}
+  },
+  "notes": [
+    "GPU 用例的 render 是「渲染消费 BVH」的查询代理（S2b 查询 + 当前 leaf 位姿），不是像素渲染；S7b 才实现内核与图像验收。",
+    "陈旧 BVH 的判定用两侧 miss + refit 后命中，避免对节点布局做断言（S2/S3 口径）。",
+    "一次性驱动代码缓存 32 MiB 记录在 gpu 字段；阈值仍按 16 MiB 且实测 0 B，未放宽。",
+    "任务 files 不含纹理/网格/BVH 源码，本片只在其上组合（不修改 S2/S3/S4 产品文件与证据）。",
+    "S6a 的 context.rs 只增加两个 cfg(cuda-probe) 模块与导出行，参数解析语义未改。"
+  ],
+  "unmet": [
+    "像素渲染内核、AA、阴影/天空盒/聚光灯、纹理/顶点法线/镜面/自发光求值属 S7b（依赖 S7a 发射 ABI）",
+    "use_precomputed_rays=true 时上游 context 的 ray/ray_offset 缓冲仍由 S5 RayBuilder 按需构建，不在 S6b owner 内",
+    "多 world 场景只在 S2a/S2b 验收；本片 GPU 用例 worlds=1",
+    "上游 context retain/push/pop 只在 S4 纹理对象路径内成对执行，S6b 不新增上下文操作",
+    "未跑全量 G01（fast-loop 口径：本切片 GPU 用例 + 四门禁）"
+  ],
+  "deferral": {
+    "render_kernel": "S7b",
+    "render_launch_abi": "S7a",
+    "end_to_end_images": "S8"
+  },
+  "gpu_required": true,
+  "authoring_only": false,
+  "product_python_dependency": false
+}

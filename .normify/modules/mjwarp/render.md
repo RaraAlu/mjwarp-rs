@@ -2,7 +2,7 @@
 uid = "a66a7856"
 id = "mjwarp.render"
 tags = ["planned", "engine", "render"]
-fingerprint = "832345f9b6023a008013b4d6cc920448d91ebd52c29b3cb633e6247e1be0f7ec"
+fingerprint = "6c76bc37e0d0f4909ab73e9abfcfa10b5854f340dc4c5b1a41651292fd560458"
 
 [name]
 zh = "GPU批量渲染"
@@ -78,6 +78,12 @@ path = "src/render/context/output.rs"
 
 [[source]]
 path = "src/render/context/model.rs"
+
+[[source]]
+path = "src/render/context/owner.rs"
+
+[[source]]
+path = "src/render/context/lifecycle.rs"
 
 [[apis]]
 protocol = "rpc"
@@ -169,10 +175,10 @@ path = "mjwarp_rs::render::RenderContext"
 
 [apis.description]
 zh = """
-计划保留类型契约。保留冻结上游语义。 U095；R01；P8。
+已实现宿主生命周期。 拥有BVH、网格、纹理与输出缓冲。 显式refit与销毁。 像素内核待S7b。
 """
 en = """
-Planned type contract for upstream types.RenderContext (U095). Matrix: R01. Phase: P8. Not implemented; RPC is only an abstract contract notation.
+Implemented host lifecycle. Owns scene/mesh BVHs, texture objects and output buffers; explicit refit and destroy. Pixel kernel is S7b and not implemented.
 """
 
 [[apis]]

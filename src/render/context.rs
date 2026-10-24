@@ -19,10 +19,21 @@ mod model;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "cuda-probe")]
+pub mod lifecycle;
 pub mod output;
+#[cfg(feature = "cuda-probe")]
+pub mod owner;
 pub mod params;
 
+#[cfg(feature = "cuda-probe")]
+pub use lifecycle::{LifecycleError, OutputResources, OutputValues, RenderContext, release_stats};
 pub use output::OutputLayout;
+#[cfg(feature = "cuda-probe")]
+pub use owner::{
+    LeafPose, MeshResources, MeshState, OwnerError, SceneLeaf, SceneResources, SceneState,
+    TextureResources, device_memory,
+};
 pub use params::{CamRes, ContextParams, RenderFlagSpec, SplatInputs};
 
 use model::{headlight, lights, near_far, skybox, squash_geometry};

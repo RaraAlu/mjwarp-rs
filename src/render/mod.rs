@@ -13,6 +13,11 @@ pub use camera::{
 };
 pub use context::{ContextError, ContextParams, ResolvedContext, resolve_context};
 #[cfg(feature = "cuda-probe")]
+pub use context::{
+    LeafPose, LifecycleError, OutputResources, OutputValues, RenderContext, SceneLeaf, SceneState,
+    device_memory, release_stats,
+};
+#[cfg(feature = "cuda-probe")]
 pub use rays::RayBuilder;
 pub use rays::{RayBuffer, RayMode, planned_ray_count};
 #[cfg(feature = "cuda-probe")]
