@@ -1,16 +1,28 @@
 {
   "schema": 1,
-  "kind": "render-bvh-s0a-parity-pass-approved",
+  "kind": "render-bvh-s0a-parity-pass-approved-camera-intrinsics-fixed",
   "task_id": "2026-10-24-render-bvh-s0a",
   "date": "2026-10-24",
   "slice": "S0a",
-  "outcome": "pass_under_user_approved_judging",
+  "outcome": "pass_under_user_approved_judging_after_approved_fixture_fix",
   "decision": {
     "ruling": "user 2026-10-24 ruling, option A: close S0a under the already approved tolerance hierarchy and render-relevant scope",
     "criterion": "render-relevant model arrays (plan S0a acceptance item 3); int/byte exact; float32 f32_bits; float64 judged by f32_bits first (task acceptance item 3); geom_sameframe excluded as render_relevant=false",
     "tolerance_changed": false,
     "double_layer_numbers_removed": false,
-    "strict_initial_result_provided": true
+    "strict_initial_result_provided": true,
+    "fixture_fix": "user 2026-10-24 approved: fix the frozen scene-a perspective camera (missing focal length / principal point produced all-zero cam_intrinsic and the 180-degree cam_fovy sentinel, so MJWarp emitted zero-length rays and rendered that camera as pure background), then re-run parity and re-pin hashes; parity conclusion unchanged"
+  },
+  "fix": {
+    "reason": "cam-persp had sensorsize without focal/principal; MuJoCo 3.12 and 3.15 identically produced cam_intrinsic=(0,0,0,0) and cam_fovy=180.00000500895632, and MJWarp render_util.compute_ray divides by fx=0 -> zero ray directions -> background-only image. S0a only compared model arrays and did not render, so both versions agreed on the broken values and parity passed. The defect only surfaced in S0b.",
+    "change": "scene.xml cam-persp: added focalpixel=\"160 160\" (+ explanatory comment); focalpixel 160 on the 320px sensor gives cam_intrinsic=(0.018,0.016,0,0) and cam_fovy=73.73979461915735 in both MuJoCo versions; cam-track (fovy branch) unaffected",
+    "model_array_diff_old_to_new": {
+      "cam_fovy[0]": {"old": 180.00000500895632, "new": 73.73979461915735},
+      "cam_intrinsic[0..1]": {"old": [0.0, 0.0], "new": [0.017999999225139618, 0.01600000075995922]},
+      "other_131_fields": "unchanged"
+    },
+    "reproducibility": "initial scene.xml recorded hash 8e723f9d... (4,234 B, working-tree form with one CRLF line) did not equal the committed LF blob 255f4d8c... (4,233 B); scene.xml hashes are now computed over LF-normalized bytes (CRLF->LF) in both the S0a parity script and the S0b capture script, so checkout line-ending configuration cannot change the recorded hash",
+    "guard_added": "scripts/authoring/render-bvh/camera_sanity.py: for every camera of both models, intrinsics must be finite, fx>0 and fy>0, and cam_fovy must lie in (0,180) rather than the 180-degree sentinel; run_s0a.ps1 fails when it fails"
   },
   "conclusion": {
     "parity": "pass",
@@ -30,7 +42,8 @@
     ],
     "counts_match": true,
     "both_mjbs_load_with_matching_version": true,
-    "deterministic": true
+    "deterministic": true,
+    "camera_sanity": "pass"
   },
   "preserved_strict_evidence": {
     "note": "initial strict element-wise conclusion and all double-layer numbers are kept in parity.json and must not be removed",
@@ -52,22 +65,24 @@
     }
   },
   "products": {
-    "scene_xml": {"path": "fixtures/render-bvh/scene-a/scene.xml", "bytes": 4234, "sha256": "8e723f9d48f2fb926522fb149c406ea8f59d8560effe6fa81d021f938726c406"},
-    "mjb_312": {"path": "fixtures/render-bvh/scene-a/scene-312.mjb", "bytes": 101328, "sha256": "a73d4b793f60800414ee8484c1efad11416b5284444c9f864557851ddb84ebd3"},
-    "mjb_315": {"path": "fixtures/render-bvh/scene-a/scene-315.mjb", "bytes": 101320, "sha256": "60d0a8564c6a99fba64e9ce0d229bb96a235db2bc6415c0441d1ad73dfd6b02f"},
-    "model_312_json": {"path": "fixtures/render-bvh/scene-a/model-312.json", "bytes": 312613, "sha256": "968bb0513631e70756fd2e41fd04b94502d8bd9bb8dfd2010a0289f9657619ab"},
-    "model_315_json": {"path": "fixtures/render-bvh/scene-a/model-315.json", "bytes": 311089, "sha256": "59407e636b820fbcba15719e257d9be5ac180d8218ed872d3861c0b8bbd596c5"},
+    "scene_xml": {"path": "fixtures/render-bvh/scene-a/scene.xml", "bytes": 4639, "sha256": "a9f1f0a35464f4df17f191e1d68431bda0f17648273578e58fa08f84b0449289", "previous_sha256": "8e723f9d48f2fb926522fb149c406ea8f59d8560effe6fa81d021f938726c406"},
+    "mjb_312": {"path": "fixtures/render-bvh/scene-a/scene-312.mjb", "bytes": 101328, "sha256": "c6f5f9f17118067ad39fb2ea6be4f1c274e4d932b553bbe9a4e59b464c56aad1", "previous_sha256": "a73d4b793f60800414ee8484c1efad11416b5284444c9f864557851ddb84ebd3"},
+    "mjb_315": {"path": "fixtures/render-bvh/scene-a/scene-315.mjb", "bytes": 101320, "sha256": "8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4", "previous_sha256": "60d0a8564c6a99fba64e9ce0d229bb96a235db2bc6415c0441d1ad73dfd6b02f"},
+    "model_312_json": {"path": "fixtures/render-bvh/scene-a/model-312.json", "bytes": 312635, "sha256": "cdd490f0209dd16a57b2685f3139548af8a2b73195cdb0e01a74ab094ef1df00", "previous_sha256": "968bb0513631e70756fd2e41fd04b94502d8bd9bb8dfd2010a0289f9657619ab"},
+    "model_315_json": {"path": "fixtures/render-bvh/scene-a/model-315.json", "bytes": 311121, "sha256": "6b055ca2b14e79076ef86a0eab7b3665e7785080885990d273e6278057fb5240", "previous_sha256": "59407e636b820fbcba15719e257d9be5ac180d8218ed872d3861c0b8bbd596c5"},
     "judge_module": {"path": "scripts/authoring/render-bvh/model_parity_judge.py", "lines": 122, "bytes": 5019, "sha256": "347949e7ace0688817ee2daf5ab484a59d9f28552b5a58f1620797b1207c5277"}
   },
   "scripts": {
     "compile_scene_312_cpp": {"path": "scripts/authoring/render-bvh/compile_scene_312.cpp", "lines": 348, "bytes": 16557, "sha256": "8049b9e2a728bb25fa87c3f183ff9f5b1a067922ca240a805f9452e04aa85dc7"},
-    "model_parity_py": {"path": "scripts/authoring/render-bvh/model_parity.py", "lines": 480, "bytes": 20543, "sha256": "832b8736098c37da3ae73776e39f509b6e14c43c91f3e47bb0a0d9bfcdfaae61"},
-    "run_s0a_ps1": {"path": "scripts/authoring/render-bvh/run_s0a.ps1", "lines": 56, "bytes": 3147, "sha256": "a611f426fdd5200e028a38498f3b210dc8ae2c10ac3e5fbb828ca8b32ceb369f"}
+    "model_parity_py": {"path": "scripts/authoring/render-bvh/model_parity.py", "lines": 487, "bytes": 20921, "sha256": "d19a82f8c881073154b07703878213f4125ec8c7a0b2502ed27688059c888807"},
+    "camera_sanity_py": {"path": "scripts/authoring/render-bvh/camera_sanity.py", "lines": 135, "bytes": 5767, "sha256": "d289e09aea60265e2633662b01ae280de7636ea2f94f9af9f2263fa00d408d56"},
+    "run_s0a_ps1": {"path": "scripts/authoring/render-bvh/run_s0a.ps1", "lines": 59, "bytes": 3391, "sha256": "c5e5a2bda79b125151ce93daa3eaec3e2a80a6598e056bf266c1bcec00fa8bc0"}
   },
   "evidence": {
-    "parity": {"path": "docs/development-evidence/render-bvh/s0a-reference-fixture/parity.json", "bytes": 57622, "sha256": "69c540b63c4954f1f7510589d2105dcb55c3577f593be6dd02a16b4a7a3074bf", "task_id_check": "passed", "conclusion_parity": "pass", "strict_elementwise_parity": "fail"},
+    "parity": {"path": "docs/development-evidence/render-bvh/s0a-reference-fixture/parity.json", "bytes": 57763, "sha256": "136ff14268cbf6889be22331c44b0c3ac262ea5d4bf2219bf688cea0cae3d8d2", "task_id_check": "passed", "conclusion_parity": "pass", "strict_elementwise_parity": "fail"},
+    "camera_sanity": {"path": "docs/development-evidence/render-bvh/s0a-reference-fixture/camera-sanity.json", "bytes": 2139, "sha256": "ba9483e175f2d938bb70ab3f62acd13a78fe907ac25e3e99c593d73923dac6ad", "task_id_check": "present", "verdict": "pass", "cameras_checked": 2, "models_checked": 2},
     "run_log": {"path": "docs/development-evidence/render-bvh/s0a-reference-fixture/run.log", "bytes": 2246, "sha256": "801989358d3c90fd612b29b4c1f3f6a44638b7d75cbbd644c1e311415caaf13c"},
-    "readme": {"path": "docs/development-evidence/render-bvh/s0a-reference-fixture/README.md", "bytes": 10549, "sha256": "98bbe4535fbb411004470a4305fd091f66ab013f266e2c8e99ea783d534db808"}
+    "readme": {"path": "docs/development-evidence/render-bvh/s0a-reference-fixture/README.md", "bytes": 15726, "sha256": "c6e14a7a9ce8796814821a4d4e13224ad468056bd50fe69e12e9bdcabb43fc30"}
   },
   "environment": {
     "mujoco_312": "3.12.0 (target/toolchains/mujoco-3.12.0/package, C API)",
@@ -78,12 +93,14 @@
     "both model versions are bit-identical",
     "MuJoCo 3.12 and 3.15 are equivalent models",
     "strict element-wise parity passed",
+    "the initial S0a fixture was defect-free (its perspective camera intrinsics were missing and are fixed in this revision)",
     "render output parity (S0b, reference capture)",
     "product acceptance (S1+ not started)"
   ],
   "unmet": [
     "initial strict element-wise parity remains fail (7/133 fields) - preserved, not removed",
     "MuJoCo 3.15 mesh asset frame computation change not located in upstream source (hypothesis only)",
-    "no 3.15-native product impact analysis (D1 alternative)"
+    "no 3.15-native product impact analysis (D1 alternative)",
+    "model-array parity alone cannot prove the render path is usable; camera_sanity.py covers camera intrinsics only, other render prerequisites (BVH content, light/material usability) remain untested by S0a"
   ]
 }

@@ -1,4 +1,4 @@
-﻿<mujoco model="scene-a">
+<mujoco model="scene-a">
   <!-- Render/BVH S0a reference fixture: covers render-relevant model arrays.
        Same XML must compile to equivalent models with MuJoCo 3.12.0 (product)
        and 3.15.0 (reference authoring); parity is checked field by field. -->
@@ -45,8 +45,13 @@
            attenuation="1 0.05 0.005" cutoff="30" exponent="6" softness="0.2"
            castshadow="true" active="true" bulbradius="0.05" intensity="1.0" range="5"/>
 
+    <!-- cam-persp is the perspective/intrinsics path: MuJoCo only fills
+         cam_intrinsic when sensorsize comes with focal/principal, otherwise
+         cam_fovy stays at the 180-degree sentinel and MJWarp's compute_ray
+         divides by fx=0, so the whole camera would render background only.
+         focalpixel 160px on a 320px sensor gives fx=0.018, fy=0.016, fovy 73.74. -->
     <camera name="cam-persp" pos="1.2 -1.1 0.8" quat="0.9 0.1 -0.2 0.3"
-            resolution="320 240" sensorsize="0.036 0.024"
+            resolution="320 240" sensorsize="0.036 0.024" focalpixel="160 160"
             projection="perspective"/>
     <camera name="cam-track" mode="targetbody" target="tri_body"
             pos="-0.8 0.9 0.7" fovy="40" resolution="240 180"/>

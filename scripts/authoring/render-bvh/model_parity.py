@@ -76,6 +76,11 @@ def digest(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def digest_text(path: pathlib.Path) -> str:
+    """LF-normalized text hash so differently-configured checkouts agree."""
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
 def write_json(path: pathlib.Path, value, compact: bool = False) -> None:
     options = {"separators": (",", ":")} if compact else {"indent": 2}
     text = json.dumps(value, **options) + "\n"
@@ -368,7 +373,7 @@ def build_parity(args) -> tuple[dict, bool]:
             "version_difference_classification",
         },
         "sources": {
-            "scene_xml": {"path": str(scene), "sha256": digest(scene)},
+            "scene_xml": {"path": str(scene), "sha256": digest_text(scene)},
             "mjb_312": {
                 "path": str(out_dir / "scene-312.mjb"),
                 "sha256": result_312["mjb_sha256"],
@@ -412,7 +417,9 @@ def build_parity(args) -> tuple[dict, bool]:
             "compile_scene_312_cpp_sha256": (
                 digest(pathlib.Path(args.cpp)) if args.cpp else "not_provided"
             ),
-            "scene_xml_sha256": digest(scene),
+            "scene_xml_sha256": digest_text(scene),
+            "scene_xml_hash_note": "LF-normalized bytes (CRLF->LF) so checkout line-ending "
+            "configuration cannot change the recorded scene.xml hash",
         },
         "determinism": {
             "mjb_312_equal_across_two_compiles": result_312["deterministic"],

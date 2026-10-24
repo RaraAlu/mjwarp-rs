@@ -1,8 +1,9 @@
-# 渲染/BVH S0a：3.12 与 3.15 双 MJB 参考夹具与模型 parity（按裁决口径 pass）
+# 渲染/BVH S0a：3.12 与 3.15 双 MJB 参考夹具与模型 parity（按裁决口径 pass，含相机内参缺陷修正）
 
-任务：`2026-10-24-render-bvh-s0a`。日期：2026-10-24。执行：Backend。
+任务：`2026-10-24-render-bvh-s0a`（2026-10-24 修正记录见 §2）。日期：2026-10-24。执行：Backend。
 依据：`docs/development-evidence/render-bvh-precheck/plan.json` 的 S0a 切片、README §6 与用户
-批准的 D1 双 MJB parity 口径；判据改判见 §5（用户 2026-10-24 裁决 A）。**CPU/离线 authoring，无 GPU。**
+批准的 D1 双 MJB parity 口径；判据改判见 §6（用户 2026-10-24 裁决 A）；夹具缺陷修正经用户
+2026-10-24 批准。**CPU/离线 authoring，无 GPU。**
 
 ## 1. 结论（先给）
 
@@ -30,13 +31,60 @@
    （3.15 对「仅位置不同、旋转相同」的帧改标 `BODYROT`）。两条均为版本差异，
    不是同一 XML 在两版下解析出的数据漂移。
 5. **不宣称**：两版模型逐位一致、3.12 与 3.15 等价模型、严格逐元素 parity 通过；
-   只宣称**渲染相关模型数组在 f32 位型上等价**，范围限定见 §5。
+   只宣称**渲染相关模型数组在 f32 位型上等价**，范围限定见 §6。
+   同样**不宣称初版 S0a 夹具无缺陷**：初版 cam-persp 内参缺失已在本轮修正（§2）。
 
-## 2. 交付物
+## 2. 缺陷修正记录（用户 2026-10-24 批准；S0a 重钉）
+
+### 2.1 缺陷与成因
+
+- 初版 `scene.xml` 的透视相机 `cam-persp` 只写了 `sensorsize="0.036 0.024"`，没有焦距/主点。
+  MuJoCo 对该相机保留 `cam_intrinsic=(0,0,0,0)` 并把 `cam_fovy` 留在 **180 度哨兵**
+  （`180.00000500895632`）；MJWarp `render_util.compute_ray` 只要 `sensorsize[1] != 0` 就走
+  内参分支，`fx=0` → `znear/fx` 除零 → NaN → normalize 得零向量，**cam-persp 整幅渲染为背景**
+  （S0b 实测：`rc.ray` 前 76,800 条全零、rgb 全 0、depth 命中 0/76,800、seg 全 `(-1,-1)`）。
+- **成因 = S0a 只做模型数组 parity、没有渲染**：3.12 与 3.15 对同一 XML 一致地产生坏值，
+  所以 parity 照常 pass；缺陷在 S0b 首次真正渲染时暴露。S0b/S5/S7b 依赖透视相机的内参分支，
+  必须修夹具而不是绕开。
+- 初版 `scene.xml` 记录哈希与提交后文件不一致（工作区文件含 1 处 CRLF，提交时 git 归一化为 LF）：
+  `8e723f9d…`（4,234 B，初版证据记录值）≠ 提交后 blob `255f4d8c…`（4,233 B）。本轮一并重钉：
+  `scene.xml` 哈希改为按 **LF 归一化字节**（CRLF→LF）计算，S0a `model_parity.py` 与 S0b
+  `capture_reference.py` 使用同一算法，任何行尾配置的检出都会得到同一哈希，避免再次出现
+  「记录值取决于本机检出形式」的问题。
+
+### 2.2 修改
+
+1. `scene.xml`：`cam-persp` 增加 `focalpixel="160 160"`（并加注释说明原因）。320px 传感器上
+   fx=160px → `cam_intrinsic=(0.018, 0.016, 0, 0)`、`cam_fovy=73.73979461915735`，
+   `cam-track`（fovy 分支）不受影响。
+2. `camera_sanity.py`（新）：parity 之后断言两版每个相机 `cam_intrinsic` 各项 finite、
+   `fx>0 且 fy>0`、`cam_fovy ∈ (0,180)` 且不是 180 哨兵；任一不满足即失败退出。
+   `run_s0a.ps1` 顺序执行 `model_parity.py` → `camera_sanity.py`，结果写
+   `camera-sanity.json`，同类夹具缺陷以后由 S0a 自己抓到。
+3. 哈希口径：`scene.xml` 按 LF 归一化字节（CRLF→LF）计算 sha256，S0a parity 与 S0b 参考捕获
+   共用该算法；MJB/JSON/NPZ 仍按原始字节哈希。这样不同 `core.autocrlf` 检出不会改变记录的
+   XML 哈希。
+
+### 2.3 旧 → 新哈希对照
+
+| 产物 | 初版 | 修正后 |
+| --- | --- | --- |
+| `scene.xml` | `8e723f9d48f2fb926522fb149c406ea8f59d8560effe6fa81d021f938726c406`（4,234 B；提交后 blob 为 `255f4d8c…`/4,233 B） | `a9f1f0a35464f4df17f191e1d68431bda0f17648273578e58fa08f84b0449289`（4,639 B；LF 归一化哈希 = 提交 blob） |
+| `scene-312.mjb`（101,328 B） | `a73d4b793f60800414ee8484c1efad11416b5284444c9f864557851ddb84ebd3` | `c6f5f9f17118067ad39fb2ea6be4f1c274e4d932b553bbe9a4e59b464c56aad1` |
+| `scene-315.mjb`（101,320 B） | `60d0a8564c6a99fba64e9ce0d229bb96a235db2bc6415c0441d1ad73dfd6b02f` | `8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4` |
+| `model-312.json` | `968bb0513631e70756fd2e41fd04b94502d8bd9bb8dfd2010a0289f9657619ab`（312,613 B） | `cdd490f0209dd16a57b2685f3139548af8a2b73195cdb0e01a74ab094ef1df00`（312,635 B） |
+| `model-315.json` | `59407e636b820fbcba15719e257d9be5ac180d8218ed872d3861c0b8bbd596c5`（311,089 B） | `6b055ca2b14e79076ef86a0eab7b3665e7785080885990d273e6278057fb5240`（311,121 B） |
+| `parity.json` | `69c540b63c4954f1f7510589d2105dcb55c3577f593be6dd02a16b4a7a3074bf`（57,622 B） | `136ff14268cbf6889be22331c44b0c3ac262ea5d4bf2219bf688cea0cae3d8d2`（57,763 B） |
+
+模型数组差异（逐值 diff 初版→修正后）**只有两处**：`cam_fovy[0]` 由 `180.00000500895632`
+变为 `73.73979461915735`；`cam_intrinsic[0..1]` 由 `0,0` 变为 `0.0179999992, 0.0160000008`。
+其余 131 个字段/数组取值完全不变；parity 结论与 7 个差异字段清单**不变**。
+
+## 3. 交付物
 
 | 文件 | 说明 |
 | --- | --- |
-| `fixtures/render-bvh/scene-a/scene.xml` | 同一参考场景：7 geom（plane/box/sphere/mesh/capsule/cylinder/ellipsoid）、2 相机、3 光源（directional/point/spot）、3 材质、3 纹理（2d checker/2d gradient/skybox gradient）、1 inline mesh（四面体）、显式 vis.headlight/vis.map.znear,zfar/statistic |
+| `fixtures/render-bvh/scene-a/scene.xml` | 同一参考场景：7 geom（plane/box/sphere/mesh/capsule/cylinder/ellipsoid）、2 相机（内参分支 + fovy 分支）、3 光源（directional/point/spot）、3 材质、3 纹理（2d checker/2d gradient/skybox gradient）、1 inline mesh（四面体）、显式 vis.headlight/vis.map.znear,zfar/statistic |
 | `fixtures/render-bvh/scene-a/scene-312.mjb` | MuJoCo 3.12.0 C API 编译（`compile_scene_312.cpp`） |
 | `fixtures/render-bvh/scene-a/scene-315.mjb` | MuJoCo 3.15.0 pinned venv Python 编译（`model_parity.py`） |
 | `fixtures/render-bvh/scene-a/model-312.json` | 3.12 侧渲染相关模型数组 dump（133 字段 + 26 计数） |
@@ -44,8 +92,10 @@
 | `scripts/authoring/render-bvh/compile_scene_312.cpp` | 3.12 C API：load XML → 存 MJB → 重载 MJB → JSON dump |
 | `scripts/authoring/render-bvh/model_parity.py` | 3.15 Python：编译/存 MJB/重载/dump + 逐字段 parity + provenance |
 | `scripts/authoring/render-bvh/model_parity_judge.py` | 用户 2026-10-24 裁决 A 的改判模块（严格结论保留 + 批准判据/排除/不宣称） |
-| `scripts/authoring/render-bvh/run_s0a.ps1` | MSVC 环境 + 编译 3.12 工具 + 顺序执行 parity（单命令复现） |
+| `scripts/authoring/render-bvh/camera_sanity.py` | 相机内参健全性检查（本轮新增；§2.2） |
+| `scripts/authoring/render-bvh/run_s0a.ps1` | MSVC 环境 + 编译 3.12 工具 + 顺序执行 parity 与 camera-sanity（单命令复现） |
 | `parity.json` | 含 `task_id`；环境/命令/哈希/逐字段结果/差异分类/确定性 |
+| `camera-sanity.json` | 含 `task_id`；两版每相机 intrinsic/fovy 解析值与判定 |
 | `receipt.json` | 回执与未满足项 |
 | `run.log` | 本次运行日志 |
 
@@ -54,27 +104,30 @@ mesh_*（顶点/法线/纹理坐标/面/多边形/包围体）、vis.headlight�
 stat.extent/center、名称表（`name_*adr` + `names` 字节）；字段表与 `compile_scene_312.cpp`
 逐项一致，由 `model_parity.py` 的 `FIELDS` 清单校验（名称/类型/长度不符即脚本失败）。
 
-## 3. 环境与 provenance
+## 4. 环境与 provenance
 
 | 项 | 值 |
 | --- | --- |
 | 3.12 产品版本 | MuJoCo **3.12.0**（`target/toolchains/mujoco-3.12.0/package`，C API `mujoco.lib`） |
 | 3.15 参考版本 | MuJoCo **3.15.0**（`target/mjwarp-parallel/venv`，Python 3.12.13、NumPy 2.5.4） |
 | 工具链 | MSVC（VsDevCmd x64）+ pinned venv Python；无 GPU |
-| `scene.xml` sha256 | `8e723f9d48f2fb926522fb149c406ea8f59d8560effe6fa81d021f938726c406`（4,234 B） |
+| `scene.xml` sha256 | `a9f1f0a35464f4df17f191e1d68431bda0f17648273578e58fa08f84b0449289`（4,639 B，LF 归一化哈希；S0a/S0b 共用） |
 
 哈希与版本（实测值以 `parity.json` 的 `sources`/`environment`/`hashes` 为准）：
 
 | 产物 | 字节 | sha256 |
 | --- | ---: | --- |
-| `scene-312.mjb` | 101,328 | `a73d4b793f60800414ee8484c1efad11416b5284444c9f864557851ddb84ebd3` |
-| `scene-315.mjb` | 101,320 | `60d0a8564c6a99fba64e9ce0d229bb96a235db2bc6415c0441d1ad73dfd6b02f` |
+| `scene-312.mjb` | 101,328 | `c6f5f9f17118067ad39fb2ea6be4f1c274e4d932b553bbe9a4e59b464c56aad1` |
+| `scene-315.mjb` | 101,320 | `8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4` |
+| `model-312.json` | 312,635 | `cdd490f0209dd16a57b2685f3139548af8a2b73195cdb0e01a74ab094ef1df00` |
+| `model-315.json` | 311,121 | `6b055ca2b14e79076ef86a0eab7b3665e7785080885990d273e6278057fb5240` |
+| `parity.json` | 57,763 | `136ff14268cbf6889be22331c44b0c3ac262ea5d4bf2219bf688cea0cae3d8d2` |
 
 - 3.12 MJB 由 3.12 C API `mj_loadModel` 重载成功后才 dump；3.15 MJB 由 3.15
   `MjModel.from_binary_path` 重载成功后才 dump（`loads_with_312/315=true`）。
 - 确定性：两版 MJB 各独立编译两次，sha256 一致；数组 dump 一致（JSON 中输出路径字段除外）。
 
-## 4. 逐字段 parity 结果（`parity.json`）
+## 5. 逐字段 parity 结果（`parity.json`，修正后重跑，结论不变）
 
 - 比较字段 **133** 个（float32 29、float64 32、int32 63、int64 1、byte 8）；计数项 26 个全部一致。
 - 逐位一致 **126**；不一致 **7**：
@@ -92,7 +145,7 @@ stat.extent/center、名称表（`name_*adr` + `names` 字节）；字段表与 
 最差字段：`mesh_polynormal`（2.56e-12）> `geom_quat`/`mesh_quat`（9.55e-13）> `geom_aabb`
 （1.27e-13）> `geom_size`（9.42e-14）> `geom_rbound`（7.93e-14）；`geom_sameframe` 见上。
 
-## 5. 判据与改判记录（用户 2026-10-24 裁决 A）
+## 6. 判据与改判记录（用户 2026-10-24 裁决 A）
 
 1. **初版结论（严格逐位）**：2026-10-24 首轮按 S0a 验收原文「逐元素相等」判
    **fail**：7/133 字段不一致；该结论与全部 double 层差异数字（`max_abs`、`max_ulp_f64`、
@@ -114,7 +167,7 @@ stat.extent/center、名称表（`name_*adr` + `names` 字节）；字段表与 
    不宣称严格逐元素 parity 通过；只宣称**渲染相关模型数组在 f32 位型上等价**
    （6 个 float64 字段 f32 位差 0 + 126 字段逐位一致 + geom_sameframe 按上述理由排除）。
 
-## 6. 未满足项与边界
+## 7. 未满足项与边界
 
 - 初始严格逐元素 parity 仍为 fail（7/133 字段），本轮为按用户批准判据的改判，
   不是两版模型逐位一致的证明。
@@ -122,9 +175,11 @@ stat.extent/center、名称表（`name_*adr` + `names` 字节）；字段表与 
 - 未做 3.15 native 产品化评估与 D1 备选（升级产品 ABI）影响面分析；未跑任何渲染/GPU 任务。
 - `geom_sameframe` 排除依据：上游 MJWarp 渲染器 `_src` 无 sameframe 引用（Chief grep 核实）
   + 3.15 枚举语义修正；如需要可让 QA 复核。
+- 初版相机内参缺陷（§2）已修，但“模型数组 parity 通过 ≠ 渲染路径可用”的教训
+  由新增 `camera_sanity.py` 覆盖；其它渲染前置（BVH 内容、光源/材质可用性）不在 S0a 检查范围。
 - 未改产品 `src/tests/Cargo.*`；产品测试不启动 Python；本切片全部 CPU/离线。
 
-## 7. 复现
+## 8. 复现
 
 ```powershell
 target\toolchains\powershell-7.6.7\bin\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
@@ -132,15 +187,17 @@ target\toolchains\powershell-7.6.7\bin\pwsh.exe -NoProfile -ExecutionPolicy Bypa
 ```
 
 单命令完成：MSVC 编译 `compile_scene_312.cpp` → 3.12 编译/重载/dump → 3.15 编译/重载/dump →
-逐字段 parity → 写 `parity.json`。退出码 0 表示按批准判据 parity 成立（严格逐位结果另存于
-`version_difference_classification`）；退出码非 0 表示批准判据下也不成立。
+逐字段 parity → 相机内参健全性检查 → 写 `parity.json` 与 `camera-sanity.json`。
+退出码 0 表示按批准判据 parity 成立且相机内参健全（严格逐位结果另存于
+`version_difference_classification`）；退出码非 0 表示两者之一不成立。
 
-## 8. 证据索引
+## 9. 证据索引
 
 - `parity.json`：机器可判定的 parity 结果（含 `task_id`、环境、命令、哈希、133 字段明细、
   批准判据 `conclusion.parity=pass`、初始严格结论 `strict_elementwise_parity=fail`、
   7 字段差异分类与全部 double 数字、确定性、硬门结论）。
-- `receipt.json`：回执（改判结论/产物摘要/未满足项）。
+- `camera-sanity.json`：两版每相机的 `intrinsic`/`fovy_deg` 解析值、检查项与 pass 判定。
+- `receipt.json`：回执（改判结论/修正记录/产物摘要/未满足项）。
 - `run.log`：本次运行输出。
 - `fixtures/render-bvh/scene-a/`：XML、双 MJB、双 model JSON（逐字段原始值）。
-- `scripts/authoring/render-bvh/`：C++ 3.12 工具、Python parity + 改判模块、单命令包装。
+- `scripts/authoring/render-bvh/`：C++ 3.12 工具、Python parity + 改判模块 + 相机健全性检查、单命令包装。

@@ -53,4 +53,7 @@ $env:PATH = "$bin;$env:PATH"
 & $python -B scripts/authoring/render-bvh/model_parity.py --exe $exe --cpp $cpp --scene $Scene --out $FixtureDir --evidence $EvidenceDir
 $code = $LASTEXITCODE
 if ($code -ne 0) { throw "model parity 失败（exit=$code），见 $EvidenceDir/parity.json" }
+& $python -B scripts/authoring/render-bvh/camera_sanity.py --fixture $FixtureDir --evidence $EvidenceDir
+$code = $LASTEXITCODE
+if ($code -ne 0) { throw "相机内参健全性检查失败（exit=$code），见 $EvidenceDir/camera-sanity.json" }
 Write-Host "S0a parity 通过：$FixtureDir / $EvidenceDir"
