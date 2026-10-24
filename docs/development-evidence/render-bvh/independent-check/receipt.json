@@ -1,0 +1,153 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s0ab-independent-check",
+  "task_id": "2026-10-24-render-bvh-s0ab-independent-check",
+  "date": "2026-10-24",
+  "review_head": "435fa5abca62222e6ed267df00969d25ff7a194d",
+  "reviewed": {
+    "s0a_fix_commit": "a8a608c100eadb6cedd1b8f92f66e7f5f1b7b63c",
+    "s0a_judgement_commit": "edaca66",
+    "s0b_capture_commit": "f28c3a4",
+    "s0b_fix_commit": "435fa5abca62222e6ed267df00969d25ff7a194d"
+  },
+  "scope": "fast-loop independent review; no full G01; no product/fixture/original-evidence modification",
+  "verdict": {
+    "overall": "pass",
+    "items": [
+      {"id": 1, "name": "hash self-consistency", "status": "pass", "evidence": "hash-comparison.json: 26/26 files match the recorded sha256 via raw, LF-normalized and git-blob hashes"},
+      {"id": 2, "name": "GPU capture rerun into temp dir", "status": "pass", "evidence": "two independent processes (run1 2.6 s, run2 2.0 s) reproduced rgb/depth/seg/rays/context byte-identical to the committed reference; repo fixtures untouched; broken-MJB negative case exited 1"},
+      {"id": 3, "name": "two-capture / three-process determinism", "status": "pass", "evidence": "in-process two-capture equality is enforced by assertions and held in both reruns; original evidence contained only one run.log for its '3 independent processes' claim, so this review added two independent processes - three processes now attested with identical outputs"},
+      {"id": 4, "name": "28/28 create_render_context parameters + offsets", "status": "pass", "evidence": "parameter_count=28, all names match module-contracts.md L653-672; rgb/depth/seg_adr=[0,76800], total_rays=120000; both camera paths present with intrinsic=(0.018,0.016,0,0)/fovy=73.73979461915735 and fovy=40/40.0"},
+      {"id": 5, "name": "384-ray four-category coverage", "status": "pass", "evidence": "128/128/64/64 rays; hits 74/20/64/0; grazing all hit floor geom 0 with max|n.d|=0.004999937489628792 <= 0.05; no-hit 0; hit arithmetic 158 = count(geomid>=0) = 74+20+64+0; camera 64/64 rays with 50/24 hits"},
+      {"id": 6, "name": "camera_sanity is not a shell", "status": "pass", "evidence": "control passes; zero fx/fy, 180-degree fovy sentinel and fovy=0 broken copies all fail with exit 1 and named problems; run_s0a.ps1 chains it and throws on non-zero exit; end-to-end rerun (temp output dirs) passed twice with 'camera-sanity PASS: 4 camera records across 2 models'"},
+      {"id": 7, "name": "no loosened judging", "status": "pass", "evidence": "independent recompute 133 fields / 126 strict-equal / 7 mismatches (6 float64 with f32_bit_differences=0 + geom_sameframe byte 1->3, render_relevant=false); strict_elementwise_parity=fail preserved in conclusion and version_difference_classification; double numbers retained; tolerance_changed=false, double_layer_numbers_removed=false; not_claimed keeps bit-identical/version-equivalence/strict-parity denials"}
+    ]
+  },
+  "measurements": {
+    "s0a": {
+      "fields_compared": 133,
+      "fields_equal": 126,
+      "mismatched": ["geom_size", "geom_aabb", "geom_rbound", "geom_quat", "mesh_quat", "mesh_polynormal", "geom_sameframe"],
+      "float64_tail_f32_identical": ["geom_size", "geom_aabb", "geom_rbound", "geom_quat", "mesh_quat", "mesh_polynormal"],
+      "mjb_sha256": {
+        "scene-312.mjb": "c6f5f9f17118067ad39fb2ea6be4f1c274e4d932b553bbe9a4e59b464c56aad1",
+        "scene-315.mjb": "8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4"
+      },
+      "recompiled_twice_identical": true,
+      "model_315_json_recompiled_identical": true,
+      "model_312_json_note": "rerun copy differs from the committed file only in the model_file path string (output redirected to target/); arrays are fully equal"
+    },
+    "s0b": {
+      "files_compared": ["rgb.npz", "depth.npz", "seg.npz", "rays.npz", "context.json"],
+      "reruns": 2,
+      "all_outputs_identical_to_committed": true,
+      "in_process_captures_per_run": 2,
+      "independent_processes_attested": 3,
+      "ray_stats": {
+        "camera_pixels": {"rays": 128, "hits": 74, "no_hits": 54, "max_abs_normal_dot_direction": 0.9987175464630127},
+        "seeded_random": {"rays": 128, "hits": 20, "no_hits": 108, "max_abs_normal_dot_direction": 0.9860121607780457},
+        "grazing": {"rays": 64, "hits": 64, "no_hits": 0, "max_abs_normal_dot_direction": 0.004999937489628792},
+        "no_hit": {"rays": 64, "hits": 0, "no_hits": 64, "max_abs_normal_dot_direction": 0.0}
+      },
+      "camera_pixel_rays_per_camera": [64, 64],
+      "camera_pixel_hits_per_camera": [50, 24],
+      "parameter_count": 28,
+      "offsets": {"rgb_adr": [0, 76800], "depth_adr": [0, 76800], "seg_adr": [0, 76800], "total_rays": 120000},
+      "camera_paths": [
+        {"cam_id": 0, "branch": "intrinsic", "intrinsic": [0.017999999225139618, 0.01600000075995922, 0.0, 0.0], "fovy_deg": 73.73979461915735},
+        {"cam_id": 1, "branch": "fovy", "intrinsic": [0.009999999776482582, 0.009999999776482582, 0.0, 0.0], "fovy_deg": 40.0}
+      ],
+      "contract_default_deviations": {
+        "render_rgb": {"default": null, "used": true},
+        "render_depth": {"default": null, "used": true},
+        "render_seg": {"default": null, "used": true},
+        "enabled_geom_groups": {"default": [0, 1, 2], "used": [0, 1, 2, 3]}
+      }
+    }
+  },
+  "hash_comparison": {
+    "entries": 26,
+    "all_match": true,
+    "algorithm": "raw sha256, LF-normalized (CRLF->LF) sha256 and HEAD git-blob sha256 all recomputed; delivery records use the LF-normalized/raw value, which equals the committed blob on this checkout",
+    "path": "hash-comparison.json"
+  },
+  "negative_tests": {
+    "camera_sanity": {
+      "control_untouched": "pass/exit 0",
+      "zero_intrinsic": "fail/exit 1 (focal lengths must be positive)",
+      "fovy_180_sentinel": "fail/exit 1 (outside (0, 180) sentinel range)",
+      "fovy_zero": "fail/exit 1"
+    },
+    "s0b_environment": {
+      "corrupted_temp_mjb": "exit 1 with 'S0b environment/reference mismatch: scene-315.mjb hash mismatch'; no silent fallback, no outputs produced"
+    }
+  },
+  "gpu": {
+    "used_for": "two S0b capture reruns and one environment negative test",
+    "samples_mib": {"before_capture_session": 3410, "after_capture_session": 3396, "before_env_negative": 3464, "after_env_negative": 3472},
+    "capture_provenance_memory_mib": {"run1": {"baseline": 3517, "after": 3664}, "run2": {"baseline": 3439, "after": 3672}},
+    "released_to_desktop_baseline": true,
+    "residual_compute_processes": 0
+  },
+  "observations": [
+    "a8a608c also dropped the UTF-8 BOM from scene.xml without mentioning it in the commit message; harmless to MuJoCo parsing and the hash was re-pinned, but byte-level changes should be listed",
+    "the S0b delivery's '3 independent processes' statement had only one run.log behind it; this review adds two independent processes, making the claim verifiable - future deliveries should keep per-run hash lists",
+    "the 28-parameter receipt uses four explicit overrides of upstream defaults (render_rgb/depth/seg=True, enabled_geom_groups=[0,1,2,3]); documented in the S0b README, and product comparison must use the same values",
+    "model-312.json's recorded hash depends on the output path (model_file field); a path-independent dump would make cross-directory hash re-computation cleaner"
+  ],
+  "commands": [
+    "python -B target/qa-render-bvh-s0ab/hash_compare.py",
+    "python -B target/qa-render-bvh-s0ab/verify_npz.py --out target/qa-render-bvh-s0ab/npz-verify.json",
+    "python -B target/qa-render-bvh-s0ab/parity_recheck.py --out target/qa-render-bvh-s0ab/parity-recheck.json",
+    "python -B target/qa-render-bvh-s0ab/camera_sanity_negative.py --out target/qa-render-bvh-s0ab/camera-sanity-negative.json",
+    "python -B target/qa-render-bvh-s0ab/run_capture_rerun.py --label run1",
+    "python -B target/qa-render-bvh-s0ab/run_capture_rerun.py --label run2",
+    "python -B target/qa-render-bvh-s0ab/run_capture_rerun.py --label env-negative --corrupt-mjb",
+    "pwsh -File scripts/authoring/render-bvh/run_s0a.ps1 -FixtureDir target/qa-render-bvh-s0ab/s0a-rerun/fixtures -EvidenceDir target/qa-render-bvh-s0ab/s0a-rerun/evidence",
+    "python -B target/qa-render-bvh-s0ab/rerun_compare.py"
+  ],
+  "artifacts": [
+    {"path": "README.md", "bytes": 14958, "sha256": "d195b3cbce96795e3c71df43e498c14e9b51b3a48f54db2f22ae99a16ea66c09"},
+    {"path": "hash-comparison.json", "bytes": 15553, "sha256": "2fb2db5b8961a4137d824d90136bdcb94591e9b194a2294769475781104dd968"},
+    {"path": "npz-verify.json", "bytes": 3312, "sha256": "26d6518f1a523be38a8848720116d706e8ac91a0d1a8a908dd60fd3795118141"},
+    {"path": "parity-recheck.json", "bytes": 2542, "sha256": "ee7e4942e725d6e86ecb48228ceaab46e58128196edc4c6d3a6fdcb0202cfd77"},
+    {"path": "camera-sanity-negative.json", "bytes": 1008, "sha256": "45356c32913a2ee5d6721120f5ef174ad53da6e6c8c5841875d33d3c5dd27f00"},
+    {"path": "rerun-comparison.json", "bytes": 8879, "sha256": "cc6795f3c9e1e7e97d9847419aaf8964cc62eaa847702a3148523b64235d28c2"},
+    {"path": "gpu-session.json", "bytes": 1009, "sha256": "b69f53bc8e556726578068810bc3b14eef4edee1eb4cc352969eca8897dec0cf"},
+    {"path": "gpu-before.log", "bytes": 66, "sha256": "b6443854da56d5de41bc6b78dfff726160acc4a805cd1ba1897f80acfd1b4be2"},
+    {"path": "gpu-after.log", "bytes": 66, "sha256": "75c2651c400ec742dfd132b1b5dace57dc2ff982b9f4364f53f66860bc52178c"},
+    {"path": "s0b-rerun1.log", "bytes": 5785, "sha256": "8c16c65438b24bc89cb91d7b167988df5522e37d12e2a60dd25aed266040e0e5"},
+    {"path": "s0b-rerun2.log", "bytes": 5785, "sha256": "b9120680406c99c0978170e864e13c4273bb08c43f406b9a6c3c648858862d9f"},
+    {"path": "s0b-env-negative.log", "bytes": 511, "sha256": "6a71ad8c8f50340a44b34b89cfadd1d597c102d79aa6e9a37dc47233e57cb9bc"}
+  ],
+  "gates": {
+    "fmt": {"command": "cargo fmt --check", "result": "通过"},
+    "unchanged": {"paths": ["src", "tests", "fixtures", "Cargo.toml", "Cargo.lock"], "result": "通过"},
+    "json": {"path": "docs/development-evidence/render-bvh/independent-check/receipt.json", "pointer": "/task_id", "result": "通过"}
+  },
+  "closeout_timing": {
+    "review_head": "435fa5abca62222e6ed267df00969d25ff7a194d",
+    "concurrent_work": "during closeout Backend landed the unrelated render/BVH S1 slice (d642c039c66b9e3da1f173b2ef0c40db542df3f4); it does not touch S0a/S0b fixtures/scripts/evidence, and the 26-file hash table was re-verified at that HEAD (all match)",
+    "gates_run_at_head": "d642c039c66b9e3da1f173b2ef0c40db542df3f4"
+  },
+  "full_g01": {
+    "run_this_task": false,
+    "note": "S0a/S0b do not touch G01; the last full G01 dual-mode run is the T2 closeout at HEAD 959be10 (commit 6494fe8)"
+  },
+  "not_claimed": [
+    "产品渲染验收（S1+ 未开始）",
+    "MuJoCo 原生 GL 渲染参考",
+    "MuJoCo 3.12 与 3.15 渲染等价",
+    "全像素射线覆盖（相机像素是 8x8 网格/相机）",
+    "shadow/skybox/splat/flex/多世界/正交相机覆盖",
+    "Linux 或其它 GPU 覆盖",
+    "本轮全量 G01"
+  ],
+  "unmet": [
+    "只覆盖 scene-a + 固定 PARAMS_28；未覆盖 shadow/skybox/splat/flex/多世界/正交相机",
+    "射线集为抽样，不是全像素覆盖",
+    "只 Windows + RTX 4070 Ti SUPER + 驱动 596.36；未覆盖 Linux/其它 GPU",
+    "未做产品侧（S1+）对照验收",
+    "S0a 交付自身未满足项沿用：3.15 mesh 资产 frame 计算源码位置仅有假设、无 3.15 原生产品影响分析"
+  ]
+}
