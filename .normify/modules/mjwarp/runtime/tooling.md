@@ -1,7 +1,7 @@
 +++
 uid = "26d0e749"
 id = "mjwarp.runtime.tooling"
-fingerprint = "78676faa298ab7fff810617d40c39a68b5cb855bf37554c282c94f325632d542"
+fingerprint = "5fb770492ea9a7d15f629012fd6efed0e634dc2cb88fb9ce5ef54ee4d222dfdc"
 
 [name]
 zh = "工具与命令入口"
@@ -23,6 +23,15 @@ path = "src/runtime/tooling/mod.rs"
 
 [[source]]
 path = "src/runtime/tooling/tests.rs"
+
+[[source]]
+path = "src/runtime/tooling/perf.rs"
+
+[[source]]
+path = "src/runtime/tooling/gpu.rs"
+
+[[source]]
+path = "tests/a10_p11_gpu_perf_probe.rs"
 
 [[apis]]
 protocol = "file"

@@ -199,3 +199,247 @@ fn batch_two_public_apis_still_work() {
         mirror.data().as_ptr() as usize + std::mem::size_of::<f32>()
     );
 }
+
+// ---- A10@P11 性能记录（宿主侧数据面，不需要 GPU） ----
+
+fn test_environment() -> EnvironmentFacts {
+    EnvironmentFacts::capture("NVIDIA Test GPU", (8, 9), 12080)
+}
+
+fn test_memory(baseline: u64, peak: u64, end: u64) -> MemoryStats {
+    MemoryStats {
+        total_bytes: 16 * 1024 * 1024 * 1024,
+        baseline_used_bytes: baseline,
+        peak_used_bytes: peak,
+        end_used_bytes: end,
+        samples: 12,
+    }
+}
+
+fn test_report() -> PerformanceReport {
+    let plan = BenchmarkPlan::new(2, 5).unwrap();
+    let mut report = PerformanceReport::new(TASK_ID, "probe/8", test_environment(), plan);
+    report.push_record(
+        PerformanceRecord::new(
+            "phase",
+            vec![100, 300, 200, 400, 250],
+            test_memory(10, 20, 15),
+        )
+        .unwrap(),
+    );
+    report.push_checkpoint(MemoryCheckpoint {
+        label: "idle".into(),
+        used_bytes: 100,
+        total_bytes: 200,
+    });
+    report.push_note("固定负载为探针微基准，不是物理阶段");
+    report
+}
+
+#[test]
+fn plan_requires_warmup_and_repetitions() {
+    assert_eq!(
+        BenchmarkPlan::new(0, 1).unwrap_err(),
+        ToolingError::ZeroWarmup
+    );
+    assert_eq!(
+        BenchmarkPlan::new(1, 0).unwrap_err(),
+        ToolingError::ZeroIterations
+    );
+    let plan = BenchmarkPlan::new(3, 7).unwrap();
+    assert_eq!(plan.warmup, 3);
+    assert_eq!(plan.repetitions, 7);
+}
+
+#[test]
+fn timing_stats_aggregate_matches_p10_recorder() {
+    let samples = [100_u64, 300, 200];
+    let stats = TimingStats::from_samples(&samples).unwrap();
+    assert_eq!(stats.count, 3);
+    assert_eq!(stats.total_ns, 600);
+    assert_eq!(stats.min_ns, 100);
+    assert_eq!(stats.max_ns, 300);
+    assert_eq!(stats.mean_ns, 200.0);
+    assert_eq!(stats.median_ns, 200.0);
+
+    // 与 P10 `BenchmarkRecorder` 的报告口径一致（同一输入同一统计）。
+    let mut recorder = BenchmarkRecorder::new();
+    for sample in samples {
+        recorder.record("phase", sample).unwrap();
+    }
+    let summary = recorder.report().phases[0].clone();
+    assert_eq!(summary.count, stats.count);
+    assert_eq!(summary.total_ns, stats.total_ns);
+    assert_eq!(summary.min_ns, stats.min_ns);
+    assert_eq!(summary.max_ns, stats.max_ns);
+    assert_eq!(summary.mean_ns, stats.mean_ns);
+    assert_eq!(summary.median_ns, stats.median_ns);
+
+    // 偶数样本取中间两值均值。
+    let even = TimingStats::from_samples(&[100, 200, 300, 400]).unwrap();
+    assert_eq!(even.median_ns, 250.0);
+    assert_eq!(
+        TimingStats::from_samples(&[]).unwrap_err(),
+        ToolingError::ZeroIterations
+    );
+}
+
+#[test]
+fn report_json_round_trips_and_escapes_text() {
+    let mut report = test_report();
+    report.environment = EnvironmentFacts::capture("GPU \"quoted\"\nline", (8, 9), 12080);
+    report.push_note("含引号\"与反斜杠\\与换行\n的说明");
+    let json = report.to_json().unwrap();
+    let value: Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(value["schema"].as_u64().unwrap(), u64::from(RECORD_SCHEMA));
+    assert_eq!(value["task"].as_str().unwrap(), TASK_ID);
+    assert_eq!(value["workload"].as_str().unwrap(), "probe/8");
+    assert_eq!(
+        value["environment"]["gpu"].as_str().unwrap(),
+        "GPU \"quoted\"\nline"
+    );
+    assert_eq!(
+        value["environment"]["compute_capability"][1].as_i64(),
+        Some(9)
+    );
+    assert_eq!(value["plan"]["warmup"].as_u64(), Some(2));
+    assert_eq!(value["records"][0]["timing"]["count"].as_u64(), Some(5));
+    assert_eq!(
+        value["records"][0]["timing"]["median_ns"].as_f64(),
+        Some(250.0)
+    );
+    assert_eq!(
+        value["records"][0]["timing"]["samples_ns"]
+            .as_array()
+            .unwrap()
+            .len(),
+        5
+    );
+    let checkpoints = value["checkpoints"].as_array().unwrap();
+    assert_eq!(checkpoints[0]["label"].as_str().unwrap(), "idle");
+    assert_eq!(checkpoints[0]["used_bytes"].as_u64(), Some(100));
+    let notes = value["notes"].as_array().unwrap();
+    assert_eq!(notes.len(), 2);
+    // 同输入两次导出字节一致（确定性）。
+    assert_eq!(json, report.to_json().unwrap());
+}
+
+#[test]
+fn report_validation_rejects_inconsistent_records() {
+    assert!(test_report().to_json().is_ok());
+
+    let mut empty = test_report();
+    empty.records.clear();
+    assert!(matches!(
+        empty.to_json().unwrap_err(),
+        ToolingError::InvalidRecord {
+            field: "report.records",
+            ..
+        }
+    ));
+
+    let mut no_notes = test_report();
+    no_notes.notes.clear();
+    assert!(matches!(
+        no_notes.to_json().unwrap_err(),
+        ToolingError::InvalidRecord {
+            field: "report.notes",
+            ..
+        }
+    ));
+
+    let mut no_checkpoints = test_report();
+    no_checkpoints.checkpoints.clear();
+    assert!(matches!(
+        no_checkpoints.to_json().unwrap_err(),
+        ToolingError::InvalidRecord {
+            field: "report.checkpoints",
+            ..
+        }
+    ));
+
+    // 样本数与固定计划不一致。
+    let mut short = PerformanceReport::new(
+        TASK_ID,
+        "probe/8",
+        test_environment(),
+        BenchmarkPlan::new(2, 6).unwrap(),
+    );
+    short.push_record(
+        PerformanceRecord::new(
+            "phase",
+            vec![100, 200, 300, 400, 250],
+            test_memory(10, 20, 15),
+        )
+        .unwrap(),
+    );
+    short.push_checkpoint(MemoryCheckpoint {
+        label: "idle".into(),
+        used_bytes: 100,
+        total_bytes: 200,
+    });
+    short.push_note("边界");
+    assert!(matches!(
+        short.to_json().unwrap_err(),
+        ToolingError::InvalidRecord {
+            field: "timing.samples_ns",
+            ..
+        }
+    ));
+
+    // 峰值低于基线。
+    let mut bad_memory = PerformanceReport::new(
+        TASK_ID,
+        "probe/8",
+        test_environment(),
+        BenchmarkPlan::new(2, 5).unwrap(),
+    );
+    bad_memory.push_record(
+        PerformanceRecord::new("phase", vec![1, 2, 3, 4, 5], test_memory(30, 20, 15)).unwrap(),
+    );
+    bad_memory.push_checkpoint(MemoryCheckpoint {
+        label: "idle".into(),
+        used_bytes: 100,
+        total_bytes: 200,
+    });
+    bad_memory.push_note("边界");
+    assert!(matches!(
+        bad_memory.to_json().unwrap_err(),
+        ToolingError::InvalidRecord {
+            field: "memory.peak_used_bytes",
+            ..
+        }
+    ));
+
+    // 统计与样本被拼接篡改。
+    let mut tampered = test_report();
+    tampered.records[0].timing.stats.total_ns += 1;
+    assert!(matches!(
+        tampered.to_json().unwrap_err(),
+        ToolingError::InvalidRecord {
+            field: "timing.stats",
+            ..
+        }
+    ));
+
+    // 档位不在 debug/release 之内。
+    let mut bad_profile = test_report();
+    bad_profile.environment.profile = "bench";
+    assert!(matches!(
+        bad_profile.to_json().unwrap_err(),
+        ToolingError::InvalidRecord {
+            field: "environment.profile",
+            ..
+        }
+    ));
+}
+
+#[test]
+fn build_profile_tracks_build_mode() {
+    let profile = build_profile();
+    if cfg!(debug_assertions) {
+        assert_eq!(profile, "debug");
+    } else {
+        assert_eq!(profile, "release");
+    }
+}
