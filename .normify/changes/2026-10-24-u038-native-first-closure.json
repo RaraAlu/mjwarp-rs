@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-u038-native-first-closure",
+  "title": {
+    "zh": "U038 口径校正：按 native_error_v2 原生放行（仅文档与排除理由文字）",
+    "en": "U038 caliber correction: native_error_v2 native admission (documentation and exclusion-reason text only)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-10-24 选择 A：按 959be10 的 native_error_v2 补判（9/9 字段块 native_passed、原生放行，上游逐位 2e-6 的 8/77 仅作记录、非准入依据），把收口文档与 G01 排除理由里仍写「U038-3D 已知债务（裁决 B）」的口径校正为「原生放行 + 上游逐位差异记录」；只改文档与排除理由文字，不动排除成员/探针/测试逻辑，不重跑全量 G01。",
+    "en": "User 2026-10-24 option A: per the native_error_v2 supplement in 959be10 (9/9 field blocks native_passed, native admission; the upstream bitwise 2e-6 8/77 is recorded only and is not the admission basis), correct the closeout documents and G01 exclusion reason wording from 'U038-3D known debt (ruling B)' to 'native admission + upstream bitwise difference recorded'; documentation and reason text only, no exclusion member/probe/test-logic change, no full G01 rerun."
+  },
+  "modules": {},
+  "acceptance": [
+    "docs/three-layer-acceptance.md：§5.3 的 U038 条目改写为按 native_error_v2 判定「原生放行」（9/9 块、1435 标量、E_candidate ≤0.0129、仅限该链已记录字段块）；上游逐位 2e-6 口径 8/77 差异原样记录、非准入依据；不宣称上游逐位对齐、不宣称完整 U038/三维链通过；注明 2026-10-23 裁决 B 已由 2026-10-24 补判更新。§7 与各节排除清单表述里「U038-3D known-debt 1」改为「U038 上游逐位差异（按 native_error_v2 原生放行）」，排除项数量仍 11、成员不变；尾注任务列表同步新结论与任务状态。",
+    "docs/compatibility-matrix.md：状态段、未满足项行、U038 相关行同步新口径；保留日期与历史叙述，写明旧「已知债务」标签被 2026-10-24 补判取代，不改写历史。",
+    "docs/development-evidence/u038-3d/known-deviation.md：顶部结论更新为最终口径（原生放行 + 上游差异记录），保留 2026-10-23 裁决 B 的历史段落。",
+    "scripts/test-windows-g01.ps1：只改注释与 known_debt_reason 文字为「U038-3D upstream-bitwise difference（native_error_v2 原生放行；8/77 outside 2e-6 recorded, not admission basis）」；$script:excludedKnownDebt 成员、--skip 行为、探针断言、测试与排除数量一律不动；grep 确认排除名单仍 11 项、脚本差异只有注释/字符串。",
+    "证据 docs/development-evidence/u038-3d/closure-native-first/（README + receipt.json 含 task_id），写明仅文字口径更正、排除成员与行为未变、最近一次全量 G01 仍为 HEAD 959be10 上的 6494fe8 证据、若最终收口需绑定最终 HEAD 再另跑 T2；门禁 fmt + unchanged(src/tests/fixtures/Cargo.*) + json 通过；中文 path-limited 提交；不重跑全量 G01，不改产品代码/测试/断言/容差/fixtures。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-u038-native-two-reference",
+      "2026-10-24-windows-small-closeout"
+    ],
+    "phase": "P11",
+    "owner": "QA",
+    "files": [
+      "docs/three-layer-acceptance.md",
+      "docs/compatibility-matrix.md",
+      "docs/development-evidence/u038-3d/known-deviation.md",
+      "docs/development-evidence/u038-3d/closure-native-first/",
+      "scripts/test-windows-g01.ps1"
+    ],
+    "resources": [],
+    "priority": 10
+  },
+  "note": "Chief 2026-10-24 指令：用户选 A（只改文档与排除理由文字，不动排除成员/探针/测试逻辑，不重跑全量）。依据 959be10 的 native_error_v2 补判：9/9 字段块 native_passed、1435 标量、E_candidate 0.0034–0.0129（≤1）、secondary_reference_used=false、np03_admitted=true；上游严格 2e-6 仍 8/77、max 4.291534423828125e-6、位差 122，仅作记录、非准入依据。不宣称上游逐位对齐，不宣称完整 U038/三维链通过。",
+  "revision": {
+    "before": "6494fe839f800700e332d05afa38e3cc893794f9",
+    "after": null
+  },
+  "created_at": "2026-10-24T08:59:00.000Z",
+  "updated_at": "2026-10-24T08:59:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/u038-3d/closure-native-first/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-u038-native-first-closure"
+    }
+  ]
+}
