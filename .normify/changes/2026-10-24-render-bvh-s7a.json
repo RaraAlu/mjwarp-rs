@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s7a",
+  "title": {
+    "zh": "渲染/BVH S7a：渲染发射 ABI（标量/vec/u64/texture-array/新Render recipe）",
+    "en": "Render/BVH S7a: render launch ABI (scalar/vec/u64/texture-array/new Render recipe)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "渲染/BVH 第十片（plan S7a，S2b/S5/S6b 已 verified）：实现渲染发射 ABI，承载上游 `_render_megakernel` 的约 83 个参数——`array_t<int32/uint32/uint64/bool/vec2i/vec3i/vec2f/vec3f/vec4f/mat33f/quatf/texture2d_t>`、标量 int32/bool/uint64 与 4 个输出；接入 NVRTC + W15 头树，新增 Render recipe/purpose 与 f32-only PTX 门禁；暴露 transfer session 同流访问与 CUtexObject 只读句柄用于生命周期验证；登记 mjwarp.render.kernel 叶子模块。只做 ABI/编译/参数 round-trip，不实现 S7b 渲染内核。",
+    "en": "Tenth render/BVH slice (plan S7a, S2b/S5/S6b verified): implement the render launch ABI for the ~83 parameters of upstream _render_megakernel - array_t<int32/uint32/uint64/bool/vec2i/vec3i/vec2f/vec3f/vec4f/mat33f/quatf/texture2d_t>, scalar int32/bool/uint64, and 4 outputs; wire NVRTC + W15 headers, add a Render recipe/purpose with an f32-only PTX gate; expose transfer-session same-stream access and a read-only CUtexObject handle for lifetime verification; register the mjwarp.render.kernel leaf module. ABI/compile/argument round-trip only; no S7b render kernel."
+  },
+  "modules": {},
+  "acceptance": [
+    "参数类：array_t 的 12 类元素宽度（vec2=8/vec3=12/vec4/quat=16/mat33=36/bool=1/u64=8/texture2d_t=24 align8 等）与标量 int32/bool/uint64、4 输出的打包/对齐/拒绝面全部成立；错误数量/类型/对齐在 launch 前拒绝。",
+    "NVRTC + W15 头树编译通过；Render recipe/purpose 的 fmad/use_fast_math/std/arch 冻结，PTX f32-only 门禁与 entry 名正确；不把 Diagnostic 标签用于产品 render。",
+    "transfer session 同流/同上下文访问仅 crate 可见，不扩大公共 API；CUtexObject 只读句柄不转移所有权，纹理句柄存活+drop 释放可端到端验。",
+    "mjwarp.render.kernel 叶子模块登记源码；不实现渲染像素内核（S7b）、不改 S2/S3/S4/S5/S6 证据；新文件 ≤500 行。",
+    "证据/门禁：README + receipt 含 task_id；fmt/clippy/clippy-cuda/unit 全过；GPU 独占并记录设备/显存；不启动 Python 产品测试。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s2b",
+      "2026-10-24-render-bvh-s5",
+      "2026-10-24-render-bvh-s6b"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/launcher/render.rs",
+      "src/runtime/launcher/render/args.rs",
+      "src/runtime/launcher/mod.rs",
+      "src/runtime/launcher/recipe.rs",
+      "src/runtime/transfer/session.rs",
+      "src/render/kernel/launch.rs",
+      "src/render/kernel/mod.rs",
+      "src/render/texture/cuda.rs",
+      "src/render/mod.rs",
+      "tests/render_launch_abi.rs",
+      "docs/development-evidence/render-bvh/s7a-launch-abi/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 84
+  },
+  "note": "Arch 2026-10-24 裁决：① 允许在 S7a files 加 src/runtime/transfer/session.rs，只做 crate 可见 stream/run 访问，不扩大公共 API；② 允许加 src/render/texture/cuda.rs 暴露 CUtexObject 只读句柄，不转移所有权；③ 新增 RecipePurpose::Render 与 WARP_1_15_RENDER（F32Physics 门禁），不把 Diagnostic 用于产品 render；④ 登记 mjwarp.render.kernel 叶子模块。S7a 先等 QA S6b 复核释放 GPU 后 start，期间只读/CPU 准备。",
+  "revision": {
+    "before": "5af2db000da770d761cc832070d10d0c4f6250b8",
+    "after": null
+  },
+  "created_at": "2026-10-25T05:52:00.000Z",
+  "updated_at": "2026-10-25T05:52:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s7a-launch-abi/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s7a"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S7b已实现",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
