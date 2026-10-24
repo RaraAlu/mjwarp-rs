@@ -280,20 +280,21 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 | S0b | `2026-10-24-render-bvh-s0b` | Backend | verified | `docs/development-evidence/render-bvh/s0b-reference-capture/` | 已收口 |
 | S0a+S0b 复核 | `2026-10-24-render-bvh-s0ab-independent-check` | QA | verified | `docs/development-evidence/render-bvh/independent-check/` | 已收口 |
 | S1 | `2026-10-24-render-bvh-s1` | Backend | verified | `docs/development-evidence/render-bvh/s1-model-input/` | 已收口 |
-| S1 复核 | `2026-10-24-render-bvh-s1-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s1-independent-check/` | 已收口；unchanged 收窄结构裁决已留痕 |
+| S1 复核 | `2026-10-24-render-bvh-s1-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s1-independent-check/` | 已收口（`0b63829`，6/6 成立）；verified 检查不可改，实际门禁按 S1 自有路径执行，addenda/receipt 留痕 |
 | S2a | `2026-10-24-render-bvh-s2a` | Backend | verified | `docs/development-evidence/render-bvh/s2a-scene-bvh-host/` | `f9adf14`；AABB 56/56 位等、max ULP 0、506 passed/0 failed |
-| S2a 复核 | `2026-10-24-render-bvh-s2a-independent-check` | QA | proposed（S1 后接） | `docs/development-evidence/render-bvh/s2a-independent-check/` | CPU/离线；unchanged 只锁 S2a 自有文件，避开 S2b 写两个 mod.rs |
-| S2b | `2026-10-24-render-bvh-s2b` | Backend | proposed（ready） | `docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/` | 先做无 GPU 准备；GPU 窗口：准备完成即开，独占 90 分钟，开窗前同步 Chief |
+| S2a 复核 | `2026-10-24-render-bvh-s2a-independent-check` | QA | ready（Chief 批准 start） | `docs/development-evidence/render-bvh/s2a-independent-check/` | CPU/无 GPU；unchanged 只锁 S2a 自有文件，避开 S2b 写两个 mod.rs |
+| S2b | `2026-10-24-render-bvh-s2b` | Backend | in_progress | `docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/` | 无 GPU 准备后进 90 分钟独占 GPU 窗口；S2b 复核另开 45 分钟 |
 | S2 收口 | `2026-10-24-render-bvh-s2-close` | Backend | proposed（blocked: S2b） | `docs/development-evidence/render-bvh/s2-scene-bvh/` | S2b verified 后做六条验收映射与总回执 |
 | S3–S8 | 未登记 | Backend/QA | planned | 见 `plan.json` 各片证据路径 | S2 收口后按依赖登记；同一时间一个 GPU 满载任务 |
 
 结构说明：
 - 原 `2026-10-24-render-bvh-s2` 已 abandon（`8d4357f`，理由：运行中父任务写路径锁与派生任务冲突、冻结字段不可改）；拆分前参考捕获 `75166cf` 保留在 git 历史与 `fixtures/render-bvh/scene-a/s2/`，S2b 继续引用。
-- S2a/S2b/S2-close 登记于 `2a62e2b`；S2a 已 verified（`f9adf14`），S2b 现 ready（先做无 GPU 准备），S2-close 待 S2b。
-- S2a 复核任务 `2026-10-24-render-bvh-s2a-independent-check` 已登记（QA，CPU/无 GPU）；S1 复核 verified 后接，接续顺序 S1→S2a→S2b；S2b 复核另开 GPU 窗口。
-- S2b GPU 窗口：Backend 无 GPU 准备完成即开，独占 90 分钟；当前无其他满载任务（桌面基线约 3.5 GiB/16 GiB），开窗前同步 Chief；QA S2a 复核 CPU 并行，S2b 复核另开 45 分钟。
+- S2a/S2b/S2-close 登记于 `2a62e2b`；S2a 已 verified（`f9adf14`），S2b 已 in_progress（先做无 GPU 准备），S2-close 待 S2b。
+- S2a 复核任务 `2026-10-24-render-bvh-s2a-independent-check` 已登记（QA，CPU/无 GPU）；Chief 2026-10-24 批准 now start，QA 直接 start；S2b 复核另开 GPU 窗口。
+- S2b GPU 窗口：Backend 无 GPU 准备完成即开，独占 90 分钟；当前无其他满载任务（桌面基线约 3.5 GiB/16 GiB），开窗前同步 Chief；QA S2b 复核另开 45 分钟。
 - `gpu:windows-t4` 是项目排程互斥名，不等于 T4 硬件；本机实际为 RTX 4070 Ti SUPER / SM89 / 驱动 596.36。开窗前核对设备，GPU 满载任务串行。
-- S1 复核的 `unchanged` 已从全局 `src/tests/fixtures/Cargo.*` 收窄到 S1 自有文件与 S1 原证据；receipt 需记录 `git diff d642c03 -- src tests fixtures Cargo.*`，说明仅 S2a 自有路径变化。此为结构裁决，不改 S1 验收语义。
+- S1 复核的 `unchanged` 结构裁决已由 QA 在 receipt/addenda 留痕；normify 0.7.0 不允许改已 verified 检查，记录保持登记宽口径，实际门禁按 S1 自有路径执行。
+- S3 前排程注记：先补两个新叶子模块 `mjwarp.model.render-model`、`mjwarp.io.render` 的 layout order/apis；`src/model/render.rs` 当前正好 500 行，后续任何加功能必须先拆文件，S3+ 切片不得撞 500 行棘轮。
 
 ### S0a 参考夹具与模型 parity
 
