@@ -1,0 +1,70 @@
+{
+  "cases": [
+    {
+      "mutation": "ncam = -1",
+      "name": "negative count",
+      "rejected_by": "RenderModelCounts::validate"
+    },
+    {
+      "mutation": "nmesh = i64::MAX",
+      "name": "count overflow",
+      "rejected_by": "RenderModelCounts::expected checked_mul"
+    },
+    {
+      "mutation": "cam_fovy = []",
+      "name": "short field",
+      "rejected_by": "RenderModelInput::new length check"
+    },
+    {
+      "mutation": "cam_fovy as Index",
+      "name": "wrong kind",
+      "rejected_by": "RenderModelInput::new kind check"
+    },
+    {
+      "mutation": "cam_resolution = [-1;4]",
+      "name": "negative resolution",
+      "rejected_by": "validate_render_tables"
+    },
+    {
+      "mutation": "light_texid = 99",
+      "name": "texture id out of range",
+      "rejected_by": "validate_render_tables"
+    },
+    {
+      "mutation": "tex_adr = 99_999",
+      "name": "texture address out of range",
+      "rejected_by": "validate_render_tables"
+    },
+    {
+      "mutation": "name_camadr = 9_999",
+      "name": "name address out of range",
+      "rejected_by": "validate_render_tables"
+    },
+    {
+      "mutation": "mesh_vertnum = 9",
+      "name": "mesh range past capacity",
+      "rejected_by": "RenderModelInput::check_mesh_ranges"
+    },
+    {
+      "mutation": "names = [b'a';193]",
+      "name": "unterminated names",
+      "rejected_by": "validate_render_tables missing_name_terminator"
+    },
+    {
+      "mutation": "names = []",
+      "name": "empty names",
+      "rejected_by": "validate_render_tables names length"
+    }
+  ],
+  "construct_cases": 11,
+  "pre_allocation_evidence": {
+    "host_constructor": "src/io/render.rs::new validates info/counts/field kind+length before constructing the value; validate_render_tables + check_mesh_ranges run before the value is returned; S1 allocates no device buffer",
+    "native_bridge": "native/model_probe_render.cpp render_stage lines 176-180 reject unit<0, width<=0, unit*width overflow, SIZE_MAX scalar overflow and null sources before any write; copy_render_field lines 205-207 re-check kind/count/target before memcpy; name oracle lines 220-231 check pointers/capacity before memcpy",
+    "native_capture": "src/io/render.rs::NativeRenderSnapshot::capture calls mjwarp_native_render_field_info and checked_count before capture_field allocates the host Vec for that field"
+  },
+  "run": "cargo test --locked --features native-model-probe --test render_model_input -> 4 passed / 2 ignored (reproduced twice)",
+  "task": "2026-10-24-render-bvh-s1",
+  "task_id": "2026-10-24-render-bvh-s1-independent-check",
+  "test": "tests/render_model_input.rs::rejects_invalid_counts_lengths_kinds_and_ranges (every case asserted is_err)",
+  "verdict": "pass"
+}

@@ -1,0 +1,263 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s1-independent-check",
+  "task_id": "2026-10-24-render-bvh-s1-independent-check",
+  "date": "2026-10-24",
+  "task_under_review": "2026-10-24-render-bvh-s1",
+  "reviewed_commits": {
+    "registration": "f314cad",
+    "feature": "d642c039c66b9e3da1f173b2ef0c40db542df3f4",
+    "evidence_fix": "e83823d",
+    "s1_code_range": "f314cad..d642c03"
+  },
+  "review_head": "f9adf14b2f6c18b9bb8787189c15a908becfb29f",
+  "review_head_note": "during the review the render/BVH plan advanced: S2 evidence (da6a135/75166cf), S2 split into S2a/S2b and original S2 abandoned (8d4357f/2a62e2b), S2a host scene BVH implemented (f9adf14). All post-d642c03 changes under src/tests/fixtures are S2/S2a-owned paths; no S1 product/test/fixture file changed after d642c03 except the S1 evidence-hash fix e83823d, which predates this task base",
+  "scope": "fast-loop CPU-only independent review; no GPU, no full G01, no product/fixture/original-evidence modification",
+  "verdict": {
+    "overall": "pass",
+    "items": [
+      {
+        "id": 1,
+        "name": "element-wise parity",
+        "status": "pass",
+        "evidence": "QA's own MuJoCo 3.12 dumper (independent C++, loads scene-312.mjb) reproduced all 133 reference arrays/90,256 scalars; 132 arrays bit-equal, only geom_sameframe differs (3/7 values, 1 vs 3, collision enum, excluded by S1). For the 116 render fields: 89,941/89,941 scalars equal, 0 field/0 scalar mismatch. Re-running the delivered ignored test regenerated field-diff.json byte-identically (sha256 8ed81083...). 116 field kinds/counts independently matched against MuJoCo 3.12 headers."
+      },
+      {
+        "id": 2,
+        "name": "exclusion surface",
+        "status": "pass",
+        "evidence": "116+17=133 confirmed. None of the 17 excluded geom fields occurs in upstream render.py/render_util.py/ray.py/bvh.py or their transitive deps math.py/warp_util.py, nor in upstream-references.tsv. geom_aabb/geom_rbound/geom_margin only appear in collision_* modules and Model dataclass declarations; the ray/BVH path uses geom_size/dataid/type and mesh vertex bounds, not those fields. Positive control: every geom field the renderer reads is included in the 116."
+      },
+      {
+        "id": 3,
+        "name": "name-table semantics",
+        "status": "pass",
+        "evidence": "independent C++ mj_id2name oracle + independent Python name_*adr/names parser: 87 comparisons (63 boundary), 0 mismatch. id<0 or id>=count -> None; negative/out-of-range name address rejected at construction (lookup also returns None defensively); buffer without trailing NUL rejected at construction, per-entry missing NUL -> None; empty name -> empty bytes; non-UTF-8 only via name_bytes."
+      },
+      {
+        "id": 4,
+        "name": "rejection surface",
+        "status": "pass",
+        "evidence": "11 construction cases confirmed in tests/render_model_input.rs (each asserts is_err()); host tests 4 passed/2 ignored on rerun. Pre-allocation/write ordering verified in code: host constructor validates before returning (no device buffers exist); native snapshot checks count before allocating the host Vec; bridge render_stage rejects negative unit / non-positive width / product overflow / SIZE_MAX overflow / null source before writing; copy re-checks kind/count/target; name oracle checks pointers and capacity."
+      },
+      {
+        "id": 5,
+        "name": "existing G01 path unaffected",
+        "status": "pass",
+        "evidence": "S1 range f314cad..d642c03 changes 5 existing files with 143 insertions and 0 deletions (build.rs +1, native_probe.h +3, model_probe.cpp +2 include, io/mod.rs +24, model/mod.rs +113); native/g01_fields.inc, model_probe_collision.cpp, model_probe_sparse.cpp untouched. scripts/test-windows-native.ps1 (mock DLLs + trusted 3.12 DLL) -> 22 passed / 0 failed (expected 22 for CPU). A g01-fast attempt gave 20 passed/7 failed only because g01-fast does not build the mock DLLs (MJWARP_NATIVE_MOCKS missing) - not a product regression."
+      },
+      {
+        "id": 6,
+        "name": "boundaries",
+        "status": "pass",
+        "evidence": "native-model-probe only (no cuda-probe), no GPU work (nvidia-smi 3,340 MiB desktop baseline), new files contain no CUDA calls; no Command::new/process spawn of Python in src/build.rs and the native report says scriptInvokesPython=false; blob line counts: src/model/render.rs exactly 500 (limit, not over), io/render.rs 453, tests 384, bridge 233, header 50, existing files all under 500; module sources registered (mjwarp.model.render-model -> src/model/render.rs, mjwarp.io.render -> src/io/render.rs); normify validate 0 errors / 5 advisory warnings."
+      }
+    ]
+  },
+  "measurements": {
+    "field_parity": {
+      "all_arrays": 133,
+      "all_scalars": 90256,
+      "all_arrays_with_mismatch": [
+        "geom_sameframe"
+      ],
+      "geom_sameframe": {
+        "reference": [
+          1,
+          0,
+          1,
+          0,
+          0,
+          1,
+          1
+        ],
+        "qa_native_312_dump": [
+          1,
+          0,
+          3,
+          0,
+          0,
+          3,
+          3
+        ]
+      },
+      "render_fields": 116,
+      "render_scalars": 89941,
+      "render_fields_with_mismatch": [],
+      "render_mismatched_scalars": 0,
+      "excluded_fields": 17,
+      "excluded_scalars": 315,
+      "reference_sha256": "cdd490f0209dd16a57b2685f3139548af8a2b73195cdb0e01a74ab094ef1df00",
+      "regenerated_field_diff_sha256": "8ed81083cef9f2658d7d942a0dc16287f578311c6b4be3277b1b692c19d5ed3f"
+    },
+    "exclusion_surface": {
+      "renderer_files": [
+        "_src/render.py",
+        "_src/render_util.py",
+        "_src/ray.py",
+        "_src/bvh.py"
+      ],
+      "transitive_deps": [
+        "_src/math.py",
+        "_src/warp_util.py"
+      ],
+      "excluded_field_hits": 0,
+      "upstream_references_tsv_hits": 0,
+      "renderer_read_geom_fields": [
+        "geom_type",
+        "geom_dataid",
+        "geom_group",
+        "geom_matid",
+        "geom_rgba",
+        "geom_size"
+      ]
+    },
+    "name_lookup": {
+      "comparisons": 87,
+      "boundary": 63,
+      "mismatches": 0,
+      "objects": [
+        "body",
+        "joint",
+        "geom",
+        "site",
+        "camera",
+        "light",
+        "mesh",
+        "texture",
+        "material"
+      ]
+    },
+    "rejection_surface": {
+      "construct_cases": 11,
+      "host_tests": "4 passed / 2 ignored",
+      "failures_seen": 0
+    },
+    "g01_path": {
+      "existing_file_diff": {
+        "insertions": 143,
+        "deletions": 0
+      },
+      "native_harness": {
+        "command": "scripts/test-windows-native.ps1",
+        "passed": 22,
+        "failed": 0,
+        "expected": 22
+      },
+      "g01_fast_attempt": {
+        "passed": 20,
+        "failed": 7,
+        "reason": "g01-fast does not build the native mock DLLs; MJWARP_NATIVE_MOCKS missing for 7 ignored tests; the sanctioned harness passes 22/22"
+      },
+      "unchanged_assets": [
+        "native/g01_fields.inc",
+        "native/model_probe_collision.cpp",
+        "native/model_probe_sparse.cpp"
+      ]
+    },
+    "boundary": {
+      "gpu_used": false,
+      "gpu_memory_mib_during_review": 3340,
+      "product_tests_start_python": false,
+      "new_file_lines": {
+        "src/model/render.rs": 500,
+        "src/io/render.rs": 453,
+        "tests/render_model_input.rs": 384,
+        "native/model_probe_render.cpp": 233,
+        "include/mjwarp_render_probe.h": 50
+      },
+      "existing_file_lines": {
+        "native/model_probe.cpp": 284,
+        "build.rs": 51,
+        "src/model/mod.rs": 333,
+        "src/io/mod.rs": 418,
+        "include/mjwarp_native_probe.h": 116
+      },
+      "normify_validate": "errors=0, warnings=5 (advisory)"
+    },
+    "delivered_receipt_check": {
+      "artifacts": 12,
+      "sha256_matches": 12,
+      "byte_matches": 12,
+      "line_count_matches": 11,
+      "note": "field-diff.json recorded as 725 lines; committed blob has 725 newline characters with no trailing newline (726 lines by splitlines); sha256 and byte count match"
+    }
+  },
+  "observations": [
+    "s1-model-input/receipt.json records field-diff.json as 725 lines while the blob is 726 lines by splitlines (725 newlines, no trailing newline); hash and byte count are correct - recommend one line-count convention",
+    "normify validate reports 5 advisory warnings for the two new leaf modules (empty apis, layout order not covering them, 31 leaves possibly too coarse); no error",
+    "src/model/render.rs is exactly at the 500-line limit; split before adding more",
+    "S1 README's repro commands cover the two ignored render_model_input tests (which run without mocks); the mock-dependent 45-field tests need scripts/test-windows-native.ps1 - worth stating to avoid g01-fast misuse"
+  ],
+  "commands": [
+    "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features native-model-probe --test render_model_input",
+    "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features native-model-probe --test render_model_input -- --ignored --test-threads=1",
+    "pwsh -File scripts/test-windows-native.ps1",
+    "python -B target/qa-render-bvh-s1/gen_dump.py (then MSVC cl against MuJoCo 3.12, dump scene-312.mjb)",
+    "python -B target/qa-render-bvh-s1/parity_and_exclusion.py",
+    "python -B target/qa-render-bvh-s1/header_spec_check.py",
+    "python -B target/qa-render-bvh-s1/name_lookup_check.py",
+    "python -B target/qa-render-bvh-s1/evidence_gen.py"
+  ],
+  "gates": {
+    "fmt": {
+      "command": "cargo fmt --check",
+      "result": "通过"
+    },
+    "unchanged": {
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "Cargo.toml",
+        "Cargo.lock"
+      ],
+      "result": "通过"
+    },
+    "json": {
+      "path": "docs/development-evidence/render-bvh/s1-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "result": "通过"
+    }
+  },
+  "full_g01": {
+    "run_this_task": false,
+    "note": "S1 is host-only; the last full G01 dual-mode run is the T2 closeout at HEAD 959be10 (commit 6494fe8)"
+  },
+  "not_claimed": [
+    "完整渲染通过 / 产品渲染验收",
+    "S2 场景 BVH 已实现",
+    "GPU 上传、纹理对象、渲染内核或 context 参数",
+    "任意 MJB 的属性测试或模糊测试",
+    "非 ASCII 名称的 mj_id2name 对照",
+    "本轮全量 G01 或双平台结论"
+  ],
+  "unmet": [
+    "single frozen scene-a fixture only; no fuzz/arbitrary-MJB property tests",
+    "name oracle verified for ASCII fixture names only; non-UTF-8 via name_bytes",
+    "geom_dataid only checked >= -1 (hfield not read in S1)",
+    "no GPU path, texture objects, BVH, camera rays or context parameters (S2-S7)"
+  ],
+  "concurrent_changes": {
+    "baseline_commit": "d642c039c66b9e3da1f173b2ef0c40db542df3f4",
+    "head_commit": "f9adf14b2f6c18b9bb8787189c15a908becfb29f",
+    "diff_command": "git diff d642c03..HEAD -- src tests fixtures Cargo.toml Cargo.lock",
+    "changed_paths": [
+      "fixtures/render-bvh/scene-a/s2/bvh_initial.npz",
+      "fixtures/render-bvh/scene-a/s2/bvh_moved.npz",
+      "fixtures/render-bvh/scene-a/s2/context.json",
+      "fixtures/render-bvh/scene-a/s2/provenance.json",
+      "fixtures/render-bvh/scene-a/s2a/bounds.json",
+      "src/render/bvh/aabb.rs",
+      "src/render/bvh/builder.rs",
+      "src/render/bvh/mod.rs",
+      "src/render/bvh/query.rs",
+      "src/render/bvh/refit.rs",
+      "src/render/mod.rs",
+      "tests/render_scene_bvh_host.rs"
+    ],
+    "ownership": "all changed paths belong to the render/BVH S2/S2a slices, not to S1",
+    "s1_files_untouched": "src/model/render.rs, src/model/mod.rs, src/io/render.rs, src/io/mod.rs, native/model_probe.cpp, native/model_probe_render.cpp, include/mjwarp_render_probe.h, include/mjwarp_native_probe.h, tests/render_model_input.rs, build.rs, fixtures/render-bvh/scene-a/model-312.json, docs/development-evidence/render-bvh/s1-model-input/ (the last only by e83823d before this task base)",
+    "unchanged_scope_decision": "Arch structural ruling 2026-10-24: narrow this task unchanged check to S1-owned files plus the S1 evidence because S2a legally writes src/render concurrently; semantics unchanged (QA must not modify S1 product/fixture/original evidence)"
+  }
+}
