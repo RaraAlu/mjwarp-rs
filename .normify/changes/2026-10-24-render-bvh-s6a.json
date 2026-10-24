@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-render-bvh-s6a",
+  "title": {
+    "zh": "渲染/BVH S6a：render context 参数/默认值/输出偏移/拒绝面",
+    "en": "Render/BVH S6a: render context parameters, defaults, output offsets, rejection surface"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "渲染/BVH 第八片（plan S6a，S1 已 verified）：实现 create_render_context 的宿主侧参数解析与派生——28 个公开参数的默认值/None 推导（cam_res、cam_active、rgb/depth/seg 从模型 cam_output）、相机筛选（bool/name/index/空列表）、enabled_geom_groups、znear/zfar、输出偏移与 buffer 大小、samples_per_pixel/AA 相关组合限制；对 S0b context.json 与 S0b/S1 模型字段逐项对照。资源分配/生命周期在 S6b；渲染内核在 S7b。",
+    "en": "Eighth render/BVH slice (plan S6a, S1 verified): implement host-side create_render_context parameter resolution and derivation - defaults/None derivation for all 28 public parameters (cam_res, cam_active, rgb/depth/seg from model cam_output), camera filtering (bool/name/index/empty list), enabled_geom_groups, znear/zfar, output offsets and buffer sizes, and samples_per_pixel/AA combination limits; compare against S0b context.json and S0b/S1 model fields. Resource allocation/lifecycle is S6b; render kernel is S7b."
+  },
+  "modules": {},
+  "acceptance": [
+    "28 参数默认/None 推导与 S0b context.json 逐项一致（整数/枚举精确，f32 位型优先）；cam_res/cam_active/render flags 的 None 语义与上游一致。",
+    "相机筛选 bool/name/index/空列表、enabled_geom_groups、异构分辨率/复制规则成立；相机 id vs 输出序号分离。",
+    "输出偏移 rgb/depth/seg、buffer 大小、znear/zfar、samples/AA 约束与参考一致；非法组合在写前拒绝并映射到产品错误字段。",
+    "证据/门禁：README + receipt 含 task_id；无 GPU 渲染；fmt/clippy/clippy-cuda/unit 全过；新文件 ≤500 行；不启动 Python 产品测试；不改 S0b/S1 证据。",
+    "边界：S6b 负责所有权/生命周期；S7b 负责渲染内核/AA 图像；本片不声称这些已完成。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-24-render-bvh-s1"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/context.rs",
+      "src/render/context/",
+      "src/render/mod.rs",
+      "tests/render_context_params.rs",
+      "docs/development-evidence/render-bvh/s6a-context-params/"
+    ],
+    "resources": [],
+    "priority": 84
+  },
+  "note": "Arch 2026-10-24 派活：S6a 纯宿主、无 GPU；与 QA 的 S4 复核 GPU 窗口可并行。S6b 生命周期等 S6a 完成；S7a/S7b 更后。",
+  "revision": {
+    "before": "f15f6cb3ef158ebf2615da251627a5197607a715",
+    "after": null
+  },
+  "created_at": "2026-10-25T05:25:00.000Z",
+  "updated_at": "2026-10-24T21:20:20.234Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s6a-context-params/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-render-bvh-s6a"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "S7已实现",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
