@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s0b-reference-capture",
+  "task_id": "2026-10-24-render-bvh-s0b",
+  "date": "2026-10-24",
+  "slice": "S0b",
+  "outcome": "pass",
+  "scope": "offline authoring only; GPU exclusive during capture; product builds/tests/gates never start Python",
+  "environment": {
+    "venv": "target/mjwarp-parallel/venv",
+    "python": "3.12.13",
+    "warp": "1.15.0",
+    "mujoco": "3.15.0",
+    "mujoco_warp": "3.15.0",
+    "numpy": "2.5.4",
+    "cuda_toolkit_reported_by_warp": [12, 9],
+    "cuda_driver_reported_by_warp": [13, 2],
+    "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "upstream_clean": true,
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "gpu_arch": 89,
+    "gpu_driver": "596.36",
+    "platform": "Windows",
+    "gpu_exclusive": true
+  },
+  "inputs": {
+    "scene_xml": {"path": "fixtures/render-bvh/scene-a/scene.xml", "bytes": 4639, "sha256": "a9f1f0a35464f4df17f191e1d68431bda0f17648273578e58fa08f84b0449289", "hash_note": "LF-normalized bytes (CRLF->LF); same algorithm as S0a model_parity.py"},
+    "scene_315_mjb": {"path": "fixtures/render-bvh/scene-a/scene-315.mjb", "bytes": 101320, "sha256": "8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4"},
+    "source_identity": "S0a verified commit a8a608c (fixture fix) on top of edaca66; S0a/S0b bind the same scene.xml hash"
+  },
+  "acceptance": [
+    {"item": "two consecutive captures produce identical sha256 for every output", "status": "pass", "evidence": "provenance.capture.identical_sha256=true; rgb/depth/seg/rays npz and context.json hashes identical; additionally identical across two independent process runs"},
+    {"item": "ray set covers camera pixels, seeded random rays, grazing rays, no-hit rays", "status": "pass", "evidence": "context.json.outputs.ray_stats: camera_pixels 128/74 hits, seeded_random 128/20, grazing 64/64 (geom must be floor, max|n.d|=0.00499994), no_hit 64/0"},
+    {"item": "context receipt contains resolved values for all 28 create_render_context parameters and output offsets", "status": "pass", "evidence": "context.json.parameter_count=28; create_render_context_parameters lists nworld..splat_group_id; resolved.rgb_adr=[0,76800], depth_adr=[0,76800], seg_adr=[0,76800], total_rays=120000, bvh_ngeom=7, znear=0.024999999441206455, zfar=125.0"},
+    {"item": "provenance is complete and the script does not read from the product tree", "status": "pass", "evidence": "scene-a/provenance.json: versions/upstream/MJB+XML+script hashes/command/seed/repeat hashes/GPU memory; script reads only fixtures/render-bvh and the pinned environment"},
+    {"item": "capture fails loudly if the reference environment differs", "status": "pass", "evidence": "check_environment() hard-checks venv prefix, versions, upstream revision+dirty, MJB/XML hashes, GPU name/arch/driver; any mismatch raises SystemExit with the reason"},
+    {"item": "context receipt and ray set cover both camera paths (intrinsic and fovy) with resolved intrinsic/fovy values", "status": "pass", "evidence": "context.json.camera_paths=[cam0 intrinsic (0.018,0.016,0,0)/fovy=73.73979461915735, cam1 fovy/40.0]; camera_pixel_rays_per_camera=[64,64]"},
+    {"item": "evidence binds the new scene.xml sha256 and S0a/S0b use the same XML hash", "status": "pass", "evidence": "both record a9f1f0a35464f4df17f191e1d68431bda0f17648273578e58fa08f84b0449289"}
+  ],
+  "camera_paths": [
+    {"cam_id": 0, "name": "cam-persp", "branch": "intrinsic", "projection": 0, "resolution": [320, 240], "sensorsize": [0.035999998450279236, 0.024000000208616257], "intrinsic": [0.017999999225139618, 0.01600000075995922, 0.0, 0.0], "fovy_deg": 73.73979461915735, "camera_pixel_rays": 64, "camera_pixel_hits": 50},
+    {"cam_id": 1, "name": "cam-track", "branch": "fovy", "projection": 0, "resolution": [240, 180], "sensorsize": [0.0, 0.0], "intrinsic": [0.009999999776482582, 0.009999999776482582, 0.0, 0.0], "fovy_deg": 40.0, "camera_pixel_rays": 64, "camera_pixel_hits": 24}
+  ],
+  "outputs": {
+    "rgb_npz": {"path": "fixtures/render-bvh/scene-a/reference/rgb.npz", "bytes": 1440478, "sha256": "9379f5d3b39e2d5d0ce8ef21a28b365e3608d20f6a992c39dff2d5df3ef90c0c", "arrays": {"rgb_cam0": [240, 320, 3], "rgb_cam1": [180, 240, 3]}},
+    "depth_npz": {"path": "fixtures/render-bvh/scene-a/reference/depth.npz", "bytes": 480486, "sha256": "0fa5582170a2b2a117e46868930fa2b4270dd993b0f5d86dc603981e0a2fd7d3", "arrays": {"depth_cam0": [240, 320], "depth_cam1": [180, 240]}, "semantics": "raw rc.depth_data planar depth in meters, 0 = no hit, no normalization/clamping"},
+    "seg_npz": {"path": "fixtures/render-bvh/scene-a/reference/seg.npz", "bytes": 960478, "sha256": "2153fa728d634c032cf38847761803c4faa806aa554e108a2e0bd7b8ac8e6a97", "arrays": {"seg_cam0": [240, 320, 2], "seg_cam1": [180, 240, 2]}, "semantics": "(object_id, object_type) pairs, background (-1,-1)"},
+    "rays_npz": {"path": "fixtures/render-bvh/scene-a/reference/rays.npz", "bytes": 18700, "sha256": "83146ae50946537401be817a44bfe3af58320df475dabc49206aa47eec9d50ab", "ray_count": 384, "arrays": {"ray_origin": [384, 3], "ray_direction": [384, 3], "ray_category": [384], "ray_geomid": [384], "ray_dist": [384], "ray_normal": [384, 3]}},
+    "context_json": {"path": "fixtures/render-bvh/scene-a/reference/context.json", "bytes": 6026, "sha256": "e08cce0ad1783b2cadd533115ee0ea0bf1defa8db7ad8ed5a5e8ed1c2c62f2df", "task_id_check": "passed", "parameter_count": 28},
+    "provenance_json": {"path": "fixtures/render-bvh/scene-a/provenance.json", "bytes": 5922, "sha256": "c13715a07953300aaf85233f2bd361a94a4863d97779fef6910d2ba25c30a90b", "task_id_check": "passed", "note": "rewritten on every run; GPU-memory fields vary by run and are not determinism inputs"},
+    "reference_readme": {"path": "fixtures/render-bvh/scene-a/reference/README.md", "bytes": 5633, "sha256": "00921062fc5c18187dc6ff402d83ddac4bd96b779be8f7914fe24aaa4d921b8f"}
+  },
+  "image_stats": {
+    "cam0_cam_persp": {"rgb_mean": 0.758664, "rgb_std": 0.405097, "depth_hits": 59805, "depth_total": 76800, "depth_min_m": 0.599852, "depth_max_m": 1.68258, "seg_background": 16995, "seg_geom_ids": [-1, 0]},
+    "cam1_cam_track": {"rgb_mean": 0.241771, "rgb_std": 0.375847, "depth_hits": 15702, "depth_total": 43200, "depth_min_m": 1.234752, "depth_max_m": 3.703163, "seg_background": 27498, "seg_geom_ids": [-1, 0, 1, 2, 3, 4, 5]}
+  },
+  "ray_stats": {
+    "camera_pixels": {"rays": 128, "hits": 74, "no_hits": 54, "max_abs_normal_dot_direction": 0.9987175464630127},
+    "seeded_random": {"rays": 128, "hits": 20, "no_hits": 108, "max_abs_normal_dot_direction": 0.9860121607780457},
+    "grazing": {"rays": 64, "hits": 64, "no_hits": 0, "max_abs_normal_dot_direction": 0.004999937489628792, "hit_geom": "floor"},
+    "no_hit": {"rays": 64, "hits": 0, "no_hits": 64, "max_abs_normal_dot_direction": 0.0},
+    "seed": 20261024
+  },
+  "determinism": {
+    "two_captures_same_process_identical": true,
+    "two_independent_processes_identical": true,
+    "compared_outputs": ["rgb.npz", "depth.npz", "seg.npz", "rays.npz", "context.json"],
+    "note": "render_seconds lives in provenance only and is excluded from compared outputs"
+  },
+  "gpu_memory_mib": {
+    "baseline_in_script": 3282,
+    "after_capture_in_script": 3523,
+    "after_process_exit_nvidia_smi": 3276,
+    "desktop_baseline_range": [3264, 3346],
+    "gpu_released": true,
+    "other_compute_processes": "none during capture"
+  },
+  "scripts": {
+    "capture_reference_py": {"path": "scripts/authoring/render-bvh/capture_reference.py", "lines": 484, "bytes": 19737, "sha256": "b0f091f1093271f764650301be215d0ecc6760c007e4b6b63b4ff7caa3e5b8d5"},
+    "capture_reference_rays_py": {"path": "scripts/authoring/render-bvh/capture_reference_rays.py", "lines": 167, "bytes": 6508, "sha256": "fafd6d91f680b2394048980cef7b1a2e0eb0395e9b0f7baea6fb8f08fc92c5bd"},
+    "run_s0b_ps1": {"path": "scripts/authoring/render-bvh/run_s0b.ps1", "lines": 39, "bytes": 2325, "sha256": "9e72b229bd355d9e1cad744c3677ba571d94f9318acb8f0f9d65053358f66476"}
+  },
+  "evidence": {
+    "readme": {"path": "docs/development-evidence/render-bvh/s0b-reference-capture/README.md", "bytes": 8548, "sha256": "3a0825dfbef16bcac6c78d18c6e5ba4f0d4f15decc6908b25d65a02fa557dc86"},
+    "run_log": {"path": "docs/development-evidence/render-bvh/s0b-reference-capture/run.log", "bytes": 7710, "sha256": "b376543037b40ffe708d9a8eae6405f1e558b4ea9a8dbb029a54abcf0f0ce798", "encoding": "UTF-8 (no BOM), LF", "runs": 1}
+  },
+  "not_claimed": [
+    "MuJoCo native GL rasterizer reference (this is an MJWarp 3.15 reference)",
+    "MuJoCo 3.12 vs 3.15 render equality",
+    "product rendering acceptance against the reference (S1+ not started)",
+    "full-pixel ray coverage (camera pixels are an 8x8 grid per camera)",
+    "shadow/skybox/splat/flex/multi-world/orthographic coverage",
+    "Linux or other GPU coverage"
+  ],
+  "unmet": [
+    "ray set is sampled, not exhaustive over all pixels",
+    "depth is captured in raw rc.depth_data semantics (0 = no hit, unclamped); MJWarp get_depth() clamps to [0,1] and is not used",
+    "provenance.json GPU-memory fields vary between runs and are intentionally excluded from determinism checks",
+    "no Linux/other-GPU run; no product-side comparison yet"
+  ]
+}
