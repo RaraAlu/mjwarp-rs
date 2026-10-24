@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-windows-small-closeout",
+  "title": {
+    "zh": "Windows 小项收口里程碑：全量 G01 双模式终验（T2）",
+    "en": "Windows small items closeout milestone: final full G01 dual-mode acceptance (T2)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "T2 里程碑：在 Windows 小项（a10-p11、U038 债务、工具链门禁）全部 verified 且 a10-p11/U038 证据小修落库后的最终 HEAD，跑一次全量 G01 debug/release 双模式作为收口终验；记录 14 阶段、host-msvc/all-probes、排除清单、rustdoc、diff 与墙钟；通过后更新 g01-fast-loop 证据、three-layer-acceptance §4.14/§5.3/§7 与 compatibility-matrix 的 U038/状态段；只对 Windows 已覆盖范围下结论，不宣称双平台或完整上游等价。",
+    "en": "T2 milestone: at the final HEAD after all Windows small items (a10-p11, U038 debt, toolchain gate) are verified and the a10-p11/U038 evidence fixups are landed, run one full G01 debug/release dual-mode as the closeout acceptance; record 14 stages, host-msvc/all-probes, exclusion list, rustdoc, diff and wall clock; then update g01-fast-loop evidence, three-layer-acceptance §4.14/§5.3/§7 and compatibility-matrix U038/status rows; Windows-only conclusions."
+  },
+  "modules": {},
+  "acceptance": [
+    "在最终 HEAD 执行 scripts/test-windows-g01.ps1 -AllFeatures -FullRegression 与 ... -Release 各一次（GPU 独占，本批唯一一次全量），记录 14 阶段数字、host-msvc/all-probes 实测与 result 行数、排除清单仍 11 项、rustdoc 0、diff 通过、运行目录与墙钟；预期 host-msvc 835→840（a10-p11 新增 5 单测）、all-probes 353→354（新增 1 项 ignored GPU 探针自动纳入），以实测为准。",
+    "通过后更新 docs/development-evidence/g01-fast-loop/（README 新小节 + 运行 json）、docs/three-layer-acceptance.md（§4.14 新终验、§5.3 U038 裁决 B 与判定、§7 G01 现状）、docs/compatibility-matrix.md（U038 行与状态段）。",
+    "证据写 docs/development-evidence/windows-small-closeout/（README + receipt.json 含 task_id + 终验 json）；如实列明未满足项：U038-3D 8/77 已知债务（裁决 B）、NP01 20 内部字段、NP02 9 条已知漂移与 51 份历史实体不在仓、MathDx 再分发口径、性能与完整上游等价未验收、compute_70 与设备 SM89 差异、Linux deferred。",
+    "若 G01 失败：按实际报 target/原因，不改排除清单/断言/G01 脚本；需要新增排除先报 Chief；不改产品/测试/容差/fixtures；门禁 fmt + json + unchanged（src/tests/fixtures/Cargo.*）通过；中文 path-limited 提交。",
+    "只对 Windows 已覆盖范围下结论，不宣称双平台、不宣称完整上游等价、不宣称完整 g03-parity 全量通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-11-roadmap-a10-p11",
+      "2026-10-23-u038-3d-gravity-propagation-debt-2",
+      "2026-10-24-windows-small-review",
+      "2026-10-18-toolchain-clippy-acceptance",
+      "2026-10-16-next-g03-parity"
+    ],
+    "phase": "P11",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g01-fast-loop/",
+      "docs/three-layer-acceptance.md",
+      "docs/compatibility-matrix.md",
+      "docs/development-evidence/windows-small-closeout/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 10
+  },
+  "note": "Chief 2026-10-24 批准 T2 里程碑（本消息即授权，全量只跑一次）。前置：a10-p11（245c461，证据小修 a50b288）、U038 debt-2（c0ac14c，裁决 B 修正 dc18c68）、Windows 小项独立复核（894ce28）、工具链门禁（3b22f5f）、G03 收口（4e07852）均 verified。全量 G01 只在本次跑；不新增排除项，不改断言/容差/脚本。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-24T08:40:00.000Z",
+  "updated_at": "2026-10-24T08:40:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/windows-small-closeout/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-windows-small-closeout"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "双平台通过",
+        "完整上游等价通过"
+      ]
+    }
+  ]
+}
