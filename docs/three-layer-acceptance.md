@@ -229,7 +229,7 @@ RNE 重基线 `b13d1c5` 入库后，按交接文档执行完整脚本（debug �
 | native-g01 | 2 过 |
 | native-only-g01 | 1 过 |
 | resident | 102 过 |
-| all-probes | **346 过 / 0 败**（83 个 result 行；W-D5 3 + 历史捕获 6 + env 1 + U038-3D known-debt 1 = 11 项文档化排除） |
+| all-probes | **346 过 / 0 败**（83 个 result 行；W-D5 3 + 历史捕获 6 + env 1 + U038 上游逐位差异 1（按 native_error_v2 原生放行） = 11 项文档化排除） |
 | host-gnu | 406 过 |
 | clippy-gnu / clippy-gnu-cuda / clippy-msvc | 0 警告 |
 | rustdoc（`-D warnings`） | 0 警告 |
@@ -240,7 +240,7 @@ RNE 重基线 `b13d1c5` 入库后，按交接文档执行完整脚本（debug �
 
 ### 4.7 接线后 debug/release 双模式最终验收（2026-10-23，QA，任务 `2026-10-23-final-acceptance-rerun`）
 
-Backend 接线（`45baa0e`）入库后，QA 按同一命令执行 debug 与 release 两轮完整脚本，**14 个阶段均 exit 0**，all-probes **debug 与 release 各 346 过 / 0 败**（各 83 个 result 行），排除项为 **11 项文档化排除**（W-D5 3、历史捕获身份 6、env/外部产物 1、U038-3D 已知债务 1；§5.1–§5.3）。运行源码 HEAD `6e8c79a`，脚本为 `45baa0e` 接线版本。
+Backend 接线（`45baa0e`）入库后，QA 按同一命令执行 debug 与 release 两轮完整脚本，**14 个阶段均 exit 0**，all-probes **debug 与 release 各 346 过 / 0 败**（各 83 个 result 行），排除项为 **11 项文档化排除**（W-D5 3、历史捕获身份 6、env/外部产物 1、U038 上游逐位差异 1（按 native_error_v2 原生放行）；§5.1–§5.3）。运行源码 HEAD `6e8c79a`，脚本为 `45baa0e` 接线版本。
 
 | 阶段 | debug | release |
 | --- | --- | --- |
@@ -285,7 +285,7 @@ Backend 接线（`45baa0e`）入库后，QA 按同一命令执行 debug 与 rele
 | 全脚本墙钟 | 709s | 627s |
 
 - 运行目录：debug `target/g01-acceptance/383d4b51c15c462982a5b06cd47503de`、release `target/g01-acceptance/7d4d70d46e7f4fc3a86f3963de4e878a`；本机日志 `target/final-g01-check/{debug,release}-final3.log`。
-- 排除清单（`probe-reports/exclusions.json`）：仍为 **11 项**（W-D5 3 + 历史捕获身份 6 + env/外部产物 1 + U038-3D 已知债务 1），与 §4.7 一致，**未新增排除**；`probe-reports/env-wiring.json` 两模式一致（`t4_current_captures`/`gravity_3d_evidence` = fresh-directory，其余 wired/reused）。
+- 排除清单（`probe-reports/exclusions.json`）：仍为 **11 项**（W-D5 3 + 历史捕获身份 6 + env/外部产物 1 + U038 上游逐位差异 1（按 native_error_v2 原生放行）），与 §4.7 一致，**未新增排除**；`probe-reports/env-wiring.json` 两模式一致（`t4_current_captures`/`gravity_3d_evidence` = fresh-directory，其余 wired/reused）。
 - 与 §4.7 差异（HEAD `6e8c79a`→`66256c9`）：host-msvc 722→796、host-gnu 406→480（批次 1–4 新增 20 条切片测试）；all-probes 346/0、83 result 行、11 项排除均不变；rustdoc 0 警告；墙钟 689s/656s→709s/627s。
 - 证据：`docs/development-evidence/g01-fast-loop/`（README §5.2、`final-acceptance-final.json`）与本文件。
 - 结论：**G01 debug/release 双模式通过（含 11 项文档化排除项；HEAD 66256c9；U038-3D 已知债务显式排除、未验收）**。Linux（按用户 2026-10-24 决定暂时终止，待 Windows 全量完成后集中回测，§7.1）、性能与完整上游等价仍未验收。
@@ -338,7 +338,7 @@ LTOIR 交付（`f9da799`，任务 `2026-10-24-compile-chain-ltoir`：`cuda-probe
 | 全脚本墙钟 | 787s | 633s |
 
 - 运行目录：debug `target/g01-acceptance/465d8515c0e04e99857a642c452753f9`、release `target/g01-acceptance/a863e1a3ae91456296ef575b4102537a`；本机日志 `target/final-g01-check/{debug,release}-ltoir.log`。
-- 排除清单仍为 **11 项**（W-D5 3、历史捕获身份 6、env 未接线 1、U038-3D 已知债务 1），两模式逐项相同，**未新增排除**；`env-wiring.json` 与 §4.9 一致。
+- 排除清单仍为 **11 项**（W-D5 3、历史捕获身份 6、env 未接线 1、U038 上游逐位差异 1（按 native_error_v2 原生放行）），两模式逐项相同，**未新增排除**；`env-wiring.json` 与 §4.9 一致。
 - **LTOIR 探针**：all-probes 执行 `cargo test --all-features -- --ignored`（全部 target、无白名单），`compile_ltoir_probe` 的 2 项 ignored GPU 测试被**自动纳入并通过**（两模式各 2 次命中）；交付证据中「探针未接入 all-probes 列表」的描述不准确，已在独立复核 `docs/development-evidence/ltoir-independent-check/` 登记为建议项，不影响通过性。
 - 与 §4.9 差异：host-msvc 804→812（LTOIR 8 项单测）；all-probes 348→350、result 行 84→85（LTOIR 探针 2 项）；host-gnu 480 不变；排除 11 项不变；墙钟 839s/656s→787s/633s。
 - 证据：`docs/development-evidence/g01-fast-loop/`（README §5.4、`final-acceptance-ltoir.json`）与 `docs/development-evidence/ltoir-independent-check/`。
@@ -365,7 +365,7 @@ MathDx 三块交付（`2025a57` libmathdx 0.3.1 组件与许可、`e5f1559` Solv
 | 全脚本墙钟 | 788s | 619s |
 
 - 运行目录：debug `target/g01-acceptance/7095eee44fcf4d08a7423a20485a664b`、release `target/g01-acceptance/95c7dc56d5e44843a1b132ce6b338bb3`；本机日志 `target/final-g01-check/{debug,release}-mathdx.log`。
-- 排除清单仍为 **11 项**（W-D5 3、历史捕获身份 6、env 未接线 1、U038-3D 已知债务 1），两模式逐项相同，**未新增排除**；`env-wiring.json` 与 §4.10 一致。
+- 排除清单仍为 **11 项**（W-D5 3、历史捕获身份 6、env 未接线 1、U038 上游逐位差异 1（按 native_error_v2 原生放行）），两模式逐项相同，**未新增排除**；`env-wiring.json` 与 §4.10 一致。
 - **MathDx 探针**：all-probes 执行 `cargo test --all-features -- --ignored`（全部 target、无白名单），`mathdx_solver_probe` 的 2 项 ignored GPU 测试被**自动纳入并通过**（all-probes 350→352、result 行 85→86）；探针按 pinned 组件解析 NVRTC（`call_nvrtc_version=[12,9]`），与 `CUDA_PATH=12.8.1` 解耦。
 - 与 §4.10 差异：host-msvc 812→823（mathdx 11 项单测）；all-probes 350→352、result 行 85→86（mathdx 探针 2 项）；host-gnu 480 不变；排除 11 项不变；墙钟 787s/633s→788s/619s。
 - 证据：`docs/development-evidence/g01-fast-loop/`（README §5.5、`final-acceptance-mathdx.json`）与 `docs/development-evidence/mathdx-independent-check/`。
@@ -429,8 +429,8 @@ T2 里程碑（用户 2026-10-24 批准，全量只跑一次）：Windows 小项
 - 运行目录：debug `target/g01-acceptance/d4a4364b0f584f5685181b1e93a7f385`、release `target/g01-acceptance/f6e41b7e46984686af4e03663558dc79`；证据：`docs/development-evidence/windows-small-closeout/`（README、`receipt.json`、`final-acceptance-t2.json`）与 `g01-fast-loop/README.md` §5.6。
 - 与 §4.13（`c4c1058`）差异：host-msvc 835→840（a10-p11 +5 单测）、all-probes 353→354（+1 ignored GPU 探针自动纳入）、result 行 87→88、host-gnu 480→485；排除仍 **11 项**、两模式逐项一致、未新增；rustdoc/diff 保持 0。
 - HEAD 说明：debug 运行期间并行落地 U038 原生 f64 两级判定证据提交（`2412c11`/`959be10`）；`git diff 5a0a348..959be10 -- src tests fixtures Cargo.toml Cargo.lock` 为空，产品源码身份与 T2 起点一致（两轮报告 `gitRevision=959be10`）。
-- Windows 小项收口：a10-p11 工具（CUDA events 计时 + 显存采样）与 U038 债务判定（最小改动不可对齐，用户 2026-10-24 裁决 B 维持已知债务、不宣称通过）均按 verified 交付引用；工具链门禁 17/17 通过（`docs/toolchain-clippy-acceptance.md`）。
-- 未满足项：U038-3D 8/77 已知债务（裁决 B）、NP01 20 个内部布局字段、NP02 9 条已知漂移与 51 份历史实体不在仓、MathDx 再分发口径、性能与完整上游等价未验收、`compute_70` 与设备 SM89 差异未评估、Linux deferred。**只对 Windows 已覆盖范围下结论，不宣称双平台、不宣称完整上游等价、不宣称完整 g03-parity 全量通过。**
+- Windows 小项收口：a10-p11 工具（CUDA events 计时 + 显存采样）与 U038 判定（debt-2 有界判定「最小改动不可对齐」；2026-10-24 `native_error_v2` 补判为 9/9 字段块原生放行，见 §5.3）均按 verified 交付引用；工具链门禁 17/17 通过（`docs/toolchain-clippy-acceptance.md`）。
+- 未满足项：U038 上游逐位差异（8/77 超 2e-6，按 `native_error_v2` 原生放行；不宣称上游逐位对齐）、NP01 20 个内部布局字段、NP02 9 条已知漂移与 51 份历史实体不在仓、MathDx 再分发口径、性能与完整上游等价未验收、`compute_70` 与设备 SM89 差异未评估、Linux deferred。**只对 Windows 已覆盖范围下结论，不宣称双平台、不宣称完整上游等价、不宣称完整 g03-parity 全量通过。**
 ## 5. 债务清单
 
 | 编号 | 级别 | 状态 | 内容与证据 |
@@ -497,19 +497,23 @@ sha256/size/mtime 清单在同目录 `manifest.json`，可用 `make-archive.ps1 
 `docs/development-evidence/t4-rebaseline-precheck/`。跟踪任务 `2026-10-22-t4-historical-capture-rebaseline`
 保持 proposed（不 abandon），恢复条件不变：将来完成重采集/重基线后解除排除；在此之前不伪造历史身份、不宣称完整通过。
 
-### 5.3 U038-3D 已知债务排除（all-probes 显式排除，2026-10-23）
+### 5.3 U038 上游逐位差异（all-probes 显式排除；按 native_error_v2 原生放行）
 
-`t4_gravity_3d_product_chain` 的 live 探针 `live::live_three_d_product_chain_matches_frozen_upstream` 在环境接线后会到达全链 `qfrc_gravcomp` 8/77 超 2e-6 的已知债务断言（`assert_eq!(total_outside, 0)`）。按用户 2026-10-23 裁决 B 登记为 U038-3D 已知债务，加入 `scripts/test-windows-g01.ps1` 的 `excludedKnownDebt` 清单，并在 `<run>/probe-reports/exclusions.json` 的 `known_debt` 字段单列理由（`known_debt_reason`）；不静默跳过、不改断言与容差。
+`t4_gravity_3d_product_chain` 的 live 探针 `live::live_three_d_product_chain_matches_frozen_upstream` 断言上游逐位 `2e-6` 口径 `total_outside == 0`；该口径下全链 `qfrc_gravcomp` 仍有 **8/77 超差**（max 4.291534423828125e-6、总位差 122），在既有探针断言下无法通过，故仍加入 `scripts/test-windows-g01.ps1` 的 `excludedKnownDebt` 清单，并在 `<run>/probe-reports/exclusions.json` 的 `known_debt` 字段单列理由（`known_debt_reason`）；**排除成员、`--skip` 行为、探针断言、测试与排除数量（仍 11 项）均未改动，本次只更新理由文字**，不静默跳过、不改断言与容差。
 
-手动复核命令（需要 GPU、冻结产物与全新的证据目录；预期在 8/77 断言处失败，属已知债务，不作为验收探针）：
+**2026-10-24 最终口径（按 `native_error_v2` 原生优先判定）**：任务 `2026-10-24-u038-native-two-reference`（提交 `959be10`，verified）补齐「先原生 MuJoCo f64 CPU、原生超差才读 MJWarp」的两级判定，对同一冻结 7-world 场景给出正式重判——**9/9 字段块全部 `native_passed`（原生放行）**，覆盖 **1435 个比较标量**，`E_candidate=0.0034–0.0129`（全部 ≤1），`secondary_reference_used=false`，`np03_admitted=true`；放行范围**仅限该链已记录的字段块**（`xaxis` 的 free/ball 42 项按合同排除，不逐元素择优）。上游逐位 `2e-6` 口径的 8/77 差异**原样记录、非准入依据**；本节不宣称上游逐位对齐（bitwise），也不宣称完整 U038/三维链通过。
+
+- 上述结论取代 2026-10-23 的「已知债务（裁决 B）」标签：裁决 B 是当时只按上游严格口径的判定；2026-10-24 补判后判定标签为「原生放行 + 上游逐位差异记录」。本文 §4.6–§4.14 历史小节中的旧标签与数字为当时口径，保留原样不改写。
+- 手动复核命令（需要 GPU、冻结产物与全新的证据目录；上游严格口径下仍预期在 8/77 断言处失败，属记录项，不作为验收探针）：
 
 ```powershell
 $env:MJWARP_GRAVITY_3D_EVIDENCE_DIR = '<repo>\target\<全新目录>'
 cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_gravity_3d_product_chain -- --ignored --test-threads=1 --nocapture
 ```
 
-证据：`docs/development-evidence/u038-3d/known-deviation.md`、`docs/development-evidence/g01-new-tests-wiring/`。
-2026-10-24 补充（debt-2 有界判定与用户裁决 B）：债务跟踪任务 `2026-10-23-u038-3d-gravity-propagation-debt-2`（提交 `c0ac14c`，verified）完成有界复跑与对齐判定——1477 项 / 122 位差 / 8 超差 / max 4.291534423828125e-6，容差 2e-6（f32 位 `0x360637BD`）未动；首差定位到父姿态旋转（w2 body3 `xpos/xipos` 2 ULP）、w6 `multiply/xmat`、`subtree_com` 内核分解/累加顺序与 `cdof` 55 位差；两轮有界尝试 run7/run8 均未改变 8/77；判定「不改容差/断言/fixtures 语义且最小改产品源码时不可达 1477 项 0 超差」。用户 2026-10-24 裁决 **B：维持已知债务、不宣称 U038-3D 通过**；A（系统性对齐）/C（比较口径裁决）两选项留档待用户另行裁决。证据：`docs/development-evidence/u038-3d/debt-2/README.md`（含 §11 修正记录）；原生 f64 两级判定补充证据见 `u038-3d/native-two-reference/`（`959be10`，非本门禁复核范围）。
+- 历史（2026-10-23 裁决 B，保留）：当时按用户 2026-10-23 裁决 B 将上游严格口径差异登记为 U038-3D 已知债务，不宣称通过。
+- 历史（2026-10-24 debt-2 有界判定，保留）：债务跟踪任务 `2026-10-23-u038-3d-gravity-propagation-debt-2`（提交 `c0ac14c`，verified）完成有界复跑与对齐判定——1477 项 / 122 位差 / 8 超差 / max 4.291534423828125e-6，容差 2e-6（f32 位 `0x360637BD`）未动；首差定位到父姿态旋转（w2 body3 `xpos/xipos` 2 ULP）、w6 `multiply/xmat`、`subtree_com` 内核分解/累加顺序与 `cdof` 55 位差；两轮有界尝试 run7/run8 均未改变 8/77；判定「不改容差/断言/fixtures 语义且最小改产品源码时不可达 1477 项 0 超差」。证据：`docs/development-evidence/u038-3d/debt-2/README.md`（含 §11 修正记录）。
+- 证据：`docs/development-evidence/u038-3d/known-deviation.md`、`docs/development-evidence/u038-3d/native-two-reference/`（`959be10`）、`docs/development-evidence/u038-3d/closure-native-first/`（本次口径校正）、`docs/development-evidence/g01-new-tests-wiring/`。
 
 ## 6. NP01–NP04 缺口
 
@@ -522,14 +526,14 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_grav
 ## 7. 未验收边界
 
 - 只验收 Windows；Linux 侧按用户 2026-10-24 决定**暂时终止**（开发、验收与回测均暂停），等 Windows 全量开发完成后集中回测一次，不零散开跑；当前程序以 Windows 单平台完成为目标；Linux V2 未启动（原需 `linux-gpu:0` 与 `linux-acceptance`），细节见 §7.1。
-- G01 现状（2026-10-24，§4.14，HEAD `959be10`）：Windows 小项收口里程碑 T2 终验，debug/release 双模式各 14/14 阶段 exit 0，host-msvc **840 过**、all-probes **354 过 0 败**（各 88 result 行）、host-gnu **485 过**，排除仍 11 项、rustdoc 0、diff 通过；墙钟 debug 833.8s / release 649.9s。此前（§4.13，HEAD `c4c1058`）：host-msvc **835 过**、all-probes **353 过 0 败**（各 87 result 行），墙钟 775.5s/641.1s。此前（§4.11，HEAD `4f362f2`）：host-msvc **823 过**、all-probes **352 过 0 败**（各 86 result 行）；§4.10（`f9da799`）812/350（85 行）；§4.9（`f9f1f66`）804/348（84 行）；§4.8（`66256c9`）796/346（83 行）。以上各节均为 11 项文档化排除（W-D5 3、历史捕获身份 6、env/外部产物 1、U038-3D 已知债务 1），未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）`687754c`（内核来源路线）之后按用户 2026-10-24 节奏决定未做全量双模式复跑（§4.12），本轮 §4.13 为最终 HEAD `c4c1058` 的里程碑全量终验。
+- G01 现状（2026-10-24，§4.14，HEAD `959be10`）：Windows 小项收口里程碑 T2 终验，debug/release 双模式各 14/14 阶段 exit 0，host-msvc **840 过**、all-probes **354 过 0 败**（各 88 result 行）、host-gnu **485 过**，排除仍 11 项、rustdoc 0、diff 通过；墙钟 debug 833.8s / release 649.9s。此前（§4.13，HEAD `c4c1058`）：host-msvc **835 过**、all-probes **353 过 0 败**（各 87 result 行），墙钟 775.5s/641.1s。此前（§4.11，HEAD `4f362f2`）：host-msvc **823 过**、all-probes **352 过 0 败**（各 86 result 行）；§4.10（`f9da799`）812/350（85 行）；§4.9（`f9f1f66`）804/348（84 行）；§4.8（`66256c9`）796/346（83 行）。以上各节均为 11 项文档化排除（W-D5 3、历史捕获身份 6、env/外部产物 1、U038 上游逐位差异 1（按 native_error_v2 原生放行）），未新增。不宣称 G02 完整验收。（§4.7 的 722/346 数字对应历史 HEAD `6e8c79a`。）`687754c`（内核来源路线）之后按用户 2026-10-24 节奏决定未做全量双模式复跑（§4.12），本轮 §4.13 为最终 HEAD `c4c1058` 的里程碑全量终验。
 - all-probes `-Minimum 346` 满足（MathDx 后 debug/release 均 352 过，§4.11；§4.10 为 350 过、§4.9 为 348 过、§4.8 为 346 过）；旧 `-Minimum 123`/`335` 记录属历史阶段，W-D6 已收口。
 - 历史记录：2026-10-22 的 full-debug 曾中止在 all-probes（§4.1–§4.3），相关债务已由 `d5b02d5`、`6cb5a71`、`b13d1c5` 收口；保留原文作为变更轨迹。
 - W13（2026-10-24）在 §4.8 的 HEAD `66256c9` 之后新增 `cuda-probe` 下的 nvJitLink 绑定源码与 2 项 GPU 测试（`tests/nvjitlink_probe.rs`）；T4 源码身份清单不覆盖这些文件，未重钉。all-probes 已纳入这 2 项，运行前须重跑 `scripts/prepare-cuda-probe.ps1`（取 nvJitLink 12.9.86），对照测试还需 `target/native-mathdx7/attempt-1/` 的离线证据输入。W13 后 G01 双模式复验已通过（§4.9）。
 - 未测量 G01 阶段峰值显存。
 - 不转授完整产品数值验收、性能验收或双平台准入。
 - 不修改任何内核、容差、fixtures 或原生 ABI（RNE 期望值按用户裁决重基线，见 §4.4）。
-- U038-3D 三维链：全链 `qfrc_gravcomp` **8/77 超 2e-6**（max 4.29e-6、总位差 122；运动学 1400 项 0 超差，`gravity_operator` 77/77 0 超差）。用户 2026-10-23 裁决 B 登记为**已知债务**，**U038-3D 未验收、不宣称通过**（`docs/development-evidence/u038-3d/known-deviation.md`；PTX 逐表达式对照工具 `scripts/u038-ptx-diff.ps1`、证据 `docs/development-evidence/u038-3d/ptx-diff/`）。根因：三表达式源形态收缩一致但内核内 FMA 收缩由内联上下文决定，且 com/cdof 与上游分层原子累加存在内核分解/累加顺序差异；债务跟踪任务 `2026-10-23-u038-3d-gravity-propagation-debt-2`（proposed，不 start，验收条件不变）。
+- U038-3D 三维链：按 **`native_error_v2` 原生优先判定为「原生放行」**——9/9 字段块 `native_passed`、1435 个比较标量、`E_candidate` 0.0034–0.0129（≤1）、`np03_admitted=true`，放行范围仅限该链已记录字段块（`xaxis` 的 free/ball 42 项按合同排除）；**上游逐位 `2e-6` 口径的 8/77 差异（max 4.29e-6、总位差 122；运动学 1400 项 0 超差、`gravity_operator` 77/77 0 超差）原样记录、非准入依据**。不宣称上游逐位对齐、不宣称完整 U038/三维链通过（`docs/development-evidence/u038-3d/known-deviation.md`、`native-two-reference/`、`closure-native-first/`；PTX 逐表达式对照工具 `scripts/u038-ptx-diff.ps1`、证据 `docs/development-evidence/u038-3d/ptx-diff/`）。根因：三表达式源形态收缩一致但内核内 FMA 收缩由内联上下文决定，且 com/cdof 与上游分层原子累加存在内核分解/累加顺序差异；债务跟踪任务 `2026-10-23-u038-3d-gravity-propagation-debt-2` 已 verified（判定「最小改动不可对齐」），2026-10-23 裁决 B 的「已知债务」标签已由 2026-10-24 补判更新。
 
 ### 7.1 Linux 终止与 Windows 完工后集中回测（用户 2026-10-24 决定）
 
@@ -567,8 +571,10 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test t4_grav
   - `2026-10-23-g01-acceptance-fast-loop`：`docs/development-evidence/changes/2026-10-23-g01-acceptance-fast-loop.json`（快验脚本、耗时基线与最终双模式验收证据，`docs/development-evidence/g01-fast-loop/`）
   - `2026-10-23-g01-acceptance-doc-refresh`：`docs/development-evidence/changes/2026-10-23-g01-acceptance-doc-refresh.json`（本文档现状刷新与历史捕获身份债务小节）
   - `2026-10-22-g01-g03-np03-admission-debt`：proposed 跟踪任务，登记提交 `de25d4d`，不 start；指代 all-probes 剩余的 3 项 G03 `mass_solve_probe` 准入缺口
-  - `2026-10-23-u038-3d-known-deviation`：U038-3D 已知债务登记（用户 2026-10-23 裁决 B，不宣称通过），证据 `docs/development-evidence/u038-3d/known-deviation.md` 与 `docs/development-evidence/changes/2026-10-23-u038-3d-known-deviation.json`；PTX 对照证据提交 `71d9d42`、`722e979`
-  - `2026-10-23-u038-3d-gravity-propagation-debt-2`：proposed 债务跟踪任务（承接已 abandon 的 `2026-10-23-u038-3d-gravity-propagation-debt`，验收条件不变，不 start）
+  - `2026-10-23-u038-3d-known-deviation`：U038 上游逐位差异登记（用户 2026-10-23 裁决 B 当时登记为「已知债务、不宣称通过」；2026-10-24 `native_error_v2` 补判更新为「原生放行 + 上游逐位差异记录」，旧标签被取代但历史段落保留），证据 `docs/development-evidence/u038-3d/known-deviation.md` 与 `docs/development-evidence/changes/2026-10-23-u038-3d-known-deviation.json`；PTX 对照证据提交 `71d9d42`、`722e979`
+  - `2026-10-23-u038-3d-gravity-propagation-debt-2`：**verified** 债务跟踪任务（承接已 abandon 的 `2026-10-23-u038-3d-gravity-propagation-debt`），完成有界复跑与对齐判定「最小改动不可对齐」，证据 `docs/development-evidence/u038-3d/debt-2/`
+  - `2026-10-24-u038-native-two-reference`：**verified** 原生 f64 两级判定补判任务（`959be10`；9/9 字段块 `native_passed`、1435 标量、`np03_admitted=true`），证据 `docs/development-evidence/u038-3d/native-two-reference/`
+  - `2026-10-24-u038-native-first-closure`：本次「原生放行 + 上游差异记录」口径校正任务（只改文档与 G01 排除理由文字，排除成员/行为不变），证据 `docs/development-evidence/u038-3d/closure-native-first/`
 - 提交：`eef9321`、`71638e2`、`28bd15f`、`4ffda93`、`c5c47e0`、`eac3df6`、`341a52c`、`c98e246`、`1e3dd2f`、`24d7937`、`3a44e10`、`a433067`、`e83db38`、`5a636a4`、`f917530`、`de25d4d`；W-D4 修复提交 `49fd4d9`、阶段补跑提交 `10913ce`；2026-10-23 RNE 重基线 `b13d1c5`、债务关闭 `8a0bfde`。
 - 运行证据：`target/g01-final.log`、`target/g01-wd4-final.log`、`target/g01-stage-refresh/`、`target/g01-release-final.log`、`target/g01-release-refresh/`（本机日志，gitignored）、`target/resident-kinematics/` 下的 resident 报告。
 - 历史证据：`docs/evidence/three-layer/windows/summary.json` 与同目录日志。

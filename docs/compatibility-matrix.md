@@ -41,6 +41,21 @@ U038三维链按有界规则关闭。
 用户裁决B登记为已知债务。
 债务跟踪任务已verified（有界判定：最小改动不可对齐）。
 用户2026-10-24裁决B维持已知债务。
+
+2026-10-24口径校正（用户选A，仅文档与排除理由）：
+按native_error_v2原生优先判定改为原生放行。
+9/9字段块全部原生放行。
+覆盖1435个比较标量。
+E_candidate为0.0034至0.0129，全部不超过1。
+放行范围仅限该链已记录字段块。
+上游逐位2e-6的8/77差异仅作记录。
+它不是本次准入依据。
+旧「已知债务」标签由本次补判取代。
+历史段落保留原样不改写。
+排除数量仍为11项、成员不变。
+不宣称上游逐位对齐。
+不宣称完整U038或三维链通过。
+
 NP01类型映射清单已产出但未补全。
 NP01至NP04与完整T4仍未验收。
 Linux相关按用户2026-10-24决定暂时终止，待Windows全量完成后集中回测；性能与完整上游等价仍未验收。
@@ -118,7 +133,7 @@ GPU计算qfrc_bias。
 | Tile 与正式编译路线 | W14 `f98dc34`、W13 `1de8c11`、W15 `b1de2db`、LTOIR `f9da799`、内核来源路线 `687754c`、MathDx `2025a57`/`e5f1559`/`4f362f2`（均 verified） |
 | Small / 稀疏 / 混合算序 | 首差工具全 0 位差；MathDx potrf **0/121**、GPU 解 **0/33**；`mass_solve_probe` 6 过 0 败 |
 | 精度四类 | NP01 191 行（类型偏离 0，内部字段 20 未映射）；NP02 88/88 有证据 + 9 条已知漂移（裁决 B）；NP03 79,286 块 0 失败；NP04 180 次运行 |
-| 未满足项 | NP01 20 内部字段、NP02 9 条已知漂移与 51 份历史实体不在仓、MathDx 再分发口径未定、性能/完整上游等价未验收、`compute_70` 与设备 SM89 差异未评估、U038-3D 已知债务、Linux deferred |
+| 未满足项 | NP01 20 内部字段、NP02 9 条已知漂移与 51 份历史实体不在仓、MathDx 再分发口径未定、性能/完整上游等价未验收、`compute_70` 与设备 SM89 差异未评估、U038 上游逐位差异（按 `native_error_v2` 原生放行；不宣称上游逐位对齐）、Linux deferred |
 | 结论边界 | 只对 Windows 已覆盖范围下结论；不宣称双平台、不宣称完整上游等价、不宣称完整 g03-parity 全量通过 |
 
 证据：`docs/development-evidence/g03-parity/`（§4.13 收口）与 `docs/development-evidence/windows-small-closeout/`、`g01-fast-loop/README.md` §5.6（§4.14 T2 收口）。
@@ -508,6 +523,20 @@ Rust会直接加载固定PTX。
 用户2026-10-24裁决B：维持已知债务、不宣称通过。
 判定依据见`docs/development-evidence/u038-3d/debt-2/README.md`。
 用户2026-10-24裁决B维持已知债务。
+2026-10-24补判按native_error_v2改为原生放行。
+九个字段块全部native_passed。
+覆盖1435个比较标量。
+E_candidate为0.0034至0.0129。
+secondary_reference_used为false。
+np03_admitted为true。
+放行范围仅限该链已记录字段块。
+xaxis的free与ball共42项按合同排除。
+上游逐位2e-6的八项超差仅作记录。
+它不是本次准入依据。
+不宣称上游逐位对齐。
+不宣称完整三维链通过。
+旧「已知债务」标签由本次补判取代。
+证据见`docs/development-evidence/u038-3d/native-two-reference/`与`closure-native-first/`。
 旧30份集合不再证明当前源码。
 十份依赖刚体模板。
 其余二十份可逐项沿用。
@@ -541,7 +570,7 @@ Rust会直接加载固定PTX。
 详见[重力补偿](gravity-compensation.md)。
 详见[惯性盒流体力](fluid-force.md)。
 详见[U038收口](development-evidence/u038-3d/closure.md)。
-详见[U038已知债务](development-evidence/u038-3d/known-deviation.md)。
+详见[U038原生放行与上游差异](development-evidence/u038-3d/known-deviation.md)。
 详见[U038 PTX对照](development-evidence/u038-3d/ptx-diff/README.md)。
 
 ## U073常驻矩阵借用
