@@ -1,0 +1,188 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s2a-host-scene-bvh",
+  "task_id": "2026-10-24-render-bvh-s2a",
+  "date": "2026-10-24",
+  "slice": "S2a",
+  "outcome": "pass",
+  "scope": "host-only scene BVH: primitive leaf AABBs (bit-equal to frozen MJWarp reference), per-world grouped build/refit, host semantic ray-AABB query, rejection surface; no GPU traversal or ray-primitive hit semantics (S2b), no mesh triangle BVH (S3)",
+  "environment": {
+    "product_toolchain": "rustc 1.99.0 (host x86_64-pc-windows-gnu)",
+    "product_native": "not used by this slice (pure host test; no native-model-probe feature needed)",
+    "product_gpu": "not used; product tests never start Python and need no GPU",
+    "authoring": {
+      "purpose": "one-off offline capture of the frozen MJWarp reference (not part of product build/test/gate chain)",
+      "venv": "target/mjwarp-parallel/venv",
+      "versions": {
+        "python": "3.12.13",
+        "warp": "1.15.0",
+        "mujoco": "3.15.0",
+        "mujoco_warp": "3.15.0",
+        "numpy": "2.5.4"
+      },
+      "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+      "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER, driver 596.36, sm_89",
+      "gpu_memory_mib": {"baseline": 3536, "in_process": 3669},
+      "determinism": "two full captures from fresh model/data/context are bitwise identical; second pass 0.078 s"
+    }
+  },
+  "fixtures": {
+    "reference": {
+      "path": "fixtures/render-bvh/scene-a/s2a/bounds.json",
+      "bytes": 27738,
+      "sha256": "aad9e7e5690b17979da8f2a6c5ebb08dcd5e4937bad1af3598b666c4af7b8454"
+    },
+    "scene_xml": {
+      "path": "fixtures/render-bvh/scene-a/scene.xml",
+      "sha256": "a9f1f0a35464f4df17f191e1d68431bda0f17648273578e58fa08f84b0449289"
+    },
+    "scene_315_mjb": {
+      "path": "fixtures/render-bvh/scene-a/scene-315.mjb",
+      "sha256": "8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4"
+    },
+    "model_312_json": {
+      "path": "fixtures/render-bvh/scene-a/model-312.json",
+      "sha256": "cdd490f0209dd16a57b2685f3139548af8a2b73195cdb0e01a74ab094ef1df00"
+    },
+    "cross_check_s2": {
+      "paths": [
+        "fixtures/render-bvh/scene-a/s2/bvh_initial.npz",
+        "fixtures/render-bvh/scene-a/s2/bvh_moved.npz"
+      ],
+      "initial_lower_bits_equal": true,
+      "initial_upper_bits_equal": true,
+      "moved_lower_bits_equal": true,
+      "moved_upper_bits_equal": true
+    }
+  },
+  "reference_inputs": {
+    "poses": ["initial (build path, CPU mj_forward f64->f32)", "moved-base (deterministic base-body move + mjw.refit_bvh)", "calibration-0..5 (translation + normalized quat + tri-hinge angle)"],
+    "pose_count": 8,
+    "kernel_input_note": "the AABB reference is produced from MJWarp device-side f32 geom poses (d.geom_xpos / d.geom_xmat); converted CPU MuJoCo poses can differ by 1 ULP, so the fixture records the exact f32 bit patterns fed to the kernel",
+    "enabled_geom_ids": [0, 1, 2, 3, 4, 5, 6],
+    "geom_types": {"0": "plane", "1": "box", "2": "sphere", "3": "mesh (bounds box)", "4": "capsule", "5": "cylinder", "6": "ellipsoid"}
+  },
+  "aabb_parity": {
+    "kernel": "mujoco_warp/_src/bvh.py::_compute_bvh_bounds",
+    "f32_contraction_rule": {
+      "3_term": "fma(c2, b2, fma(c0, b0, round(c1*b1)))",
+      "2_term": "fma(c0, b0, round(c1*b1))",
+      "pos_plus_minus_axis": "pos ± z*half -> fma(±z, half, pos)"
+    },
+    "host_fma_implementation": "(a as f64 * b as f64 + c as f64) as f32; f32::mul_add is not used because this target's debug-build fallback is not correctly rounded and differs from release",
+    "leaves_checked": 56,
+    "leaves_bit_equal": 56,
+    "leaves_mismatched": 0,
+    "max_ulp": 0,
+    "per_type": {
+      "plane": {"geom_ids": [0], "checks": 8, "mismatches": 0, "max_ulp": 0},
+      "box": {"geom_ids": [1], "checks": 8, "mismatches": 0, "max_ulp": 0},
+      "sphere": {"geom_ids": [2], "checks": 8, "mismatches": 0, "max_ulp": 0},
+      "mesh": {"geom_ids": [3], "checks": 8, "mismatches": 0, "max_ulp": 0},
+      "capsule": {"geom_ids": [4], "checks": 8, "mismatches": 0, "max_ulp": 0},
+      "cylinder": {"geom_ids": [5], "checks": 8, "mismatches": 0, "max_ulp": 0},
+      "ellipsoid": {"geom_ids": [6], "checks": 8, "mismatches": 0, "max_ulp": 0}
+    },
+    "model_inputs": {
+      "geom_size_f32_bits": "3.12 model-312.json f64 -> f32 bits equal to the 3.15 reference input bits (all 21 scalars)",
+      "mesh_bounds_f32_bits": "mesh bounds computed from 3.12 mesh_vert f32 equal to the 3.15 reference mesh_bounds_size bits (3/3 scalars)"
+    },
+    "evidence": "docs/development-evidence/render-bvh/s2a-scene-bvh-host/aabb-parity.json",
+    "regenerate": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/render-bvh/verify_s2a_aabb.py (offline only)"
+  },
+  "build_refit": {
+    "worlds": 1,
+    "leaves": 7,
+    "build": "per-world binned SAH (12 bins), children appended before parents",
+    "refit": "leaf bounds from new poses, then internal nodes in index order (children before parents)",
+    "invariants_checked": [
+      "group root bounds == union of the group's leaf AABBs (initial and after refit)",
+      "every leaf reachable exactly once from its group root",
+      "every internal node bounds == union of its two children (semantic, no node-layout assertion)",
+      "initial vs moved changed leaf set == [1,2,3,4,5,6]; floor (geom 0) static"
+    ]
+  },
+  "world_groups": {
+    "test": "two grouped worlds with identical (duplicated) leaf AABBs, matching MuJoCo nworld semantics",
+    "rays": 32,
+    "queries": 64,
+    "candidates_cross_world": 0,
+    "candidate_geom_sets_equal_between_worlds": true,
+    "hits": "64/64",
+    "world_out_of_range": "BvhError::WorldOutOfRange for world 2 of 2"
+  },
+  "rejection_surface": {
+    "cases": [
+      "empty scene",
+      "world count 0",
+      "groups length mismatch",
+      "geom_ids length mismatch",
+      "leaf group out of range",
+      "empty world group",
+      "invalid AABB (non-finite or lower > upper)",
+      "refit bounds length mismatch",
+      "refit invalid AABB",
+      "unsupported geom type (hfield=1)",
+      "non-finite leaf pose/size",
+      "empty mesh vertices / missing mesh bounds",
+      "leaf count overflow (node capacity 2*n-1 checked before allocation)"
+    ]
+  },
+  "tests": {
+    "targeted": {
+      "command": "cargo test --locked --test render_scene_bvh_host",
+      "passed": 5,
+      "failed": 0
+    },
+    "module_unit": {
+      "command": "cargo test --locked --lib render::bvh",
+      "passed": 16,
+      "failed": 0
+    },
+    "gates": {
+      "normify_gate": "normify gate 2026-10-24-render-bvh-s2a",
+      "fmt": "通过 1262ms",
+      "clippy": "通过 354ms",
+      "clippy-cuda": "通过 8099ms",
+      "unit": "通过 16060ms 测试506过0败"
+    }
+  },
+  "artifacts": {
+    "src/render/bvh/mod.rs": {"lines": 184, "bytes": 6519, "sha256": "1581aa460e579de5e25301238943db93f32ea4450322a69662b2d62c40f981d1"},
+    "src/render/bvh/aabb.rs": {"lines": 400, "bytes": 14531, "sha256": "d16307daf64c3a253bd21743272a8084ae448f1c17b201ae7448d7e98c35c537"},
+    "src/render/bvh/builder.rs": {"lines": 440, "bytes": 13981, "sha256": "d8cadd95b9407d5dfd07f67f08ec953dbc2e01688abbdcf395892126484a9435"},
+    "src/render/bvh/refit.rs": {"lines": 123, "bytes": 3947, "sha256": "4bfc0ddb33d06204a7674a273932228483a457d37822f9684c94f2db14411d54"},
+    "src/render/bvh/query.rs": {"lines": 111, "bytes": 3824, "sha256": "42363f668890ea2d9381315606c4a8ad51fccb7ba12eee0f0f9fc30da20b0809"},
+    "src/render/mod.rs": {"lines": 242, "bytes": 7309, "sha256": "0eaf74a668ea148b89ef25d91ddbe13da23fce180f8fd69fdab95d26ae3190b6"},
+    "tests/render_scene_bvh_host.rs": {"lines": 472, "bytes": 15342, "sha256": "8150a63e7664a985efba4bd720ae87406b77ff14676eb66a435402ce0ce0f617"},
+    "scripts/authoring/render-bvh/capture_s2a_bounds.py": {"lines": 372, "bytes": 14730, "sha256": "17eb48044439ed6c9f5f337a983ce910450b63ccef3331a7e0794ecc237672dd"},
+    "scripts/authoring/render-bvh/verify_s2a_aabb.py": {"lines": 307, "bytes": 11931, "sha256": "3eeea5be4a6c853ee5add3b16a1ff88825cb8a08773ee2fa551d226461471eb5"},
+    "fixtures/render-bvh/scene-a/s2a/bounds.json": {"lines": 1353, "bytes": 27738, "sha256": "aad9e7e5690b17979da8f2a6c5ebb08dcd5e4937bad1af3598b666c4af7b8454"},
+    "docs/development-evidence/render-bvh/s2a-scene-bvh-host/aabb-parity.json": {"lines": 216, "bytes": 3841, "sha256": "297e310a0a533e48a632c7ba21597f2983270f8db16e4ddc8912ede8c4e98e14"},
+    "docs/development-evidence/render-bvh/s2a-scene-bvh-host/README.md": {"lines": 168, "bytes": 10476, "sha256": "c68850567e9110ae5a8a5daa57f07d3dc037052faeae965b3b19f85e9bb32c14"}
+  },
+  "acceptance_mapping": {
+    "plan_s2_2_aabb_bit_equal": "pass (56/56, max ULP 0)",
+    "plan_s2_3_refit_change": "AABB layer pass (leaf bits equal + changed set matches); ray-layer hit changes belong to S2b",
+    "plan_s2_4_world_groups": "host semantic pass (candidates never cross world; 64/64 queries); GPU hit layer belongs to S2b",
+    "plan_s2_5_rejections": "pass",
+    "plan_s2_6_no_node_layout_assertions": "pass (semantic invariants only)",
+    "plan_s2_1_ray_semantics": "not in this slice (S2b)"
+  },
+  "not_claimed": [
+    "CUDA scene BVH traversal or ray-primitive hit semantics (S2b)",
+    "plan S2 acceptance item 1 (geomid/distance/normal per ray) and the ray layer of item 3",
+    "mesh triangle BVH / mesh hit distance-normals (S3); this slice only has the mesh bounds box",
+    "full renderer or product rendering acceptance",
+    "platform-independent IEEE fma on the host; host f64 product+sum path is a fixture-verified emulation",
+    "hfield AABB (out of scope) or full SDF semantics"
+  ],
+  "unmet": [
+    "rotated plane AABB path has no GPU bit reference because scene-a floor is static identity; covered only by the shared formula/unit tests",
+    "no fuzz or arbitrary-MJB property tests; single frozen scene-a fixture",
+    "host fma emulation may differ from CUDA fma.rn by <=1 ULP on arbitrary inputs; only the 56 captured leaves are verified bit-exact",
+    "AABB reference inputs are MJWarp device-side f32 poses; product integration must feed poses from the same GPU kinematics path (not CPU f64 poses)",
+    "leaf count overflow is covered by a pre-allocation capacity unit test; no real allocation of that size is attempted"
+  ],
+  "hash_basis": "artifact sha256/bytes/lines are LF-normalized content (committed git blob semantics), not the Windows working-tree CRLF forms"
+}

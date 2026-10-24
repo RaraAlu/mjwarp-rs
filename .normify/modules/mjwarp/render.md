@@ -2,7 +2,7 @@
 uid = "a66a7856"
 id = "mjwarp.render"
 tags = ["planned", "engine", "render"]
-fingerprint = "7a48f69009f078acee75f14d785124385f219ea51f77102fddad1f3e0890cf1a"
+fingerprint = "71157f988e5d385c257b0915b611c998ac83d74273de68c908498f05f6154962"
 
 [name]
 zh = "GPU批量渲染"
@@ -18,6 +18,21 @@ Plan headless batched rendering, rendering BVHs and image outputs without changi
 
 [[source]]
 path = "src/render/mod.rs"
+
+[[source]]
+path = "src/render/bvh/mod.rs"
+
+[[source]]
+path = "src/render/bvh/aabb.rs"
+
+[[source]]
+path = "src/render/bvh/builder.rs"
+
+[[source]]
+path = "src/render/bvh/refit.rs"
+
+[[source]]
+path = "src/render/bvh/query.rs"
 
 [[apis]]
 protocol = "rpc"

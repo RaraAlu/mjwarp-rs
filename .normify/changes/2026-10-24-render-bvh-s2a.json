@@ -5,7 +5,7 @@
     "zh": "渲染/BVH S2a：主机侧 primitive AABB 位等、场景 BVH 构建/重拟合与分组拒绝面",
     "en": "Render/BVH S2a: host-side primitive AABB bit-parity, scene BVH build/refit, group and rejection surface"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "渲染/BVH S2 拆片之一（无 GPU）：在主机侧按冻结 MJWarp 3.15 `_src/bvh.py` 的 f32 运算顺序复刻 primitive geoms（plane/box/sphere/capsule/cylinder/ellipsoid；mesh/SDF 用 mesh bounds 包围盒，网格三角形 BVH 留 S3）的 AABB，对 MJWarp 参考逐元素位型对照（初始位姿 + 移动 base body 后 refit 位姿）；实现 per-world 分组的场景 BVH 构建与重拟合、world 分组不跨命中（主机语义检查）、空场景/越界 group/非法计数拒绝；不做 CUDA 遍历（S2b），不做节点布局断言。",
     "en": "First half of render/BVH S2 (no GPU): replicate frozen MJWarp 3.15 `_src/bvh.py` f32 op order on the host for primitive geom AABBs (plane/box/sphere/capsule/cylinder/ellipsoid; mesh/SDF use the mesh-bounds box, triangle-mesh BVH stays in S3), compare bit-exactly against the MJWarp reference at the initial pose and after moving the free base body and refitting; build/refit a per-world grouped scene BVH, check world groups do not cross-hit at host semantics level, and reject empty scenes, out-of-range groups and invalid counts; no CUDA traversal (S2b) and no node-layout assertions."
@@ -41,11 +41,12 @@
   },
   "note": "来源：Chief 对 S2 的拆片裁决（先 S2a 主机侧，后 S2b CUDA 遍历）。AABB 参考由新增 authoring 捕获（GPU 一次性生成，入库为 f32 位型 JSON）提供，产品测试不启动 Python、不需要 GPU。产品 native 保持 MuJoCo 3.12。",
   "revision": {
-    "before": null,
+    "before": "2a62e2bdb773f05c6a41d4bd079e94293e57ec0f",
     "after": null
   },
   "created_at": "2026-10-24T23:20:00.000Z",
-  "updated_at": "2026-10-24T23:20:00.000Z",
+  "updated_at": "2026-10-24T15:40:36.372Z",
+  "closed_at": "2026-10-24T15:40:36.372Z",
   "checks": [
     {
       "kind": "gate",
