@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-t4-identity-live-check-coverage-independent-check",
+  "subject_task": "2026-10-25-t4-identity-live-check-coverage",
+  "subject_commit": "00831281",
+  "role": "QA",
+  "status": "independent_check_pass",
+  "review_head": "c3acc6b6",
+  "nature": "CPU-only independent check; self-written recompute script; self-built temporary fixture copies for reverse discrimination; product/criteria/tolerance/fixture/gates untouched; no GPU window",
+  "verdict": {
+    "result": "pass",
+    "blocking": 0,
+    "findings": 0,
+    "observations": 4,
+    "independent_recompute_20_of_20": true,
+    "reverse_discrimination_reproduced": true,
+    "default_gate_inclusion_confirmed": true,
+    "impl_commit_boundary_clean": true
+  },
+  "independent_recompute": {
+    "script": "qa_recompute_identity.py (own Python hashlib implementation; does NOT import/run tests/support/t4_identity_live.rs)",
+    "record": "qa-identity-recompute.json",
+    "single_file_convention": "sha256(LF-normalized bytes), CRLF -> LF",
+    "physics_core_convention": "parse the include_str! list from docs/development-evidence/t4-resident-anchors/physics.rs (not hardcoded), LF-normalize each member, join with b'\\n', sha256",
+    "physics_core_anchor_include_str_order": ["../../../src/physics/mod.rs", "../../../src/physics/com_position.rs", "../../../src/physics/device_checks.rs", "../../../src/physics/history.rs", "../../../src/physics/kinematics.rs"],
+    "physics_core_recomputed_sha256": "33a6e55f8f758528db9c21d82ff639ce794ce80408c9271f4394f3667036e546",
+    "entries": 20,
+    "matches": 20,
+    "mismatches": 0,
+    "duplicates": 0,
+    "missing_files": 0,
+    "path_set_cross_check": "fixture path set == delivery EXPECTED_PATHS (20); canonical list is delivery-defined, reported not trusted"
+  },
+  "reverse_discrimination": {
+    "script": "qa_make_tampered_fixtures.py + run_discrimination.ps1",
+    "record": "qa-discrimination.json; qa-fixture-tamper.json",
+    "temp_copies": "target/qa-t4-check/ (repo fixture never modified)",
+    "seam": "T4_IDENTITY_LIVE_FIXTURE (test-only; 0 hits in src/; absent from product binaries)",
+    "cases": {
+      "normal-repo-fixture": {"exit": 0, "result": "2 passed"},
+      "tamper-sha": {"exit": 101, "change": "one expected sha first hex digit 0->1", "diagnostic": "T4 identity verification failure + expected=... actual=... for that path"},
+      "tamper-path-rename": {"exit": 101, "change": "src/physics/sleep.rs -> src/physics/sleep_renamed.rs", "diagnostic": "path set incomplete: missing [sleep.rs], unexpected [sleep_renamed.rs]"},
+      "tamper-path-remove": {"exit": 101, "change": "one path removed (19 entries)", "diagnostic": "count assertion: expected 20, actual 19"},
+      "normal-copy": {"exit": 0, "result": "2 passed (seam only, content unchanged)"},
+      "normal-restored": {"exit": 0, "result": "2 passed (seam unset)"}
+    },
+    "repo_fixture_modified": false
+  },
+  "default_gate_inclusion": {
+    "gates_toml_unit_cmd": "cargo test --locked (no --lib; integration target auto-discovered)",
+    "default_test_list": {"command": "cargo test --locked -- --list", "exit": 0, "total_test_entries": 611, "live_check_names_present": ["live_product_sources_match_fixture", "sha256_and_lf_normalization_match_known_vectors"], "log": "logs/default-cargo-test-list-extract.txt (full UTF-16 listing kept in target/)"},
+    "gate_unit_current_head": {"passed": 604, "failed": 0, "ignored": 7, "exit": 0, "note": "my normify gate run on HEAD c3acc6b6"},
+    "delivery_claim_595_to_597": {
+      "claim": "unit count changes 595 -> 597 because the two new tests are non-ignored",
+      "verified_from_committed_records_at_00831281": [
+        {"task": "2026-10-25-case-evidence-frame-diagnosis", "at": "2026-10-25T17:29:39.812Z", "passed": 595, "ignored": 7},
+        {"task": "2026-10-25-g10-p5-cuda-default-pipeline", "at": "2026-10-25T16:25:16.586Z", "passed": 595, "ignored": 7},
+        {"task": "2026-10-25-t4-identity-live-check-coverage", "at": "2026-10-25T17:35:24.381Z", "passed": 597, "ignored": 7}
+      ],
+      "consistent": true
+    },
+    "purity": {
+      "real_ignore_attrs": 0,
+      "test_attrs": 2,
+      "forbidden_runtime_tokens_in_code": "none (GPU/NVRTC mentions are doc-comment text only)",
+      "imports": ["std::collections::BTreeSet", "std::path::{Path, PathBuf}"],
+      "gpu_nvrtc_compile_calls": "none"
+    }
+  },
+  "impl_commit_boundary": {
+    "range": "00831281~1..00831281",
+    "file_count": 13,
+    "files": ["tests/t4_identity_live_check.rs", "tests/support/t4_identity_live.rs", "docs/development-evidence/t4-identity-live-check/{README.md,receipt.json,default-lib.log,normal.log,tamper-sha.log,tamper-path.log}", ".normify/changes/2026-10-25-t4-identity-live-check-coverage.json", ".normify/runs/2026-10-25-t4-identity-live-check-coverage/{fmt,clippy,clippy-cuda,unit}.json"],
+    "forbidden_paths_changed": [],
+    "fixture_unchanged_in_commit": true,
+    "fixture_clean_in_worktree": true,
+    "gates_counts_criteria_tolerance_untouched": true,
+    "record": "qa-static-checks.json"
+  },
+  "delivery_comparison": {
+    "consistent": [
+      "normal 2 passed",
+      "tamper sha exit 101 with expected/actual",
+      "tamper path exit 101 with missing/unexpected",
+      "default cargo test --locked executes the integration target",
+      "unit 595 -> 597"
+    ],
+    "inconsistent": [
+      "delivery README/receipt say support file 426 lines / test 64 lines; actual 444 / 72 (commit stat also +444/+72) - stale documentation counts only"
+    ]
+  },
+  "my_gate": {
+    "command": "normify gate 2026-10-25-t4-identity-live-check-coverage-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "head": "c3acc6b6",
+    "fmt": "pass", "clippy": "pass", "clippy_cuda": "pass",
+    "unit": "604 passed / 0 failed / 7 ignored",
+    "gate_exit": 0,
+    "check": "normify check ... : all checks passed",
+    "check_exit": 0,
+    "runs": ".normify/runs/2026-10-25-t4-identity-live-check-coverage-independent-check/",
+    "note": "gate/check executed on the main tree after the evidence dir was frozen; raw stdout kept in target/qa-t4-check/gate-check/ (not committed) because the gate scope is this evidence dir"
+  },
+  "observations": [
+    "Arch message quoted boundary range c3acc6b6~2..c3acc6b6 does not contain the implementation commit 00831281 (that range is 3b7db351..c3acc6b6, 93 files, fma fix + QA evidence); the task JSON range 00831281~1..00831281 was used",
+    "delivery README/receipt line counts are stale (426/64 vs actual 444/72; both <500)",
+    "path tamper diagnostics contain path/set info but cannot contain expected/actual sha because the set-completeness/count checks fail before digest comparison; delivery behaves the same - recorded for the acceptance wording",
+    "live-check is a detector only and does not repin automatically (delivery states this explicitly); not a defect"
+  ],
+  "boundaries": {
+    "gpu_linux": "not run",
+    "cross_env_all_green": "not claimed",
+    "product_tree_modified": false,
+    "repo_fixture_modified": false,
+    "claims": "only the coverage claim (identity drift detectable by the default test suite) is assessed"
+  },
+  "evidence_files": [
+    "README.md", "receipt.json", "artifacts-sha256.json",
+    "qa-identity-recompute.json", "qa-discrimination.json", "qa-fixture-tamper.json", "qa-default-test-list.json", "qa-static-checks.json",
+    "logs/", "qa_recompute_identity.py", "qa_make_tampered_fixtures.py", "run_discrimination.ps1",
+    "qa_static_checks.py", "qa_extract_test_list.py", "run_gate_check.ps1", "qa_artifacts_sha256.py"
+  ]
+}
