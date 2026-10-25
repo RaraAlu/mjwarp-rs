@@ -197,7 +197,7 @@ extern "C" __global__ void mjwarp_collision_contact(mjwarp_collision_args a) {
   in.naccdmax = a.naccdmax;
   in.geomgeomid = a.geomgeomid;
   in.overflow_out = a.overflow;
-  g5_ccd_pair_write(in, params, a.naconmax, a.nccd, &local.pt, &a.out);
+  g5_ccd_pair_write(in, params, a.naconmax, false, a.nccd, &local.pt, &a.out);
 }
 
 // hfield 设备路径（上游 `ccd_hfield_kernel`）。
@@ -315,4 +315,43 @@ extern "C" __global__ void mjwarp_collision_primitive(mjwarp_collision_args a) {
   } else if (a.type1 == G5_BOX && a.type2 == G5_CAPSULE) {
     g5_capsule_box_wrapper(geom2, geom1, params, a.naconmax, &a.out);
   }
+}
+
+// multicontact 设备路径：上游 `eval_ccd_write_contact` 的 `use_multiccd=true` 静态特化
+// （box/mesh/cylinder 组合可生成 <=4 个接触；mesh 分支本片不实现，回退单接触）。
+extern "C" __global__ void mjwarp_collision_contact_multi(mjwarp_collision_args a) {
+  const int world = blockIdx.x;
+  if (world >= a.nworld) return;
+  LocalPolytope local;
+  init_polytope(&local);
+
+  d_contact_params params = build_params(a);
+  params.worldid = world;
+
+  d_contact_pair_input in;
+  in.geom1 = build_geom(a, world, a.g1);
+  in.geom2 = build_geom(a, world, a.g2);
+  in.geomtype1 = a.type1;
+  in.geomtype2 = a.type2;
+  in.tolerance = a.tolerance;
+  in.gjk_iterations = a.gjk_iterations;
+  in.epa_iterations = a.epa_iterations;
+  in.collision_sensor = false;
+  in.naccdmax = a.naccdmax;
+  in.geomgeomid = a.geomgeomid;
+  in.overflow_out = a.overflow;
+  g5_ccd_pair_write(in, params, a.naconmax, true, a.nccd, &local.pt, &a.out);
+}
+
+// primitive box-box 设备路径：上游 `primitive_narrowphase` 在 NATIVECCD 关闭时把
+// `(BOX, BOX)` 改走 `box_box_wrapper`（8 个候选经 `detected` 过滤后写入，<=8 行）。
+extern "C" __global__ void mjwarp_collision_boxbox(mjwarp_collision_args a) {
+  const int world = blockIdx.x;
+  if (world >= a.nworld) return;
+  d_contact_params params = build_params(a);
+  params.worldid = world;
+
+  const d_geom geom1 = build_geom(a, world, a.g1);
+  const d_geom geom2 = build_geom(a, world, a.g2);
+  g5_box_box_wrapper(geom1, geom2, params, a.naconmax, &a.out);
 }

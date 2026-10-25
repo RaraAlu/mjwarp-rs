@@ -9,6 +9,7 @@
 // `nccd` 计数按 `geomgeomid` 分组、容量判定 `ccdid >= naccdmax`。
 #pragma once
 #include "hfield.cu"
+#include "multicontact.cu"
 
 // 上游 `ContactType.CONSTRAINT` / `ContactType.SENSOR`。
 #define G5_CONTACT_TYPE_CONSTRAINT (1u << 0)
@@ -142,11 +143,15 @@ struct d_contact_pair_input {
 };
 
 // 上游 `eval_ccd_write_contact`：GJK → （需 EPA 时申请 naccd 槽）EPA
-// → gap 早退 → margin 修正 → frame/witness → 单接触写入。
-// **multicontact 尚未搬设备**（box/mesh/cylinder 组合的多接触仍是单接触），见证据 unmet。
+// → gap 早退 → margin 修正 → （可选的 multicontact）→ frame/witness → 逐接触写入。
+// `use_multiccd` 对应上游 kernel 构建期的静态特化（不同入口传不同值）。
+__device__ __forceinline__ bool g5_mc_supported_type(int geom_type) {
+  return geom_type == G5_BOX || geom_type == G5_MESH || geom_type == G5_CYLINDER;
+}
+
 __device__ __forceinline__ void g5_ccd_pair_write(const d_contact_pair_input& in,
                                                   const d_contact_params& params, int naconmax,
-                                                  int* nccd, d_polytope* pt,
+                                                  bool use_multiccd, int* nccd, d_polytope* pt,
                                                   d_contact_out* out) {
   d_geom geom1 = in.geom1;
   d_geom geom2 = in.geom2;
@@ -168,6 +173,8 @@ __device__ __forceinline__ void g5_ccd_pair_write(const d_contact_pair_input& in
   int ncontact = phase.ncontact;
   v3 w1 = phase.x1;
   v3 w2 = phase.x2;
+  int multiccd_idx = -1;
+  bool has_polytope = false;
 
   if (phase.needs_epa) {
     if (!g5_claim_ccd_slot(in.geomgeomid, nccd, in.naccdmax, params.worldid,
@@ -181,6 +188,8 @@ __device__ __forceinline__ void g5_ccd_pair_write(const d_contact_pair_input& in
     ncontact = epa.ncontact;
     w1 = epa.x1;
     w2 = epa.x2;
+    multiccd_idx = epa.multiccd_idx;
+    has_polytope = epa.has_polytope;
     if (epa.overflow != 0u) atomicOr(in.overflow_out + params.worldid, epa.overflow);
     // 上游 `eval_ccd_write_contact` 只汇总 EPA 阶段的溢出位（`EPA_HORIZON`）；
     // `CCD` 位只在上面 `nccd >= naccdmax` 的真实容量截断时置，不由 `FLOAT_MAX` 推断。
@@ -191,19 +200,60 @@ __device__ __forceinline__ void g5_ccd_pair_write(const d_contact_pair_input& in
   // 上游：CCD 在 margin 膨胀形状上工作，dist 修正回真实表面距离。
   dist += params.margin;
 
-  // 上游：重叠时 witness1 越过 witness2，方向按符号取反。
+  // 上游 multicontact 分支：`(use_multiccd or (BOX,BOX))` 且两侧类型都在
+  // {BOX, MESH, CYLINDER}；`multiccd_idx > -1` 时用 EPA 最终穿透面生成 <=4 个接触。
+  int ncontacts = ncontact;
+  v3 witness1[4];
+  v3 witness2[4];
+  float dists[4];
+  witness1[0] = w1;
+  witness2[0] = w2;
+  dists[0] = dist;
+  bool want_multi = use_multiccd ||
+                    (in.geomtype1 == G5_BOX && in.geomtype2 == G5_BOX);
+  if (want_multi && has_polytope && multiccd_idx > -1 &&
+      g5_mc_supported_type(in.geomtype1) && g5_mc_supported_type(in.geomtype2)) {
+    // 上游 convex_narrowphase 的 scratch 容量上界：npolygonmax=16（含 cylinder）、
+    // nmeshdegmax 取 10 的安全上界（本片只实现 box/cylinder 分支）。
+    v3 polygon[32];
+    v3 clipped[32];
+    v3 pnormal[16];
+    float pdist[16];
+    int idx1[10];
+    int idx2[10];
+    v3 n1[10];
+    v3 n2[10];
+    v3 endvert[10];
+    v3 face1[16];
+    v3 face2[16];
+    g5_mc_result mc = g5_multicontact(polygon, clipped, pnormal, pdist, idx1, idx2, n1, n2,
+                                      endvert, face1, face2, pt->vert, pt->vert_index,
+                                      pt->face[multiccd_idx], w1, w2, phase.geom1, phase.geom2,
+                                      in.geomtype1, in.geomtype2);
+    if (mc.n >= 1) {
+      ncontacts = mc.n;
+      for (int i = 0; i < 4; ++i) {
+        witness1[i] = mc.witness1[i];
+        witness2[i] = mc.witness2[i];
+        dists[i] = mc.dists[i];
+      }
+    }
+  }
+
+  // 上游：重叠时 witness1 越过 witness2，方向按符号取反（frame 只算一次，全部接触共用）。
   float frame[9];
   if (dist <= params.margin) {
-    make_frame(v3_sub(w1, w2), frame);
+    make_frame(v3_sub(witness1[0], witness2[0]), frame);
   } else {
-    make_frame(v3_sub(w2, w1), frame);
+    make_frame(v3_sub(witness2[0], witness1[0]), frame);
   }
-  // 上游 `0.5 * (witness1 + witness2) + origin`。
-  v3 pos = v3_add(v3_scale(v3_add(w1, w2), 0.5f), origin);
 
-  // 上游 `for i in range(ncollision)`；设备侧暂无 multicontact，ncollision == ncontact。
-  if (ncontact > 0) {
-    g5_write_contact(params, naconmax, 0, dist, pos, frame, out);
+  // 上游 `for i in range(ncollision)`：n>1 时用 multicontact 的 dists[i]，否则用 EPA 的 dist；
+  // 位置统一为 `0.5*(witness1[i]+witness2[i])+origin`，`id_` = 接触序号。
+  for (int i = 0; i < ncontacts; ++i) {
+    float contact_dist = (ncontacts > 1) ? dists[i] : dist;
+    v3 pos = v3_add(v3_scale(v3_add(witness1[i], witness2[i]), 0.5f), origin);
+    g5_write_contact(params, naconmax, i, contact_dist, pos, frame, out);
   }
 }
 

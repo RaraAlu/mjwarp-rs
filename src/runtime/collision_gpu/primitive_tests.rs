@@ -47,8 +47,8 @@ fn primitive_rejects_other_combinations() {
 }
 
 #[test]
-fn device_sources_place_primitive_after_contact_before_product() {
-    assert_eq!(DEVICE_SOURCES.len(), 16, "设备源片段数应为 16");
+fn device_sources_place_primitive_after_contact() {
+    assert_eq!(DEVICE_SOURCES.len(), 21, "设备源片段数应为 21");
     let position = |wanted: &str| {
         DEVICE_SOURCES
             .iter()
@@ -63,11 +63,6 @@ fn device_sources_place_primitive_after_contact_before_product() {
         wrapper,
         primitive + 1,
         "primitive_wrapper.cu 应紧随 primitive.cu"
-    );
-    assert_eq!(
-        wrapper,
-        DEVICE_SOURCES.len() - 1,
-        "primitive_wrapper.cu 应为最后一片段"
     );
     for name in ["primitive.cu", "primitive_wrapper.cu"] {
         assert!(

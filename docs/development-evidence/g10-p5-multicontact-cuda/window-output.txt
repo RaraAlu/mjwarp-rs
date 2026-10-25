@@ -1,0 +1,44 @@
+window=start
+task=2026-10-25-g10-p5-multicontact-cuda
+window_start_head=9d337bfe full=9d337bfe77b951a6550fd9c13f9a95a2b86ce84e
+head_expected=9d337bfe77b951a6550fd9c13f9a95a2b86ce84e head_match=
+True
+path_prepend=D:\Rust\mjwarp-rs\target\toolchains\cuda-12.8.1\bin
+nvcc=Cuda compilation tools, release 12.8, V12.8.93
+nvrtc_dlls=nvrtc64_120_0.alt.dll=5464ea01b079d78042374dc7819684910c8e9d5c63000e2d2d5aa02298ecf2ae,nvrtc64_120_0.dll=02d2d7ef4690bf1a55dda1d3ac94c86ce8d16920071c87bcd3e70e94ef346e93,nvrtc-builtins64_128.dll=a7afa2a40cbd3f922a33d8bf71c13cb26ca707c7016a9bc5fcde36759ba668f5
+reference=docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-upstream-gpu.json（QA 已提交、两捕获逐字节相同；窗口内重算 23 项输入 sha256 守卫）
+steplist=A:nvrtc-cpu-smoke B:nvrtc-launcher-regression C:multicontact-3case
+===== step=A-nvrtc-cpu-smoke ===== command=cargo test --locked --features cuda-probe --lib nvrtc_smoke -- --include-ignored --nocapture
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running unittests src\lib.rs (target\debug\deps\mjwarp_rs-959697b4f31510c6.exe)
+
+running 1 test
+nvrtc_smoke_ok ptx_bytes=3556510 entries=6 source_bytes=197428 source_sha256=682787c964e216a55ef1be479024f799e4215ba9457519b0f5892de74bab9790
+test runtime::collision_gpu::nvrtc_smoke::nvrtc_compiles_product_device_source ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 814 filtered out; finished in 19.92s
+
+===== step=B-nvrtc-launcher-regression ===== command=cargo test --locked --features cuda-probe --test g10_p5_nvrtc_launcher -- --ignored --test-threads=1 --nocapture
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running tests\g10_p5_nvrtc_launcher.rs (target\debug\deps\g10_p5_nvrtc_launcher-58fca899dbbe82b1.exe)
+
+running 1 test
+test product_nvrtc_launcher_matches_g5_probe_out1 ... case=hfield-sphere kind=Hfield nacon=8 nccd=0 bit_equal=314/314 max_dist_ulp=0 max_pos_ulp=0 max_frame_ulp=0 failures=0
+case=sdf-box kind=Sdf nacon=80 nccd=0 bit_equal=3122/3122 max_dist_ulp=0 max_pos_ulp=0 max_frame_ulp=0 failures=0
+case=ellipsoid-box kind=Contact nacon=2 nccd=2 bit_equal=80/80 max_dist_ulp=0 max_pos_ulp=0 max_frame_ulp=0 failures=0
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.82s
+
+===== step=C-multicontact-3case ===== command=cargo test --locked --features cuda-probe --test g10_p5_multicontact_cuda -- --ignored --test-threads=1 --nocapture
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running tests\g10_p5_multicontact_cuda.rs (target\debug\deps\g10_p5_multicontact_cuda-086412e3bca3cea9.exe)
+
+running 1 test
+test multicontact_launcher_matches_qa_upstream_gpu ... case=cylinder-box kind=ContactMulti nacon=8 nccd=2 bit_equal=314/314 max_dist_ulp=0 max_pos_ulp=0 max_frame_ulp=0 failures=0
+case=box-box-margin kind=BoxBox nacon=10 nccd=0 bit_equal=391/392 max_dist_ulp=0 max_pos_ulp=1 max_frame_ulp=0 failures=0
+case=mesh-mesh kind=Contact nacon=2 nccd=2 bit_equal=80/80 max_dist_ulp=0 max_pos_ulp=0 max_frame_ulp=0 failures=0
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.57s
+

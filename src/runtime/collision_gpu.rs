@@ -17,6 +17,8 @@ mod source;
 mod types;
 
 #[cfg(test)]
+mod multicontact_tests;
+#[cfg(test)]
 mod nvrtc_smoke;
 #[cfg(test)]
 mod primitive_tests;
@@ -40,6 +42,8 @@ const CONTACT_ENTRY: &str = "mjwarp_collision_contact";
 const HFIELD_ENTRY: &str = "mjwarp_collision_hfield";
 const SDF_ENTRY: &str = "mjwarp_collision_sdf";
 const PRIMITIVE_ENTRY: &str = "mjwarp_collision_primitive";
+const CONTACT_MULTI_ENTRY: &str = "mjwarp_collision_contact_multi";
+const BOXBOX_ENTRY: &str = "mjwarp_collision_boxbox";
 
 /// 产品内核种类：决定 `run` 走哪条设备路径。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -52,6 +56,12 @@ pub enum CollisionKernel {
     Sdf,
     /// `mjwarp_collision_primitive`：primitive narrowphase（SPHERE-BOX / CAPSULE-BOX）。
     Primitive,
+    /// `mjwarp_collision_contact_multi`：`eval_ccd_write_contact` 的 `use_multiccd=true`
+    /// 静态特化（box/mesh/cylinder 组合 <=4 个接触；mesh 分支本片回退单接触）。
+    ContactMulti,
+    /// `mjwarp_collision_boxbox`：上游 `box_box_wrapper`（NATIVECCD 关闭时 `(BOX,BOX)` 的
+    /// primitive dispatch；8 个候选经 `detected` 过滤后写入）。
+    BoxBox,
 }
 
 /// 上游 `mjtGeom` 的 G5 设备常量（`support.cu::G5_SPHERE/G5_CAPSULE/G5_BOX`）；
@@ -75,7 +85,18 @@ pub(crate) fn validate_primitive_types(type1: i32, type2: i32) -> Result<(), Col
     ))
 }
 
-/// 已编译并加载的产品程序（一个上下文、一个模块、四个入口、默认流）。
+/// box-box 入口只接受 `(BOX, BOX)`（上游 NATIVECCD 关闭时把 `(BOX,BOX)` 从 CONVEX 改走
+/// primitive `box_box_wrapper`）。其它组合返回 [`CollisionGpuError::InvalidArgument`]。
+pub(crate) fn validate_boxbox_types(type1: i32, type2: i32) -> Result<(), CollisionGpuError> {
+    if type1 == GEOM_BOX && type2 == GEOM_BOX {
+        return Ok(());
+    }
+    Err(CollisionGpuError::InvalidArgument(
+        "boxbox 只支持 BOX-BOX 组合",
+    ))
+}
+
+/// 已编译并加载的产品程序（一个上下文、一个模块、六个入口、默认流）。
 pub struct CollisionGpuProgram {
     context: Arc<CudaContext>,
     /// 模块由四个 `CudaFunction` 共同持有；字段仅为显式表达生命周期。
@@ -84,11 +105,13 @@ pub struct CollisionGpuProgram {
     hfield: CudaFunction,
     sdf: CudaFunction,
     primitive: CudaFunction,
+    contact_multi: CudaFunction,
+    boxbox: CudaFunction,
     stream: Arc<CudaStream>,
 }
 
 impl CollisionGpuProgram {
-    /// 编译设备源并在 `device` 上加载四个入口。
+    /// 编译设备源并在 `device` 上加载六个入口。
     pub fn new(device: usize) -> Result<Self, CollisionGpuError> {
         let ptx = compile_program()?;
         let context = CudaContext::new(device)
@@ -114,6 +137,9 @@ impl CollisionGpuProgram {
         let meta = &inputs.meta;
         if kind == CollisionKernel::Primitive {
             validate_primitive_types(meta.type1, meta.type2)?;
+        }
+        if kind == CollisionKernel::BoxBox {
+            validate_boxbox_types(meta.type1, meta.type2)?;
         }
         let naconmax = meta.naconmax as usize;
         let efc_width = meta.efc_width as usize;
@@ -251,6 +277,8 @@ impl CollisionGpuProgram {
             CollisionKernel::Hfield => &self.hfield,
             CollisionKernel::Sdf => &self.sdf,
             CollisionKernel::Primitive => &self.primitive,
+            CollisionKernel::ContactMulti => &self.contact_multi,
+            CollisionKernel::BoxBox => &self.boxbox,
         };
         let mut builder = stream.launch_builder(function);
         builder.arg(&args);
@@ -345,7 +373,7 @@ pub(crate) fn compile_program() -> Result<Ptx, CollisionGpuError> {
     })
 }
 
-/// 加载模块与四个入口（无 GPU 时不调用）。
+/// 加载模块与六个入口（无 GPU 时不调用）。
 pub(crate) fn load_program(
     context: Arc<CudaContext>,
     ptx: Ptx,
@@ -362,6 +390,8 @@ pub(crate) fn load_program(
     let hfield = load(HFIELD_ENTRY)?;
     let sdf = load(SDF_ENTRY)?;
     let primitive = load(PRIMITIVE_ENTRY)?;
+    let contact_multi = load(CONTACT_MULTI_ENTRY)?;
+    let boxbox = load(BOXBOX_ENTRY)?;
     let stream = context.default_stream();
     Ok(CollisionGpuProgram {
         context,
@@ -370,6 +400,8 @@ pub(crate) fn load_program(
         hfield,
         sdf,
         primitive,
+        contact_multi,
+        boxbox,
         stream,
     })
 }

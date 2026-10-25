@@ -53,3 +53,16 @@ pub(crate) const PRIMITIVE_CUDA: &str = include_str!("primitive.cu");
 /// primitive wrapper 接触写入（与上游 `collision_primitive.py::sphere_box_wrapper` /
 /// `capsule_box_wrapper` 对应：`write_contact` 的 `id_` 序号与计数门）。
 pub(crate) const PRIMITIVE_WRAPPER_CUDA: &str = include_str!("primitive_wrapper.cu");
+/// multicontact 几何助手（上游 `collision_gjk.py::_feature_dim` / `_box_normals` /
+/// `_cylinder_normals` / `_aligned_faces` / `_aligned_face_edge` / `*_face` / `*_edge_normals`）。
+pub(crate) const MULTICONTACT_GEOM_CUDA: &str = include_str!("multicontact_geom.cu");
+/// multicontact 多边形裁剪（上游 `collision_gjk.py::_polygon_clip`）。
+pub(crate) const MULTICONTACT_CLIP_CUDA: &str = include_str!("multicontact_clip.cu");
+/// multicontact 主函数（上游 `collision_gjk.py::multicontact`：<=4 个接触；本片只实现
+/// BOX/CYLINDER 分支，mesh 分支回退单接触并记未覆盖）。
+pub(crate) const MULTICONTACT_CUDA: &str = include_str!("multicontact.cu");
+/// primitive box-box 数值核心（上游 `collision_primitive_core.py::box_box` 的 8 槽候选）。
+pub(crate) const BOXBOX_CUDA: &str = include_str!("boxbox.cu");
+/// primitive box-box wrapper（上游 `collision_primitive.py::box_box_wrapper`：
+/// NATIVECCD 关闭时 `(BOX, BOX)` 的 primitive dispatch）。
+pub(crate) const BOXBOX_WRAPPER_CUDA: &str = include_str!("boxbox_wrapper.cu");

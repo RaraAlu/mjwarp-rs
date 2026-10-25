@@ -1,8 +1,8 @@
-//! CPU 侧 NVRTC 编译冒烟：只验证「产品设备源能被 NVRTC 编成含四个入口的 PTX」。
+//! CPU 侧 NVRTC 编译冒烟：只验证「产品设备源能被 NVRTC 编成含六个入口的 PTX」。
 //!
 //! **不创建 CUDA 上下文、不上传/发射/回读**，所以不需要 GPU；需要 NVRTC 运行库
 //! （Windows：`target/toolchains/cuda-12.8.1/bin` 加入 `PATH` 后跑）。
-//! 真正的三 case 对照在 `tests/g10_p5_nvrtc_launcher.rs`（ignored，需 GPU 窗口）。
+//! 真正的 case 对照在 `tests/g10_p5_*.rs`（ignored，需 GPU 窗口）。
 
 use super::compile_program;
 use super::source::assemble_device_source;
@@ -13,20 +13,33 @@ fn nvrtc_compiles_product_device_source() {
     let ptx = compile_program().expect("NVRTC 编译产品设备源失败（错误串带 source_sha256）");
     let text = ptx.to_src();
     assert!(!text.is_empty(), "PTX 为空");
-    for entry in [
+    let entries = [
         "mjwarp_collision_contact",
         "mjwarp_collision_hfield",
         "mjwarp_collision_sdf",
         "mjwarp_collision_primitive",
-    ] {
+        "mjwarp_collision_contact_multi",
+        "mjwarp_collision_boxbox",
+    ];
+    for entry in entries {
         assert!(
             text.contains(entry),
             "PTX 缺少入口 {entry}（前 200 字节：{}）",
             &text[..text.len().min(200)]
         );
     }
+    let found = entries
+        .iter()
+        .filter(|entry| text.contains(**entry))
+        .count();
+    assert_eq!(
+        found,
+        entries.len(),
+        "PTX 入口计数不符：{found}/{}",
+        entries.len()
+    );
     println!(
-        "nvrtc_smoke_ok ptx_bytes={} entries=4 source_bytes={} source_sha256={}",
+        "nvrtc_smoke_ok ptx_bytes={} entries={found} source_bytes={} source_sha256={}",
         text.len(),
         assemble_device_source().len(),
         super::source::source_sha256()

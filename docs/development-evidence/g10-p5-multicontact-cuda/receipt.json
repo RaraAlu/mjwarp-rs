@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-g10-p5-multicontact-cuda",
+  "outcome": "implemented_verified_in_gpu_window",
+  "upstream_pin": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "scope": {
+    "implemented": [
+      "eval_ccd_write_contact multicontact 分支（use_multiccd=true 静态特化，<=4 接触）",
+      "primitive box_box / box_box_wrapper（为覆盖 box-box-margin 一并移植；属 primitive family，不属 multicontact 分支）"
+    ],
+    "not_implemented": [
+      "mesh multicontact（需 mesh polygon ABI 输入）",
+      "primitive 其它组合（plane-*、sphere-*、capsule-capsule 等，见 primitive 片未覆盖）"
+    ],
+    "abi_changed": false
+  },
+  "device_sources": {
+    "fragments": 21,
+    "files": {
+      "multicontact_geom.cu": {"lines": 361, "sha256": "f3087fe127be7361b7ffd051a5af41fd9010825bb5f30743b30ec051a8d8e05b"},
+      "multicontact_clip.cu": {"lines": 257, "sha256": "8710d609e7aaeed648135b747528e35057730adf43ee1d1547599860107e5db1"},
+      "multicontact.cu": {"lines": 189, "sha256": "bf86115b01058c90a50a6be2a3dfc2a25b194b97f8d36fdceefda1a3df9eaf83"},
+      "boxbox.cu": {"lines": 474, "sha256": "050de787aa10dd71ea4b28f1314b4945a154d1f779893fcf003d685975d63f21"},
+      "boxbox_wrapper.cu": {"lines": 20, "sha256": "f68853549700b0cf2771bbbaff6c3c2089991b58ee6bfeba12e3da75f4104144"}
+    },
+    "assembled_source_bytes": 197428,
+    "assembled_source_sha256": "682787c964e216a55ef1be479024f799e4215ba9457519b0f5892de74bab9790",
+    "ptx_bytes": 3556510,
+    "ptx_entries": 6,
+    "entry_names": [
+      "mjwarp_collision_contact",
+      "mjwarp_collision_hfield",
+      "mjwarp_collision_sdf",
+      "mjwarp_collision_primitive",
+      "mjwarp_collision_contact_multi",
+      "mjwarp_collision_boxbox"
+    ]
+  },
+  "kernel_dispatch": {
+    "cylinder-box": "ContactMulti（multiccd=enable → <=4 接触）",
+    "box-box-margin": "BoxBox（nativeccd=disable → (BOX,BOX) primitive box_box_wrapper）",
+    "mesh-mesh": "Contact（multiccd 未启用 → 单接触）"
+  },
+  "reference": {
+    "path": "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-upstream-gpu.json",
+    "reuse": "QA 已提交上游 f32 GPU 捕获（两捕获逐字节相同）；不新开 authoring 捕获",
+    "input_guard": "运行时重算 G5 冻结 case 23 项输入 bin sha256/count，与 QA input_bins 全同才比较"
+  },
+  "case_expectations": {
+    "cylinder-box": {"reference_count": 8, "contacts_per_world": 4, "geomcollisionid": "0..3"},
+    "box-box-margin": {"reference_count": 10, "contacts_per_world": 5, "geomcollisionid": "0..4"},
+    "mesh-mesh": {"reference_count": 2, "contacts_per_world": 1, "geomcollisionid": "0"}
+  },
+  "cpu_checks": {
+    "collision_gpu_include_ignored": "20 passed / 0 failed",
+    "nvrtc_smoke": "1 passed；拼装源 197428 B / sha 682787c9…；PTX 3556510 B / 6 入口",
+    "fmt_check": "pass",
+    "clippy_cuda_all_targets": "pass (-D warnings)",
+    "normify_gate": "fmt/clippy/clippy-cuda 通过；unit 595 passed / 0 failed",
+    "authoring_cpu_recalc": "multicontact(cylinder-box) 4 接触 dist 0 ULP 位级 / frame 位级；box_box(box-box-margin) 10/10、5+5、dist ≤1 ULP、frame 位级"
+  },
+  "window": {
+    "status": "executed_passed",
+    "started_local": "2026-10-25T23:40:07+08:00",
+    "finished_local": "2026-10-25T23:41:14+08:00",
+    "elapsed_seconds": 69.2,
+    "head": "9d337bfe77b951a6550fd9c13f9a95a2b86ce84e",
+    "head_match": true,
+    "baseline_points_mib": [4061, 4070, 4030],
+    "baseline_used_mib_mean3": 4054,
+    "baseline_free_mib": 12001,
+    "baseline_temperature_c": 31,
+    "baseline_drift_mib_vs_3646": "+384~+424（窗口前预采序列 +263~+477）",
+    "drift_ruling": "Arch/Chief 裁定按功能等价口径接受（本次不是性能测量）；不得解读为窗口无干扰",
+    "task_related_compute_apps_before": 0,
+    "task_related_compute_apps_after": 0,
+    "peak_used_mib": 4149,
+    "peak_delta_mib_vs_mean3": 95,
+    "sample_interval_s": 0.25,
+    "sample_count": 235,
+    "util_max_percent": 77,
+    "temp_max_c": 31,
+    "min_free_mib_during": 11937,
+    "end_used_mib": 3961,
+    "guard_increment_limit_mib": 3072,
+    "guard_half_device_limit_mib": 8188,
+    "guard_triggered": false,
+    "free_threshold_mib": 10240,
+    "free_threshold_triggered": false,
+    "steps": {
+      "A_nvrtc_cpu_smoke": {"exit_code": 0, "result": "1 passed", "finished_s": 19.92, "source_bytes": 197428, "source_sha256": "682787c964e216a55ef1be479024f799e4215ba9457519b0f5892de74bab9790", "ptx_bytes": 3556510, "ptx_entries": 6},
+      "B_nvrtc_launcher_regression": {"exit_code": 0, "result": "1 passed", "finished_s": 25.82, "cases": [
+        {"case": "hfield-sphere", "bit_equal": "314/314", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0},
+        {"case": "sdf-box", "bit_equal": "3122/3122", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0},
+        {"case": "ellipsoid-box", "bit_equal": "80/80", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}
+      ]},
+      "C_multicontact_3case": {"exit_code": 0, "result": "1 passed", "finished_s": 19.57, "cases": [
+        {"case": "cylinder-box", "kernel": "ContactMulti", "nacon": 8, "nccd": 2, "bit_equal": "314/314", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0},
+        {"case": "box-box-margin", "kernel": "BoxBox", "nacon": 10, "nccd": 0, "bit_equal": "391/392", "max_dist_ulp": 0, "max_pos_ulp": 1, "max_frame_ulp": 0, "failures": 0},
+        {"case": "mesh-mesh", "kernel": "Contact", "nacon": 2, "nccd": 2, "bit_equal": "80/80", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}
+      ]}
+    },
+    "artifacts": "artifacts-sha256.txt（21 项）"
+  },
+  "gate": {
+    "status": "passed",
+    "command": "normify gate 2026-10-25-g10-p5-multicontact-cuda",
+    "results": {
+      "fmt": "pass",
+      "clippy": "pass",
+      "clippy-cuda": "pass",
+      "unit": "595 passed / 0 failed",
+      "receipt_task_id_json": "pass",
+      "forbid_claim": "pass"
+    },
+    "note": "窗口与证据回填后已重跑并绑定最终树；窗口事实见 window 段，数值见 cases 段"
+  },
+  "uncovered": [
+    "mesh multicontact 分支未实现（需 mesh polygon ABI 输入），mesh-mesh 仅单接触路径对照",
+    "primitive 其它组合未实现（属 primitive 片记录，不在本片范围）",
+    "未做性能测试（本片无性能判据）"
+  ],
+  "readme": "README.md",
+  "plan": "plan.md"
+}
