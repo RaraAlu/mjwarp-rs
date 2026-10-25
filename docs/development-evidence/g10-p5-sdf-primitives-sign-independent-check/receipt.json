@@ -1,0 +1,140 @@
+{
+ "schema": 1,
+ "task_id": "2026-10-25-g10-p5-sdf-primitives-sign-independent-check",
+ "kind": "qa-independent-review",
+ "status": "final",
+ "reviewed": {
+  "task": "2026-10-25-g10-p5-sdf-primitives-sign",
+  "fix_commit": "11696fc8",
+  "addenda_commit": "8f25e883",
+  "pre_fix_commit": "23661557",
+  "head_at_run": "8f25e883",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29"
+ },
+ "verdict": {
+  "conclusion": "pass",
+  "blocking": 0,
+  "findings": 0,
+  "observations": 1,
+  "summary": "上游 wp.sign 语义经 pinned include/warp-headers/builtin.h:765 与上游 collision_sdf.py 三处用法独立确认（x<0?-1:1，-0.0/0.0/NaN→+1），frozen-source 与 pinned 上游树逐字节一致。产品 primitives.rs::upstream_sign 与 builtin 同构，radial_field 3 处 + grad_cylinder 1 处 + descent.rs::compute_grad 1 处调用齐全，产品 src 无残留活跃 signum（测试内保留对照），gjk/math.rs::sign3 亦同语义。改前 23661557 的 4 处 signum 与 compute_grad 手写三分支（0/NaN→0）由自写最小 Rust 复现逐输入证明与上游不一致（-0.0、NaN；gradient [1,2,3] vs [11,22,33]），改后 7 个输入全部对齐。回归：relmat 4 passed（4 旋转 80/80 位级 + sdf-box 80/80 位级断言）、case_evidence 3 passed/2 ignored、hfield 3 passed/1 ignored、primitives 4 passed；修正片 unit 592/0/7 与声明一致；G3 已 verified 证据 diff 为空、加注提交只改 normify 记录。观察 1：descent.rs::compute_grad 的 0/NaN 旧分支无直接反向测试用例（实现已核正确），建议后续补分支级测试。"
+ },
+ "method": {
+  "independent": [
+   "qa_sign_check.py：读 include/warp-headers/builtin.h:765 的 sign 定义、pinned 上游树三处用法（radial_field L152-154 / grad_cylinder L275 / compute_grad L629-630）",
+   "校验 frozen-source/_src/collision_sdf.py 与 target/mjwarp-parallel/upstream（HEAD=71da24d9）同名文件 sha256 一致",
+   "解析产品 primitives.rs::upstream_sign 表达式与 5 个调用点，扫描 src 非测试代码的活跃 signum（排除 #[cfg(test)] 尾部）",
+   "git show 23661557:… 取改前 primitives.rs（4 处 signum）与 descent.rs（三分支 0/NaN→0）",
+   "自写 qa_sign_repro.rs + rustc -O 编译运行：逐输入比较改前/改后/上游期望，覆盖 -0.0/0.0/NaN/±有限/±inf 与 radial_field、compute_grad 两条产品路径",
+   "独立 CARGO_TARGET_DIR 复跑 relmat / case_evidence / hfield / primitives 四组测试",
+   "核对修正片与加注提交范围、G3 已 verified 证据 diff、Cargo/fixtures 未改"
+  ],
+  "not_reused": [
+   "未复用 Backend 的 pre_fix_reverse_check.ps1 结论（本复核用自写最小 Rust 复现 + 源码读）"
+  ],
+  "product_tree_untouched": true,
+  "delivery_evidence_untouched": true,
+  "fixtures_untouched": true,
+  "gpu_used": false
+ },
+ "environment": {
+  "rustc": "1.99.0",
+  "cargo": "1.99.0",
+  "python": "3.12.13",
+  "os": "Windows",
+  "cargo_target_dir": "target/qa-sdf-sign/test-target"
+ },
+ "results": {
+  "upstream_semantics": {
+   "builtin_sign_line": 765,
+   "builtin_text": "inline CUDA_CALLABLE T sign(T x) { return x < T(0) ? -1 : 1; }",
+   "semantics": "x < 0 ? -1 : +1；-0.0/0.0/NaN → +1",
+   "pinned_tree_head": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+   "frozen_source_equals_pinned_tree": true,
+   "frozen_sha256": "fe51f981091c680af335406f888085ed92806377c8cfa2edfb92884760b96d02",
+   "usage_checks": {
+    "radial_field_three_signs": true,
+    "grad_cylinder_sign_p2": true,
+    "compute_grad_sign_max_val": true
+   }
+  },
+  "product_impl": {
+   "upstream_sign_body": "if x < 0.0 { -1.0 } else { 1.0 }",
+   "radial_field_calls": 3,
+   "grad_cylinder_call": true,
+   "descent_uses_upstream_sign": true,
+   "active_signum_in_src": [],
+   "sign3_semantics": "gjk/math.rs::sign3 与上游同语义（v<0?-1:1）",
+   "upstream_other_sign_sites": "collision_gjk.py 2 处（sign3 覆盖）、collision_primitive_core.py 2 处（primitive 未实装，不在本片范围）"
+  },
+  "pre_fix": {
+   "primitives_signum_count": 4,
+   "descent_old_block": "if max_val > 0.0 { 1.0 } else if max_val < 0.0 { -1.0 } else { 0.0 }",
+   "descent_old_zero_for_nonpositive": true
+  },
+  "repro": {
+   "rustc_returncode": 0,
+   "run_returncode": 0,
+   "old_signum_fails_on": ["-0.0", "NaN"],
+   "old_compute_grad_branch_fails_on": ["-0.0", "0.0", "NaN"],
+   "old_fails_exactly_expected": true,
+   "new_matches_all": true,
+   "radial_field_differs": true,
+   "compute_grad_zero_branch_differs": true,
+   "radial_field_example": {
+    "all_neg_zero": {"old": ["be800000", "bf000000", "bf400000"], "new": ["3e800000", "3f000000", "3f400000"]},
+    "nan_component": {"old": ["7fc00000", "bf000000", "3f400000"], "new": ["3e800000", "bf000000", "3f400000"]}
+   },
+   "compute_grad_example": {
+    "max_val_zero": {"old_sign": "00000000", "new_sign": "3f800000", "old_grad": ["3f800000", "40000000", "40400000"], "new_grad": ["41300000", "41b00000", "42040000"]}
+   }
+  },
+  "regression": {
+   "relmat": {"passed": 4, "failed": 0, "asserts": "每旋转场景 total==80 且 bit_equal==total、dist/pos/frame max==0.0；sdf-box 回归 80/80 位级"},
+   "case_evidence": {"passed": 3, "ignored": 2, "failed": 0},
+   "hfield_tests": {"passed": 3, "ignored": 1, "failed": 0},
+   "primitives_tests": {"passed": 4, "failed": 0},
+   "fix_unit_record": {"passed": 592, "failed": 0, "ignored": 7}
+  },
+  "scope": {
+   "fix_files": ["src/physics/collision/sdf/primitives.rs", "src/physics/collision/sdf/descent.rs", ".normify/changes/2026-10-25-g10-p5-sdf-primitives-sign.json", ".normify/runs/2026-10-25-g10-p5-sdf-primitives-sign/{fmt,clippy,clippy-cuda,unit}.json", "docs/development-evidence/g10-p5-sdf-primitives-sign/**"],
+   "addenda_files_only_normify": true,
+   "g3_verified_evidence_diff_since_pre_fix": [],
+   "cargo_or_fixtures_or_s2s8_changed": false
+  }
+ },
+ "observations": [
+  {
+   "id": 1,
+   "severity": "suggestion",
+   "title": "descent.rs::compute_grad 的 0/NaN 旧分支没有直接反向判别用例",
+   "detail": "descent.rs 内 #[test] 数量为 0；本片新增 4 个单测都在 primitives.rs（upstream_sign 语义、改前 signum 对照、radial_field、grad_cylinder）。compute_grad 的 0/NaN→0 旧分支目前只能靠「G3 sdf-box 位级不变 ⇒ 未触发」间接说明，缺分支级断言；实现已核对正确（upstream_sign(max_val)），自写复现也已证明旧分支确与上游不一致。",
+   "impact": "不影响本片结论与现有位级回归；若未来该分支被触发，缺测试会在回归中静默通过。",
+   "blocking": false
+  }
+ ],
+ "limitations": [
+  "本复核为只读 + 自写最小复现 + 测试复跑，未开 GPU、未改产品代码",
+  "未新增/修改任何判据或已 verified 数字",
+  "上游其它文件（collision_gjk/primitive_core）的 wp.sign 只做语义抽查，不在本片范围"
+ ],
+ "artifacts": {
+  "in_repo": [
+   "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/README.md",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/receipt.json",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/artifacts-sha256.json",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/qa_artifacts_sha256.py",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/qa_sign_check.py",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/qa_sign_repro.rs",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/qa-sign-check.json",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/qa-sign-check.log",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/qa-test-relmat.log",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/qa-test-case-evidence.log",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/qa-test-hfield.log",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/qa-test-primitives.log"
+  ],
+  "not_in_repo": [
+   "target/qa-sdf-sign/qa_sign_repro.exe（rustc 构建产物，可由 qa_sign_check.py 重建）",
+   "target/qa-sdf-sign/test-target/**（本任务独立 CARGO_TARGET_DIR，构建缓存）"
+  ]
+ }
+}

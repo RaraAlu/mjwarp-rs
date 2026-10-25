@@ -1,0 +1,248 @@
+{
+ "schema": 1,
+ "kind": "qa-g3-sign-independent-check",
+ "task_id": "2026-10-25-g10-p5-sdf-primitives-sign-independent-check",
+ "upstream": {
+  "builtin_sign_definition": [
+   {
+    "line": 765,
+    "text": "inline CUDA_CALLABLE T sign(T x) { return x < T(0) ? -1 : 1; } \\"
+   }
+  ],
+  "builtin_semantics_is_lt_zero": true,
+  "pinned_tree_head": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "pinned_tree_matches": true,
+  "frozen_source_equals_pinned_tree": true,
+  "frozen_sha256": "fe51f981091c680af335406f888085ed92806377c8cfa2edfb92884760b96d02",
+  "usage_snippets": {
+   "radial_field_L152_154": [
+    "  field[0] *= wp.sign(x[0])",
+    "  field[1] *= wp.sign(x[1])",
+    "  field[2] *= wp.sign(x[2])"
+   ],
+   "grad_cylinder_L275": "  w = wp.vec3(0.0, 0.0, wp.sign(p[2]))",
+   "compute_grad_L629_630": [
+    "    sign = wp.sign(max_val)",
+    "    gradient += max_grad * sign"
+   ]
+  },
+  "usage_checks": {
+   "radial_field_three_signs": true,
+   "grad_cylinder_sign_p2": true,
+   "compute_grad_sign_max_val": true
+  }
+ },
+ "product": {
+  "upstream_sign_body": "if x < 0.0 { -1.0 } else { 1.0 }",
+  "body_is_lt_zero": true,
+  "radial_field_calls": 3,
+  "grad_cylinder_call": true,
+  "descent_uses_upstream_sign": true,
+  "descent_old_three_branch_absent": true,
+  "active_signum_in_src": []
+ },
+ "pre_fix": {
+  "primitives_signum_count": 4,
+  "primitives_signum_lines": [
+   "field[0] * x[0].signum(),",
+   "field[1] * x[1].signum(),",
+   "field[2] * x[2].signum(),",
+   "let w = [0.0, 0.0, p[2].signum()];"
+  ],
+  "descent_old_sign_block": "let sign = if max_val > 0.0 {\n        1.0\n    } else if max_val < 0.0 {\n        -1.0\n    } else {\n        0.0\n    };",
+  "descent_old_branch_zero_for_nonpositive": true
+ },
+ "repro": {
+  "rustc_returncode": 0,
+  "rustc_stderr": "",
+  "run_returncode": 0,
+  "sign_rows": [
+   {
+    "name": "-0.0",
+    "old_matches_upstream": false,
+    "new_matches_upstream": true
+   },
+   {
+    "name": "0.0",
+    "old_matches_upstream": true,
+    "new_matches_upstream": true
+   },
+   {
+    "name": "NaN",
+    "old_matches_upstream": false,
+    "new_matches_upstream": true
+   },
+   {
+    "name": "-1.5",
+    "old_matches_upstream": true,
+    "new_matches_upstream": true
+   },
+   {
+    "name": "2.5",
+    "old_matches_upstream": true,
+    "new_matches_upstream": true
+   },
+   {
+    "name": "-inf",
+    "old_matches_upstream": true,
+    "new_matches_upstream": true
+   },
+   {
+    "name": "inf",
+    "old_matches_upstream": true,
+    "new_matches_upstream": true
+   }
+  ],
+  "compute_grad_sign_rows": [
+   {
+    "name": "-0.0",
+    "old_matches_upstream": false,
+    "new_matches_upstream": true
+   },
+   {
+    "name": "0.0",
+    "old_matches_upstream": false,
+    "new_matches_upstream": true
+   },
+   {
+    "name": "NaN",
+    "old_matches_upstream": false,
+    "new_matches_upstream": true
+   },
+   {
+    "name": "-1.5",
+    "old_matches_upstream": true,
+    "new_matches_upstream": true
+   },
+   {
+    "name": "2.5",
+    "old_matches_upstream": true,
+    "new_matches_upstream": true
+   },
+   {
+    "name": "-inf",
+    "old_matches_upstream": true,
+    "new_matches_upstream": true
+   },
+   {
+    "name": "inf",
+    "old_matches_upstream": true,
+    "new_matches_upstream": true
+   }
+  ],
+  "radial_field_rows": [
+   {
+    "name": "all_neg_zero",
+    "old": "[be800000,bf000000,bf400000]",
+    "new": "[3e800000,3f000000,3f400000]"
+   },
+   {
+    "name": "mixed_zero",
+    "old": "[3e800000,bf000000,3f400000]",
+    "new": "[3e800000,3f000000,3f400000]"
+   },
+   {
+    "name": "nan_component",
+    "old": "[7fc00000,bf000000,3f400000]",
+    "new": "[3e800000,bf000000,3f400000]"
+   }
+  ],
+  "compute_grad_rows": [
+   {
+    "name": "0.0",
+    "old_sign": "00000000",
+    "new_sign": "3f800000",
+    "old_grad": "[3f800000,40000000,40400000]",
+    "new_grad": "[41300000,41b00000,42040000]"
+   },
+   {
+    "name": "-0.0",
+    "old_sign": "00000000",
+    "new_sign": "3f800000",
+    "old_grad": "[3f800000,40000000,40400000]",
+    "new_grad": "[41300000,41b00000,42040000]"
+   },
+   {
+    "name": "NaN",
+    "old_sign": "00000000",
+    "new_sign": "3f800000",
+    "old_grad": "[3f800000,40000000,40400000]",
+    "new_grad": "[41300000,41b00000,42040000]"
+   },
+   {
+    "name": "5.0",
+    "old_sign": "3f800000",
+    "new_sign": "3f800000",
+    "old_grad": "[41300000,41b00000,42040000]",
+    "new_grad": "[41300000,41b00000,42040000]"
+   },
+   {
+    "name": "-5.0",
+    "old_sign": "bf800000",
+    "new_sign": "bf800000",
+    "old_grad": "[c1100000,c1900000,c1d80000]",
+    "new_grad": "[c1100000,c1900000,c1d80000]"
+   }
+  ],
+  "old_signum_fails_on": [
+   "-0.0",
+   "NaN"
+  ],
+  "old_compute_grad_branch_fails_on": [
+   "-0.0",
+   "0.0",
+   "NaN"
+  ],
+  "new_impl_fails_on": [],
+  "old_fails_exactly_expected": true,
+  "new_matches_all": true,
+  "radial_field_differs": true,
+  "compute_grad_zero_branch_differs": true,
+  "raw_output_lines": 22
+ },
+ "coverage": {
+  "primitives_new_tests": 4,
+  "descent_tests": 0,
+  "descent_has_compute_grad_reverse_test": false,
+  "compute_grad_referenced_in": [
+   "src\\physics\\collision\\sdf\\descent.rs"
+  ],
+  "gap": "descent.rs::compute_grad 的 0/NaN→0 旧分支没有直接反向判别用例"
+ },
+ "scope": {
+  "fix_commit": "11696fc8",
+  "fix_files": [
+   ".normify/changes/2026-10-25-g10-p5-sdf-primitives-sign.json",
+   ".normify/runs/2026-10-25-g10-p5-sdf-primitives-sign/clippy-cuda.json",
+   ".normify/runs/2026-10-25-g10-p5-sdf-primitives-sign/clippy.json",
+   ".normify/runs/2026-10-25-g10-p5-sdf-primitives-sign/fmt.json",
+   ".normify/runs/2026-10-25-g10-p5-sdf-primitives-sign/unit.json",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign/README.md",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign/pre-fix-check-output.txt",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign/pre_fix_reverse_check.ps1",
+   "docs/development-evidence/g10-p5-sdf-primitives-sign/receipt.json",
+   "src/physics/collision/sdf/descent.rs",
+   "src/physics/collision/sdf/primitives.rs"
+  ],
+  "addenda_commit": "8f25e883",
+  "addenda_files": [
+   ".normify/changes/2026-10-25-g10-p5-sdf-host-r2.json",
+   ".normify/runs/2026-10-25-g10-p5-sdf-host-r2/clippy-cuda.json",
+   ".normify/runs/2026-10-25-g10-p5-sdf-host-r2/clippy.json",
+   ".normify/runs/2026-10-25-g10-p5-sdf-host-r2/fmt.json",
+   ".normify/runs/2026-10-25-g10-p5-sdf-host-r2/unit.json"
+  ],
+  "addenda_only_normify_records": true,
+  "g3_verified_evidence_diff_since_pre_fix": [],
+  "forbidden_scope_changes": []
+ },
+ "verdict": {
+  "upstream_semantics_verified": true,
+  "product_impl_matches": true,
+  "pre_fix_reverse_discriminated": true,
+  "pre_fix_radial_field_and_compute_grad_differ": true,
+  "scope_clean": true,
+  "coverage_gap_observation": "descent.rs::compute_grad 的 0/NaN→0 旧分支没有直接反向判别用例",
+  "pass": true
+ }
+}
