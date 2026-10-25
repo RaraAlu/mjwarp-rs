@@ -45,7 +45,28 @@ Complete-Guard -State $state
 - 重开窗口**整轮重跑**（本例 20 项 ~7 min，仍在上限 10 min 内），保持同一口径一致性；
 - 中止轮与重跑轮的事实分别入窗口日志，摘要里注明「第一次 aborted（原因/时长/已跑项）」。
 
-## 4. 边界
+## 4. v2 修正（2026-10-25，Chief 指出 Windows WDDM 事实后）
+
+**事实**：Windows WDDM 下 `nvidia-smi --query-compute-apps` 返回的是**GPU 上下文进程**，不是「CUDA 计算
+进程」——实测 34 条全是 `explorer.exe` / `chrome.exe` / `WeChatAppEx` / `Feishu` / `NVIDIA Overlay` /
+`[Insufficient Permissions]` 这类桌面上下文。按 v1 的「新增且非本任务 exe → abort」会被桌面进程 churn
+（浏览器子进程、IM 插件、explorer 重启）误触。
+
+**v2 规则**
+1. **桌面/系统路径只记录不中止**：`C:\Windows\*`、`C:\Program Files*`、`C:\Users\<u>\AppData\Local\{Microsoft,
+   Google, Tencent, Feishu, NVIDIA, Programs}\*`、`C:\ProgramData\*`，以及 `[Insufficient Permissions]`
+   与路径不可得（无法归因）的条目 —— 一律 `guard_observation`。
+2. **abort 收敛**：新增进程 exe 路径**既不在**桌面/系统白名单、**也不在**仓库 `target\` 树下（且非本任务
+   exe）→ abort，并记录 `pid:name:path`。
+3. **内存守卫 + util 采样做主判据**：free < 10240 MiB、used 增量 ≥3072 MiB（或 >50% 取更严）；
+   另加「连续 ≥3 个采样点 util ≥80% 且本任务无正在执行的 GPU 步」→ abort（比进程名可靠）。
+4. **`mjwarp_rs-*` 通配的取舍显式化**：未显式给 `-OwnExeNames` 时退回通配，并在日志写
+   `guard_wildcard_tradeoff` 行——通配会放行其它任务的测试二进制（防误触），新窗口应**优先显式给本任务
+   exe 名**；这条不允许悄悄掩盖外来 GPU 负载。
+5. `-OwnGpuStepActive` 开关：窗口脚本在「本任务正在跑 GPU 步」的采样点传入，util 高不触发 abort；
+   本任务步间/空闲时 util 高才会触发。
+
+## 5. 边界
 
 - 本模板只定义「何时该停窗」，不改任何验收口径/判据/容差；
 - 既有各片 `run_window.ps1` 保留其历史证据语义，不回溯修改；后续新窗口默认引用本模板；
