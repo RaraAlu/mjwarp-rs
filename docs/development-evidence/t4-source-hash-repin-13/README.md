@@ -94,7 +94,7 @@
 **未改**：断言表达式/容差/排除清单、`src/**` 产品源码、内核 PTX、G01 脚本与 unchanged 保护路径、
 历史捕获产物（仅 previous-kernels 的身份记录同步，不重生成）。
 
-## 2. 仓库默认环境验收（r2 验收依据，Arch 复核）
+## 2. 仓库默认环境验收（**GNU 口径**；r2 验收依据，Arch 复核）
 
 Arch 在**仓库默认环境**下的独立复现：干净 target `target/arch-verify-clean`、HEAD `da12cc96`、
 **不带 G01 环境变量**。以下三条作为 r2 的验收依据：
@@ -213,3 +213,16 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast
 - 未改任何数值语义/判据/产品路径；不宣称 T4 全量准入或精度结论。
 - r2 验收 = 仓库默认环境（GNU）结果（§2）；显式 MSVC 构建的红数字保留作对照（§3.3）。
   **不宣称跨环境全量绿**；构建环境敏感性（数值机制）归诊断片。
+
+## 6. 口径注记（Chief 2026-10-25 要求）
+
+- 本片所有「门禁绿」均为 **GNU 口径**：`rust-toolchain.toml` 的 `channel = "1.99.0"` 在本机解析为
+  active `1.99.0-x86_64-pc-windows-gnu`，并叠加 `.cargo/config.toml` 的
+  `[target.x86_64-pc-windows-gnu] rustflags = ["-C","link-dead-code=yes"]`；`normify gate` 用该默认工具链。
+- **MSVC 口径下 G01 的 `host-msvc` 检查当前红**：`scripts/test-windows-g01.ps1` L40/L84 显式
+  `+1.99.0-x86_64-pc-windows-msvc`；Arch 独立复现
+  `+msvc test --locked --features native-model-probe,cuda-probe --lib` = **689 passed / 1 failed /
+  137 ignored**，唯一失败 `case_evidence::upstream_f32_within_4ulp`（frame `6.351978e-7`）。
+  这是既有问题、**不是 repin 的失败**，也不因 GNU 口径 gate 绿而消失。
+- 处置（改 gate 工具链 / 豁免 / 双 target 必过 / 修实现）属验收口径决策，等用户拍板；
+  本片未动 `gates.toml`、判据、容差、排除清单与 G01 脚本。
