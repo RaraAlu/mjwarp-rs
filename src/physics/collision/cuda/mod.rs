@@ -18,3 +18,8 @@ pub(crate) const COMMON_CUDA: &str = include_str!("common.cu");
 pub(crate) const GEOM_CUDA: &str = include_str!("geom.cu");
 /// 支撑点函数（与 host `gjk/support.rs` 逐式对应，含 mesh hillclimb）。
 pub(crate) const SUPPORT_CUDA: &str = include_str!("support.cu");
+
+/// GJK 距离子算法（与 host `gjk/simplex.rs` 逐式对应）。
+pub(crate) const SIMPLEX_CUDA: &str = include_str!("simplex.cu");
+/// GJK 主循环（与 host `gjk/core.rs` 逐式对应）。
+pub(crate) const GJK_CORE_CUDA: &str = include_str!("gjk_core.cu");
