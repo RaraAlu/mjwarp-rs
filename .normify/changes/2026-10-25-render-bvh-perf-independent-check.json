@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-render-bvh-perf-independent-check",
+  "title": {
+    "zh": "渲染/BVH 渲染 perf 独立复核（方法学/原始序列/显存/相对口径）",
+    "en": "Render/BVH render perf independent review (methodology, raw series, memory, relative-benchmark wording)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对渲染/BVH perf（eadae87，任务 2026-10-25-render-bvh-perf）做独立复核：独立重跑或独立复算计时（warmup/迭代、min·median·p95 是否由原始序列派生、两遍一致性）、独占窗口证据（compute-apps/显存采样）、显存口径（device_memory 峰值/每帧 free 无增长/destroy 后差值的解释）、是否只给相对基准且无绝对性能或跨硬件/上游比较声明、未测项（release/亚 100ms 峰值/nworld>1）是否如实；并核 S8 复核非阻断项修正（18ae715）是否真的补上判别力断言、provenance 无悬空、措辞不命中禁用词。GPU 30 分钟窗口；不改产品/夹具/原证据。",
+    "en": "Independent review of render/BVH perf (eadae87, task 2026-10-25-render-bvh-perf): rerun or recompute timing independently (warmup/iterations, whether min/median/p95 derive from the raw series, two-run consistency), exclusive-window evidence (compute-apps, memory sampling), memory accounting (device_memory peak, per-frame free without growth, explanation of the post-destroy delta), whether only relative benchmarks are claimed with no absolute or cross-hardware/upstream comparison, and whether untested items (release build, sub-100ms peak, nworld>1) are listed; also verify the S8 review non-blocking fixes (18ae715): discriminative assertion, no dangling provenance, no forbidden-term wording. 30-minute GPU window; no product/fixture/original-evidence changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "计时方法学独立复核：warmup=5、迭代=30 是否按声明执行；`raw-timings.json` 原始序列与 `official_summary` 是否同源（独立重算 min/median/p95 逐项一致）；两遍 A/B 一致性数值可复现；单帧/AA 的射线数与 spp 语义正确。",
+    "独占窗口：窗口起止 `--query-compute-apps` 无其它 CUDA 计算进程；GPU 显存采样与 report 一致（桌面→峰值→回基线）。",
+    "显存口径：device_memory 峰值 54 MiB 与每帧 free 序列无增长可复核；destroy 后 52 MiB 差值解释（驱动缓存一次性保留）与 S6b 先例一致、不构成泄漏；如 QA 能独立插桩请复核，否则明确写「依赖交付日志 + 交叉证据」的限制。",
+    "口径诚实性：receipt/README 只给「单场景单机相对基准」，不出现固定性能指标/绝对性能/跨硬件/上游比较；未测项（release、亚 100ms 峰值、nworld>1 等）如实列在 unmet。",
+    "S8 修正复核（18ae715）：反证①判别力断言存在且可判定（篡改夹具副本后 `compare_pose_bits` 非零）；`camlight-model.json` provenance 无悬空引用；README 措辞不命中禁用词表；S8 套件重跑数字不回归（位姿 0 位差、RGB/depth/seg 0 差异、哈希不变）。",
+    "证据/边界：perf 证据 8 文件哈希与 git blob 一致；`git diff c79805e..18ae715` 只动 perf 与 S8 修正路径；S2–S7 证据夹具、`launch.rs`、`src/render/bvh/**` 未改；GPU 30 分钟独占窗口（只约束 GPU），结束回桌面基线报无计算进程。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-render-bvh-perf"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perf-independent-check/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 55
+  },
+  "note": "Arch 2026-10-25 排程：perf 已 verified（eadae87），立即复核。重点：计时方法学与原始序列同源、独占窗口、显存口径解释、相对基准措辞、未测项；顺带核 18ae715 的 S8 复核修正（判别力断言/provenance/措辞）。这是 r01-p8 第 3 条「性能测试须独占GPU」补成满足的最后一块，复核通过后我更新收口汇总 perf 段。",
+  "revision": {
+    "before": "e1fc88df43db70845fa8c6ddbc286e8acfd9bb62",
+    "after": null
+  },
+  "created_at": "2026-10-25T14:10:00.000Z",
+  "updated_at": "2026-10-25T14:10:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perf-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-render-bvh-perf-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "绝对性能",
+        "上游等价"
+      ]
+    }
+  ]
+}
