@@ -114,14 +114,10 @@ pub fn compute_grad(
     let mut gradient = add3(grad2, grad1_transformed);
     let max_val = a_.max(b_);
     let max_grad = if a_ > b_ { grad1_transformed } else { grad2 };
-    // 上游 `wp.sign`：正 1、负 -1、零 0。
-    let sign = if max_val > 0.0 {
-        1.0
-    } else if max_val < 0.0 {
-        -1.0
-    } else {
-        0.0
-    };
+    // 上游 `wp.sign(max_val)`（pinned warp `include/warp-headers/builtin.h:765`：
+    // `x < 0 ? -1 : 1`）：`-0.0`/`0.0`/`NaN` → `+1`，负数 → `-1`。
+    // 旧实现手写 `>0→1, <0→-1, else→0` 在 max_val==0/NaN 时与上游不一致。
+    let sign = primitives::upstream_sign(max_val);
     gradient = add3(gradient, scale3(max_grad, sign));
     gradient
 }

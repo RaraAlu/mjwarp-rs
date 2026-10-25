@@ -5,7 +5,7 @@
     "zh": "G10@P5 G3 修正片：host SDF 原语 sign 语义对齐上游 wp.sign（-0.0/NaN → +1）",
     "en": "G10@P5 G3 fix slice: align host SDF primitive sign semantics with upstream wp.sign (-0.0/NaN to +1)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "修正 G3（`2026-10-25-g10-p5-sdf-host-r2`）遗留的 sign 语义偏差：G5 同类清扫发现 host `src/physics/collision/sdf/primitives.rs` 的径向场用 `f32::signum()`，它在 Rust 里对 `-0.0` 返回 `-1.0`、对 `NaN` 返回 `NaN`；而上游 pinned warp `include/warp-headers/builtin.h:765` 是 `sign(x) = x < 0 ? -1 : 1`（`-0.0`/`0.0`/`NaN` 全部 → `+1`），宿主 `gjk/math.rs::sign3` 亦为该语义。G3 的 `sdf-box` 80/80 位级未触发 `-0.0`/`NaN` 分支，故结论不受影响，但产品语义与上游不一致，属于同类风险点。本片把 host 原语改成上游语义、补 `-0.0`/`0.0`/`NaN`/负值 的定向单测，并重跑 G3 `sdf-box` 80/80 与 G4/G2 判据证明不回归；只在 G3 证据加注「sign 语义已修正、既有数值结论不变」，不改既有数值结论。",
     "en": "Fix the sign-semantics deviation left by G3 (task 2026-10-25-g10-p5-sdf-host-r2): the G5 same-class sweep found that host src/physics/collision/sdf/primitives.rs uses f32::signum() for the radial field, which returns -1.0 for -0.0 and NaN for NaN in Rust, while the pinned upstream warp include/warp-headers/builtin.h:765 defines sign(x) = x < 0 ? -1 : 1 (-0.0/0.0/NaN all map to +1), and host gjk/math.rs::sign3 already follows that. G3's sdf-box 80/80 bit-level never hit the -0.0/NaN branch, so its conclusions are unaffected, but the product semantics differ from upstream. This slice aligns the host primitive, adds targeted unit tests for -0.0/0.0/NaN/negative, and re-runs G3 sdf-box 80/80 plus the G4/G2 criteria to prove no regression; it only annotates G3 with a note that the sign semantics were corrected and the existing numbers are unchanged."
@@ -34,12 +34,12 @@
   },
   "note": "Arch 2026-10-25 裁决：Backend 在做 G5 的「零值语义」同类清扫时发现该点（G5 已修设备侧 `cuda/common.cu::v3_sign` 与 `cuda/sdf_math.cu` 3 处，提交 01690e53）。host 侧属于 G3 已验收范围，故不在 G5 里顺手改，单列 fix 片：改产品 + 补 `-0.0`/`NaN` 定向单测 + 重跑 `sdf-box` 80/80 与 G4/G2 判据。G3 结论预期不受影响（该 case 未触发 -0.0/NaN），但必须实测确认而不是推断。排在 G5 收口之后执行，不必开 GPU 窗口。",
   "revision": {
-    "before": "c34cf709938fc31841c5c59cd10da5713496bf54",
+    "before": "20cfe4e5f89cf247fa8fc3496a9e3c05d9ff9b30",
     "after": null
   },
   "created_at": "2026-10-25T18:30:00.000Z",
-  "updated_at": "2026-10-25T18:30:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T12:43:26.759Z",
+  "closed_at": "2026-10-25T12:43:26.759Z",
   "checks": [
     {
       "kind": "gate",

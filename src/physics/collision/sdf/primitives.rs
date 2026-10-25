@@ -93,13 +93,23 @@ pub fn cylinder(p: [f32; 3], size: Attr) -> f32 {
     dx.max(dy).min(0.0) + length3([dx.max(0.0), dy.max(0.0), 0.0])
 }
 
+/// 上游 `wp.sign` 语义（pinned warp `include/warp-headers/builtin.h:765`：
+/// `sign(x) = x < 0 ? -1 : 1`）：负数 → `-1`；`-0.0`/`0.0`/`NaN` → `+1`。
+///
+/// 不用 `f32::signum()`：Rust 对 `-0.0` 返回 `-1.0`、对 `NaN` 返回 `NaN`，与上游不符；
+/// 宿主 `gjk/math.rs::sign3` 已是该语义。`sdf/descent.rs::compute_grad` 复用本函数，
+/// 保证全链只有一份 sign 实现。
+pub(crate) fn upstream_sign(x: f32) -> f32 {
+    if x < 0.0 { -1.0 } else { 1.0 }
+}
+
 /// 内部径向场：`normalize(-size/a)` 后按点符号取向外方向。
 pub fn radial_field(a: [f32; 3], x: [f32; 3], size: Attr) -> [f32; 3] {
     let field = normalize3(cw_div3([-size[0], -size[1], -size[2]], a));
     [
-        field[0] * x[0].signum(),
-        field[1] * x[1].signum(),
-        field[2] * x[2].signum(),
+        field[0] * upstream_sign(x[0]),
+        field[1] * upstream_sign(x[1]),
+        field[2] * upstream_sign(x[2]),
     ]
 }
 
@@ -184,7 +194,7 @@ pub fn grad_cylinder(p: [f32; 3], size: Attr) -> [f32; 3] {
     } else {
         [0.0; 3]
     };
-    let w = [0.0, 0.0, p[2].signum()];
+    let w = [0.0, 0.0, upstream_sign(p[2])];
     let dx = radial_dist - r;
     let dy = p[2].abs() - h;
     if dx > 0.0 && dy > 0.0 {
@@ -206,5 +216,64 @@ pub fn grad_cylinder(p: [f32; 3], size: Attr) -> [f32; 3] {
         u
     } else {
         w
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 上游 `wp.sign` 全语义：负数 -1；`-0.0`/`0.0`/`NaN`/正数 → +1。
+    #[test]
+    fn upstream_sign_matches_warp_sign_semantics() {
+        assert_eq!(upstream_sign(-1.5), -1.0);
+        assert_eq!(upstream_sign(f32::NEG_INFINITY), -1.0);
+        assert_eq!(upstream_sign(0.0), 1.0);
+        assert_eq!(upstream_sign(-0.0), 1.0);
+        assert_eq!(upstream_sign(f32::NAN), 1.0);
+        assert_eq!(upstream_sign(2.5), 1.0);
+        assert_eq!(upstream_sign(f32::INFINITY), 1.0);
+    }
+
+    /// 反向判别力：修正前的 `f32::signum()` 在 `-0.0`/`NaN` 上与本片 `upstream_sign`
+    /// 相反/不同；若把产品实现退回 `signum()`，上面与下面的产品路径测试都会失败。
+    #[test]
+    fn pre_fix_signum_behaviour_differs_from_upstream() {
+        assert_eq!((-0.0_f32).signum(), -1.0); // Rust: -1；上游: +1
+        assert!((f32::NAN).signum().is_nan()); // Rust: NaN；上游: +1
+        assert_eq!((0.0_f32).signum(), 1.0); // 两者一致
+        assert_eq!((0.0_f32).signum(), upstream_sign(0.0));
+        assert_ne!((-0.0_f32).signum(), upstream_sign(-0.0));
+        assert_ne!((f32::NAN).signum(), upstream_sign(f32::NAN));
+    }
+
+    /// 产品路径反向判别力：`radial_field` 对 `-0.0`/`NaN` 取上游 +1；
+    /// 修正前 `signum()` 会让 `-0.0` 分量变号、`NaN` 分量变 NaN（本测试会失败）。
+    #[test]
+    fn radial_field_uses_upstream_sign_for_negative_zero_and_nan() {
+        let a = [-0.5, -0.5, -0.5];
+        let size = [1.0, 1.0, 1.0];
+        let positive = radial_field(a, [1.0, 1.0, 1.0], size);
+        let zero = radial_field(a, [-0.0, 0.0, -0.0], size);
+        assert_eq!(zero, positive, "±0.0 必须都取 +1");
+        let nan = radial_field(a, [f32::NAN, 0.0, -0.0], size);
+        assert_eq!(nan, positive, "NaN 必须取 +1，而不是传播 NaN");
+        let negative = radial_field(a, [-1.0, -2.0, -3.0], size);
+        assert_eq!(negative, [-positive[0], -positive[1], -positive[2]]);
+    }
+
+    /// 产品路径反向判别力：`grad_cylinder` 的轴向 `w` 对 `-0.0` 取 +1；
+    /// 修正前 `signum()` 返回 -1（本测试会失败）。
+    #[test]
+    fn grad_cylinder_uses_upstream_sign_for_negative_zero() {
+        // r > h 且点位于轴心：dx=-r、dy=-h，走 `else → w` 分支。
+        assert_eq!(
+            grad_cylinder([0.0, 0.0, -0.0], [2.0, 1.0, 1.0]),
+            [0.0, 0.0, 1.0]
+        );
+        assert_eq!(
+            grad_cylinder([0.0, 0.0, 0.0], [2.0, 1.0, 1.0]),
+            [0.0, 0.0, 1.0]
+        );
     }
 }

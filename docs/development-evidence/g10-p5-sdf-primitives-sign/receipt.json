@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-sdf-primitives-sign",
+  "status": "in_progress",
+  "outcome": "gate_passed_pending_commit",
+  "slice": "P5-G3-fix",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "scope": {
+    "files_changed": [
+      "src/physics/collision/sdf/primitives.rs（新增 upstream_sign；radial_field 3 处、grad_cylinder 1 处改用；+4 个单测）",
+      "src/physics/collision/sdf/descent.rs（compute_grad 手写 sign 改为 primitives::upstream_sign；同类缺陷一并修正，回归位级不变）"
+    ],
+    "evidence_dir": "docs/development-evidence/g10-p5-sdf-primitives-sign/",
+    "gpu_used": "未使用（纯 CPU，未开 GPU 窗口）",
+    "cargo_changed": false,
+    "python_in_product_tests": false
+  },
+  "verification": {
+    "defect": "host sdf/primitives.rs 用 f32::signum()（-0.0→-1、NaN→NaN），上游 pinned warp include/warp-headers/builtin.h:765 sign(x)=x<0?-1:1（-0.0/0.0/NaN→+1）；descent.rs::compute_grad 手写 sign 的零/NaN 分支同样与上游不符（0.0/NaN→0）",
+    "upstream_evidence": "builtin.h:765 原文；mujoco_warp/_src/collision_sdf.py L152-154（radial_field wp.sign）、L275（grad_cylinder wp.sign）、L629-630（compute_grad wp.sign）；host gjk/math.rs::sign3 已同语义",
+    "semantics_after": "upstream_sign：负数→-1；-0.0/0.0/NaN/正数→+1（唯一实现，radial_field/grad_cylinder/compute_grad 共用）",
+    "unit_tests": "cargo test --locked --lib physics::collision::sdf::primitives::tests → 4 passed / 0 failed（语义全表、改前 signum 对照、radial_field 的 -0.0/NaN 产品路径、grad_cylinder 的 -0.0）",
+    "reverse_discriminative": "pre_fix_reverse_check.ps1 用改前提交 23661557 的 primitives.rs（blob 34f7d1dd…）嵌入复算新增产品路径断言 → 3 条上游语义断言 FAIL + 负值对照 PASS（REVERSE_OK failures=3/3），改后同断言全 PASS；输出 pre-fix-check-output.txt",
+    "regression": {
+      "g3_sdf_box": "sdf-box count 80/80；dist 位等 80/80 max 0 ULP；pos max 0.00 ULP@尺度；frame 位等分量 720/720 max abs 0e0",
+      "g3_relmat": "cargo test --locked --test g10_p5_sdf_relmat → 4 passed；sdf-box 与 sdf-rot-ident/rot-sdf/rot-box/rot-both/rot-rz-rx 均 80/80 contacts bit-equal，dist/pos/frame max_abs 0e0",
+      "g2": "cargo test --locked --lib physics::collision::gjk::case_evidence → 3 passed / 2 ignored；五 case 仍 ≤4 ULP（ellipsoid-box pos max 2.00 ULP@尺度、frame 3.838112e-7；mesh-mesh dist 2 ULP；degenerate-mesh dist 1 ULP，与 G2 已验收一致）",
+      "g4": "cargo test --locked --lib physics::collision::hfield::tests → 3 passed / 1 ignored；hfield-box 8/8、hfield-sphere 8/8、hfield-capsule 7/7 全字段位级，dist 0 ULP、pos 0.00 ULP@尺度、frame 72/72·72/72·63/63，max abs 0e0",
+      "unit": "cargo test --locked --lib → 444 passed / 0 failed / 5 ignored（改前 440/5；+4 新语义测试）"
+    },
+    "g3_annotation": "normify fix 2026-10-25-g10-p5-sdf-host-r2 追加 addenda：sdf-box 未触发 -0.0/NaN 分支、G3 数值结论不变、host 原语 sign 已由本片修正；不改 G3 既有判据/数字",
+    "gate": "passed（fmt/clippy/clippy-cuda/unit 全绿，unit 592 过 0 败 = G6 基线 588 + 本片 4）"
+  },
+  "artifacts": {
+    "readme": "docs/development-evidence/g10-p5-sdf-primitives-sign/README.md",
+    "receipt": "docs/development-evidence/g10-p5-sdf-primitives-sign/receipt.json",
+    "pre_fix_check_output": "docs/development-evidence/g10-p5-sdf-primitives-sign/pre-fix-check-output.txt",
+    "pre_fix_reverse_check_script": "docs/development-evidence/g10-p5-sdf-primitives-sign/pre_fix_reverse_check.ps1"
+  },
+  "gate": "passed（fmt/clippy/clippy-cuda/unit 全绿，unit 592 过 0 败）",
+  "unmet": [
+    "本片只对齐前向 sign 语义；不表示接触字段精度已达标、不表示上游完全等价、不提供原生放行信号",
+    "wp.sign 的反向传播（上游 adj_sign 为空函数）与设备侧同类修正（G5 01690e53 已完成）不在本片范围",
+    "未改任何已 verified 证据数字、判据/容差、Cargo.*、fixtures/mjwarp-complex-physics/*.xml、S2–S8 证据"
+  ]
+}
