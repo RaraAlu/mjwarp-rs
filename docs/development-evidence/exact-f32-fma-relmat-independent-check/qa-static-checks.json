@@ -1,0 +1,96 @@
+{
+  "purpose": "path hit / seam boundary / G5 bitwise / diff scope / f64 audit cross-checks",
+  "asm": {
+    "gnu": {
+      "tag": "gnu",
+      "asm_file": "D:\\Rust\\mjwarp-rs\\target\\qa-fma-check\\probe\\asm-gnu.s",
+      "size_bytes": "100517",
+      "vfmadd231ss_matches": "1",
+      "first_hit_line": "1568",
+      "context": ["1564: \tmovss\t%xmm0, 4(%rsp)", "1565: \tmovss\t4(%rsp), %xmm0", "1566: \t#APP", "1567:", "1568: \tvfmadd231ss\t%xmm2, %xmm1, %xmm0", "1569:", "1570: \t#NO_APP", "1571: \tmovss\t%xmm0, 4(%rsp)", "1572: \tmovss\t4(%rsp), %xmm0"]
+    },
+    "msvc": {
+      "tag": "msvc",
+      "asm_file": "D:\\Rust\\mjwarp-rs\\target\\qa-fma-check\\probe\\asm-msvc.s",
+      "size_bytes": "116077",
+      "vfmadd231ss_matches": "1",
+      "first_hit_line": "1589",
+      "context": ["1585: \tmovss\t%xmm0, 4(%rsp)", "1586: \tmovss\t4(%rsp), %xmm0", "1587: \t#APP", "1588:", "1589: \tvfmadd231ss\t%xmm2, %xmm1, %xmm0", "1590:", "1591: \t#NO_APP", "1592: \tmovss\t%xmm0, 4(%rsp)", "1593: \tmovss\t4(%rsp), %xmm0"]
+    }
+  },
+  "binary_seam_scan": {
+    "product_debug": {
+      "path": "target/qa-fma-check/prod-debug/debug/mjwarp-rs.exe",
+      "contains_env": false
+    },
+    "product_release": {
+      "path": "target/qa-fma-check/prod-release/release/mjwarp-rs.exe",
+      "contains_env": false
+    },
+    "deps_exes": [
+      {"path": "target/qa-fma-check/tests/debug/deps/mjwarp_rs-47c815b8f45fd4d5.exe", "size": 20656234, "contains_env": false},
+      {"path": "target/qa-fma-check/tests/debug/deps/mjwarp_rs-bbf617de7cd0b294.exe", "size": 54796088, "contains_env": true}
+    ]
+  },
+  "seam_source_scan": {
+    "env_read_sites": ["src/math/fma.rs:122 (inside #[cfg(test)] mod test_seam)"],
+    "product_build_excludes_seam": "confirmed by product debug/release binary scan (contains_env=false)",
+    "test_harness_contains_env": "confirmed (54,796,088-byte lib test harness contains_env=true)",
+    "no_runtime_env_branch_in_product": true
+  },
+  "three_builds": {
+    "gnu-default": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=false",
+    "gnu-fma": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=false",
+    "msvc-default": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=false"
+  },
+  "g5_rerun": {
+    "lib-math-fma": {
+      "result_lines": ["test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 452 filtered out; finished in 0.77s"],
+      "sdf_lines": [],
+      "seam_lines": []
+    },
+    "lib-relmat": {
+      "result_lines": ["test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 454 filtered out; finished in 0.00s"],
+      "sdf_lines": [],
+      "seam_lines": []
+    },
+    "test-g10_p5_sdf_relmat": {
+      "result_lines": ["test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s"],
+      "sdf_lines": ["test sdf_box_g3_regression_remains_bitwise ... [SDF-rot] sdf-box(G3 回归): 80/80 contacts bit-equal | dist_max_abs 0e0 | pos_max_abs 0e0 | frame_max_abs 0e0", "test sdf_rotation_product_matches_upstream_f32_bitwise ... [SDF-rot] sdf-rot-ident: 80/80 contacts bit-equal | dist_max_abs 0e0 | pos_max_abs 0e0 | frame_max_abs 0e0", "[SDF-rot] sdf-rot-sdf: 80/80 contacts bit-equal | dist_max_abs 0e0 | pos_max_abs 0e0 | frame_max_abs 0e0", "[SDF-rot] sdf-rot-box: 80/80 contacts bit-equal | dist_max_abs 0e0 | pos_max_abs 0e0 | frame_max_abs 0e0", "[SDF-rot] sdf-rot-both: 80/80 contacts bit-equal | dist_max_abs 0e0 | pos_max_abs 0e0 | frame_max_abs 0e0", "[SDF-rot] sdf-rot-rz-rx: 80/80 contacts bit-equal | dist_max_abs 0e0 | pos_max_abs 0e0 | frame_max_abs 0e0", "test sdf_rotation_reference_encodes_upstream_rel_mat_convention ... [SDF-rot] rel_mat_warp aᵀb 位级 10/10 world；其中 8 world 与 bᵀa 可区分"],
+      "seam_lines": []
+    },
+    "test-g10_p5_sdf_host": {
+      "result_lines": ["test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s"],
+      "sdf_lines": [],
+      "seam_lines": []
+    },
+    "test-gjk_epa": {
+      "result_lines": ["test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s"],
+      "sdf_lines": [],
+      "seam_lines": []
+    },
+    "lib-math-fma-seam": {
+      "result_lines": ["test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 452 filtered out; finished in 0.77s"],
+      "sdf_lines": [],
+      "seam_lines": ["test math::fma::tests::forced_soft_seam_matches_hardware ... PATH cpuid_fma=true active_path=hardware", "SEAM forced_soft_from_env=true", "SEAM path=software(seam) samples=4154 mismatches=0 seam_digest=c0cf1bfdd35c42f9 hw_digest=c0cf1bfdd35c42f9"]
+    }
+  },
+  "diff_scope": {
+    "commit": "f0dceb5b",
+    "src_files_changed": ["src/math/fma.rs (new, 449 lines)", "src/math/fma/tests.rs (new, 377 lines)", "src/math/mod.rs (+2)", "src/physics/collision/relmat.rs (22 lines changed: removed private f64 fma helper, now uses crate::math::fma::fma_f32)", "src/render/bvh/aabb.rs (+6, comments only)"],
+    "polytope_rs_changed": false,
+    "megakernel_arrays_rs_changed": false,
+    "aabb_implementation_changed": false,
+    "criteria_tolerance_exclusions_gates_scripts_changed": false
+  },
+  "f64_audit": {
+    "delivery_audit_occurrences": 227,
+    "delivery_audit_classification": "allowed-test/diagnostic 158, allowed-diagnostic/check 30, allowed-ABI/type 13, allowed-PTX-gate 7, allowed-error-payload 7, allowed-ABI-conversion 4, allowed-readback 1, allowed-input-check 2, allowed-fixture-comment 3, fixed-this-slice 2, pending-review 0",
+    "independent_check": "added lines containing f64 in the commit are documentation only (fma.rs docs, aabb comment); fma.rs code has no f64; relmat f64 helper removed; contract NP01 note present at docs/numerical-precision-contract.md:346-348"
+  },
+  "integer_method_deviation": {
+    "registered": true,
+    "where": "src/math/fma.rs module doc '合规论证' section + README §10 + contract NP01 note",
+    "status": "Arch-accepted method deviation (integer exact simulation instead of Dekker/TwoSum)"
+  }
+}

@@ -5,7 +5,7 @@
     "zh": "精确 f32 FMA helper 与 relmat 契约修复的 QA 独立复核（探针/路径命中/seam 边界/G5 位级）",
     "en": "Independent check of the exact f32 FMA helper and the relmat contract fix"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 `2026-10-25-exact-f32-fma-relmat`（`f0dceb5b`）做独立复核：该片新增 `src/math/fma.rs` 目标无关精确 f32 FMA（主路 CPUID+`_mm_fmadd_ss`，兜底为**无 f64 的整数精确模拟**——相对验收原文「Dekker/TwoSum」属 Arch 已接受的方法偏离）并替换 `relmat.rs` 的 f64 仿真。复核方须自建探针（内联汇编参考，不复用交付探针/脚本）独立验证两路径 × 硬件 FMA 统计、路径命中证据、seam 门控边界（产品二进制不含 seam env）、G5 rel_mat/SDF 位级不变，并核偏离是否如实登记、判据/容差/已 verified 证据未被改动。",
     "en": "Independently verify the FMA helper (both paths vs inline-asm hardware reference), the path-hit evidence, the test-only seam boundary, and the bitwise-unchanged G5 results."
@@ -32,17 +32,29 @@
   },
   "note": "Arch 2026-10-25 预登记（实现片已 verified：`f0dceb5b`）。复核重点：兜底路径是否真被独立验证（seam）、主路是否真发出 FMA（防静默走兜底）、seam 是否真的产品不可用、G5 位级是否真不变。可与 faithful 影响面实测串行（同一 QA）。本片只需要 CPU，不要 GPU 窗口。",
   "revision": {
-    "before": "260e33718a78aaf3b59203fb76338d2272a3fc79",
+    "before": "e5d6998ed819f0228d03224d5577cc5a00f90f76",
     "after": null
   },
   "created_at": "2026-10-25T18:50:00.000Z",
-  "updated_at": "2026-10-25T18:50:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T18:35:20.008Z",
+  "closed_at": "2026-10-25T18:35:20.008Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "json",
       "path": "docs/development-evidence/exact-f32-fma-relmat-independent-check/receipt.json",

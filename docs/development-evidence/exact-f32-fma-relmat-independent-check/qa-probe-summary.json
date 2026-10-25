@@ -1,0 +1,446 @@
+{
+  "purpose": "independent probe of src/math/fma.rs: dispatch path vs seam-forced software path vs inline-asm hardware FMA",
+  "probe_source": "probe/qa_fma_probe.rs (self-written; does not use src/math/fma/tests.rs)",
+  "snapshot": "probe/fma_snapshot.rs = mechanical copy of src/math/fma.rs with leading '//!' -> '//' only (see probe/qa-fma-snapshot.json)",
+  "reference": "inline asm vfmadd231ss (hardware IEEE FMA); no #[target_feature] wrapper",
+  "generator": {
+    "lcg_mult": "6364136223846793005",
+    "lcg_inc": "1442695040888963407",
+    "lcg_seed": "0x2026102500000001",
+    "mapping": "f32(top24(state))/2^24*3-1 in [-1,2)"
+  },
+  "sizes": {
+    "generated": [4096, 1000000],
+    "boundary_cases": 46
+  },
+  "builds": {
+    "gnu-default": {
+      "plain": {
+        "info": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=false",
+        "seam_env_check": "SEAM_ENV_CHECK seam_env=false fma_f32(0,1,-1)_bits=bf800000 hw_bits=bf800000 equal=true",
+        "stats": {
+          "dispatch_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "dispatch_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "seam_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "seam_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "soft_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "soft_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "boundary_dispatch": {
+            "n": 46,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cbf29ce484222325"
+          },
+          "boundary_seam": {
+            "n": 46,
+            "diffs": 8,
+            "max_ulp": 9223372036854775807,
+            "digest": "ceba1e3024220456"
+          },
+          "muladd_4096": {
+            "n": 4096,
+            "diffs": 1025,
+            "max_ulp": 1,
+            "digest": "814ad2aebd3658c4"
+          },
+          "dispatch_vs_seam_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          }
+        },
+        "boundary_mismatches": ["BOUNDARY_MISMATCH name=zero_product_neg_c a_bits=00000000 b_bits=3f800000 c_bits=bf800000 got_bits=4f3f8000 want_bits=bf800000", "BOUNDARY_MISMATCH name=negzero_times_one_plus_two a_bits=80000000 b_bits=3f800000 c_bits=40000000 got_bits=4e800000 want_bits=40000000", "BOUNDARY_MISMATCH name=one_times_zero_plus_five a_bits=3f800000 b_bits=00000000 c_bits=40a00000 got_bits=4e814000 want_bits=40a00000", "BOUNDARY_MISMATCH name=zero_times_negone_plus_half a_bits=00000000 b_bits=bf800000 c_bits=3f000000 got_bits=4e7c0000 want_bits=3f000000", "BOUNDARY_MISMATCH name=zero_b_zero_c_nonzero a_bits=00000000 b_bits=80000000 c_bits=3f800000 got_bits=4e7e0000 want_bits=3f800000", "BOUNDARY_MISMATCH name=c_inf_finite_ab a_bits=3f800000 b_bits=40000000 c_bits=7f800000 got_bits=4eff0000 want_bits=7f800000", "BOUNDARY_MISMATCH name=c_neg_inf_finite_ab a_bits=3f800000 b_bits=40000000 c_bits=ff800000 got_bits=4f7f8000 want_bits=ff800000", "BOUNDARY_MISMATCH name=zero_a_c_inf a_bits=00000000 b_bits=3f800000 c_bits=7f800000 got_bits=4eff0000 want_bits=7f800000"],
+        "relmat_chain": ["RELMAT_CHAIN name=identity_x_identity cells_mismatched=2/9 hw_cell0=3f800000 seam_cell0=4e9cfc00", "RELMAT_CHAIN name=rz90_x_identity cells_mismatched=2/9 hw_cell0=00000000 seam_cell0=00000000", "RELMAT_CHAIN name=rz90_x_rz90 cells_mismatched=2/9 hw_cell0=3f800000 seam_cell0=4e7e0000", "RELMAT_CHAIN name=ry45_x_rz90 cells_mismatched=3/9 hw_cell0=00000000 seam_cell0=00000000"],
+        "summary": "SUMMARY dispatch_1e6_diffs=0 seam_1e6_diffs=0 soft_1e6_diffs=0 boundary_dispatch=0 boundary_seam=8 muladd_diffs=1025 cross=0"
+      },
+      "seam_env": {
+        "info": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=true",
+        "seam_env_check": "SEAM_ENV_CHECK seam_env=true fma_f32(0,1,-1)_bits=4f3f8000 hw_bits=bf800000 equal=false",
+        "stats": {
+          "dispatch_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "dispatch_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "seam_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "seam_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "soft_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "soft_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "boundary_dispatch": {
+            "n": 46,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cbf29ce484222325"
+          },
+          "boundary_seam": {
+            "n": 46,
+            "diffs": 8,
+            "max_ulp": 9223372036854775807,
+            "digest": "ceba1e3024220456"
+          },
+          "muladd_4096": {
+            "n": 4096,
+            "diffs": 1025,
+            "max_ulp": 1,
+            "digest": "814ad2aebd3658c4"
+          },
+          "dispatch_vs_seam_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          }
+        },
+        "boundary_mismatches": ["BOUNDARY_MISMATCH name=zero_product_neg_c a_bits=00000000 b_bits=3f800000 c_bits=bf800000 got_bits=4f3f8000 want_bits=bf800000", "BOUNDARY_MISMATCH name=negzero_times_one_plus_two a_bits=80000000 b_bits=3f800000 c_bits=40000000 got_bits=4e800000 want_bits=40000000", "BOUNDARY_MISMATCH name=one_times_zero_plus_five a_bits=3f800000 b_bits=00000000 c_bits=40a00000 got_bits=4e814000 want_bits=40a00000", "BOUNDARY_MISMATCH name=zero_times_negone_plus_half a_bits=00000000 b_bits=bf800000 c_bits=3f000000 got_bits=4e7c0000 want_bits=3f000000", "BOUNDARY_MISMATCH name=zero_b_zero_c_nonzero a_bits=00000000 b_bits=80000000 c_bits=3f800000 got_bits=4e7e0000 want_bits=3f800000", "BOUNDARY_MISMATCH name=c_inf_finite_ab a_bits=3f800000 b_bits=40000000 c_bits=7f800000 got_bits=4eff0000 want_bits=7f800000", "BOUNDARY_MISMATCH name=c_neg_inf_finite_ab a_bits=3f800000 b_bits=40000000 c_bits=ff800000 got_bits=4f7f8000 want_bits=ff800000", "BOUNDARY_MISMATCH name=zero_a_c_inf a_bits=00000000 b_bits=3f800000 c_bits=7f800000 got_bits=4eff0000 want_bits=7f800000"],
+        "relmat_chain": ["RELMAT_CHAIN name=identity_x_identity cells_mismatched=2/9 hw_cell0=3f800000 seam_cell0=4e9cfc00", "RELMAT_CHAIN name=rz90_x_identity cells_mismatched=2/9 hw_cell0=00000000 seam_cell0=00000000", "RELMAT_CHAIN name=rz90_x_rz90 cells_mismatched=2/9 hw_cell0=3f800000 seam_cell0=4e7e0000", "RELMAT_CHAIN name=ry45_x_rz90 cells_mismatched=3/9 hw_cell0=00000000 seam_cell0=00000000"],
+        "summary": "SUMMARY dispatch_1e6_diffs=0 seam_1e6_diffs=0 soft_1e6_diffs=0 boundary_dispatch=0 boundary_seam=8 muladd_diffs=1025 cross=0"
+      }
+    },
+    "gnu-fma": {
+      "plain": {
+        "info": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=false",
+        "seam_env_check": "SEAM_ENV_CHECK seam_env=false fma_f32(0,1,-1)_bits=bf800000 hw_bits=bf800000 equal=true",
+        "stats": {
+          "dispatch_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "dispatch_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "seam_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "seam_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "soft_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "soft_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "boundary_dispatch": {
+            "n": 46,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cbf29ce484222325"
+          },
+          "boundary_seam": {
+            "n": 46,
+            "diffs": 8,
+            "max_ulp": 9223372036854775807,
+            "digest": "ceba1e3024220456"
+          },
+          "muladd_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "dispatch_vs_seam_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          }
+        },
+        "boundary_mismatches": ["BOUNDARY_MISMATCH name=zero_product_neg_c a_bits=00000000 b_bits=3f800000 c_bits=bf800000 got_bits=4f3f8000 want_bits=bf800000", "BOUNDARY_MISMATCH name=negzero_times_one_plus_two a_bits=80000000 b_bits=3f800000 c_bits=40000000 got_bits=4e800000 want_bits=40000000", "BOUNDARY_MISMATCH name=one_times_zero_plus_five a_bits=3f800000 b_bits=00000000 c_bits=40a00000 got_bits=4e814000 want_bits=40a00000", "BOUNDARY_MISMATCH name=zero_times_negone_plus_half a_bits=00000000 b_bits=bf800000 c_bits=3f000000 got_bits=4e7c0000 want_bits=3f000000", "BOUNDARY_MISMATCH name=zero_b_zero_c_nonzero a_bits=00000000 b_bits=80000000 c_bits=3f800000 got_bits=4e7e0000 want_bits=3f800000", "BOUNDARY_MISMATCH name=c_inf_finite_ab a_bits=3f800000 b_bits=40000000 c_bits=7f800000 got_bits=4eff0000 want_bits=7f800000", "BOUNDARY_MISMATCH name=c_neg_inf_finite_ab a_bits=3f800000 b_bits=40000000 c_bits=ff800000 got_bits=4f7f8000 want_bits=ff800000", "BOUNDARY_MISMATCH name=zero_a_c_inf a_bits=00000000 b_bits=3f800000 c_bits=7f800000 got_bits=4eff0000 want_bits=7f800000"],
+        "relmat_chain": ["RELMAT_CHAIN name=identity_x_identity cells_mismatched=2/9 hw_cell0=3f800000 seam_cell0=4e9cfc00", "RELMAT_CHAIN name=rz90_x_identity cells_mismatched=2/9 hw_cell0=00000000 seam_cell0=00000000", "RELMAT_CHAIN name=rz90_x_rz90 cells_mismatched=2/9 hw_cell0=3f800000 seam_cell0=4e7e0000", "RELMAT_CHAIN name=ry45_x_rz90 cells_mismatched=3/9 hw_cell0=00000000 seam_cell0=00000000"],
+        "summary": "SUMMARY dispatch_1e6_diffs=0 seam_1e6_diffs=0 soft_1e6_diffs=0 boundary_dispatch=0 boundary_seam=8 muladd_diffs=0 cross=0"
+      },
+      "seam_env": {
+        "info": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=true",
+        "seam_env_check": "SEAM_ENV_CHECK seam_env=true fma_f32(0,1,-1)_bits=4f3f8000 hw_bits=bf800000 equal=false",
+        "stats": {
+          "dispatch_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "dispatch_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "seam_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "seam_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "soft_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "soft_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "boundary_dispatch": {
+            "n": 46,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cbf29ce484222325"
+          },
+          "boundary_seam": {
+            "n": 46,
+            "diffs": 8,
+            "max_ulp": 9223372036854775807,
+            "digest": "ceba1e3024220456"
+          },
+          "muladd_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "dispatch_vs_seam_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          }
+        },
+        "boundary_mismatches": ["BOUNDARY_MISMATCH name=zero_product_neg_c a_bits=00000000 b_bits=3f800000 c_bits=bf800000 got_bits=4f3f8000 want_bits=bf800000", "BOUNDARY_MISMATCH name=negzero_times_one_plus_two a_bits=80000000 b_bits=3f800000 c_bits=40000000 got_bits=4e800000 want_bits=40000000", "BOUNDARY_MISMATCH name=one_times_zero_plus_five a_bits=3f800000 b_bits=00000000 c_bits=40a00000 got_bits=4e814000 want_bits=40a00000", "BOUNDARY_MISMATCH name=zero_times_negone_plus_half a_bits=00000000 b_bits=bf800000 c_bits=3f000000 got_bits=4e7c0000 want_bits=3f000000", "BOUNDARY_MISMATCH name=zero_b_zero_c_nonzero a_bits=00000000 b_bits=80000000 c_bits=3f800000 got_bits=4e7e0000 want_bits=3f800000", "BOUNDARY_MISMATCH name=c_inf_finite_ab a_bits=3f800000 b_bits=40000000 c_bits=7f800000 got_bits=4eff0000 want_bits=7f800000", "BOUNDARY_MISMATCH name=c_neg_inf_finite_ab a_bits=3f800000 b_bits=40000000 c_bits=ff800000 got_bits=4f7f8000 want_bits=ff800000", "BOUNDARY_MISMATCH name=zero_a_c_inf a_bits=00000000 b_bits=3f800000 c_bits=7f800000 got_bits=4eff0000 want_bits=7f800000"],
+        "relmat_chain": ["RELMAT_CHAIN name=identity_x_identity cells_mismatched=2/9 hw_cell0=3f800000 seam_cell0=4e9cfc00", "RELMAT_CHAIN name=rz90_x_identity cells_mismatched=2/9 hw_cell0=00000000 seam_cell0=00000000", "RELMAT_CHAIN name=rz90_x_rz90 cells_mismatched=2/9 hw_cell0=3f800000 seam_cell0=4e7e0000", "RELMAT_CHAIN name=ry45_x_rz90 cells_mismatched=3/9 hw_cell0=00000000 seam_cell0=00000000"],
+        "summary": "SUMMARY dispatch_1e6_diffs=0 seam_1e6_diffs=0 soft_1e6_diffs=0 boundary_dispatch=0 boundary_seam=8 muladd_diffs=0 cross=0"
+      }
+    },
+    "msvc-default": {
+      "plain": {
+        "info": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=false",
+        "seam_env_check": "SEAM_ENV_CHECK seam_env=false fma_f32(0,1,-1)_bits=bf800000 hw_bits=bf800000 equal=true",
+        "stats": {
+          "dispatch_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "dispatch_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "seam_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "seam_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "soft_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "soft_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "boundary_dispatch": {
+            "n": 46,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cbf29ce484222325"
+          },
+          "boundary_seam": {
+            "n": 46,
+            "diffs": 8,
+            "max_ulp": 9223372036854775807,
+            "digest": "ceba1e3024220456"
+          },
+          "muladd_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "dispatch_vs_seam_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          }
+        },
+        "boundary_mismatches": ["BOUNDARY_MISMATCH name=zero_product_neg_c a_bits=00000000 b_bits=3f800000 c_bits=bf800000 got_bits=4f3f8000 want_bits=bf800000", "BOUNDARY_MISMATCH name=negzero_times_one_plus_two a_bits=80000000 b_bits=3f800000 c_bits=40000000 got_bits=4e800000 want_bits=40000000", "BOUNDARY_MISMATCH name=one_times_zero_plus_five a_bits=3f800000 b_bits=00000000 c_bits=40a00000 got_bits=4e814000 want_bits=40a00000", "BOUNDARY_MISMATCH name=zero_times_negone_plus_half a_bits=00000000 b_bits=bf800000 c_bits=3f000000 got_bits=4e7c0000 want_bits=3f000000", "BOUNDARY_MISMATCH name=zero_b_zero_c_nonzero a_bits=00000000 b_bits=80000000 c_bits=3f800000 got_bits=4e7e0000 want_bits=3f800000", "BOUNDARY_MISMATCH name=c_inf_finite_ab a_bits=3f800000 b_bits=40000000 c_bits=7f800000 got_bits=4eff0000 want_bits=7f800000", "BOUNDARY_MISMATCH name=c_neg_inf_finite_ab a_bits=3f800000 b_bits=40000000 c_bits=ff800000 got_bits=4f7f8000 want_bits=ff800000", "BOUNDARY_MISMATCH name=zero_a_c_inf a_bits=00000000 b_bits=3f800000 c_bits=7f800000 got_bits=4eff0000 want_bits=7f800000"],
+        "relmat_chain": ["RELMAT_CHAIN name=identity_x_identity cells_mismatched=2/9 hw_cell0=3f800000 seam_cell0=4e9cfc00", "RELMAT_CHAIN name=rz90_x_identity cells_mismatched=2/9 hw_cell0=00000000 seam_cell0=00000000", "RELMAT_CHAIN name=rz90_x_rz90 cells_mismatched=2/9 hw_cell0=3f800000 seam_cell0=4e7e0000", "RELMAT_CHAIN name=ry45_x_rz90 cells_mismatched=3/9 hw_cell0=00000000 seam_cell0=00000000"],
+        "summary": "SUMMARY dispatch_1e6_diffs=0 seam_1e6_diffs=0 soft_1e6_diffs=0 boundary_dispatch=0 boundary_seam=8 muladd_diffs=0 cross=0"
+      },
+      "seam_env": {
+        "info": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=true",
+        "seam_env_check": "SEAM_ENV_CHECK seam_env=true fma_f32(0,1,-1)_bits=4f3f8000 hw_bits=bf800000 equal=false",
+        "stats": {
+          "dispatch_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "dispatch_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "seam_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "seam_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "soft_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "soft_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          },
+          "boundary_dispatch": {
+            "n": 46,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cbf29ce484222325"
+          },
+          "boundary_seam": {
+            "n": 46,
+            "diffs": 8,
+            "max_ulp": 9223372036854775807,
+            "digest": "ceba1e3024220456"
+          },
+          "muladd_4096": {
+            "n": 4096,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "94042172a0100abf"
+          },
+          "dispatch_vs_seam_1e6": {
+            "n": 1000000,
+            "diffs": 0,
+            "max_ulp": 0,
+            "digest": "cd439a5ae1784d4f"
+          }
+        },
+        "boundary_mismatches": ["BOUNDARY_MISMATCH name=zero_product_neg_c a_bits=00000000 b_bits=3f800000 c_bits=bf800000 got_bits=4f3f8000 want_bits=bf800000", "BOUNDARY_MISMATCH name=negzero_times_one_plus_two a_bits=80000000 b_bits=3f800000 c_bits=40000000 got_bits=4e800000 want_bits=40000000", "BOUNDARY_MISMATCH name=one_times_zero_plus_five a_bits=3f800000 b_bits=00000000 c_bits=40a00000 got_bits=4e814000 want_bits=40a00000", "BOUNDARY_MISMATCH name=zero_times_negone_plus_half a_bits=00000000 b_bits=bf800000 c_bits=3f000000 got_bits=4e7c0000 want_bits=3f000000", "BOUNDARY_MISMATCH name=zero_b_zero_c_nonzero a_bits=00000000 b_bits=80000000 c_bits=3f800000 got_bits=4e7e0000 want_bits=3f800000", "BOUNDARY_MISMATCH name=c_inf_finite_ab a_bits=3f800000 b_bits=40000000 c_bits=7f800000 got_bits=4eff0000 want_bits=7f800000", "BOUNDARY_MISMATCH name=c_neg_inf_finite_ab a_bits=3f800000 b_bits=40000000 c_bits=ff800000 got_bits=4f7f8000 want_bits=ff800000", "BOUNDARY_MISMATCH name=zero_a_c_inf a_bits=00000000 b_bits=3f800000 c_bits=7f800000 got_bits=4eff0000 want_bits=7f800000"],
+        "relmat_chain": ["RELMAT_CHAIN name=identity_x_identity cells_mismatched=2/9 hw_cell0=3f800000 seam_cell0=4e9cfc00", "RELMAT_CHAIN name=rz90_x_identity cells_mismatched=2/9 hw_cell0=00000000 seam_cell0=00000000", "RELMAT_CHAIN name=rz90_x_rz90 cells_mismatched=2/9 hw_cell0=3f800000 seam_cell0=4e7e0000", "RELMAT_CHAIN name=ry45_x_rz90 cells_mismatched=3/9 hw_cell0=00000000 seam_cell0=00000000"],
+        "summary": "SUMMARY dispatch_1e6_diffs=0 seam_1e6_diffs=0 soft_1e6_diffs=0 boundary_dispatch=0 boundary_seam=8 muladd_diffs=0 cross=0"
+      }
+    }
+  },
+  "delivery_claim_compare": {
+    "delivery_dispatch_4096_1e6_boundary": "0 mismatches (three builds)",
+    "mine_dispatch_4096_1e6": "0 mismatches in all three builds (matches)",
+    "mine_boundary_dispatch": "0 / 46 (matches)",
+    "delivery_soft_boundary": "0 mismatches on its 58-case set",
+    "mine_seam_forced_boundary": "8 / 46 mismatches in all three builds (CONTRADICTS the delivery claim)",
+    "delivery_seam_test": "samples=4154 mismatches=0 (its own boundary set does not include the failing classes)"
+  }
+}

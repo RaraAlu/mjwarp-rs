@@ -1,0 +1,41 @@
+{
+  "id": "F1",
+  "severity": "blocking (before fix); fixed and reverified in 3b7db351",
+  "status": "fixed",
+  "fix_commit": "3b7db351",
+  "summary": "software fallback of src/math/fma.rs violated IEEE single-rounding FMA for zero-product and c=inf classes: `c.bits as f32` was a numeric u32->f32 cast instead of a bit reinterpretation",
+  "sites": ["src/math/fma.rs:158 (c == Inf branch)", "src/math/fma.rs:169 (a or b zero branch)"],
+  "sites_after_fix": ["src/math/fma.rs:158 -> f32::from_bits(c.bits)", "src/math/fma.rs:169 -> f32::from_bits(c.bits)"],
+  "minimal_repro": {
+    "call": "fma_f32(0.0, 1.0, -1.0)",
+    "expected": "0xbf800000 (-1.0)",
+    "before_fix_got": "0x4f3f8000 (~3.2e9)",
+    "after_fix_got": "0xbf800000 (all three builds; seam on and off)"
+  },
+  "boundary_mismatches_46_before_fix": 8,
+  "boundary_mismatches_46_after_fix": 0,
+  "boundary_mismatch_cases_before_fix": ["zero_product_neg_c a=00000000 b=3f800000 c=bf800000 got=4f3f8000 want=bf800000", "negzero_times_one_plus_two a=80000000 b=3f800000 c=40000000 got=4e800000 want=40000000", "one_times_zero_plus_five a=3f800000 b=00000000 c=40a00000 got=4e814000 want=40a00000", "zero_times_negone_plus_half a=00000000 b=bf800000 c=3f000000 got=4e7c0000 want=3f000000", "zero_b_zero_c_nonzero a=00000000 b=80000000 c=3f800000 got=4e7e0000 want=3f800000", "c_inf_finite_ab a=3f800000 b=40000000 c=7f800000 got=4eff0000 want=7f800000", "c_neg_inf_finite_ab a=3f800000 b=40000000 c=ff800000 got=4f7f8000 want=ff800000", "zero_a_c_inf a=00000000 b=3f800000 c=7f800000 got=4eff0000 want=7f800000"],
+  "relmat_chain_impact_before_fix": "same 3-FMA k-ascending chain as relmat::upstream_relative_matrix, software path: identity x identity 2/9 cells, rz90 x identity 2/9, rz90 x rz90 2/9, ry45 x rz90 3/9 cells corrupted",
+  "relmat_chain_after_fix": "0/9 cells for all four matrix pairs, all three builds (qa-probe-summary-postfix.json)",
+  "impact_scope": "this machine (FMA3) always uses the hardware dispatch -> shipped G5 results unchanged before and after the fix; a real non-FMA machine would run this fallback for every call and corrupt rel_mat before the fix",
+  "delivery_claim_contradicted_before_fix": "README/receipt claimed 0/0/0 for both paths on their 58-case boundary set; their set had (0,0,0) and (0,1,-0) but no zero-a/b with finite non-zero c and no finite-a/b with c=inf, so it missed both bug classes. Recorded as a historical fact; the fixed delivery now has a 77-case set.",
+  "fix": {
+    "change": "return c.bits as f32; -> return f32::from_bits(c.bits); (2 sites); boundary set 58 -> 77; new default-gate test soft_fma_exact_bits_by_edge_class (16 cases, direct soft_fma, no env/seam/hardware dependency)",
+    "commit": "3b7db351",
+    "verified_on_snapshot_copy_before_fix": {
+      "result": "boundary_seam 0/46, all relmat-chain samples 0 mismatched, dispatch/seam random 0/1e6; product tree was NOT modified",
+      "record": "qa-fix-hypothesis.json (probe-fixed/)"
+    },
+    "reverified_on_fixed_tree": {
+      "probe": "probe-postfix/qa_fma_probe.rs on a mechanical snapshot of the fixed src/math/fma.rs",
+      "boundary_seam": "0/46 in GNU default, GNU +fma, MSVC (was 8/46 in all three before)",
+      "boundary_dispatch": "0/46 (unchanged)",
+      "relmat_chain": "0/9 for identity x identity, rz90 x identity, rz90 x rz90, ry45 x rz90",
+      "random": "dispatch/seam/soft 4096 and 1e6: 0 differences; dispatch vs seam 1e6: 0",
+      "digest_unchanged_vs_prefix": {"4096": "94042172a0100abf", "1e6": "cd439a5ae1784d4f"},
+      "default_gate_edge_class_test": "1 passed / 0 failed with env unset; 16/16 case lines OK",
+      "g5_rerun": "fma 7/0, relmat 4/0, sdf_relmat 4/0 (10/10 world, 6 bitwise 80/80 lines, max_abs 0e0), sdf_host 1/0, gjk_epa 3/0, seam run 7/0",
+      "records": ["qa-probe-summary-postfix.json", "qa-g5-postfix.json", "qa-static-checks-postfix.json", "probe-logs-postfix/", "logs-postfix/"]
+    }
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-exact-f32-fma-relmat-independent-check",
+  "subject_task": "2026-10-25-exact-f32-fma-relmat",
+  "subject_commit": "f0dceb5b",
+  "fix_commit": "3b7db351",
+  "role": "QA",
+  "status": "independent_check_pass_f1_fixed_and_reverified",
+  "review_head": "3b7db351",
+  "nature": "CPU-only independent check; self-written probe with inline-asm hardware reference; clean targets; product/criteria/tolerance/gates untouched; no GPU window",
+  "verdict": {
+    "result": "pass",
+    "blocking": 0,
+    "findings": 1,
+    "finding_status": "fixed in 3b7db351 and independently reverified (was the only blocking finding)",
+    "observations": 7,
+    "delivered_hardware_path_claims_verified": true,
+    "delivered_fallback_claim_was_falsified_before_fix": true,
+    "delivered_fallback_reverified_after_fix": true
+  },
+  "finding": {
+    "id": "F1",
+    "severity": "blocking (before fix)",
+    "title": "software fallback used `c.bits as f32` (u32->f32 numeric cast) instead of `f32::from_bits(c.bits)`; IEEE single-rounding contract broken for zero-product and c=Inf classes",
+    "sites_before_fix": ["src/math/fma.rs:158", "src/math/fma.rs:169"],
+    "sites_after_fix": ["src/math/fma.rs:158 (f32::from_bits)", "src/math/fma.rs:169 (f32::from_bits)"],
+    "minimal_repro": {
+      "call": "fma_f32(0.0, 1.0, -1.0)",
+      "expected_bits": "bf800000",
+      "before_fix_got_bits": "4f3f8000",
+      "after_fix_got_bits": "bf800000"
+    },
+    "boundary_mismatches_before_fix": "8 / 46 self-built cases, identical in GNU default, GNU +fma and MSVC builds, via seam-forced software path; hardware dispatch path 0/46",
+    "boundary_mismatches_after_fix": "0 / 46 in all three builds (my own rerun), dispatch 0/46; relmat 3-FMA chain 2/9, 2/9, 2/9, 3/9 -> 0/9 all",
+    "contradicts_delivery_before_fix": "delivery README/receipt claimed 0 differences on both paths for 4096 + 1e6 + its 58-case boundary set; that set did not include either bug class. Recorded as historical fact.",
+    "product_impact_now": "this machine FMA3 -> product uses the hardware dispatch; shipped G5 numbers and my G5 rerun are unchanged",
+    "product_impact_non_fma": "a real non-FMA machine would run the fallback for every call; relmat chains contain exact zeros -> identity x identity 2/9, rz90 x rz90 2/9, ry45 x rz90 3/9 cells were corrupted before the fix, 0/9 after",
+    "fix": "3b7db351: two lines -> f32::from_bits(c.bits); boundary set 58 -> 77; new default-gate test soft_fma_exact_bits_by_edge_class (16 cases, direct soft_fma, no env/seam)",
+    "record": "qa-finding.json"
+  },
+  "fix_reverification": {
+    "probe": "probe-postfix/qa_fma_probe.rs (same self-written probe as the prefix check; does not use src/math/fma/tests.rs)",
+    "snapshot": "probe-postfix/fma_snapshot.rs = mechanical copy of the fixed src/math/fma.rs (459 lines, 39 '//!' -> '//' rewrites, 0 unexpected diffs; qa-static-checks-postfix.json)",
+    "builds": ["gnu-default", "gnu-fma", "msvc-default"],
+    "paths": ["dispatch (hardware)", "seam-forced software", "direct soft_fma"],
+    "sizes": {"generated": [4096, 1000000], "boundary_cases": 46},
+    "before_vs_after": {
+      "boundary_seam_mismatches": {"gnu-default": [8, 0], "gnu-fma": [8, 0], "msvc-default": [8, 0]},
+      "boundary_dispatch_mismatches": {"gnu-default": [0, 0], "gnu-fma": [0, 0], "msvc-default": [0, 0]},
+      "relmat_chain_cells_mismatched": {
+        "before": {"identity_x_identity": 2, "rz90_x_identity": 2, "rz90_x_rz90": 2, "ry45_x_rz90": 3},
+        "after": {"identity_x_identity": 0, "rz90_x_identity": 0, "rz90_x_rz90": 0, "ry45_x_rz90": 0}
+      },
+      "random_dispatch_1e6_diffs": 0,
+      "random_seam_1e6_diffs": 0,
+      "dispatch_vs_seam_1e6_diffs": 0
+    },
+    "digest_unchanged_vs_prefix": {"4096": "94042172a0100abf", "1e6": "cd439a5ae1784d4f"},
+    "discrimination_self_check": "GNU default f32::mul_add vs hardware FMA 1025/4096; GNU +fma and MSVC 0/4096",
+    "asm_after_fix": {"gnu_vfmadd231ss_hits": 1, "msvc_vfmadd231ss_hits": 1},
+    "default_gate_edge_class_test": "1 passed / 0 failed with MJWARP_FORCE_SOFT_FMA unset; 16 F1 case lines all OK, 0 FAIL",
+    "g5_rerun_after_fix": "math::fma 7/0, relmat 4/0, g10_p5_sdf_relmat 4/0 (rel_mat 10/10 world, 6 bitwise 80/80 lines, max_abs 0e0), sdf_host 1/0, gjk_epa 3/0, seam run 7/0",
+    "binary_seam_scan_after_fix": {"product_debug_contains_env": false, "product_release_contains_env": false, "lib_test_harness_contains_env": true},
+    "records": ["qa-probe-summary-postfix.json", "qa-g5-postfix.json", "qa-static-checks-postfix.json", "probe-logs-postfix/", "logs-postfix/"]
+  },
+  "verified_delivery_claims": {
+    "probe_4096_1e6_dispatch_vs_hw_fma": "0 differences (three builds, my own probe) - confirmed before and after the fix",
+    "three_builds_cpuid_fma_true_active_path_hardware": "confirmed by my probe INFO lines in GNU default / GNU +fma / MSVC builds (before and after fix)",
+    "asm_contains_vfmadd231ss": "confirmed: 1 hit in GNU asm and 1 in MSVC asm of the product snapshot, non-test build (before and after fix)",
+    "seam_test_only": "confirmed after the fix: env string absent in rebuilt product debug (20,656,234 B) and release (2,590,274 B) exes; present in the 54,819,147-byte lib test harness; env seam behaviourally switches dispatch",
+    "no_runtime_env_branch_in_product": "confirmed by source (env read only inside #[cfg(test)] mod test_seam; fma_f32 seam branch cfg(test)-gated) and by binary scan",
+    "default_gate_covers_fallback": "confirmed by my own clean-target run of soft_fma_exact_bits_by_edge_class with env unset: 1 passed, 16/16 cases OK",
+    "g5_bitwise_unchanged": "confirmed by clean-target reruns after the fix: fma 7/0, relmat 4/0, sdf_relmat 4/0 (rel_mat 10/10, 6 bitwise 80/80 lines, max_abs 0), sdf_host 1/0, gjk_epa 3/0",
+    "f64_audit_and_method_deviation": "confirmed: 227 occurrences classified, no new product-chain f64, integer-simulation deviation registered in module docs + README 10 + contract NP01 note",
+    "diff_boundary": "confirmed: fix commit 3b7db351 touches only src/math/fma.rs (2 lines), src/math/fma/tests.rs (+84), its evidence/.normify; no gates/scripts/G01/criteria/tolerance/Cargo changes; polytope.rs / megakernel_arrays.rs untouched"
+  },
+  "probe": {
+    "source_prefix": "probe/qa_fma_probe.rs (before-fix snapshot probe)",
+    "source_postfix": "probe-postfix/qa_fma_probe.rs (same probe, fixed snapshot)",
+    "snapshot": "mechanical '//!' -> '//' only; prefix 39 lines, postfix 39 lines; audits in qa-fma-snapshot*.json + qa-static-checks-postfix.json",
+    "reference": "inline asm vfmadd231ss",
+    "generator": {"lcg_mult": 6364136223846793005, "lcg_inc": 1442695040888963407, "lcg_seed": "0x2026102500000001"},
+    "sizes": {"generated": [4096, 1000000], "boundary_cases": 46},
+    "builds": ["gnu-default", "gnu-fma", "msvc-default"],
+    "summary_files": ["qa-probe-summary.json (before)", "qa-probe-summary-postfix.json (after)"]
+  },
+  "static_checks": {
+    "files": ["qa-static-checks.json (before)", "qa-static-checks-postfix.json (after)"],
+    "bits_as_f32_after_fix": 0,
+    "from_bits_after_fix": 7,
+    "env_reads_in_fma_rs": "1, inside #[cfg(test)] mod test_seam (L115-135); fma_f32 seam branch cfg(test)-gated (L76)",
+    "binary_seam_scan": {"product_debug_contains_env": false, "product_release_contains_env": false, "lib_test_harness_contains_env": true},
+    "asm_vfmadd": {"gnu": 1, "msvc": 1},
+    "g5_rerun_all_pass": true
+  },
+  "my_gate": {
+    "command": "normify gate 2026-10-25-exact-f32-fma-relmat-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "head": "3b7db351",
+    "fmt": "pass", "clippy": "pass", "clippy_cuda": "pass",
+    "unit": "604 passed / 0 failed / 7 ignored",
+    "gate_exit": 0,
+    "check": "normify check ... : all checks passed, exit 0",
+    "check_exit": 0,
+    "runs": ".normify/runs/2026-10-25-exact-f32-fma-relmat-independent-check/",
+    "note": "gate/check executed on the main tree after the evidence dir was frozen; raw stdout kept in target/qa-fma-check/gate-check/ (not committed) because the gate scope is this evidence dir"
+  },
+  "boundaries": {
+    "real_non_fma_machine": "not available; fallback semantics exercised via test seam + the new default-gate direct-soft_fma test",
+    "nan_payload": "not used as bit criterion",
+    "gpu_linux": "not run",
+    "product_tree_modified": false,
+    "fix_verification": "on the fixed product tree (3b7db351); the before-fix hypothesis was verified on a mechanical snapshot copy only",
+    "claims": "reports which delivered claims hold and which do not; no cross-machine/cross-platform all-green claim"
+  },
+  "observations": [
+    "historical: delivery 58-case boundary set missed both F1 classes; fixed in 3b7db351 (now 77 cases)",
+    "historical, still open: delivery seam-boundary.log lacks the harness contains_env=true line; my independent scan supplies it",
+    "historical, closed: delivery README 1 target_feature description was stale; 3b7db351 corrected it to asm-only",
+    "historical, mitigated: the old seam test stayed green (4154 samples) and could not catch F1; the new default-gate edge-class test (16 cases) covers it and I reverified it runs with env unset",
+    "historical: clippy does not flag u32->f32 numeric casts; default-gate test now covers this class; keep the from_bits review point",
+    "new: delivery README 11 / commit message say 17 cases but the test actually has 16 (README 11 later says 16 too); documentation count inconsistency only",
+    "kept: NaN payload not used as a bit criterion; soft_fma returns canonical f32::NAN while hardware may return a signed/payload quiet NaN"
+  ],
+  "evidence_files": [
+    "README.md", "receipt.json", "artifacts-sha256.json",
+    "qa-finding.json", "qa-probe-summary.json", "qa-static-checks.json", "qa-fix-hypothesis.json",
+    "qa-probe-summary-postfix.json", "qa-static-checks-postfix.json", "qa-g5-postfix.json",
+    "asm-vfmadd-gnu.txt", "asm-vfmadd-msvc.txt", "asm-vfmadd-gnu-postfix.txt", "asm-vfmadd-msvc-postfix.txt",
+    "probe-build-info.txt", "probe-build-info-postfix.txt",
+    "probe/", "probe-fixed/", "probe-postfix/", "probe-logs/", "probe-logs-postfix/", "logs/", "logs-postfix/",
+    "run_probe.ps1", "run_g5_and_builds.ps1", "run_probe_postfix.ps1", "run_g5_and_builds_postfix.ps1",
+    "qa_scan_seam_binary_postfix.ps1", "run_gate_check.ps1",
+    "qa_make_snapshot.py", "qa_make_snapshot_postfix.py", "qa_summarize.py", "qa_summarize_postfix.py",
+    "qa_static_checks_postfix.py", "qa_fix_hypothesis.py", "qa_artifacts_sha256.py"
+  ]
+}

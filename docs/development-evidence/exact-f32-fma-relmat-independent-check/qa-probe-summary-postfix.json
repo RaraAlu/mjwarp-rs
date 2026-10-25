@@ -1,0 +1,472 @@
+{
+  "purpose": "post-fix independent probe of src/math/fma.rs (F1 fixed): dispatch vs seam-forced fallback vs inline-asm hardware FMA",
+  "tree": {
+    "git_head": "3b7db351bcf32050ee65f95debdc6d35cdc5febb",
+    "fix_commit": "3b7db351",
+    "src_math_fma_sha256": "3c865f4b5bfc9d96c97409ed7d0fd22b019c42cea4b17d950b1325ed17a2486b"
+  },
+  "probe_source": "probe-postfix/qa_fma_probe.rs (same self-written probe as the prefix check; does not use src/math/fma/tests.rs)",
+  "snapshot": "probe-postfix/fma_snapshot.rs = mechanical copy of the FIXED src/math/fma.rs, leading '//!' -> '//' only, 39 lines; audit in qa-static-checks-postfix.json",
+  "reference": "inline asm vfmadd231ss",
+  "generator": {
+    "lcg_mult": "6364136223846793005",
+    "lcg_inc": "1442695040888963407",
+    "lcg_seed": "0x2026102500000001",
+    "mapping": "f32(top24(state))/2^24*3-1 in [-1,2)"
+  },
+  "sizes": {
+    "generated": [
+      4096,
+      1000000
+    ],
+    "boundary_cases": 46
+  },
+  "after_postfix_check": {
+    "gnu-default": {
+      "plain": {
+        "info": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=false",
+        "seam_env_check": "SEAM_ENV_CHECK seam_env=false fma_f32(0,1,-1)_bits=bf800000 hw_bits=bf800000 equal=true",
+        "dispatch_4096": {
+          "n": 4096,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "94042172a0100abf"
+        },
+        "dispatch_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "seam_4096": {
+          "n": 4096,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "94042172a0100abf"
+        },
+        "seam_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "soft_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "boundary_dispatch": {
+          "n": 46,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cbf29ce484222325"
+        },
+        "boundary_seam": {
+          "n": 46,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cbf29ce484222325"
+        },
+        "dispatch_vs_seam_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "muladd_4096_diffs": 1025,
+        "summary": "SUMMARY dispatch_1e6_diffs=0 seam_1e6_diffs=0 soft_1e6_diffs=0 boundary_dispatch=0 boundary_seam=0 muladd_diffs=1025 cross=0",
+        "relmat_chain": [
+          "RELMAT_CHAIN name=identity_x_identity cells_mismatched=0/9 hw_cell0=3f800000 seam_cell0=3f800000",
+          "RELMAT_CHAIN name=rz90_x_identity cells_mismatched=0/9 hw_cell0=00000000 seam_cell0=00000000",
+          "RELMAT_CHAIN name=rz90_x_rz90 cells_mismatched=0/9 hw_cell0=3f800000 seam_cell0=3f800000",
+          "RELMAT_CHAIN name=ry45_x_rz90 cells_mismatched=0/9 hw_cell0=00000000 seam_cell0=00000000"
+        ],
+        "boundary_mismatches": []
+      },
+      "seam_env": {
+        "info": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=true",
+        "seam_env_check": "SEAM_ENV_CHECK seam_env=true fma_f32(0,1,-1)_bits=bf800000 hw_bits=bf800000 equal=true",
+        "dispatch_4096": {
+          "n": 4096,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "94042172a0100abf"
+        },
+        "dispatch_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "seam_4096": {
+          "n": 4096,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "94042172a0100abf"
+        },
+        "seam_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "soft_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "boundary_dispatch": {
+          "n": 46,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cbf29ce484222325"
+        },
+        "boundary_seam": {
+          "n": 46,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cbf29ce484222325"
+        },
+        "dispatch_vs_seam_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "muladd_4096_diffs": 1025,
+        "summary": "SUMMARY dispatch_1e6_diffs=0 seam_1e6_diffs=0 soft_1e6_diffs=0 boundary_dispatch=0 boundary_seam=0 muladd_diffs=1025 cross=0",
+        "relmat_chain": [
+          "RELMAT_CHAIN name=identity_x_identity cells_mismatched=0/9 hw_cell0=3f800000 seam_cell0=3f800000",
+          "RELMAT_CHAIN name=rz90_x_identity cells_mismatched=0/9 hw_cell0=00000000 seam_cell0=00000000",
+          "RELMAT_CHAIN name=rz90_x_rz90 cells_mismatched=0/9 hw_cell0=3f800000 seam_cell0=3f800000",
+          "RELMAT_CHAIN name=ry45_x_rz90 cells_mismatched=0/9 hw_cell0=00000000 seam_cell0=00000000"
+        ],
+        "boundary_mismatches": []
+      }
+    },
+    "gnu-fma": {
+      "plain": {
+        "info": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=false",
+        "seam_env_check": "SEAM_ENV_CHECK seam_env=false fma_f32(0,1,-1)_bits=bf800000 hw_bits=bf800000 equal=true",
+        "dispatch_4096": {
+          "n": 4096,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "94042172a0100abf"
+        },
+        "dispatch_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "seam_4096": {
+          "n": 4096,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "94042172a0100abf"
+        },
+        "seam_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "soft_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "boundary_dispatch": {
+          "n": 46,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cbf29ce484222325"
+        },
+        "boundary_seam": {
+          "n": 46,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cbf29ce484222325"
+        },
+        "dispatch_vs_seam_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "muladd_4096_diffs": 0,
+        "summary": "SUMMARY dispatch_1e6_diffs=0 seam_1e6_diffs=0 soft_1e6_diffs=0 boundary_dispatch=0 boundary_seam=0 muladd_diffs=0 cross=0",
+        "relmat_chain": [
+          "RELMAT_CHAIN name=identity_x_identity cells_mismatched=0/9 hw_cell0=3f800000 seam_cell0=3f800000",
+          "RELMAT_CHAIN name=rz90_x_identity cells_mismatched=0/9 hw_cell0=00000000 seam_cell0=00000000",
+          "RELMAT_CHAIN name=rz90_x_rz90 cells_mismatched=0/9 hw_cell0=3f800000 seam_cell0=3f800000",
+          "RELMAT_CHAIN name=ry45_x_rz90 cells_mismatched=0/9 hw_cell0=00000000 seam_cell0=00000000"
+        ],
+        "boundary_mismatches": []
+      },
+      "seam_env": {
+        "info": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=true",
+        "seam_env_check": "SEAM_ENV_CHECK seam_env=true fma_f32(0,1,-1)_bits=bf800000 hw_bits=bf800000 equal=true",
+        "dispatch_4096": {
+          "n": 4096,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "94042172a0100abf"
+        },
+        "dispatch_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "seam_4096": {
+          "n": 4096,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "94042172a0100abf"
+        },
+        "seam_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "soft_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "boundary_dispatch": {
+          "n": 46,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cbf29ce484222325"
+        },
+        "boundary_seam": {
+          "n": 46,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cbf29ce484222325"
+        },
+        "dispatch_vs_seam_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "muladd_4096_diffs": 0,
+        "summary": "SUMMARY dispatch_1e6_diffs=0 seam_1e6_diffs=0 soft_1e6_diffs=0 boundary_dispatch=0 boundary_seam=0 muladd_diffs=0 cross=0",
+        "relmat_chain": [
+          "RELMAT_CHAIN name=identity_x_identity cells_mismatched=0/9 hw_cell0=3f800000 seam_cell0=3f800000",
+          "RELMAT_CHAIN name=rz90_x_identity cells_mismatched=0/9 hw_cell0=00000000 seam_cell0=00000000",
+          "RELMAT_CHAIN name=rz90_x_rz90 cells_mismatched=0/9 hw_cell0=3f800000 seam_cell0=3f800000",
+          "RELMAT_CHAIN name=ry45_x_rz90 cells_mismatched=0/9 hw_cell0=00000000 seam_cell0=00000000"
+        ],
+        "boundary_mismatches": []
+      }
+    },
+    "msvc-default": {
+      "plain": {
+        "info": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=false",
+        "seam_env_check": "SEAM_ENV_CHECK seam_env=false fma_f32(0,1,-1)_bits=bf800000 hw_bits=bf800000 equal=true",
+        "dispatch_4096": {
+          "n": 4096,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "94042172a0100abf"
+        },
+        "dispatch_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "seam_4096": {
+          "n": 4096,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "94042172a0100abf"
+        },
+        "seam_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "soft_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "boundary_dispatch": {
+          "n": 46,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cbf29ce484222325"
+        },
+        "boundary_seam": {
+          "n": 46,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cbf29ce484222325"
+        },
+        "dispatch_vs_seam_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "muladd_4096_diffs": 0,
+        "summary": "SUMMARY dispatch_1e6_diffs=0 seam_1e6_diffs=0 soft_1e6_diffs=0 boundary_dispatch=0 boundary_seam=0 muladd_diffs=0 cross=0",
+        "relmat_chain": [
+          "RELMAT_CHAIN name=identity_x_identity cells_mismatched=0/9 hw_cell0=3f800000 seam_cell0=3f800000",
+          "RELMAT_CHAIN name=rz90_x_identity cells_mismatched=0/9 hw_cell0=00000000 seam_cell0=00000000",
+          "RELMAT_CHAIN name=rz90_x_rz90 cells_mismatched=0/9 hw_cell0=3f800000 seam_cell0=3f800000",
+          "RELMAT_CHAIN name=ry45_x_rz90 cells_mismatched=0/9 hw_cell0=00000000 seam_cell0=00000000"
+        ],
+        "boundary_mismatches": []
+      },
+      "seam_env": {
+        "info": "test qa_exact_fma_probe ... INFO cpuid_fma=true active_path=hardware seam_env=true",
+        "seam_env_check": "SEAM_ENV_CHECK seam_env=true fma_f32(0,1,-1)_bits=bf800000 hw_bits=bf800000 equal=true",
+        "dispatch_4096": {
+          "n": 4096,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "94042172a0100abf"
+        },
+        "dispatch_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "seam_4096": {
+          "n": 4096,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "94042172a0100abf"
+        },
+        "seam_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "soft_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "boundary_dispatch": {
+          "n": 46,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cbf29ce484222325"
+        },
+        "boundary_seam": {
+          "n": 46,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cbf29ce484222325"
+        },
+        "dispatch_vs_seam_1e6": {
+          "n": 1000000,
+          "diffs": 0,
+          "max_ulp": 0,
+          "digest": "cd439a5ae1784d4f"
+        },
+        "muladd_4096_diffs": 0,
+        "summary": "SUMMARY dispatch_1e6_diffs=0 seam_1e6_diffs=0 soft_1e6_diffs=0 boundary_dispatch=0 boundary_seam=0 muladd_diffs=0 cross=0",
+        "relmat_chain": [
+          "RELMAT_CHAIN name=identity_x_identity cells_mismatched=0/9 hw_cell0=3f800000 seam_cell0=3f800000",
+          "RELMAT_CHAIN name=rz90_x_identity cells_mismatched=0/9 hw_cell0=00000000 seam_cell0=00000000",
+          "RELMAT_CHAIN name=rz90_x_rz90 cells_mismatched=0/9 hw_cell0=3f800000 seam_cell0=3f800000",
+          "RELMAT_CHAIN name=ry45_x_rz90 cells_mismatched=0/9 hw_cell0=00000000 seam_cell0=00000000"
+        ],
+        "boundary_mismatches": []
+      }
+    }
+  },
+  "before_vs_after": {
+    "boundary_seam_mismatches": {
+      "gnu-default": {
+        "before": 8,
+        "after": 0
+      },
+      "gnu-fma": {
+        "before": 8,
+        "after": 0
+      },
+      "msvc-default": {
+        "before": 8,
+        "after": 0
+      }
+    },
+    "boundary_dispatch_mismatches": {
+      "gnu-default": {
+        "before": 0,
+        "after": 0
+      },
+      "gnu-fma": {
+        "before": 0,
+        "after": 0
+      },
+      "msvc-default": {
+        "before": 0,
+        "after": 0
+      }
+    },
+    "relmat_chain_cells_mismatched": {
+      "gnu-default": {
+        "before": {
+          "identity_x_identity": 2,
+          "rz90_x_identity": 2,
+          "rz90_x_rz90": 2,
+          "ry45_x_rz90": 3
+        },
+        "after": {
+          "identity_x_identity": 0,
+          "rz90_x_identity": 0,
+          "rz90_x_rz90": 0,
+          "ry45_x_rz90": 0
+        }
+      },
+      "gnu-fma": {
+        "before": {
+          "identity_x_identity": 2,
+          "rz90_x_identity": 2,
+          "rz90_x_rz90": 2,
+          "ry45_x_rz90": 3
+        },
+        "after": {
+          "identity_x_identity": 0,
+          "rz90_x_identity": 0,
+          "rz90_x_rz90": 0,
+          "ry45_x_rz90": 0
+        }
+      },
+      "msvc-default": {
+        "before": {
+          "identity_x_identity": 2,
+          "rz90_x_identity": 2,
+          "rz90_x_rz90": 2,
+          "ry45_x_rz90": 3
+        },
+        "after": {
+          "identity_x_identity": 0,
+          "rz90_x_identity": 0,
+          "rz90_x_rz90": 0,
+          "ry45_x_rz90": 0
+        }
+      }
+    }
+  }
+}
