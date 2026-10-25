@@ -239,3 +239,19 @@
 - **NVRTC 产品 launcher 未接线**：本窗口用 nvcc 独立探针跑判据数字；`src/runtime/collision_gpu.rs`
   与 ignored 产品入口单列后续 launcher 小片。
 - 性能 benchmark 未跑（归 G6）；Linux/T4 未验证；GPU 结果不外推跨硬件结论。
+### 11.4 ellipsoid-box 三方对照（2026-10-25 追加，CPU-only）
+
+同一探针输入（`gpu-window/cases/ellipsoid-box/`）下：
+
+| 对比 | dist | pos | frame |
+| --- | --- | --- | --- |
+| ②上游 CPU vs ③上游 CUDA（`ellipsoid-box-cpu-capture.json`） | ≤2 ULP（1.86e-9） | 7.45e-9 | 8.19e-7 |
+| ①宿主 `ccd_pair` vs ②上游 CPU | **0（位级）** | 7.45e-9 | 3.84e-7 |
+| ①宿主 `ccd_pair` vs ③上游 CUDA | 2 ULP | 7.45e-9 | 8.19e-7 |
+| **设备探针 vs ③上游 CUDA** | **47 ULP（4.4e-8）** | **8.3e-5** | 1.17e-6 |
+
+结论（Arch 已确认定性）：**设备侧结构/分支差异**，不是 fma 收缩差（设备 pos 差 ≈11,000× 上游 CPU/GPU
+自身差）、不是输入口径、不是 nvcc vs CUDA 12.9 编译差。目标参考锁定**上游 CUDA（G0b fixtures）**。
+下一步：设备探针 dump 中间量（`dist`/`x1`/`x2`/EPA `face_idx`/`normal`），与宿主/上游 CPU 同一中间量
+逐项比，找第一个先偏的量后按 PTX/上游表达式定序修；不放宽容差、不跳过 case。宿主诊断测试
+`ellipsoid_box_host_ccd_pair_vs_cuda_reference`（ignored）保留于 `tests/g10_p5_gpu_kernels.rs`。
