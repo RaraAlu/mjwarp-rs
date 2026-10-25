@@ -14,7 +14,8 @@
   "acceptance": [
     "**环境矩阵复现**：至少三个环境各跑同一命令——① Arch 的全新 `CARGO_TARGET_DIR`（仓库默认 env，无 G01 变量）；② Backend 的 `target/verify-clean-001`（它报三配置均红的那套）；③ 主 `target/`（已知产物混杂）。逐环境记录：exit、lib passed/failed/ignored、`case_evidence` 的 frame 实测值或原始 panic 行、以及该环境的关键编译输入（`rustc -V`/`cargo -V`、`RUSTFLAGS`、`CARGO_*` 环境变量、`--release`/profile、target triple）。",
     "**归因**：解释同一源码为何产生 pass/fail 两种结果——检查是否由编译选项/环境变量（如 opt-level、target-cpu、debug-assertions、FMA 收缩）、工具链差异、或**产物复用/指纹错乱**（旧二进制被匹配）导致；给出最小差分实验（如固定环境 + 强制全量重建后复跑两侧）与结论。若机制仍不明确，如实写「机制未定」并列出已排除项。",
-    "**产物可信度**：核查 `target/debug/deps` 下同 crate 多二进制（体积 10.6 MB vs 54.6 MB、`ctime 13:04` 等异常）来源：`cargo` 指纹、`.rustc_info.json`、构建日志、是否有手工替换/复制；给**如何判定「某次测试结果对应的是当前源码的产物」**的可执行方法（供 gate/复核使用）。",
+    "**「干净构建」判定标准（Chief 2026-10-25 定的通用教训，本片必须写入 README 并作为后续证据模板）**：一个构建环境只有**同时**满足——① 新建**专用** `CARGO_TARGET_DIR`（不与主 `target/` 或其它配置共用）、② 清空 `CARGO_*`/`RUST*` 相关环境变量（记录清空前后）、③ 记录该目录的 deps 文件数、`rustc -vV`/`cargo -V` 与目标三元组——才算 clean。**复用带多套配置的目录不算 clean**（反面案例：`verify-clean-001` 的 `debug/deps` 有 1557 个文件，而真正全新目录仅 295 个）。",
+    "**产物可信度**：核查 `target/debug/deps` 下同 crate 多二进制（体积 10.6 MB vs 54.6 MB、`ctime 13:04` 等异常）来源：`cargo` 指纹、`.rustc_info.json`、构建日志、是否有手工替换/复制；给**如何判定「某次测试结果对应的是当前源码的产物」**的可执行方法（供 gate/复核使用）。**注意**：Rust debug 构建**不以位级可复现为目标**（路径/时间戳/调试信息差异导致同输入不同 sha），因此「产物 sha 一致」不能作为确定性判据；应以「clean 判据 + 行为一致（exit/结果行）」为准。",
     "**候选处置（不实施）**：列出可选项与影响面——① 统一并在门禁/复核中固定构建环境（清空可疑 `CARGO_*`/`RUSTFLAGS`、强制重建）；② 规范 `target/` 与产物可信度检查（如 gate 前校验二进制年龄与源码戳）；③ 判据/容差调整（**需用户拍板**）；④ 若确为真实数值问题需修实现。本片不决定处置、不改任何判据/容差/排除清单。",
     "**证据**：`docs/development-evidence/case-evidence-frame-diagnosis/`（README + receipt 含 task_id + 各环境日志），行数 ≤500、UTF-8 无 BOM、无 `.bin/.pyc`；不宣称「物理整体通过/精度达标」等；不改已 verified 证据。"
   ],
