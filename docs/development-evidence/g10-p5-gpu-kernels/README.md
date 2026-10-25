@@ -138,3 +138,39 @@
 - 应用点：SDF 设备内核的 `rel_mat`、hfield 设备侧 `rot = relative_matrix(hf_mat, rot2)` 均已走该实现。
 - 边界：这是「设备/host 参考函数与 warp 位型一致」的证据；**G3/G4 产品 host 路径的修正仍归
   `2026-10-25-g10-p5-sdf-relmat-fix`（排队等 G5 收口）**，本片不改 `sdf/descent.rs`、`hfield/driver.rs`。
+
+## 10. 第五批（增量提交 5/5）：接触写入/容量截断 + `nworld` 上传布局
+
+| 文件 | 内容 |
+| --- | --- |
+| `src/physics/collision/cuda/contact.cu`（新） | 上游 `collision_core.py::write_contact` 设备版：`active`/`detected`/`condim` 覆盖规则、`ContactType.CONSTRAINT/SENSOR` 位、`pairid` 跳过规则、`cid=atomicAdd(nacon)` 后**先判 `cid < naconmax` 再写**（不越界写）、`geomcollisionid=id_`（对内序号）、`efc_address` 全写 `-1`（宽度=`nmaxpyramid` 由调用方给）；`g5_claim_ccd_slot`：`nccd[geomgeomid]` 原子计数 + `ccdid >= naccdmax` → `OverflowType.CCD`（不越界用 EPA 缓冲）；`g5_ccd_pair_write`：上游 `eval_ccd_write_contact` 子集（margin 覆盖、`cutoff=sensor?1e32:gap`、原点平移、GJK→EPA、gap 早退、`dist += margin`、frame 符号规则、`0.5*(w1+w2)+origin`、单接触写入）；`g5_hfield_write_contacts`：hfield 0..3 接触逐个写 + 溢出位汇总 |
+| `src/physics/collision/cuda/mod.rs` | 追加 `CONTACT_CUDA` 常量 |
+| `src/runtime/collision_upload.rs`（新） | `CollisionUploadPlan`：G1 体积/SDF 模型字段**一份共享 payload**（16 字节对齐、字段顺序固定、f64→f32 只走 G1 唯一转换点）+ `pack()`；`ContactCapacity`：上游实测容量口径（`naconmax/naccdmax` 全局总量 = `nconmax/nccdmax × nworld`、接触行**全局编号**、`efc_address` 宽度 `max(1, 2*(nmaxcondim-1))`） |
+| `src/runtime/mod.rs` | 注册 `collision_upload`（`pub(crate)`） |
+
+### 10.1 `nworld>1` 上传口径的实测修正（重要）
+
+- G1 §6 写的是：体积/SDF 模型字段共享一份缓冲；接触容量「每 world 的 `naconmax` 分段布局、
+  kernel 按 world 计算行偏移」。
+- **前半段与上游一致**：`io.py`/`types.py` 里 `hfield_size: array("nhfield", wp.vec4)`、
+  `oct_aabb: array("noct", 2, wp.vec3)` 等模型字段形状都不带 world 维 → 一份共享缓冲。
+- **后半段与上游不符**：上游 `nacon: array(1)` 是**全局**单计数器（`types.py` 描述
+  "number of detected contacts (across all worlds)"、形状 `(1,)`），接触数组形状
+  `(naconmax, ...)`、行号由 `wp.atomic_add(nacon, 0, 1)` **全局**分配，world 归属靠
+  `contact_worldid` 字段；`naconmax` 是全部 world 的总行数（`nconmax * nworld` 只是默认换算），
+  **没有**逐 world 行分段/行偏移。`naccdmax` 同理全局总量，`nccd` 按 `geomgeomid` 分组计数、
+  截断判据 `ccdid >= naccdmax`。
+  证据：`io.py:2390`（`d.nacon = wp.array([mjd.ncon * nworld])`）、`types.py:2408`、
+  `io.py:1977`（`contact.efc_address = full((naconmax, nmaxpyramid), -1)`）、
+  `io.py:1915`（`naccdmax = _resolve_batch_size(naccdmax, nccdmax, nworld, naconmax)`）。
+- 本片代码与证据按**上游实测**实现（`ContactCapacity::contact_row_for_world` 返回全局 `cid`，
+  注释写明无 world 偏移），建议 Arch 在 G1 证据 §6 追加注记（不改 G1 数值结论）。
+
+- 验证（CPU 侧，无 GPU 计算）：`nvcc -std=c++17 -Xcompiler /utf-8 -arch=sm_89 -c contact.cu` 通过；
+  `cargo test --locked --lib collision_upload` **6/6 过**（共享布局与 world 数无关、全局行号、
+  容量换算/非法配置拒绝、payload 位级等于 G1 转换点、字段名映射 G1 字段表）；
+  `cargo check --locked --features cuda-probe --lib` 通过。
+- 口径：仅「与上游逐式对应 + 编译通过 + 布局单测」；**正式判据（接触数组/截断/多世界结构对
+  同配方上游 f32 GPU）待窗口**。
+- 本批未实装：multicontact 设备版（box/mesh/cylinder 组合的多接触仍是单接触，见 unmet）；
+  宿主 launcher 与真实设备上传/回读归 GPU 窗口阶段。

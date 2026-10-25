@@ -43,3 +43,7 @@ pub(crate) const SDF_NARROWPHASE_CUDA: &str = include_str!("sdf_narrowphase.cu")
 /// hfield prism CCD（与 host `hfield/filter.rs` + `hfield/driver.rs` 对应：
 /// `_hfield_filter` 粗筛、prism 六顶点、`ccd()` 组合、0..3 四接触 + `MJ_MAXCONPAIR` 溢出）。
 pub(crate) const HFIELD_CUDA: &str = include_str!("hfield.cu");
+/// 接触写入与容量门（与上游 `collision_core.py::write_contact` +
+/// `collision_convex.py::eval_ccd_write_contact` 对应：`worldid`/`efc_address`/`OverflowType`、
+/// `naconmax`/`naccdmax` 截断不越界）。
+pub(crate) const CONTACT_CUDA: &str = include_str!("contact.cu");

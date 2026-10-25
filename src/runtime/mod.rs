@@ -55,6 +55,9 @@ mod run;
 #[cfg(test)]
 mod tests;
 
+/// G5：碰撞/体积模型字段的 world 维上传布局与接触容量视图（纯 CPU 侧，供 GPU 窗口 launcher 消费）。
+pub(crate) mod collision_upload;
+
 pub use config::{ProbeBackend, ProbeConfig, ProbeKernel, ResourceProbeConfig};
 pub use report::{
     ArtifactReport, ArtifactStatus, CachedProbeReport, ExternalResourceProbeReport, ProbeReport,
