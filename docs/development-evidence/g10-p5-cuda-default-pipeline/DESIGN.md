@@ -34,9 +34,11 @@
    返回 `ProbeError::FeatureDisabled("cuda-probe")`（文案：`请启用cuda-probe功能`）。
 4. **当前没有任何产品代码路径调用 `CollisionGpuProgram`**（仅 3 个 ignored 集成测试使用）。
    因此“默认产品管线有 CUDA 入口”不是仅改依赖就能达成，三选项都还需要阶段 2 的运行时选择层与接线。
-5. 门禁：`normify gate` 的 unit 跑**默认特性** `cargo test --lib`（HEAD 上 595 过/0 败）；
-   仓库无 `.github` CI 配置；构建/测试矩阵由 `scripts/test-windows-g01.ps1`（默认 `cargo test --locked`、
-   clippy 默认与 `--features cuda-probe` 两遍）与 `scripts/g01-fast.ps1` 等脚本承担。
+5. 门禁：`normify gate` 的 unit 跑**默认特性** `cargo test --locked`（HEAD 上 595 过/0 败）；
+   仓库无 `.github` CI 配置；构建/测试矩阵由 `scripts/test-windows-g01.ps1`（主矩阵默认带
+   `--features native-model-probe,cuda-probe`、clippy 默认与 `--features cuda-probe` 两遍）与
+   `scripts/g01-fast.ps1` 等脚本承担。**注意**：`gates.toml` 的 unit 命令是 `cargo test --locked`
+   （非 `--lib`），特性测试只在脚本矩阵里跑、不在 `normify gate` 内（见 §6.4）。
 6. 错误码现状（阶段 2 回退语义的素材）：
    - 产品 API`CollisionGpuError`：`NoDevice("CUDA设备不可用：…")`、`Compile("NVRTC编译失败：…")`、
      `Load("设备模块加载失败：…")`、`Launch("内核执行失败：…")`、`InvalidArgument("输入参数无效：…")`；
@@ -110,9 +112,19 @@
 
 | 环境 | 编译期（默认构建） | 运行期默认碰撞路径（阶段 2 前） | 若走设备入口的错误（code/文案） | panic | 阶段 2 目标回退 |
 | --- | --- | --- | --- | --- | --- |
-| A 无驱动 | 可构建（实测，cudarc 动态加载） | Host（无产品调用方） | `CollisionGpuError::NoDevice`：`CUDA设备不可用：…`；CLI 探针：`ProbeError::DriverUnavailable`（`找不到NVIDIA驱动库`） | 否（测试 `.expect()` 仅 ignored 测试） | 设备探测失败 → **Host 回退** + 记录可诊断错误（不静默、不 panic） |
-| B 有驱动无设备 | 可构建 | Host | `NoDevice`（`CudaContext::new` 失败）；CLI：`ProbeError::Cuda`/`UnsupportedDevice` | 否 | 同上 |
-| C 有设备无 NVRTC | 可构建 | Host | `CollisionGpuError::Compile`：`NVRTC编译失败：source_sha256=…：…`（`new()` 先编译再建上下文）；CLI：`ProbeError::NvrtcUnavailable`（`找不到NVRTC库；请检查PATH`） | 否 | 同上，错误码保留可诊断 |
+| A 无驱动 | 可构建（实测，cudarc 动态加载） | Host（无产品调用方） | `CollisionGpuError::NoDevice`：`CUDA设备不可用：…`；CLI 探针：`ProbeError::DriverUnavailable`（`找不到NVIDIA驱动库`） | **CLI 否 / 产品 API 是（见下）** | 设备探测失败 → **Host 回退** + 记录可诊断错误（不静默、不 panic；阶段 2 须补预检/catch_unwind） |
+| B 有驱动无设备 | 可构建 | Host | `NoDevice`（`CudaContext::new` 失败）；CLI：`InvalidDevice{requested:0,available:0}` | **同上** | 同上 |
+| C 有设备无 NVRTC | 可构建 | Host | `CollisionGpuError::Compile`（`new()` 先编译再建上下文）；CLI 默认 `native-ptx` 用内嵌 PTX、不查 NVRTC | **同上** | 同上，错误码保留可诊断 |
+
+**⚠ 复核修正（QA 独立复核发现 1 / 观察 1，2026-10-25；本表原先写「panic 否」只对 CLI 成立）**：
+- 产品 API `CollisionGpuProgram::new` 的设备侧调用**没有 `catch_unwind`**；cudarc 0.18.2 在 `cuda/nvcuda`
+  缺失时 `culib()` 直接 `panic_no_lib_found` → **panic 冒到调用方**，不是 `NoDevice`。CLI 探针安全
+  （`is_culib_present()` 预检 + `catch_unwind`）。
+- 因此「探测失败 → Host 回退、不 panic」在阶段 2 **必须**在选择层做同样的预检/`catch_unwind`，不能只依赖
+  错误映射；这是阶段 2 的硬约束（写入阶段 2 acceptance）。
+- 文案细节：C 态产品侧 NVRTC DLL 缺失时实际文案为 `NVRTC编译失败：NVRTC编译异常`（**不含 source_sha256**）；
+  `NvrtcUnavailable`（`找不到NVRTC库；请检查PATH`）只在 cubecl-cpp 探针路径出现。
+- 以上均为源码 + cudarc 依赖推导（本机有驱动+设备，A/B/C 无法实机模拟）；阶段 2 需在无 GPU 环境补实测。
 
 ### 4.2 选项 ②（新增 `cuda` 特性默认开启）
 
@@ -163,11 +175,11 @@
    `docs/evidence/t4-g03-retest/rigid-rotate-recapture/previous-kernels.json`（PRE_ROTATE 基线）与
    `t4-current-capture-status.json` 的 `base_revision`，与 fixture 的 `source_revision` 无关。修法：独立小片
    `2026-10-25-t4-source-hash-repin-13`（已登记 `171daba7`，按 repin-12 模式先枚举后重钉）。
-4. **门禁盲区（记录，不在本片修）**：默认 `normify gate` 的 unit 只跑默认特性 `cargo test --lib`
-   （447 passed / 5 ignored），`--features cuda-probe --lib` 的 677 项（含 T4 谱系测试）**不在门禁内**，
-   所以 §6.3 的身份漂移在默认门禁下不可见、潜伏约 2 天。本片把特性配置测试单列进证据（§3.2）；
-   建议后续把「至少一次 `--features cuda-probe --lib`」纳入批次门禁，但**不在本片实施**、不改
-   `gates.toml`/门禁脚本。
+4. **门禁盲区（记录，不在本片修）**：默认 `normify gate` 的 unit 跑 `cargo test --locked`（默认特性，
+   595 过/0 败；其中 lib 单测 447 passed / 5 ignored），而 `--features cuda-probe --lib` 的 **677 项
+   （含 T4 谱系测试）不在门禁内**，所以 §6.3 的身份漂移在默认门禁下不可见、潜伏约 2 天。本片把特性
+   配置测试单列进证据（§3.2）；建议后续把「至少一次 `--features cuda-probe --lib`」纳入批次门禁，
+   但**不在本片实施**、不改 `gates.toml`/门禁脚本。
 5. 若选 ①/②，CI 需明确“无 GPU 机器跑特性测试”的口径：GPU 依赖测试已 `#[ignore]`（137 个），
    非 ignored 特性测试在本机 677/678 通过（唯一失败即第 3 条既有红）。
 6. 若选 ③，CI 无变化；但需要为“选择层 + Host 回退”新增无 GPU 环境测试。
@@ -208,6 +220,10 @@
    与输入，不新捕获；位级优先、非位级按既有 4·ULP 判据）；无 GPU 环境下 Host 与当前逐值一致；
    CLI 错误码/文案测试；gate fmt/clippy/clippy-cuda/unit。
 5. GPU 设备侧复验按既有纪律报窗口（Arch 审 → Chief/用户签字），不新捕获。
+6. **不 panic 硬约束（QA 复核发现 1）**：选择层必须自己做「驱动库存在性预检 + `catch_unwind`」，
+   不能只依赖 `CollisionGpuError` 映射——`CollisionGpuProgram::new` 当前在 `cuda/nvcuda` 缺失时会被
+   cudarc (`culib()`→`panic_no_lib_found`) 直接 panic；阶段 2 验收必须包含「A 态下调用返回可诊断错误/
+   回退 Host 且进程不 panic」的可执行用例（无 GPU 机器或错误注入 seam）。
 
 ## 9. 未覆盖 / 边界
 
