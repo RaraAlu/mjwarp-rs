@@ -2,20 +2,21 @@
   "schema_version": 1,
   "id": "2026-10-25-case-evidence-frame-diagnosis",
   "title": {
-    "zh": "诊断：case_evidence 在 --all-features 下 ellipsoid-box frame 超 4·ULP（特性交互，非 repin 范围）",
-    "en": "Diagnose case_evidence ellipsoid-box frame exceedance under --all-features (feature interaction)"
+    "zh": "诊断：case_evidence frame 结果对构建环境敏感（同树同命令两环境 pass/fail 相反）",
+    "en": "Diagnose build-environment sensitivity of case_evidence frame results (same tree/command, opposite outcomes)"
   },
   "status": "proposed",
   "intent": {
-    "zh": "T4 第 13 轮重钉（`2026-10-25-t4-source-hash-repin-13-r2`）后，`--features cuda-probe --lib` 已 678 passed / 0 failed / 137 ignored 全绿，但 `--all-features --lib` 仍有 1 个失败：`physics::collision::gjk::case_evidence::upstream_f32_within_4ulp` → `ellipsoid-box frame 6.351978e-7`（上限 4.8e-7）。该失败在重钉前后数值不变（重钉前 all-features lib 为 2 失败：它 + 谱系），且**只在含 `native-model-probe` 等特性的构建下出现**，因此是独立的特性交互问题。本片只做**诊断与归因**：定位为何 all-features 下 case_evidence 的 frame 期望与实际不一致（特性是否改变证据数据来源/期望生成路径/编译选项），给出可复现证据与候选处置（数据陈旧 / 期望口径需按特性区分 / 数值问题），**不改判据、不动容差、不改排除清单**；处置口径由用户拍板后另立片。",
-    "en": "Diagnose the all-features-only case_evidence frame failure: identify how feature gating changes the evidence data or expectation path, produce reproducible evidence, and list candidate dispositions without changing tolerances or assertions."
+    "zh": "T4 第 13 轮重钉（`2026-10-25-t4-source-hash-repin-13-r2`）复核时发现：**同一棵树、同一条命令** `case_evidence::upstream_f32_within_4ulp`（判据 `ellipsoid-box frame ≤ 4.8e-7`）在两个构建环境里结果相反——Arch 的全新 `target/arch-verify-clean`（默认特性）**通过**（且干净 `cargo test --locked --no-fail-fast` exit 0、干净 `--features cuda-probe --lib` 678/0/137）；Backend 的 `target/verify-clean-001` 环境在默认/cuda-probe/all-features 三配置下**均红**（frame 实测 `6.351978e-7`）。同时观测到可疑产物痕迹：同一 crate 同配置出现 10.6 MB / 54.6 MB 两种体积的测试二进制、`ctime` 出现 `13:04` 的未来时间、主 `target/debug/deps` 下同树同特性 pass/fail 二进制混杂。本片只做**诊断与归因**：定位差异来源（编译环境变量 / 编译选项 / 工具链 / 产物指纹与复用 / 时钟异常），给出可复现证据与候选处置；**不改判据、不动容差、不改排除清单、不改产品代码**。",
+    "en": "Diagnose why the same case_evidence assertion passes in one clean build environment and fails in another (with suspicious artifact provenance), without changing tolerances or product code."
   },
   "modules": {},
   "acceptance": [
-    "**复现矩阵**：至少四种构建下的同一条测试结果与数值——`--lib`（默认）、`--features cuda-probe`、`--features native-model-probe`、`--all-features`；给出每种构建的 exit / passed / failed 与该测试的 frame 实测值（有则贴原始 panic 行）。",
-    "**归因**：定位特性影响链路（`native-model-probe` 是否改变 `case_evidence` 读取的证据文件/期望生成/编译选项，或改变上游参考数据来源），用源码定位 + 最小差分实验证明；若无法定位到具体机制，如实写「机制未定」并给出排除项。",
-    "**候选处置（不实施）**：列出可选项及其影响面（① 证据数据/期望按特性分开维护；② 该测试在 all-features 下标注为不适用并写清理由；③ 判据/容差调整（需用户拍板）；④ 真实数值问题需修实现），**不由本片决定、不改任何判据/容差/排除清单**。",
-    "**证据**：`docs/development-evidence/case-evidence-frame-diagnosis/`（README + receipt 含 task_id + 复现日志），行数 ≤500、UTF-8 无 BOM、无 `.bin/.pyc`；不宣称「物理整体通过/精度达标」等；不改已 verified 的 r2 证据。"
+    "**环境矩阵复现**：至少三个环境各跑同一命令——① Arch 的全新 `CARGO_TARGET_DIR`（仓库默认 env，无 G01 变量）；② Backend 的 `target/verify-clean-001`（它报三配置均红的那套）；③ 主 `target/`（已知产物混杂）。逐环境记录：exit、lib passed/failed/ignored、`case_evidence` 的 frame 实测值或原始 panic 行、以及该环境的关键编译输入（`rustc -V`/`cargo -V`、`RUSTFLAGS`、`CARGO_*` 环境变量、`--release`/profile、target triple）。",
+    "**归因**：解释同一源码为何产生 pass/fail 两种结果——检查是否由编译选项/环境变量（如 opt-level、target-cpu、debug-assertions、FMA 收缩）、工具链差异、或**产物复用/指纹错乱**（旧二进制被匹配）导致；给出最小差分实验（如固定环境 + 强制全量重建后复跑两侧）与结论。若机制仍不明确，如实写「机制未定」并列出已排除项。",
+    "**产物可信度**：核查 `target/debug/deps` 下同 crate 多二进制（体积 10.6 MB vs 54.6 MB、`ctime 13:04` 等异常）来源：`cargo` 指纹、`.rustc_info.json`、构建日志、是否有手工替换/复制；给**如何判定「某次测试结果对应的是当前源码的产物」**的可执行方法（供 gate/复核使用）。",
+    "**候选处置（不实施）**：列出可选项与影响面——① 统一并在门禁/复核中固定构建环境（清空可疑 `CARGO_*`/`RUSTFLAGS`、强制重建）；② 规范 `target/` 与产物可信度检查（如 gate 前校验二进制年龄与源码戳）；③ 判据/容差调整（**需用户拍板**）；④ 若确为真实数值问题需修实现。本片不决定处置、不改任何判据/容差/排除清单。",
+    "**证据**：`docs/development-evidence/case-evidence-frame-diagnosis/`（README + receipt 含 task_id + 各环境日志），行数 ≤500、UTF-8 无 BOM、无 `.bin/.pyc`；不宣称「物理整体通过/精度达标」等；不改已 verified 证据。"
   ],
   "schedule": {
     "depends_on": [
@@ -32,13 +33,13 @@
     "resources": [],
     "priority": 52
   },
-  "note": "Arch 2026-10-25 登记（r2 复核发现）。归因要点：该失败重钉前后 frame 数值不变、只在含 native-model-probe 的构建出现，属独立特性交互问题，不是身份漂移下游症状（Arch 先误判为下游 symptom，已更正）。本片只诊断；任何判据/容差处置须经 Chief 转用户决策卡。QA 复核可在其证据落地后另立。",
+  "note": "Arch 2026-10-25 登记并改口径：最初依据「仅 --all-features 下红」推断为特性交互，后经干净 target 实验推翻——真相是**构建环境敏感性**（同树同命令两环境结果相反）+ 可疑产物来源。要点：仓库默认环境下 `cargo test --locked --no-fail-fast` exit 0、干净 `--features cuda-probe --lib` 678/0/137、非缓存 `normify gate` unit 595/0（22.5 s），因此 r2 的身份重钉以默认环境为验收依据；本片只诊断，任何判据/容差处置须经 Chief 转用户决策卡。",
   "revision": {
-    "before": "c7f8ea197c32f3eb39e9c7bf431c4b332272ace3",
+    "before": "92832c4acc1187ed2f01daba967fdefe4eecff86",
     "after": null
   },
   "created_at": "2026-10-25T17:02:00.000Z",
-  "updated_at": "2026-10-25T17:02:00.000Z",
+  "updated_at": "2026-10-25T17:20:00.000Z",
   "closed_at": null,
   "checks": [
     { "kind": "gate", "gate": "fmt" },
