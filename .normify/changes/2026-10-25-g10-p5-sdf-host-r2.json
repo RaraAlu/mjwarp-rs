@@ -1,0 +1,85 @@
+{
+    "schema_version":  1,
+    "id":  "2026-10-25-g10-p5-sdf-host-r2",
+    "title":  {
+                  "zh":  "G10@P5 SDF host 数学（二次登记，范围含 src/physics/）：sdf/sdf_grad、clearance/compute_grad、梯度步、box_project+find_oct+有限差分、Halton 初始点",
+                  "en":  "G10@P5 SDF host math (re-registered with src/physics/ scope): sdf/sdf_grad, clearance/compute_grad, gradient steps, box_project/find_oct/finite differences, Halton initpoints"
+              },
+    "status":  "in_progress",
+    "intent":  {
+                   "zh":  "g10-p5 的 SDF host 片（G3，二次登记）：实现上游 `collision_sdf.py` 宿主数学，供 G5 GPU 内核与 G6 验收复用——`sdf()`/`sdf_grad()` 分发（PLANE/SPHERE/CAPSULE/CYLINDER/BOX/ELLIPSOID + MESH/SDF octree 体积分支）、`box_project`、`find_oct`、`sample_volume_sdf`/`sample_volume_grad`（盒外有限差分 h=1e-4、盒内解析权重梯度）、`clearance`/`compute_grad`、Armijo `gradient_step`（1e-4/0.5/0.1）、`gradient_descent`（`sdf_iterations` 次普通步 + 1 次 intersection、`sdf_initpoints` 个 Halton(2,3,5) 初始点、每初始点一接触、`pos3=pos-n*dist/2`）。首次登记 `2026-10-25-g10-p5-sdf-host` 因范围只写目录级 `src/physics/collision/`、漏了同名父模块文件 `src/physics/collision.rs`（新模块需在父模块 `pub mod sdf` 注册）而无法提交，故重登并把范围改为 `src/physics/`（目录级，覆盖父模块文件与该目录）；产物与数值结论沿用首次登记（两例位级 80/80 接触全字段一致），仅补父模块注册与「未验收边界」文档更新。判据沿用 g10-p5 定稿口径：唯一正式判据 = 与同配方上游 `mujoco_warp` f32（CPU 后端）≤4 ULP、位级优先；native f64 只作契约框架读数。",
+                   "en":  "SDF host slice (G3) of g10-p5, re-registered: implement the upstream collision_sdf.py host math for reuse by the G5 GPU kernel and G6 acceptance - sdf()/sdf_grad() dispatch (PLANE/SPHERE/CAPSULE/CYLINDER/BOX/ELLIPSOID plus MESH/SDF octree volume branch), box_project, find_oct, sample_volume_sdf/sample_volume_grad (outside-box finite differences h=1e-4, inside-box analytic weight gradient), clearance/compute_grad, Armijo gradient_step (1e-4/0.5/0.1), and gradient_descent (sdf_iterations ordinary steps plus one intersection, sdf_initpoints Halton(2,3,5) starts, one contact per start, pos3=pos-n*dist/2). The first registration 2026-10-25-g10-p5-sdf-host could not commit because its scope declared only the directory src/physics/collision/ and missed the sibling parent module file src/physics/collision.rs where the new module must be registered via pub mod sdf; this re-registration widens scope to src/physics/ (directory level, covering both the parent file and the directory). Artifacts and numeric conclusions carry over from the first registration (80/80 contacts bit-identical on two cases), adding only the parent-module registration and an unverified-boundary documentation update. Criterion follows the finalized g10-p5 rule: the only formal criterion is \u003c=4 ULP versus the same-recipe upstream mujoco_warp f32 on the CPU backend, bit-level first; native f64 is a contract-framework reading only."
+               },
+    "modules":  {
+
+                },
+    "acceptance":  [
+                       "`sdf()`/`sdf_grad()` 分发覆盖 PLANE/SPHERE/CAPSULE/CYLINDER/BOX/ELLIPSOID 与 MESH/SDF octree 体积分支；`box_project` 六面取最近（面选择顺序与 `MINVAL` 边界）、`find_oct` 根到叶的下降与上游一致。",
+                       "`sample_volume_sdf`/`sample_volume_grad`：盒外有限差分 h=1e-4、盒内解析权重梯度两条路径都实现且有覆盖；非有限值/边界按上游（`MINVAL`/`FLOAT_MAX` 语义）。",
+                       "`clearance`/`compute_grad` 两式；`gradient_step` Armijo（1e-4/0.5/0.1）；`gradient_descent`：`sdf_iterations` 次普通步 + 1 次 intersection、`sdf_initpoints` 个 Halton(2,3,5) 初始点、每初始点一接触、`pos3=pos-n*dist/2`；参数取自 `m.opt`（G1 已接通）。",
+                       "数值判据：对 `sdf-box`（上游 f32 CPU 参考，`fixtures/g10-p5/sdf-f32/`）80/80 接触全字段位级（dist/pos/frame 0 ULP）——不劣于 ≤4 ULP 口径即通过；另对 G0b 的 `sdf-cylinder` 结构/count 一致性；差异须给首个索引/位型。",
+                       "父模块注册：`src/physics/` 范围内在 `collision.rs` 增加 `pub mod sdf;`（或在既有模式内等价注册）与「未验收边界」文档更新；不改已验收窄相语义与公开导出面（如需 crate 外入口，另立 API 小片，不在本片范围）。",
+                       "不回归：GJK/EPA 5 case 判据、既有 plane-sphere/sphere-sphere/plane-box 语义不变；不改 S2–S8 证据、`fixtures/mjwarp-complex-physics/*.xml`、`Cargo.*`；新文件 ≤500 行。",
+                       "门禁 fmt/clippy/clippy-cuda/unit 全过（unit 不得低于 569 过 0 败 1 忽略）；证据 README/receipt 含 task_id（= 2026-10-25-g10-p5-sdf-host-r2）与方法、unmet（GPU 内核/nacon 截断归 G5、plugin user_sdf 与 MESH ray_mesh 未实现、hfield 四接触 G4、flex/TRIANGLE、仅 sdf-box 一个数值 case、Linux/T4、性能 G6）；不得宣称「G10 已实现」「完整物理通过」「双平台通过」「上游完全等价」「原生放行」「精度达标」。"
+                   ],
+    "schedule":  {
+                     "depends_on":  [
+                                        "2026-10-25-g10-p5-model-fields-r2"
+                                    ],
+                     "phase":  "P5-复杂物理",
+                     "owner":  "Backend",
+                     "files":  [
+                                   "src/physics/",
+                                   "tests/g10_p5_sdf_host.rs",
+                                   "scripts/authoring/g10-p5/",
+                                   "fixtures/g10-p5/",
+                                   "docs/development-evidence/g10-p5-sdf-host/"
+                               ],
+                     "resources":  [
+
+                                   ],
+                     "priority":  59
+                 },
+    "note":  "Arch 2026-10-25 二次登记：首次 `2026-10-25-g10-p5-sdf-host` 的目录级范围 `src/physics/collision/` 不覆盖同名父模块文件 `src/physics/collision.rs`，而新模块必须在该文件注册 `pub mod sdf;`，导致提交被范围检查拦住（任务已 done 成终态，无法改范围，故 r1 留痕 + r2 承接）。教训：本仓库存在「目录 + 同名 .rs」结构，范围必须写到上一级目录（`src/physics/`）才能同时覆盖两者——后续 G4/G5/G6 一律按 `src/physics/` 或更高登记。",
+    "revision":  {
+                     "before":  "b0d712a2922b7ab6ee39e66b1a3e35e46495e5f2",
+                     "after":  null
+                 },
+    "created_at":  "2026-10-25T16:46:00.000Z",
+    "updated_at":  "2026-10-25T08:48:25.157Z",
+    "checks":  [
+                   {
+                       "kind":  "gate",
+                       "gate":  "fmt"
+                   },
+                   {
+                       "kind":  "gate",
+                       "gate":  "clippy"
+                   },
+                   {
+                       "kind":  "gate",
+                       "gate":  "clippy-cuda"
+                   },
+                   {
+                       "kind":  "gate",
+                       "gate":  "unit"
+                   },
+                   {
+                       "kind":  "json",
+                       "path":  "docs/development-evidence/g10-p5-sdf-host/receipt.json",
+                       "pointer":  "/task_id",
+                       "equals":  "2026-10-25-g10-p5-sdf-host-r2"
+                   },
+                   {
+                       "kind":  "forbid_claim",
+                       "terms":  [
+                                     "G10已实现",
+                                     "完整物理通过",
+                                     "双平台通过",
+                                     "上游完全等价",
+                                     "原生放行",
+                                     "精度达标"
+                                 ]
+                   }
+               ]
+}
