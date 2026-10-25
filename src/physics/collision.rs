@@ -29,10 +29,22 @@ pub use narrowphase::{
     GeomContact, MJ_MINMU, MJ_MINVAL, NarrowphaseError, PrimitiveModel, PrimitiveState, make_frame,
     plane_box, plane_sphere, primitive_narrowphase, sphere_sphere,
 };
+#[allow(dead_code)]
+// GJK/EPA 在 G5 GPU 内核片接入前只由测试与后续片使用。
+mod gjk;
 mod nxn;
 mod sap;
 #[cfg(test)]
 mod tests;
+
+// GJK/EPA 凸碰撞（G10@P5 前置片）：`ccd`/`ccd_pair` 与 geom/mesh 视图。
+// 目前只由 lib 内测试（`gjk/case_compare.rs`）与后续 G3–G5 片使用。
+#[allow(unused_imports)]
+pub use gjk::geom_type;
+#[allow(unused_imports)]
+pub use gjk::{
+    CcdContact, CcdOptions, CcdOutput, CcdResult, ContactOptions, Geom, MeshView, ccd, ccd_pair,
+};
 
 /// 上游 `mjtGeom` 的平面、球、盒与网格编号。
 pub const GEOM_PLANE: i32 = 0;

@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-gjk-epa",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "G2",
+  "title": "g10-p5 G2：GJK/EPA 凸碰撞宿主实现与 pinned 参考对照",
+  "date": "2026-10-25",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "decisions": {
+    "scope": "5A：GJK/EPA 先独立交付（服务 box-box/convex/mesh/hfield 与 SDF MESH 分支）",
+    "numeric": "位级优先；未达位级给根因与阻断判定（不放宽物理容限）",
+    "is_discrete": "按 geom 组合分支实现，不与 tolerance 路径混用",
+    "nworld": "默认每 world 独立配对；跨世界容量/计数归 G5"
+  },
+  "scope_boundary": {
+    "files_written": [
+      "src/physics/collision/gjk/",
+      "src/physics/collision.rs",
+      "src/physics/collision/gjk/case_compare.rs（lib 内对照）",
+      "docs/development-evidence/g10-p5-gjk-epa/"
+    ],
+    "product_code_changed": true,
+    "tests_changed": true,
+    "cargo_changed": false,
+    "s2_s8_evidence_touched": false,
+    "render_fixtures_touched": false,
+    "product_tests_python": false,
+    "gpu_used": false
+  },
+  "implementation": {
+    "entry": "src/physics/collision/gjk/phase.rs (gjk_phase/_inflate) + gjk/ccd.rs (epa_phase/ccd)",
+    "contact_assembly": "gjk/contact.rs: ccd_pair（上游 collision_convex.eval_ccd_write_contact 子集）",
+    "modules": {
+      "mod.rs": "常量/OverflowType/Geom/MeshView/SupportPoint/GjkResult/Polytope",
+      "math.rs": "vec.h/mat.h 原语 + math.make_frame",
+      "support.rs": "support() 九类型 + _discrete_geoms",
+      "simplex.rs": "_S1D/_S2D/_S3D 与投影/仿射辅助",
+      "core.rs": "_gjk_support（x_norm<1e-4 方向调优）+ gjk()",
+      "polytope.rs": "face 位域/attach_face/epa_support/_rotmat/_ray_triangle/_replace_simplex3/_epa_witness",
+      "polytope_build.rs": "_polytope2/_polytope3/_polytope4",
+      "epa.rs": "_get_edge/_add_edge/_epa（HORIZON 溢出、重复支撑点、FLOAT_MAX 退化）",
+      "multicontact/": "feature 法线对齐 + box/mesh/cylinder 面/边恢复 + _polygon_clip ≤4 接触",
+      "tests.rs": "支撑点分类型/is_discrete/EPA 容量/浅穿透/多接触上限/分析解对照"
+    },
+    "buffer_capacities": {
+      "epa_vert": "10+2I",
+      "epa_face": "6+5I",
+      "epa_horizon": 24,
+      "MJ_MAX_EPAFACES": 5,
+      "MJ_MAXCONPAIR": 50
+    }
+  },
+  "numeric_parity": {
+    "method": "worldid 分组 + 每 world 内 (dist,pos) 稳定排序后逐字段比较（G0b 判据）；pos 按向量尺度 ULP，frame 用分量绝对误差（单位向量近零分量 ULP 无意义）",
+    "cases": [
+      {"name": "cylinder-box", "path": "CONVEX CYLINDER×BOX", "count": "8/8", "dist_bitwise": "8/8", "dist_max_ulp": 0, "pos_max_scaled_ulp": 4.0, "frame_bitwise": "72/72", "frame_max_abs": 0.0},
+      {"name": "ellipsoid-box", "path": "CONVEX ELLIPSOID×BOX", "count": "2/2", "dist_bitwise": "0/2", "dist_max_ulp": 2, "pos_max_scaled_ulp": 2.0, "frame_bitwise": "8/18", "frame_max_abs": 8.1928766e-7},
+      {"name": "mesh-mesh", "path": "CONVEX MESH×MESH", "count": "2/2", "dist_bitwise": "1/2", "dist_max_ulp": 5, "pos_max_scaled_ulp": 2.0, "frame_bitwise": "2/18", "frame_max_abs": 5.364418e-7},
+      {"name": "convex-mesh", "path": "CONVEX BOX×MESH", "count": "2/2", "dist_bitwise": "0/2", "dist_max_ulp": 2, "pos_max_scaled_ulp": 6.0, "frame_bitwise": "2/18", "frame_max_abs": 2.9802322e-7},
+      {"name": "degenerate-mesh", "path": "CONVEX 退化 MESH×MESH", "count": "2/2", "dist_bitwise": "0/2", "dist_max_ulp": 18, "pos_max_scaled_ulp": 0.5, "frame_bitwise": "16/18", "frame_max_abs": 2.6510363e-11}
+    ],
+    "recorded_budget": {"dist_max_ulp": 32, "pos_max_scaled_ulp": 8.0, "frame_max_abs": 1.0e-6},
+    "bitwise_achieved": "cylinder-box（多接触路径）dist/frame 全位级；其余 case 未达位级",
+    "root_cause": {
+      "fma_contraction": "pinned ccd_kernel PTX: fma.rn.f32=1480, mul.rn.f32=0, add.rn.f32=0, sqrt.rn.f32=39；三种 FMA 收缩近似实测互有胜负（README §4），需按 PTX 逐表达式定序",
+      "mesh_pose_derivation": "mesh 类 case 世界位姿：参考侧 mujoco f64 mj_forward→f32 vs mjwarp f32 quat_to_matrix（quat_rotate 三列路径）；实测 tetra 差 1 ULP（2/9 分量）、退化 mesh 差 3 ULP（3/9 分量）"
+    },
+    "blocking": false,
+    "blocking_reason": "G3/G4/G5 依赖语义与接口，不依赖本片位级；位级建议独立后续小片（PTX 定序 / G5 GPU 同口径对照）"
+  },
+  "input_alignment": {
+    "method": "两栏：未对齐 = mj_forward(f64→f32) 世界位姿；对齐后 = 按 mjwarp f32 运动学口径复算（quat_to_matrix 三列路径 + body 复合），两者均直接喂 ccd()",
+    "pose_bit_diffs_xmat": {"cylinder-box": 0, "ellipsoid-box": 0, "mesh-mesh": 8, "convex-mesh": 4, "degenerate-mesh": 18},
+    "table": {
+      "cylinder-box": {"before": "dist 8/8 位级 0 ULP, frame 72/72 位级", "after": "同上"},
+      "ellipsoid-box": {"before": "dist 2 ULP, pos 2.0, normal 8.19e-7", "after": "同上（输入完全一致）"},
+      "mesh-mesh": {"before": "dist 5 ULP, frame 5.36e-7", "after": "dist 3 ULP, frame 4.17e-7"},
+      "convex-mesh": {"before": "dist 2 ULP, pos 6.0 ULP@尺度", "after": "dist 3 ULP, pos 16.0 ULP@尺度"},
+      "degenerate-mesh": {"before": "dist 18 ULP, frame 2.65e-11", "after": "dist 34 ULP, frame 4.37e-6"}
+    },
+    "contract_4ulp": "未达",
+    "verdict": "ellipsoid-box 输入完全一致仍 normal 6.9 ULP@1.0（纯窄相算术差，超 4 ULP 退路）；mesh/degenerate 对齐列更差说明 numpy 复算未复现 mjwarp 位级 FK（kinematics 同样受 NVVM FMA 收缩影响）→ 不 done，先报 Arch 裁决（定序片 or 记已知偏差）"
+  },
+  "final_criterion": {
+    "criterion": "ours vs 同配方上游 mujoco_warp f32（warp CPU 后端）≤4 ULP（位级优先），5 case 全部分量通过",
+    "method": "判据输入直接取上游 f32 kinematics 的 geom_xpos/geom_xmat（纯合成，无 FK/numpy 复算）",
+    "table": {"cylinder-box": "全字段位级", "ellipsoid-box": "dist 位级; pos 2 ULP; normal 3.84e-7(3.2 ULP)", "mesh-mesh": "dist 2 ULP; pos/frame 位级", "convex-mesh": "全字段位级", "degenerate-mesh": "dist 1 ULP; pos/frame 位级"},
+    "degenerate_27ulp_root_cause": "输入位姿口径（native f64→f32 vs 上游 f32 FK）；改用上游 f32 位姿后 1 ULP，未改窄相表达式",
+    "gate_test": "case_compare::upstream_f32_within_4ulp（非 ignore）",
+    "native_side": "契约框架读数（native-error-seed.json），不作判据；原生容差未批准，待验收不放行",
+    "upstream_reference": {"script": "docs/development-evidence/g10-p5-gjk-epa/capture_mjwarp_f32.py", "json": "docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32.json", "versions": {"mujoco_warp": "3.15.0", "warp": "1.15.0", "mujoco": "3.15.0"}, "device": "cpu", "two_captures_bitwise_identical": "5/5"}
+  },
+  "g0b_classification_correction": {
+    "note": "按上游 MJ_COLLISION_TABLE 复核 G0b 补采矩阵路径归属（未修改已关闭 G0b 证据）",
+    "convex_used_here": ["cylinder-box", "ellipsoid-box", "mesh-mesh", "convex-mesh", "degenerate-mesh"],
+    "primitive_not_g2": ["sphere-box-shallow", "sphere-box-deep", "capsule-box", "box-box-margin", "box-box-multiccd(d04)"],
+    "later_slices": {"hfield-sphere": "G4", "hfield-capsule": "G4", "sdf-box": "G3", "sphere-sphere": "G08 回归"}
+  },
+  "branch_coverage": {
+    "is_discrete": ["mesh-mesh", "convex-mesh", "degenerate-mesh"],
+    "tolerance": ["cylinder-box", "ellipsoid-box"],
+    "multicontact": "cylinder-box 4 条/world；ellipsoid 路径 multiccd_idx=-1",
+    "inflate_shallow": "单测 shallow_separation_reports_positive_distance_without_epa",
+    "epa_capacity": "单测 epa_buffers_match_upstream_capacity",
+    "degenerate_epa_horizon": "实现覆盖（idx=-1→FLOAT_MAX/0、overflow 置位），参考 case 未触发"
+  },
+  "gates": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy-cuda": "pass",
+    "unit": {"result": "pass", "tests_passed": 555, "tests_failed": 0}
+  },
+  "unmet": [
+    "输入对齐后仍未达 ≤4 ULP 契约（见 input_alignment）：待 Arch 裁决（定序片 or 已知偏差）",
+    "集成测试暂存 target/g10-p5-g2/pending-api/gjk_epa.rs，由 2026-10-25-g10-p5-gjk-epa-api 片落地",
+    "球/胶囊 shrink 分支无 CONVEX 直达参考（PRIMITIVE 表），仅 in-crate 断言，不算数值验收",
+    "MESH 图 hillclimb 分支实现完成但无参考 case（本片 5 case 顶点数 <10 走穷举）",
+    "HFIELD/TRIANGLE/FLEX 支撑点仅实现，未用参考对照（HFIELD 归 G4）",
+    "multicontact mesh 边法线容量按行内 8 保存（上游 nmeshdegmax 由场景定，退化 mesh 的 deg=5 时上游会越界写相邻行）",
+    "未接 naccdmax/naconmax/contact_efc_address/hfield/flex kernel 与 GPU 图条件（G5）",
+    "性能未测（G6）；Linux/T4 未覆盖（用户 2026-10-24 裁决终止 Linux 任务）",
+    "未宣称 G10 已实现/完整物理通过/双平台通过/上游完全等价"
+  ],
+  "artifacts": {
+    "test": {"path": "src/physics/collision/gjk/case_compare.rs（lib 内对照）", "lines": 445},
+    "log": {"path": "docs/development-evidence/g10-p5-gjk-epa/gjk-epa-run.log"},
+    "readme": {"path": "docs/development-evidence/g10-p5-gjk-epa/README.md"},
+    "upstream_reference": {"script": "docs/development-evidence/g10-p5-gjk-epa/capture_mjwarp_f32.py", "json": "docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32.json"},
+    "native_error_seed": {"path": "docs/development-evidence/g10-p5-gjk-epa/native-error-seed.json", "regen": "G2_DUMP_NATIVE_ERROR=1 cargo test --locked --lib physics::collision::gjk::case_compare::native_error_seed_is_recorded"}
+  },
+  "reproduction": {
+    "unit": "cargo test --locked --lib physics::collision",
+    "alignment_table": "cargo test --locked --lib physics::collision::gjk::case_compare -- --nocapture",
+    "strict_contract_ignored": "cargo test --locked --lib physics::collision::gjk::case_compare input_aligned_contract -- --ignored",
+    "data_authoring": "target/g10-p5-g2/dump_case_inputs.py + gen_case_json.py（target/ 忽略；产品测试不启动 Python）"
+  }
+}
