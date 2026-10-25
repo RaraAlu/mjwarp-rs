@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-multicontact-cuda-independent-check",
+  "title": {
+    "zh": "G10@P5 multicontact 设备版独立复核（接触数组/box_box/dispatch 口径）",
+    "en": "Independent check of device multicontact (contact arrays, box_box, dispatch scope)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-g10-p5-multicontact-cuda` 做独立复核。该片实装设备 `ccd_pair` 的 multicontact（≤4 接触）与 `box_box`（为覆盖 box-box-margin，其上游 dispatch 为 PRIMITIVE），并用 QA 已提交的上游 f32 GPU 接触数组做判据对照。复核重点：**接触数组与上游是否逐字段一致、box_box 归属与 dispatch 口径是否如实、未覆盖项（mesh multicontact/无参考组合）有没有被写成通过**。",
+    "en": "Independently verify device multicontact contact arrays and the box_box port (primitive dispatch attribution), and check uncovered items are not reported as passing."
+  },
+  "modules": {},
+  "acceptance": [
+    "**语义核对**：读 pinned 上游 `eval_ccd_write_contact` 的 multicontact 分支、`multicontact()`/helper、`box_box` 核心与 wrapper，逐项与设备实现对照（含 `multiccd_idx` 规则、`dists[i]`、共享 frame、`0.5*(w1+w2)+origin`、`id_=i`、候选/`detected` 筛选）；产出对照表。",
+    "**判据独立复算**：用 QA 已提交 `qa-upstream-gpu.json` 与设备原始输出独立重算 `cylinder-box`（multicontact）、`box-box-margin`（box_box）、`mesh-mesh`（既有单接触）的接触数组：`worldid` + 全字段稳定排序后逐字段比较、结构零容差、位级优先、非位级按既有 ULP 口径；不得直接引用交付的 bit_equal 汇总。",
+    "**dispatch/归属口径**：核 `box-box-margin` 在 fixture `nativeccd=disable` 下的上游 dispatch（PRIMITIVE 走 `box_box_wrapper`）与设备入口是否一致；核证据是否如实写「box_box 属 primitive family、为覆盖该 case 一并移植、不属 multicontact 分支」；核未覆盖项（mesh multicontact 需 mesh polygon ABI、其余未实现/未对照组合）是否列全。",
+    "**反向判别与边界**：核交付是否有反向判别能力（如「打回单接触 → 2 vs 10」类断言）；核样本量/分支覆盖限制是否声明；不改判据/已 verified 数字、不改 `Cargo.*`/fixtures/S2–S8。",
+    "**资源与证据**：纯 CPU 优先；GPU 复算窗口须先报 Arch 基线并经 Arch+Chief 双签（与其它 GPU 任务串行，0.25 s 或更密峰值采样、守卫 3072 MiB）；证据写自己的目录 `docs/development-evidence/g10-p5-multicontact-cuda-independent-check/`，无 `.bin`/`.pyc`/构建产物；gate 全绿；不宣称精度达标/上游完全等价/原生放行/双平台通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-multicontact-cuda"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-multicontact-cuda-independent-check/"
+    ],
+    "resources": [],
+    "priority": 52
+  },
+  "note": "Arch 2026-10-25 预登记（设备侧三缺口最后一片的复核）。复核时注意：`box-box-margin` 的上游参考在 `qa-upstream-gpu.json` 已存在（10 条/2 world），`mesh-mesh` 为单接触，mesh multicontact 未实装需记未覆盖；primitive 片 QA 复核曾发现 dispatch 口径错误（BOX-BOX 被 nativeccd=disable 覆盖），本片须同样核对口径。",
+  "revision": {"before": null, "after": null},
+  "created_at": "2026-10-25T15:30:00.000Z",
+  "updated_at": "2026-10-25T15:30:00.000Z",
+  "checks": [
+    {"kind": "gate", "gate": "fmt"},
+    {"kind": "gate", "gate": "clippy"},
+    {"kind": "gate", "gate": "clippy-cuda"},
+    {"kind": "gate", "gate": "unit"},
+    {"kind": "json", "path": "docs/development-evidence/g10-p5-multicontact-cuda-independent-check/receipt.json", "pointer": "/task_id", "equals": "2026-10-25-g10-p5-multicontact-cuda-independent-check"},
+    {"kind": "forbid_claim", "terms": ["G10已实现", "完整物理通过", "双平台通过", "上游完全等价", "原生放行", "精度达标"]}
+  ]
+}
