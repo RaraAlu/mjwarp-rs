@@ -5,7 +5,7 @@
     "zh": "G10@P5 G5 GPU 内核独立复核（设备 GJK/EPA/SDF/hfield/接触写入对上游 f32 GPU、naconmax 截断、nworld=2）",
     "en": "G10@P5 G5 GPU kernels independent review (device GJK/EPA/SDF/hfield/contact writes vs upstream f32 GPU, naconmax truncation, nworld=2)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "对 G5（`2026-10-25-g10-p5-gpu-kernels`）做独立复核：QA 自写 launcher/驱动（不复用交付的 NVRTC 接线与测试）在同一台 GPU 上独立重跑——设备 GJK/EPA（含 is_discrete 分支、EPA 退化 HORIZON/FLOAT_MAX）、设备 SDF narrowphase（`sdf_initpoints`/Halton/Armijo/`naconmax` 截断）、设备 hfield prism CCD（filter/prism/四接触 + `1e-3` 去重/`MJ_MAXCONPAIR=50`→`OverflowType.HFIELD`）、接触写入（`worldid` 归属、写入顺序、`efc_address`、`OverflowType` 汇总、`naconmax`/`naccdmax` 截断不越界且计数如实）、`nworld=2` 的 world 维上传与行号；数值判据 = 对**同配方上游 `mujoco_warp` f32（GPU 后端）** ≤4 ULP、位级优先（native f64 仅框架读数）；`--fmad=false` 的 host 对照不作判据。需**独占 GPU 窗口**（与 Backend/其它任务串行）。复核不含 multicontact 设备版（未实装，G5 unmet 已记录），该部分不得算作通过。",
     "en": "Independent review of G5 (task 2026-10-25-g10-p5-gpu-kernels): QA writes its own launcher/driver (not reusing the delivered NVRTC wiring or tests) and reruns independently on the same GPU - device GJK/EPA (is_discrete branch, EPA HORIZON/FLOAT_MAX degeneracy), device SDF narrowphase (sdf_initpoints/Halton/Armijo/naconmax truncation), device hfield prism CCD (filter/prism/0..3 contacts with 1e-3 dedup/MJ_MAXCONPAIR=50 to OverflowType.HFIELD), contact writes (worldid ownership, write order, efc_address, OverflowType aggregation, naconmax/naccdmax truncation without out-of-bounds writes and honest counts), and nworld=2 world-dim upload and row numbering. Numeric criterion: <=4 ULP (bit-level first) versus the same-recipe upstream mujoco_warp f32 on the GPU backend; native f64 is a contract-framework reading only; --fmad=false host comparisons are not a criterion. Requires an exclusive GPU window, serialized with Backend and other tasks. The review excludes the unimplemented device multicontact path (recorded in G5 unmet); that part must not be counted as passing."
@@ -37,12 +37,11 @@
   },
   "note": "Arch 2026-10-25 预先登记：G5 是唯一 GPU 片（Backend 窗口已批准 45 分钟占位、内核峰值 <1.5 GiB、≤5 次复跑）。QA 复核需要自己的独占窗口（与 Backend 串行），重点是「独立 launcher + 独立上游 GPU 捕获」，不能读交付日志。已明确 multicontact 未实装，接触数组全等覆盖只限非 multiccd 组合；该缺口须走后续小片。",
   "revision": {
-    "before": "7edb63039482f792811b4df55b4b7da9d4c32d25",
+    "before": "f9f1b879a60e19f1c171934a39335fc7b5f8ec92",
     "after": null
   },
   "created_at": "2026-10-25T17:42:00.000Z",
-  "updated_at": "2026-10-25T17:42:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T10:55:40.239Z",
   "checks": [
     {
       "kind": "gate",
