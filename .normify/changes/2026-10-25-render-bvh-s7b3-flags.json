@@ -27,9 +27,13 @@
     "files": [
       "scripts/authoring/render-bvh-s7b/",
       "fixtures/render-bvh/scene-a/s7b/",
-      "src/render/kernel/shade.rs",
-      "src/render/kernel/cuda/render.cu",
+      "src/render/kernel/",
+      "src/render/mod.rs",
+      "src/render/context.rs",
+      "src/render/context/lifecycle.rs",
+      "src/render/context/owner.rs",
       "tests/render_kernel_flags.rs",
+      "tests/support/render_bvh/",
       "docs/development-evidence/render-bvh/s7b3-flags/"
     ],
     "resources": [
@@ -37,7 +41,7 @@
     ],
     "priority": 88
   },
-  "note": "Arch 2026-10-25 结构裁决：S7b 拆为 S7b1/S7b2/S7b3。S7b3 拆出来是因为 flag 变体与 AA 需要新的 authoring 捕获（Python 3.15 参考、离线 GPU 作者侧），与内核实现混在一片会同时扩产品代码与夹具，难以独立验收；单列后产品侧只读位型，符合 S5/S4 「参考捕获只在 authoring」的既有边界。",
+  "note": "Arch 2026-10-25 结构裁决：S7b 拆为 S7b1/S7b2/S7b3。S7b3 拆出来是因为 flag 变体与 AA 需要新的 authoring 捕获（Python 3.15 参考、离线 GPU 作者侧），与内核实现混在一片会同时扩产品代码与夹具，难以独立验收；单列后产品侧只读位型，符合 S5/S4 「参考捕获只在 authoring」的既有边界。Arch 2026-10-25 追加（S7b2 落地后）：files 扩为目录级（含 src/render/context/ 三文件与 tests/support/render_bvh/），避免运行态范围冻结；AA(spp=2) 参考按 S7b2 先例先采同配方（use_fast_math=False）作硬指标依据、S0b fast-math 参考只作跨配方已知偏差；不得回归 S7b1 depth/seg 120,000/120,000 位等与 S7b2 RGB 同配方 120,000/120,000 0 差异基线；运算顺序沿用「读参考 PTX 定序 → 显式 intrinsics 对齐」，参数级错误（如 S7b2 的 mat_shin_exp 误用固定 64）要靠上游源码逐行对照定位，不靠放宽容差。",
   "revision": {
     "before": "372c453c1127dbb835dcc7cc63587c770c9a6981",
     "after": null
