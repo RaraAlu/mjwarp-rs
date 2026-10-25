@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-gpu-window-guard-template",
+  "title": {
+    "zh": "GPU 窗口守卫模板：中止条件从「进程存在」改为「GPU 资源占用」",
+    "en": "GPU window guard template: abort on GPU resource use, not on process existence"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "2026-10-25 QA 的 faithful 影响面窗口第一次被执行者自己的守卫误中止：守卫把另一执行者的**纯 CPU 测试二进制**（不出现在 `nvidia-smi --query-compute-apps`）当成「外部计算进程」而停窗。Chief 指示把守卫对象从「进程存在」修正为「GPU 资源占用」：中止只认 ① `query-compute-apps` 中新增且非本任务 exe 的 CUDA 计算进程、② free < 10240 MiB、③ used 增量 ≥3072 MiB（或 >50% 取更严）；纯 CPU 进程只记录不中止。本片落一个全项目可复用的守卫模板脚本 `scripts/gpu-window-guard.ps1`（dot-source 使用），供后续所有窗口脚本默认引用，并记录两次窗口（中止 + 重跑）的处置口径。",
+    "en": "Add a reusable GPU window guard template whose abort conditions are CUDA-compute/VRAM based (CPU-only processes are logged, not fatal), following the mis-abort incident."
+  },
+  "modules": {},
+  "acceptance": [
+    "**模板脚本**：新增 `scripts/gpu-window-guard.ps1`（dot-source 使用；纯 ASCII、PS 5.1 语法解析 0 错、≤500 行）：`New-GuardState` / `Assert-Guard` / `Complete-Guard`；中止条件 = ① `query-compute-apps` 新增且进程名不匹配本任务允许模式（默认 `g10_p5_*`/`render_*`/`mjwarp_rs-*`；基线 pid 恒允许）；② free < 10240 MiB；③ used 增量 ≥3072 MiB 或 >总显存/2（取更严）；**纯 CPU 进程不入中止条件**（`query-compute-apps` 不出现即不触发），日志记录样本/基线/峰值/结束基线与残留 CUDA pid。",
+    "**口径留痕**：证据 `docs/development-evidence/gpu-window-guard-template/README.md` 写清：① 误中止事件（QA 窗口 attempt-1，57 s，误判 CPU 测试二进制）与重开处置；② 中止轮结果作废、不拼接、整轮重跑；③ 模板用法与参数（TotalMib/FreeFloorMib/IncrementLimitMib/允许 exe 模式）；④ 与既有纪律（0.25 s 采样、跑前跑后 compute-apps、结束基线、无残留）的关系。",
+    "**不改**既有窗口脚本与已入库证据（各片自己的 `run_window.ps1` 保留其证据语义）；本模板为后续窗口的默认引用；不改判据/容差/产品代码。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全绿；脚本 PS 语法解析 0 错；证据 UTF-8 无 BOM；不宣称验收通过/精度结论。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P5-复杂物理",
+    "owner": "Arch",
+    "files": [
+      "scripts/",
+      "docs/development-evidence/gpu-window-guard-template/"
+    ],
+    "resources": [],
+    "priority": 49
+  },
+  "note": "Arch 2026-10-25 登记（Chief 指示 + QA 窗口误中止事件）。模板只定义「何时该停窗」，不改变任何验收口径；各窗口脚本迁移到模板属后续各自的片。",
+  "revision": {
+    "before": "d49a5712e4796f9d8bb37c9e018b02b14f5b1365",
+    "after": null
+  },
+  "created_at": "2026-10-25T19:20:00.000Z",
+  "updated_at": "2026-10-25T19:20:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
