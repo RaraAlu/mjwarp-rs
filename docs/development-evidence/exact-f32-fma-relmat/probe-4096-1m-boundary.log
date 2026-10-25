@@ -1,0 +1,35 @@
+# 探针证据（QA 模板：生成器参数 + 规模 + 差异样本 + 残余率适用范围）
+# 生成器：LCG mult=6364136223846793005 inc=1442695040888963407 seed=0x2026102500000001
+# 映射：f32(top24)/2^24*3-1 ∈ [-1,2)（top24 = (state>>40) & 0xffffff；QA 复核口径）
+# 规模：4096 组 + 1e6 组 + 边界集（58 例：次正规/tie/指数差极大/抵消/±0/溢出/NaN/Inf）
+# 参考：内联汇编 vfmadd231ss（硬件 FMA，IEEE 单次舍入）
+
+## GNU 默认构建（仓库默认工具链，CPUID fma 可用）
+test math::fma::tests::dispatch_matches_hardware_and_soft_on_same_samples ... PATH cpuid_fma=true active_path=hardware
+test math::fma::tests::forced_soft_seam_matches_hardware ... PATH cpuid_fma=true active_path=hardware
+test math::fma::tests::mul_add_library_fallback_discrimination ... PATH cpuid_fma=true active_path=hardware
+mul_add(f32) vs hw: mismatches=1025 / 4096
+SAMPLE a=3d832940 b=3fe7d4e4 c=3e428720 | got=3e9ca735 want=3e9ca736
+SAMPLE a=3f3de1da b=bec38e5e c=3fac3010 | got=3f87ece8 want=3f87ece7
+SAMPLE a=3f43b054 b=bf7ec3a1 c=3e6a95d8 | got=bf081907 want=bf081908
+SAMPLE a=bed00a12 b=3f3df5bc c=3f7ff0dc | got=3f32c14c want=3f32c14b
+SAMPLE a=bf61bed2 b=3f697998 c=beb166ce | got=bf934aa8 want=bf934aa7
+test math::fma::tests::soft_matches_hardware_on_boundary_cases ... PATH cpuid_fma=true active_path=hardware
+boundary cases=58 mismatches=0
+test math::fma::tests::soft_matches_hardware_on_generated_1m ... PATH cpuid_fma=true active_path=hardware
+1e6 soft vs hw: mismatches=0 soft_digest=54ec8d0836fa2a10 hw_digest=54ec8d0836fa2a10
+RESIDUAL_RATE 该分布/规模（LCG seed=0x2026102500000001，1e6 组）残余率 = 0
+test math::fma::tests::soft_matches_hardware_on_generated_4096 ... PATH cpuid_fma=true active_path=hardware
+4096 soft vs hw: mismatches=0 soft_digest=a14ba3531fc6a6c6 hw_digest=a14ba3531fc6a6c6
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 452 filtered out; finished in 0.78s
+
+## 判别力样本（f32::mul_add 的 GNU 默认库回退 vs 硬件 FMA；≥5 条）
+test math::fma::tests::dispatch_matches_hardware_and_soft_on_same_samples ... PATH cpuid_fma=true active_path=hardware
+SAMPLE a=3d832940 b=3fe7d4e4 c=3e428720 | got=3e9ca735 want=3e9ca736
+SAMPLE a=3f3de1da b=bec38e5e c=3fac3010 | got=3f87ece8 want=3f87ece7
+SAMPLE a=3f43b054 b=bf7ec3a1 c=3e6a95d8 | got=bf081907 want=bf081908
+SAMPLE a=bed00a12 b=3f3df5bc c=3f7ff0dc | got=3f32c14c want=3f32c14b
+
+## 残余率声明
+本探针的 0 残余率仅对上述生成器/规模/边界集有效；不得外推到其它输入分布或规模。
+helper 兜底路径在两套规模（4096/1e6）与边界集上对硬件 FMA 差异均为 0，未出现 >1 ULP 个例。

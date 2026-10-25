@@ -1,0 +1,41 @@
+# G5 位级回归（换实现前基线 vs 换实现后；CPU 测试，无 GPU 窗口）
+
+## 命令
+cargo test --locked --lib physics::collision::relmat -- --nocapture
+cargo test --locked --test g10_p5_sdf_relmat -- --nocapture
+cargo test --locked --test g10_p5_sdf_host -- --nocapture
+cargo test --locked --test gjk_epa -- --nocapture
+
+## relmat-unit（换实现后）
+test physics::collision::relmat::tests::upstream_relative_matrix_matches_warp_bits_sdf_rot_both ... ok
+test physics::collision::relmat::tests::upstream_relative_matrix_matches_warp_bits_sdf_rot_rz_rx ... ok
+test physics::collision::relmat::tests::plain_accumulation_differs_from_warp_bits ... ok
+test physics::collision::relmat::tests::upstream_relative_matrix_matches_transpose_rot1_rot2 ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 454 filtered out; finished in 0.00s
+
+## sdf-relmat（换实现后）
+test sdf_rotation_reference_encodes_upstream_rel_mat_convention ... ok
+test sdf_box_g3_regression_remains_bitwise ... ok
+test sdf_rotation_product_matches_upstream_f32_bitwise ... ok
+test sdf_rotation_fixture_is_well_formed ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+## sdf-host（换实现后）
+test sdf_cpu_reference_is_well_formed_and_matches_g0b_structure ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+## gjk-epa（换实现后）
+test raw_order_is_observation_only ... ok
+test duplicate_contact_points_are_keyed_by_geomcollisionid ... ok
+test reference_contract_covers_five_convex_cases ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+## 基线 vs 换实现后（逐行/多重集比较）
+relmat-unit : 4 passed / 0 failed，逐行 diff = 0
+sdf-relmat  : 4 passed / 0 failed，逐行 diff = 0（含 4 场景 40/40 位级 + sdf-box 80/80）
+sdf-host    : 1 passed / 0 failed，逐行 diff = 0
+gjk-epa     : 3 passed / 0 failed；并行输出行序不同（stdout 交错），排序/多重集内容一致
+结论：rel_mat 10/10 与 SDF 40/40 位级不变（测试自身逐位断言通过）；无位型变化，未触发红线。
+
+## 变化范围（只动 relmat + 新 helper + aabb 注释）
+git diff --stat 与 --name-only 见 README §范围

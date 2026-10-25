@@ -16,16 +16,18 @@
 //! geom1 恒为单位旋转（`a = I` 时 `aᵀb = bᵀa = b`）未被暴露；G5 设备侧按**上游语义**实现，
 //! 不复制 host 约定（产品 host 路径由 `2026-10-25-g10-p5-sdf-relmat-fix` 修正）。
 
-/// 上游 `warp/native/mat.h::muladd` 的 f32 语义：`fma(a, b, c)`（一次正确舍入）。
-///
-/// 刻意**不用** `f32::mul_add`：本机 dev 档（opt-level 0）实测未融合
-/// （QA：`0x3f17e6af` vs 正确 `0x3f17e6b0`，见 `qa-sdf-rotation-report.json`）。
-/// 这里用 f64 精确承载 f32 乘积（`f32 × f32` 在 f64 中精确可表示），再做一次和，
-/// 最后单次舍入回 f32：与正确舍入的 fma 在实测用例上位级一致（QA rel_mat 10/10 world 位等）。
-#[inline]
-fn fma_f32(a: f32, b: f32, c: f32) -> f32 {
-    (f64::from(a) * f64::from(b) + f64::from(c)) as f32
-}
+//! 上游 `warp/native/mat.h::muladd` 的 f32 语义由共享 helper 提供：
+//! `crate::math::fma::fma_f32`（`src/math/fma.rs`：CPU 支持 FMA 时用 `vfmadd231ss` 单指令，
+//! 否则退纯软件正确舍入；全 f32、无 f64，契约 L313/L344/L454）。
+//! 刻意**不用** `f32::mul_add`：GNU 默认构建在 opt-level 0 下会退化为非 IEEE 的库回退
+//! （诊断见 `docs/development-evidence/case-evidence-frame-diagnosis/`；QA 位差
+//! `0x3f17e6af` vs 正确 `0x3f17e6b0`）。
+//!
+//! 本模块此前用 f64 精确承载 f32 乘积（私有 f64 工作区）近似 fma；该实现已按契约
+//! 替换为共享 helper（relmat 片 `2026-10-25-exact-f32-fma-relmat`），位型回归见
+//! `docs/development-evidence/exact-f32-fma-relmat/`（G5 `rel_mat` 10/10 + SDF 40/40）。
+
+use crate::math::fma::fma_f32;
 
 /// 上游语义的 `transpose(a) * b`，行优先存储；按上游 `muladd` 的 fma 链累加（k 升序）。
 pub(crate) fn upstream_relative_matrix(a: &[f32; 9], b: &[f32; 9]) -> [f32; 9] {

@@ -123,6 +123,12 @@ fn validate_finite(field: &'static str, index: usize, value: f32) -> Result<(), 
 
 /// 复刻冻结参考的 `fma.rn.f32`。
 ///
+/// **边界（本片不改实现）**：该 f64 helper 属 render 加速结构（AABB），不进入产品物理数值链；
+/// 物理数值链（`physics`/`runtime` 的 rel_mat 等）的 f64 私有工作区已由
+/// `2026-10-25-exact-f32-fma-relmat` 换为 `src/math/fma.rs` 的全 f32 正确舍入 helper。
+/// render 侧是否也改用共享 helper 归 render 口径另行决定（契约 L341「原有辅助也不能继续豁免」
+/// 的 NP01 表述留给 render 侧评估），本片仅注明边界、不改变行为。
+///
 /// 宿主侧不直接用 `f32::mul_add`：本目标 debug 构建会落到不保证单次舍入的回退
 /// 实现，与 release 位型可能差 1 ULP（会破坏位等验收与调试/发布一致性）。
 /// 这里用 f64 计算（f32*f32 在 f64 中精确，再做一次 f64 加法与一次 f32 舍入），

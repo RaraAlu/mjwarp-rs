@@ -2,7 +2,7 @@
 uid = "dfdb6f0d"
 id = "mjwarp.math"
 tags = ["planned", "engine", "math"]
-fingerprint = "e511cd123d59fb65fdcc0cf13b128ca683406b37c62724c570ca90d98cd4c03b"
+fingerprint = "335977c6e6afeb0eb63546d0828df48a970ffc01f0cad987a39eed47f3d09ef7"
 
 [name]
 zh = "数学与空间代数"
@@ -18,6 +18,9 @@ Plan pure spatial algebra and numerical conventions without owning device or ren
 
 [[source]]
 path = "src/math/mod.rs"
+
+[[source]]
+path = "src/math/fma.rs"
 
 [[apis]]
 protocol = "rpc"

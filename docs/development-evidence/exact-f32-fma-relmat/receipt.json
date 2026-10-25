@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-exact-f32-fma-relmat",
+  "status": "implemented_pending_arch_review",
+  "head": "f5abcd7cc4fe77cede8d7d6f9d3327d2a94909e1",
+  "nature": "新增全 f32 精确 FMA helper（硬件 vfmadd231ss 主路 + 纯软件正确舍入兜底；无 f64），替换 relmat.rs 的私有 f64 fma；aabb.rs 仅加边界注释；不碰 polytope/megakernel_arrays、判据/容差/门禁/G01/已 verified 证据",
+  "helper": {
+    "path": "src/math/fma.rs",
+    "lines": 449,
+    "tests": "src/math/fma/tests.rs（377 行）",
+    "api": "pub(crate) fn fma_f32(a,b,c) -> f32",
+    "semantics": "IEEE-754 单次正确舍入的 a*b+c（RNE），与 GPU fma.rn.f32 同语义；全 f32，无 f64（契约 L313/L344/L454）",
+    "hardware_path": "is_x86_feature_detected!(\"fma\") + 内联汇编 vfmadd231ss；CPUID 由 OnceLock<bool> 每进程缓存一次",
+    "software_fallback": "f32 位型分解 + 576 位整数精确乘积/求和 + guard/sticky/RNE（含次正规/溢出的 2^-149 单位舍入）；无 f64",
+    "unsafe_surface": "仅 #[target_feature(enable=\"fma\")] 的 hw_fma 一个函数，安全前提已写入文档（CPUID 已确认、仅 xmm 标量、不访存/不改标志/不弹栈）",
+    "module_doc_three_things": true,
+    "module_ownership_suggestion": "mjwarp.math（.normify 登记由 Arch 执行，本片未动）"
+  },
+  "test_seam": {
+    "name": "MJWARP_FORCE_SOFT_FMA",
+    "scope": "仅 #[cfg(test)]（src/math/fma.rs L104-121 的 test_seam 模块 + tests.rs 测试侧）",
+    "product_builds": "默认/Release 产品构建不编译、不读取该 env；证据 seam-boundary.log",
+    "binary_checks": {
+      "target/debug/mjwarp-rs.exe": "contains_env=false",
+      "target/release/mjwarp-rs.exe": "contains_env=false",
+      "debug test binary": "contains_env=true"
+    },
+    "seam_run": "SEAM path=software(seam) samples=4154 mismatches=0 seam_digest=c0cf1bfdd35c42f9 hw_digest=c0cf1bfdd35c42f9"
+  },
+  "path_evidence": {
+    "cpuid_fma": {"gnu_default": true, "msvc": true, "gnu_fma": true},
+    "active_path": {"gnu_default": "hardware", "msvc": "hardware", "gnu_fma": "hardware", "gnu_seam": "software(seam)"},
+    "asm_proof": "cargo rustc --lib -- --emit=asm 生成汇编命中 `vfmadd231ss %xmm2, %xmm1, %xmm0`（asm-vfmadd.log）",
+    "hardware_reference": "内联汇编 vfmadd231ss（非 #[target_feature] 包装的 mul_add，避免 opt-level 0 退化同源）"
+  },
+  "probe": {
+    "generator": "LCG mult=6364136223846793005 inc=1442695040888963407 seed=0x2026102500000001；映射 f32(top24)/2^24*3-1 ∈ [-1,2)（QA 复核口径）",
+    "scales": ["4096", "1e6", "边界集 58 例（次正规/tie/指数差极大/抵消/±0/溢出/NaN/Inf）"],
+    "vs_hardware_fma": {"4096": "0 差异", "1e6": "0 差异", "boundary": "0 差异"},
+    "digests": {"4096": "a14ba3531fc6a6c6", "1e6": "54ec8d0836fa2a10", "dispatch_plus_boundary": "c0cf1bfdd35c42f9"},
+    "dispatch_vs_hardware": "0 差异；dispatch 与兜底同批样本 digest 相同",
+    "discrimination_samples": [
+      "a=3d832940 b=3fe7d4e4 c=3e428720 mul_add=3e9ca735 want=3e9ca736",
+      "a=3f3de1da b=bec38e5e c=3fac3010 mul_add=3f87ece8 want=3f87ece7",
+      "a=3f43b054 b=bf7ec3a1 c=3e6a95d8 mul_add=bf081907 want=bf081908",
+      "a=bed00a12 b=3f3df5bc c=3f7ff0dc mul_add=3f32c14c want=3f32c14b",
+      "a=bf61bed2 b=3f697998 c=beb166ce mul_add=bf934aa8 want=bf934aa7"
+    ],
+    "mul_add_vs_hw_mismatch_counts": {"gnu_default": "1025 / 4096", "msvc": "0 / 4096", "gnu_fma": "0 / 4096"},
+    "residual_rate_scope": "0 残余率仅对该生成器/规模/边界集有效，不外推；QA 在 1e6 观测到 GNU mul_add 的 1 个 2 ULP 个例，本 helper 0 差异、无 >1 ULP",
+    "log": "probe-4096-1m-boundary.log"
+  },
+  "three_build_consistency": {
+    "builds": ["GNU 默认", "MSVC", "GNU + -C target-feature=+fma"],
+    "helper_digests_equal": true,
+    "relmat_lib_tests": {"gnu": "4 passed / 0 failed", "msvc": "4 passed / 0 failed", "gnu_fma": "4 passed / 0 failed"},
+    "g10_p5_sdf_relmat": {"gnu": "4 passed / 0 failed", "msvc": "4 passed / 0 failed", "gnu_fma": "4 passed / 0 failed"},
+    "log": "three-build.log"
+  },
+  "g5_bitwise_regression": {
+    "no_gpu_window": true,
+    "cpu_targets": ["--lib physics::collision::relmat", "--test g10_p5_sdf_relmat", "--test g10_p5_sdf_host", "--test gjk_epa"],
+    "baseline_vs_after": {
+      "relmat_unit": "4 passed；逐行 diff=0",
+      "sdf_relmat": "4 passed（4 场景 40/40 位级 + sdf-box 80/80）；逐行 diff=0",
+      "sdf_host": "1 passed；逐行 diff=0",
+      "gjk_epa": "3 passed；并行 stdout 行序交错，排序/多重集内容一致"
+    },
+    "conclusion": "rel_mat 10/10 与 SDF 40/40 位级不变；无位型变化，未触发红线",
+    "log": "bitwise-regression.log"
+  },
+  "f64_audit": {
+    "scope": "src/physics/** 与 src/runtime/** 全部 f64 出现处",
+    "total_hits": 227,
+    "categories": {
+      "允许-测试/诊断": 139,
+      "允许-诊断/校验": 42,
+      "允许-ABI/类型支持": 13,
+      "允许-PTX精度门禁(诊断)": 7,
+      "允许-错误诊断负载": 7,
+      "允许-ABI转换口径": 4,
+      "允许-回读校验(cuda-probe)": 1,
+      "允许-输入校验": 2,
+      "允许-夹具provenance注释": 4,
+      "已修复(本片)": 2,
+      "待人工复核": 0
+    },
+    "conclusion": "除已修复的 relmat.rs 外未发现新的产品物理数值链私有 f64 工作区；aabb.rs 的 f64 属 render 加速结构（本片仅注释边界、实现不动）",
+    "log": "f64-audit.log"
+  },
+  "scope": {
+    "modified": ["src/math/mod.rs", "src/physics/collision/relmat.rs", "src/render/bvh/aabb.rs（仅注释）"],
+    "added": ["src/math/fma.rs", "src/math/fma/tests.rs"],
+    "untouched": ["src/physics/collision/gjk/polytope.rs", "src/render/kernel/megakernel_arrays.rs", "gates.toml", "G01 脚本", "Cargo 清单"],
+    "helper_lines": 449,
+    "tests_lines": 377
+  },
+  "boundaries": {
+    "no_fma_hardware_machine": "未在真实无 FMA 机器验证兜底路径（seam 已覆盖行为）；如实未覆盖",
+    "nan_payload": "不作为位级判据（两边均为 NaN 视为一致）",
+    "performance_benchmark": "未做正式基准（主路单指令；兜底仅无 FMA 机器启用）",
+    "gpu_run": false,
+    "linux_run": false,
+    "note": "不改判据/容差/排除清单/已 verified 证据；不宣称精度达标/跨环境全绿"
+  },
+  "gate": {"status": "run_at_task_close", "runs_dir": ".normify/runs/2026-10-25-exact-f32-fma-relmat/"},
+  "evidence_files": [
+    "README.md",
+    "probe-4096-1m-boundary.log",
+    "three-build.log",
+    "seam-boundary.log",
+    "asm-vfmadd.log",
+    "bitwise-regression.log",
+    "f64-audit.log",
+    "gnu-default.log",
+    "msvc-default.log",
+    "gnu-fma.log",
+    "gnu-seam.log",
+    "relmat-gnu.log",
+    "relmat-msvc.log",
+    "relmat-gnu-fma.log"
+  ]
+}

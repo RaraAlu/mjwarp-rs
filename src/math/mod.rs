@@ -8,6 +8,8 @@
 //! 空间向量先转动，后平动。
 //! 不隐式归一化或检查有限值。
 
+pub(crate) mod fma;
+
 pub type Vec3 = [f32; 3];
 pub type Quat = [f32; 4];
 pub type Mat3 = [[f32; 3]; 3];

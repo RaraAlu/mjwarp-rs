@@ -1,0 +1,232 @@
+# 产品数值链内部 f64 审计清单（本片只列不改；契约 L313/L344/L454）
+# 扫描范围：src/physics/** 与 src/runtime/** 的全部 f64 出现处（含注释/测试/诊断）；分类标准见 README
+# 总出现处：227；分类：已修复(本片)=2，允许-ABI/类型支持=13，允许-ABI转换口径=4，允许-PTX精度门禁(诊断)=7，允许-测试/诊断=158，允许-错误诊断负载=7，允许-回读校验(cuda-probe)=1，允许-夹具provenance注释=3，允许-输入校验(仅check_kinematics)=2，允许-诊断/校验=30
+# 结论：未发现新的「产品物理数值链私有 f64 工作区」；唯一既有违规 relmat.rs 的 f64 fma 已替换为全 f32 helper。
+
+[允许-测试/诊断] src\physics\constants.rs:207 | let native: Vec<f64> = value["native_reference"]["body_subtreemass_f64"]
+[允许-测试/诊断] src\physics\constants.rs:216 | let difference = (*actual as f64 - expected).abs();
+[允许-诊断/校验] src\physics\device_checks.rs:7 | pub(in crate::physics) fn check_device_values<T: Copy + Into<f64>>(
+[允许-诊断/校验] src\physics\device_checks.rs:21 | pub(in crate::physics) fn check_device_guards<T: Copy + Into<f64>>(
+[允许-诊断/校验] src\physics\history.rs:70 | pub fn validate_times(self, times: &[f64], minimum_interval: f64) -> Result<(), InputError> {
+[允许-输入校验(仅check_kinematics)] src\physics\kinematics.rs:132 | pub(in crate::physics) fn norm_squared(values: &[f32]) -> f64 {
+[允许-输入校验(仅check_kinematics)] src\physics\kinematics.rs:133 | values.iter().map(|&x| f64::from(x).powi(2)).sum()
+[允许-测试/诊断] src\physics\tests.rs:305 | for times in [[0.0, 0.125], [1.0, 1.0], [1.0, 0.0], [-f64::MAX, f64::MAX]] {
+[允许-测试/诊断] src\physics\tests.rs:324 | for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+[允许-测试/诊断] src\physics\tests.rs:333 | for threshold in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+[允许-测试/诊断] src\physics\applied_force\tests\gpu.rs:90 | f64::from(e as f32),
+[允许-测试/诊断] src\physics\applied_force\tests\gpu.rs:97 | f64::from(seed[w * n + i]) + e
+[允许-测试/诊断] src\physics\applied_force\tests\gpu.rs:101 | assert_eq!(f64::from(final_e as f32), final_e);
+[允许-测试/诊断] src\physics\applied_force\tests\gpu.rs:157 | assert!((f64::from(fma) - fma_expected).abs() <= 2e-7 + 2e-7 * fma_expected.abs());
+[允许-测试/诊断] src\physics\applied_force\tests\gpu.rs:280 | let report = serde_json::json!({"batches":batches,"qfrc_slots":slots,"delta_slots":delta_slots,"dyadic_bit_differences":0,"fma_control_bits":format!("{:08x}",fma.to_bits()),"fma_f64_error":(f64::from(fma)-fma_expected).abs(),"phase_ms":start.elapsed().as_millis(),"max_owned_plan_Data_bytes":capacity,"full_U075_NP":false});
+[允许-测试/诊断] src\physics\applied_force\tests\support.rs:29 | // permutation or dot6+dot3 decomposition. Diagnostic f64 never feeds GPU.
+[允许-测试/诊断] src\physics\applied_force\tests\support.rs:36 | ) -> Vec<f64> {
+[允许-测试/诊断] src\physics\applied_force\tests\support.rs:54 | r[k] = f64::from(xpos[3 * b + k]) - f64::from(com[3 * t.root[b] as usize + k]);
+[允许-测试/诊断] src\physics\applied_force\tests\support.rs:55 | f[k] = f64::from(ft[6 * b + k]);
+[允许-测试/诊断] src\physics\applied_force\tests\support.rs:63 | *value += f64::from(cdof[6 * i + k]) * (f64::from(ft[6 * b + 3 + k]) + moment[k]);
+[允许-测试/诊断] src\physics\applied_force\tests\support.rs:64 | *value += f64::from(cdof[6 * i + 3 + k]) * f[k];
+[允许-测试/诊断] src\physics\applied_force\tests\support.rs:137 | ) -> Vec<Vec<f64>> {
+[允许-诊断/校验] src\physics\collision\perf_report.rs:15 | pub(crate) total_ns: f64,
+[允许-诊断/校验] src\physics\collision\perf_report.rs:17 | pub(crate) median_ns: f64,
+[允许-诊断/校验] src\physics\collision\perf_report.rs:18 | pub(crate) p95_ns: f64,
+[允许-诊断/校验] src\physics\collision\perf_report.rs:19 | pub(crate) contacts_per_s: f64,
+[允许-诊断/校验] src\physics\collision\perf_report.rs:65 | ncontacts as f64 * plan.reps as f64 * 1.0e9 / total_ns as f64
+[允许-诊断/校验] src\physics\collision\perf_report.rs:83 | total_ns: total_ns as f64,
+[允许-诊断/校验] src\physics\collision\perf_report.rs:102 | fn median(sorted: &[u64]) -> f64 {
+[允许-诊断/校验] src\physics\collision\perf_report.rs:108 | (sorted[middle - 1] as f64 + sorted[middle] as f64) / 2.0
+[允许-诊断/校验] src\physics\collision\perf_report.rs:110 | sorted[middle] as f64
+[允许-诊断/校验] src\physics\collision\perf_report.rs:115 | fn p95(sorted: &[u64]) -> f64 {
+[允许-诊断/校验] src\physics\collision\perf_report.rs:120 | sorted[rank - 1] as f64
+[允许-诊断/校验] src\physics\collision\perf_report.rs:138 | median_ns: f64,
+[允许-诊断/校验] src\physics\collision\perf_report.rs:139 | p95_ns: f64,
+[允许-诊断/校验] src\physics\collision\perf_report.rs:141 | contacts_per_s: f64,
+[已修复(本片)] src\physics\collision\relmat.rs:21 | //! 否则退纯软件正确舍入；全 f32、无 f64，契约 L313/L344/L454）。
+[已修复(本片)] src\physics\collision\relmat.rs:26 | //! 本模块此前用 f64 精确承载 f32 乘积（私有 f64 工作区）近似 fma；该实现已按契约
+[允许-测试/诊断] src\physics\collision\tests.rs:1 | //! G07@P5 宽相碰撞测试：冻结上游逐案候选、NXN/SAP 一致性、原生 f64 一级判定
+[允许-诊断/校验] src\physics\collision\gjk\case_compare.rs:119 | /// `aligned=false` 用 mj_forward(f64→f32) 位姿；`true` 用 mjwarp f32 运动学口径。
+[允许-夹具provenance注释] src\physics\collision\gjk\case_data.rs:9 | // 内嵌数据：由 authoring 导出（mujoco 3.15.0 CPU 前向运动学 f64→f32），产品测试不启动 Python。
+[允许-测试/诊断] src\physics\collision\gjk\case_evidence.rs:78 | "{\"schema\":1,\"task_id\":\"2026-10-25-g10-p5-gjk-epa\",\"kind\":\"g2-native-error-seed\",\"note\":\"契约框架读数（ours/mjwarp 对 native f64 绝对差；不作 G2 判据，供 G6 native 容差候选）\",\"fields\":{",
+[允许-测试/诊断] src\physics\collision\gjk\case_evidence.rs:174 | /// 探索项（不作门禁）：native 位级不可达（f64 参考），仅记录。
+[允许-测试/诊断] src\physics\collision\gjk\case_evidence.rs:176 | #[ignore = "探索项：native 是 f64，f32 实现不可能位级一致，不作门禁"]
+[允许-测试/诊断] src\physics\collision\gjk\case_evidence.rs:202 | total_contacts += timing.ncontacts as f64;
+[允许-夹具provenance注释] src\physics\collision\gjk\mod.rs:94 | /// `cos(0.0889)`（`wp.static` f64 计算后按 f32 落地）。
+[允许-测试/诊断] src\physics\collision\hfield\tests.rs:358 | total_contacts += timing.ncontacts as f64;
+[允许-测试/诊断] src\physics\collision\narrowphase\tests.rs:1 | //! G08@P5 窄相测试：接 G07 宽相候选、冻结上游接触对照、原生 f64 一级判定与
+[允许-测试/诊断] src\physics\collision\narrowphase\tests.rs:228 | fn max_abs(product: &[f32], expected: &[f32]) -> f64 {
+[允许-测试/诊断] src\physics\collision\narrowphase\tests.rs:233 | acc.max((*left as f64 - *right as f64).abs())
+[允许-测试/诊断] src\physics\collision\narrowphase\tests.rs:360 | // 3) 原生 f64 mj_collision 一级判定。
+[允许-测试/诊断] src\physics\collision\narrowphase\tests\plane_box.rs:53 | /// G09：plane-box 多接触/退化场景 vs 冻结上游与原生 f64 mj_collision。
+[允许-测试/诊断] src\physics\collision\narrowphase\tests\plane_box.rs:159 | // 2) 世界接触数量（多接触退化：4/2/1/0/4/4/0）与原生 f64 mj_collision 一级判定。
+[允许-测试/诊断] src\physics\collision\narrowphase\tests\plane_box.rs:201 | native_max = native_max.max((f64::from(product.0) - f64::from(native.0)).abs());
+[允许-夹具provenance注释] src\physics\collision\sdf\octree.rs:5 | /// 体积 SDF 数据（G1 字段经唯一一次 f64→f32 转换后的上传口径）。
+[允许-测试/诊断] src\physics\derivative\tests.rs:2 | //! 原生 f64）、以及输入校验面。
+[允许-测试/诊断] src\physics\derivative\tests.rs:102 | tolerance: f64,
+[允许-测试/诊断] src\physics\derivative\tests.rs:106 | let derived = (mass[*madr] as f64 - product[*madr] as f64)
+[允许-测试/诊断] src\physics\derivative\tests.rs:107 | - timestep as f64 * differences[*dof] as f64;
+[允许-测试/诊断] src\physics\derivative\tests.rs:141 | poly_max = poly_max.max((*left as f64 - *right as f64).abs());
+[允许-测试/诊断] src\physics\derivative\tests.rs:169 | native_max = native_max.max((*left as f64 - *right as f64).abs());
+[允许-测试/诊断] src\physics\gravity_compensation\tests\frozen_device.rs:230 | .expect("independent f64 recompute");
+[允许-测试/诊断] src\physics\history\tests.rs:19 | fn f64_list(value: &Value) -> Vec<f64> {
+[允许-测试/诊断] src\physics\history\tests.rs:113 | /// 另以 MuJoCo C `mj_resetData` 的 `d.history`（f64）做原生一级判定（1e-6）。
+[允许-测试/诊断] src\physics\history\tests.rs:203 | .map(|(upstream, native)| (f64::from(*upstream) - native).abs())
+[允许-测试/诊断] src\physics\history\tests.rs:204 | .fold(0.0_f64, f64::max);
+[允许-测试/诊断] src\physics\integrator\tests.rs:1 | //! G16@P6 积分器测试：冻结上游逐位对照、原生 f64 一级判定、合成 ODE 收敛阶
+[允许-测试/诊断] src\physics\integrator\tests.rs:60 | fn count_bitwise(product: &[f32], expected: &[f32]) -> (usize, f64) {
+[允许-测试/诊断] src\physics\integrator\tests.rs:68 | max_abs = max_abs.max((*left as f64 - *right as f64).abs());
+[允许-测试/诊断] src\physics\integrator\tests.rs:144 | ((*product as f64) - (*native as f64)).abs() <= native_tolerance,
+[允许-测试/诊断] src\physics\integrator\tests.rs:154 | ((*product as f64) - (*native as f64)).abs() <= native_tolerance,
+[允许-测试/诊断] src\physics\integrator\tests.rs:203 | ((*product as f64) - (*native as f64)).abs() <= native_tolerance,
+[允许-测试/诊断] src\physics\integrator\tests.rs:213 | ((*product as f64) - (*native as f64)).abs() <= native_tolerance,
+[允许-测试/诊断] src\physics\integrator\tests.rs:270 | fn exact_harmonic(time: f64, initial: [f64; 2]) -> [f64; 2] {
+[允许-测试/诊断] src\physics\integrator\tests.rs:277 | fn euler_synthetic(steps: usize, dt: f32, initial: [f64; 2]) -> [f64; 2] {
+[允许-测试/诊断] src\physics\integrator\tests.rs:306 | [state[0] as f64, state[1] as f64]
+[允许-测试/诊断] src\physics\integrator\tests.rs:309 | fn rk4_synthetic(steps: usize, dt: f32, initial: [f64; 2]) -> [f64; 2] {
+[允许-测试/诊断] src\physics\integrator\tests.rs:378 | [state[0] as f64, state[1] as f64]
+[允许-测试/诊断] src\physics\integrator\discrete\tests.rs:1 | //! G18@P6 离散积分测试：冻结上游 DISCRETE 单步、原生 f64 一级判定、恒等分支
+[允许-测试/诊断] src\physics\integrator\discrete\tests.rs:55 | fn count_bitwise(product: &[f32], expected: &[f32]) -> (usize, f64) {
+[允许-测试/诊断] src\physics\integrator\discrete\tests.rs:62 | max_abs = max_abs.max((*left as f64 - *right as f64).abs());
+[允许-测试/诊断] src\physics\integrator\discrete\tests.rs:120 | native_max = native_max.max((*product as f64 - *native as f64).abs());
+[允许-测试/诊断] src\physics\integrator\discrete\tests.rs:123 | native_max = native_max.max((*product as f64 - *native as f64).abs());
+[允许-测试/诊断] src\physics\inverse\tests.rs:1 | //! G20@P7 逆向动力学测试：冻结上游 qfrc_inverse、原生 f64 一级判定、正逆向
+[允许-测试/诊断] src\physics\inverse\tests.rs:57 | fn assert_within(label: &str, product: &[f32], expected: &[f32], tolerance: f64) -> f64 {
+[允许-测试/诊断] src\physics\inverse\tests.rs:65 | max_abs = max_abs.max((*left as f64 - *right as f64).abs());
+[允许-测试/诊断] src\physics\inverse\tests.rs:116 | .fold(0.0_f64, |acc, value| acc.max((*value as f64).abs()));
+[允许-测试/诊断] src\physics\kinetic_energy\tests\host.rs:84 | .map(|(&q, &m)| q as f64 * m as f64)
+[允许-测试/诊断] src\physics\kinetic_energy\tests\host.rs:85 | .sum::<f64>();
+[允许-测试/诊断] src\physics\kinetic_energy\tests\support.rs:86 | ) -> (Vec<f32>, Vec<f32>, Vec<f64>, Vec<f32>) {
+[允许-测试/诊断] src\physics\kinetic_energy\tests\support.rs:96 | let mass = ((i + state) % 7 + 1) as f64 / 4.0;
+[允许-测试/诊断] src\physics\kinetic_energy\tests\support.rs:97 | let velocity = ((i + 3 * w + state) % 9) as f64 / 8.0 - 0.5;
+[允许-测试/诊断] src\physics\kinetic_energy\tests\support.rs:102 | assert_eq!(energy as f32 as f64, energy);
+[允许-测试/诊断] src\physics\mass_matrix\multiply\tests.rs:91 | .map(|j| f64::from(full[i * n + j]) * f64::from(x[j]))
+[允许-测试/诊断] src\physics\mass_matrix\multiply\tests.rs:92 | .sum::<f64>()
+[允许-测试/诊断] src\physics\mass_matrix\multiply\tests.rs:105 | close(a, f64::from(rhs[col * n + i]));
+[允许-测试/诊断] src\physics\mass_matrix\multiply\tests.rs:106 | max_abs = max_abs.max((f64::from(a) - oracle[i]).abs());
+[允许-测试/诊断] src\physics\mass_matrix\multiply\tests.rs:177 | .map(|j| f64::from(full[i * n + j]) * f64::from(x[j]))
+[允许-测试/诊断] src\physics\mass_matrix\multiply\tests.rs:250 | fn close(a: f32, b: f64) {
+[允许-测试/诊断] src\physics\mass_matrix\multiply\tests.rs:252 | (f64::from(a) - b).abs() <= 2e-5 + 2e-5 * b.abs(),
+[允许-测试/诊断] src\physics\mass_matrix\multiply\borrowed\tests\gpu.rs:108 | .map(|c| world_matrix[r * n + c] as f64 * q[w * n + c] as f64)
+[允许-测试/诊断] src\physics\mass_matrix\multiply\borrowed\tests\gpu.rs:109 | .sum::<f64>();
+[允许-测试/诊断] src\physics\mass_matrix\multiply\borrowed\tests\gpu.rs:110 | let err = (actual as f64 - expected).abs();
+[允许-测试/诊断] src\physics\mass_matrix\multiply\borrowed\tests\gpu.rs:186 | .map(|c| matrix.world(1).unwrap().matrix[3 * r + c] as f64 * 0.25)
+[允许-测试/诊断] src\physics\mass_matrix\multiply\borrowed\tests\gpu.rs:187 | .sum::<f64>();
+[允许-测试/诊断] src\physics\mass_matrix\multiply\borrowed\tests\gpu.rs:189 | (out.world(1).unwrap()[r] as f64 - expected).abs()
+[允许-诊断/校验] src\physics\mass_solve\probe.rs:104 | pub(super) fn check_result<T: Copy + Into<f64>>(
+[允许-诊断/校验] src\physics\mass_solve\probe.rs:113 | let s: [f64; 3] = [
+[允许-诊断/校验] src\physics\mass_solve\probe.rs:122 | if !s[1].is_finite() || s[1] != dof as f64 || dof >= layout.nv {
+[允许-诊断/校验] src\physics\mass_solve\probe.rs:132 | if s[0] == 2.0 && (!s[2].is_finite() || s[2] > f64::from(f32::MAX)) {
+[允许-错误诊断负载] src\physics\mass_solve\sparse\factor.rs:236 | value: f64::from(diagonal),
+[允许-错误诊断负载] src\physics\mass_solve\sparse\dense\small\data.rs:82 | value: f64::from(value),
+[允许-错误诊断负载] src\physics\mass_solve\sparse\mixed\data.rs:72 | value: f64::from(value),
+[允许-错误诊断负载] src\physics\mass_solve\sparse\mixed\data.rs:83 | value: f64::from(value),
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\tests.rs:211 | assert!((f64::from(a) - f64::from(b)).abs() <= 2e-4 + 2e-4 * f64::from(b).abs());
+[允许-错误诊断负载] src\physics\mass_solve\sparse\mixed\solve\data.rs:102 | value: f64::from(value),
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\gpu_bridge.rs:81 | let u = f64::from(a).sqrt();
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\gpu_bridge.rs:82 | let off = f64::from(b) / u;
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\gpu_bridge.rs:83 | let upper = [u, off, 0.0, (f64::from(d) - off * off).sqrt()];
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\gpu_bridge.rs:95 | f64::from(csr[4 + w * 2149 + i])
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\gpu_bridge.rs:106 | f64::from(
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\support.rs:14 | pub(super) fn close(a: f32, b: f64, tolerance: f64) -> f64 {
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\support.rs:15 | let error = (f64::from(a) - b).abs();
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\support.rs:25 | ) -> (usize, f64, f64) {
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\support.rs:49 | ax += f64::from(m) * f64::from(x.solution[68 * r + j]);
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\support.rs:50 | row += f64::from(m).abs();
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\support.rs:53 | xn = xn.max(f64::from(x.solution[68 * r + i]).abs());
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\support.rs:54 | bn = bn.max(f64::from(rhs[68 * r + i]).abs());
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\resident\tests\support.rs:55 | rn = rn.max((ax - f64::from(rhs[68 * r + i])).abs());
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\tests\cached_factor.rs:64 | assert!((f64::from(actual) - reference).abs() <= 2e-4 + 2e-4 * reference.abs());
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\tests\gpu_checks.rs:236 | assert!((f64::from(value) - reference).abs() <= 2e-4 + 2e-4 * reference.abs());
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\tests\gpu_fused.rs:28 | assert!((f64::from(value) - reference).abs() <= 2e-4 + 2e-4 * reference.abs());
+[允许-测试/诊断] src\physics\mass_solve\sparse\mixed\solve\tests\gpu_fused.rs:135 | assert!((f64::from(value) - reference).abs() <= 2e-4 + 2e-4 * reference.abs());
+[允许-错误诊断负载] src\physics\mass_solve\sparse\resident\solve\data.rs:114 | value: f64::from(value),
+[允许-错误诊断负载] src\physics\mass_solve\sparse\resident\solve\data.rs:130 | value: f64::from(value),
+[允许-测试/诊断] src\physics\mass_solve\sparse\tests\support.rs:41 | let error = (f64::from(actual) - expected).abs();
+[允许-测试/诊断] src\physics\mass_solve\sparse\tests\support.rs:60 | source[row * n + column] = f64::from(matrix[address]);
+[允许-测试/诊断] src\physics\mass_solve\sparse\tests\support.rs:61 | source[column * n + row] = f64::from(matrix[address]);
+[允许-测试/诊断] src\physics\mass_solve\sparse\tests\support.rs:63 | diagonal[row] = f64::from(factor[address]);
+[允许-测试/诊断] src\physics\mass_solve\sparse\tests\support.rs:66 | lower[row * n + column] = f64::from(factor[address]);
+[允许-测试/诊断] src\physics\mass_solve\sparse\tests\support.rs:72 | .map(|row| row.iter().map(|value| value.abs()).sum::<f64>())
+[允许-测试/诊断] src\physics\mass_solve\sparse\tests\support.rs:73 | .fold(0.0, f64::max);
+[允许-测试/诊断] src\physics\mass_solve\sparse\tests\support.rs:80 | .sum::<f64>();
+[允许-测试/诊断] src\physics\mass_solve\tests\device_factor.rs:41 | assert_eq!(value.to_bits(), f64::from(pivot).to_bits());
+[允许-诊断/校验] src\physics\resident\checks.rs:78 | let squared: f64 = rotation.iter().map(|&x| f64::from(x).powi(2)).sum();
+[允许-回读校验(cuda-probe)] src\physics\resident\output.rs:60 | pub(super) fn read_output<T: crate::runtime::TransferElement + Into<f64>>(
+[允许-测试/诊断] src\physics\sensor\tests.rs:1 | //! G23@P7 传感器测试：冻结上游 sensordata、原生 f64 一级判定、cutoff 截断、
+[允许-测试/诊断] src\physics\sensor\tests.rs:75 | fn assert_within(label: &str, product: &[f32], expected: &[f32], tolerance: f64) -> f64 {
+[允许-测试/诊断] src\physics\sensor\tests.rs:83 | max_abs = max_abs.max((*left as f64 - *right as f64).abs());
+[允许-测试/诊断] src\physics\smooth_force\joint_passive\tests\gpu_joint.rs:82 | let s = a as f64 + b as f64;
+[允许-测试/诊断] src\physics\smooth_force\joint_passive\tests\gpu_joint.rs:83 | assert_eq!(s as f32 as f64, s);
+[允许-测试/诊断] src\physics\smooth_force\joint_passive\tests\gpu_joint.rs:84 | let result = ((s - bias[w * 11 + r] as f64)
+[允许-测试/诊断] src\physics\smooth_force\joint_passive\tests\gpu_joint.rs:85 | + act[w * 11 + r] as f64)
+[允许-测试/诊断] src\physics\smooth_force\joint_passive\tests\gpu_joint.rs:86 | + applied[w * 11 + r] as f64;
+[允许-测试/诊断] src\physics\smooth_force\joint_passive\tests\gpu_joint.rs:87 | assert_eq!(result as f32 as f64, result);
+[允许-测试/诊断] src\physics\smooth_force\joint_passive\tests\oracle.rs:142 | let vel = v[a] as f64;
+[允许-测试/诊断] src\physics\smooth_force\joint_passive\tests\oracle.rs:144 | let f = -vel * (da[a] as f64 + dp[2 * a] as f64 * x + dp[2 * a + 1] as f64 * x * x);
+[允许-测试/诊断] src\physics\smooth_force\joint_passive\tests\oracle.rs:145 | assert_eq!(f as f32 as f64, f);
+[允许-测试/诊断] src\physics\smooth_force\joint_passive\tests\oracle.rs:154 | let x = q[a] as f64 - ps[a] as f64;
+[允许-测试/诊断] src\physics\smooth_force\joint_passive\tests\oracle.rs:155 | let f = -x * (st[j] as f64 + sp[2 * j] as f64 * x + sp[2 * j + 1] as f64 * x * x);
+[允许-测试/诊断] src\physics\smooth_force\joint_passive\tests\oracle.rs:156 | assert_eq!(f as f32 as f64, f);
+[允许-测试/诊断] src\physics\smooth_force\tests\checks.rs:20 | f64::from(x[0]) - f64::from(x[1]) + f64::from(x[2]) + f64::from(x[3]),
+[允许-测试/诊断] src\physics\tendon_velocity\tests\support.rs:136 | fixed += coefficient(j) as f64 * x as f64;
+[允许-测试/诊断] src\physics\tendon_velocity\tests\support.rs:139 | 0.0_f64 - v[0] as f64 + v[1] as f64,
+[允许-测试/诊断] src\physics\tendon_velocity\tests\support.rs:142 | 0.0 + v[v.len() - 1] as f64,
+[允许-测试/诊断] src\physics\tendon_velocity\tests\support.rs:148 | assert_eq!(x as f32 as f64, x);
+[允许-ABI转换口径] src\runtime\collision_upload.rs:10 | //! 本模块只负责把这些字段打包成一份共享 payload（f64→f32 转换仍走 G1 的唯一转换入口）。
+[允许-ABI转换口径] src\runtime\collision_upload.rs:183 | /// 打包共享 payload（小端字节；f64→f32 只走 G1 的唯一转换入口）。
+[允许-ABI转换口径] src\runtime\collision_upload.rs:351 | VolumeFieldData::Num((0..6 * noct).map(|value| value as f64 * 0.25).collect()),
+[允许-ABI转换口径] src\runtime\collision_upload.rs:352 | VolumeFieldData::Num((0..8 * noct).map(|value| value as f64 * -0.5).collect()),
+[允许-测试/诊断] src\runtime\samples.rs:8 | const SOLVE_TOLERANCE: f64 = 1.0e-6;
+[允许-测试/诊断] src\runtime\samples.rs:121 | let sum: f64 = input.iter().map(|&value| f64::from(value)).sum();
+[允许-测试/诊断] src\runtime\samples.rs:225 | let x = f64::from(solution[0]);
+[允许-测试/诊断] src\runtime\samples.rs:226 | let y = f64::from(solution[1]);
+[允许-测试/诊断] src\runtime\samples.rs:234 | fn close(index: usize, expected: f64, actual: f64) -> Result<(), ProbeError> {
+[允许-测试/诊断] src\runtime\samples.rs:347 | assert!(close(0, 0.0, f64::NAN).is_err());
+[允许-ABI/类型支持] src\runtime\transfer.rs:29 | impl Sealed for f64 {}
+[允许-ABI/类型支持] src\runtime\transfer.rs:34 | /// 支持f32、f64、i32与u32。
+[允许-ABI/类型支持] src\runtime\transfer.rs:44 | impl TransferElement for f64 {}
+[允许-ABI/类型支持] src\runtime\launcher\abi.rs:12 | F64,
+[允许-ABI/类型支持] src\runtime\launcher\abi.rs:22 | Self::F64 => 8,
+[允许-ABI/类型支持] src\runtime\launcher\abi.rs:294 | impl WarpElement for f64 {
+[允许-ABI/类型支持] src\runtime\launcher\abi.rs:295 | const ELEM: ElemType = ElemType::F64;
+[允许-ABI/类型支持] src\runtime\launcher\warp.rs:24 | F64(WarpArray<f64>),
+[允许-ABI/类型支持] src\runtime\launcher\warp.rs:39 | pub fn f64(array: WarpArray<f64>, element_bytes: u64, capacity_bytes: u64) -> Self {
+[允许-ABI/类型支持] src\runtime\launcher\warp.rs:41 | array: WarpArrayValue::F64(array),
+[允许-ABI/类型支持] src\runtime\launcher\warp.rs:74 | WarpArrayValue::F64(_) => <f64 as WarpElement>::ELEM.bytes(),
+[允许-ABI/类型支持] src\runtime\launcher\warp.rs:86 | WarpArrayValue::F64(array) => array.check_parts(),
+[允许-ABI/类型支持] src\runtime\launcher\warp.rs:224 | WarpArrayValue::F64(array) => {
+[允许-测试/诊断] src\runtime\launcher\abi\tests.rs:20 | assert_eq!(size_of::<WarpArray<f64>>(), 56);
+[允许-测试/诊断] src\runtime\launcher\abi\tests.rs:60 | let doubles = WarpArray::<f64>::contiguous(0x1000, &[2, 6]).unwrap();
+[允许-测试/诊断] src\runtime\launcher\artifact\tests.rs:10 | const F64_PTX: &str = ".version 8.7\n.target sm_70\n.reg .f64 %fd<2>;\nadd.f64 %fd1, %fd0, %fd0;\n";
+[允许-测试/诊断] src\runtime\tooling\gpu.rs:212 | let nanos = f64::from(millis) * 1_000_000.0;
+[允许-诊断/校验] src\runtime\tooling\mod.rs:4 | //!   `report()` 产出计数/总计/最小/最大/中位数与均值（f64 仅作诊断统计）；
+[允许-诊断/校验] src\runtime\tooling\mod.rs:39 | /// 阶段统计（均值/中位数为诊断用 f64）。
+[允许-诊断/校验] src\runtime\tooling\mod.rs:47 | pub mean_ns: f64,
+[允许-诊断/校验] src\runtime\tooling\mod.rs:48 | pub median_ns: f64,
+[允许-诊断/校验] src\runtime\tooling\mod.rs:152 | sum as f64 / count as f64
+[允许-诊断/校验] src\runtime\tooling\mod.rs:159 | samples[count / 2] as f64
+[允许-诊断/校验] src\runtime\tooling\mod.rs:161 | (samples[count / 2 - 1] as f64 + samples[count / 2] as f64) / 2.0
+[允许-测试/诊断] src\runtime\tooling\perf.rs:54 | /// 单阶段样本统计（均值/中位数为诊断用 f64，不反馈产品物理结果）。
+[允许-测试/诊断] src\runtime\tooling\perf.rs:61 | pub mean_ns: f64,
+[允许-测试/诊断] src\runtime\tooling\perf.rs:62 | pub median_ns: f64,
+[允许-测试/诊断] src\runtime\tooling\perf.rs:75 | let mean_ns = total_ns as f64 / count as f64;
+[允许-测试/诊断] src\runtime\tooling\perf.rs:77 | sorted[count / 2] as f64
+[允许-测试/诊断] src\runtime\tooling\perf.rs:79 | (sorted[count / 2 - 1] as f64 + sorted[count / 2] as f64) / 2.0
+[允许-测试/诊断] src\runtime\transfer\tests.rs:33 | assert_eq!(checked_bytes::<f64>(5).unwrap(), 40);
+[允许-测试/诊断] src\runtime\transfer\tests.rs:36 | assert!(checked_bytes::<f64>(isize::MAX as usize / 8 + 1).is_err());
+[允许-PTX精度门禁(诊断)] src\runtime\transfer\kernel\ptx.rs:6 | // reduction emits this exact s64 -> f64 -> f32 triplet. It does not promote a
+[允许-PTX精度门禁(诊断)] src\runtime\transfer\kernel\ptx.rs:25 | if code.starts_with(".reg .f64 ") || code.starts_with(".reg .f64\t") {
+[允许-PTX精度门禁(诊断)] src\runtime\transfer\kernel\ptx.rs:31 | if a.len() == 3 && a[0] == "cvt.rn.f64.s64" && i + 2 < lines.len() {
+[允许-PTX精度门禁(诊断)] src\runtime\transfer\kernel\ptx.rs:37 | && matches!(b[0].as_str(), "mul.rn.f64" | "mul.f64")
+[允许-PTX精度门禁(诊断)] src\runtime\transfer\kernel\ptx.rs:41 | && c[0] == "cvt.rn.f32.f64"
+[允许-PTX精度门禁(诊断)] src\runtime\transfer\kernel\ptx.rs:54 | if matches!(token, "f64" | "f16" | "f16x2" | "bf16" | "bf16x2" | "tf32") {
+[允许-PTX精度门禁(诊断)] src\runtime\transfer\kernel\ptx.rs:66 | detail: format!("{entry}: unaccounted f64 registers"),
+[允许-测试/诊断] src\runtime\transfer\kernel\tests\adapter.rs:58 | // SAFETY: The trusted shader reads one i32, one f64 and three f32
+[允许-测试/诊断] src\runtime\transfer\kernel\tests\precision.rs:9 | "add.rn.f64 %fd1, %fd2, %fd3;",
+[允许-测试/诊断] src\runtime\transfer\kernel\tests\precision.rs:10 | "cvt.f32.f64 %f1, %fd2;",
+[允许-测试/诊断] src\runtime\transfer\kernel\tests\precision.rs:11 | ".reg .f64 %fd<2>;",
+[允许-测试/诊断] src\runtime\transfer\kernel\tests\precision.rs:27 | "// f64 is forbidden\n.reg .b64 %rd<2>;\nadd.rn.f32 %f16, %f64, %f3;",
+[允许-测试/诊断] src\runtime\transfer\kernel\tests\precision.rs:31 | let reduction = ".reg .f64 %fd<3>;\ncvt.rn.f64.s64 %fd1, %rd1;\nmul.rn.f64 %fd2, %fd1, 0d3BF921FB54442D19;\ncvt.rn.f32.f64 %f1, %fd2;";
+[允许-测试/诊断] src\runtime\transfer\kernel\tests\precision.rs:33 | check_physics_ptx(&reduction.replace("mul.rn.f64", "mul.f64"), "probe").unwrap();
+[允许-测试/诊断] src\runtime\transfer\kernel\tests\precision.rs:35 | reduction.replace("f64.s64", "f64.f32"),
+[允许-测试/诊断] src\runtime\transfer\kernel\tests\precision.rs:38 | reduction.replace("mul.rn.f64", "mul.rz.f64"),
+[允许-测试/诊断] src\runtime\transfer\kernel\tests\precision.rs:39 | format!("{reduction}\nadd.rn.f64 %fd1, %fd1, %fd2;"),
+[允许-测试/诊断] src\runtime\transfer\kernel\tests\precision.rs:40 | format!("{reduction}\nmul.f64 %fd1, %fd1, %fd2;"),
+[允许-测试/诊断] src\runtime\transfer\kernel\tests\precision.rs:96 | // same-session f64 state/output buffers. Metadata is one i32 element.

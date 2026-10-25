@@ -1,0 +1,67 @@
+# 三构建位级一致性（helper digest + relmat 测试输出）
+# 构建：GNU 默认（1.99.0-...-gnu）/ MSVC（1.99.0-...-msvc）/ GNU + RUSTFLAGS=-C target-feature=+fma
+
+## GNU 默认
+test math::fma::tests::dispatch_matches_hardware_and_soft_on_same_samples ... PATH cpuid_fma=true active_path=hardware
+dispatch vs hw=0 soft vs hw=0 dispatch_digest=c0cf1bfdd35c42f9 soft_digest=c0cf1bfdd35c42f9
+test math::fma::tests::forced_soft_seam_matches_hardware ... PATH cpuid_fma=true active_path=hardware
+test math::fma::tests::mul_add_library_fallback_discrimination ... PATH cpuid_fma=true active_path=hardware
+mul_add(f32) vs hw: mismatches=1025 / 4096
+test math::fma::tests::soft_matches_hardware_on_boundary_cases ... PATH cpuid_fma=true active_path=hardware
+boundary cases=58 mismatches=0
+test math::fma::tests::soft_matches_hardware_on_generated_1m ... PATH cpuid_fma=true active_path=hardware
+1e6 soft vs hw: mismatches=0 soft_digest=54ec8d0836fa2a10 hw_digest=54ec8d0836fa2a10
+RESIDUAL_RATE 该分布/规模（LCG seed=0x2026102500000001，1e6 组）残余率 = 0
+test math::fma::tests::soft_matches_hardware_on_generated_4096 ... PATH cpuid_fma=true active_path=hardware
+4096 soft vs hw: mismatches=0 soft_digest=a14ba3531fc6a6c6 hw_digest=a14ba3531fc6a6c6
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 452 filtered out; finished in 0.78s
+
+## MSVC
+test math::fma::tests::dispatch_matches_hardware_and_soft_on_same_samples ... PATH cpuid_fma=true active_path=hardware
+dispatch vs hw=0 soft vs hw=0 dispatch_digest=c0cf1bfdd35c42f9 soft_digest=c0cf1bfdd35c42f9
+test math::fma::tests::forced_soft_seam_matches_hardware ... PATH cpuid_fma=true active_path=hardware
+test math::fma::tests::mul_add_library_fallback_discrimination ... PATH cpuid_fma=true active_path=hardware
+mul_add(f32) vs hw: mismatches=0 / 4096
+mul_add(f32) 在本构建已等价于硬件 FMA（无差异样本）
+test math::fma::tests::soft_matches_hardware_on_boundary_cases ... PATH cpuid_fma=true active_path=hardware
+boundary cases=58 mismatches=0
+test math::fma::tests::soft_matches_hardware_on_generated_1m ... PATH cpuid_fma=true active_path=hardware
+1e6 soft vs hw: mismatches=0 soft_digest=54ec8d0836fa2a10 hw_digest=54ec8d0836fa2a10
+RESIDUAL_RATE 该分布/规模（LCG seed=0x2026102500000001，1e6 组）残余率 = 0
+test math::fma::tests::soft_matches_hardware_on_generated_4096 ... PATH cpuid_fma=true active_path=hardware
+4096 soft vs hw: mismatches=0 soft_digest=a14ba3531fc6a6c6 hw_digest=a14ba3531fc6a6c6
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 452 filtered out; finished in 0.72s
+
+## GNU+`+fma`
+test math::fma::tests::dispatch_matches_hardware_and_soft_on_same_samples ... PATH cpuid_fma=true active_path=hardware
+dispatch vs hw=0 soft vs hw=0 dispatch_digest=c0cf1bfdd35c42f9 soft_digest=c0cf1bfdd35c42f9
+test math::fma::tests::forced_soft_seam_matches_hardware ... PATH cpuid_fma=true active_path=hardware
+test math::fma::tests::mul_add_library_fallback_discrimination ... PATH cpuid_fma=true active_path=hardware
+mul_add(f32) vs hw: mismatches=0 / 4096
+mul_add(f32) 在本构建已等价于硬件 FMA（无差异样本）
+test math::fma::tests::soft_matches_hardware_on_boundary_cases ... PATH cpuid_fma=true active_path=hardware
+boundary cases=58 mismatches=0
+test math::fma::tests::soft_matches_hardware_on_generated_1m ... PATH cpuid_fma=true active_path=hardware
+1e6 soft vs hw: mismatches=0 soft_digest=54ec8d0836fa2a10 hw_digest=54ec8d0836fa2a10
+RESIDUAL_RATE 该分布/规模（LCG seed=0x2026102500000001，1e6 组）残余率 = 0
+test math::fma::tests::soft_matches_hardware_on_generated_4096 ... PATH cpuid_fma=true active_path=hardware
+4096 soft vs hw: mismatches=0 soft_digest=a14ba3531fc6a6c6 hw_digest=a14ba3531fc6a6c6
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 452 filtered out; finished in 0.70s
+
+## forced seam（GNU 默认 + MJWARP_FORCE_SOFT_FMA=1）
+PATH cpuid_fma=true active_path=hardware
+SEAM forced_soft_from_env=true
+SEAM path=software(seam) samples=4154 mismatches=0 seam_digest=c0cf1bfdd35c42f9 hw_digest=c0cf1bfdd35c42f9
+test math::fma::tests::forced_soft_seam_matches_hardware ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 457 filtered out; finished in 0.00s
+
+## relmat / G5 三构建输出（lib 单测 + g10_p5_sdf_relmat）
+### gnu
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 454 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+### msvc
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 454 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+### gnu-fma
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 454 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s

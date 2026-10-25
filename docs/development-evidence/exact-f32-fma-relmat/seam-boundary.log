@@ -1,0 +1,28 @@
+# seam 边界证据（MJWARP_FORCE_SOFT_FMA 仅 test-only）
+# 生成于 2026-10-26；HEAD 见 README
+
+## 源码层：env 读取只出现在 #[cfg(test)] 块内
+src/math/fma.rs:L16: //! `MJWARP_FORCE_SOFT_FMA` 只在 `#[cfg(test)]` 的测试模块里读取并置位进程内标志；
+src/math/fma.rs:L54: #[cfg(test)]
+src/math/fma.rs:L66: #[cfg(test)]
+src/math/fma.rs:L103: /// 测试专用 seam：仅 `#[cfg(test)]` 编译，产品构建不包含任何 env 读取。
+src/math/fma.rs:L104: #[cfg(test)]
+src/math/fma.rs:L105: mod test_seam {
+src/math/fma.rs:L110: /// 由测试模块读取 `MJWARP_FORCE_SOFT_FMA` 并置位进程内标志。
+src/math/fma.rs:L111: pub(super) fn enable_from_env() {
+src/math/fma.rs:L112: let enabled = std::env::var_os("MJWARP_FORCE_SOFT_FMA")
+src/math/fma.rs:L118: pub(super) fn forced_soft() -> bool {
+src/math/fma.rs:L448: #[cfg(test)]
+src/math/fma/tests.rs:L310/L315: 测试侧读取 env（仅测试模块）
+
+## 构建层：产品二进制不含 seam 字符串，测试二进制包含
+target\debug\mjwarp-rs.exe size=15843464 contains_env=False
+target\release\mjwarp-rs.exe size=2590271 contains_env=False
+target\debug\deps\mjwarp_rs-df58b26351f92c5d.exe size=15843464 contains_env=False
+
+## 测试层：注入 seam 后强制兜底，与硬件 FMA 逐位一致
+PATH cpuid_fma=true active_path=hardware
+SEAM forced_soft_from_env=true
+SEAM path=software(seam) samples=4154 mismatches=0 seam_digest=c0cf1bfdd35c42f9 hw_digest=c0cf1bfdd35c42f9
+test math::fma::tests::forced_soft_seam_matches_hardware ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 457 filtered out; finished in 0.00s
