@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-t4-identity-live-check-coverage-independent-check",
+  "title": {
+    "zh": "T4 身份活体校验片的 QA 独立复核（覆盖 20/20、集合完整性、反向判别）",
+    "en": "Independent check of the T4 identity live-check slice"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-t4-identity-live-check-coverage`（`00831281`）做独立复核：该片新增默认门禁可跑的非 ignored 活体身份校验（20 条 product_sources 逐条 LF 归一化 sha256 + physics_core 组合摘要 + 集合完整性），是「身份漂移可被默认测试发现」的关键覆盖。复核方须自写校验脚本（不复用被测支持模块与交付脚本）独立比对 20 条，并用临时 fixture 副本做篡改反向判别，确认测试真有判别力；不改产品代码/判据/容差。",
+    "en": "Independently verify the live identity check: recompute all 20 fixture hashes with a self-written script, drive tamper cases through a temporary fixture copy, and confirm the default test target fails when it should."
+  },
+  "modules": {},
+  "acceptance": [
+    "**独立复算**：自写脚本（不复用 `tests/support/t4_identity_live.rs` 与交付脚本）按 LF 归一化重算 20 条 `product_sources` sha256；`src/physics/mod.rs` 按 physics_core 组合摘要口径（锚点 5 个 `include_str!`，逐文件 LF 归一化后 `\\n` 连接）独立重算；与 fixture 逐条对照，给出 20/20 结论与任何差异。",
+    "**反向判别独立复跑**：用临时 fixture 副本（不改仓库文件）分别篡改（a）1 条期望 sha、（b）1 条 path（改名/增删），通过 seam `T4_IDENTITY_LIVE_FIXTURE` 驱动被测测试，确认两者都失败且诊断信息含 path/expected/actual；再恢复正常副本确认 2 passed。**必须自己构造副本**，不得只引用交付日志。",
+    "**覆盖与边界**：核测试是否默认特性、纯 CPU、无 GPU 会话/无 NVRTC/无编译调用；核它是否自动被默认 `cargo test --locked` 与 gate unit 纳入（给 `normify gate` 的 unit 计数变化证据，交付声称 595→597）；核未改期望值/判据/容差/`Cargo.toml`/`gates.toml`/G01 脚本/产品源码（`git diff 00831281~1..00831281` 逐文件）。",
+    "**口径与证据**：证据只写 `docs/development-evidence/t4-identity-live-check-coverage-independent-check/`（README + receipt 含 task_id），行数 ≤500、UTF-8 无 BOM、无 `.bin/.pyc`；不宣称跨环境全绿/精度达标；与交付任何不一致并列记录。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-t4-identity-live-check-coverage"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/t4-identity-live-check-coverage-independent-check/"
+    ],
+    "resources": [],
+    "priority": 50
+  },
+  "note": "Arch 2026-10-25 预登记（与实现片同批）。该片补的正是 r2 复核观察 4 的覆盖缺口；复核重点是「测试真的有判别力」而不是「测试通过」。可与 frame 诊断复核串行（同一 QA 执行）。",
+  "revision": {
+    "before": "0e6c9d047bd5bf8d7967399358f5c6d17b5a8387",
+    "after": null
+  },
+  "created_at": "2026-10-25T18:00:00.000Z",
+  "updated_at": "2026-10-25T18:00:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/t4-identity-live-check-coverage-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-t4-identity-live-check-coverage-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
