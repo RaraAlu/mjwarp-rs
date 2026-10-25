@@ -5,7 +5,7 @@
     "zh": "渲染/BVH S7b1：渲染内核主射线/深度/分割（primitive+mesh，精简入口）",
     "en": "Render/BVH S7b1: render kernel primary rays, depth and segmentation (primitive+mesh, reduced entry)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "渲染/BVH 第十一片（plan S7b 拆分第一片，S5/S6a/S6b/S7a 已 verified；替代因运行态范围冻结而 abandon 的 2026-10-25-render-bvh-s7b1-depth-seg）：实现手写通用 CUDA 渲染内核的主射线阶段——S5 预计算/动态射线、相机系→世界系变换（含 max_cam_dist）、场景 BVH 与网格 BVH（context 拥有的 BVH，支持显式 refit）求交、平面深度（米，0=无命中）与 (object_id, object_type) 分割，输出走 S6b OutputResources。内核用精简入口 render_depth_seg（只含真实数据，约 32 槽），不实现 81 槽 _render_megakernel 占位面；不含着色/RGB（S7b2）、阴影/天空盒/splat/flex/hfield/多相机与 AA。",
     "en": "Eleventh render/BVH slice (first split of plan S7b; S5/S6a/S6b/S7a verified; replaces the abandoned 2026-10-25-render-bvh-s7b1-depth-seg whose scope froze while running): implement the primary-ray stage of the hand-written generic CUDA render kernel - S5 precomputed/dynamic rays, camera-to-world transform including max_cam_dist, scene BVH and mesh BVH (context-owned, with explicit refit) intersection, planar depth in meters (0 = miss) and (object_id, object_type) segmentation written through S6b OutputResources. The kernel uses a reduced entry render_depth_seg (real data only, about 32 slots) and does not build the 81-slot _render_megakernel placeholder surface; no shading/RGB (S7b2), no shadows/skybox/splats/flex/hfield/multi-camera, no AA."
@@ -52,12 +52,11 @@
   },
   "note": "Arch 2026-10-25 结构裁决：plan 的 S7b（渲染内核，估 12 人日）按输出阶段拆为 S7b1（主射线/深度/分割，本任务）→ S7b2（着色/RGB）→ S7b3（flag 变体矩阵+authoring 参考）。原 2026-10-25-render-bvh-s7b1-depth-seg 已在运行态（其 start 已提交后）发现需补 owner.rs 访问器与 render_math.cu，而 normify 0.7.0 冻结运行中任务的声明，不能扩 files，故按 S2 先例 abandon 并以完整范围重登记本任务，WIP 与验收口径不变。三条追加裁决：(a) owner.rs 只加 pub(crate) MeshResources::bvh()，不扩公共 API、不改 S6b 语义；(b) 内核用精简入口 render_depth_seg（约 32 槽，只含真实数据），不铺 81 槽占位面，81 槽 _render_megakernel 全签名由 S7b2 在着色数据齐备后迁移，本片证据须给子集槽→上游槽映射表；(c) render.cu 用 include_str! 只读复用 S2b scene.cu（不改该文件），S3 mesh woop 数学复制进 render_math.cu，两文件各 ≤500 行。",
   "revision": {
-    "before": "0c1afff59379c13ff4b7e81d17f9cd45d386ed33",
+    "before": "cf6fe3ef429ab8f7d32388055ca00919807dfa9f",
     "after": null
   },
   "created_at": "2026-10-25T11:05:00.000Z",
-  "updated_at": "2026-10-25T11:05:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T03:02:08.606Z",
   "checks": [
     {
       "kind": "gate",
