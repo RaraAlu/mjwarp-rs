@@ -1,7 +1,6 @@
 +++
 uid = "dfdb6f0d"
 id = "mjwarp.math"
-state = "planned"
 tags = ["planned", "engine", "math"]
 fingerprint = "e511cd123d59fb65fdcc0cf13b128ca683406b37c62724c570ca90d98cd4c03b"
 
