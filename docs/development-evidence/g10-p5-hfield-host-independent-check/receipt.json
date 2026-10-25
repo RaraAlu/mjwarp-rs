@@ -1,0 +1,270 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-hfield-host-independent-check",
+  "kind": "qa-independent-review",
+  "status": "final",
+  "reviewed": {
+    "task": "2026-10-25-g10-p5-hfield-host",
+    "commit": "1f882361",
+    "parent": "e3da9f3e",
+    "title": "G4 hfield 宿主窄相（filter/prism/四接触/MAXCONPAIR 溢出）"
+  },
+  "verdict": {
+    "conclusion": "pass",
+    "blocking": 0,
+    "general": 2,
+    "suggestion": 2,
+    "summary": "三 case 参考 provenance 独立重采逐位成立（3/3）；产品 hfield 宿主导出与 QA 自写 oracle 在 33 场景/37 world 上接触、filter bounds、prism 计数、overflow 全部逐位一致；与同配方上游 f32 的 3 例非逐位差均为 G2 窄相级（产品==oracle）。MAXCONPAIR=50 溢出、1e-3 去重、重复点、边界 cell、六类配对均独立构造核对。不回归 572/0/1。两条一般为测试 helper 转置与证据文字口径，均不改变 G4 交付判据。"
+  },
+  "method": {
+    "independent": [
+      "qa_capture_upstream.py：QA 自写上游重采（不复用交付 authoring 脚本），3 个交付 case 同配方输入 + 30 个合成场景，每场景两次独立捕获",
+      "harness/（独立 crate，自带 [workspace]）：按 pinned 上游源码独立重写 _hfield_filter/子网格/prism/四接触/去重/溢出；仅窄相复用产品公开 ccd()（G2 已独立复核）",
+      "probe/qa_probe.rs：在 target/qa-g4/worktree（1f882361 只读副本）内用 QA 探针直接调产品 hfield_pair_contacts / hfield_filter，导出真实产品输出；跑完删除 worktree",
+      "qa_compare.py：worldid 分组 + 位型多重集逐位比较；不做容差近似；另核 bounds / prism_count / overflow / 重复点重数"
+    ],
+    "product_tree_untouched": true,
+    "delivery_evidence_untouched": true,
+    "fixtures_untouched": true,
+    "gpu_used": false,
+    "forbidden_changes": {
+      "cargo_toml": false,
+      "cargo_lock": false,
+      "rust_toolchain_toml": false,
+      "fixtures_mjwarp_complex_physics_xml": false,
+      "s2_s8_evidence": false
+    }
+  },
+  "provenance_check": {
+    "delivered_fixture_recapture": {
+      "hfield-box": {"exact": true, "count": "8/8", "dist_bit_equal": "8/8", "pos_bit_equal": "8/8", "frame_bit_equal": "72/72"},
+      "hfield-sphere": {"exact": true, "count": "8/8", "dist_bit_equal": "8/8", "pos_bit_equal": "8/8", "frame_bit_equal": "72/72"},
+      "hfield-capsule": {"exact": true, "count": "7/7", "dist_bit_equal": "7/7", "pos_bit_equal": "7/7", "frame_bit_equal": "63/63"}
+    },
+    "fixture_fields": {
+      "device": "cpu",
+      "versions": {"python": "3.12.13", "mujoco": "3.15.0", "warp": "1.15.0", "mujoco_warp": "3.15.0", "numpy": "2.5.4"},
+      "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+      "authoring_script_sha256_matches_current": true,
+      "qpos_bits_match_qa_recapture": true,
+      "two_captures_bitwise_identical": true
+    },
+    "qa_scenes": {"scene_count": 33, "world_count": 37, "two_captures_bitwise_identical": "33/33"}
+  },
+  "three_way": {
+    "product_vs_oracle": {
+      "scenes": 33,
+      "worlds": 37,
+      "contacts": 112,
+      "contacts_bitwise_equal_worlds": 37,
+      "filter_bounds_bit_equal": "37/37",
+      "prism_count_equal": "37/37",
+      "overflow_equal": "37/37"
+    },
+    "product_vs_upstream_f32": {
+      "scenes_exact": 30,
+      "scenes_total": 33,
+      "worlds": 37,
+      "contacts": 112,
+      "non_exact": [
+        {"scene": "syn-rot-box", "count": "4/4", "dist_max_ulp": 1, "pos_bit_equal": "4/4", "frame_bit_equal": "36/36"},
+        {"scene": "syn-class-cylinder", "count": "4/4", "dist_max_ulp": 0, "pos_max_ulp_at_scale": 2, "frame_max_abs": 1.8626458597736928e-7},
+        {"scene": "syn-class-ellipsoid", "count": "2/2", "dist_max_ulp": 4, "pos_max_abs": 4.54e-9, "pos_max_ulp_at_scale": 318, "frame_max_abs": 9.909272193908691e-07}
+      ],
+      "attribution": "产品与 QA oracle 逐位相同，差异来自共用窄相 ccd()（G2 已复核件），非 G4 filter/prism/选择逻辑"
+    },
+    "oracle_vs_upstream_f32": {
+      "scenes_exact": 30,
+      "scenes_total": 33,
+      "non_exact_same_as_product": true
+    }
+  },
+  "acceptance": [
+    {
+      "item": "_hfield_filter 候选集（数量+索引）+ 边界截断",
+      "status": "pass",
+      "evidence": "filter bounds 产品 vs oracle 位等 37/37；中心/单 cell（4 candidate cells）/多 cell（8）/±x 边界 clamp/起伏高程均覆盖；边界场景接触与上游逐位；prism_count 37/37 相等",
+      "limitation": "上游 warp 核不导出 cmin/cmax，索引集为 bounds 位等 + 独立公式 + prism_count/接触三层间接核对"
+    },
+    {
+      "item": "prism 六顶点顺序/坐标 + 六类 geom 全走 CONVEX（无解析捷径）",
+      "status": "pass",
+      "evidence": "oracle 按上游逐句重写（底三角 z=-size[3]、顶三角高程链式前移、prism[3..5].z<zmin 早退）；六类配对逐 world 对照；driver.rs 仅 1 个 ccd() 调用点（geom_type::HFIELD × input.geomtype2），无按类型分支；geomtype2 仅用于 filter 的 support()（与上游一致）"
+    },
+    {
+      "item": "接触装配 pos=0.5*(w1+w2)、frame=make_frame(w1-w2)",
+      "status": "pass",
+      "evidence": "driver.rs L191-L195/L225-L231/L77-L81 与上游逐行对应；产品/上游接触逐位"
+    },
+    {
+      "item": "四接触 + 1e-3 去重 + 重复点不得静默丢弃",
+      "status": "pass",
+      "evidence": "worldid 分组 + (dist,pos,frame) 位型多重集；上游 geomcollisionid 为每对序号 0..n-1（已核）；deliv-hfield-capsule world0 四个写出接触同一点且与上游逐位；deliv-hfield-sphere 8 行 6 个不同点；syn-dedup-{small,mid,wide,capsule} 覆盖 2/3/4 接触边界"
+    },
+    {
+      "item": "MJ_MAXCONPAIR=50 溢出（QA 自造超容量场景）",
+      "status": "pass",
+      "evidence": "11x11/13x13 flat + 大球：prism_count=50、overflow=true、候选 51 次尝试后停、上游 overflow=32(HFIELD)、4 接触逐位；写前判 count>=50，固定 50 容量数组不越界"
+    },
+    {
+      "item": "参考 provenance + QA 独立重采",
+      "status": "pass",
+      "evidence": "QA 重采与交付 fixture 逐位 3/3；device/versions/upstream_revision/script sha/qpos bits/两捕获位等均核"
+    },
+    {
+      "item": "不回归（G2 5 case / G3 sdf-box / 既有窄相）",
+      "status": "pass",
+      "evidence": "1f882361 worktree 上 cargo test --locked = 572 passed / 0 failed / 1 ignored；case_evidence::upstream_f32_within_4ulp、sdf_box_host_matches_upstream_f32_within_4ulp、hfield 三测试全绿"
+    },
+    {
+      "item": "证据计数/forbid 词/门禁",
+      "status": "partial",
+      "evidence": "unit 572 与交付一致；capture-cpu.log 与 fixture count 一致；6 个 forbid 词交付与本证据均 0 命中；README 重复点数字/行数/receipt scope 有文字口径偏差（见 general#2）"
+    }
+  ],
+  "details": {
+    "filter_reject_scenes": ["syn-outside-x", "syn-above-top", "syn-below-base", "syn-gap-skip"],
+    "filter_reject_result": "产品与上游均 0 接触、bounds=None、prism_count=0",
+    "boundary_cells": ["syn-flat-sphere-plus-x（cmax clamp）", "syn-flat-sphere-minus-x（cmin clamp）", "syn-flat-sphere-center", "syn-trunc-spike"],
+    "tangential": ["syn-side-sphere（~45° 法向）", "syn-side-box（旋转 box 边缘）"],
+    "rotated": ["syn-rot-hfield（hfield Rz 40°）", "syn-rot-hfield-tilt（hfield Ry 20°）", "syn-rot-box（box euler 20/0/30）", "syn-rot-capsule（capsule euler 35/0/25）"],
+    "geom_classes": ["box", "sphere", "capsule", "ellipsoid", "cylinder", "mesh(4 顶点四面体)"],
+    "two_world": {"scene": "syn-two-world", "worlds": 2, "contacts": 6, "exact": true},
+    "dedup_measurements": {
+      "deliv-hfield-box": {"written": 8, "distinct": 8, "duplicate_rows": 0, "cached": 12},
+      "deliv-hfield-sphere": {"written": 8, "distinct": 6, "duplicate_rows": 2, "cached": 12, "note": "与 G0b 8 行 6 个不同点一致"},
+      "deliv-hfield-capsule": {"written": 7, "distinct": 2, "duplicate_rows": 5, "cached": 9, "note": "world0 四个写出接触同一点；上游 f32 参考 2 个不同点"}
+    },
+    "overflow_measurements": {
+      "syn-overflow-11": {"prism_count": 50, "overflow": true, "candidate_cells": 51, "upstream_overflow": 32, "contacts": 4, "contacts_bitwise_equal": true},
+      "syn-overflow-13": {"prism_count": 50, "overflow": true, "candidate_cells": 51, "upstream_overflow": 32, "contacts": 4, "contacts_bitwise_equal": true}
+    },
+    "helper_rotation_check": {
+      "a": "Rz(0.7)",
+      "b": "Rx(0.4)",
+      "bit_equal": false,
+      "delivered_equals_transpose_of_expected": true,
+      "max_abs_diff": 1.237581491470337,
+      "identity_case_bit_equal": true
+    }
+  },
+  "no_regression": {
+    "command": "cargo test --locked",
+    "worktree_at": "1f882361",
+    "harnesses": 104,
+    "passed": 572,
+    "failed": 0,
+    "ignored": 1,
+    "key_tests": [
+      "physics::collision::gjk::case_evidence::upstream_f32_within_4ulp ... ok",
+      "physics::collision::sdf::tests::sdf_box_host_matches_upstream_f32_within_4ulp ... ok",
+      "physics::collision::hfield::tests::hfield_host_matches_upstream_f32_within_4ulp ... ok",
+      "physics::collision::hfield::tests::filter_rejects_far_geoms_and_accepts_overlap ... ok",
+      "physics::collision::hfield::tests::maxconpair_overflow_sets_flag_and_caps_scan ... ok"
+    ]
+  },
+  "findings": [
+    {
+      "id": "general-1",
+      "severity": "general",
+      "title": "交付测试 helper driver::relative_matrix 返回转置（单位旋转下不可见）",
+      "reproduce": "probe helper_rotation_check：a=Rz(0.7)、b=Rx(0.4)，比较 relative_matrix(a,b) 与上游 aᵀb（行优先）",
+      "expected": "out[i][j] = Σ_k a[k][i]·b[k][j]（上游 mat1T @ mat2）",
+      "actual": "实现按 out[column*3+row] 写入，行优先解释即 (aᵀb)ᵀ；bit_equal=false、delivered_equals_transpose_of_expected=true、max_abs_diff≈1.2376",
+      "impact": "不影响 G4 交付判据（三个交付 case geom_xmat 全为单位矩阵，已核）；但 helper 仅对单位旋转正确，后续对侧 geom 带旋转的用例会被喂错旋转。产品 driver 本身无此问题（QA 用正确 aᵀb 构造 geom2 后旋转场景 product==oracle==上游）",
+      "suggestion": "修正片改为行优先 aᵀb（或注释+显式转置），并补一条对侧 geom 旋转 case；sdf/descent.rs 与 cuda/common.cu 有同名同实现，建议 G3/G5 复核方各自确认调用点约定"
+    },
+    {
+      "id": "general-2",
+      "severity": "general",
+      "title": "交付证据文字口径小偏差（不影响判据）",
+      "reproduce": "对照 README/receipt 与实测",
+      "expected": "与本片 f32 参考一致的数字",
+      "actual": "README §1「capsule 7 行 3 个不同点」→ 本片 f32 参考实测 2 个（3 是 G0b native 参考口径）；README §2 行数「driver ~330 / tests ~340」→ 实测 297/373；receipt scope.files 列了未落盘的 tests/g10_p5_hfield_host.rs",
+      "impact": "仅文档一致性；判据、计数（572）、路径范围与实测一致",
+      "suggestion": "修正片一并对齐"
+    },
+    {
+      "id": "suggestion-1",
+      "severity": "suggestion",
+      "title": "交付样本外 ellipsoid/cylinder 配对建议补采样",
+      "reproduce": "syn-class-ellipsoid / syn-class-cylinder（交付声明样本外）",
+      "expected": "≤4 ULP 且 pos/frame 与 dist 同量级",
+      "actual": "ellipsoid dist 4 ULP（判据边缘）、pos 绝对差 4.5e-9（318 ULP@该坐标尺度）、frame 9.9e-7；cylinder dist 0 ULP、pos 2 ULP；产品与 QA oracle 逐位相同 → 属 G2 窄相级",
+      "impact": "不在 G4 声明样本内（unmet 已列），不阻断",
+      "suggestion": "G5/G6 把 hfield×ellipsoid/cylinder 补进采样"
+    },
+    {
+      "id": "suggestion-2",
+      "severity": "suggestion",
+      "title": "G5 世界→hfield 变换不要复制交付测试 helper",
+      "reproduce": "G5 GPU 核将自行做 geom2 的 hfield 帧变换",
+      "expected": "直接用上游 mat1T @ mat2（行优先）语义",
+      "actual": "交付 helper 返回转置（general-1）",
+      "impact": "若照抄会继承转置；本片已用正确变换验证 hf_mat/hf_pos 回世界系语义与上游逐位",
+      "suggestion": "G5 实现时以本证据的 syn-rot-* 场景作回归"
+    }
+  ],
+  "artifacts": {
+    "readme": "docs/development-evidence/g10-p5-hfield-host-independent-check/README.md",
+    "receipt": "docs/development-evidence/g10-p5-hfield-host-independent-check/receipt.json",
+    "upstream_cases": "docs/development-evidence/g10-p5-hfield-host-independent-check/qa-upstream-cases.json",
+    "product_output": "docs/development-evidence/g10-p5-hfield-host-independent-check/qa-product-output.json",
+    "oracle_output": "docs/development-evidence/g10-p5-hfield-host-independent-check/qa-oracle-output.json",
+    "compare_report": "docs/development-evidence/g10-p5-hfield-host-independent-check/qa-compare-report.json",
+    "logs": [
+      "qa-capture.log",
+      "qa-oracle.log",
+      "qa-probe.log",
+      "qa-compare.log",
+      "qa-unit-regression.log"
+    ],
+    "scripts": [
+      "qa_capture_upstream.py",
+      "qa_compare.py",
+      "qa_probe_run.py",
+      "qa_run_all.py",
+      "probe/qa_probe.rs",
+      "harness/Cargo.toml",
+      "harness/Cargo.lock",
+      "harness/src/main.rs"
+    ],
+    "sha256_manifest": "docs/development-evidence/g10-p5-hfield-host-independent-check/artifacts-sha256.json"
+  },
+  "scope_check": {
+    "reviewed_commit_files": [
+      ".normify/changes/2026-10-25-g10-p5-hfield-host.json",
+      ".normify/runs/2026-10-25-g10-p5-hfield-host/{clippy,clippy-cuda,fmt,unit}.json",
+      "docs/development-evidence/g10-p5-hfield-host/{README.md,capture-cpu.log,receipt.json}",
+      "fixtures/g10-p5/hfield-f32/{hfield-box,hfield-sphere,hfield-capsule}-cpu.json",
+      "scripts/authoring/g10-p5/capture_hfield_f32.py",
+      "src/physics/collision.rs",
+      "src/physics/collision/gjk/mod.rs",
+      "src/physics/collision/hfield/{mod,filter,driver,tests}.rs"
+    ],
+    "declared_paths_only": true,
+    "note": "G4 提交 18 文件全部落在任务声明路径内；Cargo.*/rust-toolchain.toml、fixtures/mjwarp-complex-physics、S2–S8 证据均未改"
+  },
+  "environment": {
+    "os": "Windows (DARKSEA)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.13 (pinned venv)",
+    "mujoco": "3.15.0",
+    "warp": "1.15.0",
+    "mujoco_warp": "3.15.0",
+    "numpy": "2.5.4",
+    "device": "cpu",
+    "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "gpu_used": false
+  },
+  "unmet": [
+    "G5 GPU 内核 / nacon 截断与原子计数：本片 host-only，未验证",
+    "上游 warp 核不导出子网格 cmin/cmax 索引：候选 cell 集为间接三层核对",
+    "合成场景最大 13×13 hfield；未覆盖真实大尺寸地形、非均匀高程文件、flex/TRIANGLE",
+    "mesh 对侧仅 4 顶点四面体；顶点数 >=10 的 graph hillclimb 支持分支未覆盖",
+    "Linux/T4 未验证；全部数字仅对本机 Windows + warp CPU 后端成立",
+    "原始接触顺序只作观察项，未作判据"
+  ],
+  "note": "QA 2026-10-25：只写本证据目录、不改产品/夹具/交付证据；GPU 未开窗；按 Arch 规则只跑自己复跑所需命令与 fmt 门禁，不自行 commit。"
+}

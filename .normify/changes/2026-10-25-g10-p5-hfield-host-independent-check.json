@@ -5,7 +5,7 @@
     "zh": "G10@P5 hfield host 独立复核（粗筛候选集/prism 六顶点/四接触与 1e-3 去重/MAXCONPAIR 溢出/上游 f32 数值）",
     "en": "G10@P5 hfield host independent review (coarse cull candidates, prism vertices, 0..3 contacts and 1e-3 dedup, MAXCONPAIR overflow, upstream f32 numerics)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "对 G4（`2026-10-25-g10-p5-hfield-host`）做独立复核：QA 自写驱动（不复用交付的 hfield 实现或 authoring 脚本）独立重算——`_hfield_filter` 按 `hfield_size/nrow/ncol` 与 geom 世界位置选出的相邻 cell 候选集是否与上游一致（含边界截断）；prism 六顶点构造顺序与上游一致、hfield 与 SPHERE/CAPSULE/ELLIPSOID/CYLINDER/BOX/MESH 六类配对是否全部走 CONVEX（复用 G2 `ccd/support`）；`pos=0.5*(w1+w2)`、`normal=make_frame(w1-w2)`、`dist` 语义；0..3 四接触选择顺序与 `MIN_DIST_TO_NEXT_CONTACT=1e-3` 去重（重复接触点必须按全字段含 `geomcollisionid` 的多重集比较，不得静默丢弃）；`MJ_MAXCONPAIR=50` 溢出语义；数值对同配方上游 f32（CPU）≤4 ULP、位级优先，native f64 仅契约框架读数。不改产品代码、不改夹具、不改 G4 原证据。",
     "en": "Independent review of G4 (task 2026-10-25-g10-p5-hfield-host): QA writes its own driver (not reusing the delivered hfield implementation or authoring scripts) to recompute - whether _hfield_filter selects the same adjacent-cell candidates from hfield_size/nrow/ncol and geom world position as upstream (including boundary truncation); whether prism six-vertex construction order matches upstream and all six hfield pairings (SPHERE/CAPSULE/ELLIPSOID/CYLINDER/BOX/MESH) route through CONVEX reusing G2 ccd/support; pos=0.5*(w1+w2), normal=make_frame(w1-w2) and dist semantics; the 0..3 contact selection order and MIN_DIST_TO_NEXT_CONTACT=1e-3 dedup (duplicate contact points must be compared as a full-field multiset including geomcollisionid and never silently dropped); MJ_MAXCONPAIR=50 overflow semantics; and numerics <=4 ULP (bit-level first) versus the same-recipe upstream mujoco_warp f32 on CPU, with native f64 as contract-framework reading only. No product-code, fixture or original-evidence changes."
@@ -38,7 +38,8 @@
     "after": null
   },
   "created_at": "2026-10-25T17:10:00.000Z",
-  "updated_at": "2026-10-25T09:00:27.455Z",
+  "updated_at": "2026-10-25T09:16:51.562Z",
+  "closed_at": "2026-10-25T09:16:51.562Z",
   "checks": [
     {
       "kind": "gate",
