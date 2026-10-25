@@ -38,7 +38,7 @@ program.run(CollisionKernel::Hfield, &inputs)   // Contact / Hfield / Sdf 三入
 | 基线（21:49:22） | RTX 4070 Ti SUPER 16376 MiB，used **3713** / free 12349，util 0%，29°C，driver 596.36；相对申请基线 3713 **漂移 0**；本任务相关计算进程 **0** |
 | PATH | `D:\Rust\mjwarp-rs\target\toolchains\cuda-12.8.1\bin` 前置；nvcc `release 12.8, V12.8.93` |
 | 桌面负载 | 34 条图形上下文（WDDM 桌面）、进程 top5 `vmware-vmx:17653MiB, DeepSeek Harness:1670MiB, Code:1043MiB, MsMpEng:746MiB, explorer:668MiB`；CPU 9950X3D 16C/32T |
-| 峰值 | used **3898 MiB（+185）**；守卫 3072 MiB/50% **未触发**；0.5 s 采样 25 点，util max 3%，temp max 30°C |
+| 峰值 | used **3898 MiB（+185）**；守卫 3072 MiB/50% **未触发**；0.5 s 采样 25 点，util max 3%，temp max 30°C。**峰值口径注记**：0.5 s 采样可能漏掉 CUDA context 创建瞬时——QA 独立复核（`bcd3c48b`）同配方实测 context 创建瞬时约 **+1325 MiB**（4987−3662，随后回落），属每个 CUDA context 的固有预留，不改变功能/数值结论，但峰值数字应以更密采样为准 |
 | 结束基线（21:49:36） | used **3713**（回落基线）；跑前跑后本任务相关计算进程 **0**（无 test/probe/python 残留） |
 | elapsed | 15.2 s（其中 NVRTC 编译为 CPU 侧 ~11 s；三个 case 的 GPU 发射/回读为毫秒级） |
 
@@ -65,6 +65,7 @@ program.run(CollisionKernel::Hfield, &inputs)   // Contact / Hfield / Sdf 三入
 - 输入校验只覆盖基础数组长度；mesh/hfield/octree 长数组长度依赖 `nmesh/noct`（meta 无该字段）未校验。
 - NVRTC 默认优化级别即 -O3，未显式传 `--opt-level`；本片三 case 位级一致，未做跨架构/跨 NVRTC 版本等价声明。
 - 仅 Windows + RTX 4070 Ti SUPER + NVRTC 12.8 实测；不跨硬件外推。
+- **峰值采样可能低估**：本片窗口 0.5 s × 25 点未捕获 CUDA context 创建瞬时（QA 复核实测约 +1325 MiB，属 context 固有预留）；功能/数值结论不受影响，但峰值显存数字应以更密采样为准。
 - 不改判据/已 verified 数字；本片不提供精度结论、等价声明或放行信号。
 
 ## 7. 复现命令
