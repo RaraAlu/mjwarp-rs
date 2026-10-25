@@ -304,8 +304,8 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 | S7b1 | `2026-10-25-render-bvh-s7b1-kernel` | Backend | verified | `docs/development-evidence/render-bvh/s7b1-depth-seg/` | `3e43278`；depth 对同配方参考 **120,000/120,000 位等（max 0 ULP）**、seg 全等、532/0；originally 登记为 s7b1-depth-seg / s7b1-render-kernel，均因运行态范围冻结 abandon，最终以目录级范围 s7b1-kernel 交付 |
 | S7b1 复核 | `2026-10-25-render-bvh-s7b1-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s7b1-independent-check/` | `51ee2d0`+`7df5ad6`；120,000/120,000 位等、seg 0 mismatch；独立 PTX 反推球面顺序 747/747 位等、**换新位姿 813/813 位等**（错误顺序 187/192 像素 >4 ULP）→ 证明是算术顺序对齐非夹具调参；532/0 |
 | S7b2 | `2026-10-25-render-bvh-s7b2-shading` | Backend | verified | `docs/development-evidence/render-bvh/s7b2-shading/` | `f228099`（配套 `a96a158` 句柄访问器）；81 槽签名迁移、RGB 对同配方参考 **120,000/120,000 像素 0 差异**、depth/seg 120,000/120,000 位等、灯位姿 6/6、PTX 195,594 B、532/0 |
-| S7b2 复核 | `2026-10-25-render-bvh-s7b2-independent-check` | QA | in_progress | `docs/development-evidence/render-bvh/s7b2-independent-check/` | 30 分钟 GPU；独立重解码 packed ABGR、同配方 0 差异、`mat_shin_exp` 语义验证（换 uv/新 pose）、81 槽占位面与 `bvh_id` 声明、灯位姿三方一致 |
-| S7b3 | `2026-10-25-render-bvh-s7b3-flags` | Backend | proposed（依赖已满足；等 QA 复核释放 GPU） | `docs/development-evidence/render-bvh/s7b3-flags/` | flag 变体矩阵 + AA(spp=2) 图像级参考（新 authoring 捕获，同配方硬指标，结掉 S5 AA deferral） |
+| S7b2 复核 | `2026-10-25-render-bvh-s7b2-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s7b2-independent-check/` | `38298e5`；独立重采同配方参考：RGB **0 差异/beyond_1_lsb=0**、depth max_ulp 0、新位姿泛化、灯位姿四路一致、81 槽逐槽核对；`mat_shin_exp` 语义被参考 headlight 调用点独立证实 |
+| S7b3 | `2026-10-25-render-bvh-s7b3-flags` | Backend | in_progress | `docs/development-evidence/render-bvh/s7b3-flags/` | flag 变体矩阵 + AA(spp=2) 图像级参考（同配方硬指标，结掉 S5 AA deferral）；不回归 S7b1/S7b2 基线 |
 
 结构说明：
 - 原 `2026-10-24-render-bvh-s2` 已 abandon（`8d4357f`，理由：运行中父任务写路径锁与派生任务冲突、冻结字段不可改）；拆分前参考捕获 `75166cf` 保留在 git 历史与 `fixtures/render-bvh/scene-a/s2/`，S2b 继续引用。
