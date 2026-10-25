@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-t4-identity-live-check-coverage",
+  "title": {
+    "zh": "补 T4 身份非 ignored live 校验覆盖（QA 复核观察 4）",
+    "en": "Add non-ignored live identity checks for T4 fixture sources (QA review observation 4)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "repin-13 r2 的 QA 独立复核（`c4a684c8`）观察 4：`fixtures/precision/t4-current-kernels.json` 的 20 条 `product_sources` 中，**只有 `src/physics/mod.rs`（physics_core 组合摘要）在非 `#[ignore]` 的活体校验里被覆盖**，其余 19 条的 live 校验落在 `#[ignore]` 的 recapture 测试内——默认门禁跑不到，身份漂移只能在 `--features cuda-probe --lib` 或 ignore 测试里才暴露（本次 2 天潜伏的直接原因）。本片补**非 ignored、不依赖 GPU/编译的 live 身份校验**：对 20 条 `product_sources` 逐个用 LF 归一化 sha256 与 fixture 记录比对（`src/physics/mod.rs` 继续用 physics_core 组合摘要口径），并断言集合完整性（路径集合 = fixture 记录集合）。**不改任何期望值、不改判据/容差**；纯 CPU、默认特性即可运行。",
+    "en": "Add a non-ignored, CPU-only live identity check that hashes every fixture product_sources entry (with the physics_core combination digest for src/physics/mod.rs) so drift surfaces in the default test run."
+  },
+  "modules": {},
+  "acceptance": [
+    "**逐个活体校验**：新增非 `#[ignore]` 测试，对 `fixtures/precision/t4-current-kernels.json` 的 **20 条** `product_sources` 逐条计算 LF 归一化 sha256 并与记录比对；`src/physics/mod.rs` 按 physics_core 组合摘要口径（锚点 `docs/development-evidence/t4-resident-anchors/physics.rs` 的 `include_str!` 列表，LF 归一化以 `\\n` 连接）校验。",
+    "**集合完整性**：断言 fixture 记录路径集合与实际校验路径集合一致（防新增/删除源码但未重钉），并给出失败时的可诊断信息（哪条路径、期望值、实际值）。",
+    "**判据不变**：不改现有断言、容差、排除清单、产品源码、fixture 期望值、G01 脚本与 `gates.toml`；测试纯 CPU、默认特性可跑、无 GPU 会话、无编译调用。",
+    "**验证与证据**：默认 `cargo test --locked --lib` 与 gate fmt/clippy/clippy-cuda/unit 全绿（测试数应 +1 或新增一个）；反向判别：临时篡改一条 fixture 期望值（在临时副本/环境变量 seam 上，不改仓库文件）应使新测试失败，证据记录该反向判别；证据目录 `docs/development-evidence/t4-identity-live-check/`（README + receipt 含 task_id），行数 ≤500、UTF-8 无 BOM、无 `.bin/.pyc`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-t4-source-hash-repin-13-r2"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/",
+      "tests/",
+      "docs/development-evidence/t4-identity-live-check/"
+    ],
+    "resources": [],
+    "priority": 50
+  },
+  "note": "Arch 2026-10-25 登记（来自 repin-13 r2 QA 复核观察 4）。目的：把「身份漂移能潜伏 2 天」这类门禁盲区从流程建议（见 g10-p5-cuda-default-pipeline DESIGN §6.4）落成默认测试可执行的活体校验。判据/期望值一律不动；若需改期望仍走 repin 流程。",
+  "revision": {
+    "before": "39e61b81173ef3d7eb8bfa36db715a09fe49f1af",
+    "after": null
+  },
+  "created_at": "2026-10-25T17:32:00.000Z",
+  "updated_at": "2026-10-25T17:32:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/t4-identity-live-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-t4-identity-live-check-coverage"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
