@@ -216,6 +216,28 @@ NP01、NP02与NP04仍独立检查。
 记录见[红线验收](native-error-redline-acceptance.md)。
 历史记录见[两级补测](windows-two-reference-acceptance.md)。
 
+## 接触字段（native 侧）
+
+用户于2026-10-25拍板选项B。
+接触字段的native侧只作诊断。
+适用字段为dist、pos、frame与normal。
+这些字段的native侧一律待验收不放行。
+该判定不参与通过或失败。
+`qa-native-f64.json`读数只作诊断与趋势。
+该读数不构成准入依据。
+接触精度仍由对上游f32的判据承担。
+该判据为既有定稿口径（向量尺度ULP、frame绝对ULP、结构零容差）。
+本节不表示接触字段没有精度要求。
+红线`E_candidate <= 1.05 * E_mjwarp`在其它字段照旧生效。
+接触字段的native侧不适用该红线。
+依据：真native仅`ellipsoid-box`1个case、2个接触点。
+样本不足以定容差，且不可外推。
+设备与上游f32对native的pos与frame差几乎相同。
+该差异属引擎接触选择语义差，非浮点精度差。
+因此不采纳原生侧接触容差（选项A留待扩样后再议）。
+本节不写入任何生效atol或rtol。
+记录见[接触字段native侧决策](development-evidence/native-contact-tolerance-decision-b/README.md)。
+
 ## 测试项与报告标注
 
 测试项须通过全部独立门禁。

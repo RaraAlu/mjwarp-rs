@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-native-contact-tolerance-decision-b",
+  "status": "verified",
+  "outcome": "contract_landed_user_decision_b",
+  "slice": "P5-G6-3",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "decision": {
+    "decision_id": "B",
+    "decided_by": "user",
+    "decided_at": "2026-10-25",
+    "relayed_via": "Chief",
+    "text": "native 侧接触字段只作诊断、不做放行判定",
+    "scope_fields": ["dist", "pos", "frame", "normal"],
+    "not_decided": "选项 A（粗门禁）未采纳，留待真 native 样本扩充后再议；选项 C 未采用"
+  },
+  "contract_change": {
+    "file": "docs/numerical-precision-contract.md",
+    "section": "## 接触字段（native 侧）",
+    "placement": "`## 数值参考优先级` 之后、`## 测试项与报告标注` 之前",
+    "lines_added": 21,
+    "landed_statements": [
+      "接触字段（dist/pos/frame/normal）native 侧 = 待验收、不放行",
+      "`qa-native-f64.json` 读数只作诊断/趋势，不参与通过/失败判定",
+      "接触精度仍由对上游 f32 的既有定稿判据承担（本节不表示没有精度要求）",
+      "红线 `E_candidate <= 1.05 * E_mjwarp` 在其它字段照旧生效，接触字段 native 侧不适用"
+    ],
+    "no_effective_tolerance": "本节未写入任何生效 atol/rtol；未新增字段块；未改 NP03 判定流程"
+  },
+  "scope": {
+    "evidence_dir": "docs/development-evidence/native-contact-tolerance-decision-b/",
+    "readonly_policy": "不改对上游 f32 的既有判据、不改已 verified 证据数字（G2–G5 receipt）、不改 S2–S8 证据、不改 Cargo.* 与 fixtures/mjwarp-complex-physics/*.xml",
+    "gpu_used": "未使用",
+    "cargo_changed": false,
+    "product_code_changed": false
+  },
+  "verification": {
+    "gates": {
+      "fmt": "通过（1410ms）",
+      "clippy": "通过（355ms）",
+      "clippy-cuda": "通过（8697ms）",
+      "unit": "通过（3116ms，588 过 0 败）"
+    },
+    "evidence_checks": [
+      "README 逐字引用落地的契约小节（21 行）",
+      "README 引用 v3 材料结论摘要（设备 vs native pos 4.546e-4 / frame 1.170e-3；上游 f32 vs native 4.546e-4 / 1.171e-3 → 引擎语义差异）",
+      "README 记录用户 2026-10-25 拍板 B（经 Chief 转达）与样本量（ellipsoid-box 1 case / 2 接触点，不可外推）",
+      "README 列明不得表述（接触字段精度已达标 / native 等价 / native 放行）与 G6、QA 复核约束"
+    ]
+  },
+  "artifacts": {
+    "contract": "docs/numerical-precision-contract.md",
+    "readme": "docs/development-evidence/native-contact-tolerance-decision-b/README.md",
+    "receipt": "docs/development-evidence/native-contact-tolerance-decision-b/receipt.json",
+    "basis_material": "target/g10-p5-native-tolerance-candidates-v3.md（不入库；结论已摘入 README）",
+    "native_readings_source": "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-compare-gpu.json（native_f64_readings）"
+  },
+  "unmet": [
+    "真 native 接触参考仍只有 1 个 case / 2 个接触点（ellipsoid-box），不可外推到其它 case/硬件/精度声明",
+    "native 侧接触字段没有放行信号：这是选项 B 的既定后果，不是本片未完成项；若未来要 native 放行，须先扩样并重新拍板",
+    "接触输出探针（让 hfield-box 等可配对）未实施，另立小片",
+    "Linux/T4 无 native 读数；hfield/SDF 的 native 接触不可配对",
+    "本片不宣称精度达标、不宣称 native 等价、不宣称原生放行、不宣称 G10@P5 通过"
+  ]
+}
