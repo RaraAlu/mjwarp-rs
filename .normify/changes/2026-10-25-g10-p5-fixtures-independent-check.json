@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-fixtures-independent-check",
+  "title": {
+    "zh": "G10@P5 夹具与参考独立复核（MJB provenance/octree parity/捕获矩阵/顺序口径/2A spike）",
+    "en": "G10@P5 fixtures and references independent review (MJB provenance, octree parity, capture matrix, ordering rule, 2A spike)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G0b（`2026-10-25-g10-p5-fixtures`，用户 2026-10-25 拍板解冻 g10-p5 按推荐组合 1A/2A/3A/5A）做独立复核：QA 自写脚本（不复用 Backend 的捕获/比较 support）独立重跑或独立复算——双版本 MJB 的 provenance 完整性（源 XML sha、mujoco 版本、脚本 sha、命令、产物 bytes/sha）与**同版本重载校验**（3.12 产物只能 3.12 加载、3.15 产物只能 3.15 加载）；`octree-parity.json` 两层 parity 逐字段复核（`oct_aabb/oct_coeff` f64 位型 + shape 全等；`hfield_data` f32 位型）；既有 d04 直接参考审计结论是否正确；新增捕获矩阵的每 case 是否真的两次捕获位等、`default_state` offset 是否只作用于第一个 freejoint 前 3 维、17 字段是否齐全、provenance 是否可追溯；接触顺序验收口径（worldid 分组 + `(dist,pos)` 稳定排序位级比 + 原始顺序观察项强制记录）是否被真正执行；nworld=2 spike 结论是否足以判定 2A 可行性（不可用是否如实报、是否自行降级）；未满足项是否如实。不改产品代码、不改夹具与 G0b 原证据。",
+    "en": "Independent review of G0b (task 2026-10-25-g10-p5-fixtures) after the user approved thawing g10-p5 with the recommended combination (1A/2A/3A/5A): QA writes its own scripts (not reusing Backend's capture/compare support) and independently reruns or recomputes - per-version MJB provenance completeness (source XML sha, mujoco version, script sha, command, artifact bytes/sha) with same-version reload checks (3.12 artifacts must load only under 3.12, 3.15 only under 3.15); field-by-field verification of both parity layers in octree-parity.json (oct_aabb/oct_coeff f64 bitwise plus shape equality; hfield_data f32 bitwise); whether the audit of existing d04 direct references is correct; whether each new capture case is genuinely bit-identical across two captures, whether default_state offset affects only the first freejoint's first three components, whether all 17 contact fields are present and provenance traceable; whether the contact ordering acceptance rule (group by worldid, stable (dist,pos) sort then bitwise compare, raw order recorded as a mandatory observation item) was actually applied; whether the nworld=2 spike conclusion suffices to decide 2A feasibility (and whether unavailability was reported honestly rather than self-downgraded); whether unmet items are listed honestly. No product-code changes, no fixture changes, no changes to the original G0b evidence."
+  },
+  "modules": {},
+  "acceptance": [
+    "MJB provenance 与重载校验：两个模型（hfield-box/sdf-cylinder）各两版本（3.12 产品 / 3.15 参考）四份产物，provenance 字段齐全且源 XML sha 与仓库文件一致；**同版本重载校验**成立（3.12 产物由 3.12 加载、3.15 产物由 3.15 加载）；QA 独立确认 3.15 不能加载 3.12 产物的实测错误（`different number of sizes`）已被记录，参考侧未用产品 MJB。",
+    "octree parity 独立复核：QA 自写 dump 或独立读回，逐字段验证 shape 全等 + `oct_aabb/oct_coeff` **f64 位型**全等（或如实记录逐字段差异清单与首个差异索引/位型）；`hfield_data`（3×3=`[0,0.5,0,0.5,1,0.5,0,0.5,0]`）与 `hfield_size`（`[1,1,0.1,0.1]`）f32 位比一致；`noct`/`oct_depth`/`mesh_octadr/octnum` 全等；结论（一致→SDF 位级验收；不一致→统一 3.15 oct_* 夹具 + G6 unmet）是否被明确写入证据且与实测一致。",
+    "既有 d04 直接参考审计复核：`collision-box-box-multiccd`（count=10、每 world 5）、`collision-convex-mesh`（count=2、每 world 1）、`collision-degenerate-mesh`、`sphere-sphere`、`hfield-box`（count=8、每 world 4）逐项复核 count/worldid/geom/dist 与可复用性判定；「先审计后补采」是否真做到（未重采既有、未把既有当缺口重复投入）。",
+    "新增捕获矩阵复核（QA 独立重采或独立复算）：每 case 有 world0=qpos0 / world1=qpos0+offset 两状态，offset 只作用于第一个 freejoint 前 3 维（QA 选 1–2 个 case 显式验证：改 offset 后恰预期 body 移动、另一 body 不动）；两次捕获位等；contact 17 字段齐全；provenance 记脚本 sha/模型 sha/参数。8 项矩阵（sphere-box 浅/深穿透、capsule-box、cylinder-box、ellipsoid-box、hfield-sphere、sdf-box、非退化 mesh-mesh、box-box-margin，可选 hfield-capsule）覆盖情况与缺失如实。",
+    "接触顺序验收口径执行核对：通过判据是否按「`worldid` 分组 + 每 world 内 `(dist,pos)` 稳定排序后位级比较」执行；**原始顺序是否相等是否作为观察项强制记录**，不等是否写明原因（broadphase/multiccd 写入顺序）；不得静默忽略、不得把实现顺序差异当数值差异。",
+    "nworld=2 spike 复核：结论是否给出 2A 可行/不可用的具判据（`hfield_data`/`oct_*` 上传的 world 维、接触写入顺序、`naconmax` 维度）；若判不可用是否如实报 Arch、**未自行降级 2B**；spike 期间未写产品代码。",
+    "证据/边界：receipt 含 task_id 且 unmet 如实（如未覆盖组合、参考只含有限 qpos、Linux/T4 未覆盖）；`fixtures/mjwarp-complex-physics/*.xml` 未被修改（git 层面核）；产品代码/Cargo.*/S2–S8 证据无改动；G0b 证据文件 sha256 与 README 声明一致；本复核不改 G0b 原证据与夹具。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-fixtures"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-fixtures-independent-check/"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "Arch 2026-10-25 预先登记：G0b（夹具+参考）verified 后立即复核，不占用 GPU（MJB 生成、字段 dump、octree parity、碰撞参考捕获均为 CPU 侧 authoring），因此可与 Backend 的 G2 实现并行；这是 g10-p5 链条的第一道独立复核，parity 与顺序口径的结论直接决定 G3/G4/G5 的验收判据，必须逐项实测、不接受间接证据。",
+  "revision": {
+    "before": "697795f4ed51b2f60f53269413abbdb316fc94e8",
+    "after": null
+  },
+  "created_at": "2026-10-25T15:12:00.000Z",
+  "updated_at": "2026-10-25T15:12:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-fixtures-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-fixtures-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价"
+      ]
+    }
+  ]
+}

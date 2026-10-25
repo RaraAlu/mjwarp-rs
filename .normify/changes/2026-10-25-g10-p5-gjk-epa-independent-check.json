@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-gjk-epa-independent-check",
+  "title": {
+    "zh": "G10@P5 GJK/EPA 前置片独立复核（ccd/support/multicontact/is_discrete/EPA 退化）",
+    "en": "G10@P5 GJK/EPA prerequisite independent review (ccd, support, multicontact, is_discrete, EPA degeneracy)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G2（`2026-10-25-g10-p5-gjk-epa`）做独立复核：QA 自写驱动（不复用交付 support）按 G0b 补采的 GJK/EPA 直达参考独立重跑，核 `ccd()` 两阶段与返回值语义（ncontact 0/1/`FLOAT_MAX`、浅穿透 `_inflate` 不跑 EPA、深穿透恢复 margin/size）、GJK 迭代与收敛（epsilon/min_norm/Frank-Wolfe 间隙/子算法 λ 剔除与 simplex 重排/`x_norm<1e-4` 方向调优）、EPA（polytope 构造、收敛判据、HORIZON 退化 → `FLOAT_MAX`/idx=-1、缓冲容量 `10+2I`/`6+5I`）、`support()` 各类型（含 HFIELD 六顶点、MESH graph hillclimb 与 `cached_index`、margin 尾项）、`multicontact`/`_polygon_clip`（≤4 接触）、`is_discrete` 分支（mesh/box/hfield + margin==0 走 epsilon=0 与重复点早退）；并对数值给位级/ULP 结论（按 S7b 定序方法，不放宽容差）；核既有 plane-sphere/sphere-sphere/plane-box 语义未变。不改产品代码与原证据。",
+    "en": "Independent review of G2 (task 2026-10-25-g10-p5-gjk-epa): QA writes its own driver (not reusing delivered support), reruns against the direct GJK/EPA references captured in G0b, and checks ccd()'s two phases and return semantics (ncontact 0/1/FLOAT_MAX, shallow inflate without EPA, deep penetration restoring margin/size), GJK iterations and convergence (epsilon, min_norm, Frank-Wolfe gap, sub-algorithm lambda elimination and simplex reordering, x_norm<1e-4 direction tuning), EPA (polytope construction, convergence, HORIZON degeneracy to FLOAT_MAX/idx=-1, buffer capacities 10+2I and 6+5I), support() per type (HFIELD six vertices, MESH graph hillclimb and cached_index, margin tail), multicontact/_polygon_clip (at most 4 contacts), and the is_discrete branch (mesh/box/hfield with margin==0 using epsilon=0 and duplicate-point early exit); report bit-level/ULP conclusions per the S7b ordering method without loosening tolerances; confirm existing plane-sphere/sphere-sphere/plane-box semantics are unchanged. No product-code or original-evidence changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "ccd() 语义独立复核：以 G0b 补采参考为输入，核 ncontact 0=分离 / 1=候选 / `FLOAT_MAX`=分离或 EPA 失败的判定；QA 自建至少 3 个用例（分离、浅穿透、深穿透）验证阶段选择正确（浅穿透不走 EPA、深穿透恢复 margin/size 后重跑 GJK）；球/胶囊 shrink 后 `full_margin`/cutoff 处理与上游一致。",
+    "数值结论：GJK/EPA 输出的 `dist`/`pos`/`frame`/`normal` 与参考位级或 ≤4 ULP（`normal` 含归一化、`gradient`/有限差分单独说明），逐 case 给差值分布与最大 ULP；**不得放宽容差**；若有超差项必须给根因与是否阻断的判定，不得以「参数级问题」笼统带过。",
+    "EPA 覆盖：收敛判据、HORIZON 退化 → `FLOAT_MAX`/idx=-1、缓冲容量 `10+2I`/`6+5I`、`multiccd_idx` 开关（margin≠0 或类型不符 → -1）逐项核；构造≥1 个退化用例验证不 panic、返回语义与上游一致。",
+    "support()/multicontact：SPHERE/BOX/CAPSULE/ELLIPSOID/CYLINDER/MESH/HFIELD/TRIANGLE 与 margin 尾项；HFIELD 六顶点与 `dir[2]<0 ? -2 : -3`；MESH 穷举 vs graph hillclimb 分支与 `cached_index` 热启动；`multicontact`/`_polygon_clip` 生成 ≤4 接触且 hfield/SDF 路径不误用。",
+    "is_discrete 分支：mesh/box/hfield + margin==0 走 epsilon=0 与重复点早退，有分支覆盖证据；不与 tolerance 路径混用；`box-box-margin`（margin≠0 非离散）与 `box-box`（离散）两条路径都给实测对照。",
+    "接触顺序与不回归：按 `worldid` 分组 + `(dist,pos)` 稳定排序位级比较，原始顺序作观察项记录并解释；既有 plane-sphere/sphere-sphere/plane-box 与已验收窄相语义不回归（相关套件重跑数字不变）；证据含 task_id、方法与未覆盖项；`git diff` 只动 G2 声明路径、未改 S2–S8 证据与夹具；门禁 fmt/clippy/clippy-cuda/unit 通过；GPU 独占串行、结束回桌面基线。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-gjk-epa"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-gjk-epa-independent-check/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 54
+  },
+  "note": "Arch 2026-10-25 预先登记：G2 是 g10-p5 的数值主件（G3/G4/G5 全部复用其 ccd/support/multicontact），所以复核必须独立重跑而非读交付日志。QA 用 G0b 的直达参考（box-box-multiccd/convex-mesh/degenerate-mesh + 新采 sphere-box/cylinder-box 等）+ 自写驱动；数值口径沿用渲染批次的「位级优先、ULP 退路、不放宽容差」。GPU 窗口与 Backend 串行，等 G2 verified 后再 start。",
+  "revision": {
+    "before": "697795f4ed51b2f60f53269413abbdb316fc94e8",
+    "after": null
+  },
+  "created_at": "2026-10-25T15:12:00.000Z",
+  "updated_at": "2026-10-25T15:12:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-gjk-epa-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-gjk-epa-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价"
+      ]
+    }
+  ]
+}
