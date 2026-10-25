@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-case-evidence-frame-diagnosis-independent-check",
+  "title": {
+    "zh": "case_evidence frame 环境敏感性诊断的 QA 独立复核（FMA 语义/环境矩阵/排除项）",
+    "en": "Independent check of the case_evidence FMA/environment diagnosis"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-case-evidence-frame-diagnosis`（结论：GNU 默认 `f32::mul_add` 非 IEEE 单次舍入 FMA，碰撞路径唯一使用点 `gjk/polytope.rs:67-70`，GNU 绿系偶合、faithful FMA 下 frame 6.351978e-7 > 4.8e-7）做**独立复核**。该结论要翻转既有「G6 case_evidence 绿」的口径，不能只由同一执行者自证。复核方须自建探针与 harness、全新 clean target（不复用 `diag-*`、`verify-clean-001/002`、`arch-*` 等），独立复现微探针统计、产品级 frame 矩阵与排除项；CPU-only、无 GPU 窗口、不碰产品代码/判据/容差。",
+    "en": "Independently reproduce the FMA-semantics diagnosis (micro probe statistics, product-level frame matrix, excluded causes) with a self-built harness and brand-new clean targets."
+  },
+  "modules": {},
+  "acceptance": [
+    "**独立微探针**：复核方自己写 f32 三元组探针（不读交付源码），对四种构建——GNU 默认、MSVC 默认、GNU `-C target-feature=+fma`、MSVC `+fma`——各跑同一确定性输入集（≥4096 组，建议扩到 1e6 组），独立算出「与硬件 FMA 的差异数」「与非融合 `a*b+c` 的差异数」「与 f64 双舍入的差异数」；与交付 `991/4096（GNU）、0/4096（MSVC）、+fma 两构建互 0` 逐项对照并列差异。",
+    "**独立产品级矩阵**：用**全新 clean target**（每个环境单独、删空重建、记录 deps 文件数/`rustc -vV`/target triple；不得复用 `diag-*`/`verify-clean-*`）复跑 `case_evidence::upstream_f32_within_4ulp`，给出 frame 实测：GNU 默认、MSVC 默认、GNU+`+fma`、MSVC+`+fma`、GNU release、MSVC release 至少六格；核对「GNU 默认 3.838112e-7 pass / 其余 faithful 组合 6.351978e-7 fail」是否成立。",
+    "**排除项独立复核**：逐项自测——`CARGO*/RUST*` 环境变量（清空前后）、`-C link-dead-code=yes`（MSVC 加上仍红 / GNU 去掉仍绿）、`--release/opt-level`（GNU release 绿、MSVC release 红）、产物来源（全新目录两侧复现）、fixture/输入与 HEAD 是否逐字节一致；每项给出命令与原始输出。",
+    "**代码定位独立核**：核 `src/physics/collision/gjk/polytope.rs` 的 `f32::mul_add` 使用点与 `face_norm2` 是否确为碰撞 host 路径唯一使用点（自行全仓扫描 `src/`，把产品站点与测试站点分开列；至少核出 `render/kernel/megakernel_arrays.rs` 的光源归一化站点），并核团队先例 `relmat.rs`/`render/bvh/aabb.rs` 的 `fused_mul_add` 是否存在与本诊断一致的注释证据。",
+    "**口径与边界**：核交付是否**不宣称**「已修复/已通过」；是否明确「G6 绿色系非合规 fmaf 偶合」「G01 host-msvc 红是忠实结果」；是否未改判据/容差/排除清单/产品源码/`gates.toml`/G01 脚本；证据只写自己的目录 `docs/development-evidence/case-evidence-frame-diagnosis-independent-check/`（README + receipt 含 task_id），行数 ≤500、UTF-8 无 BOM、无 `.bin/.pyc`；CPU-only、不开 GPU 窗口。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-case-evidence-frame-diagnosis"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/case-evidence-frame-diagnosis-independent-check/"
+    ],
+    "resources": [],
+    "priority": 53
+  },
+  "note": "Arch 2026-10-25 登记（Chief 要求）：诊断结论要翻转既有绿，必须有独立执行者的复现；这是后续 fix 片开工的硬前提，与用户对「验收环境/判据」的拍板并行、互不阻塞。复核不得复用交付的 diag-* / verify-clean-* 产物，也不得引用交付日志作为自己的证据。",
+  "revision": {
+    "before": "6a01dce3faba5653b66ba82d197a2ec534fdd8c9",
+    "after": null
+  },
+  "created_at": "2026-10-25T17:45:00.000Z",
+  "updated_at": "2026-10-25T17:45:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/case-evidence-frame-diagnosis-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-case-evidence-frame-diagnosis-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
