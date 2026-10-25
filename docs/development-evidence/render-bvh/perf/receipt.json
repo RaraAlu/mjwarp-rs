@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-render-bvh-perf",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "perf",
+  "title": "渲染/BVH perf：独占 GPU 窗口的相对性能基准（单帧与 AA）",
+  "date": "2026-10-25",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "conclusion": "独占 GPU 窗口测得 scene-a 单场景单机相对基准：单帧（spp=1，120,000 射线）frame 口径 min/median/p95 = 11.373/14.030/16.622 ms，独立重复测量 11.423/14.389/17.039 ms；AA（spp=2→nsamples=4，480,000 射线）= 34.304/36.174/37.243 ms 与 34.847/36.423/38.091 ms；AA/单帧 median 比值 2.578（A）与 2.531（B）；每 120,000 射线 ms：单帧 14.030（A）/14.389（B）、AA 9.043（A）/9.106（B）。两遍一致性：单帧 median 差 2.6%、AA 差 0.7%、比值差 1.8%。每次迭代原始毫秒序列见 raw-timings.json（两遍测量各 30 次，warmup=5 不计入；official_summary 与序列同源）。显存：device_memory 分配峰值 56,623,104 B（54 MiB，含 context 2 MiB），每帧后 free 序列 10 次无增长，destroy 后 context 2 MiB 回池；外部 nvidia-smi 采样 329 点，桌面 4,278 MiB → 峰值 4,556 MiB → 窗口结束回 4,278 MiB（进程口径含 CUDA 上下文/模块缓存）。窗口起止与 --query-compute-apps 均登记，无其它 CUDA 计算进程。回归 S7b1 6/6、S7b2 3/3、S7b3 6/6，未改渲染语义与已验收数值。口径：单场景单机相对基准，不宣称固定性能指标，不与上游或其它硬件比较。",
+  "measurement_protocol": {
+    "gpu_exclusive": true,
+    "warmup": 5,
+    "iterations": 30,
+    "launch_ms": "仅 MegakernelRenderer::render(...) 调用耗时（辅助口径）",
+    "frame_ms": "发射 + 输出读回同步（CUDA 同步点；主指标）",
+    "statistics": "min / median / p95（nearest-rank: index = round((n-1)*fraction)，四舍五入）",
+    "normalization": "单帧=120,000 射线；AA=480,000 射线 → 每 120,000 射线 ms = frame median / 4",
+    "config": "默认 28 参数 context、nworld=1、rgb/depth/seg 全开、S5 预计算射线；位姿用产品 camlight 输出（与 S8 一致，数值 0 位差已验收；性能与位姿来源无关）",
+    "build": "cargo test 默认 debug 构建（未测 release）"
+  },
+  "measurements": {
+    "measurement_a": {
+      "log": "gpu-run.log",
+      "window": {
+        "start": "2026-10-25T14:06:49.1272506+08:00",
+        "end": "2026-10-25T14:07:00.0832398+08:00"
+      },
+      "single_spp1": {
+        "rays_per_frame": 120000,
+        "frame_ms": { "min": 11.373, "median": 14.03, "p95": 16.622 },
+        "launch_ms": { "min": 11.045, "median": 13.604, "p95": 16.287 }
+      },
+      "aa2_spp2": {
+        "rays_per_frame": 480000,
+        "nsamples": 4,
+        "frame_ms": { "min": 34.304, "median": 36.174, "p95": 37.243 },
+        "launch_ms": { "min": 33.86, "median": 35.826, "p95": 36.87 }
+      },
+      "ratios": {
+        "aa_over_single_median": 2.578,
+        "single_ms_per_120k_rays": 14.03,
+        "aa_ms_per_120k_rays": 9.043
+      }
+    },
+    "measurement_b": {
+      "log": "repeat-run.log",
+      "window": {
+        "start": "2026-10-25T14:07:00.0832398+08:00",
+        "end": "2026-10-25T14:07:03.8523882+08:00"
+      },
+      "single_spp1": {
+        "rays_per_frame": 120000,
+        "frame_ms": { "min": 11.423, "median": 14.389, "p95": 17.039 },
+        "launch_ms": { "min": 11.087, "median": 14.065, "p95": 16.716 }
+      },
+      "aa2_spp2": {
+        "rays_per_frame": 480000,
+        "nsamples": 4,
+        "frame_ms": { "min": 34.847, "median": 36.423, "p95": 38.091 },
+        "launch_ms": { "min": 34.514, "median": 36.075, "p95": 37.713 }
+      },
+      "ratios": {
+        "aa_over_single_median": 2.531,
+        "single_ms_per_120k_rays": 14.389,
+        "aa_ms_per_120k_rays": 9.106
+      }
+    },
+    "variation_note": "两遍独立窗口一致性：单帧 median 差 2.6%（14.030 ↔ 14.389 ms）、AA 差 0.7%（36.174 ↔ 36.423 ms）、比值差 1.8%（2.578 ↔ 2.531）；保留两遍原始序列，不择一、不平均成单值。"
+  },
+  "raw_timings": {
+    "file": "raw-timings.json",
+    "bytes": 7739,
+    "sha256": "731704df427a490ce77637062ba5a1d9763cf160b8a44373c609c787916a2498",
+    "content": "measurement_a/measurement_b 各 30 次 launch_ms 与 frame_ms 原始序列（warmup=5 次不进入序列）+ official_summary（取自同一次运行的 s8perf[stat] 输出，与序列同源）+ ratios + memraw 显存 free 序列",
+    "summary_same_source": true
+  },
+  "memory": {
+    "device_memory": {
+      "free_before": 15811477504,
+      "single_context_bytes": 2097152,
+      "single_free_after_create": 15809380352,
+      "free_after_compile": 15807283200,
+      "single_peak_bytes": 56623104,
+      "single_frame_free_min": 15754854400,
+      "single_frame_free_series_growth": 0,
+      "aa_free_after_create": 15756951552,
+      "aa_peak_bytes": 56623104,
+      "aa_frame_free_min": 15754854400,
+      "free_after_destroy": 15756951552,
+      "free_after_all_destroy": 15759048704,
+      "residual_vs_process_start_bytes": 54525952,
+      "residual_note": "52 MiB 属驱动代码缓存/池一次性保留（S6b 先例 32 MiB 级），非泄漏；context destroy 后 2 MiB 回池"
+    },
+    "nvidia_smi_samples": {
+      "file": "nvidia-smi-samples.txt",
+      "bytes": 1977,
+      "sha256": "7b45dc4b7825d97250831fd76cdbb64dcf1ed104a9d0269e4e28d322081808f4",
+      "interval_ms": 100,
+      "samples": 329,
+      "min_mib": 4246,
+      "median_mib": 4278,
+      "max_mib": 4556,
+      "desktop_baseline_mib": 4278,
+      "window_end_mib": 4278,
+      "note": "进程口径（含 CUDA 上下文/模块缓存）；max 出现在测试窗口内"
+    }
+  },
+  "gpu": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "arch": "SM89",
+    "compute_cap": "8.9",
+    "compute_apps_before_after": "无其它 CUDA 计算进程（--query-compute-apps 仅桌面图形应用）",
+    "window_end_memory_mib": 4278
+  },
+  "no_regression": {
+    "s7b1": {
+      "command": "cargo test --locked --features cuda-probe --test render_kernel_depth_seg -- --ignored --test-threads=1 --nocapture",
+      "passed": 6,
+      "failed": 0,
+      "result": "depth/seg 120,000/120,000 位等 max 0 ULP、seg 0 不一致"
+    },
+    "s7b2": {
+      "command": "cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --test-threads=1 --nocapture",
+      "passed": 3,
+      "failed": 0,
+      "result": "RGB 同配方两相机 0 差异；depth/seg 不回归"
+    },
+    "s7b3": {
+      "command": "cargo test --locked --features cuda-probe --test render_kernel_flags -- --ignored --test-threads=1 --nocapture",
+      "passed": 6,
+      "failed": 0,
+      "result": "flag 5/5、AA、合成法线全过；PTX 197,583 B / 27,536 B 不变"
+    },
+    "log": "regression.log",
+    "log_sha256": "7b0d7abc2f6e7ee47945281a13c5dceebc039584a9792cca618f8bef14148a5b"
+  },
+  "gates": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy-cuda": "pass",
+    "unit": {
+      "result": "pass",
+      "tests_passed": 532,
+      "tests_failed": 0
+    }
+  },
+  "size_ratchet": {
+    "tests_render_perf_rs": {
+      "lines": 340,
+      "bytes": 13322,
+      "sha256": "96078c108ccd6f9333eddfe2aa4add5b5d893e2c255b26154fd9725462182010"
+    },
+    "note": "新文件 <500 行；launch.rs 只读未改；未改渲染语义与已验收数值"
+  },
+  "unmet": [
+    "只测 scene-a 一个场景、单机（RTX 4070 Ti SUPER）；不可跨硬件/跨平台比较，不给固定性能指标。",
+    "未与上游 mujoco_warp 做性能比较（口径/同步方式/编译配方不同，不构成可比基准）。",
+    "未测 release 构建（本证据为默认 debug 测试构建）。",
+    "显存只有 device_memory 点采样与 100 ms 外部采样，亚 100 ms 峰值可能漏采。",
+    "未测 nworld>1、更高 spp、阴影/天空盒等未实现路径（写前拒绝）。",
+    "本证据是单次窗口的相对数字，后续复测须按同口径（warmup/迭代/构建/环境）才有可比性。"
+  ],
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "raw-timings.json",
+    "gpu-run.log",
+    "repeat-run.log",
+    "regression.log",
+    "nvidia-smi-samples.txt"
+  ],
+  "reproduction": {
+    "perf": "cargo test --locked --features cuda-probe --test render_perf -- --ignored --test-threads=1 --nocapture",
+    "regression": "cargo test --locked --features cuda-probe --test render_kernel_depth_seg|render_kernel_rgb|render_kernel_flags -- --ignored --test-threads=1 --nocapture",
+    "env": "$env:CUDA_PATH=(Resolve-Path 'target\\toolchains\\cuda-12.8.1').Path; $env:PATH=\"$env:CUDA_PATH\\bin;$env:PATH\""
+  }
+}
