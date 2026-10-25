@@ -309,8 +309,8 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 | S7b3 复核 | `2026-10-25-render-bvh-s7b3-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s7b3-independent-check/` | `7e5affd`；独立重采 7 份参考：产品各组 RGB **位等 0 差异**/depth 0 ULP/seg 0；AA 480,000 射线布局反推 0 bad、depth/seg 只取首 pass 逐位成立；`vertex_normals_off` 无判别力如实登记；532/0 |
 | S7b 配套修正 | `2026-10-25-render-bvh-s7b-followups` | Backend | verified | `docs/development-evidence/render-bvh/s7b-followups/` | `62c58a5`（+`33303a7` S7b3 证据修正、`1b2f79c` S7b2 addenda）；合成法线 pinned 参考产品 **0 差异**、on/off 653/9 像素可判别；行数 495/93/233 与注释纠正 |
 | S8 | `2026-10-25-render-bvh-s8-e2e` | Backend | verified | `docs/development-evidence/render-bvh/s8-e2e/` | `d8bc9d8`；产品 camlight 位姿 **0 位差**、端到端 RGB **120,000/120,000 像素 0 差异**/depth 0 ULP/seg 0、反证成立（篡改夹具位姿不变；篡改当输入变 115,972 像素）、growth 0 B、532/0 |
-| S8 复核 | `2026-10-25-render-bvh-s8-independent-check` | QA | in_progress | `docs/development-evidence/render-bvh/s8-independent-check/` | 60 分钟 GPU；独立复算 camlight 反证/端到端同配方/基线、收口口径诚实性、1 ULP 辅助口径定性 |
-| 渲染 perf | `2026-10-25-render-bvh-perf` | Backend | proposed（S8 复核后 start） | `docs/development-evidence/render-bvh/perf/` | 独占 GPU；两相机单帧/AA 的 min/median/p95 与显存峰值；**只给相对基准** |
+| S8 复核 | `2026-10-25-render-bvh-s8-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s8-independent-check/` | `20c728c`；自写驱动复核产品链：两相机/三灯位姿 **0 位差**、模型输入灵敏度独立验证、篡改判别 6 origin+17 xmat 位不同；端到端同配方 0 差异/0 ULP/seg 0；1 ULP 判为辅助口径非缺陷；0 阻断 |
+| 渲染 perf | `2026-10-25-render-bvh-perf` | Backend | in_progress | `docs/development-evidence/render-bvh/perf/` | 独占 GPU；单帧/AA min·median·p95 + 原始序列、显存峰值；**只给相对基准**；顺带收口 S8 复核非阻断项 |
 
 结构说明：
 - 原 `2026-10-24-render-bvh-s2` 已 abandon（`8d4357f`，理由：运行中父任务写路径锁与派生任务冲突、冻结字段不可改）；拆分前参考捕获 `75166cf` 保留在 git 历史与 `fixtures/render-bvh/scene-a/s2/`，S2b 继续引用。
