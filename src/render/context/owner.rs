@@ -302,6 +302,12 @@ impl TextureResources {
         self.objects.is_empty()
     }
 
+    /// S7b2：取只读 CUtexObject 句柄列表（S7a `Texture2dArray` 打包用；不转移所有权）。
+    pub(crate) fn handles(&self) -> Vec<crate::render::texture::cuda::TextureHandle2d> {
+        (0..self.objects.len())
+            .filter_map(|texture| self.objects.handle(texture))
+            .collect()
+    }
     /// 按模型纹理 id 采样固定 uv 列表（S4 硬件 LINEAR 路径）。
     pub fn sample(&self, texture: usize, uvs: &[[f32; 2]]) -> Result<Vec<[f32; 4]>, OwnerError> {
         self.objects
