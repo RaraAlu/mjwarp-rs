@@ -123,7 +123,7 @@ render_megakernel.cu)`；入口 `render_megakernel`（81 槽）。
 | 59 | `mesh_bvh_id` | `[0,0]`（mesh 遍历走自有 blob） | placeholder |
 | 60 | `mesh_facetexcoord` | `RenderFields.mesh_facetexcoord`（Vec3I） | real |
 | 61 | `mesh_facenormal` | `RenderFields.mesh_facenormal`（Vec3I） | real |
-| 62 | `mesh_texcoord` | 2 个 `0.0` 占位（场景无 texcoord；ABI 拒绝零长数组） | placeholder |
+| 62 | `mesh_texcoord` | 2 个 `0.0` 占位（场景无 texcoord；ABI 拒绝零长数组；仅当 `mesh_texcoordadr>=0` 时被 `sample_texture` 解引用，本场景为 -1 故不读） | placeholder |
 | 63 | `mesh_texcoord_offsets` | `RenderFields.mesh_texcoordadr` | real |
 | 64 | `hfield_bvh_id` | `[0,0]` | placeholder |
 | 65 | `flex_rgba` | `[0;4]` | placeholder |
@@ -143,13 +143,13 @@ render_megakernel.cu)`；入口 `render_megakernel`（81 槽）。
 | 79 | `depth_out` | `OutputResources` depth array2d | real |
 | 80 | `seg_out` | `OutputResources` seg array2d | real |
 
-统计：real 数据槽 54、自有打包槽 3（54/71/73 位、75）、placeholder 24（其中 62 因 ABI 禁零长数组）。
+统计：real 数据槽 58、自有打包槽 4（54/71/73/75）、placeholder 19（其中 62 因 ABI 禁零长数组）。
 `bvh_ngeom=7`、`bvh_nflexgeom=0`、`use_shadows=false` 与冻结口径一致。
 
 ### 4.1 自有打包（仅签名对齐，内部语义自有）
 
 - `bvh_id`（slot 54）：单个设备指针指向自有 blob；header 10×u32（五段字节偏移/长度：scene_meta、
-  scene_params、mesh_meta、mesh_params、mesh_offsets，段间 16 字节对齐），随后五段数据。布局与
+  scene_params、mesh_meta、mesh_params、mesh_offsets；段起点为 `40 + 16k`（k=0..4），相邻段起点间距 16 B），随后五段数据。布局与
   S7b1 `SceneDevice`/`MeshDevice` 的 meta/params 完全一致（host 单测按偏移切分校验）。
   **不消费 Warp BVH 句柄，不宣称与上游 BVH 等价。**
 - `splat_bvh_id`（slot 75）：低 32 位 flags（bit0 textures、1 vertex_normals、2 specular、
@@ -181,7 +181,7 @@ RGB 8 位量化几乎无影响；本片 RGB 差异全部来自实现（见 §6�
 ### 5.4 其余
 
 - 两次运行：RGB / depth / seg 全部逐位相同（`depth_seg_hash=03efa95416bbd008`、
-  `rgb_hash=ed50f750936c275`）。
+  `rgb_hash=ed50f750936c0275`）。
 - 写前拒绝面 4/4：`use_shadows`、`use_precomputed_rays=false`、`samples_per_pixel=2`、
   `render_skybox` 均在发射前返回 `LauncherError::Unsupported`。
 - 灯位姿：`light_data_check` 断言 3 灯 `xpos`/`xdir` f32 位型与 pinned 3.15 `mjwarp.forward` 逐位相等。

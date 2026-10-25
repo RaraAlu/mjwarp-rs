@@ -41,10 +41,10 @@
     "arrays": 73,
     "scalars": 7,
     "slot_order": "S7a 冻结 MEGAKERNEL_SLOTS（src/runtime/launcher/render/args.rs），与渲染器 args.push 顺序逐槽一致",
-    "real_slots": 54,
-    "own_pack_slots": 3,
-    "placeholder_slots": 24,
-    "bvh_id": "slot 54：自有 blob 设备指针（header 10×u32 + 五段 scene_meta/scene_params/mesh_meta/mesh_params/mesh_offsets，段间 16 字节对齐）；不消费 Warp BVH 句柄，不宣称与上游 BVH 等价",
+    "real_slots": 58,
+    "own_pack_slots": 4,
+    "placeholder_slots": 19,
+    "bvh_id": "slot 54：自有 blob 设备指针（header 10×u32 + 五段 scene_meta/scene_params/mesh_meta/mesh_params/mesh_offsets，段起点 40+16k、相邻间距 16 B）；不消费 Warp BVH 句柄，不宣称与上游 BVH 等价",
     "own_slots": {
       "splat_position": "[headlight_ambient, headlight_diffuse, headlight_specular, background]（4×vec3）",
       "splat_scale": "[znear, zfar, 0]（仅 .y=zfar 被读）",
@@ -262,7 +262,7 @@
       "depth_bitwise_identical": true,
       "seg_bitwise_identical": true,
       "depth_seg_hash": "03efa95416bbd008",
-      "rgb_hash": "ed50f750936c275"
+      "rgb_hash": "ed50f750936c0275"
     },
     "light_data_check": {
       "lights": 3,
@@ -304,7 +304,8 @@
   },
   "unmet": [
     "阴影（use_shadows=true）、天空盒（render_skybox=true）、splat、AA（samples_per_pixel>1）未实现，均在写前 Unsupported 拒绝（S7b3+）。",
-    "flex / hfield / SDF / 动态射线（use_precomputed_rays=false）未实现（写前拒绝或 ABI 占位）；占位槽共 24 个，内核不读。",
+    "flex / hfield / SDF / 动态射线（use_precomputed_rays=false）未实现（写前拒绝或 ABI 占位）；占位槽共 19 个（real 58/own 4），内核不读。",
+    "拒绝面测试当前用 `catch_unwind(..).continue` 判定「写前拒绝」，建 context 阶段的 panic 也会被算作拒绝；QA 复核独立确认 4 类均无 panic、结论成立，但建议后续把测试改为先断言建 context 成功、再断言渲染返回 `Unsupported`（非阻断，随 S8/硬化跟进）。",
     "正交相机未覆盖（scene-a 两相机均为透视）；大网格与带 texcoord 网格未验证（scene-a 网格无 texcoord，走 OBJECT_PLANE fallback；texture_mesh 的 texcoord 插值分支已实现但未覆盖）。",
     "相机 data 位姿由调用方显式传入；跟踪相机 TARGETBODY 数学的产品接线归 S8 端到端（2026-10-25-render-bvh-s8-e2e）。本片「夹具位姿 → 全图一致」不等于「产品跟踪相机已接通」。",
     "bvh_id 为自有打包，不宣称与 Warp BVH 的 ABI/内存布局等价；81 槽迁移只保证签名与槽序一致。",
