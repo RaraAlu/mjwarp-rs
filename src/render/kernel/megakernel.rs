@@ -9,8 +9,11 @@
 //!   背面剔除；阴影/天空盒/splat/flex/hfield/SDF 由本片 host 侧**写前拒绝**。
 //! - S7b3：`samples_per_pixel > 1`（AA）时按 sample 顺序发射 `render_megakernel`
 //!   （`ray_base = sample * total_rays`，与上游 `for sample in range(nsamples)` 一致），
-//!   `store_pixel` 累积到 `aa_accum`，全部 sample 之后发射 `aa_resolve` 求平均并打包；
-//!   depth/seg 每个 sample 都写（与上游一致，最后一个 sample 生效）。
+//!   `store_pixel` 累积到 `aa_accum`，全部 sample 之后发射 `aa_resolve` 求平均并打包。
+//! - depth/seg 是**单样本输出**：只在 `ray_base == 0` 的第一个 pass 写（上游 render.py：
+//!   「Depth and seg are single-sample outputs: only the first pass writes them」；
+//!   见 `cuda/render_megakernel.cu` 的 `first_sample`）。AA 时后续子样本不覆盖 depth/seg；
+//!   spp=1 时 `ray_base` 恒为 0，行为与 S7b1 相同。这是 AA 首轮 depth 78% 不匹配的根因修复。
 //! - 灯位姿（37/38 槽）：由 `RenderFields` 按上游固定灯公式推导（identity body 旋转），
 //!   与 pinned 3.15 `mjwarp.forward` 位型逐位相等由夹具 `light_data_check` 断言。
 //! - depth/seg 语义与 S7b1 完全一致：S7b1 的 120,000/120,000 位等是 S7b2 回归门。

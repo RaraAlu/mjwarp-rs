@@ -80,16 +80,7 @@ pub fn variant_rgb(name: &str) -> VariantRgb {
         Some(name),
         "{name} 夹具的 variant 字段"
     );
-    let cameras = s7b2::array(&document["cameras"])
-        .iter()
-        .map(|camera| RgbCamera {
-            index: camera["index"].as_u64().expect("index") as usize,
-            width: camera["width"].as_u64().expect("width") as usize,
-            height: camera["height"].as_u64().expect("height") as usize,
-            pixels: camera["pixels"].as_u64().expect("pixels") as usize,
-            packed: s7b2::u32s(&camera["rgb_bits_packed"]),
-        })
-        .collect::<Vec<_>>();
+    let cameras = parse_rgb_cameras(&document);
     assert_eq!(cameras.len(), 2, "{name} 两相机");
     for camera in &cameras {
         assert_eq!(
@@ -261,4 +252,42 @@ pub fn render_variant(
     renderer
         .render(context, fields, &model, poses, rays)
         .expect("S7b3 渲染发射");
+}
+
+/// 解析 packed-RGB 夹具的相机数组（变体参考与合成法线参考共用）。
+fn parse_rgb_cameras(document: &Value) -> Vec<RgbCamera> {
+    s7b2::array(&document["cameras"])
+        .iter()
+        .map(|camera| RgbCamera {
+            index: camera["index"].as_u64().expect("index") as usize,
+            width: camera["width"].as_u64().expect("width") as usize,
+            height: camera["height"].as_u64().expect("height") as usize,
+            pixels: camera["pixels"].as_u64().expect("pixels") as usize,
+            packed: s7b2::u32s(&camera["rgb_bits_packed"]),
+        })
+        .collect()
+}
+
+/// 合成顶点法线的 pinned 3.15 同配方参考（`synthetic_normals_<suffix>_rgb.json`）。
+pub fn synthetic_normal_rgb(suffix: &str) -> VariantRgb {
+    let document = read_json(&format!("synthetic_normals_{suffix}_rgb.json"));
+    let variant = format!("synthetic_normals_{suffix}");
+    assert_eq!(
+        document["variant"].as_str(),
+        Some(variant.as_str()),
+        "{variant} 夹具"
+    );
+    let cameras = parse_rgb_cameras(&document);
+    assert_eq!(cameras.len(), 2, "{variant} 两相机");
+    assert_eq!(
+        cameras.iter().map(|camera| camera.pixels).sum::<usize>(),
+        120_000,
+        "{variant} 总像素"
+    );
+    VariantRgb { variant, cameras }
+}
+
+/// 合成顶点法线采集索引（provenance + 覆盖后 vs 默认的生效断言）。
+pub fn synthetic_normal_index() -> Value {
+    read_json("synthetic_normals_index.json")
 }

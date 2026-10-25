@@ -283,23 +283,47 @@ fn baseline_no_regression_after_flags_and_aa() {
 }
 
 /// `vertex_normals` 分支的合成判别：把 `mesh_normal` 换成极端方向后，开/关两版输出
-/// 必须不同（scene-a 原法线在 8 位量化下无判别力，见 README §判别力）。
+/// `vertex_normals` 分支的判别（pinned 参考对照，补 S7b3 复核缺口）：
+/// 合成 `mesh_normal` = [1,0,0] / [0,0,1] 后，产品对 pinned 3.15 同配方参考 ≤1 LSB；
+/// 且 `enable_vertex_normals` on/off 输出不同（分支生效）。默认 scene-a 下该 flag
+/// 无判别力的结论保留（由 `flag_fixtures_are_complete_and_documented` 断言）。
 #[test]
 #[ignore = "需要 GPU + NVRTC"]
-fn synthetic_mesh_normal_switches_vertex_normal_path() {
+fn synthetic_mesh_normal_matches_pinned_reference_and_discriminates() {
     let session = s7b1::session();
     let renderer = MegakernelRenderer::new(&session).expect("S7b3 内核编译");
-    let directions: [[f32; 3]; 6] = [
-        [1.0, 0.0, 0.0],
-        [-1.0, 0.0, 0.0],
-        [0.0, 1.0, 0.0],
-        [0.0, -1.0, 0.0],
-        [0.0, 0.0, 1.0],
-        [0.0, 0.0, -1.0],
-    ];
-    let mut outcomes = Vec::new();
-    for direction in directions {
-        // scene-a 的 mesh 有 4 个顶点：每个顶点的合成法线都取同一极端方向。
+    let index = s7b3::synthetic_normal_index();
+    let recorded = index["variants"]
+        .as_array()
+        .expect("variants")
+        .iter()
+        .map(|variant| {
+            (
+                variant["variant"].as_str().expect("variant").to_string(),
+                variant["effect_vs_default_scene_a"]["changed_pixels"]
+                    .as_array()
+                    .expect("changed_pixels")
+                    .iter()
+                    .map(|value| value.as_i64().expect("changed"))
+                    .sum::<i64>(),
+            )
+        })
+        .collect::<Vec<_>>();
+    for (suffix, direction) in [("x", [1.0f32, 0.0, 0.0]), ("z", [0.0, 0.0, 1.0])] {
+        let variant = format!("synthetic_normals_{suffix}");
+        let recorded_changed = recorded
+            .iter()
+            .find(|(name, _)| name == &variant)
+            .map(|(_, changed)| *changed)
+            .expect("索引记录");
+        println!(
+            "s7b3[synthetic] {suffix}: pinned override effect vs default scene-a = {recorded_changed} pixels"
+        );
+        assert!(
+            recorded_changed > 0,
+            "{variant} 的 pinned 覆盖必须对默认 scene-a 有效（生效断言）"
+        );
+        let reference = s7b3::synthetic_normal_rgb(suffix);
         let normals = direction.repeat(4).to_vec();
         let fields = s7b3::fields_with_mesh_normal(&normals);
         let mut rendered = Vec::new();
@@ -312,32 +336,40 @@ fn synthetic_mesh_normal_switches_vertex_normal_path() {
             let poses = camera_data_poses(&fields, context.resolved());
             let rays = precomputed_rays(&session, &fields);
             render_variant(&session, &renderer, &context, &fields, &poses, &rays);
-            rendered.push(read_rgb(&context));
+            let rgb = read_rgb(&context);
+            if enabled {
+                let layout = &context.resolved().output;
+                let mut beyond = 0usize;
+                for camera in &reference.cameras {
+                    let start = layout.rgb_adr[camera.index] as usize;
+                    let stats = diff_rgb(&rgb[start..start + camera.pixels], camera);
+                    beyond += stats.beyond_one_lsb_pixels;
+                    println!(
+                        "s7b3[synthetic] {suffix} cam{}: mismatched={} max_byte_diff={} beyond_1_lsb={} first={:?}",
+                        camera.index,
+                        stats.mismatched_pixels,
+                        stats.max_byte_diff,
+                        stats.beyond_one_lsb_pixels,
+                        stats.first
+                    );
+                }
+                assert_eq!(beyond, 0, "{variant} 产品对 pinned 同配方参考必须 ≤1 LSB");
+            }
+            rendered.push(rgb);
         }
         let changed = rendered[0]
             .iter()
             .zip(&rendered[1])
             .filter(|(left, right)| left != right)
             .count();
-        println!(
-            "s7b3[synthetic-normals] direction={direction:?}: vertex_on_vs_off_changed_pixels={changed}"
+        println!("s7b3[synthetic] {suffix}: vertex_on_vs_off_changed_pixels={changed}");
+        assert!(
+            changed > 0,
+            "{variant} 的 vertex_normals on/off 必须可判别（实际 0 像素）"
         );
-        outcomes.push((direction, changed));
     }
-    // 至少一个极端方向必须让 `vertex_normal` 分支与纯面法线不同：否则该场景的 mesh
-    // 数据连合成法线都无法判别（要报 Arch 换场景/材质，不允许静默通过）。
-    let best = outcomes
-        .iter()
-        .max_by_key(|(_, changed)| *changed)
-        .expect("至少一个方向");
-    assert!(
-        best.1 > 0,
-        "合成顶点法线在全部 6 个极端方向下都与面法线无差异（best={:?}）——该分支在本夹具下不可判别，需报 Arch",
-        best
-    );
     println!(
-        "s7b3 synthetic normals: vertex_normal branch discriminates (best direction={:?}, changed={})",
-        best.0, best.1
+        "s7b3 synthetic normals: product matches pinned same-recipe references (≤1 LSB) and on/off discriminates"
     );
 }
 

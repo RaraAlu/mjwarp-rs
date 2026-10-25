@@ -1,0 +1,219 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-render-bvh-s7b-followups",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "S7b-followups",
+  "title": "渲染/BVH S7b 配套修正：合成顶点法线 pinned 参考 + S7b2 spp=2 断言升级",
+  "date": "2026-10-25",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "conclusion": "补上 S7b3 复核指出的证据强度缺口：(1) 用 in-memory 覆盖 mjm.mesh_normal 的方式补采 pinned 3.15 同配方（use_fast_math=False）合成顶点法线参考（[1,0,0] / [0,0,1]，两相机全图 packed RGB），覆盖生效（对默认 scene-a 分别 653 / 9 像素变化）、两次捕获逐位一致；产品对两组 pinned 参考两相机 0 像素差异（≤1 LSB），且 enable_vertex_normals on/off 分别 653 / 9 像素可判别——默认 scene-a 下 vertex_normals_off 无判别力的结论保留。(2) S7b2 的 spp=2 拒绝断言已升级为 3 类写前拒绝（shadows/动态射线/skybox）+ AA 支持路径（已由 3ab52cf 落地），S7b2 GPU 回归 3/3、原验收数值不变。(3) 按 S7b3 QA 复核非阻断问题修正证据：host_modules 行数 495/93/233、megakernel.rs 模块头注释与实现一致（depth/seg 只写第一个 pass）、capture.log 增打印两次捕获位等结论、注明逐 geom 归因口径（变体/AA seg vs base seg）。不回归：S7b1 6/6、S6b 5/5；PTX 不变（megakernel 197,583 B、aa_resolve 27,536 B）。",
+  "synthetic_normal_reference": {
+    "purpose": "S7b3 复核缺口：默认 scene-a 下 vertex_normals_off 参考无判别力，补 pinned 同配方参考对照",
+    "capture_script": "scripts/authoring/render-bvh-s7b/capture_synthetic_normals.py",
+    "override_method": "in-memory `mjm.mesh_normal[:] = direction`（4 顶点同方向）+ `mjwarp.put_model(mjm)` 上传；不改 mjb 文件",
+    "recipe": "pinned 3.15 + S0b PARAMS_28 的 28 参，仅 use_fast_math=False",
+    "mesh_normal": {
+      "shape": [4, 3],
+      "original_sha256": "95ecb321a32a05657dfc761618975fdba64b66717a8387134baa593227a9c1b2",
+      "scene_315_mjb_sha256": "8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4"
+    },
+    "variants": [
+      {
+        "variant": "synthetic_normals_x",
+        "mesh_normal_override": [1.0, 0.0, 0.0],
+        "file": "fixtures/render-bvh/scene-a/s7b/flags/synthetic_normals_x_rgb.json",
+        "bytes": 1320499,
+        "sha256": "34d123a2622a4b6f68b6a6a5fc17cb566e11c192fdcf17dd271077376aa15e15",
+        "effect_vs_default_scene_a_pixels": [0, 653],
+        "determinism": {
+          "repeat": 2,
+          "bitwise_identical": true
+        }
+      },
+      {
+        "variant": "synthetic_normals_z",
+        "mesh_normal_override": [0.0, 0.0, 1.0],
+        "file": "fixtures/render-bvh/scene-a/s7b/flags/synthetic_normals_z_rgb.json",
+        "bytes": 1320499,
+        "sha256": "0946517cae34eb3a1f152f5cb275083c7fd6f70798ff407476986b5866cba9e8",
+        "effect_vs_default_scene_a_pixels": [0, 9],
+        "determinism": {
+          "repeat": 2,
+          "bitwise_identical": true
+        }
+      }
+    ],
+    "index": {
+      "file": "fixtures/render-bvh/scene-a/s7b/flags/synthetic_normals_index.json",
+      "bytes": 3228,
+      "sha256": "6b80232180f3710d19b82c95a4f7ef65060bd42ea7230a78ee6f7906b3b72203"
+    }
+  },
+  "product_vs_pinned_synthetic_reference": {
+    "test": "tests/render_kernel_flags.rs::synthetic_mesh_normal_matches_pinned_reference_and_discriminates",
+    "results": [
+      {
+        "direction": "x",
+        "product_vs_pinned": {
+          "cam0": {
+            "mismatched": 0,
+            "max_byte_diff": 0,
+            "beyond_1_lsb": 0
+          },
+          "cam1": {
+            "mismatched": 0,
+            "max_byte_diff": 0,
+            "beyond_1_lsb": 0
+          }
+        },
+        "vertex_on_vs_off_changed_pixels": 653,
+        "pinned_override_effect_vs_default": 653
+      },
+      {
+        "direction": "z",
+        "product_vs_pinned": {
+          "cam0": {
+            "mismatched": 0,
+            "max_byte_diff": 0,
+            "beyond_1_lsb": 0
+          },
+          "cam1": {
+            "mismatched": 0,
+            "max_byte_diff": 0,
+            "beyond_1_lsb": 0
+          }
+        },
+        "vertex_on_vs_off_changed_pixels": 9,
+        "pinned_override_effect_vs_default": 9
+      }
+    ],
+    "default_scene_a_no_discrimination_preserved": true
+  },
+  "s7b2_assertion_upgrade": {
+    "commit": "3ab52cf",
+    "commit_subject": "测试(渲染): 同步S7b2拒绝面（AA已由S7b3实现）",
+    "change": "tests/render_kernel_rgb.rs::unsupported_configurations_are_rejected_before_launch 从 4 类改为 3 类（use_shadows / use_precomputed_rays=false / render_skybox）+ 注释注明 AA(spp=2) 是合法配置、验收归 S7b3（tests/render_kernel_flags.rs）",
+    "unchanged": "S7b2 原验收结论与数值不变：RGB 对同配方参考 120,000/120,000 位等；depth/seg 120,000/120,000 位等 0 ULP；灯位姿 6/6 位等；PTX 195,594 B",
+    "regression_after_upgrade": {
+      "command": "cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --test-threads=1 --nocapture",
+      "passed": 3,
+      "failed": 0,
+      "log": "s7b2-regression.log"
+    }
+  },
+  "s7b3_evidence_fixes": [
+    {
+      "item": "host_modules 行数",
+      "before": {
+        "megakernel_rs": 474,
+        "megakernel_aa_rs": 86,
+        "megakernel_arrays_rs": 216
+      },
+      "after": {
+        "megakernel_rs": 495,
+        "megakernel_aa_rs": 93,
+        "megakernel_arrays_rs": 233
+      },
+      "note": "按实际文件行数（ReadAllLines）；bytes/sha 不变，均 <500"
+    },
+    {
+      "item": "megakernel.rs 模块头注释",
+      "before": "depth/seg 每个 sample 都写（与上游一致，最后一个 sample 生效）",
+      "after": "depth/seg 是单样本输出：只在 ray_base == 0 的第一个 pass 写（上游 render.py 语义；AA 首轮 depth 78% 不匹配的根因修复）",
+      "note": "注释现与 cuda/render_megakernel.cu 的 first_sample 实现一致"
+    },
+    {
+      "item": "capture.log 两次捕获位等",
+      "change": "capture_flags_aa.py 每组捕获后打印 determinism=two_captures_bitwise_identical（rgb/depth/seg per camera, twice）；重跑后 8 个变体夹具 sha 全部不变"
+    },
+    {
+      "item": "逐 geom 归因口径",
+      "change": "证据注明：交付的 rgb_changed_by_geom 按变体/AA 的 seg（产品侧 seg 参考）归因；QA 复核按 base seg 归因——同一像素的 geom 归属可能不同，语义等价、不是数值分歧"
+    }
+  ],
+  "flag_index_after_recapture": {
+    "file": "fixtures/render-bvh/scene-a/s7b/flags/index.json",
+    "bytes": 5495,
+    "sha256": "f83f73e2f836ad26a009678c43e9b4c03747598d616a84115957e552b62bf62c",
+    "note": "capture_flags_aa.py 增加 determinism 打印后重跑：8 个变体夹具 sha 不变，index.json 因 capture_script_sha256 变化而更新"
+  },
+  "gpu": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "arch": "SM89",
+    "window": {
+      "start_memory_mib": 5059,
+      "end_memory_mib": 5057,
+      "compute_processes_after": 0,
+      "note": "桌面基线约 5.0 GiB 波动；结束无本任务 CUDA 计算进程"
+    },
+    "followups_suite": {
+      "command": "cargo test --locked --features cuda-probe --test render_kernel_flags -- --ignored --test-threads=1 --nocapture",
+      "passed": 6,
+      "failed": 0,
+      "elapsed_s": 9.22,
+      "log": "gpu-run.log",
+      "results": {
+        "flag_fixtures_are_complete_and_documented": "ok",
+        "flag_and_aa_sources_compile_under_render_gate": "ok（megakernel 197,583 B、aa_resolve 27,536 B，PTX 未变）",
+        "flag_variants_match_own_references": "ok（5 变体 RGB 0 差异；culling_off depth 0 ULP / seg 0）",
+        "aa2_matches_same_recipe_reference": "ok（RGB 0 差异、depth 0 ULP、seg 0、两次运行位等）",
+        "baseline_no_regression_after_flags_and_aa": "ok（S7b1 depth/seg 120,000/120,000 位等；S7b2 RGB 同配方 0 差异）",
+        "synthetic_mesh_normal_matches_pinned_reference_and_discriminates": "ok（[1,0,0]/[0,0,1] 产品 vs pinned 0 差异；on/off 653/9 像素可判别）",
+        "aa_supported_and_remaining_rejections_pre_launch": "ok（AA 支持；3 类写前拒绝；AA 射线数不符 InvalidArray）"
+      }
+    },
+    "regressions": {
+      "s7b2": {
+        "passed": 3,
+        "failed": 0,
+        "log": "s7b2-regression.log"
+      },
+      "s7b1": {
+        "passed": 6,
+        "failed": 0,
+        "log": "s7b1-regression.log"
+      },
+      "s6b": {
+        "passed": 5,
+        "failed": 0,
+        "log": "s6b-regression.log"
+      }
+    }
+  },
+  "gates": {
+    "fmt": "pass（cargo fmt --check）",
+    "clippy": "pass（cargo clippy --all-targets --locked -- -D warnings）",
+    "clippy-cuda": "pass（cargo clippy --all-targets --locked --features cuda-probe -- -D warnings）",
+    "unit": {
+      "result": "pass",
+      "tests_passed": 532,
+      "failed": 0,
+      "log": "unit-summary.log"
+    }
+  },
+  "unmet": [
+    "合成法线参考只覆盖 [1,0,0] / [0,0,1] 两个方向（与 S7b3 产品侧合成用例一致）；更多方向未采（同一路径，未单独验收）。",
+    "vertex_normals_off 在默认 scene-a 下无判别力是数据/量化结论；本任务补 pinned 参考对照，不改变该结论。",
+    "未跑完整 G01（团队规则：开发迭代只跑定向 + fmt/clippy/clippy-cuda/unit；里程碑由用户点名）。"
+  ],
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "capture.log",
+    "gpu-run.log",
+    "s7b2-regression.log",
+    "s7b1-regression.log",
+    "s6b-regression.log",
+    "unit-summary.log"
+  ],
+  "reproduction": {
+    "synthetic_normal_capture": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/render-bvh-s7b/capture_synthetic_normals.py",
+    "flag_aa_capture": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/render-bvh-s7b/capture_flags_aa.py",
+    "gpu_suite": "cargo test --locked --features cuda-probe --test render_kernel_flags -- --ignored --test-threads=1 --nocapture",
+    "s7b2_regression": "cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --test-threads=1 --nocapture",
+    "s7b1_regression": "cargo test --locked --features cuda-probe --test render_kernel_depth_seg -- --ignored --test-threads=1 --nocapture",
+    "s6b_regression": "cargo test --locked --features cuda-probe --test render_context_lifecycle -- --ignored --test-threads=1"
+  }
+}

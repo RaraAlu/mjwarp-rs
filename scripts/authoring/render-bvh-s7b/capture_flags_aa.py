@@ -350,6 +350,10 @@ def main() -> int:
         if not deterministic:
             print(f"FAIL: {name} two captures differ", file=sys.stderr)
             return 1
+        print(
+            f"{name}: determinism=two_captures_bitwise_identical "
+            f"(rgb/depth/seg per camera, twice)"
+        )
         expected_res = [[320, 240], [240, 180]]
         if first["cam_res"] != expected_res:
             print(f"FAIL: {name} cam_res {first['cam_res']}", file=sys.stderr)
