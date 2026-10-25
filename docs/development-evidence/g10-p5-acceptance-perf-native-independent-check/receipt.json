@@ -1,0 +1,197 @@
+{
+ "schema": 1,
+ "task_id": "2026-10-25-g10-p5-acceptance-perf-native-independent-check",
+ "kind": "qa-independent-review",
+ "status": "final",
+ "reviewed": {
+  "task": "2026-10-25-g10-p5-acceptance-perf-native",
+  "close_commit": "ad53eaff",
+  "governance_commit": "2bb45c55",
+  "native_contract_commit": "09896792",
+  "native_contract_registration": "ce9baa5a",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "scope_addendum_commit": "9c0a0480"
+ },
+ "verdict": {
+  "conclusion": "pass",
+  "blocking": 0,
+  "findings": 0,
+  "observations": 3,
+  "summary": "验收映射 12 条 = 8 met / 4 partial / 0 unmet + 6 uncovered，与 map 声明一致；72 条 evidence_paths 独立核对 72/72 存在（71 入库、1 条 target/ 未入库）。met 抽查 4 条（G6-1.4/G6-1.5/G6-2.2/G6-3.1）判据/实测/路径/状态四者一致；4 条 partial 逐条成立，G6-1.2 与 G6-1.7 同层级。perf 用原始样本独立重算 host 9 / device 7 / upstream 9 共 0 处不一致，kernel-only 与 e2e 分栏、编译/JIT 排除、无跨硬件外推与性能类宣称；artifacts sha256 41/41 一致。窗口 HEAD 绑定 9c0a0480、相对 6510317f 产品 diff 为空、基线 3663/峰 4834(+1171)/结束 3663、7 点采样、本任务计算进程 0、wall 5.5 s、守卫未触发，全部自洽。native 契约与 09896792 逐字一致，四条措辞齐备，native-framework/map 无把诊断写成放行的表述；E 复算用产品输出、样本量 1 case/2 触点为已标注，hfield-box 不可配对成立。观察 3 项均非阻断。"
+ },
+ "method": {
+  "independent": [
+   "qa_g6_check.py：读 map.json 逐条核 72 条证据路径存在性 + git 跟踪状态、状态/计数一致性",
+   "G6-1.4 从 G5 gpu-window/result.json 独立取数（count/dist/pos/frame/nccd/overflow），G6-1.5 从 ccd-overflow-bit-fix/overflow-result.json 独立取数",
+   "perf：用 host/*.json samples_ns[200]、device/*.json kernel_ns[50]/e2e_ns[50]、upstream-cpu.json samples_ns[200] 独立重算中位/p95（summary 用 nearest-rank、upstream JSON 用 numpy 线性插值，两口径分别核对）",
+   "perf/artifacts-sha256.txt 41 条哈希逐文件复算 + build-report.txt 探针源/二进制 sha256 复算",
+   "window-log.txt / window-memory-samples.txt 解析并与 perf-summary 窗口字段逐项对照；git diff 6510317f..9c0a0480 -- src tests Cargo.toml Cargo.lock 复算为空",
+   "契约 ## 接触字段（native 侧）：HEAD 与 09896792 逐字比对、7 条措辞命中、放行词否定语境扫描；native/model_probe_collision.cpp 的 ABI 面核对（仅模型字段拷贝）"
+  ],
+  "not_rerun": [
+   "未重跑设备计时/GPU 窗口（Arch 授权：用原始样本独立重算即可）",
+   "未重采 host/上游计时（同机桌面负载噪声只在交付 README 以单轮量级参考披露）",
+   "未独立核对 G6-1.1/G6-1.3/G6-1.6 的全部数字（抽 G6-1.5；其余核 evidence 存在性与状态）"
+  ],
+  "product_tree_untouched": true,
+  "delivery_evidence_untouched": true,
+  "fixtures_untouched": true,
+  "gpu_used": false
+ },
+ "environment": {
+  "repo_head_at_run": "2bb45c559bb84f6f1324d46dab860ef8c2638e32",
+  "os": "Windows",
+  "python": "3.12.13",
+  "git": "2.53.0.windows.2"
+ },
+ "results": {
+  "acceptance_map": {
+   "declared": {"requirements_total": 12, "met": 8, "partial": 4, "unmet": 0, "uncovered_total": 6},
+   "recounted": {"requirements_total": 12, "met": 8, "partial": 4, "unmet": 0, "uncovered_total": 6},
+   "evidence_paths_total": 72,
+   "evidence_paths_missing": 0,
+   "evidence_paths_untracked": ["target/g10-p5-native-tolerance-candidates-v3.md"],
+   "met_spot_checks": ["G6-1.4", "G6-1.5", "G6-2.2", "G6-3.1"],
+   "partial": {
+    "G6-1.2": {"status": "partial", "level_same_as": "G6-1.7", "basis": "overflow=32 实测仅在 QA 独立复核 qa-compare-gpu.json；G5 修复片 README 只写 MAXCONPAIR=50→HFIELD=1<<5 常量映射"},
+    "G6-1.7": {"status": "partial", "level_same_as": "G6-1.2", "basis": "naconmax=40 / naccdmax=1 截断 case 只在 QA 独立复核证据；G5 修复片自身未造截断 case"},
+    "G6-2.1": {"status": "partial", "basis": "G2–G5 已顺序写入，但 multicontact/NVRTC/primitive 仍是模块缺口（uncovered 1–3）"},
+    "G6-2.4": {"status": "partial", "basis": "契约 NP01→NP04 顺序与不整体放行表述成立；NP03 native 接触字段按拍板 B 只诊断、5% 红线不适用；NP04 只「已记录」"}
+   }
+  },
+  "g6_1_4_sdf_box": {
+   "device_count": 80,
+   "reference_count": 80,
+   "dist_bit_equal": "80/80",
+   "dist_max_ulp": 0,
+   "pos_bit_equal": "203/240",
+   "pos_max_abs": 7.450580596923828e-09,
+   "pos_scale_max": 0.09833551943302155,
+   "pos_max_ulps_at_scale": 1.0,
+   "frame_bit_equal": "675/720",
+   "frame_max_abs": 2.384185791015625e-07,
+   "nccd": 0,
+   "overflow": [0, 0],
+   "two_runs_sorted_identical": true,
+   "map_measured_consistent": true
+  },
+  "g6_1_5_device_ccd_overflow": {
+   "before_overflow": [272, 272],
+   "after_overflow": [256, 256],
+   "float_max_worlds": "5/6",
+   "dist_bits": 1900671690,
+   "dist_bits_equal_upstream": true,
+   "ncontact_equal": true,
+   "multiccd_idx_equal": true,
+   "two_runs_bitwise_identical": true
+  },
+  "perf": {
+   "recompute": {"host_cases": 9, "device_cases": 7, "upstream_cases": 9, "mismatches": 0},
+   "columns": {
+    "host_cpu_single_thread": "产品 Rust host 路径，纯 CPU 单线程，warmup 20 + 200",
+    "device_kernel_only": "单次 kernel launch + CUDA events，输出清零在 start 事件前，warmup 5 + 50",
+    "device_end_to_end": "H2D + 清零 + kernel + 全部输出 D2H + sync（host steady_clock），warmup 5 + 50",
+    "upstream_f32_cpu": "冻结上游 f32 CPU 同机同版本，warmup 20 + 200，编译/加载/make_data 不计入"
+   },
+   "p95_definitions": {"perf_summary": "nearest-rank", "upstream_cpu_json": "numpy 线性插值", "difference": "<1%"},
+   "coverage_missing": {"host_cpu": ["box-box-margin"], "device": ["convex-mesh", "degenerate-mesh", "hfield-box"], "upstream_f32_cpu": ["ellipsoid-box"]},
+   "cross_column_contacts_disclosed": true,
+   "artifacts": {"inventory_lines": 41, "inventory_sha256_ok": 41, "build_source_sha256_ok": 3, "probe_binary_sha256_matches": true},
+   "no_performance_claim": true,
+   "no_cross_hardware_extrapolation": true
+  },
+  "window": {
+   "head_revision": "9c0a0480cd4a1be9508155261c8286e9eae1b54b",
+   "product_diff_6510317f_to_window_head": "empty (recomputed)",
+   "window_worktree_changes_count": 9,
+   "baseline_used_mib": 3663,
+   "peak_used_mib": 4834,
+   "peak_delta_mib": 1171,
+   "after_used_mib": 3663,
+   "samples": 7,
+   "sample_interval_s": 0.5,
+   "elapsed_s": 5.5,
+   "guard": {"increment_limit_mib": 3072, "total_half_limit_mib": 8188, "triggered": false},
+   "baseline_compute_apps": 34,
+   "after_compute_apps": 34,
+   "task_related_processes": 0,
+   "probe_sha_matches_build_report": true,
+   "all_window_fields_consistent_with_summary": true,
+   "product_diff_at_current_HEAD_not_empty": true,
+   "product_diff_at_current_HEAD_explained": "G6 收口提交 ad53eaff 在窗口之后加入 host harness（#[cfg(test)] perf_report + helper 抽取 + #[ignore] 性能测试，test-only），perf/README §1/§8 已披露"
+  },
+  "native_contract": {
+   "section": "## 接触字段（native 侧）",
+   "commit_09896792_section_present": true,
+   "head_equals_commit_09896792": true,
+   "contract_file_modified_since_09896792": false,
+   "statements": {
+    "native_side_diagnostic_only": true,
+    "pending_not_admitted": true,
+    "qa_native_f64_diagnostic_only": true,
+    "accuracy_still_by_upstream_f32": true,
+    "redline_other_fields_only": true,
+    "no_effective_atol_rtol": true,
+    "sample_size_1case_2contacts": true
+   },
+   "native_framework_positive_release_claims": 0,
+   "map_json_positive_release_claims": 0,
+   "hfield_box_unpairable": true,
+   "hfield_box_unpairable_basis": "native/model_probe_collision.cpp 仅暴露模型字段拷贝 mjwarp_native_copy_primitive_geometry，无 contact/narrowphase/hfield 输出入口",
+   "e_recalc": {
+    "sample": "ellipsoid-box 1 case / 2 接触点",
+    "device_vs_native": {"dist": 3.979e-7, "dist_rel": 3.98e-5, "pos": 4.546e-4, "frame": 1.170e-3, "normal": 1.170e-3},
+    "upstream_f32_vs_native": {"dist": 3.961e-7, "dist_rel": 3.96e-5, "pos": 4.546e-4, "frame": 1.171e-3, "normal": 1.171e-3},
+    "source": "qa-compare-gpu.json native_f64_readings.ellipsoid-box（QA 独立采集，usable_as_tolerance_basis=false）",
+    "sample_size_flagged": true,
+    "no_atol_rtol_written": true
+   }
+  }
+ },
+ "observations": [
+  {
+   "id": 1,
+   "severity": "suggestion",
+   "title": "product_diff_6510317f..HEAD 的措辞应绑定窗口起点 HEAD",
+   "detail": "窗口日志的 `product_diff_6510317f_to_head=<empty>` 在窗口起点 HEAD 9c0a0480 上成立（QA 复算为空）；但当前 HEAD 2bb45c55 上该 diff 非空——G6 收口提交 ad53eaff 在窗口之后提交了 host harness（perf_report.rs 为 #[cfg(test)] 模块 + 4 处 test-only 改动）。perf/README §1 已披露窗口时 9 项未提交改动、§8 说明 5 处 src 改动均为 test-only，属如实记录。",
+   "impact": "不影响 perf 数据有效性；若后续引用时不写「窗口起点 HEAD」，会被误读为当前产品代码零变更。",
+   "blocking": false
+  },
+  {
+   "id": 2,
+   "severity": "suggestion",
+   "title": "1 条 evidence_path 依赖未入库文件",
+   "detail": "map.json G6-3.1 的 evidence_paths 含 target/g10-p5-native-tolerance-candidates-v3.md（target/ 被 gitignore，仓库内不可复现）；其结论摘要已逐字收录在 docs/development-evidence/native-contact-tolerance-decision-b/README.md §2（契约原文 + E 数字表）。",
+   "impact": "证据链可用但依赖本地 build 目录；建议把 v3 摘要入库或改引 decision-b 文档。",
+   "blocking": false
+  },
+  {
+   "id": 3,
+   "severity": "suggestion",
+   "title": "窗口采样稀疏（已披露）",
+   "detail": "0.5 s × 7 点采样，峰值 4834 MiB 是采样内最大值；perf/README §5.4 已标注不排除间隙更高瞬时值，守卫未触发且结束回落到基线。",
+   "impact": "不改变守卫未触发结论；只是峰值置信度有限。",
+   "blocking": false
+  }
+ ],
+ "limitations": [
+  "未重跑设备计时/GPU 窗口，只对原始样本做独立重算（Arch 授权口径）",
+  "未重采 host/上游计时；同机桌面负载噪声只在交付 README 以「单轮、量级参考」披露",
+  "未独立复核 G6-1.1/G6-1.3/G6-1.6 全部数字（抽 G6-1.5），其余只核 evidence 存在性与状态",
+  "本复核不对 Linux/T4、跨硬件性能或产品功能正确性作任何结论"
+ ],
+ "artifacts": {
+  "in_repo": [
+   "docs/development-evidence/g10-p5-acceptance-perf-native-independent-check/README.md",
+   "docs/development-evidence/g10-p5-acceptance-perf-native-independent-check/receipt.json",
+   "docs/development-evidence/g10-p5-acceptance-perf-native-independent-check/artifacts-sha256.json",
+   "docs/development-evidence/g10-p5-acceptance-perf-native-independent-check/qa_artifacts_sha256.py",
+   "docs/development-evidence/g10-p5-acceptance-perf-native-independent-check/qa_g6_check.py",
+   "docs/development-evidence/g10-p5-acceptance-perf-native-independent-check/qa-g6-check.json",
+   "docs/development-evidence/g10-p5-acceptance-perf-native-independent-check/qa-g6-check.log"
+  ],
+  "not_in_repo": [
+   "本目录无 .bin/.pyc/.o/warp-cache；未复制交付 perf/ 原始样本（只读引用）"
+  ]
+ }
+}
