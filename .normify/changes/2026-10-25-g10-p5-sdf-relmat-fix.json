@@ -41,7 +41,7 @@
                                    ],
                      "priority":  61
                  },
-    "note":  "Arch 2026-10-25 裁决：QA 的 G4 复核发现 `relative_matrix` 转置问题；上游源码 `collision_sdf.py:724` 证实语义为 `transpose(rot1)*rot2`，Backend 只读核查确认 `sdf/descent.rs:198` 是产品调用点（rot1≠I 时错）、`hfield/driver.rs` 仅测试使用（G4 产品不受影响）。G5 设备侧已按上游语义修正（29894efb，`cuda/common.cu` + `relmat.rs`）。本片修产品 host 侧并补非单位旋转验收；**优先级高于 G5 的 SDF 设备批**（GPU 对照需要正确的 host 基线）。不改 G3 既有数值结论，只加注约定修正。 追加：QA 实测显示「仅改 rel_mat」可使单侧旋转两场景位级一致，但「两侧都旋转」仍有 frame 1.05 残差，本片必须追到第二处约定点并修到 ≤4 ULP。",
+    "note":  "Arch 2026-10-25 裁决：QA 的 G4 复核发现 `relative_matrix` 转置问题；上游源码 `collision_sdf.py:724` 证实语义为 `transpose(rot1)*rot2`，Backend 只读核查确认 `sdf/descent.rs:198` 是产品调用点（rot1≠I 时错）、`hfield/driver.rs` 仅测试使用（G4 产品不受影响）。G5 设备侧已按上游语义修正（29894efb，`cuda/common.cu` + `relmat.rs`）。本片修产品 host 侧并补非单位旋转验收；**优先级高于 G5 的 SDF 设备批**（GPU 对照需要正确的 host 基线）。不改 G3 既有数值结论，只加注约定修正。 追加：QA 实测显示「仅改 rel_mat」可使单侧旋转两场景位级一致，但「两侧都旋转」仍有 frame 1.05 残差，本片必须追到第二处约定点并修到 ≤4 ULP。 实现参考（QA 给出的等价写法，行优先 aᵀb + fma(k=0..2)）：sum = a[row]*b[col]; sum = ((a[3+row] as f64)*(b[3+col] as f64) + (sum as f64)) as f32; sum = ((a[6+row] as f64)*(b[6+col] as f64) + (sum as f64)) as f32; 唯一产品改动点 sdf/descent.rs::relative_matrix（L171–182），gradient_descent(L198) 与 narrowphase.rs:68(AABB) 共用；hfield/driver.rs::relative_matrix 同缺陷但仅测试用，一并改。",
     "revision":  {
                      "before":  "f6ead13961f7e59fb52260f0cac369fe76455080",
                      "after":  null
