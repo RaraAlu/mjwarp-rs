@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-fixtures",
+  "title": {
+    "zh": "G10@P5 夹具与参考：hfield/SDF 模型 MJB 双版本 + GJK/EPA 直达参考补采",
+    "en": "G10@P5 fixtures and references: dual-MJB for hfield/SDF models plus direct GJK/EPA reference capture"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "g10-p5 的夹具/参考片（G0b）：按预检 §4 生成 hfield-box/sdf-cylinder 的 3.12 产品版与 3.15 参考版 MJB（provenance 完整、同版本重载校验）；核对 D04 现有 hfield/SDF 碰撞参考可用性；并按预检 §6 的缺口补采 GJK/EPA 直达参考（box-box、box-mesh 等，用来独立验证 G2 的 ccd/support/multicontact），参考只放 authoring 与 fixtures，产品测试不跑 Python。同时做 nworld=2 打包 spike（0.5d）判定 2A 可行性。不改产品代码、不改 S2–S8 渲染证据。",
+    "en": "Fixture/reference slice (G0b) for g10-p5: per the precheck, generate 3.12 product and 3.15 reference MJBs for hfield-box/sdf-cylinder (full provenance, same-version reload check), audit the existing D04 hfield/SDF collision references, and fill the precheck's G2 verification gap by capturing direct GJK/EPA references (box-box, box-mesh, etc.) for independently validating ccd/support/multicontact; references live only in authoring and fixtures and product tests never run Python. Also run the nworld=2 packing spike (0.5d) to decide 2A feasibility. No product code changes and no changes to S2-S8 render evidence."
+  },
+  "modules": {},
+  "acceptance": [
+    "MJB：`hfield-box`/`sdf-cylinder` 各生成 3.12 产品版与 3.15 参考版 MJB，provenance 记源 XML sha、mujoco 版本、生成脚本 sha、命令、产物 bytes/sha；同版本重载校验（模型字段逐项一致）；不修改 `fixtures/mjwarp-complex-physics/*.xml`。",
+    "nworld=2 spike：验证产品多世界状态打包对 hfield/SDF 接触是否可用（或明确不可用的具体缺项）；结论写入证据，作为 2A 是否降级 2B 的依据；若不可用先报 Arch，不自行降级。",
+    "GJK/EPA 直达参考：按预检 §6 补采 box-box、box-mesh（及需要的离散几何组合）的 `ccd()` 参考（dist/ncontact/x1/x2/multiccd_idx 或接触列表 + 迭代参数 + qpos），两次捕获逐位一致，provenance 完整；与现有 D04 间接覆盖的关系写清。",
+    "夹具格式与既有一致（JSON/npz 由 authoring 转换，产品测试只读位型、不引 Python/zip 依赖）；新文件 ≤500 行；GPU 仅在 authoring 捕获时独占短窗口。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过；证据 README/receipt 含 task_id 与未满足项（如某组合未覆盖、参考只含有限 qpos）；不改 S2–S8 证据与夹具、不改 Cargo.*。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-precheck"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "fixtures/mjwarp-complex-physics/",
+      "fixtures/g10-p5/",
+      "scripts/authoring/g10-p5/",
+      "docs/development-evidence/g10-p5-fixtures/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 56
+  },
+  "note": "Arch 2026-10-25 排程：预检（396b4fb）指出 G2 的验收面缺口——现有 d04 只间接覆盖 GJK/EPA，需要直达参考（box-box/box-mesh）。G0b 先补夹具与参考再做 G2 数值实现，避免 G2 「写完无参考可判」。等用户对 g10-p5 是否解冻/优先级的答复与 Arch 的 start 令；本任务不自动启动。",
+  "revision": {
+    "before": "7d713b391b4eb559d281f9a16b7e5bdcf0482870",
+    "after": null
+  },
+  "created_at": "2026-10-25T14:30:00.000Z",
+  "updated_at": "2026-10-25T14:30:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-fixtures/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-fixtures"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价"
+      ]
+    }
+  ]
+}
