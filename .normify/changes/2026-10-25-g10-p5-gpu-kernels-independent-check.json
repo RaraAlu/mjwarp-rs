@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-gpu-kernels-independent-check",
+  "title": {
+    "zh": "G10@P5 G5 GPU 内核独立复核（设备 GJK/EPA/SDF/hfield/接触写入对上游 f32 GPU、naconmax 截断、nworld=2）",
+    "en": "G10@P5 G5 GPU kernels independent review (device GJK/EPA/SDF/hfield/contact writes vs upstream f32 GPU, naconmax truncation, nworld=2)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G5（`2026-10-25-g10-p5-gpu-kernels`）做独立复核：QA 自写 launcher/驱动（不复用交付的 NVRTC 接线与测试）在同一台 GPU 上独立重跑——设备 GJK/EPA（含 is_discrete 分支、EPA 退化 HORIZON/FLOAT_MAX）、设备 SDF narrowphase（`sdf_initpoints`/Halton/Armijo/`naconmax` 截断）、设备 hfield prism CCD（filter/prism/四接触 + `1e-3` 去重/`MJ_MAXCONPAIR=50`→`OverflowType.HFIELD`）、接触写入（`worldid` 归属、写入顺序、`efc_address`、`OverflowType` 汇总、`naconmax`/`naccdmax` 截断不越界且计数如实）、`nworld=2` 的 world 维上传与行号；数值判据 = 对**同配方上游 `mujoco_warp` f32（GPU 后端）** ≤4 ULP、位级优先（native f64 仅框架读数）；`--fmad=false` 的 host 对照不作判据。需**独占 GPU 窗口**（与 Backend/其它任务串行）。复核不含 multicontact 设备版（未实装，G5 unmet 已记录），该部分不得算作通过。",
+    "en": "Independent review of G5 (task 2026-10-25-g10-p5-gpu-kernels): QA writes its own launcher/driver (not reusing the delivered NVRTC wiring or tests) and reruns independently on the same GPU - device GJK/EPA (is_discrete branch, EPA HORIZON/FLOAT_MAX degeneracy), device SDF narrowphase (sdf_initpoints/Halton/Armijo/naconmax truncation), device hfield prism CCD (filter/prism/0..3 contacts with 1e-3 dedup/MJ_MAXCONPAIR=50 to OverflowType.HFIELD), contact writes (worldid ownership, write order, efc_address, OverflowType aggregation, naconmax/naccdmax truncation without out-of-bounds writes and honest counts), and nworld=2 world-dim upload and row numbering. Numeric criterion: <=4 ULP (bit-level first) versus the same-recipe upstream mujoco_warp f32 on the GPU backend; native f64 is a contract-framework reading only; --fmad=false host comparisons are not a criterion. Requires an exclusive GPU window, serialized with Backend and other tasks. The review excludes the unimplemented device multicontact path (recorded in G5 unmet); that part must not be counted as passing."
+  },
+  "modules": {},
+  "acceptance": [
+    "设备 GJK/EPA：QA 自写驱动在同一 GPU 上重跑 G2 的 5 个 CONVEX case，`dist/pos/frame/normal` 对同配方上游 f32 GPU 位级优先、≤4 ULP；`is_discrete` 分支与 EPA 退化（HORIZON→FLOAT_MAX）至少各 1 例。",
+    "设备 SDF narrowphase：`sdf-box` 80/80（2 world × 40 initpoints）对上游 f32 GPU ≤4 ULP/位级；`sdf_initpoints`/Halton/Armijo 语义、`naconmax` 截断不越界且截断计数如实入证据。",
+    "设备 hfield prism CCD：`hfield-box`/`hfield-sphere`/`hfield-capsule` 对上游 f32 GPU ≤4 ULP；重复接触点必须按全字段（含 `geomcollisionid`）多重集比较；`MJ_MAXCONPAIR=50` 超容量场景的 `prism_count=50`/`overflow`/行为与上游一致。",
+    "接触写入与容量：`worldid` 归属、写入顺序、`efc_address`（全 -1 或上游语义）、`OverflowType`（CCD=1<<4、HFIELD=1<<5、EPA_HORIZON=1<<8、ALL）汇总正确；`naconmax`/`naccdmax` 截断不越界写、截断计数与实测一致。",
+    "`nworld=2`：`hfield_data`/`oct_*`/`mesh_octadr/num` world 维上传布局按 G1 规格（并采用上游全局 `nacon`/`naccdmax` 口径）；两 world 的接触行号/worldid 与上游一致。",
+    "覆盖面如实：接触数组全等只针对非 multiccd 组合（sphere-box 浅/深、ellipsoid-box、sdf-box、hfield 三例）；`cylinder-box`/`box-box-margin`/`mesh-mesh` 只做 `ccd()` witness（dist/x1/x2）≤4 ULP；**multicontact 设备版未实装，必须在 unmet/未覆盖项写明、不得算通过**。",
+    "GPU 窗口纪律：QA 开窗前报 Arch（基线/时长/迭代数/内容），跑完报回桌面基线与无计算进程；同一时间只一个 GPU 任务；`--fmad=false` 结果与正式判据结果分开标注，不得互相冒充。",
+    "不回归与边界：G2/G3/G4 host 判据与既有窄相语义不变；G5 改动只在声明路径；未改 S2–S8 证据、`fixtures/mjwarp-complex-physics/*.xml`、`Cargo.*`；证据计数与实测一致；不得出现「原生放行/精度达标/上游等价/完整物理通过/双平台通过」，GPU 数字不外推性能（归 G6）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-gpu-kernels"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-gpu-kernels-independent-check/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 61
+  },
+  "note": "Arch 2026-10-25 预先登记：G5 是唯一 GPU 片（Backend 窗口已批准 45 分钟占位、内核峰值 <1.5 GiB、≤5 次复跑）。QA 复核需要自己的独占窗口（与 Backend 串行），重点是「独立 launcher + 独立上游 GPU 捕获」，不能读交付日志。已明确 multicontact 未实装，接触数组全等覆盖只限非 multiccd 组合；该缺口须走后续小片。",
+  "revision": {
+    "before": "7edb63039482f792811b4df55b4b7da9d4c32d25",
+    "after": null
+  },
+  "created_at": "2026-10-25T17:42:00.000Z",
+  "updated_at": "2026-10-25T17:42:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-gpu-kernels-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-gpu-kernels-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
