@@ -435,10 +435,28 @@
         "slice": "S7b3",
         "task_id": "2026-10-25-render-bvh-s7b3-flags",
         "owner": "Backend",
-        "normify_status": "in_progress",
-        "execution": "90-minute GPU window after the S7b2 review released the GPU",
+        "normify_status": "verified",
+        "execution": "done (GPU ended at 3,449 MiB, no compute process)",
         "evidence": "docs/development-evidence/render-bvh/s7b3-flags/",
-        "note": "flag variant matrix (texture / vertex-normal / specular-emission / backface culling on-off) plus AA spp=2 image-level reference via new offline authoring capture; AA reference captured with the same recipe (use_fast_math=False) as the hard criterion while the S0b fast-math reference is a documented cross-recipe deviation; closes the S5 AA image-level deferral; must not regress the S7b1 depth/seg 120,000/120,000 or S7b2 same-recipe RGB zero-difference baselines; fixtures under fixtures/render-bvh/scene-a/s7b/"
+        "note": "commit 52c22b7; 5 flag variants each with its own same-recipe reference and 0-difference RGB (culling_off depth 0 ULP / seg 0); AA spp=2 (nsamples=4) RGB zero differences, depth 0 ULP, seg 0, run-to-run identical, subsample order matching upstream ray_base=sample*total_rays; fixed the 81-slot migration miss where depth/seg are written only on the first pass (ray_base==0, the root cause of the first AA depth mismatch); A-prime gate megakernel 197,583 B plus aa_resolve 27,536 B; megakernel.rs split into megakernel_aa.rs for the 500-line ratchet; no regression on the S7b1 depth/seg and S7b2 same-recipe RGB baselines; 532/0, S7b1 6/6, S6b 5/5; closes the S5 AA image-level deferral. Two evidence-strength gaps recorded for the follow-up task: vertex_normals_off has no discriminative power on scene-a and its synthetic case lacks a pinned reference; the S7b2 spp=2 rejection assertion is superseded by AA support"
+      },
+      {
+        "slice": "S7b3 review",
+        "task_id": "2026-10-25-render-bvh-s7b3-independent-check",
+        "owner": "QA",
+        "normify_status": "in_progress",
+        "execution": "30-minute GPU window",
+        "evidence": "docs/development-evidence/render-bvh/s7b3-independent-check/",
+        "note": "independent per-variant reference checks, AA semantics and subsample order, first-pass-only depth/seg behavior, both PTX artifacts, 500-line ratchet split, baselines, and an honest assessment of the vertex-normal discriminative-power claim and the synthetic-case evidence strength (no pinned reference yet)"
+      },
+      {
+        "slice": "S7b follow-ups",
+        "task_id": "2026-10-25-render-bvh-s7b-followups",
+        "owner": "Backend",
+        "normify_status": "proposed",
+        "execution": "waiting for the S7b3 review to release the GPU (gpu:windows-t4 conflict)",
+        "evidence": "docs/development-evidence/render-bvh/s7b-followups/",
+        "note": "capture pinned same-recipe RGB references with mesh_normal overridden to [1,0,0] and [0,0,1] and compare the product (<=1 LSB) with on/off discriminability; update S7b2's unsupported-configurations test to three pre-launch rejections plus an AA-supported assertion, with a Normify fix note on S7b2's evidence; no acceptance or render-semantics changes"
       }
     ],
     "structural_decisions": [
