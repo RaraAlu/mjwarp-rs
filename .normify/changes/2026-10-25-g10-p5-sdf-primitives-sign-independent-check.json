@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-sdf-primitives-sign-independent-check",
+  "title": {
+    "zh": "G10@P5 G3 修正片独立复核：host SDF 原语 sign 语义对齐上游 wp.sign",
+    "en": "Independent check: host SDF primitive sign semantics aligned with upstream wp.sign"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-g10-p5-sdf-primitives-sign` 做独立复核。该片修 host `src/physics/collision/sdf/primitives.rs` 的 sign 语义（`f32::signum()` 对 `-0.0` 返回 -1，上游 `wp.sign` 返回 +1），并声明 G3 已验收结论不变。复核重点是**独立验证语义对齐与回归不变**，不复用交付方结论、不只读交付表格。",
+    "en": "Independent check of the SDF primitive sign-semantics fix: verify alignment with upstream wp.sign (-0.0 -> +1) and that G3 accepted results are unchanged, without reusing the implementer's conclusions."
+  },
+  "modules": {},
+  "acceptance": [
+    "**独立核对上游语义**：读 pinned 上游 `include/warp-headers/builtin.h`（或已固定副本）中 `sign`/`wp.sign` 的定义，独立确认 `-0.0 -> +1`、`+0.0 -> +1`、负值 `-> -1`、正值 `-> +1` 与 NaN 的实际行为；再逐分支核对修复后 `sdf/primitives.rs` 的实现是否与之一致（不接受只读交付说明）。",
+    "**反向判别力**：独立证明修复前语义会失败——用修复前代码（如 `git show <修复前提交>:src/physics/collision/sdf/primitives.rs`）或最小复现，指出 `f32::signum()` 在 `-0.0` 下与上游不一致，并证明新增测试在旧实现上会失败、在新实现上通过（贴命令与输出）。",
+    "**回归独立复跑**：独立运行既有测试证明数值不回归——G3 `sdf-box` 80/80 全字段位级、4 旋转场景 80/80 位级、`rel_mat` 位型一致；对照既有 verified 证据数字，不复算、不改数字。若发现任何数值移动即阻断。",
+    "**边界与表述**：不改已批准判据、不改已 verified 证据数字、不改 `Cargo.*`/fixtures XML；证据写自己的目录 `docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/`；不得宣称精度达标/上游完全等价/原生放行/双平台通过；不碰 G5 未跟踪的 `g10-p5-gpu-kernels-independent-check/qa-gpu/{cases,out}`。",
+    "资源与门禁：纯 CPU、不开 GPU 窗口（若确需 GPU 先报 Arch 基线并经 Arch+Chief 双签）；门禁 fmt/clippy/clippy-cuda/unit 全过；receipt 含 task_id；证据目录无 `.bin`/`.pyc`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-sdf-primitives-sign"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-10-25 预登记（按「每片 verified 后立即 start 下一片、QA 复核提前登记」的约定）。背景：host `sdf/primitives.rs` 曾用 `f32::signum()`，`-0.0` 得 -1，而上游 `wp.sign` 得 +1；G3 已验收（sdf-box 80/80、relmat 4 旋转 80/80）未被该偏差触发，故单列修正片，本复核确认语义对齐且 G3 数字不动。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-25T12:39:00.000Z",
+  "updated_at": "2026-10-25T12:39:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-sdf-primitives-sign-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-sdf-primitives-sign-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
