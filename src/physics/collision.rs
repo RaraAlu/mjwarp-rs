@@ -55,6 +55,10 @@ pub mod sdf;
 #[allow(dead_code)]
 pub mod hfield;
 
+// G5 碰撞 GPU 内核（NVRTC 设备源码 + 宿主编译/接线）；运行需 cuda-probe 与 GPU 窗口。
+#[cfg(feature = "cuda-probe")]
+pub mod cuda;
+
 /// 上游 `mjtGeom` 的平面、球、盒与网格编号。
 pub const GEOM_PLANE: i32 = 0;
 pub const GEOM_SPHERE: i32 = 2;
