@@ -340,5 +340,15 @@
     "fix": "src/render/kernel/cuda/render_megakernel.cu 的 headlight 调用改传 mat_shin_exp，删除 MK_HEADLIGHT_SHININESS；其余路径未改。",
     "verification": "修复后 RGB 对同配方参考两相机 120,000/120,000 像素 0 差异（max byte diff 0）；depth/seg 回归仍 0 ULP；S7b1/S6b 回归与门禁全过。",
     "not_tuning_evidence": "排查中另两处与上游的疑似语义偏离（texture_sample 的 lod 实参 -1.0f vs 0.0f；球面 normal 的 wp.normalize 除法顺序 a/l vs a*(1/l)）分别/同时回退后 RGB 仍 0 像素差异 → 唯一根因是 headlight 高光指数参数；两处按最小 diff 保留原状（记录为已排查项，当前场景/硬件不产生位级差异）。"
+  },
+  "addenda": {
+    "date": "2026-10-25",
+    "spp2_rejection_superseded": {
+      "commit": "3ab52cf",
+      "commit_subject": "测试(渲染): 同步S7b2拒绝面（AA已由S7b3实现）",
+      "reason": "S7b3 实现 AA（samples_per_pixel=2 → nsamples=4）后，AA 是合法配置、不再是写前拒绝项；tests/render_kernel_rgb.rs::unsupported_configurations_are_rejected_before_launch 从 4 类改为 3 类（use_shadows / use_precomputed_rays=false / render_skybox），AA 的合法配置与拒绝面验收归 S7b3（tests/render_kernel_flags.rs）。",
+      "unchanged": "本片原验收结论与数值不变：RGB 对同配方参考两相机 120,000/120,000 像素位等（0 差异）；depth/seg 120,000/120,000 位等、max 0 ULP；灯位姿 6/6 位等；PTX 195,594 B（source 0fcdb02a…、ptx 75a6ad35…）。",
+      "verification": "followups 复跑 cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --test-threads=1：3 passed / 0 failed（提交 62c58a5 的 s7b-followups 证据 s7b2-regression.log）。"
+    }
   }
 }

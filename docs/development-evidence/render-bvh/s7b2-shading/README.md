@@ -283,3 +283,14 @@ RGB 8 位量化几乎无影响；本片 RGB 差异全部来自实现（见 §6�
 - `unit-summary.log`：`cargo test --locked` 532 passed / 0 failed
 - `capture.log`：同配方 RGB 采集脚本输出（含 sha、div_rn/div_approx 证据）
 - `receipt.json`：机器可判定回执
+
+## 11. 后续修正记录（addenda）
+
+- **2026-10-25**：S7b3 实现 AA（`samples_per_pixel=2` → nsamples=4）后，spp=2 不再是被拒绝项。
+  `tests/render_kernel_rgb.rs::unsupported_configurations_are_rejected_before_launch` 的拒绝列表
+  从 4 类改为 **3 类**（`use_shadows` / `use_precomputed_rays=false` / `render_skybox`），
+  AA 的合法配置与拒绝面验收归 S7b3（`tests/render_kernel_flags.rs`），提交 **`3ab52cf`**
+  （`Normify-Fixes: 2026-10-25-render-bvh-s7b2-shading`）。
+- **本片原验收结论与数值不变**：RGB 对同配方参考两相机 120,000/120,000 像素位等（0 差异）；
+  depth/seg 120,000/120,000 位等、max 0 ULP；灯位姿 6/6 位等；PTX 195,594 B
+  （source `0fcdb02a…`、ptx `75a6ad35…`）；followups 复跑 S7b2 GPU 回归 **3/3**。
