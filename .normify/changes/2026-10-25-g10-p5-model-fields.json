@@ -5,7 +5,7 @@
     "zh": "G10@P5 模型字段：hfield/octree/opt.sdf_* 解析与跨版本 parity（含 world 维上传口径）",
     "en": "G10@P5 model fields: hfield/octree/opt.sdf_* parsing with cross-version parity and world-dim upload contract"
   },
-  "status": "in_progress",
+  "status": "abandoned",
   "intent": {
     "zh": "g10-p5 的模型字段片（G1）：把 hfield 与 volume SDF 相关模型字段接进产品模型的读取/上传链路——`hfield_nrow/ncol/size/data/adr`、`noct/oct_depth/oct_child/oct_aabb/oct_coeff`、`mesh_octadr/mesh_octnum`、`opt.sdf_iterations/sdf_initpoints`，按既有 `src/io/` 逐子系统扩展字段抽取模式实现，并在 `src/model/` 增补对应数据面。验收用 G0b 已产出的双版本 parity 结论（`fixtures/g10-p5/octree-parity.json`：3.12 与 3.15 的 `oct_*` f64 位型逐字节全等、`hfield_data` f32 位型全等）直接对照产品解析结果，**位级比对**；同时把「f64→f32 一次转换点」写清并与 mjwarp `put_model` 对齐；把 `hfield_data`/`oct_*` 的 **world 维上传口径**（`nworld` 复制/广播布局）与 `naconmax` 维度预留定义清楚，供 G4/G5 直接使用（本片不实装 GPU 内核）。不改现有已验收模型字段语义、不改 S2–S8 证据、不改 `Cargo.*`。",
     "en": "Model-field slice (G1) of g10-p5: wire the hfield and volume-SDF model fields into the product model read/upload path - hfield_nrow/ncol/size/data/adr, noct/oct_depth/oct_child/oct_aabb/oct_coeff, mesh_octadr/mesh_octnum, opt.sdf_iterations/sdf_initpoints - following the existing per-subsystem extended-field extraction pattern in src/io/, and add the matching data surface in src/model/. Acceptance reuses G0b's dual-version parity result (fixtures/g10-p5/octree-parity.json: oct_* f64 bit patterns byte-identical between 3.12 and 3.15, hfield_data f32 bit-identical) as the expected values for a bit-level comparison against the product parse; document the single f64-to-f32 conversion point aligned with mjwarp put_model; define the world-dim upload contract for hfield_data/oct_* (nworld replication/broadcast layout) and the naconmax dimension reservation for G4/G5 (no GPU kernel in this slice). Existing verified model-field semantics, S2-S8 evidence and Cargo.* are untouched."
@@ -35,13 +35,14 @@
     "resources": [],
     "priority": 58
   },
-  "note": "Arch 2026-10-25 排程：G2 已 verified（900d1fe）后按预检 §6.2 顺序进 G1（模型字段，3d，无 GPU）。范围用**目录级**登记（S7b1 与 G2 的教训：文件级 white-list 一旦漏父级文件就会撞冻结/范围失配）。验收直接复用 G0b 的双版本 parity 结论做位级比对，先测后定、不预设放宽；world 维上传口径本片只出规格、不实装 GPU（G5 落地）。",
+  "note": "Arch 2026-10-25 排程：G2 已 verified（900d1fe）后按预检 §6.2 顺序进 G1（模型字段，3d，无 GPU）。范围用**目录级**登记（S7b1 与 G2 的教训：文件级 white-list 一旦漏父级文件就会撞冻结/范围失配）。验收直接复用 G0b 的双版本 parity 结论做位级比对，先测后定、不预设放宽；world 维上传口径本片只出规格、不实装 GPU（G5 落地）。\n放弃：范围遗漏 native/ 字段导出扩展：预检发现产品读取链路为 native/g01_fields.inc(kind 1/2/3 无 f64) -> include ABI -> src/io/g01.rs -> src/model/*，oct_aabb/oct_coeff 为 f64，位级 parity 无法只靠 src/io+src/model 完成；按 S7b1 先例重登记含 native/ 的同片。G1 尚未写任何文件。",
   "revision": {
     "before": "48bf4f0c5045459a9516ef8c01e4e30c7ec44f3c",
     "after": null
   },
   "created_at": "2026-10-25T16:22:00.000Z",
-  "updated_at": "2026-10-25T08:20:40.659Z",
+  "updated_at": "2026-10-25T08:22:05.351Z",
+  "closed_at": "2026-10-25T08:22:05.351Z",
   "checks": [
     {
       "kind": "gate",
