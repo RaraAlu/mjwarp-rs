@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-evidence-bin-eol-hygiene",
+  "title": {
+    "zh": "工程：证据二进制（.bin）在 core.autocrlf=true 下的 checkout 破坏修复（.gitattributes 加 binary 规则）",
+    "en": "Engineering: prevent checkout corruption of evidence .bin files under core.autocrlf=true (add binary rules to .gitattributes)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "仓库 `core.autocrlf=true`，而 `.gitattributes` 没有任何 `*.bin` 规则。已跟踪的 1130 个 `.bin` 证据文件因此被 git 当作文本：`git diff --numstat` 对它们算行差（例如 `1 1` / `2 0`），`git add` 时警告 `LF will be replaced by CRLF the next time Git touches it`。后果：**当前工作区与已提交 blob 内容是一致的（提交无损）**，但任何人**全新 clone / checkout** 时这些二进制会被 CRLF 转换破坏，证据不可复现、对照测试会读到被改写的字节。本片只做仓库卫生修复：给 `.gitattributes` 加 `*.bin -text -diff`（先按 `git ls-files` 统计实际扩展名，必要时补其它二进制证据扩展名），并给出可复核的验证：属性生效、状态不翻动、模拟 checkout 后抽查 sha256 与改动前一致。不重写历史、不改任何已提交证据内容。",
+    "en": "The repo has core.autocrlf=true and .gitattributes has no *.bin rule, so the 1130 tracked .bin evidence files are treated as text (git diff --numstat computes line counts for them, and git add warns about LF->CRLF). Working tree and committed blobs are currently faithful, but a fresh clone/checkout would CRLF-transform these binaries, corrupting evidence reproducibility and breaking comparisons. This slice is repo hygiene only: add *.bin -text -diff (extensions derived from git ls-files) plus verifiable checks (attributes effective, no mass status change, sha256 spot-checks unchanged after simulated checkout). No history rewrite, no changes to committed evidence content."
+  },
+  "modules": {},
+  "acceptance": [
+    "`.gitattributes` 增加二进制规则（至少 `*.bin -text -diff`）；扩展名清单由 `git ls-files` 实测得出并写进证据（当前 1130 个 `.bin`；若还有其它二进制证据扩展名一并覆盖）。",
+    "属性验证：`git check-attr -a -- <选定的 .bin>` 显示 `text: unset` 与 `diff: unset`；`git status --porcelain` 在该改动后**不出现批量翻动**（不得为了让它变干净而去重写文件内容）。",
+    "模拟 checkout 验证：对改动前后各抽查 ≥5 个 `.bin`（含 `dist.bin`/`pos.bin`/`x1.bin` 这类小文件）记录 sha256，`git checkout -f -- <path>` 或等价方式往返后 sha256 与改动前一致；证据里贴出改动前后对照表与命令。",
+    "根因说明入证据：为什么以前没暴露（这些 `.bin` 由探针在本地生成、从未经 checkout 往返）、影响面（1130 个文件 + 今后所有 `.bin` 证据）、以及「当前 blob 无损、只是 checkout 期风险」的界定，避免被误读成「已提交证据已损坏」。",
+    "不改任何已提交证据内容、不重写历史（禁 `filter-branch`/`filter-repo`）、不改 S2–S8 证据语义、不改 `fixtures/mjwarp-complex-physics/*.xml` 与 `Cargo.*`；新文件 ≤500 行。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过（任务 checks 已声明）；证据 README/receipt 含 task_id 与未覆盖项（例如仍不保证第三方工具导出的非证据二进制）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      ".gitattributes",
+      "docs/development-evidence/evidence-bin-eol-hygiene/"
+    ],
+    "resources": [],
+    "priority": 40
+  },
+  "note": "Arch 2026-10-25 发现并登记：G5 收口提交（`e00de497`）时发现 `git add` 对所有证据 `.bin` 报 `LF will be replaced by CRLF`，`git diff --cached --numstat` 也把这些二进制计入文本行差；核查确认 `core.autocrlf=true` 且 `.gitattributes`（约 300 行、全是 text/fixtures 规则）没有 `*.bin`。已跟踪 `.bin` 共 1130 个。当前工作区内容 == 提交 blob（提交无损），风险只在 checkout 往返，因此**不阻塞 G5 收口**，单列工程片。排在 `sdf-relmat-fix` 之后做即可，不需要 GPU。",
+  "revision": {
+    "before": "f9f1b879a60e19f1c171934a39335fc7b5f8ec92",
+    "after": null
+  },
+  "created_at": "2026-10-25T19:05:00.000Z",
+  "updated_at": "2026-10-25T19:05:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/evidence-bin-eol-hygiene/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-evidence-bin-eol-hygiene"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
