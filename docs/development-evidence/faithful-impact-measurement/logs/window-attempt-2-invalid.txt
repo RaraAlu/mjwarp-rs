@@ -1,0 +1,26 @@
+GPU window attempt 2 — INVALID (driver env-scope bug; 作废，不进入影响矩阵)
+==========================================================================
+STATUS: INVALID / EXCLUDED FROM impact-matrix.json
+window_start_utc: 2026-10-25T18:03:10Z
+window_end_utc:   2026-10-25T18:05:45Z (155 s, 20/20 runs exit 0, guard not tripped)
+samples: 449 points @250 ms; used 3376-3674 MiB (start 3384), free min 12388, util max 57, temp max 30 C
+residual: none (post used 3403 MiB, no test process left)
+
+WHY INVALID
+- The driver script removed CARGO_TARGET_DIR and RUSTFLAGS after EACH test instead of after
+  each MODE. Consequences visible in the raw logs:
+  * every mode's 2nd..10th run resolved to the worktree-local `target\debug\deps\...`
+    instead of `target/faithful/<mode>-cuda/...`;
+  * those runs recompiled inside the window (`Compiling mjwarp-rs ...` present in 3 logs,
+    `Finished ... in 1.4-1.6 s`);
+  * more importantly, `RUSTFLAGS=-C target-feature=+fma` was dropped, so 9 of the 10
+    "gnu-fma" runs actually executed the default GNU (non-FMA) binary.
+- Therefore the attempt-2 two-mode comparison is not a valid faithful-vs-default comparison
+  and none of its numbers are used.
+
+Kept only as a methodology record. Raw attempt-2 artifacts are preserved outside the
+committed evidence tree at `target/faithful/attempt2-invalid/` (logs, summary, samples).
+
+FIX (applied before attempt 3): env (CARGO_TARGET_DIR + RUSTFLAGS) is set once per mode and
+cleared only after all tests of that mode finish. Attempt 3 re-ran all 20 items; its logs
+contain no `Compiling ` line and every run resolves to `target/faithful/<mode>-cuda/...`.

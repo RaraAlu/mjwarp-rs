@@ -1,0 +1,27 @@
+GPU window attempt 1 — ABORTED BY GUARD (INVALID, 作废，不进入影响矩阵)
+=========================================================================
+STATUS: ABORTED / INVALID / EXCLUDED FROM impact-matrix.json
+用途：仅作「守卫误触」记录与守卫细化依据；本尝试的全部数字不进入影响矩阵。
+
+approved window: 10 min exclusive, two modes serial, 0.25 s sampling
+window_start_utc: 2026-10-25T18:00:39Z
+window_end_utc:   2026-10-25T18:01:36Z
+guard_tripped:    foreign_compute_like_process:mjwarp_rs-bbf617de7cd0b294
+guard_rule(v1):   free<10240 MiB or used increment>=3072 MiB or foreign dumper/qa-/mjwarp process -> stop
+
+what ran before abort (exit 0, NOT used in matrix):
+- gnu-default / g10_p5_nvrtc_launcher (20.8 s): hfield-sphere 314/314,
+  sdf-box 3122/3122, ellipsoid-box 80/80; max ULP 0/0/0; failures=0
+- gnu-default / g10_p5_primitive_cuda (36.4 s): 80/80 x3; max ULP 0
+
+memory/util (86 samples @250 ms): used 3376-3428 MiB (start 3396), free min 12634,
+util max 43, temp max 29 C -> workload footprint flat, no memory pressure.
+post window: used 3403 MiB, free 12659, 33 desktop graphics contexts, no residue.
+
+interpretation: the triggering process was another agent's CPU lib-test binary in the
+main checkout (mjwarp_rs-<hash>); it never appeared as a CUDA compute app and GPU
+accounting stayed flat. The abort was a conservative name-based guard (v1), not a real
+GPU contention event. 18 of 20 planned runs were not executed.
+-> After this attempt the guard was refined (approved): abort only on a NEW CUDA compute
+   pid that is not this task's g10_p5_*/render_* test exe; CPU-only processes are recorded
+   only. See logs/window-attempt-2-invalid.txt and logs/window-attempt-3-final.txt.

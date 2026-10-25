@@ -1,0 +1,34 @@
+GPU window attempt 3 — VALID (used for impact-matrix.json)
+==========================================================
+STATUS: VALID / USED
+window_start_utc: 2026-10-25T18:06:38Z
+window_end_utc:   2026-10-25T18:09:04Z   (146 s)
+runs: 20/20 (10 items x 2 modes serial), --test-threads=1, all exit 0
+guard_tripped: none
+
+guard parameters (approved refined version):
+- abort if a NEW CUDA compute pid appears (pid not in pre-window query-compute-apps set)
+  whose process exe does NOT match ^(g10_p5_|render_) (this task's test exes)
+- abort if free < 10240 MiB
+- abort if used increment >= 3072 MiB (or >50% -> stricter)
+- CPU-only processes: recorded only, never abort
+- sample interval 250 ms (used/free/util/temp)
+
+window facts:
+- pre  nvidia-smi: NVIDIA GeForce RTX 4070 Ti SUPER, 3398 MiB used, 12664 MiB free, 35 %, 29 C
+- post nvidia-smi: NVIDIA GeForce RTX 4070 Ti SUPER, 3386 MiB used, 12676 MiB free, 14 %, 30 C
+- samples: 416 points @250 ms; used max 4738 MiB (start 3398 => +1340), used min 3376;
+  free min 11324 MiB (> 10240 floor); util max 63 %; temp max 30 C
+- pre/post query-compute-apps: 33 / 33 desktop graphics contexts, none belongs to this task
+  (no g10_p5_* / render_* pid in post snapshot) -> residual CUDA compute pid = 0
+- residual processes after window: none (no g10_p5_*/render_*/cargo/rustc)
+- in-window compilation: 0 (all 20 run logs contain no `Compiling ` line; binaries came from
+  the out-of-window build; gnu-default runs resolve to target/faithful/gnu-default-cuda/...,
+  gnu-fma runs to target/faithful/gnu-fma-cuda/...)
+- CPU-only processes of other agents observed during the window (cargo/rustc/cargo-clippy/
+  cargo-fmt/mjwarp_rs lib-test binary) were recorded, not aborted, per the approved rule;
+  see logs/cpu-process-observations-summary.txt
+
+cumulative GPU time across the 3 attempts of this task:
+  attempt1 57 s (aborted) + attempt2 155 s (invalid) + attempt3 146 s (valid) = 358 s,
+  inside the approved 10-minute exclusive window budget.

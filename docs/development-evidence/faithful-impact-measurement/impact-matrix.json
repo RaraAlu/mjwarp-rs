@@ -1,0 +1,123 @@
+{
+  "task": "2026-10-25-faithful-impact-measurement",
+  "generated_utc": "2026-10-25T18:10:19Z",
+  "pinned_commit": "5e000cb9",
+  "worktree": "target/worktrees/faithful-5e000cb9",
+  "repo_head_at_review": "3a738c29",
+  "modes": {
+    "gnu-default": "repo default GNU (config rustflags -C link-dead-code=yes)",
+    "gnu-fma": "GNU + RUSTFLAGS=-C target-feature=+fma (config rustflags overridden, no link-dead-code)",
+    "gnu-fma-ldc": "GNU + RUSTFLAGS='-C target-feature=+fma -C link-dead-code=yes' (CPU-only isolation variant)"
+  },
+  "rustflags_config_interaction": {
+    "default_rustc_line_has_link_dead_code": true,
+    "gnu_fma_rustc_line_has_link_dead_code": false,
+    "gnu_fma_rustc_line_has_target_feature_fma": true,
+    "gnu_fma_ldc_rustc_line_has_both": true,
+    "conclusion": "setting RUSTFLAGS replaces the .cargo/config.toml gnu rustflags; link-dead-code is dropped unless re-added explicitly",
+    "evidence": "logs/rustc-command-lines.txt"
+  },
+  "clean_build_criterion": {
+    "dedicated_target_dirs": ["target/faithful/gnu-default", "target/faithful/gnu-fma", "target/faithful/gnu-fma-ldc", "target/faithful/gnu-default-cuda", "target/faithful/gnu-fma-cuda"],
+    "cargo_rust_env_cleared": true,
+    "rustc": "1.99.0 (b940084d7 2026-09-28) host x86_64-pc-windows-gnu",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "deps_files": {
+      "cpu_default": 71,
+      "cpu_fma": 71,
+      "cpu_fma_ldc": 71,
+      "cuda_probe_build": 91
+    }
+  },
+  "cpu_items": {
+    "modes": [
+      {"mode": "gnu-default", "rel_mat_10_10": true, "rel_mat_line": "[SDF-rot] rel_mat_warp aᵀb 位级 10/10 world；其中 8 world 与 bᵀa 可区分", "sdf_scenes_bit_equal": true, "sdf_scene_count": 6, "sdf_scene_max_abs_zero": true, "sdf_host_fixture_test": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s"},
+      {"mode": "gnu-fma", "rel_mat_10_10": true, "rel_mat_line": "[SDF-rot] rel_mat_warp aᵀb 位级 10/10 world；其中 8 world 与 bᵀa 可区分", "sdf_scenes_bit_equal": true, "sdf_scene_count": 6, "sdf_scene_max_abs_zero": true, "sdf_host_fixture_test": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s"},
+      {"mode": "gnu-fma-ldc", "rel_mat_10_10": true, "rel_mat_line": "[SDF-rot] rel_mat_warp aᵀb 位级 10/10 world；其中 8 world 与 bᵀa 可区分", "sdf_scenes_bit_equal": true, "sdf_scene_count": 6, "sdf_scene_max_abs_zero": true, "sdf_host_fixture_test": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s"}
+    ],
+    "case_evidence": {
+      "gnu-default": {
+        "frame": "3.838112e-7",
+        "assert_result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.01s",
+        "pass": true,
+        "line": "[判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 3.838112e-7"
+      },
+      "gnu-fma": {
+        "frame": "6.351978e-7",
+        "assert_result": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.00s",
+        "pass": false,
+        "line": "[判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 6.351978e-7"
+      },
+      "gnu-fma-ldc": {
+        "frame": "6.351978e-7",
+        "assert_result": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.00s",
+        "pass": false,
+        "line": "[判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 6.351978e-7"
+      }
+    },
+    "flip": "case_evidence only"
+  },
+  "gpu_items": [
+    {"item": "launcher regression", "target": "g10_p5_nvrtc_launcher", "filter": "product_nvrtc_launcher_matches_g5_probe_out1", "verified_expectation": "pass (bit-level / <=1 LSB thresholds as recorded in the slice evidence)", "gnu_default": {"exit": 0, "wall_s": 19.4, "metrics": [{"case": "hfield-sphere", "kind": "Hfield", "nacon": 8, "nccd": 0, "bit_equal": "314/314", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}, {"case": "sdf-box", "kind": "Sdf", "nacon": 80, "nccd": 0, "bit_equal": "3122/3122", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}, {"case": "ellipsoid-box", "kind": "Contact", "nacon": 2, "nccd": 2, "bit_equal": "80/80", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}], "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-default-g10_p5_nvrtc_launcher.log"}, "gnu_fma": {"exit": 0, "wall_s": 21.7, "metrics": [{"case": "hfield-sphere", "kind": "Hfield", "nacon": 8, "nccd": 0, "bit_equal": "314/314", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}, {"case": "sdf-box", "kind": "Sdf", "nacon": 80, "nccd": 0, "bit_equal": "3122/3122", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}, {"case": "ellipsoid-box", "kind": "Contact", "nacon": 2, "nccd": 2, "bit_equal": "80/80", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}], "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-fma-g10_p5_nvrtc_launcher.log"}, "identical_between_modes": true, "flip": false, "reference": "frozen reference present"},
+    {"item": "primitive 3 cases", "target": "g10_p5_primitive_cuda", "filter": "primitive_launcher_matches_qa_upstream_gpu", "verified_expectation": "pass (bit-level / <=1 LSB thresholds as recorded in the slice evidence)", "gnu_default": {"exit": 0, "wall_s": 19.4, "metrics": [{"case": "sphere-box-shallow", "kind": "Primitive", "nacon": 2, "nccd": 0, "bit_equal": "80/80", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}, {"case": "sphere-box-deep", "kind": "Primitive", "nacon": 2, "nccd": 0, "bit_equal": "80/80", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}, {"case": "capsule-box", "kind": "Primitive", "nacon": 2, "nccd": 0, "bit_equal": "80/80", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}], "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-default-g10_p5_primitive_cuda.log"}, "gnu_fma": {"exit": 0, "wall_s": 20.9, "metrics": [{"case": "sphere-box-shallow", "kind": "Primitive", "nacon": 2, "nccd": 0, "bit_equal": "80/80", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}, {"case": "sphere-box-deep", "kind": "Primitive", "nacon": 2, "nccd": 0, "bit_equal": "80/80", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}, {"case": "capsule-box", "kind": "Primitive", "nacon": 2, "nccd": 0, "bit_equal": "80/80", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}], "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-fma-g10_p5_primitive_cuda.log"}, "identical_between_modes": true, "flip": false, "reference": "frozen reference present"},
+    {"item": "multicontact 3 cases", "target": "g10_p5_multicontact_cuda", "filter": "multicontact_launcher_matches_qa_upstream_gpu", "verified_expectation": "pass (bit-level / <=1 LSB thresholds as recorded in the slice evidence)", "gnu_default": {"exit": 0, "wall_s": 19.4, "metrics": [{"case": "cylinder-box", "kind": "ContactMulti", "nacon": 8, "nccd": 2, "bit_equal": "314/314", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}, {"case": "box-box-margin", "kind": "BoxBox", "nacon": 10, "nccd": 0, "bit_equal": "391/392", "max_dist_ulp": 0, "max_pos_ulp": 1, "max_frame_ulp": 0, "failures": 0}, {"case": "mesh-mesh", "kind": "Contact", "nacon": 2, "nccd": 2, "bit_equal": "80/80", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}], "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-default-g10_p5_multicontact_cuda.log"}, "gnu_fma": {"exit": 0, "wall_s": 20.6, "metrics": [{"case": "cylinder-box", "kind": "ContactMulti", "nacon": 8, "nccd": 2, "bit_equal": "314/314", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}, {"case": "box-box-margin", "kind": "BoxBox", "nacon": 10, "nccd": 0, "bit_equal": "391/392", "max_dist_ulp": 0, "max_pos_ulp": 1, "max_frame_ulp": 0, "failures": 0}, {"case": "mesh-mesh", "kind": "Contact", "nacon": 2, "nccd": 2, "bit_equal": "80/80", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "failures": 0}], "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-fma-g10_p5_multicontact_cuda.log"}, "identical_between_modes": true, "flip": false, "reference": "frozen reference present"},
+    {"item": "S7b1 depth/seg", "target": "render_kernel_depth_seg", "filter": "depth_and_seg_match_frozen_reference_for_both_cameras", "verified_expectation": "pass (bit-level / <=1 LSB thresholds as recorded in the slice evidence)", "gnu_default": {"exit": 0, "wall_s": 1.1, "metrics": {"recipe": {"cam0": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}, "cam1": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}, "fast_math": {"cam0": {"depth_mismatch": 19074, "max_ulp": 2, "seg_mismatch": 0}, "cam1": {"depth_mismatch": 4064, "max_ulp": 4, "seg_mismatch": 0}}, "reference": {"rays": 120000, "recipe_max_ulp": 0, "known_cross_recipe_beyond4": 0}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-default-render_kernel_depth_seg.log"}, "gnu_fma": {"exit": 0, "wall_s": 1.0, "metrics": {"recipe": {"cam0": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}, "cam1": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}, "fast_math": {"cam0": {"depth_mismatch": 19074, "max_ulp": 2, "seg_mismatch": 0}, "cam1": {"depth_mismatch": 4064, "max_ulp": 4, "seg_mismatch": 0}}, "reference": {"rays": 120000, "recipe_max_ulp": 0, "known_cross_recipe_beyond4": 0}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-fma-render_kernel_depth_seg.log"}, "identical_between_modes": true, "flip": false, "reference": "frozen reference present"},
+    {"item": "S7b2 RGB", "target": "render_kernel_rgb", "filter": "rgb_matches_reference_and_depth_seg_do_not_regress", "verified_expectation": "pass (bit-level / <=1 LSB thresholds as recorded in the slice evidence)", "gnu_default": {"exit": 0, "wall_s": 1.9, "metrics": {"regress": {"cam0": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}, "cam1": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}, "same_recipe": {"cam0": {"pixels": 76800, "mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"pixels": 43200, "mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "cross_recipe_record": {"cam0": {"beyond_1_lsb": 0, "max_byte_diff": 1}, "cam1": {"beyond_1_lsb": 0, "max_byte_diff": 0}}, "hashes": {"depth_seg": "03efa95416bbd008", "rgb": "ed50f750936c0275"}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-default-render_kernel_rgb.log"}, "gnu_fma": {"exit": 0, "wall_s": 1.4, "metrics": {"regress": {"cam0": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}, "cam1": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}, "same_recipe": {"cam0": {"pixels": 76800, "mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"pixels": 43200, "mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "cross_recipe_record": {"cam0": {"beyond_1_lsb": 0, "max_byte_diff": 1}, "cam1": {"beyond_1_lsb": 0, "max_byte_diff": 0}}, "hashes": {"depth_seg": "03efa95416bbd008", "rgb": "ed50f750936c0275"}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-fma-render_kernel_rgb.log"}, "identical_between_modes": true, "flip": false, "reference": "frozen reference present"},
+    {"item": "S7b3 flag variants", "target": "render_kernel_flags", "filter": "flag_variants_match_own_references", "verified_expectation": "pass (bit-level / <=1 LSB thresholds as recorded in the slice evidence)", "gnu_default": {"exit": 0, "wall_s": 2.8, "metrics": {"variants": {"textures_off": {"cam0": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "vertex_normals_off": {"cam0": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "specular_off": {"cam0": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "emission_off": {"cam0": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "culling_off": {"cam0": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "culling_off_depth": {"cam0": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}, "cam1": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}}, "summary": "5/5 variants matched", "aa2": {}, "baseline": {}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-default-render_kernel_flags.log"}, "gnu_fma": {"exit": 0, "wall_s": 2.4, "metrics": {"variants": {"textures_off": {"cam0": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "vertex_normals_off": {"cam0": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "specular_off": {"cam0": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "emission_off": {"cam0": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "culling_off": {"cam0": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "culling_off_depth": {"cam0": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}, "cam1": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}}, "summary": "5/5 variants matched", "aa2": {}, "baseline": {}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-fma-render_kernel_flags.log"}, "identical_between_modes": true, "flip": false, "reference": "frozen reference present"},
+    {"item": "S7b3 AA spp=2", "target": "render_kernel_flags", "filter": "aa2_matches_same_recipe_reference", "verified_expectation": "pass (bit-level / <=1 LSB thresholds as recorded in the slice evidence)", "gnu_default": {"exit": 0, "wall_s": 2.2, "metrics": {"variants": {}, "summary": "", "aa2": {"cam0": {"rgb": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "depth": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}, "cam1": {"rgb": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "depth": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}}, "baseline": {}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-default-render_kernel_flags.log"}, "gnu_fma": {"exit": 0, "wall_s": 1.6, "metrics": {"variants": {}, "summary": "", "aa2": {"cam0": {"rgb": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "depth": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}, "cam1": {"rgb": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "depth": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}}, "baseline": {}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-fma-render_kernel_flags.log"}, "identical_between_modes": true, "flip": false, "reference": "frozen reference present"},
+    {"item": "S7b3 baseline no-regression", "target": "render_kernel_flags", "filter": "baseline_no_regression_after_flags_and_aa", "verified_expectation": "pass (bit-level / <=1 LSB thresholds as recorded in the slice evidence)", "gnu_default": {"exit": 0, "wall_s": 1.4, "metrics": {"variants": {}, "summary": "", "aa2": {}, "baseline": {"cam0": {"rgb": {"rgb_mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "depth": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}, "cam1": {"rgb": {"rgb_mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "depth": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-default-render_kernel_flags.log"}, "gnu_fma": {"exit": 0, "wall_s": 1.4, "metrics": {"variants": {}, "summary": "", "aa2": {}, "baseline": {"cam0": {"rgb": {"rgb_mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "depth": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}, "cam1": {"rgb": {"rgb_mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "depth": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-fma-render_kernel_flags.log"}, "identical_between_modes": true, "flip": false, "reference": "frozen reference present"},
+    {"item": "S8 e2e same-recipe", "target": "render_e2e", "filter": "end_to_end_two_cameras_match_same_recipe_reference", "verified_expectation": "pass (bit-level / <=1 LSB thresholds as recorded in the slice evidence)", "gnu_default": {"exit": 0, "wall_s": 2.4, "metrics": {"depth": {"cam0": {"compared": 76800, "mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}, "cam1": {"compared": 43200, "mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}, "rgb": {"cam0": {"pixels": 76800, "mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"pixels": 43200, "mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "cross_recipe_record": {"cam0": {"beyond_1_lsb": 0, "max_byte_diff": 1}, "cam1": {"beyond_1_lsb": 0, "max_byte_diff": 0}}, "hashes": {"depth_seg": "03efa95416bbd008", "rgb": "ed50f750936c0275"}, "camlight": {}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-default-render_e2e.log"}, "gnu_fma": {"exit": 0, "wall_s": 2.2, "metrics": {"depth": {"cam0": {"compared": 76800, "mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}, "cam1": {"compared": 43200, "mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}}, "rgb": {"cam0": {"pixels": 76800, "mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1": {"pixels": 43200, "mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}}, "cross_recipe_record": {"cam0": {"beyond_1_lsb": 0, "max_byte_diff": 1}, "cam1": {"beyond_1_lsb": 0, "max_byte_diff": 0}}, "hashes": {"depth_seg": "03efa95416bbd008", "rgb": "ed50f750936c0275"}, "camlight": {}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-fma-render_e2e.log"}, "identical_between_modes": true, "flip": false, "reference": "frozen reference present"},
+    {"item": "S8 camlight pose bits", "target": "render_e2e", "filter": "product_camlight_poses_match_reference_bits", "verified_expectation": "pass (bit-level / <=1 LSB thresholds as recorded in the slice evidence)", "gnu_default": {"exit": 0, "wall_s": 1.3, "metrics": {"depth": {}, "rgb": {}, "cross_recipe_record": {}, "hashes": {}, "camlight": {"origin_mismatches": [0, 0], "xmat_mismatches": [0, 0], "max_origin_abs": 0.0, "max_xmat_abs": 0.0}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-default-render_e2e.log"}, "gnu_fma": {"exit": 0, "wall_s": 1.1, "metrics": {"depth": {}, "rgb": {}, "cross_recipe_record": {}, "hashes": {}, "camlight": {"origin_mismatches": [0, 0], "xmat_mismatches": [0, 0], "max_origin_abs": 0.0, "max_xmat_abs": 0.0}}, "log": "docs/development-evidence/faithful-impact-measurement/logs/gpu-gnu-fma-render_e2e.log"}, "identical_between_modes": true, "flip": false, "reference": "frozen reference present"}
+  ],
+  "window": {
+    "start_utc": "2026-10-25T18:06:38Z",
+    "end_utc": "2026-10-25T18:09:04Z",
+    "duration_s": 146,
+    "pre_snapshot": "NVIDIA GeForce RTX 4070 Ti SUPER, 3398 MiB, 12664 MiB, 35 %, 29",
+    "post_snapshot": "NVIDIA GeForce RTX 4070 Ti SUPER, 3386 MiB, 12676 MiB, 14 %, 30",
+    "start_used_mib": 3398,
+    "samples": {
+      "count": 416,
+      "interval_ms": 250,
+      "used_mib_max": 4738.0,
+      "used_mib_min": 3376.0,
+      "free_mib_min": 11324.0,
+      "util_max": 63.0,
+      "temp_max": 30.0,
+      "file": "docs/development-evidence/faithful-impact-measurement/logs/gpu-window-20261025-180638-samples.txt"
+    },
+    "guard_tripped": "",
+    "guard_params": {
+      "increment_limit_mib": 3072,
+      "free_floor_mib": 10240,
+      "new_cuda_compute_abort": "yes unless process exe matches ^(g10_p5_|render_) for this task",
+      "cpu_only_processes": "recorded only, no abort",
+      "sample_interval_ms": 250
+    },
+    "residual_compute_processes_of_this_task": "0 (all test exes exited; pre/post query-compute-apps recorded)",
+    "in_window_compilation": "0 (all 20 run logs contain no 'Compiling ' line; binaries from out-of-window build)"
+  },
+  "attempts": [
+    {"attempt": 1, "status": "ABORTED_BY_GUARD_INVALID", "reason": "conservative name-based guard tripped on another agent's CPU lib-test binary (mjwarp_rs-<hash>); not a GPU contention event; only 2/20 runs; excluded from matrix", "record": "logs/window-attempt-1-aborted.txt"},
+    {"attempt": 2, "status": "INVALID_EXCLUDED", "reason": "driver script cleared CARGO_TARGET_DIR/RUSTFLAGS after each test; runs 2-10 of each mode fell back to the worktree target (in-window recompile) and the +fma mode degraded to default GNU for 9/10 runs; excluded from matrix", "record": "logs/window-attempt-2-invalid.txt"},
+    {"attempt": 3, "status": "VALID_USED", "reason": "env kept stable per mode; 20/20 exit 0; no in-window compilation; correct per-mode target dirs", "record": "logs/window-attempt-3-final.txt"}
+  ],
+  "summary": {
+    "flips": [
+      {"item": "case_evidence::upstream_f32_within_4ulp (CPU)", "gnu_default": {"result": "pass", "frame": "3.838112e-7"}, "gnu_fma": {"result": "fail", "frame": "6.351978e-7"}, "delta": "pass -> fail; frame 3.838112e-7 -> 6.351978e-7 (> 4.8e-7 threshold)"}
+    ],
+    "unchanged_gpu_items": ["launcher regression", "primitive 3 cases", "multicontact 3 cases", "S7b1 depth/seg", "S7b2 RGB", "S7b3 flag variants", "S7b3 AA spp=2", "S7b3 baseline no-regression", "S8 e2e same-recipe", "S8 camlight pose bits"],
+    "unchanged_cpu_items": ["G5 rel_mat 10/10 world", "SDF 40/40 (5 scenes, 80/80 contacts each)"],
+    "impact_scope": "narrow: only case_evidence::upstream_f32_within_4ulp (CPU frame judgement) flips; all GPU launcher/primitive/multicontact bit-level comparisons and all render S7b1/S7b2/S7b3/S8 same-recipe comparisons are byte-identical between the two modes in this window",
+    "missing_reference_items": []
+  },
+  "boundaries": {
+    "read_only": true,
+    "product_code_modified": false,
+    "criteria_tolerance_modified": false,
+    "new_reference_captured": false,
+    "gpu_window": "10-minute approved window; each mode serial",
+    "not_run": ["render perf", "Linux", "other GPUs", "kernel-level disassembly of why render is insensitive"],
+    "claims": "reports only which verified results change/not change under the faithful mode; no fix/acceptance claim"
+  }
+}

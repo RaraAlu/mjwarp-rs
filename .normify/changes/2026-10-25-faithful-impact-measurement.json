@@ -5,7 +5,7 @@
     "zh": "只读实测：按 faithful FMA 口径，哪些已 verified 结果会变（影响矩阵）",
     "en": "Read-only measurement: which verified results change under faithful FMA semantics (impact matrix)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "用户正在拍板「验收工具链/判据」口径（①修实现到过 4 ULP / ②修实现+改容差 / ③换 GNU 验收 / ④双 target）。要给用户真实影响面：**如果按 faithful FMA 语义（硬件 FMA，等价 MSVC 默认或 GNU `-C target-feature=+fma`）验收，哪些已 verified 的结果会变、哪些不变、翻转与否**。本片只读：在 `git worktree` 里钉住 `5e000cb9`（避开 relmat 在改 `src/` 的污染），跑两口径的定向对照，产出影响矩阵；**不改代码/判据/期望值/已 verified 证据**，不新捕获参考（缺参考的项如实标「无参考不可判」）。",
     "en": "Produce a read-only impact matrix: which verified results flip under faithful FMA semantics, using an isolated worktree pinned at 5e000cb9 and directed re-runs only."
@@ -30,17 +30,29 @@
   },
   "note": "Arch 2026-10-25 登记（Chief 提议）。目的：在用户拍板前拿到「若切 faithful 口径，哪些已 verified 结果会翻转」的真实影响面；这是 ①/②/③/④ 决策的关键依据，也是 fix 片落地后 before/after 基线。只读、可并行（worktree 隔离），GPU 窗口与 relmat 片串行统一排。缺参考的项一律标「无参考不可判」，不新捕获。",
   "revision": {
-    "before": "3d9d13b4d09edb29fdad5a286a568822f878a767",
+    "before": "b1761c08e31074ff7bd2c51ef5bd3a53c1f2bb94",
     "after": null
   },
   "created_at": "2026-10-25T18:35:00.000Z",
-  "updated_at": "2026-10-25T18:35:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T18:12:52.512Z",
+  "closed_at": "2026-10-25T18:12:52.512Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "json",
       "path": "docs/development-evidence/faithful-impact-measurement/receipt.json",

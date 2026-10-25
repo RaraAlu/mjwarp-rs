@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-faithful-impact-measurement",
+  "role": "QA",
+  "status": "measurement_complete_pending_arch_review",
+  "pinned_commit": "5e000cb9",
+  "worktree": "target/worktrees/faithful-5e000cb9",
+  "repo_head_at_review": "3a738c29",
+  "execution_note": "measurements executed in worktree pinned at 5e000cb9; gate/check executed on the main tree (HEAD 5278847c) so the gate binds the current tree",
+  "nature": "read-only impact measurement; no product/criteria/tolerance/gate/G01 change; no new reference capture; CPU-only parts + one approved GPU window",
+  "modes": {
+    "repo_default_gnu": "config rustflags -C link-dead-code=yes, no FMA",
+    "gnu_fma_faithful": "RUSTFLAGS=-C target-feature=+fma (replaces config rustflags; no link-dead-code)",
+    "gnu_fma_ldc": "RUSTFLAGS='-C target-feature=+fma -C link-dead-code=yes' (CPU-only isolation variant)"
+  },
+  "rustflags_config_interaction": {
+    "default_has_link_dead_code": true,
+    "gnu_fma_has_link_dead_code": false,
+    "gnu_fma_has_target_feature_fma": true,
+    "gnu_fma_ldc_has_both": true,
+    "conclusion": "RUSTFLAGS replaces .cargo/config.toml target rustflags; link-dead-code is dropped unless re-added",
+    "evidence": "logs/rustc-command-lines.txt"
+  },
+  "clean_build_criterion": {
+    "dedicated_target_dirs": [
+      "target/faithful/gnu-default", "target/faithful/gnu-fma", "target/faithful/gnu-fma-ldc",
+      "target/faithful/gnu-default-cuda", "target/faithful/gnu-fma-cuda"
+    ],
+    "cargo_rust_env_cleared": true,
+    "rustc": "1.99.0 (b940084d7 2026-09-28) host x86_64-pc-windows-gnu",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "deps_files": {"cpu_default": 71, "cpu_fma": 71, "cpu_fma_ldc": 71, "cuda_probe_build": 91},
+    "worktree_eol_alignment": "tracked files aligned to main-checkout bytes (same blob, EOL-only difference); in-flight modified tracked files excluded; capture script sha f7135f31... restored"
+  },
+  "cpu_results": {
+    "rel_mat_10_10_world": {"gnu_default": true, "gnu_fma": true, "gnu_fma_ldc": true, "flip": false},
+    "sdf_rotation_5_scenes_80_80_bit_equal": {"gnu_default": true, "gnu_fma": true, "gnu_fma_ldc": true, "max_abs_zero": true, "flip": false},
+    "sdf_host_fixture_structure": {"gnu_default": "1 passed", "gnu_fma": "1 passed", "gnu_fma_ldc": "1 passed", "flip": false},
+    "case_evidence_upstream_f32_within_4ulp": {
+      "gnu_default": {"result": "pass", "frame": "3.838112e-7"},
+      "gnu_fma": {"result": "fail", "frame": "6.351978e-7"},
+      "gnu_fma_ldc": {"result": "fail", "frame": "6.351978e-7"},
+      "flip": true
+    }
+  },
+  "gpu_results": {
+    "window": "18:06:38Z-18:09:04Z, 20/20 runs exit 0, guard not tripped",
+    "items": [
+      {"item": "launcher regression", "gnu_default": "314/314, 3122/3122, 80/80; max ULP 0; failures 0", "gnu_fma": "same", "flip": false},
+      {"item": "primitive 3 cases", "gnu_default": "80/80 x3; max ULP 0", "gnu_fma": "same", "flip": false},
+      {"item": "multicontact 3 cases", "gnu_default": "314/314, 391/392 (max_pos_ulp=1), 80/80", "gnu_fma": "same", "flip": false},
+      {"item": "S7b1 depth/seg", "gnu_default": "cam0 76800/76800, cam1 43200, depth_mismatch 0 max_ulp 0, seg 0; rays=120000 recipe_max_ulp=0", "gnu_fma": "same", "flip": false},
+      {"item": "S7b2 RGB", "gnu_default": "120000 pixels mismatched 0 max_byte_diff 0 beyond_1_lsb 0; depth/seg regress 0", "gnu_fma": "same", "flip": false},
+      {"item": "S7b3 flag variants", "gnu_default": "5/5 matched; per-variant mismatched 0", "gnu_fma": "same", "flip": false},
+      {"item": "S7b3 AA spp=2", "gnu_default": "mismatched 0 max_byte_diff 0; repeat runs bitwise identical", "gnu_fma": "same", "flip": false},
+      {"item": "S7b3 baseline no-regression", "gnu_default": "RGB/depth/seg all 0", "gnu_fma": "same", "flip": false},
+      {"item": "S8 e2e same-recipe", "gnu_default": "120000 px, depth mismatch 0 max_ulp 0, RGB mismatched 0, hashes depth_seg=03efa95416bbd008 rgb=ed50f750936c0275", "gnu_fma": "same hashes", "flip": false},
+      {"item": "S8 camlight pose bits", "gnu_default": "origin/xmat mismatches [0,0]/[0,0], max_abs 0.0", "gnu_fma": "same", "flip": false}
+    ],
+    "identical_between_modes": 10,
+    "flips": 0
+  },
+  "window_facts": {
+    "valid_attempt": 3,
+    "start_utc": "2026-10-25T18:06:38Z",
+    "end_utc": "2026-10-25T18:09:04Z",
+    "duration_s": 146,
+    "pre": "NVIDIA GeForce RTX 4070 Ti SUPER, 3398 MiB used, 12664 MiB free, 35 %, 29 C",
+    "post": "NVIDIA GeForce RTX 4070 Ti SUPER, 3386 MiB used, 12676 MiB free, 14 %, 30 C",
+    "samples": {"count": 416, "interval_ms": 250, "used_max_mib": 4738, "used_min_mib": 3376, "free_min_mib": 11324, "util_max": 63, "temp_max_c": 30},
+    "guard_params": {"increment_limit_mib": 3072, "free_floor_mib": 10240, "new_cuda_compute_abort": "yes unless exe matches ^(g10_p5_|render_)", "cpu_only_processes": "recorded only"},
+    "guard_tripped": false,
+    "in_window_compilation": 0,
+    "residual_cuda_compute_pid_of_this_task": 0,
+    "residual_processes": "none",
+    "cpu_only_processes_of_other_agents": "recorded, not aborted (logs/cpu-process-observations-summary.txt)"
+  },
+  "attempts": [
+    {"attempt": 1, "status": "ABORTED_BY_GUARD_INVALID", "note": "v1 name-based guard tripped on another agent's CPU lib-test binary; 2/20 runs; excluded", "record": "logs/window-attempt-1-aborted.txt"},
+    {"attempt": 2, "status": "INVALID_EXCLUDED", "note": "driver env-scope bug: CARGO_TARGET_DIR/RUSTFLAGS cleared per test -> 9/10 +fma runs degraded to default GNU and in-window recompiles; excluded", "record": "logs/window-attempt-2-invalid.txt"},
+    {"attempt": 3, "status": "VALID_USED", "note": "env stable per mode; 20/20 exit 0; no in-window compilation; correct target dirs", "record": "logs/window-attempt-3-final.txt"}
+  ],
+  "impact_scope": {
+    "flips": ["case_evidence::upstream_f32_within_4ulp (CPU frame judgement: pass 3.838112e-7 -> fail 6.351978e-7)"],
+    "unchanged": [
+      "G5 rel_mat 10/10 world", "SDF 40/40 (5 scenes x 80/80 contacts)",
+      "launcher 314/3122/80", "primitive 80/80 x3", "multicontact 314/391/80",
+      "render S7b1 depth/seg 120000/120000", "render S7b2 RGB zero diff", "render S7b3 flags/AA/baseline",
+      "render S8 e2e 120000/120000 and camlight pose bits"
+    ],
+    "missing_reference_items": [],
+    "conclusion": "narrow impact: only the CPU case_evidence frame judgement flips; all GPU bit-level / RGB comparisons are identical between the two modes in this window"
+  },
+  "boundaries": {
+    "read_only": true,
+    "modified_product_code": false,
+    "modified_criteria_tolerance": false,
+    "new_reference_captured": false,
+    "not_run": ["render perf", "Linux", "other GPUs", "kernel-level mechanism of render insensitivity"],
+    "gpu_window_budget": "cumulative ~358 s across 3 attempts, inside approved 10-minute exclusive window"
+  },
+  "evidence_files": [
+    "README.md", "receipt.json", "artifacts-sha256.json", "impact-matrix.json", "cpu-matrix.json",
+    "run_cpu_matrix.ps1", "run_gpu_prepare.ps1", "run_gpu_window.ps1",
+    "qa_eol_sync.py", "qa_impact_matrix.py", "qa_trim_logs.py", "qa_artifacts_sha256.py",
+    "logs/"
+  ]
+}
