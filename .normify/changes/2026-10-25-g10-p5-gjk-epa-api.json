@@ -5,7 +5,7 @@
     "zh": "G10@P5 GJK/EPA 公开 API 与集成测试（physics/mod.rs re-export + tests/gjk_epa.rs）",
     "en": "G10@P5 GJK/EPA public API and integration test (physics/mod.rs re-export plus tests/gjk_epa.rs)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "G2（`2026-10-25-g10-p5-gjk-epa`）落地了 GJK/EPA 语义与靶向测试，但集成测试 `tests/gjk_epa.rs` 需要从 crate 外部路径 `mjwarp_rs::physics::{…}` 取公开 API，而 `src/physics/mod.rs` 的 `mod collision;` 为私有、gjk 新增类型只能经 mod.rs 的 `pub use collision::{…}` 暴露；该文件不在 G2 的 files 白名单，且运行中任务的范围已冻结，故拆出本小片：在 `src/physics/mod.rs` 增加与原模块一致模式的 re-export 行（仅导出、无逻辑），并把 G2 已完成对账的夹具级对比测试作为集成测试 `tests/gjk_epa.rs` 落地（复用 G2 已产出的 in-crate 测试主体，不重复实现、不新增数值口径）。不改任何产品语义与已验收数值判据。",
     "en": "G2 (2026-10-25-g10-p5-gjk-epa) delivered the GJK/EPA semantics and targeted tests, but the integration test tests/gjk_epa.rs needs the public API through mjwarp_rs::physics::{...}; src/physics/mod.rs declares mod collision as private, so the new gjk types can only be exposed via the pub use in mod.rs. That file is not in G2's file allowlist and a running task's scope is frozen, so this small slice is split out: add re-export lines in src/physics/mod.rs following the existing per-module pattern (exports only, no logic), and land the fixture-based comparison test that G2 already reconciled as the integration test tests/gjk_epa.rs (reusing G2's in-crate test body, no duplicate implementation and no new numerical criteria). No product semantics and no already-verified numerical criteria are changed."
@@ -39,7 +39,8 @@
     "after": null
   },
   "created_at": "2026-10-25T16:10:00.000Z",
-  "updated_at": "2026-10-25T08:08:33.756Z",
+  "updated_at": "2026-10-25T08:18:52.424Z",
+  "closed_at": "2026-10-25T08:18:36.553Z",
   "checks": [
     {
       "kind": "gate",
@@ -67,6 +68,14 @@
         "双平台通过",
         "上游完全等价"
       ]
+    }
+  ],
+  "addenda": [
+    {
+      "at": "2026-10-25T08:18:52.424Z",
+      "reason": "模块指纹刷新后重跑门禁",
+      "prev": null,
+      "hash": "sha256:cb631c83fab9ec2868c9b405e518e8543589890c2912e5ca2469382723fd8e25"
     }
   ]
 }
