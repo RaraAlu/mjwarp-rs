@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-hfield-host-independent-check",
+  "title": {
+    "zh": "G10@P5 hfield host 独立复核（粗筛候选集/prism 六顶点/四接触与 1e-3 去重/MAXCONPAIR 溢出/上游 f32 数值）",
+    "en": "G10@P5 hfield host independent review (coarse cull candidates, prism vertices, 0..3 contacts and 1e-3 dedup, MAXCONPAIR overflow, upstream f32 numerics)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G4（`2026-10-25-g10-p5-hfield-host`）做独立复核：QA 自写驱动（不复用交付的 hfield 实现或 authoring 脚本）独立重算——`_hfield_filter` 按 `hfield_size/nrow/ncol` 与 geom 世界位置选出的相邻 cell 候选集是否与上游一致（含边界截断）；prism 六顶点构造顺序与上游一致、hfield 与 SPHERE/CAPSULE/ELLIPSOID/CYLINDER/BOX/MESH 六类配对是否全部走 CONVEX（复用 G2 `ccd/support`）；`pos=0.5*(w1+w2)`、`normal=make_frame(w1-w2)`、`dist` 语义；0..3 四接触选择顺序与 `MIN_DIST_TO_NEXT_CONTACT=1e-3` 去重（重复接触点必须按全字段含 `geomcollisionid` 的多重集比较，不得静默丢弃）；`MJ_MAXCONPAIR=50` 溢出语义；数值对同配方上游 f32（CPU）≤4 ULP、位级优先，native f64 仅契约框架读数。不改产品代码、不改夹具、不改 G4 原证据。",
+    "en": "Independent review of G4 (task 2026-10-25-g10-p5-hfield-host): QA writes its own driver (not reusing the delivered hfield implementation or authoring scripts) to recompute - whether _hfield_filter selects the same adjacent-cell candidates from hfield_size/nrow/ncol and geom world position as upstream (including boundary truncation); whether prism six-vertex construction order matches upstream and all six hfield pairings (SPHERE/CAPSULE/ELLIPSOID/CYLINDER/BOX/MESH) route through CONVEX reusing G2 ccd/support; pos=0.5*(w1+w2), normal=make_frame(w1-w2) and dist semantics; the 0..3 contact selection order and MIN_DIST_TO_NEXT_CONTACT=1e-3 dedup (duplicate contact points must be compared as a full-field multiset including geomcollisionid and never silently dropped); MJ_MAXCONPAIR=50 overflow semantics; and numerics <=4 ULP (bit-level first) versus the same-recipe upstream mujoco_warp f32 on CPU, with native f64 as contract-framework reading only. No product-code, fixture or original-evidence changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "`_hfield_filter` 独立复算：候选 cell 集（数量与索引）与上游一致，覆盖法向/切向、边界 cell、单/多 cell 命中；越界/截断处理正确。",
+    "prism 六顶点：顶点顺序与坐标值位级/≤4 ULP 一致；hfield 与六类 geom 的配对全部走 CONVEX（不得绕过 G2 ccd 走解析近似）。",
+    "接触装配：`pos`、`normal`（`make_frame(w1-w2)`）、`dist` 与参考位级/≤4 ULP；**四接触与 `1e-3` 去重**：通过判据为 `worldid` 分组 + 全字段（含 `geomcollisionid`）稳定排序后多重集位级比较；`hfield-sphere`（8 行 6 个不同点）/`hfield-capsule`（7 行 3 个不同点）的重复接触点必须核出、不得被去重逻辑静默吞掉；原始顺序只作观察项且仅对本设备本后端成立。",
+    "`MJ_MAXCONPAIR=50` 溢出：构造/复核一个超容量场景，确认行为与上游一致（报错或按上游语义截断），不得越界写；证据记录溢出计数。",
+    "数值与参考：核对交付使用的参考是否为同配方上游 f32（CPU）且两次捕获位等、provenance 完整；QA 独立重采一遍对照；native f64 参考只作框架读数、不得当判据。",
+    "不回归：G2 的 5 case 判据、G3 的 `sdf-box` 80/80 位级、既有 plane-sphere/sphere-sphere/plane-box 语义不变；G4 改动只在声明路径（`src/physics/`、tests、scripts/authoring/g10-p5、fixtures/g10-p5、证据目录）；未改 S2–S8 证据、`fixtures/mjwarp-complex-physics/*.xml`、`Cargo.*`；证据计数与实测一致。",
+    "门禁 fmt + json receipt + forbid_claim；不跑全量 G01；**不需要 GPU**（host 阶段，CPU-only）。不得出现「原生放行」「精度达标」「上游完全等价」类表述。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-hfield-host"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-hfield-host-independent-check/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-10-25 预先登记：hfield 是 g10-p5 两条主线之一（SDF 侧已由 G3 交付），其四接触与重复点是上游最容易实现偏差的地方（G0b 已实测 hfield-sphere 8 行仅 6 个不同点、hfield-capsule 7 行仅 3 个不同点）。复核必须独立重算不能用交付日志；CPU-only，可与 G5 准备并行，不抢 GPU。",
+  "revision": {
+    "before": "1e7e61c5869436113297afdd02602697af94334c",
+    "after": null
+  },
+  "created_at": "2026-10-25T17:10:00.000Z",
+  "updated_at": "2026-10-25T17:10:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-hfield-host-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-hfield-host-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
