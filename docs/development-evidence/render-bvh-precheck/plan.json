@@ -462,19 +462,28 @@
         "slice": "S8",
         "task_id": "2026-10-25-render-bvh-s8-e2e",
         "owner": "Backend",
-        "normify_status": "in_progress",
-        "execution": "120-minute GPU window",
+        "normify_status": "verified",
+        "execution": "done (GPU 5,091 -> 5,053 MiB, no compute process left)",
         "evidence": "docs/development-evidence/render-bvh/s8-e2e/",
-        "note": "end-to-end: product camlight produces both cameras' data poses (including the TARGETBODY tracking camera) and feeds the renderer; RGB <=1 LSB, depth <=4 ULP and seg exact all against same-recipe (use_fast_math=False) references, S0b fast-math kept as a cross-recipe deviation only; no regression on the S7b1/S7b2/S7b3 baselines or AA/flag semantics; lifecycle and memory; evidence must carry the r01-p8 ten-item closing mapping for Arch's summary and must not claim full R01 pass or upstream equivalence"
+        "note": "commit d8bc9d8; product camlight chain (KinematicsPlan::with_camlight -> write_qpos -> update_rigid -> update_com -> update_camlight -> readback -> Vec<CameraPose> -> renderer.render) feeds the renderer; both cameras' data poses and the three light poses are bit-identical to the pinned reference (0 bit differences); counter-tests prove the render inputs come from the product, not fixtures (mutating a local fixture copy leaves the render bit-identical; using the mutated fixture pose as input changes 115,972/120,000 pixels; perturbing the product pose changes RGB/depth/seg by 18,859/19,182/9,464 and is reproducible); end-to-end RGB 120,000/120,000 pixels zero difference, depth bit-equal 0 ULP, seg 0 mismatch; two runs hash-identical; S0b fast-math kept as cross-recipe record only (cam0 max_byte_diff 1 on 2 pixels, cam1 bit-equal); baselines S7b1 6/6, S7b2 3/3, S7b3 6/6 (PTX unchanged), S6b 5/5 with 0 B growth; lifecycle and negative controls pass; r01-p8 ten-item mapping material included with explicit unmet list and no full-R01 claim. Known non-blocking note: host quat_to_mat differs from the warp-derived matrix by 1 ULP in 2 of 9 components (auxiliary only; the authoritative comparison is the 0-bit-difference data pose, which is what rendering consumes)"
       },
       {
         "slice": "S8 review",
         "task_id": "2026-10-25-render-bvh-s8-independent-check",
         "owner": "QA",
-        "normify_status": "proposed",
-        "execution": "60-minute GPU window, starts immediately after S8 is verified",
+        "normify_status": "in_progress",
+        "execution": "60-minute GPU window",
         "evidence": "docs/development-evidence/render-bvh/s8-independent-check/",
-        "note": "independent verification that camera data poses come from the product camlight and match the pinned reference bit-for-bit (including a counter-test that perturbing fixture poses changes the render), end-to-end same-recipe metrics, baselines and AA/flag semantics, lifecycle/memory, and honesty of the r01-p8 closing claims"
+        "note": "independent recompute of the camlight counter-tests, end-to-end same-recipe metrics, baselines and AA/flag semantics, lifecycle/memory, honesty of the r01-p8 closing claims, and a verdict on the 1-ULP host quat_to_mat auxiliary difference"
+      },
+      {
+        "slice": "render perf",
+        "task_id": "2026-10-25-render-bvh-perf",
+        "owner": "Backend",
+        "normify_status": "proposed",
+        "execution": "exclusive GPU window after the S8 review; starts on Arch's signal",
+        "evidence": "docs/development-evidence/render-bvh/perf/",
+        "note": "two-camera single-frame and AA(spp=2) timing min/median/p95 with warmup >=5 and iterations >=30, plus memory after create / peak / after destroy; relative benchmark only (no absolute or cross-hardware claims); closes r01-p8 acceptance item 3 on the render side"
       }
     ],
     "structural_decisions": [
