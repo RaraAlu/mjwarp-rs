@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-native-contact-tolerance-decision-b",
+  "title": {
+    "zh": "契约：native 侧接触字段按用户拍板 B 定为「待验收不放行、只作诊断」（native_error_v2 接触字段一节）",
+    "en": "Contract: native-side contact fields follow user decision B (pending acceptance, diagnostics only) in native_error_v2"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-10-25 拍板选项 B：`native_error_v2` 的接触字段（dist/pos/frame/normal）native 侧只作诊断、不做放行判定。本片只做契约措辞落地与证据归档：在 `docs/numerical-precision-contract.md` 的 native 参考优先级一节新增「接触字段（native 侧）」小节，写清四件事——① 接触字段 native 侧 = 待验收、不放行；② `qa-native-f64.json` 读数只作诊断/趋势，不参与通过/失败判定；③ 精度由「对上游 f32 的 ≤4 ULP 判据」承担（写明本条，避免被误读成接触字段没有精度要求）；④ 红线 `E_candidate <= 1.05*E_mjwarp` 在其它字段照旧生效、接触字段 native 侧不适用。不写任何生效 atol/rtol、不改对上游 f32 判据、不改已 verified 证据数字。证据目录记：判据原文、v3 材料引用与结论摘要、用户 2026-10-25 拍板记录（B）、样本量说明（ellipsoid-box 1 case/2 接触点，不可外推）。",
+    "en": "User decision (2026-10-25): option B for native_error_v2 contact fields (dist/pos/frame/normal) - native side is diagnostics only, never an admission gate. This slice lands the contract wording plus evidence: pending-acceptance status, qa-native-f64.json readings as diagnostics only, precision carried by the upstream-f32 <=4 ULP criterion (explicitly stated so it is not read as 'no precision requirement'), and the redline E_candidate <= 1.05*E_mjwarp still applies to other fields only. No effective atol/rtol, no change to upstream-f32 criteria, no change to verified numbers. Evidence records the criterion text, v3 material reference and conclusion, the user decision, and the sample-size caveat (ellipsoid-box, 1 case / 2 contact points)."
+  },
+  "modules": {},
+  "acceptance": [
+    "契约 `docs/numerical-precision-contract.md` 在「数值参考优先级」（`native_error_v2`）一节内新增「接触字段（native 侧）」小节，四条必须同时写明：① 接触字段（dist/pos/frame/normal）native 侧 = 待验收、不放行；② `qa-native-f64.json` 读数只作诊断/趋势，不参与通过/失败判定；③ 精度由「对上游 f32 的 ≤4 ULP 判据」承担（写明，避免被误读成接触字段没有精度要求）；④ 红线 `E_candidate <= 1.05*E_mjwarp` 在其它字段照旧生效，接触字段 native 侧不适用。",
+    "落款与依据：小节内标明用户 2026-10-25 拍板（选项 B）、样本量（真 native 仅 `ellipsoid-box` 1 case / 2 接触点，不可外推）、以及依据材料 `target/g10-p5-native-tolerance-candidates-v3.md` 的结论摘要（设备与上游 f32 对 native 的 pos/frame 差几乎相同 → 属引擎接触选择语义差异，不是精度差）。",
+    "证据目录 `docs/development-evidence/native-contact-tolerance-decision-b/`：README.md（判据原文引用、v3 材料引用与摘要、用户拍板记录 B、样本量说明、禁止表述清单）、receipt.json（含 `task_id` 供 json 检查）。禁止表述：不得写「接触字段精度已达标」「native 等价」「native 放行」；只能写「native 侧待验收、诊断读数见证据」。",
+    "不写任何生效 atol/rtol、不改对上游 f32 的 ≤4 ULP 判据、不改已 verified 证据数字（G2–G5 receipt）、不改 S2–S8 证据、不改 `Cargo.*` 与 `fixtures/mjwarp-complex-physics/*.xml`；新文件 ≤500 行。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过（任务 checks 已声明）；`normify check` 全部通过后串行提交，提交说明用中文、path-limited，只含契约与本证据目录。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P5-复杂物理",
+    "owner": "Arch",
+    "files": [
+      "docs/numerical-precision-contract.md",
+      "docs/development-evidence/native-contact-tolerance-decision-b/"
+    ],
+    "resources": [],
+    "priority": 70
+  },
+  "note": "Arch 2026-10-25 登记：用户经 Chief 拍板选项 B（native 侧接触字段只作诊断、不做放行判定）。背景：v2 材料把 `recapture_diff_report.json` 误标为「上游 f32 vs native」（实为 warp CPU vs CUDA 跨后端差），v2 作废；v3 只用真 native（MuJoCo C f64），唯一可比 case `ellipsoid-box`（2 world × 各 1 接触）显示设备与上游 f32 对 native 的 pos 4.546e-4 / frame 1.170e-3 几乎相同 → 引擎接触选择语义差异，不是实现或 f32 精度问题。选 A（粗门禁）会拿 1 个样本 + 语义差当判据、且比真实缺陷（8.3e-5）松 12×，故用户选 B。G6-3 按 B 落框架（不再标待拍板），G6 首步仍做真实产品输出对 native 的 E 复算（标样本量）+ `hfield-box` 配对判定（不可配对则记「样本不增」）。G6 独立复核须核对本契约措辞与诊断/放行边界。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-25T12:17:00.000Z",
+  "updated_at": "2026-10-25T12:21:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/native-contact-tolerance-decision-b/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-native-contact-tolerance-decision-b"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "接触字段精度已达标",
+        "native 等价",
+        "native 放行",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
