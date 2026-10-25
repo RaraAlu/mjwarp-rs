@@ -40,7 +40,7 @@
       "partial": 4,
       "unmet": 0,
       "uncovered_total": 6,
-      "uncovered_ids": ["UNC-1 multicontact 设备版", "UNC-2 NVRTC launcher", "UNC-3 primitive narrowphase", "UNC-4 Linux/T4", "UNC-5 G5 窗口逐秒峰值", "UNC-6 cylinder-box 深穿透额外采样面"]
+      "uncovered_ids": ["UNC-1 multicontact 设备版（partial：box/cylinder 已实装，mesh 未实现）", "UNC-2 NVRTC launcher（partial：cuda-probe 可用，默认管线未接）", "UNC-3 primitive narrowphase（partial：3/13 组合）", "UNC-4 Linux/T4", "UNC-5 G5 窗口逐秒峰值", "UNC-6 cylinder-box 深穿透额外采样面"]
     },
     "native_decision_b": "用户 2026-10-25 拍板 B：native 侧接触字段（dist/pos/frame/normal）只作诊断、不参与通过或失败；契约 `docs/numerical-precision-contract.md` ## 接触字段（native 侧）（提交 09896792）；未写任何生效 atol/rtol；接触精度仍由对上游 f32 判据承担；红线 1.05*E_mjwarp 只在其它字段生效。E 复算样本量=ellipsoid-box 1 case / 2 接触点（诊断性质、不可外推）：设备 vs native dist 3.979e-7、pos 4.546e-4、frame 1.170e-3、normal 1.170e-3，上游 f32 vs native 几乎相同 → 引擎接触选择语义差、非精度差。",
     "native_pairing_check": "hfield-box 不可配对：native 桥暴露的碰撞 ABI 只有模型字段拷贝（include/mjwarp_collision_probe.h / native/model_probe_collision.cpp），无 contact/narrowphase/hfield 输出；样本不增（真 native 仍 ellipsoid-box 1 case/2 接触点，且为读数）",
@@ -62,7 +62,7 @@
     "G6-2 性能已采集（独占窗口，HEAD 9c0a0480）：数据只作证据，不得声明性能达标、跨硬件等价或 NP04 放行；四列覆盖非同集（host 缺 box-box-margin、设备缺 convex-mesh/degenerate-mesh/hfield-box、上游缺 ellipsoid-box），不补齐、不跨列外推",
     "G6-3 native 已按用户 2026-10-25 拍板 B 落地（诊断不参与判定、未写生效 atol/rtol）；但 native 侧不提供放行信号属 B 既定后果，若未来要 native 放行须先扩样（native 接触输出探针）并重新拍板；`hfield-box` 不可配对、样本不增",
     "map 中 G6-1.2 与 G6-1.7 为 partial：HFIELD(32) 的 overflow=32 与 naconmax/naccdmax 截断行为均由 QA 独立复核覆盖，G5 交付片自身未含该 case（证据层级低于交付片直接证据）",
-    "六项 uncovered 均未覆盖：multicontact 设备版、NVRTC launcher、primitive narrowphase、Linux/T4、G5 窗口逐秒峰值、cylinder-box 深穿透额外采样面",
+    "六项 uncovered：UNC-1/2/3 已按设备三缺口片更新为 partial（multicontact box/cylinder 已实装、mesh 未实现；NVRTC launcher 经 cuda-probe 可用、默认管线未接；primitive 3/13 组合）；UNC-4 Linux/T4、UNC-5 G5 窗口逐秒峰值、UNC-6 深穿透 witness 面仍为未覆盖",
     "UNC-6 已按用户 2026-10-25 拍板 A 处置：不修、保持未覆盖（`deep-epa-witness-sampling` 定性结论见 `c44578be`/`ed88495d`、QA 复核 `2c052637`；根因收窄为「派生法线差（机制未定）」，非系统性缺陷）；声明面判据不调整，若未来覆盖该面需补 face/三顶点/权重数据并另立片",
     "NP03 其它字段 5% 红线全量未完成（native 接触字段按拍板 B 只作诊断）；NP04 只表示「已记录耗时与显存」，不构成放行",
     "本片不改任何已 verified 证据数字、不改已批准判据、不改 S2–S8/Cargo.*/fixtures XML；不宣称精度达标/上游完全等价/原生放行/双平台通过/接触字段精度已达标/性能达标"

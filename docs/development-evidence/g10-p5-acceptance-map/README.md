@@ -36,11 +36,11 @@ roadmap 任务 `2026-10-11-roadmap-g10-p5` 的 6 条 acceptance 里，实质只�
 | --- | --- | --- |
 | G6-3.1 | native 侧接触字段：用户 2026-10-25 拍板 B（待验收不放行、只作诊断） | **met（处置已落地，不提供放行信号）**：契约 `docs/numerical-precision-contract.md` `## 接触字段（native 侧）`（提交 `09896792`）+ 证据 `docs/development-evidence/native-contact-tolerance-decision-b/`；E 复算样本量 = `ellipsoid-box` 1 case / 2 接触点；`hfield-box` 仍不可配对、样本不增 |
 
-### 未覆盖六项（显式，均为 unmet，不得写成 met）
+### 未覆盖六项（显式；UNC-1/2/3 已按设备三缺口片更新为 partial，范围见下）
 
-1. multicontact 设备版未实装（UNC-1）
-2. NVRTC 产品 launcher 未接线（UNC-2）
-3. primitive narrowphase 设备版未实装（UNC-3）
+1. multicontact 设备版（UNC-1，**partial**）：`9a282074` 已实装 box/cylinder multicontact 并与上游接触数组逐字段对照（`cylinder-box` 314/314 位级、`box-box-margin` 391/392 位级）；**mesh multicontact 未实现**（需 mesh polygon ABI）。
+2. NVRTC 产品 launcher（UNC-2，**partial**）：`dfcc1bdc` 已实现并经 `cuda-probe` 特性实际调用，与 G5 探针三 case 逐字节一致（QA `bcd3c48b`）；**默认构建/默认产品管线未接入**。
+3. primitive narrowphase 设备版（UNC-3，**partial**）：`9d72159c`（+ `9a282074` 的 `box_box`）已覆盖 3/13 组合（sphere-box/capsule-box/box-box），各 case 逐字节/1 ULP 内一致；**其余 10 组合未实现**。
 4. Linux/T4 未覆盖（UNC-4；用户 2026-10-24 裁决 Linux 集中回测）
 5. G5 窗口逐秒峰值未取到（UNC-5；Start-Job 相对路径缺陷，脚本已修，G6 性能窗口按 0.5 s 采样另列）
 6. `cylinder-box` 深穿透额外采样面 4/24 单字段超 4·ULP@scale（UNC-6；x1 1/24 max 8.926e-7、x2 3/24 max 1.527e-7）——**用户 2026-10-25 拍板 A：不修、列未覆盖**。定性归因见 `deep-epa-witness-sampling`（`c44578be` + 措辞修正 `ed88495d`，QA 复核 `2c052637`）：非系统性缺陷，根因收窄为「派生法线差（机制未定）」，1/24 明显超 + 2/24 边界级，与深度无显著线性相关（n=24）。**声明面判据不调整**（witness 判据保持原样，x1/x2 不降级为信息量）；若未来要覆盖该面，需补 `face_idx`/三顶点/权重数据并另立片。

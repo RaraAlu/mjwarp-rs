@@ -148,7 +148,7 @@
         "docs/development-evidence/g10-p5-gpu-kernels/receipt.json"
       ],
       "status": "partial",
-      "reason": "模块与写入范围已按 G2→G5 顺序补齐，但 multicontact 设备版、NVRTC 产品 launcher、primitive narrowphase 未实装/未接线（见 uncovered 1-3）；G1 model-fields 被 abandon，模型字段以 fixtures 方式落地。",
+      "reason": "模块与写入范围已按 G2→G5 顺序补齐；设备三缺口片已补：NVRTC launcher（`dfcc1bdc`，经 cuda-probe 可用）、primitive 3/13 组合（`9d72159c`）、multicontact box/cylinder（`9a282074`）。仍缺：mesh multicontact（需 mesh polygon ABI）、primitive 其余 10 组合、默认产品管线接线（见 uncovered 1-3 的 partial 说明）；G1 model-fields 被 abandon，模型字段以 fixtures 方式落地。",
       "impact": "G10@P5 的完整产品内核路径未闭合；这三项不得计入 met，G6 声明只能覆盖已交付路径。"
     },
     {
@@ -231,42 +231,52 @@
   "uncovered": [
     {
       "requirement_id": "UNC-1",
-      "title": "multicontact 设备版未实装",
-      "implementation": "设备 ccd_pair 写接触当前单接触；G5 三例只做 ccd() witness 对照",
+      "title": "multicontact 设备版：box/cylinder 已实装，mesh 未实装",
+      "implementation": "设备 ccd_pair 写接触曾只有单接触；现由 `2026-10-25-g10-p5-multicontact-cuda`（`9a282074`）实装 multicontact（≤4 接触），`multicontact_geom.cu`/`multicontact_clip.cu`/`multicontact.cu`；mesh multicontact 未实现（需 mesh polygon ABI 输入）",
       "criterion_quote": "上游 eval_ccd_write_contact 在 box/mesh/cylinder 组合走 multicontact（≤4 接触）",
-      "measured": "G5：cylinder-box/box-box-margin/mesh-mesh 接触数组不做全等；witness 对照已过（dist/x1/x2 位级优先，overflow=0，failed_cases=[]）",
+      "measured": "设备 multicontact 与同配方上游 f32 GPU 接触数组对照（`worldid+geomcollisionid` 排序后逐字段）：`cylinder-box` **314/314 位级**（nacon 8）；`box-box-margin` 走 PRIMITIVE `box_box` 路径（见 UNC-3）**391/392 位级**（pos 1 ULP ≤4·ULP(scale)）；`mesh-mesh` 为单接触路径 **80/80 位级**。mesh multicontact 未实装（记未覆盖）。",
       "evidence_paths": [
-        "docs/development-evidence/g10-p5-gpu-kernels/receipt.json（unmet 第 1 条）",
-        "docs/development-evidence/g10-p5-gpu-kernels-independent-check/README.md"
+        "docs/development-evidence/g10-p5-multicontact-cuda/README.md（§2 实现对照、§3 窗口结果、§7 未覆盖）",
+        "docs/development-evidence/g10-p5-multicontact-cuda/receipt.json",
+        "docs/development-evidence/g10-p5-multicontact-cuda/window-output.txt（三 case 位级/ULP）",
+        "docs/development-evidence/g10-p5-gpu-kernels-independent-check/README.md（G5 期原始缺口记录）"
       ],
-      "status": "unmet",
-      "reason": "设备接触写入只有单接触路径；multicontact 保留在后续小片。",
-      "impact": "设备 multicontact 路径的接触数组未与上游对照；G10@P5 声明不得覆盖该路径。"
+      "status": "partial",
+      "reason": "box/cylinder 的 multicontact 接触数组已实装并与上游参考逐字段对照；**mesh 参与的 multicontact 仍缺**（需 mesh polygon ABI 输入），且未做性能测试。",
+      "impact": "G10@P5 可声明「设备 multicontact 已覆盖 box/cylinder 组合」，**不得**声明覆盖 mesh 参与的多接触路径；mesh multicontact 仍为未覆盖项。"
     },
     {
       "requirement_id": "UNC-2",
-      "title": "NVRTC 产品 launcher 未接线",
-      "implementation": "src/runtime/collision_gpu.rs + ignored 产品入口未实现/未接线",
+      "title": "NVRTC 产品 launcher：已实现（cuda-probe 特性），默认产品管线未接入",
+      "implementation": "`2026-10-25-g10-p5-nvrtc-product-launcher`（`dfcc1bdc`）：`src/runtime/collision_gpu.rs` + `collision_gpu/*`，NVRTC 运行时编译设备源 → PTX → load/launch/回读；产品入口经 `#[cfg(feature = \"cuda-probe\")]` 启用",
       "criterion_quote": "GPU 产品入口须经 NVRTC launcher 实际可调用",
-      "measured": "G5 仅有独立 nvcc 探针验证设备源；产品 launcher 路径未接线（G5 receipt unmet）",
-      "evidence_paths": ["docs/development-evidence/g10-p5-gpu-kernels/receipt.json（unmet 第 3 条）"],
-      "status": "unmet",
-      "reason": "NVRTC launcher 小片未实施。",
-      "impact": "产品级 GPU 入口不可用；G10@P5 的 GPU 内核只有独立探针证据。"
+      "measured": "产品入口 vs G5 探针 `out1`：`hfield-sphere` **314/314**、`sdf-box` **3122/3122**、`ellipsoid-box` **80/80** 逐字节一致（QA 独立复核 `bcd3c48b` 用自建 dumper 复算，3/3 一致）；NVRTC 冒烟 PTX 1,863,043 B/3 入口；错误路径 12 个 CPU 单测。**未接入默认产品管线**（默认构建不含 CUDA 入口）。",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-nvrtc-product-launcher/README.md（§5 特性门控与边界）",
+        "docs/development-evidence/g10-p5-nvrtc-product-launcher/receipt.json",
+        "docs/development-evidence/g10-p5-nvrtc-product-launcher/window-output.txt",
+        "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/README.md（QA 独立复核）"
+      ],
+      "status": "partial",
+      "reason": "NVRTC 产品 launcher 已实现并经 `cuda-probe` 特性实际调用、与探针逐字节一致；但**默认构建/默认产品管线未接入**（需后续接线片），且 NVRTC 运行库须在 PATH。",
+      "impact": "G10@P5 可声明「产品 GPU 入口经 cuda-probe 特性可用且与探针一致」；**不得**声明默认产品管线已具备 CUDA 入口。"
     },
     {
       "requirement_id": "UNC-3",
-      "title": "primitive narrowphase 设备版未实装",
-      "implementation": "上游 (SPHERE,BOX)/(CAPSULE,BOX) 走 primitive_narrowphase；设备侧未实现",
+      "title": "primitive narrowphase 设备版：3/13 组合已实装，其余未实现",
+      "implementation": "`2026-10-25-g10-p5-primitive-narrowphase-cuda`（`9d72159c`，含 `box_box` 由 multicontact 片 `9a282074` 一并移植）：`primitive.cu`/`primitive_wrapper.cu`/`boxbox.cu`/`boxbox_wrapper.cu`；本项目 fixture 均 `nativeccd=disable` → `(BOX,BOX)` 被覆盖为 PRIMITIVE，故 dispatch 共 **13 组合**",
       "criterion_quote": "上游 dispatch：sphere-box/capsule-box 由 primitive_narrowphase 产生接触，不走 ccd 内核",
-      "measured": "G5 探针不把这些 case 列入设备 ccd 对照；QA 复核同样标注未覆盖",
+      "measured": "设备 vs QA 上游 f32 GPU 参考：`sphere-box-shallow`/`sphere-box-deep`/`capsule-box` 各 **80/80 逐字节**（0 ULP）；`box-box-margin`（PRIMITIVE `box_box`）**391/392 位级**（pos 1 ULP）；已实现 3/13 组合（sphere-box、capsule-box、box-box），其余 10 个未实现并如实记未覆盖（QA 复核 `46380ea3` 已确认口径 13/11）。",
       "evidence_paths": [
-        "docs/development-evidence/g10-p5-gpu-kernels/receipt.json（unmet 第 2 条）",
-        "docs/development-evidence/g10-p5-gpu-kernels-independent-check/README.md"
+        "docs/development-evidence/g10-p5-primitive-narrowphase-cuda/README.md（§2 实现对照含 13 组合表、§6 未覆盖）",
+        "docs/development-evidence/g10-p5-primitive-narrowphase-cuda/receipt.json",
+        "docs/development-evidence/g10-p5-primitive-narrowphase-cuda/window-output.txt",
+        "docs/development-evidence/g10-p5-primitive-narrowphase-cuda-independent-check/README.md（QA 独立复核与覆盖口径发现）",
+        "docs/development-evidence/g10-p5-multicontact-cuda/README.md（box_box 归属 primitive family）"
       ],
-      "status": "unmet",
-      "reason": "设备 primitive narrowphase 未实现。",
-      "impact": "sphere-box/capsule-box 等组合的设备接触无产品证据，不得计入 G10@P5。"
+      "status": "partial",
+      "reason": "primitive narrowphase 设备版已覆盖 3/13 组合（sphere-box/capsule-box/box-box）并与上游参考逐字段对照；**其余 10 组合未实现**（plane-*、sphere-sphere/capsule/cylinder、capsule-capsule 等），无效值级证据。",
+      "impact": "G10@P5 可声明「设备 primitive narrowphase 覆盖 3 个组合」；**不得**声明 primitive dispatch 全覆盖。"
     },
     {
       "requirement_id": "UNC-4",
@@ -321,6 +331,6 @@
     "partial": 4,
     "unmet": 0,
     "uncovered_total": 6,
-    "note": "perf（G6-2.2）已按独占窗口采集；NP03 其它字段 5% 红线全量完成前，G10@P5 不得整体声明通过；G6-3.1 只表示「native 侧按用户拍板 B 处置已落地」，不提供放行信号；UNC-6 按用户 2026-10-25 拍板 A 处置（不修、列未覆盖，声明面判据不调整）；本 map 只做证据映射，不改任何已 verified 数字。"
+    "note": "perf（G6-2.2）已按独占窗口采集；NP03 其它字段 5% 红线全量完成前，G10@P5 不得整体声明通过；G6-3.1 只表示「native 侧按用户拍板 B 处置已落地」，不提供放行信号；UNC-6 按用户 2026-10-25 拍板 A 处置（不修、列未覆盖，声明面判据不调整）；UNC-1/2/3 已按设备三缺口片更新为 partial（范围见各行：multicontact 覆盖 box/cylinder、mesh 未实现；NVRTC launcher 经 cuda-probe 可用、默认管线未接；primitive 3/13 组合），仍未覆盖项含 mesh multicontact、primitive 其余 10 组合、默认管线接线、Linux/T4、G5 逐秒峰值、深穿透 witness 面；本 map 只做证据映射，不改任何已 verified 数字。"
   }
 }
