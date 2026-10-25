@@ -1,0 +1,259 @@
+{
+ "schema": 1,
+ "task_id": "2026-10-25-g10-p5-gpu-kernels-independent-check",
+ "kind": "qa-independent-review",
+ "status": "final",
+ "reviewed": {
+  "task": "2026-10-25-g10-p5-gpu-kernels",
+  "commit": "e00de497",
+  "fix_commit": "01690e53",
+  "parent": "1f882361",
+  "title": "G5 GPU 内核（设备 GJK/EPA/SDF/hfield/接触写入）"
+ },
+ "verdict": {
+  "conclusion": "pass_with_findings",
+  "blocking": 0,
+  "general": 2,
+  "observation": 1,
+  "summary": "交付声明面在 QA 自算判据下通过：接触数组 4 例（ellipsoid-box 2/2、hfield-sphere 8/8、hfield-capsule 7/7、sdf-box 80/80）dist/pos/frame 均在 4·ULP 口径内（hfield 两例全位等、sdf-box dist 80/80 位等）；容量/截断 2 例不越界、overflow 位多重集相等；witness 基础 3 例位级、强制 horizon=2 三例 dist 位等（FLOAT_MAX）且 ncontact=0 相等；自造 is_discrete 与 hfield MAXCONPAIR=50 溢出例通过；设备两次运行位级一致；不回归 438/0/2。发现 2 项（CCD 溢出位多报 16、cylinder-box 深穿透姿态采样 4/24 world 单字段超判据）+ 观察 1 项（native f64 不能作容差依据，G6 候选改为同码跨后端基线）。未覆盖：multicontact 设备版未实装（未过）、primitive 三例、性能。"
+ },
+ "criterion": {
+  "source": "Arch 裁决 2；QA 独立重算",
+  "count": "相等且 worldid 分组后逐 world 相等",
+  "dist": "自身量级 <=4 ULP；ref==0 用 4 ULP@1.0 绝对差",
+  "pos/x1/x2": "scale=max_i|ref_i|，逐分量 |dev-ref| <= 4*ULP(scale)",
+  "frame/normal": "scale=1.0，|diff| <= 4 ULP@1.0 = 4.768e-7",
+  "params/ints": "位级相等",
+  "row_order": "raw 行序不作判据（atomic nacon 顺序不稳定）；接触行按 (worldid,dist,pos,frame) 排序后比较"
+ },
+ "method": {
+  "independent": [
+   "qa_prepare_capture.py：QA 自写上游 f32 GPU 捕获（mujoco_warp 3.15.0 / warp 1.15.0，device=cuda），每例两次独立捕获 + 本 case 输入 bins；不读交付 result.json",
+   "probe/qa_probe.cu + qa_build_probe.ps1：QA 自写 nvcc launcher，#include 产品 14 个 .cu（不复制交付 probe），-O3 --fmad=true -arch=sm_89；源 sha256 d58350d685b502acdf5968bd66f05193ac8c3b7f243b07bd541e015ded94374b",
+   "qa_compare_gpu.py：自算 ULP/绝对差与 worldid 分组；不引用交付结论",
+   "qa_backend_precision.py：同码跨后端（warp CPU vs warp CUDA f32）误差分布 + native f64 材料核对",
+   "qa_window_run.ps1 / qa_gpu_rerun.ps1：窗口前置基线、phase1/2/3、收尾基线、query-compute-apps、残留检查；rerun 带自动守卫（>=3072 MiB 或 >50% 设备即停）"
+  ],
+  "product_tree_untouched": true,
+  "delivery_evidence_untouched": true,
+  "fixtures_untouched": true,
+  "gpu_used": true
+ },
+ "environment": {
+  "rustc": "1.99.0",
+  "cargo": "1.99.0",
+  "python": "3.12.13",
+  "mujoco": "3.15.0",
+  "warp": "1.15.0",
+  "mujoco_warp": "3.15.0",
+  "numpy": "2.5.4",
+  "nvcc": "12.8.93 (target/toolchains/cuda-12.8.1)",
+  "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER 16 GiB, sm_89, Driver 13.2",
+  "upstream_warp_reports": "CUDA Toolkit 12.9（与本探针 nvcc 12.8.93 独立编译，不共享二进制）"
+ },
+ "gpu_window": {
+  "main": {
+   "start": "2026-10-25T19:08:49.351+08:00",
+   "end": "2026-10-25T19:09:17.785+08:00",
+   "wall_s": 28.43,
+   "baseline_used_mib": 4021,
+   "total_mib": 16376,
+   "sample_points": 52,
+   "first_sample_mib": 4017,
+   "peak_time": "19:09:15.716",
+   "peak_used_mib": 6318,
+   "peak_delta_mib": 2297,
+   "peak_pct_of_device": 38.6,
+   "after_used_mib": 4310,
+   "after_util_pct": 1,
+   "residual_qa_probe": 0,
+   "foreign_compute_apps_before": 34,
+   "foreign_compute_apps_after": 34,
+   "unnamed_apps_insufficient_permissions": 3,
+   "gpu_busy_estimate": "<5 s（kernel ms 级；wall 主要是 CPU 侧 warp JIT 编译：smooth 3685.70 ms、witness_kernel 14731.47 ms 等）",
+   "guard": {
+    "old_rule": "峰值增量 <1 GiB",
+    "corrected_rule": "核函数相位增量 <1 GiB；总增量暂态允许，但 >=3072 MiB 或 >50% 设备即停",
+    "this_round": "本轮 +2297 MiB 触发旧阈值，按修正口径接受（Arch 裁决）",
+    "deviation": "主窗口脚本只采样不自动中止；峰值出现在 19:09:15.7、距窗口结束 2 s，phase2/3 核相位未单独采样（限制）"
+   }
+  },
+  "rerun": {
+   "start": "2026-10-25T19:15:40.839+08:00",
+   "end": "2026-10-25T19:15:42.075+08:00",
+   "wall_s": 1.19,
+   "baseline_used_mib": 3982,
+   "samples": 4,
+   "peak_time": "19:15:41.378",
+   "peak_used_mib": 5463,
+   "peak_delta_mib": 1481,
+   "peak_pct_of_device": 33.4,
+   "guard_triggered": false,
+   "after_used_mib": 3982,
+   "residual_qa_probe": 0,
+   "two_runs_log_identical": true,
+   "note": "只重跑设备探针，不重采上游；window-probe-rerun-log.txt 为旧标签输出（1024/58），权威值按原始 memory 文件重算写 window-probe-rerun-summary.txt，脚本已改为 3072/50%"
+  }
+ },
+ "results": {
+  "contact_cases": {
+   "ellipsoid-box": {"nacon": [2, 2], "dist_bit_equal": "1/2", "dist_max_abs": 1.862645149230957e-09, "dist_max_ulp": 2.0, "pos_bit_equal": "1/2", "pos_max_abs": 3.0195224098861217e-09, "pos_max_ulp_at_scale": 0.810546875, "frame_bit_equal": "0/2", "frame_max_abs": 3.7980915834623374e-07, "params_bit_equal": true, "efc_all_minus_one": true, "overflow": [0, 0], "two_runs_bitwise_identical": true, "pass": true},
+   "hfield-sphere": {"nacon": [8, 8], "dist_bit_equal": "8/8", "dist_max_ulp": 0.0, "pos_bit_equal": "8/8", "pos_max_abs": 0.0, "frame_bit_equal": "8/8", "frame_max_abs": 0.0, "params_bit_equal": true, "efc_all_minus_one": true, "overflow": [0, 0], "two_runs_bitwise_identical": true, "pass": true},
+   "hfield-capsule": {"nacon": [7, 7], "dist_bit_equal": "7/7", "dist_max_ulp": 0.0, "pos_bit_equal": "7/7", "pos_max_abs": 0.0, "frame_bit_equal": "7/7", "frame_max_abs": 0.0, "params_bit_equal": true, "efc_all_minus_one": true, "overflow": [0, 0], "two_runs_bitwise_identical": true, "pass": true},
+   "sdf-box": {"nacon": [80, 80], "dist_bit_equal": "80/80", "dist_max_ulp": 0.0, "pos_bit_equal": "46/80", "pos_max_abs": 7.450580596923828e-09, "pos_max_ulp_at_scale": 1.0, "frame_bit_equal": "74/80", "frame_max_abs": 2.384185791015625e-07, "params_bit_equal": true, "efc_all_minus_one": true, "overflow": [0, 0], "upstream_two_captures_raw_identical": false, "note": "上游 raw 行序不稳定（atomic），排序后比位型", "two_runs_bitwise_identical": true, "pass": true}
+  },
+  "capacity_cases": {
+   "sdf-box-naconmax40": {"naconmax": 40, "nacon": [80, 80], "rows_written": [40, 40], "truncated": true, "no_oob_write": true, "overflow": [0, 0], "pass": true},
+   "ellipsoid-box-naccdmax1": {"naccdmax": 1, "nacon": [1, 1], "rows_written": [1, 1], "nccd_device": 2, "no_oob_write": true, "overflow_device": [16, 0], "overflow_upstream": [0, 16], "overflow_multiset_equal": true, "contact_fields_compared": false, "note": "CCD 溢出按 world 归属是 atomic 竞态，world 归属不作判据", "pass": true}
+  },
+  "witness": {
+   "cylinder-box": {"dist_bit_equal": "2/2", "x1_max_abs": 3.725290298461914e-09, "x1_bad": 0, "x2_max_abs": 0.0, "ncontact_equal": true, "pass": true},
+   "box-box-margin": {"dist_bit_equal": "2/2", "x1_max_abs": 0.0, "x2_max_abs": 0.0, "ncontact_equal": true, "pass": true},
+   "mesh-mesh": {"dist_bit_equal": "2/2", "x1_max_abs": 0.0, "x2_max_abs": 0.0, "ncontact_equal": true, "pass": true},
+   "box-box-margin-sweep": {"worlds": 24, "dist_bit_equal": "24/24", "x1_max_abs": 0.0, "x2_max_abs": 1.1641532182693481e-09, "pass": true},
+   "mesh-mesh-sweep": {"worlds": 24, "dist_bit_equal": "22/24", "dist_max_ulp": 1.0, "x1_max_abs": 3.725290298461914e-09, "x2_max_abs": 1.862645149230957e-09, "pass": true},
+   "cylinder-box-sweep": {"worlds": 24, "dist_bit_equal": "17/24", "dist_max_ulp": 4.0, "dist_bad": 0, "x1_max_abs": 8.925999281927943e-07, "x1_bad": 1, "x2_max_abs": 1.5273690223693848e-07, "x2_bad": 3, "ncontact_equal": true, "overflow": [0], "pass": false, "note": "额外采样面，发现 2"},
+   "forced_horizon_2": {"cylinder-box-h2": {"dist_bit_equal": "2/2", "dist_value": "FLOAT_MAX(1e30)", "ncontact": [0, 0], "overflow_device": [272, 272], "overflow_upstream": [256, 256]}, "box-box-margin-h2": {"dist_bit_equal": "2/2", "ncontact": [0, 0], "overflow_device": [272, 272], "overflow_upstream": [256, 256]}, "mesh-mesh-h2": {"dist_bit_equal": "2/2", "ncontact": [0, 0], "overflow_device": [0, 272], "overflow_upstream": [0, 256]}, "pass_values": true, "finding": "设备多置 CCD(1<<4)=16，发现 1"}
+  },
+  "custom": {
+   "is_discrete-box-box": {"base": {"dist_bit_equal": "2/2", "pass": true}, "sweep": {"worlds": 24, "dist_bit_equal": "23/24", "dist_max_ulp": 1.0, "x1_max_abs": 0.0, "x2_max_abs": 0.0, "pass": true}},
+   "hfield-maxconpair-overflow": {"nacon": [4, 4], "prism_count": 50, "overflow_device": [32], "overflow_upstream": [32], "hfield_bit_set": true, "dist_bit_equal": "4/4", "pos_bit_equal": "3/4", "pos_max_abs": 2.384185791015625e-07, "pos_max_ulp_at_scale": 2.0, "frame_max_abs": 1.7881393432617188e-07, "pass": true}
+  }
+ },
+ "findings": [
+  {
+   "id": 1,
+   "severity": "general",
+   "title": "设备在 EPA FLOAT_MAX 时额外置 CCD 溢出位",
+   "detail": "强制 horizon=2 三例 overflow 设备 272 vs 上游 256，差 16=OverflowType.CCD(1<<4)；上游只置 EPA_HORIZON(1<<8)。ncontact=0 两侧相等、dist 位等于 FLOAT_MAX，交付 3 例不触发。",
+   "impact": "接触数值不受影响；overflow 位多报，下游若按位判断会误以为 CCD 容量不足。",
+   "registered_task": "g10-p5-ccd-overflow-bit-fix"
+  },
+  {
+   "id": 2,
+   "severity": "general",
+   "title": "cylinder-box 深穿透随机姿态采样 4/24 world 单字段超 4·ULP@scale",
+   "detail": "x1 1/24 world 超（max 8.926e-7），x2 3/24 world 超（max 1.527e-7）；dist 无越界（max 4 ULP）、ncontact 24/24 相等、overflow 全 0。",
+   "impact": "属超出交付声明面的额外采样；不改变 3 个交付 witness case 的位级结论，不据此判本片不通过。",
+   "registered_task": "g10-p5-deep-epa-witness-sampling"
+  },
+  {
+   "id": 3,
+   "severity": "observation",
+   "title": "native f64（MuJoCo C）材料不能作接触容差依据（已核清）",
+   "detail": "native 与 warp 的 geom_xpos 逐位相同、每 world 接触数相等（ellipsoid-box [1,1]/[1,1]、sdf-box [40,40]/[40,40]），但 pos/frame 系统性差异（ellipsoid-box pos 4.546e-4、frame 1.171e-3，每 world 仅 1 接触无配错可能；sdf-box pos 7.343e-2、frame 1.576、dist 8.925e-2，最近邻间距 p50 1.3717e-2）→ 属不同引擎语义/算法差，非 f32 舍入；hfield 两例每 world 接触数不同（[6,6]/[6,3] vs [4,4]/[4,3]）不可配对。G0b 的 7.45e-9/8.19e-7 是同码 warp CPU vs warp CUDA，不是 native。",
+   "action": "g6_tolerance_candidates 改为同码跨后端（warp CPU vs warp CUDA f32）基线；native 材料标 usable_as_tolerance_basis=false，不写 1e-3/2.5e-3 建议值。"
+  }
+ ],
+ "not_covered": [
+  {"item": "multicontact 设备版未实装", "status": "未过/未覆盖", "detail": "接触数组位级全等只覆盖非 multiccd 组合；上游对本片数据 warning：MULTICCD enabled 但 ('HFIELD','CAPSULE') 最多 1 接触。若 G6 前补不上，作为 G5 已知未覆盖项带入 G6 汇总。"},
+  {"item": "capsule-box / sphere-box-shallow / sphere-box-deep", "status": "未覆盖", "detail": "上游 ccd dispatch 走 primitive_narrowphase（非 ccd 产品路径），设备 primitive 未实装；不列入接触数组对照，也不冒充 ccd 对照。"},
+  {"item": "cylinder-box / box-box-margin / mesh-mesh 接触数组", "status": "部分覆盖", "detail": "只做 ccd() witness 对照，未做接触数组对照（上游这些组合的接触不由 ccd 内核产生）。"},
+  {"item": "性能 / criterion", "status": "未测", "detail": "不在本片声明面。"}
+ ],
+ "g6_material": {
+  "path": "qa-backend-precision.json",
+  "basis": "同码跨后端（warp CPU vs warp CUDA f32）同一输入逐接触配对，97 个样本",
+  "suggested": {
+   "atol_pos": 4.6193599700927734e-07,
+   "atol_frame": 2.7781352400779724e-05,
+   "atol_normal": 1.6279518604278564e-05,
+   "atol_dist": 6.877817213535309e-07,
+   "rtol_dist": 0.00013077452073174587,
+   "note": "取同码跨后端实测 max，G6 可乘 2 余量；正式判据仍按 4·ULP 口径"
+  },
+  "native_f64_material": {
+   "usable_as_tolerance_basis": false,
+   "reason": "不同引擎（MuJoCo C vs warp）语义/算法差，非 f32 精度差；配对已核清（geom_xpos 逐位相同、每 world 计数相同）",
+   "corrected": "原 1e-3 / 2.5e-3 建议值撤销"
+  }
+ },
+ "no_regression": {
+  "cargo_test_lib": {"passed": 438, "failed": 0, "ignored": 2, "g4_baseline": "428/0/1"},
+  "cargo_test_physics_collision": {"passed": 47, "failed": 0, "ignored": 2},
+  "key_tests": [
+   "physics::collision::gjk::case_evidence::upstream_f32_within_4ulp",
+   "physics::collision::gjk::case_evidence::our_contacts_match_upstream_f32_within_4ulp",
+   "physics::collision::gjk::case_compare::our_contacts_match_upstream_f32_within_4ulp",
+   "physics::collision::sdf::tests::sdf_box_host_matches_upstream_f32_within_4ulp",
+   "physics::collision::hfield::tests::hfield_host_matches_upstream_f32_within_4ulp"
+  ]
+ },
+ "scope": {
+  "diff_range": "1f882361..e00de497",
+  "product_files_changed": 21,
+  "cargo_files_changed": 0,
+  "fixtures_mjwarp_complex_physics_changed": 0,
+  "s2_s8_evidence_changed": 0,
+  "product_files": [
+   "src/physics/collision.rs",
+   "src/physics/collision/cuda/ccd.cu",
+   "src/physics/collision/cuda/common.cu",
+   "src/physics/collision/cuda/contact.cu",
+   "src/physics/collision/cuda/epa.cu",
+   "src/physics/collision/cuda/geom.cu",
+   "src/physics/collision/cuda/gjk_core.cu",
+   "src/physics/collision/cuda/hfield.cu",
+   "src/physics/collision/cuda/mod.rs",
+   "src/physics/collision/cuda/polytope.cu",
+   "src/physics/collision/cuda/polytope_build.cu",
+   "src/physics/collision/cuda/sdf_math.cu",
+   "src/physics/collision/cuda/sdf_narrowphase.cu",
+   "src/physics/collision/cuda/sdf_octree.cu",
+   "src/physics/collision/cuda/simplex.cu",
+   "src/physics/collision/cuda/support.cu",
+   "src/physics/collision/gjk/mod.rs",
+   "src/physics/collision/gjk/window_debug.rs",
+   "src/physics/collision/relmat.rs",
+   "src/runtime/collision_upload.rs",
+   "src/runtime/mod.rs",
+   "tests/g10_p5_gpu_kernels.rs"
+  ]
+ },
+ "artifacts": {
+  "in_repo": [
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/README.md",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/receipt.json",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/artifacts-sha256.json",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa_artifacts_sha256.py",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa_prepare_capture.py",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa_compare_gpu.py",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa_backend_precision.py",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa_build_probe.ps1",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa_window_run.ps1",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa_gpu_rerun.ps1",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/probe/qa_probe.cu",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-upstream-gpu.json",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-witness-gpu.json",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-native-f64.json",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-compare-gpu.json",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-backend-precision.json",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/build-recipe.txt",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/cases-all.txt",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/window-log.txt",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/window-memory.txt",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/window-capture.log",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/window-probe-run1.log",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/window-probe-run2.log",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/window-probe-rerun-log.txt",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/window-probe-rerun-memory.txt",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/window-probe-rerun1.log",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/window-probe-rerun2.log",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/window-probe-rerun-summary.txt"
+  ],
+  "not_in_repo": [
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/cases/**：21 目录、483 个 .bin + 21 个 meta.txt（上游输入 bins，可由 qa_prepare_capture.py 重建；JSON 内每个数组带 sha256）",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/out/**：21 目录、512 个 .bin（设备输出，可由 qa_probe 重跑重建）",
+   "docs/development-evidence/g10-p5-gpu-kernels-independent-check/__pycache__/qa_compare_gpu.cpython-312.pyc（已删除）",
+   "证据目录内 .o/.obj：0 个；证据目录内 warp-cache/：0 个（warp JIT 缓存在仓库 target/qa-g5/warp-cache/1.15.0，不在证据目录）",
+   "target/ 下构建产物：target/qa-g5/qa_probe.exe、target/qa-g5/test-target、target/qa-g5/warp-cache（不在仓库跟踪范围）"
+  ]
+ },
+ "limitations": [
+  "query-compute-apps 有 3 条 [Insufficient Permissions] 无法命名，无法 100% 排除其为 CUDA 计算进程；但基线/收尾显存一致、无 OOM、无本任务残留",
+  "峰值采样 0.5 s 间隔，可能错过更短瞬态峰值",
+  "主窗口脚本只采样不自动中止；phase2/3 核相位增量未单独采样",
+  "multicontact 设备版未实装：接触数组全等只覆盖非 multiccd 组合",
+  "上游 raw 行序不稳定（sdf-box raw 两次不同），比较基于排序，raw 行序不作判据"
+ ]
+}
