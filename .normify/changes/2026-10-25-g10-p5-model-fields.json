@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-model-fields",
+  "title": {
+    "zh": "G10@P5 模型字段：hfield/octree/opt.sdf_* 解析与跨版本 parity（含 world 维上传口径）",
+    "en": "G10@P5 model fields: hfield/octree/opt.sdf_* parsing with cross-version parity and world-dim upload contract"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "g10-p5 的模型字段片（G1）：把 hfield 与 volume SDF 相关模型字段接进产品模型的读取/上传链路——`hfield_nrow/ncol/size/data/adr`、`noct/oct_depth/oct_child/oct_aabb/oct_coeff`、`mesh_octadr/mesh_octnum`、`opt.sdf_iterations/sdf_initpoints`，按既有 `src/io/` 逐子系统扩展字段抽取模式实现，并在 `src/model/` 增补对应数据面。验收用 G0b 已产出的双版本 parity 结论（`fixtures/g10-p5/octree-parity.json`：3.12 与 3.15 的 `oct_*` f64 位型逐字节全等、`hfield_data` f32 位型全等）直接对照产品解析结果，**位级比对**；同时把「f64→f32 一次转换点」写清并与 mjwarp `put_model` 对齐；把 `hfield_data`/`oct_*` 的 **world 维上传口径**（`nworld` 复制/广播布局）与 `naconmax` 维度预留定义清楚，供 G4/G5 直接使用（本片不实装 GPU 内核）。不改现有已验收模型字段语义、不改 S2–S8 证据、不改 `Cargo.*`。",
+    "en": "Model-field slice (G1) of g10-p5: wire the hfield and volume-SDF model fields into the product model read/upload path - hfield_nrow/ncol/size/data/adr, noct/oct_depth/oct_child/oct_aabb/oct_coeff, mesh_octadr/mesh_octnum, opt.sdf_iterations/sdf_initpoints - following the existing per-subsystem extended-field extraction pattern in src/io/, and add the matching data surface in src/model/. Acceptance reuses G0b's dual-version parity result (fixtures/g10-p5/octree-parity.json: oct_* f64 bit patterns byte-identical between 3.12 and 3.15, hfield_data f32 bit-identical) as the expected values for a bit-level comparison against the product parse; document the single f64-to-f32 conversion point aligned with mjwarp put_model; define the world-dim upload contract for hfield_data/oct_* (nworld replication/broadcast layout) and the naconmax dimension reservation for G4/G5 (no GPU kernel in this slice). Existing verified model-field semantics, S2-S8 evidence and Cargo.* are untouched."
+  },
+  "modules": {},
+  "acceptance": [
+    "字段读取面：产品可从 3.12 产品版 MJB 读出 `hfield_nrow/ncol/size/data/adr`、`noct`、`oct_depth/oct_child/oct_aabb/oct_coeff`、`mesh_octadr/mesh_octnum`、`opt.sdf_iterations/sdf_initpoints`；形状（shape）与 G0b dump 完全一致，`hfield_data`（3×3=`[0,0.5,0,0.5,1,0.5,0,0.5,0]`）、`hfield_size`（`[1,1,0.1,0.1]`）读值正确。",
+    "**位级 parity**：产品解析结果与 `fixtures/g10-p5/octree-parity.json` 逐字段比对，`oct_aabb`/`oct_coeff`（f64 位型）、`oct_child`/`oct_depth`（整型）、`mesh_octadr/octnum`、`hfield_data`（f32 位型）**全等**；`noct=63,497`（sdf-cylinder）与 `noct=0`（hfield-box）各一例；任何不一致必须给出首个差异索引/位型与根因判定（不得用容差掩盖结构数据差异）。",
+    "**f64→f32 转换点**：写明 `oct_aabb/oct_coeff`（模型里 f64）在上传路径上的一次转换位置与规则（就近舍入、一次性转换、不二次量化），并与 mjwarp `put_model` 语义对齐；`hfield_data` 本就 f32 直传。证据给转换前后示例位型。",
+    "**world 维上传口径**：给出 `hfield_data`、`oct_*`、`mesh_octadr/octnum` 在 `nworld>1` 下的布局口径（按 world 复制 vs 广播共用）与理由，并定义 `naconmax`/接触容量维度的预留；该口径写成可被 G4/G5 引用的规格（本片不实装 GPU kernel，不宣称多世界打包已验证通过）。",
+    "不回归：既有已验收模型字段（collision/flex/inertial/render 等）语义不变，相关套件重跑数字不变；不修改 `fixtures/mjwarp-complex-physics/*.xml` 与 `fixtures/g10-p5/` 既有产物（只读）。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过（unit 不得低于当前 561 过 0 败）；证据 README/receipt 含 task_id、与 G0b parity 的对照表与方法、以及未覆盖项（GPU 内核、多世界打包实测、Linux/T4）；新文件 ≤500 行；不改 S2–S8 证据与 `Cargo.*`；不需要 GPU。",
+    "不宣称「G10 已实现」「完整物理通过」「双平台通过」「上游完全等价」「原生放行」「精度达标」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-gjk-epa"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/io/",
+      "src/model/",
+      "tests/g10_p5_model_fields.rs",
+      "docs/development-evidence/g10-p5-model-fields/"
+    ],
+    "resources": [],
+    "priority": 58
+  },
+  "note": "Arch 2026-10-25 排程：G2 已 verified（900d1fe）后按预检 §6.2 顺序进 G1（模型字段，3d，无 GPU）。范围用**目录级**登记（S7b1 与 G2 的教训：文件级 white-list 一旦漏父级文件就会撞冻结/范围失配）。验收直接复用 G0b 的双版本 parity 结论做位级比对，先测后定、不预设放宽；world 维上传口径本片只出规格、不实装 GPU（G5 落地）。",
+  "revision": {
+    "before": "48bf4f0c5045459a9516ef8c01e4e30c7ec44f3c",
+    "after": null
+  },
+  "created_at": "2026-10-25T16:22:00.000Z",
+  "updated_at": "2026-10-25T08:20:40.659Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-model-fields/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-model-fields"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
