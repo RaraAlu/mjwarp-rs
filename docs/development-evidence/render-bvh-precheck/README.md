@@ -307,7 +307,9 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 | S7b2 复核 | `2026-10-25-render-bvh-s7b2-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s7b2-independent-check/` | `38298e5`；独立重采同配方参考：RGB **0 差异/beyond_1_lsb=0**、depth max_ulp 0、新位姿泛化、灯位姿四路一致、81 槽逐槽核对；`mat_shin_exp` 语义被参考 headlight 调用点独立证实 |
 | S7b3 | `2026-10-25-render-bvh-s7b3-flags` | Backend | verified | `docs/development-evidence/render-bvh/s7b3-flags/` | `52c22b7`；flag 变体 5/5 各自独立同配方参考 RGB **0 差异**、AA(spp=2) RGB 0 差异/depth 0 ULP/seg 0、不回归 S7b1/S7b2 基线、532/0；结掉 S5 AA deferral |
 | S7b3 复核 | `2026-10-25-render-bvh-s7b3-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s7b3-independent-check/` | `7e5affd`；独立重采 7 份参考：产品各组 RGB **位等 0 差异**/depth 0 ULP/seg 0；AA 480,000 射线布局反推 0 bad、depth/seg 只取首 pass 逐位成立；`vertex_normals_off` 无判别力如实登记；532/0 |
-| S7b 配套修正 | `2026-10-25-render-bvh-s7b-followups` | Backend | in_progress | `docs/development-evidence/render-bvh/s7b-followups/` | 合成顶点法线 pinned 同配方参考（≤1 LSB + on/off 可判别）；S7b2/S7b3 证据 addenda（含 QA 两条非阻断项） |
+| S7b 配套修正 | `2026-10-25-render-bvh-s7b-followups` | Backend | verified | `docs/development-evidence/render-bvh/s7b-followups/` | `62c58a5`（+`33303a7` S7b3 证据修正、`1b2f79c` S7b2 addenda）；合成法线 pinned 参考产品 **0 差异**、on/off 653/9 像素可判别；行数 495/93/233 与注释纠正 |
+| S8 | `2026-10-25-render-bvh-s8-e2e` | Backend | in_progress | `docs/development-evidence/render-bvh/s8-e2e/` | 产品 camlight data 位姿（含 TARGETBODY）+ 两相机端到端；RGB ≤1 LSB / depth ≤4 ULP / seg 全等对同配方参考；r01-p8 十项收口映射素材 |
+| S8 复核 | `2026-10-25-render-bvh-s8-independent-check` | QA | proposed（S8 verified 后立刻 start） | `docs/development-evidence/render-bvh/s8-independent-check/` | 60 分钟 GPU；camlight 位姿逐位+反证、端到端同配方、基线与 AA/flag 语义、收口口径诚实性 |
 
 结构说明：
 - 原 `2026-10-24-render-bvh-s2` 已 abandon（`8d4357f`，理由：运行中父任务写路径锁与派生任务冲突、冻结字段不可改）；拆分前参考捕获 `75166cf` 保留在 git 历史与 `fixtures/render-bvh/scene-a/s2/`，S2b 继续引用。
