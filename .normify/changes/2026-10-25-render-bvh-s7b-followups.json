@@ -5,7 +5,7 @@
     "zh": "渲染/BVH 配套修正：合成顶点法线 pinned 参考 + S7b2 spp=2 断言升级",
     "en": "Render/BVH follow-ups: pinned reference for synthetic vertex normals + S7b2 spp=2 assertion update"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "修 S7b3 复核暴露的两处证据/测试强度缺口：(1) `vertex_normals_off` 在 scene-a 无判别力，现有合成法线用例只证明产品分支生效、无 pinned 参考对照——补采 `mesh_normal` 改为合成值（[1,0,0]、[0,0,1]）后的 pinned 3.15 同配方 RGB 参考，产品对参考比较（≤1 LSB），并断言 on/off 路径可判别；(2) S7b2 的 `tests/render_kernel_rgb.rs::unsupported_configurations_are_rejected_before_launch` 中「spp=2 必须写前拒绝」因 S7b3 实现 AA 而失效，改为断言 AA 路径被支持（3 类拒绝保留：shadows/动态射线/skybox），并用 `normify fix` 给 S7b2 证据加说明。不改验收口径、不改产品渲染语义。",
     "en": "Close two evidence/test-strength gaps surfaced by the S7b3 review: (1) vertex_normals_off has no discriminative power on scene-a and the current synthetic-normal case only proves the branch is active, with no pinned reference; capture pinned-3.15 same-recipe RGB references with mesh_normal overridden to synthetic values ([1,0,0], [0,0,1]) and compare the product against them (<=1 LSB), asserting the on/off paths are judgeable; (2) S7b2's unsupported_configurations test still expects spp=2 to be rejected, which S7b3's AA implementation invalidates; change it to assert the AA path is supported (keeping the three other rejections: shadows/dynamic rays/skybox) and add a Normify fix note to S7b2's evidence. No acceptance or render-semantics changes."
@@ -41,12 +41,11 @@
   },
   "note": "Arch 2026-10-25 裁决：S7b3 已 verified（52c22b7），复核 verified（7e5affd，0 阻断）。两处证据强度缺口按「先验收后补强」处理。Backend 已在 3ab52cf（Normify-Fixes s7b2）完成 S7b2 断言同步。本任务范围：① 合成顶点法线 pinned 同配方参考 + 产品 ≤1 LSB 与 on/off 可判别；② S7b2 证据 addenda；③ S7b3 复核两条非阻断证据问题（host_modules 行数、megakernel.rs 注释与实现相反）+ 两条建议（capture.log 位等打印、逐 geom 归因口径注明），用 normify fix s7b3 留痕。范围按目录级（含 src/render/kernel/ 以便改注释），GPU 已由 QA 复核释放。",
   "revision": {
-    "before": "7edeb81aaba4407458abb75daa1485674dc23161",
+    "before": "d491c1aeb72f6ae8a0cbfe636557ff44b5504ea1",
     "after": null
   },
   "created_at": "2026-10-25T13:27:00.000Z",
-  "updated_at": "2026-10-25T13:27:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T05:33:18.698Z",
   "checks": [
     {
       "kind": "gate",
