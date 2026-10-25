@@ -5,7 +5,7 @@
     "zh": "G10@P5 修正片：宿主 ccd/contact 溢出位误报（EPA FLOAT_MAX 时多置 CCD 位，对齐上游）",
     "en": "G10@P5 fix slice: host ccd/contact overflow-bit over-report (sets CCD on EPA FLOAT_MAX; align with upstream)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "设备侧同类误报已由 `2026-10-25-g10-p5-ccd-overflow-bit-fix` 修正；Backend 在改设备时发现**宿主产品路径**同样存在：`src/physics/collision/gjk/ccd.rs`（L225-228）与 `gjk/contact.rs`（L126-130）在 EPA 阶段返回 `FLOAT_MAX` 时执行 `overflow |= OverflowType.CCD`。pinned 上游 `ccd()` 只返回 `EPA_HORIZON(1<<8)`，`CCD(1<<4)` 位应由调用方在 `nccd >= naccdmax` 的真实容量截断时置。宿主是产品路径（G2/G5 宿主接触生成都走它），该误报会让下游把「EPA horizon 溢出」误读成「CCD 容量溢出」。本片只改宿主（CPU 可测，不需要 GPU），补强制 horizon 的回归测试并确认 G2/G3/G4 既有判据不回归；设备侧不改（前片已修）。",
     "en": "The device-side over-report is fixed by 2026-10-25-g10-p5-ccd-overflow-bit-fix; while editing the device, Backend found the same issue on the host product path: src/physics/collision/gjk/ccd.rs (L225-228) and gjk/contact.rs (L126-130) do `overflow |= OverflowType.CCD` when the EPA phase returns FLOAT_MAX. Pinned upstream ccd() only returns EPA_HORIZON (1<<8); the CCD (1<<4) bit should be set by the caller when nccd >= naccdmax (real capacity truncation). The host path is the product path (G2/G5 host contact generation), so this over-report makes downstream misread an EPA horizon overflow as a CCD capacity overflow. This slice changes host only (CPU-testable, no GPU), adds a forced-horizon regression test, and confirms G2/G3/G4 criteria do not regress; device side unchanged (fixed earlier)."
@@ -35,12 +35,11 @@
   },
   "note": "Arch 2026-10-25 依据 Backend 在设备修正片中的连带发现登记：宿主 `gjk/ccd.rs:225-228` 与 `gjk/contact.rs:126-130` 在 EPA `FLOAT_MAX` 时同样误置 `CCD` 位（上游只置 `EPA_HORIZON`）。宿主是产品路径（不是证据工具），且 G6 验收映射会引用 `OverflowType` 语义，故排在 **G6 之前**、依赖设备修正片完成后执行（同文件域单飞，避免并发冲突）。纯 CPU 不需要 GPU 窗口。",
   "revision": {
-    "before": "1b950981eee03dcec237deac14db131759c8aaee",
+    "before": "598e97bcb1071d7da69a4e5a31d627ee37da1e1b",
     "after": null
   },
   "created_at": "2026-10-25T19:44:00.000Z",
-  "updated_at": "2026-10-25T19:44:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T11:55:05.280Z",
   "checks": [
     {
       "kind": "gate",
