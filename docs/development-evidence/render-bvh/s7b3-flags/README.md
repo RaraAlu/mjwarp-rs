@@ -39,13 +39,13 @@ _aa_resolve: c = accum * inv_n; rgb_out = pack(clamp(c, 0, 255), 255)
 ```
 
 产品实现（`src/render/kernel/`）：
-- `megakernel.rs`（474 行）：`nsamples = layout.nsamples`；`for sample in 0..nsamples` 发射
+- `megakernel.rs`（495 行）：`nsamples = layout.nsamples`；`for sample in 0..nsamples` 发射
   `render_megakernel`，只改 `ray_base` 槽（47）= `sample * total_rays`；之后发射
   `aa_resolve`（`AA_RESOLVE_ENTRY`，4 槽：bounds + accum vec3 + rgb u32 + inv_n f32[1]）。
   `inv_n = 1.0 / nsamples`（f32），与上游 `1.0 / float(nsamples)` 一致。
-- `megakernel_aa.rs`（86 行，本片新增）：AA 子样本发射（`launch_samples`，只改 ray_base 槽）
+- `megakernel_aa.rs`（93 行，本片新增）：AA 子样本发射（`launch_samples`，只改 ray_base 槽）
   与 `AAResolve::resolve`（resolve 发射）；从 `megakernel.rs` 拆出以满足单文件 ≤500 行棘轮
-  （`megakernel.rs` 483 → 本次 +AA 后 549，拆分后 474；`megakernel_arrays.rs` 216 行）。
+  （`megakernel.rs` 483 → 本次 +AA 后 549，拆分后 495；`megakernel_arrays.rs` 233 行）。
 - `cuda/render_megakernel.cu`：`MK_FLAG_AA`（bit8）；`aa_store` 按上游 `store_pixel` 累积
   `color * 255.0`；**`ray_base == 0` 时覆盖写**（免每帧 host 清零，逐样本求和顺序与上游
   `zero_()` + `+=` 等价，每个像素每个 sample 都写，含背景）。
@@ -81,6 +81,13 @@ emission/per_light_ambient/ambient_lighting/headlight/cull_backfaces）＋ S7b3 
 
 判据（逐变体独立）：RGB 解包后每通道 ≤1 LSB；depth ≤4 ULP（同配方参考）；seg 逐像素全等。
 产品对**每一组**都达到 0 差异/0 ULP/0 不一致。
+
+### 3.0 逐 geom 归因口径
+
+交付的 `rgb_changed_by_geom` 按**变体/AA 的 seg**（产品侧 seg 参考，即该变体自己的 seg）
+归因；QA 复核按 **base seg** 归因。同一像素在「变体 seg」与「base seg」下的 geom 归属可能不同
+（例如 culling_off 让原本 miss 的像素命中背面 geom）——两种口径语义等价、不是数值分歧；交付的
+逐 geom 计数与测试断言以本变体 seg 为准。
 
 ### 3.1 变体语义断言（可判定，不靠「不崩」）
 
@@ -126,7 +133,7 @@ S5 记录：「AA 图像级验收按 Arch 裁决延后 S7b/S8，本片只验射�
 
 | 文件 | bytes | sha256 |
 | --- | --- | --- |
-| `index.json` | 5495 | `02a3038f8874ea4814c5961e856556d7bc4900a7ca9cc1a050af0a3bfed756f0` |
+| `index.json` | 5495 | `f83f73e2f836ad26a009678c43e9b4c03747598d616a84115957e552b62bf62c` |
 | `textures_off_rgb.json` | 1320472 | `428f9c8986a078ca2a94e98fbfa13a686a7efa7a5c2398eab25686e437f0a1cb` |
 | `vertex_normals_off_rgb.json` | 1320487 | `6119ec42a36cd922580ae8c6f11642953893394b7ef58faa56e87dc6e8fbb20d` |
 | `specular_off_rgb.json` | 1320475 | `df03e72f4e15da6dc802d0a15df0e5dcb7b7c78085b9b6bc7941bf0e1127ad5f` |
@@ -172,6 +179,6 @@ S5 记录：「AA 图像级验收按 Arch 裁决延后 S7b/S8，本片只验射�
 
 - `gpu-run.log`：S7b3 GPU 用例（变体/AA/基线/合成法线/拒绝面，PTX 摘要）
 - `s7b1-regression.log` / `s7b2-regression.log` / `s6b-regression.log`：回归运行日志
-- `capture.log`：authoring 采集输出（逐变体 sha、两次位等、vs base 统计）
+- `capture.log`：authoring 采集输出（逐变体 sha、`determinism=two_captures_bitwise_identical` 两次捕获位等结论、vs base 统计）
 - `unit-summary.log`：`cargo test --locked`
 - `receipt.json`：机器可判定回执
