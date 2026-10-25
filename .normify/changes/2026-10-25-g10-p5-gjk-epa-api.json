@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-gjk-epa-api",
+  "title": {
+    "zh": "G10@P5 GJK/EPA 公开 API 与集成测试（physics/mod.rs re-export + tests/gjk_epa.rs）",
+    "en": "G10@P5 GJK/EPA public API and integration test (physics/mod.rs re-export plus tests/gjk_epa.rs)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "G2（`2026-10-25-g10-p5-gjk-epa`）落地了 GJK/EPA 语义与靶向测试，但集成测试 `tests/gjk_epa.rs` 需要从 crate 外部路径 `mjwarp_rs::physics::{…}` 取公开 API，而 `src/physics/mod.rs` 的 `mod collision;` 为私有、gjk 新增类型只能经 mod.rs 的 `pub use collision::{…}` 暴露；该文件不在 G2 的 files 白名单，且运行中任务的范围已冻结，故拆出本小片：在 `src/physics/mod.rs` 增加与原模块一致模式的 re-export 行（仅导出、无逻辑），并把 G2 已完成对账的夹具级对比测试作为集成测试 `tests/gjk_epa.rs` 落地（复用 G2 已产出的 in-crate 测试主体，不重复实现、不新增数值口径）。不改任何产品语义与已验收数值判据。",
+    "en": "G2 (2026-10-25-g10-p5-gjk-epa) delivered the GJK/EPA semantics and targeted tests, but the integration test tests/gjk_epa.rs needs the public API through mjwarp_rs::physics::{...}; src/physics/mod.rs declares mod collision as private, so the new gjk types can only be exposed via the pub use in mod.rs. That file is not in G2's file allowlist and a running task's scope is frozen, so this small slice is split out: add re-export lines in src/physics/mod.rs following the existing per-module pattern (exports only, no logic), and land the fixture-based comparison test that G2 already reconciled as the integration test tests/gjk_epa.rs (reusing G2's in-crate test body, no duplicate implementation and no new numerical criteria). No product semantics and no already-verified numerical criteria are changed."
+  },
+  "modules": {},
+  "acceptance": [
+    "`src/physics/mod.rs` 增加 `pub use collision::{…}` 的 GJK/EPA 新符号（至少 `CcdContact/CcdOptions/CcdResult/ContactOptions/Geom/MeshView/ccd/ccd_pair/geom_type`，以实际需要为准），风格与既有各模块一致；**只增导出、无逻辑改动**，不改其它模块导出项。",
+    "`tests/gjk_epa.rs` 集成测试落地并通过：从 `mjwarp_rs::physics::{…}` 公开路径导入，覆盖 G2 已对账的 5 个 CONVEX 参考 case（cylinder-box 多接触、ellipsoid-box、mesh-mesh、convex-mesh、degenerate-mesh）的 `count`/`dist`/`pos`/`frame` 断言与 G2 证据口径一致；不得放宽 G2 已记录的容差。",
+    "集成测试与 G2 in-crate 测试**不重复维护同一份数值期望**：期望值从夹具 JSON 读取（同 G2 做法），如需共用辅助函数放在测试内本地实现或 `tests/common`，不引入新的产品 API。",
+    "`tests/gjk_epa.rs` ≤500 行；若与 G2 的 in-crate 测试合计超限，按功能拆分测试文件（例如按 case 家族拆两个集成测试文件），不合并成超长文件。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过（unit 计数不得低于 G2 收口时的 557）；证据 README/receipt 含 task_id 与未覆盖项；不改 S2–S8 证据、不改渲染夹具、不改 `Cargo.*`；GPU 不需要（纯 CPU）。",
+    "不宣称「G10 已实现/完整物理通过/双平台通过/上游完全等价」；本片只交付公开 API 面与集成测试。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-gjk-epa"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/physics/mod.rs",
+      "tests/gjk_epa.rs",
+      "docs/development-evidence/g10-p5-gjk-epa-api/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-25 拆分：G2 运行中范围已冻结（文件白名单缺 src/physics/mod.rs），钩子报 `E commit/scope 超出任务范围：src/physics/mod.rs`；不改冻结任务、不绕过门禁，按 S7b1 的拆分先例把「公开 API 面 + 集成测试」独立成片，G2 verified 后立即 start。本片无 GPU 需求、不新增数值口径，只暴露已验收语义。",
+  "revision": {
+    "before": "e32d8361b66e41eff7048affbc098d2d8eb40374",
+    "after": null
+  },
+  "created_at": "2026-10-25T16:10:00.000Z",
+  "updated_at": "2026-10-25T16:10:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-gjk-epa-api/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-gjk-epa-api"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价"
+      ]
+    }
+  ]
+}
