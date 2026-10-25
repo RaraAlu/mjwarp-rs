@@ -1,0 +1,337 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-render-bvh-s8-e2e",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "S8",
+  "title": "渲染/BVH S8：端到端（产品 camlight → 渲染、双相机、refit、RGB/depth/seg）",
+  "date": "2026-10-25",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "conclusion": "产品 camlight 真接上渲染：两相机 data 位姿（含 cam_mode=3 TARGETBODY 跟踪相机）由 KinematicsPlan::with_camlight -> update_rigid -> update_com -> update_camlight -> readback 产出，与 S7b1 同配方参考 camera_data 逐位一致（0 origin 位差 / 0 xmat 位差），夹具 data 位姿只用于比对、不参与渲染。端到端两相机（默认 28 参数、spp=1、precomputed rays）：RGB 对同配方参考 120,000/120,000 像素 0 差异（判据 <=1 LSB）、depth 120,000/120,000 位等 max 0 ULP（判据 <=4 ULP）、seg 0 不一致；两次运行输出哈希逐位相同（depth_seg_hash=03efa95416bbd008、rgb_hash=ed50f750936c0275）。S0b fast-math 参考只作跨配方偏差记录（cam0 max_byte_diff=1/2 像素、cam1 全位等）。反证成立：篡改夹具位姿不影响产品位姿渲染（产品位姿仍与原始参考 0 位差），篡改夹具位姿作输入会让 RGB 变化 115,972/120,000 像素，产品位姿扰动（camera1 绕 y 0.05rad + xpos.x+0.3）导致 RGB/depth/seg 分别 18,859/19,182/9,464 像素变化。生命周期 create->render->refit->render->destroy 全链路、位姿不变时 refit 后输出逐位相同、destroy 后显存增长 0 B、禁用输出 DisabledOutput；负向控制（3 类写前拒绝 + AA 射线数）保持。不回归：S7b1 6/6、S7b2 3/3、S7b3 6/6、S6b 5/5。未宣称上游完全等价或整体收口。",
+  "precision_gate": {
+    "name": "f32-render",
+    "recipe": "WARP_1_15_RENDER",
+    "purpose": "Render",
+    "fmad": true,
+    "use_fast_math": false,
+    "arch": "compute_70",
+    "enforced_by": "src/render/kernel/mod.rs::check_render_ptx；唯一编译入口 compile_render_artifact / RenderKernel::compile",
+    "note": "本片不改渲染内核源码；PTX 与 S7b3 一致：megakernel 197,583 B、aa_resolve 27,536 B（S7b3 回归复跑确认）"
+  },
+  "product_chain": {
+    "purpose": "渲染输入的相机 data 位姿只能来自产品 camlight，不允许夹具回填",
+    "entry": "tests/support/render_bvh/e2e.rs::product_camlight",
+    "steps": [
+      "KinematicsPlan::with_camlight(session, CamLightModelInput, KinematicsParameters::default(), CamLightParameters::default())",
+      "plan.create_data(1)",
+      "data.write_qpos(qpos0)",
+      "plan.update_rigid(&mut data)  # 产品 f32 FK：body xpos/xquat",
+      "plan.update_attached(&mut data)",
+      "plan.update_com(&mut data)",
+      "plan.update_camlight(&mut data)  # src/physics/camlight.rs 的 camlight_rigid + camlight_com",
+      "data.readback() -> snapshot.camlight().world(0) -> Vec<CameraPose>（按模型相机 id）",
+      "renderer.render(context, fields, model, &product.poses, &rays)"
+    ],
+    "render_input_assertion_site": "tests/render_e2e.rs::render_input_poses_come_from_camlight_not_fixture（e2e::render_read_all(..., &product.poses, ...)）",
+    "fixture_pose_usage": "只出现在 e2e::compare_pose_bits（比对）与 s7b1::camera_data_poses（反证②的对照输入），从不作为正常渲染输入"
+  },
+  "input_fixture": {
+    "file": "fixtures/render-bvh/scene-e2e/camlight-model.json",
+    "lines": 416,
+    "bytes": 6499,
+    "sha256": "cf7af78334a52db598c34f7c582f603a3dd727c5641a318f5624481760bdc1be",
+    "authoring_script": {
+      "file": "scripts/authoring/render-bvh-s7b/capture_e2e_camlight.py",
+      "lines": 198,
+      "sha256": "02707f6f067d92acae8aa4495fc705db33c749425b55ff3f95c097299f65b9c5",
+      "pinned": "mujoco 3.15.0 + Python 3.12.13（pinned venv），只读模型字段，不初始化 warp/CUDA、不占 GPU、不读产品代码"
+    },
+    "source_mjb": {
+      "file": "fixtures/render-bvh/scene-a/scene-315.mjb",
+      "sha256": "8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4"
+    },
+    "conversion": "mjModel double -> f32 逐元素一次（与产品上传 dtype 相同）",
+    "counts": {
+      "nq": 8,
+      "nv": 7,
+      "nbody": 3,
+      "njnt": 2,
+      "ngeom": 7,
+      "nsite": 0,
+      "nmocap": 0,
+      "ncam": 2,
+      "nlight": 3
+    }
+  },
+  "pose_verification": {
+    "reference": {
+      "file": "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json",
+      "sha256": "d6ab6dde58034df5c1bc69ab397026a8f7c3aaf58d29d25edb032d3818000dc7",
+      "note": "S7b1 已冻结同配方夹具；本片不重派生，只读 camera_data 比对"
+    },
+    "cam0": {
+      "mode": 0,
+      "origin_bits": [1067030938, 3213675725, 1061997773],
+      "origin_bit_mismatches": 0,
+      "xmat_bit_mismatches": 0,
+      "host_quat_to_mat_aux": "max 1 ULP / 9 分量中 2 个（辅助口径；权威为参考 data 位姿 0 位差；host 函数不参与渲染输入）"
+    },
+    "cam1": {
+      "mode": 3,
+      "target_bodyid": 2,
+      "origin_bits": [3209481421, 1063675494, 1060320051],
+      "origin_bit_mismatches": 0,
+      "xmat_bit_mismatches": 0
+    },
+    "product_fk_body_xpos": [
+      [0.0, 0.0, 0.0],
+      [0.1, -0.2, 0.3],
+      [0.2132049, -0.07466385, 0.5897853]
+    ],
+    "lights": {
+      "count": 3,
+      "product_vs_light_data_poses_bit_mismatches": 0,
+      "note": "产品 camlight 输出 == 渲染器 light_data_poses == pinned 3.15 位型"
+    }
+  },
+  "end_to_end": {
+    "params": "默认 28 参数 context（enabled_geom_groups=[0,1,2,3]）、spp=1、use_precomputed_rays=true、nworld=1",
+    "rgb_vs_same_recipe": {
+      "cam0": {
+        "pixels": 76800,
+        "mismatched_pixels": 0,
+        "max_byte_diff": 0,
+        "beyond_1_lsb": 0
+      },
+      "cam1": {
+        "pixels": 43200,
+        "mismatched_pixels": 0,
+        "max_byte_diff": 0,
+        "beyond_1_lsb": 0
+      },
+      "total_pixels": 120000
+    },
+    "depth_vs_same_recipe": {
+      "cam0": {
+        "compared": 76800,
+        "mismatch": 0,
+        "max_ulp": 0
+      },
+      "cam1": {
+        "compared": 43200,
+        "mismatch": 0,
+        "max_ulp": 0
+      }
+    },
+    "seg_vs_same_recipe": {
+      "cam0_mismatch": 0,
+      "cam1_mismatch": 0
+    },
+    "run_hashes": {
+      "depth_seg_hash": "03efa95416bbd008",
+      "rgb_hash": "ed50f750936c0275",
+      "repeat_runs_bitwise_identical": true
+    },
+    "cross_recipe_known_deviation": {
+      "recorded_only": true,
+      "cam0": {
+        "max_byte_diff": 1,
+        "beyond_1_lsb": 0,
+        "fixture_recorded_histogram_0_1_2_3_gt3": [76798, 2, 0, 0, 0]
+      },
+      "cam1": {
+        "max_byte_diff": 0,
+        "beyond_1_lsb": 0,
+        "fixture_recorded_histogram_0_1_2_3_gt3": [43200, 0, 0, 0, 0]
+      }
+    },
+    "product_poses_vs_fixture_poses_render": "RGB/depth/seg 逐位相同（位姿来源替换无副作用）"
+  },
+  "reverse_proof": {
+    "test": "render_input_poses_come_from_camlight_not_fixture",
+    "fixture_tamper_does_not_affect_product_render": true,
+    "product_poses_still_match_original_reference": true,
+    "tampered_fixture_poses_as_input_rgb_changed_pixels": 115972,
+    "tampered_fixture_poses_as_input_total_pixels": 120000,
+    "product_perturbation": {
+      "description": "camera1 绕 y 轴 0.05 rad + xpos.x += 0.3",
+      "rgb_changed_pixels": 18859,
+      "depth_changed_pixels": 19182,
+      "seg_changed_pixels": 9464,
+      "repeat_same_perturbation_bitwise_identical": true,
+      "different_perturbation_differs": true,
+      "restore_product_poses_bitwise_reproduces": true
+    },
+    "why_pose_is_required_input": "cuda/render_megakernel.cu 第 148-151 行用 cam_xmat/cam_xpos 把局部射线变换到世界系"
+  },
+  "lifecycle": {
+    "chain": "create -> render -> refit_bvh -> render -> destroy",
+    "refits": 1,
+    "refit_output_bitwise_identical_when_poses_unchanged": true,
+    "render_never_refits_implicitly": true,
+    "device_memory_bytes": {
+      "baseline": 15756951552,
+      "after_destroy_free": 15756951552,
+      "growth": 0,
+      "threshold": 16777216
+    },
+    "disabled_output": "只启 rgb 的 context：depth/seg read 返回 InputError::DisabledOutput",
+    "create_destroy_counts": {
+      "created_delta": 1,
+      "destroyed_delta": 1
+    }
+  },
+  "negative_controls": {
+    "pre_launch_rejections": [
+      "use_shadows",
+      "use_precomputed_rays=false",
+      "render_skybox"
+    ],
+    "rejected_count": 3,
+    "each_individually_determinable": true,
+    "aa_ray_count": "spp=2（nsamples=4）只给 spp=1 射线 -> LauncherError::InvalidArray(\"ray_count\")"
+  },
+  "no_regression": {
+    "s7b1": {
+      "command": "cargo test --locked --features cuda-probe --test render_kernel_depth_seg -- --ignored --test-threads=1 --nocapture",
+      "passed": 6,
+      "failed": 0,
+      "depth_seg": "120,000/120,000 位等 max 0 ULP、seg 0 不一致"
+    },
+    "s7b2": {
+      "command": "cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --test-threads=1 --nocapture",
+      "passed": 3,
+      "failed": 0,
+      "rgb_same_recipe": "两相机 0 差异；depth/seg 不回归"
+    },
+    "s7b3": {
+      "command": "cargo test --locked --features cuda-probe --test render_kernel_flags -- --ignored --test-threads=1 --nocapture",
+      "passed": 6,
+      "failed": 0,
+      "ptx": "megakernel 197,583 B、aa_resolve 27,536 B（与 S7b3 验收一致）"
+    },
+    "s6b": {
+      "command": "cargo test --locked --features cuda-probe --test render_context_lifecycle -- --ignored --test-threads=1",
+      "passed": 5,
+      "failed": 0,
+      "cycle100_growth": 0
+    }
+  },
+  "r01_p8_closure": [
+    {
+      "item": "世界/相机/资产",
+      "conclusion": "产品 camlight 从冻结 mjb 模型字段产出两相机 data 位姿（含 TARGETBODY），与 pinned 3.15 参考逐位一致",
+      "trace": "docs/development-evidence/render-bvh/s1-model-input/receipt.json; docs/development-evidence/render-bvh/s8-e2e/README.md §2"
+    },
+    {
+      "item": "BVH（场景）",
+      "conclusion": "场景 BVH 由 context 拥有、refit 显式触发、渲染消费当前 BVH",
+      "trace": "docs/development-evidence/render-bvh/s2b-scene-bvh-gpu/receipt.json"
+    },
+    {
+      "item": "BVH（网格）",
+      "conclusion": "网格三角 BVH 在 context 内，S3 语义",
+      "trace": "docs/development-evidence/render-bvh/s3-mesh-bvh/README.md"
+    },
+    {
+      "item": "28 默认参数",
+      "conclusion": "默认 context（geom groups [0,1,2,3]、rgb/depth/seg 全开、spp=1、precomputed rays）",
+      "trace": "docs/development-evidence/render-bvh/s6a-context-params/receipt.json"
+    },
+    {
+      "item": "生命周期",
+      "conclusion": "create→render→refit→render→destroy 全链路；destroy 后显存增长 0 B",
+      "trace": "docs/development-evidence/render-bvh/s6b-context-lifecycle/receipt.json; docs/development-evidence/render-bvh/s8-e2e/README.md §5"
+    },
+    {
+      "item": "RGB",
+      "conclusion": "对同配方参考 120,000/120,000 像素 0 差异（<=1 LSB）",
+      "trace": "docs/development-evidence/render-bvh/s7b2-shading/receipt.json; docs/development-evidence/render-bvh/s8-e2e/README.md §3"
+    },
+    {
+      "item": "深度",
+      "conclusion": "对同配方参考 120,000/120,000 位等 max 0 ULP（<=4 ULP）",
+      "trace": "docs/development-evidence/render-bvh/s7b1-depth-seg/receipt.json; docs/development-evidence/render-bvh/s8-e2e/README.md §3"
+    },
+    {
+      "item": "分割",
+      "conclusion": "对同配方参考 0 不一致（全等）",
+      "trace": "docs/development-evidence/render-bvh/s7b1-depth-seg/receipt.json; docs/development-evidence/render-bvh/s8-e2e/README.md §3"
+    },
+    {
+      "item": "资源检查",
+      "conclusion": "显存回基线无泄漏；禁用输出拒绝读取；100 次 create/destroy 稳定（S6b 回归）",
+      "trace": "docs/development-evidence/render-bvh/s6b-context-lifecycle/README.md; docs/development-evidence/render-bvh/s8-e2e/README.md §5"
+    },
+    {
+      "item": "拒绝面",
+      "conclusion": "shadows/动态射线/skybox 三类写前拒绝；AA 射线数拒绝；flag/AA 语义由 S7b3 覆盖",
+      "trace": "docs/development-evidence/render-bvh/s7b2-shading/README.md; docs/development-evidence/render-bvh/s7b3-flags/receipt.json; docs/development-evidence/render-bvh/s8-e2e/README.md §5"
+    }
+  ],
+  "gpu": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "arch": "SM89",
+    "window": {
+      "start_memory_mib": 5091,
+      "end_memory_mib": 5053,
+      "compute_processes_after": 0,
+      "note": "桌面基线波动（5,053–5,091 MiB），套件结束无本任务 CUDA 计算进程"
+    },
+    "suite": {
+      "command": "cargo test --locked --features cuda-probe --test render_e2e -- --ignored --test-threads=1 --nocapture",
+      "passed": 5,
+      "failed": 0,
+      "elapsed_s": 8.33,
+      "host_command": "cargo test --locked --features cuda-probe --test render_e2e -- --test-threads=1 --nocapture",
+      "host_passed": 1
+    }
+  },
+  "gates": {
+    "fmt": "pass",
+    "clippy": "pass（cargo clippy --all-targets --locked -- -D warnings）",
+    "clippy-cuda": "pass（cargo clippy --all-targets --locked --features cuda-probe -- -D warnings）",
+    "unit": {
+      "result": "pass",
+      "tests_passed": 532,
+      "tests_failed": 0,
+      "command": "normify gate 2026-10-25-render-bvh-s8-e2e fmt clippy clippy-cuda unit"
+    }
+  },
+  "size_ratchet": {
+    "tests_render_e2e_rs": {
+      "lines": 499,
+      "bytes": 22604,
+      "sha256": "09f44e21b8fcbfe67f113a0675498b0ce8f720dc8ae613ce38a88511b16e2192"
+    },
+    "tests_support_render_bvh_e2e_rs": {
+      "lines": 496,
+      "bytes": 18919,
+      "sha256": "baa8ca6b0f64cbb8c449c5343733575b936e142accb3d80ede00f2a1ddcd125f"
+    },
+    "note": "两个新文件均 <500 行（单文件 500 行棘轮）；launch.rs 只读未改"
+  },
+  "unmet": [
+    "nworld>1 未验收（本片 scene-a 单 world）。",
+    "阴影/天空盒/splat/柔体/hfield/SDF/多相机选择/动态射线仍未实现，写前拒绝。",
+    "Linux/T4 未在本片验收（GPU 证据仅 RTX 4070 Ti SUPER / 596.36 / SM89）。",
+    "未声明上游完全等价（只证明 scene-a 默认参数下渲染数值对齐，其余场景/参数未覆盖）。",
+    "性能未验收（只记录用例耗时，无性能门）。",
+    "AA 仅 samples_per_pixel=2（nsamples=4）有图像级参考；更高 spp 未采样。",
+    "camera0 vs host quat_to_mat 有 1 ULP 辅助口径差异（权威口径为参考 data 位姿 0 位差；host 函数不参与渲染输入；warp quat_to_mat 走 quat_rotate 三列路径）。"
+  ],
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "gpu-run.log",
+    "host-run.log",
+    "regression.log"
+  ],
+  "reproduction": {
+    "authoring": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/render-bvh-s7b/capture_e2e_camlight.py",
+    "host_test": "cargo test --locked --features cuda-probe --test render_e2e -- --test-threads=1 --nocapture",
+    "gpu_test": "cargo test --locked --features cuda-probe --test render_e2e -- --ignored --test-threads=1 --nocapture",
+    "env": "$env:CUDA_PATH=(Resolve-Path 'target\\toolchains\\cuda-12.8.1').Path; $env:PATH=\"$env:CUDA_PATH\\bin;$env:PATH\""
+  }
+}
