@@ -1,0 +1,207 @@
+{
+ "schema": 1,
+ "task_id": "2026-10-25-g10-p5-nvrtc-product-launcher-independent-check",
+ "kind": "qa-independent-review",
+ "status": "final",
+ "reviewed": {
+  "task": "2026-10-25-g10-p5-nvrtc-product-launcher",
+  "commit": "dfcc1bdc",
+  "head_at_run": "dfcc1bdc",
+  "delivery_window_head": "49e2fab5"
+ },
+ "verdict": {
+  "conclusion": "pass",
+  "blocking": 0,
+  "findings": 0,
+  "observations": 4,
+  "summary": "入口独立确认走 cudarc NVRTC 运行时编译（compile_ptx_with_opts → load_module/load_function），模块受 cuda-probe feature 门控且不在 default；product.cu 只含 4 个胶水函数 + 3 个 __global__ 入口 + 2 个 struct，未定义任何数值内核（数值函数全部来自 cuda/*.cu）；设备源拼装 14 源拓扑序 + product.cu，独立复算 len=121566、sha256=dc862ec8…cad43，与交付逐位一致；ABI 从结构定义独立推导 496B/136B 与测试断言一致；12 个 CPU 错误路径单测为真覆盖（编译 Err/panic、无设备、编译优先、非法参数、ABI、源拼装），Load/Launch 分支无 seam。数值对照不复用交付 bit_equal：QA 自建 dumper（仅公开 API）在已批准窗口落盘 3 case 的 18 个原始数组，自写比较器逐字节对 out1 → hfield-sphere 314/314、sdf-box 3122/3122、ellipsoid-box 80/80 全部一致，分母按 nworld+nacon*(35+efc_width) 独立复算与交付一致。两轮窗口（HEAD dfcc1bdc、窗口内不编译、PATH/驱动/DLL sha 记录、跑前跑后计算进程与残留检查）自洽：run1 hfield-sphere（0.5s 采样，context 瞬时峰值 4987=+1325 MiB，>旧 +500 预期即停并报），run2 其余 2 case（0.25s 采样 75 点，峰值 +0，软阈值 1536 未超，硬守卫 3072/50 未触发），结束 3665、残留 0。观察：①交付窗口 +185 MiB 峰值（0.5s 采样）可能漏掉 context 创建瞬时（本次实测 +1325 MiB，属 CUDA context 固有开销，不改功能/数值结论，峰值应以更密采样为准）；②121562 为 Arch 笔误，实际双方 121566/同 sha；③Load/Launch 无 seam 单测；④交付行数 464/495/491 为 PowerShell ANSI 少计，UTF-8 实际 498/499/499（仍 ≤500）。"
+ },
+ "method": {
+  "independent": [
+   "读源码确认入口链路（cfg 门控、cudarc NVRTC、load_module/load_function、run launch），确认未绕回 nvcc 探针",
+   "独立重放 source.rs 拼装规则（strip 本地 .cu include、14 源拓扑序、追加 product.cu）复算 len/sha256",
+   "从 abi.rs 字段类型独立推导 C ABI size/align/offset",
+   "解析 product.cu 顶层定义与调用，核对数值函数均在 cuda/*.cu 定义且 product.cu 无重定义",
+   "审查 12 个 CPU 错误路径单测的失败注入方式（Err 闭包/panic/catch_unwind/无设备/非法参数）",
+   "QA dumper（独立 crate，只依赖公开 API）在批准窗口内逐 case 落盘产品原始输出；自写 Python 比较器逐 4 字节对 G5 out1 比较并独立复算分母",
+   "两轮窗口脚本：基线复测（漂移阈值）、PATH/DLL sha、0.25/0.5 s 采样、软阈值/硬守卫、跑前跑后 compute-apps 与残留检查"
+  ],
+  "not_reused": ["未使用交付 tests/g10_p5_nvrtc_launcher.rs 的 bit_equal 结论；仅用其 out1（G5 已验收参考数据）"],
+  "product_tree_untouched": true,
+  "delivery_evidence_untouched": true,
+  "fixtures_untouched": true,
+  "gpu_used": true
+ },
+ "environment": {
+  "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER 16376 MiB",
+  "driver": "596.36",
+  "nvcc": "release 12.8, V12.8.93",
+  "nvrtc_dll_sha256": {
+   "nvrtc64_120_0.dll": "02d2d7ef4690bf1a55dda1d3ac94c86ce8d16920071c87bcd3e70e94ef346e93",
+   "nvrtc64_120_0.alt.dll": "5464ea01b079d78042374dc7819684910c8e9d5c63000e2d2d5aa02298ecf2ae",
+   "nvrtc-builtins64_128.dll": "a7afa2a40cbd3f922a33d8bf71c13cb26ca707c7016a9bc5fcde36759ba668f5"
+  },
+  "path_prepend": "D:\\Rust\\mjwarp-rs\\target\\toolchains\\cuda-12.8.1\\bin",
+  "python": "3.12.13"
+ },
+ "results": {
+  "entry_authenticity": {
+   "module_gated_by_feature": true,
+   "feature_not_in_default": true,
+   "real_nvrtc_compile": "cudarc::nvrtc::compile_ptx_with_opts",
+   "loads_three_functions": true,
+   "run_launches_kernel": true,
+   "no_probe_reference_in_product_module": true,
+   "compile_options": {"fmad": true, "use_fast_math": false, "std": "c++17", "arch": "sm_89", "include_paths": "empty"},
+   "cpu_smoke": {"ptx_bytes": 1863043, "entries": 3, "source_sha256": "dc862ec884680349c6f38b40de0379082ec1b6dbf47d4dba9f22adfd8adcad43"}
+  },
+  "assembly": {
+   "device_sources": 14,
+   "order_topological_ok": true,
+   "appended_product_cu": true,
+   "len": 121566,
+   "sha256": "dc862ec884680349c6f38b40de0379082ec1b6dbf47d4dba9f22adfd8adcad43",
+   "matches_delivery_len": true,
+   "matches_delivery_sha": true,
+   "typo_note": "121562 为 Arch 笔误；交付与独立复算均 121566/同 sha"
+  },
+  "product_cu_boundary": {
+   "top_level_defs": ["init_polytope", "build_geom", "build_params", "sdf_type_of"],
+   "kernels": ["mjwarp_collision_contact", "mjwarp_collision_hfield", "mjwarp_collision_sdf"],
+   "structs": ["mjwarp_collision_args", "LocalPolytope"],
+   "numeric_defs_redefined_in_product_cu": [],
+   "numeric_called_and_defined_in_cuda": ["g5_ccd_pair_write", "g5_hfield_pair_contacts", "g5_hfield_write_contacts", "g5_sdf_pair_contacts", "g5_write_contact", "v3_make"]
+  },
+  "abi": {
+   "CollisionArgs": {"size": 496, "align": 8, "fields": 55},
+   "CollisionContactOut": {"size": 136, "align": 8, "fields": 17},
+   "matches_tests_assertions": true
+  },
+  "numeric": {
+   "method": "QA dumper dumps 18 raw arrays per case (public API) -> QA Python comparator bytewise vs g5 out1",
+   "denominator_formula": "nworld + nacon*(35+efc_width)",
+   "cases": {
+    "hfield-sphere": {"nacon": [8, 8], "nccd": [0, 0], "bit_equal": 314, "bit_total": 314, "denominator_recomputed": 314, "window": "run1"},
+    "sdf-box": {"nacon": [80, 80], "nccd": [0, 0], "bit_equal": 3122, "bit_total": 3122, "denominator_recomputed": 3122, "window": "run2"},
+    "ellipsoid-box": {"nacon": [2, 2], "nccd": [2, 2], "bit_equal": 80, "bit_total": 80, "denominator_recomputed": 80, "window": "run2"}
+   },
+   "all_bytewise_identical": true
+  },
+  "windows": {
+   "run1": {
+    "cases": ["hfield-sphere"], "start": "22:10:09", "elapsed_s": 9.8,
+    "head": "dfcc1bdc", "path_prepend": "target/toolchains/cuda-12.8.1/bin",
+    "dumper_exe_sha256": "85550689fa6e5823b7d5fde07353bf0733a69a664a8cb30f95a12bd4f85fc492",
+    "baseline_used_mib": 3662, "baseline_drift_mib": 7,
+    "baseline_task_related_processes": 0,
+    "sample_interval_s": 0.5, "samples": 19,
+    "sample_peak_mib": 4987, "sample_peak_delta_mib": 1325,
+    "after_used_mib": 3662, "residual_qa_dumper_processes": 0,
+    "stop_reason": "旧 +500 MiB 预期触发即停并报；Arch 后澄清 +500 为预期值、硬守卫 3072/50 才是批准口径"
+   },
+   "run2": {
+    "cases": ["sdf-box", "ellipsoid-box"], "start": "22:11:57", "elapsed_s": 21.1,
+    "head": "dfcc1bdc", "path_prepend": "target/toolchains/cuda-12.8.1/bin",
+    "dumper_exe_sha256": "85550689fa6e5823b7d5fde07353bf0733a69a664a8cb30f95a12bd4f85fc492",
+    "baseline_used_mib": 3691, "baseline_drift_mib": 22,
+    "baseline_task_related_processes": 0,
+    "sample_interval_s": 0.25, "samples": 75,
+    "sample_peak_mib": 3691, "sample_peak_delta_mib": 0,
+    "soft_threshold_mib": 1536, "soft_threshold_exceeded": false,
+    "hard_guard": "3072 MiB / 50%", "hard_guard_triggered": false,
+    "after_used_mib": 3665, "residual_qa_dumper_processes": 0
+   }
+  },
+  "error_paths": {
+   "cpu_tests": 12,
+   "compile_error_injection": true,
+   "compile_panic_mapped_without_panic": true,
+   "no_device_mapping": true,
+   "compile_error_priority_over_device": true,
+   "invalid_meta_and_slice_lengths": true,
+   "abi_layout_assertions": true,
+   "error_display_all_variants": true,
+   "load_and_launch_branch_no_injectable_seam": true
+  },
+  "line_counts_utf8": {
+   "src/runtime/collision_gpu.rs": 498,
+   "src/runtime/collision_gpu/source.rs": 85,
+   "src/runtime/collision_gpu/error.rs": 37,
+   "src/runtime/collision_gpu/abi.rs": 204,
+   "src/runtime/collision_gpu/tests.rs": 499,
+   "src/runtime/collision_gpu/nvrtc_smoke.rs": 31,
+   "src/physics/collision/cuda/product.cu": 296,
+   "tests/g10_p5_nvrtc_launcher.rs": 499,
+   "max": 499,
+   "all_within_500": true,
+   "note": "交付 README 的 464/495/491 是 PowerShell 5.1 默认 ANSI 解码少计"
+  }
+ },
+ "observations": [
+  {
+   "id": 1,
+   "severity": "suggestion",
+   "title": "交付窗口峰值 +185 MiB（0.5 s 采样）可能漏掉 CUDA context 创建瞬时",
+   "detail": "QA 同配方复跑 run1 在 context/module 创建瞬间采样到 4987 MiB（+1325 MiB，1 点 0.5 s）；run2 用 0.25 s×75 点未再捕到（每 case 进程中 context 仅存活约 30–100 ms）。+1325 MiB 与 CUDA context 预留量吻合（G6 perf 探针 cudaMemGetInfo 同样显示约 1.2 GiB 被 context 占），属固有开销。",
+   "impact": "不改变功能/数值结论，也不影响硬守卫（3072 MiB/50%）；但交付窗口的「峰值」数字偏低，建议以更密采样或多轮采样记录峰值，并在 NVRTC 证据补注（Arch 已安排 fix 记录）。",
+   "blocking": false
+  },
+  {
+   "id": 2,
+   "severity": "suggestion",
+   "title": "121562 vs 121566 为 Arch 笔误",
+   "detail": "交付证据与 QA 独立复算均为 len=121566、sha256=dc862ec8…cad43；matches_claim_len=true。不存在 4 字节差异，121562 为 Arch 转述笔误。",
+   "impact": "无；仅需在结论中写明以免误记。",
+   "blocking": false
+  },
+  {
+   "id": 3,
+   "severity": "suggestion",
+   "title": "CollisionGpuError::Load / Launch 分支无 CPU 可注入 seam 单测",
+   "detail": "12 个 CPU 单测覆盖编译失败/panic/无设备/编译优先/非法参数/ABI/源拼装/Display；load_module/load_function 与 launch 失败路径没有 seam，只有 Display 覆盖。",
+   "impact": "不影响本片数值与入口结论；建议后续为 load/launch 增加可注入 seam 的单测。",
+   "blocking": false
+  },
+  {
+   "id": 4,
+   "severity": "suggestion",
+   "title": "交付行数 464/495/491 为 PowerShell ANSI 少计；UTF-8 实际 498/499/499",
+   "detail": "用 PowerShell 5.1 默认 Get-Content（ANSI 解码）统计会少计；按 UTF-8/wc -l 实际 collision_gpu.rs 498、tests.rs 499、launcher 499、product.cu 296。",
+   "impact": "仍 ≤500 行限制，但只剩 1–2 行余量；建议后续按 UTF-8 口径记录且勿再加行。",
+   "blocking": false
+  }
+ ],
+ "limitations": [
+  "默认构建不含 CUDA 产品入口（cuda-probe 门控），未接入默认产品管线（交付已声明，本复核确认）",
+  "数值对照仅 3 个 case；multicontact / primitive narrowphase 设备版不在本片范围",
+  "仅 Windows + RTX 4070 Ti SUPER + NVRTC 12.8 实测；不跨硬件/跨 NVRTC 版本外推",
+  "QA dumper 是独立 harness（公开 API），非产品管线；其 dump 只用于本复核对照",
+  "未改产品代码/判据/已 verified 数字/Cargo.*/fixtures/S2–S8"
+ ],
+ "artifacts": {
+  "in_repo": [
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/README.md",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/receipt.json",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/artifacts-sha256.json",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/qa_artifacts_sha256.py",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/qa_nvrtc_check.py",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/qa-nvrtc-check.json",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/qa-nvrtc-check.log",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/run_window.ps1",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/run_window2.ps1",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/window-log.txt",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/window-memory-samples.txt",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/window-output.txt",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/window-log2.txt",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/window-memory-samples2.txt",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/window-output2.txt",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/dumper/Cargo.toml",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/dumper/Cargo.lock",
+   "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/dumper/src/main.rs"
+  ],
+  "not_in_repo": [
+   "target/qa-nvrtc/dumper-target/（QA dumper 构建缓存，可由 dumper/ + cargo build 重建）",
+   "target/qa-nvrtc/prod-out/（产品原始输出 dump，可由 dumper 在 GPU 窗口重跑重建；本复核比较结果已落 JSON）"
+  ]
+ }
+}
