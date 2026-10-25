@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-case-evidence-frame-diagnosis",
+  "title": {
+    "zh": "诊断：case_evidence 在 --all-features 下 ellipsoid-box frame 超 4·ULP（特性交互，非 repin 范围）",
+    "en": "Diagnose case_evidence ellipsoid-box frame exceedance under --all-features (feature interaction)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "T4 第 13 轮重钉（`2026-10-25-t4-source-hash-repin-13-r2`）后，`--features cuda-probe --lib` 已 678 passed / 0 failed / 137 ignored 全绿，但 `--all-features --lib` 仍有 1 个失败：`physics::collision::gjk::case_evidence::upstream_f32_within_4ulp` → `ellipsoid-box frame 6.351978e-7`（上限 4.8e-7）。该失败在重钉前后数值不变（重钉前 all-features lib 为 2 失败：它 + 谱系），且**只在含 `native-model-probe` 等特性的构建下出现**，因此是独立的特性交互问题。本片只做**诊断与归因**：定位为何 all-features 下 case_evidence 的 frame 期望与实际不一致（特性是否改变证据数据来源/期望生成路径/编译选项），给出可复现证据与候选处置（数据陈旧 / 期望口径需按特性区分 / 数值问题），**不改判据、不动容差、不改排除清单**；处置口径由用户拍板后另立片。",
+    "en": "Diagnose the all-features-only case_evidence frame failure: identify how feature gating changes the evidence data or expectation path, produce reproducible evidence, and list candidate dispositions without changing tolerances or assertions."
+  },
+  "modules": {},
+  "acceptance": [
+    "**复现矩阵**：至少四种构建下的同一条测试结果与数值——`--lib`（默认）、`--features cuda-probe`、`--features native-model-probe`、`--all-features`；给出每种构建的 exit / passed / failed 与该测试的 frame 实测值（有则贴原始 panic 行）。",
+    "**归因**：定位特性影响链路（`native-model-probe` 是否改变 `case_evidence` 读取的证据文件/期望生成/编译选项，或改变上游参考数据来源），用源码定位 + 最小差分实验证明；若无法定位到具体机制，如实写「机制未定」并给出排除项。",
+    "**候选处置（不实施）**：列出可选项及其影响面（① 证据数据/期望按特性分开维护；② 该测试在 all-features 下标注为不适用并写清理由；③ 判据/容差调整（需用户拍板）；④ 真实数值问题需修实现），**不由本片决定、不改任何判据/容差/排除清单**。",
+    "**证据**：`docs/development-evidence/case-evidence-frame-diagnosis/`（README + receipt 含 task_id + 复现日志），行数 ≤500、UTF-8 无 BOM、无 `.bin/.pyc`；不宣称「物理整体通过/精度达标」等；不改已 verified 的 r2 证据。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-t4-source-hash-repin-13-r2"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/",
+      "fixtures/",
+      "tests/",
+      "docs/development-evidence/case-evidence-frame-diagnosis/"
+    ],
+    "resources": [],
+    "priority": 52
+  },
+  "note": "Arch 2026-10-25 登记（r2 复核发现）。归因要点：该失败重钉前后 frame 数值不变、只在含 native-model-probe 的构建出现，属独立特性交互问题，不是身份漂移下游症状（Arch 先误判为下游 symptom，已更正）。本片只诊断；任何判据/容差处置须经 Chief 转用户决策卡。QA 复核可在其证据落地后另立。",
+  "revision": {
+    "before": "c7f8ea197c32f3eb39e9c7bf431c4b332272ace3",
+    "after": null
+  },
+  "created_at": "2026-10-25T17:02:00.000Z",
+  "updated_at": "2026-10-25T17:02:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/case-evidence-frame-diagnosis/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-case-evidence-frame-diagnosis"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
