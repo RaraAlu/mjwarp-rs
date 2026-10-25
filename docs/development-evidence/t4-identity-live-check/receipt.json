@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-t4-identity-live-check-coverage",
+  "status": "implemented_pending_arch_review",
+  "head": "7c4012823f9557a28110bd549b3268ecb70736b0",
+  "head_note": "实现与验证时 HEAD；其后 eac9af71 仅新增 .normify 治理任务 JSON，src/tests/fixtures 无变化",
+  "nature": "只新增默认特性、纯 CPU 的身份活体校验测试；不改期望值/判据/容差/排除清单/产品源码/gates.toml/G01 脚本",
+  "files": {
+    "tests/t4_identity_live_check.rs": "64 行，2 个非 ignored 测试（活体比对 + 摘要自检）",
+    "tests/support/t4_identity_live.rs": "426 行，自实现 SHA-256/LF 归一化/最小 JSON 提取/组合摘要/规范路径集合"
+  },
+  "digest_semantics": {
+    "single_file": "sha256(LF 归一化字节)（CRLF → LF）",
+    "physics_core_combined": "锚点 t4-resident-anchors/physics.rs 的 5 个 include_str!（mod.rs / com_position.rs / device_checks.rs / history.rs / kinematics.rs）逐文件 LF 归一化后以 \\n 连接再 sha256",
+    "expected_paths_count": 20,
+    "fixture": "fixtures/precision/t4-current-kernels.json（期望值只从 fixture 读取，测试不复制）"
+  },
+  "reverse_discrimination": {
+    "seam": "环境变量 T4_IDENTITY_LIVE_FIXTURE（测试专用，默认不设置时读仓库 fixture）",
+    "tamper_sha": {"artifact": "target/t4-identity-live-tampered-sha.json（临时副本）", "change": "fixtures/mjwarp-mass-solve/manifest.json 期望 sha 首字符 0→1", "exit": 101, "diagnostic": "T4 身份活体校验失败（1 条差异，共 20 条）", "log": "tamper-sha.log"},
+    "tamper_path": {"artifact": "target/t4-identity-live-tampered-path.json（临时副本）", "change": "src/physics/sleep.rs → src/physics/sleep_renamed.rs", "exit": 101, "diagnostic": "路径集合不完整：缺少 [src/physics/sleep.rs]，多出 [src/physics/sleep_renamed.rs]", "log": "tamper-path.log"},
+    "normal": {"exit": 0, "result": "2 passed / 0 failed", "log": "normal.log"},
+    "repo_fixture_modified": false
+  },
+  "verification": {
+    "default_lib": {"command": "cargo test --locked --lib", "exit": 0, "result": "447 passed / 0 failed / 5 ignored", "log": "default-lib.log"},
+    "new_target": {"command": "cargo test --locked --test t4_identity_live_check", "exit": 0, "result": "2 passed / 0 failed"},
+    "gate_unit_equivalent": "cargo test --locked 会执行该集成 target（+2 tests）",
+    "fmt": "cargo fmt --check exit 0",
+    "clippy": "cargo clippy --all-targets --locked -- -D warnings exit 0",
+    "clippy_cuda": "cargo clippy --all-targets --locked --features cuda-probe -- -D warnings exit 0",
+    "gate": {"status": "run_at_task_close", "runs_dir": ".normify/runs/2026-10-25-t4-identity-live-check-coverage/"}
+  },
+  "boundaries": {
+    "changed_expected_values": false,
+    "changed_judgment_tolerance_exclusions": false,
+    "changed_product_code": false,
+    "changed_gates_or_g01_scripts": false,
+    "gpu_run": false,
+    "linux_run": false,
+    "note": "活体校验只做检测器，漂移仍需走 repin 流程更新 fixture；不宣称物理/精度通过"
+  },
+  "evidence_files": ["README.md", "normal.log", "tamper-sha.log", "tamper-path.log", "default-lib.log"]
+}
