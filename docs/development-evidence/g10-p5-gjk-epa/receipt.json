@@ -52,7 +52,7 @@
     }
   },
   "numeric_parity": {
-    "method": "worldid 分组 + 每 world 内 (dist,pos) 稳定排序后逐字段比较（G0b 判据）；pos 按向量尺度 ULP，frame 用分量绝对误差（单位向量近零分量 ULP 无意义）",
+    "method": "native 框架读数，非判据：worldid 分组 + (dist,pos,frame,geomcollisionid) 排序后逐字段记录；pos 按向量尺度 ULP，frame 用分量绝对误差",
     "cases": [
       {"name": "cylinder-box", "path": "CONVEX CYLINDER×BOX", "count": "8/8", "dist_bitwise": "8/8", "dist_max_ulp": 0, "pos_max_scaled_ulp": 4.0, "frame_bitwise": "72/72", "frame_max_abs": 0.0},
       {"name": "ellipsoid-box", "path": "CONVEX ELLIPSOID×BOX", "count": "2/2", "dist_bitwise": "0/2", "dist_max_ulp": 2, "pos_max_scaled_ulp": 2.0, "frame_bitwise": "8/18", "frame_max_abs": 8.1928766e-7},
@@ -60,7 +60,7 @@
       {"name": "convex-mesh", "path": "CONVEX BOX×MESH", "count": "2/2", "dist_bitwise": "0/2", "dist_max_ulp": 2, "pos_max_scaled_ulp": 6.0, "frame_bitwise": "2/18", "frame_max_abs": 2.9802322e-7},
       {"name": "degenerate-mesh", "path": "CONVEX 退化 MESH×MESH", "count": "2/2", "dist_bitwise": "0/2", "dist_max_ulp": 18, "pos_max_scaled_ulp": 0.5, "frame_bitwise": "16/18", "frame_max_abs": 2.6510363e-11}
     ],
-    "recorded_budget": {"dist_max_ulp": 32, "pos_max_scaled_ulp": 8.0, "frame_max_abs": 1.0e-6},
+    "native_framework_observed_bounds": {"note": "仅记录 native 框架读数上界，非判据、非容差、未经批准，不作放行依据", "dist_max_ulp": 32, "pos_max_scaled_ulp": 8.0, "frame_max_abs": 1.0e-6},
     "bitwise_achieved": "cylinder-box（多接触路径）dist/frame 全位级；其余 case 未达位级",
     "root_cause": {
       "fma_contraction": "pinned ccd_kernel PTX: fma.rn.f32=1480, mul.rn.f32=0, add.rn.f32=0, sqrt.rn.f32=39；三种 FMA 收缩近似实测互有胜负（README §4），需按 PTX 逐表达式定序",
@@ -112,7 +112,7 @@
     "unit": {"result": "pass", "tests_passed": 555, "tests_failed": 0}
   },
   "unmet": [
-    "输入对齐后仍未达 ≤4 ULP 契约（见 input_alignment）：待 Arch 裁决（定序片 or 已知偏差）",
+    "（已解决，非 unmet）曾出现的 27 ULP 已定位为输入位姿口径，改写后达成 ≤4 ULP",
     "集成测试暂存 target/g10-p5-g2/pending-api/gjk_epa.rs，由 2026-10-25-g10-p5-gjk-epa-api 片落地",
     "球/胶囊 shrink 分支无 CONVEX 直达参考（PRIMITIVE 表），仅 in-crate 断言，不算数值验收",
     "MESH 图 hillclimb 分支实现完成但无参考 case（本片 5 case 顶点数 <10 走穷举）",

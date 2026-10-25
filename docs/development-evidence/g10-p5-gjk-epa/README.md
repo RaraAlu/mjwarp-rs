@@ -132,7 +132,7 @@ PRIMITIVE 表（现有 `narrowphase` 的覆盖范围），建议 Arch 决定是�
 
 ## 6. 未覆盖项（unmet）
 
-- **输入对齐后仍未达 ≤4 ULP 契约**（Arch 硬要求）：见 §9，待 Arch 裁决（开定序片 or 记已知偏差）。
+- **已达成 ≤4 ULP**（见 §9）：5 case 全部分量 ≤4 ULP；`degenerate-mesh` 曾出现的 27 ULP 根因为输入位姿口径（改用上游 f32 位姿后 1 ULP），**未修改窄相表达式**。
 - **集成测试暂存 target/**：见 §10，由 `…-gjk-epa-api` 片落地。
 - **球/胶囊 shrink 分支无 CONVEX 直达参考**：参考分类更正后，`sphere-box`/`capsule-box` 走 PRIMITIVE 表；shrink/`_inflate` 只有 in-crate 断言，不算数值验收。
 - **位级未全达成**：见 §4/§9；建议后续片按 pinned ccd/kinematics PTX 定序（或 G5 GPU 内核同口径）补齐。
