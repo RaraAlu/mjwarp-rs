@@ -1,0 +1,300 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-g10-p5-primitive-narrowphase-cuda-independent-check",
+  "outcome": "independent_check_pass_with_one_finding_fixed",
+  "conclusion": {
+    "verdict": "pass",
+    "blocking": 0,
+    "findings": 1,
+    "findings_fixed_by": "6e2bd529",
+    "observations": 6,
+    "note": "发现 1 = 交付覆盖口径把默认 collision table 当成本项目 dispatch 口径（12 组合/未实现 10）；实际全部 fixture nativeccd=disable → BOX-BOX 被覆盖为 PRIMITIVE → 13 组合/未实现 11，且 box-box-margin 的上游 primitive 参考已存在。Backend 已按此修正证据文案（6e2bd529，只改 docs/evidence，src/tests/Cargo/fixtures 零改动），本复核已逐字核对。"
+  },
+  "heads": {
+    "product_commit_under_review": "9d72159c6e26827622839205958867c27e52852e",
+    "check_head": "6e2bd5296091e6803e1c24d931bd216b6c4917ed",
+    "check_head_note": "9d72159c + 覆盖口径文案修正（6e2bd529）",
+    "diff_from_product_head": "7 files: primitive 片 README.md/receipt.json + 5 .normify records；src/tests/Cargo.toml/Cargo.lock/fixtures 为空（窗口内硬守卫）",
+    "product_diff_empty": true,
+    "worktree_product_changes": 0
+  },
+  "window": {
+    "started_local": "2026-10-25T23:21:25.450+08:00",
+    "finished_local": "2026-10-25T23:22:23.413+08:00",
+    "elapsed_seconds": 57.2,
+    "sample_interval_s": 0.25,
+    "sample_count": 201,
+    "baseline_used_mib": 3737,
+    "baseline_memory_raw": "3737 MiB, 16376 MiB, 34 %, 32, 596.36",
+    "baseline_drift_mib_vs_reported": 44,
+    "baseline_drift_limit_mib": 200,
+    "baseline_temperature_c": 32,
+    "baseline_util_percent": 34,
+    "baseline_compute_apps_count": 34,
+    "baseline_compute_apps_task_related": 0,
+    "sample_min_mib": 3663,
+    "sample_peak_mib": 3882,
+    "peak_delta_mib": 145,
+    "soft_threshold_mib": 1536,
+    "soft_threshold_exceeded": false,
+    "guard_increment_limit_mib": 3072,
+    "guard_half_device_limit_mib": 8188,
+    "guard_triggered": false,
+    "after_used_mib": 3668,
+    "after_compute_apps_count": 34,
+    "after_compute_apps_task_related": 0,
+    "residual_dumper_processes": 0,
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER 16376 MiB",
+    "driver_version": "596.36",
+    "path_prepend": "target/toolchains/cuda-12.8.1/bin",
+    "nvcc": "Build cuda_12.8.r12.8/compiler.35583870_0 (release 12.8, V12.8.93)",
+    "nvrtc_dll_sha256": {
+      "nvrtc64_120_0.dll": "02d2d7ef4690bf1a55dda1d3ac94c86ce8d16920071c87bcd3e70e94ef346e93",
+      "nvrtc64_120_0.alt.dll": "5464ea01b079d78042374dc7819684910c8e9d5c63000e2d2d5aa02298ecf2ae",
+      "nvrtc-builtins64_128.dll": "a7afa2a40cbd3f922a33d8bf71c13cb26ca707c7016a9bc5fcde36759ba668f5"
+    },
+    "dumper_exe": "target/qa-primitive/dumper-target/debug/qa-primitive-dumper.exe",
+    "dumper_exe_sha256": "f3a3fbf953beb5489f62eb29575f56c5a591cc39aa3b8a65b3a07aae2648f104",
+    "dumper_built_at": "2026-10-25 23:10:55（窗口外预构建；窗口内不编译）",
+    "desktop_top5_wss_mib": [
+      "vmware-vmx:17714",
+      "DeepSeek Harness:1701",
+      "Code:1049",
+      "MsMpEng:760",
+      "explorer:668"
+    ],
+    "outputs": [
+      "window-log.txt",
+      "window-output.txt",
+      "window-memory-samples.txt"
+    ]
+  },
+  "device_source": {
+    "fragments": 16,
+    "order_tail": [
+      "hfield.cu",
+      "contact.cu",
+      "primitive.cu",
+      "primitive_wrapper.cu",
+      "product.cu"
+    ],
+    "assembled_len_bytes": 138520,
+    "assembled_sha256": "a45169bce628ee2f84de7c9f6ca3e90720d0c33a83baa856700747447cf8bd38",
+    "ptx_bytes": 1983583,
+    "ptx_entry_count": 4,
+    "ptx_entry_names": [
+      "mjwarp_collision_contact",
+      "mjwarp_collision_hfield",
+      "mjwarp_collision_sdf",
+      "mjwarp_collision_primitive"
+    ],
+    "independent_assembly_reproduced": true,
+    "independent_ptx_compile": "ctypes -> nvrtc64_120_0.dll（--fmad=true --std=c++17 --gpu-architecture=sm_89）",
+    "abi_changed": false,
+    "product_cu_diff": "从 7e5f4f43 到 9d72159c 纯追加 22 行入口壳；无数值内核重定义"
+  },
+  "cases": [
+    {
+      "case": "sphere-box-shallow",
+      "kernel": "Primitive",
+      "nacon": 2,
+      "nccd": 0,
+      "overflow": [0, 0],
+      "rows": 2,
+      "denominator_recomputed": 80,
+      "delivered_denominator": 80,
+      "bit_equal": 80,
+      "total": 80,
+      "max_dist_ulp": 0,
+      "max_pos_ulp": 0,
+      "max_frame_ulp": 0,
+      "failures": 0,
+      "branch": "sphere_box outside（两 world）"
+    },
+    {
+      "case": "sphere-box-deep",
+      "kernel": "Primitive",
+      "nacon": 2,
+      "nccd": 0,
+      "overflow": [0, 0],
+      "rows": 2,
+      "denominator_recomputed": 80,
+      "delivered_denominator": 80,
+      "bit_equal": 80,
+      "total": 80,
+      "max_dist_ulp": 0,
+      "max_pos_ulp": 0,
+      "max_frame_ulp": 0,
+      "failures": 0,
+      "branch": "sphere_box inside（两 world，深穿透）"
+    },
+    {
+      "case": "capsule-box",
+      "kernel": "Primitive",
+      "nacon": 2,
+      "nccd": 0,
+      "overflow": [0, 0],
+      "rows": 2,
+      "denominator_recomputed": 80,
+      "delivered_denominator": 80,
+      "bit_equal": 80,
+      "total": 80,
+      "max_dist_ulp": 0,
+      "max_pos_ulp": 0,
+      "max_frame_ulp": 0,
+      "failures": 0,
+      "branch": "capsule_box cltype<0 端点-盒面分支（clface=-1，无第二接触）+ sphere_box inside"
+    }
+  ],
+  "numeric_note": "QA 自建 dumper 落盘 18 个原始数组，QA 自写比较器逐 4 字节对 qa-upstream-gpu.json；未使用交付 bit_equal 汇总。判据：位级优先，非位级 dist ≤4 ULP（ref==0 用 4 ULP@1.0）、pos 4·ULP(max|ref_i|)、frame 4 ULP@1.0；结构/计数/参数/整数零容差；行序按 (worldid,dist,pos,frame) 位级全序排序后按多重集比较。",
+  "inputs_guard": {
+    "checked_cases": 3,
+    "bins_per_case": 23,
+    "sha256_matches_reference": "69/69",
+    "count_matches_reference": "69/69",
+    "matches_tracked_g5_window_bins": "69/69",
+    "note": "窗口内比较器现场重算；参考 QA qa-upstream-gpu.json case.input_bins；tracked = docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases"
+  },
+  "launcher_regression": [
+    {
+      "case": "hfield-sphere",
+      "kernel": "Hfield",
+      "nacon": 8,
+      "nccd": 0,
+      "bit_equal": 314,
+      "total": 314,
+      "denominator_recomputed": 314,
+      "failures": 0
+    },
+    {
+      "case": "sdf-box",
+      "kernel": "Sdf",
+      "nacon": 80,
+      "nccd": 0,
+      "bit_equal": 3122,
+      "total": 3122,
+      "denominator_recomputed": 3122,
+      "failures": 0
+    },
+    {
+      "case": "ellipsoid-box",
+      "kernel": "Contact",
+      "nacon": 2,
+      "nccd": 2,
+      "bit_equal": 80,
+      "total": 80,
+      "denominator_recomputed": 80,
+      "failures": 0
+    }
+  ],
+  "reference": {
+    "path": "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-upstream-gpu.json",
+    "device": "cuda",
+    "provenance": "QA 已提交上游 f32 GPU 捕获；3 个 primitive case 均 two_captures_raw_bitwise_identical=true；脚本 sha256 5cf2f7467e60fd5f5d62137d8b9ced1e8a9173e77ddef3d4c92d27cc51112f96（qa_prepare_capture.py，mwj.collision 全流程）",
+    "launcher_reference": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/<case>/out1"
+  },
+  "semantics": {
+    "checked_against": "frozen collision_primitive_core.py L1049-1460 / collision_primitive.py L1087-1246 / collision_core.py L214-294",
+    "rows_compared": 21,
+    "deviations": 0,
+    "only_difference": "上游 capsule_box 的 `best=0.0` 死赋值设备未写（无行为差异）",
+    "product_cu_glue_only": true
+  },
+  "branch_analysis": {
+    "method": "qa_branch_analysis.py：numpy.float32 逐式转写上游 sphere_box/capsule_box，从 QA 冻结输入 bin 复算（影子实现，不参与判据）",
+    "sphere-box-shallow": "world0/1: sphere_box outside；球心局部 z=0.100 > size.z=0.06；dist=-0.06",
+    "sphere-box-deep": "world0: inside（中心局部 (0.02,0,0.02) 在 size (0.10,0.08,0.06) 内，closest=0.04，dist=-0.14）；world1: inside（中心局部 z=-0.04，closest=0.02，dist=-0.12）",
+    "capsule-box": "world0/1: cltype=-3、clface=-1、secondpos=-4（无第二接触）；主导 cltype<0 端点-盒面分支 + sphere_box inside；dist=-0.09/-0.10",
+    "unexecuted": "capsule_box 角点分支/盒边分支/全部第二接触机制（primitive.cu L254-353 约 100/371 行）"
+  },
+  "coverage_check": {
+    "finding_1": "交付原写 upstream primitive dispatch 12 组合/未实现 10，并断言 BOX-BOX 不属于 primitive dispatch；实际 collision_driver.py L909-912 在 disableflags&NATIVECCD 时把 (BOX,BOX) 覆盖为 PRIMITIVE，而本项目全部 fixture 写 nativeccd=disable → 13 组合/未实现 11；box-box-margin 上游 primitive 参考已存在于 qa-upstream-gpu.json",
+    "finding_1_status": "fixed_by 6e2bd529（docs/evidence only），本复核核对 README §2/表格/补充说明 + receipt.unimplemented_pairs/uncovered + commit message，与 frozen 源码一致",
+    "no_host_reference_claim": "成立（G5 host 9 case 不含 SPHERE-BOX/CAPSULE-BOX）",
+    "second_contact_uncovered_claim": "成立（见 branch_analysis.unexecuted）",
+    "default_pipeline_uncovered_claim": "成立（cuda-probe 不在 default features）",
+    "uncovered_written_as_pass": false
+  },
+  "reverse_discrimination": {
+    "criteria_selfcheck": {
+      "script": "qa_primitive_selfcheck.py",
+      "nature": "合成 dump 自检（不跑 GPU；非真实设备数据）",
+      "scenarios": 11,
+      "all_as_expected": true,
+      "detail": "基线 80/80；dist+1ULP→79/80,max ULP=1；dist+1e-4→fail(26844 ULP)；pos+1e-3→fail；frame+1e-6→fail；frame+2e-7→79/80 但不误报；nacon-1/nccd=1/overflow 置位/efc_address=0→fail；交换两行→排序恢复 80/80"
+    },
+    "launcher_comparator_selfcheck": "G5 out1 合成 dump 314/3122/80；hfield-sphere dist[0] 翻 1 bit → 313/314 + failures=1",
+    "product_cpu_tests": {
+      "command": "cargo test --locked --features cuda-probe --lib runtime::collision_gpu -- --include-ignored --test-threads=1",
+      "passed": 17,
+      "failed": 0,
+      "content": "12 tests + 4 primitive_tests + NVRTC smoke；错误路径为真覆盖，不是只断言 Ok"
+    },
+    "gap": "CollisionGpuError::Load/Launch 无 CPU 可注入 seam，仅 Display 覆盖（沿用 NVRTC 片观察）"
+  },
+  "observations": [
+    "行序跨 world 由 atomicAdd 竞态决定：本次 shallow/deep 设备 raw 行序 world1→world0、参考 world0→world1（capsule-box 同序），排序后 80/80；不能用 raw 行序作判据。",
+    "峰值采样：201 点 0.25 s 采样峰值 +145 MiB，未复现 NVRTC 片 run1 的 +1325 MiB context 瞬时；该瞬时是否被采到取决于采样时机/WDDM 记账，交付 +197 与本次 +145 都不能证明无瞬时；峰值数字只作资源观测，不影响功能/数值结论。",
+    "反向实参顺序（BOX,SPHERE / BOX,CAPSULE）分支无参考且上游不可达（_add_geom_pair 按 type 升序），不影响本片结论；建议交付 README §2 该行标注单方向覆盖。",
+    "dispatch 依据 meta.type1/type2 而非 inputs.geom_type，未交叉校验（建议级）。",
+    "CAPSULE-BOX 第二接触机制 0 覆盖（交付已声明，未写成通过）。",
+    "nvrtc_smoke 的 ptx_bytes/source_sha256 只作诊断；QA 已独立 NVRTC 编译 + 独立拼装复算。"
+  ],
+  "uncovered": [
+    "上游 primitive dispatch 其余 11 个组合未实现（本项目配置；含 BOX-BOX，其上游参考已存在）",
+    "CAPSULE-BOX 角点/盒边/第二接触机制未被样本触发（每 world 仅 1 个有效接触）",
+    "无 host 交叉参考（G5 host 9 case 不含 SPHERE-BOX/CAPSULE-BOX）",
+    "产品入口经 cuda-probe 特性启用，未接入默认产品管线",
+    "样本规模：3 case × 2 world × 1 接触 = 6 个接触点；不扩展结论",
+    "环境：Windows / RTX 4070 Ti SUPER 16 GiB / NVRTC 12.8；未做 Linux 或其它 GPU",
+    "未做性能测试（本片无性能判据）"
+  ],
+  "artifacts": {
+    "readme": "README.md",
+    "manifest": "artifacts-sha256.json",
+    "scripts": [
+      "qa_primitive_check.py",
+      "qa_launcher_regression_check.py",
+      "qa_assemble_check.py",
+      "qa_branch_analysis.py",
+      "qa_primitive_selfcheck.py",
+      "qa_artifacts_sha256.py"
+    ],
+    "results": [
+      "qa-primitive-check.json",
+      "qa-primitive-check.log",
+      "qa-launcher-regression.json",
+      "qa-launcher-regression.log",
+      "qa-assemble-check.json",
+      "qa-primitive-selfcheck.json"
+    ],
+    "dumper": [
+      "dumper/Cargo.toml",
+      "dumper/Cargo.lock",
+      "dumper/src/main.rs"
+    ],
+    "window": [
+      "run_window.ps1",
+      "window-log.txt",
+      "window-output.txt",
+      "window-memory-samples.txt"
+    ],
+    "not_committed": [
+      "target/qa-primitive/dumper-target/**（构建缓存）",
+      "target/qa-primitive/prod-out/**（产品原始 dump，可由 dumper 重跑重建）",
+      "target/qa-primitive/{assemble-check.json,selfcheck.json,case-branch-analysis.json}（诊断中间物）"
+    ]
+  },
+  "gate": {
+    "status": "passed",
+    "results": {
+      "fmt": "pass",
+      "clippy": "pass",
+      "clippy-cuda": "pass",
+      "unit": "595 passed / 0 failed / 7 ignored",
+      "receipt_task_id_json": "pass",
+      "forbid_claim": "pass"
+    },
+    "note": "门禁绑定当前源码指纹；证据写完后重跑"
+  }
+}
