@@ -5,8 +5,10 @@
 //! 2. `build_probe.ps1` → `target/g10-p5-g5/probe.exe`（同一批 device 源、fmad=true）；
 //! 3. 探针每 case 跑两次：`probe.exe cases/<case> 2` → `out1|out2/`。
 //!
-//! 判据与全部比对逻辑见 `tests/common/gpu_compare.rs`（Arch 2026-10-25 裁决：
-//! frame 按 scale=1.0 的 4 ULP 绝对差，dist/pos 按各自量级 ULP，参数/整数位级）。
+//! 判据与全部比对逻辑见证据目录 `gpu-window/gpu_compare.rs` 与 `gpu-window/witness_compare.rs`
+//! （Arch 2026-10-25 裁决：frame 按 scale=1.0 的 4 ULP 绝对差，dist 按自身量级 ULP，
+//! pos/x1/x2 按位置向量的 scale=max_i|ref_i| 取 4·ULP(scale)，参数/整数位级；
+//! witness 对照对直调上游 `collision_gjk.ccd` 的 dist/x1/x2）。
 //!
 //! 运行（GPU 窗口结束后，CPU 侧）：
 //! `cargo test --locked --features cuda-probe --test g10_p5_gpu_kernels -- --ignored --test-threads=1`
@@ -19,6 +21,8 @@
 
 #[path = "../docs/development-evidence/g10-p5-gpu-kernels/gpu-window/gpu_compare.rs"]
 mod gpu_compare;
+#[path = "../docs/development-evidence/g10-p5-gpu-kernels/gpu-window/witness_compare.rs"]
+mod witness_compare;
 
 use serde_json::Value;
 
@@ -34,6 +38,25 @@ fn device_contact_arrays_match_upstream_cuda_reference() {
     assert!(
         failures.is_empty(),
         "设备对照未全部通过（未通过 case: {failures:?}）；明细见 {}",
+        path.display()
+    );
+}
+
+/// witness 对照（Arch 裁决 1）：`cylinder-box`/`box-box-margin`/`mesh-mesh` 三例
+/// 设备 `g5_ccd`（`witness_probe.exe`）vs 上游 CUDA 直调 `collision_gjk.ccd`
+/// （`capture_witness_ccd.py --device cuda`）：dist/x1/x2 ≤4 ULP、ncontact 位级。
+#[test]
+#[ignore = "需要 GPU 窗口跑 witness_probe.exe + capture_witness_ccd.py --device cuda"]
+fn device_ccd_witness_matches_upstream_ccd() {
+    let (result, failures) = witness_compare::run_witness_comparison();
+    let path = witness_compare::root()
+        .join("docs/development-evidence/g10-p5-gpu-kernels/gpu-window/witness-result.json");
+    std::fs::write(&path, serde_json::to_vec_pretty(&result).expect("json"))
+        .expect("写 witness-result.json");
+    println!("wrote {}", path.display());
+    assert!(
+        failures.is_empty(),
+        "witness 对照未全部通过（未通过 case: {failures:?}）；明细见 {}",
         path.display()
     );
 }

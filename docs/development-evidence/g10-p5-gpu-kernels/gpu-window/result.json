@@ -1,6 +1,31 @@
 {
   "cases": [
     {
+      "case": "ellipsoid-box",
+      "device_count": 2,
+      "dist_bit_equal": 1,
+      "dist_components": 2,
+      "dist_max_ulp": 2,
+      "efc_all_minus_one": true,
+      "frame_bit_equal": 10,
+      "frame_components": 18,
+      "frame_max_abs": 3.798091654516611e-7,
+      "ints_bit_equal": true,
+      "nccd": 2,
+      "overflow": [
+        0,
+        0
+      ],
+      "params_bit_equal": true,
+      "pos_bit_equal": 5,
+      "pos_components": 6,
+      "pos_max_abs": 3.0195224098861217e-9,
+      "pos_max_ulps_at_scale": 0.810546875,
+      "pos_scale_max": 0.05500008910894394,
+      "reference_count": 2,
+      "two_runs_sorted_identical": true
+    },
+    {
       "case": "hfield-sphere",
       "device_count": 8,
       "dist_bit_equal": 8,
@@ -19,7 +44,9 @@
       "params_bit_equal": true,
       "pos_bit_equal": 24,
       "pos_components": 24,
-      "pos_max_ulp": 0,
+      "pos_max_abs": 0.0,
+      "pos_max_ulps_at_scale": 0.0,
+      "pos_scale_max": 0.0951930582523346,
       "reference_count": 8,
       "two_runs_sorted_identical": true
     },
@@ -42,7 +69,9 @@
       "params_bit_equal": true,
       "pos_bit_equal": 21,
       "pos_components": 21,
-      "pos_max_ulp": 0,
+      "pos_max_abs": 0.0,
+      "pos_max_ulps_at_scale": 0.0,
+      "pos_scale_max": 0.1849999874830246,
       "reference_count": 7,
       "two_runs_sorted_identical": true
     },
@@ -63,18 +92,19 @@
         0
       ],
       "params_bit_equal": true,
-      "pos_bit_equal": 202,
+      "pos_bit_equal": 203,
       "pos_components": 240,
-      "pos_max_ulp": 4,
+      "pos_max_abs": 7.450580596923828e-9,
+      "pos_max_ulps_at_scale": 1.0,
+      "pos_scale_max": 0.09833551943302155,
       "reference_count": 80,
       "two_runs_sorted_identical": true
     }
   ],
-  "criterion": "CONVEX/SDF/HFIELD case：count 相等 + worldid 分组/稳定排序后 dist/pos ≤4 ULP（零参考分量用 ≤4 ULP@1.0 绝对差）、frame 绝对差 ≤4 ULP@1.0（scale=1.0，不设近零带）、参数与整数字段位级相等",
+  "criterion": "CONVEX/SDF/HFIELD case：count 相等 + worldid 分组/稳定排序后比较。dist：按自身量级 ≤4 ULP（ref==0 用 4 ULP@1.0 绝对差）；pos（位置向量）：scale=max_i|ref_i|（整向量全零回落 1.0），逐分量 |dev-ref| ≤ 4·ULP(scale)，位级优先；frame（单位向量）：scale=1.0，绝对差 ≤4 ULP@1.0（4.77e-7，不设近零带）；接触参数与整数字段位级相等。判据补全的判别力自证见 gpu-window/criterion_scale.rs（修前 pos 8.3e-5 / dist 4.4e-8 在现判据下仍被拒绝）",
+  "criterion_scale_note": "Arch 2026-10-25 裁决 2：位置向量用向量尺度 ULP（不用 ULP@1.0 近零带）；ellipsoid-box world0 只放行 4·ULP(0.055)=1.49e-8，实测残差 3.02e-9 = 0.81 ULP",
   "device_probe": "target/g10-p5-g5/probe.exe（nvcc 12.8.93, fmad=true, -O3, sm_89；见 gpu-window/build-probe-report.txt）",
-  "failed_cases": [
-    "ellipsoid-box: ellipsoid-box: 行 0 dist ULP=47 超过 4（设备 -0.009999934 vs 参考 -0.00999989）"
-  ],
+  "failed_cases": [],
   "kind": "g5-device-vs-upstream-cuda-contact-arrays",
   "primitive_cases_not_compared": [
     "sphere-box-shallow",
@@ -86,13 +116,14 @@
   "task_id": "2026-10-25-g10-p5-gpu-kernels",
   "unmet": [
     "上游 primitive narrowphase 的 case 不列入对照（参考非 ccd 产物；设备 primitive 路径本片未实装）",
-    "multicontact 设备版未实装：cylinder-box/box-box-margin/mesh-mesh 接触数组不做全等；witness 对照待补",
+    "multicontact 设备版未实装：cylinder-box/box-box-margin/mesh-mesh 接触数组不做全等；witness 对照已完成（见 witness-result.json），接触数组仍不比",
     "NVRTC 产品 launcher 未接线：本测试比对的是 nvcc 独立探针（同一批 device 源、fmad=true）",
     "--fmad=false 仅诊断；sdf-box 在其下大幅偏移（梯度下降分岔），官方判据用 fmad=true"
   ],
-  "witness_cases_not_compared": [
+  "witness_cases_compared": [
     "cylinder-box",
     "box-box-margin",
     "mesh-mesh"
-  ]
+  ],
+  "witness_result": "gpu-window/witness-result.json（ccd() witness 对照三例全过；见 README §11.7.3）"
 }

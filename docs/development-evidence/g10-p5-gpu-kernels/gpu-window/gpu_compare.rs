@@ -1,16 +1,27 @@
 //! G5 GPU 窗口对照辅助（被 `tests/g10_p5_gpu_kernels.rs` 以 `#[path]` 引入，不是独立测试目标）。
 //!
-//! 判据（Arch 2026-10-25 裁决）：
+//! 判据（Arch 2026-10-25 裁决，含裁决 2 的向量尺度补全）：
 //! - 接触数组全等仅限上游走 CONVEX/SDF/HFIELD 的 case；primitive/multicontact 不在本片对照面。
 //! - `frame`/`normal` 是单位向量 → ULP 统一按 **scale=1.0** 计，分量绝对差 ≤ 4 ULP@1.0
 //!   （`4 × 2^-23 ≈ 4.77e-7`），零/非零分量一视同仁（不设近零特殊带）。
-//! - `dist`/`pos` 按各自量级 ULP；参考分量为 0 时 ULP 无定义，用 ≤ 4 ULP@1.0 绝对差兜底并计数。
+//! - `pos`（位置向量）：`scale = max_i |ref_i|`，逐分量 `|dev-ref| ≤ 4·ULP(scale)`，位级优先；
+//!   整向量全零才回落 `scale=1.0`（判据实现与判别力自证见 `criterion_scale.rs`）。
+//! - `dist`（标量）：按自身量级 ULP（≤4 ULP）；`ref == 0` 用 4 ULP@1.0 绝对差。
 //! - 其余浮点（接触参数）与整数字段位级相等；count 相等；`efc_address` 全 -1；`OverflowType` 0。
 //! - 原始行顺序由 atomic nacon 决定（不稳定），统一按 worldid 分组 + 稳定排序后比较。
 
 // 证据比对辅助：字节切片解析与排序键刻意直白；按需豁免对应 clippy 提示。
 #![allow(clippy::chunks_exact_to_as_chunks)]
 #![allow(clippy::type_complexity)]
+
+/// 判据实现（单一来源：本处 `#[path]` 引入一次；`witness_compare.rs` 以
+/// `use crate::gpu_compare::criterion_scale::{...}` 复用同一模块，不加载第二份副本）。
+#[path = "criterion_scale.rs"]
+pub(crate) mod criterion_scale;
+
+/// 判别力自证（单次注册；见 `criterion_test.rs`）。
+#[path = "criterion_test.rs"]
+mod criterion_test;
 
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -47,8 +58,8 @@ const PARAM_FLOAT_FIELDS: [&str; 6] = [
     "solimp",
     "adhesion",
 ];
-/// 4 ULP @1.0（f32）。
-const FOUR_ULP_AT_ONE: f32 = 4.0 * (1.0 / 8_388_608.0);
+/// 4 ULP @1.0（f32）与位置向量判据（实现/自证见 `criterion_scale.rs`）。
+use criterion_scale::{FOUR_ULP_AT_ONE, dist_ok, ulp_at, vector_bound, vector_scale};
 
 pub fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -245,7 +256,11 @@ pub struct CaseReport {
     pub pos_components: usize,
     pub frame_components: usize,
     pub dist_max_ulp: u32,
-    pub pos_max_ulp: u32,
+    /// 位置向量：`scale = max_i |ref_i|`（整向量全零回落 1.0）下的最大允许绝对差。
+    pub pos_scale_max: f32,
+    pub pos_max_abs: f32,
+    /// 最大残差 / ULP(scale)（浮点值，便于核对「0.81 ULP」这类结论）。
+    pub pos_max_ulps_at_scale: f64,
     pub frame_max_abs: f32,
     pub params_bit_equal: bool,
     pub ints_bit_equal: bool,
@@ -293,11 +308,13 @@ fn compare_case(case: &str) -> CaseReport {
             }
         }
         for name in FLOAT_FIELDS {
-            for (left, right) in our_row.float(name).iter().zip(ref_row.float(name)) {
-                let equal = left.to_bits() == right.to_bits();
-                match name {
-                    "frame" => {
-                        // 单位向量：ULP 统一按 scale=1.0，绝对差 ≤ 4 ULP@1.0。
+            let device = our_row.float(name);
+            let reference = ref_row.float(name);
+            match name {
+                "frame" => {
+                    // 单位向量：ULP 统一按 scale=1.0，绝对差 ≤ 4 ULP@1.0。
+                    for (left, right) in device.iter().zip(reference) {
+                        let equal = left.to_bits() == right.to_bits();
                         let difference = (left - right).abs();
                         report.frame_max_abs = report.frame_max_abs.max(difference);
                         report.frame_components += 1;
@@ -307,35 +324,47 @@ fn compare_case(case: &str) -> CaseReport {
                             "{case}: 行 {index} frame 绝对差 {difference} 超过 4 ULP@1.0（{FOUR_ULP_AT_ONE}）"
                         );
                     }
-                    "dist" | "pos" => {
-                        let ulp = ulp_diff(*left, *right);
-                        let difference = (left - right).abs();
-                        match name {
-                            "dist" => {
-                                report.dist_max_ulp = report.dist_max_ulp.max(ulp);
-                                report.dist_components += 1;
-                                report.dist_bit_equal += usize::from(equal);
-                            }
-                            _ => {
-                                report.pos_max_ulp = report.pos_max_ulp.max(ulp);
-                                report.pos_components += 1;
-                                report.pos_bit_equal += usize::from(equal);
-                            }
+                }
+                "dist" => {
+                    for (left, right) in device.iter().zip(reference) {
+                        let equal = left.to_bits() == right.to_bits();
+                        report.dist_components += 1;
+                        report.dist_bit_equal += usize::from(equal);
+                        if *right != 0.0 {
+                            report.dist_max_ulp = report.dist_max_ulp.max(ulp_diff(*left, *right));
                         }
-                        // 参考分量为 0 时 ULP 无定义：用 ≤4 ULP@1.0 绝对差兜底并计数。
-                        if *right == 0.0 {
-                            assert!(
-                                difference <= FOUR_ULP_AT_ONE,
-                                "{case}: 行 {index} {name} 零参考分量绝对差 {difference} 超过 4 ULP@1.0"
-                            );
-                        } else {
-                            assert!(
-                                ulp <= 4,
-                                "{case}: 行 {index} {name} ULP={ulp} 超过 4（设备 {left} vs 参考 {right}）"
-                            );
-                        }
+                        assert!(
+                            dist_ok(*left, *right),
+                            "{case}: 行 {index} dist 未过（设备 {left} vs 参考 {right}，ULP={}）",
+                            ulp_diff(*left, *right)
+                        );
                     }
-                    _ => {
+                }
+                "pos" => {
+                    // 位置向量：scale = max_i |ref_i|（整向量全零回落 1.0），
+                    // 逐分量 |dev-ref| ≤ 4·ULP(scale)（Arch 裁决 2；判别力自证见 criterion_scale.rs）。
+                    let scale = vector_scale(reference);
+                    let bound = vector_bound(scale);
+                    let ulp = ulp_at(scale);
+                    report.pos_scale_max = report.pos_scale_max.max(scale);
+                    for (left, right) in device.iter().zip(reference) {
+                        let equal = left.to_bits() == right.to_bits();
+                        let difference = (left - right).abs();
+                        report.pos_components += 1;
+                        report.pos_bit_equal += usize::from(equal);
+                        report.pos_max_abs = report.pos_max_abs.max(difference);
+                        report.pos_max_ulps_at_scale = report
+                            .pos_max_ulps_at_scale
+                            .max(f64::from(difference) / f64::from(ulp));
+                        assert!(
+                            difference <= bound,
+                            "{case}: 行 {index} pos 分量绝对差 {difference} 超过 4·ULP(scale={scale})={bound}（设备 {left} vs 参考 {right}）"
+                        );
+                    }
+                }
+                _ => {
+                    for (left, right) in device.iter().zip(reference) {
+                        let equal = left.to_bits() == right.to_bits();
                         if PARAM_FLOAT_FIELDS.contains(&name) && !equal {
                             panic!(
                                 "{case}: 行 {index} 参数 {name} 位型不等（设备 {:#010x} vs 参考 {:#010x}）",
@@ -394,7 +423,9 @@ fn case_json(report: &CaseReport) -> Value {
         "frame_bit_equal": report.frame_bit_equal,
         "frame_components": report.frame_components,
         "dist_max_ulp": report.dist_max_ulp,
-        "pos_max_ulp": report.pos_max_ulp,
+        "pos_scale_max": report.pos_scale_max,
+        "pos_max_abs": report.pos_max_abs,
+        "pos_max_ulps_at_scale": report.pos_max_ulps_at_scale,
         "frame_max_abs": report.frame_max_abs,
         "params_bit_equal": report.params_bit_equal,
         "ints_bit_equal": report.ints_bit_equal,
@@ -436,15 +467,17 @@ pub fn run_contact_comparison() -> (Value, Vec<String>) {
         "task_id": "2026-10-25-g10-p5-gpu-kernels",
         "kind": "g5-device-vs-upstream-cuda-contact-arrays",
         "reference": "fixtures/g10-p5/references/<case>.json（G0b CUDA 捕获）",
-        "criterion": "CONVEX/SDF/HFIELD case：count 相等 + worldid 分组/稳定排序后 dist/pos ≤4 ULP（零参考分量用 ≤4 ULP@1.0 绝对差）、frame 绝对差 ≤4 ULP@1.0（scale=1.0，不设近零带）、参数与整数字段位级相等",
+        "criterion": "CONVEX/SDF/HFIELD case：count 相等 + worldid 分组/稳定排序后比较。dist：按自身量级 ≤4 ULP（ref==0 用 4 ULP@1.0 绝对差）；pos（位置向量）：scale=max_i|ref_i|（整向量全零回落 1.0），逐分量 |dev-ref| ≤ 4·ULP(scale)，位级优先；frame（单位向量）：scale=1.0，绝对差 ≤4 ULP@1.0（4.77e-7，不设近零带）；接触参数与整数字段位级相等。判据补全的判别力自证见 gpu-window/criterion_scale.rs（修前 pos 8.3e-5 / dist 4.4e-8 在现判据下仍被拒绝）",
+        "criterion_scale_note": "Arch 2026-10-25 裁决 2：位置向量用向量尺度 ULP（不用 ULP@1.0 近零带）；ellipsoid-box world0 只放行 4·ULP(0.055)=1.49e-8，实测残差 3.02e-9 = 0.81 ULP",
         "device_probe": "target/g10-p5-g5/probe.exe（nvcc 12.8.93, fmad=true, -O3, sm_89；见 gpu-window/build-probe-report.txt）",
         "cases": reports,
         "failed_cases": failures.clone(),
-        "witness_cases_not_compared": WITNESS_CASES,
+        "witness_cases_compared": WITNESS_CASES,
+        "witness_result": "gpu-window/witness-result.json（ccd() witness 对照三例全过；见 README §11.7.3）",
         "primitive_cases_not_compared": PRIMITIVE_CASES,
         "unmet": [
             "上游 primitive narrowphase 的 case 不列入对照（参考非 ccd 产物；设备 primitive 路径本片未实装）",
-            "multicontact 设备版未实装：cylinder-box/box-box-margin/mesh-mesh 接触数组不做全等；witness 对照待补",
+            "multicontact 设备版未实装：cylinder-box/box-box-margin/mesh-mesh 接触数组不做全等；witness 对照已完成（见 witness-result.json），接触数组仍不比",
             "NVRTC 产品 launcher 未接线：本测试比对的是 nvcc 独立探针（同一批 device 源、fmad=true）",
             "--fmad=false 仅诊断；sdf-box 在其下大幅偏移（梯度下降分岔），官方判据用 fmad=true",
         ],

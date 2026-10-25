@@ -204,16 +204,17 @@
   走 **primitive_narrowphase**，交付参考不是 ccd 产物 → `sphere-box-shallow/deep`、`capsule-box`
   **不列入**设备 ccd 对照（设备 primitive 路径本片未实装）。
 - 可对照 CONVEX/SDF/HFIELD case 结果（`gpu-window/result.json`、`compare-probe.json`）。
-  判据按 Arch 2026-10-25 裁决：`frame`/`normal` 是单位向量 → ULP 统一按 **scale=1.0** 计，
-  分量绝对差 ≤ **4 ULP@1.0 ≈ 4.77e-7**（零/非零一视同仁，**不设近零带**）；
-  `dist`/`pos` 按各自量级 ULP（零参考分量用 ≤4 ULP@1.0 绝对差兜底）；参数/整数位级相等。
+  **判据（逐字同 `result.json.criterion`；Arch 2026-10-25 裁决含裁决 2 的位置向量补全，
+  实现与判别力自证见 `gpu-window/criterion_scale.rs`、说明见 §11.6.2）**：
 
-| case | count | dist 位等 | pos 位等 | frame 位等 | 实测 | 结论 |
+  > CONVEX/SDF/HFIELD case：count 相等 + worldid 分组/稳定排序后比较。dist：按自身量级 ≤4 ULP（ref==0 用 4 ULP@1.0 绝对差）；pos（位置向量）：scale=max_i|ref_i|（整向量全零回落 1.0），逐分量 |dev-ref| ≤ 4·ULP(scale)，位级优先；frame（单位向量）：scale=1.0，绝对差 ≤4 ULP@1.0（4.77e-7，不设近零带）；接触参数与整数字段位级相等。判据补全的判别力自证见 gpu-window/criterion_scale.rs（修前 pos 8.3e-5 / dist 4.4e-8 在现判据下仍被拒绝）
+
+| case | count | dist 位等 | pos 位等 | frame 位等 | 实测（窗口 1 旧判据） | 结论 |
 | --- | --- | --- | --- | --- | --- | --- |
 | hfield-sphere | 8/8 | 8/8 | 24/24 | 72/72 | 全 0 ULP | ✅ 全字段位级 |
 | hfield-capsule | 7/7 | 7/7 | 21/21 | 63/63 | 全 0 ULP | ✅ 全字段位级 |
 | sdf-box | 80/80 | 80/80 | 202/240 | 675/720 | dist 0 ULP；pos max 4 ULP；frame max_abs **2.38e-7**（≤4.77e-7） | ✅ dist 位级、pos ≤4 ULP、frame ≤4 ULP@1.0 |
-| ellipsoid-box | 2/2 | 0/2 | 0/6 | — | dist **47 ULP**（绝对 4.4e-8）、pos 绝对 8.3e-5 | ❌ **未过**（G5 不收口） |
+| ellipsoid-box | 2/2 | 0/2 | 0/6 | — | dist **47 ULP**（绝对 4.4e-8）、pos 绝对 8.3e-5 | ❌ 窗口 1 未过；根因与修复见 §11.6，复测见 §11.7.1 |
 
 - 每 case：`efc_address` 全 -1（宽度 `nmaxpyramid`）、`OverflowType` 汇总 0、接触数相等、
   两次运行排序后位等；`nccd` 记录为 0 或每 world 1 次申请（hfield/SDF 探针路径不申请，容量门归 launcher）。
@@ -223,19 +224,17 @@
   大幅偏移（pos max_abs 0.18、frame max_abs 1.9，initpoint 梯度下降分岔）→ **官方判据用 fmad=true**，
   `--fmad=false` 仅诊断，不作为判据。
 
-### 11.3 unmet（本窗口不构成 G5 收口）
+### 11.3 unmet（窗口 1 历史状态；后续窗口的更新见 §11.7）
 
 - **Arch 裁决落地**：对照集修正（primitive 三例排除、multicontact 三例不比对）已接受；
   frame 判据改为「scale=1.0 的 4 ULP 绝对差」并已由 `result.json` 重算；`ellipsoid-box` 记为未过。
-- **ellipsoid-box（CONVEX）未过 ≤4 ULP**：dist 47 ULP（4.4e-8）、pos 绝对 8.3e-5。
-  pos 量级明显不是纯收缩差，需定位设备 contact 层 / EPA 与上游差异（候选：
-  `g5_ccd_pair_write` 的 origin 平移后 `x_1/x_2`、EPA witness 选面/tie-break、或输入口径）；
-  修复按 pinned PTX 顺序显式 fma（S7b 方法），**不放宽容差**；修好后报秒级窗口复跑。
-- **witness 对照待补**（Arch 裁决 1）：`cylinder-box`/`box-box-margin`/`mesh-mesh` 需 authoring
-  直接调用上游 `collision_gjk.ccd` 产出 dist/x1/x2，再与设备探针 witness 比 ≤4 ULP；
-  计划与 ellipsoid-box 修复后的秒级窗口一起跑（省窗口）。
+- **ellipsoid-box（CONVEX）窗口 1 未过 ≤4 ULP**：dist 47 ULP（4.4e-8）、pos 绝对 8.3e-5。
+  → 根因与修复见 §11.6（设备 `v3_sign` 零值语义），复测见 §11.7.1（dist 2 ULP/位级、pos 0.81 ULP@向量尺度）。
+- ~~**witness 对照待补**~~：**已完成**（§11.7.3），`cylinder-box`/`box-box-margin`/`mesh-mesh` 三例
+  对直调上游 `collision_gjk.ccd` 全过 ≤4 ULP（两条全位级、一条 2 ULP）。
 - **primitive narrowphase 未实装**：`(SPHERE,BOX)`、`(CAPSULE,BOX)` 等上游走 primitive 的 case 无法进设备对照。
-- **multicontact 设备版未实装**：`cylinder-box`/`box-box-margin`/`mesh-mesh` 接触数组不做全等。
+- **multicontact 设备版未实装**：`cylinder-box`/`box-box-margin`/`mesh-mesh` 接触数组不做全等
+  （witness 对照只覆盖 `ccd()` 层）。
 - **NVRTC 产品 launcher 未接线**：本窗口用 nvcc 独立探针跑判据数字；`src/runtime/collision_gpu.rs`
   与 ignored 产品入口单列后续 launcher 小片。
 - 性能 benchmark 未跑（归 G6）；Linux/T4 未验证；GPU 结果不外推跨硬件结论。
@@ -295,3 +294,162 @@
 | GJK `lmbda == 0` / `cutoff == 0` / `norm 阈值` | 同宿主 | 上游同 | 一致 |
 | EPA `lower2 <= 0` / `dist2 == 0` / 选面 `<` | 同宿主 | 上游同 | 一致 |
 | **host** `sdf/primitives.rs` 用 `f32::signum()` | — | 上游 `wp.sign`：-0.0→+1，signum(-0.0)→-1 | **发现差异，未改**（G3 已验收；交 Arch 裁定是否开 fix 小片） |
+
+### 11.6.1 同类判定清扫：全 14 文件逐文件（2026-10-25 补，Chief 点名）
+
+方法：对 `src/physics/collision/cuda/` 全部 14 个 `.cu` 文件 grep
+`sign|normalize|== 0|<= 0|>= 0|< 0|> 0|fmaxf|fminf|MINVAL|eps|1e-`，逐条对照 pinned 上游
+（`collision_gjk.py` / `collision_sdf.py` / `math.py` / `warp/native/{builtin.h,vec.h}`）与
+host `gjk/{math,simplex,core,epa,polytope}.rs`。结论口径：**等价** = 与上游同表达式/同顺序；
+**已修** = 本片改过；**防御性差异** = 上游该输入为 UB/不可达，设备给确定值；**扩展** = 上游无对应分支。
+6 组重点关注（Arch 2026-10-25 点名）逐条见下表「已扫描判定点」列。
+
+| 文件 | 已扫描判定点（行号） | 设备 vs 宿主 vs 上游 |
+| --- | --- | --- |
+| `common.cu` | `v3_sign` 零值(40)、`v3_normalize` 零(59-63)、`make_frame` selector(101)/零保护(103)、`relative_matrix` fma 链(86-95) | **已修**(sign)；`v3_normalize` = 上游 `warp/native/vec.h:1093-1099`（`l>kEps? a/l : 0`）且 `kEps=0.0f`（`builtin.h:573`）→ **等价**；`make_frame` 零保护 = 上游 `math.py:209` 原句、selector = `math.py:206` → **等价**；relmat = 上游 `mat.h mul(mat,mat)` fma 链（§9.1） |
+| `geom.cu` | 仅 `d_mesh`/`d_geom`/`d_support_point` 结构定义 | **无判定点** |
+| `support.cu` | BOX `v3_sign`(101-107)、CAPSULE `local_dir.z<0`(111)、ELLIPSOID normalize(114-115)、CYLINDER `d>G5_MINVAL`(120)/`top=z>=0`(125)、MESH `graphadr==-1||vertnum<10`(26)/`index>-1`(27)/`subidx>=0`(65)、HFIELD `dir.z<0 ? -2:-3`(132)/`dist>max_dist`(138)、TRIANGLE/FLEX 严格比较(150/160)、margin>0(165) | 全部 = 上游 `support()` 逐句（`collision_gjk.py:118-254`，含 tri/flex/hfield 分支：`:202-240`）；唯一差异 `vertadr/vertnum > 0 ? : 0` 下界 = 对「无 mesh data 的 MESH」防御（上游该路径读 -1 为 UB，有效模型不可达）→ **防御性差异** |
+| `simplex.cu` | `same_sign`(13-16)、`nn==0`(41/53)、`nv!=0 && nn>MINVAL`(45/57)、第三平面无 guard(60-70)、`l<0` 剔除(374)、`length<MINVAL`(378)、`dot1/dot2` 同号(385) | = 上游 `_project_origin_plane`(`:337-365`)、`_S1D/_S2D`、三角/线判据逐句 → **等价**（G2 host 对照已验收） |
+| `gjk_core.cu` | `x_norm<1e-4`(51)、`edge_norm2>MINVAL2`(55)、`dir_norm>MINVAL`(59)、`normal_norm>MINVAL`(68)、`sign=dot<0?-1:1`(69)、`xnorm<min_norm`/`|Δxnorm|<MINVAL`(108)、Frank-Wolfe(123)、`cutoff==0`(127)、`lower>0` 分离(128/136)、`lmbda==0` 剔除(151)、`n==4`(165)、`xnorm>0` 复检(176)、`separated` 复判(180)、`dist=(n==4&&!separated)?0:xnorm`(182)、`is_discrete`(199) | 全部 = 上游 `gjk()`/`_gjk_support()` 逐句；**:69 = 上游 `collision_gjk.py:649 wp.sign(dot)`（零→+1）** → **等价**（非本轮需改点） |
+| `polytope.cu` | face 位域/get/set、`_attach_face` 外向校正 `dot(r,p1-center)<0`(59)、`_ray_triangle` 零 tie(109-110)、`_epa_support` normalize(179)、`_epa_witness` 权重坐标(184-191) | `_ray_triangle` 与上游 `:930-938` **同顺序**（先全 `>=0`→1，再全 `<=0`→-1；零处先命中前者→1）→ **等价**；其余逐句（G2 host 已验收） |
+| `polytope_build.cu` | `_polytope2/3/4` 状态码、`norm<G5_MINVAL`(118)、`_tri_point_intersect`(147/151)、`dist>1e-5`(155)、`_test_tetra`、attach `shadow<G5_MIN_DIST3`(159 起) | = 上游 `_polytope2/3/4` 逐句（含 `MINVAL`、`1e-5`、`MIN_DIST3` 常量）→ **等价** |
+| `epa.cu` | `n<0`(25)、`long long` 节点、`lower2>upper2||idx<0`(67)、`lower2<=0`(71)、`upper-lower<epsilon`(91)、`dot(face_pr,w)-norm2>1e-10`(122)、`dist2==0`(145)、`dist2∈[lower2,upper2]` 有效面(150)、`nvalid==0||idx==-1`(157)、`epa_iterations>1000`(52)、`epsilon=is_discrete?MIN_EPATOL:tolerance`(50) | 全部 = 上游 `_epa`（`collision_gjk.py:1354-1470`）逐句 → **等价**；已入表项归位 |
+| `ccd.cu` | `_inflate` 坐标 `>0` 剔除(71-78)、`margin>0` 膨胀(90-91)、`size1+size2>0`(127)、`multiccd_idx`：margin!=0→-1(268)、BOXMESH/CYLINDER 限定(269-273)、`G5_FLOAT_MAX→CCD overflow`(303) | = 上游 `_inflate`/`epa_phase`（`:2664-2677`）逐句；`multiccd_idx` 仅信息（设备 multicontact 未实装）→ **等价** |
+| `sdf_octree.cu` | `box_project`：全内早退 `q<=0`(40)、逐轴 `q>=0`(47/51/55)、`r>0? -(q+eps): +(q+eps)`(49/53/57)、`eps=1e-4`(45)；`find_oct`：`eps=1e-6`(75)、半开 `p±eps<vmin / >vmax`(85-86)、`coord<0.5`(126-128)、`4z+2y+x`(129)、叶判据、grad 权重(108-120)；`sample_volume_grad` `dist0>0` 差分(151)；Halton `n0>0`(177) | 全部 = 上游 `collision_sdf.py:399-434`（box_project）与 `:330-393`（find_oct）逐句 → **等价** |
+| `sdf_math.cu` | `radial_field` sign(50-52)、`box` `a>=0` 早退(61)、`grad_box` `a<=0→g=0`(108-110)、cylinder `w=sign(p.z)`(148)、`radial_dist>MJ_MINVAL`(144/153)、`len_v>MINVAL`、`c>G5_MINVAL`(136)、`max_val` sign(245)、Armijo(amin=1e-4/rho=0.5/c=0.1) | sign 三处**已修**；其余 = 上游 `collision_sdf.py:148-160/164-170/215-228/263-283/629` 逐句 → **等价** |
+| `sdf_narrowphase.cu` | AABB 交集 `min>max` 早退(52)、Halton 三序列(58-60)、`limit=min(initpoints, capacity)`(55) | AABB/初始点 = 上游 `_sdf_narrowphase` 逐句；`capacity` 截断是探针容量保护（产品 `naconmax` 语义在 launcher）→ **等价 + 容量保护** |
+| `hfield.cu` | `cmin/rmin` 下界 clamp(168/172)、`count>=MAXCONPAIR→overflow`(226)、`prism[11..17]<zmin` 高度早退(247)、`dist>=margin+gap` 分离早退(266)、`0<d<MIN_DIST_TO_NEXT_CONTACT=1e-3` 去重(311/328/348)、`noverflow>0` 早退(202/222) | = 上游 `collision_convex.py:576/592/649/707` 与 `ccd_hfield_kernel` 逐句（常量 `MIN_DIST_TO_NEXT_CONTACT=1e-3` 一致）→ **等价** |
+| `contact.cu` | `adhesion!=0` 两处(67-70)、`detected=dist<margin+gap`(69)、`pairid[0]==-2`(73)、`pairid[1]>=0` sensor(79)、`atomicAdd(nacon)+cid<naconmax`(82-83)、`dist<=margin` frame 方向(195)、`dist>=gap` 早退(188) | = 上游 `write_contact`/`eval_ccd_write_contact` 逐句（含「先计数后判容量、超容量不写」）→ **等价** |
+
+**清扫结论**：14 文件全部过表；除本片已修的 `v3_sign`+`sdf_math` 3 处 sign 外，未发现新的
+零值/符号语义偏离。仅 2 条记录性差异：①`support.cu` 的 `vertadr/vertnum` 下界（上游 UB → 防御）；
+②host `sdf/primitives.rs::signum()`（G3 已验收，另片修正 `2026-10-25-g10-p5-sdf-primitives-sign`）。
+
+### 11.6.2 判据补全：位置向量改用向量尺度 ULP（Arch 2026-10-25 裁决，非放宽）
+
+**问题**：`ellipsoid-box` world0 `pos.y` 参考值 |3.26e-5|，其自身量级 ULP=3.7e-12 → 残差
+3.02e-9 被旧「逐分量按各自量级 ULP」判成 830 ULP；但 `pos` 由 `0.5*(w1+w2)+origin`
+（origin≈0.04–0.055）合成，舍入尺度是坐标量级，不是近零分量自身。
+
+**裁定（全文，不得再放宽）**
+- `pos`/`x1`/`x2`（位置向量）：`scale = max_i |ref_i|`，逐分量 `|dev-ref| ≤ 4·ULP(scale)`，
+  位级优先；**整向量全零**时才回落 `scale = 1.0`。
+- `frame`/`normal`：不变（`scale=1.0`，≤4 ULP 绝对 ≈4.77e-7，不设近零带）。
+- `dist`（标量）：按自身量级 ≤4 ULP；`ref==0` 用 4 ULP@1.0 绝对差。
+- 参数/整数字段：位级相等。
+
+**为什么不用 4 ULP@1.0 近零带（Arch 裁决采纳向量尺度的理由）**：`pos` 由
+`0.5*(w1+w2)+origin` 合成、舍入尺度是坐标量级，向量尺度判据只放行
+`4·ULP(0.055)=1.49e-8`；而 4 ULP@1.0 带会放行到 **4.77e-7**，松约 **32×**
+（4.768e-7 ÷ 1.490e-8 = 32.0；Arch 裁决文字写 31×，按精确值应为 32×，此处以数值为准）。
+`ellipsoid-box` 残差 3.02e-9 在向量尺度下 = **0.81 ULP**，在 1.0 带下同样通过——但后者会同时
+放行更大的近零分量误差，判别力更差。
+
+**实现（单一来源，不是两份副本）**：`gpu-window/criterion_scale.rs` 提供
+`ulp_at`/`vector_scale`/`vector_bound`/`vector_component_ok`/`dist_ok`，仅由
+**`gpu_compare.rs`** 以 `#[path = "criterion_scale.rs"] pub(crate) mod criterion_scale;`
+引入一次；**`witness_compare.rs` 通过 `use crate::gpu_compare::criterion_scale::{...}`
+复用同一模块**（兄弟模块同属一个测试目标，路径可用；无第二份副本、无 lint 豁免）。
+判别力 `#[test]` 放在 `gpu-window/criterion_test.rs`，只由 **`gpu_compare.rs`** 以
+`#[path = "criterion_test.rs"] mod criterion_test;` 引入一次。
+`result.json` / `witness-result.json` 的 `criterion` 字段同步；README §11.2 的判据文字
+**逐字同 `result.json.criterion`**（脚本核对 True）。
+
+**判别力（可执行断言，不是断言式声明）**：`gpu_compare::criterion_test::criterion_rejects_pre_fix_defects`
+把修前两组实测数字喂进**新**判据并断言 FAIL：
+- 修前 `pos` 绝对差 8.3e-5 vs 允许 `4·ULP(0.055)=1.49e-8` → **22,300 ULP@0.055**
+  （旧口径 830 ULP@分量尺度）→ 拒绝；
+- 修前 `dist` 绝对差 4.4e-8 vs `4·ULP(0.01)`（ULP=9.3e-10）→ **47 ULP** → 拒绝；
+- 同时断言修后 `pos` 3.02e-9、`dist` 位级 → 通过。
+  运行位置：`cargo test --locked --features cuda-probe --test g10_p5_gpu_kernels` →
+  **1 passed / 3 ignored**；该测试在**集成测试目标**
+  （`tests/g10_p5_gpu_kernels.rs`，`#![cfg(feature = "cuda-probe")]`）里，**不进默认
+  `cargo test --locked` 的 unit 计数**（gate `unit` 仍 **582 过 0 败**，本片无变化）；
+  `-- --ignored` 的对照测试同目标另一入口（3 passed）。
+
+**before/after 全表重算（存盘 bins，纯 CPU；唯一翻转 = ellipsoid-box）**
+
+| case | 旧判据（逐分量 ULP） | 旧结果 | 新判据（向量尺度） | 新结果 | 翻转？ |
+| --- | --- | --- | --- | --- | --- |
+| hfield-sphere | dist 8/8 位级、pos 24/24 位级、frame 72/72 | ✅ | 0.0 ULP@scale；位级计数不变 | ✅ | 否 |
+| hfield-capsule | dist 7/7、pos 21/21、frame 63/63 位级 | ✅ | 0.0 ULP@scale；位级计数不变 | ✅ | 否 |
+| sdf-box | pos 4 ULP@分量（203/240 位等）、dist 80/80、frame max_abs 2.38e-7 | ✅ | pos **1.0 ULP@scale(0.0983)**（203/240 位等）、dist 80/80、frame 2.38e-7 | ✅ | 否 |
+| ellipsoid-box | pos 830 ULP@分量（0/6 位等）、dist 47 ULP | ❌ FAIL | pos **0.81 ULP@scale(0.055)**（5/6 位等）、dist 2 ULP（1/2 位等）、frame 3.80e-7 | ✅ PASS | **是（唯一）** |
+| witness cylinder-box | x1 5/6 位等、max 2 ULP@分量 | ✅ | x1 5/6 位等、**0.5 ULP@scale(0.1)**；x2 6/6 位级 | ✅ | 否 |
+| witness box-box-margin | dist/x1/x2 12/12 位级 | ✅ | 全位级（0.0 ULP@scale） | ✅ | 否 |
+| witness mesh-mesh | dist/x1/x2 12/12 位级 | ✅ | 全位级（0.0 ULP@scale） | ✅ | 否 |
+
+**结论**：唯一「此前失败现在通过」是 `ellipsoid-box`，其修前缺陷（pos 8.3e-5 / dist 4.4e-8）
+已被上面的可执行断言证明**仍会被现判据拒绝**；其余 case 位级计数不变 → **口径补全 ≠ 放宽容差**。
+
+## 11.7 秒级窗口（2026-10-25 18:30–18:38）：ellipsoid-box 复测 + 三例回归 + witness 对照
+
+**窗口纪律**：Arch/Chief 批准「时长 ≤2 min GPU 满载、峰值增量 ≤1 GiB、复跑 ≤3」。
+实测 3 次短跑（全部 GPU 满载时间合计约 5–8 s，其余为 CPU 侧 nvcc 构建与 warp JIT）：
+
+| 跑次 | 时间段（wall） | 内容 | 基线 used | 跑后 used | 说明 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 18:30:10–18:31:01（51.5 s） | 重建 probe（fmad=true/false）+ witness probe、4 例接触探针 ×2、3 例 witness 探针 ×2、上游 CUDA witness 首采、ignored 测试 | 3357 MiB | 3559 MiB | 首采 authoring 缺陷（见 11.7.3），接触对照结果有效；GPU 占用秒级 |
+| 2 | 18:33:49–18:34:04（15.1 s） | 上游 CUDA witness 复采（修 launch 越界守卫） | 3706 MiB | 3609 MiB | 仍有 world 维读取问题，弃用 |
+| 3 | 18:37:51–18:38:05（14.2 s） | 上游 CUDA witness 复采（改逐 world launch；warp JIT 13–14 s 为 CPU 时间） | 3701 MiB | 3701 MiB | **有效采集** `witness-cuda.json` |
+
+`nvidia-smi --query-compute-apps` 三次跑前/跑后均无本任务进程（仅桌面应用）；峰值采样脚本
+本轮未取到样本（`Start-Job` 相对路径缺陷，已修 `run_window_witness.ps1`），离散观测 + 探针
+`cudaMemGetInfo` 前后 free 15109/14079 MiB 表明无异常增长；**不声称拿到逐秒峰值**。
+
+### 11.7.1 ① `ellipsoid-box` 修复后复测（contact 数组，判据 = 同配方上游 f32 GPU）
+
+| world | dist 设备 vs 参考 | pos | frame max_abs |
+| --- | --- | --- | --- |
+| 0 | −0.0099998917 vs −0.0099998899（**2 ULP**） | x/z 位级；y −3.2566240e-05 vs −3.2569260e-05（**绝对差 3.02e-9**） | 3.80e-7 |
+| 1 | −0.0099998210 vs −0.0099998210（**0 ULP，位级**） | **全 3 分量位级** | 7.28e-10 |
+
+- 修复前：dist 47 ULP、pos 绝对 8.3e-5；修复后 pos 残差 3.02e-9 **低于上游自身 CPU/GPU
+  后端差 7.45e-9**（§11.4），x/z 与 world1 位级 → 结构差异已消除。
+- world0 `pos.y`（参考 |3.26e-5|）按 **向量尺度 ULP** 判据（Arch 裁决，§11.6.2）=
+  **0.81 ULP@scale(0.055)**、判过；旧口径下的 830 ULP 是「近零分量自身 ULP 无定义」的假象，
+  不是精度问题。`result.json` 已按新判据重算：dist 1/2 位等（max 2 ULP）、pos 5/6 位等、
+  frame max_abs 3.80e-7 → **✅ PASS**。
+
+### 11.7.2 ② 三例回归（修复影响面实测，不许推断）
+
+| case | count | dist | pos | frame | 结论 |
+| --- | --- | --- | --- | --- | --- |
+| hfield-sphere | 8/8 | 8/8 位级 | 24/24 位级 | 72/72 位级 | ✅ 未移动 |
+| hfield-capsule | 7/7 | 7/7 位级 | 21/21 位级 | 63/63 位级 | ✅ 未移动 |
+| sdf-box | 80/80 | 80/80 位级 | 203/240 位级，**1.0 ULP@scale(0.0983)**（旧逐分量口径 4 ULP） | 675/720 位级，max_abs 2.38e-7 | ✅ 与窗口 1 相同（pos 位等 202→203） |
+
+### 11.7.3 ③ witness 对照（multicontact 三例：设备 `g5_ccd` vs 上游 CUDA 直调 `ccd()`）
+
+参考：`capture_witness_ccd.py --device cuda`（直调 pinned `collision_gjk.ccd`，调用口径与上游
+`eval_ccd_write_contact` 对齐：margin 覆盖、原点平移、`cutoff=gap`、迭代数取 meta）；
+设备：`witness_probe.exe`（同一批 device 源、`--fmad=true`、`-O3`、`sm_89`）。按 **worldid 配对**
+（设备数组按 world 索引写出、上游按显式 worldid 写出；逐 world 明细见 `witness-result.json.per_world`）。
+
+| case | dist | x1 | x2 | ncontact | multiccd_idx | 结论 |
+| --- | --- | --- | --- | --- | --- | --- |
+| cylinder-box | 2/2 位级 | 5/6 位级，world1 max **0.5 ULP@scale(0.1)** | 6/6 位级 | 相等 | 6/8 与上游相同（仅信息） | ✅ ≤4 ULP |
+| box-box-margin | 2/2 位级 | 6/6 位级（0.0 ULP） | 6/6 位级（0.0 ULP） | 相等 | −1 相同 | ✅ 全位级 |
+| mesh-mesh | 2/2 位级 | 6/6 位级（0.0 ULP） | 6/6 位级（0.0 ULP） | 相等 | 1/2 相同 | ✅ 全位级 |
+
+- 逐 world 实测：`cylinder-box` world0 全位级、world1 dist/x2 位级、x1 有 1 分量残差
+  = 0.5 ULP@向量尺度；`box-box-margin`/`mesh-mesh` 两 world 的 dist/x1/x2 **全部位级相等**。
+- 上游 CPU witness 仅诊断（跨后端）：dist max ULP = 1/0/5（CPU/CUDA 自身差，不作判据）。
+- **首采 authoring 缺陷（留档，上游参考可信度依赖这条链）**：首采 CUDA 内核两 world 都产出
+  world0（因此看起来像「world 配对反了」），根因三条：（1）warp CUDA 实际启动线程数可多于
+  `dim`，内核需显式世界守卫；（2）`wp.array2d` 世界维读取在本 authoring 内核中不可靠；
+  （3）多线程共享同一组 EPA 缓冲（上游产品是每 pair 独立 `epa_vert[ccdid]`，竞态会污染结果）
+  → 改为「按 world 抽一维 pose 数组 + 逐 world launch（EPA 缓冲逐 pair 独占）」。前两次采集
+  `witness-cuda.json` 已覆盖为有效版本；`window-witness-rerun{,2,3}-log.txt` 保留完整诊断链。
+- 该对照**仅覆盖 `ccd()` witness**；multicontact 设备版仍未实装 → 接触数组仍不做全等（unmet 保留）。
+
+### 11.7.4 本窗口结论与残留
+
+- ① `ellipsoid-box`：结构根因（`v3_sign` 零值）修复生效 → 结构差异消除；残差 3.02e-9
+  按 Arch 裁定的向量尺度判据 = 0.81 ULP（§11.6.2），**判过**。
+- ② 三例回归全过（hfield 两例全位级、sdf-box 位级计数不变）。
+- ③ witness 对照三例全部 ≤4 ULP（两条全位级、一条 0.5 ULP@scale）→ 原 `witness unmet` 清掉。
+- 判据补全后 `result.json` / `witness-result.json` 全表重算：`failed_cases` 均为 **[]**；
+  唯一「此前失败现在通过」= ellipsoid-box（修前缺陷数字在 §11.6.2 可执行断言下仍被拒绝）。
+- 仍属 unmet：multicontact 设备版、NVRTC 产品 launcher、primitive narrowphase、
+  性能基准（G6）、Linux/T4；窗口逐秒峰值未取到（见 §11.7 开头）。
