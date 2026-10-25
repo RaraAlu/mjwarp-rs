@@ -171,6 +171,61 @@ impl OutputResources {
         }
         render_output_arg(buffer, RenderElem::Vec2I, buffer.len() / 2)
     }
+    /// S7b2：与 `*_render_arg` 同缓冲，但描述符为上游 `array2d[world, pitch]` 形状。
+    pub(crate) fn rgb_render_arg_2d(
+        &self,
+        nworld: usize,
+    ) -> Result<RenderArrayValue, LauncherError> {
+        let buffer = self
+            .rgb
+            .as_ref()
+            .ok_or(LauncherError::Unsupported("rgb 输出未启用"))?;
+        Self::render_output_arg_shaped(buffer, RenderElem::U32, &[nworld, self.layout().rgb_pixels])
+    }
+
+    /// S7b2：depth 的 `array2d[world, depth_pixels]` 描述符。
+    pub(crate) fn depth_render_arg_2d(
+        &self,
+        nworld: usize,
+    ) -> Result<RenderArrayValue, LauncherError> {
+        let buffer = self
+            .depth
+            .as_ref()
+            .ok_or(LauncherError::Unsupported("depth 输出未启用"))?;
+        Self::render_output_arg_shaped(
+            buffer,
+            RenderElem::F32,
+            &[nworld, self.layout().depth_pixels],
+        )
+    }
+
+    /// S7b2：seg 的 `array2d[world, seg_slots]` 描述符（两个 i32 一个配对）。
+    pub(crate) fn seg_render_arg_2d(
+        &self,
+        nworld: usize,
+    ) -> Result<RenderArrayValue, LauncherError> {
+        let buffer = self
+            .seg
+            .as_ref()
+            .ok_or(LauncherError::Unsupported("seg 输出未启用"))?;
+        Self::render_output_arg_shaped(
+            buffer,
+            RenderElem::Vec2I,
+            &[nworld, self.layout().seg_slots],
+        )
+    }
+
+    /// 输出缓冲 → 2D 渲染实参（共享 span，不改所有权/生命周期）。
+    fn render_output_arg_shaped<T: TransferElement>(
+        buffer: &TransferBuffer<T>,
+        elem: RenderElem,
+        shape: &[usize],
+    ) -> Result<RenderArrayValue, LauncherError> {
+        let span = buffer
+            .launcher_span()
+            .map_err(|error| LauncherError::Driver(format!("render-output-span: {error}")))?;
+        RenderArrayValue::contiguous(span, elem, shape)
+    }
 }
 
 /// 输出缓冲 → 渲染实参：形状 `[elements]`，元素类由调用方指定。

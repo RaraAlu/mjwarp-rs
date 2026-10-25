@@ -26,9 +26,13 @@
 
 pub mod cast;
 pub mod launch;
+pub mod megakernel;
+mod megakernel_arrays;
 pub mod output;
 pub mod renderer;
 
+pub use megakernel::MegakernelRenderer;
+pub use megakernel_arrays::{LightDataPose, light_data_poses};
 pub use renderer::DepthSegRenderer;
 
 use crate::runtime::launcher::{
@@ -38,6 +42,22 @@ use crate::runtime::launcher::{
 
 /// S7b1 深度/分割内核的入口名。
 pub const DEPTH_SEG_ENTRY: &str = "render_depth_seg";
+
+/// S7b2 全签名渲染内核的入口名（81 槽，S7a `MEGAKERNEL_SLOTS` 冻结签名）。
+pub const MEGAKERNEL_ENTRY: &str = "render_megakernel";
+
+/// S7b2 全签名渲染内核源码：S2b `scene.cu`（只读复用）+ S3 mesh 数学副本
+/// （`render_math.cu`，含球面对齐）+ 公共部分（`render_common.cu`）+ 着色
+/// （`render_shade.cu`）+ 81 槽内核本体（`render_megakernel.cu`）。
+///
+/// 拼接在编译期完成，产物键覆盖全部片段；不改 `src/render/bvh/**`。
+pub const MEGAKERNEL_SOURCE: &str = concat!(
+    include_str!("../bvh/cuda/scene.cu"),
+    include_str!("cuda/render_math.cu"),
+    include_str!("cuda/render_common.cu"),
+    include_str!("cuda/render_shade.cu"),
+    include_str!("cuda/render_megakernel.cu"),
+);
 
 /// S7b1 渲染内核源码：S2b `scene.cu`（primitive 数学，只读复用）+ S3 mesh 数学的
 /// 逐式复制（`cuda/render_math.cu`）+ 组合/内核本体（`cuda/render.cu`）。
