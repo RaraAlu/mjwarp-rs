@@ -255,3 +255,43 @@
 下一步：设备探针 dump 中间量（`dist`/`x1`/`x2`/EPA `face_idx`/`normal`），与宿主/上游 CPU 同一中间量
 逐项比，找第一个先偏的量后按 PTX/上游表达式定序修；不放宽容差、不跳过 case。宿主诊断测试
 `ellipsoid_box_host_ccd_pair_vs_cuda_reference`（ignored）保留于 `tests/g10_p5_gpu_kernels.rs`。
+### 11.6 ellipsoid-box 根因与修复（2026-10-25，CPU-only 定位）
+
+**根因**：设备 `cuda/common.cu::v3_sign` 把零/-0.0 映射为 0；上游
+`include/warp-headers/builtin.h:765 sign(x) = x < 0 ? -1 : 1`（零/-0.0 → **+1**），
+宿主 `gjk/math.rs::sign3` 已正确。`ellipsoid-box` 两 world 的 box `local_dir` y 分量精确为 0 →
+设备 BOX 支撑取面中心（`vertex_index=5`）而非角点（上游 =7）→ GJK 首轮支撑点即分叉 →
+`dim` 4→3 → EPA 走 `polytope3`（face 44/45）而非 `polytope4`（21/22）→ witness 沿切向偏 8.3e-5，
+而 `dist` 仅差 4.4e-8。GJK/EPA 主循环本身无问题（逐句一致）。
+
+**修复（产品源，G5 范围）**
+- `cuda/common.cu::v3_sign` → `x < 0 ? -1 : 1`（3 分量，零/-0.0→+1）；唯一使用点
+  `cuda/support.cu` BOX 支撑（对应上游 `collision_gjk.py` box support 的 `wp.sign(local_dir)`）。
+- **同类清扫**：`cuda/sdf_math.cu` 3 处自写「零→0」sign 三元式改为上游 `wp.sign` 语义
+  （零/-0.0→+1）：`radial_field`（上游 `collision_sdf.py:152-154`）、cylinder `w`
+  （上游 `:275`）、梯度步 `sign`（上游 `:629`）。
+
+**修复后中间量对照（同一 case、CPU 执行 device 源 vs 宿主，`device-logic-intermediates-after-fix.log` vs `host-intermediates.log`）**
+
+| world | dim | face_idx | lower | normal | 三顶点 | 权重 w | pos |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 | **4**（修复前 3） | **21**（修复前 44） | 0.00999989174 | 与宿主位级一致 | (9,8,7) 同宿主 | 与宿主位级一致 | 与宿主差 ~1e-9（CPU 执行环境） |
+| 1 | **4** | **22** | 0.00999982003 | 位级一致 | (9,8,7) | 位级一致 | ~1e-9 |
+
+**回归影响判断（窗口内确认）**：修复只涉及 BOX support 与 SDF 原语 sign →
+`hfield-sphere`/`hfield-capsule`（HFIELD+SPHERE/CAPSULE，不经 BOX support/SDF 原语）预期不动；
+`sdf-box` 已跑的 80 接触未踩到 `radial_field` 零分量，预期不动；三者待窗口回归确认。
+
+**同类判定清扫表（cuda 目录 ↔ 上游 `builtin.h`/host `gjk/math.rs`）**
+
+| 判定点 | 设备 | 上游/宿主 | 结论 |
+| --- | --- | --- | --- |
+| `v3_sign` 零值 | 旧：0 | `builtin.h:765`/`sign3`：+1 | **已修**（本次根因） |
+| `sdf_math` 自写 sign（3 处） | 旧：0 | `wp.sign`：+1 | **已修**（同类清扫） |
+| `v3_normalize` 零保护 | 返回零向量 | 宿主同（上游 native 无保护，调用点均有 `MINVAL` 前置） | 一致，保留 |
+| cylinder `d > G5_MINVAL` / `top = z >= 0` | 同宿主 | 上游同 | 一致 |
+| capsule `local_dir.z < 0` | 同宿主 | 上游同 | 一致 |
+| hfield 支撑 `vertex_index = dir.z<0 ? -2 : -3` | 同宿主 | 上游同 | 一致 |
+| GJK `lmbda == 0` / `cutoff == 0` / `norm 阈值` | 同宿主 | 上游同 | 一致 |
+| EPA `lower2 <= 0` / `dist2 == 0` / 选面 `<` | 同宿主 | 上游同 | 一致 |
+| **host** `sdf/primitives.rs` 用 `f32::signum()` | — | 上游 `wp.sign`：-0.0→+1，signum(-0.0)→-1 | **发现差异，未改**（G3 已验收；交 Arch 裁定是否开 fix 小片） |

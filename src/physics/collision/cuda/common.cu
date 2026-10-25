@@ -34,10 +34,12 @@ __device__ __forceinline__ v3 v3_cw_mul(v3 a, v3 b) {
   return v3_make(a.x * b.x, a.y * b.y, a.z * b.z);
 }
 
+// 上游 `warp/native/builtin.h`：`sign(x) = x < 0 ? -1 : 1`（**零/-0.0 返回 +1，不返回 0**）。
+// 设备侧旧实现把零映射为 0，导致 BOX 支撑在 local_dir 分量恰为 0 时取面中心而非角点
+// （ellipsoid-box：GJK 首轮支撑点即分叉 → dim 4→3 → EPA 路径/witness 切向偏；见证据 §11.6）。
 __device__ __forceinline__ v3 v3_sign(v3 a) {
-  v3 out = {a.x > 0.0f ? 1.0f : (a.x < 0.0f ? -1.0f : 0.0f),
-            a.y > 0.0f ? 1.0f : (a.y < 0.0f ? -1.0f : 0.0f),
-            a.z > 0.0f ? 1.0f : (a.z < 0.0f ? -1.0f : 0.0f)};
+  v3 out = {a.x < 0.0f ? -1.0f : 1.0f, a.y < 0.0f ? -1.0f : 1.0f,
+            a.z < 0.0f ? -1.0f : 1.0f};
   return out;
 }
 

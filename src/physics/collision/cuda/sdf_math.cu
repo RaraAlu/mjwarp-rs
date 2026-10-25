@@ -46,9 +46,10 @@ __device__ __forceinline__ v3 g5_max3(v3 a, v3 b) {
 
 __device__ __forceinline__ v3 g5_radial_field(v3 a, v3 x, v3 size) {
   v3 field = v3_normalize(g5_cw_div3(v3_neg(size), a));
-  return v3_make(field.x * (x.x > 0.0f ? 1.0f : (x.x < 0.0f ? -1.0f : 0.0f)),
-                 field.y * (x.y > 0.0f ? 1.0f : (x.y < 0.0f ? -1.0f : 0.0f)),
-                 field.z * (x.z > 0.0f ? 1.0f : (x.z < 0.0f ? -1.0f : 0.0f)));
+  // 上游 `wp.sign` 语义：`x < 0 ? -1 : 1`（零/-0.0 → +1，不返回 0）。
+  return v3_make(field.x * (x.x < 0.0f ? -1.0f : 1.0f),
+                 field.y * (x.y < 0.0f ? -1.0f : 1.0f),
+                 field.z * (x.z < 0.0f ? -1.0f : 1.0f));
 }
 
 __device__ __forceinline__ float g5_prim_sphere(v3 p, v3 size) {
@@ -143,7 +144,8 @@ __device__ __forceinline__ v3 g5_grad_cylinder(v3 p, v3 size) {
   v3 u = radial_dist > G5_MINVAL
              ? v3_make(p.x / radial_dist, p.y / radial_dist, 0.0f)
              : v3_make(0.0f, 0.0f, 0.0f);
-  v3 w = v3_make(0.0f, 0.0f, p.z > 0.0f ? 1.0f : (p.z < 0.0f ? -1.0f : 0.0f));
+  // 上游 `wp.sign(p[2])`（零/-0.0 → +1）。
+  v3 w = v3_make(0.0f, 0.0f, p.z < 0.0f ? -1.0f : 1.0f);
   float dx = radial_dist - r;
   float dy = fabsf(p.z) - h;
   if (dx > 0.0f && dy > 0.0f) {
@@ -239,7 +241,8 @@ __device__ __forceinline__ v3 g5_compute_grad(const d_sdf_shape* shape1,
   v3 gradient = v3_add(grad2, grad1_transformed);
   float max_val = fmaxf(a_, b_);
   v3 max_grad = a_ > b_ ? grad1_transformed : grad2;
-  float sign = max_val > 0.0f ? 1.0f : (max_val < 0.0f ? -1.0f : 0.0f);
+  // 上游 `wp.sign(max_val)`（零/-0.0 → +1）。
+  float sign = max_val < 0.0f ? -1.0f : 1.0f;
   return v3_add(gradient, v3_scale(max_grad, sign));
 }
 
