@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-acceptance-perf-native-independent-check",
+  "title": {
+    "zh": "G10@P5 G6 独立复核：独立复算验收映射关键状态 + 核 perf 方法学 + 核 native 落点是否符合拍板",
+    "en": "G10@P5 G6 independent review: recompute key acceptance-map statuses, audit perf methodology, audit native landing against the user decision"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G6（`2026-10-25-g10-p5-acceptance-perf-native`）做独立复核。重点不是读交付表格，而是**独立复算**：① 从既有 verified 证据与 receipt 独立核 `map.json` 的关键状态（至少抽查 3 条 met 与全部 partial/unmet 逐条核对），确认判据原文引用、实测数字与证据一致、未覆盖项没被写成 met；② 核 perf 方法学——是否把编译/JIT 时间混进 kernel 时间、是否跨硬件外推、是否记录桌面负载/上下文与版本、GPU 窗口是否合规（基线/无残留/峰值采样）；③ 核 native 落点——是否按用户拍板（粗门禁/只作诊断/两者）落、E 是否用真实产品输出、样本量是否标注、`hfield-box` 配对判定是否成立。",
+    "en": "Independent review of G6: not reading the delivered table, but independently recomputing: (1) verify key map.json statuses from existing verified evidence and receipts (sample at least 3 met plus every partial/unmet), confirming criterion quotes, measured numbers matching evidence, and that uncovered items are never marked met; (2) audit perf methodology - whether compile/JIT time leaks into kernel time, whether results are extrapolated across hardware, whether desktop load/context and versions are recorded, and whether the GPU window was compliant; (3) audit the native landing against the user's decision, whether E is recomputed from real product output, whether sample size is stated, and whether the hfield-box pairing judgement holds."
+  },
+  "modules": {},
+  "acceptance": [
+    "**独立复算映射**：至少抽查 3 条 `met` 与全部 `partial`/`unmet`，用既有证据文件独立核对「判据原文 / 实测数字 / 证据路径 / 状态」四者一致；发现任何未覆盖被写成 `met` 即阻断。",
+    "**映射完整性**：核 `map.json` 覆盖 roadmap 全部需求条目（缺条即阻断）；每条必须有判据原文引用（不接受只写判定）；`partial`/`unmet` 必须写原因与影响；`multicontact` 设备版、NVRTC 产品 launcher、primitive narrowphase、Linux/T4、逐秒峰值、深穿透额外采样面必须显式在列。",
+    "**perf 方法学**：核性能数字是否与编译/JIT 时间分离、是否记录桌面负载/上下文与硬件/驱动/nvcc 版本、是否声称跨硬件结论（应无）、GPU 窗口是否合规（基线/无残留/0.5 s 峰值采样）；数值需可由证据文件复算（自己算一遍中位/p95 或至少抽样核对）。",
+    "**native 落点**：核契约改动是否符合用户拍板结论；E 是否用真实产品输出（非上游 f32 代理）；样本量是否显著标注；`hfield-box` 若未纳入必须写明「不可配对、样本不增」的理由与测量。",
+    "资源与边界：需要一次秒级 GPU 窗口复算 perf（开窗前报 Arch 基线获批，与 G6 窗口串行）；只写自己的证据目录；门禁 fmt/clippy/clippy-cuda/unit 全过；不得宣称「精度达标 / 上游完全等价 / 原生放行 / 双平台通过」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-acceptance-perf-native"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-acceptance-perf-native-independent-check/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 60
+  },
+  "note": "Arch 2026-10-25 按 Chief 要求提前登记：G6 独立复核不能只读交付表格，必须独立复算 map.json 的关键状态（≥3 条 met + 全部 partial/unmet 逐条）、核 perf 方法学（编译/JIT 是否混入、是否跨硬件外推、桌面负载与版本是否记录）、核 native 落点是否符合用户拍板与样本量标注。GPU 窗口需报 Arch 基线获批，与 G6 的实现窗口串行。",
+  "revision": {
+    "before": "098af410ef6f8dd77fb0d1c2feb282a4c6248acd",
+    "after": null
+  },
+  "created_at": "2026-10-25T19:41:00.000Z",
+  "updated_at": "2026-10-25T19:41:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-acceptance-perf-native-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-acceptance-perf-native-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

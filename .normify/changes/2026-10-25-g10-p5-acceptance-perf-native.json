@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-acceptance-perf-native",
+  "title": {
+    "zh": "G10@P5 收口片 G6：验收映射（含判据原文/未覆盖项）+ 性能测量 + native 容差落点",
+    "en": "G10@P5 close-out G6: acceptance mapping (criterion quotes + uncovered items), performance measurement, and native tolerance landing"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "G10@P5 的收口片。三块：① 验收映射——把 roadmap `2026-10-11-roadmap-g10-p5` 的需求逐条映射到实现位置、判据原文、实测数字、证据路径与状态（met/partial/unmet），只读既有 verified 证据、不复算、不改数字，未覆盖项必须显式出现且不得写成 met；② 性能——同机同批输入的接触生成耗时（host 吞吐 + 设备 kernel-only/端到端），记录桌面负载/上下文与硬件/驱动/nvcc 版本，编译/JIT 时间单列，性能数字不进精度判据、不跨硬件外推；③ native 容差落点——按用户对 `native_error_v2` 接触字段的拍板（粗门禁/只作诊断/两者）落契约并用真实产品输出复算 E、标注样本量；未拍板前只搭「诊断材料 + 待拍板」框架；`hfield-box` 先验 native 与设备接触数能否配对，不能配对则如实记「样本不增」。",
+    "en": "G10@P5 close-out slice with three parts: (1) acceptance mapping from roadmap 2026-10-11-roadmap-g10-p5 requirements to implementation location, original criterion quote, measured numbers, evidence paths and status (met/partial/unmet), reading existing verified evidence only, no recomputation, no number changes; uncovered items must appear explicitly and must never be marked met. (2) performance: same-machine, same-batch contact generation timing (host throughput plus device kernel-only and end-to-end), recording desktop load/context and hardware/driver/nvcc versions, with compile/JIT time listed separately; performance numbers never enter precision criteria and are not extrapolated across hardware. (3) native tolerance landing: implement the user's decision for native_error_v2 contact fields (coarse gate / diagnostic only / both), recompute E from real product output and state the sample size; before the decision only the 'diagnostic + pending decision' frame is built; hfield-box is included only if native and device contact counts can be paired, otherwise recorded honestly as 'not pairable, sample does not grow'."
+  },
+  "modules": {},
+  "acceptance": [
+    "**G6-1 映射**：`map.json` 每行含 `requirement_id / 实现位置 / 判据原文 / 实测数字 / 证据路径 / 状态(met|partial|unmet)`；`partial` 与 `unmet` 必须写原因与影响；**不得把未覆盖写成 met**；以下必须显式出现：`multicontact` 设备版未实装、NVRTC 产品 launcher 未接线、primitive narrowphase 设备版未实装、Linux/T4 未覆盖、窗口逐秒峰值未取到、`cylinder-box` 深穿透额外采样面（4/24 单字段超 4·ULP@scale）。",
+    "**G6-1 证据纪律**：只读既有 verified 证据与 receipt，不复算、不改数字；每行给可点开的证据路径 + 判据原文引用（不能只写判定）；README/receipt 记录方法与未覆盖项；新证据目录 `docs/development-evidence/g10-p5-acceptance-map/`。",
+    "**G6-2 性能**：host 吞吐（G2 五 case + G3 `sdf-box` + G4 hfield 三例；warmup 20 + 200 次，中位/p95、contacts/s、单线程）+ 设备 kernel-only（CUDA events，warmup 5 + 50）与端到端（含 H2D/D2H）两栏；**必须记录测量时的桌面负载/上下文**（如 GPU 占用与桌面应用采样，参考 r01-p8 的 2.6% 窗口间差异教训）与硬件/驱动/nvcc 版本；编译/JIT 时间单列不混入 kernel 时间；明确「性能数字不进精度判据、不跨硬件外推」；一次秒级 GPU 窗口（先报 Arch 与 Chief 基线获批、0.5 s 峰值采样）。",
+    "**G6-3 native**：按用户拍板落契约——A 粗门禁（`pos` 1e-3 / `frame`·`normal` 2.5e-3 / `dist` 1e-6 + rtol 1e-4 / 结构零容差）或 B 只作诊断不放行 或 C 两者；E 用**真实产品输出**复算并标注样本量（当前真 native 仅 `ellipsoid-box` 1 case / 2 接触点）；未拍板前只搭框架、**不得落成生效容差**；`hfield-box` 先测 native 每 world 接触数能否与设备配对，不能配对则如实记「不可配对、样本不增」。",
+    "**边界**：不改已批准判据（对上游 f32 的向量尺度 ULP / frame scale=1.0 / 结构零容差）、不改已 verified 证据数字、不改 S2–S8 证据、`Cargo.*`、`fixtures/mjwarp-complex-physics/*.xml`；新文件 ≤500 行；门禁 fmt/clippy/clippy-cuda/unit 全过；不得宣称「精度达标 / 上游完全等价 / 原生放行 / 双平台通过」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-ccd-overflow-bit-fix",
+      "2026-10-25-evidence-bin-eol-hygiene-independent-check"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/g10-p5-acceptance-map/",
+      "src/",
+      "tests/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 60
+  },
+  "note": "Arch 2026-10-25 起草并由 Chief 认可（计划草案 `target/g10-p5-g6-prep.md`）。**start 条件**：`ccd-overflow-bit-fix` 与 `evidence-bin-eol-hygiene-independent-check` 都 verified 之后（depends_on 已表达）；用户拍板 native 容差前只搭框架、不落生效容差。Chief 补充要求：① map.json 每行带判据原文引用、partial/unmet 写原因与影响、未覆盖不得写成 met；② perf 必须记录桌面负载/上下文（r01-p8 的 2.6% 差异教训）与版本，编译/JIT 单列，不跨硬件外推；③ native 先搭「诊断 + 待拍板」框架，`hfield-box` 配对条件按接触数。G6 独立复核（QA）已同时登记，要求独立复算 map.json 关键状态、不得只读交付表格。",
+  "revision": {
+    "before": "098af410ef6f8dd77fb0d1c2feb282a4c6248acd",
+    "after": null
+  },
+  "created_at": "2026-10-25T19:40:00.000Z",
+  "updated_at": "2026-10-25T19:40:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-acceptance-map/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-acceptance-perf-native"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
