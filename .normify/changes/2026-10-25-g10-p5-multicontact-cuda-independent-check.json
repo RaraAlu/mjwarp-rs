@@ -5,7 +5,7 @@
     "zh": "G10@P5 multicontact 设备版独立复核（接触数组/box_box/dispatch 口径）",
     "en": "Independent check of device multicontact (contact arrays, box_box, dispatch scope)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "对 `2026-10-25-g10-p5-multicontact-cuda` 做独立复核。该片实装设备 `ccd_pair` 的 multicontact（≤4 接触）与 `box_box`（为覆盖 box-box-margin，其上游 dispatch 为 PRIMITIVE），并用 QA 已提交的上游 f32 GPU 接触数组做判据对照。复核重点：**接触数组与上游是否逐字段一致、box_box 归属与 dispatch 口径是否如实、未覆盖项（mesh multicontact/无参考组合）有没有被写成通过**。",
     "en": "Independently verify device multicontact contact arrays and the box_box port (primitive dispatch attribution), and check uncovered items are not reported as passing."
@@ -31,15 +31,54 @@
     "priority": 52
   },
   "note": "Arch 2026-10-25 预登记（设备侧三缺口最后一片的复核）。复核时注意：`box-box-margin` 的上游参考在 `qa-upstream-gpu.json` 已存在（10 条/2 world），`mesh-mesh` 为单接触，mesh multicontact 未实装需记未覆盖；primitive 片 QA 复核曾发现 dispatch 口径错误（BOX-BOX 被 nativeccd=disable 覆盖），本片须同样核对口径。",
-  "revision": {"before": null, "after": null},
+  "revision": {
+    "before": "bfb9d529bce18dbb87415c37dad995ef55f20054",
+    "after": null
+  },
   "created_at": "2026-10-25T15:30:00.000Z",
-  "updated_at": "2026-10-25T15:30:00.000Z",
+  "updated_at": "2026-10-25T15:59:05.633Z",
+  "closed_at": "2026-10-25T15:57:57.231Z",
   "checks": [
-    {"kind": "gate", "gate": "fmt"},
-    {"kind": "gate", "gate": "clippy"},
-    {"kind": "gate", "gate": "clippy-cuda"},
-    {"kind": "gate", "gate": "unit"},
-    {"kind": "json", "path": "docs/development-evidence/g10-p5-multicontact-cuda-independent-check/receipt.json", "pointer": "/task_id", "equals": "2026-10-25-g10-p5-multicontact-cuda-independent-check"},
-    {"kind": "forbid_claim", "terms": ["G10已实现", "完整物理通过", "双平台通过", "上游完全等价", "原生放行", "精度达标"]}
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-multicontact-cuda-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-multicontact-cuda-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ],
+  "addenda": [
+    {
+      "at": "2026-10-25T15:59:05.633Z",
+      "reason": "按 Arch 裁定接受 ① 内容级绑定（20/21 严格 + window-output.txt CRLF↔LF EOL-only，归一化后逐字节相同、hash-object=rev-parse）；观察 2 记入复核 README（不动交付方已验收证据）、观察 3 归档为窗口日志流程改进；重跑 gate/check 后收口提交。",
+      "prev": null,
+      "hash": "sha256:cf1850657b34c872ff2dcb29d409fde430aa02e78c33f67080700882f6ed2637"
+    }
   ]
 }
