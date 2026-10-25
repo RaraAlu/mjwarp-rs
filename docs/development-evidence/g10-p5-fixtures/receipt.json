@@ -149,6 +149,13 @@
     "clippy-cuda": "pass",
     "unit": { "result": "pass", "tests_passed": 532, "tests_failed": 0 }
   },
+  "corrections_2026_10_25": {
+    "primitive_classification": "10 项补采中仅 cylinder-box/ellipsoid-box/mesh-mesh/convex-mesh/degenerate-mesh 为 GJK/EPA CONVEX 参考；sphere-box-*/capsule-box/box-box-margin/hfield-* 与 d04 box-box-multiccd 实际走 PRIMITIVE，仅供其他切片复用",
+    "table_basis": "MJ_COLLISION_TABLE：(SPHERE,BOX)/(CAPSULE,BOX) 即 PRIMITIVE；box-box 模型带 nativeccd=disable 时 (BOX,BOX) 被覆盖为 PRIMITIVE",
+    "box_box_margin": "非 multiccd；模型 multiccd=disable，5 接触/world 来自 margin≠0 的非 is_discrete 多接触路径",
+    "hfield_duplicates": "hfield-sphere 8 行仅 6 个不同 (dist,pos)（2 重复）；hfield-capsule 7 行仅 3 个不同点（world1 3 行同点）；排序键须含 geomcollisionid",
+    "raw_order_scope": "原始顺序观察项仅对本次 CUDA 运行/本设备/本后端成立，不得作为固定判据（QA warp CPU 重采顺序不同）"
+  },
   "unmet": [
     "本片只做夹具/MJB/参考补采；未实现产品侧 hfield/SDF 碰撞（G1–G6）。",
     "sdf-box 接触原始顺序非确定（atomic 写入）——验收必须排序比较；G5 需对齐写入顺序或保持排序判据。",
