@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-hfield-host",
+  "title": {
+    "zh": "G10@P5 hfield host：_hfield_filter 粗筛、prism 六顶点构造、CCD 组合、0..3 四接触与 MJ_MAXCONPAIR 溢出",
+    "en": "G10@P5 hfield host: _hfield_filter coarse cull, prism construction, CCD composition, 0..3 multi-contact and MJ_MAXCONPAIR overflow"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "g10-p5 的 hfield host 片（G4）：按预检语义手册实现上游 hfield 碰撞路径——`_hfield_filter` 的 vec4 粗筛（相邻 cell 候选、按 `hfield_size/nrow/ncol` 与 geom 位置筛选）、prism（三角柱）六顶点构造、hfield 与 SPHERE/CAPSULE/ELLIPSOID/CYLINDER/BOX/MESH 的配对一律走 CONVEX（复用 G2 的 `ccd()`/`support()`）、`pos=0.5*(w1+w2)` 与 `normal=make_frame(w1-w2)`、0..3 四接触选择与 `MIN_DIST_TO_NEXT_CONTACT=1e-3` 去重、`MJ_MAXCONPAIR=50` 溢出路径。数据用 G1 接通的 `hfield_data/nrow/ncol/size/adr`；判据沿用 g10-p5 定稿口径（唯一正式判据 = 与同配方上游 `mujoco_warp` f32（CPU 后端）≤4 ULP、位级优先；native f64 只作契约框架读数、不作判据）。本片 host-only，不实装 GPU（G5）。",
+    "en": "hfield host slice (G4) of g10-p5: implement the upstream hfield collision path per the precheck manual - _hfield_filter vec4 coarse cull (adjacent-cell candidates selected from hfield_size/nrow/ncol and geom position), prism (triangular prism) six-vertex construction, routing every hfield pair with SPHERE/CAPSULE/ELLIPSOID/CYLINDER/BOX/MESH through CONVEX (reusing G2 ccd()/support()), pos=0.5*(w1+w2) and normal=make_frame(w1-w2), the 0..3 contact selection with MIN_DIST_TO_NEXT_CONTACT=1e-3 deduplication, and the MJ_MAXCONPAIR=50 overflow path. Inputs use the hfield_data/nrow/ncol/size/adr wired in G1. Criterion follows the finalized g10-p5 rule: the only formal criterion is <=4 ULP versus the same-recipe upstream mujoco_warp f32 on the CPU backend, bit-level first; native f64 is a contract-framework reading only and never a criterion. Host only; the GPU kernel lands in G5."
+  },
+  "modules": {},
+  "acceptance": [
+    "`_hfield_filter`：按 `hfield_size/nrow/ncol` 与 geom 世界位置选出相邻 cell 候选（vec4 粗筛），候选集与上游一致；边界 cell 截断/越界处理正确。",
+    "prism 构造：六顶点按上游顺序生成（角点沿高度方向），hfield 与六类 geom 的配对全部走 CONVEX 路径，复用 G2 的 `ccd()`/`support()`（HFIELD 六顶点 `dir[2]<0 ? -2 : -3`）。",
+    "接触装配：`pos=0.5*(w1+w2)`、`normal=make_frame(w1-w2)`、`dist` 语义与上游一致；0..3 四接触选择顺序与 `MIN_DIST_TO_NEXT_CONTACT=1e-3` 去重规则正确（重复接触点不得静默丢弃）。",
+    "`MJ_MAXCONPAIR=50` 溢出：候选对超容量时按上游语义报/截断并记录，不得静默越界写。",
+    "数值判据：对 `hfield-box`（G0b 原生参考，count=8、每 world 4）与 `hfield-sphere`/`hfield-capsule`（G0b 补采，含重复接触点性质）逐 case 比较——位级优先、≤4 ULP；另需补采上游 f32 CPU 的 hfield 参考（若现有夹具只有 native f64），脚本入仓带 provenance、两次捕获位等。",
+    "结构/排序：按 g10-p5 定稿口径比较（`worldid` 分组 + 全字段含 `geomcollisionid` 稳定排序后位级比较；原始顺序只作观察项且仅对本设备本后端成立）；hfield 每 world 重复接触点必须用全字段多重集比较。",
+    "不回归：G2 的 5 case 判据、G3 的 `sdf-box` 80/80 位级、既有 plane-sphere/sphere-sphere/plane-box 语义不变；不改 S2–S8 证据、`fixtures/mjwarp-complex-physics/*.xml`、`Cargo.*`；新文件 ≤500 行。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过（unit 不得低于 569 过 0 败 1 忽略）；证据 README/receipt 含 task_id、方法与 unmet（GPU 内核 G5、naconmax 截断、flex/TRIANGLE、Linux/T4、性能 G6）；**不得宣称「G10 已实现」「完整物理通过」「双平台通过」「上游完全等价」「原生放行」「精度达标」**；GPU 本片不需要。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-sdf-host-r2"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/physics/",
+      "tests/g10_p5_hfield_host.rs",
+      "scripts/authoring/g10-p5/",
+      "fixtures/g10-p5/",
+      "docs/development-evidence/g10-p5-hfield-host/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-10-25 登记：按预检 §6.2 顺序 G3（SDF host，afee434b/c3a32a2c）→ G4（hfield host）。范围直接用 `src/physics/` 目录级——本仓库存在「目录 + 同名 .rs」结构（`collision/` 与 `collision.rs`），G2/G3 两次因此撞范围冻结，G4 起一律写上一级。本片 host-only；G5 才开 GPU 独占窗口。复用 G2 ccd/support 与 G1 hfield 字段，参考优先用上游 f32（同配方），native 仅框架读数。",
+  "revision": {
+    "before": "23328a58a91b20b51cb202552bcd72edaf0aa654",
+    "after": null
+  },
+  "created_at": "2026-10-25T16:58:00.000Z",
+  "updated_at": "2026-10-25T08:52:15.961Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-hfield-host/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-hfield-host"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
