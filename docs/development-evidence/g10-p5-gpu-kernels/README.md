@@ -82,3 +82,16 @@
     故 G4 产品路径不经该 helper；QA 观测到的 rot-box/rot-capsule 与上游一致来自「调用方预变换」而非该 helper。
 - 口径：设备侧以**上游语义**为准，不为与 host 逐位一致而复制错误约定；正式判据仍是 GPU 窗口阶段的
   上游 f32 GPU 对照。
+## 8. 第三批（增量提交 3/5）：SDF narrowphase 设备版
+
+| 文件 | 内容 |
+| --- | --- |
+| `src/physics/collision/cuda/sdf_octree.cu`（新） | 对应 host `sdf/octree.rs`：`box_project`（eps=1e-4）、`find_oct`（100 次上限/eps=1e-6/叶判定/子索引 `4z+2y+x`/grad 权重）、`sample_volume_sdf`（盒距+`dot8`）、`sample_volume_grad`（盒外差分 h=1e-4、盒内解析）、`halton`、`transform_aabb` |
+| `src/physics/collision/cuda/sdf_math.cu`（新） | 对应 host `sdf/primitives.rs` + `sdf/descent.rs`：原语 SDF/梯度、`sdf`/`sdf_grad` 分发（含 volume 分支）、`clearance`、`compute_grad`、Armijo `gradient_step`、`gradient_descent`（`sdf_iterations`+1 次 intersection） |
+| `src/physics/collision/cuda/sdf_narrowphase.cu`（新） | 对应 host `sdf/narrowphase.rs`：AABB 交集 + `sdf_initpoints` 个 Halton(2,3,5) 初始点 + 每初始点一接触 + `make_frame` |
+| `src/physics/collision/cuda/mod.rs` | 追加 `SDF_OCTREE_CUDA`/`SDF_MATH_CUDA`/`SDF_NARROWPHASE_CUDA` 常量 |
+
+- `rel_mat` 一律使用 `common.cu` 已按上游修正的 `relative_matrix`（`transpose(rot1)*rot2`），不依赖 host 旧约定。
+- 验证：三文件均通过 `nvcc -std=c++17 -Xcompiler /utf-8 -arch=sm_89 -c`（纯编译）；`cargo check/clippy --features cuda-probe` 通过。
+- 结论口径：仅「与 host 逐式对应 + 编译通过」；**SDF 正式判据（直接对同配方上游 f32 GPU）待窗口**。
+- 截断/`nacon` 写入语义在第五批（接触写入）处理；本批只产生候选结构体。

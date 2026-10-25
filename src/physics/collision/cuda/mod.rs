@@ -32,3 +32,10 @@ pub(crate) const POLYTOPE_BUILD_CUDA: &str = include_str!("polytope_build.cu");
 pub(crate) const EPA_CUDA: &str = include_str!("epa.cu");
 /// ccd 两阶段驱动（与 host `gjk/phase.rs` + `gjk/ccd.rs` 对应）。
 pub(crate) const CCD_CUDA: &str = include_str!("ccd.cu");
+
+/// SDF octree 采样（与 host `sdf/octree.rs` 对应）。
+pub(crate) const SDF_OCTREE_CUDA: &str = include_str!("sdf_octree.cu");
+/// SDF 原语/梯度/clearance/Armijo/下降（与 host `sdf/primitives.rs` + `sdf/descent.rs` 对应）。
+pub(crate) const SDF_MATH_CUDA: &str = include_str!("sdf_math.cu");
+/// SDF narrowphase（与 host `sdf/narrowphase.rs` 对应：AABB 交集 + Halton 初始点）。
+pub(crate) const SDF_NARROWPHASE_CUDA: &str = include_str!("sdf_narrowphase.cu");
