@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-nvrtc-product-launcher-independent-check",
+  "title": {
+    "zh": "G10@P5 NVRTC 产品 launcher 独立复核（入口真实性 + 与探针对照 + 错误路径）",
+    "en": "Independent check of the NVRTC product launcher (real entry, probe parity, error paths)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-g10-p5-nvrtc-product-launcher` 做独立复核。该片让产品 GPU 入口经 NVRTC 实际可用，并声明与 G5 探针输出一致、错误路径不 panic。复核重点：**入口是否真的走 NVRTC 产品路径（不是只加 ignore 测试）**、输出对照是否可由独立复跑得出、错误路径测试是否真的覆盖。",
+    "en": "Verify the product GPU entry really goes through NVRTC (not just ignored tests), reproduce the probe parity independently, and check error-path tests."
+  },
+  "modules": {},
+  "acceptance": [
+    "**入口真实性**：读代码与运行路径确认产品入口经 NVRTC 实际编译/加载设备代码（不是仅 `#[ignore]` 测试或仅探针），给出可复现的调用命令；若同时保留预编译路径，核其与 NVRTC 的选择逻辑是否清楚、产品默认走哪条。",
+    "**独立对照**：用 G5 冻结 case 输入，独立跑产品入口与 G5 探针（至少 `hfield-sphere`、`sdf-box`、`ellipsoid-box`），按既有判据比对（dist/pos/frame ULP、结构字段零容差；能位级则位级）；不得只读交付表格。若需 GPU，先报 Arch 基线并经 Arch+Chief 双签，与 G6/NVRTC 窗口串行。",
+    "**错误路径**：核 NVRTC 编译失败/无可用 GPU 时返回明确错误、不 panic 的单元测试是否真正覆盖（可 CPU 侧注入），并指出任何「测试只断言 Ok/未真正构造失败路径」的问题。",
+    "**边界**：不改产品语义/判据/已 verified 数字、不引入 f16/TF32；证据写自己的目录 `docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/`；不改 `Cargo.*`/fixtures/S2–S8；不碰 `g10-p5-gpu-kernels-independent-check/qa-gpu/{cases,out}` 未跟踪产物。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过；receipt 含 task_id；证据无 `.bin`/`.pyc`；不得宣称精度达标/上游完全等价/原生放行/双平台通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-nvrtc-product-launcher"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-25 预登记（每片 verified 后立即 start 下一片、QA 复核提前登记的约定）。本片是设备侧三缺口的第一片（NVRTC launcher），验「产品入口可用」而非数值语义变化；若复核发现产品入口与探针有差异，按阻断处理并回报 Arch。",
+  "revision": {"before": null, "after": null},
+  "created_at": "2026-10-25T13:22:00.000Z",
+  "updated_at": "2026-10-25T13:22:00.000Z",
+  "checks": [
+    {"kind": "gate", "gate": "fmt"},
+    {"kind": "gate", "gate": "clippy"},
+    {"kind": "gate", "gate": "clippy-cuda"},
+    {"kind": "gate", "gate": "unit"},
+    {"kind": "json", "path": "docs/development-evidence/g10-p5-nvrtc-product-launcher-independent-check/receipt.json", "pointer": "/task_id", "equals": "2026-10-25-g10-p5-nvrtc-product-launcher-independent-check"},
+    {"kind": "forbid_claim", "terms": ["G10已实现", "完整物理通过", "双平台通过", "上游完全等价", "原生放行", "精度达标"]}
+  ]
+}
