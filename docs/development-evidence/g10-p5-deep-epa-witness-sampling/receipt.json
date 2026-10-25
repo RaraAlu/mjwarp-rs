@@ -48,9 +48,18 @@
         "深穿透 multiccd_idx/接触槽选择：index 24/24、ncontact 24/24 相等，overflow 0",
         "系统性偏差：24 中仅 1 个明显 + 2 个边界舍入级，与深度不相关（Pearson≤0.25），最深 world 偏差为 0"
       ],
-      "conclusion": "world 8 是深穿透（0.1342 m）下近简并 EPA 选面/派生法线差（δθ≈7.7e-6 rad）被深度放大为 ~1.0e-6 m witness 位置差；属接触流形内 witness 位置的不确定度，不是系统性实现缺陷；但无 face_idx/三顶点/权重导出，不能断言选面与上游完全一致（列为未覆盖）"
+      "conclusion": "world 8 是深穿透（0.1342 m）下的派生法线差（δθ≈7.7e-6 rad，机制未定）被深度放大为 ~1.0e-6 m witness 位置差；属接触流形内 witness 位置的不确定度，不是系统性实现缺陷；但无 face_idx/三顶点/权重导出，无法区分「不同选面 tie-break」与「同面但 EPA 法线数值差/权重不同」，也不能断言选面与上游完全一致（列为未覆盖）"
     },
-    "recommendation": "不需要修正片（无可定位公式/索引错误、无系统性偏差；对齐选面 tie-break 代价高、收益仅该额外采样面 1/24 姿态）。若声明面要覆盖深穿透 witness 位置：建议用 dist + ncontact/index/overflow 作判据、witness 位置只作信息量，或把该面列为未覆盖；任何判据/声明面调整需 Arch→Chief→用户决定，本片未自行放宽",
+    "post_review_adjustments": {
+      "reviewed_by": "QA 独立复核（提交 2c052637，pass / 0 阻断 / 观察 3）",
+      "changes": [
+        "观察 1：根因措辞由「近简并 EPA 选面」收窄为「派生法线差（机制未定）」；明确 |dist|·δθ 等式为定义自洽分解（Δdist 仅占点对差 0.011%），不能判定哪一方正确；「选面是否与上游一致」保持未覆盖",
+        "观察 2：穿透深度中位注明为上中位数口径（排序第 13 小 = 0.1101；两中位平均口径 = 0.1089，偏差 1%，不影响结论）",
+        "观察 3：Pearson 补 n=24 与双侧 p 值（≈0.244/0.387/0.677/0.237，均不显著），结论改为「该样本下无显著线性趋势」并标注不可外推"
+      ],
+      "numbers_unchanged": "所有实测数字、越界集合、交叉核对结果未改；仅措辞与口径标注调整"
+    },
+    "recommendation": "建议不登记修正片（无可定位公式/索引错误、无系统性偏差；对齐选面 tie-break 代价高且本片未判定机制是否确为选面；收益仅该额外采样面 1/24 姿态）。若声明面要覆盖深穿透 witness 位置：建议用 dist + ncontact/index/overflow 作判据、witness 位置只作信息量，或把该面列为未覆盖；任何判据/声明面调整需 Arch→Chief→用户决定，本片未自行放宽",
     "minimum_repro": "QA case cylinder-box-sweep 的 world 8（0-based），姿态生成 seed 20251025；参考/设备值与偏差分解见 analysis-worlds.jsonl 第 9 行",
     "gate": "passed（fmt/clippy/clippy-cuda/unit 全绿，unit 592 过 0 败）"
   },

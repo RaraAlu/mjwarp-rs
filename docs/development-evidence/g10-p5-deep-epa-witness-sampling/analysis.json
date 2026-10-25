@@ -119,6 +119,8 @@
     "penetration_depth_min": 0.08034884184598923,
     "penetration_depth_max": 0.1470220685005188,
     "penetration_depth_median": 0.11005063354969025,
+    "penetration_depth_median_definition": "upper median (iterative sorted[len//2]); true median (average of two middle values) = 0.1089157052; QA post-review observation 2",
+    "penetration_depth_true_median": 0.1089157052,
     "over_bound_depths": {
       "8": 0.1342242956161499,
       "10": 0.08824803680181503,
@@ -254,6 +256,14 @@
       "depth_vs_x2_over_bound": 0.18496991123331835,
       "depth_vs_x1_normal_component": 0.08960495429155747,
       "depth_vs_x1_tangential_component": 0.2511157213101114
+    },
+    "correlation_pearson_p_two_sided": {
+      "n": 24,
+      "depth_vs_x1_over_bound": 0.244,
+      "depth_vs_x2_over_bound": 0.387,
+      "depth_vs_x1_normal_component": 0.677,
+      "depth_vs_x1_tangential_component": 0.237,
+      "note": "QA post-review observation 3：均不显著，只能说明该样本下无显著线性趋势"
     }
   },
   "worlds_file": "analysis-worlds.jsonl（每行一个 world 的完整派生字段；第 9 行 = world 8）",
@@ -261,7 +271,9 @@
     "纯 CPU 定性分析：不改产品代码、不开 GPU 窗口、不复制 QA 的 .bin。",
     "法线由上游 witness 关系 x2-x1 = dist·n 反解（仅在 |dist|>1e-12 且反解模长>0.5 时使用）。",
     "normal/tangential 分解只对 x1 的偏差向量做，用来区分「深度/法线方向差」与「接触面内滑动」。",
-    "predicted_witness_shift = |dist|·|normal_delta|：若两实现只差一个微小法线转动，witness 点对差应约等于该值。",
+    "predicted_witness_shift = |dist|·|normal_delta|：若两实现只差一个微小法线转动，witness 点对差应约等于该值。**这是定义自洽分解**（法线由 witness 反解、Δdist 仅占点对差 0.011%），不能判定哪一方正确，也不能区分「不同选面 tie-break」与「同面但 EPA 法线数值差/权重不同」（QA 复核 2c052637 观察 1）。",
+    "「选面是否与上游一致」保持未覆盖：本片无 face_idx/EPA 三顶点/权重导出，机制未定。",
+    "Pearson 为 n=24 样本内估计，双侧 p≈0.244/0.387/0.677/0.237 均不显著；仅说明该样本下无显著线性趋势，不可外推（QA 观察 3）。",
     "完整 24 world 明细见 analysis-worlds.jsonl（避免单个证据 JSON 超过 500 行棘轮）。"
   ]
 }
