@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-exact-f32-fma-relmat-independent-check",
+  "title": {
+    "zh": "精确 f32 FMA helper 与 relmat 契约修复的 QA 独立复核（探针/路径命中/seam 边界/G5 位级）",
+    "en": "Independent check of the exact f32 FMA helper and the relmat contract fix"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-exact-f32-fma-relmat`（`f0dceb5b`）做独立复核：该片新增 `src/math/fma.rs` 目标无关精确 f32 FMA（主路 CPUID+`_mm_fmadd_ss`，兜底为**无 f64 的整数精确模拟**——相对验收原文「Dekker/TwoSum」属 Arch 已接受的方法偏离）并替换 `relmat.rs` 的 f64 仿真。复核方须自建探针（内联汇编参考，不复用交付探针/脚本）独立验证两路径 × 硬件 FMA 统计、路径命中证据、seam 门控边界（产品二进制不含 seam env）、G5 rel_mat/SDF 位级不变，并核偏离是否如实登记、判据/容差/已 verified 证据未被改动。",
+    "en": "Independently verify the FMA helper (both paths vs inline-asm hardware reference), the path-hit evidence, the test-only seam boundary, and the bitwise-unchanged G5 results."
+  },
+  "modules": {},
+  "acceptance": [
+    "**独立探针**：自写探针（不复用 `src/math/fma/tests.rs` 与交付脚本），参考用**内联汇编 `vfmadd231ss`**（不得用 `#[target_feature]` 包装 `mul_add`）；输入按团队模板记录生成器参数（LCG mult/inc/seed + 映射）；对**主路 dispatch 与兜底（seam 强制）两条路径**分别跑 4096 + 1e6 + 边界集，独立统计与硬件 FMA 的差异数，与交付 `0/0/0` 对照；记录 ≥5 条差异样本（可用 GNU 默认 `f32::mul_add` vs 硬件作为判别力样本）。",
+    "**路径命中独立核**：核交付「三构建 cpuid_fma=true、active_path=hardware」与「汇编命中 `vfmadd231ss`」的证据是否真实（自己复跑 `--emit=asm` 或反汇编，确认主路确实发出 FMA 指令）；若某构建静默走兜底，必须指出（否则只证明了兜底）。",
+    "**seam 边界独立核**：核 `MJWARP_FORCE_SOFT_FMA` 是否只在 `#[cfg(test)]`（或非默认测试 feature）下编译；自测产品二进制（`target/{debug,release}/mjwarp-rs.exe`）不含该 env 字符串、测试二进制含；核无「运行时读 env 再分支」的宽门控。",
+    "**G5 位级独立复跑**：用自建全新 `CARGO_TARGET_DIR` 复跑 `relmat` lib、`g10_p5_sdf_relmat`、`g10_p5_sdf_host`、`gjk_epa`，核对 `rel_mat` 10/10 与 SDF 40/40 位级不变（diff=0），并确认 `polytope.rs`/`megakernel_arrays.rs` 未被本片改动（`git diff f0dceb5b~1..f0dceb5b` 逐文件）。",
+    "**偏离与口径**：核交付是否如实写明「兜底为整数精确模拟、非 Dekker/TwoSum，属 Arch 接受的方法偏离」；核 `src/render/bvh/aabb.rs` 是否只有注释改动（实现不变）；核 f64 审计清单是否区分允许/禁止且无新的产品链私有 f64；不宣称精度达标/跨环境全绿；证据只写 `docs/development-evidence/exact-f32-fma-relmat-independent-check/`（README+receipt 含 task_id），≤500 行、UTF-8 无 BOM、无 `.bin/.pyc`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-exact-f32-fma-relmat"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/exact-f32-fma-relmat-independent-check/"
+    ],
+    "resources": [],
+    "priority": 54
+  },
+  "note": "Arch 2026-10-25 预登记（实现片已 verified：`f0dceb5b`）。复核重点：兜底路径是否真被独立验证（seam）、主路是否真发出 FMA（防静默走兜底）、seam 是否真的产品不可用、G5 位级是否真不变。可与 faithful 影响面实测串行（同一 QA）。本片只需要 CPU，不要 GPU 窗口。",
+  "revision": {
+    "before": "260e33718a78aaf3b59203fb76338d2272a3fc79",
+    "after": null
+  },
+  "created_at": "2026-10-25T18:50:00.000Z",
+  "updated_at": "2026-10-25T18:50:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/exact-f32-fma-relmat-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-exact-f32-fma-relmat-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
