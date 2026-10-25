@@ -2,6 +2,18 @@
 static_assert(sizeof(mjwarp_g01_field_info) == 16);
 static_assert(alignof(mjwarp_g01_field_info) == 8);
 static_assert(offsetof(mjwarp_g01_field_info, count) == 8);
+// Scalar kind codes (shared with src/io/g01.rs and src/model/volume.rs):
+// 1 = int32, 2 = double, 3 = uint8, 4 = float32 (hfield_data), 5 = int64 (mjtSize).
+static_assert(sizeof(float) == 4 && sizeof(int64_t) == 8 && sizeof(mjtNum) == 8);
+static uint64_t g01_scalar_bytes(uint32_t kind) {
+  switch (kind) {
+    case 2: return sizeof(double);
+    case 3: return sizeof(uint8_t);
+    case 4: return sizeof(float);
+    case 5: return sizeof(int64_t);
+    default: return sizeof(int32_t);
+  }
+}
 struct g01_field {
   const void* source;
   int64_t count;
@@ -57,11 +69,27 @@ static bool g01_select(const mjModel* m, uint32_t id, g01_field* out) {
     case 42: source = m->tendon_limited; count = m->ntendon; width = 1; kind = 3; break;
     case 43: source = &m->opt.enableflags; count = 1; width = 1; kind = 1; break;
     case 44: source = &m->opt.disableflags; count = 1; width = 1; kind = 1; break;
+    // Volume/SDF model fields (G1). IDs 45..58 stay in sync with
+    // src/model/volume.rs::VOLUME_FIELDS; src/io/volume.rs queries them.
+    case 45: source = m->hfield_nrow; count = m->nhfield; width = 1; kind = 1; break;
+    case 46: source = m->hfield_ncol; count = m->nhfield; width = 1; kind = 1; break;
+    case 47: source = m->hfield_size; count = m->nhfield; width = 4; kind = 2; break;
+    case 48: source = m->hfield_adr; count = m->nhfield; width = 1; kind = 1; break;
+    case 49: source = m->hfield_data; count = m->nhfielddata; width = 1; kind = 4; break;
+    case 50: source = &m->noct; count = 1; width = 1; kind = 5; break;
+    case 51: source = m->oct_depth; count = m->noct; width = 1; kind = 1; break;
+    case 52: source = m->oct_child; count = m->noct; width = 8; kind = 1; break;
+    case 53: source = m->oct_aabb; count = m->noct; width = 6; kind = 2; break;
+    case 54: source = m->oct_coeff; count = m->noct; width = 8; kind = 2; break;
+    case 55: source = m->mesh_octadr; count = m->nmesh; width = 1; kind = 1; break;
+    case 56: source = m->mesh_octnum; count = m->nmesh; width = 1; kind = 1; break;
+    case 57: source = &m->opt.sdf_iterations; count = 1; width = 1; kind = 1; break;
+    case 58: source = &m->opt.sdf_initpoints; count = 1; width = 1; kind = 1; break;
     default: return false;
   }
   if (count < 0 || count > INT64_MAX / width) return false;
   count *= width;
-  const uint64_t bytes = kind == 2 ? sizeof(double) : kind == 3 ? sizeof(uint8_t) : sizeof(int32_t);
+  const uint64_t bytes = g01_scalar_bytes(kind);
   if (static_cast<uint64_t>(count) > SIZE_MAX / bytes) return false;
   *out = {source, count, kind};
   return true;
@@ -80,7 +108,7 @@ extern "C" int32_t mjwarp_native_copy_g01_field(
   if (!owner || !info || !g01_select(owner->model, id, &f) ||
       info->reserved || info->kind != f.kind || info->count != f.count ||
       (f.count && (!f.source || !target))) return 8;
-  const size_t width = f.kind == 2 ? sizeof(double) : f.kind == 3 ? sizeof(uint8_t) : sizeof(int32_t);
+  const size_t width = g01_scalar_bytes(f.kind);
   if (f.count) memcpy(target, f.source, static_cast<size_t>(f.count) * width);
   return 0;
 }

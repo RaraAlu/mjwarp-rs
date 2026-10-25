@@ -10,6 +10,13 @@ pub use render::{
 };
 pub mod topology;
 pub use topology::{KinematicFields, KinematicModelInput};
+pub mod volume;
+pub use volume::{
+    VOLUME_FIELDS, VolumeFieldData, VolumeFieldKind, VolumeFieldSpec, VolumeFields,
+    VolumeModelCounts,
+};
+pub mod volume_input;
+pub use volume_input::VolumeModelInput;
 pub mod inertial;
 pub use inertial::{
     InertialFields, InertialModelInput, SparseMassBlock, SparseMassFields, SparseMassInput,

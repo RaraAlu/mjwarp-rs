@@ -5,7 +5,7 @@
     "zh": "G10@P5 模型字段（含 native 导出扩展）：hfield/octree/opt.sdf_* 解析与跨版本位级 parity",
     "en": "G10@P5 model fields including native export extension: hfield/octree/opt.sdf_* parsing with cross-version bit-level parity"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "g10-p5 的模型字段片（G1，二次登记：首次登记漏了 native 导出层故放弃重登）：把 hfield 与 volume SDF 相关模型字段接进产品读取链路。产品链路实测为 `native/g01_fields.inc`（通用字段表，`switch(id)→source/count/width/kind`；现有 kind 无 f64）→ `native/model_probe.cpp` 拷贝分支 → ABI `include/mjwarp_native_probe.h` → Rust `src/io/g01.rs` 的字段信息/拷贝 → `src/model/*` DTO。本片需：① 在 native 表与拷贝路径新增 **f64 kind** 与 hfield/octree/opt.sdf_* 字段条目（`hfield_nrow/ncol/size/data/adr`、`noct`、`oct_depth/oct_child/oct_aabb/oct_coeff`、`mesh_octadr/octnum`、`opt.sdf_iterations/sdf_initpoints`；**ABI 结构不变**，kind 仍为 u32 标记）；② 在 `src/io/` 增逐子系统读取模块、`src/model/` 增 DTO；③ 用 G0b 的 `fixtures/g10-p5/octree-parity.json` 做**位级**对照（`oct_aabb/oct_coeff` f64 位型、`hfield_data` f32 位型；`sdf-cylinder` noct=63,497 与 `hfield-box` noct=0 两例必覆盖）；④ 写明 f64→f32 一次转换点（与 mjwarp `put_model` 对齐）；⑤ 出 `nworld>1` world 维上传口径规格（不实装 GPU 内核）。不改已验收模型字段语义、不改 S2–S8 证据、不改 `fixtures/**`、不改 `Cargo.*`。",
     "en": "Model-field slice (G1, re-registered because the first registration omitted the native export layer): wire hfield/volume-SDF model fields into the product read path. The product path is native/g01_fields.inc (generic field table, switch(id)->source/count/width/kind, with no f64 kind today) -> native/model_probe.cpp copy branches -> ABI include/mjwarp_native_probe.h -> Rust src/io/g01.rs field info/copy -> src/model/* DTOs. This slice must: (1) add an f64 kind plus hfield/octree/opt.sdf_* entries in the native table and copy path (hfield_nrow/ncol/size/data/adr, noct, oct_depth/oct_child/oct_aabb/oct_coeff, mesh_octadr/octnum, opt.sdf_iterations/sdf_initpoints) with the ABI unchanged (kind remains a u32 tag); (2) add a per-subsystem reader module in src/io/ and DTOs in src/model/; (3) compare bit-level against fixtures/g10-p5/octree-parity.json (oct_aabb/oct_coeff f64 patterns, hfield_data f32 patterns; must cover sdf-cylinder noct=63,497 and hfield-box noct=0); (4) document the single f64-to-f32 conversion point aligned with mjwarp put_model; (5) define the world-dim upload contract for nworld>1 (no GPU kernel). Verified model-field semantics, S2-S8 evidence, fixtures/** and Cargo.* stay untouched."
@@ -45,7 +45,8 @@
     "after": null
   },
   "created_at": "2026-10-25T16:34:00.000Z",
-  "updated_at": "2026-10-25T08:22:20.263Z",
+  "updated_at": "2026-10-25T08:33:41.037Z",
+  "closed_at": "2026-10-25T08:30:21.357Z",
   "checks": [
     {
       "kind": "gate",
@@ -79,6 +80,20 @@
         "原生放行",
         "精度达标"
       ]
+    }
+  ],
+  "addenda": [
+    {
+      "at": "2026-10-25T08:33:40.809Z",
+      "reason": "拆分 src/model/volume.rs 为规范层与 volume_input 输入层后刷新模块指纹（范围与语义不变，门禁重跑）",
+      "prev": null,
+      "hash": "sha256:e89714fd9b45066373ed2dbd264e0211a056fe992c13e43025d246bd54e361de"
+    },
+    {
+      "at": "2026-10-25T08:33:41.037Z",
+      "reason": "模块指纹刷新（mjwarp.model/io）后端到 done 之前未重跑，重新收口刷新指纹",
+      "prev": "sha256:e89714fd9b45066373ed2dbd264e0211a056fe992c13e43025d246bd54e361de",
+      "hash": "sha256:789b9af099d4defe399f8265149b5d69e07a7a41f140432c61d5b245a887d61d"
     }
   ]
 }

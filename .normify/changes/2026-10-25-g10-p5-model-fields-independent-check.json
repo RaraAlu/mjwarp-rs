@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-model-fields-independent-check",
+  "title": {
+    "zh": "G10@P5 模型字段独立复核（native 导出扩展/位级 parity/f64→f32 转换点/world 维口径）",
+    "en": "G10@P5 model-fields independent review (native export extension, bit-level parity, f64-to-f32 conversion point, world-dim contract)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 G1（`2026-10-25-g10-p5-model-fields-r2`）做独立复核：QA 自写导出/解析（不复用交付的 `scripts/` 或 `src/io/volume.rs` 逻辑）独立重算——native 侧新增字段与 kind（4=float32、5=int64）是否只增不改、`mjwarp_g01_field_info` ABI 是否不变（尺寸/对齐/字段）；现有 44 项 G01 字段 kind/顺序/导出值是否不回归；hfield/octree/`opt.sdf_*` 字段从产品 3.12 MJB 读出后与 `fixtures/g10-p5/octree-parity.json` 是否**位级全等**（`oct_aabb/oct_coeff` f64 位型、`hfield_data` f32 位型、`oct_child/oct_depth/mesh_octadr/octnum` 整型；`sdf-cylinder` noct=63,497 与 `hfield-box` noct=0 两例必核）；f64→f32 一次转换点是否真实存在且不二次量化；`nworld>1` world 维口径规格是否自洽且未被写成「多世界已验证」。不改产品代码、不改夹具、不改 G1 原证据。",
+    "en": "Independent review of G1 (task 2026-10-25-g10-p5-model-fields-r2): QA writes its own export/parse path (not reusing the delivered scripts/ or src/io/volume.rs logic) to recompute - whether the new native fields and kinds (4=float32, 5=int64) are additive only and the mjwarp_g01_field_info ABI is unchanged (size/alignment/fields); whether the existing 44 G01 fields keep their kind, order and exported values; whether hfield/octree/opt.sdf_* values read from the product 3.12 MJB are bit-identical to fixtures/g10-p5/octree-parity.json (oct_aabb/oct_coeff f64 patterns, hfield_data f32 patterns, oct_child/oct_depth/mesh_octadr/octnum integers; must check sdf-cylinder noct=63,497 and hfield-box noct=0); whether the single f64-to-f32 conversion point exists without double quantization; whether the nworld>1 world-dim contract is self-consistent and never written as verified multi-world. No product/fixture changes and no changes to the original G1 evidence."
+  },
+  "modules": {},
+  "acceptance": [
+    "native 侧：逐条核 `include/mjwarp_native_probe.h` 的 ABI 结构（尺寸/对齐/字段顺序）未变，kind 只新增值；`native/g01_fields.inc` 新增条目字段名与 mjModel 字段一致；`native/model_probe.cpp` 新 kind 拷贝分支的宽度/对齐/类型正确（f32 4 字节、int64 8 字节）。",
+    "不回归：现有 44 项 G01 字段（kind 1 int32 / 2 double / 3 uint8）顺序与导出值逐项不变（对同一 3.12 MJB 前后导出比对，位级）。",
+    "**位级 parity 独立复算**：QA 自己从两例 MJB 取字段值与 `fixtures/g10-p5/octree-parity.json` 比对——`oct_aabb`/`oct_coeff` f64 位型、`hfield_data` f32 位型、`oct_child`/`oct_depth`/`mesh_octadr`/`mesh_octnum` 整型全等；`sdf-cylinder` noct=63,497 与 `hfield-box` noct=0 各一例；差异给首个索引/位型。",
+    "f64→f32 转换点：核它是否只有一处、是否一次性就近舍入、是否有二次量化；与 mjwarp `put_model` 的 f32 上传语义是否一致；证据里的转换前后位型示例可复算。",
+    "world 维口径：规格是否明确（复制 vs 广播 + 理由 + `naconmax` 预留），是否与 G4/G5 可对接；是否**没有**任何「多世界打包已验证通过」类声明。",
+    "证据/边界：G1 改动是否只在声明路径（native/、include/、build.rs、src/io/、src/model/、tests/、证据目录）；未改 `Cargo.*`、`fixtures/**`、S2–S8 证据；证据文件 sha256 与 README 声明一致；关键计数（unit 数、行数）与实测一致。",
+    "门禁：fmt + json receipt + forbid_claim；不跑全量 G01；**不需要 GPU**（纯 CPU parity）。不得出现「原生放行」「精度达标」类表述。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-model-fields-r2"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-model-fields-independent-check/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-25 预先登记：G1 的位级 parity 是 G3/G4/G5 全部数值的地基（octree 数据错一位，后面全错），必须独立复算而非读交付结论。QA 自己是这一片的「上游 dump」作者（G0b 复核时写过 3.12/3.15 dump 与 parity 比较），但要**另写一遍**、不复用 G1 交付的 `src/io/volume.rs` 或 `scripts/`。CPU-only，可与 G3 并行，不抢 GPU。",
+  "revision": {
+    "before": "f7223fb2f4d824c0ed7ee367399bf5c70c3a1024",
+    "after": null
+  },
+  "created_at": "2026-10-25T16:36:00.000Z",
+  "updated_at": "2026-10-25T16:36:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-model-fields-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-model-fields-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

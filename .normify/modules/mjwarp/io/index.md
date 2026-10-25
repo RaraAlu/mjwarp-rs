@@ -2,7 +2,7 @@
 uid = "47e35774"
 id = "mjwarp.io"
 tags = ["planned", "engine", "io"]
-fingerprint = "aeef90e1fc92969075d86f655e81308e36f2b013d6ac6d1dd94ab005113b6e44"
+fingerprint = "1ad7d5eb253beae691c342417971cf58e158428906790405219b67857464e330"
 
 [name]
 zh = "模型与状态IO"

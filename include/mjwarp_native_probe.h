@@ -13,7 +13,10 @@ typedef struct mjwarp_native_info {
 } mjwarp_native_info;
 typedef struct mjwarp_native_owner mjwarp_native_owner;
 
-// kind: 1 = int32, 2 = double, 3 = uint8. Count means scalar elements.
+// kind: 1 = int32, 2 = double, 3 = uint8, 4 = float32, 5 = int64. Count means
+// scalar elements. The struct layout is fixed; only kind values were added.
+// Field IDs 0..44 are the G01 input set; IDs 45..58 are the volume/SDF model
+// fields (hfield, mesh octree, opt.sdf_*) consumed by src/io/volume.rs.
 typedef struct mjwarp_g01_field_info {
   uint32_t kind, reserved;
   int64_t count;

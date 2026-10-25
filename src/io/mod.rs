@@ -24,6 +24,10 @@ mod render;
 pub use crate::model::render::RenderModelCounts;
 #[cfg(feature = "native-model-probe")]
 pub use render::{NativeRenderSnapshot, RenderModelInput};
+#[cfg(feature = "native-model-probe")]
+mod volume;
+#[cfg(feature = "native-model-probe")]
+pub use volume::NativeVolumeSnapshot;
 
 mod inertial;
 mod kinematic;
@@ -275,6 +279,14 @@ mod native {
             // SAFETY: Self retains the immutable owner and its DLL on this thread;
             // the capture owns every output buffer and the bridge preflights counts.
             unsafe { super::NativeRenderSnapshot::capture(self.owner.as_ptr(), self.info) }
+        }
+
+        /// 复制体积与SDF模型字段（hfield、mesh octree、`opt.sdf_*`）。
+        /// 只读；不实装GPU内核、不分配设备缓冲。
+        pub fn volume_snapshot(&self) -> Result<super::NativeVolumeSnapshot, NativeProbeError> {
+            // SAFETY: Self retains the immutable owner and its DLL on this thread;
+            // the capture owns every output buffer and the bridge preflights counts.
+            unsafe { super::NativeVolumeSnapshot::capture(self.owner.as_ptr(), self.info) }
         }
 
         /// `mj_id2name` 语义对照：返回名称字节或 `None`。
