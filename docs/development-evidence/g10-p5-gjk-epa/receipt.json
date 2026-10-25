@@ -87,7 +87,7 @@
     "method": "判据输入直接取上游 f32 kinematics 的 geom_xpos/geom_xmat（纯合成，无 FK/numpy 复算）",
     "table": {"cylinder-box": "全字段位级", "ellipsoid-box": "dist 位级; pos 2 ULP; normal 3.84e-7(3.2 ULP)", "mesh-mesh": "dist 2 ULP; pos/frame 位级", "convex-mesh": "全字段位级", "degenerate-mesh": "dist 1 ULP; pos/frame 位级"},
     "degenerate_27ulp_root_cause": "输入位姿口径（native f64→f32 vs 上游 f32 FK）；改用上游 f32 位姿后 1 ULP，未改窄相表达式",
-    "gate_test": "case_compare::upstream_f32_within_4ulp（非 ignore）",
+    "gate_test": "physics::collision::gjk::case_evidence::upstream_f32_within_4ulp（非 ignore）",
     "native_side": "契约框架读数（native-error-seed.json），不作判据；原生容差未批准，待验收不放行",
     "upstream_reference": {"script": "docs/development-evidence/g10-p5-gjk-epa/capture_mjwarp_f32.py", "json": "docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32.json", "versions": {"mujoco_warp": "3.15.0", "warp": "1.15.0", "mujoco": "3.15.0"}, "device": "cpu", "two_captures_bitwise_identical": "5/5"}
   },
@@ -109,7 +109,7 @@
     "fmt": "pass",
     "clippy": "pass",
     "clippy-cuda": "pass",
-    "unit": {"result": "pass", "tests_passed": 555, "tests_failed": 0}
+    "unit": {"result": "pass", "tests_passed": 558, "tests_failed": 0, "tests_ignored": 1, "basis": "735abaf 实测；tests/gjk_epa.rs 已按拆分移出，API 片重新落地后为 561"}
   },
   "unmet": [
     "（已解决，非 unmet）曾出现的 27 ULP 已定位为输入位姿口径，改写后达成 ≤4 ULP",
@@ -123,16 +123,15 @@
     "未宣称 G10 已实现/完整物理通过/双平台通过/上游完全等价"
   ],
   "artifacts": {
-    "test": {"path": "src/physics/collision/gjk/case_compare.rs（lib 内对照）", "lines": 445},
+    "test": {"path": "src/physics/collision/gjk/case_compare.rs（lib 内对照）", "lines": 455},
     "log": {"path": "docs/development-evidence/g10-p5-gjk-epa/gjk-epa-run.log"},
     "readme": {"path": "docs/development-evidence/g10-p5-gjk-epa/README.md"},
     "upstream_reference": {"script": "docs/development-evidence/g10-p5-gjk-epa/capture_mjwarp_f32.py", "json": "docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32.json"},
-    "native_error_seed": {"path": "docs/development-evidence/g10-p5-gjk-epa/native-error-seed.json", "regen": "G2_DUMP_NATIVE_ERROR=1 cargo test --locked --lib physics::collision::gjk::case_compare::native_error_seed_is_recorded"}
+    "native_error_seed": {"path": "docs/development-evidence/g10-p5-gjk-epa/native-error-seed.json", "regen": "G2_DUMP_NATIVE_ERROR=1 cargo test --locked --lib physics::collision::gjk::case_evidence::native_error_seed_is_recorded"}
   },
   "reproduction": {
     "unit": "cargo test --locked --lib physics::collision",
     "alignment_table": "cargo test --locked --lib physics::collision::gjk::case_compare -- --nocapture",
-    "strict_contract_ignored": "cargo test --locked --lib physics::collision::gjk::case_compare input_aligned_contract -- --ignored",
     "data_authoring": "target/g10-p5-g2/dump_case_inputs.py + gen_case_json.py（target/ 忽略；产品测试不启动 Python）"
   }
 }

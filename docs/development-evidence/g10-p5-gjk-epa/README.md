@@ -60,9 +60,11 @@
 - 接触装配：`dist += margin`；`frame` 在 `dist <= margin` 时用 `w1-w2`、否则 `w2-w1`；
   `pos = 0.5*(w1+w2) + origin`；检测条件 `dist < margin + gap`。
 
-## 3. 数值对照（`cargo test --locked --test gjk_epa -- --nocapture`）
+## 3. 历史 native 对照（探索性记录，不作判据；最终判据见 §9）
 
-判据：`worldid` 分组 + 每 world 内 `(dist, pos)` 稳定排序后逐字段比较（G0b 结论）。
+说明：本节数字是早期“ours vs native(f64→f32)”框架读数，且 `tests/gjk_epa.rs` 已在 `735abaf`
+按拆分移出仓库（由 `…-gjk-epa-api` 片重新落地），**不能**作为 G2 通过依据；G2 唯一通过判据见 §9。
+排序判据（历史）：`worldid` 分组 + 每 world 内 `(dist, pos)` 稳定排序后逐字段比较（G0b 结论）。
 原始写入顺序只作观察项（本片 5 个 case 产品侧顺序由 EPA 面 → clip 决定，未参与判据）。
 
 | case | geom 对（CONVEX 表） | count | dist 位等 | dist max ULP | pos max（向量尺度 ULP） | frame 位等分量 | frame max abs |
@@ -153,8 +155,8 @@ PRIMITIVE 表（现有 `narrowphase` 的覆盖范围），建议 Arch 决定是�
 cargo fmt --check                                   # pass
 cargo clippy --all-targets --locked -- -D warnings  # pass
 cargo clippy --all-targets --locked --features cuda-probe -- -D warnings  # pass
-cargo test --locked                                 # pass（557 项：lib 单测 + 集成，含 gjk_epa 3 项）
-cargo test --locked --test gjk_epa -- --nocapture   # 5 case 对照，见 §3
+cargo test --locked                                 # pass（735abaf 实测 558 passed / 0 failed / 1 ignored）
+cargo test --locked --lib physics::collision::gjk -- --nocapture   # 最终判据 [判据] 表；完整输出见 gjk-epa-run.log
 ```
 
 - 环境：Windows 10.0.26100 / rustc 1.99.0-nightly / edition 2024；CPU 路径（本片未开 GPU）。
@@ -207,7 +209,7 @@ ative-error-seed.json
 （每字段分量 min/median/max/超 1e-6 占比）；ours vs native 与 mjwarp vs native 同级同量级
 （例：ellipsoid frame 8.19e-7、mesh-mesh 5.36e-7、convex-mesh 2.98e-7）。
 
-门禁：正式判据测试为 case_compare::upstream_f32_within_4ulp（**非 ignore**，常驻门禁）；
+门禁：正式判据测试为 physics::collision::gjk::case_evidence::upstream_f32_within_4ulp（**非 ignore**，常驻门禁）；
 native 位级项 
 ative_bitwise_exploration 为**探索项、不作门禁**（f64 参考下不可达）。
 

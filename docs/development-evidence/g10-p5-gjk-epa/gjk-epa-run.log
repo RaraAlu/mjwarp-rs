@@ -1,79 +1,59 @@
-host: Windows 10.0.26100 / rustc 1.99.0-nightly (edition 2024)
-upstream: 71da24d956378a87a703b6e1442b13aec0c4ac29
+# G2 final criterion / unit log (regenerated during QA evidence fix)
+toolchain: 1.99.0 (default), CPU only, no GPU
+command: cargo test --locked --lib physics::collision::gjk -- --nocapture
+commit: 735abafd (G2 closure; G2 narrowphase sources unchanged since)
 
-== cargo test --locked --lib physics::collision::gjk ==
-cargo :     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
-所在位置 行:2 字符: 258
-+ ... `n"; $unit=(cargo test --locked --lib physics::collision::gjk 2>&1 |  ...
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (    Finished `t...get(s) in 0.12s:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-     Running unittests src\lib.rs (target\debug\deps\mjwarp_rs-bbf617de7cd0b294.exe)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src\lib.rs (target\debug\deps\mjwarp_rs-eb15bd9043619f38.exe)
 
-running 24 tests
-test physics::collision::gjk::case_compare::input_aligned_contract ... ignored, 输入对齐后仍有 >4 ULP，待 Arch 裁决是否开 PTX 定序片
+running 27 tests
+test physics::collision::gjk::case_evidence::native_bitwise_exploration ... ignored, 探索项：native 是 f64，f32 实现不可能位级一致，不作门禁
 test physics::collision::gjk::tests::box_support_picks_signed_corner ... ok
 test physics::collision::gjk::tests::capsule_support_uses_cylinder_half_length ... ok
-test physics::collision::gjk::tests::cylinder_support_circle_and_cap ... ok
 test physics::collision::gjk::tests::ccd_reports_multiccd_idx_only_for_supported_types ... ok
-test physics::collision::gjk::tests::ellipsoid_support_lies_on_surface ... ok
-test physics::collision::gjk::tests::multicontact_is_suppressed_for_unsupported_types ... ok
-test physics::collision::gjk::tests::epa_buffers_match_upstream_capacity ... ok
-test physics::collision::gjk::tests::overlapping_boxes_report_single_contact_for_moderate_penetration ... ok
-test physics::collision::gjk::tests::simplex_s2d_origin_inside_triangle ... ok
-test physics::collision::gjk::tests::make_frame_is_orthonormal_for_axis_normal ... ok
-test physics::collision::gjk::tests::margin_inflates_support_along_direction ... ok
-test physics::collision::gjk::tests::mesh_support_exhaustive_search_returns_extreme_vertex ... ok
+test physics::collision::gjk::tests::cylinder_support_circle_and_cap ... ok
 test physics::collision::gjk::tests::discrete_branch_disables_tolerance ... ok
-test physics::collision::gjk::tests::multicontact_returns_at_most_four_contacts ... ok
 test physics::collision::gjk::tests::disjoint_boxes_are_separated ... ok
+test physics::collision::gjk::tests::ellipsoid_support_lies_on_surface ... ok
+test physics::collision::gjk::tests::epa_buffers_match_upstream_capacity ... ok
+test physics::collision::gjk::tests::margin_inflates_support_along_direction ... ok
+test physics::collision::gjk::tests::make_frame_is_orthonormal_for_axis_normal ... ok
+test physics::collision::gjk::tests::mesh_support_exhaustive_search_returns_extreme_vertex ... ok
+test physics::collision::gjk::tests::multicontact_is_suppressed_for_unsupported_types ... ok
+test physics::collision::gjk::tests::multicontact_returns_at_most_four_contacts ... ok
+test physics::collision::gjk::tests::overlapping_boxes_report_single_contact_for_moderate_penetration ... ok
+test physics::collision::gjk::tests::shallow_separation_reports_positive_distance_without_epa ... ok
 test physics::collision::gjk::tests::separated_pair_produces_no_contact ... ok
 test physics::collision::gjk::tests::simplex_s1d_midpoint_projection ... ok
+test physics::collision::gjk::tests::simplex_s3d_origin_inside_tetrahedron ... ok
 test physics::collision::gjk::tests::sphere_box_penetration_matches_analytic_depth ... ok
 test physics::collision::gjk::tests::sphere_support_matches_center_plus_radius ... ok
+test physics::collision::gjk::tests::simplex_s2d_origin_inside_triangle ... ok
 test physics::collision::gjk::tests::tangent_box_contact_normal_matches_axis ... ok
-test physics::collision::gjk::tests::shallow_separation_reports_positive_distance_without_epa ... ok
-test physics::collision::gjk::tests::simplex_s3d_origin_inside_tetrahedron ... ok
-test physics::collision::gjk::case_compare::ccd_contacts_match_pinned_reference ... ok
+[E] cylinder-box     ours-vs-native  min 0e0 median 0e0 max 1.4901161e-8 >1e-6 0.000
+[E] cylinder-box     mj-vs-native    min 0e0 median 0e0 max 1.4901161e-8 >1e-6 0.000
+[判据] cylinder-box     count 8/8 | dist 位等 8/8 max 0 ULP | pos 位等接触 8/8 max 0.00 ULP@尺度 | frame 位等分量 72/72 max abs 0e0
+[判据] cylinder-box     count 8/8 | dist 位等 8/8 max 0 ULP | pos 位等接触 8/8 max 0.00 ULP@尺度 | frame 位等分量 72/72 max abs 0e0
+[E] ellipsoid-box    ours-vs-native  min 0e0 median 2.0827429e-9 max 8.1928766e-7 >1e-6 0.000
+[E] ellipsoid-box    mj-vs-native    min 0e0 median 1.8626451e-9 max 8.1928766e-7 >1e-6 0.000
+[E] mesh-mesh        ours-vs-native  min 0e0 median 2.9802322e-8 max 5.364418e-7 >1e-6 0.000
+[E] mesh-mesh        mj-vs-native    min 0e0 median 2.9802322e-8 max 5.364418e-7 >1e-6 0.000
+[判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 3.838112e-7
+[判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 3.838112e-7
+[判据] mesh-mesh        count 2/2 | dist 位等 1/2 max 2 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0
+[判据] mesh-mesh        count 2/2 | dist 位等 1/2 max 2 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0
+[判据] convex-mesh      count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0
+[判据] convex-mesh      count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0
+[判据] degenerate-mesh  count 2/2 | dist 位等 0/2 max 1 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0
+test physics::collision::gjk::case_evidence::our_contacts_match_upstream_f32_within_4ulp ... ok
+[判据] degenerate-mesh  count 2/2 | dist 位等 0/2 max 1 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0
+test physics::collision::gjk::case_compare::our_contacts_match_upstream_f32_within_4ulp ... ok
+test physics::collision::gjk::case_evidence::upstream_f32_within_4ulp ... ok
+[E] convex-mesh      ours-vs-native  min 0e0 median 5.9604645e-8 max 2.9802322e-7 >1e-6 0.000
+[E] convex-mesh      mj-vs-native    min 0e0 median 5.9604645e-8 max 2.9802322e-7 >1e-6 0.000
+[E] degenerate-mesh  ours-vs-native  min 0e0 median 0e0 max 7.450581e-9 >1e-6 0.000
+[E] degenerate-mesh  mj-vs-native    min 0e0 median 0e0 max 1.0477379e-8 >1e-6 0.000
+test physics::collision::gjk::case_evidence::native_error_seed_is_recorded ... ok
 
-test result: ok. 23 passed; 0 failed; 1 ignored; 0 measured; 392 filtered out; finished in 0.03s
-
-
-== align table ==
-cargo :     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
-所在位置 行:2 字符: 336
-+ ... g); $table=(cargo test --locked --lib physics::collision::gjk::case_c ...
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (    Finished `t...get(s) in 0.11s:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-     Running unittests src\lib.rs (target\debug\deps\mjwarp_rs-bbf617de7cd0b294.exe)
-
-running 2 tests
-test physics::collision::gjk::case_compare::input_aligned_contract ... ignored, 输入对齐后仍有 >4 ULP，待 Arch 裁决是否开 PTX 定序片
-  [ellipsoid-box] world 0 out-of-budget: dist -0.00999989 vs -0.009999892 (2 ULP) | pos [0.039960988, -3.256926e-5, 0.05500005] vs [0.039960988, -3.2564018e-5, 0.05500006] (2.00 ULP@尺度) | frame abs 5.635291e-7
-  [ellipsoid-box] world 1 out-of-budget: dist -0.009999821 vs -0.00999982 (1 ULP) | pos [0.049931824, -2.6913864e-5, 0.05500009] vs [0.049931828, -2.6915946e-5, 0.05500009] (1.00 ULP@尺度) | frame abs 8.1928766e-7
-  [mesh-mesh] world 0 out-of-budget: dist -0.028867507 vs -0.028867517 (5 ULP) | pos [0.058333337, 0.058333337, 0.058333337] vs [0.05833333, 0.058333337, 0.05833334] (2.00 ULP@尺度) | frame abs 5.364418e-7
-  [convex-mesh] world 0 out-of-budget: dist -0.06350853 vs -0.06350852 (2 ULP) | pos [-0.021666668, -0.0016666651, 0.008333333] vs [-0.021666665, -0.0016666763, 0.008333325] (6.00 ULP@尺度) | frame abs 2.9802322e-7
-  [degenerate-mesh] world 0 out-of-budget: dist -0.003131253 vs -0.0031312488 (18 ULP) | pos [0.00818976, -6.518699e-5, -0.15913022] vs [0.008189753, -6.5188855e-5, -0.15913022] (0.50 ULP@尺度) | frame abs 2.6510363e-11
-  [degenerate-mesh] world 1 out-of-budget: dist -0.003131253 vs -0.0031312488 (18 ULP) | pos [0.00818976, -6.518699e-5, -0.15913022] vs [0.008189753, -6.5188855e-5, -0.15913022] (0.50 ULP@尺度) | frame abs 2.6510363e-11
-  [ellipsoid-box] world 0 out-of-budget: dist -0.00999989 vs -0.009999892 (2 ULP) | pos [0.039960988, -3.256926e-5, 0.05500005] vs [0.039960988, -3.2564018e-5, 0.05500006] (2.00 ULP@尺度) | frame abs 5.635291e-7
-  [ellipsoid-box] world 1 out-of-budget: dist -0.009999821 vs -0.00999982 (1 ULP) | pos [0.049931824, -2.6913864e-5, 0.05500009] vs [0.049931828, -2.6915946e-5, 0.05500009] (1.00 ULP@尺度) | frame abs 8.1928766e-7
-  [convex-mesh] world 1 out-of-budget: dist -0.06350854 vs -0.06350852 (3 ULP) | pos [-0.011666656, -0.011666665, 0.008333333] vs [-0.01166667, -0.011666654, 0.008333329] (16.00 ULP@尺度) | frame abs 4.7683716e-7
-  [degenerate-mesh] world 0 out-of-budget: dist -0.003131253 vs -0.003131245 (34 ULP) | pos [0.00818976, -6.518699e-5, -0.15913022] vs [0.00818976, -6.518699e-5, -0.15913022] (0.00 ULP@尺度) | frame abs 4.3660402e-6
-  [degenerate-mesh] world 1 out-of-budget: dist -0.003131253 vs -0.003131245 (34 ULP) | pos [0.00818976, -6.518699e-5, -0.15913022] vs [0.00818976, -6.518699e-5, -0.15913022] (0.00 ULP@尺度) | frame abs 4.3660402e-6
-[未对齐] cylinder-box     count 8/8 | dist 位等 8/8 max 0 ULP | pos 位等接触 5/8 max 4.00 ULP@尺度 | frame 位等分量 72/72 max abs 0e0
-[未对齐] ellipsoid-box    count 2/2 | dist 位等 0/2 max 2 ULP | pos 位等接触 0/2 max 2.00 ULP@尺度 | frame 位等分量 8/18 max abs 8.1928766e-7
-[未对齐] mesh-mesh        count 2/2 | dist 位等 1/2 max 5 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 2/18 max abs 5.364418e-7
-[未对齐] convex-mesh      count 2/2 | dist 位等 0/2 max 2 ULP | pos 位等接触 0/2 max 6.00 ULP@尺度 | frame 位等分量 2/18 max abs 2.9802322e-7
-[未对齐] degenerate-mesh  count 2/2 | dist 位等 0/2 max 18 ULP | pos 位等接触 0/2 max 0.50 ULP@尺度 | frame 位等分量 16/18 max abs 2.6510363e-11
-[对齐后] cylinder-box     count 8/8 | dist 位等 8/8 max 0 ULP | pos 位等接触 5/8 max 4.00 ULP@尺度 | frame 位等分量 72/72 max abs 0e0
-[对齐后] ellipsoid-box    count 2/2 | dist 位等 0/2 max 2 ULP | pos 位等接触 0/2 max 2.00 ULP@尺度 | frame 位等分量 8/18 max abs 8.1928766e-7
-[对齐后] mesh-mesh        count 2/2 | dist 位等 1/2 max 3 ULP | pos 位等接触 0/2 max 2.00 ULP@尺度 | frame 位等分量 0/18 max abs 4.172325e-7
-[对齐后] convex-mesh      count 2/2 | dist 位等 0/2 max 3 ULP | pos 位等接触 0/2 max 16.00 ULP@尺度 | frame 位等分量 2/18 max abs 4.7683716e-7
-[对齐后] degenerate-mesh  count 2/2 | dist 位等 0/2 max 34 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 2/18 max abs 4.3660402e-6
-test physics::collision::gjk::case_compare::ccd_contacts_match_pinned_reference ... ok
-
-test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 414 filtered out; finished in 0.03s
+test result: ok. 26 passed; 0 failed; 1 ignored; 0 measured; 392 filtered out; finished in 0.02s
 
