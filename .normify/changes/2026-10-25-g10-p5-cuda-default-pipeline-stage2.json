@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2",
+  "title": {
+    "zh": "G10@P5 CUDA 默认管线接线 · 阶段 2：按用户拍板选项实现运行时后端选择与 Host 回退",
+    "en": "CUDA default-pipeline wiring stage 2: implement runtime backend selection with host fallback per the user's chosen option"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "承接 `2026-10-25-g10-p5-cuda-default-pipeline`（阶段 1 = 决策支撑，已交 DESIGN 与实测）与用户对依赖策略选项的拍板（① `cuda-probe` 转默认特性；② 新增 `cuda` 特性默认开启、`--no-default-features` 可关；③ 保持门控 + 运行时选择层/Host 回退）。本片按选定选项实现：运行时后端探测（driver → device → NVRTC → PTX 编译）与结果缓存、统一错误码、Host 回退语义，并把设备入口接进碰撞准相位（默认 Host，探测成功且被允许时走设备）；不改 ABI、不改精度判据、不改已 verified 数字。",
+    "en": "Implement the runtime backend selection and host fallback for the collision narrowphase per the option chosen by the user, reusing the stage-1 design; no ABI or tolerance changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**选项落地**：严格按用户在决策卡上的选择实施（①/②/③ 三选一，以 Arch 转达的编号为准）；未获拍板不得开工。①/② 需改 Cargo 默认特性并按 DESIGN §8 落 `cuda` 特性与依赖集合；③ 只加运行时层与回退，默认构建仍 Host。",
+    "**回退语义**：无驱动 / 有驱动无设备 / 有设备但 NVRTC 缺失 三种环境下，默认路径**不 panic、不静默失败**：可诊断错误码（`NoDevice` / `Compile` / CLI 的 `DriverUnavailable` / `NvrtcUnavailable`，与 DESIGN §4 一致）并回退 Host；Host 结果与当前路径**逐值一致**（同一函数）。",
+    "**等价验收**：G5 已冻结的 9 个 case 上 host vs device 接触数组逐字段一致（复用已入库参考与输入，不新捕获；能位级比较的位级比较，非位级按既有 4·ULP 判据）；有 CUDA 时的窗口须先报 Arch 基线、经 Arch 审查后串行开窗；无 CUDA 时的证据用 CPU 侧 seam/模拟（本机无法实机模拟无驱动的部分须如实标注）。",
+    "**前置**：`2026-10-25-t4-source-hash-repin-13` 必须 verified（否则默认/特性测试不全绿，验收不可信）。不改 ABI、不改精度判据、不改已 verified 数字与证据语义；证据目录 `docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/`（README + receipt 含 task_id）；门禁 fmt/clippy/clippy-cuda/unit + 定向等价测试。",
+    "不宣称「默认产品管线已具备 CUDA 入口」之外的任何整体结论：不宣称精度达标/上游完全等价/双平台通过/原生放行；未覆盖项（mesh multicontact、primitive 其余组合、Linux/T4 等）照旧如实列。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-cuda-default-pipeline",
+      "2026-10-25-t4-source-hash-repin-13"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "Cargo.toml",
+      "src/",
+      "tests/",
+      "docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/"
+    ],
+    "resources": [],
+    "priority": 56
+  },
+  "note": "Arch 2026-10-25 登记（阶段拆分）：原 `2026-10-25-g10-p5-cuda-default-pipeline` 同时含「阶段 1 决策支撑（可立即做）」与「阶段 2 实现（须用户拍板）」，用一片验收会把未拍板的实现塞进 in_progress 并阻塞后续任务（repin-13 因 scope 冲突无法 start）。因此阶段 2 独立成片：阶段 1 收口为 verified（证据=`g10-p5-cuda-default-pipeline/`，receipt 记 `stage2_status=not_started`），阶段 2 待用户拍板后 start。repin-13 独立先做（既有红，任何选项下都要修）。",
+  "revision": {
+    "before": "cbeaf76260d23d7a2eb4c81dc142bb00c4126d03",
+    "after": null
+  },
+  "created_at": "2026-10-25T16:34:00.000Z",
+  "updated_at": "2026-10-25T16:34:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-cuda-default-pipeline-stage2"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
