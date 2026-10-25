@@ -117,6 +117,16 @@ pub fn compute_grad(
     // 上游 `wp.sign(max_val)`（pinned warp `include/warp-headers/builtin.h:765`：
     // `x < 0 ? -1 : 1`）：`-0.0`/`0.0`/`NaN` → `+1`，负数 → `-1`。
     // 旧实现手写 `>0→1, <0→-1, else→0` 在 max_val==0/NaN 时与上游不一致。
+    //
+    // 分支可达性与测试覆盖（2026-10-25-g10-p5-sdf-descent-sign-branch-test）：
+    // - `max_val == +0.0`：相切接触可构造（球面 sdf 恰为 0、体 SDF 为负），
+    //   由 `tests::compute_grad_zero_max_val_uses_upstream_sign` 覆盖；
+    // - `max_val == -0.0`：可构造（Plane 的 sdf=p[2] 取 -0.0、体 SDF 为负），
+    //   由 `tests::compute_grad_negative_zero_max_val_uses_upstream_sign` 覆盖；
+    // - `max_val == NaN`：不可构造为可断言的场景——要 max 返回 NaN 需两侧 SDF 都是 NaN，
+    //   此时体 SDF 的梯度也随 NaN 权重变成 NaN，梯度增量无方向可断言；NaN 输入是非物理的，
+    //   合法有限几何模型不可达。该分支语义由 `primitives::upstream_sign` 单测覆盖
+    //   （NaN→+1），本片按任务口径记「不可构造、测试不增」。
     let sign = primitives::upstream_sign(max_val);
     gradient = add3(gradient, scale3(max_grad, sign));
     gradient
@@ -204,4 +214,143 @@ pub fn gradient_descent(
     let n = mul_mat3_vec(&rot2, n);
     let pos3 = sub3(pos, scale3(n, dist / 2.0));
     (dist, pos3, n)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{OptimizationParams, SdfShape, SdfType, compute_grad, forced_sdf, primitives, sdf};
+    use crate::physics::collision::gjk::math::{add3, mul_mat3_vec, scale3};
+    use crate::physics::collision::sdf::octree::VolumeData;
+
+    /// 单叶节点体积 SDF：中心 `[0,0,0]`、半尺寸 `[1,1,1]`，8 个插值系数全为 `value`；
+    /// 盒内任意点权重和为 1 → `sample_volume_sdf == value`，梯度恒为 `[0,0,0]`。
+    fn constant_volume(value: f32) -> VolumeData {
+        VolumeData::new(
+            [0.0, 0.0, 0.0],
+            [1.0, 1.0, 1.0],
+            vec![([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])],
+            vec![[-1; 8]],
+            vec![[value; 8]],
+            0,
+        )
+        .expect("单节点体积数据合法")
+    }
+
+    /// 修正前实现（`2026-10-25-g10-p5-sdf-primitives-sign` 已修正）：
+    /// `>0→1、<0→-1、else→0`。仅用于证明「退回旧实现时本片测试会失败」。
+    fn old_three_branch_sign(value: f32) -> f32 {
+        if value > 0.0 {
+            1.0
+        } else if value < 0.0 {
+            -1.0
+        } else {
+            0.0
+        }
+    }
+
+    fn identity() -> [f32; 9] {
+        [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    }
+
+    /// 分支级反向判别：`max_val == +0.0` 时上游 `wp.sign(0.0)=+1`，
+    /// `compute_grad` 的增量必须为 `+max_grad`；旧三分支会取 `0`（本测试即失败）。
+    ///
+    /// 可达性：相切接触——球面 `sdf=0`（+0.0）、体 SDF 为负，两者 `max` 为 +0.0；
+    /// 产品路径关系 `p1 = rel_mat*p2 + rel_pos` 也按 `rel_pos=[1,0,0]` 成立。
+    #[test]
+    fn compute_grad_zero_max_val_uses_upstream_sign() {
+        let volume = constant_volume(-1.0);
+        let shape1 = SdfShape::new(SdfType::Sphere, [1.0, 0.0, 0.0]);
+        let shape2 = SdfShape::new(SdfType::Sdf, [1.0, 1.0, 1.0]).with_volume(&volume);
+        let params = OptimizationParams {
+            rel_mat: identity(),
+            rel_pos: [1.0, 0.0, 0.0],
+            attr1: shape1.size,
+            attr2: shape2.size,
+        };
+        let p2 = [0.0, 0.0, 0.0];
+        let p1 = add3(mul_mat3_vec(&params.rel_mat, p2), params.rel_pos);
+        assert_eq!(p1, [1.0, 0.0, 0.0]);
+
+        let a_ = sdf(&shape1, p1);
+        let b_ = forced_sdf(&shape2, p2);
+        let max_val = a_.max(b_);
+        assert_eq!(a_, 0.0);
+        assert_eq!(a_.to_bits(), 0.0_f32.to_bits(), "a_ 应为 +0.0");
+        assert_eq!(b_, -1.0);
+        assert_eq!(max_val, 0.0);
+
+        let grad1_transformed = [1.0, 0.0, 0.0]; // grad_sphere([1,0,0])
+        let base = add3([0.0, 0.0, 0.0], grad1_transformed);
+        let expected = add3(base, scale3(grad1_transformed, 1.0)); // 上游 sign = +1
+        let actual = compute_grad(&shape1, &shape2, p1, p2, &params, false);
+        assert_eq!(actual, expected, "max_val==+0.0 必须按上游 +1 加增量");
+        assert_eq!(actual, [2.0, 0.0, 0.0]);
+
+        // 退回旧三分支（0→0）会得到 base；若实现回退，上面的 expected 断言即失败。
+        let old = add3(
+            base,
+            scale3(grad1_transformed, old_three_branch_sign(max_val)),
+        );
+        assert_eq!(old_three_branch_sign(max_val), 0.0);
+        assert_eq!(old, base);
+        assert_ne!(actual, old);
+    }
+
+    /// 分支级反向判别：`max_val == -0.0` 时上游 `wp.sign(-0.0)=+1`（`-0.0 < 0` 为假）；
+    /// 旧三分支的 `else→0` 会把增量抹掉。
+    ///
+    /// 可达性：Plane 的 `sdf = p[2]` 取代表性 `-0.0` 输入（合法 f32 值，产品路径中由符号运算
+    /// 产生），体 SDF 为负 ⇒ `max(-0.0, -1.0) = -0.0`；梯度有限（`grad_plane=[0,0,1]`）。
+    #[test]
+    fn compute_grad_negative_zero_max_val_uses_upstream_sign() {
+        let volume = constant_volume(-1.0);
+        let shape1 = SdfShape::new(SdfType::Plane, [0.0, 0.0, 0.0]);
+        let shape2 = SdfShape::new(SdfType::Sdf, [1.0, 1.0, 1.0]).with_volume(&volume);
+        let params = OptimizationParams {
+            rel_mat: identity(),
+            rel_pos: [0.0, 0.0, 0.0],
+            attr1: shape1.size,
+            attr2: shape2.size,
+        };
+        let p1 = [0.0, 0.0, -0.0];
+        let p2 = [0.0, 0.0, 0.0];
+
+        let a_ = sdf(&shape1, p1);
+        let b_ = forced_sdf(&shape2, p2);
+        let max_val = a_.max(b_);
+        assert_eq!(a_.to_bits(), (-0.0_f32).to_bits(), "a_ 应为 -0.0");
+        assert_eq!(max_val.to_bits(), (-0.0_f32).to_bits(), "max 应为 -0.0");
+        assert_eq!(old_three_branch_sign(max_val), 0.0);
+
+        // grad_plane = [0,0,1]；体 SDF 梯度 = [0,0,0]。
+        let grad1_transformed = [0.0, 0.0, 1.0];
+        let base = add3([0.0, 0.0, 0.0], grad1_transformed);
+        let expected = add3(base, scale3(grad1_transformed, 1.0));
+        let actual = compute_grad(&shape1, &shape2, p1, p2, &params, false);
+        assert_eq!(actual, expected, "max_val==-0.0 必须按上游 +1 加增量");
+        assert_eq!(actual, [0.0, 0.0, 2.0]);
+
+        let old = add3(
+            base,
+            scale3(grad1_transformed, old_three_branch_sign(max_val)),
+        );
+        assert_eq!(old, base);
+        assert_ne!(actual, old);
+    }
+
+    /// `NaN` 分支不可构造为可断言场景（max 返回 NaN 需两侧 SDF 都是 NaN，此时体 SDF 梯度
+    /// 也随 NaN 权重变成 NaN，增量无方向可断言；NaN 输入是非物理的，合法模型不可达）。
+    /// 按任务口径「不可构造、测试不增」：只保留分支语义由 `primitives::upstream_sign` 覆盖。
+    #[test]
+    fn nan_branch_is_not_constructible_but_helper_semantics_covered() {
+        assert_eq!(primitives::upstream_sign(-0.0), 1.0);
+        assert_eq!(primitives::upstream_sign(f32::NAN), 1.0);
+        assert_eq!(primitives::upstream_sign(0.0), 1.0);
+        assert_eq!(old_three_branch_sign(-0.0), 0.0);
+        assert_eq!(old_three_branch_sign(f32::NAN), 0.0);
+        // 单侧 NaN 会被 f32::max 忽略（返回另一侧有限值），不进入 NaN 分支。
+        assert_eq!(f32::NAN.max(-1.0), -1.0);
+        assert_eq!((-1.0_f32).max(f32::NAN), -1.0);
+    }
 }

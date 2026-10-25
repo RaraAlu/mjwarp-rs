@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-sdf-descent-sign-branch-test",
+  "status": "in_progress",
+  "outcome": "gate_passed_pending_commit",
+  "slice": "P5-G3-sign-branch-test",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "scope": {
+    "kind": "测试补强（QA 观察 1）；不改产品实现、不改判据、纯 CPU、未开 GPU 窗口",
+    "files_changed": [
+      "src/physics/collision/sdf/descent.rs（L117-L129 注释扩写：wp.sign 依据 + 分支可达性/测试覆盖；L220 起 #[cfg(test)] mod tests：3 个测试 + 3 个 helper；sign 实现未改，仍为 primitives::upstream_sign）"
+    ],
+    "evidence_dir": "docs/development-evidence/g10-p5-sdf-descent-sign-branch-test/",
+    "gpu_used": "未使用（纯 CPU）",
+    "cargo_changed": false,
+    "python_in_product_tests": false
+  },
+  "verification": {
+    "observation": "QA 复核观察 1：11696fc8 修正了 descent.rs::compute_grad 的 sign 语义，但当时 4 个新单测都在 primitives.rs，descent.rs 内无直接反向判别用例",
+    "tests_added": [
+      "compute_grad_zero_max_val_uses_upstream_sign（L261）：Sphere sdf=0 + 体 SDF=-1 ⇒ max_val=+0.0；断言上游 sign=+1 的增量 [2,0,0]，旧三分支会得 [1,0,0]",
+      "compute_grad_negative_zero_max_val_uses_upstream_sign（L306）：Plane sdf=p[2]=-0.0 + 体 SDF=-1 ⇒ max_val=-0.0；断言 bits 为 -0.0 且增量 [0,0,2]，旧分支得 [0,0,1]",
+      "nan_branch_is_not_constructible_but_helper_semantics_covered（L346）：NaN 分支不可构造为可断言场景（需两侧 NaN，体 SDF 梯度同为 NaN、无方向可断言；NaN 输入非物理），按任务口径记「不可构造、测试不增」，分支语义由 upstream_sign 单测覆盖"
+    ],
+    "reachability_documented": "descent.rs L117-L129 注释：+0.0/-0.0 可构造并分别有测试；NaN 不可构造，理由（f32::max 单侧 NaN 返回另一侧；两侧 NaN 时体 SDF 梯度 NaN、梯度无方向；NaN 输入非物理）",
+    "reverse_discriminative": {
+      "method": "pre_fix_reverse_check.ps1：把 sign 行临时替换为旧三分支（>0→1,<0→-1,else→0）→ 跑两个分支测试 → finally 还原源码并校验 sha256 → 复跑",
+      "old_branch": "exit=101，2/2 tests FAILED",
+      "restore": "source_sha256_after == source_sha256_before（restored_ok=True）",
+      "rerun_after_restore": "2/2 passed，exit=0",
+      "marker": "REVERSE_OK old_branch_fails_2/2 restored_passes_2/2（见 pre-fix-reverse-output.txt）"
+    },
+    "regression": {
+      "g3_sdf_box": "count 80/80；dist 位等 80/80 max 0 ULP；pos max 0.00 ULP@尺度；frame 位等分量 720/720 max abs 0e0",
+      "g3_relmat": "4 passed；rel_mat_warp aᵀb 位级 10/10 world（8 world 可区分 bᵀa）；sdf-box 与 sdf-rot-ident/sdf/sdf-box/both/rz-rx 均 80/80 contacts bit-equal，dist/pos/frame max_abs 0e0",
+      "g2": "3 passed / 2 ignored；五 case 数字与已验收一致（cylinder-box 8/8 全位级；ellipsoid-box dist 2/2、pos 1/2 max 2.00 ULP@尺度、frame 13/18 max 3.838e-7；mesh-mesh dist 1/2 max 2 ULP；convex-mesh 2/2；degenerate-mesh dist 0/2 max 1 ULP）",
+      "g4": "3 passed / 1 ignored；hfield-box 8/8、hfield-sphere 8/8、hfield-capsule 7/7，dist 0 ULP、pos 0.00 ULP@尺度、frame 72/72·72/72·63/63 max abs 0e0",
+      "unit": "cargo test --locked --lib → 447 passed / 0 failed / 5 ignored（改前 444/5；本片 +3 测试）"
+    },
+    "fmt": "cargo fmt --check 通过（Arch 2026-10-25 提示的在途未格式化已在本片收尾前 cargo fmt 修掉）",
+    "gate": "passed（fmt/clippy/clippy-cuda/unit 全绿，unit 595 过 0 败 = 原 592 + 本片 3）"
+  },
+  "artifacts": {
+    "readme": "docs/development-evidence/g10-p5-sdf-descent-sign-branch-test/README.md",
+    "receipt": "docs/development-evidence/g10-p5-sdf-descent-sign-branch-test/receipt.json",
+    "pre_fix_reverse_output": "docs/development-evidence/g10-p5-sdf-descent-sign-branch-test/pre-fix-reverse-output.txt",
+    "pre_fix_reverse_script": "docs/development-evidence/g10-p5-sdf-descent-sign-branch-test/pre_fix_reverse_check.ps1"
+  },
+  "gate": "passed（fmt/clippy/clippy-cuda/unit 全绿，unit 595 过 0 败）",
+  "unmet": [
+    "NaN 分支无 compute_grad 级用例（不可构造，理由见 README §2 与代码注释）；其 sign 语义由 primitives::upstream_sign 单测覆盖",
+    "本片只补测试与可达性注释，不改产品实现；不覆盖设备侧路径（设备同类语义已在 G5 修正）",
+    "未改任何已 verified 数字/判据/容差/Cargo.*/fixtures/S2–S8；不提供精度或等价结论"
+  ]
+}

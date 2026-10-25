@@ -5,7 +5,7 @@
     "zh": "G10@P5 后续片：descent::compute_grad sign 分支级测试（QA 复核观察 1）",
     "en": "Follow-up: branch-level test for descent::compute_grad sign semantics (QA observation 1)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "`2026-10-25-g10-p5-sdf-primitives-sign`（`11696fc8`）把 `descent.rs::compute_grad` 旧手写 sign（`>0→1, <0→-1, else→0`，即 `0.0`/`NaN → 0`）改为 `primitives::upstream_sign(max_val)`（`0.0`/`-0.0`/`NaN → +1`，对齐上游 `collision_sdf.py:629` `wp.sign(max_val)`）。QA 独立复核（`f187f701`）判 pass/0 阻断，但提观察 1：该分支**没有直接反向判别用例**（`descent.rs` 内无测试，新增 4 个单测都在 `primitives.rs`），目前只靠「G3 sdf-box 位级不变 ⇒ 未触发」间接说明。本片补一条分支级测试（构造 `max_val == 0.0`/`-0.0`/`NaN` 断言 gradient 增量方向与上游一致，并证明旧分支会失败），或明确注释该分支在产品路径的可达性；不改任何已 verified 数字与判据。",
     "en": "Add a branch-level test for compute_grad's sign handling (0/-0/NaN -> +1 per upstream wp.sign), or document reachability; closes QA observation 1 without changing verified numbers."
@@ -32,11 +32,12 @@
   },
   "note": "Arch 2026-10-25 登记：来源是 QA 对 sign 修正片的独立复核观察 1（`f187f701` 证据 README）。不阻塞任何已验收结论；登记为候选以便排期，不在 G6 收口范围内。实现正确性已由 QA 自写复现证明（旧分支在 0/-0/NaN 下 gradient 旧 [1,2,3] → 新 [11,22,33]），缺的只是产品路径的分支级用例。",
   "revision": {
-    "before": null,
+    "before": "b3589e9e48403914dc76d5852ae4cbb65ab81ec2",
     "after": null
   },
   "created_at": "2026-10-25T12:50:00.000Z",
-  "updated_at": "2026-10-25T13:07:00.000Z",
+  "updated_at": "2026-10-25T13:06:32.659Z",
+  "closed_at": "2026-10-25T13:06:32.659Z",
   "checks": [
     {
       "kind": "gate",

@@ -1,0 +1,58 @@
+descent_sign_branch_reverse_check schema=1 task=2026-10-25-g10-p5-sdf-descent-sign-branch-test
+source=src/physics/collision/sdf/descent.rs
+source_sha256_before=bb2fb24b0debff977321fce5b83df598e750fc912a58b931a8c224b05598a3bf
+reverted_branch=old three-branch (>0->1, <0->-1, else->0)
+tests=compute_grad_zero_max_val_uses_upstream_sign,compute_grad_negative_zero_max_val_uses_upstream_sign
+expectation=both tests FAIL under old branch
+--- run under old branch ---
+   Compiling mjwarp-rs v0.1.0 (D:\Rust\mjwarp-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.39s
+     Running unittests src\lib.rs (target\debug\deps\mjwarp_rs-bbf617de7cd0b294.exe)
+
+running 2 tests
+test physics::collision::sdf::descent::tests::compute_grad_negative_zero_max_val_uses_upstream_sign ... FAILED
+test physics::collision::sdf::descent::tests::compute_grad_zero_max_val_uses_upstream_sign ... FAILED
+
+failures:
+
+---- physics::collision::sdf::descent::tests::compute_grad_negative_zero_max_val_uses_upstream_sign stdout ----
+
+thread 'physics::collision::sdf::descent::tests::compute_grad_negative_zero_max_val_uses_upstream_sign' (65744) panicked at src\physics\collision\sdf\descent.rs:334:9:
+assertion `left == right` failed: max_val==-0.0 必须按上游 +1 加增量
+  left: [0.0, 0.0, 1.0]
+ right: [0.0, 0.0, 2.0]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- physics::collision::sdf::descent::tests::compute_grad_zero_max_val_uses_upstream_sign stdout ----
+
+thread 'physics::collision::sdf::descent::tests::compute_grad_zero_max_val_uses_upstream_sign' (64828) panicked at src\physics\collision\sdf\descent.rs:293:9:
+assertion `left == right` failed: max_val==+0.0 必须按上游 +1 加增量
+  left: [1.0, 0.0, 0.0]
+ right: [2.0, 0.0, 0.0]
+
+
+failures:
+    physics::collision::sdf::descent::tests::compute_grad_negative_zero_max_val_uses_upstream_sign
+    physics::collision::sdf::descent::tests::compute_grad_zero_max_val_uses_upstream_sign
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 450 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
+old_branch_exit_code=101 (expect non-zero)
+old_branch_failed_tests=2 (expect 2)
+--- restore ---
+source_sha256_after=bb2fb24b0debff977321fce5b83df598e750fc912a58b931a8c224b05598a3bf restored_ok=True
+--- rerun after restore ---
+   Compiling mjwarp-rs v0.1.0 (D:\Rust\mjwarp-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.05s
+     Running unittests src\lib.rs (target\debug\deps\mjwarp_rs-bbf617de7cd0b294.exe)
+
+running 2 tests
+test physics::collision::sdf::descent::tests::compute_grad_negative_zero_max_val_uses_upstream_sign ... ok
+test physics::collision::sdf::descent::tests::compute_grad_zero_max_val_uses_upstream_sign ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 450 filtered out; finished in 0.00s
+
+restored_exit_code=0 (expect 0)
+restored_passed_tests=2 (expect 2)
+REVERSE_OK old_branch_fails_2/2 restored_passes_2/2
