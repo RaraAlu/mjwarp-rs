@@ -150,9 +150,8 @@ target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/authoring/g10-p5/captu
 
 1. **PRIMITIVE 分类更正**：本批补采的 10 项并非全部 GJK/EPA 直达参考。按上游 collision_driver.MJ_COLLISION_TABLE 与实际模型 flags 复核：
    - GJK/EPA **CONVEX** 参考仅 **5 项**：cylinder-box、ellipsoid-box、mesh-mesh、convex-mesh、degenerate-mesh；
-   - 另 5 项（sphere-box-shallow、sphere-box-deep、capsule-box、ox-box-margin、hfield-*）与 d04 ox-box-multiccd 中部分实际走 **PRIMITIVE** 路径，仅供其他切片复用，**不是 GJK/EPA 直达参考**。
-   - 判定依据：(SPHERE,BOX)/(CAPSULE,BOX) 在表中即 PRIMITIVE；ox-box 模型带 
-ativeccd=disable（mjDSBL_NATIVECCD）时驱动把 (BOX,BOX) 覆盖为 PRIMITIVE。
-2. **ox-box-margin 表述更正**：该 case **不是 multiccd**。模型 <flag nativeccd="disable" multiccd="disable"/>，5 接触/world 来自 **margin≠0 的非 is_discrete 多接触路径**（is_discrete = _discrete_geoms && margins==0）；multiccd 的真实覆盖在既有 d04 ox-box-multiccd（该模型 multiccd=enable，本轮亦为 PRIMITIVE 表）。
+   - 另 5 项（sphere-box-shallow、sphere-box-deep、capsule-box、box-box-margin、hfield-*）与 d04 box-box-multiccd 中部分实际走 **PRIMITIVE** 路径，仅供其他切片复用，**不是 GJK/EPA 直达参考**。
+   - 判定依据：(SPHERE,BOX)/(CAPSULE,BOX) 在表中即 PRIMITIVE；box-box 模型带 nativeccd=disable（mjDSBL_NATIVECCD）时驱动把 (BOX,BOX) 覆盖为 PRIMITIVE。
+2. **box-box-margin 表述更正**：该 case **不是 multiccd**。模型 <flag nativeccd="disable" multiccd="disable"/>，5 接触/world 来自 **margin≠0 的非 is_discrete 多接触路径**（is_discrete = _discrete_geoms && margins==0）；multiccd 的真实覆盖在既有 d04 box-box-multiccd（该模型 multiccd=enable，本轮亦为 PRIMITIVE 表）。
 3. **hfield 重复接触点性质**：hfield-sphere 8 行中只有 6 个不同 (dist,pos)（2 行重复），hfield-capsule 7 行中只有 3 个不同点（world1 3 行同点）→ **不得当"4 个不同接触点"使用**；比较/排序必须按全字段（含 geomcollisionid）稳定排序。
-4. **原始顺序范围**：	wo_captures_raw_bitwise_identical / grouped_by_world_in_raw_order 等观察项**只对本次 CUDA 运行/本设备/本后端成立**（QA 用 warp CPU 后端重采时 cylinder-box/hfield-sphere/ox-box-margin 顺序不同，sdf-box raw 位等性也不同）→ **不得把"原始顺序位等"写成固定判据或验收条件**；判据仍是 worldid 分组 + 全字段（含 geomcollisionid）稳定排序后位级比较。
+4. **原始顺序范围**：two_captures_raw_bitwise_identical / grouped_by_world_in_raw_order 等观察项**只对本次 CUDA 运行/本设备/本后端成立**（QA 用 warp CPU 后端重采时 cylinder-box/hfield-sphere/box-box-margin 顺序不同，sdf-box raw 位等性也不同）→ **不得把"原始顺序位等"写成固定判据或验收条件**；判据仍是 worldid 分组 + 全字段（含 geomcollisionid）稳定排序后位级比较。
