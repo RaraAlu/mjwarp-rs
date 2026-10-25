@@ -1,0 +1,160 @@
+{
+  "schema": 1,
+  "kind": "g10-p5-model-fields-independent-check",
+  "task_id": "2026-10-25-g10-p5-model-fields-independent-check",
+  "date": "2026-10-25",
+  "reviewed_commit": "ef47d450414f582786f5c77f58225483464e20de",
+  "reviewed_parent": "fec926f5",
+  "review_baseline_head": "6cc3fe81",
+  "outcome": "pass",
+  "blocking_findings": 0,
+  "scope": "QA independent review of G1 (task 2026-10-25-g10-p5-model-fields-r2): QA's own MuJoCo 3.12 dump vs the G0b parity fixture sha256_312; QA's own C++ probe calling the mjwarp_native_g01_field_info/copy ABI contract directly (compiled against the pre-G1 and reviewed-G1 snapshots) for the 12 volume fields, the 45 existing G01 fields (before/after non-regression), ABI struct constants, kind additions and negative preflight; f64-to-f32 single-conversion code and bit examples; world-dim contract wording; scope/evidence/count consistency. No product-code/fixture/original-evidence changes; CPU-only; no GPU; no full G01.",
+  "method": {
+    "reference_dump": "QA target/qa-g0b/qa_mjb_dump (QA-written MuJoCo 3.12 C++ tool) on fixtures/g10-p5/mjb-312/{hfield-box,sdf-cylinder}.mjb",
+    "abi_export": "QA qa_abi_probe.cpp includes native/model_probe_sparse.cpp from each commit snapshot and calls the C ABI directly; compiled twice (pre=fec926f5, post=ef47d450)",
+    "comparator": "QA qa_compare.py: sha256/count/first-diff per field; pre/post byte/kind/count; ABI struct constants; kind sets",
+    "evidence_checks": "QA qa_evidence_check.py: 36 checks (scope, ABI comments-only diff, conversion single site, world wording, counts, forbidden terms)"
+  },
+  "parity": {
+    "fixture_fields_checked_per_model": 18,
+    "volume_fields_checked_per_model": 12,
+    "models": {
+      "hfield-box": {
+        "noct": 0, "noct_expected": 0,
+        "qa_dump_vs_fixture_sha256_312": "18/18 equal",
+        "abi_export_vs_fixture_and_qa_dump": "12/12 equal",
+        "anchors": {"hfield_nrow": [3], "hfield_ncol": [3], "hfield_adr": [0],
+                     "hfield_size": [1.0, 1.0, 0.1, 0.1],
+                     "hfield_data": [0.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 0.0],
+                     "opt_sdf": [10, 40]}
+      },
+      "sdf-cylinder": {
+        "noct": 63497, "noct_expected": 63497,
+        "qa_dump_vs_fixture_sha256_312": "18/18 equal",
+        "abi_export_vs_fixture_and_qa_dump": "12/12 equal",
+        "byte_sizes": {"oct_aabb": 3047856, "oct_coeff": 4063808, "oct_child": 2031904, "oct_depth": 253988},
+        "anchors": {"mesh_octadr": [0], "mesh_octnum": [63497], "opt_sdf": [10, 40]}
+      }
+    },
+    "differences": 0
+  },
+  "native_additive": {
+    "existing_g01_fields_checked": 45,
+    "existing_field_ids": "0..44",
+    "arch_text_44_note": "task text and Arch message said 44; measured 45 (src/io/g01.rs FIELDS len 45, native IDs 0..44); Arch confirmed 44 was a typo, review executed with 45",
+    "before_after_bytes_equal": "45/45",
+    "before_after_kind_equal": "45/45",
+    "before_after_count_equal": "45/45",
+    "pre_kind_set": [1, 2, 3],
+    "post_kind_set": [1, 2, 3, 4, 5],
+    "new_field_kind_set": [1, 2, 4, 5],
+    "extra_kinds": 0,
+    "kind_4_only_for": "hfield_data (float32)",
+    "kind_5_only_for": "noct (int64 mjtSize)",
+    "kind_correction_verified": "existing kind 2 is double; the missing kinds were float32 and int64; no f64 kind added",
+    "abi_struct": {"field_info_size": 16, "field_info_align": 8, "field_info_off_count": 8,
+                    "native_info_size": 96, "native_info_align": 8,
+                    "pre_post_identical": true},
+    "abi_header_diff": "comments only (struct layout untouched)",
+    "negative_preflight": {"wrong_kind_rejected": true, "wrong_count_rejected": true,
+                           "null_target_rejected": true},
+    "source_note": "native/g01_fields.inc refactors two width expressions into g01_scalar_bytes(); kinds 1/2/3 semantics unchanged and 45-field before/after bytes prove no regression"
+  },
+  "conversion": {
+    "single_site": "src/model/volume.rs::num_to_f32 (value as f32, exactly one occurrence in that file)",
+    "other_files_as_f32": {"src/model/volume_input.rs": 0, "src/io/volume.rs": 0},
+    "as_f64_occurrences": 0,
+    "entrypoints": ["oct_aabb_f32", "oct_coeff_f32", "hfield_size_f32"],
+    "not_converted": ["hfield_data (native f32)", "integer fields (noct overflow errors instead of truncation)"],
+    "qa_bit_examples": {"f64_0.1_hex": "0x3FB999999999999A", "f32_0.1_hex": "0x3DCCCCCD",
+                        "f32_1.0_hex": "0x3F800000", "hfield_data_0.5_native_f32": "0x3F000000"},
+    "delivered_integration_assertions": "converted.to_bits() == (raw as f32).to_bits() and f64::from(converted) as f32 == converted (rerun passed)"
+  },
+  "world_dim_contract": {
+    "status": "spec_only_not_implemented",
+    "policy": "static model arrays uploaded once and shared across worlds (broadcast), not duplicated per world",
+    "naconmax_reserve": "per-world segmented rows, total = per_world * nworld, world offset computed in kernel",
+    "positive_multiworld_claims": 0,
+    "unmet_covers": ["GPU kernel/device upload", "nworld>1 not implemented/measured", "Linux/T4", "T4 78-item input surface"]
+  },
+  "evidence_counts": {
+    "unit": {"passed": 565, "failed": 0, "ignored": 1, "ignored_test": "physics::collision::gjk::case_evidence::native_bitwise_exploration"},
+    "delivered_parity_test_rerun": {"passed": 1, "failed": 0, "ignored": 0, "seconds": 0.22},
+    "new_fields": 14,
+    "existing_fields": 45,
+    "new_file_lines": {"src/model/volume.rs": 253, "src/model/volume_input.rs": 310,
+                        "src/io/volume.rs": 213, "tests/g10_p5_model_fields.rs": 279},
+    "changed_files": 23,
+    "outside_declared_paths": 0,
+    "cargo_files_changed": false,
+    "fixtures_changed": false,
+    "s2_s8_evidence_touched": false,
+    "g01_reader_changed": false,
+    "build_rs_changed": false
+  },
+  "evidence_hashes": {
+    "docs/development-evidence/g10-p5-model-fields/README.md": "c11f47bee0e2de345b451c05ac6ad0581350ec47576d72d0169e466abeaf96f7",
+    "docs/development-evidence/g10-p5-model-fields/receipt.json": "abf90192f716902866fc9a2f15f0ba39398cbbc19e8e2a0b352b606dc75c4ca8",
+    "docs/development-evidence/g10-p5-model-fields/parity-run.log": "86747e52d03a0fd55be7738ca70cf6fa0fe6b1a9538c924462ed47b4ab70059c"
+  },
+  "problems": [
+    {
+      "severity": "口径更正",
+      "title": "Arch/task text said 44 existing G01 fields; measured 45",
+      "detail": "src/io/g01.rs FIELDS len = 45, native existing IDs 0..44 = 45; G1 README says 45. Arch confirmed the 44 in the task text was a typo.",
+      "expected": "review with 45 fields; note the correction in evidence",
+      "actual": "45 verified, before/after non-regression 45/45",
+      "recommendation": "no delivery fix needed; note in task record"
+    },
+    {
+      "severity": "建议",
+      "title": "additive-only wording vs two-line width refactor",
+      "detail": "native/g01_fields.inc moves two width expressions into g01_scalar_bytes(); kinds 1/2/3 semantics unchanged (45-field before/after bytes equal).",
+      "expected": "describe as 'fields/kinds additive; width helper refactor (equivalent)'",
+      "actual": "'只增不改' can be read as no touched lines",
+      "recommendation": "normify fix wording in G1 README §2"
+    },
+    {
+      "severity": "建议",
+      "title": "receipt anchor key misnamed",
+      "detail": "receipt anchors.hfield_data_bits holds values [0,0.5,...] rather than bit patterns.",
+      "expected": "hfield_data_values (README value anchor is correct)",
+      "actual": "misleading key name",
+      "recommendation": "normify fix"
+    },
+    {
+      "severity": "建议",
+      "title": "G1 evidence has no self sha256 / artifact manifest",
+      "detail": "task template asks evidence sha to match README declarations; G1 evidence declares no artifact hashes.",
+      "expected": "add artifacts sha256 manifest",
+      "actual": "no declaration to verify",
+      "recommendation": "normify fix (G1 evidence manifest)"
+    }
+  ],
+  "limitations": [
+    "Independent export is at the native ABI/bytes layer; the delivered Rust reader/DTO/validation path was not re-implemented by QA, only black-box rerun (delivered parity test 1 passed).",
+    "Only Windows + MuJoCo 3.12.0; Linux/T4 not verified.",
+    "No GPU kernels/device upload, no nworld>1 implementation, no hfield/SDF query coverage (G4/G5).",
+    "No full G01; unit is the default-feature suite (565/0/1); native-model-probe feature only ran the G1 ignored parity test.",
+    "Fixture stores per-field sha only; per-element expectations would need a 3.15 re-dump if a future mismatch appears."
+  ],
+  "not_claimed": [
+    "G10 cumulative implementation",
+    "physics overall pass",
+    "dual-platform pass",
+    "upstream equivalence",
+    "native tolerance approval"
+  ],
+  "gates": {
+    "fmt": "pass",
+    "json_receipt_task_id": "pass",
+    "forbid_claim_terms": "none"
+  },
+  "artifacts": [
+    "README.md", "receipt.json", "parity_report.json", "evidence_check_report.json",
+    "abi/pre-hfield-box/{manifest.csv,abi.txt}", "abi/pre-sdf-cylinder/{manifest.csv,abi.txt}",
+    "abi/post-hfield-box/{manifest.csv,abi.txt}", "abi/post-sdf-cylinder/{manifest.csv,abi.txt}",
+    "qa_abi_probe.cpp", "build_qa_g1.ps1", "qa_compare.py", "qa_evidence_check.py",
+    "qa_count_tests.py", "unit-full.log", "parity-test.log", "build.log"
+  ]
+}
