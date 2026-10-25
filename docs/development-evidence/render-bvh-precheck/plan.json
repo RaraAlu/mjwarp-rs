@@ -480,10 +480,19 @@
         "slice": "render perf",
         "task_id": "2026-10-25-render-bvh-perf",
         "owner": "Backend",
-        "normify_status": "in_progress",
-        "execution": "exclusive GPU window",
+        "normify_status": "verified",
+        "execution": "done (exclusive GPU windows A 14:06:49-14:07:00 and B 14:07:00-14:07:03; no other CUDA compute processes)",
         "evidence": "docs/development-evidence/render-bvh/perf/",
-        "note": "two-camera single-frame and AA(spp=2) timing min/median/p95 with warmup >=5 and iterations >=30 plus the raw per-iteration millisecond series (warmup and measured segments tagged, summary derived from the same series), memory after create / peak / after destroy, exclusive-window compute-apps evidence; relative benchmark only (no absolute or cross-hardware claims); also closes the S8 review non-blocking items (discriminative compare_pose_bits assertion for counter-proof 1, dangling provenance reference, forbidden-term wording) as a second commit; closes r01-p8 acceptance item 3 on the render side"
+        "note": "commit eadae87 (plus 18ae715 closing the S8 review non-blocking items); two independent runs, warmup 5, 30 iterations: single frame (spp=1, 120,000 rays, two cameras) min/median/p95 = 11.373/14.030/16.622 and 11.423/14.389/17.039 ms; AA (spp=2, 480,000 rays) = 34.304/36.174/37.243 and 34.847/36.423/38.091 ms; AA/single-frame median ratio 2.578/2.531; per-120,000-ray 14.030/9.043 and 14.389/9.106 ms; run-to-run consistency 2.6%/0.7%/1.8%; raw per-iteration series in raw-timings.json with the summary derived from the same series; device_memory peak 56,623,104 B (54 MiB incl. 2 MiB context), per-frame free sequence grows 0 over 10 frames, nvidia-smi 329 samples 4278 -> peak 4556 -> 4278 MiB; relative benchmark only (no fixed performance target, no upstream or cross-hardware comparison); unmet: release build, sub-100 ms peak, nworld>1. This closes r01-p8 acceptance item 3 on the render side"
+      },
+      {
+        "slice": "perf review",
+        "task_id": "2026-10-25-render-bvh-perf-independent-check",
+        "owner": "QA",
+        "normify_status": "in_progress",
+        "execution": "30-minute GPU window",
+        "evidence": "docs/development-evidence/render-bvh/perf-independent-check/",
+        "note": "independent recompute of the summary from the raw series, independent exclusivity sampling, memory accounting verdict (54 MiB peak, per-frame free no growth, 52 MiB post-destroy delta as one-time driver cache per the S6b precedent), relative-benchmark wording and unmet list, plus verification of the 18ae715 S8 fixes (discriminative assertion, no dangling provenance, no forbidden-term wording)"
       }
     ],
     "structural_decisions": [
