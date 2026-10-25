@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-evidence-bin-eol-hygiene-independent-check",
+  "title": {
+    "zh": "工程：证据 .bin checkout 卫生修复的独立复核（自做临时 clone + 全量 sha256，不复用 Backend 日志）",
+    "en": "Engineering: independent review of the evidence .bin checkout-hygiene fix (own temp clone + full sha256, not reusing Backend logs)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-evidence-bin-eol-hygiene` 做独立复核：QA 自己执行临时 clone（到自己的目录，不复用 Backend 的 clone 路径/日志），对**全部已跟踪 `.bin`** 逐文件 sha256 与工作树对比，并独立核对 `.gitattributes` 规则生效（`git check-attr` 显示 `text: unset`/`diff: unset`）、改动后无批量状态翻动、未改写任何已提交证据内容、未重写历史。目的：这类仓库级配置改动一旦看错，会静默破坏全部证据的可复现性，必须双人独立验证。",
+    "en": "Independent review of 2026-10-25-evidence-bin-eol-hygiene: QA performs its own temp clone (own path, not reusing Backend's clone or logs), compares sha256 of every tracked .bin against the working tree, and independently checks that the .gitattributes rules take effect (git check-attr shows text:unset/diff:unset), that no mass status churn appears, that no committed evidence content was rewritten, and that history was not rewritten. Rationale: a misjudged repo-level config change can silently break all evidence reproducibility, so it needs two independent verifications."
+  },
+  "modules": {},
+  "acceptance": [
+    "独立 clone：QA 在**自己的目录**（不得复用 Backend 的 clone 路径与日志）执行 `git clone`，对 clone 出的全部已跟踪 `.bin` 逐文件 sha256 与工作树同名文件对比，**100% 一致**；给出文件总数、一致数、不一致清单（应为空）。",
+    "属性独立核验：`git check-attr -a -- <抽样 ≥10 个 .bin，覆盖不同模块目录>` 显示 `text: unset` 与 `diff: unset`；`git status --porcelain` 在改动后**无批量翻动**（若出现翻动，视为修法不对，不得放行）。",
+    "反向验证（判别力）：确认修复前状态确实会破坏 checkout——例如在临时 clone 里用 `git -c core.autocrlf=true checkout` 对比修复前提交（`e00de497`）的某个 `.bin` 与工作树是否不同，用数字证明「修前会坏、修后不坏」，而不是只看属性字符串。",
+    "范围与诚信核验：确认该片未改写任何已提交证据内容（`git diff e00de497..<fix>` 只含 `.gitattributes` 与新增证据目录）、未重写历史（`git log --graph` 无异常）、未动 `Cargo.*`/`fixtures/mjwarp-complex-physics/*.xml`/S2–S8 证据。",
+    "资源与边界：纯 CPU，不需要 GPU；只写自己的证据目录；门禁 fmt/clippy/clippy-cuda/unit 全过；不得宣称「精度达标/上游完全等价/原生放行」；`.bin` 不入库，证据里记文件清单与 sha256。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-evidence-bin-eol-hygiene"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/evidence-bin-eol-hygiene-independent-check/"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "Arch 2026-10-25 预先登记（Chief 要求 QA 复核任务提前登记）：`.gitattributes` 的 `*.bin binary` 修复属仓库级配置，看错会静默破坏全部证据可复现性；Backend 的验证（临时 clone + 1130 文件 sha256）必须由 QA 独立重做一遍，且不得复用 Backend 的 clone 与日志。判别力要求：用修复前提交做「修前 checkout 会坏」的反向验证。与 `.bin` 修复片串行，纯 CPU、不占 GPU。",
+  "revision": {
+    "before": "5f7aca6eaf4e47f129264ad10268f20d2f4cab70",
+    "after": null
+  },
+  "created_at": "2026-10-25T19:28:00.000Z",
+  "updated_at": "2026-10-25T19:28:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/evidence-bin-eol-hygiene-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-evidence-bin-eol-hygiene-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
