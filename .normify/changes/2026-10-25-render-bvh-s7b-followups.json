@@ -16,6 +16,7 @@
     "产品对合成参考：RGB 每通道 ≤1 LSB；并证明 on/off 可判别（vertex_normals on 与 off 在合成法线下差异像素数非空、且 on 侧与参考一致），默认 scene-a 下 `vertex_normals_off` 无判别力的结论保留。",
     "S7b2 断言升级：已完成于 `3ab52cf`（`Normify-Fixes: 2026-10-25-render-bvh-s7b2-shading`）：`unsupported_configurations_are_rejected_before_launch` 改为 3 类写前拒绝 + AA 归 S7b3 注明；S7b2 GPU 3/3、RGB 同配方 0 差异、depth/seg 120,000/120,000 位等、unit 532/0。本任务只需复核该提交并补齐 S7b2 证据说明。",
     "S7b2 证据用 `normify fix` 增补说明：spp=2 拒绝面由 S7b3 AA 实现取代、测试期望更新提交哈希（`3ab52cf`）；不改 S7b2 原验收结论与数值。",
+    "S7b3 复核非阻断项（一次修完，`normify fix 2026-10-25-render-bvh-s7b3-flags`）：① receipt `host_modules.lines` 与实际不符——`megakernel.rs` 474→495、`megakernel_aa.rs` 86→93、`megakernel_arrays.rs` 216→233（bytes/sha256 已一致，仅行数字段，均 <500 棘轮不变）；② `megakernel.rs` 模块头注释与实现相反（注释写「每 sample 都写 depth/seg」，实现与上游是 `ray_base==0` 只写第一 pass）——按实现纠正注释；③ `capture.log` 增打印两次捕获位等结论；④ 证据注明变体差异逐 geom 归因口径（交付按变体/AA seg、QA 按 base seg）。不改渲染语义与验收数值。",
     "门禁 fmt/clippy/clippy-cuda/unit 全过（532/0）；不改 S7b1/S7b3 交付代码语义、不改 S2–S6 证据夹具；GPU 20 分钟窗口（采集+复跑），结束回桌面基线。"
   ],
   "schedule": {
@@ -38,7 +39,7 @@
     ],
     "priority": 89
   },
-  "note": "Arch 2026-10-25 裁决：S7b3 已 verified（52c22b7）；两处非阻断缺口按「先验收后补强」处理。Backend 已在 3ab52cf（Normify-Fixes s7b2）完成 S7b2 断言同步（spp=2 拒绝项移除、3 类拒绝保留、GPU 3/3、532/0），本任务范围收窄为：① 合成顶点法线 pinned 同配方参考 + 产品 ≤1 LSB 与 on/off 可判别；② S7b2 证据 addenda（说明 + 3ab52cf 哈希）。范围按目录级，GPU 等 QA 的 S7b3 复核释放后使用。",
+  "note": "Arch 2026-10-25 裁决：S7b3 已 verified（52c22b7），复核 verified（7e5affd，0 阻断）。两处证据强度缺口按「先验收后补强」处理。Backend 已在 3ab52cf（Normify-Fixes s7b2）完成 S7b2 断言同步。本任务范围：① 合成顶点法线 pinned 同配方参考 + 产品 ≤1 LSB 与 on/off 可判别；② S7b2 证据 addenda；③ S7b3 复核两条非阻断证据问题（host_modules 行数、megakernel.rs 注释与实现相反）+ 两条建议（capture.log 位等打印、逐 geom 归因口径注明），用 normify fix s7b3 留痕。范围按目录级（含 src/render/kernel/ 以便改注释），GPU 已由 QA 复核释放。",
   "revision": {
     "before": "7edeb81aaba4407458abb75daa1485674dc23161",
     "after": null
