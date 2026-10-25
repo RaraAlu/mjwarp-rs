@@ -13,7 +13,8 @@
   "modules": {},
   "acceptance": [
     "ccd() 语义独立复核：以 G0b 补采参考为输入，核 ncontact 0=分离 / 1=候选 / `FLOAT_MAX`=分离或 EPA 失败的判定；QA 自建至少 3 个用例（分离、浅穿透、深穿透）验证阶段选择正确（浅穿透不走 EPA、深穿透恢复 margin/size 后重跑 GJK）；球/胶囊 shrink 后 `full_margin`/cutoff 处理与上游一致。",
-    "数值结论：GJK/EPA 输出的 `dist`/`pos`/`frame`/`normal` 与参考位级或 ≤4 ULP（`normal` 含归一化、`gradient`/有限差分单独说明），逐 case 给差值分布与最大 ULP；**不得放宽容差**；若有超差项必须给根因与是否阻断的判定，不得以「参数级问题」笼统带过。",
+    "数值结论（**必须在输入对齐后判**）：先用**参考侧的世界位姿 f32 位型**（参考 JSON 里的 `xpos`/`xmat`）作为产品 `ccd()` 的直接输入，再比 `dist`/`pos`/`frame`/`normal`——只有这样才能把窄相数值差异与上位 FK/位姿换算差异分开（Backend 报告 mesh 类 case 的 1–18 ULP 里有 1–3 ULP 来自 mujoco f64→f32 位姿 vs mjwarp f32 `quat_to_matrix` 的换算差，属输入污染）。判据按契约：位级优先、计算量（`normal` 含归一化）≤4 ULP 退路，**不得放宽容差**；超过 4 ULP 或输入对齐后仍有系统差异，必须给根因（如 pinned ccd PTX `fma.rn` 全收缩 vs NVVM 的表达式定序差）与是否阻断的判定，不得笼统归「参数级」。QA 需独立复算 Backend 报告的三处：cylinder-box `8/8 dist 位级 + 72/72 frame 位级`、其余 case 的 ULP 上界、以及「位级只在多接触路径达成」的根因结论。",
+    "参考分类必须核实（Backend 报的重要更正）：按上游 `MJ_COLLISION_TABLE`，`nativeccd=disable` 时 `(BOX,BOX)` 等被覆盖为 **PRIMITIVE**，故 G0b 的 `sphere-box-shallow/deep`、`capsule-box`、`box-box-margin` 与 d04 `box-box-multiccd` **不是 GJK/EPA 参考**；G2 真正可用的 CONVEX 参考只有 5 个（cylinder-box、ellipsoid-box、mesh-mesh、convex-mesh、degenerate-mesh）。QA 要独立核实该分类，并核实 G2 证据**没有**把 PRIMITIVE 路径 case 记成 GJK/EPA 覆盖；G2 的球/胶囊 shrink 分支若因此无直达参考，必须出现在 unmet/未覆盖项里，不得用 in-crate 断言冒充数值验收。",
     "EPA 覆盖：收敛判据、HORIZON 退化 → `FLOAT_MAX`/idx=-1、缓冲容量 `10+2I`/`6+5I`、`multiccd_idx` 开关（margin≠0 或类型不符 → -1）逐项核；构造≥1 个退化用例验证不 panic、返回语义与上游一致。",
     "support()/multicontact：SPHERE/BOX/CAPSULE/ELLIPSOID/CYLINDER/MESH/HFIELD/TRIANGLE 与 margin 尾项；HFIELD 六顶点与 `dir[2]<0 ? -2 : -3`；MESH 穷举 vs graph hillclimb 分支与 `cached_index` 热启动；`multicontact`/`_polygon_clip` 生成 ≤4 接触且 hfield/SDF 路径不误用。",
     "is_discrete 分支：mesh/box/hfield + margin==0 走 epsilon=0 与重复点早退，有分支覆盖证据；不与 tolerance 路径混用；`box-box-margin`（margin≠0 非离散）与 `box-box`（离散）两条路径都给实测对照。",
