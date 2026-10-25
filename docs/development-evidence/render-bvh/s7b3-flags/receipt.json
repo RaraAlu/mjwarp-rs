@@ -1,0 +1,379 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-render-bvh-s7b3-flags",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "S7b3",
+  "title": "渲染/BVH S7b3：flag 变体矩阵（逐变体独立参考）与 AA(spp=2) 图像级参考",
+  "date": "2026-10-25",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "conclusion": "flag 变体矩阵与 AA 图像级验收全部通过：5 组 flag 变体各自一份同配方（use_fast_math=False）参考，产品对各自参考 RGB 均 0 像素差异（判据 ≤1 LSB）、culling_off 的 depth 0 ULP / seg 0 不一致；AA(spp=2→nsamples=4) 对同配方参考 RGB 0 像素差异、depth 0 ULP、seg 0 不一致、两次运行逐位相同；S7b1 depth/seg 120,000/120,000 位等 0 ULP 与 S7b2 RGB 同配方 0 差异的不回归基线保持。实现按上游语义：AA 每 sample 发射一次 megakernel（ray_base=sample*total_rays）、store_pixel 累积 color*255 到 aa_accum、aa_resolve 平均并 pack；depth/seg 按上游『单样本输出，只有第一个 pass 写』加 ray_base==0 条件（这是首轮 AA depth 78% 不匹配的根因，修复后 0 ULP）。vertex_normals_off 在 scene-a 夹具下参考本身无判别力（0 像素差异，数据/量化原因），按 Arch 要求如实记录并给可判别替代：合成顶点法线用例（[1,0,0] 方向 653 像素不同）证明 vertex_normal 分支生效。S7b2 的『spp=2 必须写前拒绝』旧断言因本片实现 AA 而预期失效（S7b2 的 RGB/depth/seg 基线本次回归仍全 0），新拒绝面由本片用例覆盖。",
+  "precision_gate": {
+    "name": "f32-render",
+    "recipe": "WARP_1_15_RENDER",
+    "purpose": "Render",
+    "fmad": true,
+    "use_fast_math": false,
+    "arch": "compute_70",
+    "enforced_by": "src/render/kernel/mod.rs::check_render_ptx；唯一编译入口 compile_render_artifact / RenderKernel::compile",
+    "entries": [
+      {
+        "entry": "render_megakernel",
+        "slots": 81,
+        "source_sha256": "e0fd7ed1a9eec72bb856a227a6a78298a64674af298c5d228354c679786fc247",
+        "ptx_sha256": "582b2429695015a5883abb5faad100a3bfc43a43ff7f471f3fc824401c3eef05",
+        "ptx_bytes": 197583
+      },
+      {
+        "entry": "aa_resolve",
+        "slots": 4,
+        "source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+        "ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+        "ptx_bytes": 27536
+      }
+    ],
+    "aa_resolve_slots": "1 bounds + 3 数组（aa_accum vec3、rgb_out u32、inv_n f32[1]）；S7a 冻结标量槽只有 bool/i32/u64，故 inv_n 走 1 元素 f32 数组",
+    "megakernel_abi_note": "81 槽签名与 S7b2 相同（S7a 冻结）；本片只新增 MK_FLAG_AA（bit8）与 aa_accum/aa_resolve 路径",
+    "host_modules": {
+      "megakernel_rs": {
+        "lines": 474,
+        "bytes": 25215,
+        "sha256": "0da30ca22541c75ad35920edbef615790b42a8067ac8ea1e32f6d3c8050405e8"
+      },
+      "megakernel_aa_rs": {
+        "lines": 86,
+        "bytes": 3528,
+        "sha256": "a976799b4093f4dbd27b379486ab81f36af2130c67bcd0638a6c9dc9aa10647a",
+        "role": "AA 子样本发射（只改 ray_base 槽）与 AAResolve resolve 发射；从 megakernel.rs 拆出以满足 ≤500 行棘轮"
+      },
+      "megakernel_arrays_rs": {
+        "lines": 216,
+        "bytes": 9694,
+        "sha256": "ad00fa585bc7075cfdc9c11eb0d69ba3e98368247904fad9b13dae6c126a833f",
+        "role": "字段/位姿/blob/上传辅助 + shading_words（着色常量/缩放常量/flags word）"
+      }
+    }
+  },
+  "variants": [
+    {
+      "variant": "textures_off",
+      "override": {
+        "use_textures": false
+      },
+      "reference": {
+        "file": "fixtures/render-bvh/scene-a/s7b/flags/textures_off_rgb.json",
+        "bytes": 1320472,
+        "sha256": "428f9c8986a078ca2a94e98fbfa13a686a7efa7a5c2398eab25686e437f0a1cb"
+      },
+      "product": {
+        "rgb_beyond_1_lsb": 0,
+        "rgb_mismatched": 0,
+        "max_byte_diff": 0
+      },
+      "discriminating_vs_base": {
+        "has_effect": true,
+        "rgb_changed_pixels": [
+          0,
+          4130
+        ],
+        "rgb_changed_by_geom": {
+          "cam1": {
+            "1": 2202,
+            "2": 747,
+            "3": 754,
+            "5": 427
+          }
+        },
+        "semantics": "差异只出现在 mat_texid 有效的几何（geom1/2/3/5），无纹理几何逐位相同 → texture off 不再采样纹理"
+      }
+    },
+    {
+      "variant": "vertex_normals_off",
+      "override": {
+        "enable_vertex_normals": false
+      },
+      "reference": {
+        "file": "fixtures/render-bvh/scene-a/s7b/flags/vertex_normals_off_rgb.json",
+        "bytes": 1320487,
+        "sha256": "6119ec42a36cd922580ae8c6f11642953893394b7ef58faa56e87dc6e8fbb20d"
+      },
+      "product": {
+        "rgb_beyond_1_lsb": 0,
+        "rgb_mismatched": 0,
+        "max_byte_diff": 0
+      },
+      "discriminating_vs_base": {
+        "has_effect": false,
+        "rgb_changed_pixels": [
+          0,
+          0
+        ],
+        "semantics": "本夹具下参考自身开/关逐位相同：scene-a 唯一 mesh(geom3) 仅 cam1 754 像素，顶点法线与面法线差异被 8 位量化吸收；判别由合成顶点法线用例承担（[1,0,0] 方向 653 像素不同、[0,0,1] 9 像素不同，其余 0），不是产品缺陷"
+      }
+    },
+    {
+      "variant": "specular_off",
+      "override": {
+        "enable_specular": false
+      },
+      "reference": {
+        "file": "fixtures/render-bvh/scene-a/s7b/flags/specular_off_rgb.json",
+        "bytes": 1320475,
+        "sha256": "df03e72f4e15da6dc802d0a15df0e5dcb7b7c78085b9b6bc7941bf0e1127ad5f"
+      },
+      "product": {
+        "rgb_beyond_1_lsb": 0,
+        "rgb_mismatched": 0,
+        "max_byte_diff": 0
+      },
+      "discriminating_vs_base": {
+        "has_effect": true,
+        "rgb_changed_pixels": [
+          55504,
+          2457
+        ],
+        "semantics": "高光贡献消失：与关项参考 0 差异、与 base 差异非空"
+      }
+    },
+    {
+      "variant": "emission_off",
+      "override": {
+        "enable_emission": false
+      },
+      "reference": {
+        "file": "fixtures/render-bvh/scene-a/s7b/flags/emission_off_rgb.json",
+        "bytes": 1320475,
+        "sha256": "2f07cb8a0aebc2a96edd85bb97989bdad567cb030b10ed9c4ed05a9ce4fe1019"
+      },
+      "product": {
+        "rgb_beyond_1_lsb": 0,
+        "rgb_mismatched": 0,
+        "max_byte_diff": 0
+      },
+      "discriminating_vs_base": {
+        "has_effect": true,
+        "rgb_changed_pixels": [
+          0,
+          1947
+        ],
+        "rgb_changed_by_geom": {
+          "cam1": {
+            "1": 1424,
+            "3": 523
+          }
+        },
+        "semantics": "自发光贡献消失且只影响有 emission 的材质几何"
+      }
+    },
+    {
+      "variant": "culling_off",
+      "override": {
+        "enable_backface_culling": false
+      },
+      "reference": {
+        "rgb": {
+          "file": "fixtures/render-bvh/scene-a/s7b/flags/culling_off_rgb.json",
+          "bytes": 1320482,
+          "sha256": "f1762d55999bc45a16b975e9b982f7d80b9b922ef5d397ada5e0f066ca0aaa67"
+        },
+        "depth_seg": {
+          "file": "fixtures/render-bvh/scene-a/s7b/flags/culling_off_depth_seg.json",
+          "bytes": 1490382,
+          "sha256": "db802a5cb0722ec7cb3f821f0246729c069e2eaedf5b355ce58a875dbd700358"
+        }
+      },
+      "product": {
+        "rgb_beyond_1_lsb": 0,
+        "rgb_mismatched": 0,
+        "max_byte_diff": 0,
+        "depth_max_ulp": 0,
+        "depth_mismatch": 0,
+        "seg_mismatch": 0
+      },
+      "discriminating_vs_base": {
+        "has_effect": true,
+        "rgb_changed_pixels": [
+          0,
+          38
+        ],
+        "seg_changed_pixels": [
+          0,
+          29
+        ],
+        "depth_changed_pixels": [
+          0,
+          38
+        ],
+        "semantics": "背面被命中（seg/depth 相对 base 变化），产品对关项参考 depth 0 ULP / seg 全等"
+      }
+    },
+    {
+      "variant": "aa2",
+      "override": {
+        "samples_per_pixel": 2
+      },
+      "nsamples": 4,
+      "reference": {
+        "rgb": {
+          "file": "fixtures/render-bvh/scene-a/s7b/flags/aa2_rgb.json",
+          "bytes": 1320464,
+          "sha256": "e773cdacca1c8d5c1c2b0973b2c97b69c5f72585c9d6f752f2813da9859c793d"
+        },
+        "depth_seg": {
+          "file": "fixtures/render-bvh/scene-a/s7b/flags/aa2_depth_seg.json",
+          "bytes": 1490542,
+          "sha256": "79a275eff5d45f6bef764957e5f4987d0e6abfbb9b7a2cb578c8e1f717d4b7e1"
+        }
+      },
+      "product": {
+        "rgb_beyond_1_lsb": 0,
+        "rgb_mismatched": 0,
+        "max_byte_diff": 0,
+        "depth_max_ulp": 0,
+        "depth_mismatch": 0,
+        "seg_mismatch": 0,
+        "repeat_runs_bitwise_identical": true
+      },
+      "discriminating_vs_base": {
+        "has_effect": true,
+        "rgb_changed_pixels": [
+          534,
+          1320
+        ],
+        "seg_changed_pixels": [
+          91,
+          210
+        ],
+        "depth_changed_pixels": [
+          59896,
+          15739
+        ],
+        "semantics": "AA 合成图与 spp=1 base 不同（预期）；depth/seg 为单样本输出（第一个 pass）"
+      }
+    }
+  ],
+  "flag_index": {
+    "file": "fixtures/render-bvh/scene-a/s7b/flags/index.json",
+    "bytes": 5495,
+    "sha256": "02a3038f8874ea4814c5961e856556d7bc4900a7ca9cc1a050af0a3bfed756f0",
+    "determinism": "每组两次捕获逐位一致（has_discriminating_effect 逐组记录）"
+  },
+  "fixture_provenance": {
+    "encoding": {
+      "rgb": "packed u32 ABGR-A8（a=255；int() 截断），row-major；解包 float32(byte)*float32(1/255)",
+      "depth": "IEEE-754 binary32 bits as unsigned decimal u32, row-major",
+      "seg": "int32 [object_id, object_type] pairs, row-major (2 * pixels values)"
+    },
+    "recipe": "pinned 3.15 + S0b PARAMS_28 的 28 参，仅 use_fast_math=False + 变体 override；AA 的 samples_per_pixel=2",
+    "capture_script": "scripts/authoring/render-bvh-s7b/capture_flags_aa.py",
+    "capture_script_sha256": "7ecfa0aa791f26d57bba1f529ba50be895d8ece42cbb4713a758a0b2f49a5272",
+    "depth_seg_schema": "与 S7b1 depth_seg_fast_math_false.json 同 schema（recipe.compile_fast_math=false + camera_data_check），parse_reference 校验",
+    "source_sha256": {
+      "scene_315_mjb": "8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4",
+      "model_312_json": "cdd490f0209dd16a57b2685f3139548af8a2b73195cdb0e01a74ab094ef1df00",
+      "s0b_rgb_npz": "9379f5d3b39e2d5d0ce8ef21a28b365e3608d20f6a992c39dff2d5df3ef90c0c",
+      "s0b_rays_npz": "83146ae50946537401be817a44bfe3af58320df475dabc49206aa47eec9d50ab",
+      "base_same_recipe_rgb": "fixtures/render-bvh/scene-a/s7b/rgb_fast_math_false.json",
+      "base_same_recipe_depth_seg": "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json"
+    }
+  },
+  "s5_aa_deferral_mapping": {
+    "s5_record": "S5 记录：「AA 图像级验收按 Arch 裁决延后 S7b/S8，本片只验射线层」「AA 合成图像：产品尚无渲染内核，图像级验收延后 S7b/S8」",
+    "s5_ray_layer": "子样本顺序/布局沿用 S5：[sample][camera][row][column]，planned_ray_count = samples × total_rays",
+    "s7b3_acceptance": "本片完成 AA 图像级验收：megakernel 每 sample 一次发射（ray_base = sample × total_rays）+ aa_accum 累积 + aa_resolve 平均，对同配方 AA 参考 0 像素差异；depth/seg 单样本语义（ray_base == 0 才写）0 ULP/全等",
+    "not_claimed": "不宣称 R01 整体通过（阴影/天空盒/splat/flex/hfield/多相机仍不在范围）"
+  },
+  "gpu": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "arch": "SM89",
+    "window": {
+      "start_memory_mib": 3555,
+      "end_memory_mib": 3556,
+      "compute_processes_after": 0,
+      "note": "authoring 采集 + 产品验收同一窗口；桌面基线约 3.55 GiB 波动，结束无 CUDA 计算进程"
+    },
+    "s7b3_suite": {
+      "command": "cargo test --locked --features cuda-probe --test render_kernel_flags -- --ignored --test-threads=1 --nocapture",
+      "passed": 6,
+      "failed": 0,
+      "elapsed_s": 10.4,
+      "log": "gpu-run.log",
+      "results": {
+        "flag_fixtures_are_complete_and_documented": "ok（CPU；6 变体齐全、两次捕获位等、逐组判别力记录，vertex_normals_off 断言为无判别力）",
+        "flag_and_aa_sources_compile_under_render_gate": "ok（megakernel 197,583 B + aa_resolve 27,536 B，A′ 门禁均过）",
+        "flag_variants_match_own_references": "ok（5/5 变体 RGB 0 差异；culling_off depth 0 ULP / seg 全等）",
+        "aa2_matches_same_recipe_reference": "ok（RGB 0 差异、depth 0 ULP、seg 全等、两次运行逐位相同）",
+        "baseline_no_regression_after_flags_and_aa": "ok（S7b1 depth/seg 120,000/120,000 位等 0 ULP；S7b2 RGB 同配方 0 差异）",
+        "synthetic_mesh_normal_switches_vertex_normal_path": "ok（[1,0,0] 653 像素、[0,0,1] 9 像素不同 → vertex_normal 分支生效）",
+        "aa_supported_and_remaining_rejections_pre_launch": "ok（AA 支持；shadows/precomputed=false/skybox 仍写前拒绝；AA 射线数不符 → InvalidArray 写前拒绝）"
+      }
+    },
+    "s7b1_regression": {
+      "command": "cargo test --locked --features cuda-probe --test render_kernel_depth_seg -- --ignored --test-threads=1 --nocapture",
+      "passed": 6,
+      "failed": 0,
+      "log": "s7b1-regression.log"
+    },
+    "s6b_regression": {
+      "command": "cargo test --locked --features cuda-probe --test render_context_lifecycle -- --ignored --test-threads=1",
+      "passed": 5,
+      "failed": 0,
+      "log": "s6b-regression.log",
+      "note": "OutputResources 新增 aa_accum 字段后原样重跑（含 100 次 create/destroy、DisabledOutput、drop 释放）"
+    },
+    "s7b2_regression": {
+      "command": "cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --test-threads=1 --nocapture",
+      "passed": 2,
+      "failed": 1,
+      "log": "s7b2-regression.log",
+      "results": {
+        "rgb_matches_reference_and_depth_seg_do_not_regress": "ok（RGB 两相机 0 差异、depth/seg 120,000/120,000 位等 0 ULP）",
+        "megakernel_source_compiles_under_render_gate": "ok",
+        "unsupported_configurations_are_rejected_before_launch": "预期失效：该用例断言 samples_per_pixel=2 必须 Unsupported；S7b3 实现 AA 后 AA 是合法配置（该用例喂的是 spp=1 射线，故实际返回 InvalidArray(ray_count)）。属语义升级，不是回归；旧断言需在 tests/render_kernel_rgb.rs 删除/更新（文件不在本片 files，已报 Arch）。新拒绝面由本片 aa_supported_and_remaining_rejections_pre_launch 覆盖。"
+      }
+    }
+  },
+  "gates": {
+    "fmt": "pass（cargo fmt --check）",
+    "clippy": "pass（cargo clippy --all-targets --locked -- -D warnings）",
+    "clippy-cuda": "pass（cargo clippy --all-targets --locked --features cuda-probe -- -D warnings）",
+    "unit": {
+      "result": "pass",
+      "test_binaries_ok": 99,
+      "test_binaries_failed": 0,
+      "tests_passed": 532,
+      "log": "unit-summary.log"
+    }
+  },
+  "unmet": [
+    "S7b2 的 tests/render_kernel_rgb.rs::unsupported_configurations_are_rejected_before_launch 旧断言（spp=2 必须 Unsupported）因本片实现 AA 而失效；S7b2 的 RGB/depth/seg 基线本次回归仍全 0。该文件不在 S7b3 files，已报 Arch 批改（或拆配套任务）。",
+    "阴影/天空盒/splat/flex/hfield/SDF/多相机/动态射线（use_precomputed_rays=false）仍不实现，写前拒绝。",
+    "AA 只验 samples_per_pixel=2（nsamples=4）；更高 spp 未采样参考（同一实现路径未单独验收）。",
+    "vertex_normals_off 参考在 scene-a 夹具下无判别力（参考自身 0 像素差异）；分支判别由合成顶点法线用例承担，未用「不崩」充数。",
+    "未跑完整 G01（团队规则：开发迭代只跑定向 + fmt/clippy/clippy-cuda/unit；里程碑由用户点名）。"
+  ],
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "gpu-run.log",
+    "s7b1-regression.log",
+    "s7b2-regression.log",
+    "s6b-regression.log",
+    "capture.log",
+    "unit-summary.log"
+  ],
+  "reproduction": {
+    "capture": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/render-bvh-s7b/capture_flags_aa.py",
+    "gpu_suite": "cargo test --locked --features cuda-probe --test render_kernel_flags -- --ignored --test-threads=1 --nocapture",
+    "s7b1_regression": "cargo test --locked --features cuda-probe --test render_kernel_depth_seg -- --ignored --test-threads=1 --nocapture",
+    "s7b2_regression": "cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --test-threads=1 --nocapture",
+    "s6b_regression": "cargo test --locked --features cuda-probe --test render_context_lifecycle -- --ignored --test-threads=1"
+  },
+  "root_cause": {
+    "symptom_first_run": "首轮 AA(spp=2) 对同配方参考：RGB 0 差异，但 depth 不匹配 59,896/76,800（cam0，max_ulp 1e9 级假值）与 seg 181 像素不一致。",
+    "cause": "上游 depth/seg 是单样本输出——render.py 明确「Depth and seg are single-sample outputs: only the first pass writes them」（`if ray_base == 0`）；产品 megakernel 每 sample 都写，AA 时最后一个 sample 覆盖，导致与参考（第一个 sample）不一致。S7b1 的 render.cu 本有该条件，81 槽迁移时遗漏。",
+    "fix": "src/render/kernel/cuda/render_megakernel.cu 的 depth/seg 写入加 `ray_base == 0`（spp=1 时恒真，S7b1/S7b2 基线不变）。",
+    "verification": "修复后 AA 对参考 depth 0 ULP、seg 全等；S7b1/S7b2 基线回归仍全 0。"
+  }
+}

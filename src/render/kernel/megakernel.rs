@@ -6,7 +6,11 @@
 //!   经 `bvh_id`（u64 标量）以设备指针传入（`MegakernelBlob`，见 `cuda/render_common.cu`），
 //!   不消费 Warp BVH 句柄；未用槽用 1 元素占位（渲染 ABI 拒绝零长数组），逐槽表进证据。
 //! - 着色子集：headlight 三组、背景色、base color、纹理采样、顶点/面法线、自发光、高光、
-//!   背面剔除；阴影/天空盒/splat/flex/hfield/SDF/AA 由本片 host 侧**写前拒绝**。
+//!   背面剔除；阴影/天空盒/splat/flex/hfield/SDF 由本片 host 侧**写前拒绝**。
+//! - S7b3：`samples_per_pixel > 1`（AA）时按 sample 顺序发射 `render_megakernel`
+//!   （`ray_base = sample * total_rays`，与上游 `for sample in range(nsamples)` 一致），
+//!   `store_pixel` 累积到 `aa_accum`，全部 sample 之后发射 `aa_resolve` 求平均并打包；
+//!   depth/seg 每个 sample 都写（与上游一致，最后一个 sample 生效）。
 //! - 灯位姿（37/38 槽）：由 `RenderFields` 按上游固定灯公式推导（identity body 旋转），
 //!   与 pinned 3.15 `mjwarp.forward` 位型逐位相等由夹具 `light_data_check` 断言。
 //! - depth/seg 语义与 S7b1 完全一致：S7b1 的 120,000/120,000 位等是 S7b2 回归门。
@@ -25,22 +29,24 @@ use crate::runtime::launcher::{
 };
 
 use super::launch::{RenderKernel, Texture2dArray};
+use super::megakernel_aa::{AAResolve, launch_samples};
 use super::megakernel_arrays::{
     array, bool_words, flags, floats, geom_data_poses, ints, light_data_poses, pack_blob, reals,
-    span_addr, to_i32, upload,
+    shading_words, span_addr, to_i32, upload,
 };
 use super::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
 
 const BLOCK: u32 = 256;
 
-/// S7b2 渲染执行器；持有一个已编译的 81 槽内核（模块缓存）与传输会话。
+/// S7b3 渲染执行器；持有 81 槽 megakernel 与 AA 解析内核（模块缓存）与传输会话。
 pub struct MegakernelRenderer {
     session: TransferSession,
     kernel: RenderKernel,
+    aa: AAResolve,
 }
 
 impl MegakernelRenderer {
-    /// 编译 `render_megakernel`（需要 NVIDIA 驱动与 NVRTC）。
+    /// 编译 `render_megakernel` 与 `aa_resolve`（需要 NVIDIA 驱动与 NVRTC）。
     pub fn new(session: &TransferSession) -> Result<Self, LauncherError> {
         let signature =
             RenderSignature::new(MEGAKERNEL_ENTRY, BlockRule::WarpGrid, &MEGAKERNEL_SLOTS)?;
@@ -51,9 +57,11 @@ impl MegakernelRenderer {
             signature,
             MEGAKERNEL_ENTRY,
         )?;
+        let aa = AAResolve::compile(session)?;
         Ok(Self {
             session: session.clone(),
             kernel,
+            aa,
         })
     }
 
@@ -73,34 +81,33 @@ impl MegakernelRenderer {
     ) -> Result<(), LauncherError> {
         let resolved = context.resolved();
         let layout = &resolved.output;
-        if resolved.samples_per_pixel != 1 || layout.nsamples != 1 {
-            return Err(LauncherError::Unsupported(
-                "S7b2 只支持 samples_per_pixel=1（AA 属 S7b3）",
-            ));
+        let nsamples = layout.nsamples;
+        if nsamples == 0 {
+            return Err(LauncherError::InvalidArray("nsamples"));
         }
         if !resolved.use_precomputed_rays {
             return Err(LauncherError::Unsupported(
-                "S7b2 只支持 use_precomputed_rays=true（动态射线归 S7b3）",
+                "S7b3 只支持 use_precomputed_rays=true（动态射线未实现）",
             ));
         }
         if resolved.use_shadows {
-            return Err(LauncherError::Unsupported("S7b2 不含阴影"));
+            return Err(LauncherError::Unsupported("S7b3 不含阴影"));
         }
         if resolved.render_skybox {
-            return Err(LauncherError::Unsupported("S7b2 不含天空盒"));
+            return Err(LauncherError::Unsupported("S7b3 不含天空盒"));
         }
         if resolved.splat_count != 0 {
-            return Err(LauncherError::Unsupported("S7b2 不含 splat"));
+            return Err(LauncherError::Unsupported("S7b3 不含 splat"));
         }
         if ints(fields, "geom_type")?
             .iter()
             .any(|kind| matches!(kind, 1 | 8))
         {
-            return Err(LauncherError::Unsupported("S7b2 不含 hfield/SDF 求交"));
+            return Err(LauncherError::Unsupported("S7b3 不含 hfield/SDF 求交"));
         }
         if ints(fields, "light_mode")?.iter().any(|mode| *mode != 0) {
             return Err(LauncherError::Unsupported(
-                "S7b2 只支持 light_mode=0（固定灯）的 data 位姿推导",
+                "S7b3 只支持 light_mode=0（固定灯）的 data 位姿推导",
             ));
         }
         let nworld = resolved.nworld;
@@ -109,7 +116,10 @@ impl MegakernelRenderer {
         if nrender == 0 || total_rays == 0 {
             return Err(LauncherError::InvalidArray("render_cameras"));
         }
-        if rays.len() != total_rays {
+        let expected_rays = total_rays
+            .checked_mul(nsamples)
+            .ok_or(LauncherError::Overflow("ray_count"))?;
+        if rays.len() != expected_rays {
             return Err(LauncherError::InvalidArray("ray_count"));
         }
         let ncam = model.ncam();
@@ -192,28 +202,8 @@ impl MegakernelRenderer {
             ray_offsets.extend_from_slice(offset);
         }
 
-        // ---- 着色常量槽（本实现自有，见内核注释）----
-        let headlight = &resolved.headlight;
-        let mut shading_constants = Vec::with_capacity(12);
-        shading_constants.extend_from_slice(&headlight.ambient);
-        shading_constants.extend_from_slice(&headlight.diffuse);
-        shading_constants.extend_from_slice(&headlight.specular);
-        shading_constants.extend_from_slice(&[
-            resolved.background_color[0] as f32,
-            resolved.background_color[1] as f32,
-            resolved.background_color[2] as f32,
-        ]);
-        let scale_constants = vec![resolved.znear as f32, resolved.zfar as f32, 0.0f32];
-        let mut flag_bits = 0u32;
-        flag_bits |= u32::from(resolved.use_textures);
-        flag_bits |= u32::from(resolved.enable_vertex_normals) << 1;
-        flag_bits |= u32::from(resolved.enable_specular) << 2;
-        flag_bits |= u32::from(resolved.enable_emission) << 3;
-        flag_bits |= u32::from(resolved.enable_per_light_ambient) << 4;
-        flag_bits |= u32::from(resolved.use_ambient_lighting) << 5;
-        flag_bits |= u32::from(headlight.active) << 6;
-        flag_bits |= u32::from(resolved.enable_backface_culling) << 7;
-        let flags_word = (u64::from(resolved.background_color_packed) << 32) | u64::from(flag_bits);
+        // ---- 着色常量/符号位（本实现自有槽，见内核注释；拆到 arrays 保 500 行棘轮）----
+        let (shading_constants, scale_constants, flags_word) = shading_words(resolved, nsamples);
 
         // ---- 纹理数组（S4 只读句柄 → S7a `texture2d_t` 数组）----
         let texture_array = match context.textures() {
@@ -337,7 +327,12 @@ impl MegakernelRenderer {
         let enabled_geom_ids = upload(&self.session, &enabled_geom_ids)?;
         let shading_constants = upload(&self.session, &shading_constants)?;
         let scale_constants = upload(&self.session, &scale_constants)?;
-        let aa_accum = upload(&self.session, &[0.0f32; 3])?;
+        // AA（nsamples>1）时 aa_accum 由 OutputResources 分配（world × rgb_pixels vec3），
+        // 否则 1 元素占位（内核按 AA 标志不访问）。
+        let aa_scratch = match nsamples > 1 {
+            true => None,
+            false => Some(upload(&self.session, &[0.0f32; 3])?),
+        };
 
         // 输出缓冲（S6b OutputResources；未启用时 1 元素占位、内核按标志不写）。
         let rgb_scratch = match rgb_enabled {
@@ -417,8 +412,8 @@ impl MegakernelRenderer {
         args.push(RenderArg::Scalar(RenderScalar::I32(0)));
         args.push(array(&cam_res, RenderElem::Vec2I, &[nrender])?);
         args.push(array(&cam_id_map, RenderElem::I32, &[nrender])?);
-        args.push(array(&ray, RenderElem::Vec3, &[total_rays])?);
-        args.push(array(&ray_offset, RenderElem::Vec3, &[total_rays])?);
+        args.push(array(&ray, RenderElem::Vec3, &[expected_rays])?);
+        args.push(array(&ray_offset, RenderElem::Vec3, &[expected_rays])?);
         args.push(RenderArg::Scalar(RenderScalar::I32(0)));
         args.push(array(&rgb_adr, RenderElem::I32, &[nrender])?);
         args.push(array(&depth_adr, RenderElem::I32, &[nrender])?);
@@ -457,7 +452,10 @@ impl MegakernelRenderer {
             Some(scratch) => array(scratch, RenderElem::U32, &[1, 1])?,
             None => RenderArg::Array(context.outputs().rgb_render_arg_2d(nworld)?),
         });
-        args.push(array(&aa_accum, RenderElem::Vec3, &[1])?);
+        args.push(match &aa_scratch {
+            Some(scratch) => array(scratch, RenderElem::Vec3, &[1])?,
+            None => RenderArg::Array(context.outputs().aa_accum_render_arg_2d(nworld)?),
+        });
         args.push(match &depth_scratch {
             Some(scratch) => array(scratch, RenderElem::F32, &[1, 1])?,
             None => RenderArg::Array(context.outputs().depth_render_arg_2d(nworld)?),
@@ -478,6 +476,20 @@ impl MegakernelRenderer {
         let grid = u32::try_from((nworld * total_rays).div_ceil(BLOCK as usize))
             .map_err(|_| LauncherError::Overflow("render_grid"))?;
         let dims = LaunchDims::new((grid, 1, 1), (BLOCK, 1, 1), 0)?;
-        self.kernel.launch(&self.session, &args, dims)
+
+        // S7b3 AA：按 sample 顺序发射（只改 ray_base 槽）；全部 sample 之后 resolve。
+        launch_samples(
+            &self.kernel,
+            &self.session,
+            &mut args,
+            dims,
+            nsamples,
+            total_rays,
+        )?;
+        if nsamples == 1 {
+            return Ok(());
+        }
+        self.aa
+            .resolve(&self.session, context, nworld, layout.rgb_pixels, nsamples)
     }
 }

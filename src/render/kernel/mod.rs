@@ -27,6 +27,7 @@
 pub mod cast;
 pub mod launch;
 pub mod megakernel;
+mod megakernel_aa;
 mod megakernel_arrays;
 pub mod output;
 pub mod renderer;
@@ -58,6 +59,26 @@ pub const MEGAKERNEL_SOURCE: &str = concat!(
     include_str!("cuda/render_shade.cu"),
     include_str!("cuda/render_megakernel.cu"),
 );
+
+/// S7b3 AA 解析内核的入口名（`samples_per_pixel > 1` 时每帧在全部 sample 之后发射一次）。
+pub const AA_RESOLVE_ENTRY: &str = "aa_resolve";
+
+/// S7b3 AA 解析内核源码：独立拼接（不含 scene.cu / 着色链），只依赖 `builtin.h`
+/// 与自带的 pack 等价实现（见该文件头注释）。
+pub const AA_RESOLVE_SOURCE: &str = include_str!("cuda/aa_resolve.cu");
+
+/// `aa_resolve` 的 4 槽签名（1 bounds + 3 数组）：`aa_accum`(vec3)、`rgb_out`(u32)、
+/// `inv_n`(1 元素 f32；S7a 标量槽只有 bool/i32/u64，f32 走数组)。
+pub static AA_RESOLVE_SLOTS: [RenderArgKind; 4] = {
+    use RenderArgKind as K;
+    use RenderElem as E;
+    [
+        K::Bounds2D,
+        K::Array(E::Vec3),
+        K::Array(E::U32),
+        K::Array(E::F32),
+    ]
+};
 
 /// S7b1 渲染内核源码：S2b `scene.cu`（primitive 数学，只读复用）+ S3 mesh 数学的
 /// 逐式复制（`cuda/render_math.cu`）+ 组合/内核本体（`cuda/render.cu`）。

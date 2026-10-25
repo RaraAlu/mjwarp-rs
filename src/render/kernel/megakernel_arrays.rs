@@ -2,6 +2,7 @@
 //! BVH blob 打包与设备上传。供 `megakernel.rs` 使用；行数口径按新文件拆分（各 ≤500 行）。
 
 use crate::model::render::{FieldData, RenderFields};
+use crate::render::context::ResolvedContext;
 use crate::render::kernel::cast::SceneDevice;
 use crate::runtime::launcher::{LauncherError, RenderArg, RenderArrayValue, RenderElem};
 use crate::runtime::{TransferBuffer, TransferElement, TransferSession};
@@ -197,4 +198,36 @@ pub fn light_data_poses(fields: &RenderFields) -> Result<Vec<LightDataPose>, Pos
         });
     }
     Ok(poses)
+}
+
+/// S7b2/S7b3 自有参数槽：着色常量（4×vec3）、缩放常量（vec3）与 flags word。
+/// 返回 `(shading_constants, scale_constants, flags_word)`；抽到本模块以保持
+/// `megakernel.rs` 的 500 行棘轮。
+pub(crate) fn shading_words(
+    resolved: &ResolvedContext,
+    nsamples: usize,
+) -> (Vec<f32>, Vec<f32>, u64) {
+    let headlight = &resolved.headlight;
+    let mut shading_constants = Vec::with_capacity(12);
+    shading_constants.extend_from_slice(&headlight.ambient);
+    shading_constants.extend_from_slice(&headlight.diffuse);
+    shading_constants.extend_from_slice(&headlight.specular);
+    shading_constants.extend_from_slice(&[
+        resolved.background_color[0] as f32,
+        resolved.background_color[1] as f32,
+        resolved.background_color[2] as f32,
+    ]);
+    let scale_constants = vec![resolved.znear as f32, resolved.zfar as f32, 0.0f32];
+    let mut flag_bits = 0u32;
+    flag_bits |= u32::from(resolved.use_textures);
+    flag_bits |= u32::from(resolved.enable_vertex_normals) << 1;
+    flag_bits |= u32::from(resolved.enable_specular) << 2;
+    flag_bits |= u32::from(resolved.enable_emission) << 3;
+    flag_bits |= u32::from(resolved.enable_per_light_ambient) << 4;
+    flag_bits |= u32::from(resolved.use_ambient_lighting) << 5;
+    flag_bits |= u32::from(headlight.active) << 6;
+    flag_bits |= u32::from(resolved.enable_backface_culling) << 7;
+    flag_bits |= u32::from(nsamples > 1) << 8;
+    let flags_word = (u64::from(resolved.background_color_packed) << 32) | u64::from(flag_bits);
+    (shading_constants, scale_constants, flags_word)
 }

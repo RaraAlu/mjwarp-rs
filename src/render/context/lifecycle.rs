@@ -56,6 +56,10 @@ pub struct OutputResources {
     rgb: Option<TransferBuffer<u32>>,
     depth: Option<TransferBuffer<f32>>,
     seg: Option<TransferBuffer<i32>>,
+    /// S7b3 AA 累积缓冲（`layout.aa_accum_width` 个 vec3 f32 的扁平存储）：
+    /// `nsamples > 1` 时每像素一个 vec3，供 `aa_resolve` 求平均；`nsamples == 1`
+    /// 时宽度为 1（占位，内核按 AA 标志不读不写）。不对外暴露读接口。
+    aa_accum: TransferBuffer<f32>,
 }
 
 impl OutputResources {
@@ -79,12 +83,20 @@ impl OutputResources {
             Some(_) => None,
             None => return Err(overflow("seg_slots")),
         };
+        // S7b3：AA 累积缓冲 = aa_accum_width 个 vec3 = 3 * width 个 f32；宽度恒 >= 1。
+        let aa_values = layout
+            .aa_accum_width
+            .checked_mul(3)
+            .ok_or_else(|| overflow("aa_accum_width"))?;
+        let aa_accum = allocate(session, aa_values, nworld, 0.0f32)?
+            .ok_or_else(|| overflow("aa_accum_width"))?;
         Ok(Self {
             layout: layout.clone(),
             nworld,
             rgb,
             depth,
             seg,
+            aa_accum,
         })
     }
 
@@ -212,6 +224,19 @@ impl OutputResources {
             buffer,
             RenderElem::Vec2I,
             &[nworld, self.layout().seg_slots],
+        )
+    }
+
+    /// S7b3：AA 累积缓冲的 `array2d[world, aa_accum_width]`（vec3 f32）描述符。
+    /// `nsamples > 1` 时宽度 = `rgb_pixels`，否则为 1 的占位（内核按 AA 标志不访问）。
+    pub(crate) fn aa_accum_render_arg_2d(
+        &self,
+        nworld: usize,
+    ) -> Result<RenderArrayValue, LauncherError> {
+        Self::render_output_arg_shaped(
+            &self.aa_accum,
+            RenderElem::Vec3,
+            &[nworld, self.layout().aa_accum_width],
         )
     }
 

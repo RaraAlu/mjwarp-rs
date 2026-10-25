@@ -26,6 +26,25 @@
 #define MK_FLAG_AMBIENT_LIGHTING 0x20u
 #define MK_FLAG_HEADLIGHT 0x40u
 #define MK_FLAG_CULL_BACKFACES 0x80u
+#define MK_FLAG_AA 0x100u
+
+// 上游 `store_pixel` 的 AA 分支（render.py L1017-1031）：
+//   if wp.static(aa): aa_accum_out[worldid, adr] += color * 255.0
+// `ray_base == 0`（第一个子样本）直接覆盖写：省掉每帧 host 侧清零，逐样本求和顺序与
+// 上游 `aa_accum.zero_()` + `+=` 完全一致（每个像素每个 sample 都写，含背景）。
+__device__ __forceinline__ void aa_store(wp::array_t<wp::vec3> aa_accum, long offset, V3 color,
+                                         bool first) {
+    float r = color.x * 255.0f;
+    float g = color.y * 255.0f;
+    float b = color.z * 255.0f;
+    if (first) {
+        aa_accum.data[offset] = wp::vec_t<3, wp::float32>(r, g, b);
+    } else {
+        wp::vec_t<3, wp::float32> current = aa_accum.data[offset];
+        aa_accum.data[offset] =
+            wp::vec_t<3, wp::float32>(current[0] + r, current[1] + g, current[2] + b);
+    }
+}
 
 #define MK_MAX_SHININESS 128.0f
 #define MK_DEFAULT_MAT_SPECULAR 0.5f
@@ -120,7 +139,8 @@ extern "C" __global__ void render_megakernel(
     V3 headlight_specular = to_v3(splat_position.data[2]);
     V3 background = to_v3(splat_position.data[3]);
     float zfar = splat_scale.data[0][1];
-    (void)background;
+    // S7b3：AA（samples_per_pixel>1）时 `store_pixel` 累积到 aa_accum，最后 `aa_resolve` 平均。
+    bool aa = (flag_bits & MK_FLAG_AA) != 0u;
 
     int mujoco_cam_id = cam_id_map.data[camid];
     V3 ray_dir_local_cam = to_v3(ray.data[ray_base + rayid]);
@@ -150,8 +170,12 @@ extern "C" __global__ void render_megakernel(
     int rgb_pitch = rgb_out.shape.dims[1];
     int depth_pitch = depth_out.shape.dims[1];
     int seg_pitch = seg_out.shape.dims[1];
+    long rgb_offset = (long)worldid * rgb_pitch + rgb_adr.data[camid] + rayid_local;
+    // 上游：「Depth and seg are single-sample outputs: only the first pass writes them」
+    // （render.py `if ray_base == 0`）。AA 时后续子样本不覆盖；spp=1 时恒真。
+    bool first_sample = ray_base == 0;
 
-    if (do_seg) {
+    if (do_seg && first_sample) {
         wp::vec2i value;
         value[0] = hit.geom_id;
         value[1] = hit.geom_id == -1 ? -1 : 5;
@@ -159,17 +183,20 @@ extern "C" __global__ void render_megakernel(
     }
 
     if (hit.geom_id == -1) {
-        if (do_depth) {
+        if (do_depth && first_sample) {
             depth_out.data[(long)worldid * depth_pitch + depth_adr.data[camid] + rayid_local] = 0.0f;
         }
         if (do_rgb) {
-            rgb_out.data[(long)worldid * rgb_pitch + rgb_adr.data[camid] + rayid_local] =
-                packed_background;
+            if (aa) {
+                aa_store(aa_accum_out, rgb_offset, background, ray_base == 0);
+            } else {
+                rgb_out.data[rgb_offset] = packed_background;
+            }
         }
         return;
     }
 
-    if (do_depth) {
+    if (do_depth && first_sample) {
         depth_out.data[(long)worldid * depth_pitch + depth_adr.data[camid] + rayid_local] =
             hit.dist * -ray_dir_local_cam.z;
     }
@@ -292,9 +319,13 @@ extern "C" __global__ void render_megakernel(
 
     V3 hit_color = v3(fminf(result.x, 1.0f), fminf(result.y, 1.0f), fminf(result.z, 1.0f));
     hit_color = v3(fmaxf(hit_color.x, 0.0f), fmaxf(hit_color.y, 0.0f), fmaxf(hit_color.z, 0.0f));
+    if (aa) {
+        aa_store(aa_accum_out, rgb_offset, hit_color, ray_base == 0);
+        return;
+    }
     float r = hit_color.x * 255.0f;
     float g = hit_color.y * 255.0f;
     float b = hit_color.z * 255.0f;
     unsigned int pixel = pack_rgba_to_uint32(r, g, b, 255.0f);
-    rgb_out.data[(long)worldid * rgb_pitch + rgb_adr.data[camid] + rayid_local] = pixel;
+    rgb_out.data[rgb_offset] = pixel;
 }
