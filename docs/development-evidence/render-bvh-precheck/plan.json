@@ -397,21 +397,30 @@
       },
       {
         "slice": "S7b1",
-        "task_id": "2026-10-25-render-bvh-s7b1-depth-seg",
+        "task_id": "2026-10-25-render-bvh-s7b1-kernel",
         "owner": "Backend",
-        "normify_status": "in_progress",
-        "execution": "90-minute GPU window after S7a review released the GPU",
+        "normify_status": "verified",
+        "execution": "done (90-minute GPU window; earlier registrations s7b1-depth-seg and s7b1-render-kernel abandoned because their scope froze after start)",
         "evidence": "docs/development-evidence/render-bvh/s7b1-depth-seg/",
-        "note": "render kernel primary rays: S5 rays + camera-to-world transform + max_cam_dist, scene/mesh BVH intersection, planar depth (m, 0=miss) and (object_id, object_type) segmentation; seg exact, depth <=4 ULP on two cameras; refit frame has no frozen reference so only structural assertions; no shading/RGB (S7b2)"
+        "note": "commit 3e43278; product vs same-recipe (use_fast_math=False) reference: depth 120,000/120,000 pixels bit-identical (max 0 ULP), seg exact on both cameras; dynamic==precomputed, two worlds do not cross, explicit refit changes 1698 pixels deterministically, DisabledOutput preserved, f32-render gate passes (PTX 137,393 B, entries scene_bvh_ray + render_depth_seg), S6b regression 5/5, gates 532/0. Root cause of the earlier 149 grazing pixels fixed by matching upstream NVRTC contraction order with explicit __fmul_rn/__fmaf_rn/__fsub_rn in render_sphere_hit (sphere branch only); scene.cu, recipe and tolerances untouched. Registration lesson: register new slice scope at directory granularity"
+      },
+      {
+        "slice": "S7b1 review",
+        "task_id": "2026-10-25-render-bvh-s7b1-independent-check",
+        "owner": "QA",
+        "normify_status": "in_progress",
+        "execution": "30-minute GPU window",
+        "evidence": "docs/development-evidence/render-bvh/s7b1-independent-check/",
+        "note": "independent npz re-decode, independent rerun of the 6 GPU cases, and independent verification that the fma alignment fixed upstream operation order rather than fitting the 149 pixels (ray substitution / mutation), plus unchanged scene.cu / recipe / tolerances and cross-recipe delta still recorded only"
       },
       {
         "slice": "S7b2",
         "task_id": "2026-10-25-render-bvh-s7b2-shading",
         "owner": "Backend",
         "normify_status": "proposed",
-        "execution": "blocked by S7b1",
+        "execution": "dependencies satisfied; waiting for the S7b1 review to release the GPU (gpu:windows-t4 conflict)",
         "evidence": "docs/development-evidence/render-bvh/s7b2-shading/",
-        "note": "shading and RGB output: headlight groups, background, base color, texture sampling, vertex/face normals, emission/specular, backface culling; RGB <=1 LSB per channel on two cameras"
+        "note": "shading and RGB output: headlight groups, background, base color, texture sampling, vertex/face normals, emission/specular, backface culling; RGB <=1 LSB per channel on two cameras; migrate to the 81-slot _render_megakernel signature (mapping table per slot); reuse explicit-intrinsics contraction alignment for div/sqrt/normalize; depth/seg must not regress vs S7b1"
       },
       {
         "slice": "S7b3",
@@ -451,6 +460,18 @@
         "reason": "normify structure rule rejects a leaf under a module that declares APIs (mjwarp.render); moving APIs is governance surgery outside S7a files and does not affect render functionality",
         "effect": "S7a registers kernel sources under mjwarp.render and launcher sources under mjwarp.runtime with validate 0 errors; follow-up backlog task 2026-10-25-render-bvh-module-split (split mjwarp.render APIs, then create mjwarp.render.kernel) to be promoted after S7b2",
         "addendum": "render f32 gate adds an exact allowance for the two W15 svd.h `_svd_config<double>` dead-data constants (symbol name + literal + line end, each once); every other f64/f16/bf16/tf32 token and any `.reg .f64` without the documented sin/cos reduction triplet is still rejected; physics gate check_physics_ptx is unchanged"
+      },
+      {
+        "decision": "align render kernel arithmetic to upstream NVRTC contraction order instead of relaxing tolerances",
+        "commit": "3e43278",
+        "reason": "product CUDA 12.8.1 NVRTC contracts the sphere-intersection dots (a/b/dd) in a different order and fuses det differently from the reference warp build (NVRTC 12.9/sm_89); at camera-1 sphere grazing angles det is about 4e-5 with sensitivity -25..-78, so a 1-ULP direction difference amplifies to tens of ULP (149/43,200 pixels beyond 4 ULP originally)",
+        "effect": "render_math.cu adds render_sphere_hit using explicit __fmul_rn/__fmaf_rn/__fsub_rn in the exact order the reference PTX emits; render.cu only routes geom_type==2 there; scene.cu read-only, A-prime recipe and all tolerances unchanged, references unchanged; result is depth 120,000/120,000 bit-identical to the same-recipe reference. Same technique is mandated for S7b2/S7b3/S8 shading paths (div/sqrt/normalize/specular)",
+        "status": "S7b1 verified; A/B/C options (layer tolerance / bit-level alignment task / recipe arch change) cancelled because the fix landed before any of them was chosen"
+      },
+      {
+        "decision": "register in-flight slice scope at directory granularity",
+        "reason": "normify 0.7.0 freezes a task's declaration and scope once started; S7b1 had to be abandoned and re-registered twice because owner.rs, render_math.cu, renderer.rs and tests/support/ were discovered after start",
+        "effect": "final S7b1 task 2026-10-25-render-bvh-s7b1-kernel registered with src/render/kernel/ and tests/support/render_bvh/ directories; all later slices inherit this rule"
       }
     ],
     "scheduling_notes": [

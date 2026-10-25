@@ -301,8 +301,9 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 | S6b 复核 | `2026-10-24-render-bvh-s6b-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s6b-independent-check/` | `e3ea82c`；100 循环 growth 0 B、drop retained 0 B、5/5、531/0；1 条非阻断（5 个产物行数陈旧，sha256/bytes 一致） |
 | S7a | `2026-10-24-render-bvh-s7a` | Backend | verified | `docs/development-evidence/render-bvh/s7a-launch-abi/` | `a0d9af0`；81 槽 ABI（13 类元素/56B RenderArray）、`WARP_1_15_RENDER`+`F32Render`、PTX 25996 B、GPU 2/2、532/0 |
 | S7a 复核 | `2026-10-25-render-bvh-s7a-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s7a-independent-check/` | `2bb8155`；A′ 成立（全 PTX 恰 2 条 f64、11 例变异判定 1:1）、81 槽 13/13、拒绝 10/10、2/2、532/0 |
-| S7b1 | `2026-10-25-render-bvh-s7b1-depth-seg` | Backend | in_progress | `docs/development-evidence/render-bvh/s7b1-depth-seg/` | 主射线/世界系变换/深度/分割；seg 全等、depth ≤4 ULP；S7a 复核已释放 GPU，90 分钟窗口 |
-| S7b2 | `2026-10-25-render-bvh-s7b2-shading` | Backend | proposed（blocked: S7b1） | `docs/development-evidence/render-bvh/s7b2-shading/` | 着色+RGB；每通道 ≤1 LSB |
+| S7b1 | `2026-10-25-render-bvh-s7b1-kernel` | Backend | verified | `docs/development-evidence/render-bvh/s7b1-depth-seg/` | `3e43278`；depth 对同配方参考 **120,000/120,000 位等（max 0 ULP）**、seg 全等、532/0；originally 登记为 s7b1-depth-seg / s7b1-render-kernel，均因运行态范围冻结 abandon，最终以目录级范围 s7b1-kernel 交付 |
+| S7b1 复核 | `2026-10-25-render-bvh-s7b1-independent-check` | QA | in_progress | `docs/development-evidence/render-bvh/s7b1-independent-check/` | 30 分钟 GPU；重点：独立重解码 + 6 条 GPU 用例重跑 + 验证 fma 对齐是算术顺序对齐（换射线/变异）而非对 149 像素调参 |
+| S7b2 | `2026-10-25-render-bvh-s7b2-shading` | Backend | proposed（依赖已满足；等 QA 复核释放 GPU 后 start） | `docs/development-evidence/render-bvh/s7b2-shading/` | 着色+RGB，每通道 ≤1 LSB；迁 81 槽全签名；沿用显式 intrinsics 对齐上游收缩顺序 |
 | S7b3 | `2026-10-25-render-bvh-s7b3-flags` | Backend | proposed（blocked: S7b2） | `docs/development-evidence/render-bvh/s7b3-flags/` | flag 变体矩阵 + AA(spp=2) 图像级参考（新 authoring 捕获） |
 
 结构说明：
@@ -322,7 +323,11 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 - **S7b 拆片（`74928dd`）**：plan 的 S7b（渲染内核，估 12 人日）按输出阶段拆为 S7b1（主射线/世界系变换/深度/分割）→ S7b2（着色/RGB）→ S7b3（flag 变体矩阵 + AA 图像级参考，需新 authoring 捕获，结掉 S5 的 AA deferral）。理由：单任务单窗口单验收面不可交付，三片各有可判定冻结参考；`src/render/kernel/launch.rs` 已恰 500 行，后续片不得改长该文件。
 - S7a 复核已 verified（`2bb8155`）：A′ 精确放行面成立（全 PTX 恰 2 条 f64、非 `.global` f64 行 0 条、11 例注入/变异判定与产品 1:1、`ptx.rs` diff 为空）、81 槽 ABI 13/13、`RenderArray` 56 B、写前拒绝 10/10、GPU round-trip 2/2、532/0；`launch.rs` 恰 500 行。偏差④ 仅注明、未当缺陷。
 - 窗口语义修正（QA 提出，采纳）：复核类任务的「GPU 窗口」只约束 GPU 占用，CPU 侧独立 harness 编译/变异/比对可以放在窗口外；S7a 复核实际 GPU 占用约 2 秒、CPU 迭代超窗口约 20 分钟，期间显存保持桌面基线、无争用。后续窗口按此口径计时并记录，不把 CPU 迭代时间算进 GPU 独占。
-- S7b1 已 start（in_progress）：主射线/世界系变换/深度/分割，90 分钟 GPU 窗口；refit 帧无冻结参考，只做结构断言，不宣称与上游一致。
+- **S7b1 已 verified（`3e43278`）**：主射线/世界系变换（`cam_xmat @ dir`、正交、`max_cam_dist`）/平面深度（米，0=无命中）/(object_id, object_type) 分割；对**同配方（`use_fast_math=False`）**参考两相机 **120,000/120,000 像素 depth 逐位相同（max 0 ULP）**、seg 逐像素全等（含 mesh geom3 754 像素）；dynamic≡precomputed、双 world 零跨、`set_points`+显式 refit 变化 1698 像素且两次位等、禁用 depth/seg 保持 `DisabledOutput`、A′ 门禁过（PTX 137,393 B、两个 entry）、S6b 回归 5/5、门禁 532/0；GPU 起 4193 → 终 4205 MiB（桌面波动、无计算进程残留）。
+- **S7b1 技术裁决（NVRTC 收缩顺序对齐，`3e43278`）**：产品 CUDA 12.8.1 NVRTC 与参考 warp 自带 NVRTC（12.9/sm_89）对球面求交的 **fma 收缩顺序不同**（a/b/dd 分量先乘顺序、det 是否融合）；cam1 掠射处 det≈4e-5、敏感度 -25…-78，1 ULP 被放大成数十 ULP（原 149/43,200 像素 >4 ULP、max 73）。修法是在 `src/render/kernel/cuda/render_math.cu` 新增 `render_sphere_hit`，用显式 `__fmul_rn`/`__fmaf_rn`/`__fsub_rn` 按参考 PTX 实际发射顺序固定，`render.cu` 只对 `geom_type==2` 改调；`scene.cu` 只读、A′ 配方与容差未动、参考未换。**不是放宽容差，是对齐上游编译产物的运算顺序**；S7b2/S7b3/S8 着色路径沿用同一方法。
+- **参考配方实验留痕**：按裁决 B 补采过 `s7b/depth_seg_fast_math_false.json`（1,492,762 B，`div.rn` 206/`sqrt.rn` 77/`rcp.rn` 89、`div.approx` 0，两次捕获位等），证明参考确实关掉了快算；该参考现作为 depth 0 ULP 硬指标依据，S0b fast-math 参考的跨配方差异只作已知偏差记录。A/B/C 三个「放宽容差/位级对齐/改 arch」方案因修复而**全部作废**（B 实质已由修复完成）。
+- **S7b1 任务登记过程留痕**：原登记 `2026-10-25-render-bvh-s7b1-depth-seg`、`...-s7b1-render-kernel` 均因 normify「运行中任务声明/范围冻结」（start 后无法补 `owner.rs`/`render_math.cu`/`renderer.rs`/`tests/support/` 路径）而 abandon，最终以**目录级范围** `2026-10-25-render-bvh-s7b1-kernel` 交付；教训：新切片任务的范围按目录粒度登记，避免运行期冻结后无法扩。
+- S7b1 复核已 start（QA，30 分钟 GPU）：独立从 npz 重解码、重跑 6 条 GPU 用例、验证 fma 对齐是算术顺序对齐（换射线/变异）而非对 149 像素调参、`scene.cu`/配方/容差未改。
 - `gpu:windows-t4` 是项目排程互斥名，不等于 T4 硬件；本机实际为 RTX 4070 Ti SUPER / SM89 / 驱动 596.36。开窗前核对设备，GPU 满载任务串行。
 - S1 复核的 `unchanged` 结构裁决已由 QA 在 receipt/addenda 留痕；normify 0.7.0 不允许改已 verified 检查，记录保持登记宽口径，实际门禁按 S1 自有路径执行。
 - S3 前排程注记：先补两个新叶子模块 `mjwarp.model.render-model`、`mjwarp.io.render` 的 layout order/apis；`src/model/render.rs` 当前正好 500 行，后续任何加功能必须先拆文件，S3+ 切片不得撞 500 行棘轮。
