@@ -23,3 +23,12 @@ pub(crate) const SUPPORT_CUDA: &str = include_str!("support.cu");
 pub(crate) const SIMPLEX_CUDA: &str = include_str!("simplex.cu");
 /// GJK 主循环（与 host `gjk/core.rs` 逐式对应）。
 pub(crate) const GJK_CORE_CUDA: &str = include_str!("gjk_core.cu");
+
+/// EPA polytope 构造与 witness（与 host `gjk/polytope.rs` 对应）。
+pub(crate) const POLYTOPE_CUDA: &str = include_str!("polytope.cu");
+/// EPA polytope 初始构造（与 host `gjk/polytope_build.rs` 对应）。
+pub(crate) const POLYTOPE_BUILD_CUDA: &str = include_str!("polytope_build.cu");
+/// EPA 迭代（与 host `gjk/epa.rs` 对应）。
+pub(crate) const EPA_CUDA: &str = include_str!("epa.cu");
+/// ccd 两阶段驱动（与 host `gjk/phase.rs` + `gjk/ccd.rs` 对应）。
+pub(crate) const CCD_CUDA: &str = include_str!("ccd.cu");
