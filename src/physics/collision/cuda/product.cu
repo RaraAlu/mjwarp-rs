@@ -294,3 +294,25 @@ extern "C" __global__ void mjwarp_collision_sdf(mjwarp_collision_args a) {
                      contacts[index].frame, &a.out);
   }
 }
+
+// primitive narrowphase 设备路径（上游 `primitive_narrowphase` 的 dispatch 子集）：
+// 只实现必做的 (SPHERE, BOX) 与 (CAPSULE, BOX)（兼容几何顺序互换）；其它组合不写接触。
+extern "C" __global__ void mjwarp_collision_primitive(mjwarp_collision_args a) {
+  const int world = blockIdx.x;
+  if (world >= a.nworld) return;
+  d_contact_params params = build_params(a);
+  params.worldid = world;
+
+  const d_geom geom1 = build_geom(a, world, a.g1);
+  const d_geom geom2 = build_geom(a, world, a.g2);
+
+  if (a.type1 == G5_SPHERE && a.type2 == G5_BOX) {
+    g5_sphere_box_wrapper(geom1, geom2, params, a.naconmax, &a.out);
+  } else if (a.type1 == G5_BOX && a.type2 == G5_SPHERE) {
+    g5_sphere_box_wrapper(geom2, geom1, params, a.naconmax, &a.out);
+  } else if (a.type1 == G5_CAPSULE && a.type2 == G5_BOX) {
+    g5_capsule_box_wrapper(geom1, geom2, params, a.naconmax, &a.out);
+  } else if (a.type1 == G5_BOX && a.type2 == G5_CAPSULE) {
+    g5_capsule_box_wrapper(geom2, geom1, params, a.naconmax, &a.out);
+  }
+}

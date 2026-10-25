@@ -1,10 +1,11 @@
-//! CPU 侧 NVRTC 编译冒烟：只验证「产品设备源能被 NVRTC 编成含三个入口的 PTX」。
+//! CPU 侧 NVRTC 编译冒烟：只验证「产品设备源能被 NVRTC 编成含四个入口的 PTX」。
 //!
 //! **不创建 CUDA 上下文、不上传/发射/回读**，所以不需要 GPU；需要 NVRTC 运行库
 //! （Windows：`target/toolchains/cuda-12.8.1/bin` 加入 `PATH` 后跑）。
 //! 真正的三 case 对照在 `tests/g10_p5_nvrtc_launcher.rs`（ignored，需 GPU 窗口）。
 
 use super::compile_program;
+use super::source::assemble_device_source;
 
 #[test]
 #[ignore = "需要 NVRTC 运行库（CUDA toolkit bin 在 PATH）；不需要 GPU"]
@@ -16,6 +17,7 @@ fn nvrtc_compiles_product_device_source() {
         "mjwarp_collision_contact",
         "mjwarp_collision_hfield",
         "mjwarp_collision_sdf",
+        "mjwarp_collision_primitive",
     ] {
         assert!(
             text.contains(entry),
@@ -24,8 +26,9 @@ fn nvrtc_compiles_product_device_source() {
         );
     }
     println!(
-        "nvrtc_smoke_ok ptx_bytes={} entries=3 source_sha256={}",
+        "nvrtc_smoke_ok ptx_bytes={} entries=4 source_bytes={} source_sha256={}",
         text.len(),
+        assemble_device_source().len(),
         super::source::source_sha256()
     );
 }

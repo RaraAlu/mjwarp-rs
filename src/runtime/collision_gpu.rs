@@ -14,9 +14,12 @@
 mod abi;
 mod error;
 mod source;
+mod types;
 
 #[cfg(test)]
 mod nvrtc_smoke;
+#[cfg(test)]
+mod primitive_tests;
 #[cfg(test)]
 mod tests;
 
@@ -30,11 +33,13 @@ use cudarc::nvrtc::{CompileOptions, Ptx, compile_ptx_with_opts};
 
 use abi::{CollisionArgs, CollisionContactOut, validate_inputs};
 pub use error::CollisionGpuError;
+pub use types::{CollisionGpuInputs, CollisionGpuMeta, CollisionGpuOutput};
 
 /// 产品入口符号（与 `product.cu` 的 `extern "C" __global__` 一一对应）。
 const CONTACT_ENTRY: &str = "mjwarp_collision_contact";
 const HFIELD_ENTRY: &str = "mjwarp_collision_hfield";
 const SDF_ENTRY: &str = "mjwarp_collision_sdf";
+const PRIMITIVE_ENTRY: &str = "mjwarp_collision_primitive";
 
 /// 产品内核种类：决定 `run` 走哪条设备路径。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -45,109 +50,45 @@ pub enum CollisionKernel {
     Hfield,
     /// `mjwarp_collision_sdf`：SDF 单 pair 子集（每初始点一次下降）。
     Sdf,
+    /// `mjwarp_collision_primitive`：primitive narrowphase（SPHERE-BOX / CAPSULE-BOX）。
+    Primitive,
 }
 
-/// 设备侧标量参数（与探针 `meta.txt` 的标量一一对应，字段顺序即 ABI 顺序）。
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct CollisionGpuMeta {
-    pub nworld: i32,
-    pub ngeom: i32,
-    pub g1: i32,
-    pub g2: i32,
-    pub type1: i32,
-    pub type2: i32,
-    pub geomgeomid: i32,
-    pub naccdmax: i32,
-    pub hfield_id: i32,
-    pub oct_root: i32,
-    pub noct: i32,
-    pub tolerance: f32,
-    pub margin: f32,
-    pub gap: f32,
-    pub gjk_iterations: i32,
-    pub epa_iterations: i32,
-    pub condim: i32,
-    pub pairid0: i32,
-    pub pairid1: i32,
-    pub friction: [f32; 5],
-    pub solref: [f32; 2],
-    pub solreffriction: [f32; 2],
-    pub solimp: [f32; 5],
-    pub adhesion: f32,
-    pub sdf_initpoints: i32,
-    pub sdf_iterations: i32,
-    pub naconmax: i32,
-    pub efc_width: i32,
+/// 上游 `mjtGeom` 的 G5 设备常量（`support.cu::G5_SPHERE/G5_CAPSULE/G5_BOX`）；
+/// 这里只用于 `run` 的 CPU 侧组合校验，数值必须与设备源一致。
+const GEOM_SPHERE: i32 = 2;
+const GEOM_CAPSULE: i32 = 3;
+const GEOM_BOX: i32 = 6;
+
+/// primitive 入口只接受 {SPHERE,BOX} 与 {CAPSULE,BOX}（无序对；设备入口按 `type1/type2`
+/// 分派并在需要时交换几何）。其它组合返回 [`CollisionGpuError::InvalidArgument`]。
+pub(crate) fn validate_primitive_types(type1: i32, type2: i32) -> Result<(), CollisionGpuError> {
+    let sphere_box =
+        (type1 == GEOM_SPHERE && type2 == GEOM_BOX) || (type1 == GEOM_BOX && type2 == GEOM_SPHERE);
+    let capsule_box = (type1 == GEOM_CAPSULE && type2 == GEOM_BOX)
+        || (type1 == GEOM_BOX && type2 == GEOM_CAPSULE);
+    if sphere_box || capsule_box {
+        return Ok(());
+    }
+    Err(CollisionGpuError::InvalidArgument(
+        "primitive 只支持 SPHERE-BOX / CAPSULE-BOX 组合",
+    ))
 }
 
-/// 一次发射的 23 个宿主输入数组（与探针 `DeviceArrays` 相同的 slice 口径）。
-///
-/// 模型静态字段（mesh/hfield/octree）按上游口径与 world 无关：调用方给一份共享数据。
-#[derive(Clone, Copy, Debug)]
-pub struct CollisionGpuInputs<'a> {
-    pub geom_xpos: &'a [f32],
-    pub geom_xmat: &'a [f32],
-    pub geom_size: &'a [f32],
-    pub geom_margin: &'a [f32],
-    pub geom_gap: &'a [f32],
-    pub geom_rbound: &'a [f32],
-    pub geom_aabb: &'a [f32],
-    pub geom_type: &'a [i32],
-    pub geom_dataid: &'a [i32],
-    pub mesh_vertadr: &'a [i32],
-    pub mesh_vertnum: &'a [i32],
-    pub mesh_graphadr: &'a [i32],
-    pub mesh_octadr: &'a [i32],
-    pub mesh_vert: &'a [f32],
-    pub mesh_graph: &'a [i32],
-    pub hfield_size: &'a [f32],
-    pub hfield_nrow: &'a [i32],
-    pub hfield_ncol: &'a [i32],
-    pub hfield_adr: &'a [i32],
-    pub hfield_data: &'a [f32],
-    pub oct_aabb: &'a [f32],
-    pub oct_child: &'a [i32],
-    pub oct_coeff: &'a [f32],
-    pub meta: CollisionGpuMeta,
-}
-
-/// 回读结果：数组字段只保留前 `nacon` 行（与探针 `out1/` 落盘口径一致）。
-#[derive(Clone, Debug)]
-pub struct CollisionGpuOutput {
-    pub nacon: i32,
-    pub nccd: i32,
-    /// 长度 = `nworld`（每 world 的 `OverflowType` 位汇总）。
-    pub overflow: Vec<u32>,
-    pub dist: Vec<f32>,
-    pub pos: Vec<f32>,
-    pub frame: Vec<f32>,
-    pub includemargin: Vec<f32>,
-    pub friction: Vec<f32>,
-    pub solref: Vec<f32>,
-    pub solreffriction: Vec<f32>,
-    pub solimp: Vec<f32>,
-    pub adhesion: Vec<f32>,
-    pub dim: Vec<i32>,
-    pub geom: Vec<i32>,
-    pub efc_address: Vec<i32>,
-    pub worldid: Vec<i32>,
-    pub contact_type: Vec<i32>,
-    pub geomcollisionid: Vec<i32>,
-}
-
-/// 已编译并加载的产品程序（一个上下文、一个模块、三个入口、默认流）。
+/// 已编译并加载的产品程序（一个上下文、一个模块、四个入口、默认流）。
 pub struct CollisionGpuProgram {
     context: Arc<CudaContext>,
-    /// 模块由三个 `CudaFunction` 共同持有；字段仅为显式表达生命周期。
+    /// 模块由四个 `CudaFunction` 共同持有；字段仅为显式表达生命周期。
     _module: Arc<CudaModule>,
     contact: CudaFunction,
     hfield: CudaFunction,
     sdf: CudaFunction,
+    primitive: CudaFunction,
     stream: Arc<CudaStream>,
 }
 
 impl CollisionGpuProgram {
-    /// 编译设备源并在 `device` 上加载三个入口。
+    /// 编译设备源并在 `device` 上加载四个入口。
     pub fn new(device: usize) -> Result<Self, CollisionGpuError> {
         let ptx = compile_program()?;
         let context = CudaContext::new(device)
@@ -171,6 +112,9 @@ impl CollisionGpuProgram {
         validate_inputs(inputs)?;
         let stream = &self.stream;
         let meta = &inputs.meta;
+        if kind == CollisionKernel::Primitive {
+            validate_primitive_types(meta.type1, meta.type2)?;
+        }
         let naconmax = meta.naconmax as usize;
         let efc_width = meta.efc_width as usize;
 
@@ -306,6 +250,7 @@ impl CollisionGpuProgram {
             CollisionKernel::Contact => &self.contact,
             CollisionKernel::Hfield => &self.hfield,
             CollisionKernel::Sdf => &self.sdf,
+            CollisionKernel::Primitive => &self.primitive,
         };
         let mut builder = stream.launch_builder(function);
         builder.arg(&args);
@@ -400,7 +345,7 @@ pub(crate) fn compile_program() -> Result<Ptx, CollisionGpuError> {
     })
 }
 
-/// 加载模块与三个入口（无 GPU 时不调用）。
+/// 加载模块与四个入口（无 GPU 时不调用）。
 pub(crate) fn load_program(
     context: Arc<CudaContext>,
     ptx: Ptx,
@@ -416,6 +361,7 @@ pub(crate) fn load_program(
     let contact = load(CONTACT_ENTRY)?;
     let hfield = load(HFIELD_ENTRY)?;
     let sdf = load(SDF_ENTRY)?;
+    let primitive = load(PRIMITIVE_ENTRY)?;
     let stream = context.default_stream();
     Ok(CollisionGpuProgram {
         context,
@@ -423,6 +369,7 @@ pub(crate) fn load_program(
         contact,
         hfield,
         sdf,
+        primitive,
         stream,
     })
 }

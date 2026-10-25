@@ -5,7 +5,7 @@
     "zh": "G10@P5 设备缺口片：primitive narrowphase 设备版（sphere-box / capsule-box 等）",
     "en": "Device gap: primitive narrowphase on device (sphere-box / capsule-box etc.)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "上游 dispatch 中 (SPHERE,BOX)/(CAPSULE,BOX) 等组合走 `primitive_narrowphase`，设备侧未实装（G6 map UNC-3），因此这些组合没有设备接触证据。本片按 pinned 上游语义实装设备 primitive narrowphase，并用同配方上游 f32 GPU 参考做判据对照；不覆盖的 case 如实记未覆盖。",
     "en": "Implement device-side primitive narrowphase for the dispatch cases handled by upstream primitive_narrowphase, validated against same-recipe upstream f32 GPU reference."
@@ -25,6 +25,7 @@
     "owner": "Backend",
     "files": [
       "src/physics/",
+      "src/runtime/",
       "tests/",
       "docs/development-evidence/g10-p5-primitive-narrowphase-cuda/"
     ],
@@ -32,15 +33,46 @@
     "priority": 55
   },
   "note": "Arch 2026-10-25 登记（G6 map G6-2.1/UNC-3 的补齐切片）。建议顺序：NVRTC launcher → 本片 → multicontact。需要新的上游 f32 GPU 参考捕获（authoring；GPU 占用小但要窗口审批），与其它 GPU 任务串行。",
-  "revision": {"before": null, "after": null},
+  "revision": {
+    "before": "c1710e41107755eb4e7e5fb518b6499c27a97407",
+    "after": null
+  },
   "created_at": "2026-10-25T13:10:00.000Z",
-  "updated_at": "2026-10-25T13:10:00.000Z",
+  "updated_at": "2026-10-25T15:02:26.296Z",
+  "closed_at": "2026-10-25T15:02:26.296Z",
   "checks": [
-    {"kind": "gate", "gate": "fmt"},
-    {"kind": "gate", "gate": "clippy"},
-    {"kind": "gate", "gate": "clippy-cuda"},
-    {"kind": "gate", "gate": "unit"},
-    {"kind": "json", "path": "docs/development-evidence/g10-p5-primitive-narrowphase-cuda/receipt.json", "pointer": "/task_id", "equals": "2026-10-25-g10-p5-primitive-narrowphase-cuda"},
-    {"kind": "forbid_claim", "terms": ["G10已实现", "完整物理通过", "双平台通过", "上游完全等价", "原生放行", "精度达标"]}
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-primitive-narrowphase-cuda/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-primitive-narrowphase-cuda"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
   ]
 }

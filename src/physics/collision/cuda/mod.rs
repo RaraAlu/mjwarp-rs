@@ -47,3 +47,9 @@ pub(crate) const HFIELD_CUDA: &str = include_str!("hfield.cu");
 /// `collision_convex.py::eval_ccd_write_contact` 对应：`worldid`/`efc_address`/`OverflowType`、
 /// `naconmax`/`naccdmax` 截断不越界）。
 pub(crate) const CONTACT_CUDA: &str = include_str!("contact.cu");
+/// primitive narrowphase 数值内核（与上游 `collision_primitive_core.py::sphere_box` /
+/// `capsule_box` 逐式对应）。
+pub(crate) const PRIMITIVE_CUDA: &str = include_str!("primitive.cu");
+/// primitive wrapper 接触写入（与上游 `collision_primitive.py::sphere_box_wrapper` /
+/// `capsule_box_wrapper` 对应：`write_contact` 的 `id_` 序号与计数门）。
+pub(crate) const PRIMITIVE_WRAPPER_CUDA: &str = include_str!("primitive_wrapper.cu");

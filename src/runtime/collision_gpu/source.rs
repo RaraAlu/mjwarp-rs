@@ -1,11 +1,11 @@
 //! G10@P5：产品 NVRTC 设备源拼装。
 //!
-//! 设备源由 `src/physics/collision/cuda/*.cu` 的 14 个片段按**依赖拓扑序**拼接
+//! 设备源由 `src/physics/collision/cuda/*.cu` 的 16 个片段按**依赖拓扑序**拼接
 //! （被依赖文件在前：common→geom→support→simplex→gjk_core→polytope→polytope_build→
-//! epa→ccd→sdf_octree→sdf_math→sdf_narrowphase→hfield→contact），最后追加产品入口
-//! `product.cu`。拼接前删除各片段里的本地 `#include "xxx.cu"` 行（只删引号 `.cu`），
-//! 其它 `#include` 与 `#pragma once` 原样保留：NVRTC 把拼好的整串当作**一个**
-//! 翻译单元编译，本地 include 会重复展开。
+//! epa→ccd→sdf_octree→sdf_math→sdf_narrowphase→hfield→contact→primitive→
+//! primitive_wrapper），最后追加产品入口 `product.cu`。拼接前删除各片段里的本地
+//! `#include "xxx.cu"` 行（只删引号 `.cu`），其它 `#include` 与 `#pragma once` 原样保留：
+//! NVRTC 把拼好的整串当作**一个**翻译单元编译，本地 include 会重复展开。
 //!
 //! 拼装结果只由设备源内容决定（无时间戳/绝对路径），故 `source_sha256` 可作设备源指纹。
 
@@ -13,12 +13,12 @@ use sha2::{Digest, Sha256};
 
 use crate::physics::{
     CCD_CUDA, COMMON_CUDA, CONTACT_CUDA, EPA_CUDA, GEOM_CUDA, GJK_CORE_CUDA, HFIELD_CUDA,
-    POLYTOPE_BUILD_CUDA, POLYTOPE_CUDA, SDF_MATH_CUDA, SDF_NARROWPHASE_CUDA, SDF_OCTREE_CUDA,
-    SIMPLEX_CUDA, SUPPORT_CUDA,
+    POLYTOPE_BUILD_CUDA, POLYTOPE_CUDA, PRIMITIVE_CUDA, PRIMITIVE_WRAPPER_CUDA, SDF_MATH_CUDA,
+    SDF_NARROWPHASE_CUDA, SDF_OCTREE_CUDA, SIMPLEX_CUDA, SUPPORT_CUDA,
 };
 
 /// 设备源片段与固定拼装顺序（`(文件名, 内容)`，依赖在前）。
-pub(crate) const DEVICE_SOURCES: [(&str, &str); 14] = [
+pub(crate) const DEVICE_SOURCES: [(&str, &str); 16] = [
     ("common.cu", COMMON_CUDA),
     ("geom.cu", GEOM_CUDA),
     ("support.cu", SUPPORT_CUDA),
@@ -33,6 +33,8 @@ pub(crate) const DEVICE_SOURCES: [(&str, &str); 14] = [
     ("sdf_narrowphase.cu", SDF_NARROWPHASE_CUDA),
     ("hfield.cu", HFIELD_CUDA),
     ("contact.cu", CONTACT_CUDA),
+    ("primitive.cu", PRIMITIVE_CUDA),
+    ("primitive_wrapper.cu", PRIMITIVE_WRAPPER_CUDA),
 ];
 
 /// 产品侧 CUDA 入口（追加在拼接结果最后；`d_contact_out` 等由前面的片段提供）。
