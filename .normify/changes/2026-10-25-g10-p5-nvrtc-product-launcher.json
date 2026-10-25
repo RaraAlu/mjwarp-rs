@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-nvrtc-product-launcher",
+  "title": {
+    "zh": "G10@P5 设备缺口片：NVRTC 产品 launcher 接线（产品 GPU 入口可用）",
+    "en": "Device gap: wire the NVRTC product launcher (usable product GPU entry)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "G5 只有独立 nvcc 探针验证设备源，产品 launcher（`src/runtime/collision_gpu.rs` + ignored 产品入口）未接线（G5 receipt unmet，G6 map UNC-2）——G10@P5 的 GPU 内核目前没有产品级入口。本片实现/接线 NVRTC 运行时编译与产品入口，使产品路径可实际调用设备内核；**不改变数值语义**（验收以「与 G5 探针输出位级一致」为准）。",
+    "en": "Wire the product GPU entry via NVRTC so the device kernels are reachable from product code, with output bitwise-equal to the G5 probe."
+  },
+  "modules": {},
+  "acceptance": [
+    "产品入口经 NVRTC 实际可调用：运行时编译设备源（或明确记录预编译路径及其与 NVRTC 的关系），给出可重复的构建/运行命令；不得只有 `#[ignore]` 测试而无产品路径。",
+    "与探针对照：至少 `hfield-sphere`、`sdf-box`、`ellipsoid-box` 三个 case，产品入口输出与 G5 探针输出按既有判据一致（dist/pos/frame ULP、结构字段零容差；能位级比较的位级比较），不一致即阻断并报告。",
+    "错误路径：NVRTC 编译失败、无可用 GPU 时返回明确错误、不 panic；有单元测试覆盖（可 CPU 侧用 mock/错误注入，不要求真 GPU）。",
+    "不改精度判据/已 verified 数字、不引入 f16/TF32；证据目录 `docs/development-evidence/g10-p5-nvrtc-product-launcher/`（README + receipt 含 task_id）；门禁 fmt/clippy/clippy-cuda/unit；GPU 测试窗口须先报 Arch 基线并经 Arch+Chief 双签（同一时间只一个 GPU 满载任务）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-gpu-kernels"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/physics/",
+      "src/runtime/",
+      "tests/",
+      "docs/development-evidence/g10-p5-nvrtc-product-launcher/"
+    ],
+    "resources": [],
+    "priority": 58
+  },
+  "note": "Arch 2026-10-25 登记（G6 map G6-2.1/UNC-2 的补齐切片之一）。三片设备缺口的建议顺序：NVRTC launcher（本片，产品可用性优先、不改数值语义）→ primitive narrowphase（补窄相覆盖）→ multicontact（接触数组对齐，工作量最大）。每片都需 GPU authoring 或窗口，排期由 Arch 统一串行、开窗前报基线双签。",
+  "revision": {"before": null, "after": null},
+  "created_at": "2026-10-25T13:10:00.000Z",
+  "updated_at": "2026-10-25T13:10:00.000Z",
+  "checks": [
+    {"kind": "gate", "gate": "fmt"},
+    {"kind": "gate", "gate": "clippy"},
+    {"kind": "gate", "gate": "clippy-cuda"},
+    {"kind": "gate", "gate": "unit"},
+    {"kind": "json", "path": "docs/development-evidence/g10-p5-nvrtc-product-launcher/receipt.json", "pointer": "/task_id", "equals": "2026-10-25-g10-p5-nvrtc-product-launcher"},
+    {"kind": "forbid_claim", "terms": ["G10已实现", "完整物理通过", "双平台通过", "上游完全等价", "原生放行", "精度达标"]}
+  ]
+}

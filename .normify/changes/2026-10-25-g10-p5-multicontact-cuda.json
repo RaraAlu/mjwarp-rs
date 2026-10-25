@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-multicontact-cuda",
+  "title": {
+    "zh": "G10@P5 设备缺口片：multicontact 设备版（ccd_pair ≤4 接触写入）",
+    "en": "Device gap: multicontact contact writing on device (ccd_pair up to 4 contacts)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "设备 `ccd_pair` 写接触当前只有单接触路径；上游 `eval_ccd_write_contact` 在 box/mesh/cylinder 组合走 multicontact（≤4 接触），G5 三例只做 `ccd()` witness 对照、接触数组不做全等（G5 receipt unmet，G6 map UNC-1）。本片按上游语义实装设备 multicontact 接触生成，并用同配方上游 f32 GPU 参考的接触数组做判据对照。",
+    "en": "Implement device-side multicontact writing (up to 4 contacts per pair) matching upstream eval_ccd_write_contact, validated against upstream f32 GPU contact arrays."
+  },
+  "modules": {},
+  "acceptance": [
+    "按 pinned 上游 `eval_ccd_write_contact` 的 multicontact 分支实装设备接触生成（≤4 接触、接触顺序与槽位语义、`multiccd_idx` 规则），逐项列出实现对照表；单接触路径不得回退。",
+    "参考与判据：pinned 上游 f32 GPU 接触数组（authoring 捕获，窗口审批）；判据沿用既有口径（`dist` 自身量级 ULP、`pos` 向量尺度 4·ULP(scale)、`frame`/`normal` scale=1.0 的 4 ULP、结构字段零容差），接触数组按 G5 已定口径排序后逐字段比较，worldid 归属/atomic 竞态按 G5 已定处理。",
+    "覆盖 case：`cylinder-box`、`box-box-margin`、`mesh-mesh`（与 G5 已验收 3 witness case 对应）+ 至少 1 个多点接触场景；无法造参考的 case 记未覆盖，不伪造。",
+    "不改已批准判据/已 verified 数字、不改 `Cargo.*`/fixtures XML/S2–S8；证据目录 `docs/development-evidence/g10-p5-multicontact-cuda/`；门禁 fmt/clippy/clippy-cuda/unit；GPU authoring/窗口先报 Arch 基线并经 Arch+Chief 双签。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-gpu-kernels"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/physics/",
+      "tests/",
+      "docs/development-evidence/g10-p5-multicontact-cuda/"
+    ],
+    "resources": [],
+    "priority": 50
+  },
+  "note": "Arch 2026-10-25 登记（G6 map G6-2.1/UNC-1 的补齐切片）。建议顺序：NVRTC launcher → primitive narrowphase → 本片（工作量最大、参考捕获最重）。需要新的上游 f32 GPU 接触数组参考（authoring），与其它 GPU 任务串行；完成前 G10@P5 声明仍不得覆盖设备 multicontact 路径。",
+  "revision": {"before": null, "after": null},
+  "created_at": "2026-10-25T13:10:00.000Z",
+  "updated_at": "2026-10-25T13:10:00.000Z",
+  "checks": [
+    {"kind": "gate", "gate": "fmt"},
+    {"kind": "gate", "gate": "clippy"},
+    {"kind": "gate", "gate": "clippy-cuda"},
+    {"kind": "gate", "gate": "unit"},
+    {"kind": "json", "path": "docs/development-evidence/g10-p5-multicontact-cuda/receipt.json", "pointer": "/task_id", "equals": "2026-10-25-g10-p5-multicontact-cuda"},
+    {"kind": "forbid_claim", "terms": ["G10已实现", "完整物理通过", "双平台通过", "上游完全等价", "原生放行", "精度达标"]}
+  ]
+}
