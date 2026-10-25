@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-cuda-default-pipeline-independent-check",
+  "title": {
+    "zh": "G10@P5 CUDA 默认管线接线片的 QA 独立复核（选项量化/回退语义/等价对照）",
+    "en": "Independent check of the CUDA default-pipeline wiring slice (option measurements, fallback semantics, equivalence)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-g10-p5-cuda-default-pipeline` 做独立复核：阶段 1 独立重测三种选项的构建时间/体积/CI 可构建性影响（不引用交付数字），核回退语义与错误路径描述是否可执行；阶段 2（若已实现）独立验「无 CUDA 时与 Host 逐值一致」「有 CUDA 时 9 case host vs device 接触数组逐字段一致」，并核不宣称口径。不改交付任何数字。",
+    "en": "Independently re-measure the option impacts, verify fallback semantics and the host/device equivalence, and check the non-claim wording."
+  },
+  "modules": {},
+  "acceptance": [
+    "**阶段 1 复核**：独立重测至少「默认 `cargo build` 与 `cargo test --lib` 耗时」「开/关候选特性后的产物体积」「无 CUDA 工具链机器可构建性（可用 `target` 分离目录实测或明确记录无法实测的原因）」，与交付数字逐项对照并列差异；核 DESIGN 的回退语义是否可执行（错误码/文案/不 panic 路径是否落到代码或测试计划）。",
+    "**阶段 2 复核（若已实现）**：自建/复用独立 harness 验证「无 CUDA 时 Host 路径逐值不变」与「有 CUDA 时 9 case host vs device 逐字段一致」；不得直接引用交付的汇总数字；GPU 窗口须先报 Arch 基线、经 Arch 审查后开窗（与其它 GPU 任务串行）。",
+    "**口径**：核证据是否避免宣称「默认管线已具备 CUDA 入口」（阶段 2 未通过时）/精度达标/上游完全等价/双平台通过/原生放行；核证据目录无 `.bin`/`.pyc`/构建产物，UTF-8 无 BOM、单文件 ≤500 行；门禁 fmt/clippy/clippy-cuda/unit 全绿。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-cuda-default-pipeline"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-cuda-default-pipeline-independent-check/"
+    ],
+    "resources": [],
+    "priority": 56
+  },
+  "note": "Arch 2026-10-25 预登记（与实现片同批登记，按「QA 复核任务提前登记」约定）。若实现片的阶段 2 因用户拍板未落地，本复核只覆盖阶段 1，并在 README 明确记录阶段 2 未发生。",
+  "revision": {
+    "before": "fe3ca8babe504c1a49fad006cc0da9088223aa48",
+    "after": null
+  },
+  "created_at": "2026-10-25T16:06:00.000Z",
+  "updated_at": "2026-10-25T16:06:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-cuda-default-pipeline-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-cuda-default-pipeline-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

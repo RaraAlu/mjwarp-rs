@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-cuda-default-pipeline",
+  "title": {
+    "zh": "G10@P5 设备收尾片：CUDA 默认产品管线接线（阶段 1 依赖/CI 影响与设计稿；阶段 2 待用户拍板后实现）",
+    "en": "Device wrap-up: wire CUDA into the default product pipeline (stage 1: dependency/CI impact and design; stage 2 after user sign-off)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "G6 map UNC-2 现行状态：NVRTC 产品 launcher 经 `cuda-probe` 特性可用，但**默认产品管线没有 CUDA 入口**（默认构建不含 cudarc，碰撞始终走 host）。本片分两阶段：阶段 1 只做**决策支撑**——量化「把设备碰撞入口接进默认管线」的三种选项（① `cuda-probe` 转默认特性、cudarc 变必选；② 新增 `cuda` 特性默认开启、`--no-default-features` 可关；③ 保持 probe 门控、只加运行时后端选择层 + Host 回退）对默认构建时间/二进制体积/CI/默认行为/回退语义的影响，落设计稿；**阶段 2 须经 Arch 转 Chief 由用户拍板选定选项后**才实现，不改任何数值语义。",
+    "en": "Stage 1: measure and document the three options for reaching the device collision path from a default build. Stage 2 (after user sign-off): implement runtime backend selection with host fallback, numeric behavior unchanged."
+  },
+  "modules": {},
+  "acceptance": [
+    "**阶段 1（本片先做，无需新口径决策）**：选项对比至少覆盖三种——① `cuda-probe` 转默认特性（cudarc/libloading 变必选依赖）；② 新增 `cuda` 特性默认开启、可用 `--no-default-features` 关闭；③ 保持 `cuda-probe` 门控、仅在默认构建加入程里加运行时后端选择层与 Host 回退（GPU 分支仍特性门控）。逐项给出**实测**影响：默认 `cargo build`/`cargo test` 的耗时增量、产物体积增量、CI 无 CUDA 机器可构建性、默认行为是否变化、GPU 不可用/NVRTC 缺失时的回退语义与错误码；落 `docs/development-evidence/g10-p5-cuda-default-pipeline/DESIGN.md` + `receipt.json`。本阶段**不写产品代码、不改 Cargo 默认特性、不开 GPU 窗口**。",
+    "**阶段 2（待拍板，未拍板前不得开工）**：按选定选项实现运行时后端选择。无 CUDA 设备/NVRTC 缺失时：默认构建行为与当前 Host 路径**逐值一致**、不 panic、回退错误可诊断（含错误码与文案）；有 CUDA 时：G5 已冻结的 9 个 case 上 host vs device 接触数组逐字段一致（复用已入库参考与输入，不新捕获；能位级比较的位级比较，非位级按既有 4·ULP 判据）。不改 ABI、不改精度判据、不改已 verified 数字。",
+    "两阶段都不得改 `Cargo.lock` 依赖集合之外的已批准口径；证据目录 `docs/development-evidence/g10-p5-cuda-default-pipeline/`（README + DESIGN + receipt 含 task_id）；门禁 fmt/clippy/clippy-cuda/unit；GPU 窗口须先报 Arch 基线、经 Arch 审查后开窗（同一时间只一个 GPU 满载任务）。",
+    "不宣称「默认产品管线已具备 CUDA 入口」直到阶段 2 通过；不宣称精度达标/上游完全等价/双平台通过/原生放行。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-multicontact-cuda",
+      "2026-10-25-g10-p5-multicontact-cuda-independent-check"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/",
+      "Cargo.toml",
+      "tests/",
+      "docs/development-evidence/g10-p5-cuda-default-pipeline/"
+    ],
+    "resources": [],
+    "priority": 56
+  },
+  "note": "Arch 2026-10-25 登记。设备三缺口片（NVRTC launcher / primitive / multicontact）已全部 verified，G6 map UNC-2 剩余的一半就是「默认产品管线未接入」。阶段 1 是决策支撑（低后悔：无论选哪个选项都要先量依赖/CI 影响）；阶段 2 涉及默认构建依赖策略（cudarc 是否变必选）与默认行为语义，属口径/依赖策略决策，必须由用户拍板，Arch 只出候选与影响面、不宣称默认生效。若用户优先选择 render R05-R10 或 Linux/T4 集中回测，本片可 abandon 或转 backlog，阶段 1 产物留作参考。",
+  "revision": {
+    "before": "fe3ca8babe504c1a49fad006cc0da9088223aa48",
+    "after": null
+  },
+  "created_at": "2026-10-25T16:06:00.000Z",
+  "updated_at": "2026-10-25T16:06:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-cuda-default-pipeline/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-cuda-default-pipeline"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
