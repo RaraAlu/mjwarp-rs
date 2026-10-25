@@ -193,7 +193,8 @@ fn check_case(name: &str) {
         let other_rot = mat_rows[world][other_index];
         let pos2_hf =
             super::super::gjk::math::transpose_mul_mat3_vec(&hf_mat, sub3(other_pos, hf_pos));
-        let rot2_hf = super::driver::relative_matrix(&hf_mat, &other_rot);
+        let rot2_hf =
+            crate::physics::collision::relmat::upstream_relative_matrix(&hf_mat, &other_rot);
         let geom2 = Geom::simple(pos2_hf, rot2_hf, geom_size[other_index], 0.0);
         let input = HfieldInput {
             hfield: &hfield,

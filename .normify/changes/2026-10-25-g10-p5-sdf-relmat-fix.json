@@ -5,7 +5,7 @@
     "zh": "G10@P5 G3 修正片：产品相对旋转约定改为上游 transpose(rot1)*rot2，并补非单位旋转 SDF 验收",
     "en": "G10@P5 G3 fix slice: use upstream transpose(rot1)*rot2 in the product relative-rotation path and add a non-identity-rotation SDF acceptance case"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "修正 G3（`2026-10-25-g10-p5-sdf-host-r2`）遗留的约定偏差：上游 `collision_sdf.py:724` 定义 `rel_mat = transpose(rot1) * rot2`，而产品 `src/physics/collision/sdf/descent.rs::relative_matrix`（被 `gradient_descent` 在 `:198` 调用）在行优先 mat3 语义下构造出的是 `bᵀa`（正好转置）。G3 的 `sdf-box` case 因 geom1 恒为单位旋转（`aᵀb = bᵀa = b`）未暴露该偏差。本片把产品路径改为上游语义（复用 G5 已交付的 `src/physics/collision/relmat.rs::upstream_relative_matrix`，或就地改正并删掉重复的错误实现），并**新增一个两侧都带非单位旋转的 SDF case**，用同配方上游 f32（CPU）参考做位级/≤4 ULP 验收，证明修正确实对齐上游；同时重跑 G3 既有 `sdf-box` 80/80 位级回归确认未退化。只读核查已确认 hfield 产品 driver 不经该 helper（仅测试使用），故 G4 产品路径不受影响；测试 helper 一并改正以免后续用例被喂错旋转。",
     "en": "Fix the convention deviation left by G3 (task 2026-10-25-g10-p5-sdf-host-r2): upstream collision_sdf.py:724 defines rel_mat = transpose(rot1) * rot2, while the product src/physics/collision/sdf/descent.rs::relative_matrix (called by gradient_descent at line 198) builds bᵀa (exactly transposed) under row-major mat3 semantics. G3's sdf-box case hid this because geom1 has an identity rotation (aᵀb = bᵀa = b). This slice switches the product path to upstream semantics (reusing src/physics/collision/relmat.rs::upstream_relative_matrix delivered with G5, or fixing it in place and deleting the duplicate wrong implementation), and adds a new SDF case with non-identity rotations on both sides, accepted bit-level / <=4 ULP against a same-recipe upstream f32 CPU reference to prove the fix aligns with upstream; it also re-runs G3's existing sdf-box 80/80 bit-level regression to prove no regression. Read-only checks already confirmed the hfield product driver does not call that helper (tests only), so the G4 product path is unaffected; the test helper is corrected as well so later cases are not fed a wrong rotation."
@@ -43,7 +43,8 @@
     "after": null
   },
   "created_at": "2026-10-25T17:22:00.000Z",
-  "updated_at": "2026-10-25T10:55:19.140Z",
+  "updated_at": "2026-10-25T11:05:18.048Z",
+  "closed_at": "2026-10-25T11:05:18.048Z",
   "checks": [
     {
       "kind": "gate",

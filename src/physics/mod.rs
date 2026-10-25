@@ -8,6 +8,8 @@ pub use actuator::{
     transmission,
 };
 mod collision;
+/// G3 宿主 SDF 数学（相对旋转修正后）公开给集成测试/后续片：配对窄相与 octree 体积。
+pub use collision::sdf::{SdfContact, SdfPair, SdfShape, SdfType, VolumeData, sdf_pair_contacts};
 pub use collision::{
     BroadphaseError, BroadphaseFilter, BroadphaseModel, BroadphaseOptions, BroadphaseOutput,
     BroadphaseState, BroadphaseType, CcdContact, CcdOptions, CcdOutput, CcdResult, ContactOptions,

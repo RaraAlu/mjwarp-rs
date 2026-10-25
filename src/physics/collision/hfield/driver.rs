@@ -1,7 +1,7 @@
 //! 上游 `ccd_hfield_kernel` 的宿主实现：子网格棱柱扫描 + `ccd()` + 0..3 接触选择。
 
 use super::super::gjk::math::{
-    add3, cross3, dot3, length3, make_frame, mul_mat3_vec, scale3, sub3, transpose_mul_mat3_vec,
+    add3, cross3, dot3, length3, make_frame, mul_mat3_vec, scale3, sub3,
 };
 use super::super::gjk::{CcdOptions, Geom, ccd, geom_type};
 use super::{HfieldData, filter::hfield_filter};
@@ -51,20 +51,8 @@ pub struct HfieldInput<'a> {
     pub hf_pos: [f32; 3],
 }
 
-/// 上游相对旋转 `transpose(a) * b`（按 `mul_mat3_vec` 的列存储约定）。
-pub(crate) fn relative_matrix(a: &[f32; 9], b: &[f32; 9]) -> [f32; 9] {
-    let mut out = [0.0_f32; 9];
-    for column in 0..3 {
-        let mut basis = [0.0_f32; 3];
-        basis[column] = 1.0;
-        let vector = transpose_mul_mat3_vec(a, mul_mat3_vec(b, basis));
-        out[column * 3] = vector[0];
-        out[column * 3 + 1] = vector[1];
-        out[column * 3 + 2] = vector[2];
-    }
-    out
-}
-
+/// 上游相对旋转 `transpose(a) * b` 由 `relmat::upstream_relative_matrix` 提供（测试用；
+/// 产品路径把 geom2 变换到 hfield 局部帧由调用方完成）。旧版此处自带 `bᵀa` 构造，已删除。
 fn sum6(prism: &[[f32; 3]; 6]) -> [f32; 3] {
     let mut total = [0.0_f32; 3];
     for vertex in prism {

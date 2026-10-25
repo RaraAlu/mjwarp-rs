@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-sdf-relmat-fix",
+  "status": "incremental",
+  "outcome": "gate_pass_cpu_only",
+  "slice": "G3-fix",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "scope": {
+    "files": [
+      "src/physics/collision/sdf/descent.rs（relative_matrix 委托 relmat::upstream_relative_matrix）",
+      "src/physics/collision/hfield/driver.rs（删除 test-only relative_matrix）",
+      "src/physics/collision/hfield/tests.rs（改用 relmat::upstream_relative_matrix）",
+      "src/physics/mod.rs（SDF host 类型公开 re-export，供集成测试）",
+      "tests/g10_p5_sdf_relmat.rs（新集成测试：4 场景 80/80 位级 + sdf-box 80/80 + rel_mat 约定）",
+      "scripts/authoring/g10-p5/capture_sdf_rotation_references.py（离线上游 CPU 参考捕获）",
+      "fixtures/g10-p5/sdf-rotation/sdf-rotation-cpu.json（新夹具）",
+      "docs/development-evidence/g10-p5-sdf-relmat-fix/（README/capture-report/test-output/receipt）",
+      ".normify/changes/2026-10-25-g10-p5-sdf-host-r2.json（G3 加注记录）"
+    ],
+    "gpu_used": false,
+    "cuda_kernels_launched": false,
+    "cargo_changed": false,
+    "python_in_product_tests": false
+  },
+  "defects": {
+    "transpose": "旧 sdf/descent.rs::relative_matrix 按逐列构造得到 bᵀa；上游 collision_sdf.py:724 为 transpose(rot1)*rot2（行优先 aᵀb）。G3 sdf-box 两侧 identity 未暴露。",
+    "accumulation": "上游 warp/native/mat.h mul(mat,mat) 用 muladd(fmaf) 累加（k 升序）；旧实现普通乘加。不用 f32::mul_add（dev 档不融合），relmat.rs 用 f64 承载乘积+一次和再单次舍入（与 warp 位型一致）。",
+    "not_changed": "rel_pos=transpose(rot1)*(pos2-pos1)、x1=rel_mat*x+rel_pos、grad1=transpose(rel_mat)*grad1、pos=rot2*x+pos2、n=rot2*n 与上游逐句一致，无需改。"
+  },
+  "verification": {
+    "unit": "cargo test --locked：438 lib passed / 0 failed / 2 ignored；另 7 main + 各集成目标全过；新 test target g10_p5_sdf_relmat 4/4 passed",
+    "sdf_rotation_40of40": "4 个验收场景（sdf-rot-sdf/box/both/rz-rx，各 2 world × 40）全部 80/80 位级 0 ULP，dist/pos/frame max_abs=0；ident 对照同",
+    "sdf_box_regression": "G3 sdf-box 80/80 接触全字段位级（dist 80/80 位等 0 ULP、pos 0.00 ULP@尺度、frame 720/720 位等）",
+    "rel_mat_bits": "fixture rel_mat_warp 与 test-local f64-fma aᵀb 位级 10/10 world；其中 8/10 world 与 bᵀa 可区分（证明参考编码上游约定）",
+    "before_after": "修正前（旧 bᵀa+普通乘加，QA 实测）worst：sdf-rot-sdf dist 0.02352738/pos 0.314468365/frame 1.69082731；sdf-rot-box 0.037304197/0.324073061/1.968242764；sdf-rot-both 0.019736722/0.293807119/1.86429441；sdf-rot-rz-rx 0.058964811/0.317684852/1.933387578。仅修转置仍差：sdf-rot-both world0 25/40 位级（dist max 197 ULP/3.73e-8、pos 2.61e-8、frame 1.25e-6）、world1 1/40（256600 ULP/0.001911819、pos 0.061881057、frame 1.05115629）；本片两处同修后全场景 80/80 位级。",
+    "fixture": {
+      "path": "fixtures/g10-p5/sdf-rotation/sdf-rotation-cpu.json",
+      "sha256": "add06bda50263d6b36454e4f33814a963375793d40245c3c902aef826df55ab5",
+      "bytes": 119578,
+      "two_captures_bitwise_identical_all_scenes": true,
+      "acceptance_scenes": ["sdf-rot-sdf", "sdf-rot-box", "sdf-rot-both", "sdf-rot-rz-rx"]
+    },
+    "capture_script_sha256": "f7135f3123b9de73902fb449ee1f3ebdba348f922f0b910542feaf5f2e8617f8",
+    "capture_report": {
+      "path": "docs/development-evidence/g10-p5-sdf-relmat-fix/capture-report.json",
+      "sha256": "19a373be12a52aa2f6f6d9325a97d96f001ad143da8159b75b7e4bc39d553a2a"
+    },
+    "qa_cross_check": "与本片独立捕获 vs QA qa-sdf-rotation-cases.json（sha256 d7eeed76b4ce114fa386f9a2d4234e3d305562947dbeadff9c13bf6171ba616e）逐位相等：output/rel_mat_warp/qpos 全部场景 True",
+    "oct_files": "oct_aabb 62eb37506b594f76…（380,982）/oct_child 7e28b042dca6b63e…（507,976）/oct_coeff 3466f78e82a4164e…（507,976），新鲜采集与 fixtures/g10-p5/sdf-f32 逐字节一致",
+    "g3_addendum": "normify fix 2026-10-25-g10-p5-sdf-host-r2 已追加 fixes 记录（reason 指向本片证据；G3 revision/数值结论未改）",
+    "test_output": "docs/development-evidence/g10-p5-sdf-relmat-fix/test-output.txt",
+    "gate": "pass：normify gate 2026-10-25-g10-p5-sdf-relmat-fix exit 0（clippy/clippy-cuda/fmt/unit，unit 586 过 0 败）",
+    "g3_gate": "pass：normify gate 2026-10-25-g10-p5-sdf-host-r2 exit 0（同一树，clippy/clippy-cuda/fmt/unit，unit 586 过 0 败）"
+  },
+  "unmet": [
+    "本片只修 host SDF 路径；设备侧 cuda/common.cu rel_mat 已在 G5 修正（29894efb + 01690e53），本片未重复改设备侧、未在 GPU 复测",
+    "multicontact / primitive narrowphase / hfield 产品路径不涉及本片行为；hfield/driver.rs helper 仅测试使用（已删并改测试）",
+    "未跑 GPU、Linux/T4、性能基准（归 G6）；GPU 结果不外推跨硬件",
+    "不声称精度达标/上游完全等价/原生放行；判据范围仅上述 host SDF 场景"
+  ],
+  "artifacts": {
+    "readme": "docs/development-evidence/g10-p5-sdf-relmat-fix/README.md",
+    "fixture": "fixtures/g10-p5/sdf-rotation/sdf-rotation-cpu.json",
+    "authoring": "scripts/authoring/g10-p5/capture_sdf_rotation_references.py",
+    "test": "tests/g10_p5_sdf_relmat.rs"
+  }
+}

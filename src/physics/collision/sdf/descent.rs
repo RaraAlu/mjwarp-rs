@@ -5,6 +5,7 @@
 use super::super::gjk::math::{
     add3, dot3, mul_mat3_vec, normalize3, scale3, sub3, transpose_mul_mat3_vec,
 };
+use super::super::relmat;
 use super::{
     SdfShape, SdfType,
     octree::{sample_volume_grad, sample_volume_sdf},
@@ -167,18 +168,12 @@ pub fn gradient_step(
     (dist, x)
 }
 
-/// 相对旋转 `transpose(rot1) * rot2`；按 `mul_mat3_vec` 的列存储约定构造。
+/// 相对旋转 `transpose(rot1) * rot2`：与上游 `collision_sdf.py:724`（`params.rel_mat =
+/// wp.transpose(rot1) * rot2`）同语义，行优先 `rel[row][col] = Σ_k rot1[k][row] * rot2[k][col]`。
+/// 复用 `relmat::upstream_relative_matrix`（fma 链累加，对应上游 `warp/native/mat.h`
+/// `mul(mat,mat)` 的 `muladd`），不保留第二份同名实现。
 pub(crate) fn relative_matrix(rot1: &[f32; 9], rot2: &[f32; 9]) -> [f32; 9] {
-    let mut out = [0.0_f32; 9];
-    for column in 0..3 {
-        let mut basis = [0.0_f32; 3];
-        basis[column] = 1.0;
-        let vector = transpose_mul_mat3_vec(rot1, mul_mat3_vec(rot2, basis));
-        out[column * 3] = vector[0];
-        out[column * 3 + 1] = vector[1];
-        out[column * 3 + 2] = vector[2];
-    }
-    out
+    relmat::upstream_relative_matrix(rot1, rot2)
 }
 
 /// 上游 `gradient_descent`：`sdf_iterations` 次普通步 + 1 次 intersection 步，
