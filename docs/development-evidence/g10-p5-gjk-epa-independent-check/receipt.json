@@ -1,0 +1,175 @@
+{
+  "schema": 1,
+  "kind": "g10-p5-gjk-epa-independent-check",
+  "task_id": "2026-10-25-g10-p5-gjk-epa-independent-check",
+  "date": "2026-10-25",
+  "reviewed_commit": "900d1fe83c9ba8f0e972cdfbb775c3f8f1654c8b",
+  "reviewed_closure_commit": "735abafd",
+  "review_baseline_head": "6ae95eb4",
+  "head_during_review": "48eaf399",
+  "post_review_commits_note": "3b0cb082 (G0b fix), 475b4cf8 (public API + integration test restored), e190d5ec, governance; G2 narrowphase sources unchanged since 735abaf",
+  "outcome": "pass",
+  "blocking_findings": 0,
+  "scope": "QA independent review of G2 (task 2026-10-25-g10-p5-gjk-epa): independent CPU re-capture of the upstream mujoco_warp f32 reference and bitwise comparison with the delivered reference; independent recomputation of the 5-case ours-vs-upstream-f32 criterion table via QA's own Rust harness on the public API; reproduction of the 27 ULP root cause by swapping only pose inputs in the same binary; independent E-table recomputation to audit native-error-seed.json; gate/test truthfulness; reference-classification correction; scope/non-regression; and (GPU side item) CUDA two-capture re-check of the G0b fixtures. No product-code/fixture/original-evidence changes; no full G01.",
+  "method": {
+    "upstream_recapture": "qa_capture_upstream.py (mujoco_warp 3.15.0 / warp 1.15.0 CPU backend), two captures per case, 17 fields + geom_xpos/xmat",
+    "criterion_harness": "QA Rust crate target/qa-g2-harness, path dependency on product crate, public ccd_pair with options (tolerance 1e-6, cutoff 0, gjk 35, epa 35, margin 0, gap 0, use_multiccd true), QA-written input construction and ULP comparator",
+    "gpu_side_item": "qa_g0b_cuda_recapture.py on cuda:0, two captures per G0b case, bitwise vs delivered fixtures"
+  },
+  "upstream_reference": {
+    "provenance_ok": true,
+    "versions": {"python": "3.12.13", "mujoco": "3.15.0", "warp": "1.15.0", "mujoco_warp": "3.15.0", "numpy": "2.5.4"},
+    "device": "cpu",
+    "script_sha_matches": true,
+    "xml_sha_and_qpos_bits_match": true,
+    "qa_two_captures_bitwise_identical": "5/5",
+    "qa_recapture_bitwise_equal_to_delivered": "5/5",
+    "counts": {"cylinder-box": 8, "ellipsoid-box": 2, "mesh-mesh": 2, "convex-mesh": 2, "degenerate-mesh": 2}
+  },
+  "criterion_table_qa": {
+    "criterion": "ours vs same-recipe upstream mujoco_warp f32 (CPU backend), dist/pos/frame/normal <=4 ULP, bitwise preferred; pos scaled-ULP, frame/normal absolute (1 ULP@1.0 = 1.192e-7)",
+    "cases": {
+      "cylinder-box": {"count": "8/8", "dist": "8/8 bitwise, 0 ULP", "pos": "8/8 bitwise, 0", "frame": "72/72 bitwise, 0", "id_mismatch": 0, "pass": true},
+      "ellipsoid-box": {"count": "2/2", "dist": "2/2 bitwise, 0 ULP", "pos": "1/2 bitwise, 2.00 ULP@scale", "frame": "13/18 bitwise, max abs 3.838112e-7 (3.22 ULP@1)", "id_mismatch": 0, "pass": true},
+      "mesh-mesh": {"count": "2/2", "dist": "1/2 bitwise, 2 ULP", "pos": "2/2 bitwise, 0", "frame": "18/18 bitwise, 0", "id_mismatch": 0, "pass": true},
+      "convex-mesh": {"count": "2/2", "dist": "2/2 bitwise, 0 ULP", "pos": "2/2 bitwise, 0", "frame": "18/18 bitwise, 0", "id_mismatch": 0, "pass": true},
+      "degenerate-mesh": {"count": "2/2", "dist": "0/2 bitwise, 1 ULP", "pos": "2/2 bitwise, 0", "frame": "18/18 bitwise, 0", "id_mismatch": 0, "pass": true}
+    },
+    "all_cases_within_4ulp": true,
+    "all_field_bitwise_cases": ["cylinder-box", "convex-mesh"],
+    "matches_delivered_table": true
+  },
+  "root_cause_27ulp": {
+    "native_pose_input_degenerate_dist_max_ulp": 27,
+    "upstream_f32_pose_input_degenerate_dist_max_ulp": 1,
+    "same_binary_and_options": true,
+    "narrowphase_case_specific_tuning": false,
+    "narrowphase_source_case_name_hits": 0,
+    "verdict": "root cause is the input pose derivation (native f64 mj_forward -> f32 vs upstream mujoco_warp f32 kinematics); narrowphase expressions unchanged by the case"
+  },
+  "native_error_seed": {
+    "qa_recomputed": {"count": 208, "min": 0.0, "median": 0.0, "max": 8.1928766e-07, "over_1e6_ratio": 0.0},
+    "matches_delivered_seed": {"ours_vs_native": true, "mjwarp_vs_native": true},
+    "used_as_tolerance": false,
+    "gate_thresholds_are_source_constants": true
+  },
+  "gate_truthfulness": {
+    "gate_test": "physics::collision::gjk::case_evidence::upstream_f32_within_4ulp",
+    "gate_test_non_ignore": true,
+    "gate_assertions": ["count equality", "dist_max_ulp <= 4", "pos_max_scaled_ulp <= 4.0", "frame_max_abs <= 4.8e-7"],
+    "qa_run": "3 passed / 0 failed / 0 ignored",
+    "native_bitwise_exploration_ignored": true,
+    "print_only_tests_named_within_4ulp_only_assert_count": true
+  },
+  "classification_correction": {
+    "upstream_table_read": "collision_driver.MJ_COLLISION_TABLE + NATIVECCD override ((BOX,BOX)->PRIMITIVE when disabled)",
+    "convex_cases_used_by_g2": ["cylinder-box", "ellipsoid-box", "mesh-mesh", "convex-mesh", "degenerate-mesh"],
+    "primitive_not_gjk": ["sphere-box-shallow", "sphere-box-deep", "capsule-box", "box-box-margin", "box-box-multiccd(d04)"],
+    "g2_evidence_does_not_claim_primitive_as_gjk_coverage": true,
+    "shrink_branch_without_convex_reference_listed_in_unmet": true
+  },
+  "scope_non_regression": {
+    "900d1fe_files": 27,
+    "outside_declared_paths": 0,
+    "cargo_files_changed": false,
+    "existing_narrowphase_files_changed": false,
+    "s2_s8_evidence_touched": false,
+    "fixtures_touched": false,
+    "tests_gjk_epa_removed_at_735abaf": true,
+    "tests_gjk_epa_pending_copy_exists": true,
+    "full_suite_at_head_1be51332": {"passed": 561, "failed": 0, "ignored": 1},
+    "unit_gate_artifact_735abaf": {"passed": 558, "failed": 0, "ignored": 1},
+    "fmt_check": "pass"
+  },
+  "gpu_side_item_g0b_cuda": {
+    "opened_at_memory_mib": 4137,
+    "script_before_mib": 4353,
+    "script_after_mib": 4455,
+    "post_exit_memory_mib": 4137,
+    "no_task_compute_process_after": true,
+    "approx_window": "about 2 minutes (first CUDA kernel compilation included)",
+    "g0b_cases": 10,
+    "counts_match_delivered": "10/10",
+    "two_captures_raw_identical": "9/10 (sdf-box raw order unstable, matching delivered raw=false)",
+    "matches_delivered_sorted_full_fields": "10/10",
+    "raw_order_cross_run_differs": true,
+    "note": "message channel did not allow a mid-turn heads-up; start/end memory reported here"
+  },
+  "evidence_integrity": {
+    "qa_evidence_checks": 31,
+    "qa_evidence_checks_failed": 0,
+    "delivered_g2_evidence_files_unchanged_since_735abaf": true,
+    "review_baseline_note": "post-review commits did not touch G2 narrowphase sources; the reviewed commits are unchanged"
+  },
+  "problems": [
+    {
+      "severity": "一般",
+      "title": "gjk-epa-run.log 是中间态，不构成最终判据证据",
+      "detail": "日志不含最终 f32 判据的 [判据] 表，且仍引用已删除的 case_compare::input_aligned_contract / ccd_contacts_match_pinned_reference；README §7 称其为单测+集成完整输出。",
+      "expected": "重跑最终套件生成日志，或注明为中间态",
+      "actual": "最终判据的日志证据缺失（测试本身可运行且通过）",
+      "recommendation": "normify fix：重新生成 gjk-epa-run.log 或注明"
+    },
+    {
+      "severity": "建议",
+      "title": "判据测试模块路径与复现命令写错",
+      "detail": "receipt final_criterion.gate_test 与 README §9 写 case_compare::upstream_f32_within_4ulp；实际在 case_evidence::upstream_f32_within_4ulp。receipt reproduction.strict_contract_ignored 指向已删除的 input_aligned_contract。",
+      "expected": "模块路径与实际可执行命令一致",
+      "actual": "不可直接执行的复现命令",
+      "recommendation": "normify fix"
+    },
+    {
+      "severity": "建议",
+      "title": "unit 计数不一致",
+      "detail": "receipt=555、README=557、同提交 gate artifact=558；HEAD 1be51332 实跑=561（API 片重新落地 3 个集成测试）。",
+      "expected": "同一提交内统一为实测值",
+      "actual": "三处不一致",
+      "recommendation": "normify fix"
+    },
+    {
+      "severity": "建议",
+      "title": "README §3 旧 native 对照表与 §7 命令过期",
+      "detail": "§3 保留旧 native 表（18 ULP 等）且 §7 写 --test gjk_epa，而该测试目标在 735abaf 已移出仓库；与 §9 最终口径/§10 说明冲突。",
+      "expected": "标注为探索性/历史，更新命令",
+      "actual": "易误读",
+      "recommendation": "normify fix"
+    },
+    {
+      "severity": "建议",
+      "title": "case_compare.rs 行数陈旧",
+      "detail": "receipt artifacts.test.lines=445，实际 455 行（<500 不影响棘轮）。",
+      "expected": "刷新数字",
+      "actual": "陈旧",
+      "recommendation": "normify fix"
+    }
+  ],
+  "limitations": [
+    "开发期未提交历史不可审计：用同一二进制只换输入位姿证明 27→1 ULP 的来源，但无法证明开发过程中是否存在过临时调参后回退（无提交可查）。",
+    "位级未全达成：2/5 case 全字段位级，其余 1–3.22 ULP；不声称与上游数值完全一致。",
+    "5 个 CONVEX case 是采样面，不是全组合矩阵；MESH graph hillclimb、HFIELD/TRIANGLE/FLEX、hfield 四接触、SDF、flex 路径未由本片数值覆盖（交付 unmet 已列）。",
+    "只覆盖 CPU 宿主机；G5 GPU 内核同口径对照未做。",
+    "native 容差未批准、未被本片当放行依据；E 表仅作记录校核。",
+    "未跑全量 G01；G2 无构建配置变更。",
+    "共享工作区有无关 WIP（G1）导致产品 crate 暂不可编译，QA harness 最终构建于 HEAD 的 git worktree（运行后已移除）；仓库根 Cargo.* 未改动。"
+  ],
+  "not_claimed": [
+    "G10 cumulative implementation",
+    "physics overall pass",
+    "dual-platform pass",
+    "full bitwise equality with upstream",
+    "gate approval by Arch for any relaxed tolerance"
+  ],
+  "gates": {
+    "fmt": "pass",
+    "json_receipt_task_id": "pass",
+    "forbid_claim_terms": "none"
+  },
+  "artifacts": [
+    "README.md", "receipt.json", "qa-upstream-mjwarp-f32.json", "qa-case-inputs.json",
+    "harness-report.json", "harness-run.log", "capture-rerun.log",
+    "evidence_check_report.json", "unit-full.log", "g0b-cuda-recapture.json",
+    "g0b-cuda-recapture.log", "delivered-unit-gate-735abaf.json",
+    "qa_capture_upstream.py", "qa_evidence_check.py", "qa_g0b_cuda_recapture.py",
+    "qa_count_tests.py", "harness/Cargo.toml", "harness/main.rs"
+  ]
+}
