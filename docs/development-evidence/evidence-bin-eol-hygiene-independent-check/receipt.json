@@ -1,0 +1,175 @@
+{
+ "schema": 1,
+ "task_id": "2026-10-25-evidence-bin-eol-hygiene-independent-check",
+ "kind": "qa-independent-review",
+ "status": "final",
+ "reviewed": {
+  "task": "2026-10-25-evidence-bin-eol-hygiene",
+  "commit": "526e7659",
+  "parent": "52609f5e",
+  "pre_fix": "e00de497",
+  "title": "证据二进制 checkout 卫生修复（.gitattributes 加 -text/-diff 规则）"
+ },
+ "verdict": {
+  "conclusion": "pass",
+  "blocking": 0,
+  "findings": 0,
+  "observations": 1,
+  "summary": "同一 core.autocrlf=true 配置下独立复现：修复前 fresh clone 7/1188 个二进制文件被纯 CRLF 插入破坏（全为 .bin，size +1/+2 恰等于 0x0A 个数），且 git status 干净（静默）；修复后 fresh clone 1188/1188 逐字节一致。主仓工作树 1188/1188 与 blob 一致；5 类共 1188 个文件全部 text:unset + diff:unset，控制项文本规则（fixtures/mjwarp-complex-physics/box-box.xml text eol=lf）未误伤。修复片 15 条变更仅 .gitattributes + .normify 记录 + 新增证据目录，线性历史、未动 Cargo.*/fixtures XML/S2–S8 证据。观察 1：原地升级不会自动修复已损坏工作树（需 git checkout -- . 或重新 clone），非阻断。"
+ },
+ "method": {
+  "independent": [
+   "自建两个 clone：target/qa-bin-eol-check（pre-fix 逆向判别）、target/qa-bin-eol-check-after（post-fix fresh 对照）；--shared --no-checkout，core.autocrlf=true + core.longpaths=true",
+   "逐文件 blob 原始字节（git cat-file --batch）vs 工作树原始字节：size/sha256/首个差异偏移/是否纯 \\n→\\r\\n 插入/\\n 个数",
+   "未复用 Backend 的 target/bin-eol、target/bin-eol-verify（存在但未读写内容/日志）",
+   "git check-attr 全量 1188 + 抽样 15（docs/development-evidence/**、docs/evidence/**、fixtures/**、include/**、src/**、.gitattributes）",
+   "git show --name-status 范围核对 + merge-base 祖先/线性历史核对"
+  ],
+  "product_tree_untouched": true,
+  "delivery_evidence_untouched": true,
+  "fixtures_untouched": true,
+  "gpu_used": false
+ },
+ "environment": {
+  "git": "2.53.0.windows.2",
+  "python": "3.12.13",
+  "platform": "Windows",
+  "repo_long_paths": true,
+  "clone_longpaths": true,
+  "autocrlf_in_clone": true,
+  "repo_head_at_run": "fa25e45fe582db2fe06d08e54fa188fc21e43921"
+ },
+ "scope_of_review": {
+  "extension_families": [".bin", ".f32", ".npz", ".gz", ".mjb"],
+  "tracked_counts_at_fix_commits": {".bin": 1130, ".f32": 4, ".npz": 6, ".gz": 22, ".mjb": 26},
+  "tracked_total_at_fix_commits": 1188,
+  "tracked_counts_at_head": {".bin": 1382, ".f32": 4, ".npz": 6, ".gz": 22, ".mjb": 26},
+  "tracked_total_at_head": 1440,
+  "head_note": "HEAD fa25e45f 比修复提交多 252 个 .bin（其后 Backend 的 ccd 溢出位修正片证据），新规则同样覆盖"
+ },
+ "results": {
+  "head_worktree": {
+   "head": "fa25e45fe582db2fe06d08e54fa188fc21e43921",
+   "tracked_binary": 1440,
+   "identical": 1440,
+   "mismatch_count": 0,
+   "note": "主仓工作树与 blob 逐字节一致（含修复提交后新增的 252 个 .bin）"
+  },
+  "attributes": {
+   "checked": 1440,
+   "text_unset": 1440,
+   "diff_unset": 1440,
+   "violations": 0,
+   "by_family": {
+    ".bin": {"checked": 1382, "text_unset": 1382, "diff_unset": 1382, "violations": 0},
+    ".f32": {"checked": 4, "text_unset": 4, "diff_unset": 4, "violations": 0},
+    ".npz": {"checked": 6, "text_unset": 6, "diff_unset": 6, "violations": 0},
+    ".gz": {"checked": 22, "text_unset": 22, "diff_unset": 22, "violations": 0},
+    ".mjb": {"checked": 26, "text_unset": 26, "diff_unset": 26, "violations": 0}
+   },
+   "at_fix_commits": {"checked": 1188, "text_unset": 1188, "diff_unset": 1188, "violations": 0},
+   "samples": 15,
+   "control_sample": {"path": "fixtures/mjwarp-complex-physics/box-box.xml", "text": "set", "eol": "lf", "note": "文本规则未被误伤"}
+  },
+  "pre_fix_fresh_clone": {
+   "commit": "e00de497",
+   "autocrlf": true,
+   "tracked_binary": 1188,
+   "corrupted": 7,
+   "mismatch_families": {".bin": 7},
+   "status_clean": true,
+   "status_note": "git status 为空：损坏是静默的",
+   "gitattributes_present": true,
+   "gitattributes_has_bin_rule": false,
+   "files": [
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/box-box-margin/geom_margin.bin", "size_before": 8, "size_after": 10, "delta": 2, "lf": 2, "pure_crlf": true, "first_diff": 0, "sha256_before": "71bd145b289665ed1a6f76fa379608f7067641dda9933724b20f7bca5b1529be", "sha256_after": "90aedc56309aa5155231ec054a79e8f59123060be8c7139e1b97b0f77191e841"},
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/box-box-margin/geom_size.bin", "size_before": 24, "size_after": 26, "delta": 2, "lf": 2, "pure_crlf": true, "first_diff": 4, "sha256_before": "4a47978227a7c450709ba2b1b24eb394982bac20117eecfe366f74b6a09996d2", "sha256_after": "c5ccb4b29ea4a8760ba7f55b868ce46dbe2866e811f05c8089d6a788e3cdbfc1"},
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/box-box-margin/out1/includemargin.bin", "size_before": 8, "size_after": 10, "delta": 2, "lf": 2, "pure_crlf": true, "first_diff": 0, "sha256_before": "e8bc1851972c560fbc0ffd9915c22e07f4877914d2a39d16f54ce08bc0ff98f2", "sha256_after": "32e4db88d8c7c91c430e385cd17aea0f8d9db989e15cda60b52ea823f9378dd2"},
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/box-box-margin/out2/includemargin.bin", "size_before": 8, "size_after": 10, "delta": 2, "lf": 2, "pure_crlf": true, "first_diff": 0, "sha256_before": "e8bc1851972c560fbc0ffd9915c22e07f4877914d2a39d16f54ce08bc0ff98f2", "sha256_after": "32e4db88d8c7c91c430e385cd17aea0f8d9db989e15cda60b52ea823f9378dd2"},
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/ellipsoid-box/geom_size.bin", "size_before": 24, "size_after": 25, "delta": 1, "lf": 1, "pure_crlf": true, "first_diff": 4, "sha256_before": "856be4402e5ac93dba96d9c3a740133abe4f65530950a4273ea6f00c66fd7954", "sha256_after": "80cbcf77fd46b05bb9c8025453449d7d802afb7b217264ea86be79ba7ac755ad"},
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/mesh-mesh/witness1/x1.bin", "size_before": 24, "size_after": 25, "delta": 1, "lf": 1, "pure_crlf": true, "first_diff": 20, "sha256_before": "0dab017570276789890833a20a0075dc26920ee2241c395350f748a4543a078f", "sha256_after": "f2aa2cc056cd4343c4b634768036a00e169e2b15a7730087cbf7d2020cfb6642"},
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/mesh-mesh/witness2/x1.bin", "size_before": 24, "size_after": 25, "delta": 1, "lf": 1, "pure_crlf": true, "first_diff": 20, "sha256_before": "0dab017570276789890833a20a0075dc26920ee2241c395350f748a4543a078f", "sha256_after": "f2aa2cc056cd4343c4b634768036a00e169e2b15a7730087cbf7d2020cfb6642"}
+   ]
+  },
+  "post_fix_fresh_clone": {
+   "commit": "526e7659",
+   "autocrlf": true,
+   "tracked_binary": 1188,
+   "identical": 1188,
+   "mismatch_count": 0,
+   "status_clean": true
+  },
+  "in_place_upgrade_observation": {
+   "sequence": "pre-fix checkout -> post-fix checkout in same clone",
+   "mismatch_count": 7,
+   "status_clean": true,
+   "note": "git 不重写 blob 未变的文件；索引旧 stat 使 status 仍干净（触碰后显示 M）。修复保证 fresh checkout/clone；既有损坏工作树需 git checkout -- . 或重新 clone",
+   "blocking": false
+  },
+  "other_families_pre_fix": {
+   "files": 58,
+   "corrupted": 0,
+   "protected_by_existing_rule": 20,
+   "protected_by_nul_detection": 38,
+   "exposed_but_unaffected_no_lf_or_other": 0,
+   "note": "58 个（.f32 4/.npz 6/.gz 22/.mjb 26）修复前未被破坏；新规则把隐式保护显式化"
+  },
+  "scope_check": {
+   "commit": "526e7659",
+   "parent": "52609f5e",
+   "changed_entries": 15,
+   "violations": 0,
+   "forbidden_hits": 0,
+   "cargo_or_fixture_xml_or_s2s8_changed": false,
+   "linear_history": true,
+   "is_ancestor_of_head": true,
+   "no_existing_evidence_rewritten": true,
+   "entries": [
+    {"status": "M", "path": ".gitattributes"},
+    {"status": "M", "path": ".normify/changes/2026-10-25-evidence-bin-eol-hygiene.json"},
+    {"status": "M", "path": ".normify/modules/mjwarp/index.md"},
+    {"status": "A", "path": ".normify/runs/2026-10-25-evidence-bin-eol-hygiene/clippy-cuda.json"},
+    {"status": "A", "path": ".normify/runs/2026-10-25-evidence-bin-eol-hygiene/clippy.json"},
+    {"status": "A", "path": ".normify/runs/2026-10-25-evidence-bin-eol-hygiene/fmt.json"},
+    {"status": "A", "path": ".normify/runs/2026-10-25-evidence-bin-eol-hygiene/unit.json"},
+    {"status": "A", "path": "docs/development-evidence/evidence-bin-eol-hygiene/README.md"},
+    {"status": "A", "path": "docs/development-evidence/evidence-bin-eol-hygiene/attr-summary.json"},
+    {"status": "A", "path": "docs/development-evidence/evidence-bin-eol-hygiene/clone-after-compare.json"},
+    {"status": "A", "path": "docs/development-evidence/evidence-bin-eol-hygiene/clone-before-compare.json"},
+    {"status": "A", "path": "docs/development-evidence/evidence-bin-eol-hygiene/receipt.json"},
+    {"status": "A", "path": "docs/development-evidence/evidence-bin-eol-hygiene/spot-checkout-roundtrip.json"},
+    {"status": "A", "path": "docs/development-evidence/evidence-bin-eol-hygiene/summary.json"},
+    {"status": "A", "path": "docs/development-evidence/evidence-bin-eol-hygiene/verify-bin-checkout.ps1"}
+   ]
+  }
+ },
+ "consistency_with_delivery": {
+  "delivered_claim": "克隆前 7/1130 损坏，克隆后 1130/1130 一致",
+  "qa_recomputed": "7/1130 .bin 损坏（全为纯 CRLF 插入），fresh clone 修复后 1130/1130；5 类合计 1188/1188",
+  "consistent": true,
+  "note": "仅按同任务输入独立复现，未读取 Backend 的日志/结果文件"
+ },
+ "limitations": [
+  "只验证 core.autocrlf=true；autocrlf=false/input 不触发该破坏，未重跑",
+  "--shared clone 复用主仓对象库（不复制对象），checkout 语义与普通 clone 相同；clone 在 target/ 下不入库",
+  "只覆盖已跟踪的 5 类二进制（修复提交时点 1188 个、HEAD 1440 个）；未跟踪 .bin（如 G5 本地捕获 995 个）不在版本卫生范围",
+  ".gitattributes 其它历史规则只做抽样回归（含 fixtures 文本控制项），未做全仓规则级回归",
+  "已有损坏工作树不会被原地升级自动修复（观察项，需手动 checkout -- .）"
+ ],
+ "artifacts": {
+  "in_repo": [
+   "docs/development-evidence/evidence-bin-eol-hygiene-independent-check/README.md",
+   "docs/development-evidence/evidence-bin-eol-hygiene-independent-check/receipt.json",
+   "docs/development-evidence/evidence-bin-eol-hygiene-independent-check/artifacts-sha256.json",
+   "docs/development-evidence/evidence-bin-eol-hygiene-independent-check/qa_artifacts_sha256.py",
+   "docs/development-evidence/evidence-bin-eol-hygiene-independent-check/qa_bin_eol_check.py",
+   "docs/development-evidence/evidence-bin-eol-hygiene-independent-check/qa-bin-eol-check.json",
+   "docs/development-evidence/evidence-bin-eol-hygiene-independent-check/qa-check.log"
+  ],
+  "not_in_repo": [
+   "target/qa-bin-eol-check/：本轮自建 pre-fix 判别 clone（--shared，可由 qa_bin_eol_check.py 重建）",
+   "target/qa-bin-eol-check-after/：本轮自建 post-fix fresh 对照 clone（同上）",
+   "target/bin-eol/、target/bin-eol-verify/：Backend 的 clone，存在但本轮未读写"
+  ]
+ }
+}
