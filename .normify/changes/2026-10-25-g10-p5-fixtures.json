@@ -12,11 +12,11 @@
   },
   "modules": {},
   "acceptance": [
-    "MJB：`hfield-box`/`sdf-cylinder` 各生成 3.12 产品版与 3.15 参考版 MJB，provenance 记源 XML sha、mujoco 版本、生成脚本 sha、命令、产物 bytes/sha；**同版本各自重载校验**（3.15 不能加载 3.12 MJB，实测报 `different number of sizes`，所以参考侧不得用产品 MJB）；不修改 `fixtures/mjwarp-complex-physics/*.xml`。",
+    "MJB：`hfield-box`/`sdf-cylinder` 各生成 3.12 产品版与 3.15 参考版 MJB（**3.12 实测支持 SDF/octree**：`mjGEOM_SDF`、`opt.sdf_initpoints/sdf_iterations`、`noct/oct_depth/oct_child/oct_aabb/oct_coeff`、`hfield_*` 均在 `mjmodel.h`，故双版本对两模型都可行），provenance 记源 XML sha、mujoco 版本、生成脚本 sha、命令、产物 bytes/sha；**同版本各自重载校验**（3.15 不能加载 3.12 MJB，实测报 `different number of sizes`，所以参考侧不得用产品 MJB）；不修改 `fixtures/mjwarp-complex-physics/*.xml`。",
     "nworld=2 spike：验证产品多世界状态打包对 hfield/SDF 接触是否可用（或明确不可用的具体缺项）；结论写入证据，作为 2A 是否降级 2B 的依据；若不可用先报 Arch，不自行降级。",
     "**既有直接参考审计**（先审计再补采）：d04 run-5 已有 `collision-box-box-multiccd`（box support/EPA/`multicontact`）、`collision-convex-mesh`（mesh graph hillclimb/box-mesh 多接触）、`collision-degenerate-mesh`（退化路径）、`sphere-sphere`、`hfield-box`（间接 prism-CCD）；逐项判定可复用性与缺口，写进证据。",
     "**只补真实缺口（5–7 个 case）**：`sphere-box`（球 shrink + `_inflate` 浅穿透）、`capsule-box`、`cylinder-box`（cylinder support + 多接触限制）、`ellipsoid-box`、`hfield-sphere`/`hfield-capsule`、`sdf-box`、非退化 mesh-mesh、margin≠0 非离散路径；每 case worlds=2 + 2–3 个 offset（接触/深穿透/分离）覆盖，两次捕获逐位一致、provenance 完整。",
-    "**octree 跨版本位级前置（新增关键验证点）**：实测 3.12/3.15 两条编译链的 `oct_child/oct_aabb/oct_coeff/mesh_octadr` 与 `hfield_data` 位型——若 `oct_*` 位级一致，SDF 数值验收直接位级；若不同，G3/G4/G5 统一用 **3.15 导出的 `oct_*` 夹具数据**作两端输入（产品 G1 只证明字段解析/上传与 3.12 MJB 的 `hfield_data` 一致），并在 G6 `unmet` 写明「产品 3.12 编译 octree 与参考 3.15 不同、数值验收基于统一 octree 夹具」。先测后定，结论入 receipt。",
+    "**octree 跨版本位级前置（新增关键验证点，纯 CPU 可完成）**：3.12 侧 C++ dump（f64 用 hex bits 或 `%.17g`、f32 用位型、int 直出）与 3.15 侧 `mujoco.MjModel` dump（实测暴露 `noct=63497`、`oct_aabb/child/coeff`、`oct_depth`、`mesh_octadr/octnum`）→ `octree-parity.json` 逐字段 shape 全等 + 位型全等；`hfield_data`（3×3=`[0,0.5,0,0.5,1,0.5,0,0.5,0]`）与 `hfield_size`（`[1,1,0.1,0.1]`）直接位级比对。若 `oct_*` 位级一致，SDF 数值验收直接位级；若不同，G3/G4/G5 统一用 **3.15 导出的 `oct_*` 夹具数据**作两端输入（产品 G1 只证明字段解析/上传与 3.12 MJB 的 `hfield_data` 一致），并在 G6 `unmet` 写明「产品 3.12 编译 octree 与参考 3.15 不同、数值验收基于统一 octree 夹具」。先测后定，结论入 receipt。",
     "夹具格式与既有一致（JSON/npz 由 authoring 转换，产品测试只读位型、不引 Python/zip 依赖）；新文件 ≤500 行；GPU 仅在 authoring 捕获时独占短窗口。",
     "门禁 fmt/clippy/clippy-cuda/unit 全过；证据 README/receipt 含 task_id 与未满足项（如某组合未覆盖、参考只含有限 qpos）；不改 S2–S8 证据与夹具、不改 Cargo.*。"
   ],
