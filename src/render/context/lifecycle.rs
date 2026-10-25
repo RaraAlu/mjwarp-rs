@@ -16,6 +16,7 @@ use crate::diagnostics::{InputError, TransferError};
 use crate::render::ImageOutput;
 use crate::render::bvh::{MeshRayHit, Ray, RayHit};
 use crate::render::texture::TextureRegistry;
+use crate::runtime::launcher::{LauncherError, RenderArrayValue, RenderElem};
 use crate::runtime::{TransferBuffer, TransferElement, TransferSession};
 
 use super::OutputLayout;
@@ -136,6 +137,53 @@ impl OutputResources {
             }
         }
     }
+
+    /// S7b1 渲染内核使用的 depth 设备缓冲实参（crate 可见；不扩大公共 API）。
+    ///
+    /// 输出未启用时返回 `LauncherError::Unsupported`；缓冲仍是 S6b 分配的那一份，
+    /// 不转移所有权、不改生命周期。
+    pub(crate) fn depth_render_arg(&self) -> Result<RenderArrayValue, LauncherError> {
+        let buffer = self
+            .depth
+            .as_ref()
+            .ok_or(LauncherError::Unsupported("depth 输出未启用"))?;
+        render_output_arg(buffer, RenderElem::F32, buffer.len())
+    }
+
+    /// S7b1 渲染内核使用的 rgb 设备缓冲实参（crate 可见；本片只读不写 RGB）。
+    #[allow(dead_code)] // S7b2 着色/RGB 内核接线后移除
+    pub(crate) fn rgb_render_arg(&self) -> Result<RenderArrayValue, LauncherError> {
+        let buffer = self
+            .rgb
+            .as_ref()
+            .ok_or(LauncherError::Unsupported("rgb 输出未启用"))?;
+        render_output_arg(buffer, RenderElem::U32, buffer.len())
+    }
+
+    /// S7b1 渲染内核使用的 seg 设备缓冲实参（两个 i32 一个 `(object_id, object_type)` 对）。
+    pub(crate) fn seg_render_arg(&self) -> Result<RenderArrayValue, LauncherError> {
+        let buffer = self
+            .seg
+            .as_ref()
+            .ok_or(LauncherError::Unsupported("seg 输出未启用"))?;
+        if !buffer.len().is_multiple_of(2) {
+            return Err(LauncherError::InvalidSpan("seg 缓冲不是偶数个 i32"));
+        }
+        render_output_arg(buffer, RenderElem::Vec2I, buffer.len() / 2)
+    }
+}
+
+/// 输出缓冲 → 渲染实参：形状 `[elements]`，元素类由调用方指定。
+#[allow(dead_code)] // 由 S7b1 渲染内核接线后移除
+fn render_output_arg<T: TransferElement>(
+    buffer: &TransferBuffer<T>,
+    elem: RenderElem,
+    elements: usize,
+) -> Result<RenderArrayValue, LauncherError> {
+    let span = buffer
+        .launcher_span()
+        .map_err(|error| LauncherError::Driver(format!("render-output-span: {error}")))?;
+    RenderArrayValue::contiguous(span, elem, &[elements])
 }
 
 fn disabled() -> OwnerError {
@@ -243,6 +291,16 @@ impl RenderContext {
     /// 场景 BVH 的显式重拟合次数。
     pub fn refits(&self) -> u64 {
         self.scene.refits()
+    }
+
+    /// S7b1 渲染内核打包用的 context 场景 BVH（crate 可见；不触发重拟合）。
+    pub(crate) fn scene_bvh(&self) -> &crate::render::bvh::SceneBvh {
+        self.scene.bvh()
+    }
+
+    /// 第 `mesh` 个 context 网格三角 BVH（S7b1 打包用；不转移所有权、不触发 refit）。
+    pub(crate) fn mesh_bvh(&self, mesh: usize) -> Option<&crate::render::bvh::MeshBvh> {
+        self.meshes.get(mesh).map(MeshResources::bvh)
     }
 
     /// 更新当前位姿（模拟物理写 `geom_xpos`/`geom_xmat`）；**不**重拟合 BVH。

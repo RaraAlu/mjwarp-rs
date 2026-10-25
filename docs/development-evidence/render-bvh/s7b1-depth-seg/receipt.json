@@ -1,0 +1,374 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-render-bvh-s7b1-kernel",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "S7b1",
+  "title": "渲染/BVH S7b1：主射线/平面深度/分割（primitive+mesh），输出走 S6b OutputResources",
+  "date": "2026-10-25",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "conclusion": "深度/分割主射线阶段全部验收通过：对同配方参考（use_fast_math=False）两相机 120,000/120,000 像素depth 逐位相同（max 0 ULP）、seg 逐像素全等（含 mesh geom 3 的 754 像素）；dynamic 与预计算逐位一致；双 world 不跨；set_points+显式 refit 变化像素非空且两次逐位一致；禁用 depth/seg 保持 S6b DisabledOutput；RGB 未写；A′ 渲染门禁通过；S6b 回归 5/5（growth/retained 0 B）；GPU 用例 6/6。修复前对同配方参考有 149 个球面切线像素 >4 ULP（max 73）：根因是产品 CUDA 12.8.1 NVRTC 与参考 warp 1.15 自带 NVRTC（CUDA 12.9/sm_89）对同一 C++ 表达式的 fma 收缩顺序不同；已在本片渲染内核内用显式 fma/mul/sub intrinsics 固定上游运算顺序（不改 scene.cu、不改配方、不放宽容差），见 root_cause。",
+  "decision": {
+    "B_same_recipe_reference": "Arch 2026-10-25 裁决 B：不改容差、不改产品 fast_math=false 配方；补采 use_fast_math=False 的同配方 depth/seg 参考作为 depth ≤4 ULP 硬指标依据；S0b fast-math 参考的跨配方差异仅作已知偏差记录；若同配方参考下仍 >4 ULP 停下上报。",
+    "stop_condition_triggered": true,
+    "s0b_instruction_evidence_arch_verified": "Arch 2026-10-25 独立读 S0b 缓存 PTX 复核：div.approx.ftz=267、sqrt.approx.ftz=77、rsqrt.approx.ftz=3、rcp.approx.ftz=37、div.full.ftz=3、.rn 变体=0；与本回执逐项一致",
+    "resolution": "按 Arch 裁决 B 停下上报；根因定位为编译器收缩顺序差异后，按上游 PTX 的运算顺序在本片渲染内核内修复（显式 fma 序列，仅 sphere 分支），未放宽容差、未改 A′ 冻结配方；修复后同配方参考 max 0 ULP。"
+  },
+  "precision_gate": {
+    "name": "f32-render",
+    "recipe": "WARP_1_15_RENDER",
+    "purpose": "Render",
+    "fmad": true,
+    "use_fast_math": false,
+    "std": "--std=c++17",
+    "arch": "compute_70",
+    "enforced_by": "src/render/kernel/mod.rs::check_render_ptx；唯一编译入口 compile_render_artifact / RenderKernel::compile",
+    "entry": "render_depth_seg",
+    "source_sha256": "82ea0d3bea34da898e3e1ee15564ddef9462fdc7229ed27e619c7c19dbf02bdc",
+    "ptx_sha256": "01018ed95ddc868242b41f75e0463e8d1bb9ab32a671e5e4a2cf9644130927f4",
+    "ptx_bytes": 137824,
+    "f64_global_constant_lines": 2,
+    "ptx_entries": [
+      "scene_bvh_ray",
+      "render_depth_seg"
+    ],
+    "f64_constant_allowlist_basis": "W15 svd.h 的 _svd_config<double> 两条 static constexpr 成员（死数据常量，不被任何 f32 运算使用；精确放行不是容差放宽）"
+  },
+  "abi": {
+    "signature": "render_depth_seg",
+    "slots": 32,
+    "bounds": 1,
+    "arrays": 24,
+    "scalars": 7,
+    "slot_order": "按上游 _render_megakernel 子集顺序排列，S7b2 只追加；证据 README §5 给出逐槽映射",
+    "note": "S7b1 精简入口（只含真实数据），不宣称与上游 megakernel 等价/ABI parity；81 槽全签名迁移归 S7b2，S7a 的 81 槽 ABI 不动",
+    "kernel_source": "concat!(src/render/bvh/cuda/scene.cu, src/render/kernel/cuda/render_math.cu, src/render/kernel/cuda/render.cu)",
+    "kernel_source_bytes": 51482,
+    "kernel_source_sha256": "82ea0d3bea34da898e3e1ee15564ddef9462fdc7229ed27e619c7c19dbf02bdc",
+    "kernel_source_lines": 1270,
+    "scene_cu_sha256": "8dad4d61235a8686d8b43fecef450535816c5a9423f15d256be4aab9a714d56d",
+    "scene_cu_read_only": "S2b scene.cu 只读复用、未修改（S2b 证据哈希不变）",
+    "render_math_cu_sha256": "73dd8e1e13f2b611ee79f9741f289e6c7497631dbe46d9ca7056c427b530cc09",
+    "render_cu_sha256": "37494a09f218cc890c9f8a3fa4b2d53a0b39918d67bd6caa19e140add61c5237",
+    "s3_copy": "mesh woop 数学逐式复制，仅 normalize3 改名 normalize3_mesh；render_math.cu 另含球面运算顺序对齐（render_sphere_hit / render_intersect_primitive，见 root_cause）"
+  },
+  "references": {
+    "s0b_frozen": {
+      "path": "fixtures/render-bvh/scene-a/s7b/depth_seg.json",
+      "bytes": 1491460,
+      "sha256": "97fc683839e2cf45ccceb428558041be2060ef5db213a75b223b55635657440d",
+      "role": "seg 源 + 相机 data 位姿；depth 差异只作跨配方已知偏差记录",
+      "recipe_fast_math": true,
+      "superseded_version": {
+        "bytes": 1490571,
+        "sha256": "f193bc5a29097bc2347f70c46971a26a25b0b55bc8624c3518d5aa8c1a651263",
+        "reason": "补入相机 data 位姿（camera_data_check），depth/seg 数组未变"
+      }
+    },
+    "same_recipe_fast_math_false": {
+      "path": "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json",
+      "bytes": 1492762,
+      "sha256": "d6ab6dde58034df5c1bc69ab397026a8f7c3aaf58d29d25edb032d3818000dc7",
+      "role": "depth ≤4 ULP 硬指标依据（Arch 裁决 B）",
+      "recipe_fast_math": false,
+      "generated_at_utc": "2026-10-25T03:29:25Z",
+      "capture_script": "scripts/authoring/render-bvh-s7b/capture_fast_math_false.py",
+      "capture_script_bytes": 15791,
+      "capture_script_sha256": "29ae04aced55afa38192b9dc36e5ed7aa6501310c0b5f1324be5154de4b0bdb6",
+      "determinism": {
+        "repeat": 2,
+        "bitwise_identical": true
+      },
+      "kernel_cache": {
+        "ptx_bytes": 637336,
+        "ptx_sha256": "ad21b93f94bbc6f42544e436104384d299d2130a78fc59b3dd24608876ca0988",
+        "div_rn": 206,
+        "div_approx_ftz": 0,
+        "div_full_ftz": 0,
+        "sqrt_rn": 77,
+        "sqrt_approx_ftz": 0,
+        "rsqrt_approx_ftz": 3,
+        "rcp_rn": 89,
+        "rcp_approx_ftz": 7
+      },
+      "cross_recipe_vs_s0b": {
+        "note": "参考↔参考的同像素差异只作已知偏差，不作通过依据；产品已与同配方参考逐位相同，因此产品对 S0b 的直方图与这里逐项一致，测试把它固定为回归守卫（断言两相机直方图相同）",
+        "per_camera": [
+          {
+            "index": 0,
+            "histogram_0_1_2_3_4_gt4": [
+              57726,
+              17681,
+              1393,
+              0,
+              0,
+              0
+            ],
+            "max_ulp": 2,
+            "beyond_4": 0,
+            "seg_equal_to_s0b": true
+          },
+          {
+            "index": 1,
+            "histogram_0_1_2_3_4_gt4": [
+              39136,
+              3677,
+              382,
+              3,
+              2,
+              0
+            ],
+            "max_ulp": 4,
+            "beyond_4": 0,
+            "seg_equal_to_s0b": true
+          }
+        ]
+      },
+      "s0b_fast_math_kernel_cache_evidence": {
+        "path": "target/render-bvh/s0b-cache/1.15.0/wp__build_megakernel__locals___render_megakernel_f77904cd_be6b38f/…sm89.ptx",
+        "bytes": 619077,
+        "sha256": "9662200b14e1d5672a5e5d2e1a3b6b65457dd1ccacb7b41346875ffbc43b9bee",
+        "div_approx_ftz": 267,
+        "sqrt_approx_ftz": 77,
+        "rsqrt_approx_ftz": 3,
+        "rcp_approx_ftz": 37,
+        "div_full_ftz": 3,
+        "div_rn": 0,
+        "sqrt_rn": 0,
+        "rcp_rn": 0
+      }
+    }
+  },
+  "fixture_provenance": {
+    "encoding": {
+      "depth": "IEEE-754 binary32 bits as unsigned decimal u32, row-major (y outer, x fastest)",
+      "seg": "int32 [object_id, object_type] pairs in the same pixel order",
+      "camera_data": "cam_xpos/cam_xmat as f32 bit patterns (u32 decimal), xmat row-major",
+      "recipe": "same_recipe_fast_math_false 含 recipe.compile_fast_math=false；S0b 无 recipe 段"
+    },
+    "resolved": {
+      "total_rays": 120000,
+      "cam_res": [
+        [
+          320,
+          240
+        ],
+        [
+          240,
+          180
+        ]
+      ],
+      "depth_adr": [
+        0,
+        76800
+      ],
+      "seg_adr": [
+        0,
+        76800
+      ],
+      "depth_zero_pixels": [
+        16995,
+        27498
+      ]
+    },
+    "source": {
+      "depth_npz_sha256": "0fa5582170a2b2a117e46868930fa2b4270dd993b0f5d86dc603981e0a2fd7d3",
+      "seg_npz_sha256": "2153fa728d634c032cf38847761803c4faa806aa554e108a2e0bd7b8ac8e6a97",
+      "rays_npz_sha256": "83146ae50946537401be817a44bfe3af58320df475dabc49206aa47eec9d50ab",
+      "context_json_sha256": "e08cce0ad1783b2cadd533115ee0ea0bf1defa8db7ad8ed5a5e8ed1c2c62f2df",
+      "model_312_sha256": "cdd490f0209dd16a57b2685f3139548af8a2b73195cdb0e01a74ab094ef1df00",
+      "scene_315_mjb_sha256": "8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4",
+      "scene_312_mjb_sha256": "c6f5f9f17118067ad39fb2ea6be4f1c274e4d932b553bbe9a4e59b464c56aad1",
+      "convert_depth_seg_sha256": "d77c8a5c9f1648b45357024ed4f6805db52853ba4bf2d54e699e19a699ae8f4d",
+      "check_depth_semantics_sha256": "03bcc66d80fa15ea6dbd526bfd36ec1127d60380dea27fee23242a05c4bdb8fe"
+    },
+    "converter_self_checks": [
+      "npz sha256 与 S0b 冻结值一致；两相机形状/长度断言",
+      "depth 长度 width*height、seg 长度 2*pixels、聚合字段与位型一致",
+      "写前 JSON↔npz 逐位 round-trip、写盘字节 sha256 一致",
+      "camera origins 与 rays.npz camera_pixels 位等、与 data cam_xpos 位等",
+      "fixed 相机 xmat vs f64 quat_to_mat ≤1e-6；TARGETBODY xmat vs f64 look-at ≤1e-6"
+    ]
+  },
+  "camera_data_check": [
+    {
+      "index": 0,
+      "mode": 0,
+      "mode_name": "fixed",
+      "target_bodyid": -1,
+      "ray_count": 64,
+      "origin_bits": [
+        1067030938,
+        3213675725,
+        1061997773
+      ],
+      "xmat_bits": [
+        1060761557,
+        3206302579,
+        3198267176,
+        1057406113,
+        1061821170,
+        3198267176,
+        1055021982,
+        1031887085,
+        1063587192
+      ],
+      "xmat_vs_f64_max_abs_error": 7.5290077616863e-08
+    },
+    {
+      "index": 1,
+      "mode": 3,
+      "mode_name": "target_body",
+      "target_bodyid": 2,
+      "ray_count": 64,
+      "origin_bits": [
+        3209481421,
+        1063675494,
+        1060320051
+      ],
+      "xmat_bits": [
+        3207690738,
+        1030141075,
+        3208113682,
+        3208150666,
+        3177049595,
+        1060171513,
+        0,
+        1065301899,
+        1033899914
+      ],
+      "xmat_vs_f64_max_abs_error": 5.61540656196513e-08
+    }
+  ],
+  "gpu": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "arch": "SM89",
+    "window": {
+      "start_memory_mib": 4193,
+      "end_memory_mib": 4205,
+      "compute_processes_after": 0,
+      "note": "90 分钟 GPU 窗口（首轮）；球面对齐修复后复跑：起点 3,412 MiB → 结束 3,412 MiB、无 CUDA 计算进程"
+    },
+    "s7b1_suite": {
+      "command": "cargo test --locked --features cuda-probe --test render_kernel_depth_seg -- --ignored --test-threads=1 --nocapture",
+      "passed": 6,
+      "failed": 0,
+      "elapsed_s": 4.43,
+      "log": "gpu-run.log",
+      "results": {
+        "depth_seg_source_compiles_under_render_gate": "ok（PTX 137,824 B；两个 entry；2 条 f64 常量）",
+        "depth_and_seg_match_frozen_reference_for_both_cameras": "ok；对同配方参考 cam0/cam1 全位等 max 0 ULP、seg 全等；对 S0b fast-math 参考的跨配方偏差（≤4 ULP、>4 ULP=0）只记录并与夹具 cross_recipe_vs_s0b 直方图一致",
+        "dynamic_rays_render_bitwise_identical_to_precomputed": "ok；depth 逐位 0 差异、seg 全等；hash 03efa95416bbd008",
+        "two_worlds_do_not_cross_hit": "ok；world0 与单 world 渲染逐位一致、world1 全 miss/全背景",
+        "mesh_refit_changes_pixels_and_repeat_runs_are_bitwise_identical": "ok；changed_pixels=1698、两次逐位一致；hash ce475440457773ff",
+        "disabled_depth_and_seg_keep_s6b_rejections": "ok；DisabledOutput 保持、RGB 未写"
+      }
+    },
+    "depth_stats_vs_same_recipe_reference": {
+      "cam0_histogram_0_1_2_3_4_gt4": [
+        76800,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "cam0_max_ulp": 0,
+      "cam1_histogram_0_1_2_3_4_gt4": [
+        43200,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "cam1_max_ulp": 0,
+      "beyond_4ulp_pixels": {
+        "cam0": 0,
+        "cam1": 0
+      },
+      "seg_mismatch": {
+        "cam0": 0,
+        "cam1": 0
+      },
+      "note": "depth ≤4 ULP 硬指标（Arch 裁决 B）：120,000/120,000 像素位等，max 0 ULP"
+    },
+    "depth_stats_vs_s0b_fast_math_reference_known_deviation": {
+      "cam0_histogram_0_1_2_3_4_gt4": [
+        57726,
+        17681,
+        1393,
+        0,
+        0,
+        0
+      ],
+      "cam0_max_ulp": 2,
+      "cam1_histogram_0_1_2_3_4_gt4": [
+        39136,
+        3677,
+        382,
+        3,
+        2,
+        0
+      ],
+      "cam1_max_ulp": 4,
+      "beyond_4ulp": 0,
+      "note": "只作跨配方已知偏差记录，不作通过依据；产品已与同配方参考逐位相同，故该直方图与参考↔参考（fixture cross_recipe_vs_s0b）逐项一致，测试以断言固定"
+    },
+    "s6b_regression": {
+      "command": "cargo test --locked --features cuda-probe --test render_context_lifecycle -- --ignored --test-threads=1",
+      "passed": 5,
+      "failed": 0,
+      "elapsed_s": 7.56,
+      "cycle100_growth_bytes": 0,
+      "cycle100_elapsed_ms": 6616,
+      "drop_retained_bytes": 0,
+      "warmup_retention_bytes": 33554432,
+      "log": "s6b-regression.log"
+    }
+  },
+  "gates": {
+    "fmt": "pass",
+    "clippy": "pass（cargo clippy --all-targets --locked -- -D warnings）",
+    "clippy-cuda": "pass（cargo clippy --all-targets --locked --features cuda-probe -- -D warnings）",
+    "unit": {
+      "result": "pass",
+      "test_binaries_ok": 97,
+      "test_binaries_failed": 0,
+      "tests_passed": 532,
+      "lib_tests_passed": 392,
+      "log": "unit-summary.log"
+    }
+  },
+  "unmet": [
+    "球面求交的运算顺序对齐属本片渲染内核范围（root_cause）；S7b2 着色/法线若遇到同源编译器差异，沿用「按参考 PTX 用显式 fma 序列固定顺序、不放宽容差」的做法，不在本片预判。",
+    "相机 data 位姿接线：渲染器接受显式 CameraPose；跟踪相机 data 位姿取自 pinned 3.15 mj_forward 冻结值（调用方传入），本片不重实现跟踪相机数学。本片的「两相机全图一致」不等于「产品跟踪相机已接通」——产品侧 camlight 接线归 S8 端到端任务 2026-10-25-render-bvh-s8-e2e（files 含 src/physics/camlight.rs；验收要求 data 位姿必须由产品 camlight 产出、夹具位姿只能比对不能作为渲染输入）。",
+    "双 world 用例相机位姿按激活相机单份打包（world 维共享）；scene-a 参考 nworld=1，未覆盖逐 world 相机数据。",
+    "未覆盖：正交相机（scene-a 无；S5 覆盖正交相机空间射线）、AA（nsamples>1 拒绝，S7b3）、SDF（type 8，scene-a 无）、透明 geom（alpha 全 1，仅结构实现）、flex/hfield/skybox/splat/阴影/着色（非本片范围）。",
+    "未跑完整 G01（团队规则：开发迭代只跑定向 + fmt/clippy/clippy-cuda/unit；里程碑由用户点名）。"
+  ],
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "gpu-run.log",
+    "s6b-regression.log",
+    "unit-summary.log",
+    "capture-fast-math-false.log"
+  ],
+  "reproduction": {
+    "s0b_fixture": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/render-bvh-s7b/convert_depth_seg.py",
+    "same_recipe_fixture": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/render-bvh-s7b/capture_fast_math_false.py",
+    "semantics": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/render-bvh-s7b/check_depth_semantics.py",
+    "gpu_suite": "cargo test --locked --features cuda-probe --test render_kernel_depth_seg -- --ignored --test-threads=1 --nocapture",
+    "s6b_regression": "cargo test --locked --features cuda-probe --test render_context_lifecycle -- --ignored --test-threads=1"
+  },
+  "root_cause": {
+    "symptom_before_fix": "产品 vs 同配方参考：cam0 76,800/76,800 位等；cam1 149/43,200 像素 >4 ULP（max 73 ULP），全部为 sphere geom 2 切线带（depth 1.29-1.40 m）；seg 全等。两份上游参考在这些像素上彼此只差 ≤1 ULP。",
+    "cause": "参考 megakernel 由 warp 1.15 自带 NVRTC（CUDA toolkit 12.9、sm_89）编译；产品渲染配方冻结为 CUDA 12.8.1 NVRTC / compute_70。同一 C++ 表达式在两套编译器下的 fma 收缩顺序不同：参考的 a=dot(vec,vec) 为 mul(d0*d0)->fma(d1*d1)->fma(d2*d2)、det=b*b-a*c 为 fma(b,b,-(a*c))；产品编译器的 a 为「1 号分量先乘」序列、det 不融合。球面切线处 det≈4e-5、d(dist)/d(det)≈-25…-78，1 ULP 级差异被放大到几十 ULP。",
+    "reference_ptx_evidence": "target/render-bvh/s7b1-fastmath-cache/1.15.0/wp__build_megakernel__locals___render_megakernel_92d94e46_dde26ad/…sm89.ptx：a 见第 529-531 行（mul d0*d0 / fma d1*d1 / fma d2*d2），b/dd 见第 940-945 行（mul 1 号分量 / fma 0 号 / fma 2 号），det 见 fma(b,b,-(a*c)) 形态。",
+    "local_diagnostic_probe": "target/gpu_sphere_probe.py（本地诊断、不入库）：用产品配方编译显式运算序列，在 747 个 cam1 球面像素上穷举 matvec/dot/det/分母；参考序列 747/747 位等 max 0 ULP，产品默认序列 564/747 位等、149 个 >4 ULP。",
+    "fix": "src/render/kernel/cuda/render_math.cu 新增 render_sphere_hit（显式 __fmul_rn/__fmaf_rn/__fsub_rn 固定上述顺序）与 render_intersect_primitive（geom_type==2 走对齐实现，其余沿用 S2b scene.cu）；src/render/kernel/cuda/render.cu 的 cast_ray 改调 render_intersect_primitive。scene.cu 只读、sha256 未变；A′ 渲染门禁与冻结配方未变，容差未动。",
+    "verification": "同配方参考两相机 120,000/120,000 位等、max 0 ULP；seg 全等；GPU 用例 6/6 通过。"
+  }
+}

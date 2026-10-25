@@ -254,6 +254,11 @@ impl MeshResources {
         self.bvh.triangle_count()
     }
 
+    /// S7b1 渲染内核打包用的网格三角 BVH（crate 可见；不转移所有权、不触发 refit）。
+    pub(crate) fn bvh(&self) -> &MeshBvh {
+        &self.bvh
+    }
+
     pub fn refits(&self) -> u64 {
         self.refits
     }

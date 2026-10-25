@@ -24,9 +24,108 @@
 //! `.reg .f64` 仍按物理门禁口径：只接受 CUDA-12.8 `sinf`/`cosf` 整数角归约的
 //! `cvt.rn.f64.s64` + `mul.rn.f64`(0d3BF921FB54442D19) + `cvt.rn.f32.f64` 三元组。
 
+pub mod cast;
 pub mod launch;
+pub mod output;
+pub mod renderer;
 
-use crate::runtime::launcher::PrecisionGate;
+pub use renderer::DepthSegRenderer;
+
+use crate::runtime::launcher::{
+    BlockRule, LaunchDims, LauncherError, PrecisionGate, RenderArg, RenderArgKind, RenderElem,
+    RenderScalarKind, RenderSignature,
+};
+
+/// S7b1 深度/分割内核的入口名。
+pub const DEPTH_SEG_ENTRY: &str = "render_depth_seg";
+
+/// S7b1 渲染内核源码：S2b `scene.cu`（primitive 数学，只读复用）+ S3 mesh 数学的
+/// 逐式复制（`cuda/render_math.cu`）+ 组合/内核本体（`cuda/render.cu`）。
+///
+/// 拼接在编译期完成：NVRTC 只看到一份源码，产物键覆盖三段内容；不改 `src/render/bvh/**`。
+pub const DEPTH_SEG_SOURCE: &str = concat!(
+    include_str!("../bvh/cuda/scene.cu"),
+    include_str!("cuda/render_math.cu"),
+    include_str!("cuda/render.cu"),
+);
+
+/// `render_depth_seg` 的 32 槽签名（1 bounds + 24 数组 + 7 标量），顺序为上游
+/// `_render_megakernel` 子集槽序（证据给「子集槽 → 上游槽索引」映射；81 槽全签名迁移归 S7b2）。
+pub static DEPTH_SEG_SLOTS: [RenderArgKind; 32] = {
+    use RenderArgKind as K;
+    use RenderElem as E;
+    use RenderScalarKind as S;
+    [
+        K::Bounds2D,
+        K::Array(E::I32),
+        K::Array(E::F32),
+        K::Array(E::I32),
+        K::Array(E::F32),
+        K::Array(E::Vec2I),
+        K::Array(E::I32),
+        K::Array(E::Vec4),
+        K::Array(E::I32),
+        K::Array(E::Vec4),
+        K::Array(E::I32),
+        K::Array(E::F32),
+        K::Array(E::Vec2),
+        K::Array(E::Vec4),
+        K::Array(E::Vec3),
+        K::Array(E::Mat33),
+        K::Array(E::Vec2I),
+        K::Array(E::I32),
+        K::Array(E::I32),
+        K::Array(E::Bool),
+        K::Array(E::Bool),
+        K::Array(E::Vec3),
+        K::Array(E::Vec3),
+        K::Array(E::F32),
+        K::Array(E::Vec2I),
+        K::Scalar(S::I32),
+        K::Scalar(S::I32),
+        K::Scalar(S::I32),
+        K::Scalar(S::I32),
+        K::Scalar(S::I32),
+        K::Scalar(S::Bool),
+        K::Scalar(S::Bool),
+    ]
+};
+
+/// S7b1 深度/分割渲染内核：编译经 A′ 渲染门禁（`compile_render_artifact`），无旁路。
+pub struct DepthSegKernel {
+    kernel: launch::RenderKernel,
+}
+
+impl DepthSegKernel {
+    /// 编译 + PTX 门禁 + 加载入口（需要 NVIDIA 驱动与 NVRTC）。
+    pub fn compile(session: &crate::runtime::TransferSession) -> Result<Self, LauncherError> {
+        let signature =
+            RenderSignature::new(DEPTH_SEG_ENTRY, BlockRule::WarpGrid, &DEPTH_SEG_SLOTS)?;
+        let kernel = launch::RenderKernel::compile(
+            session,
+            DEPTH_SEG_ENTRY,
+            DEPTH_SEG_SOURCE,
+            signature,
+            DEPTH_SEG_ENTRY,
+        )?;
+        Ok(Self { kernel })
+    }
+
+    /// 已编译内核（PTX/哈希与模块缓存证据）。
+    pub fn kernel(&self) -> &launch::RenderKernel {
+        &self.kernel
+    }
+
+    /// 按签名校验后同步发射。
+    pub fn launch(
+        &self,
+        session: &crate::runtime::TransferSession,
+        args: &[RenderArg],
+        dims: LaunchDims,
+    ) -> Result<(), LauncherError> {
+        self.kernel.launch(session, args, dims)
+    }
+}
 
 /// 渲染门禁的精度标签（写进回执与证据）。
 pub const RENDER_PRECISION_GATE: &str = "f32-render";
@@ -299,6 +398,26 @@ mod tests {
             ),
             Err(RenderPtxError::MissingEntry { .. })
         ));
+    }
+
+    #[test]
+    fn depth_seg_kernel_has_expected_abi_and_reuses_s2b_math() {
+        assert_eq!(DEPTH_SEG_SLOTS.len(), 32);
+        assert_eq!(DEPTH_SEG_SLOTS[0], RenderArgKind::Bounds2D);
+        let arrays = DEPTH_SEG_SLOTS
+            .iter()
+            .filter(|slot| matches!(slot, RenderArgKind::Array(_)))
+            .count();
+        let scalars = DEPTH_SEG_SLOTS
+            .iter()
+            .filter(|slot| matches!(slot, RenderArgKind::Scalar(_)))
+            .count();
+        assert_eq!((arrays, scalars), (24, 7), "渲染 ABI 槽位种类");
+        assert!(DEPTH_SEG_SOURCE.contains("extern \"C\" __global__ void render_depth_seg("));
+        // S2b primitive 数学与 S3 mesh 数学都在同一编译单元内（复用而非手抄漂移）。
+        assert!(DEPTH_SEG_SOURCE.contains("scene_bvh_ray"));
+        assert!(DEPTH_SEG_SOURCE.contains("mesh_query_ray"));
+        assert!(DEPTH_SEG_SOURCE.contains("value[1] = 5;"));
     }
 
     #[test]
