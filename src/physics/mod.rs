@@ -18,6 +18,13 @@ pub use collision::{
     make_frame, nxn_broadphase, plane_box, plane_sphere, primitive_narrowphase, sap_broadphase,
     sphere_sphere,
 };
+// G10@P5：碰撞设备源码片段，供 NVRTC 产品入口按依赖顺序拼装（`cuda-probe` 下可用）。
+#[cfg(feature = "cuda-probe")]
+pub(crate) use collision::cuda::{
+    CCD_CUDA, COMMON_CUDA, CONTACT_CUDA, EPA_CUDA, GEOM_CUDA, GJK_CORE_CUDA, HFIELD_CUDA,
+    POLYTOPE_BUILD_CUDA, POLYTOPE_CUDA, SDF_MATH_CUDA, SDF_NARROWPHASE_CUDA, SDF_OCTREE_CUDA,
+    SIMPLEX_CUDA, SUPPORT_CUDA,
+};
 mod constants;
 pub use constants::{
     FixedConstants, FixedConstantsInput, QposDependentConstants, QposDependentInput, set_const_0,

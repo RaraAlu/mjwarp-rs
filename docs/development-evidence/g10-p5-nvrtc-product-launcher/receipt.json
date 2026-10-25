@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-nvrtc-product-launcher",
+  "status": "in_progress",
+  "outcome": "gate_passed_pending_commit",
+  "slice": "P5-device-nvrtc-launcher",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "scope": {
+    "kind": "设备缺口接线（NVRTC 产品入口）；不改数值语义/判据/已 verified 数字",
+    "files_added": [
+      "src/runtime/collision_gpu.rs（产品 API/编译/加载/发射/回读/错误 seam）",
+      "src/runtime/collision_gpu/source.rs（14 设备源依赖序拼装 + 本地 include 剥离）",
+      "src/runtime/collision_gpu/error.rs（CollisionGpuError + Display/Error）",
+      "src/runtime/collision_gpu/abi.rs（#[repr(C)] CollisionArgs/CollisionContactOut + DeviceRepr + validate_inputs）",
+      "src/runtime/collision_gpu/tests.rs（12 个纯 CPU 单测）",
+      "src/runtime/collision_gpu/nvrtc_smoke.rs（CPU 侧 NVRTC 编译冒烟，ignored）",
+      "src/physics/collision/cuda/product.cu（产品入口胶水 + 3 个 extern \"C\" __global__ 调度壳）",
+      "tests/g10_p5_nvrtc_launcher.rs（ignored GPU 三 case 对照）"
+    ],
+    "files_modified": [
+      "src/runtime/mod.rs（+3：#[cfg(feature=\"cuda-probe\")] pub mod collision_gpu;）",
+      "src/physics/mod.rs（+7：14 个设备源 pub(crate) use，纯重导出）"
+    ],
+    "evidence_dir": "docs/development-evidence/g10-p5-nvrtc-product-launcher/",
+    "cargo_changed": false,
+    "python_in_product_tests": false
+  },
+  "verification": {
+    "product_entry": "CollisionGpuProgram::new(device) → NVRTC 编译 14 源拼装（len=121566, sha256=dc862ec884680349c6f38b40de0379082ec1b6dbf47d4dba9f22adfd8adcad43）→ PTX（CPU 冒烟实测 1,863,043 B、含 3 入口）→ load_module/load_function；program.run(CollisionKernel::{Contact,Hfield,Sdf}, &inputs) 发射 grid=(nworld,1,1)/block=(1,1,1) 并回读",
+    "compile_recipe": "--std=c++17 --gpu-architecture=sm_89 --fmad=true、fast-math 关（对齐 G5 探针 nvcc -O3 -arch=sm_89 --fmad=true -std=c++17；NVRTC 默认 -O3）",
+    "env_dependency": "NVRTC 运行库须在 PATH（target/toolchains/cuda-12.8.1/bin：nvrtc64_120_0.dll 等，sha256 见 window-output.txt 头）；不带 PATH 时 cudarc 找不到 nvrtc64_*.dll 会失败/panic——环境依赖，非代码缺陷",
+    "window": {
+      "head": "49e2fab5f59cf35590a14106281044006d540068",
+      "baseline_memory": "RTX 4070 Ti SUPER 16376 MiB, used 3713/free 12349, util 0%, 29C, driver 596.36",
+      "baseline_drift_mib": 0,
+      "path_prepend": "D:\\Rust\\mjwarp-rs\\target\\toolchains\\cuda-12.8.1\\bin",
+      "nvcc": "Cuda compilation tools, release 12.8, V12.8.93",
+      "peak_used_mib": 3898,
+      "peak_delta_mib": 185,
+      "guard": "3072 MiB/50% 未触发",
+      "samples_0_5s": 25,
+      "util_max_percent": 3,
+      "temp_max_c": 30,
+      "after_used_mib": 3713,
+      "task_related_compute_apps_before_after": "0 / 0（无 test/probe/python 残留）",
+      "elapsed_seconds": 15.2
+    },
+    "three_case_comparison": {
+      "criterion": "数组按 out1 口径取前 nacon 行；先逐字节位级比较；非位级按 G5 判据（dist 自身量级 ≤4 ULP、pos 按 max_i|ref_i| 的 4·ULP(scale)、frame scale=1.0 的 4 ULP、整数/参数/nacon/nccd/overflow 位级）",
+      "hfield-sphere": "kind=Hfield nacon=8 nccd=0 bit_equal=314/314 max_dist_ulp=0 max_pos_ulp=0 max_frame_ulp=0 failures=0",
+      "sdf-box": "kind=Sdf nacon=80 nccd=0 bit_equal=3122/3122 max_dist_ulp=0 max_pos_ulp=0 max_frame_ulp=0 failures=0",
+      "ellipsoid-box": "kind=Contact nacon=2 nccd=2 bit_equal=80/80 max_dist_ulp=0 max_pos_ulp=0 max_frame_ulp=0 failures=0",
+      "result": "三 case 全部逐字节位级一致（0 ULP、failures=0），强于判据要求；未出现需停下报告的失败"
+    },
+    "error_path_tests": "12 个纯 CPU 单测（seam 注入，不创建真实 CudaContext）：编译 Err→Compile、编译 panic→Compile 不 panic、无设备→NoDevice（且 PTX 错误优先不碰设备）、参数非法→InvalidArgument、ABI 偏移/size 锁死、源拼装确定性；另有 NVRTC 编译冒烟（ignored，仅需 NVRTC）：13 passed/0 failed（--include-ignored）",
+    "cpu_validation": "cargo test --locked --features cuda-probe --lib runtime::collision_gpu -- --include-ignored → 13 passed/0 failed；cargo check/clippy --locked --features cuda-probe --all-targets -- -D warnings 全绿；cargo fmt --check exit 0",
+    "gate": "passed（fmt/clippy/clippy-cuda/unit 全绿；unit 595 过 0 败）"
+  },
+  "artifacts": {
+    "readme": "docs/development-evidence/g10-p5-nvrtc-product-launcher/README.md",
+    "receipt": "docs/development-evidence/g10-p5-nvrtc-product-launcher/receipt.json",
+    "window_log": "docs/development-evidence/g10-p5-nvrtc-product-launcher/window-log.txt",
+    "window_output": "docs/development-evidence/g10-p5-nvrtc-product-launcher/window-output.txt",
+    "window_memory_samples": "docs/development-evidence/g10-p5-nvrtc-product-launcher/window-memory-samples.txt",
+    "window_script": "docs/development-evidence/g10-p5-nvrtc-product-launcher/run_window.ps1",
+    "artifacts_sha256": "docs/development-evidence/g10-p5-nvrtc-product-launcher/artifacts-sha256.txt"
+  },
+  "gate": "passed（fmt/clippy/clippy-cuda/unit 全绿，unit 595 过 0 败）",
+  "unmet": [
+    "特性门控：collision_gpu 模块在 #[cfg(feature=\"cuda-probe\")] 下，默认构建不含 CUDA 产品入口；未覆盖「接入默认产品管线」",
+    "对照仅 3 个 case（任务下限）；multicontact 设备版、primitive narrowphase 设备版仍为 G6 UNC-1/UNC-3，不在本片范围",
+    "输入校验只覆盖基础数组长度；mesh/hfield/octree 长数组长度依赖 nmesh/noct（meta 无该字段）未校验",
+    "NVRTC 默认 -O3 未显式传 --opt-level；只在本机 Windows + sm_89 + NVRTC 12.8 验证，不跨硬件/版本外推",
+    "product.cu 只复制入口胶水（args 结构 + init_polytope/build_geom/build_params/sdf_type_of + 3 个调度壳），不复制数值内核；等价性由三 case 位级对照证明",
+    "不改判据/已 verified 数字；本片不提供精度结论、等价声明或放行信号"
+  ]
+}

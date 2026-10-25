@@ -15,6 +15,9 @@ pub use transfer::{TransferBuffer, TransferElement, TransferSession};
 
 #[cfg(feature = "cuda-probe")]
 mod cache;
+/// G10@P5：产品碰撞 GPU 入口（NVRTC 运行时编译 + 发射/回读）。
+#[cfg(feature = "cuda-probe")]
+pub mod collision_gpu;
 
 #[cfg(any(feature = "cuda-probe", test))]
 mod completion;
