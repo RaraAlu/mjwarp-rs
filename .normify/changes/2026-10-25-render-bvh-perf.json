@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-render-bvh-perf",
+  "title": {
+    "zh": "渲染/BVH 渲染性能测量（两相机单帧/AA 耗时与显存峰值，相对基准）",
+    "en": "Render/BVH render performance measurement (two-camera single frame / AA timing and peak memory, relative benchmark)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "补 r01-p8 原验收第 3 条「性能测试须独占GPU」的渲染侧缺口：在独占 GPU 窗口内测两相机单帧渲染与 AA（spp=2）渲染的耗时分布（warmup + 迭代，min/median/p95）与显存峰值（create 前后、峰值、destroy 后回基线），给定夹具下的相对基准；**只给相对数字，不宣称绝对性能或跨硬件可比**。不改渲染语义、不改已验收数值。",
+    "en": "Close the render-side gap of r01-p8 acceptance item 3 (performance tests must own the GPU): in an exclusive GPU window measure two-camera single-frame and AA (spp=2) render timing distributions (warmup plus iterations, min/median/p95) and peak memory (before/after create, peak, baseline after destroy) on the frozen fixture, reporting a relative benchmark only; never claim absolute performance or cross-hardware comparability. No render-semantics changes and no change to verified numbers."
+  },
+  "modules": {},
+  "acceptance": [
+    "独占 GPU 窗口内测量并记录设备/驱动/显存基线；warmup ≥5 次后迭代 ≥30 次，给单帧（两相机，spp=1）与 AA(spp=2, nsamples=4) 的 **min/median/p95** 毫秒数；同时给显存：create 后、渲染峰值、destroy 后（回基线、无泄漏）。",
+    "数字口径：只作「该夹具下本机相对基准」，证据明确写不宣称绝对性能、不与上游或其它硬件比较；建议同时给相对比值（如 AA/单帧、每 120,000 射线 ms）。",
+    "测量期间 GPU 独占（无其它计算任务、无本任务残留进程），记录窗口起止显存与 `--query-compute-apps` 结果；CPU 侧准备可在窗口外。",
+    "不改产品渲染语义/验收数值；新文件 ≤500 行；README/receipt 含 task_id、设备、迭代参数、原始分布、未满足项（单场景、单机、无跨平台）；门禁 fmt/clippy/clippy-cuda/unit 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-render-bvh-s8-e2e"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_perf.rs",
+      "tests/support/render_bvh/",
+      "docs/development-evidence/render-bvh/perf/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 55
+  },
+  "note": "Arch 2026-10-25 排程（Chief 授权）：S8 + QA 复核完成后 start，独占 GPU 一次窗口。目的：把 r01-p8 原验收第 3 条「性能测试须独占GPU」的渲染侧补成满足；只给相对基准，不宣称绝对性能。完成后 r01-p8 聚合缺口只剩 NP03（Linux，用户 2026-10-24 裁决终止）与叶子模块治理 backlog。",
+  "revision": {
+    "before": "8f6c6829becbd8cbfb19b8295d4e091c2ba0ef43",
+    "after": null
+  },
+  "created_at": "2026-10-25T13:50:00.000Z",
+  "updated_at": "2026-10-25T13:50:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perf/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-render-bvh-perf"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "绝对性能",
+        "上游等价"
+      ]
+    }
+  ]
+}
