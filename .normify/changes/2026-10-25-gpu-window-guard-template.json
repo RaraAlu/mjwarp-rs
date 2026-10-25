@@ -5,7 +5,7 @@
     "zh": "GPU 窗口守卫模板：中止条件从「进程存在」改为「GPU 资源占用」",
     "en": "GPU window guard template: abort on GPU resource use, not on process existence"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "2026-10-25 QA 的 faithful 影响面窗口第一次被执行者自己的守卫误中止：守卫把另一执行者的**纯 CPU 测试二进制**（不出现在 `nvidia-smi --query-compute-apps`）当成「外部计算进程」而停窗。Chief 指示把守卫对象从「进程存在」修正为「GPU 资源占用」：中止只认 ① `query-compute-apps` 中新增且非本任务 exe 的 CUDA 计算进程、② free < 10240 MiB、③ used 增量 ≥3072 MiB（或 >50% 取更严）；纯 CPU 进程只记录不中止。本片落一个全项目可复用的守卫模板脚本 `scripts/gpu-window-guard.ps1`（dot-source 使用），供后续所有窗口脚本默认引用，并记录两次窗口（中止 + 重跑）的处置口径。",
     "en": "Add a reusable GPU window guard template whose abort conditions are CUDA-compute/VRAM based (CPU-only processes are logged, not fatal), following the mis-abort incident."
@@ -30,17 +30,29 @@
   },
   "note": "Arch 2026-10-25 登记（Chief 指示 + QA 窗口误中止事件）。模板只定义「何时该停窗」，不改变任何验收口径；各窗口脚本迁移到模板属后续各自的片。",
   "revision": {
-    "before": "d49a5712e4796f9d8bb37c9e018b02b14f5b1365",
+    "before": "03b22979662ed871d06459ef6d0e6c3ffe3d507f",
     "after": null
   },
   "created_at": "2026-10-25T19:20:00.000Z",
-  "updated_at": "2026-10-25T19:20:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T18:07:04.986Z",
+  "closed_at": "2026-10-25T18:07:04.986Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "forbid_claim",
       "terms": [
