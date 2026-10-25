@@ -229,13 +229,8 @@ fn unsupported_configurations_are_rejected_before_launch() {
                 ..default_params()
             },
         ),
-        (
-            "samples_per_pixel=2",
-            mjwarp_rs::render::ContextParams {
-                samples_per_pixel: 2,
-                ..default_params()
-            },
-        ),
+        // 注：`samples_per_pixel=2`（AA）已由 S7b3 实现，不再是拒绝项；AA 的合法配置
+        // 与拒绝面由 S7b3 用例（`tests/render_kernel_flags.rs`）验收。
         (
             "render_skybox",
             mjwarp_rs::render::ContextParams {
@@ -258,5 +253,5 @@ fn unsupported_configurations_are_rejected_before_launch() {
             "{name} 必须在写前拒绝（实际 {result:?}）"
         );
     }
-    println!("s7b2 rejection surface: 4 configurations rejected before launch");
+    println!("s7b2 rejection surface: 3 configurations rejected before launch (AA moved to S7b3)");
 }
