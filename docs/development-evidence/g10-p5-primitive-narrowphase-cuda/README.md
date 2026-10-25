@@ -30,12 +30,17 @@
 ## 2. 实现对照表
 
 上游 `MJ_COLLISION_TABLE`（frozen `collision_driver.py` L47-80）里 `CollisionType.PRIMITIVE` 的
-dispatch 组合共 12 个；本片实现其中 2 个（必做项），其余 10 个如实记未覆盖（§6）。
+默认 dispatch 组合共 12 个。**但本项目全部 fixture 均写 `<flag nativeccd="disable">`**，
+`collision_driver.py` L909-912 会把 `(BOX, BOX)` 覆盖为 `CollisionType.PRIMITIVE`（`box_box_wrapper`）——
+因此本项目配置下 primitive dispatch 实为 **13 组合**；本片实现其中 2 个（必做项），其余 **11 个**如实记未覆盖
+（含 `BOX-BOX`：其上游 primitive 参考已存在于 QA `qa-upstream-gpu.json`，本片未用，可在后续片对照；见 §6）。
+> 该口径修正来自 QA 独立复核发现 1（本片原文误按默认表写「12 组合 / 10 未实现」）。
 
 | 上游 dispatch 组合 | 设备实现 | 入口/选择 | 对照 case | 本片结果 |
 | --- | --- | --- | --- | --- |
 | `(SPHERE, BOX)` / `(BOX, SPHERE)` | ✅ `g5_sphere_box` + `g5_sphere_box_wrapper` | `mjwarp_collision_primitive` 按 `type1/type2` 选路；盒在前时交换实参 | `sphere-box-shallow`、`sphere-box-deep` | 80/80 位级、ULP 0 |
 | `(CAPSULE, BOX)` / `(BOX, CAPSULE)` | ✅ `g5_capsule_box` + `g5_capsule_box_wrapper` | 同上；胶囊轴取 `cap.rot[2],[5],[8]`（上游 mat33 第 3 列） | `capsule-box` | 80/80 位级、ULP 0 |
+| `(BOX, BOX)` | 未实现（本项目配置下被覆盖为 PRIMITIVE，走 `box_box_wrapper`） | — | (`box-box-margin` 参考已存在、本片未用) | 未覆盖 |
 | `(PLANE, SPHERE)` | 未实现 | — | — | 未覆盖 |
 | `(PLANE, CAPSULE)` | 未实现 | — | — | 未覆盖 |
 | `(PLANE, ELLIPSOID)` | 未实现 | — | — | 未覆盖 |
@@ -49,8 +54,10 @@ dispatch 组合共 12 个；本片实现其中 2 个（必做项），其余 10 
 
 补充说明：
 
-- `(BOX, BOX)` 在上游 table 中是 `CONVEX`（`# overwritten by NATIVECCD disable flag`），**不属于**
-  primitive dispatch；本片不实现、也不引用 `box-box-margin` 的参考。
+- `(BOX, BOX)` 在上游默认 table 中是 `CONVEX`，但**本项目全部 fixture 为 `nativeccd=disable`**，
+  `collision_driver.py` L909-912 会把它覆盖为 `PRIMITIVE` → 属于本项目配置下的 primitive dispatch
+  （故按 13 组合计、未实现 11 个）；本片不实现，其上游 primitive 参考已存在于 QA `qa-upstream-gpu.json`，
+  留待后续片（multicontact 片已纳入 `box_box` 设备核移植）对照。
 - `primitive.cu` 的数值内核按上游 f32 语义转写：`g5_sphere_box` 单接触；`g5_capsule_box` 输出两个
   接触（含 corner/edge/face 第二接触分支），无效第二接触 `dist = MJ_MAXVAL`，由 `g5_write_contact`
   的检出语义跳过（与上游 `write_contact` 计数一致）。
