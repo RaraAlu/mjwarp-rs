@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-independent-check",
+  "outcome": "independent_check_pass_stage1",
+  "conclusion": {
+    "verdict": "pass",
+    "blocking": 0,
+    "findings": 1,
+    "observations": 5,
+    "note": "阶段 1 决策支撑独立复核：三选项构建/测试影响 13/14 项在 ±10% 内（唯一越界 debug probe build +16.4% 属 run-to-run 噪声，同配置另一次 clean build 17.2s）、全部体积逐项相同；无 CUDA 环境 build/test 成立（构建期）；阶段 1 未改默认特性/产品代码、未宣称默认管线已具备 CUDA 入口；门禁盲区记录成立。发现 1：DESIGN §4.1 三态表『无驱动库态 panic 否』与代码不符（cudarc 动态加载 panic，产品 new() 无 catch_unwind）。"
+  },
+  "heads": {
+    "delivery_commit": "dea64642",
+    "delivery_receipt_dedupe_commit": "234e7255",
+    "delivery_measured_head": "ef16338dccc5f54adc54102784e28d24e960e569",
+    "check_head": "234e725538117a0810869e86c0b80b08ddf620a4",
+    "product_tree_same_as_delivery_head": true,
+    "product_tree_note": "git diff ef16338d..234e7255 -- src tests Cargo.toml Cargo.lock fixtures 为空（仅 docs/evidence 与 .normify）"
+  },
+  "measurements": {
+    "method": "独立 CARGO_TARGET_DIR（target/qa-default-pipeline/<cfg>，先删目录）+ clean build；同 HEAD、同机、串行单次；target 体积=目录全部文件字节和（MiB=1048576B）；exe=<target>/<profile>/mjwarp-rs.exe",
+    "head_measured": "234e725538117a0810869e86c0b80b08ddf620a4",
+    "debug": {
+      "default_build": {"exit": 0, "seconds": 6.2, "target_mib": 195.2, "exe_mib": 19.62},
+      "probe_build": {"exit": 0, "seconds": 19.9, "target_mib": 775.5, "exe_mib": 77.92},
+      "default_test_norun": {"exit": 0, "seconds": 13.5, "target_mib": 534.4},
+      "probe_test_norun": {"exit": 0, "seconds": 21.1, "target_mib": 1295.9},
+      "default_test_run": {"exit": 0, "seconds": 0.4, "result": "447 passed / 5 ignored / 0 failed"},
+      "probe_test_run": {"exit": 101, "seconds": 0.7, "result": "677 passed / 1 failed / 137 ignored", "failure": "runtime::transfer::kernel::recapture::tests_host::preserves_current_sources_and_all_thirty_variants: unexpected lineage change（已知既有红，repin-13 在修）"}
+    },
+    "release": {
+      "default_build": {"exit": 0, "seconds": 5.0, "target_mib": 30.1, "exe_mib": 2.46},
+      "probe_build": {"exit": 0, "seconds": 17.7, "target_mib": 167.8, "exe_mib": 8.88}
+    },
+    "independent_deltas": {
+      "debug_seconds": 13.7,
+      "debug_target_mib": 580.3,
+      "debug_exe_mib": 58.3,
+      "debug_test_norun_seconds": 7.6,
+      "release_seconds": 12.7,
+      "release_target_mib": 137.7,
+      "release_exe_mib": 6.42
+    },
+    "delivered_deltas": {
+      "debug_seconds": 11.1,
+      "debug_target_mib": 580.3,
+      "debug_exe_mib": 58.3,
+      "debug_test_norun_seconds": 6.8,
+      "release_seconds": 12.3,
+      "release_target_mib": 137.7,
+      "release_exe_mib": 6.4
+    },
+    "comparison": {
+      "metrics": 14,
+      "within_10_percent": 13,
+      "only_outlier": "debug probe build +16.4%（19.9 s vs 17.1 s）；同配置另一次独立 clean build = 17.2 s（15% 级 run-to-run 噪声）",
+      "all_sizes_identical": true,
+      "magnitude_consistent": true
+    }
+  },
+  "no_cuda_simulation": {
+    "removed_path_entries": 0,
+    "removed_env_names": [],
+    "nvcc_available": false,
+    "default_build": {"exit": 0, "seconds": 6.0, "target_mib": 195.2},
+    "default_test_run": {"exit": 0, "seconds": 13.5, "result": "447 passed / 5 ignored / 0 failed"},
+    "probe_build": {"exit": 0, "seconds": 17.2, "target_mib": 775.5},
+    "probe_test_norun": {"exit": 0, "seconds": 20.8},
+    "conclusion": "构建期不依赖 CUDA toolkit（本 shell 原本就不可发现 nvcc、PATH 无 cuda 项、无 CUDA* 变量；cudarc 用 dynamic-loading）",
+    "boundary": "运行期『无 GPU/无驱动/无 NVRTC』不可在本机实机模拟（本机有 RTX 4070 Ti SUPER + driver 596.36）；与交付 measurements.json 的 path_stripped_has_cuda_entries=0 同一事实"
+  },
+  "fallback_semantics": {
+    "product_api_mapping_checked": true,
+    "product_api": "new() 先 compile_program()? 后 CudaContext::new：Compile 优先、NoDevice 次之；Display 文案与 error.rs 逐字一致；CPU seam 单测覆盖 Err→NoDevice/Compile 与编译期 panic→Compile",
+    "cli_default_feature_disabled_verified": "运行默认 build 的 mjwarp-rs.exe probe/resources：stderr『请启用cuda-probe功能』、exit 1（FeatureDisabled，不 panic）",
+    "finding_1": {
+      "claim": "DESIGN §4.1 A/B 行『panic 否』（产品 API 走 CollisionGpuError）",
+      "actual": "无驱动库（cuda/nvcuda 均缺失）时 cudarc culib() 直接 panic（panic_no_lib_found）；CollisionGpuProgram::new 的设备侧调用无 catch_unwind → panic 冒到调用方，而非 NoDevice",
+      "impact": "阶段 2『探测失败→Host 回退、不 panic』需先 is_culib_present() 预检或包 catch_unwind（CLI 已如此）；阶段 1 数字/影响面结论不受影响",
+      "cpu_verifiable": "现有 seam 只注入 Err，不覆盖真实 panic；本机无法实机模拟无驱动环境 → 源码 + cudarc 0.18.2 源码推导"
+    },
+    "observations": [
+      "B 态 CLI 实际 InvalidDevice{requested:0,available:0}，非 Cuda/UnsupportedDevice",
+      "C 态默认 native-ptx 探针用内嵌 PTX，不查 NVRTC；NvrtcUnavailable 只在 cubecl-cpp 路径产生",
+      "C 态产品文案：NVRTC DLL 缺失（panic 分支）→ Compile『NVRTC编译异常』，不含 source_sha256（表里写带指纹）"
+    ]
+  },
+  "gate_blind_spot": {
+    "design_section_6_4_present": true,
+    "design_text": "默认 normify gate 的 unit 只跑默认特性；--features cuda-probe --lib 的 677 项不在门禁内；漂移潜伏约 2 天；建议后续纳入批次门禁但本片不实施",
+    "my_rerun": {
+      "command": "cargo test --locked --features cuda-probe --lib",
+      "result": "677 passed / 1 failed / 137 ignored",
+      "failed_test": "runtime::transfer::kernel::recapture::tests_host::preserves_current_sources_and_all_thirty_variants",
+      "failed_reason": "unexpected lineage change",
+      "note": "已知既有红（T4 陈旧 fixture，2026-10-25-t4-source-hash-repin-13 在修）；本复核未改、未重钉"
+    },
+    "description_inaccuracy": ".normify/gates.toml unit=cargo test --locked（非 --lib）；scripts/test-windows-g01.ps1 主矩阵默认特性 native-model-probe,cuda-probe；blind-spot 结论不变"
+  },
+  "stage1_scope_check": {
+    "product_tree_unchanged": true,
+    "cargo_default_features_unchanged": true,
+    "product_code_calls_collision_gpu_program": false,
+    "stage2_status": "not_started",
+    "stage2_task_status": "proposed",
+    "claims_default_pipeline_has_cuda_entry": false,
+    "claims_default_effective": false
+  },
+  "observations": [
+    "三态表 CLI 错误码/文案三处与代码不一致（B=InvalidDevice；C 默认探针不查 NVRTC；C 产品 panic 分支文案不含 source_sha256）——不改变『三态可构建/可回退』结论。",
+    "DESIGN §1.5/§6.1 门禁与脚本描述口径不准：gates.toml unit=cargo test --locked（非 --lib）；scripts 默认带 native-model-probe,cuda-probe 特性；盲区结论不变。",
+    "无 CUDA 模拟边界：PATH cuda 项/CUDA* 变量本来就不存在（清除 0 项）、nvcc 不可用；验证的是构建期不可发现 toolkit，运行期无驱动/无设备未实机模拟。",
+    "交付 measurements.json 的 measured_at_local 为 `2026-10-26T00:0x+08:00` 占位（非精确时间），建议后续写完整时间戳。",
+    "阶段 2 前置：--features cuda-probe --lib 当前 1 failed 既有红未清零，需 repin-13 verified 后才满足『默认 cargo test 绿』。"
+  ],
+  "uncovered": [
+    "阶段 2 未实施（运行时选择层/Host 回退/9 case host-vs-device 对照），不在本片范围",
+    "运行期三态（无驱动/无设备/无 NVRTC）无实机模拟（本机有驱动+设备）；发现 1/观察 1 为源码+cudarc 源码推导",
+    "编时为单次 clean 测量（同机、串行）；跨机器不可外推；±10% 判据下 1/14 项越界属噪声",
+    "未测性能（本片为依赖/CI 决策）"
+  ],
+  "artifacts": {
+    "readme": "README.md",
+    "measurement_script": "measure.ps1",
+    "comparison_script": "compare_measurements.py",
+    "results": ["measurements-self.json", "measure-log-summary.txt", "qa-code-check.json"],
+    "manifest": "artifacts-sha256.json",
+    "not_committed": [
+      "target/qa-default-pipeline/<cfg>/**（独立 target 目录，体积见 measurements-self.json）",
+      "target/qa-default-pipeline/measure.log（完整构建/测试输出，可由 measure.ps1 重建）",
+      "target/qa-default-pipeline/summary.json（measure.ps1 的原始结构化输出）"
+    ]
+  },
+  "gate": {
+    "status": "passed",
+    "results": {
+      "fmt": "pass",
+      "clippy": "pass",
+      "clippy-cuda": "pass",
+      "unit": "595 passed / 0 failed / 7 ignored",
+      "receipt_task_id_json": "pass",
+      "forbid_claim": "pass"
+    },
+    "note": "门禁绑定当前源码指纹；证据写完后重跑"
+  }
+}

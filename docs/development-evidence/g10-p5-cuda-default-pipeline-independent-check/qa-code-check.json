@@ -1,0 +1,129 @@
+{
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-independent-check",
+  "head_checked": "234e725538117a0810869e86c0b80b08ddf620a4",
+  "delivery_head": "ef16338dccc5f54adc54102784e28d24e960e569",
+  "product_tree_identical_to_delivery_head": true,
+  "designed_paths_checked": [
+    "DESIGN §3 (measurements)",
+    "DESIGN §3.4 / §2 (no-CUDA build simulation)",
+    "DESIGN §4 (three-state fallback semantics vs code)",
+    "DESIGN §6.1/§6.4 (gate/CI blind spot)",
+    "DESIGN §1.5/§2 (Cargo/default features facts)",
+    "receipt.stage2_status / stage2_task / claims wording"
+  ],
+  "code_findings": [
+    {
+      "id": "F1",
+      "severity": "major-for-stage2-design (doc inaccuracy + design input)",
+      "claim": "DESIGN §4.1 三态表 A（无驱动库）与 B 行『panic 否』（产品 API 走 CollisionGpuError::{NoDevice,Compile}）",
+      "actual": "`CollisionGpuProgram::new` 先 `compile_program()?`（NVRTC 失败有 catch_unwind → Compile），随后直接调用 `CudaContext::new(device)`，**未包 catch_unwind**。cudarc 0.18.2 的 `CudaContext::new` → `result::init()` → `sys::cuInit` → `culib()`；`culib()` 在 `cuda`/`nvcuda` 都不存在时调用 `panic_no_lib_found` **panic**（非 Err）。因此在『NVRTC 可用、驱动库缺失』的 A 态，产品 API 会 panic 而不是返回 NoDevice。",
+      "evidence": [
+        "src/runtime/collision_gpu.rs:115-119（new: compile_program()? 后 CudaContext::new，无 catch_unwind）",
+        "src/runtime/collision_gpu.rs:325-336（compile_source_with 只用 catch_unwind 包编译器调用）",
+        "cudarc-0.18.2/src/driver/safe/core.rs:60-62（CudaContext::new: result::init()?）",
+        "cudarc-0.18.2/src/driver/result.rs:88-90（init → sys::cuInit(0)）",
+        "cudarc-0.18.2/src/driver/sys/mod.rs:14987-14989（cuInit → culib().cuInit）",
+        "cudarc-0.18.2/src/driver/sys/mod.rs:26712-26729（culib(): 找不到 cuda/nvcuda → panic_no_lib_found）",
+        "cudarc-0.18.2/src/lib.rs:180-181（panic_no_lib_found 定义）",
+        "对比：CLI 探针有防护 —— src/runtime/cuda.rs:110-115（driver::sys::is_culib_present() 先判 → DriverUnavailable）、src/runtime/run.rs:110-115（catch_unwind → BackendPanic）"
+      ],
+      "cpu_verifiable_evidence": "现有 CPU seam 单测 `constructor_seam_maps_device_and_compile_errors`（src/runtime/collision_gpu/tests.rs:485-499）只注入 `Err(\"no cuda driver\")`，验证的是『若返回 Err 则映射 NoDevice』，**不能证明真实 new() 在驱动库缺失时不 panic**；`compile_failures_are_mapped_without_panicking`（同文件 463-482）只覆盖 NVRTC 编译 panic。运行期『无 libcuda』无法在本机实机模拟（本机有驱动）。",
+      "recommendation": "阶段 2 选择层探测设备前必须先 `driver::sys::is_culib_present()`（CLI 同款）或把整段设备探测包 `catch_unwind`，否则『探测失败→Host 回退、不 panic』的语义无法成立；DESIGN §4.1 A/B 行『panic 否』应按此修正（或注明『依赖调用方防护』）。"
+    },
+    {
+      "id": "F1b",
+      "severity": "minor (doc inaccuracy)",
+      "claim": "DESIGN §4.1 C 行产品 API 文案：`CollisionGpuError::Compile：NVRTC编译失败：source_sha256=…：…`",
+      "actual": "NVRTC DLL 缺失时 cudarc 在动态加载处 panic，`compile_source_with` 的 panic 分支映射为固定 `Compile(\"NVRTC编译异常\")`（Display：`NVRTC编译失败：NVRTC编译异常`，**不含 source_sha256**）；只有非 panic 的编译错误才带 source_sha256 指纹。",
+      "evidence": [
+        "src/runtime/collision_gpu.rs:325-336（panic → Compile(\"NVRTC编译异常\")；非 panic → Compile(带 fingerprint 的错误串)）",
+        "src/runtime/collision_gpu.rs:367-372（compile_program 把 source_sha256 加进非 panic 错误）",
+        "src/runtime/collision_gpu/tests.rs:463-482（panic 映射断言）"
+      ]
+    },
+    {
+      "id": "F2",
+      "severity": "minor (doc inaccuracy)",
+      "claim": "DESIGN §4.1 B 行（有驱动、无设备）CLI：`ProbeError::Cuda`/`UnsupportedDevice`",
+      "actual": "`prepare_device` 在驱动版本检查后取 `CudaContext::device_count()`，`device >= available`（0 设备时 0>=0）→ `ProbeError::InvalidDevice { requested: 0, available: 0 }`；`UnsupportedDevice` 只在已创建设备且 SM<7 时产生（B 态没有设备）。",
+      "evidence": [
+        "src/runtime/cuda.rs:124-138（device_count → InvalidDevice；随后 major<7 → UnsupportedDevice）",
+        "src/diagnostics/probe.rs:132-140（InvalidDevice 文案『设备索引{requested}越界；设备数{available}』）"
+      ]
+    },
+    {
+      "id": "F3",
+      "severity": "minor (doc inaccuracy)",
+      "claim": "DESIGN §4.1 C 行（有设备、无 NVRTC）CLI：`ProbeError::NvrtcUnavailable`",
+      "actual": "默认 `--backend native-ptx` 探针使用 **编译期内嵌 PTX**（`include_str!(\"probe.ptx\")` + `load_module`），运行期完全不加载 NVRTC；因此 C 态下默认探针不会报 NvrtcUnavailable（会成功）。`NvrtcUnavailable` 只在 cubecl-cpp 编译路径（`#[cfg(feature = \"cubecl-cpp-probe\")]`，用 `cudarc::nvrtc::sys::is_culib_present()` 检查 nvrtc 库）产生；cubecl-llvm 路径不经过该检查。",
+      "evidence": [
+        "src/runtime/cuda.rs:155-170（NativePtx 分支 Ptx::from_src(include_str!(\"probe.ptx\"))，无 NVRTC）",
+        "src/runtime/cubecl.rs:250-257（compile_cpp: nvrtc::sys::is_culib_present() → NvrtcUnavailable）",
+        "src/runtime/config.rs:103-116（NativePtx 需要 cuda-probe；backend 选择）"
+      ]
+    },
+    {
+      "id": "F4",
+      "severity": "minor (doc inaccuracy)",
+      "claim": "DESIGN §1.5/§6.1：「门禁 unit 跑默认特性 `cargo test --lib`」；「scripts/test-windows-g01.ps1（默认 `cargo test --locked`、clippy 默认与 --features cuda-probe 两遍）」",
+      "actual": "`.normify/gates.toml` 的 unit 是 `cargo test --locked`（全 targets，默认特性；不是 `--lib`）；`scripts/test-windows-g01.ps1` 主矩阵默认特性是 `--features native-model-probe,cuda-probe`（第 40-41 行），只有 `host-gnu` 子检查（第 264 行）才是 plain `cargo test --locked`；`scripts/g01-fast.ps1` 同样默认带 `native-model-probe,cuda-probe`（第 42 行）。**盲区结论不变**（normify gate 只跑默认特性，cuda-probe 677 项不在门禁），但 DESIGN 的描述应改准。",
+      "evidence": [
+        ".normify/gates.toml:[gate.unit] cmd = [\"cargo\", \"test\", \"--locked\"]",
+        "scripts/test-windows-g01.ps1:40-41（$base=test --locked；$feature=--features native-model-probe,cuda-probe 或 --all-features）",
+        "scripts/test-windows-g01.ps1:264-266（host-gnu / clippy-gnu / clippy-gnu-cuda 三条子检查）",
+        "scripts/g01-fast.ps1:42（默认特性 native-model-probe,cuda-probe）"
+      ]
+    },
+    {
+      "id": "F5",
+      "severity": "observation (simulation boundary)",
+      "claim": "DESIGN §2/§3.4：『从 PATH 移除全部含 cuda 的项、删除全部 CUDA* 环境变量后重测』",
+      "actual": "复测环境（与交付测量时相同）**原始 PATH 本就没有含 cuda 的项、也没有 CUDA* 环境变量**（removed=0/0，`nvcc` 不可用，`Get-Command nvcc` 失败）。因此『清除』步骤实际未改变环境，验证的是『构建期不可发现 CUDA toolkit 的 shell 下 clean build 成功』，不是『从有到无』严格对照。构建期不依赖 toolkit 的结论成立（cudarc dynamic-loading；nvcc 不可用仍 exit 0）；运行期『无 GPU/无驱动』仍未模拟。",
+      "evidence": [
+        "measurements-self.json → no_cuda_env（removed_path_entries=0, removed_env_names=[], nvcc_available=false）",
+        "交付 measurements.json → no_cuda_build.path_stripped_has_cuda_entries=0（同一事实）"
+      ]
+    }
+  ],
+  "verified_claims": [
+    {
+      "claim": "默认 CLI probe 在未启用 cuda-probe 时返回 FeatureDisabled、不 panic、exit 1",
+      "verification": "运行默认 build 的 `target/qa-default-pipeline/t-default/debug/mjwarp-rs.exe probe`（与 `resources`）：stderr『请启用cuda-probe功能』，exit 1 → ProbeError::FeatureDisabled（Display）"
+    },
+    {
+      "claim": "Cargo 默认特性为空、cuda-probe 依赖集合、cudarc 版本/特性",
+      "verification": "Cargo.toml:9-13（default = []；cuda-probe = dep:cudarc/dep:libloading/dep:serde/dep:serde_json/dep:sha2）；Cargo.toml:23（cudarc =0.18.2, default-features=false, features=std,driver,nvrtc,dynamic-loading,cuda-12000），与 DESIGN §1.1 一致"
+    },
+    {
+      "claim": "当前没有产品代码路径调用 CollisionGpuProgram（仅 ignored 集成测试）",
+      "verification": "全仓 grep：src/ 内只有定义与内部实现；调用点只在 tests/g10_p5_nvrtc_launcher.rs、g10_p5_primitive_cuda.rs、g10_p5_multicontact_cuda.rs（均 #[ignore]）与 tests/support/*；与 DESIGN §1.4/receipt findings 一致"
+    },
+    {
+      "claim": "仓库无 .github CI 配置",
+      "verification": "Test-Path .github = False"
+    },
+    {
+      "claim": "默认 gate unit 只跑默认特性、cuda-probe --lib 不在门禁内（盲区）",
+      "verification": "gates.toml unit=[cargo,test,--locked]（默认特性）；本机 `cargo test --locked --features cuda-probe --lib` = 677 passed / 1 failed / 137 ignored，失败 = runtime::transfer::kernel::recapture::tests_host::preserves_current_sources_and_all_thirty_variants（既有红，repin-13 在跑）；默认特性同命令 = 447 passed / 5 ignored / 0 failed"
+    },
+    {
+      "claim": "阶段 1 只做决策支撑：未改 Cargo 默认特性/产品代码；阶段 2 not_started",
+      "verification": "git diff ef16338d..234e7255 -- src tests Cargo.toml Cargo.lock fixtures 为空；receipt.stage2_status=not_started、stage2_task 记录 status=proposed；DESIGN 明确『默认构建仍无 CUDA 入口』『候选非默认生效』"
+    }
+  ],
+  "gate_blind_spot": {
+    "design_section_present": true,
+    "design_section": "DESIGN §6.4（L166-170）写明默认 normify gate unit 只跑默认特性，--features cuda-probe --lib 的 677 项不在门禁内、身份漂移潜伏约 2 天、建议后续纳入批次门禁但不在本片实施",
+    "my_run": {
+      "command": "cargo test --locked --features cuda-probe --lib",
+      "result": "677 passed / 1 failed / 137 ignored",
+      "failed_test": "runtime::transfer::kernel::recapture::tests_host::preserves_current_sources_and_all_thirty_variants",
+      "failure_message": "unexpected lineage change",
+      "handling": "已知既有红，由 2026-10-25-t4-source-hash-repin-13 修复中；本复核未修改、未重钉"
+    }
+  },
+  "no_panic_scan": {
+    "product_cuda_probe_non_test_unwrap_or_expect": [],
+    "note": "src/runtime/collision_gpu*、src/runtime/cuda.rs、src/diagnostics/probe.rs 非测试代码中无 unwrap/expect；唯一 expect 在 #[ignore] 测试 nvrtc_smoke.rs:13（与 DESIGN §1.6 声明一致）。但 F1 表明『无 panic』还需考虑 cudarc 动态加载 panic，仓库自身 .expect 扫描不足以证明。"
+  }
+}
