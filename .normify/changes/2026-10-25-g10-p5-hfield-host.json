@@ -5,7 +5,7 @@
     "zh": "G10@P5 hfield host：_hfield_filter 粗筛、prism 六顶点构造、CCD 组合、0..3 四接触与 MJ_MAXCONPAIR 溢出",
     "en": "G10@P5 hfield host: _hfield_filter coarse cull, prism construction, CCD composition, 0..3 multi-contact and MJ_MAXCONPAIR overflow"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "g10-p5 的 hfield host 片（G4）：按预检语义手册实现上游 hfield 碰撞路径——`_hfield_filter` 的 vec4 粗筛（相邻 cell 候选、按 `hfield_size/nrow/ncol` 与 geom 位置筛选）、prism（三角柱）六顶点构造、hfield 与 SPHERE/CAPSULE/ELLIPSOID/CYLINDER/BOX/MESH 的配对一律走 CONVEX（复用 G2 的 `ccd()`/`support()`）、`pos=0.5*(w1+w2)` 与 `normal=make_frame(w1-w2)`、0..3 四接触选择与 `MIN_DIST_TO_NEXT_CONTACT=1e-3` 去重、`MJ_MAXCONPAIR=50` 溢出路径。数据用 G1 接通的 `hfield_data/nrow/ncol/size/adr`；判据沿用 g10-p5 定稿口径（唯一正式判据 = 与同配方上游 `mujoco_warp` f32（CPU 后端）≤4 ULP、位级优先；native f64 只作契约框架读数、不作判据）。本片 host-only，不实装 GPU（G5）。",
     "en": "hfield host slice (G4) of g10-p5: implement the upstream hfield collision path per the precheck manual - _hfield_filter vec4 coarse cull (adjacent-cell candidates selected from hfield_size/nrow/ncol and geom position), prism (triangular prism) six-vertex construction, routing every hfield pair with SPHERE/CAPSULE/ELLIPSOID/CYLINDER/BOX/MESH through CONVEX (reusing G2 ccd()/support()), pos=0.5*(w1+w2) and normal=make_frame(w1-w2), the 0..3 contact selection with MIN_DIST_TO_NEXT_CONTACT=1e-3 deduplication, and the MJ_MAXCONPAIR=50 overflow path. Inputs use the hfield_data/nrow/ncol/size/adr wired in G1. Criterion follows the finalized g10-p5 rule: the only formal criterion is <=4 ULP versus the same-recipe upstream mujoco_warp f32 on the CPU backend, bit-level first; native f64 is a contract-framework reading only and never a criterion. Host only; the GPU kernel lands in G5."
@@ -43,7 +43,8 @@
     "after": null
   },
   "created_at": "2026-10-25T16:58:00.000Z",
-  "updated_at": "2026-10-25T08:52:15.961Z",
+  "updated_at": "2026-10-25T08:58:41.058Z",
+  "closed_at": "2026-10-25T08:58:41.058Z",
   "checks": [
     {
       "kind": "gate",

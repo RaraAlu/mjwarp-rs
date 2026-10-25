@@ -49,6 +49,7 @@ mod tests;
 pub use ccd::ccd;
 pub use contact::{CcdContact, CcdOutput, ContactOptions, ccd_pair};
 pub use phase::{CcdOptions, CcdResult};
+pub(crate) use support::support;
 
 /// 上游 `collision_gjk.SupportPoint`。
 #[derive(Clone, Copy, Debug, Default)]

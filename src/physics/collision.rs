@@ -50,6 +50,11 @@ pub use gjk::{
 #[allow(dead_code)]
 pub mod sdf;
 
+// G4 hfield 宿主窄相（mujoco_warp/_src/collision_convex.py::ccd_hfield_kernel 子集）。
+// G5 GPU 内核片接入前只由测试与后续片使用。
+#[allow(dead_code)]
+pub mod hfield;
+
 /// 上游 `mjtGeom` 的平面、球、盒与网格编号。
 pub const GEOM_PLANE: i32 = 0;
 pub const GEOM_SPHERE: i32 = 2;
