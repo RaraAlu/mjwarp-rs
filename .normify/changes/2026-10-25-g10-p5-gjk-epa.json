@@ -5,7 +5,7 @@
     "zh": "G10@P5 前置片：GJK/EPA 凸碰撞（ccd/support/多接触，服务 box-box/convex/mesh/hfield）",
     "en": "G10@P5 prerequisite: GJK/EPA convex collision (ccd/support/multicontact; serves box-box/convex/mesh/hfield)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "g10-p5 的独立前置片：按预检手册实现上游 `collision_gjk.py` 语义——`ccd()`（球/胶囊 shrink、浅穿透 inflate、深穿透进 EPA）、GJK 迭代与收敛（epsilon/min_norm/Frank-Wolfe 间隙/分离判据/`_S3D/_S2D/_S1D` 子算法/`x_norm<1e-4` 方向调优）、EPA（polytope 构造、收敛判据、HORIZON 退化与 `FLOAT_MAX`）、`support()` 各类型（含 HFIELD 六顶点）、`multicontact`（box/cylinder/mesh、`_polygon_clip`）；`is_discrete` 分支按 geom 组合实现；CPU 优先，GPU 内核归后续片。不改现有 plane-sphere/sphere-sphere/plane-box 语义。",
     "en": "Standalone prerequisite slice of g10-p5: implement the upstream collision_gjk.py semantics per the precheck manual - ccd() (sphere/capsule shrink, shallow inflate, deep EPA path), GJK iterations and convergence (epsilon/min_norm, Frank-Wolfe gap, separation criteria, _S3D/_S2D/_S1D sub-algorithms, x_norm<1e-4 direction tuning), EPA (polytope construction, convergence, HORIZON degeneracy and FLOAT_MAX), support() per type including HFIELD's six vertices, and multicontact (box/cylinder/mesh via _polygon_clip); the is_discrete branch must follow geometry-combination semantics; CPU first, GPU kernels in a later slice. Existing plane-sphere/sphere-sphere/plane-box semantics must not change."
@@ -39,12 +39,11 @@
   },
   "note": "Arch 2026-10-25 裁决 5A：GJK/EPA 先独立交付（它同时服务 box-box/convex/mesh/hfield，也是 SDF MESH 分支依赖）。本片先 CPU 实现与对照，GPU 内核可在后续片或本片末尾加；实现入口用 `docs/development-evidence/g10-p5-precheck/` 手册与 `target/g10-p5-g2-notes.md`。风险项：is_discrete 分支、f32 定序、EPA 退化、hfield 四接触后处理（属 G4）。不改现有窄相已验收语义。",
   "revision": {
-    "before": "251d6424b70a6e896d65041559d153f558c3ac58",
+    "before": "c99f4e5603c9137acdbfd3905aa6230b97a8a6e6",
     "after": null
   },
   "created_at": "2026-10-25T14:26:00.000Z",
-  "updated_at": "2026-10-25T14:26:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T07:25:05.255Z",
   "checks": [
     {
       "kind": "gate",
