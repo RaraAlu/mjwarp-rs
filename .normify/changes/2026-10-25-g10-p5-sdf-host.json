@@ -5,7 +5,7 @@
     "zh": "G10@P5 SDF host 数学：sdf/sdf_grad、clearance/compute_grad、梯度步、volume box_project+find_oct+有限差分、Halton 初始点",
     "en": "G10@P5 SDF host math: sdf/sdf_grad, clearance/compute_grad, gradient steps, volume box_project/find_oct/finite differences, Halton initpoints"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "g10-p5 的 SDF host 片（G3）：按预检语义手册实现上游 `collision_sdf.py` 的宿主数学，供 G5 GPU 内核与 G6 验收复用——`sdf()`（octree 节点内投影，`box_project` 到六面、`find_oct` 深搜、盒外有限差分梯度）、`sdf_grad()`、`clearance`/`compute_grad` 两式、`gradient_step`/`descent`（Armijo 线搜索、`sdf_iterations`+1 次 intersection、`sdf_initpoints` 个 Halton(2,3,5) 初始点、每初始点一接触）、接触装配（`pos/normal/dist/frame`、`MINVAL` 等常量语义）。数据来自 G1 已接通的模型字段（`oct_aabb/oct_coeff/oct_child/oct_depth/mesh_octadr`）与 G0b 的 `sdf-cylinder` 夹具；数值判据沿用 g10-p5 定稿口径：**唯一正式判据 = 与同配方上游 `mujoco_warp` f32（CPU 后端）≤4 ULP、位级优先**；native f64 只作契约框架读数、不作判据、不得宣称原生放行/精度达标。不改已验收窄相语义、不改 S2–S8 证据、不改 `fixtures/**`、不改 `Cargo.*`、本片不实装 GPU。",
     "en": "SDF host slice (G3) of g10-p5: implement the upstream collision_sdf.py host math per the precheck manual for reuse by the G5 GPU kernel and G6 acceptance - sdf() (octree node projection, box_project to six faces, find_oct descent, outside-box finite-difference gradient), sdf_grad(), the clearance/compute_grad formulas, gradient_step/descent (Armijo line search, sdf_iterations+1 intersections, sdf_initpoints Halton(2,3,5) starts with one contact per start), and contact assembly (pos/normal/dist/frame, MINVAL semantics). Inputs come from the model fields wired in G1 (oct_aabb/oct_coeff/oct_child/oct_depth/mesh_octadr) and the G0b sdf-cylinder fixture. Numeric criterion follows the finalized g10-p5 rule: the only formal criterion is <=4 ULP versus the same-recipe upstream mujoco_warp f32 on the CPU backend, bit-level first; native f64 is a contract-framework reading only, never a criterion, and no native-release or precision-pass claims. Verified narrowphase semantics, S2-S8 evidence, fixtures/** and Cargo.* stay untouched; no GPU in this slice."
@@ -43,7 +43,8 @@
     "after": null
   },
   "created_at": "2026-10-25T16:36:00.000Z",
-  "updated_at": "2026-10-25T08:34:13.941Z",
+  "updated_at": "2026-10-25T08:50:11.704Z",
+  "closed_at": "2026-10-25T08:44:09.474Z",
   "checks": [
     {
       "kind": "gate",
@@ -77,6 +78,14 @@
         "原生放行",
         "精度达标"
       ]
+    }
+  ],
+  "addenda": [
+    {
+      "at": "2026-10-25T08:50:11.704Z",
+      "reason": "关片记录提交（产物转 r2 承接）",
+      "prev": null,
+      "hash": "sha256:2d938d2a5378d81a8dc787742918b9db9af9caed3866133a09e9b118685f5370"
     }
   ]
 }

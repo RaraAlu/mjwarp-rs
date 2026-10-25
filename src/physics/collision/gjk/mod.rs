@@ -36,7 +36,7 @@ mod ccd;
 mod contact;
 mod core;
 mod epa;
-mod math;
+pub(crate) mod math;
 mod multicontact;
 mod phase;
 mod polytope;
