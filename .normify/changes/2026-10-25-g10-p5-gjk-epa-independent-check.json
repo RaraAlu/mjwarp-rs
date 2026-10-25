@@ -17,7 +17,8 @@
     "EPA 覆盖：收敛判据、HORIZON 退化 → `FLOAT_MAX`/idx=-1、缓冲容量 `10+2I`/`6+5I`、`multiccd_idx` 开关（margin≠0 或类型不符 → -1）逐项核；构造≥1 个退化用例验证不 panic、返回语义与上游一致。",
     "support()/multicontact：SPHERE/BOX/CAPSULE/ELLIPSOID/CYLINDER/MESH/HFIELD/TRIANGLE 与 margin 尾项；HFIELD 六顶点与 `dir[2]<0 ? -2 : -3`；MESH 穷举 vs graph hillclimb 分支与 `cached_index` 热启动；`multicontact`/`_polygon_clip` 生成 ≤4 接触且 hfield/SDF 路径不误用。",
     "is_discrete 分支：mesh/box/hfield + margin==0 走 epsilon=0 与重复点早退，有分支覆盖证据；不与 tolerance 路径混用；`box-box-margin`（margin≠0 非离散）与 `box-box`（离散）两条路径都给实测对照。",
-    "接触顺序与不回归：按 `worldid` 分组 + `(dist,pos)` 稳定排序位级比较，原始顺序作观察项记录并解释；既有 plane-sphere/sphere-sphere/plane-box 与已验收窄相语义不回归（相关套件重跑数字不变）；证据含 task_id、方法与未覆盖项；`git diff` 只动 G2 声明路径、未改 S2–S8 证据与夹具；门禁 fmt/clippy/clippy-cuda/unit 通过；GPU 独占串行、结束回桌面基线。"
+    "接触顺序与不回归：按 `worldid` 分组 + **全字段（含 `geomcollisionid`）稳定排序**后位级比较（G0b 复核发现仅用 `(dist,pos)` 排序键会把 `hfield-sphere`/`hfield-capsule` 的重复接触点（同 `(dist,pos)`、不同 `geomcollisionid`）视为无序，必须把 `geomcollisionid` 纳入排序键；`flex`/`elem`/`vert` 在 `nflex==0` 时是 0 长数组，不要求有值）；**原始顺序只作观察项且仅对本设备本后端（本次 CUDA 运行）成立**，跨后端/跨设备不作判据；既有 plane-sphere/sphere-sphere/plane-box 与已验收窄相语义不回归（相关套件重跑数字不变）；证据含 task_id、方法与未覆盖项；`git diff` 只动 G2 声明路径、未改 S2–S8 证据与夹具；门禁 fmt/clippy/clippy-cuda/unit 通过；GPU 独占串行、结束回桌面基线。",
+    "（GPU 窗口内顺带）G0b 限制项补齐：G0b 复核只能用 warp CPU 后端独立重采两次，交付的 CUDA 两次捕获原始位等只有布尔结论、无独立证据。本片复核的 GPU 窗口内（约 2 分钟）用 QA 已写好的 harness 在 CUDA 后端独立重跑两次捕获，逐位比对交付夹具，把「CUDA 两次捕获位等」从交付声明升级为独立证据；若出现不一致立刻报 Arch（这会影响 G2/G3/G4 的排序比较判据）。"
   ],
   "schedule": {
     "depends_on": [
