@@ -1,0 +1,222 @@
+{
+  "schema": 1,
+  "kind": "g10-p5-fixtures-independent-check",
+  "task_id": "2026-10-25-g10-p5-fixtures-independent-check",
+  "date": "2026-10-25",
+  "reviewed_commit": "f0e43bb74807c019da16293895914096e3c3e105",
+  "reviewed_commit_parent": "87bc042",
+  "review_baseline_head": "f0e43bb",
+  "head_during_review": "1fc9782",
+  "head_during_review_scope": "governance-only: 2 .normify/changes/*.json (task registrations), 0 product paths",
+  "outcome": "pass",
+  "blocking_findings": 0,
+  "scope": "QA independent review of G0b (task 2026-10-25-g10-p5-fixtures): per-version MJB provenance and same-version reload / cross-version rejection; bitwise recomputation of both octree parity layers from QA's own 3.12 C++ and 3.15 Python dumps plus octree structural self-checks; independent recomputation of the d04 run-5 existing-reference audit; verification of the 10 new GJK/EPA direct-reference captures (qpos/qvel default_state semantics, offset scope, 17 contact-field records, provenance, two-capture determinism, fixture reproduction with QA's own warp-CPU capture harness), contact ordering rule execution, nworld=2 spike basis by source review, evidence hashes/scope/honesty. No product-code, fixture or original-evidence changes; no full G01; no GPU.",
+  "method": {
+    "independent_harness": [
+      "qa_mjb_dump.cpp + build_qa_312.ps1 (QA MuJoCo 3.12 C dump/save/reload/probe)",
+      "qa_dump_315.py (QA MuJoCo 3.15 dump/save/reload/probe)",
+      "qa_parity_compare.py (QA bitwise field compare + octree structure checks + delivered parity audit)",
+      "qa_audit_existing.py (QA d04 audit recomputation + geom-type resolution)",
+      "qa_verify_references.py (QA qpos/qvel rebuild, offset/FK checks, 17-field checks, provenance)",
+      "qa_recapture.py + qa_recapture_diff.py (QA capture protocol on warp CPU backend, two captures, fixture diff)",
+      "qa_branch_geometry.py (shallow/deep sphere-box branch premise)",
+      "qa_evidence_hash.py (69 hash/scope/log checks)"
+    ],
+    "reused_delivery_code": false,
+    "gpu_used": false,
+    "gpu_note": "captures were originally produced on CUDA by the delivery; QA re-captured on warp CPU backend to avoid a GPU window (see limitations)"
+  },
+  "mjb_provenance": {
+    "artifacts": {
+      "mjb-312/hfield-box": {"bytes": 5267, "sha256": "39e74291327e71cfe9c9ab42f7f15f781a2cf26b6050fe498146d2a0f1985082"},
+      "mjb-312/sdf-cylinder": {"bytes": 9405930, "sha256": "9dfd077ed4ab40877ea9380ae57e317200da70c1645c603d22b5896d5aefec43"},
+      "mjb-315/hfield-box": {"bytes": 5259, "sha256": "cf60c77ef7aae501a78af3ba28d57cff1328f31b18ff6ff49357ccede7691d24"},
+      "mjb-315/sdf-cylinder": {"bytes": 9405922, "sha256": "f1df72cf9a606ea15430c30b39766cc0d35203ac0fd53a8832174938634b3129"}
+    },
+    "qa_rebuild_from_source_xml_byte_identical": true,
+    "same_version_reload_ok": {"312": true, "315": true},
+    "cross_version_rejected": {
+      "315_loads_312": {"ok": false, "error": "ValueError: mj_loadModel: failed to load from mjb", "warning": "Model and executable have different number of sizes in mjModel"},
+      "312_loads_315": {"ok": false, "probe": "PROBE_FAIL", "warning": "Model and executable have different number of sizes in mjModel"}
+    },
+    "source_xml_sha_ok": true,
+    "reference_side_does_not_use_product_mjb": true
+  },
+  "octree_parity": {
+    "fields_per_model": 18,
+    "models": {
+      "hfield-box": {"fields_equal": 18, "noct": 0, "hfield_data": [0.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 0.0], "hfield_size": [1.0, 1.0, 0.1, 0.1]},
+      "sdf-cylinder": {
+        "fields_equal": 18, "noct": 63497,
+        "oct_depth_bytes": 253988, "oct_child_bytes": 2031904,
+        "oct_aabb_bytes": 3047856, "oct_coeff_bytes": 4063808,
+        "octree_structure": {
+          "depth_histogram": {"0": 1, "1": 8, "2": 64, "3": 512, "4": 3584, "5": 18944, "6": 40384},
+          "child_valid_or_negative": true, "negative_children": 444480,
+          "referenced_nodes": 63496, "unreferenced_nonroot_nodes": 0,
+          "parent_child_depth_violations": 0, "half_extents_positive": true,
+          "children_inside_parent_aabb": true
+        }
+      }
+    },
+    "all_equal": true,
+    "delivered_parity_json_recomputation_matched": true,
+    "decision_supported": "SDF/hfield numeric acceptance can stay bitwise on both versions",
+    "side_consistency_xml_equals_mjb_dump": {"312": true, "315": true}
+  },
+  "existing_reference_audit": {
+    "d04_cases": 12,
+    "rows_matched": 12,
+    "mismatches": 0,
+    "reusable_for_g2_g3_g4": {"box-box-multiccd": 10, "convex-mesh": 2, "degenerate-mesh": 2, "hfield-box": 8, "sdf-cylinder": 80},
+    "regression_only": ["sphere-sphere"],
+    "gaps": 9,
+    "new_cases_fill_gaps": 10,
+    "existing_case_recaptured": false,
+    "geom_type_resolution": {
+      "box-box-multiccd": ["box", "box"], "convex-mesh": ["box", "mesh"],
+      "degenerate-mesh": ["mesh", "mesh"], "hfield-box": ["hfield", "box"],
+      "sdf-cylinder": ["cylinder", "sdf"], "sphere-sphere": ["sphere", "sphere"]
+    }
+  },
+  "captures": {
+    "cases": 10,
+    "all_counts_and_per_world_match_delivery": true,
+    "default_state": {
+      "qpos_qvel_match_rebuilt_bits": "10/10",
+      "qpos_world0_world1_diff_only_at_offset_components": "10/10",
+      "single_freejoint_per_model": true,
+      "fk_only_free_body_moves_by_offset": "10/10"
+    },
+    "two_captures_qa_cpu": {
+      "raw_bitwise_identical": "10/10",
+      "note": "warp CPU backend; delivered two-capture flags cannot be recomputed from fixtures (second capture arrays are not stored)"
+    },
+    "fixture_reproduction_qa_cpu": {
+      "bitwise_exact": 4,
+      "near": 6,
+      "worst_abs_diff": {"dist": 6.9e-07, "pos": 4.6e-07, "frame": 2.8e-05},
+      "class_by_case": {
+        "sphere-box-shallow": "exact", "sphere-box-deep": "exact", "capsule-box": "exact",
+        "hfield-capsule": "exact", "cylinder-box": "near", "ellipsoid-box": "near",
+        "hfield-sphere": "near", "sdf-box": "near", "mesh-mesh": "near", "box-box-margin": "near"
+      }
+    },
+    "contact_fields": {
+      "records": 17,
+      "all_present_and_finite": true,
+      "flex_elem_vert_width": "0 (shape [0,2]) because model nflex==0 (mjwarp io.py allocates wp.empty(0))"
+    },
+    "provenance": {"all_10_ok": true, "versions": {"python": "3.12.13", "mujoco": "3.15.0", "warp": "1.15.0", "mujoco_warp": "3.15.0", "numpy": "2.5.4"}},
+    "shallow_deep_branch_premise": {
+      "shallow_center_outside_box": true, "shallow_point_box_distance": 0.04,
+      "deep_center_inside_box": true, "deep_point_box_distance": 0.0,
+      "mjwarp_rule": "collision_gjk.py:2528-2569 shrink/sphere then inflate when shrunk GJK dist > tolerance, else reset and GJK+EPA"
+    },
+    "duplicate_contact_rows": {
+      "hfield-sphere": {"contacts": 8, "unique_dist_pos_frame": 6, "extra_duplicate_rows": 2},
+      "hfield-capsule": {"contacts": 7, "unique_dist_pos_frame": 2, "extra_duplicate_rows": 5,
+                          "detail": "world0 4 rows same pos=(0.04,0,0.185) dist=-0.17; world1 3 rows same pos=(0.06,0,0.185); only geomcollisionid differs"},
+      "other_8_cases": "no duplicate (dist,pos,frame) rows",
+      "upstream_behavior": true,
+      "qa_cpu_recapture_reproduced": true
+    }
+  },
+  "order_criterion": {
+    "implementation": "worldid grouping + sort key (worldid, dist bits, pos bits, frame bits, geom, type, dim), compare sorted key sequences",
+    "raw_flag_covers_all_contact_fields": true,
+    "sorted_flag_covers_key_fields_only": 7,
+    "raw_order_observation_recorded": "10/10 and matches output",
+    "grouped_by_world_matches_recompute": "10/10",
+    "cross_backend_order_instability_observed": true,
+    "verdict": "sorting criterion is necessary and correctly applied; raw order must not be treated as fixture-stable"
+  },
+  "nworld_spike": {
+    "broadphase_outer_loop_world_in_0..nworld": true,
+    "world_times_ngeom_indexing": true,
+    "narrowphase_worldid_lt_nworld_check": true,
+    "narrowphase_index_base_worldid_times_ngeom": true,
+    "contact_writes_worldid": true,
+    "hfield_data_oct_fields_absent_in_product_src": true,
+    "verdict": "2A basis holds (no downgrade to 2B); spike remains a code-read conclusion pending G1/G5 landing"
+  },
+  "evidence_integrity": {
+    "qa_checks": 69,
+    "qa_checks_failed": 0,
+    "evidence_files_equal_git_blobs": true,
+    "declared_artifact_hashes_match": true,
+    "commit_scope_only_g10_p5_paths": true,
+    "protected_paths_untouched": ["src/", "tests/", "Cargo.*", "docs/evidence/d04-complex-physics/", "fixtures/mjwarp-complex-physics/", "docs/development-evidence/render-bvh/"],
+    "gpu_log": {"start_mib": 4156, "end_mib": 4156, "compute_processes_before_after_equal": true, "qa_gpu_used": false}
+  },
+  "problems": [
+    {
+      "severity": "一般",
+      "title": "box-box-margin 的 multiccd 覆盖描述与模型配置相反",
+      "detail": "README §5/receipt covers 写 'margin≠0 非 is_discrete 路径 + multiccd'，但模型 box-box-margin.xml 显式 multiccd=disable（disableflags=0xA0000）；5 接触/world 来自 margin≠0 非离散路径（mjwarp collision_gjk.py:2526）。multiccd 真实覆盖来自既有 box-box-multiccd。顺序观察项对该 case 的 'broadphase/multiccd' 归因同样不准确。",
+      "expected": "删去该 case 的 multiccd 表述，改为非 is_discrete 多接触路径；multiccd 覆盖只挂 box-box-multiccd",
+      "actual": "交付措辞与模型配置矛盾；不影响覆盖结论（multiccd 有既有参考）",
+      "recommendation": "normify fix（README §5 + receipt captures case covers）"
+    },
+    {
+      "severity": "建议",
+      "title": "排序后位等判据只比较 7 个键字段",
+      "detail": "capture_g0b_references.py 的 row_key 仅含 worldid/dist/pos/frame/geom/type/dim；two_captures_sorted_bitwise_identical 比较排序键而非全 contact 行；只有 raw_identical 是全字段。sdf-box（raw=false）其余 10 字段的两次捕获位等无证据。",
+      "expected": "排序后按全字段比较，或注明覆盖字段集",
+      "actual": "判据比描述窄",
+      "recommendation": "后续捕获/比较脚本改为排序后全字段位比"
+    },
+    {
+      "severity": "建议",
+      "title": "contact 17 字段中 flex/elem/vert 为 0 宽需注明",
+      "detail": "10 个夹具 flex/elem/vert 记录 shape [0,2]（模型 nflex==0，mjwarp io.py 分配 wp.empty(0, vec2i)）；记录存在但不能用于 G11 flex 判据、下游比较不应要求有值。",
+      "expected": "证据注明字段宽度语义",
+      "actual": "仅写 17 字段齐全",
+      "recommendation": "后续比较逻辑按字段宽度判定"
+    },
+    {
+      "severity": "建议",
+      "title": "原始顺序观察项的跨后端边界需写明",
+      "detail": "CPU 后端重采下 cylinder-box/hfield-sphere/box-box-margin 为 world 分组（交付 CUDA 为交错），sdf-box CPU 两次 raw 位等（CUDA raw=false）；raw 顺序是后端/写序属性。",
+      "expected": "注明 raw 顺序只对本次 CUDA 运行成立",
+      "actual": "未写明跨后端不保证",
+      "recommendation": "后续证据注明；G3/G5 一律用分组+排序判据"
+    },
+    {
+      "severity": "建议",
+      "title": "捕获日志编码与 stderr 噪声",
+      "detail": "gpu-run.log 为 UTF-16，mjwarp 警告被包成 PowerShell NativeCommandError 并与 Python 报错混排；不影响结果但影响复现可读性。",
+      "expected": "统一 UTF-8 + 分离 stderr",
+      "actual": "日志噪声易误读",
+      "recommendation": "捕获脚本/包装命令改进日志采集"
+    },
+    {
+      "severity": "建议",
+      "title": "hfield 两个 case 的接触矩阵含重复接触点",
+      "detail": "hfield-capsule 7 行只有 2 个不同 (dist,pos)（world0 4 行同点、world1 3 行同点），hfield-sphere 8 行 6 个不同（重复 2 行）；重复行仅 geomcollisionid 不同。上游 mjwarp 行为，QA CPU 重采已复现；但覆盖表写 4/4、4/3 易被 G4 误读为 4 个不同接触点，且 (dist,pos) 排序不能给重复行定序。",
+      "expected": "证据注明重复接触点性质；G4 判据用 world 分组 + 全字段多重集（含 geomcollisionid）",
+      "actual": "覆盖表与 receipt 未注明",
+      "recommendation": "normify fix（README §5 表 + receipt 说明）"
+    }
+  ],
+  "limitations": [
+    "未独立复跑交付 CUDA 的两次捕获：交付第二次捕获数组未落盘，只有布尔；QA 用 warp CPU 后端验证同协议两次原始位等并复现夹具数值（4 例逐位、6 例 ≤6.9e-7/2.8e-5），CUDA 原始位等仍依赖交付布尔 + 跨后端对照。若给约 2 分钟 GPU 窗口可补跑。",
+    "warp CPU 与 CUDA 后端存在 ≤6.9e-7（dist/pos）、≤2.8e-5（frame）浮点差，属后端差异，不判夹具缺陷。",
+    "未跑全量 G01、未跑产品测试/产品代码、未改夹具与 G0b 原证据。",
+    "只审 10 个补充 case 与 5 个既有 case 的覆盖，不是全组合矩阵；未覆盖 Linux/T4（G0b unmet 已列）。",
+    "未验证 G1–G5 产品侧落地；捕获输入为静态 qpos/qvel（kinematics+collision），不含积分/步进时序语义。"
+  ],
+  "not_claimed": [
+    "G10 cumulative implementation",
+    "physics overall pass",
+    "dual-platform pass",
+    "upstream numerical equivalence",
+    "product hfield/SDF collision implemented"
+  ],
+  "gates": {
+    "fmt": "pass",
+    "json_receipt_task_id": "pass",
+    "forbid_claim_terms": "none"
+  },
+  "evidence_commands": "logs/01-build-312.log .. logs/09-branch-geometry.log; reports: parity_qa_report.json, qa_315_report.json, audit_qa_report.json, references_qa_report.json, recapture_qa_report.json, recapture_diff_report.json, branch_geometry_report.json, evidence_hash_report.json"
+}
