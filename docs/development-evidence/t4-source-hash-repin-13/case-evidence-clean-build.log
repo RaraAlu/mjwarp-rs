@@ -1,0 +1,87 @@
+# case_evidence::upstream_f32_within_4ulp 环境差异证据（r2 复核副产物）
+# 时间: 2026-10-26 01:25 (Asia/Shanghai)
+# HEAD: b47dcd8a（当前树；git status --porcelain -- src 为空）
+# 结论先写：差异的**直接来源已定位到构建工具链/target（GNU 默认 env vs 显式 MSVC）**——
+#   仓库默认环境（rust-toolchain.toml → active 1.99.0-x86_64-pc-windows-gnu）= 全绿；
+#   Backend 此前红号全部用显式 `+1.99.0-x86_64-pc-windows-msvc` = 该测试红。
+#   两者的 rustc 命令行差异 = 工具链路径 + GNU-only `-C link-dead-code=yes`（见 B.3）。
+#   数值机制（哪一个差异导致 frame 6.351978e-7）归诊断片 2026-10-25-case-evidence-frame-diagnosis
+#   （口径「构建环境敏感性」，b47dcd8a）；本片不下数值归因、不宣称跨环境全量绿。
+
+## A. 最小复现协议（Arch 指定；全新目录，不复用 verify-clean-001）
+
+- 目录：`CARGO_TARGET_DIR=target/verify-clean-002`（删空重建）
+- 命令：`cargo test --locked --lib physics::collision::gjk::case_evidence::upstream_f32_within_4ulp -- --exact --nocapture`
+- 结果：**exit 0，`test result: ok. 1 passed; 0 failed; 0 ignored; 451 filtered out; finished in 0.01s`**
+  （`Running unittests src\lib.rs (target\verify-clean-002\debug\deps\mjwarp_rs-bbf617de7cd0b294.exe)`，从零构建 13.35s）
+- `rustc -V` + `rustc -vV`：
+  rustc 1.99.0 (b940084d7 2026-09-28)
+  host: x86_64-pc-windows-gnu / LLVM version: 23.1.1 / release: 1.99.0
+- `cargo -V`：cargo 1.99.0 (5f94df478 2026-08-27)
+- `Get-ChildItem Env: | Where-Object Name -match '^(CARGO|RUST)'`：**无**（除协议显式设置的
+  `CARGO_TARGET_DIR=...verify-clean-002`；另开新 shell 复核为空）
+- `target/verify-clean-002/.rustc_info.json`：host = `x86_64-pc-windows-gnu`，toolchain 目录
+  `...toolchains/1.99.0-x86_64-pc-windows-gnu`
+
+## B. 同一棵树的对照（差异来源定位）
+
+### B.1 同一当前树、全新目录、显式 MSVC 工具链 → 红
+目录 `target/verify-clean-002-msvc`（删空重建）：
+`cargo +1.99.0-x86_64-pc-windows-msvc test --locked --lib <同一测试> -- --exact --nocapture`
+结果：**exit 101，FAILED. 0 passed; 1 failed; 451 filtered out，
+panic: `src\physics\collision\gjk\case_evidence.rs:165:9: ellipsoid-box frame 6.351978e-7`**
+（`Running unittests ... target\verify-clean-002-msvc\debug\deps\mjwarp_rs-889ee16249110a39.exe`）
+→ 红在**全新目录**同样复现，不是 `verify-clean-001` 的旧产物。
+
+### B.2 两套干净构建的 lib 测试二进制
+- GNU（verify-clean-002）：`mjwarp_rs-bbf617de7cd0b294.exe` **54,607,221 B**，sha256 `b50ba7c99069…`
+- MSVC（verify-clean-002-msvc）：`mjwarp_rs-889ee16249110a39.exe` **10,636,288 B**，sha256 `2d82dd447f2d…`
+→ 体积 54.6 MB vs 10.6 MB 与 Arch 观察一致，对应 GNU-only `-C link-dead-code=yes`（见 B.3），
+  不是「过期产物」。
+→ debug 构建**不保证位级可复现**：同一 metadata/extra-filename（`-bbf617de7cd0b294` /
+`-889ee16249110a39`）在两次全新 debug 构建下体积同为 54,607,221 B 但 sha 不同
+（Arch 侧 `fe6512ab…` / `7372395d…`）——**sha 不能当确定性判据**。
+
+### B.3 两条 rustc 命令行（`--crate-name mjwarp_rs`，`cargo test --locked --lib --no-run -v`）
+GNU（默认）：
+```
+C:\Users\zhang\.rustup\toolchains\1.99.0-x86_64-pc-windows-gnu\bin\rustc.exe
+  --crate-name mjwarp_rs --edition=2024 ... -C embed-bitcode=no -C debuginfo=2 --test
+  --cfg "feature=\"default\"" ... --extern serde=... --extern serde_json=... --extern sha2=...
+  -C link-dead-code=yes
+```
+MSVC（显式）：
+```
+C:\Users\zhang\.rustup\toolchains\1.99.0-x86_64-pc-windows-msvc\bin\rustc.exe
+  --crate-name mjwarp_rs --edition=2024 ... -C embed-bitcode=no -C debuginfo=2 --test
+  --cfg "feature=\"default\"" ... --extern serde=... --extern serde_json=... --extern sha2=...
+```
+相同：edition 2024、`-C embed-bitcode=no`、`-C debuginfo=2`、`--test`、`--cfg "feature=\"default\""`、
+无 `--target`（host 构建）、`-C opt-level` 未出现（debug 默认）、`-C metadata`/extra-filename 不同。
+不同：**rustc 工具链路径（windows-gnu vs windows-msvc）**、**GNU 独有的 `-C link-dead-code=yes`**
+（来自仓库 `.cargo/config.toml` 的 `[target.x86_64-pc-windows-gnu] rustflags`）。
+→ 候选机制：target ABI 差异 vs `link-dead-code` 标志；二者何者导致 frame 超限**未定**，归诊断片。
+
+### B.4 rust-toolchain / rustup / 仓库配置
+- `rust-toolchain.toml`：`channel = "1.99.0"`；`rustup show` 显示 active = `1.99.0-x86_64-pc-windows-gnu`
+  （overridden by `rust-toolchain.toml`；机器 default host = `x86_64-pc-windows-gnu`）。
+- `.cargo/config.toml`：`[target.x86_64-pc-windows-gnu] rustflags = ["-C", "link-dead-code=yes"]`；
+  用户级 `~/.cargo/config.toml` 不存在。
+→ 即**仓库默认命令（不带 +toolchain）就等于 GNU 目标 + link-dead-code**，与 Arch 环境一致；
+  Backend 之前显式 `+...-msvc` 属于非默认构建。
+
+## C. Arch 侧已查证项（引述，写入本证据）
+1. 该路径唯一环境变量是 `G2_DUMP_NATIVE_ERROR`（dump 开关，不参与断言）；干净二进制 + G01 env 重跑仍 pass
+   → **环境变量不是原因**；
+2. 两次全新 debug 构建同名同体积 `54,607,221 B`、sha 不同（`fe6512ab…` / `7372395d…`）
+   → debug 构建不可位级复现，**不能拿 sha 当确定性判据**；
+3. `--release` 同测试 → **1 passed**，排除优化导致的 frame 超限；
+4. `verify-clean-001/debug/deps` 有 1557 个文件（全新目录 295）→ 是**多配置叠加产物**
+   （Backend 会话中交替使用 GNU 与 MSVC 工具链写同一 `target`），来源不可靠，不作为证据源。
+
+## D. 更正与影响
+- **更正**：Backend 此前的两点说法已撤销——①「Arch 的 678/0 来自主 target 过期二进制」不成立
+  （Arch 用全新 `arch-verify-clean`；B.1 显示红来自 MSVC 构建）；②「时钟错乱/指纹错乱导致复用旧
+  二进制」不成立（sha 不同是 debug 构建不可复现，不是缓存问题）。真实差异 = 构建工具链/target。
+- r2 验收按**仓库默认环境（GNU，§2 README）**；Backend MSVC 构建的红数字（§3 README）保留作对照。
+- **不宣称跨环境全量绿**；数值机制归 `2026-10-25-case-evidence-frame-diagnosis`（构建环境敏感性）。

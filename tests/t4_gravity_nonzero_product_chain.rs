@@ -16,7 +16,7 @@ use std::{fs, path::PathBuf};
 
 const PACKAGE: &str =
     include_str!("../fixtures/gravity-upstream-abi/nonzero-product-chain-package.json");
-const PACKAGE_SHA256: &str = "ba40ffcdc30619c3035cb64a6bcc07369cb653f4f49b6085fd49f788234ae003";
+const PACKAGE_SHA256: &str = "96bd92afe05b482630cff7ffcf3eda9626a29e8b9bff01bcf70f17bc2f0af79b";
 const REVISION: &str = "71da24d956378a87a703b6e1442b13aec0c4ac29";
 const WARP_VERSION: &str = "1.15.0";
 const TOLERANCE_BITS: u32 = 0x360637bd;
@@ -122,7 +122,7 @@ fn validate_package(package: &Value) -> Result<(), &'static str> {
             != serde_json::json!({
                 "physics_core": {
                     "path": "src/physics/mod.rs",
-                    "sha256": "d7f6c7d19a17307d281f6e43c9866d0da67bfcbe9af4af3bad305d77ee3a187c"
+                    "sha256": "33a6e55f8f758528db9c21d82ff639ce794ce80408c9271f4394f3667036e546"
                 },
                 "resident": {
                     "path": "src/physics/resident.rs",

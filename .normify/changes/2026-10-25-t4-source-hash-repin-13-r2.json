@@ -5,7 +5,7 @@
     "zh": "重钉T4当前源码身份（第13轮，r2）：修 --features cuda-probe 下 T4 谱系既有红（scope 含 gravity ABI 包）",
     "en": "Re-pin T4 current source identity (round 13, r2) with gravity ABI package scope"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "HEAD 上 `cargo test --locked --features cuda-probe --lib` 有既有红：`runtime::transfer::kernel::recapture::tests_host::preserves_current_sources_and_all_thirty_variants` → `unexpected lineage change`，根因是 T4 当前身份 fixture 落后于源码（`t4-current-kernels.json` 的 `product_sources` 9/20 条不符；physics_core 组合摘要旧 d7f6c7d1→新 33a6e55f 等），上次重钉 `e4f74816`（2026-10-23）后多片继续改动 physics/transfer 源码而未重钉。r1（`2026-10-25-t4-source-hash-repin-13`）在 start 后发现 `fixtures/gravity-upstream-abi/` 的 package identity 也在重钉范围，normify 0.7.0 冻结 scope 无法补写，故 abandon 并重登记本片，scope 扩到 `fixtures/` 全目录。按 repin-12 既有模式：先枚举后重钉，只改身份期望字面量，不改断言逻辑/容差/排除清单/产品源码/内核 PTX。",
     "en": "Re-pin the stale T4 current identity fixtures (including the gravity ABI package files that r1 could not reach after scope freeze). Enumerate first, then change expectation literals only."
@@ -32,17 +32,29 @@
   },
   "note": "Arch 2026-10-25 重登记（替代 abandoned 的 `2026-10-25-t4-source-hash-repin-13`）。abandon 原因：start 后才发现 `fixtures/gravity-upstream-abi/` 也在范围，normify 冻结 scope 无法补写（S7b1 同款教训）。本片对任何默认管线选项都是必要前置；GPU 非必须（compile-only，不建 GPU 会话）。QA 独立复核任务 `2026-10-25-t4-source-hash-repin-13-independent-check` 的依赖已同步指向本片。",
   "revision": {
-    "before": "175ff14e42b0c1eaf7c49f7a175c15e29f45e387",
+    "before": "97ec85246709d3e353ae6cee88eac688accf57c3",
     "after": null
   },
   "created_at": "2026-10-25T16:35:00.000Z",
-  "updated_at": "2026-10-25T16:35:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T17:14:33.222Z",
+  "closed_at": "2026-10-25T17:14:33.222Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "json",
       "path": "docs/development-evidence/t4-source-hash-repin-13/receipt.json",

@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-t4-source-hash-repin-13-r2",
+  "head": "4ba11df55a65949f4db9f61bd2d20f9a42a9d19f",
+  "purpose": "枚举崩溃面（重钉前）与重钉后复跑结果；详细数字与逐条旧→新值见 README.md / receipt.json",
+  "environment": {
+    "toolchain": "1.99.0-x86_64-pc-windows-msvc",
+    "MJWARP_MUJOCO_ROOT": "target/toolchains/mujoco-3.12.0/package",
+    "MJWARP_MUJOCO_DLL": "target/toolchains/mujoco-3.12.0/package/bin/mujoco.dll",
+    "CUDA_PATH": "target/toolchains/cuda-12.8.1",
+    "PATH_prepend": "target/toolchains/cuda-12.8.1/bin",
+    "dlltool_on_path": false
+  },
+  "pre_repin": {
+    "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast",
+    "exit": 101,
+    "failed_targets": 6,
+    "failed_tests": 18,
+    "classification": {
+      "identity_drift": 17,
+      "non_identity": 1
+    },
+    "identity_failures": [
+      {"target": "lib", "test": "runtime::transfer::kernel::recapture::tests_host::preserves_current_sources_and_all_thirty_variants", "reason": "unexpected lineage change（9/20 product_sources 漂移）"},
+      {"target": "t4_camlight_precision", "test": "maps_eighteen_internal_groups_and_four_public_f32_outputs", "reason": "physics_core 33a6e55f vs d7f6c7d1"},
+      {"target": "t4_gravity_3d_product_chain", "test": "contract::frozen_three_d_package_contract_is_self_consistent", "reason": "package identity（physics_core/resident 过期）"},
+      {"target": "t4_gravity_nonzero_product_chain", "test": "contract::frozen_nonzero_product_chain_contract_is_self_consistent", "reason": "physics_core/resident 过期"},
+      {"target": "t4_input_precision", "tests": ["field_internal::tests::maps_all_batched_fields_and_com_steps", "field_internal::flex_matrices::tests::covers_twenty_one_groups_four_float_outputs_and_cache_publication", "packing_routes::flex_internal::covers_sixteen_groups_and_six_output_routes", "rigid_internal::tests::covers_seventeen_internal_groups_and_seven_outputs", "rigid_internal::tests::preserves_zero_quaternion_evidence_and_active_macros", "state_packing::tests::covers_state_declarations_and_all_ten_packing_functions", "tests::maps_every_native_input_without_claiming_full_precision_acceptance", "topology_frames::tests::covers_topology_internal_groups_and_outputs"], "reason": "physics_core / resident / transfer / model-flex 组合摘要、native 头文件、旋转谱系"},
+      {"target": "t4_tendon_wake_precision", "tests": ["maps_eighteen_mixed_scalar_groups_and_five_integer_outputs", "maps_transaction_publication_and_diagnostic_only_readback_conversion", "inspects_existing_ptx_float_distances_and_signed_integer_updates"], "reason": "physics_core 33a6e55f"}
+    ],
+    "non_identity_failures": [
+      {"target": "lib", "test": "physics::collision::gjk::case_evidence::upstream_f32_within_4ulp", "reason": "ellipsoid-box frame 6.351978e-7 > 4.8e-7"}
+    ],
+    "log": "all-features.log"
+  },
+  "post_repin": {
+    "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast",
+    "exit": 101,
+    "elapsed_s": 109.9,
+    "lib": "693 passed / 1 failed / 137 ignored",
+    "other_targets_failures": 0,
+    "remaining_failure": "physics::collision::gjk::case_evidence::upstream_f32_within_4ulp（非身份、未覆盖）",
+    "identity_failures": 0,
+    "log": "all-features-after-repin.log"
+  },
+  "targeted_verification": {
+    "t4_input_precision": "36 passed / 0 failed / 12 ignored",
+    "t4_camlight_precision": "3 passed / 0 failed",
+    "t4_gravity_3d_product_chain": "1 passed / 1 ignored / 0 failed",
+    "t4_gravity_nonzero_product_chain": "1 passed / 1 ignored / 0 failed",
+    "t4_tendon_wake_precision": "4 passed / 0 failed",
+    "default_lib": "447 passed / 0 failed / 5 ignored",
+    "log": "rerun2-after-repin.log"
+  },
+  "algorithm_notes": {
+    "single_file": "sha256(LF 归一化字节)",
+    "physics_core_combined": "33a6e55f…（锚点 concat! 5 文件）；b4bb7ed9 是锚点文件自身 sha，不是组合值；live mod.rs 单文件 f840ddfe 亦不是该条目期望",
+    "resident_combined": "3c4de13b…（不变）",
+    "transfer_combined": "f6980bd1f248…→3e5c23b7…（transfer.rs+buffer.rs+session.rs）",
+    "inventory_sha256": "sha256(原始文件字节)；旧 8a4b6e1f… → 新 61bddcd0…"
+  },
+  "executability": {
+    "all_features_executable_on_this_machine": true,
+    "dlltool_error_reproduced_here": false,
+    "dlltool_note": "QA/Arch 环境报 error calling dlltool 'dlltool.exe': program not found；本机无 dlltool 但 all-features 编译/运行成功（cubecl-llvm 1m59s），属环境差异",
+    "max_executable_feature_set": "--all-features（本机未降级）",
+    "repo_default_env_acceptance": {"env": "仓库默认（GNU + link-dead-code；无 G01 环境变量）", "default_full": "cargo test --locked --no-fail-fast → exit 0，全 target 0 失败（Arch arch-verify-clean）", "cuda_probe_lib": "678 passed / 0 failed / 137 ignored（干净 target）", "case_evidence_single": "1 passed / 0 failed", "non_cached_gate_unit": "595 passed / 0 failed（22.5 s）"},
+    "env_diff": {"repo_default_gnu": "该测试 1 passed / 0 failed（Backend verify-clean-002）", "explicit_msvc": "FAILED frame 6.351978e-7；all-features lib 693/1/137、cuda-probe lib 677/1/137、default lib 446/1/5", "direct_cause": "构建工具链/target 不同（GNU + -C link-dead-code=yes vs MSVC，rustc 命令行差异见 receipt/README §3）", "numeric_mechanism": "未定，归 2026-10-25-case-evidence-frame-diagnosis（构建环境敏感性，b47dcd8a）"},
+    "claim": "身份失败 18→0；仓库默认环境验收通过；显式 MSVC 构建的 1 个失败如实并列（环境差异，机制未定）；不宣称跨环境全量绿"
+  }
+}
