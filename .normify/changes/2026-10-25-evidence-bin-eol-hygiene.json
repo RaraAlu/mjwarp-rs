@@ -13,8 +13,8 @@
   "modules": {},
   "acceptance": [
     "`.gitattributes` 增加二进制规则（至少 `*.bin -text -diff`）；扩展名清单由 `git ls-files` 实测得出并写进证据（当前 1130 个 `.bin`；若还有其它二进制证据扩展名一并覆盖）。",
-    "属性验证：`git check-attr -a -- <选定的 .bin>` 显示 `text: unset` 与 `diff: unset`；`git status --porcelain` 在该改动后**不出现批量翻动**（不得为了让它变干净而去重写文件内容）。",
-    "模拟 checkout 验证：对改动前后各抽查 ≥5 个 `.bin`（含 `dist.bin`/`pos.bin`/`x1.bin` 这类小文件）记录 sha256，`git checkout -f -- <path>` 或等价方式往返后 sha256 与改动前一致；证据里贴出改动前后对照表与命令。",
+    "**临时 clone 验证（Chief 2026-10-25 要求，不得只看工作树）**：改动后 `git clone` 仓库到 `target/` 下临时目录，对 clone 出的**全部已跟踪 `.bin`（当前 1130 个）逐文件 sha256** 与原工作树同名文件对比，必须 100% 一致；任一不一致即视为未修好，不得提交。证据里贴：clone 路径、命令、文件总数、一致数、不一致清单（应为空）、以及 clone 后重新 `git status` 是否干净。",
+    "属性验证：`git check-attr -a -- <选定的 .bin>` 显示 `text: unset` 与 `diff: unset`；`git status --porcelain` 在该改动后**不出现批量翻动**（不得为了让它变干净而去重写文件内容）；另抽查 ≥5 个小 `.bin` 做 `checkout -f` 往返 sha256 对照。",
     "根因说明入证据：为什么以前没暴露（这些 `.bin` 由探针在本地生成、从未经 checkout 往返）、影响面（1130 个文件 + 今后所有 `.bin` 证据）、以及「当前 blob 无损、只是 checkout 期风险」的界定，避免被误读成「已提交证据已损坏」。",
     "不改任何已提交证据内容、不重写历史（禁 `filter-branch`/`filter-repo`）、不改 S2–S8 证据语义、不改 `fixtures/mjwarp-complex-physics/*.xml` 与 `Cargo.*`；新文件 ≤500 行。",
     "门禁 fmt/clippy/clippy-cuda/unit 全过（任务 checks 已声明）；证据 README/receipt 含 task_id 与未覆盖项（例如仍不保证第三方工具导出的非证据二进制）。"
@@ -28,11 +28,11 @@
       "docs/development-evidence/evidence-bin-eol-hygiene/"
     ],
     "resources": [],
-    "priority": 40
+    "priority": 55
   },
-  "note": "Arch 2026-10-25 发现并登记：G5 收口提交（`e00de497`）时发现 `git add` 对所有证据 `.bin` 报 `LF will be replaced by CRLF`，`git diff --cached --numstat` 也把这些二进制计入文本行差；核查确认 `core.autocrlf=true` 且 `.gitattributes`（约 300 行、全是 text/fixtures 规则）没有 `*.bin`。已跟踪 `.bin` 共 1130 个。当前工作区内容 == 提交 blob（提交无损），风险只在 checkout 往返，因此**不阻塞 G5 收口**，单列工程片。排在 `sdf-relmat-fix` 之后做即可，不需要 GPU。",
+  "note": "Arch 2026-10-25 发现并登记：G5 收口提交（`e00de497`）时发现 `git add` 对所有证据 `.bin` 报 `LF will be replaced by CRLF`，`git diff --cached --numstat` 也把这些二进制计入文本行差；核查确认 `core.autocrlf=true` 且 `.gitattributes`（约 300 行、全是 text/fixtures 规则）没有 `*.bin`。已跟踪 `.bin` 共 1130 个。当前工作区内容 == 提交 blob（提交无损），风险只在 checkout 往返，因此**不阻塞 G5 收口**，单列工程片。**Chief 2026-10-25 裁决：优先级 40→55，必须排在 G6 之前完成**（G6 的回执与证据也会落 `.bin`，不能等），且验证必须做 `target/` 下临时 clone + 1130 个 `.bin` 逐文件 sha256 对比（不接受只看工作树）。",
   "revision": {
-    "before": "f9f1b879a60e19f1c171934a39335fc7b5f8ec92",
+    "before": "e24139d68c45c3e908e49365ed6e7775f7ab76b3",
     "after": null
   },
   "created_at": "2026-10-25T19:05:00.000Z",
