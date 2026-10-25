@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-sdf-descent-sign-branch-test",
+  "title": {
+    "zh": "G10@P5 后续片：descent::compute_grad sign 分支级测试（QA 复核观察 1）",
+    "en": "Follow-up: branch-level test for descent::compute_grad sign semantics (QA observation 1)"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "`2026-10-25-g10-p5-sdf-primitives-sign`（`11696fc8`）把 `descent.rs::compute_grad` 旧手写 sign（`>0→1, <0→-1, else→0`，即 `0.0`/`NaN → 0`）改为 `primitives::upstream_sign(max_val)`（`0.0`/`-0.0`/`NaN → +1`，对齐上游 `collision_sdf.py:629` `wp.sign(max_val)`）。QA 独立复核（`f187f701`）判 pass/0 阻断，但提观察 1：该分支**没有直接反向判别用例**（`descent.rs` 内无测试，新增 4 个单测都在 `primitives.rs`），目前只靠「G3 sdf-box 位级不变 ⇒ 未触发」间接说明。本片补一条分支级测试（构造 `max_val == 0.0`/`-0.0`/`NaN` 断言 gradient 增量方向与上游一致，并证明旧分支会失败），或明确注释该分支在产品路径的可达性；不改任何已 verified 数字与判据。",
+    "en": "Add a branch-level test for compute_grad's sign handling (0/-0/NaN -> +1 per upstream wp.sign), or document reachability; closes QA observation 1 without changing verified numbers."
+  },
+  "modules": {},
+  "acceptance": [
+    "补分支级反向判别测试：构造 `max_val == 0.0`/`-0.0`/`NaN` 的 `compute_grad` 场景，断言 gradient 增量方向为上游 `wp.sign` 语义（+1），并证明把实现退回旧三分支（`else→0`）时该测试会失败（贴旧实现复算输出）。",
+    "若该分支在产品路径不可达/不可构造，则改为在 `descent.rs` 写可达性注释并给出依据，如实记「不可构造、测试不增」，不得伪造用例。",
+    "不回归：G3 `sdf-box` 80/80 与 4 旋转 80/80 位级、G2 五 case、G4 三 case 数字不变；不改已 verified 证据数字、判据/容差、`Cargo.*`、fixtures XML、S2–S8。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过；证据目录 `docs/development-evidence/g10-p5-sdf-descent-sign-branch-test/`（README + receipt 含 task_id）；纯 CPU、不开 GPU 窗口；不得宣称精度达标/上游完全等价/原生放行。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-sdf-primitives-sign-independent-check"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "待分配",
+    "files": [
+      "src/physics/collision/sdf/",
+      "docs/development-evidence/g10-p5-sdf-descent-sign-branch-test/"
+    ],
+    "resources": [],
+    "priority": 35
+  },
+  "note": "Arch 2026-10-25 登记：来源是 QA 对 sign 修正片的独立复核观察 1（`f187f701` 证据 README）。不阻塞任何已验收结论；登记为候选以便排期，不在 G6 收口范围内。实现正确性已由 QA 自写复现证明（旧分支在 0/-0/NaN 下 gradient 旧 [1,2,3] → 新 [11,22,33]），缺的只是产品路径的分支级用例。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-25T12:50:00.000Z",
+  "updated_at": "2026-10-25T12:50:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-sdf-descent-sign-branch-test/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-sdf-descent-sign-branch-test"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
