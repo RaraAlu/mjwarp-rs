@@ -64,3 +64,21 @@
 - 验证（CPU 侧，无 GPU 计算）：`nvcc -std=c++17 -Xcompiler /utf-8 -arch=sm_89 -c` 对
   `polytope.cu`/`polytope_build.cu`/`epa.cu`/`ccd.cu` 全部通过；`cargo check/clippy --features cuda-probe` 通过。
 - 结论口径：**仅「与 host 逐式对应 + 编译通过」**；正式判据（上游 f32 GPU + pinned ctxt 全 fma ≤4 ULP）未测量。
+## 7. 2c：`relative_matrix` 转置约定（G5 设备侧修正，未改 G3/G4）
+
+- **上游语义**（`mujoco_warp/_src/collision_sdf.py`）：`params.rel_mat = wp.transpose(rot1) * rot2`，
+  随后 `x1 = rel_mat * x2 + rel_pos`；行优先展开即 `rel[row][col] = Σ_k a[k][row] * b[k][col]`（`aᵀb`）。
+- **设备侧已按上游修正**：`cuda/common.cu::relative_matrix` 改为行优先 `aᵀb` 直接写入 `out[row*3+col]`；
+  `src/physics/collision/relmat.rs` 提供同一语义的 host 参考实现与 **CPU 单测**
+  （`a=Rz(0.7)`、`b=Rx(0.4)`，期望值用独立构造的 `aᵀ·b` 展开，不依赖被测 helper）。
+  单测同时复现 QA 的观察：旧 host 构造结果 = 上游结果的**转置**，最大绝对差约 1.24。
+- **只读核查结论（未修改 G3/G4 已 verified 代码）**：
+  - `src/physics/collision/sdf/descent.rs:171` 定义该 helper，**:198 在 `gradient_descent` 产品路径调用**
+    （`rel_mat: relative_matrix(&rot1, &rot2)`，供 `x1 = rel_mat*x2 + rel_pos`）：对 `rot1 ≠ I` 是转置语义，
+    属**潜在产品偏差**；G3 现有数值 case（`sdf-box`）geom1 恒为单位旋转（`a=I` 时 `aᵀb=bᵀa=b`），未被暴露。
+    建议 Arch 裁决开「G3 约定修正」小片（改 3 行 + 重跑 G3 判据回归），本次未动。
+  - `src/physics/collision/hfield/driver.rs:55` 定义该 helper，但**产品 driver 不调用**（仅 `tests.rs:196`
+    在测试里把 geom2 变换到 hfield 帧时使用）；`hfield_pair_contacts` 接收的是调用方已变换到 hf 帧的 geom2，
+    故 G4 产品路径不经该 helper；QA 观测到的 rot-box/rot-capsule 与上游一致来自「调用方预变换」而非该 helper。
+- 口径：设备侧以**上游语义**为准，不为与 host 逐位一致而复制错误约定；正式判据仍是 GPU 窗口阶段的
+  上游 f32 GPU 对照。

@@ -55,6 +55,10 @@ pub mod sdf;
 #[allow(dead_code)]
 pub mod hfield;
 
+// G5：`relative_matrix` 的上游语义（transpose(a)*b，行优先）与 CPU 可验证单测。
+#[allow(dead_code)]
+pub(crate) mod relmat;
+
 // G5 碰撞 GPU 内核（NVRTC 设备源码 + 宿主编译/接线）；运行需 cuda-probe 与 GPU 窗口。
 #[cfg(feature = "cuda-probe")]
 pub mod cuda;

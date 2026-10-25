@@ -74,18 +74,16 @@ __device__ __forceinline__ v3 transpose_mul_mat3_vec(const float* m, v3 v) {
                  m[2] * v.x + m[5] * v.y + m[8] * v.z);
 }
 
-// transpose(a) * b（与 host `relative_matrix` 一致，列存储口径）。
+// 上游 `relative_matrix`：`transpose(a) * b`，行优先存储（rel[row][col] = Σ_k a[k][row]*b[k][col]）。
+// 判据是上游语义；host `sdf/descent.rs` / `hfield/driver.rs` 的旧 helper 在行优先约定下
+// 返回的是转置（`bᵀa`），设备侧不复制该约定（详见 `src/physics/collision/relmat.rs`）。
 __device__ __forceinline__ void relative_matrix(const float* a, const float* b,
                                                 float* out) {
-  for (int column = 0; column < 3; ++column) {
-    v3 basis = v3_make(0.0f, 0.0f, 0.0f);
-    if (column == 0) basis.x = 1.0f;
-    if (column == 1) basis.y = 1.0f;
-    if (column == 2) basis.z = 1.0f;
-    v3 vector = transpose_mul_mat3_vec(a, mul_mat3_vec(b, basis));
-    out[column * 3] = vector.x;
-    out[column * 3 + 1] = vector.y;
-    out[column * 3 + 2] = vector.z;
+  for (int row = 0; row < 3; ++row) {
+    for (int column = 0; column < 3; ++column) {
+      out[row * 3 + column] = a[row] * b[column] + a[3 + row] * b[3 + column] +
+                              a[6 + row] * b[6 + column];
+    }
   }
 }
 
