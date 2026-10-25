@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-np01-integer-intermediate-clarification",
+  "title": {
+    "zh": "精度契约 NP01 补注：整数精确模拟 fma 的整数中间量不构成类型偏离",
+    "en": "NP01 clarification: integer intermediates used to emulate f32 fma are not a type deviation"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "`2026-10-25-exact-f32-fma-relmat` 的兜底实现是**无 f64 的整数精确模拟**（f32 位型分解 + 576 位整数精确乘积/求和 + RNE），Arch 已接受该偏离。契约 NP01 段现有条文只禁止内部 f64/升精度（L313/L344/L454），未说明整数中间量；为避免后续审计员把整数中间量误判成「类型偏离」，按 Chief 指示在 NP01 段增加一行同义注记：整数中间量仅用于精确模拟 f32 fma 的单次舍入、不引入新的浮点精度层级、结果仍 f32，不进入 NP01 精度偏离计数；并指向 `src/math/fma.rs` 模块文档与 `exact-f32-fma-relmat/f64-audit.log` 的审计记录。**只加澄清注记，不改任何判据/容差/验收范围/红线条文**。",
+    "en": "Add a one-line clarification to the contract's NP01 section that integer intermediates used to emulate single-rounding f32 fma are not a type deviation; no criteria or tolerance changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "在 `docs/numerical-precision-contract.md` 的 NP01 段（「NP01同时检查各层类型。上游f32对应内部f64即为失败。最终窄化为f32不能消除失败。」之后）增加一行注记：整数中间量不属类型偏离——仅用于精确模拟 f32 fma 的单次舍入、不引入新的浮点精度层级、结果仍为 f32；指向 `src/math/fma.rs` 与 `exact-f32-fma-relmat/f64-audit.log`。",
+    "**不改**任何判据、容差、验收范围、红线条文、排除清单；不新增/删除要求；不触碰其它契约小节；diff 只含该注记（及相关一处换行）。",
+    "证据：本片改动说明写入提交说明（含 Chief 指示与背景），并在 `docs/development-evidence/exact-f32-fma-relmat/README.md` §10 已记录合规论证与落点（不重复造证据目录）；门禁 fmt/clippy/clippy-cuda/unit 全绿；证据/契约文件 UTF-8 无 BOM。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-exact-f32-fma-relmat"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Arch",
+    "files": [
+      "docs/numerical-precision-contract.md"
+    ],
+    "resources": [],
+    "priority": 50
+  },
+  "note": "Arch 2026-10-25 登记（Chief 指示）。契约是用户已批准口径文档，本片只做**澄清注记**（整数中间量不是浮点升精度），不改任何数值判据；若用户认为契约不应加注，可 revert 本提交。",
+  "revision": {
+    "before": "e663417df8c03b979ec05550fd74616423b05105",
+    "after": null
+  },
+  "created_at": "2026-10-25T19:05:00.000Z",
+  "updated_at": "2026-10-25T19:05:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
