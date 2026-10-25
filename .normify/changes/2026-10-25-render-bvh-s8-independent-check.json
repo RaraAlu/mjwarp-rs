@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-render-bvh-s8-independent-check",
+  "title": {
+    "zh": "渲染/BVH S8 独立复核（camlight 接线/端到端同配方/收口口径诚实性）",
+    "en": "Render/BVH S8 independent review (camlight wiring, same-recipe end-to-end, honest closing claims)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对渲染/BVH S8 端到端做独立复核：独立验证产品 `camlight` 产出的两相机 data 位姿（含 TARGETBODY 跟踪相机）与 pinned 3.15 参考逐位一致、且渲染输入确实来自产品而非夹具；独立重跑端到端两相机并比同配方参考（RGB ≤1 LSB、depth ≤4 ULP、seg 全等）；核 S7b1/S7b2/S7b3 三条基线与 AA/flag 语义不回归、生命周期与显存、负向控制；并核 r01-p8 收口映射素材的结论是否与各片证据一致、是否有「完整 R01 通过/上游等价」类过度声明。GPU 60 分钟窗口；不改产品/夹具/原证据。",
+    "en": "Independent review of the render/BVH S8 end-to-end slice: independently verify that the product camlight produces both cameras' data poses (including the TARGETBODY tracking camera) bit-equal to the pinned 3.15 reference and that render inputs really come from the product rather than fixtures; independently rerun the two-camera end-to-end and compare against same-recipe references (RGB <=1 LSB, depth <=4 ULP, seg exact); verify the S7b1/S7b2/S7b3 baselines and AA/flag semantics, lifecycle and memory, negative controls; and check that the r01-p8 closing mapping matches each slice's evidence with no overclaim such as full R01 pass or upstream equivalence. 60-minute GPU window; no product/fixture/original-evidence changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "camlight 接线独立验证：QA 自己按上游 camlight 语义（含 TARGETBODY look-at）或用产品 camlight 输出与 pinned 3.15 `d.cam_xpos/cam_xmat` 逐位对照；确认渲染路径的相机位姿来自产品 camlight 而非夹具（可用「把夹具位姿改成明显错误值、渲染结果必须随之变化」之类反证），camera0 与 `quat_to_mat` 一致。",
+    "端到端独立重跑：两相机 RGB 对同配方（`use_fast_math=False`）参考 ≤1 LSB、depth ≤4 ULP、seg 全等；两次运行哈希逐位相同；逐像素 diff 首错/计数；跨配方（S0b fast-math）差异只作已知偏差记录。",
+    "基线/语义不回归：S7b1 depth/seg 120,000/120,000 位等、S7b2/S7b3 RGB 同配方 0 差异、AA(spp=2) 子样本与首 pass 语义、flag 变体语义；负向控制（写前拒绝/AA 射线数不符）成立。",
+    "生命周期/资源：create→render→显式 refit→render→destroy；refit 帧结构断言；禁用输出 DisabledOutput；显存回基线、无泄漏（S6b 口径，100 循环或等价证据）。",
+    "收口口径诚实性：r01-p8 十项映射（世界/相机/资产/BVH/28 默认参数/生命周期/RGB/深度/分割/资源检查/拒绝面）结论与 S1–S7b 证据一致；不得出现「完整 R01 通过」「与上游完全等价」类声明；未满足项（nworld>1、阴影/天空盒/泼溅/柔体/高度场/多相机、Linux/T4、完整上游等价、性能）如实列出。",
+    "证据/边界：S8 README/receipt/log 哈希与 git blob 一致；`git diff` 只动 S8 与配套路径；S2–S7 证据夹具、`src/render/bvh/**`、`launch.rs` 未改；GPU 60 分钟独占窗口（只约束 GPU），结束回桌面基线报无计算进程。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-render-bvh-s8-e2e"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/s8-independent-check/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 90
+  },
+  "note": "Arch 2026-10-25 预登记：S8 verified 后立即 start（GPU 互斥，Backend 届时待命）。重点三项：① camlight 位姿必须产品产出且逐位对参考（含反证渲染确实用产品位姿）；② 端到端一律同配方硬指标（RGB ≤1 LSB、depth ≤4 ULP、seg 全等），跨配方只作记录；③ 收口映射素材不得过度声明——S8 是 r01-p8 MVP 收口片，但「完整 R01 通过/上游等价」仍不成立。",
+  "revision": {
+    "before": "3322004aa049f762f81f58bd6fdeb1fc9531acdd",
+    "after": null
+  },
+  "created_at": "2026-10-25T13:45:00.000Z",
+  "updated_at": "2026-10-25T13:45:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s8-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-render-bvh-s8-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过",
+        "上游完全等价"
+      ]
+    }
+  ]
+}
