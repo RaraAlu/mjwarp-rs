@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-faithful-impact-measurement",
+  "title": {
+    "zh": "只读实测：按 faithful FMA 口径，哪些已 verified 结果会变（影响矩阵）",
+    "en": "Read-only measurement: which verified results change under faithful FMA semantics (impact matrix)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户正在拍板「验收工具链/判据」口径（①修实现到过 4 ULP / ②修实现+改容差 / ③换 GNU 验收 / ④双 target）。要给用户真实影响面：**如果按 faithful FMA 语义（硬件 FMA，等价 MSVC 默认或 GNU `-C target-feature=+fma`）验收，哪些已 verified 的结果会变、哪些不变、翻转与否**。本片只读：在 `git worktree` 里钉住 `5e000cb9`（避开 relmat 在改 `src/` 的污染），跑两口径的定向对照，产出影响矩阵；**不改代码/判据/期望值/已 verified 证据**，不新捕获参考（缺参考的项如实标「无参考不可判」）。",
+    "en": "Produce a read-only impact matrix: which verified results flip under faithful FMA semantics, using an isolated worktree pinned at 5e000cb9 and directed re-runs only."
+  },
+  "modules": {},
+  "acceptance": [
+    "**隔离与口径**：`git worktree add`（放在 `target/` 下的 gitignore 路径）钉 `5e000cb9`；两口径 = 仓库默认 GNU（无 FMA）vs GNU `RUSTFLAGS=-C target-feature=+fma`（必要时加 MSVC 默认三口径）；记录 `RUSTFLAGS` 与 `.cargo/config.toml` 的交互（gnu 的 `-C link-dead-code=yes` 是否被覆盖/合并）、每口径的 `rustc -vV`/target triple/deps 数与 clean 判据三项。",
+    "**对象与执行（定向，不跑全量 G01）**：① 纯 CPU 项——G5 rel_mat 10/10、SDF 40/40、case_evidence（8 格已有直接引用）、以及可 CPU 复跑的 host 对照；② 需要 GPU 的项——launcher 回归（hfield-sphere 314、sdf-box 3122、ellipsoid-box 80）、primitive 三 case（80/80×3）、multicontact 三 case（314/314、391/392、80/80）、render S7b1 depth/seg、S7b2 RGB、S7b3 AA/flags、S8 的 same-recipe 比较。逐项给「两口径结果 + 是否翻转 + 关键数字（位等计数/ULP/frame/RGB 差异）」，不确定或需新参考的项如实标「无参考不可判」。",
+    "**重点问题**：faithful 口径下 **render 的「0 差异/位级」结论是否仍成立**（S7b1 depth 120,000/120,000、S7b2 RGB 零差、S7b3、S8），以及碰撞侧位级对照（314/3122/80、80/80×3、314/391/80）是否翻转；若只有 case_evidence 翻转，明确指出「影响面窄」；若 render 也翻，给出具体数字与 case。",
+    "**GPU 纪律**：需要 GPU 的项先报 Arch 基线（used/free/util/温度 + 本任务计算进程 0），Arch 审查后开窗；同一时间只一个 GPU 满载任务；0.25 s 采样；跑前跑后 `query-compute-apps`；结束基线与无残留；与 relmat 片串行（它可能需要 GPU 复验，谁先开窗由 Arch 统一排）。",
+    "**证据与边界**：`docs/development-evidence/faithful-impact-measurement/`（README + receipt 含 task_id + `impact-matrix.json` + 原始日志），≤500 行/文件、UTF-8 无 BOM、无 `.bin/.pyc`；不改主树代码/判据/期望值/已 verified 证据；不宣称「修复完成/验收通过」，只报「该口径下哪些结果变/不变」。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/faithful-impact-measurement/"
+    ],
+    "resources": [],
+    "priority": 56
+  },
+  "note": "Arch 2026-10-25 登记（Chief 提议）。目的：在用户拍板前拿到「若切 faithful 口径，哪些已 verified 结果会翻转」的真实影响面；这是 ①/②/③/④ 决策的关键依据，也是 fix 片落地后 before/after 基线。只读、可并行（worktree 隔离），GPU 窗口与 relmat 片串行统一排。缺参考的项一律标「无参考不可判」，不新捕获。",
+  "revision": {
+    "before": "3d9d13b4d09edb29fdad5a286a568822f878a767",
+    "after": null
+  },
+  "created_at": "2026-10-25T18:35:00.000Z",
+  "updated_at": "2026-10-25T18:35:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/faithful-impact-measurement/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-faithful-impact-measurement"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
