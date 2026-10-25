@@ -43,9 +43,9 @@ GPU：NVIDIA GeForce RTX 4070 Ti SUPER / 驱动 596.36 / SM89（Windows 11）
 
 **原始毫秒序列**：`raw-timings.json`（7,739 B，sha256 `731704df427a490ce77637062ba5a1d9763cf160b8a44373c609c787916a2498`）。
 结构：`measurement_a`（来自 `gpu-run.log`）与 `measurement_b`（来自 `repeat-run.log`）各含
-`modes[].launch_ms`/`frame_ms`（每次迭代原始序列，30 条）、`official_summary`（取自同一次运行的
-测试输出 `s8perf[stat]`，由测试内 percentile 派生，与原始序列同源）、`ratios`；另有 `memory` 显存 free 序列。
-原始序列供 QA 独立复算，摘要不另算。
+`modes[].launch_ms`/`frame_ms`（每次迭代原始序列，30 条）与 `ratios`；**measurement 级 `official_summary`
+（与 `modes` 平级、不嵌在 `modes[]` 内）**取自同一次运行的测试输出 `s8perf[stat]`，由测试内 percentile
+派生、与原始序列同源；另有 `memory` 显存 free 序列。原始序列供 QA 独立复算，摘要不另算。
 
 ## 3. 数字表（frame 口径，主指标）
 
