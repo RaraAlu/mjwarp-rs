@@ -174,3 +174,68 @@
   同配方上游 f32 GPU）待窗口**。
 - 本批未实装：multicontact 设备版（box/mesh/cylinder 组合的多接触仍是单接触，见 unmet）；
   宿主 launcher 与真实设备上传/回读归 GPU 窗口阶段。
+
+## 11. GPU 窗口（2026-10-25 17:53–17:57）：设备内核 vs 上游 f32 GPU 对照
+
+**窗口纪律**：Arch 批准 45 min / 满载 <10 min / 峰值增量 <2 GiB / 复跑 ≤5。/ 实测总 GPU 占用约 **30 s**
+（阶段 1：基线 → CUDA 准备 → 构建 → 10 case 探针 → 比对，28.4 s；阶段 2：`--fmad=false` 复跑，1.5 s）。
+基线 4460–4534 MiB used，逐 2 s 采样峰值 **4492 MiB**（未超基线），跑完 4460/4344 MiB 回桌面基线；
+`nvidia-smi --query-compute-apps` 无本任务进程（只剩桌面应用）。
+
+### 11.1 参考口径（已获 Arch 批准，不重复采 10 case）
+
+- G0b 交付参考 `fixtures/g10-p5/references/*.json` 本身就是 `capture_g0b_references.py` 以
+  `wp.set_device("cuda:0")` 捕获（provenance 含 `gpu: RTX 4070 Ti SUPER`），即**已是上游 f32 GPU 参考**；
+  QA `g0b-cuda-recapture`（`g10-p5-gjk-epa-independent-check/`）另做过 cuda:0 两次捕获、10 case、
+  与交付参考排序后位级全等。
+- 本窗口用 `prepare_cases.py --device cuda` 以 CUDA 后端重跑 10 case 并**在窗口内绑定**：
+  10/10 `matches_reference_sorted_bitwise = true`；spot-check 三例双捕获：
+  `hfield-sphere` raw 位等、`cylinder-box` raw 位等、`sdf-box` raw **不等**（atomic nacon 顺序，
+  与 QA 记录一致）但排序后位等。
+- 桥接链：QA CUDA 重采证据 → 交付 CUDA fixtures → 本窗口 CUDA 重跑 + spot-check 互证。
+  **未声称** 10 case 在本窗口全部独立重采（只重跑验证，不重采）。
+
+### 11.2 设备对照（nvcc 独立探针，B 路线）
+
+- 探针 `probe.cu` 用**同一批 device 源**（`#include` `contact.cu`/`hfield.cu`/`sdf_narrowphase.cu`），
+  nvcc 12.8.93、`--fmad=true`、`-O3`、`sm_89`；构建命令/全部源 sha256/两个变体产物 sha256 见
+  `gpu-window/build-probe-report.txt`；探针每 case 跑两次。
+- 方法学修正（重要）：上游 `collision_driver.py` 的 dispatch 里 `(SPHERE,BOX)`、`(CAPSULE,BOX)`
+  走 **primitive_narrowphase**，交付参考不是 ccd 产物 → `sphere-box-shallow/deep`、`capsule-box`
+  **不列入**设备 ccd 对照（设备 primitive 路径本片未实装）。
+- 可对照 CONVEX/SDF/HFIELD case 结果（`gpu-window/result.json`、`compare-probe.json`）。
+  判据按 Arch 2026-10-25 裁决：`frame`/`normal` 是单位向量 → ULP 统一按 **scale=1.0** 计，
+  分量绝对差 ≤ **4 ULP@1.0 ≈ 4.77e-7**（零/非零一视同仁，**不设近零带**）；
+  `dist`/`pos` 按各自量级 ULP（零参考分量用 ≤4 ULP@1.0 绝对差兜底）；参数/整数位级相等。
+
+| case | count | dist 位等 | pos 位等 | frame 位等 | 实测 | 结论 |
+| --- | --- | --- | --- | --- | --- | --- |
+| hfield-sphere | 8/8 | 8/8 | 24/24 | 72/72 | 全 0 ULP | ✅ 全字段位级 |
+| hfield-capsule | 7/7 | 7/7 | 21/21 | 63/63 | 全 0 ULP | ✅ 全字段位级 |
+| sdf-box | 80/80 | 80/80 | 202/240 | 675/720 | dist 0 ULP；pos max 4 ULP；frame max_abs **2.38e-7**（≤4.77e-7） | ✅ dist 位级、pos ≤4 ULP、frame ≤4 ULP@1.0 |
+| ellipsoid-box | 2/2 | 0/2 | 0/6 | — | dist **47 ULP**（绝对 4.4e-8）、pos 绝对 8.3e-5 | ❌ **未过**（G5 不收口） |
+
+- 每 case：`efc_address` 全 -1（宽度 `nmaxpyramid`）、`OverflowType` 汇总 0、接触数相等、
+  两次运行排序后位等；`nccd` 记录为 0 或每 world 1 次申请（hfield/SDF 探针路径不申请，容量门归 launcher）。
+- 测试拆分（提交棘轮 ≤500 行）：入口 `tests/g10_p5_gpu_kernels.rs`（81 行）+
+  `tests/common/gpu_compare.rs`（438 行，`#[path]` 引入的比对辅助，非独立测试目标）。
+- `--fmad=false` 复跑（`compare-probe-fmad-false.json`）：hfield-capsule 仍全位级，但 `sdf-box`
+  大幅偏移（pos max_abs 0.18、frame max_abs 1.9，initpoint 梯度下降分岔）→ **官方判据用 fmad=true**，
+  `--fmad=false` 仅诊断，不作为判据。
+
+### 11.3 unmet（本窗口不构成 G5 收口）
+
+- **Arch 裁决落地**：对照集修正（primitive 三例排除、multicontact 三例不比对）已接受；
+  frame 判据改为「scale=1.0 的 4 ULP 绝对差」并已由 `result.json` 重算；`ellipsoid-box` 记为未过。
+- **ellipsoid-box（CONVEX）未过 ≤4 ULP**：dist 47 ULP（4.4e-8）、pos 绝对 8.3e-5。
+  pos 量级明显不是纯收缩差，需定位设备 contact 层 / EPA 与上游差异（候选：
+  `g5_ccd_pair_write` 的 origin 平移后 `x_1/x_2`、EPA witness 选面/tie-break、或输入口径）；
+  修复按 pinned PTX 顺序显式 fma（S7b 方法），**不放宽容差**；修好后报秒级窗口复跑。
+- **witness 对照待补**（Arch 裁决 1）：`cylinder-box`/`box-box-margin`/`mesh-mesh` 需 authoring
+  直接调用上游 `collision_gjk.ccd` 产出 dist/x1/x2，再与设备探针 witness 比 ≤4 ULP；
+  计划与 ellipsoid-box 修复后的秒级窗口一起跑（省窗口）。
+- **primitive narrowphase 未实装**：`(SPHERE,BOX)`、`(CAPSULE,BOX)` 等上游走 primitive 的 case 无法进设备对照。
+- **multicontact 设备版未实装**：`cylinder-box`/`box-box-margin`/`mesh-mesh` 接触数组不做全等。
+- **NVRTC 产品 launcher 未接线**：本窗口用 nvcc 独立探针跑判据数字；`src/runtime/collision_gpu.rs`
+  与 ignored 产品入口单列后续 launcher 小片。
+- 性能 benchmark 未跑（归 G6）；Linux/T4 未验证；GPU 结果不外推跨硬件结论。
