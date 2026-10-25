@@ -5,7 +5,7 @@
     "zh": "G10@P5 G5 修正片：设备 ccd 溢出位误报（EPA FLOAT_MAX 时多置 CCD 位，上游只有 EPA_HORIZON）",
     "en": "G10@P5 G5 fix slice: device ccd overflow bit over-report (sets CCD on EPA FLOAT_MAX; upstream sets only EPA_HORIZON)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "QA 的 G5 独立复核（`2026-10-25-g10-p5-gpu-kernels-independent-check`）发现一处设备语义偏差：设备 `g5_ccd` 在 EPA 返回 `FLOAT_MAX` 时额外置 `OverflowType.CCD (1<<4)`，而 pinned 上游 `ccd()` 只返回 `EPA_HORIZON (1<<8)`——`CCD` 位应由调用方（`eval_ccd_write_contact`）在 `nccd` 超过 `naccdmax` 时置，不由 `ccd()` 置。实测：强制 `epa_iterations=2`（horizon 容量 2）的 3 个例，上游 overflow=256，设备=272（=256+16），去掉该位后与上游一致；G5 交付的 3 个 case 不触发该路径，故交付结论不受影响。本片修正设备溢出位语义并补一个强制 horizon 的对照例（对同配方上游 f32 GPU，位级比较 overflow 位多重集），同时回归 G5 既有判据（3 例接触数组、witness）确认未动。",
     "en": "QA's independent G5 review found a device semantic deviation: device g5_ccd additionally sets OverflowType.CCD (1<<4) when EPA returns FLOAT_MAX, while pinned upstream ccd() only returns EPA_HORIZON (1<<8); the CCD bit is set by the caller (eval_ccd_write_contact) when nccd exceeds naccdmax. Measured: forced epa_iterations=2 cases give upstream overflow=256 vs device 272 (=256+16); removing that bit matches upstream. G5's delivered 3 cases never hit the path, so delivered conclusions are unaffected. This slice fixes the device overflow bit and adds a forced-horizon comparison case (bit-level overflow multiset vs same-recipe upstream f32 GPU), plus regression of G5's existing criteria."
@@ -37,12 +37,11 @@
   },
   "note": "Arch 2026-10-25 依据 QA 独立复核发现登记：强制 horizon 例上游 overflow=256（EPA_HORIZON）、设备=272（多 CCD 位），去掉该位后一致；G5 交付 3 例不触发，故 G5 结论不变、单列修正片。修好后设备溢出位对上游位级一致，避免下游把「horizon 溢出」误读成「CCD 容量溢出」。需要一次秒级 GPU 窗口（同批 device 源、fmad=true），开窗前报 Arch 基线；与 QA 复核窗口串行。",
   "revision": {
-    "before": "3ad97f87f624f6474038ba88275b1e68721edc18",
+    "before": "8cb9fbbfe19742ef04c607c631b1cc253825cfae",
     "after": null
   },
   "created_at": "2026-10-25T19:20:00.000Z",
-  "updated_at": "2026-10-25T19:20:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T11:30:36.399Z",
   "checks": [
     {
       "kind": "gate",
