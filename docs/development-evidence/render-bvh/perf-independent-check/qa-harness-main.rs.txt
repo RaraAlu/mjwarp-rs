@@ -1,0 +1,489 @@
+// QA independent harness for the render perf review.
+//
+// It does not include the delivered `tests/**` support modules: it builds the product camlight
+// poses with its own driver (same documented product API), builds the render context/rays with
+// its own model/scene decoding, and measures the SAME protocol the delivered perf test uses
+// (warmup=5, iterations=30, frame_ms = render call + RGB read-back sync, nearest-rank p95 with
+// Rust round semantics). Raw per-iteration milliseconds are dumped for QA recomputation.
+//
+// Modes:
+//   qa-perf-harness --perf <out.json> --tag A|B
+//   qa-perf-harness --mem <out.json>
+
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+
+use mjwarp_rs::model::render::{FieldData, RENDER_FIELDS, RenderFieldKind, RenderFields};
+use mjwarp_rs::model::{
+    AttachedFields, AttachedModelInput, CamLightFields, CamLightModelInput, CamLightParameters,
+    InertialFields, InertialModelInput, KinematicFields, KinematicModelInput, KinematicsParameters,
+    MocapModelInput,
+};
+use mjwarp_rs::physics::KinematicsPlan;
+use mjwarp_rs::render::bvh::{mesh_half_extents, vertices_from_f64};
+use mjwarp_rs::render::context::RenderFlagSpec;
+use mjwarp_rs::render::context::owner::MeshState;
+use mjwarp_rs::render::kernel::MegakernelRenderer;
+use mjwarp_rs::render::kernel::cast::CameraPose;
+use mjwarp_rs::render::{
+    CameraModel, ContextParams, ImageOutput, LeafPose, OutputValues, RayBuffer, RayBuilder,
+    RayMode, RenderContext, SceneLeaf, SceneState, TextureRegistry, device_memory,
+    resolve_context,
+};
+use mjwarp_rs::runtime::TransferSession;
+use serde_json::{Value, json};
+
+const CAMLIGHT_MODEL: &str = include_str!("../../../fixtures/render-bvh/scene-e2e/camlight-model.json");
+const MODEL: &str = include_str!("../../../fixtures/render-bvh/scene-a/model-312.json");
+const S2_HITS: &str = include_str!("../../../fixtures/render-bvh/scene-a/s2/reference_hits.json");
+
+const WARMUP: usize = 5;
+const ITERATIONS: usize = 30;
+const RAYS_PER_FRAME: usize = 120_000;
+
+fn array(value: &Value) -> &[Value] {
+    value.as_array().expect("array")
+}
+
+fn ints(value: &Value) -> Vec<i32> {
+    array(value).iter().map(|item| item.as_i64().expect("i32") as i32).collect()
+}
+
+fn floats(value: &Value) -> Vec<f32> {
+    array(value).iter().map(|item| item.as_f64().expect("f32") as f32).collect()
+}
+
+fn u32s(value: &Value) -> Vec<u32> {
+    array(value).iter().map(|item| item.as_u64().expect("u32") as u32).collect()
+}
+
+fn numbers(value: &Value) -> Vec<f64> {
+    array(value).iter().map(|item| item.as_f64().expect("f64")).collect()
+}
+
+fn field_values(kind: RenderFieldKind, value: &Value) -> FieldData {
+    let values = array(value);
+    match kind {
+        RenderFieldKind::Index => FieldData::Index(values.iter().map(|v| v.as_i64().expect("i32") as i32).collect()),
+        RenderFieldKind::Num => FieldData::Num(values.iter().map(|v| v.as_f64().expect("f64")).collect()),
+        RenderFieldKind::Flag => FieldData::Flag(values.iter().map(|v| v.as_u64().expect("u8") as u8).collect()),
+        RenderFieldKind::Size => FieldData::Size(values.iter().map(|v| v.as_i64().expect("i64")).collect()),
+        RenderFieldKind::Float => FieldData::Float(values.iter().map(|v| v.as_f64().expect("f32") as f32).collect()),
+    }
+}
+
+fn render_fields(model: &Value) -> RenderFields {
+    let arrays = &model["arrays"];
+    let data = RENDER_FIELDS
+        .iter()
+        .map(|spec| field_values(spec.kind, &arrays[spec.name]["values"]))
+        .collect();
+    RenderFields::new(data)
+}
+
+struct SceneFixture {
+    leaves: Vec<SceneLeaf>,
+    poses: Vec<LeafPose>,
+    meshes: Vec<MeshState>,
+}
+
+fn scene_fixture(model: &Value) -> SceneFixture {
+    let hits: Value = serde_json::from_str(S2_HITS).expect("s2 hits");
+    let enabled = ints(&hits["enabled_geom_ids"]);
+    let xpos_bits = u32s(&hits["cases"]["initial"]["geom_xpos_bits"]);
+    let xmat_bits = u32s(&hits["cases"]["initial"]["geom_xmat_bits"]);
+    let geom_type = ints(&model["arrays"]["geom_type"]["values"]);
+    let geom_size = numbers(&model["arrays"]["geom_size"]["values"]);
+    let geom_dataid = ints(&model["arrays"]["geom_dataid"]["values"]);
+    let mesh_vert = numbers(&model["arrays"]["mesh_vert"]["values"]);
+    let mesh_face = ints(&model["arrays"]["mesh_face"]["values"]);
+    let vertadr = ints(&model["arrays"]["mesh_vertadr"]["values"]);
+    let vertnum = ints(&model["arrays"]["mesh_vertnum"]["values"]);
+    let faceadr = ints(&model["arrays"]["mesh_faceadr"]["values"]);
+    let facenum = ints(&model["arrays"]["mesh_facenum"]["values"]);
+    let mut meshes = Vec::new();
+    for mesh in 0..vertadr.len() {
+        let start = vertadr[mesh] as usize * 3;
+        let vertices = vertices_from_f64(&mesh_vert[start..start + vertnum[mesh] as usize * 3]).expect("verts");
+        let face_start = faceadr[mesh] as usize * 3;
+        let indices = mesh_face[face_start..face_start + facenum[mesh] as usize * 3]
+            .iter()
+            .map(|value| *value as u32)
+            .collect();
+        meshes.push(MeshState { vertices, indices });
+    }
+    let mesh_half: Vec<[f32; 3]> = meshes.iter().map(|mesh| mesh_half_extents(&mesh.vertices).expect("bounds")).collect();
+    let mut leaves = Vec::new();
+    let mut poses = Vec::new();
+    for (slot, geom) in enabled.iter().enumerate() {
+        let geom = *geom as usize;
+        let mut size = [
+            geom_size[3 * geom] as f32,
+            geom_size[3 * geom + 1] as f32,
+            geom_size[3 * geom + 2] as f32,
+        ];
+        if matches!(geom_type[geom], 7 | 8) {
+            size = mesh_half[geom_dataid[geom] as usize];
+        }
+        leaves.push(SceneLeaf {
+            geom_type: geom_type[geom],
+            size,
+            group: 0,
+            geom_id: geom as i32,
+        });
+        let mut xmat = [0.0f32; 9];
+        for (index, value) in xmat.iter_mut().enumerate() {
+            *value = f32::from_bits(xmat_bits[9 * slot + index]);
+        }
+        poses.push(LeafPose {
+            xpos: [
+                f32::from_bits(xpos_bits[3 * slot]),
+                f32::from_bits(xpos_bits[3 * slot + 1]),
+                f32::from_bits(xpos_bits[3 * slot + 2]),
+            ],
+            xmat,
+        });
+    }
+    SceneFixture { leaves, poses, meshes }
+}
+
+fn build_context(
+    session: &TransferSession,
+    fields: &RenderFields,
+    model: &Value,
+    params: &ContextParams<'_>,
+) -> RenderContext {
+    let fixture = scene_fixture(model);
+    let resolved = resolve_context(fields, params).expect("resolve");
+    let state = SceneState::new(fixture.leaves, fixture.poses, params.nworld).expect("state");
+    let textures = TextureRegistry::from_fields(fields, true).expect("textures");
+    RenderContext::create(session, resolved, state, fixture.meshes.clone(), &textures).expect("context")
+}
+
+fn build_rays(session: &TransferSession, camera: &CameraModel, context: &RenderContext) -> RayBuffer {
+    RayBuilder::new(session)
+        .expect("builder")
+        .build(camera, &context.resolved().plan, RayMode::Precomputed)
+        .expect("rays")
+}
+
+fn default_params() -> ContextParams<'static> {
+    const GROUPS: [i32; 4] = [0, 1, 2, 3];
+    ContextParams {
+        nworld: 1,
+        enabled_geom_groups: &GROUPS,
+        ..Default::default()
+    }
+    .with_render_targets(
+        Some(RenderFlagSpec::Bool(true)),
+        Some(RenderFlagSpec::Bool(true)),
+        Some(RenderFlagSpec::Bool(true)),
+    )
+}
+
+fn product_camlight_poses() -> Vec<CameraPose> {
+    let document: Value = serde_json::from_str(CAMLIGHT_MODEL).expect("camlight model");
+    let model = &document["model"];
+    let counts = &document["counts"];
+    let count = |name: &str| counts[name].as_u64().expect("count") as usize;
+    let session = TransferSession::new(0).expect("session");
+    let kinematics = KinematicModelInput::new(
+        count("nv"),
+        KinematicFields {
+            qpos0: floats(&model["qpos0"]),
+            body_parentid: ints(&model["body_parentid"]),
+            body_jntadr: ints(&model["body_jntadr"]),
+            body_jntnum: ints(&model["body_jntnum"]),
+            body_pos: floats(&model["body_pos"]),
+            body_quat: floats(&model["body_quat"]),
+            jnt_type: ints(&model["jnt_type"]),
+            jnt_bodyid: ints(&model["jnt_bodyid"]),
+            jnt_qposadr: ints(&model["jnt_qposadr"]),
+            jnt_dofadr: ints(&model["jnt_dofadr"]),
+            jnt_pos: floats(&model["jnt_pos"]),
+            jnt_axis: floats(&model["jnt_axis"]),
+        },
+    )
+    .expect("kinematics");
+    let inertial = InertialModelInput::new(
+        kinematics,
+        InertialFields {
+            body_ipos: floats(&model["body_ipos"]),
+            body_iquat: floats(&model["body_iquat"]),
+            body_mass: floats(&model["body_mass"]),
+            body_inertia: floats(&model["body_inertia"]),
+            dof_bodyid: ints(&model["dof_bodyid"]),
+            dof_jntid: ints(&model["dof_jntid"]),
+            dof_parentid: ints(&model["dof_parentid"]),
+            dof_armature: floats(&model["dof_armature"]),
+            dof_damping: floats(&model["dof_damping"]),
+        },
+    )
+    .expect("inertial");
+    let attached = AttachedModelInput::new(
+        inertial,
+        AttachedFields {
+            geom_bodyid: ints(&model["geom_bodyid"]),
+            geom_pos: floats(&model["geom_pos"]),
+            geom_quat: floats(&model["geom_quat"]),
+            site_bodyid: ints(&model["site_bodyid"]),
+            site_pos: floats(&model["site_pos"]),
+            site_quat: floats(&model["site_quat"]),
+        },
+    )
+    .expect("attached");
+    let mocap = MocapModelInput::new(attached, ints(&model["body_mocapid"])).expect("mocap");
+    let camlight = CamLightModelInput::new(
+        mocap,
+        CamLightFields {
+            cam_mode: ints(&model["cam_mode"]),
+            cam_bodyid: ints(&model["cam_bodyid"]),
+            cam_targetbodyid: ints(&model["cam_targetbodyid"]),
+            cam_pos: floats(&model["cam_pos"]),
+            cam_quat: floats(&model["cam_quat"]),
+            cam_poscom0: floats(&model["cam_poscom0"]),
+            cam_pos0: floats(&model["cam_pos0"]),
+            cam_mat0: floats(&model["cam_mat0"]),
+            light_mode: ints(&model["light_mode"]),
+            light_bodyid: ints(&model["light_bodyid"]),
+            light_targetbodyid: ints(&model["light_targetbodyid"]),
+            light_pos: floats(&model["light_pos"]),
+            light_dir: floats(&model["light_dir"]),
+            light_poscom0: floats(&model["light_poscom0"]),
+            light_pos0: floats(&model["light_pos0"]),
+            light_dir0: floats(&model["light_dir0"]),
+        },
+    )
+    .expect("camlight");
+    let plan = KinematicsPlan::with_camlight(
+        &session,
+        camlight,
+        KinematicsParameters::default(),
+        CamLightParameters::default(),
+    )
+    .expect("plan");
+    let mut data = plan.create_data(1).expect("data");
+    data.write_qpos(&floats(&model["qpos0"])).expect("qpos");
+    plan.update_rigid(&mut data).expect("rigid");
+    plan.update_attached(&mut data).expect("attached");
+    plan.update_com(&mut data).expect("com");
+    plan.update_camlight(&mut data).expect("camlight");
+    let snapshot = data.readback().expect("readback");
+    let world = snapshot.camlight().world(0).expect("world");
+    (0..count("ncam"))
+        .map(|camera| {
+            let mut xmat = [0.0f32; 9];
+            xmat.copy_from_slice(&world.cam_xmat[9 * camera..9 * camera + 9]);
+            CameraPose {
+                xpos: [
+                    world.cam_xpos[3 * camera],
+                    world.cam_xpos[3 * camera + 1],
+                    world.cam_xpos[3 * camera + 2],
+                ],
+                xmat,
+            }
+        })
+        .collect()
+}
+
+fn sync(context: &RenderContext) {
+    match context.outputs().read(ImageOutput::Rgb).expect("sync read") {
+        OutputValues::Rgb(values) => std::hint::black_box(values),
+        other => panic!("rgb {other:?}"),
+    };
+}
+
+fn percentile(sorted: &[f64], fraction: f64) -> f64 {
+    let index = ((sorted.len() - 1) as f64 * fraction).round() as usize;
+    sorted[index]
+}
+
+fn summarize(values: &[f64]) -> (f64, f64, f64) {
+    let mut sorted = values.to_vec();
+    sorted.sort_by(f64::total_cmp);
+    (sorted[0], percentile(&sorted, 0.5), percentile(&sorted, 0.95))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn measure_mode(
+    label: &str,
+    renderer: &MegakernelRenderer,
+    context: &RenderContext,
+    fields: &RenderFields,
+    camera: &CameraModel,
+    poses: &[CameraPose],
+    rays: &RayBuffer,
+) -> Value {
+    for _ in 0..WARMUP {
+        renderer.render(context, fields, camera, poses, rays).expect("warmup");
+        sync(context);
+    }
+    let mut launch_ms = Vec::with_capacity(ITERATIONS);
+    let mut frame_ms = Vec::with_capacity(ITERATIONS);
+    for _ in 0..ITERATIONS {
+        let started = Instant::now();
+        renderer.render(context, fields, camera, poses, rays).expect("render");
+        let launch = started.elapsed();
+        sync(context);
+        launch_ms.push(launch.as_secs_f64() * 1000.0);
+        frame_ms.push(started.elapsed().as_secs_f64() * 1000.0);
+    }
+    let (launch_min, launch_median, launch_p95) = summarize(&launch_ms);
+    let (frame_min, frame_median, frame_p95) = summarize(&frame_ms);
+    json!({
+        "mode": label,
+        "rays_per_frame": rays.len(),
+        "warmup": WARMUP,
+        "iterations": ITERATIONS,
+        "launch_ms": launch_ms,
+        "frame_ms": frame_ms,
+        "summary": {
+            "launch": {"min": launch_min, "median": launch_median, "p95": launch_p95},
+            "frame": {"min": frame_min, "median": frame_median, "p95": frame_p95},
+        },
+    })
+}
+
+fn unix_now_ms() -> u128 {
+    SystemTime::now().duration_since(UNIX_EPOCH).expect("time").as_millis()
+}
+
+fn run_perf(out_path: &str, tag: &str) {
+    let started_all = Instant::now();
+    let session = TransferSession::new(0).expect("session");
+    let model: Value = serde_json::from_str(MODEL).expect("model");
+    let fields = render_fields(&model);
+    let camera = CameraModel::from_fields(&fields).expect("camera");
+    let poses = product_camlight_poses();
+    let free_before = device_memory().expect("mem").0;
+    let window_start_ms = unix_now_ms();
+
+    let single_context = build_context(&session, &fields, &model, &default_params());
+    let free_after_create = device_memory().expect("mem").0;
+    let single_rays = build_rays(&session, &camera, &single_context);
+    assert_eq!(single_rays.len(), RAYS_PER_FRAME);
+    let renderer = MegakernelRenderer::new(&session).expect("renderer");
+    let single = measure_mode("single_spp1", &renderer, &single_context, &fields, &camera, &poses, &single_rays);
+    let free_after_single = device_memory().expect("mem").0;
+    drop(single_context);
+
+    let aa_params = ContextParams {
+        samples_per_pixel: 2,
+        ..default_params()
+    };
+    let aa_context = build_context(&session, &fields, &model, &aa_params);
+    let free_after_aa_create = device_memory().expect("mem").0;
+    let aa_rays = build_rays(&session, &camera, &aa_context);
+    assert_eq!(aa_rays.len(), 4 * RAYS_PER_FRAME);
+    let aa = measure_mode("aa2_spp2", &renderer, &aa_context, &fields, &camera, &poses, &aa_rays);
+    let free_after_aa = device_memory().expect("mem").0;
+    drop(aa_context);
+    let free_after_destroy = device_memory().expect("mem").0;
+    let window_end_ms = unix_now_ms();
+
+    let report = json!({
+        "tag": tag,
+        "window": {"start_unix_ms": window_start_ms, "end_unix_ms": window_end_ms},
+        "device": {"memory_free_bytes": free_before},
+        "memory_points": {
+            "free_before": free_before,
+            "free_after_create": free_after_create,
+            "free_after_single": free_after_single,
+            "free_after_aa_create": free_after_aa_create,
+            "free_after_aa": free_after_aa,
+            "free_after_destroy": free_after_destroy,
+        },
+        "single": single,
+        "aa": aa,
+        "elapsed_s": started_all.elapsed().as_secs_f64(),
+    });
+    std::fs::write(out_path, serde_json::to_vec_pretty(&report).expect("json")).expect("write");
+    let single_summary = &report["single"]["summary"]["frame"];
+    let aa_summary = &report["aa"]["summary"]["frame"];
+    println!(
+        "perf[{tag}]: single frame median={:.3} min={:.3} p95={:.3}; aa frame median={:.3} min={:.3} p95={:.3}; window {:?}",
+        single_summary["median"].as_f64().unwrap(),
+        single_summary["min"].as_f64().unwrap(),
+        single_summary["p95"].as_f64().unwrap(),
+        aa_summary["median"].as_f64().unwrap(),
+        aa_summary["min"].as_f64().unwrap(),
+        aa_summary["p95"].as_f64().unwrap(),
+        report["window"]
+    );
+}
+
+fn run_mem(out_path: &str) {
+    let session = TransferSession::new(0).expect("session");
+    let model: Value = serde_json::from_str(MODEL).expect("model");
+    let fields = render_fields(&model);
+    let camera = CameraModel::from_fields(&fields).expect("camera");
+    let poses = product_camlight_poses();
+    let free_process_start = device_memory().expect("mem").0;
+    let renderer = MegakernelRenderer::new(&session).expect("renderer");
+    let free_after_compile = device_memory().expect("mem").0;
+
+    let mut cycles = Vec::new();
+    let mut peak_bytes = 0usize;
+    for cycle in 0..2 {
+        let mut entry = json!({"cycle": cycle, "free_before": device_memory().expect("mem").0});
+        let context = build_context(&session, &fields, &model, &default_params());
+        entry["free_after_create"] = json!(device_memory().expect("mem").0);
+        let single_rays = build_rays(&session, &camera, &context);
+        let mut frame_free = Vec::new();
+        let mut frame_min = usize::MAX;
+        for _ in 0..10 {
+            renderer.render(&context, &fields, &camera, &poses, &single_rays).expect("render");
+            match context.outputs().read(ImageOutput::Rgb).expect("sync") {
+                OutputValues::Rgb(values) => std::hint::black_box(values),
+                other => panic!("rgb {other:?}"),
+            };
+            let free = device_memory().expect("mem").0;
+            frame_min = frame_min.min(free);
+            frame_free.push(free);
+        }
+        entry["frame_free"] = json!(frame_free);
+        entry["peak_bytes_vs_cycle_start"] = json!(
+            entry["free_before"].as_u64().unwrap_or(0) as usize - frame_min
+        );
+        peak_bytes = peak_bytes.max(entry["free_before"].as_u64().unwrap_or(0) as usize - frame_min);
+        entry["frame_free_growth"] = json!(
+            frame_free.last().copied().unwrap_or(0) as i64 - frame_free.first().copied().unwrap_or(0) as i64
+        );
+        drop(context);
+        entry["free_after_destroy"] = json!(device_memory().expect("mem").0);
+        cycles.push(entry);
+    }
+    let free_end = device_memory().expect("mem").0;
+    let report = json!({
+        "free_process_start": free_process_start,
+        "free_after_compile": free_after_compile,
+        "compile_bytes": free_process_start as i64 - free_after_compile as i64,
+        "cycles": cycles,
+        "peak_bytes": peak_bytes,
+        "free_end": free_end,
+        "residual_vs_process_start_bytes": free_process_start as i64 - free_end as i64,
+        "residual_between_cycles_bytes": cycles[0]["free_after_destroy"].as_u64().unwrap_or(0) as i64
+            - cycles[1]["free_after_destroy"].as_u64().unwrap_or(0) as i64,
+    });
+    std::fs::write(out_path, serde_json::to_vec_pretty(&report).expect("json")).expect("write");
+    println!(
+        "mem: process_start={} compile_delta={} peak={} residual_vs_start={} residual_between_cycles={} free_end={}",
+        report["free_process_start"], report["compile_bytes"], report["peak_bytes"],
+        report["residual_vs_process_start_bytes"], report["residual_between_cycles_bytes"], report["free_end"]
+    );
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    match args.get(1).map(String::as_str) {
+        Some("--perf") => {
+            let out = args.get(2).cloned().expect("out");
+            let tag = args.get(3).cloned().unwrap_or_else(|| "A".to_string());
+            run_perf(&out, &tag);
+        }
+        Some("--mem") => {
+            let out = args.get(2).cloned().expect("out");
+            run_mem(&out);
+        }
+        other => panic!("unknown mode {other:?}"),
+    }
+}

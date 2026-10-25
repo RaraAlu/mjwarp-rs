@@ -1,0 +1,24 @@
+GPU window — QA perf independent check
+======================================
+device            : NVIDIA GeForce RTX 4070 Ti SUPER
+driver            : 596.36
+CUDA (toolkit)    : 13.2 (product NVRTC from target/toolchains/cuda-12.8.1 = CUDA 12.8.1)
+SM                : 89 (SM89)
+memory total      : 16,376 MiB
+
+handover baseline (Arch)        : 4,278 MiB
+QA first measurement            : 4,352 MiB
+GPU end (QA processes exited)   : 4,352 MiB
+compute processes after window  : 0 (no qa-perf-harness / python / mjwarp CUDA context)
+
+GPU activity inside the window:
+  QA perf harness, 3 separate processes  A / B / exclusive-window runs of
+                                         warmup=5 + 30 iterations x 2 configs each
+  QA memory measurement                  2 full create -> 10-render -> destroy cycles
+  QA exclusivity sampling                150 x nvidia-smi memory samples (100 ms),
+                                         30 x compute-apps snapshots (500 ms)
+  delivered suites rerun                 render_perf 7.50 s, render_e2e 7.82 s,
+                                         depth_seg 4.07 s, rgb 3.54 s, flags 8.30 s
+  -> about 2 minutes of GPU activity inside the 30-minute window, no conflicts.
+
+memory samples (MiB): 4352 (start) / 4278..4629 during QA sampling / 4352 (end)

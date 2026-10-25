@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-perf-independent-check",
+  "task_id": "2026-10-25-render-bvh-perf-independent-check",
+  "date": "2026-10-25",
+  "reviewed_commit": "eadae87",
+  "companion_fix": "18ae715",
+  "review_baseline_head": "8ed13d2",
+  "outcome": "pass",
+  "scope": "QA independent review of the render perf slice and the S8 non-blocking fixes: independent recomputation of every statistic in official_summary from the 2x30 raw series (nearest-rank with Rust round semantics), consistency of summary/ratios/windows/warmup/iterations, independent perf measurement with a QA-owned harness (same protocol, 3 separate processes), independent memory working-set measurement over two full cycles, QA-owned nvidia-smi/compute-apps sampling of the measurement window, relative-only scope check, unmet-item coverage, evidence integrity and diff scope, and verification of the three 18ae715 S8 fixes plus S8 number non-regression. No product source changes in the reviewed commits; no full G01.",
+  "method": {
+    "harness": "target/qa-perf-harness (QA crate, product path dependency + cuda-probe, debug build = same profile as the delivered test; QA driver for camlight poses/context/rays)",
+    "judges": ["judge_raw_stats.py", "judge_perf_evidence.py"],
+    "protocol": "warmup=5, iterations=30, frame_ms = render call + RGB read-back sync, nearest-rank min/median/p95 with Rust f64::round, per-120k-ray normalisation"
+  },
+  "official_summary_derivation": {
+    "raw_series": "measurement_a / measurement_b, each 2 modes x 30 frame_ms + 30 launch_ms (warmup=5 not in series)",
+    "recomputed_statistics": 24,
+    "mismatches": 0,
+    "max_abs_diff_ms": 1e-09,
+    "ratios_derive_from_official_medians": true,
+    "ratio_a": {"aa_over_single": 2.578, "single_ms_per_120k_rays": 14.03, "aa_ms_per_120k_rays": 9.043},
+    "ratio_b": {"aa_over_single": 2.531, "single_ms_per_120k_rays": 14.389, "aa_ms_per_120k_rays": 9.106},
+    "summary_equals_same_run_log_lines": true,
+    "windows_match_logs": true,
+    "warmup_iterations_series_checked": true
+  },
+  "qa_independent_measurements": {
+    "runs": [
+      {"tag": "A", "single_frame_ms": {"min": 10.8231, "median": 13.7012, "p95": 16.2658}, "aa_frame_ms": {"min": 32.2648, "median": 33.3927, "p95": 35.0532}, "ratio": 2.437},
+      {"tag": "B", "single_frame_ms": {"min": 11.4491, "median": 13.1631, "p95": 16.3026}, "aa_frame_ms": {"min": 32.1866, "median": 33.2888, "p95": 34.3029}, "ratio": 2.529},
+      {"tag": "exclusive_window", "single_frame_ms": {"min": 10.9146, "median": 14.5621, "p95": 16.8107}, "aa_frame_ms": {"min": 32.2966, "median": 33.3794, "p95": 34.665}, "ratio": 2.292}
+    ],
+    "delivered_reference": {
+      "single_median_a": 14.03,
+      "single_median_b": 14.389,
+      "aa_median_a": 36.174,
+      "aa_median_b": 36.423,
+      "ratio_a": 2.578,
+      "ratio_b": 2.531
+    },
+    "single_median_delta_vs_delivered_pct": [-2.34, -6.18, 3.79],
+    "aa_delta_vs_delivered_pct": [-7.69, -7.95, -7.72],
+    "delivered_perf_suite_rerun_in_window": {
+      "tests": "2 passed / 0 failed",
+      "single_frame_median_ms": 13.727,
+      "aa_frame_median_ms": 33.424,
+      "ratio": 2.435,
+      "aa_ms_per_120k_rays": 8.356
+    },
+    "conclusion": "same order of magnitude and the same relative relationship; differences are window-to-window desktop-load variation, and the delivered evidence only claims a relative baseline"
+  },
+  "memory": {
+    "delivered_raw_checks": {
+      "single_context_bytes": 2097152,
+      "single_peak_bytes": 56623104,
+      "aa_peak_bytes": 56623104,
+      "frame_free_series_len": 10,
+      "frame_free_growth": 0,
+      "destroy_returns_context_bytes": 2097152,
+      "residual_vs_process_start_bytes": 54525952
+    },
+    "qa_two_cycle_measurement": {
+      "free_process_start": 15845031936,
+      "compile_bytes": 2097152,
+      "cycle_peaks": [88080384, 2097152],
+      "cycle_frame_free_growth": [0, 0],
+      "cycle_destroy_free": [15756951552, 15756951552],
+      "residual_vs_process_start_bytes": 88080384,
+      "residual_between_cycles_bytes": 0
+    },
+    "judgment": "the '52 MiB one-time driver code-cache/pool retention, not a leak' explanation is structurally supported: a one-time drop that does not grow per cycle, per-frame free is constant and only the 2 MiB context returns on destroy; the absolute magnitude differs by process state/first-frame loading timing and does not change the non-leak conclusion"
+  },
+  "exclusivity": {
+    "delivered_nvidia_samples": {"samples": 329, "min_mib": 4246, "median_mib": 4278, "max_mib": 4556, "first": 4278, "last": 4278},
+    "qa_own_sampling": {"samples": 150, "interval_ms": 100, "min_mib": 4278, "median_mib": 4278, "max_mib": 4629, "first": 4279, "last": 4278, "app_blocks": 30, "qa_harness_seen_in_blocks": 5, "other_compute_processes": []},
+    "evidence_strength_note": "on Windows the compute-apps list keeps desktop graphics entries and shows N/A memory, so 'no other CUDA compute process' is evidenced by the process list plus the memory curve returning to the desktop baseline plus the peak band matching this task; sub-100 ms peaks may be missed (declared in the unmet items)"
+  },
+  "scope_language": {
+    "relative_baseline_only": true,
+    "absolute_performance_terms_positive_hits": 0,
+    "unmet_items": 6,
+    "unmet_covers": {
+      "single_scene_single_machine": true,
+      "no_upstream_comparison": true,
+      "release_build_not_tested": true,
+      "sub_100ms_peak_sampling": true,
+      "nworld_gt_1_higher_spp_unimplemented": true,
+      "no_fixed_ci_baseline": true
+    }
+  },
+  "s8_fix_18ae715": {
+    "discriminating_assertion_present": true,
+    "assertion": "tamper_diff = compare_pose_bits(&product.poses, &tampered.camera_data); asserts origin/xmat mismatch > 0",
+    "fixture": {"lines": 415, "bytes": 6434, "sha256": "470adbefd90e9395ee9bfd6dddbb6cfa4ee1407306494bfba690faa0d3e26dc5", "matches_s8_receipt": true},
+    "provenance_sources_all_exist": true,
+    "s8_readme_machine_forbidden_terms_hits": 0,
+    "s8_readme_upstream_equivalence_literal": 1,
+    "s8_readme_upstream_equivalence_context": "only inside a negated sentence ('上游完全等价未声明…')",
+    "s8_numbers_not_regressed": {
+      "camlight_pose_bits": "0 bit difference",
+      "rgb_depth_seg": "0 difference / 0 ULP / 0 mismatch",
+      "reverse_controls": "115,972 / 18,859 / 19,182 / 9,464 unchanged",
+      "hashes": "03efa95416bbd008 / ed50f750936c0275 unchanged"
+    }
+  },
+  "no_regression": {
+    "perf_suite": "2 passed / 0 failed",
+    "s8_render_e2e": "5 passed / 0 failed",
+    "s7b1": "6 passed / 0 failed",
+    "s7b2": "3 passed / 0 failed",
+    "s7b3": "6 passed / 0 failed (PTX 197,583 B / 27,536 B unchanged)",
+    "unit": {"binaries": 101, "passed": 532, "failed": 0},
+    "fmt": "pass",
+    "clippy": "pass (cuda-probe, -D warnings)"
+  },
+  "evidence_integrity": {
+    "delivered_perf_evidence_files": 7,
+    "exact_blob_matches": ["README.md", "receipt.json", "raw-timings.json"],
+    "eol_only_differences": ["gpu-run.log", "repeat-run.log", "regression.log", "nvidia-smi-samples.txt"],
+    "eol_normalized_blob_match": true,
+    "readme_declared_sha256_all_match": true,
+    "diff_eadae87": {"changed_files": 13, "src_changes": [], "note": "tests/render_perf.rs + perf evidence + .normify only"},
+    "diff_18ae715": {"changed_files": 11, "src_changes": [], "note": "tests/render_e2e.rs + fixture + authoring script + S8 evidence + .normify only"},
+    "size_ratchet": {"tests/render_perf.rs": {"lines": 340, "under_500": true, "sha256_matches_receipt": true}}
+  },
+  "findings": [
+    {
+      "severity": "建议",
+      "kind": "evidence",
+      "title": "S8 receipt 的 authoring 脚本行数陈旧",
+      "detail": "记 198 行，实际 197 行（sha256 d6866011… 正确）",
+      "suggestion": "normify fix 修正行数字段"
+    },
+    {
+      "severity": "建议",
+      "kind": "evidence",
+      "title": "perf README §2 对 official_summary 位置描述不准确",
+      "detail": "原文写 official_summary 在各 measurement 的 modes[] 里，实际在 measurement 级（与 modes 平级）；数据本身派生正确",
+      "suggestion": "措辞修正"
+    },
+    {
+      "severity": "建议",
+      "kind": "observation",
+      "title": "窗口间波动导致 QA 独立测量与交付数字有 0–8% 差异",
+      "detail": "QA 单帧 13.16–14.56 ms vs 交付 14.03/14.39；AA 33.29–33.39 vs 36.17/36.42；比值 2.29–2.53 vs 2.53–2.58",
+      "suggestion": "交付已声明只作相对基准，属可解释波动；后续横向对比建议固定同窗口同口径"
+    }
+  ],
+  "limitations": [
+    "本轮未跑 release 构建、未与上游比较、未测 nworld>1/更高 spp、未重新插桩亚 100 ms 峰值采样（与交付未满足项一致）。",
+    "性能数字只对本窗口/本机有效，不可作固定指标或跨硬件依据。",
+    "未跑完整 G01。"
+  ],
+  "not_claimed": [
+    "absolute performance figure",
+    "cross-hardware or cross-platform comparison",
+    "comparison against upstream mujoco_warp",
+    "release-build performance",
+    "complete R01 or complete renderer acceptance"
+  ],
+  "gpu_window": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "cuda": "13.2",
+    "memory_total_mib": 16376,
+    "handover_baseline_mib": 4278,
+    "first_measurement_mib": 4352,
+    "end_memory_mib": 4352,
+    "compute_processes_after": 0,
+    "note": "QA used about 2 minutes of GPU activity inside the 30-minute window, no conflicts"
+  },
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "qa-artifact-manifest.json",
+    "artifact-check.json",
+    "gpu-window.txt",
+    "qa-gpu-runs.log",
+    "qa-unit-tests.log",
+    "judge_raw_stats.json",
+    "judge_perf_evidence.json",
+    "qa_perf_a.json",
+    "qa_perf_b.json",
+    "qa_perf_exclusive.json",
+    "qa_mem.json",
+    "qa-window-mem.txt",
+    "qa-window-apps.txt",
+    "judge_raw_stats.py",
+    "judge_perf_evidence.py",
+    "qa-harness-main.rs.txt"
+  ]
+}
