@@ -31,11 +31,11 @@
 - `normify gate 2026-10-25-g10-p5-gpu-kernels`：fmt/clippy/clippy-cuda/unit 全过（unit 以门禁记录为准）。
 - 未启动任何 CUDA kernel、未占用 GPU 窗口。
 
-## 4. 后续批次（尚未提交/未完成）
+## 4. 后续批次（2/3/4 已提交，剩余 5/6）
 
-2. 设备 GJK phase/EPA（`simplex.cu` 已完成并通过 nvcc 编译，`polytope.cu`/`ccd.cu` + 宿主 launcher 待写）；
-3. SDF narrowphase 设备版（initpoints/Halton/Armijo）；
-4. hfield prism CCD 设备版（filter/prism/四接触/`MJ_MAXCONPAIR`）；
+2. 设备 GJK phase/EPA（已提交 `polytope.cu`/`polytope_build.cu`/`epa.cu`/`ccd.cu`；宿主 launcher 归窗口阶段）；
+3. SDF narrowphase 设备版（已提交 `sdf_octree.cu`/`sdf_math.cu`/`sdf_narrowphase.cu`）；
+4. hfield prism CCD 设备版（已提交 `hfield.cu`，见 §9）；
 5. 接触写入（`worldid`/顺序/`efc_address`/`OverflowType`/`naconmax`·`naccdmax` 截断）+ `nworld>1` world 维上传；
 6. GPU 窗口对照（先报窗口：显存基线、预计时长、迭代次数、跑什么；跑完报回桌面基线 + 无本任务计算进程）。
 
@@ -95,3 +95,46 @@
 - 验证：三文件均通过 `nvcc -std=c++17 -Xcompiler /utf-8 -arch=sm_89 -c`（纯编译）；`cargo check/clippy --features cuda-probe` 通过。
 - 结论口径：仅「与 host 逐式对应 + 编译通过」；**SDF 正式判据（直接对同配方上游 f32 GPU）待窗口**。
 - 截断/`nacon` 写入语义在第五批（接触写入）处理；本批只产生候选结构体。
+
+## 9. 第四批（增量提交 4/5）：hfield prism CCD 设备版
+
+| 文件 | 内容 |
+| --- | --- |
+| `src/physics/collision/cuda/hfield.cu`（新） | 对应 host `hfield/filter.rs` + `hfield/driver.rs`（上游 `_hfield_filter` + `ccd_hfield_kernel`）：`d_hfield_data`（G1 的 `hfield_size/nrow/ncol/adr/data` 视图）、`d_hfield_bounds`；`g5_hfield_filter`（水平/垂直 box-sphere、`hf_matᵀ` 变换、支撑紧 AABB、box-box）；`g5_hfield_pair_contacts`（子网格 `cmin/cmax/rmin/rmax`、prism 六顶点链式前移与底三角 `z=-size[3]`、顶三角高度早退、逐棱柱 `g5_ccd` 组合、`dist >= margin+gap` 跳过、0..3 四接触 + `MIN_DIST_TO_NEXT_CONTACT=1e-3`、`MJ_MAXCONPAIR=50` 溢出 → `OverflowType.HFIELD=1<<5`）；`d_hfield_result` 输出 `ncontact`/`prism_count`/`overflow`/4 接触 |
+| `src/physics/collision/cuda/common.cu` | `relative_matrix` 改为显式 `__fmaf_rn` 链（上游 `mul(mat,mat)` 的 `muladd` 语义，见 §9.1） |
+| `src/physics/collision/relmat.rs` | host 参考同 fma 链（f64 模拟、不用 `f32::mul_add`）+ warp 位型单测（见 §9.1） |
+| `src/physics/collision/cuda/mod.rs` | 追加 `HFIELD_CUDA` 源码常量 |
+
+- 世界→hfield 帧（设备侧**按上游语义**）：`pos = transpose_mul_mat3_vec(hf_mat, pos2 - hf_pos)`、
+  `rot = relative_matrix(hf_mat, rot2)`（`transpose(rot1)*rot2`）；不复制 host 测试 helper 的旧转置约定。
+- 字段口径与上游 `geom_collision_pair` 一致：`geom1`（hfield prism）单位位姿/`margin=0`/`index=-1`/`size=0`；
+  `geom2.margin` 在子网格阶段设为两侧 `geom_margin` 之和，`geom2.pos` 为 hfield 帧位置且作为 `ccd(x_2)`。
+- `overflow` 汇总：每棱柱 `g5_ccd` 的 `result.overflow`（`EPA_HORIZON`；`FLOAT_MAX`→`CCD`，G2 宿主口径）
+  逐位或入 `d_hfield_result.overflow`；`MJ_MAXCONPAIR` 溢出再加 `OverflowType.HFIELD`。
+  `nacon`/`naccdmax` 截断与 world 级计数/原子或归第五批（本批不写接触缓冲）。
+- 验证（CPU 侧，无 GPU 计算）：`nvcc -std=c++17 -Xcompiler /utf-8 -arch=sm_89 -c hfield.cu` 通过
+  （纯编译，无 GPU 上下文，未启动 kernel）；`cargo check --locked --features cuda-probe --lib` 通过。
+- 结论口径：仅「与 host 逐式对应 + 编译通过」；**hfield 正式判据（对同配方上游 f32 GPU）待窗口**。
+
+### 9.1 `relative_matrix` 的上游位型（fma 累加；2026-10-25 QA 实证）
+
+- 上游 `warp/native/mat.h::mul(mat,mat)` 用 `muladd`（`fmaf`）逐项累加：
+  `sum = 0; for k: sum = fma(a[i][k], b[k][j], sum)`（k 升序）；`mul(mat,vec)` 用普通乘加。
+- 设备侧 `cuda/common.cu::relative_matrix` 改为**显式 `__fmaf_rn` 链**（不依赖 `--fmad` 自动收缩，
+  避免判据位型随编译开关漂移）：`sum = a0*b0; sum = __fmaf_rn(a1,b1,sum); out = __fmaf_rn(a2,b2,sum)`。
+- host 参考 `relmat.rs::upstream_relative_matrix` 同样 fma 链，但**不用 `f32::mul_add`**
+  （本机 dev 档 opt-level 0 实测未融合：`0x3f17e6af` vs 正确 `0x3f17e6b0`），改用
+  「f64 精确承载 f32 乘积 + 一次和 → 单次舍入回 f32」。
+- **位型证据**（QA fixture `docs/development-evidence/g10-p5-hfield-host-independent-check/qa-sdf-rotation-cases.json`，
+  mujoco_warp 3.15 f32 CPU、两次捕获位等）：
+  - `sdf-rot-both`（box `euler="25 10 30"`、SDF `Rz(0.7)`）：`rel_mat` **9/9 cell 位级 == warp**；
+  - `sdf-rot-rz-rx`（box `Rx(0.4)`、SDF `Rz(0.7)`）：**9/9 cell 位级 == warp**，含 QA 指出的
+    `f32::mul_add` 敏感位 `rel[1][0] = 0x3F17E6B0`；
+  - 对照：普通乘加在 `sdf-rot-both` 的 cell 6 与 warp 位型差 **1 ULP**（`0xBE0A8E4E` vs `0xBE0A8E4F`），
+    与 QA `rel_mat_cells_diff_computed_vs_warp = 1` 一致 → 证明必须 fma 链（只改转置不够）。
+- 单测：`cargo test --locked --lib relmat` 4 项全过（dev 档）——
+  `upstream_relative_matrix_matches_warp_bits_sdf_rot_both`、`..._sdf_rot_rz_rx`、
+  `plain_accumulation_differs_from_warp_bits`、`upstream_relative_matrix_matches_transpose_rot1_rot2`。
+- 应用点：SDF 设备内核的 `rel_mat`、hfield 设备侧 `rot = relative_matrix(hf_mat, rot2)` 均已走该实现。
+- 边界：这是「设备/host 参考函数与 warp 位型一致」的证据；**G3/G4 产品 host 路径的修正仍归
+  `2026-10-25-g10-p5-sdf-relmat-fix`（排队等 G5 收口）**，本片不改 `sdf/descent.rs`、`hfield/driver.rs`。

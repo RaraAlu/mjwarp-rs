@@ -39,3 +39,7 @@ pub(crate) const SDF_OCTREE_CUDA: &str = include_str!("sdf_octree.cu");
 pub(crate) const SDF_MATH_CUDA: &str = include_str!("sdf_math.cu");
 /// SDF narrowphase（与 host `sdf/narrowphase.rs` 对应：AABB 交集 + Halton 初始点）。
 pub(crate) const SDF_NARROWPHASE_CUDA: &str = include_str!("sdf_narrowphase.cu");
+
+/// hfield prism CCD（与 host `hfield/filter.rs` + `hfield/driver.rs` 对应：
+/// `_hfield_filter` 粗筛、prism 六顶点、`ccd()` 组合、0..3 四接触 + `MJ_MAXCONPAIR` 溢出）。
+pub(crate) const HFIELD_CUDA: &str = include_str!("hfield.cu");

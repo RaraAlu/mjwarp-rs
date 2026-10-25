@@ -75,14 +75,19 @@ __device__ __forceinline__ v3 transpose_mul_mat3_vec(const float* m, v3 v) {
 }
 
 // 上游 `relative_matrix`：`transpose(a) * b`，行优先存储（rel[row][col] = Σ_k a[k][row]*b[k][col]）。
+// 累加按上游 `warp/native/mat.h::mul(mat,mat)` 的 `muladd`（fmaf）语义用显式 `__fmaf_rn` 链
+// （k 升序：`sum = a0*b0; sum = fma(a1,b1,sum); sum = fma(a2,b2,sum)`）；不交给编译器按
+// `--fmad` 自动收缩，避免判据位型随编译开关漂移。注意 `transpose_mul_mat3_vec`（matvec）
+// 上游是普通乘加，保持原样。
 // 判据是上游语义；host `sdf/descent.rs` / `hfield/driver.rs` 的旧 helper 在行优先约定下
-// 返回的是转置（`bᵀa`），设备侧不复制该约定（详见 `src/physics/collision/relmat.rs`）。
+// 返回的是转置（`bᵀa`）且用普通乘加，设备侧不复制该约定（详见 `src/physics/collision/relmat.rs`）。
 __device__ __forceinline__ void relative_matrix(const float* a, const float* b,
                                                 float* out) {
   for (int row = 0; row < 3; ++row) {
     for (int column = 0; column < 3; ++column) {
-      out[row * 3 + column] = a[row] * b[column] + a[3 + row] * b[3 + column] +
-                              a[6 + row] * b[6 + column];
+      float sum = a[row] * b[column];
+      sum = __fmaf_rn(a[3 + row], b[3 + column], sum);
+      out[row * 3 + column] = __fmaf_rn(a[6 + row], b[6 + column], sum);
     }
   }
 }
