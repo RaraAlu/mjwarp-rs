@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-render-bvh-s8-e2e",
+  "title": {
+    "zh": "渲染/BVH S8：端到端（产品 camlight → 渲染、双相机、refit、RGB/depth/seg）",
+    "en": "Render/BVH S8: end-to-end (product camlight into render, two cameras, refit, RGB/depth/seg)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "渲染/BVH 收口片（plan S8，S7b1/S7b2/S7b3 全部 verified 后 start）：用冻结夹具 scene-a 跑端到端——产品侧 `src/physics/camlight.rs` 计算出的相机 data 位姿（含 TARGETBODY 跟踪相机）喂给渲染内核，**不得再用夹具里的 data 位姿**；两相机 RGB/depth/seg、默认 context、显式 refit 帧、生命周期、负向控制；与 S0b 冻结参考对照。把 S7a/S7b1 遗留的「相机 data 位姿由调用方传入」接线补全，作为 r01-p8 渲染 MVP 的收口证据。",
+    "en": "Render/BVH closing slice (plan S8; starts after S7b1/S7b2/S7b3 are all verified): run scene-a end to end - camera data poses computed by the product `src/physics/camlight.rs` (including the TARGETBODY tracking camera) feed the render kernel, and the fixture's data poses may NOT be used; two-camera RGB/depth/seg, default context, an explicit-refit frame, lifecycle, and negative controls; compare against the S0b frozen reference. This completes the S7a/S7b1 deferral of caller-supplied camera data poses and becomes the closing evidence for the r01-p8 render MVP."
+  },
+  "modules": {},
+  "acceptance": [
+    "相机 data 位姿由产品侧 `src/physics/camlight.rs` 产出（含 cam_mode=3 TARGETBODY 相机）并喂给渲染；测试断言其与 S0b 参考 origins 逐位一致、camera0 与 quat_to_mat 一致、camera1 与参考 data xmat 一致；**禁止回退到夹具 data 位姿**（测试中该字段只能用于比对，不能作为渲染输入）。",
+    "端到端两相机：RGB 每通道 ≤1 LSB、depth ≤4 ULP、seg 全等（与 S0b 冻结参考 rgb/depth/seg 一致），逐像素 diff 报告含首错与计数；两次运行输出哈希逐位相同。",
+    "上下文/生命周期：默认 28 参数 context、create→render→显式 refit→render→destroy 全链路；禁用输出的 DisabledOutput；显存回基线、无泄漏（沿用 S6b 口径）。",
+    "负向控制：错数量/种类/对齐/容量/上下文的 launch 参数写前拒绝；PTX 走 f32-render 门禁；不得宣称阴影/天空盒/splat/flex/hfield/多相机支持。",
+    "证据：README/receipt 含 task_id、上下游提交、GPU 设备/显存与窗口、端到端数字、未满足项；不改 S2–S7 证据与夹具、不改已 verified 的容差；新文件 ≤500 行。",
+    "门禁：fmt/clippy/clippy-cuda/unit 全过；GPU 120 分钟独占窗口；开始核对设备并记录结束回桌面基线。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-render-bvh-s7b2-shading",
+      "2026-10-25-render-bvh-s7b3-flags",
+      "2026-10-24-render-bvh-s6b"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/physics/camlight.rs",
+      "src/render/context.rs",
+      "src/render/context/lifecycle.rs",
+      "src/render/kernel/",
+      "tests/render_e2e.rs",
+      "fixtures/render-bvh/scene-e2e/",
+      "docs/development-evidence/render-bvh/s8-e2e/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 90
+  },
+  "note": "Arch 2026-10-25 排程：S7b1 期间发现相机 1 是 TARGETBODY 跟踪相机（model-315 cam_mode=[0,3]、cam_targetbodyid=[-1,2]、cam_quat[1]=identity），其 data cam_xmat 来自 forward（camlight），不是 quat 推导。裁决 A：S7b1 渲染器改用显式 &[CameraPose] 入参、不在内核里重实现跟踪相机数学（避免第二份 camlight 数学）；产品侧已有 src/physics/camlight.rs，其 → RenderContext 的接线在本片 S8 完成并用产品输出验证，S7b2/S7b3 仍可用夹具 data 位姿。S8 验收不得以夹具位姿充当产品 camlight 结果。",
+  "revision": {
+    "before": "304c6983fcca1595fa62cef2cf4d9f4863a1710d",
+    "after": null
+  },
+  "created_at": "2026-10-25T11:20:00.000Z",
+  "updated_at": "2026-10-25T11:20:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s8-e2e/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-render-bvh-s8-e2e"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
