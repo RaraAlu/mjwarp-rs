@@ -1,0 +1,156 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-precheck",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "G0a",
+  "title": "g10-p5 G0a 预检：地形/SDF 碰撞上游语义与实现规格",
+  "date": "2026-10-25",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "scope": "只读预检：产出语义手册、常量/默认参数快照、MJB 方案、精度映射草案、拆分方案；未写产品代码、未占 GPU",
+  "decisions": {
+    "scope": "1A：只做物理（hfield 接触 + SDF 接触/距离/梯度/越界），不含 hfield 渲染",
+    "nworld": "2A：按 worlds=2 严格验收（若产品多世界打包不可用先报 Arch 再决定截断，且不放宽数值判据）",
+    "mjb": "3A：MJB 由本批次 authoring 生成并冻结（3.12 产品 / 3.15 参考，provenance 完整）",
+    "priority": "5A：GJK/EPA 先独立交付（G2），再 G1/G3/G4/G5/G6"
+  },
+  "semantics": {
+    "hfield": {
+      "dispatch": "(HFIELD, SPHERE/CAPSULE/ELLIPSOID/CYLINDER/BOX/MESH) -> CollisionType.CONVEX（collision_driver.py:54-59）",
+      "filter": "_hfield_filter（collision_convex.py:62，对应 mjc_ConvexHField）：hfield 局部系盒-球粗筛；hfield_size 是 vec4（x/y 半宽、z 高度、base 深度）",
+      "subgrid": "由 geom2 AABB 反算 cmin/cmax/rmin/rmax；dx=2*size[0]/(ncol-1)、dy=2*size[1]/(nrow-1)",
+      "prism": "6 顶点：底 3 点 z=-size[3]，顶 3 点 z=hfield_data[adr+row*ncol+col]*size[2]+margin；geom1.polyvert=prism、geomtype1=HFIELD",
+      "ccd": "每 prism 调 ccd()；gjk_iterations=m.opt.ccd_iterations、epa_iterations=16 if 全 box-box 对 else m.opt.ccd_iterations；ncontact==0 或 dist>=margin+gap 跳过",
+      "contact": "pos = hf_mat @ (0.5*(w1+w2)) + hf_pos；normal = hf_mat @ first_row(make_frame(w1-w2))",
+      "four_contacts": "contact0=min dist；contact1=距 min 最远；contact2=距 min–pos1 连线最远；contact3=距其他三角边最远；门槛 MIN_DIST_TO_NEXT_CONTACT=1e-3",
+      "overflow": "MJ_MAXCONPAIR=50；溢出置 OverflowType.HFIELD 并只写已有接触"
+    },
+    "sdf": {
+      "entry": "has_sdf_geom -> sdf_narrowphase（collision_driver.py:922）；线程维度 (sdf_initpoints, naconmax)；只处理 geom2.type==SDF；AABB 不相交直接返回",
+      "initpoints": "AABB 相交盒内 Halton(2,3,5) 采样第 i 点；每个 initpoint 各写一个接触（参考 count = nworld × sdf_initpoints）",
+      "gradient_step": "Armijo：alpha=2.0、rho=0.5、c=0.1、amin=1e-4；dist0=clearance；grad·grad<1e-12 提前返回；内层收缩 alpha 至 alpha<=amin 或 (dist-dist0)<=wolfe；dist>dist0 回退",
+      "gradient_descent": "sdf_iterations 次非 intersection 步 + 1 次 intersection 步；法线 normalize(normalize(rel_matᵀ·grad1) − normalize(grad2)) 再 rot2；pos = pos − n·dist/2",
+      "clearance": "intersection: max(sdf1,sdf2)；否则 sdf1+sdf2+abs(max(sdf1,sdf2))",
+      "compute_grad": "intersection 按 A>B 选 rel_matᵀgrad1 或 grad2；否则 grad2+rel_matᵀgrad1+max_grad*sign(max_val)",
+      "sdf_types": "PLANE/SPHERE/CAPSULE/CYLINDER/BOX/ELLIPSOID 解析；MESH 用 ray_mesh ±法线（dist>|p| 取反向得负）；SDF：sdf_type==-1 走 octree volume，否则 plugin user_sdf",
+      "volume": "box_project（盒外正距离+投影点）+ find_oct 八叉树叶插值；盒外（dist0>0）梯度用有限差分 h=1e-4（3 次额外采样），盒内用 octree 权重解析",
+      "params_location": "sdf_iterations/sdf_initpoints 在 m.opt（XML <option>），不是 geom 字段；参考默认 10/40"
+    }
+  },
+  "boundary_gradient_mapping": {
+    "fixture": "docs/evidence/d04-complex-physics/authoring-runs/run-5/generated/cases/probe-volume-gradient-outside.json",
+    "fixture_sha256": "ad6774b50699f8dbe1a49117d6f7edc18896d3a518476a44be6b1e69e06d445c",
+    "points": [
+      { "point": [0.0, 0.0, 0.0], "distance": -1.0, "semantics": "内部距离（cube 半边长 1，点在体积内部），不是越界哨兵" },
+      { "point": [0.25, -0.1, 0.15], "distance": -0.7322314381599426, "semantics": "内部距离" },
+      { "point": [2.0, 0.0, 0.0], "distance": 0.9999001026153564, "semantics": "盒外/越界点：box_project 正距离+投影插值；梯度走有限差分 h=1e-4" }
+    ],
+    "g4_mapping": "内部距离（负）+ 盒外点（正，有限差分梯度）；不得把 -1.0 当越界哨兵"
+  },
+  "constants": {
+    "FLOAT_MIN": -1e30,
+    "FLOAT_MAX": 1e30,
+    "MINVAL": 1e-15,
+    "MINVAL2": 1e-30,
+    "MAXVAL": 1e15,
+    "MAXVAL2": 1e30,
+    "MIN_DIST2": 1e-10,
+    "MIN_DIST3": 1e-10,
+    "MIN_DIST4": 1e-17,
+    "MIN_EPATOL": 1e-7,
+    "FACE_TOL": "cos(0.0889)",
+    "EDGE_TOL": "sin(0.0889)",
+    "INTERSECT_TOL": 3e-7,
+    "MJ_MAXCONPAIR": 50,
+    "MJ_MAX_EPAFACES": 5,
+    "OverflowType": { "CCD": 16, "HFIELD": 32, "EPA_HORIZON": 256 },
+    "sources": "collision_gjk.py:30-50；types.py:29/36/177-190"
+  },
+  "defaults": {
+    "ccd_tolerance": 1e-6,
+    "ccd_iterations": 35,
+    "gjk_iterations": "= m.opt.ccd_iterations（collision_convex.py:1334）",
+    "epa_iterations": "16 if 全 box-box 对 else m.opt.ccd_iterations（collision_convex.py:1272）",
+    "sdf_iterations": 10,
+    "sdf_initpoints": 40,
+    "solver_tolerance": 1e-8,
+    "warn_overflow": "int(OverflowType.ALL)（io.py:438）",
+    "epa_buffers": { "vert_and_vert_index": "10 + 2*epa_iterations", "face_and_face_pr": "6 + 5*epa_iterations" },
+    "source": "pinned mujoco 3.15 m.opt（纯 CPU 读）+ collision_convex.py:1295-1303"
+  },
+  "reference_fixtures": [
+    { "path": "fixtures/mjwarp-complex-physics/hfield-box.xml", "bytes": 440, "sha256": "e0fe921c10e1e6e2353ff2ed4f2b1c910d3b853bf4f72665f279b9da5845d865", "note": "nrow=ncol=3、size 1 1 0.1 0.1、elevation 3x3" },
+    { "path": "fixtures/mjwarp-complex-physics/sdf-cylinder.xml", "bytes": 478, "sha256": "178bc914b1f00eed730d3e648b100b1356a3470019549fff21c1834af5b61c7f", "note": "option sdf_iterations=10 sdf_initpoints=40；cube mesh；geom type=sdf" },
+    { "path": "docs/evidence/d04-complex-physics/authoring-runs/run-5/generated/cases/collision-hfield-box.json", "bytes": 11748, "sha256": "001d8426ce374754cca0ba212ea577bc6661c1ae753ee59b54d3d2a0db4b349b", "note": "count=8（每 world 4）、worlds=2、geom 对恒 (0,1)、fields 17 项" },
+    { "path": "docs/evidence/d04-complex-physics/authoring-runs/run-5/generated/cases/collision-sdf-cylinder.json", "bytes": 72785, "sha256": "1e05ffb7f79bc7b137ff5a52711f85e2738951c4a1d31f97bfbbd096c0fef422", "note": "count=80（每 world 40=sdf_initpoints）" },
+    { "path": "docs/evidence/d04-complex-physics/authoring-runs/run-5/generated/cases/probe-volume-gradient-outside.json", "bytes": 1565, "sha256": "ad6774b50699f8dbe1a49117d6f7edc18896d3a518476a44be6b1e69e06d445c", "note": "distance 3 值 + gradient 3x3" },
+    { "path": "fixtures/mjwarp-complex-physics/reference.py", "bytes": 22194, "sha256": "99151d2e00f6cf463c7b3098b4c209937d3d693e6f018b307c937f3c417c47ee", "note": "pinned 3.15 authoring 生成脚本" }
+  ],
+  "mjb_plan": {
+    "product_312": "离线 C++ 工具用 MuJoCo 3.12.0 C API（target/toolchains/mujoco-3.12.0/package）加载 XML -> mj_saveModel 写 .mjb，并用 3.12 重载校验；参照 scripts/authoring/render-bvh/compile_scene_312.cpp 模式",
+    "reference_315": "pinned venv mujoco 3.15.0：MjModel.from_xml_path(xml) -> save_binary(mjb)，并用 3.15 重载校验",
+    "offline_only": true,
+    "provenance_fields": [
+      "source_xml.path",
+      "source_xml.sha256",
+      "mujoco_version",
+      "generator(path+sha256)",
+      "command",
+      "output.bytes",
+      "output.sha256",
+      "loaded_back",
+      "loader_check",
+      "authoring_only",
+      "reads_product_tree"
+    ],
+    "nworld2_recommendation": "2A 严格双世界；G0b 先做 nworld=2 打包可行性 spike（约 0.5d），不可用先报 Arch 再裁断；截断时在 G6 receipt unmet 写清单世界口径且不放宽数值判据"
+  },
+  "precision_plan": {
+    "contract": "docs/numerical-precision-contract.md（§279 f32 全链/不得 f16/TF32；§306 逐字段冻结容差/不上游 f64；§142 数值参考优先级；§362 测试族指标先例）",
+    "fields": {
+      "contact_dist": "f32；位型全等目标，不可达 ≤4 ULP",
+      "contact_pos": "f32 vec3；位型全等（或逐分量 ≤1 ULP）",
+      "contact_frame_normal": "f32 mat33；≤4 ULP（含归一化 sqrt/div）",
+      "contact_count_order": "i32；全等（count/geom/worldid/dim/type）",
+      "sdf_distance": "f32；位型全等目标，不可达 ≤4 ULP",
+      "sdf_gradient": "f32 vec3；≤4 ULP（有限差分含除法/减法）",
+      "hfield_data_size": "f32；位型全等（模型输入一次转换）",
+      "oct_coeff": "f32；位型全等（模型输入）"
+    },
+    "order_alignment": "沿用 S7b1/S7b2：从 pinned 3.15 PTX 缓存读 gjk/epa/support/sdf 指令顺序；对 JIT 收缩点显式 __fmul_rn/__fmaf_rn/__fsub_rn/__fadd_rn；host 参考与设备内核同表达式顺序",
+    "no_relaxation": "不按设备噪声放宽容差；超限回查表达式/常量顺序"
+  },
+  "slices": {
+    "G2": { "scope": "ccd()（gjk+epa）、support() 全类型、multicontact()、EPA polytope/缓冲、OverflowType、margin/gap/tolerance/cutoff、is_discrete 分支", "depends_on": "无（纯 host 数学）；G3/G4/G5 复用", "gpu": false, "estimate_days": "5-7", "acceptance_gap": "需 G0b 补采 GJK/EPA 直达参考（box-box/box-mesh 等；现有 d04 只间接覆盖）", "order": "先立 is_discrete/定序/EPA 退化断言，再写数值" },
+    "G1": { "scope": "模型字段 hfield_*/oct_*/mesh_octadr/opt.sdf_* 解析与 parity", "gpu": false, "estimate_days": 3 },
+    "G3": { "scope": "SDF host 数学（sdf/sdf_grad/clearance/compute_grad/gradient_step/descent/volume/Halton）", "gpu": false, "estimate_days": 5 },
+    "G4": { "scope": "hfield host（_hfield_filter + prism 构造 + CCD 组合 + 四接触选择）", "gpu": false, "estimate_days": "3-5" },
+    "G5": { "scope": "GPU 内核（GJK/EPA、SDF narrowphase、hfield prism CCD、接触写入）", "gpu": true, "estimate_days": 5 },
+    "G6": { "scope": "验收收口（地形接触+梯度+越界三条映射、精度映射、负向控制、证据）+ perf 片", "gpu": true, "estimate_days": "3+1" },
+    "total_estimate_days": "30+",
+    "order": ["G0b", "G2", "G1", "G3", "G4", "G5", "G6"]
+  },
+  "unmet": [
+    "本片为只读预检：未实现、未跑 GPU、未改产品代码/测试/夹具/Cargo.*。",
+    "G2 验收参考尚缺（需 G0b 补采 GJK/EPA 直达 case）。",
+    "_S3D/_S2D/_S1D、_polytope2/3/4、_epa_witness 的复刻工作量未细化。",
+    "产品 nworld>=2 打包对 hfield/SDF 的可用性未验证（G0b spike）。",
+    "hfield/SDF GPU 内核性能未测（归 G6 perf 片）。",
+    "Linux/T4 未覆盖（用户 2026-10-24 裁决终止 Linux 任务）。",
+    "完整 R01 聚合收口不在本片范围。"
+  ],
+  "no_product_change": {
+    "files_written": ["docs/development-evidence/g10-p5-precheck/README.md", "docs/development-evidence/g10-p5-precheck/receipt.json"],
+    "product_code_changed": false,
+    "tests_changed": false,
+    "fixtures_changed": false,
+    "cargo_changed": false,
+    "gpu_used": false
+  },
+  "evidence_files": ["README.md", "receipt.json"],
+  "reproduction": {
+    "semantics_source": "pinned venv mujoco_warp/_src/collision_{gjk,convex,sdf,driver}.py + types.py + io.py（只读）",
+    "defaults_source": "mujoco 3.15 m.opt 纯 CPU 读取（不初始化 warp/CUDA）",
+    "gpu": "无（本片不占 GPU）"
+  }
+}
