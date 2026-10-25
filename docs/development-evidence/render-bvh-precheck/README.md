@@ -421,6 +421,8 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 
 ## 7. r01-p8 原验收映射
 
+> **收口结论（2026-10-25）**：渲染 MVP（默认参数渲染能力）已收口——S0a–S8 + 渲染 perf 全部 verified，QA 独立复核覆盖 S1/S2a/S2b/S3/S4/S5/S6a/S6b/S7a/S7b1/S7b2/S7b3/S8/perf 全部 0 阻断；端到端数字 RGB 120,000/120,000 像素 0 差异、depth 0 ULP、seg 全等，camlight 位姿与参考 0 位差（含 TARGETBODY）。**`r01-p8` 聚合任务不标完成**：原验收第 3 条（性能）已由 perf 补成满足、第 5 条（NP01/NP02）Windows 范围满足；剩余缺口仅 **NP03 双平台**（用户 2026-10-24 裁决 Linux 终止，不宣称）与 **`mjwarp.render.kernel` 叶子模块治理**（backlog `2026-10-25-render-bvh-module-split`）。未满足项：R05–R10、nworld>1、release 构建、更高 spp、上游完全等价、全量 G01。**不宣称完整 R01 通过、不宣称双平台。**
+
 | 原验收项 | 切片 | 说明 |
 | --- | --- | --- |
 | 世界 | S6a、S8 | `nworld=1` 默认与单 world 行为；`nworld>1` 归 R10，不在本 MVP |
