@@ -5,7 +5,7 @@
     "zh": "G10@P5 GJK/EPA 前置片独立复核（ccd/support/multicontact/is_discrete/EPA 退化）",
     "en": "G10@P5 GJK/EPA prerequisite independent review (ccd, support, multicontact, is_discrete, EPA degeneracy)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "对 G2（`2026-10-25-g10-p5-gjk-epa`）做独立复核：QA 自写驱动（不复用交付 support）按 G0b 补采的 GJK/EPA 直达参考独立重跑，核 `ccd()` 两阶段与返回值语义（ncontact 0/1/`FLOAT_MAX`、浅穿透 `_inflate` 不跑 EPA、深穿透恢复 margin/size）、GJK 迭代与收敛（epsilon/min_norm/Frank-Wolfe 间隙/子算法 λ 剔除与 simplex 重排/`x_norm<1e-4` 方向调优）、EPA（polytope 构造、收敛判据、HORIZON 退化 → `FLOAT_MAX`/idx=-1、缓冲容量 `10+2I`/`6+5I`）、`support()` 各类型（含 HFIELD 六顶点、MESH graph hillclimb 与 `cached_index`、margin 尾项）、`multicontact`/`_polygon_clip`（≤4 接触）、`is_discrete` 分支（mesh/box/hfield + margin==0 走 epsilon=0 与重复点早退）；并对数值给位级/ULP 结论（按 S7b 定序方法，不放宽容差）；核既有 plane-sphere/sphere-sphere/plane-box 语义未变。不改产品代码与原证据。",
     "en": "Independent review of G2 (task 2026-10-25-g10-p5-gjk-epa): QA writes its own driver (not reusing delivered support), reruns against the direct GJK/EPA references captured in G0b, and checks ccd()'s two phases and return semantics (ncontact 0/1/FLOAT_MAX, shallow inflate without EPA, deep penetration restoring margin/size), GJK iterations and convergence (epsilon, min_norm, Frank-Wolfe gap, sub-algorithm lambda elimination and simplex reordering, x_norm<1e-4 direction tuning), EPA (polytope construction, convergence, HORIZON degeneracy to FLOAT_MAX/idx=-1, buffer capacities 10+2I and 6+5I), support() per type (HFIELD six vertices, MESH graph hillclimb and cached_index, margin tail), multicontact/_polygon_clip (at most 4 contacts), and the is_discrete branch (mesh/box/hfield with margin==0 using epsilon=0 and duplicate-point early exit); report bit-level/ULP conclusions per the S7b ordering method without loosening tolerances; confirm existing plane-sphere/sphere-sphere/plane-box semantics are unchanged. No product-code or original-evidence changes."
@@ -37,12 +37,11 @@
   },
   "note": "Arch 2026-10-25 预先登记：G2 是 g10-p5 的数值主件（G3/G4/G5 全部复用其 ccd/support/multicontact），所以复核必须独立重跑而非读交付日志。QA 用 G0b 的直达参考（box-box-multiccd/convex-mesh/degenerate-mesh + 新采 sphere-box/cylinder-box 等）+ 自写驱动；数值口径沿用渲染批次的「位级优先、ULP 退路、不放宽容差」。GPU 窗口与 Backend 串行，等 G2 verified 后再 start。",
   "revision": {
-    "before": "697795f4ed51b2f60f53269413abbdb316fc94e8",
+    "before": "8c98fe2b2dfb2639c6ee16b610009b62adc59e93",
     "after": null
   },
   "created_at": "2026-10-25T15:12:00.000Z",
-  "updated_at": "2026-10-25T15:12:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T08:08:33.883Z",
   "checks": [
     {
       "kind": "gate",
