@@ -218,11 +218,11 @@ relmat 链含大量精确 0，会被污染。原 58 例边界集不覆盖这两�
 
 | 命令 | 修前结果 |
 | --- | --- |
-| `cargo test --lib math::fma::tests::soft_fma_exact_bits_by_edge_class`（默认 gate 特性，直接调兜底） | **FAILED：17 例中 8 例 FAIL** |
+| `cargo test --lib math::fma::tests::soft_fma_exact_bits_by_edge_class`（默认 gate 特性，直接调兜底） | **FAILED：16 例中 8 例 FAIL** |
 | `cargo test --lib math::fma::tests::soft_matches_hardware_on_boundary_cases` | **FAILED：77 例中 13 mismatches** |
 | `MJWARP_FORCE_SOFT_FMA=1 cargo test --lib math::fma::tests::forced_soft_seam_matches_hardware` | **FAILED：4173 样本 13 mismatches；seam_digest=`4617dbc340b6746b` ≠ hw_digest=`47063cfd3b9c4cdb`** |
 
-表 2 修后绿（`f1-postfix-green.log`）：同上三条 → **17/17 OK、0/77、4173 样本 0 mismatches 且
+表 2 修后绿（`f1-postfix-green.log`）：同上三条 → **16/16 OK、0/77、4173 样本 0 mismatches 且
 seam_digest = hw_digest = `47063cfd3b9c4cdb`**；`cargo test --lib math::fma` = **7 passed / 0 failed**。
 
 表 3 逐类「输入 → 期望位型 → 修前实际 → 修后实际」（节选；完整表见日志）：
