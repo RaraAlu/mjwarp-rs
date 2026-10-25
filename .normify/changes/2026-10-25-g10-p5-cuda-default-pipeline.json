@@ -5,7 +5,7 @@
     "zh": "G10@P5 设备收尾片：CUDA 默认产品管线接线（阶段 1 依赖/CI 影响与设计稿；阶段 2 待用户拍板后实现）",
     "en": "Device wrap-up: wire CUDA into the default product pipeline (stage 1: dependency/CI impact and design; stage 2 after user sign-off)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "G6 map UNC-2 现行状态：NVRTC 产品 launcher 经 `cuda-probe` 特性可用，但**默认产品管线没有 CUDA 入口**（默认构建不含 cudarc，碰撞始终走 host）。本片分两阶段：阶段 1 只做**决策支撑**——量化「把设备碰撞入口接进默认管线」的三种选项（① `cuda-probe` 转默认特性、cudarc 变必选；② 新增 `cuda` 特性默认开启、`--no-default-features` 可关；③ 保持 probe 门控、只加运行时后端选择层 + Host 回退）对默认构建时间/二进制体积/CI/默认行为/回退语义的影响，落设计稿；**阶段 2 须经 Arch 转 Chief 由用户拍板选定选项后**才实现，不改任何数值语义。",
     "en": "Stage 1: measure and document the three options for reaching the device collision path from a default build. Stage 2 (after user sign-off): implement runtime backend selection with host fallback, numeric behavior unchanged."
@@ -35,17 +35,29 @@
   },
   "note": "Arch 2026-10-25 登记。设备三缺口片（NVRTC launcher / primitive / multicontact）已全部 verified，G6 map UNC-2 剩余的一半就是「默认产品管线未接入」。阶段 1 是决策支撑（低后悔：无论选哪个选项都要先量依赖/CI 影响）；阶段 2 涉及默认构建依赖策略（cudarc 是否变必选）与默认行为语义，属口径/依赖策略决策，必须由用户拍板，Arch 只出候选与影响面、不宣称默认生效。若用户优先选择 render R05-R10 或 Linux/T4 集中回测，本片可 abandon 或转 backlog，阶段 1 产物留作参考。",
   "revision": {
-    "before": "fe3ca8babe504c1a49fad006cc0da9088223aa48",
+    "before": "c869c12e8d102a95b0cd2dae3cc23da7893e7e77",
     "after": null
   },
   "created_at": "2026-10-25T16:06:00.000Z",
-  "updated_at": "2026-10-25T16:06:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T16:12:57.762Z",
+  "closed_at": "2026-10-25T16:12:57.762Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "json",
       "path": "docs/development-evidence/g10-p5-cuda-default-pipeline/receipt.json",

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline",
+  "stage": "stage1-design-only",
+  "head": "ef16338dccc5f54adc54102784e28d24e960e569",
+  "measured_at_local": "2026-10-26T00:0x+08:00",
+  "machine": {
+    "cpu": "AMD Ryzen 9 9950X3D 16C/32T",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)"
+  },
+  "method": {
+    "clean_build": "每次测量使用独立 CARGO_TARGET_DIR（target/measure/<cfg>），先删除目录再构建；同一 HEAD、同一机器，串行执行避免 CPU 争用",
+    "size_metric": "target 目录内全部文件字节数总和（MiB，1 MiB = 1048576 B）；exe_mib 为 target/<cfg>/debug|release/mjwarp-rs.exe 体积",
+    "option12_proxy": "阶段 1 禁止改 Cargo 默认特性，因此选项①/②的默认构建代价用 `--features cuda-probe` 实测代理（特性开启后的默认构建 = 当前 feature 构建）",
+    "no_cuda_simulation": "清空 PATH 中匹配 cuda 的项并移除全部 CUDA* 环境变量后，用独立 CARGO_TARGET_DIR 重新 clean build；本机仍装有 CUDA toolkit 文件但构建不引用，属模拟边界",
+    "not_simulatable": "无 GPU / 无驱动运行期行为无法在本机实机模拟（本机有 RTX 4070 Ti SUPER + driver 596.36）；该部分依据错误路径代码与既有证据（NVRTC DLL 缺失时 cudarc 动态加载失败）给出，见 DESIGN §4"
+  },
+  "debug": {
+    "default_build": {"exit": 0, "seconds": 6.0, "target_mib": 195.2, "exe_mib": 19.6},
+    "probe_build": {"exit": 0, "seconds": 17.1, "target_mib": 775.5, "exe_mib": 77.9},
+    "delta": {"seconds": 11.1, "seconds_percent": 185.0, "target_mib": 580.3, "target_percent": 297.3, "exe_mib": 58.3},
+    "default_test_norun": {"exit": 0, "seconds": 13.5, "target_mib": 534.4},
+    "probe_test_norun": {"exit": 0, "seconds": 20.3, "target_mib": 1295.9},
+    "test_norun_delta": {"seconds": 6.8},
+    "default_test_run": {"exit": 0, "seconds": 0.5, "result": "447 passed / 5 ignored / 0 failed（452 tests）"},
+    "probe_test_run": {"exit": 101, "seconds": 0.5, "result": "677 passed / 1 failed / 137 ignored（815 tests）", "failure": "runtime::transfer::kernel::recapture::tests_host::preserves_current_sources_and_all_thirty_variants: unexpected lineage change（T4 陈旧 fixture，见 DESIGN §6.3）"}
+  },
+  "release": {
+    "default_build": {"exit": 0, "seconds": 5.2, "target_mib": 30.1, "exe_mib": 2.5},
+    "probe_build": {"exit": 0, "seconds": 17.5, "target_mib": 167.8, "exe_mib": 8.9},
+    "delta": {"seconds": 12.3, "seconds_percent": 236.5, "target_mib": 137.7, "target_percent": 457.5, "exe_mib": 6.4}
+  },
+  "no_cuda_build": {
+    "path_stripped_has_cuda_entries": 0,
+    "cuda_env_removed": true,
+    "default_build": {"exit": 0, "seconds": 6.1, "target_mib": 195.2},
+    "probe_build": {"exit": 0, "seconds": 16.6, "target_mib": 775.5},
+    "default_test_lib": {"exit": 0, "seconds": 13.3, "result": "447 passed / 5 ignored / 0 failed（452 tests）", "target": "target/measure/t-nocuda-default"},
+    "probe_test_norun": {"exit": 0, "seconds": 25.7, "target": "target/measure/t-nocuda-probe-test", "note": "测试二进制可编；运行期无 GPU/无驱动不可在本机模拟"},
+    "conclusion": "三种选项的构建期都不需要 CUDA toolkit：cudarc 使用 dynamic-loading，driver/NVRTC 只在运行期加载；默认特性下测试无需 GPU 即可运行"
+  },
+  "commands": {
+    "debug_default": "CARGO_TARGET_DIR=target/measure/t-default cargo build --locked",
+    "debug_probe": "CARGO_TARGET_DIR=target/measure/t-probe cargo build --locked --features cuda-probe",
+    "debug_default_test_norun": "CARGO_TARGET_DIR=target/measure/t-default cargo test --locked --lib --no-run",
+    "debug_probe_test_norun": "CARGO_TARGET_DIR=target/measure/t-probe cargo test --locked --features cuda-probe --lib --no-run",
+    "debug_default_test_run": "CARGO_TARGET_DIR=target/measure/t-default cargo test --locked --lib",
+    "debug_probe_test_run": "CARGO_TARGET_DIR=target/measure/t-probe cargo test --locked --features cuda-probe --lib",
+    "release_default": "CARGO_TARGET_DIR=target/measure/r-default cargo build --locked --release",
+    "release_probe": "CARGO_TARGET_DIR=target/measure/r-probe cargo build --locked --release --features cuda-probe",
+    "no_cuda_default": "PATH 去 cuda 项 + 无 CUDA* 环境变量；CARGO_TARGET_DIR=target/measure/t-nocuda-default cargo build --locked",
+    "no_cuda_probe": "同上环境；CARGO_TARGET_DIR=target/measure/t-nocuda-probe cargo build --locked --features cuda-probe"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline",
+  "status": "stage1_design_complete_pending_arch_review",
+  "stage2_status": "not_started",
+  "stage2_task": "2026-10-25-g10-p5-cuda-default-pipeline-stage2",
+  "note": "阶段 1 只做决策支撑：未改 Cargo 默认特性、未写产品代码、未开 GPU 窗口、未新捕获参考；本片结论不构成默认生效。",
+  "head": "ef16338dccc5f54adc54102784e28d24e960e569",
+  "deliverables": ["DESIGN.md", "measurements.json", "receipt.json"],
+  "options": {
+    "option1": "cuda-probe 转默认特性（cudarc/libloading/serde/serde_json/sha2 变必选）",
+    "option2": "新增 cuda 特性默认开启，--no-default-features 可关",
+    "option3": "保持 cuda-probe 门控，默认构建只加运行时后端选择层与 Host 回退（GPU 分支仍门控）"
+  },
+  "measured_summary": {
+    "debug_build": {"default_s": 6.0, "probe_s": 17.1, "delta_s": 11.1, "delta_percent": 185.0, "default_target_mib": 195.2, "probe_target_mib": 775.5, "delta_target_mib": 580.3, "default_exe_mib": 19.6, "probe_exe_mib": 77.9},
+    "release_build": {"default_s": 5.2, "probe_s": 17.5, "delta_s": 12.3, "delta_percent": 236.5, "default_target_mib": 30.1, "probe_target_mib": 167.8, "delta_target_mib": 137.7, "default_exe_mib": 2.5, "probe_exe_mib": 8.9},
+    "test_lib": {"default_norun_s": 13.5, "probe_norun_s": 20.3, "delta_norun_s": 6.8, "default_run": "447 passed / 5 ignored（452 tests）", "probe_run": "677 passed / 1 failed / 137 ignored（815 tests；失败为 T4 陈旧 fixture，非选项差异）"},
+    "no_cuda_build": {"default_exit": 0, "probe_exit": 0, "conclusion": "构建期不需要 CUDA toolkit（cudarc dynamic-loading）"}
+  },
+  "default_behavior_impact": {
+    "option1": "默认构建含 cudarc（无 opt-out）；默认 CLI probe 从 FeatureDisabled 变为尝试 CUDA；功能接线仍需阶段 2",
+    "option2": "同 option1，但可用 --no-default-features 回到现状（等价默认构建）",
+    "option3": "默认构建行为/体积/CLI 不变；只增加后端选择层与 Host 回退；默认构建仍无 CUDA 入口，不单独关闭 UNC-2"
+  },
+  "unc2_closure": {"option1": true, "option2": true, "option3": false, "note": "option3 保持门控，默认构建仍无 CUDA 入口；是否翻转门控是另一决策"},
+  "stage2_status": "not_started",
+  "stage2_task": "2026-10-25-g10-p5-cuda-default-pipeline-stage2",
+  "review": {
+    "reviewer": "Arch",
+    "verdict": "accept",
+    "notes": [
+      "三选项实测与三态回退表可用；①/② 用 --features cuda-probe 作默认构建代理并已标注",
+      "既有红归因按 Arch 独立复算修正：REVISION 常量与 fixture 的 source_revision 均为 8a5bac00（一致）；934667a8 只出现在 PRE_ROTATE 与 t4-current-capture-status.base_revision；真实漂移 = product_sources 9/20 条落后 + mod.rs 记录值与锚点/live 均不一致",
+      "门禁盲区（默认 gate 只跑默认特性 unit，677 项特性测试不在门禁内）已按 Chief 要求写入 DESIGN §6.4",
+      "阶段 2 已拆分为独立任务（见 stage2_task），本片只交付阶段 1"
+    ]
+  },
+  "findings": [
+    "HEAD ef16338d 上 `cargo test --features cuda-probe --lib` 已红：T4 当前身份 fixture 落后于源码（product_sources 9/20 条 sha256 不符 → unexpected lineage change），与三选项无关但会阻塞 ①/② 的“默认 cargo test 绿”；已登记独立修片 2026-10-25-t4-source-hash-repin-13（171daba7）",
+    "仓库无 .github CI 配置；门禁由 normify gate（默认特性 unit 595/0）与 scripts/*.ps1（default cargo test + 两种 clippy）承担",
+    "当前产品代码无任何入口调用 CollisionGpuProgram（仅 ignored 集成测试使用）；默认碰撞路径始终是 host 函数，三选项都必须配阶段 2 的运行时选择层才能真正把设备入口接进默认管线"
+  ],
+  "gate": {"status": "arch_reviewed_before_commit", "note": "Arch 审 DESIGN 通过（verdict=accept）后由 Arch 执行 gate/check 并提交阶段 1；阶段 2 未开工"},
+  "next": "阶段 2 = 2026-10-25-g10-p5-cuda-default-pipeline-stage2（proposed），须用户拍板 ①/②/③ 并待 repin-13 verified 后 start；未拍板前不改 Cargo 默认特性"
+}
