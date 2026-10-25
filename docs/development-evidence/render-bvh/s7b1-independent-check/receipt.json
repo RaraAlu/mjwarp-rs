@@ -1,0 +1,324 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s7b1-independent-check",
+  "task_id": "2026-10-25-render-bvh-s7b1-independent-check",
+  "date": "2026-10-25",
+  "reviewed_commit": "3e43278",
+  "review_baseline_head": "d6b45d8",
+  "outcome": "pass",
+  "scope": "Independent QA re-verification of the S7b1 depth/seg kernel: 0-ULP claim against the same-recipe reference decoded by QA itself, sphere fma contraction order derived from the reference megakernel PTX and reproduced by QA f32 emulation (747/747 grazing pixels, alternative order deviates; new camera pose 813/813), A' render gate facts, cross-recipe deviation kept as recorded only, scene.cu/launch.rs unchanged, diff scope, S6b regression and 532-test gate. Fast-loop scope; no full G01; no product/fixture/original-evidence changes.",
+  "zero_ulp_claim": {
+    "decoded_by_qa": true,
+    "same_recipe_fixture": "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json decoded by QA Python itself (depth_bits/seg_pairs)",
+    "camera_results": {
+      "0": {
+        "histogram": [
+          76800,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "max_ulp": 0,
+        "beyond_4": 0,
+        "compared": 76800,
+        "depth_bit_equal": true,
+        "seg_mismatch": 0,
+        "depth_zero_pixels": 16995,
+        "expected_zero_pixels": 16995
+      },
+      "1": {
+        "histogram": [
+          43200,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "max_ulp": 0,
+        "beyond_4": 0,
+        "compared": 43200,
+        "depth_bit_equal": true,
+        "seg_mismatch": 0,
+        "depth_zero_pixels": 27498,
+        "expected_zero_pixels": 27498
+      }
+    },
+    "total_bit_equal_depth_pixels": 120000,
+    "seg_mismatches": {
+      "0": 0,
+      "1": 0
+    },
+    "dynamic_vs_precomputed": {
+      "depth_diff": 0,
+      "seg_diff": 0
+    },
+    "repeat_run": {
+      "depth_diff": 0,
+      "seg_diff": 0
+    },
+    "two_worlds": {
+      "world0_diff": 0,
+      "world1_all_miss": true,
+      "world1_all_background": true
+    },
+    "refit": {
+      "repeat_diff": 0,
+      "changed_pixels": 754
+    },
+    "disabled_outputs": {
+      "depth_byte_len_rejected": true,
+      "render_ok": true,
+      "rgb_all_zero": true,
+      "seg_byte_len_rejected": true
+    },
+    "delivered_gpu_log_numbers_match": true
+  },
+  "fma_order_derivation": {
+    "reference_ptx": {
+      "path": "target/render-bvh/s0b-cache/1.15.0/wp__build_megakernel__locals___render_megakernel_f77904cd_be6b38f/*.sm89.ptx",
+      "bytes": 619077,
+      "sha256": "9662200b14e1d5672a5e5d2e1a3b6b65457dd1ccacb7b41346875ffbc43b9bee",
+      "a_dot_sequence": "L530 mul(comp0*comp0) -> L531 fma(comp1) -> L532 fma(comp2)",
+      "b_dd_sequence": "L940 mul(comp1) -> L941 fma(comp0) -> L942 fma(comp2); L943-L945 same for dd",
+      "det_note": "the L946-949 inlined instance is mul,mul,sub; the pass-relevant instance fusion is determined by QA numerical reproduction (fused det -> 747/747; unfused -> 87/747)"
+    },
+    "qa_f32_emulation": {
+      "camera_transform": "mv_1_0_2 (fma(c0,d0, mul(c1,d1)) then fma(c2,d2))",
+      "plane_calibration": {
+        "pixels": 10720,
+        "bit_equal": 10720
+      },
+      "sphere_pixels": 747,
+      "reference_order": {
+        "bit_equal": 747,
+        "histogram": [
+          747,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "alternative_order": {
+        "bit_equal": 87,
+        "histogram": [
+          87,
+          153,
+          141,
+          120,
+          59,
+          187
+        ]
+      },
+      "new_pose_generalization": {
+        "sphere_pixels": 813,
+        "reference_order_bit_equal": 813,
+        "reference_histogram": [
+          813,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "alternative_order_beyond_4": 192,
+        "alternative_histogram": [
+          76,
+          188,
+          151,
+          142,
+          64,
+          192
+        ]
+      }
+    },
+    "conclusion": "The reference contraction order (a: comp0 mul then comp1/comp2 fma; b/dd: comp1 mul then comp0/comp2 fma; det fused fma(b,b,-mul(a,c)); rcp denominator) reproduces the frozen reference bit-exactly on all cam1 sphere pixels; the plausible alternative order (comp1-first dots, unfused det) deviates on most of them, so the arithmetic order - not fixture tuning - is the root cause.",
+    "not_fixture_tuned": "pure explicit-intrinsic arithmetic in render_math.cu::render_sphere_hit (no geom_id whitelist, no pixel/coordinate branches, no fixture constants); render.cu only routes geom_type==2; recipe/tolerance unchanged"
+  },
+  "render_gate": {
+    "ptx_bytes": 137824,
+    "source_sha256": "82ea0d3bea34da898e3e1ee15564ddef9462fdc7229ed27e619c7c19dbf02bdc",
+    "ptx_sha256": "01018ed95ddc868242b41f75e0463e8d1bb9ab32a671e5e4a2cf9644130927f4",
+    "entries": {
+      "scene_bvh_ray": true,
+      "render_depth_seg": true
+    },
+    "f64_globals": [
+      ".global .align 8 .f64 _ZN2wp11_svd_configIdE11SVD_EPSILONE = 0d3D719799812DEA11;",
+      ".global .align 8 .f64 _ZN2wp11_svd_configIdE17QR_GIVENS_EPSILONE = 0d3D719799812DEA11;"
+    ],
+    "f64_globals_exact_allowlist": true,
+    "non_global_f64_lines": 3,
+    "gate": "f32-render",
+    "scene_cu_sha256": "8dad4d61235a8686d8b43fecef450535816c5a9423f15d256be4aab9a714d56d",
+    "scene_cu_unchanged": true,
+    "launch_rs_lines": 500,
+    "launch_rs_ratchet_ok": true
+  },
+  "cross_recipe_deviation": {
+    "per_camera": {
+      "0": {
+        "histogram": [
+          57726,
+          17681,
+          1393,
+          0,
+          0,
+          0
+        ],
+        "max_ulp": 2,
+        "beyond_4": 0,
+        "compared": 76800
+      },
+      "1": {
+        "histogram": [
+          39136,
+          3677,
+          382,
+          3,
+          2,
+          0
+        ],
+        "max_ulp": 4,
+        "beyond_4": 0,
+        "compared": 43200
+      }
+    },
+    "matches_fixture_record": true,
+    "treatment": "recorded known fast-math compile-noise deviation only; NOT a pass criterion and no tolerance change"
+  },
+  "fixture_references": {
+    "s0b_frozen": {
+      "path": "fixtures/render-bvh/scene-a/s7b/depth_seg.json",
+      "bytes": 1491460,
+      "sha256": "97fc683839e2cf45ccceb428558041be2060ef5db213a75b223b55635657440d",
+      "match": true
+    },
+    "same_recipe_fast_math_false": {
+      "path": "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json",
+      "bytes": 1492762,
+      "sha256": "d6ab6dde58034df5c1bc69ab397026a8f7c3aaf58d29d25edb032d3818000dc7",
+      "match": true
+    }
+  },
+  "diff_scope": {
+    "paths": [
+      ".normify/changes/2026-10-25-render-bvh-s7b1-kernel.json",
+      ".normify/modules/mjwarp/render.md",
+      ".normify/runs/2026-10-25-render-bvh-s7b1-kernel/clippy-cuda.json",
+      ".normify/runs/2026-10-25-render-bvh-s7b1-kernel/clippy.json",
+      ".normify/runs/2026-10-25-render-bvh-s7b1-kernel/fmt.json",
+      ".normify/runs/2026-10-25-render-bvh-s7b1-kernel/unit.json",
+      "docs/development-evidence/render-bvh/s7b1-depth-seg/README.md",
+      "docs/development-evidence/render-bvh/s7b1-depth-seg/capture-fast-math-false.log",
+      "docs/development-evidence/render-bvh/s7b1-depth-seg/gpu-run.log",
+      "docs/development-evidence/render-bvh/s7b1-depth-seg/receipt.json",
+      "docs/development-evidence/render-bvh/s7b1-depth-seg/s6b-regression.log",
+      "docs/development-evidence/render-bvh/s7b1-depth-seg/unit-summary.log",
+      "fixtures/render-bvh/scene-a/s7b/depth_seg.json",
+      "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json",
+      "scripts/authoring/render-bvh-s7b/capture_fast_math_false.py",
+      "scripts/authoring/render-bvh-s7b/check_depth_semantics.py",
+      "scripts/authoring/render-bvh-s7b/convert_depth_seg.py",
+      "src/render/context/lifecycle.rs",
+      "src/render/context/owner.rs",
+      "src/render/kernel/cast.rs",
+      "src/render/kernel/cuda/render.cu",
+      "src/render/kernel/cuda/render_math.cu",
+      "src/render/kernel/mod.rs",
+      "src/render/kernel/output.rs",
+      "src/render/kernel/renderer.rs",
+      "tests/render_kernel_depth_seg.rs",
+      "tests/support/render_bvh/s7b1.rs"
+    ],
+    "out_of_scope": []
+  },
+  "tests": {
+    "delivered_gpu": "6 passed / 0 failed (4.35 s; NVRTC gate + 5 GPU cases)",
+    "s6b_regression": "5 passed / 0 failed (7.62 s)",
+    "full_cpu_suite": "532 passed / 0 failed",
+    "product_test_starts_python": false
+  },
+  "gpu_window": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "cuda_version": "13.2",
+    "start_memory_mib": 3406,
+    "after_gpu_tests_mib": 3406,
+    "no_qa_cuda_process_after": true,
+    "returned_to_desktop_baseline": true,
+    "gpu_occupancy": "about 12 s of GPU tests (6/6 + 5/5); QA CPU-side f32/PTX analysis continued past the 30-minute window with the GPU idle"
+  },
+  "limitations": [
+    "the PTX-side evidence comes from the S0b fast-math megakernel (sha 9662200b...); the same-recipe PTX (ad21b93f...) also exists, but the megakernel inlines several sphere instances, so the pass-relevant det fusion is established by numerical reproduction (747/747 fused vs 87/747 unfused), not by disassembling every instance",
+    "camera mat_vec contraction was calibrated on the 10,720 floor pixels (100% bit-equal); the sphere order was reproduced on top of that calibration",
+    "not covered: RGB/shading (S7b2), AA/flag variants (S7b3), orthographic cameras, SDF/flex/hfield/skybox/splat, per-world camera data (reference nworld=1), product tracking-camera wiring (S8)",
+    "single fixture (scene-a two cameras) plus one translated pose; no fuzz/random rays",
+    "no full G01 in this round"
+  ],
+  "not_claimed": [
+    "full renderer or product rendering acceptance",
+    "complete R01",
+    "S7b2/S7b3 implementation",
+    "product tracking-camera wiring (S8)"
+  ],
+  "evidence": {
+    "README.md": {
+      "sha256": "690313db1e4a1627324678da1a4a5518155db36f16d503dad942866c5a8d8b8f",
+      "bytes": 9459
+    },
+    "artifact-check.json": {
+      "sha256": "e3566b3a06430868d71e9287dfd6c6c520a3da027aabea01951d407ee131dc2f",
+      "bytes": 4
+    },
+    "gpu-test.log": {
+      "sha256": "c84bf9ae8d61d68cdc03c126457e19c769157cfef0aeda6e7786bbe3be94e48a",
+      "bytes": 2431
+    },
+    "gpu-window.txt": {
+      "sha256": "c34860c18dc12844195b7cf8e975af17645875e943270670456b45595b359292",
+      "bytes": 631
+    },
+    "harness-compare.json": {
+      "sha256": "8ce7bb40e65cc9032a78371b290d4ffd787faea12e8640dba0faeac10434cae7",
+      "bytes": 4318
+    },
+    "harness-report.json": {
+      "sha256": "f2ba698cf380f6ed7944a2152c0be410c134beb8c7e58ac85ef31a3ae2930b18",
+      "bytes": 2070
+    },
+    "qa_order_reproduction.py": {
+      "sha256": "88d85e5a089a6f84b1e3a316e5f88364d627981737d703d03b931452e256dc9a",
+      "bytes": 6998
+    },
+    "qa_pipeline_emulation.py": {
+      "sha256": "e6dd5f7dca0598c3f636a108d14aeb5a59b7959bfcfa7c4127a5191ab806b2dd",
+      "bytes": 10657
+    },
+    "reference-ptx-excerpt.txt": {
+      "sha256": "54dff82786342f28813336d06864285bfa0158d601d6dac250d6fa923fef12e2",
+      "bytes": 1254
+    },
+    "s6b-regression.log": {
+      "sha256": "022d3820d3b89fec8fd2328d63e9073265b96a373b42c864e8855b26b25b511a",
+      "bytes": 1044
+    },
+    "sphere-order-final.json": {
+      "sha256": "65e402d0e13f13ab340bda57375524017a65b1a2bed6820a7f78c6271ec18f7b",
+      "bytes": 1219
+    },
+    "sphere-order-search.json": {
+      "sha256": "9974ef52cf6a2172a164f68747972adafb68e56c4d9276cbf7d7f05224952f20",
+      "bytes": 5233
+    },
+    "unit-tests-summary.txt": {
+      "sha256": "50098158b96234780d3ea0cd103de2172435b1b9417ae55435fc7cd3759c8bed",
+      "bytes": 9263
+    }
+  },
+  "hash_basis": "fixture/source hashes are LF-normalized git blob semantics; evidence hashes are the committed file bytes"
+}

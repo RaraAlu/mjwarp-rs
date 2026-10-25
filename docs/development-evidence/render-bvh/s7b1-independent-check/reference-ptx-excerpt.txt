@@ -1,0 +1,24 @@
+# S0b reference megakernel PTX (fast_math=true), sha256 9662200b14e1d5672a5e5d2e1a3b6b65457dd1ccacb7b41346875ffbc43b9bee
+# a = dot(vec,vec):
+L529: cvt.s64.s32 	%rd55, %r1299;
+L530: mul.ftz.f32 	%f4132, %f7, %f7;
+L531: fma.rn.ftz.f32 	%f4133, %f8, %f8, %f4132;
+L532: fma.rn.ftz.f32 	%f14, %f9, %f9, %f4133;
+L533: setp.eq.ftz.f32 	%p217, %f14, 0f00000000;
+# b = dot(vec,dif) and dd = dot(dif,dif):
+L936: ld.global.f32 	%f88, [%rd589+4];
+L937: sub.ftz.f32 	%f4239, %f2, %f88;
+L938: ld.global.f32 	%f89, [%rd589+8];
+L939: sub.ftz.f32 	%f4240, %f3, %f89;
+L940: mul.ftz.f32 	%f4241, %f8, %f4239;
+L941: fma.rn.ftz.f32 	%f4242, %f7, %f4238, %f4241;
+L942: fma.rn.ftz.f32 	%f90, %f9, %f4240, %f4242;
+L943: mul.ftz.f32 	%f4243, %f4239, %f4239;
+L944: fma.rn.ftz.f32 	%f4244, %f4238, %f4238, %f4243;
+L945: fma.rn.ftz.f32 	%f4245, %f4240, %f4240, %f4244;
+L946: sub.ftz.f32 	%f4246, %f4245, %f4237;
+L947: mul.ftz.f32 	%f4247, %f90, %f90;
+L948: mul.ftz.f32 	%f4248, %f14, %f4246;
+L949: sub.ftz.f32 	%f91, %f4247, %f4248;
+L950: setp.lt.ftz.f32 	%p255, %f91, 0f26901D7D;
+# det in this inlined instance is mul,mul,sub (line 947-949); the pass-relevant instance fusion is proved by the 747/747 f32 reproduction below (fused det) vs 87/747 (unfused).
