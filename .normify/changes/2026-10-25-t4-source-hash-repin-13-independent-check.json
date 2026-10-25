@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-t4-source-hash-repin-13-independent-check",
+  "title": {
+    "zh": "T4 当前源码身份第 13 轮重钉的 QA 独立复核（9 条漂移枚举、只改字面量边界、all-features 复跑）",
+    "en": "Independent check of T4 current source identity re-pin round 13"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-t4-source-hash-repin-13` 做独立复核：不读交付结论，自写脚本重算 `fixtures/precision/t4-current-kernels.json` 的 20 条 `product_sources` 与当前源码（LF 归一化）的 sha256，逐条列出漂移项，与交付 `drift.json` 对照；核「只改身份期望字面量」的边界（diff 不得含产品 `.rs`/内核 PTX/断言逻辑/容差/排除清单/G01 脚本/unchanged 保护路径）；独立复跑 `--all-features --no-fail-fast` 与 `--features cuda-probe --lib`，确认枚举出的 target 与全量均 0 失败；核交付是否写明「9/20 条具体清单」与「默认门禁为何没抓到（gate unit 只跑默认特性）」这两项。不改交付任何数字。",
+    "en": "Independently enumerate the drifted T4 identity stamps, verify the re-pin only changed expectation literals, and re-run the all-features and cuda-probe test sets; check the two required write-ups (the 9 drifted stamps and the gate blind spot)."
+  },
+  "modules": {},
+  "acceptance": [
+    "**独立枚举**：自写脚本（不复用交付脚本）以 LF 归一化重算 20 条 `product_sources` 的 sha256，逐条列出漂移（期望 9 条：attached / com_velocity / mass_matrix / mass_solve / `src/physics/mod.rs` / resident / rne_bias / `src/runtime/transfer.rs` / `src/runtime/transfer/kernel.rs`），与交付 `drift.json` 逐项对照并列差异；同时核 `src/physics/mod.rs` 的 fixture 记录值、锚点 `t4-resident-anchors/physics.rs` 摘要、live 文件摘要三者的关系与交付描述一致。",
+    "**边界复核**：`git diff` 逐文件核对只改身份期望字面量（fixtures/precision、docs/evidence/t4-g03-retest、tests/support 内联期望、证据目录、`.normify`），**不得**改产品 `.rs`、内核 PTX、断言逻辑、容差、排除清单、G01 脚本与 unchanged 保护路径；发现越界即阻断。",
+    "**独立复跑**：先跑交付枚举出的失败 target（含 `runtime::transfer::kernel::recapture::tests_host` 与其它 all-features 漂移项）0 失败，再 `--all-features --no-fail-fast` 全量 0 失败（仅既有 ignored/env 项，逐项说明）；默认 `cargo test --lib` 与 gate fmt/clippy/clippy-cuda/unit 全绿。若环境不允许（MuJoCo/env 缺失）须如实记录并给出替代证据，不得伪造。",
+    "**口径与留痕**：核证据写明「9/20 条具体是哪些」与「默认门禁盲区（gate unit 只跑默认特性 unit，特性测试不在门禁内，故漂移潜伏）」；不宣称 G10/物理整体通过、精度达标、上游完全等价、双平台通过、原生放行；证据入口 `docs/development-evidence/t4-source-hash-repin-13-independent-check/`（README + receipt 含 task_id），无 `.bin`/`.pyc`/构建产物、UTF-8 无 BOM、单文件 ≤500 行。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-t4-source-hash-repin-13"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/t4-source-hash-repin-13-independent-check/"
+    ],
+    "resources": [],
+    "priority": 54
+  },
+  "note": "Arch 2026-10-25 预登记（Chief 要求把 repin-13 的完成同步进 QA 复核范围，便于审计 9 条重钉的合理性）。该红由 `2026-10-25-g10-p5-cuda-default-pipeline` 阶段 1 实测发现：HEAD `ef16338d` 上 `cargo test --features cuda-probe --lib` = 677 passed / 1 failed。repin-13 对任何默认管线选项都是必要前置。",
+  "revision": {
+    "before": "6b929d81b7bdd281504c0d1c54d4027dba396404",
+    "after": null
+  },
+  "created_at": "2026-10-25T16:30:00.000Z",
+  "updated_at": "2026-10-25T16:30:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/t4-source-hash-repin-13-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-t4-source-hash-repin-13-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
