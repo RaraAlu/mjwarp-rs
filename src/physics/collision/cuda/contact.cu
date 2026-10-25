@@ -182,7 +182,8 @@ __device__ __forceinline__ void g5_ccd_pair_write(const d_contact_pair_input& in
     w1 = epa.x1;
     w2 = epa.x2;
     if (epa.overflow != 0u) atomicOr(in.overflow_out + params.worldid, epa.overflow);
-    if (epa.dist == G5_FLOAT_MAX) atomicOr(in.overflow_out + params.worldid, G5_OVERFLOW_CCD);
+    // 上游 `eval_ccd_write_contact` 只汇总 EPA 阶段的溢出位（`EPA_HORIZON`）；
+    // `CCD` 位只在上面 `nccd >= naccdmax` 的真实容量截断时置，不由 `FLOAT_MAX` 推断。
   }
 
   if (dist >= params.gap && !in.collision_sensor) return;

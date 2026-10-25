@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-ccd-overflow-bit-fix",
+  "status": "incremental",
+  "outcome": "gate_pass_gpu_window",
+  "slice": "P5-G5-fix",
+  "head_at_window_start": "c818a31e9fdc65db1796030d542554104de0e07e",
+  "head_at_probe_build": "a93c0c5e7c56af8b490e4e3899149198ea7a8ac5",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "scope": {
+    "device_files": [
+      "src/physics/collision/cuda/ccd.cu（g5_ccd：删除 EPA FLOAT_MAX → CCD 位）",
+      "src/physics/collision/cuda/contact.cu（g5_ccd_pair_write：删除同一误置位；g5_claim_ccd_slot 容量门保留）",
+      "src/physics/collision/cuda/hfield.cu（注释纠正）"
+    ],
+    "test_files": ["tests/g10_p5_ccd_overflow.rs（新集成测试：强制 horizon 位型 + G5 回归，均 #[ignore]）"],
+    "evidence_dir": "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/",
+    "g5_record_addendum": ".normify/changes/2026-10-25-g10-p5-gpu-kernels.json（fix 加注，不改 G5 数值结论；按规范单独提交）",
+    "gpu_used": true,
+    "gpu_window": "单次 53.9 s（19:41:15→19:42:09），Arch + Chief 双签批准",
+    "cargo_changed": false,
+    "python_in_product_tests": false
+  },
+  "defects": {
+    "site_1": "cuda/ccd.cu 原 L302-303：`if (epa_phase_result.dist == G5_FLOAT_MAX) overflow |= G5_OVERFLOW_CCD;` —— 上游 `ccd()` 只透传 EPA 阶段溢出位（EPA_HORIZON），不因 FLOAT_MAX 置 CCD。",
+    "site_2": "cuda/contact.cu 原 L185：`if (epa.dist == G5_FLOAT_MAX) atomicOr(overflow_out, G5_OVERFLOW_CCD);`（g5_ccd_pair_write）—— 上游 `eval_ccd_write_contact` 只在 `ccdid >= naccdmax` 容量门置 CCD。",
+    "not_changed": "g5_claim_ccd_slot 的 `ccdid >= naccdmax` → CCD 位保留；EPA_HORIZON 语义与 g5_epa 逻辑未动；产品 ABI/结构体不变。",
+    "host_observation": "宿主 gjk/ccd.rs:225-228 与 gjk/contact.rs:126-130 存在同语义误置位；按 Arch 指定本片只改设备，宿主由独立片 2026-10-25-g10-p5-host-ccd-overflow-bit-fix 处理（已登记，纯 CPU）。"
+  },
+  "upstream_reference": [
+    "collision_gjk.py:2663-2667 `_epa` idx==-1 → return FLOAT_MAX（不置额外位）",
+    "collision_gjk.py:1423-1430 / 1446-1453 horizon 容量不足（_add_edge 返回 -1）→ 只 atomic_or(EPA_HORIZON)",
+    "collision_gjk.py:2712-2729 ccd() 直接返回 epa_phase 结果（无 FLOAT_MAX→CCD）",
+    "collision_convex.py:860-870 eval_ccd_write_contact：仅 ccdid >= naccdmax_in 时置 OverflowType.CCD 并 return",
+    "types.py:166 CCD = 1<<4 / EPA_HORIZON = 1<<8"
+  ],
+  "method": {
+    "forced_horizon": "上游 ccd() 的 horizon 形参是 wp.array[int]，其长度即 Polytope.max_horizon（_add_edge 在 n == shape[0] 时返回 -1）；上游与设备都传容量 2（等价容量，不改上游源码），确定性进入 horizon 溢出分支。",
+    "device_probe": "overflow_probe.cu：与 eval_ccd_write_contact 的 ccd 段同口径（margin 覆盖、原点平移、cutoff=gap、逐 world launch），polytope max_horizon 由命令行给出；include 仅 device 源，不改设备逻辑。",
+    "inputs": "G5 冻结窗口 case bins（gpu-window/cases/{cylinder-box,box-box-margin,mesh-mesh}，只读，不复制不改写）。"
+  },
+  "verification": {
+    "forced_horizon_overflow": {
+      "instances": ["cylinder-box", "box-box-margin", "mesh-mesh"],
+      "worlds": 6,
+      "float_max_worlds": 5,
+      "device_overflow_after": {"cylinder-box": [256, 256], "box-box-margin": [256, 256], "mesh-mesh": [0, 256]},
+      "device_overflow_before": {"cylinder-box": [272, 272], "box-box-margin": [272, 272], "mesh-mesh": [0, 272]},
+      "upstream_overflow": {"cylinder-box": [256, 256], "box-box-margin": [256, 256], "mesh-mesh": [0, 256]},
+      "bit_equal_vs_upstream": true,
+      "ccd_bit_absent": true,
+      "dist_bits_equal": true,
+      "ncontact_equal": true,
+      "multiccd_idx_equal": true,
+      "two_runs_bitwise_identical": true,
+      "upstream_two_captures_identical_sha256": "9879145bfe652036834b112e66915a16ddf33f1e8f6e1e6cc0612a96f6afd960",
+      "float_max_dist_bits": "0x7149F2CA（f32 1e30）"
+    },
+    "g5_regression": {
+      "contact_cases": {"hfield-sphere": 8, "hfield-capsule": 7, "sdf-box": 80, "ellipsoid-box": 2},
+      "contact_mode": "worldid+全字段稳定排序后逐行位级（G5 同口径；原子行序不作判据）+ overflow/nccd/nacon/efc_width 摘要直接比",
+      "witness_cases": ["cylinder-box", "box-box-margin", "mesh-mesh"],
+      "witness_mode": "witness1/witness2 逐文件位级",
+      "files_compared": 180,
+      "files_expected": 180,
+      "contact_rows_per_dir": "8/7/80/2（out1+out2 各一遍）",
+      "summary_items": 32,
+      "failures": 0,
+      "raw_two_run_note": "G5 probe 同运行两遍的原始行序会因 nacon 原子计数不同（hfield-sphere/ellipsoid-box raw_equal=false），与 G5 冻结 out1/out2 行序差异同源；排序后比较 0 差异。"
+    },
+    "window": {
+      "baseline_memory": "RTX 4070 Ti SUPER, total 16376 MiB, used 4016 MiB, free 12046 MiB, util 1%, 29 C, driver 596.36",
+      "peak_memory_used_mib": 5381,
+      "peak_delta_mib": 1365,
+      "peak_guard": "3072 MiB / 8188 MiB（未触发）",
+      "sample_interval_s": 0.5,
+      "sample_count": 101,
+      "after_memory": "used 4008 MiB, free 12054 MiB, util 5%, 30 C",
+      "after_compute_apps_compute_like": 0,
+      "elapsed_seconds": 53.9,
+      "no_residual_process": true
+    },
+    "criterion_tests": "cargo test --locked --test g10_p5_ccd_overflow -- --ignored --test-threads=1：2 passed / 0 failed（forced_horizon_overflow_bits_match_upstream + g5_regression_device_outputs_unchanged）"
+  },
+  "artifacts": {
+    "readme": "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/README.md",
+    "probe": "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/overflow_probe.cu",
+    "capture": "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/capture_forced_horizon.py",
+    "build": "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/build_probes.ps1",
+    "window": "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/run_window.ps1",
+    "manifest": "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/artifacts-sha256.json",
+    "sha256": {
+      "README.md": "3791e19150c715ab27d30203470774dee3d593936c332a23bfe0e7f065f81fac",
+      "overflow_probe.cu": "b0d9886f83cfa12ffac2a05b9be2d6033bc0c87c75e655584fe148f32ef337eb",
+      "capture_forced_horizon.py": "276e50a77e989ae6e025bd90a9b01057a09d44f0c7f2f1b76e35fb9123d9e3d7",
+      "build_probes.ps1": "23874d0a6344b92ea6e78a5018f27f75df95d42c189029b8822bc55068147975",
+      "build-report.txt": "89aa1e6a3d4e837fa0d0398f6c168c6ee9842dde3ee3f772c8a554ee74e7f2f0",
+      "run_window.ps1": "3ee63e25f3df6962359e4fec925702289d92a701aea41ea575489d92a937ef6a",
+      "window-log.txt": "f8a7929edca3922351b66b04cf73124ad71097594820a141c20d796cc48b1ff6",
+      "upstream-forced-horizon-run1.json": "9879145bfe652036834b112e66915a16ddf33f1e8f6e1e6cc0612a96f6afd960",
+      "upstream-forced-horizon-run2.json": "9879145bfe652036834b112e66915a16ddf33f1e8f6e1e6cc0612a96f6afd960",
+      "overflow-result.json": "4deb969bd30613bfbfc12737d6ca47f5588c742e1c58aa6e408f6ab93001ffdf",
+      "regression-result.json": "9e13a03fd785f2f1d616fbdf6820339f6b3499434ea482c3484066dca28a65cb"
+    }
+  },
+  "gate": "pass：`normify gate 2026-10-25-g10-p5-ccd-overflow-bit-fix` exit 0（clippy / clippy-cuda / fmt / unit；unit 586 过 0 败；runs 见 .normify/runs/2026-10-25-g10-p5-ccd-overflow-bit-fix/）；G5 加注后 `normify gate 2026-10-25-g10-p5-gpu-kernels` 亦 exit 0",
+  "unmet": [
+    "本片只改设备；宿主同语义误置位（gjk/ccd.rs:225-228、gjk/contact.rs:126-130）由独立片 2026-10-25-g10-p5-host-ccd-overflow-bit-fix 处理（Arch 已登记，纯 CPU）",
+    "强制 horizon 用等价容量 = 2 确定性触发；产品默认 MJ_MAX_EPAHORIZON=24 下未构造真实复杂 mesh 的 >24 边 horizon 用例，覆盖的是溢出位语义本身",
+    "未单独构造 _attach_face 退化（dist2==0、overflow=0）用例，仅按代码路径说明上游/设备修正后都给 0",
+    "只 Windows + RTX 4070 Ti SUPER（sm_89、nvcc 12.8）实测；未跑 Linux/T4/性能基准；GPU 结果不外推其它硬件/驱动",
+    "不声称精度达标/上游完全等价/双平台通过；判据范围仅上述 overflow 位与 G5 回归"
+  ]
+}

@@ -299,12 +299,13 @@ __device__ __forceinline__ void g5_ccd(d_geom geom1, d_geom geom2, int geomtype1
   d_epa_phase epa_phase_result;
   g5_epa_phase(options.tolerance, options.epa_iterations, phase.result, phase.geom1,
                phase.geom2, geomtype1, geomtype2, pt, &epa_phase_result);
-  unsigned overflow = epa_phase_result.overflow;
-  if (epa_phase_result.dist == G5_FLOAT_MAX) overflow |= G5_OVERFLOW_CCD;
   out->dist = epa_phase_result.dist;
   out->ncontact = epa_phase_result.ncontact;
   out->x1 = epa_phase_result.x1;
   out->x2 = epa_phase_result.x2;
   out->multiccd_idx = epa_phase_result.multiccd_idx;
-  out->overflow = overflow;
+  // 上游 `ccd()` 只透传 EPA 阶段产生的溢出位（`EPA_HORIZON`）；`OverflowType.CCD`
+  // 只由调用方在 `nccd >= naccdmax` 的真实容量截断时置（见 contact.cu 的容量门），
+  // 不由 EPA 返回 `FLOAT_MAX`（horizon 溢出/退化）推断。
+  out->overflow = epa_phase_result.overflow;
 }

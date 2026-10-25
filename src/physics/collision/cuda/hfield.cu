@@ -259,7 +259,8 @@ __device__ __forceinline__ void g5_hfield_pair_contacts(
 
         d_ccd_result result;
         g5_ccd(geom1, geom2, G5_HFIELD, geomtype2, center, geom2.pos, options, pt, &result);
-        // 上游把 `overflow_out` 透传给 ccd（EPA_HORIZON / FLOAT_MAX→CCD），由调用方汇总。
+        // 上游把 `overflow_out` 透传给 ccd（只可能有 `EPA_HORIZON`），由调用方汇总；
+        // `CCD` 位只在 `nccd >= naccdmax` 的真实容量截断时置（见 contact.cu）。
         out->overflow |= result.overflow;
 
         // 分离棱柱跳过（ccd 对分离返回正距离）。
