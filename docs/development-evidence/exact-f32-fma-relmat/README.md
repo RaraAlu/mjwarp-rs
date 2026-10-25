@@ -160,3 +160,14 @@ cargo test --locked --test gjk_epa -- --nocapture
 cargo build --locked; cargo build --locked --release
 cargo rustc --lib -- --emit=asm   # 然后在 target/debug/deps/mjwarp_rs-*.s 中查 vfmadd
 ```
+
+## 10. 合规论证（NP01 类型映射：整数中间量不构成类型偏离，2026-10-25 追加）
+
+- 兜底路径的整数**只用于精确模拟硬件 FMA 的单次舍入**：整数承载 f32 位型分解后的有效位乘积/和
+  （576 位精确整数），不引入新的浮点精度层级、不产生第二个浮点结果，`fma_f32` 输入/输出始终 `f32`。
+- 契约禁止的是「内部 f64 工作区/升精度规避原生误差」（L313/L344/L454）；整数精确运算不是浮点升精度，
+  是对 `f32` 单次正确舍入的实现，不进入 NP01「实际精度偏离」计数。
+- 落点：`src/math/fma.rs` 模块文档新增「合规论证」段；`docs/numerical-precision-contract.md` NP01 段
+  增加同义注记；审计清单见 `f64-audit.log`（227 处，无新违规）。
+- 行数棘轮提示：`src/math/fma.rs` 追加后 **459 行**（原 449），后续任何新增按棘轮**先拆文件**再加，
+  不得逼近 500。
