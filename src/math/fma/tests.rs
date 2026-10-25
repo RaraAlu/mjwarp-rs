@@ -107,6 +107,31 @@ fn boundary_cases() -> Vec<(f32, f32, f32)> {
         (1.0, f32::NAN, 1.0),
         (1.0, 1.0, f32::NAN),
         (f32::INFINITY, f32::NAN, 1.0),
+        // F1 类②：乘积为 ±0（a 或 b = ±0）、c 非零有限 → 精确结果必须就是 c 的位型。
+        // QA 复核阻断 F1 的触发类之一；旧边界集缺这类，导致兜底 `c.bits as f32` 漏检。
+        (0.0, 1.0, -1.0),
+        (-0.0, 1.0, 2.0),
+        (1.0, 0.0, 5.0),
+        (1.0, -0.0, -5.0),
+        (0.0, -1.0, 3.5),
+        (-0.0, -1.0, -3.5),
+        (min_subnormal, 0.0, min_subnormal),
+        (1.0e30, 0.0, f32::MAX),
+        // F1 类①：c = ±Inf、a/b 有限 → 结果必须是同号 Inf 的位型（含 c 为负无穷）。
+        (0.0, 1.0, f32::INFINITY),
+        (-0.0, 1.0, f32::NEG_INFINITY),
+        (1.0, 1.0, f32::NEG_INFINITY),
+        (f32::MAX, f32::MAX, f32::INFINITY),
+        (min_subnormal, max_subnormal, f32::NEG_INFINITY),
+        // F1 类：a/b=±0 与 c=NaN（NaN 先短路，不得走位型→数值分支）
+        (0.0, 1.0, f32::NAN),
+        (-0.0, 1.0, f32::NAN),
+        // 精确和落次正规 / 下溢到 0（含 RNE tie）
+        (0.5, min_subnormal, 0.0),           // 2^-150 → tie → +0
+        (0.5, min_subnormal, min_subnormal), // 1.5*2^-149 → tie → 2*2^-149
+        // 上溢到 Inf（含半 ULP tie：MAX + 2^103 = 2^128 - 2^103）
+        (f32::MAX, 1.0, f32::from_bits(0x7300_0000)),
+        (f32::MAX, 1.0, -f32::from_bits(0x7300_0000)),
     ];
     // 生成一批「近半 ULP」样本：向 1.0 的 ulp 边界附近逼近。
     for step in 0..8u32 {
@@ -288,6 +313,65 @@ fn soft_matches_hardware_on_boundary_cases() {
     }
     println!("boundary cases={} mismatches={mismatches}", cases.len());
     assert_eq!(mismatches, 0, "兜底路径对硬件 FMA 边界集差异应为 0");
+}
+
+/// F1 回归 + **默认 gate 常态覆盖兜底**：直接调用 `soft_fma`，**不读 env、不依赖 seam、
+/// 不依赖硬件 FMA**，逐类断言「输入 → 期望位型 → 实际位型」。这样任何「位型变量当数值用」
+/// 的缺陷在默认 `cargo test --locked --lib` 就红，而不是等复核时开 seam 才发现。
+#[test]
+fn soft_fma_exact_bits_by_edge_class() {
+    let inf = f32::INFINITY;
+    let min_subnormal = f32::from_bits(1);
+    let cases: &[(f32, f32, f32, f32)] = &[
+        // 类①-a：乘积 ±0（a 或 b=±0）、c 有限非零 → 精确等于 c
+        (0.0, 1.0, -1.0, -1.0),
+        (-0.0, 1.0, 2.0, 2.0),
+        (1.0, 0.0, 5.0, 5.0),
+        (1.0, -0.0, -5.0, -5.0),
+        // 类①-b：乘积 ±0、c = ±Inf / NaN
+        (0.0, 1.0, f32::NEG_INFINITY, f32::NEG_INFINITY),
+        (-0.0, -1.0, inf, inf),
+        (0.0, 1.0, f32::NAN, f32::NAN),
+        // 类②：c = ±Inf、a/b 有限非零
+        (1.0, 1.0, f32::NEG_INFINITY, f32::NEG_INFINITY),
+        (f32::MAX, f32::MAX, inf, inf),
+        // 类③：精确和落次正规 / 下溢到 0（含 RNE tie）
+        (0.5, min_subnormal, 0.0, 0.0),
+        (0.5, min_subnormal, min_subnormal, f32::from_bits(2)),
+        // 类④：上溢到 Inf（含半 ULP tie：MAX + 2^103 = 2^128 - 2^103）
+        (f32::MAX, 1.0, f32::from_bits(0x7300_0000), inf),
+        (
+            f32::MAX,
+            1.0,
+            -f32::from_bits(0x7300_0000),
+            f32::from_bits(0x7f7f_fffe),
+        ),
+        // 类⑤：0*Inf / Inf+(-Inf) → NaN；NaN 传播
+        (0.0, inf, 1.0, f32::NAN),
+        (inf, 1.0, f32::NEG_INFINITY, f32::NAN),
+        (1.0, 1.0, f32::NAN, f32::NAN),
+    ];
+    let mut failures = 0;
+    for &(a, b, c, want) in cases {
+        let got = soft_fma(a, b, c);
+        let ok = same(got, want);
+        println!(
+            "F1 a={:08x} b={:08x} c={:08x} | want={:08x} got={:08x} {}",
+            a.to_bits(),
+            b.to_bits(),
+            c.to_bits(),
+            want.to_bits(),
+            got.to_bits(),
+            if ok { "OK" } else { "FAIL" }
+        );
+        if !ok {
+            failures += 1;
+        }
+    }
+    assert_eq!(
+        failures, 0,
+        "兜底逐类位型断言失败（F1：乘积 ±0 / c=±Inf 必须精确返回 c 的位型）"
+    );
 }
 
 #[test]

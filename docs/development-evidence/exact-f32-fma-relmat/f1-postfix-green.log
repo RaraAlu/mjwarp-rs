@@ -1,0 +1,152 @@
+=== G1 修后：math::fma 全量（默认 gate 特性，含直接调兜底的边界类单测） ===
+CMD: cargo test --locked --lib math::fma -- --nocapture --test-threads=1
+
+running 7 tests
+test math::fma::tests::dispatch_matches_hardware_and_soft_on_same_samples ... PATH cpuid_fma=true active_path=hardware
+dispatch vs hw=0 soft vs hw=0 dispatch_digest=47063cfd3b9c4cdb soft_digest=47063cfd3b9c4cdb
+ok
+test math::fma::tests::forced_soft_seam_matches_hardware ... PATH cpuid_fma=true active_path=hardware
+SEAM forced_soft_from_env=false
+SEAM 未启用（MJWARP_FORCE_SOFT_FMA 未设置）；跳过 seam 断言，主路/兜底由其它测试覆盖
+ok
+test math::fma::tests::mul_add_library_fallback_discrimination ... PATH cpuid_fma=true active_path=hardware
+mul_add(f32) vs hw: mismatches=1025 / 4096
+  SAMPLE a=3d832940 b=3fe7d4e4 c=3e428720 | got=3e9ca735 want=3e9ca736
+  SAMPLE a=3f3de1da b=bec38e5e c=3fac3010 | got=3f87ece8 want=3f87ece7
+  SAMPLE a=3f43b054 b=bf7ec3a1 c=3e6a95d8 | got=bf081907 want=bf081908
+  SAMPLE a=bed00a12 b=3f3df5bc c=3f7ff0dc | got=3f32c14c want=3f32c14b
+  SAMPLE a=bf61bed2 b=3f697998 c=beb166ce | got=bf934aa8 want=bf934aa7
+ok
+test math::fma::tests::soft_fma_exact_bits_by_edge_class ... F1 a=00000000 b=3f800000 c=bf800000 | want=bf800000 got=bf800000 OK
+F1 a=80000000 b=3f800000 c=40000000 | want=40000000 got=40000000 OK
+F1 a=3f800000 b=00000000 c=40a00000 | want=40a00000 got=40a00000 OK
+F1 a=3f800000 b=80000000 c=c0a00000 | want=c0a00000 got=c0a00000 OK
+F1 a=00000000 b=3f800000 c=ff800000 | want=ff800000 got=ff800000 OK
+F1 a=80000000 b=bf800000 c=7f800000 | want=7f800000 got=7f800000 OK
+F1 a=00000000 b=3f800000 c=7fc00000 | want=7fc00000 got=7fc00000 OK
+F1 a=3f800000 b=3f800000 c=ff800000 | want=ff800000 got=ff800000 OK
+F1 a=7f7fffff b=7f7fffff c=7f800000 | want=7f800000 got=7f800000 OK
+F1 a=3f000000 b=00000001 c=00000000 | want=00000000 got=00000000 OK
+F1 a=3f000000 b=00000001 c=00000001 | want=00000002 got=00000002 OK
+F1 a=7f7fffff b=3f800000 c=73000000 | want=7f800000 got=7f800000 OK
+F1 a=7f7fffff b=3f800000 c=f3000000 | want=7f7ffffe got=7f7ffffe OK
+F1 a=00000000 b=7f800000 c=3f800000 | want=7fc00000 got=7fc00000 OK
+F1 a=7f800000 b=3f800000 c=ff800000 | want=7fc00000 got=7fc00000 OK
+F1 a=3f800000 b=3f800000 c=7fc00000 | want=7fc00000 got=7fc00000 OK
+ok
+test math::fma::tests::soft_matches_hardware_on_boundary_cases ... PATH cpuid_fma=true active_path=hardware
+boundary cases=77 mismatches=0
+ok
+test math::fma::tests::soft_matches_hardware_on_generated_1m ... PATH cpuid_fma=true active_path=hardware
+1e6 soft vs hw: mismatches=0 soft_digest=54ec8d0836fa2a10 hw_digest=54ec8d0836fa2a10
+RESIDUAL_RATE 该分布/规模（LCG seed=0x2026102500000001，1e6 组）残余率 = 0
+ok
+test math::fma::tests::soft_matches_hardware_on_generated_4096 ... PATH cpuid_fma=true active_path=hardware
+4096 soft vs hw: mismatches=0 soft_digest=a14ba3531fc6a6c6 hw_digest=a14ba3531fc6a6c6
+ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 452 filtered out; finished in 0.77s
+EXIT=0
+
+=== G2 修后：seam 强制兜底 vs 硬件 FMA ===
+ENV: MJWARP_FORCE_SOFT_FMA=1
+CMD: cargo test --locked --lib math::fma -- --nocapture --test-threads=1
+
+running 7 tests
+test math::fma::tests::dispatch_matches_hardware_and_soft_on_same_samples ... PATH cpuid_fma=true active_path=hardware
+dispatch vs hw=0 soft vs hw=0 dispatch_digest=47063cfd3b9c4cdb soft_digest=47063cfd3b9c4cdb
+ok
+test math::fma::tests::forced_soft_seam_matches_hardware ... PATH cpuid_fma=true active_path=hardware
+SEAM forced_soft_from_env=true
+SEAM path=software(seam) samples=4173 mismatches=0 seam_digest=47063cfd3b9c4cdb hw_digest=47063cfd3b9c4cdb
+ok
+test math::fma::tests::mul_add_library_fallback_discrimination ... PATH cpuid_fma=true active_path=hardware
+mul_add(f32) vs hw: mismatches=1025 / 4096
+  SAMPLE a=3d832940 b=3fe7d4e4 c=3e428720 | got=3e9ca735 want=3e9ca736
+  SAMPLE a=3f3de1da b=bec38e5e c=3fac3010 | got=3f87ece8 want=3f87ece7
+  SAMPLE a=3f43b054 b=bf7ec3a1 c=3e6a95d8 | got=bf081907 want=bf081908
+  SAMPLE a=bed00a12 b=3f3df5bc c=3f7ff0dc | got=3f32c14c want=3f32c14b
+  SAMPLE a=bf61bed2 b=3f697998 c=beb166ce | got=bf934aa8 want=bf934aa7
+ok
+test math::fma::tests::soft_fma_exact_bits_by_edge_class ... F1 a=00000000 b=3f800000 c=bf800000 | want=bf800000 got=bf800000 OK
+F1 a=80000000 b=3f800000 c=40000000 | want=40000000 got=40000000 OK
+F1 a=3f800000 b=00000000 c=40a00000 | want=40a00000 got=40a00000 OK
+F1 a=3f800000 b=80000000 c=c0a00000 | want=c0a00000 got=c0a00000 OK
+F1 a=00000000 b=3f800000 c=ff800000 | want=ff800000 got=ff800000 OK
+F1 a=80000000 b=bf800000 c=7f800000 | want=7f800000 got=7f800000 OK
+F1 a=00000000 b=3f800000 c=7fc00000 | want=7fc00000 got=7fc00000 OK
+F1 a=3f800000 b=3f800000 c=ff800000 | want=ff800000 got=ff800000 OK
+F1 a=7f7fffff b=7f7fffff c=7f800000 | want=7f800000 got=7f800000 OK
+F1 a=3f000000 b=00000001 c=00000000 | want=00000000 got=00000000 OK
+F1 a=3f000000 b=00000001 c=00000001 | want=00000002 got=00000002 OK
+F1 a=7f7fffff b=3f800000 c=73000000 | want=7f800000 got=7f800000 OK
+F1 a=7f7fffff b=3f800000 c=f3000000 | want=7f7ffffe got=7f7ffffe OK
+F1 a=00000000 b=7f800000 c=3f800000 | want=7fc00000 got=7fc00000 OK
+F1 a=7f800000 b=3f800000 c=ff800000 | want=7fc00000 got=7fc00000 OK
+F1 a=3f800000 b=3f800000 c=7fc00000 | want=7fc00000 got=7fc00000 OK
+ok
+test math::fma::tests::soft_matches_hardware_on_boundary_cases ... PATH cpuid_fma=true active_path=hardware
+boundary cases=77 mismatches=0
+ok
+test math::fma::tests::soft_matches_hardware_on_generated_1m ... PATH cpuid_fma=true active_path=hardware
+1e6 soft vs hw: mismatches=0 soft_digest=54ec8d0836fa2a10 hw_digest=54ec8d0836fa2a10
+RESIDUAL_RATE 该分布/规模（LCG seed=0x2026102500000001，1e6 组）残余率 = 0
+ok
+test math::fma::tests::soft_matches_hardware_on_generated_4096 ... PATH cpuid_fma=true active_path=hardware
+4096 soft vs hw: mismatches=0 soft_digest=a14ba3531fc6a6c6 hw_digest=a14ba3531fc6a6c6
+ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 452 filtered out; finished in 0.79s
+EXIT=0
+
+=== G3 relmat lib（G5 位级） ===
+CMD: cargo test --locked --lib physics::collision::relmat -- --nocapture --test-threads=1
+
+running 4 tests
+test physics::collision::relmat::tests::plain_accumulation_differs_from_warp_bits ... ok
+test physics::collision::relmat::tests::upstream_relative_matrix_matches_transpose_rot1_rot2 ... ok
+test physics::collision::relmat::tests::upstream_relative_matrix_matches_warp_bits_sdf_rot_both ... ok
+test physics::collision::relmat::tests::upstream_relative_matrix_matches_warp_bits_sdf_rot_rz_rx ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 455 filtered out; finished in 0.00s
+EXIT=0
+
+=== G4 g10_p5_sdf_relmat（G5 40/40+80/80 位级） ===
+CMD: cargo test --locked --test g10_p5_sdf_relmat -- --nocapture --test-threads=1
+
+running 4 tests
+test sdf_box_g3_regression_remains_bitwise ... [SDF-rot] sdf-box(G3 回归): 80/80 contacts bit-equal | dist_max_abs 0e0 | pos_max_abs 0e0 | frame_max_abs 0e0
+ok
+test sdf_rotation_fixture_is_well_formed ... ok
+test sdf_rotation_product_matches_upstream_f32_bitwise ... [SDF-rot] sdf-rot-ident: 80/80 contacts bit-equal | dist_max_abs 0e0 | pos_max_abs 0e0 | frame_max_abs 0e0
+[SDF-rot] sdf-rot-sdf: 80/80 contacts bit-equal | dist_max_abs 0e0 | pos_max_abs 0e0 | frame_max_abs 0e0
+[SDF-rot] sdf-rot-box: 80/80 contacts bit-equal | dist_max_abs 0e0 | pos_max_abs 0e0 | frame_max_abs 0e0
+[SDF-rot] sdf-rot-both: 80/80 contacts bit-equal | dist_max_abs 0e0 | pos_max_abs 0e0 | frame_max_abs 0e0
+[SDF-rot] sdf-rot-rz-rx: 80/80 contacts bit-equal | dist_max_abs 0e0 | pos_max_abs 0e0 | frame_max_abs 0e0
+ok
+test sdf_rotation_reference_encodes_upstream_rel_mat_convention ... [SDF-rot] rel_mat_warp aᵀb 位级 10/10 world；其中 8 world 与 bᵀa 可区分
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+EXIT=0
+
+=== G5 g10_p5_sdf_host ===
+CMD: cargo test --locked --test g10_p5_sdf_host -- --nocapture --test-threads=1
+
+running 1 test
+test sdf_cpu_reference_is_well_formed_and_matches_g0b_structure ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+EXIT=0
+
+=== G6 gjk_epa ===
+CMD: cargo test --locked --test gjk_epa -- --test-threads=1
+
+running 3 tests
+test duplicate_contact_points_are_keyed_by_geomcollisionid ... ok
+test raw_order_is_observation_only ... ok
+test reference_contract_covers_five_convex_cases ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+EXIT=0
+

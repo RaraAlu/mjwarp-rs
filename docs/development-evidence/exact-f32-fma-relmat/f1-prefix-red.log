@@ -1,0 +1,77 @@
+=== P1 默认 gate 常态覆盖兜底：直接调 soft_fma（无 seam/env） ===
+CMD: cargo test --locked --lib math::fma::tests::soft_fma_exact_bits_by_edge_class -- --nocapture --test-threads=1
+
+running 1 test
+test math::fma::tests::soft_fma_exact_bits_by_edge_class ... F1 a=00000000 b=3f800000 c=bf800000 | want=bf800000 got=4f3f8000 FAIL
+F1 a=80000000 b=3f800000 c=40000000 | want=40000000 got=4e800000 FAIL
+F1 a=3f800000 b=00000000 c=40a00000 | want=40a00000 got=4e814000 FAIL
+F1 a=3f800000 b=80000000 c=c0a00000 | want=c0a00000 got=4f40a000 FAIL
+F1 a=00000000 b=3f800000 c=ff800000 | want=ff800000 got=4f7f8000 FAIL
+F1 a=80000000 b=bf800000 c=7f800000 | want=7f800000 got=4eff0000 FAIL
+F1 a=00000000 b=3f800000 c=7fc00000 | want=7fc00000 got=7fc00000 OK
+F1 a=3f800000 b=3f800000 c=ff800000 | want=ff800000 got=4f7f8000 FAIL
+F1 a=7f7fffff b=7f7fffff c=7f800000 | want=7f800000 got=4eff0000 FAIL
+F1 a=3f000000 b=00000001 c=00000000 | want=00000000 got=00000000 OK
+F1 a=3f000000 b=00000001 c=00000001 | want=00000002 got=00000002 OK
+F1 a=7f7fffff b=3f800000 c=73000000 | want=7f800000 got=7f800000 OK
+F1 a=7f7fffff b=3f800000 c=f3000000 | want=7f7ffffe got=7f7ffffe OK
+F1 a=00000000 b=7f800000 c=3f800000 | want=7fc00000 got=7fc00000 OK
+F1 a=7f800000 b=3f800000 c=ff800000 | want=7fc00000 got=7fc00000 OK
+F1 a=3f800000 b=3f800000 c=7fc00000 | want=7fc00000 got=7fc00000 OK
+FAILED
+
+failures:
+
+failures:
+    math::fma::tests::soft_fma_exact_bits_by_edge_class
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 458 filtered out; finished in 0.00s
+EXIT=101
+
+=== P2 边界集 vs 硬件 FMA（直接调 soft_fma，无 seam） ===
+CMD: cargo test --locked --lib math::fma::tests::soft_matches_hardware_on_boundary_cases -- --nocapture --test-threads=1
+
+running 1 test
+test math::fma::tests::soft_matches_hardware_on_boundary_cases ... PATH cpuid_fma=true active_path=hardware
+  BOUNDARY MISMATCH a=00000000 b=3f800000 c=bf800000 got=4f3f8000 want=bf800000
+  BOUNDARY MISMATCH a=80000000 b=3f800000 c=40000000 got=4e800000 want=40000000
+  BOUNDARY MISMATCH a=3f800000 b=00000000 c=40a00000 got=4e814000 want=40a00000
+  BOUNDARY MISMATCH a=3f800000 b=80000000 c=c0a00000 got=4f40a000 want=c0a00000
+  BOUNDARY MISMATCH a=00000000 b=bf800000 c=40600000 got=4e80c000 want=40600000
+  BOUNDARY MISMATCH a=80000000 b=bf800000 c=c0600000 got=4f406000 want=c0600000
+  BOUNDARY MISMATCH a=00000001 b=00000000 c=00000001 got=3f800000 want=00000001
+  BOUNDARY MISMATCH a=7149f2ca b=00000000 c=7f7fffff got=4eff0000 want=7f7fffff
+  BOUNDARY MISMATCH a=00000000 b=3f800000 c=7f800000 got=4eff0000 want=7f800000
+  BOUNDARY MISMATCH a=80000000 b=3f800000 c=ff800000 got=4f7f8000 want=ff800000
+  BOUNDARY MISMATCH a=3f800000 b=3f800000 c=ff800000 got=4f7f8000 want=ff800000
+  BOUNDARY MISMATCH a=7f7fffff b=7f7fffff c=7f800000 got=4eff0000 want=7f800000
+  BOUNDARY MISMATCH a=00000001 b=007fffff c=ff800000 got=4f7f8000 want=ff800000
+boundary cases=77 mismatches=13
+FAILED
+
+failures:
+
+failures:
+    math::fma::tests::soft_matches_hardware_on_boundary_cases
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 458 filtered out; finished in 0.00s
+EXIT=101
+
+=== P3 seam 强制兜底 vs 硬件 FMA ===
+ENV: MJWARP_FORCE_SOFT_FMA=1
+CMD: cargo test --locked --lib math::fma::tests::forced_soft_seam_matches_hardware -- --nocapture --test-threads=1
+
+running 1 test
+test math::fma::tests::forced_soft_seam_matches_hardware ... PATH cpuid_fma=true active_path=hardware
+SEAM forced_soft_from_env=true
+SEAM path=software(seam) samples=4173 mismatches=13 seam_digest=4617dbc340b6746b hw_digest=47063cfd3b9c4cdb
+FAILED
+
+failures:
+
+failures:
+    math::fma::tests::forced_soft_seam_matches_hardware
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 458 filtered out; finished in 0.00s
+EXIT=101
+

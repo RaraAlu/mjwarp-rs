@@ -6,26 +6,26 @@
   "nature": "新增全 f32 精确 FMA helper（硬件 vfmadd231ss 主路 + 纯软件正确舍入兜底；无 f64），替换 relmat.rs 的私有 f64 fma；aabb.rs 仅加边界注释；不碰 polytope/megakernel_arrays、判据/容差/门禁/G01/已 verified 证据",
   "helper": {
     "path": "src/math/fma.rs",
-    "lines": 449,
-    "tests": "src/math/fma/tests.rs（377 行）",
+    "lines": 459,
+    "tests": "src/math/fma/tests.rs（461 行）",
     "api": "pub(crate) fn fma_f32(a,b,c) -> f32",
     "semantics": "IEEE-754 单次正确舍入的 a*b+c（RNE），与 GPU fma.rn.f32 同语义；全 f32，无 f64（契约 L313/L344/L454）",
     "hardware_path": "is_x86_feature_detected!(\"fma\") + 内联汇编 vfmadd231ss；CPUID 由 OnceLock<bool> 每进程缓存一次",
     "software_fallback": "f32 位型分解 + 576 位整数精确乘积/求和 + guard/sticky/RNE（含次正规/溢出的 2^-149 单位舍入）；无 f64",
-    "unsafe_surface": "仅 #[target_feature(enable=\"fma\")] 的 hw_fma 一个函数，安全前提已写入文档（CPUID 已确认、仅 xmm 标量、不访存/不改标志/不弹栈）",
+    "unsafe_surface": "仅内联汇编 hw_fma 一个函数（vfmadd231ss；未用 #[target_feature] 包装，避免 opt-level 0 退化成库回退）；安全前提已写入文档（CPUID 已确认、仅 xmm 标量、不访存/不改标志/不弹栈）",
     "module_doc_three_things": true,
     "module_ownership_suggestion": "mjwarp.math（.normify 登记由 Arch 执行，本片未动）"
   },
   "test_seam": {
     "name": "MJWARP_FORCE_SOFT_FMA",
-    "scope": "仅 #[cfg(test)]（src/math/fma.rs L104-121 的 test_seam 模块 + tests.rs 测试侧）",
+    "scope": "仅 #[cfg(test)]（src/math/fma.rs L113–135 的 test_seam 模块、env 读取 L122；fma_f32 内 seam 分支 L76–81）与 tests.rs 测试侧",
     "product_builds": "默认/Release 产品构建不编译、不读取该 env；证据 seam-boundary.log",
     "binary_checks": {
       "target/debug/mjwarp-rs.exe": "contains_env=false",
       "target/release/mjwarp-rs.exe": "contains_env=false",
       "debug test binary": "contains_env=true"
     },
-    "seam_run": "SEAM path=software(seam) samples=4154 mismatches=0 seam_digest=c0cf1bfdd35c42f9 hw_digest=c0cf1bfdd35c42f9"
+    "seam_run": "SEAM path=software(seam) samples=4173 mismatches=0 seam_digest=47063cfd3b9c4cdb hw_digest=47063cfd3b9c4cdb"
   },
   "path_evidence": {
     "cpuid_fma": {"gnu_default": true, "msvc": true, "gnu_fma": true},
@@ -35,9 +35,9 @@
   },
   "probe": {
     "generator": "LCG mult=6364136223846793005 inc=1442695040888963407 seed=0x2026102500000001；映射 f32(top24)/2^24*3-1 ∈ [-1,2)（QA 复核口径）",
-    "scales": ["4096", "1e6", "边界集 58 例（次正规/tie/指数差极大/抵消/±0/溢出/NaN/Inf）"],
-    "vs_hardware_fma": {"4096": "0 差异", "1e6": "0 差异", "boundary": "0 差异"},
-    "digests": {"4096": "a14ba3531fc6a6c6", "1e6": "54ec8d0836fa2a10", "dispatch_plus_boundary": "c0cf1bfdd35c42f9"},
+    "scales": ["4096", "1e6", "边界集 77 例（次正规/tie/指数差极大/抵消/±0/溢出/NaN/Inf；F1 修正新增 19 例：乘积 ±0 且 c 非零有限/±Inf/NaN、c=±Inf 且 a,b 有限、深下溢 tie、上溢半 ULP tie）"],
+    "vs_hardware_fma": {"4096": "0 差异", "1e6": "0 差异", "boundary": "0 差异（77 例；原 58 例在 ±0/±Inf 类上不成立，F1 修正后 0/77）"},
+    "digests": {"4096": "a14ba3531fc6a6c6", "1e6": "54ec8d0836fa2a10", "dispatch_plus_boundary": "47063cfd3b9c4cdb"},
     "dispatch_vs_hardware": "0 差异；dispatch 与兜底同批样本 digest 相同",
     "discrimination_samples": [
       "a=3d832940 b=3fe7d4e4 c=3e428720 mul_add=3e9ca735 want=3e9ca736",
@@ -92,8 +92,35 @@
     "modified": ["src/math/mod.rs", "src/physics/collision/relmat.rs", "src/render/bvh/aabb.rs（仅注释）"],
     "added": ["src/math/fma.rs", "src/math/fma/tests.rs"],
     "untouched": ["src/physics/collision/gjk/polytope.rs", "src/render/kernel/megakernel_arrays.rs", "gates.toml", "G01 脚本", "Cargo 清单"],
-    "helper_lines": 449,
-    "tests_lines": 377
+    "helper_lines": 459,
+    "tests_lines": 461
+  },
+  "qa_blocker_fix": {
+    "blocker": "QA 独立复核阻断 F1（2026-10-26）",
+    "defect": "兜底 early-return 两处把 c 的位型当数值用：src/math/fma.rs L158（c=±Inf、a/b 有限）与 L169（乘积 ±0、c 非零有限）返回 `c.bits as f32`（u32→f32 数值转换）",
+    "minimal_repro": "seam 强制兜底：fma_f32(0.0, 1.0, -1.0) 期望 0xbf800000，修前 0x4f3f8000（≈3.2e9）",
+    "fix": "两行改为 `f32::from_bits(c.bits)`；不改其它逻辑",
+    "pre_fix_red": {
+      "soft_fma_exact_bits_by_edge_class（直接调兜底，无 env）": "17 例中 8 例 FAIL（cargo test exit 101）",
+      "soft_matches_hardware_on_boundary_cases": "77 例中 13 mismatches（exit 101）",
+      "seam forced_soft_seam_matches_hardware": "4173 样本 13 mismatches；seam_digest=4617dbc340b6746b ≠ hw_digest=47063cfd3b9c4cdb（exit 101）"
+    },
+    "post_fix_green": {
+      "soft_fma_exact_bits_by_edge_class": "17/17 OK",
+      "soft_matches_hardware_on_boundary_cases": "0/77 mismatches",
+      "seam": "4173 样本 0 mismatches；seam_digest = hw_digest = 47063cfd3b9c4cdb",
+      "math_fma_lib": "7 passed / 0 failed（GNU 默认、MSVC、GNU+target-feature=+fma 三构建一致）"
+    },
+    "edge_classes_covered": [
+      "a/b=±0 × c∈{有限非零、±Inf、NaN}",
+      "c=±Inf/NaN 且 a,b 有限",
+      "精确和落次正规 / 下溢到 0（含 RNE tie）",
+      "上溢到 Inf（含半 ULP tie: MAX + 2^103 = 2^128 - 2^103）"
+    ],
+    "branch_audit": "fma.rs 全部 early-return 逐条过：NaN 短路、Inf 乘数、c=Inf（已修）、a/b=±0（已修）、c=0、同号精确和、异号比较、round_to_f32 全分支、全部 `as` 转换；位型→浮点仅上述两处，其余为整数移位/索引/位段",
+    "default_gate_coverage": "新增 soft_fma_exact_bits_by_edge_class 直接调用 pub(crate) soft_fma（不读 env、不依赖 seam/硬件 FMA），默认 cargo test --locked --lib 常态覆盖兜底；未新增 test-only feature 或入口函数",
+    "impact": "硬件主路未改，4096/1e6 digest 不变；G5 已交付数字不变（relmat 4/4、g10_p5_sdf_relmat 4/4、sdf_host 1/1、gjk_epa 3/3 修后复跑）；faithful 影响面结论不变；仅影响无 FMA 机器走兜底时的上述两类边界输入",
+    "logs": ["f1-prefix-red.log", "f1-postfix-green.log", "f1-threebuild.log"]
   },
   "boundaries": {
     "no_fma_hardware_machine": "未在真实无 FMA 机器验证兜底路径（seam 已覆盖行为）；如实未覆盖",
@@ -103,7 +130,14 @@
     "linux_run": false,
     "note": "不改判据/容差/排除清单/已 verified 证据；不宣称精度达标/跨环境全绿"
   },
-  "gate": {"status": "run_at_task_close", "runs_dir": ".normify/runs/2026-10-25-exact-f32-fma-relmat/"},
+  "gate": {
+    "status": "rerun_after_f1_fix",
+    "runs_dir": ".normify/runs/2026-10-25-exact-f32-fma-relmat/",
+    "fmt_clippy_clippy_cuda": "通过",
+    "unit": "604 passed / 0 failed / 7 ignored（21.7 s 真跑；603→604 来自新增兜底逐类位型单测）",
+    "check": "全部检查通过",
+    "log": "f1-gate.log"
+  },
   "evidence_files": [
     "README.md",
     "probe-4096-1m-boundary.log",
@@ -118,6 +152,10 @@
     "gnu-seam.log",
     "relmat-gnu.log",
     "relmat-msvc.log",
-    "relmat-gnu-fma.log"
+    "relmat-gnu-fma.log",
+    "f1-prefix-red.log",
+    "f1-postfix-green.log",
+    "f1-threebuild.log",
+    "f1-gate.log"
   ]
 }

@@ -155,7 +155,7 @@ pub(crate) fn soft_fma(a: f32, b: f32, c: f32) -> f32 {
         return inf(sign);
     }
     if c.kind == Kind::Inf {
-        return c.bits as f32;
+        return f32::from_bits(c.bits);
     }
     if a.is_zero() || b.is_zero() {
         let product_sign = a.sign ^ b.sign;
@@ -166,7 +166,7 @@ pub(crate) fn soft_fma(a: f32, b: f32, c: f32) -> f32 {
                 false
             });
         }
-        return c.bits as f32;
+        return f32::from_bits(c.bits);
     }
     let product_sign = a.sign ^ b.sign;
     if c.is_zero() {

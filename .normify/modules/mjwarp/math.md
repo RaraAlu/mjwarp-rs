@@ -2,7 +2,7 @@
 uid = "dfdb6f0d"
 id = "mjwarp.math"
 tags = ["planned", "engine", "math"]
-fingerprint = "25acf2545eea7f3fd05fdc44dcbda58f2f683f03140aba4e01a74b04ddaab0f4"
+fingerprint = "89a78cdea3ea2afc39472fc630351d78257e641b88a940f36bb34b27c04388a7"
 
 [name]
 zh = "数学与空间代数"
