@@ -259,11 +259,9 @@ fn end_to_end_two_cameras_match_same_recipe_reference() {
     );
 }
 
-/// GPU：反证——渲染输入的位姿来源是产品 camlight 输出，不是夹具回填。
-///
-/// 调用链（可追踪）：`e2e::product_camlight` → `KinematicsPlan::with_camlight` →
-/// `plan.update_rigid` / `plan.update_com` / `plan.update_camlight` → `readback`
-/// → `product.poses` → `render_read_all(..., &product.poses, ...)`。
+/// GPU：反证——渲染输入的位姿来源是产品 camlight 输出，不是夹具回填。调用链：
+/// `e2e::product_camlight` → `with_camlight`/`update_rigid`/`update_com`/`update_camlight`
+/// → `readback` → `render_read_all(..., &product.poses, ...)`。
 #[test]
 #[ignore = "需要 GPU + NVRTC"]
 fn render_input_poses_come_from_camlight_not_fixture() {
@@ -281,6 +279,13 @@ fn render_input_poses_come_from_camlight_not_fixture() {
     // ① 篡改**本地比对副本**的夹具 data 位姿（identity + 原点）：产品位姿渲染不受影响，
     //    且产品位姿仍与**原始**参考逐位一致（证明渲染不读夹具）。
     let tampered = e2e::tampered_camera_data(&recipe);
+    // 判别力（QA 复核项）：篡改副本必须真与产品位姿不同，否则本反证只证明渲染确定性。
+    let tamper_diff = e2e::compare_pose_bits(&product.poses, &tampered.camera_data);
+    assert!(
+        tamper_diff.origin_mismatches.iter().any(|n| *n > 0)
+            || tamper_diff.xmat_mismatches.iter().any(|n| *n > 0),
+        "篡改副本必须与产品位姿可判别（否则反证只证明确定性）"
+    );
     let (rgb1, depth1, seg1) =
         e2e::render_read_all(&renderer, &context, &fields, &model, &product.poses, &rays);
     assert_eq!(
@@ -344,10 +349,7 @@ fn render_input_poses_come_from_camlight_not_fixture() {
         rgb_changed > 0 && depth_changed > 0 && seg_changed > 0,
         "产品 camlight 位姿扰动必须改变渲染输出（rgb={rgb_changed} depth={depth_changed} seg={seg_changed}）"
     );
-    println!(
-        "s8[reverse] 产品位姿扰动（cam1 绕 y 0.05rad + xpos.x+0.3）：rgb 变化 {rgb_changed}、\
-         depth 变化 {depth_changed}、seg 变化 {seg_changed}"
-    );
+    println!("s8[reverse] 扰动：rgb={rgb_changed} depth={depth_changed} seg={seg_changed}");
     // 同扰动重复渲染逐位相同（确定性）；不同扰动结果不同（扰动可区分）；恢复产品位姿后逐位复现。
     let (rgb_repeat, _, _) =
         e2e::render_read_all(&renderer, &context, &fields, &model, &perturbed, &rays);
@@ -359,9 +361,7 @@ fn render_input_poses_come_from_camlight_not_fixture() {
     let (rgb_restored, _, _) =
         e2e::render_read_all(&renderer, &context, &fields, &model, &product.poses, &rays);
     assert_eq!(rgb_restored, rgb0, "恢复产品位姿后渲染必须逐位复现");
-    println!(
-        "s8[reverse] 反证成立：渲染输入位姿来源 = physics::camlight 输出（调用链见 doc/README）"
-    );
+    println!("s8[reverse] 反证成立：渲染输入位姿来源 = physics::camlight 输出（见 doc/README）");
 }
 
 /// GPU：生命周期 create→render→显式 refit→render→destroy；refit 帧结构断言；

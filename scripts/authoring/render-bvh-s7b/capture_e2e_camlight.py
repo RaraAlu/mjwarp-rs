@@ -178,7 +178,6 @@ def main() -> int:
                 "note": "参考 data 位姿不在此重派生；S8 直接读 S7b1 已冻结的同配方夹具",
                 "sources": [
                     "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json",
-                    "fixtures/render-bvh/scene-e2e/reference-camera-data.json",
                 ],
             },
             "authoring_only": True,

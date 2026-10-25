@@ -32,17 +32,17 @@ GPU：NVIDIA GeForce RTX 4070 Ti SUPER / 驱动 596.36 / SM89（Windows 11）
 - **不回归基线**：S7b1 GPU 6/6（depth/seg 120,000/120,000 位等 0 ULP）、S7b2 GPU 3/3
   （RGB 同配方 0 差异、depth/seg 不回归）、S7b3 GPU 6/6（AA/flag 语义、PTX 197,583 B /
   27,536 B 不变）、S6b GPU 5/5（100 次 create/destroy growth 0 B）。
-- **不宣称「完整渲染通过」「完整 R01 通过」「产品渲染验收通过」「上游完全等价」。**
-  本片只给 r01-p8 渲染 MVP 的收口证据（十项映射见 §6），未满足项见 §7。
+- **结论严格限于上列证据范围**：只给 r01-p8 渲染 MVP 的收口证据（十项映射见 §6），
+  超出证据范围的结论与上游等价性均不在本片声明之列；未满足项见 §7。
 
 ## 2. 产品 camlight 接线（数据来源与调用链）
 
 ### 2.1 输入夹具
 
-`fixtures/render-bvh/scene-e2e/camlight-model.json`（416 行、6,499 B、sha256
-`cf7af78334a52db598c34f7c582f603a3dd727c5641a318f5624481760bdc1be`）：
+`fixtures/render-bvh/scene-e2e/camlight-model.json`（415 行、6,434 B、sha256
+`470adbefd90e9395ee9bfd6dddbb6cfa4ee1407306494bfba690faa0d3e26dc5`）：
 authoring 脚本 `scripts/authoring/render-bvh-s7b/capture_e2e_camlight.py`
-（198 行、sha256 `02707f6f067d92acae8aa4495fc705db33c749425b55ff3f95c097299f65b9c5`）
+（198 行、sha256 `d686601108d83b408e40fdacc522a069d08f05d057ff03bb69168c552be9c37a`）
 用 pinned venv 的 **mujoco 3.15.0** 从冻结 `fixtures/render-bvh/scene-a/scene-315.mjb`
 （sha256 `8953988f832c05b0561f04dd8b8e797a51c136fdead0ffda2a0b190bfd92e0d4`）读取模型字段：
 `nq=8 nv=7 nbody=3 njnt=2 ngeom=7 nsite=0 nmocap=0 ncam=2 nlight=3`，double → f32 一次转换
@@ -108,12 +108,18 @@ camera0 的 1 ULP 说明（辅助口径，不是验收缺陷）：权威口径�
 
 1. **夹具篡改不影响产品位姿渲染**：把本地比对副本的 `camera_data` 改成 identity+原点后，
    以产品 `poses` 重渲染 → RGB/depth/seg 与篡改前**逐位相同**；产品位姿仍与原始参考 0 位差。
+   **判别力断言（QA 复核项）**：篡改副本与产品位姿的位型差异必须非零（QA 独立复算
+   6 origin + 17 xmat 位不同；本片测试断言非零），否则本反证只证明渲染确定性。
 2. **夹具回填会被检测**：若把篡改后的夹具位姿喂给渲染（这是「夹具回填」假设下的输入），
    RGB 变化 **115,972/120,000 像素**。
 3. **产品位姿扰动必须响应**：camera1 绕 y 轴 0.05 rad + `xpos.x += 0.3` → RGB 18,859、
    depth 19,182、seg 9,464 像素变化（渲染内核用 `cam_xmat/cam_xpos` 把局部射线变换到世界系，
    `cuda/render_megakernel.cu` 第 148-151 行，因此位姿是必需输入）。
 4. 同扰动两次渲染逐位相同；另一扰动（`xpos.z += 0.3`）结果不同；恢复产品位姿后逐位复现。
+
+**调用链可追踪点**：`tests/support/render_bvh/e2e.rs::product_camlight`（构造 `poses`）→
+`tests/render_e2e.rs::render_read_all(..., &product.poses, ...)`（渲染唯一输入）→
+夹具副本只进 `e2e::compare_pose_bits`（比对）与 `s7b1::camera_data_poses`（反证对照输入）。
 
 ## 5. 生命周期与负向控制
 
@@ -126,7 +132,7 @@ camera0 的 1 ULP 说明（辅助口径，不是验收缺陷）：权威口径�
 | 负向控制 | shadows / `use_precomputed_rays=false` / skybox 三类写前拒绝逐类可判定 |
 | AA 射线数 | spp=2（nsamples=4）+ spp=1 射线 → `InvalidArray("ray_count")` 写前拒绝 |
 
-## 6. r01-p8 收口映射（十项，供 Arch 汇总；不宣称「完整 R01 通过」）
+## 6. r01-p8 收口映射（十项，供 Arch 汇总；结论仅限本片证据范围）
 
 | # | 项 | 本片结论 | 可追溯路径 |
 | --- | --- | --- | --- |
@@ -154,8 +160,8 @@ camera0 的 1 ULP 说明（辅助口径，不是验收缺陷）：权威口径�
 
 ## 8. 环境、命令、门禁、显存
 
-- 设备：NVIDIA GeForce RTX 4070 Ti SUPER / 驱动 596.36 / SM89；开窗桌面基线约 5,091 MiB，
-  套件跑完 `5,053 MiB`（回基线以下、无本任务计算进程）。
+- 设备：NVIDIA GeForce RTX 4070 Ti SUPER / 驱动 596.36 / SM89；重跑窗口开窗/结束桌面显存
+  `4,278 MiB → 4,278 MiB`（回基线、无本任务计算进程）。
 - 产品渲染配方：`WARP_1_15_RENDER`、`use_fast_math=false`、`compute_70`；A′ 门禁 PTX 与 S7b3 一致
   （megakernel 197,583 B、aa_resolve 27,536 B；本片不改渲染内核源码）。
 - 命令：
