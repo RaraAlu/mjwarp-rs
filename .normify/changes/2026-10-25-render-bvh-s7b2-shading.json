@@ -20,7 +20,7 @@
   ],
   "schedule": {
     "depends_on": [
-      "2026-10-25-render-bvh-s7b1-depth-seg",
+      "2026-10-25-render-bvh-s7b1-kernel",
       "2026-10-24-render-bvh-s4",
       "2026-10-24-render-bvh-s7a"
     ],
@@ -40,7 +40,7 @@
     ],
     "priority": 87
   },
-  "note": "Arch 2026-10-25 结构裁决：S7b 拆为 S7b1/S7b2/S7b3。S7b2 只做「默认 context 下 RGB 与参考一致 + 着色开关的主机侧拒绝面」；flag 变体矩阵与 AA(spp=2) 图像级验收放 S7b3（需要新 authoring 捕获，GPU 作者侧离线），避免同一片里既改内核又扩夹具。Arch 2026-10-25 追加：S7b1 内核用精简入口 render_depth_seg（只含真实数据，证据有「子集槽→上游槽」映射表）；**S7b2 负责把渲染入口迁移到 S7a 冻结的 81 槽 _render_megakernel 全签名**（light_xpos/light_dir/light_castshadow/light_spot/geom_rgba/mat_*/texture 数组这时有真数据），迁移后 depth/seg 结果相对 S7b1 不得回归，且映射表要逐槽核对。",
+  "note": "Arch 2026-10-25 结构裁决：S7b 拆为 S7b1/S7b2/S7b3。S7b2 只做「默认 context 下 RGB 与参考一致 + 着色开关的主机侧拒绝面」；flag 变体矩阵与 AA(spp=2) 图像级验收放 S7b3（需要新 authoring 捕获，GPU 作者侧离线），避免同一片里既改内核又扩夹具。Arch 2026-10-25 追加：S7b1 内核用精简入口 render_depth_seg（只含真实数据，证据有「子集槽→上游槽」映射表）；**S7b2 负责把渲染入口迁移到 S7a 冻结的 81 槽 _render_megakernel 全签名**（light_xpos/light_dir/light_castshadow/light_spot/geom_rgba/mat_*/texture 数组这时有真数据），迁移后 depth/seg 结果相对 S7b1 不得回归，且映射表要逐槽核对。Arch 2026-10-25 再追加：S7b1 已定位「产品 NVRTC 12.8.1 与参考 warp 自带 NVRTC 12.9/sm_89 的 fma 收缩顺序不同」是掠射像素 ULP 差异根因，用显式 fma 序列对齐上游后 depth 120,000/120,000 位等；S7b2 的着色路径（div/sqrt/归一化/高光）会遇到同类收缩顺序问题，须沿用同一方法（显式 intrinsics 固定上游顺序），不放宽容差；RGB 每通道 ≤1 LSB 是硬指标。",
   "revision": {
     "before": "372c453c1127dbb835dcc7cc63587c770c9a6981",
     "after": null
