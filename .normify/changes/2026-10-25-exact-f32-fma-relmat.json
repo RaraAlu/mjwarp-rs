@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-exact-f32-fma-relmat",
+  "title": {
+    "zh": "新增目标无关的精确 f32 FMA helper 并替换 relmat 的 f64 仿真（精度契约修复）",
+    "en": "Add a target-invariant exact f32 FMA helper and replace the f64 emulation in relmat (precision-contract fix)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "`docs/numerical-precision-contract.md` 明确禁止产品物理数值链使用内部 f64（L313「不得用内部f64规避原生误差」、L344「上游f32对应内部f64即为失败，最终窄化为f32不能消除失败」、L454「本项不允许私有f64工作区」；仅库级 sinf/cosf 慢路径豁免）。但 `src/physics/collision/relmat.rs::fma_f32` 当前用 `(f64::from(a)*f64::from(b)+f64::from(c)) as f32` 仿真 fma —— 这是产品物理链里的私有 f64 工作区，属契约违规，且与「选哪个验收工具链」无关，必须修。本片新增**目标无关、纯 f32、单次正确舍入**的 `fma_f32` helper（放共享 `src/math/`），替换 relmat 的 f64 仿真，供后续 fix 片（polytope / megakernel_arrays）复用；**不改判据/容差/已 verified 证据**，要求替换后位型不变。",
+    "en": "The precision contract forbids internal f64 in the physical numeric chain; relmat's fma emulation violates it. Add a target-invariant exact f32 FMA helper in src/math and replace relmat's f64 emulation, keeping bit patterns unchanged."
+  },
+  "modules": {},
+  "acceptance": [
+    "**helper 语义（唯一实现）**：新增 `src/math/fma.rs` 的 `fma_f32(a, b, c) -> f32`，语义 = IEEE 单次正确舍入的 `a*b+c`，**全 f32、不得出现 f64**（契约 L313/L344/L454）。实现：主路 `is_x86_feature_detected!(\"fma\")` + `_mm_fmadd_ss`（unsafe 收进薄适配层、写明安全前提、`OnceLock` 缓存 CPUID，不每次检测）；无 FMA 机器自动退**纯 f32 正确舍入兜底**（Dekker/TwoSum + 精确舍入处理 tie/半 ulp，含次正规/溢出/±0/NaN/Inf 边界）。兜底路径必须可测（测试 seam，如 `MJWARP_FORCE_SOFT_FMA=1`）并写单测。",
+    "**替换范围（本片只动 relmat）**：`src/physics/collision/relmat.rs` 的 `fma_f32` 改为调用共享 helper（删除其 f64 实现）；`render/bvh/aabb.rs` 的 f64 helper **不动**（加速结构、不进物理数值链），但在其注释边界说明归 render 侧口径；`gjk/polytope.rs` 与 `render/kernel/megakernel_arrays.rs` **本片不碰**（另立 fix 片）。",
+    "**位型不变的硬验收**：替换后 G5 `rel_mat` 10/10 world 与 SDF 接触 40/40 位级测试**真跑且位型不变**（`cargo test` 相关 target；如需 GPU 复验按窗口纪律先报 Arch 基线并双签）；GNU 默认 / MSVC / GNU+`-C target-feature=+fma` 三构建下 helper 与相关输出**位级一致**；对硬件 FMA 参考 4096 组 + **1e6 组**差异 = 0（输入生成器参数入证据），另加边界集（次正规/溢出/±0/NaN/Inf）。",
+    "**红线**：若替换后位型变化（说明 f64 仿真与真 FMA 有偏差、既有期望曾依赖它），**立即停手报 Arch**，不许改期望值/判据/容差凑绿。不改 `gates.toml`、G01 脚本、排除清单、产品数值语义与已 verified 证据。",
+    "**证据**：`docs/development-evidence/exact-f32-fma-relmat/`（README + receipt 含 task_id + 探针统计日志），行数 ≤500、UTF-8 无 BOM、无 `.bin/.pyc`；gate fmt/clippy/clippy-cuda/unit 全绿（unit 计数以当前 HEAD 为准）；不宣称「精度达标/跨环境全绿」。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/",
+      "tests/",
+      "docs/development-evidence/exact-f32-fma-relmat/"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "Arch 2026-10-25 登记（Chief 决策：契约硬性要求，与用户对验收工具链的拍板无关，先做低后悔片）。该 helper 将是后续 fix 片（`gjk/polytope.rs`、`render/kernel/megakernel_arrays.rs`）的复用基础。开工程序：等 QA 的 frame 诊断独立复核收口后再 start（避免并发改 src 污染其干净构建复现）；start 后若需 GPU 复验（G5/SDF 位级）按既有窗口纪律先报基线、Arch 审查、串行。",
+  "revision": {
+    "before": "77f4acbd5109319aadb67f61ebe701510dde55b2",
+    "after": null
+  },
+  "created_at": "2026-10-25T18:10:00.000Z",
+  "updated_at": "2026-10-25T18:10:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/exact-f32-fma-relmat/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-exact-f32-fma-relmat"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
