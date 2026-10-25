@@ -1,0 +1,153 @@
+{
+ "schema": 1,
+ "task_id": "2026-10-25-g10-p5-deep-epa-witness-sampling-independent-check",
+ "kind": "qa-independent-review",
+ "status": "final",
+ "reviewed": {
+  "task": "2026-10-25-g10-p5-deep-epa-witness-sampling",
+  "commit": "c44578be",
+  "head_at_run": "c44578be",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29"
+ },
+ "verdict": {
+  "conclusion": "pass",
+  "blocking": 0,
+  "findings": 0,
+  "observations": 3,
+  "summary": "用 QA 原始样本（qa-witness-gpu.json sweep + 12 个未跟踪 .bin）独立重算 24 world：dist 位等 17/24、max 4 ULP、0 越界；x1 越界 [8]（max 8.925999281927943e-07，29.95× 界）；x2 越界 [8,10,15]（max 1.5273690223693848e-07，10.25× 界）；ncontact/index 24/24、overflow 全 0、两次运行逐位相同；与交付 analysis.json 的 16 项数字及 README 声明逐项一致，且与 qa-compare-gpu.json 的 9 项交叉核对 9/9 一致；12 个 bin sha256 12/12 复算一致。world 8 归因：δθ=7.7095186e-6 rad、|dist|·δθ=1.0348048e-6、实测点对差 1.0352448e-6、比值 1.000425、自洽残差 1.3465421e-6，算术正确；但该等式由 n∝(x2-x1)/dist 定义自洽，Δdist 仅占 0.011%，不能证明哪一方正确、也不能区分「选面 vs 同面数值差」。交付结论以建议形式给出、未越界宣称，未覆盖（face_idx/三顶点/权重、witness 无 frame/normal、bin 未跟踪）如实列出；范围仅证据+normify、无产品代码/无 GPU/无 .bin 复制。观察：①归因「选面 tie-break」超出证据边界（建议收窄为「派生法线差（机制未定）」）；②穿透深度中位数用了上中位数（0.110051 vs 真中位 0.108916）；③|r|≤0.25 的「无系统性趋势」未标注 n=24 的 p 值（0.237–0.677，均不显著）。"
+ },
+ "method": {
+  "independent": [
+   "解析 QA 探针未跟踪输出 12 个 .bin（f32/i32 原始字节，非交付脚本）",
+   "从 QA qa-witness-gpu.json 取上游 f32 GPU sweep 参考，逐 world 重算 dist 位等/ULP/越界、x1/x2 的 4·ULP(scale) 判据、ncontact/index/overflow、两次运行位等",
+   "与交付 analysis.json 的 16 项数字逐项比对（数字从交付 JSON 读取，不手抄）",
+   "与 qa-compare-gpu.json witness_cases.cylinder-box-sweep 的 9 项交叉核对（三方并列表）",
+   "复算 world 8：派生法线角差、|dist|·δθ、实测点对差、比值、witness 自洽残差、恒等式差、Δdist 占比",
+   "复算 4 个 Pearson 相关系数并用数值积分 t 分布补 p 值",
+   "核对交付结论边界/未覆盖披露/禁止表述；核对 c44578be 提交范围与 12 个 bin sha256"
+  ],
+  "not_read_as_source": ["未采信交付 analysis.json 的结论；只把其数字作为对照"],
+  "product_tree_untouched": true,
+  "delivery_evidence_untouched": true,
+  "fixtures_untouched": true,
+  "gpu_used": false
+ },
+ "environment": {
+  "os": "Windows",
+  "python": "3.12.13",
+  "numpy": "2.5.4"
+ },
+ "results": {
+  "recompute": {
+   "worlds": 24,
+   "dist_bit_equal": 17,
+   "dist_max_ulp": 4.0,
+   "dist_bad_worlds": [],
+   "x1_bad_worlds": [8],
+   "x2_bad_worlds": [8, 10, 15],
+   "x1_worst": {"world": 8, "worst_abs": 8.925999281927943e-07, "bound": 2.9802322387695312e-08, "over_bound": 29.95068359375},
+   "x2_worst": {"world": 8, "worst_abs": 1.5273690223693848e-07, "bound": 1.4901161193847656e-08, "over_bound": 10.25},
+   "ncontact_equal_worlds": 24,
+   "index_equal_worlds": 24,
+   "overflow_nonzero_worlds": 0,
+   "two_runs_bitwise_identical": true,
+   "depth_min": 0.08034884184598923,
+   "depth_max": 0.1470220685005188,
+   "depth_median_true": 0.10891570523381233
+  },
+  "delivery_claim_check": {
+   "all_16_items_match": true,
+   "note": "17/24、max 4 ULP、dist_bad 0、x1_bad [8]、x2_bad [8,10,15]、x1/x2 max_abs、w10/w15 具体值、w8 深度、深度范围、ncontact/index/overflow、两次运行位等 —— 全部与交付 JSON 一致"
+  },
+  "cross_check_9_with_qa_summary": {
+   "all_match": true,
+   "items": ["x1_bad", "x2_bad", "x1_max_abs", "x2_max_abs", "dist_bit_equal", "dist_max_ulp", "dist_bad", "ncontact_equal", "two_runs_identical", "index_equal", "overflow_zero"]
+  },
+  "device_bin_sha256": {"recorded": 12, "match": 12, "delivery_has_bin_files": false},
+  "attribution_world8": {
+   "normal_angle_rad": 7.709518649177901e-06,
+   "normal_angle_deg": 0.0004417228806752933,
+   "predicted_shift_ns": 1.0348048251062555e-06,
+   "measured_point_pair_shift_ns": 1.035244791949818e-06,
+   "ratio_measured_over_predicted": 1.0004251689138746,
+   "witness_identity_residual_relative": 1.346542080807536e-06,
+   "identity_gap_between_two_forms": 2.070097848298284e-06,
+   "delta_dist_share": 1.110168577988399e-07,
+   "normal_angle_rank_among_24": 1,
+   "arithmetic_correct": true,
+   "identity_is_definitional": true,
+   "can_identify_root_cause": false,
+   "discriminating_data_available": false,
+   "discriminating_data_needed": ["face_idx", "EPA 三顶点", "重心权重"]
+  },
+  "correlation": {
+   "computed": {"depth_vs_x1_over_bound": 0.24731591945819487, "depth_vs_x2_over_bound": 0.18496991123331835, "depth_vs_x1_normal_component": 0.08960495429155714, "depth_vs_x1_tangential_component": 0.2511157213101114},
+   "matches_delivered": true,
+   "p_values": {"x1_over_bound": 0.24396774329622462, "x2_over_bound": 0.3868788743599376, "x1_normal_component": 0.6771332976998621, "x1_tangential_component": 0.23656307113513053},
+   "p_note": "n=24，四个相关均不显著（p 0.237–0.677）；只能说明该样本下无显著线性趋势"
+  },
+  "boundary_check": {
+   "forbidden_claim_hits": [],
+   "fix_needed_phrased_as_recommendation": true,
+   "decision_owner_stated": true,
+   "judgement_change_needs_approval": true,
+   "no_self_relaxation": true,
+   "uncovered_disclosed": {"face_idx_vertices_weights": true, "witness_no_frame_normal": true, "bins_untracked": true},
+   "states_cannot_prove_device_face_equivalence": true,
+   "g5_conclusion_unchanged": true
+  },
+  "scope": {
+   "commit": "c44578be",
+   "files": 11,
+   "product_or_fixture_changes": [],
+   "only_evidence_and_normify": true,
+   "gpu_window": false,
+   "delivery_bin_files": []
+  }
+ },
+ "observations": [
+  {
+   "id": 1,
+   "severity": "suggestion",
+   "title": "「根因=选面 tie-break」超出证据边界；「差=法线差×深度」是定义自洽分解",
+   "detail": "派生法线由 (x2-x1)/dist 反解，故 Δx1-Δx2 ≡ d_dev·n_dev - d_ref·n_ref；δdist 仅占 0.011%，实测点对差 ≈ |dist|·δθ 必然成立（比值 1.000425）。该等式不能判定哪一方正确，也不能区分「不同选面」与「同一选面但 EPA 法线数值差/权重不同」；后者需要 face_idx/三顶点/权重（未导出）。",
+   "impact": "不影响「基于现有证据不需要修正片」的建议，但影响 UNC-6 的措辞：建议把根因收窄为「派生法线差（机制未定）」，把「选面是否与上游一致」保留为未覆盖项。三种处置（不修→列未覆盖 / 改判据→用户拍板 / 修 tie-break→补 face 数据另立片）均不被本片证据强制；现状最保守选项是列为未覆盖。",
+   "blocking": false
+  },
+  {
+   "id": 2,
+   "severity": "suggestion",
+   "title": "穿透深度中位数口径：交付用上中位数",
+   "detail": "交付 penetration_depth_median=0.11005063354969025 = 排序后第 13 小（脚本 depths[len//2]）；严格两中位平均为 0.10891570523381233。README「中位 0.1101」偏差 1%。",
+   "impact": "不影响越界集合、极值、相关性或任何结论；建议改 statistics.median 或注明口径。",
+   "blocking": false
+  },
+  {
+   "id": 3,
+   "severity": "suggestion",
+   "title": "「与深度不相关」需标注 n=24 的统计力度",
+   "detail": "四个 Pearson 复算与交付一致（0.2473/0.1850/0.0896/0.2511），但 n=24 对应双侧 p≈0.244/0.387/0.677/0.237，均不显著；只能说明该样本下无显著线性趋势，不能作为「不存在系统性深度依赖」的强证据。",
+   "impact": "建议结论标注样本量限制（不影响「单点越界、非系统性」的定性判断）。",
+   "blocking": false
+  }
+ ],
+ "limitations": [
+  "只读 + 纯 CPU 复算；未开 GPU 窗口、未重采原始数据（依赖 QA 未跟踪 .bin 仍在本地）",
+  "未做 face_idx/三顶点/权重级选面对照（数据未导出）",
+  "未修改任何判据/已 verified 数字/产品代码"
+ ],
+ "artifacts": {
+  "in_repo": [
+   "docs/development-evidence/g10-p5-deep-epa-witness-sampling-independent-check/README.md",
+   "docs/development-evidence/g10-p5-deep-epa-witness-sampling-independent-check/receipt.json",
+   "docs/development-evidence/g10-p5-deep-epa-witness-sampling-independent-check/artifacts-sha256.json",
+   "docs/development-evidence/g10-p5-deep-epa-witness-sampling-independent-check/qa_artifacts_sha256.py",
+   "docs/development-evidence/g10-p5-deep-epa-witness-sampling-independent-check/qa_deep_epa_check.py",
+   "docs/development-evidence/g10-p5-deep-epa-witness-sampling-independent-check/qa-deep-epa-check.json",
+   "docs/development-evidence/g10-p5-deep-epa-witness-sampling-independent-check/qa-deep-epa-check.log"
+  ],
+  "not_in_repo": [
+   "本目录无 .bin/.pyc/.o；QA 的 12 个未跟踪 .bin 只读、未复制"
+  ]
+ }
+}
