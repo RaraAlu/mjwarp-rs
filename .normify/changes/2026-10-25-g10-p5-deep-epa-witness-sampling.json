@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-deep-epa-witness-sampling",
+  "title": {
+    "zh": "G10@P5 后续片：深穿透 EPA witness 采样复核（cylinder-box 随机姿态 4/24 单字段超 4·ULP@scale）",
+    "en": "G10@P5 follow-up: deep-penetration EPA witness sampling review (cylinder-box random poses, 4/24 single-field over 4 ULP@scale)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 的 G5 独立复核在**超出本片声明面**的额外采样里发现：`cylinder-box` 的 24 个深穿插随机姿态 world 中，4/24 有**单个字段**超过 `4·ULP@scale`（`x1` max 8.93e-7、`x2` max 1.53e-7），而同 world 的 `dist` 全 ≤4 ULP、`ncontact` 与 `multiccd_idx` 全等。G5 交付的 3 个声明 case（`cylinder-box`/`box-box-margin`/`mesh-mesh` 的基础各 2 world）是位级/≤4 ULP 通过的，故交付结论不变；本片只针对「深穿透 + 随机姿态」这一额外采样面：先判定这是设备 EPA 选面/ witness 选取的真实缺陷，还是深穿透下 witness 在接触流形内滑动的合法数值不确定度；若是缺陷则修设备 EPA/witness（不放宽容差、按上游表达式定序），若不是则给出可解释的判据（例如以 dist/normal 为判据、witness 位置只作信息量）并请 Arch 决定是否调整声明面。",
+    "en": "QA's independent G5 review found, on an extra sampling surface beyond this slice's declared scope, that 4/24 deep-penetration random-pose worlds for cylinder-box have a single witness field exceeding 4 ULP@scale (x1 max 8.93e-7, x2 max 1.53e-7), while dist stays within 4 ULP and ncontact/multiccd_idx are equal. G5's three declared cases pass bit-level/<=4 ULP, so delivered conclusions stand. This slice only targets that extra surface: determine whether device EPA face selection / witness extraction is genuinely defective at deep penetration, or the witness is legitimately sliding within the contact manifold; fix the device path if defective (no tolerance widening, order-identical to upstream), otherwise justify a criterion (e.g. dist/normal as criteria, witness position informational) and let Arch decide on the declared surface."
+  },
+  "modules": {},
+  "acceptance": [
+    "复现 QA 的采样面：`cylinder-box` 至少 24 个深穿插随机姿态 world（记录姿态生成种子/方法，可重建），上游参考由同配方 f32 GPU 直调 `collision_gjk.ccd()` 逐 world 抓取；给出逐 world 的 `dist`/`x1`/`x2`/`normal` 与 ULP@向量尺度对照表。",
+    "判定与证据：区分「设备缺陷」与「流形内滑动」——至少给出两种证据之一：① 设备与上游在**同一 world 上**的 EPA 选中面/`face_idx`、法线、witness 三顶点与权重逐项对照（若与上游不同即缺陷）；② 若选面一致而 witness 仍偏，量化该 world 的接触流形不确定性（例如同侧法线差、面内切向可动范围），证明偏差落在不确定度内。",
+    "结论口径：不得以放宽容差收场；若判定为缺陷 → 修 `src/physics/collision/cuda/` 的 EPA/witness 路径（按上游表达式/顺序，显式 fma 定序），修后 24/24 单字段全部 ≤4·ULP@scale 且交付 3 例不回归；若判定为不确定度 → 给出「witness 位置不作判据、改用 dist/normal」的可执行建议，交 Arch 裁决是否改声明面（**不改已批准口径，需 Arch/Chief 转用户**）。",
+    "不回归：G5 交付的接触数组判据（`hfield-sphere` 8/8、`hfield-capsule` 7/7、`sdf-box` 80/80、`ellipsoid-box`）、witness 三例、`naconmax`/`naccdmax` 截断计数全部不变；unit 不低于 586 过 0 败。",
+    "资源与边界：需要一次秒级 GPU 窗口（开窗前报 Arch 基线并获批，与其它 GPU 任务串行）；不改 S2–S8 证据、不改 G5 已验收证据数值；新文件 ≤500 行；门禁 fmt/clippy/clippy-cuda/unit 全过；不得宣称「精度达标/上游完全等价/原生放行」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-gpu-kernels-independent-check"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/physics/",
+      "tests/",
+      "docs/development-evidence/g10-p5-deep-epa-witness-sampling/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 45
+  },
+  "note": "Arch 2026-10-25 依据 QA 独立复核的额外采样发现登记（finding 2），排在 G5 独立复核之后、G6 之后处理（不阻塞 G6）：qa-compare-gpu.json 的 witness 姿态扫描里，box-box-margin 24/24、mesh-mesh 22/24 位等（1 ULP 判过），cylinder-box 17/24 位等，4/24 单字段超 4·ULP@scale（x1 8.93e-7、x2 1.53e-7），dist/ncontact/multiccd_idx 全等。交付 3 例的位级结论不受影响；本片只做深穿透采样面的定性与必要修正，结论若要求改声明面必须走 Arch→Chief→用户，不得自行放宽。",
+  "revision": {
+    "before": "3ad97f87f624f6474038ba88275b1e68721edc18",
+    "after": null
+  },
+  "created_at": "2026-10-25T19:22:00.000Z",
+  "updated_at": "2026-10-25T19:22:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-deep-epa-witness-sampling/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-deep-epa-witness-sampling"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
