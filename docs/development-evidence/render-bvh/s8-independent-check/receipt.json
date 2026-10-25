@@ -1,0 +1,217 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s8-independent-check",
+  "task_id": "2026-10-25-render-bvh-s8-independent-check",
+  "date": "2026-10-25",
+  "reviewed_commit": "d8bc9d8",
+  "reviewed_parent": "15cb6f7",
+  "review_baseline_head": "9550900",
+  "outcome": "pass",
+  "scope": "QA independent review of S8 end-to-end (product camlight -> render): QA own driver of the documented product chain (KinematicsPlan::with_camlight -> readback -> camlight world), pose bit comparison against the pinned 3.15 data poses, model-input sensitivity and discriminating tamper control, end-to-end RGB/depth/seg against the same-recipe fixtures, run-hash recomputation, perturbation/determinism/restore controls, refit and disabled-output checks, negative controls, delivered suites and fmt/clippy/unit gates rerun, evidence integrity/scope, r01-p8 closure honesty and the known 1-ULP auxiliary item. No product source changes in S8; no full G01.",
+  "method": {
+    "harness": "target/qa-s8-harness (QA crate, product path dependency + cuda-probe; own CamLightModelInput construction from the model-field fixture; does not include tests/support/**)",
+    "judges": ["judge_camlight.py", "judge_evidence.py"],
+    "runtime_artifacts": "QA dumps stay under target/qa-s8 (not committed); sha256 binding in qa-artifact-manifest.json"
+  },
+  "camlight": {
+    "authoritative_comparison": "product camlight output vs pinned 3.15 data poses (S7b1 same-recipe fixture)",
+    "cam0": {"origin_bit_mismatches": 0, "xmat_bit_mismatches": 0},
+    "cam1_targetbody": {"origin_bit_mismatches": 0, "xmat_bit_mismatches": 0},
+    "lights": "product camlight == pinned light_data_check for 3 lights xpos/xdir (0 bit difference)",
+    "product_fk_body_xpos": [
+      [0.0, 0.0, 0.0],
+      [0.10000000149011612, -0.20000000298023224, 0.30000001192092896],
+      [0.21320490539073944, -0.07466384768486023, 0.5897852778434753]
+    ],
+    "repeat_drive_bitwise_equal": true,
+    "discriminating_tamper": {
+      "product_poses_vs_tampered_reference_origin_mismatches": 6,
+      "product_poses_vs_tampered_reference_xmat_mismatches": 17,
+      "note": "product output is not fixture replay (the delivered reverse-proof item 1 lacks this assertion)"
+    },
+    "model_input_sensitivity": {
+      "cam_pos_dx_cam0_origin_bits_changed": 1,
+      "cam_pos_dx_cam1_origin_bits_changed": 0,
+      "cam0_xpos_x_delta": 0.009999990463256836,
+      "body2_dx_cam1_xmat_bits_changed": 8,
+      "body2_dx_cam1_origin_bits_changed": 0,
+      "body2_dx_cam0_unchanged": true
+    }
+  },
+  "end_to_end": {
+    "rgb_vs_same_recipe": {
+      "cam0": {"pixels": 76800, "mismatched": 0, "max_byte_diff": 0},
+      "cam1": {"pixels": 43200, "mismatched": 0, "max_byte_diff": 0}
+    },
+    "depth_vs_same_recipe": {"cam0_bitwise_equal": true, "cam1_bitwise_equal": true, "max_ulp": 0},
+    "seg_vs_same_recipe": {"cam0_mismatched": 0, "cam1_mismatched": 0},
+    "cross_recipe_vs_s0b_record": {
+      "cam0_histogram_0_1_2_3_gt3": [76798, 2, 0, 0, 0],
+      "cam1_histogram_0_1_2_3_gt3": [43200, 0, 0, 0, 0],
+      "note": "recorded only, not a pass criterion"
+    },
+    "run_hashes": {
+      "depth_seg_hash": "03efa95416bbd008",
+      "rgb_hash": "ed50f750936c0275",
+      "qa_recomputed_from_dumps": true,
+      "match_delivered_log": true
+    },
+    "repeat_render_bitwise_equal": true,
+    "fixture_pose_render_bitwise_equal": true
+  },
+  "controls": {
+    "tampered_fixture_poses_as_input": {"rgb_changed": 115972, "depth_changed": 75507, "seg_changed": 49475},
+    "product_pose_perturbation": {
+      "rgb_changed": 18859,
+      "depth_changed": 19182,
+      "seg_changed": 9464,
+      "repeat_same_perturbation_bitwise_equal": true,
+      "different_perturbation_differs": true,
+      "restore_product_poses_bitwise_reproduces": true
+    },
+    "refit": {"refits_before": 0, "refits_after": 1, "outputs_bitwise_equal": true},
+    "disabled_outputs": {"depth_rejected": true, "seg_rejected": true},
+    "negative_controls": {
+      "use_shadows": "Unsupported",
+      "use_precomputed_rays=false": "Unsupported",
+      "render_skybox": "Unsupported",
+      "aa_short_ray_count": "InvalidArray(\"ray_count\")",
+      "stage": "renderer after successful context creation (no panic in QA harness)"
+    }
+  },
+  "known_auxiliary_item": {
+    "item": "camera0 vs host quat_to_mat derived xmat",
+    "qa_reproduced": {"max_ulp": 1, "components_differing": 2, "of": 9, "xpos_equal": true},
+    "authoritative_comparison_bit_mismatches": 0,
+    "host_helper_used_in_render_path": false,
+    "classification": "auxiliary metric difference, NOT a product defect; the render input is the product camlight output which is bit-identical to the pinned data poses"
+  },
+  "tests": {
+    "delivered_suites_rerun": {
+      "render_e2e": "5 passed / 0 failed (7.98 s)",
+      "render_kernel_depth_seg": "6 passed / 0 failed",
+      "render_kernel_rgb": "3 passed / 0 failed",
+      "render_kernel_flags": "6 passed / 0 failed (PTX 197,583 B / 27,536 B)",
+      "render_context_lifecycle": "5 passed / 0 failed (growth 0)"
+    },
+    "unit": {"command": "cargo test --locked", "binaries": 100, "passed": 532, "failed": 0},
+    "fmt": "pass",
+    "clippy": "pass (cuda-probe, -D warnings)"
+  },
+  "evidence_integrity": {
+    "delivered_evidence_files": 5,
+    "exact_blob_matches": ["README.md", "receipt.json", "host-run.log"],
+    "eol_only_differences": ["gpu-run.log", "regression.log"],
+    "eol_normalized_blob_match": true,
+    "fixture": {"bytes": 6499, "lines": 416, "sha256_matches": true, "counts_match": true},
+    "authoring_script": {"lines": 198, "sha256_matches": true},
+    "diff_range": "15cb6f7..d8bc9d8",
+    "diff_changed_files": 14,
+    "src_changes": [],
+    "non_s8_paths": [],
+    "size_ratchet": {
+      "tests/render_e2e.rs": {"lines": 499, "under_500": true, "matches_receipt": true},
+      "tests/support/render_bvh/e2e.rs": {"lines": 496, "under_500": true, "matches_receipt": true}
+    }
+  },
+  "r01_p8_closure_honesty": {
+    "items": 10,
+    "unique_trace_paths": 10,
+    "missing_traces": [],
+    "spot_checks": {"s6b_growth_0": true, "s7b3_ptx_197583": true},
+    "unmet_items": 7,
+    "unmet_covers": {
+      "nworld>1": true,
+      "shadow/skybox/splat/flex/hfield": true,
+      "linux_t4": true,
+      "upstream_equivalence": true,
+      "performance": true,
+      "higher_spp": true
+    },
+    "machine_forbidden_terms_in_receipt": 0,
+    "negated_literal_occurrences_in_readme": {
+      "完整渲染通过": 1,
+      "完整 R01 通过": 2,
+      "产品渲染验收通过": 1,
+      "上游完全等价": 2
+    },
+    "note": "all occurrences are inside explicit negation statements ('不宣称…'); no positive claim found"
+  },
+  "findings": [
+    {
+      "severity": "一般",
+      "kind": "test-rigor",
+      "title": "交付反证①是重放同一次渲染，无判别力",
+      "detail": "render_e2e.rs 的 render_input_poses_come_from_camlight_not_fixture 里，篡改本地夹具副本后仍以同一 product.poses 重渲染并断言与篡改前相同；篡改副本从未进入渲染调用，因此只证明渲染确定性。判别性由反证②/③与 QA 补的「产品位姿 vs 篡改夹具位不一致」承担。",
+      "suggestion": "补一条 compare_pose_bits(&product.poses, &tampered.camera_data) 必须非零的断言（QA 独立实现：6 origin + 17 xmat 不一致）"
+    },
+    {
+      "severity": "建议",
+      "kind": "evidence",
+      "title": "camlight-model.json provenance 引用不存在的文件",
+      "detail": "camera_data_reference.sources 含 fixtures/render-bvh/scene-e2e/reference-camera-data.json，文件不存在",
+      "suggestion": "删除悬空引用或补文件"
+    },
+    {
+      "severity": "建议",
+      "kind": "evidence",
+      "title": "否定式禁用词字面出现",
+      "detail": "README 用「不宣称『完整渲染通过』…」的否定写法，语义正确但字面命中禁用词表；receipt 对 3 个机器禁用词命中 0 次",
+      "suggestion": "收口文档改为不含原词表的表述"
+    },
+    {
+      "severity": "建议",
+      "kind": "test-rigor",
+      "title": "负向控制 catch_unwind 兜底",
+      "detail": "context 创建期 panic 会被计作写前拒绝；QA 独立判定 3 类均无 panic（renderer 返回 Unsupported）",
+      "suggestion": "断言建 context 成功后再要求 Unsupported"
+    }
+  ],
+  "not_verified": [
+    "本轮 QA 未重新插桩 device_memory 验证 destroy 增长 0 B（依赖交付日志 + QA 重跑 S6b 套件 growth=0）。",
+    "反证①的判别性由 QA 补测，交付测试原文不单独具备判别力。"
+  ],
+  "limitations": [
+    "未跑完整 G01；不宣称完整渲染/R01/上游完全等价/双平台。",
+    "nworld>1 未验收；阴影/天空盒/splat/柔体/hfield/SDF/多相机/动态射线未实现（写前拒绝）。",
+    "Linux/T4、性能、更高 spp 未验收。",
+    "S8 只证明 scene-a 默认参数下的渲染数值对齐；其余场景/参数未覆盖。"
+  ],
+  "not_claimed": [
+    "full renderer / product rendering acceptance",
+    "complete R01",
+    "upstream equivalence",
+    "dual-platform support",
+    "shadow / skybox / splat / multi-camera functionality"
+  ],
+  "gpu_window": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "cuda": "13.2",
+    "memory_total_mib": 16376,
+    "handover_baseline_mib": 5053,
+    "first_measurement_mib": 4905,
+    "end_memory_mib": 4246,
+    "compute_processes_after": 0,
+    "note": "no CUDA compute process left; ~2-3 minutes of GPU activity inside the 60-minute window, no conflicts"
+  },
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "qa-artifact-manifest.json",
+    "artifact-check.json",
+    "gpu-window.txt",
+    "qa-gpu-runs.log",
+    "qa-unit-tests.log",
+    "camlight.json",
+    "camlight_campos.json",
+    "camlight_body2.json",
+    "e2e.json",
+    "controls.json",
+    "judge_camlight.json",
+    "judge_evidence.json",
+    "judge_camlight.py",
+    "judge_evidence.py",
+    "qa-harness-main.rs.txt"
+  ]
+}

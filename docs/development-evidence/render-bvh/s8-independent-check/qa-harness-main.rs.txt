@@ -1,0 +1,700 @@
+// QA independent harness for S8 (product camlight -> end-to-end render).
+//
+// Independence: QA-owned crate; it does NOT include the delivered `tests/support/**`. It builds
+// the product `CamLightModelInput` itself from the model-field fixture, drives the documented
+// product chain (`KinematicsPlan::with_camlight` -> create_data -> write_qpos -> update_rigid ->
+// update_attached -> update_com -> update_camlight -> readback -> camlight world), and renders
+// with the resulting poses. All comparisons (pose bits vs reference fixture, RGB/depth/seg
+// vs same-recipe fixtures, tamper/perturbation controls, hashes) are re-derived by QA Python.
+//
+// Modes:
+//   qa-s8-harness --camlight <out.json> [--cam-pos-dx <f>] [--body2-dx <f>]
+//       drives the product camlight chain and dumps pose/light/body bits; optional model-input
+//       sensitivities (prove the chain really computes from the model fields).
+//   qa-s8-harness --e2e <out-dir>
+//       end-to-end: product camlight poses -> render (RGB/depth/seg dumps), fixture-pose render,
+//       tampered-fixture-pose render, product-pose perturbation controls, refit, disabled
+//       outputs, negative controls.
+
+use mjwarp_rs::diagnostics::{InputError, TransferError};
+use mjwarp_rs::model::{
+    AttachedFields, AttachedModelInput, CamLightFields, CamLightModelInput, CamLightParameters,
+    InertialFields, InertialModelInput, KinematicFields, KinematicModelInput, KinematicsParameters,
+    MocapModelInput,
+};
+use mjwarp_rs::physics::KinematicsPlan;
+use mjwarp_rs::render::bvh::{mesh_half_extents, vertices_from_f64};
+use mjwarp_rs::render::context::RenderFlagSpec;
+use mjwarp_rs::render::context::owner::{MeshState, OwnerError};
+use mjwarp_rs::render::kernel::MegakernelRenderer;
+use mjwarp_rs::render::kernel::cast::CameraPose;
+use mjwarp_rs::render::{
+    CameraModel, ContextParams, ImageOutput, LeafPose, OutputValues, RayBuffer, RayBuilder,
+    RayMode, RenderContext, SceneLeaf, SceneState, TextureRegistry, resolve_context,
+};
+use mjwarp_rs::runtime::TransferSession;
+use mjwarp_rs::model::render::{FieldData, RENDER_FIELDS, RenderFieldKind, RenderFields};
+use serde_json::{Value, json};
+
+const CAMLIGHT_MODEL: &str = include_str!("../../../fixtures/render-bvh/scene-e2e/camlight-model.json");
+const MODEL: &str = include_str!("../../../fixtures/render-bvh/scene-a/model-312.json");
+const S2_HITS: &str = include_str!("../../../fixtures/render-bvh/scene-a/s2/reference_hits.json");
+const RECIPE_REFERENCE: &str =
+    include_str!("../../../fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json");
+
+fn array(value: &Value) -> &[Value] {
+    value.as_array().expect("array")
+}
+
+fn ints(value: &Value) -> Vec<i32> {
+    array(value).iter().map(|item| item.as_i64().expect("i32") as i32).collect()
+}
+
+fn floats(value: &Value) -> Vec<f32> {
+    array(value).iter().map(|item| item.as_f64().expect("f32") as f32).collect()
+}
+
+fn u32s(value: &Value) -> Vec<u32> {
+    array(value).iter().map(|item| item.as_u64().expect("u32") as u32).collect()
+}
+
+fn numbers(value: &Value) -> Vec<f64> {
+    array(value).iter().map(|item| item.as_f64().expect("f64")).collect()
+}
+
+// ---------------------------------------------------------------------------------------------
+// product camlight chain (documented product API, QA driver)
+// ---------------------------------------------------------------------------------------------
+
+fn product_camlight(document: &Value) -> (Vec<CameraPose>, Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 4]>) {
+    let model = &document["model"];
+    let counts = &document["counts"];
+    let count = |name: &str| counts[name].as_u64().expect("count") as usize;
+    let session = TransferSession::new(0).expect("session");
+    let kinematics = KinematicModelInput::new(
+        count("nv"),
+        KinematicFields {
+            qpos0: floats(&model["qpos0"]),
+            body_parentid: ints(&model["body_parentid"]),
+            body_jntadr: ints(&model["body_jntadr"]),
+            body_jntnum: ints(&model["body_jntnum"]),
+            body_pos: floats(&model["body_pos"]),
+            body_quat: floats(&model["body_quat"]),
+            jnt_type: ints(&model["jnt_type"]),
+            jnt_bodyid: ints(&model["jnt_bodyid"]),
+            jnt_qposadr: ints(&model["jnt_qposadr"]),
+            jnt_dofadr: ints(&model["jnt_dofadr"]),
+            jnt_pos: floats(&model["jnt_pos"]),
+            jnt_axis: floats(&model["jnt_axis"]),
+        },
+    )
+    .expect("kinematics input");
+    let inertial = InertialModelInput::new(
+        kinematics,
+        InertialFields {
+            body_ipos: floats(&model["body_ipos"]),
+            body_iquat: floats(&model["body_iquat"]),
+            body_mass: floats(&model["body_mass"]),
+            body_inertia: floats(&model["body_inertia"]),
+            dof_bodyid: ints(&model["dof_bodyid"]),
+            dof_jntid: ints(&model["dof_jntid"]),
+            dof_parentid: ints(&model["dof_parentid"]),
+            dof_armature: floats(&model["dof_armature"]),
+            dof_damping: floats(&model["dof_damping"]),
+        },
+    )
+    .expect("inertial input");
+    let attached = AttachedModelInput::new(
+        inertial,
+        AttachedFields {
+            geom_bodyid: ints(&model["geom_bodyid"]),
+            geom_pos: floats(&model["geom_pos"]),
+            geom_quat: floats(&model["geom_quat"]),
+            site_bodyid: ints(&model["site_bodyid"]),
+            site_pos: floats(&model["site_pos"]),
+            site_quat: floats(&model["site_quat"]),
+        },
+    )
+    .expect("attached input");
+    let mocap = MocapModelInput::new(attached, ints(&model["body_mocapid"])).expect("mocap input");
+    let camlight = CamLightModelInput::new(
+        mocap,
+        CamLightFields {
+            cam_mode: ints(&model["cam_mode"]),
+            cam_bodyid: ints(&model["cam_bodyid"]),
+            cam_targetbodyid: ints(&model["cam_targetbodyid"]),
+            cam_pos: floats(&model["cam_pos"]),
+            cam_quat: floats(&model["cam_quat"]),
+            cam_poscom0: floats(&model["cam_poscom0"]),
+            cam_pos0: floats(&model["cam_pos0"]),
+            cam_mat0: floats(&model["cam_mat0"]),
+            light_mode: ints(&model["light_mode"]),
+            light_bodyid: ints(&model["light_bodyid"]),
+            light_targetbodyid: ints(&model["light_targetbodyid"]),
+            light_pos: floats(&model["light_pos"]),
+            light_dir: floats(&model["light_dir"]),
+            light_poscom0: floats(&model["light_poscom0"]),
+            light_pos0: floats(&model["light_pos0"]),
+            light_dir0: floats(&model["light_dir0"]),
+        },
+    )
+    .expect("camlight input");
+    let ncam = count("ncam");
+    let nlight = count("nlight");
+    let qpos0 = floats(&model["qpos0"]);
+    let plan = KinematicsPlan::with_camlight(
+        &session,
+        camlight,
+        KinematicsParameters::default(),
+        CamLightParameters::default(),
+    )
+    .expect("camlight plan");
+    let mut data = plan.create_data(1).expect("data");
+    data.write_qpos(&qpos0).expect("qpos");
+    plan.update_rigid(&mut data).expect("rigid");
+    plan.update_attached(&mut data).expect("attached");
+    plan.update_com(&mut data).expect("com");
+    plan.update_camlight(&mut data).expect("camlight");
+    let snapshot = data.readback().expect("readback");
+    let rigid = snapshot.rigid().world(0).expect("rigid world");
+    let world = snapshot.camlight().world(0).expect("camlight world");
+    let poses = (0..ncam)
+        .map(|camera| {
+            let mut xmat = [0.0f32; 9];
+            xmat.copy_from_slice(&world.cam_xmat[9 * camera..9 * camera + 9]);
+            CameraPose {
+                xpos: [
+                    world.cam_xpos[3 * camera],
+                    world.cam_xpos[3 * camera + 1],
+                    world.cam_xpos[3 * camera + 2],
+                ],
+                xmat,
+            }
+        })
+        .collect();
+    let light_xpos = (0..nlight)
+        .map(|light| {
+            [
+                world.light_xpos[3 * light],
+                world.light_xpos[3 * light + 1],
+                world.light_xpos[3 * light + 2],
+            ]
+        })
+        .collect();
+    let light_xdir = (0..nlight)
+        .map(|light| {
+            [
+                world.light_xdir[3 * light],
+                world.light_xdir[3 * light + 1],
+                world.light_xdir[3 * light + 2],
+            ]
+        })
+        .collect();
+    let body_xpos = rigid.xpos.chunks(3).map(|chunk| [chunk[0], chunk[1], chunk[2]]).collect();
+    let body_xquat = rigid
+        .xquat
+        .chunks(4)
+        .map(|chunk| [chunk[0], chunk[1], chunk[2], chunk[3]])
+        .collect();
+    (poses, light_xpos, light_xdir, body_xpos, body_xquat)
+}
+
+fn pose_json(poses: &[CameraPose]) -> Value {
+    Value::Array(
+        poses
+            .iter()
+            .map(|pose| json!({"xpos_bits": pose.xpos.map(f32::to_bits), "xmat_bits": pose.xmat.map(f32::to_bits)}))
+            .collect(),
+    )
+}
+
+fn vec3_json(values: &[[f32; 3]]) -> Value {
+    Value::Array(
+        values
+            .iter()
+            .map(|value| json!(value.map(f32::to_bits)))
+            .collect(),
+    )
+}
+
+// ---------------------------------------------------------------------------------------------
+// reference fixture helpers (comparison only, never render input for the product path)
+// ---------------------------------------------------------------------------------------------
+
+fn recipe_reference_poses() -> Vec<CameraPose> {
+    let document: Value = serde_json::from_str(RECIPE_REFERENCE).expect("recipe reference");
+    array(&document["camera_data_check"])
+        .iter()
+        .map(|entry| CameraPose {
+            xpos: u32s(&entry["origin_bits"])
+                .iter()
+                .map(|bits| f32::from_bits(*bits))
+                .collect::<Vec<_>>()
+                .try_into()
+                .expect("xpos"),
+            xmat: u32s(&entry["xmat_bits"])
+                .iter()
+                .map(|bits| f32::from_bits(*bits))
+                .collect::<Vec<_>>()
+                .try_into()
+                .expect("xmat"),
+        })
+        .collect()
+}
+
+fn tampered_poses() -> Vec<CameraPose> {
+    recipe_reference_poses()
+        .into_iter()
+        .map(|_| CameraPose {
+            xpos: [0.0; 3],
+            xmat: [
+                1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+            ],
+        })
+        .collect()
+}
+
+fn perturb_camera1(poses: &[CameraPose], angle: f32, dx: f32, dz: f32) -> Vec<CameraPose> {
+    let mut perturbed = poses.to_vec();
+    let (rotation, sine) = (angle.cos(), angle.sin());
+    let m = perturbed[1].xmat;
+    perturbed[1].xmat = [
+        rotation * m[0] + sine * m[6],
+        rotation * m[1] + sine * m[7],
+        rotation * m[2] + sine * m[8],
+        m[3],
+        m[4],
+        m[5],
+        -sine * m[0] + rotation * m[6],
+        -sine * m[1] + rotation * m[7],
+        -sine * m[2] + rotation * m[8],
+    ];
+    perturbed[1].xpos[0] += dx;
+    perturbed[1].xpos[2] += dz;
+    perturbed
+}
+
+// ---------------------------------------------------------------------------------------------
+// e2e render plumbing (QA-owned; model scene from model-312 + s2 reference hits)
+// ---------------------------------------------------------------------------------------------
+
+fn field_values(kind: RenderFieldKind, value: &Value) -> FieldData {
+    let values = array(value);
+    match kind {
+        RenderFieldKind::Index => FieldData::Index(values.iter().map(|v| v.as_i64().expect("i32") as i32).collect()),
+        RenderFieldKind::Num => FieldData::Num(values.iter().map(|v| v.as_f64().expect("f64")).collect()),
+        RenderFieldKind::Flag => FieldData::Flag(values.iter().map(|v| v.as_u64().expect("u8") as u8).collect()),
+        RenderFieldKind::Size => FieldData::Size(values.iter().map(|v| v.as_i64().expect("i64")).collect()),
+        RenderFieldKind::Float => FieldData::Float(values.iter().map(|v| v.as_f64().expect("f32") as f32).collect()),
+    }
+}
+
+fn render_fields(model: &Value) -> RenderFields {
+    let arrays = &model["arrays"];
+    let data = RENDER_FIELDS
+        .iter()
+        .map(|spec| field_values(spec.kind, &arrays[spec.name]["values"]))
+        .collect();
+    RenderFields::new(data)
+}
+
+struct SceneFixture {
+    leaves: Vec<SceneLeaf>,
+    poses: Vec<LeafPose>,
+    meshes: Vec<MeshState>,
+}
+
+fn scene_fixture(model: &Value) -> SceneFixture {
+    let hits: Value = serde_json::from_str(S2_HITS).expect("s2 hits");
+    let enabled = ints(&hits["enabled_geom_ids"]);
+    let xpos_bits = u32s(&hits["cases"]["initial"]["geom_xpos_bits"]);
+    let xmat_bits = u32s(&hits["cases"]["initial"]["geom_xmat_bits"]);
+    let geom_type = ints(&model["arrays"]["geom_type"]["values"]);
+    let geom_size = numbers(&model["arrays"]["geom_size"]["values"]);
+    let geom_dataid = ints(&model["arrays"]["geom_dataid"]["values"]);
+    let mesh_vert = numbers(&model["arrays"]["mesh_vert"]["values"]);
+    let mesh_face = ints(&model["arrays"]["mesh_face"]["values"]);
+    let vertadr = ints(&model["arrays"]["mesh_vertadr"]["values"]);
+    let vertnum = ints(&model["arrays"]["mesh_vertnum"]["values"]);
+    let faceadr = ints(&model["arrays"]["mesh_faceadr"]["values"]);
+    let facenum = ints(&model["arrays"]["mesh_facenum"]["values"]);
+    let mut meshes = Vec::new();
+    for mesh in 0..vertadr.len() {
+        let start = vertadr[mesh] as usize * 3;
+        let vertices = vertices_from_f64(&mesh_vert[start..start + vertnum[mesh] as usize * 3]).expect("verts");
+        let face_start = faceadr[mesh] as usize * 3;
+        let indices = mesh_face[face_start..face_start + facenum[mesh] as usize * 3]
+            .iter()
+            .map(|value| *value as u32)
+            .collect();
+        meshes.push(MeshState { vertices, indices });
+    }
+    let mesh_half: Vec<[f32; 3]> = meshes.iter().map(|mesh| mesh_half_extents(&mesh.vertices).expect("bounds")).collect();
+    let mut leaves = Vec::new();
+    let mut poses = Vec::new();
+    for (slot, geom) in enabled.iter().enumerate() {
+        let geom = *geom as usize;
+        let mut size = [
+            geom_size[3 * geom] as f32,
+            geom_size[3 * geom + 1] as f32,
+            geom_size[3 * geom + 2] as f32,
+        ];
+        if matches!(geom_type[geom], 7 | 8) {
+            size = mesh_half[geom_dataid[geom] as usize];
+        }
+        leaves.push(SceneLeaf {
+            geom_type: geom_type[geom],
+            size,
+            group: 0,
+            geom_id: geom as i32,
+        });
+        let mut xmat = [0.0f32; 9];
+        for (index, value) in xmat.iter_mut().enumerate() {
+            *value = f32::from_bits(xmat_bits[9 * slot + index]);
+        }
+        poses.push(LeafPose {
+            xpos: [
+                f32::from_bits(xpos_bits[3 * slot]),
+                f32::from_bits(xpos_bits[3 * slot + 1]),
+                f32::from_bits(xpos_bits[3 * slot + 2]),
+            ],
+            xmat,
+        });
+    }
+    SceneFixture { leaves, poses, meshes }
+}
+
+fn build_context(
+    session: &TransferSession,
+    fields: &RenderFields,
+    model: &Value,
+    params: &ContextParams<'_>,
+) -> Result<RenderContext, String> {
+    let fixture = scene_fixture(model);
+    let resolved = resolve_context(fields, params).map_err(|error| format!("resolve: {error:?}"))?;
+    let state = SceneState::new(fixture.leaves, fixture.poses, params.nworld).map_err(|error| format!("scene: {error:?}"))?;
+    let textures = TextureRegistry::from_fields(fields, true).map_err(|error| format!("tex: {error:?}"))?;
+    RenderContext::create(session, resolved, state, fixture.meshes.clone(), &textures)
+        .map_err(|error| format!("create: {error:?}"))
+}
+
+fn build_rays(session: &TransferSession, camera: &CameraModel, context: &RenderContext) -> RayBuffer {
+    RayBuilder::new(session)
+        .expect("ray builder")
+        .build(camera, &context.resolved().plan, RayMode::Precomputed)
+        .expect("rays")
+}
+
+fn read_all(context: &RenderContext) -> (Vec<u32>, Vec<f32>, Vec<[i32; 2]>) {
+    let outputs = context.outputs();
+    let rgb = match outputs.read(ImageOutput::Rgb).expect("rgb") {
+        OutputValues::Rgb(values) => values,
+        other => panic!("rgb {other:?}"),
+    };
+    let depth = match outputs.read(ImageOutput::Depth).expect("depth") {
+        OutputValues::Depth(values) => values,
+        other => panic!("depth {other:?}"),
+    };
+    let seg = match outputs.read(ImageOutput::Segmentation).expect("seg") {
+        OutputValues::Seg(values) => values,
+        other => panic!("seg {other:?}"),
+    };
+    (rgb, depth, seg)
+}
+
+fn dump_u32(path: &str, values: &[u32]) {
+    let mut bytes = Vec::with_capacity(values.len() * 4);
+    for value in values {
+        bytes.extend_from_slice(&value.to_le_bytes());
+    }
+    std::fs::write(path, bytes).expect("dump");
+}
+
+fn dump_f32(path: &str, values: &[f32]) {
+    let mut bytes = Vec::with_capacity(values.len() * 4);
+    for value in values {
+        bytes.extend_from_slice(&value.to_bits().to_le_bytes());
+    }
+    std::fs::write(path, bytes).expect("dump");
+}
+
+fn dump_seg(path: &str, values: &[[i32; 2]]) {
+    let mut bytes = Vec::with_capacity(values.len() * 8);
+    for pair in values {
+        bytes.extend_from_slice(&pair[0].to_le_bytes());
+        bytes.extend_from_slice(&pair[1].to_le_bytes());
+    }
+    std::fs::write(path, bytes).expect("dump");
+}
+
+fn dump_all(prefix: &str, rgb: &[u32], depth: &[f32], seg: &[[i32; 2]]) {
+    dump_u32(&format!("{prefix}_rgb.bin"), rgb);
+    dump_f32(&format!("{prefix}_depth.bin"), depth);
+    dump_seg(&format!("{prefix}_seg.bin"), seg);
+}
+
+fn default_params() -> ContextParams<'static> {
+    const GROUPS: [i32; 4] = [0, 1, 2, 3];
+    ContextParams {
+        nworld: 1,
+        enabled_geom_groups: &GROUPS,
+        ..Default::default()
+    }
+    .with_render_targets(
+        Some(RenderFlagSpec::Bool(true)),
+        Some(RenderFlagSpec::Bool(true)),
+        Some(RenderFlagSpec::Bool(true)),
+    )
+}
+
+// ---------------------------------------------------------------------------------------------
+
+fn run_camlight(out_path: &str, cam_pos_dx: Option<f32>, body2_dx: Option<f32>) {
+    let mut document: Value = serde_json::from_str(CAMLIGHT_MODEL).expect("camlight model");
+    if let Some(dx) = cam_pos_dx {
+        let current = document["model"]["cam_pos"][0].as_f64().expect("cam_pos");
+        document["model"]["cam_pos"][0] = json!(current + dx as f64);
+    }
+    if let Some(dx) = body2_dx {
+        let current = document["model"]["body_pos"][6].as_f64().expect("body_pos");
+        document["model"]["body_pos"][6] = json!(current + dx as f64);
+    }
+    let (poses, light_xpos, light_xdir, body_xpos, body_xquat) = product_camlight(&document);
+    let (poses_repeat, _, _, _, _) = product_camlight(&document);
+    let reference = pose_json(&recipe_reference_poses());
+    let tampered = pose_json(&tampered_poses());
+    let reference_bits = array(&reference);
+    let tampered_bits = array(&tampered);
+    let mut origin_mismatch = 0usize;
+    let mut xmat_mismatch = 0usize;
+    let mut tampered_origin_mismatch = 0usize;
+    let mut tampered_xmat_mismatch = 0usize;
+    for (index, pose) in poses.iter().enumerate() {
+        let origin = pose.xpos.map(f32::to_bits).to_vec();
+        let xmat = pose.xmat.map(f32::to_bits).to_vec();
+        origin_mismatch += u32s(&reference_bits[index]["xpos_bits"]).iter().zip(&origin).filter(|(a, b)| a != b).count();
+        xmat_mismatch += u32s(&reference_bits[index]["xmat_bits"]).iter().zip(&xmat).filter(|(a, b)| a != b).count();
+        tampered_origin_mismatch += u32s(&tampered_bits[index]["xpos_bits"]).iter().zip(&origin).filter(|(a, b)| a != b).count();
+        tampered_xmat_mismatch += u32s(&tampered_bits[index]["xmat_bits"]).iter().zip(&xmat).filter(|(a, b)| a != b).count();
+    }
+    let report = json!({
+        "mode": "camlight",
+        "cam_pos_dx": cam_pos_dx,
+        "body2_dx": body2_dx,
+        "product_poses": pose_json(&poses),
+        "product_poses_repeat_bitwise_equal": poses.iter().zip(&poses_repeat).all(|(a, b)| a.xpos.map(f32::to_bits) == b.xpos.map(f32::to_bits) && a.xmat.map(f32::to_bits) == b.xmat.map(f32::to_bits)),
+        "reference_poses": reference,
+        "tampered_reference_poses": tampered,
+        "product_vs_reference": {
+            "origin_bit_mismatches": origin_mismatch,
+            "xmat_bit_mismatches": xmat_mismatch,
+        },
+        "product_vs_tampered_reference": {
+            "origin_bit_mismatches": tampered_origin_mismatch,
+            "xmat_bit_mismatches": tampered_xmat_mismatch,
+        },
+        "product_lights": {"xpos": vec3_json(&light_xpos), "xdir": vec3_json(&light_xdir)},
+        "product_body_xpos": vec3_json(&body_xpos),
+        "product_body_xquat": Value::Array(body_xquat.iter().map(|value| json!(value.map(f32::to_bits))).collect()),
+    });
+    std::fs::write(out_path, serde_json::to_vec_pretty(&report).expect("json")).expect("write");
+    println!(
+        "camlight: origin_mismatch={origin_mismatch} xmat_mismatch={xmat_mismatch} vs_tampered=({tampered_origin_mismatch},{tampered_xmat_mismatch}) repeat={}",
+        report["product_poses_repeat_bitwise_equal"]
+    );
+}
+
+fn run_e2e(out_dir: &str) {
+    std::fs::create_dir_all(out_dir).expect("dir");
+    let session = TransferSession::new(0).expect("session");
+    let model: Value = serde_json::from_str(MODEL).expect("model");
+    let fields = render_fields(&model);
+    let camera = CameraModel::from_fields(&fields).expect("camera");
+    let mut context = build_context(&session, &fields, &model, &default_params()).expect("context");
+    let rays = build_rays(&session, &camera, &context);
+    let renderer = MegakernelRenderer::new(&session).expect("renderer");
+    let (poses, light_xpos, light_xdir, body_xpos, body_xquat) =
+        product_camlight(&serde_json::from_str(CAMLIGHT_MODEL).expect("camlight model"));
+    let fixture_poses = recipe_reference_poses();
+    let tampered = tampered_poses();
+    let report = json!({
+        "poses": pose_json(&poses),
+        "fixture_poses": pose_json(&fixture_poses),
+        "tampered_poses": pose_json(&tampered),
+        "product_lights": {"xpos": vec3_json(&light_xpos), "xdir": vec3_json(&light_xdir)},
+        "product_body_xpos": vec3_json(&body_xpos),
+        "product_body_xquat": Value::Array(body_xquat.iter().map(|value| json!(value.map(f32::to_bits))).collect()),
+        "quat_poses": pose_json(&CameraPose::from_fields(&fields).expect("cam_quat path poses")),
+        "layout": {
+            "cam_res": context.resolved().cam_res(),
+            "rgb_adr": context.resolved().output.rgb_adr,
+            "depth_adr": context.resolved().output.depth_adr,
+            "seg_adr": context.resolved().output.seg_adr,
+            "total_rays": context.resolved().output.total_rays,
+            "nsamples": context.resolved().output.nsamples,
+        },
+    });
+    std::fs::write(format!("{out_dir}/e2e.json"), serde_json::to_vec_pretty(&report).expect("json")).expect("report");
+
+    // ① product-camlight poses render (twice for determinism), and fixture-pose render.
+    renderer.render(&context, &fields, &camera, &poses, &rays).expect("render product");
+    let (rgb, depth, seg) = read_all(&context);
+    dump_all(&format!("{out_dir}/product"), &rgb, &depth, &seg);
+    renderer.render(&context, &fields, &camera, &poses, &rays).expect("render product 2");
+    let (rgb2, depth2, seg2) = read_all(&context);
+    dump_all(&format!("{out_dir}/product_repeat"), &rgb2, &depth2, &seg2);
+    renderer.render(&context, &fields, &camera, &fixture_poses, &rays).expect("render fixture");
+    let (rgb_fixture, depth_fixture, seg_fixture) = read_all(&context);
+    dump_all(&format!("{out_dir}/fixture_poses"), &rgb_fixture, &depth_fixture, &seg_fixture);
+
+    // ② tampered fixture poses as render input must change the image (detectability control).
+    renderer.render(&context, &fields, &camera, &tampered, &rays).expect("render tampered");
+    let (rgb_tampered, depth_tampered, seg_tampered) = read_all(&context);
+    dump_all(&format!("{out_dir}/tampered_poses"), &rgb_tampered, &depth_tampered, &seg_tampered);
+
+    // ③ product pose perturbation controls.
+    let perturbed = perturb_camera1(&poses, 0.05, 0.3, 0.0);
+    renderer.render(&context, &fields, &camera, &perturbed, &rays).expect("render perturbed");
+    let (rgb_p, depth_p, seg_p) = read_all(&context);
+    dump_all(&format!("{out_dir}/perturbed"), &rgb_p, &depth_p, &seg_p);
+    renderer.render(&context, &fields, &camera, &perturbed, &rays).expect("render perturbed repeat");
+    let (rgb_pr, depth_pr, seg_pr) = read_all(&context);
+    dump_all(&format!("{out_dir}/perturbed_repeat"), &rgb_pr, &depth_pr, &seg_pr);
+    let other = perturb_camera1(&poses, 0.0, 0.0, 0.3);
+    renderer.render(&context, &fields, &camera, &other, &rays).expect("render other perturb");
+    let (rgb_o, _, _) = read_all(&context);
+    dump_u32(&format!("{out_dir}/perturbed_other_rgb.bin"), &rgb_o);
+    renderer.render(&context, &fields, &camera, &poses, &rays).expect("render restored");
+    let (rgb_restored, _, _) = read_all(&context);
+    dump_u32(&format!("{out_dir}/restored_rgb.bin"), &rgb_restored);
+
+    // ④ lifecycle: explicit refit with unchanged poses must not change outputs.
+    let refits_before = context.refits();
+    context.refit_bvh().expect("refit");
+    let refits_after = context.refits();
+    renderer.render(&context, &fields, &camera, &poses, &rays).expect("render after refit");
+    let (rgb_refit, depth_refit, seg_refit) = read_all(&context);
+    dump_all(&format!("{out_dir}/refit"), &rgb_refit, &depth_refit, &seg_refit);
+    let lifecycle = json!({
+        "refits_before": refits_before,
+        "refits_after": refits_after,
+        "refit_render_rgb_bitwise_equal": rgb_refit == rgb,
+        "refit_render_depth_bitwise_equal": depth_refit == depth,
+        "refit_render_seg_bitwise_equal": seg_refit == seg,
+    });
+    // ⑤ disabled outputs: rgb-only context rejects depth/seg reads.
+    let disabled = build_context(
+        &session,
+        &fields,
+        &model,
+        &default_params().with_render_targets(
+            Some(RenderFlagSpec::Bool(true)),
+            Some(RenderFlagSpec::Bool(false)),
+            Some(RenderFlagSpec::Bool(false)),
+        ),
+    )
+    .expect("disabled context");
+    let rejected = |result: Result<usize, OwnerError>| {
+        matches!(result, Err(OwnerError::Transfer(TransferError::Input(InputError::DisabledOutput))))
+    };
+    let disabled_report = json!({
+        "rgb_enabled": disabled.outputs().is_enabled(ImageOutput::Rgb),
+        "depth_byte_len_rejected": rejected(disabled.outputs().byte_len(ImageOutput::Depth)),
+        "seg_byte_len_rejected": rejected(disabled.outputs().byte_len(ImageOutput::Segmentation)),
+    });
+    // ⑥ negative controls: 3 pre-launch rejections + AA ray-count rejection.
+    let mut rejections = Vec::new();
+    for (name, params) in [
+        ("use_shadows", ContextParams { use_shadows: true, ..default_params() }),
+        ("use_precomputed_rays=false", ContextParams { use_precomputed_rays: false, ..default_params() }),
+        ("render_skybox", ContextParams { render_skybox: true, ..default_params() }),
+    ] {
+        let context = build_context(&session, &fields, &model, &params);
+        match context {
+            Err(error) => rejections.push(json!({"case": name, "stage": "context", "error": error})),
+            Ok(context) => {
+                let rays = build_rays(&session, &camera, &context);
+                let launch = renderer.render(&context, &fields, &camera, &poses, &rays);
+                rejections.push(json!({"case": name, "stage": "renderer", "error": launch.err().map(|error| format!("{error:?}"))}));
+            }
+        }
+    }
+    let aa_params = ContextParams { samples_per_pixel: 2, ..default_params() };
+    if let Ok(aa_context) = build_context(&session, &fields, &model, &aa_params) {
+        let base = build_context(&session, &fields, &model, &default_params()).expect("base");
+        let short = build_rays(&session, &camera, &base);
+        let launch = renderer.render(&aa_context, &fields, &camera, &poses, &short);
+        rejections.push(json!({"case": "aa_short_rays", "stage": "renderer", "error": launch.err().map(|error| format!("{error:?}"))}));
+    }
+    let report = json!({
+        "lifecycle": lifecycle,
+        "disabled": disabled_report,
+        "rejections": rejections,
+        "determinism": {
+            "rgb_equal": rgb == rgb2,
+            "depth_equal": depth == depth2,
+            "seg_equal": seg == seg2,
+        },
+        "fixture_pose_render_equal": {
+            "rgb": rgb_fixture == rgb,
+            "depth": depth_fixture == depth,
+            "seg": seg_fixture == seg,
+        },
+        "tampered_render_changed": {
+            "rgb": rgb_tampered.iter().zip(&rgb).filter(|(a, b)| a != b).count(),
+            "depth": depth_tampered.iter().zip(&depth).filter(|(a, b)| a.to_bits() != b.to_bits()).count(),
+            "seg": seg_tampered.iter().zip(&seg).filter(|(a, b)| a != b).count(),
+        },
+        "perturbation": {
+            "rgb_changed": rgb_p.iter().zip(&rgb).filter(|(a, b)| a != b).count(),
+            "depth_changed": depth_p.iter().zip(&depth).filter(|(a, b)| a.to_bits() != b.to_bits()).count(),
+            "seg_changed": seg_p.iter().zip(&seg).filter(|(a, b)| a != b).count(),
+            "repeat_rgb_equal": rgb_p == rgb_pr,
+            "repeat_depth_equal": depth_p == depth_pr,
+            "repeat_seg_equal": seg_p == seg_pr,
+            "other_perturbation_differs": rgb_o != rgb_p,
+            "restored_rgb_equal": rgb_restored == rgb,
+        },
+        "lengths": {"rgb": rgb.len(), "depth": depth.len(), "seg": seg.len()},
+    });
+    std::fs::write(format!("{out_dir}/controls.json"), serde_json::to_vec_pretty(&report).expect("json")).expect("controls");
+    println!(
+        "e2e: tampered_changed={:?} perturb={:?} refit_ok={} disabled={} rejections={}",
+        report["tampered_render_changed"],
+        report["perturbation"],
+        report["lifecycle"]["refit_render_rgb_bitwise_equal"],
+        report["disabled"],
+        report["rejections"]
+    );
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    match args.get(1).map(String::as_str) {
+        Some("--camlight") => {
+            let out = args.get(2).cloned().expect("out path");
+            let mut cam_pos_dx = None;
+            let mut body2_dx = None;
+            let mut index = 3;
+            while index < args.len() {
+                match args[index].as_str() {
+                    "--cam-pos-dx" => {
+                        cam_pos_dx = Some(args[index + 1].parse().expect("dx"));
+                        index += 2;
+                    }
+                    "--body2-dx" => {
+                        body2_dx = Some(args[index + 1].parse().expect("dx"));
+                        index += 2;
+                    }
+                    other => panic!("unknown arg {other}"),
+                }
+            }
+            run_camlight(&out, cam_pos_dx, body2_dx);
+        }
+        Some("--e2e") => {
+            let out = args.get(2).cloned().expect("out dir");
+            run_e2e(&out);
+        }
+        other => panic!("unknown mode {other:?}"),
+    }
+}
