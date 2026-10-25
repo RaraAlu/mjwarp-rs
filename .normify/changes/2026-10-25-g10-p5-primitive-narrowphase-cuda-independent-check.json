@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-primitive-narrowphase-cuda-independent-check",
+  "title": {
+    "zh": "G10@P5 primitive narrowphase 设备版独立复核（语义/判据/覆盖缺口）",
+    "en": "Independent check of device primitive narrowphase (semantics, criteria, coverage gaps)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-g10-p5-primitive-narrowphase-cuda` 做独立复核。该片按 pinned 上游语义实装设备 primitive narrowphase（SPHERE-BOX、CAPSULE-BOX 等），并用同配方上游 f32 GPU 参考做判据对照。复核重点：**实现是否与上游 dispatch/接触生成一致、判据数字能否独立复算、未覆盖组合有没有被写成通过**。",
+    "en": "Verify device primitive narrowphase against upstream dispatch/contact generation, independently recompute criteria numbers, and check uncovered combinations are not reported as passing."
+  },
+  "modules": {},
+  "acceptance": [
+    "**语义核对**：读 pinned 上游（dispatch 条件、primitive narrowphase 的接触公式/顺序/槽位语义）与设备实现逐组合对照，产出对照表；不只读交付 README。",
+    "**判据独立复算**：用上游 f32 GPU 参考与设备输出原始数据，独立重算逐 case 的 dist ULP / pos 4·ULP(scale) / frame·normal 4 ULP / 结构字段零容差；不得直接引用交付的汇总数字；覆盖 `sphere-box`、`capsule-box` 浅/深穿透与交付声明的交叉组合。",
+    "**覆盖缺口**：核未实现/未对照的组合是否如实记为未覆盖，是否存在把「未覆盖」写成「通过」或省略；核分母/结构字段是否独立核对。",
+    "**反向判别与错误路径**：核新增测试是否真能区分正确/错误实现（反向判别），错误路径与未实现组合的行为是否有明确断言而非静默通过。",
+    "**边界**：不改判据/已 verified 数字、不改 `Cargo.*`/fixtures/S2–S8；证据写自己的目录 `docs/development-evidence/g10-p5-primitive-narrowphase-cuda-independent-check/`；GPU 复算窗口须先报 Arch 基线并经 Arch+Chief 双签（与其它 GPU 任务串行，峰值采样 0.25 s 或更密）；不碰 `g10-p5-gpu-kernels-independent-check/qa-gpu/{cases,out}`。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过；receipt 含 task_id；证据目录无 `.bin`/`.pyc`/构建产物；不得宣称精度达标/上游完全等价/原生放行/双平台通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-primitive-narrowphase-cuda"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-primitive-narrowphase-cuda-independent-check/"
+    ],
+    "resources": [],
+    "priority": 54
+  },
+  "note": "Arch 2026-10-25 预登记（每片 verified 后立即 start 下一片、QA 复核提前登记的约定）。这是设备侧三缺口第 2 片；参考捕获可能需要 GPU authoring/窗口，QA 复核的重跑窗口须串行且双签。",
+  "revision": {"before": null, "after": null},
+  "created_at": "2026-10-25T14:16:00.000Z",
+  "updated_at": "2026-10-25T14:16:00.000Z",
+  "checks": [
+    {"kind": "gate", "gate": "fmt"},
+    {"kind": "gate", "gate": "clippy"},
+    {"kind": "gate", "gate": "clippy-cuda"},
+    {"kind": "gate", "gate": "unit"},
+    {"kind": "json", "path": "docs/development-evidence/g10-p5-primitive-narrowphase-cuda-independent-check/receipt.json", "pointer": "/task_id", "equals": "2026-10-25-g10-p5-primitive-narrowphase-cuda-independent-check"},
+    {"kind": "forbid_claim", "terms": ["G10已实现", "完整物理通过", "双平台通过", "上游完全等价", "原生放行", "精度达标"]}
+  ]
+}
