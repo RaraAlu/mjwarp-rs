@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-gpu-kernels",
+  "title": {
+    "zh": "G10@P5 GPU 内核：GJK/EPA、SDF narrowphase、hfield prism CCD、接触写入（naconmax/写入顺序/efc_address）",
+    "en": "G10@P5 GPU kernels: GJK/EPA, SDF narrowphase, hfield prism CCD, contact write (naconmax, write order, efc_address)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "g10-p5 的 GPU 内核片（G5）：把 G2/G3/G4 已验证的 host 数学搬上设备并按上游 `collision_convex/gjk/sdf/driver` 内核语义接线——GJK/EPA 窄相内核、SDF narrowphase（`sdf_initpoints` 个初始点、Halton、Armijo 迭代、`naconmax`/`naccdmax` 截断）、hfield prism CCD 内核、接触写入（`worldid` 归属、写入顺序、`efc_address` 分配、溢出标志 `OverflowType`）。目标是与上游 f32 GPU 同口径对照（同配方参考），并落实 nworld>1 的 world 维上传与接触容量；本片需要**独占 GPU 窗口**。判据沿用 g10-p5 定稿口径：唯一正式判据 = 与同配方上游 `mujoco_warp` f32（GPU 后端）≤4 ULP、位级优先；native f64 只作契约框架读数、不作判据、不得宣称原生放行/精度达标。",
+    "en": "GPU kernel slice (G5) of g10-p5: move the G2/G3/G4 host math onto the device and wire it per the upstream collision_convex/gjk/sdf/driver kernel semantics - GJK/EPA narrowphase kernel, SDF narrowphase (sdf_initpoints starts, Halton, Armijo iterations, naconmax/naccdmax truncation), hfield prism CCD kernel, and contact writes (worldid ownership, write order, efc_address allocation, OverflowType flags). The goal is same-recipe comparison against upstream f32 on GPU plus landing the nworld>1 world-dim upload and contact capacity. This slice needs an exclusive GPU window. Criterion follows the finalized g10-p5 rule: the only formal criterion is <=4 ULP versus the same-recipe upstream mujoco_warp f32 on the GPU backend, bit-level first; native f64 is a contract-framework reading only and never a criterion; no native-release or precision-pass claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "GJK/EPA 内核：与 host 实现语义一致（ccd 两阶段、is_discrete 分支、EPA 退化 HORIZON/FLOAT_MAX、缓冲容量），设备结果与 G2 的 5 case 参考 ≤4 ULP（位级优先）；表达式顺序按 pinned PTX 用显式 `mul_add`/内建函数对齐（上游 PTX 为全 fma 收缩）。",
+    "SDF narrowphase 内核：`sdf_initpoints` 初始点、Halton(2,3,5)、Armijo 迭代、`naconmax`/`naccdmax` 截断与溢出语义；与 G3 host 实现一致；设备结果对同配方上游 f32 GPU 参考 ≤4 ULP。",
+    "hfield prism CCD 内核：`_hfield_filter` 候选、prism 六顶点、CONVEX 组合、0..3 四接触 + `MIN_DIST_TO_NEXT_CONTACT=1e-3` 去重；与 G4 host 一致；结果对上游 f32 GPU 参考 ≤4 ULP。",
+    "接触写入：`worldid` 归属、写入顺序、`efc_address` 分配与溢出标志（`OverflowType`：CCD/HFIELD/EPA_HORIZON/ALL）语义与上游一致；`naconmax` 截断时不得越界写、必须记录（截断计数入证据）。",
+    "nworld>1：`hfield_data`/`oct_*`/`mesh_octadr/octnum` 的 world 维上传按 G1 规格实装；两 world（含多世界接触）运行并与上游 f32 GPU 参考比较（G0b 已确认 broadphase/narrowphase 支持多世界）。",
+    "GPU 窗口纪律：开窗前报「开始 + 显存基线」，跑完报「回桌面基线 + 无本任务计算进程」；同一时间只有一个满载 GPU 任务；窗口时长与迭代次数入证据。",
+    "判据与措辞：唯一正式判据为对同配方上游 f32（GPU）≤4 ULP、位级优先；native f64 仅框架读数；证据不得出现「原生放行」「精度达标」「上游完全等价」「完整物理通过」「双平台通过」，也不得把 GPU 结果外推为性能/跨硬件结论（性能归 G6）。",
+    "不回归：G2/G3/G4 的 host 判据与既有 plane-sphere/sphere-sphere/plane-box 语义不变；不改 S2–S8 证据、`fixtures/mjwarp-complex-physics/*.xml`、`Cargo.*`；新文件 ≤500 行；门禁 fmt/clippy/clippy-cuda/unit 全过（unit 不得低于 G4 收口时数字）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-hfield-host"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/physics/",
+      "src/runtime/",
+      "native/",
+      "include/",
+      "build.rs",
+      "tests/g10_p5_gpu_kernels.rs",
+      "docs/development-evidence/g10-p5-gpu-kernels/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 61
+  },
+  "note": "Arch 2026-10-25 预先登记：按预检 §6.2，G5 是唯一需要 GPU 的片（5d），且必须独占窗口（GPU 资源规则：同一时间只一个满载任务；离线 authoring 优先）。范围按目录级登记（src/physics/、src/runtime/、native/、include/、build.rs），避免「目录 + 同名 .rs」与前两次范围冻结的坑。GPU 参考优先用同配方上游 f32（GPU 后端）；设备表达式按 pinned PTX 全 fma 收缩用显式 mul_add 对齐（S7b 方法）。等 G4 verified 后 start，开窗前报窗口。",
+  "revision": {
+    "before": "3ff80b2dc93b6f07c6b387ee9a837d0eb84f49da",
+    "after": null
+  },
+  "created_at": "2026-10-25T17:12:00.000Z",
+  "updated_at": "2026-10-25T17:12:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-gpu-kernels/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-gpu-kernels"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
