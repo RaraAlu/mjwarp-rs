@@ -311,7 +311,7 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 | S8 | `2026-10-25-render-bvh-s8-e2e` | Backend | verified | `docs/development-evidence/render-bvh/s8-e2e/` | `d8bc9d8`；产品 camlight 位姿 **0 位差**、端到端 RGB **120,000/120,000 像素 0 差异**/depth 0 ULP/seg 0、反证成立（篡改夹具位姿不变；篡改当输入变 115,972 像素）、growth 0 B、532/0 |
 | S8 复核 | `2026-10-25-render-bvh-s8-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s8-independent-check/` | `20c728c`；自写驱动复核产品链：两相机/三灯位姿 **0 位差**、模型输入灵敏度独立验证、篡改判别 6 origin+17 xmat 位不同；端到端同配方 0 差异/0 ULP/seg 0；1 ULP 判为辅助口径非缺陷；0 阻断 |
 | 渲染 perf | `2026-10-25-render-bvh-perf` | Backend | verified | `docs/development-evidence/render-bvh/perf/` | `eadae87`（+`18ae715` S8 非阻断修正）；单帧 median 14.030/14.389 ms、AA 36.174/36.423 ms、AA/单帧 2.578/2.531、显存峰值 54 MiB；**相对基准**；r01-p8 第 3 条补成满足 |
-| perf 复核 | `2026-10-25-render-bvh-perf-independent-check` | QA | in_progress | `docs/development-evidence/render-bvh/perf-independent-check/` | 30 分钟 GPU；核计时与原始序列同源/独占窗口/显存口径/相对措辞/未测项 + `18ae715` 三点修正 |
+| perf 复核 | `2026-10-25-render-bvh-perf-independent-check` | QA | verified | `docs/development-evidence/render-bvh/perf-independent-check/` | `a2123fb`；24 统计量按原始序列重算 0 mismatch、独占窗口（329+150 点采样+compute-apps）、显存 52 MiB 一次性保留判定成立、QA 独立复测同量级；`18ae715` 三点修正核实；**r01-p8 第 3 条补成满足** |
 
 结构说明：
 - 原 `2026-10-24-render-bvh-s2` 已 abandon（`8d4357f`，理由：运行中父任务写路径锁与派生任务冲突、冻结字段不可改）；拆分前参考捕获 `75166cf` 保留在 git 历史与 `fixtures/render-bvh/scene-a/s2/`，S2b 继续引用。
