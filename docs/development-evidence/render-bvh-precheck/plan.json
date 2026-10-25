@@ -417,19 +417,28 @@
         "slice": "S7b2",
         "task_id": "2026-10-25-render-bvh-s7b2-shading",
         "owner": "Backend",
-        "normify_status": "in_progress",
-        "execution": "90-minute GPU window starting from a 3,285 MiB desktop baseline",
+        "normify_status": "verified",
+        "execution": "done (90-minute GPU window, 3,335 -> 3,335 MiB, no compute process left)",
         "evidence": "docs/development-evidence/render-bvh/s7b2-shading/",
-        "note": "shading and RGB output: headlight groups, background, base color, texture sampling, vertex/face normals, emission/specular, backface culling; kernel writes packed u32 ABGR (int() truncation, a=255) so RGB <=1 LSB means <=1/255 after unpack; migrate the launch to the full 81-slot _render_megakernel signature with a per-slot table (real vs placeholder); light poses derived in cast.rs from RenderFields using the upstream f32 sequence and asserted bit-equal against a pinned-forward fixture; bvh_id slot carries a single device blob of our own packing (signature alignment only, no Warp BVH equivalence claim); depth/seg must stay at the S7b1 120,000/120,000 bit-equality baseline; same explicit-intrinsics contraction alignment method as S7b1"
+        "note": "commit f228099 (plus support accessor a96a158 in task 2026-10-25-render-bvh-texture-handles); full 81-slot _render_megakernel signature with a per-slot real/placeholder table (bvh_id carries our own device blob, signature alignment only), shading (headlight/background/base color/texture/vertex normals/emission/specular/backface culling) writing packed u32 ABGR; RGB matches the same-recipe (use_fast_math=False) reference on 120,000/120,000 pixels with zero differences; depth/seg stays at the S7b1 120,000/120,000 bit-equality baseline; light poses derived from RenderFields with the upstream f32 sequence and bit-equal to the pinned forward on 6/6 values; A-prime gate PTX 195,594 B; gates 532/0, S7b1 regression 6/6, S6b 5/5. Root cause of the 332 cross-recipe pixels was parameter-level (headlight specular exponent fixed at 64 instead of material mat_shin_exp), not fma ordering; cross-recipe stats are recorded only as a known deviation"
+      },
+      {
+        "slice": "S7b2 review",
+        "task_id": "2026-10-25-render-bvh-s7b2-independent-check",
+        "owner": "QA",
+        "normify_status": "in_progress",
+        "execution": "30-minute GPU window",
+        "evidence": "docs/development-evidence/render-bvh/s7b2-independent-check/",
+        "note": "independent re-decode of packed ABGR and unpacked f32 from rgb.npz, independent rerun, same-recipe zero-difference verification, independent semantic verification of the mat_shin_exp fix (new uv/pose), light poses recomputed from the upstream formula (three-way agreement), 81-slot per-slot table and placeholder-unread check, bvh_id blob declaration, A-prime gate and regressions"
       },
       {
         "slice": "S7b3",
         "task_id": "2026-10-25-render-bvh-s7b3-flags",
         "owner": "Backend",
         "normify_status": "proposed",
-        "execution": "blocked by S7b2",
+        "execution": "dependencies satisfied; waiting for the S7b2 review to release the GPU (gpu:windows-t4 conflict); scope widened to directory level at 3e4c0fd",
         "evidence": "docs/development-evidence/render-bvh/s7b3-flags/",
-        "note": "flag variant matrix (texture / vertex-normal / specular-emission / backface culling on-off) plus AA spp=2 image-level reference via new offline authoring capture; closes the S5 AA image-level deferral; fixtures under fixtures/render-bvh/scene-a/s7b/"
+        "note": "flag variant matrix (texture / vertex-normal / specular-emission / backface culling on-off) plus AA spp=2 image-level reference via new offline authoring capture; AA reference captured with the same recipe (use_fast_math=False) as the hard criterion while the S0b fast-math reference is a documented cross-recipe deviation; closes the S5 AA image-level deferral; must not regress the S7b1 depth/seg or S7b2 RGB baselines; fixtures under fixtures/render-bvh/scene-a/s7b/"
       }
     ],
     "structural_decisions": [
