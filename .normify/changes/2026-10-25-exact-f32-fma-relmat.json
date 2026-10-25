@@ -12,7 +12,8 @@
   },
   "modules": {},
   "acceptance": [
-    "**helper 语义（唯一实现）**：新增 `src/math/fma.rs` 的 `fma_f32(a, b, c) -> f32`，语义 = IEEE 单次正确舍入的 `a*b+c`，**全 f32、不得出现 f64**（契约 L313/L344/L454）。实现：主路 `is_x86_feature_detected!(\"fma\")` + `_mm_fmadd_ss`（unsafe 收进薄适配层、写明安全前提、`OnceLock` 缓存 CPUID，不每次检测）；无 FMA 机器自动退**纯 f32 正确舍入兜底**（Dekker/TwoSum + 精确舍入处理 tie/半 ulp，含次正规/溢出/±0/NaN/Inf 边界）。兜底路径必须可测（测试 seam，如 `MJWARP_FORCE_SOFT_FMA=1`）并写单测。",
+    "**helper 语义（唯一实现）**：新增 `src/math/fma.rs` 的 `fma_f32(a, b, c) -> f32`，语义 = IEEE 单次正确舍入的 `a*b+c`，**全 f32、不得出现 f64**（契约 L313/L344/L454）。实现：主路 `is_x86_feature_detected!(\"fma\")` + `_mm_fmadd_ss`（unsafe 收进薄适配层、写明安全前提、`OnceLock` 缓存 CPUID，不每次检测）；无 FMA 机器自动退**纯 f32 正确舍入兜底**（Dekker/TwoSum + 精确舍入处理 tie/半 ulp，含次正规/溢出/±0/NaN/Inf 边界）。兜底路径必须可测（测试 seam，如 `MJWARP_FORCE_SOFT_FMA=1`）并写单测。**模块文档必须写死三件事**（供 NP01 类型审计与后来复用者）：① 全 f32、正确舍入、无 f64；② 主路/兜底两条路径的切换条件与判定依据（`is_x86_feature_detected!(\"fma\")` 结果、`OnceLock` 缓存语义：每进程只检测一次、缓存后不再读取 CPUID）；③ 兜底路径的等价性依据（为何纯 f32 Dekker/TwoSum 在 tie/次正规边界仍等价于正确舍入）。",
+    "**产品数值链内部 f64 审计（本片只列清单、不改代码）**：契约 L344 是硬性项，只修 relmat 不够——按 `src/physics/` 与 `src/runtime/` 的实际调用链扫一遍 `f64` 使用，把「测试/诊断/ABI 转换（允许）」与「产品物理数值链（禁止）」分开列；每处给路径、行号、用途、是否在物理调用链上、影响面与建议处置；发现违规**登记后续片**，本片不改这些代码、不改任何判据/容差。审计清单写进证据 README（可作为 NP01 类型审计的输入）。",
     "**替换范围（本片只动 relmat）**：`src/physics/collision/relmat.rs` 的 `fma_f32` 改为调用共享 helper（删除其 f64 实现）；`render/bvh/aabb.rs` 的 f64 helper **不动**（加速结构、不进物理数值链），但在其注释边界说明归 render 侧口径；`gjk/polytope.rs` 与 `render/kernel/megakernel_arrays.rs` **本片不碰**（另立 fix 片）。",
     "**位型不变的硬验收**：替换后 G5 `rel_mat` 10/10 world 与 SDF 接触 40/40 位级测试**真跑且位型不变**（`cargo test` 相关 target；如需 GPU 复验按窗口纪律先报 Arch 基线并双签）；GNU 默认 / MSVC / GNU+`-C target-feature=+fma` 三构建下 helper 与相关输出**位级一致**；对硬件 FMA 参考 4096 组 + **1e6 组**差异 = 0（输入生成器参数入证据），另加边界集（次正规/溢出/±0/NaN/Inf）。",
     "**红线**：若替换后位型变化（说明 f64 仿真与真 FMA 有偏差、既有期望曾依赖它），**立即停手报 Arch**，不许改期望值/判据/容差凑绿。不改 `gates.toml`、G01 脚本、排除清单、产品数值语义与已 verified 证据。",
