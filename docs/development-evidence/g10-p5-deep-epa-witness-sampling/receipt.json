@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-deep-epa-witness-sampling",
+  "status": "in_progress",
+  "outcome": "gate_passed_pending_commit",
+  "slice": "P5-witness-deep-epa",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "scope": {
+    "kind": "定性分析（本片不改产品代码、不改判据、不开 GPU 窗口）",
+    "evidence_dir": "docs/development-evidence/g10-p5-deep-epa-witness-sampling/",
+    "gpu_used": "未使用（CPU 侧分析已有 24 姿态原始数据即可得出结论；任务记录中的窗口仅在「必须补姿态才能定性」时启用）",
+    "cargo_changed": false,
+    "product_code_changed": false,
+    "python_in_product_tests": false
+  },
+  "verification": {
+    "data_sources": {
+      "upstream_raw": "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-witness-gpu.json（sweep cylinder-box，24 world，上游 f32 GPU 参考）",
+      "device_raw": "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-gpu/out/cylinder-box-sweep/{dist,x1,x2,ncontact,index,overflow}[-run2].bin（QA 探针未跟踪产物，只读；12 个 bin 的 sha256 记入 analysis.json）",
+      "pose_generation": "QA qa_prepare_capture.py：np.random.default_rng(20251025)，base qpos + 随机轴角 angle∈[-1.4,1.4] + free joint 位置 uniform(-0.08,0.08)×3，24 world"
+    },
+    "recomputed": {
+      "dist": "位等 17/24，max 4.0 ULP，0 越界",
+      "x1_over_bound_worlds": [8],
+      "x2_over_bound_worlds": [8, 10, 15],
+      "x1_worst": "world 8 abs 8.926e-7 = 29.95×界（4·ULP@scale=2.98e-8）= 119.8 ULP@scale",
+      "x2_worst": "world 8 abs 1.527e-7 = 10.25×界",
+      "ncontact_equal_worlds": 24,
+      "index_equal_worlds": 24,
+      "overflow_nonzero_worlds": 0,
+      "two_runs_bitwise_identical": true,
+      "penetration_depth_range": "0.080349–0.147022 m（中位 0.110051）",
+      "depth_correlation_pearson": {
+        "x1_over_bound": 0.24731591945819492,
+        "x2_over_bound": 0.18496991123331835,
+        "x1_normal_component": 0.08960495429155747,
+        "x1_tangential_component": 0.2511157213101114
+      },
+      "cross_check_with_qa_summary": "9/9 项（x1_bad=1、x2_bad=3、dist_bit_equal=17、dist_max_ulp=4、dist_bad=0、ncontact、index 配对、overflow、两次运行位等）与 qa-compare-gpu.json 的 witness_cases.cylinder-box-sweep 一致"
+    },
+    "attribution": {
+      "world8": "x1 偏差 |Δx1|=1.101e-6，法向分量 2.348e-8（界内）、切向 1.101e-6；x2 |Δx2|=1.531e-7；设备/上游派生法线差 δθ=7.71e-6 rad（0.000442°）；|dist|·δθ=1.0348e-6 与实测点对差 |Δx1-Δx2|=1.0352e-6 比值 1.00043；dist 仅差 1 ULP；ncontact/index 相等、overflow=0；两次运行逐位相同",
+      "world10_15": "x2 超界 1.375×/1.5×，绝对 5.12e-9/2.24e-8（1–3 ULP@scale）→ 边界舍入级",
+      "excluded": [
+        "EPA horizon/迭代退化：overflow 24/24=0、ncontact 24/24、dist≤4 ULP 且非 FLOAT_MAX",
+        "witness 提取公式/存储错误：设备自洽残差 ≤1.35e-6，偏差可由 |dist|·δθ 解释（1.00043）",
+        "f32 累加顺序随机性：两次运行逐位相同、单姿态确定性大偏离而非全姿态散布",
+        "深穿透 multiccd_idx/接触槽选择：index 24/24、ncontact 24/24 相等，overflow 0",
+        "系统性偏差：24 中仅 1 个明显 + 2 个边界舍入级，与深度不相关（Pearson≤0.25），最深 world 偏差为 0"
+      ],
+      "conclusion": "world 8 是深穿透（0.1342 m）下近简并 EPA 选面/派生法线差（δθ≈7.7e-6 rad）被深度放大为 ~1.0e-6 m witness 位置差；属接触流形内 witness 位置的不确定度，不是系统性实现缺陷；但无 face_idx/三顶点/权重导出，不能断言选面与上游完全一致（列为未覆盖）"
+    },
+    "recommendation": "不需要修正片（无可定位公式/索引错误、无系统性偏差；对齐选面 tie-break 代价高、收益仅该额外采样面 1/24 姿态）。若声明面要覆盖深穿透 witness 位置：建议用 dist + ncontact/index/overflow 作判据、witness 位置只作信息量，或把该面列为未覆盖；任何判据/声明面调整需 Arch→Chief→用户决定，本片未自行放宽",
+    "minimum_repro": "QA case cylinder-box-sweep 的 world 8（0-based），姿态生成 seed 20251025；参考/设备值与偏差分解见 analysis-worlds.jsonl 第 9 行",
+    "gate": "passed（fmt/clippy/clippy-cuda/unit 全绿，unit 592 过 0 败）"
+  },
+  "artifacts": {
+    "readme": "docs/development-evidence/g10-p5-deep-epa-witness-sampling/README.md",
+    "receipt": "docs/development-evidence/g10-p5-deep-epa-witness-sampling/receipt.json",
+    "analysis_json": "docs/development-evidence/g10-p5-deep-epa-witness-sampling/analysis.json",
+    "analysis_worlds": "docs/development-evidence/g10-p5-deep-epa-witness-sampling/analysis-worlds.jsonl",
+    "analysis_log": "docs/development-evidence/g10-p5-deep-epa-witness-sampling/analysis.log",
+    "analyze_script": "docs/development-evidence/g10-p5-deep-epa-witness-sampling/analyze_deep_epa.py"
+  },
+  "gate": "passed（fmt/clippy/clippy-cuda/unit 全绿，unit 592 过 0 败）",
+  "unmet": [
+    "无 face_idx/EPA 三顶点/权重导出：无法做「同一 world 选面逐项对照」；终局归因需补 GPU 窗口并给设备/上游都加导出",
+    "witness 捕获无 frame/normal 字段：不能判断该姿态在接触数组 frame/normal 判据下是否越界，本片只讨论 witness 位置面",
+    "QA 设备输出为未跟踪产物：本片只读不复制（sha256 已记）；若被清理则不能重跑原始比对（derived 数字仍可复核）",
+    "未改任何判据/容差/已 verified 数字/S2–S8/Cargo.*/fixtures；本片不提供放行或等价结论"
+  ]
+}
