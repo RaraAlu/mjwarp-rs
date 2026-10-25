@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-case-evidence-frame-diagnosis",
+  "status": "diagnosis_complete_pending_arch_review",
+  "head": "47f1f7a3",
+  "head_note": "实验执行时 HEAD=eddad9c0（=61fb6baf + r2 证据注记）；其后 c4a684c8/47f1f7a3 为 QA 复核与治理提交，仅 docs/.normify，src/tests/fixtures 相对 eddad9c0 无变化（git diff 为空）",
+  "nature": "只诊断：不修改判据/容差/排除清单/产品源码/gates.toml/G01 脚本，不跑 GPU，不改已 verified 证据",
+  "environment": {
+    "os": "Windows 11 Pro 10.0.26200",
+    "cpu": "AMD Ryzen 9 9950X3D (FMA3 available)",
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "default_toolchain": "1.99.0-x86_64-pc-windows-gnu (active via rust-toolchain.toml channel=1.99.0)",
+    "msvc_toolchain": "1.99.0-x86_64-pc-windows-msvc",
+    "gnu_rustflags_from_repo_config": ["-C", "link-dead-code=yes"],
+    "env_CARGO_RUST": "清空后为空；仅在受控实验时显式设置 CARGO_TARGET_DIR / RUSTFLAGS 并记录"
+  },
+  "clean_build_criterion": {
+    "steps": [
+      "新建专用 CARGO_TARGET_DIR（本片 target/diag-*；不复用 verify-clean-001/002 或主 target）",
+      "清空 CARGO_*/RUST* 环境变量并记录清空前后的原始输出",
+      "记录 deps 文件数：全新基线 GNU=62 / MSVC=65；复用目录 1557（verify-clean-001）/ 13262（主 target）",
+      "记录 rustc -vV（host triple）、cargo -V、.rustc_info.json host、cargo test --no-run -v 中 --crate-name mjwarp_rs 的工具链路径与 -C 参数",
+      "判据只用行为（exit/结果行），不用 exe sha（debug 构建不位级可复现；同体积 54,607,221 B 不同 sha 已观察）"
+    ],
+    "non_clean_examples": {
+      "verify-clean-001": "1557 deps 文件（多配置叠加）",
+      "main_target": "13262 deps 文件 / 68 个 mjwarp_rs-*.exe；.rustc_info.json 最近 host=gnu"
+    }
+  },
+  "matrix": [
+    {"env": "arch-verify-clean (Arch)", "toolchain": "gnu", "clean": true, "deps": 295, "result": "1 passed", "frame": "未打印"},
+    {"env": "verify-clean-001 (Backend, 非 clean)", "toolchain": "msvc", "clean": false, "deps": 1557, "result": "默认/cuda-probe/all-features 三配置均红", "frame": "6.351978e-7"},
+    {"env": "main target/ (非 clean)", "toolchain": "混用（.rustc_info 最近 gnu）", "clean": false, "deps": 13262, "result": "同测 exe pass/fail 混杂，不作证据源", "frame": "不可信"},
+    {"env": "target/diag-gnu-control", "toolchain": "gnu", "clean": true, "deps": 62, "exit": 0, "result": "1 passed", "frame": "3.838112e-7"},
+    {"env": "gnu worktree 删除 .cargo/config.toml", "toolchain": "gnu", "clean": true, "deps": "62 级", "exit": 0, "result": "1 passed", "frame": "3.838112e-7", "note": "无 link-dead-code"},
+    {"env": "target/diag-msvc-control", "toolchain": "msvc", "clean": true, "deps": 65, "exit": 101, "result": "FAILED", "frame": "6.351978e-7"},
+    {"env": "target/diag-msvc-plus-ldc", "toolchain": "msvc", "clean": true, "deps": 67, "exit": 101, "result": "FAILED", "frame": "6.351978e-7", "note": "RUSTFLAGS=-C link-dead-code=yes"},
+    {"env": "target/diag-gnu-fma", "toolchain": "gnu", "clean": true, "deps": 62, "exit": 101, "result": "FAILED", "frame": "6.351978e-7", "note": "硬件 FMA"},
+    {"env": "target/diag-msvc-fma", "toolchain": "msvc", "clean": true, "deps": 65, "exit": 101, "result": "FAILED", "frame": "6.351978e-7", "note": "硬件 FMA"},
+    {"env": "target/diag-gnu-release", "toolchain": "gnu", "clean": true, "deps": 62, "exit": 0, "result": "1 passed", "frame": "3.838112e-7"},
+    {"env": "target/diag-msvc-release", "toolchain": "msvc", "clean": true, "deps": 65, "exit": 101, "result": "FAILED", "frame": "6.351978e-7"}
+  ],
+  "root_cause": {
+    "summary": "windows-gnu 默认构建的 f32::mul_add 回退不是 IEEE 单次舍入 FMA：与硬件 FMA 对比 991/4096 组差 1 ULP；MSVC 默认构建与硬件 FMA 一致（0/4096）。碰撞 host 路径唯一 f32::mul_add 使用点（gjk/polytope.rs face_norm2 点积链，EPA 面法线）因此受影响；ellipsoid-box 为穿透 case（参考 dist=-0.00999989…），走 EPA。",
+    "affected_site": "src/physics/collision/gjk/polytope.rs:67-70（mul_add 链），经 polytope.rs:260 / epa.rs:79-81 影响 EPA 面法线与接触 frame",
+    "effect": "GNU 默认 frame=3.838112e-7（<4.8e-7 判据 → pass）；MSVC 默认 / GNU+硬件FMA / MSVC+硬件FMA 三者 frame 相同=6.351978e-7（>4.8e-7 → fail）。即 GNU 默认的 pass 是非合规 fmaf 的偶合；faithful FMA 行为约 5.3 ULP 超判据。",
+    "team_precedent": "relmat.rs:10-15 与 render/bvh/aabb.rs:126 均明确避免 f32::mul_add（注释记录 QA 位差 0x3f17e6af vs 正确 0x3f17e6b0 / 本目标 debug 回退不保证单次舍入）；gjk/polytope.rs 是遗漏点。"
+  },
+  "probe_stats": {
+    "toolchain": "rustc 1.99.0；opt-level=0、debug-assertions=on；4096 组确定性 f32 三元组",
+    "gnu_default_mul_add_vs_hw_fma": "991/4096，全部 1 ULP",
+    "msvc_default_mul_add_vs_hw_fma": "0/4096",
+    "gnu_fma_vs_msvc_fma": "0/4096",
+    "gnu_default_mul_add_vs_unfused": "986/4096",
+    "gnu_default_mul_add_vs_f64_double_round": "991/4096",
+    "msvc_default_mul_add_vs_f64_double_round": "0/4096",
+    "known_vectors_all_builds_fused_and_equal": true,
+    "log": "probe-fmaf.log"
+  },
+  "product_min_diff": {
+    "dist_pos_unchanged_across_builds": "dist 2/2 位等 max 0 ULP；pos 1/2 接触 2.00 ULP@尺度",
+    "gnu_default_frame": "3.838112e-7",
+    "msvc_default_frame": "6.351978e-7",
+    "gnu_hw_fma_frame": "6.351978e-7",
+    "msvc_hw_fma_frame": "6.351978e-7",
+    "gnu_release_frame": "3.838112e-7",
+    "msvc_release_frame": "6.351978e-7",
+    "conclusion": "pass/fail 翻转的唯一变量是 FMA 舍入语义；其余数值一致"
+  },
+  "excluded_causes": [
+    "CARGO_*/RUST* 环境变量（清空后不变；Arch 侧 G2_DUMP_NATIVE_ERROR 不参与断言）",
+    "-C link-dead-code=yes（MSVC 加上仍红；GNU 删 .cargo/config.toml 仍绿）",
+    "--release / opt-level（GNU release 绿、MSVC release 红，同 debug 结论）",
+    "产物复用/指纹/时钟（全部实验用全新专用目录复现两侧结果；verify-clean-001/主 target 只是多配置叠加）",
+    "fixture/输入差异（4 个关键输入与 HEAD 逐字节一致，见 r2 证据）"
+  ],
+  "r2_impact": {
+    "gnu_gate_green": "r2 的 GNU 口径 gate/默认全绿数值成立，但依赖 GNU 非合规 fmaf；faithful FMA 下同 case 为 6.351978e-7（红）",
+    "g01_host_msvc": "Arch 复现 --features native-model-probe,cuda-probe --lib（MSVC）= 689 passed / 1 failed / 137 ignored（唯一失败即本测试）；与本片 MSVC 结论一致",
+    "changed_verified_evidence": false
+  },
+  "candidate_dispositions": [
+    {"option": "① 统一数值验收工具链", "detail": "要求 IEEE 正确 FMA 构建（MSVC，或 GNU 加 -C target-feature=+fma）", "owner": "Arch/Chief（改门禁属独立片）", "implemented": false},
+    {"option": "② 修实现（推荐方向）", "detail": "gjk/polytope.rs 的 f32::mul_add 换成与 relmat.rs 一致的单次舍入实现或显式硬件 FMA；再排查残余 5.3 ULP", "owner": "Backend/Arch 另立片", "implemented": false},
+    {"option": "③ 判据/容差调整", "detail": "frame 4.8e-7 上限是否放宽/改口径", "owner": "用户拍板", "implemented": false},
+    {"option": "④ 双 target 必过 / CI 策略", "detail": "G01 host-msvc 红是否阻断、是否要求 GNU/MSVC 双绿", "owner": "Chief/用户", "implemented": false}
+  ],
+  "boundaries": {
+    "modified_product_code": false,
+    "modified_judgment_tolerance_exclusions": false,
+    "modified_gates_or_g01_scripts": false,
+    "gpu_run": false,
+    "linux_run": false,
+    "mingw_fmaf_implementation_detail": "未定（只给行为证据；具体 lib/算法可另立片查 mingw-w64 源码/反汇编）",
+    "note": "不宣称物理整体通过/精度达标；不改已 verified 证据"
+  },
+  "gate": {
+    "status": "run_at_task_close",
+    "runs_dir": ".normify/runs/2026-10-25-case-evidence-frame-diagnosis/"
+  },
+  "evidence_files": [
+    "README.md",
+    "probe-fmaf.log",
+    "gnu-control.log",
+    "msvc-control.log",
+    "msvc-plus-ldc.log",
+    "gnu-fma.log",
+    "msvc-fma.log",
+    "gnu-release.log",
+    "msvc-release.log",
+    "gnu-no-config.log"
+  ]
+}

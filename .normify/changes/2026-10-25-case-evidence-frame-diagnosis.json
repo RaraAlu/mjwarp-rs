@@ -5,7 +5,7 @@
     "zh": "诊断：case_evidence frame 结果对构建环境敏感（同树同命令两环境 pass/fail 相反）",
     "en": "Diagnose build-environment sensitivity of case_evidence frame results (same tree/command, opposite outcomes)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "T4 第 13 轮重钉（`2026-10-25-t4-source-hash-repin-13-r2`）复核时发现：**同一棵树、同一条命令** `case_evidence::upstream_f32_within_4ulp`（判据 `ellipsoid-box frame ≤ 4.8e-7`）在两个构建环境里结果相反——Arch 的全新 `target/arch-verify-clean`（默认特性）**通过**（且干净 `cargo test --locked --no-fail-fast` exit 0、干净 `--features cuda-probe --lib` 678/0/137）；Backend 的 `target/verify-clean-001` 环境在默认/cuda-probe/all-features 三配置下**均红**（frame 实测 `6.351978e-7`）。同时观测到可疑产物痕迹：同一 crate 同配置出现 10.6 MB / 54.6 MB 两种体积的测试二进制、`ctime` 出现 `13:04` 的未来时间、主 `target/debug/deps` 下同树同特性 pass/fail 二进制混杂。本片只做**诊断与归因**：定位差异来源（编译环境变量 / 编译选项 / 工具链 / 产物指纹与复用 / 时钟异常），给出可复现证据与候选处置；**不改判据、不动容差、不改排除清单、不改产品代码**。",
     "en": "Diagnose why the same case_evidence assertion passes in one clean build environment and fails in another (with suspicious artifact provenance), without changing tolerances or product code."
@@ -36,17 +36,29 @@
   },
   "note": "Arch 2026-10-25 登记并改口径：最初依据「仅 --all-features 下红」推断为特性交互，后经干净 target 实验推翻——真相是**构建环境敏感性**（同树同命令两环境结果相反）+ 可疑产物来源。要点：仓库默认环境下 `cargo test --locked --no-fail-fast` exit 0、干净 `--features cuda-probe --lib` 678/0/137、非缓存 `normify gate` unit 595/0（22.5 s），因此 r2 的身份重钉以默认环境为验收依据；本片只诊断，任何判据/容差处置须经 Chief 转用户决策卡。",
   "revision": {
-    "before": "92832c4acc1187ed2f01daba967fdefe4eecff86",
+    "before": "6e6c289e7b8e985f002025c22c75344f03dd2cc6",
     "after": null
   },
   "created_at": "2026-10-25T17:02:00.000Z",
-  "updated_at": "2026-10-25T17:20:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T17:30:54.336Z",
+  "closed_at": "2026-10-25T17:30:54.336Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "json",
       "path": "docs/development-evidence/case-evidence-frame-diagnosis/receipt.json",

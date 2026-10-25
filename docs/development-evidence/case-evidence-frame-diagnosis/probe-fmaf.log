@@ -1,0 +1,54 @@
+# f32::mul_add 语义微探针（case_evidence frame 环境敏感性诊断）
+# 日期: 2026-10-26 01:4x Asia/Shanghai
+# HEAD: eddad9c024dab798bcaac41782d3cfdc9f565e91
+# 工具链: rustc 1.99.0 (b940084d7 2026-09-28)；两个 host 工具链
+#   1.99.0-x86_64-pc-windows-gnu（仓库默认，rust-toolchain.toml → active）
+#   1.99.0-x86_64-pc-windows-msvc
+# CPU: AMD Ryzen 9 9950X3D（支持 FMA3，`-C target-feature=+fma` 可直接执行）
+#
+# 编译命令（与 cargo test dev profile 对齐：opt-level=0、debug-assertions=on）：
+#   rustc <toolchain> --edition 2024 -C opt-level=0 -C debug-assertions=on [额外 flags] probeN.rs
+# 输入：4096 组确定性 LCG 生成的 f32 三元组（a/b/c 值域约 [-1,2)），两套构建输入完全相同。
+#
+# 参考 1：硬件 FMA = `-C target-feature=+fma` 构建的 mul_add（x86 FMA3 指令，IEEE 单次舍入）
+# 参考 2：非融合 `a*b + c`（逐次舍入）
+# 参考 3：f64 双舍入 `(f64(a)*f64(b) + f64(c)) as f32`
+
+## 表 1：mul_add 与各参考的比较（不同项 / 4096）
+
+| 对比 | GNU 默认 | MSVC 默认 |
+| --- | --- | --- |
+| vs 硬件 FMA（两个 +fma 构建互相比较 = 0/4096） | **991**（全部 1 ULP） | **0** |
+| vs 非融合 `a*b+c` | 986 | 55 |
+| vs f64 双舍入 | 991 | 0 |
+
+- `-C target-feature=+fma` 下 GNU 与 MSVC 构建结果互相一致（0/4096）；
+- 结论：GNU 默认构建的 `f32::mul_add` 与 IEEE 硬件 FMA 不一致（991/4096 差 1 ULP）；
+  MSVC 默认构建与硬件 FMA 完全一致。
+
+## 表 2：已知向量（四构建结果全部一致，且为正确融合）
+
+| a | b | c | mul_add | 非融合 |
+| --- | --- | --- | --- | --- |
+| 1+2^-23 (3f800001) | 1-2^-23 (3f7fffff) | -1 | 337ffffe (5.9604638e-8) | 00000000 (0) |
+| 1 | 1 | -1 | 00000000 | 00000000 |
+| 3 | 7 | -21 | 00000000 | 00000000 |
+| 0.1 | 0.2 | 0.3 | 3ea3d70b | 3ea3d70b |
+| 1+2^-23 | 1 | -1 | 34000000 (1.1920929e-7) | 34000000 |
+
+→ 差异不是「完全不融合」，而是**特定输入下 1 ULP 的舍入差异**；与 `relmat.rs` 注释记录的
+QA 现象（`0x3f17e6af` vs 正确 `0x3f17e6b0`）一致。
+
+## 产品级最小差分（同源码/同 features，仅构建工具链不同）
+
+| 构建 | 测试结果 | ellipsoid-box frame max abs |
+| --- | --- | --- |
+| GNU 默认（target/diag-gnu-control） | pass (exit 0) | 3.838112e-7 |
+| GNU 默认 + `-C target-feature=+fma`（diag-gnu-fma） | fail (exit 101) | 6.351978e-7 |
+| MSVC 默认（diag-msvc-control） | fail (exit 101) | 6.351978e-7 |
+| MSVC + `-C target-feature=+fma`（diag-msvc-fma） | fail (exit 101) | 6.351978e-7 |
+| GNU release（diag-gnu-release） | pass | 3.838112e-7 |
+| MSVC release（diag-msvc-release） | fail | 6.351978e-7 |
+
+- `dist`：两环境均 2/2 位等、max 0 ULP；`pos`：1/2 接触 2.00 ULP@尺度；frame：13/18 分量位等。
+- 打开硬件 FMA 后 GNU/MSVC 结果**完全相同**；pass/fail 翻转的唯一变量是 FMA 舍入语义。
