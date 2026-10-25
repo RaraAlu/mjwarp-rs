@@ -5,7 +5,7 @@
     "zh": "渲染/BVH S7b2：渲染内核着色与RGB输出（纹理/法线/高光/自发光）",
     "en": "Render/BVH S7b2: render kernel shading and RGB output (texture/normal/specular/emission)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "渲染/BVH 第十二片（plan S7b 拆分第二片，S7b1 已 verified）：在 S7b1 主射线/深度/分割之上实现着色阶段与 RGB 输出——headlight 三组（环境/漫反射/高光）、背景色、几何 base color、纹理采样（S4 注册表/硬件 texture object）、顶点法线 vs 面法线、自发光/高光项、背面剔除；对照冻结参考 rgb.npz 验收（两相机、每通道 ≤1 LSB）。不含阴影/天空盒/splat/flex/hfield/多相机；AA 与 flag 变体矩阵归 S7b3。",
     "en": "Twelfth render/BVH slice (second split of plan S7b; S7b1 verified): implement the shading stage and RGB output on top of S7b1 primary rays/depth/segmentation - headlight groups (ambient/diffuse/specular), background color, geometry base color, texture sampling (S4 registry/hardware texture object), vertex vs face normals, emission/specular terms, backface culling; validate against the frozen rgb.npz reference (two cameras, every channel <=1 LSB). No shadows/skybox/splats/flex/hfield/multi-camera; AA and the flag variant matrix belong to S7b3."
@@ -44,12 +44,11 @@
   },
   "note": "Arch 2026-10-25 结构裁决：S7b 拆为 S7b1/S7b2/S7b3。S7b2 只做「默认 context 下 RGB 与参考一致 + 着色开关的主机侧拒绝面」；flag 变体矩阵与 AA(spp=2) 图像级验收放 S7b3（需要新 authoring 捕获，GPU 作者侧离线），避免同一片里既改内核又扩夹具。Arch 2026-10-25 追加：S7b1 内核用精简入口 render_depth_seg（只含真实数据，证据有「子集槽→上游槽」映射表）；**S7b2 负责把渲染入口迁移到 S7a 冻结的 81 槽 _render_megakernel 全签名**（light_xpos/light_dir/light_castshadow/light_spot/geom_rgba/mat_*/texture 数组这时有真数据），迁移后 depth/seg 结果相对 S7b1 不得回归，且映射表要逐槽核对。Arch 2026-10-25 再追加：S7b1 已定位「产品 NVRTC 12.8.1 与参考 warp 自带 NVRTC 12.9/sm_89 的 fma 收缩顺序不同」是掠射像素 ULP 差异根因，用显式 fma 序列对齐上游后 depth 120,000/120,000 位等；S7b2 的着色路径（div/sqrt/归一化/高光）会遇到同类收缩顺序问题，须沿用同一方法（显式 intrinsics 固定上游顺序），不放宽容差；RGB 每通道 ≤1 LSB 是硬指标。",
   "revision": {
-    "before": "372c453c1127dbb835dcc7cc63587c770c9a6981",
+    "before": "1b22de4fedb810ac7f1bf857f5ea98f541d3ad30",
     "after": null
   },
   "created_at": "2026-10-25T06:14:00.000Z",
-  "updated_at": "2026-10-25T06:14:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T04:18:24.250Z",
   "checks": [
     {
       "kind": "gate",
