@@ -161,3 +161,27 @@ fixtures/g10-p5/sdf-f32/oct_coeff.f32: text: unset
 | `spot-checkout-roundtrip.json` | 5 个样本 `checkout -f` 往返 sha256 对照 |
 | `summary.json` | 汇总（HEAD / 属性计数 / before 7 / after 0 / spot ok） |
 | `receipt.json` | 任务回执（scope、验证数值、证据 sha256、门禁、unmet） |
+| `main-worktree-verify.json` | 主工作树一致性核验（1440/1440 与索引 blob 一致、7 个已知样本三重对照）+ 迁移说明 |
+
+## 主工作树核验与迁移说明（Arch 2026-10-25 追加，Chief 要求）
+
+**背景**：QA 独立复核（`2026-10-25-evidence-bin-eol-hygiene-independent-check`，`318163df`）的「观察 1」
+指出：**原地升级不会修复已损坏的工作树**——新增 `.gitattributes` 规则只影响此后的 checkout/clone，
+checkout 不会重写 blob 未变的文件，旧 stat 缓存还会让 `git status` 继续显示干净。这意味着任何
+「修复前就已存在的工作树/克隆」都可能带着被 CRLF 改写的 `.bin` 而不自知。
+
+**主工作树实测（不依赖 `git status` 缓存）**：对全部已跟踪二进制扩展名文件
+（`.bin/.f32/.npz/.gz/.mjb`，共 **1440** 个）逐个 `git hash-object --stdin-paths --no-filters` 与
+`git ls-files -s` 的索引 blob sha 比对 → **1440/1440 一致、0 mismatch**；并对「修复前会被破坏」的
+已知 7 个样本做工作树 sha256 vs `git cat-file blob` sha256 + size 三重对照 → 7/7 全等、尺寸为原始值
+（8/24 字节，不是 +1/+2）。**结论：主工作树未损坏，无需 `git checkout -- .`。** 明细见
+`main-worktree-verify.json`。
+
+**迁移说明（比规则本身更重要，务必照做）**：
+1. **已有工作树/克隆不会自动修复**——必须执行 `git checkout -- .`（或删除后重新 clone），否则读到的
+   证据 `.bin` 可能多 1–2 字节（`0x0A` → `0x0D 0x0A`）。
+2. **`git status` 干净不能作为「未损坏」的证据**（旧 stat 缓存会掩盖已改写内容）。
+3. 判定是否损坏：用 `git hash-object --no-filters <file>` 与 `git ls-files -s` 的 blob sha 比对，
+   或直接比对 `git cat-file blob` 字节；本目录 `main-worktree-verify.json` 与
+   `verify-bin-checkout.ps1` 可复现。
+

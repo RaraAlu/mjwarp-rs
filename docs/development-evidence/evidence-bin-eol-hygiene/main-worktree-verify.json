@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "kind": "evidence-bin-eol-hygiene-main-worktree-verify",
+  "generated_at": "2026-10-25T20:05:00+08:00",
+  "head": "318163df",
+  "method": "对全部已跟踪二进制扩展名文件（.bin/.f32/.npz/.gz/.mjb）逐个执行 `git hash-object --stdin-paths --no-filters`，与 `git ls-files -s` 的索引 blob sha 比对；另对已知 7 个「修复前会被 CRLF 破坏」的样本做工作树 sha256 vs `git cat-file blob` sha256 + size 三重对照。不依赖 `git status` 的 stat 缓存。",
+  "checked_files": 1440,
+  "mismatch": 0,
+  "conclusion": "主工作树未损坏：1440/1440 个二进制扩展名文件与索引 blob 逐字节一致；7 个已知样本尺寸为原始值（8/24 字节，不是 +1/+2）且 sha256 与 blob 全等 → 无需 `git checkout -- .`。",
+  "known_seven": [
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/box-box-margin/geom_margin.bin", "size": 8, "sha256": "71bd145b289665ed1a6f76fa379608f7067641dda9933724b20f7bca5b1529be", "matches_blob": true},
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/box-box-margin/geom_size.bin", "size": 24, "sha256": "4a47978227a7c450709ba2b1b24eb394982bac20117eecfe366f74b6a09996d2", "matches_blob": true},
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/box-box-margin/out1/includemargin.bin", "size": 8, "sha256": "e8bc1851972c560fbc0ffd9915c22e07f4877914d2a39d16f54ce08bc0ff98f2", "matches_blob": true},
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/box-box-margin/out2/includemargin.bin", "size": 8, "sha256": "e8bc1851972c560fbc0ffd9915c22e07f4877914d2a39d16f54ce08bc0ff98f2", "matches_blob": true},
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/ellipsoid-box/geom_size.bin", "size": 24, "sha256": "856be4402e5ac93dba96d9c3a740133abe4f65530950a4273ea6f00c66fd7954", "matches_blob": true},
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/mesh-mesh/witness1/x1.bin", "size": 24, "sha256": "0dab017570276789890833a20a0075dc26920ee2241c395350f748a4543a078f", "matches_blob": true},
+    {"path": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/mesh-mesh/witness2/x1.bin", "size": 24, "sha256": "0dab017570276789890833a20a0075dc26920ee2241c395350f748a4543a078f", "matches_blob": true}
+  ],
+  "migration_note": "已有工作树/克隆不会因新增 `.gitattributes` 规则而自动修复：checkout 不会重写 blob 未变的文件，且旧 stat 缓存会让 `git status` 继续显示干净。已有损坏工作树必须执行 `git checkout -- .`（或删除后重新 clone）才能得到正确字节；`git status` 干净不能作为「未损坏」的证据。已损坏文件的判定应使用 `git hash-object --no-filters` 与索引 blob 比对，或直接比对 `git cat-file blob` 字节。",
+  "cross_reference": "QA 独立复核（`2026-10-25-evidence-bin-eol-hygiene-independent-check`，提交 `318163df`）的「观察 1」提出同一问题；本条为主工作树实测落地。"
+}
