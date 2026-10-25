@@ -408,19 +408,19 @@
         "slice": "S7b1 review",
         "task_id": "2026-10-25-render-bvh-s7b1-independent-check",
         "owner": "QA",
-        "normify_status": "in_progress",
-        "execution": "30-minute GPU window",
+        "normify_status": "verified",
+        "execution": "done",
         "evidence": "docs/development-evidence/render-bvh/s7b1-independent-check/",
-        "note": "independent npz re-decode, independent rerun of the 6 GPU cases, and independent verification that the fma alignment fixed upstream operation order rather than fitting the 149 pixels (ray substitution / mutation), plus unchanged scene.cu / recipe / tolerances and cross-recipe delta still recorded only"
+        "note": "commits 51ee2d0 + 7df5ad6; QA re-decoded the fixtures itself: depth 120,000/120,000 bit-identical, seg 0 mismatch, dynamic==precomputed, two worlds, refit 754 deterministic, DisabledOutput, gates 532/0, PTX 137,824 B with 2 f64 allowlist entries, scene.cu unchanged, launch.rs 500 lines. Independent PTX-order derivation: reference order reproduces 747/747 sphere pixels bit-exactly on camera 1 while an equivalent-looking order gives only 87/747 (187 pixels beyond 4 ULP); with a new camera pose the reference order is 813/813 bit-exact vs 192 pixels beyond 4 ULP for the wrong order, so the fix is arithmetic-order alignment, not fixture fitting"
       },
       {
         "slice": "S7b2",
         "task_id": "2026-10-25-render-bvh-s7b2-shading",
         "owner": "Backend",
-        "normify_status": "proposed",
-        "execution": "dependencies satisfied; waiting for the S7b1 review to release the GPU (gpu:windows-t4 conflict)",
+        "normify_status": "in_progress",
+        "execution": "90-minute GPU window starting from a 3,285 MiB desktop baseline",
         "evidence": "docs/development-evidence/render-bvh/s7b2-shading/",
-        "note": "shading and RGB output: headlight groups, background, base color, texture sampling, vertex/face normals, emission/specular, backface culling; RGB <=1 LSB per channel on two cameras; migrate to the 81-slot _render_megakernel signature (mapping table per slot); reuse explicit-intrinsics contraction alignment for div/sqrt/normalize; depth/seg must not regress vs S7b1"
+        "note": "shading and RGB output: headlight groups, background, base color, texture sampling, vertex/face normals, emission/specular, backface culling; kernel writes packed u32 ABGR (int() truncation, a=255) so RGB <=1 LSB means <=1/255 after unpack; migrate the launch to the full 81-slot _render_megakernel signature with a per-slot table (real vs placeholder); light poses derived in cast.rs from RenderFields using the upstream f32 sequence and asserted bit-equal against a pinned-forward fixture; bvh_id slot carries a single device blob of our own packing (signature alignment only, no Warp BVH equivalence claim); depth/seg must stay at the S7b1 120,000/120,000 bit-equality baseline; same explicit-intrinsics contraction alignment method as S7b1"
       },
       {
         "slice": "S7b3",

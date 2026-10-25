@@ -302,8 +302,8 @@ smoke 运行在 `target/render-bvh-precheck/warp-cache`（临时）生成：
 | S7a | `2026-10-24-render-bvh-s7a` | Backend | verified | `docs/development-evidence/render-bvh/s7a-launch-abi/` | `a0d9af0`；81 槽 ABI（13 类元素/56B RenderArray）、`WARP_1_15_RENDER`+`F32Render`、PTX 25996 B、GPU 2/2、532/0 |
 | S7a 复核 | `2026-10-25-render-bvh-s7a-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s7a-independent-check/` | `2bb8155`；A′ 成立（全 PTX 恰 2 条 f64、11 例变异判定 1:1）、81 槽 13/13、拒绝 10/10、2/2、532/0 |
 | S7b1 | `2026-10-25-render-bvh-s7b1-kernel` | Backend | verified | `docs/development-evidence/render-bvh/s7b1-depth-seg/` | `3e43278`；depth 对同配方参考 **120,000/120,000 位等（max 0 ULP）**、seg 全等、532/0；originally 登记为 s7b1-depth-seg / s7b1-render-kernel，均因运行态范围冻结 abandon，最终以目录级范围 s7b1-kernel 交付 |
-| S7b1 复核 | `2026-10-25-render-bvh-s7b1-independent-check` | QA | in_progress | `docs/development-evidence/render-bvh/s7b1-independent-check/` | 30 分钟 GPU；重点：独立重解码 + 6 条 GPU 用例重跑 + 验证 fma 对齐是算术顺序对齐（换射线/变异）而非对 149 像素调参 |
-| S7b2 | `2026-10-25-render-bvh-s7b2-shading` | Backend | proposed（依赖已满足；等 QA 复核释放 GPU 后 start） | `docs/development-evidence/render-bvh/s7b2-shading/` | 着色+RGB，每通道 ≤1 LSB；迁 81 槽全签名；沿用显式 intrinsics 对齐上游收缩顺序 |
+| S7b1 复核 | `2026-10-25-render-bvh-s7b1-independent-check` | QA | verified | `docs/development-evidence/render-bvh/s7b1-independent-check/` | `51ee2d0`+`7df5ad6`；120,000/120,000 位等、seg 0 mismatch；独立 PTX 反推球面顺序 747/747 位等、**换新位姿 813/813 位等**（错误顺序 187/192 像素 >4 ULP）→ 证明是算术顺序对齐非夹具调参；532/0 |
+| S7b2 | `2026-10-25-render-bvh-s7b2-shading` | Backend | in_progress | `docs/development-evidence/render-bvh/s7b2-shading/` | 着色+RGB（packed ABGR，≤1 LSB）；迁 81 槽全签名；灯位姿推导位等自检、`bvh_id` blob；depth/seg 120,000/120,000 位等回归门 |
 | S7b3 | `2026-10-25-render-bvh-s7b3-flags` | Backend | proposed（blocked: S7b2） | `docs/development-evidence/render-bvh/s7b3-flags/` | flag 变体矩阵 + AA(spp=2) 图像级参考（新 authoring 捕获） |
 
 结构说明：
