@@ -1,0 +1,26 @@
+GPU window — QA S7b3 independent check
+======================================
+device            : NVIDIA GeForce RTX 4070 Ti SUPER
+driver            : 596.36
+CUDA (toolkit)    : 13.2 (product NVRTC from target/toolchains/cuda-12.8.1 = CUDA 12.8.1)
+SM                : 89 (SM89)
+memory total      : 16,376 MiB
+
+handover baseline (Arch)          : 3,449 MiB (no CUDA compute process)
+QA first measurement              : 3,538 MiB
+GPU end (QA processes exited)     : 4,987 MiB
+compute processes after window    : 0 (nvidia-smi --query-compute-apps: only desktop graphics
+                                    contexts such as browser/Electron/NVIDIA overlay remain;
+                                    no python / qa-s7b3-harness process)
+note: the higher end plateau comes from desktop graphics applications, not from QA allocations;
+      QA processes were verified gone and no CUDA compute context was left behind.
+
+GPU activity inside the window:
+  QA pinned-3.15 reference re-captures   7 variants (first variant kernel compile ~2.9 s,
+                                          the rest cache hits; 2 renders each)
+  QA harness renders                     7 variants x 2 frames, 4 per-sample frames + 1 AA frame,
+                                         12 synthetic-normal frames, rejection matrix
+  delivered suites rerun                 s7b3 10.48 s, s7b1 4.15 s, s7b2 3.07 s, s6b 7.90 s
+  -> order of 2-3 minutes total, within the 30-minute exclusive window, no conflicts.
+
+memory samples (MiB): 3450 / 3538 / 3531 (after harness) / 3528 (after suites) / 4987 (end)

@@ -1,0 +1,238 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s7b3-independent-check",
+  "task_id": "2026-10-25-render-bvh-s7b3-independent-check",
+  "date": "2026-10-25",
+  "reviewed_commit": "52c22b7",
+  "reviewed_parent": "624948b",
+  "companion_fix": "3ab52cf",
+  "review_baseline_head": "3ab52cf",
+  "outcome": "pass",
+  "scope": "QA independent review of S7b3 (flag variant matrix + AA image-level): own pinned-3.15 re-capture per variant, own harness renders and raw-bit dumps, per-variant RGB/depth/seg comparison, independent AA semantics (first-pass depth/seg, average RGB) via per-sample renders, independent AA ray-layout re-derivation, synthetic vertex-normal discrimination replication, A-prime gate facts for megakernel and aa_resolve, rejection surface, S7b2 assertion upgrade verification, evidence integrity and diff scope, delivered suites and fmt/clippy/unit gates rerun. Fast-loop scope; no full G01; no product/fixture/original-evidence changes.",
+  "method": {
+    "harness": "target/qa-s7b3-harness (QA crate, product path dependency + cuda-probe; own decoding; does not include tests/support/**)",
+    "reference": "target/qa-s7b3/capture_qa.py (pinned venv; PARAMS_28 only variant override, use_fast_math=False; QA computes every comparison itself)",
+    "judges": [
+      "judge_variants.py",
+      "judge_rays.py",
+      "judge_aa.py",
+      "judge_synthetic.py",
+      "judge_flags.py",
+      "judge_evidence.py"
+    ],
+    "runtime_artifacts": "QA references/dumps stay under target/ (not committed); sha256 binding in qa-artifact-manifest.json"
+  },
+  "variants": {
+    "note": "product vs QA's own pinned-3.15 re-capture; deliverable criterion <=1 LSB RGB / <=4 ULP depth / seg equality; product reached 0/0/0",
+    "results": [
+      {"variant": "base", "rgb_mismatched": 0, "rgb_beyond_1_lsb": 0, "depth_bitwise_equal": true, "depth_max_ulp": 0, "seg_mismatched": 0},
+      {"variant": "textures_off", "rgb_mismatched": 0, "rgb_beyond_1_lsb": 0, "depth_bitwise_equal": true, "depth_max_ulp": 0, "seg_mismatched": 0, "changed_vs_base": {"cam0_rgb": 0, "cam1_rgb": 4130, "cam1_by_geom": {"1": 2202, "2": 747, "3": 754, "5": 427}}},
+      {"variant": "vertex_normals_off", "rgb_mismatched": 0, "rgb_beyond_1_lsb": 0, "depth_bitwise_equal": true, "depth_max_ulp": 0, "seg_mismatched": 0, "changed_vs_base": {"cam0_rgb": 0, "cam1_rgb": 0}},
+      {"variant": "specular_off", "rgb_mismatched": 0, "rgb_beyond_1_lsb": 0, "depth_bitwise_equal": true, "depth_max_ulp": 0, "seg_mismatched": 0, "changed_vs_base": {"cam0_rgb": 55504, "cam1_rgb": 2457}},
+      {"variant": "emission_off", "rgb_mismatched": 0, "rgb_beyond_1_lsb": 0, "depth_bitwise_equal": true, "depth_max_ulp": 0, "seg_mismatched": 0, "changed_vs_base": {"cam0_rgb": 0, "cam1_rgb": 1947, "cam1_by_geom": {"1": 1424, "3": 523}}},
+      {"variant": "culling_off", "rgb_mismatched": 0, "rgb_beyond_1_lsb": 0, "depth_bitwise_equal": true, "depth_max_ulp": 0, "seg_mismatched": 0, "changed_vs_base": {"cam0_rgb": 0, "cam1_rgb": 38, "cam1_depth": 38, "cam1_seg": 29}},
+      {"variant": "aa2", "rgb_mismatched": 0, "rgb_beyond_1_lsb": 0, "depth_bitwise_equal": true, "depth_max_ulp": 0, "seg_mismatched": 0, "changed_vs_base": {"cam0_rgb": 534, "cam1_rgb": 1320, "cam0_depth": 59896, "cam1_depth": 15739, "cam0_seg": 91, "cam1_seg": 210}}
+    ],
+    "qa_capture_equals_delivered_fixture": {
+      "all_rgb": true,
+      "culling_off_depth_seg": true,
+      "aa2_depth_seg": true,
+      "vertex_normals_reference_on_off_bitwise_equal": true,
+      "two_renders_per_variant_bitwise_equal": true
+    }
+  },
+  "aa": {
+    "nsamples": 4,
+    "total_rays": 120000,
+    "ray_count": 480000,
+    "aa_accum_width": 120000,
+    "depth_first_sample_equal": true,
+    "seg_first_sample_equal": true,
+    "depth_last_sample_equal": false,
+    "seg_last_sample_equal": false,
+    "depth_sample0_vs_sample1_changed": 71024,
+    "seg_sample0_vs_sample1_changed": 283,
+    "rgb_average_rule": "|aa_byte - floor(mean(per_sample_byte))| <= 1 per channel",
+    "rgb_average_violations": 0,
+    "rgb_average_max_abs_deviation": 1,
+    "alpha_all_255": true,
+    "repeat_renders_bitwise_equal": true,
+    "upstream_semantics": "store_pixel aa branch accumulates color*255; _aa_resolve averages with inv_n then clamps/packs; depth/seg only written when ray_base == 0 (pinned render.py)",
+    "ray_layout": {
+      "base": "index=[camera][row][column], px=x, py=y, img=(w,h); recovered-coordinate bad count 0/120000",
+      "aa2": "index=[sample][camera][row][column], px=x*spp+sample%spp, py=y*spp+sample//spp, img=(w*spp,h*spp); bad count 0/480000 across 2 cameras x 4 samples",
+      "offsets_all_zero": true
+    }
+  },
+  "synthetic_vertex_normals": {
+    "evidence_strength": "branch reachability only; no pinned reference exists for synthetic mesh normals",
+    "directions": [
+      {"direction": [1.0, 0.0, 0.0], "changed_pixels": 653},
+      {"direction": [-1.0, 0.0, 0.0], "changed_pixels": 0},
+      {"direction": [0.0, 1.0, 0.0], "changed_pixels": 0},
+      {"direction": [0.0, -1.0, 0.0], "changed_pixels": 0},
+      {"direction": [0.0, 0.0, 1.0], "changed_pixels": 9},
+      {"direction": [0.0, 0.0, -1.0], "changed_pixels": 0}
+    ],
+    "matches_delivered_record": true,
+    "reference_has_discriminating_power_on_scene_a": false
+  },
+  "render_gate": {
+    "megakernel": {
+      "ptx_bytes": 197583,
+      "source_sha256": "e0fd7ed1a9eec72bb856a227a6a78298a64674af298c5d228354c679786fc247",
+      "ptx_sha256": "582b2429695015a5883abb5faad100a3bfc43a43ff7f471f3fc824401c3eef05",
+      "entries": ["scene_bvh_ray", "render_megakernel"],
+      "source_sha256_equals_concat_of_five_sources": true,
+      "concat_bytes": 76256
+    },
+    "aa_resolve": {
+      "ptx_bytes": 27536,
+      "source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+      "ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+      "source_bytes": 2364,
+      "entry_present": true
+    },
+    "f64_lines": {
+      "megakernel": 6,
+      "aa_resolve": 2,
+      "note": "only the two W15 whitelist globals plus one sin/cos reduction triple in the megakernel; aa_resolve has only the included W15 globals"
+    },
+    "launch_rs_lines": 500,
+    "scene_cu_sha256": "8dad4d61235a8686d8b43fecef450535816c5a9423f15d256be4aab9a714d56d",
+    "scene_cu_unchanged": true
+  },
+  "rejections": {
+    "aa_supported": true,
+    "aa_short_ray_count": "InvalidArray(\"ray_count\")",
+    "use_shadows": "Unsupported(\"S7b3 不含阴影\")",
+    "use_precomputed_rays_false": "Unsupported(\"S7b3 只支持 use_precomputed_rays=true（动态射线未实现）\")",
+    "render_skybox": "Unsupported(\"S7b3 不含天空盒\")",
+    "stage": "renderer, after successful context creation (no panic)"
+  },
+  "s7b2_assertion_upgrade": {
+    "aa_legal_configuration_renders_ok": true,
+    "old_test_failure_cause": "the old S7b2 rejection case fed spp=1 (120,000) rays to an AA context -> InvalidArray(\"ray_count\")",
+    "s7b2_baseline_unchanged": "RGB 0 diff, depth 0 ULP, seg 0 on rerun",
+    "companion_fix": "3ab52cf: only tests/render_kernel_rgb.rs (non-.normify), removes the spp=2 case, keeps the other 3; Normify-Fixes trailer present",
+    "classification": "semantic upgrade, not a regression"
+  },
+  "tests": {
+    "delivered_suites_rerun": {
+      "s7b3_flags": "6 passed / 0 failed (10.48 s)",
+      "s7b1_depth_seg": "6 passed / 0 failed",
+      "s7b2_rgb": "3 passed / 0 failed (after companion fix)",
+      "s6b_lifecycle": "5 passed / 0 failed"
+    },
+    "unit": {"command": "cargo test --locked", "binaries": 99, "passed": 532, "failed": 0},
+    "fmt": "pass",
+    "clippy": "pass (cuda-probe, -D warnings)"
+  },
+  "evidence_integrity": {
+    "delivered_evidence_files": 8,
+    "delivered_evidence_equals_committed_blobs": true,
+    "ptx_matches_receipt": true,
+    "fixture_files": 9,
+    "fixture_bytes_sha256_match_receipt": true,
+    "capture_script_sha256_matches": true,
+    "diff_range": "624948b..52c22b7",
+    "diff_changed_files": 33,
+    "diff_out_of_scope": [],
+    "s2_s6_evidence_or_fixtures_changed": [],
+    "render_bvh_src_changed": [],
+    "s7b2_reject_test_changed_in_slice": false
+  },
+  "findings": [
+    {
+      "severity": "一般",
+      "kind": "evidence",
+      "title": "receipt host_modules.lines 与文件实际行数不符",
+      "detail": "megakernel.rs 记 474 / 实际 495；megakernel_aa.rs 记 86 / 实际 93；megakernel_arrays.rs 记 216 / 实际 233；三者的 bytes 与 sha256 与文件完全一致，说明仅行数字段陈旧或口径不同。实际行数均 < 500，≤500 棘轮结论不受影响。",
+      "suggestion": "normify fix 修正 lines 字段或统一行数口径"
+    },
+    {
+      "severity": "一般",
+      "kind": "source-comment",
+      "title": "megakernel.rs 模块头注释与实现相反",
+      "detail": "文件头写「depth/seg 每个 sample 都写（与上游一致，最后一个 sample 生效）」，实现与上游均为 ray_base == 0 只写第一个 pass（首轮 AA depth 不匹配的根因修复）。属残留注释。",
+      "suggestion": "改为单样本/首 pass 语义"
+    },
+    {
+      "severity": "建议",
+      "kind": "evidence",
+      "title": "capture.log 未打印两次捕获位等结论",
+      "detail": "determinism 只写在 index.json；QA 重采两次逐位一致已独立确认",
+      "suggestion": "日志同时打印"
+    },
+    {
+      "severity": "建议",
+      "kind": "method",
+      "title": "变体差异逐 geom 归因口径不同",
+      "detail": "交付 index 按变体/AA seg 归因、QA 按 base seg 归因；总量一致、逐 geom 分布不同，属方法差异",
+      "suggestion": "证据注明归因口径"
+    }
+  ],
+  "not_verified": [
+    "合成顶点法线用例只证明 vertex_normal 分支生效，无 pinned 参考对照；不得理解为与上游一致。",
+    "更高 samples_per_pixel（>2）未采样参考，同一实现路径未单独验收。"
+  ],
+  "limitations": [
+    "未跑完整 G01；不宣称完整渲染/R01/双平台通过。",
+    "阴影/天空盒/splat/flex/hfield/SDF/多相机/动态射线仍未实现（写前拒绝）。",
+    "正交相机、带 texcoord 网格未覆盖；单一场景夹具、无 fuzz。",
+    "bvh_id 自有打包，仅签名对齐，不宣称 Warp BVH 等价。",
+    "AA 图像级只验 spp=2；不宣称 R01 整体通过。"
+  ],
+  "not_claimed": [
+    "full renderer / product rendering acceptance",
+    "complete R01",
+    "S7b2/S7b3 follow-on slices",
+    "synthetic vertex normals match upstream",
+    "bvh_id equivalence with the Warp BVH ABI",
+    "shadow / skybox / splat / multi-camera functionality"
+  ],
+  "gpu_window": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "cuda": "13.2",
+    "memory_total_mib": 16376,
+    "handover_baseline_mib": 3449,
+    "first_measurement_mib": 3538,
+    "end_memory_mib": 4987,
+    "compute_processes_after": 0,
+    "note": "no CUDA compute process remains at the end; the higher plateau comes from desktop graphics applications (browser/Electron), not from QA allocations; ~2-3 minutes of GPU activity inside the 30-minute window"
+  },
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "qa-artifact-manifest.json",
+    "artifact-check.json",
+    "gpu-window.txt",
+    "qa-gpu-runs.log",
+    "qa-unit-tests.log",
+    "harness_base.json",
+    "harness_textures_off.json",
+    "harness_vertex_normals_off.json",
+    "harness_specular_off.json",
+    "harness_emission_off.json",
+    "harness_culling_off.json",
+    "harness_aa2.json",
+    "reject.json",
+    "sample_split.json",
+    "synthetic_normal.json",
+    "judge_variants.json",
+    "judge_rays.json",
+    "judge_aa.json",
+    "judge_synthetic.json",
+    "judge_flags_fixtures.json",
+    "judge_evidence.json",
+    "capture_qa.py",
+    "judge_variants.py",
+    "judge_rays.py",
+    "judge_aa.py",
+    "judge_synthetic.py",
+    "judge_flags.py",
+    "judge_evidence.py",
+    "qa-harness-main.rs.txt"
+  ]
+}

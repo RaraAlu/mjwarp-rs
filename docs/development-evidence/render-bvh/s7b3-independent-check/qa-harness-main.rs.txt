@@ -1,0 +1,636 @@
+// QA independent harness for S7b3 (flag variants, AA image level, synthetic vertex normals).
+//
+// Independence: QA-owned crate; own model/scene/camera/pose decoding (it does not include the
+// delivered tests/support/**). It only drives the product public API and dumps RAW bits
+// (rgb/depth/seg/rays) plus compile facts (megakernel + aa_resolve PTX). Every comparison and
+// every semantic judgement is re-derived by QA Python from these dumps.
+//
+// Modes:
+//   qa-s7b3-harness <out-dir> --tag <tag> [--variant base|textures_off|vertex_normals_off|
+//       specular_off|emission_off|culling_off|aa2] [--poses <poses.json>] [--dump-rays]
+//   qa-s7b3-harness --reject <json>
+//   qa-s7b3-harness --sample-split <dir>
+//   qa-s7b3-harness --synthetic-normal <dir>
+
+use mjwarp_rs::model::render::{FieldData, RENDER_FIELDS, RenderFieldKind, RenderFields};
+use mjwarp_rs::render::bvh::{mesh_half_extents, vertices_from_f64};
+use mjwarp_rs::render::context::RenderFlagSpec;
+use mjwarp_rs::render::context::owner::MeshState;
+use mjwarp_rs::render::kernel::cast::CameraPose;
+use mjwarp_rs::render::kernel::launch::compile_render_artifact;
+use mjwarp_rs::render::kernel::{
+    AA_RESOLVE_ENTRY, AA_RESOLVE_SOURCE, MegakernelRenderer, light_data_poses,
+};
+use mjwarp_rs::render::{
+    CameraModel, ContextParams, ImageOutput, LeafPose, OutputValues, RayBuffer, RayBuilder,
+    RayMode, RenderContext, SceneLeaf, SceneState, TextureRegistry, resolve_context,
+};
+use mjwarp_rs::runtime::TransferSession;
+use serde_json::{Value, json};
+
+const MODEL: &str = include_str!("../../../fixtures/render-bvh/scene-a/model-312.json");
+const S2_HITS: &str = include_str!("../../../fixtures/render-bvh/scene-a/s2/reference_hits.json");
+const DEPTH_SEG: &str = include_str!("../../../fixtures/render-bvh/scene-a/s7b/depth_seg.json");
+
+fn array(value: &Value) -> &[Value] {
+    value.as_array().expect("array")
+}
+
+fn numbers(value: &Value) -> Vec<f64> {
+    array(value).iter().map(|item| item.as_f64().expect("num")).collect()
+}
+
+fn ints(value: &Value) -> Vec<i32> {
+    numbers(value).iter().map(|item| *item as i32).collect()
+}
+
+fn u32s(value: &Value) -> Vec<u32> {
+    array(value).iter().map(|item| item.as_u64().expect("u32") as u32).collect()
+}
+
+fn model_ints(document: &Value, name: &str) -> Vec<i32> {
+    ints(&document["arrays"][name]["values"])
+}
+
+fn model_numbers(document: &Value, name: &str) -> Vec<f64> {
+    numbers(&document["arrays"][name]["values"])
+}
+
+fn field_values(kind: RenderFieldKind, value: &Value) -> FieldData {
+    let values = array(value);
+    match kind {
+        RenderFieldKind::Index => {
+            FieldData::Index(values.iter().map(|v| v.as_i64().expect("i32") as i32).collect())
+        }
+        RenderFieldKind::Num => FieldData::Num(values.iter().map(|v| v.as_f64().expect("f64")).collect()),
+        RenderFieldKind::Flag => {
+            FieldData::Flag(values.iter().map(|v| v.as_u64().expect("u8") as u8).collect())
+        }
+        RenderFieldKind::Size => {
+            FieldData::Size(values.iter().map(|v| v.as_i64().expect("i64")).collect())
+        }
+        RenderFieldKind::Float => {
+            FieldData::Float(values.iter().map(|v| v.as_f64().expect("f32") as f32).collect())
+        }
+    }
+}
+
+fn render_fields(model: &Value) -> RenderFields {
+    let arrays = &model["arrays"];
+    let data = RENDER_FIELDS
+        .iter()
+        .map(|spec| field_values(spec.kind, &arrays[spec.name]["values"]))
+        .collect();
+    RenderFields::new(data)
+}
+
+fn bits3(bits: &[u32], slot: usize) -> [f32; 3] {
+    let base = 3 * slot;
+    [
+        f32::from_bits(bits[base]),
+        f32::from_bits(bits[base + 1]),
+        f32::from_bits(bits[base + 2]),
+    ]
+}
+
+struct SceneFixture {
+    leaves: Vec<SceneLeaf>,
+    poses: Vec<LeafPose>,
+    meshes: Vec<MeshState>,
+}
+
+fn scene_meshes(model: &Value) -> Vec<MeshState> {
+    let mesh_vert = model_numbers(model, "mesh_vert");
+    let mesh_face = model_ints(model, "mesh_face");
+    let vertadr = model_ints(model, "mesh_vertadr");
+    let vertnum = model_ints(model, "mesh_vertnum");
+    let faceadr = model_ints(model, "mesh_faceadr");
+    let facenum = model_ints(model, "mesh_facenum");
+    let mut meshes = Vec::new();
+    for mesh in 0..vertadr.len() {
+        let start = vertadr[mesh] as usize * 3;
+        let vertices =
+            vertices_from_f64(&mesh_vert[start..start + vertnum[mesh] as usize * 3]).expect("verts");
+        let face_start = faceadr[mesh] as usize * 3;
+        let indices = mesh_face[face_start..face_start + facenum[mesh] as usize * 3]
+            .iter()
+            .map(|value| *value as u32)
+            .collect();
+        meshes.push(MeshState { vertices, indices });
+    }
+    meshes
+}
+
+fn scene_fixture(model: &Value) -> SceneFixture {
+    let hits: Value = serde_json::from_str(S2_HITS).expect("s2 hits");
+    let enabled = ints(&hits["enabled_geom_ids"]);
+    let xpos_bits = u32s(&hits["cases"]["initial"]["geom_xpos_bits"]);
+    let xmat_bits = u32s(&hits["cases"]["initial"]["geom_xmat_bits"]);
+    let geom_type = model_ints(model, "geom_type");
+    let geom_size = model_numbers(model, "geom_size");
+    let geom_dataid = model_ints(model, "geom_dataid");
+    let meshes = scene_meshes(model);
+    let mesh_half: Vec<[f32; 3]> = meshes
+        .iter()
+        .map(|mesh| mesh_half_extents(&mesh.vertices).expect("mesh bounds"))
+        .collect();
+    let mut leaves = Vec::new();
+    let mut poses = Vec::new();
+    for (slot, geom) in enabled.iter().enumerate() {
+        let geom = *geom as usize;
+        let mut size = [
+            geom_size[3 * geom] as f32,
+            geom_size[3 * geom + 1] as f32,
+            geom_size[3 * geom + 2] as f32,
+        ];
+        if matches!(geom_type[geom], 7 | 8) {
+            size = mesh_half[geom_dataid[geom] as usize];
+        }
+        leaves.push(SceneLeaf {
+            geom_type: geom_type[geom],
+            size,
+            group: 0,
+            geom_id: geom as i32,
+        });
+        let mut xmat = [0.0f32; 9];
+        for (index, value) in xmat.iter_mut().enumerate() {
+            *value = f32::from_bits(xmat_bits[9 * slot + index]);
+        }
+        poses.push(LeafPose {
+            xpos: bits3(&xpos_bits, slot),
+            xmat,
+        });
+    }
+    SceneFixture {
+        leaves,
+        poses,
+        meshes,
+    }
+}
+
+fn fixture_poses() -> Vec<CameraPose> {
+    let document: Value = serde_json::from_str(DEPTH_SEG).expect("depth_seg");
+    parse_poses(&document["camera_data_check"], "origin_bits", "xmat_bits")
+}
+
+fn parse_poses(entries: &Value, xpos_key: &str, xmat_key: &str) -> Vec<CameraPose> {
+    array(entries)
+        .iter()
+        .map(|entry| CameraPose {
+            xpos: u32s(&entry[xpos_key])
+                .iter()
+                .map(|bits| f32::from_bits(*bits))
+                .collect::<Vec<_>>()
+                .try_into()
+                .expect("xpos"),
+            xmat: u32s(&entry[xmat_key])
+                .iter()
+                .map(|bits| f32::from_bits(*bits))
+                .collect::<Vec<_>>()
+                .try_into()
+                .expect("xmat"),
+        })
+        .collect()
+}
+
+fn pose_bits(poses: &[CameraPose]) -> Value {
+    Value::Array(
+        poses
+            .iter()
+            .map(|pose| {
+                json!({
+                    "xpos_bits": pose.xpos.map(f32::to_bits),
+                    "xmat_bits": pose.xmat.map(f32::to_bits),
+                })
+            })
+            .collect(),
+    )
+}
+
+fn dump_u32(path: &str, values: &[u32]) {
+    let mut bytes = Vec::with_capacity(values.len() * 4);
+    for value in values {
+        bytes.extend_from_slice(&value.to_le_bytes());
+    }
+    std::fs::write(path, bytes).expect("u32 dump");
+}
+
+fn dump_f32(path: &str, values: &[f32]) {
+    let mut bytes = Vec::with_capacity(values.len() * 4);
+    for value in values {
+        bytes.extend_from_slice(&value.to_bits().to_le_bytes());
+    }
+    std::fs::write(path, bytes).expect("f32 dump");
+}
+
+fn dump_seg(path: &str, values: &[[i32; 2]]) {
+    let mut bytes = Vec::with_capacity(values.len() * 8);
+    for pair in values {
+        bytes.extend_from_slice(&pair[0].to_le_bytes());
+        bytes.extend_from_slice(&pair[1].to_le_bytes());
+    }
+    std::fs::write(path, bytes).expect("seg dump");
+}
+
+fn write_rays(path: &str, rays: &RayBuffer) {
+    let mut bytes = Vec::with_capacity(rays.len() * 24);
+    for (direction, offset) in rays.directions().iter().zip(rays.offsets()) {
+        for value in direction.iter().chain(offset.iter()) {
+            bytes.extend_from_slice(&value.to_le_bytes());
+        }
+    }
+    std::fs::write(path, bytes).expect("ray dump");
+}
+
+fn read_rgb(context: &RenderContext) -> Vec<u32> {
+    match context.outputs().read(ImageOutput::Rgb).expect("rgb read") {
+        OutputValues::Rgb(values) => values,
+        other => panic!("rgb kind {other:?}"),
+    }
+}
+
+fn read_depth(context: &RenderContext) -> Vec<f32> {
+    match context.outputs().read(ImageOutput::Depth).expect("depth read") {
+        OutputValues::Depth(values) => values,
+        other => panic!("depth kind {other:?}"),
+    }
+}
+
+fn read_seg(context: &RenderContext) -> Vec<[i32; 2]> {
+    match context.outputs().read(ImageOutput::Segmentation).expect("seg read") {
+        OutputValues::Seg(values) => values,
+        other => panic!("seg kind {other:?}"),
+    }
+}
+
+fn variant_params(variant: &str) -> ContextParams<'static> {
+    const GROUPS: [i32; 4] = [0, 1, 2, 3];
+    let base = ContextParams {
+        nworld: 1,
+        enabled_geom_groups: &GROUPS,
+        ..Default::default()
+    }
+    .with_render_targets(
+        Some(RenderFlagSpec::Bool(true)),
+        Some(RenderFlagSpec::Bool(true)),
+        Some(RenderFlagSpec::Bool(true)),
+    );
+    match variant {
+        "base" => base,
+        "textures_off" => ContextParams {
+            use_textures: false,
+            ..base
+        },
+        "vertex_normals_off" => ContextParams {
+            enable_vertex_normals: false,
+            ..base
+        },
+        "specular_off" => ContextParams {
+            enable_specular: false,
+            ..base
+        },
+        "emission_off" => ContextParams {
+            enable_emission: false,
+            ..base
+        },
+        "culling_off" => ContextParams {
+            enable_backface_culling: false,
+            ..base
+        },
+        "aa2" => ContextParams {
+            samples_per_pixel: 2,
+            ..base
+        },
+        other => panic!("unknown variant {other}"),
+    }
+}
+
+fn build_context(
+    session: &TransferSession,
+    fields: &RenderFields,
+    model: &Value,
+    params: &ContextParams<'_>,
+) -> Result<RenderContext, String> {
+    let fixture = scene_fixture(model);
+    let resolved = resolve_context(fields, params).map_err(|error| format!("resolve: {error:?}"))?;
+    let state = SceneState::new(fixture.leaves, fixture.poses, params.nworld)
+        .map_err(|error| format!("scene: {error:?}"))?;
+    let textures = TextureRegistry::from_fields(fields, true).map_err(|error| format!("tex: {error:?}"))?;
+    RenderContext::create(session, resolved, state, fixture.meshes.clone(), &textures)
+        .map_err(|error| format!("create: {error:?}"))
+}
+
+fn build_rays(session: &TransferSession, camera: &CameraModel, context: &RenderContext) -> RayBuffer {
+    RayBuilder::new(session)
+        .expect("ray builder")
+        .build(camera, &context.resolved().plan, RayMode::Precomputed)
+        .expect("precomputed rays")
+}
+
+fn aa_artifact_report() -> Value {
+    let artifact = compile_render_artifact(AA_RESOLVE_ENTRY, AA_RESOLVE_SOURCE, AA_RESOLVE_ENTRY)
+        .expect("aa_resolve gate compile");
+    let ptx = artifact.ptx();
+    json!({
+        "entry": AA_RESOLVE_ENTRY,
+        "bytes": ptx.len(),
+        "source_sha256": artifact.source_sha256(),
+        "ptx_sha256": artifact.ptx_sha256(),
+        "entry_present": ptx.contains(".visible .entry aa_resolve"),
+        "f64_lines": ptx.lines().filter(|line| line.contains(".f64")).count(),
+    })
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("--reject") {
+        run_reject(args.get(2).map(String::as_str).unwrap_or("target/qa-s7b3/reject.json"));
+        return;
+    }
+    if args.get(1).map(String::as_str) == Some("--sample-split") {
+        run_sample_split(args.get(2).expect("dir"));
+        return;
+    }
+    if args.get(1).map(String::as_str) == Some("--synthetic-normal") {
+        run_synthetic_normal(args.get(2).expect("dir"));
+        return;
+    }
+    let out_dir = args.get(1).cloned().expect("out dir");
+    std::fs::create_dir_all(&out_dir).expect("out dir create");
+    let mut tag = String::from("base");
+    let mut variant = String::from("base");
+    let mut poses_override: Option<Vec<CameraPose>> = None;
+    let mut dump_rays = false;
+    let mut index = 2;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--tag" => {
+                tag = args[index + 1].clone();
+                index += 2;
+            }
+            "--variant" => {
+                variant = args[index + 1].clone();
+                index += 2;
+            }
+            "--poses" => {
+                let document: Value =
+                    serde_json::from_str(&std::fs::read_to_string(&args[index + 1]).expect("poses"))
+                        .expect("poses json");
+                poses_override = Some(parse_poses(&document, "xpos_bits", "xmat_bits"));
+                index += 2;
+            }
+            "--dump-rays" => {
+                dump_rays = true;
+                index += 1;
+            }
+            other => panic!("unknown arg {other}"),
+        }
+    }
+    let model: Value = serde_json::from_str(MODEL).expect("model");
+    let fields = render_fields(&model);
+    let session = TransferSession::new(0).expect("session");
+    let params = variant_params(&variant);
+    let context = build_context(&session, &fields, &model, &params).expect("context");
+    let camera = CameraModel::from_fields(&fields).expect("camera");
+    let poses = poses_override.unwrap_or_else(fixture_poses);
+    let rays = build_rays(&session, &camera, &context);
+    let renderer = MegakernelRenderer::new(&session).expect("renderer");
+    renderer
+        .render(&context, &fields, &camera, &poses, &rays)
+        .expect("render a");
+    let rgb_a = read_rgb(&context);
+    let depth_a = read_depth(&context);
+    let seg_a = read_seg(&context);
+    renderer
+        .render(&context, &fields, &camera, &poses, &rays)
+        .expect("render b");
+    let repeat_equal =
+        rgb_a == read_rgb(&context) && depth_a == read_depth(&context) && seg_a == read_seg(&context);
+    dump_u32(&format!("{out_dir}/rgb_{tag}.bin"), &rgb_a);
+    dump_f32(&format!("{out_dir}/depth_{tag}.bin"), &depth_a);
+    dump_seg(&format!("{out_dir}/seg_{tag}.bin"), &seg_a);
+    if dump_rays {
+        write_rays(&format!("{out_dir}/rays_{tag}.bin"), &rays);
+    }
+    let kernel = renderer.kernel();
+    let artifact = kernel.artifact();
+    let ptx = artifact.ptx().to_string();
+    std::fs::write(format!("{out_dir}/megakernel_{tag}.ptx"), &ptx).expect("ptx");
+    let resolved = context.resolved();
+    let report = json!({
+        "tag": tag,
+        "variant": variant,
+        "poses": pose_bits(&poses),
+        "lengths": {"rgb": rgb_a.len(), "depth": depth_a.len(), "seg": seg_a.len(), "rays": rays.len()},
+        "repeat_bitwise_equal": repeat_equal,
+        "layout": {
+            "nsamples": resolved.output.nsamples,
+            "samples_per_pixel": resolved.samples_per_pixel,
+            "total_rays": resolved.output.total_rays,
+            "ray_count": resolved.output.ray_count,
+            "aa_accum_width": resolved.output.aa_accum_width,
+            "rgb_pixels": resolved.output.rgb_pixels,
+            "cam_res": resolved.cam_res(),
+            "rgb_adr": resolved.output.rgb_adr,
+            "nrender": resolved.nrender(),
+        },
+        "ptx": {
+            "bytes": ptx.len(),
+            "source_sha256": artifact.source_sha256(),
+            "ptx_sha256": artifact.ptx_sha256(),
+            "entries": ptx.lines().filter_map(|line| line.trim().strip_prefix(".visible .entry "))
+                .map(|rest| rest.split(['(', ' ']).next().unwrap_or("").to_string()).collect::<Vec<_>>(),
+            "f64_lines": ptx.lines().filter(|line| line.contains(".f64")).map(|line| line.to_string()).collect::<Vec<_>>(),
+        },
+        "aa_resolve": aa_artifact_report(),
+        "lights": light_data_poses(&fields).expect("lights").iter()
+            .map(|pose| json!({"xpos_bits": pose.xpos.map(f32::to_bits), "xdir_bits": pose.xdir.map(f32::to_bits)}))
+            .collect::<Vec<_>>(),
+    });
+    std::fs::write(
+        format!("{out_dir}/harness_{tag}.json"),
+        serde_json::to_vec_pretty(&report).expect("json"),
+    )
+    .expect("report");
+    println!(
+        "tag={tag} variant={variant} rgb={} depth={} seg={} rays={} nsamples={} repeat={repeat_equal} ptx={} aa_ptx={}",
+        rgb_a.len(), depth_a.len(), seg_a.len(), rays.len(), resolved.output.nsamples, ptx.len(),
+        report["aa_resolve"]["bytes"]
+    );
+}
+
+fn run_reject(out_path: &str) {
+    let model: Value = serde_json::from_str(MODEL).expect("model");
+    let fields = render_fields(&model);
+    let session = TransferSession::new(0).expect("session");
+    let camera = CameraModel::from_fields(&fields).expect("camera");
+    let poses = fixture_poses();
+    let renderer = MegakernelRenderer::new(&session).expect("renderer");
+    let mut results = Vec::new();
+    {
+        let params = variant_params("aa2");
+        match build_context(&session, &fields, &model, &params) {
+            Err(error) => results.push(json!({"case": "aa2_supported", "stage": "context", "error": error})),
+            Ok(context) => {
+                let rays = build_rays(&session, &camera, &context);
+                let launch = renderer.render(&context, &fields, &camera, &poses, &rays);
+                results.push(json!({
+                    "case": "aa2_supported",
+                    "stage": "renderer",
+                    "ok": launch.is_ok(),
+                    "error": launch.err().map(|error| format!("{error:?}")),
+                    "rays": rays.len(),
+                    "nsamples": context.resolved().output.nsamples,
+                }));
+            }
+        }
+    }
+    {
+        let params = variant_params("aa2");
+        if let Ok(context) = build_context(&session, &fields, &model, &params) {
+            let base_context =
+                build_context(&session, &fields, &model, &variant_params("base")).expect("base");
+            let short_rays = build_rays(&session, &camera, &base_context);
+            let launch = renderer.render(&context, &fields, &camera, &poses, &short_rays);
+            results.push(json!({
+                "case": "aa2_short_rays",
+                "stage": "renderer",
+                "error": launch.err().map(|error| format!("{error:?}")),
+                "rays": short_rays.len(),
+            }));
+        }
+    }
+    for (name, params) in [
+        ("use_shadows=true", ContextParams {
+            use_shadows: true,
+            ..variant_params("base")
+        }),
+        ("use_precomputed_rays=false", ContextParams {
+            use_precomputed_rays: false,
+            ..variant_params("base")
+        }),
+        ("render_skybox=true", ContextParams {
+            render_skybox: true,
+            ..variant_params("base")
+        }),
+    ] {
+        match build_context(&session, &fields, &model, &params) {
+            Err(error) => results.push(json!({"case": name, "stage": "context", "error": error})),
+            Ok(context) => {
+                let rays = build_rays(&session, &camera, &context);
+                let launch = renderer.render(&context, &fields, &camera, &poses, &rays);
+                results.push(json!({
+                    "case": name,
+                    "stage": "renderer",
+                    "error": launch.err().map(|error| format!("{error:?}")),
+                }));
+            }
+        }
+    }
+    let report = json!({"rejections": results});
+    std::fs::write(out_path, serde_json::to_vec_pretty(&report).expect("json")).expect("reject");
+    println!("{report}");
+}
+
+/// Per-sample renders (spp=1 context, each sample's own 120k rays) + the AA render, so QA can
+/// independently judge the AA semantics: subsample layout, first-sample depth/seg, average RGB.
+fn run_sample_split(out_dir: &str) {
+    std::fs::create_dir_all(out_dir).expect("dir");
+    let model: Value = serde_json::from_str(MODEL).expect("model");
+    let fields = render_fields(&model);
+    let session = TransferSession::new(0).expect("session");
+    let camera = CameraModel::from_fields(&fields).expect("camera");
+    let poses = fixture_poses();
+    let renderer = MegakernelRenderer::new(&session).expect("renderer");
+    let aa_context = build_context(&session, &fields, &model, &variant_params("aa2")).expect("aa ctx");
+    let aa_rays = build_rays(&session, &camera, &aa_context);
+    let total = aa_context.resolved().output.total_rays;
+    let nsamples = aa_context.resolved().output.nsamples;
+    write_rays(&format!("{out_dir}/rays_aa.bin"), &aa_rays);
+    let base_context =
+        build_context(&session, &fields, &model, &variant_params("base")).expect("base ctx");
+    for sample in 0..nsamples {
+        let start = sample * total;
+        let directions = aa_rays.directions()[start..start + total].to_vec();
+        let offsets = aa_rays.offsets()[start..start + total].to_vec();
+        let sample_rays = RayBuffer::new(directions, offsets).expect("sample rays");
+        renderer
+            .render(&base_context, &fields, &camera, &poses, &sample_rays)
+            .expect("render sample");
+        dump_u32(&format!("{out_dir}/rgb_sample{sample}.bin"), &read_rgb(&base_context));
+        dump_f32(&format!("{out_dir}/depth_sample{sample}.bin"), &read_depth(&base_context));
+        dump_seg(&format!("{out_dir}/seg_sample{sample}.bin"), &read_seg(&base_context));
+    }
+    renderer
+        .render(&aa_context, &fields, &camera, &poses, &aa_rays)
+        .expect("render aa");
+    dump_u32(&format!("{out_dir}/rgb_aa.bin"), &read_rgb(&aa_context));
+    dump_f32(&format!("{out_dir}/depth_aa.bin"), &read_depth(&aa_context));
+    dump_seg(&format!("{out_dir}/seg_aa.bin"), &read_seg(&aa_context));
+    let report = json!({
+        "nsamples": nsamples,
+        "total_rays": total,
+        "aa_accum_width": aa_context.resolved().output.aa_accum_width,
+        "rgb_pixels": aa_context.resolved().output.rgb_pixels,
+        "poses": pose_bits(&poses),
+    });
+    std::fs::write(
+        format!("{out_dir}/sample_split.json"),
+        serde_json::to_vec_pretty(&report).expect("json"),
+    )
+    .expect("sample split report");
+    println!("sample-split: nsamples={nsamples} total_rays={total}");
+}
+
+/// Synthetic vertex normals: replace all mesh vertex normals with extreme directions and render
+/// `enable_vertex_normals` on/off for each; proves the branch is reached (no pinned reference).
+fn run_synthetic_normal(out_dir: &str) {
+    std::fs::create_dir_all(out_dir).expect("dir");
+    let base_model: Value = serde_json::from_str(MODEL).expect("model");
+    let session = TransferSession::new(0).expect("session");
+    let poses = fixture_poses();
+    let renderer = MegakernelRenderer::new(&session).expect("renderer");
+    let directions: [(&str, [f32; 3]); 6] = [
+        ("x1", [1.0, 0.0, 0.0]),
+        ("nx1", [-1.0, 0.0, 0.0]),
+        ("y1", [0.0, 1.0, 0.0]),
+        ("ny1", [0.0, -1.0, 0.0]),
+        ("z1", [0.0, 0.0, 1.0]),
+        ("nz1", [0.0, 0.0, -1.0]),
+    ];
+    let mut report = Vec::new();
+    for (tag, direction) in directions {
+        let mut model = base_model.clone();
+        let count = array(&model["arrays"]["mesh_normal"]["values"]).len();
+        for slot in 0..count {
+            let value = match slot % 3 {
+                0 => direction[0],
+                1 => direction[1],
+                _ => direction[2],
+            };
+            model["arrays"]["mesh_normal"]["values"][slot] = json!(value as f64);
+        }
+        let fields = render_fields(&model);
+        let camera = CameraModel::from_fields(&fields).expect("camera");
+        for vertex_normals in [true, false] {
+            let params = ContextParams {
+                enable_vertex_normals: vertex_normals,
+                ..variant_params("base")
+            };
+            let context = build_context(&session, &fields, &model, &params).expect("context");
+            let rays = build_rays(&session, &camera, &context);
+            renderer
+                .render(&context, &fields, &camera, &poses, &rays)
+                .expect("render");
+            let name = format!("{tag}_vn{}", i32::from(vertex_normals));
+            dump_u32(&format!("{out_dir}/rgb_{name}.bin"), &read_rgb(&context));
+            report.push(json!({"case": name, "direction": direction, "vertex_normals": vertex_normals}));
+        }
+    }
+    std::fs::write(
+        format!("{out_dir}/synthetic_normal.json"),
+        serde_json::to_vec_pretty(&json!({"cases": report})).expect("json"),
+    )
+    .expect("report");
+    println!("synthetic-normal: {} renders", report.len());
+}
