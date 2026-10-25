@@ -5,7 +5,7 @@
     "zh": "渲染/BVH S7b2 独立复核（81槽签名/着色RGB/纹理/灯位姿/同配方参考）",
     "en": "Render/BVH S7b2 independent review (81-slot signature, shading RGB, texture, light poses, same-recipe reference)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "对渲染/BVH S7b2（f228099，配套 a96a158 句柄访问器）做独立复核：独立从 rgb.npz 重解码 packed ABGR 与解包 f32，独立重跑 RGB/depth/seg 用例，核 RGB 对同配方（use_fast_math=False）参考两相机 120,000/120,000 像素 0 差异、depth/seg 120,000/120,000 位等、灯位姿 6/6 位等（自己按上游公式复算）、81 槽签名与逐槽填参（占位槽不被读取、`bvh_id` 自有 blob）、A′ 门禁与 PTX、S7b1/S6b 回归、证据哈希；并验证 `mat_shin_exp` 修复是语义修复而非对夹具调参。GPU 30 分钟窗口；不改产品/夹具/原证据。",
     "en": "Independent review of render/BVH S7b2 (f228099 plus the a96a158 handle accessor): independently re-decode packed ABGR and unpacked f32 from rgb.npz, rerun the RGB/depth/seg cases, verify RGB matches the same-recipe (use_fast_math=False) reference on 120,000/120,000 pixels with zero differences, depth/seg at 120,000/120,000 bit equality, light poses 6/6 bit-equal (recompute from the upstream formula), the 81-slot signature and per-slot filling (placeholder slots unread, bvh_id carries our own blob), the A-prime gate and PTX, S7b1/S6b regressions, and evidence hashes; and verify the mat_shin_exp fix is a semantic fix rather than fixture fitting. 30-minute GPU window; no product/fixture/original-evidence changes."
@@ -37,12 +37,11 @@
   },
   "note": "Arch 2026-10-25 排程：S7b2 已 verified（f228099；owner.rs 访问器因范围冻结拆为独立任务 a96a158 先提交，S7b2 验收不变）。复核重点：同配方 RGB 参考 0 差异、跨配方差异只作记录、mat_shin_exp 修复的语义独立验证（换 uv/新 pose）、81 槽占位面与 bvh_id 声明。复核期间 Backend 只做 S7b3 的 CPU/只读准备，GPU 释放后 start S7b3。",
   "revision": {
-    "before": "03fd9fbe8992353c0f01bd736c6716417ec5acd8",
+    "before": "56fde553fe172ad0476d0ed7945eea0ae07c83cc",
     "after": null
   },
   "created_at": "2026-10-25T13:05:00.000Z",
-  "updated_at": "2026-10-25T13:05:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T04:55:02.377Z",
   "checks": [
     {
       "kind": "gate",
