@@ -5,7 +5,7 @@
     "zh": "渲染/BVH：TextureResources 只读纹理句柄访问器（S7b2 配套）",
     "en": "Render/BVH: read-only texture handle accessor on TextureResources (S7b2 support)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "S7b2 内核打包 `texture2d_t` 数组需要 `TextureResources` 的只读 CUtexObject 句柄列表，但 `objects` 字段私有、现有公开 API（new/sample/len/is_empty）拿不到句柄。本任务只加一个 `pub(crate) fn handles(&self) -> Vec<TextureHandle2d>` 只读访问器：不转移所有权、不扩公共 API、不改 S6b 生命周期与样本语义；配套断言 S6b 回归（render_context_lifecycle 5/5、全量测试）不回归。",
     "en": "The S7b2 kernel packs a `texture2d_t` array and needs the read-only CUtexObject handle list from `TextureResources`, but the `objects` field is private and the existing public API (new/sample/len/is_empty) cannot expose handles. This task adds only `pub(crate) fn handles(&self) -> Vec<TextureHandle2d>`: no ownership transfer, no public API growth, no change to S6b lifecycle or sampling semantics; S6b regression (render_context_lifecycle 5/5 and the full suite) must not regress."
@@ -30,12 +30,11 @@
   },
   "note": "Arch 2026-10-25 结构裁决：S7b2 提交被范围钩子挡住——`src/render/context/owner.rs`（TextureResources::handles() 6 行只读访问器）不在 S7b2 files 内，且已关闭任务不能改 files（钩子拒「关闭时不能改写已冻结字段」）。为保持 S7b2 验收不变、避免第三次重登记，把该访问器拆成独立小任务先提交，S7b2 代码/证据随后按原范围提交。该访问器是 S7b2 打包纹理句柄的必需前置。",
   "revision": {
-    "before": "550a1897579b46dcf3e41519296682607ed4214d",
+    "before": "1845aa9fafb6d0d144b87871ce3f730f9ea97dfb",
     "after": null
   },
   "created_at": "2026-10-25T12:55:00.000Z",
-  "updated_at": "2026-10-25T12:55:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T04:53:31.451Z",
   "checks": [
     {
       "kind": "gate",
