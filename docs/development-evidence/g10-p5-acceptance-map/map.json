@@ -1,0 +1,323 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-acceptance-perf-native",
+  "kind": "g10-p5-acceptance-map",
+  "generated_at": "2026-10-25T20:10:00+08:00",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "source_policy": "只读既有 verified 证据与 receipt 的原文/数字，不复算、不改数字；每行 evidence_paths 可点开核对；性能与 native 落点见同目录 README/perf/native 文件。",
+  "roadmap_acceptance_quotes": [
+    "地形接触、梯度与越界",
+    "先补齐模块与写入范围。",
+    "性能测试须独占GPU。",
+    "记录真实测试与未测项。",
+    "先核对NP01与NP02。",
+    "再验收适用NP03与NP04。"
+  ],
+  "requirements": [
+    {
+      "requirement_id": "G6-1.1",
+      "title": "地形接触（host）：G4 hfield 三 case 对同配方上游 f32 CPU",
+      "implementation": ["2026-10-25-g10-p5-hfield-host（G4 host hfield：_hfield_filter + prism + CCD 组合 + 四接触选择）"],
+      "criterion_quote": "参考 fixtures/g10-p5/hfield-f32/{hfield-box,hfield-sphere,hfield-capsule}-cpu.json（mjwarp 3.15.0/warp 1.15.0/mujoco 3.15.0，device=cpu，两次捕获逐位相同 3/3）；方法：上游 f32 geom_xpos/xmat + 模型数组，margin/gap=两侧 geom 之和，gjk/epa iterations=35、tolerance=1e-6，worldid 分组后按 (worldid,dist,pos,frame) 排序逐字段比位型（重复点按多重集；原始顺序不作判据）",
+      "measured": "hfield-box count 8/8、dist 位等 8/8（0 ULP）、pos 0.00 ULP@尺度、frame 72/72 位等；hfield-sphere 8/8、dist 8/8 位等、pos 0.00 ULP@尺度、frame 72/72 位等；hfield-capsule 7/7、dist 7/7 位等、pos 0.00 ULP@尺度、frame 63/63 位等；differences=0",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-hfield-host/receipt.json（criterion/verification）",
+        "docs/development-evidence/g10-p5-hfield-host/README.md",
+        "docs/development-evidence/g10-p5-hfield-host/capture-cpu.log",
+        "fixtures/g10-p5/hfield-f32/hfield-box-cpu.json",
+        "fixtures/g10-p5/hfield-f32/hfield-sphere-cpu.json",
+        "fixtures/g10-p5/hfield-f32/hfield-capsule-cpu.json"
+      ],
+      "status": "met",
+      "reason": null,
+      "impact": null
+    },
+    {
+      "requirement_id": "G6-1.2",
+      "title": "地形接触（设备）：G5 hfield prism CCD（含 MAXCONPAIR=50→HFIELD(32)）",
+      "implementation": [
+        "2026-10-25-g10-p5-gpu-kernels（设备 hfield.cu：prism 六顶点 + ccd 组合 + 0..3 四接触 + MJ_MAXCONPAIR 溢出）",
+        "src/physics/collision/gjk/mod.rs::MJ_MAXCONPAIR = 50；src/physics/collision/cuda/hfield.cu::G5_OVERFLOW_HFIELD = 1<<5 = 32"
+      ],
+      "criterion_quote": "hfield-sphere 8/8、hfield-capsule 7/7 全字段位级（设备探针 vs 同配方上游 f32 CUDA 参考，判据：dist 自身量级 ULP、pos 向量尺度 4·ULP(scale)、frame scale=1.0 的 4 ULP、参数/整数位级，位级优先）；HFIELD 溢出口径=上游 MAXCONPAIR=50 时置 OverflowType.HFIELD(32)",
+      "measured": "hfield-sphere device_count 8/8：dist 位等 8/8（0 ULP）、pos 24/24 位等、frame 72/72 位等、nccd=0、overflow=[0,0]；hfield-capsule 7/7：dist 7/7 位等、pos 21/21 位等、frame 63/63 位等、overflow=[0,0]；QA 独立复核 hfield-overflow：nacon 4/4、prism_count=50、overflow=32（=HFIELD 1<<5）两侧相等、dist 4/4 位级、pos 3/4 位等（2.0 ULP@scale，max 2.384e-7）、frame 1.788e-7 → pass",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/result.json（cases hfield-sphere/hfield-capsule）",
+        "docs/development-evidence/g10-p5-gpu-kernels/README.md（§11.7.2 全表）",
+        "docs/development-evidence/g10-p5-gpu-kernels/receipt.json（regression_after_fix）",
+        "docs/development-evidence/g10-p5-gpu-kernels-independent-check/README.md（hfield-overflow 行、MAXCONPAIR=50→HFIELD(32)）",
+        "src/physics/collision/gjk/mod.rs（MJ_MAXCONPAIR=50）",
+        "src/physics/collision/cuda/hfield.cu（G5_OVERFLOW_HFIELD=1<<5）"
+      ],
+      "status": "partial",
+      "reason": "地形接触主判据（hfield-sphere 8/8、hfield-capsule 7/7 全字段位级）来自 G5 交付片自身证据；但 `HFIELD(32)` 的 overflow=32 实测数字只来自 QA 独立复核（`g10-p5-gpu-kernels-independent-check`），G5 交付片 README §9 只写实现映射 `MAXCONPAIR=50 → OverflowType.HFIELD=1<<5`，未含 overflow=32 的实测数字。与 G6-1.7（截断 case 仅 QA 独立复核）同一证据层级标准，故判 partial。",
+      "impact": "「地形接触」主体可引用 G5 交付证据，但 HFIELD 溢出位数字引用时须注明来自 QA 独立复核；若 QA 复核结论变化，本行需同步复核。"
+    },
+    {
+      "requirement_id": "G6-1.3",
+      "title": "梯度（host）：G3 host SDF 梯度/下降与 sdf-box 80/80",
+      "implementation": ["2026-10-25-g10-p5-sdf-host-r2（G3 host SDF：sdf/sdf_grad/clearance/compute_grad/gradient_step/descent/volume/Halton）；2026-10-25-g10-p5-sdf-relmat-fix（相对旋转上游 transpose(rot1)*rot2 + fma 链修正）"],
+      "criterion_quote": "输入=上游 f32 运动学 geom_xpos/xmat + 上游 put_model f32 模型数组（octree/geom_size/geom_aabb/geom_type/geom_dataid/mesh_octadr）；worldid 分组 + (dist,pos,frame) 稳定排序后逐分量比位型；参考 fixtures/g10-p5/sdf-f32/sdf-box-cpu.json（warp CPU，两次捕获逐位相同）",
+      "measured": "sdf-box contacts 80/80；dist 80/80 位等（max 0 ULP）；pos max 0.00 ULP@尺度；frame 720/720 分量位等（max abs 0）；结构 count=2world×40initpoints、geom 对(0,1)、worldid 序列与 G0b 原生参考一致；differences=0；relmat 修正后 4 旋转场景 80/80 位级（docs/development-evidence/g10-p5-sdf-relmat-fix）",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-sdf-host/receipt.json（criterion/verification）",
+        "docs/development-evidence/g10-p5-sdf-host/README.md",
+        "docs/development-evidence/g10-p5-sdf-host/capture-cpu.log",
+        "docs/development-evidence/g10-p5-sdf-relmat-fix/receipt.json",
+        "fixtures/g10-p5/sdf-f32/sdf-box-cpu.json"
+      ],
+      "status": "met",
+      "reason": null,
+      "impact": null
+    },
+    {
+      "requirement_id": "G6-1.4",
+      "title": "梯度（设备）：G5 设备 SDF narrowphase（sdf-box 80/80）",
+      "implementation": ["2026-10-25-g10-p5-gpu-kernels（设备 sdf_narrowphase.cu + sdf_octree.cu + sdf_math.cu，接触写入 contact.cu）"],
+      "criterion_quote": "设备探针输出 vs 同配方上游 f32 CUDA 参考：dist 自身量级 ≤4 ULP（位级优先）、pos 向量尺度 4·ULP(scale)、frame scale=1.0 的 4 ULP、参数/整数位级；行序按 worldid 分组排序不作判据",
+      "measured": "sdf-box device_count 80/80（reference_count 80）：dist 位等 80/80（0 ULP）、pos 位等 203/240（max abs 7.4506e-9 = 1.0 ULP@scale(0.09834)）、frame 位等 675/720（max abs 2.384e-7 < 4·ULP@1.0）、nccd=0、overflow=[0,0]、ints 位等、两跑排序后位等",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/result.json（cases sdf-box：pos_bit_equal=203、pos_max_abs=7.450580596923828e-9、pos_scale_max=0.09833551943302155、frame_bit_equal=675）",
+        "docs/development-evidence/g10-p5-gpu-kernels/receipt.json（regression_after_fix：修后 pos 203/240 位等，max 7.45e-9=1.0 ULP@scale）",
+        "docs/development-evidence/g10-p5-gpu-kernels/README.md（§11.7.2 全表为 01690e53 修前 202/240 旧值，修后以 receipt 为准）"
+      ],
+      "status": "met",
+      "reason": null,
+      "impact": null
+    },
+    {
+      "requirement_id": "G6-1.5",
+      "title": "越界（设备）：OverflowType 位语义（EPA_HORIZON / CCD）",
+      "implementation": ["2026-10-25-g10-p5-ccd-overflow-bit-fix（提交 99c91469）：cuda/ccd.cu 与 cuda/contact.cu 不再因 EPA FLOAT_MAX 置 CCD；CCD 只由 g5_claim_ccd_slot 在 nccd>=naccdmax 置"],
+      "criterion_quote": "强制 horizon 容量=2（等价容量，上游 ccd() 的 horizon 数组长度即 Polytope.max_horizon）：设备 g5_ccd overflow 与同配方上游 f32 GPU 位级相等（EPA_HORIZON=256，不含 CCD=16）；dist/x1/x2 位级、ncontact/multiccd_idx 相等；两次运行一致；修正前设备源在触发 FLOAT_MAX 的 world 为 272（反向判别）",
+      "measured": "3 case × 2 world：cylinder-box [256,256]、box-box-margin [256,256]、mesh-mesh [0,256]（修前对应 [272,272]/[272,272]/[0,272]）；5/6 world hit FLOAT_MAX（dist bits 0x7149F2CA=1e30）、ncontact 0、multiccd_idx -1；x1/x2 位级；设备两次运行位级一致；上游两次捕获 JSON 字节级相同（sha256 9879145bfe65…）",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/README.md（强制 horizon 对照表）",
+        "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/overflow-result.json",
+        "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/upstream-forced-horizon-run1.json",
+        "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/receipt.json"
+      ],
+      "status": "met",
+      "reason": null,
+      "impact": null
+    },
+    {
+      "requirement_id": "G6-1.6",
+      "title": "越界（宿主）：OverflowType 位语义 + 真实容量门",
+      "implementation": ["2026-10-25-g10-p5-host-ccd-overflow-bit-fix（提交 5a176fee）：gjk/ccd.rs 与 gjk/contact.rs 不再因 EPA FLOAT_MAX 置 CCD；新增 CcdCapacity/ccd_pair_with_capacity 承接上游 nccd>=naccdmax 容量门"],
+      "criterion_quote": "宿主 ccd/contact 不再因 EPA 返回 FLOAT_MAX 置 OverflowType.CCD(1<<4)；CCD 位只在 nccd>=naccdmax 的真实容量截断时置（与上游 eval_ccd_write_contact 一致），EPA_HORIZON(1<<8) 保持原语义；强制 horizon 回归同时断言真实 naccdmax 截断仍置 CCD（防矫枉过正）",
+      "measured": "强制 horizon 等价容量 2：ccd() 入口 272→256、ccd_pair 272→256（均断言 ==EPA_HORIZON、&CCD==0、!=272、dist=FLOAT_MAX、ncontact=0）；容量门：ccd_slot=1>=naccdmax=1 → overflow=16(CCD) 且不写接触；容量足够+强制 horizon → 256；容量足够+正常穿透 → 0 且接触正常；G2 五 case/G3 sdf-box/G4 hfield/G5 宿主 ellipsoid-box 全不回归（unit 588/0）",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-host-ccd-overflow-bit-fix/README.md",
+        "docs/development-evidence/g10-p5-host-ccd-overflow-bit-fix/receipt.json",
+        "docs/development-evidence/g10-p5-host-ccd-overflow-bit-fix/test-output.txt",
+        ".normify/changes/2026-10-25-g10-p5-gjk-epa.json（G2 addenda：G2 五 case 不触发 FLOAT_MAX，数值结论不变）"
+      ],
+      "status": "met",
+      "reason": null,
+      "impact": null
+    },
+    {
+      "requirement_id": "G6-1.7",
+      "title": "越界（容量截断）：naconmax / naccdmax 截断计数",
+      "implementation": [
+        "设备：src/physics/collision/cuda/contact.cu（g5_write_contact：先 atomic_add 再判 cid<naconmax；g5_claim_ccd_slot：ccdid>=naccdmax→CCD）",
+        "宿主：2026-10-25-g10-p5-host-ccd-overflow-bit-fix 的 CcdCapacity 容量门（产品 ccd_pair 默认 None，由调用方持有计数器）"
+      ],
+      "criterion_quote": "上游 write_contact：先 atomic_add 再判容量，超容量仍计数、行不写、不越界；eval_ccd_write_contact：ccdid>=naccdmax_in 时置 OverflowType.CCD 并 return（接触不写）",
+      "measured": "QA 独立复核：sdf-box-naconmax40（naconmax=40）设备与上游 nacon 均 80/80、实际写入行 40/40、truncated=true、无越界写、overflow=[0,0] 两侧相等 → pass；ellipsoid-box-naccdmax1（naccdmax=1）nacon 1/1、写行 1/1、nccd 设备 2、无越界、overflow 设备[16,0] vs 上游[0,16]（按 world 归属是 atomic 竞态、位多重集相等）→ pass，接触字段不比较",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-gpu-kernels-independent-check/README.md（§4.2 截断两行）",
+        "docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-compare-gpu.json",
+        "src/physics/collision/cuda/contact.cu（g5_write_contact / g5_claim_ccd_slot）"
+      ],
+      "status": "partial",
+      "reason": "截断行为由 G5 独立复核（QA，verified）以自造 case 覆盖并通过；G5 交付片自身未含 naconmax/naccdmax 截断 case（见 G5 receipt unmet），因此本行证据层级为独立复核而非交付验收数字。",
+      "impact": "G6 声明「越界」语义时需同时引用 QA 复核；若 QA 后续独立复核结果变化，本行状态需同步。"
+    },
+    {
+      "requirement_id": "G6-2.1",
+      "title": "流程：先补齐模块与写入范围",
+      "implementation": ["G2 2026-10-25-g10-p5-gjk-epa / G3 2026-10-25-g10-p5-sdf-host-r2 / G4 2026-10-25-g10-p5-hfield-host / G5 2026-10-25-g10-p5-gpu-kernels 均已 verified；G1 model-fields 任务 abandoned（模型字段改由 fixtures 验证入口）"],
+      "criterion_quote": "先补齐模块与写入范围。",
+      "measured": "G2/G3/G4/G5 交付 receipt 均含 scope.files 与 gate runs；G5 设备内核 14 个 .cu 全量对照；但仍有 multicontact 设备版、NVRTC 产品 launcher、primitive narrowphase 三个模块缺口（见 uncovered）",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-gjk-epa/receipt.json",
+        "docs/development-evidence/g10-p5-sdf-host/receipt.json",
+        "docs/development-evidence/g10-p5-hfield-host/receipt.json",
+        "docs/development-evidence/g10-p5-gpu-kernels/receipt.json"
+      ],
+      "status": "partial",
+      "reason": "模块与写入范围已按 G2→G5 顺序补齐，但 multicontact 设备版、NVRTC 产品 launcher、primitive narrowphase 未实装/未接线（见 uncovered 1-3）；G1 model-fields 被 abandon，模型字段以 fixtures 方式落地。",
+      "impact": "G10@P5 的完整产品内核路径未闭合；这三项不得计入 met，G6 声明只能覆盖已交付路径。"
+    },
+    {
+      "requirement_id": "G6-2.2",
+      "title": "流程：性能测试须独占 GPU",
+      "implementation": ["G6-2 性能片（本任务）：host 吞吐 + 设备 kernel-only/端到端 + 上游 f32 CPU 参考；一次获批独占 GPU 窗口（Arch + Chief 双签）"],
+      "criterion_quote": "性能测试须独占GPU。",
+      "measured": "独占窗口（HEAD 绑定 9c0a0480，相对 6510317f 产品代码 diff 为空）：基线 used 3663/16376 MiB、util 0%、29°C，0.5 s 采样 7 点、峰值 used 4834（+1171）、守卫 3072 MiB/50% 未触发，window wall 5.5 s，跑前跑后本任务相关计算进程 0；host 9 case 单线程中位 0.010–2.697 ms；设备 7 case kernel-only 中位 0.021–4.774 ms、端到端 0.538–5.060 ms（CUDA events 与 host clock 分栏）；上游 f32 CPU 9 case 中位 0.645–11.722 ms；四列覆盖缺口（host 缺 box-box-margin、设备缺 convex-mesh/degenerate-mesh/hfield-box、上游缺 ellipsoid-box）显式记录；编译/JIT/加载时间不计入，桌面负载与硬件/驱动/nvcc 版本已记录",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-acceptance-map/perf/perf-summary.json（四列聚合 + 覆盖度 + 环境）",
+        "docs/development-evidence/g10-p5-acceptance-map/perf/README.md（窗口事实、口径、数字、缺口、限制）",
+        "docs/development-evidence/g10-p5-acceptance-map/perf/window-log.txt（HEAD 绑定/基线/逐步守卫/峰值/结束）",
+        "docs/development-evidence/g10-p5-acceptance-map/perf/window-memory-samples.txt（0.5 s 采样序列）",
+        "docs/development-evidence/g10-p5-acceptance-map/perf/host/（9 个 case 原始样本）",
+        "docs/development-evidence/g10-p5-acceptance-map/perf/device/（7 个 case 原始样本：kernel_ns/e2e_ns）",
+        "docs/development-evidence/g10-p5-acceptance-map/perf/upstream-cpu.json（上游 f32 CPU 参考）",
+        "docs/development-evidence/g10-p5-acceptance-map/perf/artifacts-sha256.txt（源/产物/证据 sha256）",
+        "docs/development-evidence/np04-windows-performance/README.md（口径 C：独占窗口 + 桌面负载记录先例）"
+      ],
+      "status": "met",
+      "reason": null,
+      "impact": "性能数据只作证据：不得据此声明性能达标、跨硬件等价或 NP04 放行；四列覆盖非同集，不补齐、不跨列外推。"
+    },
+    {
+      "requirement_id": "G6-2.3",
+      "title": "流程：记录真实测试与未测项",
+      "implementation": ["G2/G3/G4/G5/G6 各片 receipt 均含 verification 实测数字与 unmet 清单；本目录 README/map 汇总"],
+      "criterion_quote": "记录真实测试与未测项。",
+      "measured": "G2-G5 receipt 中 unittest/gate/回归命令与输出均为实测；各 receipt 的 unmet 明确列出未覆盖项；本片 receipt 同样含 unmet（性能未测前的状态、Linux/T4 等）",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-gjk-epa/receipt.json（unmet）",
+        "docs/development-evidence/g10-p5-sdf-host/receipt.json（unmet）",
+        "docs/development-evidence/g10-p5-hfield-host/receipt.json（unmet）",
+        "docs/development-evidence/g10-p5-gpu-kernels/receipt.json（unmet）",
+        "docs/development-evidence/g10-p5-acceptance-map/receipt.json"
+      ],
+      "status": "met",
+      "reason": null,
+      "impact": null
+    },
+    {
+      "requirement_id": "G6-2.4",
+      "title": "流程：先核对 NP01/NP02，再验收适用 NP03/NP04",
+      "implementation": ["2026-10-25-g10-p5-precheck（精度映射与 NP 顺序）；docs/numerical-precision-contract.md（指标定义）"],
+      "criterion_quote": "先核对NP01与NP02。再验收适用NP03与NP04。",
+      "measured": "NP01 类型映射：G2/G3/G4/G5 均按 f32 全链、逐字段类型核对（precheck precision_plan：contact_dist/pos/frame 等 f32、i32 结构字段）；NP02 证据覆盖：G2 五 case、G3 sdf-box、G4 三 case、G5 四 case 均有同配方上游 f32 参考与两次捕获一致记录；NP03 两级判定：对上游 f32 侧已按「≤4 ULP/位级优先」执行；native 侧接触字段按用户 2026-10-25 拍板 B 只作诊断、不参与通过/失败（契约 `09896792`），其 5% 红线不适用；其它字段 5% 红线全量未完成；NP04 性能已按独占窗口采集（G6-2.2：耗时/显存/桌面负载/版本，编译与加载单列）",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-precheck/receipt.json（precision_plan/slices）",
+        "docs/numerical-precision-contract.md（§硬性验收指标 NP01-NP04 表与顺序；## 接触字段（native 侧））",
+        "docs/development-evidence/g10-p5-gjk-epa/receipt.json（upstream_reference 两次捕获 5/5）",
+        "docs/development-evidence/g10-p5-sdf-host/receipt.json（reference 两次捕获）",
+        "docs/development-evidence/g10-p5-hfield-host/receipt.json（reference 两次捕获 3/3）",
+        "docs/development-evidence/g10-p5-acceptance-map/perf/README.md（NP04 已采集耗时/显存），NP03 其它字段全量仍未完成"
+      ],
+      "status": "partial",
+      "reason": "NP01/NP02 已按 precheck 核对并随各片证据落地；NP03 对上游 f32 侧完成，native 侧接触字段按用户 2026-10-25 拍板 B 只作诊断（契约已落地 `09896792`），其它字段 5% 红线全量未完成；NP04 性能已采集但只表示「已记录耗时与显存」，不构成放行。",
+      "impact": "不得声明 NP01–NP04 整体放行；NP03 其它字段全量仍是 G6 后待补项。"
+    },
+    {
+      "requirement_id": "G6-3.1",
+      "title": "native 侧接触字段处置：用户拍板 B（待验收不放行、只作诊断）",
+      "implementation": [
+        "契约提交 `09896792`：`docs/numerical-precision-contract.md` 新增 `## 接触字段（native 侧）`（在 `## 数值参考优先级` 之后）；登记提交 `ce9baa5a`",
+        "证据目录 `docs/development-evidence/native-contact-tolerance-decision-b/`（任务 `2026-10-25-native-contact-tolerance-decision-b`，verified）；本片 `native-framework.md` 按 B 收口"
+      ],
+      "criterion_quote": "用户于2026-10-25拍板选项B。接触字段的native侧只作诊断。适用字段为dist、pos、frame与normal。这些字段的native侧一律待验收不放行。该判定不参与通过或失败。`qa-native-f64.json`读数只作诊断与趋势。该读数不构成准入依据。接触精度仍由对上游f32的判据承担。本节不表示接触字段没有精度要求。红线`E_candidate <= 1.05 * E_mjwarp`在其它字段照旧生效。接触字段的native侧不适用该红线。",
+      "measured": "E 复算（诊断性质，样本量=ellipsoid-box 1 case / 2 world × 各 1 接触 = 2 个接触点）：设备（产品）vs native dist 3.979e-7（rel 3.98e-5）、pos 4.546e-4、frame 1.170e-3、normal 1.170e-3；上游 f32（warp CUDA）vs native 3.961e-7 / 4.546e-4 / 1.171e-3 / 1.171e-3，两者几乎相同 → 属 MuJoCo C 与 warp 的接触选择语义差、非实现/f32 精度差；`hfield-box` native 每 world 接触数不可得 → 不可配对、样本不增；未写入任何生效 atol/rtol",
+      "evidence_paths": [
+        "docs/numerical-precision-contract.md（## 接触字段（native 侧），提交 09896792）",
+        "docs/development-evidence/native-contact-tolerance-decision-b/README.md（判据原文、v3 摘要、拍板记录、样本量）",
+        "docs/development-evidence/native-contact-tolerance-decision-b/receipt.json（task_id）",
+        "target/g10-p5-native-tolerance-candidates-v3.md（v3 材料结论摘要；工作区临时材料、不入库，摘要已落上方 README §2）",
+        "docs/development-evidence/g10-p5-acceptance-map/native-framework.md（G6-3 按 B 收口 + hfield-box 不可配对）"
+      ],
+      "status": "met",
+      "reason": null,
+      "impact": "native 侧不提供放行信号，属选项 B 的既定后果；若未来要 native 放行，须先扩充真 native 样本（另立 native 接触输出探针）并重新拍板。"
+    }
+  ],
+  "uncovered": [
+    {
+      "requirement_id": "UNC-1",
+      "title": "multicontact 设备版未实装",
+      "implementation": "设备 ccd_pair 写接触当前单接触；G5 三例只做 ccd() witness 对照",
+      "criterion_quote": "上游 eval_ccd_write_contact 在 box/mesh/cylinder 组合走 multicontact（≤4 接触）",
+      "measured": "G5：cylinder-box/box-box-margin/mesh-mesh 接触数组不做全等；witness 对照已过（dist/x1/x2 位级优先，overflow=0，failed_cases=[]）",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-gpu-kernels/receipt.json（unmet 第 1 条）",
+        "docs/development-evidence/g10-p5-gpu-kernels-independent-check/README.md"
+      ],
+      "status": "unmet",
+      "reason": "设备接触写入只有单接触路径；multicontact 保留在后续小片。",
+      "impact": "设备 multicontact 路径的接触数组未与上游对照；G10@P5 声明不得覆盖该路径。"
+    },
+    {
+      "requirement_id": "UNC-2",
+      "title": "NVRTC 产品 launcher 未接线",
+      "implementation": "src/runtime/collision_gpu.rs + ignored 产品入口未实现/未接线",
+      "criterion_quote": "GPU 产品入口须经 NVRTC launcher 实际可调用",
+      "measured": "G5 仅有独立 nvcc 探针验证设备源；产品 launcher 路径未接线（G5 receipt unmet）",
+      "evidence_paths": ["docs/development-evidence/g10-p5-gpu-kernels/receipt.json（unmet 第 3 条）"],
+      "status": "unmet",
+      "reason": "NVRTC launcher 小片未实施。",
+      "impact": "产品级 GPU 入口不可用；G10@P5 的 GPU 内核只有独立探针证据。"
+    },
+    {
+      "requirement_id": "UNC-3",
+      "title": "primitive narrowphase 设备版未实装",
+      "implementation": "上游 (SPHERE,BOX)/(CAPSULE,BOX) 走 primitive_narrowphase；设备侧未实现",
+      "criterion_quote": "上游 dispatch：sphere-box/capsule-box 由 primitive_narrowphase 产生接触，不走 ccd 内核",
+      "measured": "G5 探针不把这些 case 列入设备 ccd 对照；QA 复核同样标注未覆盖",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-gpu-kernels/receipt.json（unmet 第 2 条）",
+        "docs/development-evidence/g10-p5-gpu-kernels-independent-check/README.md"
+      ],
+      "status": "unmet",
+      "reason": "设备 primitive narrowphase 未实现。",
+      "impact": "sphere-box/capsule-box 等组合的设备接触无产品证据，不得计入 G10@P5。"
+    },
+    {
+      "requirement_id": "UNC-4",
+      "title": "Linux/T4 未覆盖",
+      "implementation": "全部 G2-G6 证据仅 Windows + RTX 4070 Ti SUPER（sm_89，nvcc 12.8.1）",
+      "criterion_quote": "G10@P5 双平台/跨硬件声明需 Linux 与 T4 证据（用户 2026-10-24 决定 Linux 集中回测）",
+      "measured": "G2-G5 receipt 均记录仅 Windows/warp CPU 或本机 CUDA；Q4/T4 缺独立精度与性能证据",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-gjk-epa/receipt.json（unmet）",
+        "docs/development-evidence/g10-p5-gpu-kernels/receipt.json（unmet）",
+        "docs/development-evidence/g10-p5-sdf-host/receipt.json（unmet）",
+        "docs/development-evidence/g10-p5-hfield-host/receipt.json（unmet）"
+      ],
+      "status": "unmet",
+      "reason": "用户裁决 Linux 任务集中回测；T4 无独立证据。",
+      "impact": "不得声明双平台通过/跨硬件等价；性能不跨硬件外推。"
+    },
+    {
+      "requirement_id": "UNC-5",
+      "title": "窗口逐秒峰值未取到（G5 窗口事实）",
+      "implementation": "G5 GPU 窗口峰值显存采样",
+      "criterion_quote": "窗口须报告峰值显存（0.5 s 采样）",
+      "measured": "G5 窗口因 Start-Job 相对路径缺陷未取到逐秒峰值；离散观测 3357→3559 / 3706→3609 / 3701→3701 MiB，跑前跑后无本任务计算进程；脚本已修，本片 G6 性能窗口将按 0.5 s 采样",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-gpu-kernels/receipt.json（gpu_window_2）",
+        "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/window-log.txt（后续窗口 0.5 s 采样先例）"
+      ],
+      "status": "unmet",
+      "reason": "G5 窗口脚本缺陷导致逐秒峰值缺失；G6 性能窗口补采样，但不回填 G5 历史数字。",
+      "impact": "G5 峰值显存只有离散观测，不得写成逐秒峰值；G6 perf 证据另列。"
+    },
+    {
+      "requirement_id": "UNC-6",
+      "title": "cylinder-box 深穿透额外采样面（4/24 单字段超 4·ULP@scale）",
+      "implementation": "G5 独立复核的额外姿态采样（非交付 3 witness case）",
+      "criterion_quote": "witness 判据：dist/x1/x2 位级优先、≤4·ULP@scale",
+      "measured": "24 个随机姿态 world 中 x1 1 个 world 超 4·ULP@scale（max 8.926e-7）、x2 3 个 world 超（max 1.527e-7）；dist 无越界（max 4 ULP）、ncontact 24/24 相等、overflow 全 0；已登记后续片 2026-10-25-g10-p5-deep-epa-witness-sampling",
+      "evidence_paths": [
+        "docs/development-evidence/g10-p5-gpu-kernels-independent-check/README.md（发现 2）"
+      ],
+      "status": "unmet",
+      "reason": "交付 3 个 witness case 全过；额外随机姿态采样出现单字段超判据，归后续 deep-epa-witness-sampling 片。",
+      "impact": "设备 EPA witness 在额外姿态下的数值面未验收，不得声明全姿态等价。"
+    }
+  ],
+  "summary": {
+    "requirements_total": 12,
+    "met": 8,
+    "partial": 4,
+    "unmet": 0,
+    "uncovered_total": 6,
+    "note": "perf（G6-2.2）已按独占窗口采集；NP03 其它字段 5% 红线全量完成前，G10@P5 不得整体声明通过；G6-3.1 只表示「native 侧按用户拍板 B 处置已落地」，不提供放行信号；本 map 只做证据映射，不改任何已 verified 数字。"
+  }
+}

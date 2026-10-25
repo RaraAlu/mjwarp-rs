@@ -109,7 +109,21 @@ fn sort_rows(rows: &mut [Row]) {
     });
 }
 
-fn check_case(name: &str) {
+/// 一个 hfield case 的装载结果：模型侧数据、每世界局部位姿与参考行。
+struct HfieldCase {
+    world_count: usize,
+    hfield: HfieldData,
+    geomtype2: i32,
+    other_rbound: f32,
+    margin: f32,
+    gap: f32,
+    options: CcdOptions,
+    /// 每世界：hfield 局部坐标下的 geom2、hf 旋转与平移。
+    worlds: Vec<(Geom<'static>, [f32; 9], [f32; 3])>,
+    reference: Vec<Row>,
+}
+
+fn load_case(name: &str) -> HfieldCase {
     let value = read_json(name);
     assert_eq!(value["schema"], 1);
     assert_eq!(
@@ -184,42 +198,27 @@ fn check_case(name: &str) {
     let reference_frame = rows_floats(&fields["frame"]);
     let worldid = rows_floats(&fields["worldid"]);
     let geom = rows_floats(&fields["geom"]);
-
-    let mut ours = Vec::new();
-    for world in 0..world_count {
-        let hf_pos = pos_rows[world][hf_index];
-        let hf_mat = mat_rows[world][hf_index];
-        let other_pos = pos_rows[world][other_index];
-        let other_rot = mat_rows[world][other_index];
-        let pos2_hf =
-            super::super::gjk::math::transpose_mul_mat3_vec(&hf_mat, sub3(other_pos, hf_pos));
-        let rot2_hf =
-            crate::physics::collision::relmat::upstream_relative_matrix(&hf_mat, &other_rot);
-        let geom2 = Geom::simple(pos2_hf, rot2_hf, geom_size[other_index], 0.0);
-        let input = HfieldInput {
-            hfield: &hfield,
-            geom2,
-            geomtype2: geom_type[other_index],
-            other_rbound: geom_rbound[other_index],
-            margin: geom_margin[hf_index] + geom_margin[other_index],
-            gap: geom_gap[hf_index] + geom_gap[other_index],
-            options,
-            hf_mat,
-            hf_pos,
-        };
-        let result = hfield_pair_contacts(&input);
-        assert!(!result.overflow, "{name} world {world} 不应溢出");
-        for contact in result.contacts {
-            ours.push(Row {
-                world: world as i32,
-                dist: contact.dist,
-                pos: contact.pos,
-                frame: contact.frame,
-            });
-        }
+    assert_eq!(geom.len(), reference_count, "{name} 参考 geom 结构");
+    for pair in &geom {
+        assert_eq!(pair[0] as i32, hf_index as i32, "{name} hfield 为 g1");
+        assert_eq!(pair[1] as i32, other_index as i32, "{name} 对侧为 g2");
     }
 
-    let mut expected: Vec<Row> = (0..reference_count)
+    let worlds = (0..world_count)
+        .map(|world| {
+            let hf_pos = pos_rows[world][hf_index];
+            let hf_mat = mat_rows[world][hf_index];
+            let other_pos = pos_rows[world][other_index];
+            let other_rot = mat_rows[world][other_index];
+            let pos2_hf =
+                super::super::gjk::math::transpose_mul_mat3_vec(&hf_mat, sub3(other_pos, hf_pos));
+            let rot2_hf =
+                crate::physics::collision::relmat::upstream_relative_matrix(&hf_mat, &other_rot);
+            let geom2 = Geom::simple(pos2_hf, rot2_hf, geom_size[other_index], 0.0);
+            (geom2, hf_mat, hf_pos)
+        })
+        .collect();
+    let reference = (0..reference_count)
         .map(|index| Row {
             world: worldid[index][0] as i32,
             dist: dist[index][0],
@@ -235,12 +234,62 @@ fn check_case(name: &str) {
             },
         })
         .collect();
-    assert_eq!(geom.len(), reference_count, "{name} 参考 geom 结构");
-    for pair in &geom {
-        assert_eq!(pair[0] as i32, hf_index as i32, "{name} hfield 为 g1");
-        assert_eq!(pair[1] as i32, other_index as i32, "{name} 对侧为 g2");
+
+    HfieldCase {
+        world_count,
+        hfield,
+        geomtype2: geom_type[other_index],
+        other_rbound: geom_rbound[other_index],
+        margin: geom_margin[hf_index] + geom_margin[other_index],
+        gap: geom_gap[hf_index] + geom_gap[other_index],
+        options,
+        worlds,
+        reference,
     }
-    for world in 0..world_count {
+}
+
+impl HfieldCase {
+    /// 构造全部世界的 driver 输入；借用 hfield，构造落在计时区外。
+    fn with_inputs<T>(&self, f: impl FnOnce(&[HfieldInput<'_>]) -> T) -> T {
+        let inputs: Vec<HfieldInput<'_>> = self
+            .worlds
+            .iter()
+            .map(|(geom2, hf_mat, hf_pos)| HfieldInput {
+                hfield: &self.hfield,
+                geom2: *geom2,
+                geomtype2: self.geomtype2,
+                other_rbound: self.other_rbound,
+                margin: self.margin,
+                gap: self.gap,
+                options: self.options,
+                hf_mat: *hf_mat,
+                hf_pos: *hf_pos,
+            })
+            .collect();
+        f(&inputs)
+    }
+}
+
+fn check_case(name: &str) {
+    let case = load_case(name);
+    let mut ours = Vec::new();
+    case.with_inputs(|inputs| {
+        for (world, input) in inputs.iter().enumerate() {
+            let result = hfield_pair_contacts(input);
+            assert!(!result.overflow, "{name} world {world} 不应溢出");
+            for contact in result.contacts {
+                ours.push(Row {
+                    world: world as i32,
+                    dist: contact.dist,
+                    pos: contact.pos,
+                    frame: contact.frame,
+                });
+            }
+        }
+    });
+
+    let mut expected = case.reference.clone();
+    for world in 0..case.world_count {
         let count = ours.iter().filter(|row| row.world == world as i32).count();
         let reference = expected
             .iter()
@@ -269,6 +318,7 @@ fn check_case(name: &str) {
             frame_max_abs = frame_max_abs.max(diff);
         }
     }
+    let reference_count = expected.len();
     println!(
         "[hfield判据] {name:<15} count {}/{} | dist 位等 {}/{} max {} ULP | pos max {:.2} ULP@尺度 | frame 位等分量 {}/{} max abs {:e}",
         ours.len(),
@@ -284,6 +334,38 @@ fn check_case(name: &str) {
     assert!(dist_max_ulp <= 4, "{name} dist {dist_max_ulp} ULP");
     assert!(pos_max_ulp <= 4.0, "{name} pos {pos_max_ulp} ULP");
     assert!(frame_max_abs <= 4.8e-7, "{name} frame {frame_max_abs:e}");
+}
+
+/// G6-2 host 单线程性能（不进判据）：一个样本 = 该 case 全部世界各一次
+/// `hfield_pair_contacts`，`ncontacts` = 一次样本产出的接触总数。
+#[test]
+#[ignore = "G6-2 host 性能测量：手动运行且 --test-threads=1，数字不进精度判据"]
+fn perf_hfield_case_throughput() {
+    let mut total_ns = 0.0_f64;
+    let mut total_contacts = 0.0_f64;
+    for name in CASES {
+        let case = load_case(name);
+        let timing = case.with_inputs(|inputs| {
+            super::super::perf_report::measure(name, || {
+                let mut contacts = 0;
+                for input in inputs {
+                    contacts += hfield_pair_contacts(input).contacts.len();
+                }
+                contacts
+            })
+        });
+        total_ns += timing.total_ns;
+        total_contacts += timing.ncontacts as f64;
+    }
+    let contacts_per_s = if total_ns == 0.0 {
+        0.0
+    } else {
+        total_contacts * 1.0e9 / total_ns
+    };
+    println!(
+        "[G6-2] G4 hfield 三 case host 汇总：contacts={total_contacts:.0} total_ms={:.3} contacts_per_s={contacts_per_s:.3}",
+        total_ns / 1.0e6
+    );
 }
 
 #[test]

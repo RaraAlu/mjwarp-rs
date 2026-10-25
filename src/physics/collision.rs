@@ -33,6 +33,8 @@ pub use narrowphase::{
 // GJK/EPA 在 G5 GPU 内核片接入前只由测试与后续片使用。
 mod gjk;
 mod nxn;
+#[cfg(test)]
+mod perf_report;
 mod sap;
 #[cfg(test)]
 mod tests;

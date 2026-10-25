@@ -1,0 +1,508 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-acceptance-perf-native",
+  "kind": "g6-2-perf-summary",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "columns": {
+    "host_cpu_single_thread": "Rust host 产品路径，纯 CPU 单线程，warmup 20 + 200 次，中位/p95/contacts/s",
+    "device_kernel_only": "设备内核单次发射，CUDA events（warmup 5 + 50），清零在 start 事件前",
+    "device_end_to_end": "设备一次完整调用：geom 位姿 H2D + 输出清零 + kernel + 全部输出 D2H + 同步（host steady_clock，warmup 5 + 50）",
+    "upstream_f32_cpu": "冻结上游 f32 CPU 同机同版本参考（离线 Python，warmup 20 + 200，中位/p95/contacts/s）"
+  },
+  "environment": {
+    "device": {
+      "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+      "compute_capability": "8.9",
+      "cudart_version": 12080
+    },
+    "upstream": {
+      "device": "cpu",
+      "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+      "cpu_logical_processors": 32,
+      "python": "3.12.13",
+      "warp_version": "1.15.0",
+      "mujoco_version": "3.15.0",
+      "mujoco_warp_version": "3.15.0",
+      "threads": 1
+    },
+    "window": {
+      "head_revision": "9c0a0480cd4a1be9508155261c8286e9eae1b54b",
+      "window_start_head": "9c0a0480 full=9c0a0480cd4a1be9508155261c8286e9eae1b54b",
+      "product_diff_6510317f_to_head": "<empty>",
+      "window_worktree_changes_count": "9",
+      "baseline_memory": "NVIDIA GeForce RTX 4070 Ti SUPER, 16376 MiB, 3663 MiB, 12399 MiB, 0 %, 29, 596.36",
+      "baseline_used_mib": "3663",
+      "baseline_compute_apps_count": "34",
+      "task_related_count": "0",
+      "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor cores=16 logical=32 max_clock_mhz=4300",
+      "desktop_process_top5": "vmware-vmx:17548MiB, DeepSeek Harness:1768MiB, Code:1085MiB, MsMpEng:735MiB, explorer:684MiB",
+      "desktop_process_count": "395",
+      "after_compute_apps_count": "34",
+      "after_used_mib": "3663",
+      "peak_memory_used_mib": "4834",
+      "peak_delta_mib": "1171",
+      "sample_count": "7",
+      "util_max_percent": "90",
+      "util_avg_percent": "20",
+      "temp_max_c": "31",
+      "elapsed_seconds": "5.5"
+    }
+  },
+  "notes": [
+    "性能数据不进精度判据、不跨硬件外推；编译/JIT 时间不计入上述任何列。",
+    "device 列只覆盖冻结 G5 case 目录存在的 7 个 case；host 列覆盖 G2 五 case + G3 sdf-box + G4 hfield 三例。",
+    "upstream_f32_cpu 为同机同版本上游 CPU 参考，不是上游 GPU 计时（上游 GPU 计时未纳入本任务口径）。",
+    "contacts/s = 每次调用接触点数 × 1e9 / 中位耗时(ns)；只作量级参考，不作门槛。",
+    "G6-2 的独占窗口口径见 window-log.txt：跑前跑后 query-compute-apps、0.5 s 显存采样、守卫 3072 MiB/50%。"
+  ],
+  "coverage": {
+    "host_cpu": [
+      "convex-mesh",
+      "cylinder-box",
+      "degenerate-mesh",
+      "ellipsoid-box",
+      "hfield-box",
+      "hfield-capsule",
+      "hfield-sphere",
+      "mesh-mesh",
+      "sdf-box"
+    ],
+    "device": [
+      "box-box-margin",
+      "cylinder-box",
+      "ellipsoid-box",
+      "hfield-capsule",
+      "hfield-sphere",
+      "mesh-mesh",
+      "sdf-box"
+    ],
+    "upstream_f32_cpu": [
+      "box-box-margin",
+      "convex-mesh",
+      "cylinder-box",
+      "degenerate-mesh",
+      "hfield-box",
+      "hfield-capsule",
+      "hfield-sphere",
+      "mesh-mesh",
+      "sdf-box"
+    ],
+    "missing": {
+      "host_cpu": [
+        "box-box-margin"
+      ],
+      "device": [
+        "convex-mesh",
+        "degenerate-mesh",
+        "hfield-box"
+      ],
+      "upstream_f32_cpu": [
+        "ellipsoid-box"
+      ]
+    }
+  },
+  "cases": [
+    {
+      "case": "box-box-margin",
+      "device_kernel_only": {
+        "samples": 50,
+        "median_ns": 52240.0,
+        "p95_ns": 53088.0,
+        "min_ns": 51936.0,
+        "max_ns": 53184.0,
+        "ncontacts": 2,
+        "contacts_per_s": 38284.83920367534
+      },
+      "device_end_to_end": {
+        "samples": 50,
+        "median_ns": 598950.0,
+        "p95_ns": 710400.0,
+        "min_ns": 574100.0,
+        "max_ns": 763200.0,
+        "ncontacts": 2,
+        "contacts_per_s": 3339.1768928959013
+      },
+      "device_case_meta": {
+        "kernel_kind": "contact",
+        "nworld": 2,
+        "naconmax": 8192,
+        "efc_width": 4,
+        "nacon": 2,
+        "nccd": 2,
+        "overflow": [
+          0,
+          0
+        ]
+      },
+      "upstream_f32_cpu": {
+        "samples": 200,
+        "median_ns": 644900.0,
+        "p95_ns": 695500.0,
+        "min_ns": 633300.0,
+        "max_ns": 782800.0,
+        "ncontacts": 10,
+        "contacts_per_s": 15506.280043417584
+      }
+    },
+    {
+      "case": "convex-mesh",
+      "host_cpu_single_thread": {
+        "samples": 200,
+        "median_ns": 13100.0,
+        "p95_ns": 13300.0,
+        "min_ns": 12800.0,
+        "max_ns": 17100.0,
+        "ncontacts": 2,
+        "contacts_per_s": 152671.75572519083
+      },
+      "upstream_f32_cpu": {
+        "samples": 200,
+        "median_ns": 1678050.0,
+        "p95_ns": 1760000.0,
+        "min_ns": 1609600.0,
+        "max_ns": 1956900.0,
+        "ncontacts": 2,
+        "contacts_per_s": 1191.859598939245
+      }
+    },
+    {
+      "case": "cylinder-box",
+      "host_cpu_single_thread": {
+        "samples": 200,
+        "median_ns": 19700.0,
+        "p95_ns": 20100.0,
+        "min_ns": 19300.0,
+        "max_ns": 23700.0,
+        "ncontacts": 8,
+        "contacts_per_s": 406091.3705583756
+      },
+      "device_kernel_only": {
+        "samples": 50,
+        "median_ns": 22048.0,
+        "p95_ns": 22528.0,
+        "min_ns": 21504.0,
+        "max_ns": 22560.0,
+        "ncontacts": 2,
+        "contacts_per_s": 90711.175616836
+      },
+      "device_end_to_end": {
+        "samples": 50,
+        "median_ns": 538150.0,
+        "p95_ns": 618600.0,
+        "min_ns": 501400.0,
+        "max_ns": 659800.0,
+        "ncontacts": 2,
+        "contacts_per_s": 3716.4359379355196
+      },
+      "device_case_meta": {
+        "kernel_kind": "contact",
+        "nworld": 2,
+        "naconmax": 8192,
+        "efc_width": 4,
+        "nacon": 2,
+        "nccd": 2,
+        "overflow": [
+          0,
+          0
+        ]
+      },
+      "upstream_f32_cpu": {
+        "samples": 200,
+        "median_ns": 1501450.0,
+        "p95_ns": 1588100.0,
+        "min_ns": 1473100.0,
+        "max_ns": 1684700.0,
+        "ncontacts": 8,
+        "contacts_per_s": 5328.182756668553
+      }
+    },
+    {
+      "case": "degenerate-mesh",
+      "host_cpu_single_thread": {
+        "samples": 200,
+        "median_ns": 14300.0,
+        "p95_ns": 14500.0,
+        "min_ns": 13600.0,
+        "max_ns": 24700.0,
+        "ncontacts": 2,
+        "contacts_per_s": 139860.13986013987
+      },
+      "upstream_f32_cpu": {
+        "samples": 200,
+        "median_ns": 1669400.0,
+        "p95_ns": 1746300.0,
+        "min_ns": 1612600.0,
+        "max_ns": 2066000.0,
+        "ncontacts": 2,
+        "contacts_per_s": 1198.0352222355336
+      }
+    },
+    {
+      "case": "ellipsoid-box",
+      "host_cpu_single_thread": {
+        "samples": 200,
+        "median_ns": 17300.0,
+        "p95_ns": 17600.0,
+        "min_ns": 16900.0,
+        "max_ns": 30000.0,
+        "ncontacts": 2,
+        "contacts_per_s": 115606.93641618497
+      },
+      "device_kernel_only": {
+        "samples": 50,
+        "median_ns": 34816.0,
+        "p95_ns": 34912.0,
+        "min_ns": 33792.0,
+        "max_ns": 35840.0,
+        "ncontacts": 2,
+        "contacts_per_s": 57444.85294117647
+      },
+      "device_end_to_end": {
+        "samples": 50,
+        "median_ns": 556600.0,
+        "p95_ns": 727200.0,
+        "min_ns": 524300.0,
+        "max_ns": 753100.0,
+        "ncontacts": 2,
+        "contacts_per_s": 3593.2446999640674
+      },
+      "device_case_meta": {
+        "kernel_kind": "contact",
+        "nworld": 2,
+        "naconmax": 8192,
+        "efc_width": 4,
+        "nacon": 2,
+        "nccd": 2,
+        "overflow": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "case": "hfield-box",
+      "host_cpu_single_thread": {
+        "samples": 200,
+        "median_ns": 49600.0,
+        "p95_ns": 51300.0,
+        "min_ns": 48500.0,
+        "max_ns": 58000.0,
+        "ncontacts": 8,
+        "contacts_per_s": 161290.32258064515
+      },
+      "upstream_f32_cpu": {
+        "samples": 200,
+        "median_ns": 1728550.0,
+        "p95_ns": 1798400.0,
+        "min_ns": 1702900.0,
+        "max_ns": 2114100.0,
+        "ncontacts": 8,
+        "contacts_per_s": 4628.156547395216
+      }
+    },
+    {
+      "case": "hfield-capsule",
+      "host_cpu_single_thread": {
+        "samples": 200,
+        "median_ns": 70300.0,
+        "p95_ns": 73100.0,
+        "min_ns": 69500.0,
+        "max_ns": 89700.0,
+        "ncontacts": 7,
+        "contacts_per_s": 99573.2574679943
+      },
+      "device_kernel_only": {
+        "samples": 50,
+        "median_ns": 142336.0,
+        "p95_ns": 144384.0,
+        "min_ns": 142016.0,
+        "max_ns": 145152.0,
+        "ncontacts": 7,
+        "contacts_per_s": 49179.40647482014
+      },
+      "device_end_to_end": {
+        "samples": 50,
+        "median_ns": 672900.0,
+        "p95_ns": 807200.0,
+        "min_ns": 629900.0,
+        "max_ns": 898800.0,
+        "ncontacts": 7,
+        "contacts_per_s": 10402.734433050973
+      },
+      "device_case_meta": {
+        "kernel_kind": "hfield",
+        "nworld": 2,
+        "naconmax": 8192,
+        "efc_width": 4,
+        "nacon": 7,
+        "nccd": 0,
+        "overflow": [
+          0,
+          0
+        ]
+      },
+      "upstream_f32_cpu": {
+        "samples": 200,
+        "median_ns": 1698550.0,
+        "p95_ns": 1787300.0,
+        "min_ns": 1679500.0,
+        "max_ns": 1992500.0,
+        "ncontacts": 7,
+        "contacts_per_s": 4121.1621677313005
+      }
+    },
+    {
+      "case": "hfield-sphere",
+      "host_cpu_single_thread": {
+        "samples": 200,
+        "median_ns": 11800.0,
+        "p95_ns": 12000.0,
+        "min_ns": 11500.0,
+        "max_ns": 15300.0,
+        "ncontacts": 8,
+        "contacts_per_s": 677966.1016949152
+      },
+      "device_kernel_only": {
+        "samples": 50,
+        "median_ns": 20880.0,
+        "p95_ns": 21632.0,
+        "min_ns": 20480.0,
+        "max_ns": 23552.0,
+        "ncontacts": 8,
+        "contacts_per_s": 383141.7624521073
+      },
+      "device_end_to_end": {
+        "samples": 50,
+        "median_ns": 583750.0,
+        "p95_ns": 726000.0,
+        "min_ns": 514000.0,
+        "max_ns": 761300.0,
+        "ncontacts": 8,
+        "contacts_per_s": 13704.496788008566
+      },
+      "device_case_meta": {
+        "kernel_kind": "hfield",
+        "nworld": 2,
+        "naconmax": 8192,
+        "efc_width": 4,
+        "nacon": 8,
+        "nccd": 0,
+        "overflow": [
+          0,
+          0
+        ]
+      },
+      "upstream_f32_cpu": {
+        "samples": 200,
+        "median_ns": 1703350.0,
+        "p95_ns": 1828800.0,
+        "min_ns": 1684200.0,
+        "max_ns": 2337300.0,
+        "ncontacts": 8,
+        "contacts_per_s": 4696.627234567177
+      }
+    },
+    {
+      "case": "mesh-mesh",
+      "host_cpu_single_thread": {
+        "samples": 200,
+        "median_ns": 10100.0,
+        "p95_ns": 10300.0,
+        "min_ns": 9700.0,
+        "max_ns": 13600.0,
+        "ncontacts": 2,
+        "contacts_per_s": 198019.801980198
+      },
+      "device_kernel_only": {
+        "samples": 50,
+        "median_ns": 21504.0,
+        "p95_ns": 22528.0,
+        "min_ns": 21280.0,
+        "max_ns": 22528.0,
+        "ncontacts": 2,
+        "contacts_per_s": 93005.95238095238
+      },
+      "device_end_to_end": {
+        "samples": 50,
+        "median_ns": 557150.0,
+        "p95_ns": 695700.0,
+        "min_ns": 534500.0,
+        "max_ns": 739200.0,
+        "ncontacts": 2,
+        "contacts_per_s": 3589.6975679798975
+      },
+      "device_case_meta": {
+        "kernel_kind": "contact",
+        "nworld": 2,
+        "naconmax": 8192,
+        "efc_width": 4,
+        "nacon": 2,
+        "nccd": 2,
+        "overflow": [
+          0,
+          0
+        ]
+      },
+      "upstream_f32_cpu": {
+        "samples": 200,
+        "median_ns": 1603950.0,
+        "p95_ns": 1681600.0,
+        "min_ns": 1577600.0,
+        "max_ns": 1910000.0,
+        "ncontacts": 2,
+        "contacts_per_s": 1246.9216621465757
+      }
+    },
+    {
+      "case": "sdf-box",
+      "host_cpu_single_thread": {
+        "samples": 200,
+        "median_ns": 2696750.0,
+        "p95_ns": 2740500.0,
+        "min_ns": 2644400.0,
+        "max_ns": 3734100.0,
+        "ncontacts": 80,
+        "contacts_per_s": 29665.337906739594
+      },
+      "device_kernel_only": {
+        "samples": 50,
+        "median_ns": 4773888.0,
+        "p95_ns": 4778336.0,
+        "min_ns": 4520960.0,
+        "max_ns": 6048064.0,
+        "ncontacts": 80,
+        "contacts_per_s": 16757.829257829257
+      },
+      "device_end_to_end": {
+        "samples": 50,
+        "median_ns": 5060350.0,
+        "p95_ns": 5377200.0,
+        "min_ns": 5008400.0,
+        "max_ns": 5571900.0,
+        "ncontacts": 80,
+        "contacts_per_s": 15809.183159267639
+      },
+      "device_case_meta": {
+        "kernel_kind": "sdf",
+        "nworld": 2,
+        "naconmax": 8192,
+        "efc_width": 4,
+        "nacon": 80,
+        "nccd": 0,
+        "overflow": [
+          0,
+          0
+        ]
+      },
+      "upstream_f32_cpu": {
+        "samples": 200,
+        "median_ns": 11721850.0,
+        "p95_ns": 12256500.0,
+        "min_ns": 11043800.0,
+        "max_ns": 12938800.0,
+        "ncontacts": 80,
+        "contacts_per_s": 6824.861263367131
+      }
+    }
+  ]
+}

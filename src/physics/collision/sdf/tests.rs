@@ -121,8 +121,22 @@ fn scaled_ulp(ours: [f32; 3], upstream: [f32; 3]) -> f32 {
     max_ulp
 }
 
-#[test]
-fn sdf_box_host_matches_upstream_f32_within_4ulp() {
+/// `sdf-box` fixture：参考元数据、世界位姿、AABB、octree 体积与期望接触行。
+struct SdfBoxFixture {
+    world_count: usize,
+    initpoints: usize,
+    iterations: usize,
+    geom_pos: Vec<[f32; 3]>,
+    geom_mat: Vec<f32>,
+    size1: [f32; 3],
+    aabb1: ([f32; 3], [f32; 3]),
+    aabb2: ([f32; 3], [f32; 3]),
+    volume: VolumeData,
+    /// 参考接触行：`(worldid, dist, pos, frame)`。
+    expected: Vec<(i32, f32, [f32; 3], [f32; 9])>,
+}
+
+fn sdf_box_fixture() -> SdfBoxFixture {
     let value: Value = serde_json::from_str(JSON).expect("解析 SDF 参考");
     assert_eq!(value["schema"], 1);
     assert_eq!(
@@ -170,40 +184,36 @@ fn sdf_box_host_matches_upstream_f32_within_4ulp() {
         geom_size[0][1].as_f64().unwrap() as f32,
         geom_size[0][2].as_f64().unwrap() as f32,
     ];
-    let aabb1 = (
-        [
-            geom_aabb[0][0][0].as_f64().unwrap() as f32,
-            geom_aabb[0][0][1].as_f64().unwrap() as f32,
-            geom_aabb[0][0][2].as_f64().unwrap() as f32,
-        ],
-        [
-            geom_aabb[0][1][0].as_f64().unwrap() as f32,
-            geom_aabb[0][1][1].as_f64().unwrap() as f32,
-            geom_aabb[0][1][2].as_f64().unwrap() as f32,
-        ],
-    );
-    let aabb2 = (
-        [
-            geom_aabb[1][0][0].as_f64().unwrap() as f32,
-            geom_aabb[1][0][1].as_f64().unwrap() as f32,
-            geom_aabb[1][0][2].as_f64().unwrap() as f32,
-        ],
-        [
-            geom_aabb[1][1][0].as_f64().unwrap() as f32,
-            geom_aabb[1][1][1].as_f64().unwrap() as f32,
-            geom_aabb[1][1][2].as_f64().unwrap() as f32,
-        ],
-    );
+    let aabb = |geom: usize| {
+        let low = &geom_aabb[geom][0];
+        let high = &geom_aabb[geom][1];
+        (
+            [
+                low[0].as_f64().unwrap() as f32,
+                low[1].as_f64().unwrap() as f32,
+                low[2].as_f64().unwrap() as f32,
+            ],
+            [
+                high[0].as_f64().unwrap() as f32,
+                high[1].as_f64().unwrap() as f32,
+                high[2].as_f64().unwrap() as f32,
+            ],
+        )
+    };
     let volume = build_volume(&value);
-    let shape1 = SdfShape::new(SdfType::Box, size1);
-    let shape2 = SdfShape::new(SdfType::Sdf, [1.0, 1.0, 1.0]).with_volume(&volume);
 
     let fields = &output["fields"];
     let distance = fields["dist"].as_array().unwrap();
     let position = fields["pos"].as_array().unwrap();
-    let frame = fields["frame"].as_array().unwrap();
+    let frame: Vec<f32> = fields["frame"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|row| row.as_array().unwrap().iter())
+        .map(|cell| cell.as_f64().unwrap() as f32)
+        .collect();
     let worldid = fields["worldid"].as_array().unwrap();
-    let mut upstream: Vec<(i32, f32, [f32; 3], [f32; 9])> = (0..reference_count)
+    let expected = (0..reference_count)
         .map(|index| {
             (
                 int_at(worldid, index),
@@ -213,39 +223,64 @@ fn sdf_box_host_matches_upstream_f32_within_4ulp() {
                     position[index][1].as_f64().unwrap() as f32,
                     position[index][2].as_f64().unwrap() as f32,
                 ],
-                mat9(
-                    &frame
-                        .iter()
-                        .flat_map(|row| row.as_array().unwrap().iter())
-                        .map(|cell| cell.as_f64().unwrap() as f32)
-                        .collect::<Vec<f32>>(),
-                    index,
-                ),
+                mat9(&frame, index),
             )
         })
         .collect();
 
-    let mut ours: Vec<(i32, f32, [f32; 3], [f32; 9])> = Vec::new();
-    for world in 0..world_count {
-        let pair = SdfPair {
-            shape1,
-            shape2,
-            pos1: geom_pos[world * 2],
-            rot1: mat9(&geom_mat, world * 2),
-            pos2: geom_pos[world * 2 + 1],
-            rot2: mat9(&geom_mat, world * 2 + 1),
-            aabb1,
-            aabb2,
-            sdf_initpoints: initpoints,
-            sdf_iterations: iterations,
-        };
-        let contacts = sdf_pair_contacts(&pair);
-        assert_eq!(contacts.len(), initpoints, "world {world} 接触数");
-        for contact in contacts {
-            ours.push((world as i32, contact.dist, contact.pos, contact.frame));
-        }
+    SdfBoxFixture {
+        world_count,
+        initpoints,
+        iterations,
+        geom_pos,
+        geom_mat,
+        size1,
+        aabb1: aabb(0),
+        aabb2: aabb(1),
+        volume,
+        expected,
     }
+}
 
+impl SdfBoxFixture {
+    /// 构造全部世界的 pair；体积借用 fixture，构造落在计时区外。
+    fn with_pairs<T>(&self, f: impl FnOnce(&[SdfPair<'_>]) -> T) -> T {
+        let shape1 = SdfShape::new(SdfType::Box, self.size1);
+        let shape2 = SdfShape::new(SdfType::Sdf, [1.0, 1.0, 1.0]).with_volume(&self.volume);
+        let pairs: Vec<SdfPair<'_>> = (0..self.world_count)
+            .map(|world| SdfPair {
+                shape1,
+                shape2,
+                pos1: self.geom_pos[world * 2],
+                rot1: mat9(&self.geom_mat, world * 2),
+                pos2: self.geom_pos[world * 2 + 1],
+                rot2: mat9(&self.geom_mat, world * 2 + 1),
+                aabb1: self.aabb1,
+                aabb2: self.aabb2,
+                sdf_initpoints: self.initpoints,
+                sdf_iterations: self.iterations,
+            })
+            .collect();
+        f(&pairs)
+    }
+}
+
+#[test]
+fn sdf_box_host_matches_upstream_f32_within_4ulp() {
+    let fixture = sdf_box_fixture();
+    let reference_count = fixture.expected.len();
+    let mut ours: Vec<(i32, f32, [f32; 3], [f32; 9])> = Vec::new();
+    fixture.with_pairs(|pairs| {
+        for (world, pair) in pairs.iter().enumerate() {
+            let contacts = sdf_pair_contacts(pair);
+            assert_eq!(contacts.len(), fixture.initpoints, "world {world} 接触数");
+            for contact in contacts {
+                ours.push((world as i32, contact.dist, contact.pos, contact.frame));
+            }
+        }
+    });
+
+    let mut upstream = fixture.expected.clone();
     let sort_key = |row: &(i32, f32, [f32; 3], [f32; 9])| {
         (
             row.0,
@@ -294,6 +329,27 @@ fn sdf_box_host_matches_upstream_f32_within_4ulp() {
     assert!(dist_max_ulp <= 4, "dist {dist_max_ulp} ULP");
     assert!(pos_max_ulp <= 4.0, "pos {pos_max_ulp} ULP");
     assert!(frame_max_abs <= 4.8e-7, "frame {frame_max_abs:e}");
+}
+
+/// G6-2 host 单线程性能（不进判据）：一个样本 = 该 case 全部世界各一次
+/// `sdf_pair_contacts`，`ncontacts` = 一次样本产出的接触总数。
+#[test]
+#[ignore = "G6-2 host 性能测量：手动运行且 --test-threads=1，数字不进精度判据"]
+fn perf_sdf_box_throughput() {
+    let fixture = sdf_box_fixture();
+    let timing = fixture.with_pairs(|pairs| {
+        super::super::perf_report::measure("sdf-box", || {
+            let mut contacts = 0;
+            for pair in pairs {
+                contacts += sdf_pair_contacts(pair).len();
+            }
+            contacts
+        })
+    });
+    println!(
+        "[G6-2] G3 sdf-box host 汇总：ncontacts={} median_ns={:.3} p95_ns={:.3} contacts_per_s={:.3}",
+        timing.ncontacts, timing.median_ns, timing.p95_ns, timing.contacts_per_s
+    );
 }
 
 #[test]

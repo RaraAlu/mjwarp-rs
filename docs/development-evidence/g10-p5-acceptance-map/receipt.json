@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-acceptance-perf-native",
+  "status": "in_progress",
+  "outcome": "gate_passed_pending_commit",
+  "slice": "P5-G6",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "scope": {
+    "evidence_dir": "docs/development-evidence/g10-p5-acceptance-map/",
+    "deliverables": {
+      "G6-1": ["map.json（12 requirement 行 + 6 uncovered 行：requirement_id/实现位置/判据原文/实测数字/证据路径/状态/原因/影响）", "README.md（方法与摘要）"],
+      "G6-2": ["perf/（独占 GPU 窗口已采集）：perf-summary.json 四列聚合 + README + window-log/window-memory-samples + host/9 个 + device/7 个原始样本 + upstream-cpu.json + 探针源/构建/窗口/聚合脚本 + artifacts-sha256"],
+      "G6-3": ["native-framework.md（用户 2026-10-25 拍板 B 收口：native 侧接触字段只作诊断、不参与判定；不落生效 atol/rtol）"]
+    },
+    "readonly_policy": "G6-1 只读既有 verified 证据与 receipt 的原文/数字，不复算、不改数字；证据路径逐行可点开；G6-2 窗口内只读冻结 G5 case 输入，输出只写本片 perf/",
+    "gpu_used": "已使用（G6-2 独占窗口：HEAD 9c0a0480，wall 5.5 s，基线 used 3663 MiB，峰值 used 4834（+1171），守卫 3072 MiB/50% 未触发，结束回落 3663，跑前跑后本任务相关计算进程 0）",
+    "cargo_changed": false,
+    "python_in_product_tests": false
+  },
+  "verification": {
+    "map_sources": [
+      "docs/development-evidence/g10-p5-gjk-epa/receipt.json（G2 五 case ≤4 ULP/位级）",
+      "docs/development-evidence/g10-p5-sdf-host/receipt.json（G3 sdf-box 80/80 全字段位级）",
+      "docs/development-evidence/g10-p5-sdf-relmat-fix/receipt.json（G3 relmat 修正与 4 旋转场景 80/80）",
+      "docs/development-evidence/g10-p5-hfield-host/receipt.json（G4 hfield 三 case 全字段位级）",
+      "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/result.json（G5 设备四 case 数字）",
+      "docs/development-evidence/g10-p5-gpu-kernels/receipt.json（G5 窗口事实/unmet）",
+      "docs/development-evidence/g10-p5-gpu-kernels-independent-check/README.md + qa-compare-gpu.json（naconmax/naccdmax 截断、hfield-overflow、深穿透额外采样面）",
+      "docs/development-evidence/g10-p5-ccd-overflow-bit-fix/receipt.json + overflow-result.json（设备溢出位 272→256）",
+      "docs/development-evidence/g10-p5-host-ccd-overflow-bit-fix/receipt.json + test-output.txt（宿主溢出位 272→256 + 容量门）",
+      "docs/development-evidence/g10-p5-precheck/receipt.json（NP01/02 核对与切片顺序）",
+      "docs/numerical-precision-contract.md（NP01-NP04 指标与顺序；## 接触字段（native 侧））",
+      "docs/development-evidence/native-contact-tolerance-decision-b/README.md + receipt.json（用户拍板 B，契约提交 09896792）",
+      "docs/development-evidence/g10-p5-acceptance-map/perf/perf-summary.json + README.md + window-log.txt（G6-2 独占窗口四列性能证据）",
+      "docs/development-evidence/g10-p5-acceptance-map/perf/upstream-cpu.json（上游 f32 CPU 同机同版本参考）"
+    ],
+    "map_summary": {
+      "requirements_total": 12,
+      "met": 8,
+      "partial": 4,
+      "unmet": 0,
+      "uncovered_total": 6,
+      "uncovered_ids": ["UNC-1 multicontact 设备版", "UNC-2 NVRTC launcher", "UNC-3 primitive narrowphase", "UNC-4 Linux/T4", "UNC-5 G5 窗口逐秒峰值", "UNC-6 cylinder-box 深穿透额外采样面"]
+    },
+    "native_decision_b": "用户 2026-10-25 拍板 B：native 侧接触字段（dist/pos/frame/normal）只作诊断、不参与通过或失败；契约 `docs/numerical-precision-contract.md` ## 接触字段（native 侧）（提交 09896792）；未写任何生效 atol/rtol；接触精度仍由对上游 f32 判据承担；红线 1.05*E_mjwarp 只在其它字段生效。E 复算样本量=ellipsoid-box 1 case / 2 接触点（诊断性质、不可外推）：设备 vs native dist 3.979e-7、pos 4.546e-4、frame 1.170e-3、normal 1.170e-3，上游 f32 vs native 几乎相同 → 引擎接触选择语义差、非精度差。",
+    "native_pairing_check": "hfield-box 不可配对：native 桥暴露的碰撞 ABI 只有模型字段拷贝（include/mjwarp_collision_probe.h / native/model_probe_collision.cpp），无 contact/narrowphase/hfield 输出；样本不增（真 native 仍 ellipsoid-box 1 case/2 接触点，且为读数）",
+    "perf": "已采集（一次获批独占 GPU 窗口，HEAD 绑定 9c0a0480；相对 6510317f 产品代码 diff 为空）：基线 used 3663/16376 MiB、util 0%、29°C，0.5 s 采样 7 点、峰值 used 4834（+1171 MiB）、守卫 3072 MiB/50% 未触发，window wall 5.5 s，跑前跑后本任务相关计算进程 0，结束 used 3663；host 9 case 单线程中位 0.010–2.697 ms；设备 7 case kernel-only（CUDA events）中位 0.021–4.774 ms、端到端（host clock，含 H2D/D2H）中位 0.538–5.060 ms；上游 f32 CPU 9 case 中位 0.645–11.722 ms；四列覆盖缺口显式（host 缺 box-box-margin、设备缺 convex-mesh/degenerate-mesh/hfield-box、上游缺 ellipsoid-box）；编译/JIT/加载不计入；桌面负载（395 进程、vmware-vmx 约 17.5 GiB 等）与硬件/驱动/nvcc 版本入 perf/README.md；性能不进精度判据、不跨硬件外推",
+    "gate": "passed（normify gate 2026-10-25-g10-p5-acceptance-perf-native：fmt/clippy/clippy-cuda/unit 全绿，unit 588 过 0 败；receipt /task_id 与 forbid_claim 检查通过）"
+  },
+  "artifacts": {
+    "map": "docs/development-evidence/g10-p5-acceptance-map/map.json",
+    "readme": "docs/development-evidence/g10-p5-acceptance-map/README.md",
+    "native_framework": "docs/development-evidence/g10-p5-acceptance-map/native-framework.md",
+    "receipt": "docs/development-evidence/g10-p5-acceptance-map/receipt.json",
+    "perf_summary": "docs/development-evidence/g10-p5-acceptance-map/perf/perf-summary.json",
+    "perf_readme": "docs/development-evidence/g10-p5-acceptance-map/perf/README.md",
+    "perf_window_log": "docs/development-evidence/g10-p5-acceptance-map/perf/window-log.txt",
+    "perf_artifacts_sha256": "docs/development-evidence/g10-p5-acceptance-map/perf/artifacts-sha256.txt"
+  },
+  "gate": "passed（fmt/clippy/clippy-cuda/unit 全绿，unit 588 过 0 败）",
+  "unmet": [
+    "G6-2 性能已采集（独占窗口，HEAD 9c0a0480）：数据只作证据，不得声明性能达标、跨硬件等价或 NP04 放行；四列覆盖非同集（host 缺 box-box-margin、设备缺 convex-mesh/degenerate-mesh/hfield-box、上游缺 ellipsoid-box），不补齐、不跨列外推",
+    "G6-3 native 已按用户 2026-10-25 拍板 B 落地（诊断不参与判定、未写生效 atol/rtol）；但 native 侧不提供放行信号属 B 既定后果，若未来要 native 放行须先扩样（native 接触输出探针）并重新拍板；`hfield-box` 不可配对、样本不增",
+    "map 中 G6-1.2 与 G6-1.7 为 partial：HFIELD(32) 的 overflow=32 与 naconmax/naccdmax 截断行为均由 QA 独立复核覆盖，G5 交付片自身未含该 case（证据层级低于交付片直接证据）",
+    "六项 uncovered 均未覆盖：multicontact 设备版、NVRTC launcher、primitive narrowphase、Linux/T4、G5 窗口逐秒峰值、cylinder-box 深穿透额外采样面",
+    "NP03 其它字段 5% 红线全量未完成（native 接触字段按拍板 B 只作诊断）；NP04 只表示「已记录耗时与显存」，不构成放行",
+    "本片不改任何已 verified 证据数字、不改已批准判据、不改 S2–S8/Cargo.*/fixtures XML；不宣称精度达标/上游完全等价/原生放行/双平台通过/接触字段精度已达标/性能达标"
+  ]
+}

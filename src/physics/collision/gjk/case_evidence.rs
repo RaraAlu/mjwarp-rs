@@ -181,3 +181,33 @@ fn native_bitwise_exploration() {
         assert!(stats.dist_max_ulp <= 4);
     }
 }
+
+/// G6-2 host 单线程性能（不进判据）：一个样本 = 该 case 全部世界各一次 `ccd_pair`，
+/// `ncontacts` = 该 case 一次样本产出的接触总数。
+#[test]
+#[ignore = "G6-2 host 性能测量：手动运行且 --test-threads=1，数字不进精度判据"]
+fn perf_gjk_case_throughput() {
+    use super::super::perf_report;
+    let mut total_ns = 0.0_f64;
+    let mut total_contacts = 0.0_f64;
+    for case in &cases() {
+        let timing = perf_report::measure(&case.name, || {
+            let mut contacts = 0;
+            for world in 0..case.worlds.len() {
+                contacts += product_contacts(case, world, false).len();
+            }
+            contacts
+        });
+        total_ns += timing.total_ns;
+        total_contacts += timing.ncontacts as f64;
+    }
+    let contacts_per_s = if total_ns == 0.0 {
+        0.0
+    } else {
+        total_contacts * 1.0e9 / total_ns
+    };
+    println!(
+        "[G6-2] G2 五 case host 汇总：contacts={total_contacts:.0} total_ms={:.3} contacts_per_s={contacts_per_s:.3}",
+        total_ns / 1.0e6
+    );
+}
