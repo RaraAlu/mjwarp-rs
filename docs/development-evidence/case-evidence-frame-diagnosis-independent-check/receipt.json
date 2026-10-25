@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-case-evidence-frame-diagnosis-independent-check",
+  "subject_task": "2026-10-25-case-evidence-frame-diagnosis",
+  "subject_commit": "7c401282",
+  "role": "QA",
+  "status": "qa_independent_check_passed_pending_arch_done",
+  "head_reviewed": "eac9af7119b8bf83de2a36b24910452184d6ed91",
+  "head_note": "复核期间主干前进到 00831281（仅新增 tests/ 文件）；已核 git diff eac9af71..00831281 -- src fixtures scripts Cargo.toml Cargo.lock 为空，产品行为与 eac9af71 相同",
+  "verdict": {
+    "result": "pass",
+    "blocking": 0,
+    "findings": 0,
+    "observations": 7,
+    "gpu_window_used": false,
+    "core_claim_reproduced": true,
+    "probe_counts_bitwise_reproduced": false
+  },
+  "probe": {
+    "source": "qa_fmaf_probe.rs (own implementation; delivery probe source not read)",
+    "builds": [
+      "GNU default (+1.99.0-x86_64-pc-windows-gnu)",
+      "MSVC default (+1.99.0-x86_64-pc-windows-msvc)",
+      "GNU + -C target-feature=+fma",
+      "MSVC + -C target-feature=+fma"
+    ],
+    "compile_flags": "--edition 2024 -C opt-level=0 -C debug-assertions=on",
+    "generator": {
+      "kind": "64-bit LCG",
+      "multiplier": "6364136223846793005",
+      "increment": "1442695040888963407",
+      "seed": "0x2026102500000001",
+      "value_rule": "f32(top24(state))/2^24*3-1 in [-1,2); three consecutive outputs = a,b,c",
+      "documented_for_reproducibility": true
+    },
+    "references": {
+      "hardware_fma": "inline asm vfmadd231ss; CPUID FMA3 checked at runtime; identical digest across all four builds at each n",
+      "unfused": "a*b + c with black_box forced intermediate rounding",
+      "f64_double_round": "(f64(a)*f64(b) + f64(c)) as f32"
+    },
+    "stats_4096": {
+      "gnu_default": {"vs_hw_fma": 1025, "vs_unfused": 1447, "vs_f64_double": 1025, "hw_vs_f64": 0},
+      "msvc_default": {"vs_hw_fma": 0, "vs_unfused": 877, "vs_f64_double": 0, "hw_vs_f64": 0},
+      "gnu_fma": {"vs_hw_fma": 0, "vs_unfused": 877, "vs_f64_double": 0, "hw_vs_f64": 0},
+      "msvc_fma": {"vs_hw_fma": 0, "vs_unfused": 877, "vs_f64_double": 0, "hw_vs_f64": 0}
+    },
+    "stats_1e6": {
+      "gnu_default": {"vs_hw_fma": 246671, "rate": "24.6671%", "ulp_eq_1": 246670, "ulp_eq_2": 1, "max_ulp": 2, "vs_f64_double": 246671},
+      "msvc_default": {"vs_hw_fma": 0, "vs_f64_double": 0},
+      "gnu_fma": {"vs_hw_fma": 0, "vs_f64_double": 0},
+      "msvc_fma": {"vs_hw_fma": 0, "vs_f64_double": 0},
+      "hw_vs_f64_double": 0
+    },
+    "residual_sample_2ulp": {
+      "a_bits": "bf7d32d9",
+      "b_bits": "3fd57e84",
+      "c_bits": "3fd33468",
+      "gnu_fmaf_result_bits": "39bf7dde",
+      "hardware_fma_bits": "39bf7de0",
+      "ulp": 2
+    },
+    "delivery_compare_4096": {
+      "gnu_default": {"delivery": {"vs_hw_fma": 991, "vs_unfused": 986, "vs_f64_double": 991}, "mine": {"vs_hw_fma": 1025, "vs_unfused": 1447, "vs_f64_double": 1025}, "delta": {"vs_hw_fma": 34, "vs_unfused": 461, "vs_f64_double": 34}},
+      "msvc_default": {"delivery": {"vs_hw_fma": 0, "vs_unfused": 55, "vs_f64_double": 0}, "mine": {"vs_hw_fma": 0, "vs_unfused": 877, "vs_f64_double": 0}, "delta": {"vs_hw_fma": 0, "vs_unfused": 822, "vs_f64_double": 0}},
+      "gnu_fma_msvc_fma": {"delivery": "cross-build 0/4096", "mine": "both digest equal to hardware FMA digest (0 diffs)"}
+    },
+    "mismatch_note": "交付日志未记录 LCG 参数/种子与样本输入，991/4096 无法逐位复现；差异归因见 README 观察 1/2。结论方向（GNU 默认非 faithful、MSVC/+fma faithful）在我独立数据上成立。"
+  },
+  "frame_matrix": {
+    "script": "run_frame_matrix.ps1",
+    "cells": 8,
+    "clean_build": "每格独立删空 CARGO_TARGET_DIR；CARGO*/RUST* 清空前计数 0；worktree @ eac9af71",
+    "rows": [
+      {"env": "gnu-default", "toolchain_host": "x86_64-pc-windows-gnu", "rustflags": "", "release": false, "deps": 62, "exit": 0, "result": "1 passed", "frame": "3.838112e-7", "delivery_frame": "3.838112e-7", "match": true},
+      {"env": "msvc-default", "toolchain_host": "x86_64-pc-windows-msvc", "rustflags": "", "release": false, "deps": 65, "exit": 101, "result": "FAILED (panic ellipsoid-box frame 6.351978e-7)", "frame": "6.351978e-7", "delivery_frame": "6.351978e-7", "match": true},
+      {"env": "gnu-fma", "toolchain_host": "x86_64-pc-windows-gnu", "rustflags": "-C target-feature=+fma", "release": false, "deps": 62, "exit": 101, "result": "FAILED", "frame": "6.351978e-7", "delivery_frame": "6.351978e-7", "match": true},
+      {"env": "msvc-fma", "toolchain_host": "x86_64-pc-windows-msvc", "rustflags": "-C target-feature=+fma", "release": false, "deps": 65, "exit": 101, "result": "FAILED", "frame": "6.351978e-7", "delivery_frame": "6.351978e-7", "match": true},
+      {"env": "gnu-release", "toolchain_host": "x86_64-pc-windows-gnu", "rustflags": "", "release": true, "deps": 62, "exit": 0, "result": "1 passed", "frame": "3.838112e-7", "delivery_frame": "3.838112e-7", "match": true},
+      {"env": "msvc-release", "toolchain_host": "x86_64-pc-windows-msvc", "rustflags": "", "release": true, "deps": 65, "exit": 101, "result": "FAILED", "frame": "6.351978e-7", "delivery_frame": "6.351978e-7", "match": true},
+      {"env": "msvc-plus-ldc", "toolchain_host": "x86_64-pc-windows-msvc", "rustflags": "-C link-dead-code=yes", "release": false, "deps": 67, "exit": 101, "result": "FAILED", "frame": "6.351978e-7", "delivery_frame": "6.351978e-7", "match": true},
+      {"env": "gnu-no-config", "toolchain_host": "x86_64-pc-windows-gnu", "rustflags": "", "release": false, "deps": 62, "exit": 0, "result": "1 passed", "frame": "3.838112e-7", "delivery_frame": "3.838112e-7", "match": true},
+      {"env": "gnu-default-envset", "note": "same binary + G2_DUMP_NATIVE_ERROR=1", "exit": 0, "result": "1 passed"}
+    ],
+    "conclusion": "GNU 默认（含 release、去 link-dead-code）均 3.838112e-7 pass；任何 faithful FMA 构建（MSVC 默认/GNU+fma/MSVC+fma、MSVC+ldc、MSVC release）均 6.351978e-7 fail；8/8 与交付一致"
+  },
+  "exclusions": {
+    "env_vars": "CARGO*/RUST* 清空前/后 0 项；G2_DUMP_NATIVE_ERROR=1 同二进制仍 pass",
+    "link_dead_code": "MSVC 加 -C link-dead-code=yes 仍红；GNU 删 .cargo/config.toml 仍绿",
+    "release_opt_level": "GNU release 绿、MSVC release 红，与 debug 同结论",
+    "artifact_origin": "8 格全新专用 target（deps 62/65/67）双方向复现",
+    "fixtures_inputs": "case_evidence.rs/case_compare.rs/case_data.rs/ellipsoid-box.json 与 HEAD:eac9af71 逐字节一致（4/4）"
+  },
+  "code_scan": {
+    "script": "qa_scan_mul_add.py",
+    "product_f32_mul_add_call_sites": [
+      "src/physics/collision/gjk/polytope.rs:69",
+      "src/physics/collision/gjk/polytope.rs:70",
+      "src/render/kernel/megakernel_arrays.rs:189"
+    ],
+    "collision_dir_unique": "src/physics/collision/ 下 f32::mul_add 调用仅 polytope.rs 两处 → 碰撞 host 路径唯一使用点成立",
+    "test_call_sites": ["src/runtime/transfer/kernel/tests/precision.rs:72"],
+    "precedent_helpers": [
+      "src/physics/collision/relmat.rs:26 fn fma_f32 (f64 carry + single rounding)",
+      "src/render/bvh/aabb.rs:132 fn fused_mul_add (same method)",
+      "tests/g10_p5_sdf_relmat.rs:416 fma_f32 (test helper)"
+    ],
+    "precedent_comments": [
+      "src/physics/collision/relmat.rs:19-24 注释明确避免 f32::mul_add（QA 0x3f17e6af vs 正确 0x3f17e6b0）",
+      "src/render/bvh/aabb.rs:124-130 注释明确避免 f32::mul_add（debug 回退不保证单次舍入）"
+    ]
+  },
+  "delivery_scope_check": {
+    "no_fixed_or_passed_claim": true,
+    "states_g6_green_is_coincidence": true,
+    "states_g01_host_msvc_red_is_faithful": true,
+    "product_code_changed": false,
+    "judgement_tolerance_exclusions_changed": false,
+    "gates_toml_changed": false,
+    "g01_script_changed": false,
+    "diff_evidence": "git diff eddad9c0..7c401282 -- src tests fixtures scripts .normify/gates.toml Cargo.toml Cargo.lock 为空"
+  },
+  "my_gate": {
+    "command": "normify gate 2026-10-25-case-evidence-frame-diagnosis-independent-check",
+    "exit": 0,
+    "gates_passed": ["fmt", "clippy", "clippy-cuda", "unit"],
+    "unit": "597 passed / 0 failed（真实执行）",
+    "note": "同树已被交付前一轮 gate 覆盖，clippy/fmt 属 cargo 缓存命中",
+    "check": "全部检查通过（EXIT 0）",
+    "runs_dir": ".normify/runs/2026-10-25-case-evidence-frame-diagnosis-independent-check/"
+  },
+  "boundaries": {
+    "gpu_run": false,
+    "linux_run": false,
+    "other_cpu_toolchains": false,
+    "mingw_fmaf_implementation": "未查（行为证据已足）",
+    "non_fma_cpu_path": "未覆盖",
+    "probe_residual_extrapolation": "不外推（0/1e6 只是该分布观测）",
+    "g01_full_rerun": "未跑；MSVC 单元格独立复现同一失败与同一 frame 值"
+  },
+  "observations": [
+    "交付探针日志未记录 LCG 参数/种子与样本，991/4096 无法逐位复现；我自有可复现生成器得 1025/4096（25.02%）",
+    "非融合参考计数差异大（交付 986/55；我 1447/877），该行不宜作修复门槛",
+    "relmat.rs 注释行号引用漂移（交付写 10-15，实际 19-24）",
+    "交付内部 deps 计数不一致：README 14534 vs receipt 13262（主 target 反例）",
+    "1e6 组出现 1 个 2 ULP 个例，非合规 fmaf 偏差并非严格 1 ULP 上界",
+    "f64 双舍入先例 helper 在 4096/1e6 与硬件 FMA 均 0 差异（支持选项 b，但非数学证明）",
+    "G01 host-msvc 全量 689/1/137 引用 Arch 复现；本片未重跑全量"
+  ],
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "artifacts-sha256.json",
+    "qa_fmaf_probe.rs",
+    "qa_scan_mul_add.py",
+    "qa_summarize.py",
+    "qa_artifacts_sha256.py",
+    "qa-probe-summary.json",
+    "qa-exclusions.json",
+    "qa-mul-add-scan.json",
+    "frame-matrix.json",
+    "frame-matrix-summary.txt",
+    "probe-gnu-default.log",
+    "probe-msvc-default.log",
+    "probe-gnu-fma.log",
+    "probe-msvc-fma.log",
+    "probe-toolchains.txt",
+    "run_probe.ps1",
+    "run_frame_matrix.ps1",
+    "logs/"
+  ]
+}

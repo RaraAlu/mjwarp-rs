@@ -1,0 +1,94 @@
+# Product-level frame matrix (independent reproduction; each cell = brand-new CARGO_TARGET_DIR)
+# test: physics::collision::gjk::case_evidence::upstream_f32_within_4ulp (assert, exit) and
+#       our_contacts_match_upstream_f32_within_4ulp (prints [judge] line with ellipsoid-box frame)
+
+## gnu-default
+tree=.\target\qa-frame-diag\tree toolchain=(repo default GNU) rustflags=(none) release=False
+rustc host: x86_64-pc-windows-gnu
+target=target\qa-frame-diag\frame\gnu-default deps_files=62 cargo_rust_env_before=0
+$ cargo test --locked --lib physics::collision::gjk::case_evidence::upstream_f32_within_4ulp -- --exact
+exit=0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.01s
+$ cargo test --locked --lib physics::collision::gjk::case_evidence::our_contacts_match_upstream_f32_within_4ulp -- --exact --nocapture
+exit=0 frame=3.838112e-7
+line: [判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 3.838112e-7
+
+## msvc-default
+tree=.\target\qa-frame-diag\tree toolchain=+1.99.0-x86_64-pc-windows-msvc rustflags=(none) release=False
+rustc host: x86_64-pc-windows-msvc
+target=target\qa-frame-diag\frame\msvc-default deps_files=65 cargo_rust_env_before=0
+$ cargo test --locked --lib physics::collision::gjk::case_evidence::upstream_f32_within_4ulp -- --exact
+exit=101 | test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.00s
+panic: ellipsoid-box frame 6.351978e-7
+$ cargo test --locked --lib physics::collision::gjk::case_evidence::our_contacts_match_upstream_f32_within_4ulp -- --exact --nocapture
+exit=0 frame=6.351978e-7
+line: [判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 6.351978e-7
+
+## gnu-fma
+tree=.\target\qa-frame-diag\tree toolchain=(repo default GNU) rustflags=-C target-feature=+fma release=False
+rustc host: x86_64-pc-windows-gnu
+target=target\qa-frame-diag\frame\gnu-fma deps_files=62 cargo_rust_env_before=0
+$ cargo test --locked --lib physics::collision::gjk::case_evidence::upstream_f32_within_4ulp -- --exact
+exit=101 | test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.00s
+panic: ellipsoid-box frame 6.351978e-7
+$ cargo test --locked --lib physics::collision::gjk::case_evidence::our_contacts_match_upstream_f32_within_4ulp -- --exact --nocapture
+exit=0 frame=6.351978e-7
+line: [判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 6.351978e-7
+
+## msvc-fma
+tree=.\target\qa-frame-diag\tree toolchain=+1.99.0-x86_64-pc-windows-msvc rustflags=-C target-feature=+fma release=False
+rustc host: x86_64-pc-windows-msvc
+target=target\qa-frame-diag\frame\msvc-fma deps_files=65 cargo_rust_env_before=0
+$ cargo test --locked --lib physics::collision::gjk::case_evidence::upstream_f32_within_4ulp -- --exact
+exit=101 | test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.00s
+panic: ellipsoid-box frame 6.351978e-7
+$ cargo test --locked --lib physics::collision::gjk::case_evidence::our_contacts_match_upstream_f32_within_4ulp -- --exact --nocapture
+exit=0 frame=6.351978e-7
+line: [判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 6.351978e-7
+
+## gnu-release
+tree=.\target\qa-frame-diag\tree toolchain=(repo default GNU) rustflags=(none) release=True
+rustc host: x86_64-pc-windows-gnu
+target=target\qa-frame-diag\frame\gnu-release deps_files=62 cargo_rust_env_before=0
+$ cargo test --locked --release --lib physics::collision::gjk::case_evidence::upstream_f32_within_4ulp -- --exact
+exit=0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.00s
+$ cargo test --locked --release --lib physics::collision::gjk::case_evidence::our_contacts_match_upstream_f32_within_4ulp -- --exact --nocapture
+exit=0 frame=3.838112e-7
+line: [判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 3.838112e-7
+
+## msvc-release
+tree=.\target\qa-frame-diag\tree toolchain=+1.99.0-x86_64-pc-windows-msvc rustflags=(none) release=True
+rustc host: x86_64-pc-windows-msvc
+target=target\qa-frame-diag\frame\msvc-release deps_files=65 cargo_rust_env_before=0
+$ cargo test --locked --release --lib physics::collision::gjk::case_evidence::upstream_f32_within_4ulp -- --exact
+exit=101 | test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.00s
+panic: ellipsoid-box frame 6.351978e-7
+$ cargo test --locked --release --lib physics::collision::gjk::case_evidence::our_contacts_match_upstream_f32_within_4ulp -- --exact --nocapture
+exit=0 frame=6.351978e-7
+line: [判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 6.351978e-7
+
+## msvc-plus-ldc
+tree=.\target\qa-frame-diag\tree toolchain=+1.99.0-x86_64-pc-windows-msvc rustflags=-C link-dead-code=yes release=False
+rustc host: x86_64-pc-windows-msvc
+target=target\qa-frame-diag\frame\msvc-plus-ldc deps_files=67 cargo_rust_env_before=0
+$ cargo test --locked --lib physics::collision::gjk::case_evidence::upstream_f32_within_4ulp -- --exact
+exit=101 | test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.00s
+panic: ellipsoid-box frame 6.351978e-7
+$ cargo test --locked --lib physics::collision::gjk::case_evidence::our_contacts_match_upstream_f32_within_4ulp -- --exact --nocapture
+exit=0 frame=6.351978e-7
+line: [判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 6.351978e-7
+
+## gnu-no-config
+tree=.\target\qa-frame-diag\tree-noconfig toolchain=(repo default GNU) rustflags=(none) release=False
+rustc host: x86_64-pc-windows-gnu
+target=target\qa-frame-diag\frame\gnu-no-config deps_files=62 cargo_rust_env_before=0
+$ cargo test --locked --lib physics::collision::gjk::case_evidence::upstream_f32_within_4ulp -- --exact
+exit=0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.01s
+$ cargo test --locked --lib physics::collision::gjk::case_evidence::our_contacts_match_upstream_f32_within_4ulp -- --exact --nocapture
+exit=0 frame=3.838112e-7
+line: [判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 3.838112e-7
+
+## gnu-default-envset
+note: same binary as gnu-default, G2_DUMP_NATIVE_ERROR=1
+exit=0
+result: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 451 filtered out; finished in 0.01s
+

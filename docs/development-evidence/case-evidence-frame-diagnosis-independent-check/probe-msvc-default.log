@@ -1,0 +1,65 @@
+## build = msvc-default
+## rustc +1.99.0-x86_64-pc-windows-msvc --edition 2024 -C opt-level=0 -C debug-assertions=on 
+## source = qa_fmaf_probe.rs (own probe)
+PROBE n=4096 global_target_feature_fma=false cpu_fma3=true
+CMP muladd_vs_hw_fma diffs=0 max_ulp=0 ulp_eq_1=0 ulp_ge_2=0
+CMP muladd_vs_unfused diffs=877 max_ulp=158 ulp_eq_1=696 ulp_ge_2=181
+SAMPLE muladd_vs_unfused a_bits=3fd594e0 b_bits=3ed55f48 c_bits=bf0129c8 got_bits=3e436a53 want_bits=3e436a54 ulp=1
+SAMPLE muladd_vs_unfused a_bits=3f936a54 b_bits=3fa9d6ca c_bits=be806cba got_bits=3fa37e93 want_bits=3fa37e92 ulp=1
+SAMPLE muladd_vs_unfused a_bits=bebbd060 b_bits=3fdeb5f4 c_bits=3f8d5dc8 got_bits=3eeeaebf want_bits=3eeeaebe ulp=1
+SAMPLE muladd_vs_unfused a_bits=3f3de1da b_bits=bec38e5e c_bits=3fac3010 got_bits=3f87ece7 want_bits=3f87ece8 ulp=1
+SAMPLE muladd_vs_unfused a_bits=bf58488e b_bits=3fc12ec0 c_bits=3fdc8202 got_bits=3ee52f3f want_bits=3ee52f40 ulp=1
+SAMPLE_WORST muladd_vs_unfused a_bits=3fe5585c b_bits=bf7de1e1 c_bits=3fe3a0e2 got_bits=3ab8cb62 want_bits=3ab8cc00 ulp=158
+CMP muladd_vs_f64_double diffs=0 max_ulp=0 ulp_eq_1=0 ulp_ge_2=0
+CMP hw_fma_vs_f64_double diffs=0 max_ulp=0 ulp_eq_1=0 ulp_ge_2=0
+CMP hw_fma_vs_unfused diffs=877 max_ulp=158 ulp_eq_1=696 ulp_ge_2=181
+SAMPLE hw_fma_vs_unfused a_bits=3fd594e0 b_bits=3ed55f48 c_bits=bf0129c8 got_bits=3e436a53 want_bits=3e436a54 ulp=1
+SAMPLE hw_fma_vs_unfused a_bits=3f936a54 b_bits=3fa9d6ca c_bits=be806cba got_bits=3fa37e93 want_bits=3fa37e92 ulp=1
+SAMPLE hw_fma_vs_unfused a_bits=bebbd060 b_bits=3fdeb5f4 c_bits=3f8d5dc8 got_bits=3eeeaebf want_bits=3eeeaebe ulp=1
+SAMPLE hw_fma_vs_unfused a_bits=3f3de1da b_bits=bec38e5e c_bits=3fac3010 got_bits=3f87ece7 want_bits=3f87ece8 ulp=1
+SAMPLE hw_fma_vs_unfused a_bits=bf58488e b_bits=3fc12ec0 c_bits=3fdc8202 got_bits=3ee52f3f want_bits=3ee52f40 ulp=1
+SAMPLE_WORST hw_fma_vs_unfused a_bits=3fe5585c b_bits=bf7de1e1 c_bits=3fe3a0e2 got_bits=3ab8cb62 want_bits=3ab8cc00 ulp=158
+CMP unfused_vs_f64_double diffs=877 max_ulp=158 ulp_eq_1=696 ulp_ge_2=181
+SAMPLE unfused_vs_f64_double a_bits=3fd594e0 b_bits=3ed55f48 c_bits=bf0129c8 got_bits=3e436a54 want_bits=3e436a53 ulp=1
+SAMPLE unfused_vs_f64_double a_bits=3f936a54 b_bits=3fa9d6ca c_bits=be806cba got_bits=3fa37e92 want_bits=3fa37e93 ulp=1
+SAMPLE unfused_vs_f64_double a_bits=bebbd060 b_bits=3fdeb5f4 c_bits=3f8d5dc8 got_bits=3eeeaebe want_bits=3eeeaebf ulp=1
+SAMPLE unfused_vs_f64_double a_bits=3f3de1da b_bits=bec38e5e c_bits=3fac3010 got_bits=3f87ece8 want_bits=3f87ece7 ulp=1
+SAMPLE unfused_vs_f64_double a_bits=bf58488e b_bits=3fc12ec0 c_bits=3fdc8202 got_bits=3ee52f40 want_bits=3ee52f3f ulp=1
+SAMPLE_WORST unfused_vs_f64_double a_bits=3fe5585c b_bits=bf7de1e1 c_bits=3fe3a0e2 got_bits=3ab8cc00 want_bits=3ab8cb62 ulp=158
+DIGEST muladd=94042172a0100abf hw_fma=94042172a0100abf unfused=e9ab979bca02ba12 f64_double=94042172a0100abf
+KNOWN a_bits=3f800001 b_bits=3f7fffff c_bits=bf800000 muladd=337ffffe unfused=00000000 hw=337ffffe f64=337ffffe
+KNOWN a_bits=3f800000 b_bits=3f800000 c_bits=bf800000 muladd=00000000 unfused=00000000 hw=00000000 f64=00000000
+KNOWN a_bits=40400000 b_bits=40e00000 c_bits=c1a80000 muladd=00000000 unfused=00000000 hw=00000000 f64=00000000
+KNOWN a_bits=3dcccccd b_bits=3e4ccccd c_bits=3e99999a muladd=3ea3d70b unfused=3ea3d70b hw=3ea3d70b f64=3ea3d70b
+KNOWN a_bits=3f800001 b_bits=3f800000 c_bits=bf800000 muladd=34000000 unfused=34000000 hw=34000000 f64=34000000
+PROBE n=1000000 global_target_feature_fma=false cpu_fma3=true
+CMP muladd_vs_hw_fma diffs=0 max_ulp=0 ulp_eq_1=0 ulp_ge_2=0
+CMP muladd_vs_unfused diffs=218156 max_ulp=5506752 ulp_eq_1=175258 ulp_ge_2=42898
+SAMPLE muladd_vs_unfused a_bits=3fd594e0 b_bits=3ed55f48 c_bits=bf0129c8 got_bits=3e436a53 want_bits=3e436a54 ulp=1
+SAMPLE muladd_vs_unfused a_bits=3f936a54 b_bits=3fa9d6ca c_bits=be806cba got_bits=3fa37e93 want_bits=3fa37e92 ulp=1
+SAMPLE muladd_vs_unfused a_bits=bebbd060 b_bits=3fdeb5f4 c_bits=3f8d5dc8 got_bits=3eeeaebf want_bits=3eeeaebe ulp=1
+SAMPLE muladd_vs_unfused a_bits=3f3de1da b_bits=bec38e5e c_bits=3fac3010 got_bits=3f87ece7 want_bits=3f87ece8 ulp=1
+SAMPLE muladd_vs_unfused a_bits=bf58488e b_bits=3fc12ec0 c_bits=3fdc8202 got_bits=3ee52f3f want_bits=3ee52f40 ulp=1
+SAMPLE_WORST muladd_vs_unfused a_bits=3fee1f38 b_bits=bf185d68 c_bits=3f8db96c got_bits=33abf940 want_bits=34000000 ulp=5506752
+CMP muladd_vs_f64_double diffs=0 max_ulp=0 ulp_eq_1=0 ulp_ge_2=0
+CMP hw_fma_vs_f64_double diffs=0 max_ulp=0 ulp_eq_1=0 ulp_ge_2=0
+CMP hw_fma_vs_unfused diffs=218156 max_ulp=5506752 ulp_eq_1=175258 ulp_ge_2=42898
+SAMPLE hw_fma_vs_unfused a_bits=3fd594e0 b_bits=3ed55f48 c_bits=bf0129c8 got_bits=3e436a53 want_bits=3e436a54 ulp=1
+SAMPLE hw_fma_vs_unfused a_bits=3f936a54 b_bits=3fa9d6ca c_bits=be806cba got_bits=3fa37e93 want_bits=3fa37e92 ulp=1
+SAMPLE hw_fma_vs_unfused a_bits=bebbd060 b_bits=3fdeb5f4 c_bits=3f8d5dc8 got_bits=3eeeaebf want_bits=3eeeaebe ulp=1
+SAMPLE hw_fma_vs_unfused a_bits=3f3de1da b_bits=bec38e5e c_bits=3fac3010 got_bits=3f87ece7 want_bits=3f87ece8 ulp=1
+SAMPLE hw_fma_vs_unfused a_bits=bf58488e b_bits=3fc12ec0 c_bits=3fdc8202 got_bits=3ee52f3f want_bits=3ee52f40 ulp=1
+SAMPLE_WORST hw_fma_vs_unfused a_bits=3fee1f38 b_bits=bf185d68 c_bits=3f8db96c got_bits=33abf940 want_bits=34000000 ulp=5506752
+CMP unfused_vs_f64_double diffs=218156 max_ulp=5506752 ulp_eq_1=175258 ulp_ge_2=42898
+SAMPLE unfused_vs_f64_double a_bits=3fd594e0 b_bits=3ed55f48 c_bits=bf0129c8 got_bits=3e436a54 want_bits=3e436a53 ulp=1
+SAMPLE unfused_vs_f64_double a_bits=3f936a54 b_bits=3fa9d6ca c_bits=be806cba got_bits=3fa37e92 want_bits=3fa37e93 ulp=1
+SAMPLE unfused_vs_f64_double a_bits=bebbd060 b_bits=3fdeb5f4 c_bits=3f8d5dc8 got_bits=3eeeaebe want_bits=3eeeaebf ulp=1
+SAMPLE unfused_vs_f64_double a_bits=3f3de1da b_bits=bec38e5e c_bits=3fac3010 got_bits=3f87ece8 want_bits=3f87ece7 ulp=1
+SAMPLE unfused_vs_f64_double a_bits=bf58488e b_bits=3fc12ec0 c_bits=3fdc8202 got_bits=3ee52f40 want_bits=3ee52f3f ulp=1
+SAMPLE_WORST unfused_vs_f64_double a_bits=3fee1f38 b_bits=bf185d68 c_bits=3f8db96c got_bits=34000000 want_bits=33abf940 ulp=5506752
+DIGEST muladd=cd439a5ae1784d4f hw_fma=cd439a5ae1784d4f unfused=c9624eb96135f74d f64_double=cd439a5ae1784d4f
+KNOWN a_bits=3f800001 b_bits=3f7fffff c_bits=bf800000 muladd=337ffffe unfused=00000000 hw=337ffffe f64=337ffffe
+KNOWN a_bits=3f800000 b_bits=3f800000 c_bits=bf800000 muladd=00000000 unfused=00000000 hw=00000000 f64=00000000
+KNOWN a_bits=40400000 b_bits=40e00000 c_bits=c1a80000 muladd=00000000 unfused=00000000 hw=00000000 f64=00000000
+KNOWN a_bits=3dcccccd b_bits=3e4ccccd c_bits=3e99999a muladd=3ea3d70b unfused=3ea3d70b hw=3ea3d70b f64=3ea3d70b
+KNOWN a_bits=3f800001 b_bits=3f800000 c_bits=bf800000 muladd=34000000 unfused=34000000 hw=34000000 f64=34000000

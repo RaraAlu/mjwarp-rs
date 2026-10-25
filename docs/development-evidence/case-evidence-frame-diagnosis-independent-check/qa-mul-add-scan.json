@@ -1,0 +1,428 @@
+{
+  "task": "2026-10-25-case-evidence-frame-diagnosis-independent-check",
+  "generated_utc": "2026-10-25T17:40:04Z",
+  "head": "ref: refs/heads/master",
+  "patterns": [
+    "mul_add_call",
+    "mul_add_mention",
+    "helper_fma_f32",
+    "helper_fused_mul_add"
+  ],
+  "rows": [
+    {
+      "file": "src/physics/collision/cuda/mod.rs",
+      "line": 10,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "//! - **正式判据**：对同配方上游 f32 GPU，按 pinned `ccd` PTX 的**全 fma 收缩**（显式 `mul_add`）"
+    },
+    {
+      "file": "src/physics/collision/gjk/polytope.rs",
+      "line": 67,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "// 对齐 pinned ccd PTX 的 FMA 收缩：dot(r,r) 为「首项乘积 + 逐项 mul_add」链。"
+    },
+    {
+      "file": "src/physics/collision/gjk/polytope.rs",
+      "line": 69,
+      "kind": "mul_add_call",
+      "class": "product_src",
+      "text": "let tail = r[1].mul_add(r[1], head);"
+    },
+    {
+      "file": "src/physics/collision/gjk/polytope.rs",
+      "line": 69,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let tail = r[1].mul_add(r[1], head);"
+    },
+    {
+      "file": "src/physics/collision/gjk/polytope.rs",
+      "line": 70,
+      "kind": "mul_add_call",
+      "class": "product_src",
+      "text": "pt.face_norm2[idx] = r[2].mul_add(r[2], tail);"
+    },
+    {
+      "file": "src/physics/collision/gjk/polytope.rs",
+      "line": 70,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "pt.face_norm2[idx] = r[2].mul_add(r[2], tail);"
+    },
+    {
+      "file": "src/physics/collision/relmat.rs",
+      "line": 21,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "/// 刻意**不用** `f32::mul_add`：本机 dev 档（opt-level 0）实测未融合"
+    },
+    {
+      "file": "src/physics/collision/relmat.rs",
+      "line": 26,
+      "kind": "helper_fma_f32",
+      "class": "product_src",
+      "text": "fn fma_f32(a: f32, b: f32, c: f32) -> f32 {"
+    },
+    {
+      "file": "src/physics/collision/relmat.rs",
+      "line": 97,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "/// 该 cell（`rel[1][0]`）正是 QA 指出的 `f32::mul_add` 未融合敏感位（正确 `0x3F17E6B0`）。"
+    },
+    {
+      "file": "src/physics/collision/relmat.rs",
+      "line": 207,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "/// 单侧旋转场景同样位级一致；cell 3（`0x3F17E6B0`）是 QA 指出的 `f32::mul_add` 敏感位。"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 126,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "/// 宿主侧不直接用 `f32::mul_add`：本目标 debug 构建会落到不保证单次舍入的回退"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 132,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "fn fused_mul_add(a: f32, b: f32, c: f32) -> f32 {"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 132,
+      "kind": "helper_fused_mul_add",
+      "class": "product_src",
+      "text": "fn fused_mul_add(a: f32, b: f32, c: f32) -> f32 {"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 178,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let end1 = fused_mul_add(-axis_z, half_length, position[axis]);"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 179,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let end2 = fused_mul_add(axis_z, half_length, position[axis]);"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 216,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let squared = fused_mul_add(basis_x, basis_x, basis_y * basis_y);"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 218,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let extent = fused_mul_add(half_height, axis_z.abs(), radial);"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 264,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let intermediate = fused_mul_add(row[0], vector[0], intermediate);"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 265,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "fused_mul_add(row[2], vector[2], intermediate)"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 271,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let intermediate = fused_mul_add(a[0], b[0], intermediate);"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 272,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "fused_mul_add(a[2], b[2], intermediate)"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 369,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "fn fused_mul_add_matches_frozen_reference_rounding() {"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 372,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let first = fused_mul_add("
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 378,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let second = fused_mul_add("
+    },
+    {
+      "file": "src/render/kernel/megakernel_arrays.rs",
+      "line": 189,
+      "kind": "mul_add_call",
+      "class": "product_src",
+      "text": "let length = z.mul_add(z, y.mul_add(y, x * x)).sqrt();"
+    },
+    {
+      "file": "src/render/kernel/megakernel_arrays.rs",
+      "line": 189,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let length = z.mul_add(z, y.mul_add(y, x * x)).sqrt();"
+    },
+    {
+      "file": "src/runtime/transfer/kernel/tests/precision.rs",
+      "line": 72,
+      "kind": "mul_add_call",
+      "class": "test_module_in_src",
+      "text": "assert_eq!(values[0], a.mul_add(b, -1.0));"
+    },
+    {
+      "file": "src/runtime/transfer/kernel/tests/precision.rs",
+      "line": 72,
+      "kind": "mul_add_mention",
+      "class": "test_module_in_src",
+      "text": "assert_eq!(values[0], a.mul_add(b, -1.0));"
+    },
+    {
+      "file": "tests/g10_p5_sdf_relmat.rs",
+      "line": 416,
+      "kind": "helper_fma_f32",
+      "class": "test_crate",
+      "text": "fn fma_f32(a: f32, b: f32, c: f32) -> f32 {"
+    }
+  ],
+  "product_mul_add_call_sites": [
+    {
+      "file": "src/physics/collision/gjk/polytope.rs",
+      "line": 69,
+      "kind": "mul_add_call",
+      "class": "product_src",
+      "text": "let tail = r[1].mul_add(r[1], head);"
+    },
+    {
+      "file": "src/physics/collision/gjk/polytope.rs",
+      "line": 70,
+      "kind": "mul_add_call",
+      "class": "product_src",
+      "text": "pt.face_norm2[idx] = r[2].mul_add(r[2], tail);"
+    },
+    {
+      "file": "src/render/kernel/megakernel_arrays.rs",
+      "line": 189,
+      "kind": "mul_add_call",
+      "class": "product_src",
+      "text": "let length = z.mul_add(z, y.mul_add(y, x * x)).sqrt();"
+    }
+  ],
+  "test_mul_add_call_sites": [
+    {
+      "file": "src/runtime/transfer/kernel/tests/precision.rs",
+      "line": 72,
+      "kind": "mul_add_call",
+      "class": "test_module_in_src",
+      "text": "assert_eq!(values[0], a.mul_add(b, -1.0));"
+    }
+  ],
+  "required_sites": {
+    "src/physics/collision/gjk/polytope.rs": [
+      {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 69,
+        "kind": "mul_add_call",
+        "class": "product_src",
+        "text": "let tail = r[1].mul_add(r[1], head);"
+      },
+      {
+        "file": "src/physics/collision/gjk/polytope.rs",
+        "line": 70,
+        "kind": "mul_add_call",
+        "class": "product_src",
+        "text": "pt.face_norm2[idx] = r[2].mul_add(r[2], tail);"
+      }
+    ],
+    "src/render/kernel/megakernel_arrays.rs": [
+      {
+        "file": "src/render/kernel/megakernel_arrays.rs",
+        "line": 189,
+        "kind": "mul_add_call",
+        "class": "product_src",
+        "text": "let length = z.mul_add(z, y.mul_add(y, x * x)).sqrt();"
+      }
+    ]
+  },
+  "collision_dir_mul_add_calls": [
+    {
+      "file": "src/physics/collision/gjk/polytope.rs",
+      "line": 69,
+      "kind": "mul_add_call",
+      "class": "product_src",
+      "text": "let tail = r[1].mul_add(r[1], head);"
+    },
+    {
+      "file": "src/physics/collision/gjk/polytope.rs",
+      "line": 70,
+      "kind": "mul_add_call",
+      "class": "product_src",
+      "text": "pt.face_norm2[idx] = r[2].mul_add(r[2], tail);"
+    }
+  ],
+  "precedent_helpers": [
+    {
+      "file": "src/physics/collision/relmat.rs",
+      "line": 26,
+      "kind": "helper_fma_f32",
+      "class": "product_src",
+      "text": "fn fma_f32(a: f32, b: f32, c: f32) -> f32 {"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 132,
+      "kind": "helper_fused_mul_add",
+      "class": "product_src",
+      "text": "fn fused_mul_add(a: f32, b: f32, c: f32) -> f32 {"
+    },
+    {
+      "file": "tests/g10_p5_sdf_relmat.rs",
+      "line": 416,
+      "kind": "helper_fma_f32",
+      "class": "test_crate",
+      "text": "fn fma_f32(a: f32, b: f32, c: f32) -> f32 {"
+    }
+  ],
+  "precedent_comments": [
+    {
+      "file": "src/physics/collision/relmat.rs",
+      "line": 21,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "/// 刻意**不用** `f32::mul_add`：本机 dev 档（opt-level 0）实测未融合"
+    },
+    {
+      "file": "src/physics/collision/relmat.rs",
+      "line": 97,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "/// 该 cell（`rel[1][0]`）正是 QA 指出的 `f32::mul_add` 未融合敏感位（正确 `0x3F17E6B0`）。"
+    },
+    {
+      "file": "src/physics/collision/relmat.rs",
+      "line": 207,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "/// 单侧旋转场景同样位级一致；cell 3（`0x3F17E6B0`）是 QA 指出的 `f32::mul_add` 敏感位。"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 126,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "/// 宿主侧不直接用 `f32::mul_add`：本目标 debug 构建会落到不保证单次舍入的回退"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 132,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "fn fused_mul_add(a: f32, b: f32, c: f32) -> f32 {"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 178,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let end1 = fused_mul_add(-axis_z, half_length, position[axis]);"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 179,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let end2 = fused_mul_add(axis_z, half_length, position[axis]);"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 216,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let squared = fused_mul_add(basis_x, basis_x, basis_y * basis_y);"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 218,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let extent = fused_mul_add(half_height, axis_z.abs(), radial);"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 264,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let intermediate = fused_mul_add(row[0], vector[0], intermediate);"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 265,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "fused_mul_add(row[2], vector[2], intermediate)"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 271,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let intermediate = fused_mul_add(a[0], b[0], intermediate);"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 272,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "fused_mul_add(a[2], b[2], intermediate)"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 369,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "fn fused_mul_add_matches_frozen_reference_rounding() {"
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 372,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let first = fused_mul_add("
+    },
+    {
+      "file": "src/render/bvh/aabb.rs",
+      "line": 378,
+      "kind": "mul_add_mention",
+      "class": "product_src",
+      "text": "let second = fused_mul_add("
+    }
+  ]
+}
