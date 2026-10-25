@@ -13,27 +13,30 @@
   "modules": {},
   "acceptance": [
     "相机 data 位姿由产品侧 `src/physics/camlight.rs` 产出（含 cam_mode=3 TARGETBODY 相机）并喂给渲染；测试断言其与 S0b 参考 origins 逐位一致、camera0 与 quat_to_mat 一致、camera1 与参考 data xmat 一致；**禁止回退到夹具 data 位姿**（测试中该字段只能用于比对，不能作为渲染输入）。",
-    "端到端两相机：RGB 每通道 ≤1 LSB（对 S0b fast-math 参考）、depth ≤4 ULP（对 `use_fast_math=False` 同配方参考）、seg 全等（两份参考应一致），逐像素 diff 报告含首错与计数；两次运行输出哈希逐位相同；跨配方（S0b fast-math 参考 vs 产品 fast_math=false）差异必须作为已知偏差记录，不得当作通过依据。",
-    "上下文/生命周期：默认 28 参数 context、create→render→显式 refit→render→destroy 全链路；禁用输出的 DisabledOutput；显存回基线、无泄漏（沿用 S6b 口径）。",
-    "负向控制：错数量/种类/对齐/容量/上下文的 launch 参数写前拒绝；PTX 走 f32-render 门禁；不得宣称阴影/天空盒/splat/flex/hfield/多相机支持。",
-    "证据：README/receipt 含 task_id、上下游提交、GPU 设备/显存与窗口、端到端数字、未满足项；不改 S2–S7 证据与夹具、不改已 verified 的容差；新文件 ≤500 行。",
-    "门禁：fmt/clippy/clippy-cuda/unit 全过；GPU 120 分钟独占窗口；开始核对设备并记录结束回桌面基线。"
+    "端到端两相机（默认 28 参数 context、spp=1、use_precomputed_rays=true）：RGB 对同配方（`use_fast_math=False`）参考 **≤1 LSB**、depth 对同配方参考 **≤4 ULP**、seg **全等**（同配方与 S0b 两份参考的 seg 应一致），逐像素 diff 报告含首错与计数；两次运行输出哈希逐位相同；跨配方（S0b fast-math）差异只作已知偏差记录，不作通过依据。",
+    "上下文/生命周期：create→render→显式 refit→render→destroy 全链路；refit 帧无冻结参考时只做结构断言；禁用输出的 DisabledOutput；`nworld=1`；显存回基线、无泄漏（沿用 S6b 口径）。",
+    "不回归基线：S7b1 depth/seg 120,000/120,000 位等、S7b2/S7b3 RGB 同配方 0 差异、AA(spp=2) 图像级语义不退化；负向控制（错数量/种类/对齐/容量/上下文写前拒绝、AA 射线数不符）保持。",
+    "r01-p8 收口映射素材：S8 证据须按「世界/相机/资产/BVH/28 默认参数/生命周期/RGB/深度/分割/资源检查/拒绝面」逐条给出结论与可追溯路径（对应 S1–S7b 各片证据），供 Arch 写 r01-p8 收口汇总；不得宣称「完整 R01 通过」或上游完全等价。",
+    "证据：README/receipt 含 task_id、上下游提交、GPU 设备/显存与窗口、端到端数字、未满足项（nworld>1、阴影/天空盒/泼溅/柔体/高度场/多相机、Linux/T4、性能）；不改 S2–S7 证据与夹具、不改已 verified 容差；新文件 ≤500 行；GPU 120 分钟独占窗口、结束回桌面基线。"
   ],
   "schedule": {
     "depends_on": [
       "2026-10-25-render-bvh-s7b2-shading",
       "2026-10-25-render-bvh-s7b3-flags",
+      "2026-10-25-render-bvh-s7b-followups",
       "2026-10-24-render-bvh-s6b"
     ],
     "phase": "P8-渲染与BVH",
     "owner": "Backend",
     "files": [
       "src/physics/camlight.rs",
-      "src/render/context.rs",
-      "src/render/context/lifecycle.rs",
+      "src/render/context/",
       "src/render/kernel/",
+      "src/render/mod.rs",
       "tests/render_e2e.rs",
+      "tests/support/render_bvh/",
       "fixtures/render-bvh/scene-e2e/",
+      "scripts/authoring/render-bvh-s7b/",
       "docs/development-evidence/render-bvh/s8-e2e/"
     ],
     "resources": [
@@ -41,7 +44,7 @@
     ],
     "priority": 90
   },
-  "note": "Arch 2026-10-25 排程：S7b1 期间发现相机 1 是 TARGETBODY 跟踪相机（model-315 cam_mode=[0,3]、cam_targetbodyid=[-1,2]、cam_quat[1]=identity），其 data cam_xmat 来自 forward（camlight），不是 quat 推导。裁决 A：S7b1 渲染器改用显式 &[CameraPose] 入参、不在内核里重实现跟踪相机数学（避免第二份 camlight 数学）；产品侧已有 src/physics/camlight.rs，其 → RenderContext 的接线在本片 S8 完成并用产品输出验证，S7b2/S7b3 仍可用夹具 data 位姿。S8 验收不得以夹具位姿充当产品 camlight 结果。",
+  "note": "Arch 2026-10-25 排程：S7b1 期间发现相机 1 是 TARGETBODY 跟踪相机（model-315 cam_mode=[0,3]、cam_targetbodyid=[-1,2]、cam_quat[1]=identity），其 data cam_xmat 来自 forward（camlight），不是 quat 推导。裁决 A：S7b1 渲染器改用显式 &[CameraPose] 入参、不在内核里重实现跟踪相机数学；产品侧已有 src/physics/camlight.rs，其 → RenderContext 的接线在本片 S8 完成并用产品输出验证。Arch 2026-10-25 追加：S8 在 S7b3 复核与 S7b-followups 之后 start；files 改为目录级（src/render/context/、src/render/kernel/、tests/support/render_bvh/ 等）；硬指标一律用同配方（use_fast_math=False）参考（RGB ≤1 LSB、depth ≤4 ULP、seg 全等），S0b fast-math 只作跨偏差记录；证据须含 r01-p8 十项收口映射素材（供 Arch 汇总），不得宣称完整 R01 通过。",
   "revision": {
     "before": "304c6983fcca1595fa62cef2cf4d9f4863a1710d",
     "after": null
