@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-fixtures",
+  "status": "final",
+  "outcome": "pass",
+  "slice": "G0b",
+  "title": "g10-p5 G0b：双版本 MJB、octree parity 与 GJK/EPA 直达参考补采",
+  "date": "2026-10-25",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "decisions": {
+    "scope": "1A：只做物理（hfield 接触 + SDF 接触/距离/梯度/越界）",
+    "nworld": "2A：worlds=2 严格验收（spike 未发现需降级阻塞）",
+    "mjb": "3A：本批次 authoring 生成并冻结（3.12 产品 / 3.15 参考）",
+    "priority": "5A：GJK/EPA 先独立交付（G2，待 start）"
+  },
+  "scope_boundary": {
+    "files_written": ["scripts/authoring/g10-p5/", "fixtures/g10-p5/", "docs/development-evidence/g10-p5-fixtures/"],
+    "product_code_changed": false,
+    "tests_changed": false,
+    "cargo_changed": false,
+    "existing_complex_physics_xml_modified": false,
+    "s2_s8_evidence_touched": false,
+    "product_tests_python": false
+  },
+  "mjb_and_parity": {
+    "decision": "SDF/hfield 数值验收走位级（两版本字段全等）",
+    "octree_parity_file": "fixtures/g10-p5/octree-parity.json",
+    "octree_parity_sha256": "0377597a988617c11596e856ea42f55ea456db3696d3b2f7444aed3b4529d37e",
+    "cross_version_load": "3.15 无法加载 3.12 MJB（实测 different number of sizes）→ 两侧各自生成、同版本重载校验",
+    "models": {
+      "hfield-box": {
+        "source_xml": "fixtures/mjwarp-complex-physics/hfield-box.xml",
+        "source_xml_sha256": "e0fe921c10e1e6e2353ff2ed4f2b1c910d3b853bf4f72665f279b9da5845d865",
+        "mjb_312": { "path": "fixtures/g10-p5/mjb-312/hfield-box.mjb", "bytes": 5267, "sha256": "39e74291327e71cfe9c9ab42f7f15f781a2cf26b6050fe498146d2a0f1985082" },
+        "mjb_315": { "path": "fixtures/g10-p5/mjb-315/hfield-box.mjb", "bytes": 5259, "sha256": "cf60c77ef7aae501a78af3ba28d57cff1328f31b18ff6ff49357ccede7691d24" },
+        "noct": { "312": 0, "315": 0 },
+        "octree_f64_equal": true,
+        "hfield_equal": true,
+        "struct_equal": true
+      },
+      "sdf-cylinder": {
+        "source_xml": "fixtures/mjwarp-complex-physics/sdf-cylinder.xml",
+        "source_xml_sha256": "178bc914b1f00eed730d3e648b100b1356a3470019549fff21c1834af5b61c7f",
+        "mjb_312": { "path": "fixtures/g10-p5/mjb-312/sdf-cylinder.mjb", "bytes": 9405930, "sha256": "9dfd077ed4ab40877ea9380ae57e317200da70c1645c603d22b5896d5aefec43" },
+        "mjb_315": { "path": "fixtures/g10-p5/mjb-315/sdf-cylinder.mjb", "bytes": 9405922, "sha256": "f1df72cf9a606ea15430c30b39766cc0d35203ac0fd53a8832174938634b3129" },
+        "noct": { "312": 63497, "315": 63497 },
+        "octree_f64_equal": true,
+        "hfield_equal": true,
+        "struct_equal": true
+      }
+    },
+    "two_layer_parity": {
+      "f64_layer": "oct_aabb/oct_coeff/oct_depth/oct_child/mesh_octadr/mesh_octnum/hfield_size 逐字节全等",
+      "f32_layer": "hfield_data f32 位型逐字节全等",
+      "struct_layer": "hfield_nrow/ncol/adr/opt_sdf/geom_type/geom_dataid/counts/nq_nv 全等",
+      "dump_intermediate": "target/g10-p5/dump-312|315（可重跑生成，不进 git）"
+    }
+  },
+  "existing_reference_audit": {
+    "file": "fixtures/g10-p5/existing-reference-audit.json",
+    "sha256": "a14a31ae10b9b3f2c1ca35ce89d9e09a5a254d39ea6c3835ff3c39a2f10b0251",
+    "reusable_for_g2_g3_g4": {
+      "box-box-multiccd": { "count": 10, "per_world": "5/5", "role": "G2 主参考（box support/EPA/multicontact/is_discrete）" },
+      "convex-mesh": { "count": 2, "per_world": "1/1", "role": "G2 参考（mesh 支撑 graph/穷举 + box-mesh 多接触）" },
+      "degenerate-mesh": { "count": 2, "per_world": "1/1", "role": "G2 退化路径参考" },
+      "hfield-box": { "count": 8, "per_world": "4/4", "role": "G4 主参考（hfield prism-CCD + 四接触）" },
+      "sdf-cylinder": { "count": 80, "per_world": "40/40", "role": "G3 主参考（SDF narrowphase）" }
+    },
+    "regression_only": ["sphere-sphere（G08 primitive 解析，非 GJK）"],
+    "gaps_filled_by_this_slice": [
+      "sphere-box 浅穿透（GJK 球 shrink + _inflate）",
+      "sphere-box 深穿透（EPA）",
+      "capsule-box",
+      "cylinder-box（cylinder support + 多接触限制）",
+      "ellipsoid-box",
+      "hfield-sphere",
+      "hfield-capsule",
+      "sdf-box",
+      "非退化 mesh-mesh",
+      "box-box margin≠0（非 is_discrete 路径）"
+    ]
+  },
+  "nworld_spike": {
+    "method": "只读代码审查（不写产品代码）",
+    "conclusion": "可用（2A 不降级）",
+    "evidence": [
+      "src/physics/collision/filter.rs / sap.rs / nxn.rs：world in 0..state.nworld 外层循环 + world*model.ngeom 索引",
+      "src/physics/collision/narrowphase.rs：worldid < state.nworld 校验、index_base = worldid*model.ngeom、接触写 worldid"
+    ],
+    "gaps_for_later_slices": [
+      "G1：hfield_data/oct_* 的 world 维上传（参数批 world 维机制已有，新字段未接）",
+      "G5：naconmax 维度对齐参考滑动窗口语义",
+      "G5：接触写入顺序（sdf-box 原始顺序 atomic 非确定 → 排序比较判据）"
+    ],
+    "blocking": false
+  },
+  "captures": {
+    "reference_dir": "fixtures/g10-p5/references",
+    "index": { "path": "fixtures/g10-p5/references/index.json", "bytes": 4676, "sha256": "053a79ff05302018f3b64fe2a25d43ef0a1c46570c201b37c49d3cf8c9bdc6a1" },
+    "protocol": "worlds=2；world0=qpos0、world1=qpos0+offset（offset 只作用第一个 freejoint 前 3 维）；每 case 两次完整捕获；contact 17 字段；qvel 按 d04 default_state 的 linspace",
+    "pass_criterion": "worldid 分组 + 每 world 内 (dist,pos) 稳定排序后位级比较",
+    "order_observation_required": "原始顺序是否相等必须记录；不等写明原因（broadphase/multiccd/atomic 写入顺序）",
+    "cases": [
+      { "name": "sphere-box-shallow", "count": 2, "per_world": "1/1", "sorted_identical": true, "raw_identical": true, "raw_grouped_by_world": true, "covers": "球 shrink + _inflate 浅穿透" },
+      { "name": "sphere-box-deep", "count": 2, "per_world": "1/1", "sorted_identical": true, "raw_identical": true, "raw_grouped_by_world": true, "covers": "深穿透 → EPA" },
+      { "name": "capsule-box", "count": 2, "per_world": "1/1", "sorted_identical": true, "raw_identical": true, "raw_grouped_by_world": true, "covers": "capsule shrink/support" },
+      { "name": "cylinder-box", "count": 8, "per_world": "4/4", "sorted_identical": true, "raw_identical": true, "raw_grouped_by_world": false, "covers": "cylinder support + 多接触限制" },
+      { "name": "ellipsoid-box", "count": 2, "per_world": "1/1", "sorted_identical": true, "raw_identical": true, "raw_grouped_by_world": true, "covers": "ellipsoid support/normalize" },
+      { "name": "hfield-sphere", "count": 8, "per_world": "4/4", "sorted_identical": true, "raw_identical": true, "raw_grouped_by_world": false, "covers": "hfield prism-CCD + 球 shrink" },
+      { "name": "hfield-capsule", "count": 7, "per_world": "4/3", "sorted_identical": true, "raw_identical": true, "raw_grouped_by_world": false, "covers": "hfield 与第二类型配对" },
+      { "name": "sdf-box", "count": 80, "per_world": "40/40", "sorted_identical": true, "raw_identical": false, "raw_grouped_by_world": false, "covers": "SDF narrowphase + Halton initpoints", "order_note": "两次捕获原始顺序不位等：SDF narrowphase 每个 initpoint 由 write_contact 的 atomic 计数写入 → 排序后位等；G3/G5 判据必须排序比较" },
+      { "name": "mesh-mesh", "count": 2, "per_world": "1/1", "sorted_identical": true, "raw_identical": true, "raw_grouped_by_world": true, "covers": "mesh 非退化 + 多接触" },
+      { "name": "box-box-margin", "count": 10, "per_world": "5/5", "sorted_identical": true, "raw_identical": true, "raw_grouped_by_world": false, "covers": "margin≠0 非 is_discrete + multiccd" }
+    ],
+    "raw_order_observation_summary": {
+      "raw_identical_false": ["sdf-box（atomic 写入非确定）"],
+      "raw_identical_true_but_not_grouped": ["cylinder-box", "hfield-sphere", "hfield-capsule", "box-box-margin"],
+      "raw_identical_true_and_grouped": ["sphere-box-shallow", "sphere-box-deep", "capsule-box", "ellipsoid-box", "mesh-mesh"]
+    }
+  },
+  "artifacts": {
+    "scripts": {
+      "dump_collision_fields_312.cpp": { "lines": 188, "bytes": 6780, "sha256": "95dab80a92dfdb26086bcb1a09f0afa238098d6af05f2efc3c9e4d3a258d2e12" },
+      "run_g0b_312.ps1": { "lines": 75, "bytes": 3601, "sha256": "0621ce87c4461a685a5deaf47fdc5293c67959e1b4effe049939913dfe889466" },
+      "dump_fields_315.py": { "lines": 141, "bytes": 5962, "sha256": "c1c10f272d3fa6dd8afef6c49f5ad01b6d31bec3901d0d522334bbe0826b3bdb" },
+      "octree_parity.py": { "lines": 153, "bytes": 6353, "sha256": "e736ef91dc37f815a2c23030960f48214dc5c262637bf9f82756af2e33a2022a" },
+      "audit_existing_references.py": { "lines": 131, "bytes": 5705, "sha256": "8bb4b7a4cb6b1b03ed6bbe576cc917e5e92491173db10053e6d0282d5fcd0489" },
+      "author_g0b_models.py": { "lines": 212, "bytes": 6101, "sha256": "efc35c65947067daf9db566399b38b2f588f76430f7fbf06db7787ef4dac34e2" },
+      "capture_g0b_references.py": { "lines": 282, "bytes": 10459, "sha256": "67f0792da4d2acb88d05e6855b4067ccba6a094d4f2e98f11d1e911730f06674" }
+    },
+    "models_index": { "path": "fixtures/g10-p5/models/index.json", "bytes": 1540, "sha256": "b99462db55e45ac413573adcd00b27ef910ad75bf2afbd590ec2161b379e15c8" }
+  },
+  "gpu": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER / 596.36 / SM89",
+    "window": {
+      "start": "2026-10-25T15:22:42.7561595+08:00",
+      "end": "2026-10-25T15:22:48.1395244+08:00",
+      "start_memory_mib": 4156,
+      "end_memory_mib": 4156,
+      "compute_processes_after": 0,
+      "note": "kernel 缓存命中的最终运行；warp 自带 CUDA 12.9 NVRTC"
+    },
+    "versions": { "python": "3.12.13", "mujoco": "3.15.0", "warp": "1.15.0", "mujoco_warp": "3.15.0", "numpy": "2.5.4" },
+    "log": "docs/development-evidence/g10-p5-fixtures/gpu-run.log"
+  },
+  "gates": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy-cuda": "pass",
+    "unit": { "result": "pass", "tests_passed": 532, "tests_failed": 0 }
+  },
+  "unmet": [
+    "本片只做夹具/MJB/参考补采；未实现产品侧 hfield/SDF 碰撞（G1–G6）。",
+    "sdf-box 接触原始顺序非确定（atomic 写入）——验收必须排序比较；G5 需对齐写入顺序或保持排序判据。",
+    "nworld=2 spike 是只读代码结论，未写产品代码验证上传链路（G1/G5 落地验证）。",
+    "10 个补采 case 只覆盖真实缺口，不是全组合矩阵；更多 geom 组合/位姿未采。",
+    "hfield 四接触选择语义在 G4 实现前未与产品对齐。",
+    "GPU 性能未测（归 G6 perf 片）。",
+    "Linux/T4 未覆盖（用户 2026-10-24 裁决终止 Linux 任务）。"
+  ],
+  "evidence_files": ["README.md", "receipt.json", "gpu-run.log"],
+  "reproduction": {
+    "312_mjb_and_dump": "& scripts/authoring/g10-p5/run_g0b_312.ps1",
+    "315_mjb_and_dump": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/g10-p5/dump_fields_315.py",
+    "octree_parity": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/g10-p5/octree_parity.py",
+    "audit": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/g10-p5/audit_existing_references.py",
+    "author_models": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/g10-p5/author_g0b_models.py",
+    "capture_gpu": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/authoring/g10-p5/capture_g0b_references.py"
+  }
+}
