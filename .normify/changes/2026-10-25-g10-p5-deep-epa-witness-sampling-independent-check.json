@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-deep-epa-witness-sampling-independent-check",
+  "title": {
+    "zh": "G10@P5 深穿透 EPA witness 采样片独立复核（定性结论与归因依据）",
+    "en": "Independent check of the deep-penetration EPA witness sampling analysis (qualitative conclusion and attribution)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-g10-p5-deep-epa-witness-sampling` 的**定性结论**做独立复核。该片承接 G5 独立复核发现 2：`cylinder-box` 深穿透额外姿态采样 24 个 world 中 `x1` 1/24、`x2` 3/24 单字段超 `4·ULP@scale`（max 8.926e-7 / 1.527e-7），`dist` 无越界（max 4 ULP）、`ncontact` 24/24 相等、`overflow` 全 0；本片要求判定是否系统性、归因方向、是否需要修正片。复核重点：**结论是否能由原始样本独立复算出来、归因是否有证据而非猜测、有没有越界改动产品代码或过度声明**。",
+    "en": "Independently verify the qualitative analysis of the deep-penetration EPA witness sampling: re-derive the 4/24 statistic from raw samples, check the attribution evidence and the scope discipline (no product code change, no overclaim)."
+  },
+  "modules": {},
+  "acceptance": [
+    "**统计独立复算**：从原始样本（`docs/development-evidence/g10-p5-gpu-kernels-independent-check/qa-compare-gpu.json` 的深穿透额外姿态数据）独立重算 24 个 world 的逐字段 ULP 超差计数与 max 值，核对「x1 1/24、x2 3/24、dist 无越界、ncontact 24/24、overflow 全 0」是否与交付结论一致；不一致即阻断。",
+    "**归因证据核对**：逐条核对交付方排除/保留的归因（EPA horizon/迭代、witness 选择、`multiccd_idx`、f32 累积顺序、姿态/穿透深度相关性）是否有可点开的证据支撑；纯口头归因记为发现并说明影响。",
+    "**结论边界**：核交付结论是否停在「定性」（未据此改产品代码、未宣称已修复、未宣称上游等价/精度达标）；若建议修正片，核最小复现姿态、影响面（判据/容差/已验收结论是否受影响）是否具体可行。",
+    "**范围与边界**：不改产品代码与已 verified 证据数字；证据写自己的目录 `docs/development-evidence/g10-p5-deep-epa-witness-sampling-independent-check/`；纯 CPU（如需补姿态开 GPU 窗口须先报 Arch 基线并经 Arch+Chief 双签）；不改 `Cargo.*`、fixtures XML、S2–S8；不碰 `g10-p5-gpu-kernels-independent-check/qa-gpu/{cases,out}` 未跟踪产物。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过；receipt 含 task_id；证据目录无 `.bin`/`.pyc`；不得宣称精度达标/上游完全等价/原生放行/双平台通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-deep-epa-witness-sampling"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-deep-epa-witness-sampling-independent-check/"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "Arch 2026-10-25 预登记（每片 verified 后立即 start 下一片、QA 复核提前登记的约定）。复核对象是「定性」交付：判定 24 姿态里的单字段超差是否系统性、归因是否成立、是否需要修正片；QA 曾产出原始 24 姿态数据（`f187f701` 之前的工作），本复核要求其基于原始数据独立重算并独立评价 Backend 的归因，不得复用 Backend 的分析脚本。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-25T12:49:00.000Z",
+  "updated_at": "2026-10-25T12:49:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-deep-epa-witness-sampling-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-deep-epa-witness-sampling-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
