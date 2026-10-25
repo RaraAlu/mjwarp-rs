@@ -13,7 +13,7 @@
   "modules": {},
   "acceptance": [
     "相机 data 位姿由产品侧 `src/physics/camlight.rs` 产出（含 cam_mode=3 TARGETBODY 相机）并喂给渲染；测试断言其与 S0b 参考 origins 逐位一致、camera0 与 quat_to_mat 一致、camera1 与参考 data xmat 一致；**禁止回退到夹具 data 位姿**（测试中该字段只能用于比对，不能作为渲染输入）。",
-    "端到端两相机：RGB 每通道 ≤1 LSB、depth ≤4 ULP、seg 全等（与 S0b 冻结参考 rgb/depth/seg 一致），逐像素 diff 报告含首错与计数；两次运行输出哈希逐位相同。",
+    "端到端两相机：RGB 每通道 ≤1 LSB（对 S0b fast-math 参考）、depth ≤4 ULP（对 `use_fast_math=False` 同配方参考）、seg 全等（两份参考应一致），逐像素 diff 报告含首错与计数；两次运行输出哈希逐位相同；跨配方（S0b fast-math 参考 vs 产品 fast_math=false）差异必须作为已知偏差记录，不得当作通过依据。",
     "上下文/生命周期：默认 28 参数 context、create→render→显式 refit→render→destroy 全链路；禁用输出的 DisabledOutput；显存回基线、无泄漏（沿用 S6b 口径）。",
     "负向控制：错数量/种类/对齐/容量/上下文的 launch 参数写前拒绝；PTX 走 f32-render 门禁；不得宣称阴影/天空盒/splat/flex/hfield/多相机支持。",
     "证据：README/receipt 含 task_id、上下游提交、GPU 设备/显存与窗口、端到端数字、未满足项；不改 S2–S7 证据与夹具、不改已 verified 的容差；新文件 ≤500 行。",

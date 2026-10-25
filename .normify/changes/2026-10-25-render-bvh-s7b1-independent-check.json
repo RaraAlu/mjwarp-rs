@@ -13,6 +13,7 @@
   "modules": {},
   "acceptance": [
     "独立参考解码：qa 不读交付夹具的转换产物，直接用 Python 从 reference/depth.npz、seg.npz 解码全图（76,800 + 43,200 像素），并独立核对交付夹具的 depth_bits/seg_pairs 与解码结果逐位一致、长度断言成立；夹具 sha256 与回执一致。",
+    "同配方参考（fast_math=false）独立复核：QA 自行在 pinned 3.15 环境以 `use_fast_math=False` 重采渲染 megakernel 的 depth/seg（或独立解码交付的同配方参考后用自己的 harness 复算），核对 depth ≤4 ULP 成立、seg 与 S0b fast-math 参考全等；并核对「S0b fast-math 参考 vs 产品 fast_math=false」的跨配方差异被如实记录为已知偏差（不是放宽容差），差异像素/最大 ULP 与交付证据一致。",
     "数值独立重算：两相机全图 seg (object_id, object_type) 逐像素全等、背景 (-1,-1) 计数一致；depth 平面深度（米、0=无命中、不 clamp）最大 ULP ≤4，且与 QA 自算的逐像素 ULP 分布一致；首个不匹配位置/计数与交付 diff 报告语义一致。",
     "语义面独立重算：dynamic 与 use_precomputed_rays=true 输出逐位相同；primitive+mesh 同池最近命中；双 world 各自 BVH 零跨；set_points+显式 refit 后变化像素非空且两次运行逐位一致（refit 帧无冻结参考，只做结构断言）；禁用 depth/seg 时 byte_len/read 均 DisabledOutput；两次运行输出哈希一致。",
     "相机位姿：cam0/cam1 的 ray origin 与 S0b rays.npz camera_pixels 原点逐位相等（独立重算，不读交付夹具的 camera_origin_check 结论，可交叉对照）。",
