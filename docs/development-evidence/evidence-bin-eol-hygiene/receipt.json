@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-evidence-bin-eol-hygiene",
+  "status": "incremental",
+  "outcome": "gate_pass_cpu_only",
+  "slice": "P5-evidence-hygiene",
+  "repo_head_at_capture": "52609f5ec38c06f9533b1f5a1013b4ad229ce6b6",
+  "environment": {
+    "platform": "Windows x64",
+    "git": "git version 2.53.0.windows.2",
+    "core_autocrlf": "true（全局 C:/Program Files/Git/etc/gitconfig）",
+    "core_longpaths": "true（仓库 .git/config；clone 需显式带上，属既有环境前提，与 .bin 规则无关）",
+    "tracked_files": 12274,
+    "tracked_bin": 1130,
+    "gpu_used": false,
+    "product_tests_python": false
+  },
+  "root_cause": {
+    "summary": "core.autocrlf=true 且 .gitattributes 无任何 *.bin 规则；git 对未声明 text 的文件按内容启发式判断（前 8000 字节含 NUL 视为二进制），1130 个 .bin 中 865 个含 NUL 侥幸安全、265 个不含 NUL，其中 7 个含 0x0A 字节 → checkout 时被 LF→CRLF 改写。",
+    "why_not_exposed": "这些 .bin 由本地探针直接生成并 add，从未经历 clone/checkout 往返；git status/diff 使用同一套 autocrlf 归一化，转换幂等，损坏后仍显示干净，掩盖问题。",
+    "impact": "1130 个已跟踪 .bin 及今后所有 .bin 证据；风险只在 checkout/clone 方向，不改已提交对象。",
+    "not_claim": "当前索引/提交 blob 原始字节与工作树一致（clone-after 用 -text 规则 1130/1130 逐字节还原可证），不是「已提交证据已损坏」。"
+  },
+  "change": {
+    "file": ".gitattributes",
+    "diff": "+9 行（1 空行 + 3 注释 + 5 规则），追加在文件末尾",
+    "rules": [
+      "*.bin -text -diff",
+      "*.f32 -text -diff",
+      "*.npz -text -diff",
+      "*.gz -text -diff",
+      "*.mjb -text -diff"
+    ],
+    "extensions_derived_from": "git ls-files 实测：.bin 1130 / .f32 4 / .npz 6 / .gz 22 / .mjb 26（均含 NUL，勾选为二进制）；另兜底此前未覆盖的 5 个 .mjb",
+    "gitattributes_sha256_after": "516481470246ae65ee90ec88760f9ab6985089656b2a71e430ef27f66dc70b95",
+    "no_history_rewrite": true,
+    "no_committed_evidence_content_changed": true,
+    "no_renormalize": true
+  },
+  "verification": {
+    "attribute_check": {
+      "paths_stdin": 1130,
+      "check_attr_lines": 2260,
+      "text_unset": 1130,
+      "diff_unset": 1130,
+      "unexpected": 0
+    },
+    "clone_before": {
+      "clone_path": "target/bin-eol-verify/clone-before",
+      "clone_head": "52609f5ec38c06f9533b1f5a1013b4ad229ce6b6",
+      "core_autocrlf": "true",
+      "gitattributes_sha256": "506849fb8486de71b8f81abdb581a930f4b6acd7fa023b3d7b027e4995e2ecd2",
+      "total": 1130,
+      "matched": 1123,
+      "missing": 0,
+      "mismatched": 7,
+      "clone_status_porcelain_lines": 0,
+      "mismatch_sizes": "8→10 / 24→26 / 8→10 / 8→10 / 24→25 / 24→25 / 24→25（dest = ref + 0x0A 字节数）",
+      "note": "clone_before 的 7 个是恰好含可转换字节序列（无 NUL 且含 0x0A）的样本；其余 1123 个在本次内容下不触发转换，旧规则并非 100% 触发但触发即破坏证据复现，故以 -text 规则强制二进制"
+    },
+    "clone_after": {
+      "clone_path": "target/bin-eol-verify/clone-after",
+      "verify_commit": "684461b90d0f21d6880b2913181d88c89a0c8ac4",
+      "verify_commit_note": "仅在临时 clone 内的一次性本地提交（承载 .gitattributes 修复），不进入主仓库；随后 git rm -r --cached . + git reset --hard HEAD 强制全量重建工作树，模拟修复提交后的全新 checkout",
+      "core_autocrlf": "true",
+      "gitattributes_sha256": "516481470246ae65ee90ec88760f9ab6985089656b2a71e430ef27f66dc70b95",
+      "total": 1130,
+      "matched": 1130,
+      "missing": 0,
+      "mismatched": 0,
+      "clone_status_porcelain_lines": 0
+    },
+    "checkout_roundtrip": {
+      "spot_count": 5,
+      "spot_corrupted_from_clone_before": 3,
+      "roundtrip_all_identical": true,
+      "samples": [
+        "gpu-window/cases/box-box-margin/geom_margin.bin（8 B，clone-before 已损坏）",
+        "gpu-window/cases/box-box-margin/out1/includemargin.bin（8 B，clone-before 已损坏）",
+        "gpu-window/cases/box-box-margin/out2/includemargin.bin（8 B，clone-before 已损坏）",
+        "gpu-window/cases/box-box-margin/out1/nacon.bin（4 B，未受影响）",
+        "gpu-window/cases/box-box-margin/out1/nccd.bin（4 B，未受影响）"
+      ]
+    },
+    "worktree_status": "git status --porcelain 仅 M .gitattributes + 本证据目录 + QA 未跟踪目录；无 .bin 翻动；git diff --numstat 为 9 0 .gitattributes",
+    "reproduce": "powershell -NoProfile -ExecutionPolicy Bypass -File docs/development-evidence/evidence-bin-eol-hygiene/verify-bin-checkout.ps1"
+  },
+  "artifacts": {
+    "readme": "docs/development-evidence/evidence-bin-eol-hygiene/README.md",
+    "verify_script": "docs/development-evidence/evidence-bin-eol-hygiene/verify-bin-checkout.ps1",
+    "attr_summary": "docs/development-evidence/evidence-bin-eol-hygiene/attr-summary.json",
+    "clone_before_compare": "docs/development-evidence/evidence-bin-eol-hygiene/clone-before-compare.json",
+    "clone_after_compare": "docs/development-evidence/evidence-bin-eol-hygiene/clone-after-compare.json",
+    "spot_roundtrip": "docs/development-evidence/evidence-bin-eol-hygiene/spot-checkout-roundtrip.json",
+    "summary": "docs/development-evidence/evidence-bin-eol-hygiene/summary.json",
+    "sha256": {
+      "README.md": "3c8c6ecbee23f77b3328d586a701c417abcac4e6c3f2d87f7d7256917be2f8ba",
+      "verify-bin-checkout.ps1": "908008747e665fd4d72cb8bae024adb4501e6e1c490fcb09aae2aa46c53084da",
+      "attr-summary.json": "8f73b144e90409458b5c228e83e181b2ec3612cfcdf1f893c64272837d5c8f68",
+      "clone-before-compare.json": "e23a7b45e4d973f82715cb080ad51db77066f42c6d341b3e80597bfe3a0ab69e",
+      "clone-after-compare.json": "a3be8b9df20826c7ede94919821d45f04427eb3e0540d3aed8de8415c970b7e3",
+      "spot-checkout-roundtrip.json": "da32c833bf4b66efc07cb9cd4beb3f6db000ad21f865688e15c8c23a503d9c50",
+      "summary.json": "6e7065c05689d6dbb3105cae8690e9b3e20c3ab3061df052b252e30bca934415"
+    }
+  },
+  "gate": "pass：`normify gate 2026-10-25-evidence-bin-eol-hygiene` exit 0（clippy / clippy-cuda / fmt / unit；unit 586 过 0 败；runs 见 .normify/runs/2026-10-25-evidence-bin-eol-hygiene/）",
+  "unmet": [
+    "只在 Windows + core.autocrlf=true 实测；Linux/macOS（默认不转换）未实机复测，未纳入本次证据",
+    "规则只覆盖实测到的二进制证据扩展名（.bin/.f32/.npz/.gz/.mjb）；未来其它内容型二进制需按同一模式补规则",
+    "不重写历史、不执行 git add --renormalize；未验证「历史提交在旧规则下曾被转换」的情形（当前 blob 与工作树一致，未发现已被转换的 blob）",
+    "target/bin-eol-verify/ 为临时 clone 目录（gitignore，不入库）；证据记录其生成命令与对比结果",
+    "不声称所有 checkout/EOL 风险已消灭；本片只保证上述二进制扩展名经 clone/checkout 后字节不变"
+  ]
+}
