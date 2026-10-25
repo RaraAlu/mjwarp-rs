@@ -5,7 +5,7 @@
     "zh": "重钉T4当前源码身份（第13轮）：修复 --features cuda-probe 下 T4 谱系测试既有红",
     "en": "Re-pin T4 current source identity (round 13): fix the pre-existing T4 lineage red under --features cuda-probe"
   },
-  "status": "proposed",
+  "status": "abandoned",
   "intent": {
     "zh": "HEAD `ef16338d` 上 `cargo test --locked --features cuda-probe --lib` 有 1 个既有红：`runtime::transfer::kernel::recapture::tests_host::preserves_current_sources_and_all_thirty_variants` → `unexpected lineage change`。Arch 独立复算确认：`fixtures/precision/t4-current-kernels.json` 的 `product_sources` 20 条里有 **9 条与当前源码 SHA-256 不一致**（attached / com_velocity / mass_matrix / mass_solve / `src/physics/mod.rs` / resident / rne_bias / `src/runtime/transfer.rs` / `src/runtime/transfer/kernel.rs`）；上次重钉 `e4f74816`（2026-10-23）之后的多片（G5/G10@P5 设备片、S7a transfer 改动等）持续改动这些源码，默认门禁只跑默认特性 unit，不编译该特性测试，因此红了 2 天未被发现。本片按 repin-12 既有模式做第 13 轮重钉：先枚举后重钉，只更新身份期望字面量，不改断言逻辑/容差/产品源码/内核 PTX。",
     "en": "The cuda-probe-gated T4 lineage test is red at HEAD because 9 of 20 product-source stamps in fixtures/precision/t4-current-kernels.json are stale after post-e4f74816 physics/transfer changes. Re-pin identity expectations only, using the established repin-12 procedure."
@@ -31,20 +31,31 @@
     "resources": [],
     "priority": 54
   },
-  "note": "Arch 2026-10-25 登记（决定支撑片 `2026-10-25-g10-p5-cuda-default-pipeline` 的 stage-1 发现 1）。若用户选默认管线选项 ①/②，本片是「默认 cargo test 全绿」的前置；选 ③ 时本片仍应做（既有红不应长期潜伏在特性测试里）。按 repin-12 模式执行，不改任何断言语义。GPU 非必须（重钉为编译产物刷新、不建 GPU 会话），但 all-features 全量跑可能触发 GPU 相关 ignored 项，需按既有 env 口径处理。"
-  ,
+  "note": "Arch 2026-10-25 登记（决定支撑片 `2026-10-25-g10-p5-cuda-default-pipeline` 的 stage-1 发现 1）。若用户选默认管线选项 ①/②，本片是「默认 cargo test 全绿」的前置；选 ③ 时本片仍应做（既有红不应长期潜伏在特性测试里）。按 repin-12 模式执行，不改任何断言语义。GPU 非必须（重钉为编译产物刷新、不建 GPU 会话），但 all-features 全量跑可能触发 GPU 相关 ignored 项，需按既有 env 口径处理。\n放弃：start 后发现 fixtures/gravity-upstream-abi/ 的 package identity 也在重钉范围（t4_gravity_3d_product_chain / t4_gravity_nonzero_product_chain 的内联期望指向该目录），而 normify 0.7.0 在 start 后冻结 files scope，无法补写范围；按既有教训（S7b1 两次 abandon 重登记）abandon 并重登记 repin-13-r2，scope 扩到 fixtures/ 全目录。已产出的 drift.json v2 / all-features.log 保留在同证据目录供 r2 复用。",
   "revision": {
-    "before": "c869c12e8d102a95b0cd2dae3cc23da7893e7e77",
+    "before": "f29e7283332f71e289f33821d62938d6b59c28e4",
     "after": null
   },
   "created_at": "2026-10-25T16:22:00.000Z",
-  "updated_at": "2026-10-25T16:22:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T16:34:06.137Z",
+  "closed_at": "2026-10-25T16:34:06.137Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "json",
       "path": "docs/development-evidence/t4-source-hash-repin-13/receipt.json",

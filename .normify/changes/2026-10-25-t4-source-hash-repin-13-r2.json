@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-t4-source-hash-repin-13-r2",
+  "title": {
+    "zh": "重钉T4当前源码身份（第13轮，r2）：修 --features cuda-probe 下 T4 谱系既有红（scope 含 gravity ABI 包）",
+    "en": "Re-pin T4 current source identity (round 13, r2) with gravity ABI package scope"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "HEAD 上 `cargo test --locked --features cuda-probe --lib` 有既有红：`runtime::transfer::kernel::recapture::tests_host::preserves_current_sources_and_all_thirty_variants` → `unexpected lineage change`，根因是 T4 当前身份 fixture 落后于源码（`t4-current-kernels.json` 的 `product_sources` 9/20 条不符；physics_core 组合摘要旧 d7f6c7d1→新 33a6e55f 等），上次重钉 `e4f74816`（2026-10-23）后多片继续改动 physics/transfer 源码而未重钉。r1（`2026-10-25-t4-source-hash-repin-13`）在 start 后发现 `fixtures/gravity-upstream-abi/` 的 package identity 也在重钉范围，normify 0.7.0 冻结 scope 无法补写，故 abandon 并重登记本片，scope 扩到 `fixtures/` 全目录。按 repin-12 既有模式：先枚举后重钉，只改身份期望字面量，不改断言逻辑/容差/排除清单/产品源码/内核 PTX。",
+    "en": "Re-pin the stale T4 current identity fixtures (including the gravity ABI package files that r1 could not reach after scope freeze). Enumerate first, then change expectation literals only."
+  },
+  "modules": {},
+  "acceptance": [
+    "**先枚举后重钉**：用 G01 环境（`MJWARP_MUJOCO_ROOT`/`MJWARP_MUJOCO_DLL`/`CUDA_PATH`+PATH 前置，或直接 `scripts/g01-fast.ps1 -AllFeatures`）跑 `cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast`，把全部失败（target + 测试名 + 分类：身份漂移 / 非身份）落 `drift.json`，不得只修一条；若 `--all-features` 因缺依赖构建不起来，改用可执行最大特性集合并把排除项与原因写清，**不得宣称全量绿**。",
+    "**只改身份期望字面量**：按枚举结果更新 `fixtures/`（`precision/t4-current-kernels.json` 的 `product_sources` 9 条与 physics_core 组合摘要 33a6e55f、`t4-current-capture-status.json`、`g01-*.json`、`gravity-upstream-abi/*-package.json` 等）、`docs/evidence/t4-g03-retest/` 下 map、`tests/` 内联期望（如 `t4_gravity_*_product_chain.rs`、`tests/support/t4_rigid_internal/tests.rs` 旋转谱系 a9d1b4d6→3fa0046f）。以枚举与算法实测为准，不猜；**不改**断言逻辑、容差、排除清单、产品 `.rs`、内核 PTX、G01 脚本与 unchanged 保护路径。",
+    "**非身份失败不在本片范围**：枚举中出现的非身份失败（当前已知 `physics::collision::gjk::case_evidence::upstream_f32_within_4ulp` 的 ellipsoid-box frame 超 4·ULP 报告）如实登记为未覆盖并挂独立片，**不得**通过改断言/容差/排除清单让它变绿；若该失败实际不可复现，需给出可复现命令与原始输出证明。",
+    "**验证**：身份漂移相关 target 0 失败；`--features cuda-probe --lib` 中身份相关失败清零（剩余非身份失败如实列出）；默认 `cargo test --locked --lib` 447/5 ignored 0 失败与 gate unit 595/0；gate fmt/clippy/clippy-cuda/unit 全绿；证据（README + drift.json + all-features.log + 重钉前后值对照 + receipt 含 task_id）写入 `docs/development-evidence/t4-source-hash-repin-13/`（沿用 r1 已产出的 drift.json v2/all-features.log），必须写明「9/20 具体清单 + 默认门禁为何没抓到 + 非身份失败清单」。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "fixtures/",
+      "docs/evidence/t4-g03-retest/",
+      "tests/",
+      "docs/development-evidence/t4-source-hash-repin-13/"
+    ],
+    "resources": [],
+    "priority": 54
+  },
+  "note": "Arch 2026-10-25 重登记（替代 abandoned 的 `2026-10-25-t4-source-hash-repin-13`）。abandon 原因：start 后才发现 `fixtures/gravity-upstream-abi/` 也在范围，normify 冻结 scope 无法补写（S7b1 同款教训）。本片对任何默认管线选项都是必要前置；GPU 非必须（compile-only，不建 GPU 会话）。QA 独立复核任务 `2026-10-25-t4-source-hash-repin-13-independent-check` 的依赖已同步指向本片。",
+  "revision": {
+    "before": "175ff14e42b0c1eaf7c49f7a175c15e29f45e387",
+    "after": null
+  },
+  "created_at": "2026-10-25T16:35:00.000Z",
+  "updated_at": "2026-10-25T16:35:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/t4-source-hash-repin-13/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-t4-source-hash-repin-13-r2"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
