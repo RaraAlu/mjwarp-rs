@@ -5,7 +5,7 @@
     "zh": "G10@P5 GJK/EPA 公开 API 与集成测试（physics/mod.rs re-export + tests/gjk_epa.rs）",
     "en": "G10@P5 GJK/EPA public API and integration test (physics/mod.rs re-export plus tests/gjk_epa.rs)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "G2（`2026-10-25-g10-p5-gjk-epa`）落地了 GJK/EPA 语义与靶向测试，但集成测试 `tests/gjk_epa.rs` 需要从 crate 外部路径 `mjwarp_rs::physics::{…}` 取公开 API，而 `src/physics/mod.rs` 的 `mod collision;` 为私有、gjk 新增类型只能经 mod.rs 的 `pub use collision::{…}` 暴露；该文件不在 G2 的 files 白名单，且运行中任务的范围已冻结，故拆出本小片：在 `src/physics/mod.rs` 增加与原模块一致模式的 re-export 行（仅导出、无逻辑），并把 G2 已完成对账的夹具级对比测试作为集成测试 `tests/gjk_epa.rs` 落地（复用 G2 已产出的 in-crate 测试主体，不重复实现、不新增数值口径）。不改任何产品语义与已验收数值判据。",
     "en": "G2 (2026-10-25-g10-p5-gjk-epa) delivered the GJK/EPA semantics and targeted tests, but the integration test tests/gjk_epa.rs needs the public API through mjwarp_rs::physics::{...}; src/physics/mod.rs declares mod collision as private, so the new gjk types can only be exposed via the pub use in mod.rs. That file is not in G2's file allowlist and a running task's scope is frozen, so this small slice is split out: add re-export lines in src/physics/mod.rs following the existing per-module pattern (exports only, no logic), and land the fixture-based comparison test that G2 already reconciled as the integration test tests/gjk_epa.rs (reusing G2's in-crate test body, no duplicate implementation and no new numerical criteria). No product semantics and no already-verified numerical criteria are changed."
@@ -35,12 +35,11 @@
   },
   "note": "Arch 2026-10-25 拆分：G2 运行中范围已冻结（文件白名单缺 src/physics/mod.rs），钩子报 `E commit/scope 超出任务范围：src/physics/mod.rs`；不改冻结任务、不绕过门禁，按 S7b1 的拆分先例把「公开 API 面 + 集成测试」独立成片，G2 verified 后立即 start。本片无 GPU 需求、不新增数值口径，只暴露已验收语义。",
   "revision": {
-    "before": "e32d8361b66e41eff7048affbc098d2d8eb40374",
+    "before": "8c98fe2b2dfb2639c6ee16b610009b62adc59e93",
     "after": null
   },
   "created_at": "2026-10-25T16:10:00.000Z",
-  "updated_at": "2026-10-25T16:10:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T08:08:33.756Z",
   "checks": [
     {
       "kind": "gate",
