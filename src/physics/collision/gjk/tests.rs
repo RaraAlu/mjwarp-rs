@@ -286,3 +286,98 @@ fn multicontact_returns_at_most_four_contacts() {
     assert!(!output.contacts.is_empty());
     assert!(output.contacts.len() <= 4);
 }
+
+#[test]
+fn host_ccd_forced_horizon_reports_only_epa_horizon() {
+    // 深穿透 box-box（needs_epa），horizon 容量压到 2（等价容量）→ 上游同路径返回
+    // `FLOAT_MAX` 且只置 `EPA_HORIZON`；修正前宿主会误加 `CCD`（272 = 256|16）。
+    let left = box_geom([0.0; 3], [0.1, 0.1, 0.1]);
+    let right = box_geom([0.05, 0.0, 0.0], [0.1, 0.1, 0.1]);
+    let options = CcdOptions::default();
+
+    let internal = super::ccd::ccd_internal_with_horizon(
+        &left, &right, BOX, BOX, [0.0; 3], right.pos, options, 2,
+    );
+    assert_eq!(internal.overflow, super::overflow_type::EPA_HORIZON);
+    assert_eq!(internal.overflow & super::overflow_type::CCD, 0);
+    assert_ne!(
+        internal.overflow,
+        super::overflow_type::EPA_HORIZON | super::overflow_type::CCD
+    );
+    assert_eq!(internal.dist, super::FLOAT_MAX);
+    assert_eq!(internal.ncontact, 0);
+    assert_eq!(internal.multiccd_idx, -1);
+
+    let output = super::contact::ccd_pair_with_capacity(
+        &left,
+        &right,
+        BOX,
+        BOX,
+        ContactOptions::default(),
+        None,
+        2,
+    );
+    assert_eq!(output.overflow, super::overflow_type::EPA_HORIZON);
+    assert_eq!(output.overflow & super::overflow_type::CCD, 0);
+    assert_eq!(output.dist, super::FLOAT_MAX);
+    assert!(output.contacts.is_empty());
+}
+
+#[test]
+fn host_ccd_capacity_gate_still_sets_ccd_bit() {
+    // 防矫枉过正：真实 `nccd >= naccdmax` 容量截断仍必须置 `CCD`（上游语义），
+    // 且容量足够时不能误伤 EPA_HORIZON / 正常接触。
+    let left = box_geom([0.0; 3], [0.1, 0.1, 0.1]);
+    let right = box_geom([0.05, 0.0, 0.0], [0.1, 0.1, 0.1]);
+    let options = ContactOptions::default();
+
+    // ① 真实容量截断：ccd_slot=1 >= naccdmax=1 → 只置 CCD、不进入 EPA、不写接触。
+    let truncated = super::contact::ccd_pair_with_capacity(
+        &left,
+        &right,
+        BOX,
+        BOX,
+        options,
+        Some(super::contact::CcdCapacity {
+            ccd_slot: 1,
+            naccdmax: 1,
+        }),
+        super::MJ_MAX_EPAHORIZON,
+    );
+    assert_eq!(truncated.overflow, super::overflow_type::CCD);
+    assert!(truncated.contacts.is_empty());
+
+    // ② 容量足够 + 强制 horizon：进入 EPA，只置 EPA_HORIZON（不含 CCD）。
+    let forced = super::contact::ccd_pair_with_capacity(
+        &left,
+        &right,
+        BOX,
+        BOX,
+        options,
+        Some(super::contact::CcdCapacity {
+            ccd_slot: 0,
+            naccdmax: 1,
+        }),
+        2,
+    );
+    assert_eq!(forced.overflow, super::overflow_type::EPA_HORIZON);
+    assert_eq!(forced.overflow & super::overflow_type::CCD, 0);
+
+    // ③ 容量足够 + 正常穿透：无溢出位、接触照常产生（容量门不误伤正常路径）。
+    let shallow_left = box_geom([0.0; 3], [0.1, 0.1, 0.1]);
+    let shallow_right = box_geom([0.15, 0.0, 0.0], [0.1, 0.1, 0.1]);
+    let adequate = super::contact::ccd_pair_with_capacity(
+        &shallow_left,
+        &shallow_right,
+        BOX,
+        BOX,
+        options,
+        Some(super::contact::CcdCapacity {
+            ccd_slot: 0,
+            naccdmax: 1,
+        }),
+        super::MJ_MAX_EPAHORIZON,
+    );
+    assert_eq!(adequate.overflow, 0);
+    assert!(!adequate.contacts.is_empty());
+}

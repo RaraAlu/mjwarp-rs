@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-25-g10-p5-host-ccd-overflow-bit-fix",
+  "status": "incremental",
+  "outcome": "gate_pass_cpu_only",
+  "slice": "P5-G5-host-fix",
+  "depends_on": "2026-10-25-g10-p5-ccd-overflow-bit-fix",
+  "upstream": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "scope": {
+    "host_files": [
+      "src/physics/collision/gjk/ccd.rs（删除 ccd_internal 的 EPA FLOAT_MAX → CCD；抽 epa_phase_with_horizon / ccd_internal_with_horizon）",
+      "src/physics/collision/gjk/contact.rs（删除 ccd_pair 的 FLOAT_MAX → CCD；新增 CcdCapacity 与可选容量门 ccd_pair_with_capacity，产品 ccd_pair 默认 None 行为不变）",
+      "src/physics/collision/gjk/mod.rs（Polytope::with_capacity_and_horizon；产品固定 MJ_MAX_EPAHORIZON=24）",
+      "src/physics/collision/gjk/tests.rs（+95 行：host_ccd_forced_horizon_reports_only_epa_horizon / host_ccd_capacity_gate_still_sets_ccd_bit）"
+    ],
+    "evidence_dir": "docs/development-evidence/g10-p5-host-ccd-overflow-bit-fix/",
+    "g2_addendum": ".normify/changes/2026-10-25-g10-p5-gjk-epa.json（G2 证据加注，只追加 addenda）",
+    "not_changed": "src/physics/collision/cuda/ 未改（设备片 99c91469 负责）；G5/G3/G4 已 verified 证据数值未改；Cargo.* 未改",
+    "gpu_used": false,
+    "python_in_product_tests": false
+  },
+  "defects": {
+    "site_1": "gjk/ccd.rs 旧 L225-228：`let mut overflow = epa.overflow; if epa.dist == FLOAT_MAX { overflow |= CCD }` —— 上游 ccd() 只透传 EPA_HORIZON。",
+    "site_2": "gjk/contact.rs 旧 L128-130：`if dist == 1.0e30_f32 { overflow |= CCD }` —— 上游 eval_ccd_write_contact 只在 ccdid >= naccdmax 容量门置 CCD。",
+    "device_relation": "设备侧同语义误报已由 2026-10-25-g10-p5-ccd-overflow-bit-fix（99c91469）修正（强制 horizon 272→256，GPU 对照）；本片只修宿主并补宿主判据。"
+  },
+  "upstream_reference": [
+    "collision_gjk.py:2663-2667 _epa idx==-1 → return FLOAT_MAX（不置额外位）",
+    "collision_gjk.py:1423-1430 / 1446-1453 horizon 容量不足 → 只 atomic_or(EPA_HORIZON)",
+    "collision_gjk.py:2712-2729 ccd() 直接返回 epa_phase 结果（无 FLOAT_MAX→CCD）",
+    "collision_convex.py:860-870 eval_ccd_write_contact：仅 ccdid >= naccdmax_in 时置 OverflowType.CCD 并 return",
+    "types.py:166 CCD = 1<<4 / EPA_HORIZON = 1<<8"
+  ],
+  "verification": {
+    "forced_horizon": {
+      "method": "horizon 容量 = 2 等价容量（Polytope 缓冲长度 = 上游 Polytope.max_horizon；产品固定 MJ_MAX_EPAHORIZON=24，测试经 pub(crate) 变体注入，不改产品默认）",
+      "entries": {
+        "gjk::ccd_internal": {"before": 272, "after": 256, "dist": "FLOAT_MAX(1e30)", "ncontact": 0, "multiccd_idx": -1, "assert_not_272": true, "ccd_bit_absent": true},
+        "gjk::ccd_pair": {"before": 272, "after": 256, "contacts_empty": true, "ccd_bit_absent": true}
+      },
+      "before_value_note": "修前 272 由被删除代码语义给出（FLOAT_MAX → overflow |= CCD=16，叠加 EPA_HORIZON=256）；测试显式断言 overflow != 272 防止回归"
+    },
+    "capacity_anti_overcorrection": {
+      "truncated": {"ccd_slot": 1, "naccdmax": 1, "overflow": 16, "overflow_name": "CCD", "contacts": "empty", "note": "真实容量截断仍置 CCD（上游语义），且不进入 EPA"},
+      "capacity_ok_forced_horizon": {"ccd_slot": 0, "naccdmax": 1, "horizon_capacity": 2, "overflow": 256, "contacts": "empty"},
+      "capacity_ok_normal": {"ccd_slot": 0, "naccdmax": 1, "penetration": "box-box 0.05", "overflow": 0, "contacts": "非空（容量门不误伤正常路径）"}
+    },
+    "regressions": {
+      "g2_five_cases": "cargo test --locked --lib physics::collision::gjk::case_evidence → 3 passed / 0 failed / 1 ignored（upstream_f32_within_4ulp + our_contacts_match_upstream_f32_within_4ulp ok）",
+      "g3_sdf_box": "cargo test --locked --test g10_p5_sdf_relmat → 4 passed / 0 failed（sdf_box_g3_regression_remains_bitwise / sdf_rotation_product_matches_upstream_f32_bitwise ok）",
+      "g4_hfield": "cargo test --locked --lib physics::collision::hfield::tests → 3 passed / 0 failed（hfield_host_matches_upstream_f32_within_4ulp ok）",
+      "g5_host_ellipsoid_box": "cargo test --locked --features cuda-probe --test g10_p5_gpu_kernels ellipsoid_box_host_ccd_pair_vs_cuda_reference -- --ignored → 1 passed；hits=2 dist_max_ulp=2 pos_max_abs=7.451e-9 frame_max_abs=8.193e-7（vs CUDA fixture）；vs 上游 CPU fixture dist 0 / pos 7.451e-9 / frame 3.838e-7（与修正前一致）",
+      "unit": "cargo test --locked --lib → 440 passed / 0 failed / 2 ignored（原 438 + 本片 2；gate unit 总判据见 gate 字段）",
+      "clippy_fmt": "cargo fmt --check / cargo clippy --all-targets -D warnings / --features cuda-probe 均 exit 0"
+    },
+    "g2_addendum": "normify fix 2026-10-25-g10-p5-gjk-epa --reason \"...\"（G2 的 5 case 不触发 FLOAT_MAX，数值结论不变；溢出位语义对齐上游只 EPA_HORIZON；指向本片）→ 已追加 addenda，并按提示重跑其 gate：见 gate 字段"
+  },
+  "artifacts": {
+    "readme": "docs/development-evidence/g10-p5-host-ccd-overflow-bit-fix/README.md",
+    "test_output": "docs/development-evidence/g10-p5-host-ccd-overflow-bit-fix/test-output.txt",
+    "receipt": "docs/development-evidence/g10-p5-host-ccd-overflow-bit-fix/receipt.json"
+  },
+  "gate": "pass：`normify gate 2026-10-25-g10-p5-host-ccd-overflow-bit-fix` exit 0（clippy / clippy-cuda / fmt / unit；unit 588 过 0 败，原 586 + 本片 2 个新测试；runs 见 .normify/runs/2026-10-25-g10-p5-host-ccd-overflow-bit-fix/）；G2 加注后 `normify gate 2026-10-25-g10-p5-gjk-epa` 亦 exit 0（unit 588/0）",
+  "unmet": [
+    "本片只修宿主，不改设备（cuda/，设备片 99c91469 已修）；无 GPU 窗口、未与上游 GPU 直接对照（宿主判据沿用 G2/G5 已验收口径）",
+    "宿主 ccd_pair 产品入口默认不模拟 nccd/naccdmax 计数（调用方持有计数器，与设备 contact.cu g5_claim_ccd_slot 同语义）；本片新增可选容量门供需要容量语义的调用方/G6 映射使用，产品默认行为不变",
+    "强制 horizon 用等价容量 2；产品默认 MJ_MAX_EPAHORIZON=24 下未构造真实复杂 mesh 的 >24 边 horizon 用例",
+    "只本机 Windows x64 + 纯 CPU 实测；未跑 Linux/T4",
+    "不声称精度达标/上游完全等价/原生放行；判据范围仅上述 overflow 位与 G2/G3/G4/G5 宿主回归"
+  ]
+}

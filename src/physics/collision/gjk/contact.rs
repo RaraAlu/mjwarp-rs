@@ -5,7 +5,7 @@
 //! 生成 → 依次写接触。
 
 use super::Geom;
-use super::ccd::epa_phase;
+use super::ccd::epa_phase_with_horizon;
 use super::geom_type;
 use super::math::{add3, make_frame, sub3};
 use super::multicontact::multicontact;
@@ -58,13 +58,49 @@ impl Default for ContactOptions {
     }
 }
 
+/// 上游 `eval_ccd_write_contact` 的 `naccdmax` 容量门输入（宿主调用方持有 `nccd` 计数器）。
+///
+/// 上游只在 `ccdid >= naccdmax` 的真实容量截断时置 `OverflowType.CCD`；宿主产品入口
+/// [`ccd_pair`] 不模拟容量（调用方承担），本结构用于需要容量语义的调用方/回归测试。
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CcdCapacity {
+    /// 本 pair 申请到的 CCD 槽位号（上游 `wp.atomic_add(nccd, geomgeomid, 1)` 的返回值）。
+    pub ccd_slot: usize,
+    /// 全局 `naccdmax`。
+    pub naccdmax: usize,
+}
+
 /// 上游 `eval_ccd_write_contact`：两 geom 的 CCD 接触输出。
+///
+/// 产品入口：不模拟 `naccdmax` 容量（由调用方持有计数器并置 `CCD` 位）。
 pub fn ccd_pair<'a>(
     geom1: &Geom<'a>,
     geom2: &Geom<'a>,
     geomtype1: i32,
     geomtype2: i32,
     options: ContactOptions,
+) -> CcdOutput {
+    ccd_pair_with_capacity(
+        geom1,
+        geom2,
+        geomtype1,
+        geomtype2,
+        options,
+        None,
+        super::MJ_MAX_EPAHORIZON,
+    )
+}
+
+/// 同 [`ccd_pair`]，可选容量门与 horizon 容量（回归测试用等价容量构造强制 `EPA_HORIZON`；
+/// 产品路径固定 `MJ_MAX_EPAHORIZON`、容量 `None`）。
+pub(crate) fn ccd_pair_with_capacity<'a>(
+    geom1: &Geom<'a>,
+    geom2: &Geom<'a>,
+    geomtype1: i32,
+    geomtype2: i32,
+    options: ContactOptions,
+    capacity: Option<CcdCapacity>,
+    horizon_capacity: usize,
 ) -> CcdOutput {
     let mut geom1 = *geom1;
     let mut geom2 = *geom2;
@@ -104,7 +140,18 @@ pub fn ccd_pair<'a>(
     let mut epa_face = 0_u32;
 
     if phase.needs_epa {
-        let epa = epa_phase(
+        // 上游容量门：`ccdid >= naccdmax` 时只置 `CCD` 并直接返回（不进入 EPA、不写接触）。
+        if let Some(capacity) = capacity {
+            if capacity.ccd_slot >= capacity.naccdmax {
+                return CcdOutput {
+                    contacts: Vec::new(),
+                    overflow: super::overflow_type::CCD,
+                    ncontact: phase.ncontact,
+                    dist: phase.dist,
+                };
+            }
+        }
+        let epa = epa_phase_with_horizon(
             tolerance,
             options.ccd.epa_iterations,
             phase.result,
@@ -112,21 +159,21 @@ pub fn ccd_pair<'a>(
             &phase.geom2,
             geomtype1,
             geomtype2,
+            horizon_capacity,
         );
         dist = epa.dist;
         ncontact = epa.ncontact;
         w1 = epa.x1;
         w2 = epa.x2;
         multiccd_idx = epa.multiccd_idx;
+        // 上游 `eval_ccd_write_contact` 只汇总 EPA 阶段的溢出位（`EPA_HORIZON`）；
+        // `CCD` 位只在真实容量截断时置，不由 EPA 返回 `FLOAT_MAX` 推断。
         overflow |= epa.overflow;
         if let Some(pt) = epa.polytope.as_ref() {
             if multiccd_idx > -1 && (multiccd_idx as usize) < pt.face.len() {
                 epa_face = pt.face[multiccd_idx as usize];
             }
             polytope = epa.polytope;
-        }
-        if dist == 1.0e30_f32 {
-            overflow |= super::overflow_type::CCD;
         }
     }
 

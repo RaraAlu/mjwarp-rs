@@ -1,0 +1,69 @@
+# G10@P5 host-ccd-overflow-bit-fix · 门禁/回归真实输出摘要
+
+生成时间：2026-10-25 20:01（Asia/Shanghai）
+
+## 本片新增测试（forced horizon + 容量门）
+
+$ cargo test --locked --lib physics::collision::gjk::tests::host_ccd -- --nocapture
+
+running 2 tests
+test physics::collision::gjk::tests::host_ccd_forced_horizon_reports_only_epa_horizon ... ok
+test physics::collision::gjk::tests::host_ccd_capacity_gate_still_sets_ccd_bit ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 440 filtered out
+
+## G2 五 case（case_evidence：upstream_f32_within_4ulp / our_contacts_match_upstream_f32_within_4ulp）
+
+$ cargo test --locked --lib physics::collision::gjk::case_evidence
+
+running 4 tests
+test physics::collision::gjk::case_evidence::native_bitwise_exploration ... ignored（探索项，非门禁）
+test physics::collision::gjk::case_evidence::our_contacts_match_upstream_f32_within_4ulp ... ok
+test physics::collision::gjk::case_evidence::upstream_f32_within_4ulp ... ok
+test physics::collision::gjk::case_evidence::native_error_seed_is_recorded ... ok
+test result: ok. 3 passed; 0 failed; 1 ignored
+
+## G3 sdf-box 80/80 位级（g10_p5_sdf_relmat）
+
+$ cargo test --locked --test g10_p5_sdf_relmat
+
+running 4 tests
+test sdf_rotation_reference_encodes_upstream_rel_mat_convention ... ok
+test sdf_box_g3_regression_remains_bitwise ... ok
+test sdf_rotation_product_matches_upstream_f32_bitwise ... ok
+test sdf_rotation_fixture_is_well_formed ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored
+
+## G4 hfield 三 case（box/sphere/capsule）
+
+$ cargo test --locked --lib physics::collision::hfield::tests
+
+running 3 tests
+test physics::collision::hfield::tests::filter_rejects_far_geoms_and_accepts_overlap ... ok
+test physics::collision::hfield::tests::maxconpair_overflow_sets_flag_and_caps_scan ... ok
+test physics::collision::hfield::tests::hfield_host_matches_upstream_f32_within_4ulp ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored
+
+## G5 宿主 ellipsoid-box 三方对照（ignored，CPU 读存盘证据）
+
+$ cargo test --locked --features cuda-probe --test g10_p5_gpu_kernels ellipsoid_box_host_ccd_pair_vs_cuda_reference -- --ignored --test-threads=1 --nocapture
+
+running 1 test
+host ccd_pair ellipsoid-box: hits=2 dist_max_ulp=2 pos_max_abs=7.451e-9 frame_max_abs=8.193e-7
+host ccd_pair vs upstream CPU fixture: dist_max_abs=0.000e0 pos_max_abs=7.451e-9 frame_max_abs=3.838e-7
+test ellipsoid_box_host_ccd_pair_vs_cuda_reference ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored
+
+## 库单元全量（原 438 + 本片 2 = 440）
+
+$ cargo test --locked --lib
+
+test result: ok. 440 passed; 0 failed; 2 ignored; 0 measured
+
+## 格式/静态检查
+
+$ cargo fmt --check
+（exit 0，无输出）
+$ cargo clippy --all-targets -- -D warnings
+（exit 0）
+$ cargo clippy --all-targets --features cuda-probe -- -D warnings
+（exit 0）

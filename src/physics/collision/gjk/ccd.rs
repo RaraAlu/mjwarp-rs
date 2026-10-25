@@ -16,8 +16,31 @@ impl Polytope {
     }
 }
 
-/// 上游 `epa_phase`。
+/// 上游 `epa_phase`（产品路径固定 horizon 容量 `MJ_MAX_EPAHORIZON`）。
 pub(crate) fn epa_phase<'a>(
+    tolerance: f32,
+    epa_iterations: usize,
+    result: GjkResult,
+    geom1: &Geom<'a>,
+    geom2: &Geom<'a>,
+    geomtype1: i32,
+    geomtype2: i32,
+) -> EpaPhase {
+    epa_phase_with_horizon(
+        tolerance,
+        epa_iterations,
+        result,
+        geom1,
+        geom2,
+        geomtype1,
+        geomtype2,
+        super::MJ_MAX_EPAHORIZON,
+    )
+}
+
+/// 同 [`epa_phase`]，horizon 容量可指定：回归测试用等价容量（如 2）确定性触发
+/// `EPA_HORIZON`；产品路径固定 `MJ_MAX_EPAHORIZON`，与上游 `MJ_MAX_EPAHORIZON` 一致。
+pub(crate) fn epa_phase_with_horizon<'a>(
     tolerance: f32,
     epa_iterations: usize,
     mut result: GjkResult,
@@ -25,8 +48,9 @@ pub(crate) fn epa_phase<'a>(
     geom2: &Geom<'a>,
     geomtype1: i32,
     geomtype2: i32,
+    horizon_capacity: usize,
 ) -> EpaPhase {
-    let mut pt = Polytope::with_capacity(epa_iterations);
+    let mut pt = Polytope::with_capacity_and_horizon(epa_iterations, horizon_capacity);
     pt.reset_for_epa();
 
     if result.dim == 2 {
@@ -188,6 +212,29 @@ pub(crate) fn ccd_internal<'a>(
     x_2: [f32; 3],
     options: CcdOptions,
 ) -> CcdInternal {
+    ccd_internal_with_horizon(
+        geom1,
+        geom2,
+        geomtype1,
+        geomtype2,
+        x_1,
+        x_2,
+        options,
+        super::MJ_MAX_EPAHORIZON,
+    )
+}
+
+/// 同 [`ccd_internal`]，horizon 容量可指定（回归测试用等价容量构造强制 `EPA_HORIZON`）。
+pub(crate) fn ccd_internal_with_horizon<'a>(
+    geom1: &Geom<'a>,
+    geom2: &Geom<'a>,
+    geomtype1: i32,
+    geomtype2: i32,
+    x_1: [f32; 3],
+    x_2: [f32; 3],
+    options: CcdOptions,
+    horizon_capacity: usize,
+) -> CcdInternal {
     let phase = gjk_phase(
         options.tolerance,
         options.cutoff,
@@ -211,8 +258,7 @@ pub(crate) fn ccd_internal<'a>(
         };
     }
 
-    // 上游在此处做 naccdmax 容量检查并计数；宿主侧由调用方承担。
-    let epa_phase_result = epa_phase(
+    let epa_phase_result = epa_phase_with_horizon(
         options.tolerance,
         options.epa_iterations,
         phase.result,
@@ -220,19 +266,17 @@ pub(crate) fn ccd_internal<'a>(
         &phase.geom2,
         geomtype1,
         geomtype2,
+        horizon_capacity,
     );
 
-    let mut overflow = epa_phase_result.overflow;
-    if epa_phase_result.dist == FLOAT_MAX {
-        overflow |= super::overflow_type::CCD;
-    }
-
+    // 上游 `ccd()` 只透传 EPA 阶段产生的溢出位（`EPA_HORIZON`）；`OverflowType.CCD`
+    // 只由调用方在 `nccd >= naccdmax` 的真实容量截断时置（见 `contact.rs` 的容量门）。
     CcdInternal {
         dist: epa_phase_result.dist,
         ncontact: epa_phase_result.ncontact,
         x1: epa_phase_result.x1,
         x2: epa_phase_result.x2,
         multiccd_idx: epa_phase_result.multiccd_idx,
-        overflow,
+        overflow: epa_phase_result.overflow,
     }
 }

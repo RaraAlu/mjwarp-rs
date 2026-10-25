@@ -266,6 +266,15 @@ pub(crate) struct Polytope {
 impl Polytope {
     /// 按上游缓冲容量分配：顶点 `10+2I`、面 `6+5I`、horizon `24`。
     pub(crate) fn with_capacity(epa_iterations: usize) -> Self {
+        Self::with_capacity_and_horizon(epa_iterations, MJ_MAX_EPAHORIZON)
+    }
+
+    /// 同 [`Self::with_capacity`]，但 horizon 容量可指定（回归测试用等价容量构造强制
+    /// `EPA_HORIZON`；产品路径固定 `MJ_MAX_EPAHORIZON`，与上游一致）。
+    pub(crate) fn with_capacity_and_horizon(
+        epa_iterations: usize,
+        horizon_capacity: usize,
+    ) -> Self {
         Self {
             status: 0,
             vert: vec![[0.0; 3]; 10 + 2 * epa_iterations],
@@ -276,7 +285,7 @@ impl Polytope {
             face_pr: vec![[0.0; 3]; 6 + MJ_MAX_EPAFACES * epa_iterations],
             face_norm2: vec![0.0; 6 + MJ_MAX_EPAFACES * epa_iterations],
             nface: 0,
-            horizon: vec![0; MJ_MAX_EPAHORIZON],
+            horizon: vec![0; horizon_capacity],
             nhorizon: 0,
         }
     }
