@@ -18,7 +18,7 @@
 //!
 //! 未验收边界：SLEEP 睡眠跳过、incremental awake 复跑、AABB/rbound/margin/
 //! gap 的世界批量语义（本片按 `world % batches` 取批但不做批量语义验收）、
-//! flex/mesh/SDF 窄相、GPU 内核与图条件、完整 `collision()` 驱动与接触输出。
+//! flex 窄相、SDF GPU 内核（宿主数学已由 G3 落地）与图条件、完整 `collision()` 驱动与接触输出。
 
 use std::error::Error;
 use std::fmt;
@@ -45,6 +45,10 @@ pub use gjk::geom_type;
 pub use gjk::{
     CcdContact, CcdOptions, CcdOutput, CcdResult, ContactOptions, Geom, MeshView, ccd, ccd_pair,
 };
+// G3 宿主体积 SDF 数学（mujoco_warp/_src/collision_sdf.py 子集）。
+// G5 GPU 内核片接入前只由测试与后续片使用。
+#[allow(dead_code)]
+pub mod sdf;
 
 /// 上游 `mjtGeom` 的平面、球、盒与网格编号。
 pub const GEOM_PLANE: i32 = 0;
