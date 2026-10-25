@@ -1,0 +1,405 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-s7b2-independent-check",
+  "task_id": "2026-10-25-render-bvh-s7b2-independent-check",
+  "date": "2026-10-25",
+  "reviewed_commit": "f228099",
+  "reviewed_parent": "14ee028",
+  "companion_commit": "a96a158",
+  "review_baseline_head": "9495022",
+  "outcome": "pass",
+  "scope": "QA independent review of S7b2 (81-slot megakernel shading/RGB): own fixture decode and own pinned-3.15 reference re-capture, own harness render dumps, packed ABGR / unpacked f32 / depth-ULP / seg comparison over 120,000 pixels, new camera pose and two modified mat_shininess values to test the mat_shin_exp semantic fix, four-way light-pose check, 81-slot signature/order/placeholder/bvh-blob audit, A-prime render gate and PTX facts, rejection surface, determinism, run-hash recomputation, evidence integrity and diff scope, delivered suites and fmt/clippy/unit gates rerun. Fast-loop scope; no full G01; no product/fixture/original-evidence changes.",
+  "method": {
+    "harness": "target/qa-s7b2-harness (QA-owned crate, product crate path dependency + cuda-probe; own model/scene/camera/fixture decoding; does not include tests/support/**)",
+    "reference": "target/qa-s7b2/capture_qa.py (pinned venv Python 3.12.13 / warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4; PARAMS_28 with use_fast_math=False, the agreed reference recipe only; QA computes every comparison itself)",
+    "judges": [
+      "judge_run.py",
+      "judge_fixtures.py",
+      "judge_light.py",
+      "judge_slots.py",
+      "judge_hashes.py",
+      "judge_shininess.py",
+      "judge_evidence.py"
+    ],
+    "runtime_artifacts": "QA runtime dumps/references stay under target/ (not committed); sha256 binding in qa-artifact-manifest.json"
+  },
+  "rgb_same_recipe": {
+    "reference": "fixtures/render-bvh/scene-a/s7b/rgb_fast_math_false.json (use_fast_math=False)",
+    "product_vs_reference": {
+      "cam0": {
+        "pixels": 76800,
+        "packed_bitwise_equal": true,
+        "mismatched_pixels": 0,
+        "histogram_0_1_2_3_gt3": [
+          76800,
+          0,
+          0,
+          0,
+          0
+        ],
+        "max_byte_diff": 0,
+        "max_unpacked_lsb_diff": 0.0
+      },
+      "cam1": {
+        "pixels": 43200,
+        "packed_bitwise_equal": true,
+        "mismatched_pixels": 0,
+        "histogram_0_1_2_3_gt3": [
+          43200,
+          0,
+          0,
+          0,
+          0
+        ],
+        "max_byte_diff": 0,
+        "max_unpacked_lsb_diff": 0.0
+      },
+      "total_pixels": 120000,
+      "total_mismatched": 0
+    },
+    "product_vs_qa_recapture": {
+      "pixels": 120000,
+      "mismatched": 0,
+      "packed_bitwise_equal": true
+    },
+    "repeat_render_bitwise_equal": true
+  },
+  "reference_reproduction": {
+    "qa_capture_reproduces_delivered_fixture": true,
+    "rgb_fast_math_false": {
+      "cam0_rgb_bits_equal": true,
+      "cam1_rgb_bits_equal": true,
+      "cam0_depth_bits_equal": true,
+      "cam1_depth_bits_equal": true,
+      "cam0_seg_equal": true,
+      "cam1_seg_equal": true
+    },
+    "rgb_json_equals_npz_rint_pack": true,
+    "alpha_all_255": true,
+    "camera_pose_bits_equal_to_s7b1_fixture": true,
+    "note": "QA re-capture from pinned 3.15 reproduces the delivered same-recipe fixture bit-for-bit; the S0b-derived rgb.json is reproduced from reference/rgb.npz with rint(*255) -> pack ABGR"
+  },
+  "depth_seg_regression": {
+    "reference": "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json",
+    "cam0": {
+      "depth_bitwise_equal": true,
+      "max_ulp": 0,
+      "seg_mismatched": 0
+    },
+    "cam1": {
+      "depth_bitwise_equal": true,
+      "max_ulp": 0,
+      "seg_mismatched": 0
+    }
+  },
+  "run_hashes": {
+    "depth_seg_hash_qa": "03efa95416bbd008",
+    "depth_seg_hash_log": "03efa95416bbd008",
+    "rgb_hash_qa": "ed50f750936c0275",
+    "rgb_hash_log": "ed50f750936c0275",
+    "match": true,
+    "note": "QA recomputes both hashes from its own RGBA/depth/seg word dumps; RGB uses the delivered test's fold(0u64) seed"
+  },
+  "cross_recipe_deviation": {
+    "treatment": "recorded known cross-recipe deviation only; not a pass criterion and not a product defect",
+    "product_vs_s0b_fast_math": {
+      "cam0_histogram_0_1_2_3_gt3": [
+        76798,
+        2,
+        0,
+        0,
+        0
+      ],
+      "cam1_histogram_0_1_2_3_gt3": [
+        43200,
+        0,
+        0,
+        0,
+        0
+      ],
+      "beyond_1_lsb": 0
+    },
+    "matches_fixture_record": true
+  },
+  "new_pose_generalization": {
+    "camera_shift": [
+      0.05,
+      -0.03,
+      0.02
+    ],
+    "reference": "QA pinned-3.15 re-capture with mjm.cam_pos shifted; poses passed to product as f32 bit patterns",
+    "rgb_pixels": 120000,
+    "rgb_mismatched": 0,
+    "depth_max_ulp": 0,
+    "seg_mismatched": 0,
+    "repeat_bitwise_equal": true
+  },
+  "mat_shin_exp_semantic": {
+    "reference_source_semantics": {
+      "excerpt": "reference-megakernel-headlight-excerpt.txt",
+      "mat_shin_exp": "var_341 = mat_shininess[mat_id] * 128.0 (var_340 = 128.0); var_353 = where(mat_id>=0, var_341, 64.0 default)",
+      "headlight_call": "line 9432 compute_lighting(..., var_352, var_353, ...) -> headlight specular exponent is the material value"
+    },
+    "product_code": "render_megakernel.cu headlight branch passes mat_spec/mat_shin_exp; render_shade.cu uses mat_shin_exp in powf(ndoth, mat_shin_exp); no geom_id/pixel/coordinate special cases",
+    "experiments": [
+      {
+        "mat_shininess_1": 0.05,
+        "exponent": 6.4,
+        "reference_change_vs_base": {
+          "cam0_changed_pixels": 0,
+          "cam1_changed_pixels": 1046,
+          "cam1_beyond_1_lsb": 799,
+          "cam1_max_byte_diff": 10
+        },
+        "product_vs_modified_reference": "120000/120000 bit-equal"
+      },
+      {
+        "mat_shininess_1": 0.3,
+        "exponent": 38.4,
+        "reference_change_vs_base": {
+          "cam0_changed_pixels": 0,
+          "cam1_changed_pixels": 814,
+          "cam1_beyond_1_lsb": 542,
+          "cam1_max_byte_diff": 15
+        },
+        "product_vs_modified_reference": "120000/120000 bit-equal"
+      }
+    ],
+    "conclusion": "product tracks the material exponent over two distinct values and matches the reference exactly at both; a fixed 64 would not. The fix is a semantic fix, not fixture fitting. cam0 unchanged is consistent with mat1 (sphere/cylinder) being visible only in cam1.",
+    "pre_fix_symptom_reproduced": false,
+    "pre_fix_note": "the recorded pre-fix deviations (332/43200 >1 LSB etc.) are delivery history; reproducing them needs a product kernel variant, which QA does not build"
+  },
+  "light_poses": {
+    "sources_compared": [
+      "QA f32 recompute from model-312.json fields (world body xquat identity verified from scene-315.mjb)",
+      "pinned 3.15 mjwarp.forward d.light_xpos/d.light_xdir bits",
+      "product light_data_poses",
+      "fixture rgb.json light_data_check"
+    ],
+    "lights": 3,
+    "xpos_bits_all_four_way_equal": true,
+    "xdir_bits_all_four_way_equal": true,
+    "mjb_light_mode": [
+      0,
+      0,
+      0
+    ],
+    "mjb_light_bodyid": [
+      0,
+      0,
+      0
+    ],
+    "world_body_xquat_is_identity": true
+  },
+  "abi": {
+    "kernel_params_total": 81,
+    "bounds": 1,
+    "arrays": 73,
+    "scalars": 7,
+    "frozen_slots": 81,
+    "slot_order_mismatches": 0,
+    "args_push_count": 81,
+    "readme_table_rows": 81,
+    "readme_table_covers_0_80": true,
+    "readme_table_kernel_name_mismatches": 0,
+    "placeholder_not_read": {
+      "checked": 19,
+      "zero_body_references": 18,
+      "exception": "slot 62 mesh_texcoord is passed into sample_texture, dereferenced only when mesh_texcoordadr[mesh] >= 0; scene-a has -1 so it is never read"
+    },
+    "readme_summary_vs_table_recount": {
+      "summary": {
+        "real": 54,
+        "own": 3,
+        "placeholder": 24
+      },
+      "table_recount": {
+        "real": 58,
+        "own": 4,
+        "placeholder": 19
+      }
+    },
+    "bvh_id": {
+      "slot": 54,
+      "own_packed_blob": true,
+      "host_header": "header[2i]=byte offset, header[2i+1]=byte length for 5 sections (scene_meta, scene_params, mesh_meta, mesh_params, mesh_offsets)",
+      "device_header_reads": [
+        0,
+        2,
+        4,
+        6,
+        8
+      ],
+      "section_start_offsets": "40 + 16k bytes (spacing 16 bytes; absolute offset not 16-byte aligned)",
+      "scene_view_layout_identical_to_s7b1": true,
+      "warp_bvh_equivalence_claimed": false
+    }
+  },
+  "render_gate": {
+    "gate": "f32-render",
+    "compile_path": "RenderKernel::compile -> compile_render_artifact (WARP_1_15_RENDER + RecipePurpose::Render + check_render_ptx); no bypass",
+    "ptx_bytes": 195594,
+    "source_sha256": "0fcdb02ac4687780e307005b69f8eb08ec2932e5b1bdc57a08aefc599cb3e42b",
+    "ptx_sha256": "75a6ad35ed7ba139d788b74bd3bf9420bdfd2eef8c8f6e4026b6dc7c2db62eb9",
+    "entries": [
+      "scene_bvh_ray",
+      "render_megakernel"
+    ],
+    "f64_lines": {
+      "allowlisted_globals": 2,
+      "sin_cos_reduction_triple": 1,
+      "other_f64": 0
+    },
+    "source_sha256_equals_concat_of_five_sources": true,
+    "kernel_source_bytes": 74714,
+    "kernel_source_lines": 1804,
+    "scene_cu_sha256": "8dad4d61235a8686d8b43fecef450535816c5a9423f15d256be4aab9a714d56d",
+    "scene_cu_unchanged_vs_s2b": true,
+    "render_math_cu_unchanged_in_range": true,
+    "launch_rs_lines": 500
+  },
+  "rejections": {
+    "cases": {
+      "use_shadows=true": "Unsupported(\"S7b2 不含阴影\")",
+      "use_precomputed_rays=false": "Unsupported(\"S7b2 只支持 use_precomputed_rays=true（动态射线归 S7b3）\")",
+      "samples_per_pixel=2": "Unsupported(\"S7b2 只支持 samples_per_pixel=1（AA 属 S7b3）\")",
+      "render_skybox=true": "Unsupported(\"S7b2 不含天空盒\")"
+    },
+    "stage": "renderer (context creation succeeds, no panic)",
+    "all_4_rejected_before_launch": true
+  },
+  "tests": {
+    "delivered_suites_rerun": {
+      "s7b2_render_kernel_rgb": "3 passed / 0 failed (2.65 s)",
+      "s7b1_render_kernel_depth_seg": "6 passed / 0 failed (4.14 s)",
+      "s6b_render_context_lifecycle": "5 passed / 0 failed (8.37 s)"
+    },
+    "unit": {
+      "command": "cargo test --locked",
+      "binaries": 98,
+      "passed": 532,
+      "failed": 0
+    },
+    "fmt": "pass (cargo fmt --all -- --check)",
+    "clippy": "pass (cargo clippy --all-targets --locked --features cuda-probe -- -D warnings)"
+  },
+  "evidence_integrity": {
+    "delivered_evidence_files": 7,
+    "delivered_evidence_equals_committed_blobs": true,
+    "receipt_evidence_list_matches": true,
+    "delivered_ptx_and_fixture_hashes_match_receipt": true,
+    "capture_script_sha256_matches_receipt": true,
+    "kernel_cache_record_matches_file": true,
+    "diff_range": "14ee028..f228099",
+    "diff_changed_files": 32,
+    "diff_out_of_scope": [],
+    "s2_s6_evidence_or_fixtures_changed": [],
+    "src_render_bvh_changed": [],
+    "render_math_cu_changed": [],
+    "launch_rs_changed": []
+  },
+  "findings": [
+    {
+      "severity": "一般",
+      "kind": "evidence",
+      "title": "rgb_hash 少一位十六进制",
+      "detail": "README §5.4 与 receipt gpu.run_determinism.rgb_hash 记为 ed50f750936c275（15 位），实际 gpu-run.log 与 QA 独立复算为 ed50f750936c0275（16 位）",
+      "suggestion": "normify fix 修正该字段"
+    },
+    {
+      "severity": "一般",
+      "kind": "evidence",
+      "title": "README §4 统计行与逐槽表分类不一致",
+      "detail": "统计行 real 54 / own 3 / placeholder 24（且括号列 4 个 own 槽），按该表逐行分类为 real 58 / own 4 / placeholder 19（81 槽齐全）；receipt abi.real_slots/own_pack_slots/placeholder_slots 沿用错误统计",
+      "suggestion": "normify fix 按表重算统计"
+    },
+    {
+      "severity": "建议",
+      "kind": "evidence",
+      "title": "placeholder「内核不读」对 slot 62 过强",
+      "detail": "mesh_texcoord 传入 sample_texture，仅在 mesh_texcoordadr>=0 分支解引用；scene-a 为 -1，不取用",
+      "suggestion": "表述改为「本场景不读取；带 texcoord 网格时为真实数据」"
+    },
+    {
+      "severity": "建议",
+      "kind": "evidence",
+      "title": "bvh_id「段间 16 字节对齐」措辞",
+      "detail": "段起点为 40+16k 字节（间距 16 B，绝对偏移非 16 对齐）；访问均 4 字节对齐，功能无影响",
+      "suggestion": "措辞改为「段间距 16 字节」"
+    },
+    {
+      "severity": "建议",
+      "kind": "test",
+      "title": "拒绝面用例用 catch_unwind 兜底",
+      "detail": "交付用例对 context 创建 catch_unwind(... continue)，创建期 panic 也会计作写前拒绝；QA 独立判定 4 类均在创建成功后由 renderer 返回 Unsupported（无 panic），结论成立",
+      "suggestion": "测试可断言建 context 成功后再要求 Unsupported"
+    }
+  ],
+  "not_verified": [
+    "修复前症状数字（cam1 332/43,200 超 1 LSB、max 3 byte；cam0 26,649 像素差 1 byte）属修复前状态，需要产品内核变体才能复现，QA 未构建。",
+    "交付记录的「两处疑似偏离（texture_sample lod -1.0 vs 0.0、球面 normal 除法顺序）同时回退后 RGB 仍 0 差异」属变体实验，QA 未复现；上游 render.py L487 的默认 lod 与产品 0.0f 是源码级差异，本场景 1 mip 下与参考 0 差异，但 QA 未做变体证明「无影响」。"
+  ],
+  "limitations": [
+    "未跑完整 G01；不宣称完整渲染/R01/双平台通过。",
+    "阴影/天空盒/splat/AA/flex/hfield/SDF/动态射线本片写前拒绝，未验功能。",
+    "正交相机、带 texcoord 网格、大网格未覆盖；scene-a 两相机均透视、网格无 texcoord。",
+    "bvh_id 为自有打包，仅签名对齐，不宣称 Warp BVH ABI/等价。",
+    "相机 data 位姿由调用方显式传入；跟踪相机 TARGETBODY 产品接线属 S8。",
+    "单一场景夹具；未做 fuzz；未重跑 authoring 灯具（灯位姿已由 QA 自己的 pinned forward 独立重采）。"
+  ],
+  "not_claimed": [
+    "full renderer / product rendering acceptance",
+    "complete R01",
+    "S7b3/S8 implementation",
+    "bvh_id equivalence with the Warp BVH ABI",
+    "shadow / skybox / splat / AA functionality",
+    "product tracking-camera wiring (S8)"
+  ],
+  "gpu_window": {
+    "device": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "cuda": "13.2",
+    "memory_total_mib": 16376,
+    "start_memory_mib": 3336,
+    "end_memory_mib": 3558,
+    "desktop_baseline_note": "desktop applications fluctuate 3.3-3.6 GiB; window start/end are in the same band",
+    "compute_processes_after": 0,
+    "actual_gpu_activity": "delivered suites 2.65+4.14+8.37 s, 5 harness renders, 4 reference captures (order of 1-2 minutes total); within the 30-minute window, no conflicts"
+  },
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "qa-artifact-manifest.json",
+    "artifact-check.json",
+    "gpu-window.txt",
+    "qa-gpu-runs.log",
+    "qa-unit-tests.log",
+    "harness_base.json",
+    "harness_pose.json",
+    "harness_shin.json",
+    "harness_shin2.json",
+    "megakernel.ptx",
+    "reject.json",
+    "judge_fixtures.json",
+    "judge_run_base.json",
+    "judge_run_base_qa.json",
+    "judge_run_pose.json",
+    "judge_run_shin.json",
+    "judge_run_shin2.json",
+    "judge_light.json",
+    "judge_slots.json",
+    "judge_hashes.json",
+    "judge_shininess.json",
+    "judge_evidence.json",
+    "reference-megakernel-headlight-excerpt.txt",
+    "capture_qa.py",
+    "judge_run.py",
+    "judge_fixtures.py",
+    "judge_light.py",
+    "judge_slots.py",
+    "judge_hashes.py",
+    "judge_shininess.py",
+    "judge_evidence.py",
+    "qa-harness-main.rs.txt"
+  ]
+}
