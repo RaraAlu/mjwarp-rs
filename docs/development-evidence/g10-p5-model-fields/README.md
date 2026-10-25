@@ -20,7 +20,7 @@
 
 | 文件 | 改动 |
 | --- | --- |
-| `native/g01_fields.inc` | 新增字段 45..58；新增 kind 4=float32、5=int64 的标量宽度分支（`g01_scalar_bytes`）；既有 kind 1/2/3 语义不变 |
+| `native/g01_fields.inc` | 字段与 kind 为**新增**（ID 45..58；kind 4=float32、5=int64）；另有两处宽度表达式抽成 `g01_scalar_bytes()` 的**等价重构**；既有 kind 1/2/3 语义不变（45 项既有字段前后 ABI 导出位比全等，见独立复核证据） |
 | `include/mjwarp_native_probe.h` | 仅注释：kind 取值说明与 45..58 号用途；结构体未动（ABI 不变） |
 | `src/model/volume.rs`（新） | 字段规范、原生计数、数据面与 f64→f32 唯一转换函数（≤500 行） |
 | `src/model/volume_input.rs`（新） | 校验后的 `VolumeModelInput`：字段数/kind/长度/`noct` 一致性/下标范围校验（≤500 行） |
