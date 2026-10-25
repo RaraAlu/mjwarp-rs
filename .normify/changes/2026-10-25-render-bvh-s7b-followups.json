@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-render-bvh-s7b-followups",
+  "title": {
+    "zh": "渲染/BVH 配套修正：合成顶点法线 pinned 参考 + S7b2 spp=2 断言升级",
+    "en": "Render/BVH follow-ups: pinned reference for synthetic vertex normals + S7b2 spp=2 assertion update"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "修 S7b3 复核暴露的两处证据/测试强度缺口：(1) `vertex_normals_off` 在 scene-a 无判别力，现有合成法线用例只证明产品分支生效、无 pinned 参考对照——补采 `mesh_normal` 改为合成值（[1,0,0]、[0,0,1]）后的 pinned 3.15 同配方 RGB 参考，产品对参考比较（≤1 LSB），并断言 on/off 路径可判别；(2) S7b2 的 `tests/render_kernel_rgb.rs::unsupported_configurations_are_rejected_before_launch` 中「spp=2 必须写前拒绝」因 S7b3 实现 AA 而失效，改为断言 AA 路径被支持（3 类拒绝保留：shadows/动态射线/skybox），并用 `normify fix` 给 S7b2 证据加说明。不改验收口径、不改产品渲染语义。",
+    "en": "Close two evidence/test-strength gaps surfaced by the S7b3 review: (1) vertex_normals_off has no discriminative power on scene-a and the current synthetic-normal case only proves the branch is active, with no pinned reference; capture pinned-3.15 same-recipe RGB references with mesh_normal overridden to synthetic values ([1,0,0], [0,0,1]) and compare the product against them (<=1 LSB), asserting the on/off paths are judgeable; (2) S7b2's unsupported_configurations test still expects spp=2 to be rejected, which S7b3's AA implementation invalidates; change it to assert the AA path is supported (keeping the three other rejections: shadows/dynamic rays/skybox) and add a Normify fix note to S7b2's evidence. No acceptance or render-semantics changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "合成顶点法线参考：pinned 3.15 同配方（`use_fast_math=False`）以 `mesh_normal` 覆盖为 [1,0,0] 与 [0,0,1] 各采一份两相机 RGB 参考，两次捕获逐位一致、provenance 完整（mjb sha、覆盖字段与值、脚本 sha）；夹具进 `fixtures/render-bvh/scene-a/s7b/flags/`。",
+    "产品对合成参考：RGB 每通道 ≤1 LSB；并证明 on/off 可判别（vertex_normals on 与 off 在合成法线下差异像素数非空、且 on 侧与参考一致），默认 scene-a 下 `vertex_normals_off` 无判别力的结论保留。",
+    "S7b2 断言升级：`unsupported_configurations_are_rejected_before_launch` 改为 3 类写前拒绝 + AA(spp=2) 走支持路径的断言；S7b2 回归数字（RGB 同配方 0 差异、depth/seg 120,000/120,000）不回归。",
+    "S7b2 证据用 `normify fix` 增补说明：spp=2 拒绝面由 S7b3 AA 实现取代、测试期望更新提交哈希；不改 S7b2 原验收结论与数值。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过（532/0）；不改 S7b1/S7b3 交付代码语义、不改 S2–S6 证据夹具；GPU 20 分钟窗口（采集+复跑），结束回桌面基线。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-render-bvh-s7b3-flags"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_kernel_rgb.rs",
+      "tests/render_kernel_flags.rs",
+      "tests/support/render_bvh/",
+      "scripts/authoring/render-bvh-s7b/",
+      "fixtures/render-bvh/scene-a/s7b/",
+      "src/render/kernel/",
+      "docs/development-evidence/render-bvh/s7b-followups/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 89
+  },
+  "note": "Arch 2026-10-25 裁决：S7b3 已 verified（52c22b7，6/6 全绿）；两处非阻断缺口按「先验收后补强」处理——不在已验证片上重开，另立配套任务补齐证据强度并升级过期断言（S7b2 的 spp=2 拒绝断言因 AA 实现而失效）。任务范围按目录级，含测试支撑与 authoring/夹具路径，避免运行态冻结。GPU 等 QA 的 S7b3 复核释放后使用。",
+  "revision": {
+    "before": "7edeb81aaba4407458abb75daa1485674dc23161",
+    "after": null
+  },
+  "created_at": "2026-10-25T13:27:00.000Z",
+  "updated_at": "2026-10-25T13:27:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/s7b-followups/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-render-bvh-s7b-followups"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
