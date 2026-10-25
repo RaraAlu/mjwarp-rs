@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-gjk-epa",
+  "title": {
+    "zh": "G10@P5 前置片：GJK/EPA 凸碰撞（ccd/support/多接触，服务 box-box/convex/mesh/hfield）",
+    "en": "G10@P5 prerequisite: GJK/EPA convex collision (ccd/support/multicontact; serves box-box/convex/mesh/hfield)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "g10-p5 的独立前置片：按预检手册实现上游 `collision_gjk.py` 语义——`ccd()`（球/胶囊 shrink、浅穿透 inflate、深穿透进 EPA）、GJK 迭代与收敛（epsilon/min_norm/Frank-Wolfe 间隙/分离判据/`_S3D/_S2D/_S1D` 子算法/`x_norm<1e-4` 方向调优）、EPA（polytope 构造、收敛判据、HORIZON 退化与 `FLOAT_MAX`）、`support()` 各类型（含 HFIELD 六顶点）、`multicontact`（box/cylinder/mesh、`_polygon_clip`）；`is_discrete` 分支按 geom 组合实现；CPU 优先，GPU 内核归后续片。不改现有 plane-sphere/sphere-sphere/plane-box 语义。",
+    "en": "Standalone prerequisite slice of g10-p5: implement the upstream collision_gjk.py semantics per the precheck manual - ccd() (sphere/capsule shrink, shallow inflate, deep EPA path), GJK iterations and convergence (epsilon/min_norm, Frank-Wolfe gap, separation criteria, _S3D/_S2D/_S1D sub-algorithms, x_norm<1e-4 direction tuning), EPA (polytope construction, convergence, HORIZON degeneracy and FLOAT_MAX), support() per type including HFIELD's six vertices, and multicontact (box/cylinder/mesh via _polygon_clip); the is_discrete branch must follow geometry-combination semantics; CPU first, GPU kernels in a later slice. Existing plane-sphere/sphere-sphere/plane-box semantics must not change."
+  },
+  "modules": {},
+  "acceptance": [
+    "`ccd()` 两阶段与返回值语义与上游一致：ncontact 0=分离、1=候选、`FLOAT_MAX`=分离/EPA 失败；浅穿透 `_inflate` 不跑 EPA；深穿透恢复 margin/size 重跑 GJK；球/胶囊 shrink 的 `full_margin`/cutoff 处理正确。",
+    "GJK 迭代与收敛按手册实现（epsilon=`is_discrete?0:0.5*tol²`、`min_norm`、Frank-Wolfe 间隙、分离判据、子算法 λ 剔除与 simplex 重排、support 复检、`x_norm<1e-4` 方向调优），并给与 pinned 上游的位级/ULP 对照证据（按 S7b 方法从参考 PTX/源码定序）。",
+    "EPA 收敛、退化（HORIZON→`FLOAT_MAX`/idx=-1）、缓冲容量（`10+2I`/`6+5I`）、`multiccd_idx` 开关（margin≠0 或类型不符→-1）按手册实现。",
+    "`support()` 覆盖 SPHERE/BOX/CAPSULE/ELLIPSOID/CYLINDER/MESH/HFIELD/TRIANGLE 与 margin 尾项；HFIELD 取六顶点与 `dir[2]<0 ? -2 : -3`；MESH 穷举 vs graph hillclimb 分支与 `cached_index` 热启动。",
+    "`multicontact` 与 `_polygon_clip` 按 feature 法线生成 ≤4 接触；hfield 与 SDF 路径不误用 multicontact。",
+    "`is_discrete`（mesh/box/hfield + margin==0）走 `epsilon=0` 与重复点早退路径，并有分支覆盖测试；不得与 tolerance 路径混用。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全过；不改 S2–S8 证据与渲染夹具、不改 Cargo.* 依赖（除非预检明确需要并报 Arch）；新文件 ≤500 行；证据含 task_id、与上游对照方法与未覆盖项；GPU 仅在需要时独占窗口。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-precheck"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/physics/collision/",
+      "src/physics/collision.rs",
+      "tests/gjk_epa.rs",
+      "docs/development-evidence/g10-p5-gjk-epa/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-25 裁决 5A：GJK/EPA 先独立交付（它同时服务 box-box/convex/mesh/hfield，也是 SDF MESH 分支依赖）。本片先 CPU 实现与对照，GPU 内核可在后续片或本片末尾加；实现入口用 `docs/development-evidence/g10-p5-precheck/` 手册与 `target/g10-p5-g2-notes.md`。风险项：is_discrete 分支、f32 定序、EPA 退化、hfield 四接触后处理（属 G4）。不改现有窄相已验收语义。",
+  "revision": {
+    "before": "251d6424b70a6e896d65041559d153f558c3ac58",
+    "after": null
+  },
+  "created_at": "2026-10-25T14:26:00.000Z",
+  "updated_at": "2026-10-25T14:26:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-gjk-epa/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-gjk-epa"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价"
+      ]
+    }
+  ]
+}
