@@ -205,6 +205,77 @@
       "suggestion": "G5 实现时以本证据的 syn-rot-* 场景作回归"
     }
   ],
+  "addenda": {
+    "sdf_relative_rotation": {
+      "date": "2026-10-25",
+      "status": "product-defect-confirmed",
+      "upgrade": "原 general-1（测试 helper 转置）升级：同一实现且更严重的 fma/累加问题存在于产品 SDF host 路径；G4 hfield 产品 driver 不受影响",
+      "product_bug": {
+        "file": "src/physics/collision/sdf/descent.rs",
+        "function": "relative_matrix (L171-L182)",
+        "defects": [
+          "返回 bᵀa，而上游 collision_sdf.py:724 是 transpose(rot1)*rot2 = aᵀb（行优先）",
+          "普通三项和 vs warp mat×mat 的 fma 累加（warp/native/mat.h: mul(mat,mat) 用 muladd<float>=fmaf 按 k=0..2 累加）；一般旋转下 1-3 个元素差 1 ULP"
+        ],
+        "affected_paths": [
+          "sdf/descent.rs::gradient_descent (L198 调该 helper)",
+          "sdf/narrowphase.rs:68（AABB 变换用同一 helper）→ 改一处覆盖两条"
+        ],
+        "unaffected": [
+          "G3 verified sdf-box 80/80：两侧 geom_xmat 均为单位矩阵，bᵀa = aᵀb = I",
+          "G4 hfield 产品 driver：driver 不做相对旋转（HfieldInput.geom2 约定已变换到 hfield 帧，driver.rs L35-L52；仅用 hf_mat/hf_pos 回世界系 L192/L195）；hfield/driver.rs::relative_matrix (L55-L66) 只被 hfield/tests.rs:196 调用"
+        ]
+      },
+      "evidence": {
+        "scenes": 5,
+        "worlds": 10,
+        "contacts_per_world": 40,
+        "upstream": "mujoco_warp 3.15.0 / warp 1.15.0 / mujoco 3.15.0, device=cpu, 两捕获位等 5/5",
+        "octree_arrays_bitwise_equal_to_g3_fixture": true,
+        "product_vs_upstream_worst": {
+          "dist_max_abs": 0.05896,
+          "pos_max_abs": 0.3177,
+          "frame_max_abs": 1.933,
+          "bit_equal_contacts": "0/40 每 world（除 identity 对照 40/40）",
+          "rz_rx_pair": "dist 5.896e-2（8.76e7 ULP）、pos 3.177e-1、frame 1.933；rel_mat max abs diff 1.2376"
+        },
+        "fix_transpose_only_plain": {
+          "single_side_rotations": "40/40 位级",
+          "both_side_rotation": "sdf-rot-both 25/40 与 1/40；残差 dist 1.912e-3 / pos 6.188e-2 / frame 1.051（1 个 initpoint 换局部极小）"
+        },
+        "warp_actual_rel_mat": "5/5 场景 40/40 位级、0 ULP",
+        "fma_chain_rel_mat_recipe": "rel_mat 位型 10/10 world == warp；接触 5/5 场景 40/40 位级、0 ULP（含 sdf-rot-both）",
+        "no_second_convention_point": "上游 724/725/616/656/682/732-734 与产品 descent.rs 171-182/199/109/145/203-209 逐行对应；残差来源是 rel_mat 算术（fma），非方向"
+      },
+      "fix_recipe": {
+        "semantics": "行优先 aᵀb，fma 链：sum = a0*b0; sum = fma(a1,b1,sum); sum = fma(a2,b2,sum)（k 升序）",
+        "do_not_use": "f32::mul_add：本机测试档（cargo test，opt-level 0）实测未融合（0x3f17e6af vs 正确 0x3f17e6b0；-O2 才一致）",
+        "implement_as": "f64 精确乘加后一次舍入到 f32：((a as f64)*(b as f64) + (sum as f64)) as f32",
+        "files_to_fix": [
+          "src/physics/collision/sdf/descent.rs::relative_matrix",
+          "src/physics/collision/hfield/driver.rs::relative_matrix（当前 test-only，同一缺陷；或统一复用 relmat.rs）"
+        ],
+        "cuda_note": "cuda/common.cu 已是行优先 aᵀb（G5 WIP 未提交），方向正确；设备 fma 收缩由 G5 自有证据复核"
+      },
+      "artifacts": [
+        "qa_capture_sdf_rotation.py",
+        "qa_probe_sdf_run.py",
+        "qa_compare_sdf_rotation.py",
+        "probe/qa_probe_sdf.rs",
+        "qa-sdf-rotation-cases.json",
+        "qa-sdf-rotation-product.json",
+        "qa-sdf-rotation-report.json",
+        "qa-sdf-capture.log",
+        "qa-sdf-probe.log",
+        "qa-sdf-compare.log"
+      ],
+      "limitations": [
+        "单一 SDF 体积（cube octree，重采与 G3 fixture 逐字节一致）；位置/旋转自造",
+        "只判 host 路径；未开 GPU 窗口（G5 独占窗口）",
+        "环境同 environment（Windows + warp CPU 后端）"
+      ]
+    }
+  },
   "artifacts": {
     "readme": "docs/development-evidence/g10-p5-hfield-host-independent-check/README.md",
     "receipt": "docs/development-evidence/g10-p5-hfield-host-independent-check/receipt.json",
@@ -217,14 +288,22 @@
       "qa-oracle.log",
       "qa-probe.log",
       "qa-compare.log",
-      "qa-unit-regression.log"
+      "qa-unit-regression.log",
+      "qa-sdf-capture.log",
+      "qa-sdf-probe.log",
+      "qa-sdf-compare.log"
     ],
     "scripts": [
       "qa_capture_upstream.py",
       "qa_compare.py",
       "qa_probe_run.py",
       "qa_run_all.py",
+      "qa_artifacts_sha256.py",
+      "qa_capture_sdf_rotation.py",
+      "qa_probe_sdf_run.py",
+      "qa_compare_sdf_rotation.py",
       "probe/qa_probe.rs",
+      "probe/qa_probe_sdf.rs",
       "harness/Cargo.toml",
       "harness/Cargo.lock",
       "harness/src/main.rs"

@@ -7,6 +7,11 @@
 
 **0 阻断，可收口；2 条一般（均为证据/测试 helper 级，不影响 G4 交付判据） + 2 条建议。**
 
+> **追加（2026-10-25，见 §11）**：原「一般 #1」（测试 helper 相对旋转转置）经非单位旋转对实证，
+> 判定为**产品缺陷**：`src/physics/collision/sdf/descent.rs::relative_matrix` 同时有「转置」与
+> 「非 fma 累加」两个问题，属 G3 SDF host 路径（G3 verified 的 `sdf-box` 因两侧 rot 为单位矩阵而不暴露）；
+> G4 hfield **产品 driver 不受影响**（其 `relative_matrix` 仅测试使用）。**G4 本片结论不变**。
+
 独立手段：QA 自写 3.12 pinned 上游重采脚本（33 个场景）、自写 hfield 宿主 **oracle**（filter / 子网格 / prism /
 四接触选择 / 去重 / 溢出全部独立重写，只有窄相 `ccd()` 复用产品公开 API——该件 G2 已独立复核）、
 临时 `git worktree` 内的产品探针（直接调产品 `hfield_pair_contacts` / `hfield_filter`），三方逐位比对。
@@ -154,6 +159,10 @@ physics::collision::hfield::tests::maxconpair_overflow_sets_flag_and_caps_scan .
 
 ### 一般 #1：交付测试 helper `driver::relative_matrix` 返回的是转置
 
+> **追加（§11）**：本条的根因与影响范围已经实证升级——同一实现（且更严重的「非 fma 累加」问题）
+> 存在于**产品 SDF host 路径** `sdf/descent.rs::relative_matrix`；hfield 侧该 helper 仍只被交付测试调用，
+> **G4 产品 driver 不受影响**，G4 交付判据不变。详见 §11。
+
 - **复现**：探针 `helper_rotation_check`：取 `a=Rz(0.7)`、`b=Rx(0.4)`，比较
   `relative_matrix(a,b)` 与上游 `geom2.rot = aᵀb`（行优先）。结果：`bit_equal=false`，
   `delivered_equals_transpose_of_expected=true`，`max_abs_diff≈1.2376`。
@@ -228,3 +237,108 @@ cd target/qa-g4/unit-wt && cargo test --locked
 - mesh 对侧仅 4 顶点四面体（走上游/产品顶点穷举支持分支；顶点数 ≥10 的 graph hillclimb 未覆盖）。
 - 未验证 Linux/T4；本报告全部数字仅对本机 Windows + warp CPU 后端成立。
 - 原始接触顺序只作观察项（未作判据）；比较统一按 `worldid` 分组 + 全字段位型多重集。
+
+## 11. 追加（addenda，2026-10-25）：SDF 相对旋转约定判定
+
+Arch 追问「§7-一般#1 是不是产品约定问题」，并要求对**两侧都带非单位旋转**的 SDF 接触做实证。
+本节为只读实验（不改产品代码、不开 GPU）；脚本 `qa_capture_sdf_rotation.py` /
+`qa_probe_sdf_run.py` / `qa_compare_sdf_rotation.py`，数据 `qa-sdf-rotation-cases.json` /
+`qa-sdf-rotation-product.json` / `qa-sdf-rotation-report.json`。
+
+### 11.1 结论（修正片可直接引用）
+
+1. **产品 SDF host 路径确有缺陷**，唯一位置：`src/physics/collision/sdf/descent.rs::relative_matrix`
+   （L171–L182）。它同时有两处问题：
+   - **转置错**：返回 `bᵀa`；上游 `collision_sdf.py:724` 是 `transpose(rot1) * rot2 = aᵀb`（行优先）。
+   - **算术错**：warp 的 `mat33 * mat33` 是**逐项 fma 累加**（`warp/native/mat.h`：
+     `mul(mat,mat)` 循环 `sum = muladd(a[i][k], b[k][j], sum)`，`muladd<float>` = `fmaf`）。
+     普通三项和（先乘再逐项加）在一般旋转下会比 warp 少/多 1 ULP（本次 10 个 world 里 2 个受影响，
+     1–3 个矩阵元素）。
+   两条都修才能拿到双旋转位级；只修转置仍会在**近简并场景**里出现 1 个 initpoint 落入不同局部极小。
+2. **影响路径**：`gradient_descent`（descent.rs L198 调该 helper）与 `sdf/narrowphase.rs:68`
+   （AABB 变换同用该 helper）→ **改一处即可覆盖两条**。G3 已 verified 的 `sdf-box` 80/80
+   **不受影响**：该 case 两侧 `geom_xmat` 均为单位矩阵（本片已核 fixture），单位旋转下
+   `bᵀa = aᵀb = I`，两种实现同值。
+3. **G4 hfield 产品 driver 不受影响**（回答「为何仍与上游一致」）：
+   - `hfield/driver.rs` 自己**不做任何相对旋转运算**：`HfieldInput` 的契约是「`geom2` 已变换到
+     hfield 帧」（driver.rs L35–L52），driver 只用 `hf_mat`/`hf_pos` 把接触回世界系（L192、L193–L195）；
+   - `hfield/driver.rs::relative_matrix`（L55–L66）当前**只被交付测试** `hfield/tests.rs:196` 调用
+     （`grep relative_matrix` 全仓：产品运行时不经过它）；
+   - 交付三 case 的 `geom_xmat` 全为单位矩阵 → 该 helper 的转置在交付判据里不可见；
+   - 本复核 §4.5 的旋转场景（`syn-rot-box`/`syn-rot-capsule`/`syn-class-mesh`）是用**正确的 `aᵀb`**
+     构造 `geom2` 后喂产品 driver，故 product==oracle==上游（`rot-box` 仅 dist 1 ULP）。
+   - `hfield/driver.rs::relative_matrix` 自身有同样两个缺陷，建议随修正片统一修（或改为复用
+     G5 新增的 `src/physics/collision/relmat.rs`；该文件当前未跟踪、属 G5 WIP）。
+4. **CUDA 侧**：`cuda/common.cu` 的 `relative_matrix` 已是行优先 `aᵀb`（G5 WIP 未提交），
+   语义方向正确；设备编译的 fma 收缩是否与 warp 一致，由 G5 自有证据复核（不在本片判据内）。
+5. **不存在「第二处转置/坐标系约定」**：上游三处 rel_mat 用法与产品实现逐行对应
+   （`collision_sdf.py:724`↔`descent.rs:171–182`；`725`↔`descent.rs:199`；
+   `616`↔`descent.rs:109`；`656/682`↔`descent.rs:145`；`732–734`↔`descent.rs:203–209`）。
+   双旋转场景的残差来源是 **rel_mat 自身的算术**（fma 累加），不是方向。
+
+### 11.2 实测数字（5 场景 × 2 world × 40 接触；上游 = mujoco_warp f32 CPU，两次捕获位等）
+
+| 场景 | 产品（现状）vs 上游 | 只修转置（plain `aᵀb`） | warp 实际 rel_mat | fma 链 rel_mat（建议实现） |
+| --- | --- | --- | --- | --- |
+| `sdf-rot-ident`（对照，= G3 identity） | **40/40 位级**，0 ULP | 40/40 位级 | 40/40 位级 | 40/40 位级 |
+| `sdf-rot-sdf`（仅 SDF 旋转） | **0/40**；dist 2.35e-2/1.81e-2，pos 0.174/0.315，frame 1.69/1.63 | 40/40 位级 | 40/40 位级 | 40/40 位级 |
+| `sdf-rot-box`（仅 box 旋转） | **0/40**；dist 3.73e-2/2.56e-2，pos 0.292/0.324，frame 1.86/1.97 | 40/40 位级 | 40/40 位级 | 40/40 位级 |
+| `sdf-rot-both`（两侧都旋转） | **0/40**；dist 1.97e-2/8.60e-3，pos 0.278/0.294，frame 1.84/1.86 | 25/40、1/40；残差 dist 1.91e-3、pos 6.19e-2、frame 1.05（1 个 initpoint 换局部极小） | 40/40 位级 | **40/40 位级，0 ULP** |
+| `sdf-rot-rz-rx`（SDF 侧 Rz0.7 + box 侧 Rx0.4，即 helper 核对的旋转对） | **0/40**；dist 5.896e-2（8.76e7 ULP），pos 0.3177，frame 1.933；rel_mat max 差 1.2376 | 40/40 位级 | 40/40 位级 | 40/40 位级 |
+
+- 产品现状最差：`dist` 绝对差 **5.90e-2**、`pos` **0.318**、`frame` **1.97**（`frame` 第一行=法线，
+  ≈2 表示朝向完全错），**不是 ULP 级**。
+- 只修转置时，`sdf-rot-both` 的 1 个 initpoint 因 rel_mat 1 ULP 差异落入另一局部极小
+  （这正是 Arch 看到的 dist 0.00191 / pos 0.0619 / frame 1.05 残差）。
+- **把 rel_mat 换成 warp 实际位型**（在设备数组上用 `wp.transpose(a)*b` 直接算）→ 5 场景全部 40/40 位级 0 ULP。
+- **按 warp 语义实现 rel_mat**（fma 链，见 11.3）→ rel_mat 位型 **10/10 world 与 warp 完全相同**，
+  接触 **5/5 场景 40/40 位级、0 ULP**。→ 双旋转场景**可以做到位级**，不需要退到 ≤4 ULP 容差。
+
+### 11.3 根因与修正配方
+
+warp 1.15.0 `native/mat.h`（venv 内已核）：
+
+```
+template <typename T> inline CUDA_CALLABLE T muladd(T a, T b, T c) { return c + a * b; }
+template <> inline CUDA_CALLABLE float muladd(float a, float b, float c) { return fmaf(a, b, c); }
+
+mul(mat,mat):  sum = 0; for k in 0..2: sum = muladd(a[i][k], b[k][j], sum);
+mul(mat,vec):  r = row0 * b[0]; for i in 1..2: r += row_i * b[i];   // 无 fma
+```
+
+即：**mat×mat 用 fma 链（k 升序），mat×vec 是先逐行乘再加**。后者与产品 `fused3`/`matvec` 已一致
+（G2/G3 位级成立的原因）；前者就是 `relative_matrix` 缺的那一步。
+
+修正配方（`sdf/descent.rs::relative_matrix`，行优先 `aᵀb` + fma 链）：
+
+```
+sum = a[row] * b[col];                              // k=0（fma(a,b,0) 与普通乘同舍入）
+sum = fma(a[3+row], b[3+col], sum);                 // k=1
+sum = fma(a[6+row], b[6+col], sum);                 // k=2
+```
+
+**注意**：不要直接用 `f32::mul_add`——本机测试档实测未融合：`cargo test`（opt-level 0）下
+`0.9210609793663025f32.mul_add(0.6442176699638367, 0.0)` 得 `0x3f17e6af`，而正确融合（`-O2` 与
+warp 一致）是 `0x3f17e6b0`。建议用 **f64 精确乘加后一次舍入到 f32** 模拟 fma
+（`((a as f64) * (b as f64) + (sum as f64)) as f32`）；本片实测该实现 rel_mat 位型 10/10 world == warp、
+接触 5/5 场景 40/40 位级。并补一条与上游固定向量/夹具的位级单测锁住该实现。
+
+### 11.4 给修正片 `2026-10-25-g10-p5-sdf-relmat-fix` 的验收建议
+
+- 修 `src/physics/collision/sdf/descent.rs::relative_matrix`（一处覆盖 descent + narrowphase AABB）；
+  同步修 `src/physics/collision/hfield/driver.rs::relative_matrix`（当前 test-only，但同一缺陷；
+  或统一改为复用 `relmat.rs`）。
+- 新增两侧非单位旋转 case：可直接引用本目录 `qa-sdf-rotation-cases.json` 的输入口径与
+  `qa-sdf-rotation-product.json` 的 `upstream` 对照；目标 **4 个旋转场景（含 `sdf-rot-both`）40/40 位级、0 ULP**
+  （用上面配方可达；plain 转置修复会在 `sdf-rot-both` 留 1 个 initpoint 残差，验收会被这条卡住）。
+- `sdf-box` 80/80 不回归 + G3 证据加注「unit 旋转不暴露该约定，已由 fix 覆盖」。
+- 设备侧（G5）`cuda/common.cu` 已是 `aᵀb` 方向，但需 G5 复核设备 fma 收缩与 warp 是否一致。
+
+### 11.5 本节限制
+
+- 单一 SDF 体积（cube octree；本片重采 octree 三数组与 G3 fixture **逐字节一致**，见
+  `qa-sdf-rotation-cases.json` 的 `oct_files`）；位置/旋转为自造，覆盖单侧与双侧旋转。
+- 只判 host 路径；**未开 GPU 窗口**（G5 独占窗口留给 G5）。
+- 环境同 §8；上游参考仍为同配方 `mujoco_warp 3.15.0 / warp 1.15.0 / mujoco 3.15.0`，device=cpu，
+  5 场景两次捕获位等。
+

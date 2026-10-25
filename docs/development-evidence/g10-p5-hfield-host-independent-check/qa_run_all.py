@@ -52,6 +52,19 @@ def main():
     if result.returncode != 0:
         failures.append("compare")
 
+    # 追加节：SDF 相对旋转约定判定（非单位旋转对）
+    result = run([PYTHON, EVIDENCE / "qa_capture_sdf_rotation.py"], "qa-sdf-capture.log")
+    if result.returncode != 0:
+        failures.append("sdf-capture")
+
+    result = run([PYTHON, EVIDENCE / "qa_probe_sdf_run.py"], "qa-sdf-probe.log")
+    if result.returncode != 0:
+        failures.append("sdf-probe")
+
+    result = run([PYTHON, EVIDENCE / "qa_compare_sdf_rotation.py"], "qa-sdf-compare.log")
+    if result.returncode != 0:
+        failures.append("sdf-compare")
+
     print("failures:", failures if failures else "none")
     if failures:
         sys.exit(1)
