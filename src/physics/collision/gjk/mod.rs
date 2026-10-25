@@ -45,6 +45,8 @@ mod simplex;
 mod support;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod window_debug;
 
 pub use ccd::ccd;
 pub use contact::{CcdContact, CcdOutput, ContactOptions, ccd_pair};
