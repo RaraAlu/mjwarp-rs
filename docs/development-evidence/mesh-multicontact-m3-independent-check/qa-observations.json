@@ -1,0 +1,63 @@
+{
+  "kind": "qa-m3-observations",
+  "task_id": "2026-10-26-mesh-multicontact-m3-independent-check",
+  "observations": [
+    {
+      "id": "O1",
+      "level": "一般",
+      "title": "拆分「纯搬移」表述不准确：CubeMeshPoly 在搬移时新增 vertadr/vertnum 并扩展 over()",
+      "detail": "README §13 写『4 条 mesh-poly 测试 + CubeMeshPoly 数据块原样搬到 validate_mesh_poly_tests.rs（282 行）』与『新子文件正文 == 原文件对应行 逐字节 True』。实测：3 条搬移测试函数体确实逐字不差；但 CubeMeshPoly struct 新增 vertadr/vertnum 两个字段、cube() 初始化这两个数组、over() 增加 mesh_vertadr/mesh_vertnum 两个字段赋值——这是 O7 规则 1（mesh_vertadr/vertnum 长度==nmesh）的必要前提，不是纯搬移。json_f32_bits helper 体逐字一致但签名类型路径 serde_json::Value→Value（import 变化）。",
+      "impact": "不影响判据/产品代码/窗口数据/测试计数（8/7 通过），但『纯搬移』的说法与事实不符。",
+      "suggestion": "改成『测试函数体 verbatim；CubeMeshPoly 因 O7 增加 vertadr/vertnum 字段并扩展 over()』。"
+    },
+    {
+      "id": "O2",
+      "level": "一般",
+      "title": "stage2 record-C 数字错位：『17 条 failures= 行』实为 17 dump / 16 比较行 / 11 条有失败",
+      "detail": "README §9.1 与 receipt 写 stage2『17 条 failures= 含已知 recipe 分岔』。实际：validation-attempt1-stage2_equivalence_window.log 有 17 行『两次一致=true』（dump 行）；stage2-cpu-compare.log 的 case/kernel 汇总行 16 条（8 对 Contact/ContactMulti + sdf-box 单条），其中 failures>0 的 11 条（failures 序列 0,2,2,3,3,1,1,8,8,0,0,6,6,0,0,112）。语义（只记录、含已知 recipe 分岔、非 M3 回归）成立。",
+      "impact": "记录 C 本身不作判据，不影响 M3 结论；数字表述需修正。",
+      "suggestion": "改为『17 dump / 16 条比较行 / 11 条有失败（sdf-box 112 条明细）』。"
+    },
+    {
+      "id": "O3",
+      "level": "一般",
+      "title": "capture 窗 delta 第三口径错：2032 是首样本，采样最小值是 2012",
+      "detail": "README §4.1 与 receipt capture_window.delta_three_measures_mib 写『vs 采样最小 used=2032 → 246』。samples.csv（87 行）实际 used 首样本=2032、最小值=2012（seq 81），故第三口径应为 2278-2012=266。前两口径正确：vs guard_baseline 2040 → 238；vs 第一基线点 2044 → 234。",
+      "impact": "三个口径均 ≪ increment limit 3072，guard 未触发结论不变；属数字/口径错误。",
+      "suggestion": "改为 266（vs 采样最小 2012），或把 246 标注为『vs 首样本 2032』。"
+    },
+    {
+      "id": "O4",
+      "level": "建议",
+      "title": "17 个交付证据日志 UTF-8 带 BOM；一个原始 samples.csv 734 行超过 500 行常规",
+      "detail": "BOM 文件：capture-attempt1-compare/guard/run-a/run-b、frozen-binaries.txt、validation-attempt1-binary-shas.txt、8 个 target 日志、validation guard/stage2-cpu-compare/stage2_equivalence_window 日志共 17 个。validation-attempt1-samples.csv 734 行（原始窗口数据）。其余无 BOM、无控制字符、无禁词。",
+      "impact": "内容无损；与『证据 UTF-8 无 BOM / 单文件 ≤500 行』口径不一致。",
+      "suggestion": "日志统一转无 BOM；samples.csv 注明『原始窗口数据例外』或改为引用 target 原始件 + 摘要。"
+    },
+    {
+      "id": "O5",
+      "level": "建议",
+      "title": "post compute-apps 有 5 条 [Insufficient Permissions] 身份不可见",
+      "detail": "validation 窗 post compute-apps 28 条中 5 条为 Insufficient Permissions（baseline 同口径也有）；按 python|g10_p5|cargo|mjwarp 过滤 =0，无 python/cargo 残留，9/9 exit 0、residual 0。",
+      "impact": "不影响结论；只是身份不可见条目无法逐一排除。",
+      "suggestion": "照 M2 观察继续在证据里注明该噪声不影响结论。"
+    },
+    {
+      "id": "O6",
+      "level": "建议",
+      "title": "拆分前门禁数字只有 addenda 文字，拆前 WIP 未留独立日志",
+      "detail": "receipt test_file_split 声称『拆前 990/0/374；拆后 990/0/374』；拆前状态是未提交 WIP，仓内无拆前 gate 日志，只有任务 JSON addenda『commit hook 拒：两测试文件超 500 行，拆分后重跑门禁』。拆后 990/0/374 我核过（runs + 我的 gate）。",
+      "impact": "『拆前=拆后』只能核文字记录 + 拆后重跑，无法从仓内独立复算拆前数字。",
+      "suggestion": "以后把拆前/拆后 gate 命令与数字留成证据日志（或把拆前树 sha 记进 addenda）。"
+    },
+    {
+      "id": "O7",
+      "level": "建议",
+      "title": "capture 窗 util 80% 的『warp JIT 编译瞬态』归因是推断",
+      "detail": "samples.csv 显示 util 80% 连续 2 个采样点（低于 80%×3 abort 门）；证据归因『warp JIT 编译瞬态』。RUN A 日志可见 ccd kernel 编译 10.35 s（RUN B 缓存命中 0.63 s），支持该归因，但 samples 本身不能证明因果。",
+      "impact": "不影响 guard 未 abort 的事实；属归因措辞。",
+      "suggestion": "注为『推断（RUN A 编译 10.35s 佐证）』。"
+    }
+  ],
+  "counts": {"total": 7, "一般": 3, "建议": 4, "blocking": 0}
+}

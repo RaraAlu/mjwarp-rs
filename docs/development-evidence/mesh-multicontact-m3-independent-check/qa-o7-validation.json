@@ -1,0 +1,62 @@
+{
+  "kind": "qa-m3-o7-validation",
+  "task_id": "2026-10-26-mesh-multicontact-m3-independent-check",
+  "rules": [
+    {
+      "id": 1,
+      "rule": "mesh_vertadr.len()==mesh_vertnum.len()==nmesh; per-mesh non-negative; vertadr+vertnum<=nmeshvert",
+      "index_safety": "runs after the M0a length/range rules; nmeshvert = polymapadr.len()",
+      "device_use": "helpers locate vertex ranges with vertadr",
+      "verdict": "correct"
+    },
+    {
+      "id": 2,
+      "rule": "polyvert elements (per polygon, owner mesh) in [0, mesh_vertnum[owner])",
+      "index_safety": "polygon loop in mesh_polyadr[m]..+mesh_polynum[m] (bounds already checked) and entry loop within polyvertadr/num (bounds already checked)",
+      "device_use": "_mesh_face/_mesh_normals add vertadr then index mesh_vert",
+      "verdict": "correct"
+    },
+    {
+      "id": 3,
+      "rule": "polymap elements (per vertex, owner mesh) in [0, mesh_polynum[owner])",
+      "index_safety": "vertex loop in mesh_vertadr[m]..+mesh_vertnum[m]; entry loop within polymapadr/num",
+      "device_use": "device adds polyadr then indexes polynormal etc.",
+      "verdict": "correct"
+    },
+    {
+      "id": 4,
+      "rule": "when sidecar present, mesh geoms (type 7) dataid in [0, nmesh)",
+      "index_safety": "geom_type/geom_dataid lengths fixed to ngeom by existing validation",
+      "device_use": "build_geom uses mesh_polyadr[dataid]",
+      "verdict": "correct"
+    }
+  ],
+  "run_unchanged": true,
+  "indirect_fake_validation": false,
+  "tests": {
+    "command": "cargo test --locked --lib runtime::collision_gpu::validate",
+    "passed": 8,
+    "failed": 0,
+    "parent_module": 4,
+    "child_module": 4,
+    "names": [
+      "accepts_real_cube_mesh_poly_shapes",
+      "rejects_inconsistent_mesh_poly_sidecar",
+      "rejects_inconsistent_mesh_poly_sums",
+      "rejects_mesh_poly_value_domain_violations",
+      "rejects_invalid_meta_but_accepts_matching_inputs",
+      "rejects_mismatched_slice_lengths",
+      "empty_mesh_poly_sidecar_is_null_and_valid",
+      "rejects_partial_mesh_poly_sidecar"
+    ]
+  },
+  "new_negative_categories": [
+    "vertadr length mismatch",
+    "vertadr+vertnum range",
+    "negative vertnum",
+    "polyvert out of domain",
+    "polymap out of domain",
+    "dataid out of range"
+  ],
+  "old_23bin_cases_unaffected": "sidecar-absent branch returns Ok before the new rules; real_cpu_validation_accepts_m0b_and_old_cases passed"
+}
