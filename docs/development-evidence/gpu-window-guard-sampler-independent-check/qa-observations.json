@@ -1,0 +1,62 @@
+{
+  "task_id": "2026-10-26-gpu-window-guard-sampler-independent-check",
+  "head": "c6531982c43af1445979ce014493c7cfe8b2c214",
+  "kind": "qa-observations",
+  "verdict": "pass (0 blocking, 0 technical defect in the guard/sampler behaviour, 8 observations)",
+  "observations": [
+    {
+      "id": "O1",
+      "summary": "delivery dry-run's increment case aborts on the free-floor rule, so it does not actually exercise the increment>=3072 rule",
+      "detail": "logs/inject-delta.log ends with guard_stop reason=free_below_floor free_mib=8640 (the injected used=7400 implies free=8640 < 10240, and the free check runs before the increment check). Expect-Abort only asserts that some GUARD_ABORT happened. The README table presents the case as proof of the increment rule.",
+      "severity": "observation (test-quality issue in the delivered dry-run; the guard rule itself is correct and QA covered it: 3071 pass, 3072 abort, half-rule total=4000 => 2000 abort)",
+      "suggested_action": "increment case should keep free >= 10240 in the injected snapshot (free/used are independent inputs) and assert the abort reason, not just the fact of an abort"
+    },
+    {
+      "id": "O2",
+      "summary": "sampler stats in README/receipt do not match the committed samples.csv and sampler log",
+      "detail": "README section 3 and receipt.dryrun.sampler say 4199/11863/41; committed logs/samples.csv and logs/sampler-dryrun.log say 4200/11862/39. The dry-run writes into the committed evidence logs by default, so a later run can silently overwrite raw logs while the narrative keeps older numbers.",
+      "severity": "observation",
+      "suggested_action": "re-run with -EvidenceDir under target/ and update the narrative, or state that the numbers describe a specific run"
+    },
+    {
+      "id": "O3",
+      "summary": "claimed 20 assertions vs 18 actually executed",
+      "detail": "a clean dry-run re-execution prints 18 PASS lines (3 parser + 10 sampler + 5 injection) and 0 FAIL; README/receipt say 20 checks.",
+      "severity": "observation"
+    },
+    {
+      "id": "O4",
+      "summary": "Resolve-GuardPwsh toolchain fallback claim does not hold in the shells actually used",
+      "detail": "under Windows PowerShell 5.1 (pwsh not on PATH, target/toolchains/powershell-7.6.7/bin/pwsh.exe exists) Resolve-GuardPwsh returns 'powershell.exe', not the toolchain pwsh. Under pwsh 7.6.7 the fallback resolves only when the caller script's grandparent happens to be the repo root (e.g. caller at <repo>\\target\\qa-guard); for a caller under <repo>\\scripts the double Split-Path yields the repo's parent, so the toolchain scan misses too. Practical impact: none observed - the loop is PS 5.1 compatible and produced 13 samples in both shells - but the README/receipt wording overstates the resolver.",
+      "severity": "observation",
+      "suggested_action": "resolve the repo root from the template file path ($PSScriptRoot of the template script, or a parameter) and test both shells; or relax the documentation"
+    },
+    {
+      "id": "O5",
+      "summary": "empty injected Apps logs contexts=1 (bogus null pid)",
+      "detail": "Assert-Guard assigns $apps = if (...) { @() } else {...}; an empty array branch becomes $null, and $null | ForEach-Object { $_.pid } runs once with $_ = $null, so $pids = @($null) and the log says contexts=1. Abort decisions are unaffected (a $null baseline pid is skipped), but injection/dry-run logs show a misleading context count.",
+      "severity": "observation",
+      "suggested_action": "use @($apps) with an explicit empty-array branch or guard with if ($apps) { ... } else { @() }"
+    },
+    {
+      "id": "O6",
+      "summary": "empty nvidia-smi line raises a parameter-binding error instead of GUARD_ABORT",
+      "detail": "ConvertFrom-GpuCsvLine has [Parameter(Mandatory)][string]$Line; an empty string cannot bind, so the caller sees 'Cannot bind argument to parameter Line because it is an empty string' rather than GUARD_ABORT. Missing columns / non-numeric cells (the acceptance cases) do raise GUARD_ABORT correctly.",
+      "severity": "observation (edge case; no empty-line observation on this machine)"
+    },
+    {
+      "id": "O7",
+      "summary": "capture-phase local-override trigger record is described without a path/line citation",
+      "detail": "the stage-2 samples=0 fact is cited with its evidence path, but the capture attempt-1 [int]-conversion abort + runner local override is only narrated; the record exists in docs/development-evidence/g10-p5-g2-gpu-reference-capture/README.md section 4.1 (attempt-1).",
+      "severity": "observation",
+      "suggested_action": "add the path/section reference next to the sentence"
+    },
+    {
+      "id": "O8",
+      "summary": "implementation receipt has stale status/head",
+      "detail": "docs/development-evidence/gpu-window-guard-sampler/receipt.json says status=in_progress and head=5bcd78f4 (two commits before c6531982), while the task is verified and the delivery commit exists.",
+      "severity": "observation",
+      "suggested_action": "set head to the delivery commit (or its parent per convention) and status accordingly"
+    }
+  ]
+}

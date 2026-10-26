@@ -1,0 +1,36 @@
+{
+  "task_id": "2026-10-26-gpu-window-guard-sampler-independent-check",
+  "kind": "qa-parser",
+  "head": "c6531982c43af1445979ce014493c7cfe8b2c214",
+  "reviewed_commit": "c6531982 (scripts + evidence only)",
+  "method": "own PowerShell script (scripts/qa-guard-check.ps1) dot-sources scripts/gpu-window-guard.ps1 and calls ConvertFrom-GpuCsvLine / Get-GpuSnapshot directly; run under pwsh 7.6.7 and Windows PowerShell 5.1; delivery dryrun not used for these numbers",
+  "unit_suffixed": { "input": "4165 MiB, 11875 MiB, 38 %", "result": "used=4165 free=11875 util=38", "pass": true },
+  "bare_numeric": { "input": "4165,11875,38", "result": "used=4165 free=11875 util=38", "pass": true },
+  "extra_column_temperature": { "input": "4165 MiB, 11875 MiB, 38 %, 33", "result": "used=4165 free=11875 util=38 (first 3 columns used)", "pass": true },
+  "invalid_inputs": [
+    { "case": "two_columns", "input": "4165 MiB, 11875 MiB", "behaviour": "throw GUARD_ABORT: cannot parse nvidia-smi line (need >=3 columns)", "is_int32_exception": false, "pass": true },
+    { "case": "na_column", "input": "4165 MiB, N/A MiB, 38 %", "behaviour": "throw GUARD_ABORT: cannot parse nvidia-smi column 2 as integer", "is_int32_exception": false, "pass": true },
+    { "case": "non_numeric", "input": "abc, def, ghi", "behaviour": "throw GUARD_ABORT (column 1)", "is_int32_exception": false, "pass": true },
+    { "case": "decimal", "input": "4165.5 MiB, 11875 MiB, 38 %", "behaviour": "throw GUARD_ABORT (column 1)", "is_int32_exception": false, "pass": true },
+    { "case": "negative", "input": "-1 MiB, 11875 MiB, 38 %", "behaviour": "throw GUARD_ABORT (column 1)", "is_int32_exception": false, "pass": true }
+  ],
+  "edge_empty_line": {
+    "input": "",
+    "behaviour": "PowerShell parameter-binding error because [Parameter(Mandatory)][string]$Line rejects an empty string: 'Cannot bind argument to parameter Line because it is an empty string'",
+    "is_guard_abort": false,
+    "note": "not part of the acceptance list (missing columns / non-numeric are); only reachable if nvidia-smi returns an empty line, which was not observed; recorded as an observation"
+  },
+  "live_queries_read_only": {
+    "live_line": "4194 MiB, 11868 MiB, 38 %",
+    "parsed": "used=4194 free=11868 util=38",
+    "get_gpu_snapshot": "used=4194 free=11868 util=37 (second query)",
+    "compute_apps_rows": 34,
+    "note": "only read-only nvidia-smi queries; no CUDA context was created by QA"
+  },
+  "old_behaviour_reproduced": {
+    "method": "re-implemented the parent commit 627b989d parser inline (filter cells matching ^\\d+, then [int]) against the live units line",
+    "result": "throws System.Int32 conversion exception: Cannot convert value \"4194 MiB\" to type \"System.Int32\"",
+    "matches_capture_attempt1_abort_record": true
+  },
+  "conclusion": "unit-suffixed and bare-numeric forms both parse; missing column and non-numeric cells raise an explicit GUARD_ABORT (never an Int32 conversion exception). Empty-line edge is a parameter-binding error (observation only)."
+}

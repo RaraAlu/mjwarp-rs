@@ -1,0 +1,52 @@
+{
+  "task_id": "2026-10-26-gpu-window-guard-sampler-independent-check",
+  "title": "GPU 窗口守卫采样器修复的 QA 独立复核（采样落盘/guard 生效/带单位解析/阈值未放宽）",
+  "status": "pass",
+  "reviewer": "QA",
+  "checked": {
+    "delivery_task": "2026-10-26-gpu-window-guard-sampler",
+    "head": "c6531982c43af1445979ce014493c7cfe8b2c214",
+    "parent": "627b989d3d5c04e1c6623edcc38560bfc8c69adf"
+  },
+  "verdict": {
+    "blocking": 0,
+    "observations": 8,
+    "summary": "parser units/bare/invalid behaviour, unchanged thresholds, guard abort rules via injected sequences, and sampler persistence all reproduce independently. Observations are delivery evidence/test-quality issues: one dry-run case aborts on the wrong rule, stale sampler numbers, assertion-count mismatch, Resolve-GuardPwsh fallback claim, empty-apps log count, empty-line edge, citation gap, stale implementation receipt head."
+  },
+  "my_key_numbers": {
+    "parser": { "units": "4165/11875/38", "bare": "4165/11875/38", "invalid_cases": 5, "all_guard_abort_not_int32": true, "live_line_parsed": true },
+    "thresholds": { "free_floor_mib": 10240, "increment_limit_mib": 3072, "util_abort_percent": 80, "util_abort_consecutive": 3, "threshold_lines_changed_in_diff": 0 },
+    "guard_injections": { "cases": 12, "failures": 0, "increment_3072_abort": true, "increment_3071_pass": true, "half_rule_2000_abort": true },
+    "sampler": {
+      "pwsh_7_6_7": { "samples": 13, "rows_match_stats": true, "flushed_before_stop": 4, "stats": "4199/11863/40", "residual": 0 },
+      "windows_powershell_5_1": { "samples": 13, "rows_match_stats": true, "flushed_before_stop": 5, "stats": "4201/11861/40", "residual": 0 },
+      "no_open_handle_after_stop": true,
+      "no_residual_loop_process": true
+    },
+    "delivery_dryrun_rerun_in_scratch": { "exit": 0, "pass_lines": 18, "fail_lines": 0 },
+    "scope": { "changed_files": 19, "scripts": 3, "evidence_files": 11, "product_or_gate_changes": 0 },
+    "gpu_windows_used_by_qa": 0,
+    "cuda_context_created_by_qa": false
+  },
+  "boundaries": [
+    "CPU only: read-only nvidia-smi queries; no GPU window, no CUDA context, no GPU compute",
+    "guard online behaviour inside a real window was not re-tested (this slice is a pure-CPU verification)",
+    "the exact stage-2 attempt4 runner is not committed; only the observable samples=0 symptom and the fixed sampler contrast are reproduced",
+    "no claim of cross-environment or cross-shell all-green; only the two shells tested here are reported",
+    "does not claim precision or acceptance conclusions"
+  ],
+  "gate_and_check_runs": ".normify/runs/2026-10-26-gpu-window-guard-sampler-independent-check/ (gate stdout kept under target/qa-guard/, not written into this evidence directory to keep the gate scope stable)",
+  "artifacts": [
+    "README.md",
+    "receipt.json",
+    "qa-parser.json",
+    "qa-thresholds-guard.json",
+    "qa-sampler.json",
+    "qa-trigger.json",
+    "qa-range-evidence.json",
+    "qa-observations.json",
+    "logs/",
+    "scripts/",
+    "artifacts-sha256.json"
+  ]
+}

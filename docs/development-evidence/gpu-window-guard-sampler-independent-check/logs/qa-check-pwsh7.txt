@@ -1,0 +1,54 @@
+PASS parser_units used=4165 free=11875 util=38
+PASS parser_bare used=4165 free=11875 util=38
+PASS parser_extra_col_temperature_ok used=4165
+PASS parser_invalid_two_columns msg=GUARD_ABORT: cannot parse nvidia-smi line (need >=3 columns): 4165 MiB
+PASS parser_invalid_na_column msg=GUARD_ABORT: cannot parse nvidia-smi column 2 as integer: 'N/A MiB' in
+PASS parser_invalid_non_numeric msg=GUARD_ABORT: cannot parse nvidia-smi column 1 as integer: 'abc' in lin
+PASS parser_invalid_decimal msg=GUARD_ABORT: cannot parse nvidia-smi column 1 as integer: '4165.5 MiB'
+PASS parser_invalid_negative msg=GUARD_ABORT: cannot parse nvidia-smi column 1 as integer: '-1 MiB' in 
+INFO parser_empty_line_error=Cannot bind argument to parameter 'Line' because it is an empty string.
+PASS parser_live_units_line line='4195 MiB, 11867 MiB, 38 %' -> used=4195 free=11867 util=38
+PASS live_snapshot_via_parser used=4195 free=11867 util=38
+INFO live_contexts=34
+PASS threshold_free_floor_10240 value=10240
+PASS threshold_increment_3072 value=3072
+PASS threshold_util_80 value=80
+PASS threshold_util_consecutive_3 value=3
+PASS inject_normal_no_abort 
+PASS log_sample_format_unchanged guard_sample field order
+INFO injected_empty_apps_log=guard_baseline used_mib=4000 free_mib=12000 util=30 contexts=1
+
+PASS inject_free_10240_not_abort 
+PASS inject_free_10239_abort GUARD_ABORT(qa-free-bad): free VRAM 10239 MiB < 10240 MiB
+PASS log_free_reason log reason
+PASS inject_delta_3071_not_abort 
+PASS inject_delta_3072_abort GUARD_ABORT(qa-delta-bad): VRAM increment 3072 MiB >= 3072 MiB
+PASS log_delta_reason log reason
+PASS inject_half_total_limit_2000 GUARD_ABORT(qa-half): VRAM increment 2000 MiB >= 2000 MiB
+PASS inject_util_79_no_abort 
+PASS inject_util_streak_resets 
+PASS inject_util_3x80_abort GUARD_ABORT(qa-util-bad): GPU util >= 80% for 3 samples without own step
+PASS log_util_reason log reason
+PASS inject_util_with_own_step_no_abort 
+PASS inject_new_desktop_context_no_abort 
+PASS inject_new_foreign_context_abort GUARD_ABORT(qa-apps-bad): foreign GPU context 999999:foreign.exe:D:\Tools\foreign.exe
+INFO child_pid=66660 child_path=D:\Rust\mjwarp-rs\target\toolchains\powershell-7.6.7\bin\pwsh.exe
+PASS sampler_csv_header header=seq,timestamp,used_mib,free_mib,util_percent,temperature_c
+PASS sampler_rows_equal_stats stats=13 csv=13
+PASS sampler_at_least_10 samples=13
+PASS sampler_flushed_before_stop rows_after_1.4s=4
+PASS sampler_seq_1_n 
+PASS sampler_timestamp_monotonic first=2026-10-26T18:46:20.9708060+08:00 last=2026-10-26T18:46:24.2976172+08:00
+PASS sampler_fields_parsable 
+PASS sampler_peak_matches_csv stats=4199 csv=4199
+PASS sampler_free_min_matches_csv stats=11863 csv=11863
+PASS sampler_util_max_matches_csv stats=40 csv=40
+PASS sampler_process_exited exited=True
+PASS sampler_stop_file_removed D:\Rust\mjwarp-rs\target\qa-guard\out-ps7\samples.csv.stop
+PASS sampler_csv_no_open_handle exclusive open after stop
+PASS sampler_no_residual_loop_process residual=0
+PASS sampler_residual_counter_zero stats_residual=0
+INFO resolver shell=7.6.7 pwsh_on_path=True toolchain=D:\Rust\mjwarp-rs\target\toolchains\powershell-7.6.7\bin\pwsh.exe resolved=D:\Rust\mjwarp-rs\target\toolchains\powershell-7.6.7\bin\pwsh.exe
+PASS resolve_guard_pwsh_usable resolved=D:\Rust\mjwarp-rs\target\toolchains\powershell-7.6.7\bin\pwsh.exe
+SUMMARY failures=0 
+QA GUARD CHECK: PASS

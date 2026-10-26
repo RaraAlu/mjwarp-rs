@@ -1,0 +1,70 @@
+{
+  "task_id": "2026-10-26-gpu-window-guard-sampler-independent-check",
+  "kind": "qa-range-and-delivery-evidence",
+  "head": "c6531982c43af1445979ce014493c7cfe8b2c214",
+  "scope": {
+    "diff_range": "627b989d..c6531982",
+    "changed_files": 19,
+    "scripts": ["scripts/gpu-window-guard.ps1 (+104/-6)", "scripts/gpu-guard-sampler-loop.ps1 (+23 new)", "scripts/gpu-window-guard-dryrun.ps1 (+128 new)"],
+    "evidence": "docs/development-evidence/gpu-window-guard-sampler/ (11 files)",
+    "normify": ".normify/changes/2026-10-26-gpu-window-guard-sampler.json + 4 gate run records",
+    "product_source_touched": false,
+    "tests_touched": false,
+    "gates_toml_touched": false,
+    "fixtures_touched": false,
+    "window_logs_added": false,
+    "conclusion": "scope is scripts-only plus evidence; no product code, judging criteria, tolerance, gates.toml GPU gate definitions or already-verified evidence semantics changed"
+  },
+  "no_gpu_window_or_context": {
+    "changed_scripts_cuda_api_references": "0 (grep for cudarc/CudaContext/CUDA_VISIBLE/nvrtc; the only hits are comments such as an example exe name and the Start-Job rationale comment)",
+    "changed_scripts_start_job_calls": "0 (only a comment; the sampler is a real child process)",
+    "nvidia_smi_usage": "read-only --query-gpu / --query-compute-apps queries only",
+    "delivery_evidence_window_files": 0,
+    "delivery_gate_runs_resources": "empty (fmt/clippy/clippy-cuda/unit only)",
+    "qa_side": "QA also used only read-only nvidia-smi; no CUDA context created, no GPU window opened"
+  },
+  "delivery_evidence_quality": {
+    "files": 11,
+    "bom_files": 0,
+    "files_over_500_lines": 0,
+    "binary_files": 0,
+    "largest_file": "logs/samples.csv (656 bytes, 12 lines)",
+    "verdict": "format requirements met"
+  },
+  "delivery_gate_runs": {
+    "fmt": "passed, 1509 ms",
+    "clippy": "passed, 454 ms (cached, no re-lint)",
+    "clippy-cuda": "passed, 403 ms (cached, no re-lint)",
+    "unit": "passed, 11254 ms, 971/0 (the actual test execution)"
+  },
+  "delivery_dryrun_cross_check": {
+    "method": "ran scripts/gpu-window-guard-dryrun.ps1 with -EvidenceDir pointing at a scratch directory (not the committed evidence logs)",
+    "exit": 0,
+    "pass_lines": 18,
+    "fail_lines": 0,
+    "result_line": "DRYRUN RESULT: PASS (parser+sampler+guard-injection)",
+    "sampler_stats_on_rerun": "samples=11 used_peak=4199 free_min=11863 util_max=39 process_exited=True residual=0",
+    "delta_case_abort_reason": "free_below_floor (free 8640) - the increment rule was not exercised (see qa-thresholds-guard.json)"
+  },
+  "numeric_inconsistencies_in_committed_evidence": [
+    {
+      "where": "delivery README section 3 table and receipt.dryrun.sampler",
+      "claimed": "samples=11 used_peak=4199 free_min=11863 util_max_percent=41",
+      "committed_raw_logs": "logs/samples.csv => used_peak=4200 free_min=11862 util_max=39; logs/sampler-dryrun.log => 4200/11862/39",
+      "explanation": "likely from an earlier dry-run run whose raw files were later overwritten by another run (the dry-run writes into the committed evidence logs directory by default)",
+      "severity": "observation"
+    },
+    {
+      "where": "delivery README section 3 and receipt.dryrun.checks",
+      "claimed": "20 assertions",
+      "actual": "18 PASS lines from a clean dry-run re-execution (3 parser + 10 sampler + 5 injection); the Check call sites are 3 direct + 10 direct + 2 inside Expect-Abort/Expect-Pass invoked 5 times",
+      "severity": "observation"
+    }
+  ],
+  "implementation_receipt_fields": {
+    "status": "in_progress",
+    "head": "5bcd78f4 (two commits before the delivery commit c6531982)",
+    "observed_task_state": "task JSON status=verified, revision.before=627b989d, commit c6531982 exists",
+    "severity": "observation (stale head/status in the implementation receipt)"
+  }
+}

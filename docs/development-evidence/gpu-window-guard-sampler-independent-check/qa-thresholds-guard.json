@@ -1,0 +1,46 @@
+{
+  "task_id": "2026-10-26-gpu-window-guard-sampler-independent-check",
+  "kind": "qa-thresholds-and-guard-injections",
+  "head": "c6531982c43af1445979ce014493c7cfe8b2c214",
+  "thresholds_unchanged": {
+    "defaults_from_current_template": { "free_floor_mib": 10240, "increment_limit_mib": 3072, "util_abort_percent": 80, "util_abort_consecutive": 3, "total_mib": 16376 },
+    "diff_627b989d_to_c6531982_on_scripts/gpu-window-guard.ps1": {
+      "removed_lines": [
+        "old Get-GpuSnapshot body: 3 lines (split/filter/[int]) replaced by ConvertFrom-GpuCsvLine",
+        "[switch]$OwnGpuStepActive parameter line replaced by the same switch plus -Snapshot/-Apps seam",
+        "$snapshot = Get-GpuSnapshot and $apps = Get-GpuContextApps replaced by seam-aware selection"
+      ],
+      "threshold_or_rule_lines_removed": 0,
+      "threshold_lines_added": 0,
+      "log_format_changed": false,
+      "guard_rule_lines_unchanged": "foreign-context check, free<floor, increment>=min(3072, total/2), util 80% x3 without own step, guard_sample/guard_stop/guard_end line formats are untouched"
+    }
+  },
+  "my_boundary_tests": {
+    "note": "injected via Assert-Guard -Snapshot/-Apps only (pure CPU); each state uses a new -LogPath under target/qa-guard/",
+    "normal_sequence_30_40_30": { "aborted": false, "pass": true },
+    "free_exactly_10240": { "aborted": false, "pass": true },
+    "free_10239": { "aborted": true, "message": "GUARD_ABORT: free VRAM 10239 MiB < 10240 MiB", "log_reason": "guard_stop reason=free_below_floor", "pass": true },
+    "increment_3071": { "aborted": false, "pass": true },
+    "increment_3072": { "aborted": true, "message": "GUARD_ABORT: VRAM increment 3072 MiB >= 3072 MiB", "log_reason": "guard_stop reason=increment_over_limit", "pass": true },
+    "stricter_of_half_rule_total_4000": { "aborted": true, "message": "VRAM increment 2000 MiB >= 2000 MiB", "pass": true },
+    "util_79_x3": { "aborted": false, "pass": true },
+    "util_streak_resets_85_85_30_85_85": { "aborted": false, "pass": true },
+    "util_80_90_88": { "aborted": true, "message": "GUARD_ABORT: GPU util >= 80% for 3 samples without own step", "log_reason": "guard_stop reason=sustained_util_without_own_step", "pass": true },
+    "util_95_x3_with_OwnGpuStepActive": { "aborted": false, "pass": true },
+    "new_desktop_context_injected": { "aborted": false, "note": "whitelisted path is observation only", "pass": true },
+    "new_foreign_context_injected": { "aborted": true, "message": "GUARD_ABORT: foreign GPU context 999999:foreign.exe:D:\\Tools\\foreign.exe", "pass": true }
+  },
+  "guard_effectively_consumes_samples": "Assert-Guard really evaluates each injected sample: abort reasons are written to the state log (guard_stop reason=...) and the three threshold families fire exactly at the documented boundaries; own GPU step suppresses only the util rule, as before",
+  "log_format": "guard_sample line fields unchanged: phase, n, used_mib, free_mib, util, delta_mib, contexts, own_step",
+  "edge_observed": {
+    "contexts_count_with_empty_injected_apps": "log shows contexts=1 even though the injected Apps array is empty; cause: `$apps = if (...) { @() } else {...}` yields $null for the empty branch, and `$null | ForEach-Object { $_.pid }` runs once producing a bogus $null pid. Abort decisions are unaffected (baseline pid list contains $null and is skipped), but the log count is misleading in injection/dry-run logs.",
+    "applies_to": "both my injected runs and the delivery dry-run logs (inject-*.log show contexts=1)"
+  },
+  "delivery_dryrun_increment_case_defect": {
+    "observed_in_committed_log": "logs/inject-delta.log guard_stop reason=free_below_floor free_mib=8640 floor=10240",
+    "meaning": "the delivery dry-run's increment case (used 4165 -> 7400, free 8640) aborts on the free-floor rule before the increment rule is evaluated, and Expect-Abort only asserts that some GUARD_ABORT happened, so the increment>=3072 rule was not actually exercised by the delivered dry-run",
+    "my_independent_coverage": "increment 3071 pass / 3072 abort / half-rule total=4000 => 2000 abort, all verified with free >= floor in the injected snapshot",
+    "guard_code_impact": "none; the rule itself works (see my boundary tests)"
+  }
+}

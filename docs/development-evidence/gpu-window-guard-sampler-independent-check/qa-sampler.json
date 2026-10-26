@@ -1,0 +1,53 @@
+{
+  "task_id": "2026-10-26-gpu-window-guard-sampler-independent-check",
+  "kind": "qa-sampler-persistence",
+  "head": "c6531982c43af1445979ce014493c7cfe8b2c214",
+  "method": "own script dot-sources scripts/gpu-window-guard.ps1, calls Start-GuardSampler -CsvPath <scratch>/samples.csv -IntervalMs 250, waits 400 ms + 1.0 s + 2.2 s (>= 3 s), then Stop-GuardSampler -TimeoutSeconds 10; CSV parsed independently with Import-Csv; run under both pwsh 7.6.7 and Windows PowerShell 5.1",
+  "runs": {
+    "pwsh_7_6_7": {
+      "child_process_path": "D:\\Rust\\mjwarp-rs\\target\\toolchains\\powershell-7.6.7\\bin\\pwsh.exe",
+      "samples": 13,
+      "csv_rows": 13,
+      "at_least_10": true,
+      "rows_flushed_before_stop": 4,
+      "seq_1_to_n": true,
+      "timestamps_monotonic": true,
+      "fields_parsable": true,
+      "used_peak_mib": 4199,
+      "free_min_mib": 11863,
+      "util_max_percent": 40,
+      "stats_match_csv": true,
+      "process_exited": true,
+      "residual_processes_from_stats": 0,
+      "no_residual_loop_process_by_commandline": true,
+      "stop_file_removed": true,
+      "csv_openable_exclusively_after_stop": true,
+      "csv_header": "seq,timestamp,used_mib,free_mib,util_percent,temperature_c",
+      "failures": 0
+    },
+    "windows_powershell_5_1": {
+      "child_process_path": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "samples": 13,
+      "csv_rows": 13,
+      "at_least_10": true,
+      "rows_flushed_before_stop": 5,
+      "seq_1_to_n": true,
+      "timestamps_monotonic": true,
+      "fields_parsable": true,
+      "used_peak_mib": 4201,
+      "free_min_mib": 11861,
+      "util_max_percent": 40,
+      "stats_match_csv": true,
+      "process_exited": true,
+      "residual_processes_from_stats": 0,
+      "no_residual_loop_process_by_commandline": true,
+      "stop_file_removed": true,
+      "csv_openable_exclusively_after_stop": true,
+      "failures": 0
+    }
+  },
+  "checks_summary": "samples.csv exists with the documented header; rows == returned samples; >= 10 samples in >= 3 s; seq is 1..n; timestamps monotonic and parseable; numeric fields parse; used peak / free min / util max re-computed from the CSV equal Stop-GuardSampler's stats; the child exits; stop file removed; no sampler-loop process remains (Get-CimInstance command-line scan); CSV can be opened exclusively afterwards (no leaked file handle)",
+  "no_start_job": "the fixed template contains no Start-Job call (only a comment explaining why Start-Job was replaced); the sampler runs scripts/gpu-guard-sampler-loop.ps1 as a real child process",
+  "gpu_work": "only read-only nvidia-smi --query-gpu queries from the loop; no CUDA API reference (cudarc/CudaContext/nvrtc) exists in the changed scripts",
+  "conclusion": "sampler persistence works in both shells: every 0.25 s sample is flushed immediately, Stop joins the child and returns stats that match an independent CSV recompute, and nothing is left running or locked."
+}

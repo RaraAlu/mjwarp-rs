@@ -1,0 +1,34 @@
+{
+  "task_id": "2026-10-26-gpu-window-guard-sampler-independent-check",
+  "kind": "qa-trigger-evidence",
+  "head": "c6531982c43af1445979ce014493c7cfe8b2c214",
+  "stage2_trigger_fact": {
+    "source_evidence": "docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/window-attempt4-and-b-classification.md section 2 deviation 1",
+    "delivery_readme_cites_it": "dedicated window doc path is cited in the delivery README section 1.1",
+    "machine_local_raw_artifacts_rechecked_by_qa": {
+      "facts_txt": "target/stage2-impl/window/attempt4/facts.txt contains 'samples=0 used_max= free_min= util_max= temp_max='",
+      "samples_csv": "target/stage2-impl/window/attempt4/samples.csv is 26 bytes, 1 line, header 'time,used,free,util,temp' (no data rows)"
+    },
+    "conclusion": "the samples=0 fact is real and the delivery README cites it with a path"
+  },
+  "capture_trigger_fact": {
+    "record": "docs/development-evidence/g10-p5-g2-gpu-reference-capture/README.md section 4.1 attempt-1: the shared template Get-GpuSnapshot applied [int] to '4165 MiB, 11897 MiB, 38 %' and aborted guard preconditions; the capture runner then locally overrode Get-GpuSnapshot with a nounits integer parse",
+    "delivery_readme": "section 1.2 describes the same fact ('capture phase had to locally override the runner') but without a path/line citation",
+    "record_found_by_qa": true,
+    "citation_gap": "observation only; content is accurate"
+  },
+  "reproduction": {
+    "old_parser_abort": {
+      "method": "re-implemented the parent 627b989d parser inline and ran it on the live units line '4194 MiB, 11868 MiB, 38 %'",
+      "result": "Cannot convert value \"4194 MiB\" to type \"System.Int32\"",
+      "matches_capture_attempt1_abort_record": true
+    },
+    "start_job_sampler_zero_rows": {
+      "method": "replicated a Start-Job sampler (0.25 s loop, nvidia-smi nounits, Add-Content) with header-only CSV; 2 s observation",
+      "result": "expected CSV stays header-only (0 data rows); a clock-only Start-Job writes fine (9 lines) and a one-shot nvidia-smi inside Start-Job works (exit 0), so the job mechanism itself is alive; a debug variant of the loop completed only 1 iteration within 2 s because job start-up dominates a short observation window",
+      "interpretation": "the observable stage-2 symptom (samples=0 in the expected CSV) is reproducible with the old Start-Job style; the exact stage-2 attempt4 runner is not committed, so the precise mechanism cannot be pinned. The delivery explanation (no samples -> guard consumed nothing, only pre/post snapshots and per-step walls) is consistent with the samples=0 artifact.",
+      "new_sampler_contrast": "the fixed child-process sampler produced 13 samples in 3.2 s in the same session (both pwsh 7.6.7 and Windows PowerShell 5.1)"
+    }
+  },
+  "why_guard_was_ineffective_consistent": "with an empty samples.csv there are no continuous util/used samples for the guard to consume; the window only had pre/post snapshots and per-step walls, which is exactly what the stage-2 window doc reports; the fix restores persisted 0.25 s samples and Stop-GuardSampler returns samples/peak/free_min/util_max computed from that CSV"
+}
