@@ -1,31 +1,32 @@
 # Pure-CPU dry-run for the GPU window guard template (no CUDA context, read-only nvidia-smi).
 #
-# Verifies:
-#  A. `ConvertFrom-GpuCsvLine` accepts unit-suffixed (`4165 MiB, 11875 MiB, 38 %`) and bare numeric
-#     (`4165, 11875, 38`) forms; invalid input raises `GUARD_ABORT` (not an [int] exception).
-#  B. `Start-GuardSampler`/`Stop-GuardSampler` persist every 0.25 s sample to `samples.csv` with
-#     immediate flush; Stop joins the child with timeout; stats match an independent CSV recompute;
-#     no residual process.
-#  C. Guard rules really consume samples: injected sequences (no live load) prove
-#     util>=80% for 3 consecutive samples without own step aborts, own-step active does not abort,
-#     normal sequence does not abort, and the memory rules (free<10240 / increment>=3072) still fire.
+# A. `ConvertFrom-GpuCsvLine` accepts unit-suffixed / bare numeric forms; empty / invalid -> GUARD_ABORT.
+# B. `Start-GuardSampler`/`Stop-GuardSampler` persist every 0.25 s sample (immediate flush), Stop joins
+#    the child with timeout; stats match an independent CSV recompute; no residual process.
+# C. Injected sequences (no live load) prove the guard rules: util>=80% x3 without own step, free floor,
+#    VRAM increment (with injected `-TotalMib` so the half-total limit is reachable), normal/own-step pass.
 #
-# Usage: pwsh -NoProfile -File scripts/gpu-window-guard-dryrun.ps1 [-EvidenceDir <dir>] [-Seconds 3.2]
+# Output goes to `-OutDir` (default: target/gpu-window-guard-sampler-dryrun/<timestamp>); it never writes
+# into committed evidence by default — copy is an explicit evidence step.
 param(
-    [string]$EvidenceDir = '',
+    [string]$OutDir = '',
     [double]$Seconds = 3.2
 )
 $ErrorActionPreference = 'Stop'
 $script:failures = @()
+$script:total = 0
+$script:pass = 0
 function Check([string]$Name, [bool]$Ok, [string]$Detail = '') {
-    if ($Ok) { Write-Output "PASS $Name $Detail" } else { Write-Output "FAIL $Name $Detail"; $script:failures += $Name }
+    $script:total++
+    if ($Ok) { $script:pass++; Write-Output "PASS $Name $Detail" } else { Write-Output "FAIL $Name $Detail"; $script:failures += $Name }
 }
-if (-not $EvidenceDir) { $EvidenceDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'docs/development-evidence/gpu-window-guard-sampler/logs' }
-New-Item -ItemType Directory -Force -Path $EvidenceDir | Out-Null
+if (-not $OutDir) { $OutDir = Join-Path (Split-Path -Parent $PSScriptRoot) ('target/gpu-window-guard-sampler-dryrun/' + (Get-Date -Format 'yyyyMMdd-HHmmss')) }
+New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+Write-Output "dryrun out_dir=$OutDir"
 . (Join-Path $PSScriptRoot 'gpu-window-guard.ps1')
 
 # ---- A. unit-suffixed CSV parsing -------------------------------------------------------------
-$parserLog = Join-Path $EvidenceDir 'parser-dryrun.log'
+$parserLog = Join-Path $OutDir 'parser-dryrun.log'
 $lines = @()
 $units = ConvertFrom-GpuCsvLine -Line '4165 MiB, 11875 MiB, 38 %'
 $bare = ConvertFrom-GpuCsvLine -Line '4165, 11875, 38'
@@ -33,22 +34,23 @@ $lines += "units: used=$($units.used) free=$($units.free) util=$($units.util)"
 $lines += "bare:  used=$($bare.used) free=$($bare.free) util=$($bare.util)"
 Check 'parser_units' ($units.used -eq 4165 -and $units.free -eq 11875 -and $units.util -eq 38)
 Check 'parser_bare' ($bare.used -eq 4165 -and $bare.free -eq 11875 -and $bare.util -eq 38)
-$aborted = $false
-try { $null = ConvertFrom-GpuCsvLine -Line '4165 MiB, N/A MiB, 38 %' } catch { $aborted = $_.Exception.Message -match 'GUARD_ABORT' }
-Check 'parser_invalid_is_guard_abort' $aborted
+$badAbort = $false
+try { $null = ConvertFrom-GpuCsvLine -Line '4165 MiB, N/A MiB, 38 %' } catch { $badAbort = $_.Exception.Message -match 'GUARD_ABORT' }
+Check 'parser_invalid_is_guard_abort' $badAbort
+$emptyAbort = $false
+try { $null = ConvertFrom-GpuCsvLine -Line '' } catch { $emptyAbort = $_.Exception.Message -match 'GUARD_ABORT' }
+Check 'parser_empty_is_guard_abort' $emptyAbort
 $lines | Out-File -LiteralPath $parserLog -Encoding utf8
 Write-Output ($lines -join '; ')
 
 # ---- B. real 0.25 s sampler dry-run (>=3 s) ----------------------------------------------------
-$sampleCsv = Join-Path $EvidenceDir 'samples.csv'
-$samplerLog = Join-Path $EvidenceDir 'sampler-dryrun.log'
+$sampleCsv = Join-Path $OutDir 'samples.csv'
+$samplerLog = Join-Path $OutDir 'sampler-dryrun.log'
 $sampler = Start-GuardSampler -CsvPath $sampleCsv -IntervalMs 250
 Start-Sleep -Seconds $Seconds
 $stats = Stop-GuardSampler -Sampler $sampler -TimeoutSeconds 10
 $rows = @(Import-Csv -LiteralPath $sampleCsv)
-$seqOk = $true
-$monotonic = $true
-$parsable = $true
+$seqOk = $true; $monotonic = $true; $parsable = $true
 for ($i = 0; $i -lt $rows.Count; $i++) {
     if ([int]$rows[$i].seq -ne ($i + 1)) { $seqOk = $false }
     if ($rows[$i].timestamp -notmatch '^\d{4}-\d{2}-\d{2}T') { $parsable = $false }
@@ -72,57 +74,65 @@ Check 'sampler_no_residual_process' ($stats.residual_processes -eq 0) "residual=
     Out-File -LiteralPath $samplerLog -Encoding utf8
 
 # ---- C. injected-sequence guard verification (no live load) ------------------------------------
-$injectLog = Join-Path $EvidenceDir 'injection-dryrun.log'
+$injectLog = Join-Path $OutDir 'injection-dryrun.log'
 $inject = @()
-function Expect-Abort([string]$Name, [scriptblock]$Action) {
-    $caught = $false
-    try { & $Action } catch { $caught = $_.Exception.Message -match 'GUARD_ABORT' }
-    $script:inject += "case=$Name abort=$caught"
-    Check "inject_$Name" $caught
-}
-function Expect-Pass([string]$Name, [scriptblock]$Action) {
-    $threw = $false
-    try { & $Action } catch { $threw = $true; $script:inject += "case=$Name abort=true msg=$($_.Exception.Message)" }
-    if (-not $threw) { $script:inject += "case=$Name abort=false" }
-    Check "inject_$Name" (-not $threw)
-}
 $appNone = @()
-# normal sequence: 3 samples, util 30/40/30 -> no abort, streak resets
-$state = New-GuardState -Label 'inject-normal' -LogPath (Join-Path $EvidenceDir 'inject-normal.log')
-Expect-Pass 'normal_sequence' {
+function Run-Expect([string]$Name, [string]$Expect, [string]$LogPath, [scriptblock]$Action) {
+    # $Expect = 'none' (no abort) or a concrete guard reason (free_below_floor /
+    # increment_over_limit / sustained_util_without_own_step) asserted from the guard log.
+    $caught = $false
+    $message = ''
+    try { & $Action } catch { $caught = $true; $message = $_.Exception.Message }
+    if ($Expect -eq 'none') {
+        $script:inject += "case=$Name abort=$caught"
+        Check "inject_$Name" (-not $caught) ''
+        return
+    }
+    $logText = if (Test-Path -LiteralPath $LogPath) { [IO.File]::ReadAllText($LogPath) } else { '' }
+    $reasonOk = ($logText -match ("guard_stop reason=" + [regex]::Escape($Expect)))
+    $script:inject += "case=$Name abort=$caught expect_reason=$Expect reason_seen=$reasonOk"
+    Check "inject_$Name" ($caught -and $reasonOk) "expect=$Expect seen=$reasonOk"
+}
+# normal sequence -> no abort
+$log = Join-Path $OutDir 'inject-normal.log'
+$state = New-GuardState -Label 'inject-normal' -LogPath $log
+Run-Expect 'normal_sequence' 'none' $log {
     $null = Assert-Guard -State $state -Phase 'n1' -Snapshot @{ used = 4165; free = 11875; util = 30 } -Apps $appNone
     $null = Assert-Guard -State $state -Phase 'n2' -Snapshot @{ used = 4165; free = 11875; util = 40 } -Apps $appNone
     $null = Assert-Guard -State $state -Phase 'n3' -Snapshot @{ used = 4165; free = 11875; util = 30 } -Apps $appNone
 }
-# util streak without own step: 85/90/88 -> abort (3 consecutive >= 80)
-$state = New-GuardState -Label 'inject-util' -LogPath (Join-Path $EvidenceDir 'inject-util.log')
-Expect-Abort 'util_streak_without_own_step' {
+# util streak without own step -> abort reason=sustained_util_without_own_step
+$log = Join-Path $OutDir 'inject-util.log'
+$state = New-GuardState -Label 'inject-util' -LogPath $log
+Run-Expect 'util_streak_without_own_step' 'sustained_util_without_own_step' $log {
     $null = Assert-Guard -State $state -Phase 'u1' -Snapshot @{ used = 4165; free = 11875; util = 85 } -Apps $appNone
     $null = Assert-Guard -State $state -Phase 'u2' -Snapshot @{ used = 4165; free = 11875; util = 90 } -Apps $appNone
     $null = Assert-Guard -State $state -Phase 'u3' -Snapshot @{ used = 4165; free = 11875; util = 88 } -Apps $appNone
 }
-# own GPU step active: same util no abort
-$state = New-GuardState -Label 'inject-ownstep' -LogPath (Join-Path $EvidenceDir 'inject-ownstep.log')
-Expect-Pass 'util_with_own_step_active' {
+# own GPU step active -> no abort
+$log = Join-Path $OutDir 'inject-ownstep.log'
+$state = New-GuardState -Label 'inject-ownstep' -LogPath $log
+Run-Expect 'util_with_own_step_active' 'none' $log {
     $null = Assert-Guard -State $state -Phase 'o1' -OwnGpuStepActive -Snapshot @{ used = 4165; free = 11875; util = 90 } -Apps $appNone
     $null = Assert-Guard -State $state -Phase 'o2' -OwnGpuStepActive -Snapshot @{ used = 4165; free = 11875; util = 90 } -Apps $appNone
     $null = Assert-Guard -State $state -Phase 'o3' -OwnGpuStepActive -Snapshot @{ used = 4165; free = 11875; util = 90 } -Apps $appNone
 }
-# memory rules unchanged: free<10240 aborts, used increment>=3072 aborts
-$state = New-GuardState -Label 'inject-free' -LogPath (Join-Path $EvidenceDir 'inject-free.log')
-Expect-Abort 'free_below_floor' {
+# free floor -> abort reason=free_below_floor
+$log = Join-Path $OutDir 'inject-free.log'
+$state = New-GuardState -Label 'inject-free' -LogPath $log
+Run-Expect 'free_below_floor' 'free_below_floor' $log {
     $null = Assert-Guard -State $state -Phase 'f1' -Snapshot @{ used = 4165; free = 10000; util = 10 } -Apps $appNone
 }
-$state = New-GuardState -Label 'inject-delta' -LogPath (Join-Path $EvidenceDir 'inject-delta.log')
-Expect-Abort 'increment_over_limit' {
+# VRAM increment -> abort reason=increment_over_limit. This card's 16376 MiB makes increment and free
+# floor co-fire, so inject -TotalMib 4000 (limit = min(3072, 2000) = 2000) and keep free=11875.
+$log = Join-Path $OutDir 'inject-delta.log'
+$state = New-GuardState -Label 'inject-delta' -TotalMib 4000 -LogPath $log
+Run-Expect 'increment_over_limit' 'increment_over_limit' $log {
     $null = Assert-Guard -State $state -Phase 'd1' -Snapshot @{ used = 4165; free = 11875; util = 10 } -Apps $appNone
-    $null = Assert-Guard -State $state -Phase 'd2' -Snapshot @{ used = 7400; free = 8640; util = 10 } -Apps $appNone
+    $null = Assert-Guard -State $state -Phase 'd2' -Snapshot @{ used = 7400; free = 11875; util = 10 } -Apps $appNone
 }
 $inject | Out-File -LiteralPath $injectLog -Encoding utf8
 $inject | ForEach-Object { Write-Output $_ }
-
-if ($script:failures.Count -gt 0) {
-    Write-Output "DRYRUN RESULT: FAIL ($($script:failures -join ','))"
-    exit 1
-}
+Write-Output "ASSERTIONS total=$script:total pass=$script:pass fail=$($script:failures.Count)"
+if ($script:failures.Count -gt 0) { Write-Output "DRYRUN RESULT: FAIL ($($script:failures -join ','))"; exit 1 }
 Write-Output "DRYRUN RESULT: PASS (parser+sampler+guard-injection)"

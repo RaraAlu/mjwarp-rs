@@ -1,11 +1,14 @@
 {
   "task_id": "2026-10-26-gpu-window-guard-sampler",
   "title": "GPU 窗口守卫采样器修复（samples 未落盘 + 带单位 CSV 解析）与 CPU dry-run 验证",
-  "status": "in_progress",
-  "head": "5bcd78f4",
+  "status": "verified",
+  "head": "c6531982",
   "gpu_windows": 0,
   "owner": "Backend",
-  "scope": ["scripts/", "docs/development-evidence/gpu-window-guard-sampler/"],
+  "scope": [
+    "scripts/",
+    "docs/development-evidence/gpu-window-guard-sampler/"
+  ],
   "trigger_evidence": [
     "docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/window-attempt4-and-b-classification.md §2 偏差①：stage-2 attempt4 samples=0，guard v2 未生效",
     "capture 阶段 runner 因 Get-GpuSnapshot 对 '4165 MiB, 11875 MiB, 38 %' 的 [int] 转换抛错而局部覆盖"
@@ -20,9 +23,27 @@
   "dryrun": {
     "command": "pwsh -NoProfile -File scripts/gpu-window-guard-dryrun.ps1",
     "result": "PASS (parser+sampler+guard-injection)",
-    "checks": 20,
-    "sampler": { "samples": 11, "used_peak_mib": 4199, "free_min_mib": 11863, "util_max_percent": 41, "process_exited": true, "residual_processes": 0 },
-    "logs": ["logs/parser-dryrun.log", "logs/sampler-dryrun.log", "logs/samples.csv", "logs/injection-dryrun.log", "logs/inject-normal.log", "logs/inject-util.log", "logs/inject-ownstep.log", "logs/inject-free.log", "logs/inject-delta.log"]
+    "checks": 19,
+    "sampler": {
+      "samples": 11,
+      "used_peak_mib": 4199,
+      "free_min_mib": 11863,
+      "util_max_percent": 40,
+      "process_exited": true,
+      "residual_processes": 0
+    },
+    "logs": [
+      "logs/parser-dryrun.log",
+      "logs/sampler-dryrun.log",
+      "logs/samples.csv",
+      "logs/injection-dryrun.log",
+      "logs/inject-normal.log",
+      "logs/inject-util.log",
+      "logs/inject-ownstep.log",
+      "logs/inject-free.log",
+      "logs/inject-delta.log"
+    ],
+    "run_out_dir": "target/gpu-window-guard-sampler-dryrun/fix1（日志显式复制到 logs/，不默认覆盖已入库证据）"
   },
   "boundaries": [
     "纯 CPU dry-run，只用只读 nvidia-smi，不建 CUDA context、不做 GPU 计算、不占窗口",
@@ -30,5 +51,19 @@
     "未改产品代码/判据/容差/gates.toml 的 GPU 门禁定义",
     "未宣称跨环境全绿/精度结论"
   ],
-  "gates_expected": { "fmt": "pass", "clippy": "pass", "clippy-cuda": "pass", "unit": "971/0/369" }
+  "gates_expected": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy-cuda": "pass",
+    "unit": "971/0/369"
+  },
+  "qa_corrections": [
+    "O1：Expect-Abort 改为断言具体 reason；增量用例用 -TotalMib 4000（半值 2000）且 free 保持 11875，日志实测 reason=increment_over_limit（原用例实际触发 free_below_floor）。",
+    "O2：统计以本轮 samples.csv 重算（11 行 / 4199 / 11863 / 40），dry-run 默认输出改 target/，不再默认覆盖已入库证据日志。",
+    "O3：断言数如实为 19（total=19 pass=19）。",
+    "O4：Resolve-GuardPwsh 改为按 $PSScriptRoot 推导 repo 根；PS 5.1 实测返回 target/toolchains/powershell-7.6.7/bin/pwsh.exe，找不到才回退 powershell.exe 并写 guard_pwsh_fallback。",
+    "O5/O6：空 -Apps 用 $PSBoundParameters 显式分支不再产生伪 pid；空行输入显式 GUARD_ABORT（新增第 19 条断言）。",
+    "O7：capture 局部覆盖引用补路径 docs/development-evidence/g10-p5-g2-gpu-reference-capture/README.md §4.1。",
+    "O8：receipt head/status 与最终 HEAD 对齐（c6531982 / verified）。"
+  ]
 }

@@ -83,7 +83,8 @@ function ConvertFrom-GpuCsvLine {
     #   '4165 MiB, 11875 MiB, 38 %'   and   '4165, 11875, 38'
     # (the first 3 columns are used; extra columns such as temperature are allowed).
     # Missing / non-numeric columns are a deterministic `GUARD_ABORT`, never an [int] exception.
-    param([Parameter(Mandatory = $true)][string]$Line)
+    param([Parameter(Mandatory = $true)][AllowEmptyString()][string]$Line)
+    if ([string]::IsNullOrWhiteSpace($Line)) { throw 'GUARD_ABORT: cannot parse empty nvidia-smi line' }
     $cells = @(($Line -split ',') | ForEach-Object { $_.Trim() })
     if ($cells.Count -lt 3) {
         throw "GUARD_ABORT: cannot parse nvidia-smi line (need >=3 columns): $Line"
@@ -170,7 +171,7 @@ function Assert-Guard {
         [array]$Apps = $null
     )
     $snapshot = if ($Snapshot) { $Snapshot } else { Get-GpuSnapshot }
-    $apps = if ($null -ne $Apps) { @($Apps) } else { Get-GpuContextApps }
+    $apps = if ($PSBoundParameters.ContainsKey('Apps')) { @() + $Apps } else { Get-GpuContextApps }
     $pids = @($apps | ForEach-Object { $_.pid })
     if (-not $State.baseline_used_mib) {
         $State.baseline_used_mib = $snapshot.used
@@ -259,9 +260,10 @@ function Complete-Guard {
 function Resolve-GuardPwsh {
     $command = Get-Command pwsh -ErrorAction SilentlyContinue
     if ($command) { return $command.Source }
-    $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    $repo = Split-Path -Parent $PSScriptRoot
     $candidates = @(Get-ChildItem -Path (Join-Path $repo 'target\toolchains') -Filter 'pwsh.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)
     if ($candidates.Count -gt 0) { return $candidates[0] }
+    Write-Warning 'guard_pwsh_fallback: pwsh not on PATH and no target/toolchains/powershell-*/bin/pwsh.exe found; using powershell.exe'
     return 'powershell.exe'
 }
 function Start-GuardSampler {
