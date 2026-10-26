@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-mesh-multicontact-m0a-observation-closure-r2",
+  "title": {
+    "zh": "M0a QA 观察 O1/O3/O4/O6 收口（r2：unchanged 去掉 fixtures，避免与在途 M1 新 fixture 冲突）",
+    "en": "Close M0a QA observations O1/O3/O4/O6 (evidence text/encoding errata, no number or criteria change)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "M0a 独立复核 pass（阻断 0 / 观察 6）后，收口其中属证据文字/编码类的 4 条观察：O1 裸跑失败证据只到 dlltool/依赖编译失败、无「build.rs panic」原文；O3 README 行数小偏差（product.cu 424→426、abi.rs 334→337）与 §5.2/§5.1 顺序；O4 7 个日志为 UTF-16LE（git 视为二进制）需转 UTF-8；O6 size-gate 拆分的「ABI/冒烟不变」为 tests-only + 当前树吻合、单 commit 内先后不可独立还原的边界说明。O2/O5 已折入 M2 acceptance（补校验单测 + ProbeArgs 锁定）。纯证据勘误，不改任何数字、判据、容差、结论。",
+    "en": "Close textual/encoding M0a observations (O1/O3/O4/O6) after the QA pass; O2/O5 folded into M2 acceptance."
+  },
+  "modules": {},
+  "acceptance": [
+    "**O1**：`README §7.1` 的裸跑失败表述改为实测事实——`dlltool.exe` 缺失导致 `getrandom`/`windows-sys` 编译失败（未进入 build.rs 阶段）；删除/更正「`MJWARP_MUJOCO_ROOT` 未设 → build.rs panic」的未经证据支持的表述，引用 `logs/all-features-bare-fail.log` 原文。",
+    "**O3**：`README §1` 行数改为实测（`product.cu` 426、`abi.rs` 337），并把 §5.1/§5.2 顺序整理为 5.1 探针同步 → 5.2 旧 case 兼容（后续引用同步）。",
+    "**O4**：7 个 UTF-16LE 日志（`pre/post-drift-recapture`、`pre/post-identity-live`、`post-smoke-final`、`all-features-bare-fail` 等）转为 UTF-8 无 BOM，内容逐字不变；转换后 git 不再视为二进制。",
+    "**O6**：`README` 增边界说明：size-gate 拆分（plane 测试 503→450 + `tests/support/primitive_plane_cases.rs`）为 tests-only、当前树 ABI/冒烟指纹吻合，但单 commit 内「拆分前后」不可独立还原；ABI 与冒烟数字由提交后的树实测确认。",
+    "**治理回执**：新增 `docs/development-evidence/mesh-multicontact-m0a-observation-governance/`（README + receipt.json 含 task_id 与 4 条映射）。",
+    "**红线**：不改 `src/`/`tests/`/`fixtures/`/`Cargo.*`；不改任何已 verified 数字、判据、容差、期望；不改 ABI 布局与冒烟指纹。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m0a-abi-repin",
+      "2026-10-26-mesh-multicontact-m0a-independent-check"
+    ],
+    "phase": "治理/证据勘误",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/mesh-multicontact-m0a/",
+      "docs/development-evidence/mesh-multicontact-m0a-observation-governance-r2/"
+    ],
+    "resources": [],
+    "priority": 44
+  },
+  "note": "Arch 2026-10-26 登记（M0a QA pass 后按 Chief 口径逐条收口）。O2（sum/区间/负值规则无单测、empty 未断言 null）与 O5（ProbeArgs 496 无 static_assert）属测试补强，已折入 M2 acceptance（提交 `9ccd9042`），不在本片做代码改动。\n放弃：unchanged 检查含 fixtures，与本片在途的 M1 新 fixture（未跟踪新文件）冲突；in_progress 无法 waive，改为重登记（unchanged 去掉 fixtures） r2 重登记原因：原任务 …-observation-closure 的 unchanged 含 fixtures，与在途 M1 新增 fixture（未跟踪）冲突且 in_progress 无法 waive，已 abandon 留痕。",
+  "revision": {
+    "before": "8275bba6a3df93a544fedcb300c025abda0657b4",
+    "after": null
+  },
+  "created_at": "2026-10-26T15:20:00.000Z",
+  "updated_at": "2026-10-26T15:20:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mesh-multicontact-m0a-observation-governance-r2/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-mesh-multicontact-m0a-observation-closure-r2"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
