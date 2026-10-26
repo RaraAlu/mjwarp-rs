@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-g10-p5-faithful-fma-fix-independent-check",
+  "subject_task": "2026-10-25-g10-p5-faithful-fma-fix-r2",
+  "subject_commit": "50a0acd1",
+  "role": "QA",
+  "status": "independent_check_pass_pending_arch_review",
+  "review_head": "50a0acd1",
+  "nature": "CPU-only independent check: clean CARGO_TARGET_DIRs per config, self-written dump/pairing scripts, read-only source copies; no GPU window; delivery evidence/product tree untouched; no commit/done",
+  "verdict": {
+    "result": "pass",
+    "blocking": 0,
+    "findings": 0,
+    "observations": 5,
+    "scope_ok": true,
+    "five_cases_bitwise_zero_diff": true,
+    "three_builds_green_and_judge_lines_identical": true,
+    "g5_pre_post_identical": true,
+    "default_gate_green_604": true,
+    "criteria_and_references_untouched": true,
+    "np01_registration_substantive": true,
+    "evidence_chain_consistent": true
+  },
+  "scope": {
+    "commit": "50a0acd1",
+    "parent": "025d47fc",
+    "commit_files": 31,
+    "commit_stat": "31 files changed, 972 insertions(+), 14 deletions(-)",
+    "src_files_changed": ["src/physics/collision/gjk/polytope.rs", "src/render/kernel/megakernel_arrays.rs"],
+    "forbidden_path_hits": [],
+    "polytope": {
+      "has_mul_add_in_code": false, "has_fma_f32_in_code": false, "has_f64_in_code": false,
+      "explicit_two_rounding": true,
+      "head_tail": ["let head = r[0] * r[0];", "let tail = r[1] * r[1] + head;",
+                    "pt.face_norm2[idx] = r[2] * r[2] + tail;"]
+    },
+    "render": {"uses_fma_f32_helper": true, "light_line": "crate::math::fma::fma_f32(z, z, crate::math::fma::fma_f32(y, y, x * x))"},
+    "product_code_mul_add_call_sites": 0,
+    "product_site_classification": "polytope = non-fused (explicit two roundings); render light + relmat = shared fma_f32 helper (fused); aabb = local fused_mul_add (implementation untouched); rest tests/diagnostics",
+    "render_change_scope_note": "QA acceptance item 1 literally says render must not change, but the r2 task acceptance explicitly allows reusing the megakernel segment (render reference is GPU fast-math fused). Delivery followed r2; recorded as observation 1."
+  },
+  "five_case_bitwise": {
+    "method": "git archive r2 copy + test-only dump of sorted expected/actual contact rows; my Python independently re-sorts, pairs rows by product sort key, and compares both to the CPU reference JSON (upstream-mjwarp-f32.json) and bit-for-bit",
+    "dump_tree": "target/qa-a-check/dump-tree (copy; main tree untouched)",
+    "counts": {"cylinder-box": 8, "ellipsoid-box": 2, "mesh-mesh": 2, "convex-mesh": 2, "degenerate-mesh": 2},
+    "dist_bit_equal": "16 / 16",
+    "pos_bit_equal": "48 / 48",
+    "frame_bit_equal": "144 / 144",
+    "max_frame_abs": 0.0,
+    "expected_rows_match_cpu_reference_json": true,
+    "structural_issues": [],
+    "record": "qa-5case-bitwise.json"
+  },
+  "three_build": {
+    "configs": [
+      {"mode": "gnu-default", "toolchain": "1.99.0 x86_64-pc-windows-gnu", "rustflags": "",
+       "print_result": "3 passed / 0 failed / 2 ignored", "assert_result": "1 passed / 0 failed"},
+      {"mode": "msvc", "toolchain": "+1.99.0-x86_64-pc-windows-msvc", "rustflags": "",
+       "print_result": "3 passed / 0 failed / 2 ignored", "assert_result": "1 passed / 0 failed"},
+      {"mode": "gnu-fma", "toolchain": "GNU default", "rustflags": "-C target-feature=+fma",
+       "print_result": "3 passed / 0 failed / 2 ignored", "assert_result": "1 passed / 0 failed"}
+    ],
+    "judge_lines_identical_across_modes": true,
+    "all_judge_lines_zero_diff": true,
+    "rustc_command_has_target_feature_fma": true,
+    "rustc_command_has_link_dead_code": false,
+    "rustflags_mechanism": "RUSTFLAGS replaces .cargo/config.toml gnu rustflags (link-dead-code absent when RUSTFLAGS is set)",
+    "record": "qa-three-build.json"
+  },
+  "g5": {
+    "pre_tree": "target/qa-a-check/pre-tree (r2 parent 025d47fc, git archive copy)",
+    "targets": {
+      "relmat": {"pre_post_identical": true, "result": "4 passed"},
+      "sdf-relmat": {"pre_post_identical": true, "rel_mat_10_of_10": true, "bitwise_80_of_80_lines": 6, "max_abs_zero": true},
+      "sdf-host": {"pre_post_identical": true, "result": "1 passed"},
+      "gjk-epa": {"pre_post_identical": true, "result": "3 passed"}
+    },
+    "all_identical": true,
+    "record": "qa-g5-diff.json"
+  },
+  "default_gate": {
+    "command": "cargo test --locked (clean GNU target)",
+    "test_binaries": 111,
+    "passed": 604, "failed": 0, "ignored": 7,
+    "all_ok": true,
+    "case_evidence_ran": ["upstream_f32_within_4ulp", "our_contacts_match_upstream_f32_within_4ulp",
+                          "native_error_seed_is_recorded"],
+    "matches_delivery_unit_record": true,
+    "record": "qa-default-gate.json"
+  },
+  "g01_directed": {
+    "host_gnu": {"my_default_gate": "604 passed / 0 failed / 7 ignored", "pre_was_green": true,
+                 "pre_frame": "3.838112e-7 (coupling via non-compliant libm fallback)",
+                 "post": "green, frame 0e0"},
+    "host_msvc": {"my_pre_run": "exit 101, ellipsoid frame 6.351978e-7", "my_post_run": "pass, 0e0"},
+    "full_g01_run": false,
+    "full_g01_claimed": false,
+    "g01_scripts_untouched": true,
+    "delivery_correction_verified": "host-gnu was NOT red before (green by coupling); the true red->green is host-msvc"
+  },
+  "cheat_check": {
+    "case_evidence_rs_diff": "(none)",
+    "case_compare_rs_diff": "(none)",
+    "gates_toml_diff": "(none)",
+    "scripts_diff": "(none)",
+    "fixtures_diff": "(none)",
+    "frame_threshold_4_8e_7_present": true,
+    "ulp4_asserts_present": true,
+    "cpu_reference_sha256": "a00c722892df5f190096f2c89e39455cd43df3be8e3fe46869b09c1f6d20f04f",
+    "gpu_reference_sha256": "d86c73cb04fef7f777afabf7d1291a8abaf0d744c41bdad277bd42350c8c87aa",
+    "case_compare_reads": "upstream-mjwarp-f32.json (CPU reference); GPU reference remains archived, not the criterion",
+    "references_unchanged_since_a69d1f81": true
+  },
+  "np01": {
+    "inventory": "docs/development-evidence/np01-type-mapping/inventory.json",
+    "siteSemantics_count": 3,
+    "siteSemantics_sites": ["gjk_ccd_epa_host", "render_light_dir_normalize", "relmat_relative_matrix"],
+    "hostCoverage_count": 3,
+    "hostCoverage_ids": ["gjk_host", "ccd_host", "epa_host"],
+    "hostCoverage_has_types_and_status": true,
+    "hostCoverage_double_in_product_zero": true,
+    "original_rows_old": 30,
+    "original_rows_new": 30,
+    "rows_unchanged": true,
+    "other_top_level_keys_unchanged": true,
+    "readme_host_section_present": true,
+    "record": "qa-np01.json"
+  },
+  "evidence_chain": {
+    "delivery_post_judge_lines_equal_my_runs": true,
+    "delivery_pre_values_equal_my_parent_copy_runs": true,
+    "src_patch_matches_actual_src_diff": true,
+    "src_patch_bytes": 2022,
+    "chain_completeness": {
+      "gnu_fmaf_noncompliant": true, "cpu_reference_nonfused": true, "c_d_not_relaxed": true,
+      "gpu_window_zero": true, "all_cited_evidence_exists": true
+    },
+    "gpu_window_files_in_delivery_evidence": [],
+    "full_g01_logs_in_delivery_evidence": [],
+    "b_scratch": {
+      "mentioned_in_delivery_readme": true,
+      "scratch_log_in_evidence": [],
+      "ellipsoid_frame_matches_my_cpu_gpu_reference_diff": true,
+      "mesh_frame_matches_my_cpu_gpu_reference_diff": true,
+      "note": "B 4/5-red claim cites an Arch CPU scratch; no raw log is committed, so the exact 4/5 exit-101 combination cannot be recomputed from repo artifacts; the ellipsoid/mesh frame magnitudes match my independent CPU-vs-GPU reference diff"
+    },
+    "record": "qa-evidence-chain.json"
+  },
+  "observations": [
+    "QA acceptance item 1 literally lists render/kernel/megakernel_arrays.rs as must-not-change, but the r2 task acceptance explicitly allows reusing the megakernel segment (render reference is GPU fast-math fused); delivery followed r2. QA acceptance wording should be corrected.",
+    "Arch message stated 50a0acd1 as '6 files +223/-15', but git show --stat reports 31 files / +972 -14 (2 src + 22 evidence + 2 NP01 + 5 .normify). Summary numbers should use git.",
+    "The B-infeasibility claim ('4/5 red, 8.19e-7 > 4.8e-7') cites an Arch CPU scratch with no committed raw log; ellipsoid/mesh frame magnitudes match my independent CPU-vs-GPU reference diff, but the exact 4/5 exit-101 combination is not reproducible from repo artifacts.",
+    "Delivery pre-fix logs were cached main-tree runs (no Compiling line); post recompiled main tree. My check rebuilt the pre state from an independent parent copy (025d47fc), so the pre numbers do not rely on the delivery cache state.",
+    "My first matrix attempt was invalid (PowerShell function parameter $args collided with the automatic variable; cargo printed help and exited 0). It was discarded entirely; all numbers here come from a full rerun with byte-exact Python subprocess capture (no splicing)."
+  ],
+  "my_gate": {
+    "command": "normify gate 2026-10-25-g10-p5-faithful-fma-fix-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "head": "50a0acd1",
+    "fmt": "pass", "clippy": "pass", "clippy_cuda": "pass",
+    "unit": "604 passed / 0 failed / 7 ignored",
+    "gate_exit": 0,
+    "check": "to be green after this receipt/manifest are frozen (gate+check re-run; stdout kept in target/qa-a-check/gate-check/)",
+    "runs": ".normify/runs/2026-10-25-g10-p5-faithful-fma-fix-independent-check/",
+    "note": "gate/check executed on the main tree with stdout outside the evidence dir (gate scope = evidence dir)"
+  },
+  "boundaries": {
+    "gpu_window_opened": false,
+    "gpu_context_created": false,
+    "full_g01_run": false,
+    "real_non_fma_machine": "not verified on hardware; fallback coverage unchanged (exact-f32-fma-relmat seam + default gate)",
+    "nan_payload": "not used as a bit criterion",
+    "product_tree_modified": false,
+    "delivery_evidence_modified": false,
+    "criteria_or_tolerance_modified": false,
+    "cross_env_all_green_claimed": false
+  },
+  "evidence_files": [
+    "README.md", "receipt.json", "artifacts-sha256.json",
+    "qa-scope-static.json", "qa-5case-bitwise.json", "qa-three-build.json", "qa-g5-diff.json",
+    "qa-default-gate.json", "qa-np01.json", "qa-evidence-chain.json", "qa-copies-info.json",
+    "logs/", "qa_scope_static.py", "qa_prepare_copies.py", "qa_run_tests.py", "qa_verify_dump.py",
+    "qa_three_build.py", "qa_g5_diff.py", "qa_default_gate.py", "qa_normalize_logs.py",
+    "qa_np01.py", "qa_evidence_chain.py", "qa_artifacts_sha256.py", "run_gate_check.ps1",
+    "run_matrix.ps1", "run_pre_factcheck.ps1"
+  ]
+}

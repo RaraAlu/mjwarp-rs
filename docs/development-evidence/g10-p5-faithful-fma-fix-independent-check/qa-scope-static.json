@@ -1,0 +1,241 @@
+{
+  "head": "50a0acd1e5458c317b52a10bbb3ecd799a4ab007",
+  "r2": "50a0acd1",
+  "r2_parent": "025d47fc99f9856d5ba8813380b56616c4942b17",
+  "commit_files": [
+    "M\t.normify/changes/2026-10-25-g10-p5-faithful-fma-fix-r2.json",
+    "A\t.normify/runs/2026-10-25-g10-p5-faithful-fma-fix-r2/clippy-cuda.json",
+    "A\t.normify/runs/2026-10-25-g10-p5-faithful-fma-fix-r2/clippy.json",
+    "A\t.normify/runs/2026-10-25-g10-p5-faithful-fma-fix-r2/fmt.json",
+    "A\t.normify/runs/2026-10-25-g10-p5-faithful-fma-fix-r2/unit.json",
+    "A\tdocs/development-evidence/faithful-fma-fix/README.md",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/gate-clippy-cuda.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/gate-clippy-default.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/gate-fmt-check.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/gate-unit-full-summary.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/normify-gate.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/post-fix-case-evidence-gnu-default.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/post-fix-case-evidence-gnu-fma.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/post-fix-case-evidence-msvc.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/post-fix-g5-gjk-epa-integration.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/post-fix-g5-relmat-lib.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/post-fix-g5-sdf-host-integration.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/post-fix-g5-sdf-relmat-integration.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/pre-fix-case-evidence-gnu-default.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/pre-fix-case-evidence-gnu-fma.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/pre-fix-case-evidence-msvc.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/pre-fix-g5-gjk-epa-integration.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/pre-fix-g5-relmat-lib.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/pre-fix-g5-sdf-host-integration.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/pre-fix-g5-sdf-relmat-integration.log",
+    "A\tdocs/development-evidence/faithful-fma-fix/logs/src.patch",
+    "A\tdocs/development-evidence/faithful-fma-fix/receipt.json",
+    "M\tdocs/development-evidence/np01-type-mapping/README.md",
+    "M\tdocs/development-evidence/np01-type-mapping/inventory.json",
+    "M\tsrc/physics/collision/gjk/polytope.rs",
+    "M\tsrc/render/kernel/megakernel_arrays.rs"
+  ],
+  "commit_stat": " 31 files changed, 972 insertions(+), 14 deletions(-)",
+  "render_site_changed_in_commit": true,
+  "fix_r2_acceptance_allows_megakernel": true,
+  "qa_acceptance_literal_says_render_must_not_change": true,
+  "forbidden_path_hits": [],
+  "polytope": {
+    "has_mul_add_in_code": false,
+    "has_fma_f32_in_code": false,
+    "has_f64_in_code": false,
+    "explicit_two_rounding": true,
+    "mentions_cpu_recipe_and_gpu_semantics": true,
+    "head_tail_lines": [
+      "let head = r[0] * r[0];",
+      "let tail = r[1] * r[1] + head;",
+      "pt.face_norm2[idx] = r[2] * r[2] + tail;",
+      "pt.face_norm2[idx]"
+    ]
+  },
+  "render": {
+    "has_fma_f32": true,
+    "has_mul_add_on_light_site": false,
+    "light_line": "let length = crate::math::fma::fma_f32(z, z, crate::math::fma::fma_f32(y, y, x * x)).sqrt();"
+  },
+  "src_site_scan": [
+    "src/math/fma/tests.rs:5: //! `f32::mul_add`（非硬件路径）对硬件 FMA，用于证明探针有判别力。",
+    "src/math/fma/tests.rs:443: /// 判别力自证：非硬件 FMA 的 `f32::mul_add`（如 GNU 默认构建的库回退）与硬件 FMA 的差异样本。",
+    "src/math/fma/tests.rs:454: .filter(|&&(a, b, c)| !same(a.mul_add(b, c), hardware(a, b, c)))",
+    "src/math/fma/tests.rs:456: println!(\"mul_add(f32) vs hw: mismatches={mismatches} / 4096\");",
+    "src/math/fma/tests.rs:457: print_samples(samples, |a, b, c| a.mul_add(b, c), 5);",
+    "src/math/fma/tests.rs:459: println!(\"mul_add(f32) 在本构建已等价于硬件 FMA（无差异样本）\");",
+    "src/math/fma.rs:6: //! - 语义：`fma_f32(a,b,c)` = IEEE-754 单次正确舍入的 `a*b+c`（round-to-nearest-even），",
+    "src/math/fma.rs:75: pub(crate) fn fma_f32(a: f32, b: f32, c: f32) -> f32 {",
+    "src/physics/collision/cuda/mod.rs:10: //! - **正式判据**：对同配方上游 f32 GPU，按 pinned `ccd` PTX 的**全 fma 收缩**（显式 `mul_add`）",
+    "src/physics/collision/gjk/polytope.rs:69: // 故 host 站点刻意不用 FMA helper、不引 f64、不写 `mul_add`（G2/G6 判据参考是 CPU 后端）。",
+    "src/physics/collision/relmat.rs:22: //! 刻意**不用** `f32::mul_add`：GNU 默认构建在 opt-level 0 下会退化为非 IEEE 的库回退",
+    "src/physics/collision/relmat.rs:37: let sum = fma_f32(a[row], b[column], 0.0);",
+    "src/physics/collision/relmat.rs:38: let sum = fma_f32(a[3 + row], b[3 + column], sum);",
+    "src/physics/collision/relmat.rs:39: out[row * 3 + column] = fma_f32(a[6 + row], b[6 + column], sum);",
+    "src/physics/collision/relmat.rs:99: /// 该 cell（`rel[1][0]`）正是 QA 指出的 `f32::mul_add` 未融合敏感位（正确 `0x3F17E6B0`）。",
+    "src/physics/collision/relmat.rs:209: /// 单侧旋转场景同样位级一致；cell 3（`0x3F17E6B0`）是 QA 指出的 `f32::mul_add` 敏感位。",
+    "src/render/bvh/aabb.rs:132: /// 宿主侧不直接用 `f32::mul_add`：本目标 debug 构建会落到不保证单次舍入的回退",
+    "src/render/bvh/aabb.rs:138: fn fused_mul_add(a: f32, b: f32, c: f32) -> f32 {",
+    "src/render/bvh/aabb.rs:184: let end1 = fused_mul_add(-axis_z, half_length, position[axis]);",
+    "src/render/bvh/aabb.rs:185: let end2 = fused_mul_add(axis_z, half_length, position[axis]);",
+    "src/render/bvh/aabb.rs:222: let squared = fused_mul_add(basis_x, basis_x, basis_y * basis_y);",
+    "src/render/bvh/aabb.rs:224: let extent = fused_mul_add(half_height, axis_z.abs(), radial);",
+    "src/render/bvh/aabb.rs:270: let intermediate = fused_mul_add(row[0], vector[0], intermediate);",
+    "src/render/bvh/aabb.rs:271: fused_mul_add(row[2], vector[2], intermediate)",
+    "src/render/bvh/aabb.rs:277: let intermediate = fused_mul_add(a[0], b[0], intermediate);",
+    "src/render/bvh/aabb.rs:278: fused_mul_add(a[2], b[2], intermediate)",
+    "src/render/bvh/aabb.rs:375: fn fused_mul_add_matches_frozen_reference_rounding() {",
+    "src/render/bvh/aabb.rs:378: let first = fused_mul_add(",
+    "src/render/bvh/aabb.rs:384: let second = fused_mul_add(",
+    "src/render/kernel/megakernel_arrays.rs:191: let length = crate::math::fma::fma_f32(z, z, crate::math::fma::fma_f32(y, y, x * x)).sqrt();",
+    "src/runtime/transfer/kernel/tests/precision.rs:72: assert_eq!(values[0], a.mul_add(b, -1.0));"
+  ],
+  "product_sites": [
+    "src/math/fma.rs:6: //! - 语义：`fma_f32(a,b,c)` = IEEE-754 单次正确舍入的 `a*b+c`（round-to-nearest-even），",
+    "src/math/fma.rs:75: pub(crate) fn fma_f32(a: f32, b: f32, c: f32) -> f32 {",
+    "src/physics/collision/cuda/mod.rs:10: //! - **正式判据**：对同配方上游 f32 GPU，按 pinned `ccd` PTX 的**全 fma 收缩**（显式 `mul_add`）",
+    "src/physics/collision/gjk/polytope.rs:69: // 故 host 站点刻意不用 FMA helper、不引 f64、不写 `mul_add`（G2/G6 判据参考是 CPU 后端）。",
+    "src/physics/collision/relmat.rs:22: //! 刻意**不用** `f32::mul_add`：GNU 默认构建在 opt-level 0 下会退化为非 IEEE 的库回退",
+    "src/physics/collision/relmat.rs:37: let sum = fma_f32(a[row], b[column], 0.0);",
+    "src/physics/collision/relmat.rs:38: let sum = fma_f32(a[3 + row], b[3 + column], sum);",
+    "src/physics/collision/relmat.rs:39: out[row * 3 + column] = fma_f32(a[6 + row], b[6 + column], sum);",
+    "src/physics/collision/relmat.rs:99: /// 该 cell（`rel[1][0]`）正是 QA 指出的 `f32::mul_add` 未融合敏感位（正确 `0x3F17E6B0`）。",
+    "src/physics/collision/relmat.rs:209: /// 单侧旋转场景同样位级一致；cell 3（`0x3F17E6B0`）是 QA 指出的 `f32::mul_add` 敏感位。",
+    "src/render/bvh/aabb.rs:132: /// 宿主侧不直接用 `f32::mul_add`：本目标 debug 构建会落到不保证单次舍入的回退",
+    "src/render/bvh/aabb.rs:138: fn fused_mul_add(a: f32, b: f32, c: f32) -> f32 {",
+    "src/render/bvh/aabb.rs:184: let end1 = fused_mul_add(-axis_z, half_length, position[axis]);",
+    "src/render/bvh/aabb.rs:185: let end2 = fused_mul_add(axis_z, half_length, position[axis]);",
+    "src/render/bvh/aabb.rs:222: let squared = fused_mul_add(basis_x, basis_x, basis_y * basis_y);",
+    "src/render/bvh/aabb.rs:224: let extent = fused_mul_add(half_height, axis_z.abs(), radial);",
+    "src/render/bvh/aabb.rs:270: let intermediate = fused_mul_add(row[0], vector[0], intermediate);",
+    "src/render/bvh/aabb.rs:271: fused_mul_add(row[2], vector[2], intermediate)",
+    "src/render/bvh/aabb.rs:277: let intermediate = fused_mul_add(a[0], b[0], intermediate);",
+    "src/render/bvh/aabb.rs:278: fused_mul_add(a[2], b[2], intermediate)",
+    "src/render/bvh/aabb.rs:375: fn fused_mul_add_matches_frozen_reference_rounding() {",
+    "src/render/bvh/aabb.rs:378: let first = fused_mul_add(",
+    "src/render/bvh/aabb.rs:384: let second = fused_mul_add(",
+    "src/render/kernel/megakernel_arrays.rs:191: let length = crate::math::fma::fma_f32(z, z, crate::math::fma::fma_f32(y, y, x * x)).sqrt();"
+  ],
+  "product_code_mul_add_call_sites": [],
+  "product_code_mul_add_count": 0,
+  "cheat_path_diffs": {
+    "src/physics/collision/gjk/case_evidence.rs": "(none)",
+    "src/physics/collision/gjk/case_compare.rs": "(none)",
+    ".normify/gates.toml": "(none)",
+    "scripts/": "(none)",
+    "fixtures/": "(none)",
+    "docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32.json": "(none)",
+    "docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32-gpu.json": "(none)"
+  },
+  "criterion": {
+    "frame_threshold_4_8e_7_present": true,
+    "ulp4_asserts_present": true,
+    "dist_ulp_line": "stats.frame_max_abs <= 4.8e-7,"
+  },
+  "reference_path": {
+    "case_compare_reads_cpu_reference": true,
+    "case_compare_reads_gpu_reference": false,
+    "cpu_reference_sha256": "a00c722892df5f190096f2c89e39455cd43df3be8e3fe46869b09c1f6d20f04f",
+    "gpu_reference_sha256": "d86c73cb04fef7f777afabf7d1291a8abaf0d744c41bdad277bd42350c8c87aa"
+  },
+  "np01": {
+    "top_level_keys_old": [
+      "schema",
+      "task",
+      "scope",
+      "upstream",
+      "compileRecipe",
+      "frozenPtxSources",
+      "method",
+      "summary",
+      "rows",
+      "warpHeaderEvidence",
+      "updatedAt"
+    ],
+    "top_level_keys_new": [
+      "schema",
+      "task",
+      "scope",
+      "upstream",
+      "compileRecipe",
+      "frozenPtxSources",
+      "method",
+      "summary",
+      "rows",
+      "warpHeaderEvidence",
+      "hostSiteRegistration",
+      "updatedAt"
+    ],
+    "hostSiteRegistration_present": true,
+    "hostSiteRegistration_summary": {
+      "siteSemantics_count": 3,
+      "hostCoverage_count": 3,
+      "siteSemantics_sites": [
+        "gjk_ccd_epa_host",
+        "render_light_dir_normalize",
+        "relmat_relative_matrix"
+      ],
+      "hostCoverage_ids": [
+        "gjk_host",
+        "ccd_host",
+        "epa_host"
+      ]
+    },
+    "old_entries_count": 39,
+    "new_entries_count": 45,
+    "original_payload_unchanged": true,
+    "rows_old": 30,
+    "rows_new": 30,
+    "rows_unchanged": true,
+    "readme_has_host_section": true
+  },
+  "delivery_judge_lines": {
+    "pre_counts": {
+      "gnu-default": 5,
+      "gnu-fma": 5,
+      "msvc": 5
+    },
+    "post_counts": {
+      "gnu-default": 5,
+      "gnu-fma": 5,
+      "msvc": 5
+    },
+    "post_identical_across_modes": true,
+    "pre_gnu_default": [
+      "[判据] cylinder-box     count 8/8 | dist 位等 8/8 max 0 ULP | pos 位等接触 8/8 max 0.00 ULP@尺度 | frame 位等分量 72/72 max abs 0e0",
+      "[判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 3.838112e-7",
+      "[判据] mesh-mesh        count 2/2 | dist 位等 1/2 max 2 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0",
+      "[判据] convex-mesh      count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0",
+      "[判据] degenerate-mesh  count 2/2 | dist 位等 0/2 max 1 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0"
+    ],
+    "pre_msvc": [
+      "[判据] cylinder-box     count 8/8 | dist 位等 8/8 max 0 ULP | pos 位等接触 8/8 max 0.00 ULP@尺度 | frame 位等分量 72/72 max abs 0e0",
+      "[判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 6.351978e-7",
+      "[判据] mesh-mesh        count 2/2 | dist 位等 1/2 max 1 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0",
+      "[判据] convex-mesh      count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0",
+      "[判据] degenerate-mesh  count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0"
+    ],
+    "pre_gnu_fma": [
+      "[判据] cylinder-box     count 8/8 | dist 位等 8/8 max 0 ULP | pos 位等接触 8/8 max 0.00 ULP@尺度 | frame 位等分量 72/72 max abs 0e0",
+      "[判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 1/2 max 2.00 ULP@尺度 | frame 位等分量 13/18 max abs 6.351978e-7",
+      "[判据] mesh-mesh        count 2/2 | dist 位等 1/2 max 1 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0",
+      "[判据] convex-mesh      count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0",
+      "[判据] degenerate-mesh  count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0"
+    ],
+    "post_gnu_default": [
+      "[判据] cylinder-box     count 8/8 | dist 位等 8/8 max 0 ULP | pos 位等接触 8/8 max 0.00 ULP@尺度 | frame 位等分量 72/72 max abs 0e0",
+      "[判据] ellipsoid-box    count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0",
+      "[判据] mesh-mesh        count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0",
+      "[判据] convex-mesh      count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0",
+      "[判据] degenerate-mesh  count 2/2 | dist 位等 2/2 max 0 ULP | pos 位等接触 2/2 max 0.00 ULP@尺度 | frame 位等分量 18/18 max abs 0e0"
+    ]
+  },
+  "delivery_readme_claims": {
+    "claims_host_gnu_was_green_coupling": true,
+    "claims_host_msvc_red_to_green": true,
+    "claims_full_g01_not_run": true,
+    "evidence_window_files": [],
+    "mentions_gpu_window_zero": true
+  }
+}
