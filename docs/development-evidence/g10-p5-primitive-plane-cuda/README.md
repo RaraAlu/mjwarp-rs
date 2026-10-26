@@ -12,7 +12,7 @@
   `tests/g10_p5_primitive_plane_cuda.rs`（新）、本证据目录。
 - **0 新 ABI 字段**：`CollisionArgs`/`CollisionContactOut`/`collision_gpu/abi.rs` 未动；**0 新入口**：入口仍是
   `mjwarp_collision_primitive`，6 组合在其内部按 type-pair 分派。
-- 行数棘轮：4 个新 `.cu` 均 ≤500 行；`product.cu` 356 行（<450，不拆分）。
+- 行数棘轮：4 个新 `.cu` 均 ≤500 行；`product.cu` 379 行（<450，不拆分；commit 249a4dbd 实测）。
 - 语义依据：pinned `collision_primitive.py` rev `71da24d9`（`plane_convex` L52-278；wrapper L281/L600/L686/L761/L838-914/L1000）
   与 `collision_primitive_core.py`（`plane_sphere` L50、`plane_capsule` L258、`plane_ellipsoid` L311、`plane_box` L342、`plane_cylinder` L465）；
   设备侧保持 pinned GPU `fma.rn` 融合语义，按 pinned 算式形态转写（不改写入门、不加特判/豁免）。
@@ -40,7 +40,7 @@
 | `primitive_plane_convex.cu` | 162 | 唯一 `g5_plane_convex`：穷举 + graph hillclimb（running best）+ 4 点去重收集 |
 | `primitive_plane_shapes.cu` | 171 | sphere/box/capsule/ellipsoid/cylinder 数值核心 |
 | `primitive_plane_wrapper.cu` | 113 | 6 wrapper 写入门 + `g5_plane_mesh_view` |
-| `product.cu` | 356 | 含 6 组合 dispatch（未拆） |
+| `product.cu` | 379 | 含 6 组合 dispatch（未拆；commit 249a4dbd 实测 379 行，B2 后为 394） |
 | `tests/g10_p5_primitive_plane_cuda.rs` | 494 | 单 test：一次 NVRTC + 一次 context，循环 6 case |
 
 `DEVICE_SOURCES` **21→25**：`…→primitive→primitive_wrapper→boxbox→boxbox_wrapper→primitive_plane_common→convex→shapes→wrapper`；
@@ -62,6 +62,16 @@ PATH 前置 `target/toolchains/cuda-12.8.1/bin`。只编译设备源、不建 CU
   `sha256=52b225c2830863cd8ce58d1fd7275a50fa1beeac1e9fc9fe40ec025faaebca6c`；**变化是预期**（新增 plane 四段）；
   **旧 21 段相对顺序未变**，4 段全部追加在 `boxbox_wrapper` 之后。
 - 源改动过程中的**作废中间值**（留痕、不采用）：`224056/0b398009…`、`224018/ac2c1a17…`、`223355/a945e75a…`、`221968/89dc0964…`。
+
+
+### 4.1 源指纹的 EOL 口径（两套都记，避免不可复现）
+
+- **工作树（CRLF，NVRTC `include_str!` 实际读到的字节）**：25 段 `222849 / 59631d83…`（本次冒烟实测）；
+  旧 21 段 `198815 / 52b225c2…`。
+- **git blob（LF 归一化，可从提交树复现）**：25 段 **`222369 / ce08822ac0da95ea7fac2c5f0aa24bd3da53be3173c5f89c006e9b55b113d37e`**；
+  旧 21 段同为 `198815 / 52b225c2…`。
+- 原因：plane 四段新增文件在作者工作树为 CRLF、git 提交为 LF；`include_str!` 读工作树字节，故两个口径都要记录。
+  设备源码语义与判据不受影响（内容相同，仅行尾差异）。
 
 ## 5. GPU 窗口结果（attempt4 有效轮，2026-10-26 20:48:30–20:48:59）
 
@@ -86,6 +96,10 @@ PATH 前置 `target/toolchains/cuda-12.8.1/bin`。只编译设备源、不建 CU
 | --- | --- | --- |
 | `g10_p5_primitive_cuda` | sphere-box-shallow / sphere-box-deep / capsule-box | 80/80 bit-equal、max ULP 0 |
 | `g10_p5_nvrtc_launcher` | hfield-sphere / sdf-box / ellipsoid-box | 314/314、3122/3122、80/80 bit-equal、max ULP 0 |
+
+
+> **O1（QA 观察）**：测试 `TETRA` 中 2 处顶点值 `-0.004_515_995` 与 MuJoCo `model.mesh_vert` 差 1 ULP；
+> 本窗口 plane-mesh 在 4 ULP 判据内通过（failures=0），**非位级全等**。若需位级，需修测试输入并另开窗口。
 
 **窗口事实**：body wall 23.5 s（3 个预构建二进制并行跑）；采样 93 点（0.25 s）；`used_peak=3367 MiB`、`free_min=12695 MiB`、
 `util_max=41%`、`residual=0`；基线 `3352/12710`、结束基线 `3352/12710`；post compute-apps 无本任务进程；窗口内零 Rust 编译。
@@ -173,3 +187,15 @@ un-*.log/console.log）；作废轮留档 window-attempt1/（host 校验 panic �
   ④ capsule/ellipsoid/cylinder 的 `normalize` 改逐分量除法形态；⑤ 清过期 `SKELETON/TODO` 注释与重复 `#include`；
   ⑥ **测试判据收紧**：`[count][width]` 参考解析、`dist` 4 ULP 判据（撤销 ~500 ULP 的放宽写法）、结构零容差、
   `geomcollisionid` 配对、`efc`/`overflow` 设备侧不变量；⑦ **host 组合校验扩展**（§7）；⑧ **mesh 顶点输入修正**（§5 attempt3）。
+
+## 12. QA 复核观察收口（2026-10-26）
+
+- O1（一般）：`TETRA` 2 处顶点差 1 ULP，plane-mesh 为 4 ULP 内通过、非位级（见 §5 注）；本片不重跑窗口。
+- O2（一般）：源指纹 EOL 依赖 → 已补 §4.1（工作树 CRLF 与 git blob LF 两套值并列）。
+- O3（建议）：`product.cu` 行数已更正为 379（commit 249a4dbd 实测）。
+- O4（建议，未改代码）：① cylinder 接触 3/4 的 pos 结合顺序与 pinned 字面不同，但本 case 位型相同且 id2/3 未 detected；
+  ② ellipsoid 有非上游退化保护（零长/非有限时返回 0 接触，不产 NaN）；③ graph hillclimb 加了 `1<<20` 迭代上限守卫。
+  三处本片 case 均不触发，记为观察。
+- O5（建议）：证据日志已统一转 UTF-8 无 BOM（原工具产物带 BOM / console.log 为 UTF-16LE），README 控制字符已清。
+- O6（建议）：attempt1 的 `guard.log` 已补归档到 `window-attempt1/`。
+- O7（一般）：addendum 已提交（`190dc37d`），不再处于 staged。
