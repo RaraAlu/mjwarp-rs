@@ -53,6 +53,10 @@ pub(crate) const PRIMITIVE_CUDA: &str = include_str!("primitive.cu");
 /// primitive wrapper 接触写入（与上游 `collision_primitive.py::sphere_box_wrapper` /
 /// `capsule_box_wrapper` 对应：`write_contact` 的 `id_` 序号与计数门）。
 pub(crate) const PRIMITIVE_WRAPPER_CUDA: &str = include_str!("primitive_wrapper.cu");
+// B1 plane 族设备源（common/convex/shapes/wrapper）的 `include_str!` 直接放在拼装处
+// `runtime/collision_gpu/source.rs`（与 `PRODUCT_SOURCE` 同口径）：若在此定义并经
+// `crate::physics` re-export，则必须改 `src/physics/mod.rs`，会使 T4 `physics_core`
+// 组合身份（`src/physics/mod.rs` + 4 个子模块）漂移，触发冻结捕获身份审计。
 /// multicontact 几何助手（上游 `collision_gjk.py::_feature_dim` / `_box_normals` /
 /// `_cylinder_normals` / `_aligned_faces` / `_aligned_face_edge` / `*_face` / `*_edge_normals`）。
 pub(crate) const MULTICONTACT_GEOM_CUDA: &str = include_str!("multicontact_geom.cu");

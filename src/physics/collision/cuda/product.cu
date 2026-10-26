@@ -314,6 +314,28 @@ extern "C" __global__ void mjwarp_collision_primitive(mjwarp_collision_args a) {
     g5_capsule_box_wrapper(geom1, geom2, params, a.naconmax, &a.out);
   } else if (a.type1 == G5_BOX && a.type2 == G5_CAPSULE) {
     g5_capsule_box_wrapper(geom2, geom1, params, a.naconmax, &a.out);
+  } else if (a.type1 == G5_PLANE || a.type2 == G5_PLANE) {
+    // B1 plane 族：pinned `_PRIMITIVE_COLLISIONS` 的 6 组合（PLANE+SPHERE/CAPSULE/ELLIPSOID/
+    // CYLINDER/BOX/MESH）；wrapper 第一个参数恒为 plane。mesh 只用 mesh 顶点/图（a.mesh_vert /
+    // a.mesh_graph），不需要新 ABI 字段。写入门/顺序由各 wrapper 按 pinned 逐行实现，不在此加特判。
+    const bool plane_first = a.type1 == G5_PLANE;
+    const d_geom& plane = plane_first ? geom1 : geom2;
+    const d_geom& other = plane_first ? geom2 : geom1;
+    const int other_type = plane_first ? a.type2 : a.type1;
+    if (other_type == G5_SPHERE) {
+      g5_plane_sphere_wrapper(plane, other, params, a.naconmax, &a.out);
+    } else if (other_type == G5_CAPSULE) {
+      g5_plane_capsule_wrapper(plane, other, params, a.naconmax, &a.out);
+    } else if (other_type == G5_ELLIPSOID) {
+      g5_plane_ellipsoid_wrapper(plane, other, params, a.naconmax, &a.out);
+    } else if (other_type == G5_CYLINDER) {
+      g5_plane_cylinder_wrapper(plane, other, params, a.naconmax, &a.out);
+    } else if (other_type == G5_BOX) {
+      g5_plane_box_wrapper(plane, other, params, a.naconmax, &a.out);
+    } else if (other_type == G5_MESH) {
+      const g5_plane_mesh_view mesh = {a.mesh_vert, a.mesh_graph};
+      g5_plane_convex_wrapper(plane, other, mesh, params, a.naconmax, &a.out);
+    }
   }
 }
 

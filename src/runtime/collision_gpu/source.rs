@@ -1,10 +1,11 @@
 //! G10@P5：产品 NVRTC 设备源拼装。
 //!
-//! 设备源由 `src/physics/collision/cuda/*.cu` 的 21 个片段按**依赖拓扑序**拼接
+//! 设备源由 `src/physics/collision/cuda/*.cu` 的 25 个片段按**依赖拓扑序**拼接
 //! （被依赖文件在前：common→geom→support→simplex→gjk_core→polytope→polytope_build→
 //! epa→ccd→sdf_octree→sdf_math→sdf_narrowphase→hfield→multicontact_geom→
 //! multicontact_clip→multicontact→contact→primitive→primitive_wrapper→boxbox→
-//! boxbox_wrapper），最后追加产品入口 `product.cu`。拼接前删除各片段里的本地
+//! boxbox_wrapper→primitive_plane_common→primitive_plane_convex→primitive_plane_shapes→
+//! primitive_plane_wrapper），最后追加产品入口 `product.cu`。拼接前删除各片段里的本地
 //! `#include "xxx.cu"` 行（只删引号 `.cu`），其它 `#include` 与 `#pragma once` 原样保留：
 //! NVRTC 把拼好的整串当作**一个**翻译单元编译，本地 include 会重复展开。
 //!
@@ -19,8 +20,22 @@ use crate::physics::{
     SDF_NARROWPHASE_CUDA, SDF_OCTREE_CUDA, SIMPLEX_CUDA, SUPPORT_CUDA,
 };
 
+// B1 plane 族四个片段直接在拼装处取文本（与下方 `PRODUCT_SOURCE` 同口径）。不经
+// `crate::physics` re-export 是刻意的：那需要改 `src/physics/mod.rs`，而该文件是 T4
+// `physics_core` 组合身份的一部分，改动会使冻结捕获身份审计
+// （`runtime::transfer::kernel::recapture::tests_host::preserves_current_sources_and_all_thirty_variants`）
+// 漂移。设备源内容与拼装结果不受影响。
+const PRIMITIVE_PLANE_COMMON_CUDA: &str =
+    include_str!("../../physics/collision/cuda/primitive_plane_common.cu");
+const PRIMITIVE_PLANE_CONVEX_CUDA: &str =
+    include_str!("../../physics/collision/cuda/primitive_plane_convex.cu");
+const PRIMITIVE_PLANE_SHAPES_CUDA: &str =
+    include_str!("../../physics/collision/cuda/primitive_plane_shapes.cu");
+const PRIMITIVE_PLANE_WRAPPER_CUDA: &str =
+    include_str!("../../physics/collision/cuda/primitive_plane_wrapper.cu");
+
 /// 设备源片段与固定拼装顺序（`(文件名, 内容)`，依赖在前）。
-pub(crate) const DEVICE_SOURCES: [(&str, &str); 21] = [
+pub(crate) const DEVICE_SOURCES: [(&str, &str); 25] = [
     ("common.cu", COMMON_CUDA),
     ("geom.cu", GEOM_CUDA),
     ("support.cu", SUPPORT_CUDA),
@@ -42,6 +57,12 @@ pub(crate) const DEVICE_SOURCES: [(&str, &str); 21] = [
     ("primitive_wrapper.cu", PRIMITIVE_WRAPPER_CUDA),
     ("boxbox.cu", BOXBOX_CUDA),
     ("boxbox_wrapper.cu", BOXBOX_WRAPPER_CUDA),
+    // B1 plane 族（拼装顺序：primitive_wrapper→boxbox→boxbox_wrapper→plane common/convex/shapes/
+    // wrapper→product；共 25 段，0 新 ABI 入口，入口仍是 mjwarp_collision_primitive）。
+    ("primitive_plane_common.cu", PRIMITIVE_PLANE_COMMON_CUDA),
+    ("primitive_plane_convex.cu", PRIMITIVE_PLANE_CONVEX_CUDA),
+    ("primitive_plane_shapes.cu", PRIMITIVE_PLANE_SHAPES_CUDA),
+    ("primitive_plane_wrapper.cu", PRIMITIVE_PLANE_WRAPPER_CUDA),
 ];
 
 /// 产品侧 CUDA 入口（追加在拼接结果最后；`d_contact_out` 等由前面的片段提供）。

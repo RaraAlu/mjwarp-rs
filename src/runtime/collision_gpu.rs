@@ -58,7 +58,8 @@ pub enum CollisionKernel {
     Hfield,
     /// `mjwarp_collision_sdf`：SDF 单 pair 子集（每初始点一次下降）。
     Sdf,
-    /// `mjwarp_collision_primitive`：primitive narrowphase（SPHERE-BOX / CAPSULE-BOX）。
+    /// `mjwarp_collision_primitive`：primitive narrowphase（SPHERE-BOX / CAPSULE-BOX，
+    /// 以及 B1 plane 族 6 组合 PLANE-{SPHERE,CAPSULE,ELLIPSOID,CYLINDER,BOX,MESH}）。
     Primitive,
     /// `mjwarp_collision_contact_multi`：`eval_ccd_write_contact` 的 `use_multiccd=true`
     /// 静态特化（box/mesh/cylinder 组合 <=4 个接触；mesh 分支本片回退单接触）。
@@ -68,37 +69,8 @@ pub enum CollisionKernel {
     BoxBox,
 }
 
-/// 上游 `mjtGeom` 的 G5 设备常量（`support.cu::G5_SPHERE/G5_CAPSULE/G5_BOX`）；
-/// 这里只用于 `run` 的 CPU 侧组合校验，数值必须与设备源一致。
-const GEOM_SPHERE: i32 = 2;
-const GEOM_CAPSULE: i32 = 3;
-const GEOM_BOX: i32 = 6;
-
-/// primitive 入口只接受 {SPHERE,BOX} 与 {CAPSULE,BOX}（无序对；设备入口按 `type1/type2`
-/// 分派并在需要时交换几何）。其它组合返回 [`CollisionGpuError::InvalidArgument`]。
-pub(crate) fn validate_primitive_types(type1: i32, type2: i32) -> Result<(), CollisionGpuError> {
-    let sphere_box =
-        (type1 == GEOM_SPHERE && type2 == GEOM_BOX) || (type1 == GEOM_BOX && type2 == GEOM_SPHERE);
-    let capsule_box = (type1 == GEOM_CAPSULE && type2 == GEOM_BOX)
-        || (type1 == GEOM_BOX && type2 == GEOM_CAPSULE);
-    if sphere_box || capsule_box {
-        return Ok(());
-    }
-    Err(CollisionGpuError::InvalidArgument(
-        "primitive 只支持 SPHERE-BOX / CAPSULE-BOX 组合",
-    ))
-}
-
-/// box-box 入口只接受 `(BOX, BOX)`（上游 NATIVECCD 关闭时把 `(BOX,BOX)` 从 CONVEX 改走
-/// primitive `box_box_wrapper`）。其它组合返回 [`CollisionGpuError::InvalidArgument`]。
-pub(crate) fn validate_boxbox_types(type1: i32, type2: i32) -> Result<(), CollisionGpuError> {
-    if type1 == GEOM_BOX && type2 == GEOM_BOX {
-        return Ok(());
-    }
-    Err(CollisionGpuError::InvalidArgument(
-        "boxbox 只支持 BOX-BOX 组合",
-    ))
-}
+mod validate;
+pub(crate) use validate::{validate_boxbox_types, validate_primitive_types};
 
 /// 已编译并加载的产品程序（一个上下文、一个模块、六个入口、默认流）。
 pub struct CollisionGpuProgram {

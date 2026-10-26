@@ -1,0 +1,91 @@
+{
+  "task_id": "2026-10-26-g10-p5-primitive-plane-cuda-r2",
+  "status": "verified",
+  "head": "交付提交 hash 见 `git log --oneline --grep='B1'`；窗口前工作树 HEAD = 0fa15b54adbff8981f241597acb1ed55716817f1",
+  "owner": "Backend（实现）/ Arch（审查、判据实现、窗口执行、证据收口）",
+  "gpu_windows": 4,
+  "gpu_windows_note": "attempt1（host 组合校验缺项，作废）/ attempt2（runner 脚本 bug，零设备工作，作废）/ attempt3（测试 mesh 顶点输入错误，plane-mesh 1/6 失败，作废）/ attempt4（有效轮，6/6 + 3+3 回归通过）",
+  "abi": "0 new ABI fields；0 new entries；entry 仍是 mjwarp_collision_primitive；CollisionArgs/CollisionContactOut/collision_gpu/abi.rs 未动",
+  "t4": "physics_core combined identity unchanged；no repin；0 fixture changes；src/physics/mod.rs zero diff；fixtures/precision/t4-current-kernels.json 未动",
+  "device_sources": {
+    "count": 25,
+    "order": "common->geom->support->simplex->gjk_core->polytope->polytope_build->epa->ccd->sdf_octree->sdf_math->sdf_narrowphase->hfield->multicontact_geom->multicontact_clip->multicontact->contact->primitive->primitive_wrapper->boxbox->boxbox_wrapper->primitive_plane_common->convex->shapes->wrapper，product 由 PRODUCT_SOURCE 追加",
+    "old_21_relative_order_unchanged": true,
+    "plane_segments_include_via": "source.rs 本地 include_str!（不经 cuda/mod.rs 常量 re-export，避开 T4 physics_core 漂移）"
+  },
+  "cpu_smoke_final": {
+    "source_bytes": 222849,
+    "source_sha256": "59631d8377e3a587cb98d396742f9698ea17105847a33586e8b7a89b8c84b917",
+    "ptx_bytes": 3713524,
+    "entries": 6,
+    "entry_delta": "6 -> 6（0 新入口；6 个 plane wrapper 是 mjwarp_collision_primitive 内部 type-pair 分派）",
+    "command": "cargo test --locked --features cuda-probe --lib runtime::collision_gpu -- --include-ignored --nocapture（PATH 前置 target/toolchains/cuda-12.8.1/bin；只编译设备源，未建 CUDA context）",
+    "result": "25 passed / 0 failed（含 nvrtc_smoke）"
+  },
+  "invalidated_intermediate_smoke": [
+    {"source_bytes": 224056, "source_sha256": "0b39800997ead2f3058d594b7ff2640ab0e11dfe51a9f08f8f0c7612f236a9d1", "reason": "注释清理前中间值"},
+    {"source_bytes": 224018, "source_sha256": "ac2c1a1719465498e5daed9f476b3e3d410bc1223c9f7de040b1eca1f0001e04", "reason": "B-1/B-2 修正后、B-3/算式对齐前"},
+    {"source_bytes": 223355, "source_sha256": "a945e75a570d65f478932e9e530b8fd26bd40058db183c0429a03559f665c5b7", "reason": "dispatch 落盘后、审查修正前"},
+    {"source_bytes": 221968, "source_sha256": "89dc09643f411be39555c8b460709160f542632759fc00ad7fe09853286577a8", "reason": "wrapper 笔误修正前"}
+  ],
+  "old_21_segments": {
+    "source_bytes": 198815,
+    "source_sha256": "52b225c2830863cd8ce58d1fd7275a50fa1beeac1e9fc9fe40ec025faaebca6c",
+    "note": "Arch 独立复算（strip 规则与 Rust 一致，Python↔Rust 双向一致）；仅作旧新对照，不作判据"
+  },
+  "window_attempt4": {
+    "window_start": "2026-10-26T20:48:30.910+08:00",
+    "window_end": "2026-10-26T20:48:59.043+08:00",
+    "body_wall_s": 23.5,
+    "baseline": "3352 MiB used / 12710 MiB free / 37-38% util / 33 °C（3 点）",
+    "end_baseline": "3352 MiB used / 12710 MiB free / 6–12% util / 33–34 °C（3 点）",
+    "sampler_samples": 93,
+    "used_peak_mib": 3367,
+    "free_min_mib": 12695,
+    "util_max_percent": 41,
+    "residual_processes": 0,
+    "zero_rust_compile": true,
+    "parallel_binaries": ["g10_p5_primitive_plane_cuda", "g10_p5_primitive_cuda", "g10_p5_nvrtc_launcher"],
+    "binary_sha256": {
+      "plane": "e5f94074fd692b9bbe90c623ee49cdc772322158a3ae18cba5ad348e39b9732e",
+      "primitive": "6aec50d02c53645bca6dbd92a5cfb2fcb265ccad9c54cf5fbb3a3691bbedcdc6",
+      "launcher": "bcd43c6e8da3c3e1baf1ec26420a7fd58b6ea4917458886d435e7b095993cb7e"
+    },
+    "cases": {
+      "plane-sphere": {"dev_nacon": 1, "ref_nacon": 1, "failures": 0},
+      "plane-capsule": {"dev_nacon": 1, "ref_nacon": 1, "failures": 0},
+      "plane-ellipsoid": {"dev_nacon": 1, "ref_nacon": 1, "failures": 0},
+      "plane-cylinder": {"dev_nacon": 1, "ref_nacon": 1, "failures": 0},
+      "plane-box": {"dev_nacon": 3, "ref_nacon": 3, "failures": 0},
+      "plane-mesh": {"dev_nacon": 3, "ref_nacon": 3, "failures": 0}
+    },
+    "regression": {
+      "primitive_3_cases": "sphere-box-shallow / sphere-box-deep / capsule-box：80/80 bit-equal、max ULP 0、failures=0",
+      "launcher_3_cases": "hfield-sphere 314/314、sdf-box 3122/3122、ellipsoid-box 80/80 bit-equal、max ULP 0、failures=0"
+    }
+  },
+  "attempts": [
+    {"attempt": 1, "result": "void", "cause": "host 侧 validate_primitive_types 未扩展（primitive 只接受 SPHERE-BOX/CAPSULE-BOX），plane 测试在 CPU 校验处 panic；regression 已 bit-exact", "fix": "扩展 host 组合校验到 plane 族 6 组合（src/runtime/collision_gpu.rs）"},
+    {"attempt": 2, "result": "void", "cause": "runner 脚本 bug（New-GuardState 前多一个反斜杠），零设备工作", "fix": "修正 runner 并加 -Attempt 参数"},
+    {"attempt": 3, "result": "void", "cause": "测试喂 tetra.obj 原始坐标而非 MuJoCo model.mesh_vert（mesh_quat 旋转后），plane-mesh dev 1 vs ref 3", "fix": "用 pinned mujoco 3.15 dump model.mesh_vert 修正测试输入（独立 Python 复算可逐位复现参考）"},
+    {"attempt": 4, "result": "valid", "cause": "6/6 + 3+3 回归通过"}
+  ],
+  "host_validation_extension": {
+    "file": "src/runtime/collision_gpu.rs",
+    "change": "validate_primitive_types 放行 {PLANE, SPHERE/CAPSULE/ELLIPSOID/CYLINDER/BOX/MESH}（含互换），保留 {SPHERE,BOX}/{CAPSULE,BOX}，拒绝 plane-plane 等；primitive_tests.rs 增正/负例",
+    "t4_impact": "none（该文件不在 T4 product_sources）"
+  },
+  "mesh_input_source": "MuJoCo model.mesh_vert（pinned venv mujoco 3.15 从 fixtures/g10-p5-primitive/plane-mesh.xml 加载 tetra.obj 后 dump），非 tetra.obj 原始坐标；参考 geom_xpos/geom_xmat 来自 B0 捕获",
+  "criteria": "位级优先；非位级 dist <= 4 ULP@自身量级（ref=0 用 4 ULP@1.0）；pos 4*ULP(参考三轴最大绝对值)；frame 4 ULP@1.0；contact 数/worldid/type/dim/geom/geomcollisionid/includemargin/adhesion/friction/solref/solreffriction/solimp 零容差；efc_address/overflow 参考未采集，只做设备侧不变量（efc 全 -1、overflow 全 0）；行序不作判据，按 geomcollisionid 配对；nacon 按 GPU 参考（capsule-capsule=1），不按 CPU 预检凑",
+  "input_sources": {
+    "reference": "docs/development-evidence/g10-p5-primitive-capture/upstream-primitive-gpu.json（sha256 3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734，10 case 取 plane 6）",
+    "geom_xpos_xmat": "取自 B0 参考的捕获事实",
+    "geom_size_and_mesh_vertices": "fixtures/g10-p5-primitive/*.xml + tetra.obj（11 文件 sha/字节数见 docs/development-evidence/g10-p5-primitive-capture/inputs-sha256.json）；mesh 顶点用 model.mesh_vert"
+  },
+  "boundaries": [
+    "只判 plane 族 6 组合在 B0 的 6 个 case 上的结果；不判 precision acceptance / 不宣称 primitive 全组合通过 / 不宣称跨环境全绿",
+    "plane_convex graph 分支（graphadr != -1 且 vertnum >= 10）无 case 覆盖（本片 plane-mesh 为 4 顶点走穷举）",
+    "plane-mesh 未需要 polygon 等额外数据；若后续需要则停手报 Arch、记未覆盖",
+    "未做 host 交叉、未做 release/Linux"
+  ]
+}
