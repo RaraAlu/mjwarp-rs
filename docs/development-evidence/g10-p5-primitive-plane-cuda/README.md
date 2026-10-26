@@ -1,6 +1,6 @@
 # G10@P5 B1：plane 族 6 组合 device primitive 实现（对照 B0 上游 GPU 参考 + 回归）
 
-- 任务：`2026-10-26-g10-p5-primitive-plane-cuda-r2`（p46；实现 Backend，审查/判据实现/窗口执行/证据收口 Arch）。
+- 任务：`2026-10-26-g10-p5-primitive-plane-cuda-r2`（p46；实现 Backend，审查/判据实现/窗口执行/证据收口 Arch）。交付提交：`249a4dbd`。
 - **GPU 窗口已执行（attempt4 有效轮）**：6/6 组合对照通过 + 既有 primitive 3 / launcher 3 回归 bit-exact。
 
 ## 1. 范围与红线
