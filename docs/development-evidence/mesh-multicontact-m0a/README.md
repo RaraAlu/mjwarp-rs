@@ -8,8 +8,8 @@
 
 | 文件 | 行数 | 说明 |
 | --- | --- | --- |
-| `src/physics/collision/cuda/product.cu` | 424 | 新增 `MjwarpMeshPolyArgs`（9 指针）与 args 的 `mesh_poly_args` 字段；入口数不变 |
-| `src/runtime/collision_gpu/abi.rs` | 334 | `CollisionArgs` 504 布局 + sidecar 结构 + 空/不自洽校验 `validate_mesh_poly` |
+| `src/physics/collision/cuda/product.cu` | 426 | 新增 `MjwarpMeshPolyArgs`（9 指针）与 args 的 `mesh_poly_args` 字段；入口数不变 |
+| `src/runtime/collision_gpu/abi.rs` | 337 | `CollisionArgs` 504 布局 + sidecar 结构 + 空/不自洽校验 `validate_mesh_poly` |
 | `src/runtime/collision_gpu.rs` | 448 | 9 路 upload + sidecar 构造/指针（全空→null）；缓冲 helper 拆出 |
 | `src/runtime/collision_gpu/buffers.rs` | 70 | 新增：`zeroed/upload/input_pointer/output_pointer/readback/truncated`（行为不变） |
 | `src/runtime/collision_gpu/types.rs` | 115 | `CollisionGpuInputs` 23→32（9 个可选 slice） |
@@ -110,7 +110,7 @@ nvrtc_smoke_ok ptx_bytes=3786520 entries=6 source_bytes=238969 source_sha256=ec2
   不在证据中作为最终值）；`make_frame`/27 段顺序断言不变。
 - 冒烟日志：`logs/post-smoke-final.log`。
 
-### 5.2 探针 `ProbeArgs` / `DeviceArrays` 同步口径
+### 5.1 探针 `ProbeArgs` / `DeviceArrays` 同步口径
 
 - 冻结 G5 探针 `ProbeArgs`（496 字节、23 指针）与旧 G5 证据**零改动**；产品侧
   `mjwarp_collision_args` 是其**超集**：前 23 指针 + i32/f32 标量块顺序/类型一致，只在指针块
@@ -122,7 +122,7 @@ nvrtc_smoke_ok ptx_bytes=3786520 entries=6 source_bytes=238969 source_sha256=ec2
   `g10_p5_sdf_host::sdf_cpu_reference_is_well_formed_and_matches_g0b_structure`（含在
   §7 unit 980/0/372 内）；GPU 型 `*_matches_*` 测试需窗口，M2 验证窗执行。
 
-### 5.1 旧 case 兼容（不重生成）
+### 5.2 旧 case 兼容（不重生成）
 
 - `docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/` 的 12 个已 verified case
   保持 23 项输入；`INPUT_BINS` 仍为 23 项（`tests/support/primitive_qa_support.rs:18`、
@@ -175,9 +175,20 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast
   原始日志留在 `target/m0a/all-features-raw.log`（sha256
   `b6ce8def369c2d11c645aeb1df406a9b5d7e97216efc653b59f848bc50cf13b8`，因证据文件 ≤500 行约束
   不入证据目录，摘要由该日志解析）。
-- 裸跑（gnu host、无 env）会失败，已留证 `logs/all-features-bare-fail.log`：
-  `MJWARP_MUJOCO_ROOT` 未设 → build.rs panic；`cubecl-llvm-probe` 依赖 `dlltool.exe` 缺失。
+- 裸跑（gnu host、无 env）会失败，已留证 `logs/all-features-bare-fail.log`：实测失败点是在依赖编译阶段——
+  `dlltool.exe` 缺失 → `getrandom` / `windows-sys` 编译失败（**未进入 build.rs 阶段**）；
+  「需 `MJWARP_MUJOCO_ROOT` + msvc 工具链」的结论仍成立，但此前「env 未设 → build.rs panic」的表述无原文证据，已按实测更正（QA M0a 观察 O1）。
   故验收 item 6 采用上面这条命令（与 `61fb6baf` 重钉流程同一口径）。
+
+
+### 7.2 size-gate 拆分的边界（QA M0a 观察 O6）
+
+- 提交前 `tests/g10_p5_primitive_plane_cuda.rs` 因新增 9 个 `&[]` 从 493 增至 503 行，触发 500 行棘轮；
+  已做 **tests-only 拆分**：`PlaneCase`/`TETRA`/`CASES` 抽到 `tests/support/primitive_plane_cases.rs`（63 行），
+  主文件回到 **450 行**，断言/字段集/判据/期望逐字未改。
+- 该拆分为 `tests/` 内改动，不影响 device 源与 ABI：提交后树实测冒烟仍 `238969 / ec2e7acd… / 3786520 / entries 6`、
+  默认套件 980/0/372——即「ABI/冒烟数字不变」是**提交后树实测确认**；
+  单 commit 内无法独立还原「拆分前/拆分后」的先后，此点如实记录。
 
 ## 8. 已知债务 / 未覆盖（不得误读）
 

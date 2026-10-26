@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-mesh-multicontact-m0a-observation-closure-r2",
+  "kind": "Governance: M0a QA observation closure (evidence text/encoding errata)",
+  "role": "Arch",
+  "base_head": "81c15ac3",
+  "triggers": {
+    "m0a_implementation": "097c54b9",
+    "m0a_qa_check_closure": "5d07b4fe",
+    "qa_verdict": {
+      "verdict": "pass",
+      "blockers": 0,
+      "observations": 6
+    }
+  },
+  "observations": {
+    "O1": {
+      "level": "一般",
+      "change": "裸跑失败表述按实测更正：dlltool 缺失 → getrandom/windows-sys 编译失败，未进入 build.rs；删除无证据的 build.rs panic 表述"
+    },
+    "O2": {
+      "level": "一般",
+      "handling": "折入 M2 acceptance（9ccd9042）：sum/区间/负值规则单测 + empty 显式断言 null"
+    },
+    "O3": {
+      "level": "建议",
+      "change": "README 行数改实测 product.cu 426 / abi.rs 337；§5.1/§5.2 顺序整理并同步引用"
+    },
+    "O4": {
+      "level": "建议",
+      "change": "6 个 UTF-16LE 日志转 UTF-8 无 BOM（QA 原述 9 个，实测 6 logs + 3 txt UTF-8，口径已更正）；git 不再视为二进制"
+    },
+    "O5": {
+      "level": "建议",
+      "handling": "折入 M2 acceptance（9ccd9042）：ProbeArgs 496B/23 指针 static_assert/测试锁定"
+    },
+    "O6": {
+      "level": "建议",
+      "change": "README §7.2 增 size-gate 拆分边界：tests-only、提交后树实测确认数字、单 commit 内先后不可独立还原"
+    }
+  },
+  "impact": {
+    "files_changed": [
+      "docs/development-evidence/mesh-multicontact-m0a/README.md",
+      "docs/development-evidence/mesh-multicontact-m0a/logs/*.log (6 个转 UTF-8)"
+    ],
+    "no_change": [
+      "src",
+      "tests",
+      "fixtures",
+      "Cargo.toml",
+      "Cargo.lock",
+      "ABI 布局",
+      "冒烟指纹",
+      "门禁数字"
+    ]
+  },
+  "gate": {
+    "command": "normify gate 2026-10-26-mesh-multicontact-m0a-observation-closure --repo D:\\Rust\\mjwarp-rs",
+    "gates": [
+      "fmt",
+      "clippy",
+      "clippy-cuda",
+      "unit"
+    ],
+    "unit_expected": "980 passed / 0 failed / 372 ignored"
+  },
+  "boundaries": [
+    "不改任何已 verified 数字、判据、容差、期望、ABI 布局或冒烟指纹",
+    "不宣称 mesh 已支持；null/非 null sidecar 发射级行为留 M2"
+  ],
+  "evidence_dir": "docs/development-evidence/mesh-multicontact-m0a-observation-governance",
+  "note": "r2 重登记：unchanged 去掉 fixtures（M1 在途新 fixture 冲突）；原任务已 abandon 留痕（74aea778）。"
+}
