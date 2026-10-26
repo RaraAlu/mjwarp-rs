@@ -12,7 +12,7 @@ G5/B0/B3 旧参考、不宣称 mesh 已支持。本片只交付「dispatch 审�
 详见 `dispatch-audit.md`（逐条行号）。摘要：
 
 - `(BOX,MESH)`→CONVEX（`collision_driver.py` L79）、`(CYLINDER,MESH)`→CONVEX（L77）、
-  `(MESH,MESH)`→CONVEX（L80）；primitive 表（L48-70）不含 mesh。
+  `(MESH,MESH)`→CONVEX（L80）；目标组合不在 primitive 表（L48-70 只含 plane/sphere/capsule/box；L53 的 (PLANE,MESH) 属 plane-mesh、不在目标组合内）。
 - `_narrowphase` 分流（L908-920）→ `convex_narrowphase`；`NATIVECCD disable` 只把 `(BOX,BOX)`
   覆盖为 PRIMITIVE（L910-912），**不影响** mesh-box / mesh-cylinder。
 - `collision_convex.py`：`use_multiccd`（L1275）、mesh 组合扩大 `npolygonmax/nmeshdegmax`
@@ -61,7 +61,7 @@ context），原始 JSON：`precheck-cpu.json`。**PASS（2/2）**：
 
 格式 `used_mib, free_mib, util_percent, temperature_c, driver_version`；free 11403 ≥ 10240。
 开窗前另做人工复核采样（`4659, 11403, 36` / `…37` / `…33`，used/free/driver 相同）。
-`compute-apps` 原文（`baseline.txt` 末行，34 条）：全部为桌面图形进程
+`compute-apps` 原文（`baseline.txt` 末行，实测 31 条）：全部为桌面图形进程
 （explorer / Chrome / Feishu / VS Code / NVIDIA Overlay 等，`used_gpu_memory` 均 `[N/A]`）；
 按 `g10_p5|capture_mesh|mjwarp-parallel` 过滤命中 **0** 条 → 无本任务 CUDA 进程，允许开窗。
 
@@ -100,7 +100,7 @@ context），原始 JSON：`precheck-cpu.json`。**PASS（2/2）**：
   80%×3 中止）、`delta_peak=418 MiB`（`increment_limit_mib=3072`）、`baseline_used=4664`
 - `Assert-Guard -Phase post`：used 4677 / free 11385 / delta 13 / util 31，无 abort；
   `Assert-GuardAggregates` 无 `GUARD_ABORT`（`guard.log` 原文留档）
-
+（近阈值：94% 与 streak 2 接近 80%×3 守卫线，本片未 abort，规则正确。）
 ### 4.5 raw A/B 逐字节一致
 
 ```
@@ -130,7 +130,7 @@ compare exit 0 → 参考自动复制到 `upstream-mesh-multicontact-gpu.json`�
 | case | count | geomcollisionid | dist | pos（z / xy） | two_captures |
 | --- | --- | --- | --- | --- | --- |
 | `mesh-box` | 4 | [[0],[1],[2],[3]] | 全 `-0.010000001639127731` | z=`0.0949999988`，4 个角点 | true |
-| `mesh-cylinder` | 4 | [[0],[1],[2],[3]] | 全 `-0.01000000536441803` | z=`0.095`，4 个 rim 接触点 | true |
+| `mesh-cylinder` | 4 | [[0],[1],[2],[3]] | 全 `-0.01000000536441803` | z=`0.0949999988`（f32 实测），4 个 rim 接触点 | true |
 
 - 结构字段齐全且可用于零容差比较：`type=1`、`dim=3`、`geom=[1,0]`、`worldid=0`、
   `includemargin=0`、`adhesion=0`、`friction=[1,1,0.005,1e-4,1e-4]`、`solref=[0.02,1]`、
@@ -205,3 +205,9 @@ G5 证据与既有 fixture 目录零改动。
 | `precheck-cpu.json` | CPU 预检原始 JSON（2 case，on/off） |
 | `upstream-mesh-multicontact-gpu.json` | 上游 GPU f32 参考（2 case，5703 B） |
 | `scripts/sha256.json` + `scripts/*.py` | 捕获/预检脚本入库副本与 sha |
+
+### 脚本归档的复核链（QA M1 观察 O3）
+
+- `byte_identical_after_copy` 在执行副本删除后**无法再独立复核**（这是如实边界，不宣称可复验）。
+- 实际证据链：参考 JSON 的 `provenance.authoring_script_sha256` = `scripts/sha256.json` 记录的归档副本 sha
+  （capture `cbd71dca…`、precheck `4e8ee1d2…`），即「同一文件的两个独立指纹互相印证」，而不是事后对执行副本再比一次。

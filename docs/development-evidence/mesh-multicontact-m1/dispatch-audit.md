@@ -23,7 +23,7 @@ mesh-mesh 同为 CONVEX、同一 multicontact 分支（`(MESH,MESH): CONVEX`）�
    - `collision_driver.py` L77：`(GeomType.CYLINDER, GeomType.MESH): CollisionType.CONVEX`
    - `collision_driver.py` L79：`(GeomType.BOX, GeomType.MESH): CollisionType.CONVEX`
    - `collision_driver.py` L80：`(GeomType.MESH, GeomType.MESH): CollisionType.CONVEX`
-   - 对照：primitive 表（L48-70）只含 plane/sphere/capsule/box 组合，无 mesh。
+   - 对照：目标组合不在 primitive 表（primitive 表 L48-70 只含 plane/sphere/capsule/box 组合；L53 的 `(PLANE,MESH)` 属 plane-mesh，不在目标组合内）。
 2. **NATIVECCD disable 不影响目标组合**
    - `collision_driver.py` L908-920 `_narrowphase`：convex/primitive 分流，
      L919 `convex_narrowphase(...)`；L920 `primitive_narrowphase(...)`。

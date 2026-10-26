@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-mesh-multicontact-m1-observation-closure",
+  "kind": "Governance: M1 QA observation closure (evidence text errata)",
+  "role": "Arch",
+  "base_head": "c84cdd09",
+  "triggers": {
+    "m1_implementation": "35192320",
+    "m1_qa_check_closure": "c1016aa7",
+    "qa_verdict": {
+      "verdict": "pass",
+      "blockers": 0,
+      "observations": 5
+    }
+  },
+  "observations": {
+    "O1": {
+      "level": "一般",
+      "change": "dispatch-audit.md / README 的「primitive 表无 mesh」改为「目标组合不在 primitive 表；L53 的 (PLANE,MESH) 属 plane-mesh、不在目标组合内」，结论不变"
+    },
+    "O2": {
+      "level": "一般",
+      "change": "baseline compute-apps 条目数 34 → 实测 31（README + receipt.raw_entry_count），窗口结论不变"
+    },
+    "O3": {
+      "level": "建议",
+      "change": "README 增「脚本归档的复核链」：byte_identical_after_copy 在执行副本删除后不可独立复核；实际链 = provenance.authoring_script_sha256 与 scripts/sha256.json 互印"
+    },
+    "O4": {
+      "level": "建议",
+      "change": "README mesh-cylinder pos z 由 0.095 改为 f32 实测 0.0949999988"
+    },
+    "O5": {
+      "level": "建议",
+      "change": "README 采样摘要加「近阈值」注记：util 94% / streak 2 接近 80%×3 守卫线，本片未 abort、规则正确"
+    }
+  },
+  "impact": {
+    "files_changed": [
+      "docs/development-evidence/mesh-multicontact-m1/README.md",
+      "docs/development-evidence/mesh-multicontact-m1/dispatch-audit.md",
+      "docs/development-evidence/mesh-multicontact-m1/receipt.json"
+    ],
+    "no_change": [
+      "src",
+      "tests",
+      "fixtures",
+      "Cargo.toml",
+      "Cargo.lock",
+      "参考 JSON 内容",
+      "任何已验证数字与判据"
+    ]
+  },
+  "gate": {
+    "command": "normify gate 2026-10-26-mesh-multicontact-m1-observation-closure --repo D:\\Rust\\mjwarp-rs",
+    "gates": [
+      "fmt",
+      "clippy",
+      "clippy-cuda",
+      "unit"
+    ],
+    "unit_expected": "982 passed / 0 failed / 372 ignored（M0a 形状修正片新增 2 个非 ignored 单测后的基线；本片纯文档，gate 在修正片合入后重跑）"
+  },
+  "boundaries": [
+    "纯证据文字勘误；不改参考 JSON、不改任何已 verified 数字/判据/容差",
+    "不宣称 mesh 已支持"
+  ],
+  "evidence_dir": "docs/development-evidence/mesh-multicontact-m1-observation-governance"
+}
