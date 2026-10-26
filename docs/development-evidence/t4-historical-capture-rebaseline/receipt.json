@@ -1,28 +1,49 @@
 {
   "schema": 1,
   "task_id": "2026-10-22-t4-historical-capture-rebaseline",
-  "status": "in_progress_night_segment",
+  "status": "closed_night_segment_decision_b_landed",
   "role": "Arch",
   "base_head": "be5bffd4",
   "authorization": "Chief 2026-10-27：start T4 但夜间只做轻量/CPU 段（可用性核查 + 证据/脚本核验 + 缺口清单 + 定向小测试）；G01 全量/长重测留早上或用户点名；不动产品代码与判据；范围按任务 files",
   "delivered": {
     "availability_verdict": "物料齐、3 个被排除工具在当前源码下 3/3 失败、不能就地重生成、需扩范围走 A/B/C 拍板",
-    "evidence": ["docs/development-evidence/t4-historical-capture-rebaseline/README.md", "docs/development-evidence/t4-historical-capture-rebaseline/check.json", "docs/development-evidence/changes/2026-10-22-t4-historical-capture-rebaseline.json"],
+    "evidence": [
+      "docs/development-evidence/t4-historical-capture-rebaseline/README.md",
+      "docs/development-evidence/t4-historical-capture-rebaseline/check.json",
+      "docs/development-evidence/changes/2026-10-22-t4-historical-capture-rebaseline.json"
+    ],
     "raw_artifacts": "target/t4-availability-2026-10-27/（未入库）"
   },
   "not_done": [
-    "G01 全量复跑（留早上/用户点名）",
-    "任何 fixtures/scripts/tests 修改（夜间段只读）",
-    "扩 files 到 tests/support/t4_rigid_capture（需 Chief/用户拍板）",
+    "G01 全量复跑（B 决策不做；仅 A 收口时按用户点名跑）",
+    "任何 fixtures/捕获身份改写（B 决策不做；A 选项内容）",
     "GPU 内核使用（本片只 NVRTC 编译与宿主读取）"
   ],
-  "next": "Chief/用户就 A（全量重基线，3–5 天，需扩范围）/ B（维持排除登记债务）/ C（冻结历史身份对照）拍板；拍板前任务保持 in_progress、不动物料",
+  "next": "无（B 已落盘）；仅在用户决定走 A 时，start backlog 片 2026-10-27-t4-historical-capture-rebaseline-decision 并先立锚点重建前置片",
   "gate": {
     "command": "normify gate 2026-10-22-t4-historical-capture-rebaseline --repo D:\\Rust\\mjwarp-rs",
-    "gates": ["fmt", "clippy", "clippy-cuda", "unit"]
+    "gates": [
+      "fmt",
+      "clippy",
+      "clippy-cuda",
+      "unit"
+    ]
   },
   "boundaries": [
     "未改历史捕获/fixtures/scripts/tests/产品代码",
     "未宣称任何 audit 恢复或 T4 完整"
-  ]
+  ],
+  "decision": {
+    "option": "B",
+    "decided_at": "2026-10-27",
+    "decided_by": "user (relayed by Chief)",
+    "scope": "维持 6 项历史捕获身份 audit + 1 项 env/外部产物 audit 的显式排除；不改身份 fixture、不改判据、不做 A/C、不跑全量 G01",
+    "landing": [
+      "docs/three-layer-acceptance.md §5.2 末段（2026-10-27 复检 + 裁决重申 B）",
+      "scripts/test-windows-g01.ps1 的 $script:excludedHistoricalAudits 注释块（仅注释，排除成员与 --skip 行为未变）"
+    ],
+    "recovery_path_A": "全量重基线：重建 tests/support/t4_rigid_capture 锚点 + 用当前源码重生成 30×2 捕获 + 改写 fixtures/precision 两个 kernels 身份，约 3–5 天；需用户批准；改写 BASE 身份只能 git 回退",
+    "c_not_default": "C（冻结历史身份对照）不默认采用；比较口径变化需用户单独批准",
+    "tracking": "原任务 2026-10-22-t4-historical-capture-rebaseline 已 abandon；A 留在 backlog 2026-10-27-t4-historical-capture-rebaseline-decision（不 start）"
+  }
 }

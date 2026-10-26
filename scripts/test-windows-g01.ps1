@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param([switch]$AllFeatures, [switch]$Release, [switch]$FullRegression)
 $ErrorActionPreference = 'Stop'
 # Windows PowerShell 5.1 turns redirected native stderr (cargo/probes/cl.exe) into a
@@ -109,6 +109,14 @@ try {
         # historical templates against the current source. Regeneration requires the
         # excluded recapture tool and frozen capture pipeline
         # (2026-10-22-t4-historical-capture-rebaseline).
+        # 2026-10-27: excluded tools re-checked (3/3 still fail in place at the same points
+        # as the 2026-10-23 precheck; materials intact but historical template anchors
+        # mismatch current sources). User decision: keep these exclusions (option B);
+        # recovery path is A (full rebaseline ~3-5 days, rewrites BASE identity, needs user
+        # approval); C (frozen-identity comparison) is not used by default.
+        # Tracking: 2026-10-22-t4-historical-capture-rebaseline is abandoned; rebaseline work
+        # sits in backlog 2026-10-27-t4-historical-capture-rebaseline-decision (do not start).
+        # Evidence: docs/development-evidence/t4-historical-capture-rebaseline/ (commit 240847f7).
         $script:excludedHistoricalAudits = @(
             'audit_local_t4_precision_without_gpu_execution'
             'rigid_internal::tests::audit_frozen_rigid_internal_and_output_sources'

@@ -483,7 +483,7 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
 5. `packing_routes::routes::audit_remaining_packing_sources_and_captures`
 6. `topology_frames::tests::audit_frozen_topology_and_frame_sources`
 
-原因：G03 矩阵链对齐（`d5b02d5`）有意变更 f32 算序，这些 audit 的历史捕获/模板先于该变更；重生成需要被排除的重采集工具与冻结捕获流水线（跟踪任务 `2026-10-22-t4-historical-capture-rebaseline`，proposed）。
+原因：G03 矩阵链对齐（`d5b02d5`）有意变更 f32 算序，这些 audit 的历史捕获/模板先于该变更；重生成需要被排除的重采集工具与冻结捕获流水线（跟踪任务：原 `2026-10-22-t4-historical-capture-rebaseline` 已于 2026-10-27 转 abandoned，后继 backlog 片 `2026-10-27-t4-historical-capture-rebaseline-decision`，不 start 等恢复）。
 证据：debug/release 运行目录的 `probe-reports/exclusions.json`（三组单列可审计：W-D5 原 3 项、历史捕获身份 6 项、env/外部产物未接线 1 项）。
 恢复条件：重基线任务完成重采集/重基线后解除排除；在此之前不把它们当静默跳过，也不伪造基线。
 
@@ -495,7 +495,21 @@ cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features cuda-probe --lib `
 sha256/size/mtime 清单在同目录 `manifest.json`，可用 `make-archive.ps1 -Verify` 一条命令校验；
 归档与 QA 预检证据见 `docs/development-evidence/t4-historical-capture-archive/README.md` 与
 `docs/development-evidence/t4-rebaseline-precheck/`。跟踪任务 `2026-10-22-t4-historical-capture-rebaseline`
-保持 proposed（不 abandon），恢复条件不变：将来完成重采集/重基线后解除排除；在此之前不伪造历史身份、不宣称完整通过。
+已于 2026-10-27 转 **abandoned**（夜间段只读核查收口，证据 `240847f7`），重基线本体移到 backlog
+`2026-10-27-t4-historical-capture-rebaseline-decision`（**不 start**）；恢复条件不变：将来完成重采集/重基线后解除排除；
+在此之前不伪造历史身份、不宣称完整通过。
+
+**2026-10-27 复检 + 裁决重申（B）**：在 HEAD `be5bffd4` 对 3 个被排除的重采集/归档工具做定向复跑，
+**3/3 仍 exit 101**，失败点与 2026-10-23 预检逐字一致（`source drift: src/physics/attached.rs`、
+`capture coverage mismatch`、`bit_differences` 断言 0 vs 2078）；归档 manifest 10/10 sha 一致、4 个历史捕获目录
+848 文件 / 22.8 MB 全在且未修改、CUDA 与 mujoco DLL 身份对上——**物料齐，但不能就地重生成**（10 旋转族 + 2 retained
+模板锚点失配，锚点在 `tests/support/t4_rigid_capture/`）。用户 2026-10-27 裁决维持 **B**：6 项历史捕获身份 audit
++ 1 项 env/外部产物 audit 继续显式排除，排除清单与断言/容差不动；**恢复路径 = A**（全量重基线：重建锚点 +
+用当前源码重生成 30×2 捕获 + 改写 `fixtures/precision` 两个 kernels 身份，约 **3–5 天**，需用户批准后再动；
+改写 BASE 身份只能 git 回退）；**C（冻结历史身份对照）不默认采用**（比较口径变化需用户单独批准）。
+证据：`docs/development-evidence/t4-historical-capture-rebaseline/`（README + check.json + receipt.json）、
+`docs/development-evidence/changes/2026-10-22-t4-historical-capture-rebaseline.json`、原始日志
+`target/t4-availability-2026-10-27/`（未入库）。
 
 ### 5.3 U038 上游逐位差异（all-probes 显式排除；按 native_error_v2 原生放行）
 

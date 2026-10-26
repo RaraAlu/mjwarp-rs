@@ -75,13 +75,17 @@ cargo test --locked --features cuda-probe --lib <filter> -- --ignored --exact --
 
 - **不需要**现在或早上跑 G01 全量：全量只在「重基线（选项 A）实现完成、准备收口」时按 Chief/用户点名跑一次，
   并绑定最终 HEAD。
-- **需要用户/Chief 先拍板**：① 是否扩范围（`tests/support/t4_rigid_capture`）走 A（约 3–5 天）；
-  ② 或维持排除登记长期债务（B，0.5 天）；③ 或冻结历史身份对照（C，1–2 天）。评估见
-  `docs/development-evidence/t4-rebaseline-precheck/README.md` 的 A/B/C 表（本片复跑证实前提未变）。
-- 在拍板前本任务保持 in_progress、不动 `fixtures/`/`scripts/`/`tests/`。
+- 裁决结果（2026-10-27，用户/Chief）：**走 B**——维持 6 项历史捕获身份 audit + 1 项 env/外部产物 audit 的显式排除，
+  不改身份 fixture、不改判据、不做 A/C、不跑全量 G01。A 的定义与代价（约 3–5 天、重建 `tests/support/t4_rigid_capture`
+  锚点、改写 BASE 身份、需用户批准）保留为**恢复路径**；C（冻结历史身份对照）**不默认采用**（比较口径变化需用户单独批准）。
+- **A 留 backlog**：`2026-10-27-t4-historical-capture-rebaseline-decision`（不 start）；原任务
+  `2026-10-22-t4-historical-capture-rebaseline` 已 abandon。B 的落盘位置：`docs/three-layer-acceptance.md` §5.2
+  末段与 `scripts/test-windows-g01.ps1` 的 `$script:excludedHistoricalAudits` 注释块（仅注释，排除成员与 `--skip`
+  行为未变）。
 
 ## 6. 边界
 
-- 只读核查：未改历史捕获、`fixtures/precision`、`docs/evidence/t4-g03-retest`、`scripts/test-windows-g01.ps1`、
-  `docs/three-layer-acceptance.md`、`tests/`、产品代码；未运行 G01 全脚本；未使用 GPU 内核（仅 NVRTC 编译与宿主读取）。
-- 不宣称任何 audit 恢复、不宣称 T4 完整或数值口径变化；本片结论只到「可用性 + 缺口 + 需拍板」。
+- 只读核查段未改历史捕获、`fixtures/precision`、`docs/evidence/t4-g03-retest`、`tests/`、产品代码；B 落盘只改
+  `docs/three-layer-acceptance.md` 与 `scripts/test-windows-g01.ps1` 的注释文字（不改排除成员、不改断言/容差/判据）。
+- 未运行 G01 全脚本；未使用 GPU 内核（仅 NVRTC 编译与宿主读取）。
+- 不宣称任何 audit 恢复、不宣称 T4 完整或数值口径变化；本片结论只到「可用性 + 缺口 + 裁决 B 落盘」。
