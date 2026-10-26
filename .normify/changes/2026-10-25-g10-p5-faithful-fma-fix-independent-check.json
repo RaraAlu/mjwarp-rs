@@ -2,27 +2,31 @@
   "schema_version": 1,
   "id": "2026-10-25-g10-p5-faithful-fma-fix-independent-check",
   "title": {
-    "zh": "faithful FMA 两站点修复的 QA 独立复核（站点边界/位级与 ULP/三构建/残余定位/判据未改）",
-    "en": "Independent check of the faithful-FMA two-site fix"
+    "zh": "A 版 faithful FMA 修复（GJK face_norm2 显式非融合）的 QA 独立复核",
+    "en": "Independent check of the option-A fix (explicit non-fused GJK face_norm2)"
   },
   "status": "proposed",
   "intent": {
-    "zh": "对 `2026-10-25-g10-p5-faithful-fma-fix` 做独立复核：该片按用户拍板 ① 把 `gjk/polytope.rs` 的 `face_norm2` 与 `render/kernel/megakernel_arrays.rs:189` 光源归一化换成 `src/math/fma::fma_f32`，目标是在不改判据/容差的前提下让默认 GNU 口径的 `case_evidence::upstream_f32_within_4ulp` 恢复通过。复核方须自建探针/脚本（不复用交付证据与脚本），独立核对：只改这两处、helper 语义正确、默认 gate 真绿、G5 位级不变、G6 frame 数值等于 faithful 口径值且落回 4 ULP 内、三构建位级一致、残余定位结论诚实（未改判据凑绿）、影响面重验清单与 GPU 窗口 0 个的依据成立。",
-    "en": "Independently verify the two-site FMA fix: scope, helper semantics, default gate green, bitwise-unchanged G5, G6 frame at the faithful value within 4 ULP, three-build bitwise consistency, and that no criterion or tolerance was changed."
+    "zh": "对 `2026-10-25-g10-p5-faithful-fma-fix-r2` 做独立复核：用户拍板 A（host 对齐上游 CPU 参考 recipe、device 对齐 pinned GPU PTX）。该片只把 `gjk/polytope.rs::face_norm2` 改为上游 CPU 源码顺序的显式不融合（不用 helper/无 f64），render 与 relmat 保留精确 FMA helper（其参考是 GPU fused），不改判据/容差/期望值/参考路径。复核方须自建脚本（不复用交付脚本）独立验证范围、三构建、5 case 位级、G5 位级、默认门禁、G01 定向与「未凑绿」。",
+    "en": "Independently verify the option-A fix: scope, three builds, bitwise 5-case match to the CPU reference, unchanged G5 bits, default gate, and no criterion fiddling."
   },
   "modules": {},
   "acceptance": [
-    "**范围独立核**：`git diff <fix>~1..<fix>` 逐文件核，只允许两处产品站点 + 证据 + `.normify`；`relmat.rs`、`render/bvh/aabb.rs`（实现）、判据、容差、期望值、`gates.toml`、G01 脚本、排除清单**均不得改动**；不得有第三处产品站点被顺手改。自己扫 `src/` 的 `mul_add` 与 `fma_f32` 调用点，核对交付的「产品站点只有两处」结论。",
-    "**helper 语义与路径**：自建探针（内联汇编 `vfmadd231ss` 参考，不复用交付探针）独立核 `src/math/fma.rs` 语义仍是 IEEE 单次正确舍入，且本机三构建确实走硬件主路；兜底路径按 `exact-f32-fma-relmat/README.md` §11 既有结论引用即可，但其「默认 gate 直调单测（16 条边界类）」必须仍在默认 `cargo test --locked` 内真实执行并通过（不依赖 seam/env）。",
-    "**默认口径翻绿（硬判据，口径裁定见下）**：硬判据 = 干净 target 下默认 `cargo test --locked` 真绿（unit ≥604），且 `case_evidence::upstream_f32_within_4ulp` 通过——即其 frame 落在测试硬编码阈值 **4.8e-7**（`case_evidence.rs:166`）内；同时默认口径与 `+fma`（faithful）口径**输出位级一致**。**注意不得把「frame ≈ 6.351978e-7（≈5.3 ULP）」当成通过**：faithful 口径实测就是 6.351978e-7，若交付最终值仍 ≈6.35e-7，即「只换了 helper、残余未修」，按阻断报（Arch 2026-10-26 裁定：原 acceptance 写「= faithful 值且落 4 ULP 内」自相矛盾，以本条为准）。另核 `rel_mat` 10/10 world、SDF 40/40 与修复前逐位对照不变（diff=0）；数值口径与修复前对照表入证据。",
-    "**三构建位级一致**：GNU 默认 / MSVC / GNU+`+fma` 三构建下，定向测试（`relmat`、`g10_p5_sdf_relmat`、`g10_p5_sdf_host`、`gjk_epa`、`case_evidence` 相关）输出逐行/逐位对照，验证「修复后默认口径 == faithful 口径」这一核心主张；若有残留差异必须如实列出并判断是否阻断。",
-    "**残余定位审计**：核交付 7 项排查清单（.cu↔host 逐点对照、5 case ULP 表、EPA 轮 dump、全 fma 变体、参考生成配置、输入位姿逐位、排序/配对与 frame 行定位）是否真做、结论是否与实测一致；核**未改判据/容差/期望值/排除清单**（禁止凑绿），若有凑绿嫌疑按阻断报。",
-    "**GPU 窗口 0 个的依据**：核交付是否以 `faithful-impact-measurement` 的 19/20 不翻转矩阵（render S7b1/S7b2/S7b3/S8、G5 位级）为依据，而非口头断言；核本片证据未把「未实机重验」写成「已重验通过」。",
-    "**口径与证据**：核证据 `docs/development-evidence/faithful-fma-fix/`（README+receipt 含 task_id）如实写明：真实无 FMA 机器未实机验（只 seam + 默认 gate 覆盖）、NaN payload 不作位级判据、边界计数取 16、gate unit 数值、不宣称精度达标/跨环境全绿；本复核证据只写 `docs/development-evidence/g10-p5-faithful-fma-fix-independent-check/`，单文件 ≤500 行、UTF-8 无 BOM、无二进制。"
+    "**范围独立核**：`git diff <r2>~1..<r2>` 逐文件核——只允许 `src/physics/collision/gjk/polytope.rs`（+证据+`.normify`）；`render/kernel/megakernel_arrays.rs`、`relmat.rs`、`render/bvh/aabb.rs`、`case_compare.rs`、`case_evidence.rs`、`gates.toml`、G01 脚本、`Cargo*`、旧 CPU 参考与 GPU 参考文件**均不得改**；polytope 内不得出现 `mul_add` 或 `fma_f32`（应为显式 `x*x + y` 两次舍入）。自己 grep 全 `src/` 的 `mul_add` 与 `fma_f32` 调用点，核对「产品站点 = polytope 非融合 / render helper / relmat helper」这一分类。",
+    "**5 case 位级独立复算**：自写脚本（不复用交付证据，自己实现与 `sort_contacts` 同序的配对与度量）读 CPU 参考与产品输出，独立确认 5 个 case 的 dist/pos/frame 全部**位级 0 差异**（尤其 ellipsoid-box frame 18/18、max 0e0）；若出现任何非 0 位差，按阻断报（A 的卖点就是与 CPU 参考逐位一致）。",
+    "**三构建矩阵**：自建 clean `CARGO_TARGET_DIR`（每配置独立），跑 GNU 默认 / MSVC / GNU+`+fma` 三构建的 `case_evidence`，要求全绿且 5 case 判据行逐位一致；记录目标三元组、rustc、RUSTFLAGS 与 `.cargo/config.toml` 交互（此前已确认 RUSTFLAGS 替换而非合并）。",
+    "**G5 位级不变**：复跑 `relmat`、`g10_p5_sdf_relmat`、`g10_p5_sdf_host`、`gjk_epa`，核 `rel_mat` 10/10 world、SDF 40/40 与修复前逐位相同（diff=0）。",
+    "**默认门禁**：干净 target 下 `cargo test --locked` 真绿（unit ≥604，记录实际值）；确认无依赖 seam/env 的测试路径；`case_evidence::upstream_f32_within_4ulp` 通过。",
+    "**G01 定向**：核 `host-gnu` / `host-msvc` 定向检查转绿（读 runs 记录或自己跑定向命令）；不要求全量 G01，但若交付声称全量须有记录。",
+    "**抓凑绿（重点）**：`case_evidence.rs` 的 4.8e-7 / 4 ULP、`case_compare.rs` 参考路径、`fixtures/` 参考、`gates.toml`、G01、排除清单必须一字未动；GPU 参考文件保持「归档、非判据」状态；若发现为凑绿改期望/阈值/参考 → 阻断。",
+    "**NP01 登记核实**：核交付是否真在 `np01-type-mapping` 相关清单登记站点口径（gjk/ccd/epa host = CPU recipe 非融合、device = pinned GPU fma.rn、render/relmat = fused）并补覆盖项；不能只在 README 写一句话。",
+    "**证据链完整性**：核证据是否含「GNU fmaf 非合规 → 参考是 CPU 非融合 → B 实测不可行（4/5 红、8.19e-7>4.8e-7）→ A 为何是数据向最可靠依据靠拢、C/D 为何不放宽」的完整链，以及三构建/5 case/G5/站点审计数据；数字须与实测一致，不许引用旧版或错版计数。",
+    "**GPU 窗口 0**：本片纯 CPU，不得开 GPU 窗口、不得把「未实机重验」写成「已重验」。",
+    "**口径与证据**：本复核证据只写 `docs/development-evidence/g10-p5-faithful-fma-fix-independent-check/`（README+receipt 含 task_id），≤500 行/文件、UTF-8 无 BOM、无二进制；不宣称精度达标/上游等价；「真实无 FMA 机器未实机验」照旧；NaN payload 不作判据。"
   ],
   "schedule": {
     "depends_on": [
-      "2026-10-25-g10-p5-faithful-fma-fix"
+      "2026-10-25-g10-p5-faithful-fma-fix-r2"
     ],
     "phase": "P5-复杂物理",
     "owner": "QA",
@@ -32,7 +36,7 @@
     "resources": [],
     "priority": 54
   },
-  "note": "Arch 2026-10-26 预登记（fix 片尚未 start；QA 空闲可提前领简报，但必须等 fix 片 verified 后才能 start，不得并行改/读在途工作树）。本片只 CPU，不要 GPU 窗口。复核红线：抓凑绿（改判据/容差/期望值）、抓「只证明兜底/只证明单构建」、抓把未实机重验写成已重验。",
+  "note": "Arch 2026-10-26 更新（用户改选 A 后）：本复核任务从 B 版改为 A 版，依赖改为 r2。QA 可提前只读准备（自写配对/度量脚本、三构建矩阵方案），但必须等 r2 verified 后 start；纯 CPU、不开 GPU 窗口、不 commit 不自 done。",
   "revision": {
     "before": "45f7cccd926f9078ac64551e365344cf6a8a0b6e",
     "after": null
@@ -41,10 +45,22 @@
   "updated_at": "2026-10-26T08:30:00.000Z",
   "closed_at": null,
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "json",
       "path": "docs/development-evidence/g10-p5-faithful-fma-fix-independent-check/receipt.json",
