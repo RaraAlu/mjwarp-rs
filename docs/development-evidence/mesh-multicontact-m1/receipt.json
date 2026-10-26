@@ -1,0 +1,237 @@
+{
+  "task_id": "2026-10-26-mesh-multicontact-m1-capture",
+  "kind": "mesh-multicontact-m1-evidence",
+  "status": "in_progress",
+  "pinned_upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "dispatch_audit": {
+    "file": "docs/development-evidence/mesh-multicontact-m1/dispatch-audit.md",
+    "conclusion": "mesh-box and mesh-cylinder go through the CONVEX convex CCD multicontact branch (up to 4 contacts per pair), not primitive and not single-contact fallback; mesh-mesh is CONVEX on the same branch (reserved, no case in M1)",
+    "conditions": [
+      "pair type is CollisionType.CONVEX (driver L77/L79/L80)",
+      "MULTICCD not disabled (convex.py L1275)",
+      "both geom types in {BOX, MESH, CYLINDER} and margin == 0 (gjk.py L2669-2677)",
+      "mesh geom has polygon data: mesh_polyadr >= 0 and polynum > 0 (convex.py L911-919)"
+    ],
+    "line_references": {
+      "collision_driver.py": ["L48-80", "L77", "L79", "L80", "L908-920", "L910-912"],
+      "collision_convex.py": ["L756", "L761", "L906-910", "L911-919", "L922-944", "L946-951", "L982-995", "L1236", "L1266-1270", "L1275", "L1283-1289", "L1432"],
+      "collision_gjk.py": ["L113-116", "L2216", "L2573", "L2669-2677"]
+    }
+  },
+  "fixtures": {
+    "dir": "fixtures/g10-p5-mesh-multicontact/",
+    "files": ["cube.obj", "mesh-box.xml", "mesh-cylinder.xml"],
+    "manifest": "docs/development-evidence/mesh-multicontact-m1/inputs-sha256.json",
+    "cases": ["mesh-box", "mesh-cylinder"],
+    "nativeccd_disabled": true,
+    "multiccd_disabled": false,
+    "margin": 0.0,
+    "old_fixture_dirs_modified": false
+  },
+  "cpu_precheck": {
+    "script": "docs/development-evidence/mesh-multicontact-m1/scripts/precheck_mesh_multicontact_cpu.py",
+    "script_sha256": "4e8ee1d25245ab919c2e7390c6549cc10f2d0481cbcc37645b98633bbd451eb2",
+    "result_json": "docs/development-evidence/mesh-multicontact-m1/precheck-cpu.json",
+    "device": "cpu",
+    "result": "PASS",
+    "cases": {
+      "mesh-box": {
+        "nacon_multiccd_on": 4,
+        "nacon_multiccd_off": 1,
+        "geomcollisionid_on": [0, 1, 2, 3],
+        "dists_on": [-0.010000001639127731, -0.010000001639127731, -0.010000001639127731, -0.010000001639127731],
+        "mesh_polygon_data_present": true
+      },
+      "mesh-cylinder": {
+        "nacon_multiccd_on": 4,
+        "nacon_multiccd_off": 1,
+        "geomcollisionid_on": [0, 1, 2, 3],
+        "dists_on": [-0.01000000536441803, -0.01000000536441803, -0.01000000536441803, -0.01000000536441803],
+        "mesh_polygon_data_present": true
+      }
+    },
+    "mesh_poly": {
+      "mesh_dataid": 0,
+      "vertnum": 8,
+      "polynum": 6,
+      "polyadr": 0,
+      "polyvertnum": 4,
+      "polyvertadr": 0,
+      "polymapnum": 3,
+      "polymapadr": 0
+    },
+    "note": "precheck only: proves fixtures parse, carry mesh polygon data and trigger the MULTICCD path; the comparison reference is the GPU capture, and CPU/GPU counts may differ"
+  },
+  "signed_scripts": {
+    "capture": {
+      "archive_path": "docs/development-evidence/mesh-multicontact-m1/scripts/capture_mesh_multicontact_gpu.py",
+      "execution_path": "scripts/capture_mesh_multicontact_gpu.py (removed after archive)",
+      "sha256": "cbd71dca712bd9e94ce06e87d1ee8ae63f3f85ca5536b38c338b240bb3ecad87",
+      "size_bytes": 7161
+    },
+    "compare": {
+      "execution_path": "scripts/compare_primitive_capture.py (existing, reused unmodified)",
+      "sha256": "27ecb54a199798f5ea00c4accb6db65e65734cd023daa9102bc151557f3ccced"
+    }
+  },
+  "capture_window": {
+    "status": "passed",
+    "attempts_allowed": 2,
+    "attempts": [
+      {
+        "attempt": 1,
+        "status": "passed",
+        "aborted": false,
+        "runner": "target/m1-mesh-multicontact/window/run-window-attempt1.ps1",
+        "run_a": {"exit": 0, "wall_s": 27.7},
+        "run_b": {"exit": 0, "wall_s": 6.9},
+        "compare_exit": 0,
+        "raw_byte_identical": true
+      }
+    ],
+    "recipe": "pinned python/mujoco/warp/mujoco_warp; device=cuda:0; RUN A/B independent processes + independent warp caches; raw byte-identical required; two in-process captures per case; captured_at = real window start shared by A/B; zero Rust compile in window",
+    "captured_at": "2026-10-26T23:04:40.540+08:00",
+    "captured_at_source": "runner-window-start",
+    "window_start": "2026-10-26T23:04:40.540+08:00",
+    "window_end": "2026-10-26T23:05:19.866+08:00",
+    "window_wall_s": 39.3,
+    "baseline": [
+      "4659, 11403, 32, 32, 596.36",
+      "4659, 11403, 40, 32, 596.36",
+      "4659, 11403, 32, 32, 596.36"
+    ],
+    "baseline_format": "used_mib, free_mib, util_percent, temperature_c, driver_version",
+    "baseline_free_mib": 11403,
+    "baseline_gate_free_mib": 10240,
+    "baseline_compute_apps": {
+      "raw_entry_count": 34,
+      "task_patterns": "g10_p5|capture_mesh|mjwarp-parallel",
+      "task_matches": 0,
+      "all_entries_are_desktop_graphics": true,
+      "raw_source": "target/m1-mesh-multicontact/attempt1/baseline.txt (last line)"
+    },
+    "raw_compare": {
+      "result": "RAW BYTE-IDENTICAL: PASS",
+      "run_a_sha256": "c83baffe6de695fdefda6852c574d5d0d7312ebb591c1b487dfc59ec126c206a",
+      "run_b_sha256": "c83baffe6de695fdefda6852c574d5d0d7312ebb591c1b487dfc59ec126c206a",
+      "log": "target/m1-mesh-multicontact/attempt1/compare.log"
+    },
+    "parameters": {
+      "device": "cuda:0",
+      "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER (16376 MiB, sm_89, driver 596.36)",
+      "warp_kernel_cache": "independent per run: warp-cache-a / warp-cache-b under target/m1-mesh-multicontact/attempt1"
+    },
+    "sampling": {
+      "interval_ms": 250,
+      "samples": 129,
+      "seq_range": [1, 129],
+      "first_timestamp": "2026-10-26T23:04:41.8063410+08:00",
+      "last_timestamp": "2026-10-26T23:05:17.1157417+08:00",
+      "continuous_no_gap": true,
+      "used_peak_mib": 5082,
+      "free_min_mib": 10980,
+      "util_max_percent": 94,
+      "util_streak_max": 2,
+      "delta_peak_mib": 418,
+      "increment_limit_mib": 3072,
+      "baseline_used_mib": 4664,
+      "baseline_free_mib": 11398,
+      "guard_post": {"used_mib": 4677, "free_mib": 11385, "delta_mib": 13, "util_percent": 31},
+      "guard_aggregate_abort": false,
+      "process_exited": true,
+      "residual_processes": 0,
+      "log": "target/m1-mesh-multicontact/attempt1/guard.log"
+    },
+    "end_baseline": [
+      "4670, 11392, 17, 32, 596.36",
+      "4677, 11385, 20, 32, 596.36",
+      "4677, 11385, 27, 32, 596.36"
+    ],
+    "post_compute_apps": {
+      "task_processes": 0,
+      "all_entries_are_desktop_graphics": true,
+      "residual": 0
+    },
+    "zero_rust_compile": true,
+    "zero_rust_compile_note": "window commands were pinned python x3 (capture A, capture B, compare) + nvidia-smi + guard sampler; no cargo/rustc. RUN A wall 27.7 s is warp/NVRTC JIT (ccd_kernel compiled 10804.21 ms / 10618.56 ms) inherent to pinned python capture, not Rust compilation; RUN B 6.9 s benefits from warp library cache for the same kernels (633.69 ms / 489.71 ms).",
+    "attempts_log_note": "attempt 1 was the first capture attempt and passed; no aborted attempts, nothing stitched"
+  },
+  "reference": {
+    "path": "docs/development-evidence/mesh-multicontact-m1/upstream-mesh-multicontact-gpu.json",
+    "sha256": "c83baffe6de695fdefda6852c574d5d0d7312ebb591c1b487dfc59ec126c206a",
+    "size_bytes": 5703,
+    "schema": 1,
+    "kind": "m1-mesh-multicontact-upstream-mjwarp-f32-gpu-reference",
+    "authoring_only": true,
+    "case_count": 2,
+    "cases": {
+      "mesh-box": {
+        "count": 4,
+        "geomcollisionid": [[0], [1], [2], [3]],
+        "dist": [-0.010000001639127731, -0.010000001639127731, -0.010000001639127731, -0.010000001639127731],
+        "pos_z": 0.0949999988079071,
+        "two_captures_bitwise_identical": true,
+        "xml_sha256": "88b8d7af848a4aba25475f253bfafbfcd666107bfeddaf1291e07b91592a1e03",
+        "flags": {"nativeccd_disabled": true, "multiccd_enabled": true}
+      },
+      "mesh-cylinder": {
+        "count": 4,
+        "geomcollisionid": [[0], [1], [2], [3]],
+        "dist": [-0.01000000536441803, -0.01000000536441803, -0.01000000536441803, -0.01000000536441803],
+        "pos_z": 0.0949999988079071,
+        "two_captures_bitwise_identical": true,
+        "xml_sha256": "d0b75f91440ee0199020c05805bf26aaf201b0b64089a31b7df8915ba68a04bd",
+        "flags": {"nativeccd_disabled": true, "multiccd_enabled": true}
+      }
+    },
+    "structural_fields": ["type=1", "dim=3", "geom=[1,0]", "worldid=0", "includemargin=0", "adhesion=0", "friction=[1,1,0.005,1e-4,1e-4]", "solref=[0.02,1]", "solreffriction=[0,0]", "solimp=[0.9,0.95,0.001,0.5,2]", "frame 4x9"],
+    "inputs_recorded": ["qpos", "qpos_bits", "geom_xpos [nworld][ngeom][3]", "geom_xmat [nworld][ngeom][9]", "xml_sha256", "flags"],
+    "provenance": {
+      "captured_at": "2026-10-26T23:04:40.540+08:00",
+      "device": "cuda:0",
+      "gpu": {"name": "NVIDIA GeForce RTX 4070 Ti SUPER", "memory_total": "16376 MiB", "driver": "596.36", "compute_capability": "8.9"},
+      "interpreter": {"path": "D:\\Rust\\mjwarp-rs\\target\\mjwarp-parallel\\venv\\Scripts\\python.exe", "version": "3.12.13"},
+      "versions": {"python": "3.12.13", "mujoco": "3.15.0", "warp": "1.15.0", "mujoco_warp": "3.15.0", "numpy": "2.5.4"},
+      "authoring_script_sha256": "cbd71dca712bd9e94ce06e87d1ee8ae63f3f85ca5536b38c338b240bb3ecad87",
+      "authoring_only": true,
+      "product_python_dependency": false,
+      "reads_product_tree": false,
+      "kernel_cache_parent": "target/m1-mesh-multicontact/attempt1"
+    },
+    "not_recorded": [
+      "efc_address (B0/B3 convention: device-side all -1 invariant, see gap_rulings)",
+      "mesh polygon input arrays (fields.elem / fields.vert are empty; see gap_rulings)"
+    ],
+    "cross_check_with_cpu_precheck": "both cases GPU count=4 equals CPU precheck nacon=4 and dist values are bit-identical; this only confirms fixture/branch stability, M2 criteria still use the GPU reference"
+  },
+  "old_references_untouched": [
+    {"path": "docs/development-evidence/g10-p5-primitive-capture/upstream-primitive-gpu.json", "sha256": "3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734"},
+    {"path": "docs/development-evidence/g10-p5-primitive-branch-coverage/upstream-primitive-branches-gpu.json", "sha256": "a8407a90ba7ab491aac7e73c94108e5abd07ce3a3d4218382477b109dc62fca0"}
+  ],
+  "gap_rulings": {
+    "efc_address_not_recorded": "no supplemental capture; M2 uses the device-side all -1 invariant plus an evidence note 'reference does not record efc' (same convention as B1/B2)",
+    "mesh_polygon_inputs_not_in_reference": "no supplemental capture; M2's 32 input bins are produced by M0b from the same pinned model and the same fixture (fixtures/g10-p5-mesh-multicontact/, xml_sha256 and qpos_bits must be bit-identical to this reference)",
+    "contact_geom_order": "contact.geom=[1,0] is the pinned type-order normalization (box=6 < mesh=7, lower class first); same semantics as B3 swap; M2 compares this order with zero structural tolerance"
+  },
+  "scripts_archive": {
+    "dir": "docs/development-evidence/mesh-multicontact-m1/scripts/",
+    "files": ["capture_mesh_multicontact_gpu.py", "precheck_mesh_multicontact_cpu.py", "sha256.json"],
+    "byte_identical_after_copy": true,
+    "repo_scripts_copies_removed_after_archive": true,
+    "note": "execution paths were scripts/<name>; archived copies live here (B3 convention). Rerun requires copying them back and verifying sha256."
+  },
+  "redlines": {
+    "device_implementation": false,
+    "criteria_tolerance_reference_changed": false,
+    "old_fixtures_touched": false,
+    "g5_evidence_touched": false,
+    "src_or_tests_touched": false,
+    "mesh_support_claimed": false
+  },
+  "uncovered": [
+    "no device-level comparison in this task (M2)",
+    "mesh-mesh case reserved (no case in M1)",
+    "reference does not record efc_address",
+    "reference does not carry mesh polygon input arrays (M0b provides bins)"
+  ]
+}
