@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-g10-p5-primitive-capture",
+  "title": {
+    "zh": "primitive 其余 10 组合：fixture 补齐 + 上游 GPU 参考捕获（authoring，一次窗口）",
+    "en": "Primitive remaining 10 combos: fixtures + upstream GPU reference capture (authoring, one window)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-10-26 点方向：扩 UNC-3，实现 primitive dispatch 其余 10 个组合（plane-sphere/capsule/ellipsoid/cylinder/box/mesh、sphere-sphere、sphere-capsule、sphere-cylinder、capsule-capsule；box-box 已有参考且 multicontact 片已实现，不重做）。本片是 B0 前置片（authoring）：① 逐组合 CPU dispatch 审计（`nativeccd=disable` 下上游表确实路由到对应 wrapper）；② 在 `fixtures/g10-p5-primitive/` 新建 9 个 fixture 并另建 sphere-sphere 新文件（不改 d04 既有文件）；③ 用用户批准的离线 authoring 例外（pinned python/warp、device=cuda:0、脚本入仓）一次 GPU 窗口捕获 10 组合上游 GPU f32 参考，两次独立进程（独立 cache）逐位一致；④ 旧参考与既有 verified fixtures 不动。本片不实现设备内核（B1 plane 族、B2 sphere/capsule 族随后）。",
+    "en": "B0 authoring slice: CPU dispatch audit for the 10 primitive combos, new fixtures in a dedicated dir, and one-window upstream GPU f32 reference capture (two independent runs, bit-identical)."
+  },
+  "modules": {},
+  "acceptance": [
+    "**先 CPU dispatch 审计、后捕获（硬前置）**：对 10 组合逐个在 `nativeccd=\"disable\"` 口径下核上游 dispatch 表（frozen `collision_driver.py` 的 `MJ_COLLISION_TABLE` + L909-912 的 `(BOX,BOX)` 覆盖逻辑）确实路由到 §brief 列出的 wrapper（plane 族 6 + sphere/capsule 4）；给出「组合 → table 行/覆盖规则 → wrapper 函数名」逐行对照与原始 dump。**任何一例不路由、或需要改动既有 verified fixture 才能路由 → 停手报 Arch**，不得把「没走 primitive」的参考当参考。审计只用 CPU（pinned python 读表），不占 GPU 窗口。",
+    "**ABI 红线**：预期 0 个新 ABI 字段（复用 `CollisionContactOut` 136 B/17 字段与 `g5_write_contact`/`make_frame`）。若审计/捕获过程中发现需要改 `CollisionArgs`/输出布局/`abi.rs` → **停手报 Arch**，不得静默改 ABI（已验收面）。",
+    "**fixture 纯净**：9 个新 fixture（plane-sphere、plane-capsule、plane-ellipsoid、plane-cylinder、plane-box、plane-mesh、sphere-capsule、sphere-cylinder、capsule-capsule）全部放 `fixtures/g10-p5-primitive/`；sphere-sphere 用**新文件**改造（不改 `fixtures/mjwarp-complex-physics/sphere-sphere.xml`）；**既有 verified fixtures 一律不动**（`git status -- fixtures` 不出现旧文件）。每个 fixture 写 `<flag nativeccd=\"disable\"/>`、确定性 world/qpos（f32 位型记录），并给出输入 sha 清单。",
+    "**捕获纪律（1 个 GPU 窗口）**：捕获脚本入仓（`scripts/`，sha 记录）、pinned 上游（upstream_revision `71da24d9…`）、provenance 写全（python/mujoco/warp/mujoco_warp/numpy 版本、device=cuda:0、GPU 型号/驱动、脚本 sha、kernel cache 目录、captured_at）；**两次独立进程 + 两个独立 cache 各跑一轮，raw 文件逐位一致**（若 raw 不同但 canonical 相同 → 停手报 Arch 决策，不得自行接受）；产物落 `docs/development-evidence/g10-p5-primitive-capture/upstream-primitive-gpu.json`；**旧参考（`qa-upstream-gpu.json` 等）逐字节不动**。窗口复用本片前刚修的守卫采样器（先 dry-run 19/19 PASS 作为前置证据），0.25 s 采样、守卫 v2、窗口内零编译、跑后 post 快照 + 结束基线 + 无残留；开窗前**重采基线报 Arch**（Arch 转 Chief 双签）后才开窗。",
+    "**判据与边界**：本片只交付参考与 fixture，不判产品精度；后续设备片对照口径为「设备 vs 本片上游 GPU 参考」，沿用既有判据（位级优先；dist ≤4 ULP（ref=0 用 4 ULP@1.0）、pos 4·ULP(scale)、frame 4 ULP@1.0；结构/计数/overflow/efc_address 零容差）**不放宽**；host 无 primitive 实现，**不做 host 交叉、不伪造 host 参考**；若 plane-mesh 需要 mesh polygon ABI 或额外数据 → **停手报 Arch**、记未覆盖，不许绕。",
+    "**证据与门禁**：`docs/development-evidence/g10-p5-primitive-capture/`（README + receipt 含 task_id + dispatch 审计 dump + 两轮原始日志 + 窗口事实 + 输入 sha + 新旧参考对照），单文件 ≤500 行、UTF-8 无 BOM、无二进制；gate fmt/clippy/clippy-cuda/unit 全绿（unit 基线 971/0/369）；不宣称精度/验收结论，未实现组合照旧记未覆盖。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "fixtures/g10-p5-primitive/",
+      "scripts/",
+      "docs/development-evidence/g10-p5-primitive-capture/"
+    ],
+    "resources": [],
+    "priority": 48
+  },
+  "note": "Arch 2026-10-26 登记（Chief GO B0，附 5 前置条件）：primitive 其余 10 组合的 B0 authoring 片（fixture + dispatch 审计 + 上游 GPU 参考捕获）。后续 B1 plane 族（6 组合）、B2 sphere/capsule 族（4 组合）等 B0 verified 后登记；三片串行、GPU 窗口合计 3 个且逐个报基线双签。QA 复核预登记 `2026-10-26-g10-p5-primitive-capture-independent-check`（provenance/两轮/输入 sha/脚本 diff/新旧参考/dispatch 审计）。",
+  "revision": {
+    "before": "8d5e85890e9c5affb118cdc5aefb0c388b9dc4cf",
+    "after": null
+  },
+  "created_at": "2026-10-26T19:20:00.000Z",
+  "updated_at": "2026-10-26T19:20:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-primitive-capture/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-g10-p5-primitive-capture"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": ["G10已实现", "完整物理通过", "双平台通过", "上游完全等价", "原生放行", "精度达标"]
+    }
+  ]
+}

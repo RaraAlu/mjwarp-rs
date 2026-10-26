@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-g10-p5-primitive-capture-independent-check",
+  "title": {
+    "zh": "primitive 10 组合 fixture/上游参考捕获（B0）的 QA 独立复核",
+    "en": "Independent check of the primitive-10 fixture/upstream capture (B0)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-26-g10-p5-primitive-capture` 做独立复核：该片为 primitive 其余 10 组合做 B0 authoring（CPU dispatch 审计、9+1 个新 fixture、一次 GPU 窗口的上游 GPU f32 参考捕获、两轮独立进程逐位一致）。复核方须独立核：dispatch 路由、fixture 纯净与输入 sha、provenance 真实性、两轮独立性与逐位一致、脚本 diff 受控、旧参考未动、ABI 未动、参考尚不是判据。",
+    "en": "Independently verify the dispatch routing, fixture purity/input shas, provenance, two-run bit-identical capture, script diff, untouched old references, and unchanged ABI."
+  },
+  "modules": {},
+  "acceptance": [
+    "**dispatch 审计独立核**：自己从 frozen `collision_driver.py`（pinned rev）读 `MJ_COLLISION_TABLE` + `(BOX,BOX)` 覆盖规则，独立复算 10 组合的 dispatch 结果，核交付审计表逐行一致；任何一例实际不路由到 primitive → 阻断（参考无效）。",
+    "**fixture 纯净与输入 sha**：`git diff` 核既有 verified fixtures 0 改动；新 fixture 全在 `fixtures/g10-p5-primitive/`、spher-sphere 是新增文件而非编辑 d04 文件；自写脚本重算各 fixture 的 XML/qpos 输入 sha，与交付清单及参考 JSON 的 `input_shas` 逐项一致；核 fixture 含 `nativeccd=\"disable\"`。",
+    "**provenance 真实性**：device=cuda:0、GPU 型号/驱动与评审时只读 `nvidia-smi` 一致、库版本一致、upstream_revision、脚本 sha = 仓库脚本 sha、kernel cache 目录存在、captured_at 落在窗口内；两轮各用独立 cache（路径不同且都有产物）。",
+    "**两轮独立与逐位一致**：自算两轮 raw 文件 sha，核整文件逐位一致（若交付声称 canonical 一致而 raw 不同 → 阻断/按观察报）；核是两次独立进程（不同 CMD/时间戳/cache），不是同进程两次。",
+    "**脚本 diff 受控**：捕获脚本与既有 capture 脚本（如 gjk-epa/GPU 参考脚本）逐行 diff，变更只允许 fixture 清单/输出名/provenance/cache 等必要项，数值装配逻辑不受控改动 → 阻断。",
+    "**旧参考未动 / ABI 未动**：`qa-upstream-gpu.json` 等旧参考逐字节不变（git + sha）；`src/runtime/collision_gpu/abi.rs`、`CollisionArgs`/`CollisionContactOut` 布局 0 改动；产品代码 0 改动。",
+    "**窗口纪律**：核窗口事实（重采基线、守卫采样器落盘 samples>0、0.25 s 采样、跑前后 compute-apps、结束基线、无残留、窗口内零编译）与 Arch/Chief 双签记录一致；不得有「未落盘采样」旧问题。",
+    "**边界与口径**：核证据是否写明「参考尚不是判据、host 无 primitive 实现不做 host 交叉、未实现组合记未覆盖」；本复核证据只写 `docs/development-evidence/g10-p5-primitive-capture-independent-check/`，≤500 行/文件、UTF-8 无 BOM、无二进制；不宣称精度/验收结论。"
+  ],
+  "schedule": {
+    "depends_on": ["2026-10-26-g10-p5-primitive-capture"],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": ["docs/development-evidence/g10-p5-primitive-capture-independent-check/"],
+    "resources": [],
+    "priority": 47
+  },
+  "note": "Arch 2026-10-26 预登记（B0 实现片 in_progress；QA 可先只读准备，须等 B0 verified 后 start）。纯 CPU 复核（读表/算 sha/核日志），不得开 GPU 窗口、不建 CUDA context。",
+  "revision": {
+    "before": "8d5e85890e9c5affb118cdc5aefb0c388b9dc4cf",
+    "after": null
+  },
+  "created_at": "2026-10-26T19:20:00.000Z",
+  "updated_at": "2026-10-26T19:20:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-primitive-capture-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-g10-p5-primitive-capture-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": ["G10已实现", "完整物理通过", "双平台通过", "上游完全等价", "原生放行", "精度达标"]
+    }
+  ]
+}
