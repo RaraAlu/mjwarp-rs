@@ -174,7 +174,7 @@ residual 0；聚合守卫通过（delta_peak 774 MiB < 3072）。
 - **launcher 二进制 sha 作废链（留痕）**：d08491c6…（B1 期旧）→ e330e9d1…（删 compare_exact! 宏后）→
   1af86cba…（proof 测试首版重写前）→ 6e4fc62a…（proof 迭代）→ 6000a50c…（proof 定稿前）→
   **23ae4d82…（attempt2 唯一实际窗口集合，Chief 已重签确认）** →（500 行 size gate 拆分：纯搬移）→
-  5c191046…（提交源构建）。除 23ae4d82… 外的 launcher sha 全部作废、不得用于任何结果引用。
+  35ba212d…（拆分后、clippy 死代码清理前，中间态作废）→ 5c191046…（提交源构建）。除 23ae4d82… 外的 launcher sha 全部作废、不得用于任何结果引用。
 
 - **500 行上限拆分（commit 前）**：加完归一化后 	ests/g10_p5_nvrtc_launcher.rs 达 830 行、超 500 上限，
   normify size gate 拒提交；故把比对机制抽到 	ests/support/launcher_compare_support.rs（417 行），主测试文件
