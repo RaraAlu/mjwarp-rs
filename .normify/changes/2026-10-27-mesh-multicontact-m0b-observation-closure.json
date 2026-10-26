@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-mesh-multicontact-m0b-observation-closure",
+  "title": {
+    "zh": "M0b QA 观察 O1–O6 收口（证据文字/编码勘误，不改 bins 与数字）",
+    "en": "M0b QA observations O1-O6 closure (evidence text/encoding errata, bins and numbers unchanged)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "M0b 独立复核 `f191fdba`（pass / 0 阻断 / 观察 6）后，按观察更正 M0b 交付证据的文字与编码：O1「旧 12 个 G5 case」→ 10（并注明 M0b commit message 内「12」为笔误、不改写历史提交）；O2 README §5 行数改实测；O4 两个 UTF-8 带 BOM 日志转无 BOM；O5/O6 注明探针不可复跑、常驻覆盖已由 M2 的 validate_collision_inputs + real_cpu_validation_accepts_m0b_and_old_cases 接管、探针源码未留档；O3（manifest cross_check 只有 match=true）按 Arch 裁定不改 manifest——改为在证据层注明自证力弱与该结论的冗余证据来源，避免 manifest sha 级联改动已 verified 的 QA 证据。纯证据文字/编码治理：不改 32 个 bin、manifest、脚本、测试与任何数字。",
+    "en": "Close M0b QA observations O1-O6 as evidence text/encoding errata; O3 recorded as decision (no manifest change) to avoid sha cascade."
+  },
+  "modules": {},
+  "acceptance": [
+    "O1：M0b 证据 README（§1/§4 等出现「12」处）更正为「10 个 bins case（9 个有设备回归 + hfield-capsule 仅 CPU 口径）」，并注明交付 commit message 中的「12」为笔误、历史提交不改写，口径以 10 为准。",
+    "O2：README §5 行数按实测更正（primitive_qa_support.rs 331 / multicontact_qa_support.rs 347 / mesh_poly_case_support.rs 362 / g10_p5_mesh_poly_case_assembly.rs 385 的上限口径：raw 行数；prepare_mesh_cases.py 331 不变），并注明所有文件 ≤500 行。",
+    "O4：docs/development-evidence/mesh-multicontact-m0b/logs/ 下 2 个带 BOM 日志（assembly-test.log、real-validate-probe.log）转 UTF-8 无 BOM，内容逐字不变。",
+    "O5/O6：在 M0b 证据 README 增边界小节：临时探针日志仅历史留档、不可复跑（源码未留档）；常驻覆盖 = M2 的 `validate_collision_inputs` + `real_cpu_validation_accepts_m0b_and_old_cases`；不把探针历史日志当作现行验证入口。",
+    "O3：记录 Arch 裁定——manifest 不改（改则 sha 级联影响已 verified 的 M0b QA 证据与生产脚本 provenance），改为在 README 交叉核对小节注明「manifest cross_check 仅记 match=true；位型事实见逐文件 bin sha256 + 常驻测试逐位断言 + QA 独立复算（`qa-same-source.json`）」。",
+    "治理回执 docs/development-evidence/mesh-multicontact-m0b-observation-governance/（README + receipt.json 含 task_id 与 O1–O6 映射）。",
+    "红线：不改 32 个 bin / manifest / scripts/prepare_mesh_cases.py / tests/ / src/；不改任何已 verified 数字、判据、参考；不宣称 mesh 已支持。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m0b-independent-check"
+    ],
+    "phase": "治理/证据勘误",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/mesh-multicontact-m0b/",
+      "docs/development-evidence/mesh-multicontact-m0b-observation-governance/"
+    ],
+    "resources": [],
+    "priority": 43
+  },
+  "note": "Arch 2026-10-27 登记（M0b QA pass 后；Backend 在 M3，本片为纯证据文字/编码治理，由 Arch 直接做，不占实现线）。",
+  "revision": {
+    "before": "5f51300a5135af1aa400af8d719d91aafa24fb79",
+    "after": null
+  },
+  "created_at": "2026-10-27T00:52:00.000Z",
+  "updated_at": "2026-10-27T00:52:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mesh-multicontact-m0b-observation-governance/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-mesh-multicontact-m0b-observation-closure"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
