@@ -1,0 +1,130 @@
+{
+  "task_id": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes",
+  "kind": "m0a-fix-mesh-poly-shapes-evidence",
+  "status": "in_progress",
+  "pinned_upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "root_cause": {
+    "summary": "M0a validate_mesh_poly required mesh_polyvertadr/polyvertnum/polymapadr/polymapnum lengths to all equal nmesh, but pinned mujoco_warp/_src/types.py defines polyvertadr/polyvertnum as (nmeshpoly,) and polymapadr/polymapnum as (nmeshvert,). Real cube fixture lengths (1,1,6,6,6,24,8,8,24) were rejected with InvalidArgument, blocking M0b bins and M2.",
+    "found_by": "M0b first-block CPU precheck (structural blocker; Arch/Chief ruled a separate fix task, not folded into M0b)",
+    "pinned_evidence": [
+      "mujoco_warp/_src/types.py L1329-1337: mesh_polynum/mesh_polyadr (nmesh,); mesh_polynormal (nmeshpoly,3); mesh_polyvertadr/mesh_polyvertnum (nmeshpoly,); mesh_polyvert (nmeshpolyvert,); mesh_polymapadr/mesh_polymapnum (nmeshvert,); mesh_polymap (nmeshpolymap,)",
+      "mujoco_warp/_src/types.py L1864-1872: Model array declarations matching the dims above",
+      "mujoco_warp/_src/collision_gjk.py L2245-2262 / L2278-2310: geom.mesh_polyadr is a per-mesh scalar; polyvertadr/polyvertnum indexed per polygon; polymapadr/polymapnum indexed per vertex"
+    ],
+    "real_cube_shapes": {
+      "nmesh": 1,
+      "nmeshpoly": 6,
+      "nmeshvert": 8,
+      "nmeshpolyvert": 24,
+      "nmeshpolymap": 24,
+      "lengths": [1, 1, 6, 6, 6, 24, 8, 8, 24]
+    }
+  },
+  "rule_audit": [
+    {"id": 1, "rule": "9 arrays all empty -> no sidecar, mesh_poly_args=null", "pinned": "M0a semantics layer", "ownership": "-", "old": "same", "verdict": "kept"},
+    {"id": 2, "rule": "partial empty -> InvalidArgument (no silent disable)", "pinned": "M0a semantics layer", "ownership": "-", "old": "same", "verdict": "kept"},
+    {"id": 3, "rule": "polynum.len() == polyadr.len()", "pinned": "types.py L1329-1330 / L1864-1865", "ownership": "per mesh / (nmesh,)", "old": "all six arrays required == nmesh", "verdict": "converged (wrong constraint removed)"},
+    {"id": 4, "rule": "polynormal.len() % 3 == 0 -> nmeshpoly", "pinned": "types.py L1331 / L1866", "ownership": "per polygon / (nmeshpoly,3)", "old": "same", "verdict": "kept"},
+    {"id": 5, "rule": "polyvertadr.len() == polyvertnum.len() == nmeshpoly", "pinned": "types.py L1332-1333 / L1867-1868", "ownership": "per polygon / (nmeshpoly,)", "old": "required == nmesh (real 6 vs 1)", "verdict": "fixed"},
+    {"id": 6, "rule": "polymapadr.len() == polymapnum.len() (nmeshvert)", "pinned": "types.py L1335-1336 / L1870-1871", "ownership": "per vertex / (nmeshvert,)", "old": "required == nmesh (real 8 vs 1)", "verdict": "fixed"},
+    {"id": 7, "rule": "sum(polynum) == nmeshpoly", "pinned": "types.py L1329-1331 derivation", "ownership": "per mesh -> per polygon", "old": "same", "verdict": "kept"},
+    {"id": 8, "rule": "per mesh polyadr[i]+polynum[i] <= nmeshpoly", "pinned": "types.py L1329-1331", "ownership": "per mesh", "old": "same", "verdict": "kept"},
+    {"id": 9, "rule": "per polygon polyvertadr[i]+polyvertnum[i] <= polyvert.len()", "pinned": "types.py L1332-1334", "ownership": "per polygon / (nmeshpolyvert,)", "old": "loop 0..nmesh (checked only 1/6 polygons)", "verdict": "loop domain fixed"},
+    {"id": 10, "rule": "per vertex polymapadr[i]+polymapnum[i] <= polymap.len()", "pinned": "types.py L1335-1337", "ownership": "per vertex / (nmeshpolymap,)", "old": "loop 0..nmesh (checked only 1/8 vertices)", "verdict": "loop domain fixed"},
+    {"id": 11, "rule": "negative values rejected (adr/num >= 0)", "pinned": "int arrays", "ownership": "all three groups", "old": "present but only index 0 for polyvert/polymap", "verdict": "kept + domain fixed"},
+    {"id": 12, "rule": "strong consistency sum(polyvertnum) == polyvert.len()", "pinned": "types.py L1333-1334", "ownership": "per polygon", "old": "absent", "verdict": "added"},
+    {"id": 13, "rule": "strong consistency sum(polymapnum) == polymap.len()", "pinned": "types.py L1336-1337", "ownership": "per vertex", "old": "absent", "verdict": "added"}
+  ],
+  "rule_audit_verdict": "13 rules audited: 6 needed correction (#5 #6 #9 #10 #11-domain #3-convergence); 7 kept including all-empty/partial-empty semantics",
+  "red_green": {
+    "test": "runtime::collision_gpu::validate_tests::accepts_real_cube_mesh_poly_shapes",
+    "input_lengths": [1, 1, 6, 6, 6, 24, 8, 8, 24],
+    "red": {
+      "procedure": "git stash push -- src/runtime/collision_gpu/abi.rs (old validation), rerun same test, then git stash pop",
+      "command": "cargo test --locked --lib runtime::collision_gpu::validate_tests::accepts_real_cube_mesh_poly_shapes -- --nocapture",
+      "exit": 101,
+      "observed": "left: Err(InvalidArgument(\"mesh_poly 逐 mesh 数组长度须一致（polynum/polyadr/polyvertadr/polyvertnum/polymapadr/polymapnum）\")) vs right: Ok(())",
+      "log": "logs/red-old-rule.log"
+    },
+    "green": {
+      "command": "cargo test --locked --lib runtime::collision_gpu::validate_tests -- --nocapture",
+      "exit": 0,
+      "observed": "7 passed / 0 failed",
+      "log": "logs/green-new-rule.log"
+    }
+  },
+  "negative_cases": [
+    "polynormal % 3 != 0",
+    "polynum/polyadr length mismatch",
+    "polyvertadr length != nmeshpoly",
+    "polymapadr/polymapnum length mismatch",
+    "per-mesh range out of bounds (polyadr+polynum > nmeshpoly)",
+    "per-polygon range out of bounds (mesh_polyvert)",
+    "per-vertex range out of bounds (mesh_polymap)",
+    "negative value (polynum = -1)",
+    "sum(polynum) != nmeshpoly",
+    "sum(polyvertnum) != len(mesh_polyvert)",
+    "sum(polymapnum) != len(mesh_polymap)",
+    "partial sidecar (9 arrays not all present)",
+    "all-empty sidecar -> Ok (null sidecar, behavior unchanged)"
+  ],
+  "changes": {
+    "files": [
+      {"path": "src/runtime/collision_gpu/abi.rs", "lines": 378, "change": "rewrote validate_mesh_poly (three shape groups + strong consistency); corrected module/struct doc shape semantics; per-field dim/ownership on MjwarpMeshPolyArgs"},
+      {"path": "src/runtime/collision_gpu/types.rs", "lines": 94, "change": "CollisionGpuInputs 32-slice doc; 9 mesh_poly field comments corrected to real shapes"},
+      {"path": "src/runtime/collision_gpu/validate_tests.rs", "lines": 374, "change": "real-cube positive test + rebuilt negatives (13 categories); CubeMeshPoly uses real (1,1,6,6,6,24,8,8,24) data"}
+    ],
+    "diff_stat": "3 files changed, 253 insertions(+), 64 deletions(-)",
+    "src_physics_mod_or_device_sources_touched": false,
+    "fixtures_touched": false,
+    "tests_dir_touched": false
+  },
+  "invariants": {
+    "collision_args_size_bytes": 504,
+    "mesh_poly_args_size_bytes": 72,
+    "entries": 6,
+    "smoke_fingerprint": {"source_bytes": 238969, "source_sha256": "ec2e7acddc71eec2b8cd6b07cf70ba4a4a3e7eab258982815f2199349e1a047a", "ptx_bytes": 3786520, "entries": 6},
+    "smoke_unchanged_vs_m0a": true,
+    "device_sources_segments": 27,
+    "device_sources_touched": false,
+    "criteria_tolerance_reference_changed": false,
+    "abi_tests": ["abi_collision_args_matches_device_layout_504", "abi_mesh_poly_args_matches_device_sidecar_layout", "all_six_entries_take_args_by_value"],
+    "abi_tests_result": "all passed inside default unit suite"
+  },
+  "gates": {
+    "fmt": {"command": "cargo fmt --all -- --check", "exit": 0},
+    "clippy": {"command": "cargo clippy --locked --all-targets -- -D warnings", "exit": 0},
+    "clippy_cuda": {"command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings", "exit": 0},
+    "unit": {"command": "cargo test --locked --no-fail-fast", "exit": 0, "passed": 982, "failed": 0, "ignored": 372, "baseline": "980/0/372", "delta": "+2 new tests", "raw_log": "target/m0a-fix/unit.log", "raw_log_sha256": "b5d5034f0c66362f5f89b05efd190d1f49aff063a8b28dc8b6c6d66da58d000b"},
+    "all_features": {"command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast", "env": "MJWARP_MUJOCO_ROOT=target/toolchains/mujoco-3.12.0/package", "exit": 0, "passed": 1031, "failed": 0, "ignored": 430, "baseline": "1029/0/430", "delta": "+2", "raw_log": "target/m0a-fix/all-features.log", "raw_log_sha256": "c52f5241be77bb475470ff1b0e135c218d17d1d111c40f41efc136e753a1f404"},
+    "smoke": {"command": "cargo test --locked --features cuda-probe --lib runtime::collision_gpu::nvrtc_smoke -- --include-ignored --nocapture", "exit": 0, "log": "logs/nvrtc-smoke.log"},
+    "summary_file": "logs/gates-summary.txt"
+  },
+  "m0a_evidence_addendum": {
+    "readme": "docs/development-evidence/mesh-multicontact-m0a/README.md section 4: per-mesh-equal-length statement replaced with real three-group shapes; blockquote marks 'updated by 2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes', old statement void, impact and post-fix line counts recorded",
+    "receipt": "docs/development-evidence/mesh-multicontact-m0a/receipt.json::empty_sidecar_semantics: added shape_semantics, shape_correction_task; unit_tests updated with the 2 new tests; stale ':241' pointer removed",
+    "silent_rewrite": false
+  },
+  "chief_addenda_2026_10_26": {
+    "1_contrast_evidence": "README section 3 (red exit 101 / green 7 passed; raw logs in logs/) and section 4 (13 negative categories)",
+    "2_one_time_rule_audit": "README section 2 table: every validate_mesh_poly rule mapped to pinned dim + line numbers + ownership + old/new verdict",
+    "3_m0a_addendum_marked": "README section 8: M0a README/receipt marked as updated by this fix task, no silent rewrite",
+    "4_zero_change_confirmation": "README section 6: ABI 504 / sidecar 72B / entries 6 / smoke fingerprint / DEVICE_SOURCES 27 / device sources / fixtures all unchanged; full gate set run"
+  },
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "logs/red-old-rule.log",
+    "logs/green-new-rule.log",
+    "logs/fmt.log",
+    "logs/clippy.log",
+    "logs/clippy-cuda.log",
+    "logs/nvrtc-smoke.log",
+    "logs/gates-summary.txt"
+  ],
+  "uncovered": [
+    "GPU launch-level behavior of null/non-null sidecar remains deferred to the M2 verification window; this task runs no GPU",
+    "no device kernel or upload chain change; mesh multicontact kernel still not implemented (M2)",
+    "M0b bins production resumes only after this fix task passes review"
+  ]
+}

@@ -1,0 +1,31 @@
+# M0a fix（mesh polygon 形状语义）门禁摘要 — 2026-10-26
+
+工具链：`rustc 1.99.0 (b940084d7 2026-09-28)` / `cargo 1.99.0 (5f94df478 2026-08-27)`；
+默认工具链 gnu；all-features 使用 `+1.99.0-x86_64-pc-windows-msvc`。
+环境：`PATH` 前置 `target/toolchains/cuda-12.8.1/bin`（NVRTC）；all-features 另设
+`MJWARP_MUJOCO_ROOT=target/toolchains/mujoco-3.12.0/package`。
+
+| 项 | 命令 | exit | 结果 |
+| --- | --- | --- | --- |
+| fmt | `cargo fmt --all -- --check` | 0 | 无 diff（`logs/fmt.log` 为空） |
+| clippy | `cargo clippy --locked --all-targets -- -D warnings` | 0 | 无 warning |
+| clippy-cuda | `cargo clippy --locked --all-targets --features cuda-probe -- -D warnings` | 0 | 无 warning |
+| unit（gate） | `cargo test --locked --no-fail-fast` | 0 | **982 passed / 0 failed / 372 ignored**（115 个二进制；基线 980/0/372 → **+2** 新测试：`accepts_real_cube_mesh_poly_shapes`、`rejects_inconsistent_mesh_poly_sums`） |
+| all-features | `cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast` | 0 | **1031 passed / 0 failed / 430 ignored**（基线 1029/0/430 → **+2**） |
+| 冒烟 | `cargo test --locked --features cuda-probe --lib runtime::collision_gpu::nvrtc_smoke -- --include-ignored --nocapture` | 0 | `ptx_bytes=3786520 entries=6 source_bytes=238969 source_sha256=ec2e7acddc71eec2b8cd6b07cf70ba4a4a3e7eab258982815f2199349e1a047a`（与 M0a 完全一致） |
+
+## 红 / 绿对照（同一正例、同一测试）
+
+- 红（旧 `validate_mesh_poly`，`abi.rs` 经 `git stash` 临时回到 HEAD 版本后重跑）：exit 101，
+  `left: Err(InvalidArgument("mesh_poly 逐 mesh 数组长度须一致（polynum/polyadr/polyvertadr/polyvertnum/polymapadr/polymapnum）"))`
+  vs `right: Ok(())`；日志 `logs/red-old-rule.log`。
+- 绿（修正后）：`validate_tests` **7 passed / 0 failed**；日志 `logs/green-new-rule.log`。
+
+## 原始日志（因体积不入证据目录，留在 target/）
+
+| 文件 | sha256 |
+| --- | --- |
+| `target/m0a-fix/unit.log` | `b5d5034f0c66362f5f89b05efd190d1f49aff063a8b28dc8b6c6d66da58d000b` |
+| `target/m0a-fix/all-features.log` | `c52f5241be77bb475470ff1b0e135c218d17d1d111c40f41efc136e753a1f404` |
+
+聚合方法：对两份日志中全部 `test result:` 行分别求和 passed/failed/ignored（115 个二进制）。
