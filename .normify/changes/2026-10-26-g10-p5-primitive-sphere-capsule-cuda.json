@@ -5,7 +5,7 @@
     "zh": "primitive sphere/capsule 族 4 组合设备实现（sphere-sphere / sphere-capsule / sphere-cylinder / capsule-capsule）并对照上游 GPU 参考",
     "en": "Device primitive narrowphase for the 4 sphere/capsule-family combos, verified against the upstream GPU reference"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "接 UNC-3 的 B2 片：按 pinned 上游 `collision_primitive.py` 的 `sphere_sphere_wrapper`(L356)/`sphere_capsule_wrapper`(L373)/`sphere_cylinder_wrapper`(L915+)/`capsule_capsule_wrapper` 与 `collision_primitive_core.py` 的核心 `sphere_sphere`(L58)/`sphere_capsule`(L90)/`capsule_capsule`(L128)/`sphere_cylinder`(L393) 实现 device 版（rev `71da24d9`）。device 侧保持 pinned GPU `fma.rn` 融合语义，复用既有 `g5_write_contact`/`make_frame` 与结构字段语义；对照 B0 已捕获的上游 GPU 参考（`docs/development-evidence/g10-p5-primitive-capture/upstream-primitive-gpu.json`，sha256 `3a6475ac…`）中的 4 个 case。不改 ABI、不改判据/容差、不宣称全组合覆盖。",
     "en": "Implement device primitive narrowphase for the 4 sphere/capsule-family combos per pinned upstream wrappers/cores and verify against the B0-captured GPU reference."
@@ -36,12 +36,11 @@
   },
   "note": "Arch 2026-10-26 预登记（B1/r2 in_progress，UNC-3 第二片）：B0 已捕获 4 个 case 的上游 GPU 参考（同 `upstream-primitive-gpu.json` sha `3a6475ac…`：sphere-sphere/sphere-capsule/sphere-cylinder/capsule-capsule，GPU nacon 均 1；capsule-capsule 的 CPU 预检 nacon=2 与 GPU 差异属后端差异，判据参考是 GPU）。**必须沿用 B1 的 T4 回避法**：新片段在 `source.rs` 本地 `include_str!` 引入，不改 `src/physics/mod.rs`、不另立 repin、不动 fixtures。回归必须含 B1 plane 6 case。依赖 B1-r2 verified 后 start；QA 复核预登记 `2026-10-26-g10-p5-primitive-sphere-capsule-cuda-independent-check`（depends_on 本任务）。",
   "revision": {
-    "before": "e0a1fb8300ba3bf4697e55c1ebafe8d2f252a2ff",
+    "before": "712e7de1d8b1a1a666bfa4360db0149ebd9b9f59",
     "after": null
   },
   "created_at": "2026-10-26T12:42:00.000Z",
-  "updated_at": "2026-10-26T12:42:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-26T12:56:33.512Z",
   "checks": [
     {
       "kind": "gate",
