@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-commit-msg-forbid-selfcheck",
+  "title": {
+    "zh": "新增 commit message 禁词自查脚本（与 scope-selfcheck 同级，提交前必跑）",
+    "en": "Add commit-message forbidden-term self-check script (peer of scope-selfcheck, mandatory before commit)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "M3 提交时 commit message 里出现「精度达标」字面词，被 commit-msg hook 以 forbid_claim 拒绝——说明手写提交信息容易漏。按 Chief 2026-10-27 建议，新增 `scripts/commit-msg-selfcheck.mjs`：从任务 JSON 的 `forbid_claim` 检查读词表（回退内置默认表），扫描提交信息文件，命中即退出码 1 并逐条打印命中行；配套把「提交前必跑 scope-selfcheck + commit-msg-selfcheck」写进排程登记清单。纯工具+文档，不改代码、判据、窗口数据。",
+    "en": "New script scanning a commit message against the task's forbid_claim terms; wire into the pre-commit checklist."
+  },
+  "modules": {},
+  "acceptance": [
+    "新增 `scripts/commit-msg-selfcheck.mjs`：用法 `node scripts/commit-msg-selfcheck.mjs <task-id> <message-file> [--repo <path>]`；优先读 `.normify/changes/<task-id>.json` 里的 `checks[kind=forbid_claim].terms`，任务无该项时回退内置默认词表（G10已实现/完整物理通过/双平台通过/上游完全等价/原生放行/精度达标）；扫描全文（含标题与正文），命中打印「行号 + 命中词」并 exit 1，零命中打印 OK 并 exit 0；支持 UTF-8 与 CRLF/BOM 容错。",
+    "自测（脚本自带可复跑断言）：① 用含「精度达标」的临时消息 → exit 1、命中行可定位；② 用 M3 实际提交信息（`target/commit-msg-m3.txt` 或等价）→ exit 0；③ 对无 `forbid_claim` 检查的任务回退默认表仍生效。",
+    "更新 `docs/development-evidence/scheduling-registration-checklist.md`：新增「提交前必跑 `node scripts/commit-msg-selfcheck.mjs <task-id> <msg>`」条目，与 `scope-selfcheck` 并列；写明本次触发事实（M3 提交被「精度达标」字面词拦）。",
+    "治理回执 `docs/development-evidence/commit-msg-selfcheck-governance/`（README + receipt.json，含 task_id、自测命令与输出摘要）。",
+    "红线：不改 `src/`、`tests/`、`fixtures/`、判据、窗口数据；不自造禁词表口径（以任务 JSON 为准）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "治理/工具",
+    "owner": "Arch",
+    "files": [
+      "scripts/commit-msg-selfcheck.mjs",
+      "docs/development-evidence/scheduling-registration-checklist.md",
+      "docs/development-evidence/commit-msg-selfcheck-governance/"
+    ],
+    "resources": [],
+    "priority": 47
+  },
+  "note": "Arch 2026-10-27 登记（Chief 建议：禁词检查做成脚本，别靠人眼；M3 提交被 forbid_claim 拦过一次）。与 scope-selfcheck 一起作为提交流程的机械自查。",
+  "revision": {
+    "before": "7b84c450acb23626cd084d81a7522440eb2aac4f",
+    "after": null
+  },
+  "created_at": "2026-10-27T01:30:00.000Z",
+  "updated_at": "2026-10-27T01:30:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/commit-msg-selfcheck-governance/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-commit-msg-forbid-selfcheck"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
