@@ -1,0 +1,35 @@
+diff --git a/src/physics/collision/gjk/polytope.rs b/src/physics/collision/gjk/polytope.rs
+index 6377790b..4372dae6 100644
+--- a/src/physics/collision/gjk/polytope.rs
++++ b/src/physics/collision/gjk/polytope.rs
+@@ -64,10 +64,12 @@ pub(crate) fn attach_face(pt: &mut Polytope, idx: usize, v1: usize, v2: usize, v
+ 
+     pt.face[idx] = (v1 as u32) + ((v2 as u32) << 10) + ((v3 as u32) << 20);
+     pt.face_pr[idx] = r;
+-    // 对齐 pinned ccd PTX 的 FMA 收缩：dot(r,r) 为「首项乘积 + 逐项 mul_add」链。
++    // 对齐上游 CPU 参考 recipe（warp 1.15.0 CPU 后端 `vec.h` 的 `dot` 展开）：乘积与加法是独立
++    // 语句，每个乘加都做两次舍入。GPU pinned ccd PTX 是 `fma.rn` 融合语义，属 device 侧口径；
++    // 故 host 站点刻意不用 FMA helper、不引 f64、不写 `mul_add`（G2/G6 判据参考是 CPU 后端）。
+     let head = r[0] * r[0];
+-    let tail = r[1].mul_add(r[1], head);
+-    pt.face_norm2[idx] = r[2].mul_add(r[2], tail);
++    let tail = r[1] * r[1] + head;
++    pt.face_norm2[idx] = r[2] * r[2] + tail;
+     pt.face_norm2[idx]
+ }
+ 
+diff --git a/src/render/kernel/megakernel_arrays.rs b/src/render/kernel/megakernel_arrays.rs
+index 7e9acc04..5c74c936 100644
+--- a/src/render/kernel/megakernel_arrays.rs
++++ b/src/render/kernel/megakernel_arrays.rs
+@@ -186,7 +186,9 @@ pub fn light_data_poses(fields: &RenderFields) -> Result<Vec<LightDataPose>, Pos
+         let x = dir[3 * light];
+         let y = dir[3 * light + 1];
+         let z = dir[3 * light + 2];
+-        let length = z.mul_add(z, y.mul_add(y, x * x)).sqrt();
++        // 上游 warp `normalize` 的 `fma(z,z,fma(y,y,x*x))` 序列；用目标无关的精确 f32 FMA
++        // （`crate::math::fma::fma_f32`）避免宿主 libm 回退在不同工具链下舍入不一致。
++        let length = crate::math::fma::fma_f32(z, z, crate::math::fma::fma_f32(y, y, x * x)).sqrt();
+         let xdir = if length > 0.0 {
+             [x / length, y / length, z / length]
+         } else {

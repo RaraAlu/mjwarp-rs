@@ -5,7 +5,7 @@
     "zh": "按用户拍板 A 修复 GJK face_norm2：host 显式不融合对齐上游 CPU 参考 recipe（render/relmat 保留 helper 对齐 GPU fused），恢复默认 gate 全绿",
     "en": "Fix GJK face_norm2 per option A: explicit non-fused host math matching the upstream CPU reference recipe; keep fused helpers where the reference is a GPU fused kernel"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "用户 2026-10-26 对 faithful FMA 处置最终拍板 **A**，原则是「标准依据是数据向最可靠的依据靠拢」——每类实现对齐各自最可靠的参考：host 数值链对齐上游 CPU 参考（两次舍入），device 对齐 pinned GPU PTX（fma 融合）。证据链：① GNU 默认 `f32::mul_add` 回退非 IEEE 单次舍入（`case-evidence-frame-diagnosis`，1e6 中 24.67% 与硬件 FMA 不同）；② G2/G6 4 ULP 判据的参考是 warp 1.15.0 CPU 后端、生成 C++ mul/add 独立、`.o` FMA=0（CPU 参考 = 两次舍入）；③ 用户先选 B 后，Arch dry check 实测「只切 GPU 参考」4/5 case 红（ellipsoid-box frame 8.1929e-7 > 4.8e-7；上游 CPU/GPU 参考自身就差 8.19e-7～45 ULP），B 不可行；④ A 在 wt-A 副本实测：`face_norm2` 改显式源序后 5 个 case 与 CPU 参考**逐位相等**、三构建一致、G5 位级不变、G01 host 双绿。本片只改 `gjk/polytope.rs::face_norm2`；`render/kernel/megakernel_arrays.rs:189` 与 `relmat.rs` 保留精确 FMA helper（它们的参考是 GPU fused）。不改判据/容差/期望值/参考路径。",
     "en": "Per user decision A, make the host GJK face_norm2 match the CPU reference recipe (explicit non-fused), while keeping fused helpers where the reference is GPU fused; no criterion or reference changes."
@@ -34,24 +34,37 @@
     "files": [
       "src/",
       "tests/",
-      "docs/development-evidence/faithful-fma-fix/"
+      "docs/development-evidence/faithful-fma-fix/",
+      "docs/development-evidence/np01-type-mapping/"
     ],
     "resources": [],
     "priority": 55
   },
-  "note": "Arch 2026-10-26 登记（r2，接替被放弃的 `2026-10-25-g10-p5-faithful-fma-fix`）：用户最终拍板 A，原则「标准依据是数据向最可靠的依据靠拢」——host 对齐上游 CPU 参考、device 对齐 pinned GPU PTX。旧 B 版任务因验收冻结无法原地改（B 已实测不可行），故 abandon + r2 重登记。旧 patch `target/fix-fma-helpers.patch` 的 polytope 段是 helper 版、已作废（megakernel 段可复用）。收集顺序：Backend 改代码 + CPU 定向测试 → gate → 证据 → QA 独立复核（`2026-10-25-g10-p5-faithful-fma-fix-independent-check`）→ done/commit → stage 2 start（stage2 depends_on 本片）。QA 复核不占 GPU 窗口。",
+  "note": "Arch 2026-10-26 登记（r2，接替被放弃的 `2026-10-25-g10-p5-faithful-fma-fix`）：用户最终拍板 A，原则「标准依据是数据向最可靠的依据靠拢」——host 对齐上游 CPU 参考、device 对齐 pinned GPU PTX。旧 B 版任务因验收冻结无法原地改（B 已实测不可行），故 abandon + r2 重登记。旧 patch `target/fix-fma-helpers.patch` 的 polytope 段是 helper 版、已作废（megakernel 段可复用）。收集顺序：Backend 改代码 + CPU 定向测试 → gate → 证据 → QA 独立复核（`2026-10-25-g10-p5-faithful-fma-fix-independent-check`）→ done/commit → stage 2 start（stage2 depends_on 本片）。QA 复核不占 GPU 窗口。 **2026-10-26 16:50Z Arch 扩范围**：acceptance ⑤ 的 NP01 站点口径登记落在 docs/development-evidence/np01-type-mapping/（inventory.json 加 hostSiteRegistration、README 加一节），故 schedule.files 增列该目录（仍不改判据/容差）。",
   "revision": {
-    "before": "0e39457231c2c94e5846f9bf832b17d45c49546f",
+    "before": "2604bc3cdf5dc5c9318730608b5b436b2b9f1525",
     "after": null
   },
   "created_at": "2026-10-26T16:20:00.000Z",
-  "updated_at": "2026-10-26T16:20:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-26T08:38:43.310Z",
+  "closed_at": "2026-10-26T08:38:43.310Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "json",
       "path": "docs/development-evidence/faithful-fma-fix/receipt.json",

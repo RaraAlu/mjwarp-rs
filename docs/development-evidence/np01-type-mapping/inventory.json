@@ -5235,5 +5235,175 @@
     },
     "mapping": "warp-headers.json"
   },
+  "hostSiteRegistration": {
+    "updatedAt": "2026-10-26",
+    "task": "2026-10-25-g10-p5-faithful-fma-fix-r2",
+    "purpose": "登记 host 侧乘加融合口径（只登记语义，不改判据/容差）；补 gjk/ccd/epa host 路径覆盖项（原 30 条为产品 CUDA 内核路径，未覆盖 host 数值链）。",
+    "siteSemantics": [
+      {
+        "site": "gjk_ccd_epa_host",
+        "hostPath": "src/physics/collision/gjk/{polytope,core,simplex,support,epa,ccd,contact,math}.rs",
+        "hostRecipe": "CPU 参考 recipe：乘加为独立 mul/add 语句，每个乘加两次舍入；dot(r,r)/length/normalize 不做 FMA 收缩",
+        "hostRounding": "两次舍入（非 fused）",
+        "reference": "warp 1.15.0 CPU 后端 f32 参考（docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32.json，provenance=device:cpu；生成 C++ 中 mul/add 独立、.o FMA=0）",
+        "deviceRecipe": "pinned GPU ccd PTX：fma.rn 融合（T4 采集 PTX 中 fma.rn.f32=1480、mul.rn/add.rn=0）",
+        "evidence": [
+          "docs/development-evidence/faithful-fma-fix/README.md（A 片：显式非融合，5 case 与 CPU 参考位级 0 差异）",
+          "docs/development-evidence/g10-p5-g2-gpu-reference-capture/README.md（两套参考 recipe 实测）",
+          "docs/development-evidence/g10-p5-gjk-epa/README.md（pinned ccd PTX fma.rn=1480）"
+        ]
+      },
+      {
+        "site": "render_light_dir_normalize",
+        "hostPath": "src/render/kernel/megakernel_arrays.rs::light_data_poses",
+        "hostRecipe": "fused：fma(z,z,fma(y,y,x*x))，用目标无关精确 f32 FMA helper（src/math/fma.rs）",
+        "hostRounding": "单次正确舍入（fused）",
+        "reference": "render S7 参考（GPU use_fast_math=true；fixtures/render-bvh/scene-a/s7b/rgb.json）",
+        "deviceRecipe": "同 reference：GPU fast-math 内核",
+        "evidence": [
+          "docs/development-evidence/faithful-fma-fix/README.md",
+          "docs/development-evidence/faithful-impact-measurement/README.md（render S7b1/S7b2/S7b3/S8 两口径位级相同）"
+        ]
+      },
+      {
+        "site": "relmat_relative_matrix",
+        "hostPath": "src/physics/collision/relmat.rs",
+        "hostRecipe": "fused：fma 链，用目标无关精确 f32 FMA helper",
+        "hostRounding": "单次正确舍入（fused）",
+        "reference": "warp/native/mat.h mul(mat,mat) → muladd→fmaf（fused）；fixtures/g10-p5/sdf-rotation/sdf-rotation-cpu.json",
+        "deviceRecipe": "pinned GPU 内核同 mat.h 语义",
+        "evidence": [
+          "docs/development-evidence/exact-f32-fma-relmat/README.md（§5 G5 位级回归）",
+          "tests/g10_p5_sdf_relmat.rs（rel_mat 10/10 world、SDF 80/80 bit-equal）"
+        ]
+      }
+    ],
+    "hostCoverage": [
+      {
+        "id": "gjk_host",
+        "layer": "G1/G2 host GJK 窄相",
+        "paths": [
+          "gjk",
+          "simplex",
+          "support",
+          "contact frame",
+          "dist/pos/frame"
+        ],
+        "productFiles": [
+          "src/physics/collision/gjk/core.rs",
+          "src/physics/collision/gjk/simplex.rs",
+          "src/physics/collision/gjk/support.rs",
+          "src/physics/collision/gjk/math.rs",
+          "src/physics/collision/gjk/contact.rs"
+        ],
+        "types": {
+          "input": "f32（上游 f32 geom_xpos/geom_xmat 位型）",
+          "intermediate": "f32",
+          "accumulation": "f32（两次舍入；无 f64）",
+          "output": "f32（dist/pos/frame）",
+          "doubleInProduct": "0"
+        },
+        "recipe": "host = CPU recipe（非融合，两次舍入）；device = pinned ccd PTX fma.rn",
+        "upstream": {
+          "files": [
+            "_src/collision_convex.py（pinned 71da24d…）"
+          ],
+          "confidence": "站点级；逐函数映射待补"
+        },
+        "evidence": {
+          "existing": [
+            "docs/development-evidence/faithful-fma-fix/README.md（三构建 5 case 位级 0 差异）",
+            "docs/development-evidence/g10-p5-gjk-epa/README.md（模块→上游清单与 4 ULP 判据）"
+          ],
+          "missing": [
+            "逐字段输入→输出类型表",
+            "host/device 逐表达式位级对照表"
+          ]
+        },
+        "status": "部分（站点口径已登记；逐字段表待补）"
+      },
+      {
+        "id": "ccd_host",
+        "layer": "G2/G5 host CCD 接触装配",
+        "paths": [
+          "ccd",
+          "ccl",
+          "contact frame",
+          "dist/pos/frame"
+        ],
+        "productFiles": [
+          "src/physics/collision/gjk/phase.rs",
+          "src/physics/collision/gjk/ccd.rs",
+          "src/physics/collision/gjk/contact.rs"
+        ],
+        "types": {
+          "input": "f32（上游 f32 geom_xpos/geom_xmat 位型）",
+          "intermediate": "f32",
+          "accumulation": "f32（两次舍入；无 f64）",
+          "output": "f32（dist/pos/frame；整数结构字段另列）",
+          "doubleInProduct": "0"
+        },
+        "recipe": "host = CPU recipe（非融合）；device = pinned ccd PTX fma.rn",
+        "upstream": {
+          "files": [
+            "_src/collision_driver.py",
+            "_src/collision_primitive.py",
+            "_src/collision_convex.py（pinned 71da24d…）"
+          ],
+          "confidence": "站点级；逐函数映射待补"
+        },
+        "evidence": {
+          "existing": [
+            "docs/development-evidence/faithful-fma-fix/README.md（5 case 与 CPU 参考位级 0 差异）",
+            "tests/gjk_epa.rs（5 case 结构契约）"
+          ],
+          "missing": [
+            "逐字段输入→输出类型表",
+            "逐表达式 host/device 对照"
+          ]
+        },
+        "status": "部分（站点口径已登记；逐字段表待补）"
+      },
+      {
+        "id": "epa_host",
+        "layer": "G2 host EPA 穿透深度/接触 frame",
+        "paths": [
+          "epa",
+          "face_norm2",
+          "contact frame"
+        ],
+        "productFiles": [
+          "src/physics/collision/gjk/epa.rs",
+          "src/physics/collision/gjk/polytope.rs",
+          "src/physics/collision/gjk/polytope_build.rs"
+        ],
+        "types": {
+          "input": "f32（simplex/face 顶点）",
+          "intermediate": "f32（face_norm2 = dot(r,r)，两次舍入）",
+          "accumulation": "f32（两次舍入；无 f64）",
+          "output": "f32（dist/pos/frame）",
+          "doubleInProduct": "0"
+        },
+        "recipe": "host = CPU recipe（非融合，本片 polytope face_norm2 显式两次舍入）；device = pinned ccd PTX fma.rn",
+        "upstream": {
+          "files": [
+            "_src/collision_convex.py（pinned 71da24d…）"
+          ],
+          "confidence": "站点级；逐函数映射待补"
+        },
+        "evidence": {
+          "existing": [
+            "docs/development-evidence/faithful-fma-fix/README.md（ellipsoid-box frame 位级 0 差异）",
+            "docs/development-evidence/g10-p5-gjk-epa/README.md（EPA 模块清单）"
+          ],
+          "missing": [
+            "逐字段输入→输出类型表",
+            "EPA 逐轮 host/device 对照表"
+          ]
+        },
+        "status": "部分（站点口径已登记；逐字段表待补）"
+      }
+    ]
+  },
   "updatedAt": "2026-10-23"
 }

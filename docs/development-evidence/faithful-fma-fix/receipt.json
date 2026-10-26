@@ -1,0 +1,126 @@
+{
+  "task_id": "2026-10-25-g10-p5-faithful-fma-fix-r2",
+  "title": "faithful FMA 处置 A 版：GJK face_norm2 显式非融合对齐上游 CPU 参考 recipe（render/relmat 保留 fused helper）",
+  "decision": "用户 2026-10-26 最终拍板 A（原则：数据向最可靠的依据靠拢；host 对齐上游 CPU 参考、device 对齐 pinned GPU PTX）",
+  "head_before": "7eac444f",
+  "gpu_windows": 0,
+  "runtime_scope": "纯 CPU；未开 GPU 窗口；未跑 GPU 位级/全量 G01",
+  "changes": {
+    "src/physics/collision/gjk/polytope.rs": "face_norm2: mul_add 链 -> 上游 CPU 源码顺序显式两次舍入（不用 helper/f64/mul_add），注释写明 CPU recipe 与 device fma.rn 口径",
+    "src/render/kernel/megakernel_arrays.rs": "light_data_poses 光源方向归一化恢复 crate::math::fma::fma_f32（对齐 GPU use_fast_math fused 参考）",
+    "untouched": [
+      "src/physics/collision/relmat.rs（已用 helper）",
+      "src/render/bvh/aabb.rs（实现不动）",
+      "判据/容差/期望值（case_evidence.rs 4.8e-7 与 4 ULP）",
+      "case_compare.rs 参考路径（仍读 upstream-mjwarp-f32.json CPU 参考）",
+      "gates.toml、G01 脚本、旧 CPU 参考、upstream-mjwarp-f32-gpu.json（归档、非判据）"
+    ],
+    "src_diff_stat": "2 files changed, 8 insertions(+), 4 deletions(-)"
+  },
+  "checks": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy-cuda": "pass",
+    "unit": "pass: 604 passed / 0 failed / 7 ignored (111 test binaries; lib 454/0/5)",
+    "normify_gate": "exit 0（clippy/clippy-cuda/fmt/unit 全通过；unit 604 过 0 败）",
+    "normify_check": "全部检查通过（最终一轮，工作树改动完成后重跑）"
+  },
+  "case_evidence_three_builds": {
+    "pre_fix": {
+      "gnu_default": { "result": "pass", "ellipsoid_box_frame_max_abs": 3.838112e-7, "ellipsoid_box_frame_bit_equal": "13/18" },
+      "msvc": { "result": "FAIL (exit 101)", "ellipsoid_box_frame_max_abs": 6.351978e-7, "ellipsoid_box_frame_bit_equal": "13/18" },
+      "gnu_plus_fma": { "result": "FAIL (exit 101)", "ellipsoid_box_frame_max_abs": 6.351978e-7, "ellipsoid_box_frame_bit_equal": "13/18" }
+    },
+    "post_fix": {
+      "gnu_default": { "result": "pass (exit 0)", "ellipsoid_box_frame_max_abs": 0.0, "ellipsoid_box_frame_bit_equal": "18/18" },
+      "msvc": { "result": "pass (exit 0)", "ellipsoid_box_frame_max_abs": 0.0, "ellipsoid_box_frame_bit_equal": "18/18" },
+      "gnu_plus_fma": { "result": "pass (exit 0)", "ellipsoid_box_frame_max_abs": 0.0, "ellipsoid_box_frame_bit_equal": "18/18" },
+      "judgement_lines_bitwise_identical_across_builds": true
+    }
+  },
+  "five_cases_post": {
+    "cylinder-box": { "count": "8/8", "dist_bit_equal": "8/8", "dist_max_ulp": 0, "pos_bit_equal": "8/8", "pos_max_scaled_ulp": 0.0, "frame_bit_equal": "72/72", "frame_max_abs": 0.0 },
+    "ellipsoid-box": { "count": "2/2", "dist_bit_equal": "2/2", "dist_max_ulp": 0, "pos_bit_equal": "2/2", "pos_max_scaled_ulp": 0.0, "frame_bit_equal": "18/18", "frame_max_abs": 0.0 },
+    "mesh-mesh": { "count": "2/2", "dist_bit_equal": "2/2", "dist_max_ulp": 0, "pos_bit_equal": "2/2", "pos_max_scaled_ulp": 0.0, "frame_bit_equal": "18/18", "frame_max_abs": 0.0 },
+    "convex-mesh": { "count": "2/2", "dist_bit_equal": "2/2", "dist_max_ulp": 0, "pos_bit_equal": "2/2", "pos_max_scaled_ulp": 0.0, "frame_bit_equal": "18/18", "frame_max_abs": 0.0 },
+    "degenerate-mesh": { "count": "2/2", "dist_bit_equal": "2/2", "dist_max_ulp": 0, "pos_bit_equal": "2/2", "pos_max_scaled_ulp": 0.0, "frame_bit_equal": "18/18", "frame_max_abs": 0.0 }
+  },
+  "g5_bitwise_regression": {
+    "relmat_lib": { "pre": "4 passed", "post": "4 passed" },
+    "g10_p5_sdf_relmat": {
+      "pre": "4 passed; rel_mat_warp 10/10 world (8 world distinguish b*a); sdf-rot-ident/sdf-rot-sdf/sdf-rot-box/sdf-rot-both/sdf-rot-rz-rx/sdf-box(G3) each 80/80 contacts bit-equal, dist/pos/frame max_abs 0e0",
+      "post": "4 passed; same numbers bitwise",
+      "diff": 0
+    },
+    "g10_p5_sdf_host": { "pre": "1 passed", "post": "1 passed" },
+    "gjk_epa": { "pre": "3 passed (duplicate_keyed_rows: cylinder 1, others 0)", "post": "3 passed (same)" }
+  },
+  "g01_targeted": {
+    "host_gnu": "cargo test --locked: pre was green (coincidental 3.838112e-7 pass), post green with 0e0; correction: host-gnu was NOT red before (it passed by non-compliant libm fallback coincidence)",
+    "host_msvc": "case_evidence targeted: pre FAIL (6.351978e-7) -> post pass (0e0)",
+    "full_g01": "not run (per acceptance: targeted only)"
+  },
+  "site_audit": {
+    "product_host_non_fused": ["src/physics/collision/gjk/polytope.rs::attach_face (face_norm2)"],
+    "product_host_fused_shared_helper": [
+      "src/render/kernel/megakernel_arrays.rs::light_data_poses (GPU use_fast_math reference)",
+      "src/physics/collision/relmat.rs (warp mat.h muladd->fmaf reference)"
+    ],
+    "product_host_fused_local_helper": ["src/render/bvh/aabb.rs::fused_mul_add (frozen S7 fma.rn reference; implementation untouched)"],
+    "device_side": ["CUDA kernels: pinned ccd PTX fma.rn=1480 (device semantics, not host criterion)"],
+    "tests_diagnostics": [
+      "src/math/fma/tests.rs (f32::mul_add discrimination self-test, hardware reference)",
+      "src/runtime/transfer/kernel/tests/precision.rs:72 (test-only)"
+    ],
+    "product_mul_add_call_sites_after": 0
+  },
+  "np01_registration": {
+    "inventory": "docs/development-evidence/np01-type-mapping/inventory.json",
+    "readme": "docs/development-evidence/np01-type-mapping/README.md",
+    "inventory_added_keys": ["hostSiteRegistration.siteSemantics", "hostSiteRegistration.hostCoverage"],
+    "site_semantics": {
+      "gjk_ccd_epa_host": "host=CPU recipe twice-rounded; device=pinned GPU ccd PTX fma.rn fused",
+      "render_light_dir_normalize": "fused (exact f32 FMA helper; GPU use_fast_math reference)",
+      "relmat_relative_matrix": "fused (exact f32 FMA helper; warp mat.h muladd->fmaf)"
+    },
+    "host_coverage_rows": ["gjk_host", "ccd_host", "epa_host"],
+    "existing_30_cuda_kernel_rows_unchanged": true,
+    "criteria_changed": false
+  },
+  "boundaries": [
+    "真实无 FMA 机器未实机验证（本片未新增/未实机验兜底路径；沿用 exact-f32-fma-relmat seam + 默认 gate 覆盖结论）",
+    "NaN payload 不作位级判据",
+    "边界测试计数以 16 为准（本片未新增边界测试）",
+    "gate unit 引当前值 604",
+    "不宣称精度达标/跨环境全绿/上游完全等价/双平台通过/原生放行/G10 已实现/完整物理通过",
+    "不宣称 host 与 device 数值等价：本片是 host 对齐 CPU 参考、device 按 pinned PTX 的两口径并存"
+  ],
+  "evidence_logs": [
+    "docs/development-evidence/faithful-fma-fix/logs/src.patch",
+    "docs/development-evidence/faithful-fma-fix/logs/pre-fix-case-evidence-gnu-default.log",
+    "docs/development-evidence/faithful-fma-fix/logs/pre-fix-case-evidence-msvc.log",
+    "docs/development-evidence/faithful-fma-fix/logs/pre-fix-case-evidence-gnu-fma.log",
+    "docs/development-evidence/faithful-fma-fix/logs/post-fix-case-evidence-gnu-default.log",
+    "docs/development-evidence/faithful-fma-fix/logs/post-fix-case-evidence-msvc.log",
+    "docs/development-evidence/faithful-fma-fix/logs/post-fix-case-evidence-gnu-fma.log",
+    "docs/development-evidence/faithful-fma-fix/logs/pre-fix-g5-relmat-lib.log",
+    "docs/development-evidence/faithful-fma-fix/logs/pre-fix-g5-sdf-relmat-integration.log",
+    "docs/development-evidence/faithful-fma-fix/logs/pre-fix-g5-sdf-host-integration.log",
+    "docs/development-evidence/faithful-fma-fix/logs/pre-fix-g5-gjk-epa-integration.log",
+    "docs/development-evidence/faithful-fma-fix/logs/post-fix-g5-relmat-lib.log",
+    "docs/development-evidence/faithful-fma-fix/logs/post-fix-g5-sdf-relmat-integration.log",
+    "docs/development-evidence/faithful-fma-fix/logs/post-fix-g5-sdf-host-integration.log",
+    "docs/development-evidence/faithful-fma-fix/logs/post-fix-g5-gjk-epa-integration.log",
+    "docs/development-evidence/faithful-fma-fix/logs/gate-unit-full-summary.log",
+    "docs/development-evidence/faithful-fma-fix/logs/gate-fmt-check.log",
+    "docs/development-evidence/faithful-fma-fix/logs/gate-clippy-default.log",
+    "docs/development-evidence/faithful-fma-fix/logs/gate-clippy-cuda.log",
+    "docs/development-evidence/faithful-fma-fix/logs/normify-gate.log"
+  ],
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "toolchains": {
+    "gnu": "rustc/cargo 1.99.0 x86_64-pc-windows-gnu（仓库默认）",
+    "msvc": "rustc/cargo 1.99.0-x86_64-pc-windows-msvc",
+    "gnu_plus_fma": "GNU 默认 + RUSTFLAGS=-C target-feature=+fma"
+  }
+}

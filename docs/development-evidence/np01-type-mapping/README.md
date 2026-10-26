@@ -133,3 +133,25 @@ node docs/development-evidence/np01-type-mapping/map-warp-headers.mjs
 - 这是**路径级证据**，不是逐字段类型映射；30 条路径的逐字段表、偏离归零仍未完成，不宣称 NP01 通过。
 - 文件级行（11 条）的头文件证据是文件范围证据，上游具体函数定位仍标待补；`tendon` 仍待补。
 - 未改产品代码、测试、容差、fixtures；未跑 GPU；未改 `include/warp-headers`（只读）。
+
+
+## host 站点口径与 gjk/ccd/epa host 覆盖（2026-10-26）
+
+任务 `2026-10-25-g10-p5-faithful-fma-fix-r2`（用户拍板 A：数据向最可靠的依据靠拢）后补登记，
+**只登记口径，不改判据/容差/验收范围**。`inventory.json` 新增 `hostSiteRegistration`；
+原 30 条产品 CUDA 内核行的分类与计数不变。
+
+站点语义（host 侧乘加融合口径）：
+
+| 站点 | host 语义 | 参考 |
+| --- | --- | --- |
+| `gjk_ccd_epa_host`（`src/physics/collision/gjk/`） | **非融合**：乘加独立、两次舍入；`dot(r,r)/length/normalize` 不做 FMA 收缩 | warp 1.15.0 CPU 后端 f32（`device:cpu`；生成 C++ mul/add 独立、`.o` FMA=0） |
+| `render_light_dir_normalize`（`src/render/kernel/megakernel_arrays.rs`） | **fused**：精确 f32 FMA helper | render S7 参考（GPU `use_fast_math=true`） |
+| `relmat_relative_matrix`（`src/physics/collision/relmat.rs`） | **fused**：精确 f32 FMA helper | warp `mat.h` `muladd→fmaf` |
+
+device 侧口径：pinned GPU `ccd` PTX 的 `fma.rn` 融合（T4 采集 PTX `fma.rn.f32=1480`、`mul.rn/add.rn=0`），
+不属 host 判据；两套口径并存，不宣称 host 与 device 数值等价。
+
+补 3 条 **host 路径覆盖项**（原 30 条 CUDA 内核路径未覆盖）：`gjk_host`、`ccd_host`、`epa_host`；
+状态如实为「部分（站点口径已登记；逐字段输入→输出类型表/逐表达式位级对照待补）」——**NP01 仍未验收**。
+实现与三构建证据见 `docs/development-evidence/faithful-fma-fix/README.md`。

@@ -64,10 +64,12 @@ pub(crate) fn attach_face(pt: &mut Polytope, idx: usize, v1: usize, v2: usize, v
 
     pt.face[idx] = (v1 as u32) + ((v2 as u32) << 10) + ((v3 as u32) << 20);
     pt.face_pr[idx] = r;
-    // 对齐 pinned ccd PTX 的 FMA 收缩：dot(r,r) 为「首项乘积 + 逐项 mul_add」链。
+    // 对齐上游 CPU 参考 recipe（warp 1.15.0 CPU 后端 `vec.h` 的 `dot` 展开）：乘积与加法是独立
+    // 语句，每个乘加都做两次舍入。GPU pinned ccd PTX 是 `fma.rn` 融合语义，属 device 侧口径；
+    // 故 host 站点刻意不用 FMA helper、不引 f64、不写 `mul_add`（G2/G6 判据参考是 CPU 后端）。
     let head = r[0] * r[0];
-    let tail = r[1].mul_add(r[1], head);
-    pt.face_norm2[idx] = r[2].mul_add(r[2], tail);
+    let tail = r[1] * r[1] + head;
+    pt.face_norm2[idx] = r[2] * r[2] + tail;
     pt.face_norm2[idx]
 }
 

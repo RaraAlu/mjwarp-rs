@@ -186,7 +186,9 @@ pub fn light_data_poses(fields: &RenderFields) -> Result<Vec<LightDataPose>, Pos
         let x = dir[3 * light];
         let y = dir[3 * light + 1];
         let z = dir[3 * light + 2];
-        let length = z.mul_add(z, y.mul_add(y, x * x)).sqrt();
+        // 上游 warp `normalize` 的 `fma(z,z,fma(y,y,x*x))` 序列；用目标无关的精确 f32 FMA
+        // （`crate::math::fma::fma_f32`）避免宿主 libm 回退在不同工具链下舍入不一致。
+        let length = crate::math::fma::fma_f32(z, z, crate::math::fma::fma_f32(y, y, x * x)).sqrt();
         let xdir = if length > 0.0 {
             [x / length, y / length, z / length]
         } else {
