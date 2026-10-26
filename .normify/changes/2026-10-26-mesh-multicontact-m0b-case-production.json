@@ -15,7 +15,9 @@
     "新脚本 `prepare_mesh_cases.py`（入 `docs/development-evidence/mesh-multicontact-m0b/scripts/`）从同一 pinned 模型产出 **32 数组** case bins（含 9 个 mesh polygon 数组），放新目录；**不改** G5 `prepare_cases.py` 与已 verified bins。",
     "`tests/support/*` 的输入装配支持 **32 项**（`INPUT_BINS` 扩展）且**兼容旧 23 项**（老 case 目录缺 9 个 `.bin` → 空 slice + null sidecar，不报错）；sha 守卫按 case 目录声明数组集合。",
     "CPU 自证：新旧两套 case 都能被 host 装配（不建 context），产出数组长度/类型与脚本 manifest 一致；给出新 case 的数组清单与 sha。",
-    "证据 `docs/development-evidence/mesh-multicontact-m0b/`：README + receipt、脚本 sha256、数组 manifest、兼容性单测输出。"
+    "证据 `docs/development-evidence/mesh-multicontact-m0b/`：README + receipt、脚本 sha256、数组 manifest、兼容性单测输出。",
+    "**硬要求①（同一来源）**：32 数组 bins 必须由**同一 pinned 模型 + 同一 fixture**（\fixtures/g10-p5-mesh-multicontact/，M1 捕获所用）生成；逐项核对 xml_sha256、qpos_bits 与 M1 捕获参考一致（逐位），不一致即停手报 Arch。",
+    "**硬要求②（CPU 自检门）**：产出后做 CPU 侧自检——9 个 polygon 数组齐全、sum(polynum)==nmeshpoly、polyvert/polymap 区间与逐 mesh 等长；并核对「喂进 M0a 上传路径后 sidecar 的 9 个指针/长度与 bins 一致」。**此步通过才准进 M2**，未过不得 start M2。"
   ],
   "schedule": {
     "depends_on": [
@@ -32,7 +34,7 @@
     "resources": [],
     "priority": 43
   },
-  "note": "Arch 2026-10-26 预登记（Chief 明确排在 M1 之后，因需要 M1 的 fixture/模型）。",
+  "note": "Arch 2026-10-26 预登记（Chief 明确排在 M1 之后，因需要 M1 的 fixture/模型）。 Chief 2026-10-26 追加两条硬要求（同一来源核 xml_sha/qpos_bits；CPU 自检门含 9 数组齐全/sum/区间/M0a 上传路径指针一致），未过不进 M2。",
   "revision": {
     "before": "5ebea0c3dbac903ac2a5b021a39216105853aa6a",
     "after": null
