@@ -108,7 +108,8 @@ def main():
             "reads_product_tree": False,
             "product_python_dependency": False,
             "captured_at": CAPTURED_AT,
-            "kernel_cache_root": CACHE_ROOT.relative_to(ROOT).as_posix(),
+            "kernel_cache_parent": CACHE.parent.relative_to(ROOT).as_posix(),
+            "kernel_cache_note": "per-run cache dir is recorded in the run stdout log; both runs use the same parent and independent child caches",
         },
         "cases": {},
     }

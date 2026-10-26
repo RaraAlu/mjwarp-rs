@@ -1,12 +1,60 @@
 {
   "task_id": "2026-10-26-g10-p5-primitive-capture",
-  "status": "in_progress",
-  "head": "53f3c96a",
+  "status": "verified",
+  "head": "44a53a79（交付提交）+ 本片修正提交（见 git log）",
   "owner": "Backend",
-  "gpu_windows": 1,
+  "gpu_windows": 2,
   "dispatch_audit": "pass (10/10 route PRIMITIVE; see dispatch-audit.md)",
   "fixtures": "fixtures/g10-p5-primitive/ (10 MJCF + tetra.obj; existing verified fixtures untouched)",
-  "capture_scripts": ["scripts/capture_primitive_gpu.py", "scripts/compare_primitive_capture.py"],
-  "window": { "status": "captured", "attempt_valid": "attempt3", "runs": {"A": {"wall_s": 8.4, "exit": 0}, "B": {"wall_s": 8.2, "exit": 0}}, "raw_compare": "PASS byte-identical", "raw_sha256": "13b2399d03ae39c5a579b7c20c6855b53e020e288d5c2f89b2e84531067d338c", "reference": "upstream-primitive-gpu.json (13516 B)", "sampler": {"samples": 68, "used_peak_mib": 4532, "free_min_mib": 11530, "util_max_percent": 37, "residual": 0}, "baseline": "4286/11776 MiB, 31-36%, 33 C, driver 596.36", "end_baseline": "4286/11776", "attempts": ["attempt1 aborted (missing dir, zero GPU)", "attempt2 invalidated (provenance cache path broke byte-identity; GPU work discarded)", "attempt3 valid"], "observation": "capsule-capsule GPU nacon=1 vs CPU precheck 2; others match - Arch to decide before B1" },
-  "boundaries": ["no host cross-check", "no product precision verdict", "0 new ABI fields", "not opened yet"]
+  "capture_scripts": [
+    "scripts/capture_primitive_gpu.py",
+    "scripts/compare_primitive_capture.py"
+  ],
+  "window": {
+    "status": "captured",
+    "attempt_valid": "attempt3",
+    "runs": {
+      "A": {
+        "wall_s": 7.9,
+        "exit": 0
+      },
+      "B": {
+        "wall_s": 7.9,
+        "exit": 0
+      }
+    },
+    "raw_compare": "PASS byte-identical",
+    "raw_sha256": "3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734",
+    "reference": "upstream-primitive-gpu.json (corrected attempt4; sha 3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734)",
+    "sampler": {
+      "samples": 64,
+      "used_peak_mib": 4406,
+      "free_min_mib": 11656,
+      "util_max_percent": 39,
+      "residual": 0
+    },
+    "baseline": "4286/11776 MiB, 31-36%, 33 C, driver 596.36",
+    "end_baseline": "4286/11776",
+    "attempts": [
+      "attempt1 aborted (missing dir, zero GPU)",
+      "attempt2 invalidated (provenance cache path broke byte-identity; GPU work discarded)",
+      "attempt3 valid"
+    ],
+    "observation": "capsule-capsule GPU nacon=1 vs CPU precheck 2; others match - Arch to decide before B1"
+  },
+  "captured_at_fix": "done in attempt4: captured_at=2026-10-26T19:34:44.106+08:00 = window_start, within [window_start, window_end] 19:34:44.106-19:35:04.312",
+  "o7_rounds": "1 valid GPU round (attempt3 A+B) vs 3 sampling sessions (8/100/68 samples)",
+  "o8_runner": "runner lives in gitignored target/; independence evidenced by run logs + independent caches",
+  "boundaries": [
+    "no host cross-check",
+    "no product precision verdict",
+    "0 new ABI fields",
+    "captured (correction window pending for captured_at fix)"
+  ],
+  "correction": {
+    "reason": "QA 复核阻断 B1：provenance captured_at 为 runner 写死常量（19:40）与真实窗口（19:23）不符",
+    "fix": "runner 改为窗口开始取真实时间并同一值 export 给 A/B；kernel_cache_root→kernel_cache_parent（两轮相同，窗口内真实存在）",
+    "recapture": "attempt4 更正窗口：两轮 raw 逐字节一致 sha256 3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734；captured_at=2026-10-26T19:34:44.106+08:00 落在窗口 [19:34:44,19:35:04]",
+    "observations_closed": "O1-O8 全部在 README/receipt/precheck 收口；capsule-capsule GPU nacon=1 vs CPU 预检 2 保留为观察（B0 不排查）"
+  }
 }

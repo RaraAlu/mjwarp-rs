@@ -1,7 +1,7 @@
 # G10@P5 primitive 其余 10 组合：B0 authoring（fixtures + 上游 GPU 参考捕获）
 
 任务：`2026-10-26-g10-p5-primitive-capture`（p48，owner Backend）。
-**窗口状态：未开窗（等 Arch/Chief 双签）。** 本片只交付 fixture 与上游 GPU f32 参考，不做 host 交叉、不判产品精度。
+**窗口状态：捕获已完成（attempt3 有效轮）；captured_at 真实性修正需重采一次小窗口，见 §6/§7。** 本片只交付 fixture 与上游 GPU f32 参考，不做 host 交叉、不判产品精度。
 
 ## 1. dispatch 审计（已完成，纯 CPU）
 见 `dispatch-audit.md`：`nativeccd=disable` 下 10/10 组合路由 `CollisionType.PRIMITIVE`，wrapper 映射：
@@ -52,11 +52,23 @@ L910-912 NATIVECCD 覆盖为 PRIMITIVE → `box_box_wrapper`（既有参考，�
   结束基线 4286/11776；post `query-compute-apps` 无本任务进程。
 - **旧参考与既有 verified fixtures**：`git status --short fixtures` 仅 `?? fixtures/g10-p5-primitive/`（新目录），
   旧参考/既有 fixture **0 改动**；旧参考（`qa-upstream-gpu.json` 等）逐字节未动。
-- **attempt 记录**（如实）：attempt1 因运行目录未建 → 零 GPU 作废；attempt2 因 capture 脚本 provenance 含每轮
+- **attempt 记录**（如实）：attempt1 因 capture 脚本 line 105 残留字面反引号n 的 SyntaxError → 零 GPU 作废；attempt2 因 capture 脚本 provenance 含每轮
   cache 路径（导致 raw 非逐字节一致）→ 该轮 GPU 工作量作废（不采纳）；修复为 `kernel_cache_root` 相对路径后
   attempt3 为唯一有效轮。窗口会话 1 次。
 - **「nacon 预期」口径（必须如实）**：预检 `precheck-cpu.md` 的 nacon 预期由本轮 CPU 后端预检实测确定，
-  **只作 fixture 有效性基线，不作参考/判据**；新参考以上游 GPU 捕获为准。
-- **观察（交 Arch 判定，不自行解释为通过/失败）**：`capsule-capsule` GPU 捕获 nacon=1，而 CPU 预检为 2；
+  **只作 fixture 有效性基线，不作参考/判据**；新参考以上游 GPU 捕获为准。**参考尚不是判据**：本片只交付「新组合上游 GPU 参考已捕获且有 provenance」，不判任何组合通过。
+- **窗口轮次口径（O7）**：GPU 窗口 1 次有效轮（attempt3：RUN A+B，wall 8.4 s / 8.2 s）；attempt1/2/3 为三次采样会话（samples 8 / 100 / 68），仅 attempt3 采纳。**runner 位置（O8）**：runner 位于 gitignored `target/`（不入库）；轮次独立性由 `window-attempt3/run-a.log`/`run-b.log` 与独立 cache（`attempt3/warp-cache-a`、`-b`）旁证。**kernel_cache_parent（O4）**：provenance 记录 `target/g10-p5-primitive-capture/attempt3`（两轮相同，保证 raw 逐字节一致），每轮 cache 子目录见 run 日志。**观察（交 Arch 判定，不自行解释为通过/失败）**：`capsule-capsule` GPU 捕获 nacon=1，而 CPU 预检为 2；
   其余 9 例 CPU 预检与 GPU 捕获 nacon 一致。该差异不影响「新参考已捕获且有 provenance」的交付，但需 Arch 决定
   B1 对照前是否先排查（本片不判产品精度）。
+
+## 7. 更正窗口（attempt4，2026-10-26 19:34:44–19:35:04，captured_at 真实性修正）
+
+- **修正点**：删除 runner 写死 captured_at；窗口开始取真实时间（带时区）并同一值 export 给 A/B。
+- **新两轮 sha（逐字节一致）**：A=B=`3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734`；新参考 `upstream-primitive-gpu.json` 同 sha（替换旧修正前参考，属修正提交）。
+- **captured_at 与窗口日志交叉核验**：`captured_at=2026-10-26T19:34:44.106+08:00` = `window_start`；`window_end=2026-10-26T19:35:04.312+08:00` → **captured_at 落在 [window_start, window_end] 内**；mtime：baseline 19:34:43.393（窗口前）、run-a 19:34:51.983、reference 19:34:51.673、run-b 19:34:59.894、samples 19:35:01.772、facts 19:35:04.325；samples 时间戳 19:34:44.26–19:35:01.77 → **与窗口同区间**。
+- **采样摘要**：64 样本 @0.25 s；used 峰值 **4406 MiB**（基线 4170–4192，增量 <3072 守卫）；free 最低 11656；util 最高 39%（本任务 GPU 步期间）；进程退出、无残留；开窗基线 3 点 `4192/11870, 4180/11882, 4170/11892`，结束基线 `4161/11901`；post compute-apps 无本任务进程。
+- **执行**：RUN A wall 7.9 s / RUN B wall 7.9 s，exit 0；窗口内零 Rust 编译；window-attempt4 日志入档。
+- **kernel_cache_parent（O4 闭环）**：provenance `target/g10-p5-primitive-capture/attempt4`（窗口内真实存在，两轮相同）；每轮子目录 `attempt4/warp-cache-a`/`-b` 由 run 日志/实际目录旁证。
+- **capsule-capsule 观察保留**（Chief 裁定 B0 不排查、如实记录）：GPU 捕获 nacon=1，CPU 预检 2；B1 判据参考为 GPU 参考（nacon=1），不得按 CPU 预检凑 count；本片不解释为通过/失败。
+- **旧参考/既有 fixtures**：`git status --short fixtures` 无 tracked 改动；旧参考逐字节未动。
+- **轮次口径（O7）**：attempt1/2/3 为三次采样会话（8/100/68 样本，attempt3 曾产出被 superseded 的参考）；**attempt4 为更正窗口唯一有效轮**；GPU 窗口会话合计 2（attempt3 + attempt4）。
