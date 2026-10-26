@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-mesh-multicontact-m0a-independent-check",
+  "kind": "empty sidecar semantics + validate_mesh_poly rule review",
+  "rules_implemented": [
+    {"id": "R1", "rule": "9 mesh_poly arrays must be all present or all empty", "impl": "abi.rs present count", "tested": true},
+    {"id": "R2", "rule": "per-mesh arrays equal length (polynum/polyadr/polyvertadr/polyvertnum/polymapadr/polymapnum)", "impl": "abi.rs length check", "tested": true},
+    {"id": "R3", "rule": "mesh_polynormal length multiple of 3", "impl": "abi.rs", "tested": true},
+    {"id": "R4", "rule": "sum(polynum) == nmeshpoly (polynormal rows)", "impl": "abi.rs total_polygons check", "tested": false},
+    {"id": "R5", "rule": "polyadr/polynum and polyvert/polymap ranges in bounds", "impl": "abi.rs checked_add bounds + >=0 checks", "tested": false},
+    {"id": "R6", "rule": "negative adr/num rejected", "impl": "abi.rs >=0 checks", "tested": false}
+  ],
+  "unit_tests": [
+    {"name": "empty_mesh_poly_sidecar_is_null_and_valid", "covers": "all 9 empty + non-mesh combo accepted", "observed": "passes; only asserts slices empty, does not assert mesh_poly_args==null (CPU layer; M2 defers launch-level)"},
+    {"name": "rejects_partial_mesh_poly_sidecar", "covers": "one non-empty + rest empty -> InvalidArgument", "observed": "passes"},
+    {"name": "rejects_inconsistent_mesh_poly_sidecar", "covers": "consistent accepted; polynormal%3 -> error; per-mesh length mismatch -> error", "observed": "passes"}
+  ],
+  "gaps": [
+    "R4 sum(polynum)==nmeshpoly not covered by unit tests",
+    "R5/R6 range and negative-value checks not covered by unit tests",
+    "empty-sidecar test does not assert sidecar pointer null (launch-level behavior explicitly deferred to M2 by delivery)"
+  ],
+  "independent_verification": {
+    "method": "read validate_mesh_poly line by line; logic matches pinned mesh_poly field semantics; no silent-disable path except all-empty",
+    "all_empty_path_returns_ok": true,
+    "partial_path_returns_invalid_argument": true,
+    "inconsistent_path_returns_invalid_argument": true
+  },
+  "verdict": "rules implemented correctly by inspection; unit-test coverage is partial (O2), not a functional defect"
+}

@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-mesh-multicontact-m0a-independent-check",
+  "kind": "QA independent review (M0a sidecar ABI 496->504 + upload chain + empty sidecar semantics + T4)",
+  "role": "QA",
+  "verdict": "pass",
+  "blockers": 0,
+  "observations": 6,
+  "head_at_review": "83fe9f54 (delivery 097c54b9)",
+  "reviewed": {
+    "delivery": "097c54b9",
+    "task": "2026-10-26-mesh-multicontact-m0a-abi-repin",
+    "evidence_dir": "docs/development-evidence/mesh-multicontact-m0a",
+    "new_reference_or_capture": "none (CPU-only ABI片)",
+    "backlog_dependency": "2026-10-26-product-collision-inputs-wiring (backlog, not started)"
+  },
+  "verdict_basis": [
+    "ABI layout independently recomputed with a standalone rustc program: CollisionArgs 504/align 8, mesh_poly_args 184, scalar block +8, out 344, nacon/nccd/overflow 480/488/496, sidecar 72/align 8 with pinned 9-pointer order; matches abi_tests and README",
+    "6 entries by-value, entries 6->6, 0 new entry points; product args is a superset of frozen ProbeArgs (probe.cu zero diff)",
+    "upload chain rings verified in code/evidence; ring0->1 debt explicitly documented with backlog task; no product model->collision wiring",
+    "empty sidecar: all-empty -> null (no construction), partial/inconsistent -> InvalidArgument; validate_mesh_poly rules inspected and correct",
+    "T4 product_sources intersection empty; identity files zero diff; recapture 2/0/3 and identity 2/0 independently reproduced on changed tree -> 0 drift",
+    "smoke/assembly independently reproduced: ptx 3786520, entries 6, source 238969/ec2e7acd; LF assembly 238489/0272ccaf",
+    "gates independently reproduced: no-default 455/0/5; all-features (env+msvc) 1029/0/430; collision_gpu 31 passed; unit count in gate run record"
+  ],
+  "independent_numbers": {
+    "abi": {"size": 504, "align": 8, "mesh_poly_args_offset": 184, "out_offset": 344, "nacon_nccd_overflow": [480, 488, 496], "sidecar_size": 72, "sidecar_align": 8},
+    "entries": 6,
+    "device_sources_segments": 27,
+    "sdf_plan_specs": 14,
+    "smoke": {"passed": 31, "failed": 0, "ptx_bytes": 3786520, "entries": 6, "source_bytes": 238969, "source_sha256": "ec2e7acddc71eec2b8cd6b07cf70ba4a4a3e7eab258982815f2199349e1a047a"},
+    "assembly": {"worktree": "238969 / ec2e7acd", "git_blob_lf": "238489 / 0272ccaf"},
+    "no_default": "455/0/5",
+    "all_features": "1029/0/430 exit 0",
+    "bare_run": "exit 101 (dependency compile via dlltool), env/build.rs panic not observed",
+    "t4": {"recapture": "2/0/3", "identity": "2/0", "drift": 0},
+    "size_gate_split": {"plane_before": 493, "plane_after": 450, "support": 63, "tetra_identical": true}
+  },
+  "gate": {
+    "command": "normify gate 2026-10-26-mesh-multicontact-m0a-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "result": "exit 0 (fmt / clippy / clippy-cuda / unit all pass)",
+    "unit_run_record": ".normify/runs/2026-10-26-mesh-multicontact-m0a-independent-check/unit.json"
+  },
+  "check": {
+    "command": "normify check 2026-10-26-mesh-multicontact-m0a-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "result": "exit 0 (run immediately after final gate; stdout at target/qa-m0a/gate-check/check.log)"
+  },
+  "observations_summary": [
+    {"id": "O1", "level": "一般", "title": "bare-run cause over-claimed: log/repro show dlltool dependency failures, not env/build.rs panic"},
+    {"id": "O2", "level": "一般", "title": "validate_mesh_poly sum/range/negative rules untested; empty test does not assert null pointer"},
+    {"id": "O3", "level": "建议", "title": "README §1 line counts off (424/334 vs 426/337); §5.2 before §5.1"},
+    {"id": "O4", "level": "建议", "title": "delivery logs are UTF-16LE (git binary)"},
+    {"id": "O5", "level": "建议", "title": "ProbeArgs 496 freeze only via probe.cu zero-diff; no test/static_assert"},
+    {"id": "O6", "level": "建议", "title": "size-gate split ordering not independently reconstructable from single commit"}
+  ],
+  "boundaries": [
+    "no GPU window; launch-level null/non-null sidecar behavior deferred to M2",
+    "no full re-run of 12 G5 device cases (ABI change -> M2 full re-verification per delivery)",
+    "no mesh support claimed; mesh kernel not implemented",
+    "no release/Linux or cross-environment claims"
+  ],
+  "evidence_dir": "docs/development-evidence/mesh-multicontact-m0a-independent-check",
+  "gpu_windows_used": 0,
+  "no_commit_no_done": true
+}

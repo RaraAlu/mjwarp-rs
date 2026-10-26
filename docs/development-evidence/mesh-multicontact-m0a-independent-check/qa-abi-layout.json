@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-mesh-multicontact-m0a-independent-check",
+  "kind": "independent ABI layout recomputation (standalone rustc program, no crate internals)",
+  "method": "copy the three #[repr(C)] struct definitions from abi.rs into target/qa-m0a/layout_check.rs, compile with rustc, print size/align/offset_of; compare with delivery abi_tests.rs and README",
+  "script": "scripts/layout_check.rs",
+  "collision_args": {
+    "size": 504,
+    "align": 8,
+    "pointers_0_176": 23,
+    "mesh_poly_args_offset": 184,
+    "nworld_offset": 192,
+    "efc_width_offset": 340,
+    "out_offset": 344,
+    "out_size": 136,
+    "out_align": 8,
+    "nacon_offset": 480,
+    "nccd_offset": 488,
+    "overflow_offset": 496,
+    "implicit_padding": false,
+    "no_padding_reason": "scalar block ends exactly at 344 (8-aligned); out at 344; tail pointers 480/488/496; total 504"
+  },
+  "old_layout_097c54b9_parent": {
+    "size": 496,
+    "nworld_offset": 184,
+    "out_offset": 336,
+    "nacon_offset": 472,
+    "nccd_offset": 480,
+    "overflow_offset": 488,
+    "delta": "pointer block unchanged 0-176; all scalar/out/tail offsets +8; size +8"
+  },
+  "sidecar": {
+    "name": "MjwarpMeshPolyArgs",
+    "size": 72,
+    "align": 8,
+    "offsets": {"mesh_polynum": 0, "mesh_polyadr": 8, "mesh_polynormal": 16, "mesh_polyvertadr": 24, "mesh_polyvertnum": 32, "mesh_polyvert": 40, "mesh_polymapadr": 48, "mesh_polymapnum": 56, "mesh_polymap": 64},
+    "pinned_order": "collision_convex.py L197-205",
+    "pinned_order_matches": true,
+    "host_device_order_matches": true
+  },
+  "entries": {
+    "count": 6,
+    "names": ["mjwarp_collision_contact", "mjwarp_collision_hfield", "mjwarp_collision_sdf", "mjwarp_collision_primitive", "mjwarp_collision_contact_multi", "mjwarp_collision_boxbox"],
+    "all_by_value": true,
+    "new_entries": 0
+  },
+  "probe_sync": {
+    "probe_args_size_claim": 496,
+    "probe_args_pointers": 23,
+    "probe_file": "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/probe.cu",
+    "probe_file_changed_in_commit": false,
+    "probe_args_layout_arithmetic": "23 pointers (184) + same 38 scalar fields (152) + d_contact_out (136) + 3 tail pointers (24) = 496",
+    "product_args_is_superset": true,
+    "note": "freeze now relies on probe.cu zero diff; old test abi_collision_args_matches_probe_args_layout was replaced by 504/sidecar/by-value tests (O5)"
+  },
+  "abi_tests_observed_passing": ["abi_collision_args_matches_device_layout_504", "abi_mesh_poly_args_matches_device_sidecar_layout", "all_six_entries_take_args_by_value"],
+  "verdict": "layout matches delivery claims exactly; no implicit padding; superset of frozen ProbeArgs"
+}

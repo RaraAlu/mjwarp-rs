@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-mesh-multicontact-m0a-independent-check",
+  "observations": [
+    {
+      "id": "O1",
+      "level": "一般",
+      "title": "裸跑失败原因的证据只支持 dlltool/依赖编译失败，「env 未设→build.rs panic」未出现",
+      "detail": "交付 logs/all-features-bare-fail.log（UTF-16LE）只包含 `dlltool.exe not found`、getrandom/backtrace/windows-sys 编译失败；我按交付描述复跑裸跑（默认工具链、无 MJWARP_MUJOCO_ROOT）同样 exit 101、同样只出现 dlltool/依赖错误，未触发 mjwarp build.rs panic。README §7.1/receipt 写的「MJWARP_MUJOCO_ROOT 未设 → build.rs panic」这一步没有证据。",
+      "repro": "logs/bare-run-reproduction.log；交付 logs/all-features-bare-fail.log 解码",
+      "impact": "「bare run 失败、必须用 env+msvc」结论成立；但对失败原因的陈述不准确，审计会追问。",
+      "suggestion": "把原因改为「依赖编译失败（dlltool 缺失）」；若确要证明 env 缺省导致 build.rs panic，补一条只编 mjwarp crate 的最小复现"
+    },
+    {
+      "id": "O2",
+      "level": "一般",
+      "title": "validate_mesh_poly 的 sum/区间/负值规则实现正确但无单测覆盖；empty 测试未断言 null 指针",
+      "detail": "规则逐条实现（9 项齐全、逐 mesh 等长、polynormal%3、sum(polynum)==nmeshpoly、polyadr/polyvert/polymap 区间与负值）我已按代码核对无误；三条单测只覆盖全空、部分空、per-mesh 等长与 polynormal%3，未覆盖 sum 不等与区间越界/负值。`empty_mesh_poly_sidecar_is_null_and_valid` 只断言 slice 为空，未断言 `mesh_poly_args==null`（发射级按交付边界留给 M2）。",
+      "repro": "src/runtime/collision_gpu/abi.rs::validate_mesh_poly L244-337；validate_tests.rs L206-291",
+      "impact": "功能正确性不依赖这些测试；但回归保护弱，后续改动可能静默破坏 sum/区间规则。",
+      "suggestion": "补 3 条单测：sum 不等、polyvert/polymap 区间越界、负 adr/num；如可行加一个构造 args 的纯 CPU 断言 mesh_poly_args 为 null"
+    },
+    {
+      "id": "O3",
+      "level": "建议",
+      "title": "证据行数小偏差与章节顺序",
+      "detail": "README §1 写 product.cu 424 行、abi.rs 334 行；实际 LF 计数为 426、337（其余文件行数与实测一致）。§5.2 排在 §5.1 之前。",
+      "repro": "docs/development-evidence/mesh-multicontact-m0a/README.md L11-L12、L97-L125",
+      "impact": "不影响结论；证据精确性小瑕疵。",
+      "suggestion": "改为实测行数并调整章节顺序"
+    },
+    {
+      "id": "O4",
+      "level": "建议",
+      "title": "证据日志为 UTF-16LE，git 视为 Binary",
+      "detail": "9 个 .log（pre/post recapture、identity、smoke、bare-fail）为 UTF-16LE BOM；git show 显示 Bin；.txt 摘要为 UTF-8。证据可读但不符合文本证据惯例，diff/审查困难。",
+      "repro": "logs/evidence-log-encoding.log；git show --stat 097c54b9（多个 log 为 Bin）",
+      "impact": "不影响内容真实性；审阅体验差。",
+      "suggestion": "提交前统一转 UTF-8（无 BOM）"
+    },
+    {
+      "id": "O5",
+      "level": "建议",
+      "title": "ProbeArgs 496 冻结现在只靠 probe.cu 零 diff，无测试/static_assert",
+      "detail": "旧测试 `abi_collision_args_matches_probe_args_layout`（断言 496）被 504/sidecar/by-value 测试替代；`ProbeArgs` 结构体所在 probe.cu 本提交零 diff，但仓库内没有对 ProbeArgs size==496 的测试或 static_assert。",
+      "repro": "旧 tests.rs（097c54b9~1）vs 新 abi_tests.rs；probe.cu L118-176",
+      "impact": "冻结性目前靠 git diff 保证；若未来有人改 probe.cu 不会被测试拦住。",
+      "suggestion": "在探针源加 `static_assert(sizeof(ProbeArgs)==496)` 或保留一个纯 Rust 常量测试"
+    },
+    {
+      "id": "O6",
+      "level": "建议",
+      "title": "size-gate 拆分的「ABI/冒烟不变」不可由单 commit 顺序独立还原",
+      "detail": "证据明确记录拆分是 tests-only、ABI/冒烟指纹不变；我实测当前树冒烟 238969/ec2e7acd/3786520/6 与交付一致，TETRA 数据逐 token 相同。但同一 commit 同时含 src/feature 与 test 拆分，git 无法独立还原「先 ABI 后拆分」的顺序，该点按证据记录采信。",
+      "repro": "qa-size-gate-split.json；git show 097c54b9",
+      "impact": "低；不改变拆分 test-only 的事实。",
+      "suggestion": "无强制动作；后续同类拆分可先记 ABI/冒烟快照再拆"
+    }
+  ],
+  "blockers": []
+}

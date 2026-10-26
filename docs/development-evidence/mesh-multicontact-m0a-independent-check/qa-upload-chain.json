@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-mesh-multicontact-m0a-independent-check",
+  "kind": "upload-chain code/evidence review",
+  "ring0_model_layer": {
+    "src/model/render.rs:473-481": {"verified": true, "content": "9 mesh_poly* field definitions (polynum/polyadr/polynormal/polyvertadr/polyvertnum/polyvert/polymapadr/polymapnum/polymap)"},
+    "src/io/render.rs:222": {"verified": true, "content": "into_model"},
+    "src/io/render.rs:238": {"verified": true, "content": "RenderModelInput::new"},
+    "src/io/render.rs:296": {"verified": true, "content": "field(name) accessor"},
+    "src/io/render.rs:320-380": {"verified": true, "content": "check_mesh_ranges with mesh_poly/polyvert/polymap ranges"},
+    "ring0_files_changed_in_commit": false
+  },
+  "ring0_to_1": {
+    "status": "caller-side responsibility; no product model->CollisionGpuInputs adapter",
+    "verified_by": ["CollisionGpuInputs occurs only inside src/runtime/collision_gpu and tests", "src/io/render.rs and src/model/render.rs have zero diff in commit"],
+    "backlog_task": "2026-10-26-product-collision-inputs-wiring",
+    "backlog_task_exists": true,
+    "backlog_status": "backlog",
+    "backlog_depends_on": "2026-10-26-mesh-multicontact-m3-mesh-mesh",
+    "backlog_started": false,
+    "readme_section": "§3 + §8 (explicit: product pipeline cannot be assumed to feed 32 arrays end-to-end)"
+  },
+  "ring1_inputs": {"file": "src/runtime/collision_gpu/types.rs", "fields": 32, "new_optional_slices": 9, "meta_separate": true},
+  "ring2_upload": {"file": "src/runtime/collision_gpu.rs:148-157", "uploads": 9, "empty_slice_buffer": "buffers.rs::upload -> zeroed(1) for empty slice"},
+  "ring3_sidecar": {"file": "src/runtime/collision_gpu.rs:187-209", "present_check": "mesh_poly_present = !inputs.mesh_polynum.is_empty()", "all_empty": "sidecar_storage=None; mesh_poly_args=null", "guard_drop_order_comment_matches_code": true},
+  "ring4_abi": {"file": "src/runtime/collision_gpu/abi.rs", "mesh_poly_args_field_offset": 184, "size": 504},
+  "ring5_device": {"file": "src/physics/collision/cuda/product.cu", "sidecar_struct_line": 25, "args_field_line": 63, "consumed": false, "notes": "declaration only; no mesh kernel in M0a"},
+  "validation_order": {"file": "src/runtime/collision_gpu.rs", "line": 119, "validate_inputs_before_upload": true},
+  "old_cases": {"input_bins": 23, "prepare_cases_py_changed": false, "g5_evidence_changed": false, "old_reference_changed": false, "precision_fixtures_changed": false, "callers_with_9_empty_slices": 7},
+  "verdict": "upload chain matches documented rings; debt explicitly documented; no product-level model->collision wiring exists"
+}
