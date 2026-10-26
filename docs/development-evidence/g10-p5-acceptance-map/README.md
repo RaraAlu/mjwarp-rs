@@ -40,7 +40,7 @@ roadmap 任务 `2026-10-11-roadmap-g10-p5` 的 6 条 acceptance 里，实质只�
 
 1. multicontact 设备版（UNC-1，**partial**）：`9a282074` 已实装 box/cylinder multicontact 并与上游接触数组逐字段对照（`cylinder-box` 314/314 位级、`box-box-margin` 391/392 位级）；**mesh multicontact 未实现**（需 mesh polygon ABI）。
 2. NVRTC 产品 launcher（UNC-2，**closed（2026-10-26，Chief 批准；限定语见 `map.json` 的 `UNC-2.closure.qualifier` 与 `docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/README.md` §7.1）**）：`dfcc1bdc` 已实现并经 `cuda-probe` 特性实际调用，与 G5 探针三 case 逐字节一致（QA `bcd3c48b`）；**默认构建/默认产品管线未接入**。
-3. primitive narrowphase 设备版（UNC-3，**partial**）：`9d72159c`（+ `9a282074` 的 `box_box`）已覆盖 3/13 组合（sphere-box/capsule-box/box-box），各 case 逐字节/1 ULP 内一致；**其余 10 组合未实现**。
+3. primitive narrowphase 设备版（UNC-3，**partial**）：**组合层 13/13 已实现且各有上游 GPU 对照 case**——既有 `9d72159c`（+ `9a282074` 的 `box_box`）覆盖 sphere-box/capsule-box/box-box；B1 `249a4dbd` 覆盖 plane 6 组合（6/6）；B2 `6ab5cb22` 覆盖 sphere/capsule 4 组合（4/4）。**分支层部分覆盖**（8 类分支未覆盖，台账见 §6）。**未宣称全路径 / 全分支。**
 4. Linux/T4 未覆盖（UNC-4；用户 2026-10-24 裁决 Linux 集中回测）
 5. G5 窗口逐秒峰值未取到（UNC-5；Start-Job 相对路径缺陷，脚本已修，G6 性能窗口按 0.5 s 采样另列）
 6. `cylinder-box` 深穿透额外采样面 4/24 单字段超 4·ULP@scale（UNC-6；x1 1/24 max 8.926e-7、x2 3/24 max 1.527e-7）——**用户 2026-10-25 拍板 A：不修、列未覆盖**。定性归因见 `deep-epa-witness-sampling`（`c44578be` + 措辞修正 `ed88495d`，QA 复核 `2c052637`）：非系统性缺陷，根因收窄为「派生法线差（机制未定）」，1/24 明显超 + 2/24 边界级，与深度无显著线性相关（n=24）。**声明面判据不调整**（witness 判据保持原样，x1/x2 不降级为信息量）；若未来要覆盖该面，需补 `face_idx`/三顶点/权重数据并另立片。
@@ -83,3 +83,35 @@ roadmap 任务 `2026-10-11-roadmap-g10-p5` 的 6 条 acceptance 里，实质只�
 - 不改已批准判据（对上游 f32 的向量尺度 ULP / frame scale=1.0 / 结构零容差）、不改已 verified 证据数字、不改 S2–S8 证据、`Cargo.*`、`fixtures/mjwarp-complex-physics/*.xml`。
 - NP03 其它字段 5% 红线全量完成前，**不得声明 G10@P5 整体通过 / 精度达标 / 上游完全等价 / 双平台通过 / 原生放行 / 接触字段精度已达标 / 性能达标**；native 侧只写「待验收、诊断读数见证据」，性能只写「已记录耗时与显存（独占窗口）」。
 - 本 map 只做证据映射；G6 独立复核（QA）将独立复算 met/partial，并核对本轮契约 B 措辞与 `09896792` 一致、没有把诊断写成放行。
+
+## 6. UNC-3 更新（2026-10-26；B1/B2 收口后治理）
+
+**组合层 13/13**（每个组合都有上游 GPU 参考 case；判据：位级优先 / 非位级 4 ULP 口径 / 结构零容差 / 行序按结构键配对）：
+
+| 组合 | 覆盖片（提交） | case（nacon） | 结果 |
+| --- | --- | --- | --- |
+| plane-sphere / plane-capsule / plane-ellipsoid / plane-cylinder | B1 `249a4dbd` | 各 1（nacon 1） | 4/4 pass |
+| plane-box | B1 `249a4dbd` | 1（nacon 3） | pass |
+| plane-mesh | B1 `249a4dbd` | 1（nacon 3） | pass（穷举分支，4 顶点） |
+| sphere-sphere / sphere-capsule / sphere-cylinder | B2 `6ab5cb22` | 各 1（nacon 1） | 3/3 pass |
+| capsule-capsule | B2 `6ab5cb22` | 1（nacon 1） | pass（平行分支；GPU 侧 det≈2.6e-12，见 B2 README §6） |
+| sphere-box / capsule-box | 既有 `g10-p5-primitive-narrowphase-cuda`（`9d72159c`） | 3 | pass（80/80 位级） |
+| box-box | 既有 `g10-p5-multicontact-cuda`（`9a282074`） | 1（5 接触/world） | pass（391/392 位级 + pos 1 ULP） |
+
+**分支层部分覆盖（8 类分支未由 fixture 触发；不宣称已验证）**：
+1. `plane_convex` graph 分支（mesh `vertnum≥10`；B1 fixture 为 4 顶点走穷举分支）；
+2. `sphere_sphere` 零距离 fallback（`dist==0`）；
+3. `sphere_capsule` 投影 clamp 路径（B2 case proj=0，未 clamp）；
+4. `sphere_cylinder` 端面 / 角点分支（B2 case 只触发侧面分支）；
+5. `capsule_capsule` non-parallel 分支（B2 fixture 在未融合 f32 下 det=0 → 平行 4 端点；GPU 侧因 FMA 收缩走非平行但只写 1 接触）；
+6. `plane_cylinder` degenerate x 轴回退（len_sqr 未触发兜底）；
+7. `plane_ellipsoid` 非上游退化保护（零长/非有限未触发）；
+8. `plane-box` 8 角点中 5 个未 detected；`plane-capsule` / `plane-cylinder` 其余接触候选未 detected。
+
+**其它未覆盖路径**：交换几何顺序（调用方按 `(capsule,sphere)` 等传入）的分派已实现但无 case 覆盖；device `contact.geom` 用调用方顺序、pinned 按类型序规范化，仅同序时一致（QA B2 观察 O5，记后续覆盖清单）。
+
+**债务**：sphere-box / capsule-box / box-box 的分支级未逐条标注（既有片只到 case 层）。
+
+**证据指针**：B1 `docs/development-evidence/g10-p5-primitive-plane-cuda/`（§5 窗口结果、§9 未覆盖、§12 QA 观察）；B2 `docs/development-evidence/g10-p5-primitive-sphere-capsule-cuda/`（§6 判据与机制、§9 分支、§10 窗口结果、§11 行序修复、§12 QA 观察收口）；既有片 `g10-p5-primitive-narrowphase-cuda/`、`g10-p5-multicontact-cuda/`；独立复核 `...-plane-cuda-independent-check/`（pass）、`...-sphere-capsule-cuda-independent-check/`（pass）。
+
+**边界**：UNC-3 仍为 **partial**；只写「组合层 13/13、分支层部分覆盖」，不宣称全路径 / 全分支 / 跨平台；精度与等价性结论仅限上表 case 与已批准判据内。

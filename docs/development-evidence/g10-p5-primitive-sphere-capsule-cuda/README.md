@@ -77,7 +77,7 @@ nvrtc_smoke_ok ptx_bytes=3786439 entries=6 source_bytes=237212 source_sha256=054
 | `cargo clippy --locked --all-targets --features cuda-probe -- -D warnings` | exit 0 |
 | `cargo clippy --locked --all-targets -- -D warnings` | exit 0 |
 
-设备对照测试（ignored）**尚未运行**：需 GPU 窗口 + Arch/Chief 双签，见 §6。
+设备对照测试（ignored）**已在 GPU 窗口跑通**：attempt1（有效、非收口）+ attempt2（收口）4/4，逐 case 结果与采样事实见 §10（本句为旧的待办表述，已按 QA B2 观察 O2 更新）。
 
 
 ### 5.1 源指纹的 EOL 口径（两套都记）
@@ -99,6 +99,12 @@ nvrtc_smoke_ok ptx_bytes=3786439 entries=6 source_bytes=237212 source_sha256=054
   行序不作判据，按 `geomcollisionid` 结构键排序配对。
 - `capsule-capsule` 的 CPU 预检 `nacon=2` 与 GPU 参考 `nacon=1` 属后端差异（CPU 后端与 GPU 后端接触条数
   可不同），预检只证 fixture 有效；**判据参考是 GPU 参考，不按 CPU 预检凑 count**。
+- **`capsule-capsule` 的 count 依赖编译期 FMA 收缩（机制，QA B2 观察 O3）**：fixture 两胶囊轴皆 +z，
+  理论上 `det = ma*mc - mb*mb = 0`（平行分支 → 4 端点/2 接触）；f32 非融合两次舍入恰好得 `det = 0.0`
+  （CPU 预检 2 接触），而 NVCC 默认 `fmad=true` 把该式收缩为 `fma(ma, mc, -(mb*mb))`，得
+  `det ≈ 2.625e-12 ≥ mjMINVAL(1e-15)` → 非平行分支 → x1=x2=0 → **1 接触**（与 GPU 参考一致）。
+  本片 device 侧按融合编译，故通过；**若未来设备编译关闭 FMA 收缩（或更换后端），该 case 会变 2 接触
+  并被 count 判据挡下**——这是该 case count 期望对编译期 FMA 开关的敏感性，记风险，不改判据/期望。
 - 窗口内同时回归：**B1 plane 6 case**（`g10_p5_primitive_plane_cuda`）、既有 primitive 3 case
   （`g10_p5_primitive_cuda`）、launcher 3 case（`g10_p5_nvrtc_launcher`），用预构建二进制并行跑，
   窗口内零 Rust 编译。
@@ -123,8 +129,17 @@ sha256 与 B0 `docs/development-evidence/g10-p5-primitive-capture/inputs-sha256.
 ## 9. 未覆盖项 / 状态
 
 - 设备对照窗口已跑（attempt1 有效非收口 / attempt2 收口），逐 case N/N 见 §10。
-- `capsule_capsule` 平行轴分支、`sphere_cylinder` 端面/角点分支是否被 4 个 fixture 覆盖，按窗口结果
-  如实记录；未覆盖分支不宣称验证。
+- **本 4 case 实际覆盖到的分支**（QA B2 观察 O4，据 CPU 复算与窗口结果）：`sphere_sphere` 常规 `dir/dist`
+  分支（dist=0.16）；`sphere_capsule` 球心投影未 clamp（proj=0）；`sphere_cylinder` **侧面分支**
+  （x=0、|p|=0.15、r=0.06、hh=0.10）；`capsule_capsule` **平行轴分支**（CPU 未融合 det=0 → 4 端点；
+  GPU 融合 det≈2.6e-12 → 非平行但只 1 接触，见 §6 机制）。
+- **未被 4 个 fixture 覆盖的分支（不宣称已验证）**：`sphere_sphere` `dist==0` fallback；`sphere_capsule`
+  投影 clamp 路径；`sphere_cylinder` 端面与角点分支；`capsule_capsule` non-parallel 最近点/clamp 的完整
+  路径（GPU 侧该 case 走非平行但只 1 接触）；`capsule_capsule` `dist<=margin` 过滤后 0 接触的情形。
+- **swap 几何顺序路径（QA B2 观察 O5）**：device 对 `(CAPSULE,SPHERE)`/`(CYLINDER,SPHERE)` 交换 wrapper
+  入参已实现，但 4 个 fixture 只按 pinned 类型序（低类在前）喂调用方，**swap 路径无 case 覆盖**；且
+  device `contact.geom` 用调用方顺序、pinned `_add_geom_pair` 按类型序规范化 pair —— 仅在同序时一致，
+  记入后续覆盖清单。
 - 未宣称 primitive 全部组合覆盖、未宣称跨平台/跨环境等价。
 
 ## 10. GPU 窗口结果
@@ -176,10 +191,10 @@ residual 0；聚合守卫通过（delta_peak 774 MiB < 3072）。
   **23ae4d82…（attempt2 唯一实际窗口集合，Chief 已重签确认）** →（500 行 size gate 拆分：纯搬移）→
   35ba212d…（拆分后、clippy 死代码清理前，中间态作废）→ 5c191046…（提交源构建）。除 23ae4d82… 外的 launcher sha 全部作废、不得用于任何结果引用。
 
-- **500 行上限拆分（commit 前）**：加完归一化后 	ests/g10_p5_nvrtc_launcher.rs 达 830 行、超 500 上限，
-  normify size gate 拒提交；故把比对机制抽到 	ests/support/launcher_compare_support.rs（417 行），主测试文件
-  419 行；为纯搬移（无逻辑改动，proof 单测输出逐字相同）。因此：**attempt2 窗口实际用的是拆分前二进制
-  23ae4d82…**，仓库提交源构建出的对应二进制为 35ba212d…——两者仅源代码布局不同、语义与判据不变，
+- **500 行上限拆分（commit 前）**：加完归一化后 tests/g10_p5_nvrtc_launcher.rs 达 830 行、超 500 上限，
+  normify size gate 拒提交；故把比对机制抽到 tests/support/launcher_compare_support.rs（424 行），主测试文件
+  429 行；为纯搬移（无逻辑改动，proof 单测输出逐字相同）。因此：**attempt2 窗口实际用的是拆分前二进制
+  23ae4d82…**，仓库提交源构建出的对应二进制为 5c191046…（35ba212d 为拆分后、clippy 死代码清理前的中间态，已作废）——两者仅源代码布局不同、语义与判据不变，
   QA 可按 diff（纯移动 + pub(crate) 可见性）复核。
 - **修复落位（Governance）**：受 normify 文件范围规则限制（B2 已 in_progress 且 files 含 `tests/`），
   独立修复片无法与本片并行 in_progress（`normify start` 报 conflict:本任务）；故修复并入本片提交，
@@ -207,3 +222,11 @@ residual 0；聚合守卫通过（delta_peak 774 MiB < 3072）。
 - O5（证据卫生）：本目录日志已统一 UTF-8 无 BOM；`console.log` 由 UTF-16LE 转 UTF-8。
 - O1/TETRA 类问题不适用 B2（B2 无 mesh 输入）。
 - `capsule_capsule` 平行轴分支/`sphere_cylinder` 端面角点分支的 fixture 覆盖情况按 §9 如实记录，不宣称未覆盖分支已验证。
+- O1（陈旧文字）：§11 旧句 `35ba212d` 已改为 `5c191046`（`35ba212d` 保留在作废链）；support/main 行数改为
+  实测 424 / 429；清除 tab 残留（`tests/`）。
+- O3（机制）：见 §6 的 FMA 收缩说明与风险；判据/期望未动。
+- O4/O5（分支与 swap 路径）：见 §9 的「覆盖 / 未覆盖 / swap」清单。
+- O7（窗口二进制未归档）：attempt2 的 launcher 二进制 `23ae4d82` 未在 `target/debug/deps` 留存（提交源
+  构建 `5c191046` 可实测），拆分等价性为源码 + proof 级，**不宣称二进制级复现**。
+
+以上 O1–O7 为 QA B2 独立复核观察的收口说明：纯证据文字勘误，不改任何数字、判据、容差、期望与结论。

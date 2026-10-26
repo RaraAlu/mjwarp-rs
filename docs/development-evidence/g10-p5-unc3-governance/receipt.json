@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-unc3-governance",
+  "kind": "Governance: G6 acceptance map UNC-3 update + QA observation errata",
+  "role": "Arch",
+  "status": "governance-applied",
+  "base_head": "507a576c608a6bcd7b045e6be53dace9d1502ca4",
+  "triggers": {
+    "b1_delivery": "249a4dbd",
+    "b1_check_closure": "ee92abe5",
+    "b2_delivery": "6ab5cb22",
+    "b2_check_closure": "507a576c",
+    "qa_verdicts": {
+      "b1": {"verdict": "pass", "blockers": 0, "observations": 7},
+      "b2": {"verdict": "pass", "blockers": 0, "observations": 7}
+    }
+  },
+  "unc3_update": {
+    "before": {
+      "combos": "3/13 (sphere-box / capsule-box / box-box)",
+      "branch_layer": "not itemized",
+      "wording": "其余 10 组合未实现",
+      "status": "partial"
+    },
+    "after": {
+      "combos": "13/13 (B1 plane 6 + B2 sphere/capsule 4 + existing 3)",
+      "branch_layer": "partial: 4 branch classes actually exercised by fixtures; 8 branch classes not covered; swap geometry-order path has no case",
+      "wording": "组合层 13/13 已实现且各有上游 GPU 对照 case；分支层部分覆盖；未宣称全路径",
+      "status": "partial"
+    },
+    "files": [
+      "docs/development-evidence/g10-p5-acceptance-map/README.md",
+      "docs/development-evidence/g10-p5-acceptance-map/map.json"
+    ],
+    "map_json_scope": "uncovered[requirement_id=UNC-3] 的 title/implementation/measured/evidence_paths/reason/impact + summary.note 两处（primitive 3/13 组合、primitive 其余 10 组合）；其它 requirement 未动"
+  },
+  "combo_ledger": {
+    "plane-sphere": {"source": "249a4dbd", "cases": 1, "nacon": 1, "result": "pass"},
+    "plane-capsule": {"source": "249a4dbd", "cases": 1, "nacon": 1, "result": "pass"},
+    "plane-ellipsoid": {"source": "249a4dbd", "cases": 1, "nacon": 1, "result": "pass"},
+    "plane-cylinder": {"source": "249a4dbd", "cases": 1, "nacon": 1, "result": "pass"},
+    "plane-box": {"source": "249a4dbd", "cases": 1, "nacon": 3, "result": "pass"},
+    "plane-mesh": {"source": "249a4dbd", "cases": 1, "nacon": 3, "result": "pass (exhaustive branch, 4 verts)"},
+    "sphere-sphere": {"source": "6ab5cb22", "cases": 1, "nacon": 1, "result": "pass"},
+    "sphere-capsule": {"source": "6ab5cb22", "cases": 1, "nacon": 1, "result": "pass"},
+    "sphere-cylinder": {"source": "6ab5cb22", "cases": 1, "nacon": 1, "result": "pass (side branch)"},
+    "capsule-capsule": {"source": "6ab5cb22", "cases": 1, "nacon": 1, "result": "pass (parallel branch; GPU fused det~2.6e-12)"},
+    "sphere-box": {"source": "existing 9d72159c", "cases": 2, "result": "pass (80/80 bitwise)"},
+    "capsule-box": {"source": "existing 9d72159c", "cases": 1, "result": "pass (80/80 bitwise)"},
+    "box-box": {"source": "existing 9a282074 (multicontact)", "cases": 1, "result": "pass (391/392 bitwise + pos 1 ULP)"}
+  },
+  "uncovered_branches": [
+    "plane_convex graph branch (mesh vertnum>=10; B1 fixture 4 verts -> exhaustive)",
+    "sphere_sphere zero-distance fallback (dist==0)",
+    "sphere_capsule projection clamp path (B2 case proj=0)",
+    "sphere_cylinder cap / corner branches (B2 case side only)",
+    "capsule_capsule non-parallel branch (fixture unfused det=0 -> parallel 4 endpoints; GPU fused det~2.6e-12 -> non-parallel but 1 contact)",
+    "plane_cylinder degenerate x-axis fallback (len_sqr did not trigger fallback)",
+    "plane_ellipsoid non-upstream degenerate guard (zero-length / non-finite not triggered)",
+    "plane-box 5 of 8 corners not detected; plane-capsule / plane-cylinder other candidates not detected",
+    "swap geometry-order dispatch path (no case); device contact.geom uses caller order vs pinned type-order canonicalization"
+  ],
+  "qa_observation_closure": {
+    "O1": {"level": "一般", "where": "B2 README §11 + §12", "change": "stale 35ba212d -> 5c191046 (35ba212d kept in invalidation chain); 417/419 -> measured 424/429; tab chars removed"},
+    "O2": {"level": "一般", "where": "B2 README §5", "change": "stale 'device test not yet run' -> window attempts ran, points to §10"},
+    "O3": {"level": "一般", "where": "B2 README §6", "change": "documented NVCC FMA contraction mechanism (fused det~2.625e-12 vs unfused 0.0) and the sensitivity of the count expectation to the FMA switch; criteria/expectations untouched"},
+    "O4": {"level": "建议", "where": "B2 README §9", "change": "covered branch list + uncovered branch list itemized"},
+    "O5": {"level": "建议", "where": "B2 README §9 + this receipt §uncovered_branches", "change": "swap geometry-order path has no case; device contact.geom uses caller order"},
+    "O6": {"level": "一般", "where": "B1 receipt fix_regate_note", "change": "unit count 973 -> 974 (matches .normify/runs/2026-10-26-g10-p5-primitive-plane-cuda-r2/unit.json)"},
+    "O7": {"level": "建议", "where": "B2 README §12", "change": "recorded that attempt2 launcher binary 23ae4d82 is not archived; equivalence is source+proof level; no binary-level reproduction claim"}
+  },
+  "gate": {
+    "command": "normify gate 2026-10-26-g10-p5-unc3-governance --repo D:\\Rust\\mjwarp-rs",
+    "gates": ["fmt", "clippy", "clippy-cuda", "unit"],
+    "unit_expected": "974 passed / 0 failed / 371 ignored (docs-only change; run record in .normify/runs/2026-10-26-g10-p5-unc3-governance/unit.json)"
+  },
+  "boundaries": [
+    "No src/tests/fixtures/Cargo changes; no criteria, tolerance, expectation or verified-number changes",
+    "UNC-3 remains partial; only 'combos 13/13, branch layer partial, no full-path claim'",
+    "No cross-platform / precision / upstream-equivalence claim",
+    "Map is evidence mapping only; device side was not re-run by QA (CPU recompute + delivered window logs cross-check)"
+  ],
+  "evidence_dir": "docs/development-evidence/g10-p5-unc3-governance"
+}
