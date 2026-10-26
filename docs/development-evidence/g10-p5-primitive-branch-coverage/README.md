@@ -40,7 +40,7 @@ primitive 全路径/全分支覆盖。判据/容差与 B1/B2 同口径，未改�
 - 判定：**小修**。改动只在 `product.cu` 的 `mjwarp_collision_primitive` 入口内：比较
   `a.type1 > a.type2`、交换本地 `type1/type2/g1/g2`，并把 `params.geoms[0..1]` 覆写为规范化
   顺序；0 新 ABI 字段、0 新入口、不改 dispatch 的数值语义。既有调用方均为低类在前
-  （B0/B1/B2 全部 case）→ 规范化是 no-op，13 组合回归要求位级不变。
+  （B0/B1/B2 全部 case）→ 规范化是 no-op，13 组合回归要求判据内不变（PTX 已从 3786439 变 3786510，B1/B2 只输出 failures=0，不能先验排除 ULP 级差异）。
 - 验证：新测试对 4 个类型不同 case 额外以 `(g1=1,g2=0,type1=高类,type2=低类)` 跑 swap 变体，
   与同一 GPU 参考逐字段一致（含 `contact.geom` 顺序）；attempt2 实测 4/4 `failures=0`（§7.4）。
 
@@ -168,7 +168,7 @@ CUDA 计算进程）、0.25 s 采样 + guard v2 + 聚合断言、pre/post 快照
 - **4 swap 变体全通过**（failures=0）：plane-mesh (7,0)、sphere-capsule (3,2)、
   sphere-cylinder-cap (5,2)、sphere-cylinder-corner (5,2)；`contact.geom` 规范化顺序
   `[0,1]` 与数值同时通过，无「顺序不符/数值不符」消息。
-- **13 组合位级回归无回退**：B1 plane 6/6 `failures=0`；B2 4/4 `failures=0`；
+- **13 组合回归无回退（判据内口径；QA B3 观察 O1）**：B1 plane 6/6 `failures=0`；B2 4/4 `failures=0`；
   primitive 3/3 `bit_equal=80/80, max_*_ulp=0`；launcher 3/3 `max_*_ulp=0`
   （bit_equal 314/314、3122/3122、80/80）。
 - 详细记录：`window-attempt2-facts.md`；原始日志在
@@ -199,8 +199,21 @@ friction/solref/solreffriction/solimp）零容差；`efc_address` 全 -1、`over
 - UNC-5 G5 逐秒峰值未合并进本片（单列后续）。
 - 未宣称 primitive 全分支/全路径覆盖，未宣称精度或跨环境结论。
 
-## 9. 脚本归档（入库副本）
+## 11. 脚本归档（入库副本）
 
-- 窗口执行时脚本路径为仓库 scripts/capture_primitive_branches_gpu.py / scripts/precheck_primitive_branches_cpu.py（参考 JSON 的 uthoring_script 记录该路径）；
+- 窗口执行时脚本路径为仓库 scripts/capture_primitive_branches_gpu.py / scripts/precheck_primitive_branches_cpu.py（参考 JSON 的 `authoring_script` 记录该路径）；
 - 为满足提交范围与可复现性，本目录 scripts/ 存放入库副本，**与执行文件逐字节相同**：capture 9cff9b310705ec9387b8f69962a08ff76e7c0c7f0386c6af9242aeee610c82d8（6458 B）、precheck 6b0eba49e491c269d3bc12fdcb54a2c7af3278b5055c74b084865c1a4c50e16a（9224 B）；
-- 副本 sha 见 scripts/sha256.json。窗口事实与参考 sha（8407a90…）不受归档动作影响。
+- 副本 sha 见 scripts/sha256.json。窗口事实与参考 sha（`a8407a90…`）不受归档动作影响。
+
+## 12. QA 观察收口（B3 独立复核，2026-10-26；QA 收口提交 `856b7835`）
+
+QA 结论 **pass（阻断 0 / 观察 6）**；以下为逐条收口，**不改任何数字、判据、容差、期望与结论**：
+
+- **O1（一般，已改口径）**：「13 组合位级无回退」改为「判据内无回退」——B1/B2 的两个测试只输出 `failures=0`（判据含 4 ULP），只有 primitive/launcher 打了 `bit_equal`；PTX 已从 3786439 变 3786510（swap 改动），不能先验排除 ULP 级差异；源码级 no-op 仍有论证。
+- **O2（建议，边界说明）**：新增的 CPU 自检**不经过** `run_case` 的 geom 解析路径，`device_touched=false` 是恒真断言，只能兜住「参考/字段形状」类缺陷（attempt1 那种）的一部分；device 侧解析仍需窗口内覆盖。
+- **O3（一般，已处置）**：执行脚本 `scripts/capture_primitive_branches_gpu.py`、`scripts/precheck_primitive_branches_cpu.py` 当时未入库；现已把**逐字节相同**的副本归档到本目录 `scripts/`（sha `9cff9b31…` / `6b0eba49…`，见 `scripts/sha256.json`，§11），工作树中未跟踪的执行副本已清理；参考 JSON 的 `authoring_script` 字段记录**执行时路径**，与归档副本内容一致。
+- **O4（建议，已修）**：README §11 的 2 个 BEL 控制字符已去除（`authoring_script`、`a8407a90` 首字符恢复）；重复的 `## 9` 标题改为 `## 11`。
+- **O5（建议，已标注）**：`precheck-branches-cpu.json` 里 `axis_dot=0.0` 是理想化构造口径；按参考 `geom_xmat` 的 f32 实算 `≈ -7.57e-9`、det `≈ 2.073600335e-4`（差 ~4e-15），**分支判定不受影响**，此处记口径差异。
+- **O6（建议，边界说明）**：尝试窗 attempt1 的 branches 二进制未归档（当时未留 `1e3c2adf` 实体），「修复只碰 `tests/`」由 panic 日志（`primitive_compare.rs:48` 三层数组）、提交内容（`src/` 仅 product.cu swap）与 dirty 计数支持，**不作二进制级对照**。
+
+`receipt.json` 的 `post_qa_closure` 字段同步记录以上 6 条。

@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-unc3-ledger-branch-closure",
+  "kind": "Governance: UNC-3 ledger update after B3 branch-coverage slice + B3 QA observation errata",
+  "role": "Arch",
+  "base_head": "856b7835fd4e04b98467b9943e9c14e0c70d149b",
+  "triggers": {
+    "b3_implementation": "e221e6c2",
+    "b3_qa_check_closure": "856b7835",
+    "qa_verdict": {"verdict": "pass", "blockers": 0, "observations": 6}
+  },
+  "unc3_update": {
+    "before": {
+      "combos": "13/13",
+      "branch_covered": "B1/B2 覆盖的 4 类",
+      "branch_uncovered_count": 8,
+      "debt": "sphere-box/capsule-box/box-box 分支级未标注",
+      "status": "partial"
+    },
+    "after": {
+      "combos": "13/13",
+      "branch_covered": [
+        "plane_convex graph hillclimb (B3)",
+        "sphere_sphere dist==0 fallback (B3)",
+        "sphere_capsule projection clamp (B3)",
+        "sphere_cylinder cap (B3)",
+        "sphere_cylinder corner (B3)",
+        "capsule_capsule non-parallel det (B3)",
+        "swap geometry order canonicalized per pinned _add_geom_pair (B3)"
+      ],
+      "branch_uncovered": [
+        "plane_cylinder degenerate x-axis fallback",
+        "plane_ellipsoid non-upstream degenerate guard",
+        "plane-box 5 of 8 corners not detected; plane-capsule/plane-cylinder other candidates not detected"
+      ],
+      "debt": [
+        "sphere-box / capsule-box / box-box branch level not itemized",
+        "capsule_capsule parallel-axis branch not triggered on device (fused det~2.6e-12 -> non-parallel)"
+      ],
+      "status": "partial"
+    },
+    "files": [
+      "docs/development-evidence/g10-p5-acceptance-map/README.md",
+      "docs/development-evidence/g10-p5-acceptance-map/map.json",
+      "docs/development-evidence/g10-p5-primitive-branch-coverage/README.md",
+      "docs/development-evidence/g10-p5-primitive-branch-coverage/receipt.json"
+    ],
+    "map_json_scope": "uncovered[UNC-3] measured/evidence_paths/reason/impact + summary.note；其它 requirement 未动"
+  },
+  "qa_observation_closure": {
+    "O1": {"level": "一般", "change": "「13 组合位级无回退」改为「判据内无回退」，注明 B1/B2 只输出 failures=0、PTX 3786439->3786510"},
+    "O2": {"level": "建议", "change": "边界：CPU 自检不覆盖 run_case geom 解析路径，device_touched=false 恒真"},
+    "O3": {"level": "一般", "change": "执行脚本入库为逐字节相同副本（9cff9b31/6b0eba49），工作树未跟踪副本已清理"},
+    "O4": {"level": "建议", "change": "移除 2 个 BEL 控制字符；重复 §9 标题改 §11"},
+    "O5": {"level": "建议", "change": "标注 precheck axis_dot=0.0 为理想化；按 xmat f32 实算 ≈-7.57e-9、det ≈2.073600335e-4，分支判定不受影响"},
+    "O6": {"level": "建议", "change": "attempt1 branches 二进制未归档；等价性由 panic 日志 + 提交内容 + dirty 计数支持，不作二进制级对照"}
+  },
+  "gate": {
+    "command": "normify gate 2026-10-26-g10-p5-unc3-ledger-branch-closure --repo D:\\Rust\\mjwarp-rs",
+    "gates": ["fmt", "clippy", "clippy-cuda", "unit"],
+    "unit_expected": "975 passed / 0 failed / 372 ignored（纯文档改动，run 记录见 .normify/runs/2026-10-26-g10-p5-unc3-ledger-branch-closure/unit.json）"
+  },
+  "boundaries": [
+    "No src/tests/fixtures/Cargo changes; no criteria, tolerance, expectation or verified-number changes",
+    "UNC-3 remains partial; only 'combos 13/13, branch layer partial (5 classes + swap covered, 3 classes uncovered), no full-path claim'",
+    "No cross-platform / precision / upstream-equivalence claim"
+  ],
+  "evidence_dir": "docs/development-evidence/g10-p5-unc3-ledger-governance"
+}

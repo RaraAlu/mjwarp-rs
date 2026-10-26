@@ -84,7 +84,7 @@ roadmap 任务 `2026-10-11-roadmap-g10-p5` 的 6 条 acceptance 里，实质只�
 - NP03 其它字段 5% 红线全量完成前，**不得声明 G10@P5 整体通过 / 精度达标 / 上游完全等价 / 双平台通过 / 原生放行 / 接触字段精度已达标 / 性能达标**；native 侧只写「待验收、诊断读数见证据」，性能只写「已记录耗时与显存（独占窗口）」。
 - 本 map 只做证据映射；G6 独立复核（QA）将独立复算 met/partial，并核对本轮契约 B 措辞与 `09896792` 一致、没有把诊断写成放行。
 
-## 6. UNC-3 更新（2026-10-26；B1/B2 收口后治理）
+## 6. UNC-3 更新（2026-10-26；B1/B2 收口 + B3 分支片收口后治理）
 
 **组合层 13/13**（每个组合都有上游 GPU 参考 case；判据：位级优先 / 非位级 4 ULP 口径 / 结构零容差 / 行序按结构键配对）：
 
@@ -94,24 +94,27 @@ roadmap 任务 `2026-10-11-roadmap-g10-p5` 的 6 条 acceptance 里，实质只�
 | plane-box | B1 `249a4dbd` | 1（nacon 3） | pass |
 | plane-mesh | B1 `249a4dbd` | 1（nacon 3） | pass（穷举分支，4 顶点） |
 | sphere-sphere / sphere-capsule / sphere-cylinder | B2 `6ab5cb22` | 各 1（nacon 1） | 3/3 pass |
-| capsule-capsule | B2 `6ab5cb22` | 1（nacon 1） | pass（平行分支；GPU 侧 det≈2.6e-12，见 B2 README §6） |
+| capsule-capsule | B2 `6ab5cb22` | 1（nacon 1） | pass（GPU 侧融合 det≈2.6e-12 → 非平行分支；平行轴分支未由 device 触发，见债务） |
 | sphere-box / capsule-box | 既有 `g10-p5-primitive-narrowphase-cuda`（`9d72159c`） | 3 | pass（80/80 位级） |
 | box-box | 既有 `g10-p5-multicontact-cuda`（`9a282074`） | 1（5 接触/world） | pass（391/392 位级 + pos 1 ULP） |
 
-**分支层部分覆盖（8 类分支未由 fixture 触发；不宣称已验证）**：
-1. `plane_convex` graph 分支（mesh `vertnum≥10`；B1 fixture 为 4 顶点走穷举分支）；
-2. `sphere_sphere` 零距离 fallback（`dist==0`）；
-3. `sphere_capsule` 投影 clamp 路径（B2 case proj=0，未 clamp）；
-4. `sphere_cylinder` 端面 / 角点分支（B2 case 只触发侧面分支）；
-5. `capsule_capsule` non-parallel 分支（B2 fixture 在未融合 f32 下 det=0 → 平行 4 端点；GPU 侧因 FMA 收缩走非平行但只写 1 接触）；
-6. `plane_cylinder` degenerate x 轴回退（len_sqr 未触发兜底）；
-7. `plane_ellipsoid` 非上游退化保护（零长/非有限未触发）；
-8. `plane-box` 8 角点中 5 个未 detected；`plane-capsule` / `plane-cylinder` 其余接触候选未 detected。
+**分支层部分覆盖（B1/B2/B3 后；不宣称全分支）**：
 
-**其它未覆盖路径**：交换几何顺序（调用方按 `(capsule,sphere)` 等传入）的分派已实现但无 case 覆盖；device `contact.geom` 用调用方顺序、pinned 按类型序规范化，仅同序时一致（QA B2 观察 O5，记后续覆盖清单）。
+已由 **B3** `e221e6c2`（QA `856b7835` pass；上游参考 `upstream-primitive-branches-gpu.json` sha `a8407a90…`）覆盖并通过：
+- `plane_convex` **graph hillclimb** 分支（mesh `vertnum=10`、`graphadr=0`、`graph[0]=10`）；
+- `sphere_sphere` **`dist==0` fallback**（两球心 f32 距离 bits=0 → `n=(1,0,0)`）；
+- `sphere_capsule` **投影 clamp**（proj 0.15000000596 > half 0.119999997）；
+- `sphere_cylinder` **端面 cap** 与 **角点 corner**（`side=false` 两态各自命中）；
+- `capsule_capsule` **non-parallel det 分支**（det≈2.073600335e-4，远离 1e-15）；
+- **swap 几何顺序**：device 按 pinned `_add_geom_pair` 类型序规范化（`type1 > type2` 交换），`contact.geom` 与上游同序，4/4 swap 变体通过；既有调用方源码级 no-op、13 组合判据内无回退。
 
-**债务**：sphere-box / capsule-box / box-box 的分支级未逐条标注（既有片只到 case 层）。
+仍未覆盖（3 类，不宣称已验证）：
+1. `plane_cylinder` degenerate x 轴回退（len_sqr 未触发兜底）；
+2. `plane_ellipsoid` 非上游退化保护（零长/非有限未触发）；
+3. `plane-box` 8 角点中 5 个未 detected；`plane-capsule`/`plane-cylinder` 其余接触候选未 detected。
 
-**证据指针**：B1 `docs/development-evidence/g10-p5-primitive-plane-cuda/`（§5 窗口结果、§9 未覆盖、§12 QA 观察）；B2 `docs/development-evidence/g10-p5-primitive-sphere-capsule-cuda/`（§6 判据与机制、§9 分支、§10 窗口结果、§11 行序修复、§12 QA 观察收口）；既有片 `g10-p5-primitive-narrowphase-cuda/`、`g10-p5-multicontact-cuda/`；独立复核 `...-plane-cuda-independent-check/`（pass）、`...-sphere-capsule-cuda-independent-check/`（pass）。
+**债务**：sphere-box / capsule-box / box-box 的分支级未逐条标注（既有片只到 case 层）；`capsule_capsule` **平行轴分支**在融合后端（det≈2.6e-12 → 非平行）未被 device 触发，仍未覆盖。
+
+**证据指针**：B1 `docs/development-evidence/g10-p5-primitive-plane-cuda/`（§5 窗口结果、§9 未覆盖、§12 QA 观察）；B2 `docs/development-evidence/g10-p5-primitive-sphere-capsule-cuda/`（§6 判据与机制、§9 分支、§10 窗口结果、§11 行序修复、§12 QA 观察收口）；既有片 `g10-p5-primitive-narrowphase-cuda/`、`g10-p5-multicontact-cuda/`；B3 `docs/development-evidence/g10-p5-primitive-branch-coverage/`（§7.4 验证窗、§12 QA 观察收口）；独立复核 `...-plane-cuda-independent-check/`（pass）、`...-sphere-capsule-cuda-independent-check/`（pass）、`...-primitive-branch-coverage-independent-check/`（pass）。
 
 **边界**：UNC-3 仍为 **partial**；只写「组合层 13/13、分支层部分覆盖」，不宣称全路径 / 全分支 / 跨平台；精度与等价性结论仅限上表 case 与已批准判据内。

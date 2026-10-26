@@ -296,7 +296,7 @@
       "title": "primitive narrowphase 设备：组合层 13/13 已实现并逐个 case 对照上游 GPU 参考；分支层部分覆盖",
       "implementation": "`2026-10-25-g10-p5-primitive-narrowphase-cuda`（`9d72159c`，含 `9a282074` 的 `box_box`）覆盖 sphere-box/capsule-box/box-box；`2026-10-26-g10-p5-primitive-plane-cuda-r2`（`249a4dbd`）覆盖 plane 6 组合；`2026-10-26-g10-p5-primitive-sphere-capsule-cuda`（`6ab5cb22`）覆盖 sphere-sphere/sphere-capsule/sphere-cylinder/capsule-capsule。设备源：`primitive.cu`/`primitive_wrapper.cu`/`boxbox.cu`/`boxbox_wrapper.cu`/`primitive_plane_*.cu`（4 段）/`primitive_sphere_capsule_*.cu`（2 段）；`DEVICE_SOURCES` 27 段、PTX 入口仍 6 个（primitive 入口内做 type-pair 分派，0 新 ABI 字段）。",
       "criterion_quote": "上游 dispatch：sphere-box/capsule-box 由 primitive_narrowphase 产生接触，不走 ccd 内核",
-      "measured": "B1：plane 6/6（nacon 1/1/1/1/3/3）、回归 primitive 3/3 与 launcher 3/3 bit-exact；B2：sphere/capsule 4/4（nacon 皆 1）、回归 plane 6/6 + primitive 3/3 + launcher 3/3 bit-exact；既有片：sphere-box/capsule-box 80/80 位级、box-box-margin 391/392 位级（pos 1 ULP）。判据：位级优先 / 非位级 dist ≤4 ULP@量级 / pos 4·ULP(scale) / frame 4 ULP@1.0 / 结构零容差 / 行序按结构键配对。**组合层 13/13；分支层部分覆盖（8 类分支未覆盖 + swap 几何顺序无 case，见 README §6）**。",
+      "measured": "B1：plane 6/6（nacon 1/1/1/1/3/3）、回归 primitive 3/3 与 launcher 3/3；B2：sphere/capsule 4/4（nacon 皆 1）、回归 plane 6/6 + primitive 3/3 + launcher 3/3；B3：6 分支 case 4/1/1/1/1/1 + 4 swap 变体 failures=0（graph hillclimb、dist==0 fallback、投影 clamp、cap、corner、non-parallel det；swap 按 pinned 类型序规范化后 contact.geom 与上游同序），13 组合判据内无回退（B1/B2 只输出 failures=0；primitive/launcher bit_equal 80/80 与 314/314·3122/3122）；既有片：sphere-box/capsule-box 80/80 位级、box-box-margin 391/392 位级（pos 1 ULP）。**组合层 13/13；分支层：5 类分支 + swap 已覆盖，剩 3 类 + 债务未覆盖（见 README §6）**。",
       "evidence_paths": [
         "docs/development-evidence/g10-p5-acceptance-map/README.md（§6 UNC-3 台账）",
         "docs/development-evidence/g10-p5-primitive-plane-cuda/README.md（§5 窗口结果、§9 未覆盖、§12 QA 观察）",
@@ -308,11 +308,13 @@
         "docs/development-evidence/g10-p5-primitive-narrowphase-cuda/README.md（§2 实现对照含 13 组合表、§6 未覆盖）",
         "docs/development-evidence/g10-p5-primitive-narrowphase-cuda/receipt.json",
         "docs/development-evidence/g10-p5-primitive-narrowphase-cuda/window-output.txt",
-        "docs/development-evidence/g10-p5-primitive-narrowphase-cuda-independent-check/README.md（QA 独立复核与覆盖口径发现）"
+        "docs/development-evidence/g10-p5-primitive-narrowphase-cuda-independent-check/README.md（QA 独立复核与覆盖口径发现）",
+        "docs/development-evidence/g10-p5-primitive-branch-coverage/README.md（B3 分支覆盖；§7.4 验证窗 attempt2、§12 QA 观察收口）",
+        "docs/development-evidence/g10-p5-primitive-branch-coverage-independent-check/README.md（QA pass）"
       ],
       "status": "partial",
-      "reason": "组合层 13/13 已实现且各有上游 GPU 对照 case；**分支层部分覆盖**：plane_convex graph 分支、sphere_sphere 零距离 fallback、sphere_capsule clamp、sphere_cylinder 端面/角点、capsule_capsule non-parallel、plane_cylinder degenerate 回退、plane_ellipsoid 退化保护、plane-box 其余 5 角点等 8 类未由 fixture 覆盖；swap 几何顺序路径无 case；sphere-box/capsule-box/box-box 分支级未逐条标注（债务）。",
-      "impact": "G10@P5 复杂物理：primitive narrowphase 设备两片（plane 6 + sphere/capsule 4）已收口，加上既有 3 组合，**组合层 13/13 覆盖**；分支层未覆盖项如实记录、**未宣称全路径**；capsule-capsule 的 count 对编译期 FMA 收缩敏感（B2 README §6 机制）。"
+      "reason": "组合层 13/13 已实现且各有上游 GPU 对照 case；**分支层部分覆盖**：B3 已覆盖 graph hillclimb、dist==0 fallback、投影 clamp、cap、corner、non-parallel det 与 swap 几何顺序；仍未覆盖 3 类——plane_cylinder degenerate x 轴回退、plane_ellipsoid 非上游退化保护、plane-box 其余 5 角点（含 plane-capsule/cylinder 其余候选未 detected）；债务：sphere-box/capsule-box/box-box 分支级未逐条标注、capsule_capsule 平行轴分支在融合后端未被触发。",
+      "impact": "G10@P5 复杂物理：primitive narrowphase 设备三片（plane 6、sphere/capsule 4、分支覆盖 6+swap）已收口并入账，**组合层 13/13 覆盖、分支层 5 类 + swap 已覆盖**；剩余 3 类分支与债务如实记录、**未宣称全路径**；capsule-capsule 的 count 对编译期 FMA 收缩敏感（B2 README §6 机制）。"
     },
     {
       "requirement_id": "UNC-4",
@@ -367,6 +369,6 @@
     "partial": 4,
     "unmet": 0,
     "uncovered_total": 6,
-    "note": "perf（G6-2.2）已按独占窗口采集；NP03 其它字段 5% 红线全量完成前，G10@P5 不得整体声明通过；G6-3.1 只表示「native 侧按用户拍板 B 处置已落地」，不提供放行信号；UNC-6 按用户 2026-10-25 拍板 A 处置（不修、列未覆盖，声明面判据不调整）；UNC-1/2/3 已按设备三缺口片更新为 partial（范围见各行：multicontact 覆盖 box/cylinder、mesh 未实现；NVRTC launcher 经 cuda-probe 可用、默认管线未接；primitive 组合层 13/13、分支层部分覆盖（8 类分支未覆盖，见 README §6）），仍未覆盖项含 mesh multicontact、primitive 分支层未覆盖项、默认管线接线、Linux/T4、G5 逐秒峰值、深穿透 witness 面；本 map 只做证据映射，不改任何已 verified 数字。 UNC-2 于 2026-10-26 关闭（默认构建含 CUDA 入口、产品入口真实设备执行；限定语见 UNC-2.closure.qualifier，关闭不代表默认数值路径走 Device）。"
+    "note": "perf（G6-2.2）已按独占窗口采集；NP03 其它字段 5% 红线全量完成前，G10@P5 不得整体声明通过；G6-3.1 只表示「native 侧按用户拍板 B 处置已落地」，不提供放行信号；UNC-6 按用户 2026-10-25 拍板 A 处置（不修、列未覆盖，声明面判据不调整）；UNC-1/2/3 已按设备三缺口片更新为 partial（范围见各行：multicontact 覆盖 box/cylinder、mesh 未实现；NVRTC launcher 经 cuda-probe 可用、默认管线未接；primitive 组合层 13/13、分支层部分覆盖（B3 后剩 3 类 + 债务，见 README §6）），仍未覆盖项含 mesh multicontact、primitive 分支层未覆盖项、默认管线接线、Linux/T4、G5 逐秒峰值、深穿透 witness 面；本 map 只做证据映射，不改任何已 verified 数字。 UNC-2 于 2026-10-26 关闭（默认构建含 CUDA 入口、产品入口真实设备执行；限定语见 UNC-2.closure.qualifier，关闭不代表默认数值路径走 Device）。"
   }
 }
