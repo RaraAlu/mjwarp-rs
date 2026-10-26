@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-g10-p5-primitive-sphere-capsule-cuda-independent-check",
+  "title": {
+    "zh": "primitive sphere/capsule 族 4 组合设备实现的 QA 独立复核",
+    "en": "Independent check of the device sphere/capsule-family primitive narrowphase"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-26-g10-p5-primitive-sphere-capsule-cuda` 做独立复核：该片按 pinned 上游 sphere/capsule 族 wrapper 与核心实现 device primitive narrowphase（4 组合），对照 B0 上游 GPU 参考（sha256 `3a6475ac…`）。复核须独立核对语义来源（上游 wrapper/核心）、无 ABI 改动、无判据/容差改动、设备对照逐 case N/N（位级优先/非位级 4 ULP 口径）、回归无回退（B1 plane 6 case + 既有 primitive 3 + launcher 3）、拼装源与入口数、`capsule-capsule` CPU/GPU nacon 差异边界，以及「未宣称全组合通过」。",
+    "en": "Independently verify the sphere/capsule-family device implementation: upstream semantics, unchanged ABI/criteria, per-case bitwise/ULP results, regression, and claim boundaries."
+  },
+  "modules": {},
+  "acceptance": [
+    "**语义来源独立核**：自己读 pinned `collision_primitive.py`（sphere_sphere_wrapper L356 / sphere_capsule_wrapper L373 / sphere_cylinder_wrapper / capsule_capsule_wrapper）与 `collision_primitive_core.py`（sphere_sphere L58 / sphere_capsule L90 / capsule_capsule L128 / sphere_cylinder L393），核 device 实现逐分支对应（零距离 fallback、最近点/退化分支、端面/侧面分支、写入门），发现 device 语义与上游不一致且未在证据说明 → 阻断。",
+    "**ABI/判据未动**：`git diff` 核 `collision_gpu/abi.rs`、`CollisionArgs`、`CollisionContactOut` 0 改动；判据/容差/`gates.toml`/G01 0 改动；新文件 ≤500 行、`product.cu` 未顶线。",
+    "**设备对照独立复算**：自写解析（读 `tests/support` 产物或自己 dump）对 4 个 case 与 B0 GPU 参考（记录其 sha256 与交付引用一致）逐字段比较：位级优先；非位级 dist ≤4 ULP@量级（ref=0 用 4 ULP@1.0）；pos 4·ULP(scale)；frame 4 ULP@1.0；count/结构零容差；efc/overflow 设备侧不变量；核交付 4 case N/N 数字与自算一致。",
+    "**回归**：B1 plane 6 case（`g10_p5_primitive_plane_cuda`）、既有 primitive 3 case（sphere-box-shallow/deep、capsule-box）、launcher 3 case（hfield-sphere/sdf-box/ellipsoid-box）数字与已验证记录一致（不许回退），N/N 与 ULP 独立核。",
+    "**拼装/入口**：拼装源 sha/长度、PTX 字节数、入口数（仍 6、无新增/冲突）、`make_frame` 单一定义；核源码与证据一致。",
+    "**边界**：核 `capsule-capsule` GPU nacon=1 vs CPU 预检 2 是否如实记录、未把 CPU 预检当判据；无「全组合通过」类宣称；未覆盖项如实列。",
+    "**证据与门禁**：本复核证据只写 `docs/development-evidence/g10-p5-primitive-sphere-capsule-cuda-independent-check/`（README+receipt 含 task_id），≤500 行/文件、UTF-8 无 BOM、无二进制；纯 CPU 复核为主，若需 GPU 窗口须报 Arch 批准，不得自行开窗；不构成精度/验收结论。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-g10-p5-primitive-sphere-capsule-cuda"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-primitive-sphere-capsule-cuda-independent-check/"
+    ],
+    "resources": [],
+    "priority": 47
+  },
+  "note": "Arch 2026-10-26 预登记（B2 实现片 pending，等 B1 收口后 start）：QA 可先只读准备（读上游 wrapper/核心、准备逐字段比较脚本），须等 B2 verified 后 start；纯 CPU 为主，GPU 窗口须 Arch 批。",
+  "revision": {
+    "before": "e0a1fb8300ba3bf4697e55c1ebafe8d2f252a2ff",
+    "after": null
+  },
+  "created_at": "2026-10-26T12:42:00.000Z",
+  "updated_at": "2026-10-26T12:42:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-primitive-sphere-capsule-cuda-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-g10-p5-primitive-sphere-capsule-cuda-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
