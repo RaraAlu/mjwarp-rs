@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-scheduling-night-load-discipline",
+  "title": {
+    "zh": "排程模板补夜间负载纪律：重测试互斥 + 夜里优先实现/证据/只读复核",
+    "en": "Scheduling template: single heavy build/test mutex plus night-time preference for implementation/evidence/read-only review"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-10-27 问「是不是在跑大量 CPU 测试」；Chief 查得当时 0 个 cargo/rustc 进程，但当晚峰值来自门禁全量测试与 QA clean 重建叠加。把两条纪律写进排程模板（docs/development-evidence/scheduling-registration-checklist.md）：① 同一时间只允许一个 clean 构建/全量测试，Backend 与 QA 的重测试排队（简单文件锁/互斥约定）；② 夜里优先做实现/证据/只读复核，全量重测试能攒就攒，等窗口或早上跑。另把「机器负载检查、不与重构建并行」写进 GPU 窗口前置清单。纯文档治理，不改代码/判据/窗口数据。",
+    "en": "Add night-time load discipline and single-heavy-test mutex to the scheduling template, plus machine-load precondition for GPU windows."
+  },
+  "modules": {},
+  "acceptance": [
+    "`docs/development-evidence/scheduling-registration-checklist.md` 新增「夜间负载与重测试互斥」小节：① 同一时间只允许一个 clean 构建/全量测试（Backend 与 QA 用简单文件锁或口头互斥约定，谁先跑谁持锁、跑完释放）；② 夜里（23:00–08:00）优先实现/证据/只读复核，全量重测试攒到窗口或早上；③ 违反后果与已发生峰值事实（当晚 0 个 cargo/rustc 进程是查询时点、峰值来自门禁全量 + QA clean 重建）如实记录。",
+    "同文件新增/扩展「GPU 窗口前置」清单：开窗前必须查 `cargo`/`rustc`/`cl` 进程为 0、避免与 clean 重建或全量测试并行、把「机器负载」与 3 点基线一起报 Arch 转 Chief；窗口内仍零 Rust 编译。",
+    "红线：不改任何判据、容差、窗口数据、attempt 记录；不追溯改 M2 口径。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "治理/排程",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/scheduling-registration-checklist.md"
+    ],
+    "resources": [],
+    "priority": 46
+  },
+  "note": "Arch 2026-10-27 登记（Chief 2026-10-27 指令：用户问 CPU 峰值后加两条纪律并写进排程模板）。同条同步给 Backend/QA。",
+  "revision": {
+    "before": "388e88c87c137aad95eb5570cbd50027c9ebfacc",
+    "after": null
+  },
+  "created_at": "2026-10-27T01:00:00.000Z",
+  "updated_at": "2026-10-27T01:00:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
