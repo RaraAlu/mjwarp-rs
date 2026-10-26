@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-mesh-multicontact-m1-observation-closure",
+  "title": {
+    "zh": "M1 QA 观察 O1–O5 收口（证据文字勘误，不改数字与判据）",
+    "en": "Close M1 QA observations O1-O5 (evidence text errata)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "M1 独立复核 pass（阻断 0 / 观察 5）后收口 5 条证据文字/边界观察：O1 primitive 表措辞、O2 compute-apps 条目数、O3 byte_identical 复核链说明、O4 pos z 精度写法、O5 util 近阈值注记。纯证据勘误，不改任何数字、判据、参考与结论。",
+    "en": "Textual errata for M1 QA observations O1-O5."
+  },
+  "modules": {},
+  "acceptance": [
+    "O1：`dispatch-audit.md` 与 `README` 的「primitive 表（L48-70）无 mesh」改为「目标组合不在 primitive 表；L53 的 `(PLANE,MESH)` 属 plane-mesh、不在目标组合内」，结论不变。",
+    "O2：`README` 与 `receipt` 的 baseline `compute-apps` 条目数由 34 改为实测 31（`baseline.txt` 末行与 facts post 一致），窗口结论（无本任务进程）不变。",
+    "O3：`README` 增说明：`byte_identical_after_copy` 在执行副本删除后不可独立复核，实际证据链为「参考 provenance 自哈希 = 归档副本 sha（`scripts/sha256.json`）」，如实标注。",
+    "O4：`README` mesh-cylinder `pos` z 由 `0.095` 改为 f32 实测 `0.0949999988`。",
+    "O5：`README` 采样摘要处加注：`util_max=94%`、`util_streak_max=2` 接近 80%×3 守卫阈值，本片未 abort（规则正确），记「近阈值」。",
+    "治理回执 `docs/development-evidence/mesh-multicontact-m1-observation-governance/`（README + receipt 含 task_id 与 O1–O5 映射）；不改 `src/`/`tests/`/`fixtures/`/`Cargo.*`，不改参考 JSON 与任何已 verified 数字。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m1-capture",
+      "2026-10-26-mesh-multicontact-m1-independent-check"
+    ],
+    "phase": "治理/证据勘误",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/mesh-multicontact-m1/",
+      "docs/development-evidence/mesh-multicontact-m1-observation-governance/"
+    ],
+    "resources": [],
+    "priority": 42
+  },
+  "note": "Arch 2026-10-26 登记（M1 QA pass 后逐条收口）。注意：本片运行期间 M0a 形状修正片在途（src scope），本片只碰 M1 证据目录，写域不冲突。",
+  "revision": {
+    "before": "e549dcff8690fdd1aee65e7456e3470505563e97",
+    "after": null
+  },
+  "created_at": "2026-10-26T15:30:00.000Z",
+  "updated_at": "2026-10-26T15:30:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mesh-multicontact-m1-observation-governance/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-mesh-multicontact-m1-observation-closure"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
