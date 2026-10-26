@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-g10-p5-primitive-plane-cuda-r2",
+  "title": {
+    "zh": "primitive plane 族 6 组合设备实现（plane-sphere/capsule/ellipsoid/cylinder/box/mesh）并对照上游 GPU 参考",
+    "en": "Device primitive narrowphase for the 6 plane-family combos, verified against the upstream GPU reference"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "扩 UNC-3 的 B1 片：按 pinned 上游 `collision_primitive.py` 的 `plane_sphere_wrapper`(L281)/`plane_capsule_wrapper`(L600)/`plane_ellipsoid_wrapper`(L686)/`plane_box_wrapper`(L761)/`plane_convex_wrapper`(L838)/`plane_cylinder_wrapper`(L1000) 与共享核心 `plane_convex`(L52) 实现 device 版；`plane-mesh` 走 `plane_convex_wrapper`（只读 mesh 顶点）。device 侧为 pinned GPU `fma.rn` 融合语义，复用既有 `g5_write_contact`/`make_frame` 与结构字段语义；对照 B0 已捕获的上游 GPU 参考（`docs/development-evidence/g10-p5-primitive-capture/upstream-primitive-gpu.json`，sha256 `3a6475ac…`）。不改 ABI、不改判据/容差、不宣称全组合覆盖。",
+    "en": "Implement device primitive narrowphase for the 6 plane-family combos per pinned upstream wrappers and verify against the B0-captured GPU reference."
+  },
+  "modules": {},
+  "acceptance": [
+    "**范围与红线**：允许改 `src/physics/collision/cuda/primitive_plane*.cu`（新增）、`product.cu` 的 primitive 入口分派、`DEVICE_SOURCES` 追加、`tests/g10_p5_primitive_plane_cuda.rs`（新增）、`docs/development-evidence/g10-p5-primitive-plane-cuda/`。**0 个新 ABI 字段**：`CollisionArgs`/`CollisionContactOut`/`collision_gpu/abi.rs` 一律不动；若实现发现必须扩 ABI 或需要 mesh polygon/额外数据 → **停手报 Arch**、记未覆盖，不许绕。**行数棘轮**：新文件 ≤500 行；`product.cu`（现 335 行）若逼近 500 先拆再加，不得顶线。",
+    "**语义依据**：按 pinned 上游 wrapper 实现，`plane_convex` 核心只写一次（6 wrapper 共享）；device 侧保持 pinned GPU `fma.rn` 融合语义；`g5_write_contact`/`make_frame` 与结构字段语义照既有 primitive 片，**不为通过改写入顺序、不加豁免、不加特判**。`plane-mesh` 走 `plane_convex_wrapper`（只读 mesh 顶点），不得用 CPU 预检的 nacon 去凑 GPU 参考 count（B0 裁定）。",
+    "**验证阶梯①（CPU 冒烟）**：窗口外先跑 CPU NVRTC 冒烟（拼装源长度/ sha256、PTX 字节数、入口数与 4 个既有入口不冲突、`make_frame` 单一定义），报 Arch；随后报**窗口计划 + 重采基线**（used/free/util/温度/驱动 + 跑前 `query-compute-apps` 原文 + 步骤/预计 wall/峰值显存预估 + 采样与守卫参数），经 Arch 转 Chief 双签后才开窗。",
+    "**验证阶梯②（设备对照）**：窗口内用预构建二进制对照 B0 上游 GPU 参考（`upstream-primitive-gpu.json`，sha256 `3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734`）：**位级优先**；非位级 `dist` ≤4 ULP@自身量级（ref=0 用 4 ULP@1.0）、`pos` 4·ULP(scale)、`frame` 4 ULP@1.0；`count`/结构/`overflow`/`efc_address` **零容差**；逐 case 报 N/N。同时跑既有 primitive 3 case（sphere-box-shallow/deep、capsule-box）与 NVRTC launcher 3 case（hfield-sphere/sdf-box/ellipsoid-box）回归，**不许回退**。",
+    "**验证阶梯③（失败处置）**：任一 case 超限或计数/结构不符 → **停手报 Arch**，保留证据、不得调判据/容差/过滤 case/改期望；若 plane-mesh 需要额外数据 → 记未覆盖。",
+    "**证据**：`docs/development-evidence/g10-p5-primitive-plane-cuda/`（README + receipt 含 task_id）：设备 vs 上游 GPU 参考逐字段表、6 case 的 N/N、既有 3+3 回归数字、拼装源/PTX 字节与入口数、**无 ABI 改动声明**、未覆盖项；单文件 ≤500 行、UTF-8 无 BOM；门禁 fmt/clippy/clippy-cuda/unit（unit 基线 971/0/369）。",
+    "**口径红线**：不宣称「primitive 全组合通过」、不宣称精度达标/跨环境全绿；只报 「plane 族 6 组合在给定 case 上对照通过/失败」；GPU 窗口先报基线双签、同一时间一个窗口；不改已 verified 证据语义。",
+    "**2026-10-26 范围扩充（Arch 裁决，r2）**：接线实测必须动 `src/runtime/collision_gpu/source.rs`（DEVICE_SOURCES 21→25）、`src/runtime/collision_gpu/multicontact_tests.rs` 与 `primitive_tests.rs`（既有「片段数应为 21」硬断言 → 25，并补 plane 片段顺序断言）、`src/physics/mod.rs`（4 个 include_str! 常量的 re-export），这些文件按 r2 扩入范围（本片因此重登记，工作内容不改）。已有前置里程碑（r1 期间完成、本次沿用）：4 个新 .cu（common 53/convex 153/shapes 158/wrapper 118 行）、CPU NVRTC 冒烟通过（nvrtc_smoke_ok ptx_bytes=3556510 entries=6，source_bytes=221968，source_sha256=89dc09643f411be39555c8b460709160f542632759fc00ad7fe09853286577a8）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-g10-p5-primitive-capture"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/",
+      "tests/",
+      "docs/development-evidence/g10-p5-primitive-plane-cuda/"
+    ],
+    "resources": [],
+    "priority": 46
+  },
+  "note": "Arch 2026-10-26 登记（Chief GO B1）：plane 族 6 组合设备实现，对照 B0 已捕获的上游 GPU 参考。后接 B2（sphere/capsule 族 4 组合）等本片 verified 后登记；QA 复核预登记 `2026-10-26-g10-p5-primitive-plane-cuda-independent-check`。B1 README 预期说明必须写明：capsule-capsule 的 CPU 预检 nacon 与 GPU 参考不一致属不同后端差异，B1/B2 判据参考是 GPU 参考、不得按 CPU 预检凑 count。\n放弃：接线必须改 src/runtime/collision_gpu/(source.rs + 2 个既有测试断言 21→25) 与 src/physics/mod.rs(re-export)，超出本片 in_progress 冻结的 files 范围；按 r2 模式重登记扩范围后继续，代码/冒烟结果不变 **2026-10-26 20:25Z r2 重登记**：接线阶段发现需改 `src/runtime/collision_gpu/`（source.rs + 2 个既有测试断言）与 `src/physics/mod.rs`（re-export），超出 r1 in_progress 冻结的 files；按既有 r2 模式 abandon 原任务并重登记，文件范围扩为 `src/`+`tests/`+证据目录，工作内容与已得冒烟结果不变。继续项：两个断言 21→25 + 顺序断言、`product.cu` 拆分为 `product_primitive.cu` + 6 组合 dispatch、重跑冒烟与 `runtime::collision_gpu` 全测试、证据。",
+  "revision": {
+    "before": "dd34e56ddcf3166255b48bc70832ab5ffe0b2b85",
+    "after": null
+  },
+  "created_at": "2026-10-26T20:25:00.000Z",
+  "updated_at": "2026-10-26T20:25:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-primitive-plane-cuda/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-g10-p5-primitive-plane-cuda"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
