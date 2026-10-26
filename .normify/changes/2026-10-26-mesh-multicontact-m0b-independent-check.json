@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-mesh-multicontact-m0b-independent-check",
+  "title": {
+    "zh": "M0b（32 数组 case 生产 + INPUT_BINS 兼容）QA 独立复核",
+    "en": "QA independent review of M0b (32-array case production + INPUT_BINS compat)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "复核 M0b：bins 是否由同一 pinned 模型 + 同一 fixture 生成（xml_sha256/qpos_bits/geom_xpos/xmat 与 M1 参考逐位一致）、9 个 polygon 数组形状与 sum/区间是否与 pinned 一致、喂进 M0a 上传路径的 sidecar 是否一致、旧 23 项兼容是否真兼容（不静默半装配）、是否未改 src/ 与 G5 证据。",
+    "en": "Independent review of M0b bins, same-source bitwise checks, CPU self-check gate and 23/32 compat."
+  },
+  "modules": {},
+  "acceptance": [
+    "独立核 bins：32 数组的 count/类型/sha 与 manifest 一致；9 个 polygon 数组形状 = pinned（polynum/polyadr nmesh、polynormal nmeshpoly*3、polyvertadr/num nmeshpoly、polymapadr/num nmeshvert、polyvert/polymap 全索引长）。",
+    "同一来源：现场重算 fixture `xml_sha256`、qpos_bits、geom_xpos/geom_xmat 位型与 M1 GPU 参考逐位一致（自己复算，不只看交付日志）；CPU collision count 与参考一致只作 fixture 有效性交叉证据。",
+    "自检门：生产脚本 12 条规则 + `sum(polynum)==nmeshpoly`、逐 polygon/vertex 区间、强一致 sum 两条；核「真实 `validate_inputs` 探针」证据链——src 是否零 diff、探针是否未入库、日志是否可复核（探针方式属临时证据，允许，但不得留代码残留）。",
+    "兼容：`INPUT_BINS` 23→32 后旧 12 个 G5 case 仍只查 23 项（按参考声明集合）、装配缺 9 bin → 空 slice + null sidecar；不得静默半装配；新测试 4 条是否真覆盖。",
+    "零改动：`src/`、G5 case bins/参考、`prepare_cases.py`、fixtures、判据/容差零改动；门禁 unit **986/0/372**；证据 UTF-8 无 BOM、单文件 ≤500 行。",
+    "证据 `docs/development-evidence/mesh-multicontact-m0b-independent-check/`（README + receipt 含 verdict/blockers/observations）；gate/check exit 0；不 commit、不 done。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m0b-case-production"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/mesh-multicontact-m0b-independent-check/",
+      ".normify/runs/"
+    ],
+    "resources": [],
+    "priority": 42
+  },
+  "note": "Arch 2026-10-26 补登记（M0b 前期未预登记 QA，按 Chief「每片 QA 预登记」补齐；实现片 verified 后 start）。",
+  "revision": {
+    "before": "fc81423b8b0ecf7cb297c66152fe59decdfa2926",
+    "after": null
+  },
+  "created_at": "2026-10-26T15:45:00.000Z",
+  "updated_at": "2026-10-26T15:45:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mesh-multicontact-m0b-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-mesh-multicontact-m0b-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
