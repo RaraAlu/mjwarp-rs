@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-22-t4-historical-capture-rebaseline",
+  "kind": "availability-check",
+  "phase": "night-light-segment",
+  "generated_at": "2026-10-27T01:44:31+08:00",
+  "head": "be5bffd4",
+  "scope": "只读核查：归档完整性、冻结产物、工具存在性、3 个被排除工具定向复跑、身份漂移与缺口清单；未改 fixtures/scripts/tests/产品代码，未跑 G01 全量，未开 GPU 内核",
+  "conclusion": {
+    "pipeline_materials_present": true,
+    "in_place_regeneration_possible": false,
+    "excluded_tools_run": 3,
+    "excluded_tools_failed": 3,
+    "requires_scope_expansion": "tests/support/t4_rigid_capture（模板/锚点重建）",
+    "option_a_estimate": "3–5 天（含一次双模式回归）",
+    "night_full_g01_needed": false
+  },
+  "archive_integrity": {
+    "manifest": "docs/evidence/t4-g03-retest/manifest.json",
+    "files_checked": 10,
+    "files_matched": 10,
+    "runner": "docs/evidence/t4-g03-retest/run.ps1",
+    "runner_sha256": "608d2c0db600c5e6e935ca04682299f582c486d320c41d65c2b5565babe9a46a",
+    "summarize_sha256": "8f75c7d83fa9894130697e5482791eb7c9cac612056a2a5c0cd83a4d6b45e5f4"
+  },
+  "historical_artifacts": {
+    "target/t4-g03-retest": {"files": 247, "mb": 7.6},
+    "target/t4-face-operators": {"files": 194, "mb": 11.2},
+    "target/t4-final-face-compile": {"files": 94, "mb": 1.3},
+    "target/t4-rigid-recapture": {"files": 189, "mb": 2.7},
+    "total_mb": 22.8,
+    "modified_by_this_check": false
+  },
+  "toolchain": {
+    "cuda": "target/toolchains/cuda-12.8.1（include/bin 均在）",
+    "mujoco_dll_sha256": "79b61d22b4d230a00bd31930fc6943f8ea8c6174a1bf4a6bf90f2459dbf8df1b",
+    "mujoco_dll_matches_g01_manifest": true,
+    "native_mocks": "由 scripts/test-windows-native.ps1 生成 mock DLL；run.ps1 需要 MJWARP_NATIVE_MOCKS/report.json"
+  },
+  "identity": {
+    "historical_inventory": {"path": "fixtures/precision/t4-kernels.json", "source_revision": "4dc88934aab0aad1d73cf77d4c15a54db583dd2e", "artifacts": 30},
+    "current_inventory": {"path": "fixtures/precision/t4-current-kernels.json", "source_revision": "8a5bac00fdfa9759f752993b2866098c6ff20819", "artifacts": 30},
+    "artifact_pairing": {"ptx_sha_same": 17, "ptx_sha_diff": 13, "source_sha_same": 17, "source_sha_diff": 13},
+    "base_product_sources": {"total": 20, "drifted": 10, "drifted_paths": ["src/physics/attached.rs", "src/physics/com_velocity.rs", "src/physics/flex_face.rs", "src/physics/mass_matrix.rs", "src/physics/mass_solve.rs", "src/physics/mod.rs", "src/physics/resident.rs", "src/physics/rne_bias.rs", "src/runtime/transfer.rs", "src/runtime/transfer/kernel.rs"]}
+  },
+  "tool_runs": [
+    {
+      "test": "recompile_rigid_variants_without_launching_physics",
+      "filter": "runtime::transfer::kernel::recapture::tests_recapture::recompile_rigid_variants_without_launching_physics",
+      "exit": 101,
+      "seconds": 0.8,
+      "first_failure": "tests_recapture.rs:50 -> source drift: src/physics/attached.rs"
+    },
+    {
+      "test": "recaptures_only_missing_rotation_variants",
+      "filter": "runtime::transfer::kernel::recapture::tests_recapture::recaptures_only_missing_rotation_variants",
+      "exit": 101,
+      "seconds": 0.2,
+      "first_failure": "capture coverage mismatch"
+    },
+    {
+      "test": "archives_face_operator_repair_with_failed_numeric_gate",
+      "filter": "runtime::transfer::kernel::recapture::tests_archive::archives_face_operator_repair_with_failed_numeric_gate",
+      "exit": 101,
+      "seconds": 0.4,
+      "first_failure": "tests_archive.rs:35 assertion left=0 right=2078"
+    }
+  ],
+  "env_preconditions": [
+    "MJWARP_CUDA_INCLUDE=target/toolchains/cuda-12.8.1/include",
+    "target/toolchains/cuda-12.8.1/bin 进 PATH（NVRTC）",
+    "MJWARP_PHYSICS_PTX_DIR 指向不存在的唯一输出、父目录已存在",
+    "run.ps1 另需 MJWARP_NATIVE_MOCKS（含 report.json），未设则 throw 原生环境缺失"
+  ],
+  "archived_runner_limitations": [
+    "run.ps1 硬编码 $root = 'C:\\Rust\\mjwarp-rs'（本机 D:\\Rust\\mjwarp-rs）→ 不能直接执行，需复制适配（不改归档件）",
+    "run.ps1 带『calls.json 存在即禁止重跑』守卫",
+    "run.ps1 会比对 fixtures/g01/manifest.json 的 dll_sha256（当前一致）与 target/t4-redline-retest/environment.json 的 productTargets 清单"
+  ],
+  "gaps": [
+    "tests/support/t4_rigid_capture 的 10 个旋转族模板锚点重建（越界当前 files）",
+    "2 个 retained 变体锚点（rigid_mass_matrix / rigid_mass_solve）",
+    "13/30 artifact 的历史身份与当前身份不同",
+    "重生成 30×2 模式捕获（debug/release PTX，compile-only）",
+    "重写 fixtures/precision 两个 kernels json 身份",
+    "重跑 6 项 audit 并从 scripts/test-windows-g01.ps1 排除清单移除（env 项另记）",
+    "repin 影响面评估（BASE 身份与 T4 483 双模式历史捕获绑定）"
+  ],
+  "decision_needed": {
+    "A_full_rebaseline": "3–5 天；恢复 6 项 audit；需扩 files 到 tests/support/t4_rigid_capture 或另立前置片",
+    "B_keep_exclusions": "0.5 天；只登记长期债务",
+    "C_frozen_identity_baseline": "1–2 天；审计基准切到冻结源码身份，不证明当前源码"
+  },
+  "raw_artifacts": "target/t4-availability-2026-10-27/{summary.json,<test>.log,capture-*}（target 未入库）",
+  "boundaries": [
+    "未改 fixtures/precision、docs/evidence/t4-g03-retest、scripts/test-windows-g01.ps1、tests/、产品代码",
+    "未运行 G01 全脚本；未使用 GPU 内核（仅 NVRTC 编译与宿主读取）",
+    "不宣称任何 audit 恢复或 T4 完整"
+  ]
+}
