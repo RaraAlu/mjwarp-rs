@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2-independent-check",
+  "title": {
+    "zh": "CUDA 默认管线接线（阶段 2）的 QA 独立复核：cuda 特性默认开启、--no-default-features 路径、三态回退不 panic、门禁变更与等价性",
+    "en": "Independent check of CUDA default-pipeline stage 2: default-on cuda feature, no-default-features path, three-state fallback, gate changes and equivalence"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-g10-p5-cuda-default-pipeline-stage2` 做独立复核：用户拍板 cudarc 走 ②（`cuda` 特性默认开启、`--no-default-features` 可关）。交付须实现特性/依赖/运行时后端选择 + Host 回退、三态回退不 panic（含阶段 1 记录的 `new()` 缺 `culib()` panic 修复）、门禁口径变更（新增 `unit-nocuda`/`clippy-nocuda`、`clippy-cuda` 改用 `cuda`）、7 个历史 T4 审计 target 用非默认 feature 隔离，并保持精度语义不变（GPU 路径不改、host 数值链不改）。复核方须独立验证特性与依赖真值表、三配置构建/测试/门禁、回退与错误码、不 panic、门禁可移植性、等价性证据与「未提前宣称 UNC-2 关闭」。",
+    "en": "Independently verify the cuda default-on feature wiring, no-default-features path, three-state fallback without panics, gate changes, historical-audit isolation, and unchanged numeric semantics."
+  },
+  "modules": {},
+  "acceptance": [
+    "**特性与依赖独立核**：`Cargo.toml` 实际写的是 `default=[\"cuda\"]`、`cuda=[\"cuda-probe\"]`（或与 r2 前置一致的单依赖集合变体）；`cargo tree`/`cargo metadata` 核默认构建依赖数、`--no-default-features` 依赖数（应为 0 个 CUDA 依赖）；`Cargo.lock` 与 feature 关系一致；不得出现两套并行依赖集合或隐藏的默认特性。",
+    "**三配置构建/测试独立复跑**（clean `CARGO_TARGET_DIR`）：默认构建 + `cargo test --locked`、`--no-default-features` 构建 + 测试、`--features cuda` 显式路径；核对交付声称的三配置计数（默认应含 cudarc 与 132+ ignored、no-default 应回到 604/0/7 量级）与 clean 时间/体积数字；`--no-default-features` 必须能在无卡/无驱动环境构建并跑测试（自建干净环境、清空 `CUDA*`/`PATH` 相关变量验证）。",
+    "**三态回退不 panic 独立核**：无驱动 / 有驱动无设备 / 有设备无 NVRTC 三条路径（可含 seam/模拟）不 panic、不静默失败，错误码可诊断（`NoDevice`/`Compile`/CLI `DriverUnavailable`/`NvrtcUnavailable`）；产品 API 与 CLI 两条路径都覆盖；**阶段 1 记录的 `new()` 缺 `culib()` panic 修复要有修前红/修后绿判别证据**（scratch 副本还原守卫验证），不许只写「已修」。",
+    "**门禁变更核实**：`gates.toml` 的 old/new/理由/回滚是否落地且与本片 acceptance 一致（新增 `unit-nocuda`/`clippy-nocuda`、`clippy-cuda` 改 `--features cuda`）；`[gate.unit]` 基线是否为**主树独占重测**的实际值（不得用并发期上界）；G01 脚本改动最小且无冗余 flag；干净 clone 下默认门禁是否可移植（不得依赖本机 `target/` 冻结产物）。",
+    "**历史 T4 审计隔离核**：7 个 target 是否门控为 `all(cuda, t4-historical-audits)`、默认 0 tests、`--features t4-historical-audits` 下 27 tests、`--all-features` 下集合与改动前逐项相同（27/0）；核 `product_sources`/T4 身份未被本片改动（无 repin）。",
+    "**等价性与精度语义**：G5 host vs device 接触数组逐字段一致（位级可比的位级、其余按既有 4 ULP）；**GPU 路径与 host 数值链未被改动**（`git diff` 核 polytope/relmat/render/megakernel 与 `src/math` 未变，除接线处）；不改判据/容差/期望值/已 verified 证据语义。",
+    "**UNC-2 与窗口纪律**：核交付是否只把 UNC-2 在「默认管线真接上 CUDA 入口并验证」后才记 closed；若用了 GPU 窗口，核窗口事实（基线、0.25 s 采样、守卫、前后 compute-apps、结束基线、无残留）与 Arch 批准记录一致；不得把「无 CUDA 环境用 seam 模拟」写成「无卡实机验证」。",
+    "**证据与门禁**：核证据 `docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/`（README + receipt 含 task_id + DESIGN 变更、三配置数字、回退/不 panic、门禁变更、迁移注记）；本复核证据只写 `docs/development-evidence/g10-p5-cuda-default-pipeline-stage2-independent-check/`，单文件 ≤500 行、UTF-8 无 BOM、无二进制；不宣称精度结论/整体通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-cuda-default-pipeline-stage2"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-cuda-default-pipeline-stage2-independent-check/"
+    ],
+    "resources": [],
+    "priority": 54
+  },
+  "note": "Arch 2026-10-26 预登记（stage2 已 start，owner Backend）：QA 可先只读准备（特性真值表脚本、三配置 clean 构建方案、回退/错误码检查清单、门禁变更核对），**必须等 stage2 verified 后 start**；纯 CPU 部分自主，若需 GPU 窗口（验证默认路径真能跑 CUDA）不得自行开，须报 Arch 排窗口。红线：抓「提前宣称 UNC-2 关闭」、抓「门禁基线用并发上界」、抓「干净 clone 不可移植」、抓「判据/容差被顺手改」。",
+  "revision": {
+    "before": "2f8a402839a728e6d516b9bfbfd909c5b44c0e8c",
+    "after": null
+  },
+  "created_at": "2026-10-26T17:10:00.000Z",
+  "updated_at": "2026-10-26T17:10:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-cuda-default-pipeline-stage2-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-cuda-default-pipeline-stage2-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
