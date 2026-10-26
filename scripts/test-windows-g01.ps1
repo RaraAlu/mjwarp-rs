@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([switch]$AllFeatures, [switch]$Release, [switch]$FullRegression)
 $ErrorActionPreference = 'Stop'
 # Windows PowerShell 5.1 turns redirected native stderr (cargo/probes/cl.exe) into a
