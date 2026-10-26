@@ -5,7 +5,7 @@
     "zh": "M0a 修正：mesh polygon 数组形状语义（polyvert* 逐 polygon、polymap* 逐 vertex）+ 校验/注释/单测/证据",
     "en": "M0a fix: mesh polygon array shape semantics (polyvert* per polygon, polymap* per vertex) in validation, comments, tests and evidence"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "M0b 预检发现 M0a 的 `validate_mesh_poly` 按「逐 mesh 等长」校验 `mesh_polyvertadr/polyvertnum/polymapadr/polymapnum`，但 pinned 上游 `mujoco_warp/_src/types.py` L1329-1337/L1864-1872 明确：polynum/polyadr 为 (nmesh,)、polynormal 为 (nmeshpoly,3)、polyvertadr/polyvertnum 为 (nmeshpoly,)、polymapadr/polymapnum 为 (nmeshvert,)。真实 fixture 长度 (1,1,6,6,6,24,8,8,24) 会被 M0a 校验直接判 InvalidArgument，M0b 合法 bins 与 M2 都会被卡。本片只修 CPU 校验层、注释与单测、以及 M0a 证据补注；**不改 ABI（sidecar 仍 9 指针、无长度字段）、不改 device、不改 fixture**。",
     "en": "Fix M0a CPU validation shape semantics for mesh polygon arrays to match pinned upstream layouts (per-polygon polyvert*, per-vertex polymap*); no ABI or device change."
@@ -35,11 +35,11 @@
   },
   "note": "Arch 2026-10-26 登记：M0b 第一块预检发现结构性阻塞（M0a 校验形状语义与 pinned 不符，合法 fixture 会被判 InvalidArgument）。裁决：单列本小修片，不并入 M0b（避免混两片验证）；修完 Backend 继续 M0b，M0b 的 CPU 自检门将使用修正后的校验。QA 预登记 `2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check`。不动 ABI/device/fixture。",
   "revision": {
-    "before": "4807b5a3426090a0a9d88a616dfc83fb6188574b",
+    "before": "bfcb7752ecc748670a1573c71501d2a7f27a692f",
     "after": null
   },
   "created_at": "2026-10-26T15:16:00.000Z",
-  "updated_at": "2026-10-26T15:16:00.000Z",
+  "updated_at": "2026-10-26T15:26:55.984Z",
   "closed_at": null,
   "checks": [
     {
