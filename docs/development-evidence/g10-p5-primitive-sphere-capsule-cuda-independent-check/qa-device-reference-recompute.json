@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-sphere-capsule-cuda-independent-check",
+  "kind": "QA independent review (B2 sphere/capsule family 4 combos, device primitive)",
+  "role": "QA",
+  "verdict": "pass",
+  "blockers": 0,
+  "observations": 7,
+  "reviewed": {
+    "head_at_review": "ee92abe5",
+    "implementation_delivery": "6ab5cb22",
+    "acceptance_closure": "f578b474",
+    "review_start": "580bd7e5",
+    "b1_addendum": "190dc37d",
+    "b2_evidence_updates": ["8f1c5a4b", "07062ef7", "3ac2a0d3"],
+    "b1_observation_closure": "686dc61d",
+    "reference": {
+      "file": "docs/development-evidence/g10-p5-primitive-capture/upstream-primitive-gpu.json",
+      "sha256": "3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734"
+    }
+  },
+  "independent_numbers": {
+    "device_rerun": false,
+    "device_results_source": "delivery window-attempt1/attempt2 logs only",
+    "device_cases": "4/4 (sphere-sphere, sphere-capsule, sphere-cylinder, capsule-capsule), nacon=1 each, failures=0",
+    "cpu_recompute": {
+      "method": "pinned python 3.12.13 / mujoco 3.15.0, no warp import; f32 step-by-step pinned formulas; FMA contraction emulated for capsule_capsule det",
+      "sphere_sphere": "count 1/1, dist 0 ULP, pos 0 ULP, frame 0 ULP",
+      "sphere_capsule": "count 1/1, dist 0 ULP, pos 0 ULP, frame 0 ULP",
+      "sphere_cylinder": "count 1/1, dist 0 ULP, pos 0 ULP, frame 0 ULP (side branch)",
+      "capsule_capsule": "count 1/1, dist 0 ULP, pos 0 ULP, frame 0 ULP (non-parallel branch; fused det)",
+      "unfused_probe": "capsule-capsule becomes 2 contacts (parallel branch) -> explains CPU precheck nacon=2 vs GPU reference nacon=1"
+    },
+    "smoke": {
+      "command": "cargo test --locked --features cuda-probe --lib runtime::collision_gpu -- --include-ignored",
+      "result": "26 passed / 0 failed",
+      "ptx_bytes": 3786439,
+      "entries": 6,
+      "source_bytes_worktree": 237212,
+      "source_sha256_worktree": "054aaa40e27a73b054609d5046c4de885ff99cd75c6b4a88de86f0a9a681c618"
+    },
+    "assembly": {
+      "segments": 27,
+      "worktree": {"bytes": 237212, "sha256": "054aaa40e27a73b054609d5046c4de885ff99cd75c6b4a88de86f0a9a681c618", "matches_smoke": true},
+      "git_blob_lf": {"bytes": 236732, "sha256": "9807a539256cf4dff8c633d5d3d70a5653ad74cd585bb246f0c6eee056485e8f"},
+      "old_21": {"bytes": 199869, "sha256": "67fb8445c782b3ae613f1b9323e373cd7dae5e7704452e769b29786bf47d1db9"},
+      "worktree_vs_lf_delta_bytes": 480,
+      "delta_cause": "B1's 4 plane .cu are CRLF in the authoring worktree (44/162/169/113); B2's 2 new .cu are LF"
+    },
+    "line_counts": {
+      "primitive_sphere_capsule_shapes.cu": 223,
+      "primitive_sphere_capsule_wrapper.cu": 71,
+      "product.cu": 394,
+      "source.rs": 133,
+      "validate.rs": 56,
+      "primitive_tests.rs": 174,
+      "multicontact_tests.rs": 109,
+      "tests/g10_p5_primitive_sphere_capsule_cuda.rs": 465,
+      "tests/g10_p5_nvrtc_launcher.rs": 424,
+      "tests/support/launcher_compare_support.rs": 429,
+      "limits_ok": true
+    },
+    "window_attempt1": {"samples": 134, "used_peak_mib": 4186, "free_min_mib": 11876, "util_max_pct": 59, "delta_peak_mib": 774, "baseline": "3407/12655", "end_baseline": "3408/12654", "residual_cuda_pid": 0, "compilation_in_window": 0},
+    "window_attempt2": {"samples": 100, "used_peak_mib": 4784, "free_min_mib": 11278, "util_max_pct": 41, "delta_peak_mib": 1370, "baseline": "3408/12654", "end_baseline": "3408/12654", "residual_cuda_pid": 0, "compilation_in_window": 0},
+    "launcher_normalization": {
+      "proof": "raw_order_failures=14 sorted_failures=0",
+      "ulp_fingerprint_old": {"dist": 76, "pos": 2676526, "frame": 28621803},
+      "matches_attempt1_log": true,
+      "moved_helpers_token_identical": ["ulp_at", "vector_scale", "vector_bound", "ordered", "ulp_distance", "dist_ok", "check_exact", "check_dist", "check_vectors"],
+      "check_exact_f32": "identical body; only multi-line signature formatting/trailing comma differs",
+      "macro_compare_exact_removed": true,
+      "explicit_calls_same_fields": true,
+      "window_launcher_sha256": "23ae4d82c04f1493a732cac31051dcf2b5475604988e2b42f68f986f96f24756",
+      "committed_source_launcher_sha256": "5c19104651f3d5fac3787ef61ad67f76decfd0705e7328d847bf30c2bcecb70d",
+      "committed_binary_measured": true
+    },
+    "gpu_windows_used_by_qa": 0
+  },
+  "stage2_equivalence_note": "not part of B2; no cross-recipe claim",
+  "boundaries": [
+    "device tests not rerun by QA (GPU window requires scheduling)",
+    "capsule_capsule parallel-axis branch and sphere_cylinder cap/corner branches are not covered by the 4 fixtures",
+    "swapped geometry-order dispatch path has no case coverage",
+    "no host cross-check, no release/Linux runs",
+    "no claim of primitive full-combination pass, precision verdict, or cross-environment green"
+  ],
+  "evidence_dir": "docs/development-evidence/g10-p5-primitive-sphere-capsule-cuda-independent-check",
+  "no_commit_no_done": true
+}

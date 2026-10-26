@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-sphere-capsule-cuda-independent-check",
+  "step": "pinned semantics + dispatch + criteria + ABI/T4",
+  "pinned_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "pinned_sources": {
+    "collision_primitive_core.py": "sphere_sphere L58-87, sphere_capsule L90-125, capsule_capsule L128-255, sphere_cylinder L393-462",
+    "collision_primitive.py": "wrappers L357-429 / L432-507 / L510-597 / L915-1000; _PRIMITIVE_COLLISIONS L1335-1349; kernel dispatch L1474-1480",
+    "collision_driver.py": "_add_geom_pair L350-380 orders pair by type (type1>type2 -> swap); collision_pair therefore type-ordered",
+    "math.py": "make_frame L247-257 via orthogonals L203-213"
+  },
+  "function_mapping": [
+    {"pinned": "sphere_sphere", "device": "g5_sphere_sphere", "checks": ["dir=pos2-pos1", "dist=length(dir)", "dist==0 -> n=(1,0,0)", "else per-component dir/dist", "dist-=r1+r2", "pos=pos1+n*(r1+0.5*dist)"], "verdict": "match"},
+    {"pinned": "sphere_capsule", "device": "g5_sphere_capsule", "checks": ["offset=sphere-capsule", "projection=clamp(dot(axis,offset),-half,+half)", "pt=capsule+axis*projection", "delegate to sphere_sphere"], "verdict": "match"},
+    {"pinned": "capsule_capsule", "device": "g5_capsule_capsule_core", "checks": ["contact_dist init inf / pos+normal zero", "axis1/axis2 scaled by half length; dif=cap1-cap2", "ma/mb/mc/u/v/det exactly pinned order", "abs(det)>=1e-15 -> non-parallel 1 contact with x1/x2 clamps and clamp formula", "parallel -> 4 endpoints, first 2 passing dist<=margin, 4th endpoint write without count increment (same as pinned)"], "verdict": "match"},
+    {"pinned": "sphere_cylinder", "device": "g5_sphere_cylinder", "checks": ["vec/x/a_proj/p_proj/p_proj_sqr", "collide_side=|x|<half, collide_cap=p2<r^2", "dist_cap<dist_radius tie-break", "side -> sphere_sphere(sphere, cylinder_pos+a_proj, cylinder_radius)", "cap -> plane_sphere then normal=-plane_normal", "corner -> safe_div + sign(x) + sphere_sphere(...,0)"], "verdict": "match"},
+    {"pinned": "sphere_sphere_wrapper", "device": "g5_sphere_sphere_wrapper", "checks": ["size[0] radius", "write_contact id_=0", "make_frame(normal)"], "verdict": "match"},
+    {"pinned": "sphere_capsule_wrapper", "device": "g5_sphere_capsule_wrapper", "checks": ["axis=rot[2],rot[5],rot[8]", "size[0],size[1]", "write_contact id_=0"], "verdict": "match"},
+    {"pinned": "capsule_capsule_wrapper", "device": "g5_capsule_capsule_wrapper", "checks": ["both axes from rot col 2", "loop i in 0..2 write_contact(id_=i)", "invalid slot dist=inf skipped by detected gate"], "verdict": "match"},
+    {"pinned": "sphere_cylinder_wrapper", "device": "g5_sphere_cylinder_wrapper", "checks": ["axis from rot col 2", "size[0],size[1]", "write_contact id_=0"], "verdict": "match"},
+    {"pinned": "make_frame / orthogonals", "device": "common.cu::make_frame", "checks": ["normalize", "selector y unless |a.y|<0.5 then z", "b=normalize(selector-a*dot)", "zero-length -> b=0", "c=cross"], "verdict": "match (B1 verified, unchanged)"}
+  ],
+  "dispatch": {
+    "pinned": "_add_geom_pair stores pair (geom1,geom2) ordered by type (lower type first); kernel loops _PRIMITIVE_COLLISIONS and matches collision_type1==type1 && collision_type2==type2 exactly",
+    "device": "product.cu: (SPHERE,SPHERE)->wrapper(geom1,geom2); (SPHERE,CAPSULE)->wrapper(geom1,geom2); (CAPSULE,SPHERE)->wrapper(geom2,geom1); (SPHERE,CYLINDER)->wrapper(geom1,geom2); (CYLINDER,SPHERE)->wrapper(geom2,geom1); (CAPSULE,CAPSULE)->wrapper(geom1,geom2)",
+    "verdict": "matches upstream type-order canonicalization"
+  },
+  "criteria": {
+    "file": "tests/g10_p5_primitive_sphere_capsule_cuda.rs",
+    "count_and_structure": "zero tolerance on worldid/type/dim/geom/geomcollisionid/includemargin/adhesion/friction/solref/solreffriction/solimp",
+    "dist": "bit-exact first; otherwise <=4 ULP of own magnitude; ref==0 -> 4 ULP @ 1.0",
+    "pos": "<= 4 * ULP(scale) where scale = max abs reference component",
+    "frame": "4 ULP @ 1.0",
+    "efc_address": "device invariant -1",
+    "overflow": "device invariant 0",
+    "pairing": "sorted by geomcollisionid, row order not a criterion",
+    "relaxation_found": false
+  },
+  "host_validation": {
+    "file": "src/runtime/collision_gpu/validate.rs",
+    "accepted": ["{SPHERE,BOX}", "{CAPSULE,BOX}", "B1 plane 6 combos", "{SPHERE,SPHERE}", "{SPHERE,CAPSULE}", "{SPHERE,CYLINDER}", "{CAPSULE,CAPSULE}"],
+    "rejected_examples": ["(ELLIPSOID,SPHERE)", "(CAPSULE,CYLINDER)", "(CYLINDER,CYLINDER)", "(PLANE,PLANE)"],
+    "tests": "primitive_tests.rs positive/negative cases"
+  },
+  "abi_t4": {
+    "new_abi_fields": 0,
+    "new_ptx_entries": 0,
+    "entries_before_after": "6 -> 6",
+    "physics_mod_diff": "empty",
+    "fixtures_diff": "empty",
+    "new_repin": false,
+    "judgement_files_diff": ["case_evidence.rs empty", "case_compare.rs empty", "gates.toml empty"]
+  }
+}

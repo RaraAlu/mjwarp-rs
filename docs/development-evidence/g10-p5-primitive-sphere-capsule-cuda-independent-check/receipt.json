@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-sphere-capsule-cuda-independent-check",
+  "kind": "QA independent review (B2 sphere/capsule family 4 combos, device primitive)",
+  "role": "QA",
+  "verdict": "pass",
+  "blockers": 0,
+  "observations": 7,
+  "head_at_review": "ac262ee9",
+  "reviewed": {
+    "implementation_delivery": "6ab5cb22",
+    "acceptance_closure": "f578b474",
+    "review_start": "580bd7e5",
+    "b1_addendum": "190dc37d",
+    "b1_observation_closure": "686dc61d",
+    "b2_evidence_updates": ["8f1c5a4b", "07062ef7", "3ac2a0d3", "e6cb57de", "ac262ee9"],
+    "reference_sha256": "3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734"
+  },
+  "verdict_basis": [
+    "pinned 4 cores + 4 wrappers + make_frame match frozen source (with dispatch type-order canonicalization verified in _add_geom_pair / _PRIMITIVE_COLLISIONS / kernel)",
+    "criteria identical to B1, no relaxation; ABI 0 new fields, PTX entries 6->6, physics/mod.rs and fixtures untouched",
+    "independent CPU recompute reproduces all 4 cases count/dist/pos/frame at 0 ULP (fused det), unfused probe explains capsule-capsule nacon 2 vs 1",
+    "smoke 26 passed, ptx 3786439, entries 6, worktree 237212/054aaa40, LF 236732/9807a539 all reproduced",
+    "launcher normalization is tests-only, moved helpers token-identical, proof 14/0 + fingerprints match attempt1 log, committed-source exe hash 5c191046 measured",
+    "window attempt1/attempt2 aggregates independently recomputed from samples.csv; residuals 0; no in-window compile"
+  ],
+  "independent_numbers": {
+    "device_rerun": false,
+    "device_cases": "4/4 nacon=1 failures=0 (from delivery window logs)",
+    "cpu_recompute": "sphere-sphere/sphere-capsule/sphere-cylinder/capsule-capsule: count 1/1, dist 0 ULP, pos 0 ULP, frame 0 ULP",
+    "capsule_capsule_mechanism": "fused det = 2.625e-12 (non-parallel, 1 contact); unfused det = 0.0 (parallel, 2 contacts)",
+    "smoke": {"passed": 26, "failed": 0, "ptx_bytes": 3786439, "entries": 6, "source_bytes": 237212, "source_sha256": "054aaa40e27a73b054609d5046c4de885ff99cd75c6b4a88de86f0a9a681c618"},
+    "assembly": {"worktree": "237212 / 054aaa40", "git_blob_lf": "236732 / 9807a539", "old_21": "199869 / 67fb8445"},
+    "window_attempt1": {"samples": 134, "used_peak_mib": 4186, "free_min_mib": 11876, "util_max_pct": 59, "residual_cuda_pid": 0},
+    "window_attempt2": {"samples": 100, "used_peak_mib": 4784, "free_min_mib": 11278, "util_max_pct": 41, "residual_cuda_pid": 0},
+    "launcher_proof": {"raw_order_failures": 14, "sorted_failures": 0, "max_dist_ulp_old": 76, "max_pos_ulp_old": 2676526, "max_frame_ulp_old": 28621803},
+    "launcher_binaries": {"window": "23ae4d82c04f1493a732cac31051dcf2b5475604988e2b42f68f986f96f24756", "committed_source_measured": "5c19104651f3d5fac3787ef61ad67f76decfd0705e7328d847bf30c2bcecb70d"}
+  },
+  "gate": {
+    "command": "normify gate 2026-10-26-g10-p5-primitive-sphere-capsule-cuda-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "result": "exit 0 (fmt / clippy / clippy-cuda / unit all pass)",
+    "unit": {"run_record": ".normify/runs/2026-10-26-g10-p5-primitive-sphere-capsule-cuda-independent-check/unit.json"}
+  },
+  "check": {
+    "command": "normify check 2026-10-26-g10-p5-primitive-sphere-capsule-cuda-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "result": "exit 0 (run immediately after the final gate; stdout at target/qa-b2/gate-check/check.log)"
+  },
+  "observations_summary": [
+    {"id": "O1", "level": "一般", "title": "B2 README §11 stale 35ba212d hash, 417/419 line counts, tab chars"},
+    {"id": "O2", "level": "一般", "title": "B2 README §5 stale 'device test not yet run' contradicts §10"},
+    {"id": "O3", "level": "一般", "title": "capsule-capsule nacon=1 depends on NVCC FMA contraction; mechanism not documented"},
+    {"id": "O4", "level": "建议", "title": "uncovered branches not itemized"},
+    {"id": "O5", "level": "建议", "title": "swapped geometry-order path uncovered; device contact.geom uses caller order"},
+    {"id": "O6", "level": "一般", "title": "B1 receipt fix_regate_note says 973 vs actual 974"},
+    {"id": "O7", "level": "建议", "title": "window launcher 23ae4d82 not archived in target; source-level equivalence only"}
+  ],
+  "boundaries": [
+    "device tests not rerun by QA",
+    "capsule_capsule parallel-axis and sphere_cylinder cap/corner branches not covered",
+    "swapped geometry order not covered",
+    "no host cross-check, no release/Linux runs",
+    "no primitive full-combination / precision / cross-environment claims"
+  ],
+  "evidence_dir": "docs/development-evidence/g10-p5-primitive-sphere-capsule-cuda-independent-check",
+  "gpu_windows_used": 0,
+  "no_commit_no_done": true
+}

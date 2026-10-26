@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-sphere-capsule-cuda-independent-check",
+  "observations": [
+    {
+      "id": "O1",
+      "level": "一般",
+      "title": "B2 README §11 残留过期 launcher 二进制 sha 与行数，含制表符",
+      "detail": "§11 旧句仍写「仓库提交源构建出的对应二进制为 35ba212d…」，但同一 §11 新增的 sha 链、receipt.binary_sha_committed_source_build 以及我的实测均为 5c191046…；e6cb57de 已把 35ba212d 登记为「拆分后、clippy 死代码清理前」的作废中间态，但该旧句未同步改写。同处写 support 417 行 / main 419 行，实际（LF 计数）为 429 / 424。行内还有制表符残留在 `\tests/...`（如 179-180 行）。",
+      "repro": "git show 3ac2a0d3/e6cb57de:docs/development-evidence/g10-p5-primitive-sphere-capsule-cuda/{README.md,receipt.json}; 实测 target/debug/deps/g10_p5_nvrtc_launcher-cb470647dafbe31c.exe sha256=5c191046…",
+      "impact": "不影响 B2 结论与门禁；但证据自相矛盾，审计会被追问。",
+      "suggestion": "删除/改写 35ba212d 旧句为 5c191046，行数改 424/429，清制表符"
+    },
+    {
+      "id": "O2",
+      "level": "一般",
+      "title": "B2 README §5 仍写「设备对照测试尚未运行」，与 §10 矛盾",
+      "detail": "§5 末尾（第 80 行）写「设备对照测试（ignored）**尚未运行**：需 GPU 窗口 + 双签」，但 §10 已记录 attempt1/attempt2 窗口跑了 4/4 并通过；这是收口后残留的过期陈述。",
+      "repro": "docs/development-evidence/g10-p5-primitive-sphere-capsule-cuda/README.md 第 80 行 vs 第 130-151 行",
+      "impact": "读者可能误判窗口未跑；不影响结果。",
+      "suggestion": "改为「窗口已跑，见 §10」或删除该句"
+    },
+    {
+      "id": "O3",
+      "level": "一般",
+      "title": "capsule-capsule nacon=1 依赖 NVCC FMA 收缩，机制未写入证据",
+      "detail": "该 fixture 理论 det=0（平行轴），但 f32 非融合两次舍入恰好得 0.0 → 平行分支 2 接触；NVCC 默认 fmad=true 把 `ma*mc - mb*mb` 收缩为 fma(ma,mc,-(mb*mb))，得 2.625e-12 ≥ 1e-15 → 非平行分支 1 接触，与 GPU 参考一致。README §6 只说「CPU/GPU 后端差异」，未写机制，也未提示该 count 对编译期 FMA 开关敏感。",
+      "repro": "scripts/recompute_sphere_capsule.py（融合/--unfused 两口径）; logs/recompute-fused.log / logs/recompute-unfused.log",
+      "impact": "本片 device 与 GPU 参考都融合，所以通过；但若未来设备编译关掉 FMA 收缩（或换后端），capsule-capsule 会变 2 接触并被判 count 不符。",
+      "suggestion": "证据补一句机制与风险；若要求后端无关，可把该 case 的 count 期望/判据另立口径（需 Chief 决策）"
+    },
+    {
+      "id": "O4",
+      "level": "建议",
+      "title": "未覆盖分支未逐项点名",
+      "detail": "4 个 fixture 实际只覆盖 capsule_capsule 的非平行分支（见 O3）与 sphere_cylinder 的侧面分支；capsule_capsule 平行轴分支、sphere_cylinder 端面/角点分支未被覆盖。README §9 只说「是否覆盖按窗口结果如实记录」，未点名。",
+      "repro": "CPU 复算分支判定（qa-device-reference-recompute.json）",
+      "impact": "不宣称已验证即可，但证据应明确覆盖矩阵。",
+      "suggestion": "§9 补「本 case 覆盖：capsule 非平行、sphere-cylinder 侧面；未覆盖：capsule 平行、cylinder 端面/角点」"
+    },
+    {
+      "id": "O5",
+      "level": "建议",
+      "title": "交换几何顺序路径无 case 覆盖，且 device contact.geom 用调用方顺序",
+      "detail": "设备对 (CAPSULE,SPHERE)/(CYLINDER,SPHERE) 交换 wrapper 入参（与上游类型序规范化一致），但测试只喂了 geom0 低类型顺序；另外 device `params.geoms` = 调用方 (g1,g2)，pinned 的 `_add_geom_pair` 按类型序存储 pair，若调用方顺序与类型序不同，contact.geom 字段顺序会与上游不同（该结构字段是零容差判据）。",
+      "repro": "product.cu build_params L156-157；collision_driver.py _add_geom_pair L373-376；tests CASES",
+      "impact": "本 4 case 不触发；未来加交换序 case 时可能踩到。",
+      "suggestion": "交换序 case 入 B3/后续覆盖清单，或让 device 的 geoms 也按类型序规范化"
+    },
+    {
+      "id": "O6",
+      "level": "一般",
+      "title": "B1 receipt fix_regate_note 仍写 unit 973，实际提交 run 974",
+      "detail": "B1 addendum 提交 190dc37d 的 unit run 记录为 974/0/371（B1 972 + B2 新增 2 单测），commit message 也写 974；但 receipt note 仍写「unit 计数 973（= B1 972 + B2 新增 1 单测）」。",
+      "repro": "git show 190dc37d:.normify/runs/2026-10-26-g10-p5-primitive-plane-cuda-r2/unit.json; docs/development-evidence/g10-p5-primitive-plane-cuda/receipt.json fix_regate_note",
+      "impact": "只影响文字引用；B1 结论与数字不受影响。",
+      "suggestion": "改为 974 或指向 run 记录"
+    },
+    {
+      "id": "O7",
+      "level": "建议",
+      "title": "attempt2 窗口 launcher 二进制未留档，无法独立复算哈希",
+      "detail": "23ae4d82（拆分前）已不在 target/debug/deps；证据只有 facts 记录与 sha 链。提交源 5c191046 可实测，且 CPU proof 输出与 attempt1 日志一致，但 23ae4d82→5c191046 无法做二进制级对照。ac262ee9 已补 §11.1：pre-split 830 行从未入库、不宣称 git 级等价、拆分脚本入证据并记 sha256、receipt committed_source_gpu_verified=false（窗口验的是 23ae4d82，提交源未上窗）——边界已如实，我的源码级核对与其一致。",
+      "repro": "facts.txt exe_launcher_sha256；target 中无 23ae4d82；ac262ee9 README §11.1",
+      "impact": "拆分等价性为源码/proof 级而非二进制级；证据已如实声明，残留仅「窗口二进制未归档」。",
+      "suggestion": "窗口二进制归档（或至少保留构建命令/源快照）供后续二进级复核"
+    }
+  ],
+  "blockers": []
+}

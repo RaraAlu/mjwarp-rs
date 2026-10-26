@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-sphere-capsule-cuda-independent-check",
+  "scope": {
+    "delivery_commit": "6ab5cb22",
+    "diffstat": "38 files changed, 2287 insertions(+), 318 deletions(-)",
+    "src_and_test_files": [
+      "A src/physics/collision/cuda/primitive_sphere_capsule_shapes.cu",
+      "A src/physics/collision/cuda/primitive_sphere_capsule_wrapper.cu",
+      "M src/physics/collision/cuda/product.cu",
+      "M src/runtime/collision_gpu/source.rs",
+      "M src/runtime/collision_gpu/validate.rs",
+      "M src/runtime/collision_gpu/primitive_tests.rs",
+      "M src/runtime/collision_gpu/multicontact_tests.rs",
+      "A tests/g10_p5_primitive_sphere_capsule_cuda.rs",
+      "M tests/g10_p5_nvrtc_launcher.rs",
+      "A tests/support/launcher_compare_support.rs"
+    ],
+    "zero_diff_confirmed": [
+      "src/physics/collision/abi.rs",
+      "src/runtime/case_evidence.rs",
+      "src/runtime/case_compare.rs",
+      ".normify/gates.toml",
+      "fixtures/",
+      "src/physics/mod.rs",
+      "docs/development-evidence/g10-p5-gpu-kernels/ (G5 dump used by launcher, unchanged)"
+    ],
+    "new_abi_fields": 0,
+    "new_ptx_entries": 0,
+    "entry_note": "4 wrappers are in-kernel type-pair dispatch inside mjwarp_collision_primitive; entries stay 6",
+    "fixtures_changed": 0,
+    "repin": false,
+    "device_sources": "25 -> 27; two new segments appended after primitive_plane_wrapper and before product.cu; B1 25-segment relative order unchanged"
+  },
+  "line_counts_lf": {
+    "src/physics/collision/cuda/primitive_sphere_capsule_shapes.cu": 223,
+    "src/physics/collision/cuda/primitive_sphere_capsule_wrapper.cu": 71,
+    "src/physics/collision/cuda/product.cu": 394,
+    "src/runtime/collision_gpu/source.rs": 133,
+    "src/runtime/collision_gpu/validate.rs": 56,
+    "src/runtime/collision_gpu/primitive_tests.rs": 174,
+    "src/runtime/collision_gpu/multicontact_tests.rs": 109,
+    "tests/g10_p5_primitive_sphere_capsule_cuda.rs": 465,
+    "tests/g10_p5_nvrtc_launcher.rs": 424,
+    "tests/support/launcher_compare_support.rs": 429,
+    "limits_ok": true,
+    "product_cu_450_ratchet_ok": true
+  },
+  "host_validation": {
+    "file": "src/runtime/collision_gpu/validate.rs",
+    "accepted_pairs": ["{SPHERE,BOX}", "{CAPSULE,BOX}", "{SPHERE,SPHERE}", "{SPHERE,CAPSULE}", "{SPHERE,CYLINDER}", "{CAPSULE,CAPSULE}", "{PLANE,SPHERE/CAPSULE/ELLIPSOID/CYLINDER/BOX/MESH}"],
+    "unordered": true,
+    "rejected_examples": ["(ELLIPSOID,SPHERE)", "(CAPSULE,CYLINDER)", "(CYLINDER,CYLINDER)", "(PLANE,PLANE)", "(BOX,BOX)"],
+    "tests": "primitive_tests.rs: accepts four combos in either order; rejects other combos"
+  },
+  "abi_t4_identity": {
+    "abi_rs_diff": "empty",
+    "physics_mod_diff": "empty",
+    "fixtures_t4_current_kernels_diff": "empty",
+    "new_repin": false,
+    "reason": "new .cu segments are included via source.rs local include_str!, not re-exported through physics/mod.rs"
+  },
+  "test_criteria": {
+    "file": "tests/g10_p5_primitive_sphere_capsule_cuda.rs",
+    "count_and_structure": "zero tolerance over worldid/type/dim/geom/geomcollisionid/includemargin/adhesion/friction/solref/solreffriction/solimp",
+    "dist": "bit-exact first; otherwise <=4 ULP of own magnitude; ref==0 -> 4 ULP @ 1.0",
+    "pos": "<=4 * ULP(scale), scale = max abs reference component",
+    "frame": "4 ULP @ 1.0",
+    "efc_address": "-1 device invariant",
+    "overflow": "0 device invariant",
+    "pairing": "sort by geomcollisionid; row order not a criterion",
+    "relaxation_found": false
+  }
+}

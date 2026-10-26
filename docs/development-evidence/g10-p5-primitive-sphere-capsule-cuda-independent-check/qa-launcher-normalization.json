@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-sphere-capsule-cuda-independent-check",
+  "kind": "launcher row-order normalization review (B2 side fix, tests/ only)",
+  "files": {
+    "pre_fix": "tests/g10_p5_nvrtc_launcher.rs @ 1cb66758 (499 lines, snapshot in logs/launcher-prefix-snapshot-1cb66758.rs)",
+    "after_fix": ["tests/g10_p5_nvrtc_launcher.rs (424 lines)", "tests/support/launcher_compare_support.rs (429 lines)"]
+  },
+  "scope_check": {
+    "fix_in_commit": "6ab5cb22",
+    "changed_files_under_tests": ["tests/g10_p5_nvrtc_launcher.rs", "tests/support/launcher_compare_support.rs"],
+    "src_changes_in_same_commit": "B2 device implementation only; launcher fix itself adds no src/ change",
+    "criteria_tolerance_fields_expectation_reference_changed": false,
+    "g5_dump_changed": false,
+    "case_evidence_or_case_compare_changed": false
+  },
+  "normalization": {
+    "function": "g5_contact_order",
+    "key": "worldid asc, then dist total_cmp, then pos[0..2] total_cmp, then geomcollisionid asc",
+    "same_key_as": "tests/support/stage2_equivalence_compare.rs::deterministic (worldid/dist/pos[0..2]/geomcollisionid)",
+    "permute": "permute_rows_f32 / permute_rows_i32 applied to device and reference with their own orders before the existing checkers",
+    "scalars_checked_before_normalization": ["nacon", "nccd", "overflow (bits)", "efc_address length"],
+    "fields_after_normalization": ["dist", "pos", "frame", "includemargin", "friction", "solref", "solreffriction", "solimp", "adhesion", "dim", "geom", "efc_address", "worldid", "geomcollisionid", "contact_type"],
+    "criterion_change": "none: same checkers, same thresholds, same expected arrays"
+  },
+  "move_equivalence": {
+    "method": "extract functions from pre-fix snapshot and from new main+support, strip pub(crate)/whitespace, compare token text",
+    "token_identical": ["ulp_at", "vector_scale", "vector_bound", "ordered", "ulp_distance", "dist_ok", "check_exact", "check_dist", "check_vectors"],
+    "check_exact_f32": "body identical; only signature formatting (multi-line) and trailing comma differ -> formatting-only",
+    "macro_compare_exact": "removed; compare_case now calls the same checkers with explicit permuted slices for the identical field set",
+    "dead_code_cleanup": ["main: unused FOUR_ULP_AT_ONE const removed", "support: unused cases_root import removed"],
+    "comparison_logic_change_found": false
+  },
+  "proof": {
+    "independent_run_command": "target/debug/deps/g10_p5_nvrtc_launcher-cb470647dafbe31c.exe --nocapture",
+    "exe_sha256": "5c19104651f3d5fac3787ef61ad67f76decfd0705e7328d847bf30c2bcecb70d",
+    "result": "1 passed / 1 ignored / 0 failed, exit 0",
+    "proof_line": "normalize_proof: raw_order_failures=14 sorted_failures=0 rows=2 max_dist_ulp(old)=76 max_pos_ulp(old)=2676526 max_frame_ulp(old)=28621803",
+    "matches_attempt1_launcher_log": {"failures": 14, "max_dist_ulp": 76, "max_pos_ulp": 2676526, "max_frame_ulp": 28621803},
+    "cargo_test_run": "cargo test --locked --features cuda-probe --test g10_p5_nvrtc_launcher world_order_normalization -- --nocapture -> same proof line"
+  },
+  "binary_chain": {
+    "window_launcher_sha256": "23ae4d82c04f1493a732cac31051dcf2b5475604988e2b42f68f986f96f24756",
+    "committed_source_sha256": "5c19104651f3d5fac3787ef61ad67f76decfd0705e7328d847bf30c2bcecb70d",
+    "chain_record_commit": "3ac2a0d3 + e6cb57de + ac262ee9",
+    "chain": ["d08491c6", "e330e9d1", "1af86cba", "6e4fc62a", "6000a50c", "23ae4d82 (window)", "35ba212d (post-split pre-clippy intermediate, invalidated)", "5c191046 (committed source)"],
+    "pre_split_source_archived": false,
+    "split_scripts_recorded": ["tmp-launcher-orderfix2.py", "tmp-launcher-proof.py", "tmp-split-launcher.py", "tmp-split-launcher2.py"],
+    "committed_source_gpu_verified": false,
+    "equivalence_basis": ["moved function bodies token-identical to pre-fix snapshot", "explicit call field set identical", "proof output identical", "attempt2 window 3/3 bit-exact on pre-split binary", "delivery README §11.1 honest boundary + split scripts sha256"],
+    "binary_level_equivalence_proven": false,
+    "comparison_logic_change_found": false
+  },
+  "causality_note": "raw order of contacts across worlds is not guaranteed (shared atomicAdd); attempt1 showed exactly a whole-row swap and normalized pairing gives 0 ULP. The specific claim that B2's two new segments changed layout/scheduling is plausible but not independently provable from evidence; the non-guarantee argument itself stands.",
+  "verdict": "pure test-method change; no criterion/tolerance/field-set/expectation change; proof independently reproduced; no blocker"
+}
