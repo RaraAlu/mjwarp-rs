@@ -1,0 +1,34 @@
+{
+  "task_id": "2026-10-26-gpu-window-guard-sampler",
+  "title": "GPU 窗口守卫采样器修复（samples 未落盘 + 带单位 CSV 解析）与 CPU dry-run 验证",
+  "status": "in_progress",
+  "head": "5bcd78f4",
+  "gpu_windows": 0,
+  "owner": "Backend",
+  "scope": ["scripts/", "docs/development-evidence/gpu-window-guard-sampler/"],
+  "trigger_evidence": [
+    "docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/window-attempt4-and-b-classification.md §2 偏差①：stage-2 attempt4 samples=0，guard v2 未生效",
+    "capture 阶段 runner 因 Get-GpuSnapshot 对 '4165 MiB, 11875 MiB, 38 %' 的 [int] 转换抛错而局部覆盖"
+  ],
+  "fixes": {
+    "unit_csv_parsing": "ConvertFrom-GpuCsvLine：带单位与纯数字两种输入都解析；缺列/非数字 GUARD_ABORT",
+    "sampler": "Start-GuardSampler/Stop-GuardSampler：真实子进程 + 逐样本立即 flush + Stop join(超时保护)；不再用 Start-Job；返回 samples/used_peak/free_min/util_max/first_ts/last_ts/process_exited/residual_processes",
+    "injection_seam": "Assert-Guard -Snapshot/-Apps（省略时行为不变，仍 live nvidia-smi）",
+    "pwsh_resolver": "Resolve-GuardPwsh：PATH 无 pwsh 时回退 target/toolchains/powershell-*/bin/pwsh.exe"
+  },
+  "thresholds_unchanged": "free<10240；增量>=3072 且取 3072 与总显存一半更严者；util 连续 3 点 >=80% 且无本任务 GPU 步；日志格式不变",
+  "dryrun": {
+    "command": "pwsh -NoProfile -File scripts/gpu-window-guard-dryrun.ps1",
+    "result": "PASS (parser+sampler+guard-injection)",
+    "checks": 20,
+    "sampler": { "samples": 11, "used_peak_mib": 4199, "free_min_mib": 11863, "util_max_percent": 41, "process_exited": true, "residual_processes": 0 },
+    "logs": ["logs/parser-dryrun.log", "logs/sampler-dryrun.log", "logs/samples.csv", "logs/injection-dryrun.log", "logs/inject-normal.log", "logs/inject-util.log", "logs/inject-ownstep.log", "logs/inject-free.log", "logs/inject-delta.log"]
+  },
+  "boundaries": [
+    "纯 CPU dry-run，只用只读 nvidia-smi，不建 CUDA context、不做 GPU 计算、不占窗口",
+    "未放宽/改动阈值、中止规则、日志格式",
+    "未改产品代码/判据/容差/gates.toml 的 GPU 门禁定义",
+    "未宣称跨环境全绿/精度结论"
+  ],
+  "gates_expected": { "fmt": "pass", "clippy": "pass", "clippy-cuda": "pass", "unit": "971/0/369" }
+}

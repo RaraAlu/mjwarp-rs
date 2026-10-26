@@ -78,11 +78,30 @@ function Write-GuardLine {
     $Message | Out-File -LiteralPath $State.log_path -Append -Encoding utf8
 }
 
+function ConvertFrom-GpuCsvLine {
+    # Parses one nvidia-smi CSV line, tolerating both unit-suffixed and bare-numeric forms:
+    #   '4165 MiB, 11875 MiB, 38 %'   and   '4165, 11875, 38'
+    # (the first 3 columns are used; extra columns such as temperature are allowed).
+    # Missing / non-numeric columns are a deterministic `GUARD_ABORT`, never an [int] exception.
+    param([Parameter(Mandatory = $true)][string]$Line)
+    $cells = @(($Line -split ',') | ForEach-Object { $_.Trim() })
+    if ($cells.Count -lt 3) {
+        throw "GUARD_ABORT: cannot parse nvidia-smi line (need >=3 columns): $Line"
+    }
+    $values = @()
+    for ($i = 0; $i -lt 3; $i++) {
+        $cell = $cells[$i]
+        if ($cell -notmatch '^(\d+)(\s*[A-Za-z%]*)$') {
+            throw "GUARD_ABORT: cannot parse nvidia-smi column $($i + 1) as integer: '$cell' in line: $Line"
+        }
+        $values += [int]$Matches[1]
+    }
+    return @{ used = $values[0]; free = $values[1]; util = $values[2] }
+}
+
 function Get-GpuSnapshot {
     $line = (& nvidia-smi --query-gpu=memory.used,memory.free,utilization.gpu --format=csv,noheader 2>&1 | Select-Object -First 1)
-    $parts = @(($line -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d+' })
-    if ($parts.Count -lt 3) { throw "GUARD_ABORT: cannot parse nvidia-smi memory/util line: $line" }
-    return @{ used = [int]$parts[0]; free = [int]$parts[1]; util = [int]$parts[2] }
+    return ConvertFrom-GpuCsvLine -Line ([string]$line)
 }
 
 function Get-GpuContextApps {
@@ -144,10 +163,14 @@ function Assert-Guard {
     param(
         [Parameter(Mandatory = $true)]$State,
         [string]$Phase = 'sample',
-        [switch]$OwnGpuStepActive
+        [switch]$OwnGpuStepActive,
+        # Dry-run / injected-sequence seam (pure CPU): when supplied these replace the live
+        # `nvidia-smi` queries so the guard rules can be exercised without any GPU workload.
+        [hashtable]$Snapshot = $null,
+        [array]$Apps = $null
     )
-    $snapshot = Get-GpuSnapshot
-    $apps = Get-GpuContextApps
+    $snapshot = if ($Snapshot) { $Snapshot } else { Get-GpuSnapshot }
+    $apps = if ($null -ne $Apps) { @($Apps) } else { Get-GpuContextApps }
     $pids = @($apps | ForEach-Object { $_.pid })
     if (-not $State.baseline_used_mib) {
         $State.baseline_used_mib = $snapshot.used
@@ -218,4 +241,79 @@ function Complete-Guard {
         residual = $residual
         log_path = $State.log_path
     }
+}
+
+# --- Guard sampler (v3, 2026-10-26) -------------------------------------------------------------
+# Why: the stage-2 window (attempt4) sampled with `Start-Job`; the job never persisted rows
+# (`samples=0`), so guard v2 could not actually see samples and only pre/post snapshots existed.
+# This sampler runs `scripts/gpu-guard-sampler-loop.ps1` as a real child process; each sample is
+# appended with an immediate close/flush (`[IO.File]::AppendAllText`), and `Stop-GuardSampler`
+# joins it with a timeout.
+#
+# Usage (dot-source from a window script):
+#   . scripts/gpu-window-guard.ps1
+#   $sampler = Start-GuardSampler -CsvPath 'target/window/samples.csv'
+#   ... run measured steps ...
+#   $stats = Stop-GuardSampler -Sampler $sampler
+#   # $stats: samples, used_peak_mib, free_min_mib, util_max_percent, first_ts, last_ts, csv_path
+function Resolve-GuardPwsh {
+    $command = Get-Command pwsh -ErrorAction SilentlyContinue
+    if ($command) { return $command.Source }
+    $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    $candidates = @(Get-ChildItem -Path (Join-Path $repo 'target\toolchains') -Filter 'pwsh.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)
+    if ($candidates.Count -gt 0) { return $candidates[0] }
+    return 'powershell.exe'
+}
+function Start-GuardSampler {
+    param(
+        [Parameter(Mandatory = $true)][string]$CsvPath,
+        [string]$StopFile = '',
+        [int]$IntervalMs = 250
+    )
+    $csvFull = [System.IO.Path]::GetFullPath($CsvPath)
+    $csvDir = Split-Path -Parent $csvFull
+    if ($csvDir) { New-Item -ItemType Directory -Force -Path $csvDir | Out-Null }
+    if (-not $StopFile) { $StopFile = "$csvFull.stop" }
+    $stopFull = [System.IO.Path]::GetFullPath($StopFile)
+    if (Test-Path -LiteralPath $stopFull) { Remove-Item -LiteralPath $stopFull -Force }
+    "seq,timestamp,used_mib,free_mib,util_percent,temperature_c" | Out-File -LiteralPath $csvFull -Encoding ascii
+    $loop = Join-Path $PSScriptRoot 'gpu-guard-sampler-loop.ps1'
+    $pwshExe = Resolve-GuardPwsh
+    $process = Start-Process -FilePath $pwshExe -ArgumentList @('-NoProfile', '-File', $loop, '-Csv', $csvFull, '-Stop', $stopFull, '-IntervalMs', $IntervalMs) -PassThru -WindowStyle Hidden
+    return [ordered]@{ process = $process; csv_path = $csvFull; stop_file = $stopFull; loop = $loop; interval_ms = $IntervalMs }
+}
+
+function Stop-GuardSampler {
+    param(
+        [Parameter(Mandatory = $true)]$Sampler,
+        [int]$TimeoutSeconds = 10
+    )
+    if (-not (Test-Path -LiteralPath $Sampler.stop_file)) { New-Item -ItemType File -Path $Sampler.stop_file -Force | Out-Null }
+    $process = $Sampler.process
+    $exited = $false
+    try { $exited = $process.WaitForExit($TimeoutSeconds * 1000) } catch { $exited = $false }
+    if (-not $exited) {
+        try { Stop-Process -Id $process.Id -Force -ErrorAction Stop; $exited = $true } catch { $exited = $false }
+    }
+    if ($exited) { try { $process.WaitForExit() } catch {} }
+    Start-Sleep -Milliseconds 200
+    $residual = @(Get-Process -Name pwsh -ErrorAction SilentlyContinue | Where-Object { $_.Id -eq $process.Id })
+    $rows = @()
+    if (Test-Path -LiteralPath $Sampler.csv_path) { $rows = @(Import-Csv -LiteralPath $Sampler.csv_path) }
+    $used = @($rows | ForEach-Object { [int]$_.used_mib })
+    $free = @($rows | ForEach-Object { [int]$_.free_mib })
+    $util = @($rows | ForEach-Object { [int]$_.util_percent })
+    $stats = [ordered]@{
+        samples = $rows.Count
+        used_peak_mib = if ($used.Count) { ($used | Measure-Object -Maximum).Maximum } else { $null }
+        free_min_mib = if ($free.Count) { ($free | Measure-Object -Minimum).Minimum } else { $null }
+        util_max_percent = if ($util.Count) { ($util | Measure-Object -Maximum).Maximum } else { $null }
+        first_ts = if ($rows.Count) { $rows[0].timestamp } else { $null }
+        last_ts = if ($rows.Count) { $rows[-1].timestamp } else { $null }
+        csv_path = $Sampler.csv_path
+        process_exited = $exited
+        residual_processes = $residual.Count
+    }
+    if (Test-Path -LiteralPath $Sampler.stop_file) { Remove-Item -LiteralPath $Sampler.stop_file -Force -ErrorAction SilentlyContinue }
+    return $stats
 }

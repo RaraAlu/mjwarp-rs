@@ -5,7 +5,7 @@
     "zh": "修复 GPU 窗口守卫采样器（samples 未落盘导致 guard 未生效）与带单位 CSV 解析缺陷，并加 dry-run 验证",
     "en": "Fix the GPU window guard sampler (samples not persisted, guard ineffective) and the unit-suffixed CSV parsing bug, with a dry-run verification"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "stage-2 的 GPU 窗口（attempt4）暴露两个守卫缺陷：① runner 用 `Start-Job` 起的 0.25 s 采样器未落盘（`samples=0`），导致 guard v2 的 util 连续 3 点判定与实际未生效，只留下 pre/post 快照与逐步骤 wall；② 共享模板 `scripts/gpu-window-guard.ps1` 的 `Get-GpuSnapshot` 用带单位 CSV（`4165 MiB, 11875 MiB, 38 %`）过滤后直接 `[int]`，会抛「无法将值 4165 MiB 转换为 Int32」（capture 阶段 Backend 被迫在 runner 内局部覆盖才跑通）。后续任何 GPU 窗口都依赖这两点，故先做治理小片修复：把采样器做进共享模板（可靠的定时采样 + 落盘 + flush + Stop 时 join）、修正带单位解析、并用纯 CPU 的 dry-run 验证「采样真的落盘且 guard 真的用采样参与判定」。",
     "en": "Fix the guard sampler persistence and unit-suffixed CSV parsing in the shared template, and prove via CPU dry-run that samples are persisted and actually used by the guard."
@@ -33,17 +33,29 @@
   },
   "note": "Arch 2026-10-26 登记（治理小片，Chief 批准直接做）：修 stage-2 窗口暴露的守卫采样器未落盘 + 带单位 CSV 解析两个缺陷；纯 CPU、无口径变更、不需要 GPU 窗口。QA 复核预登记 `2026-10-26-gpu-window-guard-sampler-independent-check`。收口顺序：Backend 改脚本 + dry-run → gate → 证据 → Arch gate/done/commit → QA 复核。",
   "revision": {
-    "before": "278a23fd8c34f08f02921a2b63f4b69a66df7e7e",
+    "before": "b81fc46685ee6ebb026026fb94a23163cef19158",
     "after": null
   },
   "created_at": "2026-10-26T18:45:00.000Z",
-  "updated_at": "2026-10-26T18:45:00.000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-26T10:41:40.331Z",
+  "closed_at": "2026-10-26T10:41:40.331Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "json",
       "path": "docs/development-evidence/gpu-window-guard-sampler/receipt.json",
@@ -52,7 +64,14 @@
     },
     {
       "kind": "forbid_claim",
-      "terms": ["G10已实现", "完整物理通过", "双平台通过", "上游完全等价", "原生放行", "精度达标"]
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
     }
   ]
 }
