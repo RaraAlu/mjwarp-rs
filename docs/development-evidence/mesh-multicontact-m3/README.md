@@ -100,12 +100,15 @@ RUN A/B 独立进程 + 独立 warp cache、raw 逐字节一致才复制为参考
 | post guard | used 2007 / free 14055 / delta −33 / util 24，无 abort |
 
 注 1：util 80% 出现在 warp JIT 编译的**连续 2 个**采样点，低于 guard 的 util abort 门
-（80% × 连续 3 点），未 abort；属编译瞬态、非持续负载。
+（80% × 连续 3 点），未 abort；属编译瞬态、非持续负载。**归因是推断**（RUN A 日志显示 ccd kernel
+编译约 10.35 s 佐证，非直接采样证据；M3 QA 观察 O7）。
 注 2：delta 三口径（同一 `used_peak=2278`）：
 - vs `guard_baseline used=2040` → **238**（guard 聚合口径）
 - vs 第一基线点 `used=2044` → **234**（3 点基线口径）
-- vs 采样最小 `used=2032` → **246**（采样最小值口径）
+- vs 采样最小 `used=2012`（seq 81）→ **266**（采样最小值口径）
 三者均远低于增量门 3072。
+> 更正（2026-10-27，M3 QA 观察 O3）：本行原写「vs 采样最小 `used=2032` → 246」，2032 是**首样本**而非
+> 最小值；采样最小值实测 2012（seq 81），第三口径应为 **266**。前两口径 238/234 不受影响，guard 结论不变。
 
 ### 4.2 窗口事实
 
@@ -216,7 +219,7 @@ polyvert 越界、polymap 越界、dataid 越界）+ 1 条真实 cube 正例；�
 | `g10_p5_mesh_multicontact_m3_cuda` | **0** | mesh-mesh：nacon=4、**bit_equal 4/4**、max dist/pos/frame ULP=0、`contact.geom=[0,1]`、failures=0 |
 | `g10_p5_mesh_multicontact_m2_cuda` | **0** | mesh-box / mesh-cylinder：各 nacon=4、bit_equal 4/4、ULP=0、`[1,0]`、failures=0 |
 | `g10_p5_multicontact_cuda` | **0** | cylinder-box 314/314 bit；box-box-margin 391/392（max_pos_ulp=1）；G5 mesh-mesh case（Contact 单接触路径）80/80；failures=0 |
-| `stage2_equivalence_window` | **0** | 9 个 synth case dump 全完成；窗外 CPU 比较按「记录 C 只记录不判 pass/fail」，17 条 `failures=` 含已知 recipe 分岔（非 M3 回归） |
+| `stage2_equivalence_window` | **0** | 9 个 synth case dump 全完成；窗外 CPU 比较按「记录 C 只记录不判 pass/fail」：**17 个 dump / 16 条 case-kernel 比较行 / 11 条有失败**（含 `sdf-box failures=112` 条明细），均为已知 recipe 分岔，非 M3 回归（数字口径见 QA 观察 O2 更正） |
 | `g10_p5_primitive_cuda` | **0** | sphere-box-shallow / -deep / capsule-box 各 80/80；failures=0 |
 | `g10_p5_nvrtc_launcher` | **0** | hfield-sphere 314/314；sdf-box 3122/3122；ellipsoid-box 80/80；failures=0 |
 | `g10_p5_primitive_plane_cuda` | **0** | 6 case：plane-sphere/capsule/ellipsoid/cylinder nacon=1，plane-box/mesh nacon=3；failures 全 0 |
@@ -251,7 +254,9 @@ vs 第一基线点 used 2222 → **283**；vs 采样最小 used 2222 → **283**
 - 基线 3 点：`2222,13840,3,31,596.36` / `2222,13840,2,31` / `2222,13840,2,31`；free 13840 ≥ 10240
 - post：`2361,13701,1,31,596.36`；结束基线 3 点：`2361,13701,1` / `2351,13711,28` / `2552,13510,28`（+31,596.36）
 - post `compute-apps`：全桌面进程（其中几条为 `[Insufficient Permissions]` 的桌面/系统进程，
-  基线与 post 均存在、属同口径噪声），按 `python|g10_p5|cargo|mjwarp` 过滤 = **0**；无 python/cargo 残留
+  基线与 post 均存在、属同口径噪声），按 `python|g10_p5|cargo|mjwarp` 过滤 = **0**；无 python/cargo 残留。
+  **O5 补充**：post/baseline 各 5 条身份不可见项是系统权限限制（非本任务进程），身份不可见**不影响**
+  「无残留」结论——同口径过滤在基线/post 都得到 0，且本任务进程名可匹配（`python`/`g10_p5_*`/`mjwarp_rs-*`）。
 - **零 Rust 编译**：窗内只跑 9 个冻结 exe + `nvidia-smi` + guard 采样；冻结后未跑 cargo
 - 机器负载 precheck：`cargo/rustc/cl/nvcc` 均无；CPU 负载采样 `1,3,3`；无 clean 重建/全量测试并行
 - 参考未动：旧 M1 参考 `c83baffe…`（5703 B）与 M3 参考 `96e7895d…`（3676 B）窗口前后一致
@@ -336,13 +341,14 @@ M3 收口 commit 被 normify commit-msg 的 500 行棘轮拒绝（两测试文�
 
 | 文件 | 拆分前 | 拆分后 | 处理 |
 | --- | --- | --- | --- |
-| `src/runtime/collision_gpu/validate_tests.rs` | 506 | 237 | 4 条 mesh-poly 测试 + `CubeMeshPoly` 数据块原样搬到 `src/runtime/collision_gpu/validate_mesh_poly_tests.rs`（282 行），父文件用 `#[path = "validate_mesh_poly_tests.rs"] mod mesh_poly_tests;` 挂接 |
-| `tests/g10_p5_mesh_poly_case_assembly.rs` | 601 | 418 | M3 两条测试 + M3 常量原样搬到 `tests/g10_p5_mesh_m3_case_assembly.rs`（183 行） |
+| `src/runtime/collision_gpu/validate_tests.rs` | 506 | 237 | 4 条 mesh-poly 测试 + `CubeMeshPoly` 数据块搬到 `src/runtime/collision_gpu/validate_mesh_poly_tests.rs`（282 行），父文件用 `#[path = "validate_mesh_poly_tests.rs"] mod mesh_poly_tests;` 挂接；**注意 `CubeMeshPoly` 因 O7 新增 `vertadr`/`vertnum` 字段并扩展 `over()`，不是逐字节搬移**（见 O1 更正） |
+| `tests/g10_p5_mesh_poly_case_assembly.rs` | 601 | 418 | M3 两条测试 + M3 常量搬到 `tests/g10_p5_mesh_m3_case_assembly.rs`（183 行） |
 | `tests/support/mesh_poly_case_support.rs` | 383 | 406 | 仅搬入 3 个 helper（`sha256_hex` / `f32_bits` / `json_f32_bits`；Arch 允许「装配 helper 挪到 tests/support/」） |
 
-- **纯搬移验证**：脚本比对「新子文件正文 == 原文件对应行」逐字节 **True**（validate 子文件 body、
-  M3 常量与两条测试均 verbatim）；`cargo fmt` 只消除了拼接处 1 处多余空行（assembly 419→418），
-  搬移块内无格式/注释/断言改动。
+- **搬移验证（按 QA O1 更正后表述）**：3 条被搬测试函数体与 2 个 helper 体**逐字一致**（QA 用
+  whitespace-normalised 独立比对；`json_f32_bits` 仅 import 别名变化）；`CubeMeshPoly` 结构体/impl
+  **不是逐字节搬移**——O7 要求的前提字段 `vertadr`/`vertnum` 是 M3 新增内容，随代码一起落在子模块；
+  `cargo fmt` 只消除了拼接处 1 处多余空行（assembly 419→418），搬移块内无格式/注释/断言改动。
 - **测试数与名字不变**：`validate` 相关单测 8/8（4 条在 `validate_tests` 父模块 + 4 条在
   `validate_tests::mesh_poly_tests` 子模块；测试名不变，仅模块路径前缀变化）；
   assembly 7/7 = 旧文件 5 + 新文件 2（测试名不变，文件路径变化）。
@@ -352,3 +358,24 @@ M3 收口 commit 被 normify commit-msg 的 500 行棘轮拒绝（两测试文�
 - 拆分只动测试文件与 `tests/support/` helper：产品代码、判据、窗口冻结二进制与设备源均未改，
   窗口结果不受影响（无需重开窗）。
 - `scope-selfcheck`（拆分后）：**75 路径 / 越界 0**。
+- **O6 补充（可复算性边界）**：拆前 `990/0/374` 只由 `normify fix` 的 addenda 文字记录，拆前 WIP 未入 git、
+  也没有独立 gate 日志 → **不能从仓内独立复算「拆前=拆后」**；本片能独立复算的是拆后的 990/0/374（gate runs）
+  与「测试数/名字不变 + 搬移函数体逐字一致」。后续同类拆分须**先记拆前树 sha 或拆前 gate 日志**再动手。
+
+## 14. QA 观察收口（2026-10-27；任务 `2026-10-27-mesh-multicontact-m3-closure-and-mesh-summary`）
+
+M3 独立复核（`ab586682`，pass / 0 阻断 / 观察 7：3 一般 + 4 建议）的逐条处置。**纯证据文字/编码治理**：
+不改 `src/`、`tests/`、`fixtures/`、判据、容差、参考与任何已 verified 数字。
+
+| 观察 | 级别 | 处置 |
+| --- | --- | --- |
+| O1 拆分「纯搬移」表述不准 | 一般 | §13 改为「测试函数体与 2 个 helper 体逐字一致；`CubeMeshPoly` 因 O7 新增 `vertadr`/`vertnum` 并扩展 `over()`，不是逐字节搬移」（QA 用 whitespace-normalised 独立比对，结论一致） |
+| O2 stage2 record-C 数字错位 | 一般 | §9.1 改为「17 个 dump / 16 条 case-kernel 比较行 / 11 条有失败（`sdf-box failures=112` 条明细）」；语义（只记录、已知 recipe 分岔、非 M3 回归）不变 |
+| O3 capture 窗 delta 第三口径错 | 一般 | §4.1 注 2 改为「vs 采样最小 `used=2012`（seq 81）→ **266**」并加更正说明（原写 2032→246，2032 是首样本）；前两口径 238/234 不变，guard 结论不变 |
+| O4 证据日志带 BOM + samples.csv 超 500 行 | 建议 | 本片证据目录 17 个日志转 UTF-8 无 BOM（内容逐字不变）；`validation-attempt1-samples.csv` 734 行为**原始窗口采样数据**，属「≤500 行/文件」常规的显式例外，权威原件在 `target/m3-mesh-mesh/attempt1/samples.csv`（`guard.log` 摘要见 §9.2） |
+| O5 `[Insufficient Permissions]` 身份不可见 | 建议 | §9.3 补充：post/baseline 各 5 条身份不可见项（系统权限限制），按 `python\|g10_p5\|cargo\|mjwarp` 过滤后 0 条本任务进程；身份不可见不影响「无残留」结论 |
+| O6 拆前数字不可从仓内独立复算 | 建议 | §13 注明：拆前 990/0/374 仅有 addenda 文字记录，拆前 WIP 未入 git、无独立 gate 日志 → 不能从仓内独立复算；后续同类拆分须先留**拆前树 sha** 或拆前 gate 日志 |
+| O7 util 80% 的 JIT 归因是推断 | 建议 | §4.1 注 1 标注「归因是推断」（RUN A 日志 ccd kernel 编译约 10.35 s 佐证），不写成直接因果 |
+
+**结论不变**：0 行设备改动的位级证实、9 实体 exit 0、mesh-mesh `bit_equal 4/4`、窗口 guard 无 abort、
+拆后 gate 990/0/374、scope 75/0 全部成立；本清单只改表述与编码，不改数字。

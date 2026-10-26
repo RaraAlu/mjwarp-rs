@@ -136,3 +136,24 @@ roadmap 任务 `2026-10-11-roadmap-g10-p5` 的 6 条 acceptance 里，实质只�
 **不得声明**：mesh 参与的多接触路径整体已覆盖、mesh-mesh 已实现、一般 mesh 已支持、mesh 全类型/全分支、跨平台；UNC-1 仍为 partial。
 
 **证据指针**：`docs/development-evidence/mesh-multicontact-m0a/`、`...-m0a-fix-mesh-poly-shapes/`、`...-m1/`、`...-m0b/`（+ `...-m0b-independent-check/`）、`...-m2/`（§7 窗口内容、§7.3 hfield-capsule 未覆盖、§8 attempt 与裁定、§8.5 派生口径）、`...-m2-independent-check/`。第二次更新（mesh-mesh）在 M3 verified + QA 复核后做。
+
+### 7.2 第二次更新（2026-10-27；M3 收口 + QA `ab586682` pass 后）
+
+| 维度 | 第一次更新时 | 第二次更新后 |
+| --- | --- | --- |
+| 组合层（设备 multicontact） | box/cylinder + convex-vs-mesh | **+ mesh-mesh 多接触**（M3 `f1e5cda1`，QA `ab586682` pass / 0 阻断 / 观察 7）：nacon=4、**bit_equal 4/4**、dist/pos/frame ULP 0/0/0、`contact.geom=[0,1]`、failures 0，对照新参考 `96e7895d…` |
+| 设备侧改动 | M2 新增 `multicontact_mesh.cu` 等 | M3 **0 行新设备代码**（M2 分支已覆盖两侧 MESH；`DEVICE_SOURCES` 28→28、入口 6→6、冒烟四数字与 M2 相同） |
+| 设备输入侧 | 2 case × 32 bins（mesh-box/cylinder） | **+ mesh-mesh 32 数组 bins**（9 slice `[2,2,36,12,12,48,16,16,48]`，18 条自检 PASS，`cross_check` 带 actual/reference） |
+| 输入校验（O7） | `polyvert/polymap` 元素值域未校验 | **已补 4 组值域规则**（vertadr/vertnum 前提与区间、polyvert 界、polymap 界、mesh dataid 界）+ 负例/正例；`run()` 零改动 |
+| 窗口 | M2 attempt4（Chief 裁定接受） | **M3 验证窗 attempt1**：9 实体 exit 全 0、new floor `min(10240, baseline_free−3072)=10240`、732 样本、delta 278/283/283、free_min 13557、util 60（streak 0）、residual 0、零编译；回归 13 组合 + B3 6+4 swap + M2 两 case 全 failures=0 |
+| 未覆盖 | mesh-mesh 多接触、一般 mesh、hfield-capsule、全类型/全分支、跨平台 | **收窄为**：一般 mesh（nmesh>1 通用 / degree>10 / polygon>16 回退）、mesh 分支层未逐条覆盖、`hfield-capsule` 设备回归、`efc_address` 缺口（设备全 −1）、UNC-6 深穿透未触发、跨平台、性能 |
+| status | partial | **partial（不变）** |
+
+**统计口径不变**：12 条 requirement（met 8 / partial 4 / unmet 0）、uncovered 6 条；本表只更新 UNC-1 的范围文字，
+不改任何已 verified 数字、判据、容差、参考或期望值。
+
+**不得声明（更新后）**：一般 mesh 已支持、mesh 分支层全覆盖、mesh 全类型、跨平台、性能；`hfield-capsule`
+与 `efc_address` 仍为未覆盖项；G10@P5 整体通过/精度目标达成不在本 map 的声明面。
+
+**整片汇总**：`docs/development-evidence/mesh-multicontact-mesh-summary/README.md`（交付链、门禁数字、
+未覆盖与「不宣称」清单、债务、后续片候选）。
