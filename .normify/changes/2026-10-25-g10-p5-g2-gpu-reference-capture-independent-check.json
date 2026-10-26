@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-g2-gpu-reference-capture-independent-check",
+  "title": {
+    "zh": "G2/G6 GPU 参考重采的 QA 独立复核（输入位型/两轮一致/provenance/旧参考未动/差异量级）",
+    "en": "Independent check of the GPU reference re-capture"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-g10-p5-g2-gpu-reference-capture` 做独立复核：该片在 `device=cuda` 下用同一 pinned 上游与同一 f32 输入重采 G2/G6 参考到 `upstream-mjwarp-f32-gpu.json`，旧 CPU 参考归档保留，供 fix 片切换 4 ULP 判据的参考口径（用户已批准）。复核方须独立核：输入与旧参考逐位一致、两轮捕获整文件 sha 相同、provenance 完整可追溯、旧参考与旧脚本逐字节未动、新旧差异量级与 FMA 融合语义差一致（不是结构性变化）、脚本 diff 只限声明的字段。",
+    "en": "Independently verify inputs, two-run consistency, provenance, that the old CPU reference and script are untouched, and that the new/old differences are FMA-scale only."
+  },
+  "modules": {},
+  "acceptance": [
+    "**旧证据未动**：用 git 独立核 `docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32.json` 与 `capture_mjwarp_f32.py` 在本片前后**逐字节不变**（git diff/status + sha256），旧参考内容未被覆盖或改写；新文件是**新增**而非替换。",
+    "**输入一致**：独立脚本（不复用交付脚本）比对旧 CPU 参考与新 GPU 参考的 5 case：`qpos`、`qpos_bits`、`xml_sha256`、`upstream_revision` **逐位/逐值相同**；版本字段（python/mujoco/warp/mujoco_warp/numpy）一致。",
+    "**两轮一致**：核证据里两轮独立进程 + 独立 kernel cache 的原始日志与产物 sha，确认**整文件 sha 相同**、每 case `two_captures_bitwise_identical=true`；核不是同一进程内跑两次冒充两轮。",
+    "**provenance 完整**：核 `device=cuda`、GPU 型号/驱动/计算能力、库版本、脚本 sha、pinned rev、kernel cache 目录、采集时间、`authoring_only=true` 等字段齐全且与 `nvidia-smi`/环境实际值一致（不是手填的通用值）；核脚本 sha 与仓库内脚本文件 sha 相同。",
+    "**差异量级判断**：独立计算新旧参考 5 case 的 `count` 与 17 字段差异：`count`/整型字段应完全相同（结构性不变），浮点字段差异应在 FMA 融合语义量级（小数 ULP 级）；若出现 count/dim/geom 等结构差异或浮点差异远超 FMA 量级 → 按阻断报（说明 GPU 后端 recipe 不是简单融合，B 的前提要重评）。",
+    "**脚本差异受控**：核派生脚本与旧脚本逐行 diff，只允许 device/输出名/kind/task_id/purpose/provenance/缓存目录变化；`CASES`、输入读取、17 字段、两次捕获逻辑不变。",
+    "**窗口纪律**：核 GPU 窗口事实（时段、采样、守卫参数、跑前跑后 `query-compute-apps`、结束基线、无残留）与 Arch 批准记录一致；窗口内无其它任务编译。",
+    "**证据与口径**：本复核证据只写 `docs/development-evidence/g10-p5-g2-gpu-reference-capture-independent-check/`（README+receipt 含 task_id），≤500 行/文件、UTF-8 无 BOM、无二进制；不宣称精度达标/上游等价；旧参考的「归档」状态与「新参考尚不是判据（要等 fix 片切换）」必须写清。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-g2-gpu-reference-capture"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-g2-gpu-reference-capture-independent-check/"
+    ],
+    "resources": [],
+    "priority": 54
+  },
+  "note": "Arch 2026-10-26 预登记（capture 片登记即预登记，QA 须等 capture 片 verified 后 start）。纯 CPU 复核（只读 JSON/日志/git + 自写比对脚本），**不要再开 GPU 窗口**。复核红线：旧参考被动过、输入不一致、两轮不一致、provenance 手填、差值量级异常、脚本改动超范围。",
+  "revision": {
+    "before": "45f7cccd926f9078ac64551e365344cf6a8a0b6e",
+    "after": null
+  },
+  "created_at": "2026-10-26T09:20:00.000Z",
+  "updated_at": "2026-10-26T09:20:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-g2-gpu-reference-capture-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-g2-gpu-reference-capture-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

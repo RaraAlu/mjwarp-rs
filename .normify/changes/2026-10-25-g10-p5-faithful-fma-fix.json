@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-faithful-fma-fix",
+  "title": {
+    "zh": "按 faithful FMA 口径修复两个产品站点（gjk/polytope 的 face_norm2 与 render 光源归一化），把默认 GNU 欠验的 5.3 ULP 残余修到过现有 4 ULP 判据",
+    "en": "Fix the two product mul_add sites under the faithful FMA criterion so the default-GNU residual passes the existing 4-ULP gate"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-10-26 对 faithful FMA 处置选 **① 修实现到过现有 4 ULP**（不改判据/容差/期望值）。依据：`2026-10-25-case-evidence-frame-diagnosis` 已定位唯一翻转项 `case_evidence::upstream_f32_within_4ulp` 的根因是 GNU 默认工具链下 `f32::mul_add` 库回退非 IEEE 单次舍入（frame 3.838112e-7 pass → faithful 6.351978e-7 fail）；`exact-f32-fma-relmat` 已交付目标无关精确 f32 FMA helper（`src/math/fma.rs::fma_f32`，硬件主路 + 无 f64 整数精确模拟兜底，77 例边界集、修前红/修后 0 红）；`faithful-impact-measurement` 已实测影响面窄（20 项仅 1 项翻转）。本片把两个产品站点换成该 helper，使 GNU 默认口径与 faithful 口径给出同一（正确舍入）数值，从而在不改判据的前提下恢复默认 gate 全绿。",
+    "en": "Replace the two product mul_add sites with the shared exact-f32 FMA helper so the default GNU build matches the faithful criterion, with no tolerance/judgement changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**站点替换（仅两处）**：`src/physics/collision/gjk/polytope.rs` 的 `face_norm2`（现 L67-70 的 `mul_add` 链）与 `src/render/kernel/megakernel_arrays.rs:189` 的光源方向归一化 `mul_add`，改为调用 `crate::math::fma::fma_f32`。**不得**改其它 `mul_add`/f64 站点、`relmat.rs`（已用 helper）、`render/bvh/aabb.rs`（保持现有注释口径、实现不动）、ABI、判据、容差、排除清单、`gates.toml`、G01 脚本与任何已 verified 证据。",
+    "**残余站点扫描**：替换后重新扫 `src/` 全量 `mul_add` 出现处，逐条分类（测试/诊断 vs 产品数值链），证明「产品站点只有这两处」或列出剩余站点及为何本片不修；结果入证据。",
+    "**门槛引用写死来源（不得重造、不得引旧版）**：直接引用 `docs/development-evidence/exact-f32-fma-relmat/README.md` **§10 + §11**：**1e6 组 + 77 例边界集**（含 a/b=±0×{有限/±Inf/NaN}、c=±Inf/NaN、次正规/下溢 tie、上溢半 ULP tie）+ **三构建（GNU 默认 / MSVC / GNU+`+fma`）位级一致** + **修前红/修后 0 红判别**。**不得引用旧的 58 例版本**；门槛如需变更必须重新批准（Arch → Chief → 用户）。",
+    "**GPU 窗口数 = 0（有依据）**：`faithful-impact-measurement` 已实测 20 项中 19 项不翻转——render S7b1/S7b2/S7b3/S8、launcher/primitive/multicontact 在 faithful 与默认 GNU 下逐字节/位级相同，G5 rel_mat/SDF 位级不变。故本片**不新开 GPU 窗口**，只做 CPU 定向测试 + gate；render/G5/G6 的「无翻转」以影响面实测（faithful 口径）为依据写成重验清单。若执行中判断必须实机重验，**停手先报 Arch 另批窗口**，不得自行开窗。",
+    "**同一提交修到全绿（硬约束）**：默认 gate unit 现 **604 passed / 0 failed / 7 ignored**，`case_evidence::upstream_f32_within_4ulp` 在默认 unit 内。修复过程中工作树可以为红，但**不得提交半红**：helper 替换 + 5.3 ULP 残余处理必须在**同一提交**内收口到 gate 全绿才算完成。若残余最终不可修：**保留未提交改动、停手报 Arch**，由 Arch 转用户选 ②（容差重推需用户另批 + 灵敏度反证），不得先落一半、不得改判据凑绿。",
+    "**残余定位（faithful 下 frame 6.351978e-7 ≈ 5.3 ULP > 4.8e-7）**：给出排查清单执行结果与归因，至少覆盖：① `.cu`↔host 表达式逐点对照（dot/length/normalize/make_frame）；② 5 个 case 的 ULP 表；③ EPA 逐轮 dump 对照；④ 全 fma 变体实验；⑤ 参考生成配置（warp fmad/fast-math/PTX 中 fma 数）；⑥ 输入位姿逐位核对；⑦ 排序/配对与 frame 行定位。结论允许「机制未定 + 已排除项 + 候选下一步」，但**禁止**改判据/容差/期望值。",
+    "**证据与门禁**：`docs/development-evidence/faithful-fma-fix/`（README + receipt 含 task_id + 修复前后对照 + 残余定位记录 + 定向测试日志 + 站点扫描 + 重验清单无翻转依据），单文件 ≤500 行、UTF-8 无 BOM、无二进制；gate fmt/clippy/clippy-cuda/unit 全绿（unit 计数用当时值，现 604）；不改任何已 verified 证据。",
+    "**路径命中与位级证据**：证据写清 ① 本机三构建（GNU 默认 / MSVC / GNU+`+fma`）下站点确实走 helper 主路（`active_path=hardware` 或等价证据）；② 兜底路径行为沿用 relmat 片 §11（修前红/修后 0 红、77 例边界、默认 gate 直调单测已入库），本片不重造；③ 替换后 `relmat`/SDF/`gjk_epa`/`case_evidence` 等定向测试位级结果与修复前对照。**必须如实处理这个关键事实**：faithful 口径下 G6 frame 实测 **6.351978e-7（≈5.3 ULP，> 4.8e-7 判据）**，即「换成正确 FMA」本身会把默认 GNU 的 3.838112e-7 推到**仍然不过**的值。所以本片门槛不是「换完 helper 就绿」，而是：换完后（预期 frame≈6.351978e-7）继续按第 6 条定位残余，**在不动判据/容差/期望值的前提下**把 frame 真正压回 ≤4 ULP 才可收口。若定位表明「faithful 语义与既有参考存在不可在本片消除的口径差（参考侧本身两次舍入等）」，即触发停手路径：保留未提交改动、报 Arch（→ 用户选 ② 容差重推另批），**不得**为凑绿改判据/容差/期望值或回退 helper。",
+    "**口径红线（汇总照抄）**：不宣称精度达标/跨环境全绿/上游完全等价/双平台通过/原生放行；「真实无 FMA 机器未实机验证」照旧——兜底只有 seam + 默认 gate 直调单测覆盖，禁止写「兜底已实机验收」；NaN payload 不作位级判据；边界计数取 **16** 条（已由 `c3acc6b6` 更正）；gate unit 引用 **604**。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-exact-f32-fma-relmat",
+      "2026-10-25-faithful-impact-measurement"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/",
+      "tests/",
+      "docs/development-evidence/faithful-fma-fix/"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "Arch 2026-10-26 登记：用户对 faithful FMA 处置拍板 **① 修实现到过现有 4 ULP**（Chief 转达），按预先备好的 registration 落实。排程规则：两张卡若同回，本片先于 stage 2；本片与 stage 2 都改 `src/`/`tests/` 且 owner 都是 Backend → 严格串行、同一时间一个 in_progress。QA 复核任务已预登记（`2026-10-25-g10-p5-faithful-fma-fix-independent-check`，QA 空闲可提前领简报，但须等本片 verified 后才能 start）。本片只 CPU，不开 GPU 窗口。**2026-10-26 08:20Z 状态：命中预设停车条件，等用户对 A/B/C 拍板。** Backend 实测：只换两站点为精确 FMA → frame 6.351978e-7 仍红；参考侧判定为 warp 1.15.0 CPU 后端两次舍入（生成 C++ mul/add 独立、.o FMA=0，GPU pinned ccd PTX 则 fma.rn=1480）；把 `face_norm2` 改显式源序不融合 → 5 case 与参考逐位全等、三构建一致（QA 已独立复现全部结论）。故 ①「换精确 FMA」在原口径下不可达；待用户在 A（polytope 改非融合 + NP01 站点口径登记）/ B（参考改 GPU 后端重采、动已 verified 期望数据）/ C（容差重推另批）间拍板。工作树保留 helper 版两站点未提交改动（+9/−4），未 gate、未提交、未开窗；摘板前不得自行继续改。**2026-10-26 09:20Z 用户拍板选 B（参考改 GPU 后端重采）**：本片 acceptance 待改为 B 版——两站点 helper（工作树已有）+ `case_compare.rs` 切到 `upstream-mjwarp-f32-gpu.json`（含 device=cuda provenance 断言）+ 旧 CPU 参考归档注记 + NP01 站点口径登记（三站点语义统一 fused）+ gate 与 G01 双 host 绿；新参考下 5 case 必须全部落 4 ULP 内，超限即停手报 Arch（不许调容差/改期望）。前置：`2026-10-25-g10-p5-g2-gpu-reference-capture`（+其 QA 复核）verified 后才动主树切参考；等待期间保持工作树不提交改动不变。**2026-10-26 09:45Z Arch 处置（工作树状态）**：为避免 capture 片 gate 在当前脏树上误红、也避免窗口内误编译 fix 状态，两站点 helper 改动已导出为 patch `target/fix-fma-helpers.patch`（sha256 `CC36BCD4748ADD9A305AD23557B17008246304D2371AC938BE21153E0590A5C8`，2 files +9/−4）并从主树 `git checkout --` 还原（src 干净，`git apply --check` 通过）。恢复方式：`git apply target/fix-fma-helpers.patch`（或按 patch 内容重放）；patch 内容 = ①`polytope.rs::face_norm2` 改 `fma_f32` + import + 注释；②`megakernel_arrays.rs:189` 光源归一化改 `fma_f32` + 注释。**B 版 acceptance 生效时以 patch 为基线继续**，不要重新发明改动。",
+  "revision": {
+    "before": "45f7cccd926f9078ac64551e365344cf6a8a0b6e",
+    "after": null
+  },
+  "created_at": "2026-10-26T08:30:00.000Z",
+  "updated_at": "2026-10-26T00:28:53.160Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/faithful-fma-fix/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-faithful-fma-fix"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ],
+  "closed_at": null
+}

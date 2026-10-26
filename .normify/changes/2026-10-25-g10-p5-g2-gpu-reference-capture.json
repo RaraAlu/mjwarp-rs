@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-g2-gpu-reference-capture",
+  "title": {
+    "zh": "G2/G6 参考改用 GPU 后端重采（device=cuda，融合语义），保留旧 CPU 参考归档（authoring + 一次 GPU 窗口）",
+    "en": "Re-capture the G2/G6 reference on the GPU backend (device=cuda, fused semantics), keeping the old CPU reference archived"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-10-26 对 faithful FMA 处置改选 **B：参考改用 GPU 后端重采（融合语义，host 保留精确 FMA）**，并已明确批准「改验收参考口径、动已 verified 证据语义」。依据：QA 独立复核确认现有 G2/G6 4 ULP 判据读的参考是 `upstream-mjwarp-f32.json`（provenance `device=cpu`，warp 1.15.0 CPU 后端两次舍入），而 GPU pinned ccd PTX 是 `fma.rn` 融合语义；两套 recipe 不同，导致「host 换成精确 FMA 后 5.3 ULP」的口径矛盾。本片用同一 capture 脚本、同一 pinned 上游、同一 f32 输入，在 `device=cuda` 下重采参考，产出新文件供 fix 片切换判据；旧 CPU 参考**归档保留、不删不改**。本片只做 authoring 采集与证据，不改产品代码、不改 `case_compare.rs`、不改判据/容差。",
+    "en": "Capture the same G2/G6 cases on the GPU backend with the same script/upstream/inputs; keep the old CPU reference untouched. Authoring only, one GPU window."
+  },
+  "modules": {},
+  "acceptance": [
+    "**脚本：新副本、不改旧脚本**：在 `docs/development-evidence/g10-p5-g2-gpu-reference-capture/` 放 `capture_mjwarp_f32_gpu.py`（由 `docs/development-evidence/g10-p5-gjk-epa/capture_mjwarp_f32.py` 派生，两版 sha 入证据）。与原脚本的差异**只允许**：`wp.set_device(\"cuda\")`、输出文件名、`kind`/`task_id`/`purpose` 文案、provenance 增加 GPU 设备信息、kernel cache 目录；`CASES`、读取输入的方式、17 字段集合、两次捕获逻辑必须逐字不变（贴 diff 说明）。**旧脚本与其生成物不得修改**。",
+    "**同上游、同输入**：`upstream_revision` 仍为 `71da24d956378a87a703b6e1442b13aec0c4ac29`；python/mujoco/warp/mujoco_warp/numpy 版本与旧参考一致；5 个 case 的 `qpos` 与 `qpos_bits` **逐位等于旧 CPU 参考**、`xml_sha256` 相同；把「输入 sha 与旧参考对得上」写成对照表。",
+    "**产物**：新文件 `docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32-gpu.json`（`kind=g2-upstream-mjwarp-f32-gpu-reference`、`device=cuda`）。**旧文件 `upstream-mjwarp-f32.json` 逐字节不变**（记录前后 sha，`git status -- fixtures docs` 不出现它）。",
+    "**两次捕获逐位一致（加强版）**：同一脚本在**两个独立进程 + 两个独立 kernel cache 目录**各跑一轮，两轮输出文件整文件 sha 相同；每 case `two_captures_bitwise_identical=true`。若 GPU 端不确定（例如 kernel 缓存导致差异），如实报告并停手报 Arch，不得只报一轮。",
+    "**provenance 写全**：`device=cuda` + GPU 名称/显存 + 驱动版本（`nvidia-smi`）+ 计算能力（sm arch）+ warp/mujoco/mujoco_warp/numpy/python 版本 + 脚本 sha + pinned rev + kernel cache 目录 + 采集时间 + `authoring_only=true` / `reads_product_tree=false` / `product_python_dependency=false`。",
+    "**GPU 窗口纪律（窗口数 = 1）**：开窗前先把脚本改写与 CPU 侧准备（dry-run 至编译前）做完；**报 Arch 基线**（used/free/util/温度 + 跑前 `query-compute-apps` 原文）经 Arch 批准（Arch 同步 Chief 一行）后才采集；0.25 s 采样、守卫按 v2 模板（新增 CUDA 计算进程/free<10240/used 增量≥3072，桌面进程只记录）、窗口内不编译其它任务、跑后 `query-compute-apps` + 结束基线 + 无残留进程。两次独立捕获可放在同一窗口内串行。",
+    "**与旧 CPU 参考的对照表（只描述，不宣称达标）**：5 case 的 `count` 是否相同、17 字段逐字段差异（可位级比较的给位级，浮点给绝对值/ULP 级量级），说明差异量级与「FMA 融合语义差」一致；若出现非 FMA 量级的差异（结构/count/整型字段不同）→ **停手报 Arch**（说明 GPU 后端 recipe 不是简单融合，B 的前提要重新评估）。",
+    "**证据**：`docs/development-evidence/g10-p5-g2-gpu-reference-capture/`（README + receipt 含 `task_id=2026-10-25-g10-p5-g2-gpu-reference-capture` + 脚本 diff 说明 + 两轮原始日志 + 窗口采样/前后 compute-apps + provenance）+ 新参考 JSON 本体。单文件 ≤500 行、UTF-8 无 BOM、无二进制；不改 `case_compare.rs`、产品代码、判据、容差、`gates.toml`、G01、旧证据语义。",
+    "**口径红线**：不宣称精度达标/跨环境全绿/上游完全等价；本片只交付「GPU 参考已重采且有 provenance」这一事实；「旧参考作废」由 fix 片切换判据后才生效（届时旧参考归档注明）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/g10-p5-g2-gpu-reference-capture/",
+      "docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32-gpu.json"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "Arch 2026-10-26 登记：用户选 B（Chief 转达，卡上已明确批准改参考口径/动已 verified 证据语义）。顺序：本片先跑（CPU 准备 → 报 Arch 窗口基线 → 一次 GPU 窗口两次独立捕获 → QA 独立复核），通过后 fix 片才改 `case_compare.rs` 切到新参考；主树在 capture 期间保持 fix 片未提交改动不变（Backend 不动 `src/`）。QA 复核已预登记 `2026-10-25-g10-p5-g2-gpu-reference-capture-independent-check`。",
+  "revision": {
+    "before": "45f7cccd926f9078ac64551e365344cf6a8a0b6e",
+    "after": null
+  },
+  "created_at": "2026-10-26T09:20:00.000Z",
+  "updated_at": "2026-10-26T01:46:13.839Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-g2-gpu-reference-capture/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-g2-gpu-reference-capture"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

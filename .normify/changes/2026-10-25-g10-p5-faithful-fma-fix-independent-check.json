@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-25-g10-p5-faithful-fma-fix-independent-check",
+  "title": {
+    "zh": "faithful FMA 两站点修复的 QA 独立复核（站点边界/位级与 ULP/三构建/残余定位/判据未改）",
+    "en": "Independent check of the faithful-FMA two-site fix"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-25-g10-p5-faithful-fma-fix` 做独立复核：该片按用户拍板 ① 把 `gjk/polytope.rs` 的 `face_norm2` 与 `render/kernel/megakernel_arrays.rs:189` 光源归一化换成 `src/math/fma::fma_f32`，目标是在不改判据/容差的前提下让默认 GNU 口径的 `case_evidence::upstream_f32_within_4ulp` 恢复通过。复核方须自建探针/脚本（不复用交付证据与脚本），独立核对：只改这两处、helper 语义正确、默认 gate 真绿、G5 位级不变、G6 frame 数值等于 faithful 口径值且落回 4 ULP 内、三构建位级一致、残余定位结论诚实（未改判据凑绿）、影响面重验清单与 GPU 窗口 0 个的依据成立。",
+    "en": "Independently verify the two-site FMA fix: scope, helper semantics, default gate green, bitwise-unchanged G5, G6 frame at the faithful value within 4 ULP, three-build bitwise consistency, and that no criterion or tolerance was changed."
+  },
+  "modules": {},
+  "acceptance": [
+    "**范围独立核**：`git diff <fix>~1..<fix>` 逐文件核，只允许两处产品站点 + 证据 + `.normify`；`relmat.rs`、`render/bvh/aabb.rs`（实现）、判据、容差、期望值、`gates.toml`、G01 脚本、排除清单**均不得改动**；不得有第三处产品站点被顺手改。自己扫 `src/` 的 `mul_add` 与 `fma_f32` 调用点，核对交付的「产品站点只有两处」结论。",
+    "**helper 语义与路径**：自建探针（内联汇编 `vfmadd231ss` 参考，不复用交付探针）独立核 `src/math/fma.rs` 语义仍是 IEEE 单次正确舍入，且本机三构建确实走硬件主路；兜底路径按 `exact-f32-fma-relmat/README.md` §11 既有结论引用即可，但其「默认 gate 直调单测（16 条边界类）」必须仍在默认 `cargo test --locked` 内真实执行并通过（不依赖 seam/env）。",
+    "**默认口径翻绿（硬判据，口径裁定见下）**：硬判据 = 干净 target 下默认 `cargo test --locked` 真绿（unit ≥604），且 `case_evidence::upstream_f32_within_4ulp` 通过——即其 frame 落在测试硬编码阈值 **4.8e-7**（`case_evidence.rs:166`）内；同时默认口径与 `+fma`（faithful）口径**输出位级一致**。**注意不得把「frame ≈ 6.351978e-7（≈5.3 ULP）」当成通过**：faithful 口径实测就是 6.351978e-7，若交付最终值仍 ≈6.35e-7，即「只换了 helper、残余未修」，按阻断报（Arch 2026-10-26 裁定：原 acceptance 写「= faithful 值且落 4 ULP 内」自相矛盾，以本条为准）。另核 `rel_mat` 10/10 world、SDF 40/40 与修复前逐位对照不变（diff=0）；数值口径与修复前对照表入证据。",
+    "**三构建位级一致**：GNU 默认 / MSVC / GNU+`+fma` 三构建下，定向测试（`relmat`、`g10_p5_sdf_relmat`、`g10_p5_sdf_host`、`gjk_epa`、`case_evidence` 相关）输出逐行/逐位对照，验证「修复后默认口径 == faithful 口径」这一核心主张；若有残留差异必须如实列出并判断是否阻断。",
+    "**残余定位审计**：核交付 7 项排查清单（.cu↔host 逐点对照、5 case ULP 表、EPA 轮 dump、全 fma 变体、参考生成配置、输入位姿逐位、排序/配对与 frame 行定位）是否真做、结论是否与实测一致；核**未改判据/容差/期望值/排除清单**（禁止凑绿），若有凑绿嫌疑按阻断报。",
+    "**GPU 窗口 0 个的依据**：核交付是否以 `faithful-impact-measurement` 的 19/20 不翻转矩阵（render S7b1/S7b2/S7b3/S8、G5 位级）为依据，而非口头断言；核本片证据未把「未实机重验」写成「已重验通过」。",
+    "**口径与证据**：核证据 `docs/development-evidence/faithful-fma-fix/`（README+receipt 含 task_id）如实写明：真实无 FMA 机器未实机验（只 seam + 默认 gate 覆盖）、NaN payload 不作位级判据、边界计数取 16、gate unit 数值、不宣称精度达标/跨环境全绿；本复核证据只写 `docs/development-evidence/g10-p5-faithful-fma-fix-independent-check/`，单文件 ≤500 行、UTF-8 无 BOM、无二进制。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-g10-p5-faithful-fma-fix"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-faithful-fma-fix-independent-check/"
+    ],
+    "resources": [],
+    "priority": 54
+  },
+  "note": "Arch 2026-10-26 预登记（fix 片尚未 start；QA 空闲可提前领简报，但必须等 fix 片 verified 后才能 start，不得并行改/读在途工作树）。本片只 CPU，不要 GPU 窗口。复核红线：抓凑绿（改判据/容差/期望值）、抓「只证明兜底/只证明单构建」、抓把未实机重验写成已重验。",
+  "revision": {
+    "before": "45f7cccd926f9078ac64551e365344cf6a8a0b6e",
+    "after": null
+  },
+  "created_at": "2026-10-26T08:30:00.000Z",
+  "updated_at": "2026-10-26T08:30:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-faithful-fma-fix-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-25-g10-p5-faithful-fma-fix-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

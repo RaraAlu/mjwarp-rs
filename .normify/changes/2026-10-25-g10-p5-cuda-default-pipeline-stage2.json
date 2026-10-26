@@ -12,16 +12,20 @@
   },
   "modules": {},
   "acceptance": [
-    "**选项落地**：严格按用户在决策卡上的选择实施（①/②/③ 三选一，以 Arch 转达的编号为准）；未获拍板不得开工。①/② 需改 Cargo 默认特性并按 DESIGN §8 落 `cuda` 特性与依赖集合；③ 只加运行时层与回退，默认构建仍 Host。",
-    "**回退语义**：无驱动 / 有驱动无设备 / 有设备但 NVRTC 缺失 三种环境下，默认路径**不 panic、不静默失败**：可诊断错误码（`NoDevice` / `Compile` / CLI 的 `DriverUnavailable` / `NvrtcUnavailable`，与 DESIGN §4 一致）并回退 Host；Host 结果与当前路径**逐值一致**（同一函数）。",
-    "**等价验收**：G5 已冻结的 9 个 case 上 host vs device 接触数组逐字段一致（复用已入库参考与输入，不新捕获；能位级比较的位级比较，非位级按既有 4·ULP 判据）；有 CUDA 时的窗口须先报 Arch 基线、经 Arch 审查后串行开窗；无 CUDA 时的证据用 CPU 侧 seam/模拟（本机无法实机模拟无驱动的部分须如实标注）。",
-    "**前置**：`2026-10-25-t4-source-hash-repin-13` 必须 verified（否则默认/特性测试不全绿，验收不可信）。不改 ABI、不改精度判据、不改已 verified 数字与证据语义；证据目录 `docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/`（README + receipt 含 task_id）；门禁 fmt/clippy/clippy-cuda/unit + 定向等价测试。",
-    "不宣称「默认产品管线已具备 CUDA 入口」之外的任何整体结论：不宣称精度达标/上游完全等价/双平台通过/原生放行；未覆盖项（mesh multicontact、primitive 其余组合、Linux/T4 等）照旧如实列。"
+    "**选项落地（用户 2026-10-26 已拍板 ②）**：新增 `cuda` 特性并**默认开启**（`default = [\"cuda\"]`），`--no-default-features` 可关闭；`cudarc` 随 `cuda` 特性成为默认依赖。与现有 `cuda-probe` 的关系按 Arch 的 DES（`target/stage2-prep/`）执行：`cuda-probe` 退役为其别名（或等价迁移）并保留一条迁移注记，不得留下两套并行 gate/依赖集合。未获拍板不得开工；本项不得再自行改口。",
+    "**`cuda` 特性 default-on 的三条路径都要全绿**：① 默认构建（`cargo build --locked` / `cargo test --locked`）② `--no-default-features` 构建 + 测试 + 门禁 ③ 既有 `--features cuda-probe` 路径按迁移方案仍可用或明确退役。`--no-default-features` 必须能在**无卡/无驱动**机器上构建与跑测试（作为快速 CI 路径），其构建耗时/体积与默认路径的对比数字入证据。",
+    "**门禁口径（需在片内落地并记录）**：默认 gate unit 基线要重新记录（当前 604/0/7，加 `cuda` 默认后依赖与测试数都会变）；`--no-default-features` 需要一条可重复的门禁命令（若需新增 `gates.toml` 条目，必须在本片证据里写清 old/new、理由与回滚方式，并作为门禁策略变更留痕）。不允许只凭人肉命令而不入门禁。",
+    "**不 panic 硬约束（三态回退）**：无驱动 / 有驱动无设备 / 有设备但 NVRTC 缺失 三种环境下，默认路径**不 panic、不静默失败**：可诊断错误码（`NoDevice` / `Compile` / CLI 的 `DriverUnavailable` / `NvrtcUnavailable`，与 DESIGN §4 一致）并回退 Host；覆盖产品 API 与 CLI 两条错误路径；**阶段 1 已记录 `new()` 缺 `culib()` 会 panic 的缺陷必须在片内修掉并留下修前红/修后绿判别**。Host 结果与当前路径**逐值一致**（同一函数）。",
+    "**等价验收**：G5 已冻结的 9 个 case 上 host vs device 接触数组逐字段一致（复用已入库参考与输入，不新捕获；能位级比较的位级比较，非位级按既有 4·ULP 判据）；有 CUDA 时的窗口须先报 Arch 基线、经 Arch 双签后串行开窗；无 CUDA 环境的证据用 CPU 侧 seam/模拟（本机无法实机模拟的部分须如实标注）。**默认管线接上 CUDA 入口后 UNC-2 才可记 closed；未验证前不许宣称**。",
+    "**精度语义不变**：GPU 路径不改，host 数值链路不改；不改 ABI、不改精度判据/容差、不动已 verified 证据语义（含 G2/G6 参考口径、G5 数字）。若发现某项必须变，停手报 Arch 转用户另批。",
+    "**前置与顺序**：`2026-10-25-t4-source-hash-repin-13` verified（已完成）；**本片 start 必须等 `2026-10-25-g10-p5-faithful-fma-fix` verified（owner 同 Backend、同占 `src/`，严格串行）**。证据目录 `docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/`（README + receipt 含 task_id + 设计变更、体积/耗时数字、三态回退与不 panic 证据、门禁变更记录）。",
+    "不宣称「默认产品管线已具备 CUDA 入口」之外的任何整体结论：不宣称精度达标/上游完全等价/双平台通过/原生放行；未覆盖项（mesh multicontact、primitive 其余组合、Linux/T4 等）照旧如实列。「无 CUDA 机器可构建」必须实测，不得只做静态断言。"
   ],
   "schedule": {
     "depends_on": [
       "2026-10-25-g10-p5-cuda-default-pipeline",
-      "2026-10-25-t4-source-hash-repin-13"
+      "2026-10-25-t4-source-hash-repin-13",
+      "2026-10-25-g10-p5-faithful-fma-fix"
     ],
     "phase": "P5-复杂物理",
     "owner": "Backend",
@@ -34,7 +38,7 @@
     "resources": [],
     "priority": 56
   },
-  "note": "Arch 2026-10-25 登记（阶段拆分）：原 `2026-10-25-g10-p5-cuda-default-pipeline` 同时含「阶段 1 决策支撑（可立即做）」与「阶段 2 实现（须用户拍板）」，用一片验收会把未拍板的实现塞进 in_progress 并阻塞后续任务（repin-13 因 scope 冲突无法 start）。因此阶段 2 独立成片：阶段 1 收口为 verified（证据=`g10-p5-cuda-default-pipeline/`，receipt 记 `stage2_status=not_started`），阶段 2 待用户拍板后 start。repin-13 独立先做（既有红，任何选项下都要修）。",
+  "note": "Arch 2026-10-25 登记（阶段拆分）：原 `2026-10-25-g10-p5-cuda-default-pipeline` 同时含「阶段 1 决策支撑（可立即做）」与「阶段 2 实现（须用户拍板）」，用一片验收会把未拍板的实现塞进 in_progress 并阻塞后续任务（repin-13 因 scope 冲突无法 start）。因此阶段 2 独立成片：阶段 1 收口为 verified（证据=`g10-p5-cuda-default-pipeline/`，receipt 记 `stage2_status=not_started`），阶段 2 待用户拍板后 start。repin-13 独立先做（既有红，任何选项下都要修）。**2026-10-26 09:25Z 用户拍板 cudarc 走 ②（`cuda` 特性默认开启、`--no-default-features` 可关），Chief 转达**：acceptance 已按 ② 与 6 条硬项重写（default-on 三路径全绿、`--no-default-features` 可构建可测试并作为无卡/快速 CI 路径、门禁口径变更留痕、三态回退不 panic（含阶段 1 记录的 `new()` 缺 `culib()` panic 必修 + 修前红/修后绿）、UNC-2 验证后才 closed、默认构建体积/耗时更新、精度语义不变）。**start 顺序**：等 `2026-10-25-g10-p5-faithful-fma-fix` verified 后（同 owner 同占 `src/`，严格串行），且本片 `depends_on` 已加该片。**start 前置（authoring，放 `target/stage2-prep/` 不入库）**：Cargo.toml 改法、`cuda` 与 `cuda-probe` 关系、默认 gate/G01 口径影响、`--no-default-features` 构建/测试路径写小样；由 Backend 在 capture 窗口跑完后做，不动主树。",
   "revision": {
     "before": "cbeaf76260d23d7a2eb4c81dc142bb00c4126d03",
     "after": null
