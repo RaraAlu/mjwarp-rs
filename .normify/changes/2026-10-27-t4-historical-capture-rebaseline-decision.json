@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-t4-historical-capture-rebaseline-decision",
+  "title": {
+    "zh": "T4 历史捕获重基线（等 A/B/C 裁决后 start；夜间可用性核查已收口 240847f7）",
+    "en": "T4 historical capture rebaseline (pending A/B/C decision; night availability check closed in 240847f7)"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "承接已 abandon 的 `2026-10-22-t4-historical-capture-rebaseline`：夜间轻量段已完成可用性核查（3/3 被排除工具就地失败、失败点与 2026-10-23 预检逐字一致；物料齐但模板锚点失配，不能就地重生成）。本任务等用户/Chief 在 A（全量重基线 ~3–5 天，需重建 tests/support 锚点并改写 BASE 身份）/ B（维持排除、登记长期债务 ~0.5 天）/ C（冻结历史身份对照 ~1–2 天，比较口径变化需用户批准）之间裁决后 start，按选项执行。**backlog，不 start**。",
+    "en": "Successor of the abandoned T4 rebaseline task: availability check done; waits for A/B/C decision before start."
+  },
+  "modules": {},
+  "acceptance": [
+    "前置：用户/Chief 在 A/B/C 中裁定并在任务记录里写明选项与理由（Arch 已出定义/代价/推荐，见 `docs/development-evidence/t4-historical-capture-rebaseline/README.md` §5 与提交 240847f7）。",
+    "若选 A（全量重基线）：先立前置片重建 `tests/support/t4_rigid_capture` 的 10 旋转族 + 2 retained 模板锚点（`recipe.rs`/`lineage.rs`，替换/保留计数 10/20）；再用当前源码重生成 30 artifacts × debug/release PTX（compile-only）；重写 `fixtures/precision/{t4-kernels.json,t4-current-kernels.json}` 身份；重跑 6 项历史 audit；按项移除 `scripts/test-windows-g01.ps1` 的 `$script:excludedHistoricalAudits`（env 项 `captures_loaded_face_machine_code_without_launching_physics` 另记，不自动解除）；更新 `docs/three-layer-acceptance.md` 债务小节；旧产物先归档；收口按用户点名跑一次双模式 G01 全量并绑定最终 HEAD。",
+    "若选 B（维持排除）：仅更新 `docs/three-layer-acceptance.md` 与排除清单说明，写清「6 项 audit 因历史捕获身份 vs 当前源码不可就地重生成而排除；恢复路径为 A」，证据复用 `docs/development-evidence/t4-historical-capture-rebaseline/`；不改捕获/工具/fixtures 身份。",
+    "若选 C（冻结历史身份对照）：引入冻结源码快照（`4dc88934…`）作为 6 项 audit 的对照基准，明确声明「audit 只证明历史捕获自洽、不证明当前源码」，并在证据/文档记录比较口径变化经用户批准；不改当前身份捕获。",
+    "任何选项都不得靠改断言/容差/夹具转绿；不得宣称 G01/T4 完整除非对应排除项确实恢复。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "fix/G01-debt",
+    "owner": "Backend",
+    "files": [
+      "fixtures/precision",
+      "docs/evidence/t4-g03-retest",
+      "scripts/test-windows-g01.ps1",
+      "docs/three-layer-acceptance.md",
+      "docs/development-evidence/t4-historical-capture-rebaseline/",
+      "docs/development-evidence/changes/2026-10-27-t4-historical-capture-rebaseline-decision.json",
+      "tests/support/t4_rigid_capture/"
+    ],
+    "resources": [],
+    "priority": 2
+  },
+  "note": "Arch 2026-10-27 登记（Chief 指令：T4 不要长期挂 in_progress）。前身 `2026-10-22-t4-historical-capture-rebaseline` 已 abandon（夜间段证据已提交 240847f7）。本任务 files 已把 `tests/support/t4_rigid_capture/` 纳入（A 选项前置），避免再走一次扩范围。A/B/C 定义、代价与推荐见 240847f7 证据 README §5；用户卡由 Chief 发。",
+  "revision": {
+    "before": "bae9fa0c8f1668fa818d64ca516b978c0a39251f",
+    "after": null
+  },
+  "created_at": "2026-10-27T02:12:00.000Z",
+  "updated_at": "2026-10-27T02:12:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-27-t4-historical-capture-rebaseline-decision.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-t4-historical-capture-rebaseline-decision"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "NP01",
+        "NP02",
+        "NP03",
+        "NP04"
+      ]
+    }
+  ]
+}
