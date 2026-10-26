@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-mesh-multicontact-m2-test-entry-commit",
+  "title": {
+    "zh": "M2 的 #[doc(hidden)] CPU 校验测试入口单独提交（父文件 scope 补救）",
+    "en": "Separate commit for the M2 doc(hidden) CPU validation test entry (parent-file scope remedy)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "M2 在 src/runtime/collision_gpu.rs（父文件）新增 3 行 #[doc(hidden)] validate_collision_inputs 供常驻 CPU 真实校验测试调用；该父文件不在 M2 任务 files（且 M2 已 verified 不可改声明），提交被判越界。本片只提交这 3 行测试入口（行为零变更）+ 回执，使 M2 交付其余部分可在 M2 任务范围内提交。",
+    "en": "Commit only the 3-line doc(hidden) test entry in the parent module file."
+  },
+  "modules": {},
+  "acceptance": [
+    "只提交 src/runtime/collision_gpu.rs 中 3 行 #[doc(hidden)] validate_collision_inputs（转调 \u0007bi::validate_inputs，run() 行为零变更）与本回执；不改其它 src 代码。",
+    "说明 scope 补救原因（M2 files 漏父文件、已 verified 不能改声明）；M2 其余交付在 M2 任务下提交（同一工作树、内容零改写）。",
+    "门禁 fmt/clippy/clippy-cuda/unit 全绿（当前基线 987/0/373）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "治理/证据补救",
+    "owner": "Arch",
+    "files": [
+      "src/runtime/collision_gpu.rs",
+      "docs/development-evidence/mesh-multicontact-m2-test-entry/"
+    ],
+    "resources": [],
+    "priority": 42
+  },
+  "note": "Arch 2026-10-27 登记：M2 的测试入口落在父文件 src/runtime/collision_gpu.rs，不在 M2 files；M2 已 verified 无法改声明/豁免，故该 3 行单独提交。",
+  "revision": {
+    "before": "7290c36493272a4645acae4e3b5c5a3823d5f9bf",
+    "after": null
+  },
+  "created_at": "2026-10-27T00:30:00.000Z",
+  "updated_at": "2026-10-27T00:30:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mesh-multicontact-m2-test-entry/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-mesh-multicontact-m2-test-entry-commit"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
