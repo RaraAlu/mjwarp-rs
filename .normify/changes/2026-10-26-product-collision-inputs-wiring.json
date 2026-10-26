@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-product-collision-inputs-wiring",
+  "title": {
+    "zh": "backlog：产品 model→collision inputs 接线（23→32 slices，含 mesh polygon 数组）",
+    "en": "Backlog: product-level model -> collision inputs wiring (23->32 slices, incl. mesh polygon arrays)"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "M0a 逐环审计暴露的产品级欠账：产品代码内没有 model→`CollisionGpuInputs` 的接线（23 项现也靠调用方/测试 support 从 frozen case bins 组装；mesh polygon 9 项在 M0a 只做到「slice 入参 + 上传 + ABI」，环 0→1 明确为调用侧职责）。本任务在 mesh M0–M3 收口后评估是否把 `src/io/render.rs`+`src/model/render.rs` 的 model 字段（含 `mesh_poly*` 族）映射成 32 项 collision inputs，让产品管线端到端可喂。**backlog，不 start**，等 Chief 评估排期。",
+    "en": "Product-level debt found during M0a: no model -> CollisionGpuInputs wiring in product code. Evaluate after mesh M0-M3."
+  },
+  "modules": {},
+  "acceptance": [
+    "评估阶段（本任务不 start 前的预备）：列出产品内所有需要 collision inputs 的调用点、现有调用方映射（tests/support/*）、以及 23→32 项在 model 层的字段可得性（`src/io/render.rs` / `src/model/render.rs`），给「新增 adapter vs 保持调用侧职责」的取舍与影响面。",
+    "实现阶段（若排期）：在 `src/io/` 或 `src/model/`（或新模块）提供 model→`CollisionGpuInputs` 的 typed adapter，覆盖 23 现有项 + 9 mesh polygon 项；空/缺失字段语义与 M0a 一致（全空→null、部分空→InvalidArgument）；不改任何判据/容差。",
+    "证据与门禁同常规片；任何情况下不宣称产品管线已端到端支持 mesh 多接触，除非该片验收并另立证据。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m3-mesh-mesh"
+    ],
+    "phase": "架构/接线债务",
+    "owner": "Backend",
+    "files": [
+      "src/io/",
+      "src/model/",
+      "src/runtime/collision_gpu/",
+      "tests/",
+      "docs/development-evidence/product-collision-inputs-wiring/"
+    ],
+    "resources": [],
+    "priority": 20
+  },
+  "note": "Arch 2026-10-26 按 Chief 指令登记（backlog，不 start）：环 0→1（model→CollisionInputs）产品内当前无接线，属已知债务；M0a 不扩 scope。等 mesh M0–M3 收口后评估。整片汇总的「不宣称/债务」一节必须写明此欠账，避免读者以为产品管线已能端到端喂 32 数组。",
+  "revision": {
+    "before": "656aa4bc34d52487bce013a82df73a8d1cd4ac6a",
+    "after": null
+  },
+  "created_at": "2026-10-26T14:55:00.000Z",
+  "updated_at": "2026-10-26T14:55:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
