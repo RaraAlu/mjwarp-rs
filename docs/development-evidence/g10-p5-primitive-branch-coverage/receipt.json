@@ -1,0 +1,180 @@
+{
+  "task_id": "2026-10-26-g10-p5-primitive-branch-coverage",
+  "kind": "g10-p5-primitive-branch-coverage-evidence",
+  "status": "in_progress",
+  "pinned_upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "fixtures": {
+    "dir": "fixtures/g10-p5-primitive-branches/",
+    "manifest": "docs/development-evidence/g10-p5-primitive-branch-coverage/inputs-sha256.json",
+    "cases": [
+      "plane-mesh-graph",
+      "sphere-sphere-concentric",
+      "sphere-capsule-clamp",
+      "sphere-cylinder-cap",
+      "sphere-cylinder-corner",
+      "capsule-capsule-nonparallel"
+    ],
+    "old_fixture_dir_modified": false
+  },
+  "precheck": {
+    "script": "scripts/precheck_primitive_branches_cpu.py",
+    "result_json": "docs/development-evidence/g10-p5-primitive-branch-coverage/precheck-branches-cpu.json",
+    "device": "cpu",
+    "result": "PASS",
+    "branch_hits": {
+      "plane-mesh-graph": "graphadr=0, vertnum=10, max_support=0.05000000074505806, graph branch",
+      "sphere-sphere-concentric": "f32 center distance = 0.0, dist==0 fallback",
+      "sphere-capsule-clamp": "projection=0.15000000596046448 > half_length=0.12",
+      "sphere-cylinder-cap": "collide_side=false, collide_cap=true",
+      "sphere-cylinder-corner": "collide_side=false, collide_cap=false",
+      "capsule-capsule-nonparallel": "det=2.0736003310918745e-04 (>> MJ_MINVAL=1e-15)"
+    },
+    "note": "precheck only: proves the f32 inputs land in the intended pinned branch; the comparison reference is the GPU capture"
+  },
+  "swap_canonicalization": {
+    "verdict": "small fix implemented (no ABI change, no new entry, no-op for canonical callers)",
+    "pinned_evidence": "collision_driver.py _add_geom_pair L351-380: if type1 > type2 then pair = (geom2, geom1)",
+    "device_change": "product.cu mjwarp_collision_primitive: normalize type/geom by type order and overwrite params.geoms before dispatch",
+    "swap_results": {
+      "plane-mesh-graph": {"type1_type2": [7, 0], "nacon": 4, "failures": 0},
+      "sphere-capsule-clamp": {"type1_type2": [3, 2], "nacon": 1, "failures": 0},
+      "sphere-cylinder-cap": {"type1_type2": [5, 2], "nacon": 1, "failures": 0},
+      "sphere-cylinder-corner": {"type1_type2": [5, 2], "nacon": 1, "failures": 0}
+    },
+    "contact_geom_order": "structural zero-tolerance compare covers contact.geom; all swap variants failures=0, so normalized [0,1] order and values both pass; no order-mismatch or value-mismatch message was emitted",
+    "regression_requirement": "existing 13 combo cases bitwise unchanged (verified in attempt2)"
+  },
+  "device_source_smoke": {
+    "command": "cargo test --locked --features cuda-probe --lib runtime::collision_gpu::nvrtc_smoke -- --include-ignored --nocapture",
+    "source_bytes": 237922,
+    "source_sha256": "92ee236e519dc04b26b2d24400fa57f382ed9cea1b5b28596c238ab6cfa4cec8",
+    "ptx_bytes": 3786510,
+    "entries": 6,
+    "entries_before": 6,
+    "device_sources_segments": 27,
+    "previous_b2_source_bytes": 237212,
+    "previous_b2_source_sha256": "054aaa40e27a73b054609d5046c4de885ff99cd75c6b4a88de86f0a9a681c618",
+    "note": "source changed only by the product.cu primitive-entry swap normalization; entry count unchanged"
+  },
+  "tests": {
+    "default": {
+      "command": "cargo test --locked",
+      "passed": 975,
+      "failed": 0,
+      "ignored": 372,
+      "baseline": {"passed": 974, "failed": 0, "ignored": 371},
+      "delta": "+1 ignored (new B3 window test target) and +1 non-ignored CPU support self-check test"
+    },
+    "collision_gpu_include_ignored": {"passed": 26, "failed": 0},
+    "cpu_support_self_check": {
+      "test": "reference_support_parses_without_gpu (non-ignored, no CUDA context)",
+      "result": "6/6 cases support_parse_ok; reference sha locked a8407a90...; 3-level flatten lengths, fields row-count/width, reference_rows per-row parse, branch predicates all pass",
+      "note": "device numerics are not run in this test"
+    },
+    "gates": {"fmt": "exit 0", "clippy": "exit 0", "clippy_cuda": "exit 0"}
+  },
+  "capture_window": {
+    "attempt": 1,
+    "status": "success",
+    "raw_a_sha256": "a8407a90ba7ab491aac7e73c94108e5abd07ce3a3d4218382477b109dc62fca0",
+    "raw_b_sha256": "a8407a90ba7ab491aac7e73c94108e5abd07ce3a3d4218382477b109dc62fca0",
+    "raw_byte_identical": true,
+    "reference_path": "docs/development-evidence/g10-p5-primitive-branch-coverage/upstream-primitive-branches-gpu.json",
+    "reference_sha256": "a8407a90ba7ab491aac7e73c94108e5abd07ce3a3d4218382477b109dc62fca0",
+    "captured_at": "2026-10-26T21:53:51.581+08:00",
+    "window_start": "2026-10-26T21:53:51.581+08:00",
+    "window_end": "2026-10-26T21:54:13.438+08:00",
+    "run_a_wall_s": 10.3,
+    "run_b_wall_s": 6.9,
+    "sampler": {"samples": 70, "used_peak_mib": 3874, "free_min_mib": 12188, "util_max_percent": 36, "residual": 0},
+    "two_captures_bitwise_identical_all_cases": true,
+    "counts": {
+      "plane-mesh-graph": 4,
+      "sphere-sphere-concentric": 1,
+      "sphere-capsule-clamp": 1,
+      "sphere-cylinder-cap": 1,
+      "sphere-cylinder-corner": 1,
+      "capsule-capsule-nonparallel": 1
+    },
+    "old_reference_unchanged": {
+      "path": "docs/development-evidence/g10-p5-primitive-capture/upstream-primitive-gpu.json",
+      "sha256": "3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734"
+    }
+  },
+  "verification_attempts": [
+    {
+      "attempt": 1,
+      "status": "aborted",
+      "reason": "test support layer bug: flatten_f32 (two-level) applied to geom_xpos/geom_xmat ([nworld][ngeom][3/9]); panic before any per-case device run; no numeric/branch conclusion",
+      "record": "docs/development-evidence/g10-p5-primitive-branch-coverage/window-attempt1-invalid.md",
+      "regression_in_window": {"b1_plane": "6/6 failures=0", "b2_sphere_capsule": "4/4 failures=0", "primitive": "3/3 max_*_ulp=0 bit_exact", "launcher": "3/3 max_*_ulp=0"},
+      "note": "not merged with attempt2"
+    },
+    {
+      "attempt": 2,
+      "status": "passed",
+      "record": "docs/development-evidence/g10-p5-primitive-branch-coverage/window-attempt2-facts.md",
+      "window_start": "2026-10-26T22:18:38.121+08:00",
+      "window_end": "2026-10-26T22:19:09.213+08:00",
+      "body_wall_s": 26.5,
+      "sampler": {"samples": 103, "used_peak_mib": 5242, "free_min_mib": 10820, "util_max_percent": 45, "delta_peak_mib": 22, "residual": 0},
+      "signed_binaries": {
+        "branches": "25410b3d46a62a66c46e08269aa74201e542d8be9864cd36e140f76bffc74bf5",
+        "plane": "115b5c9907aad60e73faec44819887c4b8950a24cde83c12d7a67cffd99a1207",
+        "sphere_capsule": "280f2e47944b5a01fc5bc7a834cb8a77f66d7a28c854fc359d4b540ca888f0e2",
+        "primitive": "ec56ff7448e91fef32c955cedc7c3cc868663c2d28ec3aa802ee105dcf81fd15",
+        "launcher": "84ee607479e44c7dbf4cc3dfb5b204252b83b0f8ccf244a83cd2239918d97836"
+      },
+      "branch_cases": {
+        "plane-mesh-graph": {"branch": "graph hillclimb", "nacon": 4, "failures": 0},
+        "sphere-sphere-concentric": {"branch": "dist==0 fallback", "nacon": 1, "failures": 0},
+        "sphere-capsule-clamp": {"branch": "projection clamp", "nacon": 1, "failures": 0},
+        "sphere-cylinder-cap": {"branch": "cap", "nacon": 1, "failures": 0},
+        "sphere-cylinder-corner": {"branch": "corner", "nacon": 1, "failures": 0},
+        "capsule-capsule-nonparallel": {"branch": "non-parallel det", "nacon": 1, "failures": 0}
+      },
+      "regression": {
+        "b1_plane": "6/6 failures=0",
+        "b2_sphere_capsule": "4/4 failures=0",
+        "primitive": "3/3 bit_equal 80/80, max_*_ulp=0",
+        "launcher": "3/3 max_*_ulp=0 (bit_equal 314/314, 3122/3122, 80/80)"
+      },
+      "all_five_runs_exit_0": true
+    }
+  ],
+  "device_comparison": {
+    "status": "passed-in-verification-window-attempt2",
+    "reference": "docs/development-evidence/g10-p5-primitive-branch-coverage/upstream-primitive-branches-gpu.json (sha a8407a90...)",
+    "criteria": {
+      "bitwise_first": true,
+      "dist": "4 ULP at own magnitude; ref==0 uses 4 ULP at 1.0",
+      "pos": "4 * ULP(max |ref axis|)",
+      "frame": "4 ULP at 1.0",
+      "count_and_structure": "zero tolerance",
+      "pairing": "sort by geomcollisionid",
+      "efc_address": "device-side invariant all -1 (reference did not capture)",
+      "overflow": "device-side invariant all 0 (reference did not capture)"
+    },
+    "result": "6 branch cases failures=0; 4 swap variants failures=0; existing 13 combo regression bitwise unchanged"
+  },
+  "abi": {
+    "new_fields": 0,
+    "entry_points_before": 6,
+    "entry_points_after": 6,
+    "collision_args_changed": false,
+    "collision_contact_out_changed": false,
+    "abi_rs_changed": false
+  },
+  "t4": {
+    "physics_core_identity_changed": false,
+    "new_repin": false,
+    "existing_fixtures_changed": false,
+    "physics_mod_rs_changed": false
+  },
+  "uncovered": [
+    "plane-mesh graph branch covered by one 10-vertex prism data path only",
+    "capsule-capsule non-parallel covered by one 90-degree axis pair only",
+    "sphere-cylinder cap/corner covered on the x>0 side only",
+    "UNC-5 G5 per-second peak capture not merged into this task (follow-up)"
+  ]
+}

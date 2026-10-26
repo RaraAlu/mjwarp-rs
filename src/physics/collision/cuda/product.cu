@@ -298,45 +298,57 @@ extern "C" __global__ void mjwarp_collision_sdf(mjwarp_collision_args a) {
 // primitive narrowphase 设备路径（上游 `primitive_narrowphase` 的 dispatch 子集）：
 // 已实现 {SPHERE,BOX}、{CAPSULE,BOX}、B1 plane 族 6 组合、B2 sphere/capsule 族 4 组合
 // （兼容几何顺序互换）；其它组合不写接触。
+// B3：按上游 `_add_geom_pair`（collision_driver.py L351-380）把 pair 规范化为类型序
+// （type1 > type2 时交换 geom/type；相等类型保持调用方顺序），故 `contact.geom` 字段顺序
+// 与上游一致；规范化对既有调用方（低类在前）是 no-op。0 新 ABI 字段/入口。
 extern "C" __global__ void mjwarp_collision_primitive(mjwarp_collision_args a) {
   const int world = blockIdx.x;
   if (world >= a.nworld) return;
+  const bool pair_swap = a.type1 > a.type2;
+  const int type1 = pair_swap ? a.type2 : a.type1;
+  const int type2 = pair_swap ? a.type1 : a.type2;
+  const int geom_index1 = pair_swap ? a.g2 : a.g1;
+  const int geom_index2 = pair_swap ? a.g1 : a.g2;
+
   d_contact_params params = build_params(a);
   params.worldid = world;
+  // 上游 `contact_geom` 取规范化后的 pair 顺序（与 `_add_geom_pair` 写出的 geom pair 一致）。
+  params.geoms[0] = geom_index1;
+  params.geoms[1] = geom_index2;
 
-  const d_geom geom1 = build_geom(a, world, a.g1);
-  const d_geom geom2 = build_geom(a, world, a.g2);
+  const d_geom geom1 = build_geom(a, world, geom_index1);
+  const d_geom geom2 = build_geom(a, world, geom_index2);
 
-  if (a.type1 == G5_SPHERE && a.type2 == G5_BOX) {
+  if (type1 == G5_SPHERE && type2 == G5_BOX) {
     g5_sphere_box_wrapper(geom1, geom2, params, a.naconmax, &a.out);
-  } else if (a.type1 == G5_BOX && a.type2 == G5_SPHERE) {
+  } else if (type1 == G5_BOX && type2 == G5_SPHERE) {
     g5_sphere_box_wrapper(geom2, geom1, params, a.naconmax, &a.out);
-  } else if (a.type1 == G5_CAPSULE && a.type2 == G5_BOX) {
+  } else if (type1 == G5_CAPSULE && type2 == G5_BOX) {
     g5_capsule_box_wrapper(geom1, geom2, params, a.naconmax, &a.out);
-  } else if (a.type1 == G5_BOX && a.type2 == G5_CAPSULE) {
+  } else if (type1 == G5_BOX && type2 == G5_CAPSULE) {
     g5_capsule_box_wrapper(geom2, geom1, params, a.naconmax, &a.out);
-  } else if (a.type1 == G5_SPHERE && a.type2 == G5_SPHERE) {
+  } else if (type1 == G5_SPHERE && type2 == G5_SPHERE) {
     // B2 sphere/capsule 族：pinned `_PRIMITIVE_COLLISIONS` 的 4 组合；wrapper 参数恒按
     // pinned key 顺序（sphere 在前、capsule 在前），几何互换时交换入参。
     g5_sphere_sphere_wrapper(geom1, geom2, params, a.naconmax, &a.out);
-  } else if (a.type1 == G5_SPHERE && a.type2 == G5_CAPSULE) {
+  } else if (type1 == G5_SPHERE && type2 == G5_CAPSULE) {
     g5_sphere_capsule_wrapper(geom1, geom2, params, a.naconmax, &a.out);
-  } else if (a.type1 == G5_CAPSULE && a.type2 == G5_SPHERE) {
+  } else if (type1 == G5_CAPSULE && type2 == G5_SPHERE) {
     g5_sphere_capsule_wrapper(geom2, geom1, params, a.naconmax, &a.out);
-  } else if (a.type1 == G5_SPHERE && a.type2 == G5_CYLINDER) {
+  } else if (type1 == G5_SPHERE && type2 == G5_CYLINDER) {
     g5_sphere_cylinder_wrapper(geom1, geom2, params, a.naconmax, &a.out);
-  } else if (a.type1 == G5_CYLINDER && a.type2 == G5_SPHERE) {
+  } else if (type1 == G5_CYLINDER && type2 == G5_SPHERE) {
     g5_sphere_cylinder_wrapper(geom2, geom1, params, a.naconmax, &a.out);
-  } else if (a.type1 == G5_CAPSULE && a.type2 == G5_CAPSULE) {
+  } else if (type1 == G5_CAPSULE && type2 == G5_CAPSULE) {
     g5_capsule_capsule_wrapper(geom1, geom2, params, a.naconmax, &a.out);
-  } else if (a.type1 == G5_PLANE || a.type2 == G5_PLANE) {
+  } else if (type1 == G5_PLANE || type2 == G5_PLANE) {
     // B1 plane 族：pinned `_PRIMITIVE_COLLISIONS` 的 6 组合（PLANE+SPHERE/CAPSULE/ELLIPSOID/
     // CYLINDER/BOX/MESH）；wrapper 第一个参数恒为 plane。mesh 只用 mesh 顶点/图（a.mesh_vert /
     // a.mesh_graph），不需要新 ABI 字段。写入门/顺序由各 wrapper 按 pinned 逐行实现，不在此加特判。
-    const bool plane_first = a.type1 == G5_PLANE;
+    const bool plane_first = type1 == G5_PLANE;
     const d_geom& plane = plane_first ? geom1 : geom2;
     const d_geom& other = plane_first ? geom2 : geom1;
-    const int other_type = plane_first ? a.type2 : a.type1;
+    const int other_type = plane_first ? type2 : type1;
     if (other_type == G5_SPHERE) {
       g5_plane_sphere_wrapper(plane, other, params, a.naconmax, &a.out);
     } else if (other_type == G5_CAPSULE) {
