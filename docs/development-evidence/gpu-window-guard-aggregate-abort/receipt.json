@@ -1,0 +1,28 @@
+{
+  "task_id": "2026-10-26-gpu-window-guard-aggregate-abort",
+  "status": "verified",
+  "head": "提交 hash 见本任务提交（owner Arch）",
+  "owner": "Arch",
+  "trigger": "B1 attempt1 外部负载在窗口内返回（采样 used_peak=7071 MiB / free_min=8991 MiB < 10240 / util_max=98%），离散点 guard 未 abort",
+  "change": "scripts/gpu-window-guard.ps1 新增 Assert-GuardAggregates（-State/-CsvPath/-Rows/-OwnGpuStepActive）：从 0.25 s 采样记录算 used_peak/free_min/util 连续段/peak delta，abort 原因码 agg_free_below_floor / agg_increment_over_limit / agg_sustained_util；阈值与既有 Assert-Guard 语义不变（新增不替换）",
+  "dryrun": {
+    "command": "pwsh -NoProfile -File scripts/gpu-window-guard-dryrun.ps1 -OutDir docs/development-evidence/gpu-window-guard-aggregate-abort/dryrun-out",
+    "assertions_total": 23,
+    "assertions_pass": 23,
+    "assertions_fail": 0,
+    "result": "DRYRUN RESULT: PASS (parser+sampler+guard-injection)",
+    "new_cases": [
+      "aggregate_clean_window（统计精确匹配：used_peak 3367 / free_min 12695 / delta_peak 15 / util_max 41）",
+      "aggregate_free_below_floor（B1 attempt1 回归）",
+      "aggregate_increment_over_limit（注入 -TotalMib 4000）",
+      "aggregate_sustained_util（util 30→85→90→88，无 own step）"
+    ]
+  },
+  "harness_wiring": "B2 窗口 runner 在 Stop-GuardSampler 后调用聚合断言，facts 写 guard_aggregate=；聚合 abort → 退出码 5、attempt 记 aborted 不拼接",
+  "boundaries": [
+    "不改阈值/日志格式语义",
+    "不宣称守卫绝对可靠",
+    "不改窗口双签纪律",
+    "只改 scripts/ 与本证据目录，不触 src/tests"
+  ]
+}

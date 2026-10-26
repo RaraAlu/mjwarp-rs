@@ -5,6 +5,8 @@
 #    the child with timeout; stats match an independent CSV recompute; no residual process.
 # C. Injected sequences (no live load) prove the guard rules: util>=80% x3 without own step, free floor,
 #    VRAM increment (with injected `-TotalMib` so the half-total limit is reachable), normal/own-step pass.
+# D. Sampler-aggregate abort (`Assert-GuardAggregates`): clean window stats + free_min/delta/util streak
+#    aborts computed from the 0.25 s sample record (B1 attempt1 external-load regression).
 #
 # Output goes to `-OutDir` (default: target/gpu-window-guard-sampler-dryrun/<timestamp>); it never writes
 # into committed evidence by default — copy is an explicit evidence step.
@@ -130,6 +132,38 @@ $state = New-GuardState -Label 'inject-delta' -TotalMib 4000 -LogPath $log
 Run-Expect 'increment_over_limit' 'increment_over_limit' $log {
     $null = Assert-Guard -State $state -Phase 'd1' -Snapshot @{ used = 4165; free = 11875; util = 10 } -Apps $appNone
     $null = Assert-Guard -State $state -Phase 'd2' -Snapshot @{ used = 7400; free = 11875; util = 10 } -Apps $appNone
+}
+# ---- D. sampler-aggregate abort (Chief 2026-10-26 requirement) --------------------------------
+# B1 attempt1 showed an external load returning inside a window (free_min 8991, util 98%) while the
+# discrete-point guard did not abort. These cases prove the aggregate view catches it and that a clean
+# window yields exact peak/free/delta stats recomputed from the sample record.
+$aggLog = Join-Path $OutDir 'injection-aggregate.log'
+$sample = { param($used, $free, $util) [pscustomobject]@{ used_mib = $used; free_mib = $free; util_percent = $util } }
+$state = New-GuardState -Label 'agg-clean' -LogPath $aggLog
+Run-Expect 'aggregate_clean_window' 'none' $aggLog {
+    $rows = @(
+        (& $sample 3352 12710 20), (& $sample 3360 12702 35), (& $sample 3367 12695 41),
+        (& $sample 3350 12712 10), (& $sample 3348 12714 5)
+    )
+    $agg = Assert-GuardAggregates -State $state -Rows $rows -OwnGpuStepActive
+    if ($agg.used_peak_mib -ne 3367 -or $agg.free_min_mib -ne 12695 -or $agg.delta_peak_mib -ne 15 -or $agg.util_max_percent -ne 41) {
+        throw "unexpected aggregate stats: $($agg | Out-String)"
+    }
+}
+$state = New-GuardState -Label 'agg-free' -LogPath $aggLog
+Run-Expect 'aggregate_free_below_floor' 'agg_free_below_floor' $aggLog {
+    $rows = @((& $sample 3352 12710 20), (& $sample 7071 8991 98), (& $sample 3360 12702 30))
+    $null = Assert-GuardAggregates -State $state -Rows $rows -OwnGpuStepActive
+}
+$state = New-GuardState -Label 'agg-delta' -TotalMib 4000 -LogPath $aggLog
+Run-Expect 'aggregate_increment_over_limit' 'agg_increment_over_limit' $aggLog {
+    $rows = @((& $sample 4165 11875 10), (& $sample 7400 11875 12))
+    $null = Assert-GuardAggregates -State $state -Rows $rows -OwnGpuStepActive
+}
+$state = New-GuardState -Label 'agg-util' -LogPath $aggLog
+Run-Expect 'aggregate_sustained_util' 'agg_sustained_util' $aggLog {
+    $rows = @((& $sample 4165 11875 30), (& $sample 4165 11875 85), (& $sample 4165 11875 90), (& $sample 4165 11875 88))
+    $null = Assert-GuardAggregates -State $state -Rows $rows
 }
 $inject | Out-File -LiteralPath $injectLog -Encoding utf8
 $inject | ForEach-Object { Write-Output $_ }

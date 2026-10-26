@@ -226,6 +226,67 @@ function Assert-Guard {
     return @{ used = $snapshot.used; free = $snapshot.free; util = $snapshot.util; delta = $delta }
 }
 
+function Assert-GuardAggregates {
+    # Sampler-aggregate abort: decisions are computed from the full 0.25 s sample record, not from
+    # discrete spot samples. Chief 2026-10-26 requirement after B1 attempt1: an external load returned
+    # inside the window (free_min 8991 < floor, util 98%) while the discrete-point guard did not abort.
+    param(
+        [Parameter(Mandatory = $true)]$State,
+        [string]$CsvPath = '',
+        [array]$Rows = $null,
+        [switch]$OwnGpuStepActive
+    )
+    $samples = if ($PSBoundParameters.ContainsKey('Rows')) { @() + $Rows } elseif ($CsvPath -and (Test-Path -LiteralPath $CsvPath)) { @(Import-Csv -LiteralPath $CsvPath) } else { @() }
+    if ($samples.Count -eq 0) { throw "GUARD_ABORT($($State.label)): aggregate assert without samples" }
+    $used = @($samples | ForEach-Object { [int]$_.used_mib })
+    $free = @($samples | ForEach-Object { [int]$_.free_mib })
+    $util = @($samples | ForEach-Object { [int]$_.util_percent })
+    $baselineUsed = if ($State.baseline_used_mib) { [int]$State.baseline_used_mib } else { $used[0] }
+    $usedPeak = ($used | Measure-Object -Maximum).Maximum
+    $freeMin = ($free | Measure-Object -Minimum).Minimum
+    $utilMax = ($util | Measure-Object -Maximum).Maximum
+    $deltaPeak = $usedPeak - $baselineUsed
+    $half = [int]($State.total_mib / 2)
+    $limit = if ($State.increment_limit_mib -lt $half) { $State.increment_limit_mib } else { $half }
+    $streakMax = 0
+    $streak = 0
+    foreach ($value in $util) {
+        if ($value -ge $State.util_abort_percent) {
+            $streak++
+            if ($streak -gt $streakMax) { $streakMax = $streak }
+        } else {
+            $streak = 0
+        }
+    }
+    $stats = [ordered]@{
+        samples = $samples.Count
+        baseline_used_mib = $baselineUsed
+        used_peak_mib = $usedPeak
+        free_min_mib = $freeMin
+        util_max_percent = $utilMax
+        delta_peak_mib = $deltaPeak
+        increment_limit_mib = $limit
+        util_streak_max = $streakMax
+    }
+    Write-GuardLine -State $State -Message "guard_aggregates samples=$($stats.samples) baseline_used=$baselineUsed used_peak=$usedPeak delta_peak=$deltaPeak limit=$limit free_min=$freeMin util_max=$utilMax util_streak=$streakMax"
+    if ($freeMin -lt $State.free_floor_mib) {
+        $State.aborted = $true
+        Write-GuardLine -State $State -Message "guard_stop reason=agg_free_below_floor free_min=$freeMin floor=$($State.free_floor_mib)"
+        throw "GUARD_ABORT($($State.label)): aggregate free_min $freeMin MiB < $($State.free_floor_mib) MiB"
+    }
+    if ($deltaPeak -ge $limit) {
+        $State.aborted = $true
+        Write-GuardLine -State $State -Message "guard_stop reason=agg_increment_over_limit delta_peak=$deltaPeak limit=$limit"
+        throw "GUARD_ABORT($($State.label)): aggregate VRAM increment $deltaPeak MiB >= $limit MiB"
+    }
+    if (-not $OwnGpuStepActive -and $streakMax -ge $State.util_abort_consecutive) {
+        $State.aborted = $true
+        Write-GuardLine -State $State -Message "guard_stop reason=agg_sustained_util streak=$streakMax"
+        throw "GUARD_ABORT($($State.label)): aggregate util >= $($State.util_abort_percent)% for $streakMax consecutive samples"
+    }
+    return $stats
+}
+
 function Complete-Guard {
     param([Parameter(Mandatory = $true)]$State)
     $snapshot = Get-GpuSnapshot
