@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-gpu-window-guard-sampler-independent-check",
+  "title": {
+    "zh": "GPU 窗口守卫采样器修复的 QA 独立复核（采样落盘/guard 生效/带单位解析/阈值未放宽）",
+    "en": "Independent check of the GPU window guard sampler fix"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-26-gpu-window-guard-sampler` 做独立复核：该片修 stage-2 窗口暴露的「采样器未落盘 → guard v2 未生效」与「共享模板带单位 CSV 被 `[int]` 直接转换」两个缺陷。复核方须自写独立脚本（不复用交付脚本）验证：带单位与裸数字两种输入解析正确、采样器样本真落盘且 Stop 后无残留、统计与 CSV 一致、注入序列下 guard 阈值判定真的生效且阈值未被放宽、无 GPU 计算/无窗口。",
+    "en": "Independently verify the sampler persistence, guard effectiveness, unit parsing, and that thresholds were not loosened."
+  },
+  "modules": {},
+  "acceptance": [
+    "**带单位解析独立核**：自写脚本/命令分别喂 `4165 MiB, 11875 MiB, 38 %`、`4165,11875,38`、缺列/非数字输入，核返回值与错误行为（应为明确 GUARD_ABORT，而非 Int32 异常）；核模板阈值常量（free<10240、增量≥3072、util 连续 3 点≥80%）与修复前一致，未被放宽。",
+    "**采样器落盘独立核（核心）**：自己条件跑（dot-source 模板、启动/停止采样 ≥3 s），核 `samples.csv` 存在且行数=返回样本数、≥10、时间戳单调、字段可解析；峰值/最低/最高与 CSV 独立重算一致；Stop 后检查无残留 Job/进程/文件句柄。",
+    "**guard 生效独立核**：用自己构造的注入序列（不依赖真实负载）验证：util 连续 ≥3 点 ≥80% 且无本任务 GPU 步 → abort；正常序列不 abort；free<10240 或 used 增量≥3072 → abort；日志包含 abort 原因。若交付的注入机制不可独立复现，按观察记。",
+    "**改动范围**：`git diff` 核只动 `scripts/` 与证据；未动产品代码/判据/容差/`gates.toml` GPU 门禁/已 verified 证据语义；未开 GPU 窗口（若发现窗口日志或 CUDA context 创建 → 阻断）。",
+    "**trigger 证据**：核证据是否引用 stage-2 `window-attempt4` 的 `samples=0` 事实与 capture 阶段局部覆盖记录，并说明「修前为何 guard 未生效」可复现。",
+    "**证据与门禁**：本复核证据只写 `docs/development-evidence/gpu-window-guard-sampler-independent-check/`（README+receipt 含 task_id），≤500 行/文件、UTF-8 无 BOM、无二进制；不宣称精度或验收结论。"
+  ],
+  "schedule": {
+    "depends_on": ["2026-10-26-gpu-window-guard-sampler"],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": ["docs/development-evidence/gpu-window-guard-sampler-independent-check/"],
+    "resources": [],
+    "priority": 39
+  },
+  "note": "Arch 2026-10-26 预登记（owner Backend 的实现片尚在 in_progress）：QA 可先只读准备，须等实现片 verified 后 start；纯 CPU 复核（只读 nvidia-smi 采样），不得开 GPU 窗口、不建 CUDA context。",
+  "revision": {
+    "before": "278a23fd8c34f08f02921a2b63f4b69a66df7e7e",
+    "after": null
+  },
+  "created_at": "2026-10-26T18:45:00.000Z",
+  "updated_at": "2026-10-26T18:45:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/gpu-window-guard-sampler-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-gpu-window-guard-sampler-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": ["G10已实现", "完整物理通过", "双平台通过", "上游完全等价", "原生放行", "精度达标"]
+    }
+  ]
+}

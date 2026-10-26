@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-gpu-window-guard-sampler",
+  "title": {
+    "zh": "修复 GPU 窗口守卫采样器（samples 未落盘导致 guard 未生效）与带单位 CSV 解析缺陷，并加 dry-run 验证",
+    "en": "Fix the GPU window guard sampler (samples not persisted, guard ineffective) and the unit-suffixed CSV parsing bug, with a dry-run verification"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "stage-2 的 GPU 窗口（attempt4）暴露两个守卫缺陷：① runner 用 `Start-Job` 起的 0.25 s 采样器未落盘（`samples=0`），导致 guard v2 的 util 连续 3 点判定与实际未生效，只留下 pre/post 快照与逐步骤 wall；② 共享模板 `scripts/gpu-window-guard.ps1` 的 `Get-GpuSnapshot` 用带单位 CSV（`4165 MiB, 11875 MiB, 38 %`）过滤后直接 `[int]`，会抛「无法将值 4165 MiB 转换为 Int32」（capture 阶段 Backend 被迫在 runner 内局部覆盖才跑通）。后续任何 GPU 窗口都依赖这两点，故先做治理小片修复：把采样器做进共享模板（可靠的定时采样 + 落盘 + flush + Stop 时 join）、修正带单位解析、并用纯 CPU 的 dry-run 验证「采样真的落盘且 guard 真的用采样参与判定」。",
+    "en": "Fix the guard sampler persistence and unit-suffixed CSV parsing in the shared template, and prove via CPU dry-run that samples are persisted and actually used by the guard."
+  },
+  "modules": {},
+  "acceptance": [
+    "**带单位解析修复**：`scripts/gpu-window-guard.ps1` 的 `Get-GpuSnapshot` 改为解析 `--format=csv,noheader,nounits`（或显式剥单位），对 `4165 MiB, 11875 MiB, 38 %` 与 `4165,11875,38` 两种输入都返回正确整数；非法/缺列输入给出明确 `GUARD_ABORT` 而不是 `Int32` 转换异常。阈值/中止规则/日志格式**不得放宽或改动**。",
+    "**采样器落盘（核心）**：在共享模板提供可复用采样器（如 `Start-GuardSampler`/`Stop-GuardSampler`，或等价函数），要求：按 0.25 s 间隔采样 used/free/util/温度；每个样本**立即 flush** 写 `samples.csv`（含时间戳、序号）；`Stop` 时等待采样循环真正结束（join + 超时保护）；返回样本数、used 峰值、free 最低、util 最高与首个/末个时间戳；**不得再用不可验证的 `Start-Job` 一次性写盘**。runner 使用方式写进模板注释（dot-source 后调用），并给出最小示例。",
+    "**dry-run 验证（纯 CPU，不建 CUDA context、不做 GPU 计算）**：跑 ≥3 s 采样，断言：`samples.csv` 行数 = 返回样本数、≥10 条、时间戳单调、used/free/util 字段可解析；峰值/最低/最高统计与 CSV 内容一致；`Stop` 后无残留后台进程/Job。",
+    "**guard 真正生效的验证**：用**注入的采样序列**（不依赖真实负载）验证 util 连续 ≥3 点 ≥80% 且无本任务 GPU 步时触发 abort、正常序列不 abort、内存阈值（free<10240 / used 增量≥3072）判定仍按原规则触发；给出注入方式与日志。",
+    "**trigger 证据**：证据里引用 stage-2 `window-attempt4` 的 `samples=0` 事实（`docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/window-attempt4-and-b-classification.md`）与 capture 阶段的局部覆盖记录，说明本片修的是哪两个缺陷。",
+    "**不改范围**：不动产品代码/判据/容差/`gates.toml` 的 GPU 门禁定义、不改已 verified 证据语义；本片不需要 GPU 窗口（dry-run 只用只读 `nvidia-smi` 查询）。",
+    "**证据与门禁**：`docs/development-evidence/gpu-window-guard-sampler/`（README + receipt 含 task_id + dry-run 原始日志 + samples.csv 样本 + 注入序列验证日志），单文件 ≤500 行、UTF-8 无 BOM；gate fmt/clippy/clippy-cuda/unit 全绿（unit 基线 971/0/369）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "scripts/",
+      "docs/development-evidence/gpu-window-guard-sampler/"
+    ],
+    "resources": [],
+    "priority": 40
+  },
+  "note": "Arch 2026-10-26 登记（治理小片，Chief 批准直接做）：修 stage-2 窗口暴露的守卫采样器未落盘 + 带单位 CSV 解析两个缺陷；纯 CPU、无口径变更、不需要 GPU 窗口。QA 复核预登记 `2026-10-26-gpu-window-guard-sampler-independent-check`。收口顺序：Backend 改脚本 + dry-run → gate → 证据 → Arch gate/done/commit → QA 复核。",
+  "revision": {
+    "before": "278a23fd8c34f08f02921a2b63f4b69a66df7e7e",
+    "after": null
+  },
+  "created_at": "2026-10-26T18:45:00.000Z",
+  "updated_at": "2026-10-26T18:45:00.000Z",
+  "closed_at": null,
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/gpu-window-guard-sampler/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-gpu-window-guard-sampler"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": ["G10已实现", "完整物理通过", "双平台通过", "上游完全等价", "原生放行", "精度达标"]
+    }
+  ]
+}
