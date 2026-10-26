@@ -5,43 +5,134 @@
   "pinned_upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
   "pinned_function_ports": {
     "note": "the task brief named collision_convex.py, but these functions live in collision_gjk.py (same line numbers); recorded in the device source headers",
-    "intersect1": {"pinned": "collision_gjk.py L1591-1602", "device": "multicontact_mesh.cu::g5_mc_intersect1"},
-    "intersect2": {"pinned": "collision_gjk.py L1605-1616", "device": "multicontact_mesh.cu::g5_mc_intersect2"},
-    "mesh_normals": {"pinned": "collision_gjk.py L1620-1686", "device": "multicontact_mesh.cu::g5_mc_mesh_normals"},
-    "mesh_edge_normals": {"pinned": "collision_gjk.py L1690-1734", "device": "multicontact_mesh.cu::g5_mc_mesh_edge_normals"},
-    "mesh_face": {"pinned": "collision_gjk.py L1926-1948", "device": "multicontact_mesh.cu::g5_mc_mesh_face"},
-    "mesh_data_view": {"pinned": "multicontact L2245-2262", "device": "multicontact_geom.cu::g5_mc_mesh_view_of + product.cu::build_geom (dataid -> mesh_polyadr + 9 sidecar pointers)"},
-    "dispatch": {"pinned": "multicontact L2278-2310 / L2326-2379 / L2393-2436", "device": "multicontact.cu mesh branches; box/cylinder paths byte-unchanged"}
+    "intersect1": {
+      "pinned": "collision_gjk.py L1591-1602",
+      "device": "multicontact_mesh.cu::g5_mc_intersect1"
+    },
+    "intersect2": {
+      "pinned": "collision_gjk.py L1605-1616",
+      "device": "multicontact_mesh.cu::g5_mc_intersect2"
+    },
+    "mesh_normals": {
+      "pinned": "collision_gjk.py L1620-1686",
+      "device": "multicontact_mesh.cu::g5_mc_mesh_normals"
+    },
+    "mesh_edge_normals": {
+      "pinned": "collision_gjk.py L1690-1734",
+      "device": "multicontact_mesh.cu::g5_mc_mesh_edge_normals"
+    },
+    "mesh_face": {
+      "pinned": "collision_gjk.py L1926-1948",
+      "device": "multicontact_mesh.cu::g5_mc_mesh_face"
+    },
+    "mesh_data_view": {
+      "pinned": "multicontact L2245-2262",
+      "device": "multicontact_geom.cu::g5_mc_mesh_view_of + product.cu::build_geom (dataid -> mesh_polyadr + 9 sidecar pointers)"
+    },
+    "dispatch": {
+      "pinned": "multicontact L2278-2310 / L2326-2379 / L2393-2436",
+      "device": "multicontact.cu mesh branches; box/cylinder paths byte-unchanged"
+    }
   },
   "files": [
-    {"path": "src/physics/collision/cuda/multicontact_mesh.cu", "lines": 191, "change": "new: 5 mesh helpers + fixed-capacity clamps"},
-    {"path": "src/physics/collision/cuda/multicontact.cu", "lines": 234, "change": "mesh view + normals/edge-normals/face dispatch; nface==0 fallback guard"},
-    {"path": "src/physics/collision/cuda/multicontact_geom.cu", "lines": 410, "change": "mesh view struct/builder + clamp constants"},
-    {"path": "src/physics/collision/cuda/geom.cu", "lines": 69, "change": "d_mesh + 9 sidecar pointers; d_geom + dataid/mesh_polyadr; mesh helpers; d_support_point restored"},
-    {"path": "src/physics/collision/cuda/product.cu", "lines": 446, "change": "build_geom wires sidecar via dataid; missing sidecar -> null pointers -> single-contact fallback"},
-    {"path": "src/physics/collision/cuda/hfield.cu", "lines": 356, "change": "manual d_geom init for new fields"},
-    {"path": "src/runtime/collision_gpu/source.rs", "lines": 140, "change": "DEVICE_SOURCES 27 -> 28 (multicontact_mesh between geom and clip); local include_str! keeps src/physics/mod.rs untouched"},
-    {"path": "src/runtime/collision_gpu.rs", "lines": 458, "change": "doc(hidden) validate_collision_inputs test-only entry"},
-    {"path": "src/runtime/collision_gpu/multicontact_tests.rs", "lines": 118, "change": "28 segments + order + mesh symbol presence"},
-    {"path": "src/runtime/collision_gpu/primitive_tests.rs", "lines": 174, "change": "28 segments"},
-    {"path": "tests/g10_p5_mesh_multicontact_m2_cuda.rs", "lines": 89, "change": "new M2 GPU comparison (2 cases, ignored)"},
-    {"path": "tests/support/mesh_multicontact_compare_support.rs", "lines": 480, "change": "new M1-reference comparator"},
-    {"path": "tests/g10_p5_mesh_poly_case_assembly.rs", "lines": 435, "change": "+ permanent real-validation test (Chief addendum 1)"}
+    {
+      "path": "src/physics/collision/cuda/multicontact_mesh.cu",
+      "lines": 191,
+      "change": "new: 5 mesh helpers + fixed-capacity clamps"
+    },
+    {
+      "path": "src/physics/collision/cuda/multicontact.cu",
+      "lines": 234,
+      "change": "mesh view + normals/edge-normals/face dispatch; nface==0 fallback guard"
+    },
+    {
+      "path": "src/physics/collision/cuda/multicontact_geom.cu",
+      "lines": 410,
+      "change": "mesh view struct/builder + clamp constants"
+    },
+    {
+      "path": "src/physics/collision/cuda/geom.cu",
+      "lines": 69,
+      "change": "d_mesh + 9 sidecar pointers; d_geom + dataid/mesh_polyadr; 两个 mesh helper（未改动既有 d_support_point 结构）"
+    },
+    {
+      "path": "src/physics/collision/cuda/product.cu",
+      "lines": 446,
+      "change": "build_geom wires sidecar via dataid; missing sidecar -> null pointers -> single-contact fallback"
+    },
+    {
+      "path": "src/physics/collision/cuda/hfield.cu",
+      "lines": 356,
+      "change": "manual d_geom init for new fields"
+    },
+    {
+      "path": "src/runtime/collision_gpu/source.rs",
+      "lines": 140,
+      "change": "DEVICE_SOURCES 27 -> 28 (multicontact_mesh between geom and clip); local include_str! keeps src/physics/mod.rs untouched"
+    },
+    {
+      "path": "src/runtime/collision_gpu.rs",
+      "lines": 458,
+      "change": "doc(hidden) validate_collision_inputs test-only entry"
+    },
+    {
+      "path": "src/runtime/collision_gpu/multicontact_tests.rs",
+      "lines": 118,
+      "change": "28 segments + order + mesh symbol presence"
+    },
+    {
+      "path": "src/runtime/collision_gpu/primitive_tests.rs",
+      "lines": 174,
+      "change": "28 segments"
+    },
+    {
+      "path": "tests/g10_p5_mesh_multicontact_m2_cuda.rs",
+      "lines": 89,
+      "change": "new M2 GPU comparison (2 cases, ignored)"
+    },
+    {
+      "path": "tests/support/mesh_multicontact_compare_support.rs",
+      "lines": 480,
+      "change": "new M1-reference comparator"
+    },
+    {
+      "path": "tests/g10_p5_mesh_poly_case_assembly.rs",
+      "lines": 435,
+      "change": "+ permanent real-validation test (Chief addendum 1)"
+    }
   ],
-  "device_sources": {"before": 27, "after": 28, "new_segment": "multicontact_mesh.cu (after multicontact_geom.cu, before multicontact_clip.cu)", "entries": 6, "entries_unchanged": true, "src_physics_mod_touched": false},
+  "device_sources": {
+    "before": 27,
+    "after": 28,
+    "new_segment": "multicontact_mesh.cu (after multicontact_geom.cu, before multicontact_clip.cu)",
+    "entries": 6,
+    "entries_unchanged": true,
+    "src_physics_mod_touched": false
+  },
   "cpu_smoke": {
     "command": "cargo test --locked --features cuda-probe --lib runtime::collision_gpu::nvrtc_smoke -- --include-ignored --nocapture",
     "source_bytes": 254485,
     "source_sha256": "00810ddb5355564eed422e9d992a6843baf1f5e3541714230463df45a16ee253",
     "ptx_bytes": 3883740,
     "entries": 6,
-    "m0a_reference": {"source_bytes": 238969, "source_sha256": "ec2e7acddc71eec2b8cd6b07cf70ba4a4a3e7eab258982815f2199349e1a047a", "ptx_bytes": 3786520, "entries": 6}
+    "m0a_reference": {
+      "source_bytes": 238969,
+      "source_sha256": "ec2e7acddc71eec2b8cd6b07cf70ba4a4a3e7eab258982815f2199349e1a047a",
+      "ptx_bytes": 3786520,
+      "entries": 6
+    }
   },
   "m2_gpu_test": {
     "file": "tests/g10_p5_mesh_multicontact_m2_cuda.rs",
-    "reference": {"path": "docs/development-evidence/mesh-multicontact-m1/upstream-mesh-multicontact-gpu.json", "sha256_guard": "c83baffe6de695fdefda6852c574d5d0d7312ebb591c1b487dfc59ec126c206a"},
+    "reference": {
+      "path": "docs/development-evidence/mesh-multicontact-m1/upstream-mesh-multicontact-gpu.json",
+      "sha256_guard": "c83baffe6de695fdefda6852c574d5d0d7312ebb591c1b487dfc59ec126c206a"
+    },
     "inputs": "docs/development-evidence/mesh-multicontact-m0b/cases/<case>/ (32 bins + meta.txt)",
-    "cases": ["mesh-box", "mesh-cylinder"],
+    "cases": [
+      "mesh-box",
+      "mesh-cylinder"
+    ],
     "kernel": "CollisionKernel::ContactMulti",
     "caller_pair_order": "g1=1 (box/cylinder, lower class first), g2=0 (mesh), type2=7; contact.geom=[1,0] asserted (caller-side pinned type order, device does not normalize)",
     "criteria": "nacon == reference count (zero tolerance); rows paired by (worldid, geomcollisionid); bit-level preferred; non-bit equal: dist 4 ULP@magnitude (ref==0 -> 4 ULP@1.0), pos 4*ULP(scale), frame 4 ULP@1.0; friction/solref/solreffriction/solimp/includemargin/adhesion/worldid/type/dim/geom/geomcollisionid zero tolerance; overflow all 0; efc_address device all -1 (reference does not record efc)",
@@ -70,21 +161,105 @@
     "O6_uncovered_input_validation": "M0a CPU validation does not cover element value ranges of polyvert/polymap, and does not cross-check against the existing 23-input set; M2 keeps that boundary, does not widen scope, does not claim comprehensive input validation"
   },
   "prebuilt_window_binaries": [
-    {"target": "g10_p5_mesh_multicontact_m2_cuda", "file": "g10_p5_mesh_multicontact_m2_cuda-e11ae6eb82e10bd5.exe", "size_bytes": 41736192, "sha256": "250297c3e137c25c5e360bea68b509d633a215d7968a3af9701459f88b43bc3b", "covers": "M2 mesh-box/mesh-cylinder vs c83baffe"},
-    {"target": "g10_p5_multicontact_cuda", "file": "g10_p5_multicontact_cuda-3c769ef530070ffe.exe", "size_bytes": 41681408, "sha256": "5154cd186bb3c2f8758ed18f17007c680b77ff389b6b0ee599620be491c127ae", "covers": "G5 cylinder-box, box-box-margin, mesh-mesh"},
-    {"target": "stage2_equivalence_window", "file": "stage2_equivalence_window-b7e65259db9435d8.exe", "size_bytes": 42260992, "sha256": "fe0cf46a58c910f4e7f93422dccec628d4c95f18e817eed97d8af2d49c86b03c", "covers": "9 synth cases dump (GPU) + CPU compare outside window"},
-    {"target": "g10_p5_primitive_cuda", "file": "g10_p5_primitive_cuda-0908b0f61ffbc599.exe", "size_bytes": 41684992, "sha256": "afc3047a08be71bfea96bd76e4297026c44b10b0e363019a4a278af0394734a8", "covers": "G5 primitive 3 cases"},
-    {"target": "g10_p5_nvrtc_launcher", "file": "g10_p5_nvrtc_launcher-719917fb0657e1fe.exe", "size_bytes": 41502720, "sha256": "5fe476ca36ac3d3b706eb8ea6f6cdf4ac6333b56d9b940fedae07a18e733418b", "covers": "G5 launcher 3 cases"},
-    {"target": "g10_p5_primitive_plane_cuda", "file": "g10_p5_primitive_plane_cuda-b1e8897a38248f9f.exe", "size_bytes": 41556480, "sha256": "36bb2d52753c83daba49d8d1966a83f90e87fed34123e8edcf76955990b4b515", "covers": "B1 plane 6"},
-    {"target": "g10_p5_primitive_sphere_capsule_cuda", "file": "g10_p5_primitive_sphere_capsule_cuda-effe95bf0fed2063.exe", "size_bytes": 41545728, "sha256": "50fd81ae82ae22ae4c3a7a17b8e700da528a7427bcf7cc51c0140e5cf699ff7f", "covers": "B2 sphere/capsule 4"},
-    {"target": "g10_p5_primitive_branches_cuda", "file": "g10_p5_primitive_branches_cuda-555175a2d3995ff7.exe", "size_bytes": 41620992, "sha256": "93083de7c34425a229ae28364a09ff0c50952d88fb7ad53125a124b17f264265", "covers": "B3 branch 6 + swap 4"}
+    {
+      "target": "g10_p5_mesh_multicontact_m2_cuda",
+      "file": "g10_p5_mesh_multicontact_m2_cuda-e11ae6eb82e10bd5.exe",
+      "size_bytes": 41736192,
+      "sha256": "250297c3e137c25c5e360bea68b509d633a215d7968a3af9701459f88b43bc3b",
+      "covers": "M2 mesh-box/mesh-cylinder vs c83baffe"
+    },
+    {
+      "target": "g10_p5_multicontact_cuda",
+      "file": "g10_p5_multicontact_cuda-3c769ef530070ffe.exe",
+      "size_bytes": 41681408,
+      "sha256": "5154cd186bb3c2f8758ed18f17007c680b77ff389b6b0ee599620be491c127ae",
+      "covers": "G5 cylinder-box, box-box-margin, mesh-mesh"
+    },
+    {
+      "target": "stage2_equivalence_window",
+      "file": "stage2_equivalence_window-b7e65259db9435d8.exe",
+      "size_bytes": 42260992,
+      "sha256": "fe0cf46a58c910f4e7f93422dccec628d4c95f18e817eed97d8af2d49c86b03c",
+      "covers": "9 synth cases dump (GPU) + CPU compare outside window"
+    },
+    {
+      "target": "g10_p5_primitive_cuda",
+      "file": "g10_p5_primitive_cuda-0908b0f61ffbc599.exe",
+      "size_bytes": 41684992,
+      "sha256": "afc3047a08be71bfea96bd76e4297026c44b10b0e363019a4a278af0394734a8",
+      "covers": "G5 primitive 3 cases"
+    },
+    {
+      "target": "g10_p5_nvrtc_launcher",
+      "file": "g10_p5_nvrtc_launcher-719917fb0657e1fe.exe",
+      "size_bytes": 41502720,
+      "sha256": "5fe476ca36ac3d3b706eb8ea6f6cdf4ac6333b56d9b940fedae07a18e733418b",
+      "covers": "G5 launcher 3 cases"
+    },
+    {
+      "target": "g10_p5_primitive_plane_cuda",
+      "file": "g10_p5_primitive_plane_cuda-b1e8897a38248f9f.exe",
+      "size_bytes": 41556480,
+      "sha256": "36bb2d52753c83daba49d8d1966a83f90e87fed34123e8edcf76955990b4b515",
+      "covers": "B1 plane 6"
+    },
+    {
+      "target": "g10_p5_primitive_sphere_capsule_cuda",
+      "file": "g10_p5_primitive_sphere_capsule_cuda-effe95bf0fed2063.exe",
+      "size_bytes": 41545728,
+      "sha256": "50fd81ae82ae22ae4c3a7a17b8e700da528a7427bcf7cc51c0140e5cf699ff7f",
+      "covers": "B2 sphere/capsule 4"
+    },
+    {
+      "target": "g10_p5_primitive_branches_cuda",
+      "file": "g10_p5_primitive_branches_cuda-555175a2d3995ff7.exe",
+      "size_bytes": 41620992,
+      "sha256": "93083de7c34425a229ae28364a09ff0c50952d88fb7ad53125a124b17f264265",
+      "covers": "B3 branch 6 + swap 4"
+    }
   ],
   "signature_note": "7/8 hashes matched Arch's signed set at window open; plane signature had 63 hex digits (missing one 'f') and the pre-window hash check blocked that round (nothing ran, freeze intact); Arch re-signed plane as the full 64-digit value recorded above (25th char 'f'); the other 7 unchanged",
   "window_attempts": {
-    "attempt1": {"status": "void", "reason": "runner PATH missing CUDA DLL (NVRTC unloadable); 8 binaries panicked at load; no device work", "wall_s": 0.9},
-    "attempt2": {"status": "void", "reason": "guard free floor (8 parallel); free_min 8587", "wall_s": 40.5, "samples": 153, "used_peak_mib": 7475, "delta_peak_mib": 2608, "free_min_mib": 8587, "util_max_percent": 44, "residual": 0},
-    "attempt3": {"status": "void", "reason": "guard free floor (3/3/2 batches); free_min 9824", "wall_s": 77.4, "samples": 287, "used_peak_mib": 6238, "delta_peak_mib": 1371, "free_min_mib": 9824, "util_max_percent": 46, "residual": 0},
-    "attempt4": {"status": "only valid round (Chief ruling (b))", "reason": "numeric all green + guard free-floor environmental abort accepted by Chief as valid round", "wall_s": 180.2, "samples": 658, "used_peak_mib": 6366, "delta_peak_mib": 1499, "free_min_mib": 9696, "util_max_percent": 48, "util_streak": 0, "residual": 0, "exit_codes_all_zero": true}
+    "attempt1": {
+      "status": "void",
+      "reason": "runner PATH missing CUDA DLL (NVRTC unloadable); 8 binaries panicked at load; no device work",
+      "wall_s": 0.9
+    },
+    "attempt2": {
+      "status": "void",
+      "reason": "guard free floor (8 parallel); free_min 8587",
+      "wall_s": 40.5,
+      "samples": 153,
+      "used_peak_mib": 7475,
+      "delta_peak_mib": 2608,
+      "free_min_mib": 8587,
+      "util_max_percent": 44,
+      "residual": 0
+    },
+    "attempt3": {
+      "status": "void",
+      "reason": "guard free floor (3/3/2 batches); free_min 9824",
+      "wall_s": 77.4,
+      "samples": 287,
+      "used_peak_mib": 6238,
+      "delta_peak_mib": 1371,
+      "free_min_mib": 9824,
+      "util_max_percent": 46,
+      "residual": 0
+    },
+    "attempt4": {
+      "status": "only valid round (Chief ruling (b))",
+      "reason": "numeric all green + guard free-floor environmental abort accepted by Chief as valid round",
+      "wall_s": 180.2,
+      "samples": 658,
+      "used_peak_mib": 6366,
+      "delta_peak_mib": 1499,
+      "free_min_mib": 9696,
+      "util_max_percent": 48,
+      "util_streak": 0,
+      "residual": 0,
+      "exit_codes_all_zero": true
+    }
   },
   "chief_ruling_b_window": {
     "wording": "attempt4 = numeric all green + guard aborted due to free-floor environmental boundary, accepted by Chief ruling (b) as the valid round; evidence does not claim a 'window pass'",
@@ -105,12 +280,38 @@
     "note": "increment guard becomes dominant; free floor only guards against external shocks; M2 executed under the then-current fixed 10240 floor"
   },
   "window_numeric_results": {
-    "mesh_box": {"nacon": 4, "reference_count": 4, "bit_equal": "4/4", "max_ulp": 0, "contact_geom": "[1,0]", "failures": 0},
-    "mesh_cylinder": {"nacon": 4, "reference_count": 4, "bit_equal": "4/4", "max_ulp": 0, "contact_geom": "[1,0]", "failures": 0},
+    "mesh_box": {
+      "nacon": 4,
+      "reference_count": 4,
+      "bit_equal": "4/4",
+      "max_ulp": 0,
+      "contact_geom": "[1,0]",
+      "failures": 0
+    },
+    "mesh_cylinder": {
+      "nacon": 4,
+      "reference_count": 4,
+      "bit_equal": "4/4",
+      "max_ulp": 0,
+      "contact_geom": "[1,0]",
+      "failures": 0
+    },
     "g5_device_cases_9": {
-      "multicontact": {"cylinder-box": "314/314 bit", "box-box-margin": "391/392 bit (max_pos_ulp=1)", "mesh-mesh": "80/80 bit"},
-      "launcher": {"hfield-sphere": "314/314 bit", "sdf-box": "3122/3122 bit", "ellipsoid-box": "80/80 bit"},
-      "primitive": {"sphere-box-shallow": "80/80 bit", "sphere-box-deep": "80/80 bit", "capsule-box": "80/80 bit"},
+      "multicontact": {
+        "cylinder-box": "314/314 bit",
+        "box-box-margin": "391/392 bit (max_pos_ulp=1)",
+        "mesh-mesh": "80/80 bit"
+      },
+      "launcher": {
+        "hfield-sphere": "314/314 bit",
+        "sdf-box": "3122/3122 bit",
+        "ellipsoid-box": "80/80 bit"
+      },
+      "primitive": {
+        "sphere-box-shallow": "80/80 bit",
+        "sphere-box-deep": "80/80 bit",
+        "capsule-box": "80/80 bit"
+      },
       "failures": 0
     },
     "hfield_capsule": "uncovered: no device target (CPU-only g10_p5_ccd_overflow); compensation = launcher hfield-sphere regression + abi_collision_args_matches_device_layout_504 covering hfield params; separate slice only if user asks",
@@ -119,13 +320,51 @@
     "unc6": "not triggered: mesh cases bit-equal, no field exceeded 4*ULP@scale (recorded as uncovered class not hit)"
   },
   "gates": {
-    "fmt": {"command": "cargo fmt --all -- --check", "exit": 0},
-    "clippy": {"command": "cargo clippy --locked --all-targets -- -D warnings", "exit": 0},
-    "clippy_cuda": {"command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings", "exit": 0},
-    "unit": {"command": "cargo test --locked --no-fail-fast", "exit": 0, "passed": 987, "failed": 0, "ignored": 373, "binaries": 117, "baseline": "986/0/372", "raw_log": "target/m2/unit.log", "raw_log_sha256": "71932e7013d6641ee9e3d75a9f5b0cef304a91633bedc10111546101daac92f3"},
-    "all_features": {"command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast", "env": "MJWARP_MUJOCO_ROOT", "exit": 0, "passed": 1036, "failed": 0, "ignored": 431, "raw_log": "target/m2/all-features.log", "raw_log_sha256": "4b1c15f5a34aae047553a899334232950519faa5e1be186d79953419ee5c3db7"},
-    "nvrtc_smoke": {"exit": 0, "source_bytes": 254485, "source_sha256": "00810ddb5355564eed422e9d992a6843baf1f5e3541714230463df45a16ee253", "ptx_bytes": 3883740, "entries": 6},
-    "collision_gpu_subset": {"command": "cargo test --locked --features cuda-probe --lib runtime::collision_gpu -- --include-ignored", "passed": 33, "failed": 0}
+    "fmt": {
+      "command": "cargo fmt --all -- --check",
+      "exit": 0
+    },
+    "clippy": {
+      "command": "cargo clippy --locked --all-targets -- -D warnings",
+      "exit": 0
+    },
+    "clippy_cuda": {
+      "command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings",
+      "exit": 0
+    },
+    "unit": {
+      "command": "cargo test --locked --no-fail-fast",
+      "exit": 0,
+      "passed": 987,
+      "failed": 0,
+      "ignored": 373,
+      "binaries": 117,
+      "baseline": "986/0/372",
+      "raw_log": "target/m2/unit.log",
+      "raw_log_sha256": "71932e7013d6641ee9e3d75a9f5b0cef304a91633bedc10111546101daac92f3"
+    },
+    "all_features": {
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast",
+      "env": "MJWARP_MUJOCO_ROOT",
+      "exit": 0,
+      "passed": 1036,
+      "failed": 0,
+      "ignored": 431,
+      "raw_log": "target/m2/all-features.log",
+      "raw_log_sha256": "4b1c15f5a34aae047553a899334232950519faa5e1be186d79953419ee5c3db7"
+    },
+    "nvrtc_smoke": {
+      "exit": 0,
+      "source_bytes": 254485,
+      "source_sha256": "00810ddb5355564eed422e9d992a6843baf1f5e3541714230463df45a16ee253",
+      "ptx_bytes": 3883740,
+      "entries": 6
+    },
+    "collision_gpu_subset": {
+      "command": "cargo test --locked --features cuda-probe --lib runtime::collision_gpu -- --include-ignored",
+      "passed": 33,
+      "failed": 0
+    }
   },
   "redlines": {
     "criteria_tolerance_reference_changed": false,

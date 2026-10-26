@@ -164,14 +164,14 @@ clip **16/32**（与 `contact.cu` scratch 一致）。pinned 对 cyl-mesh 取
 | `cylinder-box`、`box-box-margin`、`mesh-mesh` | `g10_p5_multicontact_cuda` | ✅ 设备 |
 | `hfield-sphere`、`sdf-box`、`ellipsoid-box` | `g10_p5_nvrtc_launcher` | ✅ 设备 |
 | `sphere-box-shallow`、`sphere-box-deep`、`capsule-box` | `g10_p5_primitive_cuda` | ✅ 设备 |
-| `hfield-capsule` | 无设备 target（仅 `g10_p5_ccd_overflow` CPU 口径） | ⚠️ **未覆盖** |
+| `hfield-capsule` | 无设备接触回归 target（`FORCED_HORIZON_CASES=[cylinder-box, box-box-margin, mesh-mesh]` 不含它；`g10_p5_ccd_overflow` 只是 CPU 输入/装配口径，不是接触回归） | ⚠️ **未覆盖** |
 | （synth）`convex-mesh`、`degenerate-mesh` | `stage2_equivalence_window`（额外覆盖，非 bins case） | ✅ 设备 |
 
-结论：**G5 10 个 bins case：9 个有设备回归 target；`hfield-capsule` 仅 CPU 覆盖 → 未覆盖**。
+结论：**G5 10 个 bins case：9 个有设备回归 target；`hfield-capsule` 无设备接触回归（未覆盖）**（CPU 侧只有输入/装配口径，不构成接触回归证据）。
 
 ### 7.3 窗口内容更正（acceptance 原文「12 case」为笔误）与 `hfield-capsule` 未覆盖
 
-- **执行口径**：**10 个 bins case / 9 个设备回归 + 1 个未覆盖**（`hfield-capsule` 仅 CPU）。
+- **执行口径**：**10 个 bins case / 9 个设备回归 + 1 个未覆盖**（`hfield-capsule` 无设备接触回归）。
   acceptance 里「G5 老 12 个 case」为**笔误**（任务声明不改写，按证据层更正记录）。
 - **`hfield-capsule` 在 ABI 504 后无设备回归证据（未覆盖）**：不新写 target，不宣称其设备路径回归；
   若用户要求补，则**单列小片**再评估。
@@ -206,12 +206,12 @@ clip **16/32**（与 `contact.cu` scratch 一致）。pinned 对 cyl-mesh 取
 
 - ① `mesh-box` / `mesh-cylinder`：各 nacon=4/4、**bit_equal 4/4**、max dist/pos/frame ULP=0、
   `contact.geom=[1,0]`、failures=0。
-- ② G5 9 个设备 case 全量位级：multicontact → cylinder-box 314/314、box-box-margin 391/392
+- ② G5 9 个设备 case 全量位级（注：窗口内 `mesh-mesh` case 为 `kind=Contact` **单接触**路径，多接触 mesh-mesh 属于 M3 范围）：multicontact → cylinder-box 314/314、box-box-margin 391/392
   （max_pos_ulp=1）、mesh-mesh 80/80；launcher → hfield-sphere 314/314、sdf-box 3122/3122、
   ellipsoid-box 80/80；primitive → sphere-box-shallow/-deep/capsule-box 各 80/80；**failures 全 0**。
   `hfield-capsule` 无设备 target → **未覆盖**。
-- ③ stage2 9 case（**synth**，非 G5 bins）：dump 全部完成、每 case 两次运行逐位一致（18 dump）；
-  窗外 CPU 比较按「记录 C 只记录不判 pass/fail」口径（含 sdf-box 已知 recipe 分岔等 FAIL 行），
+- ③ stage2 9 case（**synth**，非 G5 bins）：dump 全部完成、每 case 两次运行在 **`deterministic()` 行序归一化后**一致（18 dump；其中 2 个 Contact dump：cylinder-box、ellipsoid-box 原始 run1≠run2，属行序差异，已在 compare log 记录）；
+  窗外 CPU 比较按「记录 C 只记录不判 pass/fail」口径（含 sdf-box 已知 recipe 分岔等 FAIL 行，共 7 个 case/kernel 组合、6 个 case 名），
   非 M2 回归。
 - ④ B1 plane 6 / B2 4 / B3 6 分支 + 4 swap / primitive 3 / launcher 3：failures 全 0。
 - ⑤ `contact.geom` 按 pinned 类型序 **`[1,0]`**（M2 测试显式断言；调用方归一化，非 device）。
@@ -234,6 +234,7 @@ residual=0；**零 Rust 编译**（只跑 8 个冻结 exe，冻结后未跑 carg
   ④ util_max 48%（未触 80%×3）、util_streak=0；⑤ 数值全 bit-equal/判据内（mesh 4/4 位级、
   G5 9 设备 case failures=0、B1/B2/B3+swap 全 0）；⑥ **8/8 exit 0**。
 - **唯一触发的 guard 规则 = free floor；新外部 CUDA 进程 / 增量 / util 三条均未触发。**
+- **delta 两套基线口径（QA O3 标注）**：guard 记录 baseline_used=4867 → delta_peak **1499**；开窗 3 点基线 used=4862 → delta_peak **1504**（commit/README 采用 1504）；两者差 5 MiB 来自 guard 首样本基线，属口径差异，非数据冲突。
 - attempt1–3 作废对照：attempt1 = runner PATH 缺 CUDA DLL（无 device 工作）；
   attempt2 = 8 并行 free floor；attempt3 = 3/3/2 分批 free floor；**attempt4 唯一有效轮**。
 
@@ -270,8 +271,8 @@ residual=0；**零 Rust 编译**（只跑 8 个冻结 exe，冻结后未跑 carg
 
 - 验证窗已执行 attempt1-4：**attempt4 = 数值全绿 + guard 因 free floor 环境边界 abort，经 Chief
   裁定接受为有效轮（不宣称通过结论）**；attempt1-3 作废原因见 §8.1。
-- `hfield-capsule` 在 ABI 504 后**无设备回归证据（未覆盖）**（仅 CPU `g10_p5_ccd_overflow` 口径 +
-  §7.3 补偿性证据）；不新写 target，除非用户/Chief 点名。
+- `hfield-capsule` 在 ABI 504 后**无设备接触回归证据（未覆盖）**（CPU 侧 `g10_p5_ccd_overflow` 只是输入/装配口径，不是接触回归；
+  补偿证据见 §7.3，但不替代设备回归）；不新写 target，除非用户/Chief 点名。
 - 不宣称 mesh 全类型/全分支支持；mesh-mesh 延后 M3；不宣称一般 mesh（degree>10 / polygon>16）覆盖；
   UNC-6 类未被命中但仍记未覆盖边界。
 - 旧 G5 bins/参考、判据/容差/期望零改动；`src/physics/mod.rs` 零 diff；入口仍 6。

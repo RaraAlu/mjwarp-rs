@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-mesh-multicontact-m2-observation-closure",
+  "kind": "Governance: M2 QA observation closure + mechanical scope self-check",
+  "role": "Arch",
+  "triggers": {
+    "m2_implementation": "16214a22",
+    "m2_test_entry_commit": "85cce21b",
+    "m2_qa_check_closure": "271fe926",
+    "qa_verdict": {
+      "verdict": "pass",
+      "blockers": 0,
+      "observations": 8
+    }
+  },
+  "new_tool": {
+    "path": "scripts/scope-selfcheck.mjs",
+    "purpose": "把 git status 改动路径与任务 schedule.files 做集合差，越界即失败（目录只匹配 dir/...，父文件必须单列）",
+    "usage": "node scripts/scope-selfcheck.mjs <task-id> [--staged-only]",
+    "self_test": "以本任务跑：13 个改动路径全部在范围内、越界 0"
+  },
+  "observations": {
+    "O1": {
+      "level": "一般",
+      "change": "hfield-capsule：更正「仅 CPU g10_p5_ccd_overflow 覆盖」表述——FORCED_HORIZON_CASES 不含它，CPU 侧只是输入/装配口径、不是接触回归；第三项补偿据此更正，未覆盖定性不变"
+    },
+    "O2": {
+      "level": "一般",
+      "change": "stage2 改为「deterministic() 行序归一化后一致」+ 2 个 Contact dump 原始 run1≠run2；「7 case FAIL」更正为「7 个 case/kernel 组合（6 个 case 名）」"
+    },
+    "O3": {
+      "level": "建议",
+      "change": "标注 delta 双基线：guard 4867→1499 / 开窗 4862→1504（commit 采用 1504），差 5 MiB 属口径差异"
+    },
+    "O4": {
+      "level": "建议",
+      "change": "注明窗口内 mesh-mesh 为 kind=Contact 单接触，多接触留 M3"
+    },
+    "O5": {
+      "level": "建议",
+      "handling": "记录不改（guard own_patterns 通配 + compute-apps 4 条身份不可见；结论不受影响）"
+    },
+    "O6": {
+      "level": "建议",
+      "change": "receipt 对 geom.cu 的改动描述更正为「新增 9 sidecar 指针 + dataid/mesh_polyadr + 两个 helper，未改动既有 d_support_point 结构」"
+    },
+    "O7": {
+      "level": "建议",
+      "handling": "折入 M3（validate_collision_inputs 公共 API 面 + polyvert/polymap 元素值域首次 device 可达：M3 补值域校验或显式同源声明）"
+    },
+    "O8": {
+      "level": "建议",
+      "change": "证据 10 个 BOM 文件转 UTF-8 无 BOM（QA 原述 11 个，实测 10 个，口径已更正）"
+    }
+  },
+  "no_change": [
+    "src",
+    "tests",
+    "fixtures",
+    "Cargo.toml",
+    "Cargo.lock",
+    "任何已验证数字/判据/参考"
+  ],
+  "gate": {
+    "command": "normify gate 2026-10-27-mesh-multicontact-m2-observation-closure --repo D:\\Rust\\mjwarp-rs",
+    "unit_expected": "987/0/373（M3 在途另计）"
+  },
+  "boundaries": [
+    "只改证据文字/编码与新增自查脚本；不改 M2 任何已验证数字",
+    "O7 不在本片做；不宣称 mesh 支持"
+  ]
+}
