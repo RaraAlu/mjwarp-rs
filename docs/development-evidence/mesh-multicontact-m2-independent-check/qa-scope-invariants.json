@@ -1,0 +1,59 @@
+{
+  "kind": "qa-m2-scope-invariants",
+  "task_id": "2026-10-26-mesh-multicontact-m2-independent-check",
+  "review_head": "1fb2a695",
+  "m2_commit": "16214a22556c8f766c90f18c78f21e3115054c90",
+  "test_entry_commit": "85cce21bd8a6b12d962e23370075214b666bb2f1",
+  "code_tree_check": {
+    "command": "git diff 16214a22..HEAD -- src tests fixtures Cargo.toml Cargo.lock",
+    "result": "empty (the later commits are governance docs only)",
+    "note": "HEAD moved to 1fb2a695 (M3 task start) during the review; code tree still equals the M2 commit"
+  },
+  "device_sources": {
+    "before": 27,
+    "after": 28,
+    "new_segment": "multicontact_mesh.cu",
+    "order": "multicontact_geom.cu -> multicontact_mesh.cu -> multicontact_clip.cu -> multicontact.cu -> contact.cu",
+    "assertions_updated": "multicontact_tests.rs (28 segments + position + g5_mc_mesh_normals/g5_mc_mesh_edge_normals/g5_mc_mesh_face symbols), primitive_tests.rs (28)",
+    "qa_check": "read DEVICE_SOURCES declaration (source.rs: [(&str,&str); 28]) and the position assertions; no executable change needed to verify order"
+  },
+  "entries": {
+    "count_by_extern_c_in_product_cu": 6,
+    "smoke_entries": 6,
+    "unchanged": true
+  },
+  "physics_mod": {
+    "path": "src/physics/mod.rs",
+    "diff_16214a22": "not in the changed-file list -> zero diff",
+    "purpose": "keeps the T4 physics_core identity; device source assembled in source.rs via local include_str!"
+  },
+  "frozen_inputs": {
+    "old_g5_bins_and_reference": "git diff 16214a22~1 16214a22 -- fixtures docs/development-evidence/g10-p5-gpu-kernels docs/development-evidence/mesh-multicontact-m1 docs/development-evidence/g10-p5-primitive-* docs/development-evidence/mesh-multicontact-m0b is empty",
+    "m1_reference_sha256": "c83baffe6de695fdefda6852c574d5d0d7312ebb591c1b487dfc59ec126c206a (matches the test guard)",
+    "criteria_support_files_unchanged": "the M2 commit adds only tests/support/mesh_multicontact_compare_support.rs; existing supports (primitive_compare.rs, primitive_compare_support.rs, multicontact_compare_support.rs, launcher_compare_support.rs, stage2_equivalence_compare.rs) are not in the changed-file list",
+    "four_ulp_constant_identical": "FOUR_ULP_AT_ONE = 4.0*(1.0/8_388_608.0) in the new comparator and in the pre-existing comparators"
+  },
+  "m0b_inputs_independently_verified": {
+    "script": "scripts/verify_m0b_bins.py",
+    "raw_output": "target/qa-m2/m0b-bins-vs-model.json",
+    "method": "pinned mujoco 3.15 mjModel re-dump of the two fixtures; compare against M0b bins",
+    "arrays_compared": ["mesh_polynum", "mesh_polyadr", "mesh_polynormal", "mesh_polyvertadr", "mesh_polyvertnum", "mesh_polyvert", "mesh_polymapadr", "mesh_polymapnum", "mesh_polymap", "mesh_vert", "mesh_vertadr", "mesh_vertnum", "mesh_graph", "mesh_graphadr"],
+    "result": {"mesh-box": "15/15 equal, 32 bin files", "mesh-cylinder": "15/15 equal, 32 bin files", "mismatches": 0},
+    "geom_type": {"mesh-box": [7, 6], "mesh-cylinder": [7, 5]},
+    "geom_dataid": {"mesh-box": [0, -1], "mesh-cylinder": [0, -1]}
+  },
+  "key_file_sha256_at_review_head": {
+    "src/physics/collision/cuda/multicontact_mesh.cu": "9a05801e24bc70c1fb150a5b2c5c5400b991f8f227ca1fe935429406c2ad73dd",
+    "src/physics/collision/cuda/multicontact.cu": "e675f83ff0683fa50413c665c1778c54f888623b1478cb6ccd071707cd8d0b4c",
+    "src/physics/collision/cuda/multicontact_geom.cu": "da82e99d0a7ffa028bb2fb735a86b908617256417cf92ee84eb5c6369f3b97ed",
+    "src/physics/collision/cuda/geom.cu": "8939abda7038d057fe67feebe14f3e88bcee2531786cc1bd25e4aa44e2c06931",
+    "src/physics/collision/cuda/product.cu": "cad08d3e9fab18740f57eddae850a799b5f9a5346d41f362243089f85f0482b9",
+    "src/physics/collision/cuda/hfield.cu": "cef2a91516b7a8fab792787ac4d920097bd1a955b1d9c1be6a1d53fb35bf2a2f",
+    "src/runtime/collision_gpu/source.rs": "94aadef12e49d829a335f3c37e6ee405730a9358e4e49c7cedab946675a2a9c0",
+    "src/runtime/collision_gpu.rs": "096a88a20d2166e49513972ecccdb5c5548039d1a0a7365e4e83c02788a0dbd5",
+    "tests/support/mesh_multicontact_compare_support.rs": "c23a60cecb54dfd150a9fab61a81f5deb06d74321a50584615aa98724aa4c221",
+    "tests/g10_p5_mesh_multicontact_m2_cuda.rs": "dd20a1a5c1a1c18436adfbb80bb8c8805d61d55a96dfee30bab2e211cab741e5",
+    "tests/g10_p5_mesh_poly_case_assembly.rs": "a6efa742a800c733d7c67f5165e45613577d024d476e07f77ea4b512afea91b9"
+  },
+  "entries_proof": "product.cu `grep -c 'extern \"C\" __global__ void'` = 6 at review head; smoke output entries=6"
+}

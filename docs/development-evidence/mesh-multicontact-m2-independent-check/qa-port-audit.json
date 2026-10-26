@@ -1,0 +1,117 @@
+{
+  "kind": "qa-m2-port-audit",
+  "task_id": "2026-10-26-mesh-multicontact-m2-independent-check",
+  "pinned": {
+    "file": "docs/evidence/d04-complex-physics/authoring-runs/run-5/installed-source/_src/collision_gjk.py",
+    "revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "note": "task brief named collision_convex.py; the functions really live in collision_gjk.py at the quoted line numbers (verified by reading the file)"
+  },
+  "device_files": {
+    "multicontact_mesh.cu": {"lines": 191, "new": true, "sha256_at_review_head": "measured in qa-scope-invariants.json"},
+    "multicontact.cu": {"lines": 234, "dispatch_only": true},
+    "multicontact_geom.cu": {"lines": 410, "mesh_view_added": true},
+    "geom.cu": {"lines": 69, "d_mesh_extended": true},
+    "product.cu": {"lines": 446, "build_geom_wiring": true}
+  },
+  "function_map": [
+    {
+      "pinned": "_intersect1 L1591-1602",
+      "device": "multicontact_mesh.cu::g5_mc_intersect1 (L22-37)",
+      "verified": [
+        "double loop bounds start..start+len on both sides",
+        "writes res[count]=a1[i], count+=1, returns 2 as soon as count==2 (max 2 common values)",
+        "returns count otherwise; res buffer is size 2 at both call sites"
+      ]
+    },
+    {
+      "pinned": "_intersect2 L1605-1616",
+      "device": "multicontact_mesh.cu::g5_mc_intersect2 (L40-55)",
+      "verified": [
+        "argument order (a1 array, a2 array, start2, len1, len2) matches the pinned call _intersect2(edgeset, polymap, v3_adr, n, v3_num)",
+        "same cap-at-2 and return semantics"
+      ]
+    },
+    {
+      "pinned": "_mesh_normals L1620-1686",
+      "device": "multicontact_mesh.cu::g5_mc_mesh_normals (L60-131)",
+      "verified": [
+        "dim=3: v1/v2/v3 from feature_index[0..2]; polymapadr[vertadr+v]/polymapnum[vertadr+v] indexing",
+        "dim=3: intersect1(polymap, polymap, v1_adr, v2_adr, v1_num, v2_num) then intersect2(edgeset, ..., v3_adr, n, v3_num), 0 -> return 0",
+        "dim=3: single face -> normal_out[0]=mat @ polynormal[polyadr+faceset[0]], index_out[0]=faceset[0], return 1",
+        "dim=2: same intersect1, loop i<n writes mat @ polynormal[polyadr+edgeset[i]] and index, return n",
+        "dim=1: loop i<v1_num with index=polymap[v1_adr+i], normal/index, return v1_num",
+        "unknown dim returns 0 (same as pinned fallthrough)",
+        "added clamp: dim1 v1_num>G5_MC_MESH_DEG_MAX(10) -> return 0 (buffers n1/idx1 are 10); documented fallback, not exercised by cube case"
+      ]
+    },
+    {
+      "pinned": "_mesh_edge_normals L1690-1734",
+      "device": "multicontact_mesh.cu::g5_mc_mesh_edge_normals (L134-172)",
+      "verified": [
+        "dim=2: endvert_out[0]=v2, normal_out[0]=normalize(v2-v1), return 1",
+        "dim=1: v1_adr/v1_num from polymapadr/polymapnum[vertadr+v1i]",
+        "dim=1: for each adjacent polygon idx: adr=polyvertadr[polyadr+idx], nvert=polyvertnum[polyadr+idx]",
+        "dim=1: find j with polyvert[adr+j]==v1i, k=(j==0?nvert-1:j-1) i.e. previous vertex (wp.where equivalent)",
+        "dim=1: endvert=mat @ vert[vertadr+polyvert[adr+k]] + pos, normal=normalize(endvert-v1), return v1_num",
+        "added clamp: v1_num>10 -> return 0 (endvert/n buffers are 10)"
+      ]
+    },
+    {
+      "pinned": "_mesh_face L1926-1948",
+      "device": "multicontact_mesh.cu::g5_mc_mesh_face (L175-191)",
+      "verified": [
+        "adr=polyvertadr[polyadr+idx]; nvert=polyvertnum[polyadr+idx]",
+        "loop i=nvert-1 down to 0 (reverse order preserved), face_out[j]=mat @ vert[vertadr+polyvert[adr+i]] + pos, j++",
+        "returns nvert",
+        "added clamp: nvert>16 -> return 0 (face1/face2 buffers are 16)"
+      ]
+    },
+    {
+      "pinned": "mesh data view L2245-2262",
+      "device": "multicontact_geom.cu::g5_mc_mesh_view_of + product.cu::build_geom",
+      "verified": [
+        "pinned selects geom1 arrays if geomtype1==MESH else geom2 arrays (elif) -> device selects mesh_geom = geom1 if geom1 is MESH else geom2, same precedence",
+        "vertadr = mesh_vertadr[dataid]; polyadr = mesh_polyadr[dataid]; 9 sidecar pointers wired in pinned order",
+        "sidecar null / dataid<0 / mesh_polyadr<0 -> has_poly false -> single-contact fallback (M0a null-sidecar semantics)"
+      ]
+    },
+    {
+      "pinned": "dispatch L2278-2310 / L2326-2379 / L2393-2436",
+      "device": "multicontact.cu mesh branches",
+      "verified": [
+        "normals branch: geomtype1==MESH -> g5_mc_mesh_normals(nface1, feature_index1, geom1.rot, geom1.vertadr, geom1.mesh_polyadr, mesh, n1, idx1); same for geom2",
+        "edge-normals branch: same arguments as pinned (geom1.vert is the selected mesh.vert for that geom)",
+        "face branch: g5_mc_mesh_face(geom.rot, geom.pos, geom.vertadr, geom.mesh_polyadr, mesh, idx, face)",
+        "nface==0 guard placed before clip; box/cylinder helpers return 4/16/2 so it is inert for non-mesh pairs"
+      ]
+    }
+  ],
+  "helpers": {
+    "mul_mat3_vec": "common.cu L66-70: m[0]*x+m[1]*y+m[2]*z / m[3]*x+m[4]*y+m[5]*z / m[6]*x+m[7]*y+m[8]*z (row-major), same helper used by the box/cylinder paths that G5 bit-level regression already validated",
+    "v3_normalize": "common.cu L59-63: a/|a| with zero-vector guard (same shape as wp.normalize)",
+    "g5_mesh_vertex": "geom.cu L59-61: vert[index*3..+2] (global mesh_vert stride 3)",
+    "g5_mc_mesh_poly_normal": "multicontact_geom.cu L408-410: polynormal row -> v3"
+  },
+  "divergences_from_pinned": [
+    {
+      "what": "fixed capacity clamps (degree<=10, polygon vertices<=16) returning 0 -> single-contact fallback",
+      "why": "device scratch buffers are fixed (contact.cu n1/n2/endvert[10], face1/face2[16]); pinned uses dynamic max(m.npolygonmax,16)/nmeshdegmax",
+      "status": "declared uncovered boundary in delivery evidence section 5.1; cube fixture (degree=3/polygon=4) never triggers; no criteria change",
+      "qa_verdict": "consistent with the declared boundary; not a blocker"
+    },
+    {
+      "what": "nface==0 early return added before polygon clip",
+      "why": "mesh helper capacity overflow signal",
+      "status": "inert for box/cylinder (faces always recovered); mesh over-cap -> single contact",
+      "qa_verdict": "no regression for existing 13 combinations"
+    }
+  ],
+  "box_cylinder_untouched": {
+    "method": "git diff ac01d86d 16214a22 -- <device file>, non-comment removed lines counted",
+    "multicontact_geom.cu": "0 non-comment removed lines (all additions)",
+    "product.cu": "0 non-comment removed lines (all additions)",
+    "hfield.cu": "0 non-comment removed lines (all additions)",
+    "geom.cu": "0 non-comment removed lines (all additions)",
+    "multicontact.cu": "1 non-comment removed line: the old unconditional `return out;` inside `if (geomtype1==G5_MESH || geomtype2==G5_MESH)` (mesh branch rewritten); box/cylinder branches appear only as unchanged context"
+  }
+}

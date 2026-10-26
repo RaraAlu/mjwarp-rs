@@ -1,0 +1,81 @@
+{
+  "task_id": "2026-10-26-mesh-multicontact-m2-independent-check",
+  "kind": "m2-independent-check-evidence",
+  "status": "in_progress",
+  "verdict": "pass",
+  "blockers": [],
+  "observations": {"total": 8, "一般": 2, "建议": 6, "blocking": 0},
+  "reviewed_delivery_task": "2026-10-26-mesh-multicontact-m2-convex-vs-mesh",
+  "binding": {
+    "m2_commit": "16214a22556c8f766c90f18c78f21e3115054c90",
+    "test_entry_commit": "85cce21bd8a6b12d962e23370075214b666bb2f1",
+    "review_head": "1fb2a695 (M3 governance commit; git diff 16214a22..HEAD -- src tests fixtures Cargo.toml Cargo.lock is empty)",
+    "pinned_upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "pinned_source_file": "docs/evidence/d04-complex-physics/authoring-runs/run-5/installed-source/_src/collision_gjk.py",
+    "toolchain": "rustc 1.99.0 (b940084d7 2026-09-28); Windows; CPU-only review (no GPU window, no CUDA context)"
+  },
+  "methods": [
+    "line-by-line port audit of the five pinned collision_gjk.py functions vs multicontact_mesh.cu (loop bounds, cap-at-2, mat@vec convention, normalize, previous-vertex edge rule, reverse face order, added capacity clamps)",
+    "code-level no-regression audit: non-comment removed lines per changed device file; box/cylinder branches are unchanged context; nface==0 guard inert for non-mesh",
+    "window evidence recomputation from raw target/m2/attempt{1..4}/samples.csv + guard.log + facts.txt (peak/free_min/util/streak/stop reason, per attempt)",
+    "frozen binary re-hash: 8 window exes vs README/receipt/attempt4-binary-shas.txt (sha256 + size + mtime before window start) and zero compile markers in window logs",
+    "numeric evidence parse of the 8 attempt4 logs + independent M1 reference content check (count=4, geom=[1,0], efc absent, two_captures true)",
+    "independent M0b bins verification against a fresh pinned mujoco 3.15 mjModel dump (15 arrays x 2 cases)",
+    "criteria audit: comparator re-read, FOUR_ULP_AT_ONE identical to existing supports, zero-tolerance field set/overflow/efc invariants; existing supports and old bins/reference zero diff",
+    "Chief addendum: 85cce21b diff/run-path audit + resident test source audit + default-suite run + direct prebuilt-binary run",
+    "gates re-run in the main tree: fmt/clippy/clippy-cuda/unit/all-features/NVRTC smoke/collision_gpu subset"
+  ],
+  "key_numbers": {
+    "delivery_unit": {"passed": 987, "failed": 0, "ignored": 373, "binaries": 117},
+    "delivery_all_features": {"passed": 1036, "failed": 0, "ignored": 431, "binaries": 117},
+    "qa_unit": {"passed": 987, "failed": 0, "ignored": 373, "binaries": 117},
+    "qa_all_features": {"passed": 1036, "failed": 0, "ignored": 431, "binaries": 117},
+    "qa_smoke": {"ptx_bytes": 3883740, "entries": 6, "source_bytes": 254485, "source_sha256": "00810ddb5355564eed422e9d992a6843baf1f5e3541714230463df45a16ee253"},
+    "qa_collision_gpu_subset": {"passed": 33, "failed": 0},
+    "qa_assembly_binary": {"sha256": "8fa10311f4057424539b9a37b8a380b04a168bd35da72290523c38e208dd98af", "single_test": "1 passed / 4 filtered / exit 0", "full": "5 passed / 0 failed / 0 ignored / exit 0"},
+    "window_binaries": {"count": 8, "all_sha_match": true, "latest_mtime": "00:02:41", "window_start": "00:10:14.160"},
+    "window_attempt4": {"samples": 658, "used_peak": 6366, "free_min": 9696, "util_max": 48, "util_streak": 0, "delta_vs_guard_baseline": 1499, "delta_vs_3point_baseline": 1504, "exit_codes_all_zero": true, "guard_stop": "agg_free_below_floor"},
+    "mesh_cases": {"mesh-box": {"nacon": 4, "bit_equal": "4/4", "ulp": 0, "geom": "[1,0]"}, "mesh-cylinder": {"nacon": 4, "bit_equal": "4/4", "ulp": 0, "geom": "[1,0]"}},
+    "g5_device_cases": 9,
+    "hfield_capsule": "uncovered (no contact regression; the 'ccd_overflow CPU' claim is wrong -> O1)",
+    "device_sources": {"before": 27, "after": 28},
+    "entries": 6,
+    "m0b_bins_vs_model": {"arrays": 15, "cases": 2, "mismatches": 0}
+  },
+  "artifacts": {
+    "files": [
+      "README.md",
+      "receipt.json",
+      "qa-port-audit.json",
+      "qa-window-attempts.json",
+      "qa-numeric-evidence.json",
+      "qa-frozen-binaries.json",
+      "qa-scope-invariants.json",
+      "qa-resident-validation.json",
+      "qa-observations.json",
+      "logs/",
+      "scripts/",
+      "manifest.json"
+    ],
+    "delivery_evidence_shas": {
+      "readme": "de58283c145a105c9a4e4ad6dafd4488a0360e2f6c32694649092c9dd480c373",
+      "receipt": "68e9b3cadd763b22de7de1f566201d98bc89b2e415fee69da79df427bd78d1d4",
+      "mesh_window_log": "eca744c5096a29eb1864516d2942e029757714f36031d3e071849baa8ca97f09",
+      "window_attempts_summary": "f23a22d1f2065b5d042fcef3c6446486a3674fab0947c798192e569467bd12f4"
+    }
+  },
+  "gates": {
+    "fmt": {"command": "cargo fmt --check", "exit": 0},
+    "clippy": {"command": "cargo clippy --all-targets --locked -- -D warnings", "exit": 0},
+    "clippy_cuda": {"command": "cargo clippy --all-targets --locked --features cuda -- -D warnings", "exit": 0},
+    "unit": {"command": "cargo test --locked", "exit": 0, "passed": 987, "failed": 0, "ignored": 373},
+    "all_features": {"command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast", "exit": 0, "passed": 1036, "failed": 0, "ignored": 431},
+    "note": "gate runs recorded under .normify/runs/2026-10-26-mesh-multicontact-m2-independent-check/"
+  },
+  "boundaries": [
+    "device side was NOT re-run by QA (no GPU window opened): mesh 4/4 bit-equality, G5 9-case numbers, stage2 dumps and window facts come from the delivered logs; QA verified log/reference/criteria/freeze self-consistency and the audit of the port, not an independent device execution",
+    "general mesh (degree>10 / polygon>16) falls back to single contact (declared uncovered); hfield-capsule has no contact regression; mesh-mesh multicontact is M3",
+    "Chief ruling (b) and the Arch/Chief double-sign are narrative evidence (no signed artifact in the repo)",
+    "no claim of mesh support / cross-environment / all-branch coverage; no criteria/tolerance/reference change"
+  ]
+}

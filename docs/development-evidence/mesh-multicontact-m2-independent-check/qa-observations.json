@@ -1,0 +1,71 @@
+{
+  "kind": "qa-m2-observations",
+  "task_id": "2026-10-26-mesh-multicontact-m2-independent-check",
+  "observations": [
+    {
+      "id": "O1",
+      "level": "一般",
+      "title": "hfield-capsule 的『仅 CPU ccd_overflow 口径』补偿表述不成立",
+      "detail": "README §7.2/§7.3/§11 与 receipt 写 hfield-capsule『无设备 target（仅 g10_p5_ccd_overflow CPU 口径）』；但 tests/support/ccd_overflow_support.rs 的 FORCED_HORIZON_CASES = [cylinder-box, box-box-margin, mesh-mesh]，不含 hfield-capsule。实际接触行为覆盖 = 无；只有 (a) 旧 G5 bin 装配/输入校验（old_g5_cases_keep_23_bin_compat 与常驻真实校验空 sidecar 加载）、(b) launcher hfield-sphere 位级回归（真实补偿）、(c) ABI 504 hfield 偏移断言（真实补偿）。",
+      "impact": "『未覆盖』结论本身诚实且被反复声明，numerics 不受影响；但第三个补偿说法会让人高估覆盖，属于证据准确性问题。",
+      "suggestion": "把『仅 CPU ccd_overflow 口径』删除或改为『无接触回归；仅旧 bin 装配/输入校验』，保留 (b)(c) 两条补偿。"
+    },
+    {
+      "id": "O2",
+      "level": "一般",
+      "title": "stage2『每 case 两次运行逐位一致（18 dump）』措辞不精确；另有 2 个 Contact dump 行序不同",
+      "detail": "tests/support/stage2_equivalence_compare.rs::deterministic 先按 (worldid, dist, pos..., geomcollisionid) 排序再比较，因此窗口日志的『两次一致=true』是行序归一化后一致。按原始 JSON 逐位比：16/18 dump run1==run2，cylinder-box.Contact 与 ellipsoid-box.Contact 的 run1 != run2（行序不同）；M2 证据自己收录的 stage2-cpu-compare.log 也记录了『两次运行（run1/run2）不逐位一致』。另外该 log 的 FAIL 行是 7 个 case/kernel 组合（6 个 case 名），README 写『7 case FAIL 行』略含糊。",
+      "impact": "stage2 是额外覆盖、已按『记录 C 只记录』口径声明，不影响 M2 判据；但『逐位一致』的措辞与其自家日志冲突。",
+      "suggestion": "改为『行序归一化后一致；2 个 Contact dump 的 run1/run2 行序不同』，并把『7 case』写成『7 个 case/kernel 组合（6 个 case）』。"
+    },
+    {
+      "id": "O3",
+      "level": "建议",
+      "title": "delta 数字混用两条基线（1499 vs 1504）",
+      "detail": "guard.log 的 guard_baseline used=4867 → delta_peak 1499；开窗 3 点基线 used=4862 → 6366-4862=1504（M2 commit message 用 1504）。README §8.4 给出了 4867 的公式，但 §8.1 表格只写 1499、commit 写 1504。",
+      "impact": "数值本身都可推导，只是读者会误以为矛盾。",
+      "suggestion": "统一标注『相对 guard_baseline(4867)』与『相对开窗 3 点基线(4862)』两套口径。"
+    },
+    {
+      "id": "O4",
+      "level": "建议",
+      "title": "mesh-mesh 在窗口内是 Contact（单接触）内核，不是 ContactMulti",
+      "detail": "attempt4 g10_p5_multicontact_cuda.log: `case=mesh-mesh kind=Contact`；README §8.2 把它列在『G5 multicontact(3)』组里，容易读成 mesh-mesh 多接触已被覆盖（实际 M3 才做）。",
+      "impact": "措辞问题，不影响数值。",
+      "suggestion": "注明 kernel=Contact（单接触回归），mesh-mesh 多接触属 M3。"
+    },
+    {
+      "id": "O5",
+      "level": "建议",
+      "title": "guard 的 own_patterns 通配 + post compute-apps 4 条 Insufficient Permissions",
+      "detail": "attempt4 guard.log: `own_patterns=mjwarp_rs-*`，guard 自身提示 `prefer explicit -OwnExeNames`；通配会把其它任务的 test exe 也当成 own，弱化 foreign_gpu_context 规则。post query-compute-apps 31 条中 4 条为 Insufficient Permissions（身份不可见）。本窗口串行、无其它任务、8/8 exit 0、residual 0，『无本任务进程』结论仍成立。",
+      "impact": "不影响本片结论，但 guard 证据的强度依赖该通配的副作用。",
+      "suggestion": "证据里写明通配副作用；后续窗口用显式 -OwnExeNames。"
+    },
+    {
+      "id": "O6",
+      "level": "建议",
+      "title": "receipt 对 geom.cu 的改动描述『d_support_point restored』与实际 diff 不符",
+      "detail": "M2 对 geom.cu 的 diff 只有新增：d_mesh 9 个 sidecar 指针、d_geom 的 dataid/mesh_polyadr、g5_mesh_clear_poly、g5_mesh_vertex；没有『restored』动作（d_support_point 是文件里既有结构，未改动）。README §2 的描述是对的，仅 receipt 该行过时。",
+      "impact": "证据文字与 diff 不一致，属可审计性小问题。",
+      "suggestion": "改成实际改动描述。"
+    },
+    {
+      "id": "O7",
+      "level": "建议",
+      "title": "validate_collision_inputs 成为 doc(hidden) 公共 API；polyvert/polymap 元素值域第一次成为 device 可达索引",
+      "detail": "85cce21b 把测试入口做成 `pub`（doc(hidden)）——技术上进入公共 API 面。另外 M2 让 polyvert/polymap 的元素值第一次被 device 当作索引消费，而 M0a 校验仍只到长度/区间/求和（O6 边界沿用，M2 已声明不扩 scope）；当前唯一生产者是 M0b 的 pinned 模型 bins（我已用 mjModel 逐值核过），风险低。",
+      "impact": "对当前唯一输入源无风险；若未来允许任意宿主数组上传，device 侧可能越界读。",
+      "suggestion": "M3 补 polyvert<该 mesh vertnum / polymap<nmeshpoly 的值域校验，或在 M3 证据显式声明『sidecar 只接受同源 mjModel 数组』；测试入口考虑 cfg(test) 或 feature 化。"
+    },
+    {
+      "id": "O8",
+      "level": "建议",
+      "title": "证据 11/15 个文件是 UTF-8 带 BOM",
+      "detail": "8 个 attempt 日志 + stage2 两个日志 + attempt4-binary-shas.txt 均含 EF BB BF；README/receipt/window-attempts-summary/attempt4-facts/attempt4-baseline 无 BOM。行数全部 ≤500，无控制字符/制表符。",
+      "impact": "内容无损；与『证据 UTF-8 无 BOM』要求不一致。",
+      "suggestion": "统一转无 BOM（内容零改写）。"
+    }
+  ],
+  "counts": {"total": 8, "一般": 2, "建议": 6, "blocking": 0}
+}

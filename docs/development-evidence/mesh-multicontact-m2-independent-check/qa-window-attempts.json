@@ -1,0 +1,52 @@
+{
+  "kind": "qa-m2-window-attempts",
+  "task_id": "2026-10-26-mesh-multicontact-m2-independent-check",
+  "note": "device numbers are NOT re-run by QA (no GPU window opened); this file recomputes the window aggregates from the raw samples.csv/guard.log and cross-checks the evidence wording.",
+  "wording_check": {
+    "required_wording": "attempt4 = numeric all green + guard aborted due to free floor environmental boundary, accepted by Chief ruling (b) as the valid round; NOT a 'window pass'",
+    "window_pass_phrase_hits_in_delivery_evidence": 0,
+    "files_scanned": 15
+  },
+  "recomputed_from_raw": {
+    "source": "target/m2/attempt{1,2,3,4}/{samples.csv,guard.log,facts.txt}",
+    "script": "scripts/recompute_window.py",
+    "raw_output": "target/qa-m2/window-recompute.json",
+    "attempt1": {"samples": 7, "used_peak": 4867, "free_min": 11195, "util_max": 39, "streak_80": 0, "guard_delta_peak": 32, "guard_stop": null, "status": "void (env: NVRTC DLL missing, 8 load panics, no device work)"},
+    "attempt2": {"samples": 153, "used_peak": 7475, "free_min": 8587, "util_max": 44, "streak_80": 0, "guard_delta_peak": 2608, "guard_stop": "agg_free_below_floor", "status": "void (guard free floor)"},
+    "attempt3": {"samples": 287, "used_peak": 6238, "free_min": 9824, "util_max": 46, "streak_80": 0, "guard_delta_peak": 1371, "guard_stop": "agg_free_below_floor", "status": "void (guard free floor)"},
+    "attempt4": {"samples": 658, "used_peak": 6366, "free_min": 9696, "util_max": 48, "streak_80": 0, "guard_delta_peak": 1499, "guard_stop": "agg_free_below_floor", "status": "valid round per Chief ruling (b)"},
+    "all_match_guard_log": true
+  },
+  "attempt4_facts_verified": {
+    "binary_sha256_verified": true,
+    "exit_codes_all_zero": true,
+    "failed_binaries": 0,
+    "open_baseline_3_points": ["4862, 11200, 37, 32, 596.36", "4862, 11200, 31, 32, 596.36", "4862, 11200, 37, 32, 596.36"],
+    "guard_baseline": {"used_mib": 4867, "free_mib": 11195, "util_percent": 42, "contexts": 31},
+    "post": "4863, 11199, 11, 33, 596.36",
+    "end_baseline": ["4863, 11199, 11, 33, 596.36", "4863, 11199, 10, 33, 596.36", "4863, 11199, 10, 33, 596.36"],
+    "post_compute_apps": {"entries": 31, "task_or_test_exe": 0, "insufficient_permissions_entries": 4},
+    "residual": 0,
+    "process_exited": true,
+    "zero_rust_compile": {"claim": true, "qa_check": "grep Compiling|rustc over target/m2/attempt4 logs = 0 hits; window binaries mtime 00:01:20-00:02:41 earlier than window start 00:10:14.160"},
+    "guard_rules_triggered": ["agg_free_below_floor"],
+    "guard_rules_not_triggered": ["foreign_gpu_context", "agg_increment_over_limit", "agg_sustained_util"]
+  },
+  "six_compensation_facts_cross_check": [
+    {"fact": "open baseline free 11200 >= 10240", "verified": true, "source": "attempt4-baseline.txt"},
+    {"fact": "post compute-apps has no task process / residual 0 / process_exited true", "verified": true, "source": "attempt4-facts.txt (31 entries, 0 test exe; 4 permission-denied entries cannot be identified, note O5)"},
+    {"fact": "delta 1499 MiB matches single-process own usage", "verified": true, "source": "guard baseline 4867 -> used_peak 6366 = 1499; the 3-point baseline 4862 gives 1504 (commit message), note O3"},
+    {"fact": "util_max 48%, util_streak 0 (no 80%x3)", "verified": true, "source": "samples.csv recompute"},
+    {"fact": "numeric all bit-equal/within criteria", "verified": true, "source": "window logs, see qa-numeric-evidence.json"},
+    {"fact": "8/8 exit 0", "verified": true, "source": "attempt4-facts.txt"}
+  ],
+  "void_attempt_evidence": {
+    "attempt1": {"evidence": "8 x *.err.log with panic `Compile(\"NVRTC库缺失（nvrtc 不可加载）\")`; logs only contain the load failure (244-270 B)", "matches_claim": true},
+    "attempt2": {"guard_log": "guard_stop reason=agg_free_below_floor free_min=8587 floor=10240; baseline_used=4867", "logs_with_test_result_ok": 8, "matches_claim": true},
+    "attempt3": {"guard_log": "guard_stop reason=agg_free_below_floor free_min=9824 floor=10240; baseline_used=4867", "logs_with_test_result_ok": 8, "matches_claim": true}
+  },
+  "chief_ruling_b": {
+    "nature": "narrative evidence (no signed artifact in the repo); QA verified the freeze/binary/hash self-consistency and that the round was the only one without an env/guard invalidation, but cannot independently verify Chief's ruling itself",
+    "derived_guard_policy": "open gate free>=10240 unchanged; from M3 guard floor=min(10240, baseline_free-3072); M2 data not retroactively changed - consistent with the evidence text"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "kind": "qa-m2-numeric-evidence",
+  "task_id": "2026-10-26-mesh-multicontact-m2-independent-check",
+  "caveat": "device numbers were NOT re-run by QA (no GPU window); they are parsed from the attempt4 window logs and cross-checked against the M1 reference and the comparator implementation, which QA audited line by line.",
+  "mesh_multicontact": {
+    "log": "logs/mesh-window.log (copy of docs/development-evidence/mesh-multicontact-m2/logs/attempt4-g10_p5_mesh_multicontact_m2_cuda.log)",
+    "cases": {
+      "mesh-box": {"nacon": 4, "ref_count": 4, "bit_equal": "4/4", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "contact_geom": "[1,0]", "failures": 0},
+      "mesh-cylinder": {"nacon": 4, "ref_count": 4, "bit_equal": "4/4", "max_dist_ulp": 0, "max_pos_ulp": 0, "max_frame_ulp": 0, "contact_geom": "[1,0]", "failures": 0}
+    },
+    "reference_cross_check": {
+      "path": "docs/development-evidence/mesh-multicontact-m1/upstream-mesh-multicontact-gpu.json",
+      "sha256_measured": "c83baffe6de695fdefda6852c574d5d0d7312ebb591c1b487dfc59ec126c206a",
+      "matches_test_sha_guard": true,
+      "case_counts": {"mesh-box": 4, "mesh-cylinder": 4},
+      "geom": "[[1,0]] x4 per case",
+      "worldid": "0 x4",
+      "geomcollisionid": "[0,1,2,3]",
+      "two_captures_bitwise_identical": true,
+      "efc_address_field_present": false,
+      "dist": {"mesh-box": -0.010000001639127731, "mesh-cylinder": -0.01000000536441803}
+    },
+    "unc6_deep_penetration": "not triggered: mesh cases report all fields ULP=0 (bit-equal), so the recorded uncovered class was not hit"
+  },
+  "g5_device_cases_9": {
+    "multicontact": {
+      "log": "logs/g5-multicontact.log",
+      "cylinder-box": {"kind": "ContactMulti", "nacon": 8, "bit_equal": "314/314", "max_pos_ulp": 0, "failures": 0},
+      "box-box-margin": {"kind": "BoxBox", "nacon": 10, "bit_equal": "391/392", "max_pos_ulp": 1, "failures": 0},
+      "mesh-mesh": {"kind": "Contact", "nacon": 2, "bit_equal": "80/80", "max_pos_ulp": 0, "failures": 0, "note_observation": "O4: single-contact kernel, not ContactMulti"}
+    },
+    "launcher": {
+      "log": "logs/g5-launcher.log",
+      "hfield-sphere": {"kind": "Hfield", "nacon": 8, "bit_equal": "314/314", "failures": 0},
+      "sdf-box": {"kind": "Sdf", "nacon": 80, "bit_equal": "3122/3122", "failures": 0},
+      "ellipsoid-box": {"kind": "Contact", "nacon": 2, "bit_equal": "80/80", "failures": 0}
+    },
+    "primitive": {
+      "log": "logs/g5-primitive.log",
+      "sphere-box-shallow": {"nacon": 2, "bit_equal": "80/80", "failures": 0},
+      "sphere-box-deep": {"nacon": 2, "bit_equal": "80/80", "failures": 0},
+      "capsule-box": {"nacon": 2, "bit_equal": "80/80", "failures": 0}
+    },
+    "hfield-capsule": {
+      "device_target": "none",
+      "coverage_statement_in_evidence": "only CPU g10_p5_ccd_overflow",
+      "qa_check": "ccd_overflow_support::FORCED_HORIZON_CASES = [cylinder-box, box-box-margin, mesh-mesh] -> hfield-capsule is NOT there; actual contact-behaviour coverage = none (see observation O1). The two declared compensations remain valid: launcher hfield-sphere bit-level regression and abi_collision_args_matches_device_layout_504 hfield offset assertions (hfield_size@120/nrow@128/ncol@136/adr@144/data@152/hfield_id@224 verified in abi_tests.rs)"
+    }
+  },
+  "regression_families": {
+    "b1_plane_6": {"log": "logs/b1-plane.log", "cases": "plane-sphere/capsule/ellipsoid/cylinder nacon=1, plane-box/mesh nacon=3", "failures": 0},
+    "b2_sphere_capsule_4": {"log": "logs/b2-sphere-capsule.log", "cases": "sphere-sphere/sphere-capsule/sphere-cylinder/capsule-capsule nacon=1", "failures": 0},
+    "b3_branches_6_plus_4_swap": {"log": "logs/b3-branches.log", "cases": "plane-mesh-graph, sphere-sphere-concentric, sphere-capsule-clamp(+swap), sphere-cylinder-cap(+swap), sphere-cylinder-corner(+swap), capsule-capsule-nonparallel", "failures": 0, "swap_lines": 4},
+    "primitive_3": "see g5_device_cases_9.primitive",
+    "launcher_3": "see g5_device_cases_9.launcher"
+  },
+  "stage2_synth_9": {
+    "log": "logs/stage2-window.log",
+    "dumps": 18,
+    "kernel_pairs": "9 cases x {Contact, ContactMulti} + sdf-box Sdf",
+    "two_run_consistency_claim": "each dump prints 两次一致=true",
+    "qa_check": "deterministic() sorts rows by (worldid, dist, pos..., geomcollisionid) before comparing, so 'true' means row-order-normalised equality. Raw JSON equality: 16/18 dumps run1==run2; cylinder-box.Contact and ellipsoid-box.Contact differ between run1 and run2 (row order). The same log family (stage2-cpu-compare.log) records both cases as '两次运行（run1/run2）不逐位一致'. See observation O2.",
+    "cross_recipe_record_only": {
+      "file": "docs/development-evidence/mesh-multicontact-m2/logs/stage2-cpu-compare.log",
+      "case_kernel_combinations_with_FAIL_lines": 7,
+      "distinct_cases_with_FAIL_lines": 6,
+      "declared_semantics": "record C only, no pass/fail criterion; cross-recipe known differences; not an M2 regression",
+      "qa_verdict": "consistent with the declared record-only semantics; the README '7 case' wording is imprecise (7 case/kernel combinations, 6 case names) - folded into O2"
+    }
+  }
+}
