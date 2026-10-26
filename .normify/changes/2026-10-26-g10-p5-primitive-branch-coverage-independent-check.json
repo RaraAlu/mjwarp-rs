@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-g10-p5-primitive-branch-coverage-independent-check",
+  "title": {
+    "zh": "primitive 分支覆盖片 QA 独立复核（graph 分支 / 四个未覆盖分支 / swap 顺序规范化）",
+    "en": "QA independent review of the primitive branch-coverage slice (graph branch, four uncovered branches, swap-order canonicalization)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "对 `2026-10-26-g10-p5-primitive-branch-coverage` 做独立复核：新 fixture 是否真触发目标分支（而不是绕路或凑数）、新上游 GPU 参考是否双轮逐字节一致且有 provenance、旧参考是否零改动、swap 规范化是否只按 pinned 类型序语义且未改 ABI/判据、既有 13 组合是否位级无回退；独立 CPU 复算各分支数值，不给设备侧背书。",
+    "en": "Independent review of the branch-coverage slice: genuine branch triggering, new reference provenance, old reference untouched, swap canonicalization semantics, and no regression on the existing 13 combos."
+  },
+  "modules": {},
+  "acceptance": [
+    "**范围与独立复算**：只读复核实现片 `2026-10-26-g10-p5-primitive-branch-coverage` 的交付（`src/physics/collision/cuda/`、`tests/`、`fixtures/g10-p5-primitive-branches/`、`docs/development-evidence/g10-p5-primitive-branch-coverage/`），按 pinned 源（`_src/collision_primitive*.py`，rev `71da24d9`）与 MuJoCo 输入独立 CPU 复算 6 条分支 case；device 侧只交叉交付窗口日志，不宣称代替设备验证。",
+    "**分支真实性**：逐条核「该 case 确实进入目标分支」——据 fixture 的几何/参数（顶点数、同心距离、投影位置、轴向量、det 量级）与 pinned 分支条件复算判定；若发现某 case 实际走的是其它分支或无法稳定触发，记阻断并要求改 fixture 或降级为未覆盖。",
+    "**参考可信度**：新参考 `upstream-primitive-branches-gpu.json` 双轮 raw 逐字节一致、`two_captures_bitwise_identical=true`、provenance（python/mujoco/warp/mujoco_warp/numpy/GPU/驱动/脚本 sha/captured_at 真实时间）齐全；旧 `upstream-primitive-gpu.json` sha `3a6475ac…` **零改动**；捕获窗口事实（样本/峰值/free_min/结束基线/无残留/零编译）与 `facts` 一致。",
+    "**swap 规范化**：核改动是否等价于 pinned `_add_geom_pair` 的类型序规范化；确认 0 新 ABI 字段、entries 仍 6、`src/physics/mod.rs` 零 diff、判据/容差/字段集/期望零改动；既有 13 组合回归位级不变（自己重跑对照，或核交付日志并抽 case 复算）。",
+    "**证据与门禁**：`docs/development-evidence/g10-p5-primitive-branch-coverage-independent-check/`（README + receipt，含 verdict/blockers/observations、独立数字、未覆盖与边界）；门禁 gate fmt/clippy/clippy-cuda/unit 全过、`normify check` exit 0；UTF-8 无 BOM、单文件 ≤500 行。",
+    "**口径红线**：不宣称全路径/全分支/跨平台/精度结论；未重跑 device 就如实写；观察分「阻断/一般/建议」三级，阻断项未清不得报 pass。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-g10-p5-primitive-branch-coverage"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-primitive-branch-coverage-independent-check/",
+      ".normify/runs/"
+    ],
+    "resources": [],
+    "priority": 45
+  },
+  "note": "Arch 2026-10-26 预登记（实现片 start 前已登记，按「QA 复核提前预登记」纪律）：等实现片 verified 后 start；start 前不读实现片进行中的中间态作结论。",
+  "revision": {
+    "before": "44a8092a36bb9caa457c75900aefc96aa3429a13",
+    "after": null
+  },
+  "created_at": "2026-10-26T13:53:00.000Z",
+  "updated_at": "2026-10-26T13:53:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-primitive-branch-coverage-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-g10-p5-primitive-branch-coverage-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
