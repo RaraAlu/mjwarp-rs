@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-commit-msg-forbid-selfcheck",
+  "kind": "Governance/tooling: commit-message forbidden-term self-check script",
+  "role": "Arch",
+  "base_head": "f1e5cda1",
+  "trigger": {
+    "fact": "M3 commit f1e5cda1 首次提交时，commit message 在否定句里出现字面词「精度达标」，被 commit-msg hook 的 forbid_claim 规则拒绝",
+    "directive": "Chief 2026-10-27：把禁词检查做成脚本，与 scope-selfcheck 同级，不要靠人眼"
+  },
+  "deliverables": {
+    "script": "scripts/commit-msg-selfcheck.mjs",
+    "usage": "node scripts/commit-msg-selfcheck.mjs <task-id> <message-file> [--repo <path>]",
+    "self_test": "node scripts/commit-msg-selfcheck.mjs --self-test",
+    "terms_source": "任务的 checks[kind=forbid_claim].terms（与 hook 同源）；缺失时回退内置默认表 6 条",
+    "exit_codes": {"0": "零命中", "1": "命中禁词（hook 会拒绝）", "2": "用法/文件读取错误"},
+    "checklist": "docs/development-evidence/scheduling-registration-checklist.md §7.1"
+  },
+  "self_test_results": {
+    "selftest": "4/4 PASS（干净 / 含「精度达标」1 处 / CRLF 含「上游完全等价」1 处 / BOM 干净）",
+    "positive_control_m3_message": "target/commit-msg-m3.txt（35 行）→ exit 0，零命中，词表来源=任务 JSON 6 条",
+    "negative_control": "带「精度达标」「上游完全等价」的临时消息 → exit 1，命中 2 处并可定位到行 3",
+    "fallback_control": "任务文件不存在（no-such-task-xyz）→ 回退默认 6 条词表、exit 1"
+  },
+  "scope": {
+    "changed_paths": [
+      "scripts/commit-msg-selfcheck.mjs",
+      "docs/development-evidence/scheduling-registration-checklist.md",
+      "docs/development-evidence/commit-msg-selfcheck-governance/"
+    ],
+    "not_changed": ["src/", "tests/", "fixtures/", "Cargo.*", "criteria/tolerances/window data"]
+  },
+  "gate": {
+    "command": "normify gate 2026-10-27-commit-msg-forbid-selfcheck --repo D:\\Rust\\mjwarp-rs",
+    "gates": ["fmt", "clippy", "clippy-cuda", "unit"]
+  },
+  "workflow_note": "本片自身提交即用该脚本自查（dogfooding）：node scripts/commit-msg-selfcheck.mjs 2026-10-27-commit-msg-forbid-selfcheck target/commit-msg-selfcheck.txt → exit 0 后才提交。",
+  "evidence_dir": "docs/development-evidence/commit-msg-selfcheck-governance"
+}

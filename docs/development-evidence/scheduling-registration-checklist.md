@@ -70,6 +70,24 @@ node scripts/scope-selfcheck.mjs <task-id>
 记录在提交说明「工作树另有 X 在途 WIP、未纳入本提交」，然后**只 `git add` 本片路径**（不要 `git add -A`），
 不要把别人的 WIP 捎带提交。
 
+### 7.1 提交说明禁词自查（2026-10-27 起，强制，与 scope-selfcheck 同级）
+
+提交前**还要**跑：
+
+```text
+node scripts/commit-msg-selfcheck.mjs <task-id> <提交信息文件>
+# 自检：node scripts/commit-msg-selfcheck.mjs --self-test
+```
+
+- 词表来源：任务 JSON 的 `checks[kind=forbid_claim].terms`（与 commit-msg hook 同源）；任务文件缺失或无该检查时
+  回退内置默认表（`G10已实现`/`完整物理通过`/`双平台通过`/`上游完全等价`/`原生放行`/`精度达标`）。
+- 扫描提交信息全文（标题 + 正文 + trailer），命中即打印「行号 + 命中词」并**退出码 1**（hook 会拒绝该提交）；
+  零命中打印 OK；退出码 2 = 用法/文件错误。
+- **触发事实**：2026-10-27 M3 提交时提交信息里写了字面词「精度达标」（在否定句里），被 commit-msg hook 的
+  `forbid_claim` 拒了一次——手写容易漏，故做成脚本。改写口径示例：「不宣称精度目标已达成」。
+- 脚本自带 `--self-test`（4 条：干净/含禁词/CRLF/BOM），可复跑；提交说明措辞改完再跑，exit 0 才能提交。
+
+
 ## 8. 夜间负载与重测试互斥（2026-10-27 更新，Chief 指令）
 
 **触发事实**：用户 2026-10-27 夜间问「是不是在跑大量 CPU 测试」；Chief 查询时点 0 个 `cargo`/`rustc` 进程，
