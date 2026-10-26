@@ -2,7 +2,7 @@
 
 任务：`2026-10-26-mesh-multicontact-m0b-case-production`（in_progress，owner Backend；纯 CPU）。
 性质：为 M1 fixture 产出 **32 数组** 的 host 输入 bins（含 M0a 9 个 mesh polygon 数组），
-供 M2 设备实现/验证窗使用。**不改** G5 已 verified 的 `prepare_cases.py` 与旧 12 个 case bins；
+供 M2 设备实现/验证窗使用。**不改** G5 已 verified 的 `prepare_cases.py` 与旧 **10** 个 G5 case bins；
 不改 `src/`、不改 fixtures、不改判据/容差/参考。
 
 ## 1. 产出
@@ -71,6 +71,13 @@ manifest 的 `cross_check` 与 `cases.<case>.xml_sha256/qpos_bits` 记录上述�
 `tests/g10_p5_mesh_poly_case_assembly::m0b_same_source_matches_m1_reference` 在 CPU 上独立复算
 （fixture xml sha 现场重算、bins 位型 vs 参考位型）并断言一致。
 
+**关于 manifest 自证力（QA 观察 O3，2026-10-27 裁定）**：`cross_check.geom_xpos_bits` /
+`geom_xmat_bits` 只记 `{"match": true}`，未写 actual/reference 位型，自证力弱于其它项。
+**本片不补**（补会改 `mesh-cases-manifest.json` 的 sha → 级联已 verified 的 M0b 复核证据与生产脚本
+provenance）；该结论的冗余证据为：① 32 个 bin 的逐文件 sha256/count 在 manifest 与
+`qa-verify-bins.json` 双处复算一致；② 常驻测试 `m0b_same_source_matches_m1_reference` 逐位断言；
+③ QA 独立复算 `qa-same-source.json`（pinned mjModel 现场 dump 逐值相等）。位型事实不依赖该字段自证。
+
 ## 3. CPU 自检门（Chief 硬要求 ②）
 
 ### 3.1 生产脚本内 12 条规则（manifest `cpu_selfcheck.rules`，两 case 全 PASS）
@@ -122,17 +129,24 @@ manifest 的 `cross_check` 与 `cases.<case>.xml_sha256/qpos_bits` 记录上述�
   23 项；声明集合内的名字必须在 32 项口径内（未知名字直接 panic）。
 - **装配兼容**：`read_optional_*` 读 9 个 mesh_poly bin；文件缺失 → 空 slice（sidecar 不构造），
   并显式断言「9 个同时存在或同时缺失」（部分存在 → panic，不静默半装配）。
-- 旧 12 个 G5 case 的 bin 与 QA 参考**零改动**（`git status` 对这些路径为空）。
+- 旧 **10** 个 G5 case 的 bin 与 QA 参考**零改动**（`git status` 对这些路径为空）。
+  （QA 观察 O1：本片 README 早期与交付 commit message 写「旧 12 个 G5 case」是笔误——`gpu-window/cases/`
+  实际只有 **10** 个目录、`OLD_G5_CASES: [&str; 10]`；历史提交不改写，口径以 10 为准，
+  M2 证据与整片汇总已按「10 bins / 9 device + 1 未覆盖」更正。）
 
 ## 5. 改动/新增文件（全部 ≤500 行）
 
-| 文件 | 行数 | 说明 |
+行数口径：**交付提交 `ac01d86d` 时点的 raw 行数（括号内为非空行）**，2026-10-27 按 QA 观察 O2 复核更正；
+后续 M2/M3 会继续往这些测试文件追加用例，当前 HEAD 行数更大（如 `g10_p5_mesh_poly_case_assembly.rs`
+在 HEAD 已增至 400+ 行，仍 ≤500），以本表「交付时点」为准。
+
+| 文件 | 交付行数（raw / 非空） | 说明 |
 | --- | --- | --- |
-| `docs/development-evidence/mesh-multicontact-m0b/scripts/prepare_mesh_cases.py` | 331 | 生产脚本（新增，入库于证据目录） |
-| `tests/support/primitive_qa_support.rs` | 300 | INPUT_BINS 32 + 声明集合守卫 + 可选 bin 装配 |
-| `tests/support/multicontact_qa_support.rs` | 313 | 同上 |
-| `tests/support/mesh_poly_case_support.rs` | 328 | 新增：32 项装配/`meta.txt` 解析/旧 case 兼容 helper |
-| `tests/g10_p5_mesh_poly_case_assembly.rs` | 347 | 新增：4 条 CPU 测试 |
+| `docs/development-evidence/mesh-multicontact-m0b/scripts/prepare_mesh_cases.py` | 372 / 331 | 生产脚本（新增，入库于证据目录） |
+| `tests/support/primitive_qa_support.rs` | 331 / 312 | INPUT_BINS 32 + 声明集合守卫 + 可选 bin 装配 |
+| `tests/support/multicontact_qa_support.rs` | 347 / 326 | 同上 |
+| `tests/support/mesh_poly_case_support.rs` | 362 / 338 | 新增：32 项装配/`meta.txt` 解析/旧 case 兼容 helper |
+| `tests/g10_p5_mesh_poly_case_assembly.rs` | 385 / 361 | 新增：4 条 CPU 测试 |
 
 ## 6. 门禁数字
 
@@ -148,3 +162,21 @@ manifest 的 `cross_check` 与 `cases.<case>.xml_sha256/qpos_bits` 记录上述�
   常驻覆盖为规则镜像 + 装配断言；`run()` 的发射级验证在 M2 验证窗执行。
 - 不改 `src/`、不改 `prepare_cases.py`、不动旧 G5 case bins/参考、不改判据/容差。
 - 不宣称 mesh 已支持；M2 需要在这些 bins 上实现 mesh multicontact 设备路径。
+
+## 8. QA 观察收口（2026-10-27；任务 `2026-10-27-mesh-multicontact-m0b-observation-closure`）
+
+M0b 独立复核（`f191fdba`，pass / 阻断 0 / 观察 6）的逐条处置。**纯证据文字/编码治理**：
+32 个 bin、`mesh-cases-manifest.json`、`scripts/prepare_mesh_cases.py`、`tests/`、`src/`
+与任何数字均未改动。
+
+| 观察 | 级别 | 处置 | 落点 |
+| --- | --- | --- | --- |
+| O1「旧 12 个 G5 case」与事实不符（实际 10） | 一般 | README §1、§4 改 10；注明交付 commit message 中「12」为笔误、历史提交不改写、口径以 10 为准 | §1、§4 |
+| O2 README §5 行数与实测不符 | 一般 | §5 改为「交付提交 `ac01d86d` 时点 raw 行数（非空）」= 331/312、347/326、362/338、385/361，`prepare_mesh_cases.py` 372/331；并注明后续片只增不减、仍 ≤500 | §5 |
+| O3 manifest `cross_check` 只记 `match=true` | 建议 | **裁定不补**（改 manifest 会级联已 verified 的复核证据与脚本 provenance）；改为在 §2 写明自证力弱 + 三条冗余证据 | §2 |
+| O4 交付证据 2 个日志 UTF-8 带 BOM | 建议 | `logs/assembly-test.log`、`logs/real-validate-probe.log` 转 UTF-8 无 BOM，内容逐字不变 | `logs/` |
+| O5 探针日志不含 exit code、探针源码未留档、不可复跑 | 建议 | 本节显式注明；探针仅历史留档，**常驻覆盖 = M2 的 `validate_collision_inputs`（`src/runtime/collision_gpu.rs`，`#[doc(hidden)]`）+ `real_cpu_validation_accepts_m0b_and_old_cases`（非 ignored，读真实 M0b bins）** | 本节 |
+| O6 临时证据建议附探针源码文本/sha | 建议 | 探针源码未归档（跑完即 revert），**无法补**；仅日志可佐证其真实编译执行（`validate_tests.rs:456 unused mut` 告警 + 3 行 `PROBE_REAL_VALIDATE_OK` + `test result: ok`）。如实记为不可复跑的历史留档 | 本节 |
+
+**本节不改变任何既有结论**：bins 同一来源、CPU 自检 12 规则、`INPUT_BINS` 23→32 兼容、
+门禁数字（986/0/372 交付时点）均与原证据一致。

@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-mesh-multicontact-m0b-observation-closure",
+  "kind": "Governance: M0b QA observation closure (evidence text/encoding errata only)",
+  "role": "Arch",
+  "base_head": "3652723b",
+  "triggers": {
+    "m0b_delivery": "ac01d86d",
+    "m0b_qa_check_closure": "f191fdba",
+    "qa_verdict": {"verdict": "pass", "blockers": 0, "observations": 6}
+  },
+  "observation_closure": {
+    "O1": {
+      "level": "一般",
+      "change": "README §1/§4「旧 12 个 G5 case」改为 10；注明交付 commit message 中「12」为笔误、历史提交不改写、口径以 10 为准（M2 证据与整片汇总已按 10 bins / 9 device + 1 未覆盖更正）"
+    },
+    "O2": {
+      "level": "一般",
+      "change": "README §5 行数按交付提交 ac01d86d 时点 raw/非空复核更正：primitive_qa_support 331/312、multicontact_qa_support 347/326、mesh_poly_case_support 362/338、g10_p5_mesh_poly_case_assembly 385/361、prepare_mesh_cases.py 372/331；注明后续片只增不减、仍 ≤500"
+    },
+    "O3": {
+      "level": "建议",
+      "decision": "not_fixed_by_design",
+      "change": "裁定不补 manifest 的 actual/reference 位型（改 mesh-cases-manifest.json 的 sha 会级联已 verified 的 M0b 复核证据与生产脚本 provenance）；改为 README §2 写明 cross_check 仅记 match=true、自证力弱，并列三条冗余证据（逐文件 bin sha256/count 双处复算、常驻测试逐位断言、QA qa-same-source.json 独立复算）"
+    },
+    "O4": {
+      "level": "建议",
+      "change": "logs/assembly-test.log（925→922 B）与 logs/real-validate-probe.log（1638→1635 B）转 UTF-8 无 BOM，内容逐字不变（仅去 3 字节 BOM）"
+    },
+    "O5": {
+      "level": "建议",
+      "change": "README §8 显式注明探针日志仅历史留档、不可复跑；常驻覆盖 = M2 的 validate_collision_inputs（src/runtime/collision_gpu.rs，#[doc(hidden)]）+ real_cpu_validation_accepts_m0b_and_old_cases（非 ignored，读真实 M0b bins）"
+    },
+    "O6": {
+      "level": "建议",
+      "change": "探针源码未归档（跑完即 revert），无法补附；README §8 记录仅日志可佐证真实编译执行（validate_tests.rs:456 unused mut + 3 行 PROBE_REAL_VALIDATE_OK + test result: ok），如实记为不可复跑的历史留档"
+    }
+  },
+  "not_changed": [
+    "32 个 bin（2 case × 32）及其 sha256/count 全未改",
+    "mesh-cases-manifest.json 未改（O3 裁定）",
+    "scripts/prepare_mesh_cases.py 与 scripts/sha256.json 未改",
+    "tests/、src/、fixtures/、Cargo.* 零改动",
+    "M0b 交付 receipt.json 未改（观察项不涉及 receipt 内容）",
+    "任何已 verified 数字/判据/容差/参考未改（986/0/372 交付时点门禁数字、CPU count 4/4、9 数组长度 (1,1,18,6,6,24,8,8,24) 等）",
+    "QA 证据目录（mesh-multicontact-m0b-independent-check/，含其 logs/ 下的 BOM 副本）不改：它是复核时点的忠实副本，manifest 未覆盖交付 README/receipt/logs，故本片编辑不破坏其 sha 校验"
+  ],
+  "gate": {
+    "command": "normify gate 2026-10-27-mesh-multicontact-m0b-observation-closure --repo D:\\Rust\\mjwarp-rs",
+    "gates": ["fmt", "clippy", "clippy-cuda", "unit"],
+    "unit_expected": "见 .normify/runs/2026-10-27-mesh-multicontact-m0b-observation-closure/unit.json（纯文档/编码改动）"
+  },
+  "boundaries": [
+    "Evidence text/encoding only; no code, no bins, no manifest, no criteria or verified-number changes",
+    "No claim that mesh is supported; M0b remains a CPU-only bins-production slice"
+  ],
+  "evidence_dir": "docs/development-evidence/mesh-multicontact-m0b-observation-governance"
+}
