@@ -1,0 +1,41 @@
+{
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2-independent-check",
+  "kind": "qa-t4-historical-audit-isolation",
+  "head": "5b27c69e71e96f29173388f6930c99cba373f11e",
+  "targets": [
+    "t4_camlight_precision",
+    "t4_face_fusion_repair",
+    "t4_face_normalization_control",
+    "t4_hessian_generation",
+    "t4_spatial_tendon_precision",
+    "t4_tendon_wake_precision",
+    "t4_trig_control_domain"
+  ],
+  "gating_source": "each file line 3: #![cfg(all(feature = \"cuda\", feature = \"t4-historical-audits\"))]; Cargo.toml adds non-default t4-historical-audits = []",
+  "my_runs": {
+    "default_cargo_test_locked": "all 7 targets present in the run with 0 passed / 0 failed / 0 ignored (verified from my clean default log; no target/ frozen artifacts were read)",
+    "msvc_all_features": {
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --test <7 targets> -- --test-threads=1",
+      "exit": 0,
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0,
+      "binaries": 7,
+      "per_target": "t4_camlight_precision 3 + the other six 4 each = 27",
+      "env": "G01-style env (MJWARP_MUJOCO_ROOT / MJWARP_MUJOCO_DLL / CUDA_PATH / PATH) with own CARGO_TARGET_DIR target/qa-stage2/t-msvc-all"
+    },
+    "delivery_claims_match": {
+      "default_0_tests": true,
+      "with_feature_27": true,
+      "all_features_27": true
+    }
+  },
+  "t4_lineage_untouched": {
+    "np01_inventory_sha_parent": "5a48df6cc2cfb857da88638b3887fa671e7eb37c",
+    "np01_inventory_sha_head": "5a48df6cc2cfb857da88638b3887fa671e7eb37c",
+    "product_sources_repin_in_commit": false,
+    "reason": "commit changes no src/physics or manifest files; NP01 inventory blob identical; T4 identity live check (tests/t4_identity_live_check.rs) ran inside my default suite: 2 passed / 0 failed",
+    "note": "the 7 audit targets are test-only integrations; they are not part of product_sources"
+  },
+  "conclusion": "isolation is real: default suite no longer runs the 7 frozen-artifact audits (0 tests each), --all-features still runs them (27/0, independently reproduced on MSVC), and T4 identity material was not repinned."
+}

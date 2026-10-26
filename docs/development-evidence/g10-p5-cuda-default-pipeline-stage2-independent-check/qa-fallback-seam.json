@@ -1,0 +1,53 @@
+{
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2-independent-check",
+  "kind": "qa-three-state-fallback-no-panic-and-seam-discipline",
+  "head": "5b27c69e71e96f29173388f6930c99cba373f11e",
+  "independent_process_runs": {
+    "note": "each test run alone with --exact in a clean target dir (t-default), exit codes are mine",
+    "product_api": [
+      { "test": "runtime::collision_gpu::fallback_tests::device_context_without_driver_returns_nodevice_without_panic", "exit": 0, "result": "1 passed" },
+      { "test": "runtime::collision_gpu::fallback_tests::device_context_without_usable_device_returns_nodevice", "exit": 0, "result": "1 passed" },
+      { "test": "runtime::collision_gpu::fallback_tests::device_context_initialization_panic_is_caught", "exit": 0, "result": "1 passed" },
+      { "test": "runtime::collision_gpu::fallback_tests::constructor_without_nvrtc_returns_compile_without_panic", "exit": 0, "result": "1 passed" }
+    ],
+    "cli": [
+      { "test": "runtime::cuda::tests::prepare_device_without_driver_returns_driver_unavailable_without_panic", "exit": 0, "result": "1 passed" },
+      { "test": "runtime::cuda::tests::prepare_device_without_devices_returns_invalid_device", "exit": 0, "result": "1 passed" },
+      { "test": "runtime::cuda::tests::require_nvrtc_without_library_returns_nvrtc_unavailable", "exit": 0, "result": "1 passed" }
+    ],
+    "selection_layer": { "test": "runtime::backend::tests::cuda_probe", "exit": 0, "result": "6 passed / 0 failed" }
+  },
+  "pre_fix_red_reproduction": {
+    "method": "own detached git worktree of HEAD (target/qa-stage2/wt-clean, no target/ dir); in the copy only, removed the driver pre-check and the catch_unwind wrapper in src/runtime/collision_gpu/context.rs while keeping the #[cfg(test)] panic injection",
+    "test": "device_context_initialization_panic_is_caught",
+    "exit": 101,
+    "observed": [
+      "panicked at src/runtime/collision_gpu/context.rs:12:36: injected cudarc culib panic",
+      "thread panicked at src/runtime/collision_gpu/fallback_tests.rs:62:19: panic 逃出了 device_context（守卫缺失）",
+      "test result: FAILED. 0 passed; 1 failed"
+    ],
+    "after_restore": { "test": "runtime::collision_gpu::fallback_tests:: (4 tests)", "exit": 0, "result": "4 passed / 0 failed" },
+    "conclusion": "the delivery's pre-fix-red / post-fix-green discriminator is independently reproducible; the guard is what keeps the culib panic from escaping"
+  },
+  "product_binary_scan": {
+    "method": "read own clean-built debug binaries as Latin-1 and search byte strings",
+    "binaries": {
+      "default": { "path": "target/qa-stage2/t-default/debug/mjwarp-rs.exe", "size_bytes": 81940557 },
+      "features_cuda": { "path": "target/qa-stage2/t-cuda/debug/mjwarp-rs.exe", "size_bytes": 81940557 },
+      "no_default_features": { "path": "target/qa-stage2/t-nocuda/debug/mjwarp-rs.exe", "size_bytes": 20689049 }
+    },
+    "seam_identifiers_searched": ["DRIVER_OVERRIDE", "NVRTC_OVERRIDE", "DEVICE_COUNT_OVERRIDE", "CONTEXT_PANIC", "CONTEXT_ERROR", "SeamGuard", "set_driver_present_for_tests", "set_nvrtc_present_for_tests", "set_context_mode_for_tests", "set_compile_override_for_tests", "reset_test_overrides", "FORCE_SOFT_FMA"],
+    "seam_identifiers_hits": 0,
+    "mjwarp_prefix_hits": {
+      "default": ["MJWARP_PHYSICS_PTX_DIR (src/runtime/transfer/kernel/capture_dir.rs and ptx.rs, unchanged product code)", "MJWARP_LAUNCHER_BASELINE_DIR (src/runtime/transfer/kernel.rs, unchanged product code)", "embedded CUDA source macro names MJWARP_G01_EQUIVALENT / MJWARP_FIELD_BATCHES / MJWARP_MOCAP (device source strings embedded by product code)"],
+      "features_cuda": "same",
+      "no_default_features": []
+    },
+    "changed_files_env_reads": "0 matches for env::var / std::env / env! in src/runtime/presence.rs, src/runtime/backend.rs, src/runtime/backend/tests.rs, src/runtime/collision_gpu/context.rs, src/runtime/collision_gpu/fallback_tests.rs, src/runtime/cuda/tests.rs",
+    "conclusion": "seam substance holds (test-only seams, no env switch in product, no runtime env branch); the delivery sentence that the product binary has zero MJWARP_* hits is factually wrong as written (env names from unchanged transfer/kernel product code and embedded CUDA macros are present)."
+  },
+  "not_covered": [
+    "real machine without driver / without device not exercised on hardware (seam simulation only, disclosed by delivery)",
+    "culib-panic path is injected via #[cfg(test)] seam, not a real cudarc culib failure"
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2-independent-check",
+  "kind": "qa-observations",
+  "head": "5b27c69e71e96f29173388f6930c99cba373f11e",
+  "verdict": "pass (0 blocking, 0 must-fix technical defect found, 10 observations: wording/number consistency in the delivery evidence package, scope/traceability notes, and one wording note on clean-clone portability)",
+  "observations": [
+    {
+      "id": "O1",
+      "summary": "delivery default/features-cuda test baseline is stale: 971/0/364 with 111 binaries vs actual 971/0/369 with 112 binaries",
+      "detail": "README section 0/2, receipt.three_configs_clean and logs/gates-final.txt say 364 ignored / 111 binaries; the delivery's own .normify/runs/...stage2-r2/unit.json records 971/0/369 and the r2 acceptance baseline is 971/0/369. My clean run: 971/0/369, 112 binaries. Root cause: unit-summary logs have 111 result lines and miss the tests/stage2_equivalence_window.rs binary (0 passed / 0 failed / 5 ignored), added by the same commit.",
+      "severity": "observation (numbers in narrative wrong; gate record and acceptance correct)",
+      "suggested_action": "update README section 0/2, receipt and gates-final.txt to 971/0/369 / 112 binaries before the final collection, or mark them as pre-window-test measurements"
+    },
+    {
+      "id": "O2",
+      "summary": "committed evidence still contains stale 'GPU window 0 / UNC-2 open / equivalence pending' text next to the closed UNC-2 claim",
+      "detail": "receipt.json (status in_progress, gpu_windows 0, unc2 open, equivalence pending 3b/3c), README header bullet (lines 6-7) and README section 7 last line (line 149) contradict README section 7/7.1 and the window doc. tests/stage2_equivalence_window.rs three_record_summary also hardcodes unc2_closed=false and writes open into three-records.json.",
+      "severity": "observation (understates; no premature closure claim)",
+      "suggested_action": "unify receipt/README/header and either update the harness text or add an explicit note that closure is a governance decision recorded in README 7.1"
+    },
+    {
+      "id": "O3",
+      "summary": "the root cause written for E window exit=101 does not match the raw E log",
+      "detail": "window doc section 2 attributes the 3 failed CPU record tests to the harness row-order comparison bug. The E log shows the 3 tests failed with 'read dump ... os error 3' because libtest name order ran the dump-producing test last; the row-order bug is the separate ellipsoid run1/run2 raw-array inconsistency. exit=101 itself and 'dumps landed, CPU-only rerun' are truthfully disclosed.",
+      "severity": "observation (fact of exit 101 disclosed; cause misattributed)",
+      "suggested_action": "correct the cause sentence and keep both sub-facts (dump ordering; row-order normalization) separate"
+    },
+    {
+      "id": "O4",
+      "summary": "'9 case dump two runs bit-identical' holds only under the G5 row-order normalization",
+      "detail": "ellipsoid-box Contact run1/run2 raw arrays differ by row order only (worldid 1,0 vs 0,1, same value multiset); normalized 17/17 dumps are bit-identical (my independent recompute).",
+      "severity": "observation (window doc section 4 discloses it; the qualifier text does not carry the qualifier)",
+      "suggested_action": "add the row-order qualifier wherever the two-run equality is cited"
+    },
+    {
+      "id": "O5",
+      "summary": "record B uses the G5 section 11.2 exclusion asymmetrically for the three primitive-dispatch cases",
+      "detail": "G5 README section 11.2 names sphere-box-shallow, sphere-box-deep and capsule-box together as primitive_narrowphase dispatch cases excluded from the device ccd comparison. Delivery record B counts sphere-box-shallow as a valid-reference pass (0 failures) and only excludes deep/capsule as reference_not_comparable. My independent recompute reproduces the numbers either way (shallow 15/26 bit, 1 ULP dist, frame 6.985e-8; deep/capsule red).",
+      "severity": "observation (does not change 'not B full green'; green subset definition is asymmetric)",
+      "suggested_action": "either classify shallow also as reference_not_comparable, or state that product-device-vs-frozen-probe is a same-recipe comparison acceptable for shallow"
+    },
+    {
+      "id": "O6",
+      "summary": "delivery sentence 'product binary scan: MJWARP_* zero hits' is factually wrong",
+      "detail": "default/cuda product exe contains MJWARP_PHYSICS_PTX_DIR and MJWARP_LAUNCHER_BASELINE_DIR (both from unchanged src/runtime/transfer/kernel product code) as well as embedded CUDA source macros MJWARP_G01_EQUIVALENT / MJWARP_FIELD_BATCHES / MJWARP_MOCAP. Seam identifiers are 0 hits and the changed files contain no env reads, so the substantive seam claim holds.",
+      "severity": "observation (claim wording only)",
+      "suggested_action": "scope the sentence to seam identifiers (and list the pre-existing MJWARP_* env names)"
+    },
+    {
+      "id": "O7",
+      "summary": "selection layer backend.rs has no product caller",
+      "detail": "device_permitted/narrowphase_backend_status/device_program are referenced only in src/runtime/backend/tests.rs; the CLI probe path uses runtime::cuda::prepare_device with shared presence probes. This matches the Chief-approved qualifier (default Host, Device explicit) but if the r2 intent sentence about wiring the device entry into the collision narrowphase is read as dispatch wiring, it is not implemented.",
+      "severity": "observation (scope note; should be registered as migration debt if dispatch wiring is expected in a later slice)",
+      "suggested_action": "record in the migration-debt list of the delivery README"
+    },
+    {
+      "id": "O8",
+      "summary": "window/equivalence raw artifacts are not committed",
+      "detail": "attempt4 logs, 17 product dumps, record-b.json, result.json and three-records.json live only under the gitignored target/stage2-impl/window/; committed evidence has summaries only. On this machine QA could and did recompute them, but a reviewer from the repository alone cannot.",
+      "severity": "observation (traceability)",
+      "suggested_action": "either commit the small record-b.json/result.json summaries or reference the exact machine-local paths in the README (already partly done)"
+    },
+    {
+      "id": "O9",
+      "summary": "logs/selection-backend-tests-nocuda.log is from an older source layout",
+      "detail": "it shows unused-import warnings in src/runtime/backend/tests.rs that no longer exist (imports were moved inside the cfg(feature=\"cuda-probe\") module); my no-default clean build has 0 warnings and clippy --no-default-features -D warnings passes (18.5 s, exit 0).",
+      "severity": "observation",
+      "suggested_action": "regenerate or drop the stale log"
+    },
+    {
+      "id": "O10",
+      "summary": "'clean clone portable' wording is stronger than what a literal Windows git clone can deliver, due to pre-existing EOL-frozen tests",
+      "detail": "without target/ artifacts: a default-autocrlf clone fails tests/g10_p5_sdf_relmat.rs script-sha (LF-frozen script becomes CRLF), an autocrlf=false clone fails tests/launcher-warp-headers.rs header manifest (frozen from CRLF bytes). Both tests/fixtures already exist at parent commit 54615cd8 and are unrelated to this slice. With a tracked-file copy of the main working tree (exact bytes, no target/, no .git) the default suite is 971/0/369 exit 0, which proves the intended property: no dependency on machine-local target/ frozen artifacts.",
+      "severity": "observation (pre-existing repo EOL hygiene; scope wording)",
+      "suggested_action": "say 'no target/ dependency' instead of 'clean clone portable', or register the EOL governance debt"
+    }
+  ]
+}

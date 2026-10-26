@@ -1,0 +1,49 @@
+{
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2-independent-check",
+  "kind": "qa-equivalence-records",
+  "head": "5b27c69e71e96f29173388f6930c99cba373f11e",
+  "method": "own PowerShell reader of target/stage2-impl/window/product/*.json and docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/<case>/out1/*.bin; own re-implementation of the G5 criterion (dist 4 ULP @ own magnitude or 4 ULP@1.0 for ref==0, pos 4*ULP(scale), frame 4 ULP@1.0, count/world/overflow equal, worldid grouping + stable sort, row order not a criterion). Delivery scripts/tests were not used for these numbers.",
+  "dump_two_run_determinism": {
+    "dumps": 17,
+    "normalized_equal": 17,
+    "detail": {
+      "ellipsoid-box Contact": "raw run1/run2 arrays differ only by row order (run1 worldid=1,0; run2 worldid=0,1; same dist/pos/frame value multiset); after worldid grouping + G5 sort key the rows are bit-identical",
+      "all_other_16_dumps": "raw arrays equal, normalized equal as well"
+    },
+    "conclusion": "the claim '9 case dump two runs bit-identical' holds only after the G5 row-order normalization; one dump (ellipsoid-box Contact) is not raw-array identical. The delivery window doc section 4 discloses the row-order issue, but the UNC-2 qualifier text does not carry that qualifier."
+  },
+  "record_b_independent_recompute": {
+    "criterion_ref": "G5 frozen device criterion (bit first, else 4 ULP; row order normalized)",
+    "rows": [
+      { "case": "cylinder-box", "kernel": "Contact", "total": 26, "bit_equal": 26, "max_dist_ulp": 0, "max_pos_ulp": 0.0, "max_frame_abs": 0.0, "failures": 0 },
+      { "case": "ellipsoid-box", "kernel": "Contact", "total": 26, "bit_equal": 26, "max_dist_ulp": 0, "max_pos_ulp": 0.0, "max_frame_abs": 0.0, "failures": 0 },
+      { "case": "mesh-mesh", "kernel": "Contact", "total": 26, "bit_equal": 26, "max_dist_ulp": 0, "max_pos_ulp": 0.0, "max_frame_abs": 0.0, "failures": 0 },
+      { "case": "sphere-box-shallow", "kernel": "Contact", "total": 26, "bit_equal": 15, "max_dist_ulp": 1, "max_pos_ulp": 0.25, "max_frame_abs": 6.985e-8, "failures": 0 },
+      { "case": "sphere-box-deep", "kernel": "Contact", "total": 26, "bit_equal": 8, "max_dist_ulp": 14, "max_pos_ulp": 6600.75, "max_frame_abs": 1.215e-6, "failures": 12 },
+      { "case": "capsule-box", "kernel": "Contact", "total": 26, "bit_equal": 5, "max_dist_ulp": 12, "max_pos_ulp": 2237052.0, "max_frame_abs": 1.0, "failures": 19 },
+      { "case": "sdf-box", "kernel": "Sdf", "total": 1040, "bit_equal": 1040, "max_dist_ulp": 0, "max_pos_ulp": 0.0, "max_frame_abs": 0.0, "failures": 0 }
+    ],
+    "matches_delivery_record_b": "exactly (same bit_equal/total, same max values, same failure counts and failure texts; delivery record-b.json was not used to derive these numbers)",
+    "red_items": "sphere-box-deep and capsule-box are red under this comparison; delivery classifies them reference_not_comparable"
+  },
+  "classification_check": {
+    "not_comparable_list": ["sphere-box-deep Contact", "capsule-box Contact"],
+    "no_frozen_reference_list": ["convex-mesh", "degenerate-mesh"],
+    "g5_11_2_basis": "confirmed in docs/development-evidence/g10-p5-gpu-kernels/README.md section 11.2 (lines 198-205): upstream collision_driver dispatch routes (SPHERE,BOX) and (CAPSULE,BOX) through primitive_narrowphase, so the frozen probe out1 ccd branch is not bound to the upstream reference; the same section names sphere-box-shallow/deep and capsule-box together.",
+    "list_completeness_finding": "the not-comparable rule in section 11.2 names THREE cases (sphere-box-shallow, sphere-box-deep, capsule-box). Delivery record B flags only deep and capsule as reference_not_comparable, while sphere-box-shallow is counted as a valid-reference pass (0 failures, 15/26 bit-equal). The exclusion rationale therefore applies asymmetrically: the passing case stays in the green subset, the failing ones are excluded by the same rule.",
+    "impact": "does not change 'not B full green'; the evaluable green subset claimed by delivery includes sphere-box-shallow, which per the cited section is not a bound upstream reference either",
+    "corroborating_fact": "the window device tests C-prim (tests exist at HEAD) show the product primitive launcher matching the QA upstream GPU reference 80/80 bit-equal for sphere-box-shallow/deep/capsule-box, which is consistent with those cases not belonging to the ccd comparison in the first place"
+  },
+  "record_c_cross_recipe": {
+    "reports": 17,
+    "cases_with_differences": 12,
+    "list": ["cylinder-box Contact", "ellipsoid-box Contact", "ellipsoid-box ContactMulti", "mesh-mesh Contact", "mesh-mesh ContactMulti", "convex-mesh Contact", "convex-mesh ContactMulti", "degenerate-mesh Contact", "degenerate-mesh ContactMulti", "sphere-box-deep Contact", "sphere-box-deep ContactMulti", "sdf-box Sdf"],
+    "status": "delivery writes it as recorded envelope (no pass/fail); my read of target/stage2-impl/window/result.json is consistent with that; host and device use different known recipes, so this is not a host-vs-device equality claim",
+    "note": "record C failures include expected cross-recipe differences; it is not used to judge the task"
+  },
+  "record_a_host_vs_upstream_cpu_reference": {
+    "delivery_source": "cited existing verified fix-r2 evidence (50a0acd1) for the G2 five cases and G3 for sdf-box; primitive three cases recorded as not applicable because host has no primitive implementation path in this comparison",
+    "qa_action": "read-only cross reference; not re-run in this check (fix-r2 was already independently reviewed by QA in the same chain)"
+  },
+  "traceability": "all equivalence inputs used here live in the gitignored target/stage2-impl/window/ tree (attempt4 logs, product dumps, record-b.json, result.json, three-records.json); only summaries are committed in docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/."
+}

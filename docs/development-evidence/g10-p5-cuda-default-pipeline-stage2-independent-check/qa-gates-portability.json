@@ -1,0 +1,49 @@
+{
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2-independent-check",
+  "kind": "qa-gates-and-portability",
+  "head": "5b27c69e71e96f29173388f6930c99cba373f11e",
+  "gate_changes_checked_from_diff": {
+    "gates_toml": [
+      "gate.clippy-cuda: --features cuda-probe -> --features cuda",
+      "gate.unit-nocuda added: cargo test --locked --no-default-features (parse=libtest)",
+      "gate.clippy-nocuda added: cargo clippy --all-targets --locked --no-default-features -- -D warnings",
+      "gate.unit command unchanged; hash_inputs already lists Cargo.toml/Cargo.lock/rust-toolchain.toml"
+    ],
+    "old_new_reason_rollback_table_in_delivery_readme_section_3": "present for all five rows (unit baseline, clippy-cuda, unit-nocuda, clippy-nocuda, G01 default matrix and clippy-gnu-cuda)",
+    "g01_script_diff": "scripts/g01-fast.ps1: 1 line (default feature args drop redundant cuda-probe); scripts/test-windows-g01.ps1: 2 lines (feature args + clippy-gnu-cuda flag). No other flag changes.",
+    "delivery_claim_minimal_g01_diff": true
+  },
+  "my_gate_runs_fresh_targets": {
+    "fmt": { "command": "cargo fmt --check", "exit": 0, "ms": 2447 },
+    "clippy": { "command": "cargo clippy --all-targets --locked -- -D warnings", "target_dir": "target/qa-stage2/t-clippy (deleted first)", "exit": 0, "ms": 24821 },
+    "clippy_cuda": { "command": "cargo clippy --all-targets --locked --features cuda -- -D warnings", "target_dir": "target/qa-stage2/t-clippy-cuda (deleted first)", "exit": 0, "ms": 18255 },
+    "clippy_nocuda": { "command": "cargo clippy --all-targets --locked --no-default-features -- -D warnings", "target_dir": "target/qa-stage2/t-nocuda", "exit": 0, "ms": 18554 }
+  },
+  "delivery_gate_runs_freshness": {
+    "location": ".normify/runs/2026-10-25-g10-p5-cuda-default-pipeline-stage2-r2/",
+    "files": ["fmt.json", "clippy.json", "clippy-cuda.json", "unit.json", "unit-nocuda.json", "clippy-nocuda.json"],
+    "timestamps_local": "2026-10-26 18:12:14 - 18:12:34 (commit 5b27c69e is 18:13:02, same working tree)",
+    "wall_ms": { "fmt": 1560, "clippy": 403, "clippy-cuda": 404, "unit": 11308, "unit-nocuda": 4172, "clippy-nocuda": 404 },
+    "interpretation": "unit runs executed the tests (971/369 recorded, 605/7 recorded); the three clippy runs at ~0.4 s are cargo cache hits (no re-lint). Because of that I ran clippy/clippy-cuda/clippy-nocuda myself in deleted fresh target dirs: all exit 0 with real lint times above.",
+    "unit_recorded_counts_match_mine": true
+  },
+  "clean_clone_portability": {
+    "claim_checked": "default gate must not depend on the machine-local target/ frozen artifacts",
+    "test_a_git_clone_autocrlf_true": {
+      "method": "git worktree of HEAD, default checkout (core.autocrlf=true), no target/",
+      "result": "cargo test --locked exits 101 at tests/g10_p5_sdf_relmat.rs::sdf_rotation_fixture_is_well_formed: capture-script sha mismatch (LF-frozen hash vs CRLF checkout)",
+      "attribution": "pre-existing EOL hygiene issue; test and fixture already exist at parent 54615cd8"
+    },
+    "test_b_git_clone_autocrlf_false": {
+      "method": "git -c core.autocrlf=false worktree of HEAD, no target/",
+      "result": "capture-script sha now matches, but cargo test --locked exits 101 at tests/launcher-warp-headers.rs::copied_headers_match_the_frozen_manifest (header byte length 64821 vs frozen 67109, i.e. manifest was frozen from CRLF header bytes)",
+      "attribution": "pre-existing EOL hygiene issue; header manifest frozen from CRLF working-tree bytes, test already exists at parent"
+    },
+    "test_c_tracked_files_copy_no_target": {
+      "method": "copy of all 13415 tracked files with exact on-disk bytes from the main working tree (no target/, no .git) to D:\\qa-nt; own clean CARGO_TARGET_DIR; cargo test --locked",
+      "result": "exit 0, 971 passed / 0 failed / 369 ignored / 112 binaries, 85.9 s",
+      "conclusion": "within this slice's scope the default gate does not depend on target/ frozen artifacts; the 7 historical audits being gated out is what makes this true"
+    },
+    "wording_note": "a literal fresh git clone on Windows still hits the two pre-existing EOL-frozen tests above (the repo working tree is EOL-mixed: autocrlf=true converts most text, while some fixture-frozen files keep LF / some header manifests were frozen from CRLF). Recommend calling the verified property 'no target/ dependency' rather than 'clean clone portable', or registering an EOL governance debt."
+  }
+}

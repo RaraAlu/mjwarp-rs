@@ -1,0 +1,50 @@
+# Clone portability notes (pre-existing EOL-frozen tests; both tests/fixtures exist at parent 54615cd8)
+
+## A) git worktree, default core.autocrlf=true, no target/ -> exit 101 at g10_p5_sdf_relmat
+
+     Running tests\g10_p5_sdf_host.rs (D:\Rust\mjwarp-rs\target\qa-stage2\t-wt-clean\debug\deps\g10_p5_sdf_host-feab6ef643f18079.exe)
+
+running 1 test
+test sdf_cpu_reference_is_well_formed_and_matches_g0b_structure ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests\g10_p5_sdf_relmat.rs (D:\Rust\mjwarp-rs\target\qa-stage2\t-wt-clean\debug\deps\g10_p5_sdf_relmat-c5c0b3a20c84c7af.exe)
+
+running 4 tests
+test sdf_rotation_reference_encodes_upstream_rel_mat_convention ... ok
+test sdf_rotation_fixture_is_well_formed ... FAILED
+test sdf_box_g3_regression_remains_bitwise ... ok
+test sdf_rotation_product_matches_upstream_f32_bitwise ... ok
+
+failures:
+
+---- sdf_rotation_fixture_is_well_formed stdout ----
+
+thread 'sdf_rotation_fixture_is_well_formed' (51012) panicked at tests\g10_p5_sdf_relmat.rs:300:5:
+
+## B) git worktree with core.autocrlf=false, no target/ -> exit 101 at launcher-warp-headers
+test queries_real_device_shared_memory_limits ... ignored, requires NVIDIA driver (real device attribute query)
+test device_limits_intersect_with_injected_limits ... ok
+test launch_dims_reject_dynamic_shared_memory_without_opt_in_and_over_limits ... ok
+test static_shared_memory_is_checked_against_device_limits ... ok
+test tile_block_rule_must_equal_the_compiled_thread_count ... ok
+
+test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\launcher-warp-headers.rs (D:\Rust\mjwarp-rs\target\qa-stage2\t-wt-lf\debug\deps\launcher_warp_headers-a76d92a5d554e055.exe)
+
+running 3 tests
+test nvrtc_compiles_probe_with_verbatim_warp_headers ... ignored, requires NVRTC and the CUDA SDK include directory (MJWARP_CUDA_INCLUDE)
+test copied_headers_match_the_frozen_manifest ... FAILED
+test headers_load_from_the_copied_directory_with_relative_paths ... ok
+
+failures:
+
+---- copied_headers_match_the_frozen_manifest stdout ----
+
+thread 'copied_headers_match_the_frozen_manifest' (64020) panicked at tests\launcher-warp-headers.rs:75:9:
+assertion `left == right` failed
+
+## C) tracked-file copy of the main working tree (13415 files, exact bytes, no target/, no .git) + clean target dir
+counts: 971/0/369 binaries=112 exit 0

@@ -1,0 +1,40 @@
+{
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2-independent-check",
+  "kind": "qa-window-and-e-exit-101",
+  "head": "5b27c69e71e96f29173388f6930c99cba373f11e",
+  "window_attempt4_raw_facts": {
+    "source": "target/stage2-impl/window/attempt4/{baseline.txt,post.txt,facts.txt,E-stage2.log,*.log} (local, gitignored)",
+    "baseline": "4187 MiB used / 11875 MiB free / util 36% / 33 C / driver 596.36; query-compute-apps 34 entries, all desktop/system contexts, no task compute process",
+    "post": "4187 MiB used / 11875 MiB free / util 8% / 34 C; query-compute-apps 34 entries, no residual task process",
+    "facts_txt": "B-nvrtc exit=0 wall=20.2s; C-prim exit=0 wall=19.8s; C-multi exit=0 wall=20.3s; D-ccd exit=0 wall=0.3s; E-stage2 exit=101 wall=19.4s; STOP after E-stage2; samples=0; end_baseline=4187/11875/8%/34/596.36",
+    "sampler": "samples.csv contains only the header line (0 samples); guard v2 was therefore not actually in force during the window; delivery discloses this",
+    "device_binaries_observed_by_me": {
+      "B-nvrtc": "1 test passed; hfield-sphere 314/314 bit-equal, sdf-box 3122/3122 bit-equal, ellipsoid-box 80/80 bit-equal, all 0 ULP",
+      "C-prim": "1 test passed; sphere-box-shallow/deep/capsule-box 80/80 bit-equal each vs QA upstream GPU",
+      "C-multi": "1 test passed; cylinder-box 314/314, box-box-margin 391/392 (max 1 ULP pos), mesh-mesh 80/80",
+      "D-ccd": "2 tests passed"
+    }
+  },
+  "e_exit_101_actual_cause_from_log": {
+    "process": "stage2_equivalence_window, run with --ignored --test-threads=1 inside the window",
+    "test_order_in_log": "1) host_vs_frozen_probe_out1 passed (it reads frozen out1/, not product dumps); 2) host_vs_product_dump_compare FAILED; 3) three_record_summary FAILED; 4) window_device_vs_frozen_reference FAILED; 5) window_product_equivalence_dump passed and wrote the 17 product dumps",
+    "failure_text": "read dump D:\\Rust\\mjwarp-rs\\target/stage2-impl/window\\product\\cylinder-box.Contact.json failed: os error 3 (path not found)",
+    "root_cause": "libtest executes in name order; the dump-producing test (window_product_equivalence_dump) sorts last, so the three dump-consuming tests ran before any dump existed. The 17 dumps were written later in the same process (mtime 17:59:48).",
+    "separate_row_order_issue": "the dump test itself printed 'ellipsoid-box Contact: ... 两次一致=false' at window time because run1/run2 raw arrays differ by row order; after the G5 normalization fix the rerun comparison is consistent (my normalized recompute: 17/17 dumps equal). The row-order fix does not explain the three NotFound failures.",
+    "delivery_wording_vs_log": "delivery window doc section 2 says the 3 CPU record tests failed 'because of the harness row-order comparison bug'. The raw log shows the direct cause was missing dumps (os error 3) due to test ordering; the row-order bug is the separate ellipsoid two-run inconsistency. The exit=101 fact itself is disclosed truthfully.",
+    "cpu_only_rerun": "delivery reran the 3 CPU comparison tests after the window with existing dumps; that rerun log is not committed (only target/ artifacts exist). My normalized recompute of dump determinism and record B is consistent with the written record-b.json."
+  },
+  "attempts_1_2_3": {
+    "attempt1": "baseline.txt only; void, zero GPU work",
+    "attempt2": "baseline.txt only; void, zero GPU work",
+    "attempt3": "baseline.txt + B-nvrtc.log (NVRTC not found in PATH) + facts/post; void, zero GPU work",
+    "consistency": "delivery states attempt1/2/3 are void and are not spliced into the matrix; files are consistent with that (no product dumps in those attempt dirs)"
+  },
+  "discipline_checks": {
+    "no_residual_cuda_process": true,
+    "post_baseline_recorded": true,
+    "guard_effective": false,
+    "guard_ineffective_disclosed": true,
+    "simulation_vs_real_machine": "delivery never claims a real driver-less/hardware-less machine run; seam simulation is labelled as such"
+  }
+}

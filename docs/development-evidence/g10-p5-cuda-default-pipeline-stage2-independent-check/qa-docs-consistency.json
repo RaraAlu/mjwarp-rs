@@ -1,0 +1,66 @@
+{
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2-independent-check",
+  "kind": "qa-documentation-consistency",
+  "head": "5b27c69e71e96f29173388f6930c99cba373f11e",
+  "unc2": {
+    "acceptance_terminal_text": "r2 acceptance item '2026-10-26 终版验收（Chief 批准）' declares UNC-2 = closed with a verbatim qualifier",
+    "readme_7_1_qualifier": "docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/README.md section 7.1 reproduces the same qualifier text",
+    "verbatim_match": true,
+    "qualifier_points": [
+      "default build contains a CUDA entry (cuda default feature; --no-default-features disables it)",
+      "product entry invoked through NVRTC launcher on a real device (4 device test binaries exit 0; 9 case dumps consistent under G5 row order)",
+      "record B evaluable subset green (cylinder/ellipsoid/mesh-mesh 26/26 bit-equal, sphere-box-shallow within criterion, sdf-box 1040/1040 bit-equal); 2 cases reference_not_comparable; 2 cases no frozen reference; explicitly NOT B full green",
+      "default selection layer remains Host; Device must be chosen explicitly; closure does not mean default numeric path uses Device, nor host<->device equality, nor upstream equivalence, nor precision claims"
+    ]
+  },
+  "stale_or_contradictory_statements_in_committed_evidence": [
+    {
+      "where": "docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/receipt.json",
+      "fields": "status=in_progress, gpu_windows=0, unc2='open (not closed)...', equivalence.status='pending ③b/③c'",
+      "contradicts": "README section 7/7.1 and the window doc state UNC-2 closed with window attempt4",
+      "severity": "observation (understates status; no false closure claim)"
+    },
+    {
+      "where": "README.md header bullet (lines 6-7)",
+      "text": "GPU window 0 ... UNC-2 recorded as open (not closed)",
+      "contradicts": "same README section 7",
+      "severity": "observation"
+    },
+    {
+      "where": "README.md last line of section 7 (line 149)",
+      "text": "'before real-machine verification we do not claim the default pipeline has a usable CUDA entry, nor record UNC-2 closed'",
+      "contradicts": "section 7 heading and 7.1 (closed)",
+      "severity": "observation"
+    },
+    {
+      "where": "tests/stage2_equivalence_window.rs three_record_summary (line 303)",
+      "code": "let unc2_closed = false; with comment 'this slice does not close UNC-2 itself; record open pending Arch/Chief'",
+      "contradicts": "the committed harness can only write unc2=open into three-records.json, so the closure is a top-down governance decision not produced by the test artifact",
+      "severity": "observation (closure is approved outside the harness; but the artifact/code text is stale relative to README)"
+    },
+    {
+      "where": "README section 0/2 and receipt.three_configs_clean",
+      "numbers": "default and features_cuda tests 971/0/364 with 111 binaries; gates-final.txt repeats 971/0/364 (111 binaries)",
+      "actual_at_head": "971/0/369 with 112 binaries (my clean run and the delivery's own .normify/runs unit.json); r2 acceptance baseline says 369",
+      "severity": "observation (stale by exactly the 5 ignored tests / 1 binary of tests/stage2_equivalence_window.rs, which commit 5b27c69e adds)"
+    },
+    {
+      "where": "logs/selection-backend-tests-nocuda.log",
+      "content": "contains unused-import warnings in src/runtime/backend/tests.rs from an older file layout",
+      "actual": "current no-default build has 0 warnings; clippy --no-default-features -D warnings passes (my fresh run, 18.5 s exit 0)",
+      "severity": "observation (historical log kept in final evidence dir; not the final tree)"
+    }
+  ],
+  "selection_layer_reachability": {
+    "files": "src/runtime/backend.rs defines BackendChoice/BackendStatus/HostOnly/device_permitted/device_program/narrowphase_backend_status",
+    "product_callers": "grep over src/ finds calls only inside src/runtime/backend/tests.rs; the CLI probe path uses src/runtime/cuda.rs::prepare_device with the shared presence probes, not this selection layer",
+    "consistency_with_chief_qualifier": "consistent: selection layer default is Host and Device requires explicit choice",
+    "caveat": "if the r2 intent sentence 'wire the device entry into the collision narrowphase (default Host, device when allowed)' is read as an actual dispatch wiring, that wiring does not exist yet; it should be registered as migration debt for a later slice"
+  },
+  "evidence_package": {
+    "delivery_evidence_files": "README.md (203 lines), receipt.json (141), window-attempt4-and-b-classification.md (56), logs/ (18 files)",
+    "raw_window_artifacts_committed": false,
+    "raw_window_artifacts_location": "target/stage2-impl/window/ (gitignored)",
+    "impact": "from the repository alone the window/equivalence numbers cannot be recomputed; on this machine they can be and were recomputed by QA"
+  }
+}

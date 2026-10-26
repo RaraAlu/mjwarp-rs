@@ -1,0 +1,61 @@
+{
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2-independent-check",
+  "kind": "qa-three-config-clean-build-test",
+  "head": "5b27c69e71e96f29173388f6930c99cba373f11e",
+  "method": "own CARGO_TARGET_DIR per config (deleted before build), sequential runs; no reuse of delivery target dirs; logs under target/qa-stage2/logs/",
+  "environment": {
+    "toolchain": "1.99.0-x86_64-pc-windows-gnu (active), rustc 1.99.0 (b940084d7), cargo 1.99.0 (5f94df478)",
+    "no_default_features_env": "PATH with CUDA/NVIDIA entries removed; CUDA_PATH/CUDA_HOME/CUDA_INCLUDE/CUDA_LIB_PATH/CUDA_BIN_PATH cleared",
+    "machine": "DARKSEA / Windows 11 (10.0.26200), x86_64",
+    "note": "main tree HEAD, read-only for product code; all builds used separate target dirs"
+  },
+  "my_measurements": {
+    "default": {
+      "cargo_args": [],
+      "build_exit": 0,
+      "build_ms": 17735,
+      "test_exit": 0,
+      "test_ms": 60931,
+      "tests": { "passed": 971, "failed": 0, "ignored": 369, "binaries": 112, "lib_result_line": "698 passed; 0 failed; 137 ignored" },
+      "target_mib": 9087.7,
+      "exe_mib": 78.14,
+      "external_dependencies": 24,
+      "cudarc_in_tree": 1
+    },
+    "no_default_features": {
+      "cargo_args": ["--no-default-features"],
+      "build_exit": 0,
+      "build_ms": 6892,
+      "test_exit": 0,
+      "test_ms": 28702,
+      "tests": { "passed": 605, "failed": 0, "ignored": 7, "binaries": 112, "lib_result_line": "455 passed; 0 failed; 5 ignored" },
+      "target_mib": 1816.7,
+      "exe_mib": 19.73,
+      "external_dependencies": 0,
+      "cudarc_in_tree": 0
+    },
+    "features_cuda": {
+      "cargo_args": ["--features", "cuda"],
+      "build_exit": 0,
+      "build_ms": 18078,
+      "test_exit": 0,
+      "test_ms": 58629,
+      "tests": { "passed": 971, "failed": 0, "ignored": 369, "binaries": 112 },
+      "target_mib": 9087.6,
+      "exe_mib": 78.14,
+      "external_dependencies": 24,
+      "cudarc_in_tree": 1
+    }
+  },
+  "delivery_claims_vs_my_measurement": {
+    "default_tests": "delivery README/receipt 971/0/364 with 111 binaries; my clean run 971/0/369 with 112 binaries; delivery .normify/runs unit.json records 971/0/369 (agrees with mine); r2 acceptance states 971/0/369",
+    "no_default_tests": "delivery 605/0/7 with 111 binaries; my run 605/0/7 with 112 binaries (counts agree, binary count stale)",
+    "features_cuda_tests": "delivery 971/0/364 with 111 binaries; my run 971/0/369 with 112 binaries",
+    "ignored_delta_root_cause": "delivery unit-summary logs have 111 result lines and sum to 971/364; the final commit adds tests/stage2_equivalence_window.rs whose default run is 0 passed / 0 failed / 5 ignored (5 ignored tests). 364 + 5 = 369 and 111 + 1 = 112. The file is part of commit 5b27c69e, so the narrative numbers predate it.",
+    "lib_counts": "delivery 698/0/137 (default) and 455/0/5 (no-default) match my LOG lines exactly",
+    "build_times": "delivery 16.91 s / 6.19 s / 16.80 s; my sequential measurement 17.7 s / 6.9 s / 18.1 s (same order, within load noise)",
+    "target_size": "delivery 8977.4 / 1807.5 MiB; mine 9087.7 / 1816.7 MiB (same order; paths/cache composition differ)",
+    "exe_size": "delivery 77.98 / 19.69 MiB; mine 78.14 / 19.73 MiB"
+  },
+  "conclusion": "Feature/default wiring and three-config counts reproduce; the only numeric mismatch is the delivery narrative's stale ignored/binary counts (364/111 vs 369/112), which its own gate run and the r2 acceptance baseline contradict. No test failure in any config."
+}
