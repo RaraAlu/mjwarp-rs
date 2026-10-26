@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-branch-coverage-independent-check",
+  "kind": "test-side fix / CPU self-check review",
+  "attempt1_failure": {
+    "binary": "g10_p5_primitive_branches_cuda",
+    "exit": 101,
+    "panic": "tests/support/primitive_compare.rs:48:35 flatten_f32 .expect(\"f32\")",
+    "cause": "3-level geom_xpos/geom_xmat fed to 2-level flatten_f32 (fields flatten)",
+    "device_ran_before_panic": false,
+    "numeric_conclusion_emitted": false,
+    "per_case_lines": 0,
+    "verified_from": "target/g10-p5-primitive-branches-verify/attempt1/run-branches-b3.log + .err.log"
+  },
+  "fix_scope": {
+    "delivery_commit": "e221e6c2",
+    "fix_description": "add flatten_f32_nested (3-level) for geom_xpos/geom_xmat; extract reference_rows into reference_expectation; add non-ignored CPU self-check",
+    "fix_touches_tests_only": true,
+    "commit_also_contains_feature_change": "product.cu swap normalization (feature requirement, not the test fix)",
+    "criteria_expectation_reference_changed": false,
+    "judgement_matches_b1_b2": true,
+    "evidence_for_fix_only_tests": ["panic log shows failure in test support before device", "window attempts signatures: only branches binary changed (1e3c2adf -> 25410b3d)", "attempt1 dirty_entries 10 vs attempt2 11", "delivery commit test files diff"],
+    "binary_level_fix_verification_possible": false,
+    "binary_level_note": "attempt1 branches binary not archived; cannot diff binaries; claimed scope supported by logs/commit, not by binary comparison (O6)"
+  },
+  "self_check": {
+    "test": "reference_support_parses_without_gpu",
+    "ignored": false,
+    "independent_run": "cargo test --locked --features cuda-probe --test g10_p5_primitive_branches_cuda reference_support_parses_without_gpu -- --nocapture",
+    "result": "1 passed / 0 failed; 6/6 support_parse_ok",
+    "runtime_s": 0.0,
+    "constructs_program": false,
+    "creates_cuda_context": false,
+    "checks": ["reference sha256 pinned a8407a90", "geom_xpos/geom_xmat 3-level flatten lengths nworld*ngeom*3/9", "fields rows=count and widths 1/3/9/5/2", "reference_rows per-row parse including geomcollisionid and geom", "6 case branch predicates"],
+    "vacuous_assertion": "let device_touched = false; assert!(!device_touched) is always true (documentary only)",
+    "covers_run_case_geom_parsing": false,
+    "would_catch_attempt1_class": "partially: helper misuse in the self-check path would fail, but a caller-level wrong flatten inside run_case would still only fail in the device window",
+    "verdict": "useful guard, not a complete guard (O2)"
+  },
+  "device_test_read": {
+    "file": "tests/g10_p5_primitive_branches_cuda.rs",
+    "single_test": "branch_fixtures_match_b3_upstream_gpu_reference (ignored)",
+    "swap_variant_condition": "case.geom_type[0] != case.geom_type[1]",
+    "compare_includes_contact_geom": true,
+    "criteria": "bit-exact first; otherwise dist 4 ULP@own magnitude (ref==0 -> 4 ULP@1.0), pos 4*ULP(scale), frame 4 ULP@1.0; structure zero tolerance; efc -1/overflow 0 device invariants; pair by geomcollisionid",
+    "relaxation_found": false
+  }
+}

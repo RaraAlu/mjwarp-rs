@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-branch-coverage-independent-check",
+  "kind": "QA independent review (B3 primitive branch coverage + swap geometry-order normalization)",
+  "role": "QA",
+  "verdict": "pass",
+  "blockers": 0,
+  "observations": 6,
+  "head_at_review": "e221e6c2",
+  "reviewed": {
+    "implementation_delivery": "e221e6c2",
+    "task": "2026-10-26-g10-p5-primitive-branch-coverage",
+    "evidence_dir": "docs/development-evidence/g10-p5-primitive-branch-coverage",
+    "new_reference_sha256": "a8407a90ba7ab491aac7e73c94108e5abd07ce3a3d4218382477b109dc62fca0",
+    "old_reference_sha256": "3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734"
+  },
+  "verdict_basis": [
+    "6/6 fixtures independently recomputed to hit the intended pinned branches (graph vertnum=10/graphadr=0; dist==0 exactly; clamp 0.150>0.119999997; cap side=false/cap=true/x>0; corner side=false/cap=false; capsule det=2.07e-4 >> 1e-15)",
+    "swap normalization matches pinned _add_geom_pair type-order; dispatch uses local vars only; source-level no-op for canonical callers; 0 ABI fields, entries 6, physics/mod.rs zero diff, T4 identity unchanged",
+    "new reference a8407a90 reproduced: raw A/B byte-identical to each other and to committed reference, per-case two-capture flags true, provenance complete and matches actual machine/venv, captured_at inside capture window; old 3a6475ac untouched",
+    "attempt1 aborted honestly: panic in test support before any device run, no per-case lines; fix is test-side and criteria/expectation/reference unchanged",
+    "attempt2 window facts independently recomputed from samples.csv; 5/5 exit 0; signatures measured in target match facts byte-for-byte; no in-window compile; residual 0",
+    "smoke 26 passed with ptx 3786510 entries 6 source 237922/92ee236e reproduced, and independent 27-segment assembly equals worktree bytes"
+  ],
+  "independent_numbers": {
+    "device_rerun": false,
+    "branch_hit": "6/6, failures=[]",
+    "reference_counts": {"plane-mesh-graph": 4, "sphere-sphere-concentric": 1, "sphere-capsule-clamp": 1, "sphere-cylinder-cap": 1, "sphere-cylinder-corner": 1, "capsule-capsule-nonparallel": 1},
+    "capsule_det_from_reference_input": 0.00020736003352794796,
+    "smoke": {"passed": 26, "failed": 0, "ptx_bytes": 3786510, "entries": 6, "source_bytes": 237922, "source_sha256": "92ee236e519dc04b26b2d24400fa57f382ed9cea1b5b28596c238ab6cfa4cec8"},
+    "assembly": {"worktree": "237922 / 92ee236e", "git_blob_lf": "237442 / b1408f9b"},
+    "self_check": "1 passed; 6/6 support_parse_ok; no CUDA context",
+    "capture_attempt1": {"samples": 70, "used_peak_mib": 3874, "free_min_mib": 12188, "util_max_pct": 36, "residual_cuda_pid": 0},
+    "verify_attempt1": {"samples": 141, "used_peak_mib": 4672, "free_min_mib": 11390, "util_max_pct": 68, "branch_exit": 101},
+    "verify_attempt2": {"samples": 103, "used_peak_mib": 5242, "free_min_mib": 10820, "util_max_pct": 45, "delta_peak_mib": 22, "residual_cuda_pid": 0, "all_five_exit_0": true},
+    "window_signatures_measured_match": true,
+    "scripts_sha_evidence_vs_repo": "byte-identical (capture 9cff9b31, precheck 6b0eba49)"
+  },
+  "gate": {
+    "command": "normify gate 2026-10-26-g10-p5-primitive-branch-coverage-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "result": "exit 0 (fmt / clippy / clippy-cuda / unit all pass)",
+    "unit_run_record": ".normify/runs/2026-10-26-g10-p5-primitive-branch-coverage-independent-check/unit.json"
+  },
+  "check": {
+    "command": "normify check 2026-10-26-g10-p5-primitive-branch-coverage-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "result": "exit 0 (run immediately after the final gate; stdout at target/qa-b3/gate-check/check.log)"
+  },
+  "observations_summary": [
+    {"id": "O1", "level": "一般", "title": "'13 combos bitwise no regression' only has within-criteria evidence for B1/B2 (10 of 13)"},
+    {"id": "O2", "level": "建议", "title": "CPU self-check only partially guards attempt1-class caller misuse; device_touched assertion is vacuous"},
+    {"id": "O3", "level": "一般", "title": "execution scripts untracked in repo root; provenance path not resolvable from commit (evidence copies byte-identical)"},
+    {"id": "O4", "level": "建议", "title": "README has two BEL chars and duplicate section number 9"},
+    {"id": "O5", "level": "建议", "title": "capsule axis_dot=0.0 idealized; reference-xmat f32 gives -7.57e-9, det differs at 4e-15 absolute"},
+    {"id": "O6", "level": "建议", "title": "attempt1 branches binary not archived; tests-only fix claim not binary-diff verifiable"}
+  ],
+  "boundaries": [
+    "device tests not rerun by QA",
+    "plane-mesh only one 10-vertex prism path; capsule-capsule only one 90-degree axis pair; sphere-cylinder only x>0 cap/corner; capsule parallel branch still uncovered",
+    "swap device behavior verified only via window logs",
+    "no release/Linux, no precision or cross-environment claims"
+  ],
+  "evidence_dir": "docs/development-evidence/g10-p5-primitive-branch-coverage-independent-check",
+  "gpu_windows_used": 0,
+  "no_commit_no_done": true
+}

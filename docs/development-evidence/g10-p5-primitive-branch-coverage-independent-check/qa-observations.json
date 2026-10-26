@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-branch-coverage-independent-check",
+  "observations": [
+    {
+      "id": "O1",
+      "level": "一般",
+      "title": "「13 组合位级无回退」对 B1/B2 的 10 个组合只有判据内 evidence，非实测位级",
+      "detail": "attempt2 日志：B1 plane 6/6、B2 4/4 只打印 nacon 与 failures=0（判据允许 4 ULP）；只有 primitive 3/3 打印 bit_equal=80/80 与 launcher 3/3 打印 bit_equal 计数。README §7.4/commit message 写「13 组合位级无回退」，对其中 10 个组合是推断而非实测。源码层 swap 规范化对 canonical 调用方是 no-op，但 product.cu 改动使 PTX 从 3786439 变为 3786510，代码生成变化不能先验排除 ULP 级差异。",
+      "repro": "target/g10-p5-primitive-branches-verify/attempt2/run-plane-regression.log 与 run-sphere-capsule-regression.log（只有 failures=0）；对比 run-primitive-regression.log 的 bit_equal=80/80",
+      "impact": "不影响本片分支覆盖结论；若 Chief 口径要求「位级」，则该主张证据不足。",
+      "suggestion": "在 B1/B2 对照测试中打印 bit_equal 计数（或在证据里把措辞改为「判据内无回退 + 源码级 no-op 论证」）"
+    },
+    {
+      "id": "O2",
+      "level": "建议",
+      "title": "CPU 自检对 attempt1 类调用方误用只能部分兜底，且含恒真断言",
+      "detail": "`reference_support_parses_without_gpu` 直接调用 `flatten_f32_nested` 并校验长度，能防止 helper 本身错误；但不经过 `run_case` 的 geom 解析路径，若有人在 run_case 里重新用两层 `flatten_f32` 处理 3 层数组，自检仍会绿、窗口才 panic。另有 `let device_touched = false; assert!(!device_touched);` 是恒真断言（仅文档性）。",
+      "repro": "tests/g10_p5_primitive_branches_cuda.rs L302-304；run_case L63-82 与自检 L209-210 使用不同路径",
+      "impact": "attempt1 类缺陷仍可能重复出现在调用方；自检价值有限但非无效。",
+      "suggestion": "让 run_case 复用同一解析函数（或加 debug_assert 长度），删掉恒真断言或改成有意义的检查"
+    },
+    {
+      "id": "O3",
+      "level": "一般",
+      "title": "执行脚本留在仓库根 scripts/ 未提交，provenance 路径在提交树不可解析",
+      "detail": "`scripts/capture_primitive_branches_gpu.py`、`scripts/precheck_primitive_branches_cpu.py` 是 untracked（git status `??`），参考 JSON 的 `authoring_script` 记的是 `scripts/...`；从提交树无法复现该路径。证据目录副本与执行副本逐字节相同（capture `9cff9b31…` 6458 B、precheck `6b0eba49…` 9224 B，我已对比 sha），所以不影响参考本身可核，但工作树不干净。",
+      "repro": "git status --porcelain scripts；git show --name-status e221e6c2 | grep scripts（无根 scripts）",
+      "impact": "审计需绕到证据副本；工作树残留 untracked 文件。",
+      "suggestion": "把执行脚本纳入任务提交（或把 provenance 改成证据目录相对路径并注明工作树路径仅为执行位置），收口后清理 untracked"
+    },
+    {
+      "id": "O4",
+      "level": "建议",
+      "title": "B3 README 含 BEL 控制字符与重复 §9 编号",
+      "detail": "README 第 204/206 行含 0x07（BEL）字符，显示为 `uthoring_script`、`8407a90`（首字符被吞）；脚本归档节又编号为 `## 9.`，与前面的 `## 9. ABI / T4 / 只读声明` 重复。",
+      "repro": "docs/development-evidence/g10-p5-primitive-branch-coverage/README.md byte offsets 13490、13890",
+      "impact": "不影响结论；证据卫生问题。",
+      "suggestion": "清理控制字符；脚本归档改为 §11 或 §A"
+    },
+    {
+      "id": "O5",
+      "level": "建议",
+      "title": "capsule-capsule 的 axis_dot=0.0 是理想化，det 数值应按参考输入口径标注",
+      "detail": "precheck 记 `axis_dot=0.0`、`det=2.0736003310918745e-4`；我按参考 `geom_xmat`（device 实际输入）f32 复算得 `axis_dot≈-7.574783467e-9`、`det≈2.073600335e-4`（融合/非融合相同）。差异 ~4e-15 绝对值，分支命中（det >> 1e-15）与结论无关，但证据应区分「fixture 解析的理想 90°」与「参考输入的 f32 值」。",
+      "repro": "scripts/recompute_branches.py 输出；precheck-branches-cpu.json capsule-capsule-nonparallel",
+      "impact": "无功能影响；数值引用口径不够精确。",
+      "suggestion": "precheck 增加按参考 xmat 的 f32 复算列，或在 README 标注两种口径"
+    },
+    {
+      "id": "O6",
+      "level": "建议",
+      "title": "attempt1 的 branches 二进制未归档，「修复只碰 tests/」无法做二进制级对照",
+      "detail": "attempt1 用 branches `1e3c2adf…`，attempt2 用 `25410b3d…`；前者已不在 target。证据用 panic 日志（device 运行前、无 per-case 行）+ 提交内容 + dirty_entries 10→11 支持「只改 support 层测试、判据/期望/参考未动」，但不是二进制 diff 级证明。",
+      "repro": "target/g10-p5-primitive-branches-verify/attempt1/facts.txt；target 中无 1e3c2adf",
+      "impact": "修复边界可核但留一个审计缺口。",
+      "suggestion": "窗口二进制归档（或记录构建命令/源快照）"
+    }
+  ],
+  "blockers": []
+}

@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-branch-coverage-independent-check",
+  "kind": "independent CPU recomputation of pinned branch predicates (no CUDA context)",
+  "method": "mujoco 3.15.0 CPU loads each fixture for geom_type/size and mesh graph arrays; geom_xpos/geom_xmat taken from the captured GPU reference (same device inputs); predicates evaluated in float32 following frozen-source collision_primitive*.py",
+  "script": "scripts/recompute_branches.py",
+  "env": {"python": "3.12.13", "mujoco": "3.15.0", "numpy": "2.5.4", "warp_imported": false, "mujoco_warp_imported": false},
+  "cases": [
+    {"name": "plane-mesh-graph", "geom_type": [0, 7], "geom_size": [[1.0, 1.0, 0.1], [0.1, 0.09510566, 0.1]], "mesh_vertnum": 10, "mesh_graphadr": 0, "graph_numvert": 10, "graph_branch_condition": "graphadr != -1 && vertnum >= 10", "branch": "plane_convex graph hillclimb", "hit": true, "reference_count": 4, "matches_precheck": true, "xml_sha_matches": true},
+    {"name": "sphere-sphere-concentric", "geom_type": [2, 2], "center_distance_f32": 0.0, "distance_bits": 0, "branch": "sphere_sphere dist==0 fallback n=(1,0,0)", "hit": true, "reference_count": 1, "matches_precheck": true, "xml_sha_matches": true, "reference_frame_first_row": [1.0, 0.0, 0.0]},
+    {"name": "sphere-capsule-clamp", "geom_type": [2, 3], "projection_f32": 0.15000000596046448, "half_length_f32": 0.11999999731779099, "projection_gt_half": true, "branch": "sphere_capsule projection clamp", "hit": true, "reference_count": 1, "matches_precheck": true, "xml_sha_matches": true},
+    {"name": "sphere-cylinder-cap", "geom_type": [2, 5], "x": 0.18000000715255737, "collide_side": false, "collide_cap": true, "branch": "sphere_cylinder cap (x>0)", "hit": true, "reference_count": 1, "matches_precheck": true, "xml_sha_matches": true},
+    {"name": "sphere-cylinder-corner", "geom_type": [2, 5], "x": 0.14000000059604645, "p_proj_sqr": 0.006399999838322401, "collide_side": false, "collide_cap": false, "branch": "sphere_cylinder corner", "hit": true, "reference_count": 1, "matches_precheck": true, "xml_sha_matches": true},
+    {"name": "capsule-capsule-nonparallel", "geom_type": [3, 3], "axis_dot_f32_from_reference_xmat": -7.574783467134694e-09, "det_unfused": 0.00020736003352794796, "det_fused": 0.00020736003352794796, "mj_minval": 1.0000000036274937e-15, "branch": "capsule_capsule non-parallel det", "hit": true, "reference_count": 1, "matches_precheck": true, "xml_sha_matches": true, "note": "precheck records axis_dot=0.0 (idealized); det quoted 2.0736003310918745e-4; difference ~4e-15 absolute, branch unaffected"}
+  ],
+  "all_hit": true,
+  "failures": [],
+  "cpu_backend_vs_reference_counts": {"plane-mesh-graph": "4 vs 4", "sphere-sphere-concentric": "1 vs 1", "sphere-capsule-clamp": "1 vs 1", "sphere-cylinder-cap": "1 vs 1", "sphere-cylinder-corner": "1 vs 1", "capsule-capsule-nonparallel": "1 vs 1"},
+  "conclusion": "6/6 fixtures genuinely land on the intended pinned branch; not padded cases",
+  "logs": ["logs/branch-predicates.json", "logs/branch-predicates-recompute.log"]
+}

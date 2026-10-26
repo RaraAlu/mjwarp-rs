@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-branch-coverage-independent-check",
+  "kind": "swap geometry-order normalization + ABI/T4 scope review",
+  "pinned": {
+    "file": "docs/evidence/d04-complex-physics/authoring-runs/run-5/frozen-source/_src/collision_driver.py",
+    "normalization": "_add_geom_pair L350-380: if type1 > type2 -> pair = (geom2, geom1); equal types keep caller order",
+    "dispatch": "collision_primitive.py _PRIMITIVE_COLLISIONS L1335-1349; kernel matches exact (collision_type1==type1 && collision_type2==type2) L1474-1480"
+  },
+  "device_change": {
+    "file": "src/physics/collision/cuda/product.cu",
+    "entry": "mjwarp_collision_primitive",
+    "lines": "12 (pair_swap + local type/geom + params.geoms overwrite)",
+    "logic": ["pair_swap = a.type1 > a.type2", "type1/type2 and geom_index1/geom_index2 derived from pair_swap", "all dispatch branches use local type1/type2", "params.geoms[0..1] overwritten with normalized geom indices"],
+    "residual_a_type_usage": "only pair_swap computation; dispatch body uses local variables (grep verified)",
+    "line_count": 406,
+    "new_abi_fields": 0,
+    "new_ptx_entries": 0,
+    "entries_measured": 6
+  },
+  "no_op_for_existing_callers": {
+    "claim": "B0/B1/B2/B3 canonical callers pass low-type geom first, so pair_swap=false, local vars equal a.*, params.geoms unchanged, wrapper arguments unchanged -> source-level no-op",
+    "verified_inputs": ["B1 plane cases geom_type[0]=0 (plane first)", "B2 cases geom_type[0]=sphere(2)/capsule(3) lower than second", "primitive cases sphere-box/capsule-box lower first", "capture fixtures/tests all use canonical order"],
+    "verdict": "source-level no-op confirmed"
+  },
+  "swap_variant": {
+    "test_inputs": {"plane-mesh-graph": [7, 0], "sphere-capsule-clamp": [3, 2], "sphere-cylinder-cap": [5, 2], "sphere-cylinder-corner": [5, 2]},
+    "input_style": "g1=1,g2=0,type1=high,type2=low; reference geometry arrays unchanged; compare includes contact.geom zero tolerance",
+    "window_result": "4/4 failures=0 in attempt2; no order-mismatch or value-mismatch message",
+    "contact_geom_expected_after_normalization": [0, 1]
+  },
+  "scope": {
+    "zero_diff": ["src/physics/collision/abi.rs", "src/physics/mod.rs", "src/runtime/case_evidence.rs", "src/runtime/case_compare.rs", ".normify/gates.toml", "fixtures/g10-p5-primitive/", "fixtures/precision/"],
+    "device_sources": 27,
+    "fixtures_added_only_new_dir": true,
+    "old_reference_untouched": true
+  },
+  "regression": {
+    "claim_in_delivery": "13 combos bitwise no regression",
+    "window_logs": {
+      "b1_plane": "6/6 failures=0 (nacon 1/1/1/1/3/3)",
+      "b2_sphere_capsule": "4/4 failures=0 (nacon 1 each)",
+      "primitive": "3/3 bit_equal=80/80, max_dist/pos/frame_ulp=0",
+      "launcher": "3/3 max_*_ulp=0 (bit_equal 314/314, 3122/3122, 80/80)"
+    },
+    "verified_bit_level_for": ["primitive 3 combos", "launcher 3 cases"],
+    "not_directly_bit_level_in_logs": ["B1 plane 6 combos", "B2 sphere/capsule 4 combos"],
+    "reason": "B1/B2 tests report failures under the 4 ULP criterion, not bit_equal counts",
+    "source_level_reasoning": "normalization is a source-level no-op for canonical callers; however PTX changed (3786439 -> 3786510), so bit-level identity is expected but not measured",
+    "verdict": "observed as O1 (wording/evidence gap), not a functional defect"
+  }
+}
