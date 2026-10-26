@@ -23,10 +23,26 @@
     "result": "25 passed / 0 failed（含 nvrtc_smoke）"
   },
   "invalidated_intermediate_smoke": [
-    {"source_bytes": 224056, "source_sha256": "0b39800997ead2f3058d594b7ff2640ab0e11dfe51a9f08f8f0c7612f236a9d1", "reason": "注释清理前中间值"},
-    {"source_bytes": 224018, "source_sha256": "ac2c1a1719465498e5daed9f476b3e3d410bc1223c9f7de040b1eca1f0001e04", "reason": "B-1/B-2 修正后、B-3/算式对齐前"},
-    {"source_bytes": 223355, "source_sha256": "a945e75a570d65f478932e9e530b8fd26bd40058db183c0429a03559f665c5b7", "reason": "dispatch 落盘后、审查修正前"},
-    {"source_bytes": 221968, "source_sha256": "89dc09643f411be39555c8b460709160f542632759fc00ad7fe09853286577a8", "reason": "wrapper 笔误修正前"}
+    {
+      "source_bytes": 224056,
+      "source_sha256": "0b39800997ead2f3058d594b7ff2640ab0e11dfe51a9f08f8f0c7612f236a9d1",
+      "reason": "注释清理前中间值"
+    },
+    {
+      "source_bytes": 224018,
+      "source_sha256": "ac2c1a1719465498e5daed9f476b3e3d410bc1223c9f7de040b1eca1f0001e04",
+      "reason": "B-1/B-2 修正后、B-3/算式对齐前"
+    },
+    {
+      "source_bytes": 223355,
+      "source_sha256": "a945e75a570d65f478932e9e530b8fd26bd40058db183c0429a03559f665c5b7",
+      "reason": "dispatch 落盘后、审查修正前"
+    },
+    {
+      "source_bytes": 221968,
+      "source_sha256": "89dc09643f411be39555c8b460709160f542632759fc00ad7fe09853286577a8",
+      "reason": "wrapper 笔误修正前"
+    }
   ],
   "old_21_segments": {
     "source_bytes": 198815,
@@ -53,19 +69,47 @@
     "util_max_percent": 41,
     "residual_processes": 0,
     "zero_rust_compile": true,
-    "parallel_binaries": ["g10_p5_primitive_plane_cuda", "g10_p5_primitive_cuda", "g10_p5_nvrtc_launcher"],
+    "parallel_binaries": [
+      "g10_p5_primitive_plane_cuda",
+      "g10_p5_primitive_cuda",
+      "g10_p5_nvrtc_launcher"
+    ],
     "binary_sha256": {
       "plane": "e5f94074fd692b9bbe90c623ee49cdc772322158a3ae18cba5ad348e39b9732e",
       "primitive": "6aec50d02c53645bca6dbd92a5cfb2fcb265ccad9c54cf5fbb3a3691bbedcdc6",
       "launcher": "bcd43c6e8da3c3e1baf1ec26420a7fd58b6ea4917458886d435e7b095993cb7e"
     },
     "cases": {
-      "plane-sphere": {"dev_nacon": 1, "ref_nacon": 1, "failures": 0},
-      "plane-capsule": {"dev_nacon": 1, "ref_nacon": 1, "failures": 0},
-      "plane-ellipsoid": {"dev_nacon": 1, "ref_nacon": 1, "failures": 0},
-      "plane-cylinder": {"dev_nacon": 1, "ref_nacon": 1, "failures": 0},
-      "plane-box": {"dev_nacon": 3, "ref_nacon": 3, "failures": 0},
-      "plane-mesh": {"dev_nacon": 3, "ref_nacon": 3, "failures": 0}
+      "plane-sphere": {
+        "dev_nacon": 1,
+        "ref_nacon": 1,
+        "failures": 0
+      },
+      "plane-capsule": {
+        "dev_nacon": 1,
+        "ref_nacon": 1,
+        "failures": 0
+      },
+      "plane-ellipsoid": {
+        "dev_nacon": 1,
+        "ref_nacon": 1,
+        "failures": 0
+      },
+      "plane-cylinder": {
+        "dev_nacon": 1,
+        "ref_nacon": 1,
+        "failures": 0
+      },
+      "plane-box": {
+        "dev_nacon": 3,
+        "ref_nacon": 3,
+        "failures": 0
+      },
+      "plane-mesh": {
+        "dev_nacon": 3,
+        "ref_nacon": 3,
+        "failures": 0
+      }
     },
     "regression": {
       "primitive_3_cases": "sphere-box-shallow / sphere-box-deep / capsule-box：80/80 bit-equal、max ULP 0、failures=0",
@@ -73,10 +117,29 @@
     }
   },
   "attempts": [
-    {"attempt": 1, "result": "void", "cause": "host 侧 validate_primitive_types 未扩展（primitive 只接受 SPHERE-BOX/CAPSULE-BOX），plane 测试在 CPU 校验处 panic；regression 已 bit-exact", "fix": "扩展 host 组合校验到 plane 族 6 组合（src/runtime/collision_gpu.rs）"},
-    {"attempt": 2, "result": "void", "cause": "runner 脚本 bug（New-GuardState 前多一个反斜杠），零设备工作", "fix": "修正 runner 并加 -Attempt 参数"},
-    {"attempt": 3, "result": "void", "cause": "测试喂 tetra.obj 原始坐标而非 MuJoCo model.mesh_vert（mesh_quat 旋转后），plane-mesh dev 1 vs ref 3", "fix": "用 pinned mujoco 3.15 dump model.mesh_vert 修正测试输入（独立 Python 复算可逐位复现参考）"},
-    {"attempt": 4, "result": "valid", "cause": "6/6 + 3+3 回归通过"}
+    {
+      "attempt": 1,
+      "result": "void",
+      "cause": "host 侧 validate_primitive_types 未扩展（primitive 只接受 SPHERE-BOX/CAPSULE-BOX），plane 测试在 CPU 校验处 panic；regression 已 bit-exact",
+      "fix": "扩展 host 组合校验到 plane 族 6 组合（src/runtime/collision_gpu.rs）"
+    },
+    {
+      "attempt": 2,
+      "result": "void",
+      "cause": "runner 脚本 bug（New-GuardState 前多一个反斜杠），零设备工作",
+      "fix": "修正 runner 并加 -Attempt 参数"
+    },
+    {
+      "attempt": 3,
+      "result": "void",
+      "cause": "测试喂 tetra.obj 原始坐标而非 MuJoCo model.mesh_vert（mesh_quat 旋转后），plane-mesh dev 1 vs ref 3",
+      "fix": "用 pinned mujoco 3.15 dump model.mesh_vert 修正测试输入（独立 Python 复算可逐位复现参考）"
+    },
+    {
+      "attempt": 4,
+      "result": "valid",
+      "cause": "6/6 + 3+3 回归通过"
+    }
   ],
   "host_validation_extension": {
     "file": "src/runtime/collision_gpu.rs",
@@ -95,5 +158,63 @@
     "plane_convex graph 分支（graphadr != -1 且 vertnum >= 10）无 case 覆盖（本片 plane-mesh 为 4 顶点走穷举）",
     "plane-mesh 未需要 polygon 等额外数据；若后续需要则停手报 Arch、记未覆盖",
     "未做 host 交叉、未做 release/Linux"
-  ]
+  ],
+  "window_binary_rebuilds": {
+    "chief_signed_set_2042": {
+      "plane_sha256": "df95ca73fc760a63dbc597807b6660fe91ada6692c91a9402ae509ae3abd40aa",
+      "primitive_sha256": "dcd8fc71709dc58e19cfc479a5ccc5f7306d853a669c991bd8a5e814dd50c090",
+      "launcher_sha256": "6e35926e25f7a01d053222e3c13ee6aa416cc6ec1a7da7a5eb0beb8677f2ee3c",
+      "used_by": "attempt1"
+    },
+    "rebuilt_after_host_validation_fix": {
+      "at": "2026-10-26T20:45+08:00",
+      "reason": "attempt1 暴露 host 组合校验缺项（validate_primitive_types 只接受 SPHERE-BOX/CAPSULE-BOX）→ 抽 validate.rs 并放行 plane 族后重建",
+      "plane_sha256": "77c8b2ead8d63a29a4cc6d275fe79cfaf6f46dad772e411ec5c77c2c92e1fc4f",
+      "primitive_sha256": "6aec50d02c53645bca6dbd92a5cfb2fcb265ccad9c54cf5fbb3a3691bbedcdc6",
+      "launcher_sha256": "bcd43c6e8da3c3e1baf1ec26420a7fd58b6ea4917458886d435e7b095993cb7e",
+      "used_by": "attempt3"
+    },
+    "rebuilt_after_mesh_input_fix": {
+      "at": "2026-10-26T20:48+08:00",
+      "reason": "attempt3 暴露测试 mesh 顶点输入错误（应为 MuJoCo model.mesh_vert 而非 tetra.obj 原始坐标）→ 修测试常量后重建",
+      "plane_sha256": "e5f94074fd692b9bbe90c623ee49cdc772322158a3ae18cba5ad348e39b9732e",
+      "primitive_sha256": "6aec50d02c53645bca6dbd92a5cfb2fcb265ccad9c54cf5fbb3a3691bbedcdc6",
+      "launcher_sha256": "bcd43c6e8da3c3e1baf1ec26420a7fd58b6ea4917458886d435e7b095993cb7e",
+      "used_by": "attempt4（有效轮）"
+    },
+    "chief_retroactive_acknowledgement": "Chief 2026-10-26 20:57 前后确认「B1 结果我认（6/6 + 回归 bit-exact）」，追认有效轮使用重建后二进制（与 20:42 会签集合不同）；重建均在窗口外完成。"
+  },
+  "sampler_aggregates_per_attempt": {
+    "attempt1": {
+      "samples": 95,
+      "used_peak_mib": 7071,
+      "free_min_mib": 8991,
+      "util_max_percent": 98,
+      "window": "20:44:09-20:44:38",
+      "verdict": "void：host 校验缺项 + 外部负载重叠（见下）"
+    },
+    "attempt3": {
+      "samples": 92,
+      "used_peak_mib": 3364,
+      "free_min_mib": 12698,
+      "util_max_percent": 52,
+      "window": "20:46:55-20:47:23",
+      "verdict": "void：测试 mesh 顶点输入错误"
+    },
+    "attempt4": {
+      "samples": 93,
+      "used_peak_mib": 3367,
+      "free_min_mib": 12695,
+      "util_max_percent": 41,
+      "window": "20:48:30-20:48:59",
+      "verdict": "valid"
+    }
+  },
+  "attempt1_external_load": {
+    "baseline": "3352 MiB used / 12710 MiB free（3 点）",
+    "during_window": "used_peak 7071 MiB、free_min 8991 MiB（<10240 地板）、util_max 98%",
+    "end_baseline": "3572/12490 → 4418/11644",
+    "note": "外部任务在 attempt1 窗口内返回；当时 guard（离散点断言）未 abort，属守卫缺陷。B2 起按 Chief 要求先修「守卫消费采样器聚合（peak delta / free_min）」再开窗。attempt1 的 regression 虽 bit-exact，但因窗口不干净不作交付依据。"
+  },
+  "fix_regate_note": "Chief 要求的证据补记提交时的复跑：工作树含 B2（sphere/capsule）在途改动，unit 计数 973（= B1 自身范围 972 + B2 新增 1 单测）；B1 交付时（提交 4bdd89f4）的门禁记录为 972/0/370，本次仅为补记后的复跑，不改变 B1 结论。"
 }

@@ -106,6 +106,29 @@ un-*.log/console.log）；作废轮留档 window-attempt1/（host 校验 panic �
   修正测试输入后重跑。
 - **attempt4**（20:48:30–20:48:59）：6/6 + 3+3 回归全部通过（本证据）。
 
+### 5.1 窗口二进制重建与 Chief 事后追认（Chief 2026-10-26 要求补记）
+
+- 会签集合（20:42 报 Chief 的基线报告）：plane `df95ca73…`、primitive `dcd8fc71…`、launcher `6e35926e…`（attempt1 使用）。
+- 重建 1（20:45，attempt1 暴露 host 组合校验缺项 → 修 `validate.rs` 后重建）：plane `77c8b2ea…`、
+  primitive `6aec50d0…`、launcher `bcd43c6e…`（attempt3 使用）。
+- 重建 2（20:47，attempt3 暴露测试 mesh 顶点输入错误 → 修测试后重建）：plane `e5f94074…`，
+  primitive/launcher 不变（attempt4 使用，即有效轮）。
+- 重建原因均为「attempt 暴露缺陷 → 修复 → 重建」，不是性能/环境漂移；全部重建在窗口外完成，
+  窗口内仍零编译。
+- **Chief 事后追认**：Chief 2026-10-26 20:57 前后确认「B1 结果我认（6/6 + 回归 bit-exact）」，
+  追认有效轮使用重建后二进制（与 20:42 会签集合不同）。
+
+### 5.2 attempt1 期间外部负载重叠（Chief 2026-10-26 要求补记）
+
+- attempt1 窗口 20:44:09–20:44:38，基线 `3352/12710`（3 点）；但 95 个采样点内
+  **used_peak=7071 MiB、free_min=8991 MiB（跌破 10240 地板）、util_max=98%**，结束后基线升到
+  `3572/12490`，再到 `4418/11644` —— 外部任务在窗口内返回。
+- 当时 guard（基于离散点断言）**未 abort**；这既是 attempt1 作废的第二条原因（第一条是 host 组合
+  校验缺项导致 plane 测试 panic），也暴露守卫缺陷：B2 起按 Chief 要求先修「守卫消费采样器聚合
+  （peak delta / free_min）」再开窗。
+- attempt1 的 regression（bit-exact）虽在负载下成立，但因窗口不干净不作为交付依据；交付以 attempt4
+  （used_peak 3367 / free_min 12695 / util_max 41 / residual 0）为准。
+
 ## 6. CPU 侧测试与门禁
 
 - `cargo test --locked --features cuda-probe --lib runtime::collision_gpu -- --include-ignored`：**25 passed / 0 failed**（含 `nvrtc_smoke`）。
