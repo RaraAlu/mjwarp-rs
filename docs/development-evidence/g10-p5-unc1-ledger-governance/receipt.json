@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-g10-p5-unc1-mesh-ledger-update",
+  "kind": "Governance: UNC-1 ledger update after mesh M0a/M1/M0b/M2 slices (convex-vs-mesh covered, mesh-mesh left to M3)",
+  "role": "Arch",
+  "base_head": "f191fdba3cce689e88ac1f30f5d5c5cbe7623aab",
+  "triggers": {
+    "m0a_abi_sidecar": "097c54b9",
+    "m0a_poly_shape_fix": "b50d93a6",
+    "m1_capture": "35192320",
+    "m0b_case_production": "ac01d86d",
+    "m0b_qa_check_closure": "f191fdba",
+    "m2_convex_vs_mesh": "16214a22",
+    "m2_test_entry": "85cce21b",
+    "qa_verdicts": {
+      "m0b": {"verdict": "pass", "blockers": 0, "observations": 6},
+      "m2": {"verdict": "pass", "blockers": 0, "observations": 8}
+    }
+  },
+  "unc1_update": {
+    "before": {
+      "combos": "box/cylinder only (9a282074)",
+      "mesh_side": "not implemented (needs mesh polygon ABI input)",
+      "device_inputs": "old G5 23 arrays only",
+      "status": "partial"
+    },
+    "after": {
+      "combos": [
+        "box/cylinder (9a282074; cylinder-box 314/314 bit, box-box-margin 391/392 with pos 1 ULP)",
+        "convex-vs-mesh (16214a22): mesh-box and mesh-cylinder each nacon 4/4, bit_equal 4/4, ULP 0, contact.geom=[1,0] per pinned type order, failures 0, against M1 GPU reference c83baffe"
+      ],
+      "device_inputs": "9 mesh polygon slices (sidecar 504 / MjWarpMeshPolyArgs 72B) + 2 cases x 32 bins produced from one source (xml/qpos/geom_xpos/geom_xmat bit-equal to M1 reference; pinned mjModel arrays re-dumped bit-equal)",
+      "mesh_branch_partial": [
+        "_intersect1/_intersect2, _mesh_normals, _mesh_edge_normals, _mesh_face (reversed write) ported per pinned collision_gjk.py rev 71da24d9",
+        "face / edge-normal paths hit by the two fixture cases",
+        "swap geometry order follows G5 pinned _add_geom_pair normalization"
+      ],
+      "uncovered": [
+        "mesh-mesh multicontact (M3 in flight)",
+        "general mesh: nmesh>1, degree>10, polygon>16 (fixed-capacity clamp fallback only)",
+        "hfield-capsule device contact regression (no device evidence after ABI 504; compensated by launcher hfield-sphere bit-level + static offset assertions)",
+        "mesh full type/branch coverage",
+        "Linux / cross-platform"
+      ],
+      "status": "partial"
+    },
+    "files": [
+      "docs/development-evidence/g10-p5-acceptance-map/README.md",
+      "docs/development-evidence/g10-p5-acceptance-map/map.json",
+      "docs/development-evidence/g10-p5-unc1-ledger-governance/README.md",
+      "docs/development-evidence/g10-p5-unc1-ledger-governance/receipt.json"
+    ],
+    "map_json_scope": "uncovered[UNC-1] title/implementation/measured/evidence_paths/reason/impact + requirements[G6-2.1] measured/reason + summary.note; other requirements untouched (values unchanged: requirements_total 12 / met 8 / partial 4 / unmet 0 / uncovered 6)"
+  },
+  "window_wording": {
+    "m2_attempt4": "数值全绿 + guard 因 free floor 环境边界 abort，经 Chief 2026-10-26 裁定接受为有效轮",
+    "no_window_pass_claim": true,
+    "derived_guard_formula_from_m3": "floor = min(10240, baseline_free - 3072); open gate stays free >= 10240; M2 data not retroactively changed"
+  },
+  "gate": {
+    "command": "normify gate 2026-10-27-g10-p5-unc1-mesh-ledger-update --repo D:\\Rust\\mjwarp-rs",
+    "gates": ["fmt", "clippy", "clippy-cuda", "unit"],
+    "unit_expected": "987 passed / 0 failed / 373 ignored (docs-only change; run record under .normify/runs/2026-10-27-g10-p5-unc1-mesh-ledger-update/)"
+  },
+  "boundaries": [
+    "No src/tests/fixtures/Cargo changes; no criteria, tolerance, reference, expectation or verified-number changes",
+    "UNC-1 remains partial; only 'box/cylinder + convex-vs-mesh covered, mesh-mesh pending M3, general mesh uncovered'",
+    "No claim of mesh all-types / all-branches / G10@P5 overall pass / cross-platform / precision target met",
+    "Second UNC-1 update (mesh-mesh) only after M3 verified and QA check"
+  ],
+  "evidence_dir": "docs/development-evidence/g10-p5-unc1-ledger-governance"
+}

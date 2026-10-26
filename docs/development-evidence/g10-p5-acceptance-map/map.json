@@ -152,7 +152,7 @@
         "G2 2026-10-25-g10-p5-gjk-epa / G3 2026-10-25-g10-p5-sdf-host-r2 / G4 2026-10-25-g10-p5-hfield-host / G5 2026-10-25-g10-p5-gpu-kernels 均已 verified；G1 model-fields 任务 abandoned（模型字段改由 fixtures 验证入口）"
       ],
       "criterion_quote": "先补齐模块与写入范围。",
-      "measured": "G2/G3/G4/G5 交付 receipt 均含 scope.files 与 gate runs；G5 设备内核 14 个 .cu 全量对照；但仍有 multicontact 设备版、NVRTC 产品 launcher、primitive narrowphase 三个模块缺口（见 uncovered）",
+      "measured": "G2/G3/G4/G5 交付 receipt 均含 scope.files 与 gate runs；G5 设备内核 14 个 .cu 全量对照；设备三缺口片已补：multicontact box/cylinder（`9a282074`）+ convex-vs-mesh（`16214a22`）、NVRTC 产品 launcher（`dfcc1bdc`，UNC-2 已关闭）、primitive 组合层 13/13（分支层部分）；**仍未补**：mesh-mesh 多接触（M3 在途）、primitive 分支层未覆盖项、默认产品管线接线（见 uncovered 1-3 的 partial 说明）",
       "evidence_paths": [
         "docs/development-evidence/g10-p5-gjk-epa/receipt.json",
         "docs/development-evidence/g10-p5-sdf-host/receipt.json",
@@ -160,7 +160,7 @@
         "docs/development-evidence/g10-p5-gpu-kernels/receipt.json"
       ],
       "status": "partial",
-      "reason": "模块与写入范围已按 G2→G5 顺序补齐；设备三缺口片已补：NVRTC launcher（`dfcc1bdc`，经 cuda-probe 可用）、primitive 3/13 组合（`9d72159c`）、multicontact box/cylinder（`9a282074`）。仍缺：mesh multicontact（需 mesh polygon ABI）、primitive 其余 10 组合、默认产品管线接线（见 uncovered 1-3 的 partial 说明）；G1 model-fields 被 abandon，模型字段以 fixtures 方式落地。",
+      "reason": "模块与写入范围已按 G2→G5 顺序补齐；设备三缺口片已补：NVRTC launcher（`dfcc1bdc`，经 cuda-probe 可用，UNC-2 已关闭）、primitive 组合层 13/13（B1/B2/B3 后组合层全覆盖，分支层仍部分）、multicontact box/cylinder（`9a282074`）与 convex-vs-mesh（`16214a22`，QA `271fe926` pass）。仍缺：mesh-mesh 多接触（M3 在途）、primitive 分支层未覆盖 3 类、默认产品管线接线（见 uncovered 1-3 的 partial 说明）；G1 model-fields 被 abandon，模型字段以 fixtures 方式落地。",
       "impact": "G10@P5 的完整产品内核路径未闭合；这三项不得计入 met，G6 声明只能覆盖已交付路径。"
     },
     {
@@ -249,19 +249,25 @@
   "uncovered": [
     {
       "requirement_id": "UNC-1",
-      "title": "multicontact 设备版：box/cylinder 已实装，mesh 未实装",
-      "implementation": "设备 ccd_pair 写接触曾只有单接触；现由 `2026-10-25-g10-p5-multicontact-cuda`（`9a282074`）实装 multicontact（≤4 接触），`multicontact_geom.cu`/`multicontact_clip.cu`/`multicontact.cu`；mesh multicontact 未实现（需 mesh polygon ABI 输入）",
+      "title": "multicontact 设备版：box/cylinder/convex-vs-mesh 已实装，mesh-mesh 未实装（M3 在途）",
+      "implementation": "设备 ccd_pair 写接触曾只有单接触；现由 `2026-10-25-g10-p5-multicontact-cuda`（`9a282074`）实装 multicontact（≤4 接触），`multicontact_geom.cu`/`multicontact_clip.cu`/`multicontact.cu`；mesh 一侧经四片串行落地：ABI sidecar `097c54b9`（`CollisionArgs` 496→504、`mesh_poly_args` offset 184、`MjwarpMeshPolyArgs` 72 B）→ 捕获参考 `35192320`（`c83baffe…`）→ 32 数组 case 生产 `ac01d86d`（2 case × 32 bins）→ convex-vs-mesh 设备实现 `16214a22`（新增 `multicontact_mesh.cu`，`DEVICE_SOURCES` 27→28）；**mesh-mesh 多接触未实装（M3 在途）**。",
       "criterion_quote": "上游 eval_ccd_write_contact 在 box/mesh/cylinder 组合走 multicontact（≤4 接触）",
-      "measured": "设备 multicontact 与同配方上游 f32 GPU 接触数组对照（`worldid+geomcollisionid` 排序后逐字段）：`cylinder-box` **314/314 位级**（nacon 8）；`box-box-margin` 走 PRIMITIVE `box_box` 路径（见 UNC-3）**391/392 位级**（pos 1 ULP ≤4·ULP(scale)）；`mesh-mesh` 为单接触路径 **80/80 位级**。mesh multicontact 未实装（记未覆盖）。",
+      "measured": "设备 multicontact 与同配方上游 f32 GPU 接触数组对照（`worldid+geomcollisionid` 排序后逐字段）：`cylinder-box` **314/314 位级**（nacon 8）；`box-box-margin` 走 PRIMITIVE `box_box` 路径（见 UNC-3）**391/392 位级**（pos 1 ULP ≤4·ULP(scale)）；`mesh-mesh` 为单接触路径 **80/80 位级**（多接触留 M3）。**convex-vs-mesh（M2 `16214a22`，QA `271fe926` pass）**：`mesh-box`/`mesh-cylinder` 各 nacon **4/4**、**bit_equal 4/4**、ULP **0**、`contact.geom=[1,0]`（pinned 类型序）、failures 0，对照 M1 GPU 参考 `c83baffe…`；窗口 attempt4 **数值全绿 + guard 因 free floor 环境边界 abort，经 Chief 2026-10-26 裁定接受为有效轮**（不写「窗口通过」）。mesh 侧口径拆细见 README §7。",
       "evidence_paths": [
         "docs/development-evidence/g10-p5-multicontact-cuda/README.md（§2 实现对照、§3 窗口结果、§7 未覆盖）",
         "docs/development-evidence/g10-p5-multicontact-cuda/receipt.json",
         "docs/development-evidence/g10-p5-multicontact-cuda/window-output.txt（三 case 位级/ULP）",
-        "docs/development-evidence/g10-p5-gpu-kernels-independent-check/README.md（G5 期原始缺口记录）"
+        "docs/development-evidence/g10-p5-gpu-kernels-independent-check/README.md（G5 期原始缺口记录）",
+        "docs/development-evidence/mesh-multicontact-m0a/README.md（ABI sidecar 504 + mesh_poly_args offset 184，`097c54b9`）",
+        "docs/development-evidence/mesh-multicontact-m0a-fix-mesh-poly-shapes/README.md（9 slice 形状真值 `(1,1,18,6,6,24,8,8,24)`，`b50d93a6`）",
+        "docs/development-evidence/mesh-multicontact-m1/README.md（捕获参考 `c83baffe…`，`35192320`）",
+        "docs/development-evidence/mesh-multicontact-m0b/（2 case × 32 数组 bins，`ac01d86d`；QA `f191fdba` pass）",
+        "docs/development-evidence/mesh-multicontact-m2/README.md（§7.1 窗口内容、§7.3 hfield-capsule 未覆盖、§8 attempt 记录与 Chief 裁定、§8.5 派生口径）",
+        "docs/development-evidence/mesh-multicontact-m2-independent-check/README.md（QA `271fe926` pass / 0 阻断 / 观察 8）"
       ],
       "status": "partial",
-      "reason": "box/cylinder 的 multicontact 接触数组已实装并与上游参考逐字段对照；**mesh 参与的 multicontact 仍缺**（需 mesh polygon ABI 输入），且未做性能测试。",
-      "impact": "G10@P5 可声明「设备 multicontact 已覆盖 box/cylinder 组合」，**不得**声明覆盖 mesh 参与的多接触路径；mesh multicontact 仍为未覆盖项。"
+      "reason": "box/cylinder 的 multicontact 接触数组已实装并与上游参考逐字段对照；**convex-vs-mesh 两个 case 已实装且位级一致**；**mesh-mesh 多接触仍缺（M3 在途）**；一般 mesh（nmesh>1、degree>10、polygon>16）只走固定容量 clamp 回退、未覆盖；且未做性能测试。",
+      "impact": "G10@P5 可声明「设备 multicontact 已覆盖 box/cylinder 组合与 convex-vs-mesh（box/cylinder × mesh 两个 case，判据内位级）」，**不得**声明覆盖 mesh-mesh 多接触或一般 mesh；mesh-mesh 在 M3 收口前仍为未覆盖项；mesh 全类型/全分支与跨平台不在声明面。"
     },
     {
       "requirement_id": "UNC-2",
@@ -369,6 +375,6 @@
     "partial": 4,
     "unmet": 0,
     "uncovered_total": 6,
-    "note": "perf（G6-2.2）已按独占窗口采集；NP03 其它字段 5% 红线全量完成前，G10@P5 不得整体声明通过；G6-3.1 只表示「native 侧按用户拍板 B 处置已落地」，不提供放行信号；UNC-6 按用户 2026-10-25 拍板 A 处置（不修、列未覆盖，声明面判据不调整）；UNC-1/2/3 已按设备三缺口片更新为 partial（范围见各行：multicontact 覆盖 box/cylinder、mesh 未实现；NVRTC launcher 经 cuda-probe 可用、默认管线未接；primitive 组合层 13/13、分支层部分覆盖（B3 后剩 3 类 + 债务，见 README §6）），仍未覆盖项含 mesh multicontact、primitive 分支层未覆盖项、默认管线接线、Linux/T4、G5 逐秒峰值、深穿透 witness 面；本 map 只做证据映射，不改任何已 verified 数字。 UNC-2 于 2026-10-26 关闭（默认构建含 CUDA 入口、产品入口真实设备执行；限定语见 UNC-2.closure.qualifier，关闭不代表默认数值路径走 Device）。"
+    "note": "perf（G6-2.2）已按独占窗口采集；NP03 其它字段 5% 红线全量完成前，G10@P5 不得整体声明通过；G6-3.1 只表示「native 侧按用户拍板 B 处置已落地」，不提供放行信号；UNC-6 按用户 2026-10-25 拍板 A 处置（不修、列未覆盖，声明面判据不调整）；UNC-1/2/3 已按设备三缺口片更新为 partial（范围见各行：multicontact 覆盖 box/cylinder 与 convex-vs-mesh（`16214a22`，mesh-box/mesh-cylinder 各 4/4 位级）、mesh-mesh 未实现（M3 在途）；NVRTC launcher 经 cuda-probe 可用、默认管线未接；primitive 组合层 13/13、分支层部分覆盖（B3 后剩 3 类 + 债务，见 README §6）），仍未覆盖项含 mesh-mesh multicontact（M3 在途）、一般 mesh（nmesh>1 / degree>10 / polygon>16）、primitive 分支层未覆盖项、默认管线接线、Linux/T4、G5 逐秒峰值、深穿透 witness 面；本 map 只做证据映射，不改任何已 verified 数字。 UNC-2 于 2026-10-26 关闭（默认构建含 CUDA 入口、产品入口真实设备执行；限定语见 UNC-2.closure.qualifier，关闭不代表默认数值路径走 Device）。UNC-1 于 2026-10-27 第一次更新（M0a/M1/M0b/M2 四片收口后，见 README §7）：convex-vs-mesh 计入已覆盖范围，mesh-mesh 留 M3 做第二次更新。"
   }
 }

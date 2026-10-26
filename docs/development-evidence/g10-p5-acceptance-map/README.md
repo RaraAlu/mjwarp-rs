@@ -25,7 +25,7 @@ roadmap 任务 `2026-10-11-roadmap-g10-p5` 的 6 条 acceptance 里，实质只�
 
 | requirement_id | 内容 | 状态与依据 |
 | --- | --- | --- |
-| G6-2.1 | 先补齐模块与写入范围 | **partial**：G2/G3/G4/G5 均 verified；但 multicontact 设备版、NVRTC launcher、primitive narrowphase 未实装（UNC-1/2/3） |
+| G6-2.1 | 先补齐模块与写入范围 | **partial**：G2/G3/G4/G5 均 verified；设备三缺口片已补——multicontact box/cylinder（`9a282074`）与 convex-vs-mesh（`16214a22`）、NVRTC 产品 launcher（`dfcc1bdc`，UNC-2 已关闭）、primitive 组合层 13/13（分支层部分）；仍缺 mesh-mesh 多接触（M3 在途）、primitive 分支层未覆盖 3 类、默认产品管线接线（见下方 uncovered 与 §6/§7） |
 | G6-2.2 | 性能测试须独占GPU | **met**：一次获批独占窗口（HEAD `9c0a0480`，wall 5.5 s，峰值 +1171 MiB，守卫未触发，0.5 s 采样，跑前跑后 0 计算进程）；host/设备 kernel-only/设备端到端/上游 f32 CPU 四列已落 `perf/`，覆盖缺口显式 |
 | G6-2.3 | 记录真实测试与未测项 | met：G2-G5/G6 各 receipt 的 verification 为实测命令输出、unmet 明确列出未覆盖 |
 | G6-2.4 | 先核对 NP01/NP02，再验收 NP03/NP04 | **partial**：NP01/NP02 按 `g10-p5-precheck` 与契约核对；NP03 对上游 f32 侧完成，native 侧接触字段按用户拍板 B 只作诊断（契约 `09896792`）、其 5% 红线不适用，其它字段 5% 红线未全量；NP04 待 G6-2.2 |
@@ -38,7 +38,7 @@ roadmap 任务 `2026-10-11-roadmap-g10-p5` 的 6 条 acceptance 里，实质只�
 
 ### 未覆盖六项（显式；UNC-1/2/3 已按设备三缺口片更新为 partial，范围见下）
 
-1. multicontact 设备版（UNC-1，**partial**）：`9a282074` 已实装 box/cylinder multicontact 并与上游接触数组逐字段对照（`cylinder-box` 314/314 位级、`box-box-margin` 391/392 位级）；**mesh multicontact 未实现**（需 mesh polygon ABI）。
+1. multicontact 设备版（UNC-1，**partial**）：`9a282074` 已实装 box/cylinder multicontact 并与上游接触数组逐字段对照（`cylinder-box` 314/314 位级、`box-box-margin` 391/392 位级）；mesh 一侧经四片串行落地后，**convex-vs-mesh（`mesh-box`/`mesh-cylinder`）已覆盖并位级一致**（`16214a22`，各 4/4 位级、ULP 0、`contact.geom=[1,0]`）；**mesh-mesh 多接触未覆盖（M3 在途）**，一般 mesh（nmesh>1、degree>10、polygon>16）只走固定容量 clamp 回退、未覆盖。mesh 侧口径拆细见 §7。
 2. NVRTC 产品 launcher（UNC-2，**closed（2026-10-26，Chief 批准；限定语见 `map.json` 的 `UNC-2.closure.qualifier` 与 `docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/README.md` §7.1）**）：`dfcc1bdc` 已实现并经 `cuda-probe` 特性实际调用，与 G5 探针三 case 逐字节一致（QA `bcd3c48b`）；**默认构建/默认产品管线未接入**。
 3. primitive narrowphase 设备版（UNC-3，**partial**）：**组合层 13/13 已实现且各有上游 GPU 对照 case**——既有 `9d72159c`（+ `9a282074` 的 `box_box`）覆盖 sphere-box/capsule-box/box-box；B1 `249a4dbd` 覆盖 plane 6 组合（6/6）；B2 `6ab5cb22` 覆盖 sphere/capsule 4 组合（4/4）。**分支层部分覆盖**（8 类分支未覆盖，台账见 §6）。**未宣称全路径 / 全分支。**
 4. Linux/T4 未覆盖（UNC-4；用户 2026-10-24 裁决 Linux 集中回测）
@@ -118,3 +118,21 @@ roadmap 任务 `2026-10-11-roadmap-g10-p5` 的 6 条 acceptance 里，实质只�
 **证据指针**：B1 `docs/development-evidence/g10-p5-primitive-plane-cuda/`（§5 窗口结果、§9 未覆盖、§12 QA 观察）；B2 `docs/development-evidence/g10-p5-primitive-sphere-capsule-cuda/`（§6 判据与机制、§9 分支、§10 窗口结果、§11 行序修复、§12 QA 观察收口）；既有片 `g10-p5-primitive-narrowphase-cuda/`、`g10-p5-multicontact-cuda/`；B3 `docs/development-evidence/g10-p5-primitive-branch-coverage/`（§7.4 验证窗、§12 QA 观察收口）；独立复核 `...-plane-cuda-independent-check/`（pass）、`...-sphere-capsule-cuda-independent-check/`（pass）、`...-primitive-branch-coverage-independent-check/`（pass）。
 
 **边界**：UNC-3 仍为 **partial**；只写「组合层 13/13、分支层部分覆盖」，不宣称全路径 / 全分支 / 跨平台；精度与等价性结论仅限上表 case 与已批准判据内。
+
+## 7. UNC-1 更新（2026-10-27；mesh 四片串行收口后第一次更新）
+
+**基准（全部 verified，数字只引原文、不复算）**：ABI sidecar 片 `097c54b9`（形状修正 `b50d93a6` + 复核 `91a9fdea`）、mesh 捕获片 `35192320`（QA `fe8956f4`）、32 数组 case 生产片 `ac01d86d`（QA `f191fdba` pass / 0 阻断 / 观察 6）、convex-vs-mesh 设备实现片 `16214a22`（测试入口 `85cce21b`；QA `271fe926` pass / 0 阻断 / 观察 8）。
+
+| 维度 | 本次更新前 | 本次更新后 |
+| --- | --- | --- |
+| 组合层（设备 multicontact） | box/cylinder（`9a282074`） | box/cylinder **+ convex-vs-mesh**（`mesh-box`/`mesh-cylinder` 各 nacon 4/4、bit_equal 4/4、ULP 0、`contact.geom=[1,0]`） |
+| 设备输入侧 | 旧 G5 23 数组 + mesh 无输入 | 新增 9 个 mesh polygon slice（sidecar 504 / 72 B 视图）与 **2 case × 32 数组 bins**（同一来源：xml/qpos/geom_xpos/geom_xmat 与 M1 参考逐位一致） |
+| mesh 分支覆盖 | 未实现 | **部分**：`_intersect1/_intersect2`、`_mesh_normals`、`_mesh_edge_normals`、`_mesh_face`（逆序写出）按 pinned `collision_gjk.py` rev `71da24d9` 移植；face/边法线路径由两 fixture case 命中；swap 几何顺序沿用 G5 的 pinned 类型序规范化 |
+| 未覆盖 | mesh multicontact 全部 | **mesh-mesh 多接触（M3 在途）**；一般 mesh（nmesh>1、degree>10、polygon>16 走固定容量 clamp 回退）；`hfield-capsule` 设备接触回归（ABI 504 后无设备证据，仅 launcher `hfield-sphere` + 静态偏移断言补偿）；mesh 全类型/全分支；Linux/跨平台 |
+| status | partial | **partial（不变）** |
+
+**窗口口径**：M2 验证窗 attempt4 = **数值全绿 + guard 因 free floor 环境边界 abort，经 Chief 2026-10-26 裁定接受为有效轮**（不写「窗口通过」）；attempt1–3 作废原因留档于 M2 证据 §8.1。M3 起 guard floor 派生公式 `min(10240, baseline_free − 3072)`，**不追溯改 M2 数据**。
+
+**不得声明**：mesh 参与的多接触路径整体已覆盖、mesh-mesh 已实现、一般 mesh 已支持、mesh 全类型/全分支、跨平台；UNC-1 仍为 partial。
+
+**证据指针**：`docs/development-evidence/mesh-multicontact-m0a/`、`...-m0a-fix-mesh-poly-shapes/`、`...-m1/`、`...-m0b/`（+ `...-m0b-independent-check/`）、`...-m2/`（§7 窗口内容、§7.3 hfield-capsule 未覆盖、§8 attempt 与裁定、§8.5 派生口径）、`...-m2-independent-check/`。第二次更新（mesh-mesh）在 M3 verified + QA 复核后做。
