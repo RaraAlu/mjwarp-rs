@@ -1,0 +1,55 @@
+{
+  "kind": "qa-m0b-observations",
+  "task_id": "2026-10-26-mesh-multicontact-m0b-independent-check",
+  "observations": [
+    {
+      "id": "O1",
+      "level": "一般",
+      "title": "『旧 12 个 G5 case』与事实不符（实际 10 个）",
+      "detail": "M0b README §1『不改 G5 已验证的 prepare_cases.py 与旧 12 个 case bins』、§4『旧 12 个 G5 case 的 bin 与 QA 参考零改动』以及 commit message『G5 12 case bins/参考』都写 12；实际 docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/ 只有 10 个目录（我逐个列出），测试 OLD_G5_CASES 也是 [&str; 10]，同一 README §3.3 表写 10。M2 证据已把 12→10 作为笔误更正。",
+      "impact": "不影响覆盖面（测试实际覆盖 10 个，且我核过 10 个 QA 参考都只声明 23 项）；只是文字不一致。",
+      "suggestion": "M0b 证据同步写 10，或注明『原写 12 为笔误，实际 10 个』。"
+    },
+    {
+      "id": "O2",
+      "level": "一般",
+      "title": "README §5 的文件行数与实测不符（除生产脚本外）",
+      "detail": "按 ac01d86d 提交树实测（raw/非空）：prepare_mesh_cases.py 372/331（README 331 ✓，非空口径）；primitive_qa_support.rs 331/312（README 300）；multicontact_qa_support.rs 347/326（README 313）；mesh_poly_case_support.rs 362/338（README 328）；g10_p5_mesh_poly_case_assembly.rs 385/361（README 347）。所有文件均 ≤500 行。",
+      "impact": "证据文字偏差，无红线影响。",
+      "suggestion": "统一用同一口径（raw 或非空）重算并注明方法。"
+    },
+    {
+      "id": "O3",
+      "level": "建议",
+      "title": "manifest cross_check 的 geom_xpos/xmat 只有 match:true，缺 actual/reference 位型",
+      "detail": "manifest cases.<case>.cross_check 中 xml_sha256/qpos_bits/collision_count 都带 actual/reference，geom_xpos_bits/geom_xmat_bits 只有 {\"match\": true}。常驻测试 m0b_same_source_matches_m1_reference 会现场复算，我也独立复算并逐位一致，但 manifest 本身无法独立审计这两项。",
+      "impact": "可信度依赖测试与我这次复算；manifest 自证力弱。",
+      "suggestion": "补 actual/reference 位型数组（或 sha256 of bits）。"
+    },
+    {
+      "id": "O4",
+      "level": "建议",
+      "title": "2 个交付证据日志 UTF-8 带 BOM",
+      "detail": "logs/assembly-test.log 与 logs/real-validate-probe.log 带 EF BB BF；其余证据文件无 BOM；全部文件行数 ≤500、无控制字符/制表符、无禁词。",
+      "impact": "内容无损；与『证据 UTF-8 无 BOM』要求不一致。",
+      "suggestion": "转无 BOM（内容零改写）。"
+    },
+    {
+      "id": "O5",
+      "level": "建议",
+      "title": "临时探针证据只能事后复核、不可独立复跑，建议显式标注已被 M2 常驻测试取代",
+      "detail": "探针日志不含 cargo exit code 行（只有 test result: ok + PROBE_REAL_VALIDATE_OK），探针源码未留档；可核的是 src 零 diff、提交树/当前树无探针残留、日志内容真实（含当时编译告警）。",
+      "impact": "本轮证据链如实（我核过），但后来者可能误把它当可复跑证据。",
+      "suggestion": "在 M0b 证据加注：常驻覆盖 = M2 的 validate_collision_inputs + real_cpu_validation_accepts_m0b_and_old_cases；探针日志仅历史留档。"
+    },
+    {
+      "id": "O6",
+      "level": "建议",
+      "title": "临时证据建议附探针源码文本/sha",
+      "detail": "probe log 里有 validate_tests.rs:456 unused mut 编译告警，可佐证探针被编译执行；但未记录探针源码，无法从证据重建当次调用内容。",
+      "impact": "本片内容真实、可接受；属流程改进建议。",
+      "suggestion": "将来临时探针证据附源码文本/sha 或改用 cfg(test) 私有入口 + 不提交的补丁记录。"
+    }
+  ],
+  "counts": {"total": 6, "一般": 2, "建议": 4, "blocking": 0}
+}

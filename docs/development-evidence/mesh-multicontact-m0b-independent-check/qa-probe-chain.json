@@ -1,0 +1,27 @@
+{
+  "kind": "qa-m0b-probe-chain",
+  "task_id": "2026-10-26-mesh-multicontact-m0b-independent-check",
+  "purpose": "prove real M0b bins pass the corrected M0a validate_inputs although the function is pub(crate)",
+  "method": "temporary #[cfg(test)] probe appended to src/runtime/collision_gpu/validate_tests.rs, read real bins + meta.txt, assemble 32-slice CollisionGpuInputs, call real validate_inputs, then `git checkout --` revert",
+  "checks": {
+    "src_diff_at_commit": "git diff ac01d86d~1 ac01d86d -- src/ is empty (0 lines)",
+    "probe_in_commit_tree": "git grep probe_m0b_real_bins_pass_m0a_validate_inputs ac01d86d -- src/ -> no hits",
+    "probe_in_current_tree": "0 hits",
+    "raw_log_sha256": "60b9712846a154a424bf1718ee621afaed6f1718c5981fddaeeff1bf18a74b70",
+    "evidence_copy_sha256": "60b9712846a154a424bf1718ee621afaed6f1718c5981fddaeeff1bf18a74b70",
+    "raw_log_matches_gates_summary_sha": true,
+    "log_content": [
+      "compile warning at validate_tests.rs:456 (unused mut) = the temporary probe line",
+      "PROBE_REAL_VALIDATE_OK case=mesh-box sidecar=present lens=[1, 1, 18, 6, 6, 24, 8, 8, 24]",
+      "PROBE_REAL_VALIDATE_OK case=mesh-cylinder sidecar=present lens=[1, 1, 18, 6, 6, 24, 8, 8, 24]",
+      "PROBE_REAL_VALIDATE_OK case=sphere-box-shallow sidecar=empty lens=[0,...,0] nworld=2 ngeom=2",
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 844 filtered out"
+    ]
+  },
+  "limitations": [
+    "the log has no cargo exit-code line (only test result ok + PROBE output)",
+    "the probe source was not archived, so this round is not re-runnable",
+    "permanent coverage replaced it: M2's #[doc(hidden)] validate_collision_inputs + real_cpu_validation_accepts_m0b_and_old_cases (verified in the M2 independent check; the prebuilt binary was executed directly there)"
+  ],
+  "verdict": "evidence chain truthful: zero src diff, no residual probe, raw log sha matches the declared value, content consistent with real bins"
+}

@@ -1,0 +1,75 @@
+{
+  "task_id": "2026-10-26-mesh-multicontact-m0b-independent-check",
+  "kind": "m0b-independent-check-evidence",
+  "status": "in_progress",
+  "verdict": "pass",
+  "blockers": [],
+  "observations": {"total": 6, "一般": 2, "建议": 4, "blocking": 0},
+  "reviewed_delivery_task": "2026-10-26-mesh-multicontact-m0b-case-production",
+  "binding": {
+    "m0b_commit": "ac01d86d75f46ba53d39a0db094cf4f17e746aa6",
+    "m0b_parent": "d9c3170349f16c66d4efad256551aee1262b316d",
+    "review_head": "c89d84c2 (governance/evidence commits after M0b; no code impact)",
+    "pinned_upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "toolchain": "rustc 1.99.0; pinned venv python 3.12.13 / mujoco 3.15.0 / warp 1.15.0 / mujoco_warp 3.15.0 (CPU device); no CUDA context, no GPU window"
+  },
+  "methods": [
+    "recompute sha256/count/dtype/size of all 32 bins x 2 cases against mesh-cases-manifest.json and receipt",
+    "independent same-source recompute: fixture xml sha256, capture-keyframe qpos_bits, geom_xpos/geom_xmat bits from pinned mujoco mj_forward, compared bit-for-bit with the M1 GPU reference and with the bins",
+    "meta.txt scalars: pair identity and friction/solref/solreffriction/solimp/adhesion bits vs M1 reference first row",
+    "9 mesh-poly arrays: pinned lengths, sums, per-entity ranges, adr==cumsum, non-negative, value equality with a fresh pinned mjModel dump",
+    "pinned CPU backend collision count cross evidence (fixture validity only, same M1 precheck recipe)",
+    "CPU self-check gate: script 12 rules vs manifest PASS + my own recomputation from bins",
+    "transient real-validate_inputs probe evidence chain: commit src diff empty, probe absent from commit tree and current tree, raw log sha matches gates-summary, log content (compile warning + PROBE lines + test result ok)",
+    "INPUT_BINS 23->32 audit: first 23 order, appended 9 names, declared-set sha guard, optional readers, all-or-none assertion, 10 old G5 cases (23 bins, 0 poly bins, 23 declared inputs), 4 tests assertions and a live run",
+    "zero-change audit: changed-file groups and empty diffs for src/fixtures/G5 bins+refs/M1+B1+B2+B3 refs/prepare_cases.py/criteria",
+    "gate numbers: M0b gate run JSONs + independent aggregation of target/m0b/unit.log; current 987/0/373 delta explained by the M2 tests"
+  ],
+  "key_numbers": {
+    "arrays_per_case": 32,
+    "arrays_verified_ok": {"mesh-box": 32, "mesh-cylinder": 32},
+    "manifest_sha256": "b7c0ed16a229f361b2bbc99110848aa2133259e7d6c1d24f80ba7dfb6c2503ba",
+    "authoring_script_sha256": "133fedb99eef50817d1b550803ea3aba8337f09d8ea34176b985bb17e9b049c2",
+    "mesh_poly_lengths": [1, 1, 18, 6, 6, 24, 8, 8, 24],
+    "same_source": {"xml_match": true, "qpos_bits_match": true, "geom_xpos_bit_match": true, "geom_xmat_bit_match": true, "mesh_box": {"xml": "88b8d7af…", "qpos_bits": [0, 0, 1041194025, 1065353216, 0, 0, 0]}, "mesh_cylinder": {"xml": "d0b75f91…", "qpos_bits": [0, 0, 1044549468, 1065353216, 0, 0, 0]}},
+    "mesh_poly_rules": {"lengths_match": true, "sums_match": true, "ranges_ok": true, "adr_equals_cumsum": true, "values_equal_to_mjmodel": true},
+    "cpu_collision_count": {"mesh-box": 4, "mesh-cylinder": 4, "reference": 4},
+    "selfcheck_rules": 12,
+    "selfcheck_result": "PASS (both cases)",
+    "old_g5_cases": {"count": 10, "bins_per_case": 23, "poly_bins_per_case": 0, "declared_inputs_per_case": 23},
+    "input_bins": {"before": 23, "after": 32, "first_23_order_unchanged": true, "mesh_poly_appended": 9},
+    "assembly_tests": {"m0b_commit_time": "4 passed / 0 failed", "current_tree": "5 passed / 0 failed (4 M0b + M2 resident test)"},
+    "gates": {"m0b_commit_unit": {"passed": 986, "failed": 0, "ignored": 372, "binaries": 116}, "current_unit": {"passed": 987, "failed": 0, "ignored": 373, "binaries": 117}, "delta": "+1 non-ignored (real_cpu_validation_accepts_m0b_and_old_cases) +1 ignored (M2 GPU mesh test)"},
+    "raw_logs": {"unit": {"sha256": "253962273700d489d4b4bb6e9181ce020fa0c11108a82d966fda0e56c9fed862", "aggregate": "986/0/372/116"}, "probe": {"sha256": "60b9712846a154a424bf1718ee621afaed6f1718c5981fddaeeff1bf18a74b70"}, "assembly": {"sha256": "7b6ee8fe3d95c16f12ec7d54d8e85436c5147171a907e7d593d0c2473b6dd07e"}}
+  },
+  "artifacts": {
+    "files": [
+      "README.md",
+      "receipt.json",
+      "qa-verify-bins.json",
+      "qa-same-source.json",
+      "qa-selfcheck.json",
+      "qa-probe-chain.json",
+      "qa-compat.json",
+      "qa-gates.json",
+      "qa-zero-change.json",
+      "qa-observations.json",
+      "logs/",
+      "scripts/",
+      "manifest.json"
+    ]
+  },
+  "gates": {
+    "fmt": {"command": "cargo fmt --check", "exit": 0},
+    "clippy": {"command": "cargo clippy --all-targets --locked -- -D warnings", "exit": 0},
+    "clippy_cuda": {"command": "cargo clippy --all-targets --locked --features cuda -- -D warnings", "exit": 0},
+    "unit": {"command": "cargo test --locked", "exit": 0, "passed": 987, "failed": 0, "ignored": 373},
+    "note": "gate runs recorded under .normify/runs/2026-10-26-mesh-multicontact-m0b-independent-check/"
+  },
+  "boundaries": [
+    "pure CPU review: no GPU window, no CUDA context; the M0b slice itself does not run GPU kernels",
+    "the transient real-validate_inputs probe is historical evidence (not re-runnable); permanent coverage is M2's validate_collision_inputs + real_cpu_validation_accepts_m0b_and_old_cases (verified in the M2 review)",
+    "the 9 mesh-poly arrays cover only the single-mesh cube fixture (nmesh=1); multi-mesh out of scope",
+    "no claim of mesh support; M2 device behaviour is out of scope for this slice"
+  ]
+}
