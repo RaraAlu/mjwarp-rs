@@ -87,7 +87,7 @@ fn primitive_rejects_other_combinations() {
 
 #[test]
 fn device_sources_place_primitive_after_contact() {
-    assert_eq!(DEVICE_SOURCES.len(), 27, "设备源片段数应为 27");
+    assert_eq!(DEVICE_SOURCES.len(), 28, "设备源片段数应为 28");
     let position = |wanted: &str| {
         DEVICE_SOURCES
             .iter()

@@ -1,6 +1,6 @@
 //! G10@P5 multicontact 片：纯 CPU 单测（不创建 `CudaContext`、不跑 GPU）。
 //!
-//! 覆盖：27 个设备源片段的拼装顺序与新增片段存在性、两个新入口在 `product.cu` 的唯一性、
+//! 覆盖：28 个设备源片段的拼装顺序与新增片段存在性、两个新入口在 `product.cu` 的唯一性、
 //! `boxbox` 入口的 CPU 侧类型校验、以及拼装源里 `make_frame` 仍只有一个定义。
 
 use super::source::{DEVICE_SOURCES, PRODUCT_SOURCE, assemble_device_source};
@@ -11,7 +11,7 @@ const BOX: i32 = 6;
 
 #[test]
 fn device_sources_place_multicontact_and_boxbox_in_order() {
-    assert_eq!(DEVICE_SOURCES.len(), 27, "设备源片段数应为 27");
+    assert_eq!(DEVICE_SOURCES.len(), 28, "设备源片段数应为 28");
     let position = |wanted: &str| {
         DEVICE_SOURCES
             .iter()
@@ -19,6 +19,7 @@ fn device_sources_place_multicontact_and_boxbox_in_order() {
             .unwrap_or_else(|| panic!("DEVICE_SOURCES 缺少 {wanted}"))
     };
     let mc_geom = position("multicontact_geom.cu");
+    let mc_mesh = position("multicontact_mesh.cu");
     let mc_clip = position("multicontact_clip.cu");
     let mc = position("multicontact.cu");
     let contact = position("contact.cu");
@@ -46,7 +47,12 @@ fn device_sources_place_multicontact_and_boxbox_in_order() {
         DEVICE_SOURCES.len() - 1,
         "product.cu 前最后一段应为 primitive_sphere_capsule_wrapper.cu"
     );
-    assert_eq!(mc_clip, mc_geom + 1, "multicontact_clip 应紧随 geom");
+    assert_eq!(
+        mc_mesh,
+        mc_geom + 1,
+        "multicontact_mesh 应紧随 multicontact_geom（M2）"
+    );
+    assert_eq!(mc_clip, mc_mesh + 1, "multicontact_clip 应紧随 mesh 助手");
     assert_eq!(mc, mc_clip + 1, "multicontact.cu 应紧随 clip");
     assert_eq!(
         contact,
@@ -71,6 +77,9 @@ fn assembled_source_contains_new_kernels_and_entries_once() {
     for symbol in [
         "g5_multicontact",
         "g5_mc_result",
+        "g5_mc_mesh_normals",
+        "g5_mc_mesh_edge_normals",
+        "g5_mc_mesh_face",
         "g5_box_box",
         "g5_box_box_wrapper",
     ] {

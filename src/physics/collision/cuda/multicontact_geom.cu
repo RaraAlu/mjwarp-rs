@@ -359,3 +359,52 @@ __device__ __forceinline__ int g5_mc_cylinder_face(const float* mat, v3 pos, v3 
     }
     return 16;
 }
+
+// ===== M2：mesh polygon 视图（convex-vs-mesh multicontact）=====
+// 上游 `multicontact()`（collision_gjk.py L2245-2262）在 mesh 参与时取 mesh 侧的
+// `polynormal/polyvertadr/polyvertnum/polyvert/polymapadr/polymapnum/polymap` 数组与
+// `vert/vertadr` 视图。本实现的 9 个数组来自 M0a sidecar（形状语义与修正后的
+// `validate_mesh_poly` 一致：polynum/polyadr 逐 mesh、polyvert* 逐 polygon、polymap* 逐 vertex），
+// 逐 geom 的 `vertadr` 与 `mesh_polyadr` 由 `product.cu::build_geom` 按 `dataid` 解析进 `d_geom`。
+struct g5_mc_mesh_view {
+    const float* vert;
+    const float* polynormal;
+    const int* polyvertadr;
+    const int* polyvertnum;
+    const int* polyvert;
+    const int* polymapadr;
+    const int* polymapnum;
+    const int* polymap;
+    bool has_poly;
+};
+
+// scratch 容量上界（与 `contact.cu` 的 `n1/n2/endvert[10]`、`face1/face2[16]` 一致）：
+// 超出时对应 mesh 助手返回 0，由 `g5_multicontact` 回退单接触（未覆盖边界，见证据）。
+#define G5_MC_MESH_DEG_MAX 10
+#define G5_MC_MESH_FACE_MAX 16
+
+__device__ __forceinline__ g5_mc_mesh_view g5_mc_mesh_view_of(const d_geom& mesh_geom) {
+    g5_mc_mesh_view view;
+    view.vert = mesh_geom.mesh.vert;
+    view.polynormal = mesh_geom.mesh.polynormal;
+    view.polyvertadr = mesh_geom.mesh.polyvertadr;
+    view.polyvertnum = mesh_geom.mesh.polyvertnum;
+    view.polyvert = mesh_geom.mesh.polyvert;
+    view.polymapadr = mesh_geom.mesh.polymapadr;
+    view.polymapnum = mesh_geom.mesh.polymapnum;
+    view.polymap = mesh_geom.mesh.polymap;
+    view.has_poly = (mesh_geom.mesh.polynum != nullptr) && (mesh_geom.mesh.polyadr != nullptr) &&
+                    (mesh_geom.mesh.polynormal != nullptr) &&
+                    (mesh_geom.mesh.polyvertadr != nullptr) &&
+                    (mesh_geom.mesh.polyvertnum != nullptr) &&
+                    (mesh_geom.mesh.polyvert != nullptr) &&
+                    (mesh_geom.mesh.polymapadr != nullptr) &&
+                    (mesh_geom.mesh.polymapnum != nullptr) &&
+                    (mesh_geom.mesh.polymap != nullptr);
+    return view;
+}
+
+// sidecar `mesh_polynormal` 的第 `row` 行（vec3 展平）→ v3。
+__device__ __forceinline__ v3 g5_mc_mesh_poly_normal(const g5_mc_mesh_view& mesh, int row) {
+    return g5_mesh_vertex(mesh.polynormal, row);
+}

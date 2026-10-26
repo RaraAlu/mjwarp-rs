@@ -1,0 +1,92 @@
+# M2 验证窗 attempt 汇总（attempt1-4；attempt4 经 Chief 裁定 (b) 接受为唯一有效轮）
+
+冻结集合：8 个预构建二进制（默认特性 `cuda`→`cuda-probe` 构建，mtime 00:01–00:02）。
+冻结后**未跑任何 cargo**；窗口内只执行这 8 个实体（零 Rust 编译）。
+
+## 0. 开窗前二进制 sha 复核（含 plane 签名补签）
+
+`binary_sha256_verified=true`。7/8 与 Arch 会签值一致；**plane 会签值少一个 `f`（63 位）**，
+**开窗前哈希复核拦住该位：该轮未跑、冻结未破**。Arch 已补签 plane 完整 64 位
+（第 25 位为 `f`），其余 7 个不变；签名集合以本表为准：
+
+| target | 文件 | 字节 | sha256 |
+| --- | --- | --- | --- |
+| mesh_m2 | `g10_p5_mesh_multicontact_m2_cuda-e11ae6eb82e10bd5.exe` | 41736192 | `250297c3e137c25c5e360bea68b509d633a215d7968a3af9701459f88b43bc3b` |
+| multicontact | `g10_p5_multicontact_cuda-3c769ef530070ffe.exe` | 41681408 | `5154cd186bb3c2f8758ed18f17007c680b77ff389b6b0ee599620be491c127ae` |
+| stage2 | `stage2_equivalence_window-b7e65259db9435d8.exe` | 42260992 | `fe0cf46a58c910f4e7f93422dccec628d4c95f18e817eed97d8af2d49c86b03c` |
+| primitive | `g10_p5_primitive_cuda-0908b0f61ffbc599.exe` | 41684992 | `afc3047a08be71bfea96bd76e4297026c44b10b0e363019a4a278af0394734a8` |
+| launcher | `g10_p5_nvrtc_launcher-719917fb0657e1fe.exe` | 41502720 | `5fe476ca36ac3d3b706eb8ea6f6cdf4ac6333b56d9b940fedae07a18e733418b` |
+| plane | `g10_p5_primitive_plane_cuda-b1e8897a38248f9f.exe` | 41556480 | `36bb2d52753c83daba49d8d1966a83f90e87fed34123e8edcf76955990b4b515` |
+| sphere_capsule | `g10_p5_primitive_sphere_capsule_cuda-effe95bf0fed2063.exe` | 41545728 | `50fd81ae82ae22ae4c3a7a17b8e700da528a7427bcf7cc51c0140e5cf699ff7f` |
+| branches | `g10_p5_primitive_branches_cuda-555175a2d3995ff7.exe` | 41620992 | `93083de7c34425a229ae28364a09ff0c50952d88fb7ad53125a124b17f264265` |
+
+## 1. attempt 表（作废轮不拼接）
+
+| attempt | 窗口时间 | body | 结果 | 说明 |
+| --- | --- | --- | --- | --- |
+| 1 | 00:06:29–00:06:30 | 0.9 s | **作废（env）** | 原因：runner PATH 缺 CUDA DLL（NVRTC 不可加载）→ 8 个在加载期 panic，**无 device 工作**；已修（后续 attempt 前缀 PATH） |
+| 2 | 00:06:53–00:07:33 | 40.5 s | 作废（guard free floor） | 8 并行：samples 153、used_peak **7475**（delta **2608**）、free_min **8587**、util_max 44、residual 0；`guard_stop reason=agg_free_below_floor` |
+| 3 | 00:08:23–00:09:41 | 77.4 s | 作废（guard free floor） | 3/3/2 分批：samples 287、used_peak 6238（delta **1371**）、free_min **9824**、util_max 46、residual 0；同上 abort |
+| 4 | 00:10:14–00:13:14 | 180.2 s | **唯一有效轮（Chief 裁定 (b)）** | **数值全绿 + guard 因 free floor 环境边界 abort，经 Chief 裁定接受为有效轮**（**不得**宣称通过）；完全串行：samples 658、used_peak 6366（delta **1499**）、free_min **9696**、util_max 48、streak 0、residual 0；8/8 exit 0 |
+
+**attempt4 唯一有效轮**；attempt1–3 均作废（原因见上表，作废轮不拼接）。
+
+### 1.1 Chief 裁定 (b) 的 6 条补偿事实
+
+1. 开窗基线 free **11200 ≥ 10240**（open 门满足）；
+2. post `query-compute-apps` **无本任务进程**、**residual=0**、process_exited=true；
+3. `delta_peak=1499 MiB` 与单进程 own usage 吻合（attempt4 完全串行）；
+4. `util_max=48%`（未触发 80%×3 中止）、`util_streak=0`；
+5. **数值全 bit-equal/判据内**（mesh 两 case 4/4 位级；G5 9 设备 case failures=0；B1/B2/B3+swap 全 0）；
+6. **8/8 exit 0**。
+
+**唯一触发的 guard 规则 = free floor；新外部 CUDA 进程 / 增量 / util 三条均未触发。**
+
+### 1.2 派生口径（M3 起用，不追溯改 M2 数据）
+
+- **open 门保持 `free ≥ 10240` 不变**；
+- **guard floor 改为 `floor = min(10240, baseline_free − 3072)`**（让增量守卫主导，free floor 只兜外部冲击）；
+- 注明：**M2 按当时口径（固定 10240）执行**；M3 起用新公式。
+
+## 2. 数值结果（attempt4；attempt2/3 结果相同）
+
+| 项 | 结果 |
+| --- | --- |
+| ① mesh-box | nacon=4/4、**bit_equal=4/4**、max_dist/pos/frame ULP=0、`contact.geom=[1,0]`、failures=0 |
+| ① mesh-cylinder | 同上（4/4 位级、ULP 0、`[1,0]`、0） |
+| ② G5 multicontact(3) | cylinder-box nacon=8 bit_equal=314/314；box-box-margin nacon=10 bit_equal=391/392（max_pos_ulp=1）；mesh-mesh nacon=2 bit_equal=80/80；failures 全 0 |
+| ② G5 launcher(3) | hfield-sphere 314/314；sdf-box 3122/3122；ellipsoid-box 80/80（全 bit_equal，ULP 0）；failures 0 |
+| ② G5 primitive(3) | sphere-box-shallow / -deep / capsule-box：各 nacon=2、bit_equal=80/80；failures 0 |
+| ② hfield-capsule | **无设备 target → 未覆盖**（仅 CPU `g10_p5_ccd_overflow` 口径） |
+| ③ stage2（synth，非 G5 bins） | 9 case dump 完成、每 case **两次运行逐位一致**（18 dump）；窗外 CPU 比较按「记录 C 只记录不判 pass/fail」口径（含 sdf-box 已知 recipe 分岔等 7 case FAIL 行）→ 非 M2 回归 |
+| ④ B1 plane 6 | plane-sphere/capsule/ellipsoid/cylinder nacon=1、plane-box/mesh nacon=3，failures 全 0 |
+| ④ B2 sphere/capsule 4 | sphere-sphere/sphere-capsule/sphere-cylinder/capsule-capsule 各 nacon=1，failures 全 0 |
+| ④ B3 6 分支 + 4 swap | plane-mesh-graph 4 接触 + swap；sphere-sphere-concentric、sphere-capsule-clamp(+swap)、sphere-cylinder-cap(+swap)、sphere-cylinder-corner(+swap)、capsule-capsule-nonparallel，全部 failures=0 |
+| ④ primitive 3 / launcher 3 | 见上（同 G5 设备 case） |
+| ⑤ `contact.geom` | mesh 两 case 显式断言 **`[1,0]`**（pinned 类型序，调用方传入；device 未归一化） |
+| ⑥ UNC-6 深穿透 | mesh 两 case 全字段位级/ULP 0 → **未触发**（记未覆盖类未被命中） |
+
+## 3. 窗口事实（attempt4）
+
+- 开窗基线 3 点：`4862, 11200, 37, 32, 596.36` / `4862, 11200, 31, 32, 596.36` / `4862, 11200, 37, 32, 596.36`
+- post：`4863, 11199, 11, 33, 596.36`；结束基线 3 点：`4863,11199,11` / `4863,11199,10` / `4863,11199,10`
+- post `query-compute-apps`：31 条，全部桌面图形进程，无本任务进程；residual=0；process_exited=true
+- 窗口内零 Rust 编译（只跑 8 个预构建 exe）；util_max=48%、streak=0（未触发 80%×3 中止）
+- guard abort 原因：`free_min < floor 10240`（非测量污染；见 §4）
+
+## 4. guard 边界事实（Chief 裁定 (b)：环境边界，非测量污染；守卫未缩）
+
+- 开窗基线 free **11200 ≥ 10240**（open 门满足）；abort 发生在窗口内，来自 8 个 program 的 own usage。
+- attempt4 **完全串行**时单进程峰值 delta ≈ **1499 MiB**（used_peak 6366 - baseline 4867），
+  在当前桌面基线下 free ≈ **9696 < 10240** → floor 在当前机器状态结构性不可达
+  （当前桌面基线比 B3 期 `used≈3400` 高 ~1.4 GiB）。
+- **唯一触发的 guard 规则 = free floor；新外部 CUDA 进程 / 增量 / util 三条均未触发。**
+- 6 条补偿事实见 §1.1。
+- **不宣称通过结论**：本文件口径为「attempt4 数值全绿 + guard 因 free floor 环境边界 abort，
+  经 Chief 裁定 (b) 接受为有效轮」。
+
+## 5. 原始留档
+
+`target/m2/attempt{1,2,3,4}/`：各轮 `baseline.txt`、`facts.txt`、`guard.log`、`samples.csv`、
+8 个 `*.log`/`*.err.log`、`binary-shas.txt`；stage2 dump 在 `target/stage2-impl/window/product/`，
+compare 输出 `stage2-cpu-compare.log`。证据目录 `logs/` 收录 attempt4 的关键文件与逐 case 输出。

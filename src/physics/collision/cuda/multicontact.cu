@@ -1,20 +1,21 @@
-// G10@P5 G5：multicontact 主函数设备版（上游 `multicontact()`）。
+// G10@P5 G5/M2：multicontact 主函数设备版（上游 `multicontact()`）。
 // Adapted from frozen MJWarp collision_gjk.py L2216-2451, revision 71da24d. Apache-2.0.
 //
 // 与上游逐行对应：`witness1[0]=x1`、`witness2[0]=x2` → `_feature_dim` → 面/边法线 →
-// `_aligned_faces` / `_aligned_face_edge` → 面恢复（`_box_face`/`_cylinder_face`/`_set_edge`）
-// → `_polygon_clip`。返回 `n, witness1, witness2, dists`。
+// `_aligned_faces` / `_aligned_face_edge` → 面恢复（`_box_face`/`_mesh_face`/`_cylinder_face`/
+// `_set_edge`）→ `_polygon_clip`。返回 `n, witness1, witness2, dists`。
 //
-// mesh 多接触本片不实现：上游 L2245-2262 的 mesh 数据选择、L2278-2291 / L2297-2310 的
-// `_mesh_normals`、L2326-2345 / L2360-2379 的 `_mesh_edge_normals`、L2400-2412 / L2422-2434 的
-// `_mesh_face` 全部省略；遇到 MESH 直接返回 n=1 且 witness 保持 x1/x2（与上游“无法恢复
-// feature 时单接触回退”同形，调用方据此走单接触写入）。
+// M2：mesh 分支按上游 L2245-2262（mesh 数组视图）、L2278-2291 / L2297-2310（`_mesh_normals`）、
+// L2326-2345 / L2360-2379（`_mesh_edge_normals`）、L2400-2412 / L2422-2434（`_mesh_face`）
+// 接入（mesh 助手在 `multicontact_mesh.cu`）。sidecar 缺失（9 数组全空 / `mesh_polyadr < 0`）
+// 时回退单接触，与 M0a 的 null sidecar 语义一致。box/cylinder 路径逐字保持不变。
 //
 // 调用方（`contact.cu`）保证 scratch 容量：`polygon`/`clipped` 各 32 个 v3、`plane_normal` 16、
 // `plane_dist` 16、`idx1`/`idx2`/`n1`/`n2`/`endvert` 各 10、`face1`/`face2` 各 16。
 // 本函数不做动态分配、不用递归。
 #pragma once
 #include "multicontact_clip.cu"
+#include "multicontact_mesh.cu"
 // EPA face 解包（`g5_get_face_verts`）与 polytope 视图同源，直接复用 polytope 片。
 #include "polytope.cu"
 
@@ -42,9 +43,25 @@ __device__ __forceinline__ g5_mc_result g5_multicontact(
     out.witness1[0] = x1;
     out.witness2[0] = x2;
 
-    // mesh multicontact 未实现（见文件头）：回退单接触。
+    // M2：mesh 参与的 pair 先取 mesh polygon 视图（上游 L2245-2262 的共享数组选择；
+    // 单 mesh 组合下等价）。sidecar 未提供（9 数组全空 / mesh_polyadr < 0）时回退单接触，
+    // 与 M0a 的 null sidecar 语义一致。
+    g5_mc_mesh_view mesh;
+    mesh.vert = nullptr;
+    mesh.polynormal = nullptr;
+    mesh.polyvertadr = nullptr;
+    mesh.polyvertnum = nullptr;
+    mesh.polyvert = nullptr;
+    mesh.polymapadr = nullptr;
+    mesh.polymapnum = nullptr;
+    mesh.polymap = nullptr;
+    mesh.has_poly = false;
     if (geomtype1 == G5_MESH || geomtype2 == G5_MESH) {
-        return out;
+        const d_geom& mesh_geom = (geomtype1 == G5_MESH) ? geom1 : geom2;
+        mesh = g5_mc_mesh_view_of(mesh_geom);
+        if (!mesh.has_poly || mesh_geom.mesh_polyadr < 0) {
+            return out;
+        }
     }
 
     int face[3];
@@ -68,12 +85,18 @@ __device__ __forceinline__ g5_mc_result g5_multicontact(
     int nnorms2 = 0;
     if (geomtype1 == G5_BOX) {
         nnorms1 = g5_mc_box_normals(nface1, feature_index1, geom1.rot, dir_neg, n1, idx1);
+    } else if (geomtype1 == G5_MESH) {
+        nnorms1 = g5_mc_mesh_normals(nface1, feature_index1, geom1.rot, geom1.vertadr,
+                                     geom1.mesh_polyadr, mesh, n1, idx1);
     } else if (geomtype1 == G5_CYLINDER) {
         nnorms1 = g5_mc_cylinder_normals(nface1, feature_index1, geom1.rot, n1, idx1);
     }
 
     if (geomtype2 == G5_BOX) {
         nnorms2 = g5_mc_box_normals(nface2, feature_index2, geom2.rot, dir, n2, idx2);
+    } else if (geomtype2 == G5_MESH) {
+        nnorms2 = g5_mc_mesh_normals(nface2, feature_index2, geom2.rot, geom2.vertadr,
+                                     geom2.mesh_polyadr, mesh, n2, idx2);
     } else if (geomtype2 == G5_CYLINDER) {
         nnorms2 = g5_mc_cylinder_normals(nface2, feature_index2, geom2.rot, n2, idx2);
     }
@@ -91,6 +114,11 @@ __device__ __forceinline__ g5_mc_result g5_multicontact(
                 nnorms1 = g5_mc_box_edge_normals(nface1, geom1.rot, geom1.pos, geom1.size,
                                                 feature_vertex1[0], feature_vertex1[1],
                                                 feature_index1[0], n1, endvert);
+            } else if (geomtype1 == G5_MESH) {
+                nnorms1 = g5_mc_mesh_edge_normals(nface1, geom1.rot, geom1.pos, geom1.vertadr,
+                                                  geom1.mesh_polyadr, mesh, feature_vertex1[0],
+                                                  feature_vertex1[1], feature_index1[0], n1,
+                                                  endvert);
             } else if (geomtype1 == G5_CYLINDER) {
                 nnorms1 = g5_mc_cylinder_edge_normals(nface1, geom1.rot, geom1.size,
                                                       feature_vertex1[0], feature_index1[0], n1,
@@ -109,6 +137,11 @@ __device__ __forceinline__ g5_mc_result g5_multicontact(
                 nnorms2 = g5_mc_box_edge_normals(nface2, geom2.rot, geom2.pos, geom2.size,
                                                 feature_vertex2[0], feature_vertex2[1],
                                                 feature_index2[0], n2, endvert);
+            } else if (geomtype2 == G5_MESH) {
+                nnorms2 = g5_mc_mesh_edge_normals(nface2, geom2.rot, geom2.pos, geom2.vertadr,
+                                                  geom2.mesh_polyadr, mesh, feature_vertex2[0],
+                                                  feature_vertex2[1], feature_index2[0], n2,
+                                                  endvert);
             } else if (geomtype2 == G5_CYLINDER) {
                 nnorms2 = g5_mc_cylinder_edge_normals(nface2, geom2.rot, geom2.size,
                                                       feature_vertex2[0], feature_index2[0], n2,
@@ -135,6 +168,9 @@ __device__ __forceinline__ g5_mc_result g5_multicontact(
         int ind = is_edge_contact_geom2 ? idx1[j] : idx1[i];
         if (geomtype1 == G5_BOX) {
             nface1 = g5_mc_box_face(geom1.rot, geom1.pos, geom1.size, ind, face1);
+        } else if (geomtype1 == G5_MESH) {
+            nface1 = g5_mc_mesh_face(geom1.rot, geom1.pos, geom1.vertadr, geom1.mesh_polyadr, mesh,
+                                     ind, face1);
         } else if (geomtype1 == G5_CYLINDER) {
             nface1 = g5_mc_cylinder_face(geom1.rot, geom1.pos, geom1.size, ind, face1);
         }
@@ -146,9 +182,18 @@ __device__ __forceinline__ g5_mc_result g5_multicontact(
     } else {
         if (geomtype2 == G5_BOX) {
             nface2 = g5_mc_box_face(geom2.rot, geom2.pos, geom2.size, idx2[j], face2);
+        } else if (geomtype2 == G5_MESH) {
+            nface2 = g5_mc_mesh_face(geom2.rot, geom2.pos, geom2.vertadr, geom2.mesh_polyadr, mesh,
+                                     idx2[j], face2);
         } else if (geomtype2 == G5_CYLINDER) {
             nface2 = g5_mc_cylinder_face(geom2.rot, geom2.pos, geom2.size, idx2[j], face2);
         }
+    }
+
+    // M2：mesh 面/边超出 scratch 容量时助手返回 0 → 无法恢复 feature，回退单接触
+    // （box/cylinder 助手恒返回 >=1，故对既有路径无行为变化）。
+    if (nface1 == 0 || nface2 == 0) {
+        return out;
     }
 
     // 裁剪结果的 witness 先落到本地，便于 `_polygon_clip` 失败时保留 x1/x2 单接触回退。

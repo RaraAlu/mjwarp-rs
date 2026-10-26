@@ -1,8 +1,8 @@
 //! G10@P5：产品 NVRTC 设备源拼装。
 //!
-//! 设备源由 `src/physics/collision/cuda/*.cu` 的 27 个片段按**依赖拓扑序**拼接
+//! 设备源由 `src/physics/collision/cuda/*.cu` 的 28 个片段按**依赖拓扑序**拼接
 //! （被依赖文件在前：common→geom→support→simplex→gjk_core→polytope→polytope_build→
-//! epa→ccd→sdf_octree→sdf_math→sdf_narrowphase→hfield→multicontact_geom→
+//! epa→ccd→sdf_octree→sdf_math→sdf_narrowphase→hfield→multicontact_geom→multicontact_mesh→
 //! multicontact_clip→multicontact→contact→primitive→primitive_wrapper→boxbox→
 //! boxbox_wrapper→primitive_plane_common→primitive_plane_convex→primitive_plane_shapes→
 //! primitive_plane_wrapper→primitive_sphere_capsule_shapes→primitive_sphere_capsule_wrapper），
@@ -42,8 +42,13 @@ const PRIMITIVE_SPHERE_CAPSULE_SHAPES_CUDA: &str =
 const PRIMITIVE_SPHERE_CAPSULE_WRAPPER_CUDA: &str =
     include_str!("../../physics/collision/cuda/primitive_sphere_capsule_wrapper.cu");
 
+// M2 convex-vs-mesh multicontact 片段：同样在拼装处本地取文本（不动 `src/physics/mod.rs`，
+// 保持 T4 `physics_core` 组合身份不变）。
+const MULTICONTACT_MESH_CUDA: &str =
+    include_str!("../../physics/collision/cuda/multicontact_mesh.cu");
+
 /// 设备源片段与固定拼装顺序（`(文件名, 内容)`，依赖在前）。
-pub(crate) const DEVICE_SOURCES: [(&str, &str); 27] = [
+pub(crate) const DEVICE_SOURCES: [(&str, &str); 28] = [
     ("common.cu", COMMON_CUDA),
     ("geom.cu", GEOM_CUDA),
     ("support.cu", SUPPORT_CUDA),
@@ -58,6 +63,8 @@ pub(crate) const DEVICE_SOURCES: [(&str, &str); 27] = [
     ("sdf_narrowphase.cu", SDF_NARROWPHASE_CUDA),
     ("hfield.cu", HFIELD_CUDA),
     ("multicontact_geom.cu", MULTICONTACT_GEOM_CUDA),
+    // M2：mesh 助手（依赖 multicontact_geom 的 mesh 视图）在 clip/multicontact 之前。
+    ("multicontact_mesh.cu", MULTICONTACT_MESH_CUDA),
     ("multicontact_clip.cu", MULTICONTACT_CLIP_CUDA),
     ("multicontact.cu", MULTICONTACT_CUDA),
     ("contact.cu", CONTACT_CUDA),
@@ -66,13 +73,13 @@ pub(crate) const DEVICE_SOURCES: [(&str, &str); 27] = [
     ("boxbox.cu", BOXBOX_CUDA),
     ("boxbox_wrapper.cu", BOXBOX_WRAPPER_CUDA),
     // B1 plane 族（拼装顺序：primitive_wrapper→boxbox→boxbox_wrapper→plane common/convex/shapes/
-    // wrapper→product；共 25 段，0 新 ABI 入口，入口仍是 mjwarp_collision_primitive）。
+    // wrapper→product；B1 时 25 段、M2 起 28 段；0 新 ABI 入口，入口仍是 mjwarp_collision_primitive）。
     ("primitive_plane_common.cu", PRIMITIVE_PLANE_COMMON_CUDA),
     ("primitive_plane_convex.cu", PRIMITIVE_PLANE_CONVEX_CUDA),
     ("primitive_plane_shapes.cu", PRIMITIVE_PLANE_SHAPES_CUDA),
     ("primitive_plane_wrapper.cu", PRIMITIVE_PLANE_WRAPPER_CUDA),
-    // B2 sphere/capsule 族（拼装顺序：plane wrapper→shapes→wrapper→product；共 27 段，
-    // 0 新 ABI 入口，入口仍是 mjwarp_collision_primitive）。
+    // B2 sphere/capsule 族（拼装顺序：plane wrapper→shapes→wrapper→product；B2 时 27 段、
+    // M2 起 28 段（多 multicontact_mesh），0 新 ABI 入口，入口仍是 mjwarp_collision_primitive）。
     (
         "primitive_sphere_capsule_shapes.cu",
         PRIMITIVE_SPHERE_CAPSULE_SHAPES_CUDA,

@@ -154,8 +154,11 @@ __device__ __forceinline__ void g5_hfield_pair_contacts(
   geom1.vertnum = -1;
   geom1.graphadr = -1;
   geom1.index = -1;
+  geom1.dataid = -1;
+  geom1.mesh_polyadr = -1;
   geom1.mesh.vert = nullptr;
   geom1.mesh.graph = nullptr;
+  g5_mesh_clear_poly(&geom1.mesh);
 
   const float size[4] = {hfield.size[0], hfield.size[1], hfield.size[2], hfield.size[3]};
   int nrow = hfield.nrow;

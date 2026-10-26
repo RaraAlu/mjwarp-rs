@@ -3,9 +3,12 @@
 //! 覆盖：
 //! 1. bins ↔ `mesh-cases-manifest.json` 的 sha256/count 逐项一致；
 //! 2. 32 项装配后 9 个 mesh_poly slice 的长度/指针与 bins 一致，且满足修正后的 M0a
-//!    `validate_mesh_poly` 规则（本测试为规则镜像；真实校验在 M2 窗口 `run()` 内执行）；
+//!    `validate_mesh_poly` 规则镜像（真实校验见第 5 条）；
 //! 3. 旧 G5 23 项 case 目录缺 9 个 bin → 空 slice + null sidecar 语义，不报错；
-//! 4. 同一来源：`xml_sha256` / `qpos_bits` / `geom_xpos` / `geom_xmat` 与 M1 GPU 参考逐位一致。
+//! 4. 同一来源：`xml_sha256` / `qpos_bits` / `geom_xpos` / `geom_xmat` 与 M1 GPU 参考逐位一致；
+//! 5. 常驻真实校验（Chief M2 追加要求）：用公开的 `#[doc(hidden)]` CPU 入口
+//!    `validate_collision_inputs` 走**真实** M0a `validate_inputs`（不建 CUDA context）——
+//!    M0b 两个 mesh case 为 present、旧 G5 全部 case 为空 sidecar，均必须 `Ok(())`。
 //!
 //! 运行：`cargo test --locked --test g10_p5_mesh_poly_case_assembly`
 
@@ -380,6 +383,53 @@ fn m0b_same_source_matches_m1_reference() {
             record["cpu_selfcheck"]["result"].as_str(),
             Some("PASS"),
             "{case}: manifest cpu_selfcheck 应为 PASS"
+        );
+    }
+}
+
+#[test]
+fn real_cpu_validation_accepts_m0b_and_old_cases() {
+    // Chief M2 追加要求 1：常驻非 ignored CPU 测试，用真实 bins 调**真实校验路径**
+    // （`validate_collision_inputs` 是 M0a `validate_inputs` 的 `#[doc(hidden)]` 测试入口，
+    // 语义与 `run()` 首次分配前的校验完全一致；不建 CUDA context）。
+    use mjwarp_rs::runtime::collision_gpu::validate_collision_inputs;
+
+    for case in M0B_CASES {
+        let inputs = load_case(&m0b_cases_root().join(case));
+        assert!(
+            inputs.mesh_poly_present(),
+            "{case}: M0b 真实 bins 应构造 sidecar（9 项 present）"
+        );
+        assert_eq!(
+            validate_collision_inputs(&inputs.inputs()),
+            Ok(()),
+            "{case}: 真实 validate_inputs 应通过（32 项 + 9 项 sidecar）"
+        );
+    }
+
+    let mut directories: Vec<_> = std::fs::read_dir(g5_cases_root())
+        .expect("读取 G5 case 根目录")
+        .map(|entry| entry.expect("目录项").path())
+        .filter(|path| path.is_dir())
+        .collect();
+    directories.sort();
+    assert!(
+        directories.len() >= 10,
+        "旧 G5 case 目录应至少 10 个，实际 {}",
+        directories.len()
+    );
+    for directory in directories {
+        let inputs = load_case(&directory);
+        assert!(
+            !inputs.mesh_poly_present(),
+            "{}: 旧 23 项 case 不应构造 sidecar",
+            directory.display()
+        );
+        assert_eq!(
+            validate_collision_inputs(&inputs.inputs()),
+            Ok(()),
+            "{}: 旧 case（空 sidecar）应通过真实 validate_inputs",
+            directory.display()
         );
     }
 }

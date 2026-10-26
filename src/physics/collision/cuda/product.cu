@@ -22,8 +22,9 @@
 
 // B3/M0a：mesh polygon sidecar（方案 A）。9 个指针顺序与 pinned `collision_convex.py`
 // L197-205 一致；9 个宿主数组全空时 `mjwarp_collision_args::mesh_poly_args == nullptr`
-// （无 polygon 数据、mesh 多接触功能不启用、行为与改动前一致）。M0a 只做 ABI 接线，
-// 设备侧消费在 M2（本片不实现 mesh 内核）。
+// （无 polygon 数据、mesh 多接触功能不启用、行为与改动前一致）。M0a 做 ABI 接线；
+// M2 起由 `build_geom` 按 `geom_dataid` 解析出 `d_geom::mesh_polyadr` 与 9 个数组指针，
+// 供 `multicontact_mesh.cu` 的 convex-vs-mesh 分支消费（sidecar 缺失 → 单接触回退）。
 struct MjwarpMeshPolyArgs {
   const int* mesh_polynum;
   const int* mesh_polyadr;
@@ -145,16 +146,35 @@ __device__ __forceinline__ d_geom build_geom(const mjwarp_collision_args& a, int
   geom.vertnum = -1;
   geom.graphadr = -1;
   geom.index = -1;
+  geom.dataid = -1;
+  geom.mesh_polyadr = -1;
   geom.mesh.vert = nullptr;
   geom.mesh.graph = nullptr;
+  g5_mesh_clear_poly(&geom.mesh);
   const int type = a.geom_type[geom_index];
   if (type == G5_MESH) {
     const int dataid = a.geom_dataid[geom_index];
     geom.vertadr = dataid >= 0 ? a.mesh_vertadr[dataid] : -1;
     geom.vertnum = dataid >= 0 ? a.mesh_vertnum[dataid] : -1;
     geom.graphadr = dataid >= 0 ? a.mesh_graphadr[dataid] : -1;
+    geom.dataid = dataid;
     geom.mesh.vert = a.mesh_vert;
     geom.mesh.graph = a.mesh_graph;
+    // M2：mesh polygon sidecar（9 指针，形状语义见 M0a 修正片的 validate_mesh_poly）。
+    // 全空/缺失（nullptr）时保持 9 指针为空 → 多接触回退单接触（与 M0a 语义一致）。
+    const MjwarpMeshPolyArgs* poly = a.mesh_poly_args;
+    if (poly != nullptr && dataid >= 0) {
+      geom.mesh.polynum = poly->mesh_polynum;
+      geom.mesh.polyadr = poly->mesh_polyadr;
+      geom.mesh.polynormal = poly->mesh_polynormal;
+      geom.mesh.polyvertadr = poly->mesh_polyvertadr;
+      geom.mesh.polyvertnum = poly->mesh_polyvertnum;
+      geom.mesh.polyvert = poly->mesh_polyvert;
+      geom.mesh.polymapadr = poly->mesh_polymapadr;
+      geom.mesh.polymapnum = poly->mesh_polymapnum;
+      geom.mesh.polymap = poly->mesh_polymap;
+      geom.mesh_polyadr = poly->mesh_polyadr[dataid];
+    }
   }
   return geom;
 }
