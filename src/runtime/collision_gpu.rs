@@ -46,6 +46,16 @@ use buffers::{input_pointer, output_pointer, readback, truncated, upload, zeroed
 pub use error::CollisionGpuError;
 pub use types::{CollisionGpuInputs, CollisionGpuMeta, CollisionGpuOutput};
 
+/// 仅测试入口：对 32 项宿主输入做纯 CPU 校验（不建 CUDA context、无行为变更）。
+///
+/// `CollisionGpuProgram::run` 在首次分配前同样调用 `abi::validate_inputs`；本函数把同一
+/// 校验以 `#[doc(hidden)]` 暴露给集成测试，供 M0b/M2 的 CPU 自检门常驻调用（替代临时探针）。
+/// 语义与 `run()` 的校验完全一致，不改任何发射行为。
+#[doc(hidden)]
+pub fn validate_collision_inputs(inputs: &CollisionGpuInputs<'_>) -> Result<(), CollisionGpuError> {
+    validate_inputs(inputs)
+}
+
 /// 产品入口符号（与 `product.cu` 的 `extern "C" __global__` 一一对应）。
 const CONTACT_ENTRY: &str = "mjwarp_collision_contact";
 const HFIELD_ENTRY: &str = "mjwarp_collision_hfield";
