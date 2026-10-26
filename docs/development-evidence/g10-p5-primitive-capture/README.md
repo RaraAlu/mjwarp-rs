@@ -1,7 +1,7 @@
 # G10@P5 primitive 其余 10 组合：B0 authoring（fixtures + 上游 GPU 参考捕获）
 
 任务：`2026-10-26-g10-p5-primitive-capture`（p48，owner Backend）。
-**窗口状态：捕获已完成（attempt3 有效轮）；captured_at 真实性修正需重采一次小窗口，见 §6/§7。** 本片只交付 fixture 与上游 GPU f32 参考，不做 host 交叉、不判产品精度。
+**窗口状态：捕获已完成（更正窗口 attempt4 为唯一有效轮，两轮 raw 逐字节一致；captured_at 为窗口开始真实时间）；旧 attempt3 记录见 §6、最终以 §7 为准。** 本片只交付 fixture 与上游 GPU f32 参考，不做 host 交叉、不判产品精度。
 
 ## 1. dispatch 审计（已完成，纯 CPU）
 见 `dispatch-audit.md`：`nativeccd=disable` 下 10/10 组合路由 `CollisionType.PRIMITIVE`，wrapper 映射：
@@ -33,20 +33,21 @@ L910-912 NATIVECCD 覆盖为 PRIMITIVE → `box_box_wrapper`（既有参考，�
 - 不判产品精度；后续设备片对照口径 = 「device vs 本片上游 GPU 参考」（位级优先/既有 4 ULP 判据，不放宽）。
 - 未实现组合照旧记未覆盖；若 plane-mesh 后续设备实现需要 mesh polygon ABI → 停手报 Arch，本片不绕。
 - ABI：本片 0 新 ABI 字段。
-## 6. 捕获窗口事实（attempt3 有效；2026-10-26 19:40–19:42）
+## 6. 捕获窗口事实（历史 attempt3，2026-10-26 19:23 窗口；其参考已被 §7 的 attempt4 替换）
+
+> 留档说明：本节记录当时 attempt3 的产出与数字；QA 复核发现其 `captured_at` 为写死常量，已由 §7 更正窗口 attempt4 重采替换。**当前有效参考与窗口事实以 §7 为准**，本节数字只作历史留档。
 
 - **开窗前基线**：`4286 MiB used / 11776 MiB free / 31-36% util / 33 °C / driver 596.36`（3 点）；`query-compute-apps` 34 条桌面/系统上下文、无本任务 CUDA 计算进程 → free≥10240 通过。
 - **执行**（pinned `target/mjwarp-parallel/venv/Scripts/python.exe` 3.12.13，`device=cuda:0`，窗口内零 Rust 编译）：
   RUN A 独立进程 + cache A（wall **8.4 s**）→ RUN B 独立进程 + cache B（wall **8.2 s**）→
   `compare_primitive_capture.py` **RAW BYTE-IDENTICAL: PASS**，
-  两轮 sha256 均 `13b2399d03ae39c5a579b7c20c6855b53e020e288d5c2f89b2e84531067d338c`；新参考已落
-  `upstream-primitive-gpu.json`（13516 B，同一 sha）。
+  两轮 sha256 均 `13b2399d03ae39c5a579b7c20c6855b53e020e288d5c2f89b2e84531067d338c`（该参考已被 §7 的 `3a6475ac…` 替换，仅留档）。
 - **每 case（GPU）**：plane-sphere 1、plane-capsule 1、plane-ellipsoid 1、plane-cylinder 1、plane-box 3、
   plane-mesh 3、sphere-sphere 1、sphere-capsule 1、sphere-cylinder 1、capsule-capsule 1；每 case
   `two_captures_bitwise_identical=True`。
 - **provenance**：interpreter `...mjwarp-parallel/venv/Scripts/python.exe` 3.12.13；mujoco 3.15.0 / warp 1.15.0 /
   mujoco_warp 3.15.0；GPU RTX 4070 Ti SUPER / driver 596.36；rev `71da24d9…`；脚本 sha；`kernel_cache_root`
-  `target/g10-p5-primitive-capture/warp-cache`；`captured_at=2026-10-26T19:40:00+08:00`。
+  `target/g10-p5-primitive-capture/warp-cache`（attempt3 留档）；`captured_at=2026-10-26T19:40:00+08:00`（写死常量，已由 §7 修正）。
 - **守卫/采样摘要**：68 样本 @0.25 s；used 峰值 **4532 MiB**（基线增量 +246，<3072 守卫）；free 最低 11530；
   util 最高 37%（本任务 GPU 步期间，无本任务步外的 util 连续越限）；进程退出、**无残留**；
   结束基线 4286/11776；post `query-compute-apps` 无本任务进程。
@@ -54,10 +55,10 @@ L910-912 NATIVECCD 覆盖为 PRIMITIVE → `box_box_wrapper`（既有参考，�
   旧参考/既有 fixture **0 改动**；旧参考（`qa-upstream-gpu.json` 等）逐字节未动。
 - **attempt 记录**（如实）：attempt1 因 capture 脚本 line 105 残留字面反引号n 的 SyntaxError → 零 GPU 作废；attempt2 因 capture 脚本 provenance 含每轮
   cache 路径（导致 raw 非逐字节一致）→ 该轮 GPU 工作量作废（不采纳）；修复为 `kernel_cache_root` 相对路径后
-  attempt3 为唯一有效轮。窗口会话 1 次。
+  attempt3 曾作为有效轮（其后因 captured_at 真实性问题由 §7 的 attempt4 取代）；窗口会话合计 2 次（attempt3 + attempt4）。
 - **「nacon 预期」口径（必须如实）**：预检 `precheck-cpu.md` 的 nacon 预期由本轮 CPU 后端预检实测确定，
   **只作 fixture 有效性基线，不作参考/判据**；新参考以上游 GPU 捕获为准。**参考尚不是判据**：本片只交付「新组合上游 GPU 参考已捕获且有 provenance」，不判任何组合通过。
-- **窗口轮次口径（O7）**：GPU 窗口 1 次有效轮（attempt3：RUN A+B，wall 8.4 s / 8.2 s）；attempt1/2/3 为三次采样会话（samples 8 / 100 / 68），仅 attempt3 采纳。**runner 位置（O8）**：runner 位于 gitignored `target/`（不入库）；轮次独立性由 `window-attempt3/run-a.log`/`run-b.log` 与独立 cache（`attempt3/warp-cache-a`、`-b`）旁证。**kernel_cache_parent（O4）**：provenance 记录 `target/g10-p5-primitive-capture/attempt3`（两轮相同，保证 raw 逐字节一致），每轮 cache 子目录见 run 日志。**观察（交 Arch 判定，不自行解释为通过/失败）**：`capsule-capsule` GPU 捕获 nacon=1，而 CPU 预检为 2；
+- **窗口轮次口径（O7）**：attempt1/2/3 为三次采样会话（samples 8 / 100 / 68）；attempt3 曾产出后被 superseded；**attempt4 为更正窗口唯一有效轮（RUN A+B，wall 7.9 s / 7.9 s）；GPU 窗口会话合计 2 次（attempt3 + attempt4）**。**runner 位置（O8）**：runner 位于 gitignored `target/`（不入库）；轮次独立性由 `window-attempt3/run-a.log`/`run-b.log` 与独立 cache（`attempt3/warp-cache-a`、`-b`）旁证。**kernel_cache_parent（O4）**：provenance 记录 `target/g10-p5-primitive-capture/attempt4`（窗口内真实存在、两轮相同，保证 raw 逐字节一致），每轮 cache 子目录见 run 日志（§7）。**观察（交 Arch 判定，不自行解释为通过/失败）**：`capsule-capsule` GPU 捕获 nacon=1，而 CPU 预检为 2；
   其余 9 例 CPU 预检与 GPU 捕获 nacon 一致。该差异不影响「新参考已捕获且有 provenance」的交付，但需 Arch 决定
   B1 对照前是否先排查（本片不判产品精度）。
 
