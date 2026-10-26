@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-mesh-multicontact-m0a-abi-repin",
+  "title": {
+    "zh": "mesh multicontact M0a：sidecar ABI（496→504）+ host 上传链 + 空 sidecar 语义 + 探针/偏移测试 + T4 repin",
+    "en": "mesh multicontact M0a: sidecar ABI (496->504), host upload chain, empty-sidecar semantics, probe/offset tests, T4 repin"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户 2026-10-26 拍板 UNC-1 走方案 A（sidecar，496→504）+ 两步（先 convex-vs-mesh、mesh-mesh 后置）。M0a 只做产品侧 ABI 与 host 上传链：`CollisionArgs` 末尾加 1 个 `mesh_poly_args` 指针（sidecar `MjwarpMeshPolyArgs` 装 9 个 mesh polygon 数组指针）、`CollisionGpuInputs` 23→32（9 个可选数组，缺省为空）、9 路上传、6 个入口偏移测试与探针同步、T4 current-source repin。**不改 SDF 路径（`CollisionUploadPlan` 保持 14 字段）**、不改任何碰撞语义/判据、不实现 mesh 多接触内核（那是 M2）。",
+    "en": "Product-side ABI and host upload chain for the mesh multicontact sidecar (496->504), with empty-sidecar semantics and T4 repin; no SDF path change, no collision semantics change, no mesh kernel implementation."
+  },
+  "modules": {},
+  "acceptance": [
+    "**ABI（方案 A sidecar）**：新增 `MjwarpMeshPolyArgs`（9 个指针，顺序与 pinned `collision_convex.py` L197-205 一致：`mesh_polynum/mesh_polyadr/mesh_polynormal/mesh_polyvertadr/mesh_polyvertnum/mesh_polyvert/mesh_polymapadr/mesh_polymapnum/mesh_polymap`）；`CollisionArgs` 末尾（i32 块之前）加 `mesh_poly_args: *const MjwarpMeshPolyArgs`，**总大小 496→504**、对齐/填充写死并在文档注明；`product.cu` 的 `mjwarp_collision_args` 同名字段；**0 新入口（entries 6→6）**。",
+    "**偏移测试覆盖 6 个入口**：`src/runtime/collision_gpu/tests.rs`（或等价）逐入口断言 args 尺寸/字段偏移，覆盖 `mjwarp_collision`、`mjwarp_collision_*` 全部 6 个入口；探针 `ProbeArgs`/`DeviceArrays` 同步（字段顺序、可选数组语义），并跑通现有探针一致性测试。",
+    "**host 上传链全链写清**：证据里必须画/写「模型层字段（`src/io/render.rs` 的 `mesh_poly*` 族）→ `CollisionGpuInputs`（23→32，9 个 `&[..]` 可选）→ 9 路 `upload` → sidecar 设备指针」的完整链路，标注每一环的现有实现文件与行号；**任何一环缺失 → 停手报 Arch，不许在 device 侧重建多边形法线绕过**（位级不保）。",
+    "**空 sidecar 语义写死**：9 个输入 slice 全空（`&[]`）时 sidecar 不构造、`mesh_poly_args = null`，语义 = 「无 mesh polygon 数据、mesh 多接触功能不启用、行为与改动前完全一致」；必须有**单测**覆盖：①9 数组全空 → null + 不 panic；②部分空/长度不自洽 → 明确错误或按「功能不启用」处理（二选一并写死）；③非 mesh 组合仍可正常发射。",
+    "**旧 case 不重生成**：`docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/` 的 12 个已 verified case 保持 23 数组（`INPUT_BINS` 兼容旧 23 项，不得要求补齐 9 个新 bin）；**不改 `prepare_cases.py`**、不动 G5 证据；旧窗口结果与旧二进制 sha 的绑定关系写进证据（ABI 变更后旧结果只作历史记录，M2 验证窗必须全量重验）。",
+    "**T4 repin（放本片收口）**：按 `61fb6baf` 流程——先枚举 `presets`/product_sources 漂移清单（只列实际变化项），**只改身份期望字面量**，不动断言/容差/产品数值；`cargo test --locked --all-features` 0 失败；给出修前/修后判别（漂移项数与最终 0 漂移）+ 证据；`fixtures/precision/t4-current-kernels.json` 等身份文件的改动逐条列出并说明原因。",
+    "**红线**：不改碰撞判据/容差/期望/参考；不改 SDF 路径（`CollisionUploadPlan` 14 字段不动）；不实现 mesh 内核；不宣称 mesh 已支持；`src/physics/mod.rs` 与 `DEVICE_SOURCES` 段数保持（本片不加 `.cu`）。证据 `docs/development-evidence/mesh-multicontact-m0a/`：README + receipt（含 task_id）、ABI 偏移表、上传链、空 sidecar 单测、repin 枚举/修前修后、门禁数字；单文件 ≤500 行、UTF-8 无 BOM。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-g10-p5-primitive-branch-coverage-independent-check"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/collision_gpu/",
+      "src/runtime/collision_gpu.rs",
+      "src/physics/collision/cuda/product.cu",
+      "tests/",
+      "fixtures/precision/",
+      "docs/development-evidence/mesh-multicontact-m0a/"
+    ],
+    "resources": [],
+    "priority": 45
+  },
+  "note": "Arch 2026-10-26 登记（Chief GO M0，方案 A + 三步拆片）。片序：M0a（本片，纯 CPU）→ M1（捕获窗）→ M0b（case 生产）→ M2（设备实现+验证窗）→ M3。Chief 定：老 G5 12 case 保持 23 数组 + 空 sidecar；M2 验证窗必须全量位级回归这 12 case；T4 repin 放本片收口（ABI 变后不 repin gate 不可能绿）。QA 预登记 `2026-10-26-mesh-multicontact-m0a-independent-check`。",
+  "revision": {
+    "before": "5ebea0c3dbac903ac2a5b021a39216105853aa6a",
+    "after": null
+  },
+  "created_at": "2026-10-26T14:45:00.000Z",
+  "updated_at": "2026-10-26T14:45:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mesh-multicontact-m0a/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-mesh-multicontact-m0a-abi-repin"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

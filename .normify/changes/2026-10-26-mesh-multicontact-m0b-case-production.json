@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-mesh-multicontact-m0b-case-production",
+  "title": {
+    "zh": "mesh multicontact M0b：新 case 生产脚本（32 数组）+ INPUT_BINS 扩展（排 M1 之后）",
+    "en": "mesh multicontact M0b: new case-production script (32 arrays) and INPUT_BINS extension (after M1)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "M1 的 fixture/模型就绪后，新写 case 生产脚本（不改 G5 已 verified 的 prepare_cases.py），产出含 9 个 mesh polygon 数组的 32 数组 case bins 到新目录；并扩展测试 INPUT_BINS 支持 32 项（旧 23 项兼容）。",
+    "en": "M1 的 fixture/模型就绪后，新写 case 生产脚本（不改 G5 已 verified 的 prepare_cases.py），产出含 9 个 mesh polygon 数组的 32 数组 case bins 到新目录；并扩展测试 INPUT_BINS 支持 32 项（旧 23 项兼容）。"
+  },
+  "modules": {},
+  "acceptance": [
+    "新脚本 `prepare_mesh_cases.py`（入 `docs/development-evidence/mesh-multicontact-m0b/scripts/`）从同一 pinned 模型产出 **32 数组** case bins（含 9 个 mesh polygon 数组），放新目录；**不改** G5 `prepare_cases.py` 与已 verified bins。",
+    "`tests/support/*` 的输入装配支持 **32 项**（`INPUT_BINS` 扩展）且**兼容旧 23 项**（老 case 目录缺 9 个 `.bin` → 空 slice + null sidecar，不报错）；sha 守卫按 case 目录声明数组集合。",
+    "CPU 自证：新旧两套 case 都能被 host 装配（不建 context），产出数组长度/类型与脚本 manifest 一致；给出新 case 的数组清单与 sha。",
+    "证据 `docs/development-evidence/mesh-multicontact-m0b/`：README + receipt、脚本 sha256、数组 manifest、兼容性单测输出。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m1-capture"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/mesh-multicontact-m0b/scripts/",
+      "docs/development-evidence/mesh-multicontact-m0b/",
+      "tests/support/",
+      "tests/"
+    ],
+    "resources": [],
+    "priority": 43
+  },
+  "note": "Arch 2026-10-26 预登记（Chief 明确排在 M1 之后，因需要 M1 的 fixture/模型）。",
+  "revision": {
+    "before": "5ebea0c3dbac903ac2a5b021a39216105853aa6a",
+    "after": null
+  },
+  "created_at": "2026-10-26T14:45:00.000Z",
+  "updated_at": "2026-10-26T14:45:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

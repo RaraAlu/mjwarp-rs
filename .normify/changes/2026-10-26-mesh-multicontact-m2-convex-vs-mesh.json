@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-mesh-multicontact-m2-convex-vs-mesh",
+  "title": {
+    "zh": "mesh multicontact M2：convex-vs-mesh 设备实现（multicontact_mesh.cu + 分派）+ 验证窗",
+    "en": "mesh multicontact M2: convex-vs-mesh device implementation plus validation window"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "M0a/M0b 就绪后实现 convex-vs-mesh 多接触（移植 pinned `_mesh_normals`/`_mesh_edge_normals`/`_mesh_face`/`_intersect1|2`），分派接入 multicontact，验证窗对照 M1 参考，并对 ABI 变更做全量回归（含老 12 case 位级）。",
+    "en": "M0a/M0b 就绪后实现 convex-vs-mesh 多接触（移植 pinned `_mesh_normals`/`_mesh_edge_normals`/`_mesh_face`/`_intersect1|2`），分派接入 multicontact，验证窗对照 M1 参考，并对 ABI 变更做全量回归（含老 12 case 位级）。"
+  },
+  "modules": {},
+  "acceptance": [
+    "`multicontact_mesh.cu`（≤500 行）+ `multicontact.cu` 分派 + `multicontact_geom.cu` 取 mesh polygon（按 dataid）；`DEVICE_SOURCES` 段数/顺序断言同步；入口数不变。",
+    "判据沿用不放宽（位级优先 / 非位级 dist 4 ULP@量级 / pos 4·ULP(scale) / frame 4 ULP@1.0 / count+结构零容差 / efc 全 -1、overflow 全 0 / 行序按结构键配对）。",
+    "**ABI 变更全量回归**：M2 验证窗必须把 G5 老 **12 个 case 全量位级回归**（证明空 sidecar/ABI 变更零影响）+ B1 6 + B2 4 + B3 6 分支 + swap 变体 + primitive/launcher 回归，不许回退。",
+    "UNC-6 类深穿透声明边界提前划清（mesh face 上出现单字段超 4·ULP@scale → 记未覆盖、不修、不降声明面判据）；不宣称 mesh 全类型/全分支支持。",
+    "窗口纪律同前（基线+sha 双签、零编译、guard、attempt 留档）；证据 `docs/development-evidence/mesh-multicontact-m2/`。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m0b-case-production"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/physics/collision/cuda/",
+      "src/runtime/collision_gpu/source.rs",
+      "tests/",
+      "docs/development-evidence/mesh-multicontact-m2/"
+    ],
+    "resources": [],
+    "priority": 42
+  },
+  "note": "Arch 2026-10-26 预登记（M0 程序第 4 片）；详细 acceptance 在 start 前按 M0a/M0b 实际接口细化。",
+  "revision": {
+    "before": "5ebea0c3dbac903ac2a5b021a39216105853aa6a",
+    "after": null
+  },
+  "created_at": "2026-10-26T14:45:00.000Z",
+  "updated_at": "2026-10-26T14:45:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

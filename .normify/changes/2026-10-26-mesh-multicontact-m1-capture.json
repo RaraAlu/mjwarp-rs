@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-mesh-multicontact-m1-capture",
+  "title": {
+    "zh": "mesh multicontact M1：dispatch 审计 + mesh-box/mesh-cylinder fixture + 上游 GPU 参考捕获（1 捕获窗）",
+    "en": "mesh multicontact M1: dispatch audit, mesh-box/mesh-cylinder fixtures, upstream GPU reference capture (one capture window)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "M0a 收口后，先做 dispatch 审计确认目标 ccd/multiccd 路径下上游对 mesh-box / mesh-cylinder（以及预留 mesh-mesh）确实走 multicontact；再用 pinned 环境捕获上游 GPU f32 参考（两轮 raw 逐字节一致 + provenance 全 + 旧参考不动），为 M2 提供对照基准。",
+    "en": "M0a 收口后，先做 dispatch 审计确认目标 ccd/multiccd 路径下上游对 mesh-box / mesh-cylinder（以及预留 mesh-mesh）确实走 multicontact；再用 pinned 环境捕获上游 GPU f32 参考（两轮 raw 逐字节一致 + provenance 全 + 旧参考不动），为 M2 提供对照基准。"
+  },
+  "modules": {},
+  "acceptance": [
+    "**dispatch 审计（纯 CPU）**：按 pinned `collision_driver.py` 的 ccd 分支与 `_PRIMITIVE_COLLISIONS`/convex 路径判定 mesh-box / mesh-cylinder 实际走哪条 kernel（multicontact 还是单接触），逐条给证据（行号引用）；mesh-mesh 只做预留结论。若发现目标组合不走 multicontact → 停手报 Arch 重排。",
+    "**fixture**：新目录 `fixtures/g10-p5-mesh-multicontact/`（不动既有 fixture），至少覆盖 mesh-box、mesh-cylinder 各 ≥1 case（含 `nativeccd=disable`、确定性 qpos），mesh-mesh 预留（可先不给 case）。",
+    "**捕获**：pinned python/mujoco/warp/mujoco_warp、`device=cuda:0`、RUN A/B 独立进程+独立 cache、raw 逐字节一致（不一致 exit 2 停手）、每 case 进程内两次捕获 `two_captures_bitwise_identical=true`、`captured_at` 取真实窗口开始时间；产物新文件，旧参考一律不动；窗口纪律同 B1/B2/B3（重采基线、零编译、采样+guard v2+聚合、pre/post、结束基线、无残留、attempt 留档）。",
+    "**证据**：`docs/development-evidence/mesh-multicontact-m1/`（README + receipt + dispatch-audit + inputs-sha256 + 参考 JSON + 窗口文档）；不宣称 mesh 已支持。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m0a-abi-repin"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "fixtures/g10-p5-mesh-multicontact/",
+      "tests/",
+      "docs/development-evidence/mesh-multicontact-m1/"
+    ],
+    "resources": [],
+    "priority": 44
+  },
+  "note": "Arch 2026-10-26 预登记（M0 程序第 2 片）。捕获窗需先报基线+签名 sha 给 Arch 转 Chief 双签；本片不收口设备实现。",
+  "revision": {
+    "before": "5ebea0c3dbac903ac2a5b021a39216105853aa6a",
+    "after": null
+  },
+  "created_at": "2026-10-26T14:45:00.000Z",
+  "updated_at": "2026-10-26T14:45:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
