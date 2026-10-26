@@ -1,0 +1,80 @@
+{
+  "kind": "qa-m0afix-pinned-shapes",
+  "task_id": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check",
+  "note": "Independent check of the 9 mesh-polygon array shapes against pinned types.py and a fresh dump of the real mjModel arrays; the delivery's own tables were not used as the source of truth.",
+  "pinned_source": {
+    "tree": "docs/evidence/d04-complex-physics/authoring-runs/run-5/installed-source/_src/types.py",
+    "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "revision_evidence": "docs/evidence/d04-complex-physics/authoring-runs/run-5/generated/manifest.json: upstream_revision + source_hashes[_src/types.py]=7970e04d40dd15b33171dd1558c369cf45478b6ffdb31d8a805aec93702ec717",
+    "types_py_sha256_measured": "7970e04d40dd15b33171dd1558c369cf45478b6ffdb31d8a805aec93702ec717",
+    "manifest_path_interpretation": "installed_source_root in that manifest is the authoring machine path C:\\Rust\\...; the repo copy under docs/evidence/.../run-5 is the same content (sha matches source_hashes)"
+  },
+  "pinned_dim_lines": [
+    {"lines": "L1329-1330 / L1864-1865", "array": "mesh_polynum, mesh_polyadr", "dim": "(nmesh,)", "ownership": "per mesh"},
+    {"lines": "L1331 / L1866", "array": "mesh_polynormal", "dim": "(nmeshpoly, 3)", "ownership": "per polygon (vec3)"},
+    {"lines": "L1332-1333 / L1867-1868", "array": "mesh_polyvertadr, mesh_polyvertnum", "dim": "(nmeshpoly,)", "ownership": "per polygon"},
+    {"lines": "L1334 / L1869", "array": "mesh_polyvert", "dim": "(nmeshpolyvert,)", "ownership": "flat, per polygon vertex list"},
+    {"lines": "L1335-1336 / L1870-1871", "array": "mesh_polymapadr, mesh_polymapnum", "dim": "(nmeshvert,)", "ownership": "per vertex"},
+    {"lines": "L1337 / L1872", "array": "mesh_polymap", "dim": "(nmeshpolymap,)", "ownership": "flat, per vertex polygon list"}
+  ],
+  "real_mjmodel_dump": {
+    "script": "scripts/dump_cube_poly.py",
+    "script_sha256": "8faf15f5c6e5d9d1f9a3a79508b547cd29f8a9b21a54a351ce9fb83dc9061758",
+    "raw_output": "target/qa-m0afix/cube-poly-model.json",
+    "raw_output_sha256": "b9c52670ad7087ad99eeeebdb28361ca33273f997f1e5cfba7094c7df5965dc1",
+    "environment": {"mujoco": "3.15.0", "python": "3.12.13", "device": "CPU (mjModel only, no warp)"},
+    "fixtures": {
+      "mesh-box": {
+        "xml_sha256": "88b8d7af848a4aba25475f253bfafbfcd666107bfeddaf1291e07b91592a1e03",
+        "entity_counts": {"nmesh": 1, "nmeshpoly": 6, "nmeshvert": 8, "nmeshpolyvert": 24, "nmeshpolymap": 24, "nmeshface": 12, "vertnum": 8},
+        "slice_lengths_in_sidecar_order": {
+          "mesh_polynum": 1,
+          "mesh_polyadr": 1,
+          "mesh_polynormal_flat": 18,
+          "mesh_polyvertadr": 6,
+          "mesh_polyvertnum": 6,
+          "mesh_polyvert": 24,
+          "mesh_polymapadr": 8,
+          "mesh_polymapnum": 8,
+          "mesh_polymap": 24
+        },
+        "arrays": {
+          "polynum": [6],
+          "polyadr": [0],
+          "polynormal": [1.0, 0.0, -0.0, 0.0, 0.0, -1.0, 0.0, -0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, -0.0, 0.0, -1.0, 0.0],
+          "polynormal_bits": [1065353216, 0, 2147483648, 0, 0, 3212836864, 0, 2147483648, 1065353216, 0, 1065353216, 0, 3212836864, 0, 2147483648, 0, 3212836864, 0],
+          "polyvertadr": [0, 4, 8, 12, 16, 20],
+          "polyvertnum": [4, 4, 4, 4, 4, 4],
+          "polyvert": [2, 6, 5, 1, 3, 2, 1, 0, 5, 6, 7, 4, 6, 2, 3, 7, 7, 3, 0, 4, 1, 5, 4, 0],
+          "polymapadr": [0, 3, 6, 9, 12, 15, 18, 21],
+          "polymapnum": [3, 3, 3, 3, 3, 3, 3, 3],
+          "polymap": [1, 4, 5, 0, 1, 5, 0, 1, 3, 1, 3, 4, 2, 4, 5, 0, 2, 5, 0, 2, 3, 2, 3, 4]
+        },
+        "sum_checks": {"sum_polynum": 6, "nmeshpoly_from_polynormal": 6, "sum_polyvertnum": 24, "len_polyvert": 24, "sum_polymapnum": 24, "len_polymap": 24},
+        "adr_equals_cumsum": {"polyadr": true, "polyvertadr": true, "polymapadr": true},
+        "polyvert_element_range_ok": true,
+        "polymap_element_range_ok": true
+      },
+      "mesh-cylinder": {
+        "xml_sha256": "d0b75f91440ee0199020c05805bf26aaf201b0b64089a31b7df8915ba68a04bd",
+        "entity_counts": {"nmesh": 1, "nmeshpoly": 6, "nmeshvert": 8, "nmeshpolyvert": 24, "nmeshpolymap": 24},
+        "slice_lengths_in_sidecar_order": {"mesh_polynum": 1, "mesh_polyadr": 1, "mesh_polynormal_flat": 18, "mesh_polyvertadr": 6, "mesh_polyvertnum": 6, "mesh_polyvert": 24, "mesh_polymapadr": 8, "mesh_polymapnum": 8, "mesh_polymap": 24},
+        "arrays_equal_to_mesh_box": true
+      }
+    }
+  },
+  "delivered_test_data_check": {
+    "file": "src/runtime/collision_gpu/validate_tests.rs",
+    "file_sha256_at_review_head": "f4cdbddca9688efed75a95ad8c1f34ba02c799889e44ffa1f5600da904bf81d7",
+    "struct": "CubeMeshPoly::cube()",
+    "value_comparison": "exact match against the mjModel dump for all 9 arrays",
+    "negative_zero_preserved": true,
+    "note": "polynormal -0.0 entries are stored as 0x80000000 in the test literals (-0.0) exactly like the model; polyvert/polymap values match element for element"
+  },
+  "delivered_length_statement_mismatch": {
+    "delivery_text": "README §1 and receipt real_cube_shapes.lengths say 9 array lengths are (1,1,6,6,6,24,8,8,24)",
+    "actual_slice_lengths": "(1,1,18,6,6,24,8,8,24)",
+    "explanation": "the third value 6 is nmeshpoly (entity count), while mesh_polynormal's slice length is 18 = 6 polygons x 3 floats; M0b bins (mesh_polynormal.bin = 72 bytes = 18 f32) and the M0b commit note use 18, so no downstream error, but the wording is wrong",
+    "see_observation": "O1"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "kind": "qa-m0afix-observations",
+  "task_id": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check",
+  "observations": [
+    {
+      "id": "O1",
+      "level": "一般",
+      "title": "交付 README §1 / receipt 把 mesh_polynormal 的实体数当成 slice 长度",
+      "detail": "README §1 写「9 数组长度 (1,1,6,6,6,24,8,8,24)」，receipt real_cube_shapes.lengths 同值；其中第 3 位 6 是 nmeshpoly（polynormal 行数），真实 mesh_polynormal slice 长度是 18（6×3 f32）。真实长度是 (1,1,18,6,6,24,8,8,24)（我用 pinned mjModel 独立 dump）。",
+      "impact": "文档/审计口径问题；M0b bins（mesh_polynormal.bin 72B=18 f32）与 M0b commit 说明都用 18，未造成下游错误，但照此表造 fixture 会失败。",
+      "suggestion": "把元组改成真实 slice 长度 (1,1,18,6,6,24,8,8,24)，或明确标注为「实体数 per 数组」。"
+    },
+    {
+      "id": "O2",
+      "level": "一般",
+      "title": "README §5 / receipt changes.files[].lines 的行数与实际不符（types.rs、validate_tests.rs）",
+      "detail": "在其标注的口径 Measure-Object -Line 下实测：abi.rs 378（交付 378 ✓）、types.rs 115（交付 94 ✗）、validate_tests.rs 395（交付 374 ✗）；原始行数分别是 392 / 118 / 422。原因应是 Windows PowerShell 5.1 未加 -Encoding UTF8 时按 ANSI 解码中文，导致多行被并成一行计数；同一组数字也写进了 M0a 证据补注。",
+      "impact": "证据可审计性小偏差，不影响 ABI/规则/数字结论。",
+      "suggestion": "用 Get-Content -Encoding UTF8（或 [IO.File]::ReadAllText）重算，或直接写原始行数。"
+    },
+    {
+      "id": "O3",
+      "level": "建议",
+      "title": "fix 证据 5 个日志为 UTF-8 带 BOM",
+      "detail": "clippy.log / clippy-cuda.log / nvrtc-smoke.log / red-old-rule.log / green-new-rule.log 均含 EF BB BF 头；其余 4 个文件无 BOM。",
+      "impact": "内容可读、不影响结论；与团队「证据 UTF-8 无 BOM」口径不一致。",
+      "suggestion": "统一转成无 BOM（内容零改写）。"
+    },
+    {
+      "id": "O4",
+      "level": "建议",
+      "title": "负值分支单测只覆盖 polynum=-1",
+      "detail": "代码里 polyadr / polyvertadr / polyvertnum / polymapadr / polymapnum 各有独立负值错误消息，但交付单测只测 polynum 的负值。我用机制化抽取的旧/新函数探针逐条命中这 6 条负值分支（qa-rule-matrix.json），行为正确。",
+      "impact": "覆盖缺口，非缺陷；后续重构可能悄悄破坏这些分支。",
+      "suggestion": "补 4-5 条负值断言（可直接复用 rejects_inconsistent_mesh_poly_sidecar 的 cube 数据）。"
+    },
+    {
+      "id": "O5",
+      "level": "建议",
+      "title": "强一致 sum(polyvertnum)/sum(polymapnum) 的依据是 mjModel 累加布局，types.py dim 未显式要求",
+      "detail": "pinned types.py 只给 (nmeshpolyvert,) / (nmeshpolymap,)，sum 等长是从 polyvertadr/polymapadr 为 cumsum 推出的数据性质。真实 mjModel 两 case 全等（我 dump 验证 24==24 且 adr==cumsum），但对手工稀疏布局会误拒。",
+      "impact": "对 mjModel 来源的输入安全；对非 mjModel 来源（若未来允许）可能过严。",
+      "suggestion": "注释写明依据，并在 M2 输入可信边界里声明「sidecar 只接受 mjModel 同源数组」。"
+    },
+    {
+      "id": "O6",
+      "level": "建议",
+      "title": "sidecar 未校验 polyvert/polymap 元素值域，也未与其他 23 项数组交叉核对",
+      "detail": "polyvert 的元素是逐 mesh 顶点索引、polymap 的元素是 polygon 索引，二者都没有范围检查；nmeshvert 也没有和 mesh_vertnum/vertadr 交叉核对。M0a 时代同样如此，属既有防御性缺口，不是本片引入。",
+      "impact": "真实模型数据不会触发；恶意/错误宿主输入可能在 device 侧越界读，当前由「调用方 = 自家上传链」约束。",
+      "suggestion": "列入 M2/M3 输入可信边界或后续加固片。"
+    },
+    {
+      "id": "O7",
+      "level": "建议",
+      "title": "交付红/绿日志本身不含 exit code",
+      "detail": "red-old-rule.log 只有 panic + 「test result: FAILED」，没有 exit 101；gates-summary 文字里才写 exit。",
+      "impact": "不影响结论（我按实际编译复现拿到 101/0）。",
+      "suggestion": "以后在 gates-summary 或日志尾部直接记录 exit，方便他人不复跑也能核。"
+    }
+  ]
+}

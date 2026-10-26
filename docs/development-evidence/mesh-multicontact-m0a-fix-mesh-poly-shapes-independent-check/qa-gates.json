@@ -1,0 +1,85 @@
+{
+  "kind": "qa-m0afix-gates",
+  "task_id": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check",
+  "gate_definitions": {
+    "source": ".normify/gates.toml",
+    "fmt": "cargo fmt --check",
+    "clippy": "cargo clippy --all-targets --locked -- -D warnings",
+    "clippy-cuda": "cargo clippy --all-targets --locked --features cuda -- -D warnings",
+    "unit": "cargo test --locked (parse libtest)",
+    "hash_inputs": ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml"]
+  },
+  "delivery_gate_runs": {
+    "path": ".normify/runs/2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes/",
+    "fmt": {"passed": true, "exit": 0, "wall_ms": 1518, "at": "2026-10-26T15:31:37.763Z"},
+    "clippy": {"passed": true, "exit": 0, "wall_ms": 455, "at": "2026-10-26T15:31:35.522Z"},
+    "clippy-cuda": {"passed": true, "exit": 0, "wall_ms": 404, "at": "2026-10-26T15:31:36.099Z"},
+    "unit": {"passed": true, "exit": 0, "wall_ms": 10804, "at": "2026-10-26T15:31:48.733Z", "tests": {"passed": 982, "failed": 0, "ignored": 372}, "log_sha256": "cca950167c36dcc0e737f28c04cb14cc42b1e6a729b3ae5e3107603daa81cdfd"}
+  },
+  "delivery_raw_logs_independent_aggregation": {
+    "note": "aggregated from the raw logs referenced (and sha-declared) by the delivery gates-summary, not copied from its summary text",
+    "unit": {"path": "target/m0a-fix/unit.log", "sha256": "b5d5034f0c66362f5f89b05efd190d1f49aff063a8b28dc8b6c6d66da58d000b", "binaries": 115, "passed": 982, "failed": 0, "ignored": 372, "matches_gates_summary_sha": true},
+    "all_features": {"path": "target/m0a-fix/all-features.log", "sha256": "c52f5241be77bb475470ff1b0e135c218d17d1d111c40f41efc136e753a1f404", "binaries": 115, "passed": 1031, "failed": 0, "ignored": 430, "matches_gates_summary_sha": true}
+  },
+  "my_independent_reruns": {
+    "main_tree_all_features": {
+      "tree": "main worktree",
+      "head_before": "ac01d86d",
+      "head_after": "ac01d86d",
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast",
+      "env": "PATH+=target/toolchains/cuda-12.8.1/bin; MJWARP_MUJOCO_ROOT=target/toolchains/mujoco-3.12.0/package",
+      "exit": 0,
+      "binaries": 116,
+      "passed": 1035,
+      "failed": 0,
+      "ignored": 430,
+      "delta_vs_delivery": "exactly the 4 M0b tests (m0b_bins_match_manifest_sha_and_counts, m0b_assembly_matches_m0a_sidecar_contract, m0b_same_source_matches_m1_reference, old_g5_cases_keep_23_bin_compat); 1031 + 4 = 1035; ignored identical 430",
+      "raw_log": "target/qa-m0afix/main-all-features-raw.log",
+      "raw_log_sha256": "0af6bafc0cf99b17a263dc062dd6ddb54493af719f9e645a91b351cf8f1c8326"
+    },
+    "clean_worktree_at_fix_code": {
+      "tree": "target/qa-m0afix/wt-head @ fe8956f4 (src/tests/fixtures identical to b50d93a6)",
+      "why": "main worktree was occupied by uncommitted M2 work-in-progress during this review, so gate commands were executed on a disposable clean tree whose code equals the fix commit",
+      "fmt": {"command": "cargo fmt --all -- --check", "exit": 0},
+      "clippy": {"command": "cargo clippy --locked --all-targets -- -D warnings", "exit": 0},
+      "clippy_cuda": {"command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings", "exit": 0},
+      "unit": {
+        "command": "cargo test --locked --no-fail-fast",
+        "exit": 0,
+        "binaries": 115,
+        "passed": 982,
+        "failed": 0,
+        "ignored": 372,
+        "raw_log": "target/qa-m0afix/wt-unit-aligned-raw.log",
+        "raw_log_sha256": "0f9dc26e034c12316d010925a8a2668b38b4402d74784366a6df16c003018162",
+        "environment_alignment": "fresh worktree checkout (core.autocrlf=true) first produced 980 passed / 2 failed (pre-existing EOL-sensitive tests sdf_rotation_fixture_is_well_formed and contract::frozen_three_d_package_contract_is_self_consistent); after byte-aligning 4498 clean tracked files to the main worktree (skipping 11 dirty M2 files) the run is 982/0/372, matching the delivery number"
+      }
+    },
+    "lib_abi_subset": {
+      "command": "cargo test --locked --lib abi_ -- --nocapture",
+      "exit": 0,
+      "result": "6 passed / 0 failed / 4 ignored",
+      "covers": ["abi_collision_args_matches_device_layout_504", "abi_mesh_poly_args_matches_device_sidecar_layout", "all_six_entries_take_args_by_value"]
+    },
+    "nvrtc_smoke": {"result": "1 passed; ptx_bytes=3786520 entries=6 source_bytes=238969 source_sha256=ec2e7acd…; exit 0", "log": "logs/nvrtc-smoke.log"}
+  },
+  "main_tree_state_during_review": {
+    "head": "ac01d86d",
+    "dirty_files_uncommitted_m2_wip": [
+      "src/physics/collision/cuda/geom.cu",
+      "src/physics/collision/cuda/hfield.cu",
+      "src/physics/collision/cuda/multicontact.cu",
+      "src/physics/collision/cuda/multicontact_geom.cu",
+      "src/physics/collision/cuda/product.cu",
+      "src/runtime/collision_gpu.rs",
+      "src/runtime/collision_gpu/multicontact_tests.rs",
+      "src/runtime/collision_gpu/primitive_tests.rs",
+      "src/runtime/collision_gpu/source.rs",
+      "tests/g10_p5_mesh_poly_case_assembly.rs",
+      "untracked src/physics/collision/cuda/multicontact_mesh.cu"
+    ],
+    "fmt_status_in_main_tree": "cargo fmt --check FAILS on the uncommitted M2 addition src/runtime/collision_gpu.rs:52-56 (validate_collision_inputs signature layout); git log -S validate_collision_inputs finds no commit and git diff shows the lines as uncommitted WIP, so the failure is not introduced by the fix slice",
+    "consequence": "the fix slice's gate commands were verified on the clean worktree described above; a main-tree gate must be re-run once the M2 work lands or is set aside (the tree state at review time was not gate-able)"
+  },
+  "skill_note": "unit counts are aggregated over all libtest 'test result:' lines (115 or 116 binaries); ignored counts include the pre-existing ignored GPU/NVRTC tests."
+}

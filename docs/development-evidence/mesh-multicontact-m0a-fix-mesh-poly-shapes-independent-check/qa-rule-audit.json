@@ -1,0 +1,36 @@
+{
+  "kind": "qa-m0afix-rule-audit",
+  "task_id": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check",
+  "function_under_review": "src/runtime/collision_gpu/abi.rs::validate_mesh_poly",
+  "code_locations": {
+    "new": "abi.rs L270-392 at b50d93a6 (HEAD abi.rs sha256 de20184eba96581cbde1d78c1ccfa453a76ec81724cf2d9d90876e3456cf74a4)",
+    "old": "abi.rs L244-337 at b50d93a6~1 (extracted to target/qa-m0afix/abi-old.rs, sha256 46f7923d25b49ddd7f6421e1c1411bcd1779e719cd981ed9992f79f1996cbcd8)"
+  },
+  "delivered_audit_claim": "13 rules audited; 6 needed correction (#5 #6 #9 #10 #11-domain #3-convergence); 7 kept",
+  "my_verdict_summary": "agree with 6 corrected / 7 kept; no missed or wrong rule; 2 additional strong-consistency rules (#12/#13) are correct for real mjModel data (see O5)",
+  "rules": [
+    {"id": 1, "rule": "9 arrays all empty -> Ok, sidecar stays null", "pinned_basis": "M0a semantics (outside types.py dims)", "ownership": "-", "new_lines": "285-287", "my_verdict": "kept", "check": "probe all_empty: old Ok, new Ok"},
+    {"id": 2, "rule": "partial empty -> InvalidArgument", "pinned_basis": "M0a semantics", "ownership": "-", "new_lines": "288-292", "my_verdict": "kept", "check": "probe partial_sidecar: Err identical in old/new; delivered rejects_partial_mesh_poly_sidecar passed"},
+    {"id": 3, "rule": "polynum.len() == polyadr.len() (nmesh)", "pinned_basis": "types.py L1329-1330/L1864-1865", "ownership": "per mesh", "new_lines": "294-299", "my_verdict": "fixed (old forced 6 arrays == nmesh)", "check": "real cube len 1/1 ok; probe per_mesh_length_mismatch rejects"},
+    {"id": 4, "rule": "polynormal.len() % 3 == 0 -> nmeshpoly", "pinned_basis": "types.py L1331/L1866", "ownership": "per polygon", "new_lines": "300-305", "my_verdict": "kept", "check": "probe polynormal_not_multiple_of_3 rejects"},
+    {"id": 5, "rule": "polyvertadr.len() == polyvertnum.len() == nmeshpoly", "pinned_basis": "types.py L1332-1333/L1867-1868", "ownership": "per polygon", "new_lines": "306-310", "my_verdict": "fixed (old required ==nmesh; real 6 vs 1)", "check": "real cube len 6 ok; probe per_polygon_length_mismatch rejects"},
+    {"id": 6, "rule": "polymapadr.len() == polymapnum.len() (=nmeshvert)", "pinned_basis": "types.py L1335-1336/L1870-1871", "ownership": "per vertex", "new_lines": "311-315", "my_verdict": "fixed (old required ==nmesh; real 8 vs 1)", "check": "real cube len 8 ok; probe per_vertex_length_mismatch rejects"},
+    {"id": 7, "rule": "sum(polynum) == nmeshpoly", "pinned_basis": "types.py L1329-1331 derivation", "ownership": "per mesh -> per polygon", "new_lines": "337-341", "my_verdict": "kept", "check": "probe sum_polynum_mismatch rejects"},
+    {"id": 8, "rule": "per mesh polyadr[i]+polynum[i] <= nmeshpoly", "pinned_basis": "types.py L1329-1331", "ownership": "per mesh", "new_lines": "327-334", "my_verdict": "kept", "check": "probe per_mesh_range_overflow + two_meshes_range_overflow reject"},
+    {"id": 9, "rule": "per polygon polyvertadr[i]+polyvertnum[i] <= polyvert.len()", "pinned_basis": "types.py L1332-1334", "ownership": "per polygon", "new_lines": "355-360", "my_verdict": "loop domain fixed (old looped 0..nmesh = only polygon 0)", "check": "probe per_polygon_range_overflow rejects"},
+    {"id": 10, "rule": "per vertex polymapadr[i]+polymapnum[i] <= polymap.len()", "pinned_basis": "types.py L1335-1337", "ownership": "per vertex", "new_lines": "378-383", "my_verdict": "loop domain fixed (old looped 0..nmesh = only vertex 0)", "check": "probe per_vertex_range_overflow rejects"},
+    {"id": 11, "rule": "reject negative adr/num in all three groups", "pinned_basis": "int arrays (no negative addresses/counts)", "ownership": "per group", "new_lines": "322-326 / 350-354 / 373-377", "my_verdict": "kept + domain fixed (old checked indices only for mesh-sized loop)", "check": "probe neg_polynum/neg_polyadr/neg_polyvertadr/neg_polyvertnum/neg_polymapadr/neg_polymapnum all reject"},
+    {"id": 12, "rule": "sum(polyvertnum) == len(polyvert)", "pinned_basis": "mjModel cumulative layout implied by types.py L1333-1334 (no explicit sum in dims)", "ownership": "per polygon", "new_lines": "361-367", "my_verdict": "added, correct for real mjModel; see O5", "check": "real dump 24==24; probe sum_polyvertnum_mismatch rejects"},
+    {"id": 13, "rule": "sum(polymapnum) == len(polymap)", "pinned_basis": "mjModel cumulative layout implied by types.py L1336-1337", "ownership": "per vertex", "new_lines": "384-390", "my_verdict": "added, correct for real mjModel; see O5", "check": "real dump 24==24; probe sum_polymapnum_mismatch rejects"}
+  ],
+  "old_rule_defect_confirmed": {
+    "old_lines": "268-277 of abi-old.rs",
+    "old_message": "mesh_poly 逐 mesh 数组长度须一致（polynum/polyadr/polyvertadr/polyvertnum/polymapadr/polymapnum）",
+    "why_real_data_fails": "real cube has polyvertadr/polyvertnum len 6 and polymapadr/polymapnum len 8 while nmesh=1",
+    "reproduced_by": "target/qa-m0afix/wt-red-old-rule-raw.log (actual compiled old rule, exit 101)"
+  },
+  "not_validated_by_this_rule_set": [
+    "element values of polyvert/polymap are not range-checked against vertex/polygon counts (pre-existing, note O6)",
+    "nmeshvert is not cross-checked against mesh_vertnum/vertadr from the existing 23 arrays (pre-existing, note O6)"
+  ]
+}

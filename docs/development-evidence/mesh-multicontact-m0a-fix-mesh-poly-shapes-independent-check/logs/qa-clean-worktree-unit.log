@@ -1,0 +1,15 @@
+QA unit run on the clean detached worktree @ fe8956f4 (code tree == fix commit b50d93a6)
+command: cargo test --locked --no-fail-fast (CARGO_TARGET_DIR = main target, PATH += cuda bin)
+
+run 1 -- fresh worktree (core.autocrlf=true => CRLF working copies):
+  binaries=115 passed=980 failed=2 ignored=372 exit=101
+  failed: sdf_rotation_fixture_is_well_formed (capture script CRLF vs LF sha),
+          contract::frozen_three_d_package_contract_is_self_consistent (kinematics receipt CRLF vs LF sha)
+  -> pre-existing EOL-sensitive tests, same class as the B1 baseline EOL failures; not a regression of this slice
+  raw log sha256=135837f23034a1f1cd5da91e1c7e0321f9a0e312b7536f8b74686b6fb2b7ee49
+
+run 2 -- after byte-aligning 4498 clean tracked files to the main worktree (11 dirty M2 files skipped):
+  binaries=115 passed=982 failed=0 ignored=372 exit=0
+  raw log sha256=0f9dc26e034c12316d010925a8a2668b38b4402d74784366a6df16c003018162
+
+fmt / clippy / clippy-cuda on the same tree: exit 0 / 0 / 0

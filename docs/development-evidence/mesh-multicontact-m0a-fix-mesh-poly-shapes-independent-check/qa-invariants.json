@@ -1,0 +1,69 @@
+{
+  "kind": "qa-m0afix-invariants",
+  "task_id": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check",
+  "fix_commit": "b50d93a61dfc9b184a679035aa04ec4821104acd",
+  "fix_commit_files": [
+    ".normify/changes/2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes.json",
+    ".normify/runs/2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes/{fmt,clippy,clippy-cuda,unit}.json",
+    "docs/development-evidence/mesh-multicontact-m0a/README.md",
+    "docs/development-evidence/mesh-multicontact-m0a/receipt.json",
+    "src/runtime/collision_gpu/abi.rs",
+    "src/runtime/collision_gpu/types.rs",
+    "src/runtime/collision_gpu/validate_tests.rs"
+  ],
+  "scope_diff": {
+    "command": "git diff --stat b50d93a6~1..HEAD -- src tests fixtures Cargo.toml Cargo.lock",
+    "result": "3 files changed, 253 insertions(+), 64 deletions(-); no tests/, fixtures/, Cargo.*, device sources",
+    "files": ["src/runtime/collision_gpu/abi.rs", "src/runtime/collision_gpu/types.rs", "src/runtime/collision_gpu/validate_tests.rs"],
+    "review_head": "ac01d86d (M0b committed); git diff b50d93a6..ac01d86d -- src tests fixtures Cargo.toml Cargo.lock is empty"
+  },
+  "abi_structure": {
+    "claim": "CollisionArgs 504B / align 8; MjwarpMeshPolyArgs 72B / 9 pointers; no struct field change in this fix",
+    "evidence": [
+      "git diff b50d93a6~1..b50d93a6 -- src/runtime/collision_gpu/abi.rs contains only doc comments on MjwarpMeshPolyArgs/fields plus the validate_mesh_poly rewrite; no field lines added/removed",
+      "cargo test --locked --lib abi_ -> 6 passed / 4 ignored, including abi_collision_args_matches_device_layout_504, abi_mesh_poly_args_matches_device_sidecar_layout, all_six_entries_take_args_by_value",
+      "abi.rs sha256 at review head = de20184eba96581cbde1d78c1ccfa453a76ec81724cf2d9d90876e3456cf74a4 (identical to the extracted new file)"
+    ]
+  },
+  "entries": {
+    "claim": "entries 6 unchanged",
+    "product_cu_sha256_at_review_head": "cad08d3e9fab18740f57eddae850a799b5f9a5346d41f362243089f85f0482b9",
+    "external_c_kernels_counted_in_product_cu": 6,
+    "smoke_entries": 6,
+    "note": "product.cu is not modified by the fix commit; M0b (ac01d86d) also leaves device sources untouched (git diff b50d93a6..ac01d86d -- src/physics/collision/cuda empty)"
+  },
+  "device_sources": {
+    "declaration": "src/runtime/collision_gpu/source.rs: pub(crate) const DEVICE_SOURCES: [(&str, &str); 27]",
+    "source_rs_sha256_at_review_head": "94aadef12e49d829a335f3c37e6ee405730a9358e4e49c7cedab946675a2a9c0",
+    "fix_commit_diff": "empty",
+    "device_cuda_diff_b50d93a6_to_head": "empty"
+  },
+  "smoke_fingerprint": {
+    "claim": "238969 / ec2e7acd… / 3786520 / entries 6 unchanged",
+    "command": "cargo test --locked --features cuda-probe --lib runtime::collision_gpu::nvrtc_smoke -- --include-ignored --nocapture",
+    "measured": {"ptx_bytes": 3786520, "entries": 6, "source_bytes": 238969, "source_sha256": "ec2e7acddc71eec2b8cd6b07cf70ba4a4a3e7eab258982815f2199349e1a047a", "exit": 0},
+    "matches_delivery_and_m0a": true,
+    "log": "logs/nvrtc-smoke.log",
+    "raw_log": "target/qa-m0afix/nvrtc-smoke-raw.log",
+    "raw_log_sha256": "bd272a66d75338f77d9d24874aaece28316ca4f4b8024aae8a1001a856548f7a"
+  },
+  "zero_change_paths": {
+    "src/physics/mod.rs": "no diff in fix commit",
+    "src/physics/collision/cuda": "no diff in fix commit and none up to review head",
+    "fixtures": "no diff",
+    "tests": "no diff in fix commit (M0b later adds tests, outside this slice)",
+    "Cargo.toml/Cargo.lock": "no diff",
+    "criteria/tolerance/reference": "no diff (no reference or expectation files touched)"
+  },
+  "m0a_evidence_addendum": {
+    "readme_section4": "blockquote added: updated by 2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes; old per-mesh-equal-length statement declared void; real three-group shapes + impact + post-fix line counts",
+    "receipt": "empty_sidecar_semantics gained shape_semantics + shape_correction_task; validation pointer ':241' removed; unit_tests extended with the 2 new tests",
+    "silent_rewrite": false,
+    "verified_by": "git show b50d93a6 -- docs/development-evidence/mesh-multicontact-m0a/{README.md,receipt.json}"
+  },
+  "evidence_archive": {
+    "commit": "3a31e318",
+    "zero_rewrite_check": "git diff 3a31e318 HEAD -- docs/development-evidence/mesh-multicontact-m0a-fix-mesh-poly-shapes is empty",
+    "receipt_task_id": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes (points at the delivery task; the archive commit was the files-scope remedy)"
+  }
+}

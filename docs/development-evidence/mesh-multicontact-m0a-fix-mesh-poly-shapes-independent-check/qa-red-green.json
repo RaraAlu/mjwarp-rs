@@ -1,0 +1,66 @@
+{
+  "kind": "qa-m0afix-red-green",
+  "task_id": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check",
+  "method": "not a log read-through: the OLD abi.rs (git show b50d93a6~1) was written into a disposable detached worktree and the correction's own test was compiled and run, then abi.rs was restored and the same test group was run again.",
+  "worktree": {
+    "path": "target/qa-m0afix/wt-head",
+    "head": "fe8956f4",
+    "code_tree_equals_fix_commit": "git diff b50d93a6..fe8956f4 -- src tests fixtures Cargo.toml Cargo.lock is empty (fix commit came before M0b, which only touched tests/evidence/scripts)",
+    "environment_note": "worktree checkout uses core.autocrlf=true, so tracked text files are CRLF in a fresh worktree; for test comparability 4498 clean tracked files were byte-aligned to the main worktree (11 dirty M2 files were skipped). Two pre-existing EOL-sensitive tests (sdf_rotation_fixture_is_well_formed, contract::frozen_three_d_package_contract_is_self_consistent) failed before alignment and passed after; same class as the known B1 baseline EOL failures, not a regression of this slice."
+  },
+  "red": {
+    "procedure": "Copy target/qa-m0afix/abi-old.rs over src/runtime/collision_gpu/abi.rs (old validate_mesh_poly, L244-337 of b50d93a6~1), keep the correction's validate_tests.rs, run the single test.",
+    "command": "cargo test --locked --lib runtime::collision_gpu::validate_tests::accepts_real_cube_mesh_poly_shapes -- --nocapture",
+    "exit": 101,
+    "test_result": "0 passed; 1 failed; 0 ignored; 843 filtered out",
+    "panic": "assertion `left == right` failed at src/runtime/collision_gpu/validate_tests.rs:295",
+    "observed_message": "Err(InvalidArgument(\"mesh_poly 逐 mesh 数组长度须一致（polynum/polyadr/polyvertadr/polyvertnum/polymapadr/polymapnum）\")) vs Ok(())",
+    "message_equals_delivery_red_log": true,
+    "log": "logs/red-old-rule-worktree.log",
+    "raw_log": "target/qa-m0afix/wt-red-old-rule-raw.log",
+    "raw_log_sha256": "b9088004097f34e5a1234f9fcdc9b7ba220618275defad34291980146fc52594"
+  },
+  "green": {
+    "procedure": "git checkout -- src/runtime/collision_gpu/abi.rs (restore new rule), run the whole validate_tests group.",
+    "command": "cargo test --locked --lib runtime::collision_gpu::validate_tests -- --nocapture",
+    "exit": 0,
+    "test_result": "7 passed; 0 failed; 0 ignored; 837 filtered out",
+    "tests": [
+      "rejects_invalid_meta_but_accepts_matching_inputs",
+      "rejects_mismatched_slice_lengths",
+      "empty_mesh_poly_sidecar_is_null_and_valid",
+      "rejects_partial_mesh_poly_sidecar",
+      "accepts_real_cube_mesh_poly_shapes",
+      "rejects_inconsistent_mesh_poly_sidecar",
+      "rejects_inconsistent_mesh_poly_sums"
+    ],
+    "matches_delivery_green_log": "7 passed / 837 filtered identical to logs/green-new-rule.log in the delivery evidence",
+    "log": "logs/green-new-rule-worktree.log",
+    "raw_log": "target/qa-m0afix/wt-green-new-rule-raw.log",
+    "raw_log_sha256": "59ddba482bc7cd866911abae25c1bddb65b0ca7707f386942d25f5993668227f"
+  },
+  "delivery_log_cross_check": {
+    "delivery_red_log_sha256": "f5ed62c3ab6bcf6a9e6cfe1acedf17c6b895f81532f15c6b38a02d37b00c509f",
+    "delivery_green_log_sha256": "5a0959f215fc7d8e421e1af68d622708eec329d2c891ca901fe1387c1c95dfc4",
+    "delivery_red_log_has_no_exit_code": true,
+    "exit_codes_source": "independently measured above; see observation O7"
+  },
+  "probe_matrix": {
+    "script": "scripts/make_probe.py",
+    "template": "scripts/probe_template.rs",
+    "method": "mechanically slice the two validate_mesh_poly functions verbatim from abi-old.rs / abi-new.rs (old name suffixed _old); arrays from the QA mjModel dump; standalone rustc --edition 2024 binary; no crate build",
+    "source_line_ranges": {"old": [244, 337], "new": [270, 392]},
+    "cases": 21,
+    "case_results": {
+      "real_cube": {"old": "Err(逐 mesh 数组长度须一致)", "new": "Ok(())"},
+      "two_meshes_valid": {"old": "Err(same length error)", "new": "Ok(())"},
+      "all_empty": {"old": "Ok(())", "new": "Ok(())"},
+      "partial_sidecar": {"old": "Err(输入不完整)", "new": "Err(输入不完整)"},
+      "rejected_by_new_with_own_message": ["neg_polynum", "neg_polyadr", "neg_polyvertadr", "neg_polyvertnum", "neg_polymapadr", "neg_polymapnum", "polynormal_not_multiple_of_3", "per_mesh_length_mismatch", "per_polygon_length_mismatch", "per_vertex_length_mismatch", "per_mesh_range_overflow", "per_polygon_range_overflow", "per_vertex_range_overflow", "sum_polynum_mismatch", "sum_polyvertnum_mismatch", "sum_polymapnum_mismatch", "two_meshes_sum_mismatch", "two_meshes_range_overflow"]
+    },
+    "matrix_json": "qa-rule-matrix.json",
+    "matrix_json_sha256_source": "target/qa-m0afix/old-new-rule-matrix.json sha256 d96e9c28da864165ad145876fb715d78035df7b5fb92b59d13b7dc65b5e77c32",
+    "log": "logs/probe-matrix.log",
+    "probe_rs": "target/qa-m0afix/probe.rs (regenerable from scripts; rustc 1.99.0, edition 2024)"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "task_id": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check",
+  "kind": "m0a-fix-independent-check-evidence",
+  "status": "in_progress",
+  "verdict": "pass",
+  "blockers": [],
+  "observations": {"total": 7, "一般": 2, "建议": 5, "blocking": 0},
+  "reviewed_delivery_task": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes",
+  "binding": {
+    "delivery_commit": "b50d93a61dfc9b184a679035aa04ec4821104acd",
+    "evidence_archive_commit": "3a31e3183a34391ee3139e98c5c564e49f8ed0da",
+    "review_head_in_main_tree": "ac01d86d75f46ba53d39a0db094cf4f17e746aa6 (M0b committed; src/tests/fixtures/Cargo.* identical to the fix commit)",
+    "gate_tree": "detached worktree target/qa-m0afix/wt-head @ fe8956f4 (git diff b50d93a6..fe8956f4 -- src tests fixtures Cargo.toml Cargo.lock is empty)",
+    "pinned_upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "pinned_source_file": "docs/evidence/d04-complex-physics/authoring-runs/run-5/installed-source/_src/types.py",
+    "toolchain": "rustc 1.99.0 (b940084d7 2026-09-28), cargo 1.99.0; Windows"
+  },
+  "methods": [
+    "pinned types.py L1329-1337/L1864-1872 line-by-line dim/ownership check (bound to rev via run-5 generated/manifest.json source_hashes)",
+    "independent pinned-mujoco 3.15 mjModel dump of the 9 real cube arrays (two fixtures) and element/bit comparison with the delivered CubeMeshPoly test data",
+    "13-rule audit against the new validate_mesh_poly code (abi.rs L270-392) and the old code (b50d93a6~1 L244-337)",
+    "actual-compiled red/green: old abi.rs written into a disposable clean worktree -> exit 101 with the same message as the delivery red log; restored new abi.rs -> 7 passed exit 0",
+    "mechanically extracted old/new function bodies into a standalone probe: 21-case matrix (real cube, two-mesh layout, 13 negative classes, partial empty, all empty)",
+    "zero-change audit: fix commit file list, struct-field diff, product.cu entry count, DEVICE_SOURCES arity, device/fixtures/tests/Cargo diffs, ABI unit tests, NVRTC smoke fingerprint",
+    "gate numbers: delivery gate run JSONs plus independent aggregation of the sha-pinned raw logs; my own all-features rerun at the review head; my own fmt/clippy/clippy-cuda/unit run on the clean gate tree"
+  ],
+  "key_numbers": {
+    "delivery_unit": {"passed": 982, "failed": 0, "ignored": 372, "binaries": 115},
+    "delivery_all_features": {"passed": 1031, "failed": 0, "ignored": 430, "binaries": 115},
+    "qa_main_tree_all_features_at_review_head": {"passed": 1035, "failed": 0, "ignored": 430, "binaries": 116, "delta": "exactly the 4 M0b tests"},
+    "qa_clean_gate_tree_unit": {"passed": 982, "failed": 0, "ignored": 372, "binaries": 115},
+    "qa_clean_gate_tree_fmt_clippy_clippy_cuda": {"fmt": 0, "clippy": 0, "clippy_cuda": 0},
+    "qa_abi_subset": {"passed": 6, "failed": 0, "ignored": 4},
+    "qa_red_green": {"red_exit": 101, "red_result": "0 passed / 1 failed / 843 filtered", "green_exit": 0, "green_result": "7 passed / 837 filtered"},
+    "smoke": {"ptx_bytes": 3786520, "entries": 6, "source_bytes": 238969, "source_sha256": "ec2e7acddc71eec2b8cd6b07cf70ba4a4a3e7eab258982815f2199349e1a047a"},
+    "real_sidecar_slice_lengths": [1, 1, 18, 6, 6, 24, 8, 8, 24],
+    "real_entity_counts": {"nmesh": 1, "nmeshpoly": 6, "nmeshvert": 8, "nmeshpolyvert": 24, "nmeshpolymap": 24},
+    "probe_cases": 21,
+    "product_cu_entry_kernels": 6,
+    "device_sources_arity": 27
+  },
+  "gate_environment_note": "Main worktree was occupied by uncommitted M2 work-in-progress (12 modified + 1 untracked src/test files) during this review; cargo fmt --check fails on the uncommitted M2 validate_collision_inputs formatting, which is not part of this slice (git log -S has no commit for it). fmt/clippy/clippy-cuda/unit were therefore executed on the clean gate tree fe8956f4 whose code equals the fix commit; main-tree gate can be rerun once M2 lands. Details: qa-gates.json and README §7.3.",
+  "artifacts": {
+    "files": [
+      {"path": "README.md", "sha256": "self", "note": "verdict, methods, observations, boundaries"},
+      {"path": "receipt.json", "sha256": "self", "note": "this file"},
+      {"path": "qa-pinned-shapes.json", "note": "pinned dims + independent mjModel dump + delivered test data comparison"},
+      {"path": "qa-rule-audit.json", "note": "13 rules, new/old code line map, my verdict"},
+      {"path": "qa-rule-matrix.json", "note": "21-case old/new rule probe matrix"},
+      {"path": "qa-red-green.json", "note": "actual-compiled red/green reproduction"},
+      {"path": "qa-invariants.json", "note": "ABI/entries/device sources/smoke/zero-change/M0a addendum"},
+      {"path": "qa-gates.json", "note": "gate numbers, delivery runs, my reruns, tree-state caveat"},
+      {"path": "qa-observations.json", "note": "O1-O7"},
+      {"path": "logs/", "note": "trimmed raw logs referenced above"},
+      {"path": "scripts/", "note": "dump_cube_poly.py, make_probe.py, probe_template.rs, align_worktree_bytes.py"},
+      {"path": "manifest.json", "note": "sha256/bytes/lines of every file in this directory"}
+    ],
+    "delivery_evidence": {
+      "readme_sha256": "3b7ed608798b880d92b8ed6f11a3a101c69bf6ad131b7fbf4192ea9e3d5490d9",
+      "receipt_sha256": "996a0f4ca746cef6b71d55f0ca14e24c48b771e37e1a0fc688a4bd2acc7f42fc",
+      "red_log_sha256": "f5ed62c3ab6bcf6a9e6cfe1acedf17c6b895f81532f15c6b38a02d37b00c509f",
+      "green_log_sha256": "5a0959f215fc7d8e421e1af68d622708eec329d2c891ca901fe1387c1c95dfc4",
+      "raw_unit_log_sha256": "b5d5034f0c66362f5f89b05efd190d1f49aff063a8b28dc8b6c6d66da58d000b",
+      "raw_all_features_log_sha256": "c52f5241be77bb475470ff1b0e135c218d17d1d111c40f41efc136e753a1f404"
+    }
+  },
+  "boundaries": [
+    "no GPU window, no CUDA context, no device rerun; launch-level null/non-null sidecar behavior remains for M2",
+    "the fix slice is CPU validation + comments + tests only; this review does not certify mesh support",
+    "M0b bins/M2 kernel behavior are out of scope",
+    "gate commands were run on a clean detached worktree because the main tree carried M2 work-in-progress; main-tree gate remains for a clean window",
+    "main tree fmt failure during review belongs to uncommitted M2 WIP, not to this fix commit; recorded here so it cannot be mistaken for a fix regression"
+  ],
+  "next_steps_for_delivery_owner": [
+    "optionally fix O1/O2 wording/line counts and O3 BOM in the delivery evidence",
+    "rerun fmt/clippy/clippy-cuda/unit in the main tree once the M2 work-in-progress is committed or set aside"
+  ]
+}
