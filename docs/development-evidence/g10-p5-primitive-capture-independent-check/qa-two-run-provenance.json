@@ -1,0 +1,52 @@
+{
+  "task_id": "2026-10-26-g10-p5-primitive-capture-independent-check",
+  "kind": "qa-two-run-and-provenance",
+  "head": "44a53a790ff77bb86ea129f7c8520ae69287d0fa",
+  "two_run": {
+    "raw_a_sha256": "13b2399d03ae39c5a579b7c20c6855b53e020e288d5c2f89b2e84531067d338c",
+    "raw_b_sha256": "13b2399d03ae39c5a579b7c20c6855b53e020e288d5c2f89b2e84531067d338c",
+    "byte_identical": true,
+    "reference_sha256": "13b2399d03ae39c5a579b7c20c6855b53e020e288d5c2f89b2e84531067d338c",
+    "reference_equals_run_a": true,
+    "size_bytes": 13516,
+    "independence_evidence": [
+      "runner invokes the pinned python twice as two separate processes (local runner script under target/g10-p5-primitive-capture/, gitignored)",
+      "each run log contains its own 'Warp 1.15.0 initialized' banner and its own kernel cache directory",
+      "cache dirs attempt3/warp-cache-a and attempt3/warp-cache-b are different paths with 36 files each",
+      "run-a.log mtime 19:23:20, run-b.log mtime 19:23:28"
+    ],
+    "per_case_two_captures_bitwise_identical": "10/10 true in the reference JSON",
+    "attempt2_invalidation": {
+      "raw_a_sha256": "f7a7f5bd2e5fdf29cd775bc151f01923cb75adf67ac76c9e604097d8a219832c",
+      "raw_b_sha256": "e34421a5b94a6293e4560a435a2cd6cf3608eccf6e9f0ae949c3513fd22858d4",
+      "different": true,
+      "provenance_cache_dir_a": "absolute per-run path under target/g10-p5-primitive-capture/attempt2/warp-cache-a",
+      "consistency": "matches the delivery statement that attempt2 was invalidated because per-run absolute cache paths made the raw files differ"
+    },
+    "attempt1": {
+      "run_a_exit": 1,
+      "run_a_wall_s": 0,
+      "log_excerpt": "SyntaxError at scripts/capture_primitive_gpu.py line 105 (a stray literal backtick-n inside the provenance dict)",
+      "zero_gpu": true,
+      "delivery_reason_written": "run directory not created",
+      "qa_finding": "the raw log shows a Python syntax error, not a missing directory (observation O1)"
+    }
+  },
+  "provenance": {
+    "versions": { "python": "3.12.13", "mujoco": "3.15.0", "warp": "1.15.0", "mujoco_warp": "3.15.0", "numpy": "2.5.4" },
+    "device": "cuda:0",
+    "gpu_matches_local_nvidia_smi": { "name": true, "memory_total": true, "driver_596_36": true, "compute_capability_8_9": true },
+    "interpreter": { "recorded_path": "D:\\Rust\\mjwarp-rs\\target\\mjwarp-parallel\\venv\\Scripts\\python.exe", "exists": true, "reported_version": "Python 3.12.13", "matches": true },
+    "authoring_script_sha256": "efcd66c5c7a2175f61bfc8e250a2933584bfdafa178043ec164cdf83284c7817",
+    "authoring_script_sha_matches_repo": true,
+    "kernel_cache_root": "target/g10-p5-primitive-capture/warp-cache",
+    "kernel_cache_root_relative": true,
+    "kernel_cache_root_exists": false,
+    "captured_at": "2026-10-26T19:40:00+08:00",
+    "captured_at_within_window": false,
+    "actual_window_span_by_raw_artifacts": "2026-10-26T19:23:11.79 (baseline mtime) .. 19:23:33 (facts mtime); samples 19:23:12.66-19:23:31.20; raw A mtime 19:23:20; raw B mtime 19:23:28",
+    "captured_at_vs_first_sample_seconds": 1007.3,
+    "blocking_finding": "captured_at is a hardcoded JSON constant (the runner sets MJWARP_CAPTURE_AT='2026-10-26T19:40:00+08:00'; attempt1/2/3 facts headers carry the same constant). It is 16.8 minutes after the real window, so 'captured_at falls inside the window' fails. README section 6 also states the window as 19:40-19:42.",
+    "fix_suggestion": "have the runner take one real timestamp at window start and pass the same value to both runs via MJWARP_CAPTURE_AT (keeps the two raw files byte-identical), then regenerate the reference and update README/receipt; the contact-field data itself is unaffected"
+  }
+}

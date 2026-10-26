@@ -1,0 +1,43 @@
+{
+  "task_id": "2026-10-26-g10-p5-primitive-capture-independent-check",
+  "kind": "qa-fixtures-and-inputs",
+  "head": "44a53a790ff77bb86ea129f7c8520ae69287d0fa",
+  "inputs_sha256_file": {
+    "files": 11,
+    "sha_mismatches": 0,
+    "byte_count_mismatches": 0,
+    "note": "10 MJCF plus tetra.obj"
+  },
+  "xml_and_qpos_recompute": {
+    "method": "pinned venv python 3.12.13 + mujoco 3.15.0 (CPU library only; warp/mujoco_warp NOT imported); MjModel.from_xml_path + model.key('capture').key_qpos as float32 + bit pattern per component",
+    "cases": [
+      { "case": "plane-sphere", "xml_sha_match": true, "qpos_bits_match": true, "nativeccd_disable": true, "nq": 7, "ngeom": 2, "gpu_nacon": 1 },
+      { "case": "plane-capsule", "xml_sha_match": true, "qpos_bits_match": true, "nativeccd_disable": true, "nq": 7, "ngeom": 2, "gpu_nacon": 1 },
+      { "case": "plane-ellipsoid", "xml_sha_match": true, "qpos_bits_match": true, "nativeccd_disable": true, "nq": 7, "ngeom": 2, "gpu_nacon": 1 },
+      { "case": "plane-cylinder", "xml_sha_match": true, "qpos_bits_match": true, "nativeccd_disable": true, "nq": 7, "ngeom": 2, "gpu_nacon": 1 },
+      { "case": "plane-box", "xml_sha_match": true, "qpos_bits_match": true, "nativeccd_disable": true, "nq": 7, "ngeom": 2, "gpu_nacon": 3 },
+      { "case": "plane-mesh", "xml_sha_match": true, "qpos_bits_match": true, "nativeccd_disable": true, "nq": 7, "ngeom": 2, "gpu_nacon": 3 },
+      { "case": "sphere-sphere", "xml_sha_match": true, "qpos_bits_match": true, "nativeccd_disable": true, "nq": 14, "ngeom": 2, "gpu_nacon": 1 },
+      { "case": "sphere-capsule", "xml_sha_match": true, "qpos_bits_match": true, "nativeccd_disable": true, "nq": 14, "ngeom": 2, "gpu_nacon": 1 },
+      { "case": "sphere-cylinder", "xml_sha_match": true, "qpos_bits_match": true, "nativeccd_disable": true, "nq": 14, "ngeom": 2, "gpu_nacon": 1 },
+      { "case": "capsule-capsule", "xml_sha_match": true, "qpos_bits_match": true, "nativeccd_disable": true, "nq": 14, "ngeom": 2, "gpu_nacon": 1 }
+    ],
+    "summary": "10/10 xml sha, 10/10 qpos f32 bit patterns, 10/10 nativeccd=disable",
+    "plane_box_note": "plane-box XML qpos quaternion is not unit-length; mujoco normalises it on load, so a naive f32 conversion of the raw XML token differs from the reference qpos. The reference qpos comes from host_probe.key_qpos (normalised), and the pinned-mujoco recompute matches it exactly; this is expected semantics, not a reference error."
+  },
+  "fixture_purity": {
+    "new_fixtures_directory": "fixtures/g10-p5-primitive/ (10 MJCF + tetra.obj)",
+    "existing_verified_fixtures_changed": 0,
+    "sphere_sphere_is_a_new_file": true,
+    "d04_sphere_sphere_untouched": "fixtures/mjwarp-complex-physics/sphere-sphere.xml not in the commit diff",
+    "git_diff_check": "git diff --name-only 767e420e..44a53a79 -- fixtures => only fixtures/g10-p5-primitive/*"
+  },
+  "capsule_capsule_observation": {
+    "gpu_nacon": 1,
+    "cpu_precheck_nacon": 2,
+    "other_nine_cases_cpu_vs_gpu_equal": true,
+    "delivery_recorded": "README section 6 last bullet and receipt observation state the GPU 1 vs CPU precheck 2 difference and leave the B1 decision to Arch; not flattened",
+    "qa_verification": "reference case capsule-capsule output.count = 1 and precheck-cpu.md table lists 2; the other nine counts match the precheck"
+  },
+  "conclusion": "fixtures are new/pure, input shas and qpos bit patterns reproduce, nativeccd disable is in place, and the one nacon divergence is disclosed as required"
+}

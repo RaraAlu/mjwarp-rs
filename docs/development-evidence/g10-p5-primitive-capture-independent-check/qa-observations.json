@@ -1,0 +1,65 @@
+{
+  "task_id": "2026-10-26-g10-p5-primitive-capture-independent-check",
+  "head": "44a53a790ff77bb86ea129f7c8520ae69287d0fa",
+  "kind": "qa-observations",
+  "verdict": "blocked: 1 blocking finding (captured_at is a hardcoded constant that does not fall inside the real window), 8 observations; the reference data content, dispatch routing, fixture inputs, two-run byte identity, script diff and scope all reproduce independently",
+  "blocking": [
+    {
+      "id": "B1",
+      "summary": "provenance captured_at is a hardcoded constant 2026-10-26T19:40:00+08:00, not the real capture time",
+      "detail": "the runner sets MJWARP_CAPTURE_AT='2026-10-26T19:40:00+08:00' and the capture script copies it into provenance; attempt1/2/3 facts headers all carry the same value. Real window evidence: baseline.txt mtime 19:23:11, samples.csv 19:23:12.66-19:23:31.20, raw A mtime 19:23:20, raw B 19:23:28, facts/README written 19:23:33/19:23:54. README section 6 also states the window as 19:40-19:42. So captured_at is 16.8 minutes after the real window and the acceptance item 'captured_at falls inside the window' fails.",
+      "impact": "reference data fields are unaffected (raw A/B byte-identical, inputs/provenance otherwise real), but provenance truthfulness is part of the deliverable and will be cited when this reference becomes the B1 comparison basis",
+      "fix_suggestion": "runner records one real timestamp at window start and passes the same value to both runs via MJWARP_CAPTURE_AT (raw files stay byte-identical), then regenerate upstream-primitive-gpu.json and update README/receipt; no GPU data change expected. Arch to decide whether a fresh window is required."
+    }
+  ],
+  "observations": [
+    {
+      "id": "O1",
+      "summary": "attempt1 invalidation reason is misattributed",
+      "detail": "README says attempt1 failed because the run directory was not created. Raw attempt1/run-a.log shows a Python SyntaxError at scripts/capture_primitive_gpu.py line 105 (a stray literal backtick-n in the provenance dict). Zero GPU is true (wall=0, no context), but the cause recorded is wrong.",
+      "severity": "observation"
+    },
+    {
+      "id": "O2",
+      "summary": "README header still says the window was not opened",
+      "detail": "README line 4 says '窗口状态：未开窗（等 Arch/Chief 双签）' while section 6 documents the executed attempt3 window.",
+      "severity": "observation"
+    },
+    {
+      "id": "O3",
+      "summary": "implementation receipt has stale head/status/boundary",
+      "detail": "receipt.head=53f3c96a (delivery commit is 44a53a79), status=in_progress (task is verified), and boundaries include 'not opened yet' although a window was opened.",
+      "severity": "observation"
+    },
+    {
+      "id": "O4",
+      "summary": "provenance kernel_cache_root points at a directory that does not exist",
+      "detail": "kernel_cache_root='target/g10-p5-primitive-capture/warp-cache' (relative, as intended) but that path does not exist; the two real run caches are target/g10-p5-primitive-capture/attempt3/warp-cache-a and warp-cache-b (36 files each).",
+      "severity": "observation"
+    },
+    {
+      "id": "O5",
+      "summary": "the phrase 'reference is not yet the criterion' is not written verbatim",
+      "detail": "README says no host cross-check and no product precision verdict, and the reference purpose field says 'not a product-precision verdict', but the acceptance wording '参考尚不是判据' is not stated literally; a one-line sentence would remove ambiguity for B1.",
+      "severity": "observation"
+    },
+    {
+      "id": "O6",
+      "summary": "precheck-cpu.md markdown table is malformed",
+      "detail": "the header/separator row and the first data row are merged ('| --- | --- | --- | --- | --- | --- || plane-sphere ...'), so the table does not render; content is still readable.",
+      "severity": "observation"
+    },
+    {
+      "id": "O7",
+      "summary": "'one window session / gpu_windows=1' vs three sampler sessions",
+      "detail": "attempt1/2/3 each have samples.csv with 8/100/68 samples; README/receipt count one window. If the count means valid capture rounds, say so explicitly.",
+      "severity": "observation"
+    },
+    {
+      "id": "O8",
+      "summary": "the two-run runner lives only in gitignored target/",
+      "detail": "the script that invokes python twice with two caches is not committed; independence is supported by per-run logs (Warp init banner + distinct cache dirs) and file mtimes, but the runner itself is not reproducible from the repository.",
+      "severity": "observation"
+    }
+  ]
+}

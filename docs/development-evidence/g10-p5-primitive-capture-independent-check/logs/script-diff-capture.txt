@@ -1,0 +1,136 @@
+warning: in the working copy of 'D:\Rust\mjwarp-rs\docs\development-evidence\g10-p5-g2-gpu-reference-capture\capture_mjwarp_f32_gpu.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\Rust\mjwarp-rs\scripts\capture_primitive_gpu.py', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/D:\\Rust\\mjwarp-rs\\docs\\development-evidence\\g10-p5-g2-gpu-reference-capture\\capture_mjwarp_f32_gpu.py" "b/D:\\Rust\\mjwarp-rs\\scripts\\capture_primitive_gpu.py"
+index 716066d1..50527503 100644
+--- "a/D:\\Rust\\mjwarp-rs\\docs\\development-evidence\\g10-p5-g2-gpu-reference-capture\\capture_mjwarp_f32_gpu.py"
++++ "b/D:\\Rust\\mjwarp-rs\\scripts\\capture_primitive_gpu.py"
+@@ -1 +1 @@
+-"""G2/G6 新参考：用 pinned mujoco_warp 3.15（warp 1.15.0，GPU/CUDA 后端）在相同 f32 输入下重采 5 个 CONVEX case。
++"""B0: capture upstream pinned-mjwarp GPU f32 contact reference for the 10 primitive combos.
+@@ -3,5 +3,4 @@
+-性质：authoring_only（不进产品路径、产品测试不跑 Python）；warp GPU 后端（融合语义，对应 pinned ccd PTX fma.rn）。
+-旧 CPU 参考 `upstream-mjwarp-f32.json` 归档保留、不删不改；本脚本由
+-`docs/development-evidence/g10-p5-gjk-epa/capture_mjwarp_f32.py` 派生，差异见证据 README 的 diff 说明。
+-一次 GPU 窗口内用两个独立进程 + 两个独立 kernel cache 各跑一轮，两轮输出要求整文件 sha 相同。
+-输入：与交付参考相同的 MJCF 模型 + 参考 JSON 的 qpos（f32 位型原样）；输出 17 字段与旧脚本一致。
++Authoring only (product paths and product tests never run Python). Each fixture already carries
++`<flag nativeccd="disable"/>` and a deterministic `<key name="capture">` qpos; qpos f32 bit
++patterns are recorded per case. Runner calls this twice in two independent processes with two
++independent warp kernel caches; the two raw JSON files must be byte-identical.
+@@ -9,3 +8,2 @@
+-用法（窗口脚本调用）：
+-    python -B capture_mjwarp_f32_gpu.py <kernel-cache-dir> <output-json>
+-环境变量 `MJWARP_CAPTURE_AT`：采集时间（ISO8601，两轮共用同一值，保证输出整文件 sha 相同）。
++Usage: python -B capture_primitive_gpu.py <kernel-cache-dir> <output-json>
++Env: MJWARP_CAPTURE_AT (ISO8601; share across both runs so the JSON file is byte-identical)
+@@ -13 +10,0 @@
+-
+@@ -31,2 +28,2 @@ ROOT = Path(r"D:\Rust\mjwarp-rs")
+-EVIDENCE = ROOT / "docs/development-evidence/g10-p5-gjk-epa"
+-CACHE_ROOT = ROOT / "target/g10-p5-g2/warp-cache-gpu"
++FIXTURES = ROOT / "fixtures/g10-p5-primitive"
++CACHE_ROOT = ROOT / "target/g10-p5-primitive-capture/warp-cache"
+@@ -34 +31 @@ CACHE = Path(sys.argv[1]) if len(sys.argv) > 1 else CACHE_ROOT
+-OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else EVIDENCE / "upstream-mjwarp-f32-gpu.json"
++OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "target/g10-p5-primitive-capture/upstream-primitive-gpu.json"
+@@ -40,5 +37,2 @@ CASES = [
+-    ("cylinder-box", "fixtures/g10-p5/models/cylinder-box.xml", "fixtures/g10-p5/references/cylinder-box.json", True),
+-    ("ellipsoid-box", "fixtures/g10-p5/models/ellipsoid-box.xml", "fixtures/g10-p5/references/ellipsoid-box.json", True),
+-    ("mesh-mesh", "fixtures/g10-p5/models/mesh-mesh.xml", "fixtures/g10-p5/references/mesh-mesh.json", True),
+-    ("convex-mesh", "fixtures/mjwarp-complex-physics/convex-mesh.xml", "fixtures/mjwarp-complex-physics/reference.json", False),
+-    ("degenerate-mesh", "fixtures/mjwarp-complex-physics/degenerate-mesh.xml", "fixtures/mjwarp-complex-physics/reference.json", False),
++    "plane-sphere", "plane-capsule", "plane-ellipsoid", "plane-cylinder", "plane-box", "plane-mesh",
++    "sphere-sphere", "sphere-capsule", "sphere-cylinder", "capsule-capsule",
+@@ -58,2 +52 @@ def gpu_info():
+-        ["nvidia-smi", "--query-gpu=name,memory.total,driver_version,compute_cap",
+-         "--format=csv,noheader"],
++        ["nvidia-smi", "--query-gpu=name,memory.total,driver_version,compute_cap", "--format=csv,noheader"],
+@@ -63,14 +56 @@ def gpu_info():
+-    return {
+-        "name": name,
+-        "memory_total": memory_total,
+-        "driver": driver,
+-        "compute_capability": capability,
+-    }
+-
+-
+-def load_qpos(reference_path, standalone, name):
+-    value = json.loads(Path(reference_path).read_text(encoding="utf-8"))
+-    if not standalone:
+-        value = next(case for case in value["collision_cases"] if case["name"] == name)
+-    values = value["input"]["qpos"]["values"]
+-    return np.asarray(values, dtype=np.float32)
++    return {"name": name, "memory_total": memory_total, "driver": driver, "compute_capability": capability}
+@@ -80 +60 @@ def capture(xml_path, qpos, nworld):
+-    host = mujoco.MjModel.from_xml_path(str(ROOT / xml_path))
++    host = mujoco.MjModel.from_xml_path(str(xml_path))
+@@ -93 +73,6 @@ def capture(xml_path, qpos, nworld):
+-    return {"count": count, "fields": fields, "geom_xpos": data.geom_xpos.numpy().tolist(), "geom_xmat": data.geom_xmat.numpy().reshape(data.geom_xmat.shape[0], data.geom_xmat.shape[1], 9).tolist()}
++    return {
++        "count": count,
++        "fields": fields,
++        "geom_xpos": data.geom_xpos.numpy().tolist(),
++        "geom_xmat": data.geom_xmat.numpy().reshape(data.geom_xmat.shape[0], data.geom_xmat.shape[1], 9).tolist(),
++    }
+@@ -103 +87,0 @@ def main():
+-
+@@ -106,3 +90,3 @@ def main():
+-        "task_id": "2026-10-25-g10-p5-g2-gpu-reference-capture",
+-        "kind": "g2-upstream-mjwarp-f32-gpu-reference",
+-        "purpose": "G2/G6 主参考（GPU 后端）：同配方上游 f32（warp CUDA 后端，融合语义）接触输出；ours vs 此参考为通过判据",
++        "task_id": "2026-10-26-g10-p5-primitive-capture",
++        "kind": "g10-p5-primitive-upstream-mjwarp-f32-gpu-reference",
++        "purpose": "B0 authoring: upstream pinned mujoco_warp GPU (fused) contact fields for the 10 primitive combos; not a product-precision verdict",
+@@ -109,0 +94 @@ def main():
++        "dispatch": "nativeccd=disable -> (BOX,BOX) overridden to PRIMITIVE; 10 combos route PRIMITIVE per frozen collision_driver.py L47-81/L908-915 and _PRIMITIVE_COLLISIONS L1335-1349",
+@@ -111,5 +96,8 @@ def main():
+-            "versions": {"python": ".".join(map(str, __import__("sys").version_info[:3])),
+-                         "mujoco": mujoco.__version__, "warp": wp.__version__,
+-                         "mujoco_warp": mjw.__version__ if hasattr(mjw, "__version__") else "3.15.0",
+-                         "numpy": np.__version__},
+-            "device": "cuda",
++            "versions": {
++                "python": ".".join(map(str, sys.version_info[:3])),
++                "mujoco": mujoco.__version__,
++                "warp": wp.__version__,
++                "mujoco_warp": mjw.__version__ if hasattr(mjw, "__version__") else "3.15.0",
++                "numpy": np.__version__,
++            },
++            "device": "cuda:0",
+@@ -117 +105 @@ def main():
+-            "authoring_script": "docs/development-evidence/g10-p5-g2-gpu-reference-capture/capture_mjwarp_f32_gpu.py",
++            "interpreter": {"path": sys.executable, "version": ".".join(map(str, sys.version_info[:3]))},            "authoring_script": "scripts/capture_primitive_gpu.py",
+@@ -127,4 +115,6 @@ def main():
+-    for name, xml_path, reference_path, standalone in CASES:
+-        qpos_flat = load_qpos(reference_path, standalone, name)
+-        host_probe = mujoco.MjModel.from_xml_path(str(ROOT / xml_path))
+-        nworld = qpos_flat.size // host_probe.nq
++    for name in CASES:
++        xml_path = FIXTURES / f"{name}.xml"
++        host_probe = mujoco.MjModel.from_xml_path(str(xml_path))
++        key_id = host_probe.key("capture").id
++        qpos_flat = np.asarray(host_probe.key_qpos[key_id], dtype=np.float32)
++        nworld = 1
+@@ -134 +123,0 @@ def main():
+-        raw_identical = first == second
+@@ -136,2 +125,2 @@ def main():
+-            "xml": xml_path,
+-            "xml_sha256": sha256(ROOT / xml_path),
++            "xml": xml_path.relative_to(ROOT).as_posix(),
++            "xml_sha256": sha256(xml_path),
+@@ -140 +129,2 @@ def main():
+-            "two_captures_bitwise_identical": raw_identical,
++            "nworld": nworld,
++            "two_captures_bitwise_identical": first == second,
+@@ -143,5 +133,2 @@ def main():
+-        print(f"{name}: count={first['count']} two_captures={raw_identical}")
+-
+-    OUT.write_text(
+-        json.dumps(report, ensure_ascii=False, separators=(",", ":")), encoding="utf-8"
+-    )
++        print(f"{name}: count={first['count']} two_captures={first == second}")
++    OUT.write_text(json.dumps(report, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+@@ -152 +139 @@ if __name__ == "__main__":
+-    main()
++    main()
+\ No newline at end of file

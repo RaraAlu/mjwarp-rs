@@ -1,0 +1,252 @@
+warning: in the working copy of 'D:\Rust\mjwarp-rs\docs\development-evidence\g10-p5-g2-gpu-reference-capture\compare_references.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\Rust\mjwarp-rs\scripts\compare_primitive_capture.py', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/D:\\Rust\\mjwarp-rs\\docs\\development-evidence\\g10-p5-g2-gpu-reference-capture\\compare_references.py" "b/D:\\Rust\\mjwarp-rs\\scripts\\compare_primitive_capture.py"
+index 710c3cb7..8730d201 100644
+--- "a/D:\\Rust\\mjwarp-rs\\docs\\development-evidence\\g10-p5-g2-gpu-reference-capture\\compare_references.py"
++++ "b/D:\\Rust\\mjwarp-rs\\scripts\\compare_primitive_capture.py"
+@@ -1 +1 @@
+-"""旧 CPU 参考 vs 新 GPU 参考的结构/数值对照表（只描述，不宣称达标）。
++"""B0: compare run A / run B raw capture JSON byte-for-byte.
+@@ -3,9 +3,2 @@
+-规则（对应 capture 片 acceptance）：
+-- 输入侧：每 case 的 qpos/qpos_bits/xml_sha256 必须与旧参考逐位相同 → 不同即 FAIL(exit 2)；
+-- 结构侧：count、INT_FIELDS 全部行、字段宽度、geom_xpos/geom_xmat 宽度必须一致 → 不同即
+-  STRUCTURAL_DIFF(exit 2)（提示 GPU recipe 不是简单融合，需停手报 Arch）；
+-- 数值侧：FLOAT_FIELDS 按 INT_FIELDS 行键配对，统计位等分量数、max_abs、max ULP（f32）；
+-  这些差异是预期内的 FMA 融合语义差，只记录不判失败。
+-
+-用法：python -B compare_references.py <old_cpu.json> <new_gpu.json> [<new_gpu_round2.json>]
+-输出：docs/development-evidence/g10-p5-g2-gpu-reference-capture/compare-cpu-vs-gpu.json
++Usage: python -B compare_primitive_capture.py <run-a.json> <run-b.json>
++Exit 0 = byte-identical; exit 2 = mismatch (STOP, report to Arch; never accept canonical-only equality).
+@@ -13,3 +6 @@
+-
+-import json
+-import struct
++import hashlib
+@@ -19,207 +10,17 @@ from pathlib import Path
+-if hasattr(sys.stdout, "reconfigure"):
+-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+-
+-ROOT = Path(r"D:\Rust\mjwarp-rs")
+-EVIDENCE = ROOT / "docs/development-evidence/g10-p5-g2-gpu-reference-capture"
+-FLOAT_FIELDS = ("dist", "pos", "frame", "includemargin", "friction", "solref",
+-                "solreffriction", "solimp", "adhesion")
+-INT_FIELDS = ("dim", "geom", "flex", "elem", "vert", "worldid", "type", "geomcollisionid")
+-
+-
+-def float_bits(value):
+-    return struct.unpack("<I", struct.pack("<f", float(value)))[0]
+-
+-
+-def ulp32(left, right):
+-    if left == right:
+-        return 0
+-    a = float_bits(left)
+-    b = float_bits(right)
+-    if (a >> 31) != (b >> 31):
+-        return 2 ** 32 - 1
+-    return abs(a - b)
+-
+-
+-def flatten(values):
+-    flat = []
+-    for value in values:
+-        if isinstance(value, list):
+-            flat.extend(flatten(value))
+-        else:
+-            flat.append(value)
+-    return flat
+-
+-
+-def int_key(fields, index):
+-    return tuple(
+-        int(value)
+-        for name in INT_FIELDS
+-        if len(fields[name]) > index
+-        for value in fields[name][index]
+-    )
+-
+-
+-def compare_case(name, old_case, new_case):
+-    result = {"case": name, "failures": [], "structural_diffs": []}
+-    for field in ("xml_sha256", "qpos", "qpos_bits"):
+-        if old_case[field] != new_case[field]:
+-            result["failures"].append(f"输入字段 {field} 与旧参考不一致")
+-    old_output = old_case["output"]
+-    new_output = new_case["output"]
+-    result["count_old"] = old_output["count"]
+-    result["count_new"] = new_output["count"]
+-    result["two_captures_bitwise_identical"] = new_case.get("two_captures_bitwise_identical")
+-    if old_output["count"] != new_output["count"]:
+-        result["structural_diffs"].append(
+-            f"count 不同：old={old_output['count']} new={new_output['count']}"
+-        )
+-        return result
+-
+-    old_fields = old_output["fields"]
+-    new_fields = new_output["fields"]
+-    for name_field in FLOAT_FIELDS + INT_FIELDS:
+-        if len(old_fields[name_field]) != len(new_fields[name_field]):
+-            result["structural_diffs"].append(
+-                f"{name_field} 行数不同：old={len(old_fields[name_field])} new={len(new_fields[name_field])}"
+-            )
+-    for geom_field in ("geom_xpos", "geom_xmat"):
+-        old_values = old_output.get(geom_field, [])
+-        new_values = new_output.get(geom_field, [])
+-        if len(old_values) != len(new_values):
+-            result["structural_diffs"].append(f"{geom_field} 形状不一致")
+-            continue
+-        # 运动学位姿是浮点结果（CPU/GPU 的 FMA 收缩可能差 ULP）：只记录量级，不按结构差异处理。
+-        components = 0
+-        bit_equal = 0
+-        max_abs = 0.0
+-        max_ulp = 0
+-        for old_row, new_row in zip(old_values, new_values):
+-            old_flat = flatten(old_row)
+-            new_flat = flatten(new_row)
+-            for want, got in zip(old_flat, new_flat):
+-                components += 1
+-                if got == want:
+-                    bit_equal += 1
+-                else:
+-                    max_abs = max(max_abs, abs(float(got) - float(want)))
+-                    max_ulp = max(max_ulp, ulp32(got, want))
+-        result[f"{geom_field}_float"] = {
+-            "components": components,
+-            "bit_equal": bit_equal,
+-            "max_abs": max_abs,
+-            "max_ulp": max_ulp,
+-        }
+-    if result["structural_diffs"]:
+-        return result
+-
+-    # INT_FIELDS：按行键多重集比较（行序可能不同）
+-    old_int_keys = sorted(int_key(old_fields, index) for index in range(len(old_fields["dim"])))
+-    new_int_keys = sorted(int_key(new_fields, index) for index in range(len(new_fields["dim"])))
+-    result["integer_fields_bit_equal"] = old_int_keys == new_int_keys
+-    if old_int_keys != new_int_keys:
+-        result["structural_diffs"].append("INT_FIELDS 行键多重集不同")
+-        return result
+-
+-    # 用行键把 new 行对齐到 old 行（行序可能不同）；配对只算一次，供各浮点字段复用。
+-    old_by_key = {}
+-    for index in range(len(old_fields["dim"])):
+-        old_by_key.setdefault(int_key(old_fields, index), []).append(index)
+-    pairs = []
+-    for index in range(len(new_fields["dim"])):
+-        key = int_key(new_fields, index)
+-        pairs.append((index, old_by_key[key].pop(0)))
+-    float_summary = {}
+-    for name_field in FLOAT_FIELDS:
+-        components = 0
+-        bit_equal = 0
+-        max_abs = 0.0
+-        max_ulp = 0
+-        zero_vs_nonzero = 0
+-        for new_index, old_index in pairs:
+-            for got, want in zip(
+-                new_fields[name_field][new_index], old_fields[name_field][old_index]
+-            ):
+-                components += 1
+-                if got == want:
+-                    bit_equal += 1
+-                    continue
+-                max_abs = max(max_abs, abs(float(got) - float(want)))
+-                if got == 0 or want == 0:
+-                    zero_vs_nonzero += 1
+-                else:
+-                    max_ulp = max(max_ulp, ulp32(got, want))
+-        float_summary[name_field] = {
+-            "components": components,
+-            "bit_equal": bit_equal,
+-            "zero_vs_nonzero": zero_vs_nonzero,
+-            "max_abs": max_abs,
+-            "max_ulp_nonzero": max_ulp,
+-        }
+-    result["float_fields"] = float_summary
+-    result["integer_rows_compared"] = len(old_int_keys)
+-    return result
+-
+-
+-def main():
+-    old = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+-    new = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+-    second = None
+-    if len(sys.argv) > 3:
+-        second = json.loads(Path(sys.argv[3]).read_text(encoding="utf-8"))
+-
+-    report = {
+-        "schema": 1,
+-        "task_id": "2026-10-25-g10-p5-g2-gpu-reference-capture",
+-        "kind": "g2-cpu-vs-gpu-reference-comparison",
+-        "old": {"device": old["provenance"]["device"], "sha256_path": sys.argv[1]},
+-        "new": {"device": new["provenance"]["device"], "sha256_path": sys.argv[2]},
+-        "cases": {},
+-    }
+-    structural_fail = False
+-    input_fail = False
+-    print(f"{'case':<16} {'count':>7} {'int_rows':>8} {'bit_equal':>13} {'frame_max_abs':>13} {'dist_max_abs':>12} {'pos_max_abs':>11}")
+-    for name in old["cases"]:
+-        if name not in new["cases"]:
+-            report["cases"][name] = {"failures": [f"新参考缺 case {name}"]}
+-            structural_fail = True
+-            continue
+-        result = compare_case(name, old["cases"][name], new["cases"][name])
+-        report["cases"][name] = result
+-        if result["failures"]:
+-            input_fail = True
+-        if result["structural_diffs"]:
+-            structural_fail = True
+-        float_fields = result.get("float_fields", {})
+-        components = sum(item["components"] for item in float_fields.values())
+-        bit_equal = sum(item["bit_equal"] for item in float_fields.values())
+-        frame_abs = float_fields.get("frame", {}).get("max_abs", 0.0)
+-        dist_abs = float_fields.get("dist", {}).get("max_abs", 0.0)
+-        pos_abs = float_fields.get("pos", {}).get("max_abs", 0.0)
+-        print(f"{name:<16} {result['count_old']:>3}/{result['count_new']:<3} "
+-              f"{result.get('integer_rows_compared', 0):>8} {bit_equal:>6}/{components:<6} "
+-              f"{frame_abs:>13.3e} {dist_abs:>12.3e} {pos_abs:>11.3e}")
+-
+-    if second is not None:
+-        same = all(
+-            new["cases"][name]["output"] == second["cases"][name]["output"] for name in new["cases"]
+-        )
+-        report["rounds_equal"] = same
+-        print(f"\n两轮 GPU 参考（已规范化输入）output 全等：{same}")
+-
+-    report["input_fail"] = input_fail
+-    report["structural_fail"] = structural_fail
+-    out = EVIDENCE / "compare-cpu-vs-gpu.json"
+-    out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+-    print(f"\nwrote {out}")
+-    if input_fail:
+-        print("FAIL: 输入侧不一致（停手）")
+-        return 2
+-    if structural_fail:
+-        print("STRUCTURAL_DIFF: 出现结构/count/整型字段差异（停手报 Arch）")
+-        return 2
+-    print("OK: 结构一致，浮点差异仅记录（FMA 量级由 max_abs/max_ulp 表示）")
+-    return 0
+-
+-
+-if __name__ == "__main__":
+-    sys.exit(main())
++left = Path(sys.argv[1])
++right = Path(sys.argv[2])
++a = left.read_bytes()
++b = right.read_bytes()
++sha_a = hashlib.sha256(a).hexdigest()
++sha_b = hashlib.sha256(b).hexdigest()
++print(f"run_a={left} sha256={sha_a}")
++print(f"run_b={right} sha256={sha_b}")
++if a == b:
++    print("RAW BYTE-IDENTICAL: PASS")
++    sys.exit(0)
++print("RAW MISMATCH: STOP and report to Arch (canonical-only equality is not accepted)")
++for index, (x, y) in enumerate(zip(a, b)):
++    if x != y:
++        print(f"first_diff_offset={index} a=0x{x:02x} b=0x{y:02x}")
++        break
++sys.exit(2)
+\ No newline at end of file

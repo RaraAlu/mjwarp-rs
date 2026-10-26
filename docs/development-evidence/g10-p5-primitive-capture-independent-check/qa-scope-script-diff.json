@@ -1,0 +1,62 @@
+{
+  "task_id": "2026-10-26-g10-p5-primitive-capture-independent-check",
+  "kind": "qa-scope-and-script-diff",
+  "head": "44a53a790ff77bb86ea129f7c8520ae69287d0fa",
+  "scope": {
+    "diff_range": "767e420e..44a53a79",
+    "changed_files": 31,
+    "scripts": ["scripts/capture_primitive_gpu.py (new)", "scripts/compare_primitive_capture.py (new)"],
+    "fixtures_new_dir": "fixtures/g10-p5-primitive/ (10 MJCF + tetra.obj)",
+    "evidence": "docs/development-evidence/g10-p5-primitive-capture/ (13 files)",
+    "normify": ".normify/changes/2026-10-26-g10-p5-primitive-capture.json + 4 gate runs",
+    "product_source_touched": false,
+    "tests_touched": false,
+    "cargo_or_gates_touched": false,
+    "unclassified_files": 0
+  },
+  "old_references_and_abi": {
+    "qa_upstream_gpu_json_blob_parent": "0dee0eb017bb75fce6bc96f08394d866d71e17d0",
+    "qa_upstream_gpu_json_blob_head": "0dee0eb017bb75fce6bc96f08394d866d71e17d0",
+    "gjk_epa_upstream_mjwarp_f32_gpu_json_blob_same": true,
+    "gjk_epa_upstream_mjwarp_f32_json_blob_same": true,
+    "abi_rs_blob_parent": "b67315e004fd2a7bd2e2e3d9a9a8e768964d1349",
+    "abi_rs_blob_head": "b67315e004fd2a7bd2e2e3d9a9a8e768964d1349",
+    "old_reference_diffs": 0
+  },
+  "capture_script_diff_vs_existing_gpu_capture": {
+    "baseline_script": "docs/development-evidence/g10-p5-g2-gpu-reference-capture/capture_mjwarp_f32_gpu.py",
+    "new_script": "scripts/capture_primitive_gpu.py",
+    "added_lines": 47,
+    "removed_lines": 60,
+    "changes_classified": [
+      "docstring/usage text",
+      "fixture list (5 CONVEX cases -> 10 primitive cases)",
+      "paths (FIXTURES dir, CACHE_ROOT, OUT default)",
+      "qpos source (reference JSON input -> fixture <key name=capture> via host_probe.key_qpos)",
+      "provenance fields (added interpreter + dispatch, device string 'cuda:0', relative kernel_cache_root)",
+      "output/task id/kind strings and per-case xml path relative_to(ROOT)"
+    ],
+    "capture_function_body": "identical to the existing script except the xml path argument (str(ROOT / xml_path) -> str(xml_path)); data.qpos.assign / qvel zero / kinematics / collision / synchronize / count / per-field slicing logic unchanged",
+    "float_and_int_field_tuples_identical": true,
+    "py_compile_exit": 0,
+    "numeric_assembly_changed": false
+  },
+  "compare_script": {
+    "new_script": "scripts/compare_primitive_capture.py",
+    "behaviour": "reads both raw files, prints sha256 for each, exits 0 only if bytes are equal, exits 2 on mismatch with first_diff_offset; no canonical-only fallback",
+    "delivery_claim_matches": true
+  },
+  "delivery_evidence_quality": {
+    "files": 13,
+    "bom_files": 0,
+    "files_over_500_lines": 0,
+    "binary_files": 0
+  },
+  "delivery_gate_runs": {
+    "fmt": "passed, 1507 ms",
+    "clippy": "passed, 656 ms (cached)",
+    "clippy-cuda": "passed, 354 ms (cached)",
+    "unit": "passed, 10810 ms (actual test run)"
+  },
+  "conclusion": "scope is scripts+fixtures+evidence only; old references and ABI blobs are unchanged; the capture-script diff is controlled (no numeric assembly change)"
+}
