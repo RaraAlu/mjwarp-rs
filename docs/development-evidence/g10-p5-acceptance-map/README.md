@@ -39,7 +39,7 @@ roadmap 任务 `2026-10-11-roadmap-g10-p5` 的 6 条 acceptance 里，实质只�
 ### 未覆盖六项（显式；UNC-1/2/3 已按设备三缺口片更新为 partial，范围见下）
 
 1. multicontact 设备版（UNC-1，**partial**）：`9a282074` 已实装 box/cylinder multicontact 并与上游接触数组逐字段对照（`cylinder-box` 314/314 位级、`box-box-margin` 391/392 位级）；**mesh multicontact 未实现**（需 mesh polygon ABI）。
-2. NVRTC 产品 launcher（UNC-2，**partial**）：`dfcc1bdc` 已实现并经 `cuda-probe` 特性实际调用，与 G5 探针三 case 逐字节一致（QA `bcd3c48b`）；**默认构建/默认产品管线未接入**。
+2. NVRTC 产品 launcher（UNC-2，**closed（2026-10-26，Chief 批准；限定语见 `map.json` 的 `UNC-2.closure.qualifier` 与 `docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/README.md` §7.1）**）：`dfcc1bdc` 已实现并经 `cuda-probe` 特性实际调用，与 G5 探针三 case 逐字节一致（QA `bcd3c48b`）；**默认构建/默认产品管线未接入**。
 3. primitive narrowphase 设备版（UNC-3，**partial**）：`9d72159c`（+ `9a282074` 的 `box_box`）已覆盖 3/13 组合（sphere-box/capsule-box/box-box），各 case 逐字节/1 ULP 内一致；**其余 10 组合未实现**。
 4. Linux/T4 未覆盖（UNC-4；用户 2026-10-24 裁决 Linux 集中回测）
 5. G5 窗口逐秒峰值未取到（UNC-5；Start-Job 相对路径缺陷，脚本已修，G6 性能窗口按 0.5 s 采样另列）
