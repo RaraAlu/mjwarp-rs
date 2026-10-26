@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-plane-cuda-independent-check",
+  "scope": {
+    "diff_range": "0fa15b54..b05190e5",
+    "src_and_test_files": [
+      "M src/physics/collision/cuda/mod.rs",
+      "A src/physics/collision/cuda/primitive_plane_common.cu",
+      "A src/physics/collision/cuda/primitive_plane_convex.cu",
+      "A src/physics/collision/cuda/primitive_plane_shapes.cu",
+      "A src/physics/collision/cuda/primitive_plane_wrapper.cu",
+      "M src/physics/collision/cuda/product.cu",
+      "M src/runtime/collision_gpu.rs",
+      "M src/runtime/collision_gpu/multicontact_tests.rs",
+      "M src/runtime/collision_gpu/primitive_tests.rs",
+      "M src/runtime/collision_gpu/source.rs",
+      "A src/runtime/collision_gpu/validate.rs",
+      "A tests/g10_p5_primitive_plane_cuda.rs"
+    ],
+    "src_test_diffstat": "12 files changed, 1134 insertions(+), 55 deletions(-)",
+    "zero_diff_confirmed": [
+      "src/physics/collision/abi.rs",
+      "src/runtime/case_evidence.rs",
+      "src/runtime/case_compare.rs",
+      ".normify/gates.toml",
+      "scripts/",
+      "fixtures/",
+      "src/physics/mod.rs"
+    ],
+    "new_abi_fields": 0,
+    "new_ptx_entries": 0,
+    "entry_note": "6 plane wrappers are in-kernel type-pair dispatch inside mjwarp_collision_primitive; product.cu diff is +22 dispatch lines, no new extern \"C\"",
+    "fixtures_changed": 0,
+    "repin": false
+  },
+  "criteria_checked_in_test_code": {
+    "file": "tests/g10_p5_primitive_plane_cuda.rs",
+    "count_and_structure": "zero tolerance on worldid/type/dim/geom/geomcollisionid/includemargin/adhesion/friction/solref/solreffriction/solimp",
+    "dist": "ref==0 -> 4 ULP @ 1.0; else <= 4 ULP of own magnitude (no relaxation found)",
+    "pos": "<= 4 * ULP(scale), scale = max abs of 3 reference components",
+    "frame": "4 ULP @ 1.0",
+    "efc_address": "device-side invariant -1",
+    "overflow": "device-side invariant 0",
+    "pairing": "geomcollisionid set equality then pair by id; row order not a criterion (declared as reference incomparable)",
+    "nacon": "taken from GPU reference (not CPU precheck)",
+    "relaxation_found": false
+  },
+  "line_counts_worktree_b05190e5": {
+    "primitive_plane_common.cu": 44,
+    "primitive_plane_convex.cu": 162,
+    "primitive_plane_shapes.cu": 171,
+    "primitive_plane_wrapper.cu": 113,
+    "product.cu": 379,
+    "tests/g10_p5_primitive_plane_cuda.rs": 493,
+    "src/runtime/collision_gpu.rs": 464,
+    "src/runtime/collision_gpu/validate.rs": 45,
+    "limit_500_ok": true,
+    "product_cu_450_ratchet_ok": true,
+    "delivery_readme_claim_product_cu": 356,
+    "note": "Get-Content line counts; files with trailing newline report +1 in some tools. product.cu claim 356 is stale -> observation O3"
+  },
+  "host_validation": {
+    "file": "src/runtime/collision_gpu/validate.rs (extracted from collision_gpu.rs to stay under 500-line ratchet)",
+    "allowed_pairs": ["{SPHERE,BOX}", "{CAPSULE,BOX}", "{PLANE, SPHERE}", "{PLANE, CAPSULE}", "{PLANE, ELLIPSOID}", "{PLANE, CYLINDER}", "{PLANE, BOX}", "{PLANE, MESH}"],
+    "unordered": true,
+    "rejected_examples": ["(PLANE,PLANE)", "(105,PLANE)"],
+    "tests": "src/runtime/collision_gpu/primitive_tests.rs positive/negative cases present"
+  },
+  "t4_identity": {
+    "physics_mod_diff": "empty",
+    "new_repin": false,
+    "fixture_t4_current_kernels_untouched": true,
+    "reason": "20 product_sources do not include new .cu/source.rs/collision_gpu.rs"
+  }
+}

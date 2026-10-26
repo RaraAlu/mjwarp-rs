@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-plane-cuda-independent-check",
+  "observations": [
+    {
+      "id": "O1",
+      "level": "一般",
+      "title": "测试 TETRA 常量 2 处与 MuJoCo model.mesh_vert 差 1 ULP",
+      "detail": "tests/g10_p5_primitive_plane_cuda.rs 中 TETRA 的 -0.004_515_995 解析为 f32 bits 0xbb93fae9，而 MuJoCo 3.15.0 dump 的 model.mesh_vert 为 0xbb93faea；出现在 index 0 与 3（共 2 处，其余 10 个分量一致）。docstring 称常量来自 pinned mujoco dump，不准确。",
+      "repro": "scripts/tetra_bits.rs（Rust 端字面量位型）+ scripts/recompute_plane.py（model.mesh_vert 位型）；logs/tetra-bits.log",
+      "impact": "plane-mesh 的 dev-vs-ref 对照不可能位级全等；窗口 attempts 的 0 failures 是在 4 ULP 容差内通过。我的 CPU 复算用精确 model.mesh_vert 时位级 0 差异（dist/pos 全 0 ULP）。",
+      "suggestion": "用 f32::from_bits 常量（或直接 -0.004_515_995_f32 的精确 bits）并更正 docstring"
+    },
+    {
+      "id": "O2",
+      "level": "一般",
+      "title": "交付源指纹 222849/59631d83 依赖工作树 EOL，不能从提交树复现",
+      "detail": "git blob（LF）拼装 = 222369/ce08822a；全 CRLF 检出 = 228010/81af2f63（与 nvrtc_smoke 行一致）；交付值 222849/59631d83 只有「旧 21 段 LF + 4 个 plane 新文件 CRLF + product LF」混合态接近，我重建为 222851（差 2 字节）。旧 21 段 198815/52b225c2、PTX 3713524、entries 6、25 passed 均可独立精确复现。",
+      "repro": "scripts/assemble_check.py、assemble_check2.py、assemble_mixed.py、eol_delta.py；logs/assemble-*.log、eol-delta.log",
+      "impact": "证据里的源指纹不可由提交树复核，后续复核/审计只能靠工作树 EOL 状态；不影响 PTX 与功能结论。",
+      "suggestion": "证据记录 LF 归一化 sha（提交树可复现），或给 `.cu` 加 .gitattributes eol 规则，或直接从 git blob 拼装并记录两种指纹"
+    },
+    {
+      "id": "O3",
+      "level": "建议",
+      "title": "证据 §3 行数笔误：product.cu 356 vs 实际 379",
+      "detail": "delivery README §3 表写 product.cu 356 行，worktree 实测 379 换行（非空 348）。其余 4 个新 .cu 与 tests 行数与证据一致（44/162/171/113/493）。",
+      "impact": "product.cu <450 棘轮仍满足（379 < 450），不影响门禁；只是证据数字不准确。",
+      "suggestion": "下次证据收口时按实际行数更正"
+    },
+    {
+      "id": "O4",
+      "level": "建议",
+      "title": "实现与 pinned 字面存在 3 处小偏差，本 case 均无影响",
+      "detail": "(a) cylinder 接触 3/4 pos 结合顺序：Rust 先 (center+axis) 再 ±vec1，pinned 先 (center±vec1) 再加 axis；本 case 两种顺序位型相同且 id2/3 未 detected，无影响；README §11 ③「改回 pinned 结合顺序」不准确。(b) ellipsoid 增加非上游退化保护（length<=0/非有限 -> 0 接触），README §1「不加特判/豁免」不准确，但仅零长度路径。(c) convex hillclimb 增加 1<<20 迭代上限（上游 while True）。",
+      "impact": "6 个 case 全部不触发；不改变结果，但证据措辞与代码不完全一致。",
+      "suggestion": "修 README 措辞或把 (a) 改回 pinned 字面顺序（本 case 无位级变化，可选）"
+    },
+    {
+      "id": "O5",
+      "level": "建议",
+      "title": "证据日志编码不统一，README 有控制字符残留",
+      "detail": "6 个日志含 UTF-8 BOM；window-attempt4/console.log 为 UTF-16LE（git 视为二进制）；README §5 第 94–95 行有控制字符/转义残留（如 `aseline.txt/…acts.txt/…un-*.log`）。",
+      "impact": "不影响内容可读性与结论，但违反证据编码口径（UTF-8 无 BOM、无二进制）。",
+      "suggestion": "提交前统一转 UTF-8 无 BOM；二进制日志转文本或删并改引用"
+    },
+    {
+      "id": "O6",
+      "level": "建议",
+      "title": "作废轮留档粒度不足",
+      "detail": "attempt2 无任何原始产物（仅叙述 runner 脚本 bug、零设备工作）；attempt1 的 guard.log 未归档（只有 facts 的 guard_post 与 window-attempt1/samples.csv）。attempt1/3 的 samples 与日志已留档。",
+      "impact": "作废理由可核（samples 与 facts 能对上），但「零设备工作」无法用原始产物证明。",
+      "suggestion": "作废轮至少保留 runner stdout/exit code 与 guard 日志"
+    },
+    {
+      "id": "O7",
+      "level": "一般",
+      "title": "addendum 证据目前 staged 未提交，且 staged 门禁 runs 绑定含 B2 在途改动的树",
+      "detail": "README §5.1/§5.2、receipt 字段（window_binary_rebuilds / sampler_aggregates_per_attempt / attempt1_external_load / fix_regate_note）、window-attempt1/samples.csv 均已 staged（8 files / +284 -36）但未提交；staged gate unit = 973/371（wall 18276 ms，at 13:04:49Z），B1 自身提交记录 = 972/0/370（at 12:55:57Z）。",
+      "impact": "证据内容本身核过一致；但正式依据的 hash 要等 B2 冻结后重跑门禁提交才成立。我的复核按工作树内容 + receipt.fix_regate_note 判断，并注明该 caveat。",
+      "suggestion": "B2 冻结后重跑 B1 gate（应回到 972/0/370 口径）再提交，并在 receipt 记录最终 gate run id"
+    }
+  ],
+  "blockers": []
+}

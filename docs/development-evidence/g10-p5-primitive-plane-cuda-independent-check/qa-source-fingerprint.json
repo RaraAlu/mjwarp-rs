@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-plane-cuda-independent-check",
+  "kind": "device source assembly / fingerprint reproduction",
+  "worktree": "target/qa-plane/wt-b1 @ b05190e5 (git worktree, CRLF checkout)",
+  "target_dir": "target/qa-plane/t-b1",
+  "smoke": {
+    "command": "cargo test --locked --features cuda-probe --lib runtime::collision_gpu -- --include-ignored --nocapture",
+    "result": "25 passed / 0 failed / 0 ignored (811 filtered out)",
+    "nvrtc_line": "ptx_bytes=3713524 entries=6 source_bytes=228010 source_sha256=81af2f632e89011500f0b3e437b8f0a83e605ee6684f2dafbcd16e1535eb5753",
+    "delivery_claim": {"ptx_bytes": 3713524, "entries": 6, "source_bytes": 222849, "source_sha256": "59631d8377e3a587cb98d396742f9698ea17105847a33586e8b7a89b8c84b917"},
+    "match": ["ptx_bytes", "entries", "25 passed", "source_bytes/sha (all-CRLF checkout only)"]
+  },
+  "independent_assembly": {
+    "method": "replicate source.rs DEVICE_SOURCES order (25 entries) + strip local '#include \"*.cu\"' + append PRODUCT_SOURCE, bytes from git blobs and from worktree",
+    "git_blob_new_25": {"bytes": 222369, "sha256": "ce08822ac0da95ea7fac2c5f0aa24bd3da53be3173c5f89c006e9b55b113d37e"},
+    "git_blob_old_21": {"bytes": 198815, "sha256": "52b225c2830863cd8ce58d1fd7275a50fa1beeac1e9fc9fe40ec025faaebca6c", "matches_delivery": true},
+    "worktree_raw_new_25": {"bytes": 228010, "sha256": "81af2f632e89011500f0b3e437b8f0a83e605ee6684f2dafbcd16e1535eb5753", "matches_smoke_line": true},
+    "worktree_raw_old_21": {"bytes": 203974, "sha256": "d33096cb2ca04384706bb61a76f3bb8a654d29cd3842f05f532378548dec8c42"},
+    "mixed_old21_LF_plane4_CRLF_product_LF": {"bytes": 222851, "sha256": "c8f9f7f3cbda1e1a637f4bc0d237584134c3c57b20117b6a0ac0a76db5633781", "delivery_claim_bytes": 222849, "delta_bytes": 2},
+    "delivery_claim_new_25": {"bytes": 222849, "sha256": "59631d8377e3a587cb98d396742f9698ea17105847a33586e8b7a89b8c84b917"}
+  },
+  "eol_per_file_strip_delta": {
+    "note": "strip-local-include byte delta worktree(CRLF) - git blob(LF); total 5641",
+    "primitive.cu": 370,
+    "primitive_wrapper.cu": 35,
+    "boxbox.cu": 473,
+    "boxbox_wrapper.cu": 19,
+    "primitive_plane_common.cu": 43,
+    "primitive_plane_convex.cu": 161,
+    "primitive_plane_shapes.cu": 170,
+    "primitive_plane_wrapper.cu": 108,
+    "product.cu": 379
+  },
+  "conclusion": "PTX/entries/old-21 fingerprint/25 tests all reproduce independently. New-25 delivered fingerprint 222849/59631d83 is EOL-dependent: commit-tree LF assembly = 222369/ce08822a, all-CRLF checkout = 228010/81af2f63, mixed reconstruction = 222851 (2 bytes off), so it cannot be reproduced exactly from the repository. No evidence of source/PTX inconsistency.",
+  "logs": ["logs/smoke-b1.log", "logs/assemble-check.log", "logs/assemble-check2.log", "logs/assemble-mixed.log", "logs/eol-delta.log"]
+}

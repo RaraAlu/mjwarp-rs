@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-g10-p5-primitive-plane-cuda-independent-check",
+  "kind": "QA independent review (B1 plane family 6 combos, device primitive)",
+  "role": "QA",
+  "verdict": "pass",
+  "blockers": 0,
+  "observations": 7,
+  "reviewed": {
+    "head_at_review_start": "293c6c6a",
+    "head_at_gate": "1cb66758",
+    "implementation_delivery": "249a4dbd",
+    "evidence_collection": ["f2c29d7e", "b05190e5"],
+    "acceptance_closure": "4bdd89f4",
+    "task_delivery": "2026-10-26-g10-p5-primitive-plane-cuda-r2",
+    "reference": {
+      "file": "docs/development-evidence/g10-p5-primitive-capture/upstream-primitive-gpu.json",
+      "sha256": "3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734"
+    }
+  },
+  "independent_numbers": {
+    "device_rerun": false,
+    "device_results_source": "delivery window-attempt4 logs only",
+    "plane_cases": "6/6, nacon 1/1/1/1/3/3, failures=0",
+    "regressions": {"primitive": "80/80 x3 bit-equal 0 ULP", "launcher": "314/314", "sdf": "3122/3122", "ellipsoid_box": "80/80 bit-equal"},
+    "cpu_recompute": {
+      "method": "pinned venv python 3.12.13 / mujoco 3.15.0 CPU, no warp import",
+      "plane_sphere": "bit-exact (dist 0 ULP, pos 0 ULP)",
+      "plane_capsule": "bit-exact",
+      "plane_ellipsoid": "bit-exact",
+      "plane_cylinder": "dist 2 ULP, pos max 14 own-ULP (bound ratio 0.5 / 0.4375, within 4 ULP)",
+      "plane_box": "dist 0, pos max 2 own-ULP (bound ratio 0.5)",
+      "plane_mesh": "bit-exact with model.mesh_vert (dist/pos 0 ULP), confirms reference and Arch statement"
+    },
+    "smoke_b1": {"tests": "25 passed / 0 failed", "ptx_bytes": 3713524, "entries": 6, "source_bytes_worktree": 228010, "source_sha256_worktree": "81af2f632e89011500f0b3e437b8f0a83e605ee6684f2dafbcd16e1535eb5753"},
+    "assembly": {
+      "old_21_blob": {"bytes": 198815, "sha256": "52b225c2830863cd8ce58d1fd7275a50fa1beeac1e9fc9fe40ec025faaebca6c"},
+      "new_25_blob_lf": {"bytes": 222369, "sha256": "ce08822ac0da95ea7fac2c5f0aa24bd3da53be3173c5f89c006e9b55b113d37e"},
+      "delivery_claim": {"bytes": 222849, "sha256": "59631d8377e3a587cb98d396742f9698ea17105847a33586e8b7a89b8c84b917", "reproducible": false, "reason": "EOL-dependent mixed working-tree state; see qa-source-fingerprint.json"}
+    },
+    "unit_b1_worktree": {"passed": 970, "failed": 2, "ignored": 370, "targets": 113, "failed_names": ["tests/g10_p5_sdf_relmat.rs::sdf_rotation_fixture_is_well_formed", "tests/t4_gravity_3d_product_chain.rs::contract::frozen_three_d_package_contract_is_self_consistent"], "note": "both failures are pre-existing EOL issues (CRLF checkout) unrelated to B1; total 1342 matches delivery 972+370"},
+    "window_attempt4": {"samples": 93, "used_peak_mib": 3367, "free_min_mib": 12695, "util_max_pct": 41, "residual_cuda_pid": 0, "baseline_used_free": "3352/12710", "end_baseline_used_free": "3352/12710", "compilation_in_window": 0},
+    "window_attempt1": {"samples": 95, "used_peak_mib": 7071, "free_min_mib": 8991, "util_max_pct": 98, "guard_abort": false}
+  },
+  "gpu_windows": 0,
+  "gpu_window_note": "CPU-only review per Arch instruction; device numbers taken from delivery logs, not rerun",
+  "gate": {
+    "command": "normify gate 2026-10-26-g10-p5-primitive-plane-cuda-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "result": "exit 0",
+    "checks": {"fmt": "pass", "clippy": "pass", "clippy-cuda": "pass", "unit": "pass"},
+    "unit": {"passed_observed": "973-974 (B2 in-progress changes keep adding tests)", "failed": 0, "ignored": 371, "run_record": ".normify/runs/2026-10-26-g10-p5-primitive-plane-cuda-independent-check/unit.json", "note": "tree/scope hash not copied here because writing this evidence refreshes the gate scope; exact count lives in the run record"},
+    "tree_state": "HEAD 1cb66758 + B2 in-progress unstaged src changes; 973/371 is B2-in-progress, B1 baseline is 972/0/370 (see README §11)"
+  },
+  "check": {
+    "command": "normify check 2026-10-26-g10-p5-primitive-plane-cuda-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "result": "exit 0 (run immediately after the final gate; stdout kept at target/qa-plane/gate-check/check.log, outside this evidence dir to avoid changing the gate scope)"
+  },
+  "observations_summary": [
+    {"id": "O1", "level": "一般", "title": "test TETRA literal 1 ULP off model.mesh_vert (2 components)"},
+    {"id": "O2", "level": "一般", "title": "delivered source fingerprint 222849/59631d83 is EOL-dependent, not reproducible from commit tree"},
+    {"id": "O3", "level": "建议", "title": "README §3 product.cu line count 356 vs actual 379"},
+    {"id": "O4", "level": "建议", "title": "cylinder contact 3/4 pos association, ellipsoid degenerate guard, hillclimb cap: literal deviations, no effect in cases"},
+    {"id": "O5", "level": "建议", "title": "log encodings (BOM/UTF-16LE) and README control chars"},
+    {"id": "O6", "level": "建议", "title": "void attempt2 has no raw artifacts; attempt1 guard.log not archived"},
+    {"id": "O7", "level": "一般", "title": "addendum staged not committed; staged gate runs bound to B2-in-progress tree"}
+  ],
+  "boundaries": [
+    "device tests not rerun by QA (GPU window requires scheduling)",
+    "plane_convex graph branch (graphadr != -1 && vertnum >= 10) has no case coverage",
+    "no host cross-check, no release/Linux runs",
+    "no claim of primitive full-combination pass, precision verdict, or cross-environment green"
+  ],
+  "evidence_dir": "docs/development-evidence/g10-p5-primitive-plane-cuda-independent-check",
+  "no_commit_no_done": true
+}
