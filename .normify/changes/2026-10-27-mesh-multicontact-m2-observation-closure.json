@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-mesh-multicontact-m2-observation-closure",
+  "title": {
+    "zh": "M2 QA 观察 O1–O8 收口 + 提交前机械自查脚本入仓（scope 事故防复发）",
+    "en": "M2 QA observations O1-O8 closure plus mechanical scope self-check script"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "M2 独立复核 pass（0 阻断/8 观察）后：① 新增 scripts/scope-selfcheck.mjs（把改动路径与任务 files 做集合差，越界即失败，父文件与目录分别匹配）+ 更新登记清单；② 按 QA 观察更正 M2 证据文字（O1 hfield-capsule 补偿口径、O2 stage2 行序归一化、O3 delta 双基线、O4 窗口内 mesh-mesh kind=Contact、O6 geom.cu 改动描述、O8 BOM 转 UTF-8）；O7 折入 M3。纯证据/工具，不改代码语义与判据。",
+    "en": "Add mechanical scope self-check and close M2 QA textual observations."
+  },
+  "modules": {},
+  "acceptance": [
+    "新增 scripts/scope-selfcheck.mjs：读任务 JSON 的 schedule.files，把 git status --porcelain（含未跟踪）路径做集合差；目录 scope 只匹配 dir/...、父文件必须单独写；忽略 .normify/ 与 \target/；越界退出码 1。自测：用 M2 已完成任务跑一次应全 ok。",
+    "更新 docs/development-evidence/scheduling-registration-checklist.md：加「父文件与目录分别写」「提交前必跑 scope-selfcheck」。",
+    "M2 证据勘误（文字层）：O1 hfield-capsule 第三项补偿更正（无设备接触回归；FORCED_HORIZON_CASES 不含它；g10_p5_ccd_overflow 只是 CPU 输入/装配口径）；O2 stage2 改「deterministic() 行序归一化后一致」+ 2 个 Contact dump 原始 run1≠run2 + 「7 个 case/kernel 组合（6 个 case 名）」；O3 标注 delta 双基线（guard 4867→1499 / 开窗 4862→1504）；O4 注明窗口内 mesh-mesh 为 kind=Contact 单接触、多接触留 M3；O6 更正 geom.cu 描述（新增 9 sidecar 指针 + dataid/mesh_polyadr + 两个 helper，未「restore d_support_point」）；O8 证据 10 个 BOM 文件转 UTF-8 无 BOM。",
+    "治理回执 docs/development-evidence/mesh-multicontact-m2-observation-governance/（README + receipt 含 task_id 与 O1–O8 映射）。",
+    "红线：不改 src/tests/fixtures/Cargo、不改任何已验证数字/判据/参考；O7 不在本片做（折入 M3）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m2-convex-vs-mesh",
+      "2026-10-26-mesh-multicontact-m2-independent-check"
+    ],
+    "phase": "治理/证据勘误",
+    "owner": "Arch",
+    "files": [
+      "scripts/scope-selfcheck.mjs",
+      "docs/development-evidence/scheduling-registration-checklist.md",
+      "docs/development-evidence/mesh-multicontact-m2/",
+      "docs/development-evidence/mesh-multicontact-m2-observation-governance/"
+    ],
+    "resources": [],
+    "priority": 44
+  },
+  "note": "Arch 2026-10-27 登记（M2 QA pass 后）。M2 QA 观察 O5 只记录不改；O7（validate_collision_inputs 公共面 + polyvert/polymap 值域）折入 M3。",
+  "revision": {
+    "before": "b28bfc9a0b9a43e1fbb53437bd07acf5ae78c3cf",
+    "after": null
+  },
+  "created_at": "2026-10-27T00:45:00.000Z",
+  "updated_at": "2026-10-27T00:45:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mesh-multicontact-m2-observation-governance/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-mesh-multicontact-m2-observation-closure"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
