@@ -91,7 +91,8 @@ PATH 前置 `target/toolchains/cuda-12.8.1/bin`。只编译设备源、不建 CU
 `util_max=41%`、`residual=0`；基线 `3352/12710`、结束基线 `3352/12710`；post compute-apps 无本任务进程；窗口内零 Rust 编译。
 预构建二进制 sha256：plane `e5f94074…`、primitive `6aec50d0…`、launcher `bcd43c6e…`。
 
-窗口原始证据：window-attempt4/（aseline.txt/acts.txt/guard.log/samples.csv/三个 un-*.log/console.log）；作废轮留档 window-attempt1/（host 校验 panic 的 .err.log 与 facts）与 window-attempt3/（plane-mesh 输入错误的 log/facts）。
+窗口原始证据：window-attempt4/（aseline.txt/acts.txt/guard.log/samples.csv/三个 
+un-*.log/console.log）；作废轮留档 window-attempt1/（host 校验 panic 的 .err.log 与 facts）与 window-attempt3/（plane-mesh 输入错误的 log/facts）。
 
 **尝试轮如实记录（不拼接）**
 
@@ -108,7 +109,7 @@ PATH 前置 `target/toolchains/cuda-12.8.1/bin`。只编译设备源、不建 CU
 ## 6. CPU 侧测试与门禁
 
 - `cargo test --locked --features cuda-probe --lib runtime::collision_gpu -- --include-ignored`：**25 passed / 0 failed**（含 `nvrtc_smoke`）。
-- 默认 `cargo test --locked`：**971 passed / 0 failed / 370 ignored**（新增 1 个 ignored 窗口测试）。
+- 默认 `cargo test --locked`：**972 passed / 0 failed / 370 ignored**（较片前基线 971/0/369：+1 新增 plane 组合校验单测、+1 ignored 窗口测试）。
 - `cargo fmt --all` / `cargo clippy --locked --all-targets --features cuda-probe -- -D warnings`：exit 0。
 
 ## 7. host 侧组合校验扩展（B1 补项）
