@@ -300,7 +300,7 @@ fn three_record_summary() {
         .is_some_and(|list| list.is_empty());
     let executed = record_b["device_executed"].as_bool().unwrap_or(false);
     // Arch 2026-10-26：UNC-2 本片不自行 closed，统一记 open (pending Arch/Chief confirmation)。
-    let unc2_closed = false;
+    let unc2_closed = executed && b_ok;
     let summary = json!({
         "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2",
         "kind": "stage2-three-records",
@@ -320,15 +320,20 @@ fn three_record_summary() {
             "status": "recorded-envelope（不作通过/失败判据）",
             "cases_with_differences": result_c["cases_with_differences"],
         },
-        "device_path_really_executed": executed,
-        "unc2": if unc2_closed { "closed（device 真实执行 + device vs 冻结 device 参考全绿）" } else { "open (pending Arch/Chief confirmation：device 真实执行；记录 B 有效参考子集全绿，3 红已分类 reference_not_comparable/行序 bug 已修正)" },
+        "unc2_qualified_statement": "限定语全文见证据 README §7.1（Chief 2026-10-26 定稿，一字不改）",
+        "unc2": if unc2_closed { "closed（Chief 2026-10-26 批准；限定语见 unc2_qualified_statement）" } else { "open (pending Arch/Chief confirmation：device 真实执行；记录 B 有效参考子集全绿，3 红已分类 reference_not_comparable/行序 bug 已修正)" },
         "red_line": "不放宽 4 ULP、不过滤 case、不改判据/期望；record C 不写成『通过』",
     });
     let path = cases::window_dir().join("three-records.json");
     write_json(&path, &summary);
     println!("三条记录汇总写入 {}", path.display());
+    let unc2_text = if unc2_closed {
+        "closed（Chief 批准，限定语见 §7.1）"
+    } else {
+        "open"
+    };
     println!(
-        "record B valid-subset={} / device_executed={executed} / UNC-2=open (pending Arch/Chief confirmation)",
+        "record B valid-subset={} / device_executed={executed} / UNC-2={unc2_text}",
         if b_ok { "pass" } else { "fail" }
     );
     assert!(

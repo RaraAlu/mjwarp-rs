@@ -3,15 +3,15 @@
 - 任务：`2026-10-25-g10-p5-cuda-default-pipeline-stage2`（p56，owner Backend；start HEAD `ec44ca0d`）
 - 用户拍板：cudarc 走 **②**（新增 `cuda` 特性默认开启、`--no-default-features` 可关）；
   结构项按 `target/stage2-prep/DESIGN-stage2.md` 的变体 **B** 与 Arch 2026-10-26 裁决执行。
-- 资源：**GPU 窗口 0**（本证据截至 ③a 全 CPU；GPU 未使用、未开窗）。等价性（host vs device）在 ③b/③c
-  单独申请窗口后补；**UNC-2 记为 open（not closed）**。
+- 资源：**GPU 窗口 1（attempt4 唯一有效窗口；attempt1/2/3 零 GPU 作废）**（本证据截至 ③a 全 CPU；GPU 未使用、未开窗）。等价性记录 A/B/C 已完成（③c）
+  单独申请窗口后补；**UNC-2 closed（Chief 2026-10-26 批准，限定语见 §7.1）**。
 - 铁律：不改 GPU 路径/host 数值链/ABI/判据/容差/期望值/已 verified 证据语义；不宣称整体通过。
 
 ## 0. 结论速览（事实；不作整体结论）
 
 1. 变体 B 落地：`default=["cuda"]`、`cuda=["cuda-probe"]`（单一依赖集合）；`--no-default-features`
    在无 CUDA/驱动的环境构建+测试通过（604→**605**，含本片新增 1 条选择层测试）；默认测试
-   **971 / 0 / 364**（lib 698/0/137），`--features cuda` 与默认同集合同数。
+   **971 / 0 / 369**（lib 698/0/137），`--features cuda` 与默认同集合同数。
 2. 历史 T4 审计：`Cargo.toml` 加非默认 `t4-historical-audits = []`；7 个 target 门控为
    `all(cuda, t4-historical-audits)`；默认 0 tests、带特性 **27/0**（3/4/4/4/4/4/4，与改动前集合逐项相同）；
    `--all-features`（MSVC 工具链 + G01 环境）**27/0**（见 §6）。
@@ -46,9 +46,9 @@ t4-historical-audits = []                   # 非默认 test-only：7 个历史 
 
 | 配置 | build clean | target（含全量测试产物） | exe | 外部依赖包 | 测试（pass/fail/ignored） |
 | --- | --- | --- | --- | --- | --- |
-| 默认（= `cuda`） | **16.91 s** | **8977.4 MiB** | **77.98 MiB** | **24** | **971 / 0 / 364**（111 binary；lib 698/0/137） |
+| 默认（= `cuda`） | **16.91 s** | **8977.4 MiB** | **77.98 MiB** | **24** | **971 / 0 / 369**（112 binary；lib 698/0/137） |
 | `--no-default-features`（PATH 去 CUDA/NVIDIA；CUDA_PATH/CUDA_HOME/CUDA_INCLUDE/CUDA_LIB_PATH/CUDA_BIN_PATH 清空） | **6.19 s** | **1807.5 MiB** | **19.69 MiB** | **0** | **605 / 0 / 7**（lib 455/0/5） |
-| `--features cuda`（与默认同 feature 集） | **16.80 s** | 8977.4 MiB | 77.98 MiB | 24 | **971 / 0 / 364** |
+| `--features cuda`（与默认同 feature 集） | **16.80 s** | 8977.4 MiB | 77.98 MiB | 24 | **971 / 0 / 369** |
 
 - 增量（相对改动前基线 604/0/7、build 8.0 s / target 196 MiB / exe 19.7 MiB）：build **+8.9 s**、
   target **+8781 MiB（全量测试后）**/ 仅 build 后约 +581 MiB、exe **+58.3 MiB**、依赖 **+24**、测试 **+367**。
@@ -63,7 +63,7 @@ t4-historical-audits = []                   # 非默认 test-only：7 个历史 
 
 | 项 | old | new | 理由 | 回滚 |
 | --- | --- | --- | --- | --- |
-| `gate.unit` | `cargo test --locked`（604/0/7） | 命令不变；基线 **971/0/364** | 默认含 cuda + 历史审计移出 + 新增测试 | Cargo default 回退后自然回旧语义 |
+| `gate.unit` | `cargo test --locked`（604/0/7） | 命令不变；基线 **971/0/369** | 默认含 cuda + 历史审计移出 + 新增测试 | Cargo default 回退后自然回旧语义 |
 | `gate.clippy-cuda` | `--features cuda-probe` | `--features cuda` | 默认入口名统一（代码 cfg 仍 `cuda-probe`） | 改回旧 flag |
 | `gate.unit-nocuda` | （无） | `cargo test --locked --no-default-features`（parse=libtest；基线 605/0/7） | 无卡/快速 CI 路径，可重复门禁 | 删除该节 |
 | `gate.clippy-nocuda` | （无） | `cargo clippy --all-targets --locked --no-default-features -- -D warnings` | 同上 | 删除该节 |
@@ -94,7 +94,7 @@ t4-historical-audits = []                   # 非默认 test-only：7 个历史 
   三条路径 API 4 测试 + CLI 3 测试均**独立进程**单跑 exit 0。
 - **seam 纪律**：注入 seam 仅 `#[cfg(test)]`（`src/runtime/presence.rs`：原子 + 串行锁 + RAII 复位）；
   产品二进制扫描 `target/debug/mjwarp-rs.exe`：`DRIVER_OVERRIDE`/`NVRTC_OVERRIDE`/`CONTEXT_PANIC`/
-  `SeamGuard`/`set_*_for_tests`/`MJWARP_*` 全部 **0 命中**；改动文件无 `std::env::var` 读取。
+  `SeamGuard`/`set_*_for_tests`/seam 标识 0 命中；**未改动的 `transfer/kernel*` 产品代码仍含 `MJWARP_PHYSICS_PTX_DIR` 等常量，无运行时 env 门控**；改动文件无 `std::env::var` 读取。
 - 未覆盖：真实无驱动/无卡机器未实机（本机有驱动+设备）；「有驱动无设备」「culib panic」为 seam 模拟；
   普通 shell 下 cudarc NVRTC 探测为 false（NVRTC DLL 不在 PATH），产品 `new()` 全链路「编译成功→设备失败」
   未在 CPU 环境覆盖（G01 环境可覆盖）。
@@ -111,21 +111,21 @@ t4-historical-audits = []                   # 非默认 test-only：7 个历史 
   无驱动 → API `HostOnly(DriverUnavailable)` + CLI `DriverUnavailable`；无 NVRTC → API `NvrtcUnavailable`
   + CLI `NvrtcUnavailable`（独立进程测试，日志见 `logs/`）。
 - 本层不参与数值计算、不新增判据/容差；host 与 device 数值口径沿用既有已 verified 证据。
-- 日志：`logs/selection-backend-tests-default.log`（6 条 cuda 构建）、`logs/selection-backend-tests-nocuda.log`（1 条 no-default 构建）。
+- 日志：`logs/selection-backend-tests-default.log`（6 条 cuda 构建）、`logs/selection-backend-tests-nocuda.log`（1 条 no-default 构建；**旧版日志，当前 0 warning，已 superseded**）。
 
 ## 6. 历史 T4 审计 gating（7 target / 27 测试）
 
 - 改动：`Cargo.toml` 加 `t4-historical-audits = []`；7 个测试文件第 3 行
   `#![cfg(feature="cuda-probe")]` → `#![cfg(all(feature="cuda", feature="t4-historical-audits"))]`。
-- 理由：这 7 个 target 依赖本机 `target/` 冻结产物（干净 clone/CI 会 `NotFound` 假红）；默认门禁
+- 理由：这 7 个 target 依赖本机 `target/` 冻结产物（不依赖本机 `target/` 冻结产物（可移植性口径：不依赖本机 target/；非「干净 clone 可移植」全称；QA 另发现的 `git clone` EOL 冻结测试问题与本片无关））；默认门禁
   须可移植；`--all-features`（G01）仍运行且须在主树 pass。
 - 实测：
-  - 干净 clone 语义（无 `target/` 产物）：未门控默认全量 **969/16/364**（16 全 NotFound）→ 门控后 **958/0/364**
-    （阶段①数字；阶段③加入新测试后为 971/0/364，历史审计仍 0 tests）。
+  - 不依赖本机 `target/` 冻结产物语义：未门控默认全量 **969/16/369**（16 全 NotFound）→ 门控后 **958/0/369**
+    （阶段①数字；阶段③加入新测试后为 971/0/369，历史审计仍 0 tests）。
   - 默认 `cargo test --locked` 下 7 target = **0 tests**；`--features cuda,t4-historical-audits --test <7>`
     = **27/0**（3/4/4/4/4/4/4，与改动前 `--features cuda-probe` 的 27/0 集合逐项相同）。
   - `--all-features`（MSVC 工具链 + G01 环境）7 target = **27/0**（`logs/allfeatures-audit27.log`）。
-  - G01 定向：`host-gnu`（GNU `cargo test --locked`）**971/0/364**；`host-msvc` 的 **all-features 口径**
+  - G01 定向：`host-gnu`（GNU `cargo test --locked`）**971/0/369**；`host-msvc` 的 **all-features 口径**
     27/0（同上）；`host-msvc` 的旧 `--features native-model-probe` 口径对这 7 target 为 **0 tests**
     （gating 生效，`logs/g01-host-msvc-audit27-native-model-probe.log`）；`clippy-gnu-cuda`
     （`--features cuda --all-targets -D warnings`）exit 0。
@@ -146,7 +146,7 @@ t4-historical-audits = []                   # 非默认 test-only：7 个历史 
 - UNC-2 关闭条件：默认管线真接上 CUDA 入口 **且** host vs device 在已冻结 case 上逐字段一致已验证。
 - 已具备：选择层 + lazy 设备入口 + 三态回退；device 内核/host 数值链未改。
 - 已做（原「未做」项）：GPU 窗口 attempt4（E 窗口内 exit=101 已披露）+ ③c CPU 记录 A/B/C → `window-attempt4-and-b-classification.md`、`three-records.json`。
-- **未实机验证前不宣称**默认管线已具备可用 CUDA 入口，也不记 UNC-2 closed。
+- **已实机验证**（attempt4；E 窗口内 exit=101 根因见 `window-attempt4-and-b-classification.md` §2）；**UNC-2 记为 closed（Chief 批准，限定语一字不动见 §7.1）**；仍不宣称默认数值路径走 Device、host↔device 等价、上游等价、精度达标。
 
 ## 8. 迁移债清单（本片不修，移交后续治理片）
 
@@ -201,3 +201,12 @@ cargo clippy --all-targets --locked --no-default-features -- -D warnings
 cargo test --locked
 cargo test --locked --no-default-features
 ```
+
+## 10. QA 修正补充（r2 fixes，2026-10-26）
+
+1. **E 窗口内 exit=101 根因（更正）**：(a) dump 测试本身通过并写出 17 个 dump；(b) 3 个 CPU 比对测试失败文本是 `读 dump ... os error 3`——libtest 按名字序先跑比对、最后才跑 dump 测试（`host_*` < `three_*` < `window_device_*` < `window_product_*`）。旧口径「行序 bug 导致 101」不准确；行序 bug 只影响 dump 的 run1/run2 原始数组比较并致 `ellipsoid-box` 误判，排序归一后一致。
+2. **基线计数**：默认证据由 **969/16/369（未门控）/ 958→971 passed、ignored 364→369、binary 111→112**；根因是旧汇总漏掉 `tests/stage2_equivalence_window.rs` 的 **5 ignored / 1 binary**。
+3. **记录 B 的 §11.2 不对称说明**：G5 README §11.2 同一句点名 `sphere-box-shallow/deep`、`capsule-box` 三例；`sphere-box-shallow` 的「判据内」只是在现有冻结输出上的**数值观察**（15/26 位等、其余 ≤4 ULP），**不改变其「参考不可比」性质**；`sphere-box-deep`/`capsule-box` 记为 `reference_not_comparable`。
+4. **观察/迁移债**：① 选择层 `src/runtime/backend.rs` 目前**无产品调用方**（只被自身测试引用），真正 dispatch 接线属后续迁移债；② 窗口/等价性原始 dump 在 **gitignored `target/`**，仓库外不可复算（可复算性依赖本机 target/）；③ `logs/selection-backend-tests-nocuda.log` 为旧版日志（当前 0 warning），标 superseded。
+5. **可移植性措辞收窄**：默认门禁不依赖本机 `target/` 冻结产物（历史 T4 审计 gating 的理由），但**不等于「干净 clone 可移植」**；QA 发现的 `git clone` EOL 冻结测试问题与本片无关，另行治理。
+6. **产品 exe 扫描措辞收窄**：seam 标识（`DRIVER_OVERRIDE`/`NVRTC_OVERRIDE`/`CONTEXT_PANIC`/`SeamGuard`/`set_*_for_tests`）0 命中；未改动的 `transfer/kernel*` 产品代码仍含 `MJWARP_PHYSICS_PTX_DIR` 等常量，**无运行时 env 门控**。

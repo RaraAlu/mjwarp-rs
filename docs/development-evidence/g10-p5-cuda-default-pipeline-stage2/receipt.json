@@ -1,14 +1,14 @@
 {
   "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2-r2",
   "title": "G10@P5 CUDA 默认管线接线 · 阶段 2：cuda 默认特性 + 历史 T4 审计 gating + 三态回退 + 运行时选择层",
-  "status": "in_progress",
+  "status": "verified",
   "head": "ec44ca0d",
-  "gpu_windows": 0,
-  "unc2": "open (not closed): 默认管线尚未在实机验证 host vs device 等价性；未验证前不宣称可用 CUDA 默认入口",
+  "gpu_windows": 1,
+  "unc2": "closed：默认构建含 CUDA 入口（cuda 默认特性、--no-default-features 可关）；产品入口经 NVRTC launcher 真实设备执行（4 个设备二进制 exit 0；9 case dump 两次运行逐位一致）；记录 B 可评估子集全绿；2 例 reference_not_comparable、2 例 no_frozen_reference——不等于 B 全绿；默认选择层仍 Host、Device 需显式选择（Chief 2026-10-26 批准，定稿限定语见 README §7.1）",
   "decisions": {
     "feature_variant": "B: default=[\"cuda\"], cuda=[\"cuda-probe\"]；单一依赖集合；不做 A 式 cfg 重命名",
     "t4_historical_audits": "非默认 test-only feature；7 个 target 门控 all(cuda, t4-historical-audits)",
-    "gates": "gate.unit 命令不变基线 971/0/364；新增 unit-nocuda(605/0/7)/clippy-nocuda；clippy-cuda 改 --features cuda；G01 脚本去冗余 flag",
+    "gates": "gate.unit 命令不变基线 971/0/369；新增 unit-nocuda(605/0/7)/clippy-nocuda；clippy-cuda 改 --features cuda；G01 脚本去冗余 flag",
     "precision": "GPU 路径/host 数值链/ABI/判据/容差/期望值/已 verified 证据语义均未改",
     "migration": "cuda-probe 保留为代码内部名与历史命令兼容名；文案迁移延后，迁移债见 README §8"
   },
@@ -21,8 +21,8 @@
       "tests": {
         "passed": 971,
         "failed": 0,
-        "ignored": 364,
-        "binaries": 111,
+        "ignored": 369,
+        "binaries": 112,
         "lib": "698/0/137"
       }
     },
@@ -37,7 +37,7 @@
         "passed": 605,
         "failed": 0,
         "ignored": 7,
-        "binaries": 111,
+        "binaries": 112,
         "lib": "455/0/5"
       }
     },
@@ -49,8 +49,8 @@
       "tests": {
         "passed": 971,
         "failed": 0,
-        "ignored": 364,
-        "binaries": 111
+        "ignored": 369,
+        "binaries": 112
       }
     },
     "cargo_lock_changed": false
@@ -60,7 +60,7 @@
     "clippy": "pass",
     "clippy-cuda": "pass (--features cuda)",
     "clippy-nocuda": "pass",
-    "unit": "pass 971/0/364 (lib 698/0/137)",
+    "unit": "pass 971/0/369 (lib 698/0/137)",
     "unit-nocuda": "pass 605/0/7 (lib 455/0/5)",
     "commands": [
       "cargo fmt --check",
@@ -122,7 +122,7 @@
     "t4_lineage": "未改 product_sources / 未 repin；t4_identity_live_check 全绿"
   },
   "equivalence": {
-    "status": "pending ③b/③c",
+    "status": "done ③c：记录 A/B/C 见 window-attempt4-and-b-classification.md / three-records.json",
     "plan": "申请 GPU 窗口后复跑 host vs device（已冻结 case；位级优先，否则既有 4 ULP），与已入库参考对齐；窗口纪律：--test-threads=1、0.25 s 采样、守卫 v2、窗口内不编译其它任务、post 快照 + 结束基线 + query-compute-apps 无残留"
   },
   "migration_debt": [
