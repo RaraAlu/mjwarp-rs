@@ -1,0 +1,43 @@
+# M0b 门禁与自检摘要 — 2026-10-26
+
+工具链：`rustc 1.99.0 (b940084d7 2026-09-28)` / `cargo 1.99.0 (5f94df478 2026-08-27)`；
+默认工具链 gnu。`PATH` 前置 `target/toolchains/cuda-12.8.1/bin`（NVRTC）；**全程未建 CUDA
+context / 未开 GPU 窗口**（脚本 `wp.set_device("cpu")`；测试只读 bin 文件）。
+
+| 项 | 命令 | exit | 结果 |
+| --- | --- | --- | --- |
+| 兼容性单测 | `cargo test --locked --test g10_p5_mesh_poly_case_assembly -- --nocapture` | 0 | **4 passed / 0 failed**（`logs/assembly-test.log`） |
+| fmt | `cargo fmt --all -- --check` | 0 | 无 diff |
+| clippy | `cargo clippy --locked --all-targets -- -D warnings` | 0 | 无 warning |
+| clippy-cuda | `cargo clippy --locked --all-targets --features cuda-probe -- -D warnings` | 0 | 无 warning |
+| unit（gate） | `cargo test --locked --no-fail-fast` | 0 | **986 passed / 0 failed / 372 ignored**（116 个二进制；M0a 修正片后基线 982/0/372 → **+4** 新测试） |
+
+## 真实 `validate_inputs` 探针（M0a 上传路径）
+
+- 目的：确认 M0b 的真实 bins 喂进修正后的 M0a CPU 校验（`validate_inputs`）能通过
+  （该函数是 `pub(crate)`，集成测试不可直接调用）。
+- 做法：**临时**在 `src/runtime/collision_gpu/validate_tests.rs` 追加一个探针单测，读
+  `docs/development-evidence/mesh-multicontact-m0b/cases/<case>/` 的真实 bins 与 `meta.txt`
+  装配 `CollisionGpuInputs`（32 项）后调用真实 `validate_inputs`；跑完立即
+  `git checkout --` 还原（**最终 `git diff` 为空、src 零改动**）。
+- 结果（exit 0，`logs/real-validate-probe.log`）：
+  - `mesh-box`：`Ok(())`，sidecar=present，9 长度 `[1,1,18,6,6,24,8,8,24]`
+  - `mesh-cylinder`：`Ok(())`，同上
+  - `sphere-box-shallow`（旧 23 项 case，无 9 个 bin）：`Ok(())`，sidecar=empty，9 长度全 0，
+    `nworld=2 ngeom=2`
+
+## 原始日志（体积原因留在 target/）
+
+| 文件 | sha256 |
+| --- | --- |
+| `target/m0b/unit.log` | `253962273700d489d4b4bb6e9181ce020fa0c11108a82d966fda0e56c9fed862` |
+| `target/m0b/probe-real-validate.log` | `60b9712846a154a424bf1718ee621afaed6f1718c5981fddaeeff1bf18a74b70` |
+
+聚合方法：对 `unit.log` 中全部 `test result:` 行求和 passed/failed/ignored（116 个二进制）。
+
+## 脚本与产物 sha
+
+| 文件 | sha256 |
+| --- | --- |
+| `scripts/prepare_mesh_cases.py`（17393 B） | `133fedb99eef50817d1b550803ea3aba8337f09d8ea34176b985bb17e9b049c2` |
+| `mesh-cases-manifest.json`（14316 B） | `b7c0ed16a229f361b2bbc99110848aa2133259e7d6c1d24f80ba7dfb6c2503ba` |

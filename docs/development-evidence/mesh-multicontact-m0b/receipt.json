@@ -1,0 +1,142 @@
+{
+  "task_id": "2026-10-26-mesh-multicontact-m0b-case-production",
+  "kind": "m0b-mesh-multicontact-case-bins-evidence",
+  "status": "in_progress",
+  "pinned_upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "outputs": {
+    "script": {
+      "path": "docs/development-evidence/mesh-multicontact-m0b/scripts/prepare_mesh_cases.py",
+      "sha256": "133fedb99eef50817d1b550803ea3aba8337f09d8ea34176b985bb17e9b049c2",
+      "size_bytes": 17393,
+      "runtime": "pinned venv python 3.12.13 / mujoco 3.15.0 / warp 1.15.0 / mujoco_warp 3.15.0; wp.set_device(\"cpu\"); no CUDA context"
+    },
+    "cases_dir": "docs/development-evidence/mesh-multicontact-m0b/cases/",
+    "cases": ["mesh-box", "mesh-cylinder"],
+    "manifest": {
+      "path": "docs/development-evidence/mesh-multicontact-m0b/mesh-cases-manifest.json",
+      "sha256": "b7c0ed16a229f361b2bbc99110848aa2133259e7d6c1d24f80ba7dfb6c2503ba",
+      "size_bytes": 14316
+    },
+    "array_count_per_case": 32,
+    "m1_reference": {
+      "path": "docs/development-evidence/mesh-multicontact-m1/upstream-mesh-multicontact-gpu.json",
+      "sha256": "c83baffe6de695fdefda6852c574d5d0d7312ebb591c1b487dfc59ec126c206a"
+    }
+  },
+  "arrays": {
+    "existing_23": ["geom_xpos", "geom_xmat", "geom_size", "geom_margin", "geom_gap", "geom_rbound", "geom_aabb", "geom_type", "geom_dataid", "mesh_vertadr", "mesh_vertnum", "mesh_graphadr", "mesh_octadr", "mesh_vert", "mesh_graph", "hfield_size", "hfield_nrow", "hfield_ncol", "hfield_adr", "hfield_data", "oct_aabb", "oct_child", "oct_coeff"],
+    "mesh_poly_9": ["mesh_polynum", "mesh_polyadr", "mesh_polynormal", "mesh_polyvertadr", "mesh_polyvertnum", "mesh_polyvert", "mesh_polymapadr", "mesh_polymapnum", "mesh_polymap"],
+    "counts_both_cases": {
+      "geom_xpos": 6, "geom_xmat": 18, "geom_size": 6, "geom_margin": 2, "geom_gap": 2,
+      "geom_rbound": 2, "geom_aabb": 12, "geom_type": 2, "geom_dataid": 2,
+      "mesh_vertadr": 1, "mesh_vertnum": 1, "mesh_graphadr": 1, "mesh_octadr": 1,
+      "mesh_vert": 24, "mesh_graph": 98,
+      "mesh_polynum": 1, "mesh_polyadr": 1, "mesh_polynormal": 18, "mesh_polyvertadr": 6,
+      "mesh_polyvertnum": 6, "mesh_polyvert": 24, "mesh_polymapadr": 8, "mesh_polymapnum": 8,
+      "mesh_polymap": 24,
+      "hfield_size": 0, "hfield_nrow": 0, "hfield_ncol": 0, "hfield_adr": 0, "hfield_data": 0,
+      "oct_aabb": 0, "oct_child": 0, "oct_coeff": 0
+    },
+    "mesh_poly_dims": {"nmesh": 1, "nmeshpoly": 6, "nmeshvert": 8, "nmeshpolyvert": 24, "nmeshpolymap": 24}
+  },
+  "same_source_cross_check": {
+    "mesh-box": {
+      "xml_sha256": {"actual": "88b8d7af848a4aba25475f253bfafbfcd666107bfeddaf1291e07b91592a1e03", "matches_m1_reference": true},
+      "qpos_bits": {"actual": [0, 0, 1041194025, 1065353216, 0, 0, 0], "matches_m1_reference": true},
+      "geom_xpos_bits": {"matches_m1_reference": true},
+      "geom_xmat_bits": {"matches_m1_reference": true},
+      "collision_count": {"actual": 4, "m1_reference": 4, "match": true}
+    },
+    "mesh-cylinder": {
+      "xml_sha256": {"actual": "d0b75f91440ee0199020c05805bf26aaf201b0b64089a31b7df8915ba68a04bd", "matches_m1_reference": true},
+      "qpos_bits": {"actual": [0, 0, 1044549468, 1065353216, 0, 0, 0], "matches_m1_reference": true},
+      "geom_xpos_bits": {"matches_m1_reference": true},
+      "geom_xmat_bits": {"matches_m1_reference": true},
+      "collision_count": {"actual": 4, "m1_reference": 4, "match": true}
+    },
+    "note": "qpos comes from the deterministic `capture` keyframe of the same fixture XML; CPU kinematics geom_xpos/geom_xmat are bit-identical to the M1 GPU capture for these identity-pose fixtures"
+  },
+  "cpu_selfcheck": {
+    "rules": [
+      {"id": 1, "rule": "9 polygon arrays present", "mesh-box": "PASS", "mesh-cylinder": "PASS"},
+      {"id": 2, "rule": "polynum.len == polyadr.len (per mesh, nmesh=1)", "mesh-box": "PASS", "mesh-cylinder": "PASS"},
+      {"id": 3, "rule": "polynormal.len % 3 == 0", "mesh-box": "PASS", "mesh-cylinder": "PASS"},
+      {"id": 4, "rule": "polyvertadr/polyvertnum.len == nmeshpoly (6)", "mesh-box": "PASS", "mesh-cylinder": "PASS"},
+      {"id": 5, "rule": "polymapadr.len == polymapnum.len (nmeshvert=8)", "mesh-box": "PASS", "mesh-cylinder": "PASS"},
+      {"id": 6, "rule": "per mesh polyadr+polynum <= nmeshpoly", "mesh-box": "PASS", "mesh-cylinder": "PASS"},
+      {"id": 7, "rule": "sum(polynum) == nmeshpoly", "mesh-box": "PASS", "mesh-cylinder": "PASS"},
+      {"id": 8, "rule": "per polygon polyvertadr+polyvertnum <= len(polyvert)", "mesh-box": "PASS", "mesh-cylinder": "PASS"},
+      {"id": 9, "rule": "sum(polyvertnum) == len(mesh_polyvert)", "mesh-box": "PASS", "mesh-cylinder": "PASS"},
+      {"id": 10, "rule": "per vertex polymapadr+polymapnum <= len(polymap)", "mesh-box": "PASS", "mesh-cylinder": "PASS"},
+      {"id": 11, "rule": "sum(polymapnum) == len(mesh_polymap)", "mesh-box": "PASS", "mesh-cylinder": "PASS"},
+      {"id": 12, "rule": "all adr/num non-negative", "mesh-box": "PASS", "mesh-cylinder": "PASS"}
+    ],
+    "result": "PASS (both cases)"
+  },
+  "real_validate_inputs_probe": {
+    "purpose": "prove the real M0b bins pass the corrected M0a CPU validator (validate_inputs is pub(crate), unreachable from integration tests)",
+    "procedure": "temporary #[cfg(test)] probe appended to src/runtime/collision_gpu/validate_tests.rs; reads the real bins + meta.txt, assembles CollisionGpuInputs (32 slices), calls the real validate_inputs; then `git checkout --` reverts the file",
+    "transient": true,
+    "committed": false,
+    "final_git_diff_empty": true,
+    "exit": 0,
+    "log": "logs/real-validate-probe.log",
+    "results": [
+      {"case": "mesh-box", "result": "Ok(())", "sidecar": "present", "lengths": [1, 1, 18, 6, 6, 24, 8, 8, 24]},
+      {"case": "mesh-cylinder", "result": "Ok(())", "sidecar": "present", "lengths": [1, 1, 18, 6, 6, 24, 8, 8, 24]},
+      {"case": "sphere-box-shallow (old 23-bin case)", "result": "Ok(())", "sidecar": "empty", "lengths": [0, 0, 0, 0, 0, 0, 0, 0, 0], "meta": "nworld=2 ngeom=2"}
+    ]
+  },
+  "input_bins_compat": {
+    "extended": "INPUT_BINS 23 -> 32 in tests/support/primitive_qa_support.rs and tests/support/multicontact_qa_support.rs (first 23 names and order unchanged)",
+    "sha_guard": "guards iterate the set actually declared by the case QA reference; declared names must be inside the 32-name list (unknown -> panic)",
+    "assembly": "read_optional_* loads the 9 mesh_poly bins; missing -> empty slice (no sidecar); explicit assertion that the 9 are all present or all absent",
+    "old_g5_case_bins_touched": false,
+    "old_g5_qa_reference_touched": false
+  },
+  "tests": {
+    "new_file": "tests/g10_p5_mesh_poly_case_assembly.rs",
+    "new_support": "tests/support/mesh_poly_case_support.rs",
+    "cases": [
+      {"name": "m0b_bins_match_manifest_sha_and_counts", "asserts": "32 bin sha256/count vs manifest; mesh-poly lengths [1,1,18,6,6,24,8,8,24]"},
+      {"name": "m0b_assembly_matches_m0a_sidecar_contract", "asserts": "9 slice lengths/pointers tied to bins, sidecar=present, meta nworld/ngeom, mirror of corrected M0a rules"},
+      {"name": "old_g5_cases_keep_23_bin_compat", "asserts": "10 old G5 cases: 9 slices empty, sidecar=empty, no 9 bins on disk, declared set (23) inside 32-name list"},
+      {"name": "m0b_same_source_matches_m1_reference", "asserts": "fixture xml sha recomputed, qpos_bits/geom_xpos/geom_xmat bit-identical to M1 reference, manifest cross_check all true"}
+    ],
+    "result": "4 passed / 0 failed"
+  },
+  "gates": {
+    "compat_test": {"command": "cargo test --locked --test g10_p5_mesh_poly_case_assembly -- --nocapture", "exit": 0, "passed": 4, "failed": 0, "log": "logs/assembly-test.log"},
+    "fmt": {"command": "cargo fmt --all -- --check", "exit": 0},
+    "clippy": {"command": "cargo clippy --locked --all-targets -- -D warnings", "exit": 0},
+    "clippy_cuda": {"command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings", "exit": 0},
+    "unit": {"command": "cargo test --locked --no-fail-fast", "exit": 0, "passed": 986, "failed": 0, "ignored": 372, "baseline": "982/0/372 (post M0a fix)", "delta": "+4 new tests", "raw_log": "target/m0b/unit.log", "raw_log_sha256": "253962273700d489d4b4bb6e9181ce020fa0c11108a82d966fda0e56c9fed862"},
+    "summary_file": "logs/gates-summary.txt"
+  },
+  "invariants": {
+    "g5_prepare_cases_py_changed": false,
+    "old_g5_case_bins_changed": false,
+    "src_touched": false,
+    "fixtures_touched": false,
+    "criteria_tolerance_reference_changed": false,
+    "gpu_context_created": false,
+    "gpu_window_used": false,
+    "evidence_files_max_lines": 500
+  },
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "mesh-cases-manifest.json",
+    "cases/ (2 cases x 32 bins + meta.txt)",
+    "scripts/prepare_mesh_cases.py",
+    "scripts/sha256.json",
+    "logs/assembly-test.log",
+    "logs/real-validate-probe.log",
+    "logs/gates-summary.txt"
+  ],
+  "uncovered": [
+    "no CUDA context / no GPU kernel launch in this task: the real validate_inputs path was proven with a transient probe (reverted); the permanent CPU coverage is the rule mirror + assembly assertions",
+    "device-level mesh multicontact execution remains M2",
+    "the 9 mesh_poly arrays are produced for the single-mesh cube fixture only (nmesh=1); multi-mesh cases are out of scope"
+  ]
+}

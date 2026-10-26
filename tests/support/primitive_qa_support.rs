@@ -15,7 +15,10 @@ use mjwarp_rs::runtime::collision_gpu::{
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-const INPUT_BINS: [&str; 23] = [
+/// 32 项输入口径（M0b 起）：前 23 项为冻结 G5 case 的既有 bins，后 9 项为可选 mesh polygon
+/// bins（M0a sidecar）。旧 23 项 case 目录缺 9 个 bin → 空 slice + null sidecar，不报错；
+/// sha 守卫按 case 参考实际声明的数组集合执行（见 `guard_inputs`）。
+const INPUT_BINS: [&str; 32] = [
     "geom_xpos",
     "geom_xmat",
     "geom_size",
@@ -39,6 +42,15 @@ const INPUT_BINS: [&str; 23] = [
     "oct_aabb",
     "oct_child",
     "oct_coeff",
+    "mesh_polynum",
+    "mesh_polyadr",
+    "mesh_polynormal",
+    "mesh_polyvertadr",
+    "mesh_polyvertnum",
+    "mesh_polyvert",
+    "mesh_polymapadr",
+    "mesh_polymapnum",
+    "mesh_polymap",
 ];
 
 pub(crate) fn cases_root() -> PathBuf {
@@ -82,16 +94,56 @@ macro_rules! read_values {
 read_values!(read_f32, f32);
 read_values!(read_i32, i32);
 
+/// 可选 bin：文件缺失返回 `None`（旧 23 项 case 目录没有 9 个 mesh_poly bin）。
+fn read_optional_bytes(directory: &Path, name: &str) -> Option<Vec<u8>> {
+    let path = directory.join(format!("{name}.bin"));
+    path.exists().then(|| read_bytes(directory, name))
+}
+
+fn read_optional_f32(directory: &Path, name: &str) -> Vec<f32> {
+    read_optional_bytes(directory, name)
+        .map(|bytes| {
+            bytes
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|chunk| f32::from_le_bytes(*chunk))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn read_optional_i32(directory: &Path, name: &str) -> Vec<i32> {
+    read_optional_bytes(directory, name)
+        .map(|bytes| {
+            bytes
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|chunk| i32::from_le_bytes(*chunk))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
-/// 输入一致性守卫：重算 23 个 case 输入 bin 的 sha256，必须与 QA 参考 `input_bins` 全同。
+/// 输入一致性守卫：按 QA 参考**实际声明**的 `input_bins` 集合逐项重算 sha256/count
+/// （旧 23 项 case 只声明 23 项；声明集合中的名字必须在 `INPUT_BINS` 内）。
 fn guard_inputs(case: &str, case_reference: &Value, directory: &Path) {
     let bins = &case_reference["input_bins"];
-    for name in INPUT_BINS {
+    let declared = bins
+        .as_object()
+        .unwrap_or_else(|| panic!("{case}: QA 参考 input_bins 不是对象"));
+    for (name, bin_reference) in declared {
+        assert!(
+            INPUT_BINS.contains(&name.as_str()),
+            "{case}: QA 参考声明了未知输入 {name}（不在 32 项 INPUT_BINS 内）"
+        );
         let bytes = read_bytes(directory, name);
-        let expected = bins[name]["sha256"]
+        let expected = bin_reference["sha256"]
             .as_str()
             .unwrap_or_else(|| panic!("{case}: QA 参考缺少 input_bins.{name}.sha256"));
         assert_eq!(
@@ -99,7 +151,7 @@ fn guard_inputs(case: &str, case_reference: &Value, directory: &Path) {
             expected,
             "{case}: 输入不一致 {name}.bin sha256 与 QA 参考不同"
         );
-        let count = bins[name]["count"]
+        let count = bin_reference["count"]
             .as_u64()
             .unwrap_or_else(|| panic!("{case}: QA 参考缺少 input_bins.{name}.count"));
         assert_eq!(
@@ -208,6 +260,35 @@ pub(crate) fn run_case(
         hfield_ncol: read_i32, hfield_adr: read_i32, hfield_data: read_f32,
         oct_aabb: read_f32, oct_child: read_i32, oct_coeff: read_f32,
     );
+    // M0a/M0b：9 个 mesh_poly bin 可选。旧 23 项 case 缺文件 → 空 slice + null sidecar；
+    // 新 32 项 case 齐 9 个 → 正常装配。这里显式断言「9 个同时存在或同时缺失」。
+    let mesh_polynum = read_optional_i32(&directory, "mesh_polynum");
+    let mesh_polyadr = read_optional_i32(&directory, "mesh_polyadr");
+    let mesh_polynormal = read_optional_f32(&directory, "mesh_polynormal");
+    let mesh_polyvertadr = read_optional_i32(&directory, "mesh_polyvertadr");
+    let mesh_polyvertnum = read_optional_i32(&directory, "mesh_polyvertnum");
+    let mesh_polyvert = read_optional_i32(&directory, "mesh_polyvert");
+    let mesh_polymapadr = read_optional_i32(&directory, "mesh_polymapadr");
+    let mesh_polymapnum = read_optional_i32(&directory, "mesh_polymapnum");
+    let mesh_polymap = read_optional_i32(&directory, "mesh_polymap");
+    let mesh_poly_present = [
+        mesh_polynum.is_empty(),
+        mesh_polyadr.is_empty(),
+        mesh_polynormal.is_empty(),
+        mesh_polyvertadr.is_empty(),
+        mesh_polyvertnum.is_empty(),
+        mesh_polyvert.is_empty(),
+        mesh_polymapadr.is_empty(),
+        mesh_polymapnum.is_empty(),
+        mesh_polymap.is_empty(),
+    ]
+    .iter()
+    .filter(|empty| !**empty)
+    .count();
+    assert!(
+        mesh_poly_present == 0 || mesh_poly_present == 9,
+        "{case}: mesh_poly bin 应 9 个同时存在或同时缺失，实际 {mesh_poly_present} 个"
+    );
     let inputs = CollisionGpuInputs {
         geom_xpos: &geom_xpos,
         geom_xmat: &geom_xmat,
@@ -232,16 +313,16 @@ pub(crate) fn run_case(
         oct_aabb: &oct_aabb,
         oct_child: &oct_child,
         oct_coeff: &oct_coeff,
-        // M0a：冻结 G5 case 只有 23 项 bin；9 个 mesh_poly 数组全空（sidecar 不构造）。
-        mesh_polynum: &[],
-        mesh_polyadr: &[],
-        mesh_polynormal: &[],
-        mesh_polyvertadr: &[],
-        mesh_polyvertnum: &[],
-        mesh_polyvert: &[],
-        mesh_polymapadr: &[],
-        mesh_polymapnum: &[],
-        mesh_polymap: &[],
+        // M0a/M0b：旧 case 的 9 项为空（null sidecar），新 case 从 bins 装配。
+        mesh_polynum: &mesh_polynum,
+        mesh_polyadr: &mesh_polyadr,
+        mesh_polynormal: &mesh_polynormal,
+        mesh_polyvertadr: &mesh_polyvertadr,
+        mesh_polyvertnum: &mesh_polyvertnum,
+        mesh_polyvert: &mesh_polyvert,
+        mesh_polymapadr: &mesh_polymapadr,
+        mesh_polymapnum: &mesh_polymapnum,
+        mesh_polymap: &mesh_polymap,
         meta,
     };
     program
