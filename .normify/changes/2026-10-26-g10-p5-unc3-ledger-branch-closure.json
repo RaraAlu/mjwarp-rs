@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-g10-p5-unc3-ledger-branch-closure",
+  "title": {
+    "zh": "UNC-3 台账更新（B3 分支片收口：5 类分支 + swap 转已覆盖）+ B3 证据 QA 观察勘误",
+    "en": "UNC-3 ledger update after the B3 branch-coverage slice (5 branch classes + swap now covered) plus B3 evidence QA-observation errata"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "B3 分支覆盖片（`e221e6c2`）verified 且 QA 独立复核 pass（阻断 0 / 观察 6，收口 `856b7835`）后，把 G6 验收映射 UNC-3 的「分支层部分覆盖」按实际进展更新：B3 覆盖 graph / dist==0 fallback / 投影 clamp / cap / corner / non-parallel 共 5 类分支 + swap 几何顺序（规范化后 contact.geom 与上游同序）；剩余未覆盖分支收窄为 3 类 + 债务照实。同时收口 QA B3 的 6 条观察（纯证据文字/边界说明，不改任何数字、判据、容差、结论）。UNC-3 状态仍 partial，不宣称全路径。",
+    "en": "Update G6 map UNC-3 branch-layer coverage after the verified B3 slice and its QA pass, and close the 6 QA observations as textual/boundary errata without changing numbers, criteria, tolerances or conclusions."
+  },
+  "modules": {},
+  "acceptance": [
+    "**UNC-3 台账**：`docs/development-evidence/g10-p5-acceptance-map/README.md` §6 与 `map.json` 的 `uncovered[UNC-3]` 按 B3 实际覆盖更新：组合层仍 13/13；分支层已覆盖 5 类（graph hillclimb、`dist==0` fallback、投影 clamp、cap、corner、non-parallel 中按实际 case 计）**+ swap 几何顺序**；剩余未覆盖 3 类（`plane_cylinder` degenerate x 轴回退、`plane_ellipsoid` 非上游退化保护、`plane-box` 其余角点/其余候选未 detected）+ 债务（sphere-box/capsule-box/box-box 分支级未逐条标注、capsule 平行轴分支）；status 仍 `partial`，不宣称全分支/全路径。",
+    "**B3 证据勘误（纯文字/边界，不改数字与结论）**：① O1 把「13 组合位级无回退」改为「判据内无回退」并注明 B1/B2 只输出 failures=0、PTX 已变（3786439→3786510，不能先验排除 ULP 级差异）；② O4 修 README 的 BEL 控制字符与重复 `## 9` 编号；③ O5 标注 precheck `axis_dot=0.0` 为理想化口径、按参考 xmat f32 实算 ≈-7.57e-9、det ≈2.073600335e-4；④ O6 说明 attempt1 branches 二进制未归档、「修复只碰 tests/」由 panic 日志+提交内容+dirty 计数支持；⑤ O2 说明 CPU 自检不经过 run_case geom 解析路径、只能部分兜底；⑥ O3 说明执行脚本已入库为证据副本（sha 与执行文件逐字节相同），工作树中未跟踪的执行副本已清理。",
+    "**治理回执**：新增 `docs/development-evidence/g10-p5-unc3-ledger-governance/`（README + receipt.json，含 task_id、UNC-3 更新前后对照、6 条观察收口映射、证据指针、门禁数字），UTF-8 无 BOM、单文件 ≤500 行。",
+    "**红线**：不改 `src/`/`tests/`/`fixtures/`/`Cargo.*`；不改任何已 verified 数字、判据、容差、期望；不改 B3 参考 JSON；UNC-3 仍 partial；不宣称全分支/跨平台。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-g10-p5-primitive-branch-coverage",
+      "2026-10-26-g10-p5-primitive-branch-coverage-independent-check"
+    ],
+    "phase": "治理/验收映射",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/g10-p5-acceptance-map/",
+      "docs/development-evidence/g10-p5-primitive-branch-coverage/",
+      "docs/development-evidence/g10-p5-unc3-ledger-governance/"
+    ],
+    "resources": [],
+    "priority": 46
+  },
+  "note": "Arch 2026-10-26 登记（Chief 口径：QA pass 后更新 UNC-3 台账）。触发：B3 `e221e6c2` verified、QA `856b7835` pass（阻断 0 / 观察 6）。只做证据映射与文字勘误，不改产品代码与任何判据。",
+  "revision": {
+    "before": "17c71022a725da31b9501ce766b50733f34a25aa",
+    "after": null
+  },
+  "created_at": "2026-10-26T14:32:00.000Z",
+  "updated_at": "2026-10-26T14:32:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "tests",
+        "fixtures",
+        "native",
+        "include",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-unc3-ledger-governance/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-g10-p5-unc3-ledger-branch-closure"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
