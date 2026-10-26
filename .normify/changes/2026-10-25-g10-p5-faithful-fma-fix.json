@@ -5,7 +5,7 @@
     "zh": "按 faithful FMA 口径修复两个产品站点（gjk/polytope 的 face_norm2 与 render 光源归一化），把默认 GNU 欠验的 5.3 ULP 残余修到过现有 4 ULP 判据",
     "en": "Fix the two product mul_add sites under the faithful FMA criterion so the default-GNU residual passes the existing 4-ULP gate"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "用户 2026-10-26 对 faithful FMA 处置选 **① 修实现到过现有 4 ULP**（不改判据/容差/期望值）。依据：`2026-10-25-case-evidence-frame-diagnosis` 已定位唯一翻转项 `case_evidence::upstream_f32_within_4ulp` 的根因是 GNU 默认工具链下 `f32::mul_add` 库回退非 IEEE 单次舍入（frame 3.838112e-7 pass → faithful 6.351978e-7 fail）；`exact-f32-fma-relmat` 已交付目标无关精确 f32 FMA helper（`src/math/fma.rs::fma_f32`，硬件主路 + 无 f64 整数精确模拟兜底，77 例边界集、修前红/修后 0 红）；`faithful-impact-measurement` 已实测影响面窄（20 项仅 1 项翻转）。本片把两个产品站点换成该 helper，使 GNU 默认口径与 faithful 口径给出同一（正确舍入）数值，从而在不改判据的前提下恢复默认 gate 全绿。",
     "en": "Replace the two product mul_add sites with the shared exact-f32 FMA helper so the default GNU build matches the faithful criterion, with no tolerance/judgement changes."
@@ -78,6 +78,5 @@
         "精度达标"
       ]
     }
-  ],
-  "closed_at": null
+  ]
 }
