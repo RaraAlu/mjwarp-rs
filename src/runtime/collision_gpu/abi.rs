@@ -33,6 +33,10 @@
 
 use super::{CollisionGpuError, CollisionGpuInputs};
 
+/// 上游 `mjtGeom` 的 MESH 常量（与 [`super::validate`] 的 `GEOM_MESH`、设备源
+/// `support.cu` 的 `G5_MESH` 一致）；只用于 O7 值域校验判定 mesh geom。
+const MESH_GEOM_TYPE: i32 = 7;
+
 /// 上游 `contact_*` 输出数组视图（对应 `contact.cu::d_contact_out`）。
 ///
 /// `pos` 在设备侧是 `v3*`（12 字节步长），这里用 `*mut f32` 表示同一指针；`frame` 是
@@ -261,7 +265,13 @@ pub(crate) fn validate_inputs(inputs: &CollisionGpuInputs<'_>) -> Result<(), Col
 /// - `sum(polynum) == nmeshpoly`；逐 mesh `polyadr[i]+polynum[i] <= nmeshpoly`；
 /// - 逐 polygon `polyvertadr[i]+polyvertnum[i] <= polyvert.len()`；
 /// - 逐 vertex `polymapadr[i]+polymapnum[i] <= polymap.len()`；
-/// - 强一致：`sum(polyvertnum) == polyvert.len()`、`sum(polymapnum) == polymap.len()`。
+/// - 强一致：`sum(polyvertnum) == polyvert.len()`、`sum(polymapnum) == polymap.len()`；
+/// - O7（M3）：值域校验 —— `polyvert`/`polymap` 元素在设备侧会先加逐 geom 偏移再作为索引
+///   使用（`_mesh_face` / `_mesh_normals`），故要求 `mesh_vertadr/mesh_vertnum` 长度均为
+///   `nmesh`、逐 mesh `vertadr+vertnum <= nmeshvert`；逐 polygon 的 `polyvert` 元素在
+///   `[0, mesh_vertnum[owner mesh])`、逐 vertex 的 `polymap` 元素在
+///   `[0, mesh_polynum[owner mesh])`；sidecar 存在时 mesh geom 的 `geom_dataid` 在
+///   `[0, nmesh)`。M0b/M3 生产侧同源保证这些值域（证据见 M3 值域校验段）。
 ///
 /// 全空/部分空语义（M0a 写死，本修正片不变）：
 /// - 9 个输入 slice 全空 → 不构造 sidecar（`mesh_poly_args = null`），语义为「无 mesh polygon
@@ -387,6 +397,74 @@ fn validate_mesh_poly(inputs: &CollisionGpuInputs<'_>) -> Result<(), CollisionGp
         return Err(CollisionGpuError::InvalidArgument(
             "mesh_polymapnum 之和须等于 mesh_polymap 长度",
         ));
+    }
+
+    // O7（M3）：值域校验。`polyvert`/`polymap` 元素在设备侧是「逐 geom 偏移 + 局部索引」的
+    // 索引（`multicontact_mesh.cu` 的 `_mesh_face`/`_mesh_normals` 会加 `vertadr`/`polyadr`），
+    // M0a 之前只校验长度/区间/求和；这里补上元素值域，避免宿主上传错误在设备侧变成越界读。
+    if inputs.mesh_vertadr.len() != nmesh || inputs.mesh_vertnum.len() != nmesh {
+        return Err(CollisionGpuError::InvalidArgument(
+            "mesh_vertadr/mesh_vertnum 长度须为 nmesh（逐 mesh）",
+        ));
+    }
+    for index in 0..nmesh {
+        let (adr, num) = (inputs.mesh_vertadr[index], inputs.mesh_vertnum[index]);
+        if adr < 0 || num < 0 {
+            return Err(CollisionGpuError::InvalidArgument(
+                "mesh_vertadr/mesh_vertnum 不得为负",
+            ));
+        }
+        if (adr as usize)
+            .checked_add(num as usize)
+            .is_none_or(|end| end > nmeshvert)
+        {
+            return Err(CollisionGpuError::InvalidArgument(
+                "mesh_vertadr/mesh_vertnum 区间超出 mesh 顶点数",
+            ));
+        }
+    }
+    // sidecar 存在时，mesh geom 的 dataid 必须指向本 sidecar 覆盖的 mesh（设备 `build_geom`
+    // 用 `mesh_polyadr[dataid]` 取逐 mesh 偏移）。
+    for (index, &geom_type) in inputs.geom_type.iter().enumerate() {
+        if geom_type != MESH_GEOM_TYPE {
+            continue;
+        }
+        let dataid = inputs.geom_dataid[index];
+        if dataid < 0 || dataid as usize >= nmesh {
+            return Err(CollisionGpuError::InvalidArgument(
+                "mesh geom 的 geom_dataid 超出 mesh 编号范围",
+            ));
+        }
+    }
+    for mesh_index in 0..nmesh {
+        let vertnum = inputs.mesh_vertnum[mesh_index] as usize;
+        let polyadr = inputs.mesh_polyadr[mesh_index] as usize;
+        let polynum = inputs.mesh_polynum[mesh_index] as usize;
+        for polygon in polyadr..polyadr + polynum {
+            let adr = inputs.mesh_polyvertadr[polygon] as usize;
+            let num = inputs.mesh_polyvertnum[polygon] as usize;
+            for entry in adr..adr + num {
+                let vertex = inputs.mesh_polyvert[entry];
+                if vertex < 0 || vertex as usize >= vertnum {
+                    return Err(CollisionGpuError::InvalidArgument(
+                        "mesh_polyvert 元素超出所属 mesh 的顶点数",
+                    ));
+                }
+            }
+        }
+        let vertadr = inputs.mesh_vertadr[mesh_index] as usize;
+        for vertex in vertadr..vertadr + vertnum {
+            let adr = inputs.mesh_polymapadr[vertex] as usize;
+            let num = inputs.mesh_polymapnum[vertex] as usize;
+            for entry in adr..adr + num {
+                let polygon = inputs.mesh_polymap[entry];
+                if polygon < 0 || polygon as usize >= polynum {
+                    return Err(CollisionGpuError::InvalidArgument(
+                        "mesh_polymap 元素超出所属 mesh 的 polygon 数",
+                    ));
+                }
+            }
+        }
     }
     Ok(())
 }

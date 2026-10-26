@@ -258,11 +258,25 @@ impl MeshCaseReport {
     }
 }
 
-/// 用 M1 参考对照一次 mesh multicontact 设备输出。
+/// 用 M1 参考对照一次 mesh multicontact 设备输出（M2 口径：期望 `contact.geom=[1,0]`）。
+/// M2 目标使用本入口；M3 目标只用 [`compare_case_with_geom_order`]（共享 support 模块，
+/// 单个测试目标内允许未使用）。
+#[allow(dead_code)]
 pub(crate) fn compare_case(
     case: &str,
     case_reference: &Value,
     output: &CollisionGpuOutput,
+) -> MeshCaseReport {
+    compare_case_with_geom_order(case, case_reference, output, "[1,0]")
+}
+
+/// 同 [`compare_case`]，但 `contact.geom` 的期望顺序由调用方给出：M2 的 (BOX/CYLINDER, MESH)
+/// 按 pinned 类型序为 `[1,0]`；M3 的 (MESH, MESH) 两侧同类型，调用方按 geom 序传 `[0,1]`。
+pub(crate) fn compare_case_with_geom_order(
+    case: &str,
+    case_reference: &Value,
+    output: &CollisionGpuOutput,
+    expected_geom_order: &str,
 ) -> MeshCaseReport {
     let reference = reference_rows(case_reference);
     let mut report = MeshCaseReport {
@@ -450,10 +464,11 @@ pub(crate) fn compare_case(
                 output.geom[device_index * 2],
                 output.geom[device_index * 2 + 1]
             );
-            // 该顺序由调用方按 pinned 类型序（box 6 < mesh 7）传入，device 不做归一化。
-            if report.geom_order != "[1,0]" {
+            // 该顺序由调用方按 pinned 类型序传入（M2: box 6 < mesh 7 → [1,0]；M3: 两侧 mesh
+            // 同类型 → [0,1]；device 不做归一化）——本模块单独断言该顺序。
+            if report.geom_order != expected_geom_order {
                 report.failures.push(format!(
-                    "contact.geom 顺序应为 pinned 类型序 [1,0]（调用方传入），实际 {}",
+                    "contact.geom 顺序应为 pinned 类型序 {expected_geom_order}（调用方传入），实际 {}",
                     report.geom_order
                 ));
             }

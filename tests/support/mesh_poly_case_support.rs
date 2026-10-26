@@ -10,6 +10,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use sha2::{Digest, Sha256};
+
 use mjwarp_rs::runtime::collision_gpu::{CollisionGpuInputs, CollisionGpuMeta};
 use serde_json::Value;
 
@@ -74,6 +76,27 @@ pub(crate) fn m0b_manifest() -> Value {
     let path = m0b_root().join("mesh-cases-manifest.json");
     let text = std::fs::read(&path).expect("读取 M0b manifest");
     serde_json::from_slice(&text).expect("解析 mesh-cases-manifest.json")
+}
+
+/// M3 mesh-mesh 证据根目录（bins / manifest / 新捕获参考）。
+pub(crate) fn m3_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/development-evidence/mesh-multicontact-m3")
+}
+
+pub(crate) fn m3_cases_root() -> PathBuf {
+    m3_root().join("cases")
+}
+
+pub(crate) fn m3_manifest() -> Value {
+    let path = m3_root().join("mesh-case-manifest.json");
+    let text = std::fs::read(&path).expect("读取 M3 manifest");
+    serde_json::from_slice(&text).expect("解析 M3 mesh-case-manifest.json")
+}
+
+pub(crate) fn m3_reference() -> Value {
+    let path = m3_root().join("upstream-mesh-multicontact-mesh-mesh-gpu.json");
+    let text = std::fs::read(&path).expect("读取 M3 GPU 参考");
+    serde_json::from_slice(&text).expect("解析 M3 参考 JSON")
 }
 
 pub(crate) fn m1_reference() -> Value {
@@ -358,5 +381,26 @@ pub(crate) fn load_case(directory: &Path) -> MeshCaseInputs {
         oct_child: read_i32(directory, "oct_child"),
         oct_coeff: read_f32(directory, "oct_coeff"),
         meta: build_meta(directory),
+    }
+}
+
+/// 小写十六进制 sha256（M0b/M3 装配测试共用；自 `g10_p5_mesh_poly_case_assembly.rs` 挪入）。
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+/// f32 切片的位型列表（测试侧共用）。
+pub(crate) fn f32_bits(values: &[f32]) -> Vec<u32> {
+    values.iter().map(|value| value.to_bits()).collect()
+}
+
+/// JSON 数字/数组的 f32 位型展开（测试侧共用）。
+pub(crate) fn json_f32_bits(value: &Value) -> Vec<u32> {
+    match value {
+        Value::Array(items) => items.iter().flat_map(json_f32_bits).collect(),
+        Value::Number(number) => {
+            vec![(number.as_f64().expect("数值") as f32).to_bits()]
+        }
+        other => panic!("参考字段不是数字/数组：{other}"),
     }
 }

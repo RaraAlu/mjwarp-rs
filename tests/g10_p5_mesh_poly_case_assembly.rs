@@ -11,18 +11,19 @@
 //!    M0b 两个 mesh case 为 present、旧 G5 全部 case 为空 sidecar，均必须 `Ok(())`。
 //!
 //! 运行：`cargo test --locked --test g10_p5_mesh_poly_case_assembly`
+//!
+//! M3 的 mesh-mesh bins/同源/真实校验测试见 `tests/g10_p5_mesh_m3_case_assembly.rs`。
 
 #[path = "support/mesh_poly_case_support.rs"]
 mod support;
 
-use sha2::{Digest, Sha256};
-
 use support::{
-    INPUT_BINS, MESH_POLY_BINS, MeshCaseInputs, g5_cases_root, load_case, m0b_cases_root,
-    m0b_manifest, m1_reference, qa_reference,
+    INPUT_BINS, MESH_POLY_BINS, MeshCaseInputs, f32_bits, g5_cases_root, json_f32_bits, load_case,
+    m0b_cases_root, m0b_manifest, m1_reference, qa_reference, sha256_hex,
 };
 
 const M0B_CASES: [&str; 2] = ["mesh-box", "mesh-cylinder"];
+
 const OLD_G5_CASES: [&str; 10] = [
     "sphere-box-shallow",
     "sphere-box-deep",
@@ -35,24 +36,6 @@ const OLD_G5_CASES: [&str; 10] = [
     "box-box-margin",
     "mesh-mesh",
 ];
-
-fn sha256_hex(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
-}
-
-fn f32_bits(values: &[f32]) -> Vec<u32> {
-    values.iter().map(|value| value.to_bits()).collect()
-}
-
-fn json_f32_bits(value: &serde_json::Value) -> Vec<u32> {
-    match value {
-        serde_json::Value::Array(items) => items.iter().flat_map(json_f32_bits).collect(),
-        serde_json::Value::Number(number) => {
-            vec![(number.as_f64().expect("数值") as f32).to_bits()]
-        }
-        other => panic!("参考字段不是数字/数组：{other}"),
-    }
-}
 
 /// 修正后 M0a `validate_mesh_poly` 的规则镜像（与 `abi.rs` 逐条同构；此处为测试侧复算）。
 fn assert_m0a_mesh_poly_rules(case: &str, inputs: &MeshCaseInputs) {
