@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check",
+  "title": {
+    "zh": "M0a mesh polygon 形状修正片的 QA 独立复核",
+    "en": "QA independent review of the M0a mesh polygon shape fix slice"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "复核 `2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes`：校验规则是否与 pinned types.py 的数组形状（polynum/polyadr per mesh、polynormal/polyvertadr/polyvertnum per polygon、polymapadr/polymapnum per vertex）一致；是否只改 CPU 校验/注释/单测/证据（ABI、device、fixture 不变）；用真实 cube 形状数据验证旧规则必失败、新规则通过。",
+    "en": "Independent review of the M0a shape-fix slice against pinned array layouts; confirm fix is CPU-validation-only."
+  },
+  "modules": {},
+  "acceptance": [
+    "独立按 pinned `types.py`（rev `71da24d9`）核 9 个数组的真实形状与 M0a 校验规则逐条对应；用真实 fixture 形状 (nmesh=1, nmeshpoly=6, nmeshpolyvert=24, nmeshvert=8, nmeshpolymap=24) 构造输入，确认修正后通过、且旧「逐 mesh 等长」规则会失败（对照证明）。",
+    "核改动范围：只碰 `src/runtime/collision_gpu/`（校验/注释/单测）与 M0a 证据；ABI 504/sidecar 72B/entries 6/冒烟指纹 `238969/ec2e7acd…/3786520` 不变；device 源与 `DEVICE_SOURCES` 未动。",
+    "负例覆盖：区间越界、sum 不一致、部分空、全空；核 `validate_tests.rs` 是否真按真实形状构造（不是又写错形状的「自洽」）。",
+    "证据 `docs/development-evidence/mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check/`（README + receipt 含 verdict/blockers/observations）；门禁 gate/check exit 0；不 commit、不 done。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check/",
+      ".normify/runs/"
+    ],
+    "resources": [],
+    "priority": 43
+  },
+  "note": "Arch 2026-10-26 预登记（M0a 修正片配套复核）。",
+  "revision": {
+    "before": "4807b5a3426090a0a9d88a616dfc83fb6188574b",
+    "after": null
+  },
+  "created_at": "2026-10-26T15:16:00.000Z",
+  "updated_at": "2026-10-26T15:16:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

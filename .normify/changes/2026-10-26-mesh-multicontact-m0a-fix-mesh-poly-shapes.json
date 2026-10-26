@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes",
+  "title": {
+    "zh": "M0a 修正：mesh polygon 数组形状语义（polyvert* 逐 polygon、polymap* 逐 vertex）+ 校验/注释/单测/证据",
+    "en": "M0a fix: mesh polygon array shape semantics (polyvert* per polygon, polymap* per vertex) in validation, comments, tests and evidence"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "M0b 预检发现 M0a 的 `validate_mesh_poly` 按「逐 mesh 等长」校验 `mesh_polyvertadr/polyvertnum/polymapadr/polymapnum`，但 pinned 上游 `mujoco_warp/_src/types.py` L1329-1337/L1864-1872 明确：polynum/polyadr 为 (nmesh,)、polynormal 为 (nmeshpoly,3)、polyvertadr/polyvertnum 为 (nmeshpoly,)、polymapadr/polymapnum 为 (nmeshvert,)。真实 fixture 长度 (1,1,6,6,6,24,8,8,24) 会被 M0a 校验直接判 InvalidArgument，M0b 合法 bins 与 M2 都会被卡。本片只修 CPU 校验层、注释与单测、以及 M0a 证据补注；**不改 ABI（sidecar 仍 9 指针、无长度字段）、不改 device、不改 fixture**。",
+    "en": "Fix M0a CPU validation shape semantics for mesh polygon arrays to match pinned upstream layouts (per-polygon polyvert*, per-vertex polymap*); no ABI or device change."
+  },
+  "modules": {},
+  "acceptance": [
+    "**校验规则（与 pinned 一致，写死）**：`nmesh = polynum.len() == polyadr.len()`；`nmeshpoly = polynormal.len()/3 == polyvertadr.len() == polyvertnum.len()`；`nmeshvert = polymapadr.len() == polymapnum.len()`；`sum(polynum) == nmeshpoly`；逐 mesh `polyadr[i]+polynum[i] <= nmeshpoly`；逐 polygon `polyvertadr[i]+polyvertnum[i] <= polyvert.len()`；逐 vertex `polymapadr[i]+polymapnum[i] <= polymap.len()`；若取强一致（可选）再断 `sum(polyvertnum)==polyvert.len()`、`sum(polymapnum)==polymap.len()`。9 项齐全/全空语义与「部分空→InvalidArgument」保持不变。",
+    "**注释与文档**：`abi.rs` 的 `validate_mesh_poly` 文档注释、`types.rs` 字段注释里所有「逐 mesh」表述按真实形状更正（polynum/polyadr per mesh；polynormal/polyvertadr/polyvertnum per polygon；polymapadr/polymapnum per vertex）。",
+    "**单测**：`validate_tests.rs` 的 `consistent` 等用例按真实形状重建（用 cube 的真实长度 1/1/6/6/6/24/8/8/24），保留全空/部分空/不自洽负例；新增至少 2 条负例（区间越界、sum 不一致）。`--all-features` 与默认套件全绿。",
+    "**M0a 证据补注**：`docs/development-evidence/mesh-multicontact-m0a/README` §4 与 receipt 的「逐 mesh 等长」表述按真实形状更正，并记录本修正片（原因：M0b 预检发现形状语义与 pinned 不符；影响：仅 CPU 校验层，ABI/device/冒烟不变）。",
+    "**不变量**：ABI 504/sidecar 72B/entries 6 不变；冒烟指纹 `238969 / ec2e7acd… / 3786520` 不变（不改 device 源）；`src/physics/mod.rs`、`DEVICE_SOURCES` 27 段不变；判据/容差/参考零改动。",
+    "**门禁**：fmt/clippy/clippy-cuda/unit（默认 980/0/372 基线，若新增非 ignored 测试则如实报）；`--all-features` 按 M0a 口径（`MJWARP_MUJOCO_ROOT` + msvc）全绿。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m0a-abi-repin",
+      "2026-10-26-mesh-multicontact-m0a-independent-check"
+    ],
+    "phase": "P5-复杂物理",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/collision_gpu/",
+      "docs/development-evidence/mesh-multicontact-m0a/"
+    ],
+    "resources": [],
+    "priority": 44
+  },
+  "note": "Arch 2026-10-26 登记：M0b 第一块预检发现结构性阻塞（M0a 校验形状语义与 pinned 不符，合法 fixture 会被判 InvalidArgument）。裁决：单列本小修片，不并入 M0b（避免混两片验证）；修完 Backend 继续 M0b，M0b 的 CPU 自检门将使用修正后的校验。QA 预登记 `2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes-independent-check`。不动 ABI/device/fixture。",
+  "revision": {
+    "before": "4807b5a3426090a0a9d88a616dfc83fb6188574b",
+    "after": null
+  },
+  "created_at": "2026-10-26T15:16:00.000Z",
+  "updated_at": "2026-10-26T15:16:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/mesh-multicontact-m0a-fix-mesh-poly-shapes/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
