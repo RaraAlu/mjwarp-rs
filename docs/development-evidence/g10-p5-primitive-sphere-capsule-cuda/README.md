@@ -171,6 +171,11 @@ residual 0；聚合守卫通过（delta_peak 774 MiB < 3072）。
   已是排序口径；`g10_p5_sdf_host.rs`、`g10_p5_sdf_relmat.rs`、`gjk_epa.rs`、`stage2_equivalence_window.rs`
   有 worldid 相关比对但非该模式 → 记**观察/债务**，本片不改。
 - 旧证据有效性：launcher 在 raw-order 下通过的旧记录仍有效（旧口径更严）；新比较器从本片起生效。
+- **launcher 二进制 sha 作废链（留痕）**：d08491c6…（B1 期旧）→ e330e9d1…（删 compare_exact! 宏后）→
+  1af86cba…（proof 测试首版重写前）→ 6e4fc62a…（proof 迭代）→ 6000a50c…（proof 定稿前）→
+  **23ae4d82…（attempt2 唯一实际窗口集合，Chief 已重签确认）** →（500 行 size gate 拆分：纯搬移）→
+  5c191046…（提交源构建）。除 23ae4d82… 外的 launcher sha 全部作废、不得用于任何结果引用。
+
 - **500 行上限拆分（commit 前）**：加完归一化后 	ests/g10_p5_nvrtc_launcher.rs 达 830 行、超 500 上限，
   normify size gate 拒提交；故把比对机制抽到 	ests/support/launcher_compare_support.rs（417 行），主测试文件
   419 行；为纯搬移（无逻辑改动，proof 单测输出逐字相同）。因此：**attempt2 窗口实际用的是拆分前二进制
