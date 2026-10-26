@@ -19,7 +19,8 @@
     "**等价验收**：G5 已冻结的 9 个 case 上 host vs device 接触数组逐字段一致（复用已入库参考与输入，不新捕获；能位级比较的位级比较，非位级按既有 4·ULP 判据）；有 CUDA 时的窗口须先报 Arch 基线、经 Arch 双签后串行开窗；无 CUDA 环境的证据用 CPU 侧 seam/模拟（本机无法实机模拟的部分须如实标注）。**默认管线接上 CUDA 入口后 UNC-2 才可记 closed；未验证前不许宣称**。",
     "**精度语义不变**：GPU 路径不改，host 数值链路不改；不改 ABI、不改精度判据/容差、不动已 verified 证据语义（含 G2/G6 参考口径、G5 数字）。若发现某项必须变，停手报 Arch 转用户另批。",
     "**前置与顺序**：`2026-10-25-t4-source-hash-repin-13` verified（已完成）；**本片 start 必须等 `2026-10-25-g10-p5-faithful-fma-fix` verified（owner 同 Backend、同占 `src/`，严格串行）**。证据目录 `docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/`（README + receipt 含 task_id + 设计变更、体积/耗时数字、三态回退与不 panic 证据、门禁变更记录）。",
-    "不宣称「默认产品管线已具备 CUDA 入口」之外的任何整体结论：不宣称精度达标/上游完全等价/双平台通过/原生放行；未覆盖项（mesh multicontact、primitive 其余组合、Linux/T4 等）照旧如实列。「无 CUDA 机器可构建」必须实测，不得只做静态断言。"
+    "不宣称「默认产品管线已具备 CUDA 入口」之外的任何整体结论：不宣称精度达标/上游完全等价/双平台通过/原生放行；未覆盖项（mesh multicontact、primitive 其余组合、Linux/T4 等）照旧如实列。「无 CUDA 机器可构建」必须实测，不得只做静态断言。",
+    "**2026-10-26 Arch 按 start 前置 DES 裁决（结构项，已在 `target/stage2-prep/` 实测；实现细节按此执行）**：① **特性变体取 B**：`default=[\"cuda\"]`、`cuda=[\"cuda-probe\"]`（`cuda-probe` 保留为底层实现名、`cuda` 为唯一默认入口；不新增第二套依赖集合）；**不做 A 式 cfg 全面重命名**（实测会触碰 T4 `product_sources` 20 条中 17 条、需连做 repin，本片不承担；另立治理片）；文案迁移延后，证据里留迁移注记与后续片引用。② **门禁**：`[gate.unit]` 命令不变、基线从 604 更新为独占重测后的实际值（DES 估计 ~883/0/342）；新增 `unit-nocuda`（`cargo test --locked --no-default-features`）与 `clippy-nocuda`；`clippy-cuda` 的 `--features cuda-probe` 改为 `--features cuda`；G01 脚本去冗余 flag；`gates.toml` 的 old/new/理由/回滚按 `target/stage2-prep/samples/gates-stage2-draft.toml` 落进证据（属门禁策略变更，须留痕）。③ **历史 T4 审计 target**：新增非默认 test-only feature `t4-historical-audits`，把 7 个集成 target（`t4_camlight_precision`、`t4_face_fusion_repair`、`t4_face_normalization_control`、`t4_hessian_generation`、`t4_spatial_tendon_precision`、`t4_tendon_wake_precision`、`t4_trig_control_domain`）门控为 `all(cuda, t4-historical-audits)`：默认门禁不再跑它们（它们依赖本机 `target/` 冻结产物，干净 clone/CI 会 `NotFound` 假红），`--all-features`（G01）仍跑且必须在主树 pass；证据记录 7 target/27 测试与理由。④ **culib panic 修法**按 DES §6：`device_context()` 预检 + `catch_unwind` → `NoDevice`、NVRTC 预检 → `Compile`；测试 seam 仅 `#[cfg(test)]`（产品无 env 开关）；修前红/修后绿用 scratch 副本验证。⑤ **数字口径**：DES 测量在并发期取得，只作上界；正式证据必须在主树**独占**重测（默认/`--no-default-features`/`--features cuda` 三配置的 clean 时间、target/exe 体积、依赖数、测试计数），并把 `--no-default-features` 明确写成「无卡/快速 CI」路径。⑥ **UNC-2**：默认仍 Host + 运行时选择层；设备路径需真实可跑并经验证（GPU 窗口先报 Arch/Chief 双签）后才可记 closed，未验证前不许宣称。"
   ],
   "schedule": {
     "depends_on": [
@@ -38,7 +39,7 @@
     "resources": [],
     "priority": 56
   },
-  "note": "Arch 2026-10-25 登记（阶段拆分）：原 `2026-10-25-g10-p5-cuda-default-pipeline` 同时含「阶段 1 决策支撑（可立即做）」与「阶段 2 实现（须用户拍板）」，用一片验收会把未拍板的实现塞进 in_progress 并阻塞后续任务（repin-13 因 scope 冲突无法 start）。因此阶段 2 独立成片：阶段 1 收口为 verified（证据=`g10-p5-cuda-default-pipeline/`，receipt 记 `stage2_status=not_started`），阶段 2 待用户拍板后 start。repin-13 独立先做（既有红，任何选项下都要修）。**2026-10-26 09:25Z 用户拍板 cudarc 走 ②（`cuda` 特性默认开启、`--no-default-features` 可关），Chief 转达**：acceptance 已按 ② 与 6 条硬项重写（default-on 三路径全绿、`--no-default-features` 可构建可测试并作为无卡/快速 CI 路径、门禁口径变更留痕、三态回退不 panic（含阶段 1 记录的 `new()` 缺 `culib()` panic 必修 + 修前红/修后绿）、UNC-2 验证后才 closed、默认构建体积/耗时更新、精度语义不变）。**start 顺序**：等 `2026-10-25-g10-p5-faithful-fma-fix` verified 后（同 owner 同占 `src/`，严格串行），且本片 `depends_on` 已加该片。**start 前置（authoring，放 `target/stage2-prep/` 不入库）**：Cargo.toml 改法、`cuda` 与 `cuda-probe` 关系、默认 gate/G01 口径影响、`--no-default-features` 构建/测试路径写小样；由 Backend 在 capture 窗口跑完后做，不动主树。",
+  "note": "Arch 2026-10-25 登记（阶段拆分）：原 `2026-10-25-g10-p5-cuda-default-pipeline` 同时含「阶段 1 决策支撑（可立即做）」与「阶段 2 实现（须用户拍板）」，用一片验收会把未拍板的实现塞进 in_progress 并阻塞后续任务（repin-13 因 scope 冲突无法 start）。因此阶段 2 独立成片：阶段 1 收口为 verified（证据=`g10-p5-cuda-default-pipeline/`，receipt 记 `stage2_status=not_started`），阶段 2 待用户拍板后 start。repin-13 独立先做（既有红，任何选项下都要修）。**2026-10-26 09:25Z 用户拍板 cudarc 走 ②（`cuda` 特性默认开启、`--no-default-features` 可关），Chief 转达**：acceptance 已按 ② 与 6 条硬项重写（default-on 三路径全绿、`--no-default-features` 可构建可测试并作为无卡/快速 CI 路径、门禁口径变更留痕、三态回退不 panic（含阶段 1 记录的 `new()` 缺 `culib()` panic 必修 + 修前红/修后绿）、UNC-2 验证后才 closed、默认构建体积/耗时更新、精度语义不变）。**start 顺序**：等 `2026-10-25-g10-p5-faithful-fma-fix` verified 后（同 owner 同占 `src/`，严格串行），且本片 `depends_on` 已加该片。**start 前置（authoring，放 `target/stage2-prep/` 不入库）**：Cargo.toml 改法、`cuda` 与 `cuda-probe` 关系、默认 gate/G01 口径影响、`--no-default-features` 构建/测试路径写小样；由 Backend 在 capture 窗口跑完后做，不动主树。 **2026-10-26 Arch 按 DES 收口 start 前置**：变体 B（`cuda=[\"cuda-probe\"]`，T4 中性 685/0/137）；A 式重命名另立治理片；新增 `unit-nocuda`/`clippy-nocuda` 门禁与 `t4-historical-audits` 非默认 feature（7 个历史 T4 target 移出默认门禁，`--all-features` 仍跑）；culib panic 按 DES §6 修并留修前红/修后绿；正式证据需独占重测。DES 与实测在 `target/stage2-prep/`（DESIGN-stage2.md 242 行、migration-inventory.md 70 行、22 条 measurements）。**start 仍等 fix 片 verified**（同 owner 同占 `src/`/`Cargo.toml`），而 fix 片当前卡在用户对 B 不可行的重新拍板（A/C/D/B2）。",
   "revision": {
     "before": "cbeaf76260d23d7a2eb4c81dc142bb00c4126d03",
     "after": null
@@ -47,10 +48,22 @@
   "updated_at": "2026-10-25T16:34:00.000Z",
   "closed_at": null,
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" },
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "json",
       "path": "docs/development-evidence/g10-p5-cuda-default-pipeline-stage2/receipt.json",
