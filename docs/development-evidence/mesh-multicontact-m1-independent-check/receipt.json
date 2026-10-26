@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-mesh-multicontact-m1-independent-check",
+  "kind": "QA independent review (M1 dispatch audit + mesh-multicontact fixtures + upstream GPU reference capture)",
+  "role": "QA",
+  "verdict": "pass",
+  "blockers": 0,
+  "observations": 5,
+  "head_at_review": "35192320",
+  "reviewed": {
+    "delivery": "35192320",
+    "task": "2026-10-26-mesh-multicontact-m1-capture",
+    "evidence_dir": "docs/development-evidence/mesh-multicontact-m1",
+    "reference_sha256": "c83baffe6de695fdefda6852c574d5d0d7312ebb591c1b487dfc59ec126c206a",
+    "old_reference_shas": ["3a6475acf362795ab98e8ee39309b09102c2dc76f7a57c6c6dbc95a069a98734", "a8407a90ba7ab491aac7e73c94108e5abd07ce3a3d4218382477b109dc62fca0"]
+  },
+  "verdict_basis": [
+    "dispatch audit line-by-line verified against pinned source: (BOX,MESH)/(CYLINDER,MESH) are CONVEX (driver L79/L77), NATIVECCD override only (BOX,BOX), convex CCD multicontact gate/mesh_polyadr/multicontact/write_contact and gjk margin/type fallback all exist as cited; conclusion correct",
+    "fixtures shas match inputs manifest; CPU precheck independently rerun (pinned CPU, no CUDA context) reproduces nacon 4/1 on/off, ids [0,1,2,3], polygon_data_present=true, multicontact_path_hit=true, and all on/off dists exactly; evidence states precheck is fixture-validity only, not the criterion",
+    "reference is 5703 B sha c83baffe; raw A and B and committed reference are byte-identical; 2 cases count=4 ids [0,1,2,3], two_captures=true; provenance complete and matches actual machine/venv/script sha; captured_at = window start inside window; old references remain 3a6475ac/a8407a90",
+    "window facts independently recomputed from samples.csv: 129 samples, peak 5082, free_min 10980, util 94 streak 2, delta 418 vs guard baseline 4664, residual 0, end baseline 4677/11385; no cargo/rustc markers (RUN A 27.7 s is warp NVRTC JIT compiled 10804/10618 ms)",
+    "gap rulings honest (efc not recorded, polygon arrays absent -> M0b bins, contact.geom=[1,0] type-order) with no overreach; scripts archived with matching sha, repo execution copies removed, compare script unchanged",
+    "src/ and tests/ unchanged by delivery; gate unit count unchanged in run record"
+  ],
+  "independent_numbers": {
+    "dispatch_line_refs_verified": 19,
+    "dispatch_conclusion_correct": true,
+    "fixture_shas_match": true,
+    "precheck": {"result": "PASS 2/2", "mesh_box": "on 4 / off 1", "mesh_cylinder": "on 4 / off 1", "numeric_equality_with_committed": true},
+    "reference": {"bytes": 5703, "sha256": "c83baffe6de695fdefda6852c574d5d0d7312ebb591c1b487dfc59ec126c206a", "A_eq_B": true, "A_eq_ref": true, "counts": [4, 4], "ids": [[0, 1, 2, 3], [0, 1, 2, 3]]},
+    "window": {"samples": 129, "used_peak_mib": 5082, "free_min_mib": 10980, "util_max_pct": 94, "util_streak_ge80": 2, "delta_peak_mib": 418, "residual_cuda_pid": 0, "run_a_s": 27.7, "run_b_s": 6.9, "rust_compilation": false},
+    "scripts": {"capture": "cbd71dca...", "precheck": "4e8ee1d2...", "compare": "27ecb54a..."}
+  },
+  "gate": {
+    "command": "normify gate 2026-10-26-mesh-multicontact-m1-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "result": "exit 0 (fmt / clippy / clippy-cuda / unit all pass)",
+    "unit_run_record": ".normify/runs/2026-10-26-mesh-multicontact-m1-independent-check/unit.json"
+  },
+  "check": {
+    "command": "normify check 2026-10-26-mesh-multicontact-m1-independent-check --repo D:\\Rust\\mjwarp-rs",
+    "result": "exit 0 (run immediately after final gate; stdout at target/qa-m1/gate-check/check.log)"
+  },
+  "observations_summary": [
+    {"id": "O1", "level": "一般", "title": "dispatch audit 'primitive table has no mesh' wording wrong (L53 (PLANE,MESH): PRIMITIVE); target conclusion unaffected"},
+    {"id": "O2", "level": "一般", "title": "baseline compute-apps entry count says 34, raw has 31; no task process either way"},
+    {"id": "O3", "level": "建议", "title": "'byte_identical_after_copy' not re-verifiable after execution copies removed; provenance self-hash == archived sha"},
+    {"id": "O4", "level": "建议", "title": "README mesh-cylinder pos z 0.095 vs f32 0.0949999988"},
+    {"id": "O5", "level": "建议", "title": "util 94% streak 2 near 80%x3 guard threshold (no abort, correct)"}
+  ],
+  "boundaries": [
+    "no GPU window; capture not rerun; device-level comparison deferred to M2",
+    "mesh-mesh has dispatch conclusion only, no case",
+    "precheck is fixture validity only, not the criterion",
+    "no mesh support / cross-environment claims"
+  ],
+  "evidence_dir": "docs/development-evidence/mesh-multicontact-m1-independent-check",
+  "gpu_windows_used": 0,
+  "no_commit_no_done": true
+}

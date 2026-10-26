@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-mesh-multicontact-m1-independent-check",
+  "kind": "dispatch audit independent line-by-line verification",
+  "pinned_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "pinned_source": "docs/evidence/d04-complex-physics/authoring-runs/run-5/installed-source/_src/",
+  "verified": [
+    {"file": "collision_driver.py", "line": "L77", "expected": "(CYLINDER,MESH): CONVEX", "verified": true},
+    {"file": "collision_driver.py", "line": "L79", "expected": "(BOX,MESH): CONVEX", "verified": true},
+    {"file": "collision_driver.py", "line": "L80", "expected": "(MESH,MESH): CONVEX", "verified": true},
+    {"file": "collision_driver.py", "line": "L908-920", "expected": "_narrowphase split; L919 convex_narrowphase, L920 primitive_narrowphase", "verified": true},
+    {"file": "collision_driver.py", "line": "L910-912", "expected": "NATIVECCD disable overrides only (BOX,BOX) -> PRIMITIVE", "verified": true},
+    {"file": "collision_convex.py", "line": "L756/L761", "expected": "ccd_kernel_builder(use_multiccd) signature", "verified": true},
+    {"file": "collision_convex.py", "line": "L906-910", "expected": "(use_multiccd or BOX,BOX) and both types in {BOX,MESH,CYLINDER}", "verified": true},
+    {"file": "collision_convex.py", "line": "L911-919", "expected": "mesh with mesh_polyadr < 0 -> multiccd_idx = -1", "verified": true},
+    {"file": "collision_convex.py", "line": "L922-944", "expected": "multicontact(...) call", "verified": true},
+    {"file": "collision_convex.py", "line": "L946-951", "expected": "0-contact fallback to single EPA witness", "verified": true},
+    {"file": "collision_convex.py", "line": "L982-995", "expected": "loop over ncollision -> write_contact(id_=i)", "verified": true},
+    {"file": "collision_convex.py", "line": "L1236", "expected": "convex_narrowphase definition", "verified": true},
+    {"file": "collision_convex.py", "line": "L1266-1270", "expected": "nboxmesh/nmeshmesh/ncylmesh counters", "verified": true},
+    {"file": "collision_convex.py", "line": "L1275", "expected": "use_multiccd = (disableflags & MULTICCD)==0", "verified": true},
+    {"file": "collision_convex.py", "line": "L1283-1289", "expected": "npolygonmax/nmeshdegmax expansion for cyl/mesh combos", "verified": true},
+    {"file": "collision_convex.py", "line": "L1432", "expected": "use_multiccd passed to kernel builder", "verified": true},
+    {"file": "collision_gjk.py", "line": "L2216", "expected": "def multicontact(...); L2241 dists = wp.vec4()", "verified": true},
+    {"file": "collision_gjk.py", "line": "L2573", "expected": "def epa_phase(...) -> Tuple[float,int,vec3,vec3,int] (L2592-2593)", "verified": true},
+    {"file": "collision_gjk.py", "line": "L2669-2677", "expected": "margin != 0 or type not in {BOX,MESH,CYLINDER} -> idx = -1", "verified": true}
+  ],
+  "conclusion_verified": "mesh-box and mesh-cylinder route CONVEX convex-CCD multicontact (up to 4 contacts), not primitive and not single-contact fallback; mesh-mesh same CONVEX branch (reserved, no case)",
+  "conditions_verified": ["pair type CONVEX", "MULTICCD not disabled (default)", "both types in {BOX,MESH,CYLINDER} and margin==0", "mesh_polyadr>=0 and polygon data present"],
+  "wording_issue": {
+    "id": "O1",
+    "text": "dispatch-audit.md L26 claims the primitive table (L48-70) has no mesh, but collision_driver.py L53 has (PLANE, MESH): PRIMITIVE",
+    "impact": "target pairs (BOX,MESH)/(CYLINDER,MESH) are absent from the primitive table and are CONVEX per L79/L77, so the audit conclusion is unaffected",
+    "severity": "一般"
+  },
+  "cpu_fixture_evidence": "precheck PASS 2/2 (independently rerun; see qa-fixtures-precheck.json)"
+}

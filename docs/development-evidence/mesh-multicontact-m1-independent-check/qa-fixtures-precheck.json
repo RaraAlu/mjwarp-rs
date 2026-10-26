@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-mesh-multicontact-m1-independent-check",
+  "kind": "fixture sha + CPU precheck reproduction",
+  "fixtures": [
+    {"name": "cube.obj", "bytes": 570, "sha256": "90a8a990ae17a9265c28ada66788d2f523e15653a1419a28b8074c6edf17603d", "matches_inputs_manifest": true},
+    {"name": "mesh-box.xml", "bytes": 538, "sha256": "88b8d7af848a4aba25475f253bfafbfcd666107bfeddaf1291e07b91592a1e03", "matches_inputs_manifest": true},
+    {"name": "mesh-cylinder.xml", "bytes": 552, "sha256": "d0b75f91440ee0199020c05805bf26aaf201b0b64089a31b7df8915ba68a04bd", "matches_inputs_manifest": true}
+  ],
+  "fixture_semantics": {
+    "nativeccd_disabled": true,
+    "multiccd_not_disabled": true,
+    "margin_zero": true,
+    "gravity_zero": true,
+    "deterministic_capture_keyframe": true,
+    "mesh": "cube.obj 8 vertices / 12 triangles (convex); mesh geom is static, the box/cylinder has a freejoint",
+    "overlap": "box/cylinder bottom z=0.09 vs mesh top z=0.1 -> 0.01 penetration"
+  },
+  "precheck_rerun": {
+    "method": "archived precheck script copy with OUT redirected to target/qa-m1/precheck-rerun.json; pinned venv (python 3.12.13 / mujoco 3.15 / warp 1.15 / mujoco_warp 3.15), wp.set_device('cpu'), no CUDA context",
+    "result": "PASS 2/2, failures=[]",
+    "mesh-box": {"nacon_on": 4, "nacon_off": 1, "ids_on": [0, 1, 2, 3], "polygon_data_present": true, "multicontact_path_hit": true},
+    "mesh-cylinder": {"nacon_on": 4, "nacon_off": 1, "ids_on": [0, 1, 2, 3], "polygon_data_present": true, "multicontact_path_hit": true},
+    "numeric_equality_with_committed_precheck": "on/off nacon, ids, on/off dists, xml_sha256, qpos_bits all equal",
+    "script_sha256": "4e8ee1d25245ab919c2e7390c6549cc10f2d0481cbcc37645b98633bbd451eb2"
+  },
+  "precheck_role": {
+    "stated_in_evidence": true,
+    "quote": "precheck only: proves fixtures parse, carry mesh polygon data and trigger the MULTICCD multicontact path on the pinned CPU backend; the comparison reference is still the GPU capture",
+    "README_sections": ["§3 (只证 fixture 有效，不作判据)", "§5.4 (辅助，不作判据，M2 判据以 GPU 参考为准)"]
+  },
+  "logs": ["logs/precheck-rerun.log", "logs/precheck-rerun.json", "logs/qa-verify.log"]
+}

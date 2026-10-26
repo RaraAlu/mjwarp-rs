@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-26-mesh-multicontact-m1-independent-check",
+  "observations": [
+    {
+      "id": "O1",
+      "level": "一般",
+      "title": "dispatch 审计「primitive 表无 mesh」措辞错误（结论不受影响）",
+      "detail": "dispatch-audit.md L26 写「primitive 表（L48-70）只含 plane/sphere/capsule/box 组合，无 mesh」；但 pinned `collision_driver.py` L53 存在 `(GeomType.PLANE, GeomType.MESH): CollisionType.PRIMITIVE`（plane-mesh 走 primitive）。目标组合 (BOX,MESH)/(CYLINDER,MESH) 确实不在 primitive 表、在 L79/L77 为 CONVEX，因此「mesh-box/mesh-cylinder 走 CONVEX multicontact」结论正确。",
+      "repro": "docs/evidence/.../installed-source/_src/collision_driver.py L47-81；dispatch-audit.md L26",
+      "impact": "审计结论不受影响；但证据句被反例会打脸，审计可信度受影响。",
+      "suggestion": "改为「目标组合与 mesh-mesh 不在 primitive 表；primitive 表只含 plane-mesh 等非目标组合」"
+    },
+    {
+      "id": "O2",
+      "level": "一般",
+      "title": "baseline compute-apps 条目数写 34，原始行实测 31",
+      "detail": "README §4.1 与 receipt `raw_entry_count` 写 baseline compute-apps 34 条；`target/m1-mesh-multicontact/attempt1/baseline.txt` 最后一行按 `|` 分割实测 31 条（facts 的 post_compute_apps_raw 也是 31 条）。全部为桌面图形进程，按 `g10_p5|capture_mesh|mjwarp-parallel` 过滤 0 条，窗口结论不受影响。",
+      "repro": "target/m1-mesh-multicontact/attempt1/baseline.txt 最后一行；facts.txt post_compute_apps_raw",
+      "impact": "仅计数不准确；「无本任务进程」仍成立。",
+      "suggestion": "改为 31（或说明该 34 来自另一时点快照）"
+    },
+    {
+      "id": "O3",
+      "level": "建议",
+      "title": "「byte_identical_after_copy」在执行副本删除后无法独立复核",
+      "detail": "执行时脚本在仓库 `scripts/`，归档后已删除；`scripts/sha256.json` 的 `byte_identical_after_copy=true` 无法再对比执行副本。实际链条是「参考 provenance 的 authoring_script_sha256 = 归档副本 sha = cbd71dca…」+ 捕获脚本自哈希，等价但表述不同。",
+      "repro": "docs/development-evidence/mesh-multicontact-m1/scripts/sha256.json；参考 provenance.authoring_script_sha256",
+      "impact": "不影响可信度（自哈希链条成立）；审计时会多问一句。",
+      "suggestion": "改为「执行文件自哈希与归档副本 sha 一致」"
+    },
+    {
+      "id": "O4",
+      "level": "建议",
+      "title": "README §5.1 mesh-cylinder pos z 写作 0.095，实际 f32 0.0949999988",
+      "detail": "参考 mesh-cylinder 的 pos z 四行均为 0.0949999988079071；README 表格写 0.095（四舍五入），mesh-box 写 0.0949999988 是准确的。",
+      "repro": "upstream-mesh-multicontact-gpu.json cases.mesh-cylinder.output.fields.pos",
+      "impact": "无功能影响；数值引用精度不一致。",
+      "suggestion": "统一写 f32 原值"
+    },
+    {
+      "id": "O5",
+      "level": "建议",
+      "title": "util 峰值 94%、streak 2 接近 80%×3 守卫线",
+      "detail": "窗口 util_max=94%、util_streak_ge80=2（差一个连续点触发 abort）；guard 按规则未中止，free_min 10980 仍高于地板。证据写了 streak=2，但没有「近阈值」提示。",
+      "repro": "samples.csv 与 guard.log",
+      "impact": "本片窗口按规则有效；未来同负载下连续 3 点 ≥80% 会被中止。",
+      "suggestion": "证据保留「近阈值」注记即可，不需动作"
+    }
+  ],
+  "blockers": []
+}
