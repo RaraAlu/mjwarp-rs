@@ -38,9 +38,12 @@ pub struct CollisionGpuMeta {
     pub efc_width: i32,
 }
 
-/// 一次发射的 23 个宿主输入数组（与探针 `DeviceArrays` 相同的 slice 口径）。
+/// 一次发射的 32 个宿主输入数组（与探针 `DeviceArrays` 相同的 slice 口径）。
 ///
 /// 模型静态字段（mesh/hfield/octree）按上游口径与 world 无关：调用方给一份共享数据。
+/// `mesh_poly*` 9 项是 M0a sidecar 的可选输入：9 项全空（默认 `&[]`）时 sidecar 不构造、
+/// `mesh_poly_args = null`（无 mesh polygon 数据、mesh 多接触功能不启用、行为不变）；
+/// 部分为空或长度不自洽在 [`super::abi::validate_inputs`] 返回 `InvalidArgument`。
 #[derive(Clone, Copy, Debug)]
 pub struct CollisionGpuInputs<'a> {
     pub geom_xpos: &'a [f32],
@@ -58,6 +61,24 @@ pub struct CollisionGpuInputs<'a> {
     pub mesh_octadr: &'a [i32],
     pub mesh_vert: &'a [f32],
     pub mesh_graph: &'a [i32],
+    /// M0a sidecar：mesh polygon 数（逐 mesh，`nmesh`）。
+    pub mesh_polynum: &'a [i32],
+    /// M0a sidecar：mesh polygon 首行地址（逐 mesh）。
+    pub mesh_polyadr: &'a [i32],
+    /// M0a sidecar：polygon 法线（`3*nmeshpoly` 个 f32）。
+    pub mesh_polynormal: &'a [f32],
+    /// M0a sidecar：polygon 顶点首地址（逐 mesh）。
+    pub mesh_polyvertadr: &'a [i32],
+    /// M0a sidecar：polygon 顶点数（逐 mesh）。
+    pub mesh_polyvertnum: &'a [i32],
+    /// M0a sidecar：polygon 顶点索引。
+    pub mesh_polyvert: &'a [i32],
+    /// M0a sidecar：polygon 顶点 map 首地址（逐 mesh）。
+    pub mesh_polymapadr: &'a [i32],
+    /// M0a sidecar：polygon 顶点 map 项数（逐 mesh）。
+    pub mesh_polymapnum: &'a [i32],
+    /// M0a sidecar：polygon 顶点 map 索引。
+    pub mesh_polymap: &'a [i32],
     pub hfield_size: &'a [f32],
     pub hfield_nrow: &'a [i32],
     pub hfield_ncol: &'a [i32],

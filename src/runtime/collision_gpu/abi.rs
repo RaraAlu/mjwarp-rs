@@ -4,19 +4,27 @@
 //!
 //! ```text
 //! 偏移  字段                 偏移  字段
-//! 0     geom_xpos            184   nworld
-//! 8     geom_xmat            228   tolerance
-//! ...                        ...
-//! 176   oct_coeff            332   efc_width
-//!                           336   out（d_contact_out，136 字节）
-//!                            472   nacon
-//!                            480   nccd
-//!                            488   overflow
-//! 总大小 496，对齐 8
+//! 0     geom_xpos            344   out（d_contact_out，136 字节）
+//! 8     geom_xmat            480   nacon
+//! ...                       488   nccd
+//! 176   oct_coeff            496   overflow
+//! 184   mesh_poly_args（sidecar 指针）
+//! 192   nworld
+//! ...                       总大小 504，对齐 8
 //! ```
 //!
-//! 完整偏移表由 `tests.rs` 的 `abi_*` 测试逐项锁死；字段顺序**必须**与探针 `ProbeArgs`
-//! 完全一致（同 frozen 上游 revision 71da24d）。
+//! M0a（mesh multicontact 方案 A sidecar）：24 个指针（原 23 + `mesh_poly_args`）占 0–191；
+//! 标量块 192–343（全部较 496 版本 +8）；`out` 344–479；尾 3 指针 480/488/496；总 504。
+//! 唯一对齐关系：标量止于 344（8 对齐），故无隐式填充；`mesh_poly_args` 在 i32 块之前。
+//! sidecar 结构 `MjwarpMeshPolyArgs` 为 9 个指针（72 字节，align 8，顺序与 pinned
+//! `collision_convex.py` L197-205 一致）；9 个 mesh polygon 数组全空时该指针为 null
+//! （无 polygon 数据、mesh 多接触功能不启用、行为与改动前一致）。
+//!
+//! 完整偏移表由 `tests.rs`/`abi_tests.rs` 的 `abi_*` 测试逐项锁死。M0a 起 `CollisionArgs`
+//! 是冻结探针 `ProbeArgs`（496 字节、23 指针）的**超集**：前 23 个指针与 i32/f32 标量块
+//! 顺序/类型一致，仅在指针块末尾插入 `mesh_poly_args`（总 504 字节）；探针 `ProbeArgs`/
+//! 测试侧 `DeviceArrays` 保持 23 项输入语义（9 个 mesh_poly 数组以空 slice 传入），
+//! 冻结探针与旧 G5 证据零改动。
 //!
 //! 本模块同时持有**纯 CPU** 的输入校验 [`validate_inputs`]：宿主 slice 长度与 `meta`
 //! 给出的 ABI 容量必须匹配，否则在分配/发射前返回 `InvalidArgument`。
@@ -50,6 +58,27 @@ pub(crate) struct CollisionContactOut {
     pub(crate) efc_address_width: i32,
 }
 
+/// mesh polygon 输入的设备侧 sidecar（对应 `product.cu::MjwarpMeshPolyArgs`，方案 A）。
+///
+/// 9 个指针顺序与 pinned `collision_convex.py` L197-205 一致；结构 72 字节、align 8。
+/// 9 个宿主数组全空时不构造 sidecar（`CollisionArgs::mesh_poly_args` 为 null）。
+#[repr(C)]
+pub(crate) struct MjwarpMeshPolyArgs {
+    pub(crate) mesh_polynum: *const i32,
+    pub(crate) mesh_polyadr: *const i32,
+    pub(crate) mesh_polynormal: *const f32,
+    pub(crate) mesh_polyvertadr: *const i32,
+    pub(crate) mesh_polyvertnum: *const i32,
+    pub(crate) mesh_polyvert: *const i32,
+    pub(crate) mesh_polymapadr: *const i32,
+    pub(crate) mesh_polymapnum: *const i32,
+    pub(crate) mesh_polymap: *const i32,
+}
+
+// SAFETY: `MjwarpMeshPolyArgs` 是纯指针结构（72 字节、align 8、无 Rust 侧隐式填充），
+// 只作为设备指针目标整体上传；字段顺序由 `abi_tests.rs` 偏移测试锁死。
+unsafe impl cudarc::driver::DeviceRepr for MjwarpMeshPolyArgs {}
+
 /// 产品内核参数（对应 `product.cu::mjwarp_collision_args`，按值传入）。
 #[repr(C)]
 pub(crate) struct CollisionArgs {
@@ -76,6 +105,8 @@ pub(crate) struct CollisionArgs {
     pub(crate) oct_aabb: *const f32,
     pub(crate) oct_child: *const i32,
     pub(crate) oct_coeff: *const f32,
+    /// B3/M0a：mesh polygon sidecar 指针；9 个 mesh polygon 数组全空时为 null。
+    pub(crate) mesh_poly_args: *const MjwarpMeshPolyArgs,
 
     pub(crate) nworld: i32,
     pub(crate) ngeom: i32,
@@ -198,6 +229,108 @@ pub(crate) fn validate_inputs(inputs: &CollisionGpuInputs<'_>) -> Result<(), Col
     for (message, actual, expected) in checks {
         if expected != Some(actual) {
             return Err(CollisionGpuError::InvalidArgument(message));
+        }
+    }
+    validate_mesh_poly(inputs)?;
+    Ok(())
+}
+
+/// M0a mesh polygon sidecar 语义（写死）：
+/// - 9 个输入 slice 全空 → 不构造 sidecar（`mesh_poly_args = null`），语义为「无 mesh polygon
+///   数据、mesh 多接触功能不启用、行为与改动前完全一致」；
+/// - 部分为空或长度不自洽 → `InvalidArgument`（不静默禁用，避免掩盖宿主上传 bug）；
+/// - 9 个非空时校验逐 mesh 区间与内部一致性（polynum/polyadr/polyvertadr/polyvertnum/
+///   polymapadr/polymapnum 逐 mesh 数组等长、polynormal 为 3 的倍数、区间不越界）。
+fn validate_mesh_poly(inputs: &CollisionGpuInputs<'_>) -> Result<(), CollisionGpuError> {
+    let present = [
+        !inputs.mesh_polynum.is_empty(),
+        !inputs.mesh_polyadr.is_empty(),
+        !inputs.mesh_polynormal.is_empty(),
+        !inputs.mesh_polyvertadr.is_empty(),
+        !inputs.mesh_polyvertnum.is_empty(),
+        !inputs.mesh_polyvert.is_empty(),
+        !inputs.mesh_polymapadr.is_empty(),
+        !inputs.mesh_polymapnum.is_empty(),
+        !inputs.mesh_polymap.is_empty(),
+    ]
+    .into_iter()
+    .filter(|present| *present)
+    .count();
+    if present == 0 {
+        return Ok(());
+    }
+    if present != 9 {
+        return Err(CollisionGpuError::InvalidArgument(
+            "mesh_poly 输入不完整：9 个数组必须同时提供或同时为空",
+        ));
+    }
+    let nmesh = inputs.mesh_polynum.len();
+    if inputs.mesh_polyadr.len() != nmesh
+        || inputs.mesh_polyvertadr.len() != nmesh
+        || inputs.mesh_polyvertnum.len() != nmesh
+        || inputs.mesh_polymapadr.len() != nmesh
+        || inputs.mesh_polymapnum.len() != nmesh
+    {
+        return Err(CollisionGpuError::InvalidArgument(
+            "mesh_poly 逐 mesh 数组长度须一致（polynum/polyadr/polyvertadr/polyvertnum/polymapadr/polymapnum）",
+        ));
+    }
+    if !inputs.mesh_polynormal.len().is_multiple_of(3) {
+        return Err(CollisionGpuError::InvalidArgument(
+            "mesh_polynormal 长度须为 3 的倍数",
+        ));
+    }
+    let nmeshpoly = inputs.mesh_polynormal.len() / 3;
+    let mut total_polygons = 0usize;
+    for index in 0..nmesh {
+        let (adr, num) = (inputs.mesh_polyadr[index], inputs.mesh_polynum[index]);
+        if adr < 0 || num < 0 {
+            return Err(CollisionGpuError::InvalidArgument(
+                "mesh_polyadr/mesh_polynum 不得为负",
+            ));
+        }
+        if (adr as usize)
+            .checked_add(num as usize)
+            .is_none_or(|end| end > nmeshpoly)
+        {
+            return Err(CollisionGpuError::InvalidArgument(
+                "mesh_poly 区间超出 mesh_polynormal 行数",
+            ));
+        }
+        total_polygons += num as usize;
+    }
+    if total_polygons != nmeshpoly {
+        return Err(CollisionGpuError::InvalidArgument(
+            "mesh_polynum 之和须等于 mesh_polynormal 行数",
+        ));
+    }
+    for index in 0..nmesh {
+        let (adr, num) = (
+            inputs.mesh_polyvertadr[index],
+            inputs.mesh_polyvertnum[index],
+        );
+        if adr < 0 || num < 0 {
+            return Err(CollisionGpuError::InvalidArgument(
+                "mesh_polyvertadr/mesh_polyvertnum 不得为负",
+            ));
+        }
+        if (adr as usize)
+            .checked_add(num as usize)
+            .is_none_or(|end| end > inputs.mesh_polyvert.len())
+        {
+            return Err(CollisionGpuError::InvalidArgument("mesh_polyvert 区间越界"));
+        }
+        let (adr, num) = (inputs.mesh_polymapadr[index], inputs.mesh_polymapnum[index]);
+        if adr < 0 || num < 0 {
+            return Err(CollisionGpuError::InvalidArgument(
+                "mesh_polymapadr/mesh_polymapnum 不得为负",
+            ));
+        }
+        if (adr as usize)
+            .checked_add(num as usize)
+            .is_none_or(|end| end > inputs.mesh_polymap.len())
+        {
+            return Err(CollisionGpuError::InvalidArgument("mesh_polymap 区间越界"));
         }
     }
     Ok(())

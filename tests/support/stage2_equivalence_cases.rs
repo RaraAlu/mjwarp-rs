@@ -222,6 +222,16 @@ impl OwnedInputs {
             oct_aabb: &self.oct_aabb,
             oct_child: &self.oct_child,
             oct_coeff: &self.oct_coeff,
+            // M0a：stage2 等价 case 只有 23 项输入；9 个 mesh_poly 数组全空（sidecar 不构造）。
+            mesh_polynum: &[],
+            mesh_polyadr: &[],
+            mesh_polynormal: &[],
+            mesh_polyvertadr: &[],
+            mesh_polyvertnum: &[],
+            mesh_polyvert: &[],
+            mesh_polymapadr: &[],
+            mesh_polymapnum: &[],
+            mesh_polymap: &[],
             meta: self.meta,
         }
     }

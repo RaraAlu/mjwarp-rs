@@ -246,6 +246,16 @@ pub(crate) fn run_case(
         oct_aabb: &oct_aabb,
         oct_child: &oct_child,
         oct_coeff: &oct_coeff,
+        // M0a：冻结 G5 case 只有 23 项 bin；9 个 mesh_poly 数组全空（sidecar 不构造）。
+        mesh_polynum: &[],
+        mesh_polyadr: &[],
+        mesh_polynormal: &[],
+        mesh_polyvertadr: &[],
+        mesh_polyvertnum: &[],
+        mesh_polyvert: &[],
+        mesh_polymapadr: &[],
+        mesh_polymapnum: &[],
+        mesh_polymap: &[],
         meta,
     };
     let kernel = kernel_for(case);

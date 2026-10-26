@@ -178,7 +178,20 @@ fn product_nvrtc_launcher_matches_g5_probe_out1() {
         );
         macro_rules! inputs {
             ($meta:expr, $($field:ident),* $(,)?) => {
-                CollisionGpuInputs { $($field: &$field,)* meta: $meta }
+                CollisionGpuInputs {
+                    $($field: &$field,)*
+                    // M0a：G5 冻结 case 只有 23 项输入；9 个 mesh_poly 数组全空（sidecar 不构造）。
+                    mesh_polynum: &[],
+                    mesh_polyadr: &[],
+                    mesh_polynormal: &[],
+                    mesh_polyvertadr: &[],
+                    mesh_polyvertnum: &[],
+                    mesh_polyvert: &[],
+                    mesh_polymapadr: &[],
+                    mesh_polymapnum: &[],
+                    mesh_polymap: &[],
+                    meta: $meta,
+                }
             };
         }
         #[rustfmt::skip]

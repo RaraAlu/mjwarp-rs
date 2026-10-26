@@ -1,0 +1,199 @@
+{
+  "task_id": "2026-10-26-mesh-multicontact-m0a-abi-repin",
+  "kind": "mesh-multicontact-m0a-evidence",
+  "status": "in_progress",
+  "pinned_upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "abi": {
+    "collision_args_size_before": 496,
+    "collision_args_size_after": 504,
+    "collision_args_align": 8,
+    "implicit_padding": false,
+    "mesh_poly_args_offset": 184,
+    "scalar_block_shift": 8,
+    "out_offset": 344,
+    "nacon_nccd_overflow_offsets": [480, 488, 496],
+    "sidecar": {
+      "name": "MjwarpMeshPolyArgs",
+      "size": 72,
+      "align": 8,
+      "pointer_order_pinned": "collision_convex.py L197-205",
+      "fields": [
+        "mesh_polynum",
+        "mesh_polyadr",
+        "mesh_polynormal",
+        "mesh_polyvertadr",
+        "mesh_polyvertnum",
+        "mesh_polyvert",
+        "mesh_polymapadr",
+        "mesh_polymapnum",
+        "mesh_polymap"
+      ]
+    },
+    "entries_before": 6,
+    "entries_after": 6,
+    "new_entry_points": 0,
+    "offset_tests": [
+      "abi_tests::abi_collision_args_matches_device_layout_504",
+      "abi_tests::abi_mesh_poly_args_matches_device_sidecar_layout",
+      "abi_tests::all_six_entries_take_args_by_value"
+    ],
+    "device_side": {
+      "file": "src/physics/collision/cuda/product.cu",
+      "sidecar_struct_line": 25,
+      "args_field_line": 63
+    }
+  },
+  "upload_chain": {
+    "ring0_model_layer": [
+      "src/model/render.rs:473-481",
+      "src/io/render.rs:222",
+      "src/io/render.rs:238",
+      "src/io/render.rs:296",
+      "src/io/render.rs:320-380"
+    ],
+    "ring0_to_1": "caller-side responsibility; no product model->inputs adapter exists (known debt; backlog task 2026-10-26-product-collision-inputs-wiring)",
+    "ring1_inputs_struct": "src/runtime/collision_gpu/types.rs:48 (32 slices; 9 optional mesh_poly*)",
+    "ring2_upload": "src/runtime/collision_gpu.rs:148-157 (+ buffers.rs:24)",
+    "ring3_sidecar": "src/runtime/collision_gpu.rs:187-209 (null when 9 slices empty)",
+    "ring4_abi": "src/runtime/collision_gpu/abi.rs:63/106",
+    "ring5_device": "src/physics/collision/cuda/product.cu:25/63 (consumed in M2 only)",
+    "input_bins_kept": 23,
+    "callers_updated_with_empty_slices": [
+      "tests/g10_p5_nvrtc_launcher.rs",
+      "tests/g10_p5_primitive_plane_cuda.rs",
+      "tests/g10_p5_primitive_sphere_capsule_cuda.rs",
+      "tests/g10_p5_primitive_branches_cuda.rs",
+      "tests/support/primitive_qa_support.rs",
+      "tests/support/multicontact_qa_support.rs",
+      "tests/support/stage2_equivalence_cases.rs"
+    ]
+  },
+  "empty_sidecar_semantics": {
+    "all_empty": "sidecar not constructed; mesh_poly_args = null; no polygon data, mesh multicontact disabled, behavior unchanged",
+    "partial_or_inconsistent": "InvalidArgument (explicit error, no silent disable)",
+    "validation": "src/runtime/collision_gpu/abi.rs:241 validate_mesh_poly",
+    "unit_tests": [
+      "validate_tests::empty_mesh_poly_sidecar_is_null_and_valid",
+      "validate_tests::rejects_partial_mesh_poly_sidecar",
+      "validate_tests::rejects_inconsistent_mesh_poly_sidecar"
+    ],
+    "gpu_launch_level_verification": "deferred to M2 verification window (this task is CPU-only)"
+  },
+  "old_cases": {
+    "input_bins_kept": true,
+    "input_bins_count": 23,
+    "prepare_cases_py_changed": false,
+    "g5_evidence_touched": false,
+    "old_window_result_binding": "invalidated by ABI 496->504; old results and old binary sha are history only; M2 verification window must fully re-verify the 12 G5 cases",
+    "old_signed_binaries_history": {
+      "branches": "25410b3d46a62a66c46e08269aa74201e542d8be9864cd36e140f76bffc74bf5",
+      "plane": "115b5c9907aad60e73faec44819887c4b8950a24cde83c12d7a67cffd99a1207",
+      "sphere_capsule": "280f2e47944b5a01fc5bc7a834cb8a77f66d7a28c854fc359d4b540ca888f0e2",
+      "primitive": "ec56ff7448e91fef32c955cedc7c3cc868663c2d28ec3aa802ee105dcf81fd15",
+      "launcher": "84ee607479e44c7dbf4cc3dfb5b204252b83b0f8ccf244a83cd2239918d97836"
+    }
+  },
+  "t4_repin": {
+    "estimated_drift": 0,
+    "reason": "M0a changed files have empty intersection with the 20 product_sources in fixtures/precision/t4-current-kernels.json",
+    "literals_changed": false,
+    "new_paths_added_to_identity": false,
+    "pre": {
+      "recapture": "cargo test --locked --lib runtime::transfer::kernel::recapture -- --nocapture: 2 passed / 0 failed / 3 ignored, exit 0",
+      "identity_live": "cargo test --locked --test t4_identity_live_check: 2 passed / 0 failed, exit 0",
+      "logs": ["logs/pre-drift-recapture.log", "logs/pre-identity-live.log"]
+    },
+    "post": {
+      "recapture": "2 passed / 0 failed / 3 ignored, exit 0",
+      "identity_live": "2 passed / 0 failed, exit 0",
+      "logs": ["logs/post-drift-recapture.log", "logs/post-identity-live.log"]
+    },
+    "measured_drift": 0
+  },
+  "gates": {
+    "fmt": "exit 0",
+    "clippy": "exit 0",
+    "clippy_cuda": "exit 0",
+    "unit": {"command": "cargo test --locked", "passed": 980, "failed": 0, "ignored": 372, "baseline": {"passed": 975, "failed": 0, "ignored": 372}},
+    "unit_nocuda": {"command": "cargo test --locked --no-default-features --lib", "passed": 455, "failed": 0, "ignored": 5},
+    "collision_gpu_include_ignored": {"passed": 31, "failed": 0},
+    "all_features": {
+      "environment": {"MJWARP_MUJOCO_ROOT": "target/toolchains/mujoco-3.12.0/package", "toolchain": "1.99.0-x86_64-pc-windows-msvc"},
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-fail-fast",
+      "passed": 1029,
+      "failed": 0,
+      "ignored": 430,
+      "exit": 0,
+      "summary": "logs/all-features-summary.txt",
+      "raw_log": "target/m0a/all-features-raw.log",
+      "raw_log_sha256": "b6ce8def369c2d11c645aeb1df406a9b5d7e97216efc653b59f848bc50cf13b8",
+      "raw_log_note": "raw log kept in target/ (gitignored) to satisfy the evidence <=500 lines/file rule; summary parsed from it",
+      "bare_run_failure_log": "logs/all-features-bare-fail.log (MJWARP_MUJOCO_ROOT unset -> build.rs panic; dlltool.exe missing for cubecl-llvm-probe)"
+    },
+    "toolchain": {"rustc": "1.99.0 (b940084d7 2026-09-28)", "cargo": "1.99.0 (5f94df478 2026-08-27)"}
+  },
+  "device_source_smoke": {
+    "command": "cargo test --locked --features cuda-probe --lib runtime::collision_gpu::nvrtc_smoke -- --include-ignored --nocapture",
+    "source_bytes": 238969,
+    "source_sha256": "ec2e7acddc71eec2b8cd6b07cf70ba4a4a3e7eab258982815f2199349e1a047a",
+    "ptx_bytes": 3786520,
+    "entries": 6,
+    "entries_before": 6,
+    "previous_source_bytes": 237922,
+    "previous_source_sha256": "92ee236e519dc04b26b2d24400fa57f382ed9cea1b5b28596c238ab6cfa4cec8",
+    "note": "source change is the product.cu sidecar struct/field (+ probe-sync comments) only; entry count unchanged; log logs/post-smoke-final.log"
+  },
+  "size_gate_split": {
+    "reason": "M0a added 9 empty-slice lines to each CollisionGpuInputs construction; tests/g10_p5_primitive_plane_cuda.rs grew 493->503 and exceeded the 500-line commit gate",
+    "scope": "tests-only",
+    "main_file": "tests/g10_p5_primitive_plane_cuda.rs",
+    "main_file_lines_after": 450,
+    "support_file": "tests/support/primitive_plane_cases.rs",
+    "support_file_lines": 63,
+    "moved_items": ["PlaneCase", "TETRA", "CASES"],
+    "semantics_changed": false,
+    "src_new_changes": false,
+    "device_source_fingerprint_unchanged": true,
+    "device_source_smoke_unchanged": {
+      "source_bytes": 238969,
+      "source_sha256": "ec2e7acddc71eec2b8cd6b07cf70ba4a4a3e7eab258982815f2199349e1a047a",
+      "ptx_bytes": 3786520,
+      "entries": 6
+    },
+    "default_suite_after": {"passed": 980, "failed": 0, "ignored": 372},
+    "other_changed_test_files_lines": {
+      "tests/g10_p5_primitive_branches_cuda.rs": 376,
+      "tests/g10_p5_primitive_sphere_capsule_cuda.rs": 475,
+      "tests/g10_p5_nvrtc_launcher.rs": 437
+    }
+  },
+  "probe_sync": {
+    "frozen_probe_probe_args_size": 496,
+    "frozen_probe_probe_args_pointers": 23,
+    "product_args_is_superset": true,
+    "product_args_size": 504,
+    "difference": "one mesh_poly_args pointer inserted at the end of the pointer block (offset 184); first 23 pointers and scalar block order/types unchanged",
+    "device_arrays_semantics": "23 test-side inputs kept (INPUT_BINS 23); 9 mesh_poly arrays passed as empty slices by default",
+    "existing_probe_consistency_tests": [
+      "g10_p5_nvrtc_launcher::world_order_normalization_turns_row_swap_into_zero_diff",
+      "g10_p5_sdf_host::sdf_cpu_reference_is_well_formed_and_matches_g0b_structure"
+    ],
+    "gpu_probe_tests": "deferred to M2 verification window"
+  },
+  "redlines": {
+    "collision_semantics_changed": false,
+    "criteria_tolerance_reference_changed": false,
+    "sdf_path_changed": false,
+    "collision_upload_plan_fields": 14,
+    "device_sources_segments": 27,
+    "physics_mod_rs_diff": false,
+    "mesh_kernel_implemented": false,
+    "mesh_support_claimed": false
+  },
+  "uncovered": [
+    "ring0->1 model->CollisionGpuInputs wiring is caller-side only; no product adapter (known debt, backlog task)",
+    "mesh multicontact kernel not implemented (M2); GPU launch-level null/non-null sidecar behavior deferred to M2",
+    "all-features gate requires G01 env (MJWARP_MUJOCO_ROOT) and MSVC toolchain; bare run fails as logged",
+    "G5 12 verified cases must be fully re-verified in M2 because the 496->504 ABI change invalidates old binary sha bindings"
+  ]
+}

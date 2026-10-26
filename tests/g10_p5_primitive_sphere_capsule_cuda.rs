@@ -407,6 +407,16 @@ fn sphere_capsule_family_matches_b0_upstream_gpu_reference() {
             oct_aabb: &[],
             oct_child: &[],
             oct_coeff: &[],
+            // M0a：旧 case 只提供 23 项输入，9 个 mesh_poly 数组全空（sidecar 不构造）。
+            mesh_polynum: &[],
+            mesh_polyadr: &[],
+            mesh_polynormal: &[],
+            mesh_polyvertadr: &[],
+            mesh_polyvertnum: &[],
+            mesh_polyvert: &[],
+            mesh_polymapadr: &[],
+            mesh_polymapnum: &[],
+            mesh_polymap: &[],
             meta: CollisionGpuMeta {
                 nworld: nworld as i32,
                 ngeom: ngeom as i32,

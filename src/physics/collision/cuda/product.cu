@@ -3,8 +3,10 @@
 // adapted from G5 独立探针 probe.cu（同 frozen 上游 revision 71da24d），Apache-2.0，
 // 产品入口与探针共用同一批设备函数。
 //
-// 本文件只含产品入口需要的设备侧参数结构与三个 kernel：
-//   - `mjwarp_collision_args`（原 `ProbeArgs`；字段名/顺序/类型完全不变）
+// 本文件只含产品入口需要的设备侧参数结构与六个 kernel：
+//   - `mjwarp_collision_args`（原 `ProbeArgs`；M0a 起是冻结探针 `ProbeArgs` 的**超集**：
+//     前 23 个指针与标量块顺序/类型与探针一致，仅在指针块末尾插入 `mesh_poly_args` sidecar
+//     指针，总大小 496→504；探针 `ProbeArgs` 本身保持 496 冻结，不改探针/旧证据）
 //   - `mjwarp_collision_contact` / `mjwarp_collision_hfield` / `mjwarp_collision_sdf`
 //     （原 `kernel_contact` / `kernel_hfield` / `kernel_sdf`；仅加 `extern "C"`）
 // 辅助函数 `init_polytope` / `build_geom` / `build_params` / `sdf_type_of` 与
@@ -17,6 +19,22 @@
 //
 // 编译选项对齐 G5 探针的 nvcc `-O3 -arch=sm_89 --fmad=true -std=c++17`（无 fast-math）；
 // NVRTC 的默认优化级别即 -O3。
+
+// B3/M0a：mesh polygon sidecar（方案 A）。9 个指针顺序与 pinned `collision_convex.py`
+// L197-205 一致；9 个宿主数组全空时 `mjwarp_collision_args::mesh_poly_args == nullptr`
+// （无 polygon 数据、mesh 多接触功能不启用、行为与改动前一致）。M0a 只做 ABI 接线，
+// 设备侧消费在 M2（本片不实现 mesh 内核）。
+struct MjwarpMeshPolyArgs {
+  const int* mesh_polynum;
+  const int* mesh_polyadr;
+  const float* mesh_polynormal;
+  const int* mesh_polyvertadr;
+  const int* mesh_polyvertnum;
+  const int* mesh_polyvert;
+  const int* mesh_polymapadr;
+  const int* mesh_polymapnum;
+  const int* mesh_polymap;
+};
 
 // 设备侧指针集合（kernel 参数按值传递）。
 struct mjwarp_collision_args {
@@ -43,6 +61,8 @@ struct mjwarp_collision_args {
   const float* oct_aabb;
   const int* oct_child;
   const float* oct_coeff;
+  // B3/M0a：mesh polygon sidecar 指针（9 数组全空时为 nullptr；M2 才消费）。
+  const MjwarpMeshPolyArgs* mesh_poly_args;
 
   int nworld;
   int ngeom;

@@ -12,11 +12,14 @@
 //! （注入构造错误），测试里不创建真实 `CudaContext`。
 
 mod abi;
+mod buffers;
 mod context;
 mod error;
 mod source;
 mod types;
 
+#[cfg(test)]
+mod abi_tests;
 #[cfg(test)]
 mod fallback_tests;
 #[cfg(test)]
@@ -27,17 +30,19 @@ mod nvrtc_smoke;
 mod primitive_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod validate_tests;
 
 use std::sync::Arc;
 
 use cudarc::driver::{
-    CudaContext, CudaFunction, CudaModule, CudaSlice, CudaStream, DevicePtr, DevicePtrMut,
-    DeviceRepr, LaunchConfig, PushKernelArg, SyncOnDrop, ValidAsZeroBits,
+    CudaContext, CudaFunction, CudaModule, CudaSlice, CudaStream, LaunchConfig, PushKernelArg,
 };
 use cudarc::nvrtc::{CompileOptions, Ptx, compile_ptx_with_opts};
 
 use super::presence;
-use abi::{CollisionArgs, CollisionContactOut, validate_inputs};
+use abi::{CollisionArgs, CollisionContactOut, MjwarpMeshPolyArgs, validate_inputs};
+use buffers::{input_pointer, output_pointer, readback, truncated, upload, zeroed};
 pub use error::CollisionGpuError;
 pub use types::{CollisionGpuInputs, CollisionGpuMeta, CollisionGpuOutput};
 
@@ -138,6 +143,18 @@ impl CollisionGpuProgram {
         let mesh_octadr = upload(stream, inputs.mesh_octadr)?;
         let mesh_vert = upload(stream, inputs.mesh_vert)?;
         let mesh_graph = upload(stream, inputs.mesh_graph)?;
+        // M0a sidecar 的 9 路可选输入：全空时 `upload` 给 1 元素零缓冲（不启用），
+        // 非空时由 `validate_inputs` 保证 9 项齐全且内部自洽。
+        let mesh_poly_present = !inputs.mesh_polynum.is_empty();
+        let mesh_polynum = upload(stream, inputs.mesh_polynum)?;
+        let mesh_polyadr = upload(stream, inputs.mesh_polyadr)?;
+        let mesh_polynormal = upload(stream, inputs.mesh_polynormal)?;
+        let mesh_polyvertadr = upload(stream, inputs.mesh_polyvertadr)?;
+        let mesh_polyvertnum = upload(stream, inputs.mesh_polyvertnum)?;
+        let mesh_polyvert = upload(stream, inputs.mesh_polyvert)?;
+        let mesh_polymapadr = upload(stream, inputs.mesh_polymapadr)?;
+        let mesh_polymapnum = upload(stream, inputs.mesh_polymapnum)?;
+        let mesh_polymap = upload(stream, inputs.mesh_polymap)?;
         let hfield_size = upload(stream, inputs.hfield_size)?;
         let hfield_nrow = upload(stream, inputs.hfield_nrow)?;
         let hfield_ncol = upload(stream, inputs.hfield_ncol)?;
@@ -166,7 +183,32 @@ impl CollisionGpuProgram {
         let mut nccd = zeroed::<i32>(stream, 1)?;
         let mut overflow = zeroed::<u32>(stream, meta.nworld as usize)?;
 
+        // sidecar 存储先于 guards 声明：guard 借用它，drop 顺序要求 guards 先于该存储释放。
+        let mut sidecar_storage: Option<CudaSlice<MjwarpMeshPolyArgs>> = None;
         let mut guards = Vec::new();
+        // M0a：9 数组全空 → `mesh_poly_args = null`（不构造 sidecar，行为与改动前一致）。
+        if mesh_poly_present {
+            let sidecar = MjwarpMeshPolyArgs {
+                mesh_polynum: input_pointer(&mesh_polynum, stream, &mut guards),
+                mesh_polyadr: input_pointer(&mesh_polyadr, stream, &mut guards),
+                mesh_polynormal: input_pointer(&mesh_polynormal, stream, &mut guards),
+                mesh_polyvertadr: input_pointer(&mesh_polyvertadr, stream, &mut guards),
+                mesh_polyvertnum: input_pointer(&mesh_polyvertnum, stream, &mut guards),
+                mesh_polyvert: input_pointer(&mesh_polyvert, stream, &mut guards),
+                mesh_polymapadr: input_pointer(&mesh_polymapadr, stream, &mut guards),
+                mesh_polymapnum: input_pointer(&mesh_polymapnum, stream, &mut guards),
+                mesh_polymap: input_pointer(&mesh_polymap, stream, &mut guards),
+            };
+            sidecar_storage = Some(
+                stream
+                    .clone_htod(&[sidecar])
+                    .map_err(|error| CollisionGpuError::Launch(format!("upload: {error:?}")))?,
+            );
+        }
+        let mesh_poly_args: *const MjwarpMeshPolyArgs = match sidecar_storage.as_ref() {
+            Some(storage) => input_pointer(storage, stream, &mut guards),
+            None => std::ptr::null(),
+        };
         let nacon_pointer = output_pointer(&mut nacon, stream, &mut guards);
         let args = CollisionArgs {
             geom_xpos: input_pointer(&geom_xpos, stream, &mut guards),
@@ -192,6 +234,7 @@ impl CollisionGpuProgram {
             oct_aabb: input_pointer(&oct_aabb, stream, &mut guards),
             oct_child: input_pointer(&oct_child, stream, &mut guards),
             oct_coeff: input_pointer(&oct_coeff, stream, &mut guards),
+            mesh_poly_args,
 
             nworld: meta.nworld,
             ngeom: meta.ngeom,
@@ -402,63 +445,4 @@ pub(crate) fn program_from_parts(
     let ptx = ptx?;
     let context = device_result.map_err(CollisionGpuError::NoDevice)?;
     load_program(context, ptx)
-}
-
-fn zeroed<T: DeviceRepr + ValidAsZeroBits>(
-    stream: &Arc<CudaStream>,
-    len: usize,
-) -> Result<CudaSlice<T>, CollisionGpuError> {
-    stream
-        .alloc_zeros::<T>(len)
-        .map_err(|error| CollisionGpuError::Launch(format!("alloc: {error:?}")))
-}
-
-/// 上传 23 个输入数组之一；空数组给 1 元素零缓冲（0 字节分配在 CUDA 上无意义，
-/// 且对应内核在该数组上的读取次数为 0）。
-fn upload<T: DeviceRepr + ValidAsZeroBits>(
-    stream: &Arc<CudaStream>,
-    values: &[T],
-) -> Result<CudaSlice<T>, CollisionGpuError> {
-    if values.is_empty() {
-        return zeroed(stream, 1);
-    }
-    stream
-        .clone_htod(values)
-        .map_err(|error| CollisionGpuError::Launch(format!("upload: {error:?}")))
-}
-
-fn input_pointer<'a, T>(
-    slice: &'a CudaSlice<T>,
-    stream: &'a CudaStream,
-    guards: &mut Vec<SyncOnDrop<'a>>,
-) -> *const T {
-    let (pointer, guard) = slice.device_ptr(stream);
-    guards.push(guard);
-    pointer as usize as *const T
-}
-
-fn output_pointer<'a, T>(
-    slice: &'a mut CudaSlice<T>,
-    stream: &'a CudaStream,
-    guards: &mut Vec<SyncOnDrop<'a>>,
-) -> *mut T {
-    let (pointer, guard) = slice.device_ptr_mut(stream);
-    guards.push(guard);
-    pointer as usize as *mut T
-}
-
-fn readback<T: DeviceRepr, S: DevicePtr<T>>(
-    stream: &Arc<CudaStream>,
-    slice: &S,
-) -> Result<Vec<T>, CollisionGpuError> {
-    stream
-        .clone_dtoh(slice)
-        .map_err(|error| CollisionGpuError::Launch(format!("readback: {error:?}")))
-}
-
-fn truncated<T>(mut values: Vec<T>, count: usize) -> Vec<T> {
-    if count < values.len() {
-        values.truncate(count);
-    }
-    values
 }
