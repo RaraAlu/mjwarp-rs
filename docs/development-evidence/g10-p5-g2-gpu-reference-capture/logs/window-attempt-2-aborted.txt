@@ -1,0 +1,15 @@
+# 窗口尝试记录 attempt-2（作废，不拼接）
+
+- 时间：2026-10-26T01:29:11Z（window stamp `20261026-012911`）
+- 授权：Arch「继续，重跑同一窗口计划」后执行 `run_capture_gpu.ps1 -Execute`
+- 中止点：**preflight 步骤**（guard preconditions 已通过；尚未进入 round1/round2）。
+- 直接原因（runner 脚本错误，非 GPU 负载）：preflight 用 `python -c` 传内嵌双引号脚本文本，
+  PowerShell 5.1 向原生 exe 传参时把引号破坏，Python 收到破损的 `-c` 脚本 → `File "<string>", line 1`
+  语法错误；preflight 日志为空。此前 attempt-1 已修掉守卫快照解析 bug，本次为新的传参问题。
+- 本次尝试的 GPU 工作：**零**。Python 在 import warp 之前即解析失败，未建 CUDA context；guard 采样
+  baseline=peak=4078 MiB（delta 0）、residual 空、`rounds/` 空、最终参考文件不存在、无 sampler 残留；
+  跑后 GPU 4144 MiB / free 11918 / util 38% / 29 °C，`query-compute-apps` 仍为桌面上下文。
+- post 快照与 `query-compute-apps`：已落 `window-20261026-012911-post.txt`（abort 路径也执行）。
+- 修复（不改采集逻辑）：preflight 改为独立文件 `preflight_gpu.py`（文件参数，无引号转义问题）；
+  `Run-Python` 在 PowerShell 异常时也写日志；capture 脚本/采集逻辑未变。
+- 处置：attempt-2 作废、不拼接；attempt-3 = 重跑同一窗口计划（窗口数仍为 1）。

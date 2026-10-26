@@ -1,0 +1,20 @@
+# 窗口尝试记录 attempt-1（作废，不拼接）
+
+- 时间：2026-10-26T01:27:50Z（window stamp `20261026-012750`）
+- 授权：Arch「批准窗口」后执行 `run_capture_gpu.ps1 -Execute`
+- 中止点：**guard preconditions（第一处 `Assert-Guard`）**，在任何 GPU context / preflight / 采集之前。
+- 直接原因（runner/守卫集成错误，非外部 GPU 负载）：
+  `Assert-Guard: 无法将值"4165 MiB"转换为类型"System.Int32"`。
+  共享守卫模板 `scripts/gpu-window-guard.ps1` 的 `Get-GpuSnapshot` 用
+  `nvidia-smi --query-gpu=... --format=csv,noheader`（含单位）取行后直接 `[int]$parts[0]`；
+  本机 nvidia-smi 输出 `4165 MiB, 11897 MiB, 38 %`，带单位导致类型转换失败，守卫抛错 → 按纪律中止。
+- 本次尝试的 GPU 工作：**零**。只有 nvidia-smi 只读查询；无 preflight、无 round1/round2、无 kernel 编译、
+  无 CUDA context 建立（脚本在第一处 guard 检查即抛错）。跑后核验：`rounds/` 为空、最终参考文件不存在、
+  无 sampler 残留进程/文件、GPU 回落基线（used 4071 MiB / free 11991 MiB / util 41% / 29 °C）、
+  `query-compute-apps` 仍为 35 条桌面/系统上下文（无 CUDA 计算进程）。
+- 修复（不改共享模板）：runner 在 dot-source 后**本地覆盖** `Get-GpuSnapshot`，改用
+  `--format=csv,noheader,nounits` 解析整数（guard v2 规则、阈值、日志格式不变）；另加 300 s wall 看门狗
+  与 abort 元数据/exit 8。共享模板 `scripts/gpu-window-guard.ps1` 未被本片修改（不在本片范围）。
+- 口径：attempt-1 作废、不拼接；重开窗口整轮重跑（窗口计划/基线/停车码不变）。
+- 相关文件：`window-20261026-012750-pre.txt`、`window-20261026-012750-git.txt`、
+  `window-20261026-012750-guard.log`（仅 guard_init 一行）。

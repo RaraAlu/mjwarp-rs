@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-25-g10-p5-g2-gpu-reference-capture",
+  "status": "captured_pending_arch_review",
+  "head": "209b10397e522992f94e3eb220333a954a85096c",
+  "nature": "派生 GPU 版 capture 脚本（同上游/同输入/同 17 字段/同两次捕获逻辑），一次 GPU 窗口内两个独立进程 + 两个独立 kernel cache 各跑一轮，产出 docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32-gpu.json；旧 CPU 参考归档保留不改；不改 src/、判据、容差、G01；本片未 gate、未 commit",
+  "script": {
+    "old_path": "docs/development-evidence/g10-p5-gjk-epa/capture_mjwarp_f32.py",
+    "old_sha256": "1edd7c8e5d2c7ec7ba7cb9eb218e4533e4f7fdb77c435de1107ad4086c624312",
+    "new_path": "docs/development-evidence/g10-p5-g2-gpu-reference-capture/capture_mjwarp_f32_gpu.py",
+    "new_sha256": "91d62fd8dc1b99aba2e2e4bbf5356c8bfc2dbbfb415894f6a9187999b6f100a1",
+    "diff_log": "script-diff.txt",
+    "allowed_diff_items": [
+      "wp.set_device(\"cpu\") -> \"cuda\"",
+      "output filename -> upstream-mjwarp-f32-gpu.json",
+      "task_id/kind/purpose text",
+      "provenance GPU info + captured_at + kernel_cache_root",
+      "kernel cache dir -> target/g10-p5-g2/warp-cache-gpu/<round> (CLI arg)"
+    ],
+    "verbatim_blocks_verified": ["CASES", "FLOAT_FIELDS", "INT_FIELDS", "capture()", "load_qpos()"],
+    "verbatim_check_log": "logs/window-20261026-012956-verify-inputs.txt"
+  },
+  "input_contract": {
+    "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "old_reference_sha256": "a00c722892df5f190096f2c89e39455cd43df3be8e3fe46869b09c1f6d20f04f",
+    "verify_inputs_exit": 0,
+    "log": "inputs-vs-old.json",
+    "cases": {
+      "cylinder-box": {"count": 8, "qpos_len": 14, "xml_sha256_matches_file": true, "qpos_bits_match_fixture": true},
+      "ellipsoid-box": {"count": 2, "qpos_len": 14, "xml_sha256_matches_file": true, "qpos_bits_match_fixture": true},
+      "mesh-mesh": {"count": 2, "qpos_len": 14, "xml_sha256_matches_file": true, "qpos_bits_match_fixture": true},
+      "convex-mesh": {"count": 2, "qpos_len": 14, "xml_sha256_matches_file": true, "qpos_bits_match_fixture": true},
+      "degenerate-mesh": {"count": 2, "qpos_len": 14, "xml_sha256_matches_file": true, "qpos_bits_match_fixture": true}
+    }
+  },
+  "window": {
+    "count_planned": 1,
+    "count_used": 1,
+    "executed": true,
+    "valid_attempt": "attempt-3",
+    "window_stamp": "20261026-012956",
+    "captured_at": "2026-10-26T01:29:57Z",
+    "script": "run_capture_gpu.ps1",
+    "attempts": [
+      {
+        "stamp": "20261026-012750",
+        "status": "aborted_preconditions_zero_gpu_work",
+        "reason": "shared guard template Get-GpuSnapshot casts unit-suffixed '4165 MiB' to Int32 and throws; aborted before any GPU context/preflight/capture",
+        "gpu_work": "none (nvidia-smi reads only; rounds empty; no final json; no residual processes; GPU back to baseline)",
+        "fix": "runner-local Get-GpuSnapshot override using --format=csv,noheader,nounits; shared template unmodified; 300 s wall watchdog + abort meta/exit 8; abort path writes post snapshot + query-compute-apps",
+        "log": "logs/window-attempt-1-aborted.txt"
+      },
+      {
+        "stamp": "20261026-012911",
+        "status": "aborted_preflight_zero_gpu_work",
+        "reason": "preflight python -c script with embedded double quotes mangled by PowerShell 5.1 native argument passing; Python parse error File \"<string>\", line 1",
+        "gpu_work": "none (failed before warp import; guard baseline=peak=4078 MiB delta 0; rounds empty; no final json; no residual)",
+        "abort_path": "post snapshot + query-compute-apps written before exit 8",
+        "fix": "preflight moved to preflight_gpu.py (file argument); Run-Python logs PS exceptions too; capture logic unchanged",
+        "log": "logs/window-attempt-2-aborted.txt"
+      },
+      {
+        "stamp": "20261026-012956",
+        "status": "valid",
+        "gpu_work": "one window: preflight + round1 + round2 (two independent processes, two independent kernel caches)",
+        "timings": {
+          "preflight_s": 1.239,
+          "round1_s": 28.083,
+          "round2_s": 4.469,
+          "gpu_section_s_approx": 35,
+          "note": "round1 includes warp CUDA kernel first JIT; round2 uses a fresh independent cache but OS/JIT warm"
+        },
+        "sampling_025s": {"samples": 122, "peak_used_mib": 4417, "baseline_used_mib": 4078, "delta_mib": 339, "min_free_mib": 11645, "max_util_percent": 80, "max_temp_c": 30},
+        "guard": {
+          "template": "scripts/gpu-window-guard.ps1 (v2 rules unchanged)",
+          "local_override": "runner-local Get-GpuSnapshot uses --format=csv,noheader,nounits integer parsing; thresholds/rules/log format not relaxed; shared template file unmodified",
+          "baseline_used_mib": 4078,
+          "baseline_free_mib": 11984,
+          "guard_samples": 4,
+          "residual_context_pids": "",
+          "aborted": false,
+          "log": "logs/window-20261026-012956-guard.log"
+        },
+        "pre_snapshot": {"file": "logs/window-20261026-012956-pre.txt", "gpu_line": "NVIDIA GeForce RTX 4070 Ti SUPER, 16376 MiB, 4078 MiB, 11984 MiB, 41 %, 29, 596.36, 8.9", "compute_contexts": 35},
+        "post_snapshot": {"file": "logs/window-20261026-012956-post.txt", "gpu_line": "NVIDIA GeForce RTX 4070 Ti SUPER, 16376 MiB, 4071 MiB, 11991 MiB, 18 %, 30, 596.36, 8.9", "compute_contexts": 35},
+        "post_processing_note": "runner stopped after guard end due to PowerShell 5.1 native-stderr ErrorActionPreference; capture was already complete; CPU-only finalize_capture.ps1 finished sha/canonical/verify/compare/final from saved rounds (no second window)"
+      }
+    ]
+  },
+  "two_round": {
+    "mode": "raw_identical",
+    "round1_raw_sha256": "d86c73cb04fef7f777afabf7d1291a8abaf0d744c41bdad277bd42350c8c87aa",
+    "round2_raw_sha256": "d86c73cb04fef7f777afabf7d1291a8abaf0d744c41bdad277bd42350c8c87aa",
+    "round1_canonical_sha256": "10956ae0c113bd86541c96fdf7dedfcdd3408fb8a70d3bec5b45e8fb29846702",
+    "round2_canonical_sha256": "10956ae0c113bd86541c96fdf7dedfcdd3408fb8a70d3bec5b45e8fb29846702",
+    "two_captures_bitwise_identical": [true, true, true, true, true],
+    "case_counts": [8, 2, 2, 2, 2]
+  },
+  "final_artifact": {
+    "path": "docs/development-evidence/g10-p5-gjk-epa/upstream-mjwarp-f32-gpu.json",
+    "sha256": "d86c73cb04fef7f777afabf7d1291a8abaf0d744c41bdad277bd42350c8c87aa",
+    "bytes": 14330,
+    "source": "round1-raw",
+    "kind": "g2-upstream-mjwarp-f32-gpu-reference",
+    "device": "cuda"
+  },
+  "provenance": {
+    "versions": {"python": "3.12.13", "mujoco": "3.15.0", "warp": "1.15.0", "mujoco_warp": "3.15.0", "numpy": "2.5.4"},
+    "device": "cuda",
+    "gpu": {"name": "NVIDIA GeForce RTX 4070 Ti SUPER", "memory_total": "16376 MiB", "driver": "596.36", "compute_capability": "8.9"},
+    "authoring_script_sha256": "91d62fd8dc1b99aba2e2e4bbf5356c8bfc2dbbfb415894f6a9187999b6f100a1",
+    "kernel_cache_root": "target/g10-p5-g2/warp-cache-gpu",
+    "captured_at": "2026-10-26T01:29:57Z",
+    "authoring_only": true,
+    "reads_product_tree": false,
+    "product_python_dependency": false
+  },
+  "old_evidence_unchanged": {
+    "upstream-mjwarp-f32.json": {"before": "a00c722892df5f190096f2c89e39455cd43df3be8e3fe46869b09c1f6d20f04f", "after": "a00c722892df5f190096f2c89e39455cd43df3be8e3fe46869b09c1f6d20f04f"},
+    "capture_mjwarp_f32.py": {"before": "1edd7c8e5d2c7ec7ba7cb9eb218e4533e4f7fdb77c435de1107ad4086c624312", "after": "1edd7c8e5d2c7ec7ba7cb9eb218e4533e4f7fdb77c435de1107ad4086c624312"},
+    "git_status_note": "旧参考/旧脚本无改动；仅新增 upstream-mjwarp-f32-gpu.json"
+  },
+  "cpu_vs_gpu_reference_comparison": {
+    "kind": "describe-only (not an acceptance claim)",
+    "log": "logs/window-20261026-012956-compare.txt",
+    "json": "compare-cpu-vs-gpu.json",
+    "structural_fail": false,
+    "input_fail": false,
+    "per_case": {
+      "cylinder-box": {"count": "8/8", "integer_rows": "8/8", "float_bit_equal": "227/232", "frame_max_abs": 0.0, "dist_max_abs": 0.0, "pos_max_abs": 1.49e-8, "geom_xpos_bit_equal": "12/12"},
+      "ellipsoid-box": {"count": "2/2", "integer_rows": "2/2", "float_bit_equal": "42/58", "frame_max_abs": 8.193e-7, "dist_max_abs": 1.863e-9, "pos_max_abs": 7.451e-9, "geom_xpos_bit_equal": "12/12"},
+      "mesh-mesh": {"count": "2/2", "integer_rows": "2/2", "float_bit_equal": "39/58", "frame_max_abs": 5.364e-7, "dist_max_abs": 9.313e-9, "pos_max_abs": 7.451e-9, "geom_xpos_bit_equal": "12/12"},
+      "convex-mesh": {"count": "2/2", "integer_rows": "2/2", "float_bit_equal": "35/58", "frame_max_abs": 2.98e-7, "dist_max_abs": 1.49e-8, "pos_max_abs": 1.118e-8, "geom_xpos_bit_equal": "12/12"},
+      "degenerate-mesh": {"count": "2/2", "integer_rows": "2/2", "float_bit_equal": "52/58", "frame_max_abs": 2.651e-11, "dist_max_abs": 1.048e-8, "pos_max_abs": 1.863e-9, "geom_xpos_bit_equal": "10/12"}
+    },
+    "conclusion": "count/整型字段/结构完全一致；浮点差仅为 FMA 融合语义量级（frame 最大 8.193e-7 = 上游 CPU/GPU 自身差量级），不触发停车条件"
+  },
+  "pending": [
+    "Arch 审阅 → gate/commit（本片未 gate、未 commit）",
+    "QA 独立复核 2026-10-25-g10-p5-g2-gpu-reference-capture-independent-check（纯 CPU）",
+    "复核通过后 fix 片改 case_compare.rs 切换到新参考；届时旧参考在既有证据中注明归档"
+  ],
+  "boundaries": {
+    "no_src_change": true,
+    "no_old_evidence_change": true,
+    "no_python_in_product_tests": true,
+    "gpu_window_count": 1,
+    "no_claim": "不宣称精度达标/跨环境全绿/上游完全等价；本片只交付「GPU 参考已重采且有 provenance」这一事实"
+  }
+}
