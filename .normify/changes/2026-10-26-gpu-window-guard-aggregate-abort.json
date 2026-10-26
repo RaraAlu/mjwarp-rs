@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-26-gpu-window-guard-aggregate-abort",
+  "title": {
+    "zh": "GPU 窗口守卫：abort 判定改为消费采样器聚合（peak delta / free_min / util 连续段）",
+    "en": "Window guard: decide aborts from sampler aggregates (peak delta / free_min / sustained util)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "B1 attempt1 暴露守卫缺陷：外部任务在窗口内返回（采样 used_peak=7071 MiB、free_min=8991 MiB < 10240 地板、util_max=98%），而基于离散点的 guard 未 abort。按 Chief 2026-10-26 要求，在窗口守卫中新增「消费 0.25 s 采样记录」的聚合断言：peak delta、free_min、util 连续段，abort 条件不再依赖离散点；作为 B2 开窗的硬前置。阈值/既有离散断言语义不变（新增而非替换），窗口仍须 Arch 基线 + Chief 双签。",
+    "en": "Add a sampler-aggregate abort assertion to the GPU window guard (peak delta / free_min / sustained util) so window verdicts no longer depend on discrete spot samples; B2 window precondition."
+  },
+  "modules": {},
+  "acceptance": [
+    "**实现**：`scripts/gpu-window-guard.ps1` 新增 `Assert-GuardAggregates`（参数 `-State`、`-CsvPath` 或 `-Rows`、可选 `-OwnGpuStepActive`）：从采样记录计算 `used_peak/free_min/util_max/delta_peak/util 连续段`，abort 判定：free_min < `free_floor_mib` → `agg_free_below_floor`；delta_peak ≥ min(`increment_limit_mib`, total/2) → `agg_increment_over_limit`；无 own step 时 util 连续 ≥ `util_abort_consecutive` → `agg_sustained_util`；日志前缀 `guard_aggregates`/`guard_stop reason=agg_*`，与既有日志格式一致。**阈值与既有 `Assert-Guard` 离散断言语义不变**（新增聚合层，不替换）。",
+    "**自测**：`scripts/gpu-window-guard-dryrun.ps1` 增 4 个聚合用例（clean window 统计精确匹配 used_peak/free_min/delta/util；B1 attempt1 回归：free_min 8991 触发 `agg_free_below_floor`；delta 超限；util 连续段），dryrun **全 PASS**（原 19 + 4 = 23/23），纯 CPU、不建 CUDA context、不跑 GPU。",
+    "**窗口 harness 接线**：B2 窗口 runner（`target/g10-p5-primitive-sphere-capsule/window/run-window-attempt1.ps1`，gitignored）在 `Stop-GuardSampler` 后调用聚合断言并把 `guard_aggregate` 写入 facts；聚合 abort 时窗口退出码 5、如实记 attempt-aborted（不拼接）。",
+    "**证据**：`docs/development-evidence/gpu-window-guard-aggregate-abort/`（README + receipt 含 task_id + `dryrun-run.log` + `dryrun-out/` 日志），单文件 ≤500 行、UTF-8 无 BOM、无二进制。",
+    "**边界**：不改阈值/日志格式语义；不宣称「守卫绝对可靠」；不改变窗口双签纪律；不在窗口内编译。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P5-复杂物理",
+    "owner": "Arch",
+    "files": [
+      "scripts/",
+      "docs/development-evidence/gpu-window-guard-aggregate-abort/"
+    ],
+    "resources": [],
+    "priority": 44
+  },
+  "note": "Arch 2026-10-26 登记（B2 开窗硬前置，Chief 要求）：B1 attempt1 的外部负载重叠（free_min 8991 < 10240、util 98%）没有被离散点 guard 抓住，故先把 abort 判定改为采样器聚合再开 B2 窗口。`scripts/` 不在 B2 任务 files 内，故单独立片；owner Arch（窗口 harness 属 Arch 职责）。阈值与既有断言不变，不动 ABI/判据。",
+  "revision": {
+    "before": "5b63d8e0bd79b906350dcf12f799a641b6e26732",
+    "after": null
+  },
+  "created_at": "2026-10-26T13:06:00.000Z",
+  "updated_at": "2026-10-26T13:04:00.505Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/gpu-window-guard-aggregate-abort/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-26-gpu-window-guard-aggregate-abort"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
