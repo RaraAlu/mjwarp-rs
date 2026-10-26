@@ -87,6 +87,20 @@ node scripts/commit-msg-selfcheck.mjs <task-id> <提交信息文件>
   `forbid_claim` 拒了一次——手写容易漏，故做成脚本。改写口径示例：「不宣称精度目标已达成」。
 - 脚本自带 `--self-test`（4 条：干净/含禁词/CRLF/BOM），可复跑；提交说明措辞改完再跑，exit 0 才能提交。
 
+### 7.2 字节级自查（2026-10-27 起，强制，与 scope/commit-msg 同级）
+
+改动 `.ps1`/`.psm1`，或任何**声称「只改注释/只改文档文字」**的代码/脚本文件时，提交前必须跑：
+
+```text
+node scripts/byte-selfcheck.mjs --base <rev> [--paths a,b] [--comments-only] [--allow-bom-change]
+# 自检：node scripts/byte-selfcheck.mjs --self-test
+```
+
+- 检查项：① 改动文件严格 UTF-8 可解码（二进制自动跳过）；② **BOM 状态相对 base 提交不得变化**（例如 `.ps1` 原有 UTF-8 BOM 不能被编辑工具悄悄去掉；确需改编码时显式 `--allow-bom-change`）；③ `--comments-only` 时「去注释行/空行后的行序列」必须与 base 完全一致，即「声明只改注释」要字节级成立。
+- 退出码：0 通过 / 1 违规（打印文件与具体原因）/ 2 用法错误；`--self-test` 5 条可复跑。
+- **触发事实**：2026-10-27 T4 债务 B 落盘（`c8753bdb`）标称「仅注释改动」，实际去掉了 `scripts/test-windows-g01.ps1` 的 UTF-8 BOM（WinPS 5.1 会按 ANSI 读无 BOM 文件），由 `9d8db76c` 恢复。**教训：仅注释改动也要做字节级检查，不能靠自审偶发发现。**
+- 常用组合：`--base <本片起点> --comments-only`（注释类改动）；`--base <本片起点>`（普通脚本改动，仅校验编码/BOM）；新增文件会因 base 不存在而只做 UTF-8 校验。
+
 
 ## 8. 夜间负载与重测试互斥（2026-10-27 更新，Chief 指令）
 

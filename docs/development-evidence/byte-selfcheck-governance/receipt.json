@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-byte-selfcheck-bom-encoding",
+  "kind": "Governance/tooling: byte-level self-check (UTF-8 / BOM preservation / comment-only equality)",
+  "role": "Arch",
+  "base_head": "9d8db76c",
+  "trigger": {
+    "fact": "T4 债务 B 落盘 c8753bdb 标称「仅注释改动」，实际去掉 scripts/test-windows-g01.ps1 的 UTF-8 BOM（21907 B），由 9d8db76c 恢复（21910 B）",
+    "directive": "Chief 2026-10-27：把 .ps1/.psm1 的 BOM 与编码校验加进机械自查，和 scope/commit-msg 同级；声明不改的文件要能证明「注释外 byte-level 相等」"
+  },
+  "deliverables": {
+    "script": "scripts/byte-selfcheck.mjs",
+    "usage": "node scripts/byte-selfcheck.mjs --base <rev> [--paths a,b] [--comments-only] [--allow-bom-change] [--repo <path>]",
+    "self_test": "node scripts/byte-selfcheck.mjs --self-test",
+    "checks": [
+      "严格 UTF-8 可解码（二进制含 NUL 自动跳过）",
+      "BOM 状态相对 base 提交不得变化（例外需 --allow-bom-change）",
+      "--comments-only：去注释行/空行后的行序列与 base 完全一致"
+    ],
+    "exit_codes": {"0": "通过", "1": "违规（打印文件与原因）", "2": "用法/读取错误"},
+    "checklist": "docs/development-evidence/scheduling-registration-checklist.md §7.2"
+  },
+  "self_test_results": {
+    "selftest": "5/5 PASS（BOM 有/无识别、仅注释行新增不变、注释外多一行失败、非法 UTF-8 被拒）",
+    "positive_control": "base 0e39bf17（B 落盘前）→ scripts/test-windows-g01.ps1 在 plain 与 --comments-only 两种模式下均 exit 0（BOM 保留、注释外一致）",
+    "negative_control": "base c8753bdb（BOM 缺失的缺陷提交）→ exit 1，报 `BOM 状态变化（base=无 current=有）`",
+    "override_control": "同上加 --allow-bom-change → exit 0（显式允许编码变更时才放行）"
+  },
+  "scope": {
+    "changed_paths": [
+      "scripts/byte-selfcheck.mjs",
+      "docs/development-evidence/scheduling-registration-checklist.md",
+      "docs/development-evidence/byte-selfcheck-governance/"
+    ],
+    "not_changed": ["src/", "tests/", "fixtures/", "Cargo.*", "scripts/test-windows-g01.ps1（本片只读引用）", "criteria/tolerances/window data"]
+  },
+  "gate": {
+    "command": "（本任务 checks = json 交割记录 + forbid_claim，无 gate 项）",
+    "note": "纯工具 + 文档；未改产品代码，未跑 cargo 门禁"
+  },
+  "boundaries": [
+    "不改产品代码、判据、容差、窗口数据；不自造编码口径（BOM 以 base 为基准）",
+    "只做提交前自查，不替代 hook"
+  ],
+  "evidence_dir": "docs/development-evidence/byte-selfcheck-governance"
+}
