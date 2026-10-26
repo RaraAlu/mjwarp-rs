@@ -41,10 +41,8 @@ fn compile(config: ProbeConfig, info: &DeviceInfo) -> Result<Vec<cache::Stage>, 
         use crate::runtime::cubecl::{self, KernelStage};
         if config.backend == ProbeBackend::CubeClCpp {
             use cudarc::nvrtc::sys;
-            // SAFETY: 只检测编译器库。
-            if !unsafe { sys::is_culib_present() } {
-                return Err(ProbeError::NvrtcUnavailable);
-            }
+            // NVRTC 库存在性预检（缺库返回 NvrtcUnavailable；cudarc 缺库会 panic）。
+            crate::runtime::cuda::require_nvrtc()?;
             let (mut major, mut minor) = (0, 0);
             // SAFETY: 两个输出地址保持有效。
             unsafe { sys::nvrtcVersion(&mut major, &mut minor) }

@@ -250,11 +250,9 @@ fn cpp_source(kernel: KernelStage) -> Result<cubecl_cpp::ComputeKernel, ProbeErr
 
 #[cfg(feature = "cubecl-cpp-probe")]
 fn compile_cpp(kernel: KernelStage, sm: u32) -> Result<CompiledProbe, ProbeError> {
-    use cudarc::nvrtc::{CompileOptions, compile_ptx_with_opts, sys};
-    // SAFETY: 仅探测编译器库，不传用户指针。
-    if !unsafe { sys::is_culib_present() } {
-        return Err(ProbeError::NvrtcUnavailable);
-    }
+    use cudarc::nvrtc::{CompileOptions, compile_ptx_with_opts};
+    // NVRTC 库存在性预检（缺库返回 NvrtcUnavailable；cudarc 缺库会 panic）。
+    crate::runtime::cuda::require_nvrtc()?;
     let entrypoint = kernel.entrypoint();
     let kernel = cpp_source(kernel)?;
     let mut include_paths = Vec::new();

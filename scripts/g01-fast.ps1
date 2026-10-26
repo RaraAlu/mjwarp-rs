@@ -39,7 +39,7 @@ $env:MJWARP_MUJOCO_ROOT = Join-Path $root 'target\toolchains\mujoco-3.12.0\packa
 $env:MJWARP_MUJOCO_DLL = Join-Path $env:MJWARP_MUJOCO_ROOT 'bin\mujoco.dll'
 $env:CUDA_PATH = Join-Path $root 'target\toolchains\cuda-12.8.1'
 $env:PATH = (Join-Path $env:CUDA_PATH 'bin') + ';' + $env:PATH
-$featureArgs = if ($AllFeatures) { @('--all-features') } else { @('--features', 'native-model-probe,cuda-probe') }
+$featureArgs = if ($AllFeatures) { @('--all-features') } else { @('--features', 'native-model-probe') }
 
 Write-Host "G01 fast loop（$mode，$(if ($AllFeatures) { 'all-features' } else { 'g01 features' })）"
 Write-Host '开发迭代工具：不替代 scripts/test-windows-g01.ps1；不校验样本哈希、不跑排除清单、不记录验收证据。'

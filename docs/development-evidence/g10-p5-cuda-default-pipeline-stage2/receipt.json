@@ -1,0 +1,141 @@
+{
+  "task_id": "2026-10-25-g10-p5-cuda-default-pipeline-stage2-r2",
+  "title": "G10@P5 CUDA 默认管线接线 · 阶段 2：cuda 默认特性 + 历史 T4 审计 gating + 三态回退 + 运行时选择层",
+  "status": "in_progress",
+  "head": "ec44ca0d",
+  "gpu_windows": 0,
+  "unc2": "open (not closed): 默认管线尚未在实机验证 host vs device 等价性；未验证前不宣称可用 CUDA 默认入口",
+  "decisions": {
+    "feature_variant": "B: default=[\"cuda\"], cuda=[\"cuda-probe\"]；单一依赖集合；不做 A 式 cfg 重命名",
+    "t4_historical_audits": "非默认 test-only feature；7 个 target 门控 all(cuda, t4-historical-audits)",
+    "gates": "gate.unit 命令不变基线 971/0/364；新增 unit-nocuda(605/0/7)/clippy-nocuda；clippy-cuda 改 --features cuda；G01 脚本去冗余 flag",
+    "precision": "GPU 路径/host 数值链/ABI/判据/容差/期望值/已 verified 证据语义均未改",
+    "migration": "cuda-probe 保留为代码内部名与历史命令兼容名；文案迁移延后，迁移债见 README §8"
+  },
+  "three_configs_clean": {
+    "default": {
+      "build_ms": 16906,
+      "target_mib": 8977.4,
+      "exe_mib": 77.98,
+      "external_dependencies": 24,
+      "tests": {
+        "passed": 971,
+        "failed": 0,
+        "ignored": 364,
+        "binaries": 111,
+        "lib": "698/0/137"
+      }
+    },
+    "no_default_features": {
+      "build_ms": 6189,
+      "target_mib": 1807.5,
+      "exe_mib": 19.69,
+      "external_dependencies": 0,
+      "cudarc_in_tree": 0,
+      "env": "PATH 去 CUDA/NVIDIA；CUDA_PATH/CUDA_HOME/CUDA_INCLUDE/CUDA_LIB_PATH/CUDA_BIN_PATH 清空",
+      "tests": {
+        "passed": 605,
+        "failed": 0,
+        "ignored": 7,
+        "binaries": 111,
+        "lib": "455/0/5"
+      }
+    },
+    "features_cuda": {
+      "build_ms": 16803,
+      "target_mib": 8977.4,
+      "exe_mib": 77.98,
+      "external_dependencies": 24,
+      "tests": {
+        "passed": 971,
+        "failed": 0,
+        "ignored": 364,
+        "binaries": 111
+      }
+    },
+    "cargo_lock_changed": false
+  },
+  "gates": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy-cuda": "pass (--features cuda)",
+    "clippy-nocuda": "pass",
+    "unit": "pass 971/0/364 (lib 698/0/137)",
+    "unit-nocuda": "pass 605/0/7 (lib 455/0/5)",
+    "commands": [
+      "cargo fmt --check",
+      "cargo clippy --all-targets --locked -- -D warnings",
+      "cargo clippy --all-targets --locked --features cuda -- -D warnings",
+      "cargo clippy --all-targets --locked --no-default-features -- -D warnings",
+      "cargo test --locked",
+      "cargo test --locked --no-default-features"
+    ]
+  },
+  "fallback_no_panic": {
+    "product_api": {
+      "no_driver": "NoDevice(\"CUDA驱动库缺失（libcuda/nvcuda 不可加载）\")",
+      "driver_but_no_device": "NoDevice(\"CudaContext::new(0): …\")（seam 注入模拟）",
+      "no_nvrtc": "Compile(\"NVRTC库缺失（nvrtc 不可加载）\")",
+      "culib_panic_caught": "NoDevice(\"…panic（cudarc culib）已捕获\")"
+    },
+    "cli": {
+      "no_driver": "DriverUnavailable",
+      "driver_but_no_device": "InvalidDevice{requested:0,available:0}（seam 注入模拟）",
+      "no_nvrtc": "NvrtcUnavailable"
+    },
+    "pre_fix_red": "scratch 副本还原守卫（去驱动预检/去 catch_unwind，保留 panic 注入）→ panic 逃逸 exit 101（scratch-prefix-red.log）",
+    "post_fix_green": "同测试 exit 0；panic 被捕获且不外泄（api-3 log）；三条路径 API 4 测试 + CLI 3 测试均独立进程单跑 exit 0",
+    "seam_discipline": "seam 仅 #[cfg(test)]（原子 + 串行锁 + RAII 复位）；产品二进制 target/debug/mjwarp-rs.exe 扫描 seam/env 标识 0 命中；改动文件无 std::env::var",
+    "not_covered": [
+      "真实无驱动/无卡机器未实机（本机有驱动+设备）",
+      "有驱动无设备 / culib panic 为 seam 注入模拟",
+      "普通 shell 下 cudarc NVRTC 探测为 false（NVRTC DLL 不在 PATH），产品 new() 全链路未在 CPU 环境覆盖"
+    ]
+  },
+  "selection_layer": {
+    "file": "src/runtime/backend.rs（新文件；不改 host 数值链/device kernel）",
+    "types": [
+      "BackendChoice{Host,Device}",
+      "BackendStatus{HostOnly(BackendUnavailable),CudaReady}",
+      "BackendUnavailable{FeatureDisabled,DriverUnavailable,NoDevice,NvrtcUnavailable,Compile}"
+    ],
+    "probe_order": "driver -> device_count -> nvrtc -> PTX compile；失败 HostOnly(原因)，不 panic",
+    "cache": "OnceLock<BackendStatus>（进程一次）；设备入口 device_program() lazy OnceLock",
+    "default": "Host；仅显式 BackendChoice::Device 且 CudaReady 时 device_permitted 为真",
+    "cli_api_consistency": "共享 runtime::presence 探测；seam 测试断言无驱动/无 NVRTC 时 API 与 CLI 错误码一一对应",
+    "tests": "6 条 cuda 构建测试 + 1 条 no-default 构建测试，全部独立进程通过（backend-tests-default/nocuda.log）"
+  },
+  "historical_t4_audits": {
+    "targets": [
+      "t4_camlight_precision",
+      "t4_face_fusion_repair",
+      "t4_face_normalization_control",
+      "t4_hessian_generation",
+      "t4_spatial_tendon_precision",
+      "t4_tendon_wake_precision",
+      "t4_trig_control_domain"
+    ],
+    "gating": "#![cfg(all(feature=\"cuda\", feature=\"t4-historical-audits\"))]（7 个 tests 文件第 3 行）",
+    "default_gate": "0 tests（gating 生效）",
+    "with_feature": "27/0（3/4/4/4/4/4/4，0 ignored；集合与改动前 cuda-probe 运行逐项相同）",
+    "all_features": "MSVC 工具链 + G01 环境：27/0（allfeatures-audit27.log）",
+    "t4_lineage": "未改 product_sources / 未 repin；t4_identity_live_check 全绿"
+  },
+  "equivalence": {
+    "status": "pending ③b/③c",
+    "plan": "申请 GPU 窗口后复跑 host vs device（已冻结 case；位级优先，否则既有 4 ULP），与已入库参考对齐；窗口纪律：--test-threads=1、0.25 s 采样、守卫 v2、窗口内不编译其它任务、post 快照 + 结束基线 + query-compute-apps 无残留"
+  },
+  "migration_debt": [
+    "代码 cfg 仍 4437 行 feature=\"cuda-probe\"（486 文件；名称统一需 T4 product_sources 17/20 repin，另立治理片）",
+    "FeatureDisabled(\"cuda-probe\") 文案 167 行/70 文件（延后）",
+    "6 份文档手工命令在变体 B 下静默 0 tests（README §8 列行号）",
+    "G01 之外 16 处脚本冗余 --features cuda-probe（可工作但冗余）",
+    "--features cuda-probe 不再触发 7 个历史审计 target（变体 B 固有）"
+  ],
+  "boundaries": [
+    "GPU 窗口 0（截至 ③a）；等价性未实机验证，UNC-2 open",
+    "不宣称精度达标/跨环境全绿/上游完全等价/双平台通过/原生放行/G10 已实现/完整物理通过",
+    "NaN payload 不作位级判据；边界计数 16；host 与 device 两口径并存，不宣称二者数值等价",
+    "未跑全量 G01（按 Arch 指示只跑定向 host-gnu/host-msvc/clippy-gnu-cuda）"
+  ]
+}

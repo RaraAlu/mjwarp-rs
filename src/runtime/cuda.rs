@@ -27,6 +27,28 @@ fn cuda_error(stage: &'static str) -> impl FnOnce(DriverError) -> ProbeError {
     }
 }
 
+/// CLI/探针前置：NVIDIA 驱动库不可用时返回可诊断的 `DriverUnavailable`（不 panic、不探测设备）。
+pub(crate) fn require_driver() -> Result<(), ProbeError> {
+    if super::presence::driver_library_present() {
+        Ok(())
+    } else {
+        Err(ProbeError::DriverUnavailable)
+    }
+}
+
+/// CLI/探针前置：NVRTC 库不可用时返回可诊断的 `NvrtcUnavailable`（不 panic、不调用编译器）。
+///
+/// 产品构建里只有 cubecl 编译后端会调用它，默认 `cuda` 构建无调用者；测试构建保留该前置用于
+/// 覆盖「有设备无 NVRTC」的 CLI 错误路径。
+#[cfg(any(feature = "cubecl-cpp-probe", feature = "cubecl-llvm-probe", test))]
+pub(crate) fn require_nvrtc() -> Result<(), ProbeError> {
+    if super::presence::nvrtc_library_present() {
+        Ok(())
+    } else {
+        Err(ProbeError::NvrtcUnavailable)
+    }
+}
+
 struct TrackingPause<'a>(&'a CudaContext);
 
 impl<'a> TrackingPause<'a> {
@@ -107,11 +129,8 @@ struct DeviceInfo {
 }
 
 fn prepare_device(device: usize) -> Result<DeviceInfo, ProbeError> {
-    // SAFETY: 只探测NVIDIA驱动库。
-    // 加载器不解引用用户指针。
-    if !unsafe { sys::is_culib_present() } {
-        return Err(ProbeError::DriverUnavailable);
-    }
+    // 驱动库存在性预检：缺库时返回 `DriverUnavailable`，不进入 CUDA 适配层（cudarc 缺库会 panic）。
+    require_driver()?;
     let mut version = 0;
     // SAFETY: 驱动写入有效i32地址。
     // version在调用期间保持存活。
@@ -121,6 +140,13 @@ fn prepare_device(device: usize) -> Result<DeviceInfo, ProbeError> {
     if version < 12000 {
         return Err(ProbeError::UnsupportedDriver { version });
     }
+    // 测试 seam 可注入设备数（覆盖「有驱动无设备」的 CLI 错误路径）；产品构建直接查 cudarc。
+    #[cfg(test)]
+    let available: i32 = match super::presence::device_count_override() {
+        Some(count) => count as i32,
+        None => CudaContext::device_count().map_err(cuda_error("device-count"))?,
+    };
+    #[cfg(not(test))]
     let available = CudaContext::device_count().map_err(cuda_error("device-count"))?;
     if device >= available as usize {
         return Err(ProbeError::InvalidDevice {

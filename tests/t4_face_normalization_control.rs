@@ -1,6 +1,6 @@
 //! 核对独立归一化控制域。
 //! 不求极分解，不重放物理样本。
-#![cfg(feature = "cuda-probe")]
+#![cfg(all(feature = "cuda", feature = "t4-historical-audits"))]
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};

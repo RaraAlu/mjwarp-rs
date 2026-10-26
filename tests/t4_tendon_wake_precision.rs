@@ -1,6 +1,6 @@
 //! 肌腱唤醒的混合标量与整数输出映射。
 //! 不运行唤醒物理循环，不重放旧状态打包测试。
-#![cfg(feature = "cuda-probe")]
+#![cfg(all(feature = "cuda", feature = "t4-historical-audits"))]
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};

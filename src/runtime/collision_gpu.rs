@@ -12,10 +12,13 @@
 //! （注入构造错误），测试里不创建真实 `CudaContext`。
 
 mod abi;
+mod context;
 mod error;
 mod source;
 mod types;
 
+#[cfg(test)]
+mod fallback_tests;
 #[cfg(test)]
 mod multicontact_tests;
 #[cfg(test)]
@@ -33,6 +36,7 @@ use cudarc::driver::{
 };
 use cudarc::nvrtc::{CompileOptions, Ptx, compile_ptx_with_opts};
 
+use super::presence;
 use abi::{CollisionArgs, CollisionContactOut, validate_inputs};
 pub use error::CollisionGpuError;
 pub use types::{CollisionGpuInputs, CollisionGpuMeta, CollisionGpuOutput};
@@ -112,11 +116,14 @@ pub struct CollisionGpuProgram {
 
 impl CollisionGpuProgram {
     /// 编译设备源并在 `device` 上加载六个入口。
+    ///
+    /// 三态回退（**不 panic**）：NVRTC 缺失 → [`CollisionGpuError::Compile`]；驱动缺失 / 无设备 /
+    /// `CudaContext::new` 内部 panic（cudarc `culib()`）→ [`CollisionGpuError::NoDevice`]。
+    /// 编译先于设备构造，编译失败时不触碰设备。
     pub fn new(device: usize) -> Result<Self, CollisionGpuError> {
         let ptx = compile_program()?;
-        let context = CudaContext::new(device)
-            .map_err(|error| format!("CudaContext::new({device}): {error:?}"));
-        program_from_parts(context, Ok(ptx))
+        let context = context::device_context(device)?;
+        load_program(context, ptx)
     }
 
     /// 所属上下文（调用方据此核对设备归属）。
@@ -365,7 +372,14 @@ where
 
 /// 生产编译路径：`compile_source_with` + 真实 `compile_ptx_with_opts`。
 /// 失败信息带上设备源指纹，便于定位是哪个源修订编译失败。
+///
+/// NVRTC 库存在性预检：缺库返回 [`CollisionGpuError::Compile`]（cudarc 缺库会 panic）。
 pub(crate) fn compile_program() -> Result<Ptx, CollisionGpuError> {
+    if !presence::nvrtc_library_present() {
+        return Err(CollisionGpuError::Compile(
+            "NVRTC库缺失（nvrtc 不可加载）".to_owned(),
+        ));
+    }
     let fingerprint = source::source_sha256();
     compile_source_with(|text, options| {
         compile_ptx_with_opts(text, options)
@@ -408,6 +422,7 @@ pub(crate) fn load_program(
 
 /// 构造 seam：设备结果与 PTX 结果都可注入错误（单测不创建真实 context）。
 /// 先判 PTX 错误，保证编译失败时根本不碰设备。
+#[cfg(test)]
 pub(crate) fn program_from_parts(
     device_result: Result<Arc<CudaContext>, String>,
     ptx: Result<Ptx, CollisionGpuError>,

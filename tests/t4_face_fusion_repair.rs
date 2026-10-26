@@ -1,6 +1,6 @@
 //! 检查新修复的源码与历史边界。
 //! 不编译CUDA，不重放物理样本。
-#![cfg(feature = "cuda-probe")]
+#![cfg(all(feature = "cuda", feature = "t4-historical-audits"))]
 
 #[path = "support/t4_face_lineage.rs"]
 mod lineage;

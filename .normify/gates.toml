@@ -16,7 +16,17 @@ parse = "libtest"
 timeout_s = 3600
 
 [gate.clippy-cuda]
-cmd = ["cargo", "clippy", "--all-targets", "--locked", "--features", "cuda-probe", "--", "-D", "warnings"]
+cmd = ["cargo", "clippy", "--all-targets", "--locked", "--features", "cuda", "--", "-D", "warnings"]
+timeout_s = 3600
+
+# 无卡/快速 CI 路径：--no-default-features（无 cudarc 依赖，可在无驱动机器构建/测试）。
+[gate.unit-nocuda]
+cmd = ["cargo", "test", "--locked", "--no-default-features"]
+parse = "libtest"
+timeout_s = 3600
+
+[gate.clippy-nocuda]
+cmd = ["cargo", "clippy", "--all-targets", "--locked", "--no-default-features", "--", "-D", "warnings"]
 timeout_s = 3600
 
 # G26动能全链：定向GPU全链测试（离线authoring生成的上游energy_vel同条件参考）。

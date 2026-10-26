@@ -2,6 +2,7 @@
 //! 探针不冻结运行时接口。
 
 use crate::diagnostics::ProbeError;
+pub mod backend;
 pub mod external;
 pub mod launcher;
 pub mod tooling;
@@ -30,6 +31,9 @@ mod samples;
 mod cubecl;
 #[cfg(feature = "cuda-probe")]
 mod cuda;
+/// CUDA 运行期库/设备可用性探测与测试 seam（无环境变量开关；seam 仅 `#[cfg(test)]`）。
+#[cfg(feature = "cuda-probe")]
+pub(crate) mod presence;
 #[cfg(feature = "cuda-probe")]
 mod warp_gravity;
 #[cfg(feature = "cuda-probe")]

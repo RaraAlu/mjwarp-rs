@@ -1,6 +1,6 @@
 //! 空间肌腱site链与混合输出的独立精度映射。
 //! 不重放肌腱物理样本或旧打包目标。
-#![cfg(feature = "cuda-probe")]
+#![cfg(all(feature = "cuda", feature = "t4-historical-audits"))]
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};

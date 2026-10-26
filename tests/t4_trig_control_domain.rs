@@ -1,6 +1,6 @@
 //! 独立核对极分解的三角控制域。
 //! 不求三角输出，不运行完整迭代或设备。
-#![cfg(feature = "cuda-probe")]
+#![cfg(all(feature = "cuda", feature = "t4-historical-audits"))]
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};

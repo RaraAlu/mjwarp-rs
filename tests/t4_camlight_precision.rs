@@ -1,6 +1,6 @@
 //! 核对相机光源内部量与输出类型。
 //! 只读既存产物；不重放物理数值或编译CUDA。
-#![cfg(feature = "cuda-probe")]
+#![cfg(all(feature = "cuda", feature = "t4-historical-audits"))]
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};

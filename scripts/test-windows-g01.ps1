@@ -38,7 +38,7 @@ $env:CUDA_PATH = Join-Path $root 'target\toolchains\cuda-12.8.1'
 if (-not (Test-Path -LiteralPath (Join-Path $env:CUDA_PATH 'bin'))) { throw '请先准备CUDA工具链' }
 $env:PATH = (Join-Path $env:CUDA_PATH 'bin') + ';' + $env:PATH
 $base = @('+1.99.0-x86_64-pc-windows-msvc', 'test', '--locked')
-[string[]]$feature = if ($AllFeatures) { @('--all-features') } else { @('--features', 'native-model-probe,cuda-probe') }
+[string[]]$feature = if ($AllFeatures) { @('--all-features') } else { @('--features', 'native-model-probe') }
 $base += $feature
 if ($Release) { $base += '--release' }
 $script:g01Checks = @()
@@ -263,7 +263,7 @@ try {
         } -Minimum 346
         Invoke-G01Check 'host-gnu' { cargo test --locked } -Minimum 200
         Invoke-G01Check 'clippy-gnu' { cargo clippy --locked --all-targets -- -D warnings }
-        Invoke-G01Check 'clippy-gnu-cuda' { cargo clippy --locked --all-targets --features cuda-probe -- -D warnings }
+        Invoke-G01Check 'clippy-gnu-cuda' { cargo clippy --locked --all-targets --features cuda -- -D warnings }
     }
     Invoke-G01Check 'clippy-msvc' {
         $args = @('+1.99.0-x86_64-pc-windows-msvc', 'clippy', '--locked', '--all-targets') + $feature

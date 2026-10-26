@@ -1,6 +1,6 @@
 //! 只核对生成前置与累加风险。
 //! 宿主反例不提供物理准入。
-#![cfg(feature = "cuda-probe")]
+#![cfg(all(feature = "cuda", feature = "t4-historical-audits"))]
 
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
