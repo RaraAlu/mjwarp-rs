@@ -186,6 +186,21 @@ residual 0；聚合守卫通过（delta_peak 774 MiB < 3072）。
   **改动严格限于 `tests/g10_p5_nvrtc_launcher.rs`**（未触 `src/`、未动判据/参考/期望），
   证明与审计即本 §11。
 
+### 11.1 拆分等价性（如实边界；Chief 定稿 2026-10-26）
+
+- **pre-split 830 行文件从未入库**（当时被 500 行 size gate 拒绝），因此**没有 git 级原文 diff**；
+  本证据**不写成「已验证 git diff 等价」**。
+- 等价性证据 = ① 拆分前后 proof 输出逐字相同（`raw_order_failures=14 sorted_failures=0`，
+  ULP 指纹 76 / 2676526 / 28621803）；② 固定拆分脚本已入本证据目录 `scripts/` 并记 sha256
+  （`tmp-launcher-orderfix2.py` `390f5b02…`、`tmp-launcher-proof.py` `e52e03aa…`、
+  `tmp-split-launcher.py` `883acfe9…`、`tmp-split-launcher2.py` `005858a2…`，见 `scripts/sha256.json`），
+  可按脚本复现拆分；③ 逻辑文本核对：`compare_case` / 检查器 / `CaseReport` / `g5_contact_order`
+  等比较逻辑在 `tests/support/launcher_compare_support.rs` 中与拆分前文本一致（仅模块路径 / import /
+  `pub(crate)` 可见性变化）；④ 为过 clippy 删除两处**死代码**（main 的 `FOUR_ULP_AT_ONE`、
+  support 的 `cases_root` import），非逻辑变更。
+- **窗口/提交源口径（必须如实）**：**窗口验证的是拆分前二进制 `23ae4d82`；提交源 `5c191046`
+  仅经 CPU proof + 门禁验证、未再上窗**。
+
 ## 12. QA 观察收口（B1/B2 共同项，2026-10-26）
 
 - O2（EOL 指纹）：见 §5.1（工作树 CRLF 与 git blob LF 并列）；B2 交付 smokes 用工作树口径。
