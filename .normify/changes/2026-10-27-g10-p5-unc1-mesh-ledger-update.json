@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-g10-p5-unc1-mesh-ledger-update",
+  "title": {
+    "zh": "UNC-1 台账更新：convex-vs-mesh 已覆盖（M2）、mesh-mesh 留 M3、mesh partial 口径拆细",
+    "en": "UNC-1 ledger update: convex-vs-mesh covered (M2), mesh-mesh left to M3, mesh partial scope split"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "M2（convex-vs-mesh 设备实现，`16214a22`，QA `271fe926` pass）与 M0b（32 数组 case 生产，`ac01d86d`，QA `f191fdba` pass）verified 后，更新 G10@P5 验收映射台账的 UNC-1 行：从「box/cylinder 已实装、mesh 未实装」改为「box/cylinder + convex-vs-mesh 已覆盖、mesh-mesh 未覆盖（M3 在途）」；并把 mesh 一侧的 partial 口径拆细（组合层 / bins 设备输入 / 分支层 / 未覆盖项分开写），避免把「mesh 多接触已覆盖」误读成「mesh 全类型全分支已覆盖」。纯台账文字治理：不改任何已 verified 数字、判据、容差、参考与代码。",
+    "en": "Update UNC-1 ledger row after M2/M0b verified: convex-vs-mesh now covered, mesh-mesh pending M3; split mesh partial scope into combination / bins device input / branch / uncovered."
+  },
+  "modules": {},
+  "acceptance": [
+    "`docs/development-evidence/g10-p5-acceptance-map/map.json`：更新 `uncovered[UNC-1]` 的 title/implementation/measured/reason/impact 与 `evidence_paths`（补 M0a `097c54b9`、M1 `35192320`、M0b `ac01d86d`、M2 `16214a22` 与 M2 QA `271fe926` 证据）；`requirements[G6-2.1]` 的 measured/reason 同步（去掉「mesh 未实现」的过时表述，改为 mesh-mesh 在途）；`summary.note` 同步。status 仍为 partial。",
+    "`docs/development-evidence/g10-p5-acceptance-map/README.md`：G6-2.1 行与「未覆盖六项」UNC-1 条改写；新增 §7「UNC-1 更新（2026-10-27，M2/M0b 收口后）」节，写清 mesh 侧拆细口径：① 组合层 convex-vs-mesh（盒/圆柱）已覆盖（各 4/4 位级、ULP 0、`contact.geom=[1,0]`，窗口 attempt4 经 Chief 裁定接受为有效轮）；② 设备输入侧 32 数组 bins 已产（2 case × 32，同一来源逐位）；③ 分支层：face 逆序、边法线、swap 几何顺序等已由 M2 与 G5 覆盖的部分与未覆盖部分分开；④ 未覆盖：mesh-mesh 多接触（M3 在途）、一般 mesh（nmesh>1、degree>10、polygon>16 的固定容量 clamp 回退）、mesh 全类型/全分支、跨平台。",
+    "治理回执 `docs/development-evidence/g10-p5-unc1-ledger-governance/`（README + receipt.json，含 `task_id` 与「前 → 后」映射表、改动文件清单、边界声明）。",
+    "红线：不改任何已 verified 数字/判据/容差/参考；不改 `src/`、`tests/`、`fixtures/`、`Cargo.*`；不宣称 mesh 多接触整体通过、不宣称 G10@P5 整体通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m0b-independent-check",
+      "2026-10-26-mesh-multicontact-m2-convex-vs-mesh"
+    ],
+    "phase": "治理/台账",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/g10-p5-acceptance-map/",
+      "docs/development-evidence/g10-p5-unc1-ledger-governance/"
+    ],
+    "resources": [],
+    "priority": 45
+  },
+  "note": "Arch 2026-10-27 登记（Chief 2026-10-26 指令：UNC-1 台账等 M0b QA pass 后一起报）。第一次更新只到 M2 口径，M3（mesh-mesh）verified 后做第二次更新（convex/mesh-mesh 双覆盖 + 未覆盖项收窄）。",
+  "revision": {
+    "before": "d5737ddd9e525a93a33b8d6f6f17165442806ee9",
+    "after": null
+  },
+  "created_at": "2026-10-27T00:41:00.000Z",
+  "updated_at": "2026-10-27T00:41:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-unc1-ledger-governance/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-g10-p5-unc1-mesh-ledger-update"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
