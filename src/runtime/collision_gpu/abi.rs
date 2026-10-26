@@ -18,7 +18,9 @@
 //! 唯一对齐关系：标量止于 344（8 对齐），故无隐式填充；`mesh_poly_args` 在 i32 块之前。
 //! sidecar 结构 `MjwarpMeshPolyArgs` 为 9 个指针（72 字节，align 8，顺序与 pinned
 //! `collision_convex.py` L197-205 一致）；9 个 mesh polygon 数组全空时该指针为 null
-//! （无 polygon 数据、mesh 多接触功能不启用、行为与改动前一致）。
+//! （无 polygon 数据、mesh 多接触功能不启用、行为与改动前一致）。9 个数组的形状语义与
+//! pinned `mujoco_warp/_src/types.py` L1329-1337/L1864-1872 一致（逐 mesh / 逐 polygon /
+//! 逐 vertex 三段），由 [`validate_mesh_poly`] 的 CPU 校验写死（M0a 修正片更正）。
 //!
 //! 完整偏移表由 `tests.rs`/`abi_tests.rs` 的 `abi_*` 测试逐项锁死。M0a 起 `CollisionArgs`
 //! 是冻结探针 `ProbeArgs`（496 字节、23 指针）的**超集**：前 23 个指针与 i32/f32 标量块
@@ -62,16 +64,31 @@ pub(crate) struct CollisionContactOut {
 ///
 /// 9 个指针顺序与 pinned `collision_convex.py` L197-205 一致；结构 72 字节、align 8。
 /// 9 个宿主数组全空时不构造 sidecar（`CollisionArgs::mesh_poly_args` 为 null）。
+///
+/// 数组形状语义与 pinned `mujoco_warp/_src/types.py` L1329-1337/L1864-1872 一致：
+/// `mesh_polynum`/`mesh_polyadr` 逐 mesh（`nmesh`）；`mesh_polynormal`（`vec3`）/
+/// `mesh_polyvertadr`/`mesh_polyvertnum` 逐 polygon（`nmeshpoly`）；`mesh_polyvert` 为全部
+/// polygon 顶点索引（`nmeshpolyvert`）；`mesh_polymapadr`/`mesh_polymapnum` 逐 vertex
+/// （`nmeshvert`）；`mesh_polymap` 为全部 vertex→polygon 映射索引（`nmeshpolymap`）。
 #[repr(C)]
 pub(crate) struct MjwarpMeshPolyArgs {
+    /// 逐 mesh：polygon 数（`nmesh`）。
     pub(crate) mesh_polynum: *const i32,
+    /// 逐 mesh：首个 polygon 地址（`nmesh`）。
     pub(crate) mesh_polyadr: *const i32,
+    /// 逐 polygon：法线 `(nmeshpoly, 3)` 展平。
     pub(crate) mesh_polynormal: *const f32,
+    /// 逐 polygon：顶点首地址（`nmeshpoly`）。
     pub(crate) mesh_polyvertadr: *const i32,
+    /// 逐 polygon：顶点数（`nmeshpoly`）。
     pub(crate) mesh_polyvertnum: *const i32,
+    /// 全部 polygon 顶点索引（`nmeshpolyvert`）。
     pub(crate) mesh_polyvert: *const i32,
+    /// 逐 vertex：映射首地址（`nmeshvert`）。
     pub(crate) mesh_polymapadr: *const i32,
+    /// 逐 vertex：映射项数（`nmeshvert`）。
     pub(crate) mesh_polymapnum: *const i32,
+    /// 全部 vertex→polygon 映射索引（`nmeshpolymap`）。
     pub(crate) mesh_polymap: *const i32,
 }
 
@@ -235,12 +252,21 @@ pub(crate) fn validate_inputs(inputs: &CollisionGpuInputs<'_>) -> Result<(), Col
     Ok(())
 }
 
-/// M0a mesh polygon sidecar 语义（写死）：
+/// mesh polygon sidecar 的 CPU 校验（数组形状语义与 pinned
+/// `mujoco_warp/_src/types.py` L1329-1337/L1864-1872 一致，写死）：
+///
+/// - `nmesh = polynum.len() == polyadr.len()`（逐 mesh）；
+/// - `nmeshpoly = polynormal.len()/3 == polyvertadr.len() == polyvertnum.len()`（逐 polygon）；
+/// - `nmeshvert = polymapadr.len() == polymapnum.len()`（逐 vertex）；
+/// - `sum(polynum) == nmeshpoly`；逐 mesh `polyadr[i]+polynum[i] <= nmeshpoly`；
+/// - 逐 polygon `polyvertadr[i]+polyvertnum[i] <= polyvert.len()`；
+/// - 逐 vertex `polymapadr[i]+polymapnum[i] <= polymap.len()`；
+/// - 强一致：`sum(polyvertnum) == polyvert.len()`、`sum(polymapnum) == polymap.len()`。
+///
+/// 全空/部分空语义（M0a 写死，本修正片不变）：
 /// - 9 个输入 slice 全空 → 不构造 sidecar（`mesh_poly_args = null`），语义为「无 mesh polygon
 ///   数据、mesh 多接触功能不启用、行为与改动前完全一致」；
-/// - 部分为空或长度不自洽 → `InvalidArgument`（不静默禁用，避免掩盖宿主上传 bug）；
-/// - 9 个非空时校验逐 mesh 区间与内部一致性（polynum/polyadr/polyvertadr/polyvertnum/
-///   polymapadr/polymapnum 逐 mesh 数组等长、polynormal 为 3 的倍数、区间不越界）。
+/// - 部分为空或长度不自洽 → `InvalidArgument`（不静默禁用，避免掩盖宿主上传 bug）。
 fn validate_mesh_poly(inputs: &CollisionGpuInputs<'_>) -> Result<(), CollisionGpuError> {
     let present = [
         !inputs.mesh_polynum.is_empty(),
@@ -264,15 +290,11 @@ fn validate_mesh_poly(inputs: &CollisionGpuInputs<'_>) -> Result<(), CollisionGp
             "mesh_poly 输入不完整：9 个数组必须同时提供或同时为空",
         ));
     }
+    // 9 项齐全：按 pinned 形状分段核对长度（逐 mesh / 逐 polygon / 逐 vertex）。
     let nmesh = inputs.mesh_polynum.len();
-    if inputs.mesh_polyadr.len() != nmesh
-        || inputs.mesh_polyvertadr.len() != nmesh
-        || inputs.mesh_polyvertnum.len() != nmesh
-        || inputs.mesh_polymapadr.len() != nmesh
-        || inputs.mesh_polymapnum.len() != nmesh
-    {
+    if inputs.mesh_polyadr.len() != nmesh {
         return Err(CollisionGpuError::InvalidArgument(
-            "mesh_poly 逐 mesh 数组长度须一致（polynum/polyadr/polyvertadr/polyvertnum/polymapadr/polymapnum）",
+            "mesh_poly 逐 mesh 数组长度须一致（polynum/polyadr）",
         ));
     }
     if !inputs.mesh_polynormal.len().is_multiple_of(3) {
@@ -281,6 +303,19 @@ fn validate_mesh_poly(inputs: &CollisionGpuInputs<'_>) -> Result<(), CollisionGp
         ));
     }
     let nmeshpoly = inputs.mesh_polynormal.len() / 3;
+    if inputs.mesh_polyvertadr.len() != nmeshpoly || inputs.mesh_polyvertnum.len() != nmeshpoly {
+        return Err(CollisionGpuError::InvalidArgument(
+            "mesh_poly 逐 polygon 数组长度须为 nmeshpoly（polyvertadr/polyvertnum）",
+        ));
+    }
+    if inputs.mesh_polymapadr.len() != inputs.mesh_polymapnum.len() {
+        return Err(CollisionGpuError::InvalidArgument(
+            "mesh_poly 逐 vertex 数组长度须一致（polymapadr/polymapnum）",
+        ));
+    }
+    let nmeshvert = inputs.mesh_polymapadr.len();
+
+    // 逐 mesh：polyadr+polynum 落在 nmeshpoly 内，且 sum(polynum) == nmeshpoly。
     let mut total_polygons = 0usize;
     for index in 0..nmesh {
         let (adr, num) = (inputs.mesh_polyadr[index], inputs.mesh_polynum[index]);
@@ -304,7 +339,10 @@ fn validate_mesh_poly(inputs: &CollisionGpuInputs<'_>) -> Result<(), CollisionGp
             "mesh_polynum 之和须等于 mesh_polynormal 行数",
         ));
     }
-    for index in 0..nmesh {
+
+    // 逐 polygon：polyvertadr+polyvertnum 落在 mesh_polyvert 内，且 sum(polyvertnum) 吻合。
+    let mut total_polygon_vertices = 0usize;
+    for index in 0..nmeshpoly {
         let (adr, num) = (
             inputs.mesh_polyvertadr[index],
             inputs.mesh_polyvertnum[index],
@@ -320,6 +358,17 @@ fn validate_mesh_poly(inputs: &CollisionGpuInputs<'_>) -> Result<(), CollisionGp
         {
             return Err(CollisionGpuError::InvalidArgument("mesh_polyvert 区间越界"));
         }
+        total_polygon_vertices += num as usize;
+    }
+    if total_polygon_vertices != inputs.mesh_polyvert.len() {
+        return Err(CollisionGpuError::InvalidArgument(
+            "mesh_polyvertnum 之和须等于 mesh_polyvert 长度",
+        ));
+    }
+
+    // 逐 vertex：polymapadr+polymapnum 落在 mesh_polymap 内，且 sum(polymapnum) 吻合。
+    let mut total_map_entries = 0usize;
+    for index in 0..nmeshvert {
         let (adr, num) = (inputs.mesh_polymapadr[index], inputs.mesh_polymapnum[index]);
         if adr < 0 || num < 0 {
             return Err(CollisionGpuError::InvalidArgument(
@@ -332,6 +381,12 @@ fn validate_mesh_poly(inputs: &CollisionGpuInputs<'_>) -> Result<(), CollisionGp
         {
             return Err(CollisionGpuError::InvalidArgument("mesh_polymap 区间越界"));
         }
+        total_map_entries += num as usize;
+    }
+    if total_map_entries != inputs.mesh_polymap.len() {
+        return Err(CollisionGpuError::InvalidArgument(
+            "mesh_polymapnum 之和须等于 mesh_polymap 长度",
+        ));
     }
     Ok(())
 }

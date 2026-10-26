@@ -85,14 +85,26 @@
 
 - 9 个 slice 全空（默认 `&[]`）→ sidecar 不构造、`mesh_poly_args = null`；
   语义 =「无 mesh polygon 数据、mesh 多接触功能不启用、行为与改动前完全一致」。
-- **部分为空或长度不自洽 → `InvalidArgument`**（不静默禁用；`abi.rs:241 validate_mesh_poly`）：
-  9 项必须同时提供/同时为空；逐 mesh 数组等长；`polynormal` 为 3 的倍数且
-  `sum(polynum)==nmeshpoly`；polyvert/polymap 区间不越界。
+- **部分为空或长度不自洽 → `InvalidArgument`**（不静默禁用；`abi.rs validate_mesh_poly`）。
 - 单测（`validate_tests.rs`，全部通过）：
   `empty_mesh_poly_sidecar_is_null_and_valid`（全空 + 非 mesh 组合 SPHERE-BOX，validate 通过、不 panic）、
-  `rejects_partial_mesh_poly_sidecar`、`rejects_inconsistent_mesh_poly_sidecar`（自洽通过、
-  非 3 倍数、逐 mesh 等长三类）。
+  `rejects_partial_mesh_poly_sidecar`、`rejects_inconsistent_mesh_poly_sidecar`、
+  `rejects_inconsistent_mesh_poly_sums`、`accepts_real_cube_mesh_poly_shapes`。
 - 说明：M0a 为纯 CPU 片，「发射级」验证（GPU 上 null sidecar 不改行为）在 M2 验证窗执行。
+
+> **已被修正片 `2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes` 更新（2026-10-26）**
+>
+> 本文档此前「9 个非空数组**逐 mesh 等长**」的表述是**错误的**，已作废。pinned
+> `mujoco_warp/_src/types.py`（rev `71da24d9`）L1329-1337/L1864-1872 的真实形状是：
+> `mesh_polynum`/`mesh_polyadr` = `(nmesh,)`；`mesh_polynormal` = `(nmeshpoly,3)`；
+> `mesh_polyvertadr`/`mesh_polyvertnum` = `(nmeshpoly,)`；`mesh_polyvert` = `(nmeshpolyvert,)`；
+> `mesh_polymapadr`/`mesh_polymapnum` = `(nmeshvert,)`；`mesh_polymap` = `(nmeshpolymap,)`。
+> 修正后校验按逐 mesh / 逐 polygon / 逐 vertex 三段写死（规则审计表与红/绿对照见修正片证据
+> `docs/development-evidence/mesh-multicontact-m0a-fix-mesh-poly-shapes/`）。
+> 影响面仅 CPU 校验层 + 注释 + 单测：ABI 504 / sidecar 72B / entries 6 / 冒烟指纹
+> `238969/ec2e7acd…/3786520`、`DEVICE_SOURCES` 27、device 源与 fixtures **零改动**。
+> 修正片后行数（`Measure-Object -Line`）：`abi.rs` 378 / `types.rs` 94 / `validate_tests.rs` 374
+> （§1 表为 M0a 提交时历史值）。
 
 ## 5. CPU NVRTC 冒烟（窗口外，不建 context）
 

@@ -233,59 +233,190 @@ fn rejects_partial_mesh_poly_sidecar() {
     );
 }
 
+/// 真实 cube 的 9 项 mesh polygon 数组（与 pinned `mujoco 3.15` 的 mjModel 逐值一致，
+/// 形状按 pinned `mujoco_warp/_src/types.py` L1329-1337/L1864-1872：
+/// `nmesh=1 / nmeshpoly=6 / nmeshvert=8 / nmeshpolyvert=24 / nmeshpolymap=24`）。
+struct CubeMeshPoly {
+    polynum: Vec<i32>,
+    polyadr: Vec<i32>,
+    polynormal: Vec<f32>,
+    polyvertadr: Vec<i32>,
+    polyvertnum: Vec<i32>,
+    polyvert: Vec<i32>,
+    polymapadr: Vec<i32>,
+    polymapnum: Vec<i32>,
+    polymap: Vec<i32>,
+}
+
+impl CubeMeshPoly {
+    fn cube() -> Self {
+        Self {
+            polynum: vec![6],
+            polyadr: vec![0],
+            polynormal: vec![
+                1.0, 0.0, -0.0, 0.0, 0.0, -1.0, 0.0, -0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, -0.0,
+                0.0, -1.0, 0.0,
+            ],
+            polyvertadr: vec![0, 4, 8, 12, 16, 20],
+            polyvertnum: vec![4, 4, 4, 4, 4, 4],
+            polyvert: vec![
+                2, 6, 5, 1, 3, 2, 1, 0, 5, 6, 7, 4, 6, 2, 3, 7, 7, 3, 0, 4, 1, 5, 4, 0,
+            ],
+            polymapadr: vec![0, 3, 6, 9, 12, 15, 18, 21],
+            polymapnum: vec![3, 3, 3, 3, 3, 3, 3, 3],
+            polymap: vec![
+                1, 4, 5, 0, 1, 5, 0, 1, 3, 1, 3, 4, 2, 4, 5, 0, 2, 5, 0, 2, 3, 2, 3, 4,
+            ],
+        }
+    }
+
+    fn over<'a>(&'a self, base: CollisionGpuInputs<'a>) -> CollisionGpuInputs<'a> {
+        CollisionGpuInputs {
+            mesh_polynum: &self.polynum,
+            mesh_polyadr: &self.polyadr,
+            mesh_polynormal: &self.polynormal,
+            mesh_polyvertadr: &self.polyvertadr,
+            mesh_polyvertnum: &self.polyvertnum,
+            mesh_polyvert: &self.polyvert,
+            mesh_polymapadr: &self.polymapadr,
+            mesh_polymapnum: &self.polymapnum,
+            mesh_polymap: &self.polymap,
+            ..base
+        }
+    }
+}
+
+#[test]
+fn accepts_real_cube_mesh_poly_shapes() {
+    // M0a 修正：真实数组形状是 polynum/polyadr=(nmesh,)、polyvertadr/polyvertnum=(nmeshpoly,)、
+    // polymapadr/polymapnum=(nmeshvert,)；此用例是「旧规则（逐 mesh 等长）会误拒」的回归。
+    let sample = SampleInputs::new(valid_meta());
+    let cube = CubeMeshPoly::cube();
+    assert_eq!(validate_inputs(&cube.over(sample.inputs())), Ok(()));
+    let inputs = cube.over(sample.inputs());
+    assert_eq!(inputs.mesh_polynum.len(), 1);
+    assert_eq!(inputs.mesh_polyvertadr.len(), 6);
+    assert_eq!(inputs.mesh_polymapadr.len(), 8);
+}
+
 #[test]
 fn rejects_inconsistent_mesh_poly_sidecar() {
     let sample = SampleInputs::new(valid_meta());
     let base = sample.inputs();
-    let polynum = vec![1_i32];
-    let polyadr = vec![0_i32];
-    let polynormal = vec![0.0_f32; 3];
-    let polyvertadr = vec![0_i32];
-    let polyvertnum = vec![3_i32];
-    let polyvert = vec![0_i32, 1, 2];
-    let polymapadr = vec![0_i32];
-    let polymapnum = vec![3_i32];
-    let polymap = vec![0_i32, 1, 2];
-    let mut consistent = CollisionGpuInputs {
-        mesh_polynum: &polynum,
-        mesh_polyadr: &polyadr,
-        mesh_polynormal: &polynormal,
-        mesh_polyvertadr: &polyvertadr,
-        mesh_polyvertnum: &polyvertnum,
-        mesh_polyvert: &polyvert,
-        mesh_polymapadr: &polymapadr,
-        mesh_polymapnum: &polymapnum,
-        mesh_polymap: &polymap,
-        ..base
-    };
-    assert_eq!(
-        validate_inputs(&consistent),
-        Ok(()),
-        "自洽的 9 项 sidecar 输入应被接受（CPU 校验层）"
-    );
+    let cube = CubeMeshPoly::cube();
 
-    // ② polynormal 非 3 的倍数。
-    let bad_normal = vec![0.0_f32; 4];
-    consistent.mesh_polynormal = &bad_normal;
+    // ① polynormal 非 3 的倍数。
+    let mut broken = CubeMeshPoly::cube();
+    broken.polynormal = vec![0.0_f32; 4];
     assert_eq!(
-        validate_inputs(&consistent),
+        validate_inputs(&broken.over(base)),
         Err(CollisionGpuError::InvalidArgument(
             "mesh_polynormal 长度须为 3 的倍数"
         ))
     );
 
-    // ③ 逐 mesh 数组长度不一致。
-    let bad_polyadr = vec![0_i32, 0];
-    let polynum2 = vec![1_i32];
-    let bad = CollisionGpuInputs {
-        mesh_polynum: &polynum2,
-        mesh_polyadr: &bad_polyadr,
-        ..consistent
-    };
+    // ② 逐 mesh 数组长度不一致（polynum/polyadr）。
+    let mut broken = CubeMeshPoly::cube();
+    broken.polyadr = vec![0, 0];
     assert_eq!(
-        validate_inputs(&bad),
+        validate_inputs(&broken.over(base)),
         Err(CollisionGpuError::InvalidArgument(
-            "mesh_poly 逐 mesh 数组长度须一致（polynum/polyadr/polyvertadr/polyvertnum/polymapadr/polymapnum）"
+            "mesh_poly 逐 mesh 数组长度须一致（polynum/polyadr）"
+        ))
+    );
+
+    // ③ 逐 polygon 数组长度须为 nmeshpoly（polyvertadr/polyvertnum）。
+    let mut broken = CubeMeshPoly::cube();
+    broken.polyvertadr.pop();
+    assert_eq!(
+        validate_inputs(&broken.over(base)),
+        Err(CollisionGpuError::InvalidArgument(
+            "mesh_poly 逐 polygon 数组长度须为 nmeshpoly（polyvertadr/polyvertnum）"
+        ))
+    );
+
+    // ④ 逐 vertex 数组长度须一致（polymapadr/polymapnum）。
+    let mut broken = CubeMeshPoly::cube();
+    broken.polymapnum.pop();
+    assert_eq!(
+        validate_inputs(&broken.over(base)),
+        Err(CollisionGpuError::InvalidArgument(
+            "mesh_poly 逐 vertex 数组长度须一致（polymapadr/polymapnum）"
+        ))
+    );
+
+    // ⑤ 区间越界：逐 mesh polyadr+polynum 超出 nmeshpoly。
+    let mut broken = CubeMeshPoly::cube();
+    broken.polyadr = vec![1];
+    assert_eq!(
+        validate_inputs(&broken.over(base)),
+        Err(CollisionGpuError::InvalidArgument(
+            "mesh_poly 区间超出 mesh_polynormal 行数"
+        ))
+    );
+
+    // ⑥ 区间越界：逐 polygon polyvertadr+polyvertnum 超出 mesh_polyvert。
+    let mut broken = CubeMeshPoly::cube();
+    broken.polyvert.pop();
+    assert_eq!(
+        validate_inputs(&broken.over(base)),
+        Err(CollisionGpuError::InvalidArgument("mesh_polyvert 区间越界"))
+    );
+
+    // ⑦ 区间越界：逐 vertex polymapadr+polymapnum 超出 mesh_polymap。
+    let mut broken = CubeMeshPoly::cube();
+    broken.polymap.pop();
+    assert_eq!(
+        validate_inputs(&broken.over(base)),
+        Err(CollisionGpuError::InvalidArgument("mesh_polymap 区间越界"))
+    );
+
+    // ⑧ 负值拒绝。
+    let mut broken = CubeMeshPoly::cube();
+    broken.polynum = vec![-1];
+    assert_eq!(
+        validate_inputs(&broken.over(base)),
+        Err(CollisionGpuError::InvalidArgument(
+            "mesh_polyadr/mesh_polynum 不得为负"
+        ))
+    );
+
+    // ⑨ 本身自洽（照抄真实 cube）应通过，防止负例把正常数据也拒掉。
+    assert_eq!(validate_inputs(&cube.over(base)), Ok(()));
+}
+
+#[test]
+fn rejects_inconsistent_mesh_poly_sums() {
+    let sample = SampleInputs::new(valid_meta());
+    let base = sample.inputs();
+
+    // ① sum(polynum) 与 polynormal 行数不一致。
+    let mut broken = CubeMeshPoly::cube();
+    broken.polynum = vec![5];
+    assert_eq!(
+        validate_inputs(&broken.over(base)),
+        Err(CollisionGpuError::InvalidArgument(
+            "mesh_polynum 之和须等于 mesh_polynormal 行数"
+        ))
+    );
+
+    // ② sum(polyvertnum) 与 mesh_polyvert 长度不一致。
+    let mut broken = CubeMeshPoly::cube();
+    broken.polyvertnum = vec![3, 4, 4, 4, 4, 4];
+    assert_eq!(
+        validate_inputs(&broken.over(base)),
+        Err(CollisionGpuError::InvalidArgument(
+            "mesh_polyvertnum 之和须等于 mesh_polyvert 长度"
+        ))
+    );
+
+    // ③ sum(polymapnum) 与 mesh_polymap 长度不一致。
+    let mut broken = CubeMeshPoly::cube();
+    broken.polymapnum = vec![3, 3, 3, 3, 3, 3, 3, 2];
+    assert_eq!(
+        validate_inputs(&broken.over(base)),
+        Err(CollisionGpuError::InvalidArgument(
+            "mesh_polymapnum 之和须等于 mesh_polymap 长度"
         ))
     );
 }

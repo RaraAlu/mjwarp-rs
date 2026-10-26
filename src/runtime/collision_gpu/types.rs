@@ -1,9 +1,9 @@
 //! G10@P5：产品 GPU 入口的宿主数据类型（元参数、输入视图、回读结果）。
 //!
 //! 结构与字段顺序同时是 ABI 的宿主侧定义：`CollisionGpuMeta` 的标量顺序即
-//! `product.cu::mjwarp_collision_args` 的标量顺序，`CollisionGpuInputs` 的 23 个
-//! slice 与探针 `DeviceArrays` 同口径。拆分只为控制单文件行数，公开路径不变
-//! （`runtime::collision_gpu::*` 仍由父模块 re-export）。
+//! `product.cu::mjwarp_collision_args` 的标量顺序，`CollisionGpuInputs` 的 32 个
+//! slice（23 项既有 + 9 项可选 mesh_poly）与探针 `DeviceArrays` 同口径。拆分只为控制
+//! 单文件行数，公开路径不变（`runtime::collision_gpu::*` 仍由父模块 re-export）。
 
 /// 设备侧标量参数（与探针 `meta.txt` 的标量一一对应，字段顺序即 ABI 顺序）。
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -44,6 +44,9 @@ pub struct CollisionGpuMeta {
 /// `mesh_poly*` 9 项是 M0a sidecar 的可选输入：9 项全空（默认 `&[]`）时 sidecar 不构造、
 /// `mesh_poly_args = null`（无 mesh polygon 数据、mesh 多接触功能不启用、行为不变）；
 /// 部分为空或长度不自洽在 [`super::abi::validate_inputs`] 返回 `InvalidArgument`。
+/// 9 项的形状语义与 pinned `mujoco_warp/_src/types.py` L1329-1337/L1864-1872 一致：
+/// 逐 mesh（`nmesh`）/ 逐 polygon（`nmeshpoly`）/ 逐 vertex（`nmeshvert`）三段，
+/// 已由 M0a 修正片 `2026-10-26-mesh-multicontact-m0a-fix-mesh-poly-shapes` 更正。
 #[derive(Clone, Copy, Debug)]
 pub struct CollisionGpuInputs<'a> {
     pub geom_xpos: &'a [f32],
@@ -61,23 +64,23 @@ pub struct CollisionGpuInputs<'a> {
     pub mesh_octadr: &'a [i32],
     pub mesh_vert: &'a [f32],
     pub mesh_graph: &'a [i32],
-    /// M0a sidecar：mesh polygon 数（逐 mesh，`nmesh`）。
+    /// M0a sidecar：逐 mesh 的 polygon 数（`nmesh`）。
     pub mesh_polynum: &'a [i32],
-    /// M0a sidecar：mesh polygon 首行地址（逐 mesh）。
+    /// M0a sidecar：逐 mesh 的首个 polygon 地址（`nmesh`）。
     pub mesh_polyadr: &'a [i32],
-    /// M0a sidecar：polygon 法线（`3*nmeshpoly` 个 f32）。
+    /// M0a sidecar：逐 polygon 的法线（`nmeshpoly × 3` 个 f32）。
     pub mesh_polynormal: &'a [f32],
-    /// M0a sidecar：polygon 顶点首地址（逐 mesh）。
+    /// M0a sidecar：逐 polygon 的顶点首地址（`nmeshpoly`）。
     pub mesh_polyvertadr: &'a [i32],
-    /// M0a sidecar：polygon 顶点数（逐 mesh）。
+    /// M0a sidecar：逐 polygon 的顶点数（`nmeshpoly`）。
     pub mesh_polyvertnum: &'a [i32],
-    /// M0a sidecar：polygon 顶点索引。
+    /// M0a sidecar：全部 polygon 顶点索引（`nmeshpolyvert`）。
     pub mesh_polyvert: &'a [i32],
-    /// M0a sidecar：polygon 顶点 map 首地址（逐 mesh）。
+    /// M0a sidecar：逐 vertex 的映射首地址（`nmeshvert`）。
     pub mesh_polymapadr: &'a [i32],
-    /// M0a sidecar：polygon 顶点 map 项数（逐 mesh）。
+    /// M0a sidecar：逐 vertex 的映射项数（`nmeshvert`）。
     pub mesh_polymapnum: &'a [i32],
-    /// M0a sidecar：polygon 顶点 map 索引。
+    /// M0a sidecar：全部 vertex→polygon 映射索引（`nmeshpolymap`）。
     pub mesh_polymap: &'a [i32],
     pub hfield_size: &'a [f32],
     pub hfield_nrow: &'a [i32],
