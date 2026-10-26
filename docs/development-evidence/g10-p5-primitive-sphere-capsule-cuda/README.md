@@ -79,6 +79,14 @@ nvrtc_smoke_ok ptx_bytes=3786439 entries=6 source_bytes=237212 source_sha256=054
 
 设备对照测试（ignored）**尚未运行**：需 GPU 窗口 + Arch/Chief 双签，见 §6。
 
+
+### 5.1 源指纹的 EOL 口径（两套都记）
+
+- **工作树（CRLF，NVRTC 实际读到）**：27 段 `237212 / 054aaa40…`（本次冒烟实测）；旧 21 段 `199869 / 67fb8445…`。
+- **git blob（LF 归一化，可从提交复现）**：27 段 **`236732 / 9807a539256cf4dff8c633d5d3d70a5653ad74cd585bb246f0c6eee056485e8f`**；
+  旧 21 段同 `199869 / 67fb8445…`。
+- 原因：新增 `.cu` 在作者工作树为 CRLF、提交为 LF；`include_str!` 读工作树字节。设备源码语义/判据不受影响。
+
 ## 6. 窗口计划与判据
 
 - 对照参考：B0 上游 GPU 参考 `docs/development-evidence/g10-p5-primitive-capture/upstream-primitive-gpu.json`
@@ -172,3 +180,10 @@ residual 0；聚合守卫通过（delta_peak 774 MiB < 3072）。
   独立修复片无法与本片并行 in_progress（`normify start` 报 conflict:本任务）；故修复并入本片提交，
   **改动严格限于 `tests/g10_p5_nvrtc_launcher.rs`**（未触 `src/`、未动判据/参考/期望），
   证明与审计即本 §11。
+
+## 12. QA 观察收口（B1/B2 共同项，2026-10-26）
+
+- O2（EOL 指纹）：见 §5.1（工作树 CRLF 与 git blob LF 并列）；B2 交付 smokes 用工作树口径。
+- O5（证据卫生）：本目录日志已统一 UTF-8 无 BOM；`console.log` 由 UTF-16LE 转 UTF-8。
+- O1/TETRA 类问题不适用 B2（B2 无 mesh 输入）。
+- `capsule_capsule` 平行轴分支/`sphere_cylinder` 端面角点分支的 fixture 覆盖情况按 §9 如实记录，不宣称未覆盖分支已验证。
