@@ -5,7 +5,7 @@
     "zh": "G10@P5 CUDA 默认管线接线 · 阶段 2：按用户拍板选项实现运行时后端选择与 Host 回退",
     "en": "CUDA default-pipeline wiring stage 2: implement runtime backend selection with host fallback per the user's chosen option"
   },
-  "status": "in_progress",
+  "status": "abandoned",
   "intent": {
     "zh": "承接 `2026-10-25-g10-p5-cuda-default-pipeline`（阶段 1 = 决策支撑，已交 DESIGN 与实测）与用户对依赖策略选项的拍板（① `cuda-probe` 转默认特性；② 新增 `cuda` 特性默认开启、`--no-default-features` 可关；③ 保持门控 + 运行时选择层/Host 回退）。本片按选定选项实现：运行时后端探测（driver → device → NVRTC → PTX 编译）与结果缓存、统一错误码、Host 回退语义，并把设备入口接进碰撞准相位（默认 Host，探测成功且被允许时走设备）；不改 ABI、不改精度判据、不改已 verified 数字。",
     "en": "Implement the runtime backend selection and host fallback for the collision narrowphase per the option chosen by the user, reusing the stage-1 design; no ABI or tolerance changes."
@@ -40,13 +40,14 @@
     "resources": [],
     "priority": 56
   },
-  "note": "Arch 2026-10-25 登记（阶段拆分）：原 `2026-10-25-g10-p5-cuda-default-pipeline` 同时含「阶段 1 决策支撑（可立即做）」与「阶段 2 实现（须用户拍板）」，用一片验收会把未拍板的实现塞进 in_progress 并阻塞后续任务（repin-13 因 scope 冲突无法 start）。因此阶段 2 独立成片：阶段 1 收口为 verified（证据=`g10-p5-cuda-default-pipeline/`，receipt 记 `stage2_status=not_started`），阶段 2 待用户拍板后 start。repin-13 独立先做（既有红，任何选项下都要修）。**2026-10-26 09:25Z 用户拍板 cudarc 走 ②（`cuda` 特性默认开启、`--no-default-features` 可关），Chief 转达**：acceptance 已按 ② 与 6 条硬项重写（default-on 三路径全绿、`--no-default-features` 可构建可测试并作为无卡/快速 CI 路径、门禁口径变更留痕、三态回退不 panic（含阶段 1 记录的 `new()` 缺 `culib()` panic 必修 + 修前红/修后绿）、UNC-2 验证后才 closed、默认构建体积/耗时更新、精度语义不变）。**start 顺序**：等 `2026-10-25-g10-p5-faithful-fma-fix` verified 后（同 owner 同占 `src/`，严格串行），且本片 `depends_on` 已加该片。**start 前置（authoring，放 `target/stage2-prep/` 不入库）**：Cargo.toml 改法、`cuda` 与 `cuda-probe` 关系、默认 gate/G01 口径影响、`--no-default-features` 构建/测试路径写小样；由 Backend 在 capture 窗口跑完后做，不动主树。 **2026-10-26 Arch 按 DES 收口 start 前置**：变体 B（`cuda=[\"cuda-probe\"]`，T4 中性 685/0/137）；A 式重命名另立治理片；新增 `unit-nocuda`/`clippy-nocuda` 门禁与 `t4-historical-audits` 非默认 feature（7 个历史 T4 target 移出默认门禁，`--all-features` 仍跑）；culib panic 按 DES §6 修并留修前红/修后绿；正式证据需独占重测。DES 与实测在 `target/stage2-prep/`（DESIGN-stage2.md 242 行、migration-inventory.md 70 行、22 条 measurements）。**start 仍等 fix 片 verified**（同 owner 同占 `src/`/`Cargo.toml`），而 fix 片当前卡在用户对 B 不可行的重新拍板（A/C/D/B2）。 **2026-10-26 16:25Z 依赖更新**：fix 片（旧 B 版）已 abandon，用户改选 A 并重登记 `2026-10-25-g10-p5-faithful-fma-fix-r2`（in_progress），本片 depends_on 改为 r2；start 仍等 r2 verified。 **2026-10-26 17:05Z 依赖修正**：T4 身份重钉实际验收任务是 2026-10-25-t4-source-hash-repin-13-r2（r1 已 abandon），depends_on 由旧 id 改为 r2；r2（faithful fix）与 capture 均 verified，start 前置全部满足。",
+  "note": "Arch 2026-10-25 登记（阶段拆分）：原 `2026-10-25-g10-p5-cuda-default-pipeline` 同时含「阶段 1 决策支撑（可立即做）」与「阶段 2 实现（须用户拍板）」，用一片验收会把未拍板的实现塞进 in_progress 并阻塞后续任务（repin-13 因 scope 冲突无法 start）。因此阶段 2 独立成片：阶段 1 收口为 verified（证据=`g10-p5-cuda-default-pipeline/`，receipt 记 `stage2_status=not_started`），阶段 2 待用户拍板后 start。repin-13 独立先做（既有红，任何选项下都要修）。**2026-10-26 09:25Z 用户拍板 cudarc 走 ②（`cuda` 特性默认开启、`--no-default-features` 可关），Chief 转达**：acceptance 已按 ② 与 6 条硬项重写（default-on 三路径全绿、`--no-default-features` 可构建可测试并作为无卡/快速 CI 路径、门禁口径变更留痕、三态回退不 panic（含阶段 1 记录的 `new()` 缺 `culib()` panic 必修 + 修前红/修后绿）、UNC-2 验证后才 closed、默认构建体积/耗时更新、精度语义不变）。**start 顺序**：等 `2026-10-25-g10-p5-faithful-fma-fix` verified 后（同 owner 同占 `src/`，严格串行），且本片 `depends_on` 已加该片。**start 前置（authoring，放 `target/stage2-prep/` 不入库）**：Cargo.toml 改法、`cuda` 与 `cuda-probe` 关系、默认 gate/G01 口径影响、`--no-default-features` 构建/测试路径写小样；由 Backend 在 capture 窗口跑完后做，不动主树。 **2026-10-26 Arch 按 DES 收口 start 前置**：变体 B（`cuda=[\"cuda-probe\"]`，T4 中性 685/0/137）；A 式重命名另立治理片；新增 `unit-nocuda`/`clippy-nocuda` 门禁与 `t4-historical-audits` 非默认 feature（7 个历史 T4 target 移出默认门禁，`--all-features` 仍跑）；culib panic 按 DES §6 修并留修前红/修后绿；正式证据需独占重测。DES 与实测在 `target/stage2-prep/`（DESIGN-stage2.md 242 行、migration-inventory.md 70 行、22 条 measurements）。**start 仍等 fix 片 verified**（同 owner 同占 `src/`/`Cargo.toml`），而 fix 片当前卡在用户对 B 不可行的重新拍板（A/C/D/B2）。 **2026-10-26 16:25Z 依赖更新**：fix 片（旧 B 版）已 abandon，用户改选 A 并重登记 `2026-10-25-g10-p5-faithful-fma-fix-r2`（in_progress），本片 depends_on 改为 r2；start 仍等 r2 verified。 **2026-10-26 17:05Z 依赖修正**：T4 身份重钉实际验收任务是 2026-10-25-t4-source-hash-repin-13-r2（r1 已 abandon），depends_on 由旧 id 改为 r2；r2（faithful fix）与 capture 均 verified，start 前置全部满足。\n放弃：流程性重登记：start 态已单独提交，导致关闭提交无法写入最终范围(gates.toml/scripts)与终版验收；工作内容与证据不变，由 2026-10-25-g10-p5-cuda-default-pipeline-stage2-r2 接替（proposed→done 一次收口）",
   "revision": {
     "before": "2f8a402839a728e6d516b9bfbfd909c5b44c0e8c",
     "after": null
   },
   "created_at": "2026-10-25T16:34:00.000Z",
-  "updated_at": "2026-10-26T08:51:28.203Z",
+  "updated_at": "2026-10-26T10:10:24.801Z",
+  "closed_at": "2026-10-26T10:10:24.801Z",
   "checks": [
     {
       "kind": "gate",
