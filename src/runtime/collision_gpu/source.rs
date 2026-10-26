@@ -1,11 +1,12 @@
 //! G10@P5：产品 NVRTC 设备源拼装。
 //!
-//! 设备源由 `src/physics/collision/cuda/*.cu` 的 25 个片段按**依赖拓扑序**拼接
+//! 设备源由 `src/physics/collision/cuda/*.cu` 的 27 个片段按**依赖拓扑序**拼接
 //! （被依赖文件在前：common→geom→support→simplex→gjk_core→polytope→polytope_build→
 //! epa→ccd→sdf_octree→sdf_math→sdf_narrowphase→hfield→multicontact_geom→
 //! multicontact_clip→multicontact→contact→primitive→primitive_wrapper→boxbox→
 //! boxbox_wrapper→primitive_plane_common→primitive_plane_convex→primitive_plane_shapes→
-//! primitive_plane_wrapper），最后追加产品入口 `product.cu`。拼接前删除各片段里的本地
+//! primitive_plane_wrapper→primitive_sphere_capsule_shapes→primitive_sphere_capsule_wrapper），
+//! 最后追加产品入口 `product.cu`。拼接前删除各片段里的本地
 //! `#include "xxx.cu"` 行（只删引号 `.cu`），其它 `#include` 与 `#pragma once` 原样保留：
 //! NVRTC 把拼好的整串当作**一个**翻译单元编译，本地 include 会重复展开。
 //!
@@ -34,8 +35,15 @@ const PRIMITIVE_PLANE_SHAPES_CUDA: &str =
 const PRIMITIVE_PLANE_WRAPPER_CUDA: &str =
     include_str!("../../physics/collision/cuda/primitive_plane_wrapper.cu");
 
+// B2 sphere/capsule 族两个片段：同样在拼装处本地取文本（不动 `src/physics/mod.rs`，
+// 保持 T4 `physics_core` 组合身份不变）。
+const PRIMITIVE_SPHERE_CAPSULE_SHAPES_CUDA: &str =
+    include_str!("../../physics/collision/cuda/primitive_sphere_capsule_shapes.cu");
+const PRIMITIVE_SPHERE_CAPSULE_WRAPPER_CUDA: &str =
+    include_str!("../../physics/collision/cuda/primitive_sphere_capsule_wrapper.cu");
+
 /// 设备源片段与固定拼装顺序（`(文件名, 内容)`，依赖在前）。
-pub(crate) const DEVICE_SOURCES: [(&str, &str); 25] = [
+pub(crate) const DEVICE_SOURCES: [(&str, &str); 27] = [
     ("common.cu", COMMON_CUDA),
     ("geom.cu", GEOM_CUDA),
     ("support.cu", SUPPORT_CUDA),
@@ -63,6 +71,16 @@ pub(crate) const DEVICE_SOURCES: [(&str, &str); 25] = [
     ("primitive_plane_convex.cu", PRIMITIVE_PLANE_CONVEX_CUDA),
     ("primitive_plane_shapes.cu", PRIMITIVE_PLANE_SHAPES_CUDA),
     ("primitive_plane_wrapper.cu", PRIMITIVE_PLANE_WRAPPER_CUDA),
+    // B2 sphere/capsule 族（拼装顺序：plane wrapper→shapes→wrapper→product；共 27 段，
+    // 0 新 ABI 入口，入口仍是 mjwarp_collision_primitive）。
+    (
+        "primitive_sphere_capsule_shapes.cu",
+        PRIMITIVE_SPHERE_CAPSULE_SHAPES_CUDA,
+    ),
+    (
+        "primitive_sphere_capsule_wrapper.cu",
+        PRIMITIVE_SPHERE_CAPSULE_WRAPPER_CUDA,
+    ),
 ];
 
 /// 产品侧 CUDA 入口（追加在拼接结果最后；`d_contact_out` 等由前面的片段提供）。

@@ -1,6 +1,6 @@
 //! G10@P5 multicontact 片：纯 CPU 单测（不创建 `CudaContext`、不跑 GPU）。
 //!
-//! 覆盖：25 个设备源片段的拼装顺序与新增片段存在性、两个新入口在 `product.cu` 的唯一性、
+//! 覆盖：27 个设备源片段的拼装顺序与新增片段存在性、两个新入口在 `product.cu` 的唯一性、
 //! `boxbox` 入口的 CPU 侧类型校验、以及拼装源里 `make_frame` 仍只有一个定义。
 
 use super::source::{DEVICE_SOURCES, PRODUCT_SOURCE, assemble_device_source};
@@ -11,7 +11,7 @@ const BOX: i32 = 6;
 
 #[test]
 fn device_sources_place_multicontact_and_boxbox_in_order() {
-    assert_eq!(DEVICE_SOURCES.len(), 25, "设备源片段数应为 25");
+    assert_eq!(DEVICE_SOURCES.len(), 27, "设备源片段数应为 27");
     let position = |wanted: &str| {
         DEVICE_SOURCES
             .iter()
@@ -36,10 +36,15 @@ fn device_sources_place_multicontact_and_boxbox_in_order() {
     assert_eq!(plane_convex, plane_common + 1);
     assert_eq!(plane_shapes, plane_convex + 1);
     assert_eq!(plane_wrapper, plane_shapes + 1);
+    // B2 sphere/capsule 族：plane wrapper 后、product 前，顺序 shapes→wrapper。
+    let sc_shapes = position("primitive_sphere_capsule_shapes.cu");
+    let sc_wrapper = position("primitive_sphere_capsule_wrapper.cu");
+    assert_eq!(sc_shapes, plane_wrapper + 1);
+    assert_eq!(sc_wrapper, sc_shapes + 1);
     assert_eq!(
-        plane_wrapper,
+        sc_wrapper,
         DEVICE_SOURCES.len() - 1,
-        "product.cu 前最后一段应为 primitive_plane_wrapper.cu"
+        "product.cu 前最后一段应为 primitive_sphere_capsule_wrapper.cu"
     );
     assert_eq!(mc_clip, mc_geom + 1, "multicontact_clip 应紧随 geom");
     assert_eq!(mc, mc_clip + 1, "multicontact.cu 应紧随 clip");
@@ -56,7 +61,8 @@ fn device_sources_place_multicontact_and_boxbox_in_order() {
         "boxbox.cu 应紧随 primitive_wrapper"
     );
     assert_eq!(boxbox_wrapper, boxbox + 1);
-    // B1：boxbox_wrapper 不再最后（其后为 plane 四段），最后一段断言已在上面 plane_wrapper 处。
+    // B1/B2：boxbox_wrapper 不再最后（其后为 plane 四段 + sphere/capsule 两段），
+    // 最后一段断言已在上面 sc_wrapper 处。
 }
 
 #[test]

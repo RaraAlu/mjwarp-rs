@@ -16,9 +16,14 @@ use mjwarp_rs::runtime::collision_gpu::{
     CollisionGpuInputs, CollisionGpuMeta, CollisionGpuOutput, CollisionGpuProgram, CollisionKernel,
 };
 
-const CASES: [&str; 3] = ["hfield-sphere", "sdf-box", "ellipsoid-box"];
+#[path = "support/launcher_compare_support.rs"]
+mod launcher_compare;
 
-const FOUR_ULP_AT_ONE: f32 = 4.0 * (1.0 / 8_388_608.0);
+use launcher_compare::{
+    CaseReport, check_dist, check_exact, check_exact_f32, check_vectors, compare_case,
+    g5_contact_order, permute_rows_f32, permute_rows_i32,
+};
+const CASES: [&str; 3] = ["hfield-sphere", "sdf-box", "ellipsoid-box"];
 
 fn cases_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -141,301 +146,6 @@ fn build_meta(meta: &BTreeMap<String, String>) -> CollisionGpuMeta {
     }
 }
 
-struct CaseReport {
-    case: String,
-    kind: CollisionKernel,
-    nacon: i32,
-    nccd: i32,
-    bit_equal: usize,
-    total: usize,
-    max_dist_ulp: u64,
-    max_pos_ulp: u64,
-    max_frame_ulp: u64,
-    failures: Vec<String>,
-}
-
-impl CaseReport {
-    fn new(case: &str, kind: CollisionKernel, output: &CollisionGpuOutput) -> Self {
-        Self {
-            case: case.to_owned(),
-            kind,
-            nacon: output.nacon,
-            nccd: output.nccd,
-            bit_equal: 0,
-            total: 0,
-            max_dist_ulp: 0,
-            max_pos_ulp: 0,
-            max_frame_ulp: 0,
-            failures: Vec::new(),
-        }
-    }
-
-    fn length(&mut self, field: &str, device: usize, reference: usize) {
-        self.failures
-            .push(format!("{field} 长度不符：dev={device} ref={reference}"));
-    }
-
-    fn print(&self) {
-        println!(
-            "case={} kind={:?} nacon={} nccd={} bit_equal={}/{} max_dist_ulp={} max_pos_ulp={} max_frame_ulp={} failures={}",
-            self.case,
-            self.kind,
-            self.nacon,
-            self.nccd,
-            self.bit_equal,
-            self.total,
-            self.max_dist_ulp,
-            self.max_pos_ulp,
-            self.max_frame_ulp,
-            self.failures.len()
-        );
-    }
-}
-
-fn ulp_at(value: f32) -> f32 {
-    f32::from_bits(value.to_bits() + 1) - value
-}
-
-fn vector_scale(reference: &[f32]) -> f32 {
-    let scale = reference
-        .iter()
-        .fold(0.0_f32, |scale, value| scale.max(value.abs()));
-    if scale == 0.0 { 1.0 } else { scale }
-}
-
-fn vector_bound(scale: f32) -> f32 {
-    4.0 * ulp_at(scale)
-}
-
-/// 有符号 f32 的单调位序（`-0.0` 与 `+0.0` 视为同一点）。
-fn ordered(value: f32) -> i64 {
-    let bits = value.to_bits();
-    if bits & 0x8000_0000 != 0 {
-        -i64::from(bits & 0x7fff_ffff)
-    } else {
-        i64::from(bits)
-    }
-}
-
-fn ulp_distance(device: f32, reference: f32) -> u64 {
-    (ordered(device) - ordered(reference)).unsigned_abs()
-}
-
-/// `dist` 判据：非零参考按 ≤4 ULP；零参考按 4 ULP@1.0 绝对差。
-fn dist_ok(device: f32, reference: f32) -> bool {
-    if reference == 0.0 {
-        (device - reference).abs() <= FOUR_ULP_AT_ONE
-    } else {
-        ulp_distance(device, reference) <= 4
-    }
-}
-
-/// 整数/结构字段：位级零容差。
-fn check_exact<T: PartialEq + Copy + std::fmt::Display>(
-    report: &mut CaseReport,
-    field: &str,
-    device: &[T],
-    reference: &[T],
-) {
-    if device.len() != reference.len() {
-        report.length(field, device.len(), reference.len());
-        return;
-    }
-    for (index, (&dev, &refv)) in device.iter().zip(reference).enumerate() {
-        report.total += 1;
-        if dev == refv {
-            report.bit_equal += 1;
-            continue;
-        }
-        report
-            .failures
-            .push(format!("{field}[{index}] 位级不等 dev={dev} ref={refv}"));
-    }
-}
-
-/// 接触参数（f32）：位级零容差。
-fn check_exact_f32(report: &mut CaseReport, field: &str, device: &[f32], reference: &[f32]) {
-    if device.len() != reference.len() {
-        report.length(field, device.len(), reference.len());
-        return;
-    }
-    for (index, (&dev, &refv)) in device.iter().zip(reference).enumerate() {
-        report.total += 1;
-        if dev.to_bits() == refv.to_bits() {
-            report.bit_equal += 1;
-            continue;
-        }
-        report.failures.push(format!(
-            "{field}[{index}] 位级不等 dev={dev:e} ref={refv:e}"
-        ));
-    }
-}
-
-fn check_dist(report: &mut CaseReport, field: &str, device: &[f32], reference: &[f32]) {
-    if device.len() != reference.len() {
-        report.length(field, device.len(), reference.len());
-        return;
-    }
-    for (index, (&dev, &refv)) in device.iter().zip(reference).enumerate() {
-        report.total += 1;
-        if dev.to_bits() == refv.to_bits() {
-            report.bit_equal += 1;
-            continue;
-        }
-        let ulp = ulp_distance(dev, refv);
-        report.max_dist_ulp = report.max_dist_ulp.max(ulp);
-        if !dist_ok(dev, refv) {
-            report.failures.push(format!(
-                "{field}[{index}] 超过 4 ULP dev={dev:e} ref={refv:e} ulp={ulp}"
-            ));
-        }
-    }
-}
-
-fn check_vectors(
-    report: &mut CaseReport,
-    field: &str,
-    device: &[f32],
-    reference: &[f32],
-    width: usize,
-    unit_scale: bool,
-) {
-    if device.len() != reference.len() {
-        report.length(field, device.len(), reference.len());
-        return;
-    }
-    if !reference.len().is_multiple_of(width) {
-        report.failures.push(format!(
-            "{field} 长度 {} 不是 {width} 的倍数",
-            reference.len()
-        ));
-        return;
-    }
-    for (row, reference_row) in reference.chunks_exact(width).enumerate() {
-        let device_row = &device[row * width..(row + 1) * width];
-        let scale = if unit_scale {
-            1.0
-        } else {
-            vector_scale(reference_row)
-        };
-        let bound = vector_bound(scale);
-        for (component, (&dev, &refv)) in device_row.iter().zip(reference_row).enumerate() {
-            report.total += 1;
-            if dev.to_bits() == refv.to_bits() {
-                report.bit_equal += 1;
-                continue;
-            }
-            let ulp = ulp_distance(dev, refv);
-            if unit_scale {
-                report.max_frame_ulp = report.max_frame_ulp.max(ulp);
-            } else {
-                report.max_pos_ulp = report.max_pos_ulp.max(ulp);
-            }
-            let difference = (dev - refv).abs();
-            if difference > bound {
-                report.failures.push(format!(
-                    "{field}[{row}][{component}] |dev-ref|={difference:e} > bound={bound:e}（scale={scale:e}, ulp={ulp}）"
-                ));
-            }
-        }
-    }
-}
-
-macro_rules! compare_exact {
-    ($checker:ident, $reader:ident, $report:ident, $directory:ident, $output:ident, $($field:ident),* $(,)?) => {
-        $(
-            $checker(
-                &mut $report,
-                stringify!($field),
-                &$output.$field,
-                &$reader(&$directory, stringify!($field)),
-            );
-        )*
-    };
-}
-
-fn compare_case(
-    case: &str,
-    kind: CollisionKernel,
-    directory: &Path,
-    output: &CollisionGpuOutput,
-) -> CaseReport {
-    let expected = directory.join("out1");
-    let mut report = CaseReport::new(case, kind, output);
-    let expected_nacon = read_i32(&expected, "nacon");
-    let expected_nccd = read_i32(&expected, "nccd");
-    let efc_width = read_efc_width(&expected);
-    if expected_nacon.len() != 1 || expected_nccd.len() != 1 {
-        report.length("nacon/nccd", expected_nacon.len(), 1);
-        return report;
-    }
-    if output.nacon != expected_nacon[0] {
-        report.failures.push(format!(
-            "nacon dev={} ref={}",
-            output.nacon, expected_nacon[0]
-        ));
-    }
-    if output.nccd != expected_nccd[0] {
-        report
-            .failures
-            .push(format!("nccd dev={} ref={}", output.nccd, expected_nccd[0]));
-    }
-    let expected_overflow: Vec<u32> = read_i32(&expected, "overflow")
-        .iter()
-        .map(|value| *value as u32)
-        .collect();
-    check_exact(
-        &mut report,
-        "overflow",
-        &output.overflow,
-        &expected_overflow,
-    );
-
-    let rows = output.nacon.max(0) as usize;
-    if output.efc_address.len() != rows * efc_width {
-        report.length("efc_address", output.efc_address.len(), rows * efc_width);
-    }
-    check_dist(
-        &mut report,
-        "dist",
-        &output.dist,
-        &read_f32(&expected, "dist"),
-    );
-    check_vectors(
-        &mut report,
-        "pos",
-        &output.pos,
-        &read_f32(&expected, "pos"),
-        3,
-        false,
-    );
-    check_vectors(
-        &mut report,
-        "frame",
-        &output.frame,
-        &read_f32(&expected, "frame"),
-        9,
-        true,
-    );
-    #[rustfmt::skip]
-    compare_exact!(
-        check_exact_f32, read_f32, report, expected, output, includemargin, friction, solref,
-        solreffriction, solimp, adhesion,
-    );
-    #[rustfmt::skip]
-    compare_exact!(
-        check_exact, read_i32, report, expected, output, dim, geom, efc_address, worldid,
-        geomcollisionid,
-    );
-    check_exact(
-        &mut report,
-        "contact_type",
-        &output.contact_type,
-        &read_i32(&expected, "type"),
-    );
-    report
-}
-
 #[test]
 #[ignore = "requires NVIDIA GPU + NVRTC"]
 fn product_nvrtc_launcher_matches_g5_probe_out1() {
@@ -495,5 +205,220 @@ fn product_nvrtc_launcher_matches_g5_probe_out1() {
         failures.is_empty(),
         "产品 NVRTC 入口与 G5 探针 out1 不一致（{} 条）",
         failures.len()
+    );
+}
+
+#[test]
+fn world_order_normalization_turns_row_swap_into_zero_diff() {
+    // Chief 条件 2：同一份 dump（仓库内 `ellipsoid-box/out1`）构造 attempt1 观测到的「两行整体互换」，
+    // 旧口径（原始行序逐字段比）应复现 attempt1 的 14 条差异；新口径（G5 行序归一化后比）应为 0 条。
+    let expected = cases_root().join("ellipsoid-box").join("out1");
+    let efc_width = read_efc_width(&expected);
+    let ref_worldid = read_i32(&expected, "worldid");
+    let rows = ref_worldid.len();
+    assert_eq!(rows, 2, "ellipsoid-box dump 应为 2 行");
+    let swap_row = |row: usize| -> usize {
+        match row {
+            0 => 1,
+            1 => 0,
+            other => other,
+        }
+    };
+    let swap_f = |values: &[f32], width: usize| -> Vec<f32> {
+        let mut out = Vec::with_capacity(values.len());
+        for row in 0..rows {
+            let source = swap_row(row);
+            out.extend_from_slice(&values[source * width..(source + 1) * width]);
+        }
+        out
+    };
+    let swap_i = |values: &[i32], width: usize| -> Vec<i32> {
+        let mut out = Vec::with_capacity(values.len());
+        for row in 0..rows {
+            let source = swap_row(row);
+            out.extend_from_slice(&values[source * width..(source + 1) * width]);
+        }
+        out
+    };
+
+    let ref_dist = read_f32(&expected, "dist");
+    let ref_pos = read_f32(&expected, "pos");
+    let ref_frame = read_f32(&expected, "frame");
+    let ref_includemargin = read_f32(&expected, "includemargin");
+    let ref_friction = read_f32(&expected, "friction");
+    let ref_solref = read_f32(&expected, "solref");
+    let ref_solreffriction = read_f32(&expected, "solreffriction");
+    let ref_solimp = read_f32(&expected, "solimp");
+    let ref_adhesion = read_f32(&expected, "adhesion");
+    let ref_dim = read_i32(&expected, "dim");
+    let ref_geom = read_i32(&expected, "geom");
+    let ref_efc = read_i32(&expected, "efc_address");
+    let ref_type = read_i32(&expected, "type");
+    let ref_id = read_i32(&expected, "geomcollisionid");
+    let ref_nacon = read_i32(&expected, "nacon");
+    let ref_nccd = read_i32(&expected, "nccd");
+    let ref_overflow: Vec<u32> = read_i32(&expected, "overflow")
+        .iter()
+        .map(|value| *value as u32)
+        .collect();
+
+    let dev = CollisionGpuOutput {
+        nacon: ref_nacon[0],
+        nccd: ref_nccd[0],
+        overflow: vec![0_u32; ref_overflow.len()],
+        dist: swap_f(&ref_dist, 1),
+        pos: swap_f(&ref_pos, 3),
+        frame: swap_f(&ref_frame, 9),
+        includemargin: swap_f(&ref_includemargin, 1),
+        friction: swap_f(&ref_friction, 5),
+        solref: swap_f(&ref_solref, 2),
+        solreffriction: swap_f(&ref_solreffriction, 2),
+        solimp: swap_f(&ref_solimp, 5),
+        adhesion: swap_f(&ref_adhesion, 1),
+        dim: swap_i(&ref_dim, 1),
+        geom: swap_i(&ref_geom, 2),
+        efc_address: swap_i(&ref_efc, efc_width),
+        worldid: swap_i(&ref_worldid, 1),
+        contact_type: swap_i(&ref_type, 1),
+        geomcollisionid: swap_i(&ref_id, 1),
+    };
+
+    // 旧口径：原始行序逐字段比（attempt1 的失败集合应被复现）。
+    let mut old = CaseReport::new("ellipsoid-box", CollisionKernel::Contact, &dev);
+    check_dist(&mut old, "dist", &dev.dist, &ref_dist);
+    check_vectors(&mut old, "pos", &dev.pos, &ref_pos, 3, false);
+    check_vectors(&mut old, "frame", &dev.frame, &ref_frame, 9, true);
+    check_exact_f32(
+        &mut old,
+        "includemargin",
+        &dev.includemargin,
+        &ref_includemargin,
+    );
+    check_exact_f32(&mut old, "friction", &dev.friction, &ref_friction);
+    check_exact_f32(&mut old, "solref", &dev.solref, &ref_solref);
+    check_exact_f32(
+        &mut old,
+        "solreffriction",
+        &dev.solreffriction,
+        &ref_solreffriction,
+    );
+    check_exact_f32(&mut old, "solimp", &dev.solimp, &ref_solimp);
+    check_exact_f32(&mut old, "adhesion", &dev.adhesion, &ref_adhesion);
+    check_exact(&mut old, "dim", &dev.dim, &ref_dim);
+    check_exact(&mut old, "geom", &dev.geom, &ref_geom);
+    check_exact(&mut old, "efc_address", &dev.efc_address, &ref_efc);
+    check_exact(&mut old, "worldid", &dev.worldid, &ref_worldid);
+    check_exact(&mut old, "geomcollisionid", &dev.geomcollisionid, &ref_id);
+    check_exact(&mut old, "contact_type", &dev.contact_type, &ref_type);
+
+    // 新口径：G5 行序归一化（worldid 分组 + 组内 sort_contacts 键）后逐字段比。
+    let device_order = g5_contact_order(&dev.worldid, &dev.dist, &dev.pos, &dev.geomcollisionid);
+    let reference_order = g5_contact_order(&ref_worldid, &ref_dist, &ref_pos, &ref_id);
+    let dev_f = |values: &[f32], width: usize| permute_rows_f32(values, width, &device_order);
+    let ref_f = |values: &[f32], width: usize| permute_rows_f32(values, width, &reference_order);
+    let dev_i = |values: &[i32], width: usize| permute_rows_i32(values, width, &device_order);
+    let ref_i = |values: &[i32], width: usize| permute_rows_i32(values, width, &reference_order);
+
+    let mut new = CaseReport::new("ellipsoid-box", CollisionKernel::Contact, &dev);
+    check_dist(&mut new, "dist", &dev_f(&dev.dist, 1), &ref_f(&ref_dist, 1));
+    check_vectors(
+        &mut new,
+        "pos",
+        &dev_f(&dev.pos, 3),
+        &ref_f(&ref_pos, 3),
+        3,
+        false,
+    );
+    check_vectors(
+        &mut new,
+        "frame",
+        &dev_f(&dev.frame, 9),
+        &ref_f(&ref_frame, 9),
+        9,
+        true,
+    );
+    check_exact_f32(
+        &mut new,
+        "includemargin",
+        &dev_f(&dev.includemargin, 1),
+        &ref_f(&ref_includemargin, 1),
+    );
+    check_exact_f32(
+        &mut new,
+        "friction",
+        &dev_f(&dev.friction, 5),
+        &ref_f(&ref_friction, 5),
+    );
+    check_exact_f32(
+        &mut new,
+        "solref",
+        &dev_f(&dev.solref, 2),
+        &ref_f(&ref_solref, 2),
+    );
+    check_exact_f32(
+        &mut new,
+        "solreffriction",
+        &dev_f(&dev.solreffriction, 2),
+        &ref_f(&ref_solreffriction, 2),
+    );
+    check_exact_f32(
+        &mut new,
+        "solimp",
+        &dev_f(&dev.solimp, 5),
+        &ref_f(&ref_solimp, 5),
+    );
+    check_exact_f32(
+        &mut new,
+        "adhesion",
+        &dev_f(&dev.adhesion, 1),
+        &ref_f(&ref_adhesion, 1),
+    );
+    check_exact(&mut new, "dim", &dev_i(&dev.dim, 1), &ref_i(&ref_dim, 1));
+    check_exact(&mut new, "geom", &dev_i(&dev.geom, 2), &ref_i(&ref_geom, 2));
+    check_exact(
+        &mut new,
+        "efc_address",
+        &dev_i(&dev.efc_address, efc_width),
+        &ref_i(&ref_efc, efc_width),
+    );
+    check_exact(
+        &mut new,
+        "worldid",
+        &dev_i(&dev.worldid, 1),
+        &ref_i(&ref_worldid, 1),
+    );
+    check_exact(
+        &mut new,
+        "geomcollisionid",
+        &dev_i(&dev.geomcollisionid, 1),
+        &ref_i(&ref_id, 1),
+    );
+    check_exact(
+        &mut new,
+        "contact_type",
+        &dev_i(&dev.contact_type, 1),
+        &ref_i(&ref_type, 1),
+    );
+
+    println!(
+        "normalize_proof: raw_order_failures={} sorted_failures={} rows={rows} max_dist_ulp(old)={} max_pos_ulp(old)={} max_frame_ulp(old)={}",
+        old.failures.len(),
+        new.failures.len(),
+        old.max_dist_ulp,
+        old.max_pos_ulp,
+        old.max_frame_ulp
+    );
+    assert_eq!(
+        old.failures.len(),
+        14,
+        "旧口径应复现 attempt1 的 14 条差异，实际 {} 条：{:?}",
+        old.failures.len(),
+        old.failures
+    );
+    assert_eq!(
+        new.failures.len(),
+        0,
+        "新口径应为 0 条差异，实际 {:?}",
+        new.failures
     );
 }

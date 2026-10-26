@@ -1,6 +1,6 @@
 //! G10@P5：primitive narrowphase 设备入口的纯 CPU 单测（不创建 `CudaContext`、不跑 GPU）。
 //!
-//! 覆盖：`CollisionKernel::Primitive` 的类型组合校验、25 个设备源片段的拼装顺序、
+//! 覆盖：`CollisionKernel::Primitive` 的类型组合校验、27 个设备源片段的拼装顺序、
 //! `product.cu` 的 primitive 入口唯一性、以及设备源里没有重复定义 `make_frame`。
 
 use super::source::{DEVICE_SOURCES, PRODUCT_SOURCE, assemble_device_source};
@@ -15,7 +15,7 @@ const CYLINDER: i32 = 5;
 const BOX: i32 = 6;
 const MESH: i32 = 7;
 
-const PRIMITIVE_TYPES_ERROR: &str = "primitive 只支持 SPHERE-BOX / CAPSULE-BOX 与 PLANE-{SPHERE,CAPSULE,ELLIPSOID,CYLINDER,BOX,MESH} 组合";
+const PRIMITIVE_TYPES_ERROR: &str = "primitive 只支持 SPHERE-BOX / CAPSULE-BOX、SPHERE-SPHERE / SPHERE-CAPSULE / SPHERE-CYLINDER / CAPSULE-CAPSULE 与 PLANE-{SPHERE,CAPSULE,ELLIPSOID,CYLINDER,BOX,MESH} 组合";
 
 #[test]
 fn primitive_accepts_sphere_box_and_capsule_box_in_either_order() {
@@ -42,14 +42,35 @@ fn primitive_accepts_plane_family_six_combos_in_either_order() {
 }
 
 #[test]
+fn primitive_accepts_sphere_capsule_family_four_combos_in_either_order() {
+    for (first, second) in [
+        (SPHERE, SPHERE),
+        (SPHERE, CAPSULE),
+        (SPHERE, CYLINDER),
+        (CAPSULE, CAPSULE),
+    ] {
+        for (type1, type2) in [(first, second), (second, first)] {
+            assert_eq!(
+                validate_primitive_types(type1, type2),
+                Ok(()),
+                "({type1},{type2}) 应被 primitive 接受（B2 sphere/capsule 族）"
+            );
+        }
+    }
+}
+
+#[test]
 fn primitive_rejects_other_combinations() {
     for (type1, type2) in [
         (PLANE, PLANE),
-        (SPHERE, SPHERE),
-        (CAPSULE, CAPSULE),
         (BOX, BOX),
-        (SPHERE, CAPSULE),
-        (CAPSULE, SPHERE),
+        (CAPSULE, CYLINDER),
+        (CYLINDER, CAPSULE),
+        (CYLINDER, CYLINDER),
+        (SPHERE, ELLIPSOID),
+        (ELLIPSOID, SPHERE),
+        (ELLIPSOID, CYLINDER),
+        (CAPSULE, ELLIPSOID),
         (2, 7),
         (7, 3),
         (105, BOX),
@@ -66,7 +87,7 @@ fn primitive_rejects_other_combinations() {
 
 #[test]
 fn device_sources_place_primitive_after_contact() {
-    assert_eq!(DEVICE_SOURCES.len(), 25, "设备源片段数应为 25");
+    assert_eq!(DEVICE_SOURCES.len(), 27, "设备源片段数应为 27");
     let position = |wanted: &str| {
         DEVICE_SOURCES
             .iter()
@@ -82,11 +103,31 @@ fn device_sources_place_primitive_after_contact() {
         primitive + 1,
         "primitive_wrapper.cu 应紧随 primitive.cu"
     );
+    let plane_wrapper = position("primitive_plane_wrapper.cu");
+    let sc_shapes = position("primitive_sphere_capsule_shapes.cu");
+    let sc_wrapper = position("primitive_sphere_capsule_wrapper.cu");
+    assert_eq!(
+        sc_shapes,
+        plane_wrapper + 1,
+        "B2 sphere/capsule shapes 段应紧随 plane wrapper"
+    );
+    assert_eq!(
+        sc_wrapper,
+        sc_shapes + 1,
+        "B2 sphere/capsule wrapper 段应紧随 shapes"
+    );
+    assert_eq!(
+        sc_wrapper,
+        DEVICE_SOURCES.len() - 1,
+        "product.cu 前最后一段应为 primitive_sphere_capsule_wrapper.cu"
+    );
     for name in [
         "primitive_plane_common.cu",
         "primitive_plane_convex.cu",
         "primitive_plane_shapes.cu",
         "primitive_plane_wrapper.cu",
+        "primitive_sphere_capsule_shapes.cu",
+        "primitive_sphere_capsule_wrapper.cu",
     ] {
         assert!(
             DEVICE_SOURCES.iter().any(|(entry, _)| *entry == name),
@@ -103,6 +144,14 @@ fn primitive_device_sources_define_kernels_and_entry_once() {
         "g5_capsule_box",
         "g5_sphere_box_wrapper",
         "g5_capsule_box_wrapper",
+        "g5_sphere_sphere",
+        "g5_sphere_capsule",
+        "g5_capsule_capsule_core",
+        "g5_sphere_cylinder",
+        "g5_sphere_sphere_wrapper",
+        "g5_sphere_capsule_wrapper",
+        "g5_capsule_capsule_wrapper",
+        "g5_sphere_cylinder_wrapper",
     ] {
         assert!(assembled.contains(symbol), "拼装源缺少设备函数 {symbol}");
     }

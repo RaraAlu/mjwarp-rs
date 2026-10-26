@@ -296,7 +296,8 @@ extern "C" __global__ void mjwarp_collision_sdf(mjwarp_collision_args a) {
 }
 
 // primitive narrowphase 设备路径（上游 `primitive_narrowphase` 的 dispatch 子集）：
-// 只实现必做的 (SPHERE, BOX) 与 (CAPSULE, BOX)（兼容几何顺序互换）；其它组合不写接触。
+// 已实现 {SPHERE,BOX}、{CAPSULE,BOX}、B1 plane 族 6 组合、B2 sphere/capsule 族 4 组合
+// （兼容几何顺序互换）；其它组合不写接触。
 extern "C" __global__ void mjwarp_collision_primitive(mjwarp_collision_args a) {
   const int world = blockIdx.x;
   if (world >= a.nworld) return;
@@ -314,6 +315,20 @@ extern "C" __global__ void mjwarp_collision_primitive(mjwarp_collision_args a) {
     g5_capsule_box_wrapper(geom1, geom2, params, a.naconmax, &a.out);
   } else if (a.type1 == G5_BOX && a.type2 == G5_CAPSULE) {
     g5_capsule_box_wrapper(geom2, geom1, params, a.naconmax, &a.out);
+  } else if (a.type1 == G5_SPHERE && a.type2 == G5_SPHERE) {
+    // B2 sphere/capsule 族：pinned `_PRIMITIVE_COLLISIONS` 的 4 组合；wrapper 参数恒按
+    // pinned key 顺序（sphere 在前、capsule 在前），几何互换时交换入参。
+    g5_sphere_sphere_wrapper(geom1, geom2, params, a.naconmax, &a.out);
+  } else if (a.type1 == G5_SPHERE && a.type2 == G5_CAPSULE) {
+    g5_sphere_capsule_wrapper(geom1, geom2, params, a.naconmax, &a.out);
+  } else if (a.type1 == G5_CAPSULE && a.type2 == G5_SPHERE) {
+    g5_sphere_capsule_wrapper(geom2, geom1, params, a.naconmax, &a.out);
+  } else if (a.type1 == G5_SPHERE && a.type2 == G5_CYLINDER) {
+    g5_sphere_cylinder_wrapper(geom1, geom2, params, a.naconmax, &a.out);
+  } else if (a.type1 == G5_CYLINDER && a.type2 == G5_SPHERE) {
+    g5_sphere_cylinder_wrapper(geom2, geom1, params, a.naconmax, &a.out);
+  } else if (a.type1 == G5_CAPSULE && a.type2 == G5_CAPSULE) {
+    g5_capsule_capsule_wrapper(geom1, geom2, params, a.naconmax, &a.out);
   } else if (a.type1 == G5_PLANE || a.type2 == G5_PLANE) {
     // B1 plane 族：pinned `_PRIMITIVE_COLLISIONS` 的 6 组合（PLANE+SPHERE/CAPSULE/ELLIPSOID/
     // CYLINDER/BOX/MESH）；wrapper 第一个参数恒为 plane。mesh 只用 mesh 顶点/图（a.mesh_vert /
