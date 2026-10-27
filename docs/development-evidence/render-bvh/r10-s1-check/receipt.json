@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r10-s1-check",
+  "kind": "independent_check",
+  "reviewed_task": "2026-10-28-render-bvh-r10-s1-world-state",
+  "reviewed_commits": {
+    "slice": "4cf1159c",
+    "verified_record": "14ff2536"
+  },
+  "head_at_review": "14ff2536",
+  "verdict": "pass",
+  "blockers": [],
+  "observation_counts": {
+    "general": 1,
+    "suggestion": 2,
+    "total": 3,
+    "fix_pending_closure": 3,
+    "accepted": 0
+  },
+  "observations": [
+    {
+      "id": "F1",
+      "severity": "general",
+      "title": "WorldResolutions::new panics (chunks(0)) for an empty camera plan with worlds > 0",
+      "detail": "With plan.resolutions empty, stored_resolutions expected = worlds × 0 = 0 and an empty table passes the length check, then resolutions.chunks(plan.resolutions.len()) = chunks(0) panics ('chunk size must be non-zero'). QA reproduced it with catch_unwind (panic caught = true). Empty camera selection is an already-supported scenario in this repository (R08 empty-selection no-op), so nworld > 1 + empty selection would hit this panic in a public API. It is not part of the slice's seven listed error classes, so QA does not call it a blocker for the slice's stated scope, but it should be fixed before R10-S2 uses WorldResolutions with empty selection.",
+      "fix_or_accept": "FIX (2 lines): return an empty table early when plan.resolutions.is_empty(), or iterate by index instead of chunks(0); fix before S2 wiring.",
+      "disposition": "fix (closure slice 2026-10-28-render-bvh-r10-s1-obs-closure)"
+    },
+    {
+      "id": "F2",
+      "severity": "suggestion",
+      "title": "Very large worlds panic while allocating the active mask, so CountOverflow is unreachable through the public API",
+      "detail": "WorldLayout::resolve, WorldStates::new and WorldStates::with_active allocate vec![true; worlds] / states before any bound check, so an absurd worlds value (e.g., usize::MAX) panics with a capacity overflow instead of returning CountOverflow (QA reproduced with catch_unwind). Consequently CountOverflow { world_offset / world_buffer_elements / world_states } is effectively unreachable through the public API.",
+      "fix_or_accept": "FIX or ACCEPT: add an explicit upper bound or try_reserve -> CountOverflow, or document that worlds must be allocatable and CountOverflow is defensive-only.",
+      "disposition": "fix (closure slice 2026-10-28-render-bvh-r10-s1-obs-closure)"
+    },
+    {
+      "id": "F3",
+      "severity": "suggestion",
+      "title": "WorldLayout::resolve resolves the single-world layout before checking nworld == 0",
+      "detail": "An invalid plan (single-world layout overflow) combined with nworld == 0 returns WorldError::Layout(ContextError) rather than WorldCountZero; with a valid plan nworld == 0 is correctly rejected. Error precedence is not documented.",
+      "fix_or_accept": "ACCEPT (correct rejection for valid plans) or FIX by checking nworld == 0 first / documenting the precedence.",
+      "disposition": "fix (closure slice 2026-10-28-render-bvh-r10-s1-obs-closure)"
+    }
+  ],
+  "verified_items": [
+    {
+      "item": "per-world layout arithmetic (QA independent implementation)",
+      "result": "pass",
+      "detail": "For plan [[5,4],[3,2],[1,7]] with depth disabled on camera 1 and seg disabled on camera 0, QA's own layout recompute gives channel pixels 33/27/13 and adr tables matching OutputLayout exactly; nworld=3 world offsets/ranges equal w*P..(w+1)*P and camera ranges equal w*P+adr; buffer_elements = 3*P"
+    },
+    {
+      "item": "nworld = 1 bit equality with the existing single-world path",
+      "result": "pass",
+      "detail": "WorldLayout::resolve(plan,1).layout() equals OutputLayout::resolve(plan) field by field; world_range = 0..pixels; per-camera camera_range slices are bit-identical to CameraOutputViews::rgb_packed for the same plan/layout/buffer"
+    },
+    {
+      "item": "3-world sentinel isolation",
+      "result": "pass",
+      "detail": "2 cameras 4x3 + 2x2 = 16 pixels/world x 3 worlds: each world_view returns exactly its own 16 elements for rgb/depth/seg, ranges [0,16)/[16,32)/[32,48) are pairwise disjoint, camera ranges 0..12 / 12..16 / 32..44 / 44..48; short buffer 47 -> BufferRange{world:2,end:48,actual:47}; world 3 -> WorldOutOfRange"
+    },
+    {
+      "item": "error surface diagnostic without panic",
+      "result": "pass with F1/F2 notes",
+      "detail": "QA probed all 11 WorldError variants plus the Layout(ContextError) wrapper: each returns the expected variant, no panic, Display non-empty and containing the world/camera index or upper bound; empty camera plan behaves deterministically for WorldLayout (0 cameras, 0..0 range, CameraOutOfRange); the only panics found are F1 (empty camera plan in WorldResolutions) and F2 (absurd worlds allocation)"
+    },
+    {
+      "item": "poses / resolutions / states = same model multi-state",
+      "result": "pass",
+      "detail": "WorldCameraPoses is world-major nworld x ncam with identical camera count across worlds and per-world pose states differing; world_slice and get(w,c) agree; WorldResolutions replicates plan per world and rejects count/item mismatches; WorldStates reads world -> active -> state and rejects missing/inactive/out-of-range"
+    },
+    {
+      "item": "wiring is declarations only",
+      "result": "pass",
+      "detail": "src/render/context.rs +1 line only (pub mod world;), src/render/mod.rs +4 lines only (comment + pub use of 6 world types); no rendering logic added; module source registered (mjwarp.render 27 entries); normify validate --fingerprints 0 errors (5 pre-existing warnings)"
+    },
+    {
+      "item": "line counts and red lines",
+      "result": "pass",
+      "detail": "world.rs 499 (only 1 line of headroom - R10-S2 must split before extending it), context.rs 427, render/mod.rs 378, tests/render_multi_world_layout.rs 397, camera_output.rs 499, model/render.rs 500, launch.rs 500, megakernel.rs 498, cast.rs 494; git diff 48dc7db8..HEAD is empty for camera_output.rs / model/render.rs / kernel / bvh / fixtures / Cargo*; code changes limited to world.rs, context.rs, mod.rs, new test",
+      "risk": "world.rs is at 499/500: R10-S2 must split the file before adding any line"
+    },
+    {
+      "item": "four gates independently rerun on the closure final tree",
+      "result": "pass",
+      "detail": "fmt exit 0; clippy exit 0; clippy-cuda exit 0; unit 1022 passed / 0 failed / 382 ignored (126 result lines); directed render_multi_world_layout 5 passed / 0 failed; matches the archived logs (recounted 1022/0/382/126, directed 5)"
+    },
+    {
+      "item": "evidence manifest and format",
+      "result": "pass",
+      "detail": "slice evidence manifest 10 entries recomputed 0 mismatches; README 102 lines; receipt 153 lines with correct /task_id; evidence text UTF-8 no BOM/LF; 3 regulated claim terms 0 hits"
+    }
+  ],
+  "method_notes": [
+    "Per-world semantics were recomputed with QA's own layout implementation (not by copying the product test): QA rebuilt channel pixel totals and adr tables from the plan and compared them to OutputLayout and to WorldLayout's nworld=3 arithmetic.",
+    "nworld=1 bit equality was checked against CameraOutputViews::rgb_packed on a QA-generated buffer pattern, so it cross-checks the two independent APIs rather than trusting one assertion.",
+    "Panic paths were probed with std::panic::catch_unwind so a panic is recorded as evidence instead of aborting the harness; F1/F2 come from those probes.",
+    "Gates were run on the exact closure final tree (HEAD 14ff2536, clean worktree except unrelated untracked task cards) and recounted independently."
+  ],
+  "environment": {
+    "os": "Windows",
+    "repo": "D:\\Rust\\mjwarp-rs",
+    "review_type": "read-only",
+    "gpu_opened_by_qa": false,
+    "window_opened_by_qa": false,
+    "python": "target/render-bvh-precheck/venv312/Scripts/python.exe",
+    "qa_harness_tests": 5,
+    "qa_harness_failures": 0
+  },
+  "gates": {
+    "applicable": false,
+    "gate_exit_code": 1,
+    "gate_stderr": "任务没有引用任何门禁",
+    "result": "not applicable for this check task (json + forbid_claim only); the reviewed slice's four gates were independently rerun by QA on the final tree: fmt 0 / clippy 0 / clippy-cuda 0 / unit 1022 passed 0 failed 382 ignored (126 result lines), directed 5 passed"
+  },
+  "boundaries": [
+    "read-only: no re-render, no GPU, no window, no code/criteria/reference/tolerance change",
+    "host-side multi-world state/layout and error surface only; GPU end-to-end multi-world (R10-S2) not in scope"
+  ],
+  "evidence_files": [
+    "docs/development-evidence/render-bvh/r10-s1-check/README.md",
+    "docs/development-evidence/render-bvh/r10-s1-check/receipt.json",
+    "docs/development-evidence/render-bvh/r10-s1-check/manifest.json",
+    "docs/development-evidence/render-bvh/r10-s1-check/harness/qa_r10_s1_check.rs",
+    "docs/development-evidence/render-bvh/r10-s1-check/logs/qa-harness.log",
+    "docs/development-evidence/render-bvh/r10-s1-check/logs/fmt.log",
+    "docs/development-evidence/render-bvh/r10-s1-check/logs/clippy.log",
+    "docs/development-evidence/render-bvh/r10-s1-check/logs/clippy-cuda.log",
+    "docs/development-evidence/render-bvh/r10-s1-check/logs/unit.log",
+    "docs/development-evidence/render-bvh/r10-s1-check/logs/directed.log",
+    "docs/development-evidence/render-bvh/r10-s1-check/logs/gates-summary.txt",
+    "docs/development-evidence/render-bvh/r10-s1-check/verify_static.py",
+    "docs/development-evidence/render-bvh/r10-s1-check/logs/static-check.log",
+    "docs/development-evidence/render-bvh/r10-s1-check/logs/evidence-selfcheck.txt",
+    "docs/development-evidence/render-bvh/r10-s1-check/verify_evidence.py"
+  ],
+  "closure_plan": {
+    "slice": "2026-10-28-render-bvh-r10-s1-obs-closure",
+    "arch_ruling": "all three observations are FIX; the slice must split world.rs (499/500) first (world/mod.rs + world/layout.rs + world/state.rs/errors), then fix F1/F2/F3",
+    "fix_items": {
+      "F1": "WorldResolutions::new returns an empty table when plan.resolutions is empty (cameras == 0), no chunks(0) panic; add empty-camera unit test",
+      "F2": "WorldLayout::resolve / WorldStates::new / with_active replace vec![true; worlds] allocation with try_reserve or an explicit upper bound returning CountOverflow; make world_offset / world_buffer_elements / world_states CountOverflow reachable",
+      "F3": "move the nworld == 0 check before OutputLayout::resolve (or document-and-lock the precedence with a unit test)"
+    }
+  }
+}
