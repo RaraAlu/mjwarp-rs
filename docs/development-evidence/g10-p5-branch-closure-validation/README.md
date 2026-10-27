@@ -113,14 +113,20 @@ nmeshpoly、U7 polynum=25、U8 polynum=22）与 polyvert/polymap 值域，以及
 | plane (B1) | `g10_p5_primitive_plane_cuda-b1e8897a38248f9f.exe` | 41561088 | `e7dccc078092357cf905bb47f6b947dc4c093ac8444ff149b5401176b62ef016` |
 | sphere_capsule (B2) | `g10_p5_primitive_sphere_capsule_cuda-effe95bf0fed2063.exe` | 41549312 | `6cd4f7a6755ba5af0dcb384ea734a7f1c7428b5124b0f5273d0c6cd3627373fd` |
 | branches (B3) | `g10_p5_primitive_branches_cuda-555175a2d3995ff7.exe` | 41625600 | `ff61a349d87ddd0cee8643271ec533ed2080be336860152b30dab47e54ba92ef` |
-| mesh_m2 | `g10_p5_mesh_multicontact_m2_cuda-e11ae6eb82e10bd5.exe` | 41740800 | `277b043594b4c1ab4167c66258405146b5eedf5bf784fd1ac4d15dc7ebf3e3de` |
-| mesh_m3 | `g10_p5_mesh_multicontact_m3_cuda-31f06b6f3d1d660f.exe` | 41743360 | `468c1a967318ae309ea6757fb495f014f417c3e7827219f2b499a9cb790991c3` |
+| mesh_m2 | `g10_p5_mesh_multicontact_m2_cuda-e11ae6eb82e10bd5.exe` | 41740800 | `a6b3548512004221c5be13c52893789d50231a4d7580b694df860c5a7e3f14db` |
+| mesh_m3 | `g10_p5_mesh_multicontact_m3_cuda-31f06b6f3d1d660f.exe` | 41743360 | `e502b8eb8678016718196bf50b532050884162647e268128467fc7a03224b69f` |
 | stage2 (record-C) | `stage2_equivalence_window-b7e65259db9435d8.exe` | 42265600 | `9e5f0b0968d7cca4a9e71093a466f5d39eb0b45e996dc49fe0e994dfb9009b70` |
 
-runner（不入库）：`target/s4-branch-closure/window/run-validation-attempt1.ps1`，11735 B，sha256
-`1731f56c2bc5757c2f3957a12a520aaf2a516c2e6c605b68e13f1aaedd31dcd6`。
+**二次冻结**：mesh_m2 / mesh_m3 改用 **M3 窗口已签冻结副本**（`target/m3-freeze/`，mtime 01:06:25 / 01:06:17）；
+S4 重编副本（`277b0435…` / `468c1a96…`）保留在 `target/s4-freeze/superseded-rebuild/` 留档。最终 10 实体 =
+**2 s4-build（branch_closure、launcher，10:17:56）+ 8 m3-freeze（M3-signed）**；m2/m3 重编 sha 变化的实测分析见 §11。
 
-## 6. 窗口计划（待签后开窗；attempt 计数=0）
+runner（不入库）：`target/s4-branch-closure/window/run-validation-attempt1.ps1`，12013 B，sha256
+`e737966384a8077e15a0995d9565eff0448ea10fad683fb67ed1fb8446c62109`（开窗前按二次冻结更新 m2/m3 守卫后的版本）。
+
+## 6. 窗口计划（开窗前计划值；实际执行见 §8–§12，attempt1 已跑完）
+
+> 本节保留开窗前的计划口径（供对照）；开窗时 runner 重采的实际基线 / floor / samples / 结果以 §8–§9 为准。
 
 - **内容**：10 实体顺序执行。stage2 用 `window_product_equivalence_dump …`（record-C 只记录），
   其余 `--ignored --nocapture --test-threads=1`。
@@ -147,9 +153,120 @@ runner（不入库）：`target/s4-branch-closure/window/run-validation-attempt1
 
 ## 7. 边界（不宣称项）
 
-- 本文件是**开窗前证据**；窗口结果与窗口事实在 run 后回填（另一提交），窗口结果只按判据内
-  零失败记录，**不写「窗口通过」**、不写分支「已覆盖」。
+- 本文件同时记录**开窗前证据**（§1–§6）与**窗口结果/事实**（§8–§12）；窗口结果只按判据内零失败记录，
+  **不写「窗口通过」**、不写分支「已覆盖」。
 - U7/U8 保持 **record-only**（不进分母，同时记 count/dist/pos）；U8 设备行为若与上游不同，
   按 §1.1 措辞如实记录，不改 fixture/判据/代码。
 - 本片不新增容差、不改写期望值；产品代码/设备源零改动；fixtures 只用 S3 落盘 13 个，未新造。
-- 机器可读 JSON（`receipt.json`）按既有惯例可超过 500 行限制；README/代码 ≤500 行。
+- 机器可读 JSON（`receipt.json`、`window-receipt.json`）按既有惯例可超过 500 行限制；README/代码 ≤500 行。
+
+## 8. 验证窗 attempt1 结果（2026-10-27；首个有效轮，作废轮 0）
+
+- **窗口**：`window_start = 2026-10-27T10:36:58.831+08:00` → `window_end = 2026-10-27T10:40:57.659+08:00`；
+  **body_wall = 238.8 s**（runner 进程全程 251.5 s，含开窗前 precheck/基线采样与结尾落盘）。
+- **10 实体独立 exit code**（逐实体独立采集；每个实体日志单独落盘，见 §12）：
+
+| entity | exit | 判据内数值 |
+| --- | --- | --- |
+| branch_closure（新） | **0** | 验收组 9 case 全 `failures=0`（详见下表）；U7/U8 record-only 见 §10 |
+| launcher（扩 1 case） | **0** | hfield-sphere 314/314 bit；sdf-box 3122/3122；ellipsoid-box 80/80；**hfield-capsule（新增）275/275**；max ULP 全 0；failures=0 |
+| multicontact | **0** | cylinder-box 314/314 bit；box-box-margin 391/392（max_pos_ulp=1）；G5 mesh-mesh（Contact 单接触路径）80/80；failures=0 |
+| primitive | **0** | sphere-box-shallow / -deep / capsule-box 各 80/80；failures=0 |
+| plane（B1） | **0** | plane-sphere/capsule/ellipsoid/cylinder nacon=1；plane-box/mesh nacon=3；failures=0 |
+| sphere_capsule（B2） | **0** | sphere-sphere / sphere-capsule / sphere-cylinder / capsule-capsule 各 nacon=1；failures=0 |
+| branches（B3） | **0** | 6 分支 + 4 swap（含 plane-mesh-graph swap）nacon 与 failures 全 0 |
+| mesh_m2 | **0** | mesh-box、mesh-cylinder 各 4/4 bit、ULP 0、`contact.geom=[1,0]`、failures=0 |
+| mesh_m3 | **0** | mesh-mesh 4/4 bit、ULP 0、`contact.geom=[0,1]`、failures=0 |
+| stage2（record-C） | **0** | 17 个 product dump（8 case × Contact/ContactMulti + sdf-box）均「两次一致 true」；**只记录、不进判据** |
+
+- **branch 验收组逐 case**（进 pass/fail 分母，判据 = bit_equal 优先 + 4 ULP@scale 兜底、零放宽）：
+
+| case | kernel | nacon | ref_count | failures |
+| --- | --- | --- | --- | --- |
+| plane-cylinder-degenerate | Primitive | 3 | 3 | 0 |
+| plane-box-corner-face-down | Primitive | 4 | 4 | 0 |
+| plane-box-corner-face-up | Primitive | 4 | 4 | 0 |
+| plane-box-corner-tilt-x | Primitive | 2 | 2 | 0 |
+| plane-box-corner-tilt-y | Primitive | 2 | 2 | 0 |
+| plane-box-corner-single | Primitive | 1 | 1 | 0 |
+| plane-capsule-lying | Primitive | 2 | 2 | 0 |
+| plane-cylinder-deep-tilt | Primitive | 4 | 4 | 0 |
+| mesh-mesh-two-assets | ContactMulti | 3 | 3 | 0 |
+
+- **回归面**：13 组合（G5 multicontact 3 + launcher 3 + primitive 3 + B1 plane 6 + B2 4）＋ B3 6 分支 + 4 swap
+  ＋ M2 2 case ＋ M3 1 case 全部判据内 `failures=0`（位级或既有已知 ULP 内）；stage2 只记录。
+  hfield-capsule 新增设备 case 判据内 `failures=0`（275/275 位级一致）——仅该 case 的本窗执行记录，不推广。
+
+## 9. 窗口事实（attempt1，权威来源 = guard.log + samples.csv）
+
+- 开窗前 sha 守卫：`SHA_GUARDS_OK exes=10 fixtures=13 references=2`；**25 条 `SHA_OK` 行**写入
+  `logs/validation-attempt1-sha-guards.txt` **且**进 `logs/validation-attempt1-facts.txt`（不只 stdout）。
+- 机器负载 precheck：`cargo/rustc/cl/nvcc` 全无；CPU 3 采样 `2,2,0`；进程快照见
+  `logs/validation-attempt1-machine-load.txt`；无 clean 重建/全量测试并行。
+- 3 点开窗基线：`3048,13014,9,31,596.36` / `3049,13013,10,31,596.36` / `3049,13013,9,31,596.36`；
+  **open 门 free 13014 ≥ 10240 通过**；`floor = min(10240, 13014 − 3072) = 9942` MiB。
+- compute-apps：基线 29 条（含 6 条 `[Insufficient Permissions]` 桌面/系统噪声），按
+  `python|g10_p5|cargo|mjwarp` 过滤 = **0**；窗口后 post 同口径过滤 = **0**。
+- 采样（0.25 s，`logs/validation-attempt1-samples.csv`）：**871** 样本；`used_peak=3144`、`free_min=12918`
+  （> floor 9942）、`util_max=46%`、≥80% 连续 = **0**、`residual=0`、`process_exited=true`；
+  **guard 无 abort**（`logs/validation-attempt1-guard.log` 只有 init/baseline/preconditions/aggregates 行）。
+- **delta 三口径**（MiB，上限 3072）：vs guard baseline used 3049 → **95**；vs 首基线点 used 3048 → **96**；
+  vs 采样最小 used 3035 → **109**。
+- `post = 3048,13014,18,31,596.36`；结束基线 `3052,13010,18 / 3052,13010,13 / 3052,13010,15`；
+  **无残留**（residual 0 / process_exited true）。
+- **零 Rust 编译**：窗口内只运行 10 个冻结 exe + nvidia-smi + guard 采样；`target/debug` 在窗口时段
+  （10:36:50–10:41:10）**0 个文件被修改**；窗口后无 cargo/rustc 进程。
+- **窗口前后冻结集复核**：10 个 exe sha256 与签名集合逐项一致（0 mismatch）、runner
+  `12013 B / e7379663…` 一致（`logs/validation-attempt1-binary-shas.txt`）。
+- 两份 S3 参考只读：`24d89e92…`（16932 B）/ `b6abb8fa…`（4581 B）窗口前后一致。
+- **facts.txt 已知缺陷**：`guard_aggregate=System.Collections.Specialized.OrderedDictionary`（runner 把字典
+  对象字符串化，M3 同型缺陷）；**本段数字全部由 `validation-attempt1-guard.log` + `validation-attempt1-samples.csv`
+  重算**，facts.txt 原始文件未改写（8488 B / sha256 `94c204bc…`）。
+- **编码注记**：`guard.log` 由共享 guard 脚本写为 UTF-8 **带 BOM**；证据副本仅剥离 3 字节 BOM（原始
+  657 B / sha256 `b503d9a9…`，证据副本 654 B / sha256 `2bb90c90…`），内容不变。
+  `validation-attempt1-stage2_equivalence_window.log` 的中文行在 runner 捕获时被控制台代码页转码，
+  数值与 ASCII 结构字段不受影响。
+
+## 10. U7/U8 描述性记录（record-only，不进 pass/fail 分母；同时记 count/dist/pos）
+
+- **U7 `mesh-limits-cone-box`**：`device_count=1` / `ref_count=1`；`device_dist=[-1.0000005e-2]` /
+  `ref_dist=[-1.0000002e-2]`；`device_pos=[(3.72529e-10,3.72529e-10,9.5000006e-2)]` /
+  `ref_pos=[(3.72529e-10,3.72529e-10,9.5e-2)]`。
+  口径：count=1 **与 degree>10 限制语义一致**；count 相同可能偶合，故同时记 dist/pos（dist 差 3e-9、pos z 差 6e-9）。
+- **U8 `mesh-limits-prism-box`**：`device_count=1` / `ref_count=4`；`device_dist=[-9.999998e-3]` /
+  `ref_dist` 四个均为 `-9.999998e-3`；`device_pos=[(4.4e-2,-4.9999997e-2,4.5e-2)]` /
+  `ref_pos=[(-5e-2,5e-2,4.5e-2);(5e-2,5e-2,4.5e-2);(5e-2,-5e-2,4.5e-2);(-5e-2,-5e-2,4.5e-2)]`。
+  口径：**上游支持 20 顶点 polygon（动态容量），设备 `FACE_MAX=16` 逐 polygon 回退 → 行为差异 / 限制存在**；
+  设备实测 1 ≠ 参考 4，如实记录差距，未动 fixture / 判据 / 代码。
+- 两条均只打印 `RECORD-ONLY …`（见 `validation-attempt1-g10_p5_branch_closure_cuda.log`），不进分母；
+  未写「上游也限制 / 与上游一致 / U8 已覆盖」。
+
+## 11. 冻结修正（二次冻结）与 m2/m3 重编 sha 变化分析
+
+- **二次冻结**：mesh_m2 / mesh_m3 改用 M3 已签冻结副本（`a6b35485…` / `e502b8eb…`，mtime 01:06:25 / 01:06:17）；
+  S4 重编副本保留在 `target/s4-freeze/superseded-rebuild/`（`277b0435…` / `468c1a96…`），未删除。
+  最终 10 实体 = **2 s4-build（branch_closure、launcher）+ 8 m3-freeze（M3-signed）**，表见 §5。
+- **两次构建同配置可证**：deps 文件名 metadata 后缀相同、字节数相同（非特性/工具链差异）。
+- **实测差异**（重编 vs M3 已签）：m2 = **1,150,111 B / 79,619 段 / 2.755%**，分布 `.text` 974,005 B（43,028 段）、
+  `.rdata` 117,200 B、`.pdata` 57,548 B（25,601 段，RUNTIME_FUNCTION 位移）、`.data` 15 B、`.reloc` 1,340 B；
+  PE TimeDateStamp `1793034366`（01:06:06）→ `1793067210`（10:13:30）。m3 同型：1,148,715 B / 79,648 段 / 2.752%。
+  即**整镜像重编/重排**，不是仅 PE 时间戳或 debug 段差异。
+- **直接原因**：M3 冻结构建在 01:06，而 M3 提交 `f1e5cda1`（01:28，拆分 `#[cfg(test)]` 代码 + `abi.rs`）在其后；
+  S4 的 MSVC 重建必然重编 crate lib 并重链旧 lib → 代码布局整体位移；叠加 test profile 默认增量编译
+  （`target/debug/incremental` 存在、`CARGO_INCREMENTAL` 未设），增量重编不保证位级可复现。
+- 未为对齐 sha 重编；窗口统一使用 §5 的最终 sha。
+
+## 12. 证据索引与边界补充
+
+- 原始窗口产物：`target/s4-branch-closure/attempt1/`（不入库）；证据副本（`logs/`，UTF-8 无 BOM，
+  除 guard.log 按上节说明剥 BOM）：
+  - `validation-attempt1-facts.txt`（8488 B / `94c204bc…`）、`…-guard.log`（654 B / `2bb90c90…`）、
+    `…-samples.csv`（48247 B / `c5c9d302…`）、`…-baseline.txt`（2108 B / `9ae9eb2b…`）、
+    `…-sha-guards.txt`（5234 B / `ca77a407…`）、`…-machine-load.txt`（653 B / `9b58397c…`）、
+    `…-binary-shas.txt`（1667 B / `07c3e4a1…`）；
+  - 10 个 `validation-attempt1-<entity>.log`（逐实体 exit code / 数值；sha 见 `window-receipt.json`）。
+- 开窗前材料：`mesh-data-provenance.md`、`logs/mesh-data-check.txt`；`logs/prewindow-frozen-binaries.txt`
+  与 `logs/prewindow-plan.txt` 已按二次冻结修正（m2/m3 sha、runner 12013 B / `e7379663…`）。
+- 机器可读权威回执：`window-receipt.json`（`/task_id = 2026-10-27-unc3-branch-closure-s4-window`）；
+  `receipt.json` 为开窗前回执，已同步二次冻结与窗口结果摘要。
+- 边界：不写「窗口通过」、不写任何分支「已覆盖」、不宣称精度达标/上游等价；branch 组零失败仅为本窗执行记录。
