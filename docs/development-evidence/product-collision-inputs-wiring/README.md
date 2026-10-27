@@ -179,3 +179,75 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
 | `tests/support/collision_inputs_preflight.rs` | 313 行 | 原始 ABI 负例预检 |
 | `tests/support/collision_inputs_oracle.json` | 12545 B | pinned oracle（机器可读） |
 | `scripts/generate_collision_inputs_oracle.py` | 159 行 | authoring-only oracle 生成脚本 |
+
+## 8. S2：快照 → `CollisionGpuInputs` adapter + M0b 32 bins CPU 对账
+
+- 任务：`2026-10-27-product-collision-inputs-s2-adapter`（owner Backend，HEAD 起点 `6a113daf`）；无 GPU、未开窗；
+  **不做产品入口接线**（S3 才接）、不改判据/参考/容差/设备源/ABI。
+- 结果一句话：S1 的 32 项宿主快照经新 adapter 组装为 `CollisionGpuInputs` 并复用既有
+  `validate_collision_inputs`；对三份 case 的 32 数组做到**逐字节 + sha256 相等（0 不符）**；
+  旧 23 项输入 → 9 项空 slice、sidecar null、validate 通过；部分为空/长度/meta 非法 → `InvalidArgument`。
+
+### 8.1 adapter（`src/runtime/collision_gpu/inputs_from_snapshot.rs`，215 行）
+
+- `CollisionInputsSnapshot<'a>`：32 项**借用 slice** 视图，字段顺序/宽度与
+  `src/runtime/collision_gpu/types.rs::CollisionGpuInputs` 1:1（`geom_xpos/geom_xmat` 为单 world 的
+  ngeom×3 / ngeom×9 帧快照）。
+- `inputs_from_snapshot(&view, meta) -> Result<CollisionGpuInputs<'_>, CollisionGpuError>`：组装 32 项 +
+  调用方给的 `CollisionGpuMeta`，然后调用**既有** `validate_collision_inputs`（与
+  `CollisionGpuProgram::run` 首步校验同一实现）；不 panic。
+- `CollisionInputsSnapshot::from_model_input(&CollisionInputsModelInput, &CollisionInputsFrame)`
+  （`native-model-probe` feature 下）：把 S1 的拥有式模型快照 + mjData 帧快照按字段号映射为视图；
+  先按 `COLLISION_INPUTS_FIELDS` 校验 30 项类型/长度（与 `CollisionInputsCounts` 口径一致）与帧长度，
+  失败返回 `InvalidArgument`。
+- `mesh_poly_sidecar_present(&inputs)`：与 `run` 内构造 sidecar 前的 `!inputs.mesh_polynum.is_empty()`
+  条件一致（**`run` 未改**），供 host 测试断言「旧 23 项 → null」。
+- `src/runtime/collision_gpu.rs` 只加 `mod inputs_from_snapshot;` 与 `pub use`（+4 行），既有入口/ABI 不动。
+
+### 8.2 CPU 对账（写死口径，实际结果 0 不符）
+
+- case 与路径（只读）：
+  - `mesh-box` → `docs/development-evidence/mesh-multicontact-m0b/cases/mesh-box/`
+  - `mesh-cylinder` → `docs/development-evidence/mesh-multicontact-m0b/cases/mesh-cylinder/`
+  - `mesh-mesh`（fixture = `fixtures/g10-p5-mesh-multicontact/mesh-mesh-two-assets.xml`）→
+    `docs/development-evidence/mesh-multicontact-m3/cases/mesh-mesh/`
+  - **路径更正**：M0b `cases/` 只落了 `mesh-box` / `mesh-cylinder` 两个 case；第三份
+    `mesh-mesh-two-assets` 的 32 数组 bins 是同口径的 M3 捕获窗产出的（M0b README 只列两个 case）。
+    本片只读该目录、未改动（`unchanged` 检查只覆盖 M0b 目录，M3 case 只读）。
+- 对账方式（测试 `tests/g10_p5_collision_inputs_adapter.rs` + support）：
+  按字段名读 32 个 `.bin` 与 `meta.txt`，按字段 id 建 `CollisionInputsSnapshot`，经 adapter 组装后
+  逐数组断言 **LE 字节相等** 且 **sha256 相等**；同时断言每项长度 ==
+  `CollisionInputsCounts::expected(spec) × 4`（host 侧 f32/i32 均 4 字节标量），并断言
+  `validate_collision_inputs` Ok、`mesh_poly_sidecar_present` 为 true。
+- 结果：**3 case × 32 数组 = 96/96 项字节与 sha 全部相等，0 不符**；`meta.nworld == 1`、
+  `meta.ngeom == counts.ngeom` 一致；三 case 均 validate 通过。
+- 旧 23 项输入：以 `mesh-box` 的 23 项基础数组（去掉 9 项 mesh_poly）构造视图 →
+  9 项空 slice、`mesh_poly_sidecar_present == false`（`run` 侧即 `mesh_poly_args = null`）、
+  validate Ok、其余 23 项原样透传。
+- 负例（均返回 `InvalidArgument`、不 panic）：
+  - 只给 9 项中的 1 项 → 「mesh_poly 输入不完整…」；
+  - `geom_xpos` 空（与 `meta.ngeom` 不一致）→ 「geom_xpos 长度须为 nworld*ngeom*3」；
+  - `geom_type` 少 1 项 → 「geom_type 长度须为 ngeom」；
+  - `meta.nworld`/`naconmax`/`efc_width` 置 0 → 对应长度/容量错误。
+- `from_model_input` 桥接测试（`native-model-probe` + pinned DLL，ignored）：1 passed——S1 拥有式快照
+  映射出的 32 项与视图逐字节一致（含 geom 帧），并用从 30 项字段/帧导出的 meta 通过 validate。
+
+### 8.3 门禁与边界
+
+- `normify gate` exit 0：fmt 通过、clippy 通过、clippy-cuda 通过、unit **997 过 / 0 败 / 376 ignored**
+  （+3 项本片 host 测试；基线 994/0/376）。clippy 在默认与 `--features native-model-probe` 两套均零警告。
+- 不改 18 个 pinned 源、`src/runtime/collision_gpu/abi.rs`、`src/physics/collision/cuda/`、
+  `fixtures/g10-p5-mesh-multicontact/`、`fixtures/g10-p5-primitive-branches/`、M0b 证据（machine check
+  `unchanged`）；`CollisionArgs` 504 B 与既有 ABI 未动；无新 feature、无 GPU、未开窗。
+- 本片不做产品接线；不宣称 host↔device 等价、不宣称精度/上游等价。
+
+### 8.4 S2 交付文件
+
+| 文件 | 行/字节 | 说明 |
+| --- | --- | --- |
+| `src/runtime/collision_gpu/inputs_from_snapshot.rs` | 215 行 / 9657 B | adapter 视图、组装+校验、S1 桥接、sidecar 判据 |
+| `src/runtime/collision_gpu.rs` | 462 行（+4） | `mod` 声明 + `pub use`，既有入口/ABI 不动 |
+| `tests/g10_p5_collision_inputs_adapter.rs` | 233 行 / 8687 B | 32 bins 逐数组对账 + 旧 23 项 + 负例（≤500） |
+| `tests/support/collision_inputs_adapter_support.rs` | 319 行 / 11596 B | bins/meta 读取、字段 id 视图、字节/摘要工具 |
+| `logs/s2-targeted-default.log`、`logs/s2-targeted-native.log` | — | 定向测试原始输出（UTF-8 无 BOM） |
+| `logs/s2-fmt-clippy.log`、`logs/s2-gate.log` | — | 本地检查与门禁记录 |

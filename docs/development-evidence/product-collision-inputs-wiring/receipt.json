@@ -304,5 +304,121 @@
     "O7": "接受（后续）：capture 未交叉校验两组计数",
     "O8": "接受（措辞）：「与 HEAD 逐字节一致」易混 → 写「blob 与 HEAD 一致、LF 归一化」",
     "O9": "接受（口径）：行数统一按 LF/字节计（README 数字为准，Git/QA 工具口径一致）"
+  },
+  "s2": {
+    "task_id": "2026-10-27-product-collision-inputs-s2-adapter",
+    "status": "complete_host_side",
+    "head_at_start": "6a113daf86d198f4cc93faf5981ed5e4a7f9b96e",
+    "scope": "S2 snapshot-to-CollisionGpuInputs adapter + M0b/M3 32-bin CPU parity; no product wiring, no GPU, no new feature, ABI/criteria untouched.",
+    "adapter": {
+      "module": "src/runtime/collision_gpu/inputs_from_snapshot.rs",
+      "view_type": "CollisionInputsSnapshot<'_> (32 borrowed slices, order/width 1:1 with types.rs::CollisionGpuInputs)",
+      "entry": "inputs_from_snapshot(&view, meta) -> Result<CollisionGpuInputs<'_>, CollisionGpuError>; calls existing validate_collision_inputs",
+      "s1_bridge": "CollisionInputsSnapshot::from_model_input(&CollisionInputsModelInput, &CollisionInputsFrame) behind native-model-probe",
+      "sidecar_predicate": "mesh_poly_sidecar_present mirrors run condition !mesh_polynum.is_empty(); run not modified",
+      "parent_change": "src/runtime/collision_gpu.rs +4 lines (mod + pub use)"
+    },
+    "parity": {
+      "cases": [
+        "mesh-box",
+        "mesh-cylinder",
+        "mesh-mesh (fixture mesh-mesh-two-assets)"
+      ],
+      "case_paths": {
+        "mesh-box": "docs/development-evidence/mesh-multicontact-m0b/cases/mesh-box/",
+        "mesh-cylinder": "docs/development-evidence/mesh-multicontact-m0b/cases/mesh-cylinder/",
+        "mesh-mesh": "docs/development-evidence/mesh-multicontact-m3/cases/mesh-mesh/"
+      },
+      "path_note": "M0b cases/ contains only mesh-box and mesh-cylinder; the third fixture 32-bins are the same-caliber M3 capture-window case (read-only, not modified; unchanged check covers M0b only).",
+      "arrays_expected": 96,
+      "arrays_equal_bytes": 96,
+      "arrays_equal_sha256": 96,
+      "mismatches": 0,
+      "length_rule": "per-array length == CollisionInputsCounts::expected(spec) * 4 (host f32/i32 scalars)",
+      "validate": "Ok for all three cases",
+      "sidecar_present": true,
+      "meta_checks": "meta.nworld==1 and meta.ngeom==counts.ngeom for all cases"
+    },
+    "legacy_23_inputs": {
+      "construction": "mesh-box base 23 arrays (9 mesh_poly omitted) -> CollisionInputsSnapshot with empty mesh_poly slices",
+      "mesh_poly_empty_slices": 9,
+      "sidecar_present": false,
+      "sidecar_meaning": "run keeps mesh_poly_args=null",
+      "validate": "Ok",
+      "base_arrays_passthrough": "23/23 byte-identical"
+    },
+    "negatives": [
+      "partial mesh_poly (1 of 9 present) -> InvalidArgument mesh_poly input incomplete",
+      "empty geom_xpos vs meta.ngeom -> InvalidArgument geom_xpos length must be nworld*ngeom*3",
+      "geom_type truncated by 1 -> InvalidArgument geom_type length must be ngeom",
+      "meta.nworld=0 -> InvalidArgument nworld must be positive",
+      "meta.naconmax=0 -> InvalidArgument naconmax must be positive",
+      "meta.efc_width=0 -> InvalidArgument efc_width must be positive",
+      "no panics (all rejections are Err values)"
+    ],
+    "host_tests": {
+      "default_features_command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --test g10_p5_collision_inputs_adapter",
+      "default_features_result": "3 passed / 0 failed / 0 ignored",
+      "native_bridge_command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features native-model-probe --test g10_p5_collision_inputs_adapter -- --ignored --test-threads=1",
+      "native_bridge_result": "1 passed / 0 failed (from_model_input maps S1 owned snapshot to view byte-exactly; validate Ok)",
+      "gpu_used": false,
+      "window_opened": false
+    },
+    "deliverables": {
+      "adapter": {
+        "path": "src/runtime/collision_gpu/inputs_from_snapshot.rs",
+        "lines": 215,
+        "bytes": 9657,
+        "sha256": "c8c2dca85b30cce1fb814b8d52943aa88b72f09a59dc58b8fe23b95c52fd4413"
+      },
+      "parent": {
+        "path": "src/runtime/collision_gpu.rs",
+        "lines": 462,
+        "bytes": 21941,
+        "sha256": "2f0f41feb38765b538afa9d810c7fa160e08375b3b74ee72ca9046c72262de58"
+      },
+      "test": {
+        "path": "tests/g10_p5_collision_inputs_adapter.rs",
+        "lines": 233,
+        "bytes": 8687,
+        "sha256": "de1e5977f20fb873bba36a64946fb6b39accc95c30a8d796a06300f84fd6c236"
+      },
+      "support": {
+        "path": "tests/support/collision_inputs_adapter_support.rs",
+        "lines": 319,
+        "bytes": 11596,
+        "sha256": "bd09ba9279f1d910e10e5d1c196dd034a205dcacbf42b47ed1c66dabaf5113c2"
+      }
+    },
+    "gates": {
+      "command": "normify gate 2026-10-27-product-collision-inputs-s2-adapter",
+      "exit": 0,
+      "fmt": "pass",
+      "clippy": "pass",
+      "clippy_cuda": "pass",
+      "unit": {
+        "passed": 997,
+        "failed": 0,
+        "ignored": 376
+      },
+      "unit_baseline_before_this_slice": {
+        "passed": 994,
+        "failed": 0,
+        "ignored": 376
+      },
+      "run_dir": ".normify/runs/2026-10-27-product-collision-inputs-s2-adapter/",
+      "note": "gate ran twice (code-final tree and final tree with evidence); both exit 0 with identical results/counts; per-run timings live in .normify/runs"
+    },
+    "boundaries": {
+      "product_wiring_done": false,
+      "host_device_equivalence_claimed": false,
+      "precision_or_acceptance_claim": false,
+      "upstream_equivalence_claim": false,
+      "abi_or_device_sources_modified": false,
+      "criteria_reference_tolerance_modified": false,
+      "fixtures_or_m0b_bins_modified": false,
+      "run_modified": false,
+      "new_feature_added": false
+    }
   }
 }

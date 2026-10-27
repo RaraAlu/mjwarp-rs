@@ -15,6 +15,7 @@ mod abi;
 mod buffers;
 mod context;
 mod error;
+mod inputs_from_snapshot;
 mod source;
 mod types;
 
@@ -44,6 +45,9 @@ use super::presence;
 use abi::{CollisionArgs, CollisionContactOut, MjwarpMeshPolyArgs, validate_inputs};
 use buffers::{input_pointer, output_pointer, readback, truncated, upload, zeroed};
 pub use error::CollisionGpuError;
+pub use inputs_from_snapshot::{
+    CollisionInputsSnapshot, inputs_from_snapshot, mesh_poly_sidecar_present,
+};
 pub use types::{CollisionGpuInputs, CollisionGpuMeta, CollisionGpuOutput};
 
 /// 仅测试入口：对 32 项宿主输入做纯 CPU 校验（不建 CUDA context、无行为变更）。
