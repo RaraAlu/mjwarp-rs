@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-product-collision-inputs-s1-observation-closure",
+  "kind": "product-collision-inputs-s1-observation-closure-receipt",
+  "date": "2026-10-27",
+  "upstream_check": {
+    "task": "2026-10-27-product-collision-inputs-s1-independent-check",
+    "commit": "cd7a854f + 9f8c50f7 (LF normalization fix)",
+    "verdict": "pass",
+    "blockers": 0,
+    "observations": 9
+  },
+  "gate": {
+    "applicable": false,
+    "reason": "docs-only 证据口径更正片，任务 checks 只有 json(task_id) + forbid_claim；未引用门禁，normify gate 返回「任务没有引用任何门禁」"
+  },
+  "O1_correction": {
+    "what": "pinned sha 与工作树差异的原因写成 CRLF 工作树 vs LF 归一化 pinned；删除「已被 render/volume 片更新」的错误归因",
+    "facts": {
+      "include/mjwarp_native_probe.h": {
+        "raw_sha_prefix": "2068caf15f84",
+        "lf_sha_prefix": "03151bf5340c",
+        "pinned_prefix": "03151bf5340c",
+        "lf_equals_pinned": true
+      },
+      "native/model_probe.cpp": {
+        "raw_sha_prefix": "f60047c05103",
+        "lf_sha_prefix": "6a01eb017851",
+        "pinned_prefix": "6a01eb017851",
+        "lf_equals_pinned": true
+      }
+    },
+    "repo_facts": [
+      "worktree core.autocrlf=true → CRLF；pinned 值按 LF 归一化记录",
+      "两文件 blob 在 S1 前后一致、内容未改 → 不存在身份漂移",
+      "tests/support/t4_evidence/sources.rs:13 自带 replace(\"\\r\\n\",\"\\n\") 归一化",
+      "g01-inputs.json 最近重钉 61fb6baf（2026-10-26，身份漂移 18→0）在 render/volume 片之后",
+      "t4_input_precision -- --include-ignored 的 12 个失败是缺 MJWARP_FROZEN_UPSTREAM_ROOT / MJWARP_FROZEN_WARP_ROOT（panic），不是 hash 差异"
+    ],
+    "landing": [
+      "README.md §6",
+      "receipt.json pinned_sources.drift_note"
+    ]
+  },
+  "O2_to_O9_dispositions": {
+    "O2": "接受（后续）：gate 的 clippy/unit 用默认 features，不 lint/不跑 cfg-gated 新代码；本片靠显式 clippy --features native-model-probe + 定向测试兜底；建议纳入门禁",
+    "O3": "接受（后续）：copy_xpos_xmat 的 f64→f32 用裸 static_cast 收窄，未走唯一转换入口/有限性检查，与模型 Num 字段口径不一致",
+    "O4": "接受（后续）：qpos 未校验有限性、nq=0 未单列测试",
+    "O5": "接受（记录）：gate 跑两次但 runs 只保留最终一次（本次收口不重跑 gate）",
+    "O6": "接受（后续）：kind/width 错配报 InvalidDimension，语义偏差",
+    "O7": "接受（后续）：capture 未交叉校验两组计数",
+    "O8": "接受（措辞）：「与 HEAD 逐字节一致」→ 写「blob 与 HEAD 一致 + LF 归一化」",
+    "O9": "接受（口径）：行数按 LF/字节计，README 数字为准"
+  },
+  "changed_files": [
+    {
+      "path": "docs/development-evidence/product-collision-inputs-wiring/README.md",
+      "bytes": 14611,
+      "sha256": "68e80198215f33db52df1d4b37b0c846f3af790a2adb27fbfa3cb465673c2aae"
+    },
+    {
+      "path": "docs/development-evidence/product-collision-inputs-wiring/receipt.json",
+      "bytes": 13186,
+      "sha256": "0dee46e472583dcd676eb2462e3cbbad75e0ad4f849848ee9252346574d006b8"
+    }
+  ],
+  "boundaries": [
+    "只改证据文字；不改代码/判据/参考/容差；不改已关闭 S1 任务记录与历史交付记录",
+    "不开 GPU、不编译、不重跑窗口/测试",
+    "不宣称窗口通过/已覆盖/精度达标/上游等价；S1 结论不变（未加剧任何身份问题）"
+  ]
+}

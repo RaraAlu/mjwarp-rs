@@ -152,9 +152,15 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
 - 状态输入只有 qpos；mocap/act/ctrl 不在默认支持面。
 - `sdf-cylinder` 的 oct_* 只与同 pinned 模型的 G01 体积桥交叉核对（不是第二份独立实现的外部参考）；
   oct_* 的 f32 收窄位型在定向测试中只做有限/非空校验。
-- **历史 pinned 快照漂移说明**：`fixtures/precision/g01-inputs.json` 记录的 pinned sha 属于更早的
-  product_revision；其中 `include/mjwarp_native_probe.h`、`native/model_probe.cpp` 在该快照之后
-  已被既有 render/volume 片更新（非本片改动，本片对这 18 个路径零改动，machine check `unchanged` 以 HEAD 为准）。
+- **pinned sha 与工作树行尾差异说明（QA S1 O1 更正）**：`fixtures/precision/g01-inputs.json` 的 pinned 值按
+  **LF 归一化**记录，而本机 `core.autocrlf=true` 使工作树为 CRLF，故 raw byte sha 不同：
+  `include/mjwarp_native_probe.h` raw `2068caf1…` / **LF `03151bf5…` = pinned**；
+  `native/model_probe.cpp` raw `f60047c0…` / **LF `6a01eb01…` = pinned**。
+  **不存在身份漂移**：两文件 blob 在本片前后一致、内容未被本片或既有 render/volume 片改动；
+  T4 审计本身按 `replace("\r\n","\n")` 取 hash（`tests/support/t4_evidence/sources.rs:13`）。
+  `cargo test --test t4_input_precision -- --include-ignored` 的 12 个失败原因是缺
+  `MJWARP_FROZEN_UPSTREAM_ROOT` / `MJWARP_FROZEN_WARP_ROOT`（panic「set upstream root」），不是 hash 差异。
+  本片对这 18 个路径零改动，machine check `unchanged` 以 HEAD 为准。
 - 本 README/代码均 ≤500 行；`receipt.json` 为机器可读证据（可超 500 行）。
 
 ## 7. 交付文件

@@ -268,7 +268,7 @@
     "list_source": "fixtures/precision/g01-inputs.json::product_sources",
     "unchanged_vs_head": true,
     "verification": "git status shows none of the 18 paths; task machine check 'unchanged' checks them byte-wise",
-    "drift_note": "the pinned sha in g01-inputs.json is an older product_revision snapshot; include/mjwarp_native_probe.h and native/model_probe.cpp were updated by earlier render/volume slices before this slice started (pre-existing drift, not touched here)"
+    "drift_note": "QA S1 O1 更正：pinned sha 为 LF 归一化值；本机 core.autocrlf=true 使工作树为 CRLF，故 raw sha 不同。include/mjwarp_native_probe.h LF sha 03151bf5340c535a… = pinned；native/model_probe.cpp LF sha 6a01eb01785171d2… = pinned；两文件 blob 在本片前后一致、内容未改，不存在身份漂移；T4 审计自带 CRLF→LF 归一化（tests/support/t4_evidence/sources.rs:13）。t4_input_precision --include-ignored 的 12 个失败是缺 MJWARP_FROZEN_UPSTREAM_ROOT / MJWARP_FROZEN_WARP_ROOT，不是 hash 差异。"
   },
   "boundaries": {
     "product_wiring_done": false,
@@ -293,5 +293,16 @@
     "docs/development-evidence/product-collision-inputs-wiring/logs/native-g01.log",
     "docs/development-evidence/product-collision-inputs-wiring/logs/oracle-generate.log",
     "docs/development-evidence/product-collision-inputs-wiring/logs/targeted-test.log"
-  ]
+  ],
+  "qa_s1_observations": {
+    "O1": "已改：README §6 / receipt drift_note / 交付记录更正为 CRLF-vs-LF 归一化事实，删去「已被 render/volume 片更新」的说法",
+    "O2": "接受（后续）：gate 的 clippy/unit 用默认 features，不覆盖 cfg-gated 新代码；本片已用显式 clippy --features native-model-probe + 定向测试兜底",
+    "O3": "接受（后续）：copy_xpos_xmat 的 f64→f32 收窄未走唯一转换入口/有限性检查，与模型 Num 字段口径不一致",
+    "O4": "接受（后续）：qpos 未校验有限性、nq=0 未单列测试",
+    "O5": "接受（记录）：gate 跑两次但只留最终 runs 产物",
+    "O6": "接受（后续）：kind/width 错配报 InvalidDimension 语义偏差",
+    "O7": "接受（后续）：capture 未交叉校验两组计数",
+    "O8": "接受（措辞）：「与 HEAD 逐字节一致」易混 → 写「blob 与 HEAD 一致、LF 归一化」",
+    "O9": "接受（口径）：行数统一按 LF/字节计（README 数字为准，Git/QA 工具口径一致）"
+  }
 }
