@@ -28,16 +28,37 @@
     "seam_run": "SEAM path=software(seam) samples=4173 mismatches=0 seam_digest=47063cfd3b9c4cdb hw_digest=47063cfd3b9c4cdb"
   },
   "path_evidence": {
-    "cpuid_fma": {"gnu_default": true, "msvc": true, "gnu_fma": true},
-    "active_path": {"gnu_default": "hardware", "msvc": "hardware", "gnu_fma": "hardware", "gnu_seam": "software(seam)"},
+    "cpuid_fma": {
+      "gnu_default": true,
+      "msvc": true,
+      "gnu_fma": true
+    },
+    "active_path": {
+      "gnu_default": "hardware",
+      "msvc": "hardware",
+      "gnu_fma": "hardware",
+      "gnu_seam": "software(seam)"
+    },
     "asm_proof": "cargo rustc --lib -- --emit=asm 生成汇编命中 `vfmadd231ss %xmm2, %xmm1, %xmm0`（asm-vfmadd.log）",
     "hardware_reference": "内联汇编 vfmadd231ss（非 #[target_feature] 包装的 mul_add，避免 opt-level 0 退化同源）"
   },
   "probe": {
     "generator": "LCG mult=6364136223846793005 inc=1442695040888963407 seed=0x2026102500000001；映射 f32(top24)/2^24*3-1 ∈ [-1,2)（QA 复核口径）",
-    "scales": ["4096", "1e6", "边界集 77 例（次正规/tie/指数差极大/抵消/±0/溢出/NaN/Inf；F1 修正新增 19 例：乘积 ±0 且 c 非零有限/±Inf/NaN、c=±Inf 且 a,b 有限、深下溢 tie、上溢半 ULP tie）"],
-    "vs_hardware_fma": {"4096": "0 差异", "1e6": "0 差异", "boundary": "0 差异（77 例；原 58 例在 ±0/±Inf 类上不成立，F1 修正后 0/77）"},
-    "digests": {"4096": "a14ba3531fc6a6c6", "1e6": "54ec8d0836fa2a10", "dispatch_plus_boundary": "47063cfd3b9c4cdb"},
+    "scales": [
+      "4096",
+      "1e6",
+      "边界集 77 例（次正规/tie/指数差极大/抵消/±0/溢出/NaN/Inf；F1 修正新增 19 例：乘积 ±0 且 c 非零有限/±Inf/NaN、c=±Inf 且 a,b 有限、深下溢 tie、上溢半 ULP tie）"
+    ],
+    "vs_hardware_fma": {
+      "4096": "0 差异",
+      "1e6": "0 差异",
+      "boundary": "0 差异（77 例；原 58 例在 ±0/±Inf 类上不成立，F1 修正后 0/77）"
+    },
+    "digests": {
+      "4096": "a14ba3531fc6a6c6",
+      "1e6": "54ec8d0836fa2a10",
+      "dispatch_plus_boundary": "47063cfd3b9c4cdb"
+    },
     "dispatch_vs_hardware": "0 差异；dispatch 与兜底同批样本 digest 相同",
     "discrimination_samples": [
       "a=3d832940 b=3fe7d4e4 c=3e428720 mul_add=3e9ca735 want=3e9ca736",
@@ -46,20 +67,41 @@
       "a=bed00a12 b=3f3df5bc c=3f7ff0dc mul_add=3f32c14c want=3f32c14b",
       "a=bf61bed2 b=3f697998 c=beb166ce mul_add=bf934aa8 want=bf934aa7"
     ],
-    "mul_add_vs_hw_mismatch_counts": {"gnu_default": "1025 / 4096", "msvc": "0 / 4096", "gnu_fma": "0 / 4096"},
+    "mul_add_vs_hw_mismatch_counts": {
+      "gnu_default": "1025 / 4096",
+      "msvc": "0 / 4096",
+      "gnu_fma": "0 / 4096"
+    },
     "residual_rate_scope": "0 残余率仅对该生成器/规模/边界集有效，不外推；QA 在 1e6 观测到 GNU mul_add 的 1 个 2 ULP 个例，本 helper 0 差异、无 >1 ULP",
     "log": "probe-4096-1m-boundary.log"
   },
   "three_build_consistency": {
-    "builds": ["GNU 默认", "MSVC", "GNU + -C target-feature=+fma"],
+    "builds": [
+      "GNU 默认",
+      "MSVC",
+      "GNU + -C target-feature=+fma"
+    ],
     "helper_digests_equal": true,
-    "relmat_lib_tests": {"gnu": "4 passed / 0 failed", "msvc": "4 passed / 0 failed", "gnu_fma": "4 passed / 0 failed"},
-    "g10_p5_sdf_relmat": {"gnu": "4 passed / 0 failed", "msvc": "4 passed / 0 failed", "gnu_fma": "4 passed / 0 failed"},
+    "relmat_lib_tests": {
+      "gnu": "4 passed / 0 failed",
+      "msvc": "4 passed / 0 failed",
+      "gnu_fma": "4 passed / 0 failed"
+    },
+    "g10_p5_sdf_relmat": {
+      "gnu": "4 passed / 0 failed",
+      "msvc": "4 passed / 0 failed",
+      "gnu_fma": "4 passed / 0 failed"
+    },
     "log": "three-build.log"
   },
   "g5_bitwise_regression": {
     "no_gpu_window": true,
-    "cpu_targets": ["--lib physics::collision::relmat", "--test g10_p5_sdf_relmat", "--test g10_p5_sdf_host", "--test gjk_epa"],
+    "cpu_targets": [
+      "--lib physics::collision::relmat",
+      "--test g10_p5_sdf_relmat",
+      "--test g10_p5_sdf_host",
+      "--test gjk_epa"
+    ],
     "baseline_vs_after": {
       "relmat_unit": "4 passed；逐行 diff=0",
       "sdf_relmat": "4 passed（4 场景 40/40 位级 + sdf-box 80/80）；逐行 diff=0",
@@ -89,9 +131,22 @@
     "log": "f64-audit.log"
   },
   "scope": {
-    "modified": ["src/math/mod.rs", "src/physics/collision/relmat.rs", "src/render/bvh/aabb.rs（仅注释）"],
-    "added": ["src/math/fma.rs", "src/math/fma/tests.rs"],
-    "untouched": ["src/physics/collision/gjk/polytope.rs", "src/render/kernel/megakernel_arrays.rs", "gates.toml", "G01 脚本", "Cargo 清单"],
+    "modified": [
+      "src/math/mod.rs",
+      "src/physics/collision/relmat.rs",
+      "src/render/bvh/aabb.rs（仅注释）"
+    ],
+    "added": [
+      "src/math/fma.rs",
+      "src/math/fma/tests.rs"
+    ],
+    "untouched": [
+      "src/physics/collision/gjk/polytope.rs",
+      "src/render/kernel/megakernel_arrays.rs",
+      "gates.toml",
+      "G01 脚本",
+      "Cargo 清单"
+    ],
     "helper_lines": 459,
     "tests_lines": 461
   },
@@ -120,7 +175,11 @@
     "branch_audit": "fma.rs 全部 early-return 逐条过：NaN 短路、Inf 乘数、c=Inf（已修）、a/b=±0（已修）、c=0、同号精确和、异号比较、round_to_f32 全分支、全部 `as` 转换；位型→浮点仅上述两处，其余为整数移位/索引/位段",
     "default_gate_coverage": "新增 soft_fma_exact_bits_by_edge_class 直接调用 pub(crate) soft_fma（不读 env、不依赖 seam/硬件 FMA），默认 cargo test --locked --lib 常态覆盖兜底；未新增 test-only feature 或入口函数",
     "impact": "硬件主路未改，4096/1e6 digest 不变；G5 已交付数字不变（relmat 4/4、g10_p5_sdf_relmat 4/4、sdf_host 1/1、gjk_epa 3/3 修后复跑）；faithful 影响面结论不变；仅影响无 FMA 机器走兜底时的上述两类边界输入",
-    "logs": ["f1-prefix-red.log", "f1-postfix-green.log", "f1-threebuild.log"]
+    "logs": [
+      "f1-prefix-red.log",
+      "f1-postfix-green.log",
+      "f1-threebuild.log"
+    ]
   },
   "boundaries": {
     "no_fma_hardware_machine": "未在真实无 FMA 机器验证兜底路径（seam 已覆盖行为）；如实未覆盖",
@@ -157,5 +216,11 @@
     "f1-postfix-green.log",
     "f1-threebuild.log",
     "f1-gate.log"
-  ]
+  ],
+  "np01_clarification": {
+    "decision": "用户 2026-10-27 确认保留",
+    "pointer": "docs/numerical-precision-contract.md §硬性验收指标 的 NP01 澄清注记（L343-349）",
+    "unchanged": true,
+    "note": "只把状态行「待用户确认（不同意可单独 revert）」改为「用户 2026-10-27 确认保留」；注记文字、判据、容差、验收范围未动，代码未改"
+  }
 }
