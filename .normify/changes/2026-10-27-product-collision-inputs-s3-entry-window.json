@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-product-collision-inputs-s3-entry-window",
+  "title": {
+    "zh": "产品碰撞输入接线 S3：产品入口（cuda 门 + 三态回退）+ 端到端 target + 1 个验证窗",
+    "en": "Product collision inputs wiring S3: product entry, end-to-end target and one validation window"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "方向② S3：把 S1 快照 + S2 adapter 接到产品入口——新增显式设备碰撞入口（`cuda` 特性门，编译/设备不可用/运行失败三态回退**不 panic**），默认数值路径仍 Host、Device 需显式选择（沿用 UNC-2 限定语）；新增端到端 target，用真实 mjcf/mjb → S1 快照（qpos）→ S2 adapter → 设备 → 对照 **M1/M2/M3 冻结参考 + M0b bins 判据口径**（bit_equal 优先 + 4ULP@scale，结构零容差；不改任何容差/参考/期望值）；跑 1 个 GPU 验证窗（窗口材料另行报签）。**nworld 口径（QA S2 O2）**：本片只支持 **nworld=1**；`nworld>1` 显式拒绝并写边界（多 world 状态读取/帧布局另立评估，不在本片）。U8 差距与 mesh 分支层未覆盖项与本片解耦。",
+    "en": "S3: product entry wiring under cuda feature with three-state fallback, e2e target and one GPU validation window."
+  },
+  "modules": {},
+  "acceptance": [
+    "产品入口：新增显式设备碰撞入口（`src/runtime/collision_gpu.rs` / 邻近模块，`cuda` 特性门），接收 model/data 快照 + meta，经 S2 adapter 组装后走既有设备路径；三态回退（未编译 cuda / 设备不可用 / 运行期失败）返回可诊断错误或回退，**不 panic**；默认数值路径仍 Host、Device 需显式选择；不改 `run` 既有行为与 `CollisionArgs` 504 B。",
+    "nworld 口径：只接受 `nworld=1`；`nworld>1` 返回明确错误并在证据写边界（多帧状态读取另立）。",
+    "端到端 target（`tests/g10_p5_product_collision_wiring_cuda.rs`，≤500 行）：真实 mjcf/mjb → S1 快照（qpos）→ S2 adapter → 设备，对照 **M1（mesh-box/mesh-cylinder）/M2/M3（mesh-mesh）冻结参考**，判据沿用 bit_equal 优先 + 4ULP@scale + 结构零容差；参考只读、不改不重采。",
+    "1 个 GPU 验证窗：实体 = 新 target + 既有回归（multicontact/primitive/plane/sphere_capsule/branches/mesh_m2/mesh_m3/launcher[+hfield-capsule]/stage2 record-C）；10 个冻结 exe sha+字节、runner sha、3 点基线、compute-apps 过滤 0、负载快照、wall、attempt、floor 公式**一次齐报 Chief 签窗**；窗内零 Rust 编译、≤2 有效轮、abort/污染留档不拼。",
+    "证据 `docs/development-evidence/product-collision-inputs-wiring/`（README S3 段 + receipt `/s3/task_id` + 窗口日志）+ 交付记录；`unchanged` 18 pinned 源/`abi.rs`/设备 `.cu`/fixtures/M0b/M1/M2/M3 参考零改动；QA 复核预登记。",
+    "不写「窗口通过」「已覆盖」，不宣称 host↔device 等价、精度达标、上游等价；判据/容差/参考/期望值全不动。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-product-collision-inputs-s2-adapter"
+    ],
+    "phase": "架构/接线债务",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/collision_gpu.rs",
+      "src/runtime/collision_gpu/",
+      "src/runtime/backend.rs",
+      "tests/g10_p5_product_collision_wiring_cuda.rs",
+      "tests/support/",
+      "docs/development-evidence/product-collision-inputs-wiring/",
+      "docs/development-evidence/changes/2026-10-27-product-collision-inputs-s3-entry-window.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 13
+  },
+  "note": "Arch 2026-10-27 登记（S2 verified 后片界；S3 是 ② 的 0→1 目标）。窗口材料另行报签；S1/S2 的 QA 观察 O2–O9 已记接受/后续，不混入本片。",
+  "revision": {
+    "before": "9018ea6d69fcff85fd0eb4bf43b02a5db6766cc3",
+    "after": null
+  },
+  "created_at": "2026-10-27T09:45:00.000Z",
+  "updated_at": "2026-10-27T09:45:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "include/mjwarp_native_probe.h",
+        "native/g01_fields.inc",
+        "native/model_probe.cpp",
+        "src/io/fields.rs",
+        "src/io/flex.rs",
+        "src/io/g01.rs",
+        "src/io/inertial.rs",
+        "src/io/kinematic.rs",
+        "src/model/attached.rs",
+        "src/model/camlight.rs",
+        "src/model/flex.rs",
+        "src/model/inertial.rs",
+        "src/model/mocap.rs",
+        "src/model/parameters.rs",
+        "src/model/sleep.rs",
+        "src/model/spatial_tendon.rs",
+        "src/model/tendon.rs",
+        "src/model/topology.rs",
+        "src/runtime/collision_gpu/abi.rs",
+        "src/physics/collision/cuda/",
+        "fixtures/g10-p5-mesh-multicontact/",
+        "fixtures/g10-p5-primitive-branches/",
+        "docs/development-evidence/mesh-multicontact-m0b/",
+        "docs/development-evidence/mesh-multicontact-m1/",
+        "docs/development-evidence/mesh-multicontact-m2/",
+        "docs/development-evidence/mesh-multicontact-m3/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/product-collision-inputs-wiring/receipt.json",
+      "pointer": "/s3/task_id",
+      "equals": "2026-10-27-product-collision-inputs-s3-entry-window"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

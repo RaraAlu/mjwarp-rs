@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-product-collision-inputs-s3-independent-check",
+  "title": {
+    "zh": "产品碰撞输入接线 S3 独立复核（产品入口 cuda 门/三态回退/nworld=1 边界/端到端判据/窗口事实）",
+    "en": "Independent check of product collision inputs wiring S3"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 独立复核 S3：① 产品入口核过（`cuda` 特性门、三态回退不 panic、默认 Host/Device 显式、`run` 与 504 B ABI 不变）；② nworld=1 边界（>1 明确拒绝）；③ 端到端 target 判据零放宽（bit_equal 优先 + 4ULP@scale + 结构零容差，参考 = M1/M2/M3 冻结参考只读未动）；④ 窗口事实独立复算（10 冻结 exe sha、runner、3 点基线、floor 公式、compute-apps 过滤 0、零编译、采样聚合、pre/post/结束基线）；⑤ 证据/交付记录 manifest、禁词与不宣称、`unchanged` 路径零改动。不 commit 不 done，报 verdict/blockers/observations。",
+    "en": "QA independent check of S3."
+  },
+  "modules": {},
+  "acceptance": [
+    "产品入口：cuda 特性门、三态回退（未编译/设备不可用/运行期失败）可诊断且不 panic；默认数值路径仍 Host、Device 显式选择；`run` 行为与 `CollisionArgs` 504 B 未变。",
+    "nworld 口径：仅接受 nworld=1；nworld>1 返回明确错误且证据写边界；多 world 未做不宣称。",
+    "端到端判据零放宽：对照 M1/M2/M3 冻结参考（只读未动），bit_equal 优先 + 4ULP@scale + 结构零容差；参考/容差/期望值零改动。",
+    "窗口事实独立复算：10 冻结 exe sha+字节、runner sha、3 点基线、floor=min(10240,baseline_free−3072)、compute-apps 过滤 0、负载快照、零 Rust 编译、采样聚合、pre/post/结束基线、attempt ≤2。",
+    "证据 docs/development-evidence/product-collision-inputs-s3-independent-check/（README + receipt + manifest sha），check exit 0；不 commit、不 done，报 verdict/blockers/observations。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-product-collision-inputs-s3-entry-window"
+    ],
+    "phase": "架构/接线债务",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/product-collision-inputs-s3-independent-check/"
+    ],
+    "resources": [],
+    "priority": 9
+  },
+  "note": "Arch 2026-10-27 预登记（每片 QA 预登记）。S3 含 1 个 GPU 验证窗（窗口材料另行报签）。",
+  "revision": {
+    "before": "9018ea6d69fcff85fd0eb4bf43b02a5db6766cc3",
+    "after": null
+  },
+  "created_at": "2026-10-27T09:47:00.000Z",
+  "updated_at": "2026-10-27T09:47:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/product-collision-inputs-s3-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-product-collision-inputs-s3-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
