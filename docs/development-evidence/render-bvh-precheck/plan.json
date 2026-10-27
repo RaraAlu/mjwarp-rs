@@ -1116,6 +1116,91 @@
         "T4/Linux",
         "R05-R10 feature families"
       ]
+    },
+    {
+      "id": "R08-S1",
+      "name": "camera-output-views",
+      "category": "cameras",
+      "depends_on": [
+        "S8"
+      ],
+      "priority": 90,
+      "scope": "Host-side per-camera output views matching upstream render_util get_rgb/get_depth/get_segmentation semantics over the existing whole-buffer layout (no GPU, no window).",
+      "deliverables": [
+        "src/render/context/camera_output.rs",
+        "tests/render_camera_output.rs"
+      ],
+      "acceptance": [
+        "RGB unpack matches the upstream ABGR formula bit-for-bit (b/g/r each multiplied by 1.0/255.0)",
+        "depth matches clamp(value / depth_scale, 0, 1) including division and clamp order",
+        "segmentation returns (id, type) pairs unchanged",
+        "camera_index means the active-camera order position, not the model camera id",
+        "out-of-range camera, disabled channel, short buffer, invalid depth_scale, and nworld>1 are rejected without panic",
+        "synthetic sentinel buffers show per-camera slices are disjoint and do not read neighbours",
+        "reconstructing the whole buffer from the frozen S8/S7b per-camera reference values round-trips bit-exactly for RGB/depth and exactly for seg"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/r08-camera-output/",
+      "new_file_limit": 500,
+      "new_files": [
+        "src/render/context/camera_output.rs",
+        "tests/render_camera_output.rs"
+      ],
+      "modifies": [
+        "src/render/context.rs",
+        "src/render/mod.rs"
+      ],
+      "gpu": {
+        "required": false,
+        "reason": "pure host-side extraction over buffers already produced by S7b/S8"
+      },
+      "estimate_days": 1.5,
+      "out_of_scope": [
+        "re-rendering",
+        "nworld>1 (R10)",
+        "new authoring captures"
+      ]
+    },
+    {
+      "id": "R08-S2",
+      "name": "camera-selection-e2e",
+      "category": "cameras",
+      "depends_on": [
+        "R08-S1"
+      ],
+      "priority": 89,
+      "scope": "Wire the cam_active selection matrix and per-camera views into the product render path and accept heterogeneous resolutions/channels against frozen S0b/S8 references in one validation window (no new capture).",
+      "deliverables": [
+        "tests/render_r08_cameras.rs",
+        "tests/support/render_bvh/"
+      ],
+      "acceptance": [
+        "cam_active = None / bool mask / names / indices / empty list all render end to end and keep the active-camera order",
+        "two cameras with different resolutions (320x240 and 240x180) in one context meet RGB <=1 LSB (bit-level preferred), depth <=4 ULP, seg exact",
+        "heterogeneous channels (depth-only second camera) are extracted per camera and disabled channels are rejected",
+        "single-camera renders equal the matching region of a combined render bit-for-bit",
+        "precomputed rays and kernel-side dynamic rebuild (rays=None) both stay inside criteria; two runs have identical output hashes"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/r08-camera-e2e/",
+      "new_file_limit": 500,
+      "new_files": [
+        "tests/render_r08_cameras.rs"
+      ],
+      "modifies": [
+        "src/render/context/",
+        "src/render/kernel/",
+        "tests/support/render_bvh/"
+      ],
+      "gpu": {
+        "required": true,
+        "kind": "windows-sm89",
+        "window_budget": "one validation window; no authoring capture (reuse S0b/S8 frozen references)"
+      },
+      "estimate_days": 2,
+      "out_of_scope": [
+        "nworld>1 (R10)",
+        "new authoring captures",
+        "shadows/skybox/splats"
+      ]
     }
   ],
   "r01_p8_mapping": [
@@ -1218,10 +1303,19 @@
       "note": "upstream combination limits and invalid inputs"
     },
     {
-      "item": "shadows_skybox_splats_flex_hfield_multicamera",
+      "item": "shadows_skybox_splats_flex_hfield",
       "slices": [],
       "status": "deferred",
-      "note": "R09/R02/R07/R06/R05/R08; defaults off or no assets in the MVP fixture"
+      "note": "R09/R02/R07/R06/R05; defaults off or no assets in the MVP fixture"
+    },
+    {
+      "item": "multicamera_heterogeneous",
+      "slices": [
+        "R08-S1",
+        "R08-S2"
+      ],
+      "status": "in_progress",
+      "note": "R08: per-camera output views plus the cam_active selection matrix and heterogeneous resolutions/channels; single-world only (nworld>1 is deferred to R10); no new authoring capture (reuse S0b/S8 frozen references). Window plus its QA check must close inside one idle block."
     }
   ],
   "risks": [
@@ -1373,6 +1467,28 @@
         "Expand to shadows/skybox/splats/flex/hfield/multi-camera now (not recommended)"
       ],
       "needs_user": true
+    },
+    {
+      "id": "D5",
+      "topic": "render line continuation and R08 scope",
+      "recommendation": "Continue the render line (R05-R10); start with R08 heterogeneous multi-camera as two slices (R08-S1 host-side per-camera output views, R08-S2 camera-selection matrix plus heterogeneous-resolution end-to-end with one validation window and no new capture). Single-world family only; nworld>1 stays in R10; no T4/Linux evidence in this line; family-level closure (at least one scene inside criteria plus two-run bit equality); tolerances unchanged (RGB <=1 LSB, depth <=4 ULP bit-first, seg exact, identical run hashes, normals <=1e-4 rad, texture <=1e-6); authoring capture budgets for R05/R06/R07/R09 are reported before opening.",
+      "alternatives": [
+        "Defer all R08 work and keep the multi-camera family deferred",
+        "Do nworld>1 multi-camera first (mixes R10 into R08; not recommended)"
+      ],
+      "needs_user": false,
+      "decided_by_user": "2026-10-27"
+    },
+    {
+      "id": "D6",
+      "topic": "GPU validation window scheduling",
+      "recommendation": "Every GPU validation window and its QA independent check must close inside one idle block (weekdays 00:30-08:30 Beijing; weekends follow the same hours until the user confirms otherwise). Open right after 00:30, report signature numbers to Chief before 08:00, converge everything (clean tree or committed) before 08:20; if the estimate does not fit, split across two nights (window plus evidence first, QA check and commit the next night) and never describe a cross-window check as same-window. Window material reports must state the total window-plus-check time budget and the opening time. Code/commit/GPU work outside idle blocks is forbidden; read-only analysis, plans and reports are always allowed.",
+      "alternatives": [
+        "Run windows at any hour (rejected by the user's hard rule)",
+        "Split one window's evidence across two nights and report them as one round (rejected)"
+      ],
+      "needs_user": false,
+      "decided_by_user": "2026-10-28"
     }
   ],
   "non_claims": [

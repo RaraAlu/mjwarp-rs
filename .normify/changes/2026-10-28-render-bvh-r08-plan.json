@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r08-plan",
+  "title": {
+    "zh": "R08 方向计划落盘（plan.json 增 R08-S1/S2 切片与排程记录）",
+    "en": "Land the R08 slice plan into render-bvh-precheck/plan.json"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "Arch 维护的切片计划落盘（docs-only）：在 `docs/development-evidence/render-bvh-precheck/plan.json` 的 `slices` 中补 R08-S1（逐相机输出视图，宿主侧，无 GPU）与 R08-S2（选择矩阵 + 异构分辨率端到端，1 验证窗、无新捕获）两条切片（含 files/acceptance/gpu/estimate），并在 `r01_p8_mapping` 的 `shadows_skybox_splats_flex_hfield_multicamera` 条目与 `decisions` 中记录用户 2026-10-27 拍板（① 渲染线继续、R08 先做单 world 家族、不补 T4/Linux、家族级收口口径、容差沿用不重议、authoring 捕获预算按家族先报）；README 追加一行排程记录。不改任何代码/判据/参考/夹具，不动已 verified 证据语义。",
+    "en": "Update the render slice plan with R08 slices and the user decision record (docs-only)."
+  },
+  "modules": {},
+  "acceptance": [
+    "`plan.json` 的 `slices` 增加两条 R08 切片，字段与既有切片同构（id/name/category/depends_on/priority/scope/deliverables/acceptance/evidence/new_file_limit/new_files/modifies/gpu/estimate_days/out_of_scope），且 `gpu.required` 与任务卡一致（S1=false 无窗口，S2=true 1 窗）。",
+    "`r01_p8_mapping` 中多相机条目从 `slices: []`/deferred 更新为 R08-S1/S2，并保留「nworld>1 归 R10」「不宣称完整 R01 通过」的边界表述；`decisions` 记录用户拍板条目（不替换既有决策，追加）。",
+    "README 追加排程记录一段（日期、用户拍板来源、首片选择理由、窗口/捕获预算、红线）；JSON 有效、UTF-8 无 BOM、LF。",
+    "不更改任何已 verified 证据的语义与数字；不新增禁词类表述；禁词 0 命中。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh-precheck/"
+    ],
+    "resources": [],
+    "priority": 95
+  },
+  "note": "Arch 2026-10-28 登记：用户拍板 ① 后把 R08 切片计划正式落盘（docs-only，无门禁；gate 不适用须在 receipt/记录写明）。",
+  "revision": {
+    "before": "0bec5b94b9442ccde11c6541f1f722ba7c878191",
+    "after": null
+  },
+  "created_at": "2026-10-27T17:49:00.000Z",
+  "updated_at": "2026-10-27T17:46:55.242Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh-precheck/plan.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-24-r01-p8-render-bvh-precheck"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

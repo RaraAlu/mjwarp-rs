@@ -493,3 +493,21 @@ PY
 - 不宣称阴影、天空盒、泼溅、柔体、高度场、多相机可用。
 - 不宣称冻结参考可替代产品测试；参考只用于对照。
 - 不宣称 W15 头文件已足够构建 BVH/资产/渲染上下文；主机/设备实现仍需移植。
+
+## 11. 排程记录（R08 与空闲时段纪律）
+
+2026-10-28：用户拍板「① 渲染线继续（R05–R10）」，首片取 **R08 异构多相机**，拆两片登记：
+
+| 切片 | 任务 | 范围（文件级） | GPU | 估期 |
+| --- | --- | --- | --- | --- |
+| R08-S1 | `2026-10-28-render-bvh-r08-camera-output` | 新 `src/render/context/camera_output.rs`、`src/render/context.rs`/`src/render/mod.rs`、新 `tests/render_camera_output.rs`、证据 `render-bvh/r08-camera-output/` | 否（宿主侧，无窗口、无捕获） | 1.5 pd |
+| R08-S2 | `2026-10-28-render-bvh-r08-camera-e2e` | 新 `tests/render_r08_cameras.rs`、`tests/support/render_bvh/`、必要时 `src/render/context/`·`src/render/kernel/`（动 kernel 先按 S7b3 拆文件）、证据 `render-bvh/r08-camera-e2e/` | 是（1 个验证窗，无新 authoring 捕获，复用 S0b/S8 冻结参考） | 2 pd |
+
+**范围理由**：设备内核与宿主布局已按逐相机 `cam_res[]`/`cam_adr[]` 工作（S5/S7b/S8 已实测两相机 320×240 与 240×180 且 0 差异），真实缺口是产品侧缺少上游 `get_rgb`/`get_depth`/`get_segmentation`（`render_util.py` L212/L228/L264）的 `camera_index` 视图与 `depth_scale` 语义，以及选择矩阵、相机隔离、异构通道的验收面。故 R08 不新增 authoring 捕获，只需 1 个验证窗。
+
+**边界**：仅单 world 家族；nworld>1 归 R10 不混入；本线不补 T4/Linux 证据；家族级收口口径（≥1 场景 + 判据内 + 两次运行位等），不追求上游全量等价；容差沿用既有口径不重议（RGB ≤1 LSB、depth ≤4 ULP 位级优先、seg 全等、同输入两次 SHA-256 相同、法线 ≤1e-4 rad、纹理 ≤1e-6）。红线：`src/model/render.rs` 500 行不碰；渲染 kernel 接近上限先拆；`DEVICE_SOURCES`=28、入口=6、`CollisionArgs` 504 B、18 pinned 源、`fixtures/precision`、T4 身份钉子均不动。
+
+**空闲时段纪律（用户 2026-10-28 硬规则）**：代码作业（写码、跑 cargo、提交、开 GPU 窗、证据落盘）只在 DeepSeek 空闲时段——工作日北京时间 00:30–08:30；周末是否全天空闲待用户确认，确认前同样保守执行。窗口外只允许只读分析、读代码/证据、写计划与汇报。临近 08:30 收敛：08:20 前停止新写，提交或还原，不留半成品。
+
+**GPU 窗口排程硬约束（用户 2026-10-28 追加）**：每个 GPU 验证窗与其 QA 独立复核必须在**同一空闲时段内闭合**；窗口尽量 00:30 后立即开，08:00 前报签字数字、08:20 前全部收敛（工作树干净或已提交）；估时放不进一个窗口就**拆两晚**（第一晚窗口+证据回填，第二晚 QA 复核+提交），不许跨窗拼一轮、不许把跨窗复核写成「同窗通过」；接近 08:20 未收口则停手留档、不提交、不算有效轮，下一晚重跑；每次开窗材料须同时报「窗口+复核」总时长预算与开窗时刻。
+
