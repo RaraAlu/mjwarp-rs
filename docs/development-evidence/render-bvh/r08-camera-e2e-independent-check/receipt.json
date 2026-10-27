@@ -1,0 +1,167 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r08-camera-e2e-check",
+  "kind": "independent_check",
+  "reviewed_task": "2026-10-28-render-bvh-r08-camera-e2e",
+  "reviewed_commits": {
+    "cpu_tests": "d62a007b",
+    "empty_selection_noop": "5a6b6c33",
+    "a2_test_fix": "f8a15ef1",
+    "evidence": "59ab0dbf",
+    "verified_record": "5686563b"
+  },
+  "head_at_review": "5686563ba84480268349398ec46661aca8887adf",
+  "verdict": "pass",
+  "blockers": [],
+  "observation_counts": {
+    "general": 0,
+    "suggestion": 4,
+    "total": 4
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "suggestion",
+      "title": "README 3.1 overstates what attempt1 executed for the empty-selection no-op",
+      "detail": "README 3.1 says the attempt1 product no-op assertions all held: two renderers returned Ok (each twice), three channel buffers were not allocated, no readable output, no panic. Independently checked against the pre-A2 test source (5a6b6c33:tests/support/render_bvh/r08_gpu.rs L259-311) and the attempt1 log: the Ok assertions are mega x2 + depth_seg x1 (three calls, not two each); the is_enabled=false asserts (L270-279) ran and passed before the render; the read().is_err() asserts (L298-307) sit AFTER the failing memory assert (L296), so attempt1 never executed them and never printed r08[empty] (confirmed: the log has no r08[empty] line). Those read-output assertions are verified only in attempt2.",
+      "fix_or_accept": "FIX wording: split attempt1-verified (Ok calls + post-construction is_enabled=false) from attempt2-verified (no readable output); correct the Ok counts. No number changes."
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "title": "attempt1 sha-guards still lists the pre-A2 new-target exe sha, so 44/45 match today",
+      "detail": "logs/attempt1/sha-guards.txt records render_r08_cameras as 94027937 B / 6a73c51a..., which A2 replaced with 94029705 B / 918b5851.... Re-hashing all 45 lines today gives 44/45 match, the only mismatch being exactly that exe (expected historical difference). README 3.2 only says the other six exes are byte-identical; it does not mark the new-target entry as superseded.",
+      "fix_or_accept": "FIX annotation next to the attempt1 guard block (or ACCEPT): note the exe was rebuilt by A2 and the old sha is historical, so 44/45 today is expected."
+    },
+    {
+      "id": "O3",
+      "severity": "suggestion",
+      "title": "sustained_delta_mib definition is not stated and differs from the earlier S3 window convention",
+      "detail": "This window's guard reports sustained_delta_mib = peak - guard baseline (attempt1 275, attempt2 270); the earlier S3 window reported sustained as max-after-spike minus sample min. README/facts list the number without a definition, so the two slices are not directly comparable.",
+      "fix_or_accept": "FIX (state the definition as peak-minus-baseline) or ACCEPT: the numbers themselves are correct and internally consistent."
+    },
+    {
+      "id": "O4",
+      "severity": "suggestion",
+      "title": "guards-check and guards-check-a2 are now identical copies",
+      "detail": "Both sha-guards.txt files contain the refreshed new sha 918b5851... and no old 6a73c51a; guards-check mtime is 02:33:11. README 3.2 documents the refresh time but not the relationship between the two directories.",
+      "fix_or_accept": "ACCEPT as historical artifacts; optionally label guards-check-a2 as a copy or clean it up later."
+    }
+  ],
+  "chief_points": [
+    {
+      "point": "1 exits / new target / four-form criteria",
+      "result": "pass",
+      "detail": "7 entity exits all 0 (entity-results.csv + facts agree); attempt2 render_r08_cameras 6 passed / 0 failed (attempt1 5 passed / 1 failed); four forms and 7 per-camera view lines all beyond_1_lsb=0, depth_mismatch=0, max_ulp=0 / max_depth_ulp=0, seg_mismatch=0 with rgb/depth/seg counts 120000 (Mask 76800)"
+    },
+    {
+      "point": "2 samples recomputed",
+      "result": "pass",
+      "detail": "attempt2 145 samples; used 4322-4593 (peak seq 22); free_min 11469; util_max 36; streak 0; residual 0; delta 270/248/271; sustained 270 (peak-baseline); floor min(10240, 11739-3072)=8667; attempt1 146 samples, 4290-4560, 11502, 43, 275/260/270, floor 8705; raw and evidence sample files identical"
+    },
+    {
+      "point": "3 guards re-hashed + post-window exe",
+      "result": "pass",
+      "detail": "attempt2 45/45 sha256+bytes match (7 frozen exe + 38 inputs); post-window 7 exe 7/7; guards-check and guards-check-a2 refreshed to 918b5851..., old 6a73c51a 0 hits there and only in the attempt1 historical record; guards-check mtime 02:33:11"
+    },
+    {
+      "point": "4 two-attempt accounting preserved",
+      "result": "pass",
+      "detail": "receipt and README record both attempts separately; attempt1 101 / 2097152 B NVRTC / criteria all zero / floor 8705 / baseline 4285/11777/35; attempt2 green floor 8667 / baseline 4323/11739/36-38; attempt1 products preserved under target/r08-s2-window/attempt1/"
+    },
+    {
+      "point": "5 A2 diff only the test file",
+      "result": "pass",
+      "detail": "f8a15ef1 = 1 file, +14/-4, tests/support/render_bvh/r08_gpu.rs only; no product paths; product no-op change is a separate commit with 2 equal-line (1/1) src replacements"
+    },
+    {
+      "point": "6 no-op wording and obsolete-contract check",
+      "result": "pass",
+      "detail": "InvalidArray('render_cameras') -> Ok(()) documented as aligning upstream wp.launch(dim=0), old rejection no longer returned; repository tests and signed evidence contain no assertion treating that rejection as a contract"
+    },
+    {
+      "point": "7 heterogeneous RGB narrowing + gap reference",
+      "result": "pass",
+      "detail": "window scope = different resolutions + depth/seg channel heterogeneity (depth_adr=[0,-1], seg_adr=[-1,0]); per-camera RGB toggling stated as a product gap; backlog card 2026-10-28-render-per-camera-rgb-gap exists with status proposed (not started)"
+    },
+    {
+      "point": "8 zero compile evidence",
+      "result": "pass",
+      "detail": "deps 1816 -> 1816, deps max write unchanged (02:31:19), zero_rust_compile=True, feature_profile=cuda-probe, env_cuda_bin recorded, compute-apps raw 28 filtered 0, residual processes 0"
+    },
+    {
+      "point": "9 wording is negative only",
+      "result": "pass",
+      "detail": "3 regulated claim terms 0 hits in README/receipt/manifest; the four wording constraints appear only inside negations/constraint sentences"
+    },
+    {
+      "point": "10 runner untouched",
+      "result": "pass",
+      "detail": "target/r08-s2-window/run-window-attempt1.ps1 = 14976 B / sha256 c8786951...e71a, same bytes for both attempts"
+    }
+  ],
+  "verified_items": [
+    {
+      "item": "two attempts inside one idle block and before the 08:50 boundary",
+      "result": "pass",
+      "detail": "attempt1 02:29:26-02:30:10, attempt2 02:39:59-02:40:42 (+08:00), same 00:00-09:00 idle block; no cross-block claim"
+    },
+    {
+      "item": "evidence commits scope",
+      "result": "pass",
+      "detail": "59ab0dbf 35 files all under docs/development-evidence/ or .normify/ with no src/tests/fixtures/Cargo*; 5686563b 5 files"
+    },
+    {
+      "item": "manifest vs committed blobs",
+      "result": "pass",
+      "detail": "45 manifest entries recomputed sha256/bytes/lines and compared with HEAD blobs: 0 mismatches"
+    },
+    {
+      "item": "line counts and red lines",
+      "result": "pass",
+      "detail": "README 172 / receipt 396 / manifest 409; new files 320/366/321 (<=500); megakernel 498 / renderer 265 / launch 500 / model/render 500 / context 426 / mod 374; e2142204..HEAD diff on fixtures/precision, render.rs, kernel cuda/launch/output, native/include/Cargo/build.rs, collision source = empty"
+    },
+    {
+      "item": "evidence encoding and archived gate logs",
+      "result": "pass",
+      "detail": "evidence text UTF-8 no BOM/LF; unit.log recounted 1015 passed / 0 failed / 382 ignored / 125 result lines; directed render_r08_cameras 5 passed / 6 ignored"
+    },
+    {
+      "item": "no new authoring capture",
+      "result": "pass",
+      "detail": "window reused S0b/S7b/S8 frozen references; no Python/authoring run inside the window"
+    }
+  ],
+  "environment": {
+    "os": "Windows",
+    "repo": "D:\\Rust\\mjwarp-rs",
+    "review_type": "read-only",
+    "gpu_opened_by_qa": false,
+    "window_reopened_by_qa": false,
+    "entities_rerun_by_qa": false,
+    "python": "target/render-bvh-precheck/venv312/Scripts/python.exe",
+    "recompute_script": "docs/development-evidence/render-bvh/r08-camera-e2e-independent-check/recompute_window.py",
+    "recompute_checks": 105,
+    "recompute_problems": 0
+  },
+  "gates": {
+    "applicable": false,
+    "gate_exit_code": 1,
+    "gate_stderr": "任务没有引用任何门禁",
+    "result": "not applicable: this check task has json(receipt /task_id) + forbid_claim only, no gate items; `normify gate` exits 1 with '任务没有引用任何门禁' (expected, recorded here). The reviewed S2 task's gates are verified from its archived logs (unit recounted 1015/0/382, directed 5 passed) and were not re-run because this check is read-only and the window is closed."
+  },
+  "boundaries": [
+    "read-only: no window reopen, no entity rerun, no GPU, no code/criteria/reference/tolerance/runner change",
+    "verifies that the two-attempt window facts and end-to-end criteria are faithfully recorded and independently recomputable; does not replace the user/Chief window signature and makes no follow-up-direction claim"
+  ],
+  "evidence_files": [
+    "docs/development-evidence/render-bvh/r08-camera-e2e-independent-check/README.md",
+    "docs/development-evidence/render-bvh/r08-camera-e2e-independent-check/receipt.json",
+    "docs/development-evidence/render-bvh/r08-camera-e2e-independent-check/manifest.json",
+    "docs/development-evidence/render-bvh/r08-camera-e2e-independent-check/recompute_window.py",
+    "docs/development-evidence/render-bvh/r08-camera-e2e-independent-check/recompute.json",
+    "docs/development-evidence/render-bvh/r08-camera-e2e-independent-check/verify_evidence.py",
+    "docs/development-evidence/render-bvh/r08-camera-e2e-independent-check/logs/recompute.log",
+    "docs/development-evidence/render-bvh/r08-camera-e2e-independent-check/logs/evidence-selfcheck.txt"
+  ]
+}

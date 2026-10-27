@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r08-camera-e2e-check",
+  "title": {
+    "zh": "R08-S2 独立复核（选择矩阵 / 异构分辨率与通道 / 相机隔离 / 射线两路径 / 窗口事实）",
+    "en": "Independent check of R08-S2 camera-selection end-to-end window"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "QA 独立复核 `2026-10-28-render-bvh-r08-camera-e2e`：① `cam_active` 五形态（None/bool 掩码/名称/索引/空列表）全链路可用且激活顺序 = `CameraPlan.cameras` 顺序、`camera_index` 语义为激活位置；② 同 context 内两相机异构分辨率（320×240 / 240×180）对 S8 冻结同配方参考：RGB ≤1 LSB（位级优先）、depth ≤4 ULP、seg 全等；异构通道（cam1 仅 depth）逐相机对账、未启用通道读取被拒；③ 相机隔离：单相机渲染 == 组合渲染对应区段逐位相同，且不被邻居改写；④ 预计算射线与动态重建（`rays=None`）两路径均在判据内、同输入两次 SHA-256 相同；⑤ 窗口事实独立复算（冻结 sha+字节、runner sha、3 点基线、floor、采样聚合、compute-apps 过滤 0、pre/post/结束基线、零编译、attempt ≤2、日志无 BOM）；⑥ 判据零放宽、参考/夹具/容差/`fixtures/precision`/T4 身份未动、`src/model/render.rs` 500 行未动、`DEVICE_SOURCES`=28/入口=6/504 B 未动、kernel 改动若存在须符合 S7b3 拆文件先例与 F32Render/A′ 白名单。不重开门、不重跑、不开 GPU，报 verdict/blockers/observations。",
+    "en": "QA independent check of the R08-S2 camera-selection end-to-end validation window."
+  },
+  "modules": {},
+  "acceptance": [
+    "选择矩阵与顺序：QA 独立跑/读日志核对五形态可用性、激活相机顺序与 `camera_index` 语义；空列表零相机零射线行为与上游一致且不 panic。",
+    "数值对账：逐相机（不同分辨率）RGB 位级优先/≤1 LSB、depth ≤4 ULP、seg 全等；异构通道组合逐相机对账；参考 sha 与 S8/S0b 冻结参考一致（未被改动）；判据零放宽（QA 自己重算至少一个相机的像素级差异）。",
+    "隔离与确定性：单相机 vs 组合区段逐位相同（QA 自己比对缓冲区段），邻居哨兵不被改写；同输入两次运行输出 SHA-256 相同（两次产物哈希由 QA 复核）。",
+    "射线两路径：预计算与动态重建（`rays=None`，spp=1）均在判据内；若动态路径未覆盖须显式记为未覆盖项，不得默认通过。",
+    "窗口事实独立复算：冻结实体 sha+字节、runner sha 与 Chief 签字一致、3 点基线、`floor=min(10240, baseline_free−3072)`、0.25 s 采样聚合逐键、compute-apps 过滤 0、pre/post/结束基线、零 Rust 编译证据、attempt ≤2；**无新 authoring 捕获**（复用 S0b/S8 参考）。",
+    "不变量：判据/参考/夹具/容差零改动；`fixtures/precision` 与 T4 身份钉子零改动；18 pinned 源零改动；`src/model/render.rs` 500 行未动；`DEVICE_SOURCES`=28、入口=6、`CollisionArgs` 504 B 未动；新文件 ≤500 行；证据 README/receipt/manifest sha 0 不符、禁词 0、无「窗口通过/已覆盖/精度达标/上游等价/双平台」。",
+    "证据 `docs/development-evidence/render-bvh/r08-camera-e2e-independent-check/`（README + receipt + manifest），check exit 0；不 commit 不 done 前先报 verdict/blockers/observations（Arch 指示后再提交）；不重开门、不开 GPU、不改代码/判据/参考/容差。",
+    "同窗闭合核对（用户 2026-10-28 官方口径）：复核须与对应 GPU 验证窗在**同一空闲时段内、且在下一段高峰开始前**闭合（高峰=工作日 09:00–12:00 / 14:00–18:00；节假日无表按工作日高峰保守处理；周末全天空闲；最大空闲块 18:00–09:00）；QA 须核对开窗时刻、高峰前 10 分钟（08:50/13:50）收敛、工作树干净或已提交；若属拆两块的第二块，须核对第一块窗口留档完整且未把跨块复核写成「同窗通过」。",
+    "Chief 指定复核点（2026-10-28 window attempt2 签字后追加，**每条都要 QA 自己重算/自查，不得抄 Arch/Chief 的数字**）：① 7 实体 exit 与新 target `6 passed / 0 failed`、四形态判据全 0（rgb beyond_1_lsb=0 / depth max_ulp=0 / seg mismatch=0，各 120000）独立核；② 从 `samples.csv` 独立重算 145 样本 / used 4322–4593 / free_min 11469 / util_max 36 / streak 0 / delta 270·248·271 / sustained 270 / floor 8667；③ 45/45 守卫自行重哈希 + 窗后 7 exe 7/7；④ attempt1 + attempt2 两轮记账与产物保留（attempt1 exit 101、测试侧断言顺序 bug、判据全 0、floor 8705、baseline 4285/11777/35…；attempt2 全绿 floor 8667）；⑤ A2 修正 diff 仅 `tests/support/render_bvh/r08_gpu.rs`（`f8a15ef1`，+14/−4），无产品码路径；⑥ 空选择 no-op 的产品断言（`Ok`×2、缓冲未分配、无可读输出、不 panic）与「对齐上游 `wp.launch(dim=0)`、原 `InvalidArray('render_cameras')` 不再返回」的表述；⑦ 异构 RGB 收窄口径（分辨率异构 + depth/seg 通道异构）与产品缺口引用 `2026-10-28-render-per-camera-rgb-gap`（backlog 不 start）；⑧ 零编译证据 deps 1816→1816、max write 不变；⑨ 措辞否定句（无「窗口通过/已覆盖/精度达标/上游等价」正面表述）；⑩ runner `c8786951…` 零编辑、签名版逐字节一致。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r08-camera-e2e"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r08-camera-e2e-independent-check/"
+    ],
+    "resources": [],
+    "priority": 79
+  },
+  "note": "Arch 2026-10-28 预登记（每片 QA 预登记）。窗口事实按既有口径独立复算；只读复核，不重开门。",
+  "revision": {
+    "before": "0df6348bbf32172c7bec021b159784c5358e2853",
+    "after": null
+  },
+  "created_at": "2026-10-27T17:48:00.000Z",
+  "updated_at": "2026-10-27T18:50:57.963Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r08-camera-e2e-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r08-camera-e2e-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
