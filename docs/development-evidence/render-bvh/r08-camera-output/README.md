@@ -130,7 +130,8 @@ cargo test --locked --test render_camera_output
 行为，**不宣称**与 CUDA `fmaxf/fminf` 等价）。`tests/render_camera_output.rs` 现 493 行、已无 500 行棘轮余量，
 故该文件不加行（收口提交 `logs/closure/directed-depth-priority.log`）。
 
-四门禁（`normify gate` 绑定最终树；同树命令输出存档在 `logs/`）：
+四门禁（**S1 提交时（历史）**：绑定 S1 最终树；同树命令输出存档在 `logs/`。**观察收口后的门禁见 §9**，
+结果在 `.normify/runs/2026-10-28-render-bvh-r08-camera-obs-closure/`）：
 
 | 门禁 | 命令 | 结果 |
 | --- | --- | --- |
@@ -138,6 +139,11 @@ cargo test --locked --test render_camera_output
 | clippy | `cargo clippy --all-targets --locked -- -D warnings` | 通过（exit 0） |
 | clippy-cuda | `cargo clippy --all-targets --locked --features cuda -- -D warnings` | 通过（exit 0） |
 | unit | `cargo test --locked` | 通过：**1010 过 / 0 败 / 376 ignored**（124 个 `test result` 行，含 doctests 13；日志 2132 行） |
+
+表注（历史口径）：上表 unit 的 **1010 / 376** 与 `logs/unit.log`（2132 行）是 **S1 提交时**的数字；
+观察收口后的最终树为 **1017 过 / 0 败 / 382 ignored**，以 §9 与
+`.normify/runs/2026-10-28-render-bvh-r08-camera-obs-closure/`（采集日志 `logs/closure/unit.log`）为准。
+观察收口新增的 depth 单测与门禁采集日志见 §6 上一段与 `logs/closure/`。
 
 ## 7. 文件与证据
 
@@ -164,7 +170,8 @@ cargo test --locked --test render_camera_output
 ## 9. S1 观察收口（O1–O8，2026-10-28）
 
 - 收口任务：`2026-10-28-render-bvh-r08-camera-obs-closure`；收据 `s3-obs-closure-receipt.json`
-  （含 `/task_id`），门禁与自检数字见收据 `gates` / `self_checks`。
+  （含 `/task_id`），门禁与自检数字见收据 `gate`（**单数**，内含 fmt / clippy / clippy-cuda / unit
+  四门禁）与 `self_checks`。
 - **O2（修，代码）**：`CameraOutputViews::depth()` 把 `depth_scale` 校验移到任何相机/通道/缓冲查找之前
   （错误优先级最高）；新增单测覆盖「通道未启用 + `scale=0`」组合（返回 `DepthScale`）。
 - **O3（修，措辞）**：`-0.0 → +0.0`、`NaN → 0` 从「上游 `wp.clamp` 保证」改为「CUDA `fminf/fmaxf`
