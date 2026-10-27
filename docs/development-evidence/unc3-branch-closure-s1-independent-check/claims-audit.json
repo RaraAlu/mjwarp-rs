@@ -1,0 +1,148 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-unc3-branch-closure-s1-independent-check",
+  "reviewed_commit": "00fd72daf5759a260d085d0a628d02cbf93a768b",
+  "pinned_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "pinned_root": "docs/evidence/d04-complex-physics/authoring-runs/run-5/installed-source/_src",
+  "method": "read pinned + device sources line by line; recompute pinned formulas with verify_s1.py; no CUDA context, no capture",
+  "entries": [
+    {
+      "id": "U1",
+      "claim": "plane_cylinder degenerate (len_sqr<1e-12 -> x-axis fallback) reachable: plane +z, cylinder quat=identity, center z=h-delta -> prjaxis=-1, vec=0 exactly",
+      "pinned_refs": [
+        "collision_primitive_core.py L495-517 (prjaxis L499, flip L500-502, vec L508, degenerate L513-517)"
+      ],
+      "device_refs": [
+        "primitive_plane_shapes.cu L119-139 (same order; fallback vec=(r,0,0) L137-139)",
+        "product.cu L399 dispatch"
+      ],
+      "result": "verified",
+      "recalc": "f32 step replay: prjaxis=-1.0, len_sqr=0.0 exactly, fallback taken, dist1=-0.009999997913837433, dist2=0.19, no NaN",
+      "note": "citation L496-517 covers the degenerate part; device else-branch is L137-139 (citation said L117-134) - minor line-precision, see O9"
+    },
+    {
+      "id": "U2",
+      "claim": "plane_ellipsoid guard is non-upstream defensive, unreachable via legal MJCF",
+      "pinned_refs": [
+        "collision_primitive_core.py L312-339 (no guard; normalize at L334)"
+      ],
+      "device_refs": [
+        "primitive_plane_shapes.cu L93-115 (guard at L100-102: !(length>0)||!isfinite(length) -> return 0)"
+      ],
+      "result": "verified_with_caveat",
+      "recalc": "f32 overflow threshold sqrt(FLT_MAX)=1.844674352395373e19; size_z=1.84e19 -> dot 3.4003358288474007e38 finite; size_z=1.85e19 -> inf -> guard triggers",
+      "note": "non-upstream guard confirmed; abi.rs validates lengths/indices only (L198-216, L329-461), no geom_size value-domain check; extreme finite size (>=1.8447e19) would trigger guard in f32 while upstream normalizes to NaN -> wording should be 'unreachable for ordinary legal input'. No pinned mujoco available to test MJCF acceptance. Also: no CPU implementation of plane_ellipsoid exists in product tree, so 'guard direct CPU unit test' is not directly implementable (Rust mirror only)."
+    },
+    {
+      "id": "U3",
+      "claim": "plane_box 8-corner coverage reachable; 4 poses cover all 8 corners (existing case shows only 3)",
+      "pinned_refs": [
+        "collision_primitive_core.py L366-390 (8 corners, dist/pos)",
+        "collision_primitive.py L797-834 (8 x write_contact), cutoff via collision_core.py L255-256 (dist < margin+gap)"
+      ],
+      "device_refs": [
+        "primitive_plane_shapes.cu L19-42 (i&1/i&2/i&4 same order)",
+        "product.cu L401 dispatch"
+      ],
+      "result": "reachable_but_design_gap",
+      "recalc": "existing B1 case: margin=gap=0 -> corners {0,1,3} (dists -0.004002423 / -0.028330005 / -0.014424292; reference dists -0.0040024184 / -0.0283300020 / -0.0144242905, count 3); G09 worlds flat4={0,1,2,3}, edge2={0,1}, corner1={1}; proposed 4 poses with box 0.1/0.08/0.07 and delta=0.01 -> {0,1,2,3} / {0,1} / {1,3} / {7} -> union {0,1,2,3,7} = 5/8; adding 180-degree flip pose gives {4,5,6,7} -> union 8/8",
+      "note": "O1: 4-pose design cannot reach corners 4..7 (all poses rest on the local -z face side). Corners 4..7 remain reachable with a flip pose, so verdict 'verifiable' stands."
+    },
+    {
+      "id": "U4",
+      "claim": "plane_capsule frame-basis degenerate (b_norm<0.5) + two endpoint candidates reachable; needs new upright fixture + existing lying case",
+      "pinned_refs": [
+        "collision_primitive_core.py L283-308 (b L287, degenerate L289-293, endpoints L297-303)"
+      ],
+      "device_refs": [
+        "primitive_plane_shapes.cu L47-81 (b_norm < 0.5f fallback L65-71, two plane_sphere L75-80)"
+      ],
+      "result": "verified_with_wording_fix",
+      "recalc": "existing fixtures/g10-p5-primitive/plane-capsule.xml qpos=(0,0,0.16,1,0,0,0) -> axis=(0,0,1)=n -> b_norm=0 -> already degenerate; reference count=1, dist=-0.010000001639127731",
+      "note": "O2: the existing case is UPRIGHT (degenerate), not lying; missing pose is lying (b_norm=1, 2 endpoint contacts). New fixture should be plane-capsule-lying.xml; degenerate branch is already covered by the existing B1 case."
+    },
+    {
+      "id": "U5",
+      "claim": "plane_cylinder non-degenerate 4 candidates reachable by 30-45 deg tilt, 4 candidates enter cutoff",
+      "pinned_refs": [
+        "collision_primitive_core.py L519-557 (end caps L526-538, side triangle points L540-557)"
+      ],
+      "device_refs": [
+        "primitive_plane_shapes.cu L144-168 (same 4 candidates)"
+      ],
+      "result": "verified_with_wording_fix",
+      "recalc": "existing plane-cylinder fixture tilt 10 deg -> len_sqr=0.030154 >> 1e-12 (non-degenerate branch already taken, reference count=1). For r=0.06 h=0.1: 4 candidates all dist<0 requires center z < -0.088062 (10 deg) / -0.073448 (20 deg) / -0.056603 (30 deg) / -0.028284 (45 deg), i.e. deep penetration",
+      "note": "O3: non-degenerate branch already covered by existing case; the real increment is 'all 4 candidates written' and needs a deep-penetration pose, which S1 does not state."
+    },
+    {
+      "id": "U6",
+      "claim": "mesh nmesh>1 with distinct assets verifiable and in acceptance denominator",
+      "pinned_refs": [
+        "collision_core.py L113-147 (per-geom dataid -> vertadr/vertnum/graphadr/polynum/polyadr)",
+        "collision_convex.py L911-919 (mesh data present guard; NOT the multi-mesh offset evidence)"
+      ],
+      "device_refs": [
+        "product.cu L155-162 (per-geom dataid resolution) + L176 (geom.mesh_polyadr = poly->mesh_polyadr[dataid])",
+        "multicontact.cu L59-65 (mesh view of participating geom), L89-99 / L118-121 / L171-187 (each side passes its own vertadr/mesh_polyadr into the shared global-array view)"
+      ],
+      "result": "verified",
+      "recalc": "array arithmetic from M0b/M3 bins: cube.obj compiles to 6 polygons / 8 verts / 24 polymap entries (mesh_polynormal 72 B = 18 floats, polymap 96 B = 24 ints); tetra.obj 4/4/12 -> nmesh=2, nmeshvert=12, nmeshpoly=10, polymap total 36; satisfies M0a rules (sum(polynum)=10, per-mesh intervals, polymapadr/num length = nmeshvert)",
+      "note": "device side is feasible for two distinct dataids because all 9 arrays are global and per-geom offsets are resolved per geom. O13: pinned citation collision_convex.py L911-919 only proves the 'mesh data missing -> single contact' guard; better second citation is the collision_gjk mesh helpers taking per-geom vertadr/polyadr (L1620-1686 etc.)."
+    },
+    {
+      "id": "U7",
+      "claim": "mesh degree>10 is limit-only (device returns 0 -> single contact fallback), upstream handles it",
+      "pinned_refs": [
+        "collision_convex.py L1262-1289 (dynamic capacity from m.nmeshdegmax / m.npolygonmax)",
+        "types.py L1661-1662 (Model fields), L1126-1127 (documentation)"
+      ],
+      "device_refs": [
+        "multicontact_geom.cu L383 (#define G5_MC_MESH_DEG_MAX 10)",
+        "multicontact_mesh.cu L120 (vertex-feature check), L148 (edge-feature check) -> return 0",
+        "multicontact.cu L195-197 (nface==0 -> single-contact out)"
+      ],
+      "result": "verified_with_citation_fix",
+      "note": "O5: S1 cites collision_gjk.py for nmeshdegmax/npolygonmax, but those symbols do not appear anywhere in collision_gjk.py; the dynamic capacity computation is collision_convex.py L1262-1289. Verdict 'limit only, not in denominator' unaffected; no 'covered' claim found in README/reachability.json."
+    },
+    {
+      "id": "U8",
+      "claim": "mesh polygon>16 is limit-only (device returns 0 -> single contact fallback), upstream handles it",
+      "pinned_refs": [
+        "collision_convex.py L1284-1289 (npolygonmax = max(m.npolygonmax, 16) and grows with model)"
+      ],
+      "device_refs": [
+        "multicontact_geom.cu L384 (#define G5_MC_MESH_FACE_MAX 16)",
+        "multicontact_mesh.cu L180 (nvert > 16 -> return 0)",
+        "multicontact.cu L195-197 (fallback)"
+      ],
+      "result": "verified_with_citation_fix",
+      "note": "same as U7: citation file wrong (collision_gjk.py -> collision_convex.py L1284-1289). 'limit only' wording correct."
+    },
+    {
+      "id": "U9",
+      "claim": "hfield-capsule device regression verifiable bitwise, reuse fixtures/g10-p5/references/hfield-capsule.json (5961 B) + G5 bins, no new capture window",
+      "pinned_refs": [
+        "n/a (device regression against existing G5 probe outputs)"
+      ],
+      "device_refs": [
+        "tests/g10_p5_nvrtc_launcher.rs L26 (CASES = hfield-sphere, sdf-box, ellipsoid-box)",
+        "docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/hfield-capsule/ (23 input bins + out1/out2 + meta.txt)",
+        "src/physics/collision/hfield/tests.rs L10 (CPU hfield suite already includes hfield-capsule)"
+      ],
+      "result": "verified_with_number_fix",
+      "recalc": "fixtures/g10-p5/references/hfield-capsule.json actual size 9712 B (S1 says 5961 B); has input/output/determinism; provenance upstream CUDA (RTX 4070 Ti SUPER, mujoco_warp 3.15.0, warp 1.15.0)",
+      "note": "O4: size wrong; launcher compares against frozen probe out1/ (bit_equal is expectation; assertion is bit-level-preferred + 4ULP@scale). hfield-sphere precedent from M3 validation window: bit_equal=314/314, max_*_ulp=0, failures=0. No new capture window is indeed needed."
+    }
+  ],
+  "red_line": {
+    "commit_files": [
+      ".normify/changes/2026-10-27-unc3-branch-closure-s1-reachability.json",
+      "docs/development-evidence/changes/2026-10-27-unc3-branch-closure-s1-reachability.json",
+      "docs/development-evidence/unc3-branch-reachability/README.md",
+      "docs/development-evidence/unc3-branch-reachability/reachability.json"
+    ],
+    "no_src_tests_fixtures_scripts_cargo_changes": true,
+    "no_capture_artifacts": true,
+    "forbidden_terms_hits": 0
+  }
+}
