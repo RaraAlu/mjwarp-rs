@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-product-collision-inputs-s1-independent-check",
+  "title": {
+    "zh": "产品碰撞输入接线 S1 独立复核（pinned 源零改动 / ABI 不动 / data 快照 oracle / W4 零警告）",
+    "en": "Independent check of product collision inputs wiring S1"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 独立复核 S1（无 GPU）：① 核 18 个 pinned 源逐字节未变（`fixtures/precision/g01-inputs.json` 清单），既有 `mjwarp_native_*` ABI 与 `CollisionArgs` 504 B、`DEVICE_SOURCES`=28、入口=6 不变；② 核新探针确实是独立 schema、从非 pinned TU include、`build.rs` 只加 rerun-if-changed、未新增 feature、未改 G01 构建集合；③ 独立复算 data 快照：用 mjModel/mjData oracle 对 32 项计数与逐元素值（f32 转换后位型）复核；核 handle 生命周期（晚于 owner 释放）、mjData 复用、单线程约定、未初始化/长度不符/越界拒绝且不 panic；④ 核 `/W4 warnings_into_errors` 零警告证据与 `native_g01`/`native-only-g01` 既有期望不变；⑤ 核证据 README/receipt/manifest sha、无 GPU/无窗口、无 host↔device 等价或精度类宣称。不 commit 不 done，报 verdict/blockers/observations。",
+    "en": "QA independent check of S1."
+  },
+  "modules": {},
+  "acceptance": [
+    "18 个 pinned 源零改动（逐文件 sha 比对）、既有 ABI/`CollisionArgs` 504 B/`DEVICE_SOURCES`=28/入口=6 不变；新文件清单与 owner 登记一致。",
+    "新探针独立 schema 与 include 路径核过（不 pinned TU）、`build.rs` 仅 rerun-if-changed、无新 feature；`/W4 warnings_into_errors` 零警告证据成立。",
+    "data 快照 oracle 独立复算：32 项计数/逐元素值（f32 位型）与 mjModel/mjData 一致；handle 生命周期/缓存/单线程约定符合；非法输入拒绝且不 panic。",
+    "证据 `docs/development-evidence/product-collision-inputs-s1-independent-check/`（README + receipt + manifest sha 复验），check exit 0；no GPU/window；不宣称 host↔device 等价或精度类结论。",
+    "不 commit、不 done，报 verdict / blockers / observations。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-product-collision-inputs-s1-data-snapshot"
+    ],
+    "phase": "架构/接线债务",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/product-collision-inputs-s1-independent-check/"
+    ],
+    "resources": [],
+    "priority": 9
+  },
+  "note": "Arch 2026-10-27 预登记（每片 QA 预登记，Chief 要求）。S1 无 GPU；复核对象为 S1 提交与证据。",
+  "revision": {
+    "before": "1df612c83810a6c585710d2000fd542a998ce53c",
+    "after": null
+  },
+  "created_at": "2026-10-27T07:32:00.000Z",
+  "updated_at": "2026-10-27T07:32:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/product-collision-inputs-s1-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-product-collision-inputs-s1-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

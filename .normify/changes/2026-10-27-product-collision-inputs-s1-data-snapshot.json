@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-product-collision-inputs-s1-data-snapshot",
+  "title": {
+    "zh": "产品碰撞输入接线 S1：独立 data 快照探针（model+geom_xpos/xmat → Rust 快照）",
+    "en": "Product collision inputs wiring S1: independent data-snapshot probe"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "方向② S1（无 GPU）：新增**独立** collision-inputs 探针入口，把 mjModel 静态字段 + mjData 的 `geom_xpos/geom_xmat`（由调用方给 `qpos`、探针内 `mj_makeData`+`mj_kinematics` 得到）拷成 Rust 侧快照，并落地字段规范/计数校验/f64→f32 转换（复用既有唯一转换入口）。契约按 Chief 拍板：只新增文件，**禁改 18 个 pinned 源**（`native/model_probe.cpp`、`include/mjwarp_native_probe.h`、`native/g01_fields.inc` 等）；既有 `mjwarp_native_*` ABI 与 `CollisionArgs` 504 B 不动；新 cpp 从未 pinned 的 `native/model_probe_sparse.cpp` include；`build.rs` 只加 `rerun-if-changed`；handle 生命周期晚于 owner 释放、单线程、mjData 缓存复用；本轮状态输入仅 qpos（mocap/act/ctrl 不在默认支持面）。不改判据/参考/容差；无产品接线（S3 才接）。",
+    "en": "S1: new independent collision-inputs probe and Rust snapshot reader; no GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "新 `include/mjwarp_collision_inputs_probe.h` + `native/model_probe_collision_inputs.cpp`（从 `native/model_probe_sparse.cpp` include）：独立 schema；info struct 给出 ngeom/nmesh/nmeshpoly/nmeshvert/nmeshpolyvert/nmeshpolycount/nhfield/nhfielddata/noct 等计数；field IDs 1:1 对应 32 项 CollisionGpuInputs（23 项已有 + 9 项 mesh_poly），kind/width/unit 与 `src/runtime/collision_gpu/types.rs` 一致；另提供 data 快照入口（创建/设置 qpos/取 geom_xpos+xmat/销毁），handle 生命周期晚于 owner、mjData 复用、单线程。",
+    "Rust 侧 `src/model/collision_inputs.rs`（字段规范）+ `src/io/collision_inputs.rs`（读取/计数校验/f64→f32 走既有唯一转换入口）+ `src/model/mod.rs`/`src/io/mod.rs` 模块声明；未初始化/长度不符/计数越界返回既有错误类型，不 panic。",
+    "不改 18 个 pinned 源（`fixtures/precision/g01-inputs.json` 清单，machine check `unchanged`）；既有 `mjwarp_native_*` ABI、`CollisionArgs` 504 B、`DEVICE_SOURCES`=28、入口=6 均不变；`build.rs` 只加 `rerun-if-changed`、不新增 feature。",
+    "`/W4 warnings_into_errors` 零警告；host 测试对 mjModel/mjData oracle：32 项计数与逐元素值一致（f32 转换后位型与 numpy astype 同舍入）；`native_g01`/`native-only-g01` 既有期望不变；本片无 GPU、不开窗。",
+    "证据 `docs/development-evidence/product-collision-inputs-wiring/`（README + receipt + host 日志）；QA 独立复核预登记；不宣称 host↔device 等价/精度目标达成/上游等价。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-26-mesh-multicontact-m3-mesh-mesh"
+    ],
+    "phase": "架构/接线债务",
+    "owner": "Backend",
+    "files": [
+      "include/mjwarp_collision_inputs_probe.h",
+      "native/model_probe_collision_inputs.cpp",
+      "native/model_probe_sparse.cpp",
+      "build.rs",
+      "src/model/collision_inputs.rs",
+      "src/model/mod.rs",
+      "src/io/collision_inputs.rs",
+      "src/io/mod.rs",
+      "tests/g10_p5_collision_inputs_snapshot.rs",
+      "tests/support/",
+      "docs/development-evidence/product-collision-inputs-wiring/",
+      "docs/development-evidence/changes/2026-10-27-product-collision-inputs-s1-data-snapshot.json"
+    ],
+    "resources": [],
+    "priority": 15
+  },
+  "note": "Arch 2026-10-27 登记（用户拍板 ②，Chief 转达硬条件：独立 data 快照入口 / 只新增文件 / 禁改 18 pinned 源 / ABI 与 504 B 不动 / 从非 pinned TU include / 不做新 feature / W4 零警告 / handle 晚于 owner、单线程、data 复用 / mocap 本轮不支持）。父任务 backlog `2026-10-26-product-collision-inputs-wiring`；S2/S3 在片界登记。",
+  "revision": {
+    "before": "1df612c83810a6c585710d2000fd542a998ce53c",
+    "after": null
+  },
+  "created_at": "2026-10-27T07:30:00.000Z",
+  "updated_at": "2026-10-27T07:30:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "include/mjwarp_native_probe.h",
+        "native/g01_fields.inc",
+        "native/model_probe.cpp",
+        "src/io/fields.rs",
+        "src/io/flex.rs",
+        "src/io/g01.rs",
+        "src/io/inertial.rs",
+        "src/io/kinematic.rs",
+        "src/model/attached.rs",
+        "src/model/camlight.rs",
+        "src/model/flex.rs",
+        "src/model/inertial.rs",
+        "src/model/mocap.rs",
+        "src/model/parameters.rs",
+        "src/model/sleep.rs",
+        "src/model/spatial_tendon.rs",
+        "src/model/tendon.rs",
+        "src/model/topology.rs"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/product-collision-inputs-wiring/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-product-collision-inputs-s1-data-snapshot"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
