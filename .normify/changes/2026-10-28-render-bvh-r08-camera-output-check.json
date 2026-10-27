@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r08-camera-output-check",
+  "title": {
+    "zh": "R08-S1 独立复核（逐相机输出语义 / 索引与错误面 / 隔离与参考对账 / 不变量）",
+    "en": "Independent check of R08-S1 per-camera output views"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "QA 独立复核 `2026-10-28-render-bvh-r08-camera-output`：① 逐相机 API 与上游 `render_util.py` L170-209/L212-280 语义逐项对：ABGR 解包公式（b/g/r 位与顺序、`1.0/255.0` 乘法）、depth 为 `clamp(val / depth_scale, 0, 1)`（**除法**且 clamp 在后）、seg 原样 `(id,type)`；② `camera_index` = 激活顺序位置（不是 model 相机 id），越界/未启用通道/缓冲长度不符/`depth_scale<=0`/非有限/nworld>1 的错误面可诊断且不 panic；③ 相机隔离：合成哨兵整缓冲后逐相机切片边界正确、互不污染；④ 与 S8/S7b 冻结参考逐位对账（RGB/depth 位等、seg 全等）；⑤ 不变量：`src/model/render.rs` 未动（500 行棘轮）、`src/render/kernel/*` 与设备 `.cu` 未动、`DEVICE_SOURCES`=28/入口=6/504 B 未动、判据/参考/夹具未改、新文件 ≤500 行、门禁与证据 manifest 复核。不 commit、不 done，报 verdict/blockers/observations。",
+    "en": "QA independent check of R08-S1 per-camera output views."
+  },
+  "modules": {},
+  "acceptance": [
+    "语义对账：QA 自行从 pinned `render_util.py` 取公式重算（RGB 解包逐位、depth 除法+clamp、seg 原样），与产品实现逐项一致；RGB 用上游 `1.0/255.0` 常量而非近似值的证据可见。",
+    "索引与错误面：`camera_index` 语义为激活顺序；越界、通道未启用、缓冲不足、`depth_scale` 非法、nworld>1 五类错误均有单测且不 panic；错误文本含字段/索引/上限。",
+    "隔离与边界：QA 自写哨兵测试（A/B 相机不同分辨率、不同区段）验证切片互不重叠、不越界读邻居；空相机列表与单相机情形行为明确。",
+    "参考对账：用 S8/S7b 冻结参考逐相机值构造整缓冲再反解，RGB/depth 位等、seg 全等；QA 不接受「近似相等」作为通过依据。",
+    "不变量与门禁：`src/model/render.rs` 仍 500 行未动；`src/render/kernel/`、`src/render/kernel/cuda/`、设备源零改动；`DEVICE_SOURCES`=28、入口=6、`CollisionArgs` 504 B 未动；`fixtures/precision` 与 T4 身份钉子零改动；新文件 ≤500 行；fmt/clippy/clippy-cuda/unit 独立复跑通过；证据 README/receipt/manifest sha 0 不符、禁词 0。",
+    "证据 `docs/development-evidence/render-bvh/r08-camera-output-independent-check/`（README + receipt + manifest），check exit 0；不 commit 不 done，报 verdict/blockers/observations（每条给修或接受建议）；不改代码/判据/参考/容差、不开 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r08-camera-output"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r08-camera-output-independent-check/"
+    ],
+    "resources": [],
+    "priority": 80
+  },
+  "note": "Arch 2026-10-28 预登记（每片 QA 预登记）。本片宿主侧无 GPU。",
+  "revision": {
+    "before": "4d9eda269e8c7bee7ac277d7ac7c8a0127e36686",
+    "after": null
+  },
+  "created_at": "2026-10-27T17:47:00.000Z",
+  "updated_at": "2026-10-27T18:09:18.702Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r08-camera-output-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r08-camera-output-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

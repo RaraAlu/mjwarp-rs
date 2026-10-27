@@ -1,0 +1,13 @@
+# QA independent gate rerun (detached clean worktree at a6425a5d, isolated CARGO_TARGET_DIR)
+# reason: main worktree had Backend S2 WIP files (untracked) that `cargo test --locked` would compile
+worktree: target/qa-r08-s1-wt (detached HEAD a6425a5d; tracked tree byte-aligned with main worktree)
+target:   target/qa-r08-s1-target (separate CARGO_TARGET_DIR; main target untouched)
+note:     fresh checkout file bytes differ only in line endings (core.autocrlf=true); after aligning
+          line endings with the main worktree, the S1 source files are content-identical to a6425a5d,
+          and the pre-existing S3 fixture signature test passes as in the main worktree.
+
+fmt          exit=0  (cargo fmt --check)
+directed     exit=0  (cargo test --locked --test render_camera_output: 4 passed / 0 failed; 0.09 s)
+clippy       exit=0  (cargo clippy --all-targets --locked -- -D warnings)
+clippy-cuda  exit=0  (cargo clippy --all-targets --locked --features cuda -- -D warnings)
+unit         exit=0  (cargo test --locked: 1010 passed / 0 failed / 376 ignored; 124 result lines)

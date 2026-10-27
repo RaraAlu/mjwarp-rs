@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r08-camera-output-check",
+  "kind": "independent_check",
+  "reviewed_task": "2026-10-28-render-bvh-r08-camera-output",
+  "reviewed_commit": "a6425a5d877723d233186c8282b9826b3b8f24cd",
+  "reviewed_parent": "db9abb0956c7d1a0f2ee8ba0bd10fd1e5af1b1bb",
+  "head_at_review": "e88ac1c5 (main worktree advanced to a later plan commit during the review; gates reproduced on detached worktree at a6425a5d)",
+  "verdict": "pass",
+  "blockers": [],
+  "observation_counts": {"general": 0, "suggestion": 8, "total": 8, "open_for_backend": 8},
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "suggestion",
+      "title": "camera_id() narrows usize -> i32 with a bare `as` cast",
+      "detail": "src/render/context/camera_output.rs L294 `Ok(self.plan.cameras[camera_index] as i32)`; no checked conversion.",
+      "fix_or_accept": "ACCEPT now (camera ids come from the model ncam bound); when this file is next touched prefer i32::try_from + a documented invariant."
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "title": "depth() validates depth_scale after resolving the buffer region",
+      "detail": "depth() fetches depth_raw() (index/disabled/missing/length checks) before the DepthScale check; harness observed disabled + scale=0.0 -> ChannelDisabled, not DepthScale. Success paths unaffected.",
+      "fix_or_accept": "FIX (cheap): validate depth_scale before touching the buffer, or document the error precedence; ACCEPT: only combined-invalid inputs change which error is reported."
+    },
+    {
+      "id": "O3",
+      "severity": "suggestion",
+      "title": "README/receipt present -0.0 -> +0.0 as an upstream wp.clamp guarantee",
+      "detail": "warp 1.15 builtins.py documents clamp = min(max(low,x), high) and max with C fmax NaN semantics, which matches the product for NaN and out-of-range values; the tie between -0.0 and +0.0 is an fmaxf implementation detail (CUDA returns +0) and the fixtures contain no -0 samples, so it is not device-verified here.",
+      "fix_or_accept": "FIX wording (call it CUDA fmaxf behavior) and/or register the -0 case as uncovered; ACCEPT: none of the verified values changes."
+    },
+    {
+      "id": "O4",
+      "severity": "suggestion",
+      "title": "new() validates counts but not the provenance/monotonicity of the adr table",
+      "detail": "A hand-built OutputLayout with the same totals but permuted adr entries (e.g. [43200,0]) passes new() and silently yields swapped per-camera slices. README already states plan and layout must come from the same resolve().",
+      "fix_or_accept": "ACCEPT (precondition documented); optional hardening: compare adr against the prefix sums of plan pixels for enabled cameras."
+    },
+    {
+      "id": "O5",
+      "severity": "suggestion",
+      "title": "file location and module declaration disagree (#[path] from src/render/mod.rs)",
+      "detail": "The file lives under src/render/context/ but is declared as `render::camera_output` from src/render/mod.rs, so the module tree does not match the directory. Verified: no duplicate definition, context.rs untouched, module source registered (26 entries), normify validate --fingerprints 0 errors.",
+      "fix_or_accept": "ACCEPT for this slice (scope only covers src/render/context/ + src/render/mod.rs); follow-up: move the declaration into src/render/context.rs (or move the file) to remove the structural debt."
+    },
+    {
+      "id": "O6",
+      "severity": "suggestion",
+      "title": "PixelOverflow is unreachable on 64-bit targets and therefore untested",
+      "detail": "u32 width*height <= 2^64-2^33+1 < usize::MAX on 64-bit, and the plan prefix sums would need an absurd camera count; the variant is kept for 32-bit/future defense.",
+      "fix_or_accept": "ACCEPT: keep as defensive code; no test needed."
+    },
+    {
+      "id": "O7",
+      "severity": "suggestion",
+      "title": "product test's expected_depth uses f32::clamp, so NaN/-0 semantics are not covered by the product tests",
+      "detail": "tests/render_camera_output.rs implements the expectation with f32::clamp; the fixtures are finite non-negative, so equality holds. QA's independent harness covered 8 edge values (0/-0/0.5/1/1.5/-2/±inf/NaN) at 3 scales bit-exactly against the documented semantics.",
+      "fix_or_accept": "FIX (add 2-3 edge values to the product test) or register the edge cases as uncovered."
+    },
+    {
+      "id": "O8",
+      "severity": "suggestion",
+      "title": "fresh checkout cannot pass the pre-existing S3 fixture signature test under core.autocrlf=true",
+      "detail": "fixtures/g10-p5-primitive-branches/*.xml has no eol=lf attribute, so a fresh checkout gives CRLF bytes and g10_p5_branch_closure_cuda::fixtures_match_s3_signature fails; in the main worktree (LF bytes) it passes. NOT introduced by S1 (commit does not touch .gitattributes or those fixtures). QA worked around it by aligning the private worktree bytes with the main worktree (line-ending-only; 5042 files) before rerunning the gates.",
+      "fix_or_accept": "FIX via a small independent task: add `fixtures/g10-p5-primitive-branches/* text eol=lf` (or -text) to .gitattributes so gates are reproducible from a clean checkout."
+    }
+  ],
+  "verified_items": [
+    {"item": "upstream semantics (unpack/decay/seg) match pinned render_util.py", "result": "pass",
+     "detail": "unpack_rgb L170-189 b/g/r masks and order, INV_255 constant, extract_depth L193-209 division-before-clamp, _extract_seg L247-261 raw copy, pixel order row-major x fastest; camera_index = activation order (CameraPlan.cameras + OutputLayout adr enumeration)",
+     "evidence": ["README.md §2", "logs/module-wiring.txt"]},
+    {"item": "reference reconciliation recomputed by QA from the frozen S7b references", "result": "pass",
+     "detail": "QA python/numpy implementation rebuilt the whole buffers and produced bit-exact expectations; QA Rust harness compared product outputs: packed 120000/120000, unpacked 360000/360000, depth raw 120000/120000, depth scaled 3x120000/360000, seg 120000/120000",
+     "evidence": ["python_expected.json", "harness_cross_check.json", "logs/recompute-python.log", "logs/qa-cross-check.log"]},
+    {"item": "cross-check counts (background, zero depth, clamp-to-1, raw max)", "result": "pass",
+     "detail": "background (-1,-1) = depth zero = 16995/27498 (no -0 bit patterns); clamp-to-1 at scale 1.0 = 12890/15702; raw max 1.6825796365737915 / 3.703162670135498 m; INV_255 bits 0x3B808081 = float32(1/255)",
+     "evidence": ["python_expected.json", "harness_cross_check.json"]},
+    {"item": "error surface and no panic", "result": "pass",
+     "detail": "9 error classes triggered (CameraIndex incl usize::MAX; NworldUnsupported 0/2/3; ChannelDisabled rgb/depth/seg; BufferMissing; BufferLength short and long; BufferRange; DepthScale incl 0/-0/-1/±inf/NaN; CameraCount/PlanFlags/LayoutPixels); subnormal and f32::MAX scales accepted; no panic",
+     "evidence": ["harness_edges.json", "logs/qa-cross-check.log"]},
+    {"item": "isolation and row-major mapping", "result": "pass",
+     "detail": "2 cameras 4x3 + 2x2, cameras=[1,0], adr=[0,12]; A region exactly [0,12), B exactly [12,16), camera-local row-major mapping, out-of-range row_major_index None, depth/seg per-camera slicing",
+     "evidence": ["harness_edges.json"]},
+    {"item": "empty and single camera lists", "result": "pass",
+     "detail": "0 cameras: count 0, camera_id(0)/rgb(0) -> CameraIndex{0,0}; 1 camera works",
+     "evidence": ["harness_edges.json"]},
+    {"item": "module wiring (#[path])", "result": "pass",
+     "detail": "src/render/mod.rs +4 lines only; src/render/context.rs absent from the commit and does not declare camera_output (no duplicate module); module source registered in mjwarp.render (26 entries); normify validate --fingerprints exit 0 (0 errors, 5 pre-existing warnings); normify check for the S1 task exit 0",
+     "evidence": ["logs/module-wiring.txt", "README.md §5"]},
+    {"item": "invariants and red lines", "result": "pass",
+     "detail": "495/493/374/426/500 lines; commit touches no fixtures/kernel/native/include/runtime/Cargo/build.rs; DEVICE_SOURCES=28 and 504-byte CollisionArgs and six entries assertions pass inside the unit run",
+     "evidence": ["logs/module-wiring.txt", "logs/unit.log"]},
+    {"item": "four gates independently rerun", "result": "pass",
+     "detail": "detached worktree at a6425a5d with isolated CARGO_TARGET_DIR: fmt exit 0, clippy exit 0, clippy-cuda exit 0, unit 1010 passed / 0 failed / 376 ignored (124 result lines), directed render_camera_output 4 passed",
+     "evidence": ["logs/gates-summary.txt", "logs/fmt-check.log", "logs/clippy.log", "logs/clippy-cuda.log", "logs/unit.log", "logs/directed-render-camera-output.log"]},
+    {"item": "S1 evidence manifest and encoding", "result": "pass",
+     "detail": "manifest 14 entries (changed/fixtures/upstream_reference_copy/evidence_logs) recomputed sha256/bytes/lines = 0 mismatches; git blob ids for the three changed files match; all evidence text UTF-8 no BOM / LF; 3 regulated claim terms 0 hits in evidence and in the commit message",
+     "evidence": ["README.md §8"]}
+  ],
+  "environment": {
+    "os": "Windows",
+    "repo": "D:\\Rust\\mjwarp-rs",
+    "review_type": "read-only",
+    "gpu_opened_by_qa": false,
+    "window_opened_by_qa": false,
+    "rerender_by_qa": false,
+    "python": "target/render-bvh-precheck/venv312/Scripts/python.exe",
+    "gate_worktree": "target/qa-r08-s1-wt (detached at a6425a5d)",
+    "gate_target_dir": "target/qa-r08-s1-target"
+  },
+  "gates": {
+    "applicable": false,
+    "gate_exit_code": 1,
+    "gate_stderr": "任务没有引用任何门禁",
+    "result": "not applicable: this check task's checks are json(receipt /task_id) + forbid_claim only, with no gate items; `normify gate` exits 1 with '任务没有引用任何门禁' (expected, recorded here). The reviewed S1 task's own four gates were independently reproduced by QA (see verified_items).",
+    "independent_rerun": {"fmt": 0, "clippy": 0, "clippy-cuda": 0, "unit_exit": 0, "unit_passed": 1010, "unit_failed": 0, "unit_ignored": 376, "directed_passed": 4}
+  },
+  "boundaries": [
+    "read-only: no code/criteria/reference/tolerance change, no GPU, no window, no re-render, no capture rerun",
+    "the check covers the host-side per-camera views, their reference reconciliation, error surface, isolation, wiring and invariants; it makes no render-level or product-level acceptance/coverage/precision/equivalence claim and does not replace the S2 end-to-end window",
+    "gates were reproduced in a private detached worktree because the main worktree contained in-progress S2 files; file bytes were aligned with the main worktree (line endings only) to keep the pre-existing fixture signature test meaningful"
+  ],
+  "evidence_files": [
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/README.md",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/receipt.json",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/manifest.json",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/verify_evidence.py",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/recompute_reference.py",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/python_expected.json",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/harness/qa_r08_s1_cross_check.rs",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/harness_cross_check.json",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/harness_edges.json",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/logs/recompute-python.log",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/logs/qa-cross-check.log",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/logs/directed-render-camera-output.log",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/logs/fmt-check.log",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/logs/clippy.log",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/logs/clippy-cuda.log",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/logs/unit.log",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/logs/module-wiring.txt",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/logs/gates-summary.txt",
+    "docs/development-evidence/render-bvh/r08-camera-output-independent-check/logs/evidence-selfcheck.txt"
+  ]
+}
