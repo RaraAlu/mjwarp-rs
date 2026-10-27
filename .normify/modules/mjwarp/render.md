@@ -95,7 +95,16 @@ path = "src/render/kernel/launch.rs"
 path = "src/render/context/camera_output.rs"
 
 [[source]]
-path = "src/render/context/world.rs"
+path = "src/render/context/world/mod.rs"
+
+[[source]]
+path = "src/render/context/world/errors.rs"
+
+[[source]]
+path = "src/render/context/world/layout.rs"
+
+[[source]]
+path = "src/render/context/world/state.rs"
 
 [[apis]]
 protocol = "rpc"

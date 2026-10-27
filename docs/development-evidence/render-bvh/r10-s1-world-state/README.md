@@ -100,3 +100,26 @@
 - `camera_output.rs` 的逐相机视图仍只支持 `nworld == 1`（S1 遗留拒绝，本片不改）；多 world 的
   逐相机视图与设备侧整合在 R10 后续片。
 - 未接产品入口调用链（R10-S2 GPU 端到端另片）。
+
+## 9. R10-S1 观察收口（拆分 + F1–F3，2026-10-28）
+
+- 收口任务：`2026-10-28-render-bvh-r10-s1-obs-closure`；收据 `obs-closure-receipt.json`（含 `/task_id`），
+  门禁/自检数字见收据 `gates` 与 `self_checks`。本段**只改文件组织与三处防御**，公开 API 与渲染语义不变。
+- **拆分（零行为变化）**：`src/render/context/world.rs`(499) → `src/render/context/world/mod.rs`(22) +
+  `errors.rs`(171) + `state.rs`(199) + `layout.rs`(175)；`context.rs` 的 `pub mod world;` 声明不变（指向目录），
+  `render/mod.rs` 再导出路径不变。`nworld = 1` 与 `OutputLayout` 逐字段相等、逐相机切片与
+  `CameraOutputViews::rgb_packed` 逐位一致（既有回归单测原样通过）。
+- **F1（修，真 panic）**：`WorldResolutions::new` 在 `cameras == 0` 时不再走 `chunks(0)`；空相机选择直接返回
+  空表（非空输入报 `CameraCountMismatch { expected: 0 }`）。新单测
+  `empty_camera_selection_is_accepted_without_panic`（`nworld = 3` + 空选择）。
+- **F2（修）**：`WorldStates::new` / `WorldLayout::resolve` 的全激活掩码与状态槽位改走
+  `try_reserve_exact`；`usize::MAX` 级 `worlds` 返回 `CountOverflow { field: "worlds" }` 而非 capacity
+  overflow panic（`CountOverflow` 公共路径可达）。新单测
+  `huge_world_count_returns_count_overflow_without_panic`（`catch_unwind` 断言不 panic）。
+- **F3（修）**：`WorldLayout::resolve` 的 `nworld == 0` 判定提到 `OutputLayout::resolve` **之前**（错误优先级
+  写死）；新单测 `nworld_zero_has_priority_over_layout_errors` 用「OutputLayout 会失败的 plan」锁定：
+  `nworld = 0` 返回 `WorldCountZero`、`nworld = 2` 才返回 `Layout(..)`。
+- 收口门禁（最终树）：fmt 1577 ms、clippy 402 ms、clippy-cuda 411 ms、unit **1025 passed / 0 failed /
+  382 ignored**（63516 ms，126 result 行）；定向 **8 passed / 0 failed**（187 ms，5 条既有 + 3 条新增）。
+- 红线：`camera_output.rs`(499)、`model/render.rs`(500)、kernel 三文件（500/498/494）、设备 `.cu`、
+  `DEVICE_SOURCES`=28、入口=6、`CollisionArgs` 504 B、判据/参考/夹具零改动；拆分后各文件 ≤500。

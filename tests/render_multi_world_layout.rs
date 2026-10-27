@@ -395,3 +395,84 @@ fn resolutions_replicate_plan_and_reject_mismatch() {
         WorldError::WorldCountZero
     );
 }
+
+#[test]
+fn empty_camera_selection_is_accepted_without_panic() {
+    // F1：nworld > 1 + 空相机选择：WorldResolutions::new 不得 params.chunks(0) panic。
+    let plan = plan(&[]);
+    assert!(plan.resolutions.is_empty());
+    let resolutions = WorldResolutions::new(&plan, 3, Vec::new()).expect("空相机选择应接受空表");
+    assert_eq!(
+        resolutions.get(0, 0).unwrap_err(),
+        WorldError::CameraOutOfRange {
+            camera: 0,
+            cameras: 0
+        }
+    );
+    assert_eq!(
+        WorldResolutions::new(&plan, 3, vec![[1, 2]]).unwrap_err(),
+        WorldError::CameraCountMismatch {
+            expected: 0,
+            actual: 1
+        }
+    );
+    // 布局侧同样接受空相机选择（每 world 区段为空）。
+    let layout = WorldLayout::resolve(&plan, 3).expect("空相机选择布局");
+    assert_eq!((layout.worlds(), layout.cameras()), (3, 0));
+    assert_eq!(layout.world_range(ImageOutput::Rgb, 2).unwrap(), 0..0);
+    assert_eq!(layout.buffer_elements(ImageOutput::Rgb).unwrap(), 0);
+    assert!(
+        layout
+            .world_view(ImageOutput::Rgb, 2, &[] as &[u32])
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        layout
+            .world_view(ImageOutput::Rgb, 3, &[] as &[u32])
+            .unwrap_err(),
+        WorldError::WorldOutOfRange {
+            world: 3,
+            worlds: 3
+        }
+    );
+}
+
+#[test]
+fn huge_world_count_returns_count_overflow_without_panic() {
+    // F2：usize::MAX 级 worlds 返回 CountOverflow，而非 capacity overflow panic。
+    let plan = plan(&[[2, 2]]);
+    let states = std::panic::catch_unwind(|| WorldStates::<u32>::new(usize::MAX));
+    let states = states.expect("WorldStates::new 不应 panic");
+    assert!(matches!(states, Err(WorldError::CountOverflow { .. })));
+    let layout = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        WorldLayout::resolve(&plan, usize::MAX)
+    }))
+    .expect("WorldLayout::resolve 不应 panic");
+    assert!(matches!(layout, Err(WorldError::CountOverflow { .. })));
+    // 正常规模仍可用（对照）。
+    assert!(WorldStates::<u32>::new(2).is_ok());
+    assert!(WorldLayout::resolve(&plan, 2).is_ok());
+}
+
+#[test]
+fn nworld_zero_has_priority_over_layout_errors() {
+    // F3：nworld == 0 的错误先于 OutputLayout 解析错误（优先级锁死）。
+    let broken = plan(&[[u32::MAX, u32::MAX], [1, 1]]);
+    assert!(
+        mjwarp_rs::render::context::OutputLayout::resolve(&broken).is_err(),
+        "该 plan 的 OutputLayout 解析应失败"
+    );
+    assert_eq!(
+        WorldLayout::resolve(&broken, 0).unwrap_err(),
+        WorldError::WorldCountZero
+    );
+    assert!(matches!(
+        WorldLayout::resolve(&broken, 2).unwrap_err(),
+        WorldError::Layout(_)
+    ));
+    assert_eq!(
+        WorldStates::<u32>::new(0).unwrap_err(),
+        WorldError::WorldCountZero
+    );
+}

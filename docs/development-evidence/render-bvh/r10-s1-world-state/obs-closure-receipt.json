@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r10-s1-obs-closure",
+  "kind": "render-bvh-r10-s1-world-state-observation-closure",
+  "status": "final",
+  "closure_of": "2026-10-28-render-bvh-r10-s1-world-state",
+  "date": "2026-10-28",
+  "qa_review": {
+    "verdict": "pass / 0 阻断 / 3 观察",
+    "follow_ups": ["split", "F1", "F2", "F3"]
+  },
+  "scope": "先拆分 499 行 world.rs（零行为变化），再修 F1 空相机 chunks(0) panic / F2 超大 worlds panic / F3 nworld==0 错误优先级；不改公开 API、不改判据/参考/容差/夹具、不开 GPU。",
+  "split": {
+    "before": { "path": "src/render/context/world.rs", "lines": 499, "sha256": "2c495c02cb55fd8a04b486c3dbff3ddcdba2debeac5b07395f85b337b862f711" },
+    "after": [
+      { "path": "src/render/context/world/mod.rs", "lines": 22, "bytes": 1264, "sha256": "9a757129ddf56ac0ced9e02409f9903f1dcdf7bce93e2ad5555996485660852e" },
+      { "path": "src/render/context/world/errors.rs", "lines": 171, "bytes": 5302, "sha256": "1b5011c1bf3a957614d96abf567c791a0e616dbb4e1a2629a665d8dd224f2a38" },
+      { "path": "src/render/context/world/state.rs", "lines": 199, "bytes": 6908, "sha256": "913b5c814caba51b9b279d4b86d332ba172ae95027384f36fc685405880bf79b" },
+      { "path": "src/render/context/world/layout.rs", "lines": 175, "bytes": 5861, "sha256": "8013874ee53c2d387fffc9d2ccf4ff3e88a96355c7adcf7174862f796ed8379e" }
+    ],
+    "module_sources": "mjwarp.render 27 → 30（删除 world.rs，新增 mod/errors/state/layout 四项）",
+    "public_api_unchanged": "context.rs 的 pub mod world; 不变（指向目录）；render/mod.rs 再导出路径不变",
+    "behavior_unchanged_evidence": [
+      "既有 5 条单测原样通过（含 nworld=1 与 OutputLayout 逐字段相等、逐相机切片与 CameraOutputViews::rgb_packed 逐位一致）",
+      "world_view/world_range/camera_range/buffer_elements 语义与拆分前相同（代码逐段迁移）"
+    ]
+  },
+  "fixes": {
+    "F1": {
+      "problem": "WorldResolutions::new 在 plan.resolutions 为空（cameras==0）时 chunks(0) panic",
+      "fix": "空相机选择（cameras==0）直接返回空表；只接受空输入，非空输入返回 CameraCountMismatch { expected: 0, actual }",
+      "test": "empty_camera_selection_is_accepted_without_panic（nworld=3 + 空选择；另断言 WorldLayout 空区段与越界错误）"
+    },
+    "F2": {
+      "problem": "vec![true; worlds] 在 usize::MAX 级 worlds 触发 capacity overflow panic",
+      "fix": "active_mask_all_true / WorldStates::assemble 改 try_reserve_exact，失败返回 CountOverflow { field: \"worlds\" }（公共路径可达）",
+      "test": "huge_world_count_returns_count_overflow_without_panic（catch_unwind 包裹 WorldStates::new(usize::MAX) 与 WorldLayout::resolve(plan, usize::MAX)，断言不 panic 且为 CountOverflow）"
+    },
+    "F3": {
+      "problem": "WorldLayout::resolve 先做 OutputLayout::resolve，nworld==0 的错误被布局错误遮蔽",
+      "fix": "nworld==0 判定提到 OutputLayout::resolve 之前（错误优先级写死）",
+      "test": "nworld_zero_has_priority_over_layout_errors（构造 OutputLayout 会失败的 plan：nworld=0 → WorldCountZero；nworld=2 → Layout(..)）"
+    }
+  },
+  "changed_files": [
+    { "path": "src/render/context/world/mod.rs", "diff": "新增", "lines": 22, "bytes": 1264, "sha256": "9a757129ddf56ac0ced9e02409f9903f1dcdf7bce93e2ad5555996485660852e" },
+    { "path": "src/render/context/world/errors.rs", "diff": "新增", "lines": 171, "bytes": 5302, "sha256": "1b5011c1bf3a957614d96abf567c791a0e616dbb4e1a2629a665d8dd224f2a38" },
+    { "path": "src/render/context/world/state.rs", "diff": "新增（F1/F2 修复）", "lines": 199, "bytes": 6908, "sha256": "913b5c814caba51b9b279d4b86d332ba172ae95027384f36fc685405880bf79b" },
+    { "path": "src/render/context/world/layout.rs", "diff": "新增（F3 修复）", "lines": 175, "bytes": 5861, "sha256": "8013874ee53c2d387fffc9d2ccf4ff3e88a96355c7adcf7174862f796ed8379e" },
+    { "path": "src/render/context/world.rs", "diff": "-499（删除，拆分）", "lines": 0 },
+    { "path": "tests/render_multi_world_layout.rs", "diff": "+81 / -0（新增 3 条单测）", "lines": 478, "bytes": 16462, "sha256": "e8ab5e8d4e64392ad2dbe9168ccf0028ceb14ad146078dc21959fb730a902d95" },
+    { "path": ".normify/modules/mjwarp/render.md", "diff": "模块源 27→30 + 指纹刷新", "lines": 324 }
+  ],
+  "tests": {
+    "directed": {
+      "command": "cargo test --locked --test render_multi_world_layout",
+      "passed": 8,
+      "failed": 0,
+      "wall_ms": 187,
+      "cases": [
+        "world_views_are_disjoint_and_do_not_read_neighbours（既有）",
+        "single_world_path_matches_existing_layout_and_camera_views（既有，nworld=1 逐位回归）",
+        "error_surface_is_diagnostic_without_panicking（既有）",
+        "camera_poses_are_nworld_by_ncam_same_model_multi_state（既有）",
+        "resolutions_replicate_plan_and_reject_mismatch（既有）",
+        "empty_camera_selection_is_accepted_without_panic（新增 F1）",
+        "huge_world_count_returns_count_overflow_without_panic（新增 F2）",
+        "nworld_zero_has_priority_over_layout_errors（新增 F3）"
+      ],
+      "log": "docs/development-evidence/render-bvh/r10-s1-world-state/logs/closure/directed-render-multi-world-layout.log"
+    },
+    "unit": "1025 passed / 0 failed / 382 ignored（126 个 result 行；见 gates.unit）"
+  },
+  "gates": {
+    "note": "收口最终树采集运行；仓库根 normify gate 结果以 .normify/runs/ 为准。",
+    "fmt": { "exit": 0, "wall_ms": 1577, "log": "docs/development-evidence/render-bvh/r10-s1-world-state/logs/closure/fmt-check.log", "note": "cargo fmt --check；空输出" },
+    "clippy": { "exit": 0, "wall_ms": 402, "log": "docs/development-evidence/render-bvh/r10-s1-world-state/logs/closure/clippy.log" },
+    "clippy-cuda": { "exit": 0, "wall_ms": 411, "log": "docs/development-evidence/render-bvh/r10-s1-world-state/logs/closure/clippy-cuda.log" },
+    "unit": { "exit": 0, "wall_ms": 63516, "passed": 1025, "failed": 0, "ignored": 382, "result_lines": 126, "log": "docs/development-evidence/render-bvh/r10-s1-world-state/logs/closure/unit.log" }
+  },
+  "constraints": {
+    "camera_output_rs_lines": 499,
+    "camera_output_rs_untouched": true,
+    "model_render_rs_lines": 500,
+    "model_render_rs_untouched": true,
+    "kernel_launch_rs_lines": 500,
+    "kernel_megakernel_rs_lines": 498,
+    "kernel_cast_rs_lines": 494,
+    "kernel_and_device_cu_untouched": true,
+    "device_sources": 28,
+    "product_entries": 6,
+    "collision_args_bytes": 504,
+    "criteria_reference_fixtures_unchanged": true,
+    "split_files_max_lines": 199,
+    "all_files_within_500": true,
+    "world_rs_deleted_by_split": true
+  },
+  "self_checks": {
+    "json_valid": true,
+    "task_id_matches_card": true,
+    "line_endings": "UTF-8 no BOM, LF/CR=0（README/收据/日志）",
+    "banned_terms_hits": 0,
+    "scope_selfcheck": {
+      "task_files_scope": [
+        "docs/development-evidence/render-bvh/r10-s1-world-state",
+        "src/render/context.rs",
+        "src/render/context/world",
+        "src/render/context/world.rs",
+        "src/render/mod.rs",
+        "tests/render_multi_world_layout.rs"
+      ],
+      "changed_paths": [
+        "docs/development-evidence/render-bvh/r10-s1-world-state/",
+        "src/render/context/world/",
+        "src/render/context/world.rs（删除）",
+        "tests/render_multi_world_layout.rs",
+        ".normify/modules/mjwarp/render.md（模块源登记）"
+      ],
+      "out_of_scope": 0
+    },
+    "untouched_diff": "src/render/context/camera_output.rs、src/model/render.rs、src/render/kernel/**、fixtures/**、Cargo.* 的 git diff 为空",
+    "no_gpu_window_capture": true
+  },
+  "evidence_files": [
+    "docs/development-evidence/render-bvh/r10-s1-world-state/README.md",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/obs-closure-receipt.json",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/logs/closure/fmt-check.log",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/logs/closure/clippy.log",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/logs/closure/clippy-cuda.log",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/logs/closure/unit.log",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/logs/closure/directed-render-multi-world-layout.log",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/logs/closure/gates-summary.txt"
+  ],
+  "boundaries": {
+    "behavior_change": "无（拆分零行为变化；三处修复只改变错误面，不改变合法输入的布局/切片语义）",
+    "gpu_opened": false,
+    "window_run": false,
+    "new_capture": false,
+    "note": "S1 的 receipt.json/manifest.json 保留为 R10-S1 提交时的历史记录；收口新增/变更文件登记在本收据。"
+  }
+}
