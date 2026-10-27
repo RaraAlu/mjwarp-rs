@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-unc3-branch-closure-s4-window",
+  "title": {
+    "zh": "UNC-3 分支收口 S4 验证窗执行与结果回填（10 实体 / U7-U8 描述性 / 窗口事实）",
+    "en": "UNC-3 branch closure S4 validation window execution and result fill-in"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "执行 S4 验证窗（attempt1）：10 个冻结实体串行、零 Rust 编译、guard floor=min(10240,baseline_free−3072)、open 门 10240、0.25 s 采样、pre/post/结束基线、负载 precheck、≤2 有效轮；结果回填到 docs/development-evidence/g10-p5-branch-closure-validation/（README 已预留「验证窗后回填」段）：10 实体独立 exit code + 逐项数值（branch_closure 对 S3 branch 参考；launcher 对冻结 probe；8 个回归 target 判据内无回退；stage2 record-C 只记录），U7/U8 描述性（同时记 count/dist/pos、不进 pass/fail 分母、U8 措辞：上游支持 20 顶点 polygon（动态容量）vs 设备 FACE_MAX=16 逐 polygon 回退 → 行为差异/限制存在；U7 只写「与 degree>10 限制语义一致」），窗口事实（3 点基线、采样聚合、compute-apps 过滤、零编译、SHA_OK 行落盘）。开窗前须 Chief 签窗（10 exe sha + runner sha + compare 零改动 + 基线 + compute-apps + 负载 + wall + attempt + floor 一次齐）。",
+    "en": "Run the S4 validation window and fill in the results."
+  },
+  "modules": {},
+  "acceptance": [
+    "10 实体串行执行、各自独立 exit code 落盘；判据沿用既有口径（bit_equal 优先 + 4ULP@scale），零放宽；stage2 只记录（record-C）。",
+    "U7/U8 只做描述性对照：同时记 count/dist/pos、不进 pass/fail 分母；U8 措辞「上游支持 20 顶点 polygon（动态容量），设备 FACE_MAX=16 逐 polygon 回退 → 行为差异 / 限制存在」，禁「上游也限制/与上游一致/U8 已覆盖」；U7 只写「与 degree>10 限制语义一致」。",
+    "窗口纪律：开窗前签名材料齐并经 Chief 签窗；零 Rust 编译、负载 precheck（cargo/rustc/cl/nvcc 存在即 abort 留档）、floor/open 门/0.25 s 采样/pre-post-结束基线/无残留、`SHA_OK` 行落 facts/log、日志 UTF-8 无 BOM；≤2 有效轮、abort/污染留档不拼。",
+    "结果回填 README「验证窗后回填」段 + `window-receipt.json`（task_id 指向本任务）+ 窗口日志/采样/guard/facts；旧参考与冻结 exe 未变（前后 sha 复核）。",
+    "不写「窗口通过」、不写任何分支「已覆盖」；产品代码/设备源/fixtures/判据/容差/参考零改动；check exit 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-unc3-branch-closure-s4-validation"
+    ],
+    "phase": "G10@P5 分支收口",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/g10-p5-branch-closure-validation/",
+      "docs/development-evidence/changes/2026-10-27-unc3-branch-closure-s4-window.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 9
+  },
+  "note": "Arch 2026-10-27 登记：S4 实现片（b3e56a5f）被提前 done 成 verified，窗口执行与结果回填拆成独立任务（不改 S4 记录）。开窗前 Backend 需把 mesh_m2/m3 冻结副本换回 M3 已签 sha（a6b35485…/e502b8eb…）并更新 runner 守卫后重新报材料。",
+  "revision": {
+    "before": "9d4e8b4153c0eff8de05fe865fd5caa249042676",
+    "after": null
+  },
+  "created_at": "2026-10-27T10:30:00.000Z",
+  "updated_at": "2026-10-27T02:30:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-branch-closure-validation/window-receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-unc3-branch-closure-s4-window"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
