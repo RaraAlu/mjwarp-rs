@@ -1482,10 +1482,11 @@
     {
       "id": "D6",
       "topic": "GPU validation window scheduling",
-      "recommendation": "Every GPU validation window and its QA independent check must close inside one idle block (weekdays 00:30-08:30 Beijing; weekends follow the same hours until the user confirms otherwise). Open right after 00:30, report signature numbers to Chief before 08:00, converge everything (clean tree or committed) before 08:20; if the estimate does not fit, split across two nights (window plus evidence first, QA check and commit the next night) and never describe a cross-window check as same-window. Window material reports must state the total window-plus-check time budget and the opening time. Code/commit/GPU work outside idle blocks is forbidden; read-only analysis, plans and reports are always allowed.",
+      "recommendation": "User-defined idle rule (2026-10-28): peak hours are Beijing time Monday-Friday 09:00-12:00 and 14:00-18:00 (Chinese statutory holidays excluded, but the repository has no holiday table, so these weekday blocks are treated as peak conservatively); all other time is idle (00:00-09:00, 12:00-14:00, 18:00-24:00, plus weekends and statutory holidays all day). Code, tests, builds, commits, GPU windows and evidence writes are allowed only in idle blocks; peak hours are read-only analysis, code/evidence reading, plans and reports. Stop starting new writes 10 minutes before each peak block (08:50 and 13:50), finish in-flight commits or restore a clean tree. Every GPU validation window and its QA independent check must close before the next peak block starts (largest idle block is 18:00-09:00); if the estimate cannot fit, split across two idle blocks (window plus evidence first, QA check and commit later) and never describe a cross-block check as same-window. Window material reports must state the total window-plus-check time budget and the opening time.",
       "alternatives": [
         "Run windows at any hour (rejected by the user's hard rule)",
-        "Split one window's evidence across two nights and report them as one round (rejected)"
+        "Split one window's evidence across two idle blocks and report them as one round (rejected)",
+        "Treat weekday statutory holidays as peak (conservative fallback because no holiday table exists)"
       ],
       "needs_user": false,
       "decided_by_user": "2026-10-28"
