@@ -1,0 +1,159 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r08-camera-obs-closure-check",
+  "kind": "independent_check",
+  "reviewed_task": "2026-10-28-render-bvh-r08-camera-obs-closure",
+  "reviewed_commits": {
+    "code_and_evidence": "f305842e",
+    "verified_record": "d92797fc"
+  },
+  "head_at_review": "d92797fc",
+  "verdict": "pass",
+  "blockers": [],
+  "observation_counts": {
+    "general": 0,
+    "suggestion": 2,
+    "total": 2,
+    "fixed": 2,
+    "open": 0
+  },
+  "observations": [
+    {
+      "id": "F1",
+      "severity": "suggestion",
+      "title": "Gate table (README section 6) still showed the S1-era numbers under a 'final tree' header",
+      "detail": "The four-gate table lives in README section 6 (not section 8 as first written); its header said 'normify gate binds the final tree' while the unit row still read 1010 passed / 376 ignored / 2132 log lines (S1 commit), and section 9 states the closure final tree is 1017 / 382. After the fix: L133 header is marked 'S1 提交时（历史）' and points to section 9 plus .normify/runs/2026-10-28-render-bvh-r08-camera-obs-closure/; L143-L145 table note states 1010/376/logs/unit.log 2132 lines are S1-commit numbers and 1017/382 is authoritative via section 9 and logs/closure/unit.log.",
+      "fix_or_accept": "FIX wording: mark section 8 as 'S1 commit (historical)' or point it at section 9 / the closure runs; no number changes.",
+      "status": "fixed",
+      "fixed_by": "69778682",
+      "verification": "README L133 (joined with L134) contains 'S1 提交时（历史）', '§9' and the closure runs path; L143-L145 contain 1010/1017/382 and logs/closure/unit.log; README 188 LF lines / CR=0 / no BOM / +9-2."
+    },
+    {
+      "id": "F2",
+      "severity": "suggestion",
+      "title": "README section 9 referenced a non-existent 'gates' key instead of the receipt's 'gate' key",
+      "detail": "s3-obs-closure-receipt.json has a 'gate' object (fmt/clippy/clippy-cuda/unit); there is no 'gates' key. After the fix: L173 reads '收据 `gate`（单数，内含 fmt / clippy / clippy-cuda / unit 四门禁）与 `self_checks`' and no second naming remains.",
+      "fix_or_accept": "FIX: change the reference to 'gate' (or add a 'gates' alias); the numbers themselves are complete under 'gate'.",
+      "status": "fixed",
+      "fixed_by": "69778682",
+      "verification": "README L173-L175 verified; no '`gates`' alias anywhere in the README; receipt unchanged."
+    }
+  ],
+  "verified_items": [
+    {
+      "item": "O2 depth_scale priority",
+      "result": "pass",
+      "detail": "depth() validates depth_scale (finite and > 0) before depth_raw/resolution; tests cover disabled+invalid scales (DepthScale), out-of-range index + scale=0 (DepthScale), and valid scale falling through to ChannelDisabled / CameraIndex; README section 3 documents the priority; QA harness re-run with the new expectation shows the old assert returns DepthScale as intended",
+      "evidence": [
+        "verify_closure.py",
+        "logs/regression-numeric.log"
+      ]
+    },
+    {
+      "item": "O3 clamp wording downgraded",
+      "result": "pass",
+      "detail": "module doc, clamp_unit doc, README section 2 and receipt depth_clamp_semantics all state -0.0 -> +0.0 / NaN -> 0 are product implementation behavior aligned with CUDA fminf/fmaxf ordering, not an upstream guarantee; fixtures have no -0/NaN samples -> boundary upstream reconciliation explicitly uncovered; no residual guarantee wording found"
+    },
+    {
+      "item": "O7 boundary tests",
+      "result": "pass",
+      "detail": "src/render/context/tests.rs (379 lines) adds 2 tests: error priority and depth boundary values; the boundary test asserts product-side behavior only and explicitly records that Rust f32::clamp propagates NaN / keeps -0.0, that no upstream CUDA bit reference exists, and that these differences are uncovered (no equivalence claim)"
+    },
+    {
+      "item": "accept items O1/O4/O5/O6 and O8 reference",
+      "result": "pass",
+      "detail": "closure receipt dispositions: O1 accept, O2 fix-code, O3 fix-wording, O4 accept, O5 accept, O6 accept, O7 fix-tests, O8 reference; O8 names the correct task id 2026-10-28-repo-fixture-eol-attributes"
+    },
+    {
+      "item": "line counts and ratchet",
+      "result": "pass",
+      "detail": "camera_output.rs 499 (only 1 line of headroom - future slices must split first), context/tests.rs 379, context.rs 426, tests/render_camera_output.rs 493, launch.rs 500, megakernel.rs 498, cast.rs 494, model/render.rs 500; all match the reviewed claim",
+      "risk": "camera_output.rs is at 499/500: any future line addition requires splitting the file first"
+    },
+    {
+      "item": "zero change red lines",
+      "result": "pass",
+      "detail": "f305842e^..d92797fc diff is empty for src/model/render.rs, kernel cuda/launch/output/cast/megakernel, context.rs, fixtures/, Cargo*, native/, include/; code changes limited to camera_output.rs and context/tests.rs"
+    },
+    {
+      "item": "S1 numeric non-regression",
+      "result": "pass",
+      "detail": "QA's own S1 harness re-run on the closure final tree: packed 120000/120000, unpacked 360000/360000, depth raw 120000/120000, depth scaled 360000/360000, seg 120000/120000 all bit-equal (45 checks, 0 failures)",
+      "evidence": [
+        "logs/regression-numeric.log"
+      ]
+    },
+    {
+      "item": "gates independently rerun on the closure final tree",
+      "result": "pass",
+      "detail": "fmt exit 0; clippy exit 0; clippy-cuda exit 0; unit 1017 passed / 0 failed / 382 ignored (125 result lines); directed render_camera_output 4 passed; matches the archived closure logs (unit 1017/382/125, directed-depth-priority 2 passed); normify validate --fingerprints 0 errors (5 pre-existing warnings); normify check for the closure task passes",
+      "evidence": [
+        "logs/gates-summary.txt",
+        "logs/unit.log",
+        "logs/fmt.log",
+        "logs/clippy.log",
+        "logs/clippy-cuda.log",
+        "logs/directed.log"
+      ]
+    },
+    {
+      "item": "closure receipt and evidence format",
+      "result": "pass",
+      "detail": "/task_id = 2026-10-28-render-bvh-r08-camera-obs-closure (193 lines); evidence text UTF-8 no BOM / LF; 3 regulated claim terms 0 hits; four wording constraints only in negations"
+    },
+    {
+      "item": "fix commit 69778682 is docs-only and zero-numeric",
+      "result": "pass",
+      "detail": "6 files: README (+9/-2, 188 lines), closure task card addendum, and 4 refreshed .normify gate run JSONs (unit 1017/0/382 exit 0); git diff d92797fc..69778682 is empty for src/tests/fixtures/Cargo*, and receipt.json / s3-obs-closure-receipt.json / logs/ are untouched; the remaining 33 verify checks and 45 numeric regression checks still pass"
+    }
+  ],
+  "environment": {
+    "os": "Windows",
+    "repo": "D:\\Rust\\mjwarp-rs",
+    "review_type": "read-only",
+    "gpu_opened_by_qa": false,
+    "window_reopened_by_qa": false,
+    "python": "target/render-bvh-precheck/venv312/Scripts/python.exe",
+    "verify_checks": 33,
+    "verify_problems": 0,
+    "regression_checks": 45,
+    "regression_problems": 0
+  },
+  "gates": {
+    "applicable": false,
+    "gate_exit_code": 1,
+    "gate_stderr": "任务没有引用任何门禁",
+    "result": "not applicable for this check task (json + forbid_claim only); the closure slice's own four gates were independently rerun by QA on the closure final tree: fmt 0 / clippy 0 / clippy-cuda 0 / unit 1017 passed 0 failed 382 ignored (125 result lines), directed 4 passed"
+  },
+  "boundaries": [
+    "read-only: no re-render, no GPU, no window rerun, no code/criteria/reference/tolerance change",
+    "checks only the observation-closure dispositions and the S1 numeric non-regression; does not replace the user/Chief window signature"
+  ],
+  "evidence_files": [
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/README.md",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/receipt.json",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/manifest.json",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/verify_closure.py",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/recompute.json",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/verify_evidence.py",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/logs/gates-summary.txt",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/logs/regression-numeric.log",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/logs/unit.log",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/logs/fmt.log",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/logs/clippy.log",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/logs/clippy-cuda.log",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/logs/directed.log",
+    "docs/development-evidence/render-bvh/r08-camera-obs-closure-independent-check/logs/evidence-selfcheck.txt"
+  ],
+  "method_notes": [
+    "Numeric non-regression used QA's own S1 harness (QA-written numpy expectations + Rust bit comparison), not the product test: re-run on the closure final tree gave packed 120000 / unpacked 360000 / depth raw 120000 / depth scaled 360000 / seg 120000, all bit-equal.",
+    "The archived QA harness still asserted the OLD error precedence (disabled channel + invalid scale -> ChannelDisabled). The first re-run failed exactly at that assertion, which confirmed the intended O2 change instead of being a regression; QA then updated that single expectation to DepthScale (highest priority) and re-ran: all other 98 edge/isolation checks plus the numeric cross-check passed. Product-side O2 coverage is additionally locked by the closure's own unit test.",
+    "Gates were re-run by QA on the exact closure final tree (HEAD d92797fc, clean worktree except unrelated untracked task cards) and independently recounted: unit 1017/0/382 with 125 result lines, directed 4 passed.",
+    "Window numbers were not recomputed here: they belong to the S2 window and were verified in the previous QA slice; this closure only records the four disposition items plus zero numeric change."
+  ],
+  "fix_commit": "69778682",
+  "review_status": "final_after_fix",
+  "notes": [
+    "Task-card addendum reason still says '§8' for F1 (the table is actually in section 6); the README itself is correct and Arch had already noted the section-number confusion. Informational only, recorded rather than reopened."
+  ]
+}
