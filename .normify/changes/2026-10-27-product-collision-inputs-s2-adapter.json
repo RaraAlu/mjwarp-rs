@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-product-collision-inputs-s2-adapter",
+  "title": {
+    "zh": "产品碰撞输入接线 S2：快照→CollisionGpuInputs adapter + M0b 32 bins CPU 对账（无 GPU）",
+    "en": "Product collision inputs wiring S2: snapshot-to-inputs adapter with M0b bins CPU parity"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "方向② S2（无 GPU）：把 S1 的 32 项宿主快照（model 字段 + data 快照）装成 `CollisionGpuInputs` 视图并接 `validate_collision_inputs`；用 **M0b 32 数组 bins** 做 CPU 对账：3 个 fixture（mesh-box / mesh-cylinder / mesh-mesh-two-assets）逐数组 sha/位型相等；旧 G5 23 项 case（无 sidecar）→ 9 项空 slice、`mesh_poly_args=null`（M0a 语义）。不做产品入口接线（S3 才接）、不开 GPU、不改判据/参考/容差、不改设备源与 ABI 504 B。",
+    "en": "S2 adapter from S1 snapshot to CollisionGpuInputs with CPU parity against M0b bins."
+  },
+  "modules": {},
+  "acceptance": [
+    "新增 adapter（`src/runtime/collision_gpu/` 内新模块，≤500 行）把 S1 快照组装为 `CollisionGpuInputs`（32 项 slice 视图 + meta 由调用方给），复用 `validate_collision_inputs`；空/部分空语义与 M0a 一致（9 项全空→不构造 sidecar；部分空→`InvalidArgument`）；不 panic。",
+    "CPU 对账（写死口径）：对 `docs/development-evidence/mesh-multicontact-m0b/cases/{mesh-box,mesh-cylinder,mesh-mesh-two-assets}/` 的 32 个 bin，adapter 产物逐数组 **sha/位型相等**（计数与元素数一致）；旧 G5 23 项 case（无 9 个 mesh_poly bin）→ 9 项为空、sidecar null。",
+    "不改 18 pinned 源、`src/runtime/collision_gpu/abi.rs`、设备 `.cu`、fixtures 与 M0b bins（machine check `unchanged`）；`CollisionArgs` 504 B 不变；无 GPU/无窗口。",
+    "新 target/support ≤500 行；`/W4` 与本片无关但新增 Rust 不得引入 clippy 警告；gate（fmt/clippy/clippy-cuda/unit）绑最终源通过；证据 `docs/development-evidence/product-collision-inputs-wiring/`（README 追加 S2 段 + receipt task_id）+ 交付记录。",
+    "不宣称 host↔device 等价/精度达标/上游等价；不做产品接线（S3）、不改任何判据/容差/参考。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-product-collision-inputs-s1-data-snapshot"
+    ],
+    "phase": "架构/接线债务",
+    "owner": "Backend",
+    "files": [
+      "src/runtime/collision_gpu/",
+      "src/runtime/collision_gpu.rs",
+      "tests/g10_p5_collision_inputs_adapter.rs",
+      "tests/support/",
+      "docs/development-evidence/product-collision-inputs-wiring/",
+      "docs/development-evidence/changes/2026-10-27-product-collision-inputs-s2-adapter.json"
+    ],
+    "resources": [],
+    "priority": 14
+  },
+  "note": "Arch 2026-10-27 登记（用户拍板 ②、S1 verified 后片界）。S2 只做 adapter + CPU 对账；产品入口留 S3。对账口径按 Chief 写死：逐数组 sha/位型 == M0b 32 bins，mesh-box/mesh-cylinder/mesh-mesh 三 fixture，旧 G5 23 项→9 项空+null。",
+  "revision": {
+    "before": "b4ee80e990d0357fc0741e2b887a8381f012b724",
+    "after": null
+  },
+  "created_at": "2026-10-27T08:40:00.000Z",
+  "updated_at": "2026-10-27T08:40:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "include/mjwarp_native_probe.h",
+        "native/g01_fields.inc",
+        "native/model_probe.cpp",
+        "src/io/fields.rs",
+        "src/io/flex.rs",
+        "src/io/g01.rs",
+        "src/io/inertial.rs",
+        "src/io/kinematic.rs",
+        "src/model/attached.rs",
+        "src/model/camlight.rs",
+        "src/model/flex.rs",
+        "src/model/inertial.rs",
+        "src/model/mocap.rs",
+        "src/model/parameters.rs",
+        "src/model/sleep.rs",
+        "src/model/spatial_tendon.rs",
+        "src/model/tendon.rs",
+        "src/model/topology.rs",
+        "src/runtime/collision_gpu/abi.rs",
+        "src/physics/collision/cuda/",
+        "fixtures/g10-p5-mesh-multicontact/",
+        "fixtures/g10-p5-primitive-branches/",
+        "docs/development-evidence/mesh-multicontact-m0b/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/product-collision-inputs-wiring/receipt.json",
+      "pointer": "/s2/task_id",
+      "equals": "2026-10-27-product-collision-inputs-s2-adapter"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
