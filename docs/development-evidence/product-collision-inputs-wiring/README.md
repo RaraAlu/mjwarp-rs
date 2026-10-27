@@ -209,10 +209,12 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
 - case 与路径（只读）：
   - `mesh-box` → `docs/development-evidence/mesh-multicontact-m0b/cases/mesh-box/`
   - `mesh-cylinder` → `docs/development-evidence/mesh-multicontact-m0b/cases/mesh-cylinder/`
-  - `mesh-mesh`（fixture = `fixtures/g10-p5-mesh-multicontact/mesh-mesh-two-assets.xml`）→
+  - `mesh-mesh`（fixture = `fixtures/g10-p5-mesh-multicontact/mesh-mesh.xml`，`xml_sha256=bb9ffb2f…`、
+    qpos z=0.18、两份 cube：cube + cube_b 缩放 0.9；bins 实测 nmesh=2 / nmeshvert=16 / nmeshpoly=12）→
     `docs/development-evidence/mesh-multicontact-m3/cases/mesh-mesh/`
-  - **路径更正**：M0b `cases/` 只落了 `mesh-box` / `mesh-cylinder` 两个 case；第三份
-    `mesh-mesh-two-assets` 的 32 数组 bins 是同口径的 M3 捕获窗产出的（M0b README 只列两个 case）。
+  - **路径更正（QA S2 O1）**：M0b `cases/` 只落了 `mesh-box` / `mesh-cylinder` 两个 case；第三份 case 的
+    32 数组 bins 由 M3 捕获窗产出。**注意 fixture 归属**：本 case 用 `mesh-mesh.xml`（`bb9ffb2f…`），
+    **不是** `mesh-mesh-two-assets.xml`（`1d7115…`，cube+tetra，为 S3/S4 U6 的 fixture）；此前笔误已更正。
     本片只读该目录、未改动（`unchanged` 检查只覆盖 M0b 目录，M3 case 只读）。
 - 对账方式（测试 `tests/g10_p5_collision_inputs_adapter.rs` + support）：
   按字段名读 32 个 `.bin` 与 `meta.txt`，按字段 id 建 `CollisionInputsSnapshot`，经 adapter 组装后
@@ -230,7 +232,8 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
   - `geom_type` 少 1 项 → 「geom_type 长度须为 ngeom」；
   - `meta.nworld`/`naconmax`/`efc_width` 置 0 → 对应长度/容量错误。
 - `from_model_input` 桥接测试（`native-model-probe` + pinned DLL，ignored）：1 passed——S1 拥有式快照
-  映射出的 32 项与视图逐字节一致（含 geom 帧），并用从 30 项字段/帧导出的 meta 通过 validate。
+  映射出的 32 项与视图逐字节一致（含 geom 帧）；测试内 meta 为手工构造（仅 `ngeom`/`noct` 取自 bins 计数，
+  其余字段按单 world 场景给定），通过 validate（QA S2 O4 更正：原「由 30 项字段/帧导出」表述偏强）。
 
 ### 8.3 门禁与边界
 

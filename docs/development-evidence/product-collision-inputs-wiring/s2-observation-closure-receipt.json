@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-product-collision-inputs-s2-observation-closure-r2",
+  "kind": "product-collision-inputs-s2-observation-closure-receipt",
+  "date": "2026-10-27",
+  "upstream_check": {
+    "task": "2026-10-27-product-collision-inputs-s2-independent-check",
+    "commit": "39b0fb46",
+    "verdict": "pass",
+    "blockers": 0,
+    "observations": 7
+  },
+  "gate": {
+    "applicable": false,
+    "reason": "docs-only 证据追溯更正片，任务 checks 只有 json(task_id) + forbid_claim；未引用门禁"
+  },
+  "O1_correction": {
+    "what": "第三 case fixture 归属由 mesh-mesh-two-assets.xml 更正为 mesh-mesh.xml",
+    "correct_fixture": {
+      "path": "fixtures/g10-p5-mesh-multicontact/mesh-mesh.xml",
+      "xml_sha256_prefix": "bb9ffb2f",
+      "qpos_z": 0.18,
+      "geometry": "两份 cube：cube + cube_b 缩放 0.9"
+    },
+    "wrong_fixture": {
+      "path": "fixtures/g10-p5-mesh-multicontact/mesh-mesh-two-assets.xml",
+      "xml_sha256_prefix": "1d7115",
+      "note": "cube+tetra，为 S3/S4 U6 fixture"
+    },
+    "bins_measured": {
+      "nmesh": 2,
+      "nmeshvert": 16,
+      "nmeshpoly": 12
+    },
+    "impact": "bins/测试不受影响（测试只读 bins 不读 xml）；仅证据追溯与任务卡路径口径更正",
+    "landing": [
+      "README §8.2/§8.4",
+      "receipt s2 段",
+      "S2 交付记录 note"
+    ]
+  },
+  "O2_s3_prerequisite": {
+    "fact": "from_model_input 只支持单 world 帧（ngeom×3 / ngeom×9）；validate_inputs 要求 nworld×ngeom×3",
+    "decision": "S3 必须明确「nworld=1」或「按 world 复制单帧」的方案；nworld>1 多帧状态读取不在本片，另立评估"
+  },
+  "O3_to_O7_dispositions": {
+    "O3": "接受（后续）：mesh_poly_sidecar_present 与 run 判据重复，下片让 run 调 helper（零行为变更）",
+    "O4": "已改：README §8.2 meta 表述更正为「手工构造，ngeom/noct 取自 bins 计数」",
+    "O5": "接受：共享证据目录里 s1-observation-closure-receipt 的禁词原文会触发目录级扫描误报；S2 改动文件本身 0 命中",
+    "O6": "接受（后续）：native 路径不在默认门禁，建议登记定向门禁项",
+    "O7": "接受（记录）：gate 跑两次但 runs 只留最终一次（同 S1 O5）"
+  },
+  "changed_files": [
+    {
+      "path": "docs/development-evidence/product-collision-inputs-wiring/README.md",
+      "bytes": 20723,
+      "sha256": "8a0365383cbfff3bb68b23b00a7e128cd3a9e8040200738602ade3406a10b4fa"
+    },
+    {
+      "path": "docs/development-evidence/product-collision-inputs-wiring/receipt.json",
+      "bytes": 19854,
+      "sha256": "c988bb1c94d2d0f52a01e7132608148351cf030600df9d35f307c4bc3e6ebcfb"
+    },
+    {
+      "path": "docs/development-evidence/changes/2026-10-27-product-collision-inputs-s2-adapter.json",
+      "bytes": 7214,
+      "sha256": "a38838f6062a0cf3db8e9526c67bc89a0fa3efadc81a9ab967c1219debd2ce45"
+    }
+  ],
+  "boundaries": [
+    "只改证据文字与交付记录；不改代码/判据/参考/fixtures/bins",
+    "不改已关闭 S2 任务记录（task card 由 addenda ebee230c 更正）",
+    "不开 GPU、不编译、不重跑窗口；不宣称窗口通过/已覆盖/精度/上游等价"
+  ]
+}
