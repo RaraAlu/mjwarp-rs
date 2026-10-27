@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r08-e2e-obs-closure",
+  "kind": "render-bvh-r08-camera-e2e-observation-closure",
+  "status": "final",
+  "closure_of": "2026-10-28-render-bvh-r08-camera-e2e",
+  "date": "2026-10-28",
+  "qa_review": {
+    "commits": ["ee281bc7", "10301dc6"],
+    "verdict": "pass",
+    "board_accepted_count": 505,
+    "follow_ups": ["O1", "O2", "O3", "O4"]
+  },
+  "scope": "docs-only：README 文本 + 本收据 + 3 个旁注文件；零代码、零窗口数值改动",
+  "gate": {
+    "not_applicable": true,
+    "reason": "docs-only 收口：任务卡仅登记 json + forbid_claim 两项检查，未登记任何 gate；本片不重跑门禁",
+    "code_tree": "与 R08-S2 提交 59ab0dbf / 5686563b 的代码树相同（git diff 对 src/ tests/ fixtures/ Cargo* 为空）",
+    "note": "S2 的门禁结果仍以 .normify/runs/2026-10-28-render-bvh-r08-camera-e2e/ 为准（unit 1015 passed / 0 failed / 382 ignored）"
+  },
+  "dispositions": [
+    {
+      "id": "O1",
+      "action": "fix",
+      "target": "docs/development-evidence/render-bvh/r08-camera-e2e/README.md",
+      "lines": "§3.1 L74–L100、§6 L152–L154、§11 L204–L206",
+      "change": "空选择 no-op 的验证范围按轮次分列；删除「各两次」「no-op 语义断言全部成立」「attempt1 起即成立」类过强表述",
+      "facts": [
+        "attempt1 已通过：nrender()==0 / total_rays==0；渲染前 outputs().is_enabled(Rgb/Depth/Segmentation)==false（三通道缓冲未分配）；megakernel.render ×2 Ok + depth_seg.render ×1 Ok（3 次 no-op 调用，不 panic）",
+        "attempt1 在失败点终止：memory_after_construct == memory_after 失败（2097152 B 计入），该轮未取得「显存无增量」结论",
+        "attempt1 未执行：失败断言之后的 outputs().read(Rgb/Depth/Segmentation).is_err() 三通道「无可读输出」断言",
+        "attempt2（A2 后）完整执行全部断言并通过；对应日志 logs/attempt2/render_r08_cameras.log"
+      ]
+    },
+    {
+      "id": "O2",
+      "action": "fix",
+      "target": "docs/development-evidence/render-bvh/r08-camera-e2e/README.md + logs/attempt1/sha-guards-note.txt",
+      "lines": "§3.1 L84–L88、§3.2 L104–L109、§11 L207–L210",
+      "change": "attempt1 sha-guards.txt 旁注旧 target sha 与今日重放 44/45 的预期；README 同步说明新 target exe 已由 A2 重建",
+      "facts": [
+        "attempt1（A2 前）新 target sha = 6a73c51a7c020217d0c49fa5da272e61e36fa6cc16f4bff2fd0f038cae25065d / 94027937 B（仅历史留档，文件不改写）",
+        "A2（f8a15ef1）后新 target exe = 918b5851efaf7f2494201419ae3f90d7bb39e612414d68b7a833bedd01952775 / 94029705 B",
+        "用当前 guards.json 重放 attempt1 清单 = 44/45（1 条旧 sha 不匹配），属预期"
+      ]
+    },
+    {
+      "id": "O3",
+      "action": "fix",
+      "target": "docs/development-evidence/render-bvh/r08-camera-e2e/README.md + logs/attempt1/facts-note.txt + logs/attempt2/facts-note.txt",
+      "lines": "§3 表格后 L64–L66、§11 L211–L213",
+      "change": "写明本轮 sustained_delta_mib 定义 = used_peak − baseline.used，并注明与 S3 窗口口径不同；数值不改",
+      "facts": [
+        "attempt1：4560 − 4285 = 275",
+        "attempt2：4593 − 4323 = 270",
+        "S3 窗口 sustained 口径为「排除尖峰后 max−min」，两者不可直接互比；本片 delta_vs_guard_baseline_mib 与本口径同义"
+      ]
+    },
+    {
+      "id": "O4",
+      "action": "accept-and-note",
+      "target": "docs/development-evidence/render-bvh/r08-camera-e2e/README.md",
+      "lines": "§3.2 L104–L109、§11 L214–L216",
+      "change": "注明 guards-check/ 与 guards-check-a2/ 的关系与内容一致范围；保留为历史产物",
+      "facts": [
+        "guards-check/（02:33 刷新版）与 guards-check-a2/（02:31）都是 A2 之后的 guards-only 自检产物，静态对盘同为 45/45、0 mismatch",
+        "两份 sha-guards.txt 与 guard.log 逐字节相同；baseline.txt / facts.txt / machine-load.txt 系两次不同时刻的实时采样，数值不同属正常",
+        "二者均为 target/ 下历史产物、不入库，保留备查（本目录不复制）"
+      ]
+    }
+  ],
+  "changed_files": [
+    {
+      "path": "docs/development-evidence/render-bvh/r08-camera-e2e/README.md",
+      "bytes": 18277,
+      "lines": 218,
+      "sha256": "0cbe211a5b39b7a6052ba65cfbf1f4f53feafe94b545fd7f2f420f27aeb451bd"
+    },
+    {
+      "path": "docs/development-evidence/render-bvh/r08-camera-e2e/logs/attempt1/sha-guards-note.txt",
+      "bytes": 700,
+      "lines": 8,
+      "sha256": "1a0ccf6e3851521b573f052ae2b0ca86526ec782a2f334ec405d63e200295d17"
+    },
+    {
+      "path": "docs/development-evidence/render-bvh/r08-camera-e2e/logs/attempt1/facts-note.txt",
+      "bytes": 432,
+      "lines": 5,
+      "sha256": "92309094616f77d7e840e6bd746d5d07e130ff9c04fa7be5576ee818639c3267"
+    },
+    {
+      "path": "docs/development-evidence/render-bvh/r08-camera-e2e/logs/attempt2/facts-note.txt",
+      "bytes": 432,
+      "lines": 5,
+      "sha256": "2e99f25faa31d171f09804d2f1d76fd4e5cbb7dda7aa29675c35d6c3cbe9d465"
+    }
+  ],
+  "zero_numeric_change": {
+    "claim": "窗口全部数值与 R08-S2 提交一致；未修改 facts / baseline / samples / sha-guards / guard_aggregate / 7 entity 日志的任一字节",
+    "s2_structured_artifacts_unchanged": true,
+    "unchanged_evidence_sha256": [
+      "logs/attempt1/facts.txt = dfaf28e915c7c42d849d0289d70a1c678a1150856cb2a39d8e7e904ebd7abb79",
+      "logs/attempt2/facts.txt = ca7773b3709b36fea3da8b3d9e5771115828f6033f51e778cd98d98980e55e81",
+      "logs/attempt1/sha-guards.txt = f8f5c584946dd2562adbd53f40bfed58dd737ed0b75c28f3e0832b1448a2c319",
+      "logs/attempt2/sha-guards.txt = d66bd749fbc315aecdf6ef750c4ab46da6626204e5152f0d425b613ddb6f67dd"
+    ],
+    "s2_receipt": {
+      "path": "docs/development-evidence/render-bvh/r08-camera-e2e/receipt.json",
+      "sha256": "573622f32caee814a517cb7de0447ac13a2c72f9abd3a8edae07ece66a143311",
+      "unchanged": true
+    },
+    "s2_manifest": {
+      "path": "docs/development-evidence/render-bvh/r08-camera-e2e/manifest.json",
+      "sha256": "3a9ec1fdb8b5e819bb9c81a9f7b4629944bdb913fc73141238ac0805bf80a52f",
+      "unchanged": true
+    }
+  },
+  "unchanged_references": {
+    "runner": {
+      "path": "target/r08-s2-window/run-window-attempt1.ps1",
+      "sha256": "c8786951674365cfabba62fa668e92254c58092c30214dba08b9a5d347f4e71a",
+      "bytes": 14976,
+      "unchanged": true
+    },
+    "frozen_exes_unchanged": "7/7（逐项 sha256 与 target/r08-s2-window/guards.json 一致）",
+    "frozen_exes": [
+      { "entity": "render_r08_cameras", "bytes": 94029705, "sha256": "918b5851efaf7f2494201419ae3f90d7bb39e612414d68b7a833bedd01952775" },
+      { "entity": "render_camera_rays", "bytes": 89342624, "sha256": "445b137e40b4025f18af019c330630dede3f952e3d1fda38a977556587f87c88" },
+      { "entity": "render_kernel_rgb", "bytes": 93675170, "sha256": "be587060fc5771efcd501a9c0abd3a80d5d899ade571e0f5fd94ef86b41c3aed" },
+      { "entity": "render_kernel_depth_seg", "bytes": 90247869, "sha256": "6a27f32803796aa1846dd10ca67317cf6cc034fd324b0d5e34494591bb20c7e5" },
+      { "entity": "render_kernel_flags", "bytes": 95627598, "sha256": "dbd2ee2a8f49b98f1d133ab758b66f4d85b08b7086baa9b5775d47be3d685141" },
+      { "entity": "render_context_lifecycle", "bytes": 85812837, "sha256": "190f690f2348f1b8fa33d66d61485051848ef5feab89f1f3f716e2579363ad60" },
+      { "entity": "render_e2e", "bytes": 94219879, "sha256": "7968a09fe57e255e109c41b984629f702656b4c6688938deb55ee6229c170f16" }
+    ]
+  },
+  "self_checks": {
+    "json_valid": true,
+    "line_endings": "UTF-8 no BOM, LF/CR=0（README 与 3 个旁注文件、本收据）",
+    "banned_terms_hits": 0,
+    "scope_selfcheck": {
+      "task_files_scope": "docs/development-evidence/render-bvh/r08-camera-e2e/",
+      "changed_paths": [
+        "docs/development-evidence/render-bvh/r08-camera-e2e/README.md",
+        "docs/development-evidence/render-bvh/r08-camera-e2e/obs-closure-receipt.json",
+        "docs/development-evidence/render-bvh/r08-camera-e2e/logs/attempt1/sha-guards-note.txt",
+        "docs/development-evidence/render-bvh/r08-camera-e2e/logs/attempt1/facts-note.txt",
+        "docs/development-evidence/render-bvh/r08-camera-e2e/logs/attempt2/facts-note.txt"
+      ],
+      "out_of_scope": 0
+    },
+    "code_paths_diff": "empty（src/ tests/ fixtures/ Cargo.toml Cargo.lock）",
+    "runner_sha_unchanged": true,
+    "frozen_exes_unchanged": true,
+    "window_numbers_unchanged": true
+  },
+  "evidence_files": [
+    "docs/development-evidence/render-bvh/r08-camera-e2e/README.md",
+    "docs/development-evidence/render-bvh/r08-camera-e2e/obs-closure-receipt.json",
+    "docs/development-evidence/render-bvh/r08-camera-e2e/logs/attempt1/sha-guards-note.txt",
+    "docs/development-evidence/render-bvh/r08-camera-e2e/logs/attempt1/facts-note.txt",
+    "docs/development-evidence/render-bvh/r08-camera-e2e/logs/attempt2/facts-note.txt"
+  ],
+  "boundaries": {
+    "no_code_change": true,
+    "no_window_rerun": true,
+    "no_gpu_opened": true,
+    "window_numbers_unchanged": true,
+    "gate_not_applicable": true
+  }
+}

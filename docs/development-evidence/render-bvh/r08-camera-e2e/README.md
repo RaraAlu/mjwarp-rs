@@ -61,14 +61,31 @@ runner 与 7 个冻结 exe 均在 `target/`（不入库），sha/字节登记见
 | 外部占用（窗外噪声，非本团队） | 窗内 util 35–43、cpu load 11%、无 cargo/rustc/nvcc | 窗内 util 35–36（post 12%）、cpu load 8%、无 cargo/rustc/nvcc |
 | 产物 | 保留（`target/r08-s2-window/attempt1/`） | 保留（`target/r08-s2-window/attempt2/`） |
 
+口径注（O3）：本片 `sustained_delta_mib` = **used_peak − baseline.used**（attempt1 275 = 4560−4285；
+attempt2 270 = 4593−4323），与 S3 窗口「排除尖峰后 max−min」的 sustained 口径**不同**，两者不可直接互比；
+本片数值不改（旁注见 `logs/attempt1/facts-note.txt`、`logs/attempt2/facts-note.txt`）。
+
 ### 3.1 attempt1（有效轮，新 target 未过）
 
 - `render_r08_cameras` exit **101**（5 passed / 1 failed）。失败断言是 `gpu_empty_selection_render_is_noop`
   的显存快照位置：`memory_before` 取在 `MegakernelRenderer::new()` **之前**，把 NVRTC 模块加载的
   **2 097 152 B（2 MiB）** 记为「空选择渲染分配」，失败值 left `(15809380352, 17170956288)`
   vs right `(15807283200, 17170956288)`。
-- 该轮**产品 no-op 语义断言全部成立**：两个 renderer 均返回 `Ok`（各两次）、三通道缓冲未分配、
-  无可读输出、不 panic。
+- 该轮空选择用例**按断言顺序只执行到失败点之前**（O1：按轮次分列，删除过强表述）：
+  - **attempt1 已通过**：`resolved.nrender()==0` / `total_rays==0`；渲染前
+    `outputs().is_enabled(Rgb/Depth/Segmentation)==false`（三通道缓冲未分配）；`megakernel.render(..)`
+    **两次** `Ok` + `depth_seg.render(..)` **一次** `Ok`（共 3 次 no-op 调用，均不 panic）。
+  - **attempt1 在失败点终止**：`memory_after_construct == memory_after`（渲染阶段零分配）断言失败，
+    即上面 2 097 152 B 被计入；该轮**没有**取得「显存无增量」结论。
+  - **attempt1 未执行**：失败断言之后的 `outputs().read(Rgb/Depth/Segmentation).is_err()` 三通道
+    「无可读输出」断言；这两类结论只在 **attempt2** 取得。
+- attempt2（A2 修正后）完整执行全部断言并通过：`Ok`×3（megakernel×2 + depth_seg×1）、渲染前缓冲未分配、
+  构造后→渲染后显存无增量、三通道 `read().is_err()`；对应日志 `logs/attempt2/render_r08_cameras.log`。
+- O2 旁注：本目录 `logs/attempt1/sha-guards.txt` 记录的是 **A2 重建前的旧新 target** sha
+  （`6a73c51a7c020217d0c49fa5da272e61e36fa6cc16f4bff2fd0f038cae25065d` / 94 027 937 B），**仅历史留档**；
+  新 target exe 已被 A2 重建为 `918b5851…` / 94 029 705 B（见 `logs/attempt2/sha-guards.txt` 与 `manifest.window`）。
+  今日用当前 `guards.json` 重放 attempt1 清单为 **44/45**（1 条为旧 sha），属预期；旁注文件
+  `logs/attempt1/sha-guards-note.txt`。
 - 判据数值全 0：RGB `beyond_1_lsb=0`(120000)、depth `mismatch=0 / max_ulp=0`(120000)、
   seg `mismatch=0`(120000)；隔离/乱序逐位相同；两次运行 SHA 相同 `f9fe1b9e…be688`；
   动态射线=预计算 `b09e2eec…0c31`；异构 depth/seg 对账成立。
@@ -84,6 +101,10 @@ runner 与 7 个冻结 exe 均在 `target/`（不入库），sha/字节登记见
   **94 029 705 B / sha256 `918b5851efaf7f2494201419ae3f90d7bb39e612414d68b7a833bedd01952775`**；
   其余 6 个 exe **逐字节未变**（对照见 `logs/attempt*/sha-guards.txt`）。
 - 静态对盘 45/45、0 mismatch；`guards-check/` 自检产物已刷新到新 sha（02:33，非 02:22 旧值）。
+- O4（接受并注明）：`target/r08-s2-window/guards-check/`（02:33 刷新版）与 `guards-check-a2/`（02:31）
+  都是 **A2 之后**的 guards-only 自检产物，静态对盘同为 45/45、0 mismatch；两份的 `sha-guards.txt`
+  与 `guard.log` **逐字节相同**，`baseline.txt` / `facts.txt` / `machine-load.txt` 是两次不同时刻的
+  实时采样（数值不同属正常）。两者均为 `target/` 下历史产物、不入库，保留备查。
 
 ### 3.3 attempt2（最终轮）
 
@@ -128,8 +149,9 @@ reorder → 76800 / 43200：三者均与组合渲染对应区段**逐位相同**
 - `render_cameras` 空选择从 `InvalidArray("render_cameras")` 改为 **no-op `Ok(())`**，对齐上游
   `wp.launch(dim=0)`（空网格不发射、不写输出）；非空路径行为不变。
 - 依据：R08-S2 任务卡 acceptance ①「空列表可渲染」；全仓无已签口径把该拒绝当契约；判据/参考/容差不变。
-- 定向用例 `gpu_empty_selection_render_is_noop`：两个 renderer 均 `Ok`、三通道缓冲未分配、
-  显存无增量、无可读输出、不 panic（attempt1 起即成立，attempt2 复跑成立）。
+- 定向用例 `gpu_empty_selection_render_is_noop`：**attempt2** 完整执行并通过（`Ok`×3、渲染前缓冲未分配、
+  构造后→渲染后显存无增量、三通道 `read().is_err()`、不 panic）；attempt1 只执行到失败点之前，
+  其验证范围按轮次见 §3.1（O1）。
 
 ## 7. 不变量核对
 
@@ -157,11 +179,14 @@ reorder → 76800 / 43200：三者均与组合渲染对应区段**逐位相同**
 
 窗口内 GPU 结果见 `logs/attempt2/`（7 entity 日志 + 采样 + 守卫 + facts + guard_aggregate）。
 
+门禁说明：上表是**本片代码最终树**（窗口前，提交 `59ab0dbf` 之前）的记录；S2 观察收口为 docs-only，
+不重跑门禁（**gate 不适用**，见 `obs-closure-receipt.json` 的 `gate.not_applicable`）。
+
 ## 9. 证据格式与自检
 
 - 文本证据 UTF-8 无 BOM、LF/CR=0；窗口日志为 runner/测试原样输出。
 - 机器可读例外：`logs/unit.log`（2132+ 行）、`logs/attempt*/samples.csv`、`logs/attempt*/sha-guards.txt`、
-  `logs/attempt*/guard_aggregate.json`、`receipt.json`、`manifest.json`。
+  `logs/attempt*/guard_aggregate.json`、`receipt.json`、`manifest.json`、`obs-closure-receipt.json`。
 - 禁词自检：任务卡 `forbid_claim` 三项（本目录不复写字面）命中 0；四个措辞约束词命中 0。
 
 ## 10. 未完成 / 后续
@@ -170,3 +195,24 @@ reorder → 76800 / 43200：三者均与组合渲染对应区段**逐位相同**
 - 异构 RGB 逐相机开关：backlog `2026-10-28-render-per-camera-rgb-gap`。
 - 多 world（nworld>1）逐相机视图：归 R10；仓库卫生任务 `2026-10-28-repo-fixture-eol-attributes`
   与本片无关（S2 收口后单独排）。
+
+## 11. S2 观察收口（O1–O4，docs-only）
+
+- 收口任务：`2026-10-28-render-bvh-r08-e2e-obs-closure`（QA 复核 `ee281bc7` + `10301dc6` 判 pass 后启动）。
+- 本段**只改证据文本**：**零代码、零窗口数值**；收据见 `obs-closure-receipt.json`（含 `/task_id`）。
+  `src/`、`tests/`、`fixtures/`、`Cargo*`、runner（`c8786951…`）与 7 个冻结 exe 均未动。
+- **O1（修）**：空选择 no-op 的验证范围按轮次分列（见 §3.1 / §6）。attempt1 只验证 `nrender==0`、
+  渲染前 `is_enabled=false`（三通道缓冲未分配）与 `Ok`×3；`read().is_err()` 三通道「无可读输出」断言
+  在失败断言之后、**attempt1 未执行**、attempt2 才验证；已删除「各两次」「attempt1 起即成立」类表述。
+- **O2（修）**：attempt1 `sha-guards.txt` 旁注「记录的是 A2 重建前旧 target sha `6a73c51a…` / 94 027 937 B，
+  仅历史留档；今日重放 44/45 属预期」，README 同步说明新 target exe 已由 A2 重建为 `918b5851…` /
+  94 029 705 B（旁注文件 `logs/attempt1/sha-guards-note.txt`）。
+- **O3（修）**：写明本轮 `sustained_delta_mib` 定义 = **peak − baseline**（275 / 270），与 S3 窗口
+  「排除尖峰后 max−min」口径不同；数值不改（旁注 `logs/attempt1/facts-note.txt`、`logs/attempt2/facts-note.txt`）。
+- **O4（接受并注明）**：`target/r08-s2-window/guards-check/`（02:33）与 `guards-check-a2/`（02:31）都是
+  A2 后的 guards-only 自检产物，静态对盘同 45/45、0 mismatch；`sha-guards.txt` 与 `guard.log` 逐字节相同，
+  采样类文件因时刻不同而数值不同；保留为 `target/` 历史产物，不入库。
+- 门禁：本收口为 docs-only，任务卡仅登记 `json` + `forbid_claim` 两项检查，**gate 不适用**
+  （`obs-closure-receipt.json` 内 `gate.not_applicable=true` 并写原因）。
+- 自检：JSON 有效、文本 UTF-8 无 BOM / LF/CR=0、禁词 0、`scope-selfcheck` 越界 0、
+  `git diff` 对 `src/ tests/ fixtures/ Cargo*` 为空、runner 与冻结 7 exe sha 未变（见收据 `self_checks`）。
