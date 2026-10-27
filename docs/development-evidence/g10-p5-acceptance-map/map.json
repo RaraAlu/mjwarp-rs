@@ -270,8 +270,8 @@
         "docs/development-evidence/unc3-branch-closure-s4-independent-check/"
       ],
       "status": "partial",
-      "reason": "box/cylinder 的 multicontact 接触数组、convex-vs-mesh 两 case、mesh-mesh 多接触均已实装并与上游 GPU 参考逐字段对照（判据内位级一致）；**仍未覆盖**：一般 mesh（nmesh>1 的通用多 mesh 情形只测了 2 mesh fixture；degree>10 / polygon>16 走固定容量 clamp 回退）、mesh 分支层未逐条覆盖、`hfield-capsule` 设备回归（M2 继承）、`efc_address` 缺口（设备全 −1）、UNC-6 深穿透未触发、跨平台；且未做性能测试。",
-      "impact": "G10@P5 可声明「设备 multicontact 已覆盖 box/cylinder 组合、convex-vs-mesh（box/cylinder × mesh）与 mesh-mesh 多接触（各 case 判据内位级）」，**不得**声明覆盖一般 mesh、mesh 全类型/全分支、跨平台或性能；`hfield-capsule` 与 `efc_address` 仍列未覆盖。",
+      "reason": "box/cylinder 的 multicontact 接触数组、convex-vs-mesh 两 case、mesh-mesh 多接触均已实装并与上游 GPU 参考逐字段对照（判据内位级一致）；**仍未覆盖**：一般 mesh（nmesh>1 的通用多 mesh 情形只测了 2 mesh fixture；degree>10 / polygon>16 走固定容量 clamp 回退）、mesh 分支层未逐条覆盖、`hfield-capsule` 设备回归（M2 继承）、`efc_address` 缺口（设备全 −1）、UNC-6 深穿透未触发、跨平台；且未做性能测试。（S5 更新，2026-10-27：以上「一般 mesh / hfield-capsule」口径按 S4 验证窗收窄——mesh-mesh 已覆盖；nmesh>1 仅 1 例验收覆盖；一般拓扑未穷举；degree>10 / polygon>16 仅「限制存在」；mesh 边/顶点分支层仍只静态核对；hfield-capsule 计入已覆盖（launcher 单 case 275/275 bit、ULP 0，不外推 hfield 其他路径）；efc_address / UNC-6 / 跨平台 / 性能不变。）",
+      "impact": "G10@P5 可声明「设备 multicontact 已覆盖 box/cylinder 组合、convex-vs-mesh（box/cylinder × mesh）与 mesh-mesh 多接触（各 case 判据内位级）」，**不得**声明覆盖一般 mesh、mesh 全类型/全分支、跨平台或性能；`hfield-capsule` 与 `efc_address` 仍列未覆盖。（S5 更新：**不得**声明「mesh 已覆盖 / 一般 mesh 已支持 / 分支层全覆盖」；U8 差距未解决前不写「与上游一致」。）",
       "s5_update": {
         "date": "2026-10-27",
         "task": "2026-10-27-unc3-ledger-closure-s5",
@@ -291,7 +291,9 @@
         ],
         "status": "partial（不变）",
         "not_claimed": "mesh 已覆盖 / 一般 mesh 已支持 / mesh 分支层全覆盖 / 与上游一致（U8 差距未解决前）",
-        "backlog": "2026-10-27-mesh-polygon-gt16-device-gap（只做差距评估+设计方案；动代码或判据需用户批准；不 start）"
+        "backlog": "2026-10-27-mesh-polygon-gt16-device-gap（只做差距评估+设计方案；动代码或判据需用户批准；不 start）",
+        "previous_reason": "box/cylinder 的 multicontact 接触数组、convex-vs-mesh 两 case、mesh-mesh 多接触均已实装并与上游 GPU 参考逐字段对照（判据内位级一致）；**仍未覆盖**：一般 mesh（nmesh>1 的通用多 mesh 情形只测了 2 mesh fixture；degree>10 / polygon>16 走固定容量 clamp 回退）、mesh 分支层未逐条覆盖、`hfield-capsule` 设备回归（M2 继承）、`efc_address` 缺口（设备全 −1）、UNC-6 深穿透未触发、跨平台；且未做性能测试。",
+        "previous_impact": "G10@P5 可声明「设备 multicontact 已覆盖 box/cylinder 组合、convex-vs-mesh（box/cylinder × mesh）与 mesh-mesh 多接触（各 case 判据内位级）」，**不得**声明覆盖一般 mesh、mesh 全类型/全分支、跨平台或性能；`hfield-capsule` 与 `efc_address` 仍列未覆盖。"
       }
     },
     {
@@ -348,8 +350,8 @@
         "docs/development-evidence/unc3-branch-layer-static-map/branch-map.json"
       ],
       "status": "partial",
-      "reason": "组合层 13/13 已实现且各有上游 GPU 对照 case；**分支层部分覆盖**：B3 已覆盖 graph hillclimb、dist==0 fallback、投影 clamp、cap、corner、non-parallel det 与 swap 几何顺序；仍未覆盖 3 类——plane_cylinder degenerate x 轴回退、plane_ellipsoid 非上游退化保护、plane-box 其余 5 角点（含 plane-capsule/cylinder 其余候选未 detected）；债务：sphere-box/capsule-box/box-box 分支级未逐条标注、capsule_capsule 平行轴分支在融合后端未被触发。",
-      "impact": "G10@P5 复杂物理：primitive narrowphase 设备三片（plane 6、sphere/capsule 4、分支覆盖 6+swap）已收口并入账，**组合层 13/13 覆盖、分支层 5 类 + swap 已覆盖**；剩余 3 类分支与债务如实记录、**未宣称全路径**；capsule-capsule 的 count 对编译期 FMA 收缩敏感（B2 README §6 机制）。",
+      "reason": "组合层 13/13 已实现且各有上游 GPU 对照 case；**分支层部分覆盖**：B3 已覆盖 graph hillclimb、dist==0 fallback、投影 clamp、cap、corner、non-parallel det 与 swap 几何顺序；仍未覆盖 3 类——plane_cylinder degenerate x 轴回退、plane_ellipsoid 非上游退化保护、plane-box 其余 5 角点（含 plane-capsule/cylinder 其余候选未 detected）；债务：sphere-box/capsule-box/box-box 分支级未逐条标注、capsule_capsule 平行轴分支在融合后端未被触发。（S5 更新，2026-10-27：以上「仍未覆盖 3 类」口径按 S4 验证窗收窄——U1/U3/U4/U5/U6/U9 计「本窗验收覆盖」（U1 3/3、U3 8/8 角点、U4 2/2、U5 4/4、U6 3/3、U9 launcher 275/275 bit）；U2 保持「不可达 / 非上游防御」；U7/U8 仅「限制存在」（U8 设备 1 vs 上游 4 = 真实功能差距，backlog 不进分母）；degree>10 / polygon>16 两条限制单列。）",
+      "impact": "G10@P5 复杂物理：primitive narrowphase 设备三片（plane 6、sphere/capsule 4、分支覆盖 6+swap）已收口并入账，**组合层 13/13 覆盖、分支层 5 类 + swap 已覆盖**；剩余 3 类分支与债务如实记录、**未宣称全路径**；capsule-capsule 的 count 对编译期 FMA 收缩敏感（B2 README §6 机制）。（S5 更新：status 仍 partial；**不得**声明全分支 / 全路径 / 窗口通过。）",
       "s5_update": {
         "date": "2026-10-27",
         "task": "2026-10-27-unc3-ledger-closure-s5",
@@ -380,7 +382,9 @@
           "regression_object": "M3 窗口冻结二进制（8 个 target/m3-freeze，构建 01:06）；M3 提交 f1e5cda1 在冻结之后（含 O7 + 测试拆分），不写成「当前树重编通过」"
         },
         "status": "partial（不变）",
-        "not_claimed": "全分支 / 全路径 / 窗口通过"
+        "not_claimed": "全分支 / 全路径 / 窗口通过",
+        "previous_reason": "组合层 13/13 已实现且各有上游 GPU 对照 case；**分支层部分覆盖**：B3 已覆盖 graph hillclimb、dist==0 fallback、投影 clamp、cap、corner、non-parallel det 与 swap 几何顺序；仍未覆盖 3 类——plane_cylinder degenerate x 轴回退、plane_ellipsoid 非上游退化保护、plane-box 其余 5 角点（含 plane-capsule/cylinder 其余候选未 detected）；债务：sphere-box/capsule-box/box-box 分支级未逐条标注、capsule_capsule 平行轴分支在融合后端未被触发。",
+        "previous_impact": "G10@P5 复杂物理：primitive narrowphase 设备三片（plane 6、sphere/capsule 4、分支覆盖 6+swap）已收口并入账，**组合层 13/13 覆盖、分支层 5 类 + swap 已覆盖**；剩余 3 类分支与债务如实记录、**未宣称全路径**；capsule-capsule 的 count 对编译期 FMA 收缩敏感（B2 README §6 机制）。"
       }
     },
     {
@@ -445,6 +449,7 @@
     "window_qa_commit": "efccbf63",
     "s3_capture_commit": "43ec5676",
     "s2_static_map_commit": "c257bc0b",
-    "notes": "本文只做证据映射与范围文字更新；不改任何已 verified 数字、判据、容差、参考或期望值。"
+    "notes": "本文只做证据映射与范围文字更新；不改任何已 verified 数字、判据、容差、参考或期望值。",
+    "map_text_correction": "UNC-1/UNC-3 的 reason/impact 追加 S5 范围文字，原文保留在各自 s5_update.previous_reason/previous_impact（补正台账自相矛盾）"
   }
 }

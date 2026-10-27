@@ -147,7 +147,7 @@ roadmap 任务 `2026-10-11-roadmap-g10-p5` 的 6 条 acceptance 里，实质只�
 
 **统计与状态**：UNC-3 仍 **partial**（组合层 13/13 不变；分支层新增 6 项「本窗验收覆盖」+ U2/U7/U8 三条边界项）；**不宣称全分支 / 全路径**；不写「窗口通过」。
 
-**边界**：不改判据 / 容差 / 参考 / 期望值；「本窗验收覆盖」只对上述 case 与已批准判据成立；U8 的功能差距是真实债务（backlog，不 start）；S2 的 12 条「可验证」仍需定向 case 才能转覆盖。
+**边界**：不改判据 / 容差 / 参考 / 期望值；「本窗验收覆盖」只对上述 case 与已批准判据成立；U8 的功能差距是真实债务（backlog，不 start）；S2 的 12 条「可验证」仍需定向 case 才能转覆盖。`map.json` 的 UNC-3 `reason`/`impact` 已追加 S5 范围文字，旧文保留在 `s5_update.previous_reason` / `previous_impact`（本条为 S5 补正，避免台账自相矛盾）。
 
 ## 7. UNC-1 更新（2026-10-27；mesh 四片串行收口后第一次更新）
 
@@ -199,6 +199,6 @@ roadmap 任务 `2026-10-11-roadmap-g10-p5` 的 6 条 acceptance 里，实质只�
 | `efc_address` / UNC-6 / 跨平台 / 性能 | 未覆盖 | **不变** |
 | status | partial | **partial（不变）** |
 
-**不得声明（更新后）**：mesh 已覆盖、一般 mesh 已支持、mesh 分支层全覆盖、mesh 全类型、跨平台；U8 差距未解决前**不写「与上游一致」**。
+**不得声明（更新后）**：mesh 已覆盖、一般 mesh 已支持、mesh 分支层全覆盖、mesh 全类型、跨平台；U8 差距未解决前**不写「与上游一致」**。`map.json` UNC-1 的 `reason`/`impact` 已追加 S5 收窄文字（旧文保留在 `s5_update.previous_reason` / `previous_impact`）。
 
 **证据指针（第三次更新新增）**：S3 捕获 `docs/development-evidence/g10-p5-branch-closure-capture/`；S4 实现与窗口 `docs/development-evidence/g10-p5-branch-closure-validation/`（README + `window-receipt.json` + 20 份窗口日志）；S4 复核 `docs/development-evidence/unc3-branch-closure-s4-independent-check/`；S2 静态映射 `docs/development-evidence/unc3-branch-layer-static-map/branch-map.json`；S3 复核与观察收口 `...-s3-independent-check/`、`...-s3-observation-closure/`。
