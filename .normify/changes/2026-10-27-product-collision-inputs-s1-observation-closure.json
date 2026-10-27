@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-product-collision-inputs-s1-observation-closure",
+  "title": {
+    "zh": "产品碰撞输入 S1 QA 观察收口（O1 pinned sha 口径更正 CRLF/LF + O2–O9 处置记录）",
+    "en": "Close QA observations on product collision inputs S1"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 QA S1 独立复核（pass / 0 阻断 / 9 观察）收口证据：① O1（一般）更正 pinned sha 口径——`fixtures/precision/g01-inputs.json` 的 pinned 值为 **LF 归一化**，本机 `core.autocrlf=true` 使工作树为 CRLF，故 raw sha 不同；`include/mjwarp_native_probe.h` LF `03151bf5…`=pinned、`native/model_probe.cpp` LF `6a01eb01…`=pinned；两文件 blob 在本片前后一致、内容未改，**不存在身份漂移**；删除 S1 README §6 原「已被 render/volume 片更新」的错误说法；补记 `t4_input_precision --include-ignored` 的 12 个失败是缺 `MJWARP_FROZEN_UPSTREAM_ROOT`/`MJWARP_FROZEN_WARP_ROOT`（panic），不是 hash 差异，且 T4 审计自带 CRLF→LF 归一化（`tests/support/t4_evidence/sources.rs:13`）；② O2–O9 逐条记为接受/后续（gate features 覆盖、`copy_xpos_xmat` 收窄未走唯一入口、qpos 有限性/nq=0、gate runs 留档、错误分类语义、capture 交叉计数、措辞、行数口径）。不改代码/判据/参考/容差；结论（S1 未加剧任何身份问题）不变。",
+    "en": "Close QA observations on S1 evidence (O1 wording correction; O2-O9 dispositions)."
+  },
+  "modules": {},
+  "acceptance": [
+    "S1 证据 README §6 与 `receipt.json` 的 pinned sha 口径更正为「CRLF 工作树 vs LF 归一化 pinned，非身份漂移」，并附两个文件 raw/LF sha 与实际 pinned 值；删除错误归因（render/volume 片更新）。",
+    "receipt 增 `qa_s1_observations`（O1 已改；O2–O9 接受为后续/措辞口径记录）；补记 `t4_input_precision --include-ignored` 失败原因（缺 FROZEN 环境变量）。",
+    "不改 18 pinned 源、不改代码/判据/参考/容差；不开 GPU、不编译、不重跑窗口；S1 任务记录（closed）与历史交付记录保持原样。",
+    "证据 `docs/development-evidence/product-collision-inputs-wiring/` 更新 + 本片交付记录 `docs/development-evidence/changes/2026-10-27-product-collision-inputs-s1-observation-closure.json`；check exit 0（docs-only，gate 不适用须在 receipt 写明）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-product-collision-inputs-s1-independent-check"
+    ],
+    "phase": "架构/接线债务",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/product-collision-inputs-wiring/",
+      "docs/development-evidence/changes/2026-10-27-product-collision-inputs-s1-observation-closure.json"
+    ],
+    "resources": [],
+    "priority": 10
+  },
+  "note": "Arch 2026-10-27 登记：S1 QA pass 后按 S3/S5 观察收口模式处理；不改已关闭 S1 任务记录（closed-task hook 只允许 addenda + Normify-Fixes，且 evidence 变更与 changes 记录冲突），故以独立治理片承载更正。",
+  "revision": {
+    "before": "389322bd990ee09860e16cc367c9a75391bd6e11",
+    "after": null
+  },
+  "created_at": "2026-10-27T08:15:00.000Z",
+  "updated_at": "2026-10-27T08:15:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/product-collision-inputs-wiring/s1-observation-closure-receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-product-collision-inputs-s1-observation-closure"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
