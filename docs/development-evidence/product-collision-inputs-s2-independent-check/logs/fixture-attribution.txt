@@ -1,0 +1,28 @@
+# S2 third case (mesh-mesh) fixture attribution check
+
+## what the M3 case manifest says
+M3 manifest case xml   = fixtures/g10-p5-mesh-multicontact/mesh-mesh.xml
+M3 manifest xml_sha256  = bb9ffb2f979129bbac410e9959088528f35180d14f5572c9a52631fa2ed86d8d
+M3 manifest qpos        = [0.0, 0.0, 0.18000000715255737, 1.0, 0.0, 0.0, 0.0]
+mesh-mesh.xml actual sha256 = bb9ffb2f979129bbac410e9959088528f35180d14f5572c9a52631fa2ed86d8d  match=True
+
+## the two candidate fixtures (both exist, different content)
+mesh-mesh.xml            sha256=bb9ffb2f979129bbac410e9959088528f35180d14f5572c9a52631fa2ed86d8d bytes=617 (asset: cube + cube_b scaled 0.9; qpos z=0.18)
+mesh-mesh-two-assets.xml sha256=1d71151364f4ba910308c80a42817f7a9b7fe843e42afb8396a3b5277f1b3bfb bytes=609 (asset: cube + tetra; qpos z=0.09; used by the S3/S4 U6 branch case)
+
+## the M3 case bins themselves
+ngeom=2 nmesh=2 nmeshvert=16 nmeshpoly=12
+mesh_vertnum = [8, 0, 0, 0, 8, 0, 0, 0]
+mesh_polynum = [6, 0, 0, 0, 6, 0, 0, 0]
+=> 2 meshes x (8 verts, 6 polys) = cube + cube_b, i.e. mesh-mesh.xml.
+=> cube + tetra would be 8+4=12 verts and 6+4=10 polys, and qpos z=0.09.
+
+## what the S2 record says (mismatch)
+README.md:212     mesh-mesh (fixture = fixtures/g10-p5-mesh-multicontact/mesh-mesh-two-assets.xml)
+README.md:215     the 32-array bins of mesh-mesh-two-assets come from the M3 capture window
+receipt.json:325  "mesh-mesh (fixture mesh-mesh-two-assets)"
+delivery record line 91: third fixture (mesh-mesh-two-assets) ... M3 capture-window case
+
+# Impact: the bins and the S2 tests are unaffected (tests read bins only, never the XML),
+# but evidence traceability points at the wrong fixture and future slices may mix the two
+# (the S3/S4 U6 case genuinely uses mesh-mesh-two-assets.xml).

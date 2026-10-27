@@ -1,0 +1,253 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-product-collision-inputs-s2-independent-check",
+  "kind": "independent_check",
+  "reviewed_task": "2026-10-27-product-collision-inputs-s2-adapter",
+  "reviewed_commit": "2910040c222184d0c5fbbfde8690f3db86176b26",
+  "reviewed_parent": "6a113daf86d198f4cc93faf5981ed5e4a7f9b96e",
+  "head_at_review": "2910040c222184d0c5fbbfde8690f3db86176b26",
+  "verdict": "pass",
+  "blockers": [],
+  "observation_counts": {
+    "general": 1,
+    "suggestion": 6,
+    "total": 7
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "general",
+      "title": "Third case fixture attribution is wrong: mesh-mesh.xml, not mesh-mesh-two-assets.xml",
+      "detail": "S2 README lines 212/215, receipt line 325 and the delivery record line 91 attribute the mesh-mesh case to fixtures/g10-p5-mesh-multicontact/mesh-mesh-two-assets.xml. The M3 mesh-case-manifest.json records xml=fixtures/g10-p5-mesh-multicontact/mesh-mesh.xml with xml_sha256=bb9ffb2f979129bbac410e9959088528f35180d14f5572c9a52631fa2ed86d8d and qpos z=0.18. QA measurement: mesh-mesh.xml sha256 is exactly bb9ffb2f…; the M3 case bins are nmesh=2, nmeshvert=16, nmeshpoly=12 with mesh_vertnum=[8,8] and mesh_polynum=[6,6], i.e. two cubes (only mesh-mesh.xml uses cube + cube_b scaled 0.9 with qpos z=0.18). mesh-mesh-two-assets.xml (sha 1d7115…) is cube + tetra (12 verts, 10 polygons, qpos z=0.09) and is the fixture of the S3/S4 U6 branch case.",
+      "evidence": [
+        "logs/fixture-attribution.txt"
+      ],
+      "proposed_action": "Correct the fixture name to mesh-mesh.xml in README §8.2, in the receipt s2 description and in the delivery record bin_inputs note, and cite xml_sha256=bb9ffb2f… from the M3 manifest as provenance; align the task-card acceptance path wording through a normify fix addendum.",
+      "impact": "bins and S2 tests are unaffected (tests read bins only, never the XML); evidence traceability points at the wrong fixture and future slices may mix the two cases"
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "title": "from_model_input only supports a single-world frame; nworld>1 has no entry",
+      "detail": "from_model_input requires frame lengths ngeom*3 / ngeom*9 (single world), while validate_inputs requires geom_xpos length nworld*ngeom*3. Therefore meta.nworld>1 always yields InvalidArgument through from_model_input + inputs_from_snapshot. nworld>1 was not tested in this slice, and there is no adapter entry that repeats the frame (the view fields are pub, but then the bridge validation is bypassed).",
+      "evidence": [
+        "README.md"
+      ],
+      "proposed_action": "State in the README/ledger that the S1 bridge is nworld==1 only and define the multi-world assembly for S3 (repeat the frame or add a new entry)",
+      "impact": "S3 wiring needs an explicit multi-world decision; no effect on S2 deliverables"
+    },
+    {
+      "id": "O3",
+      "severity": "suggestion",
+      "title": "Sidecar predicate duplicated between run() and mesh_poly_sidecar_present",
+      "detail": "mesh_poly_sidecar_present copies run()'s inline condition !inputs.mesh_polynum.is_empty() (src/runtime/collision_gpu.rs:162). Not refactoring run is consistent with this slice's contract, but the two predicates can drift.",
+      "evidence": [
+        "README.md"
+      ],
+      "proposed_action": "In the next slice, make run() call the helper (zero behaviour change)",
+      "impact": "maintenance only"
+    },
+    {
+      "id": "O4",
+      "severity": "suggestion",
+      "title": "README wording overstates how the bridge test's meta is derived",
+      "detail": "README §8.2 says the from_model_input bridge test passes validate with a meta derived from the 30 fields/frame. In the test the meta is hand-built; only ngeom and noct come from the snapshot counts, everything else is a literal (naconmax=64, efc_width=4, ...).",
+      "evidence": [
+        "README.md"
+      ],
+      "proposed_action": "Reword to 'hand-built meta (ngeom/noct taken from snapshot counts)'",
+      "impact": "wording only"
+    },
+    {
+      "id": "O5",
+      "severity": "suggestion",
+      "title": "Literal regulated terms in a negative sentence in the shared evidence directory",
+      "detail": "docs/development-evidence/product-collision-inputs-wiring/s1-observation-closure-receipt.json:70 (S1 closure, not part of the S2 diff) contains the six regulated claim terms verbatim inside a negative sentence. Files changed by S2 itself scan 0 hits, but a directory-wide forbid_claim scan would flag it.",
+      "evidence": [
+        "logs/forbidden-terms.txt"
+      ],
+      "proposed_action": "Rephrase without the literal terms (for example 'no window-type, coverage-type, precision-type or equivalence-type claim')",
+      "impact": "possible false positive in future directory-wide checks"
+    },
+    {
+      "id": "O6",
+      "severity": "suggestion",
+      "title": "The native feature path is not covered by the default gate",
+      "detail": "Gate clippy/unit use default features; from_model_input (cfg native-model-probe) and its ignored bridge test are outside the gate. The 3 default-feature host tests do run in unit (997 = 994 + 3, which is good). The native side is currently covered only by logs/s2-fmt-clippy.log's explicit clippy plus a manual targeted rerun.",
+      "evidence": [
+        "logs/gate-equivalent.txt",
+        "logs/unit-gate-equivalent.txt"
+      ],
+      "proposed_action": "Register a targeted gate item for clippy/test with --features native-model-probe",
+      "impact": "future changes to the bridge have no automatic protection"
+    },
+    {
+      "id": "O7",
+      "severity": "suggestion",
+      "title": "'gate ran twice with identical results' has only the final run archived",
+      "detail": "s2-gate.log states the gate ran twice with identical results and counts, but the four json files under .normify/runs/<task>/ are overwritten in place; only the final run (final tree) is on disk. Same pattern as the S1 review observation.",
+      "evidence": [
+        "logs/gate-equivalent.txt"
+      ],
+      "proposed_action": "Keep both run directories, or state in the receipt that only the final tree is archived",
+      "impact": "traceability only"
+    }
+  ],
+  "verified_items": [
+    {
+      "item": "adapter view order/types match CollisionGpuInputs",
+      "result": "pass",
+      "detail": "32/32 field names and types identical; 32/32 construction pairs assign snapshot.<name> to the same-named inputs field",
+      "evidence": [
+        "verify_s2_checks.json"
+      ]
+    },
+    {
+      "item": "existing validation reused, M0a empty/partial semantics kept, no panic",
+      "result": "pass",
+      "detail": "inputs_from_snapshot calls validate_inputs (same function as run's first step); 9 empty -> sidecar null; partial -> InvalidArgument; no unwrap/expect/panic in the adapter",
+      "evidence": [
+        "README.md"
+      ]
+    },
+    {
+      "item": "run unchanged",
+      "result": "pass",
+      "detail": "git diff 6a113daf..2910040c -- src/runtime/collision_gpu.rs = +4 lines (mod + pub use), no run() body line in the diff"
+    },
+    {
+      "item": "independent 96/96 reconciliation",
+      "result": "pass",
+      "detail": "own harness, own bin parser: 3 cases x 32 arrays, 96/96 byte-equal and sha256-equal, 0 mismatches; validate Ok; sidecar present; lengths equal to independently derived unit*width*4",
+      "evidence": [
+        "verify_s2.rs",
+        "logs/independent-96-reconcile.txt",
+        "logs/case-bins-table.txt"
+      ]
+    },
+    {
+      "item": "legacy 23-item semantics",
+      "result": "pass",
+      "detail": "verified on all three cases (product test covers mesh-box only): 9 mesh_poly slices empty, sidecar null, 23 base arrays pass through byte-identically",
+      "evidence": [
+        "logs/independent-96-reconcile.txt"
+      ]
+    },
+    {
+      "item": "negative cases",
+      "result": "pass",
+      "detail": "partial mesh_poly, empty geom_xpos, short geom_type, meta nworld/naconmax/efc_width = 0 all return InvalidArgument without panic (product test + QA harness)"
+    },
+    {
+      "item": "from_model_input bridge rerun",
+      "result": "pass",
+      "detail": "1 passed / 0 failed with --features native-model-probe and the pinned DLL; 32 items byte-identical to the S1 snapshot",
+      "evidence": [
+        "logs/targeted-native-rerun.txt"
+      ]
+    },
+    {
+      "item": "default-feature host tests",
+      "result": "pass",
+      "detail": "3 passed / 0 failed / 0 ignored (independent rerun)",
+      "evidence": [
+        "logs/targeted-default-rerun.txt"
+      ]
+    },
+    {
+      "item": "unchanged paths and ABI",
+      "result": "pass",
+      "detail": "23 unchanged paths: 0 changed; M3 case dir not in the commit and unchanged vs parent; CollisionArgs 504 B / 6 entries / DEVICE_SOURCES 28 assertions ran in the unit gate; Cargo files 0 diff",
+      "evidence": [
+        "logs/unchanged-paths.txt",
+        "logs/abi-invariants.txt"
+      ]
+    },
+    {
+      "item": "gates reproduced",
+      "result": "pass",
+      "detail": "fmt/clippy/clippy-cuda/clippy-native exit 0 with 0 warnings; cargo test --locked 997 passed / 0 failed / 376 ignored (matches the archived unit.json)",
+      "evidence": [
+        "logs/gate-equivalent.txt",
+        "logs/unit-gate-equivalent.txt"
+      ]
+    },
+    {
+      "item": "scope",
+      "result": "pass",
+      "detail": "16 committed paths, 16 in the declared range, 0 out of range",
+      "evidence": [
+        "logs/scope.txt"
+      ]
+    },
+    {
+      "item": "line-count ratchet",
+      "result": "pass",
+      "detail": "215 / 462 / 233 / 319 / 253 LF lines, all <= 500; receipt 424 (machine-readable JSON exception)",
+      "evidence": [
+        "logs/line-counts.txt"
+      ]
+    },
+    {
+      "item": "delivery record and receipt identities",
+      "result": "pass",
+      "detail": "10 delivery files: blob/sha256/bytes/lines 0 mismatch; receipt s2 has 4 deliverable entries all matching; top-level receipt task_id still the S1 one; s2.task_id correct; M0b 64 bin shas and M3 32 bin shas match their manifests; the two manifests' arrays_order equals the 32-field order",
+      "evidence": [
+        "verify_s2_checks.json",
+        "verify_receipt.json"
+      ]
+    },
+    {
+      "item": "evidence logs clean",
+      "result": "pass",
+      "detail": "the 4 new S2 logs are UTF-8 without BOM and LF; this review directory is also UTF-8/LF without BOM"
+    }
+  ],
+  "environment": {
+    "os": "Windows",
+    "repo": "D:\\Rust\\mjwarp-rs",
+    "toolchain_for_targeted_tests": "1.99.0-x86_64-pc-windows-msvc",
+    "toolchain_for_gate_commands": "1.99.0 (rust-toolchain.toml)",
+    "mujoco_dll": "target/toolchains/mujoco-3.12.0/package/bin/mujoco.dll",
+    "gpu_used": false,
+    "window_opened": false,
+    "product_code_changed": false,
+    "criteria_or_fixtures_changed": false
+  },
+  "gates": {
+    "applicable": false,
+    "result": "not applicable: this task's checks contain no gate items (docs-only independent check); normify gate reports no gate reference for the task (exit 1), which is expected",
+    "units_verified_instead": "the reviewed S2 slice's own gates were independently rerun by QA and matched the archived run json (see verified_items 'gates reproduced')"
+  },
+  "boundaries": [
+    "host-side read-only review: no GPU, no window, no device number rerun",
+    "S2 does not wire the product entry point; this review makes no equivalence, precision, performance, cross-platform or acceptance conclusion",
+    "the 96/96 parity is exact byte/sha256 equality of bins vs adapter output, not an approximate numeric criterion",
+    "the S2 normify gate was not rerun to avoid overwriting the verified task's run artifacts; the same gates.toml commands were run directly and compared with the archived run json",
+    "a temporary examples/qa_s2_verify.rs was created to run the independent harness and deleted afterwards; the worktree is clean"
+  ],
+  "evidence_files": [
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/README.md",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/receipt.json",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/manifest.json",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/verify_s2.rs",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/verify_s2_checks.py",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/verify_s2_checks.json",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/verify_receipt.py",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/verify_receipt.json",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/bin_table.py",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/attribution.py",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/logs/independent-96-reconcile.txt",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/logs/case-bins-table.txt",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/logs/targeted-default-rerun.txt",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/logs/targeted-native-rerun.txt",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/logs/gate-equivalent.txt",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/logs/unit-gate-equivalent.txt",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/logs/unchanged-paths.txt",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/logs/abi-invariants.txt",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/logs/scope.txt",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/logs/line-counts.txt",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/logs/forbidden-terms.txt",
+    "docs/development-evidence/product-collision-inputs-s2-independent-check/logs/fixture-attribution.txt"
+  ]
+}
