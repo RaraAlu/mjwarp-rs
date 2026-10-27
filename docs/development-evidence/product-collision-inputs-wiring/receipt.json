@@ -432,7 +432,7 @@
   },
   "s3": {
     "task_id": "2026-10-27-product-collision-inputs-s3-entry-window",
-    "status": "complete_entry_and_target_host_side; validation window not opened (materials to be reported for Chief sign-off)",
+    "status": "complete_entry_and_target_host_side; validation window attempt1 executed with the signed runner (see window-receipt.json); execution facts only, no pass/coverage/precision/equivalence claim",
     "head_at_start": "41fa049cfffa69e9a95bdb716d296630a3b214b9",
     "scope": "S3: wire S1 snapshot + S2 adapter into an explicit product device entry (`cuda` gate, three-state fallback, no panic, default Host unchanged, nworld=1 only) and add an end-to-end target comparing against frozen M1/M3 references; no window opened in this slice.",
     "entry": {
@@ -445,10 +445,11 @@
     },
     "three_state_fallback": {
       "feature_disabled": "Host(FeatureDisabled): `cuda` feature not compiled (compile-time branch via backend::product_collision_availability)",
-      "device_unavailable": "Host(DeviceUnavailable(reason)) for driver/device/NVRTC/compile probe failures; Host(DeviceFailure('device program unavailable')) when probe passes but the cached program is missing",
-      "runtime_failure": "Host(DeviceFailure(error text)) when launch/synchronize/readback fails; no panic, no retry",
+      "device_unavailable": "Host(DeviceUnavailable(reason)) for driver/device/NVRTC/PTX-compile probe failures",
+      "runtime_failure": "Host(DeviceFailure(error text)) for a missing cached program after a passed probe, and for launch/synchronize/readback failures; no panic, no retry",
       "cpu_invalid_input": "Err(CollisionGpuError::InvalidArgument) for nworld>1 and inconsistent snapshot/meta",
-      "unit_tests": "product_entry_tests.rs (pure CPU, no GPU): 10 cases covering host selection, all three fallbacks, program missing, kernel passthrough, nworld 0/2 rejection, invalid snapshot, availability/status consistency; the `--no-default-features --features cuda-probe` build additionally covers the compile-time FeatureDisabled branch (9 passed)"
+      "unit_tests": "product_entry_tests.rs (host-side unit tests: no CUDA context, no kernel launch; with driver/NVRTC available the availability-consistency case runs probe_backend_with_cuda, i.e. an NVRTC PTX compile, but no context/launch): 10 cases covering host selection, all three fallbacks, program missing, kernel passthrough, nworld 0/2 rejection, invalid snapshot, availability/status consistency; the `--no-default-features --features cuda-probe` build additionally covers the compile-time FeatureDisabled branch (9 passed)",
+      "qa_s3_o6_note": "table/implementation mapping aligned: 'probe passed but program missing' returns DeviceFailure (state 3), not DeviceUnavailable (state 2)"
     },
     "nworld": {
       "accepted": 1,
@@ -571,13 +572,54 @@
         "clippy_native_model_probe": "pass (zero warnings)",
         "no_cuda_feature_build_unit": "9 passed under --no-default-features --features cuda-probe (compile-time FeatureDisabled branch)"
       },
-      "note": "gate ran twice (code-final tree and final tree with evidence); both exit 0 with identical results/counts; per-run timings live in .normify/runs"
+      "note": "gate ran twice (code-final tree and final tree with evidence); both exit 0 with identical results/counts. QA S3 O10 (accepted, same as S1/S2 O5/O7): only the final run artifacts are archived under .normify/runs; earlier run is not kept."
+    },
+    "evidence_format_notes": {
+      "receipt_json": {
+        "path": "docs/development-evidence/product-collision-inputs-wiring/receipt.json",
+        "machine_readable_exception": true,
+        "reason": "machine-readable evidence receipt; exempt from the <=500-line human-readable limit by the project evidence rule"
+      },
+      "provenance_json": {
+        "path": "docs/development-evidence/product-collision-inputs-wiring/fixtures/mjb-312/provenance.json",
+        "lines_at_annotation": 897,
+        "bytes_at_annotation": 35941,
+        "machine_readable_exception": true,
+        "reason": "machine-readable provenance (MJB/XML/reference sha256, bytes, per-array parity); exempt from the <=500-line limit; read-only and sha-guarded by the window runner (not edited)"
+      },
+      "qa_s3_o3_note": "S3 entry delivery record (docs/development-evidence/changes/2026-10-27-product-collision-inputs-s3-entry-window.json) is a historical snapshot of commit 0c9497e4 and is not in the window task file scope; the machine_readable_exception annotation lives here in the receipt s3 section and in the window delivery record."
+    },
+    "qa_s3_observations": {
+      "O1": "recorded process deviation (not changed in evidence): one ~42 s GPU development self-test ran outside a signed window; no window result is claimed from it. Future GPU usage (including single-target self-tests) is reported to Arch before running.",
+      "O2": "fixed wording: unit tests are host-side (no CUDA context, no kernel launch); when driver/NVRTC are available the availability-consistency case triggers probe_backend_with_cuda, i.e. an NVRTC PTX compile (still no context/launch).",
+      "O3": "fixed via evidence_format_notes: receipt.json and fixtures/mjb-312/provenance.json are declared machine-readable exceptions; provenance.json itself was NOT edited (window runner sha-guarded).",
+      "O4": "fixed: README S3.1 unit-test line count 346 -> 366 (actual).",
+      "O5": "fixed: README S3.3 type name ConfigInputsModelInput -> CollisionInputsModelInput (matches src/io/collision_inputs.rs).",
+      "O6": "fixed: three-state table row mapping aligned with code (program-missing -> state 3 DeviceFailure).",
+      "O7": "accepted, with qualifier: the nworld=0/2 rejection test asserts the public entry returns InvalidArgument before any device probe; executor-zero-call is asserted only in the injected state-1/state-2 cases, not in the nworld-rejection case.",
+      "O8": "accepted, recorded: the end-to-end target requires `cuda + native-model-probe` and is therefore not compiled by the default gates (fmt/clippy/clippy-cuda/unit); it is covered by the targeted `--features native-model-probe` build/test. A formal targeted gate item is pending registration.",
+      "O9": "fixed: logs/s3-fmt-clippy.log and logs/s3-mjb-generation.log normalized from CRLF to LF (UTF-8 no BOM); other evidence logs were already LF.",
+      "O10": "accepted (same as S1/S2 O5/O7): gate ran twice but only the final run artifacts are archived."
     },
     "window": {
-      "opened": false,
-      "materials_status": "reported separately to Arch for Chief sign-off; this slice builds no frozen executables and opens no window",
+      "task": "2026-10-27-product-collision-inputs-s3-window",
+      "opened": true,
+      "status": "attempt1 executed 2026-10-27 17:00:01-17:03:59 (body_wall 238.5 s); the window receipt docs/development-evidence/product-collision-inputs-wiring/window-receipt.json carries the execution facts; no pass/coverage claim",
+      "frozen_set": "target/s3-product-wiring-freeze/ (10 exes; UNIFORM `--all-features` profile; new target rebuilt with --all-features to match the 9 signed regressions)",
+      "new_target_frozen": {
+        "file": "g10_p5_product_collision_wiring_cuda-4f3124258c28ae06.exe",
+        "bytes": 41797632,
+        "sha256": "8060bacc74b667a85768950a6370262182aea1aa977979b84a7c5906c7acb604",
+        "source": "s3-build(all-features)"
+      },
+      "runner": {
+        "path": "target/s3-product-wiring/window/run-validation-attempt1.ps1 (not committed)",
+        "bytes": 33221,
+        "sha256": "c7a387a423312e4db55d0619a20341426b71561f7f1b1ab3129ed2f3c19a103d",
+        "guards": "10 exes + 123 read-only inputs = 133 SHA_OK lines"
+      },
       "candidate_entities": {
-        "new_target": "g10_p5_product_collision_wiring_cuda (--features native-model-probe; runtime needs MJWARP_MUJOCO_DLL + CUDA/NVRTC bin)",
+        "new_target": "g10_p5_product_collision_wiring_cuda (frozen with --all-features; runtime needs MJWARP_MUJOCO_DLL + CUDA/NVRTC bin)",
         "regressions": [
           "multicontact",
           "primitive",
@@ -596,7 +638,69 @@
           "fixtures/mjb-312/provenance.json"
         ]
       },
-      "window_requirements": "sha guards + SHA_OK persisted; load precheck; floor=min(10240, baseline_free-3072); 0.25 s sampling; pre/post/end baselines; zero Rust compilation; <=2 valid attempts; UTF-8 no-BOM logs"
+      "window_requirements": "sha guards + SHA_OK persisted; load precheck; floor=min(10240, baseline_free-3072); 0.25 s sampling; pre/post/end baselines; zero Rust compilation; <=2 valid attempts; UTF-8 no-BOM logs",
+      "window_receipt": "docs/development-evidence/product-collision-inputs-wiring/window-receipt.json",
+      "attempt1": {
+        "task_id": "2026-10-27-product-collision-inputs-s3-window",
+        "attempt": 1,
+        "aborted": 0,
+        "entities": 10,
+        "exits_all_zero": true,
+        "body_wall_s": 238.5,
+        "samples": 867,
+        "guards": "133/133 SHA_OK (10 exes + 123 read-only inputs), match=False 0",
+        "freeze_sources": {
+          "s3_build": 1,
+          "s4_build": 1,
+          "m3_freeze": 8,
+          "note": "1 s3-build (new target 16:49:31) + 1 s4-build (launcher 10:17:56) + 8 m3-freeze (M3-signed) = 10 (frozen-shas.txt source column)"
+        },
+        "zero_rust_compile": true,
+        "feature_profile": "all-features",
+        "budget_deviation": {
+          "recorded": true,
+          "deviation_recorded": true,
+          "rerun": false,
+          "budget_estimate_mib": "270-320",
+          "measured_delta_peak_mib": 1051,
+          "ratio": "≈3.4× 预算中点（3.3–3.9× 区间）",
+          "peak": {
+            "seq": 776,
+            "timestamp": "2026-10-27T17:03:36.7225390+08:00",
+            "single_sample_s": 0.25,
+            "neighbors_used_mib": [
+              3092,
+              4142,
+              3091
+            ],
+            "samples_gt_3120": "1/867",
+            "sustained_delta_mib": 18
+          },
+          "not_triggered": {
+            "increment_limit_mib": 3072,
+            "increment_limit_reached": false,
+            "free_min_mib": 11920,
+            "floor_mib": 9904,
+            "free_min_above_floor": true,
+            "guard_aborted": false
+          },
+          "attribution": {
+            "status": "归因推断（未证实到具体分配点）",
+            "basis": [
+              "Arch 复核 samples 与 ENTITY_DONE：launcher wall 21.6 s 收尾约 17:03:36，stage2 启动约 17:03:38.4；尖峰 17:03:36.7225 落在 launcher 退出后约 0.7 s、下一实体启动前",
+              "nvrtc_launcher 为 NVRTC 运行时编译入口实体；推断为 NVRTC / cuModule 相关临时分配释放滞后"
+            ],
+            "not_proven": "无法从现有产物证实到具体分配点"
+          },
+          "note": "单采样瞬态超出 270–320 MiB 预算预估：如实记录、不写「在预算内」、不抹掉；不重跑、不掩盖。"
+        },
+        "guard_complete_caveats": {
+          "samples": "facts.txt guard_complete.samples=1 is the discrete guard-state assertion count; authoritative sampler count 867 from guard_aggregate.* + samples.csv",
+          "peak": "facts.txt guard_complete.peak_used_mib=3091 is ONLY the guard_end phase sample peak, NOT the window peak; window peak must be quoted as aggregate used_peak_mib=4142 / delta_peak_mib=1051"
+        },
+        "observation_OW1": "single-sample 4142 MiB transient (seq 776); all other samples <= 3109; sustained delta 18 MiB; recorded as observation, not re-run/masked",
+        "claims": "execution facts only; no pass/coverage/precision/upstream-equivalence/dual-platform claim"
+      }
     },
     "boundaries": {
       "host_device_equivalence_claimed": false,

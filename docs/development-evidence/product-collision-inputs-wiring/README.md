@@ -279,8 +279,8 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
   | 状态 | 触发 | 结果 |
   | --- | --- | --- |
   | ① 未编译 `cuda` | `--no-default-features`（或 `cuda-probe` 无 `cuda`）构建 | `Host(FeatureDisabled)`；编译期分支，不触碰设备 |
-  | ② 设备/程序不可用 | 驱动/设备/NVRTC/PTX 编译探测失败，或探测通过但程序取不到 | `Host(DeviceUnavailable(原因))` / `Host(DeviceFailure("设备程序不可用…"))` |
-  | ③ 运行期失败 | 发射/同步/回读返回错误 | `Host(DeviceFailure(错误文本))` |
+  | ② 设备/程序可用性探测失败 | 驱动/设备/NVRTC/PTX 编译探测失败 | `Host(DeviceUnavailable(原因))` |
+  | ③ 运行期失败（含探测通过但程序取不到） | 程序缺失、发射/同步/回读返回错误 | `Host(DeviceFailure(错误文本))` |
   | 纯 CPU 非法输入 | `nworld>1`、快照/长度/meta 不自洽 | `Err(CollisionGpuError::InvalidArgument)` |
 
 - **nworld 口径（QA S2 O2 结论）**：本片只接受 `nworld=1`；`nworld>1` 返回明确
@@ -288,7 +288,8 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
 - **默认数值路径仍 Host**：Host 选择不探测设备、不编译 NVRTC；Device 必须显式选择（UNC-2 限定语：
   入口不自动切换，设备不可用按既有约定回退 Host）。
 - `CollisionGpuProgram::run` 与 `CollisionArgs`（504 B）**零改动**；入口只组合既有组件。
-- 单测（`product_entry_tests.rs`，346 行，纯 CPU、无 GPU）：Host 选择不碰设备、①②③ 各档回退原因、
+- 单测（`product_entry_tests.rs`，366 行；不建 CUDA context、不发射内核，可用驱动/NVRTC 时会经
+  `probe_backend_with_cuda` 做 PTX 编译）：Host 选择不碰设备、①②③ 各档回退原因、
   程序缺失、成功路径内核透传、`nworld=0/2` 拒绝、非法快照拒绝、`cuda` 构建可用性与缓存窄相状态
   一致；`--no-default-features --features cuda-probe` 构建下额外覆盖 ①编译期分支（9 passed）。
 
@@ -315,7 +316,7 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
   逐项 sha）；日志 `logs/s3-mjb-generation.log`。
 - **输入侧对账（CPU，无设备工作）**：3.12.0 MJB 的 32 数组与 M0b/M3 冻结 bins **96/96 项逐字节相等**
   （0 mismatch；脚本 `RESULT=PASS`）；target 内 `s1_snapshot_of_pinned_mjb_matches_frozen_case_bins`
-  再走真实 S1 探针 → `ConfigInputsModelInput` + qpos 帧 → S2 adapter，得到
+  再走真实 S1 探针 → `CollisionInputsModelInput` + qpos 帧 → S2 adapter，得到
   **3 case × 32 项 = 96/96 与冻结 bins 逐字节相同**（不依赖近似相等）。
 - **设备侧对照（窗口执行）**：`product_entry_device_output_matches_m1_and_m3_frozen_references`：
   S1 快照 → S2 adapter → `run_product_collision(Device, …)`（`ContactMulti`）→ 对 **M1**（`mesh-box`/
@@ -336,20 +337,27 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
 
 ### 9.4 门禁与范围
 
-- `normify gate 2026-10-27-product-collision-inputs-s3-entry-window` **exit 0**：fmt 通过、clippy 通过、
-  clippy-cuda 通过、**unit 1006 过 / 0 败 / 376 ignored**（基线 997/0/376，+9 项本片纯 CPU 单测）。
+- `normify gate 2026-10-27-product-collision-inputs-s3-entry-window` **exit 0**（gate 跑了两次：代码
+  最终树与证据最终树；`.normify/runs` 只归档最终一次，同 S1/S2 口径）：fmt 通过、clippy 通过、
+  clippy-cuda 通过、**unit 1006 过 / 0 败 / 376 ignored**（基线 997/0/376，+9 项本片宿主侧单测：
+  不建 CUDA context、不发射内核；可用驱动/NVRTC 时会做 PTX 编译）。
 - clippy 在默认与 `--features native-model-probe` 两套均零警告（`logs/s3-fmt-clippy.log`）；
   `--no-default-features --features cuda-probe` 构建下 ①编译期回退用例 9 passed
   （`logs/s3-nocuda-feature.log`）。
+- **定向门禁项待登记（QA S3 O8）**：端到端 target 需 `cuda + native-model-probe`，默认 gate
+  （fmt/clippy/clippy-cuda/unit）不编译其内容；已由 `--features native-model-probe` 定向构建/测试
+  覆盖，规范门禁项待登记。
 - `scope-selfcheck`：**17 路径 / 越界 0**；`normify check` 全部通过。
 - 不改 18 个 pinned 源、`src/runtime/collision_gpu/abi.rs`、`src/physics/collision/cuda/`、
   `fixtures/g10-p5-mesh-multicontact/`、`fixtures/g10-p5-primitive-branches/`、M0b/M1/M2/M3 证据目录
   （machine check `unchanged` 覆盖 26 个路径）；`CollisionArgs` 504 B 与既有 ABI 未动；无新 feature。
 
-### 9.5 窗口候选冻结清单（材料另行报签，本片不开窗）
+### 9.5 窗口候选冻结清单（材料已报签；attempt1 执行记录见 §10）
 
-- **新 target（1）**：`g10_p5_product_collision_wiring_cuda`（`--features native-model-probe` 构建；
-  运行时需 `MJWARP_MUJOCO_DLL` 与 CUDA/NVRTC bin；本机开发自测墙钟约 42 s，其中 NVRTC 编译约 41 s）。
+- **新 target（1）**：`g10_p5_product_collision_wiring_cuda`。**窗口冻结口径：10 实体统一
+  `--all-features`**（新 target 与 9 个回归同口径；`--features native-model-probe` 仅开发期定向
+  构建口径）。运行时需 `MJWARP_MUJOCO_DLL` 与 CUDA/NVRTC bin；本机开发自测墙钟约 42 s，
+  其中 NVRTC 编译约 41 s（窗内运行时编译、无磁盘缓存）。
 - **回归实体（9）**：`multicontact` / `primitive` / `primitive_plane` / `primitive_sphere_capsule` /
   `primitive_branches` / `mesh_multicontact_m2` / `mesh_multicontact_m3` / `nvrtc_launcher`（含
   hfield-capsule）/ `stage2_equivalence_window`（record-C）。
@@ -362,7 +370,7 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
 | 文件 | 行/字节 | 说明 |
 | --- | --- | --- |
 | `src/runtime/collision_gpu/product_entry.rs` | 174 行 / 7623 B | 产品入口：显式后端选择 + 三态回退 + nworld 口径 |
-| `src/runtime/collision_gpu/product_entry_tests.rs` | 366 行 / 13038 B | 三态回退/Host/成功/拒绝单测（纯 CPU） |
+| `src/runtime/collision_gpu/product_entry_tests.rs` | 366 行 / 13038 B | 三态回退/Host/成功/拒绝单测（不建 CUDA context、不发射内核；可用驱动/NVRTC 时做 PTX 编译） |
 | `src/runtime/collision_gpu.rs` | 466 行（+4） | `mod product_entry` + `pub use`（既有入口/ABI 不动） |
 | `src/runtime/backend.rs` | 184 行（+19） | `product_collision_availability`（`cuda` 门接线） |
 | `tests/g10_p5_product_collision_wiring_cuda.rs` | 162 行 / 7453 B | 端到端 target（S1→S2→设备→M1/M3） |
@@ -370,5 +378,89 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
 | `tests/support/collision_inputs_adapter_support.rs` | 320 行（+1） | 只加 `#![allow(dead_code)]`（被两个 target 复用） |
 | `fixtures/mjb-312/*.mjb`（3）+ `provenance.json` | 8800/8815/12032 B + 35941 B | pinned 3.12.0 编译产物与 32 数组对账证据 |
 | `scripts/generate_collision_inputs_mjb.py` | 245 行 / 10115 B | authoring-only MJB 生成 + 96 数组 bin 对账 |
-| `logs/s3-targeted-native.log` 等 4 份 | — | 定向测试、fmt/clippy、no-cuda 分支、MJB 生成（UTF-8 无 BOM） |
+| `logs/s3-*.log` 5 份（定向测试 / fmt-clippy / no-cuda 分支 / MJB 生成 / gate） | — | 原始输出（UTF-8 无 BOM、LF；gate 日志为归档摘要） |
+
+## 10. S3 验证窗 attempt1：执行记录（只记录执行结果与事实）
+
+- 窗口任务：`2026-10-27-product-collision-inputs-s3-window`（HEAD `152b16d8`）；按签字后的 runner
+  **原样**执行，未改 runner / 冻结 exe / 守卫文件；attempt1 = 第 1 个有效轮，作废/污染轮 0。
+- 结果一句话：**10/10 实体独立 exit=0、failed_entities=0**；窗口 body_wall **238.5 s**（runner 全程约
+  252 s，含守卫/负载开销）；NVRTC 在窗内进程内编译（新 target 40.9 s 含两次编译）。
+- **口径**：本节只记录执行结果与事实，不做通过/覆盖/精度或上游等价结论（详见 §10.5）。
+
+### 10.1 守卫与冻结
+
+- runner：`target/s3-product-wiring/window/run-validation-attempt1.ps1`（未入库）**33221 B /
+  sha256 `c7a387a4…`**；签字后未编辑。
+- 冻结：10 实体统一 `--all-features`（新 target s3-build + 8 个 m3-freeze(M3-signed) + launcher
+  s4-build）；`frozen-shas.txt` 10 行、`copy_match=True`。
+- 冻结来源计数（按 `frozen-shas.txt` 的 source 列，非口述）：**s3-build 1**（新 target 16:49:31）+
+  **s4-build 1**（launcher 10:17:56）+ **m3-freeze(M3-signed) 8** = 10。
+- 守卫：**133 条 SHA_OK**（10 exe + 123 只读输入），`match=False` 0 条（`logs/attempt1-sha-guards.txt`）；
+  **窗后 10 exe sha 复查 0 mismatch**；runner / 冻结 exe / 被守卫输入（3 MJB、provenance、M0b/M3 bins、
+  M1/M3 参考）均未改动。
+- env（runner 显式设置并记录）：`MJWARP_MUJOCO_DLL=…/mujoco-3.12.0/package/bin/mujoco.dll`、
+  `CUDA bin=…/cuda-12.8.1/bin`。
+
+### 10.2 机器与 guard facts（`logs/attempt1-*`）
+
+- 3 点基线：`3086,12976,4,31,596.36` / `3086,12976,2,31,596.36` / `3082,12980,2,31,596.36`；
+  open free 12976 ≥ 10240；**floor = min(10240, 12976−3072) = 9904**；post `3086,12976,1,32`；
+  结束基线 `3086,12976,1,32` / `3086,12976,3,31` / `3086,12976,1,31`。
+- guard sampler：**867 样本**（0.25 s），`used_peak=4142`、`used_min=3087`、`free_min=11920`（≥ floor）、
+  `util_max=31%`、util≥80% streak=0、`process_exited=true`、residual=0、**无 abort**。
+- delta 三口径：vs guard baseline **1051 MiB** / vs 首样本 **1051** / vs 采样最小 **1055**。
+- **预算偏差（`budget deviation`，OW1，如实记录、不重跑、不掩盖）**：
+  `budget_estimate_mib="270–320"`、`measured_delta_peak_mib=1051`，**≈3.4× 预算中点（3.3–3.9× 区间）**。
+  峰值：`seq=776` @ `2026-10-27T17:03:36.7225390+08:00`，**单样本 0.25 s**，相邻采样
+  `3092 → 4142 → 3092`；`samples_gt_3120=1/867`；排除该点 `max=3109`、**sustained_delta=18 MiB**
+  （median 3091 / p99 3092）。**未触发项**：`increment_limit 3072` 未触、`free_min 11920 > floor 9904`、
+  `guard_aborted=false`。`rerun=false`、`deviation_recorded=true`。
+- **归因推断（未证实到具体分配点）**：Arch 复核 samples 与 `ENTITY_DONE`——launcher `wall 21.6 s`
+  收尾约 17:03:36，stage2 启动约 17:03:38.4，尖峰落在 launcher 退出后约 0.7 s、下一实体启动前；
+  `nvrtc_launcher` 为 NVRTC 运行时编译入口实体，**推断**为 NVRTC / cuModule 相关临时分配释放滞后；
+  **无法从现有产物证实到具体分配点**。
+- **口径说明（guard_end/peak 不混用）**：窗口峰值一律引用聚合值 `used_peak_mib=4142` /
+  `delta_peak_mib=1051`（`guard_aggregate.*` + `samples.csv`）；`facts.txt` 的
+  `guard_complete.peak_used_mib=3091` **只是 guard_end 结束相采样峰值，不是窗口峰值，不得用作峰值**；
+  `guard_complete.samples=1` 同理（guard state 离散断言计数，**权威采样数 867 来自
+  `guard_aggregate.*` + `samples.csv`**）；未改 `scripts/gpu-window-guard.ps1`。
+- compute-apps：原文 29 条（6 条 `[Insufficient Permissions]`），过滤
+  `python|g10_p5_|product_collision|stage2_equivalence|cargo|rustc|nvcc|cl.exe` = **0**；post 同口径 29/0。
+- **零 Rust 编译**：`target/debug/deps` exe 1812→1812、max write `2026-10-27T16:50:14` 不变、
+  前后 cargo/rustc/cl/nvcc/link 进程 0 → `zero_rust_compile=True`；`feature_profile=all-features`。
+- 负载 precheck：CPU 3 采样 `6,5,6`；`cargo/rustc/cl/nvcc/link` 0。
+
+### 10.3 10 实体 exit 与结果摘要（逐实体独立 exit，日志 `logs/attempt1-<entity>.log`）
+
+| entity | exit | wall | 结果摘要（均 `failures=0`） |
+| --- | --- | --- | --- |
+| product_collision_wiring（新） | 0 | 40.9 s | 2 passed；3 case `nacon=4 = ref`、bit_equal 12/12、dist/pos/frame ULP=0、geom `[1,0]/[1,0]/[0,1]`；S1 快照 32/32 × 3、mismatches=0 |
+| multicontact | 0 | 21.1 s | cylinder-box 314/314、box-box-margin 391/392（pos ULP=1）、G5 mesh-mesh 80/80 |
+| primitive | 0 | 21.3 s | sphere-box-shallow/-deep、capsule-box 各 80/80 |
+| primitive_plane | 0 | 20.5 s | 6 组合 nacon `1/1/1/1/3/3` |
+| primitive_sphere_capsule | 0 | 20.7 s | 4 case nacon=1 |
+| primitive_branches | 0 | 21.1 s | 6 分支 + 4 swap（含 plane-mesh-graph swap） |
+| mesh_m2 | 0 | 20.4 s | mesh-box / mesh-cylinder 各 4/4 bit、geom=`[1,0]` |
+| mesh_m3 | 0 | 21.3 s | mesh-mesh 4/4 bit、geom=`[0,1]` |
+| nvrtc_launcher | 0 | 21.6 s | hfield-sphere 314/314、sdf-box 3122/3122、ellipsoid-box 80/80、hfield-capsule 275/275 |
+| stage2_equivalence_window | 0 | 21.5 s | 17 个 product dump 全部「两次一致 true」（record-only，不作结论） |
+
+### 10.4 证据文件与格式
+
+- 新增 `window-receipt.json`（`/task_id` = 窗口任务；机器可读例外）与 `logs/attempt1-*`：
+  `facts.txt`（168 行）、`sha-guards.txt`（133 行）、`samples.csv`（868 行）、`guard.log`、
+  `baseline.txt`、`machine-load.txt`、10 份实体日志、`runner-stdout.log`。
+- 行尾/编码：入库文本证据统一 **UTF-8 无 BOM、LF/CR=0**；原始 `guard.log`/`samples.csv`/
+  `machine-load.txt` 为 CRLF，入库副本已归一 LF；`guard-raw.log`（BOM 原样）未入库。
+- 机器可读例外：`samples.csv`(868 行)、`sha-guards.txt`(133 行)、`facts.txt`(168 行)、
+  `window-receipt.json` 本身；详见 receipt `evidence_format_notes`。
+- stage2 日志中的中文行因控制台代码页转码显示为乱码（数值/ASCII 字段不受影响），已在 receipt 注明。
+
+### 10.5 边界与 O1 记录
+
+- 本节不做通过/覆盖/精度或上游等价结论；判据、参考、容差与窗口前后代码均未改。
+- **O1（流程偏差，另记）**：本片此前一次约 42 s 的 GPU dev 自测发生在未签窗口之外（非验证窗），
+  不追其结果；本窗口结果为 attempt1 独立执行。后续 dev 自测/任何 GPU 占用先报备。
+
 
