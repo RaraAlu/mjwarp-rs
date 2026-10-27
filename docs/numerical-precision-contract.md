@@ -238,6 +238,32 @@ NP01、NP02与NP04仍独立检查。
 本节不写入任何生效atol或rtol。
 记录见[接触字段native侧决策](development-evidence/native-contact-tolerance-decision-b/README.md)。
 
+### 接触字段容差分档（用户2026-10-27拍板）
+
+用户2026-10-27对native接触字段容差拍板：唯一分歧frame/normal**按路径分档**——CONVEX `2e-6`、SDF `5e-5`；
+其余项按建议默认、用户未反对。契约量级如下（判据接线与E重算见本节末尾边界）：
+
+| 字段 | 路径 | atol | rtol | 实测worst | E（上游f32代理） |
+| --- | --- | --- | --- | --- | --- |
+| dist | CONVEX | `1e-6` | `1e-6*|native|` | 9.31e-9 | 0.009 |
+| dist | SDF | `2e-6` | `1e-6*|native|` | 6.88e-7 | 0.34 |
+| pos（各分量） | CONVEX | `1e-6` | `1e-6*|native|` | 1.86e-8 | 0.017 |
+| pos（各分量） | SDF | `1e-6` | `1e-6*|native|` | 4.62e-7 | 0.42 |
+| frame/normal | CONVEX | `2e-6` | 0 | 8.19e-7 | 0.41 |
+| frame/normal | SDF | `5e-5` | 0 | 2.78e-5 | 0.56 |
+| 结构字段（count/worldid/geom对/geomcollisionid/dim/type） | 全部 | 0 | 0 | 0失配 | — |
+
+SDF的frame/normal实测2.78e-5含有限差分h=1e-4的方法学放大，非缺陷；分档后两侧E分别为0.41/0.56，
+相对红线`E_candidate <= 1.05 * E_mjwarp`有余量。结构字段实测0失配，维持零容差。
+接触字段的准入仍以对上游f32的判据为主，本表用于native侧（native_error_v2）判定，不替代主判据。
+
+边界：**E尚未定稿**。上表E用「上游f32作产品代理」算出；G6首步会用产品输出直接对native f64重算确认，
+并补采`hfield-box`、设备路径等NVRTC launcher接线后另测。若重算后E超过1.05倍红线，须回炉报告，
+不自动放宽本表。本节前述「不写入任何生效atol或rtol」自2026-10-27起对接触字段不再适用，
+该段保留为2026-10-25选项B的历史记录与样本边界说明（当时真native仅`ellipsoid-box`1个case、2个接触点）。
+除本表外，本文件其它章节的数字与口径不动。
+记录见[接触字段容差分档](development-evidence/native-contact-frame-normal-tiers/README.md)。
+
 ## 测试项与报告标注
 
 测试项须通过全部独立门禁。
