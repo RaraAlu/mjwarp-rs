@@ -5,7 +5,7 @@
     "zh": "渲染/BVH R09-S1：光照与阴影宿主接线（参数校验/静态参数/按 world 灯数组，CPU-only）",
     "en": "Render/BVH R09-S1: lighting and shadow host wiring (params/static/shadow flag, CPU-only)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "R09 首片（宿主侧，无 GPU、无窗口）：把光照与阴影的**宿主语义**补齐并锁死，为 S2 内核实现铺垫。现状：`params.rs` 已解析 `use_shadows`/`use_ambient_lighting`/`render_skybox`/`shadow_light_fraction`/`enable_per_light_ambient`，但内核**没有任何光照/阴影逻辑**（`render_shade.cu` 只有纹理/法线与几何色）。本片做：① per-light 数据（type/castshadow/attenuation/cutoff/exponent/ambient/diffuse/specular）的长度/类型校验与「方向光 vs 点/聚光」语义映射；② 光照静态参数（`use_shadows`、`shadow_light_fraction`、`enable_per_light_ambient`、ambient 分档）的宿主打包结构；③ `use_shadows=true` 时的前置组合校验（**不引入上游不接受的新拒绝**，只对数组长度/缺失/类型不一致报错）；④ 错误面与 CPU 单测；⑤ 与 skybox 解耦（`render_skybox` 不进 R09，保持既有语义/拒绝面不变）。不动 kernel、设备 `.cu`、`model/render.rs`、`camera_output.rs`。",
     "en": "R09 slice 1 (host-side, no GPU): per-light validation, lighting static parameters and shadow flag wiring, with CPU tests. No kernel changes."
@@ -41,7 +41,8 @@
     "after": null
   },
   "created_at": "2026-10-27T20:22:00.000Z",
-  "updated_at": "2026-10-27T20:19:45.981Z",
+  "updated_at": "2026-10-27T20:25:04.710Z",
+  "closed_at": "2026-10-27T20:25:04.710Z",
   "checks": [
     {
       "kind": "gate",
