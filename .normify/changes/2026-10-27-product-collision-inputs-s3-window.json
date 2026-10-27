@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-product-collision-inputs-s3-window",
+  "title": {
+    "zh": "产品碰撞输入接线 S3 验证窗：10 实体冻结 + 端到端设备对照（材料先报签）",
+    "en": "Product collision inputs wiring S3 validation window"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "执行 S3 验证窗：冻结 10 个实体（新 target `g10_p5_product_collision_wiring_cuda` + 9 个回归：multicontact / primitive / primitive_plane / primitive_sphere_capsule / primitive_branches / mesh_m2 / mesh_m3 / nvrtc_launcher[+hfield-capsule] / stage2 record-C），runner 沿用老纪律（10 exe + 新 MJB fixtures/provenance + M0b/M3 bins 的 sha 守卫、`SHA_OK` 落盘、负载 precheck、guard floor=min(10240, baseline_free−3072)、open 门 10240、0.25 s 采样、pre/post/结束基线、零 Rust 编译、≤2 有效轮、日志无 BOM）；**开窗前把材料一次齐报 Chief 签**（10 sha+字节、runner sha、3 点基线、compute-apps 过滤 0、负载快照、wall、attempt、floor）。结果回填证据 `product-collision-inputs-wiring/`（README S3 窗口段 + `window-receipt.json` `/task_id`），端到端对照 M1/M3 冻结参考（bit_equal 优先 + 4ULP@scale、结构零容差），回归面 failures=0。",
+    "en": "Run the S3 validation window after Chief signs the frozen material."
+  },
+  "modules": {},
+  "acceptance": [
+    "冻结 10 个实体（新 target 需 `--features native-model-probe`，cuda 默认）并复核 sha/字节；runner 守卫含 10 exe + 3 份新 MJB + provenance + 既有 M0b/M3 bins + M1/M3 参考（只读）。",
+    "窗口纪律：零 Rust 编译、负载 precheck（cargo/rustc/cl/nvcc 存在即 abort）、floor 公式/open 门/0.25 s 采样/聚合断言、pre/post/结束基线、无残留、`SHA_OK` 落 facts+日志、日志 UTF-8 无 BOM、attempt ≤2 有效轮、abort/污染留档不拼。",
+    "10 实体独立 exit code 落盘；新 target 对 M1（mesh-box/mesh-cylinder）与 M3（mesh-mesh）冻结参考 bit_equal 优先 + 4ULP@scale + 结构零容差；9 个回归 failures=0（stage2 record-C 只记录）。",
+    "证据：README S3 窗口段 + `window-receipt.json`（`/task_id` = 本任务）+ 窗口日志/采样/guard/facts；参考与冻结 exe 窗口前后 sha 复核未变。",
+    "不写「窗口通过」、不宣称 host↔device 等价/精度/上游等价；产品代码/设备源/判据/容差/参考零改动；check exit 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-product-collision-inputs-s3-entry-window"
+    ],
+    "phase": "架构/接线债务",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/product-collision-inputs-wiring/",
+      "docs/development-evidence/changes/2026-10-27-product-collision-inputs-s3-window.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 12
+  },
+  "note": "Arch 2026-10-27 登记：S3 实现片（0c9497e4）已 verified 且未跑窗口（仅一次本地开发自测、非验证窗）；窗口执行与结果回填拆独立任务，材料先报 Chief 签。S4 同模式。",
+  "revision": {
+    "before": "3367dc61093942a958571d5430da031ed60480c2",
+    "after": null
+  },
+  "created_at": "2026-10-27T10:05:00.000Z",
+  "updated_at": "2026-10-27T10:05:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/product-collision-inputs-wiring/window-receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-product-collision-inputs-s3-window"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
