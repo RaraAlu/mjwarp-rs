@@ -30,11 +30,13 @@ fn build_native_probe() {
     println!("cargo:rerun-if-changed={}", include.display());
     println!("cargo:rerun-if-changed=native/model_probe.cpp");
     println!("cargo:rerun-if-changed=native/model_probe_collision.cpp");
+    println!("cargo:rerun-if-changed=native/model_probe_collision_inputs.cpp");
     println!("cargo:rerun-if-changed=native/model_probe_sparse.cpp");
     println!("cargo:rerun-if-changed=native/g01_fields.inc");
     println!("cargo:rerun-if-changed=native/model_probe_render.cpp");
     println!("cargo:rerun-if-changed=include/mjwarp_native_probe.h");
     println!("cargo:rerun-if-changed=include/mjwarp_collision_probe.h");
+    println!("cargo:rerun-if-changed=include/mjwarp_collision_inputs_probe.h");
     println!("cargo:rerun-if-changed=include/mjwarp_sparse_probe.h");
     let mut build = cc::Build::new();
     build.cpp(true).std("c++17").warnings_into_errors(true);

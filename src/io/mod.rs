@@ -28,6 +28,13 @@ pub use render::{NativeRenderSnapshot, RenderModelInput};
 mod volume;
 #[cfg(feature = "native-model-probe")]
 pub use volume::NativeVolumeSnapshot;
+#[cfg(feature = "native-model-probe")]
+mod collision_inputs;
+#[cfg(feature = "native-model-probe")]
+pub use collision_inputs::{
+    CollisionInputsData, CollisionInputsFieldData, CollisionInputsFieldValue, CollisionInputsFrame,
+    CollisionInputsModelInput, NativeCollisionInputsSnapshot,
+};
 
 mod inertial;
 mod kinematic;
@@ -287,6 +294,31 @@ mod native {
             // SAFETY: Self retains the immutable owner and its DLL on this thread;
             // the capture owns every output buffer and the bridge preflights counts.
             unsafe { super::NativeVolumeSnapshot::capture(self.owner.as_ptr(), self.info) }
+        }
+
+        /// 复制32项碰撞输入的31项模型字段。
+        /// 字段0/1（geom_xpos/geom_xmat）属于mjData，见`collision_inputs_data`。
+        /// 只读；不分配设备缓冲、不做产品接线。
+        pub fn collision_inputs_snapshot(
+            &self,
+        ) -> Result<super::NativeCollisionInputsSnapshot, NativeProbeError> {
+            // SAFETY: Self retains the immutable owner and its DLL on this thread;
+            // the capture owns every output buffer and the bridge preflights counts.
+            unsafe { super::NativeCollisionInputsSnapshot::capture(self.owner_ptr(), self.info) }
+        }
+
+        /// 创建独立mjData帧快照句柄；句柄借用所有者，须先于其关闭。
+        pub fn collision_inputs_data(
+            &self,
+        ) -> Result<super::CollisionInputsData<'_>, NativeProbeError> {
+            // SAFETY: the returned handle borrows self, so it cannot outlive the
+            // immutable owner whose mjData it deletes.
+            unsafe { super::CollisionInputsData::create(self) }
+        }
+
+        /// 同模块原生桥接使用的所有者指针；不导出裸模型指针。
+        pub(crate) fn owner_ptr(&self) -> *const c_void {
+            self.owner.as_ptr()
         }
 
         /// `mj_id2name` 语义对照：返回名称字节或 `None`。

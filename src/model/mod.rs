@@ -26,6 +26,11 @@ pub mod attached;
 pub use attached::{AttachedFields, AttachedModelInput};
 pub mod collision;
 pub use collision::{PrimitiveGeometryFields, PrimitiveGeometryInput};
+pub mod collision_inputs;
+pub use collision_inputs::{
+    COLLISION_INPUTS_FIELDS, CollisionInputsCounts, CollisionInputsFieldKind,
+    CollisionInputsFieldSource, CollisionInputsFieldSpec, CollisionInputsUnit,
+};
 pub mod collision_parameters;
 pub use collision_parameters::{
     PrimitiveGeometryHostBatch, PrimitiveGeometryParameter, PrimitiveGeometryParameters,

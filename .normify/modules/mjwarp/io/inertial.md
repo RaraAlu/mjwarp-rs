@@ -1,7 +1,7 @@
 +++
 uid = "b18de452"
 id = "mjwarp.io.inertial"
-fingerprint = "16c3ff09912deb661432e343db49d46ff6d8f72a61af485520fd15cbe37db024"
+fingerprint = "d9955e4ed3e3d8dec8ac5bb6cb3d019ce4d8028209c36f1e44cace7f20548892"
 
 [name]
 zh = "惯性字段转换与上传"

@@ -1,5 +1,6 @@
 // Reuse both original immutable bridges and their private owner in one TU.
 #include "model_probe_collision.cpp"
+#include "model_probe_collision_inputs.cpp"
 #include "mjwarp_sparse_probe.h"
 
 static_assert(sizeof(mjwarp_sparse_mass_info) == 32);
