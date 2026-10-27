@@ -40,3 +40,23 @@ B3 证据 `receipt.json` 增加 `post_qa_closure` 字段记录以上映射；B3 
 
 - 只更新证据映射与文字；不改任何判据/容差/期望/参考；不改已 verified 数字与结论。
 - UNC-3 仍 `partial`：不宣称全路径 / 全分支 / 跨平台；精度与等价性结论仅限已列 case 与已批准判据内。
+
+## 5. S5 第三次台账收口（2026-10-27；S4 分支收口验证窗 + QA `efccbf63` pass 后）
+
+**任务**：`2026-10-27-unc3-ledger-closure-s5`（owner Arch）。基准：S3 捕获 `43ec5676`（QA `68ca6fa5` pass / 观察 10，收口 `2d4a5f37`+`e4713472`）、S2 静态映射 `c257bc0b`、S4 实现 `b3e56a5f`、S4 验证窗 `055d0c8a`（QA `efccbf63` pass / 0 阻断 / 观察 5）。机器可读回执：`s5-receipt.json`（本目录）。
+
+| 项 | 第二次收口后 | S5 收口后 |
+| --- | --- | --- |
+| UNC-3 分支层（已覆盖） | B1/B2/B3 覆盖的 6 类 + swap | **+ U1/U3/U4/U5/U6/U9 六项「本窗验收覆盖」**（S4 窗，判据内、零放宽） |
+| UNC-3 分支层（边界项） | U2/U7/U8 三类未覆盖 | **U2「不可达 / 非上游防御」；U7/U8「仅限制存在」**；U8 补「设备 1 vs 上游 4 = 真实功能差距」（backlog，不 start） |
+| 容量限制 | 未单列 | **单列两条**：`G5_MC_MESH_DEG_MAX=10`、`G5_MC_MESH_FACE_MAX=16`（vs 上游 `nmeshdegmax`/`npolygonmax` 动态容量） |
+| UNC-1 | mesh-mesh 已接；一般 mesh/hfield-capsule 未覆盖 | **收窄**：nmesh>1 仅 1 例、一般拓扑未穷举、degree>10/polygon>16 仅限制存在、mesh 边/顶点分支层仍静态；**hfield-capsule 计入已覆盖（单 case 275/275 bit）** |
+| status | partial | **partial（不变）** |
+
+**数字口径（QA S4 O1/O2 已吸收）**：case 级比较 **33**（multicontact 3 + launcher 4 + primitive 3 + plane 6 + sphere_capsule 4 + branches 6+4 + M2 2 + M3 1）+ stage2 **17 dump**；「13 组合」为旧口径、已作废；launcher 一律写 4。**回归对象 = M3 窗口冻结二进制**（8 个 `target/m3-freeze`，构建 01:06；M3 提交 `f1e5cda1` 在冻结之后，含 O7 + 测试拆分）。
+
+**runner 改进项（O3–O5，本片不改 runner）**：`facts.txt` 的 `guard_aggregate` 字典串、guard sampler 写文件 BOM、stage2 日志控制台转码。
+
+**改动文件**：`g10-p5-acceptance-map/README.md`（§1 两条 + 新增 §6.2/§7.3）、`g10-p5-acceptance-map/map.json`（UNC-1/UNC-3 增 `s5_update` + evidence_paths + summary note）、`mesh-multicontact-mesh-summary/README.md`（§6 两条 + 新增 §10）、本目录 `README.md` + `s5-receipt.json`。
+
+**边界**：只改文字与映射，不改已 verified 数字/判据/容差/参考/期望值；不开 GPU、不编译、不改代码；不写「窗口通过」「精度达标」「上游等价」「双平台」「任何分支全量覆盖」。
