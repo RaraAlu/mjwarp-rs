@@ -177,6 +177,7 @@ S1 记录（README §6、receipt `pinned_sources.drift_note`、交付记录 `not
 - 禁词扫描（6 个规定词条）：S1 证据、新代码、交付记录 **0 命中**；「上游等价」只在否定句里出现一次
   （README §6「不宣称与上游等价」）。
 - 本复核目录的 `manifest.json` 记录本目录所有文件 sha256/bytes 与本复核引用的关键提交/文件身份。
+  本目录文件统一 LF；manifest 的 sha256 按 LF 字节计（= git blob），三个脚本已固定 LF 输出。
 
 ## 11. 复现命令（QA 侧，只读）
 

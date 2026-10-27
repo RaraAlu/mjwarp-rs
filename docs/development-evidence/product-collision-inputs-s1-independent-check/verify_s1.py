@@ -191,7 +191,7 @@ def main():
     report["checks"] = checks
     report["problems"] = problems
     report["result"] = "PASS" if not problems else "FAIL"
-    OUT.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    OUT.write_bytes((json.dumps(report, ensure_ascii=False, indent=2) + "\n").encode("utf-8"))
     print(f"checks={checks} problems={len(problems)} result={report['result']}")
     print(f"oracle sha={report['oracle_sha256']} bytes={report['oracle_bytes']}")
     for problem in problems:

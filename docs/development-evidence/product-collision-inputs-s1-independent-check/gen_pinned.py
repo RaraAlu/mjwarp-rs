@@ -47,7 +47,7 @@ def main():
         f"# identical=18 of 18 (raw for 16, LF-normalized for 2 with CRLF worktree)",
         f"# mismatched={mismatched}",
     ]
-    OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    OUT.write_bytes(("\n".join(lines) + "\n").encode("utf-8"))
     print(f"rows={len(rows)} mismatched={mismatched}")
 
 

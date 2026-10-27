@@ -40,7 +40,7 @@ def main():
                                cwd=ROOT, capture_output=True, text=True).stdout.strip()
     report["record_blob_in_head"] = head_blob
     report["record_blob_worktree"] = git_blob(REC)
-    OUT.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    OUT.write_bytes((json.dumps(report, ensure_ascii=False, indent=2) + "\n").encode("utf-8"))
     print(f"files={report['count']} problems={len(problems)} result={report['result']}")
     for p in problems:
         print("PROBLEM:", p["path"], p["actual"])
