@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r08-camera-e2e",
+  "title": {
+    "zh": "渲染/BVH R08-S2：多相机选择矩阵 + 异构分辨率端到端（1 验证窗，无新捕获）",
+    "en": "Render/BVH R08-S2: camera-selection matrix and heterogeneous-resolution end-to-end (1 window, no new capture)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R08 第二片（GPU 端到端，1 个验证窗，**无新 authoring 捕获**，复用 S0b/S8 冻结参考）：把上游 `create_render_context(cam_active=bool/str/int/None)` 的选择矩阵（S6a 已实现宿主解析）与 R08-S1 的逐相机输出视图接到产品渲染链路，验证：① 选择矩阵 All/Mask/Names/Indices/Empty 都能渲染且输出布局与 `OutputLayout` 一致；② 异构分辨率（320×240 / 240×180）与异构输出通道（部分相机只开 depth/seg）逐相机与 S8 冻结参考对账；③ 相机隔离——单独渲染某相机得到的图像与组合渲染中该相机区段**逐位相同**；④ 预计算射线与内核动态重建射线（`rays=None`）两条路径并跑；⑤ 同输入两次运行 SHA-256 相同。窗口纪律与老例一致（冻结 sha、3 点基线、compute-apps 过滤 0、floor 公式、零 Rust 编译、attempt ≤2），材料先报 Chief 签。",
+    "en": "R08 slice 2: GPU end-to-end over the camera selection matrix and heterogeneous resolutions/channels, reusing frozen S0b/S8 references, in one signed validation window."
+  },
+  "modules": {},
+  "acceptance": [
+    "选择矩阵：`cam_active` = None(All) / bool 掩码 / 名称列表 / 索引列表 / 空列表 五种形态经产品 `create_render_context` 到渲染全链路可用；激活相机顺序 = `CameraPlan.cameras` 顺序；空列表可渲染（0 相机、0 射线，不 panic、输出缓冲语义与上游一致）。",
+    "异构分辨率/通道：S8 夹具两相机（320×240 与 240×180）在**同一 context 内**渲染；RGB 对同配方参考 **≤1 LSB（位级优先）**、depth **≤4 ULP**、seg **全等**；另覆盖「cam0 RGB+depth+seg、cam1 仅 depth」这类异构通道组合，逐相机对账（未启用通道按错误面拒绝读取）。",
+    "相机隔离：分别以单相机子集渲染的结果与组合渲染中对应相机区段**逐位相同**（RGB/depth/seg 三通道），且 A 相机区段不被 B 相机渲染改写（哨兵断言）；`camera_index` 语义 = 激活顺序位置。",
+    "射线路径：同一场景分别用预计算射线与内核动态重建（`rays=None`，spp=1）渲染，两者对参考均在判据内；同配方、同输入两次运行输出 SHA-256 相同。",
+    "窗口纪律：冻结实体 sha+字节、runner sha、3 点基线、compute-apps 过滤 0、open free≥10240、`floor=min(10240, baseline_free−3072)`、0.25 s 采样、pre/post/结束基线、零 Rust 编译、attempt ≤2、日志 UTF-8 无 BOM；**材料一次齐报 Chief 签后才开窗**，且材料须同时报「窗口 + QA 复核」**总时长预算与开窗时刻**；本片**不做新 authoring 捕获**（复用 S0b/S8 冻结参考）。",
+    "空闲时段与同窗闭合（用户 2026-10-28 官方口径）：**高峰** = 工作日北京时间 09:00–12:00 与 14:00–18:00（法定节假日应排除但仓库无节假日表，工作日这两段一律按高峰保守处理；周末全天空闲）；其余时间为空闲时段，写码/构建/提交/GPU 窗/证据落盘只允许在空闲时段，高峰时段只做只读分析与汇报。窗口 + QA 复核须在**下一段高峰开始前**闭合（最大空闲块 18:00–09:00）；高峰前 10 分钟（08:50 / 13:50）停止新写，在途提交完或工作树恢复干净；估时放不进一个窗则拆两块（先窗口+证据回填，后 QA 复核+提交），**不许跨窗拼一轮、不许把跨窗复核写成「同窗通过」**；到高峰前仍未收口则停手留档、不提交、不算有效轮，下个空闲块重跑。",
+    "不变量：判据零放宽、参考/夹具/容差不改、`fixtures/precision` 与 T4 身份钉子不碰、18 个 G01 pinned 源零改动、`DEVICE_SOURCES`=28、产品入口=6、`CollisionArgs` 504 B 不动、`src/model/render.rs`（500 行）不碰；渲染 kernel 若需改动先拆子文件并按 S7b3 先例报 Arch；必须过 `PrecisionGate::F32Render` + A′ 白名单，depth 0 ULP 依赖的显式 fma 顺序不得破。",
+    "证据：`docs/development-evidence/render-bvh/r08-camera-e2e/`（README + receipt 含 `/task_id` + 窗口日志/采样/守卫/manifest），禁词 0；不写「窗口通过/已覆盖/精度达标/上游等价/双平台」；新文件 ≤500 行。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r08-camera-output"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/context/",
+      "src/render/kernel/",
+      "tests/render_r08_cameras.rs",
+      "tests/support/render_bvh/",
+      "docs/development-evidence/render-bvh/r08-camera-e2e/",
+      "src/render/context.rs",
+      "src/render/mod.rs",
+      "src/render/kernel.rs"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 89
+  },
+  "note": "Arch 2026-10-28 登记：R08 第二片，1 个验证窗、无新捕获（复用 S0b/S8 冻结参考）。只做单 world 家族；nworld>1 归 R10。用户已拍板家族级收口口径（≥1 场景 + 判据内 + 两次运行位等）。",
+  "revision": {
+    "before": "4d9eda269e8c7bee7ac277d7ac7c8a0127e36686",
+    "after": null
+  },
+  "created_at": "2026-10-27T17:46:00.000Z",
+  "updated_at": "2026-10-27T18:09:18.842Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r08-camera-e2e/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r08-camera-e2e"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
