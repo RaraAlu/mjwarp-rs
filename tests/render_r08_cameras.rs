@@ -276,10 +276,10 @@ fn empty_selection_context_and_view_semantics() {
             cameras: 0
         }
     );
-    // 上游 `cam_active=[]` 的渲染发射是 `wp.launch(dim=0)` no-op；产品 renderer 目前对
-    // `nrender==0` 返回 `InvalidArray`（S7b3 未实现项），本片不覆盖发射路径，待 Arch 裁定。
+    // 发射路径：产品已对齐上游 `wp.launch(dim=0)` 的 no-op（空选择返回 Ok、不写输出）；
+    // 由 GPU 用例 `gpu_empty_selection_render_is_noop` 在窗口内验证。
     println!(
-        "r08[host] 空选择：0 相机/0 射线/无缓冲，视图越界读取已拒绝；发射路径未覆盖（产品当前拒绝 nrender=0）"
+        "r08[host] 空选择：0 相机/0 射线/无缓冲，视图越界读取已拒绝；发射路径由窗口 GPU 用例覆盖"
     );
 }
 
@@ -311,4 +311,10 @@ fn gpu_dynamic_rays_depth_seg_bitwise_matches_precomputed() {
 #[ignore = "需要 GPU + NVRTC（窗口内执行）"]
 fn gpu_heterogeneous_depth_seg_channels() {
     r08_gpu::heterogeneous_depth_seg_channels();
+}
+
+#[test]
+#[ignore = "需要 GPU + NVRTC（窗口内执行）"]
+fn gpu_empty_selection_render_is_noop() {
+    r08_gpu::empty_selection_render_is_noop();
 }

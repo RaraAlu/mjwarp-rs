@@ -117,7 +117,7 @@ impl MegakernelRenderer {
         let nrender = resolved.nrender();
         let total_rays = layout.total_rays;
         if nrender == 0 || total_rays == 0 {
-            return Err(LauncherError::InvalidArray("render_cameras"));
+            return Ok(()); // 上游 `wp.launch(dim=0)` 为 no-op：空选择不发射、不写输出
         }
         let expected_rays = total_rays
             .checked_mul(nsamples)

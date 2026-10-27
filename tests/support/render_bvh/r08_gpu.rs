@@ -253,3 +253,59 @@ pub fn heterogeneous_depth_seg_channels() {
         resolved.output.depth_adr, resolved.output.seg_adr
     );
 }
+
+/// 空选择渲染：与上游 `wp.launch(dim=0)` 一致的 no-op——返回 `Ok`、零输出写入（缓冲保持未分配、
+/// 设备显存无增量）、不 panic；覆盖 renderer.rs 与 megakernel.rs 两处守卫。
+pub fn empty_selection_render_is_noop() {
+    use mjwarp_rs::render::ImageOutput;
+    let session = s7b2::session();
+    let fields = render_fields();
+    let model = CameraModel::from_fields(&fields).expect("相机模型");
+    let recipe = recipe_depth_seg();
+    let empty = r08::render_params(CameraActive::Empty);
+    let context = s7b2::create_context(&session, &fields, &empty);
+    let resolved = context.resolved();
+    assert_eq!(resolved.nrender(), 0);
+    assert_eq!(resolved.output.total_rays, 0);
+    for output in [
+        ImageOutput::Rgb,
+        ImageOutput::Depth,
+        ImageOutput::Segmentation,
+    ] {
+        assert!(
+            !context.outputs().is_enabled(output),
+            "{output:?} 空选择不应分配"
+        );
+    }
+    let poses = r08::poses_for_plan(&recipe, &model, resolved);
+    // megakernel 需要 `&RayBuffer`：用完整 plan 的合法射线；空选择在射线校验前提前 no-op。
+    let full = s7b2::create_context(&session, &fields, &default_params());
+    let rays = r08::rays_for_plan(&session, &fields, full.resolved());
+    let memory_before = mjwarp_rs::render::device_memory();
+    let mega = MegakernelRenderer::new(&session).expect("S7b2 内核编译");
+    mega.render(&context, &fields, &model, &poses, &rays)
+        .expect("空选择 megakernel 应为 Ok no-op");
+    mega.render(&context, &fields, &model, &poses, &rays)
+        .expect("空选择 megakernel 第二次仍为 Ok no-op");
+    let depth_seg = DepthSegRenderer::new(&session).expect("S7b1 内核编译");
+    depth_seg
+        .render(&context, &fields, &model, &poses, None, true)
+        .expect("空选择 depth/seg 应为 Ok no-op");
+    let memory_after = mjwarp_rs::render::device_memory();
+    if let (Some(before), Some(after)) = (memory_before, memory_after) {
+        assert_eq!(before, after, "空选择渲染不得分配显存");
+    }
+    for output in [
+        ImageOutput::Rgb,
+        ImageOutput::Depth,
+        ImageOutput::Segmentation,
+    ] {
+        assert!(
+            context.outputs().read(output).is_err(),
+            "{output:?} 空选择不应有可读数据"
+        );
+    }
+    println!(
+        "r08[empty] 空选择：mega/depth-seg 均返回 Ok no-op，缓冲未分配、显存无增量、无可读输出"
+    );
+}

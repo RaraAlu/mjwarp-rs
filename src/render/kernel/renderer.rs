@@ -68,7 +68,7 @@ impl DepthSegRenderer {
         let total_rays = layout.total_rays;
         let nrender = resolved.nrender();
         if nrender == 0 || total_rays == 0 {
-            return Err(LauncherError::InvalidArray("render_cameras"));
+            return Ok(()); // 上游 `wp.launch(dim=0)` 为 no-op：空选择不发射、不写输出
         }
         let model_arrays = ModelRenderArrays::from_fields(fields)?;
         let camera = CameraDevice::build(model, resolved, camera_poses)?;
