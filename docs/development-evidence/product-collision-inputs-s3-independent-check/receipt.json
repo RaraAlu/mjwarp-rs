@@ -1,0 +1,273 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-product-collision-inputs-s3-independent-check",
+  "kind": "independent_check",
+  "reviewed_task": "2026-10-27-product-collision-inputs-s3-entry-window",
+  "reviewed_commit": "0c9497e4b21d8f5ca65583e6c37d846060348c0b",
+  "reviewed_parent": "41fa049cfffa69e9a95bdb716d296630a3b214b9",
+  "head_at_review": "152b16d8bf7f1666b6a29c3d5f9a8e1d7b15d6a0",
+  "window_task": "2026-10-27-product-collision-inputs-s3-window (registered only; window not opened)",
+  "verdict": "pass",
+  "blockers": [],
+  "observation_counts": {
+    "general": 1,
+    "suggestion": 9,
+    "total": 10
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "general",
+      "title": "The GPU development self-test ran outside a signed validation window (process deviation)",
+      "detail": "logs/s3-targeted-native.log records a 41.77 s GPU run (2 passed) on the local RTX 4070 Ti SUPER with CUDA 12.8.1 NVRTC, against an unfrozen target with no window guard, baselines or frozen executables. Under the team GPU-window discipline this is GPU work outside a signed window. The handling is compliant in the record: README §9.3, receipt.s3.dev_self_test.note and the window task note all label it a local development self-test (not a validation window), receipt.s3.window.opened=false and boundaries.window_passed_claimed=false, and no window conclusion is drawn; the window must re-run frozen executables after sign-off.",
+      "evidence": [
+        "logs/dev-self-test-disclosure.txt"
+      ],
+      "proposed_action": "Register this self-test in the window material/ledger (time, GPU, command, purpose, duration) and state that future dev self-tests also need a pre-report for out-of-window GPU use.",
+      "impact": "process only; the numbers are not used as window evidence and no conclusion depends on them"
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "title": "'unit tests are pure CPU, no GPU' is imprecise in a CUDA-ready environment",
+      "detail": "README §9.1 calls the unit tests pure CPU / no GPU. production_availability_follows_cached_narrowphase_status (cfg feature=cuda) calls narrowphase_backend_status() -> probe_backend_with_cuda(); when driver+device+NVRTC are available it runs compile_program() (NVRTC PTX compilation, no CUDA context and no kernel launch). On this machine NVRTC is not on PATH, so the probe short-circuits at nvrtc_library_present() and the 9 tests finish in 0.03 s; on a machine with CUDA bin on PATH the default unit gate would do a driver query plus NVRTC compilation.",
+      "evidence": [
+        "logs/product-entry-default-tests.txt",
+        "logs/gate-equivalent.txt"
+      ],
+      "proposed_action": "Reword to 'no CUDA context, no kernel launch, does not depend on device results', or make the consistency test inject the compile status instead of probing",
+      "impact": "claim precision and gate cost only"
+    },
+    {
+      "id": "O3",
+      "severity": "suggestion",
+      "title": "Machine-readable JSON line-count exceptions are not recorded",
+      "detail": "provenance.json has 897 lines and receipt.json 613 lines (both > 500). The delivery record entries for both lack machine_readable_exception (S1 did flag its oracle/receipt entries) and the receipt s3 section does not mention it either.",
+      "evidence": [
+        "logs/evidence-format-notes.txt",
+        "logs/line-counts.txt"
+      ],
+      "proposed_action": "Add machine_readable_exception: true in the delivery record / receipt.s3 and note it in README §9.6",
+      "impact": "evidence format conformance only"
+    },
+    {
+      "id": "O4",
+      "severity": "suggestion",
+      "title": "README §9.1 states the wrong line count for product_entry_tests.rs",
+      "detail": "§9.1 says 346 lines; the file has 366 LF lines (§9.6 and the delivery record both say 366).",
+      "evidence": [
+        "logs/evidence-format-notes.txt",
+        "logs/line-counts.txt"
+      ],
+      "proposed_action": "Change 346 to 366",
+      "impact": "documentation only"
+    },
+    {
+      "id": "O5",
+      "severity": "suggestion",
+      "title": "README §9.3 has a type-name typo",
+      "detail": "It writes ConfigInputsModelInput; the product type is CollisionInputsModelInput.",
+      "evidence": [
+        "logs/evidence-format-notes.txt"
+      ],
+      "proposed_action": "Fix the type name",
+      "impact": "documentation only"
+    },
+    {
+      "id": "O6",
+      "severity": "suggestion",
+      "title": "Three-state doc and code disagree about 'probe passed but program missing'",
+      "detail": "README §9.1 puts 'probe passed but the program cannot be obtained' in state ② (device/program unavailable), but the code and the unit test return DeviceFailure (state ③); the test file header comment also lists it under ② while asserting DeviceFailure.",
+      "evidence": [
+        "README.md"
+      ],
+      "proposed_action": "Classify it explicitly as ③, or reword ② as 'probe-stage failure'",
+      "impact": "diagnostics wording only; behaviour is safe"
+    },
+    {
+      "id": "O7",
+      "severity": "suggestion",
+      "title": "The nworld rejection test has no executor-zero-call assertion",
+      "detail": "rejects_non_single_world_before_device_work goes through the production entry and has no injection point, so it cannot count executor calls; the zero-call assertions live in the injected ①/② fallback tests. 'Before any device probe' is guaranteed by code order (prepare_inputs is the first step of run_product_collision), not by that test's assertions.",
+      "evidence": [
+        "README.md"
+      ],
+      "proposed_action": "If the record says the unit test asserts zero executor calls, limit that wording to the injected fallback cases",
+      "impact": "wording precision only"
+    },
+    {
+      "id": "O8",
+      "severity": "suggestion",
+      "title": "The end-to-end target is not compiled by the default gate",
+      "detail": "tests/g10_p5_product_collision_wiring_cuda.rs has #![cfg(all(feature = cuda, feature = native-model-probe))]; the default gate (default features, no native-model-probe) does not compile it. This slice covers it with the targeted self-test and the window.",
+      "evidence": [
+        "logs/gate-equivalent.txt"
+      ],
+      "proposed_action": "Register 'clippy + compile e2e with native-model-probe' as a targeted gate item",
+      "impact": "future changes to the e2e target have no automatic protection outside the window"
+    },
+    {
+      "id": "O9",
+      "severity": "suggestion",
+      "title": "Two S3 logs are CRLF",
+      "detail": "logs/s3-fmt-clippy.log and logs/s3-mjb-generation.log are CRLF (no BOM); the other three S3 logs are LF.",
+      "evidence": [
+        "logs/evidence-format-notes.txt"
+      ],
+      "proposed_action": "Emit LF for all evidence logs so cross-machine sha comparisons stay stable",
+      "impact": "evidence hygiene only"
+    },
+    {
+      "id": "O10",
+      "severity": "suggestion",
+      "title": "'gate ran twice with identical results' has only the final run archived",
+      "detail": "s3-gate.log states the gate ran twice with identical results and counts, but the four json files under .normify/runs/<task>/ are overwritten in place; only the final run is on disk. Same pattern as the S1/S2 reviews.",
+      "evidence": [
+        "logs/gate-equivalent.txt"
+      ],
+      "proposed_action": "Keep both run directories, or state in the receipt that only the final tree is archived",
+      "impact": "traceability only"
+    }
+  ],
+  "verified_items": [
+    {
+      "item": "product entry order and three-state fallback",
+      "result": "pass",
+      "detail": "prepare_inputs (nworld=1 + S2 adapter + existing validation) runs first; Host returns Selected without probing; Device probes availability then uses the cached program; ①FeatureDisabled / ②DeviceUnavailable(reason) / ③DeviceFailure(text); no panic, no retry; product_entry.rs has no unwrap/expect/panic",
+      "evidence": [
+        "logs/product-entry-default-tests.txt",
+        "logs/product-entry-nocuda-tests.txt"
+      ]
+    },
+    {
+      "item": "unit tests rerun in both feature configurations",
+      "result": "pass",
+      "detail": "default features: 9 passed / 0 failed (0.03 s); --no-default-features --features cuda-probe: 9 passed / 0 failed including the cfg(not(cuda)) production FeatureDisabled branch",
+      "evidence": [
+        "logs/product-entry-default-tests.txt",
+        "logs/product-entry-nocuda-tests.txt"
+      ]
+    },
+    {
+      "item": "run and ABI untouched",
+      "result": "pass",
+      "detail": "collision_gpu.rs diff = +4 lines (mod + pub use only), no run() body change; abi.rs unchanged; CollisionArgs 504 B / 6 entries / DEVICE_SOURCES 28 assertions ran in the unit gate; no Cargo.toml change"
+    },
+    {
+      "item": "nworld=1 only, rejection before device work",
+      "result": "pass",
+      "detail": "prepare_inputs rejects meta.nworld != 1 with InvalidArgument before any availability probe or program fetch (code order); multi-world is not supported and not claimed",
+      "evidence": [
+        "logs/product-entry-default-tests.txt"
+      ]
+    },
+    {
+      "item": "end-to-end criterion not loosened",
+      "result": "pass",
+      "detail": "tests/support/mesh_multicontact_compare_support.rs is not in the S3 commit; the e2e target calls the existing compare_case_with_geom_order (line 275 of that unchanged file); frozen M1 (c83baffe…) / M3 (96e7895d…) references keep their sha; m1/m2/m3 evidence dirs have zero diff",
+      "evidence": [
+        "logs/reference-guards.txt",
+        "logs/unchanged-paths.txt"
+      ]
+    },
+    {
+      "item": "host-side input parity rerun",
+      "result": "pass",
+      "detail": "QA reran only the no-GPU ignored test s1_snapshot_of_pinned_mjb_matches_frozen_case_bins: 1 passed / 0 failed; each of the three cases reports s1_fields=32/32 bins_match=true mismatches=0",
+      "evidence": [
+        "logs/e2e-host-s1-vs-bins.txt"
+      ]
+    },
+    {
+      "item": "device-side numbers reviewed from evidence only",
+      "result": "pass (evidence only, not rerun)",
+      "detail": "logs/s3-targeted-native.log: 2 passed / 41.77 s, nacon=4=ref_count, bit_equal=12/12, max_dist/pos/frame ULP=0, contact.geom=[1,0]/[1,0]/[0,1], failures=0. QA did not rerun the GPU test (no window), so this is a log/code/criterion review",
+      "evidence": [
+        "logs/dev-self-test-disclosure.txt"
+      ]
+    },
+    {
+      "item": "new MJB fixtures and provenance",
+      "result": "pass",
+      "detail": "3 MJB in the evidence fixtures dir with bytes/sha matching the receipt, README and target guards; provenance: mujoco 3.12.0 / authoring_only / 96 arrays / result PASS; QA recomputation of fixtures, XML, references, qpos and all 96 arrays against the frozen bins: 36 checks, 0 problems; generator pins 3.12.0 with a FAIL path",
+      "evidence": [
+        "verify_provenance.json",
+        "logs/mjb-fixtures.txt"
+      ]
+    },
+    {
+      "item": "gates reproduced",
+      "result": "pass",
+      "detail": "fmt/clippy/clippy-cuda/clippy-native exit 0 with 0 warnings; cargo test --locked 1006 passed / 0 failed / 376 ignored, matching the archived unit.json",
+      "evidence": [
+        "logs/gate-equivalent.txt",
+        "logs/unit-gate-equivalent.txt"
+      ]
+    },
+    {
+      "item": "unchanged paths, scope, line ratchet",
+      "result": "pass",
+      "detail": "26 unchanged paths diff 0; 25 committed files (20 non-.normify) all inside the declared ranges, 0 out of scope; all code/test/README/generator files <= 500 LF lines (provenance.json 897 and receipt.json 613 are machine-readable JSON, see O3)",
+      "evidence": [
+        "logs/unchanged-paths.txt",
+        "logs/scope.txt",
+        "logs/line-counts.txt"
+      ]
+    },
+    {
+      "item": "receipt and claim scan",
+      "result": "pass",
+      "detail": "receipt s3.task_id correct; top-level task_id still S1, s2 task_id still S2; s3 {path,sha} entries match; 0 hits for the six regulated claim terms in files changed by S3; window never claimed as passed (window.opened=false)",
+      "evidence": [
+        "verify_s3_checks.json",
+        "logs/forbidden-terms.txt"
+      ]
+    }
+  ],
+  "environment": {
+    "os": "Windows",
+    "repo": "D:\\Rust\\mjwarp-rs",
+    "toolchain_for_targeted_tests": "1.99.0-x86_64-pc-windows-msvc",
+    "toolchain_for_gate_commands": "1.99.0 (rust-toolchain.toml)",
+    "mujoco_dll": "target/toolchains/mujoco-3.12.0/package/bin/mujoco.dll",
+    "cuda_nvrtc_on_path_during_qa": false,
+    "gpu_used_by_qa": false,
+    "window_opened_by_qa": false,
+    "window_facts_in_scope": false,
+    "product_code_changed": false,
+    "criteria_or_fixtures_changed": false
+  },
+  "gates": {
+    "applicable": false,
+    "result": "not applicable: this task's checks contain no gate items (docs-only independent check); normify gate reports no gate reference for the task (exit 1), which is expected",
+    "units_verified_instead": "the reviewed S3 slice's own gates were independently rerun by QA and matched the archived run json (see verified_items 'gates reproduced')"
+  },
+  "boundaries": [
+    "host-side read-only review: QA opened no window, did not run the GPU e2e test and did not run device kernels",
+    "window facts (10 frozen entities, exits, baselines, floor, sampling, zero-compile) are out of scope because the window task only registered and the window has not been opened",
+    "S3 does not open a window; this review makes no window, host-device equivalence, precision, performance, cross-platform or acceptance conclusion",
+    "the S3 normify gate was not rerun to avoid overwriting the verified task's run artifacts; the same gates.toml commands were run directly and compared with the archived run json"
+  ],
+  "evidence_files": [
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/README.md",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/receipt.json",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/manifest.json",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/verify_s3_checks.py",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/verify_s3_checks.json",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/verify_provenance.py",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/verify_provenance.json",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/product-entry-default-tests.txt",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/product-entry-nocuda-tests.txt",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/e2e-host-s1-vs-bins.txt",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/gate-equivalent.txt",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/unit-gate-equivalent.txt",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/unchanged-paths.txt",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/scope.txt",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/line-counts.txt",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/evidence-format-notes.txt",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/dev-self-test-disclosure.txt",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/forbidden-terms.txt",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/mjb-fixtures.txt",
+    "docs/development-evidence/product-collision-inputs-s3-independent-check/logs/reference-guards.txt"
+  ]
+}

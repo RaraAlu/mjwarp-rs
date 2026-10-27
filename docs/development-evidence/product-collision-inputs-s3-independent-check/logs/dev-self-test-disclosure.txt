@@ -1,0 +1,29 @@
+# Dev self-test disclosure (the GPU run happened before any signed window)
+
+README §9 line 262 : '本片不开验证窗 … 本 README 不写「窗口通过」'
+README §9.3 lines 329-335: '本片开发自测（非验证窗）实际结果 … 2 passed … bit_equal=12/12 …'
+README §9.3 line 333: '口径：这是一次本地开发自测（单 target 直接跑，无窗口 guard/负载声明/冻结 exe）'
+README §9.3 line 334: '窗口结论以窗口任务冻结 exe 的独立重跑为准'
+
+receipt.s3.dev_self_test:
+{
+  "note": "single local development self-test run (not a validation window): no freeze, no load guard, no pre/post baseline discipline. Window conclusions must come from the separately signed window task re-running frozen executables.",
+  "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features native-model-probe --test g10_p5_product_collision_wiring_cuda -- --ignored --test-threads=1 --nocapture",
+  "environment": {
+    "mujoco_dll": "target/toolchains/mujoco-3.12.0/package/bin/mujoco.dll",
+    "nvrtc": "target/toolchains/cuda-12.8.1/bin on PATH",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER (local dev machine)"
+  },
+  "result": "2 passed / 0 failed / 0 ignored; e2e_summary cases=3 bit_equal=12/12 failures=0",
+  "log": "docs/development-evidence/product-collision-inputs-wiring/logs/s3-targeted-native.log",
+  "window_opened": false
+}
+
+receipt.s3.window.opened: False
+
+window task note (.normify/changes/2026-10-27-product-collision-inputs-s3-window.json):
+  'S3 实现片（0c9497e4）已 verified 且未跑窗口（仅一次本地开发自测、非验证窗）…'
+
+logs/s3-targeted-native.log tail: 'test result: ok. 2 passed … finished in 41.77s'
+=> the run is disclosed as a non-window dev self-test and is not used as a window conclusion;
+   per the team GPU-window discipline it is still a deviation because GPU work happened outside a signed window.
