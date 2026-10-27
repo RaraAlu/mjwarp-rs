@@ -408,14 +408,14 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
 - 3 点基线：`3086,12976,4,31,596.36` / `3086,12976,2,31,596.36` / `3082,12980,2,31,596.36`；
   open free 12976 ≥ 10240；**floor = min(10240, 12976−3072) = 9904**；post `3086,12976,1,32`；
   结束基线 `3086,12976,1,32` / `3086,12976,3,31` / `3086,12976,1,31`。
-- guard sampler：**867 样本**（目标间隔 0.25 s；实测中位 ≈0.276 s，范围 0.2720–0.2900 s），
+- guard sampler：**867 样本**（目标间隔 0.25 s；实测中位 ≈0.276 s，范围 0.2721–0.2901 s），
   `used_peak=4142`、`used_min=3087`、`free_min=11920`（≥ floor）、
   `util_max=31%`、util≥80% streak=0、`process_exited=true`、residual=0、**无 abort**。
 - delta 三口径：vs guard baseline **1051 MiB** / vs 首样本 **1051** / vs 采样最小 **1055**。
 - **预算偏差（`budget deviation`，OW1，如实记录、不重跑、不掩盖）**：
   `budget_estimate_mib="270–320"`、`measured_delta_peak_mib=1051`，**≈3.4× 预算中点（3.3–3.9× 区间）**。
   峰值：`seq=776` @ `2026-10-27T17:03:36.7225390+08:00`，**采样目标间隔 0.25 s（实测中位 ≈0.276 s，
-  范围 0.2720–0.2900 s）**，相邻采样 `3092 → 4142 → 3092`；`samples_gt_3120=1/867`；排除该点
+  范围 0.2721–0.2901 s）**，相邻采样 `3092 → 4142 → 3092`；`samples_gt_3120=1/867`；排除该点
   `max=3109`、**sustained_delta=18 MiB**（median 3091 / p99 3092）。**未触发项**：`increment_limit 3072`
   未触、`free_min 11920 > floor 9904`、`guard_aborted=false`。`rerun=false`、`deviation_recorded=true`。
 - **归因推断（未证实到具体分配点）**：launcher 日志写入 **17:03:36.808**（退出后），尖峰
