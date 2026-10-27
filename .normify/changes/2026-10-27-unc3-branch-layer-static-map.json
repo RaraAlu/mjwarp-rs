@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-unc3-branch-layer-static-map",
+  "title": {
+    "zh": "UNC-3 S2：mesh 分支层静态映射表 + 老片（sphere-box/capsule-box/box-box）分支级债务标注（无 GPU）",
+    "en": "UNC-3 S2: static branch-layer map for mesh and legacy primitive slices"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "方向③ S2（无 GPU）：① 把设备侧 multicontact mesh 分支层（三入口/guard/回退路径）逐分支对到 pinned 源码与现有 case/bins（G5 13 组合、B1 6、B2 4、B3 6+4 swap、M2 两 case、M3 mesh-mesh、S3 新参考），逐条标「已 case 覆盖 / 仅静态核对 / 未覆盖」并给源码行号；② 老片 sphere-box / capsule-box / box-box 的分支级标注（静态清单 + 源码依据），按四类写：可验证（有现成参考/可加 case）、不可达或非上游防御、仅限制存在、未覆盖；③ 产出对照表给 S5 台账直接用，不改判据、不改代码、不开 GPU 窗口。",
+    "en": "Static branch-layer mapping without GPU windows."
+  },
+  "modules": {},
+  "acceptance": [
+    "mesh 分支层映射表：设备侧 multicontact mesh 的函数/分支（含 degree>10、nvert>16、has_poly=false 回退、single-contact fallback、swap）逐条给出源码文件+行号、pinned 对应位置、现有 case/bins 覆盖来源；每条标「已 case 覆盖 / 仅静态核对 / 未覆盖」，不得把「仅静态核对」写成「覆盖」。",
+    "老片分支级清单：sphere-box / capsule-box / box-box 每条分支给源码依据与参考来源，四类（可验证 / 不可达或非上游防御 / 仅限制存在 / 未覆盖）分开写；无 GPU 依赖。",
+    "证据 docs/development-evidence/unc3-branch-layer-static-map/（README + branch-map.json + receipt.json，manifest sha 复验），check exit 0；不改 src/tests/fixtures/判据/容差，不开 GPU/不编译。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-unc3-branch-closure-s3-observation-closure"
+    ],
+    "phase": "G10@P5 分支收口",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/unc3-branch-layer-static-map/",
+      "docs/development-evidence/changes/2026-10-27-unc3-branch-layer-static-map.json"
+    ],
+    "resources": [],
+    "priority": 7
+  },
+  "note": "Arch 2026-10-27 登记（方向③ brief 第 4 条：老片债务 + mesh 分支层标注；无 GPU、无编译，可与 S4 窗口排期穿插）。",
+  "revision": {
+    "before": "7d6a7c28d34dab12a98d4d9c012622153e42a163",
+    "after": null
+  },
+  "created_at": "2026-10-27T10:25:00.000Z",
+  "updated_at": "2026-10-27T02:25:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/unc3-branch-layer-static-map/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-unc3-branch-layer-static-map"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
