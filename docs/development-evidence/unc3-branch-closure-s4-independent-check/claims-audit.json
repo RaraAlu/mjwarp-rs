@@ -1,0 +1,180 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-unc3-branch-closure-s4-independent-check",
+  "reviewed_commits": {
+    "pre_window_materials": "67810d8b",
+    "window_backfill": "055d0c8a",
+    "head_at_review": "055d0c8a"
+  },
+  "method": "read-only: logs/samples/guard/frozen-exe sha recompute with Python; no window re-open, no cargo, no GPU; mesh constants reproduction re-run in pinned venv (CPU mujoco)",
+  "checks": [
+    {
+      "id": "C1",
+      "claim": "10 entities exit all 0 and per-entity logs consistent",
+      "result": "pass",
+      "evidence": {
+        "exit_codes": "facts: 10 named entities all =0; failed_entities=0",
+        "entity_logs_test_result_ok": "10/10 (2 branch + launcher + multicontact + primitive + plane + sphere_capsule + branches + m2 + m3 + stage2)",
+        "nonzero_failure_lines": [],
+        "window_start_end": "10:36:58.831 -> 10:40:57.659 (+08:00)",
+        "body_wall_s": {"claimed": 238.8, "recomputed": 238.828},
+        "runner_total_wall_s": 251.5
+      }
+    },
+    {
+      "id": "C2",
+      "claim": "samples/guard/floor/delta recomputed from samples.csv + guard.log",
+      "result": "pass",
+      "evidence": {
+        "samples": 871,
+        "used_peak": 3144,
+        "used_min": 3035,
+        "free_min": 12918,
+        "util_max": 46,
+        "util_streak_ge80": 0,
+        "residual": 0,
+        "process_exited": true,
+        "delta_three": {"vs_guard_baseline_3049": 95, "vs_first_baseline_point_3048": 96, "vs_samples_min_3035": 109},
+        "floor": 9942,
+        "floor_formula": "min(10240, 13014-3072)",
+        "free_min_above_floor": true,
+        "open_gate_free_ge_10240": true,
+        "baseline_points": ["3048,13014,9,31", "3049,13013,10,31", "3049,13013,9,31"],
+        "post": "3048,13014,18,31",
+        "guard_aggregates_match": "7/7",
+        "facts_sampler_matches": true,
+        "temp_max_c": 32,
+        "facts_guard_aggregate_defect_note": "guard_aggregate=OrderedDictionary invalid line (known M3-type defect); authoritative = guard.log + samples.csv"
+      }
+    },
+    {
+      "id": "C3",
+      "claim": "sha-guards 25 lines all match; post-window 10 exe; runner; references",
+      "result": "pass",
+      "evidence": {
+        "sha_guard_lines": 25,
+        "breakdown": {"exes": 10, "fixtures": 13, "references": 2},
+        "claimed_match": "25/25",
+        "independent_recompute_match": "25/25",
+        "binary_shas_10": "10/10 match (target/s4-freeze actual hashes)",
+        "runner": {"bytes": 12013, "sha256": "e737966384a8077e15a0995d9565eff0448ea10fad683fb67ed1fb8446c62109", "match": true},
+        "s3_references": {"upstream-branch-closure-gpu.json": "24d89e9248cccece96baff2089954e438ca7956fe8a71ccc61df318208709db1", "upstream-mesh-limits-gpu.json": "b6abb8fa5820c103f6d880936d6ae95fa60035e5b9ce49a0364b15de1def19ad"},
+        "old_references": {"count": 11, "mtime": "2026-10-25", "git_clean": true}
+      }
+    },
+    {
+      "id": "C4",
+      "claim": "branch 9 cases nacon==ref_count, failures=0; U7/U8 record-only with count/dist/pos",
+      "result": "pass",
+      "evidence": {
+        "branch": [
+          {"case": "plane-cylinder-degenerate", "nacon": 3, "ref": 3, "failures": 0},
+          {"case": "plane-box-corner-face-down", "nacon": 4, "ref": 4, "failures": 0},
+          {"case": "plane-box-corner-face-up", "nacon": 4, "ref": 4, "failures": 0},
+          {"case": "plane-box-corner-tilt-x", "nacon": 2, "ref": 2, "failures": 0},
+          {"case": "plane-box-corner-tilt-y", "nacon": 2, "ref": 2, "failures": 0},
+          {"case": "plane-box-corner-single", "nacon": 1, "ref": 1, "failures": 0},
+          {"case": "plane-capsule-lying", "nacon": 2, "ref": 2, "failures": 0},
+          {"case": "plane-cylinder-deep-tilt", "nacon": 4, "ref": 4, "failures": 0},
+          {"case": "mesh-mesh-two-assets", "nacon": 3, "ref": 3, "failures": 0}
+        ],
+        "u7": {"device_count": 1, "ref_count": 1, "device_dist": [-0.010000005], "ref_dist": [-0.010000002], "wording": "count=1 consistent with degree>10 limit semantics"},
+        "u8": {"device_count": 1, "ref_count": 4, "wording": "upstream supports 20-vertex polygons (dynamic capacity); device FACE_MAX=16 per-polygon fallback -> behavior difference / limitation exists", "in_denominator": false},
+        "fixture_criteria_code_unchanged_for_u7_u8": true
+      }
+    },
+    {
+      "id": "C5",
+      "claim": "launcher 4 cases: new hfield-capsule 275/275 bit, ULP 0; existing 3 numbers unchanged",
+      "result": "pass",
+      "evidence": {
+        "cases": [
+          {"case": "hfield-sphere", "bit_equal": "314/314", "ulp": 0},
+          {"case": "sdf-box", "bit_equal": "3122/3122", "ulp": 0},
+          {"case": "ellipsoid-box", "bit_equal": "80/80", "ulp": 0},
+          {"case": "hfield-capsule", "bit_equal": "275/275", "ulp": 0}
+        ],
+        "all_failures_zero": true,
+        "existing_three_untouched": "no diff to launcher case list/criteria after b3e56a5f; tests/ diff b3e56a5f..055d0c8a empty"
+      }
+    },
+    {
+      "id": "C6",
+      "claim": "zero diff on src/fixtures/compare; zero rust compile in window; no BOM logs",
+      "result": "pass",
+      "evidence": {
+        "zero_diff_range": "git diff 61b771ec 055d0c8a -- src fixtures scripts/compare_primitive_capture.py tests/support/primitive_compare.rs tests/support/launcher_compare_support.rs Cargo.* = empty",
+        "tests_diff_during_window": "empty",
+        "compare_script_sha": "27ecb54a199798f5ea00c4accb6db65e65734cd023daa9102bc151557f3ccced",
+        "target_debug_files_modified_in_window": 0,
+        "zero_compile_scan": "independent scan of target/debug (+/-5 min, excluding s4 dirs): 0 files",
+        "bom_scan": "all S4 evidence files have no BOM; guard.log evidence copy 654 B 2bb90c90..., raw 657 B b503d9a9..., content equal after stripping 3-byte BOM"
+      }
+    },
+    {
+      "id": "C7",
+      "claim": "wording: no positive window-pass or covered claims; U8 fixed sentence present",
+      "result": "pass",
+      "evidence": {
+        "hits_all_are_negations_or_forbidden_lists": true,
+        "u8_sentence_locations": ["README §1.1", "README §10"],
+        "boundaries": {"window_claimed_passed": false, "branch_claimed_covered": false, "u7_u8_record_only": true}
+      }
+    },
+    {
+      "id": "C8",
+      "claim": "secondary freeze provenance: 2 s4-build + 8 m3-freeze, superseded archive, historical records untouched",
+      "result": "pass",
+      "evidence": {
+        "freeze_dir_10_exe_match": "10/10",
+        "m2_sha": "a6b3548512004221c5be13c52893789d50231a4d7580b694df860c5a7e3f14db",
+        "m3_sha": "e502b8eb8678016718196bf50b532050884162647e268128467fc7a03224b69f",
+        "s4_rebuilds_are_m3_signed": true,
+        "superseded_rebuild": {"m2": "277b043594b4c1ab4167c66258405146b5eedf5bf784fd1ac4d15dc7ebf3e3de", "m3": "468c1a967318ae309ea6757fb495f014f417c3e7827219f2b499a9cb790991c3"},
+        "historical_changes_records": "only docs/development-evidence/changes/...s4-window.json added in 61b771ec..055d0c8a"
+      }
+    },
+    {
+      "id": "C9",
+      "claim": "regressions no failures (multicontact/primitive/plane/sphere_capsule/branches/m2/m3/stage2)",
+      "result": "pass",
+      "evidence": {
+        "multicontact": "cylinder-box 314/314 bit; box-box-margin 391/392 bit (max_pos_ulp=1); mesh-mesh Contact 80/80; failures=0",
+        "primitive": "sphere-box-shallow/-deep/capsule-box each 80/80; failures=0",
+        "plane": "6 cases (4 with nacon=1, box/mesh nacon=3); failures=0",
+        "sphere_capsule": "4 cases nacon=1; failures=0",
+        "branches": "6 fixtures + 4 swap calls; failures=0",
+        "mesh_m2": "2 cases 4/4 bit, ULP 0, contact.geom=[1,0]",
+        "mesh_m3": "1 case 4/4 bit, ULP 0, contact.geom=[0,1]",
+        "stage2": "17 dumps (8 cases x2 + sdf-box) all 'two runs identical=true'; record-only"
+      }
+    },
+    {
+      "id": "C10",
+      "claim": "evidence completeness: window-receipt task id/file shas, README §12 shas, line limits",
+      "result": "pass",
+      "evidence": {
+        "window_receipt_task_id": "2026-10-27-unc3-branch-closure-s4-window",
+        "evidence_entries": 22,
+        "entries_with_sha_verified": "17/17",
+        "readme_section12_shas": "7/7 match actual files",
+        "readme_lines": 272,
+        "window_receipt_lines": 484,
+        "new_test_lines": {"g10_p5_branch_closure_cuda.rs": 341, "branch_closure_case.rs": 354, "branch_closure_mesh_data.rs": 418, "g10_p5_nvrtc_launcher.rs": 499},
+        "mesh_data_reproduce": "author_branch_closure_mesh_data.py --check: 7/7 inputs, 42/42 arrays, FULL_FILE_MATCH=True, RESULT=PASS, exit 0; file sha 2072f4ac... matches provenance doc"
+      }
+    }
+  ],
+  "observations": {
+    "general": [
+      "O1 README §8 '13 组合' inconsistent: parenthetical lists 3+3+3+6+4=19 and still says launcher 3 (now 4). Actual case-level comparisons = 33. Results themselves verified; fix the count口径 before S5 summary."
+    ],
+    "suggestion": [
+      "O2 secondary freeze semantic boundary: m2/m3 are M3-window frozen binaries built 01:06 (before M3 commit f1e5cda1 at 01:28 with abi.rs O7 + test split). S4 M2/M3 regression therefore runs the previous source generation; S5 should say regression object = M3 frozen binaries, not current-source rebuild (README §11 explains the rebuild diff).",
+      "O3 facts.txt guard_aggregate OrderedDictionary defect persists (M3 type); runner aggregation should be fixed to avoid per-window manual recompute.",
+      "O4 guard.log BOM comes from shared scripts/gpu-window-guard.ps1 (evidence copy strips 3 bytes); change guard writer to [IO.File]::WriteAllText with UTF8Encoding($false) so future logs are BOM-free by construction.",
+      "O5 stage2_equivalence_window.log Chinese lines transcoded by console codepage (README §9 notes it); set [Console]::OutputEncoding or write directly to UTF-8 file in runner."
+    ]
+  },
+  "blockers": []
+}
