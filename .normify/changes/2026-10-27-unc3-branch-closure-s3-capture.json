@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-unc3-branch-closure-s3-capture",
+  "title": {
+    "zh": "UNC-3 分支收口 S3：新 fixtures + 上游参考捕获窗（1 窗，238 MiB 预算）",
+    "en": "UNC-3 branch closure S3: new fixtures and upstream reference capture window"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 S1 台账与 Chief 签的计划落盘新 fixtures 与捕获脚本，开 1 个上游参考捕获窗：U1 plane-cylinder-degenerate、U3 plane-box 5 pose、U4 plane-capsule-lying、U5 plane-cylinder-deep-tilt、U6 mesh-mesh-two-assets（进分母）；U7 fan-cone-24 / U8 prism-20 为限制组（只记录）。fixture 文件实际 13 个：8 个 plane 系列 xml + 2 个 mesh-limit wrapper xml（U7/U8 的 .obj 必须有 xml 才能进模型）+ mesh-mesh-two-assets.xml + fan-cone-24.obj + prism-20.obj（Chief 计划写「7 plane + 3 mesh = 11」，总数差 2 因 U7/U8 wrapper xml；落盘按 13 并在提交与报告中说明）。",
+    "en": "Materialize S3 fixtures and capture script; one upstream capture window."
+  },
+  "modules": {},
+  "acceptance": [
+    "新建 13 个 fixture 文件（8 plane xml + 2 limit xml + mesh-mesh-two-assets.xml + 2 obj），全部合法 MJCF；CPU precheck（pinned venv、wp.set_device(\"cpu\")、authoring-only）证明：U1 退化分支命中、U3 5 pose 角点并集 8/8、U4 横躺非退化帧基、U5 4 候选全写入、U6 nmesh=2 自洽、U7/U8 degree/polygon 超界进入回退。",
+    "新增捕获脚本 scripts/authoring/g10-p5/capture_branch_closure_gpu.py 与 precheck 脚本；两份新参考文件路径 docs/development-evidence/g10-p5-branch-closure-capture/{upstream-branch-closure-gpu.json,upstream-mesh-limits-gpu.json}（新文件，旧参考一律不读写；A/B 两独立进程 raw 逐字节）。",
+    "窗口纪律：预算 238 MiB 量级、wall ≤90 s、guard floor=min(10240,baseline_free−3072)、open 门 10240、零 Rust 编译；开窗前报齐签名材料（每个 fixture sha+字节、capture 脚本 sha、runner sha、compare 零改动、3 点基线、compute-apps 过滤 0、负载快照、wall 预估）。",
+    "交付记录与 QA 预登记；判据/容差/参考/期望值全不动；U7/U8 只记录、不进 pass/fail 分母。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-unc3-branch-closure-s1-observation-closure"
+    ],
+    "phase": "G10@P5 分支收口",
+    "owner": "Arch",
+    "files": [
+      "fixtures/g10-p5-primitive-branches/",
+      "fixtures/g10-p5-mesh-multicontact/",
+      "scripts/authoring/g10-p5/",
+      "docs/development-evidence/g10-p5-branch-closure-capture/",
+      "docs/development-evidence/changes/2026-10-27-unc3-branch-closure-s3-capture.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 10
+  },
+  "note": "Arch 2026-10-27 登记（Chief 已签 S3 计划、未签窗）。fixture 总数 13 与计划 11 的差异：U7/U8 的 .obj 需各自 wrapper xml，否则无法进入模型；已在 intent 与报告中说明。",
+  "revision": {
+    "before": "e536384a213b5dd2d3a6304a5adf6ea4617cce4b",
+    "after": null
+  },
+  "created_at": "2026-10-27T09:35:00.000Z",
+  "updated_at": "2026-10-27T09:35:00.000Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/changes/2026-10-27-unc3-branch-closure-s3-capture.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-unc3-branch-closure-s3-capture"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
