@@ -2,7 +2,7 @@
 uid = "a66a7856"
 id = "mjwarp.render"
 tags = ["planned", "engine", "render"]
-fingerprint = "32cd7fc582bc4c648a133aeb79c3a19c24bc7a1fe7bd344d6573e62d726de89f"
+fingerprint = "e7426a0165ca3cdd6f9f18f5e2a371b73d2f9949386c67c013dc6ed5d1a70f08"
 
 [name]
 zh = "GPU批量渲染"
@@ -90,6 +90,9 @@ path = "src/render/kernel/mod.rs"
 
 [[source]]
 path = "src/render/kernel/launch.rs"
+
+[[source]]
+path = "src/render/context/camera_output.rs"
 
 [[apis]]
 protocol = "rpc"

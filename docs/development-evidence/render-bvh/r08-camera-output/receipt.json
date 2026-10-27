@@ -1,0 +1,228 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r08-camera-output",
+  "kind": "render-bvh-r08-camera-output-views",
+  "status": "final",
+  "slice": "R08-S1",
+  "title": "逐相机输出视图（get_rgb/get_depth/get_segmentation 语义，宿主侧，无 GPU）",
+  "date": "2026-10-28",
+  "upstream": {
+    "revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "file": "mujoco_warp/_src/render_util.py",
+    "local_reference_copy": {
+      "path": "docs/evidence/d04-complex-physics/authoring-runs/run-5/frozen-source/_src/render_util.py",
+      "blob": "f7c65b9767066692cea502c8e4acf66fbc538192",
+      "sha256": "5f43efc80470114a22a6683fad614d2c4b6e302da78066de2251218df5339a04",
+      "bytes": 31524,
+      "lines": 796
+    },
+    "pinned_checkout": "target/mjwarp-parallel/upstream/mujoco_warp/_src/render_util.py（同 sha256，本机核对）",
+    "entry_lines": {
+      "unpack_rgb_kernel": 170,
+      "extract_depth_kernel": 193,
+      "get_rgb": 212,
+      "get_depth": 228,
+      "_extract_seg_kernel": 247,
+      "get_segmentation": 264
+    },
+    "fixture_provenance": "fixtures/render-bvh/scene-a/provenance.json（upstream_revision 同上）"
+  },
+  "api": {
+    "module": "src/render/context/camera_output.rs",
+    "module_path": "mjwarp_rs::render::camera_output（顶层再导出 mjwarp_rs::render::{CameraImage, CameraOutputViews, CameraViewError, WholeOutputData}）",
+    "module_declaration": {
+      "file": "src/render/mod.rs",
+      "attribute": "#[path = \"context/camera_output.rs\"] pub mod camera_output;",
+      "why": "R08-S1 任务 files 只覆盖 `src/render/context/`（目录）与 `src/render/mod.rs`，不含父模块文件 `src/render/context.rs`；故在新模块所在目录之外不落声明，改由 scope 内 `src/render/mod.rs` 用 #[path] 声明（不触碰 context.rs）",
+      "module_source_registered": "normify module source mjwarp.render --add src/render/context/camera_output.rs（模块源 26 项）"
+    },
+    "exports": [
+      "CameraOutputViews",
+      "CameraImage",
+      "WholeOutputData",
+      "CameraViewError"
+    ],
+    "methods": {
+      "new": "校验 plan/layout/整缓冲自洽（单 world）",
+      "camera_count": "激活相机数",
+      "camera_id": "camera_index（激活顺序位置）→ 模型相机 id",
+      "resolution": "plan.resolutions[camera_index]",
+      "rgb_packed": "rgb_data[rgb_adr .. rgb_adr+pixels] 原样",
+      "rgb": "unpack_rgb_kernel 逐位复刻（r,g,b 各 * INV_255）",
+      "depth_raw": "depth_data[depth_adr .. +pixels] 原样 f32",
+      "depth": "clamp(val / depth_scale, 0.0, 1.0)（除法在前）",
+      "segmentation_raw": "seg_data[seg_adr .. +pixels] 原样对",
+      "segmentation": "同值 + 分辨率"
+    },
+    "camera_index_semantics": "激活/选中相机顺序位置（cam_active 顺序 = OutputLayout adr 顺序），不是模型相机 id",
+    "pixel_order": "[y][x]，x 最快（行主序，与上游 array3d[world, y, x] 单 world 切片一致）",
+    "rgb_constant": {
+      "name": "INV_255",
+      "bits": "0x3B80_8081",
+      "value": "float32(1.0/255.0)"
+    },
+    "depth_clamp_semantics": "上游 wp.clamp（fminf/fmaxf）：NaN→0.0、-0.0→+0.0、>1→1.0、<0→0.0",
+    "nworld_policy": "只支持 nworld == 1；nworld > 1 返回 NworldUnsupported（多 world 视图归 R10）"
+  },
+  "error_surface": [
+    "CameraIndex（camera_index 越界）",
+    "ChannelDisabled（该相机该通道 adr = -1）",
+    "BufferMissing（通道已启用但未提供整缓冲）",
+    "BufferLength（整缓冲长度 != 布局像素总数）",
+    "BufferRange（adr + pixels > 缓冲长度）",
+    "DepthScale（depth_scale <= 0 或非有限）",
+    "NworldUnsupported（nworld > 1）",
+    "CameraCount / PlanFlags / LayoutPixels（plan 与 layout 非同一解析）",
+    "PixelOverflow（像素数计数溢出）"
+  ],
+  "reference": {
+    "fixtures": {
+      "rgb_fast_math_false": {
+        "path": "fixtures/render-bvh/scene-a/s7b/rgb_fast_math_false.json",
+        "blob": "5b5d81df0499d688d9b8c9e539a47b70afa1f526",
+        "sha256": "d0de2b6069241518513a8b6ec1f65dfb76ce43d4c86b663374e8cf32c6e85b4a",
+        "bytes": 1323726,
+        "lines": 1
+      },
+      "depth_seg_fast_math_false": {
+        "path": "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json",
+        "blob": "ab49a355d5c3e2d58d3d1a4d9fc2182c001b1da5",
+        "sha256": "d6ab6dde58034df5c1bc69ab397026a8f7c3aaf58d29d25edb032d3818000dc7",
+        "bytes": 1492762,
+        "lines": 1
+      }
+    },
+    "method": "把两相机逐相机参考值按 adr 顺序拼成整缓冲，经 CameraOutputViews 逐相机反解后与冻结参考比对（不重渲染）",
+    "counts": {
+      "rgb_packed_bit_equal": "120000/120000",
+      "rgb_unpacked_channel_bit_equal": "360000/360000",
+      "depth_raw_bit_equal": "120000/120000",
+      "depth_scaled_bit_equal": "360000/360000（scale 1.0 / 0.1 / 100.0）",
+      "seg_pairs_equal": "120000/120000",
+      "background_pixels": {
+        "camera0": 16995,
+        "camera1": 27498
+      },
+      "depth_zero_pixels": {
+        "camera0": 16995,
+        "camera1": 27498
+      },
+      "clamped_high_at_scale_1": {
+        "camera0": 12890,
+        "camera1": 15702
+      },
+      "depth_raw_max": {
+        "camera0": 1.6825796365737915,
+        "camera1": 3.703162670135498
+      },
+      "inv_255_equals_float32_one_over_255": true
+    }
+  },
+  "isolation": {
+    "synthetic_plan": "2 相机、4×3 与 2×2、cameras=[1,0]（顺序与模型 id 相反）、adr=[0,12]",
+    "region_disjoint": "A 视图恰为 [0,12)、B 视图恰为 [12,16)；切片互不重叠",
+    "row_major": "CameraImage::get(x,y) 按相机局部 y*width+x 映射；越界 None",
+    "different_resolutions": "320×240 / 240×180（参考夹具）与 4×3 / 2×2（哨兵）两类边界",
+    "no_panic": "越界/未启用/缺失/长度不符/非法 depth_scale/plan-layout 不一致均返回错误"
+  },
+  "gates": {
+    "fmt": {
+      "exit": 0,
+      "wall_ms": 1565,
+      "note": "cargo fmt --check；通过（无输出）"
+    },
+    "clippy": {
+      "exit": 0,
+      "wall_ms": 9994,
+      "note": "cargo clippy --all-targets --locked -- -D warnings；通过"
+    },
+    "clippy-cuda": {
+      "exit": 0,
+      "wall_ms": 387,
+      "note": "cargo clippy --all-targets --locked --features cuda -- -D warnings；通过"
+    },
+    "unit": {
+      "exit": 0,
+      "wall_ms": 73075,
+      "passed": 1010,
+      "failed": 0,
+      "ignored": 376,
+      "result_lines": 124,
+      "note": "cargo test --locked（默认特性 cuda）；含 doctests"
+    }
+  },
+  "directed_tests": {
+    "command": "cargo test --locked --test render_camera_output",
+    "passed": 4,
+    "failed": 0,
+    "log": "logs/directed-render-camera-output.log",
+    "cases": [
+      "rgb_views_match_frozen_packed_reference_and_upstream_unpack",
+      "depth_and_segmentation_views_match_frozen_reference",
+      "camera_regions_are_isolated_and_use_camera_local_row_major_order",
+      "rejects_invalid_inputs_without_panicking"
+    ]
+  },
+  "constraints": {
+    "src_model_render_rs_lines": 500,
+    "src_model_render_rs_untouched": true,
+    "kernel_and_cu_untouched": true,
+    "context_rs_untouched": true,
+    "module_sources": "mjwarp.render 26 项（新增 src/render/context/camera_output.rs）",
+    "device_sources": 28,
+    "product_entries": 6,
+    "collision_args_bytes": 504,
+    "criteria_reference_tolerance_unchanged": true,
+    "new_files_max_lines": 500,
+    "camera_output_lines": 495,
+    "test_lines": 493,
+    "new_features": "none",
+    "cargo_toml_lock_untouched": true
+  },
+  "evidence_format_notes": {
+    "line_endings": "UTF-8 no BOM, LF/CR=0（本目录文本证据）",
+    "machine_readable_exceptions": [
+      "logs/unit.log（2132 行 > 500，机器可读测试日志）",
+      "manifest.json（机器可读清单）",
+      "receipt.json（机器可读收据）"
+    ],
+    "empty_log_note": "logs/fmt-check.log 为 0 字节：cargo fmt --check 成功时无输出，exit=0 见 logs/gates-summary.txt"
+  },
+  "evidence_files": [
+    "docs/development-evidence/render-bvh/r08-camera-output/README.md",
+    "docs/development-evidence/render-bvh/r08-camera-output/manifest.json",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/fmt-check.log",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/clippy.log",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/clippy-cuda.log",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/unit.log",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/directed-render-camera-output.log",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/gates-summary.txt"
+  ],
+  "manifest": {
+    "path": "docs/development-evidence/render-bvh/r08-camera-output/manifest.json",
+    "blob": "5366615d59be8dccc1cc2eac63a29075efbe8a8f",
+    "sha256": "6755f1e58dd80f24c68fbfde6d0d567d9a5b44d7b0454684db63f9c43543d103",
+    "bytes": 3977,
+    "lines": 109
+  },
+  "process_notes": {
+    "companion_task_attempts": [
+      "2026-10-28-render-bvh-r08-camera-output-module-wiring：拆配套任务先提交 context.rs 接线，因 depends_on 主任务在本提交前仍未提交 verified 状态而死锁 → abandon（7e4e690f 登记、a1b759b0 放弃）",
+      "2026-10-28-render-bvh-r08-camera-output-module-wiring-r2：去掉 depends_on 重试，但提交钩子重算模块 mjwarp.render 指纹，要求模块源文件（src/render/mod.rs、src/render/context.rs）与接线同一提交，配套任务必然缺另一侧 → E evidence/stale → abandon（090a4070 登记、cb75fa56 start、db9abb09 放弃）",
+      "最终：不改 src/render/context.rs，改由 scope 内 src/render/mod.rs 以 #[path] 声明并再导出；模块源登记进 mjwarp.render（26 项）"
+    ],
+    "scope_notes": "任务 files 缺 `src/render/context.rs`（父模块文件）与 `src/render/camera_output.rs`（顶层目录文件），故采用上述最小改动；若后续任务范围补齐，可在不影响公共 API 的前提下把声明移回 context.rs"
+  },
+  "boundaries": {
+    "window_rerun": false,
+    "gpu_opened": false,
+    "kernel_compiled_or_launched": false,
+    "new_capture": false,
+    "product_entry_wired": "defer to R08-S2",
+    "multi_world_views": "defer to R10"
+  },
+  "unmet": [
+    "多 world（nworld>1）逐相机视图：R10 评估",
+    "产品入口（RenderContext/OutputResources）上的逐相机读取 convenience：S2 端到端另片接线"
+  ]
+}

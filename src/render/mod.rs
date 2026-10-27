@@ -3,6 +3,9 @@
 
 pub mod bvh;
 pub mod camera;
+/// R08-S1 逐相机输出视图；文件位于 `context/` 目录，按任务范围由本文件以 `#[path]` 声明。
+#[path = "context/camera_output.rs"]
+pub mod camera_output;
 pub mod context;
 #[cfg(feature = "cuda-probe")]
 pub mod kernel;
@@ -13,6 +16,7 @@ pub use camera::{
     Camera, CameraActive, CameraModel, CameraOutput, CameraPlan, CameraRequest, Projection,
     RenderTargets, resolve_cameras,
 };
+pub use camera_output::{CameraImage, CameraOutputViews, CameraViewError, WholeOutputData};
 pub use context::{ContextError, ContextParams, ResolvedContext, resolve_context};
 #[cfg(feature = "cuda-probe")]
 pub use context::{
