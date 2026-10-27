@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-product-collision-inputs-s3-window-independent-check",
+  "title": {
+    "zh": "产品碰撞输入接线 S3 验证窗独立复核（10 实体 exit / 端到端数值 / 采样与守卫事实 / 证据一致性）",
+    "en": "Independent check of product collision inputs wiring S3 validation window"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "QA 独立复核 S3 验证窗（窗口任务 `2026-10-27-product-collision-inputs-s3-window`）：① 10 个冻结实体逐实体 exit code 与日志（不含 stage2 record-C 结论）；② 新 target `g10_p5_product_collision_wiring_cuda` 对 M1（mesh-box / mesh-cylinder，`c83baffe…`）与 M3（mesh-mesh，`96e7895d…`）冻结参考的 3 case × nacon、nacon=4、bit_equal=12/12、dist/pos/frame ULP=0、结构/参数零容差、contact.geom 顺序；③ 9 个回归实体 failures=0（multicontact / primitive / primitive_plane / primitive_sphere_capsule / primitive_branches / mesh_m2 / mesh_m3 / launcher[+hfield-capsule] / stage2 record-C 只记录）；④ 窗口事实独立复算：10 exe sha+字节（新 target `8060bacc…` / 41797632 B）、runner sha `c7a387a4…` 与签名一致、133 条 `SHA_OK`（10 exe + 123 只读输入）、open free≥10240、`floor=min(10240, baseline_free−3072)`、0.25 s 采样三口径 delta/free_min/util streak/residual、pre/post/结束基线、零 Rust 编译证据、compute-apps 过滤 0、attempt ≤2、`feature_profile=all-features`、`env_mujoco_dll`、窗后 10 exe sha 复查未变；⑤ 证据一致性：`window-receipt.json` `/task_id`、README S3 窗口段、日志 UTF-8 无 BOM、交付记录 manifest sha/字节/行数、禁词与不宣称（不写「窗口通过」「已覆盖」「精度达标」「上游等价」「双端等价」）、QA S3 六条修法落地且未触碰 runner 守卫文件、O1 那次窗口外 42 s dev 自测另记「非验证窗」。只读复算，不重开门、不开 GPU、不重跑、不改代码/判据/参考/容差。",
+    "en": "QA independent check of the S3 validation window results and window facts."
+  },
+  "modules": {},
+  "acceptance": [
+    "10 个冻结实体逐实体 exit code 独立核对（读日志/receipt/facts 复算，不重开门、不重跑）：新 target 与 9 个回归全部 exit 0；任何非 0 必须已在窗口材料留档并报 Arch，不得事后重跑拼接；stage2 record-C 只记录不作通过结论。",
+    "新 target 数值复核：3 case（mesh-box / mesh-cylinder 对 M1 `c83baffe…`，mesh-mesh 对 M3 `96e7895d…`）nacon=4=参考条数、bit_equal=12/12 行、max_dist/pos/frame ULP 均为 0、结构/参数字段零容差、contact.geom 顺序 `[1,0]/[1,0]/[0,1]`、failures=0；参考/容差/期望值零改动。",
+    "9 个回归实体 failures=0（multicontact / primitive / primitive_plane / primitive_sphere_capsule / primitive_branches / mesh_m2 / mesh_m3 / nvrtc_launcher 含 hfield-capsule / stage2 record-C 只记录），且与 M3/S4 已签冻结副本 sha 逐字节相同。",
+    "窗口事实独立复算：10 冻结 exe sha+字节（新 target `8060bacc…` 41797632 B）、runner `c7a387a4…` 33221 B 与 Chief 签字一致、133 条 `SHA_OK`（10 exe + 123 只读输入）落 `sha-guards.txt`+facts、open free≥10240、`floor=min(10240, baseline_free−3072)`、0.25 s 采样聚合三口径（delta/used_peak/free_min/util streak/residual）逐键、pre/post/结束基线、无残留、零 Rust 编译证据、compute-apps 过滤 0、attempt ≤2、`feature_profile=all-features`、`env_mujoco_dll`、窗后 10 exe sha 复查未变。",
+    "证据一致性：`window-receipt.json` `/task_id` = 窗口任务 id；README S3 窗口段记录执行结果与事实；日志 UTF-8 无 BOM；交付记录与 manifest sha256/字节/LF 行数 0 不符；QA S3 的 O3/O4/O5/O6/O9 修法已落地且未改 runner 守卫文件（`provenance.json` sha `3ea5c863…` 未变）；禁词与措辞约束（不写「窗口通过」「已覆盖」「精度达标」「上游等价」「双端等价」）；O1 那次窗口外 42 s dev 自测另记「非验证窗」。",
+    "Chief 指定复核点（2026-10-27 窗口签字追加）：① delta 1051 MiB 归因口径——window receipt 必须写「预算偏差：实测 1051 MiB 单样本瞬态（270–320 预算的 ≈3.4×）」、单样本 0.25 s、3092→4142→3092、seq 776 / 17:03:36.7225、归因标「归因推断」（nvrtc_launcher 退出时点的 NVRTC/cuModule 临时分配，无法证实到具体分配点）；不得出现「在预算内」或抹掉该峰；② guard_end 口径——窗口峰值一律引用 `guard_aggregate.used_peak_mib=4142` / `delta_peak_mib=1051`，`guard_complete.peak_used_mib=3091` 只覆盖结束相、`guard_complete.samples=1` 只是离散断言计数，二者不得被当作窗口峰值/权威采样数；③ 守卫 133 条（10 exe + 123 只读输入）逐条落 `sha-guards.txt` 且 match 全 True；④ 新 target 3 case × nacon=4、bit_equal=12/12、dist/pos/frame ULP=0；⑤ 10 个冻结 exe 来源按 `frozen-shas.txt` source 列写实（1 个 s3-build + 1 个 s4-build + 8 个 m3-freeze，共 10/10 all-features），不得写成 2/7 等与盘上不符的分布。",
+    "Chief 追加复核点 A（2026-10-27 第二轮，**必须独立复算，不得抄 Chief/Arch 给的数字**）：自写脚本从 `samples.csv` 重算 samples=867、baseline=3091、used_peak=4142、delta 三口径（vs guard baseline / vs 首样本 / vs 采样最小）、free_min=11920、util_max=31、util≥80 streak=0、residual=0；独立定位 seq 776 / `2026-10-27T17:03:36.7225390+08:00` 尖峰，并按 `ENTITY_DONE` 墙钟 + 各实体日志 mtime 交叉核对它落在 nvrtc_launcher 收尾之后、stage2 启动之前；确认 receipt 写的是「预算偏差 / 归因推断」，没有「在预算内」、没有把推断写成具体分配点断言。",
+    "Chief 追加复核点 B：`sha-guards.txt` 133 行逐条 match（10 exe + 123 只读输入，QA 自己重哈希，不复用窗口产物）；窗后 10 个 exe sha 复查 10/10；`0c9497e4..HEAD` 对 `src/ tests/ native/ include/ fixtures/ Cargo.toml Cargo.lock build.rs` 为 0 文件（冻结 exe 与源码一致）；10 个 exe 来源按 `frozen-shas.txt` source 列实写 = 1 个 s3-build + 1 个 s4-build + 8 个 m3-freeze；`feature_profile=all-features` 与 `env_mujoco_dll` 在 facts。",
+    "Chief 追加复核点 C：零编译与范围——`deps_exe_count` before/after 均 1812、`deps_max_write` 不变、窗口时段无 cargo/rustc/cl/nvcc 进程；提交只含证据 + window 任务 JSON（无 `src/`、`tests/`、`fixtures/` 改动）；证据无 BOM；`window_claimed_passed=false` 且全文无「窗口通过」；O1 那次窗口外 42 s dev 自测已记「非验证窗」。",
+    "证据 docs/development-evidence/product-collision-inputs-s3-window-independent-check/（README + receipt + manifest sha 复验），check exit 0；不 commit、不 done，报 verdict/blockers/observations；不改代码/判据/参考/容差、不开 GPU、不重开门。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-product-collision-inputs-s3-window"
+    ],
+    "phase": "架构/接线债务",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/product-collision-inputs-s3-window-independent-check/"
+    ],
+    "resources": [],
+    "priority": 13
+  },
+  "note": "Arch 2026-10-27 预登记（Chief 要求：窗口开窗前先登记窗口 QA 复核任务）。依赖窗口执行任务（in_progress），窗口 verified 后本任务就绪。只读复核，不重开门、不开 GPU、不重跑、不改代码。",
+  "revision": {
+    "before": "e5034356873c0db34d5e478275f982e274058213",
+    "after": null
+  },
+  "created_at": "2026-10-27T09:01:00.000Z",
+  "updated_at": "2026-10-27T09:24:31.149Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/product-collision-inputs-s3-window-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-product-collision-inputs-s3-window-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}

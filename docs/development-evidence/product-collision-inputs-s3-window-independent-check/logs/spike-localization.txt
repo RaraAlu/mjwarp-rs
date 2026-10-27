@@ -1,0 +1,36 @@
+# Spike localization, independent recomputation (attempt1)
+
+spike: seq=776 timestamp=2026-10-27T17:03:36.7225390+08:00 used=4142 MiB
+
+# runner writes each entity log AFTER the process finishes
+#   (run-validation-attempt1.ps1 line 253 Write-Utf8, then line 256 ENTITY_DONE),
+#   so a log mtime is >= the entity exit time.
+launcher log mtime            = 2026-10-27T17:03:36.808
+prev entity (m3) log mtime    = 2026-10-27T17:03:14.380
+spike timestamp               = 2026-10-27T17:03:36.722
+spike - launcher log mtime    = -0.086 s
+
+stage2 start bounds:
+  from stage2 log mtime - 21.47 s wall = 2026-10-27T17:03:37.658
+  from window_end - 21.5 s wall        = 2026-10-27T17:03:38.443
+spike - earliest stage2 start bound    = -0.936 s
+
+=> the spike is within about 0.1 s of the launcher exit/log-write boundary and at least
+   ~0.9 s BEFORE the stage2 start. The record's 'launcher exit + about 0.7 s' is not
+   supported by the artifacts: the launcher log was written at 17:03:36.808,
+   86 ms after the spike sample.
+
+window start/end: 2026-10-27T17:00:01.463+08:00 .. 2026-10-27T17:03:59.943+08:00
+body wall from start/end: 238.480 s (receipt 238.5)
+
+entity log mtimes (write-after-exit):
+  g10_p5_mesh_multicontact_m2_cuda.log 2026-10-27T17:02:52.328
+  g10_p5_mesh_multicontact_m3_cuda.log 2026-10-27T17:03:14.380
+  g10_p5_multicontact_cuda.log 2026-10-27T17:01:04.248
+  g10_p5_nvrtc_launcher.log 2026-10-27T17:03:36.808
+  g10_p5_primitive_branches_cuda.log 2026-10-27T17:02:31.090
+  g10_p5_primitive_cuda.log 2026-10-27T17:01:26.365
+  g10_p5_primitive_plane_cuda.log 2026-10-27T17:01:47.634
+  g10_p5_primitive_sphere_capsule_cuda.log 2026-10-27T17:02:09.189
+  g10_p5_product_collision_wiring_cuda.log 2026-10-27T17:00:42.361
+  stage2_equivalence_window.log 2026-10-27T17:03:59.128

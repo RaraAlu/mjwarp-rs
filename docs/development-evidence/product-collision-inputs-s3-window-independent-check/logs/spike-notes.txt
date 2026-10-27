@@ -1,0 +1,13 @@
+# Spike timing wording (see logs/spike-localization.txt for the derivation)
+
+record says: 'launcher 退出后约 0.7 s' (README §10.2, window-receipt budget_deviation.attribution.basis,
+receipt s3.window.attempt1 budget block).
+
+artifacts: runner writes entity logs after the process ends (script line 253 then ENTITY_DONE line 256),
+so the launcher log mtime 17:03:36.808 is >= the launcher exit time; the spike sample is at
+17:03:36.7225390, i.e. 86 ms BEFORE that log write. The stage2 start is bounded at 17:03:37.658..38.443.
+
+=> defensible statement: 'spike is at the launcher exit/log-write boundary (about 0.1 s) and
+   at least ~0.9 s before the stage2 start'. The '0.7 s after exit' number is not supported by the
+   artifacts; the attribution direction (launcher NVRTC/cuModule teardown) is unchanged and remains
+   an inference ('归因推断'), not a proven allocation point.

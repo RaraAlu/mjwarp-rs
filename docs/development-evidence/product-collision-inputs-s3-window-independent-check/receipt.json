@@ -1,0 +1,148 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-product-collision-inputs-s3-window-independent-check",
+  "kind": "independent_check",
+  "reviewed_task": "2026-10-27-product-collision-inputs-s3-window",
+  "reviewed_commits": [
+    "45e07485a53e70e121e17797ee2ed88a1a317539",
+    "fa704a6e13ac411783c0b8239c07c84a02fc42f3"
+  ],
+  "head_at_review": "fa704a6e13ac411783c0b8239c07c84a02fc42f3",
+  "verdict": "pass",
+  "blockers": [],
+  "observation_counts": {"general": 2, "suggestion": 5, "total": 7},
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "general",
+      "title": "logs/attempt1-runner-stdout.log is not a faithful UTF-8/LF copy (UTF-16LE with BOM, blank lines inserted)",
+      "detail": "The committed copy is UTF-16LE with BOM (FF FE) and every original line is followed by an empty line (raw 183 lines -> 366 committed lines; the delivery record says 367). This contradicts README §10.4 and the delivery record evidence_format.line_endings ('all evidence text files UTF-8 without BOM, LF/CR=0'). The content is readable as UTF-16 and the numbers are unaffected (facts/samples/guards are the authoritative sources), but the line count in the record does not match the decoded text.",
+      "evidence": ["logs/encoding-scan.txt", "logs/evidence-format-findings.txt", "verify_evidence.json"],
+      "fix_or_accept": "FIX: re-export as UTF-8 without BOM, LF, no inserted blank lines, then update the delivery record sha/bytes/lines and the evidence_format statement. ACCEPT only if the entry is explicitly recorded as an encoding exception (the current declaration would still be wrong)."
+    },
+    {
+      "id": "O2",
+      "severity": "general",
+      "title": "The spike timing statement 'about 0.7 s after launcher exit' is not supported by the artifacts",
+      "detail": "The runner writes each entity log after the process ends (script line 253 then ENTITY_DONE line 256), so the launcher log mtime 17:03:36.808 is at or after the launcher exit. The spike sample is 2026-10-27T17:03:36.7225390, i.e. 86 ms BEFORE that log write; the stage2 start is bounded at 17:03:37.658..38.443, so the spike is at least 0.9 s before stage2. The defensible wording is 'at the launcher exit/log-write boundary (about +-0.1 s), before the stage2 start'. The attribution direction (launcher NVRTC/cuModule teardown) and its inference status are unchanged.",
+      "evidence": ["logs/spike-localization.txt", "logs/spike-notes.txt", "verify_samples.json"],
+      "fix_or_accept": "FIX: update README §10.2, window-receipt budget_deviation.attribution.basis and the receipt attempt1 block to the boundary wording. ACCEPT: peak value, seq, timestamp and attribution direction do not change."
+    },
+    {
+      "id": "O3",
+      "severity": "suggestion",
+      "title": "Neighbour samples are off by one slot",
+      "detail": "window-receipt sampler.observation_OW1.neighbor_samples_used_mib=[3092,3091] and budget_deviation.peak.neighbors_used_mib=[3092,4142,3091]; the samples are seq 773..778 = 3091,3092,3092,4142,3092,3091, so the immediate neighbours are both 3092 (3091 is the second sample after the peak). README §10.2 already writes 3092 -> 4142 -> 3092.",
+      "evidence": ["logs/samples-summary.txt", "verify_samples.json"],
+      "fix_or_accept": "FIX: change the two arrays to [3092,3092] and [3092,4142,3092]. ACCEPT: the peak itself is unaffected."
+    },
+    {
+      "id": "O4",
+      "severity": "suggestion",
+      "title": "'single sample 0.25 s' is the nominal interval",
+      "detail": "Measured sampling intervals have median 0.2759 s (min 0.2721, max 0.2901) including the nvidia-smi query time.",
+      "evidence": ["logs/samples-summary.txt", "verify_samples.json"],
+      "fix_or_accept": "FIX: write '0.25 s target interval (measured median about 0.28 s)'. ACCEPT: it is a nominal sampling-period statement."
+    },
+    {
+      "id": "O5",
+      "severity": "suggestion",
+      "title": "Machine-readable exception list is incomplete",
+      "detail": "The delivery record machine_readable_exceptions lists samples.csv, sha-guards.txt, facts.txt and window-receipt.json, but receipt.json (719 lines > 500) is missing; the O1 UTF-16 copy is not flagged either.",
+      "evidence": ["logs/evidence-format-findings.txt", "verify_evidence.json"],
+      "fix_or_accept": "FIX: add receipt.json and the runner-stdout encoding exception. ACCEPT: JSON files are machine-readable anyway; this is a declaration completeness issue."
+    },
+    {
+      "id": "O6",
+      "severity": "suggestion",
+      "title": "runner_outer_wall_s=252.1 has no artifact backing",
+      "detail": "facts.txt and runner stdout have no key for the runner outer wall (only window_start/end and per-entity wall). QA could verify body_wall 238.5 s from start/end (238.480).",
+      "evidence": ["logs/facts-summary.txt"],
+      "fix_or_accept": "FIX: record runner start/end in facts, or mark the field as derived. ACCEPT: it does not affect any window fact."
+    },
+    {
+      "id": "O7",
+      "severity": "suggestion",
+      "title": "Budget-deviation hit counting basis",
+      "detail": "预算偏差 appears 2 times each in window-receipt/receipt/delivery and 1 time in README (7 total); 在预算内 appears 0 times. The '>=3 hits' guidance holds in total but not per file.",
+      "evidence": ["logs/facts-summary.txt", "verify_facts.json"],
+      "fix_or_accept": "FIX: state the counting basis in the record. ACCEPT: the wording itself is unambiguous."
+    }
+  ],
+  "verified_items": [
+    {"item": "sampler recomputation", "result": "pass",
+     "detail": "samples=867, baseline=3091, used_peak=4142, deltas 1051/1051/1055, free_min=11920, util_max=31, streak=0, residual=0, floor=9904, open free 12976>=10240, peak-excluded max 3109, sustained 18, samples>3120=1, spike seq 776 @ 17:03:36.7225390",
+     "evidence": ["verify_samples.json", "logs/samples-summary.txt"]},
+    {"item": "spike localization", "result": "pass with wording finding (O2)",
+     "detail": "launcher log mtime 17:03:36.808 (written after exit), spike -86 ms; stage2 start 17:03:37.658..38.443; spike is before stage2 by >=0.9 s",
+     "evidence": ["logs/spike-localization.txt"]},
+    {"item": "guards re-hashed independently", "result": "pass",
+     "detail": "133/133 lines (10 exes + 123 read-only inputs) re-hashed match; facts SHA_OK set identical; post-window 10/10 exes match; runner 33221 B / c7a387a4…; sources 1 s3-build + 1 s4-build + 8 m3-freeze; prior signed manifests match 9/9",
+     "evidence": ["verify_guards.json", "logs/guards-summary.txt", "logs/freeze-provenance.txt"]},
+    {"item": "ten entities", "result": "pass",
+     "detail": "exit_codes 10/10 zero, failed_entities=0, all ten logs 'ok ... 0 failed'; new target nacon=4=ref x3, bit_equal=12/12, ULP 0/0/0, geom [1,0]/[1,0]/[0,1], S1 snapshot 32/32 x3; stage2 17 dumps record-only",
+     "evidence": ["logs/entity-results.txt"]},
+    {"item": "zero compile and compute-apps", "result": "pass",
+     "detail": "deps_exe 1812->1812, deps max write unchanged, no cargo/rustc/cl/nvcc/link, compute-apps 29 raw / 0 filtered pre and post",
+     "evidence": ["verify_facts.json", "logs/facts-summary.txt"]},
+    {"item": "scope and code immutability", "result": "pass",
+     "detail": "window commits 22+4 files, no code paths; git diff 0c9497e4..HEAD over code paths = 0 files; guarded inputs untouched by the commits; single attempt (no attempt2)",
+     "evidence": ["logs/scope-unchanged.txt", "verify_guards.json"]},
+    {"item": "budget wording and guard caveats", "result": "pass",
+     "detail": "预算偏差 / 归因推断 present, 在预算内 0 in all four files; window peak quoted from guard_aggregate 4142/1051; guard_complete 3091 / samples=1 documented as ending-phase / assertion counting",
+     "evidence": ["verify_facts.json", "logs/facts-summary.txt"]},
+    {"item": "claims and O1 note", "result": "pass",
+     "detail": "window_pass_claimed=false; 窗口通过 only inside negations; six regulated terms 0 hits; dev self-test recorded as non-window in window receipt and README",
+     "evidence": ["verify_evidence.json", "logs/forbidden-terms.txt"]},
+    {"item": "delivery record identity", "result": "pass with line-count finding (O1)",
+     "detail": "22 files sha/bytes 0 mismatch; runner-stdout decoded line count 366 vs record 367; receipt task ids (S1/S2/S3/window) intact",
+     "evidence": ["verify_evidence.json"]},
+    {"item": "fix commit fa704a6e", "result": "pass",
+     "detail": "4 evidence files only, no quoted numbers removed, Normify-Fixes trailer correct",
+     "evidence": ["verify_evidence.json"]}
+  ],
+  "environment": {
+    "os": "Windows",
+    "repo": "D:\\Rust\\mjwarp-rs",
+    "review_type": "read-only recomputation",
+    "gpu_used_by_qa": false,
+    "window_reopened_by_qa": false,
+    "entities_rerun_by_qa": false
+  },
+  "gates": {
+    "applicable": false,
+    "result": "not applicable: this task's checks contain no gate items (docs-only independent check); normify gate reports no gate reference (exit 1), which is expected"
+  },
+  "boundaries": [
+    "read-only: no GPU, no window reopen, no entity rerun, no code/criteria/reference/tolerance change",
+    "the QA check verifies execution facts and evidence consistency only; it makes no window pass, coverage, precision, equivalence or acceptance claim",
+    "derived fields such as runner_outer_wall_s and the NVRTC compile-time split are quoted as recorded (see O6)",
+    "the window artifacts under target/ were read only; the committed evidence was not modified"
+  ],
+  "evidence_files": [
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/README.md",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/receipt.json",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/manifest.json",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/verify_samples.py",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/verify_samples.json",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/verify_guards.py",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/verify_guards.json",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/verify_facts.py",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/verify_facts.json",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/verify_evidence.py",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/verify_evidence.json",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/encoding_scan.py",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/spike_localization.py",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/logs/samples-summary.txt",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/logs/guards-summary.txt",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/logs/facts-summary.txt",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/logs/entity-results.txt",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/logs/evidence-format-findings.txt",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/logs/spike-notes.txt",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/logs/spike-localization.txt",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/logs/freeze-provenance.txt",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/logs/encoding-scan.txt",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/logs/scope-unchanged.txt",
+    "docs/development-evidence/product-collision-inputs-s3-window-independent-check/logs/forbidden-terms.txt"
+  ]
+}
