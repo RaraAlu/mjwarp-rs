@@ -319,7 +319,7 @@
     "open_gate_free_mib": 10240,
     "floor_mib": 10085,
     "floor_formula": "min(10240, baseline_free - 3072) = min(10240, 13157-3072)",
-    "pre": "2844,13218,23,31",
+    "pre": "2849,13213,39 (guard preconditions baseline)",
     "post": "2844,13218,23,31",
     "end_baseline": [
       "2844,13218,23,31",
@@ -335,13 +335,15 @@
       "heavy_compile_procs": 0
     },
     "compute_apps": {
-      "raw_lines": 28,
+      "raw_lines": 29,
       "insufficient_permissions_lines": 6,
       "filtered_task_processes": 0,
       "filter": "python|g10_p5|cargo|mjwarp",
-      "post_filtered_task_processes": 0
+      "post_filtered_task_processes": 0,
+      "raw_lines_note": "QA O6：baseline 与 post 各 6 条 [Insufficient Permissions]，原文共 29 条；过滤后 0 不变"
     },
-    "residual_processes": 0
+    "residual_processes": 0,
+    "pre_note": "QA O5：原字段误填为 post；此处取 guard.log 的 guard_baseline/phase=preconditions 采样，温度未记"
   },
   "outputs": [
     {
@@ -943,8 +945,11 @@
         "max_degree": 3
       },
       "statement": "上游 pinned GPU 在模型级 npolygonmax=20>16 时给出 count=4，即不整体回退",
-      "inference_unproven": "「4 个接触来自 ≤16 顶点侧面」为推断，未证实（参考不含 polygon 号，未在 pinned 侧补打印）",
-      "s4_rule": "S4 只做描述性对照，不进分母；设备若 !=4 写「与上游行为不同/限制存在」，不动 fixture、不改判据"
+      "s4_rule": "S4 只做描述性对照，不进分母；同时记 dist/pos（QA O9：U7 count=1 与设备回退 count=1 巧合相同）；设备若 !=4 写「与上游行为不同/限制存在」，不动 fixture、不改判据",
+      "contact_face": "20-gon 顶帽（QA O2 更正；原「≤16 顶点侧面」推断作废）",
+      "geometry_evidence": "棱柱顶帽 20-gon 在 z=+0.05，box 底面 z=0.04，穿透 0.01；参考 4 条 pos 为 (±0.05, ±0.05, 0.045)，即盒 4 角与顶帽中点",
+      "not_proven": "polygon 号未打印（「接触面含顶帽」由几何位置佐证，不写「已证实」）",
+      "upstream_capacity_note": "上游 npolygonmax 取模型值 20（动态容量），故不整体回退"
     }
   },
   "cpu_precheck_vs_gpu_reference": {
@@ -952,10 +957,9 @@
     "qpos_bits_equal": "11/11",
     "dist_pos_bitwise_equal_cases": [
       "plane-cylinder-degenerate",
-      "plane-capsule-lying",
       "plane-box-corner-face-down",
       "plane-box-corner-face-up",
-      "mesh-mesh-two-assets"
+      "plane-capsule-lying"
     ],
     "diff_cases": {
       "plane-cylinder-deep-tilt": {
@@ -976,7 +980,17 @@
         "cpu": 1.4901161193847656e-08
       }
     },
-    "interpretation": "CPU 与 GPU 后端求和顺序不同；参考一律取 GPU，precheck 只作 count/qpos_bits 对账"
+    "interpretation": "CPU 与 GPU 后端求和顺序不同；参考一律取 GPU，precheck 只作 count/qpos_bits 对账",
+    "dist_pos_bitwise_equal_count": 4,
+    "dist_only_bitwise_cases": [
+      "plane-box-corner-single"
+    ],
+    "no_dist_pos_in_precheck_cases": [
+      "mesh-mesh-two-assets",
+      "mesh-limits-cone-box",
+      "mesh-limits-prism-box"
+    ],
+    "note": "QA O1 更正：原写 6/5 个 case，实际 dist+pos 同时位级一致 4 个；corner-single 仅 dist；mesh 三例 precheck 不含 dist/pos"
   },
   "old_references_untouched": {
     "dir": "fixtures/g10-p5/references/",
@@ -1043,5 +1057,24 @@
     "applicable": false,
     "reason": "任务未引用任何门禁项（本片为 fixtures/脚本/证据，无代码 gate）；normify gate 返回「任务没有引用任何门禁」exit 1",
     "check": "normify check 全部检查通过（含 json pointer 与 forbid_claim）"
+  },
+  "qa_independent_check": {
+    "verdict": "pass",
+    "blockers": 0,
+    "observations": 10,
+    "evidence_dir": "docs/development-evidence/unc3-branch-closure-s3-independent-check/",
+    "closure_task": "2026-10-27-unc3-branch-closure-s3-observation-closure",
+    "dispositions": {
+      "O1": "更正为 4 个 case（corner-single 仅 dist 位级）；已更新 README §7.5 与本 receipt",
+      "O2": "推断作废；接触面含 20-gon 顶帽（几何佐证，polygon 号未打印）；已更新 README §7.3 与本 receipt",
+      "O3": "接受：SHA_OK 未归档；今后捕获 runner stdout 随日志归档",
+      "O4": "接受：PS Out-File 写 BOM，窗口原始日志按原样留档",
+      "O5": "更正：pre=2849,13213,39（guard preconditions），post=2844,13218,23,31",
+      "O6": "更正：compute-apps 原文 29 条（6 条 Insufficient Permissions），过滤后 0",
+      "O7": "更正：U6 geom_dataid/nmesh 标为 CPU precheck 来源，GPU 参考用 geom 对照",
+      "O8": "接受：S3 只证明模型级超界 + 上游行为；S5 不用「进入回退」措辞",
+      "O9": "接受：S4 对 U7/U8 同时记 dist/pos",
+      "O10": "接受：500 行棘轮只约束新增 target 测试文件；机器可读 JSON 豁免"
+    }
   }
 }

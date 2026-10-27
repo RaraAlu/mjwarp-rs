@@ -50,10 +50,10 @@ fixture 文件数 13 = 8 个 plane 系列 xml + 2 个 limit wrapper xml（`.obj`
 - 窗口：`2026-10-27T09:37:42.194+08:00` → `09:38:23.688+08:00` = **41.5 s**（目标 ≤90 s）
 - A/B 两独立进程、两独立 warp cache：A exit 0 / wall 29.4 s，B exit 0 / wall 7.4 s
 - 开窗前 3 点基线：`2905,13157,39,30,596.36` / `2899,13163,36,30,596.36` / `2868,13194,37,30,596.36`；free 13157 ≥ open 门 10240 → **floor = min(10240, 13157−3072) = 10085**
-- pre：`2844,13218,23,31`；post：`2844,13218,23,31`；结束基线 3 点：`2844,13218,23/24/25,31/31/30`
+- pre：`2849,13213,39`（`guard.log` 的 `guard_baseline` / `phase=preconditions` 采样）；post：`2844,13218,23,31`；结束基线 3 点：`2844,13218,23/24/25,31/31/30`
 - 窗内**零 Rust 编译**：只跑 pinned python（capture A/B + compare）+ nvidia-smi + guard sampler
 - 负载 precheck：cargo/rustc/cl/nvcc **0** 进程；CPU 3 采样 `5,6,3`
-- compute-apps：28 条全为桌面/系统进程（explorer、Chrome、EdgeWebView、NVIDIA Overlay、Feishu、ToDesk、DeepSeek Harness 等）+ **6 条 `[Insufficient Permissions]`**；按 `python|g10_p5|cargo|mjwarp` 过滤后 = **0**（pre/post 同口径）
+- compute-apps：**29 条**全为桌面/系统进程（explorer、Chrome、EdgeWebView、NVIDIA Overlay、Feishu、ToDesk、DeepSeek Harness 等）+ **6 条 `[Insufficient Permissions]`**；按 `python|g10_p5|cargo|mjwarp` 过滤后 = **0**（pre/post 同口径）
 - post compute-apps 无本任务残留进程
 
 ## 5. 捕获结果（A/B raw 逐字节一致）
@@ -78,7 +78,7 @@ fixture 文件数 13 = 8 个 plane 系列 xml + 2 个 limit wrapper xml（`.obj`
 | plane-box-corner-single (U3) | branch | 1 | dist `-0.010000184178352356`；pos x `1.1678096711875696e-08`；角点 `[7]` |
 | plane-capsule-lying (U4) | branch | 2 | dist 全 `-0.010000001639127731`；端点 x = **±0.12000001221895218**（横躺、`b_norm>0.5` 非退化帧基 + 双端点） |
 | plane-cylinder-deep-tilt (U5) | branch | **4** | dist `-0.21660254895687103 / -0.043397463858127594 / -0.1716025471687317 / -0.1716025471687317`（4 条候选全写入） |
-| mesh-mesh-two-assets (U6) | branch | 3 | dist 全 `-0.009999997913837433`；`geom_dataid=[0,1]`；nmesh=2 / 12 vert / 10 poly（进分母） |
+| mesh-mesh-two-assets (U6) | branch | 3 | dist 全 `-0.009999997913837433`；`geom=[[0,1],…]`（GPU 参考）；`geom_dataid=[0,1]`、nmesh=2 / 12 vert / 10 poly 来自 CPU precheck（GPU 参考 `output` 无该字段，S4 以 `geom` 对照）（进分母） |
 | mesh-limits-cone-box (U7) | limits | 1 | 模型 max_degree=24>10、max_polygon_vertices=24>16；dist `-0.010000001639127731` |
 | mesh-limits-prism-box (U8) | limits | **4** | 模型 max_polygon_vertices=20>16、max_degree=3；dist 全 `-0.009999997913837433`；4 接触 pos (±0.05, ±0.05, 0.045) |
 
@@ -93,9 +93,9 @@ fixture 文件数 13 = 8 个 plane 系列 xml + 2 个 limit wrapper xml（`.obj`
 
 1. **显存预算**：报窗时按 M3 量级给 **238 MiB**，本窗实测 **delta_peak=283 MiB**（+45 MiB），仍 ≪3072 增量上限、floor 未触发；报窗估值与实际差 45 MiB 记在此处。
 2. **util 峰值**：本窗 `util_max=94%` × 2 连续样本，比 M3 捕获窗的 `80×2` 更贴 abort 阈值（差 1 个样本）。归因「JIT/link 尾峰 + 采样抖动」为 **推断**（seq101/102 两点 used 3100→2850 与 util 94 并存，形态符合尾峰穿越采样点）。
-3. **U8 接触来源**：「4 个接触来自 ≤16 顶点的侧面」是 **推断，未证实**（参考 JSON 不含 polygon 号，未在 pinned 侧补打印）。可确认的事实只有：模型级 `npolygonmax=20>16` 时上游 pinned GPU **不整体回退**，给出 count=4。
+3. **U8 接触面方向（QA O2 更正，原推断作废）**：原写「4 个接触来自 ≤16 顶点的侧面」**与 fixture 几何相反，作废**。实际几何：棱柱顶帽是 **20-gon**（z=+0.05），box 底面 z=0.04，穿透 0.01；参考 4 条 pos 正是 `(±0.05, ±0.05, 0.045)`（盒 4 角与顶帽中点）→ **接触面包含 20-gon 顶帽**，上游 pinned GPU 在模型级 `npolygonmax=20>16` 时**不整体回退**（其容量取模型值 20），给出 count=4。仍缺：polygon 号未打印（「接触面含顶帽」由几何位置佐证，不写「已证实」）。设备侧 per-polygon guard（`multicontact_mesh.cu:180` `nvert > FACE_MAX → return 0`）是否触发由 S4 设备实测判定。
 4. **U7 措辞**：`count=1` **与 degree>10 的限制语义一致**，不写「证明限制触发」。
-5. **CPU precheck vs GPU 参考**：count 与 `qpos_bits` **11/11 一致**；dist/pos 位级一致的有 6 个 case，3 个 tilt pose 差 **dist 8–16 ULP / pos 8–48 ULP**（CPU 与 GPU 后端求和顺序不同）；corner-single 的 pos x 为 `1.1678e-8`(GPU) vs `1.4901e-8`(CPU)（绝对差 3.2e-9）。**参考一律取 GPU**；precheck 只作 count / `qpos_bits` 对账，不作数值判据。
+5. **CPU precheck vs GPU 参考（QA O1 更正）**：count 与 `qpos_bits` **11/11 一致**；dist+pos **同时**位级一致的有 **4 个 case**（`plane-cylinder-degenerate` / `plane-box-corner-face-down` / `plane-box-corner-face-up` / `plane-capsule-lying`）；`plane-box-corner-single` **仅 dist 位级**（pos x 为 `1.1678e-8`(GPU) vs `1.4901e-8`(CPU)，绝对差 3.2e-9）；3 个 tilt pose 差 **dist 8–16 ULP / pos 8–48 ULP**（CPU 与 GPU 后端求和顺序不同）；两个 mesh 相关 case（U6/U7/U8）CPU precheck 不含 dist/pos，只对账 count / `qpos_bits` / 拓扑。**参考一律取 GPU**；precheck 只作 count / `qpos_bits` 对账，不作数值判据。
 
 ## 8. 旧参考零读写
 
@@ -132,3 +132,22 @@ fixture 文件数 13 = 8 个 plane 系列 xml + 2 个 limit wrapper xml（`.obj`
 - U7/U8 为 **record-only**：不进 pass/fail 分母；S4 只做描述性对照，设备行为若 ≠ 上游（U8 设备若给 1 而参考 4）写「与上游行为不同 / 限制存在」，**不动 fixture、不改判据、不挪代码凑绿**。
 - U2 `plane_ellipsoid` 仍为「不可达 / 非上游防御分支」（静态 diff 依据）；U6 的 mesh 一般化只覆盖 nmesh=2 一例；`hfield-capsule` 设备回归仍未覆盖（S4 另行扩 launcher）。
 - 改动集：fixtures（新增 13 文件）、抓取/precheck 脚本、本证据目录；产品代码、设备源、判据、容差、旧参考、期望值 **零改动**。
+
+## 11. QA 独立复核与观察收口
+
+QA 复核：**pass / 阻断 0 / 观察 10**（2 一般 + 8 建议），未重跑窗口、未建 CUDA context；证据在 `docs/development-evidence/unc3-branch-closure-s3-independent-check/`。处置（本段由收口片 `2026-10-27-unc3-branch-closure-s3-observation-closure` 落下）：
+
+| # | 观察 | 处置 |
+| --- | --- | --- |
+| O1 | 「dist/pos 位级一致」case 数三处不一致（README 6 / receipt 5 / 实际 4） | **已更正为 4**（corner-single 仅 dist 位级；U6/U7/U8 的 CPU precheck 无 dist/pos），见 §7.5 |
+| O2 | U8「4 接触来自 ≤16 顶点侧面」推断与几何相反 | **推断作废**：接触面含 **20-gon 顶帽**（pos z=0.045 夹在 cap 0.05 与 box 底 0.04 之间），上游不整体回退；polygon 号未打印，见 §7.3 |
+| O3 | `SHA_OK fixtures=13 …` 行未归档（runner stdout 未落盘） | 接受：QA 已 16/16 独立重算一致；**纪律**：今后捕获 runner stdout 随窗口日志归档 |
+| O4 | 4 个 PS 日志带 UTF-8 BOM（`Out-File -Encoding utf8`） | 接受：窗口原始产物按原样留档不改；文档/脚本仍守 UTF-8 无 BOM |
+| O5 | `pre` 与 `post` 完全相同（疑 post 复制到 pre） | **已更正**：`pre` 取 guard preconditions `2849,13213,39`，post 为 `2844,13218,23,31`，见 §4 |
+| O6 | compute-apps 实际 29 条（README/receipt 写 28） | **已更正为 29**（6 条 `[Insufficient Permissions]` 同口径），过滤后 0 的结论不变 |
+| O7 | U6 的 `geom_dataid` 被列在 GPU 参考「关键数值」，实来自 precheck | **已标注来源**：GPU 参考用 `geom` 对照，`geom_dataid`/nmesh 统计来自 CPU precheck |
+| O8 | S3 任务 acceptance「U7/U8 超界进入回退」与证据不符（设备回退是 S4） | 接受：S3 只证明模型级超界 + 上游行为；**S5 汇总不用「进入回退」措辞** |
+| O9 | U7 上游 count=1 与设备单接触回退 count=1 巧合相同 | 接受：**S4 对 U7 同时记 dist/pos**（不只比 count），U8 同理 |
+| O10 | `receipt.json` 1047 行、`precheck-cpu.json` 648 行 | 接受：500 行棘轮只约束新增 **target 测试文件**；机器可读 JSON 证据豁免，已注明 |
+
+结论不变：有效轮、guard 无 abort、raw 逐字节一致、11-11 两次捕获一致；U7/U8 record-only 不进分母；数值验收在 S4。
