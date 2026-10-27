@@ -587,7 +587,24 @@
         "machine_readable_exception": true,
         "reason": "machine-readable provenance (MJB/XML/reference sha256, bytes, per-array parity); exempt from the <=500-line limit; read-only and sha-guarded by the window runner (not edited)"
       },
-      "qa_s3_o3_note": "S3 entry delivery record (docs/development-evidence/changes/2026-10-27-product-collision-inputs-s3-entry-window.json) is a historical snapshot of commit 0c9497e4 and is not in the window task file scope; the machine_readable_exception annotation lives here in the receipt s3 section and in the window delivery record."
+      "qa_s3_o3_note": "S3 entry delivery record (docs/development-evidence/changes/2026-10-27-product-collision-inputs-s3-entry-window.json) is a historical snapshot of commit 0c9497e4 and is not in the window task file scope; the machine_readable_exception annotation lives here in the receipt s3 section and in the window delivery record.",
+      "machine_readable_exceptions": [
+        {
+          "path": "receipt.json",
+          "lines": 750,
+          "reason": "machine-readable evidence receipt (>500 lines)"
+        },
+        {
+          "path": "s3-window-observation-closure-receipt.json",
+          "lines": null,
+          "reason": "machine-readable QA-observation closure receipt"
+        }
+      ],
+      "stdout_log_encoding": {
+        "evidence_copy": "logs/attempt1-runner-stdout.log (UTF-8 no BOM, LF, 183 lines)",
+        "original_utf16": "target/s3-product-wiring/window/attempt1-runner-stdout.log (not committed, read-only) (UTF-16LE with BOM, 81128 B, sha256 b7cffd45ef82114158ca2736777a23e4a5d9e7d91044f7c3ed68a1c265b17328)"
+      },
+      "statistics_basis_zh": "「预算·偏差」连续字面组合命中 7 = window-receipt 2 + receipt 2 + 交付记录 2 + README 1（统计口径 = 上述四份记录的全文件字面计数；不是单文件 ≥3；不含本收口 receipt；统计文本本身用「预算·偏差」写法以避免自增计数）"
     },
     "qa_s3_observations": {
       "O1": "recorded process deviation (not changed in evidence): one ~42 s GPU development self-test ran outside a signed window; no window result is claimed from it. Future GPU usage (including single-target self-tests) is reported to Arch before running.",
@@ -669,14 +686,23 @@
           "peak": {
             "seq": 776,
             "timestamp": "2026-10-27T17:03:36.7225390+08:00",
-            "single_sample_s": 0.25,
             "neighbors_used_mib": [
               3092,
               4142,
-              3091
+              3092
             ],
             "samples_gt_3120": "1/867",
-            "sustained_delta_mib": 18
+            "sustained_delta_mib": 18,
+            "sample_interval": {
+              "target_s": 0.25,
+              "measured_median_s": 0.276,
+              "measured_range_s": [
+                0.272,
+                0.29
+              ],
+              "note": "0.25 s 目标间隔（实测中位 ≈0.276 s，范围 0.2720–0.2900 s）"
+            },
+            "single_sample_note": "0.25 s 目标间隔（实测中位 ≈0.276 s，范围 0.2720–0.2900 s）"
           },
           "not_triggered": {
             "increment_limit_mib": 3072,
@@ -689,8 +715,8 @@
           "attribution": {
             "status": "归因推断（未证实到具体分配点）",
             "basis": [
-              "Arch 复核 samples 与 ENTITY_DONE：launcher wall 21.6 s 收尾约 17:03:36，stage2 启动约 17:03:38.4；尖峰 17:03:36.7225 落在 launcher 退出后约 0.7 s、下一实体启动前",
-              "nvrtc_launcher 为 NVRTC 运行时编译入口实体；推断为 NVRTC / cuModule 相关临时分配释放滞后"
+              "launcher 日志写入 17:03:36.808（退出后），尖峰 17:03:36.7225 在其前约 86 ms",
+              "可支撑的是退出/收尾边界 ±0.1 s 内、stage2 启动（下界 17:03:37.658–38.443）前 ≥0.9 s"
             ],
             "not_proven": "无法从现有产物证实到具体分配点"
           },
@@ -701,7 +727,12 @@
           "peak": "facts.txt guard_complete.peak_used_mib=3091 is ONLY the guard_end phase sample peak, NOT the window peak; window peak must be quoted as aggregate used_peak_mib=4142 / delta_peak_mib=1051"
         },
         "observation_OW1": "single-sample 4142 MiB transient (seq 776); all other samples <= 3109; sustained delta 18 MiB; recorded as observation, not re-run/masked",
-        "claims": "execution facts only; no pass/coverage/precision/upstream-equivalence/dual-platform claim"
+        "claims": "execution facts only; no pass/coverage/precision/upstream-equivalence/dual-platform claim",
+        "runner_outer_wall_s": {
+          "value_s": 252.1,
+          "derived": true,
+          "basis": "无独立产物（runner 未打印外层墙钟）；由窗口 start/end 与逐实体 wall 之和的差值推导（含守卫与负载开销），非独立测量值"
+        }
       }
     },
     "boundaries": {

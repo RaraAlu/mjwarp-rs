@@ -20,17 +20,17 @@
   "files": [
     {
       "path": "docs/development-evidence/product-collision-inputs-wiring/README.md",
-      "blob": "c34e109dc01d12632611d81d18c8110164e6ec9c",
-      "sha256": "722eb48906c0d49367d2b07dce4d7c8937f870fa304b93bb3ff74d6558900c2d",
-      "bytes": 38270,
-      "lines": 466
+      "blob": "4c43d816ca14537bb486d9ed154ff2b59343cabb",
+      "sha256": "362fd4ee544165ffdd4cc5e0a099af7d2f88ccc579ed937eea0ac1d8904be0bb",
+      "bytes": 39417,
+      "lines": 475
     },
     {
       "path": "docs/development-evidence/product-collision-inputs-wiring/receipt.json",
-      "blob": "a84f990523da09db3b1defbb58a100d58a1aa7e3",
-      "sha256": "9117cc3aef5c51dd401ba0fe7f59f37a4ef8fa5030bbbe63a8c1ccd96c2f4fbd",
-      "bytes": 38594,
-      "lines": 719
+      "blob": "2a30c7ace9cfd7c50b4767d8090344c34dfc90b5",
+      "sha256": "430ba43e1a6eb8f004688df41b3277b24d83bf89a2e85422bab27edd1841a09b",
+      "bytes": 40212,
+      "lines": 750
     },
     {
       "path": "docs/development-evidence/product-collision-inputs-wiring/logs/s3-fmt-clippy.log",
@@ -48,10 +48,10 @@
     },
     {
       "path": "docs/development-evidence/product-collision-inputs-wiring/window-receipt.json",
-      "blob": "034b071d1d7aa36b43a3420f655090dfbcb7d739",
-      "sha256": "903dac15d686108c7a69b3e3c453df2860aa14e6a587d567dcc8fe8171915a34",
-      "bytes": 19253,
-      "lines": 569
+      "blob": "1af731a0fb2c6dee5725aff038b5239ec382fa06",
+      "sha256": "3d20ca7ff2ef5cb77e5e13e7dfb1c3f0d5264bd92dc68c3379a2041d6e9de413",
+      "bytes": 21807,
+      "lines": 620
     },
     {
       "path": "docs/development-evidence/product-collision-inputs-wiring/logs/attempt1-facts.txt",
@@ -167,10 +167,10 @@
     },
     {
       "path": "docs/development-evidence/product-collision-inputs-wiring/logs/attempt1-runner-stdout.log",
-      "blob": "bf017b4cbb9219895b6397a3e88908e1f2347b89",
-      "sha256": "159d4560af678d031cbd77c9238bcc2c51c6bdcc97aa65447c0bbabdcdf167f5",
-      "bytes": 81128,
-      "lines": 367
+      "blob": "637b6665b05c22a2f7ae971a817ebd1f7ef43b94",
+      "sha256": "fb3e63e4a696a178954a2d4203afc89deb50618c3db2aa50f97eeda3beb2647c",
+      "bytes": 40380,
+      "lines": 183
     }
   ],
   "unchanged_guarded_inputs": {
@@ -209,6 +209,11 @@
       "g10_p5_mesh_multicontact_m3_cuda": 21.3,
       "g10_p5_nvrtc_launcher": 21.6,
       "stage2_equivalence_window": 21.5
+    },
+    "runner_outer_wall_s": {
+      "value_s": 252.1,
+      "derived": true,
+      "basis": "无独立产物（runner 未打印外层墙钟）；由窗口 start/end 与逐实体 wall 之和的差值推导（含守卫与负载开销），非独立测量值"
     }
   },
   "budget_deviation": {
@@ -223,14 +228,23 @@
     "peak": {
       "seq": 776,
       "timestamp": "2026-10-27T17:03:36.7225390+08:00",
-      "single_sample_s": 0.25,
       "neighbors_used_mib": [
         3092,
         4142,
-        3091
+        3092
       ],
       "samples_gt_3120": "1/867",
-      "sustained_delta_mib": 18
+      "sustained_delta_mib": 18,
+      "sample_interval": {
+        "target_s": 0.25,
+        "measured_median_s": 0.276,
+        "measured_range_s": [
+          0.272,
+          0.29
+        ],
+        "note": "0.25 s 目标间隔（实测中位 ≈0.276 s，范围 0.2720–0.2900 s）"
+      },
+      "single_sample_note": "0.25 s 目标间隔（实测中位 ≈0.276 s，范围 0.2720–0.2900 s）"
     },
     "not_triggered": {
       "increment_limit_mib": 3072,
@@ -243,8 +257,8 @@
     "attribution": {
       "status": "归因推断（未证实到具体分配点）",
       "basis": [
-        "Arch 复核 samples 与 ENTITY_DONE：launcher wall 21.6 s 收尾约 17:03:36，stage2 启动约 17:03:38.4；尖峰 17:03:36.7225 落在 launcher 退出后约 0.7 s、下一实体启动前",
-        "nvrtc_launcher 为 NVRTC 运行时编译入口实体；推断为 NVRTC / cuModule 相关临时分配释放滞后"
+        "launcher 日志写入 17:03:36.808（退出后），尖峰 17:03:36.7225 在其前约 86 ms",
+        "可支撑的是退出/收尾边界 ±0.1 s 内、stage2 启动（下界 17:03:37.658–38.443）前 ≥0.9 s"
       ],
       "not_proven": "无法从现有产物证实到具体分配点"
     },
@@ -269,14 +283,43 @@
       "logs/attempt1-samples.csv (868 lines)",
       "logs/attempt1-sha-guards.txt (133 lines)",
       "logs/attempt1-facts.txt (168 lines)",
-      "window-receipt.json"
-    ]
+      "window-receipt.json",
+      "receipt.json (745 lines, machine-readable evidence receipt)",
+      "s3-window-observation-closure-receipt.json (machine-readable closure receipt)"
+    ],
+    "stdout_log_encoding": {
+      "original_utf16": {
+        "path": "target/s3-product-wiring/window/attempt1-runner-stdout.log (not committed, read-only)",
+        "encoding": "UTF-16LE with BOM (FF FE)",
+        "bytes": 81128,
+        "sha256": "b7cffd45ef82114158ca2736777a23e4a5d9e7d91044f7c3ed68a1c265b17328",
+        "decoded_lines": 183
+      },
+      "evidence_copy": {
+        "path": "logs/attempt1-runner-stdout.log",
+        "encoding": "UTF-8 no BOM, LF",
+        "bytes": 40380,
+        "sha256": "fb3e63e4a696a178954a2d4203afc89deb50618c3db2aa50f97eeda3beb2647c",
+        "lines": 183,
+        "previous_corrupted_copy": {
+          "encoding": "UTF-16LE with BOM; every real line followed by an inserted blank line",
+          "bytes": 81128,
+          "sha256": "159d4560af678d031cbd77c9238bcc2c51c6bdcc97aa65447c0bbabdcdf167f5",
+          "decoded_lines_including_inserted_blanks": 366
+        },
+        "conversion": "decode UTF-16LE (strip BOM) -> drop inserted blank lines -> write UTF-8 no BOM + LF",
+        "line_diff_vs_decoded_original": 0,
+        "blank_lines_dropped": 183
+      }
+    },
+    "statistics_basis_zh": "「预算·偏差」连续字面组合命中 7 = window-receipt 2 + receipt 2 + 交付记录 2 + README 1（统计口径 = 上述四份记录的全文件字面计数；不是单文件 ≥3；不含本收口 receipt；统计文本本身用「预算·偏差」写法以避免自增计数）"
   },
   "notes": [
     "Runner was executed exactly as signed; no runner/frozen exe/guarded-input edits; no GPU re-run after attempt1.",
-    "OW1: the 1051 MiB guard delta is one 0.25 s sample (seq 776) with immediate return to baseline; all other 866 samples <= 3109; recorded as an observation, not re-run or masked.",
+    "OW1: the 1051 MiB guard delta is one sample at the 0.25 s target interval (measured median ≈0.276 s, range 0.2720–0.2900 s) (seq 776) with immediate return to baseline; all other 866 samples <= 3109; recorded as an observation, not re-run or masked.",
     "guard_complete.samples=1 is the guard-state discrete assertion count; authoritative sampler count is 867 (guard_aggregate/samples.csv).",
     "O1: the earlier ~42 s GPU development self-test ran outside a signed window; recorded as non-window, not chased.",
     "No pass/coverage/precision/upstream-equivalence/dual-platform claim is made."
-  ]
+  ],
+  "observation_closure_receipt": "docs\\development-evidence\\product-collision-inputs-wiring\\s3-window-observation-closure-receipt.json"
 }

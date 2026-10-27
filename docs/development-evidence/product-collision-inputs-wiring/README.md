@@ -384,8 +384,9 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
 
 - 窗口任务：`2026-10-27-product-collision-inputs-s3-window`（HEAD `152b16d8`）；按签字后的 runner
   **原样**执行，未改 runner / 冻结 exe / 守卫文件；attempt1 = 第 1 个有效轮，作废/污染轮 0。
-- 结果一句话：**10/10 实体独立 exit=0、failed_entities=0**；窗口 body_wall **238.5 s**（runner 全程约
-  252 s，含守卫/负载开销）；NVRTC 在窗内进程内编译（新 target 40.9 s 含两次编译）。
+- 结果一句话：**10/10 实体独立 exit=0、failed_entities=0**；窗口 body_wall **238.5 s**（runner 全程
+  约 252 s，`derived=true` 推导值：无独立产物，由窗口 start/end 与逐实体 wall 之和的差值推导，
+  含守卫/负载开销，非独立测量值）；NVRTC 在窗内进程内编译（新 target 40.9 s 含两次编译）。
 - **口径**：本节只记录执行结果与事实，不做通过/覆盖/精度或上游等价结论（详见 §10.5）。
 
 ### 10.1 守卫与冻结
@@ -407,19 +408,20 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
 - 3 点基线：`3086,12976,4,31,596.36` / `3086,12976,2,31,596.36` / `3082,12980,2,31,596.36`；
   open free 12976 ≥ 10240；**floor = min(10240, 12976−3072) = 9904**；post `3086,12976,1,32`；
   结束基线 `3086,12976,1,32` / `3086,12976,3,31` / `3086,12976,1,31`。
-- guard sampler：**867 样本**（0.25 s），`used_peak=4142`、`used_min=3087`、`free_min=11920`（≥ floor）、
+- guard sampler：**867 样本**（目标间隔 0.25 s；实测中位 ≈0.276 s，范围 0.2720–0.2900 s），
+  `used_peak=4142`、`used_min=3087`、`free_min=11920`（≥ floor）、
   `util_max=31%`、util≥80% streak=0、`process_exited=true`、residual=0、**无 abort**。
 - delta 三口径：vs guard baseline **1051 MiB** / vs 首样本 **1051** / vs 采样最小 **1055**。
 - **预算偏差（`budget deviation`，OW1，如实记录、不重跑、不掩盖）**：
   `budget_estimate_mib="270–320"`、`measured_delta_peak_mib=1051`，**≈3.4× 预算中点（3.3–3.9× 区间）**。
-  峰值：`seq=776` @ `2026-10-27T17:03:36.7225390+08:00`，**单样本 0.25 s**，相邻采样
-  `3092 → 4142 → 3092`；`samples_gt_3120=1/867`；排除该点 `max=3109`、**sustained_delta=18 MiB**
-  （median 3091 / p99 3092）。**未触发项**：`increment_limit 3072` 未触、`free_min 11920 > floor 9904`、
-  `guard_aborted=false`。`rerun=false`、`deviation_recorded=true`。
-- **归因推断（未证实到具体分配点）**：Arch 复核 samples 与 `ENTITY_DONE`——launcher `wall 21.6 s`
-  收尾约 17:03:36，stage2 启动约 17:03:38.4，尖峰落在 launcher 退出后约 0.7 s、下一实体启动前；
-  `nvrtc_launcher` 为 NVRTC 运行时编译入口实体，**推断**为 NVRTC / cuModule 相关临时分配释放滞后；
-  **无法从现有产物证实到具体分配点**。
+  峰值：`seq=776` @ `2026-10-27T17:03:36.7225390+08:00`，**采样目标间隔 0.25 s（实测中位 ≈0.276 s，
+  范围 0.2720–0.2900 s）**，相邻采样 `3092 → 4142 → 3092`；`samples_gt_3120=1/867`；排除该点
+  `max=3109`、**sustained_delta=18 MiB**（median 3091 / p99 3092）。**未触发项**：`increment_limit 3072`
+  未触、`free_min 11920 > floor 9904`、`guard_aborted=false`。`rerun=false`、`deviation_recorded=true`。
+- **归因推断（未证实到具体分配点）**：launcher 日志写入 **17:03:36.808**（退出后），尖峰
+  **17:03:36.7225** 在其前约 **86 ms**；可支撑的是退出/收尾边界 **±0.1 s 内**、stage2 启动
+  （下界 **17:03:37.658–38.443**）前 **≥0.9 s**；推断为 NVRTC / cuModule 相关临时分配释放滞后，
+  **无法从现有产物证实到具体分配点**（峰值/seq/时间戳与状态不变）。
 - **口径说明（guard_end/peak 不混用）**：窗口峰值一律引用聚合值 `used_peak_mib=4142` /
   `delta_peak_mib=1051`（`guard_aggregate.*` + `samples.csv`）；`facts.txt` 的
   `guard_complete.peak_used_mib=3091` **只是 guard_end 结束相采样峰值，不是窗口峰值，不得用作峰值**；
@@ -450,11 +452,18 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
 
 - 新增 `window-receipt.json`（`/task_id` = 窗口任务；机器可读例外）与 `logs/attempt1-*`：
   `facts.txt`（168 行）、`sha-guards.txt`（133 行）、`samples.csv`（868 行）、`guard.log`、
-  `baseline.txt`、`machine-load.txt`、10 份实体日志、`runner-stdout.log`。
+  `baseline.txt`、`machine-load.txt`、10 份实体日志、`runner-stdout.log`（183 行）；窗口 QA 观察收口
+  记录见 `s3-window-observation-closure-receipt.json`。
 - 行尾/编码：入库文本证据统一 **UTF-8 无 BOM、LF/CR=0**；原始 `guard.log`/`samples.csv`/
   `machine-load.txt` 为 CRLF，入库副本已归一 LF；`guard-raw.log`（BOM 原样）未入库。
-- 机器可读例外：`samples.csv`(868 行)、`sha-guards.txt`(133 行)、`facts.txt`(168 行)、
-  `window-receipt.json` 本身；详见 receipt `evidence_format_notes`。
+- **`runner-stdout.log` 编码**：原始产物（`target/s3-product-wiring/window/attempt1-runner-stdout.log`，
+  未入库只读）为 **UTF-16LE 带 BOM（FF FE）、81128 B、sha256 `b7cffd45…`、解码后 183 行**；此前证据副本
+  带插入空行（366 行）。收口时按「UTF-16LE 解码去 BOM → 丢弃插入空行 → UTF-8 无 BOM + LF」重写证据副本，
+  **逐行比对 0 差异**、183 行；原始与转换后各记 sha256/bytes（详见 receipt `evidence_format_notes`）。
+- 机器可读例外（>500 行豁免）：`samples.csv`(868 行)、`sha-guards.txt`(133 行)、`facts.txt`(168 行)、
+  `window-receipt.json`、`receipt.json`(750 行)、`s3-window-observation-closure-receipt.json`。
+- **O7 统计口径**：「预算·偏差」连续字面组合命中 **7** = `window-receipt.json` 2 + `receipt.json` 2 +
+  交付记录 2 + README 1（**全文件字面计数**；不是单文件 ≥3）。
 - stage2 日志中的中文行因控制台代码页转码显示为乱码（数值/ASCII 字段不受影响），已在 receipt 注明。
 
 ### 10.5 边界与 O1 记录
