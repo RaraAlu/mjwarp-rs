@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-unc3-branch-closure-s4-validation",
+  "kind": "s4-branch-closure-device-validation-prewindow",
+  "status": "in_progress_prewindow",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "head_at_start": "e2197106",
+  "deliverables": {
+    "branch_closure_target": {
+      "file": "tests/g10_p5_branch_closure_cuda.rs",
+      "lines": 341,
+      "sha256": "02add3f0e7c7a100310e87adcd0ed157ffa52ea7e5eef59fba94cc27d58a84dc",
+      "support_files": [
+        {"file": "tests/support/branch_closure_case.rs", "lines": 354, "sha256": "5295203e53460c178b02ee9ba85313808a3dda367289ad3afff2a40b9fcaec37"},
+        {"file": "tests/support/branch_closure_mesh_data.rs", "lines": 418, "sha256": "2072f4acb9defdd8c69bbf52c327d131ddc514c89b868f0a9778e7aa773ab4e2"}
+      ],
+      "criteria": "reuse tests/support/primitive_compare.rs (bit_equal first + 4 ULP@scale fallback); zero relaxation; count/geom/dist/pos/frame + structural fields; efc_address all -1 / overflow all 0 device invariants",
+      "acceptance_group": "9 cases (U1/U3x5/U4/U5/U6), pass/fail denominator",
+      "limits_group": "U7/U8 record-only: print device_count/ref_count/device_dist/ref_dist/device_pos/ref_pos; not in pass/fail denominator"
+    },
+    "launcher_hfield_capsule": {
+      "file": "tests/g10_p5_nvrtc_launcher.rs",
+      "lines": 499,
+      "sha256": "798813bd0e7966524d8fc79a7303b0a0676a98b17b95e066ad8dfe8bcc11e0f9",
+      "change": "CASES 3 -> 4, add hfield-capsule only",
+      "compare_object": "frozen probe docs/development-evidence/g10-p5-gpu-kernels/gpu-window/cases/hfield-capsule/out1/",
+      "criteria": "bit_equal first + 4 ULP@scale fallback (same as hfield-sphere precedent)",
+      "reference_crosscheck": {
+        "test": "hfield_capsule_reference_matches_frozen_probe",
+        "file": "fixtures/g10-p5/references/hfield-capsule.json",
+        "bytes": 9712,
+        "sha256": "feb8c65c4066a36b04862177812826926d054063c787d5d556ba3b218e15c9b0",
+        "checked": "count/geom/dist/worldid bit-identical against out1 (count=7)",
+        "cuda_context": false
+      },
+      "existing_three_cases_unchanged": true
+    }
+  },
+  "s3_references": {
+    "branch_closure": {
+      "path": "docs/development-evidence/g10-p5-branch-closure-capture/upstream-branch-closure-gpu.json",
+      "bytes": 16932,
+      "sha256": "24d89e9248cccece96baff2089954e438ca7956fe8a71ccc61df318208709db1",
+      "cases": 9
+    },
+    "mesh_limits": {
+      "path": "docs/development-evidence/g10-p5-branch-closure-capture/upstream-mesh-limits-gpu.json",
+      "bytes": 4581,
+      "sha256": "b6abb8fa5820c103f6d880936d6ae95fa60035e5b9ce49a0364b15de1def19ad",
+      "cases": 2,
+      "record_only": true
+    }
+  },
+  "fixture_signature": {
+    "count": 13,
+    "source": "S3 signature set (fixtures/g10-p5-primitive-branches/*.xml x8, fixtures/g10-p5-mesh-multicontact/{mesh-mesh-two-assets.xml,fan-cone-24.obj,prism-20.obj,mesh-limits-cone-box.xml,mesh-limits-prism-box.xml})",
+    "checked_by": "tests/g10_p5_branch_closure_cuda.rs::fixtures_match_s3_signature"
+  },
+  "mesh_topology_provenance": {
+    "generated_from": "pinned mujoco 3.15.0 mjModel of the same S3 fixtures (cube+tetra, fan-cone-24, prism-20)",
+    "authoring_only": true,
+    "generator_committed": false,
+    "loader": "tests/support/branch_closure_mesh_data.rs (Rust constants embedded in tests; target does not run Python/muJoCo)",
+    "cpu_checks": "tests/g10_p5_branch_closure_cuda.rs::mesh_topology_matches_s3_precheck_and_validates (topology counts, polyvert/polymap value domains, real validate_collision_inputs == Ok)"
+  },
+  "precheck_o1_numbers": {
+    "note": "S3 corrected caliber; S4 evidence must not contain 5 or 6 as bit-level case counts",
+    "bit_equal_dist_and_pos_cases": 4,
+    "bit_equal_cases": ["plane-cylinder-degenerate", "plane-box-corner-face-down", "plane-box-corner-face-up", "plane-capsule-lying"],
+    "corner_single": "dist bit-level only (pos x GPU 1.1678e-8 vs CPU 1.4901e-8)",
+    "tilt_pose_deltas": "dist 8-16 ULP / pos 8-48 ULP",
+    "mesh_cases": "U6/U7/U8 CPU precheck has no dist/pos; only count/qpos_bits/topology",
+    "u3_corner_union": "8/8 from S3 CPU precheck (counts 4/4/2/2/1)"
+  },
+  "u7_u8_policy": {
+    "u8_wording_required": "上游支持 20 顶点 polygon（动态容量），设备 FACE_MAX=16 逐 polygon 回退 → 行为差异 / 限制存在",
+    "u7_wording_required": "与 degree>10 限制语义一致",
+    "record_only": "U7/U8 not in pass/fail denominator; record count/dist/pos simultaneously (count-only can coincide: U7 upstream count=1 vs device single-contact fallback count=1)",
+    "forbidden_wording": ["上游也限制", "与上游一致", "U8 已覆盖"],
+    "static_map_refs": {
+      "M-05": "device multicontact_mesh.cu:120-122,148-150 (G5_MC_MESH_DEG_MAX(10)) vs pinned dynamic nmeshdegmax (collision_convex.py:1262-1289)",
+      "M-09": "device multicontact_mesh.cu:180-182 (per-polygon nvert > FACE_MAX return 0) vs pinned dynamic npolygonmax"
+    }
+  },
+  "cpu_tests": {
+    "branch_closure_target": {"command": "cargo test --locked --features cuda-probe --test g10_p5_branch_closure_cuda", "passed": 3, "failed": 0, "ignored": 2, "tests": ["fixtures_match_s3_signature", "reference_support_parses_without_gpu", "mesh_topology_matches_s3_precheck_and_validates"]},
+    "launcher_target": {"command": "cargo test --locked --features cuda-probe --test g10_p5_nvrtc_launcher", "passed": 2, "failed": 0, "ignored": 1, "tests": ["hfield_capsule_reference_matches_frozen_probe", "world_order_normalization_turns_row_swap_into_zero_diff"]}
+  },
+  "gates_same_tree": {
+    "fmt": {"command": "cargo fmt --all -- --check", "exit": 0},
+    "clippy": {"command": "cargo clippy --locked --all-targets -- -D warnings", "exit": 0},
+    "clippy_cuda": {"command": "cargo clippy --locked --all-targets --features cuda-probe -- -D warnings", "exit": 0},
+    "unit": {"command": "cargo test --locked --no-fail-fast", "passed": 994, "failed": 0, "ignored": 376, "binaries": 120, "baseline_m3": {"passed": 990, "failed": 0, "ignored": 374}},
+    "binding": "normify gate 2026-10-27-unc3-branch-closure-s4-validation runs at closure and binds the final tree; results under .normify/runs/"
+  },
+  "frozen_binaries": {
+    "count": 10,
+    "build_recipe": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --all-features --no-run --test <name> (MJWARP_MUJOCO_ROOT=target/toolchains/mujoco-3.12.0/package)",
+    "frozen_copy_dir": "target/s4-freeze/ (not committed; re-hashed after copy: copy_match=true)",
+    "source_mtime_before_build": true,
+    "runner": {"path": "target/s4-branch-closure/window/run-validation-attempt1.ps1", "bytes": 11735, "sha256": "1731f56c2bc5757c2f3957a12a520aaf2a516c2e6c605b68e13f1aaedd31dcd6"},
+    "targets": {
+      "branch_closure": {"file": "g10_p5_branch_closure_cuda-1b98cdc445ce5abc.exe", "bytes": 41617920, "sha256": "e46b0c3262e16e6b847769be8e26b6ae3c1f282bb6b0858be30cd63478cf1a2a"},
+      "launcher": {"file": "g10_p5_nvrtc_launcher-719917fb0657e1fe.exe", "bytes": 41701376, "sha256": "a7c1d0331ea1ea9274469850aed27613b6b62c1a7786c9751207ba4ee57c4236"},
+      "multicontact": {"file": "g10_p5_multicontact_cuda-3c769ef530070ffe.exe", "bytes": 41686016, "sha256": "0901879b47bea6d7d7ff60b5248fb8d270ee9ddf15dd5d4b43668191beb7c8d1"},
+      "primitive": {"file": "g10_p5_primitive_cuda-0908b0f61ffbc599.exe", "bytes": 41689600, "sha256": "5511da57e8c8ebd09ef8472f6d2cdf05f52abf463158fd2d388196bcbf0e73da"},
+      "plane": {"file": "g10_p5_primitive_plane_cuda-b1e8897a38248f9f.exe", "bytes": 41561088, "sha256": "e7dccc078092357cf905bb47f6b947dc4c093ac8444ff149b5401176b62ef016"},
+      "sphere_capsule": {"file": "g10_p5_primitive_sphere_capsule_cuda-effe95bf0fed2063.exe", "bytes": 41549312, "sha256": "6cd4f7a6755ba5af0dcb384ea734a7f1c7428b5124b0f5273d0c6cd3627373fd"},
+      "branches": {"file": "g10_p5_primitive_branches_cuda-555175a2d3995ff7.exe", "bytes": 41625600, "sha256": "ff61a349d87ddd0cee8643271ec533ed2080be336860152b30dab47e54ba92ef"},
+      "mesh_m2": {"file": "g10_p5_mesh_multicontact_m2_cuda-e11ae6eb82e10bd5.exe", "bytes": 41740800, "sha256": "277b043594b4c1ab4167c66258405146b5eedf5bf784fd1ac4d15dc7ebf3e3de"},
+      "mesh_m3": {"file": "g10_p5_mesh_multicontact_m3_cuda-31f06b6f3d1d660f.exe", "bytes": 41743360, "sha256": "468c1a967318ae309ea6757fb495f014f417c3e7827219f2b499a9cb790991c3"},
+      "stage2": {"file": "stage2_equivalence_window-b7e65259db9435d8.exe", "bytes": 42265600, "sha256": "9e5f0b0968d7cca4a9e71093a466f5d39eb0b45e996dc49fe0e994dfb9009b70"}
+    }
+  },
+  "window_plan": {
+    "attempt_count": 0,
+    "opened": false,
+    "entities": 10,
+    "entity_order": ["branch_closure", "launcher", "multicontact", "primitive", "plane", "sphere_capsule", "branches", "mesh_m2", "mesh_m3", "stage2"],
+    "stage2_mode": "record-C only (window_product_equivalence_dump; no pass/fail)",
+    "runner_guards": "10 exes + 13 fixtures + 2 references SHA_OK lines written to sha-guards.txt and facts.txt",
+    "machine_load_precheck": {"heavy_processes_present_aborts": 9, "cpu_samples_plan": [4, 4, 1], "cargo_rustc_cl_nvcc": "absent"},
+    "guard": {"open_gate_free_mib": 10240, "floor_formula": "min(10240, baseline_free - 3072)", "floor_plan_mib": 10171, "sampling": "0.25 s", "pre_post_end_baseline": true, "residual_check": true},
+    "baseline_plan_points": ["2819,13243,38,31,596.36", "2819,13243,39,31,596.36", "2819,13243,40,31,596.36"],
+    "compute_apps_plan": {"count": 29, "insufficient_permissions": 6, "filtered_task_processes": 0},
+    "wall_estimate_s": "220-300 (M3 9 entities 202.1 s + 1 entity)",
+    "memory_budget": "M3 delta_peak 278 MiB scale (sequential, single-process peak ~1.5 GiB)",
+    "zero_rust_compile_inside": true,
+    "max_valid_attempts": 2
+  },
+  "boundaries": {
+    "window_claimed_passed": false,
+    "branch_claimed_covered": false,
+    "u7_u8_record_only": true,
+    "criteria_tolerance_reference_expectation_modified": false,
+    "product_or_device_src_modified": false,
+    "fixtures_newly_created": false,
+    "new_target_line_limit_ok": true,
+    "machine_readable_exception": "receipt.json is machine-readable evidence and may exceed 500 lines; README/code stay <=500 lines"
+  }
+}

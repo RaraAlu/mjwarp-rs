@@ -1,12 +1,13 @@
 //! G10@P5：产品 NVRTC 入口的 GPU 窗口验收（默认为 ignored，本机不跑）。
 //!
-//! 用产品 API（`CollisionGpuProgram::new(0)` + `run`）对 3 个冻结 case 重跑 G5 探针输入，
+//! 用产品 API（`CollisionGpuProgram::new(0)` + `run`）对 4 个冻结 case 重跑 G5 探针输入，
 //! 并与探针 `out1/` 逐字段比对：先位级比较并打印 bit_equal；非位级按 G5 既有判据断言
 //! （`dist` 自身量级 ≤4 ULP、`ref == 0` 用 4 ULP@1.0；`pos` 按 `max_i |ref_i|` 的
 //! 4·ULP(scale)；`frame` 按 scale=1.0 的 4 ULP=4.768e-7；参数/整数/`nacon`/`nccd`/
 //! `overflow` 位级）。数组按 probe 口径取前 `nacon` 行。
+//! S4 起 `hfield-capsule` 进入本 target（补 M2 起未覆盖的 hfield-capsule 设备回归）：对比对象
+//! 仍是冻结探针 `out1/`，另有 CPU 测试核对 `fixtures/g10-p5/references/hfield-capsule.json` 与 `out1/` 一致；既有 3 case 未改动。
 //! 运行：`cargo test --locked --features cuda-probe --test g10_p5_nvrtc_launcher -- --ignored --test-threads=1 --nocapture`
-
 #![cfg(feature = "cuda-probe")]
 
 use std::collections::BTreeMap;
@@ -23,7 +24,12 @@ use launcher_compare::{
     CaseReport, check_dist, check_exact, check_exact_f32, check_vectors, compare_case,
     g5_contact_order, permute_rows_f32, permute_rows_i32,
 };
-const CASES: [&str; 3] = ["hfield-sphere", "sdf-box", "ellipsoid-box"];
+const CASES: [&str; 4] = [
+    "hfield-sphere",
+    "sdf-box",
+    "ellipsoid-box",
+    "hfield-capsule",
+];
 
 fn cases_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -219,6 +225,62 @@ fn product_nvrtc_launcher_matches_g5_probe_out1() {
         "产品 NVRTC 入口与 G5 探针 out1 不一致（{} 条）",
         failures.len()
     );
+}
+
+/// S4：`hfield-capsule` 进入 launcher 前的 CPU 前检 —— 冻结探针 `out1/` 与上游参考
+/// `fixtures/g10-p5/references/hfield-capsule.json` 的 count/geom/dist/worldid 逐位一致
+/// （不建 CUDA context；设备 vs out1 的判据在主 ignored 测试里按既有口径执行）。
+#[test]
+fn hfield_capsule_reference_matches_frozen_probe() {
+    let directory = cases_root().join("hfield-capsule");
+    let probe = directory.join("out1");
+    let reference_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("fixtures/g10-p5/references/hfield-capsule.json");
+    let reference: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(&reference_path).expect("读取 hfield-capsule 参考"),
+    )
+    .expect("解析 hfield-capsule 参考");
+    let reference_count = reference["output"]["count"].as_u64().expect("count") as usize;
+    let probe_nacon = read_i32(&probe, "nacon")[0] as usize;
+    assert_eq!(
+        probe_nacon, reference_count,
+        "out1 nacon 与上游参考 count 不一致"
+    );
+    let field_i32 = |name: &str| -> Vec<i32> {
+        reference["output"]["fields"][name]["values"]
+            .as_array()
+            .unwrap_or_else(|| panic!("参考缺少 fields.{name}.values"))
+            .iter()
+            .map(|value| value.as_i64().expect("int") as i32)
+            .collect()
+    };
+    let field_f32 = |name: &str| -> Vec<f32> {
+        reference["output"]["fields"][name]["values"]
+            .as_array()
+            .unwrap_or_else(|| panic!("参考缺少 fields.{name}.values"))
+            .iter()
+            .map(|value| value.as_f64().expect("float") as f32)
+            .collect()
+    };
+    assert_eq!(
+        read_i32(&probe, "geom"),
+        field_i32("geom"),
+        "geom 位级不一致"
+    );
+    assert_eq!(
+        read_i32(&probe, "worldid"),
+        field_i32("worldid"),
+        "worldid 位级不一致"
+    );
+    let probe_dist: Vec<u32> = read_f32(&probe, "dist")
+        .iter()
+        .map(|value| value.to_bits())
+        .collect();
+    let reference_dist: Vec<u32> = field_f32("dist")
+        .iter()
+        .map(|value| value.to_bits())
+        .collect();
+    assert_eq!(probe_dist, reference_dist, "dist 位级不一致");
 }
 
 #[test]
