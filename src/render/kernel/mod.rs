@@ -31,6 +31,7 @@ mod megakernel_aa;
 mod megakernel_arrays;
 pub mod output;
 pub mod renderer;
+pub mod world_camera;
 
 pub use megakernel::MegakernelRenderer;
 pub use megakernel_arrays::{LightDataPose, light_data_poses};

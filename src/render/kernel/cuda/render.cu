@@ -451,10 +451,10 @@ extern "C" __global__ void render_depth_seg(
     }
 
     const float* cam_positions = (const float*)cam_xpos.data;
-    const float* cam_matrices = (const float*)cam_xmat.data;
-    V3 cam_pos = v3(cam_positions[3 * camid + 0], cam_positions[3 * camid + 1],
-                    cam_positions[3 * camid + 2]);
-    const float* cam_mat = cam_matrices + 9 * camid;
+    const float* cam_matrices = (const float*)cam_xmat.data; int cam_slot = worldid * (int)cam_xpos.shape.dims[1] + camid;
+    V3 cam_pos = v3(cam_positions[3 * cam_slot + 0], cam_positions[3 * cam_slot + 1],
+                    cam_positions[3 * cam_slot + 2]);
+    const float* cam_mat = cam_matrices + 9 * cam_slot;
     V3 ray_origin_world = add(cam_pos, mat_vec(cam_mat, ray_offset_local_cam));
     V3 ray_dir_world = mat_vec(cam_mat, ray_dir_local_cam);
 

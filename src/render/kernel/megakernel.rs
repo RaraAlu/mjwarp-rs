@@ -126,9 +126,8 @@ impl MegakernelRenderer {
             return Err(LauncherError::InvalidArray("ray_count"));
         }
         let ncam = model.ncam();
-        if camera_poses.len() != ncam {
-            return Err(LauncherError::InvalidArray("camera_poses"));
-        }
+        let (cam_xpos, cam_xmat) =
+            super::world_camera::world_camera_pose_arrays(camera_poses, nworld, ncam)?;
 
         let model_arrays = ModelRenderArrays::from_fields(fields)?;
         let ngeom = model_arrays.geom_type.len();
@@ -160,12 +159,6 @@ impl MegakernelRenderer {
         let cam_fovy = reals(fields, "cam_fovy")?;
         let cam_sensorsize = floats(fields, "cam_sensorsize")?;
         let cam_intrinsic = floats(fields, "cam_intrinsic")?;
-        let mut cam_xpos = Vec::with_capacity(3 * ncam);
-        let mut cam_xmat = Vec::with_capacity(9 * ncam);
-        for pose in camera_poses {
-            cam_xpos.extend_from_slice(&pose.xpos);
-            cam_xmat.extend_from_slice(&pose.xmat);
-        }
 
         // ---- 场景 geom data 位姿（从打包后的 scene 布局反解 leaf→geom） ----
         let (geom_xpos, geom_xmat) = geom_data_poses(&scene, ngeom)?;

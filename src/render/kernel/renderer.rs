@@ -71,7 +71,12 @@ impl DepthSegRenderer {
             return Ok(()); // 上游 `wp.launch(dim=0)` 为 no-op：空选择不发射、不写输出
         }
         let model_arrays = ModelRenderArrays::from_fields(fields)?;
-        let camera = CameraDevice::build(model, resolved, camera_poses)?;
+        let world0_poses = camera_poses
+            .get(..model.ncam())
+            .ok_or(LauncherError::InvalidArray("camera_pose_count"))?;
+        let camera = CameraDevice::build(model, resolved, world0_poses)?;
+        let (world_xpos, world_xmat) =
+            super::world_camera::world_active_camera_arrays(model, resolved, camera_poses)?;
         let scene = SceneDevice::pack(
             context.scene_bvh(),
             context.scene(),
@@ -129,8 +134,8 @@ impl DepthSegRenderer {
         let cam_fovy = upload(&self.session, &camera.fovy)?;
         let cam_sensorsize = upload(&self.session, &camera.sensorsize)?;
         let cam_intrinsic = upload(&self.session, &camera.intrinsic)?;
-        let cam_xpos = upload(&self.session, &camera.xpos)?;
-        let cam_xmat = upload(&self.session, &camera.xmat)?;
+        let cam_xpos = upload(&self.session, &world_xpos)?;
+        let cam_xmat = upload(&self.session, &world_xmat)?;
         let cam_res = upload(&self.session, &flat_resolutions(&camera.res))?;
         let depth_adr = upload(&self.session, &camera.depth_adr)?;
         let seg_adr = upload(&self.session, &camera.seg_adr)?;
@@ -173,8 +178,8 @@ impl DepthSegRenderer {
         args.push(array_arg(&cam_fovy, RenderElem::F32, &[nrender])?);
         args.push(array_arg(&cam_sensorsize, RenderElem::Vec2, &[nrender])?);
         args.push(array_arg(&cam_intrinsic, RenderElem::Vec4, &[nrender])?);
-        args.push(array_arg(&cam_xpos, RenderElem::Vec3, &[nrender])?);
-        args.push(array_arg(&cam_xmat, RenderElem::Mat33, &[nrender])?);
+        args.push(array_arg(&cam_xpos, RenderElem::Vec3, &[nworld, nrender])?);
+        args.push(array_arg(&cam_xmat, RenderElem::Mat33, &[nworld, nrender])?);
         args.push(array_arg(&cam_res, RenderElem::Vec2I, &[nrender])?);
         args.push(array_arg(&depth_adr, RenderElem::I32, &[nrender])?);
         args.push(array_arg(&seg_adr, RenderElem::I32, &[nrender])?);

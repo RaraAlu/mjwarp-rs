@@ -106,6 +106,9 @@ path = "src/render/context/world/layout.rs"
 [[source]]
 path = "src/render/context/world/state.rs"
 
+[[source]]
+path = "src/render/kernel/world_camera.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::render::bvh::refit_bvh"

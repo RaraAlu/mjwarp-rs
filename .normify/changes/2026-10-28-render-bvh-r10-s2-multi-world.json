@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r10-s2-multi-world",
+  "title": {
+    "zh": "渲染/BVH R10-S2：nworld>1 端到端 + world 隔离验收（1 验证窗，无新捕获）",
+    "en": "Render/BVH R10-S2: nworld>1 end-to-end with world-isolation acceptance (1 window, no new capture)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R10 第二片（GPU + 1 验证窗、无新 authoring 捕获）：把 S1 的 per-world 状态接到渲染链路，跑 nworld>1 端到端（复用 scene-a 双 world 冻结参考，同模型多 state），**显式验收 world 隔离**：world0 射线不得命中 world1 几何、每 world 输出独立缓冲/偏移正确、两次运行 SHA 相同、完成令牌/同步无跨 world 串扰；任何隔离反例出现即停手报 Arch。判据沿用（RGB ≤1 LSB 位级优先 / depth ≤4 ULP / seg exact / 同输入两次 SHA 相同）；`DEVICE_SOURCES`=28、入口=6 不动（R10 若确需新 device source 先报）。",
+    "en": "R10 slice 2: wire per-world state into the render path, run nworld>1 end-to-end against frozen scene-a two-world references, and accept world isolation, independent buffers and completion/sync semantics in one validation window."
+  },
+  "modules": {},
+  "acceptance": [
+    "端到端 nworld=2（同模型多 state）渲染成功；两 world 各自的 RGB/depth/seg 对冻结参考在判据内（RGB ≤1 LSB 位级优先、depth ≤4 ULP、seg exact），逐 world 分区与 `OutputLayout` 一致。",
+    "**world 隔离**：world0 的射线不得命中 world1 几何（构造分离几何/互斥可见性用例）；每 world 独立缓冲/偏移正确（哨兵与逐 world 视图）；无跨 world 串扰。**任何隔离反例 → 停手报 Arch，不得写成通过**。",
+    "完成令牌/同步：kernels 全部完成后才可读；两次运行输出 SHA-256 相同；nworld=1 回归位级不变。",
+    "判据零放宽、参考/夹具/容差零改动；`src/render/kernel/*` 若需改动必须先按 S7b3 拆子文件（launch 500 / megakernel 498 / cast 494 已贴线）、`model/render.rs`(500) 与 `camera_output.rs`(499) 不加行；`DEVICE_SOURCES`=28、入口=6、`CollisionArgs` 504 B 不动。",
+    "窗口纪律：冻结实体 sha+字节、runner sha、3 点基线、compute-apps 过滤 0、open free≥10240、`floor=min(10240, baseline_free−3072)`、0.25 s 采样、pre/post/结束基线、零 Rust 编译、attempt ≤2、日志无 BOM；**材料一次齐报 Chief 签后才开窗**，且窗口+QA 复核同空闲块闭合（下一段高峰前）；**无新 authoring 捕获**。",
+    "证据 `docs/development-evidence/render-bvh/r10-s2-multi-world-e2e/`（README + receipt 含 `/task_id` + 窗口日志/采样/守卫/manifest）；措辞不写「窗口通过/已覆盖/精度达标/上游等价/跨世界一致」类正面结论。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r10-s1-world-state"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/",
+      "src/render/kernel.rs",
+      "src/render/context/world.rs",
+      "tests/render_r10_multi_world.rs",
+      "tests/support/render_bvh/",
+      "docs/development-evidence/render-bvh/r10-s2-multi-world-e2e/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 73
+  },
+  "note": "Arch 2026-10-28 登记：1 验证窗、无新捕获（复用 scene-a 双 world 冻结参考）。world 隔离是硬验收面，不允许把跨 world 串扰写成通过。",
+  "revision": {
+    "before": "9231b40e08fc8019164bfd23479df1a34ed610ed",
+    "after": null
+  },
+  "created_at": "2026-10-27T20:11:00.000Z",
+  "updated_at": "2026-10-27T19:35:16.335Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r10-s2-multi-world-e2e/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r10-s2-multi-world"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

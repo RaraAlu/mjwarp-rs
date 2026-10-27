@@ -145,8 +145,9 @@ extern "C" __global__ void render_megakernel(
     int mujoco_cam_id = cam_id_map.data[camid];
     V3 ray_dir_local_cam = to_v3(ray.data[ray_base + rayid]);
     V3 ray_offset_local_cam = to_v3(ray_offset.data[ray_base + rayid]);
-    const float* cam_mat = (const float*)(cam_xmat_in.data + mujoco_cam_id);
-    V3 cam_pos = to_v3(cam_xpos_in.data[mujoco_cam_id]);
+    int cam_slot = worldid * (int)cam_xpos_in.shape.dims[1] + mujoco_cam_id;
+    const float* cam_mat = (const float*)(cam_xmat_in.data + cam_slot);
+    V3 cam_pos = to_v3(cam_xpos_in.data[cam_slot]);
     V3 ray_origin_world = add(cam_pos, mat_vec(cam_mat, ray_offset_local_cam));
     V3 ray_dir_world = mat_vec(cam_mat, ray_dir_local_cam);
 
