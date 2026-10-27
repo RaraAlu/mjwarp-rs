@@ -1,0 +1,43 @@
+commit d1626e517efa6fec8ee17d8cc6b8420b9e2f7852
+Author: 云海 <zhangsanjh42@126.com>
+Date:   Wed Oct 28 03:11:15 2026 +0800
+
+    工程(仓库): 补齐 G10@P5 夹具的 eol=lf 属性（fresh checkout 可复现，QA O8）
+    
+    **变更内容**
+    - .gitattributes 只补两行窄规则（+8 行含注释）：
+      ixtures/g10-p5-primitive-branches/* text eol=lf、
+      ixtures/g10-p5-mesh-multicontact/* text eol=lf。
+    - 依据：        ests/support/branch_closure_case.rs 的 S3 签名清单按字节 sha256 复核 13 个文件
+      （8 个 primitive-branches + 5 个 mesh-multicontact，恰好落在这两个目录）；此前
+      git check-attr 对这两个目录为 unspecified，core.autocrlf=true 的 fresh checkout 会检成 CRLF，
+      导致 g10_p5_branch_closure_cuda::fixtures_match_s3_signature 失败（QA O8，非 S1 引入）。
+    - 未改任何 fixture blob、未做 renormalize、未动其他已有规则目录（ixtures/precision、
+      ixtures/render-bvh、ixtures/native-probe 等）；git status 仅 .gitattributes。
+    
+    **验证**
+    - git check-attr text eol -- <13 个签名文件>：全部      ext: set、eol: lf（26 行，见证据）。
+    - git ls-files --eol fixtures/g10-p5-primitive-branches/ fixtures/g10-p5-mesh-multicontact/：
+      **24/24** ttr/text eol=lf 且 w/lf。
+    - git status --porcelain 仅 .gitattributes（fixture 零 modified）；git diff --stat =
+      1 file changed, +8。
+    - fresh clone 与 S3 signature 测试结果随证据提交（docs/development-evidence/repo-eol-attributes/）。
+    
+    Normify-Task: 2026-10-28-repo-fixture-eol-attributes
+
+diff --git a/.gitattributes b/.gitattributes
+index 201e84b2..b6339674 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -291,3 +291,11 @@ fixtures/collision-reference-input/plane-sphere.xml text eol=lf
+ *.npz -text -diff
+ *.gz -text -diff
+ *.mjb -text -diff
++
++# G10@P5 分支/网格夹具：core.autocrlf=true 的 fresh checkout 需保持 LF。
++# 依据：tests/support/branch_closure_case.rs 的 S3 签名清单按字节 sha256 复核 13 个文件
++# （8 个 primitive-branches + 5 个 mesh-multicontact）；未加规则时 fresh clone 会检成 CRLF，
++# 导致 g10_p5_branch_closure_cuda::fixtures_match_s3_signature 失败（QA O8）。
++# 任务：2026-10-28-repo-fixture-eol-attributes；只补规则，不改任何 fixture blob。
++fixtures/g10-p5-primitive-branches/* text eol=lf
++fixtures/g10-p5-mesh-multicontact/* text eol=lf

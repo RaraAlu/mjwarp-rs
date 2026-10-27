@@ -5,7 +5,7 @@
     "zh": "仓库卫生：补齐 fixture 的 eol=lf 属性，保证 fresh checkout 可复现（QA O8）",
     "en": "Repo hygiene: add eol=lf attributes for fixtures so a fresh checkout reproduces"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "修 QA 在 S1 复核中记录的 O8：本机 `core.autocrlf=true` 且 `.gitattributes` 只覆盖部分 fixture 目录，fresh checkout 时 `fixtures/g10-p5-primitive-branches/*.xml` 等会变 CRLF，导致既有 S3 signature 类测试在干净 checkout 下失败（**非 S1 引入**，是既有仓库配置缺口）。做法：给缺失的 fixture 目录补窄规则 `text eol=lf`（只补确实缺规则的目录，逐目录核对 `git ls-files --eol`），**不改任何 fixture blob 内容、不做全仓 renormalize**；若补齐后会触发 renormalize，先停下报 Arch 并给出影响文件数。验收：在 detached fresh checkout 中 `git ls-files --eol` 显示这些 fixture 为 `w/lf`，既有 S3 signature 测试通过；主工作区 `git status` 干净、fixture 内容零改动。",
     "en": "Add narrow text eol=lf rules for fixture directories missing them so a fresh checkout reproduces LF, without renormalizing fixture blobs."
@@ -34,7 +34,8 @@
     "after": null
   },
   "created_at": "2026-10-27T18:37:00.000Z",
-  "updated_at": "2026-10-27T19:09:10.312Z",
+  "updated_at": "2026-10-27T19:13:17.920Z",
+  "closed_at": "2026-10-27T19:13:17.920Z",
   "checks": [
     {
       "kind": "json",

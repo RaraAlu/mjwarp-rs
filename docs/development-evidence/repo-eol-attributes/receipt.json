@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-repo-fixture-eol-attributes",
+  "kind": "repo-eol-attributes-fixture-g10-p5",
+  "status": "final",
+  "date": "2026-10-28",
+  "background": "QA 在 R08-S1 复核中记录的 O8：本机 core.autocrlf=true 且 .gitattributes 只覆盖部分 fixture 目录；fixtures/g10-p5-primitive-branches/* 与 fixtures/g10-p5-mesh-multicontact/* 无 eol 规则，fresh checkout 会被检成 CRLF，而 tests/support/branch_closure_case.rs 的 FIXTURE_SHA256 按字节 sha256 复核 13 个文件，导致 g10_p5_branch_closure_cuda::fixtures_match_s3_signature 在干净 checkout 下失败（非 S1 引入，属既有仓库配置缺口）。",
+  "gate": {
+    "not_applicable": true,
+    "reason": "任务卡只登记 json + forbid_claim 两项检查，未登记任何 gate；本任务只改 .gitattributes 与证据文本，无 cargo 门禁可跑（无门禁属预期）。"
+  },
+  "changed": [
+    {
+      "path": ".gitattributes",
+      "diff": "+8 / -0",
+      "lines": 301,
+      "bytes": 15228,
+      "sha256": "ff801173ebf3a84d9ecdbfec1f7b60761cef2db7604a8ed202eea4d4b3a83f43",
+      "change": "只补两行窄规则（含 6 行注释）：g10-p5-primitive-branches/* 与 g10-p5-mesh-multicontact/* 的 text eol=lf"
+    }
+  ],
+  "rules_added": [
+    "fixtures/g10-p5-primitive-branches/* text eol=lf",
+    "fixtures/g10-p5-mesh-multicontact/* text eol=lf"
+  ],
+  "scope_selection": {
+    "basis": "tests/support/branch_closure_case.rs 的 FIXTURE_SHA256 共 13 项（8 个 primitive-branches + 5 个 mesh-multicontact）",
+    "attr_before": "git check-attr text eol 对两个目录均为 unspecified（13/13 文件）",
+    "files_in_scoped_dirs": 24,
+    "files_in_signature_list": 13,
+    "not_touched": [
+      "fixtures/precision、fixtures/render-bvh、fixtures/native-probe 等已有规则目录",
+      "其他 attr 空缺目录（未扩大范围）",
+      "target/、.normify/",
+      "任何 fixture/code blob（未 renormalize）"
+    ]
+  },
+  "verification": {
+    "main_worktree": {
+      "status_after_rule_add": "git status --porcelain 仅 .gitattributes（fixture 零 modified）",
+      "fixtures_status_empty": true,
+      "fixtures_diff_stat_empty": true,
+      "check_attr": "13/13 文件 text: set + eol: lf（改动前 13/13 unspecified）",
+      "ls_files_eol": "24/24 为 attr/text eol=lf 且 w/lf",
+      "logs": ["logs/before-attr-main.txt", "logs/after-attr-main.txt", "logs/before-eol-main.txt", "logs/after-eol-main.txt", "logs/main-status.txt"]
+    },
+    "fresh_clone": {
+      "command": "git -c core.longpaths=true clone --no-hardlinks . target/eol-verify/clone",
+      "longpaths_note": "core.longpaths 仅用于 docs/evidence/**/warp-cache 超长文件名 checkout，与 EOL 判定无关",
+      "head": "d1626e51",
+      "core_autocrlf": true,
+      "status_lines": 0,
+      "ls_files_eol": "24/24 w/lf、24/24 attr/text eol=lf、w/crlf=0",
+      "signature_files_cr_bytes": "0/13 文件含 CR 字节",
+      "logs": ["logs/clone-status.txt", "logs/clone-eol.txt", "logs/clone-attr.txt"]
+    },
+    "negative_control": {
+      "commit": "ae90eb55（本规则之前）",
+      "method": "在无规则提交上按 core.autocrlf=true 强制重检两个目录",
+      "ls_files_eol": "24/24 w/crlf、attr 为 unspecified",
+      "sha256_vs_signature_list": "13/13 不一致",
+      "logs": ["logs/clone-before-eol.txt", "logs/sha-compare.txt"]
+    },
+    "s3_signature_test": {
+      "case": "g10_p5_branch_closure_cuda::fixtures_match_s3_signature",
+      "command": "cargo test --locked --features cuda-probe --test g10_p5_branch_closure_cuda fixtures_match_s3_signature -- --nocapture（在 fresh clone 内）",
+      "result": "1 passed / 0 failed（build 17.2 s，test finished 0.00 s）",
+      "log": "logs/clone-s3-signature-test.log"
+    }
+  },
+  "fixture_blobs_unchanged": {
+    "claim": "13 个签名文件在加规则后 fresh clone 中 sha256 与 S3 签名清单 13/13 一致；主工作区 fixture 零 modified",
+    "before_clone_mismatch": "13/13（CRLF 导致，负对照）",
+    "after_clone_match": "13/13",
+    "renormalize_performed": false
+  },
+  "evidence_files": [
+    "docs/development-evidence/repo-eol-attributes/README.md",
+    "docs/development-evidence/repo-eol-attributes/receipt.json",
+    "docs/development-evidence/repo-eol-attributes/logs/before-attr-main.txt",
+    "docs/development-evidence/repo-eol-attributes/logs/after-attr-main.txt",
+    "docs/development-evidence/repo-eol-attributes/logs/before-eol-main.txt",
+    "docs/development-evidence/repo-eol-attributes/logs/after-eol-main.txt",
+    "docs/development-evidence/repo-eol-attributes/logs/clone-status.txt",
+    "docs/development-evidence/repo-eol-attributes/logs/clone-eol.txt",
+    "docs/development-evidence/repo-eol-attributes/logs/clone-attr.txt",
+    "docs/development-evidence/repo-eol-attributes/logs/clone-before-eol.txt",
+    "docs/development-evidence/repo-eol-attributes/logs/clone-s3-signature-test.log",
+    "docs/development-evidence/repo-eol-attributes/logs/sha-compare.txt",
+    "docs/development-evidence/repo-eol-attributes/logs/signature-files.txt",
+    "docs/development-evidence/repo-eol-attributes/logs/gitattributes-diff.txt",
+    "docs/development-evidence/repo-eol-attributes/logs/main-status.txt"
+  ],
+  "self_checks": {
+    "json_valid": true,
+    "task_id_matches_card": true,
+    "line_endings": "UTF-8 no BOM, LF/CR=0（README/receipt/全部日志）",
+    "banned_terms_hits": 0,
+    "scope_selfcheck": {
+      "task_files_scope": [".gitattributes", "docs/development-evidence/repo-eol-attributes/"],
+      "changed_paths": [".gitattributes", "docs/development-evidence/repo-eol-attributes/"],
+      "out_of_scope": 0
+    },
+    "fixtures_unchanged": true,
+    "other_attr_dirs_untouched": true
+  },
+  "boundaries": {
+    "blob_changes": false,
+    "repo_wide_renormalize": false,
+    "window_gpu": false,
+    "claims": "只证明 QA O8 指出的两个签名夹具目录在 fresh checkout 中保持 LF 且 S3 签名测试通过；不声明仓库级 EOL 全量合规。"
+  }
+}
