@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-product-collision-inputs-s2-observation-closure",
+  "title": {
+    "zh": "产品碰撞输入 S2 QA 观察收口（O1 fixture 归属更正 + O2–O7 处置，S3 前置口径）",
+    "en": "Close QA observations on product collision inputs S2"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 QA S2 独立复核（pass / 0 阻断 / 7 观察）收口证据：① O1（一般）更正第三 case fixture 归属——M3 `mesh-case-manifest.json` 记录的是 **`mesh-mesh.xml`**（`xml_sha256=bb9ffb2f…`、qpos z=0.18、两份 cube：cube + cube_b 缩放 0.9；bins 实测 nmesh=2/nmeshvert=16/nmeshpoly=12），**不是** `mesh-mesh-two-assets.xml`（`1d7115…`，cube+tetra，S3/S4 U6 用）；bins/测试不受影响（只读 bins），但 README §8.2/§8.4、receipt、交付记录的追溯要改；② O4 更正 README §8.2「meta 由 30 项字段/帧导出」的偏强表述（实际 meta 手工构造、ngeom/noct 取自 bins 计数）；③ O2 记为 **S3 前置口径**：`from_model_input` 只支持单 world 帧、`validate_inputs` 要求 `nworld×ngeom×3` → S3 必须明确「nworld=1 或 按 world 复制单帧」的方案，nworld>1 多帧状态读取不在本片；O3（sidecar helper 复用）、O5（共享目录禁词否定句误报）、O6（native 路径定向门禁）、O7（runs 只留最终一次）记接受/后续。不改代码/判据/参考；不改已关闭 S2 任务记录（addenda 已单独提交 `ebee230c`）。",
+    "en": "Close QA S2 observations: fixture attribution correction and dispositions."
+  },
+  "modules": {},
+  "acceptance": [
+    "S2 证据更正：README §8.2/§8.4、`receipt.json` 的 s2 段、S2 交付记录把第三 case fixture 改为 `mesh-mesh.xml`（附 `xml_sha256=bb9ffb2f…`、qpos z=0.18、两份 cube 说明），删除 `mesh-mesh-two-assets.xml` 归属；保留「bins 只读、测试不读 xml」的说明。",
+    "receipt 增 `qa_s2_observations`：O1 已改；O4 表述更正；O2 = S3 前置口径（nworld=1 或按 world 复制单帧；多帧状态不在本片）；O3/O5/O6/O7 接受为后续。",
+    "不改 18 pinned 源、代码、fixtures、bins、判据、参考、容差；不开 GPU、不编译、不重跑窗口；S2 任务记录（closed，已有 addenda `ebee230c`）与 M0b/M3 manifests 不动。",
+    "证据 `docs/development-evidence/product-collision-inputs-wiring/` 更新 + 本片交付记录 `docs/development-evidence/changes/2026-10-27-product-collision-inputs-s2-observation-closure.json`；check exit 0（docs-only，gate 不适用须在 receipt 写明）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-product-collision-inputs-s2-independent-check"
+    ],
+    "phase": "架构/接线债务",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/product-collision-inputs-wiring/",
+      "docs/development-evidence/changes/2026-10-27-product-collision-inputs-s2-observation-closure.json"
+    ],
+    "resources": [],
+    "priority": 10
+  },
+  "note": "Arch 2026-10-27 登记（S2 QA pass 后收口，S3 前把 nworld 口径定死）。S2 task card 的旧路径口径已由 `ebee230c` addenda 更正；本片只改证据与交付记录。",
+  "revision": {
+    "before": "ea139df55355ad7d91e10296d0ec83721024dca9",
+    "after": null
+  },
+  "created_at": "2026-10-27T09:05:00.000Z",
+  "updated_at": "2026-10-27T09:05:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/product-collision-inputs-wiring/s2-observation-closure-receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-product-collision-inputs-s2-observation-closure"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
