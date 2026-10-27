@@ -16,6 +16,7 @@ mod buffers;
 mod context;
 mod error;
 mod inputs_from_snapshot;
+mod product_entry;
 mod source;
 mod types;
 
@@ -47,6 +48,9 @@ use buffers::{input_pointer, output_pointer, readback, truncated, upload, zeroed
 pub use error::CollisionGpuError;
 pub use inputs_from_snapshot::{
     CollisionInputsSnapshot, inputs_from_snapshot, mesh_poly_sidecar_present,
+};
+pub use product_entry::{
+    ProductCollisionOutcome, ProductCollisionRequest, ProductHostReason, run_product_collision,
 };
 pub use types::{CollisionGpuInputs, CollisionGpuMeta, CollisionGpuOutput};
 

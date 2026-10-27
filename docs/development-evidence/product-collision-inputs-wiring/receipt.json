@@ -429,5 +429,185 @@
     "O5": "接受：共享证据目录里 s1-observation-closure-receipt 的禁词原文会触发目录级扫描误报；S2 改动文件本身 0 命中",
     "O6": "接受（后续）：native 路径（from_model_input + ignored 桥接）不在默认门禁，建议登记定向门禁项",
     "O7": "接受（记录）：gate 跑两次但 runs 只留最终一次（同 S1 O5）"
+  },
+  "s3": {
+    "task_id": "2026-10-27-product-collision-inputs-s3-entry-window",
+    "status": "complete_entry_and_target_host_side; validation window not opened (materials to be reported for Chief sign-off)",
+    "head_at_start": "41fa049cfffa69e9a95bdb716d296630a3b214b9",
+    "scope": "S3: wire S1 snapshot + S2 adapter into an explicit product device entry (`cuda` gate, three-state fallback, no panic, default Host unchanged, nworld=1 only) and add an end-to-end target comparing against frozen M1/M3 references; no window opened in this slice.",
+    "entry": {
+      "module": "src/runtime/collision_gpu/product_entry.rs",
+      "request": "ProductCollisionRequest<'_> { snapshot: CollisionInputsSnapshot<'_>, meta: CollisionGpuMeta, kernel: CollisionKernel }",
+      "outcome": "ProductCollisionOutcome::{Device(Box<CollisionGpuOutput>), Host(ProductHostReason)}; device()/host_reason() accessors",
+      "steps": "CPU validation first (nworld=1 + S2 inputs_from_snapshot/validate_collision_inputs) -> Host choice returns Selected without touching driver/NVRTC/device -> Device choice queries backend::product_collision_availability() -> cached device program -> launch/readback",
+      "host_default": "default numeric path stays Host; Device must be explicitly selected (UNC-2 qualifier); Host selection never probes the device",
+      "run_and_abi_unchanged": "CollisionGpuProgram::run and CollisionArgs (504 B) untouched"
+    },
+    "three_state_fallback": {
+      "feature_disabled": "Host(FeatureDisabled): `cuda` feature not compiled (compile-time branch via backend::product_collision_availability)",
+      "device_unavailable": "Host(DeviceUnavailable(reason)) for driver/device/NVRTC/compile probe failures; Host(DeviceFailure('device program unavailable')) when probe passes but the cached program is missing",
+      "runtime_failure": "Host(DeviceFailure(error text)) when launch/synchronize/readback fails; no panic, no retry",
+      "cpu_invalid_input": "Err(CollisionGpuError::InvalidArgument) for nworld>1 and inconsistent snapshot/meta",
+      "unit_tests": "product_entry_tests.rs (pure CPU, no GPU): 10 cases covering host selection, all three fallbacks, program missing, kernel passthrough, nworld 0/2 rejection, invalid snapshot, availability/status consistency; the `--no-default-features --features cuda-probe` build additionally covers the compile-time FeatureDisabled branch (9 passed)"
+    },
+    "nworld": {
+      "accepted": 1,
+      "rejected": "nworld>1 -> InvalidArgument '产品碰撞入口只接受 nworld=1；多 world 状态读取另立（本片不支持 nworld>1）'; rejection happens before any device probe",
+      "multi_world_support": "not supported; multi-world state readout is a separate evaluation"
+    },
+    "backend_wiring": {
+      "path": "src/runtime/backend.rs",
+      "function": "product_collision_availability() -> Result<(), BackendUnavailable>",
+      "no_cuda": "cfg(not(feature = 'cuda')) -> Err(FeatureDisabled), no driver/NVRTC/device access",
+      "cuda": "reuses the cached narrowphase_backend_status(): CudaReady -> Ok(()), HostOnly(reason) -> Err(reason.clone())"
+    },
+    "e2e_target": {
+      "test": "tests/g10_p5_product_collision_wiring_cuda.rs",
+      "support": "tests/support/product_collision_wiring_support.rs",
+      "cases": [
+        {
+          "name": "mesh-box",
+          "mjb": "docs/development-evidence/product-collision-inputs-wiring/fixtures/mjb-312/mesh-box-312.mjb",
+          "mjb_bytes": 8800,
+          "mjb_sha256": "70b2fdc36bc8c342bcdbce7c522085a33c5286855c5e613f351f920387261e3e",
+          "xml": "fixtures/g10-p5-mesh-multicontact/mesh-box.xml",
+          "xml_sha256": "88b8d7af848a4aba25475f253bfafbfcd666107bfeddaf1291e07b91592a1e03",
+          "reference": "docs/development-evidence/mesh-multicontact-m1/upstream-mesh-multicontact-gpu.json",
+          "reference_sha256": "c83baffe6de695fdefda6852c574d5d0d7312ebb591c1b487dfc59ec126c206a",
+          "bins": "docs/development-evidence/mesh-multicontact-m0b/cases/mesh-box",
+          "geom_order": "[1,0]"
+        },
+        {
+          "name": "mesh-cylinder",
+          "mjb": "docs/development-evidence/product-collision-inputs-wiring/fixtures/mjb-312/mesh-cylinder-312.mjb",
+          "mjb_bytes": 8815,
+          "mjb_sha256": "ceef075c590710224f5e462c98bebf6cd3859e28dad0456804ff3165439505bc",
+          "xml": "fixtures/g10-p5-mesh-multicontact/mesh-cylinder.xml",
+          "xml_sha256": "d0b75f91440ee0199020c05805bf26aaf201b0b64089a31b7df8915ba68a04bd",
+          "reference": "docs/development-evidence/mesh-multicontact-m1/upstream-mesh-multicontact-gpu.json",
+          "reference_sha256": "c83baffe6de695fdefda6852c574d5d0d7312ebb591c1b487dfc59ec126c206a",
+          "bins": "docs/development-evidence/mesh-multicontact-m0b/cases/mesh-cylinder",
+          "geom_order": "[1,0]"
+        },
+        {
+          "name": "mesh-mesh",
+          "mjb": "docs/development-evidence/product-collision-inputs-wiring/fixtures/mjb-312/mesh-mesh-312.mjb",
+          "mjb_bytes": 12032,
+          "mjb_sha256": "298b8089345402bc2afa3bbf0c8cde1732341460cc6a0e4e1fd0bad4067f7734",
+          "xml": "fixtures/g10-p5-mesh-multicontact/mesh-mesh.xml",
+          "xml_sha256": "bb9ffb2f979129bbac410e9959088528f35180d14f5572c9a52631fa2ed86d8d",
+          "reference": "docs/development-evidence/mesh-multicontact-m3/upstream-mesh-multicontact-mesh-mesh-gpu.json",
+          "reference_sha256": "96e7895d13c3ba23475a013fcaa586485e93f95cced5351e2874973917e149a1",
+          "bins": "docs/development-evidence/mesh-multicontact-m3/cases/mesh-mesh",
+          "geom_order": "[0,1]"
+        }
+      ],
+      "mjb_generation": {
+        "script": "docs/development-evidence/product-collision-inputs-wiring/scripts/generate_collision_inputs_mjb.py",
+        "authoring_only": true,
+        "pinned_env": {
+          "python": "3.12.13",
+          "mujoco": "3.12.0",
+          "numpy": "2.5.4"
+        },
+        "command": "target/render-bvh-precheck/venv312/Scripts/python.exe docs/development-evidence/product-collision-inputs-wiring/scripts/generate_collision_inputs_mjb.py",
+        "result": "RESULT=PASS; 3 MJBs written; 96/96 arrays byte-identical to the M0b/M3 frozen 3.15.0-authoring bins; round-trip match true",
+        "provenance": "docs/development-evidence/product-collision-inputs-wiring/fixtures/mjb-312/provenance.json",
+        "log": "docs/development-evidence/product-collision-inputs-wiring/logs/s3-mjb-generation.log",
+        "product_test_runs_python": false
+      },
+      "criteria": "zero relaxation; reuses tests/support/mesh_multicontact_compare_support.rs: bit-equal first, dist 4 ULP @ magnitude (ref=0 -> 4 ULP@1.0), pos 4*ULP(scale), frame 4 ULP@1.0, structural/parameter fields zero tolerance, nacon == reference count, contact.geom by pinned type order, overflow all 0, efc_address all -1",
+      "case_snapshot_parity": {
+        "test": "s1_snapshot_of_pinned_mjb_matches_frozen_case_bins",
+        "result": "3 cases x 32 fields = 96/96 S1-snapshot fields byte-identical to the frozen M0b/M3 bins (mismatches=0); no GPU needed"
+      },
+      "device_parity": {
+        "test": "product_entry_device_output_matches_m1_and_m3_frozen_references",
+        "cases": 3,
+        "rows": 12,
+        "nacon_equals_reference_count": true,
+        "bit_equal_rows": 12,
+        "max_dist_ulp": 0,
+        "max_pos_ulp": 0,
+        "max_frame_ulp": 0,
+        "geom_order_observed": [
+          "[1,0]",
+          "[1,0]",
+          "[0,1]"
+        ],
+        "failures": 0
+      }
+    },
+    "dev_self_test": {
+      "note": "single local development self-test run (not a validation window): no freeze, no load guard, no pre/post baseline discipline. Window conclusions must come from the separately signed window task re-running frozen executables.",
+      "command": "cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features native-model-probe --test g10_p5_product_collision_wiring_cuda -- --ignored --test-threads=1 --nocapture",
+      "environment": {
+        "mujoco_dll": "target/toolchains/mujoco-3.12.0/package/bin/mujoco.dll",
+        "nvrtc": "target/toolchains/cuda-12.8.1/bin on PATH",
+        "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER (local dev machine)"
+      },
+      "result": "2 passed / 0 failed / 0 ignored; e2e_summary cases=3 bit_equal=12/12 failures=0",
+      "log": "docs/development-evidence/product-collision-inputs-wiring/logs/s3-targeted-native.log",
+      "window_opened": false
+    },
+    "gates": {
+      "command": "normify gate 2026-10-27-product-collision-inputs-s3-entry-window",
+      "exit": 0,
+      "fmt": "pass",
+      "clippy": "pass",
+      "clippy_cuda": "pass",
+      "unit": {
+        "passed": 1006,
+        "failed": 0,
+        "ignored": 376
+      },
+      "unit_baseline_before_this_slice": {
+        "passed": 997,
+        "failed": 0,
+        "ignored": 376
+      },
+      "run_dir": ".normify/runs/2026-10-27-product-collision-inputs-s3-entry-window/",
+      "extra_checks": {
+        "clippy_native_model_probe": "pass (zero warnings)",
+        "no_cuda_feature_build_unit": "9 passed under --no-default-features --features cuda-probe (compile-time FeatureDisabled branch)"
+      },
+      "note": "gate ran twice (code-final tree and final tree with evidence); both exit 0 with identical results/counts; per-run timings live in .normify/runs"
+    },
+    "window": {
+      "opened": false,
+      "materials_status": "reported separately to Arch for Chief sign-off; this slice builds no frozen executables and opens no window",
+      "candidate_entities": {
+        "new_target": "g10_p5_product_collision_wiring_cuda (--features native-model-probe; runtime needs MJWARP_MUJOCO_DLL + CUDA/NVRTC bin)",
+        "regressions": [
+          "multicontact",
+          "primitive",
+          "primitive_plane",
+          "primitive_sphere_capsule",
+          "primitive_branches",
+          "mesh_multicontact_m2",
+          "mesh_multicontact_m3",
+          "nvrtc_launcher (with hfield-capsule)",
+          "stage2_equivalence_window (record-C)"
+        ],
+        "new_read_only_guards": [
+          "fixtures/mjb-312/mesh-box-312.mjb",
+          "fixtures/mjb-312/mesh-cylinder-312.mjb",
+          "fixtures/mjb-312/mesh-mesh-312.mjb",
+          "fixtures/mjb-312/provenance.json"
+        ]
+      },
+      "window_requirements": "sha guards + SHA_OK persisted; load precheck; floor=min(10240, baseline_free-3072); 0.25 s sampling; pre/post/end baselines; zero Rust compilation; <=2 valid attempts; UTF-8 no-BOM logs"
+    },
+    "boundaries": {
+      "host_device_equivalence_claimed": false,
+      "precision_or_acceptance_claim": false,
+      "upstream_equivalence_claim": false,
+      "window_passed_claimed": false,
+      "multi_world_supported": false,
+      "criteria_reference_tolerance_modified": false,
+      "abi_or_device_sources_modified": false,
+      "new_feature_added": false,
+      "python_in_product_tests": false
+    }
   }
 }

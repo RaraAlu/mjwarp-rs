@@ -8,6 +8,7 @@
 //!   mesh-cylinder 两个 case；32 数组同口径由 M3 捕获窗产出，见证据 README）。
 //!
 //! 只读这些文件，不写、不改；测试不启动 Python、不使用 GPU。
+#![allow(dead_code)]
 
 use mjwarp_rs::{
     model::collision_inputs::{COLLISION_INPUTS_FIELDS, CollisionInputsCounts},

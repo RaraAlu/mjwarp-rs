@@ -254,3 +254,121 @@ oracle 生成：`logs/oracle-generate.log`；门禁：`logs/gate.log`（run 目�
 | `tests/support/collision_inputs_adapter_support.rs` | 319 行 / 11596 B | bins/meta 读取、字段 id 视图、字节/摘要工具 |
 | `logs/s2-targeted-default.log`、`logs/s2-targeted-native.log` | — | 定向测试原始输出（UTF-8 无 BOM） |
 | `logs/s2-fmt-clippy.log`、`logs/s2-gate.log` | — | 本地检查与门禁记录 |
+
+## 9. S3：产品入口（`cuda` 门 + 三态回退）+ 端到端 target（窗口材料另行报签）
+
+- 任务：`2026-10-27-product-collision-inputs-s3-entry-window`（owner Backend；HEAD 起点 `41fa049c`）。
+- 本片**不开验证窗**：只交付入口、端到端 target、CPU/宿主侧证据与**窗口候选冻结清单**（§9.5）；
+  窗口材料按 Arch 要求另行一次齐报 Chief 签。**本 README 不写「窗口通过」**。
+- 结果一句话：S1 快照 + S2 adapter 接到产品**显式设备入口**（`cuda` 门、三态回退不 panic、默认 Host
+  路径不变、只接受 `nworld=1`）；端到端 target 用 pinned 3.12.0 MJB 走 S1→S2→设备，对 **M1**
+  （`mesh-box`/`mesh-cylinder`）与 **M3**（`mesh-mesh`）冻结参考做到 **12/12 接触行位级相等、0 ULP**、
+  结构/参数零容差；开发自测 1 轮（非验证窗，见 §9.3 注）；gate/scope 见 §9.4。
+
+### 9.1 产品入口（`src/runtime/collision_gpu/product_entry.rs`，174 行）
+
+- 请求：`ProductCollisionRequest<'_> { snapshot: CollisionInputsSnapshot<'_>, meta: CollisionGpuMeta,
+  kernel: CollisionKernel }`——S1 快照视图 + 运行时配对参数包 + 既有设备内核种类。
+- 结果：`ProductCollisionOutcome::Device(Box<CollisionGpuOutput>)` 或
+  `Host(ProductHostReason)`；`device()`/`host_reason()` 提供只读判定。
+- 步骤固定：**先纯 CPU 校验**（`nworld=1` 口径 + S2 `inputs_from_snapshot` 复用既有
+  `validate_collision_inputs`，先于任何设备探测）→ Host 选择直接返回 `Selected`、不触碰驱动/NVRTC/设备
+  → Device 选择查 [`backend::product_collision_availability`] → 通过后取缓存设备程序并发射。
+- **三态回退（不 panic、不重试）**：
+
+  | 状态 | 触发 | 结果 |
+  | --- | --- | --- |
+  | ① 未编译 `cuda` | `--no-default-features`（或 `cuda-probe` 无 `cuda`）构建 | `Host(FeatureDisabled)`；编译期分支，不触碰设备 |
+  | ② 设备/程序不可用 | 驱动/设备/NVRTC/PTX 编译探测失败，或探测通过但程序取不到 | `Host(DeviceUnavailable(原因))` / `Host(DeviceFailure("设备程序不可用…"))` |
+  | ③ 运行期失败 | 发射/同步/回读返回错误 | `Host(DeviceFailure(错误文本))` |
+  | 纯 CPU 非法输入 | `nworld>1`、快照/长度/meta 不自洽 | `Err(CollisionGpuError::InvalidArgument)` |
+
+- **nworld 口径（QA S2 O2 结论）**：本片只接受 `nworld=1`；`nworld>1` 返回明确
+  `InvalidArgument`（「多 world 状态读取另立」），**不宣称多 world**；拒绝发生在任何设备探测之前。
+- **默认数值路径仍 Host**：Host 选择不探测设备、不编译 NVRTC；Device 必须显式选择（UNC-2 限定语：
+  入口不自动切换，设备不可用按既有约定回退 Host）。
+- `CollisionGpuProgram::run` 与 `CollisionArgs`（504 B）**零改动**；入口只组合既有组件。
+- 单测（`product_entry_tests.rs`，346 行，纯 CPU、无 GPU）：Host 选择不碰设备、①②③ 各档回退原因、
+  程序缺失、成功路径内核透传、`nworld=0/2` 拒绝、非法快照拒绝、`cuda` 构建可用性与缓存窄相状态
+  一致；`--no-default-features --features cuda-probe` 构建下额外覆盖 ①编译期分支（9 passed）。
+
+### 9.2 后端接线（`src/runtime/backend.rs`，184 行）
+
+- 新增 `product_collision_availability() -> Result<(), BackendUnavailable>`：
+  `cfg(not(feature = "cuda"))` → `FeatureDisabled`（编译期回退，不碰驱动/NVRTC/设备）；
+  `cuda` 构建 → 复用 `narrowphase_backend_status()` 的进程级缓存（`CudaReady` → `Ok(())`，
+  `HostOnly(原因)` → `Err(原因)`）。只读缓存结论，不改变默认 Host 数值链、不改变任何设备内核。
+
+### 9.3 端到端 target（`tests/g10_p5_product_collision_wiring_cuda.rs`，162 行 + support 122 行）
+
+- 真实模型：pinned MuJoCo **3.12.0**（python wheel，authoring-only）从冻结 XML 编译 3 份 MJB，
+  存于 `fixtures/mjb-312/`（machine-readable 证据，测试只读、**不启动 Python**）：
+
+  | case | MJB | bytes | sha256 | XML | qpos |
+  | --- | --- | --- | --- | --- | --- |
+  | `mesh-box` | `mesh-box-312.mjb` | 8800 | `70b2fdc3…` | `fixtures/g10-p5-mesh-multicontact/mesh-box.xml`（`88b8d7af…`） | z=0.14 |
+  | `mesh-cylinder` | `mesh-cylinder-312.mjb` | 8815 | `ceef075c…` | `…/mesh-cylinder.xml`（`d0b75f91…`） | z=0.19 |
+  | `mesh-mesh` | `mesh-mesh-312.mjb` | 12032 | `298b8089…` | `…/mesh-mesh.xml`（`bb9ffb2f…`） | z=0.18 |
+
+  生成/对账脚本（入库）：`scripts/generate_collision_inputs_mjb.py`（245 行；pinned mujoco 3.12.0 校验，
+  否则直接 FAIL）；provenance：`fixtures/mjb-312/provenance.json`（MJB/XML/reference/qpos/32 数组
+  逐项 sha）；日志 `logs/s3-mjb-generation.log`。
+- **输入侧对账（CPU，无设备工作）**：3.12.0 MJB 的 32 数组与 M0b/M3 冻结 bins **96/96 项逐字节相等**
+  （0 mismatch；脚本 `RESULT=PASS`）；target 内 `s1_snapshot_of_pinned_mjb_matches_frozen_case_bins`
+  再走真实 S1 探针 → `ConfigInputsModelInput` + qpos 帧 → S2 adapter，得到
+  **3 case × 32 项 = 96/96 与冻结 bins 逐字节相同**（不依赖近似相等）。
+- **设备侧对照（窗口执行）**：`product_entry_device_output_matches_m1_and_m3_frozen_references`：
+  S1 快照 → S2 adapter → `run_product_collision(Device, …)`（`ContactMulti`）→ 对 **M1**（`mesh-box`/
+  `mesh-cylinder`，参考 `c83baffe…`）与 **M3**（`mesh-mesh`，参考 `96e7895d…`）冻结参考；判据沿用
+  `tests/support/mesh_multicontact_compare_support.rs`（零放宽）：位级优先 + dist 4 ULP@量级 +
+  pos 4·ULP(scale) + frame 4 ULP@1.0 + 结构/参数零容差 + `nacon` 与参考 count 零容差 +
+  `contact.geom` 按 pinned 类型序 + overflow 全 0 + efc 全 -1；参考 sha 守卫写死在 support，只读。
+- 命令（需 `MJWARP_MUJOCO_DLL` + CUDA bin/NVRTC + NVIDIA GPU）：
+  `cargo +1.99.0-x86_64-pc-windows-msvc test --locked --features native-model-probe --test
+  g10_p5_product_collision_wiring_cuda -- --ignored --test-threads=1 --nocapture`
+- **本片开发自测（非验证窗）实际结果**（`logs/s3-targeted-native.log`）：2 passed / 0 failed；
+  `mesh-box`/`mesh-cylinder`/`mesh-mesh` 各 `nacon=4 = ref_count`，**bit_equal=12/12 行**，
+  `max_dist_ulp=0 / max_pos_ulp=0 / max_frame_ulp=0`，`contact.geom=[1,0]/[1,0]/[0,1]`，**failures=0**；
+  S1 快照对账 `s1_fields=32/32` × 3 case、`mismatches=0`。
+  **口径**：这是一次本地开发自测（单 target 直接跑，无窗口 guard/负载声明/冻结 exe），
+  只用于确认 target 可执行与数值落点；**窗口结论以窗口任务冻结 exe 的独立重跑为准**，本片不写
+  「窗口通过」。
+
+### 9.4 门禁与范围
+
+- `normify gate 2026-10-27-product-collision-inputs-s3-entry-window` **exit 0**：fmt 通过、clippy 通过、
+  clippy-cuda 通过、**unit 1006 过 / 0 败 / 376 ignored**（基线 997/0/376，+9 项本片纯 CPU 单测）。
+- clippy 在默认与 `--features native-model-probe` 两套均零警告（`logs/s3-fmt-clippy.log`）；
+  `--no-default-features --features cuda-probe` 构建下 ①编译期回退用例 9 passed
+  （`logs/s3-nocuda-feature.log`）。
+- `scope-selfcheck`：**17 路径 / 越界 0**；`normify check` 全部通过。
+- 不改 18 个 pinned 源、`src/runtime/collision_gpu/abi.rs`、`src/physics/collision/cuda/`、
+  `fixtures/g10-p5-mesh-multicontact/`、`fixtures/g10-p5-primitive-branches/`、M0b/M1/M2/M3 证据目录
+  （machine check `unchanged` 覆盖 26 个路径）；`CollisionArgs` 504 B 与既有 ABI 未动；无新 feature。
+
+### 9.5 窗口候选冻结清单（材料另行报签，本片不开窗）
+
+- **新 target（1）**：`g10_p5_product_collision_wiring_cuda`（`--features native-model-probe` 构建；
+  运行时需 `MJWARP_MUJOCO_DLL` 与 CUDA/NVRTC bin；本机开发自测墙钟约 42 s，其中 NVRTC 编译约 41 s）。
+- **回归实体（9）**：`multicontact` / `primitive` / `primitive_plane` / `primitive_sphere_capsule` /
+  `primitive_branches` / `mesh_multicontact_m2` / `mesh_multicontact_m3` / `nvrtc_launcher`（含
+  hfield-capsule）/ `stage2_equivalence_window`（record-C）。
+- 冻结后窗口口径沿用既有纪律：sha 守卫 + `SHA_OK` 落盘、负载 precheck、`floor=min(10240, baseline_free−3072)`、
+  0.25 s 采样、pre/post/结束基线、零 Rust 编译、≤2 有效轮、日志 UTF-8 无 BOM。
+- 本片新增只读 fixture 需纳入窗口 fixture 守卫：3 份 MJB + `provenance.json`（+ 既有 M0b/M3 case bins）。
+
+### 9.6 S3 交付文件
+
+| 文件 | 行/字节 | 说明 |
+| --- | --- | --- |
+| `src/runtime/collision_gpu/product_entry.rs` | 174 行 / 7623 B | 产品入口：显式后端选择 + 三态回退 + nworld 口径 |
+| `src/runtime/collision_gpu/product_entry_tests.rs` | 366 行 / 13038 B | 三态回退/Host/成功/拒绝单测（纯 CPU） |
+| `src/runtime/collision_gpu.rs` | 466 行（+4） | `mod product_entry` + `pub use`（既有入口/ABI 不动） |
+| `src/runtime/backend.rs` | 184 行（+19） | `product_collision_availability`（`cuda` 门接线） |
+| `tests/g10_p5_product_collision_wiring_cuda.rs` | 162 行 / 7453 B | 端到端 target（S1→S2→设备→M1/M3） |
+| `tests/support/product_collision_wiring_support.rs` | 122 行 / 5092 B | MJB/参考/qpos 只读守卫 |
+| `tests/support/collision_inputs_adapter_support.rs` | 320 行（+1） | 只加 `#![allow(dead_code)]`（被两个 target 复用） |
+| `fixtures/mjb-312/*.mjb`（3）+ `provenance.json` | 8800/8815/12032 B + 35941 B | pinned 3.12.0 编译产物与 32 数组对账证据 |
+| `scripts/generate_collision_inputs_mjb.py` | 245 行 / 10115 B | authoring-only MJB 生成 + 96 数组 bin 对账 |
+| `logs/s3-targeted-native.log` 等 4 份 | — | 定向测试、fmt/clippy、no-cuda 分支、MJB 生成（UTF-8 无 BOM） |
+

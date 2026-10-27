@@ -77,6 +77,25 @@ pub fn device_permitted(choice: BackendChoice) -> bool {
     choice == BackendChoice::Device && narrowphase_backend_status().cuda_ready()
 }
 
+/// S3：产品碰撞入口（显式设备选择 + 三态回退）的后端可用性判定。
+///
+/// `cuda` 特性未编译 → [`BackendUnavailable::FeatureDisabled`]（编译期回退，不触碰驱动/
+/// NVRTC/设备）；否则沿用 [`narrowphase_backend_status`] 的进程级缓存：探测通过 → `Ok(())`，
+/// 否则返回可诊断原因。本函数只读缓存结论，不改变默认 Host 数值路径，也不改变任何设备内核。
+pub fn product_collision_availability() -> Result<(), BackendUnavailable> {
+    #[cfg(not(feature = "cuda"))]
+    {
+        Err(BackendUnavailable::FeatureDisabled)
+    }
+    #[cfg(feature = "cuda")]
+    {
+        match narrowphase_backend_status() {
+            BackendStatus::CudaReady => Ok(()),
+            BackendStatus::HostOnly(reason) => Err(reason.clone()),
+        }
+    }
+}
+
 #[cfg(feature = "cuda-probe")]
 fn probe_backend_with_cuda() -> BackendStatus {
     use crate::runtime::collision_gpu::CollisionGpuError;
