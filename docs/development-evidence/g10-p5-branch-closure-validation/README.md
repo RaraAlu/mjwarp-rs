@@ -30,7 +30,9 @@
 - 输入来源（只读）：`geom_xpos`/`geom_xmat` 逐位取 S3 参考 JSON 的同一帧；`geom_size`/`geom_type`/
   `geom_dataid` 来自 S3 fixture 的 `mjModel`（case 表逐值写死）；mesh 拓扑（`mesh_vert`/`mesh_graph` +
   9 个 polygon 数组）来自 `branch_closure_mesh_data.rs`（pinned mujoco 3.15 对同一批 S3 fixture 的解析；
-  authoring-only 生成、生成脚本未入库，S4 CPU 测试逐项复核拓扑统计与值域）。S4 target 不运行
+  authoring-only 生成，生成脚本已入库 `scripts/authoring/g10-p5/author_branch_closure_mesh_data.py`，
+  生成命令 / 输入 fixture sha / 42 组数组 sha 见 [`mesh-data-provenance.md`](mesh-data-provenance.md)；
+  S4 CPU 测试逐项复核拓扑统计与值域）。S4 target 不运行
   Python/muJoCo。
 - **limits 组（U7/U8）**：同一 target 内对 `upstream-mesh-limits-gpu.json` 只做**描述性记录**：
   每 case 打印 `RECORD-ONLY limits case=… device_count=… ref_count=… device_dist=[…] ref_dist=[…]
