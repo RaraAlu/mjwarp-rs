@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-unc3-ledger-closure-s5-independent-check",
+  "reviewed_commits": {
+    "s5_body": "7b99cbf4",
+    "s5_correction": "77055c95",
+    "u8_backlog": "2a0de8ab",
+    "head_at_review": "77055c95"
+  },
+  "method": "read-only: git show/deep diff of map.json, S2 branch-map recount, S4 window logs for UNC-3 numbers, receipt/delivery-record sha checks, added-line wording scan; no cargo, no GPU",
+  "checks": [
+    {
+      "id": "C1",
+      "claim": "UNC-3 six items match S4 branch-closure window logs",
+      "result": "pass",
+      "evidence": {
+        "U1": {"case": "plane-cylinder-degenerate", "nacon": 3, "ref": 3, "failures": 0},
+        "U3": {"face_down": "4/4", "face_up": "4/4", "tilt_x": "2/2", "tilt_y": "2/2", "single": "1/1", "corner_union": "8/8", "nacon_sum": 13},
+        "U4": {"case": "plane-capsule-lying", "nacon": 2, "ref": 2, "failures": 0},
+        "U5": {"case": "plane-cylinder-deep-tilt", "nacon": 4, "ref": 4, "failures": 0},
+        "U6": {"case": "mesh-mesh-two-assets", "nacon": 3, "ref": 3, "failures": 0},
+        "U9": {"case": "hfield-capsule", "bit_equal": "275/275", "dist_ulp": 0},
+        "source": "docs/development-evidence/g10-p5-branch-closure-validation/logs/validation-attempt1-g10_p5_branch_closure_cuda.log + ...-g10_p5_nvrtc_launcher.log",
+        "all_nacon_eq_ref_and_zero_failures": true
+      }
+    },
+    {
+      "id": "C2",
+      "claim": "U2/U7/U8 wording correct; no positive 'upstream-consistent' / 'verified fallback' / 'U8 covered'",
+      "result": "pass",
+      "evidence": {
+        "U2": "unreachable / non-upstream defensive (pinned has no guard; device primitive_plane_shapes.cu adds !(length>0)||!isfinite)",
+        "U7": "limit-only: count=1 consistent with degree>10 limit semantics; dist/pos recorded; not proof of trigger",
+        "U8": "device 1 vs upstream 4 = behavior difference / limitation exists; not in pass/fail denominator",
+        "added_line_phrase_hits": "all hits are inside negations/forbidden lists (e.g. 不写「已验证回退行为与上游一致」/ not_claimed)"
+      }
+    },
+    {
+      "id": "C3",
+      "claim": "UNC-1 narrowing incl. mesh 3/4/2/5 static counts matching S2 branch-map",
+      "result": "pass",
+      "evidence": {
+        "mesh_mesh_covered": "M3 4/4 bit, no longer uncovered",
+        "nmesh_gt_1": "1 acceptance case only (S4 U6 3/3)",
+        "general_topology": "not exhaustive",
+        "degree_polygon": "limit-only (U7/U8)",
+        "s2_mesh_family": {"total": 14, "by_status": {"已 case 覆盖": 3, "仅静态核对": 4, "仅限制存在": 2, "未覆盖": 5}},
+        "s2_mesh_counts_match": true,
+        "s2_verifiable_total": 12,
+        "hfield_capsule": "single case 275/275 bit, no extrapolation",
+        "unchanged_uncovered": ["efc_address", "UNC-6", "cross-platform", "performance"],
+        "status": "partial (unchanged)"
+      }
+    },
+    {
+      "id": "C4",
+      "claim": "counts 33 / 17 dump / 13-combo legacy deprecated / launcher 4 / regression object = M3 frozen binaries",
+      "result": "pass",
+      "evidence": {
+        "case_level_sum": "3+4+3+6+4+10+2+1 = 33",
+        "stage2_dumps": 17,
+        "legacy_13_combos": "marked 旧口径（已作废，仅历史） in S5-added text",
+        "launcher_cases": 4,
+        "regression_object": "8 target/m3-freeze binaries built 01:06; M3 commit f1e5cda1 timestamp 2026-10-27 01:28:13 (after freeze); text says not a current-tree rebuild"
+      }
+    },
+    {
+      "id": "C5",
+      "claim": "map.json only-appended: requirement 12 and other 4 uncovered entries unchanged; new fields limited",
+      "result": "pass",
+      "evidence": {
+        "base_to_after_changed": ["summary.note", "uncovered[0].evidence_paths[len]", "uncovered[0].impact", "uncovered[0].reason", "uncovered[2].evidence_paths[len]", "uncovered[2].impact", "uncovered[2].reason"],
+        "base_to_after_added": ["s5_update", "uncovered[0].s5_update", "uncovered[2].s5_update"],
+        "modified_uncovered": ["UNC-1", "UNC-3"],
+        "untouched_uncovered": ["UNC-2", "UNC-4", "UNC-5", "UNC-6"],
+        "untouched_uncovered_identical": true,
+        "requirements_identical": true,
+        "summary_counts_unchanged": "12/8/4/0/6 unchanged",
+        "append_check": "UNC-1/UNC-3 reason and impact new value starts with old; s5_update.previous_reason/previous_impact equals old; status unchanged for both",
+        "correction_commit_files": [".normify/changes/2026-10-27-unc3-ledger-closure-s5.json", "docs/development-evidence/changes/2026-10-27-unc3-ledger-closure-s5.json", "docs/development-evidence/g10-p5-acceptance-map/README.md", "docs/development-evidence/g10-p5-acceptance-map/map.json", "docs/development-evidence/g10-p5-unc3-ledger-governance/s5-receipt.json"]
+      }
+    },
+    {
+      "id": "C6",
+      "claim": "U8 gap backlog not started; assessment+design only; code/criteria need user approval; S2 12 items stay conditional",
+      "result": "pass",
+      "evidence": {
+        "status": "backlog",
+        "acceptance_count": 3,
+        "needs_user_approval": true,
+        "not_started": true,
+        "s2_12_items_text": "S2 的 12 条「可验证」需定向 case 才能转覆盖 (present in README §6.2 and mesh-summary §10)"
+      }
+    },
+    {
+      "id": "C7",
+      "claim": "no positive window-pass/any-branch-full-coverage claims; docs-only so no gate (gate N/A noted)",
+      "result": "pass",
+      "evidence": {
+        "added_line_hits_all_negated": true,
+        "s5_task_checks": ["json(docs/development-evidence/g10-p5-unc3-ledger-governance/s5-receipt.json:/task_id)", "forbid_claim"],
+        "gate": "not applicable (docs-only; QA receipt records gate N/A)"
+      }
+    },
+    {
+      "id": "C8",
+      "claim": "s5-receipt changed_files sha/bytes and delivery record blob/sha reproduce",
+      "result": "pass",
+      "evidence": {
+        "changed_files": "4 doc files bytes+sha exact match; 5th entry is the receipt itself recorded as path-only with note '自引用不进 manifest'",
+        "delivery_record": "5/5 blob + sha256 match actual working tree"
+      }
+    }
+  ],
+  "observations": {
+    "general": [],
+    "suggestion": [
+      "O1 s5-receipt changed_files self entry uses path-only {path,note}; external sha checkers may treat missing bytes/sha as anomaly — use a separate self_entry key or omit.",
+      "O2 S5 range text is duplicated in summary.note / UNC entries s5_update / top-level s5_update / README sections; the correction was needed because reason/impact lagged — keep one authoritative place and reference it.",
+      "O3 Add a lint to the map update flow: reason/impact must contain the latest window task id or be generated from summary.note, to avoid a follow-up correction commit.",
+      "O4 Legacy '13 组合' text still exists in older acceptance-map sections (S5-added text marks it deprecated, old sentences unchanged); consider prefixing '旧口径' or pointing to the 33-count caliber.",
+      "O5 s5-receipt does not explicitly state 'gate not applicable'; docs-only slices should state it (QA receipt does)."
+    ]
+  },
+  "blockers": []
+}
