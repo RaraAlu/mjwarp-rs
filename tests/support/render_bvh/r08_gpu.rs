@@ -281,19 +281,29 @@ pub fn empty_selection_render_is_noop() {
     // megakernel 需要 `&RayBuffer`：用完整 plan 的合法射线；空选择在射线校验前提前 no-op。
     let full = s7b2::create_context(&session, &fields, &default_params());
     let rays = r08::rays_for_plan(&session, &fields, full.resolved());
-    let memory_before = mjwarp_rs::render::device_memory();
+    // 显存快照：`new()` 里的 NVRTC 模块加载会占 2 MiB；no-op 断言只比较「构造完成」之后。
+    let memory_pre_construct = mjwarp_rs::render::device_memory();
     let mega = MegakernelRenderer::new(&session).expect("S7b2 内核编译");
+    let depth_seg = DepthSegRenderer::new(&session).expect("S7b1 内核编译");
+    let memory_after_construct = mjwarp_rs::render::device_memory();
     mega.render(&context, &fields, &model, &poses, &rays)
         .expect("空选择 megakernel 应为 Ok no-op");
     mega.render(&context, &fields, &model, &poses, &rays)
         .expect("空选择 megakernel 第二次仍为 Ok no-op");
-    let depth_seg = DepthSegRenderer::new(&session).expect("S7b1 内核编译");
     depth_seg
         .render(&context, &fields, &model, &poses, None, true)
         .expect("空选择 depth/seg 应为 Ok no-op");
     let memory_after = mjwarp_rs::render::device_memory();
-    if let (Some(before), Some(after)) = (memory_before, memory_after) {
-        assert_eq!(before, after, "空选择渲染不得分配显存");
+    if let (Some(before), Some(after)) = (memory_after_construct, memory_after) {
+        assert_eq!(
+            before, after,
+            "no-op 渲染阶段不得分配显存（快照取自 renderer 构造完成之后）"
+        );
+    }
+    if let (Some(pre), Some(after_construct)) = (memory_pre_construct, memory_after_construct) {
+        println!(
+            "r08[empty] 显存 free 采样：构造前={pre:?} 构造后={after_construct:?}（new() 的 NVRTC 模块加载占用，不计入 no-op 断言）"
+        );
     }
     for output in [
         ImageOutput::Rgb,
