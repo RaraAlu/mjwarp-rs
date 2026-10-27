@@ -1,0 +1,208 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-unc3-branch-closure-s3-independent-check",
+  "reviewed_task": "2026-10-27-unc3-branch-closure-s3-capture",
+  "reviewed_commits": {
+    "fixtures_and_scripts": "96112ddf",
+    "evidence_and_window": "43ec567641b85aac336834bcac4c6ec2f3577eb9",
+    "head_at_review": "448d4400"
+  },
+  "method": "read-only: sha256/byte cross-check, independent recompute from samples.csv+guard.log, pinned-formula CPU recompute of 8 plane cases, OBJ topology, README number spotcheck; no CUDA context, no capture re-run",
+  "checks": [
+    {
+      "id": "C1",
+      "claim": "13 new fixtures sha256+bytes match the runner-embedded signed map and the README table (0 mismatch)",
+      "result": "pass",
+      "evidence": {
+        "runner_signed_map": "target/s3-branch-closure/window/run-capture-attempt1.ps1 ($fixtures, 13 entries)",
+        "fixtures_checked": 13,
+        "runner_match": "13/13",
+        "readme_match": "13/13 (README abbreviates 11 rows as '.../<name>', compared by basename)",
+        "bytes_match": "13/13",
+        "signed_material_16": "13 fixtures + capture 71c91ee8... + compare 27ecb54a... = 16/16",
+        "runner_sha": "5f8f80c5c5629bb5567fdbad1bc3f933a9b9dfb01d5e2926fe1b59cf462fe3d2 (matches README)",
+        "precheck_sha": "e26f936ec30b52ad57b18eeb92dba979540a82a0be527ca922e86806645d8387 (matches README; authoring-only, not in the 16)"
+      }
+    },
+    {
+      "id": "C2",
+      "claim": "two new references: A raw, B raw and evidence copies share one sha256 each; compare is RAW BYTE-IDENTICAL PASS",
+      "result": "pass",
+      "evidence": {
+        "upstream-branch-closure-gpu.json": {
+          "bytes": 16932,
+          "sha256": "24d89e9248cccece96baff2089954e438ca7956fe8a71ccc61df318208709db1",
+          "three_way_same": true
+        },
+        "upstream-mesh-limits-gpu.json": {
+          "bytes": 4581,
+          "sha256": "b6abb8fa5820c103f6d880936d6ae95fa60035e5b9ce49a0364b15de1def19ad",
+          "three_way_same": true
+        },
+        "compare_log": "logs/capture-attempt1-compare.log: 2x 'RAW BYTE-IDENTICAL: PASS', compare_exit=0",
+        "independent_byte_compare": "raw A vs raw B byte-equal for both files (my own read)"
+      }
+    },
+    {
+      "id": "C3",
+      "claim": "11 cases two_captures independent recompute = 11/11",
+      "result": "pass",
+      "evidence": {
+        "cases": "9 branch (U1/U3x5/U4/U5/U6) + 2 limits (U7/U8) = 11",
+        "per_case_flag_true": "11/11",
+        "raw_a_eq_raw_b": true,
+        "run_log_counts_match_reference": "11/11",
+        "xml_sha_matches_fixture": "11/11",
+        "qpos_bits_equal_fixture_keyframe_f32": "11/11 (exact)",
+        "qpos_bits_equal_precheck": "11/11",
+        "counts_equal_precheck": "11/11",
+        "counts": {
+          "plane-cylinder-degenerate": 3,
+          "plane-box-corner-face-down": 4,
+          "plane-box-corner-face-up": 4,
+          "plane-box-corner-tilt-x": 2,
+          "plane-box-corner-tilt-y": 2,
+          "plane-box-corner-single": 1,
+          "plane-capsule-lying": 2,
+          "plane-cylinder-deep-tilt": 4,
+          "mesh-mesh-two-assets": 3,
+          "mesh-limits-cone-box": 1,
+          "mesh-limits-prism-box": 4
+        }
+      }
+    },
+    {
+      "id": "C4",
+      "claim": "window numbers recomputed from samples.csv + guard.log: 134 / 2849 / 3132 / delta 283 (283-227-283) / free_min 12930 > floor 10085 / util 94 & streak 2 / residual 0",
+      "result": "pass",
+      "evidence": {
+        "samples": 134,
+        "baseline_used_mib": 2849,
+        "used_peak_mib": 3132,
+        "used_min_mib": 2849,
+        "delta_peak_mib": 283,
+        "delta_three_calibers": {"guard_baseline_2849": 283, "first_baseline_2905": 227, "sample_min_2849": 283},
+        "free_min_mib": 12930,
+        "floor_formula": "min(10240, 13157-3072)",
+        "floor_mib": 10085,
+        "free_above_floor": true,
+        "util_max_percent": 94,
+        "util_streak_ge80": 2,
+        "temp_max_c": 31,
+        "residual": "facts says 0; guard aggregates have no residual field; post compute-apps has no task process (corroborated)",
+        "guard_aggregates_match": "7/7 fields match my recomputation",
+        "window_wall_s": 41.494,
+        "run_a_exit_wall": "0 / 29.4 s",
+        "run_b_exit_wall": "0 / 7.4 s",
+        "baseline_3_points": ["2905,13157,39,30,596.36", "2899,13163,36,30,596.36", "2868,13194,37,30,596.36"]
+      }
+    },
+    {
+      "id": "C5",
+      "claim": "old references untouched: 11 files mtime still 10-25, bytes unchanged; no read/write path to the old reference dir",
+      "result": "pass",
+      "evidence": {
+        "files": 11,
+        "mtime_all_2026-10-25": true,
+        "git_status_clean_for_dir": true,
+        "sizes": "hfield-capsule 9712 / mesh-mesh 7314 / sdf-box 62464 / box-box-margin 12333 / cylinder-box 10443 / hfield-sphere 10956 / index.json 4676 / sphere-box-deep 6972 / sphere-box-shallow 6991 / capsule-box 6976 / ellipsoid-box 7210",
+        "script_grep": "capture/precheck/compare/runner: only a docstring 'old references are never read'; capture writes exactly the two new output names"
+      }
+    },
+    {
+      "id": "C6",
+      "claim": "zero Rust compile in window + signing guard SHA_OK/A-B exit/3-point baseline/floor consistent with facts",
+      "result": "pass_with_evidence_gap",
+      "evidence": {
+        "zero_compile_independent": "target/debug/.fingerprint newest mtime 2026-10-27 01:24:42; target/release 2026-10-26; no file under target/ outside s3-branch-closure modified inside the window; logs contain no Compiling/rustc marker",
+        "sha_ok_line_archived": false,
+        "sha_ok_independent_recompute": "16/16 signed shas match; guard exits 4 on mismatch while the run completed and copied references",
+        "a_b_exit": "0 / 0", "a_b_wall_s": "29.4 / 7.4",
+        "baseline_and_floor": "3 points + floor 10085 + open gate 10240 consistent with baseline.txt/facts",
+        "compare_pass_count": 2
+      }
+    },
+    {
+      "id": "C7",
+      "claim": "wording/boundaries: U8 inference-only, U7 not claiming limit proof, no window-pass claim, U7/U8 record-only not in denominator, CPU-vs-GPU difference documented with GPU reference rule",
+      "result": "pass",
+      "evidence": {
+        "u8_inference_unproven": "README 7.3 and receipt u7_u8.inference_unproven present",
+        "u7_statement": "README 7.4 'count=1 与 degree>10 的限制语义一致（不写「证明限制触发」）'",
+        "no_window_pass_claim": "only negations ('不写「窗口通过」') appear",
+        "record_only": "README 2 / 5 / 10 and receipt u7_u8.record_only=true, in_pass_fail_denominator=false",
+        "cpu_vs_gpu": "README 7.5 + receipt: 3 tilts 8-16 ULP dist / 8-48 ULP pos, corner-single pos 3.2e-9, '参考一律取 GPU'"
+      }
+    },
+    {
+      "id": "C8",
+      "claim": "red line: no product code / device source / criteria / tolerance / old reference / expected value change",
+      "result": "pass",
+      "evidence": {
+        "git_diff_range": "509c9819 43ec5676 -- src tests Cargo.toml Cargo.lock fixtures/g10-p5/references scripts/compare_primitive_capture.py = empty",
+        "43ec5676_files": "evidence + .normify + changes record only",
+        "96112ddf_files": "13 fixtures + capture/precheck scripts + precheck-cpu.json",
+        "fixtures_only_added": "13 additions, 0 modifications/deletions"
+      }
+    },
+    {
+      "id": "C9",
+      "claim": "delivery record blob+sha256 reproducible",
+      "result": "pass",
+      "evidence": {"files": 27, "blob_match": "27/27", "sha256_match": "27/27", "mismatch": 0}
+    },
+    {
+      "id": "C10",
+      "claim": "independent pinned-formula recompute of the 8 plane references",
+      "result": "pass",
+      "evidence": {
+        "count_match": "8/8",
+        "qpos_bits_exact": "8/8",
+        "ulp_vs_gpu": {
+          "plane-cylinder-degenerate": {"dist": 2, "pos": 2},
+          "plane-box-corner-face-down": {"dist": 0, "pos": 0},
+          "plane-box-corner-face-up": {"dist": 0, "pos": 0},
+          "plane-box-corner-tilt-x": {"dist": 25, "pos": 25},
+          "plane-box-corner-tilt-y": {"dist": 31, "pos": 31},
+          "plane-box-corner-single": {"dist": 4, "pos": "near-zero (1.17e-8), ULP meaningless"},
+          "plane-capsule-lying": {"dist": 1, "pos": 5},
+          "plane-cylinder-deep-tilt": {"dist": 0, "pos": 8}
+        },
+        "note": "double recompute vs GPU f32 fused; not the same comparison as the delivered CPU-f32-vs-GPU 8-16 ULP; neither is a criterion"
+      }
+    },
+    {
+      "id": "C11",
+      "claim": "OBJ topology / geometry for U7/U8 and nmesh=2 arithmetic for U6",
+      "result": "pass",
+      "evidence": {
+        "fan-cone-24.obj": "25 verts / 25 polygons / max face 24 / max degree 24; apex (0,0,0.1) vs box bottom 0.09 -> 0.01 penetration -> count=1 vertex contact",
+        "prism-20.obj": "40 verts / 42 declared faces (40 tri + 2x20-gon); after coplanar merge 22 polygons / max degree 3 / max face 20; top cap 20-gon at z=0.05, box bottom 0.04 -> 4 contacts at (+-0.05,+-0.05,0.045)",
+        "u6": "nmesh=2 / nmeshvert=12 / nmeshpoly=10 consistent with cube(6 polys)+tetra(4 polys) and M0a rules"
+      }
+    },
+    {
+      "id": "C12",
+      "claim": "README/receipt numbers spotcheck",
+      "result": "pass",
+      "evidence": {"claims_checked": 41, "all_match": true, "mismatches": 0}
+    }
+  ],
+  "observations": {
+    "general": [
+      "O1 bitwise-equal case count inconsistent: README says 6, receipt lists 5 (incl mesh-mesh-two-assets which has no dist/pos in precheck), actual dist+pos bitwise-equal plane cases = 4",
+      "O2 U8 inference '4 contacts from a <=16-vertex side face' contradicts fixture geometry: contacts are box bottom corners on the 20-gon top cap (z=0.045), upstream npolygonmax=20 allows it"
+    ],
+    "suggestion": [
+      "O3 SHA_OK runner stdout not archived (16/16 shas independently recomputed, guard would exit 4 on mismatch)",
+      "O4 four logs carry UTF-8 BOM (compare/guard/run-a/run-b)",
+      "O5 receipt/README 'pre' sample duplicated from post; guard preconditions sample is 2849/13213/39",
+      "O6 compute-apps entries are 29 (post and baseline), README/receipt say 28; filtered task processes still 0",
+      "O7 U6 geom_dataid=[0,1] listed as GPU reference value but GPU reference has no geom_dataid field (comes from precheck CPU)",
+      "O8 S3 task acceptance says U7/U8 'enter fallback' but S3 evidence only shows model-level overflow + upstream behaviour; device fallback is S4",
+      "O9 U7 count=1 coincides with device single-contact fallback count; S4 should compare dist/pos too",
+      "O10 delivered receipt.json (1047 lines) and precheck-cpu.json (648 lines) exceed the 500-line evidence norm if it applies to delivery JSON; split or mark as machine-readable exception"
+    ]
+  },
+  "blockers": []
+}
