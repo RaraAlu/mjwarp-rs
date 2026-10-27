@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-product-collision-s3-window-obs-closure-check",
+  "kind": "independent_check",
+  "reviewed_task": "2026-10-27-product-collision-inputs-s3-window-observation-closure",
+  "reviewed_commit": "c65d84ac3e63788780d3a5c985fd0bb69806f4ad",
+  "reviewed_parent": "6680dabee6f334eac4be43863cec052b14fc98c8",
+  "fix_commits": {
+    "F1": "ee5d0ca4e82895badb4b2ba1c9658e1886fda495",
+    "F2": "71e78aae8e3250b0e91d0ee3728bdb2bfedb4c3d"
+  },
+  "head_at_review": "ee5d0ca4e82895badb4b2ba1c9658e1886fda495",
+  "verdict": "pass",
+  "blockers": [],
+  "observation_counts": {"general": 0, "suggestion": 2, "total": 2, "fixed": 2, "open": 0},
+  "observations": [
+    {
+      "id": "F1",
+      "severity": "suggestion",
+      "title": "O4 measured sampling-interval range was truncated at 4 dp",
+      "status": "fixed",
+      "fixed_by": "ee5d0ca4e82895badb4b2ba1c9658e1886fda495",
+      "detail": "QA recomputes from the window samples.csv: median 0.2759 s (matches declared ~0.276 s), min 0.2721 s, max 0.2901 s. After the fix, the four display places (window-receipt / receipt / README §10.2 / window delivery record) and the closure delivery milestone all read 0.2721-0.2901 s, and all four measured_range_s arrays read [0.2721, 0.2901] (previously 3-dp [0.272, 0.29] with a 4-dp truncated display).",
+      "verification": "0.2721 / 0.2901 hits = 15 / 15 across the records; git grep '0.2720|0.2900' over docs/development-evidence = 0 hits; interval recomputed = {median 0.2759, min 0.2721, max 0.2901}.",
+      "evidence": ["verify_closure.json", "logs/findings.txt", "logs/line-counts-and-refs.txt"]
+    },
+    {
+      "id": "F2",
+      "severity": "suggestion",
+      "title": "Window delivery record said receipt.json had 745 lines; actual and other records say 750",
+      "status": "fixed",
+      "fixed_by": "71e78aae8e3250b0e91d0ee3728bdb2bfedb4c3d",
+      "detail": "The window delivery record evidence_format.machine_readable_exceptions now reads 'receipt.json (750 lines, machine-readable evidence receipt)'; receipt.json is actually 750 LF lines and window-receipt/README both state 750.",
+      "verification": "No \\b745\\b token left in window-receipt / receipt / README / delivery exceptions; 750 present in all four; the README '162 lines / 7453 B' entry is the e2e target byte count, not a 745-line claim (recorded as a deliberate non-residual).",
+      "evidence": ["verify_closure.json", "logs/line-counts-and-refs.txt"]
+    }
+  ],
+  "verified_items": [
+    {"item": "O1 stdout evidence copy fix", "result": "pass",
+     "detail": "evidence copy = UTF-8 no BOM / LF / 40380 B / sha fb3e63e4… / 183 lines / 0 blank lines; decoded original (UTF-16LE with BOM, 81128 B, sha b7cffd45…, 183 lines, mtime 2026-10-27 17:04:04) vs copy line-by-line diff = 0; registration present in window-receipt, receipt, window delivery record and README §10.4; the two fix commits did not touch the copy or the original",
+     "evidence": ["logs/o1-conversion.txt", "verify_closure.json"]},
+    {"item": "O2 wording four places", "result": "pass",
+     "detail": "all four files contain 17:03:36.808, 86 ms, ±0.1 s, 17:03:37.658, 38.443, ≥0.9 s, 归因推断, 未证实到具体分配点; peak 4142 / seq 776 / timestamp unchanged",
+     "evidence": ["verify_closure.json"]},
+    {"item": "O3 neighbours", "result": "pass",
+     "detail": "window-receipt (observation_OW1 and budget peak) and receipt attempt1 all [3092,4142,3092]; stale pairs absent",
+     "evidence": ["verify_closure.json"]},
+    {"item": "O4 wording presence + value accuracy", "result": "pass after F1 fix",
+     "detail": "median recomputed 0.2759 s; range 0.2721-0.2901 present in all four places and in all four measured_range_s arrays",
+     "evidence": ["verify_closure.json", "logs/line-counts-and-refs.txt"]},
+    {"item": "O5 machine-readable exceptions", "result": "pass after F2 fix",
+     "detail": "window-receipt/receipt notes contain receipt.json (750 lines) and stdout encoding declarations; README states 750; closure receipt lists exceptions; window delivery record now says 750 with no 745 token",
+     "evidence": ["logs/line-counts-and-refs.txt", "verify_closure.json"]},
+    {"item": "O6 derived runner outer wall", "result": "pass",
+     "detail": "runner_outer_wall_s = {value_s:252.1, derived:true, basis:no independent artifact}; README and window delivery mark it derived",
+     "evidence": ["verify_closure.json"]},
+    {"item": "O7 statistics basis", "result": "pass",
+     "detail": "statistics basis written in window-receipt/window delivery/README; QA literal count 预算偏差 = 7, 在预算内 = 0",
+     "evidence": ["verify_closure.json"]},
+    {"item": "numerical invariants unchanged", "result": "pass",
+     "detail": "recomputed after both fixes: 10 exits 0; body wall 238.480 s; 3 case nacon=4 ref, bit_equal=12/12, ULP 0/0/0; S1 32/32 x3; 9 regressions ok; stage2 17 dumps; 867 samples, baseline 3091, peak 4142, deltas 1051/1051/1055, free_min 11920, floor 9904, util 31, streak 0, residual 0; 133/133 guards re-hashed by QA; post-window 10/10; attempt=1; zero compile 1812->1812",
+     "evidence": ["logs/invariants.txt", "verify_closure.json"]},
+    {"item": "fix commits are evidence-only", "result": "pass",
+     "detail": "71e78aae = 2 files (window delivery record + its .normify record), trailer Normify-Fixes: <window task>; ee5d0ca4 = 7 files (closure task record + 6 evidence files), trailer Normify-Fixes: <closure task>; no code path in either; code diff c65d84ac..HEAD = 0 files; diff content limited to interval text / measured_range_s / receipt.json line count / delivery-record file identities",
+     "evidence": ["logs/scope-boundary.txt", "verify_closure.json"]},
+    {"item": "scope and boundaries", "result": "pass",
+     "detail": "c65d84ac 8 files, 0 code paths; closure trailer correct; closure task record verified; changed evidence text UTF-8 no BOM/LF; window values unchanged; no window rerun; runner/freeze/provenance unchanged; no positive window-pass statement; regulated terms 0 hits; worktree only my task card + this evidence directory",
+     "evidence": ["logs/scope-boundary.txt", "logs/forbidden-terms.txt"]},
+    {"item": "delivery record identities", "result": "pass",
+     "detail": "all {path,sha256,bytes,lines} entries in the window and closure delivery records match the worktree after the fixes (including the rewritten stdout log 40380/fb3e63e4/183 and the updated receipt.json / window-receipt.json / README identities)",
+     "evidence": ["verify_closure.json"]},
+    {"item": "record-internal historical text (documented, not an evidence claim)", "result": "pass",
+     "detail": "the closed closure task card keeps its registration-time wording (3 lines with 0.2720-0.2900 in intent/acceptance/note) and the window task addendum reason says 745->750; these are append-only task-record history, not evidence declarations; evidence-side hits are 0. This check card also keeps the stale 'receipt.json(719 lines)' text; the actual value 750 is what was verified.",
+     "evidence": ["logs/findings.txt"]}
+  ],
+  "environment": {
+    "os": "Windows",
+    "repo": "D:\\Rust\\mjwarp-rs",
+    "review_type": "read-only",
+    "gpu_opened_by_qa": false,
+    "window_reopened_by_qa": false,
+    "entities_rerun_by_qa": false,
+    "python": "target/render-bvh-precheck/venv312/Scripts/python.exe"
+  },
+  "gates": {
+    "applicable": false,
+    "gate_exit_code": 1,
+    "gate_stderr": "任务没有引用任何门禁",
+    "result": "not applicable: this task's checks are json(receipt /task_id) + forbid_claim only, with no gate items (docs-only independent check); normify gate exits 1 with '任务没有引用任何门禁', expected and recorded here",
+    "check": {"exit_code": 0, "output": "全部检查通过"}
+  },
+  "boundaries": [
+    "read-only: no window reopen, no GPU, no entity rerun, no code/criteria/reference/tolerance change, no window value rewritten by QA",
+    "the review checks whether the closure and its two evidence-only fixes fixed the previous observations and left all window values unchanged; it makes no window pass, coverage, precision, equivalence or acceptance claim",
+    "device-side numbers are reviewed from the archived artifacts and the patch content, not by re-running the window"
+  ],
+  "evidence_files": [
+    "docs/development-evidence/product-collision-s3-window-obs-closure-check/README.md",
+    "docs/development-evidence/product-collision-s3-window-obs-closure-check/receipt.json",
+    "docs/development-evidence/product-collision-s3-window-obs-closure-check/manifest.json",
+    "docs/development-evidence/product-collision-s3-window-obs-closure-check/verify_closure.py",
+    "docs/development-evidence/product-collision-s3-window-obs-closure-check/verify_closure.json",
+    "docs/development-evidence/product-collision-s3-window-obs-closure-check/consistency.py",
+    "docs/development-evidence/product-collision-s3-window-obs-closure-check/logs/o1-conversion.txt",
+    "docs/development-evidence/product-collision-s3-window-obs-closure-check/logs/invariants.txt",
+    "docs/development-evidence/product-collision-s3-window-obs-closure-check/logs/findings.txt",
+    "docs/development-evidence/product-collision-s3-window-obs-closure-check/logs/line-counts-and-refs.txt",
+    "docs/development-evidence/product-collision-s3-window-obs-closure-check/logs/scope-boundary.txt",
+    "docs/development-evidence/product-collision-s3-window-obs-closure-check/logs/forbidden-terms.txt"
+  ]
+}

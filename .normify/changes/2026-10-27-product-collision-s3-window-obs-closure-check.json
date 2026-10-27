@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-product-collision-s3-window-obs-closure-check",
+  "title": {
+    "zh": "产品碰撞输入 S3 窗口观察收口独立复核（O1–O7 处置落地 / 数值不变量 / 编码与 manifest）",
+    "en": "Independent check of the S3 window observation closure"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "QA 独立复核收口片 `2026-10-27-product-collision-inputs-s3-window-observation-closure`：① O1 stdout 日志编码修复是否成立（UTF-8 无 BOM/LF、无插入空行、解码前后逐行 0 差异、行数=183、原始 UTF-16 副本 sha/bytes 已登记、README §10.4/交付记录/evidence_format 同步）；② O2 尖峰归属措辞（launcher 日志 mtime 17:03:36.808 与尖峰 17:03:36.7225 的 86 ms 关系、stage2 启动下界前 ≥0.9 s、归因仍标「推断、未证实到具体分配点」）；③ O3 邻居采样 `[3092,4142,3092]`、O4「0.25 s 目标间隔（实测中位 ≈0.276 s，0.2720–0.2900）」（QA 自己从 samples.csv 重算中位与范围）；④ O5 机器可读例外补 `receipt.json`(719 行) 与 stdout 声明、O6 `runner_outer_wall_s` 标派生、O7 统计口径写明；⑤ 数值不变量零改动（10 exit=0、12/12 bit、ULP 0/0/0、9 回归 failures=0、867 样本、peak 4142、delta 1051、free_min 11920、floor 9904、133/133、窗后 10/10、零编译、attempt=1）；⑥ 未重跑窗口/未开 GPU/未动 runner 与冻结 exe 与守卫文件与 `provenance.json`；证据 LF 无 BOM、禁词 0、不写「窗口通过」。只读复核（可用转换前后内容比对脚本），不重开门、不重跑、不改代码/判据/参考/容差。",
+    "en": "QA independent check of the S3 window observation closure slice."
+  },
+  "modules": {},
+  "acceptance": [
+    "O1 核验：`logs/attempt1-runner-stdout.log` 为 UTF-8 无 BOM、LF only、无插入空行；QA 自己解码原始 UTF-16 副本（`target/s3-product-wiring/window/`）与入库副本逐行比对 0 差异；行数与交付记录/README 一致；原始副本 sha256/bytes 已登记且未被修改。",
+    "O2/O3/O4 核验：window-receipt、receipt、README §10.2、交付记录四处措辞一致（86 ms / ±0.1 s 内 / stage2 前 ≥0.9 s / 归因推断未证实）；邻居采样为 `[3092,4142,3092]`；采样间隔表述为「0.25 s 目标间隔（实测中位 ≈0.276 s，0.2720–0.2900 s）」且 QA 从 samples.csv 独立重算中位与范围相符；峰值/seq/时间戳不变。",
+    "O5/O6/O7 核验：`evidence_format_notes` 含 `receipt.json`(719 行) 与 stdout 日志声明；`runner_outer_wall_s` 标 `derived=true` 且有推导依据；「预算偏差」统计口径写明（三文件各 2 + README 1 = 7），`在预算内` 字面 0。",
+    "数值不变量零改动复核：10 实体 exit=0、failed_entities=0、body_wall 238.5 s；新 target 3 case nacon=4、bit_equal=12/12、ULP 0/0/0；9 回归 failures=0；867 样本 / peak 4142 / delta 1051（三口径）/ free_min 11920 / floor 9904 / util 31 / streak 0；`sha-guards.txt` 133/133（QA 自己重哈希）；窗后 10 exe 10/10；零编译；attempt=1。",
+    "边界与不变量：未重跑窗口、未开 GPU、未改代码/判据/参考/容差、未动 runner（`c7a387a4…`）/冻结 10 exe/守卫文件/`provenance.json`；提交只含证据 + 交付记录 + 任务记录；证据 LF 无 BOM；禁词 0 命中、无「窗口通过」正面表述。",
+    "证据 `docs/development-evidence/product-collision-s3-window-obs-closure-check/`（README + receipt + manifest sha 复验），check exit 0；先报 verdict/blockers/observations，Arch 指示后再 commit + done。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-product-collision-inputs-s3-window-observation-closure"
+    ],
+    "phase": "架构/接线债务",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/product-collision-s3-window-obs-closure-check/"
+    ],
+    "resources": [],
+    "priority": 15
+  },
+  "note": "Arch 2026-10-27 预登记（每片 QA 预登记）。短 id（原 `…-observation-closure-independent-check` 83 字符超 id 长度上限被 normify validate 拒）。收口片证据-only，本片只读复核，不重开门、不开 GPU。",
+  "revision": {
+    "before": "3c150f38854bb04e70be70146318f86b00e276c4",
+    "after": null
+  },
+  "created_at": "2026-10-27T09:29:00.000Z",
+  "updated_at": "2026-10-27T09:33:44.824Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/product-collision-s3-window-obs-closure-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-product-collision-s3-window-obs-closure-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
