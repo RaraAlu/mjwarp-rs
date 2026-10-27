@@ -50,7 +50,7 @@
       "rgb_packed": "rgb_data[rgb_adr .. rgb_adr+pixels] 原样",
       "rgb": "unpack_rgb_kernel 逐位复刻（r,g,b 各 * INV_255）",
       "depth_raw": "depth_data[depth_adr .. +pixels] 原样 f32",
-      "depth": "clamp(val / depth_scale, 0.0, 1.0)（除法在前）",
+      "depth": "clamp(val / depth_scale, 0.0, 1.0)（除法在前；depth_scale 先于相机/通道/缓冲查找校验，观察收口 O2）",
       "segmentation_raw": "seg_data[seg_adr .. +pixels] 原样对",
       "segmentation": "同值 + 分辨率"
     },
@@ -61,7 +61,7 @@
       "bits": "0x3B80_8081",
       "value": "float32(1.0/255.0)"
     },
-    "depth_clamp_semantics": "上游 wp.clamp（fminf/fmaxf）：NaN→0.0、-0.0→+0.0、>1→1.0、<0→0.0",
+    "depth_clamp_semantics": "产品 clamp_unit：区间压缩到 [0.0, 1.0]（上游要求的语义部分）；NaN→0.0、-0.0→+0.0 属实现行为（对齐 CUDA fminf/fmaxf 顺序），不是上游语义保证；夹具值域有限非负、无 -0/NaN 样本 → 边界未与上游逐位对账（未覆盖，观察收口 O3/O7）",
     "nworld_policy": "只支持 nworld == 1；nworld > 1 返回 NworldUnsupported（多 world 视图归 R10）"
   },
   "error_surface": [
@@ -73,8 +73,28 @@
     "DepthScale（depth_scale <= 0 或非有限）",
     "NworldUnsupported（nworld > 1）",
     "CameraCount / PlanFlags / LayoutPixels（plan 与 layout 非同一解析）",
-    "PixelOverflow（像素数计数溢出）"
+    "PixelOverflow（像素数计数溢出）",
+    "错误优先级：depth() 的 DepthScale 先于 CameraIndex / ChannelDisabled / BufferMissing / BufferLength / BufferRange（观察收口 O2）"
   ],
+  "closure": {
+    "task_id": "2026-10-28-render-bvh-r08-camera-obs-closure",
+    "receipt": "docs/development-evidence/render-bvh/r08-camera-output/s3-obs-closure-receipt.json",
+    "date": "2026-10-28",
+    "dispositions": [
+      "O1 接受：camera_id() 沿用 i32 id 宽度，窄化（try_from）留待后续任务",
+      "O2 修：depth() 的 depth_scale 校验前置到任何查找之前；新增错误优先级单测",
+      "O3 修：-0.0→+0.0 / NaN→0 改为实现行为（CUDA fminf/fmaxf 细节），非上游语义保证；夹具无 -0/NaN → 未覆盖",
+      "O4 接受：OutputLayout adr 前缀和自检为可选加固，本片不做",
+      "O5 接受：#[path] 声明保持，后续任务范围含 context.rs 时归位",
+      "O6 接受：PixelOverflow 的 checked_mul/checked_add 防御保留",
+      "O7 修：新增 2 条边界值单测（只断言产品行为，不宣称与 CUDA 等价）",
+      "O8 引用：EOL 属性问题正确任务 id = 2026-10-28-repo-fixture-eol-attributes（非 S1 引入）"
+    ],
+    "code_changed": "src/render/context/camera_output.rs（depth 校验前置 + clamp 措辞；499 行）",
+    "tests_added": "src/render/context/tests.rs（新增 2 条单测；379 行）",
+    "window_rerun": false,
+    "gpu_opened": false
+  },
   "reference": {
     "fixtures": {
       "rgb_fast_math_false": {
@@ -174,8 +194,11 @@
     "collision_args_bytes": 504,
     "criteria_reference_tolerance_unchanged": true,
     "new_files_max_lines": 500,
-    "camera_output_lines": 495,
+    "camera_output_lines": 499,
+    "camera_output_lines_note": "S1 提交时 495；观察收口 O2/O3 后 499（≤500）",
     "test_lines": 493,
+    "unit_tests_lines": 379,
+    "unit_tests_note": "src/render/context/tests.rs：观察收口 O2/O7 新增 2 条 depth 单测（S1 提交时 255 行）",
     "new_features": "none",
     "cargo_toml_lock_untouched": true
   },

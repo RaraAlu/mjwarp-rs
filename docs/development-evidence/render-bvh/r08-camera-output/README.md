@@ -11,8 +11,8 @@
 
 新增/改动（本提交）：
 
-- 新增 `src/render/context/camera_output.rs`（495 行）：`CameraOutputViews`、`CameraImage`、
-  `WholeOutputData`、`CameraViewError`。
+- 新增 `src/render/context/camera_output.rs`（495 行；S1 观察收口后 **499 行**）：`CameraOutputViews`、
+  `CameraImage`、`WholeOutputData`、`CameraViewError`。
 - `src/render/mod.rs`：以 `#[path = "context/camera_output.rs"] pub mod camera_output;` 声明新模块
   并顶层再导出同 API。**本任务 files 只覆盖 `src/render/context/`（目录）与 `src/render/mod.rs`，
   不含父模块文件 `src/render/context.rs`**，故不触碰 `context.rs`；新模块已登记为
@@ -52,8 +52,10 @@
 
 - RGB 常量取 S4 冻结的 `INV_255 = f32::from_bits(0x3B80_8081)`（= `float32(1.0/255.0)`），
   乘法按 f32；`(1.0/255.0)` double 舍入到 f32 与本位型相同（测试断言）。
-- depth 的 clamp 按上游 `wp.clamp` 的 `fminf/fmaxf` 语义实现：`NaN → 0.0`、`-0.0 → +0.0`、
-  `>1 → 1.0`、`<0 → 0.0`；测试侧独立用 `clamp` 公式对账（夹具值域为有限非负，二者逐位相同）。
+- depth 的 clamp 由产品 `clamp_unit` 实现：区间压缩到 `[0.0, 1.0]`（这是上游要求的语义部分）；
+  `NaN → 0.0`、`-0.0 → +0.0` 属**实现行为**（对齐 CUDA `fminf/fmaxf` 的具体顺序），**不是上游语义保证**。
+  夹具值域为有限非负、**无 `-0`/NaN 样本** → 这些边界的上游逐位对账**未覆盖**（观察收口 O3/O7）。
+  测试侧独立用 `(v / scale).clamp(0.0, 1.0)` 对账，只覆盖夹具值域（逐位相同）。
 - `camera_index` 语义：**激活相机顺序位置**（`cam_active` 选中顺序 = `OutputLayout` adr 顺序），
   不是模型相机 id；`CameraOutputViews::camera_id(i)` 给出→模型 id 的映射。
 - 逐相机分辨率取 `CameraPlan.resolutions`（允许各相机不同宽高）。
@@ -71,6 +73,11 @@
 | `depth_scale <= 0` 或非有限 | `DepthScale { depth_scale }` |
 | `nworld > 1` | `NworldUnsupported { nworld }` |
 | `plan`/`layout` 非同一解析（相机数/开关表/像素总数不符） | `CameraCount` / `PlanFlags` / `LayoutPixels` |
+
+错误优先级（观察收口 O2）：`depth()` **先**校验 `depth_scale`（`<= 0` 或非有限 → `DepthScale`），
+之后才做 `camera_index`/通道启用/整缓冲查找；因此「通道未启用 + 非法 scale」返回 `DepthScale`
+而不是 `ChannelDisabled`。单测 `render::context::tests::depth_scale_validated_before_channel_and_index_lookups`
+锁定该顺序（含越界索引 + 非法 scale 取 `DepthScale`）。
 
 ## 4. 参考对账（不重渲染：从 S7b 冻结参考反向构造整缓冲再逐相机反解）
 
@@ -117,6 +124,12 @@ cargo test --locked --test render_camera_output
 `logs/directed-render-camera-output.log`）。四条用例：参考对账（RGB）、参考对账（depth+seg）、
 相机隔离/行主序、错误面（越界/未启用/缺失/长度/`depth_scale`/`nworld`/plan-layout 不一致）。
 
+观察收口（O2/O7）另在 `src/render/context/tests.rs` 增加 2 条单测：
+`depth_scale_validated_before_channel_and_index_lookups`（错误优先级）与
+`depth_boundary_values_are_product_clamp_not_cuda_equivalence`（`-0.0`/NaN/`±inf`/极端 `depth_scale` 的产品侧
+行为，**不宣称**与 CUDA `fmaxf/fminf` 等价）。`tests/render_camera_output.rs` 现 493 行、已无 500 行棘轮余量，
+故该文件不加行（收口提交 `logs/closure/directed-depth-priority.log`）。
+
 四门禁（`normify gate` 绑定最终树；同树命令输出存档在 `logs/`）：
 
 | 门禁 | 命令 | 结果 |
@@ -128,8 +141,10 @@ cargo test --locked --test render_camera_output
 
 ## 7. 文件与证据
 
-- 改动源码：`src/render/context/camera_output.rs`（495 行，新文件）、`src/render/mod.rs`（374 行，
-  `#[path]` 声明 + 顶层再导出）；测试：`tests/render_camera_output.rs`（493 行）——行数均 **≤500**；
+- 改动源码：`src/render/context/camera_output.rs`（S1 提交 495 行；观察收口后 **499 行**）、
+  `src/render/mod.rs`（374 行，
+  `#[path]` 声明 + 顶层再导出）；测试：`tests/render_camera_output.rs`（493 行，收口未改）与
+  `src/render/context/tests.rs`（收口后 **379 行**，新增 2 条 depth 单测）——行数均 **≤500**；
   `src/render/context.rs`（426 行）**未触碰**。
 - 证据清单与 sha/bytes/lines：`manifest.json`（改动文件、夹具、运行日志）。
 - 运行日志：`logs/fmt-check.log`、`logs/clippy.log`、`logs/clippy-cuda.log`、`logs/unit.log`
@@ -145,3 +160,22 @@ cargo test --locked --test render_camera_output
 - 不宣告任何渲染级/产品级验收、覆盖、精度或等价结论（任务 `forbid_claim` 3 条词表在证据文本与
   提交信息中 0 命中；本文亦不复述该词表）。
 - 未接产品入口调用链（S2 端到端另片）；多 world（`nworld>1`）归 R10；AA/着色/光照不在本片。
+
+## 9. S1 观察收口（O1–O8，2026-10-28）
+
+- 收口任务：`2026-10-28-render-bvh-r08-camera-obs-closure`；收据 `s3-obs-closure-receipt.json`
+  （含 `/task_id`），门禁与自检数字见收据 `gates` / `self_checks`。
+- **O2（修，代码）**：`CameraOutputViews::depth()` 把 `depth_scale` 校验移到任何相机/通道/缓冲查找之前
+  （错误优先级最高）；新增单测覆盖「通道未启用 + `scale=0`」组合（返回 `DepthScale`）。
+- **O3（修，措辞）**：`-0.0 → +0.0`、`NaN → 0` 从「上游 `wp.clamp` 保证」改为「CUDA `fminf/fmaxf`
+  实现细节 / 产品实现行为，**不是**上游语义保证」，并写明夹具无 `-0` 样本 → **未覆盖**。
+- **O7（修，测试）**：新增 2 条边界值单测（`-0.0`、NaN、`±inf`、`depth_scale = MIN_POSITIVE / f32::MAX`），
+  只断言产品行为；产品 `clamp_unit` 与测试侧 Rust `f32::clamp` 的差异（后者传播 NaN、保留 `-0.0`）
+  记为**未覆盖**，不宣称等价。
+- **O1（接受）**：`camera_id()` 沿用 plan 的 `i32` id 宽度；窄化（`try_from`）留待后续任务，本片不改签名。
+- **O4（接受）**：`OutputLayout` adr 前缀和自检属可选加固，本片不做。
+- **O5（接受）**：`#[path = "context/camera_output.rs"]` 声明保持现状；后续任务范围包含 `context.rs` 时再归位。
+- **O6（接受）**：`PixelOverflow` 的 `checked_mul`/`checked_add` 防御已存在并保留，不额外做 64 位改造。
+- **O8（引用）**：QA 复核提到的 `.gitattributes` EOL 问题，正确任务 id 为
+  `2026-10-28-repo-fixture-eol-attributes`（Arch 已登记；非 S1 引入，不在本片修）。
+- 本收口**不重跑窗口、不开 GPU**；门禁为收口最终树（unit 1017 passed / 0 failed / 382 ignored）。

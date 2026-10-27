@@ -8,8 +8,9 @@
 //! - RGB：`b = f32(val & 0xFF) * (1/255)`、`g = f32((val >> 8) & 0xFF) * (1/255)`、
 //!   `r = f32((val >> 16) & 0xFF) * (1/255)`，输出 `vec3(r, g, b)`；`(1/255)` 取 S4 冻结的
 //!   `float32(1.0/255.0)`（[`INV_255`]，`0x3B80_8081`）。
-//! - depth：`clamp(val / depth_scale, 0.0, 1.0)`——**除法在前、clamp 在后**；clamp 按上游
-//!   `wp.clamp` 的 `fminf/fmaxf` 语义处理 `±0`/NaN（`-0.0` 归一为 `+0.0`）。
+//! - depth：`clamp(val / depth_scale, 0.0, 1.0)`——**除法在前、clamp 在后**；`depth_scale` 先于
+//!   任何查找校验。`-0.0 → +0.0`、`NaN → 0` 由产品 [`clamp_unit`] 实现，属实现行为（对齐 CUDA
+//!   `fminf/fmaxf` 顺序），不是上游语义保证；夹具无 `-0`/NaN 样本 → 未覆盖（O3/O7）。
 //! - seg：`(object_id, object_type)` 原样复制。
 //!
 //! `camera_index` 是**激活相机顺序位置**（`cam_active` 选中顺序，即 `OutputLayout` 的 adr
@@ -18,7 +19,8 @@
 //!
 //! 本片只做单 world（`nworld == 1`）：`nworld > 1` 明确拒绝，多 world 视图归 R10。视图不复制
 //! 整缓冲（只有 RGB 解包与 depth 缩放会分配逐相机结果）；越界、通道未启用、缓冲缺失/长度
-//! 不符、`depth_scale` 非法都在读取前返回 [`CameraViewError`]，不 panic。
+//! 不符在读取前返回 [`CameraViewError`]，不 panic；`depth()` 的 `depth_scale` 校验优先于
+//! 相机/通道/缓冲查找（错误优先级见 [`CameraOutputViews::depth`]）。
 
 use std::ops::Range;
 
@@ -330,16 +332,17 @@ impl<'a> CameraOutputViews<'a> {
         }
     }
 
-    /// 缩放并截断后的深度：`clamp(val / depth_scale, 0.0, 1.0)`（除法在前）。
+    /// 缩放并截断后的深度：`clamp(val / depth_scale, 0.0, 1.0)`（除法在前）。错误优先级（O2）：
+    /// `depth_scale` 先于相机/通道/缓冲查找校验，故「通道未启用 + 非法 scale」返回 `DepthScale`。
     pub fn depth(
         &self,
         camera_index: usize,
         depth_scale: f32,
     ) -> Result<CameraImage<f32>, CameraViewError> {
-        let raw = self.depth_raw(camera_index)?;
         if !depth_scale.is_finite() || depth_scale <= 0.0 {
             return Err(CameraViewError::DepthScale { depth_scale });
         }
+        let raw = self.depth_raw(camera_index)?;
         let resolution = self.resolution(camera_index)?;
         let pixels = raw
             .iter()
@@ -483,7 +486,8 @@ fn unpack_rgb(value: u32) -> [f32; 3] {
     [r, g, b]
 }
 
-/// 上游 `wp.clamp(value, 0.0, 1.0)` 的 `fminf(fmaxf(...))` 语义：NaN → 0、`-0.0` → `+0.0`。
+/// 产品侧 clamp：区间压缩到 `[0.0, 1.0]`（上游要求的语义部分）；`NaN → 0.0`、`-0.0 → +0.0` 是
+/// 实现行为（对齐 CUDA `fminf/fmaxf` 顺序），不是上游语义保证；夹具无此类样本 → 未覆盖（O3/O7）。
 fn clamp_unit(value: f32) -> f32 {
     if value.is_nan() || value <= 0.0 {
         0.0

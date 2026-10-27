@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r08-camera-obs-closure",
+  "kind": "render-bvh-r08-camera-output-observation-closure",
+  "status": "final",
+  "closure_of": "2026-10-28-render-bvh-r08-camera-output",
+  "date": "2026-10-28",
+  "qa_review": {
+    "commits": ["4e8b6a44", "e2142204"],
+    "verdict": "pass / 0 阻断",
+    "follow_ups": ["O1", "O2", "O3", "O4", "O5", "O6", "O7", "O8"]
+  },
+  "note_card_check_path": "任务卡 json 检查路径为 docs/development-evidence/render-bvh/r08-camera-output/s3-obs-closure-receipt.json；本收据即该文件（文件名按卡面，未改名）。",
+  "scope": "代码与证据收口：depth_scale 错误优先级（O2，代码）＋ 测试（O7，2 条单测）＋ 措辞（O3，证据文本）＋ 接受项登记（O1/O4/O5/O6/O8）；不改判据/参考/容差/夹具，不开 GPU、不重跑窗口。",
+  "gate": {
+    "applicable": true,
+    "note": "任务卡登记 fmt/clippy/clippy-cuda/unit 四门禁并绑定收口最终树；仓库根 `normify gate` 结果以 .normify/runs/ 为准，本文件记录同树采集输出。",
+    "fmt": { "exit": 0, "wall_ms": 1538, "log": "logs/closure/fmt-check.log" },
+    "clippy": { "exit": 0, "wall_ms": 5338, "log": "logs/closure/clippy.log" },
+    "clippy-cuda": { "exit": 0, "wall_ms": 398, "log": "logs/closure/clippy-cuda.log" },
+    "unit": {
+      "exit": 0,
+      "wall_ms": 66155,
+      "passed": 1017,
+      "failed": 0,
+      "ignored": 382,
+      "result_lines": 125,
+      "log": "logs/closure/unit.log",
+      "delta_vs_s1": "S1 时 1010 passed；S2 CPU/窗口用例 5 条后 1015；本次收口新增 2 条 depth 单测 → 1017"
+    }
+  },
+  "dispositions": [
+    {
+      "id": "O1",
+      "action": "accept",
+      "summary": "camera_id() 沿用 plan 的 i32 id 宽度；窄化（try_from）留待后续任务，本片不改签名"
+    },
+    {
+      "id": "O2",
+      "action": "fix-code",
+      "summary": "CameraOutputViews::depth() 把 depth_scale 校验移到任何相机/通道/缓冲查找之前，DepthScale 为最高优先级错误",
+      "files": ["src/render/context/camera_output.rs"],
+      "evidence": "depth() 内先 if !finite || <=0 → DepthScale，再 depth_raw/resolution；doc 写明错误优先级"
+    },
+    {
+      "id": "O3",
+      "action": "fix-wording",
+      "summary": "-0.0 → +0.0、NaN → 0 从「上游 wp.clamp 保证」降级为「CUDA fminf/fmaxf 实现细节 / 产品实现行为，非上游语义保证」；夹具无 -0/NaN 样本 → 未覆盖",
+      "files": [
+        "src/render/context/camera_output.rs",
+        "docs/development-evidence/render-bvh/r08-camera-output/README.md",
+        "docs/development-evidence/render-bvh/r08-camera-output/receipt.json"
+      ]
+    },
+    {
+      "id": "O4",
+      "action": "accept",
+      "summary": "OutputLayout adr 前缀和自检为可选加固，本片不做"
+    },
+    {
+      "id": "O5",
+      "action": "accept",
+      "summary": "#[path = \"context/camera_output.rs\"] 声明保持现状；后续任务范围含 src/render/context.rs 时再归位"
+    },
+    {
+      "id": "O6",
+      "action": "accept",
+      "summary": "PixelOverflow 的 checked_mul/checked_add 32 位防御已存在并保留，不额外做 64 位改造"
+    },
+    {
+      "id": "O7",
+      "action": "fix-tests",
+      "summary": "新增 2 条边界值单测（-0.0、NaN、±inf、depth_scale=MIN_POSITIVE/f32::MAX），只断言产品侧行为，不宣称与 CUDA fmaxf/fminf 等价",
+      "files": ["src/render/context/tests.rs"],
+      "cases": [
+        "render::context::tests::depth_scale_validated_before_channel_and_index_lookups",
+        "render::context::tests::depth_boundary_values_are_product_clamp_not_cuda_equivalence"
+      ],
+      "note": "tests/render_camera_output.rs 493 行已无 500 行棘轮余量，故收口单测放在 scope 内的 src/render/context/tests.rs"
+    },
+    {
+      "id": "O8",
+      "action": "reference",
+      "summary": "QA 复核提到的 .gitattributes EOL 问题正确任务 id 为 2026-10-28-repo-fixture-eol-attributes（Arch 已登记；非 S1 引入，不在本片修）"
+    }
+  ],
+  "code_changes": [
+    {
+      "path": "src/render/context/camera_output.rs",
+      "diff": "+10 / −6",
+      "lines": 499,
+      "bytes": 18721,
+      "sha256": "151c51ef875cd20f7eba7a2b4f26dbe0e0f76294c228166e711c4254f1c063cb",
+      "changes": [
+        "O2：depth() 的 depth_scale 校验前置（先于 depth_raw / resolution / 通道查找）",
+        "O2：depth() doc 增加错误优先级说明（深度压缩语义不变）",
+        "O3：模块 doc 与 clamp_unit doc 改为实现行为措辞（-0.0/NaN 不是上游语义保证）"
+      ]
+    },
+    {
+      "path": "src/render/context/tests.rs",
+      "diff": "+124 / −0",
+      "lines": 379,
+      "bytes": 13506,
+      "sha256": "fcacab3b3888e5fd55fd4709418d0320080478609b062855a008e2d3e71fac73",
+      "changes": [
+        "O2：depth_scale_validated_before_channel_and_index_lookups（通道未启用 + scale=0 → DepthScale；越界 + 非法 scale → DepthScale；合法 scale 才落到 ChannelDisabled/CameraIndex）",
+        "O7：depth_boundary_values_are_product_clamp_not_cuda_equivalence（-0.0/NaN/±inf → 产品 clamp 行为；极端 scale；明确不宣称 CUDA 等价）"
+      ]
+    }
+  ],
+  "tests": {
+    "directed_integration": {
+      "command": "cargo test --locked --test render_camera_output",
+      "passed": 4,
+      "failed": 0,
+      "wall_ms": 248,
+      "log": "logs/closure/directed-render-camera-output.log"
+    },
+    "directed_depth_unit": {
+      "command": "cargo test --locked --lib render::context::tests::depth",
+      "passed": 2,
+      "failed": 0,
+      "wall_ms": 179,
+      "log": "logs/closure/directed-depth-priority.log"
+    },
+    "unit": "1017 passed / 0 failed / 382 ignored（见 gate.unit）"
+  },
+  "constraints": {
+    "src_model_render_rs_lines": 500,
+    "src_model_render_rs_untouched": true,
+    "kernel_launch_rs_lines": 500,
+    "kernel_launch_rs_untouched": true,
+    "kernel_megakernel_rs_lines": 498,
+    "kernel_megakernel_rs_untouched": true,
+    "kernel_cast_rs_lines": 494,
+    "kernel_cast_rs_untouched": true,
+    "device_cu_untouched": true,
+    "device_sources": 28,
+    "product_entries": 6,
+    "collision_args_bytes": 504,
+    "criteria_reference_fixtures_unchanged": true,
+    "new_files_max_lines": 500,
+    "code_files_lines": { "camera_output.rs": 499, "tests.rs": 379 },
+    "cargo_toml_lock_untouched": true
+  },
+  "evidence_changed": [
+    { "path": "docs/development-evidence/render-bvh/r08-camera-output/README.md", "diff": "+40 / −6", "lines": 181, "bytes": 13168, "sha256": "81dfc2aadcc8344743d0b227d53636699dc4ee2e47056661474d85c9cf2d7649", "change": "O2 错误优先级段、O3 clamp 措辞、§6 收口单测说明、§9 O1–O8 处置" },
+    { "path": "docs/development-evidence/render-bvh/r08-camera-output/receipt.json", "diff": "+27 / −4", "lines": 251, "bytes": 12524, "sha256": "0b70893ca02e7ec7707b4abbff26f9e1f1fe3edd4e3c7ecbfa1b68a831542f8b", "change": "O2 depth 优先级、O3 clamp 语义措辞、error_surface 优先级条目、closure 段、行数更新（数字/参考/判定值未改）" }
+  ],
+  "evidence_files": [
+    "docs/development-evidence/render-bvh/r08-camera-output/s3-obs-closure-receipt.json",
+    "docs/development-evidence/render-bvh/r08-camera-output/README.md",
+    "docs/development-evidence/render-bvh/r08-camera-output/receipt.json",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/closure/fmt-check.log",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/closure/clippy.log",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/closure/clippy-cuda.log",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/closure/unit.log",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/closure/directed-render-camera-output.log",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/closure/directed-depth-priority.log",
+    "docs/development-evidence/render-bvh/r08-camera-output/logs/closure/gates-summary.txt"
+  ],
+  "self_checks": {
+    "json_valid": true,
+    "line_endings": "UTF-8 no BOM, LF/CR=0（收口新增/修改的证据文本与代码）",
+    "banned_terms_hits": 0,
+    "scope_selfcheck": {
+      "task_files_scope": ["src/render/context/", "src/render/context.rs", "tests/render_camera_output.rs", "docs/development-evidence/render-bvh/r08-camera-output/"],
+      "changed_paths": [
+        "src/render/context/camera_output.rs",
+        "src/render/context/tests.rs",
+        "docs/development-evidence/render-bvh/r08-camera-output/README.md",
+        "docs/development-evidence/render-bvh/r08-camera-output/receipt.json",
+        "docs/development-evidence/render-bvh/r08-camera-output/s3-obs-closure-receipt.json",
+        "docs/development-evidence/render-bvh/r08-camera-output/logs/closure/"
+      ],
+      "out_of_scope": 0,
+      "untouched_files": ["tests/render_camera_output.rs（493 行，无余量未改）", "src/render/context.rs（426 行）"]
+    },
+    "criteria_reference_tolerance_unchanged": true,
+    "window_numbers_unchanged": true,
+    "gpu_not_opened": true,
+    "no_new_capture": true
+  },
+  "boundaries": {
+    "window_rerun": false,
+    "gpu_opened": false,
+    "new_capture": false,
+    "python_not_started": true,
+    "product_entry_wired": "defer to R08-S2",
+    "multi_world_views": "defer to R10"
+  }
+}

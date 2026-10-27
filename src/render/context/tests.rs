@@ -253,3 +253,127 @@ fn rejects_invalid_model_field_kinds_and_lengths() {
         }
     ));
 }
+
+// R08-S1 观察收口（O2/O7）：`depth()` 错误优先级与 depth 边界值。
+
+fn depth_plan(resolutions: &[[u32; 2]], depth: bool) -> crate::render::camera::CameraPlan {
+    let total: usize = resolutions
+        .iter()
+        .map(|r| r[0] as usize * r[1] as usize)
+        .sum();
+    crate::render::camera::CameraPlan {
+        cameras: (0..resolutions.len()).collect(),
+        resolutions: resolutions.to_vec(),
+        render_rgb: vec![true; resolutions.len()],
+        render_depth: vec![depth; resolutions.len()],
+        render_seg: vec![true; resolutions.len()],
+        total_rays: total,
+        rgb_pixels: total,
+        samples_per_pixel: 1,
+        samples: 1,
+        znear: 0.05,
+        zfar: 100.0,
+    }
+}
+
+#[test]
+fn depth_scale_validated_before_channel_and_index_lookups() {
+    use crate::render::ImageOutput;
+    use crate::render::camera_output::{CameraOutputViews, CameraViewError, WholeOutputData};
+    // depth 通道禁用（adr = -1），且不给任何整缓冲。
+    let plan = depth_plan(&[[2, 2]], false);
+    let layout = OutputLayout::resolve(&plan).expect("布局");
+    let views =
+        CameraOutputViews::new(&plan, &layout, 1, WholeOutputData::default()).expect("视图");
+    // O2：`depth_scale` 先于通道/索引查找，非法 scale 一律返回 DepthScale。
+    for scale in [0.0f32, -1.0, f32::INFINITY, f32::NEG_INFINITY] {
+        assert_eq!(
+            views.depth(0, scale).unwrap_err(),
+            CameraViewError::DepthScale { depth_scale: scale }
+        );
+    }
+    assert_eq!(
+        views.depth(0, -0.0).unwrap_err(),
+        CameraViewError::DepthScale { depth_scale: -0.0 }
+    );
+    assert!(matches!(
+        views.depth(0, f32::NAN).unwrap_err(),
+        CameraViewError::DepthScale { depth_scale } if depth_scale.is_nan()
+    ));
+    // 越界索引 + 非法 scale：仍是 DepthScale 优先。
+    assert_eq!(
+        views.depth(9, 0.0).unwrap_err(),
+        CameraViewError::DepthScale { depth_scale: 0.0 }
+    );
+    // scale 合法后才落到通道/索引错误面。
+    assert_eq!(
+        views.depth(0, 1.0).unwrap_err(),
+        CameraViewError::ChannelDisabled {
+            channel: ImageOutput::Depth,
+            camera_index: 0
+        }
+    );
+    assert!(matches!(
+        views.depth(9, 1.0).unwrap_err(),
+        CameraViewError::CameraIndex {
+            index: 9,
+            cameras: 1
+        }
+    ));
+}
+
+#[test]
+fn depth_boundary_values_are_product_clamp_not_cuda_equivalence() {
+    use crate::render::camera_output::{CameraOutputViews, WholeOutputData};
+    // O7：只断言产品侧行为，**不**宣称与 CUDA `fmaxf/fminf` 位级等价（无 GPU；夹具也无这些样本）。
+    let plan = depth_plan(&[[2, 2]], true);
+    let layout = OutputLayout::resolve(&plan).expect("布局");
+    let raw = [-0.0f32, f32::NAN, f32::INFINITY, f32::NEG_INFINITY];
+    let views = CameraOutputViews::new(
+        &plan,
+        &layout,
+        1,
+        WholeOutputData {
+            depth: Some(&raw),
+            ..WholeOutputData::default()
+        },
+    )
+    .expect("视图");
+    let scaled = views.depth(0, 1.0).expect("缩放");
+    let bits: Vec<u32> = scaled.pixels().iter().map(|v| v.to_bits()).collect();
+    // 产品 clamp_unit：-0.0/NaN/-inf → +0.0；+inf → 1.0。
+    assert_eq!(
+        bits,
+        vec![
+            0.0f32.to_bits(),
+            0.0f32.to_bits(),
+            1.0f32.to_bits(),
+            0.0f32.to_bits()
+        ]
+    );
+    let normal = [0.5f32];
+    let single_plan = depth_plan(&[[1, 1]], true);
+    let single_layout = OutputLayout::resolve(&single_plan).expect("布局");
+    let single = CameraOutputViews::new(
+        &single_plan,
+        &single_layout,
+        1,
+        WholeOutputData {
+            depth: Some(&normal),
+            ..WholeOutputData::default()
+        },
+    )
+    .expect("视图");
+    // 极端 scale：极小正数 → 除法溢出 +inf → 1.0；极大数 → 结果落在 (0, MIN_POSITIVE) 次正规区。
+    assert_eq!(
+        single.depth(0, f32::MIN_POSITIVE).expect("极小").pixels()[0].to_bits(),
+        1.0f32.to_bits()
+    );
+    let huge = single.depth(0, f32::MAX).expect("极大");
+    assert!(
+        huge.pixels()[0] > 0.0 && huge.pixels()[0] < f32::MIN_POSITIVE,
+        "极大 scale 下结果为次正规正数（未与上游对账）"
+    );
+    // `-0`/NaN 上测试侧 Rust `f32::clamp` 会传播 NaN、且 clamp 保留 -0.0，与产品不同：
+    // 这些差异**没有**上游 CUDA 逐位参考 → 记为未覆盖，不在此宣称等价。
+}
