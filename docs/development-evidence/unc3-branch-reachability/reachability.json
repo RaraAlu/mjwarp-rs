@@ -1,0 +1,161 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-unc3-branch-closure-s1-reachability",
+  "pinned_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "entries": [
+    {
+      "id": "U1",
+      "branch": "plane_cylinder degenerate (len_sqr<1e-12 -> x-axis fallback)",
+      "pinned": [
+        "collision_primitive_core.py L496-517"
+      ],
+      "device": [
+        "primitive_plane_shapes.cu L117-134"
+      ],
+      "verdict": "verifiable",
+      "trigger": "plane normal +z; cylinder quat=identity (axis +z); center z=h-delta -> prjaxis=-1, vec=0 exactly",
+      "needs_fixture": "plane-cylinder-degenerate.xml",
+      "window": "S3 capture + S4 validation"
+    },
+    {
+      "id": "U2",
+      "branch": "plane_ellipsoid non-upstream degenerate guard",
+      "pinned": [
+        "collision_primitive_core.py L312-339 (no guard)"
+      ],
+      "device": [
+        "primitive_plane_shapes.cu L93-100 (guard added)"
+      ],
+      "verdict": "unreachable_defensive",
+      "trigger": "legal MJCF requires ellipsoid size>0 finite -> normalize input never zero; do not fake",
+      "needs_fixture": "none (static diff + direct guard unit test)",
+      "window": "none"
+    },
+    {
+      "id": "U3",
+      "branch": "plane_box 8-corner coverage (3 seen so far)",
+      "pinned": [
+        "collision_primitive_core.py L366-390",
+        "collision_primitive.py L800-831 write_contact cutoff"
+      ],
+      "device": [
+        "primitive_plane_shapes.cu plane_box"
+      ],
+      "verdict": "verifiable",
+      "trigger": "4 poses: face-down, tilt x45, tilt y45, single-corner 54.7; rotate 90/mirror to reach all 8 corners",
+      "needs_fixture": "plane-box-corner-{a,b,c,d}.xml",
+      "window": "S3+S4"
+    },
+    {
+      "id": "U4",
+      "branch": "plane_capsule frame-basis degenerate (b_norm<0.5) + two endpoint candidates",
+      "pinned": [
+        "collision_primitive_core.py L283-306"
+      ],
+      "device": [
+        "primitive_plane_shapes.cu plane_capsule"
+      ],
+      "verdict": "verifiable",
+      "trigger": "upright capsule (axis || normal) -> b_norm~0 fallback; lying capsule -> normal basis; 2 candidates each",
+      "needs_fixture": "plane-capsule-upright.xml (+ existing lying case)",
+      "window": "S3+S4"
+    },
+    {
+      "id": "U5",
+      "branch": "plane_cylinder non-degenerate 4 candidates",
+      "pinned": [
+        "collision_primitive_core.py L519-557"
+      ],
+      "device": [
+        "primitive_plane_shapes.cu"
+      ],
+      "verdict": "verifiable",
+      "trigger": "cylinder tilted 30-45 deg -> len_sqr>1e-12, 4 candidates enter cutoff",
+      "needs_fixture": "plane-cylinder-tilted.xml",
+      "window": "S3+S4"
+    },
+    {
+      "id": "U6",
+      "branch": "mesh nmesh>1 with distinct assets",
+      "pinned": [
+        "collision_core.py L118-141",
+        "collision_convex.py L911-919"
+      ],
+      "device": [
+        "product.cu L155-163",
+        "multicontact.cu L59-61"
+      ],
+      "verdict": "verifiable_in_denominator",
+      "trigger": "cube.obj + tetra.obj -> nmesh=2, nmeshvert=12, nmeshpoly=10",
+      "needs_fixture": "mesh-mesh-two-assets.xml",
+      "window": "S3 capture + S4 validation"
+    },
+    {
+      "id": "U7",
+      "branch": "mesh degree>10",
+      "pinned": [
+        "collision_gjk.py nmeshdegmax"
+      ],
+      "device": [
+        "multicontact_mesh.cu L11-13,L120 (G5_MC_MESH_DEG_MAX=10)"
+      ],
+      "verdict": "limit_only_not_in_denominator",
+      "trigger": "fan cone 24 (apex degree 24) -> device returns 0 -> single contact fallback; upstream differs, record as red/limit",
+      "needs_fixture": "fan-cone-24.obj",
+      "window": "S3 (record only) + S4"
+    },
+    {
+      "id": "U8",
+      "branch": "mesh polygon>16",
+      "pinned": [
+        "collision_gjk.py npolygonmax"
+      ],
+      "device": [
+        "multicontact_mesh.cu L13-15 (G5_MC_MESH_FACE_MAX=16)"
+      ],
+      "verdict": "limit_only_not_in_denominator",
+      "trigger": "prism with 20-gon face -> fallback; record only",
+      "needs_fixture": "prism-20.obj",
+      "window": "S3 (record only) + S4"
+    },
+    {
+      "id": "U9",
+      "branch": "hfield-capsule device regression",
+      "pinned": [
+        "G5 case bins"
+      ],
+      "device": [
+        "g10_p5_nvrtc_launcher (hfield-sphere family)"
+      ],
+      "verdict": "verifiable_bitwise",
+      "trigger": "reuse fixtures/g10-p5/references/hfield-capsule.json + G5 case bins; no new capture window",
+      "needs_fixture": "none (existing bins)",
+      "window": "S4 only"
+    }
+  ],
+  "mesh_tiers": {
+    "nmesh_gt_1": "in denominator",
+    "degree_gt_10": "limit only",
+    "polygon_gt_16": "limit only"
+  },
+  "drafts": {
+    "s3_capture": {
+      "new_reference_files": [
+        "upstream-branch-closure-gpu.json",
+        "upstream-mesh-limits-gpu.json"
+      ],
+      "discipline": "offline authoring, two independent processes + independent caches, raw byte-identical, old references untouched, wall<=90s"
+    },
+    "s4_validation": {
+      "targets": [
+        "g10_p5_branch_closure_cuda(new)",
+        "g10_p5_nvrtc_launcher(+hfield-capsule)"
+      ],
+      "regressions": "M2/M3/G5/B1/B2/B3/stage2"
+    }
+  },
+  "boundaries": [
+    "no GPU, no capture, no fixture edits in S1",
+    "U2 unreachable/defensive; U7/U8 limit-only; do not claim covered"
+  ]
+}
