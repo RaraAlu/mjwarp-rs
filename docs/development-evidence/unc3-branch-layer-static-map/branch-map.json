@@ -1,0 +1,353 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-unc3-branch-layer-static-map",
+  "kind": "g10-p5-branch-layer-static-map",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "scope": "mesh multicontact 分支层 + 老片 sphere-box / capsule-box / box-box 分支级清单（静态，无 GPU）",
+  "device_sources_read": [
+    "src/physics/collision/cuda/multicontact.cu（234 行，全读）",
+    "src/physics/collision/cuda/multicontact_mesh.cu（191 行，全读）",
+    "src/physics/collision/cuda/primitive.cu（L40-189 读；分支定位）",
+    "src/physics/collision/cuda/primitive_wrapper.cu（wrapper 定位）",
+    "src/physics/collision/cuda/boxbox.cu（分支骨架定位）",
+    "src/physics/collision/cuda/boxbox_wrapper.cu（wrapper 定位）",
+    "src/physics/collision/cuda/multicontact_geom.cu（view/容量 define 定位）"
+  ],
+  "pinned_sources_read": [
+    "collision_gjk.py（L1591-1616, 1620-1734, 1926-1948, 2216-2451 引用位置）",
+    "collision_primitive.py（L1087-1353 wrapper）",
+    "collision_primitive_core.py（L595-1049 box_box, L1050-1101 sphere_box, L1105-1260 capsule_box）"
+  ],
+  "classification_definitions": {
+    "已 case 覆盖": "现有冻结 target/bins 有数值 case 走该分支，并有判据内通过的验证窗结果",
+    "可验证": "分支可达、有参考来源，具备加 case 的条件，但当前未逐分支标注",
+    "仅静态核对": "只做了源码/语义静态核对，无对应 case，不宣称覆盖",
+    "仅限制存在": "只证明模型级超界 + 上游行为，设备侧 guard 行为未实测",
+    "不可达/防御": "静态推理该分支在给定前置条件下不可达，属防御代码",
+    "未覆盖": "无 case、未静态定论或未构造"
+  },
+  "counts": {
+    "total": 30,
+    "by_status": {
+      "已 case 覆盖": 3,
+      "未覆盖": 7,
+      "仅限制存在": 2,
+      "仅静态核对": 5,
+      "可验证": 12,
+      "不可达/防御": 1
+    },
+    "by_family": {
+      "mesh-multicontact": 14,
+      "sphere-box": 3,
+      "capsule-box": 5,
+      "box-box": 8
+    }
+  },
+  "entries": [
+    {
+      "id": "M-01",
+      "family": "mesh-multicontact",
+      "branch": "sidecar 缺失回退（无 poly 视图 / mesh_polyadr<0 → 单接触）",
+      "device": "src/physics/collision/cuda/multicontact.cu:59-65",
+      "pinned": "collision_gjk.py:2245-2262（数组视图选择）",
+      "status": "已 case 覆盖",
+      "evidence": "M0a 空 sidecar bins（旧 23-bin 回退单接触）/ validate_mesh_poly 空 sidecar 单测",
+      "note": "数值层由 M0a bins 覆盖；本片静态核到 return out(n=1) 与 contact.cu 的 n>=1 采用条件一致"
+    },
+    {
+      "id": "M-02",
+      "family": "mesh-multicontact",
+      "branch": "mesh 面法线恢复（_mesh_normals feature_dim==3）",
+      "device": "src/physics/collision/cuda/multicontact_mesh.cu:68-94",
+      "pinned": "collision_gjk.py:1620-1686",
+      "status": "已 case 覆盖",
+      "evidence": "M2 mesh-box / mesh-cylinder 各 4/4 bit；M3 mesh-mesh 4/4 bit",
+      "note": "覆盖的是 face-face 对齐后恢复 1 个面法线的组合"
+    },
+    {
+      "id": "M-03",
+      "family": "mesh-multicontact",
+      "branch": "mesh 法线恢复 dim2（边→最多 2 个面）",
+      "device": "src/physics/collision/cuda/multicontact_mesh.cu:96-115",
+      "pinned": "collision_gjk.py:1620-1686",
+      "status": "未覆盖",
+      "evidence": "无 mesh 边-面对齐 case",
+      "note": "静态核对：intersect1 为空时返回 0 → 上层回退"
+    },
+    {
+      "id": "M-04",
+      "family": "mesh-multicontact",
+      "branch": "mesh 法线恢复 dim1（顶点→degree 个面）",
+      "device": "src/physics/collision/cuda/multicontact_mesh.cu:117-129",
+      "pinned": "collision_gjk.py:1620-1686",
+      "status": "未覆盖",
+      "evidence": "无 mesh 顶点-面 multicontact case",
+      "note": "S3 U7 只有上游参考（count=1），设备侧未跑"
+    },
+    {
+      "id": "M-05",
+      "family": "mesh-multicontact",
+      "branch": "degree>10 容量 guard → return 0（回退单接触）",
+      "device": "src/physics/collision/cuda/multicontact_mesh.cu:120-122,148-150",
+      "pinned": "无显式 guard；容量取 nmeshdegmax（collision_convex.py:1262-1289 动态容量）",
+      "status": "仅限制存在",
+      "evidence": "S3 U7 fixture（max_degree=24>10）上游 count=1；设备侧未跑（S4 描述性对照）",
+      "note": "device guard 与 G5_MC_MESH_DEG_MAX(10) / contact.cu n1/n2/endvert scratch 容量一致；是否触发由 S4 设备实测判定"
+    },
+    {
+      "id": "M-06",
+      "family": "mesh-multicontact",
+      "branch": "polymap 交集为空 → 返回 0（无法恢复法线）",
+      "device": "src/physics/collision/cuda/multicontact_mesh.cu:81-83,86-88,107-109",
+      "pinned": "collision_gjk.py:1591-1616（_intersect1/_intersect2）",
+      "status": "仅静态核对",
+      "evidence": "无专门 case 构造空交集",
+      "note": "上层把 0 视作无法恢复 → 单接触回退"
+    },
+    {
+      "id": "M-07",
+      "family": "mesh-multicontact",
+      "branch": "mesh 边法线 dim2（单边，直接端点差）",
+      "device": "src/physics/collision/cuda/multicontact_mesh.cu:139-143",
+      "pinned": "collision_gjk.py:1690-1734（_mesh_edge_normals）",
+      "status": "未覆盖",
+      "evidence": "无 mesh 边-面（edge-face）case",
+      "note": ""
+    },
+    {
+      "id": "M-08",
+      "family": "mesh-multicontact",
+      "branch": "mesh 边法线 dim1（顶点→前驱顶点构边）",
+      "device": "src/physics/collision/cuda/multicontact_mesh.cu:145-170",
+      "pinned": "collision_gjk.py:1690-1734",
+      "status": "未覆盖",
+      "evidence": "无 mesh 顶点-面 case",
+      "note": "含 degree>10 guard（同 M-05）"
+    },
+    {
+      "id": "M-09",
+      "family": "mesh-multicontact",
+      "branch": "polygon 顶点数>16 容量 guard → return 0（回退单接触）",
+      "device": "src/physics/collision/cuda/multicontact_mesh.cu:180-182",
+      "pinned": "无显式 guard；容量取 npolygonmax（动态容量）",
+      "status": "仅限制存在",
+      "evidence": "S3 U8 fixture（max_polygon_vertices=20>16）上游 count=4、接触面含 20-gon 顶帽（几何佐证，polygon 号未打印）；设备侧未跑（S4 描述性对照）",
+      "note": "设备 guard 是逐 polygon（被遍历到的面）；上游按模型级容量，行为可能不同 → S4 必须如实写差异"
+    },
+    {
+      "id": "M-10",
+      "family": "mesh-multicontact",
+      "branch": "面恢复返回 0（nface1/nface2==0）→ 单接触回退",
+      "device": "src/physics/collision/cuda/multicontact.cu:195-197",
+      "pinned": "上游无此路径（容量保证面恢复 >=1）",
+      "status": "未覆盖",
+      "evidence": "仅容量越界组合可能触发，无 case",
+      "note": "M-05/M-09 的后果路径"
+    },
+    {
+      "id": "M-11",
+      "family": "mesh-multicontact",
+      "branch": "面法线不匹配且无 edge-face 匹配 → 单接触回退",
+      "device": "src/physics/collision/cuda/multicontact.cu:128-131,151-158",
+      "pinned": "collision_gjk.py:2216-2451 内同名路径",
+      "status": "仅静态核对",
+      "evidence": "现有 M2/M3 case 均走 face-face 对齐，未覆盖该回退",
+      "note": ""
+    },
+    {
+      "id": "M-12",
+      "family": "mesh-multicontact",
+      "branch": "edge-contact 时 witness 交换（swapped 回翻）",
+      "device": "src/physics/collision/cuda/multicontact.cu:207-211,229-230",
+      "pinned": "collision_gjk.py:2440 附近（_polygon_clip 翻转后回翻）",
+      "status": "仅静态核对",
+      "evidence": "无 mesh edge-contact case",
+      "note": ""
+    },
+    {
+      "id": "M-13",
+      "family": "mesh-multicontact",
+      "branch": "polygon_clip 结果 <1 → 单接触回退",
+      "device": "src/physics/collision/cuda/multicontact.cu:223-225",
+      "pinned": "上游调用方 ncollision<1 回退 EPA 单接触",
+      "status": "仅静态核对",
+      "evidence": "无 case 构造裁剪为空",
+      "note": ""
+    },
+    {
+      "id": "M-14",
+      "family": "mesh-multicontact",
+      "branch": "mesh-mesh 两侧 mesh 视图二选一（geomtype1==MESH 优先）",
+      "device": "src/physics/collision/cuda/multicontact.cu:59-61",
+      "pinned": "上游共享数组视图选择（L2245-2262）",
+      "status": "已 case 覆盖",
+      "evidence": "M3 mesh-mesh（两侧同类型 mesh）4/4 bit",
+      "note": "两侧不同类型 mesh 的组合未覆盖；视图只持全局指针，逐 geom vertadr/mesh_polyadr 解析"
+    },
+    {
+      "id": "SB-01",
+      "family": "sphere-box",
+      "branch": "球心在盒内（dist<=MINVAL）→ 6 面最近面",
+      "device": "src/physics/collision/cuda/primitive.cu:59-81",
+      "pinned": "collision_primitive_core.py:1078-1091",
+      "status": "可验证",
+      "evidence": "primitive target sphere-box-shallow/-deep 各 80/80 bit",
+      "note": "case 存在但未逐分支标注盒内/盒外归属"
+    },
+    {
+      "id": "SB-02",
+      "family": "sphere-box",
+      "branch": "球心在盒外 → clamp 最近点 + 最深点中点",
+      "device": "src/physics/collision/cuda/primitive.cu:82-89",
+      "pinned": "collision_primitive_core.py:1093-1099",
+      "status": "可验证",
+      "evidence": "同上（primitive target 80/80）",
+      "note": ""
+    },
+    {
+      "id": "SB-03",
+      "family": "sphere-box",
+      "branch": "normalize_with_norm 的 dist==0 防御（除零保护）",
+      "device": "src/physics/collision/cuda/primitive.cu:56（g5_primitive_normalize_with_norm）",
+      "pinned": "collision_primitive_core.py:1075 normalize_with_norm",
+      "status": "不可达/防御",
+      "evidence": "盒内分支已由 dist<=MINVAL 先拦截，盒外分支 dist>MINVAL",
+      "note": "静态推理：该分支在 sphere_box 内不可达；不改代码、不补 case"
+    },
+    {
+      "id": "CB-01",
+      "family": "capsule-box",
+      "branch": "面最近配置循环（n_out>1 跳过）",
+      "device": "src/physics/collision/cuda/primitive.cu:115-141",
+      "pinned": "collision_primitive_core.py:1157-1183",
+      "status": "可验证",
+      "evidence": "primitive target capsule-box 80/80 bit",
+      "note": "n_out>1 continue 的子分支未单列 case"
+    },
+    {
+      "id": "CB-02",
+      "family": "capsule-box",
+      "branch": "边最近配置（det<MINVAL 跳过：轴平行盒边退化）",
+      "device": "src/physics/collision/cuda/primitive.cu:143-165",
+      "pinned": "collision_primitive_core.py:1190-1219",
+      "status": "可验证",
+      "evidence": "capsule-box case 存在；轴平行退化可由夹具构造（尚未单列）",
+      "note": ""
+    },
+    {
+      "id": "CB-03",
+      "family": "capsule-box",
+      "branch": "线段参数 clamp（端点/中点 3x3 cltype 组合）",
+      "device": "src/physics/collision/cuda/primitive.cu:172-189",
+      "pinned": "collision_primitive_core.py:1226-1260",
+      "status": "可验证",
+      "evidence": "capsule-box 80/80（含端点接触）",
+      "note": ""
+    },
+    {
+      "id": "CB-04",
+      "family": "capsule-box",
+      "branch": "两端点同时接触 → 写 2 个槽",
+      "device": "src/physics/collision/cuda/primitive_wrapper.cu:23-29",
+      "pinned": "collision_primitive.py:1211-1246（capsule_box_wrapper 写 2 个）",
+      "status": "可验证",
+      "evidence": "capsule-box case（primitive target）",
+      "note": ""
+    },
+    {
+      "id": "CB-05",
+      "family": "capsule-box",
+      "branch": "axisdir 计算后未参与后续计算（静态注记）",
+      "device": "src/physics/collision/cuda/primitive.cu:101-102",
+      "pinned": "collision_primitive_core.py:1136（同上游同样计算）",
+      "status": "仅静态核对",
+      "evidence": "上游同样计算 axisdir 且后续未使用（逐行转写保留）",
+      "note": "与上游一致，无行为差异；仅记录"
+    },
+    {
+      "id": "BB-01",
+      "family": "box-box",
+      "branch": "3 个面轴分离早退（c1 或 c2 < -margin → 无接触）",
+      "device": "src/physics/collision/cuda/boxbox.cu:127",
+      "pinned": "collision_primitive_core.py:595-1049（box_box 面轴段）",
+      "status": "可验证",
+      "evidence": "G5 multicontact box-box-margin 391/392（max_pos_ulp=1）",
+      "note": ""
+    },
+    {
+      "id": "BB-02",
+      "family": "box-box",
+      "branch": "9 条边叉积轴，cross_length<MINVAL 跳过（平行边退化）",
+      "device": "src/physics/collision/cuda/boxbox.cu:154",
+      "pinned": "collision_primitive_core.py:595-1049（边叉积段）",
+      "status": "可验证",
+      "evidence": "G5 box-box-margin（轴对齐盒，含平行边）",
+      "note": ""
+    },
+    {
+      "id": "BB-03",
+      "family": "box-box",
+      "branch": "边轴分离早退（c3 < -margin）",
+      "device": "src/physics/collision/cuda/boxbox.cu:165",
+      "pinned": "同上",
+      "status": "可验证",
+      "evidence": "G5 box-box-margin 391/392",
+      "note": ""
+    },
+    {
+      "id": "BB-04",
+      "family": "box-box",
+      "branch": "无候选轴（axis_code == -1）→ 早退",
+      "device": "src/physics/collision/cuda/boxbox.cu:190",
+      "pinned": "同上（axis_code 初值 -1）",
+      "status": "未覆盖",
+      "evidence": "未构造无候选场景",
+      "note": "是否可达未判定"
+    },
+    {
+      "id": "BB-05",
+      "family": "box-box",
+      "branch": "面路径（axis_code<12：rotmore + 角点恢复 8 槽）",
+      "device": "src/physics/collision/cuda/boxbox.cu:203-231",
+      "pinned": "同上",
+      "status": "可验证",
+      "evidence": "G5 box-box-margin 391/392",
+      "note": ""
+    },
+    {
+      "id": "BB-06",
+      "family": "box-box",
+      "branch": "边路径（axis_code>=12：边恢复）",
+      "device": "src/physics/collision/cuda/boxbox.cu:304 起",
+      "pinned": "同上",
+      "status": "可验证",
+      "evidence": "G5 box-box-margin 391/392（含边接触）",
+      "note": ""
+    },
+    {
+      "id": "BB-07",
+      "family": "box-box",
+      "branch": "边路径退化（fabs(rnorm.z)<MINVAL）→ 早退",
+      "device": "src/physics/collision/cuda/boxbox.cu:346",
+      "pinned": "同上",
+      "status": "未覆盖",
+      "evidence": "未构造该退化",
+      "note": "防御性早退"
+    },
+    {
+      "id": "BB-08",
+      "family": "box-box",
+      "branch": "未填充槽语义（dist=MJ_MAXVAL、pos/normal 全零）",
+      "device": "src/physics/collision/cuda/boxbox.cu:96",
+      "pinned": "collision_primitive_core.py:595 起（初值 MJ_MAXVAL）",
+      "status": "可验证",
+      "evidence": "G5 box-box-margin 部分槽未填充（391/392 接触数）",
+      "note": ""
+    }
+  ],
+  "boundaries": [
+    "静态映射，不含设备运行结果；「可验证」不等于已覆盖",
+    "不改判据/容差/参考/代码，不开 GPU 窗口，不编译",
+    "行号为当前 HEAD 的行号；后续改动需重核"
+  ]
+}

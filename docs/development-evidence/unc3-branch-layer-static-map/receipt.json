@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-unc3-branch-layer-static-map",
+  "kind": "g10-p5-branch-layer-static-map-receipt",
+  "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+  "nature": "static source-level mapping; no GPU window, no build, no criteria change",
+  "device_sources_read": [
+    "src/physics/collision/cuda/multicontact.cu（234 行，全读）",
+    "src/physics/collision/cuda/multicontact_mesh.cu（191 行，全读）",
+    "src/physics/collision/cuda/primitive.cu（L40-189 读；分支定位）",
+    "src/physics/collision/cuda/primitive_wrapper.cu（wrapper 定位）",
+    "src/physics/collision/cuda/boxbox.cu（分支骨架定位）",
+    "src/physics/collision/cuda/boxbox_wrapper.cu（wrapper 定位）",
+    "src/physics/collision/cuda/multicontact_geom.cu（view/容量 define 定位）"
+  ],
+  "pinned_sources_read": [
+    "collision_gjk.py（L1591-1616, 1620-1734, 1926-1948, 2216-2451 引用位置）",
+    "collision_primitive.py（L1087-1353 wrapper）",
+    "collision_primitive_core.py（L595-1049 box_box, L1050-1101 sphere_box, L1105-1260 capsule_box）"
+  ],
+  "classification_definitions": {
+    "已 case 覆盖": "现有冻结 target/bins 有数值 case 走该分支，并有判据内通过的验证窗结果",
+    "可验证": "分支可达、有参考来源，具备加 case 的条件，但当前未逐分支标注",
+    "仅静态核对": "只做了源码/语义静态核对，无对应 case，不宣称覆盖",
+    "仅限制存在": "只证明模型级超界 + 上游行为，设备侧 guard 行为未实测",
+    "不可达/防御": "静态推理该分支在给定前置条件下不可达，属防御代码",
+    "未覆盖": "无 case、未静态定论或未构造"
+  },
+  "counts": {
+    "total": 30,
+    "by_status": {
+      "已 case 覆盖": 3,
+      "未覆盖": 7,
+      "仅限制存在": 2,
+      "仅静态核对": 5,
+      "可验证": 12,
+      "不可达/防御": 1
+    },
+    "by_family": {
+      "mesh-multicontact": 14,
+      "sphere-box": 3,
+      "capsule-box": 5,
+      "box-box": 8
+    }
+  },
+  "per_family_status": {
+    "mesh-multicontact": {
+      "entries": 14,
+      "已case覆盖": 3,
+      "可验证": 0,
+      "仅静态核对": 4,
+      "仅限制存在": 2,
+      "不可达/防御": 0,
+      "未覆盖": 5
+    },
+    "sphere-box": {
+      "entries": 3,
+      "已case覆盖": 0,
+      "可验证": 2,
+      "仅静态核对": 0,
+      "仅限制存在": 0,
+      "不可达/防御": 1,
+      "未覆盖": 0
+    },
+    "capsule-box": {
+      "entries": 5,
+      "已case覆盖": 0,
+      "可验证": 4,
+      "仅静态核对": 1,
+      "仅限制存在": 0,
+      "不可达/防御": 0,
+      "未覆盖": 0
+    },
+    "box-box": {
+      "entries": 8,
+      "已case覆盖": 0,
+      "可验证": 6,
+      "仅静态核对": 0,
+      "仅限制存在": 0,
+      "不可达/防御": 0,
+      "未覆盖": 2
+    }
+  },
+  "inputs_for_s4": [
+    "M-05（degree>10 guard）与 M-09（polygon 顶点>16 guard）是设备 guard 与上游动态容量语义不同的两处；S4 对 U7/U8 只做描述性对照",
+    "S4 对 U7/U8 必须同时记 dist/pos（count=1 偶合无法区分是否回退，QA O9）",
+    "S4 设备若与上游不同（U8 设备 1 vs 参考 4）写「与上游行为不同 / 限制存在」，不动 fixture、不改判据"
+  ],
+  "inputs_for_s5": [
+    "三家族现有 case 覆盖的是「有/无接触 + 位级数值」层，不是分支层；12 条「可验证」需后续片加定向 case 才可转「已覆盖」",
+    "mesh 分支层仅 3 条「已 case 覆盖」（sidecar 回退、face-face 法线恢复、mesh-mesh 同类型视图），edge/vertex 路径与两条容量 guard 均未覆盖",
+    "CB-05 与上游逐行一致（无行为差异）；SB-03 为防御不可达，不必补 case"
+  ],
+  "manifest": [
+    {
+      "path": "docs/development-evidence/unc3-branch-layer-static-map/README.md",
+      "bytes": 8066,
+      "sha256": "09c4286bf3f646d697b3fb272e991181c8988118543fdcbac8548d08c2bfead3"
+    },
+    {
+      "path": "docs/development-evidence/unc3-branch-layer-static-map/branch-map.json",
+      "bytes": 15117,
+      "sha256": "f23884da7762a2af088c1dd4ad38339a8529f0f2b19343907deeba839fd7784d"
+    }
+  ],
+  "boundaries": [
+    "静态映射，不含设备运行结果；「可验证」不等于已覆盖",
+    "不改判据/容差/参考/fixtures/代码；不开 GPU、不编译",
+    "行号按当前 HEAD；不写「窗口通过」与任何验收结论"
+  ]
+}
