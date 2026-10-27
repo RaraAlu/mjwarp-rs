@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r10-s1-closure-check",
+  "kind": "independent_check",
+  "reviewed_task": "2026-10-28-render-bvh-r10-s1-obs-closure",
+  "reviewed_commits": {"split_and_fixes": "0398c23c", "verified_record": "879cd012"},
+  "head_at_review": "879cd012",
+  "verdict": "pass",
+  "blockers": [],
+  "observation_counts": {"general": 0, "suggestion": 0, "total": 0},
+  "closure_items_verified": {
+    "split_zero_behavior_change": {
+      "result": "pass",
+      "detail": "world.rs (499 lines) is gone; world/mod.rs 22 + errors.rs 171 + state.rs 199 + layout.rs 175, all <=500; public paths render::context::world::{CameraPose, WorldCameraPoses, WorldError, WorldLayout, WorldResolutions, WorldStates} unchanged; render/mod.rs (378) and context.rs (427) untouched; QA re-ran its S1 harness (own layout recompute, nworld=1 field equality with OutputLayout, per-camera slice bit equality with CameraOutputViews::rgb_packed, 3-world sentinel isolation, 11-variant error surface, poses/states) on the new tree: 7 tests, 0 failures; product directed test 8 passed (5 existing + 3 new)"
+    },
+    "F1_empty_camera_selection": {
+      "result": "fixed and verified",
+      "detail": "WorldResolutions::new returns an empty table when plan.resolutions is empty (no chunks(0)); non-empty input gives CameraCountMismatch{expected:0}; QA reproduced with catch_unwind: Ok empty table, no panic; get(0,0) -> CameraOutOfRange{0,0}; WorldLayout for empty selection + nworld=3 gives 0..0 ranges and 0 buffer elements"
+    },
+    "F2_huge_worlds_count_overflow": {
+      "result": "fixed and verified",
+      "detail": "active_mask_all_true / WorldStates::assemble use try_reserve(_exact) and map failure to CountOverflow{field:'worlds'}; QA catch_unwind shows WorldLayout::resolve(plan, usize::MAX) and WorldStates::new(usize::MAX) do not panic and return CountOverflow{field:'worlds'}; normal sizes still work; WorldStates::with_active(usize::MAX, vec![]) is rejected as ActiveMaskMismatch without allocation",
+      "note": "world_offset / world_buffer_elements overflow branches remain defensive (they would need a large but allocatable active mask plus huge pixels); not exercised by an actual allocation in this slice"
+    },
+    "F3_nworld_zero_priority": {
+      "result": "fixed and verified",
+      "detail": "nworld==0 is checked before OutputLayout::resolve; with a plan whose OutputLayout parse must fail ([[u32::MAX,u32::MAX],[1,1]]): nworld=0 -> WorldCountZero, nworld=2 -> Layout(ContextError); WorldStates::new(0) -> WorldCountZero"
+    }
+  },
+  "verified_items": [
+    {"item": "line counts and file split", "result": "pass",
+     "detail": "world/mod.rs 22, errors.rs 171, state.rs 199, layout.rs 175, world.rs absent, tests/render_multi_world_layout.rs 478, context.rs 427, render/mod.rs 378, camera_output.rs 499, model/render.rs 500, launch.rs 500, megakernel.rs 498, cast.rs 494"},
+    {"item": "red lines and ABI anchors", "result": "pass",
+     "detail": "git diff 248b33ff..HEAD is empty for camera_output.rs / model/render.rs / kernel / bvh / fixtures / Cargo*; DEVICE_SOURCES=28, product entries=6 and CollisionArgs 504 B assertions pass in the independently re-run unit suite"},
+    {"item": "module registration", "result": "pass",
+     "detail": "mjwarp.render sources 27 -> 30 (world/mod.rs, layout.rs, state.rs registered; world.rs removed); normify validate --fingerprints 0 errors (5 pre-existing warnings); obs-closure task n/a gates recorded in its receipt"},
+    {"item": "four gates independently rerun on the closure final tree", "result": "pass",
+     "detail": "fmt 0, clippy 0, clippy-cuda 0, unit 1025 passed / 0 failed / 382 ignored (126 result lines), directed render_multi_world_layout 8 passed; matches the archived closure logs (unit 1025/0/382, directed 8 passed)"},
+    {"item": "closure evidence format", "result": "pass",
+     "detail": "obs-closure-receipt.json /task_id = 2026-10-28-render-bvh-r10-s1-obs-closure (141 lines, split/fixes recorded); evidence text UTF-8 no BOM/LF; 3 regulated claim terms 0 hits"}
+  ],
+  "method_notes": [
+    "Zero-behavior-change was checked by reusing QA's own S1 harness (independent layout recompute + nworld=1 bit equality against CameraOutputViews) rather than only trusting the product test.",
+    "F1/F2 panics were probed with std::panic::catch_unwind so a panic is recorded as evidence; after the fix both entries return Ok/CountOverflow without panicking.",
+    "F3 was locked with a plan whose OutputLayout::resolve must fail, proving nworld==0 wins the precedence.",
+    "Gates were re-run by QA on the exact closure final tree (HEAD 879cd012) and recounted independently."
+  ],
+  "environment": {
+    "os": "Windows",
+    "repo": "D:\\Rust\\mjwarp-rs",
+    "review_type": "read-only",
+    "gpu_opened_by_qa": false,
+    "window_opened_by_qa": false,
+    "qa_harness_tests": 7,
+    "qa_harness_failures": 0
+  },
+  "gates": {
+    "applicable": false,
+    "gate_exit_code": 1,
+    "gate_stderr": "任务没有引用任何门禁",
+    "result": "not applicable for this check task (json + forbid_claim only); the reviewed closure slice's four gates were independently rerun on its final tree: fmt 0 / clippy 0 / clippy-cuda 0 / unit 1025 passed 0 failed 382 ignored (126 result lines), directed 8 passed"
+  },
+  "boundaries": [
+    "read-only: no re-render, no GPU, no window, no code/criteria/reference/tolerance change",
+    "host-side multi-world state/layout closure only; GPU end-to-end multi-world (R10-S2) not in scope; world_offset/world_buffer_elements overflow branches remain defensive and are not exercised by a real large allocation"
+  ],
+  "evidence_files": [
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/README.md",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/receipt.json",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/manifest.json",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/harness/qa_r10_s1_closure_check.rs",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/logs/harness.log",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/logs/fmt.log",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/logs/clippy.log",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/logs/clippy-cuda.log",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/logs/unit.log",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/logs/directed.log",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/logs/gates-summary.txt",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/logs/static-check.log",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/verify_static.py",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/verify_evidence.py",
+    "docs/development-evidence/render-bvh/r10-s1-closure-check/logs/evidence-selfcheck.txt"
+  ]
+}

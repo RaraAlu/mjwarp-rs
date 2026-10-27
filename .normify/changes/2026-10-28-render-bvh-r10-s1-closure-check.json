@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r10-s1-closure-check",
+  "title": {
+    "zh": "R10-S1 观察收口独立复核（拆分无行为变化 / F1 空相机 / F2 大 worlds / F3 优先级 / 红线）",
+    "en": "Independent check of the R10-S1 observation closure"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-28-render-bvh-r10-s1-obs-closure`：① `world.rs`(499) 拆分后公开 API/行为不变——`nworld=1` 与 `OutputLayout` 逐字段相等、逐相机切片与 `CameraOutputViews::rgb_packed` 位级一致、既有 5 条单测全过；② **F1** 空相机选择（cameras==0）不再 `chunks(0)` panic（QA 用 `catch_unwind` 独立复现旧 panic、确认新行为）；③ **F2** 极大 worlds（含 `usize::MAX`）返回 `CountOverflow` 类错误而非 capacity overflow panic；④ **F3** `nworld==0` 优先级写死并有单测；⑤ 红线：`camera_output.rs`(499)、`model/render.rs`(500)、kernel 三文件(500/498/494)、设备 `.cu`、`DEVICE_SOURCES`=28、入口=6、504 B、判据/参考/夹具零改动；拆分后各文件 ≤500 行；四门禁独立复跑。不重渲染、不开 GPU。",
+    "en": "QA independent check of the R10-S1 closure: split refactor is behaviour-preserving plus F1/F2/F3 fixes."
+  },
+  "modules": {},
+  "acceptance": [
+    "拆分无行为变化：QA 自己重算 `nworld=1` 布局与逐相机视图位级一致；既有 5 条单测与拆分前结果一致；`context.rs` 声明指向 `world/` 目录且 files 写全。",
+    "F1：空相机 + nworld>1 组合不再 panic（QA 独立 catch_unwind 复现旧 panic 并确认新路径）；错误或空表语义在 README 写明。",
+    "F2：`usize::MAX` 与超大 worlds 返回 `CountOverflow` 类错误、不 panic；`CountOverflow` 公共路径可达并有单测。",
+    "F3：`nworld==0` 优先级写死，单测锁定期望错误名。",
+    "红线与棘轮：红线文件零改动、拆分后文件 ≤500 行、`DEVICE_SOURCES`=28、入口=6、504 B 未动；四门禁 fmt/clippy/clippy-cuda/unit 独立复跑通过；证据 LF 无 BOM、禁词 0。",
+    "证据 `docs/development-evidence/render-bvh/r10-s1-closure-check/`（README + receipt + manifest），不 commit 不 done，报 verdict/blockers/observations。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r10-s1-obs-closure"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r10-s1-closure-check/"
+    ],
+    "resources": [],
+    "priority": 69
+  },
+  "note": "Arch 2026-10-28 预登记（每片 QA 预登记）。只读复核拆分与三条修复，不重渲染。",
+  "revision": {
+    "before": "04126c3ad46d5aa1c107d101f20ea5f2a525da78",
+    "after": null
+  },
+  "created_at": "2026-10-27T20:37:00.000Z",
+  "updated_at": "2026-10-27T19:32:55.840Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r10-s1-closure-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r10-s1-closure-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
