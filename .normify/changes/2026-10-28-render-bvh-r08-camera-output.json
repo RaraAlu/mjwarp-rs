@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r08-camera-output",
+  "title": {
+    "zh": "渲染/BVH R08-S1：逐相机输出视图（get_rgb/get_depth/get_seg 语义，宿主侧，无 GPU）",
+    "en": "Render/BVH R08-S1: per-camera output views (get_rgb/get_depth/get_seg semantics, host-side, no GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R08 异构多相机首片（宿主侧，无 GPU、无窗口）：补齐上游 `render_util.py` 的逐相机输出 API——`get_rgb(rc, camera_index)`（L212：ABGR u32 解包，b=val&0xFF、g=(val>>8)&0xFF、r=(val>>16)&0xFF，各乘 1/255 得 f32 vec3）、`get_depth(rc, camera_index, depth_scale)`（L228/L193：`clamp(val / depth_scale, 0, 1)`，**除法**语义）、`get_segmentation(rc, camera_index)`（L264：`(id,type)` 原样）。当前产品只有整缓冲 `OutputResources::read(output) -> OutputValues`，没有 `camera_index` 维度；本片在宿主侧实现逐相机视图（基于 `OutputLayout` 的 `rgb_adr/depth_adr/seg_adr` 与 `CameraPlan.resolutions`），并给出 `camera_index` 语义（= 激活相机顺序位置，不是 model 相机 id）、错误面与相机隔离不变量。不改设备源、不改 ABI、不改判据/参考/夹具。",
+    "en": "R08 slice 1 (host-side, no GPU, no window): add per-camera output views matching upstream render_util get_rgb/get_depth/get_segmentation semantics, over the existing whole-buffer OutputLayout offsets."
+  },
+  "modules": {},
+  "acceptance": [
+    "逐相机 API：`rgb(camera_index)` 按上游 ABGR 解包公式逐位一致（b/g/r 各 `* (1.0/255.0)`，f32），`depth(camera_index, depth_scale)` = `clamp(val / depth_scale, 0.0, 1.0)`（除法、clamp 顺序与上游一致），`segmentation(camera_index)` 原样 `(id,type)`；逐相机分辨率取自 `CameraPlan.resolutions`（允许各相机不同宽高）。",
+    "`camera_index` 语义写死：索引为**激活/选中相机顺序位置**（`OutputLayout` 的 adr 顺序），不是 model 相机 id；越界、该相机未启用对应通道（adr=-1）、缓冲长度与 `adr+pixels` 不符、`depth_scale<=0`/非有限、nworld>1（R10 另行评估）都返回可诊断错误且不 panic。",
+    "相机隔离不变量：用逐相机哨兵填充合成整缓冲后，A 相机视图只含 A 区段、B 相机视图只含 B 区段（切片互不重叠、越界不读邻居）；两相机分辨率不同（320×240 与 240×180，取 S8 冻结夹具尺寸）时切片边界正确。",
+    "与既有冻结参考可对账：以 S8/S7b 参考里逐相机 RGB/depth/seg 值构造整缓冲后反解，逐位/逐元素与参考相等（RGB 位等、depth 位等、seg 全等）；本片不重渲染、不开 GPU、不读设备。",
+    "不变量：不动 `src/model/render.rs`（当前正好 500 行棘轮）、不动 `src/render/kernel/*` 与设备 `.cu`、不动 `DEVICE_SOURCES`(28)/产品入口(6)/`CollisionArgs` 504 B、不动判据/参考/夹具/`fixtures/precision`；新文件 ≤500 行；fmt/clippy/clippy-cuda/unit 门禁过。",
+    "证据：`docs/development-evidence/render-bvh/r08-camera-output/`（README + receipt 含 `/task_id` + 日志/manifest sha），禁词 0 命中，不写「完整渲染通过/完整R01通过/产品渲染验收通过」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-25-render-bvh-s8-e2e"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/context/",
+      "src/render/mod.rs",
+      "tests/render_camera_output.rs",
+      "docs/development-evidence/render-bvh/r08-camera-output/"
+    ],
+    "resources": [],
+    "priority": 90
+  },
+  "note": "Arch 2026-10-28 登记：用户拍板 ① 渲染线继续，R08（异构多相机）首片。只做单 world 家族，nworld>1 归 R10 不混入。本片宿主侧、无 GPU、无窗口、无新捕获。红线：`src/model/render.rs` 500 行不碰；kernel 文件接近上限，若确需改动先按 S7b3 先例拆子文件并单独报 Arch。",
+  "revision": {
+    "before": "0bec5b94b9442ccde11c6541f1f722ba7c878191",
+    "after": null
+  },
+  "created_at": "2026-10-27T17:45:00.000Z",
+  "updated_at": "2026-10-27T17:46:46.893Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r08-camera-output/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r08-camera-output"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
