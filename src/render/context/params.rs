@@ -10,6 +10,9 @@
 
 use crate::render::camera::CameraActive;
 
+#[path = "lighting.rs"]
+pub mod lighting;
+
 /// 上游默认 `enabled_geom_groups=[0, 1, 2]`。
 pub const DEFAULT_GEOM_GROUPS: [i32; 3] = [0, 1, 2];
 
@@ -79,6 +82,9 @@ pub struct ContextParams<'a> {
     pub use_precomputed_rays: bool,
     pub render_skybox: bool,
     pub enable_backface_culling: bool,
+    /// 阴影遮挡时的可见度系数（上游 `shadow_light_fraction`，签名默认 0.3）：
+    /// 仅当 `use_shadows` 且该灯 `light_castshadow` 时生效；上游不做范围校验，
+    /// 本片原值透传、不新增拒绝（见 [`lighting::resolve_lighting`]）。
     pub shadow_light_fraction: f64,
     pub samples_per_pixel: u32,
     pub enable_vertex_normals: bool,

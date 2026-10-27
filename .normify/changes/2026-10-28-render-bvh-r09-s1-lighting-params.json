@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r09-s1-lighting-params",
+  "title": {
+    "zh": "渲染/BVH R09-S1：光照与阴影宿主接线（参数校验/静态参数/按 world 灯数组，CPU-only）",
+    "en": "Render/BVH R09-S1: lighting and shadow host wiring (params/static/shadow flag, CPU-only)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R09 首片（宿主侧，无 GPU、无窗口）：把光照与阴影的**宿主语义**补齐并锁死，为 S2 内核实现铺垫。现状：`params.rs` 已解析 `use_shadows`/`use_ambient_lighting`/`render_skybox`/`shadow_light_fraction`/`enable_per_light_ambient`，但内核**没有任何光照/阴影逻辑**（`render_shade.cu` 只有纹理/法线与几何色）。本片做：① per-light 数据（type/castshadow/attenuation/cutoff/exponent/ambient/diffuse/specular）的长度/类型校验与「方向光 vs 点/聚光」语义映射；② 光照静态参数（`use_shadows`、`shadow_light_fraction`、`enable_per_light_ambient`、ambient 分档）的宿主打包结构；③ `use_shadows=true` 时的前置组合校验（**不引入上游不接受的新拒绝**，只对数组长度/缺失/类型不一致报错）；④ 错误面与 CPU 单测；⑤ 与 skybox 解耦（`render_skybox` 不进 R09，保持既有语义/拒绝面不变）。不动 kernel、设备 `.cu`、`model/render.rs`、`camera_output.rs`。",
+    "en": "R09 slice 1 (host-side, no GPU): per-light validation, lighting static parameters and shadow flag wiring, with CPU tests. No kernel changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "per-light 数据校验：`light_type`/`light_castshadow`/`light_attenuation`/`light_cutoff`/`light_exponent`/`light_ambient`/`light_diffuse`/`light_specular` 与 `nlight` 的长度/类型一致性校验，错误可诊断且不 panic；不改变上游接受范围内的合法输入。",
+    "光照静态参数结构：`use_shadows`、`shadow_light_fraction`（默认 0.3，与 `params.rs` 既有默认一致）、`enable_per_light_ambient`、ambient 档位打包为宿主侧结构并单测其取值/边界；**不新增上游没有的拒绝**（例如 use_shadows=true 但无 castshadow 灯仍应合法，只是不产生阴影）。",
+    "按 world 灯数组：延续 R10 结论——灯位姿/灯数据保持**单份**（内核索引单 world），宿主侧不复制也不声明 `[nworld, nlight]`；若未来需要 per-world 灯数据，引用 backlog `2026-10-28-render-per-world-geom-light-gap`，本片不宣称支持。",
+    "skybox 解耦：`render_skybox` 不进本片；既有 params 语义与既有拒绝面零变化（回归断言）。",
+    "不变量：`src/model/render.rs`(500)、`src/render/context/camera_output.rs`(499)、`src/render/kernel/*`（launch 500 / megakernel 491 / cast 494 / render.cu 499）、设备 `.cu`、`DEVICE_SOURCES`(28，collision 侧)、`CollisionArgs` 504 B、判据/参考/夹具零改动；新文件 ≤500 行。",
+    "四门禁（fmt/clippy/clippy-cuda/unit）绑最终树通过；证据 `docs/development-evidence/render-bvh/r09-s1-lighting-params/`（README + receipt 含 `/task_id` + manifest + 日志），LF 无 BOM、禁词 0；不写「窗口通过/已覆盖/精度达标/上游等价」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r10-s1-world-state"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/context/lighting.rs",
+      "src/render/context/params.rs",
+      "src/render/mod.rs",
+      "tests/render_lighting_params.rs",
+      "docs/development-evidence/render-bvh/r09-s1-lighting-params/"
+    ],
+    "resources": [],
+    "priority": 66
+  },
+  "note": "Arch 2026-10-28 登记：Chief 定 R09 只做光照与阴影（skybox 单列）、批 S3a 1 个 authoring 捕获窗（排 R10-S2 收口后）+ 同窗 shadow-off 对照。S1 纯宿主、无 GPU、无窗口；S2 内核实现前须先拆贴线文件，any-hit 改动需零改变现有 first-hit 行为并全量 BVH 回归。",
+  "revision": {
+    "before": "5ffa2ad083f52ac460993cbb7c840ab89e70aac3",
+    "after": null
+  },
+  "created_at": "2026-10-27T20:22:00.000Z",
+  "updated_at": "2026-10-27T20:19:45.981Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r09-s1-lighting-params/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r09-s1-lighting-params"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

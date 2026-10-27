@@ -1,0 +1,85 @@
+{
+    "task_id":  "2026-10-28-render-bvh-r09-s1-lighting-params",
+    "kind":  "render-bvh-r09-s1-lighting-params",
+    "stage":  "host-lighting-params",
+    "platform":  "windows-cpu-only",
+    "head":  "40e9238f219daf980c48af124bfe63e585aa0f42",
+    "upstream":  "MJWarp 3.15 render.py 71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "scope":  {
+                  "untouched":  [
+                                    "src/model/render.rs",
+                                    "src/render/context/camera_output.rs",
+                                    "src/render/kernel/launch.rs",
+                                    "src/render/kernel/megakernel.rs",
+                                    "src/render/kernel/cast.rs",
+                                    "src/render/context/cuda/*.cu"
+                                ],
+                  "new":  [
+                              "src/render/context/lighting.rs",
+                              "tests/render_lighting_params.rs"
+                          ],
+                  "modified":  [
+                                   "src/render/context/params.rs",
+                                   "src/render/mod.rs"
+                               ]
+              },
+    "line_counts":  {
+                        "src/render/mod.rs":  380,
+                        "tests/render_lighting_params.rs":  319,
+                        "src/render/context/lighting.rs":  184,
+                        "src/render/context/params.rs":  189
+                    },
+    "gate":  {
+                 "clippy_cuda":  {
+                                     "pass":  true,
+                                     "duration_ms":  403
+                                 },
+                 "fmt":  {
+                             "pass":  true,
+                             "duration_ms":  1558
+                         },
+                 "unit":  {
+                              "pass":  true,
+                              "duration_ms":  69319,
+                              "failed":  0,
+                              "passed":  1040
+                          },
+                 "clippy":  {
+                                "pass":  true,
+                                "duration_ms":  455
+                            }
+             },
+    "tests":  {
+                  "cases":  [
+                                "resolves_per_light_fields_and_derived_flags",
+                                "per_light_arrays_stay_single_world_regardless_of_nworld",
+                                "shadow_without_castshadow_lights_is_legal",
+                                "shadow_light_fraction_passes_through_without_new_rejection",
+                                "rejects_wrong_field_kinds",
+                                "rejects_length_mismatch_with_diagnostics",
+                                "zero_lights_is_legal",
+                                "skybox_flag_does_not_change_lighting_validation",
+                                "rejects_missing_light_field"
+                            ],
+                  "target":  "render_lighting_params",
+                  "failed":  0,
+                  "passed":  9
+              },
+    "semantics":  {
+                      "shadow_light_fraction_passthrough":  true,
+                      "light_arrays_single_world":  true,
+                      "use_shadows_without_castshadow_is_legal":  true,
+                      "skybox_decoupled":  true,
+                      "no_new_upstream_rejections":  true
+                  },
+    "limitations":  [
+                        "host params only; kernel lighting/shadow implementation is R09-S2 (not started)",
+                        "skybox is a separate slice (not in R09)",
+                        "per-world light data not supported; backlog 2026-10-28-render-per-world-geom-light-gap"
+                    ],
+    "claims":  {
+                   "window_pass":  false,
+                   "upstream_equivalence":  false,
+                   "precision_acceptance":  false
+               }
+}

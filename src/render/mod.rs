@@ -17,6 +17,8 @@ pub use camera::{
     RenderTargets, resolve_cameras,
 };
 pub use camera_output::{CameraImage, CameraOutputViews, CameraViewError, WholeOutputData};
+/// R09-S1 光照与阴影静态参数（纯宿主；文件位于 `context/`，由 `params.rs` 以 `#[path]` 声明）。
+pub use context::params::lighting::{LightParams, LightingParams, resolve_lighting};
 /// R10-S1 多 world 状态与布局（宿主侧）。
 pub use context::world::{
     CameraPose, WorldCameraPoses, WorldError, WorldLayout, WorldResolutions, WorldStates,
