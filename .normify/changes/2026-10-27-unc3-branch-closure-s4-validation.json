@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-unc3-branch-closure-s4-validation",
+  "title": {
+    "zh": "UNC-3 分支收口 S4：新 target branch_closure + launcher 扩 hfield-capsule + 8 实体回归（1 个验证窗）",
+    "en": "UNC-3 branch closure S4: branch-closure device target, hfield-capsule launcher coverage and legacy regression (one validation window)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "方向③ S4：用冻结设备二进制对照 S3 两份上游参考（branch 验收组 U1/U3/U4/U5/U6；limits 组 U7/U8 只记录），并回归既有 8 个 target。① 新 target tests/g10_p5_branch_closure_cuda.rs（≤500 行，只读 fixtures+参考 JSON，不改产品代码/设备源）；② launcher 扩 hfield-capsule（位级优先 + 4ULP@scale 兜底，对比对象为冻结 probe out1/）；③ 13 组合 + B3 6 分支 + 4 swap + M2/M3 + stage2 record-C 全量回归；④ U7/U8 描述性对照、不进 pass/fail 分母，同时记 dist/pos（COUNT=1 偶合无法区分回退，S2 M-05/M-09 与 QA O9）。判据/容差/参考/期望值全不动；1 个验证窗、零 Rust 编译、≤2 有效轮。",
+    "en": "S4 device validation against S3 upstream references plus legacy regression."
+  },
+  "modules": {},
+  "acceptance": [
+    "新 target tests/g10_p5_branch_closure_cuda.rs：读 S3 两份参考与对应 fixtures，对照 count/dist/pos/frame/geom/结构字段；判据沿用既有（bit_equal 优先 + 4ULP@scale 兜底）；文件 ≤500 行；不改产品代码/设备源/判据/容差/参考期望值。",
+    "launcher 扩 hfield-capsule：位级优先 + 4ULP@scale 兜底，对比冻结 probe out1/；不得放宽既有 hfield-sphere/sdf-box/ellipsoid-box 判据。",
+    "验证窗 10 实体串行：branch_closure、launcher、multicontact、primitive、plane(B1 6)、sphere_capsule(B2 4)、branches(B3 6+4 swap)、mesh_m2、mesh_m3、stage2(record-C)；10 个 exe 冻结 sha + runner sha 先报批再开窗；零 Rust 编译、floor=min(10240, baseline_free−3072)、open 门 10240、0.25 s 采样、pre/post/结束基线、≤2 有效轮、abort/污染留档不拼。",
+    "U7/U8 只做描述性对照：不进 pass/fail 分母，必须同时记 count/dist/pos；设备若与上游不同（U8 设备 1 vs 参考 4）如实写「与上游行为不同 / 限制存在」，不动 fixture、不改判据、不挪代码凑绿。",
+    "证据 docs/development-evidence/g10-p5-branch-closure-validation/（README+receipt+窗口日志），manifest sha 复验；QA 独立复核预登记；不写「窗口通过」，不宣称任何分支「已覆盖」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-unc3-branch-closure-s3-capture",
+      "2026-10-27-unc3-branch-layer-static-map"
+    ],
+    "phase": "G10@P5 分支收口",
+    "owner": "Backend",
+    "files": [
+      "tests/g10_p5_branch_closure_cuda.rs",
+      "tests/g10_p5_nvrtc_launcher.rs",
+      "tests/support/",
+      "docs/development-evidence/g10-p5-branch-closure-validation/",
+      "docs/development-evidence/changes/2026-10-27-unc3-branch-closure-s4-validation.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 10
+  },
+  "note": "Arch 2026-10-27 预登记（proposed，等 Chief 签 S4 计划后 start 并派 Backend 实现）。S4 口径输入：S2 branch-map 的 M-05（degree>10 guard）/M-09（polygon>16 guard）与上游动态容量语义不同；QA O9：U7/U8 必须同时记 dist/pos。冻结 10 个 exe 后窗口材料一次齐（10 sha+字节、runner sha、compare 零改动、3 点基线、compute-apps 过滤 0、负载快照、wall 预估）再报签。",
+  "revision": {
+    "before": "d9a12df447f922cacca2890be4fbf08f93cae38d",
+    "after": null
+  },
+  "created_at": "2026-10-27T11:05:00.000Z",
+  "updated_at": "2026-10-27T03:05:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-branch-closure-validation/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-unc3-branch-closure-s4-validation"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
