@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-27-unc3-branch-closure-s4-independent-check",
+  "title": {
+    "zh": "UNC-3 分支收口 S4 独立复核（10 实体窗口 / U7-U8 描述性口径 / 判据零放宽 / 冻结 sha 与窗口事实）",
+    "en": "Independent check of UNC-3 branch closure S4 validation window"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 独立复核 S4 验证窗：① 10 个实体 exit code 与逐项数值（branch_closure 对 S3 branch 参考、launcher 对冻结 probe out1/、multicontact/primitive/plane/sphere_capsule/branches/mesh_m2/mesh_m3/stage2 record-C）；② U7/U8 只做描述性对照、不进 pass/fail 分母，且**同时记 count/dist/pos**；U8 措辞必须是「上游支持 20 顶点 polygon（动态容量），设备 FACE_MAX=16 逐 polygon 回退 → 行为差异 / 限制存在」，禁止「上游也限制 / 与上游一致 / U8 已覆盖」；U7 只写「与 degree>10 限制语义一致」；③ 判据/容差/参考/期望值零放宽（逐 target 比对既有口径）；④ 窗口事实独立复算（3 点基线、floor=min(10240,baseline_free−3072)、sample 聚合、pre/post/结束基线、compute-apps 过滤、零编译证据、10 个冻结 exe sha、runner sha、compare 零改动、`SHA_OK` 行已落 facts/log）；⑤ S3→S4 证据一致性：O1 位级 dist+pos 只允许写 4（corner-single 仅 dist 位级），不得出现 5 或 6；pre 只用 guard.log preconditions 的 2849,13213,39 并注明取值时点；⑥ 证据日志 UTF-8 无 BOM、机器可读 JSON 例外注明、README/代码 ≤500 行。不 commit、不 done，报 verdict/blockers/observations。",
+    "en": "QA independent check of S4 device validation window."
+  },
+  "modules": {},
+  "acceptance": [
+    "10 实体 exit code 与逐项数值独立核对（复跑日志/samples 重算，不重开门/不重构建）：branch_closure 与 S3 branch 参考对照、launcher 对冻结 probe、8 个回归 target 判据内无回退。",
+    "U7/U8 口径复核：record-only 不进分母、同时记 count/dist/pos、U8 措辞符合「上游动态容量支持 20 顶点 polygon vs 设备 FACE_MAX=16 逐 polygon 回退 → 行为差异/限制存在」，无「上游也限制/与上游一致/U8 已覆盖」；U7 只写「与 degree>10 限制语义一致」。",
+    "判据零放宽复核：逐 target 比对既有 compare 支持与 4ULP@scale/bit_equal 口径，无新增容差、无期望值改写、无产品代码/设备源改动。",
+    "窗口事实独立复算：3 点基线、floor=min(10240,baseline_free−3072)、sample 聚合（used_peak/delta/free_min/util/streak/residual）、pre(guard preconditions)/post/结束基线、compute-apps 过滤 0、零 Rust 编译证据、10 个冻结 exe sha、runner sha、compare 零改动、`SHA_OK` 签名守卫行已落 facts/log。",
+    "S3 数字一致性：位级 dist+pos 只允许 4（degenerate/face-down/face-up/capsule-lying），corner-single 仅 dist 位级；3 个 tilt 8–16 ULP dist / 8–48 ULP pos；pre 只用 2849,13213,39 并注明取值时点；证据日志 UTF-8 无 BOM；机器可读 JSON 例外注明；README/代码 ≤500 行。",
+    "证据 docs/development-evidence/unc3-branch-closure-s4-independent-check/（README + receipt + manifest sha 复验），check exit 0；不 commit 不 done，报 verdict/blockers/observations。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-27-unc3-branch-closure-s4-validation"
+    ],
+    "phase": "G10@P5 分支收口",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/unc3-branch-closure-s4-independent-check/"
+    ],
+    "resources": [],
+    "priority": 9
+  },
+  "note": "Arch 2026-10-27 预登记（Chief 要求每片 QA 预登记；S4 硬口径见任务卡与 Chief 消息：U8 措辞定死、U7/U8 记 dist/pos、O1 只许 4、pre 取值时点、SHA_OK 落盘、日志无 BOM、目标 ≤500 行）。",
+  "revision": {
+    "before": "eb7f2c28d32930271c0bb30230b9cb0f9f8ff752",
+    "after": null
+  },
+  "created_at": "2026-10-27T11:10:00.000Z",
+  "updated_at": "2026-10-27T03:10:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/unc3-branch-closure-s4-independent-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-27-unc3-branch-closure-s4-independent-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "G10已实现",
+        "完整物理通过",
+        "双平台通过",
+        "上游完全等价",
+        "原生放行",
+        "精度达标"
+      ]
+    }
+  ]
+}
