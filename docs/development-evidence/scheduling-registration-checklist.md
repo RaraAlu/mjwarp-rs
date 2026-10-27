@@ -101,6 +101,13 @@ node scripts/byte-selfcheck.mjs --base <rev> [--paths a,b] [--comments-only] [--
 - **触发事实**：2026-10-27 T4 债务 B 落盘（`c8753bdb`）标称「仅注释改动」，实际去掉了 `scripts/test-windows-g01.ps1` 的 UTF-8 BOM（WinPS 5.1 会按 ANSI 读无 BOM 文件），由 `9d8db76c` 恢复。**教训：仅注释改动也要做字节级检查，不能靠自审偶发发现。**
 - 常用组合：`--base <本片起点> --comments-only`（注释类改动）；`--base <本片起点>`（普通脚本改动，仅校验编码/BOM）；新增文件会因 base 不存在而只做 UTF-8 校验。
 
+### 7.3 QA 片的 checks 口径（2026-10-27，S1 复核 O11）
+
+docs-only 的 QA 复核片（只产出证据、不碰代码或窗口）**可以不登记 gate 项**，但必须在证据 receipt 里显式写
+「gate 不适用」并说明理由，且 `normify check` 必须 exit 0；含代码或 GPU 窗口的 QA 片仍按惯例登记
+fmt / clippy / clippy-cuda / unit 四项（docs-only 也可登记，cache-hit 很便宜）。触发事实：S1 QA 片只登记了
+json + forbid_claim，`normify gate` 报「任务没有引用任何门禁」（exit 1）——口径未写明才产生歧义。
+
 
 ## 8. 夜间负载与重测试互斥（2026-10-27 更新，Chief 指令）
 
