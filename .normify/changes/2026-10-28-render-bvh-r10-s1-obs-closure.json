@@ -5,7 +5,7 @@
     "zh": "R10-S1 观察收口（先拆 499 行 world.rs，再修 F1 空相机 panic / F2 大 worlds panic / F3 校验优先级）",
     "en": "R10-S1 observation closure (split world.rs first, then fix F1/F2/F3)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "按 Arch 裁决收口 QA 对 R10-S1 的 3 条观察（verdict pass / 0 阻断）：因 `src/render/context/world.rs` 已 **499/500 行**，先按 S7b3 先例**拆子文件**（建议 `world/mod.rs` + `world/layout.rs` + `world/state.rs`，错误类型可留在 mod 或单独 `world/errors.rs`），**拆分不得改变任何公开行为**（`nworld=1` 与既有布局/相机视图位级一致须重跑验证），再修：**F1**（一般）`WorldResolutions::new` 在 `plan.resolutions` 为空（cameras==0）时返回空表而非 `chunks(0)` panic；**F2** `WorldLayout::resolve`/`WorldStates::new`/`with_active` 的 `vec![true; worlds]` 改 `try_reserve`/上界校验 → 返回 `CountOverflow` 而非 capacity overflow panic（使 `world_offset`/`world_buffer_elements`/`world_states` 的 CountOverflow 公共路径可达）；**F3** `WorldLayout::resolve` 中 `nworld==0` 判定提到 `OutputLayout::resolve` 之前（或写死优先级并单测锁住）。不新增 panic 路径、不改判据/参考/窗口数字。",
     "en": "Close R10-S1 observations: split the 499-line world.rs first, then fix the empty-camera panic, the huge-worlds panic and the validation ordering."
@@ -42,7 +42,8 @@
     "after": null
   },
   "created_at": "2026-10-27T20:36:00.000Z",
-  "updated_at": "2026-10-27T19:28:23.907Z",
+  "updated_at": "2026-10-27T19:32:33.775Z",
+  "closed_at": "2026-10-27T19:32:33.775Z",
   "checks": [
     {
       "kind": "gate",
