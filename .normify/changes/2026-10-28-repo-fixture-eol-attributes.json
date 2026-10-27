@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-repo-fixture-eol-attributes",
+  "title": {
+    "zh": "仓库卫生：补齐 fixture 的 eol=lf 属性，保证 fresh checkout 可复现（QA O8）",
+    "en": "Repo hygiene: add eol=lf attributes for fixtures so a fresh checkout reproduces"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "修 QA 在 S1 复核中记录的 O8：本机 `core.autocrlf=true` 且 `.gitattributes` 只覆盖部分 fixture 目录，fresh checkout 时 `fixtures/g10-p5-primitive-branches/*.xml` 等会变 CRLF，导致既有 S3 signature 类测试在干净 checkout 下失败（**非 S1 引入**，是既有仓库配置缺口）。做法：给缺失的 fixture 目录补窄规则 `text eol=lf`（只补确实缺规则的目录，逐目录核对 `git ls-files --eol`），**不改任何 fixture blob 内容、不做全仓 renormalize**；若补齐后会触发 renormalize，先停下报 Arch 并给出影响文件数。验收：在 detached fresh checkout 中 `git ls-files --eol` 显示这些 fixture 为 `w/lf`，既有 S3 signature 测试通过；主工作区 `git status` 干净、fixture 内容零改动。",
+    "en": "Add narrow text eol=lf rules for fixture directories missing them so a fresh checkout reproduces LF, without renormalizing fixture blobs."
+  },
+  "modules": {},
+  "acceptance": [
+    "`.gitattributes` 只为确实缺规则的 fixture 目录补 `text eol=lf`（逐目录核对，不扩大范围）；未对 `*.mjb`/二进制与参考文本误改规则。",
+    "fresh checkout（detached worktree，`core.autocrlf=true`）中受影响 fixture 的 `git ls-files --eol` 显示 `w/lf`，既有 S3 signature 类测试通过（在 detached worktree 跑，不动主工作区）。",
+    "fixture/blob 内容零改动（`git diff` 对 `fixtures/` 为空）、无全仓 renormalize；主工作区保持干净；若出现 renormalize 先报 Arch 并给影响文件数。",
+    "证据 `docs/development-evidence/repo-eol-attributes/`（README + receipt 含 `/task_id` + 前后 `git ls-files --eol` 对照 + 测试日志），禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "仓库卫生",
+    "owner": "Backend",
+    "files": [
+      ".gitattributes",
+      "docs/development-evidence/repo-eol-attributes/"
+    ],
+    "resources": [],
+    "priority": 40
+  },
+  "note": "Arch 2026-10-28 登记：QA S1 复核 O8（既有问题，非 S1 引入）。排程：R08-S2 窗口收口后做，不阻断 S1/S2 结论。 排程再加锁：S2 窗口收口前不得 start（Chief 2026-10-28 明确「不混进当前方向」）。",
+  "revision": {
+    "before": "f8de191222bd78db1ff0f46954deef25444c15f9",
+    "after": null
+  },
+  "created_at": "2026-10-27T18:37:00.000Z",
+  "updated_at": "2026-10-27T19:09:10.312Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/repo-eol-attributes/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-repo-fixture-eol-attributes"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
