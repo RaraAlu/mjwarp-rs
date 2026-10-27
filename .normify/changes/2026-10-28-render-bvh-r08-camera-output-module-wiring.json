@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r08-camera-output-module-wiring",
+  "title": {
+    "zh": "渲染/BVH R08-S1 配套：context 模块声明与再导出（接线，≤10 行）",
+    "en": "R08-S1 companion: declare and re-export the camera output module"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R08-S1 主任务 `2026-10-28-render-bvh-r08-camera-output` 的 files 只覆盖 `src/render/context/`（目录），但新模块必须在父模块文件 `src/render/context.rs` 加 `pub mod camera_output;` 并再导出 API。按 normify 范围规则把这条接线拆成独立配套任务先行提交，主任务再用 `--staged` 判定；不改任何语义、判据、参考、测试与证据。",
+    "en": "Companion task for the 3-line module declaration/re-export in src/render/context.rs required by R08-S1."
+  },
+  "modules": {},
+  "acceptance": [
+    "`src/render/context.rs` 增加 `pub mod camera_output;` 声明与 `pub use camera_output::{CameraImage, CameraOutputViews, CameraViewError, WholeOutputData};` 再导出；其余声明顺序/语义不动。",
+    "不改 R08-S1 主任务的实现、测试、证据、判据/参考/容差；`cargo fmt --check` 与 `cargo clippy --all-targets --locked -- -D warnings` 通过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r08-camera-output"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/context.rs"
+    ],
+    "resources": [],
+    "priority": 91
+  },
+  "note": "Arch 2026-10-28：R08-S1 提交被 hook 拦（scope 缺 `src/render/context.rs`）。按「范围外文件拆独立配套任务先提交、主任务用 --staged 判定」先例拆片；配套任务只做接线。",
+  "revision": {
+    "before": "64fdf7edc9d3610b6e3141cb4720229a9349caa8",
+    "after": null
+  },
+  "created_at": "2026-10-27T20:42:00.000Z",
+  "updated_at": "2026-10-27T20:42:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
