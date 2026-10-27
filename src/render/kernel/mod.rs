@@ -31,6 +31,7 @@ mod megakernel_aa;
 mod megakernel_arrays;
 pub mod output;
 pub mod renderer;
+mod world_arrays;
 pub mod world_camera;
 
 pub use megakernel::MegakernelRenderer;

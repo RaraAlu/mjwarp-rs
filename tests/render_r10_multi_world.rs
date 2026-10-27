@@ -16,7 +16,7 @@ mod s7b2;
 
 use mjwarp_rs::render::CameraModel;
 use mjwarp_rs::render::kernel::cast::CameraPose;
-use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, diff_depth, diff_seg, parse_reference};
+use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, diff_depth, diff_seg};
 use mjwarp_rs::render::kernel::world_camera::world_camera_pose_arrays;
 use mjwarp_rs::render::kernel::{DepthSegRenderer, MegakernelRenderer};
 use mjwarp_rs::render::resolve_context;
@@ -24,7 +24,7 @@ use mjwarp_rs::runtime::launcher::LauncherError;
 use s7b1::{
     camera_data_poses, precomputed_rays, render_and_read, render_fields, scene_fixture, session,
 };
-use s7b2::{parse_rgb_fast_math_false_reference, read_rgb, reference_depth_seg};
+use s7b2::{parse_rgb_fast_math_false_reference, read_rgb, recipe_depth_seg, reference_depth_seg};
 
 fn pose(seed: f32) -> CameraPose {
     CameraPose {
@@ -116,8 +116,10 @@ fn invalid_pose_counts_and_huge_worlds_are_rejected_without_panic() {
 
 /// GPU 用例（验证窗口内执行）：nworld=2 depth/seg 的 per-world 相机 + world 隔离。
 ///
-/// 口径（方案 A）：world0 对既有 nworld=1 冻结参考（depth ≤4 ULP / seg 全等）；world1 用确定性
-/// 第二 state（相机绕 z 旋转 90°），要求 `nworld=2 的 world1 区段 == nworld=1 单独渲染同 state 逐位`；
+/// 口径（方案 A）：world0 对**同配方**（`use_fast_math=False` 采集）的 nworld=1 冻结参考做位级
+/// 对照（depth `mismatched == 0` / ≤4 ULP 兜底、seg 全等；fast-math `REFERENCE` 与 depth/seg 内核
+/// 存在 2/4 ULP 已知跨配方偏差，S7b1 只作跨配方记录，故不作位移级基准）；world1 用确定性第二
+/// state（相机绕 z 旋转 90°），要求 `nworld=2 的 world1 区段 == nworld=1 单独渲染同 state 逐位`；
 /// 另用「world1 几何整体 +1000」验证 world0 不受 world1 场景影响、world1 全 miss/背景。
 #[test]
 #[ignore = "需要 GPU + NVRTC（验证窗口内执行）"]
@@ -126,7 +128,7 @@ fn gpu_nworld_two_depth_seg_per_world_cameras() {
     let fields = render_fields();
     let fixture = scene_fixture();
     let model = CameraModel::from_fields(&fields).expect("相机模型");
-    let reference = parse_reference(s7b1::REFERENCE).expect("S7b1 参考");
+    let reference = recipe_depth_seg();
     let params1 = r10::depth_seg_params(1);
     let resolved1 = resolve_context(&fields, &params1).expect("nworld=1 解析");
     let base = camera_data_poses(&reference, &model, &resolved1);

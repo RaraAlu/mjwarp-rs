@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-per-world-geom-light-gap",
+  "title": {
+    "zh": "渲染产品缺口：多 world 逐 world 几何/灯位姿（R10 发现，backlog 不 start）",
+    "en": "Render product gap: per-world geometry and light poses for nworld>1 (found by R10, backlog)"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "记录 R10-S2 发现的产品缺口：渲染内核只把**相机位姿**按 world 索引（`cam_slot = worldid*dims[1]+camid`），而 `geom_xpos`/`geom_xmat`/`light_xpos`/`light_xdir` 等仍是**单 world 索引**（`data + geom_id` / `data[light]`）。因此 `nworld>1` 只有在各 world 几何/灯位姿相同时才成立；R10-S2 的 A 方案验收仅覆盖「两 world 几何相同」的情形，**不宣称上游 nworld>1 等价**。真支持逐 world 几何/灯需要：host 侧按 world 展平上传几何/灯数组（内存 ×nworld）、内核索引改 per-world（kernel 文件贴线，先按 S7b3 拆）、重跑受影响 M1/M2/M3 与渲染证据 + 1–2 个验证窗。**本任务保持 backlog，不 start**，等 Arch/Chief 排期。",
+    "en": "Record the R10 gap: only camera poses are world-indexed; geom/light poses stay single-world, so nworld>1 is only valid when worlds share geometry. Keep as backlog."
+  },
+  "modules": {},
+  "acceptance": [
+    "登记完成即可（backlog，不 start）：事实、影响面（逐 world 几何/灯位姿不支持）、修复方向（host 展平 + 内核 per-world 索引 + 先拆 kernel）与验收要求已写入本卡。",
+    "被 R10-S2 证据引用时写明「本片两 world 几何相同、着色用单份几何/灯位姿、不宣称上游 nworld>1 等价」；不得把缺口写成「与上游一致」或「已覆盖」。",
+    "排期前不得改 kernel/已签证据；实现片需重新登记并带 QA 复核 + 验证窗。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "待分配",
+    "files": [],
+    "resources": [],
+    "priority": 59
+  },
+  "note": "Arch 2026-10-28 登记：R10-S2 attempt1 诊断时确认（RGB Capacity 56 vs 28 与内核单 world 索引）。backlog 不 start。",
+  "revision": { "before": null, "after": null },
+  "created_at": "2026-10-27T20:48:00.000Z",
+  "updated_at": "2026-10-27T20:48:00.000Z",
+  "checks": [
+    {
+      "kind": "forbid_claim",
+      "terms": ["完整渲染通过", "完整R01通过", "产品渲染验收通过"]
+    }
+  ]
+}

@@ -37,6 +37,7 @@ use super::megakernel_arrays::{
     array, bool_words, flags, floats, geom_data_poses, ints, light_data_poses, pack_blob, reals,
     shading_words, span_addr, to_i32, upload,
 };
+use super::world_arrays::{camera_pose_shape, light_type_shape, shared_matrix_shape, shared_shape};
 use super::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
 
 const BLOCK: u32 = 256;
@@ -349,35 +350,34 @@ impl MegakernelRenderer {
 
         // ---- 81 槽实参（顺序 = S7a MEGAKERNEL_SLOTS） ----
         let mut args: Vec<RenderArg> = Vec::with_capacity(MEGAKERNEL_SLOTS.len());
+        let camera_pose_dims = camera_pose_shape(nworld, ncam);
+        let shared_cam = shared_shape(ncam);
+        let light_type_dims = light_type_shape(nlight);
+        let shared_geom = shared_shape(ngeom);
+        let shared_light = shared_shape(nlight);
+        let shared_mat = shared_shape(nmat);
+        let mat_texid_dims = shared_matrix_shape(nmat, 10);
         args.push(RenderArg::Bounds2D(LaunchBounds2::new([
             nworld, total_rays,
         ])?));
-        args.push(array(&geom_type, RenderElem::I32, &[nworld, ngeom])?);
-        args.push(array(&geom_dataid, RenderElem::I32, &[nworld, ngeom])?);
-        args.push(array(&geom_matid, RenderElem::I32, &[nworld, ngeom])?);
-        args.push(array(&geom_size, RenderElem::Vec3, &[nworld, ngeom])?);
-        args.push(array(&geom_rgba, RenderElem::Vec4, &[nworld, ngeom])?);
-        args.push(array(&cam_projection, RenderElem::I32, &[nworld, ncam])?);
-        args.push(array(&cam_fovy, RenderElem::F32, &[nworld, ncam])?);
-        args.push(array(&cam_sensorsize, RenderElem::Vec2, &[nworld, ncam])?);
-        args.push(array(&cam_intrinsic, RenderElem::Vec4, &[nworld, ncam])?);
-        args.push(array(&light_type, RenderElem::I32, &[nworld, nlight])?);
-        args.push(array(
-            &light_castshadow,
-            RenderElem::Bool,
-            &[nworld, nlight],
-        )?);
-        args.push(array(&light_active, RenderElem::Bool, &[nworld, nlight])?);
-        args.push(array(
-            &light_attenuation,
-            RenderElem::Vec3,
-            &[nworld, nlight],
-        )?);
-        args.push(array(&light_cutoff, RenderElem::F32, &[nworld, nlight])?);
-        args.push(array(&light_exponent, RenderElem::F32, &[nworld, nlight])?);
-        args.push(array(&light_ambient, RenderElem::Vec3, &[nworld, nlight])?);
-        args.push(array(&light_diffuse, RenderElem::Vec3, &[nworld, nlight])?);
-        args.push(array(&light_specular, RenderElem::Vec3, &[nworld, nlight])?);
+        args.push(array(&geom_type, RenderElem::I32, &shared_geom)?);
+        args.push(array(&geom_dataid, RenderElem::I32, &shared_geom)?);
+        args.push(array(&geom_matid, RenderElem::I32, &shared_geom)?);
+        args.push(array(&geom_size, RenderElem::Vec3, &shared_geom)?);
+        args.push(array(&geom_rgba, RenderElem::Vec4, &shared_geom)?);
+        args.push(array(&cam_projection, RenderElem::I32, &shared_cam)?);
+        args.push(array(&cam_fovy, RenderElem::F32, &shared_cam)?);
+        args.push(array(&cam_sensorsize, RenderElem::Vec2, &shared_cam)?);
+        args.push(array(&cam_intrinsic, RenderElem::Vec4, &shared_cam)?);
+        args.push(array(&light_type, RenderElem::I32, &light_type_dims)?);
+        args.push(array(&light_castshadow, RenderElem::Bool, &shared_light)?);
+        args.push(array(&light_active, RenderElem::Bool, &shared_light)?);
+        args.push(array(&light_attenuation, RenderElem::Vec3, &shared_light)?);
+        args.push(array(&light_cutoff, RenderElem::F32, &shared_light)?);
+        args.push(array(&light_exponent, RenderElem::F32, &shared_light)?);
+        args.push(array(&light_ambient, RenderElem::Vec3, &shared_light)?);
+        args.push(array(&light_diffuse, RenderElem::Vec3, &shared_light)?);
+        args.push(array(&light_specular, RenderElem::Vec3, &shared_light)?);
         args.push(array(&flex_vertadr, RenderElem::I32, &[1])?);
         args.push(array(&flex_edge, RenderElem::Vec2I, &[1])?);
         args.push(array(&flex_radius, RenderElem::F32, &[1])?);
@@ -388,19 +388,19 @@ impl MegakernelRenderer {
             RenderElem::Vec3,
             &[mesh_normal.len() / 3],
         )?);
-        args.push(array(&mat_texid, RenderElem::I32, &[nworld, nmat, 10])?);
-        args.push(array(&mat_texuniform, RenderElem::Bool, &[nworld, nmat])?);
-        args.push(array(&mat_texrepeat, RenderElem::Vec2, &[nworld, nmat])?);
-        args.push(array(&mat_emission, RenderElem::F32, &[nworld, nmat])?);
-        args.push(array(&mat_specular, RenderElem::F32, &[nworld, nmat])?);
-        args.push(array(&mat_shininess, RenderElem::F32, &[nworld, nmat])?);
-        args.push(array(&mat_rgba, RenderElem::Vec4, &[nworld, nmat])?);
-        args.push(array(&geom_xpos, RenderElem::Vec3, &[nworld, ngeom])?);
-        args.push(array(&geom_xmat, RenderElem::Mat33, &[nworld, ngeom])?);
-        args.push(array(&cam_xpos, RenderElem::Vec3, &[nworld, ncam])?);
-        args.push(array(&cam_xmat, RenderElem::Mat33, &[nworld, ncam])?);
-        args.push(array(&light_xpos, RenderElem::Vec3, &[nworld, nlight])?);
-        args.push(array(&light_xdir, RenderElem::Vec3, &[nworld, nlight])?);
+        args.push(array(&mat_texid, RenderElem::I32, &mat_texid_dims)?);
+        args.push(array(&mat_texuniform, RenderElem::Bool, &shared_mat)?);
+        args.push(array(&mat_texrepeat, RenderElem::Vec2, &shared_mat)?);
+        args.push(array(&mat_emission, RenderElem::F32, &shared_mat)?);
+        args.push(array(&mat_specular, RenderElem::F32, &shared_mat)?);
+        args.push(array(&mat_shininess, RenderElem::F32, &shared_mat)?);
+        args.push(array(&mat_rgba, RenderElem::Vec4, &shared_mat)?);
+        args.push(array(&geom_xpos, RenderElem::Vec3, &shared_geom)?);
+        args.push(array(&geom_xmat, RenderElem::Mat33, &shared_geom)?);
+        args.push(array(&cam_xpos, RenderElem::Vec3, &camera_pose_dims)?);
+        args.push(array(&cam_xmat, RenderElem::Mat33, &camera_pose_dims)?);
+        args.push(array(&light_xpos, RenderElem::Vec3, &shared_light)?);
+        args.push(array(&light_xdir, RenderElem::Vec3, &shared_light)?);
         args.push(array(&flexvert_xpos, RenderElem::Vec3, &[1])?);
         args.push(RenderArg::Scalar(RenderScalar::I32(to_i32(nrender)?)));
         args.push(RenderArg::Scalar(RenderScalar::Bool(false)));
