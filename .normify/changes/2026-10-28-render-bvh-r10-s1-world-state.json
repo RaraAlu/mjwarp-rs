@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r10-s1-world-state",
+  "title": {
+    "zh": "渲染/BVH R10-S1：多 world 状态与布局（宿主侧，无 GPU、无窗口）",
+    "en": "Render/BVH R10-S1: multi-world state and layout (host-side, no GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R10 批量渲染调度首片（宿主侧，无 GPU、无窗口）：在既有 per-world BVH 分组骨架（`src/render/bvh/builder.rs` 的 group per world + `group_root(world)`）与已乘 `nworld` 的输出布局之上，补齐**产品侧 per-world 状态**：新开 `src/render/context/world.rs` 提供 per-world 相机位姿（`nworld × ncam` 语义，同模型多 state，**不是**两个不同模型）与 per-world 模型/场景状态容器、world 计数与布局校验、错误面（world 越界/未激活/状态缺失/相机数不匹配）、world 隔离不变量（某 world 的视图只读该 world 区段）。**不动** kernel、设备 `.cu`、499/500 的 `camera_output.rs`、`model/render.rs`(500)。",
+    "en": "R10 slice 1 (host-side): per-world camera poses and model state containers, world count/layout validation, error surface and world-isolation unit tests, on top of the existing per-world BVH grouping."
+  },
+  "modules": {},
+  "acceptance": [
+    "新 `src/render/context/world.rs`（≤500 行）：per-world 相机位姿（`nworld × ncam`，同模型多 state 语义）、per-world 场景/模型状态容器、world 计数与输出布局（每 world 独立偏移/长度，基于既有 `OutputLayout` 的 `nworld` 乘法）；`camera_output.rs`(499) 与 `model/render.rs`(500) 零改动。",
+    "错误面：world 越界、world 未激活、状态缺失、相机数/分辨率与 `nworld` 不匹配、`nworld=0` 全部可诊断拒绝且不 panic；单测覆盖。",
+    "world 隔离单元测试：合成逐 world 哨兵缓冲后，world w 的视图/切片只含该 world 区段、互不重叠、不越界读邻 world；单 world（nworld=1）路径与既有 S1/S2 行为位级一致（回归断言）。",
+    "不改 kernel/device 源：`src/render/kernel/*`（launch 500 / megakernel 498 / cast 494）、`src/render/kernel/cuda/*.cu`、`DEVICE_SOURCES`=28、产品入口=6、`CollisionArgs` 504 B 零改动；`fixtures/precision` 与 T4 身份钉子不动。",
+    "四门禁（fmt/clippy/clippy-cuda/unit）绑最终树通过；新文件 ≤500 行；`context.rs`/`render/mod.rs` 只加必要声明/导出（若用 `#[path]` 接线，父模块写进 files）。",
+    "证据 `docs/development-evidence/render-bvh/r10-s1-world-state/`（README + receipt 含 `/task_id` + manifest + 日志）；LF 无 BOM、禁词 0、不写「窗口通过/已覆盖/精度达标/上游等价」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r08-camera-e2e"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/context/world.rs",
+      "src/render/context.rs",
+      "src/render/mod.rs",
+      "tests/render_multi_world_layout.rs",
+      "docs/development-evidence/render-bvh/r10-s1-world-state/"
+    ],
+    "resources": [],
+    "priority": 74
+  },
+  "note": "Arch 2026-10-28 登记：用户拍板 ① 渲染线继续、Chief 指定下一家族 R10 批量渲染调度。双 world = 同模型多 state（上游 nworld 语义），不用两个不同模型冒充。S1 纯宿主、无 GPU、无窗口、无新捕获。红线：512 行棘轮（camera_output 499 / model/render 500 / kernel 三文件）一律不加行先拆。",
+  "revision": {
+    "before": "3e0cf0a9897ad23d217f520bd7aee46fed3f7380",
+    "after": null
+  },
+  "created_at": "2026-10-27T20:10:00.000Z",
+  "updated_at": "2026-10-27T19:14:53.208Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r10-s1-world-state/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r10-s1-world-state"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

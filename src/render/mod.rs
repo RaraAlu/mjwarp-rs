@@ -17,6 +17,10 @@ pub use camera::{
     RenderTargets, resolve_cameras,
 };
 pub use camera_output::{CameraImage, CameraOutputViews, CameraViewError, WholeOutputData};
+/// R10-S1 多 world 状态与布局（宿主侧）。
+pub use context::world::{
+    CameraPose, WorldCameraPoses, WorldError, WorldLayout, WorldResolutions, WorldStates,
+};
 pub use context::{ContextError, ContextParams, ResolvedContext, resolve_context};
 #[cfg(feature = "cuda-probe")]
 pub use context::{

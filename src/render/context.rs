@@ -25,6 +25,7 @@ pub mod output;
 #[cfg(feature = "cuda-probe")]
 pub mod owner;
 pub mod params;
+pub mod world;
 
 #[cfg(feature = "cuda-probe")]
 pub use lifecycle::{LifecycleError, OutputResources, OutputValues, RenderContext, release_stats};

@@ -1,0 +1,153 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r10-s1-world-state",
+  "kind": "render-bvh-r10-s1-world-state",
+  "status": "final",
+  "slice": "R10-S1",
+  "title": "多 world 渲染状态与布局（宿主侧，无 GPU、无窗口）",
+  "date": "2026-10-28",
+  "upstream": {
+    "revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "files": ["mujoco_warp/_src/render_util.py"],
+    "reference_policy": "复用既有冻结件；本片无新捕获、不启动 Python、不开 GPU、不重渲染"
+  },
+  "semantics": {
+    "leading_dimension": "cam_xpos[nworld, ncam, 3] / cam_xmat[nworld, ncam, 9]；输出缓冲形状 [nworld, pixels]（world-major）",
+    "same_model_multi_state": "world 维只复制状态（每 world 一份位姿/模型状态）；不解析第二个模型；相机下标与分辨率在所有 world 间一致",
+    "layout": "在既有 OutputLayout（单 world 的 *_adr / *_pixels）上按 nworld 乘法展开；每 world 区段为 [world*pixels, (world+1)*pixels)，world 间互不重叠",
+    "single_world_regression": "nworld == 1 时 world 布局与既有 OutputLayout 完全相等、区段为 0..pixels"
+  },
+  "api": {
+    "module": "src/render/context/world.rs",
+    "module_path": "mjwarp_rs::render::context::world（顶层再导出 mjwarp_rs::render::{CameraPose, WorldCameraPoses, WorldError, WorldLayout, WorldResolutions, WorldStates}）",
+    "types": [
+      "WorldError（错误面，全部读取/分配前给出）",
+      "CameraPose（xpos [f32;3] + 行主序 xmat [f32;9]，与内核 CameraPose 位型一致）",
+      "WorldCameraPoses（nworld × ncam，world-major；get/world_slice）",
+      "WorldResolutions（nworld × ncam 分辨率表，逐项校验等于 plan.resolutions）",
+      "WorldStates<T>（per-world 模型/场景状态容器：active 位 + Option<T>；new/with_active/set_active/insert/state）",
+      "WorldLayout（resolve(nworld)/with_active/worlds/cameras/layout/is_active/channel_pixels/buffer_elements/world_offset/world_range/world_view/camera_range）"
+    ]
+  },
+  "error_surface": [
+    "WorldCountZero（nworld == 0）",
+    "WorldOutOfRange { world, worlds }（world 下标越界）",
+    "WorldInactive { world }（world 未激活）",
+    "StateMissing { world }（该 world 状态缺失）",
+    "ActiveMaskMismatch { expected, actual }（激活掩码长度 != nworld）",
+    "CameraCountMismatch { expected, actual }（per-world 状态条目数 != nworld×ncam）",
+    "CameraOutOfRange { camera, cameras }（相机下标越界）",
+    "ResolutionMismatch { world, camera, expected, actual }（分辨率与 plan 不符）",
+    "ChannelDisabled { channel, camera_index }（该相机该通道未启用，adr == -1）",
+    "BufferRange { world, end, actual }（world 区段末端超出缓冲）",
+    "CountOverflow { field }（计数溢出，checked_*）",
+    "Layout(ContextError)（单 world 布局解析失败）"
+  ],
+  "changed_files": [
+    { "path": "src/render/context/world.rs", "diff": "+499 / -0（新文件）", "lines": 499, "bytes": 16798, "sha256": "2c495c02cb55fd8a04b486c3dbff3ddcdba2debeac5b07395f85b337b862f711" },
+    { "path": "src/render/context.rs", "diff": "+1 / -0", "lines": 427, "bytes": 15185, "sha256": "a098bec58c9f86bf1d6f39325f462bde99f1c872e22fc0e6b32348da348cb5bd", "change": "只加 pub mod world;" },
+    { "path": "src/render/mod.rs", "diff": "+4 / -0", "lines": 378, "bytes": 11884, "sha256": "0867c2ecafc3b95ea63fb64c9d023cb33c1bf0a3451c686d61bbba50ea868e36", "change": "顶层再导出 6 个类型" },
+    { "path": "tests/render_multi_world_layout.rs", "diff": "+397 / -0（新文件）", "lines": 397, "bytes": 13549, "sha256": "3022099e95199dafbc527345b4ff5e42c7fd4694914e062a252f5089901ca19d" }
+  ],
+  "tests": {
+    "directed": {
+      "command": "cargo test --locked --test render_multi_world_layout",
+      "passed": 5,
+      "failed": 0,
+      "wall_ms": 178,
+      "log": "docs/development-evidence/render-bvh/r10-s1-world-state/logs/directed-render-multi-world-layout.log",
+      "cases": [
+        "world_views_are_disjoint_and_do_not_read_neighbours（16 像素/世界 × 3 world；区段两两不相交；短缓冲 47 → BufferRange；world 3 → WorldOutOfRange）",
+        "single_world_path_matches_existing_layout_and_camera_views（nworld=1 与既有 OutputLayout 相等；逐相机切片与 CameraOutputViews::rgb_packed 逐位一致）",
+        "error_surface_is_diagnostic_without_panicking（nworld=0 / 掩码 / 未激活 / 越界 / 通道未启用 / 条目数 / 分辨率 / 状态缺失 / Display 非空）",
+        "camera_poses_are_nworld_by_ncam_same_model_multi_state（2 world × 2 相机；world 切片与 get 映射；nworld=0 拒绝）",
+        "resolutions_replicate_plan_and_reject_mismatch（3 × 2 分辨率表逐项等于 plan；nworld=0 拒绝）"
+      ]
+    },
+    "unit": "1022 passed / 0 failed / 382 ignored（126 个 result 行；见 gates.unit）"
+  },
+  "gates": {
+    "note": "本表为仓内采集运行（最终树）；仓库根 normify gate 结果以 .normify/runs/ 为准。",
+    "fmt": { "exit": 0, "wall_ms": 1573, "log": "docs/development-evidence/render-bvh/r10-s1-world-state/logs/fmt-check.log", "note": "cargo fmt --check；空输出" },
+    "clippy": { "exit": 0, "wall_ms": 506, "log": "docs/development-evidence/render-bvh/r10-s1-world-state/logs/clippy.log" },
+    "clippy-cuda": { "exit": 0, "wall_ms": 386, "log": "docs/development-evidence/render-bvh/r10-s1-world-state/logs/clippy-cuda.log" },
+    "unit": { "exit": 0, "wall_ms": 66291, "passed": 1022, "failed": 0, "ignored": 382, "result_lines": 126, "log": "docs/development-evidence/render-bvh/r10-s1-world-state/logs/unit.log", "note": "cargo test --locked（默认特性 cuda）" }
+  },
+  "constraints": {
+    "camera_output_rs_lines": 499,
+    "camera_output_rs_untouched": true,
+    "model_render_rs_lines": 500,
+    "model_render_rs_untouched": true,
+    "kernel_launch_rs_lines": 500,
+    "kernel_megakernel_rs_lines": 498,
+    "kernel_cast_rs_lines": 494,
+    "kernel_and_device_cu_untouched": true,
+    "device_sources": 28,
+    "product_entries": 6,
+    "collision_args_bytes": 504,
+    "criteria_reference_fixtures_unchanged": true,
+    "new_files_max_lines": 500,
+    "new_files_lines": { "src/render/context/world.rs": 499, "tests/render_multi_world_layout.rs": 397 },
+    "context_rs_only_module_decl": true,
+    "render_mod_rs_only_exports": true,
+    "cargo_toml_lock_untouched": true
+  },
+  "self_checks": {
+    "json_valid": true,
+    "task_id_matches_card": true,
+    "line_endings": "UTF-8 no BOM, LF/CR=0（本目录文本证据）",
+    "banned_terms_hits": 0,
+    "wording_terms_hits": 0,
+    "scope_selfcheck": {
+      "task_files_scope": [
+        "docs/development-evidence/render-bvh/r10-s1-world-state",
+        "src/render/context.rs",
+        "src/render/context/world.rs",
+        "src/render/mod.rs",
+        "tests/render_multi_world_layout.rs"
+      ],
+      "changed_paths": [
+        "docs/development-evidence/render-bvh/r10-s1-world-state/",
+        "src/render/context.rs",
+        "src/render/context/world.rs",
+        "src/render/mod.rs",
+        "tests/render_multi_world_layout.rs"
+      ],
+      "out_of_scope": 0
+    },
+    "untouched_diff": "src/render/context/camera_output.rs、src/model/render.rs、src/render/kernel/**、src/render/bvh/**、fixtures/**、Cargo.toml、Cargo.lock 的 git diff 为空",
+    "window_gpu_capture": "无（本片 CPU-only）"
+  },
+  "evidence_files": [
+    "docs/development-evidence/render-bvh/r10-s1-world-state/README.md",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/receipt.json",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/manifest.json",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/logs/fmt-check.log",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/logs/clippy.log",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/logs/clippy-cuda.log",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/logs/unit.log",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/logs/directed-render-multi-world-layout.log",
+    "docs/development-evidence/render-bvh/r10-s1-world-state/logs/gates-summary.txt"
+  ],
+  "manifest": {
+    "path": "docs/development-evidence/render-bvh/r10-s1-world-state/manifest.json",
+    "blob": "96d2c6256ece38834ce25ea39a761f34538bab98",
+    "sha256": "2812120b6c5f24abe0e2eb0368782bffada8d11bc693bfbc2453a8cc83ef5140",
+    "bytes": 5104,
+    "lines": 91
+  },
+  "boundaries": {
+    "gpu_opened": false,
+    "window_run": false,
+    "new_capture": false,
+    "python_not_started": true,
+    "kernel_device_untouched": true,
+    "multi_world_camera_views": "camera_output.rs 仍只支持 nworld == 1（S1 遗留拒绝，本片不改）",
+    "gpu_end_to_end": "R10-S2（1 验证窗、无新捕获）"
+  },
+  "unmet": [
+    "真实 nworld > 1 的 GPU 端到端渲染：R10-S2（窗口材料先报 Arch → Chief 签）",
+    "多 world 逐相机视图：camera_output.rs 的 nworld>1 拒绝留待后续片",
+    "产品入口调用链接线：R10-S2"
+  ]
+}
