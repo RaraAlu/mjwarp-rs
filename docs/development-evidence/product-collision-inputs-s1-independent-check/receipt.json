@@ -1,0 +1,274 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-27-product-collision-inputs-s1-independent-check",
+  "kind": "independent_check",
+  "reviewed_task": "2026-10-27-product-collision-inputs-s1-data-snapshot",
+  "reviewed_commit": "feb66f4222b49c03e23a980ca766d20631557b62",
+  "reviewed_parent": "1f478513625fe948cbc23f9112bd12a3eaffc6ed",
+  "head_at_review": "feb66f4222b49c03e23a980ca766d20631557b62",
+  "verdict": "pass",
+  "blockers": [],
+  "observation_counts": {
+    "general": 1,
+    "suggestion": 8,
+    "total": 9
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "general",
+      "title": "The recorded pre-existing pinned-sha drift for two files does not exist; it is a CRLF worktree artifact",
+      "detail": "README §6 / receipt.pinned_sources.drift_note / delivery notes say include/mjwarp_native_probe.h and native/model_probe.cpp were updated by earlier render/volume slices and differ from the pinned sha, and that a full G01 --include-ignored run would expose it. QA recomputation: raw sha differs only because the worktree is CRLF (git index i/lf, worktree w/crlf, core.autocrlf=true); sha256 of the text with CRLF->LF is exactly the pinned value for both files (03151bf5… / 6a01eb01…). fixtures/precision/g01-inputs.json was re-pinned in 61fb6baf (2026-10-26 01:14, message: identity drift 18->0) after the render (d642c039) and model-fields (ef47d450) slices, so the pinned values already are the current identities. The repo's own T4 audit normalizes CRLF (tests/support/t4_evidence/sources.rs:13). Forcing cargo test --test t4_input_precision -- --include-ignored fails 12 audit tests because MJWARP_FROZEN_UPSTREAM_ROOT / MJWARP_FROZEN_WARP_ROOT are unset (panic 'set upstream root' at tests/t4_input_precision/tests.rs:139:71), not because of any hash drift.",
+      "evidence": [
+        "logs/pinned-sources.txt",
+        "logs/t4-include-ignored.txt"
+      ],
+      "proposed_action": "Rewrite README §6 / receipt.drift_note / delivery note as: both files are CRLF in the worktree while the pinned sha is the LF-normalized text; git blobs are unchanged since before the slice; the T4 audit normalizes line endings, so this is not an identity drift. Drop the 'updated by earlier render/volume slices' statement and state the comparison basis.",
+      "impact": "documentation accuracy only; no code, criteria, reference, tolerance or conclusion change"
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "title": "Gate clippy/unit do not compile the cfg-gated new code",
+      "detail": "gates.toml clippy/unit/clippy-cuda use default features and never pass --features native-model-probe; all new modules are cfg-gated and the new test is #[ignore], so the gate neither lints nor runs the new code. This slice has an explicit clippy with the feature (logs/fmt-clippy.log) and the targeted test, but there is no permanent automatic protection.",
+      "evidence": [
+        "logs/gate-equivalent.txt"
+      ],
+      "proposed_action": "Add a gate entry (or a registered targeted gate item) running clippy with --features native-model-probe",
+      "impact": "future regressions in the new modules would not be caught by the default gate"
+    },
+    {
+      "id": "O3",
+      "severity": "suggestion",
+      "title": "Data-frame narrowing uses a bare static_cast with no finiteness/overflow check",
+      "detail": "mjwarp_native_collision_inputs_copy_xpos_xmat narrows geom_xpos/geom_xmat with static_cast<float> per element, while model Num fields go through convert_f64_to_f32_into, which rejects non-finite values and f32 overflow. An extreme but finite qpos (e.g. 1e300 translation) would silently produce inf frames.",
+      "evidence": [
+        "logs/lifecycle-and-negative-cases.txt"
+      ],
+      "proposed_action": "Route the frame narrowing through the same checked conversion entry, or document the different basis in the header and receipt",
+      "impact": "defensive robustness only; the three fixtures use ordinary values"
+    },
+    {
+      "id": "O4",
+      "severity": "suggestion",
+      "title": "qpos values are not checked for finiteness; nq == 0 models are not exercised",
+      "detail": "set_qpos validates only the length. NaN/Inf qpos would propagate silently into the frame. For a model with nq == 0 the native side rejects when d->qpos is null, although an empty qpos would be legitimate; untested.",
+      "evidence": [
+        "logs/lifecycle-and-negative-cases.txt"
+      ],
+      "proposed_action": "Document that the caller owns qpos validity (or add a finite check) and add an nq == 0 negative case",
+      "impact": "defensive coverage only; the three fixtures have nq >= 7"
+    },
+    {
+      "id": "O5",
+      "severity": "suggestion",
+      "title": "'gate ran twice' has only the final run archived",
+      "detail": "The four run json files under .normify/runs/<task>/ are overwritten in place; only the final-tree run (15:46) is on disk, so the first run cannot be verified from evidence.",
+      "evidence": [
+        "logs/gate-equivalent.txt",
+        "logs/unit-gate-equivalent.txt"
+      ],
+      "proposed_action": "Keep both run directories or state in the receipt that only the final tree is archived",
+      "impact": "traceability only"
+    },
+    {
+      "id": "O6",
+      "severity": "suggestion",
+      "title": "kind/width mismatch is reported as InvalidDimension",
+      "detail": "checked_count maps an ABI kind mismatch or a negative native count to InputError::InvalidDimension { field }, the same family used for length mismatches; this can mislead during triage.",
+      "evidence": [
+        "README.md"
+      ],
+      "proposed_action": "Use an ABI-flavoured error or a dedicated variant for kind/count mismatches",
+      "impact": "diagnostics only"
+    },
+    {
+      "id": "O7",
+      "severity": "suggestion",
+      "title": "No cross-check between ABI info counts and collision-inputs counts",
+      "detail": "NativeCollisionInputsSnapshot::capture validates each field against collision_inputs_info but never compares those counts with the ABI info counts (nq/ngeom/nmesh/...). The test covers this indirectly through the oracle; a defensive 'two count sets agree' check would catch a future model/DLL mismatch.",
+      "evidence": [
+        "README.md"
+      ],
+      "proposed_action": "Add a defensive count consistency check inside capture",
+      "impact": "defensive only"
+    },
+    {
+      "id": "O8",
+      "severity": "suggestion",
+      "title": "Summary wording about the 18 pinned sources is ambiguous",
+      "detail": "README §6 summary says the 18 pinned sources are byte-identical with HEAD (zero change); this can be read as 'identical to the pinned sha', which is confusing given the CRLF note.",
+      "evidence": [
+        "README.md"
+      ],
+      "proposed_action": "Say explicitly 'zero change relative to this slice's HEAD'",
+      "impact": "wording only"
+    },
+    {
+      "id": "O9",
+      "severity": "suggestion",
+      "title": "Line-count basis differs between the task message and the files",
+      "detail": "The review request quotes 445/189/230/310 lines, but the files have 474/211/234/313 LF lines (PowerShell Get-Content under-counts here). README/receipt numbers are correct; future evidence should state the LF-count basis.",
+      "evidence": [
+        "logs/line-counts.txt"
+      ],
+      "proposed_action": "State the counting basis in evidence and task messages",
+      "impact": "bookkeeping only; the <=500 ratchet holds either way"
+    }
+  ],
+  "verified_items": [
+    {
+      "item": "18 pinned sources untouched",
+      "result": "pass",
+      "detail": "git diff 1f478513..feb66f42 for the 18 paths is empty; 18/18 identity (16 raw sha, 2 LF-normalized sha); git blobs identical across d8024c73/1f478513/feb66f42/HEAD",
+      "evidence": [
+        "logs/pinned-sources.txt"
+      ]
+    },
+    {
+      "item": "existing ABI invariants untouched",
+      "result": "pass",
+      "detail": "no src/runtime path in the commit; CollisionArgs 504 B (abi_tests.rs:41), 6 entries (abi_tests.rs:143), DEVICE_SOURCES 28 (multicontact_tests.rs:14) all ran inside the unit gate; new ABI only in the new header",
+      "evidence": [
+        "logs/abi-invariants.txt"
+      ]
+    },
+    {
+      "item": "new probe schema and include path",
+      "result": "pass",
+      "detail": "independent header with 7 entries; cpp included from native/model_probe_sparse.cpp (+1 line) and does not re-include model_probe.cpp; build.rs only +2 rerun-if-changed; Cargo files zero diff",
+      "evidence": [
+        "logs/abi-invariants.txt"
+      ]
+    },
+    {
+      "item": "targeted host tests rerun",
+      "result": "pass",
+      "detail": "4 passed / 0 failed / 0 ignored in 0.20 s; existing native_g01 expectation 1 passed / 0 failed in 0.03 s",
+      "evidence": [
+        "logs/targeted-test-rerun.txt",
+        "logs/native-g01-rerun.txt"
+      ]
+    },
+    {
+      "item": "oracle independent recomputation",
+      "result": "pass",
+      "detail": "576 checks, 0 problems: 3 MJB sha/bytes, 11 counts x 3 models, 29 value fields x 3 models (i32/f64 bits/f32 bits), 2 qpos cases x 3 models frames, plus Rust/C++/CollisionGpuInputs table cross-check",
+      "evidence": [
+        "logs/oracle-verification.txt",
+        "verify_s1.py",
+        "verify_s1.json"
+      ]
+    },
+    {
+      "item": "f64 bits storage rationale reproduced",
+      "result": "pass",
+      "detail": "with the workspace serde_json 1.0.151 (no float_roundtrip), 1 of 166 oracle f64 values reparses 1 ULP low: scene-312 geom_size[10] 0.11801833394695993 -> 3fbe367314a16ef7 vs 3fbe367314a16ef8",
+      "evidence": [
+        "logs/serde-json-1ulp.txt",
+        "sjparse.rs"
+      ]
+    },
+    {
+      "item": "lifecycle and robustness",
+      "result": "pass",
+      "detail": "handle borrows the owner (PhantomData<Rc<()>>, Drop destroys); snapshot outlives owner (owned vectors); mjData created once and reused; preflight before writes with sentinel assertions; foreign-owner destroy returns 8; no unwrap/expect/panic in new product code",
+      "evidence": [
+        "logs/lifecycle-and-negative-cases.txt"
+      ]
+    },
+    {
+      "item": "W4 zero warnings",
+      "result": "pass (indirect)",
+      "detail": "build.rs:42 warnings_into_errors(true) maps to /W4 /WX under cc 1.6 MSVC; the build log shows the new TU compiling with no warning lines and Finished; cl.exe command line not archived",
+      "evidence": [
+        "logs/gate-equivalent.txt"
+      ]
+    },
+    {
+      "item": "gates reproduced",
+      "result": "pass",
+      "detail": "independent rerun: fmt exit 0, clippy exit 0, clippy-cuda exit 0, clippy with native-model-probe exit 0, unit 994 passed / 0 failed / 376 ignored exit 0; matches .normify/runs/<task>/*.json; t4_input_precision default 36 passed / 0 failed / 12 ignored",
+      "evidence": [
+        "logs/gate-equivalent.txt",
+        "logs/unit-gate-equivalent.txt"
+      ]
+    },
+    {
+      "item": "scope",
+      "result": "pass",
+      "detail": "33 committed paths, 33 in the declared task range, 0 out of range; current scope-selfcheck reports 0 changes / 0 out of range",
+      "evidence": [
+        "logs/gate-equivalent.txt"
+      ]
+    },
+    {
+      "item": "line-count ratchet",
+      "result": "pass",
+      "detail": "LF line counts 474/211/234/105/313/236/69/462/345, all <= 500; src/model/render.rs still 500 and untouched; oracle json is single-line machine-readable",
+      "evidence": [
+        "logs/line-counts.txt"
+      ]
+    },
+    {
+      "item": "delivery record identity",
+      "result": "pass",
+      "detail": "21 declared files: blob/sha256/bytes/LF lines 0 mismatch; the record's own blob equals HEAD",
+      "evidence": [
+        "logs/delivery-record-verification.txt",
+        "verify_delivery.json"
+      ]
+    },
+    {
+      "item": "forbidden claim scan",
+      "result": "pass",
+      "detail": "0 hits for the six regulated claim terms in S1 evidence, new code and delivery record; the only near-phrase is in a negative sentence (README §6, do not claim upstream equivalence)",
+      "evidence": [
+        "README.md"
+      ]
+    }
+  ],
+  "environment": {
+    "os": "Windows",
+    "repo": "D:\\Rust\\mjwarp-rs",
+    "toolchain_for_targeted_tests": "1.99.0-x86_64-pc-windows-msvc",
+    "toolchain_for_gate_commands": "1.99.0 (rust-toolchain.toml, active gnu host)",
+    "mujoco": "3.12.0 (C package at target/toolchains/mujoco-3.12.0/package, python wheel 3.12.0 in target/render-bvh-precheck/venv312)",
+    "python": "3.12.13",
+    "numpy": "2.5.4",
+    "gpu_used": false,
+    "window_opened": false,
+    "product_code_changed": false,
+    "criteria_or_fixtures_changed": false
+  },
+  "boundaries": [
+    "host-side read-only review: no GPU, no window, no device number rerun",
+    "no product wiring claim (S1 does not wire the inputs)",
+    "no host-device behaviour equivalence, precision, performance, cross-platform or acceptance conclusion",
+    "oct_* cross-check is against the same pinned model's G01 volume bridge, not a second independent implementation",
+    "the S1 normify gate was not rerun to avoid overwriting the verified task's run artifacts; the same gates.toml commands were run directly and compared with the archived run json"
+  ],
+  "evidence_files": [
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/README.md",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/receipt.json",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/manifest.json",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/verify_s1.py",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/verify_s1.json",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/verify_delivery.py",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/verify_delivery.json",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/gen_pinned.py",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/sjparse.rs",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/logs/pinned-sources.txt",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/logs/targeted-test-rerun.txt",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/logs/native-g01-rerun.txt",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/logs/oracle-verification.txt",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/logs/serde-json-1ulp.txt",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/logs/lifecycle-and-negative-cases.txt",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/logs/gate-equivalent.txt",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/logs/unit-gate-equivalent.txt",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/logs/t4-include-ignored.txt",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/logs/line-counts.txt",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/logs/abi-invariants.txt",
+    "docs/development-evidence/product-collision-inputs-s1-independent-check/logs/delivery-record-verification.txt"
+  ]
+}

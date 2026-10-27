@@ -1,0 +1,29 @@
+# Lifecycle and robustness map checked by QA (code reading + the preflight test that passed)
+#
+# handle-after-owner: the snapshot owns owned vectors; tests/g10_p5_collision_inputs_snapshot.rs:176-183
+#   drops the probe, then reads snapshot.counts() / inputs.counts() and clones the snapshot.
+# handle lifetime type: src/io/collision_inputs.rs:359-386 CollisionInputsData<'a> borrows
+#   NativeModelProbe; PhantomData<Rc<()>> makes it neither Send nor Sync; Drop calls the native
+#   destroy with the same owner pointer.
+# foreign owner destroy: native/model_probe_collision_inputs.cpp:227-236 returns 8 and deletes
+#   nothing; asserted in tests/support/collision_inputs_preflight.rs:305.
+# mjData reuse: create() makes mjData once; set_qpos only memcpy + mj_kinematics
+#   (native cpp:190-201); the test re-sets the first qpos and requires an identical frame
+#   (tests/g10_p5_collision_inputs_snapshot.rs:156-158).
+# preflight-before-write: the copy entry validates reserved/kind/count/target before memcpy
+#   (native cpp:146-160); the test keeps a sentinel buffer and asserts it is unchanged for
+#   id 0/1, bad count, bad kind, bad reserved and null target (preflight.rs:176-215).
+# xpos/xmat decode validates ngeom and both target pointers before any conversion
+#   (native cpp:203-225); rejected cases return 8.
+# unknown ids / null owner / null DTO: preflight.rs:139-172 -> error 8.
+# qpos length: Rust rejects != nq before the native call (src/io/collision_inputs.rs:400-429);
+#   the native side re-checks nq and the qpos pointer (native cpp:190-201); preflight.rs:253-274
+#   asserts 8 for null / nq+1 / foreign owner.
+# no unwrap/expect/panic!/todo! in the new product code (tests do use unwrap).
+#
+# Gaps noticed while reading (reported as observations, not blockers):
+#   - copy_xpos_xmat narrows with a bare static_cast<float> and does not reject non-finite or
+#     f32-overflow frames, unlike the model Num fields that go through convert_f64_to_f32_into.
+#   - qpos values are not checked for finiteness before mj_kinematics (NaN would propagate into
+#     geom_xpos/geom_xmat silently).
+#   - nq == 0 models are not exercised; the native set_qpos rejects when d->qpos is null.
