@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-window-entity-table-skeleton",
+  "task_id": "2026-10-28-render-bvh-r05-s3b-hfield-validate",
+  "authored_by": "2026-10-28-render-bvh-r05-s3b-hfield-target-authoring",
+  "status": "skeleton only (not executed; frozen hashes/exe paths are filled in the validation window)",
+  "source_of_regressions": "R09-S3b guards.json frozen_exes with source=regression (same list, same criteria)",
+  "criteria": {
+    "rgb": "<= 1 LSB per channel (bitwise preferred)",
+    "depth": "bitwise-first (mismatched == 0) AND max_ulp <= 4 AND beyond_ulp == 0",
+    "seg": "exact (mismatched == 0)",
+    "determinism": "two-run rgb/depth/seg sha256 equal"
+  },
+  "entities": [
+    {
+      "order": 1,
+      "entity": "render_hfield_reference",
+      "source": "new",
+      "group_reference": [
+        "fixtures/render-bvh/scene-hfield/capture-hfield/hfield-only",
+        "fixtures/render-bvh/scene-hfield/capture-hfield/hfield-primitive"
+      ],
+      "window_command": "cargo test --locked --features cuda-probe --test render_hfield_reference -- --ignored --test-threads=1",
+      "note": "two ignored GPU tests in one target: hfield-only + hfield-primitive; cam0/cam1 x rgb/depth/seg"
+    },
+    {
+      "order": 2,
+      "entity": "render_camera_rays",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_camera_rays -- --ignored --test-threads=1"
+    },
+    {
+      "order": 3,
+      "entity": "render_context_lifecycle",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_context_lifecycle -- --ignored --test-threads=1"
+    },
+    {
+      "order": 4,
+      "entity": "render_e2e",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_e2e -- --ignored --test-threads=1"
+    },
+    {
+      "order": 5,
+      "entity": "render_kernel_depth_seg",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_kernel_depth_seg -- --ignored --test-threads=1"
+    },
+    {
+      "order": 6,
+      "entity": "render_kernel_flags",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_kernel_flags -- --ignored --test-threads=1"
+    },
+    {
+      "order": 7,
+      "entity": "render_kernel_rgb",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --test-threads=1"
+    },
+    {
+      "order": 8,
+      "entity": "render_r08_cameras",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_r08_cameras -- --ignored --test-threads=1"
+    },
+    {
+      "order": 9,
+      "entity": "render_r10_multi_world",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_r10_multi_world -- --ignored --test-threads=1"
+    }
+  ],
+  "stop_conditions": [
+    "any camera/any product beyond criteria -> stop and report to Arch without changing tolerance/reference/fixture",
+    "suspicious tie-break difference caused by leaf_size/SAH differences -> stop and report",
+    "mirror/transpose-shaped hfield difference -> stop and report"
+  ],
+  "not_executed": true,
+  "numeric_conclusion": false
+}

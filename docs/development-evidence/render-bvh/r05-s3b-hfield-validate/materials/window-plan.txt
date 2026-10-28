@@ -1,0 +1,44 @@
+# R05-S3b hfield validation-window plan (offline authoring; no window opened)
+task_id=2026-10-28-render-bvh-r05-s3b-hfield-validate
+attempt=1 (validation window)
+device_validation_window=true
+authoring_exception_used=false (original thresholds only)
+
+## pre-window monitor (must pass before opening)
+thresholds=util<40 percent, free>=10240 MiB, compute_apps_filtered=0, build_processes=0
+sampling=5 s interval, 60 consecutive clean samples required
+max_minutes=30
+command=powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/monitor-until-clean.ps1 -OutCsv target/render-bvh/r05-s3b-window/monitor-pre-window.csv -Required 60 -MaxMinutes 30
+monitor_script_sha256=ec2b959ca4b067dcab251f67506800d78f1078df233ed6a2da8e00b13e818814
+
+## window open sequence (verbatim)
+0) record 3-point GPU baseline and floor in the facts (runner does baseline; floor = min(10240, baseline_free - 3072))
+1) run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/run-window.ps1 -Attempt 1
+2) the runner runs the 9 entities in order (new first): cargo test --locked --features cuda-probe --test <name> -- --ignored --test-threads=1 --nocapture
+3) success requires exit 0 and WINDOW_RUN_DONE in guard.log; 9/9 exe recheck after the run; zero Rust compile (deps snapshot unchanged)
+4) exit 9 = invalid round (precheck / guard sha mismatch); exit 10 = entity failure; exit 7 = compile detected; keep all artifacts
+
+## entities (9)
+new=render_hfield_reference
+regression=render_camera_rays,render_context_lifecycle,render_e2e,render_kernel_depth_seg,render_kernel_flags,render_kernel_rgb,render_r08_cameras,render_r10_multi_world
+entity_table=docs/development-evidence/render-bvh/r05-s3b-hfield-target-authoring/window/entity-table.json (copy in materials/entity-table.json)
+
+## criteria (unchanged, not relaxed)
+rgb=<=1 LSB per channel (bitwise preferred)
+depth=bitwise-first (mismatched==0) AND max_ulp<=4 AND beyond_ulp==0
+seg=exact (mismatched==0)
+determinism=two-run rgb/depth/seg sha256 equal
+
+## freeze protocol
+freeze after the final build: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards.ps1
+after freeze until window open: no cargo/rustc/cargo test; any change to runner/guards/exe invalidates the signature
+refreeze rule: if any frozen object changes, regenerate guards.json (same script) and re-sign before opening
+
+## wall estimate
+basis=R09-S3b window ran the 8 regressions in 48.1 s (direct exe); this window also runs the new hfield target and invokes cargo per entity
+estimate=60-180 s entity body (excluding pre-window monitor)
+
+## stop conditions
+any hfield camera/product beyond criteria -> stop and report to Arch without changing tolerance/reference/fixture
+mirror/transpose-shaped hfield difference -> stop and report
+suspicious tie-break difference from BVH leaf_size=8 vs upstream 2 -> stop and report

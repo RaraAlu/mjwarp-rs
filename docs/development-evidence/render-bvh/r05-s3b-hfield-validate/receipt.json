@@ -1,0 +1,131 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-s3b-hfield-validate",
+  "kind": "render-bvh-r05-s3b-hfield-validate",
+  "stage": "authoring-complete-window-pending",
+  "device_validation_window": true,
+  "authoring_only": true,
+  "window": false,
+  "gpu_entities_executed": false,
+  "numeric_conclusion": false,
+  "attempt": 1,
+  "entity_table": {
+    "source": "docs/development-evidence/render-bvh/r05-s3b-hfield-target-authoring/window/entity-table.json",
+    "copy": "materials/entity-table.json",
+    "new": ["render_hfield_reference"],
+    "regression": [
+      "render_camera_rays",
+      "render_context_lifecycle",
+      "render_e2e",
+      "render_kernel_depth_seg",
+      "render_kernel_flags",
+      "render_kernel_rgb",
+      "render_r08_cameras",
+      "render_r10_multi_world"
+    ],
+    "window_command_template": "cargo test --locked --features cuda-probe --test <name> -- --ignored --test-threads=1 --nocapture"
+  },
+  "scripts": [
+    {
+      "path": "scripts/validate/render-bvh/run-window.ps1",
+      "bytes": 16472,
+      "lines": 349,
+      "sha256": "4e389b1161bef0c85d0a636d79f245cbdeb35e2b0d6339ed28ade01b536d2256",
+      "ascii_only": true,
+      "non_ascii_bytes": 0,
+      "ansi_lines_equal_utf8_lines": true,
+      "comment_dollar_lines": 0
+    },
+    {
+      "path": "scripts/validate/render-bvh/freeze-guards.ps1",
+      "bytes": 6580,
+      "lines": 133,
+      "sha256": "5fc0313f0615c73c658a307f7227c231834c475057210ad34554c3f00fcf3062",
+      "ascii_only": true,
+      "non_ascii_bytes": 0,
+      "ansi_lines_equal_utf8_lines": true,
+      "comment_dollar_lines": 0
+    },
+    {
+      "path": "scripts/validate/render-bvh/monitor-until-clean.ps1",
+      "bytes": 2486,
+      "lines": 34,
+      "sha256": "ec2b959ca4b067dcab251f67506800d78f1078df233ed6a2da8e00b13e818814",
+      "ascii_only": true,
+      "non_ascii_bytes": 0,
+      "ansi_lines_equal_utf8_lines": true,
+      "comment_dollar_lines": 0
+    }
+  ],
+  "guards": {
+    "path": "scripts/validate/render-bvh/guards.json",
+    "bytes": 25023,
+    "sha256": "39a6c1fe3b578416db2572fd3ba544f5ced16fc7e5786c6ed370018cf8d332c2",
+    "counts": {"frozen_exes": 9, "guard_inputs": 64, "total": 73},
+    "composition": "9 entity exes + 8 capture-hfield products + 2 signed scene XML + 38 legacy reference files + 16 scene-shadow capture artifacts",
+    "aggregate_algorithm": "sha256 over the sha256 hex strings of all 73 entries in repo-relative path-sorted order, concatenated with no separator",
+    "aggregate_sha256": "bceef785cadda2ba6e23fad038de410e4eedbbfac1b72190892c19ae59783f96",
+    "capture_products": {"files": 8, "bytes": 5784264, "aggregate_sha256": "c6705a80a6ffe6b0c4a01974aa3e534983b5408782377dfdf665b2da5261fbbb"},
+    "legacy_reference": {"files": 38, "bytes": 25320515, "aggregate_sha256": "b5cb50afcc608a67ca9a7b83222029402719f2770a3510ab423df13601e50d8b"},
+    "scene_shadow_capture_artifacts": {"files": 16, "bytes": 11561363, "aggregate_sha256": "cd990c203112e44baf284c0da11c543f3a21612428e9396a1303671617a1fded"},
+    "per_entry_manifest": "materials/guard-manifest.txt"
+  },
+  "runner": {
+    "guards_only_dry_run": {"result": "GUARDS_OK=73/73 GUARDS_ONLY_DONE exit=0", "out": "target/render-bvh/r05-s3b-window/guards-only-dryrun"},
+    "exit_codes": {
+      "0": "valid round + WINDOW_RUN_DONE",
+      "9": "invalid round (precheck failure or guard sha mismatch)",
+      "10": "entity failure or sampler abort",
+      "7": "compile detected inside window (deps snapshot changed)"
+    },
+    "sampler_interval_s": 0.25,
+    "zero_compile_check": "deps snapshot before/after (exe count + max write time) must be identical",
+    "post_window_exe_recheck": "9/9 expected",
+    "floor_formula": "min(10240, baseline_free-3072)"
+  },
+  "pre_window_monitor": {
+    "script": "scripts/validate/render-bvh/monitor-until-clean.ps1",
+    "script_sha256": "ec2b959ca4b067dcab251f67506800d78f1078df233ed6a2da8e00b13e818814",
+    "thresholds": {"util_percent_lt": 40, "free_mib_ge": 10240, "compute_apps_filtered": 0, "build_processes": 0},
+    "sampling_interval_s": 5,
+    "consecutive_clean_samples": 60,
+    "max_minutes": 30,
+    "authoring_exception_used": false,
+    "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/monitor-until-clean.ps1 -OutCsv target/render-bvh/r05-s3b-window/monitor-pre-window.csv -Required 60 -MaxMinutes 30"
+  },
+  "window_command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/run-window.ps1 -Attempt 1",
+  "planning_baseline": {
+    "source": "materials/gpu-baseline.txt",
+    "free_min_mib": 13272,
+    "util_percent": 38,
+    "floor_mib": 10200,
+    "floor_formula": "min(10240, baseline_free-3072)",
+    "note": "planning value only; the runner recomputes baseline and floor at window open"
+  },
+  "wall_estimate_s": {"min": 60, "max": 180, "basis": "R09-S3b ran 8 regressions in 48.1 s; this window adds the new hfield target and cargo invocation per entity"},
+  "criteria": {
+    "rgb": "<= 1 LSB per channel (bitwise preferred)",
+    "depth": "bitwise-first (mismatched == 0) AND max_ulp <= 4 AND beyond_ulp == 0",
+    "seg": "exact (mismatched == 0)",
+    "determinism": "two-run rgb/depth/seg sha256 equal"
+  },
+  "stop_conditions": [
+    "any hfield camera/product beyond criteria -> stop and report to Arch without changing tolerance/reference/fixture",
+    "mirror/transpose-shaped hfield difference -> stop and report",
+    "suspicious tie-break difference from BVH leaf_size=8 vs upstream 2 -> stop and report"
+  ],
+  "repo_untouched": {
+    "src": "no changes",
+    "existing_fixtures": "no changes",
+    "new_files_only": ["scripts/validate/render-bvh/", "docs/development-evidence/render-bvh/r05-s3b-hfield-validate/"]
+  },
+  "pending": [
+    "Arch -> Chief dual sign of window materials",
+    "run the validation window, collect facts/logs/samples/aggregate/entity-results",
+    "QA review and task close after the window"
+  ],
+  "limits": [
+    "authoring only: zero rendering numerical conclusions",
+    "no GPU entity was executed and no --ignored run happened in this slice",
+    "criteria unchanged from R09-S3b; no relaxation"
+  ]
+}
