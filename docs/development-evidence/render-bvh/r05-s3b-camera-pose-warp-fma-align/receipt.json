@@ -6,9 +6,17 @@
   "revision_before": "a7beafae",
   "depends_on": "2026-10-28-render-bvh-r05-s3b-hfield-cam1-depth-rca",
   "scope": {
-    "production": ["src/render/kernel/cast.rs"],
+    "production": [
+      "src/render/kernel/cast.rs"
+    ],
     "evidence": "docs/development-evidence/render-bvh/r05-s3b-camera-pose-warp-fma-align/",
-    "line_counts": { "cast.rs": { "before": 411, "after": 481, "limit": 500 } }
+    "line_counts": {
+      "cast.rs": {
+        "before": 411,
+        "after": 481,
+        "limit": 500
+      }
+    }
   },
   "root_cause": "上游产品路径 cam_xmat = quat_to_mat(mul_quat(world_quat, cam_quat)) 在 GPU 上经驱动 JIT 做 FMA 收缩；host 侧 crate::math::quat_to_mat 是未收缩代数展开，非平凡四元数差 1-2 ULP。RCA a62cc6aa 已给出机器证据与排除项。",
   "implementation": {
@@ -32,7 +40,12 @@
     },
     "reference_chain": {
       "definition": "mul_quat(world_quat, cam_quat) -> quat_to_mat -> 9 元素位型",
-      "world_quat_identity": [1065353216, 0, 0, 0],
+      "world_quat_identity": [
+        1065353216,
+        0,
+        0,
+        0
+      ],
       "mul_quat_equals_cam_quat_rows": 1003,
       "quats": 1003,
       "gpu": "warp 1.15.0 / CUDA Toolkit 12.9 / driver 13.2 / RTX 4070 Ti SUPER",
@@ -51,8 +64,18 @@
       "hfield_cam0_after": "0/76800"
     },
     "hfield": {
-      "hfield-only": { "cam0_depth": "mismatch=0 max_ulp=0 beyond=0", "cam1_depth": "mismatch=0 max_ulp=0 beyond=0", "rgb": "0", "seg": "0" },
-      "hfield-primitive": { "cam0_depth": "mismatch=0 max_ulp=0 beyond=0", "cam1_depth": "mismatch=0 max_ulp=0 beyond=0", "rgb": "0", "seg": "0" },
+      "hfield-only": {
+        "cam0_depth": "mismatch=0 max_ulp=0 beyond=0",
+        "cam1_depth": "mismatch=0 max_ulp=0 beyond=0",
+        "rgb": "0",
+        "seg": "0"
+      },
+      "hfield-primitive": {
+        "cam0_depth": "mismatch=0 max_ulp=0 beyond=0",
+        "cam1_depth": "mismatch=0 max_ulp=0 beyond=0",
+        "rgb": "0",
+        "seg": "0"
+      },
       "baseline_before_fix_cam1_depth": "hfield-only 4423/max_ulp=7/beyond=20; hfield-primitive 4389/7/20"
     },
     "regressions_8of8_exit0": true,
@@ -96,5 +119,39 @@
     "本片零渲染数值验收结论；数值验证留给 S3b validate attempt=2 窗口",
     "不宣称窗口结果、不重冻结 guards、不改判据/容差/参考/fixture"
   ],
-  "commits": { "code": "6f246b46", "evidence": "d42a465a" }
+  "commits": {
+    "code": "6f246b46",
+    "evidence": "d42a465a",
+    "closing": "f98d74a5"
+  },
+  "qa_review": {
+    "card": "2026-10-28-render-bvh-camera-pose-warp-fma-align-check",
+    "verdict": "pass",
+    "blocking": 0,
+    "observations": 9,
+    "commits": [
+      "043927a2",
+      "d1bd6b0d"
+    ],
+    "addressed_in_this_fix_commit": [
+      "O1",
+      "O2",
+      "O3",
+      "O4",
+      "O5"
+    ],
+    "recorded_without_changes": [
+      "O6",
+      "O7",
+      "O8",
+      "O9"
+    ]
+  },
+  "evidence_revisions_after_qa": {
+    "O1": "hfield-final.log/kernel-gate-after.log/reference-chain-identity.txt/verify-contraction.log 从 UTF-16LE(带BOM) 转 UTF-8 LF 无 BOM；manifest 重算",
+    "O2": "README §8.2 按实测改写：真正引用 CameraPose::from_fields 的只有 render_e2e/render_kernel_depth_seg/render_hfield_reference 3 个 exe，其余 6 个 sha 变来自共享 lib 重链",
+    "O3": "fma-toolchain-note 归因更正：f32::mul_add 在 opt0/opt3 运行时均非正确舍入，差异源是常量折叠 vs 运行时（单步反例 0x3f3daba1 vs 0x3f3daba0）",
+    "O4": "删除不可核的 CRLF 过程叙述，只保留终态可核：worktree .cu == HEAD blob（17814 B/LF 347/CR 0/62f0aa8a…），git diff --quiet exit 0",
+    "O5": "原始日志入证据：8 回归 materials/regressions/reg-*.log、world dir 与 scene-a 复算 materials/world-dir-and-scenea-replay.log、hfield 判据 materials/hfield-final.log"
+  }
 }

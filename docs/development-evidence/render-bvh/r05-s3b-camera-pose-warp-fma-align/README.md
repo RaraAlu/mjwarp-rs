@@ -76,12 +76,24 @@ pinned 上游相机 kernel `_cam_local_to_global_*_cuda_kernel_forward`
   非对角元 = `2*fma(q_a0,q_a1,±乘积)`（`q01/q02/q03` 为被加乘积）；
 - `CameraPose::from_fields` 调用点从 `crate::math::quat_to_mat` 改为 `warp_quat_to_mat`；
 - FMA 使用项目既有精确实现 `crate::math::fma::fma_f32`（硬件 `vfmadd231ss` 主路 + 整数软兜底），
-  **不用 `f32::mul_add`**：本工具链 debug 构建的软件路径实测差 1 ULP（机器证据
-  `materials/fma-toolchain-note.md`），会导致 debug/release 位型漂移；
+  **不用 `f32::mul_add`**（原因见 §4.1；实测证据 `materials/fma-toolchain-note.md`）；
 - `src/math/mod.rs`/`src/math/fma.rs` **零改动**（物理路径共用，fma 只被调用）；
 - `cast.rs` 内 `#[cfg(test)]` 新增 1 条位型单测（4 个案例：恒等 / hfield cam-side / scene-a cam-persp /
   随机抽样反例），无 CUDA、普通 `cargo test --locked` 可跑；
 - 行数：`cast.rs` **411 → 481 行（LF 口径，+72/−2）**，≤500 棘轮；`materials/line-counts.md`。
+
+### 4.1 为什么不用 `f32::mul_add`（QA 独立核对点）
+
+工具链：`rustc 1.99.0 (b940084d7 2026-09-28)`、host `x86_64-pc-windows-gnu`。
+
+- 实测单步反例：`fma(-q2, q2, s1)` 的正确单次舍入结果应为 `0x3f3daba1`，而 `f32::mul_add` 实测给出
+  `0x3f3daba0`（差 1 ULP；同一输入 `q11=3e83bec4`、`s0=3f4dc189`）。
+- QA 观察 O3 更正归因：`f32::mul_add` 在 **opt0 与 opt3 运行时都不是正确舍入**；此前把「`-O` 对 /
+  debug 错」误归因为 debug/release 差异，实际差异源是**常量折叠 vs 运行时**：`-O` 下该表达式被常量
+  折叠成正确值，运行时仍走非正确舍入路径；opt0 无常量折叠故暴露。
+- 结论不变且更强：**不能用 `f32::mul_add` 实现本片收缩序**；改用项目 `crate::math::fma::fma_f32`
+  （`vfmadd231ss` 单指令主路 + 整数精确软兜底；两种构建 profile 同序、单次舍入）。
+- 最小复现代码 + opt0/opt3 实测输出：`materials/fma-toolchain-note.md`。
 
 ## 5. 位级对照（`materials/cam-xmat-bits.json`）
 
@@ -100,6 +112,9 @@ pinned 上游相机 kernel `_cam_local_to_global_*_cuda_kernel_forward`
 - 8 条回归 8/8 exit 0；scene-a `cam-persp` 重放 9/9；
 - 三条硬门：hfield cam0/cam1 9/9、1003 条 9027 项 0 差异、scene-a 9/9。
 - 全部数字标注「本地调试、非验收」（`materials/local-debug-summary.md`）。
+- **原始日志已入证据（QA 观察 O5）**：`materials/regressions/reg-*.log`（8 条回归 exit 0 原文）、
+  `materials/world-dir-and-scenea-replay.log`（world dir 42449→0 与 scene-a 9/9 的复算输出）、
+  `materials/hfield-final.log`（hfield-only / hfield-primitive 两组判据输出原文，已转 UTF-8 LF）。
 
 ## 7. 门禁（`materials/gates.txt`，全部 exit 0）
 
@@ -108,19 +123,26 @@ fmt / clippy / clippy-cuda / `cargo test --locked`（**1092 passed / 0 failed / 
 内核三 sha 与父提交逐位相同：`source_sha256=72bc364c…`、`ptx_sha256=97467d83…`、`ptx_bytes=264 015`
 ⇒ 只改 host Rust，未触碰设备源（`DEVICE_SOURCES`/81 槽/`CollisionArgs` 不变）。
 
-环境说明：工作树 `src/render/kernel/cuda/render_megakernel.cu` 曾因环境原因呈 CRLF（git blob 仍 LF、
-`git status` 一度误报 M）；按 committed blob 归一化回 LF 后内核门 source_sha256 回到 `72bc364c…`
-（过程见 `materials/kernel-gate-after.log` 与 `materials/zero-change-paths.md`）。
+设备源**终态可核**（QA 观察 O4；`materials/zero-change-paths.md`）：工作树
+`src/render/kernel/cuda/render_megakernel.cu` 与 HEAD blob **逐字节相同** —— 17 814 B、LF **347** 行、
+CR **0**、sha256 **`62f0aa8a…`**；`git diff --quiet` exit 0、`git status -- src tests` 为空。
+即本片未改设备源，内核门三 sha 与父提交一致。
 
 ## 8. 影响面清单
 
 1. **改哪些文件/行数**：只 `src/render/kernel/cast.rs`（411→481，+72/−2）；`src/math` 不动。
-2. **哪些 exe/目标会变 sha**：只影响走 `CameraPose::from_fields` 的 host 派生路径。9 个 render
-   exe 中实际引用该路径的：`render_camera_rays`、`render_context_lifecycle`、`render_kernel_depth_seg`、
-   `render_kernel_flags`、`render_kernel_rgb`、`render_r08_cameras`、`render_r10_multi_world`、
-   `render_e2e`、`render_hfield_reference`；非 render 目标不引用（grep `CameraPose::from_fields`
-   调用方 = `src/render/**` + `tests/render_*`）。**任何 exe 的 sha 变化都来自 host Rust 重新编译，
-   与设备源/PTX 无关**（内核门三 sha 不变）。
+2. **哪些 exe/目标会变 sha（QA 观察 O2 更正）**：真正引用 `CameraPose::from_fields` 派生路径的测试
+   exe 只有 **3 个**：
+   - `render_e2e`（`tests/render_e2e.rs:160` 直接调用；对参考 `camera_data` 断言 xpos 位级、xmat ≤1 ULP）
+   - `render_kernel_depth_seg`（`tests/render_kernel_depth_seg.rs:144` 直接调用；`:137` 经
+     `s7b1::check_camera_data` 断言 ≤1e-6 容差）
+   - `render_hfield_reference`（`tests/support/render_bvh/hfield_scene.rs:220` 构造产品位姿）
+
+   其余 6 个 render exe（`render_camera_rays` / `render_context_lifecycle` / `render_kernel_flags` /
+   `render_kernel_rgb` / `render_r08_cameras` / `render_r10_multi_world`）使用
+   `s7b1::camera_data_poses`（参考 `camera_data` 位姿直传，不经过 `from_fields`，**语义零影响**）；
+   它们的 sha 变化来自**共享 lib 重链**，不是该派生路径被执行。所有 exe sha 变化均与设备源/PTX 无关
+   （内核门三 sha 不变）。
 3. **既有参考影响**：scene-a / scene-shadow 的位等实体走 `s7b1.rs::camera_data_poses` 直传参考
    `camera_data` 位姿（`tests/render_kernel_depth_seg.rs` 的 `poses[*].xmat` 位等断言仍对参考位型），
    不经过 `from_fields` ⇒ **零影响**；`render_e2e`/`render_kernel_depth_seg` 的容差断言重跑通过。
