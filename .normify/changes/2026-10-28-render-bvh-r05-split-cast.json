@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-split-cast",
+  "title": {
+    "zh": "R05 前置拆分②：`kernel/cast.rs` 494→≈414（纯移动，抽出 `MeshDevice` 到 `cast_mesh.rs`）",
+    "en": "R05 prerequisite split 2: cast.rs 494 -> ~414 (pure move of MeshDevice into cast_mesh.rs)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R05-S2 需在 `src/render/kernel/cast.rs`（**现 494 行**）增加 hfield mesh blob 打包/设备源（预计 +20~35 行）→ 必破 500 行棘轮（Chief 批准 S2 后 `cast.rs` ≤450），故先做**纯移动拆分**：把 L293-372 `MeshDevice`（80 行）抽到新 `src/render/kernel/cast_mesh.rs`（≈90 行，含 `to_i32` 随迁或 `pub(super)` 复用），`cast.rs` 保留 `pub use cast_mesh::MeshDevice;` 保持对外路径不变。拆后 `cast.rs` ≈414 行，S2 后 ≈434–449（≤450 ✓）。**零行为变化**：纯代码移动 + 导入/可见性调整；公开 API、设备 blob 布局、CUDA 源字符串、`MEGAKERNEL_SLOTS` 81 槽、测试断言零改动。备选再抽 L182-292（`SceneDevice` 111 行）**未批**，不在本片做。",
+    "en": "Pure-move split of MeshDevice out of cast.rs to make room for R05-S2."
+  },
+  "modules": {},
+  "acceptance": [
+    "抽出内容与落点：L293-372 `MeshDevice`（80 行）→ `cast_mesh.rs` ≈90 行；`cast.rs` 拆后 ≈414 行（≤500，目标 ≤430）、新文件 ≤500 行；`pub use cast_mesh::MeshDevice;` 保持对外导入路径不变。",
+    "**纯移动**：公开 API 零变化、设备 blob 布局与打包顺序零变化、`MEGAKERNEL_SOURCE`/CUDA 源拼接零变化且 **PTX `source_sha256`/`ptx_sha256`/字节数与拆分前一致**（跑一次内核编译门对照）、测试断言零改动；`git diff` 只体现归属/导入/`pub(super)` 可见性。",
+    "零行为回归：`cargo fmt --check`、`cargo clippy --all-targets --locked -- -D warnings`、`cargo test --locked` **1069 过 / 0 败**（含 S7b1/S7b2/S7b3/S8 位等回归）；证据记录拆前/拆后内核门对照。",
+    "新文件登记 `mjwarp.render` 模块源并刷新指纹（`validate --fingerprints` 错误 0）；证据记 sources 计数前后。",
+    "红线：`render.cu`(499)/`launch.rs`(500)/`model/render.rs`(500)/`camera_output.rs`(499) 零改动；`DEVICE_SOURCES`=28、入口 6、`CollisionArgs` 504 B、81 槽 ABI 不动。",
+    "四门禁绑最终树通过；证据 `docs/development-evidence/render-bvh/r05-split-cast/`（README + receipt 含 `/task_id` + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0）；两段提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r05-split-megakernel"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/cast.rs",
+      "src/render/kernel/cast_mesh.rs",
+      "docs/development-evidence/render-bvh/r05-split-cast/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-28 登记（Chief 批准顺序：拆① → QA → 拆② → QA → S2，不并行）。备选再抽 cast.rs L182-292 未批。",
+  "revision": {
+    "before": "9541f1288817dc06e7fda23c2dc7381a652400fd",
+    "after": null
+  },
+  "created_at": "2026-10-28T14:24:00.000Z",
+  "updated_at": "2026-10-28T14:24:54.879Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-split-cast/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-split-cast"
+    }
+  ]
+}

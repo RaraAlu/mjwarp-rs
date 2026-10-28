@@ -1,0 +1,91 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-split-cast",
+  "kind": "render-bvh-r05-split-cast",
+  "stage": "pure-move-complete",
+  "head": "4a5a84498ce2e4022f4076f297198581e036ee0b",
+  "split": {
+    "cast_rs": {"before": 494, "after": 411, "moved_lines": "L284-372 (MeshDevice type doc + struct + impl, 89 lines)"},
+    "cast_mesh_rs": {"before": null, "after": 102, "content": "file header 13 lines + moved block 89 lines"},
+    "kernel_mod_rs": {"before": 474, "after": 474, "delta": 0, "content": "zero change; submodule declared with #[path] inside cast.rs"}
+  },
+  "submodule_declaration": {
+    "method": "#[path = \"cast_mesh.rs\"] mod cast_mesh; (private mod inside cast.rs, after the dependency block) + pub use cast_mesh::MeshDevice;",
+    "kernel_mod_rs_unchanged": true,
+    "reason": "card files/scope exclude src/render/kernel/mod.rs; same precedent as split 1 (megakernel.rs) and lighting.rs"
+  },
+  "plan_vs_actual": {
+    "approved": "extract L293-372 MeshDevice (80 lines) into cast_mesh.rs (~90 lines); cast.rs ~414 (target <=430); keep pub use cast_mesh::MeshDevice;",
+    "actual": "extracted L284-372 (89 lines, including the type doc comment which must travel with the type); cast.rs 411 (target <=430 met); new file 102 lines",
+    "reason": "type doc comment L284-291 belongs to MeshDevice and would otherwise attach to the next item; to_i32 stays in cast.rs as pub(super) because SceneDevice and CameraDevice also use it (the approved plan allowed either moving it or pub(super) reuse)"
+  },
+  "pure_move_evidence": {
+    "moved_block_byte_identical": {
+      "old_range": "cast.rs L284-372 (HEAD 4a5a8449)",
+      "new_location": "cast_mesh.rs moved block",
+      "sha256_of_block": "0B68B0C930D1A09B15A819804AD61C3EE762D028F0C67C847690D44BF643C96E",
+      "block_bytes": 3296
+    },
+    "kernel_compile_gate": {
+      "test": "megakernel_source_compiles_under_render_gate",
+      "source_sha256_before": "2d2c27df985882c2b571514579dff19f9103bfc903ec786db42a592ce1bd8c2a",
+      "source_sha256_after": "2d2c27df985882c2b571514579dff19f9103bfc903ec786db42a592ce1bd8c2a",
+      "ptx_sha256_before": "e955bb4b0280228639f3e544b459873c83d1dae672662a43a96cccc8dabc4ffa",
+      "ptx_sha256_after": "e955bb4b0280228639f3e544b459873c83d1dae672662a43a96cccc8dabc4ffa",
+      "ptx_bytes_before": 258660,
+      "ptx_bytes_after": 258660,
+      "identical": true
+    },
+    "public_api_unchanged": true,
+    "device_blob_layout_and_pack_order_unchanged": true,
+    "megakernel_source_and_cuda_concat_unchanged": true,
+    "test_assertions_unchanged": true,
+    "tests_dir_diff_empty": true,
+    "tests": {"passed": 1069, "failed": 0, "note": "same count as before the split; includes S7b1/S7b2/S7b3/S8 bitwise regressions"},
+    "git_diff_nature": "cast.rs: import narrowed from {MeshBvh, MeshNodeKind, NodeKind, SceneBvh} to {NodeKind, SceneBvh}; +9 lines for the #[path] submodule declaration and pub use; to_i32 marked pub(super); 89-line block removed. New file = file header + 3 imports (MeshBvh, MeshNodeKind, LauncherError, super::to_i32) + the moved block unchanged."
+  },
+  "module_sources": {"before": 37, "after": 38, "registered": "src/render/kernel/cast_mesh.rs"},
+  "redlines": {
+    "render_cu_lines": 499,
+    "launch_rs_lines": 500,
+    "model_render_rs_lines": 500,
+    "camera_output_rs_lines": 499,
+    "megakernel_slots": 81,
+    "device_sources": 28,
+    "entry_points": 6,
+    "collision_args_bytes": 504,
+    "args_rs_lines": 494,
+    "megakernel_rs_lines": 406,
+    "megakernel_uploads_rs_lines": 384,
+    "cuda_files_touched": 0,
+    "megakernel_source_concat_changed": false
+  },
+  "gates": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy_cuda": "pass",
+    "unit": "1069 passed / 0 failed",
+    "kernel_compile_gate": "pass (sha identical)"
+  },
+  "logs": {
+    "fmt": "docs/development-evidence/render-bvh/r05-split-cast/logs/fmt.log",
+    "clippy": "docs/development-evidence/render-bvh/r05-split-cast/logs/clippy.log",
+    "unit": "docs/development-evidence/render-bvh/r05-split-cast/logs/test.log",
+    "kernel_gate_before": "docs/development-evidence/render-bvh/r05-split-cast/logs/kernel-gate-before.log",
+    "kernel_gate_after": "docs/development-evidence/render-bvh/r05-split-cast/logs/kernel-gate-after.log",
+    "lines": "docs/development-evidence/render-bvh/r05-split-cast/logs/lines.log"
+  },
+  "limits": [
+    "pure move only: no behavior/numeric/criteria change",
+    "S2 remains blocked on this split's QA review before writing",
+    "cast.rs (411) and cast_mesh.rs (102) are both within the 500-line ratchet; S2 hfield mesh blob packing adds ~20-35 lines (target <=450)",
+    "the optional second extraction of SceneDevice (original L182-292) was not approved and was not performed"
+  ],
+  "claims": {
+    "pure_move": true,
+    "api_unchanged": true,
+    "abi_unchanged": true,
+    "cuda_sources_unchanged": true,
+    "ptx_sha_identical": true,
+    "no_gpu_no_window": true
+  }
+}

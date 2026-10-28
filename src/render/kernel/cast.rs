@@ -14,11 +14,18 @@
 
 use crate::math::quat_to_mat;
 use crate::model::render::{FieldData, RenderFields};
-use crate::render::bvh::{MeshBvh, MeshNodeKind, NodeKind, SceneBvh};
+use crate::render::bvh::{NodeKind, SceneBvh};
 use crate::render::camera::CameraModel;
 use crate::render::context::ResolvedContext;
 use crate::render::context::owner::SceneState;
 use crate::runtime::launcher::LauncherError;
+
+// 拆分②：网格三角 BVH 打包以 `#[path]` 在本文件内声明为子模块，父模块 `kernel/mod.rs` 零改动
+// （卡片 scope 只含 `cast.rs` 与新文件；`megakernel.rs` 拆分①同款先例）。
+#[path = "cast_mesh.rs"]
+mod cast_mesh;
+
+pub use cast_mesh::MeshDevice;
 
 /// 渲染输入解析错误。
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -281,96 +288,6 @@ impl SceneDevice {
     }
 }
 
-/// 网格三角 BVH 的 device 打包（`render.cu::ray_mesh_leaf` 消费）。
-///
-/// 逐网格段（`mesh_offsets[i] = (meta 基址, params 基址)`）：
-///
-/// ```text
-/// meta   = [n_nodes, n_tri, n_vert, root, links(2*n_nodes), order(n_tri), indices(3*n_tri)]
-/// params = [node bounds 6*n_nodes, vertices 3*n_vert]
-/// ```
-#[derive(Clone, Debug, PartialEq)]
-pub struct MeshDevice {
-    pub meta: Vec<i32>,
-    pub params: Vec<f32>,
-    /// 每网格 `(meta 基址, params 基址)`，按 `Vec2I` 元素上传。
-    pub offsets: Vec<[i32; 2]>,
-}
-
-impl MeshDevice {
-    /// 按 context 拥有的网格 BVH 顺序打包（含 `set_points` + 显式 `refit` 后的节点）。
-    pub fn pack(meshes: &[&MeshBvh]) -> Result<Self, LauncherError> {
-        let mut meta = Vec::new();
-        let mut params = Vec::new();
-        let mut offsets = Vec::with_capacity(meshes.len());
-        for mesh in meshes {
-            let nodes = mesh.nodes();
-            let n_nodes = nodes.len();
-            let triangles = mesh.triangle_count();
-            let vertices = mesh.vertices();
-            if n_nodes == 0 || triangles == 0 || vertices.is_empty() {
-                return Err(LauncherError::InvalidArray("mesh_bvh"));
-            }
-            offsets.push([
-                to_i32(meta.len(), "mesh_meta_offset")?,
-                to_i32(params.len(), "mesh_params_offset")?,
-            ]);
-            meta.push(to_i32(n_nodes, "mesh_nodes")?);
-            meta.push(to_i32(triangles, "mesh_triangles")?);
-            meta.push(to_i32(vertices.len(), "mesh_vertices")?);
-            meta.push(to_i32(n_nodes, "mesh_root")? - 1);
-            for node in nodes {
-                match node.kind {
-                    MeshNodeKind::Internal { left, right } => {
-                        meta.push(to_i32(left as usize, "mesh_child")?);
-                        meta.push(to_i32(right as usize, "mesh_child")?);
-                    }
-                    MeshNodeKind::Leaf { begin, end } => {
-                        meta.push(-to_i32(begin as usize, "mesh_leaf")? - 1);
-                        meta.push(to_i32(end as usize, "mesh_leaf")?);
-                    }
-                }
-            }
-            for triangle in mesh.leaf_order() {
-                meta.push(to_i32(*triangle as usize, "mesh_order")?);
-            }
-            for index in mesh.indices() {
-                meta.push(to_i32(*index as usize, "mesh_index")?);
-            }
-            for node in nodes {
-                params.extend_from_slice(&node.bounds.lower);
-                params.extend_from_slice(&node.bounds.upper);
-            }
-            for vertex in vertices {
-                params.extend_from_slice(vertex);
-            }
-        }
-        Ok(Self {
-            meta,
-            params,
-            offsets,
-        })
-    }
-
-    pub fn len(&self) -> usize {
-        self.offsets.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.offsets.is_empty()
-    }
-
-    /// 展平的 `(meta, params)` 偏移（`Vec2I` 数组内容）。
-    pub fn flat_offsets(&self) -> Vec<i32> {
-        let mut flat = Vec::with_capacity(2 * self.offsets.len());
-        for [meta, params] in &self.offsets {
-            flat.push(*meta);
-            flat.push(*params);
-        }
-        flat
-    }
-}
-
 /// 按激活相机顺序打包的相机参数/位姿/输出偏移（`render.cu` 内核按 `camid` 读取）。
 #[derive(Clone, Debug, PartialEq)]
 pub struct CameraDevice {
@@ -462,7 +379,7 @@ impl CameraDevice {
     }
 }
 
-fn to_i32(value: usize, field: &'static str) -> Result<i32, LauncherError> {
+pub(super) fn to_i32(value: usize, field: &'static str) -> Result<i32, LauncherError> {
     i32::try_from(value).map_err(|_| LauncherError::Overflow(field))
 }
 
