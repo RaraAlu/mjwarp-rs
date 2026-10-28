@@ -1,0 +1,126 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-s1-hfield-params",
+  "kind": "render-bvh-r05-s1-hfield-params",
+  "stage": "implemented-tested-gated-host-only",
+  "head": "4723fd4402572d14f03f77bd64ac6331a0867447",
+  "numeric_conclusions": false,
+  "window_executed": false,
+  "files": [
+    {
+      "path": "src/render/context/hfield.rs",
+      "lines": 332,
+      "new": true,
+      "content": "HfieldInputs read-only input + HfieldView/HfieldParams views + HfieldError + resolve_hfield (validation only, no panic)"
+    },
+    {
+      "path": "src/render/context/params.rs",
+      "lines": 193,
+      "delta": "+4",
+      "content": "#[path = \"hfield.rs\"] pub mod hfield; module mount + doc note"
+    },
+    {
+      "path": "src/render/mod.rs",
+      "lines": 384,
+      "delta": "+2",
+      "content": "pub use context::params::hfield::{HfieldError, HfieldInputs, HfieldParams, HfieldView, resolve_hfield};"
+    },
+    {
+      "path": "tests/render_hfield_params.rs",
+      "lines": 284,
+      "new": true,
+      "content": "10 host-only unit tests covering all acceptance cases"
+    }
+  ],
+  "ruling_a": {
+    "date": "2026-10-28",
+    "card_original_signature": "resolve_hfield(&RenderFields)",
+    "measured_conflict": "RENDER_FIELDS has 116 specs and no hfield fields; RenderFields::field(\"hfield_*\") is always None; RenderFields::new cannot inject extra fields; src/model/render.rs is a 500-line redline file outside this card scope; src/io/render.rs reads only the 116 fields from the native render_stage",
+    "decision": "signature changed to resolve_hfield(&HfieldInputs); HfieldInputs is defined in src/render/context/hfield.rs; the render-side hfield data channel is delegated to 2026-10-28-render-bvh-r05-hfield-channel (proposed, S2 prerequisite); S2 data-source adapter gets its own card",
+    "equivalence_map": [
+      {"card": "five fields must be provided simultaneously", "implemented": "HfieldInputs five Options; any_present/all_present/first_missing; partial -> HfieldError::MissingField{field}"},
+      {"card": "missing any -> MissingField", "implemented": "MissingField names the first missing field (hfield_size/hfield_nrow/hfield_ncol/hfield_adr/hfield_data)"},
+      {"card": "kind mismatch -> FieldKind", "implemented": "strong-typed HfieldInputs handles types at compile time; runtime shape mismatch is size.len() != 4*nhfield -> LengthMismatch (test size_shape_mismatch_is_rejected)"},
+      {"card": "size length = 4*nhfield", "implemented": "size.len() == 4*nhfield (checked_mul then LengthMismatch)"},
+      {"card": "nrow/ncol/adr length = nhfield", "implemented": "nhfield = nrow.len(); three lengths must match else LengthMismatch{field,expected,actual}"},
+      {"card": "data.len() >= sum(nrow*ncol)", "implemented": "per-entry adr+span <= data.len() plus explicit sum(span) <= data.len() (overlapping adr covered; else LengthMismatch)"},
+      {"card": "nhfield=0 legal -> None", "implemented": "all None or all empty slices -> Ok(None)"},
+      {"card": "nrow<=0 || ncol<=0 rejected", "implemented": "HfieldError::NonPositiveRowsCols{index,nrow,ncol}"},
+      {"card": "nrow*ncol overflow", "implemented": "checked_mul/checked_add -> CountOverflow{field}; unreachable for i32 products on 64-bit usize, defensive only"},
+      {"card": "adr<0 or adr+span>data.len() readable error", "implemented": "HfieldError::DataRange{index,field,start,end,actual} with index/expected/actual"},
+      {"card": "no panic on any path", "implemented": "no unwrap on user data, no index OOB, try_reserve_exact failure -> CountOverflow"},
+      {"card": "single copy (no nworld read, no per-world duplication)", "implemented": "HfieldInputs has no nworld; resolve_hfield takes no world argument; view count == nhfield"}
+    ]
+  },
+  "validation_matrix": [
+    "all None -> Ok(None); any Some with others None -> MissingField",
+    "ncol.len() != nrow.len() or adr.len() != nrow.len() -> LengthMismatch",
+    "size.len() != 4*nhfield -> LengthMismatch",
+    "nhfield == 0 (all empty slices) -> Ok(None)",
+    "nrow<=0 || ncol<=0 -> NonPositiveRowsCols; span = checked nrow*ncol",
+    "adr<0 -> DataRange; adr+span > data.len() -> DataRange",
+    "sum(span) > data.len() -> LengthMismatch (overlapping adr guard)",
+    "success -> HfieldParams{data, hfields}; data_of(index) returns the height slice"
+  ],
+  "tests": {
+    "file": "tests/render_hfield_params.rs",
+    "count": 10,
+    "result": "10 passed / 0 failed",
+    "names": [
+      "accepts_two_valid_hfields",
+      "no_hfield_is_legal_and_returns_none",
+      "partial_fields_report_first_missing_field",
+      "size_shape_mismatch_is_rejected",
+      "row_col_adr_lengths_must_match",
+      "adr_out_of_range_is_reported_with_index",
+      "non_positive_rows_or_cols_are_rejected",
+      "extreme_span_does_not_panic_and_reports_range",
+      "empty_field_set_is_legal_and_returns_none",
+      "resolution_is_single_copy_and_stable"
+    ],
+    "note": "the original card's 'kind mismatch' case is carried by size_shape_mismatch_is_rejected (size.len() != 4*nhfield), per ruling A"
+  },
+  "redlines": {
+    "render_cu_lines": 499,
+    "launch_rs_lines": 500,
+    "cast_rs_lines": 494,
+    "model_render_rs_lines": 500,
+    "camera_output_rs_lines": 499,
+    "megakernel_rs_lines": 490,
+    "device_sources": 28,
+    "entry_points": 6,
+    "collision_args_bytes": 504,
+    "fixtures_precision_untouched": true,
+    "cu_files_touched": 0,
+    "megakernel_slots": 81,
+    "hfield_bvh_id_slot": "still the existing placeholder upload [0u32, 0]; slot semantics unchanged in this slice"
+  },
+  "upstream_anchors": {
+    "render_py": "mujoco_warp/_src/render.py @ 71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "lines": ["L332 _texture_hfield", "L462-464 / L682-685 HFIELD branches", "L623 / L858 hfield_bvh_id"]
+  },
+  "single_copy": {
+    "rule": "hfield static arrays are single-copy (no nworld read, no per-world duplication)",
+    "backlog": "2026-10-28-render-per-world-geom-light-gap"
+  },
+  "uncovered": [
+    "render-side hfield data channel not wired (RENDER_FIELDS/io/render.rs/native model_probe.cpp have no hfield); delegated to 2026-10-28-render-bvh-r05-hfield-channel (proposed, S2 prerequisite)",
+    "S2 data-source adapter (build HfieldInputs from existing collision/volume inputs) gets its own card",
+    "device-side hfield BVH and kernel intersection not implemented (S2); hfield_bvh_id slot semantics unchanged",
+    "no upstream 2D numeric/equivalence verification; no window verdict in this slice"
+  ],
+  "logs": {
+    "test": "docs/development-evidence/render-bvh/r05-s1-hfield-params/logs/test.log",
+    "clippy": "docs/development-evidence/render-bvh/r05-s1-hfield-params/logs/clippy.log",
+    "fmt": "docs/development-evidence/render-bvh/r05-s1-hfield-params/logs/fmt.log",
+    "lines": "docs/development-evidence/render-bvh/r05-s1-hfield-params/logs/lines.log"
+  },
+  "claims": {
+    "host_validation_implemented": true,
+    "unit_tests_passed": true,
+    "gates_pending_record": true,
+    "no_gpu": true,
+    "no_window": true,
+    "no_rendering_numeric_conclusion": true,
+    "abi_unchanged": true
+  }
+}

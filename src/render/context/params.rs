@@ -13,6 +13,10 @@ use crate::render::camera::CameraActive;
 #[path = "lighting.rs"]
 pub mod lighting;
 
+/// R05-S1 地形 hfield 静态参数（文件位于 `context/`，按任务范围由本文件以 `#[path]` 声明）。
+#[path = "hfield.rs"]
+pub mod hfield;
+
 /// 上游默认 `enabled_geom_groups=[0, 1, 2]`。
 pub const DEFAULT_GEOM_GROUPS: [i32; 3] = [0, 1, 2];
 

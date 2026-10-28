@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-s1-hfield-params",
+  "title": {
+    "zh": "R05-S1：地形 hfield 静态参数校验与宿主解析（纯宿主，无窗口）",
+    "en": "R05-S1: terrain hfield static parameter validation and host resolution (host-only, no window)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R05（地形/height field）第一片：在渲染上下文宿主侧校验并解析 MuJoCo 的 hfield 静态数组（`hfield_size` float4/hfield、`hfield_nrow`/`hfield_ncol`/`hfield_adr` index/hfield、`hfield_data` float，长度按 `nrow*ncol` 跨度），提供只读视图供 S2 建 hfield BVH 与内核相交使用。本片**纯宿主**：不分配设备资源、不改 81 槽 ABI（`hfield_bvh_id` 仍是既有占位槽，S2 再接入实际 BVH）、不发射内核、无 GPU 窗口、不写任何渲染数值结论。错误面诊断可读、不 panic：缺字段 / 类型错配 / 长度不一致 / `adr` 越界 / `nrow*ncol` 溢出 / 非正行数。hfield 数组按**单份**处理（不随 nworld 复制），沿用 R10 的单份口径。",
+    "en": "Host-side validation and resolution of hfield static arrays for the render context; no device resources, no ABI change, no window."
+  },
+  "modules": {},
+  "acceptance": [
+    "新增 `src/render/context/hfield.rs`：`HfieldParams` 只读视图 + `resolve_hfield(&RenderFields)`；五个字段必须同时提供，缺任一为 `MissingField`；类型错配 `FieldKind`；`hfield_size` 长度 = nhfield、`nrow`/`ncol`/`adr` 长度 = nhfield；`hfield_data` 长度必须 ≥ Σ(nrow*ncol)（不足报 `LengthMismatch`）。",
+    "边界：`nhfield=0`（全字段空/全缺失）合法返回 None，不新增上游未拒绝的输入；`nrow<=0 || ncol<=0` 拒绝；`nrow*ncol` 用 checked_mul，溢出报 `CountOverflow`；`adr<0` 或 `adr + nrow*ncol > data.len()` 报可读错误（含 field/expected/actual 或 index），**任何路径不 panic**。",
+    "hfield 数组**单份**：代码不读 `nworld`、不复制 per-world；文档与测试钉住（沿用 backlog `2026-10-28-render-per-world-geom-light-gap` 口径，不宣称上游 2D 等价）。",
+    "不改 81 槽签名：`MEGAKERNEL_SLOTS.len()==81` 断言不变；`hfield_bvh_id` 仍为既有占位上传（`[0u32,0]`），本片不动其语义，S2 再接入实际 BVH 并在证据里说明。",
+    "新 `tests/render_hfield_params.rs` 覆盖：合法两 hfield 解析、无 hfield 合法、部分字段缺失、类型错配、长度不一致、adr 越界、非正行数、乘积溢出、空字段集、单份不随 nworld 复制；每例断言错误种类与关键字段，不 panic。",
+    "红线：`render.cu`(499)/`launch.rs`(500)/`cast.rs`(494)/`model/render.rs`(500)/`camera_output.rs`(499) 零改动；`DEVICE_SOURCES`=28、入口=6、`CollisionArgs` 504 B、`fixtures/precision` 零改动；新文件 ≤500 行。",
+    "四门禁（fmt/clippy/clippy-cuda/unit）绑最终树通过；证据 `docs/development-evidence/render-bvh/r05-s1-hfield-params/`（README + receipt 含 `/task_id` + manifest 按 committed blob 且不自引用），LF 无 BOM、禁词 0，**不写任何渲染数值结论**。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/context/",
+      "src/render/mod.rs",
+      "tests/render_hfield_params.rs",
+      "docs/development-evidence/render-bvh/r05-s1-hfield-params/"
+    ],
+    "resources": [],
+    "priority": 58
+  },
+  "note": "Arch 2026-10-28 登记（Chief 拍板 R05 优先，B/R02 暂缓）：S1 纯宿主校验/解析；S2（设备侧 hfield 相交 + e2e）需单独报 authoring 捕获材料与验证窗材料给 Chief 签。上游锚点：render.py L332 `_texture_hfield`、L462-464/L682-685 HFIELD 分支、L623/L858 `hfield_bvh_id`。",
+  "revision": {
+    "before": "22612a0d7786a2ea308e332588dbcb2cede03492",
+    "after": null
+  },
+  "created_at": "2026-10-28T13:25:00.000Z",
+  "updated_at": "2026-10-28T13:21:47.075Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-s1-hfield-params/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-s1-hfield-params"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
