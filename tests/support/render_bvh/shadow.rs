@@ -236,7 +236,7 @@ pub fn seg_difference_pixels(left: &ShadowReference, right: &ShadowReference) ->
 }
 
 /// 参考 float32 通道值 → packed byte（`get_rgb` 输出是 `byte/255` 的 f32）。
-fn quantize_channel(value: f32, what: &str, group: &str, camera: usize) -> u8 {
+pub(super) fn quantize_channel(value: f32, what: &str, group: &str, camera: usize) -> u8 {
     let scaled = value * 255.0;
     let rounded = scaled.round();
     assert!(
@@ -250,7 +250,7 @@ fn quantize_channel(value: f32, what: &str, group: &str, camera: usize) -> u8 {
     rounded as u8
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
+pub(super) fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     format!("{:x}", hasher.finalize())
@@ -258,7 +258,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 // ---- 最小 npz 解析（ZIP_STORED + npy v1.0；本仓库夹具专用） ----
 
-fn read_npz(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
+pub(super) fn read_npz(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
     let mut members = Vec::new();
     let mut offset = 0usize;
     while offset + 30 <= bytes.len() {
@@ -302,7 +302,7 @@ fn read_npz(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
 }
 
 /// 解析 npy：返回 `(descr, shape, raw data)`（只支持小端 f4/i4 + C 顺序）。
-fn parse_npy(bytes: &[u8]) -> (String, Vec<usize>, Vec<u8>) {
+pub(super) fn parse_npy(bytes: &[u8]) -> (String, Vec<usize>, Vec<u8>) {
     assert_eq!(&bytes[..6], b"\x93NUMPY", "npy magic");
     let major = bytes[6];
     let (header_len, header_start) = match major {
@@ -355,7 +355,7 @@ fn extract_shape(header: &str) -> Vec<usize> {
         .collect()
 }
 
-fn f32_member(members: &[(String, Vec<u8>)], name: &str) -> ((usize, usize), Vec<f32>) {
+pub(super) fn f32_member(members: &[(String, Vec<u8>)], name: &str) -> ((usize, usize), Vec<f32>) {
     let (descr, shape, data) = member(members, name);
     assert_eq!(descr, "<f4", "{name} descr");
     assert_eq!(shape.len(), 2, "{name} shape 维度");
@@ -369,7 +369,10 @@ fn f32_member(members: &[(String, Vec<u8>)], name: &str) -> ((usize, usize), Vec
     ((shape[0], shape[1]), values)
 }
 
-fn i32_member(members: &[(String, Vec<u8>)], name: &str) -> ((usize, usize, usize), Vec<i32>) {
+pub(super) fn i32_member(
+    members: &[(String, Vec<u8>)],
+    name: &str,
+) -> ((usize, usize, usize), Vec<i32>) {
     let (descr, shape, data) = member(members, name);
     assert_eq!(descr, "<i4", "{name} descr");
     assert_eq!(shape.len(), 3, "{name} shape 维度");
@@ -388,7 +391,10 @@ fn i32_member(members: &[(String, Vec<u8>)], name: &str) -> ((usize, usize, usiz
 }
 
 /// RGB 成员按 `[h, w, 3]` 读取（与 depth 的形状断言配合）。
-fn f32_member_rgb(members: &[(String, Vec<u8>)], name: &str) -> ((usize, usize), Vec<f32>) {
+pub(super) fn f32_member_rgb(
+    members: &[(String, Vec<u8>)],
+    name: &str,
+) -> ((usize, usize), Vec<f32>) {
     let (descr, shape, data) = member(members, name);
     assert_eq!(descr, "<f4", "{name} descr");
     assert_eq!(shape.len(), 3, "{name} shape 维度");
@@ -407,7 +413,7 @@ fn f32_member_rgb(members: &[(String, Vec<u8>)], name: &str) -> ((usize, usize),
     ((shape[0], shape[1]), values)
 }
 
-fn member(members: &[(String, Vec<u8>)], name: &str) -> (String, Vec<usize>, Vec<u8>) {
+pub(super) fn member(members: &[(String, Vec<u8>)], name: &str) -> (String, Vec<usize>, Vec<u8>) {
     let (_, bytes) = members
         .iter()
         .find(|(member_name, _)| member_name == name)

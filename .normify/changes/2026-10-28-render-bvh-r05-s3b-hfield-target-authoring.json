@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-s3b-hfield-target-authoring",
+  "title": {
+    "zh": "R05-S3b hfield 目标实体离线 authoring（窗口延后期间先写测试与守卫骨架）",
+    "en": "R05-S3b hfield target-entity offline authoring (test entity and guard skeleton before the window)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "S3a 采集窗因上载占用未达标而延后（硬门 3 失败，未开窗未采集）。本片在窗口前把 S3b 需要的东西全部**离线**写好：新的 hfield 目标实体测试、8 个回归实体清单与 guards 骨架、以及窗口 runner 的实体表。**不跑 GPU、不开窗、不给任何渲染数值结论**；判据沿用既有口径（RGB ≤1 LSB 位级优先 / depth ≤4 ULP 位级优先 / seg 完全相等 / 两次 sha 相同），不新增、不放宽。这样一旦窗口达标，窗内只需跑实体+比对，不用再写代码。",
+    "en": "Offline authoring of the R05-S3b hfield target test entity, regression entity list, and guard skeleton while the S3a capture window is postponed. No GPU, no window, no numerical render conclusions."
+  },
+  "modules": {},
+  "acceptance": [
+    "**目标实体**：新 `tests/render_hfield_reference.rs`，与 R09-S3b 同款护栏（feature 门 + `#[ignore]`，只在验证窗内以 pinned 方式运行），读取 `fixtures/render-bvh/scene-hfield/capture-hfield/{hfield-only,hfield-primitive}/` 的 `rgb.npz`/`depth.npz`/`seg.npz`/`capture.json`，对 cam0/cam1 各比 rgb/depth/seg；构造 SceneState 时必须先 `build_hfield_mesh(...)` 再取 `half()` 填 `SceneLeaf.size`（S2 O5 约定，不得 host 侧重推）。",
+    "**断言强度**：复用现有 `tests/support` 比较函数（`s7b2::diff_rgb` / `diff_depth` / `diff_seg`），断言不得弱化成「跑过即通过」；超判据时必须打印每相机每产物的比较规模（像素数）与超判据计数、max diff/ULP，便于 QA 独立重算。",
+    "**回归实体与守卫骨架**：8 个回归实体与 R09-S3b `guards.json` 的 `source=regression` 同清单（`render_camera_rays`/`render_context_lifecycle`/`render_e2e`/`render_kernel_depth_seg`/`render_kernel_flags`/`render_kernel_rgb`/`render_r08_cameras`/`render_r10_multi_world`），给出窗口 runner 所需实体表与 `guards.json` 骨架（**只写骨架，不实跑、不出数值**）。",
+    "**本地可验证部分**：`cargo fmt --check`、`cargo clippy --all-targets --locked -- -D warnings`、`cargo test --locked --no-run`（或定向编译）通过；不要求任何 GPU；不改既有测试的语义与断言（新增文件为主，必要时最小登记）。",
+    "**纪律**：不开 GPU 窗口、不跑采集、不产生渲染数值结论；证据 `docs/development-evidence/render-bvh/r05-s3b-hfield-target-authoring/`（README + receipt + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0）；两段提交并可被 QA 只读复核。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r05-s2-hfield-intersect-r2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_hfield_reference.rs",
+      "tests/support/render_bvh/",
+      "docs/development-evidence/render-bvh/r05-s3b-hfield-target-authoring/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-28 预登记（S3a 窗口延后期间的离线 authoring）。开窗仍需 S3a 采集收口；本片不产生任何渲染数值结论。",
+  "revision": {
+    "before": "6b95bad56b0d2c2b7ad2eb99e95f1d37302c4acc",
+    "after": null
+  },
+  "created_at": "2026-10-29T00:05:00.000Z",
+  "updated_at": "2026-10-28T15:53:29.969Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-s3b-hfield-target-authoring/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-s3b-hfield-target-authoring"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "窗口通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
