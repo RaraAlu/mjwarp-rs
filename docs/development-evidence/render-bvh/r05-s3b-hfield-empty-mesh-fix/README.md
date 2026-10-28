@@ -163,3 +163,10 @@ cargo test --locked --features cuda-probe --test render_hfield_reference -- --ig
 - 本片**零渲染数值验收结论**；hfield 目标的判据红（cam1 depth）未解决，窗口 attempt2 与 guards 重冻结全部暂缓。
 - 本地调试跑是调试信息，不构成窗口证据；`target/render-bvh/r05-s3b-window/attempt1/` 原样保留未覆盖（attempt=1 已作废）。
 - 未开窗、未重冻结、未改判据/容差/参考/fixture。
+
+## 14. 收口
+
+- 任务卡 `2026-10-28-render-bvh-r05-s3b-hfield-empty-mesh-fix` 已由 `normify done` 置 **verified**（本片无 gate 引用；四门禁与本机门禁数字见 §6 与 materials）。
+- 提交链：代码 `dce78b1f`（2 源文件 + 本任务卡）→ 证据 `e262e682`（本目录）→ 本收口提交（卡状态 + 模块指纹 + README/manifest）。
+- 本片**未开窗、未重冻结 guards、未改判据/容差/参考**；`target/render-bvh/r05-s3b-window/attempt1/`（attempt=1 无效轮）原样保留。
+- 后续：hfield cam1 depth 判据红由只读 RCA 片 `2026-10-28-render-bvh-r05-s3b-hfield-cam1-depth-rca` 处理；重冻结与 attempt=2 窗口待该 RCA 有结论后再议。
