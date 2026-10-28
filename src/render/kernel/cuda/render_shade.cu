@@ -294,6 +294,80 @@ __device__ __forceinline__ V3 sample_texture(const int* geom_type, const int* me
     return v3(tex_color[0], tex_color[1], tex_color[2]);
 }
 
+// R02-S1：上游 `sample_skybox`（`render.py` L494-556）。
+//
+// 语义：天空盒在 MuJoCo 里是**竖排 2D** 纹理（`tex_height = 6*tex_width`，face 顺序
+// +X,-X,+Y,-Y,+Z,-Z；上游 `render_util.py` L514-535 只取 `tex_width` 作 face 宽度、
+// 用普通 `wp.Texture2D` 上传，L554 用 `v=(face+t)/6` 落到竖排）。世界方向先按 GL3
+// 约定旋转（S=x, T=z, R=-y），按最大轴选 face，再按该轴归一化出 sc/tc：
+//   face 0 (+X): sc=-rz, tc=-ry    face 1 (-X): sc= rz, tc=-ry
+//   face 2 (+Y): sc= rx, tc= rz    face 3 (-Y): sc= rx, tc=-rz
+//   face 4 (+Z): sc= rx, tc=-ry    face 5 (-Z): sc=-rx, tc=-ry
+// `s/t=(safe_div(x,ma)+1)*0.5`，`t` 夹在 `[0.5*face_width_inv, 1-0.5*face_width_inv]`，
+// 防止竖排相邻面在 LINEAR 过滤下串色（上游 L550-552 注释同义）。
+__device__ __forceinline__ V3 sample_skybox(wp::texture2d_t tex, float face_width_inv,
+                                            V3 ray_dir_world) {
+    // L503-505：GL3 依据（render_gl3.c: S=x, T=z, R=-y）。
+    float rx = ray_dir_world.x;
+    float ry = ray_dir_world.z;
+    float rz = -ray_dir_world.y;
+    float arx = fabsf(rx);
+    float ary = fabsf(ry);
+    float arz = fabsf(rz);
+    // L511-545：face / sc / tc / ma。
+    int face = 0;
+    float sc = 0.0f;
+    float tc = 0.0f;
+    float ma = 1.0f;
+    if (arx >= ary && arx >= arz) {
+        ma = arx;
+        if (rx > 0.0f) {
+            face = 0;
+            sc = -rz;
+            tc = -ry;
+        } else {
+            face = 1;
+            sc = rz;
+            tc = -ry;
+        }
+    } else if (ary >= arz) {
+        ma = ary;
+        if (ry > 0.0f) {
+            face = 2;
+            sc = rx;
+            tc = rz;
+        } else {
+            face = 3;
+            sc = rx;
+            tc = -rz;
+        }
+    } else {
+        ma = arz;
+        if (rz > 0.0f) {
+            face = 4;
+            sc = rx;
+            tc = -ry;
+        } else {
+            face = 5;
+            sc = -rx;
+            tc = -ry;
+        }
+    }
+    // L547-548：`math.safe_div` = `x / (y != 0 ? y : MJ_MINVAL)`（`math.py` L318-319，
+    // MJ_MINVAL = mjMINVAL = 1e-15）；本文件 `safe_div_render` 同义。
+    float s = (safe_div_render(sc, ma) + 1.0f) * 0.5f;
+    float t = (safe_div_render(tc, ma) + 1.0f) * 0.5f;
+    // L550-552：竖排相邻面防串色（半 texel）。
+    float t_min = 0.5f * face_width_inv;
+    t = fminf(fmaxf(t, t_min), 1.0f - t_min);
+    // L554：`v = (float(face) + t) * wp.static(1.0/6.0)`；1/6 是 warp 编译期常量，
+    // double `1.0/6.0` 舍入到 f32 后为 `0x3E2AAAAB`，与 `1.0f/6.0f` 逐位相同。
+    float v = ((float)face + t) * (1.0f / 6.0f);
+    // L555：`wp.texture_sample(skybox_tex, vec2(s, v), dtype=vec4)`。
+    wp::vec4 tex_color = wp::texture_sample<wp::vec4>(tex, wp::vec2(s, v), 0.0f);
+    return v3(tex_color[0], tex_color[1], tex_color[2]);
+}
+
 // 上游 `vertex_normal`：顶点法线与面法线夹角超过 ~37° 时用面法线。
 __device__ __forceinline__ V3 vertex_normal(V3 n, V3 face) {
     if (dot3_ba(n.x, n.y, n.z, face.x, face.y, face.z) < 0.8f) {

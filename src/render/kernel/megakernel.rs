@@ -101,9 +101,7 @@ impl MegakernelRenderer {
             ));
         }
         // R09-S2b：`use_shadows` 产品路径已解锁（S7b3 前置拒绝已移除；数值验收在 S3b 窗）。
-        if resolved.render_skybox {
-            return Err(LauncherError::Unsupported("S7b3 不含天空盒"));
-        }
+        // R02-S1：天空盒产品路径已解锁（flag bit9 + `sample_skybox`，数值验收在 S2/S3 窗）。
         if resolved.splat_count != 0 {
             return Err(LauncherError::Unsupported("S7b3 不含 splat"));
         }

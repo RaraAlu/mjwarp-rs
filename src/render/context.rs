@@ -27,6 +27,7 @@ pub mod output;
 #[cfg(feature = "cuda-probe")]
 pub mod owner;
 pub mod params;
+pub mod texture_inputs;
 pub mod world;
 
 #[cfg(feature = "cuda-probe")]
@@ -38,6 +39,7 @@ pub use owner::{
     TextureResources, device_memory,
 };
 pub use params::{CamRes, ContextParams, RenderFlagSpec, SplatInputs};
+pub use texture_inputs::texture_registry;
 
 use model::{headlight, lights, near_far, skybox, squash_geometry};
 

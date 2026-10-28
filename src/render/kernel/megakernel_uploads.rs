@@ -176,8 +176,11 @@ pub(super) fn upload_megakernel_arrays(
     let nsamples = inputs.nsamples;
 
     // ---- 纹理数组（S4 只读句柄 → S7a `texture2d_t` 数组）----
+    // R02-S1：上游 `render_util.py` L527 的门是 `if use_textures or has_skybox`——天空盒
+    // 场景即使 `use_textures=false` 也要上传纹理数组（数组下标仍等于模型纹理 id，非天空盒
+    // 项由注册表给 1×1 dummy）。
     let texture_array = match context.textures() {
-        Some(resources) if resolved.use_textures => {
+        Some(resources) if resolved.use_textures || resolved.render_skybox => {
             let handles = resources.handles();
             if handles.is_empty() {
                 return Err(LauncherError::InvalidArray("textures"));
@@ -186,6 +189,12 @@ pub(super) fn upload_megakernel_arrays(
         }
         _ => None,
     };
+    // R02-S1：天空盒必须有纹理数组（否则设备侧会用占位句柄取样）。注册表必须由
+    // `context::texture_registry` 按「`use_textures || skybox`」语义构造；空注册表 +
+    // `render_skybox=true` 是宿主配置错误，在发射前拒绝而不是设备侧越界。
+    if resolved.render_skybox && texture_array.is_none() {
+        return Err(LauncherError::InvalidArray("textures"));
+    }
 
     // ---- 上传所有设备缓冲 ----
     let blob = pack_blob(scene, mesh);
@@ -247,8 +256,18 @@ pub(super) fn upload_megakernel_arrays(
     let hfield_bvh_count = hfield_ids.len();
     let mesh_bvh_id = upload(session, &[0u32, 0])?;
     let group_root = upload(session, &[0i32])?;
-    let skybox_tex_id = upload(session, &[0i32])?;
-    let skybox_face_width = upload(session, &[0i32])?;
+    // R02-S1：天空盒两槽（上游 `skybox_tex_id`/`skybox_face_width`，render.py L1105-1106）。
+    // 无天空盒时保持原占位 `[0]`/`[0]`（槽只在 `MK_FLAG_SKYBOX` 置位时被读）。
+    let (skybox_tex_id_words, skybox_face_width_words) = match resolved.skybox {
+        Some(skybox) => (
+            [skybox.texture_id],
+            [i32::try_from(skybox.face_width)
+                .map_err(|_| LauncherError::Overflow("skybox_face_width"))?],
+        ),
+        None => ([0i32], [0i32]),
+    };
+    let skybox_tex_id = upload(session, &skybox_tex_id_words)?;
+    let skybox_face_width = upload(session, &skybox_face_width_words)?;
     let splat_rotation = upload(session, &[0.0f32; 4])?;
     let splat_rgba = upload(session, &[0.0f32; 4])?;
     let splat_group_root = upload(session, &[0i32])?;

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-bvh-r02-skybox-s1",
+  "title": {
+    "zh": "R02-S1：天空盒离线实现（sample_skybox 内核 + 竖排 2D 纹理注册表子集 + 槽填充，无窗口）",
+    "en": "R02-S1: offline skybox implementation (sample_skybox kernel, vertical-strip 2D texture registry subset, slot wiring; no window)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R02 第一片（离线，无 GPU 窗口、无渲染数值结论）：把 MuJoCo 天空盒接进产品渲染路径。上游依据：`sample_skybox`（pinned `mujoco_warp 3.15.0` `render.py:494-556`：世界方向→cube 空间 `rx=x, ry=z, rz=-y`，按 `|rx|/|ry|/|rz|` 选 face 0..5（+X,-X,+Y,-Y,+Z,-Z），`s=x`、`t=y`（sc/tc 见 516-545），`s=(safe_div(sc,ma)+1)/2`、`t=(safe_div(tc,ma)+1)/2`，`t` 夹 `[0.5*face_width_inv, 1-0.5*face_width_inv]`，`v=(face+t)/6`，`texture_sample(vec2(s,v))`）；调用点 `render.py:1259-1268`（`geom_id==-1` 且 `render_rgb` 且 `render_skybox`：采样后走 `store_pixel` 语义，AA 累加、非 AA 打包写）；host 侧 `render_util.py:514-535`（skybox 纹理 id/face_width=`tex_width`，且**只在需要时实体化**：`if use_textures or has_skybox`，其余槽位为 1×1 dummy）。本栈已确认 **不需要真 cube 纹理路径**：MuJoCo 天空盒即竖排 2D（`fixtures/render-bvh/scene-a/model-312.json`：`tex_type=[0,0,2]`、`tex_width=[64,32,64]`、`tex_height=[64,32,384]`=6×64），我方 `texture/cuda.rs:228-322` + `texture/sample.cu:28-38` 已是等价的 2D LINEAR/CLAMP/归一化 `tex.2d` 路径，`wp::texture_sample<wp::vec4>` 已在 `render_shade.cu:293` 使用。host 解析已就绪（`context/model.rs:114-143` 的 `Skybox{texture_id, face_width}`、`context.rs:161-166`），槽已 push 但为占位（`kernel/megakernel.rs:356-357`），host 现拒绝（`kernel/megakernel.rs:104-106`），纹理注册表只在 `use_textures` 时实体化（`texture.rs:226-229` + `context/lifecycle.rs:329`）。本片只做：内核翻译 + 门改 + 槽填充 + host 单测；**不产任何渲染数值结论**，capture/参考/判据留 S2（authoring 捕获）与 S3（验证窗），两者都需用户在场双签后才跑。",
+    "en": "First R02 slice, offline: translate upstream sample_skybox into the CUDA kernel, materialize only requested textures (vertical-strip 2D skybox), fill the two skybox slots, remove the host rejection, and cover host wiring with unit tests. No GPU window, no rendered-value conclusions."
+  },
+  "modules": {},
+  "acceptance": [
+    "**内核 sample_skybox 逐行对齐上游**：`src/render/kernel/cuda/render_shade.cu` 新增 `sample_skybox(const wp::texture2d_t&, float face_width_inv, V3 ray_dir_world)`，与 `render.py:494-556` 逐条对应（`rx=x, ry=z, rz=-y`；`|rx|/|ry|/|rz|` 三段分支的 face 号 0..5 与 sc/tc 符号；`ma` 取最大轴；`safe_div` 语义为 `x / (y != 0 ? y : MJ_MINVAL)`，上游 `math.py:318-319`，仓内同类先例 `src/physics/collision/cuda/primitive.cu:38-39`；`t` 夹 `0.5*face_width_inv`；`v=(float(face)+t)*(1/6)`，`1/6` 按 f32 常量固化；采样复用既有 `wp::texture_sample<wp::vec4>`）。证据给上游行号→本仓库行号对照表。",
+    "**背景分支行为同上游 1259-1268**：`render_megakernel.cu` 的 `hit.geom_id == -1` 早退块内加天空盒分支：仅当「天空盒 flag 置位 且 `do_rgb`」时采样世界方向 `ray_dir_world` 并按 `store_pixel` 语义写出——AA（`aa_accum` 存在）走 `aa_store(color)`（与 `render.py:1028-1029` 的 `+= color*255.0` 同序），非 AA 走 `pack_rgba_to_uint32(r*255,g*255,b*255,255)`（与 `render.py:1030-1031` 同）；**天空盒 flag 未置位时保持现有行为逐字节不变**（非 AA 仍直接写 `packed_background`，AA 仍 `aa_store(background)`）。深度 0 写入与 seg 早退顺序不变（`render.py:1252-1258`）。",
+    "**host 门改为「use_textures || skybox」且只实体化被请求纹理**：新增宿主构造器（建议 `src/render/context/texture_inputs.rs`，由 `context.rs` `pub mod` 暴露）按上游 `render_util.py:527-535` 语义产出注册表：`use_textures=true` → 全部纹理实体化（现状不变）；`use_textures=false` 且有天空盒 → **只有该天空盒纹理实体化，其余 id 为 1×1 RGBA dummy**（保证 `textures.data[tex_id]` 下标仍等于模型纹理 id）；都没有 → 空注册表（现状不变）。`context/lifecycle.rs:329` 的 `TextureResources` 门同步改为 `(use_textures || skybox.is_some()) && !textures.is_empty()`，**该文件现盘 496/500 行，必须净 ≤+2 行且 ≤499**。`kernel/megakernel_uploads.rs:179-188` 的 `texture_array` 门同步放开（天空盒场景即使 `use_textures=false` 也要上传纹理数组），并填 `skybox_tex_id`/`skybox_face_width` 两槽（`uploads.rs:250-251` 现为 `[0]`/`[0]`；有天空盒时为 `[texture_id]`/`[face_width]`，无天空盒保持 `[0]`/`[0]`）。新增 flag 位（`megakernel_arrays.rs::shading_words` 的 `flag_bits` bit 9 = `render_skybox`，内核 `#define MK_FLAG_SKYBOX 0x200u`），**既有 8 个位定义与取值顺序不动**。删除 `kernel/megakernel.rs:104-106` 的天空盒前置拒绝。",
+    "**零泄漏（静态论证 + 记录新基线）**：`MEGAKERNEL_SOURCE` 拼入新片段后 `source_sha256`/`ptx_sha256`/`ptx_bytes` 必然变化（现盘 `72bc364c…`/`97467d83…`/264 015 B）；本片必须在证据里记录**新三值 + 变化原因（仅新增 flag 门控分支与采样函数）**，并给出「非天空盒 context 的 flags bit9=0、两槽仍 `[0]`/`[0]`、`texture_array` 仍 `None`、新增代码只在 `MK_FLAG_SKYBOX` 与 `geom_id==-1` 内可达」的逐条静态论证。**设备数值位级回归（8 个既有回归实体 0 差异）不在本片做**：它需要 GPU 执行，留 S2/S3 窗口并随窗材料双签；本片不得写任何「零泄漏已实测」或渲染数值结论。",
+    "**纯 host 单测（无 CUDA）**：新增 `tests/render_skybox.rs` 覆盖：① 六面方向→face/sc,tc 映射（±X/±Y/±Z 轴向量与 8 个角方向；host 侧测试用参考实现逐字对照上游公式，并明确注释「仅测试参考、非产品路径；设备实现由窗口位级比对兜底」）；② `t` 边界 clamp（`t` 取 0/1/超界、`face_width=1/64/2`）；③ `ma=0` 的 `safe_div` 退化（方向零向量）不产生 NaN；④ 无天空盒降级（`render_skybox=false` → 注册表空、flag bit9=0、两槽 `[0]`/`[0]`、既有 `tests/render_texture.rs` 断言不变即证明零改）；⑤ 纹理子集实体化（ntex=3、skybox id=2、`use_textures=false` → len=3、id2 为真实 texels、id0/id1 为 1×1 dummy 且 texels 全 0/alpha=1，与上游 `empty_tex` 语义一致）。",
+    "**判据/容差/参考/fixture 零改动**：本片不新增/修改任何 fixture、npz 参考、capture 脚本、比较阈值；`src/render/bvh/**`、`math`、`physics` 零改动；`MEGAKERNEL_SLOTS` 81 槽种类与顺序零改动（`tests` 内既有 81 槽断言仍绿）；`DEVICE_SOURCES`/入口数/`CollisionArgs` 不变（若因新 `.cu` 片段计入 `DEVICE_SOURCES` 需说明并给实测值）。",
+    "**行数棘轮**：`megakernel.rs` 412→≤412（删拒绝 3 行、允许净减）；`megakernel_uploads.rs` 446→**≤480**（若将 >480 先拆零行为片）；`texture.rs` 486 **零改动**（子集逻辑放新文件，避免触 500）；`context/lifecycle.rs` 496→**≤499 且净变化 ≤+2 行**；`context.rs` 453→≤470；`megakernel_arrays.rs` 326→≤340；`render_shade.cu` 383→≤470；`render_megakernel.cu` 347→≤420；`cast.rs` 481 **禁动**；红线 `render.cu`(499)/`launch.rs`(500)/`model/render.rs`(500)/`camera_output.rs`(499)/`hfield_scene.rs`(499) 零改动。新文件 ≤160 行。",
+    "**门禁与证据**：fmt / clippy `-D warnings` / clippy-cuda / unit / `cargo test --no-run` / 内核编译门（`megakernel_source_compiles_under_render_gate`，NVRTC 纯编译不占 GPU）/ `normify validate --fingerprints` 全绿且绑最终树；证据目录 `docs/development-evidence/render-bvh/r02-skybox-s1/`（README + receipt 含 `/task_id` + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0）；**零渲染数值结论**，不写「窗口通过/精度达标/上游等价/产品渲染验收通过」。两段提交（代码+测试 → 证据+manifest）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/cuda/render_shade.cu",
+      "src/render/kernel/cuda/render_megakernel.cu",
+      "src/render/kernel/megakernel.rs",
+      "src/render/kernel/megakernel_arrays.rs",
+      "src/render/kernel/megakernel_uploads.rs",
+      "src/render/context/texture_inputs.rs",
+      "src/render/context.rs",
+      "src/render/context/lifecycle.rs",
+      "tests/render_skybox.rs",
+      "docs/development-evidence/render-bvh/r02-skybox-s1/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-29 登记（Chief 批准先启动 R02 离线 S1；R07/R06 等用户拍板）。预核结论：竖排 2D 即可，零新设备纹理路径（依据：pinned mujoco_warp 3.15.0 render_util.py:53-69/514-535 + render.py:494-556/1259-1268，与 fixtures/render-bvh/scene-a/model-312.json 的 tex_height=6×tex_width=384）。影响面口径：文件级 impact 对这些路径不可用（`src/render/kernel/` 多个 .rs/.cu 未登记为模块源，既有治理缺口 2026-10-28-arch-volume-module-sources），替代口径 = `normify impact mjwarp.render`（exit 0，模块 mjwarp.render，依赖 model.core/runtime.completion/math/diagnostics，约束 core-no-deprecated-target + boundary-render）+ 本卡 scope + `normify validate --fingerprints`。新文件 `src/render/context/texture_inputs.rs` 需 `normify module source mjwarp.render --add src/render/context/texture_inputs.rs` 登记。本片不开 GPU 窗口；S2 authoring capture / S3 验证窗待用户在场双签。",
+  "revision": {
+    "before": "d974283c8d80c7113ad6d524fd739bc3730b8331",
+    "after": null
+  },
+  "created_at": "2026-10-28T21:58:00.000Z",
+  "updated_at": "2026-10-28T21:59:27.331Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r02-skybox-s1/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-bvh-r02-skybox-s1"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "窗口通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

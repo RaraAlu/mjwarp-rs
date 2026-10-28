@@ -133,6 +133,9 @@ path = "src/render/kernel/cast_mesh.rs"
 [[source]]
 path = "src/render/bvh/hfield_mesh.rs"
 
+[[source]]
+path = "src/render/context/texture_inputs.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::render::bvh::refit_bvh"

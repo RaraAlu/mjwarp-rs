@@ -27,6 +27,9 @@
 #define MK_FLAG_HEADLIGHT 0x40u
 #define MK_FLAG_CULL_BACKFACES 0x80u
 #define MK_FLAG_AA 0x100u
+// R02-S1：天空盒总开关（`ResolvedContext.render_skybox`，上游 `rc_static["render_skybox"]`，
+// render.py L1259）。位 9 空闲（位 0-8 见上表），只在 `hit.geom_id == -1` 的背景分支里读。
+#define MK_FLAG_SKYBOX 0x200u
 
 // 上游 `store_pixel` 的 AA 分支（render.py L1017-1031）：
 //   if wp.static(aa): aa_accum_out[worldid, adr] += color * 255.0
@@ -189,7 +192,25 @@ extern "C" __global__ void render_megakernel(
             depth_out.data[(long)worldid * depth_pitch + depth_adr.data[camid] + rayid_local] = 0.0f;
         }
         if (do_rgb) {
-            if (aa) {
+            // R02-S1：上游 L1259-1268 —— `render_skybox` 且该相机渲染 RGB 时，背景像素采
+            // 天空盒并按 `store_pixel`（L1017-1031）语义写出（AA 累加 `color*255`，非 AA
+            // 直接打包写）。`MK_FLAG_SKYBOX` 未置位时不进入本支，行为与 S7b2 逐字节一致。
+            if ((flag_bits & MK_FLAG_SKYBOX) != 0u) {
+                int skybox_id = skybox_tex_id.data[worldid % skybox_tex_id.shape.dims[0]];
+                // 上游 L1263：`1.0 / float(skybox_face_width[...])`（f32 除法；face 宽度 =
+                // 模型 `tex_width`，见 render_util.py L519）。
+                float face_width_inv =
+                    1.0f / (float)skybox_face_width.data[worldid % skybox_face_width.shape.dims[0]];
+                V3 skybox_color =
+                    sample_skybox(textures.data[skybox_id], face_width_inv, ray_dir_world);
+                if (aa) {
+                    aa_store(aa_accum_out, rgb_offset, skybox_color, ray_base == 0);
+                } else {
+                    rgb_out.data[rgb_offset] =
+                        pack_rgba_to_uint32(skybox_color.x * 255.0f, skybox_color.y * 255.0f,
+                                            skybox_color.z * 255.0f, 255.0f);
+                }
+            } else if (aa) {
                 aa_store(aa_accum_out, rgb_offset, background, ray_base == 0);
             } else {
                 rgb_out.data[rgb_offset] = packed_background;

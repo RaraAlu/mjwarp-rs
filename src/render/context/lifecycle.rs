@@ -305,8 +305,8 @@ pub struct RenderContext {
 impl RenderContext {
     /// 创建 context：构建设备资源并分配输出缓冲。
     ///
-    /// 不发射任何渲染内核、不创建未被请求的纹理；`use_textures=false` 时纹理注册表
-    /// 应为空（上游同语义）。
+    /// 不发射任何渲染内核、不创建未被请求的纹理；`use_textures=false` 且无天空盒时
+    /// 纹理注册表应为空（上游同语义：`use_textures || has_skybox`，render_util.py L527）。
     pub fn create(
         session: &TransferSession,
         resolved: ResolvedContext,
@@ -326,7 +326,9 @@ impl RenderContext {
         for mesh in &meshes {
             mesh_resources.push(MeshResources::build(session, mesh)?);
         }
-        let texture_resources = if resolved.use_textures && !textures.is_empty() {
+        // R02-S1：天空盒也要纹理资源（上游 `use_textures or has_skybox`，render_util.py L527）。
+        let wants_textures = resolved.use_textures || resolved.skybox.is_some();
+        let texture_resources = if wants_textures && !textures.is_empty() {
             Some(TextureResources::new(session, textures)?)
         } else {
             None

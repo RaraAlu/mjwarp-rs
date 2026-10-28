@@ -222,6 +222,9 @@ pub(crate) fn use_shadows_arg(use_shadows: bool) -> RenderArg {
     RenderArg::Scalar(RenderScalar::Bool(use_shadows))
 }
 
+/// R02-S1：天空盒位（bit 9；位表见证据 README，内核 `MK_FLAG_SKYBOX` 0x200u）。
+pub(crate) const FLAG_SKYBOX_BIT: u32 = 1 << 9;
+
 /// S7b2/S7b3 自有参数槽：着色常量（4×vec3）、缩放常量（vec3）与 flags word。
 /// 返回 `(shading_constants, scale_constants, flags_word)`；抽到本模块以保持
 /// `megakernel.rs` 的 500 行棘轮。
@@ -256,6 +259,9 @@ pub(crate) fn shading_words(
     flag_bits |= u32::from(headlight.active) << 6;
     flag_bits |= u32::from(resolved.enable_backface_culling) << 7;
     flag_bits |= u32::from(nsamples > 1) << 8;
+    if resolved.render_skybox {
+        flag_bits |= FLAG_SKYBOX_BIT;
+    }
     let flags_word = (u64::from(resolved.background_color_packed) << 32) | u64::from(flag_bits);
     (shading_constants, scale_words, flags_word)
 }
