@@ -98,16 +98,15 @@ git diff --stat 01e36a54..HEAD -- src/runtime src/render/kernel/cuda fixtures te
 
 内核 `source_sha256`/`ptx_sha256`/`ptx_bytes` 与改动前逐位相同（见 §6），是「只动宿主 Rust」的独立证据。
 
-## 8. 行数口径（双重）
+## 8. 行数口径（LF 权威）
 
-| 文件 | `wc -l`（committed blob；`find /c /v ""` 与 `git cat-file -p | find` 一致） | `Get-Content` 口径 |
-| --- | --- | --- |
-| `megakernel_uploads.rs` | **446** | 418（本机 Windows PowerShell 以 ANSI 解码 UTF-8 源文件导致吞行；同文件 `[IO.File]::ReadAllLines` 为 446） |
-| `megakernel.rs` | **412** | 384 |
+| 文件 | LF 行数（committed blob；`git cat-file -p | find /c /v ""` 与 `[IO.File]::ReadAllLines` 一致） | 上界 | 父提交行数 | 余量 |
+| --- | --- | --- | --- | --- |
+| `megakernel_uploads.rs` | **446** | 450 | 405 | **仅 4 行**（后续要改先拆） |
+| `megakernel.rs` | **412** | 500 | 404 | 88 行 |
 
-结论：两种口径均 ≤ 上界（450 / 500）；本片以 committed blob 的 LF 计数（446 / 412）为权威口径。
-另：Arch 报的 398 / 366 无法在本工作树复现，疑为取数时点/工具口径差异，此处如实记录三个数。
-
+口径说明：Get-Content 在本环境（ANSI 解码 UTF-8 源文件）会少计行，其数值作废、不用于证据；
+本片统一以 committed blob 的 LF 换行计数为准（2026-10-29 附录修正，Chief 指出）。
 ## 9. impact 记录
 
 - `normify impact src/render/kernel/megakernel_uploads.rs` → `mjwarp.render`（active，源码 39，API 11）；
