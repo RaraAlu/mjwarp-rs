@@ -29,7 +29,7 @@
 | `2026-10-28-render-bvh-camera-pose-warp-fma-align` | verified | `r05-s3b-camera-pose-warp-fma-align/` |
 | `2026-10-28-render-bvh-camera-pose-warp-fma-align-check` | verified | `r05-s3b-camera-pose-warp-fma-align-check/` |
 | `2026-10-28-render-bvh-r05-s3b-hfield-validate` | verified | `r05-s3b-hfield-validate/` |
-| `2026-10-28-render-bvh-r05-s3b-hfield-validate-check` | 见 §7（QA 独立复核） | `r05-s3b-hfield-validate-check/` |
+| `2026-10-28-render-bvh-r05-s3b-hfield-validate-check` | verified | `r05-s3b-hfield-validate-check/` |
 
 放弃 / 未入库（按 normify 规则保持工作树未跟踪，板面可读）：
 
@@ -76,7 +76,7 @@
 | 验证 attempt=1 | **INVALID_ROUND** | 零 mesh 场景发射 panic（产品缺口），记录保留、目录未覆盖 |
 | 验证 attempt=2 常规监测 | **STOP** | 354 样本、最长连续干净 45/60、util 1–49、ge40=33；未开窗、`window_commands_executed=0` |
 | 验证 attempt=2 例外监测 | 达标（60/60） | **validation-only 例外 util<60**：util 36–41、ge40=5、ge60=0、free_min 13 271 |
-| 验证 attempt=2 窗口 | 绿 | 以 `-OpenUtilLimit 60` 执行；窗口自身 precheck 采样 **37/40/40** ⇒ **例外实际生效**，`not_a_normal_threshold_pass=true`、`authoring_exception_used=false` |
+| 验证 attempt=2 窗口 | 绿 | 以 `-OpenUtilLimit 60` 执行；**例外生效的机器证据**：例外监测 CSV 中 5 个 `util≥40` 样本（04:50:55=40 / 04:52:32=41 / 04:54:24=41 / 04:54:55=40 / 04:55:45=40）被记 `clean=True` 且 streak 连续增至 59→60 ⇒ 生效门槛为 **60**。窗口 `guard.log` 的 precheck 三样本是 **37/37/37**，`baseline.txt` 三点是 **37/40/40**（两者是不同采样，`run-window.ps1` L111-129 vs L131-135），**不能**用 precheck 证明例外生效。`not_a_normal_threshold_pass=true`、`authoring_exception_used=false` |
 
 理由（写进证据）：桌面常驻图形外载（`filtered compute-apps=0`、build=0、free 充足），窗口判据为位级 + 两次运行 sha 决定性校验，图形外载不改变算术结果。**判据/容差/参考/夹具本次全程零改动。**
 
@@ -99,7 +99,7 @@ S2 证据 §9 原有「S2 hfield 设备通路未验证」为历史记录，**保
 - R05-S3a 采集复核 `462e48c1`/`cbb04758`：**pass / 阻断 0 / 观察 4**
 - R05-S3b 目标实体 authoring 复核 `36fa461e`/`0f35d5c2`：**pass / 阻断 0 / 观察 4**
 - 相机世界位姿 FMA 对齐复核 `043927a2`/`d1bd6b0d`：**pass / 阻断 0 / 观察 9**（QA 独立用精确有理数 f32 fma 复现唯一性、自建候选族 1 259 712、9 元素各唯一候选、9027 项 0 差、scene-a 9/9、内核三 sha 不变）
-- R05-S3b 验证窗复核 `2026-10-28-render-bvh-r05-s3b-hfield-validate-check`：见该卡证据（本轮 QA 独立复核结果以该卡 receipt 为准）
+- R05-S3b 验证窗复核 `2026-10-28-render-bvh-r05-s3b-hfield-validate-check`：**pass / 阻断 0 / 观察 10**（QA `5100732f` + closing）。独立复核关键数字：9 实体 exit 0、`sha_guards=73/73`、`post_window_exe_recheck=9/9`、`zero_rust_compile=True`、floor 10 233 未破；两组 hfield cam0/cam1 的 RGB/depth/seg 全部 0 差异且两次运行 sha 相等；例外合法性：常规 util<40 失败记录原样保留、例外记录五要素齐全、**例外门槛 60 的机器证据为例外监测 CSV 中 5 个 util≥40 样本被记 clean=True 且 streak 增至 59→60**（注意：precheck 采样为 37/37/37、baseline 为 37/40/40，二者是不同采样，**不能**用 precheck 证明例外生效）；attempt1 目录原样未覆盖。**O1（precheck/baseline 口径误述）与 O2（monitor sha 与例外命令留痕）必须修，已由 validate 证据修正提交 `9a44f0ae` 全量修掉（O1–O6/O8/O10；O7/O9 仅记录）。**
 - **放弃说明**：`2026-10-28-render-bvh-r05-s3b-hfield-empty-mesh-fix-check` 已被 abandon，**未做独立复核**；理由=该修复已 verified 且被 attempt2 窗口全绿实证、同类判据（位级断言/零外溢/内核 sha 不变）已由相机位姿修复的 QA 复核覆盖。**不得表述为「已复核」。**
 
 ## 8. 遗留与 backlog
@@ -112,4 +112,4 @@ S2 证据 §9 原有「S2 hfield 设备通路未验证」为历史记录，**保
 - **后续家族**（R06/R07/R02 等）与 mesh multicontact 方向等用户拍板
 
 ## 9. 非声明
-本汇总**不宣称**完整渲染通过、产品渲染验收通过、精度达标或与上游等价。所有数字来自对应 verified 任务的证据与窗口留档；R05 的验收结论以 `r05-s3b-hfield-validate` 及其 QA 复核卡为准。
+本汇总只做证据索引与数字汇总，**不作验收性结论**：不声明渲染全量验收完成、不声明精度达到目标值、不声明与上游结果一致、不声明产品渲染验收已完成。所有数字来自对应 verified 任务的证据与窗口留档；R05 的验收结论以 `r05-s3b-hfield-validate` 及其 QA 复核卡为准。
