@@ -1,0 +1,116 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-s2-o1-fix-check",
+  "kind": "render-bvh-r05-s2-o1-fix-check",
+  "reviewed_task": "2026-10-28-render-bvh-r05-s2-hfield-intersect-r2",
+  "reviewed_commit": "1b876391",
+  "head_at_review": "1b876391",
+  "review_type": "light re-review (read-only; no full gate suite; no GPU window; no numeric conclusion)",
+  "verdict": {
+    "result": "pass",
+    "blockers": 0,
+    "observations": 1,
+    "observations_blocking": 0,
+    "scope": "只核 O1 修复的 4 个点（阈值全 f32 / 4 条新单测强度 / README §2.1 与模块文档 / 零 CUDA 改动 + 内核门一致）+ O2/O3/O5 处置 + 1086 计数一致性"
+  },
+  "review_points": {
+    "threshold_all_f32": {
+      "constant": "let threshold = 1.0e-5f32;",
+      "planar_compare": "diff.abs() < threshold (both f32)",
+      "fits_plane_prediction": "(cz00 - z_pred).abs() >= threshold (both f32)",
+      "fits_plane_slopes": "(cslope_x - slope_x).abs() >= threshold || (cslope_y - slope_y).abs() >= threshold (both f32)",
+      "no_f64_threshold_left": true,
+      "f32_1e_5_bits": "0x3727C5AC",
+      "f32_1e_5_value": 9.999999747378752e-06,
+      "f32_value_lt_decimal_1e_5": true,
+      "qa_probe_recheck": {
+        "case_planar_at_threshold_2x3": "6 vertices / 12 indices (matches upstream non-planar/non-merge)",
+        "case_fits_plane_slope_at_threshold": "6 vertices / 12 indices (matches upstream)",
+        "case_1ulp_below_threshold": "4 vertices / 6 indices (merge, matches upstream)",
+        "threshold_bits_reported_by_probe": "3727c5ac"
+      }
+    },
+    "new_unit_tests_strength": {
+      "threshold_constant_matches_upstream_f32_rounding": "pins bits 0x3727C5AC and f64(f32) < 1e-5",
+      "diff_exactly_f32_threshold_is_non_planar_like_upstream": "pins 6V/12I + 4 point coords (incl t*0.5) + full index vector",
+      "diff_just_below_f32_threshold_is_planar_and_merges": "pins 4V/6I + index vector",
+      "triangulation_is_deterministic_for_same_input": "same input twice -> equal results",
+      "targeted_run_by_qa": {"command": "cargo test --locked --test render_hfield_mesh", "passed": 16, "failed": 0, "exit": 0}
+    },
+    "docs": {
+      "readme_section_2_1_negates_old_equivalence_claim": true,
+      "readme_states_f32_threshold_caliber": true,
+      "readme_pins_boundary_expectations": "6V/12I and 4V/6I",
+      "module_doc_synced": true,
+      "receipt_precision_convention_updated": true,
+      "receipt_unit_tests_16": true,
+      "receipt_after_o1_fix_kernel_gate_identical": true,
+      "receipt_qa_fixes_recorded": true,
+      "readme_unit_1086": true
+    },
+    "zero_cuda_and_kernel_gate": {
+      "fix_commit_files": 14,
+      "cu_files_in_commit": [],
+      "kernel_gate_run_by_qa": {
+        "source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746",
+        "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13",
+        "ptx_bytes": 264015,
+        "matches_record_before_fix": true,
+        "exit": 0
+      }
+    },
+    "o2_o3_o5_disposition": {
+      "O2": "README §5 + receipt none_path_evidence record: slot-64 upload value u64(0)->u64::MAX, shape [1]/type Array(U64) unchanged, device reads only for gtype==1 which host pre-rejects => rendering behavior identical, literal upload-content-unchanged claim does not hold",
+      "O3": "README §9 + receipt limits: used-hfield set omits upstream geom_enabled_mask; equivalent today (host requires enabled_geom_ids to cover all geoms); carried to S3",
+      "O5": "README §9 + receipt limits: caller must pass the same half as SceneLeaf.size; S3 fixture side to guarantee or add debug assertion; carried to S3"
+    },
+    "count_consistency": {
+      "full_suite_expected": 1086,
+      "original": 1082,
+      "delta": 4,
+      "unit_gate_record_in_fix_commit": {"passed": 1086, "failed": 0, "ignored": 387, "exit": 0},
+      "targeted_suite": {"passed": 16, "failed": 0},
+      "consistent": true
+    },
+    "implementation_evidence_integrity": {
+      "files": 8,
+      "manifest_entries": 7,
+      "manifest_matches_committed_blob": "7/7",
+      "lf_only_no_bom": true,
+      "forbidden_word_hits": 0
+    }
+  },
+  "observations": [
+    {
+      "id": "O-new",
+      "severity": "suggestion",
+      "blocking": false,
+      "topic": "form-feed control characters in hfield_mesh.rs comment",
+      "detail": "src/render/bvh/hfield_mesh.rs 第 153 行注释里两处 `f32(1e-5)` 的 f 字节实际是 0x0C（FF 控制字符）：`// \\x0c32(1e-5) = 9.999999747378752e-06 …` 与 `… 差值恰为 \\x0c32(1e-5) 时 …`（我扫描全变更文件，仅此文件 2 处）。不影响编译/行为，但正好落在 O1 修复的关键注释处，属源码卫生问题。",
+      "suggestion": "fix_optional",
+      "fix": "把两处控制字符改回普通 `f32`；不改判据/逻辑"
+    }
+  ],
+  "boundaries": [
+    "按指示未重跑全量门禁：1086 由（a）QA 定向跑 render_hfield_mesh 16 测试全绿、（b）修复提交内 unit 门禁记录 1086/0/387、（c）实现证据 README/日志三方一致确认。",
+    "无 GPU / 无窗口 / 无渲染数值结论；只核阈值口径、单测强度、文档与证据处置。",
+    "未跑 fmt/clippy 门禁；采信修复提交记录与证据日志（轻复核口径）。",
+    "未重新复刻上游全 16 例三角化比对：只复跑原 2 个分歧点 + 低 1 ULP 样例；其余 14 例在 S2 复核已逐位通过，本修复只改阈值比较、不涉坐标/索引生成。"
+  ],
+  "gates": {
+    "targeted_render_hfield_mesh": {"passed": 16, "failed": 0, "exit": 0, "log": "logs/targeted.log"},
+    "kernel_compile_gate": {"source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746",
+                            "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13",
+                            "ptx_bytes": 264015, "exit": 0, "log": "logs/kernel-gate.log"},
+    "qa_probe": {"log": "logs/probe.log", "at_threshold_6v12i": true, "below_threshold_4v6i": true}
+  },
+  "gate_note": "QA 轻复核卡无门禁：normify gate exit 1「任务没有引用任何门禁」属预期；本卡不跑全量门禁，仅定向测试 + 顺带内核门。",
+  "claims": {
+    "o1_fix_verified": true,
+    "threshold_all_f32_matches_upstream": true,
+    "boundary_behavior_matches_upstream": true,
+    "zero_cuda_change_and_kernel_gate_unchanged": true,
+    "o2_o3_o5_recorded": true,
+    "no_gpu_no_window_no_numeric_conclusion": true
+  },
+  "recompute": {"script": "recompute.py", "result": "recompute.json", "problems": 0}
+}
