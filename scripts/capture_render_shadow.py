@@ -15,6 +15,11 @@ Groups (parametric `--use-shadows`):
   shadow-on  -> --use-shadows true   (out-dir .../capture/shadow-on)
   shadow-off -> --use-shadows false  (out-dir .../capture/shadow-off)
 
+Recipe (parametric `--use-fast-math`, default false = product same recipe):
+  The S3a capture froze the fast-math recipe (true); the R09-S3a-capture-exact
+  task re-captures the same scene with the product same recipe (false). Only the
+  `use_fast_math` parameter changes; scene, cameras, seed and layout are identical.
+
 Two independent captures per invocation (`--repeat 2`, default): the same process
 renders twice and every raw output (npz bytes + capture.json payload) must be
 byte-identical; otherwise the script exits non-zero with the mismatch details.
@@ -35,6 +40,9 @@ Usage:
   <pinned-python> -B scripts/capture_render_shadow.py --dry-run
   <pinned-python> -B scripts/capture_render_shadow.py --use-shadows true \
       --out-dir fixtures/render-bvh/scene-shadow/capture/shadow-on
+  <pinned-python> -B scripts/capture_render_shadow.py --use-shadows true \
+      --use-fast-math false \
+      --out-dir fixtures/render-bvh/scene-shadow/capture-exact/shadow-on
 Env: MJWARP_CAPTURE_AT (ISO8601; share across both groups so capture.json is stable)
 """
 
@@ -320,6 +328,12 @@ def parse_args() -> argparse.Namespace:
         help="true = shadow-on group, false = shadow-off group",
     )
     parser.add_argument(
+        "--use-fast-math",
+        choices=("true", "false"),
+        default="false",
+        help="warp render recipe fast-math switch (default false = product same recipe)",
+    )
+    parser.add_argument(
         "--out-dir",
         type=pathlib.Path,
         required=True,
@@ -344,6 +358,7 @@ def main() -> int:
     global PARAMS
     PARAMS = dict(PARAMS_28)
     PARAMS["use_shadows"] = args.use_shadows == "true"
+    PARAMS["use_fast_math"] = args.use_fast_math == "true"
     out_dir = args.out_dir.resolve()
     # 旧参考零写入：out-dir 不得落在既有参考目录内。
     if out_dir.is_relative_to(RENDER_BVH) and not out_dir.is_relative_to(SCENE_DIR.resolve()):
@@ -359,6 +374,7 @@ def main() -> int:
             "scene": args.scene.resolve().as_posix(),
             "scene_sha256": digest(args.scene.resolve()),
             "use_shadows": PARAMS["use_shadows"],
+            "use_fast_math": PARAMS["use_fast_math"],
             "out_dir": out_dir.as_posix(),
             "repeat": args.repeat,
             "seed": args.seed,

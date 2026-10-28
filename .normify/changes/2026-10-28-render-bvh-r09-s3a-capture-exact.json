@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r09-s3a-capture-exact",
+  "title": {
+    "zh": "R09-S3a-exact：同配方（use_fast_math=false）阴影参考补采（原 fast-math 组保留为诊断）",
+    "en": "R09-S3a-exact: same-recipe (use_fast_math=false) shadow reference re-capture, keeping the fast-math set as diagnostics"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "S3a 的签名捕获脚本把 `use_fast_math` 硬编码为 true，产出的是 **fast-math 采集配方**参考；而产品内核是精确 f32，既有硬判据（RGB ≤1 LSB / depth ≤4 ULP / seg exact）在同配方（`use_fast_math=false`）参考上才成立（R10-S2 attempt1 的 fast-math 参考错配教训：depth `mismatched=19074`，换同配方后 `mismatched=0`、断言零放宽）。本片把捕获脚本参数化（`--use-fast-math {true,false}`，**默认 false**），把两组参考重采到 `fixtures/render-bvh/scene-shadow/capture-exact/{shadow-on,shadow-off}/`；**原 `capture/`（fast-math 组）原样保留、不删不改**，只作跨配方诊断。窗口纪律、A/B 位等、旧参考零读写、零 Rust 编译同 S3a；本片只产参考、不产任何产品数值结论。",
+    "en": "Parameterize the capture script recipe and re-capture the shadow references with the same recipe as the exact product kernel; keep the fast-math set as diagnostics only."
+  },
+  "modules": {},
+  "acceptance": [
+    "`scripts/capture_render_shadow.py` 增加 `--use-fast-math {true,false}`（默认 `false`），其余逻辑零改动；`capture.json` 必须记录 `use_fast_math` 与五项 pinned 版本；新脚本 sha+字节报签后零编辑。",
+    "重采到 `fixtures/render-bvh/scene-shadow/capture-exact/{shadow-on,shadow-off}/`（每组 4 文件），`use_fast_math=false`；原 `capture/` 8 文件**一字不动**（sha 前后一致）。",
+    "A/B 两次独立捕获逐字节一致（两组各自验证）；`legacy_reference_untouched=true`（`fixtures/render-bvh/` 除 `scene-shadow/` 的 38 文件 / 25 320 515 B 跑前跑后一致，逐文件清单为准）。",
+    "**交叉校验**：`capture-exact/shadow-off/` 三通道应与既有 `scene-a/reference/`（`fast_math=false`）同 sha；若不同 → 停下查配方/相机/注入点并报 Arch，不得继续。`capture-exact/shadow-on` 与 `capture/shadow-on` 的差异只作跨配方记录，不作判据。",
+    "窗口纪律：连续 ≥5 分钟 `free≥10240 / util<40 / compute-apps 过滤 0 / 无构建进程` 才弹；guard precheck 唯一硬门，exit 9 记非有效轮留档不删不改；attempt=1；窗内只 pinned python + nvidia-smi + guard，**零 Rust 编译**；3 点基线 + `floor=min(10240, baseline_free−3072)`。",
+    "证据 `docs/development-evidence/render-bvh/r09-s3a-capture-exact/`（README + receipt 含 `/task_id` + manifest 按 committed blob 且不自引用 + 双组 sha + A/B 一致 + 旧参考前后 sha + 与 fast-math 组的跨配方差异记录），LF 无 BOM、禁词 0、**不写「窗口通过/上游等价/精度达标/已覆盖」**。",
+    "写明 S3a 证据绑定 `b6cc2c27` 树的旧脚本 sha 保留为历史；本片脚本新 sha 只进本片证据。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r09-s3a-shadow-capture"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/",
+      "fixtures/render-bvh/",
+      "docs/development-evidence/render-bvh/r09-s3a-capture-exact/"
+    ],
+    "resources": [],
+    "priority": 59
+  },
+  "note": "Arch 2026-10-28 登记（Chief 裁决 A）：S3a 脚本 use_fast_math 硬编码 True 导致参考为 fast-math 配方，与精确 f32 产品硬判据不匹配；本片补采同配方参考。S3b 判据随后改用 capture-exact/，fast-math 组降级诊断。GPU 资源不在 normify 层声明（避免与在途 S3b 卡冲突）；两次 GPU 窗（本片捕获窗、S3b 验证窗）分别报 Chief 签字、串行执行、绝不同时开。",
+  "revision": {
+    "before": "33bc8c3241eff0a9365ae275739e458637456827",
+    "after": null
+  },
+  "created_at": "2026-10-28T11:40:00.000Z",
+  "updated_at": "2026-10-28T11:36:07.115Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r09-s3a-capture-exact/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r09-s3a-capture-exact"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
