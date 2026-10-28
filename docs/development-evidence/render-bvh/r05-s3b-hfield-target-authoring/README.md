@@ -19,20 +19,21 @@
 
 | 文件 | 状态 | 字节 | 行数 | sha256 |
 | --- | --- | --- | --- | --- |
-| `tests/render_hfield_reference.rs` | 新增 | 14 568 | 393 | `57dc06252db831be2297748afc45be00b9326942a641dc33ec04c2f677278620` |
-| `tests/support/render_bvh/hfield.rs` | 新增 | 12 879 | 355 | `961817f1a495b29c3fd048e594ee3598b5aa884c748f950704a8a18ef3a3da7e` |
-| `tests/support/render_bvh/hfield_scene.rs` | 新增 | 17 389 | 500 | `a935d039f953b49a94a742b20151b0d62d03c17cf0924ce229638394daf0ff44` |
-| `tests/support/render_bvh/hfield/model-312.json` | 新增（生成数据） | 52 527 | 145 | `bc53747492121d76580d0f19b2062ff40676443292d8907c7964f115798ac321` |
-| `tests/support/render_bvh/hfield/model-mixed-312.json` | 新增（生成数据） | 53 207 | 145 | `c9a886ae8714b5a977a6bcb570960396b4cad2aa9e4c947dc26eef7e1ecac801` |
-| `tests/support/render_bvh/shadow.rs` | 修改（+8/−8 行，仅可见性） | 16 593 | 423 | `c47aa4b05b6976a4ff1015be1d4dffd787a1affb4f40b8dafb02aff335a2d2d9` |
+| `tests/render_hfield_reference.rs` | 新增 | 14 568 | 392 | `57dc06252db831be2297748afc45be00b9326942a641dc33ec04c2f677278620` |
+| `tests/support/render_bvh/hfield.rs` | 新增 | 12 879 | 354 | `961817f1a495b29c3fd048e594ee3598b5aa884c748f950704a8a18ef3a3da7e` |
+| `tests/support/render_bvh/hfield_scene.rs` | 新增 | 17 389 | 499 | `a935d039f953b49a94a742b20151b0d62d03c17cf0924ce229638394daf0ff44` |
+| `tests/support/render_bvh/hfield/model-312.json` | 新增（生成数据） | 52 527 | 144 | `bc53747492121d76580d0f19b2062ff40676443292d8907c7964f115798ac321` |
+| `tests/support/render_bvh/hfield/model-mixed-312.json` | 新增（生成数据） | 53 207 | 144 | `c9a886ae8714b5a977a6bcb570960396b4cad2aa9e4c947dc26eef7e1ecac801` |
+| `tests/support/render_bvh/shadow.rs` | 修改（+14/−8，仅可见性 + rustfmt 折行） | 16 593 | 422 | `c47aa4b05b6976a4ff1015be1d4dffd787a1affb4f40b8dafb02aff335a2d2d9` |
 
-行数口径：表内为文本行数（含末尾空行；与 Arch 终稿实测一致）；`wc -l`（LF 数）为 392 / 354 / 499。
-`hfield_scene.rs` 实测 **500 行**（≤500 上限），**高于本片预核 300–340 行**（场景装配 + 判据断言 +
-哈希/打印点全部实装所致），如实记录、不上调上限；终稿记录后不再加行。
+行数口径（QA O-1 权威口径）：表内为 **committed blob 的 LF 计数**（= `git numstat` / `wc -l`）；
+`split('\n')` 文本口径为 393 / 355 / 500（差 1 = 末尾换行后的空片段）；此前报的 356/306/432 是写入中间态。
+`hfield_scene.rs` **LF 499 行贴 500 行上限**：**窗内禁改**（需要变更先拆；本卡终稿后不再加行）；其规模高于本片
+预核 300–340 行（场景装配 + 判据断言 + 哈希/打印点全部实装所致），如实记录、不上调上限。
 
-`shadow.rs` 的 8 处改动仅把 `quantize_channel`/`sha256_hex`/`read_npz`/`parse_npy`/`f32_member`/
-`i32_member`/`f32_member_rgb`/`member` 由私有改为 `pub(super)`，供 `hfield.rs` 复用最小 npz 解析器；
-**零行为、零断言、零容差改动**。
+`shadow.rs` 提交实测 **+14/−8**（`git numstat`，含 rustfmt 折行）；语义上是 8 处
+`fn` → `pub(super) fn`（`quantize_channel`/`sha256_hex`/`read_npz`/`parse_npy`/`f32_member`/
+`i32_member`/`f32_member_rgb`/`member`），供 `hfield.rs` 复用最小 npz 解析器；**零行为、零断言、零容差改动**。
 
 ## 2. host 自检（无 GPU；普通 `cargo test` 可跑）
 
@@ -113,3 +114,5 @@ dump 的字段表不含 `hfield_*` 五数组（S0a dumper 字段表即如此）�
   本片只提供实体与骨架。
 - S2 O5 已落实：hfield leaf `size` 来自 `build_hfield_mesh().half()`；mixed 组 box 世界位姿按签字
   `scene-mixed.xml` L55 的静态 body 常量构造（3.12 render 字段表无 `body_pos`，无可读取来源）。
+- **`hfield_scene.rs` 窗内禁改**：其 LF 行数 **499**，贴 500 行上限（QA O-3）；验证窗内不得改该文件，
+  需要变更先拆分子模块。
