@@ -1,0 +1,21 @@
+R09-S2b 内核编译门（NVRTC 纯编译；不发射内核）
+命令: cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --nocapture megakernel_source_compiles_under_render_gate
+PATH: D:\Rust\mjwarp-rs\target\toolchains\cuda-12.8.1\bin 前置
+GPU before: 2555 MiB used / 16376 MiB total / util 2%
+GPU after : 2555 MiB used / 16376 MiB total / util 2%  （无变化 -> 未发射内核）
+
+test megakernel_source_compiles_under_render_gate ... ok
+s7b2 ptx: source_sha256=170457174286d9ce128ab5b91690331fe86f5da91a4f75d6e29099c9e69d22ff ptx_sha256=1e37c50ffc55a5eeeef0520a432d3f56e89a99985f8e204b5a24120f8e311b54 ptx_bytes=259107
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.63s
+
+对照 S2（历史，绑 S2 树）:
+  source_sha256=d38d50677959e65693f3e2cf84c25553dfa9ef19ebf094574281f8833de9d6d6（80 305 B）
+  ptx_sha256=1e37c50ffc55a5eeeef0520a432d3f56e89a99985f8e204b5a24120f8e311b54（259 107 B）
+
+对照结论:
+  - source sha 与字节数变（.cu 头注释 L11/L15 改动）-> 预期
+  - PTX sha 与字节数与 S2 逐位相同 -> 注释不进 PTX，本片实测证实
+
+独立复核（六段 include_str! 字节直拼后 sha256；与测试输出 source_sha256 一致）:
+  MEGAKERNEL_SOURCE bytes=80406 sha256=170457174286d9ce128ab5b91690331fe86f5da91a4f75d6e29099c9e69d22ff
+  分段字节: scene.cu 17315 / render_math.cu 12127 / render_common.cu 15393 / render_shadow.cu 1899 / render_shade.cu 16322 / render_megakernel.cu 17350

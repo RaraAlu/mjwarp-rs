@@ -8,11 +8,11 @@
 //   - 内部 BVH 仍是自有打包：场景/网格五段数据经 `bvh_id`（u64 标量）以设备指针传入，
 //     不消费 Warp BVH 句柄；`mesh_bvh_id`/`hfield_bvh_id`/`flex_bvh_id` 等槽为 ABI 占位。
 //   - 着色子集：headlight 三组、背景色、base color、纹理采样、顶点/面法线、自发光、高光、
-//     背面剔除；阴影/天空盒/splat/flex/hfield/SDF 不在本片（`use_shadows=false` 由 host 拒绝）。
+//     背面剔除、阴影（R09；host 自 R09-S2b 起不再前置拒绝）；天空盒/splat/flex/hfield/SDF 不在本片。
 //   - 复用 S7b2 自有参数槽（均为上游本片未用的占位槽，证据表标注）：
 //       `splat_position` = [headlight_ambient, headlight_diffuse, headlight_specular,
 //                           background_color_vec3]（4 × vec3 f32）
-//       `splat_scale`    = [znear, zfar, unused]
+//       `splat_scale`    = [znear, zfar, shadow_light_fraction]（第三分量原占位 unused，R09-S2 起改作 shadow_light_fraction）
 //       `splat_bvh_id`   = (packed_background_u32 << 32) | flags
 //     flags 位见 `MK_FLAG_*`。
 //   - 光线固定读 S5 预计算缓冲（`use_precomputed_rays=true`；动态路径由 host 拒绝）。

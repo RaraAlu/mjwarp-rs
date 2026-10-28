@@ -6,7 +6,7 @@
 //!   经 `bvh_id`（u64 标量）以设备指针传入（`MegakernelBlob`，见 `cuda/render_common.cu`），
 //!   不消费 Warp BVH 句柄；未用槽用 1 元素占位（渲染 ABI 拒绝零长数组），逐槽表进证据。
 //! - 着色子集：headlight 三组、背景色、base color、纹理采样、顶点/面法线、自发光、高光、
-//!   背面剔除；阴影/天空盒/splat/flex/hfield/SDF 由本片 host 侧**写前拒绝**。
+//!   背面剔除；阴影产品路径 R09-S2b 起已解锁（天空盒/splat/flex/hfield/SDF 仍写前拒绝）。
 //! - S7b3：`samples_per_pixel > 1`（AA）时按 sample 顺序发射 `render_megakernel`
 //!   （`ray_base = sample * total_rays`，与上游 `for sample in range(nsamples)` 一致），
 //!   `store_pixel` 累积到 `aa_accum`，全部 sample 之后发射 `aa_resolve` 求平均并打包。
@@ -35,7 +35,7 @@ use super::launch::{RenderKernel, Texture2dArray};
 use super::megakernel_aa::{AAResolve, launch_samples};
 use super::megakernel_arrays::{
     array, bool_words, flags, floats, geom_data_poses, ints, light_data_poses, pack_blob, reals,
-    shading_words, span_addr, to_i32, upload,
+    shading_words, span_addr, to_i32, upload, use_shadows_arg,
 };
 use super::world_arrays::{camera_pose_shape, light_type_shape, shared_matrix_shape, shared_shape};
 use super::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
@@ -74,7 +74,7 @@ impl MegakernelRenderer {
         &self.kernel
     }
 
-    /// 发射一帧（默认 context 口径：spp=1、预计算射线、无阴影/天空盒/splat/AA）。
+    /// 发射一帧（默认 context 口径：spp=1、预计算射线、无天空盒/splat/AA；阴影由 `use_shadows` 控制）。
     pub fn render(
         &self,
         context: &RenderContext,
@@ -94,9 +94,7 @@ impl MegakernelRenderer {
                 "S7b3 只支持 use_precomputed_rays=true（动态射线未实现）",
             ));
         }
-        if resolved.use_shadows {
-            return Err(LauncherError::Unsupported("S7b3 不含阴影"));
-        }
+        // R09-S2b：`use_shadows` 产品路径已解锁（S7b3 前置拒绝已移除；数值验收在 S3b 窗）。
         if resolved.render_skybox {
             return Err(LauncherError::Unsupported("S7b3 不含天空盒"));
         }
@@ -403,8 +401,8 @@ impl MegakernelRenderer {
         args.push(array(&light_xdir, RenderElem::Vec3, &shared_light)?);
         args.push(array(&flexvert_xpos, RenderElem::Vec3, &[1])?);
         args.push(RenderArg::Scalar(RenderScalar::I32(to_i32(nrender)?)));
-        // R09-S2：阴影总开关从 `resolved.use_shadows` 接线（上游签名参数，非硬编码）。
-        args.push(RenderArg::Scalar(RenderScalar::Bool(resolved.use_shadows)));
+        // R09-S2b：第 40 槽（0-based `MEGAKERNEL_SLOTS[40]`）阴影总开关，值取 `resolved.use_shadows`。
+        args.push(use_shadows_arg(resolved.use_shadows));
         args.push(RenderArg::Scalar(RenderScalar::I32(to_i32(ngeom)?)));
         args.push(RenderArg::Scalar(RenderScalar::I32(0)));
         args.push(array(&cam_res, RenderElem::Vec2I, &[nrender])?);

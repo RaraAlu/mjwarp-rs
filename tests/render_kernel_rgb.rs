@@ -214,14 +214,25 @@ fn unsupported_configurations_are_rejected_before_launch() {
     let renderer = MegakernelRenderer::new(&session).expect("S7b2 内核编译");
     let recipe = recipe_depth_seg();
 
+    // R09-S2b：`use_shadows=true` 已解锁（host 前置拒绝移除）→ 必须被接受并发射成功。
+    let shadow_params = mjwarp_rs::render::ContextParams {
+        use_shadows: true,
+        ..default_params()
+    };
+    let shadow_context = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        create_context(&session, &fields, &shadow_params)
+    })) {
+        Ok(context) => context,
+        Err(_) => panic!("use_shadows=true 的 context 必须可创建（R09-S2b 解锁）"),
+    };
+    let shadow_poses = camera_data_poses(&recipe, &model, shadow_context.resolved());
+    let shadow_result = renderer.render(&shadow_context, &fields, &model, &shadow_poses, &rays);
+    assert!(
+        shadow_result.is_ok(),
+        "use_shadows=true 必须被接受（实际 {shadow_result:?}）"
+    );
+
     let cases: Vec<(&str, mjwarp_rs::render::ContextParams<'_>)> = vec![
-        (
-            "use_shadows",
-            mjwarp_rs::render::ContextParams {
-                use_shadows: true,
-                ..default_params()
-            },
-        ),
         (
             "use_precomputed_rays=false",
             mjwarp_rs::render::ContextParams {
@@ -229,8 +240,8 @@ fn unsupported_configurations_are_rejected_before_launch() {
                 ..default_params()
             },
         ),
-        // 注：`samples_per_pixel=2`（AA）已由 S7b3 实现，不再是拒绝项；AA 的合法配置
-        // 与拒绝面由 S7b3 用例（`tests/render_kernel_flags.rs`）验收。
+        // 注：`samples_per_pixel=2`（AA）已由 S7b3 实现、`use_shadows` 由 R09-S2b 解锁，
+        // 均不再是拒绝项；AA 的合法配置与拒绝面由 S7b3 用例（`tests/render_kernel_flags.rs`）验收。
         (
             "render_skybox",
             mjwarp_rs::render::ContextParams {
@@ -253,5 +264,7 @@ fn unsupported_configurations_are_rejected_before_launch() {
             "{name} 必须在写前拒绝（实际 {result:?}）"
         );
     }
-    println!("s7b2 rejection surface: 3 configurations rejected before launch (AA moved to S7b3)");
+    println!(
+        "s7b2 rejection surface: shadows supported; precomputed=false/skybox rejected (AA moved to S7b3)"
+    );
 }

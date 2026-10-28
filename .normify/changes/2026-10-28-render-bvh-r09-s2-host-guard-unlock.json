@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r09-s2-host-guard-unlock",
+  "title": {
+    "zh": "R09-S2b：解锁 use_shadows 产品路径（移除 host 前置拒绝 + 同步两条 GPU 断言 + 接线单测）",
+    "en": "R09-S2b: unlock the use_shadows product path (remove host pre-rejection, sync two GPU assertions, wiring unit test)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R09-S2 实现片已把阴影分支写进内核，但 host 侧 `src/render/kernel/megakernel.rs` 仍前置拒绝 `use_shadows=true`（S7b3 引入的既有产品策略），第 40 槽恒 false，且两条既有 `#[ignore]` GPU 用例（`tests/render_kernel_flags.rs` L412-435、`tests/render_kernel_rgb.rs` L209-224）仍把「拒绝」当契约——结论：**阴影分支在产品路径暂不可达**。本片解锁该路径，使 R09-S3b 验证窗可以真正从产品入口发射阴影：① 移除 host 前置拒绝，让 `use_shadows` 槽读 `resolved.use_shadows`；② 同步改上述两条 GPU 断言（由「期望拒绝」改为「期望接受」，仍 `#[ignore]`，窗口内跑）；③ 更正 `cuda/render_megakernel.cu:15` 头注释（`splat_scale` 第三分量已从 unused 改为 shadow_light_fraction）；④ 加一条 in-crate 单测锁住 `shading_words() → scale_constants[2]` 与第 40 槽取值（当前只有结构/字符串级断言）。**本片不写任何渲染数值结论**：`use_shadows=false` 逐位一致与 `use_shadows=true` 的像素/数值验收仍在 R09-S3b 窗。",
+    "en": "Unlock the shadow product path so the S3b window can launch shadows end to end; no numeric claim in this slice."
+  },
+  "modules": {},
+  "acceptance": [
+    "`src/render/kernel/megakernel.rs` 不再拒绝 `use_shadows=true`（移除 S7b3 前置拒绝），第 40 槽取 `resolved.use_shadows`；81 槽签名零改动。",
+    "`tests/render_kernel_flags.rs` L412-435 与 `tests/render_kernel_rgb.rs` L209-224 两条 GPU 用例由「断言拒绝」改为「断言接受」，仍 `#[ignore]`（窗口内跑）；不得删除或降级用例强度。",
+    "`cuda/render_megakernel.cu` 头注释更正为「splat_scale = [znear, zfar, shadow_light_fraction]」，说明原占位改作 shadow_light_fraction。",
+    "新增 in-crate 单测（`src/render/kernel/megakernel_arrays.rs` 的 `#[cfg(test)]` 或等价位置）：锁住 `resolved.shadow_light_fraction` 写入 `scale_constants[2]` 与第 40 槽取值，避免仅字符串断言。",
+    "`use_shadows=false` 路径代码级不变（差异仅限解锁与注释/测试面）；本片不写任何渲染数值结论，数值验收留 S3b。",
+    "四门禁（fmt/clippy/clippy-cuda/unit）绑最终树通过；证据 `docs/development-evidence/render-bvh/r09-s2b-host-guard-unlock/`（README + receipt 含 `/task_id` + manifest，LF 无 BOM、禁词 0）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r09-s2-lighting-kernel"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/",
+      "tests/render_kernel_flags.rs",
+      "tests/render_kernel_rgb.rs",
+      "docs/development-evidence/render-bvh/r09-s2b-host-guard-unlock/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-28 登记（来源：QA R09-S2 复核 O1 严重项裁决）：**必须在 R09-S3b 验证窗之前完成**，否则窗口无法从产品路径发射阴影。CPU-only、无 GPU 窗口。",
+  "revision": {
+    "before": "b20a3a7a09bc2efdd1cb2ee6da683f40fd251b9b",
+    "after": null
+  },
+  "created_at": "2026-10-28T10:55:00.000Z",
+  "updated_at": "2026-10-28T11:16:59.252Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r09-s2b-host-guard-unlock/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r09-s2-host-guard-unlock"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

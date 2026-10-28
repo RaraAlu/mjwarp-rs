@@ -1,0 +1,173 @@
+{
+  "task_id": "2026-10-28-render-bvh-r09-s2-host-guard-unlock",
+  "kind": "render-bvh-r09-s2b-host-guard-unlock",
+  "stage": "cpu-only-implementation",
+  "head": "f41827a1",
+  "no_window": true,
+  "numeric_conclusions": false,
+  "prerequisite": "2026-10-28-render-bvh-r09-s2-lighting-kernel (verified; shadow branch implemented but host still rejected use_shadows=true)",
+  "changes": [
+    {
+      "path": "src/render/kernel/megakernel.rs",
+      "lines_before": 492,
+      "lines_after": 490,
+      "detail": "removed L97-99 host pre-rejection of use_shadows=true (replaced by one unlock comment); L403-405 slot 40 now calls use_shadows_arg(resolved.use_shadows); L9 header and L77 render() doc wording synced; added use_shadows_arg to megakernel_arrays import"
+    },
+    {
+      "path": "src/render/kernel/cuda/render_megakernel.cu",
+      "lines_before": 340,
+      "lines_after": 340,
+      "detail": "comments only: L11 semantic boundary corrected (shadows supported by R09; host no longer pre-rejects since R09-S2b; skybox/splat/flex/hfield/SDF still out of scope); L15 splat_scale = [znear, zfar, shadow_light_fraction] with note that the third component was the former unused placeholder"
+    },
+    {
+      "path": "src/render/kernel/megakernel_arrays.rs",
+      "lines_before": 241,
+      "lines_after": 326,
+      "detail": "added pure functions scale_constants(znear, zfar, shadow_light_fraction) and use_shadows_arg(bool); shading_words now builds splat_scale via scale_constants (local variable scale_words); added #[cfg(test)] mod tests with 4 unit tests"
+    },
+    {
+      "path": "tests/render_kernel_flags.rs",
+      "lines_before": 457,
+      "lines_after": 475,
+      "detail": "use_shadows=true moved out of the rejection cases into an independent 'accepted -> Ok(())' assertion; the other two cases (use_precomputed_rays=false, render_skybox) still assert Unsupported; println text updated; test still #[ignore = needs GPU + NVRTC]"
+    },
+    {
+      "path": "tests/render_kernel_rgb.rs",
+      "lines_before": 257,
+      "lines_after": 270,
+      "detail": "same transformation: independent accepted assertion for use_shadows=true; the other two cases still rejected; println text updated; test still #[ignore = needs GPU + NVRTC]"
+    }
+  ],
+  "untouched": {
+    "render_cu_lines": 499,
+    "launch_rs_lines": 500,
+    "cast_rs_lines": 494,
+    "megakernel_slots": 81,
+    "device_sources": 28,
+    "collision_args_bytes": 504,
+    "camera_output_rs_lines": 499,
+    "model_render_rs_lines": 500,
+    "device_cu_lines": {
+      "render_common.cu": 387,
+      "render_math.cu": 309,
+      "render_shade.cu": 359,
+      "render_shadow.cu": 30
+    },
+    "s7a_signature_evidence": "unchanged (no re-freeze)",
+    "criteria_references_fixtures_tolerances": "unchanged",
+    "failing_cases_deleted_or_downgraded": 0
+  },
+  "host_guard": {
+    "removed": "src/render/kernel/megakernel.rs L97-99: if resolved.use_shadows { return Err(LauncherError::Unsupported(\"S7b3 without shadows\")) }",
+    "slot_40": {
+      "index_convention": "0-based MEGAKERNEL_SLOTS[40] == 1-based slot 41 == Scalar(Bool)",
+      "value_source": "resolved.use_shadows via pure function use_shadows_arg",
+      "signature_changed": false
+    },
+    "scale_slot": {
+      "position": "splat_scale[2]",
+      "semantics": "shadow_light_fraction (was placeholder unused 0.0; upstream render.py L880)",
+      "slot_count_unchanged": true
+    }
+  },
+  "gpu_assertions": {
+    "files": ["tests/render_kernel_flags.rs", "tests/render_kernel_rgb.rs"],
+    "both_still_ignored": true,
+    "ignore_reason": "需要 GPU + NVRTC",
+    "change": "use_shadows from 'expects rejection' to 'expects acceptance'; other rejection cases kept at full strength",
+    "behavior_verification_window": "R09-S3b (not executed in this CPU-only slice)"
+  },
+  "unit_tests": {
+    "module": "src/render/kernel/megakernel_arrays.rs::tests",
+    "count": 4,
+    "names": [
+      "scale_constants_maps_shadow_fraction_to_third_component",
+      "scale_constants_placeholder_now_is_shadow_fraction",
+      "use_shadows_arg_maps_boolean_to_slot_40_value",
+      "slot_40_is_bool_scalar_in_frozen_signature"
+    ],
+    "resolved_context_note": "full ResolvedContext is not constructed (30+ fields, no Default); resolved.shadow_light_fraction -> scale_constants[2] is guaranteed by the pure function plus its single call site in shading_words"
+  },
+  "kernel_compile_gate": {
+    "command": "cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --nocapture megakernel_source_compiles_under_render_gate",
+    "cuda_bin_prepended": "target/toolchains/cuda-12.8.1/bin",
+    "result": "1 passed; 0 failed; finished in 0.63s",
+    "check_render_ptx": "passed (f32-render precision gate)",
+    "gpu_before": "2555 MiB used / 16376 MiB total / util 2%",
+    "gpu_after": "2555 MiB used / 16376 MiB total / util 2%",
+    "kernel_launched": false,
+    "megakernel_source": {
+      "sha256": "170457174286d9ce128ab5b91690331fe86f5da91a4f75d6e29099c9e69d22ff",
+      "bytes": 80406,
+      "segments_bytes": {
+        "scene.cu": 17315,
+        "render_math.cu": 12127,
+        "render_common.cu": 15393,
+        "render_shadow.cu": 1899,
+        "render_shade.cu": 16322,
+        "render_megakernel.cu": 17350
+      },
+      "independent_recompute": "byte concatenation of the six include_str! segments; sha256 matches the source_sha256 printed by the gate"
+    },
+    "ptx": {
+      "sha256": "1e37c50ffc55a5eeeef0520a432d3f56e89a99985f8e204b5a24120f8e311b54",
+      "bytes": 259107
+    },
+    "comparison_with_s2": {
+      "s2_source_sha256": "d38d50677959e65693f3e2cf84c25553dfa9ef19ebf094574281f8833de9d6d6",
+      "s2_source_bytes": 80305,
+      "source_changed": true,
+      "source_change_reason": ".cu header comments L11/L15 changed",
+      "ptx_identical_to_s2": true,
+      "ptx_conclusion": "comments do not reach PTX; no code-generation change observed"
+    }
+  },
+  "gate": {
+    "command": "normify gate 2026-10-28-render-bvh-r09-s2-host-guard-unlock",
+    "executions": [
+      {
+        "when": "before in_progress commit (working tree)",
+        "exit": 0,
+        "fmt_ms": 1562,
+        "clippy_ms": 5889,
+        "clippy_cuda_ms": 405,
+        "unit_ms": 68287,
+        "unit_passed": 1049,
+        "unit_failed": 0,
+        "unit_ignored": 384
+      },
+      {
+        "when": "after in_progress commit (bound tree)",
+        "exit": 0,
+        "fmt_ms": 1613,
+        "clippy_ms": 455,
+        "clippy_cuda_ms": 405,
+        "unit_ms": 11116,
+        "unit_passed": 1049,
+        "unit_failed": 0,
+        "unit_ignored": 384
+      }
+    ],
+    "note": "normify invalidates gate records when the tree/HEAD changes, so gates were re-run after the in_progress commit; both executions exit 0 with unit 1049 passed; scope hashes and final timings are recorded under .normify/runs/",
+    "unit_baseline_s2": 1045,
+    "unit_delta": 4,
+    "run_records": ".normify/runs/2026-10-28-render-bvh-r09-s2-host-guard-unlock/"
+  },
+  "history_values_kept": {
+    "note": "S2 and r09-s2-check recorded values stay as historical snapshots bound to their own trees; they are not updated by this slice",
+    "s2_evidence": "docs/development-evidence/render-bvh/r09-s2-lighting-kernel/ (source_sha256=d38d5067..., 80305 B; ptx_sha256=1e37c50f..., 259107 B)",
+    "s2_check_evidence": "docs/development-evidence/render-bvh/r09-s2-check/"
+  },
+  "limitations": [
+    "no rendering numeric conclusion in this slice: use_shadows=false bit-exact regression and use_shadows=true pixel-level behavior are validated in the R09-S3b window",
+    "both GPU assertions remain #[ignore]; only compilation and assertion shape were changed here, their accept/reject behavior runs in the window",
+    "no claim of shadow availability/quality; no claim of upstream equivalence; no window verdict",
+    "criteria/references/fixtures/tolerances unchanged; no failing case deleted or downgraded"
+  ],
+  "claims": {
+    "product_path_unlock_implemented": true,
+    "shadow_behavior_verified": false,
+    "numeric_acceptance": false,
+    "upstream_equivalence": false
+  }
+}

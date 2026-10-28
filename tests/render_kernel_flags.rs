@@ -409,15 +409,33 @@ fn aa_supported_and_remaining_rejections_pre_launch() {
         "AA 射线数不符必须写前拒绝（实际 {result:?}）"
     );
 
-    // 3) 剩余 3 类仍写前拒绝（AA 已从拒绝面移除）。
+    // 3) R09-S2b：`use_shadows=true` 已解锁（host 前置拒绝移除）→ 必须被接受并发射成功。
+    let shadow_params = mjwarp_rs::render::ContextParams {
+        use_shadows: true,
+        ..s7b3::default_params()
+    };
+    let shadow_context = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        s7b3::create_context_with_params(&session, &fields, &shadow_params)
+    })) {
+        Ok(context) => context,
+        Err(_) => panic!("use_shadows=true 的 context 必须可创建（R09-S2b 解锁）"),
+    };
+    let shadow_poses = camera_data_poses(&fields, shadow_context.resolved());
+    let shadow_rays = precomputed_rays(&session, &fields);
+    let shadow_result = renderer.render(
+        &shadow_context,
+        &fields,
+        &model,
+        &shadow_poses,
+        &shadow_rays,
+    );
+    assert!(
+        shadow_result.is_ok(),
+        "use_shadows=true 必须被接受（实际 {shadow_result:?}）"
+    );
+
+    // 4) 其余 2 类仍写前拒绝（AA 与阴影均已从拒绝面移除）。
     let cases = [
-        (
-            "use_shadows",
-            mjwarp_rs::render::ContextParams {
-                use_shadows: true,
-                ..s7b3::default_params()
-            },
-        ),
         (
             "use_precomputed_rays=false",
             mjwarp_rs::render::ContextParams {
@@ -452,6 +470,6 @@ fn aa_supported_and_remaining_rejections_pre_launch() {
         );
     }
     println!(
-        "s7b3 rejection surface: AA supported; shadows/precomputed=false/skybox rejected; bad AA ray count rejected"
+        "s7b3 rejection surface: AA + shadows supported; precomputed=false/skybox rejected; bad AA ray count rejected"
     );
 }

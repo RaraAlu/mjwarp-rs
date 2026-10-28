@@ -4,7 +4,9 @@
 use crate::model::render::{FieldData, RenderFields};
 use crate::render::context::ResolvedContext;
 use crate::render::kernel::cast::SceneDevice;
-use crate::runtime::launcher::{LauncherError, RenderArg, RenderArrayValue, RenderElem};
+use crate::runtime::launcher::{
+    LauncherError, RenderArg, RenderArrayValue, RenderElem, RenderScalar,
+};
 use crate::runtime::{TransferBuffer, TransferElement, TransferSession};
 
 use crate::render::kernel::cast::{MeshDevice, PoseError};
@@ -202,6 +204,24 @@ pub fn light_data_poses(fields: &RenderFields) -> Result<Vec<LightDataPose>, Pos
     Ok(poses)
 }
 
+/// R09-S2b：`splat_scale` 三常量槽 = `[znear, zfar, shadow_light_fraction]`。
+///
+/// 第三分量原为占位 `0.0`（S7b2 unused），R09-S2 起改作 `shadow_light_fraction`
+/// （上游 `render.py` L880；内核读 `splat_scale.data[0][2]`）。抽成纯函数以便 in-crate
+/// 单测直接锁「shadow_light_fraction → index 2」的映射：本模块不构造完整
+/// `ResolvedContext`（30+ 字段且无 `Default`，构造属集成测试面）。
+pub(crate) fn scale_constants(znear: f64, zfar: f64, shadow_light_fraction: f64) -> Vec<f32> {
+    vec![znear as f32, zfar as f32, shadow_light_fraction as f32]
+}
+
+/// R09-S2b：第 40 槽（0-based `MEGAKERNEL_SLOTS[40]`，1-based 第 41 项）的阴影总开关实参。
+///
+/// 该槽在 S7a 冻结签名里是 `Scalar(Bool)`；host 自 S7b3 起传 `resolved.use_shadows`，
+/// R09-S2b 移除 host 前置拒绝后产品路径可达（行为验证在 R09-S3b 窗，本片不作数值结论）。
+pub(crate) fn use_shadows_arg(use_shadows: bool) -> RenderArg {
+    RenderArg::Scalar(RenderScalar::Bool(use_shadows))
+}
+
 /// S7b2/S7b3 自有参数槽：着色常量（4×vec3）、缩放常量（vec3）与 flags word。
 /// 返回 `(shading_constants, scale_constants, flags_word)`；抽到本模块以保持
 /// `megakernel.rs` 的 500 行棘轮。
@@ -220,12 +240,12 @@ pub(crate) fn shading_words(
         resolved.background_color[2] as f32,
     ]);
     // R09-S2：第三分量原为占位 `0.0`（unused），改作 `shadow_light_fraction`
-    // （上游 L880；内核 `splat_scale.data[0][2]` 读取）。
-    let scale_constants = vec![
-        resolved.znear as f32,
-        resolved.zfar as f32,
-        resolved.shadow_light_fraction as f32,
-    ];
+    // （上游 L880；内核 `splat_scale.data[0][2]` 读取）；R09-S2b 抽纯函数并加接线单测。
+    let scale_words = scale_constants(
+        resolved.znear,
+        resolved.zfar,
+        resolved.shadow_light_fraction,
+    );
     let mut flag_bits = 0u32;
     flag_bits |= u32::from(resolved.use_textures);
     flag_bits |= u32::from(resolved.enable_vertex_normals) << 1;
@@ -237,5 +257,70 @@ pub(crate) fn shading_words(
     flag_bits |= u32::from(resolved.enable_backface_culling) << 7;
     flag_bits |= u32::from(nsamples > 1) << 8;
     let flags_word = (u64::from(resolved.background_color_packed) << 32) | u64::from(flag_bits);
-    (shading_constants, scale_constants, flags_word)
+    (shading_constants, scale_words, flags_word)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{scale_constants, use_shadows_arg};
+    use crate::runtime::launcher::{
+        MEGAKERNEL_SLOTS, RenderArg, RenderArgKind, RenderScalar, RenderScalarKind,
+    };
+
+    /// R09-S2b：`shadow_light_fraction` 必须落在 `splat_scale` 第三分量（index 2）。
+    #[test]
+    fn scale_constants_maps_shadow_fraction_to_third_component() {
+        let words = scale_constants(0.1, 100.0, 0.3);
+        assert_eq!(words.len(), 3);
+        // 用 bit 比较：避免浮点相等断言被 clippy::float_cmp 拦；映射必须逐位精确。
+        assert_eq!(words[0].to_bits(), 0.1f32.to_bits(), "index 0 必须是 znear");
+        assert_eq!(
+            words[1].to_bits(),
+            100.0f32.to_bits(),
+            "index 1 必须是 zfar"
+        );
+        assert_eq!(
+            words[2].to_bits(),
+            0.3f32.to_bits(),
+            "index 2 必须是 shadow_light_fraction"
+        );
+    }
+
+    /// 原占位 `0.0` 的语义已改为「`shadow_light_fraction = 0`」，不再被当作 unused 丢弃。
+    #[test]
+    fn scale_constants_placeholder_now_is_shadow_fraction() {
+        let words = scale_constants(0.5, 50.0, 0.0);
+        assert_eq!(words.len(), 3);
+        assert_eq!(words[0].to_bits(), 0.5f32.to_bits());
+        assert_eq!(words[1].to_bits(), 50.0f32.to_bits());
+        assert_eq!(words[2].to_bits(), 0.0f32.to_bits());
+        // 默认 `shadow_light_fraction = 0.3`（`params.rs` 既有权重）原样落到第三分量。
+        assert_eq!(
+            scale_constants(0.5, 50.0, 0.3)[2].to_bits(),
+            0.3f32.to_bits()
+        );
+    }
+
+    /// R09-S2b：布尔总开关经纯函数写实参，不依赖字符串/结构断言。
+    #[test]
+    fn use_shadows_arg_maps_boolean_to_slot_40_value() {
+        assert!(matches!(
+            use_shadows_arg(true),
+            RenderArg::Scalar(RenderScalar::Bool(true))
+        ));
+        assert!(matches!(
+            use_shadows_arg(false),
+            RenderArg::Scalar(RenderScalar::Bool(false))
+        ));
+    }
+
+    /// 冻结签名的第 40 槽（0-based）= 1-based 第 41 项 = `Scalar(Bool)`；81 槽不变。
+    #[test]
+    fn slot_40_is_bool_scalar_in_frozen_signature() {
+        assert_eq!(MEGAKERNEL_SLOTS.len(), 81);
+        assert_eq!(
+            MEGAKERNEL_SLOTS[40],
+            RenderArgKind::Scalar(RenderScalarKind::Bool)
+        );
+    }
 }
