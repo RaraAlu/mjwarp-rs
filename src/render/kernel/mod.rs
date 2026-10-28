@@ -50,7 +50,8 @@ pub const DEPTH_SEG_ENTRY: &str = "render_depth_seg";
 pub const MEGAKERNEL_ENTRY: &str = "render_megakernel";
 
 /// S7b2 全签名渲染内核源码：S2b `scene.cu`（只读复用）+ S3 mesh 数学副本
-/// （`render_math.cu`，含球面对齐）+ 公共部分（`render_common.cu`）+ 着色
+/// （`render_math.cu`，含球面对齐）+ 公共部分（`render_common.cu`）+ R09 阴影
+/// （`render_shadow.cu`，方案 A 复用 first-hit `cast_ray`）+ 着色
 /// （`render_shade.cu`）+ 81 槽内核本体（`render_megakernel.cu`）。
 ///
 /// 拼接在编译期完成，产物键覆盖全部片段；不改 `src/render/bvh/**`。
@@ -58,6 +59,7 @@ pub const MEGAKERNEL_SOURCE: &str = concat!(
     include_str!("../bvh/cuda/scene.cu"),
     include_str!("cuda/render_math.cu"),
     include_str!("cuda/render_common.cu"),
+    include_str!("cuda/render_shadow.cu"),
     include_str!("cuda/render_shade.cu"),
     include_str!("cuda/render_megakernel.cu"),
 );

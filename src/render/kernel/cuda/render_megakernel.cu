@@ -101,10 +101,8 @@ extern "C" __global__ void render_megakernel(
     if (worldid >= dim.shape[0]) {
         return;
     }
-    // 本片：阴影/splat 未实现；host 侧已拒绝（这里只做防御性判断）。
-    if (use_shadows) {
-        return;
-    }
+    // R09-S2：`use_shadows` 已支持（阴影在 compute_lighting 内按灯 castshadow 处理）；
+    // splat 仍未实现，由 host 侧拒绝（这里只做防御性判断）。
 
     const int ncam = nrender;
     int camid = -1;
@@ -139,6 +137,8 @@ extern "C" __global__ void render_megakernel(
     V3 headlight_specular = to_v3(splat_position.data[2]);
     V3 background = to_v3(splat_position.data[3]);
     float zfar = splat_scale.data[0][1];
+    // R09-S2：`scale_constants[0][2]` 原占位 unused → `shadow_light_fraction`（上游 L880）。
+    float shadow_light_fraction = splat_scale.data[0][2];
     // S7b3：AA（samples_per_pixel>1）时 `store_pixel` 累积到 aa_accum，最后 `aa_resolve` 平均。
     bool aa = (flag_bits & MK_FLAG_AA) != 0u;
 
@@ -299,9 +299,13 @@ extern "C" __global__ void render_megakernel(
         float exponent = light_exponent.data[light];
         V3 diff_rgb;
         V3 spec_rgb;
-        compute_lighting(active, type, lightpos, lightdir, attenuation, cutoff, exponent,
-                         to_v3(light_diffuse.data[light]), to_v3(light_specular.data[light]), normal, hit_point,
-                         view_dir, mat_spec, mat_shin_exp, enable_specular, &diff_rgb, &spec_rgb);
+        compute_lighting(scene, blob, geom_type.data, geom_matid.data,
+                         (const float*)geom_rgba.data, (const float*)mat_rgba.data, worldid,
+                         cull_backfaces, active, type, lightpos, lightdir, attenuation, cutoff,
+                         exponent, to_v3(light_diffuse.data[light]),
+                         to_v3(light_specular.data[light]), normal, hit_point, view_dir, mat_spec,
+                         mat_shin_exp, enable_specular, use_shadows, light_castshadow.data[light],
+                         shadow_light_fraction, &diff_rgb, &spec_rgb);
         result = add(add(result, cw_mul(base_color, diff_rgb)), spec_rgb);
     }
 
@@ -312,9 +316,13 @@ extern "C" __global__ void render_megakernel(
         V3 cam_fwd = v3(-cam_mat[2], -cam_mat[5], -cam_mat[8]);
         V3 diff_rgb;
         V3 spec_rgb;
-        compute_lighting(true, 1, ray_origin_world, cam_fwd, v3(1.0f, 0.0f, 0.0f), 0.0f, 0.0f,
-                         headlight_diffuse, headlight_specular, normal, hit_point, view_dir, mat_spec,
-                         mat_shin_exp, enable_specular, &diff_rgb, &spec_rgb);
+        // R09-S2：headlight 不投影（上游 L1457-1459 传 `lightcastshadow=False`）。
+        compute_lighting(scene, blob, geom_type.data, geom_matid.data,
+                         (const float*)geom_rgba.data, (const float*)mat_rgba.data, worldid,
+                         cull_backfaces, true, 1, ray_origin_world, cam_fwd, v3(1.0f, 0.0f, 0.0f),
+                         0.0f, 0.0f, headlight_diffuse, headlight_specular, normal, hit_point,
+                         view_dir, mat_spec, mat_shin_exp, enable_specular, use_shadows, false,
+                         shadow_light_fraction, &diff_rgb, &spec_rgb);
         result = add(add(result, cw_mul(base_color, diff_rgb)), spec_rgb);
     }
 

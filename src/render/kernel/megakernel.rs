@@ -403,7 +403,8 @@ impl MegakernelRenderer {
         args.push(array(&light_xdir, RenderElem::Vec3, &shared_light)?);
         args.push(array(&flexvert_xpos, RenderElem::Vec3, &[1])?);
         args.push(RenderArg::Scalar(RenderScalar::I32(to_i32(nrender)?)));
-        args.push(RenderArg::Scalar(RenderScalar::Bool(false)));
+        // R09-S2：阴影总开关从 `resolved.use_shadows` 接线（上游签名参数，非硬编码）。
+        args.push(RenderArg::Scalar(RenderScalar::Bool(resolved.use_shadows)));
         args.push(RenderArg::Scalar(RenderScalar::I32(to_i32(ngeom)?)));
         args.push(RenderArg::Scalar(RenderScalar::I32(0)));
         args.push(array(&cam_res, RenderElem::Vec2I, &[nrender])?);

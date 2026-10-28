@@ -1,0 +1,53 @@
+Diff in \\?\D:\Rust\mjwarp-rs\tests\render_lighting_kernel.rs:9:
+ //! 上游锚点：冻结 MJWarp 3.15 `render.py`（`71da24d`）L830/L850/L866/L880/L919-961。
+ 
+ use mjwarp_rs::render::ContextParams;
+[31m-use mjwarp_rs::render::resolve_context;
+[0m use mjwarp_rs::render::kernel::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
+[32m+use mjwarp_rs::render::resolve_context;
+[0m use mjwarp_rs::runtime::launcher::{MEGAKERNEL_SLOTS, RenderArgKind};
+ use serde_json::Value;
+ 
+Diff in \\?\D:\Rust\mjwarp-rs\tests\render_lighting_kernel.rs:47:
+                 RenderFieldKind::Size => {
+                     FieldData::Size(values.iter().map(|v| v.as_i64().expect("i64")).collect())
+                 }
+[31m-                RenderFieldKind::Float => {
+[0m[31m-                    FieldData::Float(values.iter().map(|v| v.as_f64().expect("f32") as f32).collect())
+[0m[31m-                }
+[0m[32m+                RenderFieldKind::Float => FieldData::Float(
+[0m[32m+                    values
+[0m[32m+                        .iter()
+[0m[32m+                        .map(|v| v.as_f64().expect("f32") as f32)
+[0m[32m+                        .collect(),
+[0m[32m+                ),
+[0m             }
+         })
+         .collect();
+Diff in \\?\D:\Rust\mjwarp-rs\tests\render_lighting_kernel.rs:103:
+         .find("extern \"C\" __global__ void render_megakernel(")
+         .expect("内核本体");
+     assert!(common < shadow, "cast_ray 必须先于 shadow_visibility");
+[31m-    assert!(shadow < shade, "shadow_visibility 必须先于 compute_lighting");
+[0m[32m+    assert!(
+[0m[32m+        shadow < shade,
+[0m[32m+        "shadow_visibility 必须先于 compute_lighting"
+[0m[32m+    );
+[0m     assert!(shade < megakernel, "compute_lighting 必须先于内核本体");
+ }
+ 
+   Compiling mjwarp-rs v0.1.0 (D:\Rust\mjwarp-rs)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.95s
+     Running tests\render_lighting_kernel.rs (target\debug\deps\render_lighting_kernel-9149737fc79057b3.exe)
+
+running 5 tests
+test megakernel_slots_signature_is_unchanged ... ok
+test shadow_light_fraction_default_matches_upstream_signature ... ok
+test shadow_source_precedes_shading_in_concat_order ... ok
+test megakernel_source_includes_shadow_visibility_source ... ok
+test resolved_context_carries_shadow_parameters ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+    Checking mjwarp-rs v0.1.0 (D:\Rust\mjwarp-rs)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.21s

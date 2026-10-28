@@ -1,0 +1,113 @@
+{
+    "task_id":  "2026-10-28-render-bvh-r09-s2-lighting-kernel",
+    "kind":  "render-bvh-r09-s2-lighting-kernel",
+    "stage":  "kernel-lighting-shadow-implementation",
+    "head":  "5cc6a3d556b252fed8af6496b8a85a1c5c49cacc",
+    "no_window":  true,
+    "numeric_conclusions":  "none (deferred to S3b window)",
+    "upstream":  "MJWarp 3.15 render.py 71da24d956378a87a703b6e1442b13aec0c4ac29 (L830/L850/L866/L880/L919-961/L1457-1459)",
+    "implementation_path":  "reuse first-hit cast_ray (not any-hit); occlusion target identical to upstream any-hit within max_t, implementation path differs; no numeric conclusion in this slice; numeric acceptance in S3b window",
+    "changes":  [
+                    {
+                        "file":  "src/render/kernel/cuda/render_shadow.cu",
+                        "added":  30,
+                        "note":  "new device source: shadow_visibility (plan A wrapper)"
+                    },
+                    {
+                        "file":  "src/render/kernel/cuda/render_shade.cu",
+                        "before":  346,
+                        "after":  359,
+                        "note":  "compute_lighting shadow params + weight = attenuation * shadow_visibility"
+                    },
+                    {
+                        "file":  "src/render/kernel/cuda/render_megakernel.cu",
+                        "before":  332,
+                        "after":  340,
+                        "note":  "remove use_shadows early return; read splat_scale.data[0][2]; pass use_shadows/castshadow per light; headlight cast_shadow=false"
+                    },
+                    {
+                        "file":  "src/render/kernel/megakernel.rs",
+                        "before":  491,
+                        "after":  492,
+                        "note":  "use_shadows scalar from resolved.use_shadows"
+                    },
+                    {
+                        "file":  "src/render/kernel/megakernel_arrays.rs",
+                        "before":  235,
+                        "after":  241,
+                        "note":  "scale_constants[2] = resolved.shadow_light_fraction"
+                    },
+                    {
+                        "file":  "src/render/kernel/mod.rs",
+                        "before":  472,
+                        "after":  474,
+                        "note":  "MEGAKERNEL_SOURCE concat adds render_shadow.cu (common-\u003eshadow-\u003eshade-\u003emegakernel)"
+                    },
+                    {
+                        "file":  "tests/render_lighting_kernel.rs",
+                        "added":  145,
+                        "note":  "5 host structure assertions"
+                    }
+                ],
+    "untouched":  [
+                      "src/render/kernel/cuda/render.cu (499, at ratchet)",
+                      "src/render/kernel/launch.rs (500, at limit)",
+                      "src/render/kernel/cast.rs (494)",
+                      "src/model/render.rs (500)",
+                      "src/render/context/camera_output.rs (499)",
+                      "collision DEVICE_SOURCES = 28",
+                      "CollisionArgs = 504 B",
+                      "criteria/references/fixtures/tolerances unchanged"
+                  ],
+    "slot_reuse":  {
+                       "scale_constants_2":  "shadow_light_fraction (was placeholder unused 0.0)",
+                       "use_shadows":  "existing scalar slot, host now passes resolved.use_shadows (was hardcoded false)",
+                       "megakernel_slots":  81,
+                       "signature_changed":  false,
+                       "pre_write_check":  "target/r09-s2-prep/scale-constants-check-2.txt (kernel reads only splat_scale.data[0][1])"
+                   },
+    "kernel_compile_gate":  {
+                                "test":  "render_kernel_rgb::megakernel_source_compiles_under_render_gate",
+                                "result":  "pass",
+                                "source_sha256":  "d38d50677959e65693f3e2cf84c25553dfa9ef19ebf094574281f8833de9d6d6",
+                                "ptx_sha256":  "1e37c50ffc55a5eeeef0520a432d3f56e89a99985f8e204b5a24120f8e311b54",
+                                "ptx_bytes":  259107,
+                                "gpu_memory_unchanged":  "5350/10712 MiB before and after (compile only, no launch)"
+                            },
+    "tests":  {
+                  "target":  "render_lighting_kernel",
+                  "passed":  5,
+                  "failed":  0,
+                  "cases":  [
+                                "megakernel_source_includes_shadow_visibility_source",
+                                "shadow_source_precedes_shading_in_concat_order",
+                                "resolved_context_carries_shadow_parameters",
+                                "megakernel_slots_signature_is_unchanged",
+                                "shadow_light_fraction_default_matches_upstream_signature"
+                            ]
+              },
+    "gate":  {
+                 "unit_ms":  70193,
+                 "clippy_ms":  405,
+                 "fmt_ms":  1613,
+                 "unit_failed":  0,
+                 "clippy_cuda_ms":  404,
+                 "unit_passed":  1045
+             },
+    "module_source":  {
+                          "module":  "mjwarp.render",
+                          "added":  "src/render/kernel/cuda/render_shadow.cu",
+                          "count_after":  34
+                      },
+    "limitations":  [
+                        "no numeric conclusion in this slice; use_shadows=false bitwise regression and shadowed pixels deferred to S3b window",
+                        "any-hit remains a performance optimization candidate (plan A uses first-hit cast_ray)",
+                        "light arrays are single-copy (upstream uses 2D [world, nlight]); per-world light gap tracked in backlog 2026-10-28-render-per-world-geom-light-gap",
+                        "no window/no GPU render execution in this slice; kernel compile gate only"
+                    ],
+    "claims":  {
+                   "upstream_equivalence":  false,
+                   "numeric_acceptance":  false,
+                   "window_verdict":  "none (no window in this slice)"
+               }
+}

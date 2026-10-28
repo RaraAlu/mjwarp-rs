@@ -115,6 +115,9 @@ path = "src/render/kernel/world_arrays.rs"
 [[source]]
 path = "src/render/context/lighting.rs"
 
+[[source]]
+path = "src/render/kernel/cuda/render_shadow.cu"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::render::bvh::refit_bvh"

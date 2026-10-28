@@ -219,7 +219,13 @@ pub(crate) fn shading_words(
         resolved.background_color[1] as f32,
         resolved.background_color[2] as f32,
     ]);
-    let scale_constants = vec![resolved.znear as f32, resolved.zfar as f32, 0.0f32];
+    // R09-S2：第三分量原为占位 `0.0`（unused），改作 `shadow_light_fraction`
+    // （上游 L880；内核 `splat_scale.data[0][2]` 读取）。
+    let scale_constants = vec![
+        resolved.znear as f32,
+        resolved.zfar as f32,
+        resolved.shadow_light_fraction as f32,
+    ];
     let mut flag_bits = 0u32;
     flag_bits |= u32::from(resolved.use_textures);
     flag_bits |= u32::from(resolved.enable_vertex_normals) << 1;

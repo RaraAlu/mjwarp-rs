@@ -280,15 +280,22 @@ __device__ __forceinline__ V3 vertex_normal(V3 n, V3 face) {
     return n;
 }
 
-// 上游 `_make_compute_lighting`（本片：`use_shadows=false`，逐灯参数与 headlight 由调用方给）。
-// `has_spot` 为场景属性：lighttype==0 时走聚光衰减（其余类型不受影响）。
-__device__ __forceinline__ void compute_lighting(bool lightactive, int lighttype, V3 lightpos,
-                                                  V3 lightdir, V3 lightattenuation,
-                                                  float lightcutoff_rad, float lightexp,
-                                                  V3 lightdiff, V3 lightspec, V3 normal,
-                                                  V3 hitpoint, V3 view_dir, float mat_spec,
+// 上游 `_make_compute_lighting`（本片：R09-S2 起支持 `use_shadows`；逐灯参数与 headlight
+// 由调用方给）。`has_spot` 为场景属性：lighttype==0 时走聚光衰减（其余类型不受影响）。
+// 阴影：仅 `use_shadows && lightcastshadow` 时经 `shadow_visibility`（R09）发射阴影射线
+// （方案 A：复用 first-hit `cast_ray`；上游 L919-961 语义，实现路径不同）。
+__device__ __forceinline__ void compute_lighting(const SceneView& scene, const MegakernelBlob& blob,
+                                                  const int* geom_type, const int* geom_matid,
+                                                  const float* geom_rgba, const float* mat_rgba,
+                                                  int worldid, bool cull_backfaces, bool lightactive,
+                                                  int lighttype, V3 lightpos, V3 lightdir,
+                                                  V3 lightattenuation, float lightcutoff_rad,
+                                                  float lightexp, V3 lightdiff, V3 lightspec,
+                                                  V3 normal, V3 hitpoint, V3 view_dir, float mat_spec,
                                                   float mat_shin_exp, bool enable_specular,
-                                                  V3* diff_rgb, V3* spec_rgb) {
+                                                  bool use_shadows, bool cast_shadow,
+                                                  float shadow_light_fraction, V3* diff_rgb,
+                                                  V3* spec_rgb) {
     *diff_rgb = v3(0.0f, 0.0f, 0.0f);
     *spec_rgb = v3(0.0f, 0.0f, 0.0f);
     if (!lightactive) {
@@ -326,7 +333,13 @@ __device__ __forceinline__ void compute_lighting(bool lightactive, int lighttype
     if (ndotl == 0.0f) {
         return;
     }
-    float weight = attenuation;
+    // R09-S2 阴影可见度：仅 `use_shadows && cast_shadow` 时发射阴影射线（上游 L919）；
+    // 命中时 `visible = shadow_light_fraction`，否则 1.0。
+    float weight = attenuation * shadow_visibility(
+                                        scene, blob, geom_type, geom_matid, geom_rgba, mat_rgba,
+                                        worldid, cull_backfaces, normal, hitpoint, L, lighttype,
+                                        dist_to_light, use_shadows, cast_shadow,
+                                        shadow_light_fraction);
     *diff_rgb = v3(lightdiff.x * (ndotl * weight), lightdiff.y * (ndotl * weight),
                    lightdiff.z * (ndotl * weight));
     if (enable_specular) {
