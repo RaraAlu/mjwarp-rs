@@ -1290,8 +1290,39 @@
         "required": false,
         "reason": "implementation plus unit tests only; numeric acceptance is R09-S3b"
       },
-      "status": "in_progress",
-      "note": "方案 A：阴影射线复用 first-hit cast_ray（非 any-hit），命中判 geom_id != -1；非方向光 max_t = dist_to_light - 1e-3、方向光任意命中；shadow_light_fraction 复用 scale_constants[0][2] 原占位槽；use_shadows=false 路径逐位不变；render.cu(499)/launch.rs(500)/cast.rs(494) 不动"
+      "status": "delivered",
+      "delivered_commits": [
+        "6b5d6dc6",
+        "1ad2f268",
+        "023eafdd",
+        "66c0fa43"
+      ],
+      "delivered_note": "实现 6b5d6dc6 + 收口 1ad2f268（5 单测、unit 1045、模块源 33→34、内核 NVRTC 门禁 PTX 259107 B）；QA 复核 pass/阻断 0/观察 8（023eafdd/66c0fa43）。**前置限制（QA O1 严重项，不阻断本片）**：host 仍前置拒绝 use_shadows=true（kernel/megakernel.rs:97-99，S7b3 既有策略）、第 40 槽恒 false、两条既有 #[ignore] GPU 断言（render_kernel_flags.rs L412-435、render_kernel_rgb.rs L209-224）仍以拒绝为契约 → 本片交付=分支实现就位、产品路径待解锁，不是阴影已可用；解锁归属 R09-S2b。方案 A（复用 first-hit cast_ray）与槽位复用 scale_constants[0][2] 见证据；render.cu(499)/launch.rs(500)/cast.rs(494) 未动"
+    },
+    {
+      "id": "R09-S2b",
+      "name": "host-guard-unlock",
+      "category": "lighting",
+      "depends_on": [
+        "R09-S2"
+      ],
+      "priority": 86,
+      "scope": "Unlock the shadow product path before the S3b window: remove the host pre-rejection of use_shadows=true, flip the two existing #[ignore] GPU assertions from expecting rejection to expecting acceptance, correct the stale splat_scale header comment, and add an in-crate unit test locking the shadow_light_fraction wiring and slot 40 value. CPU-only, no GPU window, no numeric claim.",
+      "evidence": "docs/development-evidence/render-bvh/r09-s2b-host-guard-unlock/",
+      "new_files": [],
+      "modifies": [
+        "src/render/kernel/megakernel.rs",
+        "src/render/kernel/megakernel_arrays.rs",
+        "src/render/kernel/cuda/render_megakernel.cu",
+        "tests/render_kernel_flags.rs",
+        "tests/render_kernel_rgb.rs"
+      ],
+      "gpu": {
+        "required": false,
+        "reason": "host/device wiring and assertions only; numeric acceptance stays in R09-S3b"
+      },
+      "status": "proposed",
+      "note": "登记依据 QA R09-S2 复核 O1（严重、不阻断）：必须在 R09-S3b 验证窗之前完成，否则窗口无法从产品入口发射阴影。切片顺序：R09-S2 → R09-S2b → R09-S3a 捕获 → R09-S3b 窗口。任务卡 2026-10-28-render-bvh-r09-s2-host-guard-unlock。"
     },
     {
       "id": "R10-S1",
@@ -1487,7 +1518,7 @@
         "R09-S2"
       ],
       "status": "partial",
-      "note": "shadows/lighting: R09-S1 delivered (host per-light validation), R09-S2 in_progress (device lighting + shadow branch, path A reusing first-hit cast_ray; no numeric claim); numeric acceptance deferred to R09-S3a authoring capture and R09-S3b validation window (neither opened). skybox/splats/flex/hfield remain deferred (R02/R07/R06/R05)."
+      "note": "shadows/lighting: R09-S1 delivered (host per-light validation); R09-S2 delivered (device lighting + shadow branch, path A reusing first-hit cast_ray; QA pass/0 blockers/8 observations) with a disclosed prerequisite: the host still rejects use_shadows=true, so the product path is not unlocked yet. R09-S2b (host-guard-unlock) is proposed and must finish before the validation window; numeric acceptance remains deferred to R09-S3a authoring capture and R09-S3b validation window (neither opened). skybox/splats/flex/hfield remain deferred (R02/R07/R06/R05)."
     },
     {
       "item": "multicamera_heterogeneous",

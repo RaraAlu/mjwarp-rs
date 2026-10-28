@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r09-s2-obs-closure",
+  "title": {
+    "zh": "R09-S2 复核观察收口（前置限制留痕 / 数字更正 / manifest 基准）+ 登记 R09-S2b 解锁片",
+    "en": "R09-S2 observation closure (prerequisite disclosure, number fix, manifest basis) plus registering the R09-S2b unlock slice"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "处置 QA 复核 `2026-10-28-render-bvh-r09-s2-check` 的 8 条观察中落在实现证据/计划面的部分：① O1（严重、不阻断）把「host 仍前置拒绝 `use_shadows=true`、第 40 槽恒 false、两条既有 `#[ignore]` GPU 断言仍以拒绝为契约」写进实现片证据，并登记后续片 `2026-10-28-render-bvh-r09-s2-host-guard-unlock`（R09-S3b 窗口前必须完成）；② O2 单测行数 145→144 更正；③ O5/O7/O8 的说明（manifest 相对基准、本片无拆分对象、receipt `head` 为证据时点 HEAD）；④ 把实现片 manifest 的源码行改为**按 committed blob（LF）**记录（worktree 在 core.autocrlf=true 下是 CRLF，按工作树记会与入库产物不符——R08 O8 / R09-S2 复核发现的同一类 EOL 问题）；⑤ plan.json 给 R09-S2 补前置限制并登记 R09-S2b 切片。O3（接线 in-crate 单测）与 O4（`.cu` 头注释）延后进 R09-S2b 片，本片不动代码。纯文档：不改代码、不改判据/容差/参考/夹具、不重开窗口、不改任何窗口数字。",
+    "en": "Close the evidence/plan-side observations of the R09-S2 independent check and register the S2b unlock slice. Documentation only."
+  },
+  "modules": {},
+  "acceptance": [
+    "O1 留痕：`r09-s2-lighting-kernel/README.md` 与 `receipt.json` 写明 host 前置拒绝（`megakernel.rs:97-99`，S7b3 既有）、第 40 槽恒 false、两条既有 `#[ignore]` GPU 断言仍以拒绝为契约（`render_kernel_flags.rs` L412-435、`render_kernel_rgb.rs` L209-224），本片不解锁；本片交付口径为「分支实现就位、产品路径待解锁」，不写「已解锁/已可用/已覆盖」。",
+    "O2 更正：`tests/render_lighting_kernel.rs` 行数在实现片 README 与 receipt 中一律记 **144**（实测量）。",
+    "O5/O7/O8 说明：manifest 相对基准规则、本片无拆分/移动对象、receipt `head` 字段为证据时点 HEAD（`5cc6a3d5`，提交前）而非最终树绑定，均写入实现片 README。",
+    "manifest 基准更正：实现片 `manifest.txt` 的源码行按 **committed blob（LF）** 的 sha256/bytes 记录，并在头注写明规则与 worktree CRLF 差异。",
+    "登记后续卡 `2026-10-28-render-bvh-r09-s2-host-guard-unlock`（status proposed，depends_on R09-S2），并在 plan.json 增 R09-S2b 切片、给 R09-S2 note 补前置限制与顺序（S2 → S2b → S3a 捕获 → S3b 窗口）。",
+    "零代码改动：`src/**`、`tests/**`、`.cu`、`fixtures/**`、`Cargo*` 未动（O3/O4 明确延后到 R09-S2b）。",
+    "四门禁（fmt/clippy/clippy-cuda/unit）绑本任务最终树通过；证据 `docs/development-evidence/render-bvh/r09-s2-obs-closure/`（README + receipt 含 `/task_id`），LF 无 BOM、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r09-s2-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/r09-s2-lighting-kernel/",
+      "docs/development-evidence/render-bvh-precheck/",
+      "docs/development-evidence/render-bvh/r09-s2-obs-closure/"
+    ],
+    "resources": [],
+    "priority": 67
+  },
+  "note": "Arch 2026-10-28 登记：R09-S2 复核观察的文档面收口 + 登记 S2b 解锁片；纯文档治理片，不占 GPU 窗口。",
+  "revision": {
+    "before": "e0c525f27818e45436cb5c0bfcb31b61495aa96b",
+    "after": null
+  },
+  "created_at": "2026-10-28T10:56:00.000Z",
+  "updated_at": "2026-10-28T10:47:41.026Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r09-s2-obs-closure/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r09-s2-obs-closure"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

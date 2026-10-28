@@ -19,7 +19,7 @@ L866 `lightcastshadow`、L880 `shadow_light_fraction`、L919-961 阴影分支、
 ## 2. 槽位复用（S7a 81 槽签名零改动）
 - `shadow_light_fraction` 放 `scale_constants[0][2]`（内核 `splat_scale.data[0][2]`），**原占位 unused 改作 shadow_light_fraction**；
 - 开写前核查留痕：`target/r09-s2-prep/scale-constants-check-2.txt`（kernel 仅读 `[0][1]`=zfar；`[0][0]`/`[0][2]` 无读取点）；
-- `use_shadows` 用现有 scalar 槽，host 从硬编码 `false` 改为 `resolved.use_shadows`；
+- `use_shadows` 用现有 scalar 槽，host 从硬编码 `false` 改为 `resolved.use_shadows`；**但 host 仍在 `megakernel.rs` 前置拒绝 `use_shadows=true`（S7b3 既有策略），本片不解锁，见 §6**；
 - `MEGAKERNEL_SLOTS.len() == 81` 不变（测试断言）。
 
 ## 3. 改动文件与行数（LF 实数；全部 ≤500）
@@ -31,7 +31,7 @@ L866 `lightcastshadow`、L880 `shadow_light_fraction`、L919-961 阴影分支、
 | `kernel/megakernel.rs` | 491 | **492** | `use_shadows` 槽接 `resolved.use_shadows` |
 | `kernel/megakernel_arrays.rs` | 235 | **241** | `scale_constants[2]` = `resolved.shadow_light_fraction` |
 | `kernel/mod.rs` | 472 | **474** | `MEGAKERNEL_SOURCE` 拼接 `render_shadow.cu`（common→shadow→shade→megakernel） |
-| `tests/render_lighting_kernel.rs` | — | **145** | 5 条宿主结构断言 |
+| `tests/render_lighting_kernel.rs` | — | **144** | 5 条宿主结构断言 |
 
 **未动**：`cuda/render.cu`（499 贴线）、`kernel/launch.rs`（500 满线）、`kernel/cast.rs`（494）、`model/render.rs`(500)、`camera_output.rs`(499)、collision `DEVICE_SOURCES`=28、`CollisionArgs` 504 B、判据/参考/夹具/容差。
 
@@ -55,3 +55,21 @@ L866 `lightcastshadow`、L880 `shadow_light_fraction`、L919-961 阴影分支、
 - any-hit 为后续性能优化候选（本轮按方案 A 不做）；
 - 灯数组单份（上游 2D `[world, nlight]`）：per-world 灯数据缺口见 backlog `2026-10-28-render-per-world-geom-light-gap`；
 - 不写「窗口通过/已覆盖/精度达标/上游等价」。
+
+## 6. 复核观察与后续片（QA `2026-10-28-render-bvh-r09-s2-check`，固定口径）
+
+QA 复核 verdict **pass / 阻断 0 / 观察 8**（`023eafdd` + `66c0fa43`）。与本片证据相关的四条：
+
+1. **O1（严重、不阻断本片）产品路径暂不可达 —— 必须随证据保留**：
+   - `src/render/kernel/megakernel.rs:97-99` 仍**前置拒绝** `use_shadows=true`（S7b3 引入的既有产品策略，**本片未改**），第 40 槽恒 `false`；
+   - 两条既有 `#[ignore]` GPU 用例仍把「拒绝」当契约：`tests/render_kernel_flags.rs` L412-435、`tests/render_kernel_rgb.rs` L209-224；
+   - 因此本片交付口径是 **「内核分支实现就位、产品路径待解锁」**，**不是**「阴影已可用/已解锁/已覆盖」；
+   - 解锁动作（移除拒绝 + 同步改上述两条断言 + 头注释更正 + 接线 in-crate 单测）登记为后续片 `2026-10-28-render-bvh-r09-s2-host-guard-unlock`，**必须在 R09-S3b 验证窗之前完成**，否则窗口无法从产品入口发射阴影。
+2. **O2（已更正）**：`tests/render_lighting_kernel.rs` 实测 **144** 行（原文误写 145，README §3 与 receipt 已改）。
+3. **O4（接受延后）**：`cuda/render_megakernel.cu:15` 头注释仍写 `splat_scale = [znear, zfar, unused]`；本片不改 `.cu`（改注释会变 `MEGAKERNEL_SOURCE`/PTX sha，与本节 §4 已冻数值冲突），随 `…-r09-s2-host-guard-unlock` 片更正。
+4. **O7（接受）**：本片**无拆分/移动对象**——卡面 acceptance#1「拆分核验」不适用；贴线文件（`render.cu` 499 / `launch.rs` 500 / `cast.rs` 494）一行未动。
+
+另两条口径说明（QA O5/O8）：
+- **manifest 基准**：本目录 `manifest.txt` 的源码行按 **HEAD committed blob（LF）** 记 sha256/bytes，不按工作树字节（`core.autocrlf=true` 下工作树是 CRLF，两者不同）；
+- **receipt `head`**：`5cc6a3d5` 是**证据时点的 HEAD**（两段提交前），不是最终树绑定；最终树由 `1ad2f268` 与门禁记录确定。
+- QA O6（`tests-and-lint.log` 保留 fmt 修前中间态）接受：最终树 fmt 通过（QA 已复跑）。

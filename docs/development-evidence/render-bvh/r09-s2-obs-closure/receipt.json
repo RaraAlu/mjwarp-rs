@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r09-s2-obs-closure",
+  "kind": "observation_closure_docs_plus_next_slice_registration",
+  "source_check": {
+    "task": "2026-10-28-render-bvh-r09-s2-check",
+    "verdict": "pass",
+    "blockers": 0,
+    "observations": 8,
+    "commits": ["023eafdd", "66c0fa43"]
+  },
+  "checked_implementation": {
+    "task": "2026-10-28-render-bvh-r09-s2-lighting-kernel",
+    "commits": ["6b5d6dc6", "1ad2f268"],
+    "contract": "kernel implementation plus unit tests; zero numeric conclusions; numeric acceptance deferred to the S3b window"
+  },
+  "dispositions": [
+    {
+      "id": "O1",
+      "severity": "severe",
+      "ruling": "not a blocker for this slice, disclosed and routed to a follow-up slice",
+      "detail": "host still rejects use_shadows=true at src/render/kernel/megakernel.rs:97-99 (S7b3 policy, untouched here); slot 40 stays false; two existing #[ignore] GPU tests still treat rejection as the contract (render_kernel_flags.rs L412-435, render_kernel_rgb.rs L209-224). R09-S2 delivers the kernel branch only: implementation in place, product path not yet unlocked. Not written as unlocked/available/covered."
+    },
+    {
+      "id": "O2",
+      "severity": "general",
+      "ruling": "fix",
+      "detail": "tests/render_lighting_kernel.rs measured 144 lines; implementation README and receipt corrected from 145 to 144"
+    },
+    {
+      "id": "O3",
+      "severity": "general",
+      "ruling": "accepted, deferred",
+      "detail": "wiring in-crate unit test (shading_words -> scale_constants[2], slot 40 value) belongs to 2026-10-28-render-bvh-r09-s2-host-guard-unlock"
+    },
+    {
+      "id": "O4",
+      "severity": "suggestion",
+      "ruling": "accepted, deferred",
+      "detail": "render_megakernel.cu:15 header comment corrected in the unlock slice; editing it here would change MEGAKERNEL_SOURCE/PTX hashes frozen in this evidence"
+    },
+    {
+      "id": "O5",
+      "severity": "suggestion",
+      "ruling": "accepted with rule",
+      "detail": "implementation manifest now states the resolution order and the committed-blob basis"
+    },
+    {
+      "id": "O6",
+      "severity": "suggestion",
+      "ruling": "accepted",
+      "detail": "tests-and-lint.log keeps the pre-fmt intermediate state; final tree fmt passes (re-run by QA)"
+    },
+    {
+      "id": "O7",
+      "severity": "suggestion",
+      "ruling": "accepted",
+      "detail": "no split or move target in this slice; ratchet files untouched, noted in implementation README"
+    },
+    {
+      "id": "O8",
+      "severity": "suggestion",
+      "ruling": "accepted with field note",
+      "detail": "receipt head=5cc6a3d5 is the evidence-time HEAD (pre-commit), not a final-tree binding; documented in receipt head_note"
+    }
+  ],
+  "manifest_basis_fix": {
+    "file": "docs/development-evidence/render-bvh/r09-s2-lighting-kernel/manifest.txt",
+    "rule": "external files are hashed from the committed blob (LF) at HEAD, not from worktree bytes (CRLF under core.autocrlf=true)",
+    "reason": "worktree CRLF bytes differ from the committed artifact; same EOL class as 2026-10-28-repo-fixture-eol-attributes and the R08 check O8"
+  },
+  "next_slice_registered": {
+    "id": "2026-10-28-render-bvh-r09-s2-host-guard-unlock",
+    "status": "proposed",
+    "owner": "Backend",
+    "must_finish_before": "R09-S3b validation window",
+    "order": "R09-S2 -> R09-S2b -> R09-S3a capture -> R09-S3b window"
+  },
+  "non_claims": [
+    "No acceptance item is marked as passing by this task.",
+    "No window was reopened and no GPU run was performed.",
+    "No code, criterion, tolerance, reference, fixture, or window number was changed.",
+    "No shadow pixel, numeric, or bitwise claim is made; all numeric acceptance remains in the S3b window."
+  ]
+}
