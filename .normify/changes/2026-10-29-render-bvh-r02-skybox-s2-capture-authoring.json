@@ -5,7 +5,7 @@
     "zh": "R02-S2：天空盒 authoring capture 变体 + 双阶段窗口计划（离线，不跑 GPU / 不冻结 / 不开窗）",
     "en": "R02-S2: skybox authoring capture variant plus two-stage window plan (offline; no GPU, no freeze, no window)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "R02 第二片（离线 materials 片）：为天空盒设备验证准备「可直接给用户双签的窗口材料」。① 新增 capture 变体 `scripts/authoring/render-bvh-r02/capture_skybox.py`——只在 S0b 的 `PARAMS_28` 上改 `render_skybox=True`，输出到独立目录 `fixtures/render-bvh/scene-a/reference-skybox/`（rgb/depth/seg npz + capture.json），**不重采 S0b 参考**；pinned 环境与 S0b 一致（warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4、upstream rev 71da24d9 clean、scene-315.mjb `8953988f…`、scene.xml `a9f1f0a3…`、RTX 4070 Ti SUPER arch 89 driver 596.36），两次运行 sha 必须相等；提供 `--dry-run`（不 import warp/mujoco_warp、不碰 GPU）只做资产/参数自检。② 新增新 suite 的 guard 冻结器 `freeze-guards-r02.ps1`（suite `r02-skybox-validate`、attempt 参数、9 exe + 68 只读输入 = 77 条目、exe stash），R05 `guards.json` 保持历史不动。③ `run-window.ps1` 新增可选 `-GuardsFile`（缺省行为不变）。④ 一页窗口计划 + 实体表骨架 + 脚本身份与 ASCII 三项自检。本片**不开 GPU、不跑 capture、不冻结、不跑窗口、不动 guards.json**，也不产任何渲染数值结论。",
     "en": "Offline materials slice for the skybox validation window: capture variant (render_skybox=True, separate output dir, pinned env, --dry-run), new-suite guard freezer (77 entries), runner -GuardsFile parameterization, one-page two-stage window plan and entity-table skeleton. No GPU execution, no freeze, no window."
@@ -42,7 +42,8 @@
     "after": null
   },
   "created_at": "2026-10-28T23:05:00.000Z",
-  "updated_at": "2026-10-28T22:21:42.510Z",
+  "updated_at": "2026-10-28T22:25:06.719Z",
+  "closed_at": "2026-10-28T22:25:06.719Z",
   "checks": [
     {
       "kind": "gate",
