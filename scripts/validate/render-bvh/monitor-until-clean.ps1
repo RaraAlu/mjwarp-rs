@@ -1,4 +1,4 @@
-param([string]$OutCsv='target/s3b-validation-window/monitor-pre-window.csv',[int]$Required=60,[int]$MaxMinutes=12)
+param([string]$OutCsv='target/s3b-validation-window/monitor-pre-window.csv',[int]$Required=60,[int]$MaxMinutes=12,[int]$MaxUtil=40)
 $ErrorActionPreference = 'Stop'
 Set-Location 'D:\Rust\mjwarp-rs'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
@@ -14,7 +14,7 @@ while ($sw.Elapsed.TotalSeconds -lt ($MaxMinutes * 60)) {
     $raw = @(& nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader)
     $filtered = @($raw | Where-Object { $_ -and ($_ -match $pattern) })
     $build = @(Get-Process cargo,rustc,cl,nvcc,link -ErrorAction SilentlyContinue)
-    $ok = ($free -ge 10240) -and ($util -lt 40) -and ($filtered.Count -eq 0) -and ($build.Count -eq 0)
+    $ok = ($free -ge 10240) -and ($util -lt $MaxUtil) -and ($filtered.Count -eq 0) -and ($build.Count -eq 0)
     if ($ok) { $consec++ } else { $consec = 0 }
     $rows.Add([pscustomobject]@{
         ts = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss.fffK'); used = $used; free = $free; util = $util; temp = $temp
