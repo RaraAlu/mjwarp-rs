@@ -118,6 +118,9 @@ path = "src/render/context/lighting.rs"
 [[source]]
 path = "src/render/kernel/cuda/render_shadow.cu"
 
+[[source]]
+path = "src/render/context/hfield.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::render::bvh::refit_bvh"

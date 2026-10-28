@@ -1,0 +1,81 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-s1-hfield-hardening",
+  "kind": "render-bvh-r05-s1-hfield-hardening",
+  "stage": "implemented-tested-host-only",
+  "head": "1d3758ee8335e116e7fffbad243bf2f428f8decd",
+  "source_check": "2026-10-28-render-bvh-r05-s1-hfield-params-check (verdict=pass, blockers=0, observations=6)",
+  "numeric_conclusions": false,
+  "observations": {
+    "O1": {
+      "status": "fixed",
+      "command": "normify module source mjwarp.render --add src/render/context/hfield.rs",
+      "sources_before": 34,
+      "sources_after": 35,
+      "registered_path": "src/render/context/hfield.rs",
+      "module_file": ".normify/modules/mjwarp/render.md ([[source]] entry)",
+      "validate_fingerprints_errors": 0,
+      "note": "one evidence/fingerprint-drift warning for mjwarp.render appears after registration and is cleared by normify done (fingerprint refresh)"
+    },
+    "O3": {
+      "status": "fixed",
+      "changes": [
+        "HfieldView fields private + read-only getters size()/nrow()/ncol()/adr()/span()",
+        "HfieldParams fields private + getters len()/is_empty()/data()/hfields()/data_of()",
+        "data_of uses view.adr.checked_add(view.span) and returns None on overflow/out-of-range (no debug panic)",
+        "is_empty doc: always false because resolve_hfield returns Ok(None) for empty input and never constructs the struct"
+      ],
+      "new_regression_tests": ["view_invariants_hold_for_every_parsed_hfield", "data_of_out_of_range_returns_none_not_panic"],
+      "compile_time_guarantee": "outside safe Rust cannot construct HfieldView/HfieldParams (private fields, E0451)"
+    },
+    "O2": {
+      "status": "fixed",
+      "change": "removed unreachable HfieldError::FieldKind variant and its Display arm (0 construction sites)",
+      "note": "re-introduce with a real construction site when the real render channel lands (2026-10-28-render-bvh-r05-hfield-channel)"
+    },
+    "O4": {
+      "status": "documented",
+      "change": "resolution_is_single_copy_and_stable now documents the single-copy scope (no world dimension in HfieldInputs; structural assertions plus std::ptr::eq pointer-equality proof that the result borrows the input buffer without copying)",
+      "assertion_strength_changed": false
+    },
+    "O5": {"status": "accepted", "note": "#[path] module mount mirrors context/lighting.rs structure debt; no new debt type"},
+    "O6": {"status": "accepted", "note": "ruling A provenance already complete in S1 evidence README section 2 and receipt ruling_a"}
+  },
+  "files": [
+    {"path": "src/render/context/hfield.rs", "lines": 372, "content": "O3 hardening (private fields + getters + checked_add + doc fix), O2 dead-variant removal"},
+    {"path": "tests/render_hfield_params.rs", "lines": 322, "content": "12 host tests (10 original migrated to getters + 2 new O3 regression tests)"},
+    {"path": ".normify/modules/mjwarp/render.md", "content": "O1 module source registration (34 -> 35) and fingerprint refresh via normify done"}
+  ],
+  "tests": {
+    "file": "tests/render_hfield_params.rs",
+    "count": 12,
+    "result": "12 passed / 0 failed",
+    "new": ["view_invariants_hold_for_every_parsed_hfield", "data_of_out_of_range_returns_none_not_panic"]
+  },
+  "redlines": {
+    "render_cu_lines": 499,
+    "launch_rs_lines": 500,
+    "cast_rs_lines": 494,
+    "model_render_rs_lines": 500,
+    "camera_output_rs_lines": 499,
+    "megakernel_rs_lines": 490,
+    "device_sources": 28,
+    "entry_points": 6,
+    "collision_args_bytes": 504,
+    "megakernel_slots": 81,
+    "fixtures_precision_untouched": true,
+    "cu_files_touched": 0
+  },
+  "logs": {
+    "test": "docs/development-evidence/render-bvh/r05-s1-hfield-hardening/logs/test.log",
+    "clippy": "docs/development-evidence/render-bvh/r05-s1-hfield-hardening/logs/clippy.log",
+    "fmt": "docs/development-evidence/render-bvh/r05-s1-hfield-hardening/logs/fmt.log",
+    "lines": "docs/development-evidence/render-bvh/r05-s1-hfield-hardening/logs/lines.log"
+  },
+  "claims": {
+    "observations_o1_o2_o3_fixed": true,
+    "observation_o4_documented": true,
+    "no_numeric_or_criteria_change": true,
+    "no_gpu_no_window": true,
+    "abi_unchanged": true
+  }
+}

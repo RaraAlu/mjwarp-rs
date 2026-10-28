@@ -79,58 +79,99 @@ impl HfieldInputs<'_> {
 }
 
 /// 单个 hfield 的只读视图（`size[4]` + 行/列 + 数据区段）。
+///
+/// 字段私有：视图只能由 [`resolve_hfield`] 产出，外部无法构造违反不变量
+/// （`nrow/ncol > 0`、`adr + span <= data.len()`）的实例。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct HfieldView {
+    size: [f32; 4],
+    nrow: i32,
+    ncol: i32,
+    adr: usize,
+    span: usize,
+}
+
+impl HfieldView {
     /// `hfield_size` 四项（`(x, y, z, ...)` 的 f32 原值）。
-    pub size: [f32; 4],
-    /// 高程行数（`> 0`）。
-    pub nrow: i32,
-    /// 高程列数（`> 0`）。
-    pub ncol: i32,
-    /// 高程数据起始下标（已校验 `>= 0` 且在界内）。
-    pub adr: usize,
-    /// 高程跨度 `nrow × ncol`（已校验不溢出）。
-    pub span: usize,
+    pub fn size(&self) -> [f32; 4] {
+        self.size
+    }
+
+    /// 高程行数（恒 `> 0`）。
+    pub fn nrow(&self) -> i32 {
+        self.nrow
+    }
+
+    /// 高程列数（恒 `> 0`）。
+    pub fn ncol(&self) -> i32 {
+        self.ncol
+    }
+
+    /// 高程数据起始下标（恒在 `data` 界内）。
+    pub fn adr(&self) -> usize {
+        self.adr
+    }
+
+    /// 高程跨度 `nrow × ncol`（恒不溢出，且 `adr + span <= data.len()`）。
+    pub fn span(&self) -> usize {
+        self.span
+    }
 }
 
 /// 校验后的 hfield 静态参数（宿主只读视图；单份，不随 world 复制）。
+///
+/// 字段私有：只能由 [`resolve_hfield`] 产出；空输入（`nhfield=0`）返回 `Ok(None)`，
+/// 因此本结构一旦存在即至少含一个 hfield。
 #[derive(Clone, Debug, PartialEq)]
 pub struct HfieldParams<'a> {
-    /// 整段高程数据（S2 按 [`HfieldView::adr`]/[`HfieldView::span`] 切片）。
-    pub data: &'a [f32],
-    /// 逐 hfield 视图（顺序与 `hfield_nrow` 一致）。
-    pub hfields: Vec<HfieldView>,
+    data: &'a [f32],
+    hfields: Vec<HfieldView>,
 }
 
-impl HfieldParams<'_> {
-    /// hfield 数（`hfield_nrow` 长度）。
+impl<'a> HfieldParams<'a> {
+    /// hfield 数（`hfield_nrow` 长度，恒 `>= 1`）。
     pub fn len(&self) -> usize {
         self.hfields.len()
     }
 
-    /// 是否无 hfield（恒为 false：`nhfield=0` 已在上层返回 `Ok(None)`）。
+    /// 是否无 hfield：恒为 `false`——[`resolve_hfield`] 对空输入（`nhfield=0`）返回
+    /// `Ok(None)`，不构造本结构；保留方法仅为与 [`Self::len`] 配对。
     pub fn is_empty(&self) -> bool {
         self.hfields.is_empty()
     }
 
+    /// 整段高程数据（S2 按 [`HfieldView::adr`]/[`HfieldView::span`] 切片）。
+    pub fn data(&self) -> &'a [f32] {
+        self.data
+    }
+
+    /// 逐 hfield 只读视图（顺序与 `hfield_nrow` 一致）。
+    pub fn hfields(&self) -> &[HfieldView] {
+        &self.hfields
+    }
+
     /// 第 `index` 个 hfield 的高程切片（`nrow × ncol`，行主序）。
+    ///
+    /// 下标越界或区段计算溢出时返回 `None`（可判定失败，不 panic）。
     pub fn data_of(&self, index: usize) -> Option<&[f32]> {
         let view = self.hfields.get(index)?;
-        self.data.get(view.adr..view.adr + view.span)
+        let end = view.adr.checked_add(view.span)?;
+        self.data.get(view.adr..end)
     }
 }
 
 /// hfield 参数校验错误；全部在分配/读取前给出，**任何路径不 panic**。
 ///
-/// 与 `ContextError` 同构的变体（`MissingField`/`FieldKind`/`LengthMismatch`/`CountOverflow`）
-/// 保持卡面语义；`NonPositiveRowsCols`/`DataRange` 为 hfield 专用可读错误（含第 index 个
+/// 与 `ContextError` 同构的变体（`MissingField`/`LengthMismatch`/`CountOverflow`）保持
+/// 卡面语义；`NonPositiveRowsCols`/`DataRange` 为 hfield 专用可读错误（含第 index 个
 /// 单位的定位与期望/实际值）。
+///
+/// 说明：原 `FieldKind` 变体已删除（真实构造点 0 处，属死面）；真实渲染通道接入
+/// （`2026-10-28-render-bvh-r05-hfield-channel`）若出现类型错配路径，按实际构造点重新引入。
 #[derive(Clone, Debug, PartialEq)]
 pub enum HfieldError {
     /// 五字段未同时提供（`field` 为首个缺失字段名）。
     MissingField { field: &'static str },
-    /// 字段类型不符（由 [`HfieldInputs`] 的强类型结构承担；保留与 `ContextError` 同构的错误面）。
-    FieldKind { field: &'static str },
     /// 长度不一致。
     LengthMismatch {
         field: &'static str,
@@ -157,7 +198,6 @@ impl std::fmt::Display for HfieldError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MissingField { field } => write!(formatter, "缺少 hfield 字段 {field}"),
-            Self::FieldKind { field } => write!(formatter, "hfield 字段 {field} 类型不符"),
             Self::LengthMismatch {
                 field,
                 expected,
