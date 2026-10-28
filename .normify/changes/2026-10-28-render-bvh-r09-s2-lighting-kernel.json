@@ -5,7 +5,7 @@
     "zh": "渲染/BVH R09-S2：内核光照与阴影实现（先拆贴线文件；含 any-hit 前置评估，无窗口）",
     "en": "Render/BVH R09-S2: lighting and shadow kernel implementation (split hot files first; no window)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "R09 第二片（内核实现，无 GPU 窗口；数值验收留到 S3b）：在 R09-S1 的宿主静态参数与 per-light 校验之上，把上游 `render.py` L830 `_make_compute_lighting` / L834 `compute_lighting` 的**光照项**与 **shadow 分支**移植到设备侧：① ambient（含 `enable_per_light_ambient` 分档）；② 逐光 diffuse/specular，按 `light_type`（方向/点/聚光）走衰减 `attenuation`、`cutoff`、`exponent`；③ 阴影：`use_shadows && lightcastshadow` 时从 `hitpoint + normal*1e-4` 起 any-hit 射线、非方向光按到光距离截断、命中则 `visible = shadow_light_fraction`；④ 实现前**先按 S7b3 先例拆贴线文件**（`render.cu` 499 / `megakernel.rs` 491 / `render_megakernel.cu` 332 / `launch.rs` 500 / `cast.rs` 494）；⑤ 若需新增 BVH any-hit 查询 API，**先报 Arch**，并要求零改变现有 first-hit 行为与结果（全量 BVH 回归位级不回归）；⑥ 新设备源 `render_shadow.cu` 登记 render 模块源；**collision `DEVICE_SOURCES`=28 不动**。本片不宣称任何数值结论，验收在 S3b 窗口。",
     "en": "R09 slice 2: implement the lighting and shadow kernel paths, splitting hot files first; acceptance deferred to the S3b window."
@@ -39,7 +39,8 @@
     "after": null
   },
   "created_at": "2026-10-27T20:40:00.000Z",
-  "updated_at": "2026-10-28T10:28:52.532Z",
+  "updated_at": "2026-10-28T10:34:19.717Z",
+  "closed_at": "2026-10-28T10:34:19.717Z",
   "checks": [
     {
       "kind": "gate",
