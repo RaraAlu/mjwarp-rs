@@ -172,6 +172,6 @@ GPU 参考文件确定性：重生成 JSON 的 `quat_bits/mat_bits/mul_quat_bits
 ## 12. 收口
 
 - 代码提交 `6f246b46`（`Normify-Task: 2026-10-28-render-bvh-camera-pose-warp-fma-align`）：`src/render/kernel/cast.rs`
-  + 任务卡；证据提交：本目录；closing：任务状态 + 模块指纹。
+  + 任务卡；证据提交 `d42a465a`；本收口提交：任务状态 verified + 模块指纹（本卡无模块对应，刷新 0 个模块）。
 - 本片**未开窗、未重冻结 guards**；attempt=2 与 guards 重冻结等 Arch/Chief 裁决（重签材料另报）。
 - QA 复核：由 Arch 在该卡登记 check 卡（`2026-10-28-render-bvh-camera-pose-warp-fma-align-check`）。
