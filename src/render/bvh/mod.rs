@@ -1,5 +1,5 @@
 //! 场景 BVH 的宿主构建、重拟合与语义查询（渲染/BVH S2a）。
-//! 场景层覆盖 primitive geoms 与 mesh 包围盒；网格三角形 BVH 在 `mesh` 子模块
+//! 场景层覆盖 primitive geoms、mesh 包围盒与 hfield 包围盒；网格三角形 BVH 在 `mesh` 子模块
 //! （S3：构建/重拟合/顶点更新），设备命中在 `cuda/scene.cu`（S2b）与
 //! `cuda/mesh.cu`（S3）。
 //!
@@ -12,6 +12,7 @@ mod aabb;
 mod builder;
 #[cfg(feature = "cuda-probe")]
 pub mod cuda;
+mod hfield_mesh;
 mod mesh;
 #[cfg(feature = "cuda-probe")]
 mod mesh_query;
@@ -24,6 +25,7 @@ pub use aabb::{GeomKind, LeafGeometry, compute_leaf_aabb, mesh_half_extents};
 pub use builder::{BvhNode, NodeKind, SceneBvh, SceneBvhInput, build_scene_bvh};
 #[cfg(feature = "cuda-probe")]
 pub use cuda::{LeafRayGeometry, Ray, RayHit, SceneBvhQuery};
+pub use hfield_mesh::{HfieldMesh, HfieldMeshInput, build_hfield_mesh, triangulate_hfield};
 pub use mesh::{MeshBvh, MeshBvhError, MeshBvhInput, MeshNode, MeshNodeKind};
 #[cfg(feature = "cuda-probe")]
 pub use mesh_query::{MeshBvhQuery, MeshRayGeometry, MeshRayHit};
@@ -145,10 +147,20 @@ pub enum BvhError {
     InvalidAabb { leaf: usize },
     /// leaf 几何输入含非有限量。
     NonFinite { field: &'static str, index: usize },
-    /// 不支持在此切片处理的 geom 类型（hfield/SDF 等）。
+    /// 不支持在此切片处理的 geom 类型（SDF 等）。
     UnsupportedGeomType { geom_type: i32 },
     /// mesh 类型 leaf 缺少 mesh bounds。
     MissingMeshBounds,
+    /// hfield 的 `nrow`/`ncol` 非正（上游 `_optimize_hfield_mesh` 前置）。
+    HfieldDimensions { nrow: i32, ncol: i32 },
+    /// hfield 的 `nrow × ncol` 溢出。
+    HfieldCountOverflow { nrow: i32, ncol: i32 },
+    /// hfield 高程数据长度不足 `nrow × ncol`。
+    HfieldDataLength { expected: usize, actual: usize },
+    /// hfield 网格退化（`nrow < 2` 或 `ncol < 2` → 无三角形；上游会在 `np.min` 处失败）。
+    HfieldEmptyMesh { nrow: i32, ncol: i32 },
+    /// hfield 三角网格 BVH 构建失败。
+    HfieldMesh(MeshBvhError),
 }
 
 impl fmt::Display for BvhError {
@@ -189,6 +201,28 @@ impl fmt::Display for BvhError {
                 write!(formatter, "S2a 不支持的 geom 类型 {geom_type}")
             }
             Self::MissingMeshBounds => write!(formatter, "mesh leaf 缺少 mesh bounds"),
+            Self::HfieldDimensions { nrow, ncol } => {
+                write!(
+                    formatter,
+                    "hfield 的 nrow/ncol 必须为正（nrow={nrow}, ncol={ncol}）"
+                )
+            }
+            Self::HfieldCountOverflow { nrow, ncol } => {
+                write!(
+                    formatter,
+                    "hfield 的 nrow×ncol 溢出（nrow={nrow}, ncol={ncol}）"
+                )
+            }
+            Self::HfieldDataLength { expected, actual } => {
+                write!(
+                    formatter,
+                    "hfield 高程数据长度 {actual} < nrow×ncol {expected}"
+                )
+            }
+            Self::HfieldEmptyMesh { nrow, ncol } => {
+                write!(formatter, "hfield 网格无三角形（nrow={nrow}, ncol={ncol}）")
+            }
+            Self::HfieldMesh(error) => write!(formatter, "hfield 三角网格 BVH 构建失败：{error}"),
         }
     }
 }

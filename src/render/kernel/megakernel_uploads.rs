@@ -54,6 +54,8 @@ pub(super) struct UploadInputs<'a> {
     pub(super) render_seg: &'a [i32],
     pub(super) shading_constants: &'a [f32],
     pub(super) scale_constants: &'a [f32],
+    /// R05-S2：hfield_bvh_id 槽值（长度 nhfield；空切片 → 上传 1 个 u64::MAX 哨兵）。
+    pub(super) hfield_bvh_ids: &'a [u64],
 }
 
 /// 上传完成的设备缓冲句柄与少量推导计数（原 `megakernel.rs` 局部变量集）。
@@ -94,7 +96,10 @@ pub(super) struct MegakernelUploads {
     pub(super) flex_rgba: TransferBuffer<f32>,
     pub(super) flex_geom_flexid: TransferBuffer<i32>,
     pub(super) flex_geom_edgeid: TransferBuffer<i32>,
+    /// R05-S2：hfield_bvh_id 槽（slot 64，声明 Array(U64)）。TransferElement 无 u64
+    /// 实现，故以 u32 字数对（低/高 32 位小端）承载 u64 值；hfield_bvh_count 为元素数。
     pub(super) hfield_bvh_id: TransferBuffer<u32>,
+    pub(super) hfield_bvh_count: usize,
     pub(super) mesh_bvh_id: TransferBuffer<u32>,
     pub(super) group_root: TransferBuffer<i32>,
     pub(super) skybox_tex_id: TransferBuffer<i32>,
@@ -210,7 +215,22 @@ pub(super) fn upload_megakernel_arrays(
     let flex_rgba = upload(session, &[0.0f32; 4])?;
     let flex_geom_flexid = upload(session, &[0i32])?;
     let flex_geom_edgeid = upload(session, &[0i32])?;
-    let hfield_bvh_id = upload(session, &[0u32, 0])?;
+    // R05-S2：hfield_bvh_id 槽（slot 64）。无 hfield geom → 1 个 u64::MAX 哨兵占位；
+    // 有 hfield 时长度 = nhfield、值为 blob 内 mesh 索引（未用项 u64::MAX）。内核按哨兵跳过。
+    // 声明是 Array(U64)，但 TransferElement 无 u64 实现（且 u64 类型不在本卡 scope），
+    // 故按 u32 低/高字对承载（小端）；ABI 上等价于 u64 数组，内核按 wp::uint64 读取。
+    let hfield_ids: &[u64] = if inputs.hfield_bvh_ids.is_empty() {
+        &[u64::MAX]
+    } else {
+        inputs.hfield_bvh_ids
+    };
+    let mut hfield_words = Vec::with_capacity(2 * hfield_ids.len());
+    for id in hfield_ids {
+        hfield_words.push(*id as u32);
+        hfield_words.push((*id >> 32) as u32);
+    }
+    let hfield_bvh_id = upload(session, &hfield_words)?;
+    let hfield_bvh_count = hfield_ids.len();
     let mesh_bvh_id = upload(session, &[0u32, 0])?;
     let group_root = upload(session, &[0i32])?;
     let skybox_tex_id = upload(session, &[0i32])?;
@@ -334,6 +354,7 @@ pub(super) fn upload_megakernel_arrays(
         flex_geom_flexid,
         flex_geom_edgeid,
         hfield_bvh_id,
+        hfield_bvh_count,
         mesh_bvh_id,
         group_root,
         skybox_tex_id,

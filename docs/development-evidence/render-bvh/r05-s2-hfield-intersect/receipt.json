@@ -1,0 +1,109 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-s2-hfield-intersect-r2",
+  "kind": "render-bvh-r05-s2-hfield-intersect-r2",
+  "re_registered_from": "2026-10-28-render-bvh-r05-s2-hfield-intersect",
+  "re_registration_note": "original card abandoned because its files list lacked the two obsolete assertions (tests/render_context_lifecycle.rs, tests/render_scene_bvh_host.rs) and a running card cannot be re-scoped; same implementation and evidence directory",
+  "stage": "wired-no-window",
+  "head_before": "59d1b2a4",
+  "window": false,
+  "numeric_conclusion": false,
+  "rebase": {
+    "approved_by": "Chief（Arch 2026-10-28 转达）",
+    "budget_before": {"megakernel_rs": "<=366", "cast_rs": "<=450", "others": "<=500"},
+    "budget_after": {"megakernel_rs": "zero-change or <=500", "cast_rs": "<=450", "others": "<=500"},
+    "reason": "split 1 delivered megakernel.rs 490->406 (pre-check estimated ~345); QA verified 406, so the old 366 cap is stale; S2 slot fill/upload goes to megakernel_uploads.rs",
+    "actual": {"megakernel_rs": {"before": 406, "after": 404, "delta": -2}, "megakernel_uploads_rs": {"before": 384, "after": 405, "delta": 21}, "cast_rs": {"before": 411, "after": 411, "delta": 0}, "cast_mesh_rs": {"before": 102, "after": 223, "delta": 121}}
+  },
+  "triangulation": {
+    "upstream": "frozen MJWarp 3.15 71da24d, _src/bvh.py L453-622",
+    "port_table_in_readme": true,
+    "rules": [
+      "get_point_index(r,c): x=sx*(c/width-1), y=sy*(r/height-1), z=data[r,c]*sz2; dedup by first visit",
+      "width=0.5*max(nc-1,1), height=0.5*max(nr-1,1)",
+      "planar test abs((z00+z11)-(z01+z10)) < 1e-5; non-planar cell emits TL,TR,BR + TL,BR,BL",
+      "planar expand width then height via fits_plane (planar + same plane z_pred + same slopes); merged quad emits TL,TR,BR + TL,BR,BL",
+      "half = 0.5*(pmax-pmin) per axis"
+    ],
+    "precision_convention": "pinned upstream numpy 2.5.4 (NEP 50): x=sx*f32(c/width-1), z=data*sz2 in f32; thresholds compared as exact f32 vs 1e-5 (equivalent to f64 compare because no f32 lies between); half uses *0.5f32",
+    "unit_tests": 12
+  },
+  "bvh": {
+    "reused": "src/render/bvh/mesh.rs::MeshBvh::build (binned SAH, SAH_BINS=12, LEAF_CAPACITY=8)",
+    "upstream": "wp.Mesh(bvh_constructor='sah', bvh_leaf_size=2)",
+    "differences_recorded": [
+      "leaf_size: upstream configurable 2, ours fixed LEAF_CAPACITY=8 (no config entry point; not changed this slice)",
+      "SAH: warp internal binned SAH vs our own binned SAH (12 bins); only traversal/candidate order differs",
+      "if S3 criteria shows tie-break divergence -> stop and report, no tolerance/reference change"
+    ],
+    "scene_leaf_bounds": "GeomKind::Hfield; size=half; center=pos+rot[:,2]*half[2] via fused_mul_add (bvh.py L225-233)"
+  },
+  "slot_semantics": {
+    "megakernel_slots_len": 81,
+    "slot_index_zero_based": 64,
+    "slot_name": "hfield_bvh_id",
+    "slot_decl": "Array(U64)",
+    "value": "blob-local mesh index (hfield meshes appended after existing meshes; existing mesh indices unchanged)",
+    "length": "nhfield",
+    "sentinel": "u64::MAX for unreferenced/unused entries; empty -> 1 sentinel",
+    "warp_runtime_difference": "upstream stores opaque warp Mesh runtime handles (0 for unused); ours stores blob-local indices with u64::MAX sentinel; same 'one mesh per hfield' render semantics, different id space",
+    "upload_representation": "u32 low/high word pairs (little-endian) because TransferElement has no u64 impl and src/runtime is outside this card's file scope; ABI-equivalent to Array(U64)"
+  },
+  "injection": {
+    "mode": "A (explicit, non-breaking)",
+    "existing_signatures_unchanged": ["RenderContext::create", "resolve_context"],
+    "builder": "ResolvedContext::set_hfield(&HfieldInputs<'_>) -> Result<(), HfieldError> (reuses resolve_hfield validation; copies into owned HfieldContextInput/HfieldStatic)",
+    "usage": "VolumeModelInput -> VolumeHfieldInputs::from_volume -> HfieldInputs -> resolved.set_hfield -> build_hfield_mesh (half) -> SceneLeaf{geom_type:1,size:half} -> SceneState -> RenderContext::create",
+    "none_path_zero_diff": true,
+    "none_path_evidence": "no injection: HfieldDevice::build -> Ok(None), slot gets 1 sentinel, model with hfield geoms is rejected host-side before device read; full suite 1082 passed / 0 failed",
+    "no_new_native": true
+  },
+  "device_dispatch": {
+    "render_common_cu": "cast_ray gains geom_dataid + hfield_bvh_id; gtype==1 shares ray_mesh_leaf with gtype==7 (sentinel skips); gtype==8 still host-rejected",
+    "shadow": "shadow_visibility passes both params; gtype in {1,7} not backface-culled for shadow rays (upstream any-hit semantics); primitives still culled",
+    "vertex_normals": "gtype gate 7|8 added (hfield does not use vertex normals; upstream render.py L1209-1211)",
+    "texturing": "sample_texture gtype==1 -> texture_hfield (u=(local.x+size[0])/(2*max(size[0],1e-6)), v=(size[1]-local.y)/(2*max(size[1],1e-6)), tex_uniform rep scaled)",
+    "new_cu_files": 0,
+    "render_cu_untouched": true
+  },
+  "module_sources": {"before": 38, "after": 39, "added": ["src/render/bvh/hfield_mesh.rs"], "cu_sources_unchanged": true},
+  "kernel_compile_gate": {
+    "before": {"source_sha256": "2d2c27df985882c2b571514579dff19f9103bfc903ec786db42a592ce1bd8c2a", "ptx_sha256": "e955bb4b0280228639f3e544b459873c83d1dae672662a43a96cccc8dabc4ffa", "ptx_bytes": 258660},
+    "after": {"source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746", "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13", "ptx_bytes": 264015},
+    "change_expected": true
+  },
+  "redlines": {
+    "render_cu_lines": 499,
+    "launch_rs_lines": 500,
+    "model_render_rs_lines": 500,
+    "camera_output_rs_lines": 499,
+    "megakernel_slots": 81,
+    "device_sources": 28,
+    "entry_points": 6,
+    "collision_args_bytes": 504,
+    "cuda_files_touched": 4,
+    "render_cu_touched": false
+  },
+  "tests": {"passed": 1082, "failed": 0, "binaries": 133, "new_hfield_tests": 13, "note": "S7b1/S7b2/S7b3/S8 bitwise regressions included in unit run"},
+  "gates": {"fmt": "pass", "clippy": "pass", "unit": "1082 passed / 0 failed", "kernel_compile_gate": "pass (sha changed as expected)"},
+  "logs": {
+    "fmt": "docs/development-evidence/render-bvh/r05-s2-hfield-intersect/logs/fmt.log",
+    "clippy": "docs/development-evidence/render-bvh/r05-s2-hfield-intersect/logs/clippy.log",
+    "unit": "docs/development-evidence/render-bvh/r05-s2-hfield-intersect/logs/test.log",
+    "kernel_gate_before": "docs/development-evidence/render-bvh/r05-s2-hfield-intersect/logs/kernel-gate-before.log",
+    "kernel_gate_after": "docs/development-evidence/render-bvh/r05-s2-hfield-intersect/logs/kernel-gate-after.log"
+  },
+  "limits": [
+    "zero rendering numeric conclusions this slice; RGB/depth/seg/shadow/texture acceptance deferred to R05-S3 window",
+    "hfield mesh/BVH rebuilt every render call (existing per-frame repack design); no caching",
+    "MeshBvh fixed leaf_size=8 vs upstream leaf_size=2; tie-break/traversal differences not numerically measured",
+    "no flex/splat/skybox/SDF intersection; hfield single copy (no per-world duplication)",
+    "authoring capture (2 groups) and S3 validation window (9 entities) are separately signed; this slice opens no window"
+  ],
+  "claims": {
+    "no_window": true,
+    "no_numeric_conclusion": true,
+    "abi_slots_unchanged": true,
+    "redlines_unchanged": true,
+    "cuda_sources_deterministic": true
+  }
+}

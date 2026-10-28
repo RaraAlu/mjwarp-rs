@@ -177,11 +177,12 @@ fn scene_state_rejects_invalid_inputs_before_allocation() {
             actual: 2,
         })
     );
-    // hfield（geom_type=1）不在 S2a 支持面；在分配前拒绝。
-    let unsupported = SceneState::new(
+    // R05-S2：hfield（geom_type=1）已支持——`size` 传上游 `half`；
+    // bounds 按 `center = pos + rot[:,2]*half[2]` 偏移后走 box 公式（bvh.py L225-233）。
+    let hfield_state = SceneState::new(
         vec![SceneLeaf {
             geom_type: 1,
-            size: [1.0, 1.0, 1.0],
+            size: [1.5, 2.5, 0.5],
             group: 0,
             geom_id: 0,
         }],
@@ -189,10 +190,9 @@ fn scene_state_rejects_invalid_inputs_before_allocation() {
         1,
     )
     .unwrap();
-    assert!(matches!(
-        unsupported.bounds(),
-        Err(OwnerError::LeafGeometry { leaf: 0, .. })
-    ));
+    let bounds = hfield_state.bounds().unwrap();
+    assert_eq!(bounds[0].lower, [-1.5, -2.5, 0.0]);
+    assert_eq!(bounds[0].upper, [1.5, 2.5, 1.0]);
     // 非有限位姿在构建前拒绝。
     let mut nan_state = single_box_state();
     nan_state

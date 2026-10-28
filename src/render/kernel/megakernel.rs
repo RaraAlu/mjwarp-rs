@@ -23,7 +23,7 @@ use crate::model::render::RenderFields;
 use crate::render::ImageOutput;
 use crate::render::camera::CameraModel;
 use crate::render::context::RenderContext;
-use crate::render::kernel::cast::{CameraPose, MeshDevice, ModelRenderArrays, SceneDevice};
+use crate::render::kernel::cast::{CameraPose, ModelRenderArrays, SceneDevice, pack_mesh_devices};
 use crate::render::rays::RayBuffer;
 use crate::runtime::TransferSession;
 use crate::runtime::launcher::{
@@ -107,11 +107,10 @@ impl MegakernelRenderer {
         if resolved.splat_count != 0 {
             return Err(LauncherError::Unsupported("S7b3 不含 splat"));
         }
-        if ints(fields, "geom_type")?
-            .iter()
-            .any(|kind| matches!(kind, 1 | 8))
-        {
-            return Err(LauncherError::Unsupported("S7b3 不含 hfield/SDF 求交"));
+        // R05-S2：hfield 求交已接入（`gtype==1` 由设备侧分派到 mesh BVH）；
+        // SDF（`gtype==8`）仍拒绝。
+        if ints(fields, "geom_type")?.contains(&8) {
+            return Err(LauncherError::Unsupported("S7b3 不含 SDF 求交"));
         }
         if ints(fields, "light_mode")?.iter().any(|mode| *mode != 0) {
             return Err(LauncherError::Unsupported(
@@ -143,21 +142,14 @@ impl MegakernelRenderer {
         }
 
         // 场景/网格设备打包（与 S7b1 同源；每帧从 context 拥有的 BVH 重打包）。
+        // R05-S2：hfield mesh 追加在既有 mesh 末尾（既有索引不变），打包逻辑在 `cast_mesh.rs`。
         let scene = SceneDevice::pack(
             context.scene_bvh(),
             context.scene(),
             &model_arrays,
             context.mesh_count(),
         )?;
-        let mut mesh_bvhs = Vec::with_capacity(context.mesh_count());
-        for index in 0..context.mesh_count() {
-            mesh_bvhs.push(
-                context
-                    .mesh_bvh(index)
-                    .ok_or(LauncherError::InvalidArray("mesh_index"))?,
-            );
-        }
-        let mesh = MeshDevice::pack(&mesh_bvhs)?;
+        let (mesh, hfield) = pack_mesh_devices(context, resolved, &model_arrays)?;
 
         // ---- 相机参数（按模型相机 id；上游 `cam_*_in[worldid, mujoco_cam_id]`） ----
         let cam_projection = ints(fields, "cam_projection")?;
@@ -236,6 +228,8 @@ impl MegakernelRenderer {
             render_seg: &render_seg,
             shading_constants: &shading_constants,
             scale_constants: &scale_constants,
+            // R05-S2：无 hfield geom 时为空切片（上传侧落 1 个 `u64::MAX` 哨兵占位）。
+            hfield_bvh_ids: hfield.as_ref().map_or(&[], |device| device.bvh_ids()),
         })?;
         let u = &uploads;
         let rgb_shape = [nworld, layout.rgb_pixels.max(1)];
@@ -343,7 +337,11 @@ impl MegakernelRenderer {
             RenderElem::I32,
             &[u.nmesh],
         )?);
-        args.push(array(&u.hfield_bvh_id, RenderElem::U64, &[1])?);
+        args.push(array(
+            &u.hfield_bvh_id,
+            RenderElem::U64,
+            &[u.hfield_bvh_count],
+        )?);
         args.push(array(&u.flex_rgba, RenderElem::Vec4, &[1])?);
         args.push(array(&u.flex_geom_flexid, RenderElem::I32, &[1])?);
         args.push(array(&u.flex_geom_edgeid, RenderElem::I32, &[1])?);

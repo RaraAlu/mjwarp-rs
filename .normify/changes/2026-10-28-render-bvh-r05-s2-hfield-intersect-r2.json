@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-s2-hfield-intersect-r2",
+  "title": {
+    "zh": "R05-S2（重登记）：设备侧 hfield 三角化 + mesh BVH 相交接入（含两条必然失效旧断言；无窗口）",
+    "en": "R05-S2 (re-registered): device-side hfield triangulation plus mesh-BVH intersection wiring (includes two obsolete assertions; no window)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R05 第二片（与原卡 `2026-10-28-render-bvh-r05-s2-hfield-intersect` 同一实现与证据，因原卡 files 未含两条必然失效的旧测试断言、运行中声明冻结无法扩 scope，故 abandon 后同片重登记）：① host 按上游 `bvh.py:581 build_hfield_bvh`（含 `_optimize_hfield_mesh`）规则三角化高度场（`x=sz0·(c/width−1)`、`y=sz1·(r/height−1)`、`z=data[r,c]·sz2`，`width=0.5·max(nc−1,1)`、`height=0.5·max(nr−1,1)`，每格 2 三角形 TL/TR/BR + TL/BR/BL，贪心共面合并，pinned numpy 2.5.4 NEP50 f32 口径），复用既有 `MeshBvh::build`；② hfield mesh **追加在 mesh blob 末尾**（既有 mesh 索引不变），`hfield_bvh_id` 槽填「blob 内 mesh 索引、未用 `u64::MAX`、长度=nhfield」，**不扩 81 槽 ABI**；③ 设备 `cast_ray` 加 `gtype==1` 分派到 `ray_mesh_leaf`，`render_shade.cu` 加 `texture_hfield`，阴影射线对 `{1,7}` 不剔背，`gtype==8` 仍拒绝；④ 注入 A（非破坏 builder `ResolvedContext::set_hfield`，`None` 路径零行为差异）。两条旧断言按行为变更更新：`tests/render_context_lifecycle.rs` 由「hfield 被拒绝」改为断言 gtype=1 bounds；`tests/render_scene_bvh_host.rs` 由 `from_geom_type(1)==UnsupportedGeomType{1}` 改为用 gtype 9 表达未支持面。本片**零渲染数值结论**，数值验收留 R05-S3 验证窗。",
+    "en": "Same R05-S2 implementation as the abandoned card, with the two obsolete assertion files added to scope; no window."
+  },
+  "modules": {},
+  "acceptance": [
+    "**三角化逐条对齐上游**：`bvh/hfield_mesh.rs`（266 行）坐标公式/`width`/`height`/每格 2 三角顺序/贪心共面合并与 `bvh.py L453-622` 逐条对应；证据给上游行号 + 移植对照表 + 顺序单测（7 条）；pinned numpy 2.5.4 NEP50 口径写明。",
+    "**场景 BVH**：`bvh/aabb.rs` 增 `GeomKind::Hfield`，bounds `center=pos+rot[:,2]*half[2]`（`fused_mul_add`，对齐 `bvh.py L225-233`）+ 单测；`SceneLeaf` 文档同步；`gtype==8` 仍拒绝。",
+    "**槽语义（不扩 ABI）**：`MEGAKERNEL_SLOTS[64]`（`Array(U64)`）填 blob 内 mesh 索引、长度=nhfield、未用 `u64::MAX`、空时 1 哨兵；hfield mesh 追加在既有 mesh 末尾；81 槽签名零变化；上传以 u32 低/高字对承载 u64 的 ABI 等价性写进证据（`TransferElement` 无 u64）。",
+    "**注入 A 非破坏**：`create`/`resolve_context` 签名零改动，新增 `ResolvedContext::set_hfield(&HfieldInputs)` builder；`None` 路径零行为差异（全量 1082/0 + S7b1/S7b2/S7b3/S8 位等回归）。",
+    "**两条旧断言更新（行为变更必要后果，非放宽）**：`tests/render_context_lifecycle.rs` 改断言 gtype=1 bounds；`tests/render_scene_bvh_host.rs` 用 gtype 9 表达未支持面；其余断言强度不变，证据说明「hfield 由拒绝变支持」的语义变化。",
+    "**设备**：`render_common.cu` `gtype==1` 分派 `ray_mesh_leaf`（哨兵跳过）、`render_shadow.cu` 阴影不剔背（`{1,7}`）、`render_megakernel.cu` 传 `hfield_bvh_id`、`render_shade.cu` `texture_hfield`；`render.cu` 零改动；**不新增 `.cu`**；新 `MEGAKERNEL_SOURCE`/PTX sha 记入 kernel 编译门（预期变化）。",
+    "**行数 rebase（Chief 批准）**：`megakernel.rs` 零改动或 ≤500（实际 404）、`megakernel_uploads.rs` ≤500（405）、`cast.rs` ≤450（411）、`cast_mesh.rs`（223）、其余 ≤500；红线 `render.cu`(499)/`launch.rs`(500)/`model/render.rs`(500)/`camera_output.rs`(499) 零改动；`DEVICE_SOURCES`=28、入口 6、`CollisionArgs` 504 B 不动。",
+    "模块源 `mjwarp.render` 38→39（`hfield_mesh.rs`）；`validate --fingerprints` 错误 0；四门禁绑最终树通过（unit 1082/0）；证据 `docs/development-evidence/render-bvh/r05-s2-hfield-intersect/`（README/receipt 含新 `/task_id`/manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0），**零渲染数值结论**。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r05-hfield-channel",
+      "2026-10-28-render-bvh-r05-split-megakernel",
+      "2026-10-28-render-bvh-r05-split-cast"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/bvh/",
+      "src/render/kernel/",
+      "src/render/context.rs",
+      "src/render/context/",
+      "src/render/mod.rs",
+      "tests/render_hfield_mesh.rs",
+      "tests/render_context_lifecycle.rs",
+      "tests/render_scene_bvh_host.rs",
+      "docs/development-evidence/render-bvh/r05-s2-hfield-intersect/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-28 重登记（原卡 …-r05-s2-hfield-intersect 已 abandon，原因=files 未含两条必然失效的旧断言且运行中声明冻结；实现/证据沿用同一目录）。证据 receipt `/task_id` 须改为本卡 id。本片无 GPU 窗口；authoring 捕获（2 组）与 S3 验证窗（9 实体）材料各自单独报 Chief 签。",
+  "revision": {
+    "before": "db9795e6572ba746072ad9366e27280cea32a33d",
+    "after": null
+  },
+  "created_at": "2026-10-28T15:00:00.000Z",
+  "updated_at": "2026-10-28T15:00:18.340Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-s2-hfield-intersect/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-s2-hfield-intersect-r2"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

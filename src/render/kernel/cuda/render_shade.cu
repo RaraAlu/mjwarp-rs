@@ -181,6 +181,25 @@ __device__ __forceinline__ void texture_box(V3 local, V3 local_normal, const flo
     *rep = v3(rep_u, rep_v, 0.0f);
 }
 
+// 上游 `_texture_hfield`（render.py L332-350）：水平范围 `[-size[0], size[0]] x [-size[1], size[1]]`，
+// `s0 = max(size[0], 1e-6)`、`s1 = max(size[1], 1e-6)`；UV 不依赖命中面/法线。
+__device__ __forceinline__ void texture_hfield(V3 local, const float* size, const float* repeat,
+                                                bool tex_uniform, V3* uv, V3* offset, V3* rep) {
+    float s0 = fmaxf(size[0], 1.0e-6f);
+    float s1 = fmaxf(size[1], 1.0e-6f);
+    float u = (local.x + size[0]) / (2.0f * s0);
+    float v = (size[1] - local.y) / (2.0f * s1);
+    float rep_u = repeat[0];
+    float rep_v = repeat[1];
+    if (tex_uniform) {
+        rep_u = repeat[0] * size[0];
+        rep_v = repeat[1] * size[1];
+    }
+    *uv = v3(u, v, 0.0f);
+    *offset = v3(0.0f, 0.0f, 0.0f);
+    *rep = v3(rep_u, rep_v, 0.0f);
+}
+
 // 上游 `_texture_mesh`（s7b 场景只有 1 个 mesh 且无 texcoord：走 OBJECT_PLANE fallback）。
 __device__ __forceinline__ void texture_mesh(const int* mesh_faceadr, V3 local, const float* size,
                                               const float* repeat, bool tex_uniform, int face,
@@ -260,6 +279,9 @@ __device__ __forceinline__ V3 sample_texture(const int* geom_type, const int* me
         texture_capsule(local, size, repeat, tex_uniform, &uv, &offset, &rep);
     } else if (gtype == 6) {
         texture_box(local, local_normal, size, repeat, tex_uniform, &uv, &offset, &rep);
+    } else if (gtype == 1) {
+        // R05-S2：hfield 纹理（上游 render.py L462-464 分支）。
+        texture_hfield(local, size, repeat, tex_uniform, &uv, &offset, &rep);
     } else if (gtype == 7 || gtype == 8) {
         texture_mesh(mesh_faceadr, local, size, repeat, tex_uniform, face, mesh_id, bary_u, bary_v,
                      mesh_facetexcoord, mesh_texcoord, mesh_texcoord_offsets, &uv, &offset, &rep);
@@ -285,9 +307,11 @@ __device__ __forceinline__ V3 vertex_normal(V3 n, V3 face) {
 // 阴影：仅 `use_shadows && lightcastshadow` 时经 `shadow_visibility`（R09）发射阴影射线
 // （方案 A：复用 first-hit `cast_ray`；上游 L919-961 语义，实现路径不同）。
 __device__ __forceinline__ void compute_lighting(const SceneView& scene, const MegakernelBlob& blob,
-                                                  const int* geom_type, const int* geom_matid,
-                                                  const float* geom_rgba, const float* mat_rgba,
-                                                  int worldid, bool cull_backfaces, bool lightactive,
+                                                  const int* geom_type, const int* geom_dataid,
+                                                  const int* geom_matid, const float* geom_rgba,
+                                                  const float* mat_rgba,
+                                                  const wp::uint64* hfield_bvh_id, int worldid,
+                                                  bool cull_backfaces, bool lightactive,
                                                   int lighttype, V3 lightpos, V3 lightdir,
                                                   V3 lightattenuation, float lightcutoff_rad,
                                                   float lightexp, V3 lightdiff, V3 lightspec,
@@ -336,10 +360,10 @@ __device__ __forceinline__ void compute_lighting(const SceneView& scene, const M
     // R09-S2 阴影可见度：仅 `use_shadows && cast_shadow` 时发射阴影射线（上游 L919）；
     // 命中时 `visible = shadow_light_fraction`，否则 1.0。
     float weight = attenuation * shadow_visibility(
-                                        scene, blob, geom_type, geom_matid, geom_rgba, mat_rgba,
-                                        worldid, cull_backfaces, normal, hitpoint, L, lighttype,
-                                        dist_to_light, use_shadows, cast_shadow,
-                                        shadow_light_fraction);
+                                        scene, blob, geom_type, geom_dataid, geom_matid, geom_rgba,
+                                        mat_rgba, hfield_bvh_id, worldid, cull_backfaces, normal,
+                                        hitpoint, L, lighttype, dist_to_light, use_shadows,
+                                        cast_shadow, shadow_light_fraction);
     *diff_rgb = v3(lightdiff.x * (ndotl * weight), lightdiff.y * (ndotl * weight),
                    lightdiff.z * (ndotl * weight));
     if (enable_specular) {

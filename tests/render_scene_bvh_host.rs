@@ -452,9 +452,10 @@ fn rejects_empty_out_of_range_and_invalid_inputs() {
         Err(BvhError::InvalidAabb { leaf: 2 })
     ));
 
+    // R05-S2：gtype 1（hfield）已支持；未支持面改用 gtype 9。
     assert_eq!(
-        LeafGeometry::from_geom_type(1, [1.0, 1.0, 1.0]),
-        Err(BvhError::UnsupportedGeomType { geom_type: 1 })
+        LeafGeometry::from_geom_type(9, [1.0, 1.0, 1.0]),
+        Err(BvhError::UnsupportedGeomType { geom_type: 9 })
     );
     let plane = LeafGeometry::from_geom_type(0, [1.0, 1.0, 1.0]).unwrap();
     assert!(matches!(

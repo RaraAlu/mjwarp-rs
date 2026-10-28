@@ -25,9 +25,10 @@ use crate::runtime::TransferSession;
 /// leaf 的静态几何（MuJoCo `geom_type`/`geom_size` 与分组）。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SceneLeaf {
-    /// MuJoCo `geom_type`；S2a 支持 0、2..=8（hfield 等由 `LeafGeometry` 拒绝）。
+    /// MuJoCo `geom_type`；S2a 支持 0、2..=8；R05-S2 起 1（hfield）也支持
+    /// （`size` 传上游 `build_hfield_bvh` 的 `half`，不是 `geom_size`）。
     pub geom_type: i32,
-    /// `geom_size` 的 f32 值；mesh 为 mesh bounds 半尺寸。
+    /// `geom_size` 的 f32 值；mesh 为 mesh bounds 半尺寸；hfield 为 `half` 半尺寸。
     pub size: [f32; 3],
     /// world 分组下标（`< worlds`）。
     pub group: u32,

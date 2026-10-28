@@ -370,3 +370,80 @@ pub fn resolve_hfield<'a>(
     }
     Ok(Some(HfieldParams { data, hfields }))
 }
+
+/// 单个 hfield 的**拥有**静态数据（S2 注入用；`ResolvedContext` 无生命周期参数）。
+///
+/// 由 `HfieldParams<'a>` 在校验通过后复制一次得到（模型静态数据，单份、不随 world 复制）。
+#[derive(Clone, Debug, PartialEq)]
+pub struct HfieldStatic {
+    size: [f32; 4],
+    nrow: i32,
+    ncol: i32,
+    data: Vec<f32>,
+}
+
+impl HfieldStatic {
+    /// `hfield_size` 四项（f32 原值）。
+    pub fn size(&self) -> [f32; 4] {
+        self.size
+    }
+
+    /// 高程行数（恒 `> 0`）。
+    pub fn nrow(&self) -> i32 {
+        self.nrow
+    }
+
+    /// 高程列数（恒 `> 0`）。
+    pub fn ncol(&self) -> i32 {
+        self.ncol
+    }
+
+    /// 高程数据切片（`nrow × ncol`，行主序，已按 `adr` 切好）。
+    pub fn data(&self) -> &[f32] {
+        &self.data
+    }
+}
+
+/// hfield 静态数据的**拥有**集合（S2 注入路径的输入）。
+///
+/// 只在 `nhfield >= 1` 时构造（`resolve_hfield` 对空输入返回 `None`）。
+#[derive(Clone, Debug, PartialEq)]
+pub struct HfieldContextInput {
+    hfields: Vec<HfieldStatic>,
+}
+
+impl HfieldContextInput {
+    /// 从已校验的 [`HfieldParams`] 复制成拥有型（模型静态数据，一次性）。
+    ///
+    /// `data_of` 已在 `resolve_hfield` 里保证区段合法，因此这里逐项复制不会失败；
+    /// 若出现意外（理论上不可达），跳过该项并返回 `None`（不 panic）。
+    pub fn from_params(params: &HfieldParams<'_>) -> Option<Self> {
+        let mut hfields = Vec::with_capacity(params.len());
+        for index in 0..params.len() {
+            let view = params.hfields().get(index)?;
+            let data = params.data_of(index)?.to_vec();
+            hfields.push(HfieldStatic {
+                size: view.size(),
+                nrow: view.nrow(),
+                ncol: view.ncol(),
+                data,
+            });
+        }
+        Some(Self { hfields })
+    }
+
+    /// hfield 数（恒 `>= 1`）。
+    pub fn len(&self) -> usize {
+        self.hfields.len()
+    }
+
+    /// 是否为空：恒 `false`（空输入在 `resolve_hfield` 返回 `None`，不构造本结构）。
+    pub fn is_empty(&self) -> bool {
+        self.hfields.is_empty()
+    }
+
+    /// 逐 hfield 的拥有型静态数据（顺序与 `hfield_nrow` 一致）。
+    pub fn hfields(&self) -> &[HfieldStatic] {
+        &self.hfields
+    }
+}

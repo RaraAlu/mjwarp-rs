@@ -19,7 +19,8 @@ pub use camera::{
 pub use camera_output::{CameraImage, CameraOutputViews, CameraViewError, WholeOutputData};
 /// R05-S1 地形 hfield 静态参数（纯宿主；文件位于 `context/`，由 `params.rs` 以 `#[path]` 声明）。
 pub use context::params::hfield::{
-    HfieldError, HfieldInputs, HfieldParams, HfieldView, resolve_hfield,
+    HfieldContextInput, HfieldError, HfieldInputs, HfieldParams, HfieldStatic, HfieldView,
+    resolve_hfield,
 };
 /// R09-S1 光照与阴影静态参数（纯宿主；文件位于 `context/`，由 `params.rs` 以 `#[path]` 声明）。
 pub use context::params::lighting::{LightParams, LightingParams, resolve_lighting};

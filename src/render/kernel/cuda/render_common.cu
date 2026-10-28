@@ -305,9 +305,10 @@ struct CastHit {
 // mesh 命中在 any-hit 下 `n` 为零向量（上游不填 surface data）→ cull 判据不生效；
 // primitive 命中仍按 cull 剔除。primary ray 传 false，行为与 S7b1/S7b2 完全一致。
 __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const MegakernelBlob& blob,
-                                            const int* geom_type, const int* geom_matid,
-                                            const float* geom_rgba, const float* mat_rgba, int worldid,
-                                            V3 origin, V3 direction, float max_dist,
+                                            const int* geom_type, const int* geom_dataid,
+                                            const int* geom_matid, const float* geom_rgba,
+                                            const float* mat_rgba, const wp::uint64* hfield_bvh_id,
+                                            int worldid, V3 origin, V3 direction, float max_dist,
                                             bool cull_backfaces, bool shadow_ray) {
     CastHit hit;
     hit.geom_id = -1;
@@ -362,18 +363,34 @@ __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const Megake
         float pass_bary_v = 0.0f;
         int pass_face = -1;
         int mesh_index = scene.leaf_mesh[leaf];
-        if (gtype == 7 || gtype == 8) {
-            if (gtype == 7) {
-                d = ray_mesh_leaf(blob.mesh_meta, blob.mesh_params, blob.mesh_offsets, mesh_index,
+        if (gtype == 7 || gtype == 1) {
+            // R05-S2：hfield（gtype==1）与 mesh 同走 `ray_mesh_leaf`；hfield 的 mesh 索引
+            // 从 `hfield_bvh_id[geom_dataid[geom]]` 取（blob 内索引，追加在既有 mesh 末尾；
+            // `u64::MAX` 哨兵=未建/未用 → 跳过）。上游 `render.py` L682-693 同义。
+            int query_mesh = mesh_index;
+            if (gtype == 1) {
+                int hfield_index = geom_dataid[geom];
+                query_mesh = -1;
+                if (hfield_index >= 0) {
+                    wp::uint64 id = hfield_bvh_id[hfield_index];
+                    if (id != 0xFFFFFFFFFFFFFFFFull) {
+                        query_mesh = (int)id;
+                    }
+                }
+            }
+            if (query_mesh >= 0) {
+                d = ray_mesh_leaf(blob.mesh_meta, blob.mesh_params, blob.mesh_offsets, query_mesh,
                                   pos, leaf_mat, origin, direction, query_dist,
                                   cull_backfaces && !shadow_ray, &n,
                                   &pass_bary_u, &pass_bary_v, &pass_face);
             }
-        } else {
+        } else if (gtype != 8) {
+            // gtype==8（SDF）仍由 host 拒绝；设备侧保守不判交。
             render_intersect_primitive(gtype, pos, leaf_size, leaf_mat, origin, direction, &d, &n);
         }
-        // 上游阴影射线走 any-hit 分支（mesh 的 n 为零向量 → cull 不生效）；primitive 仍 cull。
-        bool cull_this = cull_backfaces && !(shadow_ray && gtype == 7);
+        // 上游阴影射线走 any-hit 分支（mesh/hfield 的 n 为零向量 → cull 不生效）；
+        // primitive 仍 cull。
+        bool cull_this = cull_backfaces && !(shadow_ray && (gtype == 7 || gtype == 1));
         if (cull_this && d >= 0.0f && dot(direction, n) > 0.0f) {
             d = -1.0f;
         }

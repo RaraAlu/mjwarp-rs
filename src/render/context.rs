@@ -15,6 +15,8 @@ use crate::render::camera::{
     resolve_cameras,
 };
 
+use params::hfield::{HfieldContextInput, HfieldError, HfieldInputs, resolve_hfield};
+
 mod model;
 #[cfg(test)]
 mod tests;
@@ -203,6 +205,11 @@ pub struct ResolvedContext {
     pub has_spot_lights: bool,
     /// 激活相机含正交投影（上游 `has_orthographic_camera`）。
     pub has_orthographic_camera: bool,
+    /// R05-S2 注入的 hfield 静态数据（`None` 表示未注入/模型无 hfield）。
+    ///
+    /// 不改变 `resolve_context` 签名：调用方在 `resolve_context` 之后用
+    /// [`ResolvedContext::set_hfield`] 注入（注入 A：显式、非破坏；`None` 路径零行为差异）。
+    pub hfield: Option<HfieldContextInput>,
 }
 
 impl ResolvedContext {
@@ -223,6 +230,24 @@ impl ResolvedContext {
     /// 激活相机分辨率（上游 `cam_res`）。
     pub fn cam_res(&self) -> &[[u32; 2]] {
         &self.plan.resolutions
+    }
+
+    /// 注入 hfield 静态数据（S2 注入 A：显式、非破坏）。
+    ///
+    /// - 入参是已验收的 [`HfieldInputs`]（可由 `VolumeHfieldInputs::from_volume` 得到）；
+    /// - `resolve_hfield` 的全部校验在此复用（长度/边界/溢出/非正行数，错误直传
+    ///   [`HfieldError`]）；全 `None`/空 → 清空为 `None`（模型无 hfield，合法）；
+    /// - 注入后渲染侧按 hfield 三角化 + mesh BVH 求交接入；**未注入时行为与 S7b1/S7b2/S7b3/S8
+    ///   完全一致**（`None` 路径零差异）。
+    pub fn set_hfield(&mut self, inputs: &HfieldInputs<'_>) -> Result<(), HfieldError> {
+        self.hfield =
+            resolve_hfield(inputs)?.and_then(|params| HfieldContextInput::from_params(&params));
+        Ok(())
+    }
+
+    /// 已注入的 hfield 静态数据（未注入/模型无 hfield 时 `None`）。
+    pub fn hfield(&self) -> Option<&HfieldContextInput> {
+        self.hfield.as_ref()
     }
 }
 
@@ -314,6 +339,7 @@ pub fn resolve_context(
         light_attenuation_is_default: lights.attenuation_is_default,
         has_spot_lights: lights.has_spot_lights,
         has_orthographic_camera,
+        hfield: None,
     })
 }
 

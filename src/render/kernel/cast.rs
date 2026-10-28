@@ -25,7 +25,7 @@ use crate::runtime::launcher::LauncherError;
 #[path = "cast_mesh.rs"]
 mod cast_mesh;
 
-pub use cast_mesh::MeshDevice;
+pub use cast_mesh::{HfieldDevice, MeshDevice, pack_mesh_devices};
 
 /// 渲染输入解析错误。
 #[derive(Clone, Debug, PartialEq, Eq)]

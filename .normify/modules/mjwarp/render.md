@@ -130,6 +130,9 @@ path = "src/render/kernel/megakernel_uploads.rs"
 [[source]]
 path = "src/render/kernel/cast_mesh.rs"
 
+[[source]]
+path = "src/render/bvh/hfield_mesh.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::render::bvh::refit_bvh"

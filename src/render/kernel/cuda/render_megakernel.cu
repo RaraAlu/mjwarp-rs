@@ -159,8 +159,9 @@ extern "C" __global__ void render_megakernel(
     MegakernelBlob blob = megakernel_blob(bvh_id);
     SceneView scene = scene_view(blob.scene_meta, blob.scene_params);
     bool cull_backfaces = (flag_bits & MK_FLAG_CULL_BACKFACES) != 0u;
-    CastHit hit = cast_ray(scene, blob, geom_type.data, geom_matid.data, (const float*)geom_rgba.data,
-                           (const float*)mat_rgba.data, worldid, ray_origin_world, ray_dir_world,
+    CastHit hit = cast_ray(scene, blob, geom_type.data, geom_dataid.data, geom_matid.data,
+                           (const float*)geom_rgba.data, (const float*)mat_rgba.data,
+                           hfield_bvh_id.data, worldid, ray_origin_world, ray_dir_world,
                            max_cam_dist, cull_backfaces, false);
 
     if (hit.geom_id != -1 && zfar > 0.0f && (hit.dist * -ray_dir_local_cam.z) > zfar) {
@@ -209,9 +210,13 @@ extern "C" __global__ void render_megakernel(
     V3 normal = hit.normal;
     int face = hit.face;
     int mesh_id = hit.mesh_id;
+    int hit_geom_type = geom_type.data[geom_id];
 
-    // 顶点法线（上游 `enable_vertex_normals` 分支；mesh 命中且 face>=0 时）。
-    if ((flag_bits & MK_FLAG_VERTEX_NORMALS) != 0u && mesh_id >= 0 && face >= 0) {
+    // 顶点法线（上游 `enable_vertex_normals` 分支；mesh/SDF 命中且 face>=0 时；
+    // R05-S2：hfield 命中不带顶点法线，与上游 render.py L1209-1211 的 gtype 判据一致）。
+    bool vertex_normal_gtype = (hit_geom_type == 7 || hit_geom_type == 8);
+    if ((flag_bits & MK_FLAG_VERTEX_NORMALS) != 0u && vertex_normal_gtype && mesh_id >= 0 &&
+        face >= 0) {
         const float* geom_mat = (const float*)(geom_xmat_in.data + geom_id);
         V3 geom_face = mat_t_vec(geom_mat, normal);
         const int* face_normal = (const int*)(mesh_facenormal.data + (mesh_faceadr.data[mesh_id] + face));
@@ -299,8 +304,9 @@ extern "C" __global__ void render_megakernel(
         float exponent = light_exponent.data[light];
         V3 diff_rgb;
         V3 spec_rgb;
-        compute_lighting(scene, blob, geom_type.data, geom_matid.data,
-                         (const float*)geom_rgba.data, (const float*)mat_rgba.data, worldid,
+        compute_lighting(scene, blob, geom_type.data, geom_dataid.data, geom_matid.data,
+                         (const float*)geom_rgba.data, (const float*)mat_rgba.data,
+                         hfield_bvh_id.data, worldid,
                          cull_backfaces, active, type, lightpos, lightdir, attenuation, cutoff,
                          exponent, to_v3(light_diffuse.data[light]),
                          to_v3(light_specular.data[light]), normal, hit_point, view_dir, mat_spec,
@@ -317,8 +323,9 @@ extern "C" __global__ void render_megakernel(
         V3 diff_rgb;
         V3 spec_rgb;
         // R09-S2：headlight 不投影（上游 L1457-1459 传 `lightcastshadow=False`）。
-        compute_lighting(scene, blob, geom_type.data, geom_matid.data,
-                         (const float*)geom_rgba.data, (const float*)mat_rgba.data, worldid,
+        compute_lighting(scene, blob, geom_type.data, geom_dataid.data, geom_matid.data,
+                         (const float*)geom_rgba.data, (const float*)mat_rgba.data,
+                         hfield_bvh_id.data, worldid,
                          cull_backfaces, true, 1, ray_origin_world, cam_fwd, v3(1.0f, 0.0f, 0.0f),
                          0.0f, 0.0f, headlight_diffuse, headlight_specular, normal, hit_point,
                          view_dir, mat_spec, mat_shin_exp, enable_specular, use_shadows, false,

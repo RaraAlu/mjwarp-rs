@@ -28,13 +28,18 @@ pub enum GeomKind {
     /// mesh/SDF 的 leaf 包围盒：用 mesh bounds（半尺寸）走 box 公式。
     /// 网格三角形 BVH 属 S3，本切片不建。
     Mesh,
+    /// hfield 的 leaf 包围盒（R05-S2）：`size` 是上游 `build_hfield_bvh` 返回的
+    /// `half`（`0.5*(pmax-pmin)`），按 `center = pos + rot[:,2]*half[2]` 偏移后
+    /// 走 box 公式（`bvh.py` L225-233）。三角网格 BVH 由 `hfield` 子模块构建。
+    Hfield,
 }
 
 /// 单个 leaf 的几何输入。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LeafGeometry {
     pub kind: GeomKind,
-    /// `geom_size` 的 f32 值；`Mesh` 时是 mesh bounds 的半尺寸。
+    /// `geom_size` 的 f32 值；`Mesh` 时是 mesh bounds 的半尺寸；`Hfield` 时是
+    /// `build_hfield_bvh` 返回的 `half` 半尺寸（不是 `geom_size`）。
     pub size: [f32; 3],
 }
 
@@ -43,6 +48,7 @@ impl LeafGeometry {
     pub fn from_geom_type(geom_type: i32, size: [f32; 3]) -> Result<Self, BvhError> {
         let kind = match geom_type {
             0 => GeomKind::Plane,
+            1 => GeomKind::Hfield,
             2 => GeomKind::Sphere,
             3 => GeomKind::Capsule,
             4 => GeomKind::Ellipsoid,
@@ -60,6 +66,14 @@ impl LeafGeometry {
         Self {
             kind: GeomKind::Mesh,
             size: mesh_half_extents,
+        }
+    }
+
+    /// hfield 的 leaf 半尺寸取上游 `build_hfield_bvh` 的 `half`（见 `bvh/hfield.rs`）。
+    pub fn hfield(half: [f32; 3]) -> Self {
+        Self {
+            kind: GeomKind::Hfield,
+            size: half,
         }
     }
 }
@@ -110,7 +124,22 @@ pub fn compute_leaf_aabb(
         GeomKind::Ellipsoid => ellipsoid_bounds(position, rotation, geometry.size),
         GeomKind::Cylinder => cylinder_bounds(position, rotation, geometry.size),
         GeomKind::Box | GeomKind::Mesh => box_bounds(position, rotation, geometry.size),
+        GeomKind::Hfield => hfield_bounds(position, rotation, geometry.size),
     })
+}
+
+/// 上游 `_compute_bvh_bounds` 的 hfield 分支（`bvh.py` L225-233）：
+/// `hfield_center = pos + rot[:,2] * size[2]`，再以 `size` 为半尺寸走 box 公式。
+///
+/// `size` 是 `build_hfield_bvh` 返回的 `half`（`hfield` 子模块产出），不是 `geom_size`；
+/// 中心沿局部 z 偏移 `half[2]`（高程点 z 范围是 `[min(data)*sz2, max(data)*sz2]`）。
+fn hfield_bounds(position: [f32; 3], rotation: [[f32; 3]; 3], size: [f32; 3]) -> Aabb {
+    let mut center = [0.0f32; 3];
+    for axis in 0..3 {
+        // 上游 `pos + rot[:, 2] * size[2]`：`fused_mul_add` 复刻 fma.rn.f32。
+        center[axis] = fused_mul_add(rotation[axis][2], size[2], position[axis]);
+    }
+    box_bounds(center, rotation, size)
 }
 
 fn validate_finite(field: &'static str, index: usize, value: f32) -> Result<(), BvhError> {
@@ -392,8 +421,8 @@ mod tests {
     #[test]
     fn rejects_unsupported_types_and_non_finite_inputs() {
         assert_eq!(
-            LeafGeometry::from_geom_type(1, [0.0; 3]),
-            Err(BvhError::UnsupportedGeomType { geom_type: 1 })
+            LeafGeometry::from_geom_type(9, [0.0; 3]),
+            Err(BvhError::UnsupportedGeomType { geom_type: 9 })
         );
         let geometry = LeafGeometry::from_geom_type(6, [1.0, 1.0, 1.0]).unwrap();
         for position in [[f32::NAN, 0.0, 0.0], [0.0, f32::INFINITY, 0.0]] {
@@ -402,5 +431,27 @@ mod tests {
                 Err(BvhError::NonFinite { .. })
             ));
         }
+    }
+
+    #[test]
+    fn hfield_bounds_apply_center_offset_and_half_extents() {
+        // 上游 `bvh.py` L225-233：center = pos + rot[:,2]*half[2]，再以 half 为半尺寸走 box。
+        // 单位旋转下：z 半尺寸 0.5 沿局部 z 偏移 → z 区间 [0, 1]；x/y 以 0 为中心。
+        let geometry = LeafGeometry::hfield([1.5, 2.5, 0.5]);
+        let bounds = compute_leaf_aabb(&geometry, [0.0; 3], IDENTITY).unwrap();
+        assert_eq!(bounds.lower, [-1.5, -2.5, 0.0]);
+        assert_eq!(bounds.upper, [1.5, 2.5, 1.0]);
+
+        // 旋转 90° 绕 x（列 = 局部轴；rot[:,2] = (0,-1,0)）：中心 = (1,2,3) + (0,-1,0)*0.5 = (1,1.5,3)。
+        // box 半尺寸 [1.5,2.5,0.5] 经该旋转后：x 取局部 x 轴（±1.5）、y 取局部 z 轴（±0.5）、
+        // z 取局部 y 轴（±2.5）。
+        let rotated = [[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]];
+        let bounds = compute_leaf_aabb(&geometry, [1.0, 2.0, 3.0], rotated).unwrap();
+        assert!((bounds.lower[0] - (1.0 - 1.5)).abs() < 1.0e-6);
+        assert!((bounds.upper[0] - (1.0 + 1.5)).abs() < 1.0e-6);
+        assert!((bounds.lower[1] - (1.5 - 0.5)).abs() < 1.0e-6);
+        assert!((bounds.upper[1] - (1.5 + 0.5)).abs() < 1.0e-6);
+        assert!((bounds.lower[2] - (3.0 - 2.5)).abs() < 1.0e-6);
+        assert!((bounds.upper[2] - (3.0 + 2.5)).abs() < 1.0e-6);
     }
 }
