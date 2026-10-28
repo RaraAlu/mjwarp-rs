@@ -48,10 +48,12 @@
     "semantic_ptx_delta": {
       "tex_level_2d_instructions": {"before": 1, "after": 2},
       "and_b32_mask_512": {"before": 0, "after": 1},
+      "and_b32_mask_256": {"before": 2, "after": 3},
+      "and_b32_total": {"before": 43, "after": 45},
       "max_f32": {"before": 39, "after": 40},
       "min_f32": {"before": 9, "after": 10},
       "sqrt": {"before": 51, "after": 51},
-      "note": "line-level Compare-Object churn (4810/4675) is NVRTC register/label renumbering after insertion; see materials/ptx-diff-summary.txt"
+      "note": "and_b32 +2 total = bit9(512) +1 and bit8/AA(256) +1 (the latter from the in-branch `if (aa)` re-test); line-level Compare-Object churn (4810/4675) is NVRTC register/label renumbering after insertion; see materials/ptx-diff-summary.txt (corrected 2026-10-29 per QA O1)"
     }
   },
   "gates": {
@@ -143,7 +145,18 @@
     "no GPU execution in this slice: device-side sample_skybox and the new background branch have no pixel-level verification yet; S2 authoring capture and S3 validation window are deferred until the user is present and signs the window plan",
     "host unit tests cover the host-side reference mapping, registry subset, slot/flag wiring only; they are not equivalent to device correctness",
     "criteria/tolerances/references/fixtures are untouched by this slice; the device comparison criteria stay the existing bitwise ones (RGB mismatched=0/max_byte_diff=0/beyond_1_lsb=0, depth mismatch=0/max_ulp=0/beyond_ulp=0, seg mismatch=0, two-run sha equality)",
-    "test-file line budget is the pre-check table value (<=260) for the new integration test target; the AC 'new file <=160' applies to the new implementation file (texture_inputs.rs, 157)"
+    "test-file line budget is the pre-check table value (<=260) for the new integration test target; the AC 'new file <=160' applies to the new implementation file (texture_inputs.rs, 157)",
+    "QA O4: tests/render_skybox.rs is exactly 260 LF = the card upper bound (zero slack); any future addition must split the file or get an approved budget change first",
+    "QA O5: the device-side sample_skybox direction mapping (six axes, face boundaries, zero-direction degenerate) has no execution-level verification in this slice; the S2/S3 window should treat these as capture checkpoints",
+    "QA O2: the new `pub fn texture_registry` is a new public Rust item; 'API 11 unchanged' refers to the module [[apis]] planned-rpc contract list, not Rust pub items",
+    "QA O1 (fixed 2026-10-29 via Normify-Fixes): the PTX semantic table originally listed only `and.b32 ...,512` +1; it now also records `and.b32 ...,256` (bit8/AA) 2->3 and the total `and.b32` 43->45 (+2)"
+  ],
+  "fix_records": [
+    {
+      "date": "2026-10-29",
+      "reason": "QA O1: PTX semantic table missed the extra AA-bit mask test added inside the new branch; O4 zero-slack line budget recorded",
+      "scope": "evidence documents only (README section 6.3 + section 10, materials/ptx-diff-summary.txt, this receipt); no code, no conclusion change"
+    }
   ],
   "non_claims": [
     "not a window pass",

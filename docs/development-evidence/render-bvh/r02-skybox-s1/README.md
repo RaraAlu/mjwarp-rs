@@ -101,8 +101,10 @@ define 与新增 1 个 define，并断言 `MEGAKERNEL_SLOTS` 仍 81 槽 = 1 boun
 3. **PTX 差异**（详见 `materials/ptx-diff-summary.txt`）：kernel source `72bc364c…`→
    `e68e3412…`、ptx `97467d83…`→`0b947492…`、`ptx_bytes 264015→268275`（+4260）；
    语义层增量恰好是：`tex.level.2d` 取样 +1（天空盒）、`and.b32 %r,%r,512`（bit9 判定）+1、
-   `max.f32` +1 / `min.f32` +1（`t` 两端夹取）、`sqrt` 不变。行级 diff 面较大（805 行内
-   +135 行、Compare-Object 4810/4675）来自 NVRTC 插入代码后的寄存器/标签重编号，已在材料中说明。
+   `and.b32 %r,%r,256`（bit8 = AA 位判定）2→3（+1，新分支内 `if (aa)` 的位复检）、
+   `max.f32` +1 / `min.f32` +1（`t` 两端夹取）、`sqrt` 不变；**`and.b32` 总量 43→45（+2）**。
+   行级 diff 面较大（805 行内 +135 行、Compare-Object 4810/4675）来自 NVRTC 插入代码后的
+   寄存器/标签重编号，已在材料中说明。（本节于 2026-10-29 按 QA O1 补正 256 位一行。）
 4. **无设备执行**：本片未跑任何 `--ignored` 设备用例（只跑 NVRTC 纯编译门）、未开窗口、
    未产生任何渲染数值结论；**零泄漏的位级回归证据待 S3 验证窗**（8 个既有回归实体一并覆盖）。
 
@@ -148,3 +150,9 @@ define 与新增 1 个 define，并断言 `MEGAKERNEL_SLOTS` 仍 81 槽 = 1 boun
   本片未改判据/容差/参考/fixture。
 * 天空盒方向→面的语义正确性以 S3 位级比对为最终依据；本片单测只覆盖 host 参考实现与
   host 注册表/槽/flag 接线，不等价于设备正确性。
+* `tests/render_skybox.rs` 现盘 **260 LF = 卡面上界（≤260），零余量**（QA O4）：后续任何追加
+  都会破行数棘轮，扩展前必须先拆文件或按流程调整上界并报批。
+* 设备侧 `sample_skybox` 的六轴方向、face 边界与零方向退化**无执行级验证**（QA O5）；建议
+  S2/S3 首窗把这三类纳入 capture 检查点（本证据只声明 host 侧单测覆盖）。
+* 新增的 `pub fn texture_registry` 是新的公开 Rust 项（QA O2）；「API 11 不变」指 module
+  `[[apis]]` 的 planned-rpc 合同口径，不含 Rust `pub` 项。
