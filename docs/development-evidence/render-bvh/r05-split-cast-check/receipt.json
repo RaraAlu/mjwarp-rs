@@ -1,0 +1,190 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-split-cast-check",
+  "kind": "render-bvh-r05-split-cast-check",
+  "reviewed_task": "2026-10-28-render-bvh-r05-split-cast",
+  "reviewed_commits": ["72a7de66", "3e8628b6"],
+  "pre_split_tree": "4a5a84498ce2e4022f4076f297198581e036ee0b",
+  "head_at_review": "3e8628b6f99e5d57b36f9142cdc361abc26262ab",
+  "verdict": {
+    "result": "pass",
+    "blockers": 0,
+    "observations": 6,
+    "scope": "纯移动复核：迁出块字节一致 + cast.rs 全量重构等价 + PTX/source 不变 + API/对外路径不变 + 行数/#[path]/模块源 + 回归与证据；无 GPU/窗口/数值结论"
+  },
+  "review_points": {
+    "moved_block": {
+      "old_range": "cast.rs L284-372",
+      "new_range": "cast_mesh.rs L14-102",
+      "lines": 89,
+      "sha256": "0b68b0c930d1a09b15a819804ad61c3ee762d028f0c67c847690d44bf643c96e",
+      "bytes": 3296,
+      "byte_identical": true,
+      "matches_implementation_claim": true
+    },
+    "cast_rs_transformation": {
+      "hunks": 4,
+      "removed_total": 92,
+      "added_total": 9,
+      "net": -83,
+      "inserted_lines_actual": 7,
+      "inserted_lines_claim": 9,
+      "hunk2_removed": "89-line block + 1 blank line after block",
+      "hunk2_block_sha256": "0b68b0c930d1a09b15a819804ad61c3ee762d028f0c67c847690d44bf643c96e",
+      "to_i32_visibility_only": true,
+      "reconstruction_byte_identical_to_head": true,
+      "reconstruction_bytes": 16378,
+      "head_bytes": 16378
+    },
+    "kernel_source_and_ptx": {
+      "concat_files": 6,
+      "concat_sha256": "2d2c27df985882c2b571514579dff19f9103bfc903ec786db42a592ce1bd8c2a",
+      "cuda_files_byte_identical_to_pre_split": true,
+      "gate_run_by_qa": {
+        "command": "cargo test --locked --test render_kernel_rgb -- --ignored megakernel_source_compiles_under_render_gate --nocapture",
+        "source_sha256": "2d2c27df985882c2b571514579dff19f9103bfc903ec786db42a592ce1bd8c2a",
+        "ptx_sha256": "e955bb4b0280228639f3e544b459873c83d1dae672662a43a96cccc8dabc4ffa",
+        "ptx_bytes": 258660,
+        "exit": 0
+      }
+    },
+    "api_and_paths": {
+      "pub_use_meshdevice_count": 1,
+      "path_declaration_count": 1,
+      "mod_declaration_count": 1,
+      "kernel_mod_rs_blob_equal": true,
+      "meshdevice_struct_removed_from_cast_rs": true,
+      "external_meshdevice_ref_files_unchanged": [
+        "src/render/kernel/megakernel.rs",
+        "src/render/kernel/megakernel_arrays.rs",
+        "src/render/kernel/megakernel_uploads.rs",
+        "src/render/kernel/renderer.rs"
+      ],
+      "public_items_pre_split": ["CameraDevice", "CameraPose", "MeshDevice", "ModelRenderArrays", "PoseError", "SceneDevice"],
+      "public_items_head_union": ["CameraDevice", "CameraPose", "MeshDevice", "ModelRenderArrays", "PoseError", "SceneDevice"],
+      "to_i32": {
+        "in_cast_rs": true,
+        "visibility": "pub(super)",
+        "body_identical": true,
+        "call_sites_cast_rs_including_definition": 10,
+        "call_sites_cast_mesh_rs": 12
+      }
+    },
+    "lines_and_module": {
+      "cast_rs": {"before": 494, "after": 411, "target_le_430": true},
+      "cast_mesh_rs": 102,
+      "kernel_mod_rs": {"lines": 474, "blob_equal": true},
+      "line_arithmetic": "494 - 89 - 1 + 7 = 411",
+      "module_sources_entries": 38,
+      "cast_mesh_registered": true,
+      "validate_fingerprints_errors": 0,
+      "scene_device_not_extracted": true
+    },
+    "regression_by_qa": {
+      "fmt": {"exit": 0},
+      "clippy": {"exit": 0},
+      "clippy_cuda": {"exit": 0},
+      "unit": {"passed": 1069, "failed": 0, "ignored": 387, "result_lines": 132}
+    },
+    "redlines_and_evidence": {
+      "render_cu_lines": 499,
+      "launch_rs_lines": 500,
+      "model_render_rs_lines": 500,
+      "camera_output_rs_lines": 499,
+      "args_rs_lines": 494,
+      "megakernel_rs_lines": 406,
+      "megakernel_uploads_rs_lines": 384,
+      "megakernel_arrays_rs_lines": 326,
+      "tests_and_cargo_blobs_equal": true,
+      "changed_source_paths": ["src/render/kernel/cast.rs", "src/render/kernel/cast_mesh.rs"],
+      "implementation_evidence": {
+        "files": 9,
+        "manifest_entries": 8,
+        "manifest_matches_committed_blob": "8/8",
+        "manifest_self_reference": false,
+        "lf_only_no_bom": true,
+        "forbidden_word_hits": 0,
+        "readme_lines": 75
+      },
+      "commit_scope": {"72a7de66_files": 17, "3e8628b6_files": 2, "outside_card_scope": 0},
+      "plan_vs_actual_documented": true
+    }
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "suggestion",
+      "topic": "evidence arithmetic / diff wording",
+      "detail": "证据称插入 #[path] + pub use 为「+9 行」（README §1、receipt git_diff_nature）并据此写「预算 ≈414」；实测插入 7 行（2 注释 + #[path] + mod + 空行 + pub use + 空行），另有块后 1 空行随块删除，净 −83（494−89−1+7=411）。README §2.5 又说「仅 3 类改动」但列举 4 项，实际 diff 4 个 hunk。实际 411/102 与各项结论不受影响。",
+      "suggestion": "fix",
+      "fix": "把「+9 行」改为「插入 7 行 + 块后空行随块删除」，措辞「3 类」改「4 类」"
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "topic": "pre-existing module source registry gap (not introduced by this task)",
+      "detail": "src/render/kernel/ 下 6 个 .rs 未登记为 mjwarp.render 源：cast.rs / megakernel.rs / megakernel_aa.rs / megakernel_arrays.rs / output.rs / renderer.rs。拆前树 37 条源时 cast.rs 同样未登记；本片按卡面只登记新文件 cast_mesh.rs（37→38）。validate --fingerprints 错误 0 只校验已登记项存在性，不校验完整性。",
+      "suggestion": "accept_or_file_backlog",
+      "fix": "若 Arch 认为需要，登记一条模块源补齐治理项"
+    },
+    {
+      "id": "O3",
+      "severity": "record",
+      "topic": "to_i32 visibility widened to pub(super)",
+      "detail": "私有 fn → pub(super) fn：仅 kernel 模块内可见、crate 外不可见；函数体逐字节不变；cast.rs 9 处调用（另 1 处定义）、cast_mesh.rs 12 处调用，经 use super::to_i32; 复用。",
+      "suggestion": "accept"
+    },
+    {
+      "id": "O4",
+      "severity": "record",
+      "topic": "public path and public item set unchanged",
+      "detail": "pub use cast_mesh::MeshDevice; 保持 cast::MeshDevice 对外路径；4 个外部引用文件 blob 未改；公开项集合 6 项拆前/拆后一致。",
+      "suggestion": "accept"
+    },
+    {
+      "id": "O5",
+      "severity": "record",
+      "topic": "path-attribute private submodule (third same precedent)",
+      "detail": "#[path] 私有子模块（拆分①/lighting.rs 之后第三次同款），kernel/mod.rs 零改动；既有结构债延续，无新增债务类型。",
+      "suggestion": "accept"
+    },
+    {
+      "id": "O6",
+      "severity": "record",
+      "topic": "plan_vs_actual deltas documented",
+      "detail": "L284-372（89 行，含类型文档）vs 批准 L293-372（80 行）、to_i32 未随迁（pub(super) 复用）、411/102、备选 SceneDevice L182-292 未批未动，均如实记录并给原因。",
+      "suggestion": "accept"
+    }
+  ],
+  "boundaries": [
+    "未在拆前树（4a5a8449）重跑内核编译门：源一致性由「6 个源文件逐字节相同 + 源拼接 sha 自算等于基线」推断；QA 复跑 PTX 与基线逐位相同。",
+    "无 GPU / 无验证窗口 / 无渲染数值结论（Rust 侧设备打包段移动，不发射内核）。",
+    "未重跑实现片 .normify/runs/ 内四门禁记录的原始运行，只核其绑定树与结论一致（normify check exit 0）。",
+    "validate --fingerprints 的 5 条警告为既有结构类警告，未逐条追溯是否早于本片。"
+  ],
+  "gates": {
+    "fmt": {"exit": 0, "log": "logs/fmt.log"},
+    "clippy": {"exit": 0, "log": "logs/clippy.log"},
+    "clippy_cuda": {"exit": 0, "log": "logs/clippy-cuda.log"},
+    "unit": {"passed": 1069, "failed": 0, "ignored": 387, "log": "logs/unit.log"},
+    "kernel_compile_gate": {"exit": 0, "log": "logs/kernel-gate.log"}
+  },
+  "gate_note": "QA 复核卡无门禁：normify gate exit 1「任务没有引用任何门禁」属预期；四门禁日志为复核用独立复跑记录。",
+  "normify": {
+    "check_reviewed_task": "exit 0",
+    "validate_fingerprints": "错误 0 警告 5（既有结构类）",
+    "board": "已验收 540 / 运行 0 / 错误 0 / 警告 0（本卡关闭后）"
+  },
+  "claims": {
+    "pure_move_verified": true,
+    "moved_block_byte_identical": true,
+    "api_unchanged": true,
+    "cuda_source_and_ptx_sha_equal_baseline": true,
+    "tests_zero_change": true,
+    "no_gpu_no_window_no_numeric_conclusion": true
+  },
+  "recompute": {
+    "script": "recompute.py",
+    "result": "recompute.json",
+    "problems": 0
+  }
+}
