@@ -31,7 +31,7 @@ use crate::runtime::launcher::{
     RenderScalar, RenderSignature,
 };
 
-use self::megakernel_uploads::{UploadInputs, upload_megakernel_arrays};
+use self::megakernel_uploads::{UploadInputs, mesh_slot_shape, upload_megakernel_arrays};
 use super::launch::RenderKernel;
 use super::megakernel_aa::{AAResolve, launch_samples};
 use super::megakernel_arrays::{
@@ -273,12 +273,20 @@ impl MegakernelRenderer {
         args.push(array(&u.flex_vertadr, RenderElem::I32, &[1])?);
         args.push(array(&u.flex_edge, RenderElem::Vec2I, &[1])?);
         args.push(array(&u.flex_radius, RenderElem::F32, &[1])?);
-        args.push(array(&u.mesh_faceadr, RenderElem::I32, &[u.nmesh])?);
-        args.push(array(&u.mesh_normaladr, RenderElem::I32, &[u.nmesh])?);
+        args.push(array(
+            &u.mesh_faceadr,
+            RenderElem::I32,
+            &mesh_slot_shape(u.nmesh),
+        )?);
+        args.push(array(
+            &u.mesh_normaladr,
+            RenderElem::I32,
+            &mesh_slot_shape(u.nmesh),
+        )?);
         args.push(array(
             &u.mesh_normal,
             RenderElem::Vec3,
-            &[u.mesh_normal.len() / 3],
+            &mesh_slot_shape(u.mesh_normal.len() / 3),
         )?);
         args.push(array(&u.mat_texid, RenderElem::I32, &mat_texid_dims)?);
         args.push(array(&u.mat_texuniform, RenderElem::Bool, &shared_mat)?);
@@ -319,12 +327,12 @@ impl MegakernelRenderer {
         args.push(array(
             &u.mesh_facetexcoord,
             RenderElem::Vec3I,
-            &[u.mesh_faces],
+            &mesh_slot_shape(u.mesh_faces),
         )?);
         args.push(array(
             &u.mesh_facenormal,
             RenderElem::Vec3I,
-            &[u.mesh_faces],
+            &mesh_slot_shape(u.mesh_faces),
         )?);
         let texcoord_elems = u.mesh_texcoord.len() / 2;
         args.push(array(
@@ -335,7 +343,7 @@ impl MegakernelRenderer {
         args.push(array(
             &u.mesh_texcoord_offsets,
             RenderElem::I32,
-            &[u.nmesh],
+            &mesh_slot_shape(u.nmesh),
         )?);
         args.push(array(
             &u.hfield_bvh_id,

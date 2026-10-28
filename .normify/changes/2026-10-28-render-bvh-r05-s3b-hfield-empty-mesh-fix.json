@@ -1,0 +1,64 @@
+{
+    "schema_version":  1,
+    "id":  "2026-10-28-render-bvh-r05-s3b-hfield-empty-mesh-fix",
+    "title":  {
+                  "zh":  "R05-S3b 零 mesh 场景发射修复（6 个 mesh 家族槽 1 元素占位，补全既有占位约定）",
+                  "en":  "Fix megakernel launch for zero-mesh scenes (1-element placeholders for the 6 mesh-family slots)"
+              },
+    "status":  "in_progress",
+    "intent":  {
+                   "zh":  "修产品缺口：R05-S3b 验证窗 attempt1 的 `render_hfield_reference` 在发射阶段 panic `s7b2-span: 传输输入错误：维度无效：launcher_buffer`。根因链已定位——`TransferSession::upload` 对空切片不分配缓冲（`session.rs:176-186`）→ `TransferBuffer::launcher_span()` 拒绝 `allocation=None`（`buffer.rs:60-67`）→ 且 `launcher/render/args.rs:145-151` **拒绝任何零维 shape**，所以零长数组必须变成「1 元素 + shape≥1」。hfield 两个场景 `nmesh=0`（hfield-only 只有 hfield geom、mixed 只有 box primitive），而 `megakernel_uploads.rs` 只对 `mesh_texcoord` 做了 2 float 占位，其余 **6 个 mesh 家族槽（22 `mesh_faceadr` 首失败、23 `mesh_normaladr`、24 `mesh_normal`、60 `mesh_facetexcoord`、61 `mesh_facenormal`、63 `mesh_texcoord_offsets`）漏了占位**，文件自己的模块文档却写着「未用槽仍用 1 元素占位（渲染 ABI 拒绝零长数组）」。本片按既有约定补齐 6 个槽的占位，并把对应 shape 改成 `count.max(1)`。**不碰 `src/runtime`、不碰 `.cu`、不动 81 槽/ABI/`CollisionArgs`、不改判据/容差/参考/fixture、不改 `hfield_scene.rs`（499/500 贴线）**；本片不做渲染数值验收、不开 GPU 窗口（窗口留 S3b validate 的 attempt=2）。",
+                   "en":  "Product fix for zero-mesh scenes: add 1-element placeholders for the 6 mesh-family megakernel slots and use max(1) shapes, following the module\u0027s existing placeholder convention. No runtime/.cu/ABI/fixture changes; no GPU window in this slice."
+               },
+    "modules":  {
+
+                },
+    "acceptance":  [
+                       "**最小改动**：只改 `src/render/kernel/megakernel_uploads.rs`（6 个空源 1 元素占位，i32/f32，约 +14 行，**≤450 行**）与 `src/render/kernel/megakernel.rs`（对应 6 处 shape 改 `count.max(1)`，**零改动或 ≤500 行**）；`src/runtime/`、`src/render/kernel/args.rs`、`launcher/` 一律不动。",
+                       "**不变量零改动**：`DEVICE_SOURCES`=28、入口 6、81 槽签名、`CollisionArgs` 504 B、`hfield_scene.rs`（499 行）、`tests/render_hfield_reference.rs`、`fixtures/render-bvh/**`、判据/容差/参考全部零改动；`render.cu` 499 / `launch.rs` 500 / `model/render.rs` 500 / `camera_output.rs` 499 零改动。",
+                       "**新增回归覆盖（必须有，窗口很贵；「离线」定义卡死为「无 CUDA、无 TransferSession、普通 `cargo test --locked` 可跑」）**：把「空源→占位数组 + shape」抽成**纯函数**（落点即 `megakernel_uploads.rs` 内的 `nonempty\u003cT: Copy + Default\u003e(values, fill)` 与 `mesh_slot_shape(count) = [count.max(1)]`，不得引入 session/GPU），并至少 1 条纯 host 单测**双向**断言：① 空源 → 6 个槽的占位非空且元素宽度正确（`I32`=1×i32、`Vec3I`=3×i32、`Vec3`=3×f32）、shape 各维 ≥1（无 0 维）；② 非空源 → **原样透传**（长度与内容逐项不变，钉住 scene-a/scene-shadow/e2e 不受影响）。注释写清「占位约定回归，不是渲染数值验收」。抽纯函数若会外溢到 `src/runtime` 或需新文件 → 先报 Arch，不许自行扩。",
+                       "**本地验证链**：`cargo fmt --check`、`clippy --all-targets --locked -- -D warnings`、`cargo test --locked` 全绿；再按已授权方式做**本地 `--ignored` 单实体调试跑**（与窗口同环境：CUDA PATH 注入 `target\\toolchains\\cuda-12.8.1\\bin`），要求 `render_hfield_reference` 两个 GPU 用例不再 panic 且能跑完比较（**跑出的判据数字只作调试信息，本片不写任何验收结论**），8 个回归实体保持 exit 0。",
+                       "**冻结与重签前置（attempt=2）**：attempt1 已作废（invalid round，目录 `target/render-bvh/r05-s3b-window/attempt1/` **原样保留、绝不覆盖**），下一窗是 **attempt=2**。本片完成后 9 个测试 exe 的 sha 必变 → 必须重跑 `freeze-guards.ps1`（含 stash 副本），**`guards.json` 的 `attempt` 字段必须为 2**，旧 guards 在证据里标 **superseded**，`run-window.ps1 -Attempt 2` 必须写到新目录 `attempt2/`；并**一次性**把新 `guards.json` sha/bytes/aggregate、aggregate、9 个新 exe sha+bytes、stash 9/9 一致性、runner `31ac28bf…` 与 monitor `788d3505…` 不变、64 个只读输入聚合不变（capture `c6705a80…`/legacy `b5cb50af…`/scene-shadow `cd990c20…`）、floor 公式、`-Attempt 2` 逐字命令报 Arch 转 Chief 重签；本片自身**不开窗**。",
+                       "**证据与措辞**：`docs/development-evidence/render-bvh/r05-s3b-hfield-empty-mesh-fix/`（README + receipt + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0）；README 必须写清根因链（3 层代码位置）+ 为什么此前未暴露（既有场景都有 1 个 `\u003cmesh\u003e`）+ 零影响论证（内核仅在 gtype 7/8 解引用 mesh 数组、且不读 mesh 数组 shape）；两段提交；**零渲染数值结论、零「窗口通过/精度达标」措辞**。"
+                   ],
+    "schedule":  {
+                     "depends_on":  [
+
+                                    ],
+                     "phase":  "P8-渲染与BVH",
+                     "owner":  "Backend",
+                     "files":  [
+                                   "src/render/kernel/megakernel_uploads.rs",
+                                   "src/render/kernel/megakernel.rs",
+                                   "docs/development-evidence/render-bvh/r05-s3b-hfield-empty-mesh-fix/"
+                               ],
+                     "resources":  [
+
+                                   ],
+                     "priority":  60
+                 },
+    "note":  "Arch 2026-10-29 预登记（proposed，等 Chief 批 A′ 后 start）。触发：R05-S3b 验证窗 attempt1 INVALID_ROUND（新目标实体 panic，8 回归 exit 0）。本片不改判据/参考/fixture，不开窗；完成后需重冻结 guards 并重签才能开 attempt2。",
+    "revision":  {
+                     "before":  "cfa5f4342f7a9595bbb1796f04f1bf0a90a29a3e",
+                     "after":  null
+                 },
+    "created_at":  "2026-10-29T03:00:00.000Z",
+    "updated_at":  "2026-10-28T18:54:49.560Z",
+    "checks":  [
+                   {
+                       "kind":  "json",
+                       "path":  "docs/development-evidence/render-bvh/r05-s3b-hfield-empty-mesh-fix/receipt.json",
+                       "pointer":  "/task_id",
+                       "equals":  "2026-10-28-render-bvh-r05-s3b-hfield-empty-mesh-fix"
+                   },
+                   {
+                       "kind":  "forbid_claim",
+                       "terms":  [
+                                     "窗口通过",
+                                     "精度达标",
+                                     "上游等价",
+                                     "产品渲染验收通过"
+                                 ]
+                   }
+               ]
+}
