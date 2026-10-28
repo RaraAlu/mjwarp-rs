@@ -1,0 +1,58 @@
+# guards aggregate 的可复算口径（审计项）与只读复算脚本
+
+## 口径（必须与 `freeze-guards.ps1` 一致）
+
+```text
+aggregate = sha256( concat( sha256_hex(entry_i) for entry_i sorted by repo-relative path ) )
+排序：PowerShell `Sort-Object { $_.path }`，即 culture / case-insensitive 排序。
+拼接：73 个 sha256 十六进制串直接相连、无分隔符；对 ASCII 字节求 sha256、小写十六进制。
+```
+
+## 只读复算脚本（供 Chief/QA 一键复核）
+
+`materials/recompute-aggregate.ps1`（ASCII-only，PS 5.1 可读）：
+
+```text
+sha256 = d5bfd799b93c76cc262a39f67858e49939beb00dc00e69f51293f7e1a12618d6
+bytes  = 1943
+LF 行  = 33；CR = 0；非 ASCII = 0；BOM = 无
+```
+
+用法：
+
+```text
+powershell -NoProfile -ExecutionPolicy Bypass -File docs\development-evidence\render-bvh\r05-s3b-hfield-validate\materials\recompute-aggregate.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File docs\development-evidence\render-bvh\r05-s3b-hfield-validate\materials\recompute-aggregate.ps1 -GuardsPath <path\to\guards.json>
+```
+
+输出含 `file/attempt/generated_at/entries/aggregate_recomputed/aggregate_recorded/matches_recorded`。
+
+## 本机实测（当前树；真冻结后以新 `guards.json` 重跑为准）
+
+| 文件 | attempt | entries | aggregate_recomputed | matches_recorded |
+| --- | --- | --- | --- | --- |
+| `scripts\validate\render-bvh\guards.json`（旧 attempt1） | 1 | 73（9+64） | `105ad0ab2cce4ce9eaa0e226089fe9e3f27bfb5ae38f247b9a1656c99efb226e` | **true** |
+| `target\render-bvh\r05-s3b-window\guards-smoke-default.json`（默认烟测） | 1 | 73（9+64） | `7d24f0368f62e07cb4ef54a1978efba7b806b53d2a19c20c998d326648e90997` | **true** |
+
+## 为什么不能用序数排序复算（审计注意）
+
+`Sort-Object { $_.path }` 是 culture/case-insensitive：同一批 73 项里，`README.md` 会排在
+`context.json` 之后（case-insensitive 比较 'r' > 'c'）。用**序数排序**（如 Python `sorted()`）会得到
+另一种顺序：
+
+- 首个顺序差异位置 index=3：序数 `fixtures/.../reference/README.md`、culture `fixtures/.../reference/context.json`
+- 同一烟测 JSON 用序数排序复算得到 `89895a621bd154122c9f4e19d8b67f825309397019215b35b117566a11b0007b`
+  **≠ 记录值** `7d24f036…` ⇒ **序数排序不作为复算口径**。
+
+## 旧值 superseded（真冻结后写入提交 C）
+
+- 旧 guards（attempt1 重冻结）：sha256 `210f82088702ce0ea00bb357a88b1c75948f94b9ef48a632ad76546be1ba287d`、
+  27 670 B、aggregate `105ad0ab…`、generated_at `2026-10-29T01:32:38.120+08:00`
+- 原因：相机世界位姿 FMA 修复后 9 个 render exe 重新链接、sha 全变，attempt2 重冻结。
+
+## stash 重建留档（真冻结后写入提交 C）
+
+- 默认烟测按脚本既有行为重建了 `target/render-bvh/r05-s3b-window/frozen-exes/`；
+  烟测前已把 attempt1 stash 备份到 `target/render-bvh/r05-s3b-window/frozen-exes-attempt1-backup/`（target-only），
+  `target/render-bvh/r05-s3b-window/attempt1/` 原样保留。
+- 真冻结会**再次重建** stash；最终权威数据 = **真冻结后**的 stash 9/9 与 9 个新 exe sha/bytes（见提交 C 的冻结材料）。

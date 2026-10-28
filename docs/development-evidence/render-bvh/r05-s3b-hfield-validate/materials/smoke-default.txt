@@ -1,0 +1,86 @@
+# 默认参数烟测（attempt=1）——`freeze-guards.ps1` 新参数默认行为不变验证
+
+性质：**烟测**，输出写 `target/`，**不覆盖仓库 `guards.json`**；不是真冻结（真冻结在 QA verdict 后执行）。
+
+## 前置：脚本已单独入库（提交 A）
+
+- commit：`5dd881d0`（`工程(渲染): R05-S3b 冻结脚本加 -Attempt 参数（默认 1 行为不变）`）
+- `git cat-file blob HEAD:scripts/validate/render-bvh/freeze-guards.ps1` 实测：
+  - **sha256 = `b01abff293d9bf328e35a7c279b74ee3260756d925ff9384f290e2137091f676`**
+  - bytes = **7 803**；LF 行数 = **154**；CR = **0**；BOM = 无
+  - 非 ASCII 字节 = **0**
+  - 按 `\n` 切分：ANSI 行数 = **155**、UTF-8 行数 = **155**（相等）
+  - 注释行含 `$` = **0**（实测）
+  - `git diff` = **2 hunk（+3/−2）**：`param` 增 `[int]$Attempt = 1`；`attempt = 1` → `attempt = $Attempt`
+  - worktree 与 HEAD blob 逐字节相同（防 CRLF 漂移）
+
+## 烟测命令（逐字）
+
+```text
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards.ps1 -OutFile target\render-bvh\r05-s3b-window\guards-smoke-default.json -WorkDir target\render-bvh\r05-s3b-window\smoke
+```
+
+环境：`PATH` 前置 `target/toolchains/cuda-12.8.1/bin`（与窗口 runner 同环境）。脚本内部照常执行
+`cargo test --locked --no-run --message-format=json` 解析 9 个实体 exe（属预期构建，发生在冻结之前）。
+
+## 烟测输出
+
+```text
+GUARDS_FROZEN total=73 exes=9 inputs=64 aggregate_sha256=7d24f0368f62e07cb4ef54a1978efba7b806b53d2a19c20c998d326648e90997 guards_sha256=68617688a630394e64a6ecf2414b339e37c985698de07a233cb354cc619061b9 bytes=27670 stash_dir=target/render-bvh/r05-s3b-window/frozen-exes
+```
+
+| 项 | 值 |
+| --- | --- |
+| 输出文件 | `target/render-bvh/r05-s3b-window/guards-smoke-default.json`（27 670 B，sha256 `68617688a630394e…`） |
+| **attempt** | **1**（默认值，行为不变） |
+| counts | frozen_exes=**9**、guard_inputs=**64**、total=**73** |
+| aggregate_sha256 | `7d24f0368f62e07cb4ef54a1978efba7b806b53d2a19c20c998d326648e90997` |
+| generated_at | `2026-10-29T04:08:31.349+08:00` |
+| stash 一致性 | 9/9 `stash_sha256 == sha256`、`stash_bytes == bytes`（JSON 内逐项核对 true） |
+
+## aggregate 可复算（按脚本自身算法）
+
+复算脚本（PowerShell，与 `freeze-guards.ps1` 同算法：对 73 项按 `path` 排序后拼接 sha256 十六进制串再 sha256）：
+
+```powershell
+$g = (Get-Content 'target/render-bvh/r05-s3b-window/guards-smoke-default.json' -Raw) | ConvertFrom-Json
+$all=@(); foreach ($e in $g.frozen_exes) { $all += [pscustomobject]@{ path=$e.path; sha256=$e.sha256 } }
+foreach ($e in $g.guard_inputs) { $all += [pscustomobject]@{ path=$e.path; sha256=$e.sha256 } }
+$sorted = @($all | Sort-Object { $_.path })
+$hexConcat = ($sorted | ForEach-Object { $_.sha256 }) -join ''
+[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::ASCII.GetBytes($hexConcat))).Replace('-','').ToLower()
+```
+
+实测：**复算 = `7d24f036…` = 记录值**（match=true）。
+
+> 复算注意：`Sort-Object { $_.path }` 是 **culture/case-insensitive** 排序（例如 `README.md` 排在
+> `context.json` 之后）；用**序数排序**（如 Python `sorted()`）会得到不同顺序、aggregate 不复现。
+> 本烟测已验证该差异点并采用 PowerShell 同算法复算。
+
+## 仓库 `guards.json` 未被覆盖
+
+- 烟测前：sha256 `210f82088702ce0ea00bb357a88b1c75948f94b9ef48a632ad76546be1ba287d`、27 670 B、attempt=1
+- 烟测后：sha256 **不变**（同上）、27 670 B、attempt=1 —— **仓库文件未被写**（本轮始终只用 `-OutFile target\...`）
+
+## 9 个实体 exe（烟测批次，live == stash）
+
+| entity | sha256 | bytes |
+| --- | --- | --- |
+| render_hfield_reference | `a48f9cc44cf74f0a0ebbef757fd0c9334c43ea8f14292951f6b94f696719cad0` | 100 378 534 |
+| render_camera_rays | `45254172f30114b0d964f7ae41758b3dffa6b762a1f74c6246922fe4fcaab406` | 90 221 740 |
+| render_context_lifecycle | `b7516685d9e38dfe81cfd91ad2c26a61c077aff057696f5942c27557d6b667b5` | 86 701 423 |
+| render_e2e | `44fecfb27509e3c9bd7f46657b04a25f2f1db1e310b33e49887cf114ad981310` | 95 166 724 |
+| render_kernel_depth_seg | `48764f9749880c5e9f4e16cf7e10d0af9a3c3d04843e06bc800eed6b7961b828` | 91 134 761 |
+| render_kernel_flags | `64c050fabbf8a02114b8c5a2a2978645e428666adafe8f4610a6b6f886c8e065` | 96 591 181 |
+| render_kernel_rgb | `202365aa4ceea355683b23719e7c15481438afad5d10af59e6b98becee44a415` | 94 638 769 |
+| render_r08_cameras | `6ebecc2ff6664b6f882b6f84aed60e0693fc410e7e31eafc72d08da971777fdf` | 94 971 054 |
+| render_r10_multi_world | `db1baa39b26aa2f004acda65ef64c4dd8912036c0c16ea0fa14f3f8a2b3ce7bf` | 94 732 459 |
+
+> 说明：脚本会重建 stash 目录（`target/render-bvh/r05-s3b-window/frozen-exes`，属脚本既有行为）。
+> 烟测前已把 attempt1 的 stash 备份到 `target/render-bvh/r05-s3b-window/frozen-exes-attempt1-backup/`
+> （target-only）；`attempt1/` 目录原样保留。真冻结会再次重建 stash。
+
+## 结论
+
+- 新参数默认行为 = 旧行为：**attempt=1、73 项、aggregate 可复算**，且不写仓库 `guards.json`。
+- 真冻结（`-Attempt 2`）等 QA verdict 后的「冻结令」；冻结后零构建。
