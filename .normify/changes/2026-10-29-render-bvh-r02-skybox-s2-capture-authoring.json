@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-bvh-r02-skybox-s2-capture-authoring",
+  "title": {
+    "zh": "R02-S2：天空盒 authoring capture 变体 + 双阶段窗口计划（离线，不跑 GPU / 不冻结 / 不开窗）",
+    "en": "R02-S2: skybox authoring capture variant plus two-stage window plan (offline; no GPU, no freeze, no window)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R02 第二片（离线 materials 片）：为天空盒设备验证准备「可直接给用户双签的窗口材料」。① 新增 capture 变体 `scripts/authoring/render-bvh-r02/capture_skybox.py`——只在 S0b 的 `PARAMS_28` 上改 `render_skybox=True`，输出到独立目录 `fixtures/render-bvh/scene-a/reference-skybox/`（rgb/depth/seg npz + capture.json），**不重采 S0b 参考**；pinned 环境与 S0b 一致（warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4、upstream rev 71da24d9 clean、scene-315.mjb `8953988f…`、scene.xml `a9f1f0a3…`、RTX 4070 Ti SUPER arch 89 driver 596.36），两次运行 sha 必须相等；提供 `--dry-run`（不 import warp/mujoco_warp、不碰 GPU）只做资产/参数自检。② 新增新 suite 的 guard 冻结器 `freeze-guards-r02.ps1`（suite `r02-skybox-validate`、attempt 参数、9 exe + 68 只读输入 = 77 条目、exe stash），R05 `guards.json` 保持历史不动。③ `run-window.ps1` 新增可选 `-GuardsFile`（缺省行为不变）。④ 一页窗口计划 + 实体表骨架 + 脚本身份与 ASCII 三项自检。本片**不开 GPU、不跑 capture、不冻结、不跑窗口、不动 guards.json**，也不产任何渲染数值结论。",
+    "en": "Offline materials slice for the skybox validation window: capture variant (render_skybox=True, separate output dir, pinned env, --dry-run), new-suite guard freezer (77 entries), runner -GuardsFile parameterization, one-page two-stage window plan and entity-table skeleton. No GPU execution, no freeze, no window."
+  },
+  "modules": {},
+  "acceptance": [
+    "**capture 变体语义最小差**：`capture_skybox.py` 的 `PARAMS_28` 与 S0b 逐项相同，唯一差异 `render_skybox=True`（证据给 params28 的 sha256 与 diff 说明）；输出目录为 `fixtures/render-bvh/scene-a/reference-skybox/`，S0b 的 `fixtures/render-bvh/scene-a/reference/` 与 `provenance.json` 不写不改；pinned 环境校验（版本/upstream rev 与 clean/两个场景 sha/GPU 型号 arch/driver）任一不符必须硬失败，无 fallback；两次运行三份 npz 的 sha256 必须相等，写盘 sha 必须等于内存 sha；`--dry-run` 不需 GPU 且不 import warp/mujoco_warp。",
+    "**guard 冻结器**：`freeze-guards-r02.ps1` 写出 `scripts/validate/render-bvh/guards-r02-skybox.json`，`suite=r02-skybox-validate`、`attempt` 参数化、实体顺序 = `render_skybox_reference`（new）+ 8 个 R09-S3b 回归；断言 9 exe / 68 只读输入 / 77 总数 / `reference-skybox/` 恰好 4 文件；exe stash 到 `target/render-bvh/r02-skybox-window/frozen-exes/` 且 stash sha 必须与 exe sha 一致；聚合 sha 口径与 R05 相同（按 repo 相对路径排序后拼接各条目 sha256 十六进制再做 sha256）。`scripts/validate/render-bvh/guards.json`（R05 suite）**不被读改写**。",
+    "**runner 参数化不破坏缺省**：`run-window.ps1` 新增 `-GuardsFile`；不带该参数时行为与 R05 完全一致（读 `<SuiteDir>/guards.json`），带该参数时读指定文件。改动只允许这两处（param + guardPath 选择），其余逻辑零改动；ASCII 三项（全字节 <128 / 无 CR / 无 BOM）与 PowerShell 语法解析 0 错必须实测记录。",
+    "**一页窗口计划**：`materials/window-plan.txt` 含：两阶段（A capture → 冻结 → B 验证窗）、9 实体清单与逐字命令、冻结/窗口/monitor 的逐字命令行、基线公式（3 点采样取 `baseline[1].free`、`floor = min(10240, baselineFree − 3072)`、used 增量上限 3072、util≥80 连续 3 次中止）、monitor 先常规 `util<40`（`-Required 60 -MaxMinutes 30`，**无预批例外**）、判据（RGB 0/0/0、depth 0/0/0、seg 0、两跑 sha 相等）、8 回归实体的零泄漏覆盖说明、stop conditions、以及「本片不跑」声明。",
+    "**前置依赖显式化**：窗口前必须完成 `2026-10-29-render-bvh-r02-skybox-s2b-reference-test`（ignored GPU 测试目标 `render_skybox_reference`），否则冻结器取不到第 9 个 exe；stage A 必须先产出 4 个参考文件。两者都写进计划与 receipt。",
+    "**ASCII 三项自检**：两份 `.ps1`（新冻结器、改后 runner）逐字节核 `all bytes < 128`、`no CR (0x0D)`、`no BOM`，并用 PSParser 解析 0 错；结果进 `materials/script-identity.txt`。",
+    "**零 GPU 与零改动面**：本片不执行任何 GPU 命令（无 capture/无窗口/无 `-GuardsOnly`）、不冻结、不写 `fixtures/`、不改判据/容差/参考；`guards.json` 与 R05 证据零改动；证据 manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit / `validate --fingerprints` 全绿（本片只加脚本与文档，不改 Rust 源码）；两段提交（脚本+计划 → 证据+manifest），先报脚本 sha/bytes/lines + 窗口计划 + 基线公式 + 逐字命令。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-render-bvh-r02-skybox-s1"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/authoring/render-bvh-r02/",
+      "scripts/validate/render-bvh/freeze-guards-r02.ps1",
+      "scripts/validate/render-bvh/run-window.ps1",
+      "docs/development-evidence/render-bvh/r02-skybox-s2-capture-authoring/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-29 登记（Chief 批：S2 离线 authoring 不必等 QA S1 verdict，可与复核并行）。窗口既有一律不跑；S2b（reference test exe）为窗口硬前置。R05 guards 已因 S1 重建而历史化（9 exe live sha 全变），新 suite 名为 r02-skybox-validate、attempt=1。",
+  "created_at": "2026-10-28T23:05:00.000Z",
+  "updated_at": "2026-10-28T23:05:00.000Z",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r02-skybox-s2-capture-authoring/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-bvh-r02-skybox-s2-capture-authoring"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "窗口通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

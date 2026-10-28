@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-bvh-r02-skybox-s2b-reference-test",
+  "title": {
+    "zh": "R02-S2b：天空盒位级比较测试目标 render_skybox_reference（离线实现，窗口前硬前置）",
+    "en": "R02-S2b: skybox bitwise comparison test target render_skybox_reference (offline implementation, hard prerequisite for the window)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "为 R02 验证窗提供第 9 个实体：新增 ignored GPU 测试目标 `tests/render_skybox_reference.rs`（实体名 `render_skybox_reference`），用产品路径（`resolve_context` + `RenderContext::create` + `MegakernelRenderer`，`ContextParams.render_skybox=true`、纹理注册表由 `context::texture_registry` 构造）渲染 `fixtures/render-bvh/scene-a`，两相机（320×240 + 240×180 = 120 000 像素），与 stage A 采集的 `fixtures/render-bvh/scene-a/reference-skybox/`（rgb/depth/seg.npz + capture.json）做**既有位级判据**比较：RGB `mismatched=0/max_byte_diff=0/beyond_1_lsb=0`、depth `mismatched=0/max_ulp=0/beyond_ulp=0`、seg `mismatched=0`、两次运行 rgb/depth/seg sha256 相等。不新增/不放宽任何容差，不替换参考。本片离线实现（不开 GPU 窗口；设备执行发生在验证窗内），只是把窗口实体准备好。",
+    "en": "Add the ignored GPU test target render_skybox_reference that renders scene-a with render_skybox=true through the product path and compares against the stage-A skybox reference using the existing bitwise criteria. Offline implementation; the actual GPU execution happens inside the signed validation window."
+  },
+  "modules": {},
+  "acceptance": [
+    "**实体与命令**：`tests/render_skybox_reference.rs` 的 ignored 测试可通过窗口命令 `cargo test --locked --features cuda-probe --test render_skybox_reference -- --ignored --test-threads=1` 执行；测试失败以非零 exit 反映（禁止 panic 捕获后忽略）。",
+    "**产品路径而非旁路**：使用 `resolve_context`（`render_skybox=true`）+ `RenderContext::create` + `MegakernelRenderer::render`，纹理注册表必须由 `mjwarp_rs::render::context::texture_registry`（`use_textures || skybox` 语义）构造；不得直接喂设备数组或绕过产品入口。",
+    "**判据逐条**：RGB `mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0`（按通道≤1 LSB 位级优先）；depth `mismatched=0 / max_ulp=0 / beyond_ulp=0`；seg `mismatched=0`；两相机（120 000 像素）逐相机打印 compared/mismatched 计数；两跑 rgb/depth/seg sha256 相等并打印；任何超判据必须失败并保留差异首点（camera/像素坐标）。",
+    "**参考绑定**：读取 `fixtures/render-bvh/scene-a/reference-skybox/capture.json` 校验 `params28.render_skybox=true`、`skybox.skybox_tex_id`/`skybox_face_width` 与产品解析一致（`tex_width` 64、`tex_height` 384、竖排 6 面）、并校验三个 npz 的 sha256 与 capture.json 记录一致；参考目录缺失时 `#[ignore]` 测试直接失败并提示先跑 stage A。",
+    "**零改判据**：不新增档位、不改 ≤1 LSB / 0 ULP 口径、不替换参考文件、不改 `fixtures/` 内容（本片只读参考）；不触碰 `MEGAKERNEL_SLOTS` 与内核源码。",
+    "**离线可判部分**：非 GPU 的 host 单测（或 `--dry-run` 式前置检查，如参考目录/字段/尺寸校验）默认执行且全绿；unit 总数记录；fmt/clippy/clippy-cuda/unit/`--no-run`/`validate --fingerprints` 全绿。",
+    "**证据**：`docs/development-evidence/render-bvh/r02-skybox-s2b-reference-test/`（README + receipt 含 `/task_id` + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0），**零渲染数值结论**（设备数值在验证窗内产生）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-render-bvh-r02-skybox-s2-capture-authoring"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_skybox_reference.rs",
+      "tests/support/render_bvh/",
+      "docs/development-evidence/render-bvh/r02-skybox-s2b-reference-test/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-29 预登记（窗口硬前置：冻结器需要第 9 个 exe `render_skybox_reference` 才能生成 77 条目 guards）。依赖 S2（capture 脚本）与 stage A 产物；本片不开 GPU 窗口。",
+  "created_at": "2026-10-28T23:05:00.000Z",
+  "updated_at": "2026-10-28T23:05:00.000Z",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r02-skybox-s2b-reference-test/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-bvh-r02-skybox-s2b-reference-test"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "窗口通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
