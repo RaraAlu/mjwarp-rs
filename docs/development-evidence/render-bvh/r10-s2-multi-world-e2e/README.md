@@ -11,7 +11,7 @@ profile：`cuda-probe`；CUDA bin：`target/toolchains/cuda-12.8.1/bin`
 ### attempt1（有效轮 1：8 实体跑完，新实体未过）
 - 时间：`window_start 2026-10-28T03:46:10.2815332+08:00` → `window_end 03:46:56.7924446`；`body_wall_s=44.1`
 - 8 实体串行：7 回归 exit 0；新实体 `render_r10_multi_world` **exit=101**（2 条用例失败）
-  - `gpu_nworld_two_depth_seg_per_world_cameras` → `tests/render_r10_multi_world.rs:178` assertion `world0 相机 0 depth 不匹配`，`mismatched=19074`
+  - `gpu_nworld_two_depth_seg_per_world_cameras` → `tests/render_r10_multi_world.rs:178` 断言失败，日志原文 `left: 19074` / `right: 0`（19074 = ULP≠0 的像素数，非超容差像素数）
   - `gpu_nworld_two_rgb_per_world_cameras` → `LauncherError::Capacity { slot: 0, required: 56, actual: 28 }`
 - 根因（见 `attempt1/logs/render_r10_multi_world.log` 与 dev 诊断）：
   1. RGB：`megakernel` 把单 world 模型数组（`geom_type` 7×i32 = 28 B）按 `[nworld=2, ngeom=7]` 声明 → 需 56 B。**实现缺口，已修**（shape 去 world 维 + `world_arrays.rs`）
@@ -57,7 +57,7 @@ profile：`cuda-probe`；CUDA bin：`target/toolchains/cuda-12.8.1/bin`
 
 ## 4. 口径与限制（必须随证据保留）
 - **方案 A 边界**：world0 对**同配方** nworld=1 冻结参考做位级对照（depth `mismatched==0` + `max_ulp<=4` 兜底、seg 全等）；world1 = 同引擎等价（`nworld=1` 单独渲染同 state 逐位）+ 隔离（几何 +1000 → world0 逐位不变、world1 全 miss/背景）+ 两次 SHA 相同
-- **无上游 nworld=2 数值参考**：不对上游 nworld>1 做任何数值结论；不写「上游等价」
+- **上游 nworld>1 数值未覆盖**：无上游 nworld=2 数值参考，不对上游 nworld>1 做任何数值结论；不写「上游等价」
 - **多 world 着色共用单份几何/灯位姿**：本片只覆盖「两 world 几何相同（world_dx=0）」情形；逐 world 几何/灯位姿数据缺口 → backlog `2026-10-28-render-per-world-geom-light-gap`（backlog 不 start）
 - **`render.cu` 499 行贴线事实**（500 棘轮边界）；`camera_output.rs`(499)、`model/render.rs`(500)、kernel 三文件、设备 `.cu`、`DEVICE_SOURCES`(28)、入口(6)、`CollisionArgs`(504 B) 未改
 - 判据/参考/夹具/容差零改动；未删或降级任何失败用例

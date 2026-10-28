@@ -1232,6 +1232,153 @@
         "59ab0dbf"
       ],
       "delivered_note": "attempt1 未过→A2→attempt2 全绿；QA pass ee281bc7/10301dc6；观察收口 df7f583d/254a49c4；收口复核 9bb9856b/8156591f"
+    },
+    {
+      "id": "R09-S1",
+      "name": "lighting-params",
+      "category": "lighting",
+      "depends_on": [
+        "S8"
+      ],
+      "priority": 88,
+      "scope": "Host-side per-light static parameter validation and resolution (no GPU, no window).",
+      "evidence": "docs/development-evidence/render-bvh/r09-s1-lighting-params/",
+      "new_files": [
+        "src/render/context/lighting.rs",
+        "tests/render_lighting_params.rs"
+      ],
+      "modifies": [
+        "src/render/context/params.rs",
+        "src/render/mod.rs"
+      ],
+      "gpu": {
+        "required": false,
+        "reason": "pure host-side per-light validation; no shading math"
+      },
+      "status": "delivered",
+      "delivered_commits": [
+        "ef557f6e",
+        "0a72c653",
+        "df804751",
+        "354c7808",
+        "2f1bfd5a",
+        "4887402d"
+      ],
+      "delivered_note": "实现 ef557f6e + 证据 0a72c653；QA pass df804751/354c7808（O1 模块源未登记已补 2f1bfd5a/4887402d，O2 #[path] 结构债接受，O3 文档笔误已修）；灯数组保持单份，引 backlog 2026-10-28-render-per-world-geom-light-gap"
+    },
+    {
+      "id": "R09-S2",
+      "name": "lighting-shadow-kernel",
+      "category": "lighting",
+      "depends_on": [
+        "R09-S1"
+      ],
+      "priority": 87,
+      "scope": "Device-side lighting (ambient + per-light diffuse/specular by light_type) and shadow branch wired into the megakernel; no GPU window, no numeric claim (numeric acceptance deferred to R09-S3b).",
+      "evidence": "docs/development-evidence/render-bvh/r09-s2-lighting-kernel/",
+      "new_files": [
+        "src/render/kernel/cuda/render_shadow.cu",
+        "tests/render_lighting_kernel.rs"
+      ],
+      "modifies": [
+        "src/render/kernel/cuda/render_shade.cu",
+        "src/render/kernel/cuda/render_megakernel.cu",
+        "src/render/kernel/megakernel.rs",
+        "src/render/kernel/megakernel_arrays.rs"
+      ],
+      "gpu": {
+        "required": false,
+        "reason": "implementation plus unit tests only; numeric acceptance is R09-S3b"
+      },
+      "status": "in_progress",
+      "note": "方案 A：阴影射线复用 first-hit cast_ray（非 any-hit），命中判 geom_id != -1；非方向光 max_t = dist_to_light - 1e-3、方向光任意命中；shadow_light_fraction 复用 scale_constants[0][2] 原占位槽；use_shadows=false 路径逐位不变；render.cu(499)/launch.rs(500)/cast.rs(494) 不动"
+    },
+    {
+      "id": "R10-S1",
+      "name": "multi-world-state",
+      "category": "worlds",
+      "depends_on": [
+        "R08-S2"
+      ],
+      "priority": 86,
+      "scope": "Multi-world context state and per-world output layout on the host side (no GPU, no window).",
+      "evidence": "docs/development-evidence/render-bvh/r10-s1-world-state/",
+      "new_files": [
+        "src/render/context/world/mod.rs",
+        "src/render/context/world/errors.rs",
+        "src/render/context/world/state.rs",
+        "src/render/context/world/layout.rs",
+        "tests/render_multi_world_layout.rs"
+      ],
+      "modifies": [
+        "src/render/context.rs",
+        "src/render/context/world.rs",
+        "src/render/mod.rs"
+      ],
+      "gpu": {
+        "required": false,
+        "reason": "host-side layout and validation only"
+      },
+      "status": "delivered",
+      "delivered_commits": [
+        "4cf1159c",
+        "14ff2536",
+        "0398c23c",
+        "879cd012",
+        "13bd05d9",
+        "248b33ff",
+        "ac1787ab",
+        "34ac8d1b"
+      ],
+      "delivered_note": "实现 4cf1159c/14ff2536 → QA 13bd05d9/248b33ff（F1 空相机 chunks(0) panic、F2 usize::MAX capacity panic、F3 nworld==0 优先级，均修）→ 收口 0398c23c/879cd012（拆 world/ 四文件）→ 收口复核 ac1787ab/34ac8d1b（pass/0/0）"
+    },
+    {
+      "id": "R10-S2",
+      "name": "multi-world-e2e",
+      "category": "worlds",
+      "depends_on": [
+        "R10-S1"
+      ],
+      "priority": 85,
+      "scope": "Per-world camera pose wiring, world array shapes and nworld=2 end-to-end acceptance in one validation window (no new capture).",
+      "evidence": "docs/development-evidence/render-bvh/r10-s2-multi-world-e2e/",
+      "new_files": [
+        "src/render/kernel/world_camera.rs",
+        "src/render/kernel/world_arrays.rs",
+        "tests/render_r10_multi_world.rs",
+        "tests/support/render_bvh/r10.rs"
+      ],
+      "gpu": {
+        "required": true,
+        "kind": "windows-sm89",
+        "window_budget": "one validation window; no authoring capture (reuse frozen nworld=1 references)",
+        "window_entities": {
+          "new": [
+            "render_r10_multi_world"
+          ],
+          "regressions": [
+            "render_camera_rays",
+            "render_kernel_rgb",
+            "render_kernel_depth_seg",
+            "render_kernel_flags",
+            "render_context_lifecycle",
+            "render_e2e",
+            "render_r08_cameras"
+          ],
+          "count": 8
+        }
+      },
+      "status": "delivered",
+      "delivered_commits": [
+        "504ded3c",
+        "01e0e73c",
+        "40e9238f",
+        "f0e400aa",
+        "48ea01a2",
+        "a3ce62e1",
+        "5cc6a3d5"
+      ],
+      "delivered_note": "实现 504ded3c/01e0e73c → attempt1 新实体未过 → 修复 40e9238f（数组形状去 world 维 + 测试参考改为同配方，断言零放宽）→ attempt2-run 8/8 exit 0、floor 9708、守卫 46/46、零编译 → 证据 f0e400aa/收口 48ea01a2 → QA pass a3ce62e1/5cc6a3d5（阻断 0、观察 4）。上游 nworld>1 数值未覆盖；多 world 着色共用单份几何/灯位姿 → backlog 2026-10-28-render-per-world-geom-light-gap"
     }
   ],
   "r01_p8_mapping": [
@@ -1335,9 +1482,12 @@
     },
     {
       "item": "shadows_skybox_splats_flex_hfield",
-      "slices": [],
-      "status": "deferred",
-      "note": "R09/R02/R07/R06/R05; defaults off or no assets in the MVP fixture"
+      "slices": [
+        "R09-S1",
+        "R09-S2"
+      ],
+      "status": "partial",
+      "note": "shadows/lighting: R09-S1 delivered (host per-light validation), R09-S2 in_progress (device lighting + shadow branch, path A reusing first-hit cast_ray; no numeric claim); numeric acceptance deferred to R09-S3a authoring capture and R09-S3b validation window (neither opened). skybox/splats/flex/hfield remain deferred (R02/R07/R06/R05)."
     },
     {
       "item": "multicamera_heterogeneous",
@@ -1347,6 +1497,15 @@
       ],
       "status": "delivered",
       "note": "R08 delivered 2026-10-28: per-camera output views (R08-S1) and camera-selection matrix plus heterogeneous resolutions/channels (R08-S2) are verified; single-world family only (nworld>1 moves to R10); no new authoring capture. Known gap: per-camera RGB channels is backlog 2026-10-28-render-per-camera-rgb-gap."
+    },
+    {
+      "item": "multi_world",
+      "slices": [
+        "R10-S1",
+        "R10-S2"
+      ],
+      "status": "delivered",
+      "note": "R10 delivered 2026-10-28: multi-world host state/layout (R10-S1) and nworld=2 end-to-end window (R10-S2) verified; attempt2-run 8/8 exit 0, floor 9708, guards 46/46, post-window 8/8, zero Rust recompiles (deps 1823->1823); QA pass a3ce62e1/5cc6a3d5 with 0 blockers and 4 accepted/fixed observations. Upstream nworld>1 numeric is not covered (no upstream nworld=2 reference); per-world geometry/light poses remain backlog 2026-10-28-render-per-world-geom-light-gap."
     }
   ],
   "risks": [

@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r10-s2-obs-closure",
+  "title": {
+    "zh": "R10-S2 复核观察收口（证据自洽 / 失败措辞 / 未覆盖字面）+ 计划同步 R09/R10 切片",
+    "en": "R10-S2 QA observation closure (evidence self-consistency, failure wording, not-covered literal) plus plan sync for R09/R10 slices"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "处置 QA 复核 `2026-10-28-render-bvh-r10-s2-check` 的 4 条建议级观察（O1 accept，O2/O3/O4 fix），并把 `plan.json` 的 R09-S1/R09-S2/R10-S1/R10-S2 切片状态与 `r01_p8_mapping` 同步到板上实事。纯文档：不改代码、不改判据/容差/参考/夹具、不重开窗口、不改任何窗口数字。O2 走独立治理任务而不是 `normify fix`，因为 fix 追加 addenda 会作废 4 条门禁结果，而当时工作树正被 R09-S2 实现占用；改用本任务对同一批文档改动留痕。",
+    "en": "Close the four QA observations on R10-S2 evidence and sync plan.json slice status for R09/R10. Documentation only."
+  },
+  "modules": {},
+  "acceptance": [
+    "O2 fix：`r10-s2-multi-world-e2e/manifest.txt` 不再自登记（删除自引用行），其余行按实数重算且逐行校验 match。",
+    "O3 fix：README §1 attempt1 depth 失败措辞改为日志原文 `left: 19074 / right: 0`，不再出现与日志不符的 `mismatched=19074` 表述。",
+    "O4 fix：README §4 出现「上游 nworld>1 数值未覆盖」字面（语义原已写明）。",
+    "O1 accept：`48ea01a2` 由 `git add -A` 带入的 4 张登记卡按接受处理、不改历史；此后提交一律显式路径（规范条目）。",
+    "plan.json 同步：新增 R09-S1/R09-S2/R10-S1/R10-S2 切片条目（状态与交付记录对板上实事），`r01_p8_mapping` 的 shadows 项改 partial、新增 multi_world delivered；不改任何切片范围、判据与容差。",
+    "零代码改动：`src/**`、`tests/**`、`.cu`、`fixtures/**`、`Cargo*` 未动；判据/容差/参考/夹具零改动。",
+    "四门禁（fmt/clippy/clippy-cuda/unit）绑本任务最终树通过；证据 `docs/development-evidence/render-bvh/r10-s2-obs-closure/`（README + receipt 含 `/task_id`），LF 无 BOM、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r10-s2-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/r10-s2-multi-world-e2e/",
+      "docs/development-evidence/render-bvh-precheck/",
+      "docs/development-evidence/render-bvh/r10-s2-obs-closure/"
+    ],
+    "resources": [],
+    "priority": 68
+  },
+  "note": "Arch 2026-10-28 登记：R10-S2 复核观察处置 + 计划同步；纯文档治理片，不占 GPU 窗口。",
+  "revision": {
+    "before": "5334c06c240c4684dce13bc93e182e675744302d",
+    "after": null
+  },
+  "created_at": "2026-10-28T10:36:30.000Z",
+  "updated_at": "2026-10-28T10:36:50.502Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r10-s2-obs-closure/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r10-s2-obs-closure"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
