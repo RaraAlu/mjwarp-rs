@@ -1,0 +1,82 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-s3b-hfield-empty-mesh-fix",
+  "title": "R05-S3b zero-mesh scene megakernel launch fix (1-element placeholders for 6 mesh-family slots)",
+  "status": "in_progress_at_evidence_commit",
+  "head_before": "01e36a54198b1abc68d844a967b3053006b2dd11",
+  "code_commit": "dce78b1ffcc2df380885c2ec97311f5115070d35",
+  "scope_files": [
+    "src/render/kernel/megakernel_uploads.rs",
+    "src/render/kernel/megakernel.rs"
+  ],
+  "gates": {
+    "fmt": {"cmd": "cargo fmt --all --check", "exit": 0},
+    "clippy": {"cmd": "cargo clippy --all-targets --locked -- -D warnings", "exit": 0},
+    "clippy_cuda": {"cmd": "cargo clippy --all-targets --locked --features cuda -- -D warnings", "exit": 0},
+    "unit": {"cmd": "cargo test --locked", "exit": 0, "result_lines": 134, "passed": 1091, "failed": 0, "ignored": 389},
+    "no_run": {"cmd": "cargo test --locked --no-run", "exit": 0},
+    "kernel_compile_gate": {"exit": 0, "log": "materials/kernel-gate-after.log"},
+    "normify_validate_fingerprints": {"exit": 0, "errors": 0, "warnings_existing": 6}
+  },
+  "kernel_gate": {
+    "before": {"source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746", "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13", "ptx_bytes": 264015},
+    "after": {"source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746", "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13", "ptx_bytes": 264015},
+    "identical": true
+  },
+  "invariants": {
+    "megakernel_slots": 81,
+    "device_sources": 28,
+    "collision_args_bytes": 504,
+    "unit_tests_covering_invariants": ["megakernel_slots_signature_is_unchanged", "device_sources_*", "collision_gpu::abi_tests (size_of::<CollisionArgs>() == 504)"]
+  },
+  "line_counts": {
+    "basis": "committed blob LF count (find /c /v \"\" and git cat-file -p|find agree)",
+    "megakernel_uploads_rs": {"wc_l": 446, "get_content": 418, "bound": 450},
+    "megakernel_rs": {"wc_l": 412, "get_content": 384, "bound": 500},
+    "note": "Windows PowerShell Get-Content decodes UTF-8 source as ANSI in this shell and merges some lines; [IO.File]::ReadAllLines gives 446. Arch reported 398/366 (not reproducible here). All readings are under the bounds."
+  },
+  "zero_length_slots": {
+    "first_failure": 22,
+    "slots": [
+      {"slot": 22, "name": "mesh_faceadr", "construction": "src/render/kernel/megakernel_uploads.rs:243-245", "expected_shape": "[u.nmesh]", "actual_len": 0},
+      {"slot": 23, "name": "mesh_normaladr", "construction": "src/render/kernel/megakernel_uploads.rs:246-247", "expected_shape": "[u.nmesh]", "actual_len": 0},
+      {"slot": 24, "name": "mesh_normal", "construction": "src/render/kernel/megakernel_uploads.rs:248-249", "expected_shape": "[len/3]", "actual_len": 0},
+      {"slot": 60, "name": "mesh_facetexcoord", "construction": "src/render/kernel/megakernel_uploads.rs:250-252", "expected_shape": "[u.mesh_faces]", "actual_len": 0},
+      {"slot": 61, "name": "mesh_facenormal", "construction": "src/render/kernel/megakernel_uploads.rs:253-254", "expected_shape": "[u.mesh_faces]", "actual_len": 0},
+      {"slot": 63, "name": "mesh_texcoord_offsets", "construction": "src/render/kernel/megakernel_uploads.rs:265-266", "expected_shape": "[u.nmesh]", "actual_len": 0}
+    ]
+  },
+  "root_cause_chain": [
+    "src/runtime/transfer/session.rs:176-186 (empty slice -> no device allocation)",
+    "src/runtime/transfer/buffer.rs:60-67 (launcher_span rejects allocation=None)",
+    "src/render/kernel/megakernel_arrays.rs:97-102 (array wraps as Driver s7b2-span)",
+    "src/runtime/launcher/render/args.rs:150-152 and 220-221 (zero-dim shapes rejected)"
+  ],
+  "zero_impact_evidence": {
+    "kernel_mesh_deref_sites": ["src/render/kernel/cuda/render_megakernel.cu:217-230 (gtype 7/8 guard)", "src/render/kernel/cuda/render_shade.cu:285-287 (texture_mesh only for gtype 7/8)"],
+    "kernel_shape_reads": ["render_megakernel.cu:101 dim.shape[0]", ":148 cam_xpos.shape.dims[1]", ":172-174 rgb/depth/seg_out.shape.dims[1]", ":279 light_type.shape.dims[1]"],
+    "conclusion": "placeholders are only created for empty sources; kernel never reads mesh-array shapes and only dereferences mesh arrays for mesh geoms"
+  },
+  "impact": {
+    "megakernel_uploads_rs": "mjwarp.render (active, sources 39, api 11); deps mjwarp.model.core, mjwarp.runtime.completion, mjwarp.math, mjwarp.diagnostics; rules core-no-deprecated-target, boundary-render",
+    "megakernel_rs": "no module mapping (existing governance gap for src/render/kernel/*.rs; backlog card 2026-10-28-arch-volume-module-sources; not registered in this slice)"
+  },
+  "local_debug": {
+    "kind": "local_debug_not_acceptance",
+    "env": "PATH prepended with target\\toolchains\\cuda-12.8.1\\bin; --test-threads=1 --nocapture",
+    "entity_exits": {"render_hfield_reference": 101, "render_camera_rays": 0, "render_context_lifecycle": 0, "render_e2e": 0, "render_kernel_depth_seg": 0, "render_kernel_flags": 0, "render_kernel_rgb": 0, "render_r08_cameras": 0, "render_r10_multi_world": 0},
+    "hfield_only": {"rgb": "cam0 76800 / cam1 43200 pixels, mismatched=0, max_byte_diff=0, beyond_1_lsb=0", "seg_mismatch": 0, "depth_cam0": "mismatch=0, max_ulp=0, beyond=0", "depth_cam1": "mismatch=4423, max_ulp=7, beyond=20", "first_mismatch": "camera=1 pixel=16913 x=113 y=70"},
+    "hfield_primitive": {"rgb": "both cameras bitwise-equal", "seg_mismatch": 0, "depth_cam0": "mismatch=0, max_ulp=0, beyond=0", "depth_cam1": "mismatch=4389, max_ulp=7, beyond=20", "first_mismatch": "camera=1 pixel=16913 x=113 y=70"},
+    "conclusion": "launcher panic fixed; comparison executed; cam1 depth criteria red is a separate unresolved defect (RCA slice 2026-10-28-render-bvh-r05-s3b-hfield-cam1-depth-rca); no acceptance conclusion here"
+  },
+  "scope_guards": {
+    "attempt1_dir": "target/render-bvh/r05-s3b-window/attempt1/ preserved as-is (attempt=1 invalid round)",
+    "not_opened_window": true,
+    "not_refrozen_guards": true,
+    "criteria_unchanged": true
+  },
+  "artifacts": {
+    "readme": "README.md",
+    "manifest": "manifest.txt",
+    "materials": ["materials/gates-summary.txt", "materials/kernel-gate-before.log", "materials/kernel-gate-after.log", "materials/local-debug-summary.txt", "materials/impact.txt", "materials/zero-change-paths.txt", "materials/line-counts.txt", "materials/rca-summary.txt"]
+  }
+}

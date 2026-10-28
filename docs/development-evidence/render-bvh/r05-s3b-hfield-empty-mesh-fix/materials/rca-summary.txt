@@ -1,0 +1,9 @@
+Window attempt1 invalid-round RCA (summary; full text was in target/render-bvh/r05-s3b-window/attempt1/rca-zero-length-buffers.txt, target is not committed)
+observation: render_hfield_reference exit 101 panic "s7b2-span: ... launcher_buffer" at fire(); 8 regressions exit 0
+mechanism: session.rs:176-186 empty slice -> allocation=None; buffer.rs:60-67 launcher_span rejects; megakernel_arrays.rs:97-102 wraps as Driver;
+           args.rs:150-152/220-221 additionally reject zero-dim shapes
+enumeration: 81 slots checked for both hfield scenes; only slots 22/23/24/60/61/63 are zero length (table in README section 2)
+verdict: product gap, not a test-assembly bug (authoritative dumps nmesh=0; upstream rendered the same XML for the S3a reference;
+         all previously exercised scenes happened to have 1 <mesh>)
+options considered: A launcher sentinel (needs src/runtime and shape[0] still rejected), B upload alloc-but-len-0 (runtime red line, insufficient),
+                    C skip slots (81-arg fixed ABI -> misalignment); chosen A': megakernel-side 1-element placeholders + count.max(1) shapes
