@@ -5,7 +5,7 @@
     "zh": "R05-S2（重登记）：设备侧 hfield 三角化 + mesh BVH 相交接入（含两条必然失效旧断言；无窗口）",
     "en": "R05-S2 (re-registered): device-side hfield triangulation plus mesh-BVH intersection wiring (includes two obsolete assertions; no window)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "R05 第二片（与原卡 `2026-10-28-render-bvh-r05-s2-hfield-intersect` 同一实现与证据，因原卡 files 未含两条必然失效的旧测试断言、运行中声明冻结无法扩 scope，故 abandon 后同片重登记）：① host 按上游 `bvh.py:581 build_hfield_bvh`（含 `_optimize_hfield_mesh`）规则三角化高度场（`x=sz0·(c/width−1)`、`y=sz1·(r/height−1)`、`z=data[r,c]·sz2`，`width=0.5·max(nc−1,1)`、`height=0.5·max(nr−1,1)`，每格 2 三角形 TL/TR/BR + TL/BR/BL，贪心共面合并，pinned numpy 2.5.4 NEP50 f32 口径），复用既有 `MeshBvh::build`；② hfield mesh **追加在 mesh blob 末尾**（既有 mesh 索引不变），`hfield_bvh_id` 槽填「blob 内 mesh 索引、未用 `u64::MAX`、长度=nhfield」，**不扩 81 槽 ABI**；③ 设备 `cast_ray` 加 `gtype==1` 分派到 `ray_mesh_leaf`，`render_shade.cu` 加 `texture_hfield`，阴影射线对 `{1,7}` 不剔背，`gtype==8` 仍拒绝；④ 注入 A（非破坏 builder `ResolvedContext::set_hfield`，`None` 路径零行为差异）。两条旧断言按行为变更更新：`tests/render_context_lifecycle.rs` 由「hfield 被拒绝」改为断言 gtype=1 bounds；`tests/render_scene_bvh_host.rs` 由 `from_geom_type(1)==UnsupportedGeomType{1}` 改为用 gtype 9 表达未支持面。本片**零渲染数值结论**，数值验收留 R05-S3 验证窗。",
     "en": "Same R05-S2 implementation as the abandoned card, with the two obsolete assertion files added to scope; no window."
@@ -49,7 +49,8 @@
     "after": null
   },
   "created_at": "2026-10-28T15:00:00.000Z",
-  "updated_at": "2026-10-28T15:00:18.340Z",
+  "updated_at": "2026-10-28T15:01:17.561Z",
+  "closed_at": "2026-10-28T15:01:17.561Z",
   "checks": [
     {
       "kind": "gate",
