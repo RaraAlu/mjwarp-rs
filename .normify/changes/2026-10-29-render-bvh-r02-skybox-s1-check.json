@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-bvh-r02-skybox-s1-check",
+  "title": {
+    "zh": "R02-S1 天空盒离线实现独立复核（上游逐行对齐 / 零泄漏静态论证 / 注册表子集 / 行数棘轮 / 无窗口纪律）",
+    "en": "Independent check of R02-S1 offline skybox implementation (upstream line-by-line alignment, static zero-leak argument, registry subset, line ratchets, no-window discipline)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-29-render-bvh-r02-skybox-s1`（离线片，无 GPU 窗口、无渲染数值结论）。重点：① `sample_skybox` 内核与 pinned `mujoco_warp 3.15.0` `render.py:494-556` 逐行/逐符号对齐（face 号与 sc/tc、`safe_div` 语义、`t` clamp、`v=(face+t)/6`、采样调用）；② 背景分支与 `render.py:1259-1268` + `store_pixel`（`1017-1031`）语义一致，且**非天空盒路径逐字节不变**；③ host 门改与「只实体化被请求纹理」是否真按 `render_util.py:527-535`（dummy 语义、下标=模型纹理 id）；④ 新增 flag 位只加不改（既有 8 位定义/顺序不动），81 槽种类与顺序零改动；⑤ source/ptx 新基线是否记录且原因自洽；⑥ 行数棘轮与实际 LF 计数；⑦ 判据/参考/fixture/`bvh`/`math` 零改动；⑧ 是否越界做了设备数值结论或开了 GPU 窗口。QA 不跑 GPU、不改代码、不改证据。",
+    "en": "Read-only QA review of the R02-S1 offline slice: upstream line alignment, background branch semantics, registry/dummy semantics, flag-bit and ABI invariants, new kernel baseline record, line counts, and no-window discipline."
+  },
+  "modules": {},
+  "acceptance": [
+    "**上游逐行对齐**：独立读 pinned `target/render-bvh-precheck/venv312/Lib/site-packages/mujoco_warp/_src/render.py`（51 362 B / 1604 行 / sha `16bfe7ed…`，`mujoco_warp 3.15.0` + `warp-lang 1.15.0`），逐个核对 `494-556` 的方向旋转、face 判定（0..5 与 `+X,-X,+Y,-Y,+Z,-Z` 一致）、`sc/tc` 六组符号、`ma` 选择、`safe_div`、`t_min` clamp、`v=(face+t)/6` 与 `texture_sample(vec2(s,v))`；再核调用点 `1259-1268` 与 `store_pixel` `1017-1031`。**任何与上游不同的公式/顺序/常量都记为必修**，证据需给上游行号→本仓库行号对照表且逐条可核。",
+    "**非天空盒路径零改（静态可判）**：核证据里的静态论证是否成立且完整——flag bit9=0 时新增代码不可达、两槽仍 `[0]`/`[0]`、`texture_array` 仍 `None`、注册表仍空、flags 既有 8 位与 `background_color_packed` 打包方式不变；并用 `git diff` 逐行核「既有语句是否被改写」。**QA 不得把静态论证表述成设备实测**；实现方若宣称「位级零差异已测」而本片未跑 GPU，即为阻断（措辞越界）。",
+    "**注册表子集语义**：核新构造器是否与 `render_util.py:514-535` 等价：`use_textures=true` → 全实体化（现状不变）；`false && 有天空盒` → 仅天空盒 id 实体化、其余 id 为 1×1 dummy 且**数组下标仍等于模型纹理 id**（不能压缩下标）；`false && 无天空盒` → 空注册表。`context/lifecycle.rs:329` 与 `megakernel_uploads.rs:179-188` 两处门是否同步放开、且行数未破棘轮。",
+    "**ABI/flag 不变项**：`MEGAKERNEL_SLOTS` 81 槽（1 bounds + 73 数组 + 7 标量）种类与顺序零改动（既有测试断言仍绿）；`MK_FLAG_*` 既有 8 位与取值不变、新位不与既有位冲突；`DEVICE_SOURCES`/入口数/`CollisionArgs` 若变化必须有实测值与合规说明；不得改 `render.cu`(499)/`launch.rs`(500)/`model/render.rs`(500)/`camera_output.rs`(499)/`cast.rs`(481)/`hfield_scene.rs`(499)。",
+    "**新内核基线记录**：`source_sha256`/`ptx_sha256`/`ptx_bytes` 新值必须实测记录（`megakernel_source_compiles_under_render_gate`，NVRTC 纯编译、无 GPU），并与「变化只来自新增 flag 门控分支 + sample_skybox 函数」自洽；旧值 `72bc364c…`/`97467d83…`/264 015 B 需标为「本片前基线」而非被覆盖。",
+    "**行数棘轮独立计数**：QA 用 LF 口径独立数（`Get-Content` 会少计，须按 `\\n` 计数）核 `megakernel.rs`≤412、`megakernel_uploads.rs`≤480、`context/lifecycle.rs`≤499 且净 ≤+2、`context.rs`≤470、`megakernel_arrays.rs`≤340、`render_shade.cu`≤470、`render_megakernel.cu`≤420、新文件≤160，并与实现方数字一致；`texture.rs` 必须 486 行零改动。",
+    "**范围与纪律**：`git diff` 只含卡 scope 内文件（+`.normify`）；`src/render/bvh/**`、`src/math/**`、`fixtures/**`、任何 npz 参考、capture 脚本、比较阈值零改动；本片未开 GPU 窗口、未跑任何设备数值（无 `target/render-bvh/*window*` 新产物、无 `cargo test --ignored` 的 GPU 执行记录）；验收措辞无禁词（窗口通过/精度达标/上游等价/产品渲染验收通过）。",
+    "**门禁与证据完整性**：实现方四门禁（fmt/clippy/clippy-cuda/unit）+ `--no-run` + 内核编译门 + `normify validate --fingerprints` 是否绑最终树全绿（必要时 QA 自跑 reconfirm）；证据 `docs/development-evidence/render-bvh/r02-skybox-s1/` 的 README/receipt（`/task_id`）/manifest（committed blob 不自引用、LF 无 BOM）自校验数；先报 verdict / blockers / observations。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-render-bvh-r02-skybox-s1"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r02-skybox-s1-check/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "created_at": "2026-10-28T21:58:00.000Z",
+  "updated_at": "2026-10-28T21:58:00.000Z",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "note": "Arch 2026-10-29 预登记（R02-S1 离线片的复核）。start 时必须同时把任务 id + 复核点发进 QA 会话；本片无 GPU 窗口，QA 也不得跑 GPU。",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r02-skybox-s1-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-bvh-r02-skybox-s1-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "窗口通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
