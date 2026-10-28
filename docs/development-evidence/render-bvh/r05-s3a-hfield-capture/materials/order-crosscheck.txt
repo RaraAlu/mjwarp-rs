@@ -1,0 +1,65 @@
+# R05-S3a hfield data-order cross-check（离线、CPU-only；证明 effective grid 约定）
+
+目的：确认「MuJoCo 内存顺序 + 上游 `reshape((nr,nc))`」与「我方 host 取数 + `triangulate_hfield`」
+对同一 fixture 得到**同一个 effective 网格**，避免 S3b 因行/列约定差异出现「镜像地形看起来一致」的漏判。
+
+## A. MuJoCo 存储约定（由 `materials/reverse-calc.py` 实测、位级确定）
+
+对 `scene.xml`（4×4，转置可变高程）：把 XML 行主序 elevation 做各种
+`(归一化方式 × 布局变换)` 候选，与 `mjm.hfield_data` 原始 flat 的 f32 位型逐元素比对：
+
+| 候选 | 位型不匹配数 |
+| --- | --- |
+| `norm_f64_then_f32 + flipud` | 2 |
+| **`norm_f32_math + flipud`** | **0（位级完全一致）** |
+| identity / fliplr / rot180 / transpose 系列 | 12–16 |
+
+结论（实测）：MuJoCo 加载 MJCF elevation 时
+1. 归一化 `(v − min) / (max − min)` **全程 f32 算术**（不是 f64 再舍入；`norm_f64_then_f32` 有 2 处差 1 ULP）；
+2. 行序**上下翻转**（image-origin 约定，翻的是行序、不是行列转置）；
+3. 按行主序连续存放 ⇒ `mjm.hfield_data` flat 的第 `r*nc+c` 项 = `normalize(xml[nr−1−r][c])`。
+
+因此上游 `bvh.py::build_hfield_bvh` 的 `reshape((nr, nc))`（行主序读 flat）得到的
+**effective 网格 = flipud(归一化后的 XML 行主序网格)**（本例见 `materials/reverse-calc.txt` [3]）。
+**注意**：此前 authoring README 曾写「列主序 ⇒ reshape 得转置」，实测**不成立**；正确是「上下翻转行序」。
+
+## B. 我方 host 取数路径与上游同构（代码审计）
+
+| 环节 | 位置 | 行为 |
+| --- | --- | --- |
+| 原生探针 hfield 字段 | `native/g01_fields.inc:78`（field 49） | `source = m->hfield_data; count = m->nhfielddata; width = 1; kind = 4`（float32 原样拷贝，无重排） |
+| 原生探针（collision 侧同源字段） | `native/model_probe_collision_inputs.cpp:97`（case 28） | 同上 |
+| Rust 体积输入 | `src/model/volume_input.rs:138-143` | `hfield_data()` 直接返回原生 f32 切片（注释：原生已是 f32，上传链路不再转换） |
+| hfield 输入适配 | `src/render/context/hfield_inputs.rs` | `hfield_data()` → `HfieldInputs.data`，**不复制、不重排** |
+| 三角化 | `src/render/bvh/hfield_mesh.rs::triangulate_hfield` | 按 `data[r*nc + c]` 行主序读取（= 上游 `reshape((nr,nc))` 同义） |
+
+⇒ 只要原生探针按 `m->hfield_data` 原样输出（代码审计成立），我方 effective 网格与上游**同一约定**。
+
+## C. 运行时位级对拍（能做的部分，已做）
+
+用现有对称夹具 `fixtures/mjwarp-complex-physics/hfield-box.xml`（3×3）做 pinned python vs 既有
+原生探针 JSON 的对拍（JSON 由原生探针产出，见 `fixtures/g10-p5/hfield-f32/hfield-box-cpu.json`）：
+
+- `mjm.hfield_data` 原始 f32 位型：`['0x0','0x3f000000','0x0','0x3f000000','0x3f800000','0x3f000000','0x0','0x3f000000','0x0']`
+- 原生 JSON `model.arrays.hfield_data` 位型：**完全相同（bitwise_equal=True）**
+- `hfield_nrow=[3]/ncol=[3]/adr=[0]` 一致；`hfield_size=[1.0,1.0,0.1,0.1]` 一致（double→f32 值同）
+- **局限（如实记录）**：该 3×3 网格对所有转置/翻转都对称（`symmetric_grid=True`），
+  因此这次对拍只能确认**数值与归一化**一致，**不能区分行/列约定**。
+
+## D. 非对称 fixture 的运行时对拍：未做 + S3b 停手条件
+
+- 我们的新 4×4 fixture 是**转置/翻转可变**的（斜坡行系数 0.20、列系数 0.35，扰动在非对角 (r=2,c=1)），
+  理论上可区分约定；但要在运行时把「原生探针输出」与「pinned python 的 `mjm.hfield_data`」逐位对拍，
+  需要构建/运行原生探针（离线 CPU，非 GPU），本 S3a authoring 未执行（不扩大本卡 files/时间）。
+- **S3b 停手条件（新增，写进 S3b 计划）**：若 S3b hfield 目标实体出现「地形上下/左右镜像、或转置形」
+  这类与数据顺序一致的特征差异，**立即停手报 Arch**，不改容差/参考/fixture；同时补一个
+  「原生探针 ↔ pinned python 非对称数据逐位对拍」的独立小片（离线 CPU）。
+- 常规判据不变：RGB ≤1 LSB 位级优先 / depth ≤4 ULP 位级优先 / seg exact / 两次 sha 相同。
+
+## 复现
+
+```powershell
+target\mjwarp-parallel\venv\Scripts\python.exe -B `
+  docs\development-evidence\render-bvh\r05-s3a-hfield-capture\materials\reverse-calc.py
+# 以及上文 C 段对拍（python 读 mjm + json 的 3x3 位级比较）
+```

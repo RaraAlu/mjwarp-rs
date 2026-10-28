@@ -32,19 +32,24 @@ fast-math/shadows 标志、pinned python/numpy 版本、upstream revision、`MJW
 
 | 文件 | sha256 | 字节 | 行数 | 组 |
 | --- | --- | --- | --- | --- |
-| `scene.xml` | `4ea424f9e8bf33bd69246bccb638437c1c141666fb7374dbc9608b01ee9425cf` | 3 264 | 59 | hfield-only |
-| `scene-mixed.xml` | `73202dc946dfd7b8fa03195b7268ecaf39601acaca7b53b3f7553fa2780aa94d` | 2 986 | 58 | hfield-primitive |
+| `scene.xml` | `b3b9a6b4ee4844c92edec3f217d04b7e788a69f9ab1e864fe7dac765e9c6f53b` | 3 590 | 63 | hfield-only |
+| `scene-mixed.xml` | `bf9bb966887466d1f526605875df3f9b8c6b244787e7f95be2eccc3cd3329bdf` | 3 180 | 60 | hfield-primitive |
 
 几何/相机/光照口径（MuJoCo 3.15.0 CPU 解析核对，无 GPU）：
 
 - **hfield**：`nrow=4, ncol=4`；`size="1.5 1.0 0.25 0.1"` ⇒ 水平范围 x∈[−1.5,1.5]、y∈[−1.0,1.0]，
   `size[2]=0.25 ≠ 0`；geom `type=hfield`、`pos="0 0 0"`、`quat="1 0 0 0"`、`group=1`、贴图 `mat-terrain`
   （`_texture_hfield` 着色路径同时被覆盖）。
-- **elevation 语义（重要）**：MJCF `<hfield elevation>` 在加载时被 MuJoCo **归一化到 [0,1]**
-  （`(v−min)/(max−min)`，本夹具 max=1.2、min=0）；`mjm.hfield_data` 以**列主序**存放，
-  而上游 `bvh.py::build_hfield_bvh` 用 `reshape((nr, nc))` 按**行主序**解释 ⇒ 上游有效高程网格是
-  XML 行主序网格的**转置**。本夹具高程为 `0.2*(r+c)` + `(1,1)` 单点扰动，**转置不变**，
-  所以有效网格 = 归一化后的 XML 网格（下 §12 反算即用这份 f32 数据）。
+- **elevation 设计（转置/翻转可变，Arch 复核要求）**：XML 行主序网格 =
+  `0.20*r + 0.35*c`（**行、列系数不同**）+ 非对角扰动 `(r=2,c=1)` 抬高到 1.05（+0.30）。
+  这样「行/列约定错误」会在有效网格上表现为**不同的地形**（而非对称掩盖）；4×4、`size[2]≠0` 不变，
+  扰动邻接的 4 格非共面、其余 5 格共面（合并且不合并两种形态仍在）。
+- **elevation 存储约定（实测，纠正旧稿）**：MuJoCo 加载 MJCF elevation 时 ①归一化
+  `(v−min)/(max−min)` **全程 f32 算术**；②行序**上下翻转**（image-origin 约定）；③按行主序连续存放。
+  上游 `bvh.py::build_hfield_bvh` 用 `reshape((nr, nc))` 行主序读 flat ⇒
+  **effective 网格 = flipud(归一化 XML 行主序网格)**（不是转置；旧稿「列主序⇒转置」已否证）。
+  位级候选比对见 `materials/reverse-calc.txt` [2]：`norm_f32_math+flipud` **0 处不匹配**，
+  `norm_f64_then_f32+flipud` 不匹配 2 处，其余 12–16 处。
 - **cam0（俯视）**：`pos="0 0 3.4"`、`xyaxes="1 0 0 0 1 0"`（光轴 = −z）、`fovy=45`、
   `resolution="320 240"`；覆盖校验（CPU 投影，z=0 与 z=0.25 两个高度）：最坏 y 比 **0.710/0.766**、
   最坏 x 比 **0.799/0.862**（<1 ⇒ 全网在视野内）。
@@ -162,33 +167,49 @@ target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_hfield.
 数值验收（RGB ≤1 LSB 位级优先 / depth ≤4 ULP 位级优先 / seg exact / 两次 sha 相同）
 全部在 S3b 验证窗按既有判据执行，不新增、不放宽。
 
-## 12. R05-S2 QA O1 阈值边界反算（f32 口径，实际归一化数据）
+## 12. 有效网格反算 + 转置敏感性 + O1 边界（f32 口径）
 
-阈值：`f32(1e-5)` 位型 **`0x3727C5AC`**（字节 `AC C5 27 37`，值 9.999999747378752e-06 < 十进制 1e-5）。
+**数据来源**：pinned python（mujoco 3.15.0 + numpy 2.5.4）加载 `scene.xml` 得到的 `mjm.hfield_data`；
+**先定约定**再用上游 `reshape((nr,nc))` 得到 effective 网格（详见 `materials/reverse-calc.txt`）。
 
-用 MuJoCo 3.15.0 实际加载后的 f32 网格（已归一化、按上游 reshape 行主序解释）逐格计算
-`diff = (z00+z11) − (z01+z10)`（全 f32）：
+- 原始 flat（f32 位型，内存顺序）：
+  `['0x3eba2e8c','0x3f1364d9','0x3f49b26c','0x3f800000','0x3e783e10','0x3f22e8ba','0x3f2aaaab','0x3f60f83f','0x3df83e10','0x3eaaaaab','0x3f0ba2e9','0x3f41f07c','0x0','0x3e59364e','0x3ed9364e','0x3f22e8ba']`
+- 布局候选位级比对：**`norm_f32_math+flipud` 0 处不匹配**（唯一匹配）；`norm_f64_then_f32+flipud` 不匹配 2 处；
+  identity/fliplr/rot180/transpose 系列 12–16 处 ⇒ 约定 = **f32 归一化 + 行序上下翻转 + 行主序存放**。
+- effective 网格（= `reshape((nr,nc))` 行主序读 flat）：
+  ```
+  [[0.36363637 0.57575756 0.78787875 1.        ]
+   [0.24242425 0.6363636  0.6666667  0.87878793]
+   [0.12121212 0.33333334 0.54545456 0.75757575]
+   [0.         0.21212122 0.42424244 0.6363636 ]]
+  ```
+- 阈值：`f32(1e-5)` 位型 **`0x3727C5AC`**；逐格 `diff=(z00+z11)−(z01+z10)`（全 f32）：
 
-| 格 (r,c) | diff | 位型 | 共面？（`|diff| < f32(1e-5)`） |
+| 格 (r,c) | diff | 位型 | 共面？ |
 | --- | --- | --- | --- |
-| (0,0) | +5.96046448e-08 | `0x33800000` | 是 |
-| (0,1) | 0 | `0x00000000` | 是 |
+| (0,0) | +0.181818187 | `0x3E3A2E8C` | 否 |
+| (0,1) | −0.181818128 | `0x3E3A2E88` | 否 |
 | (0,2) | 0 | `0x00000000` | 是 |
-| (1,0) | +0.25 | `0x3E800000` | **否** |
-| (1,1) | −0.25 | `0x3E800000` | **否** |
+| (1,0) | −0.181818128 | `0x3E3A2E88` | 否 |
+| (1,1) | +0.181818247 | `0x3E3A2E90` | 否 |
 | (1,2) | 0 | `0x00000000` | 是 |
-| (2,0) | −0.25 | `0x3E800000` | **否** |
-| (2,1) | +0.25 | `0x3E800000` | **否** |
-| (2,2) | +5.96046448e-08 | `0x33800000` | 是 |
+| (2,0) | 0 | `0x00000000` | 是 |
+| (2,1) | 0 | `0x00000000` | 是 |
+| (2,2) | 0 | `0x00000000` | 是 |
 
-- **没有任何格的 |diff| 等于 `f32(1e-5)`**；与阈值的最小距离 = **9.9403951e-06**（来自 |diff|=5.96e-8）。
-- `fits_plane` 的预测/斜率残差（9 条）：max **5.96046448e-08**、min nonzero 同值，**0 处命中阈值**。
-- 结论：本夹具**不命中** R05-S2 QA O1 边界；无需改参数。
-- 三角化形态（按 O1 修复后 f32 口径模拟）：9 格 → 4 个非共面单格（(1,0)(1,1)(2,0)(2,1)）+ 5 个共面格
-  合并成 2 块 ⇒ **13 顶点 / 36 索引 / 12 三角形**（同时覆盖「共面合并」与「非共面不合并」）。
-- 反算脚本与过程：本节表格由 pinned python（numpy 2.5.4）对 `mjm.hfield_data` 逐格 f32 运算生成；
-  复现命令见 `materials/reverse-calc.txt`。
-
+- **没有任何格 |diff| 等于阈值**（`any_exact_threshold=False`）；`min ||diff|−threshold| = 9.999999747378752e-06`
+  （来自 |diff|=0 的共面格）。`fits_plane` 预测/斜率残差（9 条）：max **5.96046448e-08**、**0 处命中阈值**。
+- 三角化形态（O1 修复后 f32 口径）：4 个非共面单格 + 5 个共面格合并 ⇒ **13 顶点 / 36 索引 / 12 三角形**；
+  顶点坐标 checksum `f3e162dd04949f5d5948b89350e51f70bc3f4e0de1a2f20fab104576d0c8853a`。
+- **转置敏感性证据**（证明夹具可区分行/列约定）：对 effective 网格**转置**后跑同一套三角化 →
+  顶点/索引/三角数仍为 13/36/12，但**坐标 checksum = `b83e93a680d46d7d8be4dc2fe1bc86efad18715b377daa267a15dec209e50fb0` ≠ 原值**
+  ⇒ `transpose_distinguishable=True`。行/列被调换会得到不同地形→不同像素，S3b 不会因对称而放过。
+- 复现：`target\mjwarp-parallel\venv\Scripts\python.exe -B materials\reverse-calc.py`（输出全文 `materials/reverse-calc.txt`）。
+- 取数顺序对拍（python `mjm.hfield_data` ↔ 原生探针 JSON ↔ our host 路径）见 `materials/order-crosscheck.txt`：
+  ①约定实测如上；②原生探针字段是 `m->hfield_data` 原样拷贝（`native/g01_fields.inc:78`、
+  `native/model_probe_collision_inputs.cpp:97`），host `hfield_data()` 直传、`triangulate_hfield` 行主序读
+  ⇒ 与上游同构；③对称旧夹具位级对拍一致（只证数值/归一化、不证顺序）；④非对称运行时对拍未做
+  （需构建原生探针，离线 CPU），已列为 **S3b 停手条件**：若出现镜像/转置形差异立即停手报 Arch。
 ## 13. normify 前置状态
 
 - 脚本 + 两个场景 XML 已落地；证据骨架（README/receipt/materials/manifest）就绪；

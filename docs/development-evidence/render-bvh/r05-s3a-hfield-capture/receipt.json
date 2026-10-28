@@ -22,24 +22,24 @@
   "scenes": {
     "hfield-only": {
       "path": "fixtures/render-bvh/scene-hfield/scene.xml",
-      "sha256": "4ea424f9e8bf33bd69246bccb638437c1c141666fb7374dbc9608b01ee9425cf",
-      "bytes": 3264,
-      "lines": 59
+      "sha256": "b3b9a6b4ee4844c92edec3f217d04b7e788a69f9ab1e864fe7dac765e9c6f53b",
+      "bytes": 3590,
+      "lines": 63
     },
     "hfield-primitive": {
       "path": "fixtures/render-bvh/scene-hfield/scene-mixed.xml",
-      "sha256": "73202dc946dfd7b8fa03195b7268ecaf39601acaca7b53b3f7553fa2780aa94d",
-      "bytes": 2986,
-      "lines": 58
+      "sha256": "bf9bb966887466d1f526605875df3f9b8c6b244787e7f95be2eccc3cd3329bdf",
+      "bytes": 3180,
+      "lines": 60
     },
     "hfield": {
       "nrow": 4,
       "ncol": 4,
       "size": [1.5, 1.0, 0.25, 0.1],
       "size_z_nonzero": true,
-      "mujoco_normalizes_elevation": true,
-      "upstream_reshape_transposes_storage": true,
-      "fixture_symmetric_under_transpose": true
+      "elevation_design": "row-major 0.20*r + 0.35*c (different row/col coefficients on purpose) plus one non-diagonal perturbation at (r=2,c=1) raised to 1.05; 4 non-coplanar cells and 5 coplanar cells, so merge and non-merge paths are both covered",
+      "storage_convention_measured": "MuJoCo normalizes the MJCF elevation with f32 arithmetic, reverses the row order (vertical flip, image-origin convention) and stores row-major; upstream reshape((nr,nc)) therefore yields effective = flipud(normalized XML row-major grid). Earlier column-major/transpose assumption was disproved by the bitwise candidate comparison (norm_f32_math+flipud = 0 mismatches; all other variants 2..16)",
+      "transpose_sensitive": true
     },
     "cameras": {
       "cam0": "top-down pos=(0,0,3.4) xyaxes=(1,0,0,0,1,0) fovy=45 res=320x240; worst coverage ratio 0.862<1",
@@ -107,20 +107,34 @@
     "note": "planning baseline only; a separate >=5 min clean pre-window monitor and Arch->Chief dual signature are still required"
   },
   "reverse_calc": {
+    "effective_grid": "resolved from mjm.hfield_data via upstream reshape((nr,nc)) row-major; convention determined bitwise (norm_f32_math+flipud, 0 mismatches)",
     "threshold_bits": "0x3727C5AC",
     "threshold_value": 9.999999747378752e-06,
     "cell_diffs": {
-      "planar": ["(0,0) +5.96046448e-08", "(0,1) 0", "(0,2) 0", "(1,2) 0", "(2,2) +5.96046448e-08"],
-      "non_planar": ["(1,0) +0.25", "(1,1) -0.25", "(2,0) -0.25", "(2,1) +0.25"]
+      "non_planar": ["(0,0) +0.181818187", "(0,1) -0.181818128", "(1,0) -0.181818128", "(1,1) +0.181818247"],
+      "planar": ["(0,2) 0", "(1,2) 0", "(2,0) 0", "(2,1) 0", "(2,2) 0"]
     },
     "any_exact_threshold_hit": false,
-    "min_distance_to_threshold": 9.940395102603361e-06,
+    "min_abs_diff_minus_threshold": 9.999999747378752e-06,
     "fits_plane_residuals": {"count": 9, "max": 5.96046448e-08, "boundary_hits": 0},
     "triangulation_shape": {"vertices": 13, "indices": 36, "triangles": 12, "merge_and_non_merge_present": true},
+    "coordinates_sha256": "f3e162dd04949f5d5948b89350e51f70bc3f4e0de1a2f20fab104576d0c8853a",
+    "transpose_sensitivity": {
+      "transposed_vertices": 13,
+      "transposed_indices": 36,
+      "transposed_coordinates_sha256": "b83e93a680d46d7d8be4dc2fe1bc86efad18715b377daa267a15dec209e50fb0",
+      "distinguishable": true
+    },
     "reproduce": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/reverse-calc.py",
     "output": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/reverse-calc.txt"
   },
-  "materials": {
+  "order_crosscheck": {
+    "file": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/order-crosscheck.txt",
+    "convention_measured": "f32 normalization + vertical row flip + row-major store (bitwise exact candidate match)",
+    "native_extraction_audit": "native/g01_fields.inc:78 and native/model_probe_collision_inputs.cpp:97 copy m->hfield_data raw (float32, width 1); src/model/volume_input.rs returns the raw f32 slice; triangulate_hfield reads row-major, same as upstream reshape",
+    "runtime_bitwise_check": "symmetric 3x3 fixture: pinned python mjm.hfield_data == native probe JSON model.arrays.hfield_data bitwise (values/normalization only; order not discriminated because the grid is symmetric)",
+    "non_symmetric_runtime_check": "not performed in this authoring slice (would need building/running the native probe offline on CPU); added S3b stop condition: any mirror/transpose-shaped hfield mismatch stops and reports to Arch without changing tolerance/reference/fixture"
+  },  "materials": {
     "dir": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/",
     "files": [
       "legacy-baseline.txt",
@@ -129,7 +143,8 @@
       "dryrun-hfield-only.json",
       "dryrun-hfield-primitive.json",
       "reverse-calc.py",
-      "reverse-calc.txt"
+      "reverse-calc.txt",
+      "order-crosscheck.txt"
     ]
   },
   "pending": [

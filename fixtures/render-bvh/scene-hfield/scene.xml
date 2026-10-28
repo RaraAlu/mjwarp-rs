@@ -25,14 +25,18 @@
     <material name="mat-terrain" texture="terrain-tex" texrepeat="2 2" texuniform="false"
               rgba="0.9 0.9 0.9 1" specular="0.2" shininess="0.4"/>
     <material name="mat-plain" rgba="0.5 0.5 0.55 1" specular="0.1" shininess="0.2"/>
-    <!-- 4x4 elevation (row-major). Base is a planar ramp 0.2*(r+c); one interior
-         sample (r=1,c=1) is raised to 0.7 so the four cells around it are
-         non-coplanar, while the other five cells stay coplanar and merge. -->
+    <!-- 4x4 elevation (row-major). Base is a planar ramp 0.20*r + 0.35*c (row and
+         column coefficients differ on purpose: the effective upstream grid must be
+         distinguishable from its transpose, so a host/device row-column swap cannot
+         hide behind a symmetric height field). One interior sample (r=2,c=1) is
+         raised to 1.05 (+0.30) so the four cells around it are non-coplanar while
+         the other five cells stay coplanar and merge. MuJoCo normalizes the grid to
+         [0,1] on load (max was 1.65). -->
     <hfield name="terrain" nrow="4" ncol="4" size="1.5 1.0 0.25 0.1"
-            elevation="0 0.2 0.4 0.6
-                       0.2 0.7 0.6 0.8
-                       0.4 0.6 0.8 1.0
-                       0.6 0.8 1.0 1.2"/>
+            elevation="0.00 0.35 0.70 1.05
+                       0.20 0.55 0.90 1.25
+                       0.40 1.05 1.10 1.45
+                       0.60 0.95 1.30 1.65"/>
   </asset>
 
   <worldbody>
