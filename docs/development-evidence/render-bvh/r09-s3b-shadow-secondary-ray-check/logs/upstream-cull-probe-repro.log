@@ -1,0 +1,27 @@
+R09-S3b 复核：上游 cull 开关自身差异独立复算（dev 诊断，非验证窗）
+
+复算方式：把 S3a 冻结脚本 target/r09-s3a-capture-exact/head-script.py 复制为
+target/r09-s3b-check/capture-cull-off.py，仅改两处：(1) ROOT 改为绝对仓库根；
+(2) PARAMS_28[enable_backface_culling] True->False；其余（pinned 环境校验/legacy 只读校验/
+两次捕获一致性）不变。用 target/mjwarp-parallel/venv 的 pinned python 单次渲染：
+  python -B capture-cull-off.py --use-shadows true --out-dir target/r09-s3b-check/cull-off --repeat 1
+环境：上游 checkout 71da24d956378a87a703b6e1442b13aec0c4ac29（clean），warp 1.15.0，
+GPU RTX 4070 Ti SUPER arch 89；MJWARP_CAPTURE_AT=2026-10-28T19:09:01+08:00（与参考一致）。
+legacy_reference_untouched=true（capture.json 内），fixtures 零写入。
+
+脚本 sha256 = ae9b86ed6a1b51de764b219260a303cce64e63817b4bdfd4fe1e54ad6509d143
+cull-off rgb.npz sha256 = 00818af2acce4d4e21b3f308e3fb06414acd47d881300052592e403385c21868
+cull-off depth.npz sha256 = 7311e3e03aa9f047f45ff31b94f1878f76f1ff33d07835b35c53dd0043368bfa
+cull-off seg.npz sha256 = 1fec78f50a35b10e154725071e7893b03059bb600c9a5b13f58b3e46c61cadde
+
+对照 capture-exact/shadow-on（cull=true，同配方/同 capture_at），按 round(v*255) 量化：
+  rgb_cam0: any_diff=2 beyond_1_lsb=0 max_byte_diff=1 of 76800
+  rgb_cam1: any_diff=38 beyond_1_lsb=38 max_byte_diff=164 of 43200
+  depth.depth_cam0: diff_elements=19074
+  depth.depth_cam1: diff_elements=4098
+  seg.seg_cam0: diff_elements=0
+  seg.seg_cam1: diff_elements=29
+
+结论（仅诊断）：上游 cull 开关自身在 cam1 改变 38 个「超 1 LSB」像素（与实现证据
+logs/upstream-cull-probe.log 的 cam1=38 一致）；cam0 原始差异 2 像素但 max_byte_diff=1、
+beyond_1_lsb=0（故 probe log 的 cam0=0 应为「超 1 LSB」口径）。

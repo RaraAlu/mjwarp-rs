@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r09-s3b-shadow-secondary-ray-check",
+  "title": {
+    "zh": "R09-S3b-fix 独立复核（secondary ray 根因可复现 / cam0 零回归 / shadow-off 位回归 / 判据零改）",
+    "en": "Independent check of the R09-S3b-fix secondary-ray diagnosis and repair"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-28-render-bvh-r09-s3b-shadow-secondary-ray`：① 根因证据可复现——从证据里的像素/射线反例独立复算（哪个像素、哪条射线、命中差异在哪一步：起点/eps/max_t/背面剔除/实例变换/normal/遍历剪枝），不抄 Backend 的结论；② 修复后 dev 自查的 cam1 阴影像素数=4 745（或逐像素解释差异来源），cam0 逐位不变；③ shadow-off 对 `s7b/*_fast_math_false.json` 的逐位回归不受影响；④ 判据/容差/参考/夹具零改动（`capture-exact` 与 `capture` 参考 sha 不变）；⑤ 红线文件零改动与行数 ≤500；⑥ 措辞不写「窗口通过/已覆盖/精度达标/上游等价」。本片不宣称窗口验收（验收在 attempt2 窗）。",
+    "en": "QA independent check of the secondary-ray root cause and repair: reproducible counterexample, cam0 no-regression, shadow-off bitwise regression intact, criteria untouched."
+  },
+  "modules": {},
+  "acceptance": [
+    "根因证据可复现：QA 独立按证据里的反例（具体像素/射线参数）复算命中差异，确认机制描述与证据一致；不接受「调参凑数」式解释。",
+    "cam1 阴影像素数 = 4 745（与参考一致）；若仍有差异须逐像素解释来源并报阻断。",
+    "cam0 位级零回归（rgb/depth/seg 对 `capture-exact/shadow-on` 仍全 0 差异）；shadow-off 对 `capture-exact/shadow-off` 与 `s7b/*_fast_math_false.json` 仍逐位一致。",
+    "判据/容差/参考/夹具零改动；`capture-exact/` 8 文件与 `capture/` 8 文件 sha 不变；红线文件零改动、新文件 ≤500 行。",
+    "证据 `docs/development-evidence/render-bvh/r09-s3b-shadow-secondary-ray-check/`（README + receipt 含 `/task_id` + manifest）；先报 verdict/blockers/observations；措辞不写「窗口通过/已覆盖/精度达标/上游等价」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r09-s3b-shadow-secondary-ray"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r09-s3b-shadow-secondary-ray-check/"
+    ],
+    "resources": [],
+    "priority": 56
+  },
+  "note": "Arch 2026-10-28 预登记（Chief 要求：产品修复卡完成后必须过独立 QA 复核才可进 attempt2 窗口）。start 时必须同时把任务 id + 复核点发进 QA 会话。",
+  "revision": {
+    "before": "9373fa4ed75dad3808ebad49c713a7287f4063e2",
+    "after": null
+  },
+  "created_at": "2026-10-28T12:15:00.000Z",
+  "updated_at": "2026-10-28T12:22:57.715Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r09-s3b-shadow-secondary-ray-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r09-s3b-shadow-secondary-ray-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

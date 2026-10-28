@@ -1,0 +1,192 @@
+{
+  "task_id": "2026-10-28-render-bvh-r09-s3b-shadow-secondary-ray-check",
+  "kind": "render-bvh-r09-s3b-shadow-secondary-ray-independent-check",
+  "verdict": "pass",
+  "blockers": 0,
+  "observations": 6,
+  "observed_head": "d501118b",
+  "review_object": {
+    "implementation_commit": "e17da2b7",
+    "implementation_commit_stat": "3 .cu（+11/-5）+ 证据/任务卡；git diff e17da2b7^..HEAD 对 src/render/kernel 仅这 3 文件",
+    "followup_test_commit": "d501118b（render_e2e negative control 旧 use_shadows 拒绝断言修正，attempt1 红项 b）",
+    "implementation_evidence": "docs/development-evidence/render-bvh/r09-s3b-shadow-secondary-ray/",
+    "attempt1_raw": "target/s3b-validation-window/attempt1/（未入库，只读引用）",
+    "upstream": "MJWarp 3.15 render.py 71da24d956378a87a703b6e1442b13aec0c4ac29（L585-827/L740-750/L802-806/L928-958/L998-1000）"
+  },
+  "method": {
+    "independent": true,
+    "own_scripts": ["docs/development-evidence/render-bvh/r09-s3b-shadow-secondary-ray-check/recompute.py"],
+    "own_logs": [
+      "logs/fmt.log",
+      "logs/clippy.log",
+      "logs/clippy-cuda.log",
+      "logs/unit.log",
+      "logs/kernel-compile-gate.log",
+      "logs/dev-acceptance.log",
+      "logs/upstream-cull-probe-repro.log",
+      "logs/target-exe-state.txt"
+    ],
+    "notes": [
+      "未开 GPU 验证窗、未跑 runner/采样器/守卫；窗口判定与数值验收在 attempt2",
+      "dev 单渲染仅用已提交验收测试的 3 条 GPU 用例 + 1 次上游 cull-off 单渲染，均标注为诊断",
+      "所有数字由本任务脚本/日志重算，未引用 Backend/Arch 报告值",
+      "attempt1 原始产物与 dev 诊断 dump 在 target/（未入库），本复核只读引用并标注 provenance",
+      "未改动仓库代码/判据/容差/参考/夹具"
+    ]
+  },
+  "gates": {
+    "fmt": { "cmd": "cargo fmt --check", "exit": 0, "wall_ms": 1574, "output_bytes": 0 },
+    "clippy": { "cmd": "cargo clippy --all-targets --locked -- -D warnings", "exit": 0, "wall_ms": 442 },
+    "clippy_cuda": { "cmd": "cargo clippy --all-targets --locked --features cuda -- -D warnings", "exit": 0, "wall_ms": 386 },
+    "unit": { "cmd": "cargo test --locked", "exit": 0, "wall_ms": 11860, "passed": 1050, "failed": 0, "ignored": 387, "result_lines": 130 },
+    "kernel_compile_gate": {
+      "cmd": "cargo test --locked --test render_kernel_rgb -- --ignored megakernel_source_compiles_under_render_gate --nocapture",
+      "exit": 0,
+      "wall_ms": 5323,
+      "passed": 1,
+      "source_sha256": "2d2c27df985882c2b571514579dff19f9103bfc903ec786db42a592ce1bd8c2a",
+      "ptx_sha256": "e955bb4b0280228639f3e544b459873c83d1dae672662a43a96cccc8dabc4ffa",
+      "ptx_bytes": 258660,
+      "note": "compile-only NVRTC; no kernel launch; source concat recomputed independently = same sha (80988 B)"
+    },
+    "architecture": { "cmd": "normify validate --fingerprints", "exit": 0, "errors": 0, "warnings": 5 }
+  },
+  "dev_diagnostic": {
+    "mode": "dev single-render (NOT the attempt2 validation window)",
+    "cmd": "cargo test --locked --features cuda-probe --test render_shadow_reference -- --ignored --test-threads=1 --nocapture",
+    "result": "3 passed / 0 failed",
+    "shadow_on": {
+      "cam0": "rgb 0/0/0, depth 0/0/0, seg 0",
+      "cam1": "rgb 0/0/0, depth 0/0/0, seg 0",
+      "two_run_sha_equal": true,
+      "run_sha256": {
+        "rgb": "f044f3fa1ead8cad0bf84ee49805422ba655ba9840ea55f835d00d92bcdfce9f",
+        "depth": "de732643aa3e9afb2a477b259dd1128139929c29ba7d8935d23096d767e42445",
+        "seg": "065caf08c1759c34be2b9d9e2b2f8d62e874f219d8d6bf93c8d9e2408b293821"
+      }
+    },
+    "shadow_off": {
+      "capture_exact": "rgb 0/0/0, depth/seg 0 (both cameras)",
+      "pre_unlock_bitwise": "depth/seg mismatch=0; rgb max_byte_diff=0 (both cameras)",
+      "run_sha256_rgb": "af9df3317858f58460bca1ba7d99aaa49bb4fb2d26c600c4c5c5a94b695f5f8a"
+    },
+    "visibility": "product rgb_diff=4745 == reference rgb_diff=4745; depth/seg diff 0 (attempt1 was 3537 vs 4745)",
+    "capture_at": "2026-10-28T19:09:01+08:00"
+  },
+  "upstream_cull_probe_repro": {
+    "method": "copy of S3a frozen script under target/ with only (a) ROOT absolute (b) enable_backface_culling=false; pinned venv/upstream 71da24d clean; --use-shadows true --repeat 1",
+    "legacy_reference_untouched": true,
+    "script_sha256": "ae9b86ed6a1b51de764b219260a303cce64e63817b4bdfd4fe1e54ad6509d143",
+    "cull_off_npz_sha256": {
+      "rgb": "00818af2acce4d4e21b3f308e3fb06414acd47d881300052592e403385c21868",
+      "depth": "7311e3e03aa9f047f45ff31b94f1878f76f1ff33d07835b35c53dd0043368bfa",
+      "seg": "1fec78f50a35b10e154725071e7893b03059bb600c9a5b13f58b3e46c61cadde"
+    },
+    "vs_capture_exact_shadow_on": {
+      "cam0": { "any_diff": 2, "beyond_1_lsb": 0, "max_byte_diff": 1 },
+      "cam1": { "any_diff": 38, "beyond_1_lsb": 38, "max_byte_diff": 164 }
+    },
+    "conclusion": "上游 cull 开关自身在 cam1 改变 38 个超 1 LSB 像素（与实现证据 probe log 的 38 一致；cam0 原始差 2 像素但 beyond_1_lsb=0，故 probe 的 cam0=0 为超 1 LSB 口径）"
+  },
+  "root_cause_verification": {
+    "upstream_anchors": {
+      "shadow_uses_anyhit_variant": true,
+      "mesh_anyhit_returns_bool_no_normal": true,
+      "unified_cull_has_zero_normal_note": true,
+      "unified_cull_code": true,
+      "anyhit_helper_uses_mesh_query_ray_anyhit": true,
+      "anyhit_helper_has_no_cull_param": true
+    },
+    "product_static": {
+      "cast_ray_has_shadow_ray_param": true,
+      "mesh_inner_cull_disabled_for_shadow": true,
+      "outer_cull_only_non_mesh_for_shadow": true,
+      "primary_passes_false": true,
+      "shadow_passes_true": true,
+      "no_other_cast_ray_call_sites": true
+    },
+    "pre_fix_code": {
+      "pre_fix_mesh_cull_applied": true,
+      "pre_fix_outer_cull_unconditional": true,
+      "pre_fix_lines": 387
+    },
+    "attempt1": {
+      "cam1_mismatched": 1451,
+      "cam1_beyond_1_lsb": 1436,
+      "cam1_max_byte_diff": 77,
+      "product_shadow_pixels": 3537,
+      "reference_shadow_pixels": 4745,
+      "missing_shadow_pixels": 1208,
+      "provenance": "target/s3b-validation-window/attempt1/logs/render_shadow_reference.log (uncommitted)"
+    },
+    "attempt1_pixel_dump": {
+      "dump_lines": 1436,
+      "reference_shadow_pixels": 4745,
+      "outside_reference_shadow_set": 0,
+      "not_all_channels_got_ge_exp": 0,
+      "pixels_exactly_equal_shadow_off": 1195,
+      "recomputed_mismatched": 1436,
+      "recomputed_beyond_1_lsb": 1436,
+      "max_byte_diff": 77,
+      "provenance": "target/dev-diag/shadow-cam1-mismatch.txt (uncommitted)"
+    }
+  },
+  "criteria_unchanged": {
+    "reference_npz_sha256_match_shadow_rs_constants": true,
+    "on_off_depth_seg_bitidentical": true,
+    "diff_cbee1127_to_head_fixtures_support_reference_redline": "",
+    "line_counts": {
+      "src/render/kernel/cuda/render_common.cu": 393,
+      "src/render/kernel/cuda/render_megakernel.cu": 340,
+      "src/render/kernel/cuda/render_shadow.cu": 30,
+      "src/render/kernel/cuda/render.cu": 499,
+      "src/render/kernel/launch.rs": 500,
+      "src/render/kernel/cast.rs": 494,
+      "src/model/render.rs": 500,
+      "src/render/context/camera_output.rs": 499,
+      "tests/render_shadow_reference.rs": 307,
+      "tests/support/render_bvh/shadow.rs": 416,
+      "tests/support/render_bvh/shadow_scene.rs": 238
+    },
+    "counts": { "collision_DEVICE_SOURCES": 28, "collision_entrances": 6, "CollisionArgs_bytes": 504 },
+    "new_files": 0
+  },
+  "arch_ruling": {
+    "at": "2026-10-28 20:4x",
+    "verdict_kept": "pass / blockers 0 / observations 6",
+    "O1": { "ruling": "accept + 由 S3b 收口证据补记（QA 不补库）", "action": "在 r09-s3b-shadow-validation 收口证据补「诊断数据 provenance」段（target/dev-diag/、attempt2-build/concurrent-overwrite-note.txt、target/ 瞬态说明）" },
+    "O2": { "ruling": "accept + 收口证据写明", "action": "写明 upstream-cull-probe 为「超 1 LSB」口径（QA 复算：cam0 原始差 2 像素但 beyond_1_lsb=0、max=1 正好说明该口径）" },
+    "O3": { "ruling": "accept + 已登记 backlog", "action": "backlog 2026-10-28-render-shadow-sdf-gtype-cull-gap（不 start；解除 host 对 geom_type 1|8 拒绝前必须先对齐 any-hit 语义 + 加用例）" },
+    "O4": { "ruling": "record 接受", "action": "已写进冻结协议与 attempt2 README「材料冻结过程」（2/9 被重写、来源=QA gates、结论「冻结必须在最后一次构建之后」）" },
+    "O5": { "ruling": "fix 措辞（由 S3b 收口证据写）", "action": "统一为「38 = 诊断计数一致（超 1 LSB 口径），非集合相等；『非产品缺陷』依据是修复后判据全 0（QA 复跑）」；本 verdict 措辞已符合" },
+    "O6": { "ruling": "record 接受", "action": "instrument-note.txt 已有；QA 用已提交验收测试替代 dev harness 复跑的做法记入 README §2" }
+  },
+  "gate_note": "normify gate exit 1（任务没有引用任何门禁）属预期：本复核卡 checks 只有 receipt /task_id 与 forbid_claim，未引用 gates.toml 门禁；四门禁与内核编译门由本复核独立复跑并记录于 gates 字段。",
+  "observations_detail": [
+    { "id": "O1", "severity": "suggestion", "recommendation": "fix（补 provenance 或入库诊断摘要）", "summary": "pixel dump / per-light coverage / product cull experiment / product cull=false 38+29 all live under target/ (uncommitted); only summaries in evidence" },
+    { "id": "O2", "severity": "suggestion", "recommendation": "fix（写明计数口径）", "summary": "upstream-cull-probe.log has 2 lines only; my repro gives cam1 beyond-1=38 (match) and cam0 any=2/beyond=0/max=1, so probe's diff_pixels means beyond-1-LSB" },
+    { "id": "O3", "severity": "suggestion", "recommendation": "accept/record", "summary": "gtype==8 (SDF) still culled on shadow rays while upstream any-hit shares the mesh branch; unreachable today (host rejects 1|8) — note for future SDF unlock" },
+    { "id": "O4", "severity": "record", "recommendation": "accept", "summary": "my dev gates/rerun rebuilt 2 exes (render_kernel_rgb 20:26:19, render_shadow_reference 20:26:42), invalidating earlier attempt2 freeze; builds stopped, no cargo in flight; current 9-exe state in logs/target-exe-state.txt" },
+    { "id": "O5", "severity": "suggestion", "recommendation": "fix（措辞：诊断计数一致而非集合相等证明）", "summary": "38=38 supports cull-flag attribution by count; pixel-set equality and product cull=false 38 residual not independently reproduced (would need pre-fix build); direct evidence for 'not a product defect' is post-fix 0" },
+    { "id": "O6", "severity": "record", "recommendation": "accept", "summary": "attempt1 shadows_acceptance_* failures were a runner single-line regex false report (instrument-note); dev dev_shadow_diag.rs harness not committed, so dev-verify.log cannot be replayed — I reran the committed acceptance test instead" }
+  ],
+  "boundaries": [
+    "no attempt2 validation window; no window verdict, no runner/sampler/guards run",
+    "dev 3-case rerun is diagnostic (same committed test bodies attempt2 will run), not acceptance",
+    "primary-ray regression entities not independently rerun (would rewrite target/debug/deps again); read-only checked logs (6/3/6/5 passed) plus PTX source sha matched my current-tree gate",
+    "flex/SDF occlusion paths out of scope (flex_bvh_ngeom=0, host rejects geom_type 1|8)",
+    "single-scene reference only (scene-shadow + capture-exact); tolerance-level path difference from reusing closest-hit cast_ray remains for other scenes"
+  ],
+  "claims": {
+    "window_verdict": false,
+    "numeric_acceptance": false,
+    "upstream_equivalence": false,
+    "dev_diagnostic_only": true,
+    "fix_reaches_zero_on_dev_rerun": true
+  },
+  "recompute": {
+    "script": "docs/development-evidence/render-bvh/r09-s3b-shadow-secondary-ray-check/recompute.py",
+    "output": "docs/development-evidence/render-bvh/r09-s3b-shadow-secondary-ray-check/recompute.json",
+    "problems": []
+  }
+}
