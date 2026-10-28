@@ -77,3 +77,31 @@ R05-S1 已确认：渲染侧 `RENDER_FIELDS`（116 项）没有 hfield 通道，
 - **设备侧 hfield BVH 与内核相交未实现**（S2）；`hfield_bvh_id` 槽位语义未变（仍为既有占位）；
 - **上游 2D 数值/等价未验证**：本片只验证输入一致性，零渲染数值结论；
 - `CollisionInputs` 通道本次未用（`VolumeModelInput` 足以满足本片需求；若 S2 需要与 collision 侧共享同一快照，再评估）。
+
+## 9. 原验收 vs 新验收对照、变更理由与 Chief 追认（2026-10-28 fix）
+
+本片卡面原验收为**方案 B**；实现前只读核查发现既有 volume 通道已验收存在，经 Arch 裁决并获 **Chief 2026-10-28 追认**改为**方案 A**。本节为该设计变更的对照留痕（只补证据，零代码/判据改动）。
+
+### 9.1 逐条对照
+
+| 维度 | 原验收（方案 B） | 新验收（方案 A，已实现） |
+| --- | --- | --- |
+| 数据来源 | 渲染侧自建 hfield 字段通道：`RENDER_FIELDS` 116→121（追加 id 116-120） | 复用已验收 `VolumeModelInput`（`hfield_data`/`hfield_size_f32`/`ints(hfield_nrow,ncol,adr)`） |
+| `src/model/render.rs`（500 行红线） | **必须拆分**（500→~382 + 新 `render/fields.rs` ~126） | **零改动** |
+| `RENDER_FIELDS` | 116→121（`CountUnit` +2、`RenderModelCounts` +2、`validate` +2） | **零改动** |
+| `src/io/render.rs` | 计数/静态断言 +8–12 行 | **零改动** |
+| native `model_probe_render.cpp` | render_stage 加 5 case + `mjwarp_render_info` +2 字段（**native ABI 变更，需重冻**） | **零改动** |
+| 红线（render.cu 499/launch.rs 500/cast.rs 494/model/render.rs 500/camera_output.rs 499） | 触碰 `model/render.rs`（拆分） | **零改动** |
+| 交付面 | ~10 文件、+40–60 行、含 ABI 重冻 | `hfield_inputs.rs` 70 行 + `params.rs` +4 + tests 218 行；模块源 35→36 |
+| 风险 | 高（红线 + native ABI + 字段契约全链重冻） | 低（复用 G1/G10 已验收链路；单一 f64→f32 转换点） |
+
+### 9.2 变更理由
+
+1. 实现前只读核查发现 hfield 数据在模型侧**已有两条已验收通道**（`VolumeModelInput` G1/G10、`CollisionInputs`），且 `hfield_size_f32()` 已是唯一 f64→f32 转换点；
+2. 方案 B 需拆 500 行红线文件、扩 116 项字段契约、改 native ABI 并重冻，代价高且与「不改 native/不破红线」的既有约束冲突；
+3. 方案 A 复用已验收链路，零 native/字段表/红线/ABI 改动，S2 可直接消费。
+
+### 9.3 追认与流程要求
+
+- **Chief 追认（2026-10-28）**：channel 的 B→A 变更 Chief 已追认，本片按方案 A 收口；追认与 fix 附言留痕于 `.normify/changes/2026-10-28-render-bvh-r05-hfield-channel.json` 的 `addenda`（2026-10-28T13:50:45.037Z）。
+- **流程要求（本轮起）**：**以后改卡面 intent/acceptance 或换实现方案必须先报 Chief，核过再开写；不许实现后再改卡面。** 本片 B→A 属事后追认案例，作为流程反例留痕。

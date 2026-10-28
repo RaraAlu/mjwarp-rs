@@ -10,6 +10,18 @@
     "reason": "RENDER_FIELDS has 116 specs without any hfield field and src/model/render.rs is a 500-line redline file, while VolumeModelInput (G1/G10 chain) already exposes hfield_data()/hfield_size()/hfield_size_f32()/ints(hfield_nrow,ncol,adr) and validates lengths/ranges in new()",
     "rejected_b_cost": "split src/model/render.rs (500 -> ~382) + new src/model/render/fields.rs (~126); CountUnit +2; RenderModelCounts +2; RENDER_FIELDS 116->121 (append ids 116-120); io/render.rs count/static assertions +8-12; native model_probe_render.cpp render_stage 5 cases + mjwarp_render_info +2 fields (native ABI change, re-freeze); RenderModelCounts::validate +2; sync all tests/evidence hard-coding 116; ~10 files, +40-60 lines, touches redline and native ABI"
   },
+  "design_change": {
+    "from": "B (split src/model/render.rs 500 -> ~382 + new src/model/render/fields.rs; RENDER_FIELDS 116 -> 121; io/render.rs reads; native model_probe_render.cpp + mjwarp_render_info ABI re-freeze)",
+    "to": "A (thin adapter over the already-verified VolumeModelInput channel; zero native / zero RENDER_FIELDS / zero redline / zero ABI)",
+    "reason": "read-only pre-check found the existing hfield channel (VolumeModelInput from the G1/G10 chain, hfield_size_f32 as the single f64->f32 conversion point), while plan B required splitting a 500-line redline file, extending the 116-field contract and re-freezing the native render ABI",
+    "reported_before_implementation": false,
+    "process_requirement": "from this round on, card intent/acceptance changes or implementation-plan changes must be reported to Chief and approved before writing code; no post-hoc card edits"
+  },
+  "chief_ack": {
+    "date": "2026-10-28",
+    "status": "acknowledged",
+    "reference": ".normify/changes/2026-10-28-render-bvh-r05-hfield-channel.json addenda 2026-10-28T13:50:45.037Z"
+  },
   "files": [
     {"path": "src/render/context/hfield_inputs.rs", "lines": 70, "new": true, "content": "VolumeHfieldInputs adapter: from_volume / as_inputs / resolve; no data copy, no nworld read, NativeProbeError passthrough"},
     {"path": "src/render/context/params.rs", "lines": 197, "delta": "+4", "content": "#[path = \"hfield_inputs.rs\"] pub mod hfield_inputs; mount + doc note"},
