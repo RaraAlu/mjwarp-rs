@@ -83,3 +83,40 @@
   `analysis-summary.json`、`step1-det-summary.json`、`campose-link.json`、`upstream-camworld.json`）。
 - NVRTC 12.9.1 A/B：`target/toolchains/cuda-12.9.1-nvrtc/bin` 前置 PATH 跑 `render_hfield_reference --ignored`，
   结果与 12.8.1 相同（日志 `nvrtc129-run.log`）。
+
+## 7. 40 像素「dir 位级相等却 depth 不等」闭环（内核插桩，临时代码已还原）
+
+首次复核用 host f32 模拟 world dir 时，有 40 个命中像素被判「dir 位等」（其中 34 个 depth 不等）。用**内核插桩**
+取实际值后（2 个临时 pass：cam1 的 `ray_dir_world`/`ray_origin_world`/`hit.face`/`hit.dist` 位型；跑完 `git checkout --`
+还原，`src/` 零 diff）结论是：
+
+- 我们内核实际 world dir vs 上游 warp kernel 实际值：**43022/43200** 像素不同（命中像素 **6146/6150**）；
+  `ray_origin_world`（= `cam_xpos`，offset=0）**43200/43200 位等**。
+- 首次复核用的 host 模拟本身与内核实际值在 **32111/43200** 像素上不一致（对上游 kernel 32055/43200）→
+  **host 模拟不能判定 dir 相等，属对照口径 artifact**。
+- 那 34 个像素：**实际 dir 34/34 都不同**、origin 34/34 位等；`our_t=depth/(-dirz)` vs `ref_t` 位差 1–3 ULP。
+- 一句话：**「dir 位级相等」是 host 模拟 artifact；用内核实际值后，cam1 命中像素 99.9% 的 world dir 都因
+  相机位姿 1–2 ULP 差而不同，所有 depth 不匹配像素（含这 34 个）都由同一位姿根因解释，不存在第二个现象。**
+- 机器数据：`materials/kernel-vs-upstream-dir.json`（含 34 行逐像素表）、`materials/forty-pixels.json`、
+  `materials/forty-tie-analysis.json`（tie-break 假设排除：这些像素 CPU 反投射只有一个候选三角形，无共享边并列）。
+
+## 8. 方案 A 影响面清单（立项用；本片未改代码）
+
+1. **文件/行数**：只改 `src/render/kernel/cast.rs`（新增 warp 收缩序对齐的 `quat_to_matrix` + `CameraPose::from_fields` 改调用）：
+   当前 411 行，预估 **+30~40 行（≤451）**；`src/math/mod.rs::quat_to_mat` **不动**（物理路径共用）。
+2. **变 sha 的目标**：所有链接 `mjwarp-rs` lib 的测试 exe 都会重编；其中窗口冻结的 **9 个 render 实体的 exe sha 必变**
+   （需重冻结 guards + Chief 重签）。无「非 render 产品目标」引用该 host 路径（`CameraPose::from_fields` 调用方只在
+   render 内核层与 tests/hfield target；`src/` 内无其它调用者）。
+3. **既有参考影响**：scene-a / scene-shadow 的深度/位等实体**直传参考 `camera_data` 位姿**
+   （`tests/support/render_bvh/s7b1.rs::camera_data_poses` 从 `reference.camera_data[*].xmat_bits` 解码；
+   `tests/render_kernel_depth_seg.rs` 断言 data 位姿位等）→ **渲染输入零变化、参考不受影响**。
+   `camera_data_poses` 位等断言不变；`check_camera_data`/e2e 的 quat 辅助口径断言是容差型
+   （`fixed_max <= 1e-6`，e2e `max_ulp <= 1`）→ 修复后差异只会更小，断言仍成立（`tests/render_e2e.rs:161-175`）。
+4. **必须重跑**：
+   - 零影响论证：R08/R09 的 GPU 深度/像素实体用参考 data 位姿 → 期望输出位级不变（参考 sha 不变）。
+   - 必须重跑清单：9 个窗口实体（1 新 + 8 回归）、`render_kernel_depth_seg`/`render_e2e`/`render_r08_cameras` 的 host 用例
+     （含 quat 辅助口径断言）、`cargo test --locked` 全量 + fmt/clippy/clippy-cuda/`--no-run`/内核门/`normify validate`。
+5. **红线**：`.cu`、`DEVICE_SOURCES=28`、81 槽、`CollisionArgs`、判据/容差/参考/fixture、`hfield_scene.rs` 全部零改动
+   （host Rust 单点改动；内核编译门 source/ptx sha 期望不变）。
+6. **语义定性**：这是**补齐上游 GPU FMA 收缩语义的 host 派生位姿舍入口径**，不是放宽判据、不是绕过产品路径
+   （参考 data 位姿直传路径保持不动；本片也不采用让测试直接喂上游 `cam_xmat` 的绕行方案）。

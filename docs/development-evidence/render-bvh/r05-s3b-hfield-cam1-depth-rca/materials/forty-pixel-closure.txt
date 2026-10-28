@@ -1,0 +1,19 @@
+40-pixel closure (kernel instrumentation; temp code reverted, never committed)
+method:
+  1) extract the 34 mismatching pixels whose HOST-EMULATED world dir looked bit-equal (forty-pixels.json)
+  2) temporarily instrument render_megakernel.cu (2 passes, then git checkout --):
+     pass1: rgb_out=dirx bits, depth_out=diry bits, seg_out=(dirz bits, hit.face) for cam1 only
+     pass2: rgb_out=originx bits, depth_out=originy bits, seg_out=(originz bits, hit.dist bits) for cam1 only
+     a temp Rust test dumped raw outputs; both passes then reverted (git status -- src tests == empty)
+  3) upstream side: pinned warp 1.15.0 tiny kernel `out[i] = cam_mat @ dir_local[i]` with the upstream
+     d.cam_xmat used by R05-S3a capture; upstream ray origin = d.cam_xpos
+numbers (cam1, 240x180=43200 pixels, 6150 hit):
+  kernel actual world dir differs from upstream on 43022/43200 pixels (hit: 6146/6150)
+  ray origin bits equal on 43200/43200 (hit 6150/6150)
+  the host-side emulation used in the first review has error vs our own kernel on 32111/43200 pixels
+    (vs upstream kernel: 32055/43200) -> it cannot decide dir equality, it is a comparison artifact
+  the 34 "dir-equal" pixels: actual dir differs on 34/34, origin equal on 34/34;
+    our_t (depth / -dirz) vs ref_t differ by 1-3 ULP for those pixels (see kernel-vs-upstream-dir.json)
+conclusion (one line): "dir 位级相等" was a host-emulation artifact; with kernel-actual values the world dir
+  differs on 99.6% of cam1 pixels (origin equal everywhere), so all mismatching pixels including these 34 are
+  explained by the camera world pose ULP difference, not by a separate phenomenon.

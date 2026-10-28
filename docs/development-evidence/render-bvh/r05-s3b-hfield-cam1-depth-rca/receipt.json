@@ -39,5 +39,25 @@
     "option_c": "test-side use of reference camera_data is impossible: S3a capture.json context has no camera pose bits; and it would bypass the product derivation path"
   },
   "discipline": {"read_only": true, "src_tests_unchanged": true, "temp_probes_reverted": true, "no_window": true, "no_guard_refreeze": true, "attempt1_dir_preserved": true, "numeric_conclusion": false},
-  "artifacts": {"readme": "README.md", "manifest": "manifest.txt", "materials": ["materials/evidence-summary.txt", "materials/analysis-summary.json", "materials/step1-det-summary.json", "materials/campose-link.json", "materials/upstream-camworld.json", "materials/bruteforce-summary.txt", "materials/nvrtc129-run.log"]}
+  "artifacts": {"readme": "README.md", "manifest": "manifest.txt", "materials": ["materials/evidence-summary.txt", "materials/analysis-summary.json", "materials/step1-det-summary.json", "materials/campose-link.json", "materials/upstream-camworld.json", "materials/bruteforce-summary.txt", "materials/nvrtc129-run.log"]},
+  "forty_pixel_closure": {
+    "method": "temporary kernel instrumentation (2 passes) for cam1 ray_dir_world/ray_origin_world/hit.face/hit.dist bits, reverted; upstream side computed by pinned warp 1.15.0 kernel out = cam_mat @ dir_local with the capture d.cam_xmat",
+    "pixels": 43200, "hit_pixels": 6150,
+    "kernel_actual_dir_diff_pixels_all": 43022, "kernel_actual_dir_diff_hit_pixels": 6146,
+    "origin_equal_pixels": 43200, "origin_equal_hit_pixels": 6150,
+    "host_emulation_error_vs_own_kernel": 32111, "host_emulation_error_vs_upstream_kernel": 32055,
+    "forty_pixels": 34, "forty_actual_dir_diff": 34, "forty_origin_equal": 34,
+    "conclusion": "the earlier 'dir bit-equal' subset was a host-side emulation artifact; with kernel-actual values the world dir differs on 99.6% of cam1 pixels (hit 6146/6150), origin equals everywhere, so all depth-mismatch pixels including these 34 are explained by the camera world pose ULP difference; no second phenomenon",
+    "temp_code_reverted": true
+  },
+  "impact_checklist_option_a": {
+    "files": ["src/render/kernel/cast.rs only (+30..40 lines, 411 -> <=451)"],
+    "src_math_untouched": true,
+    "exe_sha": "all test exes relink; the 9 frozen render exes sha change -> refreeze+resign required; no non-render product caller of CameraPose::from_fields",
+    "references": "scene-a/scene-shadow entities pass reference camera_data pose bits (s7b1.rs camera_data_poses); quat-path assertions are tolerance-only (depth_seg <=1e-6, e2e <=1 ulp) -> references unaffected, assertions still hold",
+    "must_rerun": ["9 window entities", "render_kernel_depth_seg/render_e2e/render_r08_cameras host cases", "cargo test --locked", "fmt/clippy/clippy-cuda/no-run/kernel gate/normify validate", "refreeze guards+stash then re-sign"],
+    "redlines": ".cu / DEVICE_SOURCES=28 / 81 slots / CollisionArgs / criteria-tolerance-reference-fixtures / hfield_scene.rs all unchanged",
+    "semantics": "aligning host camera-pose derivation with upstream GPU FMA contraction; not a criterion relaxation and not bypassing the product path"
+  }
 }
+
