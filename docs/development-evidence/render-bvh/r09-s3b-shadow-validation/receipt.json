@@ -1,0 +1,100 @@
+{
+  "task_id": "2026-10-28-render-bvh-r09-s3b-shadow-validation",
+  "kind": "render-bvh-r09-s3b-shadow-validation",
+  "stage": "authoring-tests-only-pending-window",
+  "head": "cd1fd2e44e535476389ffccb71f570aaa213544a",
+  "window_executed": false,
+  "window_pending_chief_signature": true,
+  "numeric_conclusions": false,
+  "files": [
+    {
+      "path": "tests/render_shadow_reference.rs",
+      "lines": 307,
+      "content": "4 tests (1 host + 3 GPU #[ignore]): shadow-on criteria, shadow-off bitwise pre-unlock regression, visibility control, reference parsing"
+    },
+    {
+      "path": "tests/support/render_bvh/shadow.rs",
+      "lines": 414,
+      "content": "minimal read-only npz reader (ZIP_STORED + npy v1.0, no npz dependency) for S3a capture references + frozen sha256 assertions + reference-level difference counters"
+    },
+    {
+      "path": "tests/support/render_bvh/shadow_scene.rs",
+      "lines": 238,
+      "content": "scene-shadow product scene assembly (fields_from_model + light_castshadow=[1,1,1]) + comparison/assertion/run hash helpers"
+    }
+  ],
+  "tests": {
+    "host_default_executed": [
+      "shadow_references_parse_and_cross_checks_hold"
+    ],
+    "gpu_ignored": [
+      "shadow_on_matches_captured_reference",
+      "shadow_off_bitwise_regression_to_pre_unlock_reference",
+      "shadow_visibility_binary_control"
+    ],
+    "ignore_reason": "需要 GPU + NVRTC",
+    "host_result": "1 passed; 0 failed; 3 ignored (logs/host-test.log)"
+  },
+  "criteria": {
+    "shadow_on": "product nworld=1 + scene-shadow + use_shadows=true vs capture/shadow-on: RGB per-channel <= 1 LSB, depth <= 4 ULP (bit-exact mismatched==0 preferred), seg exact; two runs sha256 identical",
+    "shadow_off_1": "vs capture/shadow-off: same criteria as shadow-on",
+    "shadow_off_2": "bitwise regression to pre-unlock same-recipe product reference: depth/seg vs s7b1::RECIPE_REFERENCE mismatched==0; RGB vs s7b2::parse_rgb_fast_math_false_reference() max_byte_diff==0 (S8 pre-unlock measured 0)",
+    "shadow_off_3": "two runs sha256 identical",
+    "visibility_control": "semantic cross-check only: product shadow-on vs shadow-off difference pixel counts alongside reference-level counts; asserts product depth/seg do not change with use_shadows and RGB must change; no equivalence/precision conclusion",
+    "tolerances_changed": false,
+    "references_changed": false,
+    "failing_cases_deleted_or_downgraded": 0
+  },
+  "reference_recipe_note": {
+    "capture_recipe": "fast-math (capture.json parameters.use_fast_math=true)",
+    "product_recipe": "exact f32 kernel; 'same recipe' in existing S7b/S8 criteria means use_fast_math=false capture",
+    "consequence": "capture/ reference comparisons are executed with the <=1 LSB / <=4 ULP criteria and their cross-recipe nature is recorded in window results; the same-recipe hard criterion is carried by shadow-off (2) against the existing fast_math_false references",
+    "shadow_off_equals_s0b_reference": "capture/shadow-off/ depth+seg sha equal scene-a/reference/ depth+seg; rgb sha 9379f5d3... equals scene-a/reference/rgb.npz"
+  },
+  "authoring_validation": {
+    "build": "cargo test --locked --features cuda-probe --no-run --test render_shadow_reference -> ok (logs/build.log)",
+    "host_test": "cargo test --locked --features cuda-probe --test render_shadow_reference -> 1 passed; 0 failed; 3 ignored (logs/host-test.log)",
+    "clippy": "cargo clippy --all-targets -- -D warnings -> ok",
+    "fmt": "cargo fmt --check -> ok",
+    "gates": "normify gate 2026-10-28-render-bvh-r09-s3b-shadow-validation executed on the in_progress commit tree; results in .normify/runs/2026-10-28-render-bvh-r09-s3b-shadow-validation/ (fmt/clippy/clippy-cuda/unit all passed); re-runs required on the final tree at closure"
+  },
+  "frozen_target_candidate": {
+    "test": "tests/render_shadow_reference.rs",
+    "exe": "target/debug/deps/render_shadow_reference-8897ba50f1fe5d65.exe",
+    "bytes": 99082328,
+    "sha256": "79056193301391c9dca1696f6a21f54d2e741fdf6d56807e8252b18d9d501957",
+    "note": "authoring-stage build artifact; the window freeze must rebuild from the committed tree and re-verify sha/bytes before opening"
+  },
+  "regression_entities": [
+    "render_shadow_reference (new)",
+    "render_camera_rays",
+    "render_context_lifecycle",
+    "render_e2e",
+    "render_kernel_depth_seg",
+    "render_kernel_flags",
+    "render_kernel_rgb",
+    "render_r08_cameras",
+    "render_r10_multi_world"
+  ],
+  "window_plan": {
+    "commands": [
+      "cargo test --locked --features cuda-probe --test render_shadow_reference -- --ignored --test-threads=1 --nocapture",
+      "each of the 8 regression entities with -- --ignored --test-threads=1"
+    ],
+    "preconditions": "signed runner + precheck (util<40 x3, free>=10240, compute-apps filtered 0, no build processes); floor = min(10240, baseline_free - 3072); 0.25 s sampler for device-verification windows",
+    "pending": "Arch reports window material to Chief; window not opened in this stage"
+  },
+  "limitations": [
+    "authoring stage only: no GPU test was executed and no window verdict is made",
+    "no rendering numeric conclusion; cross-recipe nature of the capture reference is recorded honestly and not presented as an equivalence or precision claim",
+    "if shadow-off bitwise regression fails inside the window (depth/seg mismatched!=0 or RGB max_byte_diff!=0) the work stops and reports to Arch; criteria are not relaxed",
+    "if shadow-on versus the fast-math capture reference exceeds criteria inside the window, results are recorded as-is and handled by Arch/Chief decision (possible same-recipe supplement capture); criteria are not relaxed",
+    "references and fixtures remain read-only; no .gitattributes change"
+  ],
+  "claims": {
+    "tests_authored": true,
+    "window_executed": false,
+    "numeric_acceptance": false,
+    "upstream_equivalence": false
+  }
+}

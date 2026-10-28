@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r09-s3b-shadow-validation",
+  "title": {
+    "zh": "R09-S3b：阴影数值验证（新 target 对 shadow-on 参考 + shadow-off 逐位回归 + 可见性二值对照 + 8 回归，1 验证窗）",
+    "en": "R09-S3b: shadow numeric validation (new target vs shadow-on reference, shadow-off bitwise regression, binary visibility cross-check, 8 regressions, one validation window)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "在 R09-S3a 冻结参考（`fixtures/render-bvh/scene-shadow/capture/{shadow-on,shadow-off}/`）与 R09-S2b 解锁（host 不再拒绝 `use_shadows=true`）之上，用**产品路径**做阴影数值验收：① 新 target 对 **shadow-on** 参考逐通道判定 RGB ≤1 LSB（位级优先）/ depth ≤4 ULP（位级优先）/ seg exact，两次运行 SHA-256 相同；② **`use_shadows=false` 逐位回归**：产品 shadow-off 输出必须与 shadow-off 参考（=S0b scene-a 参考）在判据内，且与解锁前行为逐位一致，证明解锁没有改变非阴影路径；③ **阴影可见性二值对照**：统计 shadow-on vs shadow-off 的差异像素（产品）与参考同口径差异像素，只作语义交叉校验（不写上游等价/精度达标）；④ 8 个回归实体全部 exit 0。判据/容差/参考/夹具**零改动**；1 个验证窗，需 Arch 报材料、Chief 签字后开窗。",
+    "en": "Product-path shadow numeric validation against the frozen S3a references with shadow-off bitwise regression and a binary visibility cross-check in one signed window."
+  },
+  "modules": {},
+  "acceptance": [
+    "新增 GPU 用例（`#[ignore]`，窗口内跑）：产品 `nworld=1` + `scene-shadow` + `use_shadows=true` 的 rgb/depth/seg 对 `capture/shadow-on/` 参考判定 —— RGB ≤1 LSB 位级优先、depth ≤4 ULP 位级优先、seg exact；两次运行 SHA-256 相同。",
+    "**shadow-off 逐位回归**：产品 `use_shadows=false` 输出对 `capture/shadow-off/` 参考在判据内，并**逐位等于解锁前同输入输出**（用 `use_shadows=false` 不经过新阴影分支这一事实 + 位级断言证明，证据写清比较对象与冻结 SHA）。",
+    "**阴影可见性二值对照**：产品 shadow-on vs shadow-off 的差异像素计数与参考同口径计数并列记录（只作语义交叉校验；明确不写「上游等价/精度达标」）。",
+    "8 个回归实体窗口内全部 exit 0（新 target + `render_camera_rays` / `render_context_lifecycle` / `render_e2e` / `render_kernel_depth_seg` / `render_kernel_flags` / `render_kernel_rgb` / `render_r08_cameras` / `render_r10_multi_world`）。",
+    "判据/容差/参考/夹具零改动；红线文件零改动（`render.cu` 499 / `launch.rs` 500 / `cast.rs` 494 / `model/render.rs` 500 / `camera_output.rs` 499 / collision `DEVICE_SOURCES`=28 / `CollisionArgs` 504 B / `fixtures/precision`）；新文件 ≤500 行。",
+    "窗口纪律：冻结 exe sha+字节、runner sha+字节、3 点基线、`floor=min(10240, baseline_free−3072)`、0.25 s 连续采样（设备验证窗**必须**有）、compute-apps 过滤 0、构建进程 0、零 Rust 编译、attempt ≤2；证据 `docs/development-evidence/render-bvh/r09-s3b-shadow-validation/`（README + receipt 含 `/task_id` + manifest 按 committed blob 且不自引用），LF 无 BOM、禁词 0、**不写「窗口通过/已覆盖/精度达标/上游等价」**。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r09-s3a-shadow-capture",
+      "2026-10-28-render-bvh-r09-s2-host-guard-unlock"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/",
+      "tests/support/render_bvh/",
+      "docs/development-evidence/render-bvh/r09-s3b-shadow-validation/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 60
+  },
+  "note": "Arch 2026-10-28 登记：先做测试作者（CPU 编译 + 冻结新 exe，无窗口），再由 Arch 报窗口材料、Chief 签字后开窗。判据沿用既有口径不重议；阴影可见性只作二值语义交叉校验。",
+  "revision": {
+    "before": "b1da088413d65c8a9c0014b43d260cfe3b1a0671",
+    "after": null
+  },
+  "created_at": "2026-10-28T11:25:00.000Z",
+  "updated_at": "2026-10-28T11:25:24.591Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r09-s3b-shadow-validation/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r09-s3b-shadow-validation"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
