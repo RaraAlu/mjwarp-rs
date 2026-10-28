@@ -1,139 +1,237 @@
 {
   "task_id": "2026-10-28-render-bvh-r09-s3b-shadow-validation",
   "kind": "render-bvh-r09-s3b-shadow-validation",
-  "stage": "authoring-complete-reference-switched-window-materials-ready",
-  "head": "cd1fd2e44e535476389ffccb71f570aaa213544a",
-  "window_executed": false,
-  "window_pending_chief_signature": true,
+  "stage": "three-rounds-closed-attempt1-red-attempt2-instrument-red-attempt2-r2-success",
+  "head": "415006d8a8d0c9753aa540725a60a144c10eb5ec",
   "numeric_conclusions": false,
-  "files": [
-    {
-      "path": "tests/render_shadow_reference.rs",
-      "lines": 307,
-      "content": "4 tests (1 host + 3 GPU #[ignore]): shadow-on exact-recipe criteria, shadow-off bitwise pre-unlock regression, visibility control, reference parsing"
+  "rounds": {
+    "attempt1": {
+      "executed": true,
+      "valid_round": 1,
+      "outcome": "red",
+      "window": {
+        "start": "2026-10-28T20:03:15.1635984+08:00",
+        "end": "2026-10-28T20:04:06.54+08:00",
+        "body_wall_s": 48.6,
+        "baseline_points": ["2555,13507,2,32", "2555,13507,2,32", "2555,13507,2,32"],
+        "baseline_free_mib": 13507,
+        "floor_mib": 10240,
+        "sampler_0_25s": {"samples": 163, "used_peak_mib": 2826, "free_min_mib": 13236, "util_max_percent": 9, "util_streak_ge_80": 0, "delta_vs_guard_baseline_mib": 271, "floor_breached": false},
+        "sha_guards": "56/56",
+        "post_window_exe_recheck": "9/9",
+        "zero_rust_compile": true
+      },
+      "entity_exits": {
+        "render_shadow_reference": {"exit": 101, "wall_ms": 4517},
+        "render_camera_rays": {"exit": 0, "wall_ms": 1132},
+        "render_context_lifecycle": {"exit": 0, "wall_ms": 7618},
+        "render_e2e": {"exit": 101, "wall_ms": 7953},
+        "render_kernel_depth_seg": {"exit": 0, "wall_ms": 4349},
+        "render_kernel_flags": {"exit": 0, "wall_ms": 9162},
+        "render_kernel_rgb": {"exit": 0, "wall_ms": 3370},
+        "render_r08_cameras": {"exit": 0, "wall_ms": 7921},
+        "render_r10_multi_world": {"exit": 0, "wall_ms": 2546}
+      },
+      "shadow_reference_result": {
+        "shadow_on": {
+          "cam0_rgb": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0},
+          "cam1_rgb": {"mismatched": 1451, "max_byte_diff": 77, "beyond_1_lsb": 1436, "outcome": "red"},
+          "depth_seg": {"cam0": 0, "cam1": 0},
+          "two_runs_sha256": "not executed (aborted after the first failing assertion)"
+        },
+        "shadow_off": {
+          "against_capture_exact": 0,
+          "pre_unlock_bitwise_regression": {"depth": 0, "seg": 0, "rgb_max_byte_diff": 0},
+          "two_runs_sha256": {"rgb": "af9df3317858f58460bca1ba7d99aaa49bb4fb2d26c600c4c5c5a94b695f5f8a", "depth": "de732643aa3e9afb2a477b259dd1128139929c29ba7d8935d23096d767e42445", "seg": "065caf08c1759c34be2b9d9e2b2f8d62e874f219d8d6bf93c8d9e2408b293821"}
+        },
+        "visibility_control_cross_check": {"product": {"rgb_diff": 3537, "depth_diff": 0, "seg_diff": 0}, "reference": {"rgb_diff": 4745, "depth_diff": 0, "seg_diff": 0}}
+      },
+      "red_roots_and_handling": [
+        {"issue": "secondary-ray backface culling: shadow mesh occlusion was culled; upstream any-hit semantics does not cull mesh occluders", "fixed_by": "2026-10-28-render-bvh-r09-s3b-shadow-secondary-ray (e17da2b7 + 809032dc)", "evidence_dir": "docs/development-evidence/render-bvh/r09-s3b-shadow-secondary-ray/"},
+        {"issue": "render_e2e.rs negative control still treated use_shadows as a pre-launch rejection", "fixed_by": "2026-10-28-render-bvh-r09-s2b-e2e-negative-control card abandoned and merged into commit d501118b (task id anchor unchanged)", "card_file_tracking": "the abandoned card file cannot be committed under normify rules (change/transition: a new task cannot be abandoned directly; commit/scope: outside this task's scope) and stays as an untracked historical record, not deleted", "evidence_dir": "docs/development-evidence/render-bvh/r09-s3b-shadow-validation/attempt1-fixes/e2e-negative-control/", "whole_repo_grep": "old contract found in exactly 3 places (flags/rgb fixed in S2b; render_e2e here); no fourth place"},
+        {"issue": "old runner instrument bug: --nocapture println lines between 'test <NAME> ...' and 'ok' made the old single-line regex report passing cases as case_ok=False", "handling": "attempt1 numbers unchanged; note in target/s3b-validation-window/attempt1/instrument-note.txt"}
+      ],
+      "raw_products": "target/s3b-validation-window/attempt1/ (20 files, unchanged); key sha: facts 7ba670158150159d99fc7dfbc2e54201aa76d4af5dcb36076650efc7a93c6b4a, entity-results 96c781dd709e9b7378cd6b405cbc108abe0129a1966d73ce2cfd281ffc8e67c1, guard.log 49f157b7d44e35a4672c751debe3249e8f274048b108a638b21dba090c48c922"
     },
-    {
-      "path": "tests/support/render_bvh/shadow.rs",
-      "lines": 416,
-      "content": "minimal read-only npz reader (ZIP_STORED + npy v1.0, no npz dependency) for capture-exact references + frozen sha256 assertions + reference-level difference counters"
+    "attempt2": {
+      "executed": true,
+      "open_count": 1,
+      "outcome": "product-criteria-green-instrument-encoding-defect",
+      "window": {
+        "start": "2026-10-28T20:42:32.3170106+08:00",
+        "entity_start": "2026-10-28T20:42:33.2657152+08:00",
+        "entity_end": "2026-10-28T20:43:21.0590835+08:00",
+        "end": "2026-10-28T20:43:22.6627086+08:00",
+        "body_wall_s": 47.8,
+        "baseline_points": ["2579,13483,2,32", "2579,13483,2,32", "2579,13483,2,32"],
+        "baseline_free_mib": 13483,
+        "floor_mib": 10240,
+        "sampler_0_25s": {"samples": 161, "used_peak_mib": 2849, "free_min_mib": 13213, "util_max_percent": 13, "util_streak_ge_80": 0, "interval_median_s": 0.2991, "interval_min_s": 0.2866, "interval_max_s": 0.3226, "delta_vs_guard_baseline_mib": 270, "sustained_delta_mib": 270, "floor_breached": false},
+        "sha_guards": "56/56",
+        "post_window_exe_recheck": "9/9",
+        "zero_rust_compile": true,
+        "residual_processes": 0
+      },
+      "entity_exits": {
+        "render_shadow_reference": {"exit": 0, "wall_ms": 4046},
+        "render_camera_rays": {"exit": 0, "wall_ms": 1114},
+        "render_context_lifecycle": {"exit": 0, "wall_ms": 7524},
+        "render_e2e": {"exit": 0, "wall_ms": 8165},
+        "render_kernel_depth_seg": {"exit": 0, "wall_ms": 4064},
+        "render_kernel_flags": {"exit": 0, "wall_ms": 9000},
+        "render_kernel_rgb": {"exit": 0, "wall_ms": 3475},
+        "render_r08_cameras": {"exit": 0, "wall_ms": 7811},
+        "render_r10_multi_world": {"exit": 0, "wall_ms": 2563}
+      },
+      "shadow_reference_result": {
+        "shadow_on": {"cam0_rgb": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1_rgb": {"mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "depth_seg": {"cam0": 0, "cam1": 0}, "two_runs_sha256": {"rgb": "f044f3fa1ead8cad0bf84ee49805422ba655ba9840ea55f835d00d92bcdfce9f", "depth": "de732643aa3e9afb2a477b259dd1128139929c29ba7d8935d23096d767e42445", "seg": "065caf08c1759c34be2b9d9e2b2f8d62e874f219d8d6bf93c8d9e2408b293821"}},
+        "shadow_off": {"against_capture_exact": 0, "pre_unlock_bitwise_regression": {"depth": 0, "seg": 0, "rgb_max_byte_diff": 0}, "two_runs_sha256": {"rgb": "af9df3317858f58460bca1ba7d99aaa49bb4fb2d26c600c4c5c5a94b695f5f8a", "depth": "de732643aa3e9afb2a477b259dd1128139929c29ba7d8935d23096d767e42445", "seg": "065caf08c1759c34be2b9d9e2b2f8d62e874f219d8d6bf93c8d9e2408b293821"}},
+        "visibility_control_cross_check": {"product": {"rgb_diff": 4745, "depth_diff": 0, "seg_diff": 0}, "reference": {"rgb_diff": 4745, "depth_diff": 0, "seg_diff": 0}}
+      },
+      "instrument_red": {
+        "facts": {"shadows_acceptance_render_kernel_flags": "exit_ok= name_found=True status_ok=True marker_ok=True", "shadows_acceptance_render_kernel_rgb": "exit_ok= name_found=True status_ok=True marker_ok=True"},
+        "runner_result": "exit 10 (no WINDOW_RUN_DONE); product side had no red item",
+        "cause": "runner was read by PowerShell 5.1 as ANSI/GBK; a full-width period in a CJK comment swallowed the following LF so $exitOk = ($code -eq 0) was merged into the comment"
+      },
+      "raw_products": "target/s3b-validation-window/attempt2/ (19 files, unchanged); evidence copy windows/attempt2/; monitor windows/monitor-pre-window-attempt2.csv"
     },
-    {
-      "path": "tests/support/render_bvh/shadow_scene.rs",
-      "lines": 238,
-      "content": "scene-shadow product scene assembly (fields_from_model + light_castshadow=[1,1,1]) + comparison/assertion/run hash helpers"
+    "attempt2_r2": {
+      "executed": true,
+      "open_count": 2,
+      "outcome": "success",
+      "note": "instrument-fix replay; product/exe/guards/criteria unchanged; no new criteria round; total window opens = 2",
+      "signature_head": "415006d8a8d0c9753aa540725a60a144c10eb5ec",
+      "window": {
+        "start": "2026-10-28T20:54:02.9972965+08:00",
+        "entity_start": "2026-10-28T20:54:03.9468216+08:00",
+        "entity_end": "2026-10-28T20:54:52.0984067+08:00",
+        "end": "2026-10-28T20:54:53.6107481+08:00",
+        "body_wall_s": 48.1,
+        "baseline_points": ["2552,13510,2,32", "2552,13510,2,32", "2552,13510,2,32"],
+        "baseline_free_mib": 13510,
+        "floor_mib": 10240,
+        "sampler_0_25s": {"samples": 161, "used_peak_mib": 2822, "used_min_mib": 2548, "free_min_mib": 13240, "util_max_percent": 11, "util_streak_ge_80": 0, "interval_median_s": 0.299, "interval_min_s": 0.2864, "interval_max_s": 0.3191, "delta_vs_guard_baseline_mib": 270, "sustained_delta_mib": 270, "floor_breached": false},
+        "sha_guards": "56/56",
+        "post_window_exe_recheck": "9/9",
+        "zero_rust_compile": true,
+        "residual_processes": 0,
+        "precheck": "PRECHECK_OK open=2552/13510/2/32 x3",
+        "guard_log": ["PRECHECK_OK open=2552/13510/2/32;2552/13510/2/32;2552/13510/2/32", "GUARDS_OK=56/56", "WINDOW_RUN_DONE"],
+        "runner_exit": 0
+      },
+      "entity_exits": {
+        "render_shadow_reference": {"exit": 0, "wall_ms": 4498},
+        "render_camera_rays": {"exit": 0, "wall_ms": 1128},
+        "render_context_lifecycle": {"exit": 0, "wall_ms": 7500},
+        "render_e2e": {"exit": 0, "wall_ms": 8308},
+        "render_kernel_depth_seg": {"exit": 0, "wall_ms": 3999},
+        "render_kernel_flags": {"exit": 0, "wall_ms": 9044},
+        "render_kernel_rgb": {"exit": 0, "wall_ms": 3214},
+        "render_r08_cameras": {"exit": 0, "wall_ms": 7646},
+        "render_r10_multi_world": {"exit": 0, "wall_ms": 2770}
+      },
+      "shadow_reference_result": {
+        "shadow_on": {"cam0_rgb": {"pixels": 76800, "mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam1_rgb": {"pixels": 43200, "mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0}, "cam0_depth": {"compared": 76800, "mismatch": 0, "max_ulp": 0, "beyond_ulp": 0}, "cam1_depth": {"compared": 43200, "mismatch": 0, "max_ulp": 0, "beyond_ulp": 0}, "seg_mismatch": {"cam0": 0, "cam1": 0}, "two_runs_sha256": {"rgb": "f044f3fa1ead8cad0bf84ee49805422ba655ba9840ea55f835d00d92bcdfce9f", "depth": "de732643aa3e9afb2a477b259dd1128139929c29ba7d8935d23096d767e42445", "seg": "065caf08c1759c34be2b9d9e2b2f8d62e874f219d8d6bf93c8d9e2408b293821"}},
+        "shadow_off": {"against_capture_exact": {"cam0_rgb": "0/0/0", "cam1_rgb": "0/0/0"}, "pre_unlock_bitwise_regression": {"cam0": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}, "cam1": {"depth_mismatch": 0, "max_ulp": 0, "seg_mismatch": 0}, "rgb": "0/0/0"}, "two_runs_sha256": {"rgb": "af9df3317858f58460bca1ba7d99aaa49bb4fb2d26c600c4c5c5a94b695f5f8a", "depth": "de732643aa3e9afb2a477b259dd1128139929c29ba7d8935d23096d767e42445", "seg": "065caf08c1759c34be2b9d9e2b2f8d62e874f219d8d6bf93c8d9e2408b293821"}},
+        "visibility_control_cross_check": {"product": {"rgb_diff": 4745, "depth_diff": 0, "seg_diff": 0}, "reference": {"rgb_diff": 4745, "depth_diff": 0, "seg_diff": 0}}
+      },
+      "s2b_unlock_acceptance_facts": {
+        "render_kernel_flags": {"exit_ok": true, "name_found": true, "status_ok": true, "marker_ok": true},
+        "render_kernel_rgb": {"exit_ok": true, "name_found": true, "status_ok": true, "marker_ok": true}
+      },
+      "raw_products": "target/s3b-validation-window/attempt2-r2/ (19 files); evidence copy windows/attempt2-r2/; monitor windows/monitor-pre-window-attempt2-r2.csv (60 samples, longest clean 60, util 2-4, free_min 13510, 2026-10-28T20:48:57.637+08:00 to 20:53:57.696+08:00)"
     }
-  ],
-  "tests": {
-    "host_default_executed": ["shadow_references_parse_and_cross_checks_hold"],
-    "gpu_ignored": [
-      "shadow_on_matches_captured_reference",
-      "shadow_off_bitwise_regression_to_pre_unlock_reference",
-      "shadow_visibility_binary_control"
-    ],
-    "ignore_reason": "需要 GPU + NVRTC",
-    "host_result": "1 passed; 0 failed; 3 ignored (after reference switch; frozen sha assertions on capture-exact pass)"
   },
+  "files": [
+    {"path": "tests/render_shadow_reference.rs", "lines": 307, "content": "4 tests (1 host + 3 GPU #[ignore]): shadow-on exact-recipe criteria, shadow-off bitwise pre-unlock regression, visibility control, reference parsing"},
+    {"path": "tests/support/render_bvh/shadow.rs", "lines": 416, "content": "minimal read-only npz reader (ZIP_STORED + npy v1.0, no npz dependency) + frozen sha256 assertions + reference-level difference counters"},
+    {"path": "tests/support/render_bvh/shadow_scene.rs", "lines": 238, "content": "scene-shadow product scene assembly + comparison/assertion/run hash helpers"},
+    {"path": "tests/render_e2e.rs", "lines": 500, "content": "negative control use_shadows old rejection assertion changed to acceptance (b item; card abandoned, change merged into this task)"}
+  ],
   "reference": {
     "primary_dir": "fixtures/render-bvh/scene-shadow/capture-exact/{shadow-on,shadow-off}",
     "recipe": "use_fast_math=false (product same recipe)",
-    "recipe_fields": {
-      "parameters_use_fast_math": false,
-      "resolved_use_fast_math": false
-    },
     "capture_at": "2026-10-28T19:44:02+08:00",
-    "sha256": {
-      "shadow_on": {
-        "rgb.npz": "1ae5b54b808371e1df2bf7db2da1ba28c7bd78a802dac2d89d3e625155012c1b",
-        "depth.npz": "28c1ea4bdd4533a3d4811f390051a9e0dfa75ccab2549d7b32b8b426ccc9ba14",
-        "seg.npz": "2153fa728d634c032cf38847761803c4faa806aa554e108a2e0bd7b8ac8e6a97"
-      },
-      "shadow_off": {
-        "rgb.npz": "1090378b3c11bf87358adb838f4d7cce982acb40675cbadccf4ae3b06f2d7148",
-        "depth.npz": "28c1ea4bdd4533a3d4811f390051a9e0dfa75ccab2549d7b32b8b426ccc9ba14",
-        "seg.npz": "2153fa728d634c032cf38847761803c4faa806aa554e108a2e0bd7b8ac8e6a97"
-      }
-    },
-    "fast_math_group": {
-      "dir": "fixtures/render-bvh/scene-shadow/capture/{shadow-on,shadow-off}",
-      "used_in_assertions": false,
-      "note": "kept as history and cross-recipe diagnostics only; its difference to the exact recipe is recorded in docs/development-evidence/render-bvh/r09-s3a-capture-exact/"
-    },
-    "capture_exact_cross_checks": {
-      "note": "executed in the capture-exact window (CPU read-only) and recorded in that task's evidence",
-      "shadow_off_seg_equals_existing_reference": {"cam0": 0, "cam1": 0},
-      "shadow_off_depth_bit_equals_s7b_exact_reference": {"cam0": 0, "cam1": 0},
-      "shadow_off_rgb_packed_equals_s7b_exact_reference": {"cam0": 0, "cam1": 0},
-      "cross_recipe_vs_fast_math": {
-        "depth": {"cam0": {"mismatched_pixels": 19074, "max_ulp": 2, "beyond_4ulp_pixels": 0}, "cam1": {"mismatched_pixels": 4064, "max_ulp": 4, "beyond_4ulp_pixels": 0}},
-        "rgb": {"cam0": {"max_byte_diff": 1, "beyond_1lsb_pixels": 0}, "cam1": {"max_byte_diff": 0, "beyond_1lsb_pixels": 0}}
-      }
-    }
+    "fast_math_group": {"dir": "fixtures/render-bvh/scene-shadow/capture/{shadow-on,shadow-off}", "used_in_assertions": false},
+    "references_changed": false
   },
   "criteria": {
-    "shadow_on": "product nworld=1 + scene-shadow + use_shadows=true vs capture-exact/shadow-on (same recipe): RGB per-channel <= 1 LSB, depth <= 4 ULP (bit-exact mismatched==0 preferred), seg exact; two runs sha256 identical (rgb/depth/seg)",
-    "shadow_off_1": "vs capture-exact/shadow-off (same recipe): same criteria as shadow-on",
-    "shadow_off_2": "bitwise regression to pre-unlock same-recipe product reference: depth/seg vs s7b1::RECIPE_REFERENCE mismatched==0/max_ulp 0; RGB vs s7b2::parse_rgb_fast_math_false_reference() max_byte_diff==0 (S8 pre-unlock measured 0)",
+    "shadow_on": "product nworld=1 + scene-shadow + use_shadows=true vs capture-exact/shadow-on (same recipe): RGB per-channel <= 1 LSB, depth <= 4 ULP (bit-exact mismatched==0 preferred), seg exact; two runs sha256 identical",
+    "shadow_off_1": "vs capture-exact/shadow-off (same recipe): same criteria",
+    "shadow_off_2": "bitwise regression to pre-unlock same-recipe product reference: depth/seg vs s7b1::RECIPE_REFERENCE mismatched==0/max_ulp 0; RGB vs s7b2::parse_rgb_fast_math_false_reference() max_byte_diff==0",
     "shadow_off_3": "two runs sha256 identical",
-    "visibility_control": "semantic cross-check only: product shadow-on vs shadow-off difference pixel counts alongside reference-level counts; asserts product depth/seg do not change with use_shadows and RGB must change; no equivalence/precision conclusion",
+    "visibility_control": "semantic cross-check only; no equivalence/precision conclusion",
     "tolerances_changed": false,
-    "references_changed": false,
     "failing_cases_deleted_or_downgraded": 0
   },
-  "frozen_entities": [
-    {"entity": "render_shadow_reference", "role": "new", "path": "target/debug/deps/render_shadow_reference-8897ba50f1fe5d65.exe", "bytes": 99082328, "sha256": "87fe2018cdc084bf1c878edf461e4d03bd9f57c432b7a34ad95c81772c05c274"},
-    {"entity": "render_camera_rays", "role": "regression", "path": "target/debug/deps/render_camera_rays-55a1bc63487c4d54.exe", "bytes": 89694775, "sha256": "0bf6cdeb7547a32e0ce2ddfc3da176d4cbf217397409e3bd797d8c1571adf4f6"},
-    {"entity": "render_context_lifecycle", "role": "regression", "path": "target/debug/deps/render_context_lifecycle-16fa79202ab03000.exe", "bytes": 86165129, "sha256": "86ea45257aaf11a08b17b8d1b164dc5c27f1fef1fdfbae329c163de1a80516ef"},
-    {"entity": "render_e2e", "role": "regression", "path": "target/debug/deps/render_e2e-48506fd461a155c9.exe", "bytes": 94580059, "sha256": "374ad4331c9d3dc22b89c6592eeed07846da3d5888ec853869684eea4523cba7"},
-    {"entity": "render_kernel_depth_seg", "role": "regression", "path": "target/debug/deps/render_kernel_depth_seg-9349dfadfb02b210.exe", "bytes": 90603308, "sha256": "048e579b2027f8a57af7bf400e250eb87991071a2fb1429464e56b8f08e55d53"},
-    {"entity": "render_kernel_flags", "role": "regression", "path": "target/debug/deps/render_kernel_flags-c359af999d9d4cf9.exe", "bytes": 96001497, "sha256": "db2d67c519c125479116ba93774441d8d4765987e62b625541f98bd304808295"},
-    {"entity": "render_kernel_rgb", "role": "regression", "path": "target/debug/deps/render_kernel_rgb-bfd65da348983af0.exe", "bytes": 94050109, "sha256": "d88136ab95e303d3fdd3471bafe3eac875a9c53b1960be39c7fbc140aa905dc3"},
-    {"entity": "render_r08_cameras", "role": "regression", "path": "target/debug/deps/render_r08_cameras-055444872456f9c8.exe", "bytes": 94387117, "sha256": "ad909b1cc40e3c040734de74b3e5993444783f55d12ba247afa8eed614cc90fe"},
-    {"entity": "render_r10_multi_world", "role": "regression", "path": "target/debug/deps/render_r10_multi_world-82aedaa9008b6745.exe", "bytes": 94152658, "sha256": "e23a7d333217ab87e3cbbdc04df8bd4f9766722b4c5063ca8bf5cd6cf510c846"}
-  ],
-  "runner": {
-    "path": "target/s3b-validation-window/run-window-attempt1.ps1",
-    "bytes": 15790,
-    "sha256": "1085ebf78cc9f1445c2f76d55c6ee9ac3ede7f8a8153e96d3dd18d4fe119aede",
-    "committed": false,
-    "behavior": "5 s monitor until 60 consecutive clean samples; guard precheck (util<40 x3, free>=10240); 9 entities serially with --ignored --test-threads=1 --nocapture; 0.25 s continuous sampler (abort util>=80 x3); 3-point baseline; floor=min(10240, baseline_free-3072); zero Rust compile verified via deps snapshot; post-window 9/9 exe sha recheck"
+  "frozen_materials": {
+    "frozen_at_head": "415006d8a8d0c9753aa540725a60a144c10eb5ec",
+    "source_tree_status_empty": true,
+    "deps_snapshots": {"snapshot1": "2026-10-28T20:32:58.6154377+08:00 count=1826 max_write=2026-10-28T20:26:42.8251842+08:00", "snapshot2": "2026-10-28T20:34:00.7282077+08:00 count=1826 max_write=2026-10-28T20:26:42.8251842+08:00", "interval_s": 62.113, "identical": true},
+    "relink_cmd": "cargo test --locked --features cuda-probe --no-run --test <entity>",
+    "cargo_version": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "rustc_version": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "guards": {"path": "target/s3b-validation-window/guards.json", "bytes": 18477, "sha256": "a942de1dea1abb95c520916fe9c26843d8226df1f7b11bcae9fef0027bffce25", "guards_only": "56/56", "guards_only_out": "target/s3b-validation-window/guards-check-attempt2-final"},
+    "runner_used_for_r2": {"path": "target/s3b-validation-window/run-window-attempt1.ps1", "bytes": 16454, "sha256": "8a73ce53e87f6b90e2a1f78eb54fac2a1958a28462b17224ce91d71bdecab926"},
+    "runner_used_for_attempt2": {"bytes": 16458, "sha256": "53dc05ed01853d0042deeaf8e5f9cabe03413c34f0e56b9ab4b5ebba45057709", "note": "pre-ASCII-fix; archived at target/s3b-validation-window/runner-history/run-window-attempt1-pre-ascii-53dc05ed.ps1"},
+    "frozen_exes": [
+      {"entity": "render_shadow_reference", "role": "new", "bytes": 99082840, "sha256": "e1534a9614ad4a4d1adc460d7f2ec5a3128976d2ea189ea1b1b590883516ed5f"},
+      {"entity": "render_camera_rays", "role": "regression", "bytes": 89694775, "sha256": "e1760e7ac54c6f1844c8771784ad4ddac5f02c9abc13588214ee2819cb6c12f0"},
+      {"entity": "render_context_lifecycle", "role": "regression", "bytes": 86165129, "sha256": "2b72a767157410c379f97174fc6ac37611970fac46f874e143d434eb0ae43b0e"},
+      {"entity": "render_e2e", "role": "regression", "bytes": 94580731, "sha256": "f97e65ef581fe9059de1337548d9e8dabca0d617317093a837c9b4a8315eeac1"},
+      {"entity": "render_kernel_depth_seg", "role": "regression", "bytes": 90603308, "sha256": "1a217d0ea03b33cd6ca7f9f54a03d67f619d6d437a6ea1084ee1d60c5845c71d"},
+      {"entity": "render_kernel_flags", "role": "regression", "bytes": 96002521, "sha256": "570d5e16cd926d7c254dec30bbe8f25304fc57aa05b6812b64387598d66b9e27"},
+      {"entity": "render_kernel_rgb", "role": "regression", "bytes": 94051133, "sha256": "0f44c8ab5838e1c56b892318d9d2d5cfca0c9b68bab697c4843b47344ed548d4"},
+      {"entity": "render_r08_cameras", "role": "regression", "bytes": 94387629, "sha256": "56993f1a7d31e714680a6d8e97693d79fb77ac7b71b988362818ce7fcf7a4298"},
+      {"entity": "render_r10_multi_world", "role": "regression", "bytes": 94152658, "sha256": "52fb22b9321912051ffa7bd574fae295362b8237c2a9be4db1761dc11a59690a"}
+    ],
+    "concurrent_overwrite_note": "first freeze (20:24) was partially overwritten by the QA review build: render_kernel_rgb (20:26:19, db85e233 -> 01f249b2) and render_shadow_reference (20:26:42); conclusion: gates/tests rebuild exes, freezing must happen after the last build; timeline at target/s3b-validation-window/attempt2-build/concurrent-overwrite-note.txt",
+    "materials_path": "target/s3b-validation-window/attempt2-build/final-freeze/"
   },
-  "guards": {
-    "path": "target/s3b-validation-window/guards.json",
-    "bytes": 18472,
-    "sha256": "2a5051f39a161b5e68f1e95d6dcbf48249e4fe900403fd55197d6aaec7cd83da",
-    "committed": false,
-    "frozen_exes": 9,
-    "guard_inputs": 47,
-    "guards_only_self_check": "56/56, 0 mismatch (target/s3b-validation-window/guards-check)"
+  "encoding_root_cause_and_fix": {
+    "root_cause": "PowerShell 5.1 reads .ps1 as ANSI/GBK; in the signed runner (53dc05ed...) a full-width period in CJK comment lines 211-212 ended with UTF-8 bytes E3 80 82, whose 0x82 combined with the following LF 0x0A under GBK decoding, swallowing the newline so '$exitOk = ($code -eq 0)' was merged into the comment",
+    "measured": {"non_ascii_bytes": 129, "ansi936_decoded_lines": 342, "utf8_decoded_lines": 343, "utf8_file_lines": 342, "ansi_file_lines": 341, "exitOk_line_under_ansi": "line 212, starts with '#'"},
+    "consequence": "$exitOk unset -> facts exit_ok= empty -> caseOk=False -> 2 acceptance failures -> runner exit 10 (product criteria all green)",
+    "fix": "comments only replaced with ASCII (diff 2 insertions / 2 deletions); '$exitOk = ($code -eq 0)' standalone (ANSI line 213, is_comment=False)",
+    "verification": {"non_ascii_bytes_after": 0, "ansi_equals_utf8_line_count": true, "comment_with_dollar_lines": 0, "code_only_lines": 336, "code_only_diff": 0, "code_only_equal": true, "parse": "PARSE_OK", "offline_replay": "ALL_TRUE (both entities case_ok=True, using attempt2 frozen logs; script target/s3b-validation-window/verify-runner-ascii-fix.ps1)", "chief_signature_harness": "verify-signature-runner.ps1 (ANSI-decoded acceptance block executed directly in PS 5.1 -> ALL_TRUE)"},
+    "runner_sha_change": {"before": "53dc05ed01853d0042deeaf8e5f9cabe03413c34f0e56b9ab4b5ebba45057709", "before_bytes": 16458, "after": "8a73ce53e87f6b90e2a1f78eb54fac2a1958a28462b17224ce91d71bdecab926", "after_bytes": 16454},
+    "long_term_rule": "any .ps1 that needs signing must be ASCII-only; run an ASCII-specific self check before signing"
   },
-  "window_requirements": {
-    "s2b_unlock_assertions_must_run": {
-      "entities": ["render_kernel_flags", "render_kernel_rgb"],
-      "cases": [
-        "aa_supported_and_remaining_rejections_pre_launch",
-        "unsupported_configurations_are_rejected_before_launch"
-      ],
-      "requirement": "must actually execute the 'use_shadows=true -> accepted -> Ok(())' assertion inside the window; runner greps the entity log for the case ok line and the success marker, records shadows_acceptance_<entity> in facts, and fails when missing",
-      "report_separately": true
-    },
-    "sampler": "0.25 s continuous sampler required for device-verification windows",
-    "window_discipline": "prebuilt frozen 9 exes, compute-apps filtered 0, attempt=1, at most 2 valid rounds, post-window 9/9 recheck"
+  "qa_independent_check": {
+    "task": "2026-10-28-render-bvh-r09-s3b-check",
+    "verdict": "pass",
+    "blockers": 0,
+    "observations": 6,
+    "replay": "render_shadow_reference 3 passed after the fix; shadow-on cam0/cam1 rgb/depth/seg all 0 and two runs sha identical; shadow-off double regression 0; visibility 4745 == 4745",
+    "38_pixel_calibration": "QA reproduced S3a script with enable_backface_culling=false: cam1 beyond_1_lsb=38 matches probe; cam0 raw diff 2 pixels, beyond_1_lsb=0, max=1 -> the probe diff is 'beyond 1 LSB'; the non-defect basis is that all criteria are 0 after the fix; 38=38 is a diagnostic count match, not set equality",
+    "sdf_backlog": "2026-10-28-render-shadow-sdf-gtype-cull-gap (backlog; gtype==8 shadow cull gap recorded, unreachable while host rejects geom_type 1|8)"
+  },
+  "gates": {
+    "tree": "415006d8a8d0c9753aa540725a60a144c10eb5ec",
+    "fmt": {"pass": true, "ms": 1560},
+    "clippy": {"pass": true, "ms": 5934},
+    "clippy_cuda": {"pass": true, "ms": 455},
+    "unit": {"pass": true, "ms": 68339, "passed": 1050, "failed": 0},
+    "records": ".normify/runs/2026-10-28-render-bvh-r09-s3b-shadow-validation/"
   },
   "limitations": [
-    "authoring stage only: no GPU test has been executed and no window verdict is made",
-    "no rendering numeric conclusion; the fast-math capture group is not part of any assertion (history/diagnostics only)",
-    "if shadow-off bitwise regression fails inside the window (depth/seg mismatched!=0 or RGB max_byte_diff!=0) the work stops and reports to Arch; criteria are not relaxed",
-    "if shadow-on versus the capture-exact reference exceeds criteria inside the window, results are recorded as-is and handled by Arch/Chief decision; criteria are not relaxed",
-    "references and fixtures remain read-only; no .gitattributes change"
+    "no window verdict/coverage/precision/equivalence conclusions are claimed; numbers are factual records",
+    "references and fixtures read-only; capture/ (fast-math group) not part of any assertion",
+    "attempt1/attempt2 raw products and instrument-note.txt unchanged; attempt2-r2 is an instrument-fix replay and does not add a criteria round",
+    "SDF (gtype==8) shadow backface-culling gap is not covered by this task (backlog card referenced)"
   ],
-  "gates": {
-    "normify_gate_note": "authoring-stage gates ran on the in_progress commit tree (61b82f9a); after the reference switch the gates must be re-run on the final tree at closure (records under .normify/runs/2026-10-28-render-bvh-r09-s3b-shadow-validation/)"
-  },
   "claims": {
     "tests_authored": true,
     "reference_switched_to_exact_recipe": true,
-    "window_materials_ready": true,
-    "window_executed": false,
+    "attempt1_executed": true,
+    "attempt1_red": true,
+    "fixes_landed": true,
+    "attempt2_executed": true,
+    "attempt2_instrument_red": true,
+    "runner_encoding_fixed": true,
+    "attempt2_r2_executed": true,
+    "attempt2_r2_runner_exit_zero": true,
+    "window_opens_total": 2,
     "numeric_acceptance": false,
     "upstream_equivalence": false
   }

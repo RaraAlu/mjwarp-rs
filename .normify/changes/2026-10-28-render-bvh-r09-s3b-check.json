@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r09-s3b-check",
+  "title": {
+    "zh": "R09-S3b 独立复核（阴影数值判据 / shadow-off 逐位回归 / 可见性对照 / S2b 解锁断言 / 窗口事实）",
+    "en": "Independent check of R09-S3b shadow numeric validation window"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-28-render-bvh-r09-s3b-shadow-validation`：① shadow-on 判据自己重算（对 `capture-exact/shadow-on` 同配方参考：RGB 每通道 ≤1 LSB 位级优先 / depth ≤4 ULP 位级优先 / seg exact / 两次 sha256 同）；② shadow-off ①同判据 ②与既有 `s7b/*_fast_math_false.json` 的**逐位回归**自己重算；③ 阴影可见性二值对照只作语义交叉校验；④ **S2b 解锁验证**：`render_kernel_flags`/`render_kernel_rgb` 日志里两条旧断言真跑且 `... ok` + 成功 marker；⑤ 窗口事实独立复算（9 exe sha+字节、runner sha、guards 56/56 自哈希、3 点基线、floor、0.25 s 采样三口径、compute-apps 过滤 0、零 Rust 编译、attempt ≤2、窗后 9/9）；⑥ 红线与措辞（判据/容差/参考/夹具零改动、`capture/` 不进断言、不写「窗口通过/已覆盖/精度达标/上游等价」）。不重开窗、不重跑 GPU。",
+    "en": "QA independent check of the R09-S3b shadow numeric validation window."
+  },
+  "modules": {},
+  "acceptance": [
+    "shadow-on 判据独立重算：对 `capture-exact/shadow-on` 同配方参考，逐相机 RGB 每通道 ≤1 LSB（位级优先，`beyond_one_lsb_pixels==0`）、depth ≤4 ULP（位级优先）、seg exact，两次运行 rgb/depth/seg sha256 相同；不得抄 Backend/Arch 数字。",
+    "shadow-off 双重核验：① 对 `capture-exact/shadow-off` 同判据；② 与既有 `s7b/depth_seg_fast_math_false.json`（depth f32 位型）/`s7b/rgb_fast_math_false.json`（packed u32 位型）**逐位相同**——证明解锁没动非阴影路径。",
+    "阴影可见性二值对照：产品 shadow-on vs shadow-off 差异像素计数与参考同口径计数并列，只作语义交叉校验，不写成等价/精度结论。",
+    "S2b 解锁断言：`render_kernel_flags`/`render_kernel_rgb` 日志中 `aa_supported_and_remaining_rejections_pre_launch` 与 `unsupported_configurations_are_rejected_before_launch` 均 `... ok`（真跑，不是 `--no-run`），并出现 `AA + shadows supported` / `shadows supported; precomputed=false/skybox rejected` 之类成功 marker；其余拒绝面仍全强度。",
+    "窗口事实独立复算：9 exe sha+字节、runner sha+字节、guards 56/56 自哈希、3 点基线、`floor=min(10240, baseline_free−3072)`、0.25 s 连续采样三口径、compute-apps 过滤 0、构建进程 0、零 Rust 编译（deps 快照）、attempt ≤2、窗后 9/9 复查、`attempt1/` 早期 guards-only 产物已移至 `guards-check/` 的留痕。",
+    "红线：判据/容差/参考/夹具零改动；`capture/`（fast-math 组）不进断言且未改动；`render.cu`(499)/`launch.rs`(500)/`cast.rs`(494)/`model/render.rs`(500)/`camera_output.rs`(499)/collision `DEVICE_SOURCES`=28/`CollisionArgs` 504 B/`fixtures/precision` 零改动；新文件 ≤500 行。",
+    "证据 `docs/development-evidence/render-bvh/r09-s3b-check/`（README + receipt 含 `/task_id` + manifest）；先报 verdict/blockers/observations 再提交；措辞不写「窗口通过/已覆盖/精度达标/上游等价」。"
+  ],
+  "schedule": {
+    "depends_on": ["2026-10-28-render-bvh-r09-s3b-shadow-validation"],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": ["docs/development-evidence/render-bvh/r09-s3b-check/"],
+    "resources": [],
+    "priority": 58
+  },
+  "note": "Arch 2026-10-28 预登记（每片 QA 预登记）。start 时必须同时把任务 id + 复核点发进 QA 会话（此前 r09-s1-check 曾因只 start 未派工停滞 3.5 h）。",
+  "revision": { "before": null, "after": null },
+  "created_at": "2026-10-28T11:58:00.000Z",
+  "updated_at": "2026-10-28T11:58:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r09-s3b-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r09-s3b-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": ["完整渲染通过", "完整R01通过", "产品渲染验收通过"]
+    }
+  ]
+}
