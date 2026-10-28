@@ -174,3 +174,8 @@ f32 阈值边界（恰为阈值 → 非共面；低 1 ULP → 共面）、三角
 - **遗留 O5（带进 S3）**：调用方构造 `SceneLeaf` 时 `size` 必须是与三角化**同一份** `half`；S3 fixture 侧需保证，
   或由调用方约定加 debug 断言（本片不改变既有 API，故未加运行期校验）。
 - 未覆盖：flex/splat/skybox/SDF 求交；hfield 多 world 复制（本片单份，按 S1 口径）。
+- **S2 hfield 设备通路未验证（2026-10-29 附录）**：`nmesh=0` 场景（hfield-only 与 hfield+box 两组，MJCF 无 `<mesh>` 元素）
+  的发射在 R05-S3b 验证窗 attempt1 被记录为 invalid round：`render_hfield_reference` 在发射阶段报
+  `s7b2-span: 传输输入错误：维度无效：launcher_buffer`（同窗口 8 个回归实体 exit 0）。该缺口属既有实现缺口，
+  由独立片 `2026-10-28-render-bvh-r05-s3b-hfield-empty-mesh-fix` 记录处理；**本卡的限制结论不变**，
+  也不改判据/容差/参考。hfield 数值链路（RGB/depth/seg 判据）仍需 R05-S3b 验证窗 attempt=2 及后续片结论。
