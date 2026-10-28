@@ -5,7 +5,7 @@
     "zh": "R09-S2b：解锁 use_shadows 产品路径（移除 host 前置拒绝 + 同步两条 GPU 断言 + 接线单测）",
     "en": "R09-S2b: unlock the use_shadows product path (remove host pre-rejection, sync two GPU assertions, wiring unit test)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "R09-S2 实现片已把阴影分支写进内核，但 host 侧 `src/render/kernel/megakernel.rs` 仍前置拒绝 `use_shadows=true`（S7b3 引入的既有产品策略），第 40 槽恒 false，且两条既有 `#[ignore]` GPU 用例（`tests/render_kernel_flags.rs` L412-435、`tests/render_kernel_rgb.rs` L209-224）仍把「拒绝」当契约——结论：**阴影分支在产品路径暂不可达**。本片解锁该路径，使 R09-S3b 验证窗可以真正从产品入口发射阴影：① 移除 host 前置拒绝，让 `use_shadows` 槽读 `resolved.use_shadows`；② 同步改上述两条 GPU 断言（由「期望拒绝」改为「期望接受」，仍 `#[ignore]`，窗口内跑）；③ 更正 `cuda/render_megakernel.cu:15` 头注释（`splat_scale` 第三分量已从 unused 改为 shadow_light_fraction）；④ 加一条 in-crate 单测锁住 `shading_words() → scale_constants[2]` 与第 40 槽取值（当前只有结构/字符串级断言）。**本片不写任何渲染数值结论**：`use_shadows=false` 逐位一致与 `use_shadows=true` 的像素/数值验收仍在 R09-S3b 窗。",
     "en": "Unlock the shadow product path so the S3b window can launch shadows end to end; no numeric claim in this slice."
@@ -40,7 +40,8 @@
     "after": null
   },
   "created_at": "2026-10-28T10:55:00.000Z",
-  "updated_at": "2026-10-28T11:16:59.252Z",
+  "updated_at": "2026-10-28T11:24:18.058Z",
+  "closed_at": "2026-10-28T11:24:18.058Z",
   "checks": [
     {
       "kind": "gate",
