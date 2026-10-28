@@ -54,7 +54,7 @@
   1. **secondary ray 背面剔除**（cam1 1436 像素漏判）：上游 any-hit 分支 mesh 只返回命中布尔、不填 normal，cull 判据对 mesh 遮挡不生效；产品对 mesh 遮挡执行了 cull。修复卡 `…-r09-s3b-shadow-secondary-ray`（`e17da2b7` + `809032dc`）：`cast_ray` 增 `shadow_ray`，mesh 遮挡不剔背、primitive 仍剔背；primary-ray 全量回归 6/6、3/3、6/6、5/5。证据 `r09-s3b-shadow-secondary-ray/`
   2. **e2e negative control 旧契约**：`tests/render_e2e.rs:475` 的 `use_shadows` 移出拒绝面改接受、其余两类拒绝全强度；全仓 grep 证明旧契约共 3 处、无第四处；卡 `…-r09-s2b-e2e-negative-control` 因与运行中 S3b 卡冻结 scope 互锁被 **abandon**，改动并入 `d501118b`（任务 id 不变），留痕见 `attempt1-fixes/README.md`；**该 abandoned 卡文件按 normify 规则无法入库**（`change/transition` 新任务不能直接为 abandoned + `commit/scope` 超任务范围），**保持未跟踪历史记录、内容不删除**
   3. **runner 仪器 bug（旧版）**：`--nocapture` 使 println 插在 `test <NAME> ...` 与 `ok` 之间，旧单行正则把两个实际通过的用例误判 `case_ok=False`；attempt1 数字未改，仪器笔记 `target/s3b-validation-window/attempt1/instrument-note.txt`
-- **产物**：`target/s3b-validation-window/attempt1/`（20 文件，**原样留档、未改**；仅写关键 sha：facts `7ba67015…`、entity-results `96c781dd…`、guard.log `49f157b7…`）
+- **产物**：`target/s3b-validation-window/attempt1/`（20 文件，**原样留档、未改**；关键 sha：facts `b704b9bb7d69411b2b5c50315960518a5c1519d9cf0c071315918076c9a0f227`/1 921 B、entity-results `603df98b6c9b4f6245735d050178ba8ca9259aa3b440a8e5a6b26ae07c9e7677`/1 139 B、guard.log `c2269841a855aa5774933861f8aa18a25774bf872fdd88eeb307d4d6676de01c`/81 B）（2026-10-28 勘误：本行曾误写为 attempt2 产物 sha，见 §10）
 
 ### 5.1.1 QA 独立复核（`…-r09-s3b-check`，verdict=pass / 阻断 0 / 观察 6）
 
@@ -66,17 +66,18 @@
 
 ### 5.2 attempt2（第 1 次开窗；产品判据全绿，**仪器编码缺陷**致 runner exit 10）
 
-- **窗口事实**：start `2026-10-28T20:42:32.317`、entity `20:42:33.266→20:43:21.059`、body **47.8 s**、window_end `20:43:22.663`；baseline `2579/13483/2/32 ×3`；floor **10 240**；0.25 s 采样 **161** 样本（peak 2 849、free_min 13 213、util_max 13%、streak 0、delta 270/260/270、sustained 270、interval median 0.2991 s）；守卫 56/56；窗后 9/9；零编译；residual 0
+- **窗口事实**：start `2026-10-28T20:42:32.317`、entity `20:42:33.266→20:43:21.059`、body **47.8 s**、window_end `20:43:22.663`；baseline `2579/13483/2/32 ×3`；floor **10 240**；0.25 s 采样 **160** 样本（`samples.csv` 161 行 = 表头 + 160；peak 2 849、free_min 13 213、util_max 13%、streak 0、delta 270/260/270、sustained 270、interval median 0.2991 s）；守卫 56/56；窗后 9/9；零编译；residual 0
 - **9 实体全部 exit 0**：shadow_reference 0/4 046、camera_rays 0/1 114、context_lifecycle 0/7 524、e2e 0/8 165、depth_seg 0/4 064、flags 0/9 000、rgb 0/3 475、r08 0/7 811、r10 0/2 563
 - **shadow-on 全 0**（两相机 rgb/depth/seg）；**shadow-off 双重回归全 0**；**可见性 product 4745 == reference 4745**；两次 sha 相同（rgb `f044f3fa…`、depth `de732643…`、seg `065caf08…`）
 - **仪器红**：facts 记录 `shadows_acceptance_* exit_ok=`（空），`name_found/status_ok/marker_ok=True` → runner 记 2 条 failures、exit 10、无 `WINDOW_RUN_DONE`。**产品侧无红项；红因见第 7 节**
+- **runner exit 10 的 provenance（如实记录）**：该返回码来源 = **调用方 PowerShell 进程返回值**（`powershell.exe -File …`）；产物内可复算的证据是 facts 的两条 `failures=shadows_acceptance_missing:render_kernel_flags|render_kernel_rgb` + `guard.log` 缺 `WINDOW_RUN_DONE`；**返回码本身无法从产物内独立复算**，不作二次推断
 - **产物**：`target/s3b-validation-window/attempt2/`（19 文件，**原样留档、未改**），入库副本 `windows/attempt2/`；monitor `windows/monitor-pre-window-attempt2.csv`
 - **监测**：60 样本、最长连续 60、util 2–4、free_min 13 483、`20:37:26.112→20:42:26.272`
 
 ### 5.3 材料冻结（最终值，HEAD `415006d8`）
 
 - **冻结协议**：等 QA 复核 verdict 后冻结；前置 = 连续 2 次 deps 快照（间隔 ≥60 s）完全一致 + `cargo/rustc/cl` 进程 0 + GPU 无作业 + 源码树 status 空；顺序 = 最后一次 cargo → 删 9 exe 强制重链 → guards → `-GuardsOnly 56/56` → 报签
-- **两次 deps 快照**：`20:32:58.615` 与 `20:34:00.728`（间隔 **62.113 s**），count **1826/1826**、max write 同为 `20:26:42.825`、`snapshots_identical=True`
+- **deps 快照（冻结采用 2 条）**：`20:32:58.615` 与 `20:34:00.728`（间隔 **62.113 s**），count **1826/1826**、max write 同为 `20:26:42.825`、`snapshots_identical=True`。`final-freeze/deps-snapshots.txt` 实有 **3 条**——另有一条 `20:31:29.658` 预采因 GPU util 21% 不达标而舍去（三行原文保留在该文件）
 - **并发覆盖留痕**：首轮冻结（20:24）后 QA 复核构建以不同 feature 指纹重写了同路径两个 exe——`render_kernel_rgb`（20:26:19，`db85e233…`→`01f249b2…`）与 `render_shadow_reference`（20:26:42）；**结论：门禁/测试会重建 exe，冻结必须在最后一次构建之后**（时间线 `target/s3b-validation-window/attempt2-build/concurrent-overwrite-note.txt`）
 - **9 exe 最终值（强制重链后，`cargo test --locked --features cuda-probe --no-run`）**：
 
@@ -152,3 +153,16 @@ shadows_acceptance_render_kernel_rgb   exit_ok=True name_found=True status_ok=Tr
 - attempt1/attempt2 原始产物与 `instrument-note.txt` 未改；attempt2-r2 为仪器修复重放（不新增判据轮）
 - SDF（gtype==8）shadow cull 缺口未覆盖，见 backlog `2026-10-28-render-shadow-sdf-gtype-cull-gap`
 - `manifest.txt` 按 committed blob（LF）记录并随证据提交；不自引用
+
+## 10. 勘误记录（2026-10-28，卡 `2026-10-28-render-bvh-r09-s3b-evidence-erratum`）
+
+- **错在哪**：§5.1 attempt1「产物」行曾把三个 **attempt2** 产物的 sha 写进 attempt1 段——facts `7ba67015…`（1 907 B）、entity-results `96c781dd…`（1 135 B）、guard.log `49f157b7…`（81 B）
+- **正确值（attempt1 原件，`target/s3b-validation-window/attempt1/`）**：facts `b704b9bb7d69411b2b5c50315960518a5c1519d9cf0c071315918076c9a0f227`（1 921 B）、entity-results `603df98b6c9b4f6245735d050178ba8ca9259aa3b440a8e5a6b26ae07c9e7677`（1 139 B）、guard.log `c2269841a855aa5774933861f8aa18a25774bf872fdd88eeb307d4d6676de01c`（81 B）
+- **错因**：复制 attempt2 产物 sha 时误写入 attempt1 段（manifest 的 `windows/attempt2` 三行本身正确、不受影响）
+- **影响面**：**仅 sha 引用错误，不涉及任何数值/判据/结论/窗口事实**；已对全证据 grep 复查（六个 sha 的全部命中与逐条归属判定见 `erratum-grep-report.md`），除 §5.1 与 receipt `attempt1.raw_products` 两处外**无其它错配**；`windows/` 与 `target/` 原始产物零改动
+- **处置**：以本勘误卡留痕；**不 reopen S3b 卡（保持 verified 时间线）**
+- **追加勘误（同日，QA 复核另发现，均已复算）**：
+  - ① **attempt2 采样样本数**：§5.2 曾写「0.25 s 采样 **161** 样本」，实际 attempt2 facts 为 `samples=160`（`samples.csv` 161 行 = 表头 + 160）；**161 是 r2 的数字**（r2 facts `samples=161`、csv 162 行）。已改 §5.2 为 **160**（该行 peak 2 849 / free_min 13 213 / util 13% / delta 270·260·270 确属 attempt2，保留）；§5.4 的 161 正确
+  - ② **`runner exit 10` 的 provenance**：产物内没有独立记录该退出码（facts 只有 `failures=…`、guard.log 无 `WINDOW_RUN_DONE`）。已在 §5.2 写明：退出码 **10 来源 = 调用方 PowerShell 进程返回值**；产物内可复算的证据是「facts 两条 failures + guard.log 缺 `WINDOW_RUN_DONE`」；**该返回码本身无法从产物内独立复算**
+  - ③ **deps 快照条数口径**：§5.3 曾写「两次 deps 快照」，而 `deps-snapshots.txt` 实有 **3 条**（`20:31:29.658` 预采因 GPU util 21% 不达标舍去、`20:32:58.615`、`20:34:00.728`）。已改写为「冻结采用 20:32:58 + 20:34:00 两条（间隔 62.113 s）；另一条 20:31:29 预采因 util 21% 不达标而舍去」，三行原文保留
+  - ①②③ 均**仅影响证据表述准确性，不涉及数值/判据/结论/窗口事实**；grep 复查已扩展到 sha 与 samples 数两类（见 `erratum-grep-report.md`）
