@@ -1,0 +1,100 @@
+{
+  "task_id": "2026-10-28-render-bvh-camera-pose-warp-fma-align",
+  "title": "相机世界位姿对齐上游 FMA 收缩（cast.rs 内 warp 收缩序 quat->matrix）",
+  "owner": "Backend",
+  "priority": 61,
+  "revision_before": "a7beafae",
+  "depends_on": "2026-10-28-render-bvh-r05-s3b-hfield-cam1-depth-rca",
+  "scope": {
+    "production": ["src/render/kernel/cast.rs"],
+    "evidence": "docs/development-evidence/render-bvh/r05-s3b-camera-pose-warp-fma-align/",
+    "line_counts": { "cast.rs": { "before": 411, "after": 481, "limit": 500 } }
+  },
+  "root_cause": "上游产品路径 cam_xmat = quat_to_mat(mul_quat(world_quat, cam_quat)) 在 GPU 上经驱动 JIT 做 FMA 收缩；host 侧 crate::math::quat_to_mat 是未收缩代数展开，非平凡四元数差 1-2 ULP。RCA a62cc6aa 已给出机器证据与排除项。",
+  "implementation": {
+    "function": "src/render/kernel/cast.rs::warp_quat_to_mat（私有，被 CameraPose::from_fields 调用）",
+    "fma": "crate::math::fma::fma_f32（硬件 vfmadd231ss 主路 + 整数软兜底；不用 f32::mul_add：本工具链 debug 软件路径实测差 1 ULP）",
+    "ptx_fact": "pinned upstream camera-kernel sm89.ptx 的 quat_to_mat 矩阵切片只有 mul/add/sub，fma.rn.f32 计数 0；收缩在 ptxas(SASS) 层，故用 GPU 输出唯一反推",
+    "contract": "q=(w,x,y,z)，内存序即 mujoco 序；对角元 fma 链，非对角元 2*fma(q_a0,q_a1,±乘积)",
+    "unit_tests": "cast.rs 内 1 条 #[cfg(test)] 位型单测（4 案例：恒等 / hfield cam-side / scene-a cam-persp / 随机反例；无 CUDA）"
+  },
+  "hard_gates": {
+    "unique_contraction_search": {
+      "candidate_space_global": 1259712,
+      "candidate_space_note": "3 对角元各 12 候选 × 6 非对角元各 3 候选；逐元素独立求解",
+      "unique_matches_full_set": 9,
+      "isolated_after_quats_max": 16,
+      "entries_checked": 9027,
+      "diff_entries": 0,
+      "plain_formula_diff_entries": 2614,
+      "plain_formula_diff_quats": 947,
+      "seed": 20261029
+    },
+    "reference_chain": {
+      "definition": "mul_quat(world_quat, cam_quat) -> quat_to_mat -> 9 元素位型",
+      "world_quat_identity": [1065353216, 0, 0, 0],
+      "mul_quat_equals_cam_quat_rows": 1003,
+      "quats": 1003,
+      "gpu": "warp 1.15.0 / CUDA Toolkit 12.9 / driver 13.2 / RTX 4070 Ti SUPER",
+      "reference_file_sha256": "be24379503081951abf92e1cc4bf460ad343c63ded5c6e8dea07eb0463d4387c"
+    },
+    "cam1_cam_xmat_9of9": true,
+    "cam0_cam_xmat_9of9": true,
+    "scenea_cam_persp_9of9": true
+  },
+  "local_debug_non_acceptance": {
+    "note": "本地调试、非验收数字；不构成窗口证据",
+    "world_dir_diff_pixels": {
+      "hfield_cam1_before": "42449/43200",
+      "hfield_cam1_after": "0/43200",
+      "hfield_cam0_before": "0/76800",
+      "hfield_cam0_after": "0/76800"
+    },
+    "hfield": {
+      "hfield-only": { "cam0_depth": "mismatch=0 max_ulp=0 beyond=0", "cam1_depth": "mismatch=0 max_ulp=0 beyond=0", "rgb": "0", "seg": "0" },
+      "hfield-primitive": { "cam0_depth": "mismatch=0 max_ulp=0 beyond=0", "cam1_depth": "mismatch=0 max_ulp=0 beyond=0", "rgb": "0", "seg": "0" },
+      "baseline_before_fix_cam1_depth": "hfield-only 4423/max_ulp=7/beyond=20; hfield-primitive 4389/7/20"
+    },
+    "regressions_8of8_exit0": true,
+    "cam_xmat_bits_evidence": "materials/cam-xmat-bits.json"
+  },
+  "gates": {
+    "fmt": "exit 0",
+    "clippy": "exit 0",
+    "clippy_cuda": "exit 0",
+    "unit": "1092 passed / 0 failed / 389 ignored (134 result lines; parent 1091 + 1 new)",
+    "no_run": "exit 0",
+    "kernel_gate": {
+      "exit": 0,
+      "source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746",
+      "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13",
+      "ptx_bytes": 264015,
+      "unchanged_vs_parent": true
+    },
+    "normify_validate_fingerprints": "exit 0（错误 0、警告 5，既有架构提示）",
+    "impact_module": "normify impact mjwarp.render exit 0（active，源码39，API11）",
+    "impact_file_note": "文件级 normify impact src/render/kernel/cast.rs = 没有模块对应（既有治理缺口 backlog 2026-10-28-arch-volume-module-sources；N/A，非门禁）"
+  },
+  "red_lines": {
+    "src_math_unchanged": true,
+    "cu_unchanged": true,
+    "device_sources": 28,
+    "megakernel_slots": 81,
+    "collision_args_bytes": 504,
+    "criteria_tolerance_reference_fixture_unchanged": true,
+    "hfield_scene_unchanged": true
+  },
+  "historical_notes": {
+    "version_hypothesis_rejected": "3.15 vs 3.12 cam_quat 8/8、cam_mat0 18/18 f64 位等",
+    "old_verified_entities": "scene-a/scene-shadow 位等实体直传参考 camera_data 位姿（s7b1.rs::camera_data_poses），不经过产品 quat 公式；旧结论仍有效，但不代表公式已被位级验证（重放 2/9 项差 1 ULP）"
+  },
+  "limits": [
+    "收缩序来自本栈 ptxas/driver 对 pinned 上游代码的 SASS 级收缩；驱动/toolchain 变化后可能需要重推（参考脚本+固定种子已入库，可复现）",
+    "CameraPose::from_fields 只覆盖固定相机（world body 恒等四元数）；挂在运动体上的相机上游还会乘 xquat_world，本片未覆盖（文档限制，不扩范围；backlog 2026-10-29-render-bvh-host-quat-derivation-audit 跟踪）"
+  ],
+  "non_claims": [
+    "本片零渲染数值验收结论；数值验证留给 S3b validate attempt=2 窗口",
+    "不宣称窗口结果、不重冻结 guards、不改判据/容差/参考/fixture"
+  ],
+  "commits": { "code": "6f246b46" }
+}

@@ -1,0 +1,24 @@
+# 门禁汇总（最终工作树；全部 exit 0）
+
+环境：Windows，`PATH` 前置 `target/toolchains/cuda-12.8.1/bin`（与窗口 runner 同环境）。
+构建树 = HEAD `a7beafae` + 本片 `src/render/kernel/cast.rs`（工作树，提交前）。
+
+| 门禁 | 结果 |
+| --- | --- |
+| `cargo fmt --all --check` | exit 0 |
+| `cargo clippy --all-targets --locked -- -D warnings` | exit 0 |
+| `cargo clippy --all-targets --locked --features cuda -- -D warnings` | exit 0 |
+| `cargo test --locked`（unit） | **1092 passed / 0 failed / 389 ignored**（134 个 `test result:` 行；父提交 1091 passed，本片 +1 条单测） |
+| `cargo test --locked --no-run` | exit 0 |
+| 内核编译门 `megakernel_source_compiles_under_render_gate` | exit 0；`source_sha256=72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746`、`ptx_sha256=97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13`、`ptx_bytes=264015`（与父提交逐位相同） |
+| `normify validate --fingerprints` | exit 0（错误 0、警告 5，警告为既有架构登记提示） |
+| `normify impact mjwarp.render`（模块级） | exit 0（`active，源码39，API11`；见 `impact.md`） |
+
+说明：
+
+- 文件级 `normify impact src/render/kernel/cast.rs` → `没有模块对应`（exit 1）是**既有治理缺口**，
+  标注 `N/A（未登记，非门禁）`，不计入本表（替代口径见 `impact.md`）。
+- 内核门三 sha 与父提交一致证明本片只改 host Rust，未触碰设备源（`DEVICE_SOURCES`/81 槽/
+  `CollisionArgs` 不变）。
+- unit 原始日志由 `cargo test --locked` 重新产生；汇总口径 = 所有 `test result:` 行求和
+  （命令见 README §复现）。

@@ -1,0 +1,75 @@
+# pinned upstream camera-kernel PTX excerpt (`_cam_local_to_global_*_cuda_kernel_forward`)
+# file: target/render-bvh/r05-s3a-hfield-cache/1.15.0/wp_mujoco_warp._src.smooth_ca013d6/wp_mujoco_warp._src.smooth_ca013d6.sm89.ptx
+# size: 993976 bytes, lines: 28448, sha256: 5ff8714d08f736a5ce8dc2886584f0cb72849397f82a10d7c8be3dfac63aaa65
+# entry starts at line 13887. Slice A (mul_quat, HAS fma.rn): lines 14719-14733.
+# Slice B (quat_to_mat matrix math, NO fma.rn at PTX level): lines 14734-14782.
+# fma.rn.f32 count in slice B = 0
+# -> PTX has only mul.f32/add.f32/sub.f32 for the matrix; the single-rounding FMA contraction happens later in the driver JIT (ptxas -> SASS), hence the order must be recovered from GPU output (materials/scripts/verify_contraction.py).
+
+--- Slice A (mul_quat, lines 14719-14733) ---
+	mul.f32 	%f91, %f4, %f82;
+	fma.rn.f32 	%f92, %f1, %f80, %f91;
+	fma.rn.f32 	%f93, %f2, %f88, %f92;
+	mul.f32 	%f94, %f3, %f85;
+	sub.f32 	%f95, %f93, %f94;
+	mul.f32 	%f96, %f4, %f85;
+	mul.f32 	%f97, %f1, %f88;
+	sub.f32 	%f98, %f96, %f97;
+	fma.rn.f32 	%f99, %f2, %f80, %f98;
+	fma.rn.f32 	%f100, %f3, %f82, %f99;
+	mul.f32 	%f101, %f4, %f88;
+	fma.rn.f32 	%f102, %f1, %f85, %f101;
+	mul.f32 	%f103, %f2, %f82;
+	sub.f32 	%f104, %f102, %f103;
+	fma.rn.f32 	%f105, %f3, %f80, %f104;
+
+--- Slice B (quat_to_mat, lines 14734-14782) ---
+	mul.f32 	%f106, %f90, %f90;
+	mul.f32 	%f107, %f90, %f95;
+	mul.f32 	%f108, %f90, %f100;
+	mul.f32 	%f109, %f90, %f105;
+	mul.f32 	%f110, %f95, %f95;
+	mul.f32 	%f111, %f95, %f100;
+	mul.f32 	%f112, %f95, %f105;
+	mul.f32 	%f113, %f100, %f100;
+	mul.f32 	%f114, %f100, %f105;
+	mul.f32 	%f115, %f105, %f105;
+	add.f32 	%f116, %f106, %f110;
+	sub.f32 	%f117, %f116, %f113;
+	sub.f32 	%f118, %f117, %f115;
+	sub.f32 	%f119, %f111, %f109;
+	add.f32 	%f120, %f119, %f119;
+	add.f32 	%f121, %f112, %f108;
+	add.f32 	%f122, %f121, %f121;
+	add.f32 	%f123, %f111, %f109;
+	add.f32 	%f124, %f123, %f123;
+	sub.f32 	%f125, %f106, %f110;
+	add.f32 	%f126, %f125, %f113;
+	sub.f32 	%f127, %f126, %f115;
+	sub.f32 	%f128, %f114, %f107;
+	add.f32 	%f129, %f128, %f128;
+	sub.f32 	%f130, %f112, %f108;
+	add.f32 	%f131, %f130, %f130;
+	add.f32 	%f132, %f107, %f114;
+	add.f32 	%f133, %f132, %f132;
+	sub.f32 	%f134, %f125, %f113;
+	add.f32 	%f135, %f115, %f134;
+	and.b32  	%r294, %r411, %r234;
+	add.s32 	%r295, %r294, %r412;
+	and.b32  	%r296, %r255, %r235;
+	add.s32 	%r297, %r296, %r410;
+	cvt.s64.s32 	%rd141, %r295;
+	mul.lo.s64 	%rd142, %rd141, %rd34;
+	cvt.s64.s32 	%rd143, %r297;
+	mul.lo.s64 	%rd144, %rd143, %rd35;
+	add.s64 	%rd145, %rd142, %rd144;
+	add.s64 	%rd146, %rd6, %rd145;
+	st.global.f32 	[%rd146], %f118;
+	st.global.f32 	[%rd146+4], %f120;
+	st.global.f32 	[%rd146+8], %f122;
+	st.global.f32 	[%rd146+12], %f124;
+	st.global.f32 	[%rd146+16], %f127;
+	st.global.f32 	[%rd146+20], %f129;
+	st.global.f32 	[%rd146+24], %f131;
+	st.global.f32 	[%rd146+28], %f133;
+	st.global.f32 	[%rd146+32], %f135;
