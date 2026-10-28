@@ -430,7 +430,8 @@ fn lifecycle_create_render_refit_render_destroy() {
     println!("s8[lifecycle] 禁用输出 DisabledOutput 判定成立");
 }
 
-/// GPU：负向控制保持——3 类写前拒绝（shadows/动态射线/skybox）与 AA 射线数校验。
+/// GPU：负向控制保持——2 类写前拒绝（动态射线/skybox）与 AA 射线数校验；
+/// `use_shadows=true` 已由 R09-S2b 解锁 → 改为独立「接受 → Ok(())」断言（不在拒绝面）。
 #[test]
 #[ignore = "需要 GPU + NVRTC"]
 fn negative_controls_hold_with_product_poses() {
@@ -440,14 +441,12 @@ fn negative_controls_hold_with_product_poses() {
     let product = e2e::product_camlight(&session);
     let rays = precomputed_rays(&session, &fields);
     let renderer = MegakernelRenderer::new(&session).expect("S8 渲染内核编译");
+    let mut shadow_params = default_params();
+    shadow_params.use_shadows = true;
+    let shadow_context = create_context(&session, &fields, &shadow_params);
+    let shadow_result = renderer.render(&shadow_context, &fields, &model, &product.poses, &rays);
+    assert!(shadow_result.is_ok(), "use_shadows 接受");
     let cases: Vec<(&str, ContextParams<'_>)> = vec![
-        (
-            "use_shadows",
-            ContextParams {
-                use_shadows: true,
-                ..default_params()
-            },
-        ),
         (
             "use_precomputed_rays=false",
             ContextParams {
@@ -478,7 +477,7 @@ fn negative_controls_hold_with_product_poses() {
         );
         rejected += 1;
     }
-    assert_eq!(rejected, 3, "3 类写前拒绝必须逐类可判定");
+    assert_eq!(rejected, 2, "2 类写前拒绝必须逐类可判定");
     // AA：spp=2（nsamples=4）需要 nsamples × total_rays 条射线；只给 spp=1 射线 → 射线数拒绝。
     let aa_context = create_context(
         &session,
@@ -495,5 +494,7 @@ fn negative_controls_hold_with_product_poses() {
         "AA 射线数不匹配必须拒绝（实际 {result:?}）"
     );
     aa_context.destroy();
-    println!("s8[negative] 3 类写前拒绝 + AA 射线数（nsamples×total_rays）判定成立");
+    println!(
+        "s8[negative] shadows accepted; 2 类写前拒绝 + AA 射线数（nsamples×total_rays）判定成立"
+    );
 }

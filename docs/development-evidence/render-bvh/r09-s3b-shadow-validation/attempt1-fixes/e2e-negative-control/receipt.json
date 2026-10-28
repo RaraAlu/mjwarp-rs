@@ -1,0 +1,48 @@
+{
+  "task_id": "2026-10-28-render-bvh-r09-s2b-e2e-negative-control",
+  "kind": "render-bvh-r09-s2b-e2e-negative-control",
+  "stage": "assertion-sync-and-full-repo-self-audit",
+  "head": "cbee1127",
+  "change": {
+    "path": "tests/render_e2e.rs",
+    "lines_before": 499,
+    "lines_after": 498,
+    "detail": "negative control: use_shadows=true moved out of the rejection cases into an independent 'accepted -> Ok(())' assertion (same shape as flags/rgb); the other two cases (use_precomputed_rays=false, render_skybox) keep asserting Unsupported at full strength; rejected counter 3 -> 2; comments/println updated",
+    "criteria_tolerances_references_fixtures_changed": false,
+    "failing_cases_deleted_or_downgraded": 0,
+    "product_sources_changed": false
+  },
+  "repo_audit": {
+    "method": "full scan of src/ + tests/ + scripts/ (.rs/.cu/.py) for use_shadows plus rejection-surface keywords (Unsupported, write-before-launch rejection wording, 'no shadows', rejected)",
+    "use_shadows_hits_total": 94,
+    "old_rejection_contract_sites": [
+      "tests/render_kernel_flags.rs (fixed in R09-S2b: expects acceptance)",
+      "tests/render_kernel_rgb.rs (fixed in R09-S2b: expects acceptance)",
+      "tests/render_e2e.rs:445 (fixed by this task)"
+    ],
+    "fourth_site_found": false,
+    "product_source_rejection_logic": "none (S2b removed the megakernel pre-rejection; only an unlock comment remains)",
+    "rejection_keyword_hits_with_shadow": "all are comments or println descriptions, no assertions",
+    "reports": ["grep-report.md", "grep-report-raw.txt"]
+  },
+  "verification": {
+    "host_test": "cargo test --locked --features cuda-probe --test render_e2e -> 1 passed; 0 failed; 5 ignored (logs/host-test.log)",
+    "clippy": "cargo clippy --all-targets -- -D warnings -> ok",
+    "gpu_cases_executed_here": false,
+    "gpu_execution_note": "the negative-control acceptance assertion runs inside the attempt2 validation window via the render_e2e entity"
+  },
+  "gates": {
+    "normify_gate_note": "task registers fmt/clippy/clippy-cuda/unit; gate runs bound to the final tree; records under .normify/runs/2026-10-28-render-bvh-r09-s2b-e2e-negative-control/"
+  },
+  "limitations": [
+    "no GPU case is executed in this task; the window entity run is the acceptance path",
+    "no window verdict, no coverage claim, no precision claim, no upstream equivalence claim",
+    "criteria/tolerances/references/fixtures unchanged"
+  ],
+  "claims": {
+    "assertion_synced": true,
+    "full_repo_audit_done": true,
+    "gpu_verified": false,
+    "window_executed": false
+  }
+}
