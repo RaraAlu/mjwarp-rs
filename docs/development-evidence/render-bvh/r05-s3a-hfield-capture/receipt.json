@@ -1,168 +1,498 @@
 {
-  "task_id": "2026-10-28-render-bvh-r05-s3a-hfield-capture",
-  "kind": "render-bvh-r05-s3a-hfield-capture",
-  "stage": "authoring-complete-capture-pending",
-  "window": false,
-  "numeric_conclusion": false,
-  "capture_pending": true,
-  "script": {
-    "path": "scripts/capture_render_hfield.py",
-    "sha256": "cb1808f8c185df0e4695bb7107ec941c2e9e0aa8bb883fa1f630dc029d28a599",
-    "bytes": 20314,
-    "lines": 425,
-    "ascii_only": true,
-    "non_ascii_bytes": 0,
-    "derived_from": "scripts/capture_render_shadow.py",
-    "derived_from_sha256": "7c04809c6558eb8207d35c03c7b8777985b36d733eb711020910154bc6c18415",
-    "derived_from_untouched": true,
-    "syntax_check": "ast.parse OK (pinned python 3.12.13)",
-    "line_cap_note": "first draft was 566 lines and was rejected by the commit hook (new file >500 lines); compressed to 425 lines with identical logic, dry-runs re-run OK",
-    "dry_run_exit": {"hfield-only": 0, "hfield-primitive": 0}
-  },
-  "scenes": {
-    "hfield-only": {
-      "path": "fixtures/render-bvh/scene-hfield/scene.xml",
-      "sha256": "b3b9a6b4ee4844c92edec3f217d04b7e788a69f9ab1e864fe7dac765e9c6f53b",
-      "bytes": 3590,
-      "lines": 63
-    },
-    "hfield-primitive": {
-      "path": "fixtures/render-bvh/scene-hfield/scene-mixed.xml",
-      "sha256": "bf9bb966887466d1f526605875df3f9b8c6b244787e7f95be2eccc3cd3329bdf",
-      "bytes": 3180,
-      "lines": 60
-    },
-    "hfield": {
-      "nrow": 4,
-      "ncol": 4,
-      "size": [1.5, 1.0, 0.25, 0.1],
-      "size_z_nonzero": true,
-      "elevation_design": "row-major 0.20*r + 0.35*c (different row/col coefficients on purpose) plus one non-diagonal perturbation at (r=2,c=1) raised to 1.05; 4 non-coplanar cells and 5 coplanar cells, so merge and non-merge paths are both covered",
-      "storage_convention_measured": "MuJoCo normalizes the MJCF elevation with f32 arithmetic, reverses the row order (vertical flip, image-origin convention) and stores row-major; upstream reshape((nr,nc)) therefore yields effective = flipud(normalized XML row-major grid). Earlier column-major/transpose assumption was disproved by the bitwise candidate comparison (norm_f32_math+flipud = 0 mismatches; all other variants 2..16)",
-      "transpose_sensitive": true
-    },
-    "cameras": {
-      "cam0": "top-down pos=(0,0,3.4) xyaxes=(1,0,0,0,1,0) fovy=45 res=320x240; worst coverage ratio 0.862<1",
-      "cam1": "side pos=(3.4,-2.6,1.8) xyaxes=(0.6069,0.7936,0,-0.2857,0.2185,0.9330) fovy=40 res=240x180"
-    },
-    "occluder": {"path": "scene-mixed.xml only", "body_pos": [0.62, -0.47, 0.45], "box_half": 0.14, "ray_to_terrain_centre_distance": 0.0194},
-    "lights": {"count": 2, "castshadow": [true, true], "use_shadows_param": true}
-  },
-  "environment": {
-    "python_executable": "target/mjwarp-parallel/venv/Scripts/python.exe",
-    "python_sha256": "feeec36120097a03201a96ae17a0e2c1fba70dd6241cb4bfdd9e7c2a00bada77",
-    "python_version": "3.12.13",
-    "warp": "1.15.0",
-    "mujoco": "3.15.0",
-    "mujoco_warp": "3.15.0",
-    "numpy": "2.5.4",
-    "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
-    "upstream_clean": true,
-    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
-    "driver": "596.36",
-    "arch": 89,
-    "platform": "Windows-11-10.0.26200-SP0"
-  },
-  "capture_plan": {
-    "groups": ["hfield-only", "hfield-primitive"],
-    "out_dirs": [
-      "fixtures/render-bvh/scene-hfield/capture-hfield/hfield-only",
-      "fixtures/render-bvh/scene-hfield/capture-hfield/hfield-primitive"
-    ],
-    "files_per_group": ["rgb.npz", "depth.npz", "seg.npz", "capture.json"],
-    "npz_bytes_per_group": 2880000,
-    "estimated_total_bytes": 5800000,
-    "repeat": 2,
-    "ab_bitwise_criterion": "same process renders twice; arrays np.array_equal; deterministic ZIP_STORED npz (fixed 1980-01-01 timestamps, names sorted) sha256 identical; capture.json two_captures_bitwise_identical=true",
-    "use_fast_math_default": false,
-    "use_shadows_default": true,
-    "capture_at_env": "2026-10-29T00:00:00+08:00",
-    "commands": [
-      "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/capture_render_hfield.py --group hfield-only --out-dir fixtures/render-bvh/scene-hfield/capture-hfield/hfield-only",
-      "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/capture_render_hfield.py --group hfield-primitive --out-dir fixtures/render-bvh/scene-hfield/capture-hfield/hfield-primitive"
-    ]
-  },
-  "legacy_guard": {
-    "scope": "fixtures/render-bvh/ excluding scene-shadow/ and scene-hfield/",
-    "files": 38,
-    "bytes": 25320515,
-    "aggregate_sha256": "b5cb50afcc608a67ca9a7b83222029402719f2770a3510ab423df13601e50d8b",
-    "aggregate_algorithm": "sha256 over the 38 file sha256 hex strings in path-sorted order concatenated with no separator",
-    "per_file_list": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/legacy-baseline.txt",
-    "in_script_before_after_compare": true
-  },
-  "gpu_baseline": {
-    "samples": [
-      {"at": "23:25:17.679", "free_mib": 13290, "total_mib": 16376, "util_pct": 35},
-      {"at": "23:25:19.731", "free_mib": 13290, "total_mib": 16376, "util_pct": 36},
-      {"at": "23:25:21.776", "free_mib": 13290, "total_mib": 16376, "util_pct": 39}
-    ],
-    "floor_formula": "min(10240, baseline_free - 3072)",
-    "floor_mib": 10218,
-    "filtered_compute_apps": 0,
-    "filter_pattern": "python|g10_p5_|product_collision|stage2_equivalence|cargo|rustc|nvcc|cl\\.exe|render_",
-    "build_processes": 0,
-    "wall_estimate_s": 240,
-    "attempt": 1,
-    "note": "planning baseline only; a separate >=5 min clean pre-window monitor and Arch->Chief dual signature are still required"
-  },
-  "reverse_calc": {
-    "effective_grid": "resolved from mjm.hfield_data via upstream reshape((nr,nc)) row-major; convention determined bitwise (norm_f32_math+flipud, 0 mismatches)",
-    "threshold_bits": "0x3727C5AC",
-    "threshold_value": 9.999999747378752e-06,
-    "cell_diffs": {
-      "non_planar": ["(0,0) +0.181818187", "(0,1) -0.181818128", "(1,0) -0.181818128", "(1,1) +0.181818247"],
-      "planar": ["(0,2) 0", "(1,2) 0", "(2,0) 0", "(2,1) 0", "(2,2) 0"]
-    },
-    "any_exact_threshold_hit": false,
-    "min_abs_diff_minus_threshold": 9.999999747378752e-06,
-    "fits_plane_residuals": {"count": 9, "max": 5.96046448e-08, "boundary_hits": 0},
-    "triangulation_shape": {"vertices": 13, "indices": 36, "triangles": 12, "merge_and_non_merge_present": true},
-    "coordinates_sha256": "f3e162dd04949f5d5948b89350e51f70bc3f4e0de1a2f20fab104576d0c8853a",
-    "transpose_sensitivity": {
-      "transposed_vertices": 13,
-      "transposed_indices": 36,
-      "transposed_coordinates_sha256": "b83e93a680d46d7d8be4dc2fe1bc86efad18715b377daa267a15dec209e50fb0",
-      "distinguishable": true
-    },
-    "reproduce": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/reverse-calc.py",
-    "output": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/reverse-calc.txt"
-  },
-  "order_crosscheck": {
-    "file": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/order-crosscheck.txt",
-    "convention_measured": "f32 normalization + vertical row flip + row-major store (bitwise exact candidate match)",
-    "native_extraction_audit": "native/g01_fields.inc:78 and native/model_probe_collision_inputs.cpp:97 copy m->hfield_data raw (float32, width 1); src/model/volume_input.rs returns the raw f32 slice; triangulate_hfield reads row-major, same as upstream reshape",
-    "runtime_bitwise_check": "symmetric 3x3 fixture: pinned python mjm.hfield_data == native probe JSON model.arrays.hfield_data bitwise (values/normalization only; order not discriminated because the grid is symmetric)",
-    "non_symmetric_runtime_check": "not performed in this authoring slice (would need building/running the native probe offline on CPU); added S3b stop condition: any mirror/transpose-shaped hfield mismatch stops and reports to Arch without changing tolerance/reference/fixture"
-  },  "materials": {
-    "dir": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/",
-    "files": [
-      "legacy-baseline.txt",
-      "gpu-baseline.txt",
-      "env.txt",
-      "dryrun-hfield-only.json",
-      "dryrun-hfield-primitive.json",
-      "reverse-calc.py",
-      "reverse-calc.txt",
-      "order-crosscheck.txt"
-    ]
-  },
-  "pending": [
-    "GPU capture window not opened; no npz/capture.json products yet",
-    "window must be dual-signed (Arch -> Chief) with window plan, guards, runner, floor and 9-entity list",
-    "S3b validation window separately signed after capture"
-  ],
-  "limits": [
-    "capture only: zero rendering numeric conclusions",
-    "R09 references and R09 capture script are read-only and untouched",
-    "hfield capture groups use use_shadows=true so the hfield shadow passthrough path is exercised",
-    "MuJoCo normalizes the MJCF elevation grid to [0,1] on load; upstream reshapes the column-major store as row-major (transpose); this fixture is symmetric under transpose",
-    "SceneLeaf.size must use the same half produced by the triangulation (S2 O5 carried to S3b)"
-  ],
-  "claims": {
-    "no_window": true,
-    "no_numeric_conclusion": true,
-    "authoring_only": true,
-    "product_python_dependency": false
-  }
+    "task_id":  "2026-10-28-render-bvh-r05-s3a-hfield-capture",
+    "kind":  "render-bvh-r05-s3a-hfield-capture",
+    "stage":  "capture-complete-window-closed",
+    "window":  true,
+    "numeric_conclusion":  false,
+    "capture_pending":  false,
+    "script":  {
+                   "path":  "scripts/capture_render_hfield.py",
+                   "sha256":  "cb1808f8c185df0e4695bb7107ec941c2e9e0aa8bb883fa1f630dc029d28a599",
+                   "bytes":  20314,
+                   "lines":  425,
+                   "ascii_only":  true,
+                   "non_ascii_bytes":  0,
+                   "derived_from":  "scripts/capture_render_shadow.py",
+                   "derived_from_sha256":  "7c04809c6558eb8207d35c03c7b8777985b36d733eb711020910154bc6c18415",
+                   "derived_from_untouched":  true,
+                   "syntax_check":  "ast.parse OK (pinned python 3.12.13)",
+                   "line_cap_note":  "first draft was 566 lines and was rejected by the commit hook (new file \u003e500 lines); compressed to 425 lines with identical logic, dry-runs re-run OK",
+                   "dry_run_exit":  {
+                                        "hfield-only":  0,
+                                        "hfield-primitive":  0
+                                    }
+               },
+    "scenes":  {
+                   "hfield-only":  {
+                                       "path":  "fixtures/render-bvh/scene-hfield/scene.xml",
+                                       "sha256":  "b3b9a6b4ee4844c92edec3f217d04b7e788a69f9ab1e864fe7dac765e9c6f53b",
+                                       "bytes":  3590,
+                                       "lines":  63
+                                   },
+                   "hfield-primitive":  {
+                                            "path":  "fixtures/render-bvh/scene-hfield/scene-mixed.xml",
+                                            "sha256":  "bf9bb966887466d1f526605875df3f9b8c6b244787e7f95be2eccc3cd3329bdf",
+                                            "bytes":  3180,
+                                            "lines":  60
+                                        },
+                   "hfield":  {
+                                  "nrow":  4,
+                                  "ncol":  4,
+                                  "size":  [
+                                               1.5,
+                                               1.0,
+                                               0.25,
+                                               0.1
+                                           ],
+                                  "size_z_nonzero":  true,
+                                  "elevation_design":  "row-major 0.20*r + 0.35*c (different row/col coefficients on purpose) plus one non-diagonal perturbation at (r=2,c=1) raised to 1.05; 4 non-coplanar cells and 5 coplanar cells, so merge and non-merge paths are both covered",
+                                  "storage_convention_measured":  "MuJoCo normalizes the MJCF elevation with f32 arithmetic, reverses the row order (vertical flip, image-origin convention) and stores row-major; upstream reshape((nr,nc)) therefore yields effective = flipud(normalized XML row-major grid). Earlier column-major/transpose assumption was disproved by the bitwise candidate comparison (norm_f32_math+flipud = 0 mismatches; all other variants 2..16)",
+                                  "transpose_sensitive":  true
+                              },
+                   "cameras":  {
+                                   "cam0":  "top-down pos=(0,0,3.4) xyaxes=(1,0,0,0,1,0) fovy=45 res=320x240; worst coverage ratio 0.862\u003c1",
+                                   "cam1":  "side pos=(3.4,-2.6,1.8) xyaxes=(0.6069,0.7936,0,-0.2857,0.2185,0.9330) fovy=40 res=240x180"
+                               },
+                   "occluder":  {
+                                    "path":  "scene-mixed.xml only",
+                                    "body_pos":  [
+                                                     0.62,
+                                                     -0.47,
+                                                     0.45
+                                                 ],
+                                    "box_half":  0.14,
+                                    "ray_to_terrain_centre_distance":  0.0194
+                                },
+                   "lights":  {
+                                  "count":  2,
+                                  "castshadow":  [
+                                                     true,
+                                                     true
+                                                 ],
+                                  "use_shadows_param":  true
+                              }
+               },
+    "environment":  {
+                        "python_executable":  "target/mjwarp-parallel/venv/Scripts/python.exe",
+                        "python_sha256":  "feeec36120097a03201a96ae17a0e2c1fba70dd6241cb4bfdd9e7c2a00bada77",
+                        "python_version":  "3.12.13",
+                        "warp":  "1.15.0",
+                        "mujoco":  "3.15.0",
+                        "mujoco_warp":  "3.15.0",
+                        "numpy":  "2.5.4",
+                        "upstream_revision":  "71da24d956378a87a703b6e1442b13aec0c4ac29",
+                        "upstream_clean":  true,
+                        "gpu":  "NVIDIA GeForce RTX 4070 Ti SUPER",
+                        "driver":  "596.36",
+                        "arch":  89,
+                        "platform":  "Windows-11-10.0.26200-SP0"
+                    },
+    "capture_plan":  {
+                         "groups":  [
+                                        "hfield-only",
+                                        "hfield-primitive"
+                                    ],
+                         "out_dirs":  [
+                                          "fixtures/render-bvh/scene-hfield/capture-hfield/hfield-only",
+                                          "fixtures/render-bvh/scene-hfield/capture-hfield/hfield-primitive"
+                                      ],
+                         "files_per_group":  [
+                                                 "rgb.npz",
+                                                 "depth.npz",
+                                                 "seg.npz",
+                                                 "capture.json"
+                                             ],
+                         "npz_bytes_per_group":  2880000,
+                         "estimated_total_bytes":  5800000,
+                         "repeat":  2,
+                         "ab_bitwise_criterion":  "same process renders twice; arrays np.array_equal; deterministic ZIP_STORED npz (fixed 1980-01-01 timestamps, names sorted) sha256 identical; capture.json two_captures_bitwise_identical=true",
+                         "use_fast_math_default":  false,
+                         "use_shadows_default":  true,
+                         "capture_at_env":  "2026-10-29T00:00:00+08:00",
+                         "commands":  [
+                                          "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/capture_render_hfield.py --group hfield-only --use-fast-math false --use-shadows true --out-dir fixtures/render-bvh/scene-hfield/capture-hfield/hfield-only",
+                                          "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/capture_render_hfield.py --group hfield-primitive --use-fast-math false --use-shadows true --out-dir fixtures/render-bvh/scene-hfield/capture-hfield/hfield-primitive"
+                                      ]
+                     },
+    "legacy_guard":  {
+                         "scope":  "fixtures/render-bvh/ excluding scene-shadow/ and scene-hfield/",
+                         "files":  38,
+                         "bytes":  25320515,
+                         "aggregate_sha256":  "b5cb50afcc608a67ca9a7b83222029402719f2770a3510ab423df13601e50d8b",
+                         "aggregate_algorithm":  "sha256 over the 38 file sha256 hex strings in path-sorted order concatenated with no separator",
+                         "per_file_list":  "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/legacy-baseline.txt",
+                         "in_script_before_after_compare":  true
+                     },
+    "gpu_baseline":  {
+                         "samples":  [
+                                         {
+                                             "at":  "23:25:17.679",
+                                             "free_mib":  13290,
+                                             "total_mib":  16376,
+                                             "util_pct":  35
+                                         },
+                                         {
+                                             "at":  "23:25:19.731",
+                                             "free_mib":  13290,
+                                             "total_mib":  16376,
+                                             "util_pct":  36
+                                         },
+                                         {
+                                             "at":  "23:25:21.776",
+                                             "free_mib":  13290,
+                                             "total_mib":  16376,
+                                             "util_pct":  39
+                                         }
+                                     ],
+                         "floor_formula":  "min(10240, baseline_free - 3072)",
+                         "floor_mib":  10218,
+                         "filtered_compute_apps":  0,
+                         "filter_pattern":  "python|g10_p5_|product_collision|stage2_equivalence|cargo|rustc|nvcc|cl\\.exe|render_",
+                         "build_processes":  0,
+                         "wall_estimate_s":  240,
+                         "attempt":  1,
+                         "note":  "planning baseline only; a separate \u003e=5 min clean pre-window monitor and Arch-\u003eChief dual signature are still required"
+                     },
+    "reverse_calc":  {
+                         "effective_grid":  "resolved from mjm.hfield_data via upstream reshape((nr,nc)) row-major; convention determined bitwise (norm_f32_math+flipud, 0 mismatches)",
+                         "threshold_bits":  "0x3727C5AC",
+                         "threshold_value":  9.9999997473787516E-06,
+                         "cell_diffs":  {
+                                            "non_planar":  [
+                                                               "(0,0) +0.181818187",
+                                                               "(0,1) -0.181818128",
+                                                               "(1,0) -0.181818128",
+                                                               "(1,1) +0.181818247"
+                                                           ],
+                                            "planar":  [
+                                                           "(0,2) 0",
+                                                           "(1,2) 0",
+                                                           "(2,0) 0",
+                                                           "(2,1) 0",
+                                                           "(2,2) 0"
+                                                       ]
+                                        },
+                         "any_exact_threshold_hit":  false,
+                         "min_abs_diff_minus_threshold":  9.9999997473787516E-06,
+                         "fits_plane_residuals":  {
+                                                      "count":  9,
+                                                      "max":  5.96046448E-08,
+                                                      "boundary_hits":  0
+                                                  },
+                         "triangulation_shape":  {
+                                                     "vertices":  13,
+                                                     "indices":  36,
+                                                     "triangles":  12,
+                                                     "merge_and_non_merge_present":  true
+                                                 },
+                         "coordinates_sha256":  "f3e162dd04949f5d5948b89350e51f70bc3f4e0de1a2f20fab104576d0c8853a",
+                         "transpose_sensitivity":  {
+                                                       "transposed_vertices":  13,
+                                                       "transposed_indices":  36,
+                                                       "transposed_coordinates_sha256":  "b83e93a680d46d7d8be4dc2fe1bc86efad18715b377daa267a15dec209e50fb0",
+                                                       "distinguishable":  true
+                                                   },
+                         "reproduce":  "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/reverse-calc.py",
+                         "output":  "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/reverse-calc.txt"
+                     },
+    "order_crosscheck":  {
+                             "file":  "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/order-crosscheck.txt",
+                             "convention_measured":  "f32 normalization + vertical row flip + row-major store (bitwise exact candidate match)",
+                             "native_extraction_audit":  "native/g01_fields.inc:78 and native/model_probe_collision_inputs.cpp:97 copy m-\u003ehfield_data raw (float32, width 1); src/model/volume_input.rs returns the raw f32 slice; triangulate_hfield reads row-major, same as upstream reshape",
+                             "runtime_bitwise_check":  "symmetric 3x3 fixture: pinned python mjm.hfield_data == native probe JSON model.arrays.hfield_data bitwise (values/normalization only; order not discriminated because the grid is symmetric)",
+                             "non_symmetric_runtime_check":  "not performed in this authoring slice (would need building/running the native probe offline on CPU); added S3b stop condition: any mirror/transpose-shaped hfield mismatch stops and reports to Arch without changing tolerance/reference/fixture"
+                         },
+    "materials":  {
+                      "dir":  "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/",
+                      "files":  [
+                                    "legacy-baseline.txt",
+                                    "gpu-baseline.txt",
+                                    "env.txt",
+                                    "dryrun-hfield-only.json",
+                                    "dryrun-hfield-primitive.json",
+                                    "reverse-calc.py",
+                                    "reverse-calc.txt",
+                                    "order-crosscheck.txt",
+                                    "signature-record.md",
+                                    "load-attribution.txt"
+                                ]
+                  },
+    "pending":  [
+                    "QA review of this capture slice (card kept in_progress; normify done not yet executed)",
+                    "S3b validation window (2026-10-28-render-bvh-r05-s3b-hfield-validate) still needs its own materials and signature"
+                ],
+    "limits":  [
+                   "capture only: zero rendering numeric conclusions",
+                   "R09 references and R09 capture script are read-only and untouched",
+                   "hfield capture groups use use_shadows=true so the hfield shadow passthrough path is exercised",
+                   "MuJoCo normalizes the MJCF elevation grid to [0,1] on load; upstream reshapes the column-major store as row-major (transpose); this fixture is symmetric under transpose",
+                   "SceneLeaf.size must use the same half produced by the triangulation (S2 O5 carried to S3b)"
+               ],
+    "claims":  {
+                   "no_window":  false,
+                   "window_executed":  true,
+                   "window_authoring_only_exception":  "util_lt_60",
+                   "no_numeric_conclusion":  true,
+                   "authoring_only":  true,
+                   "product_python_dependency":  false
+               },
+    "pre_window_monitor":  {
+                               "attempts":  [
+                                                {
+                                                    "attempt":  1,
+                                                    "csv":  "logs/monitor.csv",
+                                                    "samples":  177,
+                                                    "longest_clean":  24,
+                                                    "required":  60,
+                                                    "util_min":  2,
+                                                    "util_max":  43,
+                                                    "free_min_mib":  13134,
+                                                    "start":  "2026-10-28T23:37:32.841+08:00",
+                                                    "end":  "2026-10-28T23:52:28.054+08:00",
+                                                    "threshold":  "util\u003c40",
+                                                    "decision":  "STOP: window not opened, no capture executed"
+                                                },
+                                                {
+                                                    "attempt":  2,
+                                                    "csv":  "logs/monitor-attempt2.csv",
+                                                    "samples":  177,
+                                                    "longest_clean":  34,
+                                                    "required":  60,
+                                                    "util_min":  2,
+                                                    "util_max":  43,
+                                                    "free_min_mib":  13188,
+                                                    "start":  "2026-10-29T00:02:37.236+08:00",
+                                                    "end":  "2026-10-29T00:17:32.491+08:00",
+                                                    "threshold":  "util\u003c40",
+                                                    "decision":  "STOP: window not opened, no capture executed"
+                                                },
+                                                {
+                                                    "attempt":  3,
+                                                    "csv":  "logs/monitor-attempt3.csv",
+                                                    "samples":  354,
+                                                    "longest_clean":  39,
+                                                    "required":  60,
+                                                    "util_min":  2,
+                                                    "util_max":  49,
+                                                    "free_min_mib":  13109,
+                                                    "util_ge_40_samples":  40,
+                                                    "start":  "2026-10-29T00:23:15.606+08:00",
+                                                    "end":  "2026-10-29T00:53:11.471+08:00",
+                                                    "threshold":  "util\u003c40",
+                                                    "decision":  "STOP: window not opened, no capture executed"
+                                                },
+                                                {
+                                                    "attempt":  4,
+                                                    "csv":  "logs/monitor-attempt4.csv",
+                                                    "samples":  60,
+                                                    "longest_clean":  60,
+                                                    "required":  60,
+                                                    "util_min":  4,
+                                                    "util_max":  48,
+                                                    "free_min_mib":  13166,
+                                                    "start":  "2026-10-29T00:54:15.086+08:00",
+                                                    "end":  "2026-10-29T00:59:15.214+08:00",
+                                                    "threshold":  "util\u003c60 (authoring-only exception)",
+                                                    "decision":  "READY: window opened at 2026-10-29T00:59:35.527+08:00"
+                                                }
+                                            ],
+                               "gate1_signature_match":  true,
+                               "gate2_snapshots":  [
+                                                       {
+                                                           "attempt":  1,
+                                                           "baseline_free_mib":  [
+                                                                                     13302,
+                                                                                     13302,
+                                                                                     13302
+                                                                                 ],
+                                                           "baseline_util_pct":  [
+                                                                                     38,
+                                                                                     39,
+                                                                                     38
+                                                                                 ],
+                                                           "floor_mib":  10230,
+                                                           "compute_raw":  30,
+                                                           "compute_filtered":  0,
+                                                           "build_processes":  0
+                                                       },
+                                                       {
+                                                           "attempt":  2,
+                                                           "baseline_free_mib":  [
+                                                                                     13294,
+                                                                                     13294,
+                                                                                     13294
+                                                                                 ],
+                                                           "baseline_util_pct":  [
+                                                                                     38,
+                                                                                     37,
+                                                                                     37
+                                                                                 ],
+                                                           "floor_mib":  10222,
+                                                           "compute_raw":  30,
+                                                           "compute_filtered":  0,
+                                                           "build_processes":  0
+                                                       },
+                                                       {
+                                                           "attempt":  3,
+                                                           "baseline_free_mib":  [
+                                                                                     13290,
+                                                                                     13290,
+                                                                                     13290
+                                                                                 ],
+                                                           "baseline_util_pct":  [
+                                                                                     37,
+                                                                                     37,
+                                                                                     37
+                                                                                 ],
+                                                           "floor_mib":  10218,
+                                                           "compute_raw":  30,
+                                                           "compute_filtered":  0,
+                                                           "build_processes":  0
+                                                       },
+                                                       {
+                                                           "attempt":  4,
+                                                           "baseline_free_mib":  [
+                                                                                     13292,
+                                                                                     13292,
+                                                                                     13292
+                                                                                 ],
+                                                           "baseline_util_pct":  [
+                                                                                     37,
+                                                                                     37,
+                                                                                     39
+                                                                                 ],
+                                                           "floor_mib":  10220,
+                                                           "compute_raw":  30,
+                                                           "compute_filtered":  0,
+                                                           "build_processes":  0
+                                                       }
+                                                   ],
+                               "gate4_open_instant":  {
+                                                          "signature_match":  true,
+                                                          "free_min_mib":  13268,
+                                                          "floor_mib":  10196,
+                                                          "floor_formula":  "min(10240, baseline_free-3072)",
+                                                          "compute_raw":  30,
+                                                          "compute_filtered":  0,
+                                                          "build_processes":  0,
+                                                          "window_open_at":  "2026-10-29T00:59:35.527+08:00"
+                                                      },
+                               "facts_file":  "logs/window-facts.txt",
+                               "load_attribution":  "materials/load-attribution.txt"
+                           },
+    "authoring_only_exception":  {
+                                     "name":  "util_lt_60",
+                                     "approved_by":  "Chief (pre-approved 2026-10-29 00:5x, relayed by Arch)",
+                                     "reason":  "load-attribution: 30 compute-apps rows are WDDM graphics desktop contexts, no real compute job; authoring capture is a deterministic upstream render, the capture script has its own A/B bitwise equality check, and this slice makes zero numerical conclusions",
+                                     "original_threshold_record_retained":  "attempt1-3 normal util\u003c40 monitor failures are kept in logs/window-facts.txt and logs/monitor*.csv; the exception round is NOT reported as a normal-threshold pass",
+                                     "monitor_script":  {
+                                                            "path":  "logs/monitor-until-clean-attempt4.ps1",
+                                                            "sha256":  "689fd7eb9cf733a60d40b9bdccafe4119ee23e2e8e15a0df68638716a9c1871b",
+                                                            "bytes":  2529,
+                                                            "ascii_only":  true,
+                                                            "non_ascii_bytes":  0,
+                                                            "ansi_lines":  34,
+                                                            "lf_lines":  34,
+                                                            "comment_dollar_lines":  0
+                                                        }
+                                 },
+    "capture":  {
+                    "capture_attempt":  1,
+                    "capture_at_env":  "2026-10-29T00:00:00+08:00",
+                    "commands":  [
+                                     "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/capture_render_hfield.py --group hfield-only --use-fast-math false --use-shadows true --out-dir fixtures/render-bvh/scene-hfield/capture-hfield/hfield-only",
+                                     "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/capture_render_hfield.py --group hfield-primitive --use-fast-math false --use-shadows true --out-dir fixtures/render-bvh/scene-hfield/capture-hfield/hfield-primitive"
+                                 ],
+                    "exit_codes":  [
+                                       0,
+                                       0
+                                   ],
+                    "wall_ms":  [
+                                    9952,
+                                    4764
+                                ],
+                    "total_wall_ms":  14716,
+                    "window_open_at":  "2026-10-29T00:59:35.527+08:00",
+                    "window_closed_at":  "2026-10-29T01:00:20.539+08:00",
+                    "total_bytes":  5784264,
+                    "files":  {
+                                  "hfield-only":  {
+                                                      "rgb.npz":  {
+                                                                      "bytes":  1440478,
+                                                                      "sha256":  "f3e82e24e2a1ee0001a4ba5512709f7e2203845d7778a8f574085d4a9404fdd8"
+                                                                  },
+                                                      "depth.npz":  {
+                                                                        "bytes":  480486,
+                                                                        "sha256":  "ea887010e8edcd8e602303342e4602480cbcf8e6b1c15cad0f8a79fc64602921"
+                                                                    },
+                                                      "seg.npz":  {
+                                                                      "bytes":  960478,
+                                                                      "sha256":  "a532fe61759caf541ddb854edb13accaafecfe57089f1c2991e4703eca72c5e3"
+                                                                  },
+                                                      "capture.json":  {
+                                                                           "bytes":  10679,
+                                                                           "sha256":  "9f0e3c88e9ee4a7c516ccfd4f10a32baf400211fb3e1bf3ab6bd2c380a3191bb"
+                                                                       }
+                                                  },
+                                  "hfield-primitive":  {
+                                                           "rgb.npz":  {
+                                                                           "bytes":  1440478,
+                                                                           "sha256":  "f3473ce63b0c71b1a123fc47f32ecbe5925715fedba87e5a2a462af3b1537795"
+                                                                       },
+                                                           "depth.npz":  {
+                                                                             "bytes":  480486,
+                                                                             "sha256":  "fc9ae386bd6822ef5814193b7450e47896f3713b15a5e99f8b9b9a73b1fc49f7"
+                                                                         },
+                                                           "seg.npz":  {
+                                                                           "bytes":  960478,
+                                                                           "sha256":  "aa2b04cb4e0197fa81eab678c0084548d4ec4d8d9e9e6cb26d958aa84a4286d3"
+                                                                       },
+                                                           "capture.json":  {
+                                                                                "bytes":  10701,
+                                                                                "sha256":  "7a5fffdcba6ac156fe921ee3ccdf0f2c694ab23910ec9f3a7ae41db32f579b13"
+                                                                            }
+                                                       }
+                              },
+                    "capture_json_common":  {
+                                                "task_id":  "2026-10-28-render-bvh-r05-s3a-hfield-capture",
+                                                "captured_at":  "2026-10-29T00:00:00+08:00",
+                                                "captured_at_equal_across_groups":  true,
+                                                "two_captures_bitwise_identical":  true,
+                                                "legacy_reference_untouched":  true,
+                                                "legacy_reference_files":  38,
+                                                "use_fast_math_false_occurrences":  7,
+                                                "use_fast_math_true_occurrences":  0,
+                                                "use_shadows_true_occurrences":  7,
+                                                "cameras":  "0:cam-top:320x240,1:cam-side:240x180"
+                                            },
+                    "logs":  [
+                                 "logs/capture-hfield-only.log",
+                                 "logs/capture-hfield-primitive.log"
+                             ]
+                },
+    "old_reference_guard_after":  {
+                                      "legacy_files":  38,
+                                      "legacy_bytes":  25320515,
+                                      "legacy_aggregate_sha256":  "b5cb50afcc608a67ca9a7b83222029402719f2770a3510ab423df13601e50d8b",
+                                      "legacy_unchanged":  true,
+                                      "scene_shadow_files":  17,
+                                      "scene_shadow_bytes":  11566120,
+                                      "scene_shadow_capture_artifacts":  16,
+                                      "scene_shadow_capture_artifact_bytes":  11561363,
+                                      "scene_shadow_per_file_sha_mismatches":  0,
+                                      "protected_paths_git_status_lines":  0,
+                                      "residual_render_processes":  0,
+                                      "build_processes":  0,
+                                      "gpu_released":  true
+                                  },
+    "logs":  [
+                 "logs/window-facts.txt",
+                 "logs/monitor.csv",
+                 "logs/monitor-attempt2.csv",
+                 "logs/monitor-attempt3.csv",
+                 "logs/monitor-attempt4.csv",
+                 "logs/monitor-until-clean-attempt4.ps1",
+                 "logs/capture-hfield-only.log",
+                 "logs/capture-hfield-primitive.log"
+             ]
 }

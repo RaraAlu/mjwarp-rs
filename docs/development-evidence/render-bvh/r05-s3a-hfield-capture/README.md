@@ -1,8 +1,8 @@
-# R05-S3a hfield 参考采集 · 离线 authoring 材料（采集待窗口，未开窗）
+# R05-S3a hfield 参考采集 · 窗口执行记录（采集完成，未收口）
 
 任务：`2026-10-28-render-bvh-r05-s3a-hfield-capture`（P8 渲染与 BVH；p58；owner Backend）
-阶段：**离线 authoring 完成，采集未执行**（未开 GPU 窗、未产生任何渲染数值结论）。
-本片只采集、不比数；数值验收全部留 `2026-10-28-render-bvh-r05-s3b-hfield-validate`。
+阶段：**离线 authoring + GPU 采集窗（attempt=1）已完成**；本片只采集、不比数：**零渲染数值结论**，数值验收全部留 `2026-10-28-render-bvh-r05-s3b-hfield-validate`。
+窗口说明：attempt1–3 常规门槛（`util<40`）均未达标并停手；attempt4 为 **Chief 预批的 authoring-only 例外（`util<60`）**，达标后开窗采集（详见 §14）。**attempt4 不记为常规门槛通过，原始 `util<40` 失败记录保留。**
 
 > 说明：新脚本由 `scripts/capture_render_shadow.py`（R09-S3a，sha256
 > `7c04809c6558eb8207d35c03c7b8777985b36d733eb711020910154bc6c18415`，477 行）**派生**；
@@ -73,18 +73,15 @@ fast-math/shadows 标志、pinned python/numpy 版本、upstream revision、`MJW
 
 ## 4. 两组输出与判定口径
 
-- 输出目录（新场景子树内，不写 R09）：
+- 输出目录（新场景子树内，不写 R09；窗口已按此路径落盘，见 §15）：
   - `fixtures/render-bvh/scene-hfield/capture-hfield/hfield-only/`
   - `fixtures/render-bvh/scene-hfield/capture-hfield/hfield-primitive/`
 - 每组文件数：**4**（`rgb.npz`、`depth.npz`、`seg.npz`、`capture.json`）。
-- 预体量（npz 为 `ZIP_STORED` 不压缩；按形状精确算）：
-  rgb cam0 320×240×3×f32=921 600 B、cam1 240×180×3×f32=518 400 B；depth 307 200 + 172 800 B；
-  seg 614 400 + 345 600 B ⇒ **npz 合计 2 880 000 B/组** + npy/zip 头（≈1 KB）+ capture.json（≈5–20 KB）；
-  **两组预计 ≈ 5.8 MB**。
+- 实测体量：每组 npz 合计 **2 880 000 B**；capture.json **10 679 / 10 701 B**；8 文件合计 **5 784 264 B**。
 - **A/B 两次逐字节一致判定口径**（脚本内置，`--repeat 2` 默认）：同进程渲染两次 → ①逐数组
   `np.array_equal`；②两份 npz 按确定性 zip（固定 1980-01-01 时间戳、`ZIP_STORED`、数组按名排序）
   写盘后 sha256 必须相同；③`capture.json` 内 `two_captures_bitwise_identical=true`；
-  否则脚本非零退出。
+  否则脚本非零退出。窗口实测两组均为 **true**。
 - 格式沿用 R09-S3a：`rgb.npz` 存 `rgb_cam0..1`（f32 [H,W,3]）、`depth.npz` 存 `depth_cam0..1`
   （f32 [H,W]，0=无命中）、`seg.npz` 存 `seg_cam0..1`（i32 [H,W,2]，背景 (−1,−1)）；
   `capture.json` 保留 R09 字段语义并新增 `group`（采集组）与 `recipe`（见 §5）。
@@ -94,10 +91,11 @@ fast-math/shadows 标志、pinned python/numpy 版本、upstream revision、`MJW
 - `capture.json` 根新增 `"recipe"`：`task_id/group/scene_xml{path,sha256,bytes}/script{path,sha256,bytes}/
   npz_files/use_fast_math/use_shadows/seed/repeat/python/versions/upstream_revision/capture_at_env/cameras[{slot,
   mujoco_cam_id,name,xpos,xquat,fovy,resolution}]`。
-- `use_fast_math` 出现点：`recipe.use_fast_math`、`parameters.use_fast_math`、`context.parameters.use_fast_math`、
-  `context.resolved.use_fast_math`（4 处一致，**默认 false**）。
+- `use_fast_math` 出现点（窗口产物实测，全部 false）：`recipe.use_fast_math`、`parameters.use_fast_math`、
+  `context.parameters.use_fast_math`、`context.resolved.use_fast_math`，另加根 `use_fast_math` 与
+  `context_repeat.parameters/resolved`（共 7 处，0 处 true）。
 - `MJWARP_CAPTURE_AT` 固定值（两组共用、开窗前写入命令环境）：`2026-10-29T00:00:00+08:00`
-  （若窗口实际日期变化，只在开窗前改一次并两组同用；`recipe.capture_at_env` 与 `captured_at` 记录）。
+  （窗口实测两组 `captured_at` 同值）。
 
 ## 6. 旧参考零读写守卫（采集前后各采一次）
 
@@ -107,17 +105,20 @@ fast-math/shadows 标志、pinned python/numpy 版本、upstream revision、`MJW
 - 聚合算法（R09 窗口口径）：38 个文件 sha256 十六进制串**按路径排序后直接拼接**再 sha256
   （字节直接拼接 = `b21b8b02…` 仅作旁证）。逐文件清单：`materials/legacy-baseline.txt`。
 - 脚本内置：采集前 `legacy_before = legacy_manifest()`、采集后再次采集并比对，
-  `capture.json.legacy_reference_untouched` 必须为 true，否则非零退出。
+  `capture.json.legacy_reference_untouched` 必须为 true，否则非零退出。窗口实测两组均为 **true**；
+  采集窗口后复算旧参考仍为 **38 / 25 320 515 / `b5cb50af…`**（见 §16）。
 
 ## 7. 只读不动承诺
 
 `fixtures/render-bvh/scene-shadow/`（含 `capture/`、`capture-exact/`）与既有夹具、R09 脚本
 `scripts/capture_render_shadow.py` 均只读；本片新增文件只落在 `scene-hfield/` 子树与
-`docs/development-evidence/render-bvh/r05-s3a-hfield-capture/`。
+`docs/development-evidence/render-bvh/r05-s3a-hfield-capture/`。窗口后复核：`scene-shadow` 16 个采集
+产物（11 561 363 B）逐文件 sha 未变、`git status --short -- scripts fixtures/render-bvh/scene-shadow
+fixtures/render-bvh/scene-a fixtures/render-bvh/scene-e2e` 为 0 行。
 
-## 8. GPU 基线 / floor / wall / attempt
+## 8. GPU 基线 / floor / wall / attempt（规划值，历史记录）
 
-现采 3 点（`nvidia-smi`，只读；仅规划用，非开窗证据；见 `materials/gpu-baseline.txt`）：
+现采 3 点（`nvidia-smi`，只读；**规划期**数字，见 `materials/gpu-baseline.txt`）：
 
 | 采样 | free MiB | total MiB | util % |
 | --- | --- | --- | --- |
@@ -125,41 +126,34 @@ fast-math/shadows 标志、pinned python/numpy 版本、upstream revision、`MJW
 | 23:25:19.731 | 13 290 | 16 376 | 36 |
 | 23:25:21.776 | 13 290 | 16 376 | 39 |
 
-- **floor = min(10240, baseline_free − 3072) = min(10240, 13290 − 3072 = 10218) = 10218 MiB**
-- compute-apps 原始 32 条（全部 GUI/显示进程）；按窗口过滤 pattern
+- **floor = min(10240, baseline_free − 3072) = 10 218 MiB**（规划时）；实际开窗瞬间重算值为 **10 196 MiB**（§14 gate4）。
+- compute-apps 原始 32 条（规划期）/ 30 条（窗口期，全部桌面图形上下文）；按窗口过滤 pattern
   （`python|g10_p5_|product_collision|stage2_equivalence|cargo|rustc|nvcc|cl\.exe|render_`）**过滤后 = 0**
-- 构建进程（cargo/rustc/cl/nvcc/link）**= 0**；存在 4 个 python 进程但均不在 compute-apps 列表 ⇒ 非 GPU 作业
-- **wall 预估 = 240 s 合计（每组 ≤120 s：模型加载 + 2 次重复 × 2 相机，内核缓存已预热）**
-- **attempt = 1**（本材料第 1 次采集窗）
-- 注意：以上只是规划数字；真正开窗仍须先做 ≥5 分钟干净监测（free≥10240、util<40、
-  filtered compute-apps 0、构建进程 0）并完成 Arch→Chief 双签。
+- 构建进程（cargo/rustc/cl/nvcc/link）**= 0**
+- **wall 预估 = 240 s 合计；窗口实测 14 716 ms**（9 952 + 4 764）
+- **attempt = 1**（采集轮）；监测轮为 attempt1–4（§14）
+- 注意：以上只是规划数字；真正开窗前的干净监测与签名记录见 §14 / `logs/window-facts.txt`。
 
-## 9. 捕获命令（逐字；pinned python；两组分开跑、同一窗口）
+## 9. 捕获命令（窗口内逐字执行；pinned python；两组分开跑、同一窗口）
 
 ```powershell
 # 组 1：hfield-only
 $env:MJWARP_CAPTURE_AT = "2026-10-29T00:00:00+08:00"
-target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_hfield.py `
-  --group hfield-only `
-  --out-dir fixtures/render-bvh/scene-hfield/capture-hfield/hfield-only
+target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_hfield.py --group hfield-only --use-fast-math false --use-shadows true --out-dir fixtures/render-bvh/scene-hfield/capture-hfield/hfield-only
 
 # 组 2：hfield-primitive
 $env:MJWARP_CAPTURE_AT = "2026-10-29T00:00:00+08:00"
-target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_hfield.py `
-  --group hfield-primitive `
-  --out-dir fixtures/render-bvh/scene-hfield/capture-hfield/hfield-primitive
+target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_hfield.py --group hfield-primitive --use-fast-math false --use-shadows true --out-dir fixtures/render-bvh/scene-hfield/capture-hfield/hfield-primitive
 ```
 
-（`--use-fast-math` 默认 false、`--use-shadows` 默认 true，无需显式传；如需显式可加
-`--use-fast-math false --use-shadows true`，recipe 会记录实际值。）
+窗口内两条命令均 **exit 0**（日志：`logs/capture-hfield-only.log`、`logs/capture-hfield-primitive.log`）。
 
 ## 10. 窗口协议（脚本内置 + 窗口侧）
 
 - 脚本内置：采集前后 legacy 快照比对、A/B 两次逐字节一致、非零退出即无效；
-- 窗口侧（沿用 R09-S3b 协议）：开窗前最后构建 → 冻结脚本/场景/runner/exe（记 sha256）→
-  guard precheck 为唯一硬门 → 监测 ≥5 分钟干净 → 签名后任一实体变动作废重签 →
-  窗内 A/B 重采一致 → 窗口产物与 exit 码、`WINDOW_RUN_DONE` 全部留档；
-  **exit 9 等无效轮按协议留档、不当作有效轮**。
+- 窗口侧（沿用 R09-S3b 协议）：开窗前最后构建 → 冻结脚本/场景（记 sha256 进 `materials/signature-record.md`）
+  → 监测 ≥60 个连续干净样本（5 s 采样）→ 签名后任一实体变动作废重签 →
+  窗内 A/B 重采一致 → 窗口产物与 exit 码全部留档；**exit 9 等无效轮按协议留档、不当作有效轮**。
 
 ## 11. 只采集不比数
 
@@ -210,12 +204,80 @@ target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_hfield.
   `native/model_probe_collision_inputs.cpp:97`），host `hfield_data()` 直传、`triangulate_hfield` 行主序读
   ⇒ 与上游同构；③对称旧夹具位级对拍一致（只证数值/归一化、不证顺序）；④非对称运行时对拍未做
   （需构建原生探针，离线 CPU），已列为 **S3b 停手条件**：若出现镜像/转置形差异立即停手报 Arch。
-## 13. normify 前置状态
 
-- 脚本 + 两个场景 XML 已落地；证据骨架（README/receipt/materials/manifest）就绪；
-- **未执行** `normify done`（采集与窗口材料未完成）；**未提交任何窗口产物**（尚未采集）；
-- 本片后续：Arch 核材料 → 转 Chief 双签 → 开窗采集（2 组）→ 窗口材料入证据 → 两段提交/收口；
-  S3b 验证窗另起材料单独签。
+## 13. 窗口前监测与开窗（事实摘要，全文见 `logs/window-facts.txt`）
+
+| 监测轮 | 数据 | 最长连续干净 | util 范围 | free_min | 结论 |
+| --- | --- | --- | --- | --- | --- |
+| attempt1 | 177 样本 / 23:37:32→23:52:28 | 24/60 | 2–43 | 13 134 MiB | 停手，未开窗 |
+| attempt2 | 177 样本 / 00:02:37→00:17:32 | 34/60 | 2–43 | 13 188 MiB | 停手，未开窗 |
+| attempt3 | 354 样本 / 00:23:15→00:53:11 | 39/60 | 2–49 | 13 109 MiB | 停手，未开窗 |
+| attempt4 | 60 样本 / 00:54:15→00:59:15 | **60/60** | 4–48 | 13 166 MiB | 例外轮达标，开窗 |
+
+- attempt1–3 均执行 gate1（3 签字物重哈希，`signature_match=True`）+ gate2（3 点基线 + floor 重算 +
+  compute filter/build procs 快照），未放宽任何阈值。
+- **attempt4 为 Chief 预批的 authoring-only 例外（`util<60`）**：原 `util<40` 阈值失败记录保留在
+  `logs/window-facts.txt` 的 attempt1–3 段；本片不把它记作常规门槛通过。理由（`materials/load-attribution.txt`）：
+  窗口期 30 条 compute-apps 全部是 WDDM 桌面图形上下文（浏览器/WebView/Overlay/远程桌面/DSH GUI 等），
+  无真 compute 作业；authoring 采集是上游确定性渲染、脚本自带 A/B 位等校验、本片零数值结论。
+- 例外轮监测脚本：`logs/monitor-until-clean-attempt4.ps1`，sha256
+  `689fd7eb9cf733a60d40b9bdccafe4119ee23e2e8e15a0df68638716a9c1871b`，ASCII-only 三项自检
+  （非 ASCII 字节 0 / ANSI 行数 34 == LF 行数 34 / 无 `$` 代码行并入注释）。
+- 开窗瞬间 gate4 复验：3 签字物 `signature_match=True`；3 点基线 free_min **13 268 MiB** ⇒
+  **floor = min(10240, 13268−3072) = 10 196 MiB**；compute 过滤 **0**、构建进程 **0**。
+  开窗 `2026-10-29T00:59:35.527+08:00`，窗口关闭 `2026-10-29T01:00:20.539+08:00`。
+
+## 14. 采集执行事实（attempt=1，窗口内两条命令）
+
+- `capture_at_env = 2026-10-29T00:00:00+08:00`（两条命令同值；产物 `captured_at` 两组同值）
+- hfield-only：exit **0**，wall **9 952 ms**；hfield-primitive：exit **0**，wall **4 764 ms**
+- 合计 **14 716 ms**（预算 ≤240 s）；窗口内零 cargo/rustc/cargo test；窗口结束立即释放 GPU
+  （capture 进程退出，无 `render_` 残留、build procs 0；窗后 free=13 302 MiB / util=40 % 为桌面基线）
+- 日志：`logs/capture-hfield-only.log`、`logs/capture-hfield-primitive.log`
+
+## 15. 采集产物（8 文件，总 5 784 264 B）
+
+| 组 | 文件 | 字节 | sha256 |
+| --- | --- | --- | --- |
+| hfield-only | `rgb.npz` | 1 440 478 | `f3e82e24e2a1ee0001a4ba5512709f7e2203845d7778a8f574085d4a9404fdd8` |
+| hfield-only | `depth.npz` | 480 486 | `ea887010e8edcd8e602303342e4602480cbcf8e6b1c15cad0f8a79fc64602921` |
+| hfield-only | `seg.npz` | 960 478 | `a532fe61759caf541ddb854edb13accaafecfe57089f1c2991e4703eca72c5e3` |
+| hfield-only | `capture.json` | 10 679 | `9f0e3c88e9ee4a7c516ccfd4f10a32baf400211fb3e1bf3ab6bd2c380a3191bb` |
+| hfield-primitive | `rgb.npz` | 1 440 478 | `f3473ce63b0c71b1a123fc47f32ecbe5925715fedba87e5a2a462af3b1537795` |
+| hfield-primitive | `depth.npz` | 480 486 | `fc9ae386bd6822ef5814193b7450e47896f3713b15a5e99f8b9b9a73b1fc49f7` |
+| hfield-primitive | `seg.npz` | 960 478 | `aa2b04cb4e0197fa81eab678c0084548d4ec4d8d9e9e6cb26d958aa84a4286d3` |
+| hfield-primitive | `capture.json` | 10 701 | `7a5fffdcba6ac156fe921ee3ccdf0f2c694ab23910ec9f3a7ae41db32f579b13` |
+
+两份 `capture.json` 关键字段（与产物逐项自洽）：
+
+- `task_id=2026-10-28-render-bvh-r05-s3a-hfield-capture`；`group` 分别为 `hfield-only` / `hfield-primitive`
+- `recipe.scene_xml.sha256` = 各组签字场景 sha（`b3b9a6b4…` / `bf9bb966…`）；`recipe.script.sha256`
+  两组均 `cb1808f8…`
+- `use_fast_math=false`（7 处，0 处 true）；`use_shadows=true`（7 处，0 处 false）
+- `two_captures_bitwise_identical=true`；`legacy_reference_untouched=true`、`legacy_reference_files=38`
+- `captured_at=2026-10-29T00:00:00+08:00`（两组同值）；`recipe.cameras=0:cam-top:320x240,1:cam-side:240x180`
+- `files_sha256` 与 §15 表逐项一致
+
+## 16. 窗口后旧参考零读写复核
+
+- 旧参考复算：**38 文件 / 25 320 515 B / 聚合 `b5cb50afcc608a67ca9a7b83222029402719f2770a3510ab423df13601e50d8b`**
+  与窗口前一致。
+- `scene-shadow/`：目录 **17 文件 / 11 566 120 B**（含 `scene.xml` 4 757 B），其中 **16 个采集产物
+  / 11 561 363 B**；逐文件 sha 与窗口前快照比对 **mismatch = 0**。
+- `git status --short -- scripts fixtures/render-bvh/scene-shadow fixtures/render-bvh/scene-a
+  fixtures/render-bvh/scene-e2e` = **0 行**（窗口期间未改这些路径）。
+
+## 17. 措辞与边界
+
+- 本片**只采集不比数**：不写任何 rgb/depth/seg 差异或正确性数字，不宣称任何数值结论。
+- attempt4 例外全程留档（批准人/时间/理由/原失败记录/脚本 sha/ASCII 自检），不表述为常规门槛通过。
+- 旧参考与 R09 采集路径零改动（§16）。
+
+## 18. normify 前置状态
+
+- 脚本 + 两个场景 XML + 8 个采集产物 + 证据（README/receipt/manifest/logs/materials）已落地；
+- 本窗口产物按「产物」「证据」两段提交；**未执行** `normify done`（等待 QA 复核）；
+- 数值验收（RGB/depth/seg 判据）全部在 `2026-10-28-render-bvh-r05-s3b-hfield-validate` 验证窗执行。
 
 ## 遗留（带入 S3b，来自 S2 O5）
 

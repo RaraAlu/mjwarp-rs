@@ -1,0 +1,62 @@
+R05-S3a load attribution (read-only; no repo changes)
+generated=2026-10-29T00:20:49+08:00
+
+## monitor.csv (attempt1, 23:37:32-23:52:28)
+samples=177 util>=40 samples=29 longest_clean=24/60 util_min=2 util_max=43 free_min_mib=13134
+baseline util band 36-39; one-sample spikes 40-43; occasional dips to 2 (3 samples)
+
+## monitor-attempt2.csv (attempt2, 00:02:37-00:17:32)
+samples=177 util>=40 samples=30 longest_clean=34/60 util_min=2 util_max=43 free_min_mib=13188
+util>=40 sample timestamps:
+  util40 2026-10-29T00:02:57.592+08:00 util=40
+  util40 2026-10-29T00:03:28.127+08:00 util=40
+  util40 2026-10-29T00:03:38.288+08:00 util=43
+  util40 2026-10-29T00:03:43.364+08:00 util=40
+  util40 2026-10-29T00:03:48.440+08:00 util=40
+  util40 2026-10-29T00:03:53.528+08:00 util=40
+  util40 2026-10-29T00:04:44.407+08:00 util=40
+  util40 2026-10-29T00:04:59.704+08:00 util=40
+  util40 2026-10-29T00:05:09.885+08:00 util=40
+  util40 2026-10-29T00:05:20.060+08:00 util=40
+  util40 2026-10-29T00:05:45.477+08:00 util=40
+  util40 2026-10-29T00:08:43.496+08:00 util=40
+  util40 2026-10-29T00:08:58.762+08:00 util=41
+  util40 2026-10-29T00:09:19.141+08:00 util=40
+  util40 2026-10-29T00:09:39.494+08:00 util=40
+  util40 2026-10-29T00:09:49.650+08:00 util=41
+  util40 2026-10-29T00:10:09.999+08:00 util=40
+  util40 2026-10-29T00:10:15.083+08:00 util=40
+  util40 2026-10-29T00:10:45.724+08:00 util=40
+  util40 2026-10-29T00:10:50.809+08:00 util=40
+  util40 2026-10-29T00:11:16.230+08:00 util=40
+  util40 2026-10-29T00:12:07.085+08:00 util=40
+  util40 2026-10-29T00:12:22.335+08:00 util=40
+  util40 2026-10-29T00:12:52.867+08:00 util=41
+  util40 2026-10-29T00:14:44.688+08:00 util=40
+  util40 2026-10-29T00:14:49.770+08:00 util=41
+  util40 2026-10-29T00:15:05.044+08:00 util=40
+  util40 2026-10-29T00:15:45.714+08:00 util=40
+  util40 2026-10-29T00:16:31.489+08:00 util=40
+  util40 2026-10-29T00:17:32.491+08:00 util=40
+
+## nvidia-smi compute-apps attribution (same pattern as window guard)
+compute_raw=30 rows, constant across both monitors; compute_filtered=0; build_processes=0
+all 30 rows are WDDM C+G (compute+graphics) desktop contexts with used_memory=[N/A]:
+  [Insufficient Permissions] x4, explorer.exe x4, msedgewebview2.exe x3, Chrome x2, NVIDIA Overlay x2,
+  DSH GUI (DeepSeek Harness.exe), Feishu, VS Code, ToDesk, ChatGPT, codex-computer-use, ShellHost,
+  StartMenuExperienceHost, SearchHost, TextInputHost, ShellExperienceHost, ApplicationFrameHost,
+  CrossDeviceResume, lghub_system_tray, SystemSettings; NO python/cargo/rustc/nvcc/render_ process.
+
+## per-process GPU-engine snapshot (Get-Counter GPU Engine 3d/compute, 3 x 2 s)
+  gpu=[39 %, 2758 MiB, 13304 MiB] top: msedgewebview2(30616)=5.6 dwm-class(2688)=4.9 DeepSeek Harness(25744)=4.2
+  gpu=[4 %, 2874 MiB, 13188 MiB] top: msedgewebview2(30616)=3.4 DeepSeek Harness(25744)=0.4 dwm-class(2688)=0.4
+  gpu=[42 %, 2791 MiB, 13271 MiB] top: dwm-class(2688)=9.0 DeepSeek Harness(25744)=7.6 msedgewebview2(30616)=7.5
+
+## conclusion
+util oscillation is desktop/compositing external load (browsers/WebView/Overlay/remote-desktop/DSH GUI),
+not a compute workload: no compute job exists, GPU memory used and temperature stay flat, free memory is
+stable 13.1-13.3 GiB. Baseline sits at 36-39% (one-sample 40-43% flickers), so the strict util<40 gate
+is marginal; clean streak 60/60 is dominated by external desktop activity, not by build/GPU jobs.
+Options: (a) quiet slot or ask user to close/limit GPU-accelerated desktop processes (browsers, WebView,
+NVIDIA Overlay, ToDesk, Feishu) before the window; (b) a signed protocol change to the util threshold
+(not allowed unilaterally). Free-memory/build/compute-filtered gates are all comfortably satisfied.
