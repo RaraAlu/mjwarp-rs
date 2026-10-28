@@ -1,0 +1,237 @@
+{
+  "task_id": "2026-10-29-render-bvh-r02-skybox-s1-check",
+  "kind": "render-bvh-r02-skybox-s1-check",
+  "reviewed_task": "2026-10-29-render-bvh-r02-skybox-s1",
+  "reviewed_commits": ["8aa33e00", "b6b2a679", "299459c0"],
+  "reviewed_base_head": "db6ca47d",
+  "head_at_review": "db6ca47d",
+  "verdict": {
+    "result": "pass",
+    "blockers": 0,
+    "observations": 8,
+    "scope": "离线实现片只读复核：上游逐行对齐（含 warp 生成 CUDA 语义）/ 非天空盒路径零改静态论证与措辞纪律 / 注册表子集与两处门 / ABI+flag 只加不改 / 新内核基线自跑 / 行数棘轮独立计数 / 证据与范围自检；不开 GPU、不跑设备数值、不改代码/证据"
+  },
+  "review_points": {
+    "upstream_alignment": {
+      "render_py": {"path": "target/render-bvh-precheck/venv312/Lib/site-packages/mujoco_warp/_src/render.py",
+                    "bytes": 51362, "lines": 1604,
+                    "sha256": "16bfe7edfa73033ef88fb4bbc46364867935f0c527ca53a23ff65c5c40fb3536"},
+      "sample_skybox_lines_494_556": {
+        "rotation_rx_x_ry_z_rz_neg_y": true,
+        "face_sc_tc_parsed_from_upstream": {"0": {"sc": "-rz", "tc": "-ry"}, "1": {"sc": "rz", "tc": "-ry"},
+                                            "2": {"sc": "rx", "tc": "rz"}, "3": {"sc": "rx", "tc": "-rz"},
+                                            "4": {"sc": "rx", "tc": "-ry"}, "5": {"sc": "-rx", "tc": "-ry"}},
+        "impl_face_sc_tc_matches_upstream": true,
+        "max_axis_chain": true,
+        "ma_assignments": true,
+        "safe_div_s_t": true,
+        "t_min_and_clamp": true,
+        "v_formula_face_t_plus_1_6": true,
+        "texture_sample_vec4": true,
+        "face_stack_order_comment": true
+      },
+      "generated_cuda_semantics": {
+        "source": "target/render-bvh/s3a-shadow-cache/1.15.0/.../wp__build_megakernel__locals___render_megakernel_92d94e46_dde26ad.cu",
+        "one_sixth_declared_as_float32": true,
+        "one_sixth_decl": "const wp::float32 var_100 = 0.16666666666666666;",
+        "f32_bits_of_one_sixth": "0x3e2aaaab",
+        "warp_clamp_definition": "inline CUDA_CALLABLE T clamp(T x, T a, T b) { return min(max(a, x), b); }",
+        "texture_sample_vec4_with_lod": true,
+        "call_site_condition_is_static_render_skybox_and_render_rgb": true,
+        "store_pixel_call_present": true
+      },
+      "call_site_1259_1268": {
+        "static_skybox_and_render_rgb": true,
+        "skybox_id_mod_shape": true,
+        "face_width_inv_expr": true,
+        "store_pixel_call": true,
+        "elif_render_rgb_present": true
+      },
+      "store_pixel_1017_1031": {"aa_adds_color_times_255": true, "non_aa_pack_alpha_255": true},
+      "render_util_514_535": {"skybox_ids_nonzero": true, "has_skybox_condition": true,
+                              "face_width_is_tex_width": true, "render_skybox_false_otherwise": true,
+                              "registry_gate_use_textures_or_skybox": true, "empty_tex_1x1x4": true,
+                              "loop_use_textures_or_id": true},
+      "safe_div_math_318_319": {"mj_minval_1e-15": true}
+    },
+    "non_skybox_path": {
+      "static_argument_verified": true,
+      "new_branch_reachable_only_when_bit9": true,
+      "bit9_equals_render_skybox_equals_skybox_some": true,
+      "existing_aa_and_else_branches_not_rewritten": true,
+      "slots_stay_zero_zero_without_skybox": true,
+      "texture_array_none_without_skybox": true,
+      "registry_empty_without_skybox": true,
+      "flag_packing_unchanged": true,
+      "no_measured_zero_leak_claim": true,
+      "evidence_wording_ok": "README §6.4 / receipt zero_leak_static_argument / non_claims 均声明静态论证且位级回归留 S3"
+    },
+    "registry_and_gates": {
+      "use_textures_full": true,
+      "skybox_only_materializes_skybox_and_dummy_1x1x4_zero": true,
+      "index_equals_model_texture_id": true,
+      "neither_yields_empty": true,
+      "lifecycle_gate_line": 330,
+      "lifecycle_expr": "resolved.use_textures || resolved.skybox.is_some()",
+      "uploads_gate_line": 183,
+      "uploads_expr": "resolved.use_textures || resolved.render_skybox",
+      "gates_equivalent_because_render_skybox_equals_skybox_some": true,
+      "defensive_reject_skybox_without_texture_array": true
+    },
+    "abi_and_flags": {
+      "megakernel_slots_definition_file_unchanged_in_slice": true,
+      "megakernel_slots_declared_len": 81,
+      "slots_signature": "1 bounds + 73 arrays + 7 scalars（既有测试断言，随 unit 门禁通过）",
+      "mk_flag_bits_0_8_unchanged": true,
+      "mk_flag_skybox_bit": "0x200u (bit 9)",
+      "rust_flag_bit_9": "FLAG_SKYBOX_BIT: u32 = 1 << 9",
+      "high_word_background_packing_unchanged": true,
+      "device_sources": 28,
+      "collision_args_bytes": 504
+    },
+    "kernel_baseline": {
+      "gate_command": "cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored megakernel_source_compiles_under_render_gate --test-threads=1 --nocapture (NVRTC 纯编译, no GPU)",
+      "source_sha256": "e68e3412c1e1809e71100d9e842d5b0f5b886ffdec88d8401bb01c76e812904c",
+      "ptx_sha256": "0b9474928ab8a7add27e5da7ac0869ee955a75405cd976cd04839f2312e88f3e",
+      "ptx_bytes": 268275,
+      "gate_result": "1 passed; 0 failed; 0 ignored",
+      "baseline_before_slice": {"source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746",
+                                "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13",
+                                "ptx_bytes": 264015},
+      "baseline_dump_on_disk_matches_before_value": true,
+      "semantic_delta_recomputed_from_ptx_dump": {
+        "tex_level_2d": {"before": 1, "after": 2},
+        "and_b32_mask_512": {"before": 0, "after": 1},
+        "and_b32_mask_256": {"before": 2, "after": 3},
+        "and_b32_total": {"before": 43, "after": 45},
+        "max_f32": {"before": 39, "after": 40},
+        "min_f32": {"before": 9, "after": 10},
+        "sqrt": {"before": 51, "after": 51}
+      }
+    },
+    "line_counts_lf_self_counted": {
+      "src/render/kernel/cuda/render_shade.cu": {"lines": 457, "limit": 470},
+      "src/render/kernel/cuda/render_megakernel.cu": {"lines": 368, "limit": 420},
+      "src/render/kernel/megakernel.rs": {"lines": 410, "limit": 412},
+      "src/render/kernel/megakernel_arrays.rs": {"lines": 332, "limit": 340},
+      "src/render/kernel/megakernel_uploads.rs": {"lines": 465, "limit": 480},
+      "src/render/context.rs": {"lines": 455, "limit": 470},
+      "src/render/context/lifecycle.rs": {"lines": 498, "limit": 499},
+      "src/render/context/texture_inputs.rs": {"lines": 157, "limit": 160},
+      "tests/render_skybox.rs": {"lines": 260, "limit": 260},
+      "red_lines_untouched": {"src/render/texture.rs": 486, "src/render/kernel/cast.rs": 481,
+                              "src/render/kernel/cuda/render.cu": 499, "src/render/kernel/launch.rs": 500,
+                              "src/model/render.rs": 500},
+      "all_within_limits": true
+    },
+    "gates_self_run": {
+      "fmt": "exit 0",
+      "clippy_all_targets_features_cuda": "exit 0",
+      "unit": "1103 passed / 0 failed / 389 ignored（135 result 行）",
+      "no_run": "exit 0（133 Executable）",
+      "kernel_gate": "exit 0（1 passed）",
+      "validate_fingerprints": "错误 0 / 警告 5（closing 后指纹已刷新）",
+      "environment_note": "首次并发调用两个 cargo 触发 os error 32（同一 exe 被占用），串行重跑全部通过；不据此判定失败"
+    },
+    "evidence_integrity": {
+      "manifest_rows": 5,
+      "manifest_committed_blob_ok": "5/5",
+      "manifest_on_disk_ok": "5/5",
+      "self_reference": false,
+      "unlisted_files": [],
+      "forbidden_word_hits": 0,
+      "slice_diff_scope_only": true,
+      "module_sources": {"count_in_module_doc": 40, "added": "src/render/context/texture_inputs.rs", "apis": 11}
+    }
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "record",
+      "topic": "PTX semantic table lists only the 512-mask and.b32 delta; total and.b32 delta is +2",
+      "detail": "我实测总 and.b32 43→45：除 `and.b32 %r,%r,512` 0→1 外，`and.b32 %r,%r,256`（0x100 = AA 位）由 2→3，来源是新背景分支内 `if (aa)` 的位复检。材料的声明本身正确（它只声称 512 掩码 +1），但读者可能把 +1 误当总增量。",
+      "suggestion": "fix_or_note",
+      "fix": "在 materials/ptx-diff-summary.txt 补一行「总 and.b32 +2（512 掩码 +1、256 掩码 +1）」"
+    },
+    {
+      "id": "O2",
+      "severity": "record",
+      "topic": "new public Rust item texture_registry is not represented in module [[apis]] (which is a planned-rpc list)",
+      "detail": "`pub fn texture_registry` 经 `context.rs` 的 `pub use` 导出（集成测试使用），是本片新增的公开 Rust 项；module doc `[[apis]]` 仍 11，因为该清单口径是 planned upstream rpc 合同（protocol=\"rpc\"），不含 Rust pub 项。故「API 11 不变」成立。",
+      "suggestion": "accept",
+      "fix": "建议 README 注明该口径，避免后续把「pub 项增加」误读为 API 数变化"
+    },
+    {
+      "id": "O3",
+      "severity": "record",
+      "topic": "dummy texture object count differs from upstream (shared instance vs per-id instances)",
+      "detail": "上游 `empty_tex` 对所有非天空盒 id 共享同一实例；本实现为每个 id 各建一个 1×1×4 全零纹理。内容与采样语义等价，仅对象数不同。",
+      "suggestion": "accept",
+      "fix": "记录即可；若要求对象级一致可共享实例"
+    },
+    {
+      "id": "O4",
+      "severity": "record",
+      "topic": "tests/render_skybox.rs is exactly at its 260-line limit",
+      "detail": "260 行 = 卡面上界（≤260），零余量；任何后续追加都会破棘轮。卡面已知并接受「测试文件按预核表 ≤260」口径。",
+      "suggestion": "accept",
+      "fix": "后续扩展需先拆文件或报批调整上界"
+    },
+    {
+      "id": "O5",
+      "severity": "record",
+      "topic": "device-side sample_skybox and the new branch have no execution-level verification in this slice",
+      "detail": "本片无 GPU：`sample_skybox` 与新增分支只经静态/生成语义核对与主机侧参考实现单测，设备像素行为未验证。README §3/§10 与 receipt limits 已如实声明。",
+      "suggestion": "accept",
+      "fix": "建议 S2/S3 首窗把「六轴方向 + face 边界 + 零方向」纳入 capture 检查点"
+    },
+    {
+      "id": "O6",
+      "severity": "record",
+      "topic": "validate warnings count differs after closing (6 -> 5) because done refreshed the module fingerprint",
+      "detail": "证据 gates.txt 记「6 条警告，含 1 条本片引起的 mjwarp.render 指纹过期，closing 时由 done 刷新」；我在 closing 之后复跑 `validate --fingerprints` 为 错误 0 / 警告 5，自洽。",
+      "suggestion": "accept",
+      "fix": "无"
+    },
+    {
+      "id": "O7",
+      "severity": "record",
+      "topic": "src/model/render.rs is CRLF in the worktree (red line, untouched)",
+      "detail": "该文件 CR=500（LF=500），本片零改动；仅作为将来若纳入 LF 行数口径时的提示。",
+      "suggestion": "accept",
+      "fix": "无"
+    },
+    {
+      "id": "O8",
+      "severity": "record",
+      "topic": "texture_registry adds two host-side validations that upstream does not have",
+      "detail": "额外校验 `face_width == tex_width[skybox_id]` 与 `skybox_id` 在范围内 → 对合法模型不可触发（model.rs 已保证同源），属 fail-fast 防御；会改变错误面（上游会直接索引）。",
+      "suggestion": "accept",
+      "fix": "保留；若将来允许「声明 skybox 但无纹理」的模型需重新评估"
+    }
+  ],
+  "boundaries": [
+    "未开 GPU 窗口、未跑设备数值/`--ignored` 设备用例：设备侧 sample_skybox 与新增分支的像素行为未验证，本卡不出任何渲染数值结论。",
+    "我自跑的门禁为 fmt / clippy（默认特性含 cuda）/ cargo test --locked / --no-run / NVRTC 内核门 / validate --fingerprints；未重跑实现方 PTX 导出 scratch，直接读现盘 dump 并校验 sha 与门禁输出一致。",
+    "「生成语义」依据 warp 1.15.0 缓存的生成 CUDA（来自 R05 capture 的 megakernel 实例化，含 skybox 分支）；Python 源逐行核对，两者一致。",
+    "未改实现代码/证据/卡；未跑 GPU 窗口脚本。",
+    "首次并发调用两个 cargo 触发 os error 32（同一 exe 被占用），属我自己的环境噪声；串行重跑后全部通过，不作为结论依据。"
+  ],
+  "gates": {
+    "none": "QA 复核卡无门禁（卡面 checks 为 receipt task_id + forbid_claim）",
+    "self_run": "fmt 0 / clippy 0 / unit 1103 passed 0 failed / no-run 0 / NVRTC 内核门 0 / validate 错误0警告5（见 review_points.gates_self_run 与 logs/）"
+  },
+  "gate_note": "QA 复核卡无门禁：normify gate exit 1「任务没有引用任何门禁」属预期。",
+  "claims": {
+    "upstream_line_by_line_alignment_verified": true,
+    "generated_semantics_cross_checked": true,
+    "non_skybox_path_static_no_change_verified_and_not_overclaimed": true,
+    "registry_subset_and_two_gates_synchronized": true,
+    "abi_and_flag_bits_only_appended": true,
+    "new_kernel_baseline_self_run_and_delta_recomputed": true,
+    "line_ratchets_independently_counted": true,
+    "evidence_and_scope_self_checked": true,
+    "no_gpu_no_device_numeric_no_code_change": true
+  },
+  "recompute": {"script": "recompute.py", "result": "recompute.json", "problems": 0, "findings": 8}
+}

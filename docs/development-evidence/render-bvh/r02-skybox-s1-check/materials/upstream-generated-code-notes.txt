@@ -1,0 +1,36 @@
+# 上游「生成语义」独立核对（QA）——比只读 Python 更硬的一层
+
+## 依据文件
+
+`target/render-bvh/s3a-shadow-cache/1.15.0/wp__build_megakernel__locals___render_megakernel_92d94e46_dde26ad/wp__build_megakernel__locals___render_megakernel_92d94e46_dde26ad.cu`
+
+这是 warp-lang 1.15.0 对 pinned `mujoco_warp` 渲染 kernel 的**生成 CUDA 源码**（来自 R05 capture 实例化）。
+它不是手写实现，因此它的函数体就是「上游 Python 真正编译成什么」的权威形态。
+
+## 关键事实（我逐行核过）
+
+1. `sample_skybox` 生成为 `sample_skybox_0(texture2d_t, float32, vec3) -> vec3`，函数体按 Python 语句逐行注释映射
+   （`// rx = ray_dir_world[0]  <L 503>` … `// return wp.vec3(color[0], color[1], color[2])  <L 556>`）。
+2. `1/6` 常量落地为：
+   ```text
+   const wp::float32 var_100 = 0.16666666666666666;
+   ```
+   即 **float32 类型 + double 字面量**（C++ 里 `float x = 1.0/6.0` 一次性舍入 → `0x3e2aaaab`）。
+   实现写 `(1.0f/6.0f)`（f32 除法亦正确舍入到同一值）——逐位一致。
+3. `t` 的夹取生成为 `var_97 = wp::clamp(var_92, var_94, var_96);`，而 `warp/native/builtin.h` 中
+   `clamp = min(max(a, x), b)`；实现 `fminf(fmaxf(t, t_min), 1.0f - t_min)` 与之同序（先 max 后 min）。
+4. 采样生成为 `wp::texture_sample<wp::vec_t<4, wp::float32>>(var_skybox_tex, var_102, var_104)`；
+   `texture.h` 的签名是 `texture_sample(const texture2d_t&, const vec2f&, float lod)`，实现传 `0.0f` 作为 lod。
+5. 调用点条件生成为「static 常量 `render_skybox` && `render_rgb[camid]` 的 load」两级判断
+   （`var_196 = var_197; if (var_196) { …, var_196 = var_196 && var_199; } if (var_196) { … }`），
+   与实现的 `if (do_rgb) { if (bit9) { … } }` 等价；分支内先 `sample_skybox` 再 `store_pixel`，
+   `store_pixel` 生成为 `aa_accum += color*255` / `pack_rgba_to_uint32(color*255, 255)`，与实现所用
+   既有 `aa_store` / `pack_rgba_to_uint32` 同义。
+6. face 选择在生成代码里用 `wp::where` 链（无 early-return），语义与 Python if/elif 链一致；
+   实现用 if/else 链，同一输入下取同一 (face, sc, tc, ma)。
+
+## 结论
+
+实现侧的六处关键点（1/6 常量位型、clamp 顺序、lod=0、采样类型 vec4、调用点条件、store_pixel 语义）
+与**生成形态**逐项对齐；`sample_skybox` 的 face/sc/tc 表另由我分别从上游 Python 与实现 CUDA 解析后比对，
+六行全等。以上均为静态/编译期核对，不含任何设备执行或渲染数值结论。

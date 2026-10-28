@@ -1,0 +1,384 @@
+{
+ "upstream_render_py": {
+  "bytes": 51362,
+  "lines": 1604,
+  "sha256": "16bfe7edfa73033ef88fb4bbc46364867935f0c527ca53a23ff65c5c40fb3536"
+ },
+ "upstream_sample_skybox_lines_494_556": {
+  "first_line": "def sample_skybox(",
+  "last_line": "return wp.vec3(color[0], color[1], color[2])",
+  "checks": {
+   "rotation_x_z_neg_y": true,
+   "six_faces_sc_tc_parsed_from_source": true,
+   "face_sc_tc_table": {
+    "0": {
+     "sc": "-rz",
+     "tc": "-ry"
+    },
+    "1": {
+     "sc": "rz",
+     "tc": "-ry"
+    },
+    "2": {
+     "sc": "rx",
+     "tc": "rz"
+    },
+    "3": {
+     "sc": "rx",
+     "tc": "-rz"
+    },
+    "4": {
+     "sc": "rx",
+     "tc": "-ry"
+    },
+    "5": {
+     "sc": "-rx",
+     "tc": "-ry"
+    }
+   },
+   "safe_div_s_and_t": true,
+   "t_min_and_clamp": true,
+   "v_formula_1_6": true,
+   "texture_sample_vec4": true,
+   "face_stack_order_comment": true,
+   "max_axis_chain": true,
+   "ma_assignments": true
+  }
+ },
+ "upstream_call_site_1259_1268": {
+  "lines": [
+   "      if wp.static(rc_static[\"render_skybox\"]) and render_rgb[camid]:",
+   "        skybox_id = skybox_tex_id[worldid % skybox_tex_id.shape[0]]",
+   "        skybox_color = sample_skybox(",
+   "          textures[skybox_id],",
+   "          1.0 / float(skybox_face_width[worldid % skybox_face_width.shape[0]]),",
+   "          ray_dir_world,",
+   "        )",
+   "        if wp.static(has_splats):",
+   "          skybox_color = splat_color + skybox_color * splat_transmittance",
+   "        store_pixel(worldid, rgb_adr[camid] + rayid_local, skybox_color, rgb_out, aa_accum_out)",
+   "      elif render_rgb[camid]:",
+   "        if wp.static(has_splats):",
+   "          pixel_color = splat_color + wp.static(rc_static[\"background_color_vec3\"]) * splat_transmittance",
+   "          store_pixel(worldid, rgb_adr[camid] + rayid_local, pixel_color, rgb_out, aa_accum_out)",
+   "        elif wp.static(aa):",
+   "          store_pixel(",
+   "            worldid,",
+   "            rgb_adr[camid] + rayid_local,"
+  ],
+  "has_static_skybox_and_render_rgb": true,
+  "has_skybox_id_mod_shape": true,
+  "face_width_inv_expr": true,
+  "store_pixel_call": true,
+  "elif_render_rgb": true
+ },
+ "upstream_store_pixel_1017_1031": {
+  "lines": [
+   "  def store_pixel(",
+   "    # In:",
+   "    worldid: int,",
+   "    adr: int,",
+   "    color: wp.vec3,",
+   "    # Out:",
+   "    rgb_out: wp.array2d[wp.uint32],",
+   "    aa_accum_out: wp.array2d[wp.vec3],",
+   "  ):",
+   "    # Supersampling sums in float here rather than re-reading the packed byte",
+   "    # image, so the passes neither round-trip through memory nor quantise early.",
+   "    if wp.static(aa):",
+   "      aa_accum_out[worldid, adr] += color * 255.0",
+   "    else:",
+   "      rgb_out[worldid, adr] = pack_rgba_to_uint32(color[0] * 255.0, color[1] * 255.0, color[2] * 255.0, 255.0)"
+  ],
+  "aa_adds_color_times_255": true,
+  "non_aa_pack_with_255": true
+ },
+ "upstream_render_util_514_535": {
+  "skybox_ids_nonzero": true,
+  "has_skybox_condition": true,
+  "face_width_is_tex_width": true,
+  "render_skybox_set_false_otherwise": true,
+  "registry_gate": true,
+  "empty_tex_1x1x4": true,
+  "loop_uses_or_skybox_id": true
+ },
+ "upstream_safe_div_math_318_319": {
+  "lines": [
+   "@wp.func",
+   "def safe_div(x: Any, y: Any) -> Any:",
+   "  return x / wp.where(y != 0.0, y, types.MJ_MINVAL)"
+  ],
+  "mj_minval_1e-15": true
+ },
+ "generated_cu": {
+  "file": "D:\\Rust\\mjwarp-rs\\target\\render-bvh\\s3a-shadow-cache\\1.15.0\\wp__build_megakernel__locals___render_megakernel_92d94e46_dde26ad\\wp__build_megakernel__locals___render_megakernel_92d94e46_dde26ad.cu",
+  "sample_skybox_present": true,
+  "one_sixth_decl": [
+   "const wp::float32 var_100 = 0.16666666666666666;"
+  ],
+  "one_sixth_declared_as_float32": true,
+  "f32_bits_of_one_sixth": "0x3e2aaaab",
+  "clamp_via_min_max": true,
+  "texture_sample_vec4_with_lod": true,
+  "call_site_static_and_render_rgb": true,
+  "skybox_call_present": true,
+  "store_pixel_call_after": true,
+  "warp_clamp_def": [
+   "inline CUDA_CALLABLE T clamp(T x, T a, T b) { return min(max(a, x), b); } \\",
+   "inline CUDA_CALLABLE T clamp(T x, T a, T b) { return _wp_native_fmin(_wp_native_fmax(a, x), b); }\\"
+  ]
+ },
+ "impl_shade_cu": {
+  "has_sample_skybox": true,
+  "uses_safe_div_render": true,
+  "t_min_half_texel": true,
+  "clamp_min_max": true,
+  "v_formula_f32": true,
+  "texture_sample_vec4_lod0": true,
+  "six_face_branches": true,
+  "face_table_matches_upstream": true,
+  "impl_face_table": {
+   "0": {
+    "sc": "-rz",
+    "tc": "-ry"
+   },
+   "1": {
+    "sc": "rz",
+    "tc": "-ry"
+   },
+   "2": {
+    "sc": "rx",
+    "tc": "rz"
+   },
+   "3": {
+    "sc": "rx",
+    "tc": "-rz"
+   },
+   "4": {
+    "sc": "rx",
+    "tc": "-ry"
+   },
+   "5": {
+    "sc": "-rx",
+    "tc": "-ry"
+   }
+  },
+  "rotation_lines": [
+   "float rx = ray_dir_world.x;",
+   "float ry = ray_dir_world.z;",
+   "float rz = -ray_dir_world.y;"
+  ],
+  "max_axis_chain": true
+ },
+ "impl_megakernel_cu": {
+  "define_skybox_0x200": true,
+  "branch_gated_by_bit9": true,
+  "branch_inside_geom_minus_one": true,
+  "old_aa_branch_kept_as_else_if": true,
+  "non_aa_pack_255": true,
+  "aa_store_shared_helper": true,
+  "slots_read_only_in_branch": true
+ },
+ "impl_texture_inputs": {
+  "lines": 157,
+  "branches_use_textures": true,
+  "branch_skybox_only": true,
+  "dummy_1x1x4_zero": true,
+  "dummy_all_zero": true,
+  "index_equals_texture_id": true,
+  "face_width_check": true,
+  "empty_when_neither": true
+ },
+ "impl_lifecycle_gate": {
+  "line": 330,
+  "expr": true
+ },
+ "impl_uploads_gate": {
+  "line": 183,
+  "expr": true,
+  "reject_when_skybox_but_no_array": true,
+  "slots_none_zero": true,
+  "slots_some_values": true
+ },
+ "impl_flag_bit": {
+  "rust_bit9": true,
+  "flag_set_only_when_render_skybox": true,
+  "high_word_packing_unchanged": true
+ },
+ "impl_context": {
+  "render_skybox_is_skybox_is_some": true,
+  "pub_mod_texture_inputs": true,
+  "pub_use_texture_registry": true
+ },
+ "megakernel_slots": {
+  "definition_unchanged_in_slice": true,
+  "declared_len": "81"
+ },
+ "device_sources": "28",
+ "collision_args_bytes": true,
+ "line_counts_lf": {
+  "src/render/kernel/cuda/render_shade.cu": {
+   "lines": 457,
+   "limit": 470,
+   "ok": true
+  },
+  "src/render/kernel/cuda/render_megakernel.cu": {
+   "lines": 368,
+   "limit": 420,
+   "ok": true
+  },
+  "src/render/kernel/megakernel.rs": {
+   "lines": 410,
+   "limit": 412,
+   "ok": true
+  },
+  "src/render/kernel/megakernel_arrays.rs": {
+   "lines": 332,
+   "limit": 340,
+   "ok": true
+  },
+  "src/render/kernel/megakernel_uploads.rs": {
+   "lines": 465,
+   "limit": 480,
+   "ok": true
+  },
+  "src/render/context.rs": {
+   "lines": 455,
+   "limit": 470,
+   "ok": true
+  },
+  "src/render/context/lifecycle.rs": {
+   "lines": 498,
+   "limit": 499,
+   "ok": true
+  },
+  "src/render/context/texture_inputs.rs": {
+   "lines": 157,
+   "limit": 160,
+   "ok": true
+  },
+  "tests/render_skybox.rs": {
+   "lines": 260,
+   "limit": 260,
+   "ok": true
+  },
+  "src/render/texture.rs": {
+   "lines": 486,
+   "limit": 486,
+   "ok": true
+  },
+  "src/render/kernel/cast.rs": {
+   "lines": 481,
+   "limit": 481,
+   "ok": true
+  },
+  "src/render/kernel/cuda/render.cu": {
+   "lines": 499,
+   "limit": 499,
+   "ok": true
+  },
+  "src/render/kernel/launch.rs": {
+   "lines": 500,
+   "limit": 500,
+   "ok": true
+  },
+  "src/model/render.rs": {
+   "lines": 500,
+   "limit": 500,
+   "ok": true
+  },
+  "all_ok": true
+ },
+ "ptx_artifacts": {
+  "baseline": {
+   "bytes": 264015,
+   "sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13",
+   "lines": 8115,
+   "tex_level_2d": 1,
+   "and_b32_512": 0,
+   "and_b32_256": 2,
+   "and_b32_total": 43,
+   "max_f32": 39,
+   "min_f32": 9,
+   "sqrt": 51
+  },
+  "current": {
+   "bytes": 268275,
+   "sha256": "0b9474928ab8a7add27e5da7ac0869ee955a75405cd976cd04839f2312e88f3e",
+   "lines": 8250,
+   "tex_level_2d": 2,
+   "and_b32_512": 1,
+   "and_b32_256": 3,
+   "and_b32_total": 45,
+   "max_f32": 40,
+   "min_f32": 10,
+   "sqrt": 51
+  }
+ },
+ "kernel_gate_observed": {
+  "source_sha256": "e68e3412c1e1809e71100d9e842d5b0f5b886ffdec88d8401bb01c76e812904c",
+  "ptx_sha256": "0b9474928ab8a7add27e5da7ac0869ee955a75405cd976cd04839f2312e88f3e",
+  "ptx_bytes": "268275"
+ },
+ "evidence_manifest": {
+  "rows": 5,
+  "bad_committed": [],
+  "bad_disk": [],
+  "self_reference": false,
+  "unlisted": []
+ },
+ "slice_diff": [
+  "A\t.normify/changes/2026-10-29-render-bvh-r02-skybox-s1-check.json",
+  "A\t.normify/changes/2026-10-29-render-bvh-r02-skybox-s1.json",
+  "A\t.normify/changes/2026-10-29-render-bvh-r02-skybox-s2-capture-authoring.json",
+  "A\t.normify/changes/2026-10-29-render-bvh-r02-skybox-s2b-reference-test.json",
+  "M\t.normify/modules/mjwarp/render.md",
+  "A\t.normify/runs/2026-10-29-render-bvh-r02-skybox-s1/clippy-cuda.json",
+  "A\t.normify/runs/2026-10-29-render-bvh-r02-skybox-s1/clippy.json",
+  "A\t.normify/runs/2026-10-29-render-bvh-r02-skybox-s1/fmt.json",
+  "A\t.normify/runs/2026-10-29-render-bvh-r02-skybox-s1/unit.json",
+  "A\t.normify/runs/2026-10-29-render-bvh-r02-skybox-s2-capture-authoring/clippy-cuda.json",
+  "A\t.normify/runs/2026-10-29-render-bvh-r02-skybox-s2-capture-authoring/clippy.json",
+  "A\t.normify/runs/2026-10-29-render-bvh-r02-skybox-s2-capture-authoring/fmt.json",
+  "A\t.normify/runs/2026-10-29-render-bvh-r02-skybox-s2-capture-authoring/unit.json",
+  "A\tdocs/development-evidence/render-bvh/r02-skybox-s1/README.md",
+  "A\tdocs/development-evidence/render-bvh/r02-skybox-s1/manifest.txt",
+  "A\tdocs/development-evidence/render-bvh/r02-skybox-s1/materials/gates.txt",
+  "A\tdocs/development-evidence/render-bvh/r02-skybox-s1/materials/line-counts.txt",
+  "A\tdocs/development-evidence/render-bvh/r02-skybox-s1/materials/ptx-diff-summary.txt",
+  "A\tdocs/development-evidence/render-bvh/r02-skybox-s1/receipt.json",
+  "A\tdocs/development-evidence/render-bvh/r02-skybox-s2-capture-authoring/README.md",
+  "A\tdocs/development-evidence/render-bvh/r02-skybox-s2-capture-authoring/manifest.txt",
+  "A\tdocs/development-evidence/render-bvh/r02-skybox-s2-capture-authoring/materials/entity-table.json",
+  "A\tdocs/development-evidence/render-bvh/r02-skybox-s2-capture-authoring/materials/script-identity.txt",
+  "A\tdocs/development-evidence/render-bvh/r02-skybox-s2-capture-authoring/materials/window-plan.txt",
+  "A\tdocs/development-evidence/render-bvh/r02-skybox-s2-capture-authoring/receipt.json",
+  "A\tscripts/authoring/render-bvh-r02/capture_skybox.py",
+  "A\tscripts/validate/render-bvh/freeze-guards-r02.ps1",
+  "M\tscripts/validate/render-bvh/run-window.ps1",
+  "M\tsrc/render/context.rs",
+  "M\tsrc/render/context/lifecycle.rs",
+  "A\tsrc/render/context/texture_inputs.rs",
+  "M\tsrc/render/kernel/cuda/render_megakernel.cu",
+  "M\tsrc/render/kernel/cuda/render_shade.cu",
+  "M\tsrc/render/kernel/megakernel.rs",
+  "M\tsrc/render/kernel/megakernel_arrays.rs",
+  "M\tsrc/render/kernel/megakernel_uploads.rs",
+  "A\ttests/render_skybox.rs"
+ ],
+ "forbidden_hits": [],
+ "module_sources": {
+  "count_in_module_doc": 40,
+  "texture_inputs_registered": true
+ },
+ "tests_host_only": {
+  "lines": 260,
+  "has_skybox_uv_reference": true,
+  "uses_safe_div_1e-15": true,
+  "pins_one_sixth_bits": true,
+  "pins_t_min_bits": true,
+  "asserts_slots_81_bounds_1_scalars_7": true,
+  "asserts_define_table": true
+ },
+ "problems": []
+}

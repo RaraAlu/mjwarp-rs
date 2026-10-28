@@ -1,0 +1,51 @@
+# QA 自跑门禁（最终树，本机 Windows 2026-10-29；仓库 D:\Rust\mjwarp-rs）
+# 说明：本文件是我自己跑的退出码与数字，不抄实现方 gates.txt。
+
+环境
+  rustc 1.99.0 (b940084d7 2026-09-28)，x86_64-pc-windows-msvc
+  内核门环境：PATH 前置 D:\Rust\mjwarp-rs\target\toolchains\cuda-12.8.1\bin，
+              CUDA_PATH=D:\Rust\mjwarp-rs\target\toolchains\cuda-12.8.1
+
+1) fmt
+   cargo fmt --all --check
+   -> exit 0（无输出 = 通过；logs/fmt.log 为空文件）
+
+2) clippy（--all-targets + 默认特性，默认特性含 cuda）
+   cargo clippy --all-targets --locked --features cuda -- -D warnings
+   -> exit 0（logs/clippy.log：Checking mjwarp-rs … Finished dev profile in 6.37s）
+
+3) 单元测试
+   cargo test --locked
+   -> exit 0
+   result lines=135  passed=1103  failed=0  ignored=389（与我自算的求和一致）
+   本片新增用例可见：render_skybox.rs 10 条（all ok）+ texture_inputs 1 条（ok）
+   明细见 logs/unit-summary.txt
+
+4) --no-run
+   cargo test --locked --no-run
+   -> exit 0；Executable 行=133（logs/no-run-summary.txt）
+
+5) 内核编译门（NVRTC 纯编译，不占 GPU）
+   cargo test --locked --features cuda-probe --test render_kernel_rgb -- \
+     --ignored megakernel_source_compiles_under_render_gate --test-threads=1 --nocapture
+   -> exit 0；test result: ok. 1 passed; 0 failed; 0 ignored
+      source_sha256=e68e3412c1e1809e71100d9e842d5b0f5b886ffdec88d8401bb01c76e812904c
+      ptx_sha256=0b9474928ab8a7add27e5da7ac0869ee955a75405cd976cd04839f2312e88f3e
+      ptx_bytes=268275
+   （原始输出 logs/kernel-gate.log）
+
+6) normify validate --fingerprints
+   -> exit 0；校验：错误 0 / 警告 5（警告为既有架构提示；实现方记录 closing 前为 6 条含 1 条
+      本片 fingerprint 过期，done 已刷新，故现在 5 条 —— 自洽）
+
+环境噪声说明（诚实记录，不作为结论依据）
+  第一次把三条 cargo 命令用 `&` 并发启动时出现：
+    could not execute process target\debug\deps\mass_matrix_probe-….exe (never executed):
+    另一个程序正在使用此文件 (os error 32)
+  原因是我自己并发起两个 cargo 抢同一个 exe。随后确认 cargo/rustc 进程数=0，
+  改为串行逐条重跑（上述 1)~6) 均为串行最终结果），全部通过。
+
+未执行（本片明确不做）
+  · 任何 GPU 窗口（monitor/guards/冻结）、任何设备数值执行（`--ignored` 中我只跑了 NVRTC 纯编译门）
+  · 未跑实现方的 PTX 导出 scratch；我直接读现盘 target/r02-ptx/{baseline,current}.ptx 并校验
+    sha/bytes 与门禁输出一致，再自行统计语义指令数
