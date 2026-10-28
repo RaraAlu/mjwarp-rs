@@ -12,7 +12,6 @@
 //! 全部布局常量钉死在对应类型的文档注释里；发射侧只读取这些字段上传，不在设备侧做
 //! 布局推断。像素内核见 `kernel/cuda/render.cu`。
 
-use crate::math::quat_to_mat;
 use crate::model::render::{FieldData, RenderFields};
 use crate::render::bvh::{NodeKind, SceneBvh};
 use crate::render::camera::CameraModel;
@@ -97,7 +96,7 @@ impl CameraPose {
                 quaternion[qbase + 2] as f32,
                 quaternion[qbase + 3] as f32,
             ];
-            let matrix = quat_to_mat(quat);
+            let matrix = warp_quat_to_mat(quat);
             poses.push(Self {
                 xpos,
                 xmat: [
@@ -136,6 +135,32 @@ impl CameraPose {
         }
         out
     }
+}
+
+/// 固定相机 `cam_xmat` 的派生：上游 GPU 产品路径的逐位收缩序。
+///
+/// 上游产品路径是 `quat_to_mat(mul_quat(xquat_world, cam_quat))`，world 体 `xquat` 为单位四元数
+/// （`mul_quat` 结果与 `cam_quat` 逐位相同）。warp 生成代码的 PTX 只写 `mul/add/sub`，真正的 FMA
+/// 收缩发生在驱动 JIT（ptxas→SASS）；本序由 pinned 环境 1003 个四元数的 GPU 参考逐元素唯一反推，
+/// 对角元是 `fma(-q3,q3,fma(-q2,q2,fma(q0,q0,±q11)))` 链，非对角元是 `2*fma(qa,qb,±乘积)`。
+/// FMA 用项目既有的 [`crate::math::fma::fma_f32`]（硬件 `vfmadd231ss` + 整数软兜底，单次舍入）；
+/// 不用 `f32::mul_add`：本工具链 debug 构建在无 FMA 指令的软件路径上实测差 1 ULP。
+/// 也不要换成 [`crate::math::quat_to_mat`]：那是未收缩的代数展开，非平凡四元数会差 1–2 ULP；该函数
+/// 与物理路径共用，故不在 `src/math` 内改。
+fn warp_quat_to_mat(quat: [f32; 4]) -> [[f32; 3]; 3] {
+    use crate::math::fma::fma_f32 as fma;
+
+    let [q0, q1, q2, q3] = quat;
+    let (q01, q02, q03) = (q0 * q1, q0 * q2, q0 * q3);
+    let q11 = q1 * q1;
+    let e0 = fma(-q3, q3, fma(-q2, q2, fma(q0, q0, q11)));
+    let e4 = fma(-q3, q3, fma(q2, q2, fma(q0, q0, -q11)));
+    let e8 = fma(q3, q3, fma(-q2, q2, fma(q0, q0, -q11)));
+    [
+        [e0, 2.0 * fma(q1, q2, -q03), 2.0 * fma(q1, q3, q02)],
+        [2.0 * fma(q1, q2, q03), e4, 2.0 * fma(q2, q3, -q01)],
+        [2.0 * fma(q1, q3, -q02), 2.0 * fma(q2, q3, q01), e8],
+    ]
 }
 
 /// `_geom_rgba` 与 `geom_type` 需要的最小模型数组（冻结上游 `render.py::_geom_rgba`）。
@@ -407,5 +432,50 @@ fn real_array(fields: &RenderFields, name: &'static str) -> Result<Vec<f64>, Pos
         }
         Some(_) => Err(PoseError::Kind(name)),
         None => Err(PoseError::Missing(name)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::warp_quat_to_mat;
+
+    fn bits(quat: [u32; 4]) -> Vec<u32> {
+        warp_quat_to_mat(quat.map(f32::from_bits))
+            .concat()
+            .into_iter()
+            .map(f32::to_bits)
+            .collect()
+    }
+
+    #[test]
+    fn derived_contraction_matches_upstream_gpu_bits() {
+        assert_eq!(
+            bits([0x3f800000, 0, 0, 0]),
+            vec![0x3f800000, 0, 0, 0, 0x3f800000, 0, 0, 0, 0x3f800000]
+        );
+        // hfield cam-side（链式 mul_quat(单位四元数, cam_quat) 后求矩阵，上游 capture 9/9）。
+        assert_eq!(
+            bits([0x3f3d3c57, 0x3f01dbed, 0x3e805783, 0x3ebb0653]),
+            vec![
+                0x3f1b8312, 0xbe924acb, 0x3f3dbdb7, 0x3f4b5a1b, 0x3e5fc075, 0xbf111a67, 0xb31f2429,
+                0x3f6edd7f, 0x3eb82ad7
+            ]
+        );
+        // scene-a cam-persp（已 verified 的 camera_data_check[0].xmat_bits，9/9）。
+        assert_eq!(
+            bits([0x3f6c62aa, 0x3dd21ed0, 0xbe521ed0, 0x3e9d971c]),
+            vec![
+                0x3f39efd5, 0xbf1c4b73, 0xbea1af28, 0x3f06bca1, 0x3f4a1af2, 0xbea1af28, 0x3ee25b9e,
+                0x3d8158ed, 0x3f650d78
+            ]
+        );
+        // 随机四元数抽样（seed 20261029 第 4 条）：未收缩代数展开在此条上有 1 ULP 差。
+        assert_eq!(
+            bits([0xbfa2dda9, 0x3fd923b2, 0x3fa571ad, 0x3f5686e3]),
+            vec![
+                0x4007eda4, 0x40d091fb, 0xbee46100, 0x40102dbe, 0xbe94afb1, 0x40cf76b3, 0x40c43c50,
+                0xc009a501, 0xc00e8a87
+            ]
+        );
     }
 }

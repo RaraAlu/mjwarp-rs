@@ -1,0 +1,64 @@
+{
+    "schema_version":  1,
+    "id":  "2026-10-28-render-bvh-camera-pose-warp-fma-align",
+    "title":  {
+                  "zh":  "相机世界位姿对齐上游 FMA 收缩（cast.rs 内 warp 收缩序 quat→matrix）",
+                  "en":  "Align host-derived camera world pose with upstream FMA contraction (warp-ordered quat-\u003ematrix in cast.rs)"
+              },
+    "status":  "in_progress",
+    "intent":  {
+                   "zh":  "修 cam1 depth 判据红（RCA `a62cc6aa` 已定根因）：上游采集时 `d.cam_xmat` 由 `mujoco_warp math.quat_to_mat` 在 **GPU 上**、编译选项 `fast_math=false + fuse_fp=true`（`--fmad=true`）收缩计算；我方在 `src/render/kernel/cast.rs` 用 host Rust `crate::math::quat_to_mat` 派生，**无 FMA 收缩** → 对非平凡四元数（cam1 由 xyaxes 派生）9 个元素里 5 个差 1–2 ULP → world dir 差 42449/43200 → depth ≤7 ULP/`beyond=20`。cam0 四元数为精确恒等，两边都精确单位矩阵，故此前无感。本片只补「host 派生相机位姿的舍入口径」，使其与上游 GPU 产物逐位一致；**不动 `src/math`（物理路径共用）、不动 `.cu`/81 槽/ABI/判据/容差/参考/fixture**，不采用「测试直接喂上游 cam_xmat」的绕过方案。",
+                   "en":  "Align the host-derived camera world pose with upstream\u0027s GPU FMA-contracted quat_to_matrix so cam_xmat is bit-identical; no src/math, .cu, ABI, criteria, tolerance, reference or fixture changes."
+               },
+    "modules":  {
+
+                },
+    "acceptance":  [
+                       "**最小改动（行数实测口径）**：只改 `src/render/kernel/cast.rs`（新增 warp 收缩序对齐的 `quat_to_matrix` + `CameraPose::from_fields` 改用）。**实测：411 → 477 行（+68/−2）**，超出最初「+≤40/≤451」的估算，理由=收缩链需逐项 fma 展开 + 三条硬编码位型单测；**上限仍 ≤500，且对 rustfmt 后的最终行数负责**（长 vec 被 fmt 折行可能再涨，需留余量；若最终 \u003e500 必须停手报 Arch 改卡）。`src/math/mod.rs`、`.cu`、`tests/`、`fixtures/`、`hfield_scene.rs`（499）零改动。",
+                       "**实现依据可追溯（口径已按实测修正）**：`sm89.ptx` 里 `quat_to_mat` **只有 mul/add/sub、没有 fma** ——真正的收缩发生在**驱动 JIT（ptxas → SASS）**，因此收缩序不能从 PTX 直接读出，必须用 **pinned GPU 参考（上游 warp 1.15.0 在 driver 596.36 上）在多个四元数上唯一反推**。证据必须含：① 候选收缩序枚举空间大小与候选数；② 用多少条四元数使解**唯一化**（收敛到第几条）；③ PTX 片段作为「无 fma」的反证；④ 固定随机种子与可复现命令。做不到唯一化或与上游有差异 → 停手报 Arch。",
+                       "**验收（位级）**：用 pinned 上游采集时的 `d.cam_xmat` 作对照——**cam1 的 9 个元素 9/9 位级相等、cam0 仍 9/9**；派生 world dir 相对上游的位差像素数 **cam1 从 42449/43200 降到 0/43200**、cam0 保持 0/76800。给修改前后 `cam_xmat` 位型对照表（9 元素 hex）。",
+                       "**既有场景零回退**：scene-a / scene-shadow 的位等实体（参考 `camera_data` 位姿直传，`s7b1.rs::camera_data_poses` + `render_kernel_depth_seg` 位等断言）**仍位等**；`render_r08_cameras` / `render_e2e` / `render_kernel_*` host 用例全绿；`cargo test --locked` unit 数不减（当前 1091）。",
+                       "**门禁**：fmt / clippy `-D warnings` / clippy-cuda / `cargo test --locked` / `--no-run` / `normify validate --fingerprints` 全过；**内核编译门 source_sha256 / ptx_sha256 / ptx_bytes 期望不变**（`72bc364c…` / `97467d83…` / 264 015，只动 host Rust），变了要停手报 Arch；81 槽、`DEVICE_SOURCES=28`、`CollisionArgs=504 B` 不变。",
+                       "**证据**：`docs/development-evidence/render-bvh/r05-s3b-camera-pose-warp-fma-align/`（README 引用 RCA `a62cc6aa` 因果链 + PTX 依据 + 位型对照 + 回归结果 + 影响面；manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0）；**本片零渲染数值验收结论**（数值验收留 S3b validate 的 attempt=2）。",
+                       "**完成后**：9 个冻结 exe sha 必变 → 重跑 `freeze-guards.ps1`（attempt=2，含 stash 副本），一次性把新 guards sha/bytes/aggregate、9 新 exe sha+bytes、stash 9/9、runner `31ac28bf…`/monitor `788d3505…` 不变、64 输入聚合不变、floor、`-Attempt 2` 逐字命令报 Arch 转 Chief 重签；本片不开窗。"
+                   ],
+    "schedule":  {
+                     "depends_on":  [
+                                        "2026-10-28-render-bvh-r05-s3b-hfield-cam1-depth-rca"
+                                    ],
+                     "phase":  "P8-渲染与BVH",
+                     "owner":  "Backend",
+                     "files":  [
+                                   "src/render/kernel/cast.rs",
+                                   "docs/development-evidence/render-bvh/r05-s3b-camera-pose-warp-fma-align/"
+                               ],
+                     "resources":  [
+
+                                   ],
+                     "priority":  61
+                 },
+    "note":  "Arch 2026-10-29 预登记（proposed，等 Chief 批方案 A 后 start）。根因证据 `a62cc6aa`；本片改共享渲染家族路径（相机世界位姿），影响面清单见 RCA 证据 §8。改前须 Chief 批，改后 R08/R09/e2e/kernel_* 必须重跑并验证零回退。",
+    "revision":  {
+                     "before":  "766f97d9071ed316e4194e33877501cf54261c5a",
+                     "after":  null
+                 },
+    "created_at":  "2026-10-29T03:50:00.000Z",
+    "updated_at":  "2026-10-28T19:35:30.171Z",
+    "checks":  [
+                   {
+                       "kind":  "json",
+                       "path":  "docs/development-evidence/render-bvh/r05-s3b-camera-pose-warp-fma-align/receipt.json",
+                       "pointer":  "/task_id",
+                       "equals":  "2026-10-28-render-bvh-camera-pose-warp-fma-align"
+                   },
+                   {
+                       "kind":  "forbid_claim",
+                       "terms":  [
+                                     "窗口通过",
+                                     "精度达标",
+                                     "上游等价",
+                                     "产品渲染验收通过"
+                                 ]
+                   }
+               ]
+}
