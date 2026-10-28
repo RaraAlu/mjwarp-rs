@@ -26,6 +26,10 @@
 | `tests/support/render_bvh/hfield/model-mixed-312.json` | 新增（生成数据） | 53 207 | 145 | `c9a886ae8714b5a977a6bcb570960396b4cad2aa9e4c947dc26eef7e1ecac801` |
 | `tests/support/render_bvh/shadow.rs` | 修改（+8/−8 行，仅可见性） | 16 593 | 423 | `c47aa4b05b6976a4ff1015be1d4dffd787a1affb4f40b8dafb02aff335a2d2d9` |
 
+行数口径：表内为文本行数（含末尾空行；与 Arch 终稿实测一致）；`wc -l`（LF 数）为 392 / 354 / 499。
+`hfield_scene.rs` 实测 **500 行**（≤500 上限），**高于本片预核 300–340 行**（场景装配 + 判据断言 +
+哈希/打印点全部实装所致），如实记录、不上调上限；终稿记录后不再加行。
+
 `shadow.rs` 的 8 处改动仅把 `quantize_channel`/`sha256_hex`/`read_npz`/`parse_npy`/`f32_member`/
 `i32_member`/`f32_member_rgb`/`member` 由私有改为 `pub(super)`，供 `hfield.rs` 复用最小 npz 解析器；
 **零行为、零断言、零容差改动**。
