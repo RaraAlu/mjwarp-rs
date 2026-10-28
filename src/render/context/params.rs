@@ -17,6 +17,10 @@ pub mod lighting;
 #[path = "hfield.rs"]
 pub mod hfield;
 
+/// R05 前置：从既有体积通道构建 hfield 输入（文件位于 `context/`，按任务范围以 `#[path]` 声明）。
+#[path = "hfield_inputs.rs"]
+pub mod hfield_inputs;
+
 /// 上游默认 `enabled_geom_groups=[0, 1, 2]`。
 pub const DEFAULT_GEOM_GROUPS: [i32; 3] = [0, 1, 2];
 

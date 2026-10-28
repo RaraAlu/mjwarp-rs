@@ -1,0 +1,76 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-hfield-channel",
+  "kind": "render-bvh-r05-hfield-channel",
+  "stage": "implemented-tested-host-only",
+  "head": "9a32bf87990e4e79a14b49e1246dc912550bc7b7",
+  "numeric_conclusions": false,
+  "window_executed": false,
+  "decision": {
+    "chosen": "A (thin adapter over the existing volume channel)",
+    "reason": "RENDER_FIELDS has 116 specs without any hfield field and src/model/render.rs is a 500-line redline file, while VolumeModelInput (G1/G10 chain) already exposes hfield_data()/hfield_size()/hfield_size_f32()/ints(hfield_nrow,ncol,adr) and validates lengths/ranges in new()",
+    "rejected_b_cost": "split src/model/render.rs (500 -> ~382) + new src/model/render/fields.rs (~126); CountUnit +2; RenderModelCounts +2; RENDER_FIELDS 116->121 (append ids 116-120); io/render.rs count/static assertions +8-12; native model_probe_render.cpp render_stage 5 cases + mjwarp_render_info +2 fields (native ABI change, re-freeze); RenderModelCounts::validate +2; sync all tests/evidence hard-coding 116; ~10 files, +40-60 lines, touches redline and native ABI"
+  },
+  "files": [
+    {"path": "src/render/context/hfield_inputs.rs", "lines": 70, "new": true, "content": "VolumeHfieldInputs adapter: from_volume / as_inputs / resolve; no data copy, no nworld read, NativeProbeError passthrough"},
+    {"path": "src/render/context/params.rs", "lines": 197, "delta": "+4", "content": "#[path = \"hfield_inputs.rs\"] pub mod hfield_inputs; mount + doc note"},
+    {"path": "tests/render_hfield_inputs.rs", "lines": 218, "new": true, "content": "7 host tests: adapt, full chain, no-hfield None, G10 fixture array match, single f64->f32 conversion, boundary semantics, stable-and-copy-free"},
+    {"path": ".normify/modules/mjwarp/render.md", "content": "module source registration 35 -> 36 and fingerprint refresh via normify done"}
+  ],
+  "api": {
+    "VolumeHfieldInputs::from_volume": "(&'a VolumeModelInput) -> Result<Option<VolumeHfieldInputs<'a>>, NativeProbeError>; nhfield==0 -> Ok(None)",
+    "VolumeHfieldInputs::as_inputs": "&self -> HfieldInputs<'_> (all five fields Some)",
+    "VolumeHfieldInputs::resolve": "&self -> Result<Option<HfieldParams<'_>>, HfieldError>",
+    "export_path": "mjwarp_rs::render::context::params::hfield_inputs::VolumeHfieldInputs",
+    "top_level_export_note": "render/mod.rs is outside this card's scope and was not modified; S2 can add a one-line top-level re-export if needed"
+  },
+  "semantic_notes": [
+    "size is the only f64->f32 conversion point (model::volume::num_to_f32, hfield_size_f32), no second conversion",
+    "data is borrowed, not copied (test asserts pointer equality against model.hfield_data())",
+    "single copy: the adapter takes no nworld and the view count equals nhfield",
+    "boundary semantics differ by layer: volume construction accepts nrow=0 (>=0 check) while S1 resolve rejects <=0 with NonPositiveRowsCols; the test verifies that edge explicitly instead of silently rewriting it"
+  ],
+  "tests": {
+    "file": "tests/render_hfield_inputs.rs",
+    "count": 7,
+    "result": "7 passed / 0 failed",
+    "fixture": "fixtures/g10-p5/hfield-f32/hfield-box-cpu.json model.arrays (input-consistency only, no rendering numeric conclusion)"
+  },
+  "redlines": {
+    "render_cu_lines": 499,
+    "launch_rs_lines": 500,
+    "cast_rs_lines": 494,
+    "model_render_rs_lines": 500,
+    "camera_output_rs_lines": 499,
+    "megakernel_rs_lines": 490,
+    "io_render_rs_lines": 453,
+    "native_model_probe_render_touched": false,
+    "device_sources": 28,
+    "entry_points": 6,
+    "collision_args_bytes": 504,
+    "megakernel_slots": 81,
+    "fixtures_precision_untouched": true
+  },
+  "module_sources": {"before": 35, "after": 36, "registered": "src/render/context/hfield_inputs.rs"},
+  "logs": {
+    "test": "docs/development-evidence/render-bvh/r05-hfield-channel/logs/test.log",
+    "clippy": "docs/development-evidence/render-bvh/r05-hfield-channel/logs/clippy.log",
+    "fmt": "docs/development-evidence/render-bvh/r05-hfield-channel/logs/fmt.log",
+    "lines": "docs/development-evidence/render-bvh/r05-hfield-channel/logs/lines.log"
+  },
+  "uncovered": [
+    "product path: who provides VolumeModelInput when creating the render context is left to S2 (interface decision)",
+    "device-side hfield BVH and kernel intersection not implemented (S2); hfield_bvh_id slot semantics unchanged",
+    "no upstream 2D numeric/equivalence verification; input consistency only",
+    "CollisionInputs channel not used in this slice (VolumeModelInput covers the need)"
+  ],
+  "claims": {
+    "adapter_implemented": true,
+    "unit_tests_passed": true,
+    "gates_pending_record": true,
+    "no_native_change": true,
+    "no_render_fields_change": true,
+    "no_gpu_no_window": true,
+    "no_rendering_numeric_conclusion": true,
+    "abi_unchanged": true
+  }
+}

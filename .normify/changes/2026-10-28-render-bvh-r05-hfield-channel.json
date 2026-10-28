@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-hfield-channel",
+  "title": {
+    "zh": "R05 前置：渲染侧 hfield 输入适配（复用已验收的 VolumeModelInput 通道，零 native / 零红线 / 零 ABI）",
+    "en": "R05 prerequisite: render-side hfield input adapter reusing the verified VolumeModelInput channel (no native, no red-line, no ABI change)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R05-S1 把 hfield 宿主校验做成 `resolve_hfield(&HfieldInputs)`，但渲染侧当时没有 hfield 数据通道。后续只读核查发现**通道已存在**：`src/model/volume_input.rs` 的 `VolumeModelInput` 已提供 `hfield_data()`/`hfield_size()`/**`hfield_size_f32()`（唯一 f64→f32 转换点，G10 先例）**/`ints(\"hfield_nrow|ncol|adr\")`，且其 `new()` 已完成字段数/类型/长度/范围校验（含 `adr+span<=nhfielddata`）；Rust `CollisionInputs` 与 native `model_probe_collision_inputs.cpp` case 24-28、`g01_fields.inc` 亦已有 hfield；native `model_probe_render.cpp`（render_stage）明确无 hfield。因此**不改 `RENDER_FIELDS`、不拆 `src/model/render.rs`、不动 native ABI**，改为在渲染上下文加一个**薄适配器**：`HfieldInputs::from_volume(&VolumeModelInput)`，把既有已验证通道装配成 S1 的 `HfieldInputs`（`nhfield=0` → 全 None；否则用 `hfield_size_f32()` + `ints(...)` + `hfield_data()`），错误用既有 `NativeProbeError` 直传。本片只做适配 + 全链路测试，不接内核、不开窗口、零渲染数值结论；产品路径「谁在 context 创建时提供 `VolumeModelInput`」的决定留 S2。",
+    "en": "Add a thin adapter from the verified VolumeModelInput channel to R05-S1's HfieldInputs, avoiding RENDER_FIELDS/native/ABI changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "新增 `src/render/context/hfield_inputs.rs`（≈90–110 行）：`HfieldInputs::from_volume(&VolumeModelInput) -> Result<HfieldInputs<'_>, NativeProbeError>`；`nhfield==0` → 五字段全 `None`（交由 `resolve_hfield` 返回 `None`）；否则 `hfield_size_f32()`（f64→f32 唯一转换点）、`ints(\"hfield_nrow\")`/`ints(\"hfield_ncol\")`/`ints(\"hfield_adr\")`、`hfield_data()` 组装；**不复制数据、不读 nworld**；错误直传，不新增语义。",
+    "依赖方向合规：`mjwarp.render` → `mjwarp.model`（`context/model.rs` 已同向）；若模块边界校验报错，允许把适配器置于 `src/io/` 层并说明，但**不得**让 render 依赖 io/physics。",
+    "新增 `tests/render_hfield_inputs.rs`（≈120 行）：`VolumeModelInput::new` 构造样例 → `from_volume` → `resolve_hfield` 全链路；`nhfield=0 → None`；长度/`adr` 边界与 `resolve_hfield` 的错误面一致；与 `fixtures/g10-p5/hfield-f32/` 同源模型数组比对（只作输入一致性，不作渲染数值结论）。",
+    "**零 native、零 `RENDER_FIELDS`、零红线、零 ABI**：`src/model/render.rs`(500)、`src/io/render.rs`、native `model_probe_render.cpp`、`render.cu`(499)/`launch.rs`(500)/`cast.rs`(494)/`camera_output.rs`(499)、`DEVICE_SOURCES`=28、入口 6、`CollisionArgs` 504 B 全部零改动。",
+    "证据写清：为何选 A（既有通道已验收、B 方案代价：拆 500 行红线 + 扩 116→121 字段 + native ABI 重冻）、产品路径数据来源决定留 S2、未覆盖项（设备侧 hfield BVH/内核相交、上游 2D 数值等价）。",
+    "四门禁绑最终树通过；证据 `docs/development-evidence/render-bvh/r05-hfield-channel/`（README + receipt 含 `/task_id` + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r05-s1-hfield-params"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/context/",
+      "tests/render_hfield_inputs.rs",
+      "docs/development-evidence/render-bvh/r05-hfield-channel/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-28 登记并在发现既有通道后改为方案 A（原 B 方案：拆 model/render.rs + 扩 RENDER_FIELDS 116→121 + native ABI 变更，代价高且触碰红线）。本片是 R05-S2 前置。",
+  "revision": {
+    "before": "efb1f3a1a006c619a5dda1902273a6ecfb35d524",
+    "after": null
+  },
+  "created_at": "2026-10-28T13:28:00.000Z",
+  "updated_at": "2026-10-28T13:40:01.969Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-hfield-channel/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-hfield-channel"
+    }
+  ]
+}
