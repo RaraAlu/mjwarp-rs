@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-per-camera-rgb-gap",
+  "title": {
+    "zh": "渲染产品缺口：逐相机 RGB 通道开关（R08 发现，backlog 不 start）",
+    "en": "Render product gap: per-camera RGB channel switches (found by R08, backlog)"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "记录 R08-S2 窗口发现的产品缺口：`megakernel` 的 RGB/depth/seg 三通道开关是**全局**（一次渲染内所有相机一致），不支持「cam0 有 RGB、cam1 无 RGB」这类**逐相机 RGB 异构**。R08-S2 窗口口径因此收窄为「分辨率异构 + depth/seg 通道异构」；RGB 异构只记录、不修。修复需要按 S7b3 先例拆 kernel 子文件，把三通道开关改成逐相机掩码（`render_rgb[nrender]` 已存在但当前由全局布尔填充），并重跑受影响的 M1/M2/M3 与 S8 位级证据 + 一次渲染验证窗。**本任务保持 backlog，不 start**；等用户/Chief 决定是否排期。",
+    "en": "Record the R08-S2 product gap: the megakernel RGB/depth/seg channel switches are global (all cameras in one render share them), so per-camera RGB heterogeneity (e.g. camera0 with RGB, camera1 without) is unsupported. The R08-S2 window therefore narrows to resolution heterogeneity plus depth/seg channel heterogeneity; RGB heterogeneity is recorded only. Fixing it needs an S7b3-style kernel split with a per-camera RGB mask, a rerun of the affected M1/M2/M3 and S8 bit-level evidence, and one render validation window. This task stays in backlog and is not started until Arch/Chief schedules it."
+  },
+  "modules": {},
+  "acceptance": [
+    "登记完成即可（backlog，不 start）：缺口事实、影响面（逐相机 RGB 异构不可用）、修复方向（逐相机 RGB 掩码 + S7b3 式拆文件）与验收要求（既有 M1/M2/M3 位级不回归 + 渲染窗）已写入本卡。",
+    "被相关片引用时（R08-S2 证据 README/receipt），引用本任务 id 与缺口描述；不得把缺口写成「与上游一致」或「已覆盖」。",
+    "排期前不得改动 kernel 与已签证据；任何实现片需重新登记并带 QA 复核。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "待分配",
+    "files": [],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-10-28 登记：R08-S2 实现过程中发现（megakernel 三通道开关全局），Chief 已批「记产品缺口、不修、backlog 不 start」。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-27T18:36:00.000Z",
+  "updated_at": "2026-10-27T18:36:00.000Z",
+  "checks": [
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
