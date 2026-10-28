@@ -5,7 +5,7 @@
     "zh": "R05-S2 QA O1 修复轻复核（三角化阈值全 f32 口径 / 边界单测 / §2.1 措辞 / PTX 未变）",
     "en": "Light re-check of R05-S2 QA O1 fix (all-f32 triangulation threshold, boundary unit tests, §2.1 wording, unchanged PTX)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "QA 只读轻复核提交 `1b876391`（R05-S2 QA 观察 O1 修复），只核 4 个点，不重跑全量门禁、不开 GPU 窗口、不做渲染数值结论：① 阈值比较口径改为全 f32 是否与上游 NEP 50 语义一致（`let threshold = 1.0e-5f32;`，`planar` 的 `diff.abs() < threshold` 与 `fits_plane` 的预测/斜率比较）；独立核对 `f32(1e-5)` 位型 `0x3727C5AC` = 9.999999747378752e-06 < 十进制 `1e-5`，差值恰为该值时上游判**非共面/不合并**；② 4 条新增单测强度是否真钉住原观察指出的 2 例差异（精确阈值 `0x3727C5AC` → 2×3 得 6 顶点/12 索引；低 1 ULP `0x3727C5AB` → 4 顶点/6 索引共面合并）；③ README §2.1 错误措辞是否已被否证改写（原「阈值不落在相邻 f32 之间 ⇒ 与 f64 比较等价」不成立，错在阈值本身被转成 f32）；④ `source_sha256`/`ptx_sha256`/`ptx_bytes` 在 O1 修复前后**保持一致**（修复只在 host Rust，零 CUDA 源改动）的记录是否成立，以及证据 O2 补句（`None` 路径槽 64 上传值 `u64(0)`→`u64::MAX`，值变但设备不可达、行为零差异）与 O3/O5 遗留项是否已入证据。",
     "en": "QA read-only light re-check of commit 1b876391 (R05-S2 QA observation O1 fix): all-f32 threshold semantics vs upstream NEP 50, strength of the 4 new boundary unit tests, corrected §2.1 wording, and the unchanged source/PTX sha record plus O2/O3/O5 evidence handling."
@@ -37,7 +37,8 @@
     "after": null
   },
   "created_at": "2026-10-28T15:15:00.000Z",
-  "updated_at": "2026-10-28T15:17:16.689Z",
+  "updated_at": "2026-10-28T15:19:55.648Z",
+  "closed_at": "2026-10-28T15:19:55.648Z",
   "checks": [
     {
       "kind": "json",
