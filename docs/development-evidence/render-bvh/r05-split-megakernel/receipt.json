@@ -5,7 +5,7 @@
   "head": "00ed9efb3ac36e716d1e2ddaefecf956922ff9ca",
   "split": {
     "megakernel_rs": {"before": 490, "after": 406, "moved_lines": "L203-344 (device upload section, 142 lines)"},
-    "megakernel_uploads_rs": {"before": null, "after": 384, "content": "UploadInputs + MegakernelUploads (80 TransferBuffer fields) + upload_megakernel_arrays"},
+    "megakernel_uploads_rs": {"before": null, "after": 384, "content": "UploadInputs + MegakernelUploads (80 fields: 74 buffer handles = 70 TransferBuffer<T> + 4 Option<TransferBuffer<T>> scratch; 6 non-buffer fields) + upload_megakernel_arrays"},
     "kernel_mod_rs": {"before": 474, "after": 474, "delta": 0, "content": "zero change; submodule declared with #[path] inside megakernel.rs"}
   },
   "submodule_declaration": {
@@ -18,7 +18,7 @@
   "plan_vs_actual": {
     "approved": "extract L215-347 + L203-213 (145 lines); new file ~170 lines; megakernel.rs ~345 (target <=430)",
     "actual": "extracted L203-344 (142 lines; rgb_shape/depth_shape/seg_shape kept because they are args-section inputs); new file 384 lines (80-field struct + function); megakernel.rs 406 (target <=430 met)",
-    "reason": "MegakernelUploads must carry 80 TransferBuffer handles (each with a distinct T, cannot be collapsed); megakernel.rs keeps a 34-line UploadInputs construction and uses a short `let u = &uploads;` prefix in the args section (a 80-field destructuring would need ~96 lines; the long `uploads.` prefix makes fmt wrap lines and grows the file to 477); plus 5 lines for the #[path] submodule declaration"
+    "reason": "MegakernelUploads must carry 80 fields (74 buffer handles: 70 TransferBuffer<T> + 4 Option<TransferBuffer<T>> scratch; 6 non-buffer fields), each with a distinct T, cannot be collapsed; megakernel.rs keeps a 34-line UploadInputs construction and uses a short `let u = &uploads;` prefix in the args section (a 80-field destructuring would need ~96 lines; the long `uploads.` prefix makes fmt wrap lines and grows the file to 477); plus 5 lines for the #[path] submodule declaration"
   },
   "pure_move_evidence": {
     "kernel_compile_gate": {
@@ -36,7 +36,16 @@
     "megakernel_source_and_cuda_concat_unchanged": true,
     "test_assertions_unchanged": true,
     "tests": {"passed": 1069, "failed": 0, "note": "same count as before the split; includes S7b1/S7b2/S7b3/S8 bitwise regressions"},
-    "git_diff_nature": "megakernel.rs: removed 142-line section, added 34-line UploadInputs construction + 1-line `let u` + 5-line #[path] submodule declaration, args-section references renamed to u.*; new file holds the moved code with reference renames and two absolute imports (crate::render::kernel::{launch,megakernel_arrays}); kernel/mod.rs zero change; imports adjusted"
+    "git_diff_nature": "megakernel.rs: removed 142-line section, added 34-line UploadInputs construction + 1-line `let u` + 5-line #[path] submodule declaration, args-section references renamed to u.*; new file holds the moved code with reference renames and two absolute imports (crate::render::kernel::{launch,megakernel_arrays}); kernel/mod.rs zero change; imports adjusted. Additional 3-line difference (QA O1, non-behavioral): the three output scratch switches used precomputed bools in the original (match rgb_enabled/depth_enabled/seg_enabled at megakernel.rs L333/337/341) and now call context.outputs().is_enabled(ImageOutput::{Rgb,Depth,Segmentation}) inline; the same immutable &RenderContext is read twice with no intervening writes, hence equivalent; the original bools remain in megakernel.rs for the render_rgb/depth/seg placeholder arrays."
+  },
+  "review_fixes": {
+    "card": "2026-10-28-render-bvh-r05-split-megakernel",
+    "note": "QA review pass / blocking 0 / observations 6; O1/O2/O3 fixed as docs+comments only (zero behavior/API/ABI/CUDA source change)",
+    "O1": "added the 3-line scratch-switch difference to README section 2.6 and git_diff_nature (precomputed bools -> inline is_enabled calls; same immutable context, equivalent)",
+    "O2": "megakernel_uploads.rs file header/doc: 'original L203-347' corrected to 'L203-344' (2 occurrences)",
+    "O3": "evidence wording: '80 TransferBuffer<T> handles' corrected to '80 fields (74 buffer handles: 70 TransferBuffer<T> + 4 Option<TransferBuffer<T>> scratch; 6 non-buffer fields)'",
+    "O4_O6": "accepted without change",
+    "kernel_compile_gate_after_comment_fix": "source_sha256=2d2c27df985882c2b571514579dff19f9103bfc903ec786db42a592ce1bd8c2a ptx_sha256=e955bb4b0280228639f3e544b459873c83d1dae672662a43a96cccc8dabc4ffa ptx_bytes=258660 (unchanged)"
   },
   "module_sources": {"before": 36, "after": 37, "registered": "src/render/kernel/megakernel_uploads.rs"},
   "redlines": {

@@ -1,6 +1,6 @@
 //! S7b2/S7b3 渲染执行器的设备上传段（R05 拆分①：纯移动自 `megakernel.rs`）。
 //!
-//! 本文件由 `megakernel.rs` 原 L203-347「纹理数组 + 上传所有设备缓冲」段原样迁出，
+//! 本文件由 `megakernel.rs` 原 L203-344「纹理数组 + 上传所有设备缓冲」段原样迁出，
 //! 仅做归属调整：`self.session` → `inputs.session`、`context` → `inputs.context` 等引用改名，
 //! 逻辑、顺序、类型、错误路径与逐槽占位（1 元素占位）**零变化**。
 //!
@@ -143,7 +143,7 @@ pub(super) struct MegakernelUploads {
     pub(super) seg_scratch: Option<TransferBuffer<i32>>,
 }
 
-/// 上传纹理数组与全部设备缓冲（纯移动自 `megakernel.rs` 原 L203-347）。
+/// 上传纹理数组与全部设备缓冲（纯移动自 `megakernel.rs` 原 L203-344）。
 pub(super) fn upload_megakernel_arrays(
     inputs: &UploadInputs<'_>,
 ) -> Result<MegakernelUploads, LauncherError> {

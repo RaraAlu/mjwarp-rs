@@ -21,8 +21,10 @@
 > 这 5 行（2 行注释 + 属性 + mod + 空行）即 `406` 与 `401` 的差。
 
 > 与批准行级预算的差异（如实记录）：批准方案预计 `megakernel.rs ≈345`、新文件 `≈170`。实际 406/384——
-> 原因：`MegakernelUploads` 需携带 **80 个 `TransferBuffer<T>` 句柄**（每字段类型不同，无法用数组/泛型收敛），
-> 结构体与构造合计 ~200 行；`megakernel.rs` 侧保留 34 行 `UploadInputs` 构造，且 args 段引用改为 `u.*` 短前缀
+> 原因：`MegakernelUploads` 需携带 **80 字段**（其中 **74 个为缓冲句柄**：70 个 `TransferBuffer<T>` + 4 个
+> `Option<TransferBuffer<T>>` scratch；另 6 个为非缓冲字段：`Option<Texture2dArray>`、`u64` blob 地址、4 个 `usize`
+> 计数；每字段 T 不同、无法用数组/泛型收敛），结构体与构造合计 ~200 行；`megakernel.rs` 侧保留 34 行
+> `UploadInputs` 构造，且 args 段引用改为 `u.*` 短前缀
 > （若用 80 字段解构需 ~96 行，若用 `uploads.*` 长前缀则 fmt 折行使文件涨到 477）。目标 ≤430 已达成（406）。
 
 ## 2. 纯移动证据（Chief 硬要求，逐条）
@@ -40,6 +42,7 @@
 4. **`MEGAKERNEL_SOURCE` 与 CUDA 源拼接零变化**：`megakernel_uploads.rs` 是 Rust 侧上传模块，**不参与** `include_str!` 源码拼接（PTX sha 一致为直接证据）。
 5. **测试断言零改动**：无测试文件改动；`cargo test --locked` **1069 passed / 0 failed**（与拆分前一致），含 S7b1/S7b2/S7b3/S8 位等回归（`logs/test.log`）。
 6. **`git diff` 性质**：`megakernel.rs` 删除 L203-344 段、新增 34 行输入构造 + 1 行 `let u` + 5 行 `#[path]` 子模块声明、args 段引用改为 `u.*`（引用改名）；新文件为原段内容（仅 `self.session`→`session`、`context`→`inputs.context` 等引用改名 + 两条 import 改绝对路径）；`kernel/mod.rs` **零改动**；imports 调整（`bool_words`/`flags`/`pack_blob`/`span_addr`/`upload` 移入新文件）。
+   另有 **3 行差异**（QA 复核 O1 补充，非行为变化）：三个输出 scratch 开关在原文件 `megakernel.rs` L333/337/341 用预存 bool（`match rgb_enabled`/`depth_enabled`/`seg_enabled`），迁出后改为现场 `match context.outputs().is_enabled(ImageOutput::{Rgb,Depth,Segmentation})`（同一不可变 `&RenderContext`、两次读取之间无任何写入 ⇒ 等价）；原 bool 仍保留在 `megakernel.rs` 用于 `render_rgb/depth/seg` 占位数组构造。
 
 ## 3. 与批准行级方案的逐项对照
 
@@ -64,9 +67,19 @@
 
 - `cargo fmt --check` → 通过（`logs/fmt.log` 空）
 - `cargo clippy --all-targets --locked -- -D warnings` → 通过（`logs/clippy.log`）
-- `cargo test --locked` → **1069 passed / 0 failed**（`logs/test.log`，171 185 B；各测试二进制合计 1069）
-- 内核编译门：`source_sha256=2d2c27df…`、`ptx_sha256=e955bb4b…`、`ptx_bytes=258 660`（`logs/kernel-gate-post.log`，与拆前一致）
+- `cargo test --locked` → **1069 passed / 0 failed**（`logs/test.log`，171 236 B；各测试二进制合计 1069）
+- 内核编译门（O2 注释修正后复跑）：`source_sha256=2d2c27df…`、`ptx_sha256=e955bb4b…`、`ptx_bytes=258 660`（`logs/kernel-gate-post.log`，与拆前一致；注释不进 `MEGAKERNEL_SOURCE`，故 PTX 不变）
 - 行数实测：`logs/lines.log`
+
+## 6.1 QA 复核修正（fix 流程，文档/注释零行为）
+
+QA 复核 verdict pass / 阻断 0 / 观察 6；主责裁决 O1/O2/O3 修、O4–O6 接受不动：
+
+- **O1（补差异面）**：§2.6 与 receipt `git_diff_nature` 补「另有 3 行差异：三个输出 scratch 开关由预存 bool 改为现场 `context.outputs().is_enabled(...)`」——同一不可变 context、两次读取间无写入 ⇒ 等价。
+- **O2（注释更正）**：`megakernel_uploads.rs` 文件头/文档两处「原 L203-347」→ **L203-344**。
+- **O3（措辞更正）**：「80 个 `TransferBuffer<T>` 句柄」→「**80 字段**，其中 **74 个缓冲句柄**（70 个 `TransferBuffer<T>` + 4 个 `Option<TransferBuffer<T>>` scratch），另 6 个非缓冲字段」。
+- **O4–O6**：接受，不改。
+- 零代码行为/API/ABI/CUDA 源改动；修正后内核门 PTX 仍 `e955bb4b…`/258 660 B（见 §6）。
 
 ## 7. 限制
 
