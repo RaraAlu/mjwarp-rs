@@ -8,7 +8,7 @@
 
 | 文件 | 拆分前 | 拆分后 | 说明 |
 | --- | --- | --- | --- |
-| `src/render/kernel/cast.rs` | **494** | **411** | 抽出 L284-372（`MeshDevice` 类型文档 + 定义 + impl，89 行）；插入 `#[path]` 子模块声明与 `pub use`（+9 行） |
+| `src/render/kernel/cast.rs` | **494** | **411** | 抽出 L284-372（`MeshDevice` 类型文档 + 定义 + impl，89 行；块后 1 空行随块删除，共 −90）；插入 `#[path]` + `mod` + `pub use`（**+7 行**）；合计 **9 insertions / 92 deletions，净 −83**（494 − 83 = 411） |
 | `src/render/kernel/cast_mesh.rs`（新） | — | **102** | 文件头 13 行 + 迁出块 89 行 |
 | `src/render/kernel/mod.rs` | 474 | **474** | **零改动**（`#[path]` 声明放在 `cast.rs` 内） |
 
@@ -35,10 +35,13 @@
    `tests/` 零改动（`git status --short -- tests/` 空）。
 4. **`MEGAKERNEL_SOURCE`/CUDA 源拼接零变化**：`cast.rs`/`cast_mesh.rs` 是 Rust 侧打包，不参与
    `include_str!` 源码拼接（PTX sha 一致为直接证据）；未触碰任何 `.cu`。
-5. **`git diff` 性质**：`cast.rs` 仅 3 类改动——import 由
-   `{MeshBvh, MeshNodeKind, NodeKind, SceneBvh}` 收窄为 `{NodeKind, SceneBvh}`（`MeshBvh`/`MeshNodeKind`
-   仅被迁出的 `MeshDevice` 使用）；插入 `#[path] mod cast_mesh;` + `pub use cast_mesh::MeshDevice;`（含 2 行注释）；
-   `to_i32` 加 `pub(super)`；其余为 89 行块删除。新文件 = 文件头 + 3 条 import + 原块原样。
+5. **`git diff` 性质**：`cast.rs` 共 **4 个 hunk**（`git show 72a7de66 --unified=0` 实测）：
+   - `@@ -17`（1−/1+）：import 由 `{MeshBvh, MeshNodeKind, NodeKind, SceneBvh}` 收窄为 `{NodeKind, SceneBvh}`（`MeshBvh`/`MeshNodeKind` 仅被迁出的 `MeshDevice` 使用）；
+   - `@@ -22,0 +23,7`（+7）：2 行注释 + `#[path = "cast_mesh.rs"]` + `mod cast_mesh;` + 空行 + `pub use cast_mesh::MeshDevice;` + 空行；
+   - `@@ -284,90`（−90）：89 行块（类型文档 + 定义 + impl）+ 块后 1 空行；
+   - `@@ -465`（1−/1+）：`to_i32` 加 `pub(super)`。
+
+   合计 **9 insertions / 92 deletions、净 −83**（494 − 83 = 411）。新文件 = 文件头 13 行 + 3 条 import + 原块 89 行原样。
 
 ## 3. 子模块声明方式（满足卡 scope）
 
