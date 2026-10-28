@@ -1,0 +1,82 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-split-megakernel",
+  "kind": "render-bvh-r05-split-megakernel",
+  "stage": "pure-move-complete",
+  "head": "00ed9efb3ac36e716d1e2ddaefecf956922ff9ca",
+  "split": {
+    "megakernel_rs": {"before": 490, "after": 406, "moved_lines": "L203-344 (device upload section, 142 lines)"},
+    "megakernel_uploads_rs": {"before": null, "after": 384, "content": "UploadInputs + MegakernelUploads (80 TransferBuffer fields) + upload_megakernel_arrays"},
+    "kernel_mod_rs": {"before": 474, "after": 474, "delta": 0, "content": "zero change; submodule declared with #[path] inside megakernel.rs"}
+  },
+  "submodule_declaration": {
+    "method": "#[path = \"megakernel_uploads.rs\"] mod megakernel_uploads; (private mod inside megakernel.rs, after the dependency block)",
+    "kernel_mod_rs_unchanged": true,
+    "reason": "card files/scope exclude src/render/kernel/mod.rs; Arch approved the #[path] approach (same precedent as lighting.rs)",
+    "megakernel_rs_extra_lines": 5,
+    "note": "child-module super paths in the new file changed to crate::render::kernel::{launch,megakernel_arrays} because its parent module is now `megakernel` instead of `kernel`"
+  },
+  "plan_vs_actual": {
+    "approved": "extract L215-347 + L203-213 (145 lines); new file ~170 lines; megakernel.rs ~345 (target <=430)",
+    "actual": "extracted L203-344 (142 lines; rgb_shape/depth_shape/seg_shape kept because they are args-section inputs); new file 384 lines (80-field struct + function); megakernel.rs 406 (target <=430 met)",
+    "reason": "MegakernelUploads must carry 80 TransferBuffer handles (each with a distinct T, cannot be collapsed); megakernel.rs keeps a 34-line UploadInputs construction and uses a short `let u = &uploads;` prefix in the args section (a 80-field destructuring would need ~96 lines; the long `uploads.` prefix makes fmt wrap lines and grows the file to 477); plus 5 lines for the #[path] submodule declaration"
+  },
+  "pure_move_evidence": {
+    "kernel_compile_gate": {
+      "test": "megakernel_source_compiles_under_render_gate",
+      "source_sha256_before": "2d2c27df985882c2b571514579dff19f9103bfc903ec786db42a592ce1bd8c2a",
+      "source_sha256_after": "2d2c27df985882c2b571514579dff19f9103bfc903ec786db42a592ce1bd8c2a",
+      "ptx_sha256_before": "e955bb4b0280228639f3e544b459873c83d1dae672662a43a96cccc8dabc4ffa",
+      "ptx_sha256_after": "e955bb4b0280228639f3e544b459873c83d1dae672662a43a96cccc8dabc4ffa",
+      "ptx_bytes_before": 258660,
+      "ptx_bytes_after": 258660,
+      "identical": true
+    },
+    "public_api_unchanged": true,
+    "megakernel_slots_81_unchanged": true,
+    "megakernel_source_and_cuda_concat_unchanged": true,
+    "test_assertions_unchanged": true,
+    "tests": {"passed": 1069, "failed": 0, "note": "same count as before the split; includes S7b1/S7b2/S7b3/S8 bitwise regressions"},
+    "git_diff_nature": "megakernel.rs: removed 142-line section, added 34-line UploadInputs construction + 1-line `let u` + 5-line #[path] submodule declaration, args-section references renamed to u.*; new file holds the moved code with reference renames and two absolute imports (crate::render::kernel::{launch,megakernel_arrays}); kernel/mod.rs zero change; imports adjusted"
+  },
+  "module_sources": {"before": 36, "after": 37, "registered": "src/render/kernel/megakernel_uploads.rs"},
+  "redlines": {
+    "render_cu_lines": 499,
+    "launch_rs_lines": 500,
+    "cast_rs_lines": 494,
+    "model_render_rs_lines": 500,
+    "camera_output_rs_lines": 499,
+    "megakernel_slots": 81,
+    "device_sources": 28,
+    "entry_points": 6,
+    "collision_args_bytes": 504,
+    "args_rs_lines": 494,
+    "cuda_files_touched": 0,
+    "megakernel_source_concat_changed": false
+  },
+  "gates": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "unit": "1069 passed / 0 failed",
+    "kernel_compile_gate": "pass (sha identical)"
+  },
+  "logs": {
+    "fmt": "docs/development-evidence/render-bvh/r05-split-megakernel/logs/fmt.log",
+    "clippy": "docs/development-evidence/render-bvh/r05-split-megakernel/logs/clippy.log",
+    "unit": "docs/development-evidence/render-bvh/r05-split-megakernel/logs/test.log",
+    "kernel_gate_post": "docs/development-evidence/render-bvh/r05-split-megakernel/logs/kernel-gate-post.log",
+    "lines": "docs/development-evidence/render-bvh/r05-split-megakernel/logs/lines.log"
+  },
+  "limits": [
+    "pure move only: no behavior/numeric/criteria change",
+    "S2 remains blocked on split ② (cast.rs) before writing",
+    "megakernel_uploads.rs (384) and megakernel.rs (406) are both within the 500-line ratchet; S2 hfield_bvh_id wiring adds ~10-20 lines (target <=426)"
+  ],
+  "claims": {
+    "pure_move": true,
+    "api_unchanged": true,
+    "abi_unchanged": true,
+    "cuda_sources_unchanged": true,
+    "ptx_sha_identical": true,
+    "no_gpu_no_window": true
+  }
+}

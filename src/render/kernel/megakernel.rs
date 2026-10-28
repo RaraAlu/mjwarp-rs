@@ -31,14 +31,20 @@ use crate::runtime::launcher::{
     RenderScalar, RenderSignature,
 };
 
-use super::launch::{RenderKernel, Texture2dArray};
+use self::megakernel_uploads::{UploadInputs, upload_megakernel_arrays};
+use super::launch::RenderKernel;
 use super::megakernel_aa::{AAResolve, launch_samples};
 use super::megakernel_arrays::{
-    array, bool_words, flags, floats, geom_data_poses, ints, light_data_poses, pack_blob, reals,
-    shading_words, span_addr, to_i32, upload, use_shadows_arg,
+    array, floats, geom_data_poses, ints, light_data_poses, reals, shading_words, to_i32,
+    use_shadows_arg,
 };
 use super::world_arrays::{camera_pose_shape, light_type_shape, shared_matrix_shape, shared_shape};
 use super::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
+
+// 拆分①：上传段以 `#[path]` 在**本文件内**声明为子模块，父模块 `kernel/mod.rs` 零改动
+// （卡片 scope 只含 `megakernel.rs` 与新文件；`lighting.rs` 同款先例）。
+#[path = "megakernel_uploads.rs"]
+mod megakernel_uploads;
 
 const BLOCK: u32 = 256;
 
@@ -200,148 +206,38 @@ impl MegakernelRenderer {
         // ---- 着色常量/符号位（本实现自有槽，见内核注释；拆到 arrays 保 500 行棘轮）----
         let (shading_constants, scale_constants, flags_word) = shading_words(resolved, nsamples);
 
-        // ---- 纹理数组（S4 只读句柄 → S7a `texture2d_t` 数组）----
-        let texture_array = match context.textures() {
-            Some(resources) if resolved.use_textures => {
-                let handles = resources.handles();
-                if handles.is_empty() {
-                    return Err(LauncherError::InvalidArray("textures"));
-                }
-                Some(Texture2dArray::upload(&self.session, &handles)?)
-            }
-            _ => None,
-        };
-
-        // ---- 上传所有设备缓冲 ----
-        let blob = pack_blob(&scene, &mesh);
-        let blob_buffer = upload(&self.session, &blob)?;
-        let blob_addr = span_addr(&blob_buffer)?;
-
-        let geom_type = upload(&self.session, &model_arrays.geom_type)?;
-        let geom_dataid = ints(fields, "geom_dataid")?;
-        let geom_dataid = upload(&self.session, &geom_dataid)?;
-        let geom_matid = upload(&self.session, &model_arrays.geom_matid)?;
-        let geom_size = reals(fields, "geom_size")?;
-        let geom_size = upload(&self.session, &geom_size)?;
-        let geom_rgba = upload(&self.session, &model_arrays.geom_rgba)?;
-        let cam_projection = upload(&self.session, &cam_projection)?;
-        let cam_fovy = upload(&self.session, &cam_fovy)?;
-        let cam_sensorsize = upload(&self.session, &cam_sensorsize)?;
-        let cam_intrinsic = upload(&self.session, &cam_intrinsic)?;
-
-        let light_type = ints(fields, "light_type")?;
-        let nlight = light_type.len();
-        let light_type = upload(&self.session, &light_type)?;
-        let light_castshadow = bool_words(&flags(fields, "light_castshadow")?);
-        let light_castshadow = upload(&self.session, &light_castshadow)?;
-        let light_active = bool_words(&flags(fields, "light_active")?);
-        let light_active = upload(&self.session, &light_active)?;
-        let light_attenuation = upload(&self.session, &floats(fields, "light_attenuation")?)?;
-        let light_cutoff = upload(&self.session, &floats(fields, "light_cutoff")?)?;
-        let light_exponent = upload(&self.session, &floats(fields, "light_exponent")?)?;
-        let light_ambient = upload(&self.session, &floats(fields, "light_ambient")?)?;
-        let light_diffuse = upload(&self.session, &floats(fields, "light_diffuse")?)?;
-        let light_specular = upload(&self.session, &floats(fields, "light_specular")?)?;
-        let light_xpos = upload(&self.session, &light_xpos)?;
-        let light_xdir = upload(&self.session, &light_xdir)?;
-
-        let flex_vertadr = upload(&self.session, &[0i32])?;
-        let flex_edge = upload(&self.session, &[0i32, 0])?;
-        let flex_radius = upload(&self.session, &[0.0f32])?;
-        let flexvert_xpos = upload(&self.session, &[0.0f32; 3])?;
-        let flex_bvh_id = upload(&self.session, &[0u32, 0])?;
-        let flex_group_root = upload(&self.session, &[0i32])?;
-        let flex_rgba = upload(&self.session, &[0.0f32; 4])?;
-        let flex_geom_flexid = upload(&self.session, &[0i32])?;
-        let flex_geom_edgeid = upload(&self.session, &[0i32])?;
-        let hfield_bvh_id = upload(&self.session, &[0u32, 0])?;
-        let mesh_bvh_id = upload(&self.session, &[0u32, 0])?;
-        let group_root = upload(&self.session, &[0i32])?;
-        let skybox_tex_id = upload(&self.session, &[0i32])?;
-        let skybox_face_width = upload(&self.session, &[0i32])?;
-        let splat_rotation = upload(&self.session, &[0.0f32; 4])?;
-        let splat_rgba = upload(&self.session, &[0.0f32; 4])?;
-        let splat_group_root = upload(&self.session, &[0i32])?;
-        let dummy_texture = upload(&self.session, &[0u32; 6])?;
-
-        let mesh_faceadr = ints(fields, "mesh_faceadr")?;
-        let nmesh = mesh_faceadr.len();
-        let mesh_faceadr = upload(&self.session, &mesh_faceadr)?;
-        let mesh_normaladr = ints(fields, "mesh_normaladr")?;
-        let mesh_normaladr = upload(&self.session, &mesh_normaladr)?;
-        let mesh_normal = floats(fields, "mesh_normal")?;
-        let mesh_normal = upload(&self.session, &mesh_normal)?;
-        let mesh_facetexcoord = ints(fields, "mesh_facetexcoord")?;
-        let mesh_faces = mesh_facetexcoord.len() / 3;
-        let mesh_facetexcoord = upload(&self.session, &mesh_facetexcoord)?;
-        let mesh_facenormal = ints(fields, "mesh_facenormal")?;
-        let mesh_facenormal = upload(&self.session, &mesh_facenormal)?;
-        // scene-a 的网格没有 texcoord（`mesh_texcoordadr=-1`）：上传 2 个 0 占位（ABI 拒绝零长数组）。
-        let mesh_texcoord = {
-            let values = floats(fields, "mesh_texcoord")?;
-            if values.is_empty() {
-                vec![0.0f32; 2]
-            } else {
-                values
-            }
-        };
-        let mesh_texcoord = upload(&self.session, &mesh_texcoord)?;
-        let mesh_texcoord_offsets = ints(fields, "mesh_texcoordadr")?;
-        let mesh_texcoord_offsets = upload(&self.session, &mesh_texcoord_offsets)?;
-
-        let mat_texid = ints(fields, "mat_texid")?;
-        let nmat = mat_texid.len() / 10;
-        let mat_texid = upload(&self.session, &mat_texid)?;
-        let mat_texuniform = bool_words(&flags(fields, "mat_texuniform")?);
-        let mat_texuniform = upload(&self.session, &mat_texuniform)?;
-        let mat_texrepeat = upload(&self.session, &floats(fields, "mat_texrepeat")?)?;
-        let mat_emission = upload(&self.session, &floats(fields, "mat_emission")?)?;
-        let mat_specular = upload(&self.session, &floats(fields, "mat_specular")?)?;
-        let mat_shininess = upload(&self.session, &floats(fields, "mat_shininess")?)?;
-        let mat_rgba = upload(&self.session, &model_arrays.mat_rgba)?;
-
-        let geom_xpos = upload(&self.session, &geom_xpos)?;
-        let geom_xmat = upload(&self.session, &geom_xmat)?;
-        let cam_xpos = upload(&self.session, &cam_xpos)?;
-        let cam_xmat = upload(&self.session, &cam_xmat)?;
-
-        let cam_res = upload(&self.session, &cam_res_flat)?;
-        let cam_id_map = upload(&self.session, &cam_id_map)?;
-        let ray = upload(&self.session, &ray_dirs)?;
-        let ray_offset = upload(&self.session, &ray_offsets)?;
-        let rgb_adr = upload(&self.session, &layout.rgb_adr)?;
-        let depth_adr = upload(&self.session, &layout.depth_adr)?;
-        let seg_adr = upload(&self.session, &layout.seg_adr)?;
-        let render_rgb = upload(&self.session, &bool_words(&render_rgb))?;
-        let render_depth = upload(&self.session, &bool_words(&render_depth))?;
-        let render_seg = upload(&self.session, &bool_words(&render_seg))?;
-        let enabled_geom_ids = match resolved.enabled_geom_ids.is_empty() {
-            true => (0..ngeom as i32).collect::<Vec<i32>>(),
-            false => resolved.enabled_geom_ids.clone(),
-        };
-        let enabled_geom_ids = upload(&self.session, &enabled_geom_ids)?;
-        let shading_constants = upload(&self.session, &shading_constants)?;
-        let scale_constants = upload(&self.session, &scale_constants)?;
-        // AA（nsamples>1）时 aa_accum 由 OutputResources 分配（world × rgb_pixels vec3），
-        // 否则 1 元素占位（内核按 AA 标志不访问）。
-        let aa_scratch = match nsamples > 1 {
-            true => None,
-            false => Some(upload(&self.session, &[0.0f32; 3])?),
-        };
-
-        // 输出缓冲（S6b OutputResources；未启用时 1 元素占位、内核按标志不写）。
-        let rgb_scratch = match rgb_enabled {
-            true => None,
-            false => Some(upload(&self.session, &[0u32])?),
-        };
-        let depth_scratch = match depth_enabled {
-            true => None,
-            false => Some(upload(&self.session, &[0.0f32])?),
-        };
-        let seg_scratch = match seg_enabled {
-            true => None,
-            false => Some(upload(&self.session, &[0i32; 2])?),
-        };
+        // ---- 设备上传（拆分①：纯移动至 `megakernel_uploads.rs`；逻辑/顺序/错误路径/占位零变化）----
+        let uploads = upload_megakernel_arrays(&UploadInputs {
+            session: &self.session,
+            fields,
+            model_arrays: &model_arrays,
+            resolved,
+            context,
+            scene: &scene,
+            mesh: &mesh,
+            ngeom,
+            nsamples,
+            cam_projection: &cam_projection,
+            cam_fovy: &cam_fovy,
+            cam_sensorsize: &cam_sensorsize,
+            cam_intrinsic: &cam_intrinsic,
+            light_xpos: &light_xpos,
+            light_xdir: &light_xdir,
+            geom_xpos: &geom_xpos,
+            geom_xmat: &geom_xmat,
+            cam_xpos: &cam_xpos,
+            cam_xmat: &cam_xmat,
+            cam_res_flat: &cam_res_flat,
+            cam_id_map: &cam_id_map,
+            ray_dirs: &ray_dirs,
+            ray_offsets: &ray_offsets,
+            render_rgb: &render_rgb,
+            render_depth: &render_depth,
+            render_seg: &render_seg,
+            shading_constants: &shading_constants,
+            scale_constants: &scale_constants,
+        })?;
+        let u = &uploads;
         let rgb_shape = [nworld, layout.rgb_pixels.max(1)];
         let depth_shape = [nworld, layout.depth_pixels.max(1)];
         let seg_shape = [nworld, layout.seg_slots.max(1)];
@@ -350,112 +246,132 @@ impl MegakernelRenderer {
         let mut args: Vec<RenderArg> = Vec::with_capacity(MEGAKERNEL_SLOTS.len());
         let camera_pose_dims = camera_pose_shape(nworld, ncam);
         let shared_cam = shared_shape(ncam);
-        let light_type_dims = light_type_shape(nlight);
+        let light_type_dims = light_type_shape(u.nlight);
         let shared_geom = shared_shape(ngeom);
-        let shared_light = shared_shape(nlight);
-        let shared_mat = shared_shape(nmat);
-        let mat_texid_dims = shared_matrix_shape(nmat, 10);
+        let shared_light = shared_shape(u.nlight);
+        let shared_mat = shared_shape(u.nmat);
+        let mat_texid_dims = shared_matrix_shape(u.nmat, 10);
         args.push(RenderArg::Bounds2D(LaunchBounds2::new([
             nworld, total_rays,
         ])?));
-        args.push(array(&geom_type, RenderElem::I32, &shared_geom)?);
-        args.push(array(&geom_dataid, RenderElem::I32, &shared_geom)?);
-        args.push(array(&geom_matid, RenderElem::I32, &shared_geom)?);
-        args.push(array(&geom_size, RenderElem::Vec3, &shared_geom)?);
-        args.push(array(&geom_rgba, RenderElem::Vec4, &shared_geom)?);
-        args.push(array(&cam_projection, RenderElem::I32, &shared_cam)?);
-        args.push(array(&cam_fovy, RenderElem::F32, &shared_cam)?);
-        args.push(array(&cam_sensorsize, RenderElem::Vec2, &shared_cam)?);
-        args.push(array(&cam_intrinsic, RenderElem::Vec4, &shared_cam)?);
-        args.push(array(&light_type, RenderElem::I32, &light_type_dims)?);
-        args.push(array(&light_castshadow, RenderElem::Bool, &shared_light)?);
-        args.push(array(&light_active, RenderElem::Bool, &shared_light)?);
-        args.push(array(&light_attenuation, RenderElem::Vec3, &shared_light)?);
-        args.push(array(&light_cutoff, RenderElem::F32, &shared_light)?);
-        args.push(array(&light_exponent, RenderElem::F32, &shared_light)?);
-        args.push(array(&light_ambient, RenderElem::Vec3, &shared_light)?);
-        args.push(array(&light_diffuse, RenderElem::Vec3, &shared_light)?);
-        args.push(array(&light_specular, RenderElem::Vec3, &shared_light)?);
-        args.push(array(&flex_vertadr, RenderElem::I32, &[1])?);
-        args.push(array(&flex_edge, RenderElem::Vec2I, &[1])?);
-        args.push(array(&flex_radius, RenderElem::F32, &[1])?);
-        args.push(array(&mesh_faceadr, RenderElem::I32, &[nmesh])?);
-        args.push(array(&mesh_normaladr, RenderElem::I32, &[nmesh])?);
+        args.push(array(&u.geom_type, RenderElem::I32, &shared_geom)?);
+        args.push(array(&u.geom_dataid, RenderElem::I32, &shared_geom)?);
+        args.push(array(&u.geom_matid, RenderElem::I32, &shared_geom)?);
+        args.push(array(&u.geom_size, RenderElem::Vec3, &shared_geom)?);
+        args.push(array(&u.geom_rgba, RenderElem::Vec4, &shared_geom)?);
+        args.push(array(&u.cam_projection, RenderElem::I32, &shared_cam)?);
+        args.push(array(&u.cam_fovy, RenderElem::F32, &shared_cam)?);
+        args.push(array(&u.cam_sensorsize, RenderElem::Vec2, &shared_cam)?);
+        args.push(array(&u.cam_intrinsic, RenderElem::Vec4, &shared_cam)?);
+        args.push(array(&u.light_type, RenderElem::I32, &light_type_dims)?);
+        args.push(array(&u.light_castshadow, RenderElem::Bool, &shared_light)?);
+        args.push(array(&u.light_active, RenderElem::Bool, &shared_light)?);
         args.push(array(
-            &mesh_normal,
+            &u.light_attenuation,
             RenderElem::Vec3,
-            &[mesh_normal.len() / 3],
+            &shared_light,
         )?);
-        args.push(array(&mat_texid, RenderElem::I32, &mat_texid_dims)?);
-        args.push(array(&mat_texuniform, RenderElem::Bool, &shared_mat)?);
-        args.push(array(&mat_texrepeat, RenderElem::Vec2, &shared_mat)?);
-        args.push(array(&mat_emission, RenderElem::F32, &shared_mat)?);
-        args.push(array(&mat_specular, RenderElem::F32, &shared_mat)?);
-        args.push(array(&mat_shininess, RenderElem::F32, &shared_mat)?);
-        args.push(array(&mat_rgba, RenderElem::Vec4, &shared_mat)?);
-        args.push(array(&geom_xpos, RenderElem::Vec3, &shared_geom)?);
-        args.push(array(&geom_xmat, RenderElem::Mat33, &shared_geom)?);
-        args.push(array(&cam_xpos, RenderElem::Vec3, &camera_pose_dims)?);
-        args.push(array(&cam_xmat, RenderElem::Mat33, &camera_pose_dims)?);
-        args.push(array(&light_xpos, RenderElem::Vec3, &shared_light)?);
-        args.push(array(&light_xdir, RenderElem::Vec3, &shared_light)?);
-        args.push(array(&flexvert_xpos, RenderElem::Vec3, &[1])?);
+        args.push(array(&u.light_cutoff, RenderElem::F32, &shared_light)?);
+        args.push(array(&u.light_exponent, RenderElem::F32, &shared_light)?);
+        args.push(array(&u.light_ambient, RenderElem::Vec3, &shared_light)?);
+        args.push(array(&u.light_diffuse, RenderElem::Vec3, &shared_light)?);
+        args.push(array(&u.light_specular, RenderElem::Vec3, &shared_light)?);
+        args.push(array(&u.flex_vertadr, RenderElem::I32, &[1])?);
+        args.push(array(&u.flex_edge, RenderElem::Vec2I, &[1])?);
+        args.push(array(&u.flex_radius, RenderElem::F32, &[1])?);
+        args.push(array(&u.mesh_faceadr, RenderElem::I32, &[u.nmesh])?);
+        args.push(array(&u.mesh_normaladr, RenderElem::I32, &[u.nmesh])?);
+        args.push(array(
+            &u.mesh_normal,
+            RenderElem::Vec3,
+            &[u.mesh_normal.len() / 3],
+        )?);
+        args.push(array(&u.mat_texid, RenderElem::I32, &mat_texid_dims)?);
+        args.push(array(&u.mat_texuniform, RenderElem::Bool, &shared_mat)?);
+        args.push(array(&u.mat_texrepeat, RenderElem::Vec2, &shared_mat)?);
+        args.push(array(&u.mat_emission, RenderElem::F32, &shared_mat)?);
+        args.push(array(&u.mat_specular, RenderElem::F32, &shared_mat)?);
+        args.push(array(&u.mat_shininess, RenderElem::F32, &shared_mat)?);
+        args.push(array(&u.mat_rgba, RenderElem::Vec4, &shared_mat)?);
+        args.push(array(&u.geom_xpos, RenderElem::Vec3, &shared_geom)?);
+        args.push(array(&u.geom_xmat, RenderElem::Mat33, &shared_geom)?);
+        args.push(array(&u.cam_xpos, RenderElem::Vec3, &camera_pose_dims)?);
+        args.push(array(&u.cam_xmat, RenderElem::Mat33, &camera_pose_dims)?);
+        args.push(array(&u.light_xpos, RenderElem::Vec3, &shared_light)?);
+        args.push(array(&u.light_xdir, RenderElem::Vec3, &shared_light)?);
+        args.push(array(&u.flexvert_xpos, RenderElem::Vec3, &[1])?);
         args.push(RenderArg::Scalar(RenderScalar::I32(to_i32(nrender)?)));
         // R09-S2b：第 40 槽（0-based `MEGAKERNEL_SLOTS[40]`）阴影总开关，值取 `resolved.use_shadows`。
         args.push(use_shadows_arg(resolved.use_shadows));
         args.push(RenderArg::Scalar(RenderScalar::I32(to_i32(ngeom)?)));
         args.push(RenderArg::Scalar(RenderScalar::I32(0)));
-        args.push(array(&cam_res, RenderElem::Vec2I, &[nrender])?);
-        args.push(array(&cam_id_map, RenderElem::I32, &[nrender])?);
-        args.push(array(&ray, RenderElem::Vec3, &[expected_rays])?);
-        args.push(array(&ray_offset, RenderElem::Vec3, &[expected_rays])?);
+        args.push(array(&u.cam_res, RenderElem::Vec2I, &[nrender])?);
+        args.push(array(&u.cam_id_map, RenderElem::I32, &[nrender])?);
+        args.push(array(&u.ray, RenderElem::Vec3, &[expected_rays])?);
+        args.push(array(&u.ray_offset, RenderElem::Vec3, &[expected_rays])?);
         args.push(RenderArg::Scalar(RenderScalar::I32(0)));
-        args.push(array(&rgb_adr, RenderElem::I32, &[nrender])?);
-        args.push(array(&depth_adr, RenderElem::I32, &[nrender])?);
-        args.push(array(&seg_adr, RenderElem::I32, &[nrender])?);
-        args.push(array(&render_rgb, RenderElem::Bool, &[nrender])?);
-        args.push(array(&render_depth, RenderElem::Bool, &[nrender])?);
-        args.push(array(&render_seg, RenderElem::Bool, &[nrender])?);
-        args.push(RenderArg::Scalar(RenderScalar::U64(blob_addr)));
-        args.push(array(&group_root, RenderElem::I32, &[1])?);
-        args.push(array(&flex_bvh_id, RenderElem::U64, &[1])?);
-        args.push(array(&flex_group_root, RenderElem::I32, &[1])?);
-        args.push(array(&enabled_geom_ids, RenderElem::I32, &[ngeom])?);
-        args.push(array(&mesh_bvh_id, RenderElem::U64, &[1])?);
-        args.push(array(&mesh_facetexcoord, RenderElem::Vec3I, &[mesh_faces])?);
-        args.push(array(&mesh_facenormal, RenderElem::Vec3I, &[mesh_faces])?);
-        let texcoord_elems = mesh_texcoord.len() / 2;
-        args.push(array(&mesh_texcoord, RenderElem::Vec2, &[texcoord_elems])?);
-        args.push(array(&mesh_texcoord_offsets, RenderElem::I32, &[nmesh])?);
-        args.push(array(&hfield_bvh_id, RenderElem::U64, &[1])?);
-        args.push(array(&flex_rgba, RenderElem::Vec4, &[1])?);
-        args.push(array(&flex_geom_flexid, RenderElem::I32, &[1])?);
-        args.push(array(&flex_geom_edgeid, RenderElem::I32, &[1])?);
-        args.push(array(&skybox_tex_id, RenderElem::I32, &[1])?);
-        args.push(array(&skybox_face_width, RenderElem::I32, &[1])?);
-        args.push(match &texture_array {
+        args.push(array(&u.rgb_adr, RenderElem::I32, &[nrender])?);
+        args.push(array(&u.depth_adr, RenderElem::I32, &[nrender])?);
+        args.push(array(&u.seg_adr, RenderElem::I32, &[nrender])?);
+        args.push(array(&u.render_rgb, RenderElem::Bool, &[nrender])?);
+        args.push(array(&u.render_depth, RenderElem::Bool, &[nrender])?);
+        args.push(array(&u.render_seg, RenderElem::Bool, &[nrender])?);
+        args.push(RenderArg::Scalar(RenderScalar::U64(u.blob_addr)));
+        args.push(array(&u.group_root, RenderElem::I32, &[1])?);
+        args.push(array(&u.flex_bvh_id, RenderElem::U64, &[1])?);
+        args.push(array(&u.flex_group_root, RenderElem::I32, &[1])?);
+        args.push(array(&u.enabled_geom_ids, RenderElem::I32, &[ngeom])?);
+        args.push(array(&u.mesh_bvh_id, RenderElem::U64, &[1])?);
+        args.push(array(
+            &u.mesh_facetexcoord,
+            RenderElem::Vec3I,
+            &[u.mesh_faces],
+        )?);
+        args.push(array(
+            &u.mesh_facenormal,
+            RenderElem::Vec3I,
+            &[u.mesh_faces],
+        )?);
+        let texcoord_elems = u.mesh_texcoord.len() / 2;
+        args.push(array(
+            &u.mesh_texcoord,
+            RenderElem::Vec2,
+            &[texcoord_elems],
+        )?);
+        args.push(array(
+            &u.mesh_texcoord_offsets,
+            RenderElem::I32,
+            &[u.nmesh],
+        )?);
+        args.push(array(&u.hfield_bvh_id, RenderElem::U64, &[1])?);
+        args.push(array(&u.flex_rgba, RenderElem::Vec4, &[1])?);
+        args.push(array(&u.flex_geom_flexid, RenderElem::I32, &[1])?);
+        args.push(array(&u.flex_geom_edgeid, RenderElem::I32, &[1])?);
+        args.push(array(&u.skybox_tex_id, RenderElem::I32, &[1])?);
+        args.push(array(&u.skybox_face_width, RenderElem::I32, &[1])?);
+        args.push(match &u.texture_array {
             Some(array) => RenderArg::Array(array.render_arg()?),
-            None => array(&dummy_texture, RenderElem::Texture2d, &[1])?,
+            None => array(&u.dummy_texture, RenderElem::Texture2d, &[1])?,
         });
-        args.push(array(&shading_constants, RenderElem::Vec3, &[4])?);
-        args.push(array(&splat_rotation, RenderElem::Quat, &[1])?);
-        args.push(array(&scale_constants, RenderElem::Vec3, &[1])?);
-        args.push(array(&splat_rgba, RenderElem::Vec4, &[1])?);
+        args.push(array(&u.shading_constants, RenderElem::Vec3, &[4])?);
+        args.push(array(&u.splat_rotation, RenderElem::Quat, &[1])?);
+        args.push(array(&u.scale_constants, RenderElem::Vec3, &[1])?);
+        args.push(array(&u.splat_rgba, RenderElem::Vec4, &[1])?);
         args.push(RenderArg::Scalar(RenderScalar::U64(flags_word)));
-        args.push(array(&splat_group_root, RenderElem::I32, &[1])?);
-        args.push(match &rgb_scratch {
+        args.push(array(&u.splat_group_root, RenderElem::I32, &[1])?);
+        args.push(match &u.rgb_scratch {
             Some(scratch) => array(scratch, RenderElem::U32, &[1, 1])?,
             None => RenderArg::Array(context.outputs().rgb_render_arg_2d(nworld)?),
         });
-        args.push(match &aa_scratch {
+        args.push(match &u.aa_scratch {
             Some(scratch) => array(scratch, RenderElem::Vec3, &[1])?,
             None => RenderArg::Array(context.outputs().aa_accum_render_arg_2d(nworld)?),
         });
-        args.push(match &depth_scratch {
+        args.push(match &u.depth_scratch {
             Some(scratch) => array(scratch, RenderElem::F32, &[1, 1])?,
             None => RenderArg::Array(context.outputs().depth_render_arg_2d(nworld)?),
         });
-        args.push(match &seg_scratch {
+        args.push(match &u.seg_scratch {
             Some(scratch) => array(scratch, RenderElem::Vec2I, &[1, 1])?,
             None => RenderArg::Array(context.outputs().seg_render_arg_2d(nworld)?),
         });
@@ -463,9 +379,9 @@ impl MegakernelRenderer {
             rgb_shape,
             depth_shape,
             seg_shape,
-            light_castshadow.len(),
-            light_active.len(),
-            mat_texid.len(),
+            u.light_castshadow.len(),
+            u.light_active.len(),
+            u.mat_texid.len(),
         );
 
         let grid = u32::try_from((nworld * total_rays).div_ceil(BLOCK as usize))

@@ -124,6 +124,9 @@ path = "src/render/context/hfield.rs"
 [[source]]
 path = "src/render/context/hfield_inputs.rs"
 
+[[source]]
+path = "src/render/kernel/megakernel_uploads.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::render::bvh::refit_bvh"

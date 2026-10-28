@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-split-megakernel",
+  "title": {
+    "zh": "R05 前置拆分①：`kernel/megakernel.rs` 490→≈345（纯移动，抽出上传段到 `megakernel_uploads.rs`）",
+    "en": "R05 prerequisite split 1: megakernel.rs 490 -> ~345 (pure move of the upload section into megakernel_uploads.rs)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R05-S2 需在 `src/render/kernel/megakernel.rs`（**现 490 行**）增加 hfield 槽填充/上传（预计 +10~20 行）→ 必破 500 行棘轮，故按 S7b3 先例**先做纯移动拆分**：把 L215-347「上传所有设备缓冲」段（133 行）与 L203-213 纹理数组上传（11 行）≈145 行，抽到新 `src/render/kernel/megakernel_uploads.rs`（≈170 行：`pub(super) struct MegakernelUploads` ~65 行 + `pub(super) fn upload_megakernel_arrays(...) -> Result<MegakernelUploads, LauncherError>` ~105 行）；拆分后 `megakernel.rs` ≈345 行，S2 后 ≈355–365。**零行为变化**：纯代码移动 + 导入/可见性（仅 `pub(super)`）调整，调用点解构同名变量；公开 API、设备 ABI、CUDA 源字符串拼接、`MEGAKERNEL_SLOTS` 81 槽、测试断言**零改动**。",
+    "en": "Pure-move split of megakernel.rs uploads into megakernel_uploads.rs to make room for R05-S2."
+  },
+  "modules": {},
+  "acceptance": [
+    "抽出内容与落点按预核：`megakernel_uploads.rs` 含 `MegakernelUploads`（设备句柄结构）与 `upload_megakernel_arrays(...)`；`megakernel.rs` 拆分后 ≈345 行（≤500，目标 ≤430）、新文件 ≈170 行（≤500）。",
+    "**纯移动**：公开 API 零变化、`MEGAKERNEL_SLOTS` 81 槽签名零变化、`MEGAKERNEL_SOURCE`/CUDA 源拼接与 PTX **零变化**（`source_sha256`/`ptx_sha256` 与拆分前一致即可证明）、测试断言零改动；`git diff` 只体现代码归属、导入与 `pub(super)` 可见性变化。",
+    "零行为回归证据：`cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`、`cargo test --locked` **1069 过 / 0 败**；S7b1/S7b2/S7b3/S8 位等回归全绿（随 unit 一并记录）。",
+    "新文件登记 `mjwarp.render` 模块源并刷新指纹（`normify validate --fingerprints` 错误 0）；证据写登记前后 sources 计数。",
+    "红线：`render.cu`(499)/`launch.rs`(500)/`cast.rs`(494)/`model/render.rs`(500)/`camera_output.rs`(499) 零改动；`DEVICE_SOURCES`=28、入口 6、`CollisionArgs` 504 B、81 槽 ABI 不动。",
+    "四门禁绑最终树通过；证据 `docs/development-evidence/render-bvh/r05-split-megakernel/`（README + receipt 含 `/task_id` + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0）；两段提交。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/megakernel.rs",
+      "src/render/kernel/megakernel_uploads.rs",
+      "docs/development-evidence/render-bvh/r05-split-megakernel/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-28 登记（Chief 批准 S2 前置拆分顺序：先 megakernel → QA → cast → QA → S2，不并行）。备选再抽 cast.rs L182-292 暂不批。",
+  "revision": {
+    "before": "e41a3bf7e0d3942232a1aa2d77ebdc1ced9223c5",
+    "after": null
+  },
+  "created_at": "2026-10-28T13:55:00.000Z",
+  "updated_at": "2026-10-28T13:54:20.794Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-split-megakernel/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-split-megakernel"
+    }
+  ]
+}
