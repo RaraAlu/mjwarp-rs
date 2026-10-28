@@ -276,7 +276,10 @@ target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_hfield.
 ## 18. normify 前置状态
 
 - 脚本 + 两个场景 XML + 8 个采集产物 + 证据（README/receipt/manifest/logs/materials）已落地；
-- 本窗口产物按「产物」「证据」两段提交；**未执行** `normify done`（等待 QA 复核）；
+- 本窗口产物按「产物」「证据」两段提交，另有 verified 收口提交（`normify done` 后）；
+- **manifest 路径基准（两种，头部亦已注明）**：8 个捕获产物行使用**仓库根相对路径**
+  （`fixtures/render-bvh/scene-hfield/capture-hfield/...`）；证据目录内文件行使用**本证据目录相对路径**
+  （如 `README.md`、`logs/...`、`materials/...`）；manifest 不自登记，可按头部基准一键校验；
 - 数值验收（RGB/depth/seg 判据）全部在 `2026-10-28-render-bvh-r05-s3b-hfield-validate` 验证窗执行。
 
 ## 遗留（带入 S3b，来自 S2 O5）
