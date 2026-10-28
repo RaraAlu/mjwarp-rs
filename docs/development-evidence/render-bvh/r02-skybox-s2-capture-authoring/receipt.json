@@ -1,0 +1,121 @@
+{
+  "task_id": "2026-10-29-render-bvh-r02-skybox-s2-capture-authoring",
+  "slice": "R02-S2",
+  "phase": "P8-渲染与BVH",
+  "owner": "Backend",
+  "nature": "offline authoring-material slice: no GPU execution, no capture, no freeze, no window",
+  "deliverables": {
+    "capture_script": {
+      "path": "scripts/authoring/render-bvh-r02/capture_skybox.py",
+      "bytes": 16084,
+      "lines_lf": 425,
+      "sha256": "812a2f778c21bb5cb8b24a96f6dce052be7f1f0d923174d0dcb75442e5d0c7a8",
+      "ascii_nonascii_bytes": 0,
+      "cr_bytes": 0,
+      "bom": false,
+      "python_syntax": "ast.parse OK",
+      "dry_run": {
+        "exit": 0,
+        "stdout": "DRY_RUN_OK task_id=2026-10-29-render-bvh-r02-skybox-s2-capture-authoring render_skybox=True expected_pixels=120000 params28_sha256=95f8ce01401adf28a59e6ae8c4955eec118034dcbb021afffaf4880d863b2764",
+        "note": "no GPU, no warp/mujoco_warp import; ran with target/render-bvh-precheck/venv312 python"
+      },
+      "only_param_change_vs_s0b": "render_skybox False -> True",
+      "output_dir": "fixtures/render-bvh/scene-a/reference-skybox/ (rgb.npz depth.npz seg.npz capture.json)",
+      "s0b_reference_untouched": true
+    },
+    "guard_freezer": {
+      "path": "scripts/validate/render-bvh/freeze-guards-r02.ps1",
+      "bytes": 8578,
+      "lines_lf": 163,
+      "sha256": "a8a3f71cb0ea0299e7c31df1ac94eec1350d9d016b26cb15aa711de669eb4bea",
+      "ascii_nonascii_bytes": 0,
+      "cr_bytes": 0,
+      "bom": false,
+      "ps_parse_errors": 0,
+      "suite": "r02-skybox-validate",
+      "out_file": "scripts/validate/render-bvh/guards-r02-skybox.json",
+      "expected_entries": {"frozen_exes": 9, "guard_inputs": 68, "total": 77},
+      "stash_dir": "target/render-bvh/r02-skybox-window/frozen-exes",
+      "assertions": [
+        "9 frozen exes",
+        "68 read-only inputs",
+        "77 total entries",
+        "exactly 4 files under fixtures/render-bvh/scene-a/reference-skybox/"
+      ]
+    },
+    "runner_revision": {
+      "path": "scripts/validate/render-bvh/run-window.ps1",
+      "bytes": 18279,
+      "lines_lf": 386,
+      "sha256": "b1ff24f8e7d9990182be1c810b9f0f8980e3d30ce7d13f2950d657d56dd5f740",
+      "ascii_nonascii_bytes": 0,
+      "cr_bytes": 0,
+      "bom": false,
+      "ps_parse_errors": 0,
+      "change": "optional -GuardsFile parameter; default unchanged (reads <SuiteDir>/guards.json)",
+      "r05_runner_historical_sha256": "31ac28bfcd8cce3bd10f6f5803f4a5573f218cccb88604e13d5537447d28a3c5",
+      "r05_runner_historical_bytes": 18187
+    },
+    "window_plan": "materials/window-plan.txt",
+    "entity_table": "materials/entity-table.json",
+    "script_identity": "materials/script-identity.txt"
+  },
+  "window": {
+    "executed": false,
+    "stages": ["A authoring capture (GPU, pinned mujoco_warp 3.15.0)", "freeze (between A and B)", "B product validation window (GPU, 9 entities)"],
+    "stage_a_command": "target\\mjwarp-parallel\\venv\\Scripts\\python.exe scripts\\authoring\\render-bvh-r02\\capture_skybox.py",
+    "freeze_command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\freeze-guards-r02.ps1 -Attempt 1",
+    "stage_b_command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\run-window.ps1 -Attempt 1 -OutDir target\\render-bvh\\r02-skybox-window\\attempt1 -GuardsFile scripts\\validate\\render-bvh\\guards-r02-skybox.json",
+    "monitor_command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\monitor-until-clean.ps1 -OutCsv target\\render-bvh\\r02-skybox-window\\monitor-pre-window.csv -Required 60 -MaxMinutes 30",
+    "open_util_limit": 40,
+    "exception_preapproved": false,
+    "baseline_formula": {
+      "baseline": "three GpuSamples before the entity body",
+      "baseline_free": "baseline[1].free (second sample)",
+      "floor_mib": "min(10240, baseline_free - 3072)",
+      "abort": "util >= 80 for 3 consecutive samples",
+      "used_increment_limit_mib": 3072
+    },
+    "entities": [
+      "render_skybox_reference (new)",
+      "render_camera_rays",
+      "render_context_lifecycle",
+      "render_e2e",
+      "render_kernel_depth_seg",
+      "render_kernel_flags",
+      "render_kernel_rgb",
+      "render_r08_cameras",
+      "render_r10_multi_world"
+    ],
+    "criteria": {
+      "rgb": "mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0",
+      "depth": "mismatched=0 / max_ulp=0 / beyond_ulp=0",
+      "seg": "mismatched=0",
+      "determinism": "two-run rgb/depth/seg sha256 equal"
+    }
+  },
+  "guards_history": {
+    "r05_guards": {
+      "path": "scripts/validate/render-bvh/guards.json",
+      "suite": "r05-s3b-hfield-validate",
+      "sha256_prefix": "e2444a96",
+      "attempt": 2,
+      "state": "historical/superseded; not restored, not modified, -GuardsOnly not run (its 9 exe live shas were invalidated by the S1 rebuild by design)"
+    }
+  },
+  "prerequisites": [
+    "2026-10-29-render-bvh-r02-skybox-s2b-reference-test (proposed): ignored GPU test target render_skybox_reference; the freeze script cannot resolve the 9th exe without it",
+    "stage A capture must produce exactly 4 files under fixtures/render-bvh/scene-a/reference-skybox/ before freeze"
+  ],
+  "limits": [
+    "no GPU execution in this slice: the capture script was only exercised through --dry-run; no reference files exist yet",
+    "the window plan is a proposal pending the user's window sign-off; nothing was frozen or run",
+    "criteria/tolerances/references/fixtures untouched by this slice"
+  ],
+  "non_claims": [
+    "not a window pass",
+    "not a precision/accuracy statement",
+    "not upstream equivalence",
+    "no rendering numeric conclusion"
+  ]
+}

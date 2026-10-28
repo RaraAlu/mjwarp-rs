@@ -1,0 +1,79 @@
+R02-S1 skybox validation-window plan (one page; NOT EXECUTED in S2)
+
+Window shape
+  Single GPU window, two stages. Stage A = upstream authoring capture (skybox reference),
+  stage B = product validation window (9 entities). Nothing here runs during S2 authoring.
+
+Prerequisite (blocks the window, tracked separately)
+  S2b card `2026-10-29-render-bvh-r02-skybox-s2b-reference-test`: add the ignored GPU
+  test target `tests/render_skybox_reference.rs` (entity `render_skybox_reference`) that
+  renders scene-a with render_skybox=true and compares RGB/depth/seg against
+  fixtures/render-bvh/scene-a/reference-skybox/ with the existing bitwise criteria.
+  The freeze script cannot resolve the 9th executable until that target exists.
+
+Stage A - authoring capture (GPU, upstream pinned env)
+  python: target/mjwarp-parallel/venv/Scripts/python.exe
+  command:
+    target\mjwarp-parallel\venv\Scripts\python.exe scripts\authoring\render-bvh-r02\capture_skybox.py
+  preconditions enforced by the script: pinned versions (warp 1.15.0 / mujoco 3.15.0 /
+  mujoco_warp 3.15.0 / numpy 2.5.4), upstream rev 71da24d9 clean, scene-315.mjb sha
+  8953988f..., scene.xml sha a9f1f0a3..., GPU RTX 4070 Ti SUPER arch 89 driver 596.36.
+  outputs (4 files): fixtures/render-bvh/scene-a/reference-skybox/{rgb,depth,seg}.npz +
+  capture.json (params28 + skybox meta + rc.skybox_tex_id/face_width + two-run sha).
+  success line: `CATCH_DONE task_id=... files=3 capture_sha256=... two_run_sha_equal=True`.
+  offline self-check (no GPU, may be run any time): same script with `--dry-run`.
+
+Freeze (between A and B, never inside the window)
+  command:
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\freeze-guards-r02.ps1 -Attempt 1
+  output: scripts/validate/render-bvh/guards-r02-skybox.json  (suite `r02-skybox-validate`)
+  expected: 77 entries = 9 exes + 68 read-only inputs (64 existing + 4 skybox reference
+  files); frozen exe stash at target/render-bvh/r02-skybox-window/frozen-exes/.
+  R05 guards `scripts/validate/render-bvh/guards.json` (suite r05-s3b-hfield-validate,
+  sha e2444a96..., attempt=2) is HISTORY: not restored, not modified, marked superseded
+  by this new suite. The 9 R05 exe bytes are already invalidated by the S1 rebuild.
+
+Stage B - product validation window (GPU)
+  command (literal, no exception flags):
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 -Attempt 1 -OutDir target\render-bvh\r02-skybox-window\attempt1 -GuardsFile scripts\validate\render-bvh\guards-r02-skybox.json
+  entities (9, order fixed by the guards entity_order):
+    1 render_skybox_reference (new)     2 render_camera_rays
+    3 render_context_lifecycle          4 render_e2e
+    5 render_kernel_depth_seg           6 render_kernel_flags
+    7 render_kernel_rgb                 8 render_r08_cameras
+    9 render_r10_multi_world
+  criteria (unchanged from R05, bitwise-first):
+    rgb   mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0
+    depth mismatched=0 / max_ulp=0 / beyond_ulp=0
+    seg   mismatched=0
+    determinism: two-run rgb/depth/seg sha256 equal
+  zero-leak coverage: entities 2-9 are the 8 existing regression entities, run under the
+  S1-changed kernel, so any device-side regression from the new skybox branch/function
+  shows up as a red entity; no tolerance/reference/fixture change is allowed.
+
+Baseline and floor (computed inside run-window.ps1, recorded in facts.txt)
+  baseline = three GpuSamples taken before the entity body
+  baselineFree = baseline[1].free          (second sample, index 1)
+  floor_mib    = min(10240, baselineFree - 3072)
+  hard checks  : free_min >= floor_mib; used increment <= 3072 MiB;
+                 abort if util >= 80 for 3 consecutive samples; residual_processes = 0
+  pre-window monitor (normal thresholds, no exception):
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\monitor-until-clean.ps1 -OutCsv target\render-bvh\r02-skybox-window\monitor-pre-window.csv -Required 60 -MaxMinutes 30
+    gate: 60 consecutive clean samples, util < 40 (default -MaxUtil 40), free >= 10240,
+    filtered compute-apps = 0, build procs = 0. If the normal threshold is not met, STOP
+    and report to Chief; no exception path is pre-approved for this window.
+  no-authoring-exception discipline: run-window is invoked without -OpenUtilLimit.
+
+ASCII three-item self-check (PS 5.1 reads .ps1 as ANSI)
+  scripts/validate/render-bvh/freeze-guards-r02.ps1 : nonascii=0 cr=0 bom=false parse_errors=0
+  scripts/validate/render-bvh/run-window.ps1        : nonascii=0 cr=0 bom=false parse_errors=0
+  (run-window gains an optional -GuardsFile parameter; default behaviour unchanged:
+   an explicit script path to guards.json under -SuiteDir.)
+
+Stop conditions
+  any camera/product beyond criteria -> stop and report to Arch (no tolerance change)
+  any entity exe sha drift before/after -> invalid round, exit 9 (no re-freeze inside window)
+  guard precheck mismatch -> invalid round (re-freeze only outside the window, attempt+1)
+  stage A two-run sha mismatch / environment mismatch -> stop, do not freeze, report
+
+Not executed in S2: no GPU, no capture, no freeze, no monitor, no window.

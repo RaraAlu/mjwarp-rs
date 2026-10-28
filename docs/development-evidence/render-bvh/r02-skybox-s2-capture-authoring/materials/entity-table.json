@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-window-entity-table-skeleton",
+  "task_id": "2026-10-29-render-bvh-r02-skybox-s3-validate",
+  "authored_by": "2026-10-29-render-bvh-r02-skybox-s2-capture-authoring",
+  "status": "skeleton only (not executed; frozen hashes/exe paths are filled by freeze-guards-r02.ps1 at window time)",
+  "source_of_regressions": "same 8 R09-S3b regression entities as R05, same criteria",
+  "criteria": {
+    "rgb": "<= 1 LSB per channel (bitwise preferred)",
+    "depth": "bitwise-first (mismatched == 0) AND max_ulp <= 4 AND beyond_ulp == 0",
+    "seg": "exact (mismatched == 0)",
+    "determinism": "two-run rgb/depth/seg sha256 equal"
+  },
+  "entities": [
+    {
+      "order": 1,
+      "entity": "render_skybox_reference",
+      "source": "new",
+      "group_reference": ["fixtures/render-bvh/scene-a/reference-skybox"],
+      "window_command": "cargo test --locked --features cuda-probe --test render_skybox_reference -- --ignored --test-threads=1",
+      "note": "scene-a with render_skybox=true, 2 cameras x 120000 pixels; rgb/depth/seg bitwise criteria"
+    },
+    {
+      "order": 2,
+      "entity": "render_camera_rays",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_camera_rays -- --ignored --test-threads=1"
+    },
+    {
+      "order": 3,
+      "entity": "render_context_lifecycle",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_context_lifecycle -- --ignored --test-threads=1"
+    },
+    {
+      "order": 4,
+      "entity": "render_e2e",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_e2e -- --ignored --test-threads=1"
+    },
+    {
+      "order": 5,
+      "entity": "render_kernel_depth_seg",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_kernel_depth_seg -- --ignored --test-threads=1"
+    },
+    {
+      "order": 6,
+      "entity": "render_kernel_flags",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_kernel_flags -- --ignored --test-threads=1"
+    },
+    {
+      "order": 7,
+      "entity": "render_kernel_rgb",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --test-threads=1"
+    },
+    {
+      "order": 8,
+      "entity": "render_r08_cameras",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_r08_cameras -- --ignored --test-threads=1"
+    },
+    {
+      "order": 9,
+      "entity": "render_r10_multi_world",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_r10_multi_world -- --ignored --test-threads=1"
+    }
+  ],
+  "guards": {
+    "suite": "r02-skybox-validate",
+    "file": "scripts/validate/render-bvh/guards-r02-skybox.json",
+    "expected_counts": {"frozen_exes": 9, "guard_inputs": 68, "total": 77},
+    "supersedes": "R05 guards.json (suite r05-s3b-hfield-validate, sha256 e2444a96..., attempt=2) marked superseded; not restored, not modified"
+  },
+  "stop_conditions": [
+    "any camera/any product beyond criteria -> stop and report to Arch without changing tolerance/reference/fixture",
+    "entity exe sha drift before/after an entity run -> invalid round (exit 9), re-freeze only outside the window",
+    "guard precheck mismatch -> invalid round (exit 9), re-freeze only outside the window with attempt+1",
+    "stage A environment mismatch or two-run sha mismatch -> stop before freeze"
+  ],
+  "not_executed": true,
+  "numeric_conclusion": false
+}

@@ -1,0 +1,36 @@
+R02-S2 authoring materials - script identity and ASCII self-check
+
+capture script variant
+  path   scripts/authoring/render-bvh-r02/capture_skybox.py
+  bytes  16084
+  lines  425 (LF)
+  sha256 812a2f778c21bb5cb8b24a96f6dce052be7f1f0d923174d0dcb75442e5d0c7a8
+  ascii  nonascii=0 cr=0 bom=false
+  python syntax: ast.parse OK
+  dry-run (no GPU, no warp/mujoco_warp import):
+    <any python 3> scripts/authoring/render-bvh-r02/capture_skybox.py --dry-run
+    -> DRY_RUN_OK task_id=2026-10-29-render-bvh-r02-skybox-s2-capture-authoring render_skybox=True
+       expected_pixels=120000 params28_sha256=95f8ce01401adf28a59e6ae8c4955eec118034dcbb021afffaf4880d863b2764
+    observed exit 0 (run with target/render-bvh-precheck/venv312 python)
+
+guard freezer (new, R02 suite)
+  path   scripts/validate/render-bvh/freeze-guards-r02.ps1
+  bytes  8578
+  lines  163 (LF)
+  sha256 a8a3f71cb0ea0299e7c31df1ac94eec1350d9d016b26cb15aa711de669eb4bea
+  ascii  nonascii=0 cr=0 bom=false parse_errors=0 (PSParser tokenize under Windows PowerShell 5.1)
+
+runner (R02 revision: optional -GuardsFile)
+  path   scripts/validate/render-bvh/run-window.ps1
+  bytes  18279
+  lines  386 (LF)
+  sha256 b1ff24f8e7d9990182be1c810b9f0f8980e3d30ce7d13f2950d657d56dd5f740
+  ascii  nonascii=0 cr=0 bom=false parse_errors=0
+  change vs R05 runner (31ac28bfcd8cce3bd10f6f5803f4a5573f218cccb88604e13d5537447d28a3c5 / 18187 B / 386 lines):
+    + [string]$GuardsFile = ''            (param)
+    + $guardPath = if ($GuardsFile) { Join-Path $RepoRoot $GuardsFile } else { Join-Path $RepoRoot (Join-Path $SuiteDir 'guards.json') }
+  default behaviour unchanged: without -GuardsFile the runner still reads <SuiteDir>/guards.json.
+  R05 runner sha above stays historical in R05 evidence; the R02 window must use this revision.
+
+frozen reference (stage A output, NOT produced in S2)
+  fixtures/render-bvh/scene-a/reference-skybox/{rgb,depth,seg}.npz + capture.json
