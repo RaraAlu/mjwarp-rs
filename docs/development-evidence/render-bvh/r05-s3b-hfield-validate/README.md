@@ -1,4 +1,4 @@
-# R05-S3b hfield 验证窗 · 离线 authoring 材料（窗口未开）
+# R05-S3b hfield 验证窗 · attempt=2 窗口已执行（validation-only 例外）
 
 任务：`2026-10-28-render-bvh-r05-s3b-hfield-validate`（P8 渲染与 BVH；owner Backend；in_progress）
 阶段：**离线 authoring 完成；窗口未开、未跑 GPU、未跑 `--ignored`、零渲染数值结论**。
@@ -124,3 +124,53 @@
   scene-shadow `cd990c20…`/16·11 561 363 B（重冻结前后逐项一致，未触发「输入变化即停手」）。
 - 重冻结后 `run-window.ps1 -GuardsOnly` → **`GUARDS_OK=73/73`**、exit 0；之后零 cargo/rustc/测试。
 - 新签名待 Arch→Chief 重签；签名前不得开窗。
+
+## 9. attempt=2 窗口（validation-only 例外，**例外实际生效**；零渲染数值验收结论）
+
+### 9.1 例外块（不得表述为常规阈值通过）
+
+```text
+mode=validation_only_exception_util_lt_60
+approved_by=Chief 2026-10-29T04:5x（条件预批：常规 util<40 监测失败后改用本例外）
+reason=persistent desktop GPU graphics contexts; filtered compute-apps=0; build=0; bitwise criteria + two-run sha unchanged
+original_normal_threshold_attempts_retained=monitor/monitor-pre-window-attempt2-final.csv + -final-result.txt
+  （samples=354、longest_clean=45<60、util 1-49、ge40=33、ge60=0、free_min 13163、decision=STOP、window_commands_executed=0）
+not_a_normal_threshold_pass=true
+authoring_exception_used=false
+signature_unchanged=true（guards.json e2444a96…/27 670 B/attempt=2；9 exe live==stash）
+```
+
+**诚实记录**：本窗窗口 precheck 三样本 util = **37/40/40**，其中 40 会触发常规 `util>=40` 违规
+⇒ **例外在本窗是实际生效的**，本窗**不是常规阈值通过**。窗口以 `-OpenUtilLimit 60` 执行（逐字见
+`attempt2/window-command.txt`），其余签字物（guards/exe/runner/monitor/floor 公式/判据/容差/参考）全未变。
+
+### 9.2 窗口六项数字（原始产物在 `attempt2/`）
+
+| 项 | 值 |
+| --- | --- |
+| 9 实体 exit | 全 **0**（wall_ms：3812/1314/7845/8563/4568/9123/3571/8051/3041） |
+| `sha_guards` | **73/73 (9 exes + 64 read-only inputs), mismatches=0** |
+| `post_window_exe_recheck` | **9/9 mismatches=0** |
+| `zero_rust_compile` | **True**（deps 1836→1836，max write 2026-10-29 04:08:28） |
+| 采样 | samples=**171**、util **11–43%**、`util_streak_ge_80=0`、free_min=**13 035 MiB**、used_peak=3 027 |
+| 阈值 | baseline_free=13 305、`floor=10 233`、`floor_breached=False`、`increment_exceeded=False`、`guard_aborted=False`、`residual_processes=0` |
+| 轮次/目录 | `attempt=2`、`dir=target/render-bvh/r05-s3b-window/attempt2`、window 04:56:10.798→04:57:05.184 |
+
+### 9.3 两组 hfield 判据数字（每组 2 相机 ×120 000 像素）
+
+- **hfield-only**：cam0（76 800 px）/cam1（43 200 px）RGB 位级 mismatched=0、max_byte_diff=0、beyond_1_lsb=0；
+  depth mismatch=0、max_ulp=0、beyond_ulp=0；seg mismatch=0；depth_zero=29 776 / 37 050
+- **hfield-primitive**：同上全 0；depth_zero=29 776 / 37 050
+- 两次运行三 sha（hfield-only）：rgb `c58b9f178df3c8a9c7cf25ac266252825d8fcb19ebc99db3d2c38da80ff4daa0`、
+  depth `87fb8b3aa3bb6bece2692c5fa1de92470ff6a5ed5e06276d433d2513db24b5dd`、
+  seg `727bcf2ba8cc2e50aa0f1c1ae848f001b2afbe6fbdb10464fd2696c85f688a93`
+- 两次运行三 sha（hfield-primitive）：rgb `0d494b5aaf537f140dcf214b93bff6c046af26f1d2cd857f5dde5fa54a258d40`、
+  depth `e8ca22fe9488815017bcf4d4df44960d213e8ad77a242862bef189d5ebdbb64e`、
+  seg `343c8978b0b1df4ed897d6560cf7bd43e549873647d6fa8768a602675b9324e7`
+
+### 9.4 产物与留痕
+
+- `attempt2/`：facts.txt、guard.log、entity-results.csv、guard_aggregate.json、baseline.txt、samples.csv（171 行）、
+  sha-guards.txt、window-command.txt、exception-block.txt、logs/*.log（9 份，均 `test result: ok` / 0 failed）
+- `monitor/`：常规与例外两轮 CSV + result 文件（数值见 9.1）
+- 说明：以上为**数字与留痕**；本片**零渲染数值验收结论**（不写门槛通过/精度判定的结论性表述）。
