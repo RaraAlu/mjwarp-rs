@@ -59,14 +59,19 @@ Chief 批准的 S2 口径：**`megakernel.rs` 零改动或 ≤500**（不为凑 
 - `sx`/`sy`/`sz_scale` 是 `np.float32`；`width`/`height` 是 Python float。NEP 50 弱提升下
   Python float 先转 f32 再参与 f32 运算：`x = sx * f32(c/width - 1)`（括号内 f64 → 一次 f32 舍入）、
   `z = data * sz2`（f32 乘）。
-- 共面/斜率判据在 f32 下算，阈值 `1e-5` 转 f32 后比较；阈值不落在相邻 f32 之间，
-  因此与「f32 结果按 f64 精确比较」等价（本片实现用后者，记录口径）。
+- 共面/斜率判据在 f32 下算，**阈值 `1e-5` 也先转 f32 再比较**：`f32(1e-5) = 9.999999747378752e-06`
+  （严格小于十进制 1e-5）。因此 `diff` 与阈值都用 f32——差值恰为 `f32(1e-5)` 时上游判**非共面**
+  （`<` 不成立）。**原证据写「阈值不落在相邻 f32 之间 ⇒ 与 f64 比较等价」不成立**（错在阈值本身被
+  翻译成 f32），已按 QA O1 修正为实现与证据，并用边界单测钉住：
+  `diff == f32(1e-5)`（位型 `0x3727C5AC`）→ 非共面/不合并（2×3 → 6 顶点/12 索引）；
+  `diff == f32::from_bits(0x3727C5AB)`（低 1 ULP）→ 共面/合并（4 顶点/6 索引）。
 - `half` 的 `0.5*` 是 2 的幂缩放 → 无额外舍入。
 - 网格退化（`nrow<2`/`ncol<2` 无三角形）上游会在 `np.min` 处抛异常；本片给可读错误
   `BvhError::HfieldEmptyMesh`（不 panic）。
 
-**单测钉顺序**（`tests/render_hfield_mesh.rs`）：2×2 flat（点/索引顺序）、2×2 非共面单格、
-3×3 线性坡面整体合并、2×3 贪心在首个非共面邻格停、`half` 含非零 `size[2]`、退化/数据不足/非有限错误面。
+**单测钉顺序**（`tests/render_hfield_mesh.rs`，16 条）：2×2 flat（点/索引顺序）、2×2 非共面单格、
+3×3 线性坡面整体合并、2×3 贪心在首个非共面邻格停、`half` 含非零 `size[2]`、退化/数据不足/非有限错误面、
+f32 阈值边界（恰为阈值 → 非共面；低 1 ULP → 共面）、三角化确定性（同输入两次结果相同）。
 
 ## 3. BVH 复用与策略差异（实测记录，不改参考/容差）
 
@@ -112,7 +117,8 @@ Chief 批准的 S2 口径：**`megakernel.rs` 零改动或 ≤500**（不为凑 
   ```
 - **`None` 路径零行为差异实测**：未注入时 `HfieldDevice::build` 返回 `Ok(None)`、`hfield_bvh_id`
   槽落 1 个哨兵占位、设备侧 `gtype==1` 不会被命中（模型含 hfield geom 时会先被 host 拒绝）；
-  全量测试 **1082 passed / 0 failed**（S7b1/S7b2/S7b3/S8 位等回归随 unit 记录）。
+  全量测试 **1086 passed / 0 failed**（含 O1 修复后 4 条边界/确定性新测试；S7b1/S7b2/S7b3/S8 位等回归随 unit 记录）。
+- **QA O2（如实记录）**：`None` 路径的槽 64 上传值由旧占位 `u64(0)` 变为 `u64::MAX`（形状 `[1]`/类型 `Array(U64)` 不变）；设备只在 `gtype==1` 时读该槽，而该组合由 host 前置拒绝 ⇒ **渲染行为零差异**；但「上传内容不变」字面**不成立**（上传字节确实变了，只是不被读取）。
 - 含 hfield geom 但未注入 → `LauncherError::Unsupported`（可读拒绝，不读未初始化数据）；
   `geom_dataid` 越界 → `InvalidArray`。
 
@@ -136,8 +142,8 @@ Chief 批准的 S2 口径：**`megakernel.rs` 零改动或 ≤500**（不为凑 
 
 ## 8. 验证
 
-- `cargo test --locked` → **1082 passed / 0 failed**（133 个测试二进制；含 12 个 hfield 三角化/槽语义
-  新测试、1 个 hfield bounds 新测试；S7b1/S7b2/S7b3/S8 位等回归随 unit 记录）
+- `cargo test --locked` → **1086 passed / 0 failed**（133 个测试二进制；含 16 个 hfield 三角化/槽语义
+  新测试（其中 QA O1 修复新增 4 条：f32 阈值常量、恰为阈值→非共面、低 1 ULP→共面、确定性）、1 个 hfield bounds 新测试；S7b1/S7b2/S7b3/S8 位等回归随 unit 记录）
 - 两个既有测试的断言随支持面更新（行为变更的必要后果，非新增测试）：
   - `tests/render_context_lifecycle.rs`：原「hfield 由 `LeafGeometry` 拒绝」→ 改为「gtype=1 支持，
     bounds 按 `center=pos+rot[:,2]*half[2]` 断言」（旧断言已失效）；
@@ -149,6 +155,8 @@ Chief 批准的 S2 口径：**`megakernel.rs` 零改动或 ≤500**（不为凑 
   S2 前 `source_sha256=2d2c27df…`/`ptx_sha256=e955bb4b…`/258 660 B →
   S2 后 `source_sha256=72bc364c…`/`ptx_sha256=97467d83…`/**264 015 B**
   （**预期变化**：CUDA 分派/纹理/参数透传改动；`MEGAKERNEL_SOURCE` 与 PTX 新值入证据）
+- **QA O1 修复后内核门复跑**：`source_sha256`/`ptx_sha256`/`ptx_bytes` 与 O1 前**完全一致**
+  （`72bc364c…`/`97467d83…`/264 015 B）——O1 修复只在 host Rust 三角化，不触碰任何 CUDA 源。
 - 日志：`logs/{fmt,clippy,test,kernel-gate-before,kernel-gate-after}.log`
 
 ## 9. 限制与未覆盖项（如实记录）
@@ -158,6 +166,11 @@ Chief 批准的 S2 口径：**`megakernel.rs` 零改动或 ≤500**（不为凑 
 - hfield mesh/BVH **每帧重建**（`megakernel::render` 每帧重打包 scene/mesh 的既有设计）：
   大 hfield 有构建开销，未做缓存（留 S3/后续性能片）。
 - `MeshBvh` 固定 `leaf_size=8`（上游 2）：tie-break/遍历顺序差异未做数值测量（见 §3）。
-- 三角化 1e-5 判据按「f32 结果 × f64 阈值」实现（与 numpy 2.5.4 NEP 50 在该阈值上等价，见 §2.1）；
-  若 S3 参考出现边界差异 → 停手报 Arch，不改容差/参考。
+- 三角化 1e-5 判据为 **f32 结果 × f32 阈值**（numpy 2.5.4 NEP 50 口径，见 §2.1）；边界差异已由单测钉住；
+  若 S3 参考仍出现边界差异 → 停手报 Arch，不改容差/参考。
+- **遗留 O3（带进 S3）**：设备侧「used hfield 集合」来自模型 geom 列表（`geom_type==1` 且 `geom_dataid>=0`），
+  未含上游 `geom_enabled_mask`；当前 S7b2 要求 `enabled_geom_ids` 覆盖全部 geom（host 侧前置校验），故当前路径与上游语义一致；
+  未来支持部分使能时需把启用 mask 纳入 used 集合计算。
+- **遗留 O5（带进 S3）**：调用方构造 `SceneLeaf` 时 `size` 必须是与三角化**同一份** `half`；S3 fixture 侧需保证，
+  或由调用方约定加 debug 断言（本片不改变既有 API，故未加运行期校验）。
 - 未覆盖：flex/splat/skybox/SDF 求交；hfield 多 world 复制（本片单份，按 S1 口径）。

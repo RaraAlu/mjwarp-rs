@@ -13,8 +13,9 @@
 //! - `y = sy * (float(r) / height - 1.0)`：同上；
 //! - `z = float(data[r, c]) * sz_scale`：`data` 是 f32，`float(·)` 无损，`f32 * f32`；
 //! - 共面判据 `abs((z00+z11)-(z01+z10)) < 1e-5` 与 `fits_plane` 的预测/斜率比较
-//!   全在 `float32` 下算（`python float` 阈值转 f32；该阈值不落在相邻 f32 之间，
-//!   故与 f64 精确比较等价）；
+//!   全在 `float32` 下算：**阈值 `1e-5` 也先转 f32**（`f32(1e-5) = 9.999999747378752e-06`，
+//!   小于十进制 1e-5）。因此差/比较也用 f32 阈值——差值恰为 `f32(1e-5)` 时上游判
+//!   **非共面**（`<` 不成立）；用 f64 阈值比较会误判为共面（QA O1，边界单测已钉住）。
 //! - `half = 0.5*(pmax-pmin)`：逐轴 f32 减、再乘 0.5（2 的幂，无舍入）。
 //!
 //! ## 语义边界
@@ -148,11 +149,13 @@ pub fn triangulate_hfield(
         index
     };
 
-    // L499-500：共面判据（f32 差值与 f32 阈值；与 f64 精确比较等价，见模块文档）。
-    let threshold = 1.0e-5f64;
+    // L499-500：共面判据。上游 numpy 2.5.4（NEP 50）下阈值 1e-5 先转 f32 再与 f32 差值比较：
+    // 32(1e-5) = 9.999999747378752e-06 < 1e-5；差值恰为 32(1e-5) 时上游判非共面（< 不成立），
+    // 因此这里必须用 f32 阈值比较（f64 比较会把它误判为共面，QA O1）。
+    let threshold = 1.0e-5f32;
     let planar = |d00: f32, d01: f32, d10: f32, d11: f32| -> bool {
         let diff = (d00 + d11) - (d01 + d10);
-        f64::from(diff.abs()) < threshold
+        diff.abs() < threshold
     };
 
     for r in 0..(nr - 1) {
@@ -194,13 +197,13 @@ pub fn triangulate_hfield(
                 // L535：`z_pred = z00 + (rr-r)*slope_y + (cc-c)*slope_x`（f32 左结合）。
                 let mut z_pred = z00 + ((rr - r) as f32) * slope_y;
                 z_pred += ((cc - c) as f32) * slope_x;
-                if f64::from((cz00 - z_pred).abs()) >= threshold {
+                if (cz00 - z_pred).abs() >= threshold {
                     return false;
                 }
                 let cslope_x = cz01 - cz00;
                 let cslope_y = cz10 - cz00;
-                if f64::from((cslope_x - slope_x).abs()) >= threshold
-                    || f64::from((cslope_y - slope_y).abs()) >= threshold
+                if (cslope_x - slope_x).abs() >= threshold
+                    || (cslope_y - slope_y).abs() >= threshold
                 {
                     return false;
                 }

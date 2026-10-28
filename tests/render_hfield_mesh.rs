@@ -238,3 +238,52 @@ fn hfield_device_rejects_out_of_range_hfield_id() {
         Err(LauncherError::InvalidArray(_))
     ));
 }
+
+// ---- QA O1：f32 阈值边界（上游 NEP 50 下阈值是 f32(1e-5) = 9.999999747378752e-06） ----
+
+#[test]
+fn threshold_constant_matches_upstream_f32_rounding() {
+    // `1e-5` 在 f32 下的位型（QA 探针给出的 0x3727C5AC）；它严格小于十进制 1e-5。
+    assert_eq!(1.0e-5f32.to_bits(), 0x3727_C5AC);
+    assert!(f64::from(1.0e-5f32) < 1.0e-5);
+}
+
+#[test]
+fn diff_exactly_f32_threshold_is_non_planar_like_upstream() {
+    // 2×3：格 (0,0) 的 `(z00+z11)-(z01+z10)` 恰为 f32(1e-5) → 上游判非共面（`<` 不成立）。
+    // 修复前用 f64 阈值会判共面并把两格合并（4 顶点/6 索引）；修复后 6 顶点/12 索引。
+    let t = f32::from_bits(0x3727_C5AC);
+    let data = [0.0f32, 0.0, 0.0, 0.0, t, 0.0];
+    let (points, indices) = triangulate_hfield(&input(2, 3, &data)).unwrap();
+    assert_eq!(points.len(), 6);
+    assert_eq!(indices.len(), 12);
+    // 首格按非共面单格输出：点顺序 (0,0),(0,1),(1,0),(1,1)。
+    assert_eq!(points[0], [-2.0, -4.0, 0.0]);
+    assert_eq!(points[1], [0.0, -4.0, 0.0]);
+    assert_eq!(points[2], [-2.0, 4.0, 0.0]);
+    assert_eq!(points[3], [0.0, 4.0, t * 0.5]);
+    assert_eq!(indices, vec![0, 1, 3, 0, 3, 2, 1, 4, 5, 1, 5, 3]);
+}
+
+#[test]
+fn diff_just_below_f32_threshold_is_planar_and_merges() {
+    // 比阈值低 1 ULP（0x3727C5AB）：仍共面 → 2×3 合并成一整块（4 顶点/6 索引）。
+    let t_lower = f32::from_bits(0x3727_C5AB);
+    let data = [0.0f32, 0.0, 0.0, 0.0, t_lower, 0.0];
+    let (points, indices) = triangulate_hfield(&input(2, 3, &data)).unwrap();
+    assert_eq!(points.len(), 4);
+    assert_eq!(indices, vec![0, 1, 3, 0, 3, 2]);
+}
+
+#[test]
+fn triangulation_is_deterministic_for_same_input() {
+    let mut data = Vec::new();
+    for r in 0..3 {
+        for c in 0..3 {
+            data.push((r + 2 * c) as f32);
+        }
+    }
+    let first = triangulate_hfield(&input(3, 3, &data)).unwrap();
+    let second = triangulate_hfield(&input(3, 3, &data)).unwrap();
+    assert_eq!(first, second);
+}
