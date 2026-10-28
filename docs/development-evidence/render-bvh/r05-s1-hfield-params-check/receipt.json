@@ -1,0 +1,247 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-s1-hfield-params-check",
+  "kind": "render-bvh-r05-s1-hfield-params-independent-check",
+  "verdict": "pass",
+  "blockers": 0,
+  "observations": 6,
+  "judged_head": "4723fd4402572d14f03f77bd64ac6331a0867447",
+  "review_object": {
+    "task": "2026-10-28-render-bvh-r05-s1-hfield-params",
+    "implementation_commit": "c2a098aa",
+    "closure_commit": "50f088c4",
+    "status": "verified（未 reopen）",
+    "evidence_dir": "docs/development-evidence/render-bvh/r05-s1-hfield-params/",
+    "upstream": "MJWarp 3.15 render.py 71da24d（L332 / L462-464 / L682-685 / L623 / L858）"
+  },
+  "method": {
+    "independent": true,
+    "read_only": true,
+    "gpu": "none",
+    "own_scripts": [
+      "docs/development-evidence/render-bvh/r05-s1-hfield-params-check/recompute.py"
+    ],
+    "own_logs": [
+      "logs/fmt.log",
+      "logs/clippy.log",
+      "logs/clippy-cuda.log",
+      "logs/unit.log",
+      "logs/probe-attack.log",
+      "logs/probe-construction.log"
+    ],
+    "notes": [
+      "未开 GPU 窗口、无渲染数值结论；纯宿主静态+单测复核",
+      "临时对抗性探针测试文件运行后删除、未入库；用例与结果见 logs/probe-*.log",
+      "所有数字由本任务脚本/日志重算，未采信 Backend/Arch 给定值"
+    ]
+  },
+  "gates": {
+    "fmt": {
+      "cmd": "cargo fmt --check",
+      "exit": 0,
+      "wall_ms": 1607
+    },
+    "clippy": {
+      "cmd": "cargo clippy --all-targets --locked -- -D warnings",
+      "exit": 0,
+      "wall_ms": 447
+    },
+    "clippy_cuda": {
+      "cmd": "cargo clippy --all-targets --locked --features cuda -- -D warnings",
+      "exit": 0,
+      "wall_ms": 379
+    },
+    "unit": {
+      "cmd": "cargo test --locked",
+      "exit": 0,
+      "wall_ms": 11681,
+      "passed": 1060,
+      "failed": 0,
+      "ignored": 387,
+      "result_lines": 131
+    },
+    "architecture": {
+      "cmd": "normify validate --fingerprints",
+      "exit": 0,
+      "errors": 0,
+      "warnings": 5
+    },
+    "impl_gate_records": {
+      "fmt": {
+        "exit": 0,
+        "at": "2026-10-28T13:27:18.272Z"
+      },
+      "clippy": {
+        "exit": 0,
+        "at": "2026-10-28T13:27:15.943Z"
+      },
+      "clippy-cuda": {
+        "exit": 0,
+        "at": "2026-10-28T13:27:16.506Z"
+      },
+      "unit": {
+        "exit": 0,
+        "at": "2026-10-28T13:28:34.756Z",
+        "passed": 1060,
+        "failed": 0,
+        "ignored": 387
+      }
+    }
+  },
+  "semantics": {
+    "my_adversarial_probes": {
+      "file": "tests/_qa_r05_hfield_probe.rs（临时、已删除）",
+      "result": "7 passed / 0 failed",
+      "cases": [
+        "overlap adr Σspan>data.len -> LengthMismatch{hfield_data,expected:8,actual:6}",
+        "empty/inconsistent lengths priority: ncol(0,1), adr(0,2), size(0,4) before nhfield==0",
+        "missing-field priority matrix: size/nrow/ncol/adr/data all named correctly",
+        "extra data tail allowed; data_of bounded; out-of-range index -> None",
+        "exact boundary adr+span==data.len -> Ok",
+        "panic-freedom: (i32::MAX,i32::MAX), adr=i32::MAX/MIN, nrow=i32::MIN, empty data -> all rejected without panic",
+        "single-copy: params.data.as_ptr()==data.as_ptr(), views==nhfield, repeated resolve equal"
+      ]
+    },
+    "construction_probe": {
+      "file": "tests/_qa_r05_hfield_probe2.rs（临时、已删除）",
+      "result": "2 passed / 0 failed",
+      "observations": [
+        "externally constructed HfieldParams{adr:usize::MAX,span:2} -> data_of panics in debug at hfield.rs:119 (adr+span unchecked) -> observation O3",
+        "externally constructed empty hfields -> is_empty()==true (doc says always false) -> observation O3",
+        "valid-but-out-of-range view -> data_of returns None without panic"
+      ]
+    },
+    "static_checks": {
+      "error_variants": [
+        "MissingField",
+        "FieldKind",
+        "LengthMismatch",
+        "CountOverflow",
+        "NonPositiveRowsCols",
+        "DataRange"
+      ],
+      "display_arms": 6,
+      "resolve_signature_no_world": true,
+      "no_unwrap_or_expect_on_user_data": true,
+      "checked_mul": true,
+      "checked_add": true,
+      "try_reserve_exact": true,
+      "length_checks_before_index": true,
+      "no_world_loop": true,
+      "fieldkind_constructions": 0
+    }
+  },
+  "ruling_a": {
+    "render_fields_len": 116,
+    "render_fields_has_hfield": false,
+    "model_render_lines": 500,
+    "io_render_has_hfield": false,
+    "new_wraps_vec": true,
+    "field_lookup_via_render_fields": true,
+    "equivalence_map_covers_all_card_acceptance": true,
+    "no_overclaim_of_render_side_channel": true,
+    "evidence_uncovered_items_listed": [
+      "render-side hfield data channel not wired (delegated to 2026-10-28-render-bvh-r05-hfield-channel, S2 prerequisite)",
+      "S2 data-source adapter not implemented",
+      "device-side hfield BVH/intersection not implemented",
+      "no upstream 2D numeric/equivalence claim"
+    ]
+  },
+  "single_copy": {
+    "inputs_have_no_nworld": true,
+    "resolve_takes_no_world_arg": true,
+    "code_has_no_nworld_read_or_world_loop": true,
+    "data_borrowed_not_copied": "params.data.as_ptr()==input data.as_ptr() (probe)",
+    "view_count_equals_nhfield": true,
+    "note": "实现片单测为结构性断言（无 world 维度可观察）；我补充指针/循环检查"
+  },
+  "abi_redline": {
+    "megakernel_slots": 81,
+    "hfield_bvh_id_placeholder": "upload(&[0u32, 0])",
+    "hfield_bvh_id_slot_push_present": true,
+    "collision_DEVICE_SOURCES": 28,
+    "collision_entrances": 6,
+    "CollisionArgs_bytes": 504,
+    "fixtures_precision_unchanged": true,
+    "no_cu_touched": true,
+    "redline_diff_since_judged_head": "",
+    "line_counts": {
+      "src/render/context/hfield.rs": 332,
+      "tests/render_hfield_params.rs": 284,
+      "src/render/context/params.rs": 193,
+      "src/render/mod.rs": 384,
+      "src/render/kernel/cuda/render.cu": 499,
+      "src/render/kernel/launch.rs": 500,
+      "src/render/kernel/cast.rs": 494,
+      "src/model/render.rs": 500,
+      "src/render/context/camera_output.rs": 499,
+      "src/render/kernel/megakernel.rs": 490
+    },
+    "impl_files_unchanged_after_closure": true
+  },
+  "evidence_integrity": {
+    "impl_evidence_files": 7,
+    "impl_manifest_entries": 6,
+    "impl_manifest_all_match_committed_blob": true,
+    "impl_manifest_self_reference": false,
+    "impl_evidence_eol_bad": [],
+    "impl_banned_hits": [],
+    "impl_tests_log": "10 passed / 0 failed; all 10 names present",
+    "impl_lines_log_matches_my_measurement": true
+  },
+  "observations_detail": [
+    {
+      "id": "O1",
+      "severity": "minor",
+      "recommendation": "fix",
+      "summary": "module source not registered: .normify/modules/mjwarp/render.md [[source]] lacks src/render/context/hfield.rs; closure 50f088c4 only refreshed fingerprint (lighting.rs L116 precedent)"
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "recommendation": "accept or fix",
+      "summary": "HfieldError::FieldKind has zero construction sites (runtime unreachable); document as reserved/parity-variant or remove"
+    },
+    {
+      "id": "O3",
+      "severity": "suggestion",
+      "recommendation": "fix",
+      "summary": "HfieldParams/HfieldView pub fields allow invalid construction; data_of uses unchecked adr+span -> debug panic at hfield.rs:119 with adr=usize::MAX/span=2; is_empty doc 'always false' not true for arbitrary construction"
+    },
+    {
+      "id": "O4",
+      "severity": "record",
+      "recommendation": "accept",
+      "summary": "single-copy unit test is structural only (no world dimension observable); code has no nworld/copy, my pointer check confirms borrowing"
+    },
+    {
+      "id": "O5",
+      "severity": "record",
+      "recommendation": "accept",
+      "summary": "#[path = \"hfield.rs\"] module mount follows existing lighting.rs pattern (structural debt already recorded in R09-S1 O2); no new debt type"
+    },
+    {
+      "id": "O6",
+      "severity": "record",
+      "recommendation": "accept",
+      "summary": "ruling A trail complete: original signature difference, unexecutable evidence, semantic equivalence map, follow-up card ownership; no overclaim of render-side channel"
+    }
+  ],
+  "boundaries": [
+    "no GPU/window/numeric conclusions; upstream HFIELD intersection/numeric equivalence out of scope (S2/channel cards)",
+    "no device-side hfield BVH evaluation (not implemented)",
+    "adversarial probes were temporary test files, deleted after run, not committed; cases/results preserved in logs/probe-*.log",
+    "probe-construction.log contains an expected debug panic observation (O3) for externally constructed invalid values, not an implementation test failure"
+  ],
+  "claims": {
+    "gpu_window": false,
+    "numeric_acceptance": false,
+    "upstream_equivalence": false,
+    "render_side_channel_available": false
+  },
+  "recompute": {
+    "script": "docs/development-evidence/render-bvh/r05-s1-hfield-params-check/recompute.py",
+    "output": "docs/development-evidence/render-bvh/r05-s1-hfield-params-check/recompute.json",
+    "problems": []
+  },
+  "gate_note": "normify gate exit 1（任务没有引用任何门禁）属预期：本卡 checks 仅 receipt /task_id 与 forbid_claim；四门禁由本复核独立复跑（unit 1060 过 / 0 败 / 387 ignored）并记录于 gates 字段。"
+}
