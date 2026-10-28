@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r09-s3a-shadow-capture",
+  "title": {
+    "zh": "R09-S3a：阴影参考 authoring 捕获窗（pinned 3.15.0 环境，shadow-on 主参考 + shadow-off 对照）",
+    "en": "R09-S3a: shadow reference authoring capture window (pinned 3.15.0 env; shadow-on primary plus shadow-off control)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "为 R09 阴影验证（S3b）产出 authoring 参考：用 pinned MJWarp 3.15.0 + warp 1.15.0 环境（authoring-only，不进产品路径）捕获 shadow-on 的 `rgb/depth/seg` 主参考与同 state 的 `use_shadows=false` 对照（两组文件名可区分，判据仍以 shadow-on 为准，off 组只作隔离诊断）。场景要求 ≥1 方向光 + 1 点光且 `castshadow` 打开、`use_shadows=true`。**同窗 A/B 两次独立捕获 raw 逐字节一致**。本片只产出参考，不做任何产品侧数值结论（验收在 S3b）。旧参考（S0b/S7b/S8 等）零读写；新参考只增不改。开窗需 Arch 报材料、Chief 签字后执行。",
+    "en": "Capture shadow-on references plus a shadow-off control with the pinned upstream authoring environment; verify A/B byte identity; no product claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "authoring-only 捕获脚本入库（`scripts/`），pinned 环境（warp 1.15.0 / MJWarp 3.15.0，路径与版本写进证据），**不引用产品 Rust 代码、不进产品路径**。",
+    "场景满足：≥1 方向光 + ≥1 点光，两者 `castshadow` 打开，`use_shadows=true`；场景文件与随机种子/相机位姿完整入库可复现。",
+    "两组输出：shadow-on `rgb/depth/seg`（主参考）+ `use_shadows=false` 同 state 对照（文件名可区分，例如 `*-shadow-on.*` / `*-shadow-off.*`），两组各自记录 sha256 + bytes。",
+    "A/B 两次独立捕获（同窗内）raw 逐字节一致：两组每组 6 个文件逐一 sha 相同，差异 0。",
+    "旧参考零读写：S0b/S7b/S8 等既有参考文件在窗口前后 sha256 不变（逐项留痕）；新参考只新增文件，不修改既有文件。",
+    "窗口纪律：pinned python + nvidia-smi + guard 之外不跑别的；**窗内零 Rust 编译**；记录 3 点基线、compute-apps 过滤 0、构建进程 0、floor、wall、attempt；不写「窗口通过/已覆盖/上游等价/精度达标」。",
+    "证据 `docs/development-evidence/render-bvh/r09-s3a-shadow-capture/`（README + receipt 含 `/task_id` + manifest + 双组 sha + A/B 一致证据 + 旧参考前后 sha），LF 无 BOM、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r09-s2-lighting-kernel"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/",
+      "fixtures/render-bvh/",
+      "docs/development-evidence/render-bvh/r09-s3a-shadow-capture/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 61
+  },
+  "note": "Arch 2026-10-28 登记：authoring 捕获窗，需 Chief 签字后开窗（Arch 报材料一次齐）。产参考不产结论；数值验收在 R09-S3b。前置：R09-S2b 解锁片在 S3b 窗之前完成。",
+  "revision": {
+    "before": "3c2f19c557ee6d3f3dd7390211acd76bc7cf3b44",
+    "after": null
+  },
+  "created_at": "2026-10-28T10:50:00.000Z",
+  "updated_at": "2026-10-28T10:49:43.877Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r09-s3a-shadow-capture/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r09-s3a-shadow-capture"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
