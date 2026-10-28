@@ -120,3 +120,10 @@
    （host Rust 单点改动；内核编译门 source/ptx sha 期望不变）。
 6. **语义定性**：这是**补齐上游 GPU FMA 收缩语义的 host 派生位姿舍入口径**，不是放宽判据、不是绕过产品路径
    （参考 data 位姿直传路径保持不动；本片也不采用让测试直接喂上游 `cam_xmat` 的绕行方案）。
+
+## 9. 追加：Arch 版本假设验证 + 旧场景重放（2026-10-29）
+
+- **版本测试（否定假设）**：pinned `mujoco 3.15.0` 加载同一 `scene-hfield/scene.xml`，`cam_quat` **8/8**、`cam_mat0` **18/18** 个 f64 位型与我们的 3.12 dump **全等**（cam0/cam1 均无差异）→ 「xyaxes→quat 版本级舍入差」不成立；改夹具/重采参考不能修复。
+- **旧场景重放（反证）**：scene-a cam-persp（mode 0，`quat="0.9 0.1 -0.2 0.3"`，已验证）用 host 公式重放 vs 已验证参考 `camera_data_check[0].xmat_bits`：**9 元素中 2 个差 1 ULP（index 0、7）** → 旧位等实体从未让产品公式进入权威比较（直传参考 `camera_data` 位姿；quat 路径只做容差检查，e2e ≤1 ULP / depth_seg ≤1e-6）；「R08/R09 位等已证明公式没问题」不成立。
+- **候选 fused 公式**：scene-a 仍差 1/9、hfield cam1 仍差 2/9 → 精确 GPU fma 序必须从 pinned warp 缓存 PTX（`target/render-bvh/r05-s3a-hfield-cache/1.15.0/wp_mujoco_warp._src.smooth_*`，只读）反读，不能靠公式模拟推断。
+- 机器数据：`materials/arch-version-and-replay.json`、`materials/arch-version-replay.txt`；脚本在 `target/`（不入库，命令见 txt）。

@@ -1,0 +1,23 @@
+Arch version-hypothesis verification + old-scene replay (2026-10-29 addendum; local debug, not acceptance)
+
+1) version test: pinned mujoco 3.15.0 load of fixtures/render-bvh/scene-hfield/scene.xml vs our 3.12 dump
+   (tests/support/render_bvh/hfield/model-312.json):
+   cam_quat f64 bits: 8/8 equal (cam0 4/4, cam1 4/4, diffs=[])
+   cam_mat0 f64 bits: 18/18 equal (cam0 9/9, cam1 9/9, diffs=[])
+   -> xyaxes->quat/mat0 at load time is version-invariant (3.12 vs 3.15); the "version-level rounding" hypothesis
+      is refuted and a fixture/capture change cannot fix the cam1 depth mismatch.
+
+2) old-scene replay (scene-a cam-persp, mode=0 fixed, quat="0.9 0.1 -0.2 0.3", already verified):
+   product host formula (src/math/mod.rs::quat_to_mat replicated in f32) vs the verified reference
+   fixtures/render-bvh/scene-a/s7b/depth_seg.json camera_data_check[0].xmat_bits:
+     bit diffs = [0, 7] (2 of 9 elements differ by 1 ULP)
+   -> the old bit-equal entities never used the product formula for the authoritative comparison: they pass the
+      reference camera_data pose bits directly (s7b1::camera_data_poses); the quat path is tolerance-only
+      (e2e max_ulp<=1, depth_seg fixed_max<=1e-6). So "R08/R09 bitwise proves the product formula is fine"
+      is false; the formula was not bitwise-aligned before this hfield target either.
+   fused-candidate formula: scene-a 1/9 diff; hfield cam1 2/9 diff -> the exact GPU fma order must be read from
+   the pinned warp cached PTX (target/render-bvh/r05-s3a-hfield-cache/1.15.0/wp_mujoco_warp._src.smooth_*), not
+   guessed by formula simulation.
+
+commands (offline; pinned venv python): target/render-bvh/r05-s3b-window/rca-cam1-depth/arch_version_replay.py,
+scenea_fused_check.py (not committed; results in materials/arch-version-and-replay.json)
