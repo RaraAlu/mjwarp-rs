@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-split-megakernel-check",
+  "title": {
+    "zh": "R05 拆分① 独立复核（纯移动：API/ABI/CUDA 源/PTX sha/测试断言零变化 + 行数与 `#[path]` 合规）",
+    "en": "Independent check of R05 split 1 as a pure move (API/ABI/CUDA source/PTX sha/test assertions unchanged; line counts and #[path] legality)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-28-render-bvh-r05-split-megakernel`：确认这是**纯代码移动**而非行为变更——公开 API/方法签名零变化、`MEGAKERNEL_SLOTS` 81 槽签名与顺序零变化、`MEGAKERNEL_SOURCE`/CUDA 源拼接零变化且 **PTX `source_sha256`/`ptx_sha256`/字节数与拆分前一致**、测试断言零改动、上传调用**顺序与实参**保持（句柄语义不变）、`git diff` 只体现归属/导入/可见性；核行数（`megakernel.rs` 406、`megakernel_uploads.rs` 384、`kernel/mod.rs` **474 零改动**）与 `#[path]` 子模块声明合规性（模块源 36→37、无重复定义、crate 正常编译）；核 `plan_vs_actual` 差异（L203-344 142 行、新文件 384、406 行）是否如实记录。",
+    "en": "QA independent check that R05 split 1 is a pure move with identical PTX and semantics."
+  },
+  "modules": {},
+  "acceptance": [
+    "**纯移动证据独立核**：QA 自己重跑内核编译门（NVRTC 纯编译）取 `source_sha256`/`ptx_sha256`/`ptx_bytes`，与拆分前基线 `2d2c27df…` / `e955bb4b…` / `258 660` 逐位对照；`MEGAKERNEL_SOURCE` 六段拼接结果不变。",
+    "公开 API/签名与 `MEGAKERNEL_SLOTS`（81 槽，类型+顺序）零变化；`render_megakernel.cu`/`render_common.cu`/`render_shade.cu` 源字符串零变化；测试断言零改动（`git diff` 中测试文件无改动）。",
+    "**上传顺序与实参**核验：搬入 `upload_megakernel_arrays` 的 `upload(...)` 调用序列与拆分前一致（顺序变化可能改变句柄语义），实参来源逐项对应；`blob_buffer` 保留与警告消除方式不改变行为。",
+    "行数与归属：`megakernel.rs` 406（≤430）、`megakernel_uploads.rs` 384（≤500）、`kernel/mod.rs` **474 且拆分前后零 diff**；`#[path = \"megakernel_uploads.rs\"] mod megakernel_uploads;` 声明在 `megakernel.rs` 内、模块源 36→37、`validate --fingerprints` 错误 0、无重复模块定义。",
+    "回归：`cargo test --locked` **1069 passed / 0 failed**（含 S7b1/S7b2/S7b3/S8 位等回归）由 QA 独立复跑；`fmt`/`clippy -D warnings` 通过。",
+    "红线：`render.cu`(499)/`launch.rs`(500)/`cast.rs`(494)/`model/render.rs`(500)/`camera_output.rs`(499) 零改动；`DEVICE_SOURCES`=28、入口 6、`CollisionArgs` 504 B 不动。",
+    "证据 `docs/development-evidence/render-bvh/r05-split-megakernel/`（README + receipt 含 `/task_id` + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0）：先报 verdict/blockers/observations；不写「窗口通过/已覆盖/精度达标/上游等价」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r05-split-megakernel"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r05-split-megakernel-check/"
+    ],
+    "resources": [],
+    "priority": 56
+  },
+  "note": "Arch 2026-10-28 预登记。start 时必须同时把任务 id + 复核点发进 QA 会话。",
+  "revision": {
+    "before": "31a83d9cc36a786463caeb964f37e98960864883",
+    "after": null
+  },
+  "created_at": "2026-10-28T14:10:00.000Z",
+  "updated_at": "2026-10-28T14:10:44.115Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-split-megakernel-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-split-megakernel-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

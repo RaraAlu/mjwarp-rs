@@ -1,0 +1,160 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-split-megakernel-check",
+  "kind": "render-bvh-r05-split-megakernel-check",
+  "reviewed_task": "2026-10-28-render-bvh-r05-split-megakernel",
+  "reviewed_commits": ["5d4d23d0", "00ea2baf"],
+  "pre_split_tree": "00ed9efb3ac36e716d1e2ddaefecf956922ff9ca",
+  "head_at_review": "00ea2baff21f3422337673aacf4a84c000f7b2c3",
+  "verdict": {
+    "result": "pass",
+    "blockers": 0,
+    "observations": 6,
+    "scope": "纯移动复核：行为面零变化（内核源/PTX、API/ABI 81 槽、上传语义、行数/#[path]、回归、红线与证据）；无 GPU/窗口/数值结论"
+  },
+  "review_points": {
+    "pure_move_kernel_source": {
+      "concat_files": 6,
+      "concat_sha256": "2d2c27df985882c2b571514579dff19f9103bfc903ec786db42a592ce1bd8c2a",
+      "cuda_files_byte_identical_to_pre_split": true,
+      "gate_run_by_qa": {
+        "command": "cargo test --locked --test render_kernel_rgb -- --ignored megakernel_source_compiles_under_render_gate --nocapture",
+        "source_sha256": "2d2c27df985882c2b571514579dff19f9103bfc903ec786db42a592ce1bd8c2a",
+        "ptx_sha256": "e955bb4b0280228639f3e544b459873c83d1dae672662a43a96cccc8dabc4ffa",
+        "ptx_bytes": 258660,
+        "exit": 0
+      }
+    },
+    "api_abi_unchanged": {
+      "kernel_mod_rs_blob_equal": true,
+      "args_rs_blob_equal": true,
+      "cuda_sources_blob_equal": true,
+      "tests_and_cargo_diff_empty": true,
+      "pub_fn_signatures_identical": true,
+      "slots": 81
+    },
+    "upload_semantics": {
+      "upload_calls": 70,
+      "upload_call_order_and_args_equivalent": true,
+      "upload_inputs_field_bindings_same_name_locals": true,
+      "args_push_slots": 81,
+      "args_push_slot_sequence_identical": true,
+      "blob_buffer_lifetime": "struct field, dropped at end of render() scope after launch_samples — same as pre-split local"
+    },
+    "lines_and_path_module": {
+      "megakernel_rs": {"before": 490, "after": 406, "target_le_430": true},
+      "megakernel_uploads_rs": 384,
+      "kernel_mod_rs": {"lines": 474, "blob_equal": true},
+      "moved_segment": "L203-344 (142 lines)",
+      "kept_after_segment": ["rgb_shape", "depth_shape", "seg_shape"],
+      "path_declaration_count": 1,
+      "render_md_source_entries": 37,
+      "validate_fingerprints_errors": 0
+    },
+    "regression_by_qa": {
+      "fmt": {"exit": 0},
+      "clippy": {"exit": 0},
+      "clippy_cuda": {"exit": 0},
+      "unit": {"passed": 1069, "failed": 0, "ignored": 387, "result_lines": 132}
+    },
+    "redlines_and_evidence": {
+      "render_cu_lines": 499,
+      "launch_rs_lines": 500,
+      "cast_rs_lines": 494,
+      "model_render_rs_lines": 500,
+      "camera_output_rs_lines": 499,
+      "args_rs_lines": 494,
+      "device_sources": 28,
+      "entry_points": 6,
+      "collision_args_bytes": 504,
+      "implementation_evidence": {
+        "files": 8,
+        "manifest_entries": 7,
+        "manifest_matches_committed_blob": "7/7",
+        "manifest_self_reference": false,
+        "lf_only_no_bom": true,
+        "forbidden_word_hits": 0,
+        "readme_lines": 74
+      },
+      "commit_scope": {"5d4d23d0_files": 16, "00ea2baf_files": 2, "outside_card_scope": 0},
+      "plan_vs_actual_documented": true
+    }
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "suggestion",
+      "topic": "evidence completeness of the pure-move diff surface",
+      "detail": "README §2.6 / receipt git_diff_nature 称新文件仅引用改名 + 两条 import 改绝对路径；实测移动段归一后仍有 3 行差异：三个输出 scratch 分支由预存局部 bool（rgb_enabled/depth_enabled/seg_enabled）改为现场 context.outputs().is_enabled(ImageOutput::X)。is_enabled 为 Option::is_some 只读访问、同一不可变 context、两步之间无写入 → 行为等价，但差异面应写全。",
+      "suggestion": "fix",
+      "fix": "证据补一句「3 处 scratch 开关改为现场 is_enabled 读取，只读同值」"
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "topic": "doc comment line range",
+      "detail": "megakernel_uploads.rs L3/L146 写「原 L203-347」；实测移动段为 L203-344，L345-347（rgb_shape/depth_shape/seg_shape）保留原文件（证据 README §3 正确）。",
+      "suggestion": "accept_or_fix",
+      "fix": "注释改为 L203-344"
+    },
+    {
+      "id": "O3",
+      "severity": "suggestion",
+      "topic": "wording precision: TransferBuffer field count",
+      "detail": "README §1 注 / receipt 称 80 个 TransferBuffer 句柄；实测 MegakernelUploads 80 字段 = 74 TransferBuffer + 4 Option<TransferBuffer> + texture_array + blob_addr + 4 usize 计数。",
+      "suggestion": "accept",
+      "fix": "可选：改为「80 字段，其中 78 个 TransferBuffer 句柄」"
+    },
+    {
+      "id": "O4",
+      "severity": "record",
+      "topic": "blob_buffer keep-alive",
+      "detail": "blob_buffer 由局部变量改为结构体字段 + #[allow(dead_code)]；无新增 unwrap/expect，? 传播不变；与旧局部同生命周期（launch 之后 drop）。",
+      "suggestion": "accept"
+    },
+    {
+      "id": "O5",
+      "severity": "record",
+      "topic": "path-attribute submodule existing structural debt",
+      "detail": "私有 #[path] 子模块与 lighting.rs/hfield.rs 同款（R09-S1 O2 已记录），本片无新增债务类型。",
+      "suggestion": "accept"
+    },
+    {
+      "id": "O6",
+      "severity": "record",
+      "topic": "plan_vs_actual deltas",
+      "detail": "142 vs 批准 145 行、406 vs ~345（目标 ≤430 达成）、384 vs ~170、#[path] 替代 mod.rs 声明，均如实记录并给原因。",
+      "suggestion": "accept"
+    }
+  ],
+  "boundaries": [
+    "未在拆分前树（00ed9efb）重跑内核编译门：source 一致性由「6 个源文件逐字节相同 + source sha 自算等于基线」推断；QA 复跑 PTX 与基线逐位相同。",
+    "无 GPU / 无验证窗口 / 无渲染数值结论（本片为 Rust 侧上传段移动，不发射内核）。",
+    "未重跑 .normify/runs/ 内四门禁记录的原始运行，只核其绑定的代码树与结论一致（normify check exit 0）。",
+    "validate --fingerprints 的 5 条警告为既有结构类警告，未逐条追溯是否早于本片（与本片 diff 无关）。"
+  ],
+  "gates": {
+    "fmt": {"exit": 0, "log": "logs/fmt.log"},
+    "clippy": {"exit": 0, "log": "logs/clippy.log"},
+    "clippy_cuda": {"exit": 0, "log": "logs/clippy-cuda.log"},
+    "unit": {"passed": 1069, "failed": 0, "ignored": 387, "log": "logs/unit.log"},
+    "kernel_compile_gate": {"exit": 0, "log": "logs/kernel-gate.log"}
+  },
+  "gate_note": "QA 复核卡无门禁：normify gate exit 1「任务没有引用任何门禁」属预期；本卡不做代码提交前置门禁，四门禁日志为复核用独立复跑记录。",
+  "normify": {
+    "check_reviewed_task": "exit 0",
+    "validate_fingerprints": "错误 0 警告 5（既有结构类）",
+    "board": "已验收 538 / 运行 0 / 错误 0 / 警告 0（本卡关闭后）"
+  },
+  "claims": {
+    "pure_move_verified": true,
+    "api_abi_unchanged": true,
+    "cuda_source_and_ptx_sha_equal_baseline": true,
+    "tests_zero_change": true,
+    "no_gpu_no_window_no_numeric_conclusion": true
+  },
+  "recompute": {
+    "script": "recompute.py",
+    "result": "recompute.json",
+    "problems": 0
+  }
+}
