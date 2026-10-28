@@ -1,0 +1,35 @@
+R02-S1 门禁记录（全部在最终树、空闲时段执行；无 GPU 窗口、无设备数值执行）
+
+环境
+  CUDA_PATH = D:\Rust\mjwarp-rs\target\toolchains\cuda-12.8.1（NVRTC 12.8.1，产物 ptx 与冻结基线同源）
+  PATH 前置   = D:\Rust\mjwarp-rs\target\toolchains\cuda-12.8.1\bin（nvrtc64_120_0.dll）
+  pinned 上游 = mujoco_warp 3.15.0 / warp-lang 1.15.0 / mujoco 3.12.0
+                render.py 51362 B / 1604 行 / sha256 16bfe7edfa73033ef88fb4bbc46364867935f0c527ca53a23ff65c5c40fb3536
+
+命令与结果（exit code）
+  cargo fmt --check                                                        -> 0
+  cargo clippy --all-targets --locked -- -D warnings                       -> 0
+  cargo clippy --all-targets --locked --features cuda -- -D warnings        -> 0
+  cargo test --locked                                                     -> 0
+      test result 行 135；passed 1103 / failed 0 / ignored 389
+      （本片新增 11 个通过用例：tests/render_skybox.rs 10 + texture_inputs.rs 1）
+  cargo test --locked --no-run                                            -> 0
+  cargo test --locked --features cuda-probe --test render_kernel_rgb \
+      -- --ignored megakernel_source_compiles_under_render_gate \
+      --test-threads=1 --nocapture                                        -> 0
+      source_sha256=e68e3412c1e1809e71100d9e842d5b0f5b886ffdec88d8401bb01c76e812904c
+      ptx_sha256=0b9474928ab8a7add27e5da7ac0869ee955a75405cd976cd04839f2312e88f3e
+      ptx_bytes=268275
+  normify validate --fingerprints                                         -> 0（错误 0；6 条既有警告，含 1 条本片引起的
+                                                                           mjwarp.render 指纹过期，closing 时由 done 刷新）
+  normify gate 2026-10-29-render-bvh-r02-skybox-s1                        -> 见 closing 提交记录
+
+模块源码登记
+  normify module source mjwarp.render --add src/render/context/texture_inputs.rs
+  登记前 mjwarp.render 源码 39（API 11） -> 登记后 40（API 11）
+  normify impact src/render/context/texture_inputs.rs 命中 mjwarp.render；
+  依赖 model.core / runtime.completion / math / diagnostics；约束 core-no-deprecated-target、boundary-render
+
+未执行（本片明确不做）
+  · 任何 GPU 窗口（monitor/guards/冻结/窗口产物）与任何设备数值执行（`--ignored` 中仅跑 NVRTC 纯编译门）
+  · capture / 参考生成 / 判据比较（S2 authoring capture 与 S3 验证窗待用户在场双签）

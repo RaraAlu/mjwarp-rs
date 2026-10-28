@@ -1,0 +1,155 @@
+{
+  "task_id": "2026-10-29-render-bvh-r02-skybox-s1",
+  "slice": "R02-S1",
+  "phase": "P8-渲染与BVH",
+  "owner": "Backend",
+  "nature": "offline implementation slice: no GPU window, no device numeric execution, no rendering numeric conclusion",
+  "commits": {
+    "implementation": "8aa33e00",
+    "note": "code + tests + module-source registration + S1 card in one commit; evidence and closing follow"
+  },
+  "upstream_reference": {
+    "package": "mujoco_warp 3.15.0 (warp-lang 1.15.0, mujoco 3.12.0, pinned in target/render-bvh-precheck/venv312)",
+    "render_py": {
+      "bytes": 51362,
+      "lines": 1604,
+      "sha256": "16bfe7edfa73033ef88fb4bbc46364867935f0c527ca53a23ff65c5c40fb3536"
+    },
+    "mapping": [
+      "render.py:494-556 sample_skybox (rotation / face / sc,tc / safe_div / t clamp / v=(face+t)/6 / texture_sample)",
+      "render.py:1259-1268 background branch (geom_id==-1 && render_rgb && render_skybox -> store_pixel)",
+      "render.py:1017-1031 store_pixel (AA += color*255 else packed write)",
+      "render.py:1105-1106 skybox_tex_id / skybox_face_width slots",
+      "render_util.py:514-520 skybox texture id and face_width = tex_width",
+      "render_util.py:527-535 use_textures or has_skybox registry materialization (1x1 empty_tex for others)",
+      "math.py:318-319 safe_div(x,y) = x/(y!=0?y:MJ_MINVAL), MJ_MINVAL = mjMINVAL = 1e-15"
+    ],
+    "skybox_layout_measured": {
+      "fixture": "fixtures/render-bvh/scene-a/model-312.json and model-315.json",
+      "tex_type": [0, 0, 2],
+      "tex_width": [64, 32, 64],
+      "tex_height": [64, 32, 384],
+      "conclusion": "skybox is a vertical-strip 2D texture (tex_height = 6*tex_width); no cube device path needed"
+    }
+  },
+  "kernel_baseline": {
+    "before": {
+      "source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746",
+      "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13",
+      "ptx_bytes": 264015
+    },
+    "after": {
+      "source_sha256": "e68e3412c1e1809e71100d9e842d5b0f5b886ffdec88d8401bb01c76e812904c",
+      "ptx_sha256": "0b9474928ab8a7add27e5da7ac0869ee955a75405cd976cd04839f2312e88f3e",
+      "ptx_bytes": 268275
+    },
+    "delta_bytes": 4260,
+    "change_reason": "only the added MK_FLAG_SKYBOX-gated background branch and the sample_skybox function; baseline reproduced bit-for-bit from git HEAD sources with the same compiler (proves the reconstruction is faithful)",
+    "semantic_ptx_delta": {
+      "tex_level_2d_instructions": {"before": 1, "after": 2},
+      "and_b32_mask_512": {"before": 0, "after": 1},
+      "max_f32": {"before": 39, "after": 40},
+      "min_f32": {"before": 9, "after": 10},
+      "sqrt": {"before": 51, "after": 51},
+      "note": "line-level Compare-Object churn (4810/4675) is NVRTC register/label renumbering after insertion; see materials/ptx-diff-summary.txt"
+    }
+  },
+  "gates": {
+    "fmt": 0,
+    "clippy": 0,
+    "clippy_cuda": 0,
+    "unit": 0,
+    "no_run": 0,
+    "kernel_compile_gate": 0,
+    "kernel_compile_gate_env": "CUDA_PATH=target/toolchains/cuda-12.8.1, PATH prepended with its bin",
+    "normify_validate_fingerprints": 0,
+    "normify_validate_note": "errors 0; 6 pre-existing warnings incl. mjwarp.render fingerprint drift refreshed by normify done"
+  },
+  "unit_totals": {
+    "test_result_lines": 135,
+    "passed": 1103,
+    "failed": 0,
+    "ignored": 389,
+    "added_by_slice": 11,
+    "added_breakdown": "tests/render_skybox.rs 10 (host only) + src/render/context/texture_inputs.rs 1"
+  },
+  "line_counts_lf": {
+    "src/render/kernel/cuda/render_shade.cu": {"before": 383, "after": 457, "limit": 470},
+    "src/render/kernel/cuda/render_megakernel.cu": {"before": 347, "after": 368, "limit": 420},
+    "src/render/kernel/megakernel.rs": {"before": 412, "after": 410, "limit": 412},
+    "src/render/kernel/megakernel_arrays.rs": {"before": 326, "after": 332, "limit": 340},
+    "src/render/kernel/megakernel_uploads.rs": {"before": 446, "after": 465, "limit": 480},
+    "src/render/context.rs": {"before": 453, "after": 455, "limit": 470},
+    "src/render/context/lifecycle.rs": {"before": 496, "after": 498, "limit": 499, "net_delta": 2},
+    "src/render/context/texture_inputs.rs": {"before": 0, "after": 157, "limit": 160},
+    "tests/render_skybox.rs": {"before": 0, "after": 260, "limit": 260},
+    "red_lines_untouched": {
+      "src/render/texture.rs": 486,
+      "src/render/kernel/cast.rs": 481,
+      "src/render/kernel/cuda/render.cu": 499,
+      "src/render/kernel/launch.rs": 500,
+      "src/model/render.rs": 500
+    }
+  },
+  "module_sources": {
+    "module": "mjwarp.render",
+    "before": 39,
+    "after": 40,
+    "added": ["src/render/context/texture_inputs.rs"],
+    "api_count_unchanged": 11,
+    "impact_scope_note": "file-level impact unavailable for src/render/kernel/** (module-source registration gap backlog 2026-10-28-arch-volume-module-sources); this slice registers only the new file; the 6 kernel .rs remain unregistered"
+  },
+  "flag_bits": {
+    "high_word": "background_color_packed",
+    "bits": {
+      "0": "MK_FLAG_TEXTURES (use_textures)",
+      "1": "MK_FLAG_VERTEX_NORMALS (enable_vertex_normals)",
+      "2": "MK_FLAG_SPECULAR (enable_specular)",
+      "3": "MK_FLAG_EMISSION (enable_emission)",
+      "4": "MK_FLAG_PER_LIGHT_AMBIENT (enable_per_light_ambient)",
+      "5": "MK_FLAG_AMBIENT_LIGHTING (use_ambient_lighting)",
+      "6": "MK_FLAG_HEADLIGHT (headlight.active)",
+      "7": "MK_FLAG_CULL_BACKFACES (enable_backface_culling)",
+      "8": "MK_FLAG_AA (nsamples > 1)",
+      "9": "MK_FLAG_SKYBOX (render_skybox) -- added by this slice"
+    },
+    "free_bits": "10-31",
+    "slots_signature": "MEGAKERNEL_SLOTS unchanged: 81 slots = 1 bounds + 73 arrays + 7 scalars"
+  },
+  "zero_leak_static_argument": {
+    "gpu_executed": false,
+    "claims": [
+      "new code is reached only inside hit.geom_id == -1 and only when (flag_bits & MK_FLAG_SKYBOX) != 0; bit 9 comes from resolved.render_skybox (false in all existing scenes)",
+      "without skybox: texture registry empty, texture_array None, skybox_tex_id/face_width stay [0]/[0], lifecycle texture resources None",
+      "PTX delta is exactly +1 texture fetch, +1 and.b32 mask 512, +1 max.f32 and +1 min.f32; sqrt unchanged",
+      "no device test, no window, no rendering numeric conclusion in this slice"
+    ],
+    "bitwise_regression_evidence": "deferred to the S3 validation window (8 existing regression entities) per approved plan; NOT claimed here"
+  },
+  "tests_added": [
+    "skybox_only_registry_materializes_skybox_and_dummy_textures",
+    "use_textures_materializes_all_ids_unchanged",
+    "no_skybox_and_no_textures_yields_empty_registry",
+    "skybox_face_width_must_match_tex_width",
+    "skybox_texture_id_must_be_in_range",
+    "kernel_flag_bits_and_slot_signature_unchanged",
+    "axis_directions_map_to_the_six_faces",
+    "sixth_constant_matches_warp_static_value",
+    "face_boundary_and_t_clamp",
+    "zero_direction_is_not_nan",
+    "neither_textures_nor_skybox_yields_empty_registry"
+  ],
+  "limits": [
+    "no GPU execution in this slice: device-side sample_skybox and the new background branch have no pixel-level verification yet; S2 authoring capture and S3 validation window are deferred until the user is present and signs the window plan",
+    "host unit tests cover the host-side reference mapping, registry subset, slot/flag wiring only; they are not equivalent to device correctness",
+    "criteria/tolerances/references/fixtures are untouched by this slice; the device comparison criteria stay the existing bitwise ones (RGB mismatched=0/max_byte_diff=0/beyond_1_lsb=0, depth mismatch=0/max_ulp=0/beyond_ulp=0, seg mismatch=0, two-run sha equality)",
+    "test-file line budget is the pre-check table value (<=260) for the new integration test target; the AC 'new file <=160' applies to the new implementation file (texture_inputs.rs, 157)"
+  ],
+  "non_claims": [
+    "not a window pass",
+    "not a precision/accuracy statement",
+    "not upstream equivalence",
+    "not product render acceptance",
+    "no zero-leak *measured* claim (static argument only)"
+  ]
+}

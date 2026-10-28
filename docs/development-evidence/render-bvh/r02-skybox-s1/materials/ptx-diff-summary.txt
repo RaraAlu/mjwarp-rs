@@ -1,0 +1,34 @@
+R02-S1 PTX 差异摘要（kernel gate：render_megakernel，NVRTC 12.8 + W15 头树）
+
+baseline（本片前，= git HEAD 的 render_shade.cu + render_megakernel.cu 与其他未改 .cu 拼接）
+  source_sha256 = 72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746
+  ptx_sha256    = 97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13
+  ptx_bytes     = 264015
+
+current（本片）
+  source_sha256 = e68e3412c1e1809e71100d9e842d5b0f5b886ffdec88d8401bb01c76e812904c
+  ptx_sha256    = 0b9474928ab8a7add27e5da7ac0869ee955a75405cd976cd04839f2312e88f3e
+  ptx_bytes     = 268275  (+4260)
+
+复现方式（无 GPU，纯 NVRTC 编译；baseline 由 `git show HEAD:<path>` 取两份 .cu 后与未改片段拼接）
+  PATH 前置 target\toolchains\cuda-12.8.1\bin、CUDA_PATH=target\toolchains\cuda-12.8.1
+  cargo test --locked --test <scratch> -- --nocapture      # 导出 ptx 到 target/r02-ptx/{baseline,current}.ptx
+  cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored \
+      megakernel_source_compiles_under_render_gate --test-threads=1 --nocapture
+
+行级统计（PTX 文本行）
+  baseline_lines = 8115, current_lines = 8250 (+135)
+  Compare-Object 行级差异：added=4810 / removed=4675
+  → 差异面很大是 NVRTC 的寄存器编号与分支标签整体重排（插入代码后 ssa 重编号的常见现象），
+    不是语义改写；语义层的可判指标如下。
+
+语义层指标（同一编译器的产物对比）
+  tex.level.2d.v4.f32.f32 取样指令：baseline 1 条 → current 2 条（+1，恰为天空盒取样）
+  `and.b32 %r, %r, 512`（flag bit9=0x200 判定）：baseline 0 条 → current 1 条（+1）
+    · baseline 中出现的 2 处 `512` 均为 `.local __local_depot0[512]` / `add.u64 %rd, %SPL, 512`，与本位无关
+  max.f32：39 → 40（+1，`t` 上夹）；min.f32：9 → 10（+1，`t` 下夹）
+  sqrt：51 → 51（无新增超越函数）
+  新增取样指令与新增 512 位判定唯一出现处 = 内核新增的天空盒背景分支（见 README §6 控制流论证）
+
+约束：本摘要只说明「新增指令集恰好对应新增分支」，不构成任何渲染数值结论；数值对齐由
+S2/S3 窗口的位级比对承担（本片无 GPU 执行）。
