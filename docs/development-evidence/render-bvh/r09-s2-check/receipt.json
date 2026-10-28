@@ -1,0 +1,202 @@
+{
+  "task_id": "2026-10-28-render-bvh-r09-s2-check",
+  "kind": "render-bvh-r09-s2-independent-check",
+  "verdict": "pass",
+  "blockers": 0,
+  "observations": 8,
+  "observed_head": "1ad2f268fdc45e6dc063a3e9b9db8520f2d2e72d",
+  "review_object": {
+    "implementation_commit": "6b5d6dc636a37c2402c81e704b3b199219725681",
+    "implementation_commit_stat": "20 files changed, 574 insertions(+), 31 deletions(-) (git show --shortstat)",
+    "closure_commit": "1ad2f268fdc45e6dc063a3e9b9db8520f2d2e72d",
+    "implementation_evidence": "docs/development-evidence/render-bvh/r09-s2-lighting-kernel/",
+    "upstream": "MJWarp 3.15 render.py 71da24d956378a87a703b6e1442b13aec0c4ac29 (L585/L830/L850/L866/L880/L919-961/L998-1000/L1457-1459)"
+  },
+  "method": {
+    "independent": true,
+    "own_scripts": ["docs/development-evidence/render-bvh/r09-s2-check/recompute.py"],
+    "own_logs": [
+      "logs/fmt.log",
+      "logs/clippy.log",
+      "logs/clippy-cuda.log",
+      "logs/unit.log",
+      "logs/kernel-compile-gate.log"
+    ],
+    "notes": [
+      "所有数字由本任务脚本/日志重算，未引用 Backend/Arch 报告值",
+      "未开 GPU 窗口、未发射渲染内核；仅四门禁 + 内核编译门（NVRTC 纯编译、不 launch）",
+      "内核编译门需 pin 的 target/toolchains/cuda-12.8.1（等价 scripts/g01-fast.ps1 的 CUDA_PATH）",
+      "未改动仓库代码/判据/容差/参考/夹具"
+    ]
+  },
+  "gates": {
+    "fmt": { "cmd": "cargo fmt --check", "exit": 0, "wall_ms": 1585, "output_bytes": 0 },
+    "clippy": {
+      "cmd": "cargo clippy --all-targets --locked -- -D warnings",
+      "exit": 0,
+      "wall_ms": 6102
+    },
+    "clippy_cuda": {
+      "cmd": "cargo clippy --all-targets --locked --features cuda -- -D warnings",
+      "exit": 0,
+      "wall_ms": 397
+    },
+    "unit": {
+      "cmd": "cargo test --locked",
+      "exit": 0,
+      "wall_ms": 72186,
+      "passed": 1045,
+      "failed": 0,
+      "ignored": 384,
+      "result_lines": 129,
+      "new_binary": "tests/render_lighting_kernel.rs: 5 passed"
+    },
+    "kernel_compile_gate": {
+      "cmd": "cargo test --locked --test render_kernel_rgb -- --ignored megakernel_source_compiles_under_render_gate --nocapture",
+      "exit": 0,
+      "wall_ms": 5259,
+      "passed": 1,
+      "source_sha256": "d38d50677959e65693f3e2cf84c25553dfa9ef19ebf094574281f8833de9d6d6",
+      "ptx_sha256": "1e37c50ffc55a5eeeef0520a432d3f56e89a99985f8e204b5a24120f8e311b54",
+      "ptx_bytes": 259107,
+      "note": "compile-only (NVRTC); no kernel launch, no GPU render"
+    },
+    "architecture": {
+      "cmd": "normify validate --fingerprints",
+      "exit": 0,
+      "errors": 0,
+      "warnings": 5,
+      "warnings_note": "既有项（api/leaf-empty、structure/leaf-too-coarse、layout/order-incomplete），与本片无关"
+    }
+  },
+  "recomputed": {
+    "source_concat_sha256": "d38d50677959e65693f3e2cf84c25553dfa9ef19ebf094574281f8833de9d6d6",
+    "source_concat_bytes": 80305,
+    "source_concat_parts": [
+      "src/render/bvh/cuda/scene.cu",
+      "src/render/kernel/cuda/render_math.cu",
+      "src/render/kernel/cuda/render_common.cu",
+      "src/render/kernel/cuda/render_shadow.cu",
+      "src/render/kernel/cuda/render_shade.cu",
+      "src/render/kernel/cuda/render_megakernel.cu"
+    ],
+    "line_counts_lf": {
+      "src/render/kernel/cuda/render_shadow.cu": 30,
+      "src/render/kernel/cuda/render_shade.cu": 359,
+      "src/render/kernel/cuda/render_megakernel.cu": 340,
+      "src/render/kernel/megakernel.rs": 492,
+      "src/render/kernel/megakernel_arrays.rs": 241,
+      "src/render/kernel/mod.rs": 474,
+      "tests/render_lighting_kernel.rs": 144,
+      "src/render/kernel/cuda/render.cu": 499,
+      "src/render/kernel/launch.rs": 500,
+      "src/render/kernel/cast.rs": 494,
+      "src/model/render.rs": 500,
+      "src/render/context/camera_output.rs": 499
+    },
+    "claimed_vs_measured_mismatch": {
+      "tests/render_lighting_kernel.rs": { "claimed": 145, "measured": 144, "where": "impl README §3 / receipt changes[].added / commit message" }
+    },
+    "implementation_evidence_manifest": { "entries": 14, "matched": 14, "self_reference": false },
+    "implementation_evidence_eol": { "cr": 0, "bom": 0, "files": 7 },
+    "module_sources": { "module": "mjwarp.render", "before": 33, "after": 34, "added": "src/render/kernel/cuda/render_shadow.cu" },
+    "megakernel_slots": 81,
+    "use_shadows_slot_index0": 40,
+    "use_shadows_slot_kind": "Scalar(Bool)",
+    "splat_scale_reads": [["0", "1"], ["0", "2"]],
+    "splat_scale_read_count_0_2": 1,
+    "host_still_rejects_use_shadows": true,
+    "host_guard": ["src/render/kernel/megakernel.rs:97-99"],
+    "killing_tests_locking_rejection": [
+      "tests/render_kernel_flags.rs:380 (L412-435, #[ignore])",
+      "tests/render_kernel_rgb.rs:209-224 (#[ignore])"
+    ],
+    "concat_order": ["render_common.cu", "render_shadow.cu", "render_shade.cu", "render_megakernel.cu"],
+    "redline_diff_empty": true,
+    "redline_paths": [
+      "src/render/kernel/cuda/render.cu",
+      "src/render/kernel/launch.rs",
+      "src/render/kernel/cast.rs",
+      "src/model/render.rs",
+      "src/render/context/camera_output.rs",
+      "src/render/bvh/**",
+      "fixtures/**",
+      "Cargo.toml",
+      "Cargo.lock",
+      "src/runtime/**"
+    ],
+    "counts": {
+      "collision_DEVICE_SOURCES": 28,
+      "collision_entrances": 6,
+      "CollisionArgs_bytes": 504
+    }
+  },
+  "semantics": [
+    { "item": "use_shadows 总开关", "upstream": "L850", "product": "host scalar slot 40 = resolved.use_shadows", "verdict": "match" },
+    { "item": "lightcastshadow 逐灯开关", "upstream": "L866", "product": "light_castshadow.data[light]", "verdict": "match" },
+    { "item": "发射条件", "upstream": "L919", "product": "if (!use_shadows || !cast_shadow) return 1.0f", "verdict": "match" },
+    { "item": "shadow_origin", "upstream": "L922 hitpoint + normal*1e-4", "product": "add(hitpoint, scale(normal, 1.0e-4f))", "verdict": "match" },
+    { "item": "max_t", "upstream": "L924-926 non-directional dist_to_light-1e-3 / directional 1e8", "product": "(lighttype == 1) ? 1.0e8f : (dist_to_light - 1.0e-3f)", "verdict": "match" },
+    { "item": "命中可见度", "upstream": "L960-961 geom_id != -1 -> shadow_light_fraction", "product": "(hit.geom_id != -1) ? shadow_light_fraction : 1.0f", "verdict": "match" },
+    { "item": "weight 合成", "upstream": "L963 attenuation * visible", "product": "attenuation * shadow_visibility(...)", "verdict": "match (false branch multiply by exactly 1.0f)" },
+    { "item": "headlight 不投影", "upstream": "L1457-1459 True, 1, False", "product": "true, 1, ... false", "verdict": "match" },
+    { "item": "逐灯实参顺序", "upstream": "L1403-1422", "product": "positional args aligned to signature", "verdict": "match (no cross-wiring)" },
+    { "item": "ambient / per-light ambient", "upstream": "L970+", "product": "megakernel L275-288 unchanged", "verdict": "not touched by this slice" },
+    { "item": "遮挡查询实现", "upstream": "L999-1000 cast_ray_first_hit = first_hit=True (any-hit, early return L808-811)", "product": "reuse closest-hit cast_ray (render_common.cu:304), no new any-hit API", "verdict": "boolean target same; implementation path differs (tolerance-level band, RAY_TOL_REL=1e-6/RAY_TOL_ABS=1e-9)" }
+  ],
+  "scenario_coverage": {
+    "use_shadows_false_equivalence": "code-level argument only (weight = attenuation * 1.0f exact; removed kernel early-return was reachable only when use_shadows=true and host still rejects it); no numeric verification (S3b)",
+    "use_shadows_true_reachability": "unreachable through host path today (megakernel.rs:97-99 still rejects); see observation O1",
+    "shadow_pixels": "not covered (no window; S3b)",
+    "any_hit_increment": "no new API; first-hit behaviour untouched (cast_ray source unchanged)",
+    "split_no_behaviour_change": "no file split/move in this slice; equivalence surface = use_shadows=false code-level argument + no pre-existing device source body change except documented lines"
+  },
+  "arch_ruling": {
+    "at": "2026-10-28T18:4x+08:00",
+    "verdict_kept": "pass / blockers 0 / observations 8",
+    "O1": { "ruling": "不阻断 + 必须留痕", "reason": "本片契约=内核实现+单测+零数值结论；host use_shadows=true 前置拒绝是 S7b3 既有产品策略（未验证路径刻意不解锁）；交付口径=分支实现就位、产品路径待解锁，不是阴影已可用", "actions": ["实现片补 addendum（megakernel.rs:97-99 仍拒 / 第 40 槽恒 false / 两条 #[ignore] 断言仍以拒绝为契约 / 本片不解锁）", "登记后续片 2026-10-28-render-bvh-r09-s2-host-guard-unlock（R09-S3b 窗口前必须完成）"] },
+    "O2": { "ruling": "fix", "action": "实现片治理提交改 145→144；本复核按实测 144 记录" },
+    "O3": { "ruling": "accept 延后", "action": "5 条结构断言保留；in-crate 接线单测并入 host-guard-unlock 片，不算本片履约缺口" },
+    "O4": { "ruling": "accept 延后", "action": "头注释随 host-guard-unlock 片改；本片不动 .cu（改注释会变 MEGAKERNEL_SOURCE/PTX sha，与已冻证据面冲突）" },
+    "O5": { "ruling": "accept", "action": "manifest 解析规则一句话在实现片补" },
+    "O6": { "ruling": "accept", "action": "历史 fmt 中间态日志保留；本复核注明最终树 fmt 通过" },
+    "O7": { "ruling": "accept", "action": "实现片补「本片无拆分对象、贴线文件零改动」，不改卡" },
+    "O8": { "ruling": "accept", "action": "实现片补 head 字段口径说明（证据时点 HEAD，非最终树绑定）" }
+  },
+  "prerequisite_for_next_slice": {
+    "slice": "2026-10-28-render-bvh-r09-s2-host-guard-unlock",
+    "must_finish_before": "R09-S3b 窗口",
+    "scope": ["移除 megakernel.rs:97-99 的 use_shadows 前置拒绝", "同步改两条 #[ignore] GPU 断言（render_kernel_flags.rs L412-435、render_kernel_rgb.rs L209-224）", "render_megakernel.cu:15 头注释更正", "in-crate 单测锁 shading_words()->scale_constants[2] 与第 40 槽取值"],
+    "note": "本片只交付 kernel 分支实现；产品路径未解锁，本证据不写端到端可用类表述"
+  },
+  "observations_detail": [
+    { "id": "O1", "severity": "serious", "recommendation": "不阻断 + 留痕（Arch 裁决）", "summary": "kernel shadow branch unreachable: host still rejects use_shadows=true (megakernel.rs:97-99); two ignored GPU tests still lock that rejection; evidence does not state this" },
+    { "id": "O2", "severity": "minor", "recommendation": "fix（实现片文字，145→144）", "summary": "tests/render_lighting_kernel.rs measured 144 lines vs claimed 145 (README/receipt/commit message)" },
+    { "id": "O3", "severity": "minor", "recommendation": "accept 延后（并入 host-guard-unlock 片）", "summary": "5 tests are structure/string level; actual wiring shading_words->scale_constants[2] and slot-40 value has no CPU test (megakernel_arrays.rs has no #[cfg(test)])" },
+    { "id": "O4", "severity": "suggestion", "recommendation": "accept 延后（本片不动 .cu，避免变 PTX sha）", "summary": "render_megakernel.cu:15 header comment still says splat_scale = [znear, zfar, unused]; stale after [0][2] repurpose" },
+    { "id": "O5", "severity": "suggestion", "recommendation": "accept", "summary": "impl manifest mixes relative bases (evidence-dir-relative vs repo-root-relative) without a note; 14/14 verified under documented resolution" },
+    { "id": "O6", "severity": "suggestion", "recommendation": "accept", "summary": "impl logs/tests-and-lint.log retains pre-rustfmt diff (historical intermediate); final tree fmt clean (my rerun)" },
+    { "id": "O7", "severity": "suggestion", "recommendation": "accept", "summary": "card acceptance#1 asks for split check, but this slice has no split/move; evidence does not say so" },
+    { "id": "O8", "severity": "suggestion", "recommendation": "accept", "summary": "impl receipt head=5cc6a3d5 is evidence-time HEAD (pre-commit), not final tree binding; field wording could mislead" }
+  ],
+  "boundaries": [
+    "no GPU window, no render kernel launched: no world-pixel/shadow-visibility/depth-cutoff numeric verification (S3b)",
+    "kernel compile gate proves compilability and reproducible PTX hash only, not runtime correctness",
+    "no upstream GPU-vs-product comparison under shading (S3b)",
+    "no device/driver compatibility matrix"
+  ],
+  "claims": {
+    "numeric_acceptance": false,
+    "gpu_window": false,
+    "upstream_equivalence": false,
+    "positive_acceptance_wording": false,
+    "product_path_unlocked": false,
+    "delivered": "kernel branch implemented + host structure assertions; product path intentionally not unlocked in this slice"
+  },
+  "gate_note": "normify gate exit 1 (任务没有引用任何门禁) 属预期：本复核任务卡 checks 只有 receipt /task_id 与 forbid_claim，未引用 gates.toml 门禁；四门禁由本复核独立复跑记录于 gates 字段。",
+  "recompute": {
+    "script": "docs/development-evidence/render-bvh/r09-s2-check/recompute.py",
+    "output": "docs/development-evidence/render-bvh/r09-s2-check/recompute.json",
+    "problems": ["O2 line-count mismatch (tests/render_lighting_kernel.rs 144 vs claimed 145)"]
+  }
+}
