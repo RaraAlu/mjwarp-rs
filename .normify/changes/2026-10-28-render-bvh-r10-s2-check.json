@@ -5,7 +5,7 @@
     "zh": "R10-S2 独立复核（nworld>1 端到端 / world 隔离 / 独立缓冲 / 同步 / 窗口事实）",
     "en": "Independent check of R10-S2 multi-world end-to-end window"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "QA 只读复核 `2026-10-28-render-bvh-r10-s2-multi-world`：① nworld=2 端到端结果逐 world 对冻结参考（RGB ≤1 LSB 位级优先 / depth ≤4 ULP / seg exact），分区与 `OutputLayout` 一致；② **world 隔离**：world0 射线不命中 world1 几何（互斥可见性用例）、每 world 独立缓冲/偏移正确、无跨 world 串扰，**任何反例不得写成通过**；③ 完成令牌/同步语义（全部完成后才可读）、两次运行 SHA-256 相同、nworld=1 回归位级不变；④ 判据零放宽、参考/夹具/容差未动；kernel 若改动须符合 S7b3 拆文件先例且红线文件不加行；⑤ 窗口事实独立复算（冻结 sha+字节、runner sha、3 点基线、floor、采样聚合、compute-apps 过滤 0、pre/post/结束基线、零编译、attempt ≤2、日志无 BOM）；⑥ 窗口+复核同空闲块闭合（下一段高峰前）。不重开门、不重跑、不开 GPU。",
     "en": "QA independent check of the R10-S2 multi-world end-to-end window, with hard world-isolation acceptance."
@@ -21,17 +21,24 @@
     "Chief 指定复核点（2026-10-28 R10-S2 attempt1 签字后追加，**每条 QA 自己重算，不得抄 Arch/Chief 数字**）：① world0 对既有 nworld=1 冻结参考的判据独立重算（RGB ≤1 LSB / depth ≤4 ULP 位级优先 / seg exact）；② world1 同引擎等价（`nworld=2` world1 区段 == `nworld=1` 单独渲染同 state 逐位）与两个隔离反例（world1 几何 +1000 后 world0 **逐位不变**、world1 全 miss/背景）；③ 两次运行 SHA-256 相同；④ 守卫 46/46 自己重哈希 + 窗后 8 exe 8/8；⑤ 单/多 world 区段与偏移、`OutputLayout` 分区独立复核；⑥ 零 Rust 编译证据（deps 计数/max write 不变）；⑦ **「上游 nworld=2 数值未覆盖」口径**在 README/receipt 写明且未写「与上游一致/上游等价」；⑧ 红线文件零改动（`camera_output.rs` 499、`model/render.rs` 500、`launch.rs` 500、`cast.rs` 494、collision 源、`fixtures/precision`、`Cargo*`）与 `render.cu` 499 贴线事实记录；⑨ 措辞否定句（无「窗口通过/已覆盖/精度达标/上游等价」正面表述）。"
   ],
   "schedule": {
-    "depends_on": ["2026-10-28-render-bvh-r10-s2-multi-world"],
+    "depends_on": [
+      "2026-10-28-render-bvh-r10-s2-multi-world"
+    ],
     "phase": "P8-渲染与BVH",
     "owner": "QA",
-    "files": ["docs/development-evidence/render-bvh/r10-s2-check/"],
+    "files": [
+      "docs/development-evidence/render-bvh/r10-s2-check/"
+    ],
     "resources": [],
     "priority": 71
   },
   "note": "Arch 2026-10-28 预登记（每片 QA 预登记）。世界隔离是硬验收面。",
-  "revision": { "before": null, "after": null },
+  "revision": {
+    "before": "ceed92d49c32047a542a2dafe289b462fe7c9973",
+    "after": null
+  },
   "created_at": "2026-10-27T20:13:00.000Z",
-  "updated_at": "2026-10-27T20:13:00.000Z",
+  "updated_at": "2026-10-28T04:25:42.874Z",
   "checks": [
     {
       "kind": "json",
@@ -41,7 +48,11 @@
     },
     {
       "kind": "forbid_claim",
-      "terms": ["完整渲染通过", "完整R01通过", "产品渲染验收通过"]
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
     }
   ]
 }

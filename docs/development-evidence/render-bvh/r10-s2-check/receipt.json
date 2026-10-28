@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r10-s2-check",
+  "kind": "independent_check",
+  "reviewed_task": "2026-10-28-render-bvh-r10-s2-multi-world",
+  "reviewed_tree_head": "48ea01a2",
+  "slice_bind_head": "40e9238f219daf980c48af124bfe63e585aa0f42",
+  "verdict": "pass",
+  "blockers": [],
+  "observation_counts": {"general": 0, "suggestion": 4, "total": 4},
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "suggestion",
+      "title": "48ea01a2 used git add -A '.normify' and included four registration cards",
+      "detail": "The verified commit also contains the registration cards 2026-10-28-render-bvh-r09-s2-check, -r09-s2-lighting-kernel, -r10-s2-check and -render-per-camera-rgb-gap (contents unchanged). Arch accepted this; Chief has since banned git add -A / git add . in favour of explicit paths.",
+      "fix_or_accept": "ACCEPT and keep as-is; use explicit paths in every future commit."
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "title": "Evidence manifest.txt has a stale self-referential row",
+      "detail": "manifest.txt lists itself as '3a5a3c4b… 8325 manifest.txt' while the current file is 8286 bytes, so the self row cannot verify (self-hash) and is numerically stale. All non-self rows match the evidence copies.",
+      "fix_or_accept": "FIX: drop the self entry or recompute the manifest after the final write."
+    },
+    {
+      "id": "O3",
+      "severity": "suggestion",
+      "title": "README says the attempt1 log shows 'mismatched=19074' but the log shows the assertion left/right values",
+      "detail": "README §1 attributes 'mismatched=19074' to attempt1/logs/render_r10_multi_world.log; the log actually shows 'assertion `left == right` failed: world0 相机 0 depth 不匹配  left: 19074  right: 0'. The root-cause description (reference recipe mismatch, ULP!=0 count) is correct.",
+      "fix_or_accept": "FIX wording or ACCEPT; no numeric or semantic change."
+    },
+    {
+      "id": "O4",
+      "severity": "suggestion",
+      "title": "'未覆盖' literal missing although the card asked for the upstream nworld>1 uncovered statement",
+      "detail": "The evidence says '无上游 nworld=2 数值参考：不对上游 nworld>1 做任何数值结论' (semantically the required caveat) but the literal '未覆盖' does not appear in README or receipt.",
+      "fix_or_accept": "FIX by adding the literal phrase, or ACCEPT as semantically equivalent."
+    }
+  ],
+  "verified_items": [
+    {"item": "attempt2-run window numbers recomputed from raw samples.csv", "result": "pass",
+     "detail": "148 samples; used 3283-3556 peak seq 87; free_min 12506; util_max 9; streak>=80 = 0; deltas 270/90/273; floor min(10240, 12780-3072) = 9708; interval median 0.2814 (0.2773-0.2943); raw and evidence copies identical"},
+    {"item": "attempt1 window numbers recomputed", "result": "pass",
+     "detail": "156 samples; used 4197-4492 peak seq 92; free_min 11570; util_max 35; streak 0; deltas 291/270/295; floor 8789; 8 entity exits = 101 + seven 0"},
+    {"item": "attempt2-exit9 archive untouched", "result": "pass",
+     "detail": "target/r10-s2-window/attempt2/facts.txt 61 B sha 069d142d… and guard.log 51 B sha 6c5acd89… (contains precheck_abort open_util=40>=40); evidence copies byte-identical; no baseline/entity/samples for this non-valid round"},
+    {"item": "criteria semantics from the test source (not copied numbers)", "result": "pass",
+     "detail": "world0 depth bit-level mismatched==0 + max_ulp<=MAX_DEPTH_ULP(4), seg mismatched==0, RGB beyond_one_lsb_pixels==0; world1 slices asserted bit-equal to a nworld=1 single render of the same state (120000/120000); isolation via world1 geometry +1000 (world0 bit-identical, world1 all-miss/background); two-run SHA equality for depth/seg/RGB; the 40e9238f fix changed only the reference recipe (recipe_depth_seg) and no assertion"},
+    {"item": "guards 46/46 re-hashed and post-window 8/8", "result": "pass",
+     "detail": "attempt2-run/sha-guards.txt has 8 exe + 38 inputs = 46 rows; every row re-hashed and byte-size checked, 0 mismatches; guards.json (8 frozen_exes + 38 guard_inputs, sha 0c849e67…) matches the same sets; frozen-shas.txt 8 exe + 39 fixtures all match; guards-check-r2 46 rows match the window list; runner 14968 B / 4d636c39… unchanged"},
+    {"item": "zero Rust compile evidence", "result": "pass",
+     "detail": "deps 1823 -> 1823; deps max write 10/28/2026 04:23:44 unchanged; zero_rust_compile=True; feature_profile=cuda-probe; env_cuda_bin recorded; compute-apps raw 29 filtered 0; residual 0; attempt_valid_rounds=2"},
+    {"item": "body wall and window span", "result": "pass",
+     "detail": "entity span 41.7 s (12:21:23.0165 -> 12:22:04.7323); window span 44.1 s (12:21:22.1238 -> 12:22:06.2419)"},
+    {"item": "red lines and line counts", "result": "pass",
+     "detail": "camera_output.rs 499, model/render.rs 500, launch.rs 500, cast.rs 494, render.cu 499 (pinned-at-limit fact), megakernel.rs 491, tests 298; git diff 40e9238f..48ea01a2 empty for camera_output.rs / model/render.rs / launch.rs / cast.rs / kernel/cuda / fixtures / Cargo*; DEVICE_SOURCES=28 anchor present"},
+    {"item": "evidence receipt, wording and encoding", "result": "pass with O2/O4 notes",
+     "detail": "slice receipt /task_id correct and binds 40e9238f; three-round accounting (attempt1 / attempt2-exit9 / attempt2-run) written separately with per-round floor/baseline/samples; no positive 'window pass / covered / precision / upstream equivalence' wording; forbidden claim terms 0; dev self-test marked non-window; backlog per-world geom/light gap referenced; render.cu 499 pinned-at-limit noted"},
+    {"item": "four gates independently rerun at HEAD 48ea01a2", "result": "pass",
+     "detail": "fmt 0; clippy 0; clippy-cuda 0; unit 1040 passed / 0 failed / 384 ignored (128 result lines); host directed render_r10_multi_world 3 passed / 2 ignored (GPU cases window-only); matches the archived gate unit json 1040/0"}
+  ],
+  "method_notes": [
+    "All window numbers were recomputed from the raw samples.csv / facts / guard artefacts under target/r10-s2-window, then compared with the evidence copies byte by byte.",
+    "Criteria semantics were read from tests/render_r10_multi_world.rs (bit-level first, max_ulp<=4 fallback, world1 120000/120000 equivalence, isolation, two-run SHA) and from the 40e9238f test diff to show the fix changed only the reference recipe, not assertions.",
+    "Guards were re-hashed row by row against the current tree and cross-checked with guards.json and guards-check-r2.",
+    "GPU window was not reopened or rerun; world0/world1 result verification is based on the read-only window logs plus the test-source semantics (stated in boundaries)."
+  ],
+  "environment": {
+    "os": "Windows",
+    "repo": "D:\\Rust\\mjwarp-rs",
+    "review_type": "read-only",
+    "gpu_opened_by_qa": false,
+    "window_reopened_by_qa": false,
+    "entities_rerun_by_qa": false,
+    "recompute_checks": 90,
+    "recompute_problems": 0
+  },
+  "gates": {
+    "applicable": false,
+    "gate_exit_code": 1,
+    "gate_stderr": "任务没有引用任何门禁",
+    "result": "not applicable for this check task (json + forbid_claim only); the reviewed slice's four gates were independently rerun at HEAD 48ea01a2: fmt 0 / clippy 0 / clippy-cuda 0 / unit 1040 passed 0 failed 384 ignored (128 result lines); host directed 3 passed 2 ignored"
+  },
+  "boundaries": [
+    "read-only: no window reopen, no GPU, no entity rerun, no code/criteria/reference/tolerance change",
+    "world0/world1 window criteria are verified from the read-only attempt2-run logs and the test-source assertion semantics; no upstream nworld>1 numeric reference exists and none is claimed"
+  ],
+  "evidence_files": [
+    "docs/development-evidence/render-bvh/r10-s2-check/README.md",
+    "docs/development-evidence/render-bvh/r10-s2-check/receipt.json",
+    "docs/development-evidence/render-bvh/r10-s2-check/manifest.json",
+    "docs/development-evidence/render-bvh/r10-s2-check/recompute.py",
+    "docs/development-evidence/render-bvh/r10-s2-check/verify_evidence.py",
+    "docs/development-evidence/render-bvh/r10-s2-check/recompute.json",
+    "docs/development-evidence/render-bvh/r10-s2-check/logs/recompute.log",
+    "docs/development-evidence/render-bvh/r10-s2-check/logs/fmt.log",
+    "docs/development-evidence/render-bvh/r10-s2-check/logs/clippy.log",
+    "docs/development-evidence/render-bvh/r10-s2-check/logs/clippy-cuda.log",
+    "docs/development-evidence/render-bvh/r10-s2-check/logs/unit.log",
+    "docs/development-evidence/render-bvh/r10-s2-check/logs/directed.log",
+    "docs/development-evidence/render-bvh/r10-s2-check/logs/gates-summary.txt",
+    "docs/development-evidence/render-bvh/r10-s2-check/logs/evidence-selfcheck.txt"
+  ]
+}
