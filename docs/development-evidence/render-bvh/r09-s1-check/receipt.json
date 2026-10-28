@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "task_id": "2026-10-28-render-bvh-r09-s1-check",
+  "kind": "independent_check",
+  "reviewed_task": "2026-10-28-render-bvh-r09-s1-lighting-params",
+  "reviewed_commits": {"code_and_evidence": "ef557f6e", "verified_record": "0a72c653"},
+  "head_at_review": "0a72c653",
+  "verdict": "pass",
+  "blockers": [],
+  "observation_counts": {"general": 0, "suggestion": 3, "total": 3},
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "suggestion",
+      "title": "src/render/context/lighting.rs is not registered as a mjwarp.render module source",
+      "detail": ".normify/modules/mjwarp/render.md changed only its fingerprint in the closure commit; the 32 [[source]] entries do not include src/render/context/lighting.rs. normify validate --fingerprints still reports 0 errors because fingerprints only cover registered sources, so this is governance drift versus the camera_output.rs / world/* precedent.",
+      "fix_or_accept": "FIX: register it (normify module source mjwarp.render --add src/render/context/lighting.rs) or record why it is intentionally excluded; no code change."
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "title": "#[path] declaration in params.rs puts lighting at context::params::lighting while the file lives at context/lighting.rs",
+      "detail": "src/render/context/params.rs adds `#[path = \"lighting.rs\"] pub mod lighting;` (+6 lines incl. doc) and src/render/mod.rs adds the re-export (+2 lines); src/render/context.rs is untouched. The module path does not match the file location (same class as the S1 camera_output O5 structural debt), though it works and has no duplicate definition.",
+      "fix_or_accept": "ACCEPT for this slice (scope only covers src/render/context/ and src/render/mod.rs); follow-up: move the declaration into src/render/context.rs or move the file into params/."
+    },
+    {
+      "id": "O3",
+      "severity": "suggestion",
+      "title": "lighting.rs doc comment contains a self-contradictory clause",
+      "detail": "lighting.rs L99-100 reads '`Float` 或 `Index`/`Num` 之外的 `Float`' which is garbled; the validation matrix it describes is Float with length 3*nlight.",
+      "fix_or_accept": "FIX wording the next time the file is touched; documentation only, no behavior impact."
+    }
+  ],
+  "verified_items": [
+    {"item": "per-light validation matrix (8 arrays, length and kind)", "result": "pass",
+     "detail": "light_type Index len nlight; light_castshadow Flag len nlight (u8 != 0 to bool); light_cutoff/light_exponent Float len nlight; light_attenuation/ambient/diffuse/specular Float len 3*nlight with checked_mul(3) before as_chunks::<3>; kind mismatches -> FieldKind (8 cases), length mismatches -> LengthMismatch (short by 1, long by 1, 3*nlight - 1, scalar fields), missing -> MissingField{light_type}; no panic",
+     "evidence": ["logs/directed.log"]},
+    {"item": "no new rejections versus upstream", "result": "pass",
+     "detail": "use_shadows=true with zero castshadow lights is legal (any_cast_shadow=false, shadow_light_count()=0, matching upstream L919/L961); shadow_light_fraction passes through unchanged for 0.0/1.0/0.3/2.5/-1.0 (upstream has no range check); zero lights legal; render_skybox on/off yields identical resolve_lighting result",
+     "evidence": ["logs/directed.log"]},
+    {"item": "per-light arrays stay single-copy (not multiplied by nworld)", "result": "pass",
+     "detail": "LightParams has no world dimension, resolve_lighting never reads params.nworld, LightParams equality holds between nworld=1 and nworld=3; README and receipt reference backlog 2026-10-28-render-per-world-geom-light-gap",
+     "evidence": ["logs/directed.log"]},
+    {"item": "upstream semantics mapping", "result": "pass",
+     "detail": "pinned render.py 71da24d: L850 use_shadows, L866 lightcastshadow, L880 shadow_light_fraction (signature default 0.3), L919 if use_shadows and lightcastshadow, L961 visible = shadow_light_fraction, MK_FLAG_PER_LIGHT_AMBIENT at L281; the host validation matches these semantics"},
+    {"item": "wiring and line counts", "result": "pass",
+     "detail": "params.rs +6 (path mod declaration + doc), render/mod.rs +2 (doc + re-export), context.rs untouched; lighting.rs 184, params.rs 189, render/mod.rs 380, tests 319, camera_output.rs 499, model/render.rs 500, launch.rs 500, megakernel.rs 491, cast.rs 494; new files <=500"},
+    {"item": "red lines and ABI anchors", "result": "pass",
+     "detail": "git diff ef557f6e^..0a72c653 is empty for kernel/*, kernel/cuda/*.cu, fixtures/*, Cargo*, camera_output.rs, model/render.rs; DEVICE_SOURCES=28, product entries=6 and CollisionArgs 504 B assertions pass in the independently re-run unit suite"},
+    {"item": "four gates independently rerun at HEAD 0a72c653", "result": "pass",
+     "detail": "fmt exit 0; clippy exit 0; clippy-cuda exit 0; unit 1040 passed / 0 failed / 384 ignored (128 result lines); directed render_lighting_params 9 passed; matches the archived gate.log 1040/0",
+     "evidence": ["logs/gates-summary.txt", "logs/fmt.log", "logs/clippy.log", "logs/clippy-cuda.log", "logs/unit.log", "logs/directed.log"]},
+    {"item": "evidence format", "result": "pass",
+     "detail": "evidence text UTF-8 no BOM/LF; 3 regulated claim terms 0 hits; receipt /task_id = 2026-10-28-render-bvh-r09-s1-check"}
+  ],
+  "method_notes": [
+    "Read the pinned upstream render.py anchors (71da24d L850/L866/L880/L919-961) and compared them with the host validation semantics instead of trusting the slice README.",
+    "Ran the four gates plus the directed render_lighting_params test independently on the reviewed tree (HEAD 0a72c653) before 09:00 and recounted result lines manually; logs are archived in logs/.",
+    "Checked 'per-light single copy' at code level (no nworld read in resolve_lighting, no world dimension in LightParams) in addition to the slice test.",
+    "Red lines were checked with git diff path by path; line counts were recounted from bytes (LF)."
+  ],
+  "environment": {
+    "os": "Windows",
+    "repo": "D:\\Rust\\mjwarp-rs",
+    "review_type": "read-only",
+    "gpu_opened_by_qa": false,
+    "window_opened_by_qa": false,
+    "gate_logs_collected_at": "2026-10-28T08:28:55+08:00",
+    "gate_tree": "0a72c653"
+  },
+  "gates": {
+    "applicable": false,
+    "gate_exit_code": 1,
+    "gate_stderr": "任务没有引用任何门禁",
+    "result": "not applicable for this check task (json + forbid_claim only); the reviewed slice's four gates were independently rerun at HEAD 0a72c653: fmt 0 / clippy 0 / clippy-cuda 0 / unit 1040 passed 0 failed 384 ignored (128 result lines), directed 9 passed"
+  },
+  "boundaries": [
+    "read-only: no re-render, no GPU, no window, no code/criteria/reference/tolerance change",
+    "host-side lighting/shadow static parameter validation only; GPU lighting end-to-end (R09-S2) is out of scope"
+  ],
+  "evidence_files": [
+    "docs/development-evidence/render-bvh/r09-s1-check/README.md",
+    "docs/development-evidence/render-bvh/r09-s1-check/receipt.json",
+    "docs/development-evidence/render-bvh/r09-s1-check/manifest.json",
+    "docs/development-evidence/render-bvh/r09-s1-check/verify_evidence.py",
+    "docs/development-evidence/render-bvh/r09-s1-check/verify_static.py",
+    "docs/development-evidence/render-bvh/r09-s1-check/logs/fmt.log",
+    "docs/development-evidence/render-bvh/r09-s1-check/logs/clippy.log",
+    "docs/development-evidence/render-bvh/r09-s1-check/logs/clippy-cuda.log",
+    "docs/development-evidence/render-bvh/r09-s1-check/logs/unit.log",
+    "docs/development-evidence/render-bvh/r09-s1-check/logs/directed.log",
+    "docs/development-evidence/render-bvh/r09-s1-check/logs/gates-summary.txt",
+    "docs/development-evidence/render-bvh/r09-s1-check/logs/static-check.log",
+    "docs/development-evidence/render-bvh/r09-s1-check/logs/evidence-selfcheck.txt"
+  ]
+}
