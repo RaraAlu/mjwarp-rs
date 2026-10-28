@@ -1,0 +1,165 @@
+{
+  "task_id": "2026-10-29-render-bvh-r05-hfield-closeout",
+  "kind": "slice-closeout-summary",
+  "generated_at": "2026-10-29T05:30:00+08:00",
+  "owner": "Arch",
+  "scope": "R05 地形 hfield 整片收口：plan.json 标 delivered + 整片汇总；不改代码/判据/容差/参考/夹具，不开窗口",
+  "plan_changes": {
+    "file": "docs/development-evidence/render-bvh-precheck/plan.json",
+    "slices_added": [
+      "R05-S1:delivered",
+      "R05-S2:delivered",
+      "R05-S3a:delivered",
+      "R05-S3b:delivered"
+    ],
+    "slices_total_after": 23,
+    "delivery_rows_added": 10,
+    "delivery_rows_total_after": 45,
+    "structural_decisions_added": 4,
+    "structural_decisions_total_after": 11,
+    "scheduling_notes_added": ["N8", "N9", "N10"],
+    "scheduling_notes_total_after": 10,
+    "delivery_tracking_updated_at": "2026-10-29",
+    "validation": "json.load 通过；字段未删、旧值未改；仅追加与 updated_at 更新"
+  },
+  "decisions_recorded": [
+    "零 mesh 发射修复（1 元素占位 + shape≥1；dce78b1f；内核三 sha 不变）",
+    "相机世界位姿 FMA 收缩对齐（cast.rs 411→481；6f246b46；cam_xmat 9/9、world dir cam1 42449→0、9027 项 0 差异）",
+    "validation-only 例外窗（attempt2 常规 util<40 失败 → 例外 util<60 → 窗口 -OpenUtilLimit 60；precheck 37/40/40 ⇒ 例外实际生效；not_a_normal_threshold_pass=true）",
+    "冻结后 exe 重链漂移与 stash/前后 live sha 硬检查（a282b0c4）+ freeze-guards.ps1 加 -Attempt（5dd881d0）"
+  ],
+  "deliverables": {
+    "capture": {
+      "task": "2026-10-28-render-bvh-r05-s3a-hfield-capture",
+      "files": 8,
+      "bytes": 5784264,
+      "exception": "authoring-only util<60（attempt=1 采集轮）",
+      "scene_xml": "b3b9a6b4ee4844c92edec3f217d04b7e788a69f9ab1e864fe7dac765e9c6f53b",
+      "scene_mixed_xml": "bf9bb966887466d1f526605875df3f9b8c6b244787e7f95be2eccc3cd3329bdf",
+      "script": "cb1808f8c185df0e4695bb7107ec941c2e9e0aa8bb883fa1f630dc029d28a599"
+    },
+    "product_fix_zero_mesh": {
+      "task": "2026-10-28-render-bvh-r05-s3b-hfield-empty-mesh-fix",
+      "commits": ["dce78b1f", "e262e682", "7c70a44f", "7c6ef3fb"],
+      "line_counts_lf": {"megakernel_uploads.rs": 446, "megakernel.rs": 412},
+      "unit": "1092 passed / 0 failed / 389 ignored",
+      "kernel_gate": {
+        "source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746",
+        "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13",
+        "ptx_bytes": 264015,
+        "unchanged_vs_parent": true
+      }
+    },
+    "product_fix_camera_pose": {
+      "task": "2026-10-28-render-bvh-camera-pose-warp-fma-align",
+      "commits": ["6f246b46", "d42a465a", "f98d74a5", "d1f7f851"],
+      "line_counts_lf": {"cast.rs": 481},
+      "uniqueness": {
+        "candidate_space": 1259712,
+        "converged_within_quaternions": 16,
+        "verified_items": 9027,
+        "verified_diffs": 0,
+        "seed": 20261029,
+        "plain_expansion_diffs": {"items": 2614, "rows": 947}
+      },
+      "bit_equality": {
+        "hfield_cam_xmat": "9/9 and 9/9",
+        "scene_a_cam_persp": "9/9",
+        "world_dir_cam1_diff_pixels_before": 42449,
+        "world_dir_cam1_diff_pixels_after": 0,
+        "world_dir_cam0_diff_pixels": 0
+      },
+      "ptx_basis": "sm89.ptx quat_to_mat slice has 0 fma.rn (mul_quat slice has 6); contraction happens in ptxas->SASS, so the order was reverse-inferred from 1003 GPU references",
+      "qa": {"task": "2026-10-28-render-bvh-camera-pose-warp-fma-align-check", "commits": ["043927a2", "d1bd6b0d"], "verdict": "pass / blockers 0 / observations 9"}
+    },
+    "validation_window": {
+      "task": "2026-10-28-render-bvh-r05-s3b-hfield-validate",
+      "commits": ["674426f5", "9717a8a4", "634d0e4a"],
+      "refreeze_commit": "309a68b9",
+      "guards": {
+        "sha256": "e2444a96128f33575bffab0f9420a1844c2f6cf2d3b60ef309f1fcad9b7eecb3",
+        "bytes": 27670,
+        "attempt": 2,
+        "aggregate_sha256": "7d24f0368f62e07cb4ef54a1978efba7b806b53d2a19c20c998d326648e90997",
+        "generated_at": "2026-10-29T04:10:37.668+08:00",
+        "superseded_sha256": "210f82088702ce0ea00bb357a88b1c75948f94b9ef48a632ad76546be1ba287d",
+        "superseded_bytes": 27670
+      },
+      "window": {
+        "result": "WINDOW_RUN_DONE",
+        "entity_exits": "9/9 exit 0",
+        "sha_guards": "73/73",
+        "post_window_exe_recheck": "9/9",
+        "zero_rust_compile": true,
+        "samples": 171,
+        "util_max_percent": 43,
+        "free_min_mib": 13035,
+        "floor_mib": 10233,
+        "floor_breached": false,
+        "residual_processes": 0,
+        "body_wall_s": 51.2
+      },
+      "hfield_criteria": {
+        "hfield-only": "cam0 76800 / cam1 43200: rgb mismatched 0 / max_byte_diff 0 / beyond_1_lsb 0; depth mismatch 0 / max_ulp 0 / beyond_ulp 0; seg mismatched 0; two-run sha equal",
+        "hfield-primitive": "cam0 76800 / cam1 43200: same all-zero; two-run sha equal",
+        "rgb_depth_seg_sha": {
+          "hfield-only": ["c58b9f178df3c8a9c7cf25ac266252825d8fcb19ebc99db3d2c38da80ff4daa0", "87fb8b3aa3bb6bece2692c5fa1de92470ff6a5ed5e06276d433d2513db24b5dd", "727bcf2ba8cc2e50aa0f1c1ae848f001b2afbe6fbdb10464fd2696c85f688a93"],
+          "hfield-primitive": ["0d494b5aaf537f140dcf214b93bff6c046af26f1d2cd857f5dde5fa54a258d40", "e8ca22fe9488815017bcf4d4df44960d213e8ad77a242862bef189d5ebdbb64e", "343c8978b0b1df4ed897d6560cf7bd43e549873647d6fa8768a602675b9324e7"]
+        }
+      },
+      "exception": {
+        "mode": "validation_only_exception_util_lt_60",
+        "approved_by": "Chief 2026-10-29T04:5x (pre-approved)",
+        "normal_monitor": "354 samples, longest clean 45/60, util 1-49, ge40=33, decision=STOP, window_commands_executed=0",
+        "exception_monitor": "60/60, util 36-41, ge40=5, ge60=0, free_min 13271",
+        "window_precheck_samples_util": [37, 40, 40],
+        "not_a_normal_threshold_pass": true,
+        "authoring_exception_used": false
+      }
+    }
+  },
+  "qa_verdicts": {
+    "s3a_capture": "pass / blockers 0 / observations 4 (462e48c1, cbb04758)",
+    "s3b_authoring": "pass / blockers 0 / observations 4 (36fa461e, 0f35d5c2)",
+    "camera_pose_fix": "pass / blockers 0 / observations 9 (043927a2, d1bd6b0d)",
+    "s3b_validate": "independent check card 2026-10-28-render-bvh-r05-s3b-hfield-validate-check（本轮结果以该卡 receipt 为准）",
+    "empty_mesh_fix_check": "abandoned — NOT reviewed; reason: fix verified and proven green by attempt=2 window, and the same criteria class was covered by the camera-pose fix QA review"
+  },
+  "invariants": {
+    "device_sources": 28,
+    "entries": 6,
+    "megakernel_slots": 81,
+    "collision_args_bytes": 504,
+    "kernel_gate": {
+      "source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746",
+      "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13",
+      "ptx_bytes": 264015
+    },
+    "unit": "1092 passed / 0 failed / 389 ignored",
+    "line_ratchets": {
+      "render.cu": 499,
+      "launch.rs": 500,
+      "model/render.rs": 500,
+      "camera_output.rs": 499,
+      "cast.rs": 481,
+      "megakernel_uploads.rs": 446,
+      "megakernel.rs": 412,
+      "hfield_scene.rs": 499
+    }
+  },
+  "limits": [
+    "本汇总只是证据索引与数字汇总，不做新的验收判定；验收结论以 r05-s3b-hfield-validate 及其 QA 复核卡为准",
+    "abandoned/backlog 卡与 abandoned 卡的 .normify/runs 目录按 normify 规则保持未跟踪，不入库，板面可读（backlog: 2026-10-29-normify-archived-card-ingest）",
+    "相机位姿收缩序依赖本栈 ptxas/driver(596.36) 对 pinned 上游代码的 SASS 级收缩；驱动/toolchain 变化可能需重推（脚本+种子已入库）",
+    "CameraPose::from_fields 仅覆盖固定相机（world 体恒等四元数）；运动体相机乘 xquat_world 未覆盖",
+    "R05 未覆盖：非固定相机位姿、其它 host 派生位姿的收缩口径、SDF gtype==8 cull、AA 与 hfield 组合场景"
+  ],
+  "non_claims": [
+    "不宣称完整渲染通过",
+    "不宣称产品渲染验收通过",
+    "不宣称精度达标",
+    "不宣称与上游等价"
+  ],
+  "numeric_conclusion": false,
+  "gpu_window": false
+}

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-bvh-r05-hfield-closeout",
+  "title": {
+    "zh": "R05 地形 hfield 整片收口（plan.json 标 delivered + 整片汇总 + 遗留登记）",
+    "en": "R05 hfield slice closeout (plan.json delivered marking, slice summary, leftovers)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R05（地形 hfield 渲染家族）实现、采集、两次产品修复、验证窗全部 verified 后，由 Arch 收口：① 在 `docs/development-evidence/render-bvh-precheck/plan.json` 增加 R05-S1/R05-S2/R05-S3a/R05-S3b 切片并标 delivered，追加 delivery_tracking 行与 structural_decisions（两次产品修复、validation-only 例外窗、冻结漂移教训）；② 写整片汇总 `docs/development-evidence/render-bvh/r05-summary/`（卡片清单含 abandoned/untracked 说明、交付数字、例外与无效轮、S2 附录更新、遗留/backlog、四份 QA verdict、门禁与冻结面最终值、已知仓库状态限制）。本卡只写证据与计划，不改代码/判据/参考/fixture，不开窗口。",
+    "en": "Close out the R05 hfield slice: mark plan.json slices delivered, record delivery rows and decisions, and write the slice summary evidence. Evidence/plan only; no code, criteria, reference or fixture changes, no GPU window."
+  },
+  "modules": {},
+  "acceptance": [
+    "**plan.json**：新增 `R05-S1`/`R05-S2`/`R05-S3a`/`R05-S3b` 四个 slice（status=delivered，各含 evidence 路径与 note），`delivery_tracking.rows` 追加对应行（task id / owner / normify_status / execution / evidence / note），`delivery_tracking.updated_at` 更新，`structural_decisions` 追加：零 mesh 发射修复、相机世界位姿 FMA 对齐、validation-only 例外窗（含 `not_a_normal_threshold_pass` 说明）、冻结后 exe 重链漂移与 stash 硬检查。JSON 必须 `python -c json.load` 通过、字段不删不改旧值。",
+    "**整片汇总** `docs/development-evidence/render-bvh/r05-summary/`（README + manifest）：含 ① 卡片清单逐张 id+状态（verified / abandoned / backlog / untracked 说明，不得只写数量）② 交付数字（验证窗六项 + 两组 hfield 判据 RGB/depth/seg 全 0 与两次 sha、采集 8 文件 5 784 264 B、两次产品修复提交链与行数 446/412 与 481、unit 1092、内核三 sha 不变）③ 例外与无效轮（attempt1 invalid round 保留、attempt2 常规 util<40 失败 → validation-only 例外 60/60 → 窗口 `-OpenUtilLimit 60`，明确**不是常规阈值通过**）④ S2 附录更新指引（hfield 设备通路由 attempt2 验证，历史「未验证」措辞保留）⑤ 遗留/backlog（SDF gtype==8 cull 缺口、host-quat-derivation-audit、normify 历史卡归档机制、R05 后续家族）⑥ 四份 QA verdict 数字 + empty-mesh-fix-check 放弃说明（不得写「已复核」）⑦ 门禁与冻结面最终值（guards `e2444a96…`/attempt=2、9 exe、runner `31ac28bf…`、monitor `788d3505…`、floor 公式）。",
+    "**已知仓库状态限制**：明确写「abandoned/backlog 卡与 s2-hfield-intersect 的 runs 目录按 normify 规则保持未跟踪，不入库，板面可读」；`…-hfield-validate-check` 由 QA 收口时入库。",
+    "**S2 附录**：由 Backend 单独一次 `Normify-Fixes: 2026-10-28-render-bvh-r05-s2-hfield-intersect-r2` 提交，在 S2 证据 §9 追加一句「hfield 设备通路已由 R05-S3b attempt2 验证窗验证（见 validate 证据）」，**保留历史措辞不改**；本卡引用该提交。",
+    "**纪律**：只写证据/计划；不改 `src/`/`tests/`/`fixtures/`/判据/容差/参考；不开窗口；manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0；两段提交可被 QA 只读复核。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r05-s3b-hfield-validate"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh-precheck/plan.json",
+      "docs/development-evidence/render-bvh/r05-summary/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-29 登记（R05 收口）。等 QA `…-hfield-validate-check` verdict 后收口；不改代码/判据。",
+  "revision": {
+    "before": "27deefc9b3370df1e88382e81b5742e16e99c686",
+    "after": null
+  },
+  "created_at": "2026-10-29T05:15:00.000Z",
+  "updated_at": "2026-10-28T21:05:02.248Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-summary/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-bvh-r05-hfield-closeout"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "窗口通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

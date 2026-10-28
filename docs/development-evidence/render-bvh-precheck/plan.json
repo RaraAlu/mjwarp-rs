@@ -171,7 +171,7 @@
     ]
   },
   "delivery_tracking": {
-    "updated_at": "2026-10-24",
+    "updated_at": "2026-10-29",
     "policy": "Rolling table only: slice -> task id -> owner -> status -> evidence path. Do not change slice scope, acceptance, or tolerances here.",
     "gpu_policy": {
       "mutex": "gpu:windows-t4",
@@ -493,6 +493,96 @@
         "execution": "done (24 statistics recomputed from raw series, exclusivity and memory verdict confirmed; r01-p8 item 3 satisfied)",
         "evidence": "docs/development-evidence/render-bvh/perf-independent-check/",
         "note": "independent recompute of the summary from the raw series, independent exclusivity sampling, memory accounting verdict (54 MiB peak, per-frame free no growth, 52 MiB post-destroy delta as one-time driver cache per the S6b precedent), relative-benchmark wording and unmet list, plus verification of the 18ae715 S8 fixes (discriminative assertion, no dangling provenance, no forbidden-term wording)"
+      },
+      {
+        "slice": "R05-S1",
+        "task_id": "2026-10-28-render-bvh-r05-s1-hfield-params",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/r05-s1-hfield-params/",
+        "note": "c2a098aa/50f088c4 + hardening 6f9f82e8/9a32bf87; QA d3d8480e/1d3758ee (pass/0/6); unit 1062"
+      },
+      {
+        "slice": "R05-S1 channel",
+        "task_id": "2026-10-28-render-bvh-r05-hfield-channel",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/r05-hfield-channel/",
+        "note": "9a6fd66e/c8ccf66c（方案 A 薄适配器，卡面改动经 Chief 追认 00ed9efb）；QA e93d8693/f005d0d7 (pass/0/5)"
+      },
+      {
+        "slice": "R05-S2 splits + intersect",
+        "task_id": "2026-10-28-render-bvh-r05-s2-hfield-intersect-r2",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/r05-s2-hfield-intersect/",
+        "note": "拆分 5d4d23d0/72a7de66 + QA bf552838/aa79fd78；S2 r2 0656bd6e/c84c1760；QA e433444a/83bcdcd1 (pass/0/7)；O1 全 f32 阈值 1b876391 + 轻复核 pass"
+      },
+      {
+        "slice": "R05-S3a capture",
+        "task_id": "2026-10-28-render-bvh-r05-s3a-hfield-capture",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done (GPU capture window attempt=1, authoring-only exception util<60)",
+        "evidence": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/",
+        "note": "18c17d3a/e5f498d4 authoring; 8741e8e4/aab27d9b/926b6488 capture; QA 462e48c1/cbb04758 (pass/0/4); 8 files 5,784,264 B; legacy guard 38 files unchanged"
+      },
+      {
+        "slice": "R05-S3b authoring",
+        "task_id": "2026-10-28-render-bvh-r05-s3b-hfield-target-authoring",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/r05-s3b-hfield-target-authoring/",
+        "note": "2c56cc1a/d77b728e; QA 36fa461e/0f35d5c2 (pass/0/4); host self-check 13 vertices/36 indices/12 triangles"
+      },
+      {
+        "slice": "R05-S3b empty-mesh fix",
+        "task_id": "2026-10-28-render-bvh-r05-s3b-hfield-empty-mesh-fix",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/r05-s3b-hfield-empty-mesh-fix/",
+        "note": "dce78b1f/e262e682/7c70a44f; uploads 446 LF, megakernel 412 LF, unit 1092, kernel three sha unchanged; QA check card abandoned (attempt2 window green + camera-pose QA covered same criteria)"
+      },
+      {
+        "slice": "R05-S3b cam1-depth RCA",
+        "task_id": "2026-10-28-render-bvh-r05-s3b-hfield-cam1-depth-rca",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/r05-s3b-hfield-cam1-depth-rca/",
+        "note": "54ee236a/a62cc6aa + a7beafae; root cause = camera world pose 1-2 ULP (host no FMA contraction vs upstream GPU JIT); 40-pixel closure = host-emulation artifact (kernel-instrumented actual dirs differ 34/34)"
+      },
+      {
+        "slice": "R05-S3b camera-pose fix",
+        "task_id": "2026-10-28-render-bvh-camera-pose-warp-fma-align",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done",
+        "evidence": "docs/development-evidence/render-bvh/r05-s3b-camera-pose-warp-fma-align/",
+        "note": "6f246b46/d42a465a/f98d74a5 + d1f7f851; cast.rs 411→481; cam_xmat 9/9 both cams; world dir cam1 42449→0; 1003x9=9027 items 0 diff (candidate space 1,259,712, <=16 quats); scene-a 9/9; kernel three sha unchanged; unit 1092; QA 043927a2/d1bd6b0d (pass/0/9)"
+      },
+      {
+        "slice": "R05-S3b validate",
+        "task_id": "2026-10-28-render-bvh-r05-s3b-hfield-validate",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done (device validation window attempt=2, validation-only exception util<60 load-bearing)",
+        "evidence": "docs/development-evidence/render-bvh/r05-s3b-hfield-validate/",
+        "note": "refreeze 309a68b9 (guards e2444a96…/27,670 B/attempt=2/aggregate 7d24f036…); window WINDOW_RUN_DONE: 9/9 exit 0, sha_guards 73/73, post 9/9, zero compile, floor 10,233 not breached, samples 171; hfield two groups all-zero RGB/depth/seg; 674426f5/9717a8a4/634d0e4a"
+      },
+      {
+        "slice": "R05-S3b validate review",
+        "task_id": "2026-10-28-render-bvh-r05-s3b-hfield-validate-check",
+        "owner": "QA",
+        "normify_status": "proposed",
+        "execution": "in progress (independent check of attempt=2 window, exception legitimacy and criteria)",
+        "evidence": "docs/development-evidence/render-bvh/r05-s3b-hfield-validate-check/",
+        "note": "started after validate verified; verdict pending at time of writing"
       }
     ],
     "structural_decisions": [
@@ -535,6 +625,38 @@
         "decision": "register in-flight slice scope at directory granularity",
         "reason": "normify 0.7.0 freezes a task's declaration and scope once started; S7b1 had to be abandoned and re-registered twice because owner.rs, render_math.cu, renderer.rs and tests/support/ were discovered after start",
         "effect": "final S7b1 task 2026-10-25-render-bvh-s7b1-kernel registered with src/render/kernel/ and tests/support/render_bvh/ directories; all later slices inherit this rule"
+      },
+      {
+        "decision": "fix zero-mesh megakernel launch by completing the 1-element placeholder convention",
+        "commit": "dce78b1f",
+        "reason": "R05-S3b attempt1 window: hfield-only scene has nmesh=0, so the six mesh-family slots were uploaded with zero-length buffers; TransferSession::upload leaves allocation=None for empty sources and TransferBuffer::launcher_span() rejects it with launcher_buffer, and launcher/render/args.rs rejects any zero shape dimension. Upstream renders zero-length arrays fine, so this was our gap; previous scenes all had exactly one <mesh>, which is why it was never hit.",
+        "effect": "megakernel_uploads.rs gives 1-element placeholders for mesh_faceadr/mesh_normaladr/mesh_normal/mesh_facetexcoord/mesh_facenormal/mesh_texcoord_offsets and megakernel.rs uses count.max(1) shapes; no src/runtime, .cu, 81-slot, CollisionArgs, criteria or fixture change; kernel source/ptx sha unchanged (72bc364c…/97467d83…/264,015 B); unit 1092",
+        "lesson": "empty arrays cannot be bound to the render launcher; the placeholder convention must be completed together with max(1) shapes"
+      },
+      {
+        "decision": "align host-derived camera world pose with the upstream GPU FMA contraction instead of relaxing depth tolerance",
+        "commit": "6f246b46",
+        "reason": "after the zero-mesh fix, cam1 depth still failed (4423/43200 mismatched, max 7 ULP, 20 beyond 4 ULP) while cam0 was bit-identical and RGB/seg were exact. RCA (54ee236a/a62cc6aa) showed cam1 cam_xmat differs from the capture-time d.cam_xmat by 1-2 ULP in 5 of 9 elements: upstream computes quat_to_mat on the GPU with fuse_fp=true and the driver JIT contracts it, while our host quat_to_mat does not contract. cam0's quaternion is exactly identity so both agree. The sm89.ptx quat_to_mat slice contains zero fma.rn (6 in the mul_quat slice), so the contraction order had to be reverse-inferred from 1003 GPU references (candidate space 1,259,712; unique solution within 16 quaternions; 9027 items zero diff).",
+        "effect": "src/render/kernel/cast.rs adds a warp-contraction-ordered quat_to_matrix (411 to 481 lines, +72/-2) and CameraPose::from_fields uses it; src/math untouched (physics shares it); .cu/81-slot/CollisionArgs/criteria/tolerance/reference/fixture unchanged; kernel source/ptx sha unchanged; cam_xmat 9/9 both cameras, world dir cam1 42449 to 0, scene-a cam-persp 9/9",
+        "correction": "the S8 note that the host quat_to_mat 1-ULP difference is auxiliary only and not a defect is superseded: it mattered for any host-derived pose and became observable once a bit-level depth criterion ran on a host-derived pose",
+        "limit": "the recovered order is the SASS-level contraction of this stack's ptxas/driver (596.36) on the pinned upstream code; a driver or toolchain change may require re-deriving it. CameraPose::from_fields only covers fixed cameras (identity world-body quaternion); moving-body cameras multiply xquat_world and are not covered (backlog 2026-10-29-render-bvh-host-quat-derivation-audit)"
+      },
+      {
+        "decision": "run the R05-S3b device validation window under a documented validation-only util<60 exception",
+        "commit": "634d0e4a",
+        "reason": "attempt2 normal-threshold monitoring failed only on util<40 (354 samples, longest clean run 45 of 60, util 1-49) because of persistent desktop GPU graphics contexts; compute_apps filtered=0, build=0 and free memory were fine, and the window criteria are bit-level with a two-run sha determinism check, so desktop graphics load does not change arithmetic results",
+        "effect": "Chief pre-approved a validation-only exception; the exception monitor reached 60/60 at util 36-41, the window ran with -OpenUtilLimit 60, and the window's own precheck samples were 37/40/40 so the exception was load-bearing (40 would violate the normal limit). Evidence records mode=validation_only_exception_util_lt_60, approved_by, reason, both normal attempts retained, not_a_normal_threshold_pass=true, authoring_exception_used=false; it is not reported as a normal-threshold pass",
+        "status": "window green: 9/9 exit 0, sha_guards 73/73, post 9/9, zero compile, floor 10,233 not breached, samples 171; two hfield groups zero differences in RGB/depth/seg"
+      },
+      {
+        "decision": "freeze guards with stash copies and pre/post live-sha checks; add -Attempt to freeze-guards.ps1",
+        "commits": [
+          "a282b0c4",
+          "5dd881d0"
+        ],
+        "reason": "the attempt1 freeze was invalidated when a concurrent QA build re-linked the nine test executables (same size, different bytes): -GuardsOnly dropped to 64/73. Test executable relinking is not byte-reproducible.",
+        "effect": "freeze-guards.ps1 copies the nine executables into target/render-bvh/r05-s3b-window/frozen-exes and guards.json records stash_path/stash_sha256/stash_bytes; run-window.ps1 verifies 73 + 9 stash entries and re-checks each live executable sha before and after every entity, aborting with exit 9 on drift; freeze-guards.ps1 gains an -Attempt parameter (default 1) so the attempt number is data rather than source (commit 5dd881d0, 7,803 B, ASCII-only)",
+        "lesson": "freezing executable bytes only holds if freeze is the last build; keep the frozen bytes in a stash so later builds cannot invalidate the signature"
       }
     ],
     "scheduling_notes": [
@@ -572,6 +694,21 @@
         "id": "N7",
         "note": "S3 milestone complete: S3 8efd4ad, S3 review 96e50d3. S3 coverage fix 2026-10-25-render-bvh-s3-coverage-fix is verified (fix 7b60e74 / S3 addendum e02e01a; face 1/2/3 covered, removed_rays). S4 is verified (3e3426d) and S4 review is verified (cc5d223); evidence hash fix 9c8eb81. S5 is verified (1df634d) and S5 review is verified (742e6d1). S6a is verified (dad622f) and S6a review is verified (1c0929e): 34/34, 15/15 rejections, 531/0, no GPU. S6b is verified (a171044): 100 create/destroy growth 0, explicit refit, 531/0; S6b review is in_progress in a 30-minute GPU window. S7a is registered and waits for the S6b review GPU lock: vec/u64/texture launch ABI, new Render recipe, mjwarp.render.kernel module.",
         "source": "Arch 2026-10-24"
+      },
+      {
+        "id": "N8",
+        "note": "R05 hfield slice delivered: S1 params/hardening/channel, two zero-behaviour splits, S2 triangulation+BVH, S3a capture (attempt=1 with authoring-only exception), two product fixes (zero-mesh launch, camera-pose FMA), S3b validation window attempt=2 with a validation-only exception. Window: 9/9 exit 0, sha_guards 73/73, post 9/9, zero compile; two hfield groups all-zero RGB/depth/seg deviations.",
+        "source": "Arch 2026-10-29"
+      },
+      {
+        "id": "N9",
+        "note": "Known repository state limitation: abandoned/backlog normify cards plus the abandoned slice's .normify/runs directory cannot be committed under the current hooks (E change/transition, E commit/status, E commit/scope) and no archive subcommand exists; they stay untracked but readable by the board. Governance backlog: 2026-10-29-normify-archived-card-ingest.",
+        "source": "Arch 2026-10-29"
+      },
+      {
+        "id": "N10",
+        "note": "Backlog left by R05: SDF gtype==8 cull gap, host quat-to-matrix derivation audit (other host-derived poses), normify archived-card ingest, and the next render families (R06/R07/R02) pending user decision.",
+        "source": "Arch 2026-10-29"
       }
     ]
   },
@@ -1410,6 +1547,199 @@
         "5cc6a3d5"
       ],
       "delivered_note": "实现 504ded3c/01e0e73c → attempt1 新实体未过 → 修复 40e9238f（数组形状去 world 维 + 测试参考改为同配方，断言零放宽）→ attempt2-run 8/8 exit 0、floor 9708、守卫 46/46、零编译 → 证据 f0e400aa/收口 48ea01a2 → QA pass a3ce62e1/5cc6a3d5（阻断 0、观察 4）。上游 nworld>1 数值未覆盖；多 world 着色共用单份几何/灯位姿 → backlog 2026-10-28-render-per-world-geom-light-gap"
+    },
+    {
+      "id": "R05-S1",
+      "name": "hfield-params",
+      "category": "terrain",
+      "depends_on": [
+        "S5"
+      ],
+      "priority": 86,
+      "scope": "Host-side hfield (terrain) parameter validation/resolution + VolumeModelInput thin adapter. No GPU, no window.",
+      "evidence": "docs/development-evidence/render-bvh/r05-s1-hfield-params/",
+      "new_files": [
+        "src/render/context/hfield.rs",
+        "src/render/context/hfield_inputs.rs",
+        "tests/render_hfield_params.rs",
+        "tests/render_hfield_inputs.rs"
+      ],
+      "modifies": [
+        "src/render/context/params.rs",
+        "src/render/context/mod.rs"
+      ],
+      "gpu": {
+        "required": false,
+        "reason": "pure host-side hfield parameter resolution; no shading math"
+      },
+      "status": "delivered",
+      "delivered_commits": [
+        "c2a098aa",
+        "50f088c4",
+        "6f9f82e8",
+        "9a32bf87",
+        "9a6fd66e",
+        "c8ccf66c",
+        "d3d8480e",
+        "1d3758ee",
+        "e93d8693",
+        "f005d0d7",
+        "00ed9efb"
+      ],
+      "delivered_note": "S1 params c2a098aa/50f088c4 + hardening 6f9f82e8/9a32bf87 (QA O1 模块源已补) + channel 9a6fd66e/c8ccf66c（方案 A 复用 VolumeModelInput 薄适配器，改动卡面经 Chief 追认 00ed9efb；QA O1–O5 处置：未顶层导出/防御性 Result 已修、#[path] 结构债接受）；unit 1062→1069；模块源 34→36；语义边界：体积层接受 nrow=0、S1 层返回 NonPositiveRowsCols"
+    },
+    {
+      "id": "R05-S2",
+      "name": "hfield-intersect",
+      "category": "terrain",
+      "depends_on": [
+        "R05-S1",
+        "S3"
+      ],
+      "priority": 85,
+      "scope": "Two zero-behaviour source splits (megakernel uploads, cast MeshDevice), then hfield triangulation port (bvh.py L453-622, numpy 2.5.4 NEP50 f32) + GeomKind::Hfield bounds + MEGAKERNEL_SLOTS[64] hfield mesh id + device dispatch (gtype==1 shares ray_mesh_leaf). No window.",
+      "evidence": "docs/development-evidence/render-bvh/r05-s2-hfield-intersect/",
+      "new_files": [
+        "src/render/kernel/megakernel_uploads.rs",
+        "src/render/kernel/cast_mesh.rs",
+        "src/render/bvh/hfield_mesh.rs",
+        "tests/render_hfield_mesh.rs"
+      ],
+      "modifies": [
+        "src/render/kernel/megakernel.rs",
+        "src/render/kernel/cast.rs",
+        "src/render/bvh/aabb.rs",
+        "src/render/bvh/mod.rs",
+        "src/render/context.rs",
+        "src/render/context/hfield.rs",
+        "src/render/context/owner.rs",
+        "src/render/mod.rs",
+        "src/render/kernel/cuda/render_common.cu",
+        "src/render/kernel/cuda/render_shade.cu",
+        "src/render/kernel/cuda/render_megakernel.cu",
+        "src/render/kernel/cuda/render_shadow.cu"
+      ],
+      "gpu": {
+        "required": false,
+        "reason": "host triangulation + device dispatch implemented; numerical acceptance deferred to R05-S3b window"
+      },
+      "status": "delivered",
+      "delivered_commits": [
+        "5d4d23d0",
+        "00ea2baf",
+        "bf552838",
+        "e336c18a",
+        "4a5a8449",
+        "72a7de66",
+        "3e8628b6",
+        "aa79fd78",
+        "7ff6abd5",
+        "59d1b2a4",
+        "0656bd6e",
+        "c84c1760",
+        "e433444a",
+        "83bcdcd1",
+        "1b876391",
+        "d326783a"
+      ],
+      "delivered_note": "拆分① 5d4d23d0（megakernel 490→406，PTX/source 逐位不变）/ QA bf552838+e336c18a（O1–O3 修 4a5a8449）；拆分② 72a7de66（cast 494→411）/ QA aa79fd78+7ff6abd5（O1 修 59d1b2a4）；S2 r2 0656bd6e（原卡因运行中 scope 冻结 abandon，同片重登记 r2）/ QA e433444a+83bcdcd1（pass/0/7）；O1 三角化阈值改全 f32 1b876391（f32(1e-5)=0x3727C5AC，边界单测 16 条）/ 轻复核 0a331e0a+dcf0da55；卫生 d326783a；内核门 source 2d2c27df→72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746、PTX e955bb4b→97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13、258660→264015 B；81 槽签名零变化（u32 低/高字对承载 u64）；模块源 36→39"
+    },
+    {
+      "id": "R05-S3a",
+      "name": "hfield-capture",
+      "category": "terrain",
+      "depends_on": [
+        "R05-S2"
+      ],
+      "priority": 84,
+      "scope": "Offline authoring (capture script + 4x4 non-transpose-invariant hfield fixture) then GPU capture window of two groups (hfield-only, hfield+primitive), 2 cameras x rgb/depth/seg, A/B bit-identical, legacy reference read-only guard. Capture only, no numerical acceptance.",
+      "evidence": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/",
+      "new_files": [
+        "scripts/capture_render_hfield.py",
+        "fixtures/render-bvh/scene-hfield/scene.xml",
+        "fixtures/render-bvh/scene-hfield/scene-mixed.xml",
+        "fixtures/render-bvh/scene-hfield/capture-hfield/hfield-only/{rgb,depth,seg}.npz",
+        "fixtures/render-bvh/scene-hfield/capture-hfield/hfield-primitive/{rgb,depth,seg}.npz"
+      ],
+      "modifies": [],
+      "gpu": {
+        "required": true,
+        "reason": "upstream reference capture inside a dual-signed GPU window (attempt=1, authoring capture)"
+      },
+      "status": "delivered",
+      "delivered_commits": [
+        "18c17d3a",
+        "e5f498d4",
+        "8741e8e4",
+        "aab27d9b",
+        "926b6488",
+        "0f2d0e17",
+        "462e48c1",
+        "cbb04758"
+      ],
+      "delivered_note": "authoring 18c17d3a（脚本 cb1808f8…/20 314 B/425 行、默认 --use-fast-math false）+ 转置可变夹具 e5f498d4（Arch 复核：原 fixture 转置不变会掩盖行/列约定错误；有效网格实测 = flipud(归一化 XML 网格)，非转置；反算 13 顶点/36 索引/12 三角、转置 checksum 不同）；采集窗口 8741e8e4（8 文件 5 784 264 B）+ 证据 aab27d9b + 收口 926b6488；监测 attempt1–3 常规 util<40 失败（最长 24/34/39/60），attempt4 用 Chief 预批 authoring-only 例外 util<60 → 60/60 → 开窗，留痕 authoring_only_exception=util_lt_60 + 原失败记录保留；QA 462e48c1+cbb04758（pass/0/4）"
+    },
+    {
+      "id": "R05-S3b",
+      "name": "hfield-validate",
+      "category": "terrain",
+      "depends_on": [
+        "R05-S3a"
+      ],
+      "priority": 83,
+      "scope": "Offline authoring of the hfield target entity/guards/runner, then device validation window attempt=2 (9 entities: 1 new hfield target + 8 R09-S3b regressions), criteria unchanged (RGB <=1 LSB bitwise-first, depth <=4 ULP bitwise-first, seg exact, two-run sha equal). Includes the two product fixes surfaced by the window.",
+      "evidence": "docs/development-evidence/render-bvh/r05-s3b-hfield-validate/",
+      "new_files": [
+        "tests/render_hfield_reference.rs",
+        "tests/support/render_bvh/hfield.rs",
+        "tests/support/render_bvh/hfield_scene.rs",
+        "tests/support/render_bvh/hfield/model-312.json",
+        "tests/support/render_bvh/hfield/model-mixed-312.json",
+        "scripts/validate/render-bvh/guards.json",
+        "scripts/validate/render-bvh/run-window.ps1",
+        "scripts/validate/render-bvh/freeze-guards.ps1",
+        "scripts/validate/render-bvh/monitor-until-clean.ps1"
+      ],
+      "modifies": [
+        "src/render/kernel/megakernel_uploads.rs",
+        "src/render/kernel/megakernel.rs",
+        "src/render/kernel/cast.rs"
+      ],
+      "gpu": {
+        "required": true,
+        "reason": "device validation window attempt=2 with frozen guards/exe stash; validation-only exception (util<60) was load-bearing"
+      },
+      "status": "delivered",
+      "delivered_commits": [
+        "2c56cc1a",
+        "d77b728e",
+        "a6bcca80",
+        "36fa461e",
+        "0f35d5c2",
+        "0159a1d2",
+        "a282b0c4",
+        "01e36a54",
+        "973b3471",
+        "a7246f74",
+        "dce78b1f",
+        "e262e682",
+        "7c70a44f",
+        "7c6ef3fb",
+        "54ee236a",
+        "a62cc6aa",
+        "a7beafae",
+        "6f246b46",
+        "d42a465a",
+        "f98d74a5",
+        "5dd881d0",
+        "309a68b9",
+        "ee8416fa",
+        "d1f7f851",
+        "674426f5",
+        "9717a8a4",
+        "634d0e4a"
+      ],
+      "delivered_note": "authoring 2c56cc1a/d77b728e（target 392 LF + host 自检 13/36/12 + dump provenance）+ QA 36fa461e/0f35d5c2（pass/0/4）；attempt1 窗口 INVALID_ROUND：零 mesh 场景无 mesh 家族槽占位 → launcher_buffer panic（产品缺陷，S2 的 hfield 设备通路未验证）→ 修复 dce78b1f（6 槽 1 元素占位 + shape max(1)，upload 446/412 LF，内核三 sha 逐位不变）+ QA 级复核；cam1 depth 红 → RCA 54ee236a/a62cc6aa 定根因=相机世界位姿 1–2 ULP（host quat_to_mat 无 FMA 收缩 vs 上游 GPU JIT 收缩；PTX 里 quat_to_mat 段 fma.rn=0，收缩在 ptxas→SASS，故用 1003 条 GPU 参考反推唯一收缩序：候选 1 259 712、≤16 条收敛、9027 项 0 差异）→ 修复 6f246b46（cast.rs 411→481，fma_f32）+ QA 043927a2/d1bd6b0d（pass/0/9）+ 证据修正 d1f7f851；重冻结 309a68b9（guards.json e2444a96…/27 670 B/attempt=2/aggregate 7d24f036…）+ 冻结脚本参数 5dd881d0；attempt2 窗口：常规 util<40 监测失败（354 样本/最长 45/60），Chief 预批 validation-only 例外 util<60（60/60）→ 窗口 -OpenUtilLimit 60 → WINDOW_RUN_DONE，9/9 exit 0、sha_guards 73/73、窗后 9/9、zero_rust_compile=True、floor 10 233 未破、samples 171；两组 hfield cam0(76 800)/cam1(43 200) RGB/depth/seg 全 0 差异、两跑 sha 相等；收口 674426f5 → 9717a8a4 → 634d0e4a"
     }
   ],
   "r01_p8_mapping": [
