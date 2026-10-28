@@ -5,7 +5,7 @@
     "zh": "R05-S1 加固：hfield 模块源登记 + 视图不变量（私有字段/checked_add/doc 修正）+ 死变体清理",
     "en": "R05-S1 hardening: register the hfield module source, enforce view invariants (private fields, checked_add, doc fix), drop the unreachable variant"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "处置 QA 复核 `2026-10-28-render-bvh-r05-s1-hfield-params-check` 的 O1/O2/O3（O4–O6 已接受）：① O1 一般项——`src/render/context/hfield.rs` 未登记为 `mjwarp.render` 模块源（`50f088c4` 只刷指纹），按 `context/lighting.rs` 先例补登记并重刷指纹；② O3——`HfieldParams`/`HfieldView` 字段全 `pub` 使外部可构造非法视图（`data_of` 的 `adr+span` 未 checked，debug 实测 panic；`is_empty` doc 对任意构造不成立），改为不变量不可从外部破坏（字段私有 + getter，或 checked_add 返回可判定结果），doc 改为「`resolve_hfield` 返回值恒非空」；③ O2——`HfieldError::FieldKind` 实测构造 0 处（不可达），本轮删除以收敛死面，并在证据里记「真实通道接入时可再引入」；④ O4——单份测试注释写明口径（结构性断言 + 指针相等佐证）。数值/判据/参考/夹具零改动，81 槽 ABI 不动。",
     "en": "Close the R05-S1 QA observations O1/O2/O3 with a small hardening slice; no criteria or ABI change."
@@ -39,7 +39,8 @@
     "after": null
   },
   "created_at": "2026-10-28T13:35:00.000Z",
-  "updated_at": "2026-10-28T13:34:02.910Z",
+  "updated_at": "2026-10-28T13:38:07.303Z",
+  "closed_at": "2026-10-28T13:38:07.303Z",
   "checks": [
     {
       "kind": "gate",
