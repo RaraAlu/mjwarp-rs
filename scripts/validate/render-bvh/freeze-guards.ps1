@@ -7,7 +7,8 @@
 param(
     [string]$RepoRoot = 'D:\Rust\mjwarp-rs',
     [string]$OutFile = 'scripts\validate\render-bvh\guards.json',
-    [string]$WorkDir = 'target\render-bvh\r05-s3b-window'
+    [string]$WorkDir = 'target\render-bvh\r05-s3b-window',
+    [int]$Attempt = 1
 )
 $ErrorActionPreference = 'Stop'
 Set-Location $RepoRoot
@@ -132,7 +133,7 @@ $guards = [pscustomobject]@{
     task_id = '2026-10-28-render-bvh-r05-s3b-hfield-validate'
     generated_at = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss.fffK')
     repo = $RepoRoot
-    attempt = 1
+    attempt = $Attempt
     counts = [pscustomobject]@{
         frozen_exes = $frozenExes.Count
         guard_inputs = $inputs.Count
