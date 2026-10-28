@@ -1,0 +1,222 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-hfield-channel-check",
+  "kind": "render-bvh-r05-hfield-channel-independent-check",
+  "verdict": "pass",
+  "blockers": 0,
+  "observations": 5,
+  "judged_tree": "9a32bf87990e4e79a14b49e1246dc912550bc7b7",
+  "review_object": {
+    "task": "2026-10-28-render-bvh-r05-hfield-channel",
+    "implementation_commit": "9a6fd66e",
+    "closure_commit": "c8ccf66c",
+    "status": "verified（未 reopen）",
+    "evidence_dir": "docs/development-evidence/render-bvh/r05-hfield-channel/",
+    "decision": "A（薄适配器复用 VolumeModelInput；方案 B 拆 model/render.rs 500 红线 + RENDER_FIELDS 116→121 + native ABI 重冻未采用）"
+  },
+  "method": {
+    "independent": true,
+    "read_only": true,
+    "gpu": "none",
+    "own_scripts": [
+      "docs/development-evidence/render-bvh/r05-hfield-channel-check/recompute.py"
+    ],
+    "own_logs": [
+      "logs/fmt.log",
+      "logs/clippy.log",
+      "logs/clippy-cuda.log",
+      "logs/unit.log",
+      "logs/probe-adapter.log"
+    ],
+    "notes": [
+      "未开 GPU 窗口、无渲染数值结论；纯宿主静态+单测复核",
+      "临时对抗性探针测试文件运行后删除、未入库；结果见 logs/probe-adapter.log",
+      "所有数字由本任务脚本/日志重算，未采信 Backend/Arch 给定值"
+    ]
+  },
+  "gates_mine": {
+    "fmt": {
+      "cmd": "cargo fmt --check",
+      "exit": 0,
+      "output_bytes": 0
+    },
+    "clippy": {
+      "cmd": "cargo clippy --all-targets --locked -- -D warnings",
+      "exit": 0
+    },
+    "clippy_cuda": {
+      "cmd": "cargo clippy --all-targets --locked --features cuda -- -D warnings",
+      "exit": 0
+    },
+    "unit": {
+      "cmd": "cargo test --locked",
+      "exit": 0,
+      "passed": 1069,
+      "failed": 0,
+      "ignored": 387,
+      "result_lines": 132
+    },
+    "architecture": {
+      "cmd": "normify validate --fingerprints",
+      "exit": 0,
+      "errors": 0,
+      "warnings": 5
+    },
+    "impl_gate_records": {
+      "fmt": {
+        "exit": 0,
+        "at": "2026-10-28T13:43:18.276Z"
+      },
+      "clippy": {
+        "exit": 0,
+        "at": "2026-10-28T13:43:15.769Z"
+      },
+      "clippy-cuda": {
+        "exit": 0,
+        "at": "2026-10-28T13:43:16.349Z"
+      },
+      "unit": {
+        "exit": 0,
+        "at": "2026-10-28T13:44:35.459Z",
+        "passed": 1069,
+        "failed": 0,
+        "ignored": 387
+      }
+    }
+  },
+  "adapter_semantics": {
+    "nhfield_zero_early_return_none": true,
+    "size_single_conversion_via_hfield_size_f32": true,
+    "no_local_f64_to_f32_conversion_in_adapter": true,
+    "data_borrowed_not_copied": true,
+    "native_probe_error_passthrough": true,
+    "no_nworld_read": true,
+    "as_inputs_all_some": true,
+    "resolve_composes_resolve_hfield": true,
+    "my_probes": {
+      "file": "tests/_qa_r05_channel_probe.rs（临时、已删除）",
+      "result": "4 passed / 0 failed",
+      "cases": [
+        "nrow=0 / ncol=0 / multi-hfield index 1 zero: volume accepts (>=0) -> resolve NonPositiveRowsCols with correct index/values",
+        "negative nrow/ncol/adr, adr+span out-of-range, i32::MAX*i32::MAX: rejected at volume layer, catch_unwind no panic",
+        "two hfields 3x3@0 + 2x2@9: spans 9/4, adr 9, size bitwise equal num_to_f32 (8 f32), params.data ptr == model.hfield_data ptr",
+        "nhfield=0 -> None; nhfield=0 with non-empty arrays rejected by volume length check"
+      ]
+    }
+  },
+  "two_layer_semantics": {
+    "volume_layer_accepts_nonnegative": "nrow/ncol/adr >= 0 (negative rejected, zero accepted)",
+    "volume_range_check": "adr + nrow*ncol <= nhfielddata",
+    "s1_layer_rejects_nonpositive": "NonPositiveRowsCols{index,nrow,ncol}",
+    "adapter_does_not_rewrite": true,
+    "impl_test_covers_edge": "boundary_errors_are_rejected_by_volume_construction",
+    "my_probe_covers_edge": true,
+    "documented_in_evidence": true
+  },
+  "zero_native_fields_redline_abi": {
+    "impl_commit_files": 12,
+    "impl_commit_source_test_paths": [
+      "src/render/context/hfield_inputs.rs（新）",
+      "src/render/context/params.rs（+4）",
+      "tests/render_hfield_inputs.rs（新）",
+      ".normify/modules/mjwarp/render.md（+3）"
+    ],
+    "out_of_scope_paths_in_impl_commit": [],
+    "redline_native_diff_since_impl_parent": "",
+    "render_fields_len": 116,
+    "megakernel_slots": 81,
+    "hfield_bvh_id_placeholder": "upload(&[0u32, 0])",
+    "collision_DEVICE_SOURCES": 28,
+    "collision_entrances": 6,
+    "CollisionArgs_bytes": 504,
+    "line_counts": {
+      "src/render/context/hfield_inputs.rs": 70,
+      "tests/render_hfield_inputs.rs": 218,
+      "src/render/context/params.rs": 197,
+      "src/render/context/hfield.rs": 372,
+      "src/render/mod.rs": 384,
+      "src/model/render.rs": 500,
+      "src/io/render.rs": 453,
+      "src/render/kernel/cuda/render.cu": 499,
+      "src/render/kernel/launch.rs": 500,
+      "src/render/kernel/cast.rs": 494,
+      "src/render/context/camera_output.rs": 499,
+      "src/render/kernel/megakernel.rs": 490
+    },
+    "native_model_probe_render_touched": false,
+    "fixtures_untouched": true
+  },
+  "tests_strength": {
+    "impl_count": 7,
+    "impl_result": "7 passed / 0 failed（logs/test.log，全部用例名在日志中）",
+    "assertions_checked": "逐条读；五字段/视图/data_of 为精确断言；边界用例显式断言两层差异；指针断言验证未复制；无空断言",
+    "fixture_comparison_scope": "input consistency only（size 与 num_to_f32 逐位、数组同源）；不作渲染数值结论",
+    "num_to_f32_impl": "values.iter().map(|&value| value as f32) —— 一次就近舍入（ties-to-even）",
+    "test_side_fixture_data_cast": "as f32（与 num_to_f32 同一语义；适配器路径无第二次转换）"
+  },
+  "module_sources": {
+    "count": 36,
+    "hfield_inputs_registered": true,
+    "hfield_registered": true,
+    "mount_pattern": "#[path = \"hfield_inputs.rs\"]（与 lighting.rs/hfield.rs 同构；已知结构债 R09-S1 O2）"
+  },
+  "evidence_integrity": {
+    "impl_evidence_files": 7,
+    "impl_manifest_entries": 6,
+    "impl_manifest_all_match_committed_blob": true,
+    "impl_manifest_self_reference": false,
+    "impl_evidence_eol_bad": [],
+    "impl_banned_hits": [],
+    "impl_lines_log_matches_my_measurement": true
+  },
+  "observations_detail": [
+    {
+      "id": "O1",
+      "severity": "record",
+      "recommendation": "accept",
+      "summary": "VolumeHfieldInputs only reachable via render::context::params::hfield_inputs (no top-level pub use in render), unlike S1 types; scope limited to src/render/context/ and evidence documents S2 one-line re-export"
+    },
+    {
+      "id": "O2",
+      "severity": "record",
+      "recommendation": "accept",
+      "summary": "from_volume's Err path is unreachable after VolumeModelInput::new validates kinds/lengths (defensive Result shape); suggest documenting"
+    },
+    {
+      "id": "O3",
+      "severity": "record",
+      "recommendation": "accept",
+      "summary": "#[path] mount follows existing lighting.rs/hfield.rs pattern (known structural debt R09-S1 O2)"
+    },
+    {
+      "id": "O4",
+      "severity": "record",
+      "recommendation": "accept",
+      "summary": "G10 fixture test casts JSON f64 arrays with `as f32` (same semantics as num_to_f32 = as f32); adapter path has only one conversion; scope is input consistency"
+    },
+    {
+      "id": "O5",
+      "severity": "record",
+      "recommendation": "accept",
+      "summary": "two-layer boundary explicitly tested/documented (volume >=0 accepts zero, S1 <=0 rejects); my probe confirms for nrow=0/ncol=0/multi-hfield index and extremes; no silent rewrite"
+    }
+  ],
+  "boundaries": [
+    "no GPU/window/numeric conclusions; device-side hfield BVH/intersection and upstream 2D numeric equivalence are S2 scope",
+    "who provides VolumeModelInput at render-context creation is left to S2 (documented as uncovered)",
+    "CollisionInputs channel not used in this slice and not evaluated by me",
+    "adversarial probes were temporary test files, deleted after run, not committed; results in logs/probe-adapter.log"
+  ],
+  "claims": {
+    "gpu_window": false,
+    "numeric_acceptance": false,
+    "upstream_equivalence": false,
+    "render_side_channel_available": "input adapter only; device channel still S2",
+    "native_abi_changed": false
+  },
+  "recompute": {
+    "script": "docs/development-evidence/render-bvh/r05-hfield-channel-check/recompute.py",
+    "output": "docs/development-evidence/render-bvh/r05-hfield-channel-check/recompute.json",
+    "problems": []
+  },
+  "gate_note": "normify gate exit 1（任务没有引用任何门禁）属预期：本卡 checks 仅 receipt /task_id 与 forbid_claim；四门禁由本复核独立复跑（unit 1069 过 / 0 败 / 387 ignored）并记录于 gates_mine 字段。"
+}
