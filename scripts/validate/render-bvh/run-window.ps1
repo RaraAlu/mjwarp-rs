@@ -14,6 +14,7 @@ param(
     [int]$Attempt = 1,
     [string]$RepoRoot = 'D:\Rust\mjwarp-rs',
     [string]$SuiteDir = 'scripts\validate\render-bvh',
+    [string]$GuardsFile = '',
     [string]$OutDir = 'target\render-bvh\r05-s3b-window\attempt1',
     [string]$CudaBin = 'D:\Rust\mjwarp-rs\target\toolchains\cuda-12.8.1\bin',
     [int]$OpenFreeMiB = 10240,
@@ -156,7 +157,7 @@ Fact "floor_mib=$floor"
 Fact "budget_increment_limit_mib=$BudgetMiB"
 Fact 'feature_profile=cuda-probe'
 Fact ('env_cuda_bin=' + $CudaBin)
-$guardPath = Join-Path $RepoRoot (Join-Path $SuiteDir 'guards.json')
+$guardPath = if ($GuardsFile) { Join-Path $RepoRoot $GuardsFile } else { Join-Path $RepoRoot (Join-Path $SuiteDir 'guards.json') }
 $guard = ([IO.File]::ReadAllText($guardPath, [Text.Encoding]::UTF8)) | ConvertFrom-Json
 Fact ('guards_suite=' + $guard.suite)
 Fact ('guards_aggregate_sha256=' + $guard.aggregate_sha256)
