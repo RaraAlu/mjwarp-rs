@@ -5,7 +5,7 @@
     "zh": "R05 前置：渲染侧 hfield 输入适配（复用已验收的 VolumeModelInput 通道，零 native / 零红线 / 零 ABI）",
     "en": "R05 prerequisite: render-side hfield input adapter reusing the verified VolumeModelInput channel (no native, no red-line, no ABI change)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "R05-S1 把 hfield 宿主校验做成 `resolve_hfield(&HfieldInputs)`，但渲染侧当时没有 hfield 数据通道。后续只读核查发现**通道已存在**：`src/model/volume_input.rs` 的 `VolumeModelInput` 已提供 `hfield_data()`/`hfield_size()`/**`hfield_size_f32()`（唯一 f64→f32 转换点，G10 先例）**/`ints(\"hfield_nrow|ncol|adr\")`，且其 `new()` 已完成字段数/类型/长度/范围校验（含 `adr+span<=nhfielddata`）；Rust `CollisionInputs` 与 native `model_probe_collision_inputs.cpp` case 24-28、`g01_fields.inc` 亦已有 hfield；native `model_probe_render.cpp`（render_stage）明确无 hfield。因此**不改 `RENDER_FIELDS`、不拆 `src/model/render.rs`、不动 native ABI**，改为在渲染上下文加一个**薄适配器**：`HfieldInputs::from_volume(&VolumeModelInput)`，把既有已验证通道装配成 S1 的 `HfieldInputs`（`nhfield=0` → 全 None；否则用 `hfield_size_f32()` + `ints(...)` + `hfield_data()`），错误用既有 `NativeProbeError` 直传。本片只做适配 + 全链路测试，不接内核、不开窗口、零渲染数值结论；产品路径「谁在 context 创建时提供 `VolumeModelInput`」的决定留 S2。",
     "en": "Add a thin adapter from the verified VolumeModelInput channel to R05-S1's HfieldInputs, avoiding RENDER_FIELDS/native/ABI changes."
@@ -39,7 +39,8 @@
     "after": null
   },
   "created_at": "2026-10-28T13:28:00.000Z",
-  "updated_at": "2026-10-28T13:40:01.969Z",
+  "updated_at": "2026-10-28T13:44:42.147Z",
+  "closed_at": "2026-10-28T13:44:42.147Z",
   "checks": [
     {
       "kind": "gate",

@@ -2,7 +2,7 @@
 uid = "a66a7856"
 id = "mjwarp.render"
 tags = ["planned", "engine", "render"]
-fingerprint = "4f6a95a2b604013605ac3f841969946314d4053c8e15e0dcab93b85db4aa6806"
+fingerprint = "72c642c597dbaeb9c1e68c08d90b1a35dac1f5903563838453f46aabe998f5ac"
 
 [name]
 zh = "GPU批量渲染"
