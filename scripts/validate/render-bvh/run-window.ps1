@@ -3,7 +3,9 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/run-window.ps1 -Attempt 1
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/run-window.ps1 -GuardsOnly
 # Discipline:
-# - single hard gate: guard precheck (73 frozen sha256 entries) -> any mismatch = invalid round, exit 9
+# - single hard gate: guard precheck (73 frozen sha256 entries + 9 stash copies) -> any mismatch = invalid round, exit 9
+# - stash copies (target/render-bvh/r05-s3b-window/frozen-exes/) are verified at precheck
+# - live entity exe sha is re-checked before AND after each entity run; any drift = invalid round, exit 9
 # - 0.25 s GPU sampler runs for the whole entity body
 # - entities run the exact entity-table command: cargo test --locked --features cuda-probe --test <name> -- --ignored --test-threads=1 --nocapture
 # - zero Rust compile inside the window: deps snapshot before/after must be identical, else exit 7
@@ -167,6 +169,18 @@ foreach ($exe in $guard.frozen_exes) {
     $ok = ($hash -eq $exe.sha256) -and ($bytes -eq $exe.bytes)
     if ($ok) { $guardOk++ } else { $guardBad++; Guard "SHA_MISMATCH $($exe.path) expect=$($exe.sha256)/$($exe.bytes) actual=$hash/$bytes" }
     Add-Txt $shaPath ("SHA_OK {0} {1} {2}" -f $hash, $bytes, $exe.path)
+    if ($exe.stash_path) {
+        $stashPath = Join-Path $RepoRoot $exe.stash_path
+        $stashHash = if (Test-Path $stashPath) { (Get-FileHash $stashPath -Algorithm SHA256).Hash.ToLower() } else { 'MISSING' }
+        $stashBytes = if (Test-Path $stashPath) { (Get-Item $stashPath).Length } else { -1 }
+        if (($stashHash -ne $exe.stash_sha256) -or ($stashBytes -ne $exe.stash_bytes)) {
+            $guardBad++
+            Guard "STASH_MISMATCH $($exe.stash_path) expect=$($exe.stash_sha256)/$($exe.stash_bytes) actual=$stashHash/$stashBytes"
+        }
+    } else {
+        $guardBad++
+        Guard "STASH_ENTRY_MISSING $($exe.path)"
+    }
 }
 foreach ($input in $guard.guard_inputs) {
     $path = Join-Path $RepoRoot $input.path
@@ -200,6 +214,7 @@ $bodyWatch = [Diagnostics.Stopwatch]::StartNew()
 $oldPath = $env:PATH
 $env:PATH = "$CudaBin;" + $env:PATH
 $failures = @()
+$driftEntity = ''
 Add-Txt $entityPath 'entity,kind,exit,wall_ms,log'
 $exeList = @($guard.frozen_exes | Sort-Object { if ($_.source -eq 'new') { 0 } else { 1 } }, entity)
 Fact "entity_count=$($exeList.Count)"
@@ -209,6 +224,13 @@ Fact "entity_new=$newCount entity_regression=$regressionCount"
 foreach ($exe in $exeList) {
     if ((Test-Path $abortFile) -and ([bool](Get-Content $abortFile -Raw))) { $failures += 'sampler_abort'; break }
     $name = $exe.entity
+    $liveBefore = (Get-FileHash (Join-Path $RepoRoot $exe.path) -Algorithm SHA256).Hash.ToLower()
+    if ($liveBefore -ne $exe.sha256) {
+        Guard "SHA_DRIFT_BEFORE_RUN $name expect=$($exe.sha256) actual=$liveBefore"
+        Fact "sha_drift_before_run=$name"
+        $driftEntity = $name
+        break
+    }
     $logPath = Join-Path $logs "$name.log"
     $watch = [Diagnostics.Stopwatch]::StartNew()
     cmd /c "cargo test --locked --features cuda-probe --test $name -- --ignored --test-threads=1 --nocapture > `"$logPath`" 2>&1"
@@ -216,6 +238,13 @@ foreach ($exe in $exeList) {
     $watch.Stop()
     Fact "entity $name exit=$code wall_ms=$($watch.ElapsedMilliseconds)"
     Add-Txt $entityPath ("{0},{1},{2},{3},{4}" -f $name, $exe.source, $code, $watch.ElapsedMilliseconds, $logPath)
+    $liveAfter = (Get-FileHash (Join-Path $RepoRoot $exe.path) -Algorithm SHA256).Hash.ToLower()
+    if ($liveAfter -ne $exe.sha256) {
+        Guard "SHA_DRIFT_AFTER_RUN $name expect=$($exe.sha256) actual=$liveAfter"
+        Fact "sha_drift_after_run=$name"
+        $driftEntity = $name
+        break
+    }
     if ($code -ne 0) { $failures += "entity_failed:$name" }
     if ([bool](Get-Content $abortFile -Raw)) { $failures += "sampler_abort_after:$name"; break }
 }
@@ -223,6 +252,14 @@ $bodyWatch.Stop()
 $entityEnd = Iso
 $env:PATH = $oldPath
 Stop-Sampler
+if ($driftEntity) {
+    Guard "ABORT_AFTER_SHA_DRIFT $driftEntity"
+    Fact 'guard_aborted=true'
+    Fact "sha_drift_entity=$driftEntity"
+    Fact ('window_end=' + (Iso))
+    Guard 'INVALID_ROUND exit9'
+    exit 9
+}
 $post = @()
 for ($i = 0; $i -lt 3; $i++) {
     $post += GpuSample

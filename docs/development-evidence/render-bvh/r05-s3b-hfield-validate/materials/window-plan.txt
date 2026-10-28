@@ -1,8 +1,14 @@
-# R05-S3b hfield validation-window plan (offline authoring; no window opened)
+# R05-S3b hfield validation-window plan (offline authoring; window not opened; refrozen 2026-10-29T01:32)
 task_id=2026-10-28-render-bvh-r05-s3b-hfield-validate
 attempt=1 (validation window)
 device_validation_window=true
 authoring_exception_used=false (original thresholds only)
+guards_refrozen_at=2026-10-29T01:32:38.120+08:00
+guards_json_sha256=210f82088702ce0ea00bb357a88b1c75948f94b9ef48a632ad76546be1ba287d
+guards_json_bytes=27670
+guards_aggregate_sha256=105ad0ab2cce4ce9eaa0e226089fe9e3f27bfb5ae38f247b9a1656c99efb226e
+superseded_guards_sha256=39a6c1fe3b578416db2572fd3ba544f5ced16fc7e5786c6ed370018cf8d332c2 (invalidated by QA-side rebuilds relinking the 9 test exes)
+frozen_exe_stash_dir=target/render-bvh/r05-s3b-window/frozen-exes
 
 ## pre-window monitor (must pass before opening)
 thresholds=util<40 percent, free>=10240 MiB, compute_apps_filtered=0, build_processes=0
@@ -11,12 +17,17 @@ max_minutes=30
 command=powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/monitor-until-clean.ps1 -OutCsv target/render-bvh/r05-s3b-window/monitor-pre-window.csv -Required 60 -MaxMinutes 30
 monitor_script_sha256=ec2b959ca4b067dcab251f67506800d78f1078df233ed6a2da8e00b13e818814
 
+## runner hard checks
+guard precheck = 9 live exe sha/bytes + 9 stash copy sha/bytes + 64 read-only input sha/bytes (73 entries); any mismatch -> invalid round, exit 9
+per entity: live exe sha before run must equal the frozen sha; live exe sha after run must equal the frozen sha; any drift -> abort, invalid round, exit 9
+zero Rust compile: deps snapshot before/after must be identical, else exit 7
+post window: 9/9 exe recheck; residual render_* process count; floor = min(10240, baseline_free - 3072)
+
 ## window open sequence (verbatim)
-0) record 3-point GPU baseline and floor in the facts (runner does baseline; floor = min(10240, baseline_free - 3072))
 1) run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/run-window.ps1 -Attempt 1
 2) the runner runs the 9 entities in order (new first): cargo test --locked --features cuda-probe --test <name> -- --ignored --test-threads=1 --nocapture
-3) success requires exit 0 and WINDOW_RUN_DONE in guard.log; 9/9 exe recheck after the run; zero Rust compile (deps snapshot unchanged)
-4) exit 9 = invalid round (precheck / guard sha mismatch); exit 10 = entity failure; exit 7 = compile detected; keep all artifacts
+3) success requires exit 0 and WINDOW_RUN_DONE in guard.log; sha_guards=73/73; post_window_exe_recheck=9/9; zero_rust_compile=true
+4) exit 9 = invalid round (precheck/guard/stash mismatch or live exe drift); exit 10 = entity failure; exit 7 = compile detected
 
 ## entities (9)
 new=render_hfield_reference
@@ -30,9 +41,16 @@ seg=exact (mismatched==0)
 determinism=two-run rgb/depth/seg sha256 equal
 
 ## freeze protocol
-freeze after the final build: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards.ps1
-after freeze until window open: no cargo/rustc/cargo test; any change to runner/guards/exe invalidates the signature
-refreeze rule: if any frozen object changes, regenerate guards.json (same script) and re-sign before opening
+freeze step was run on 2026-10-29T01:32:38.120+08:00: guards.json + 9 stash copies created; live exe == stash bytes verified
+after freeze until window open: no cargo/rustc/cargo test; any change to a frozen object invalidates the signature (refreeze + re-sign required)
+scripts: run-window.ps1 sha=
+31ac28bfcd8cce3bd10f6f5803f4a5573f218cccb88604e13d5537447d28a3c5
+ bytes=
+18187
+; freeze-guards.ps1 sha=
+da5a0a1ff8a8991790d1a0eb229aa38d4614396b2ae1ebce985f1e8266976c8c
+ bytes=
+7773
 
 ## wall estimate
 basis=R09-S3b window ran the 8 regressions in 48.1 s (direct exe); this window also runs the new hfield target and invokes cargo per entity
@@ -42,3 +60,4 @@ estimate=60-180 s entity body (excluding pre-window monitor)
 any hfield camera/product beyond criteria -> stop and report to Arch without changing tolerance/reference/fixture
 mirror/transpose-shaped hfield difference -> stop and report
 suspicious tie-break difference from BVH leaf_size=8 vs upstream 2 -> stop and report
+any frozen exe or stash drift (before/after entity) -> invalid round (exit 9) and report

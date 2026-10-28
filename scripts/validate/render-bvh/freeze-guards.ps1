@@ -73,6 +73,26 @@ foreach ($item in $entities) {
     }
 }
 
+# Stash copies of the frozen executables: a later rebuild in target/debug/deps must not
+# destroy the signed bytes. The stash is part of the freeze record (path/bytes/sha256).
+$stashDirRel = 'target/render-bvh/r05-s3b-window/frozen-exes'
+$stashDir = Join-Path $RepoRoot $stashDirRel
+Remove-Item -Recurse -Force $stashDir -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force $stashDir | Out-Null
+foreach ($exe in $frozenExes) {
+    $stashRel = "$stashDirRel/$($exe.entity).exe"
+    $stashFull = Join-Path $RepoRoot $stashRel
+    Copy-Item (Join-Path $RepoRoot $exe.path) $stashFull -Force
+    $stashBytes = (Get-Item $stashFull).Length
+    $stashSha = (Get-FileHash $stashFull -Algorithm SHA256).Hash.ToLower()
+    if (($stashBytes -ne $exe.bytes) -or ($stashSha -ne $exe.sha256)) {
+        throw "stash copy mismatch for $($exe.entity)"
+    }
+    $exe | Add-Member -NotePropertyName stash_path -NotePropertyValue $stashRel -Force
+    $exe | Add-Member -NotePropertyName stash_bytes -NotePropertyValue $stashBytes -Force
+    $exe | Add-Member -NotePropertyName stash_sha256 -NotePropertyValue $stashSha -Force
+}
+
 $inputs = @()
 # 8 capture products (R05-S3a window; repo-relative paths).
 $captureDir = Join-Path $RepoRoot 'fixtures/render-bvh/scene-hfield/capture-hfield'
@@ -120,6 +140,7 @@ $guards = [pscustomobject]@{
     }
     aggregate_algorithm = 'sha256 over the sha256 hex strings of all 73 entries in repo-relative path-sorted order, concatenated with no separator'
     aggregate_sha256 = $aggregate
+    frozen_exe_stash_dir = $stashDirRel
     entity_order = @($entities | ForEach-Object { $_.entity })
     frozen_exes = $frozenExes
     guard_inputs = $inputs
@@ -127,6 +148,6 @@ $guards = [pscustomobject]@{
 $outPath = Join-Path $RepoRoot $OutFile
 [IO.File]::WriteAllText($outPath, (($guards | ConvertTo-Json -Depth 6) + "`n"), $utf8)
 $outSha = (Get-FileHash $outPath -Algorithm SHA256).Hash.ToLower()
-Write-Output ("GUARDS_FROZEN total={0} exes={1} inputs={2} aggregate_sha256={3} guards_sha256={4} bytes={5}" -f `
-    $total, $frozenExes.Count, $inputs.Count, $aggregate, $outSha, (Get-Item $outPath).Length)
+Write-Output ("GUARDS_FROZEN total={0} exes={1} inputs={2} aggregate_sha256={3} guards_sha256={4} bytes={5} stash_dir={6}" -f `
+    $total, $frozenExes.Count, $inputs.Count, $aggregate, $outSha, (Get-Item $outPath).Length, $stashDirRel)
 exit 0
