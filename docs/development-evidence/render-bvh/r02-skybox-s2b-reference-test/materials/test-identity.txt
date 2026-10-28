@@ -1,0 +1,33 @@
+R02-S2b 测试实体身份与门禁（final tree, 2026-10-29）
+
+files
+  tests/render_skybox_reference.rs        4993 B / 138 LF / sha256 7ecb972a37bc14055dc2b3710f878a7bb40685c614a2a2bc55daa2bfcd04b65f
+  tests/support/render_bvh/skybox.rs     16563 B / 479 LF / sha256 e6a2e6fdba7deb892a6c38da244e70a8aae500b783c191385693239b3c92005d
+  (both <=500 lines; no new file above the ratchet)
+
+entity / tests
+  entity name (freeze script + runner): render_skybox_reference
+  window command: cargo test --locked --features cuda-probe --test render_skybox_reference -- --ignored --test-threads=1
+  host test (default, no GPU): capture_reference_parse_and_cross_checks_hold
+    - prints and returns when stage A reference is absent (no panic before capture)
+    - when present: cameras=2, total_pixels=120000, texture id=2, face_width=64, cam0 320x240, cam1 240x180,
+      depth_bits==pixels, seg_pairs==pixels, seg_unique non-empty
+  ignored GPU test: skybox_matches_captured_reference
+    - rst run: rgb per-camera compared/mismatched/max_byte_diff/beyond_1_lsb; depth mismatch/max_ulp/beyond_ulp
+      + depth_zero_pixels; seg mismatch
+    - criteria (unchanged from R05): rgb beyond_1_lsb==0; depth mismatched==0 and max_ulp<=4 and beyond_ulp==0;
+      seg mismatched==0; then second run and rgb/depth/seg sha256 equality assertions + printed shas
+  product path (no bypass): resolve_context(render_skybox=true) -> texture_registry(use_textures||skybox) ->
+    RenderContext::create -> MegakernelRenderer::render; textures registry built by the R02-S1 constructor
+
+gates (all on the final tree)
+  cargo fmt --check                                                        -> 0
+  cargo clippy --all-targets --locked -- -D warnings                       -> 0
+  cargo clippy --all-targets --locked --features cuda -- -D warnings        -> 0
+  cargo test --locked                                                     -> 0
+      test result lines 136; passed 1104 / failed 0 / ignored 390
+      (+1 host test vs S2 baseline 1103; +1 ignored GPU test)
+  cargo test --locked --no-run                                            -> 0
+  normify validate --fingerprints                                         -> 0 errors (5 pre-existing warnings)
+
+no GPU execution: the ignored test was NOT run; no window, no capture, no freeze, no monitor.

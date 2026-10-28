@@ -1,0 +1,123 @@
+{
+  "task_id": "2026-10-29-render-bvh-r02-skybox-s2b-reference-test",
+  "slice": "R02-S2b",
+  "phase": "P8-渲染与BVH",
+  "owner": "Backend",
+  "nature": "offline implementation slice: adds the ignored GPU test target render_skybox_reference; no GPU execution, no capture, no freeze, no window",
+  "entity": {
+    "name": "render_skybox_reference",
+    "window_command": "cargo test --locked --features cuda-probe --test render_skybox_reference -- --ignored --test-threads=1",
+    "host_test": "capture_reference_parse_and_cross_checks_hold (default, no GPU, skips when the stage-A reference is absent)",
+    "gpu_test": "skybox_matches_captured_reference (ignored; runs only inside the r02-skybox validation window)"
+  },
+  "files": {
+    "tests/render_skybox_reference.rs": {
+      "bytes": 4993,
+      "lines_lf": 138,
+      "sha256": "7ecb972a37bc14055dc2b3710f878a7bb40685c614a2a2bc55daa2bfcd04b65f"
+    },
+    "tests/support/render_bvh/skybox.rs": {
+      "bytes": 16563,
+      "lines_lf": 479,
+      "sha256": "e6a2e6fdba7deb892a6c38da244e70a8aae500b783c191385693239b3c92005d"
+    }
+  },
+  "product_path": [
+    "resolve_context with ContextParams.render_skybox=true (scene-a)",
+    "context::texture_registry with (use_textures || skybox) semantics",
+    "RenderContext::create",
+    "MegakernelRenderer::render",
+    "read back rgb/depth/seg via s7b1 helpers"
+  ],
+  "criteria_unchanged": {
+    "rgb": "beyond_one_lsb_pixels == 0 (prints mismatched_pixels / max_byte_diff)",
+    "depth": "mismatched == 0 and max_ulp <= 4 and beyond_ulp == 0",
+    "seg": "mismatched == 0",
+    "determinism": "two-run rgb/depth/seg sha256 equal (asserted and printed)"
+  },
+  "reference_binding": {
+    "dir": "fixtures/render-bvh/scene-a/reference-skybox/",
+    "verified_fields": [
+      "schema=1",
+      "kind=r02-s1-skybox-reference",
+      "params28.render_skybox=true",
+      "expected_pixels=120000",
+      "skybox.skybox_tex_id=2",
+      "skybox.skybox_face_width=64",
+      "skybox.skybox_tex_height=384 (vertical 2D, 6x64)",
+      "determinism.sha_equal=true",
+      "cameras.cam_res = [[320,240],[240,180]]",
+      "each npz sha256 equals capture.json.files[].sha256"
+    ],
+    "missing_reference_behaviour": "host test prints and returns; GPU test fails with an instruction to run the stage-A script"
+  },
+  "gates": {
+    "fmt": 0,
+    "clippy": 0,
+    "clippy_cuda": 0,
+    "unit": 0,
+    "no_run": 0,
+    "normify_validate_fingerprints": 0
+  },
+  "unit_totals": {
+    "test_result_lines": 136,
+    "passed": 1104,
+    "failed": 0,
+    "ignored": 390,
+    "delta_vs_s2": "+1 host test, +1 ignored GPU test"
+  },
+  "window_readiness": {
+    "gpu_snapshot": {
+      "captured_at": "2026-10-29T06:28:33+08:00",
+      "name": "NVIDIA GeForce RTX 4070 Ti SUPER",
+      "driver": "596.36",
+      "samples": [
+        {"free_mib": 13312, "used_mib": 2750, "util_pct": 40},
+        {"free_mib": 13312, "used_mib": 2750, "util_pct": 39},
+        {"free_mib": 13312, "used_mib": 2750, "util_pct": 39}
+      ],
+      "note": "desktop graphics load only; no cargo/rustc/test compute job of this repo; normal util<40 monitor is expected to be marginal, and NO exception is pre-approved"
+    },
+    "expected_duration": {
+      "monitor": "5-30 min",
+      "stage_a_capture": "2-5 min",
+      "freeze": "1-2 min",
+      "stage_b_entities": "2-4 min",
+      "total_after_monitor": "~10-15 min"
+    },
+    "runner_default_behaviour_unchanged": {
+      "r05_runner_sha256": "31ac28bfcd8cce3bd10f6f5803f4a5573f218cccb88604e13d5537447d28a3c5",
+      "r05_runner_bytes": 18187,
+      "r02_runner_sha256": "b1ff24f8e7d9990182be1c810b9f0f8980e3d30ce7d13f2950d657d56dd5f740",
+      "r02_runner_bytes": 18279,
+      "only_change": "optional -GuardsFile parameter; without it the runner reads <SuiteDir>/guards.json as before",
+      "ascii_three_item": "nonascii=0 / CR=0 / BOM=false / PSParser errors=0 (see r02-skybox-s2-capture-authoring/materials/script-identity.txt)"
+    },
+    "freeze_assertions": [
+      "exactly 9 entity executables",
+      "exactly 68 read-only inputs; exactly 77 total entries",
+      "exactly 4 files under fixtures/render-bvh/scene-a/reference-skybox/",
+      "9/9 stash copies match exe bytes+sha256",
+      "aggregate = sha256 over repo-relative-path-sorted sha256 hex strings (same as R05)",
+      "writes only guards-r02-skybox.json; R05 guards.json never written"
+    ],
+    "failure_rollback": [
+      "monitor normal util<40 not met -> stop and report to Chief; no exception pre-approved",
+      "guard precheck mismatch -> invalid round (exit 9); re-freeze only outside the window with attempt+1",
+      "entity exe sha drift -> invalid round (exit 9); no re-freeze inside the window",
+      "any product beyond criteria -> stop and report to Arch without changing tolerance/reference/fixture",
+      "per-attempt output dirs; R05 attempt dirs untouched; aborted window leaves no product evidence"
+    ]
+  },
+  "limits": [
+    "no GPU execution in this slice: the ignored test was not run; the reference does not exist yet (stage A pending)",
+    "device numeric verification and two-run sha evidence only exist inside the signed window",
+    "criteria/tolerances/references/fixtures untouched; guards.json untouched"
+  ],
+  "non_claims": [
+    "not a window pass",
+    "not a precision/accuracy statement",
+    "not upstream equivalence",
+    "no rendering numeric conclusion"
+  ]
+}

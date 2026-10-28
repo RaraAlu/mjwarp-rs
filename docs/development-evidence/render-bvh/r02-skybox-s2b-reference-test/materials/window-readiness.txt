@@ -1,0 +1,49 @@
+R02 skybox window readiness addendum (补充给双签包；窗口仍未执行)
+
+GPU snapshot (read-only nvidia-smi, 2026-10-29T06:28:3x+08:00, 3 samples 2 s apart)
+  name=NVIDIA GeForce RTX 4070 Ti SUPER  driver=596.36
+  sample1 free=13312 MiB used=2750 MiB util=40%
+  sample2 free=13312 MiB used=2750 MiB util=39%
+  sample3 free=13312 MiB used=2750 MiB util=39%
+  compute-apps: 30 entries, none is a cargo/rustc/test/compute job of this repo; entries are desktop
+  graphics/WebView/browser/remote-desktop processes reporting [N/A] memory (several [Insufficient Permissions]).
+  Interpretation: the ~39-40% util is persistent desktop graphics load, the same shape that made R05's
+  normal util<40 monitor marginal. This window has NO pre-approved exception: if the normal monitor fails,
+  stop and report to Chief.
+
+Expected window duration (estimate, not measured)
+  monitor pre-window (normal util<40):       5-30 min (script gate needs 60 consecutive clean samples)
+  stage A authoring capture:                 2-5 min (2 renders x2 runs + pinned env checks)
+  freeze-guards-r02.ps1:                     1-2 min (incremental cargo test --no-run + 77 hashes + 9 stash copies)
+  stage B product validation window:         2-4 min (9 entities; R05 measured body_wall 51.2 s with warm build)
+  whole window (A -> freeze -> B):           ~10-15 min after the monitor gate
+
+run-window.ps1 R02 revision: default behaviour unchanged (proof)
+  R05 runner (historical): 31ac28bfcd8cce3bd10f6f5803f4a5573f218cccb88604e13d5537447d28a3c5 / 18187 B / 386 lines
+  R02 runner:              b1ff24f8e7d9990182be1c810b9f0f8980e3d30ce7d13f2950d657d56dd5f740 / 18279 B / 386 lines
+  only change (grep-checkable):
+    + parameter:  [string]$GuardsFile = ''
+    + selection:  $guardPath = if ($GuardsFile) { Join-Path $RepoRoot $GuardsFile } else { Join-Path $RepoRoot (Join-Path $SuiteDir 'guards.json') }
+  without -GuardsFile the runner still reads <SuiteDir>/guards.json exactly as in R05, so historical R05
+  invocations keep their semantics; the R05 sha above remains the signed historical value in R05 evidence.
+  ASCII three-item check (both R02-relevant .ps1): nonascii bytes=0, CR bytes=0, BOM=false,
+  PSParser tokenize errors=0. Evidence: r02-skybox-s2-capture-authoring/materials/script-identity.txt.
+
+freeze-guards-r02.ps1 assertions (hard throws, not warnings)
+  - entity executable set: exactly 9 (render_skybox_reference + 8 regressions)
+  - read-only inputs: exactly 68; total entries exactly 77
+  - fixtures/render-bvh/scene-a/reference-skybox/ must contain exactly 4 files (rgb/depth/seg npz + capture.json)
+  - stash copies under target/render-bvh/r02-skybox-window/frozen-exes/ must match exe bytes+sha (9/9)
+  - aggregate = sha256 over repo-relative-path-sorted sha256 hex strings (same algorithm as R05)
+  - writes ONLY scripts/validate/render-bvh/guards-r02-skybox.json; R05 guards.json is never written
+
+failure / rollback discipline
+  - monitor normal util<40 not met -> STOP, report to Chief; NO exception is pre-approved
+  - guard precheck mismatch -> invalid round (exit 9); re-freeze only outside the window with attempt+1
+  - entity exe sha drift before/after an entity run -> invalid round (exit 9), no re-freeze inside the window
+  - any product beyond criteria -> STOP, report to Arch; never change tolerance/reference/fixture
+  - output dirs are per-attempt (target/render-bvh/r02-skybox-window/attempt1); R05 attempt dirs are untouched
+  - if the window aborts, only guards-r02-skybox.json (written before the window) and the attempt dir exist;
+    no product evidence is produced, and a new attempt uses a fresh attempt dir.
+
+not executed: nothing in this addendum was run as a window; stage A/freeze/stage B all remain pending sign-off.
