@@ -1,0 +1,193 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-s2-hfield-intersect-check",
+  "kind": "render-bvh-r05-s2-hfield-intersect-check",
+  "reviewed_task": "2026-10-28-render-bvh-r05-s2-hfield-intersect-r2",
+  "reviewed_commits": ["0656bd6e", "c84c1760"],
+  "pre_split_tree": "59d1b2a4",
+  "head_at_review": "c84c1760",
+  "verdict": {
+    "result": "pass",
+    "blockers": 0,
+    "observations": 7,
+    "scope": "零渲染数值结论的接线复核：三角化对齐上游（16 例逐位比对）、bounds 公式、槽语义与 u32/u64 ABI 等价、两条旧断言必要性、None 路径、PTX/回归、行数/红线/模块源、证据；不开 GPU 窗口"
+  },
+  "review_points": {
+    "triangulation_vs_upstream": {
+      "upstream": "冻结 MJWarp 3.15 71da24d `_src/bvh.py` L453-622 + render_util.py L473-488",
+      "independent_replica": "numpy 2.5.4 / NEP 50 f32 口径复刻 _optimize_hfield_mesh + build_hfield_bvh",
+      "cases": 16,
+      "bit_identical_cases": 14,
+      "divergent_cases": ["thr_slope_at", "thr_planar_merge_2x3_at"],
+      "divergence_topic": "差值恰为 f32(1e-5)=0x3727C5AC 时的阈值比较（见 O1）",
+      "line_map_verified": "README §2 行号对照表逐段对照 bvh.py 原文正确（L472-484/486/499-500/504-513/517-545/547-563/564-565/567-576/595-596/608-610/612-620）",
+      "line_map_verified_flag": true,
+      "half_bits_verified": true,
+      "probe": "tests/_qa_s2_hfield_probe.rs（临时，已删除，未入库）；原始输出 logs/probe-tri.log、复刻比对 logs/tri-verify.log"
+    },
+    "bounds": {
+      "formula": "center[axis]=fused_mul_add(rot[axis][2], size[2], pos[axis]) 后 box_bounds(center, rot, size)；size = build_hfield_bvh 的 half",
+      "upstream": "bvh.py L225-233 + render_util.py L479-488（hfield_bounds_size[hid]=hhalf）",
+      "fma_pinned_values_recomputed": true,
+      "scene_leaf_doc_updated": true,
+      "gtype8_still_rejected_on_host": true
+    },
+    "slot_semantics_and_abi": {
+      "args_rs_blob_unchanged": true,
+      "megakernel_slots": 81,
+      "kernel_param_type": "wp::array_t<wp::uint64> hfield_bvh_id",
+      "host_u32_word_pair_le": true,
+      "byte_length_matches": "8 x count == span bytes",
+      "sentinel": "u64::MAX；长度=nhfield；空时 1 哨兵",
+      "blob_index": "既有 mesh 末尾追加（mesh_count + order）",
+      "device_read": "hfield_bvh_id[geom_dataid[geom]]，哨兵跳过；gtype==1 与 7 同走 ray_mesh_leaf"
+    },
+    "old_assertions": {
+      "render_context_lifecycle": "hfield 由拒绝改为 bounds 断言（必要后果，非放宽）",
+      "render_scene_bvh_host": "gtype 1 → gtype 9 未支持面（必要后果，非放宽）",
+      "other_assertions_unchanged": true
+    },
+    "none_path": {
+      "api_unchanged": true,
+      "set_hfield_builder": true,
+      "slot_shape_and_type_unchanged": true,
+      "slot_value_changed": "u64(0) -> u64::MAX（不可达，见 O2）",
+      "unit": {"passed": 1082, "failed": 0, "ignored": 387, "result_lines": 133}
+    },
+    "device_and_kernel_gate": {
+      "kernel_gate_run_by_qa": {
+        "source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746",
+        "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13",
+        "ptx_bytes": 264015,
+        "matches_implementation_evidence": true,
+        "exit": 0
+      },
+      "render_cu_unchanged": true,
+      "no_new_cu": true,
+      "texture_hfield_formula_checked": true,
+      "shadow_no_backface_for_hfield_and_mesh": true,
+      "gtype8_not_intersected_device": true,
+      "sample_texture_uses_geom_size_not_half": true
+    },
+    "lines_and_redlines": {
+      "megakernel_rs": 404,
+      "megakernel_uploads_rs": 405,
+      "cast_rs": 411,
+      "cast_mesh_rs": 223,
+      "hfield_mesh_rs": 266,
+      "aabb_rs": 457,
+      "hfield_rs": 449,
+      "render_common_cu": 410,
+      "render_shade_cu": 383,
+      "render_megakernel_cu": 347,
+      "render_shadow_cu": 32,
+      "render_cu": 499,
+      "launch_rs": 500,
+      "model_render_rs": 500,
+      "camera_output_rs": 499,
+      "args_rs": 494,
+      "device_sources": 28,
+      "entry_points": 6,
+      "collision_args_bytes": 504,
+      "megakernel_slots": 81,
+      "module_sources_before_after": "38 -> 39",
+      "validate_fingerprints_errors": 0
+    },
+    "regression_by_qa": {
+      "fmt": {"exit": 0},
+      "clippy": {"exit": 0},
+      "clippy_cuda": {"exit": 0},
+      "unit": {"passed": 1082, "failed": 0, "ignored": 387, "result_lines": 133}
+    },
+    "evidence": {"files": 8, "manifest_entries": 7, "manifest_matches_committed_blob": "7/7",
+                 "manifest_self_reference": false, "lf_only_no_bom": true, "forbidden_word_hits": 0,
+                 "readme_lines": 163, "receipt_task_id_is_r2": true, "re_registered_from_present": true,
+                 "sections_1_to_8_present": true, "zero_numeric_conclusions": true},
+    "commit_scope": {"0656bd6e_files": 32, "c84c1760_files": 2, "outside_card_scope": 0}
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "major",
+      "blocking": false,
+      "topic": "triangulation threshold comparison caliber differs from upstream at exactly f32(1e-5)",
+      "detail": "实现 threshold=1.0e-5f64 与 f32 差值做 f64 比较；上游 numpy 2.5.4 NEP 50 下 np.float32 与 python float 比较按 f32（f32(1e-5)=9.999999747378752e-06 < 1e-5）。差值恰为 f32(1e-5)（0x3727C5AC）时：上游判非共面/不合并，实现判共面/合并 → 顶点/索引不同（2x3 边界探针：上游 6 顶点/12 索引，实现 4 顶点/6 索引；fits_plane 的预测/斜率判据同理，实测 thr_slope_at 分歧）。其余 f32 值两侧一致。README §2.1 的「阈值不落在相邻 f32 之间 ⇒ 与 f64 比较等价」不成立。影响仅当场景数据出现该精确边界差值；S3 判据/参考不改。",
+      "suggestion": "fix",
+      "fix": "实现改全 f32 比较（let threshold = 1.0e-5f32; diff.abs() < threshold / >= threshold），或证据 §2.1 如实记录该边界差异并在 S3 前确认 fixture 不命中"
+    },
+    {
+      "id": "O2",
+      "severity": "minor",
+      "topic": "None path slot 64 uploaded value changes from u64(0) to u64::MAX",
+      "detail": "S2 前槽 64 上传 [0u32,0]（u64=0）；现在无 hfield 时上传 1 个 u64::MAX。形状/类型不变（1 元素 Array(U64)），设备侧仅 gtype==1 时读取且含 hfield geom 未注入会被 host 前置拒绝 ⇒ 渲染行为零差异；但「上传内容不变」字面不成立。",
+      "suggestion": "accept_or_note",
+      "fix": "证据写明「值改变但不可达」"
+    },
+    {
+      "id": "O3",
+      "severity": "info",
+      "topic": "used hfield set omits upstream geom_enabled_mask condition (currently harmless)",
+      "detail": "HfieldDevice::build 按 geom_type==1 && geom_dataid>=0 收集；上游 render_util.py L475-476 还要求 geom_enabled_mask。当前产品路径 enabled_geom_ids 要么空（全启用）要么必须全量（部分使能直接 Unsupported），实际集合与上游一致；未来支持部分使能需补该条件。",
+      "suggestion": "accept"
+    },
+    {
+      "id": "O4",
+      "severity": "info",
+      "topic": "fused_mul_add is f64-computed + single f32 rounding",
+      "detail": "与 f32::mul_add 在极罕见双舍入边界理论上可能不同；属 S2a 既有约定（56 位姿冻结参考逐位一致），本片沿用。我用精确有理数复算两个 pinned 位型（0xbd0602f1/0xbe055442）一致。",
+      "suggestion": "accept"
+    },
+    {
+      "id": "O5",
+      "severity": "info",
+      "topic": "SceneLeaf.size for hfield must be the mesh half; no consistency check",
+      "detail": "调用方须传 build_hfield_mesh 的 half；实现不校验/不自动推导，误传 geom_size 会得错误 bounds。证据 §5 已写用法。",
+      "suggestion": "accept",
+      "fix": "建议 S3 fixture 侧由同一 half 构造（或后续加 debug 断言）"
+    },
+    {
+      "id": "O6",
+      "severity": "info",
+      "topic": "BVH strategy differences (leaf_size 8 vs 2, in-house binned SAH) documented",
+      "detail": "证据 §3 已如实记录；S3 若出现 tie-break 差异按卡面停手报 Arch，不改容差/参考。",
+      "suggestion": "accept"
+    },
+    {
+      "id": "O7",
+      "severity": "info",
+      "topic": "non-boundary triangulation behavior bit-identical; degenerate inputs return readable errors",
+      "detail": "14/16 例顶点/索引/half 位型一致（含索引顺序/贪心停位/缩放/非零 size[2]/2x5/4x4 混合）；nrow<2 等给 BvhError 可读错误而非 panic（上游在 np.min 抛错）。",
+      "suggestion": "accept"
+    }
+  ],
+  "boundaries": [
+    "零渲染数值结论：RGB/depth/seg、阴影、纹理采样正确性留 R05-S3 验证窗；本片不开窗、不跑 GPU。",
+    "未在 S2 前树重跑内核编译门；after 值由 QA 自跑取得并与证据一致，before 值引用实现证据记录（CUDA 源改动即预期变化来源）。",
+    "三角化 16 例为 QA 自造样例（非 S3 场景 fixture）；场景数据是否命中阈值边界需 S3 检查。",
+    "探针 tests/_qa_s2_hfield_probe.rs 为临时文件，运行后删除未入库；上游复刻脚本与原始输出入本证据 logs/。",
+    "未测 hfield 大网格性能/每帧重建开销；未覆盖 flex/splat/skybox/SDF 求交与 hfield 多 world 复制。"
+  ],
+  "gates": {
+    "fmt": {"exit": 0, "log": "logs/fmt.log"},
+    "clippy": {"exit": 0, "log": "logs/clippy.log"},
+    "clippy_cuda": {"exit": 0, "log": "logs/clippy-cuda.log"},
+    "unit": {"passed": 1082, "failed": 0, "ignored": 387, "log": "logs/unit.log"},
+    "kernel_compile_gate": {"exit": 0, "log": "logs/kernel-gate.log",
+                            "source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746",
+                            "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13",
+                            "ptx_bytes": 264015}
+  },
+  "gate_note": "QA 复核卡无门禁：normify gate exit 1「任务没有引用任何门禁」属预期；四门禁 + 内核门日志为复核用独立复跑记录。",
+  "normify": {
+    "check_reviewed_task": "exit 0",
+    "validate_fingerprints": "错误 0 警告 5（既有结构类）",
+    "board": "已验收 542 / 运行 0 / 错误 0 / 警告 0（本卡关闭后）"
+  },
+  "claims": {
+    "triangulation_aligned_except_threshold_boundary": true,
+    "bounds_formula_aligned": true,
+    "slot_abi_equivalent": true,
+    "old_assertions_only_necessary_changes": true,
+    "no_gpu_no_window_no_numeric_conclusion": true
+  },
+  "recompute": {"script": "recompute.py", "result": "recompute.json", "problems": 0}
+}

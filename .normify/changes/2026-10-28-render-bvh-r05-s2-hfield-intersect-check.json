@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-s2-hfield-intersect-check",
+  "title": {
+    "zh": "R05-S2 独立复核（三角化对齐上游 / bounds / 槽语义与 ABI 等价 / 旧断言必要性 / None 零差异 / PTX / 行数 rebase / 证据）",
+    "en": "Independent check of R05-S2 (upstream-aligned triangulation, bounds, slot semantics/ABI equivalence, assertion necessity, None path, PTX, rebased line counts, evidence)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-28-render-bvh-r05-s2-hfield-intersect-r2`：① 三角化逐条对齐上游 `bvh.py L453-622`（`get_point_index`/共面判据/贪心宽高扩展/两三角顺序/`width,height`/`half`、pinned numpy 2.5.4 NEP50 f32 口径）并核 7 条顺序单测强度；② `GeomKind::Hfield` bounds（`center=pos+rot[:,2]*half[2]`、`fused_mul_add`、对齐 `bvh.py L225-233`）+ 单测；③ 槽语义（`MEGAKERNEL_SLOTS[64]` blob 索引 + `u64::MAX` 哨兵 + 长度 nhfield + 空时 1 哨兵 + u32 低/高字对承载 u64 的 ABI 等价性），81 槽签名零变化；④ 两条旧断言更新（`render_context_lifecycle.rs` / `render_scene_bvh_host.rs`）是否**行为变更必要**而非放宽，其余断言强度不变；⑤ 注入 A 非破坏与 `None` 路径零差异（1082/0 + S7b1/S7b2/S7b3/S8 位等回归）；⑥ 设备分派（`gtype==1` → `ray_mesh_leaf`、阴影 `{1,7}` 不剔背、`gtype==8` 仍拒绝、`texture_hfield`、`render.cu` 零改动、无新增 `.cu`）；⑦ 新 `MEGAKERNEL_SOURCE`/PTX sha 记录、行数 rebase（`megakernel.rs` ≤500 且实际 404）、红线与 ABI、模块源 38→39、证据完整性；⑧ 零渲染数值结论（数值验收留 S3 窗）。",
+    "en": "QA independent check of the R05-S2 hfield triangulation and mesh-BVH intersection slice."
+  },
+  "modules": {},
+  "acceptance": [
+    "**三角化对齐上游**：逐条核 `hfield_mesh.rs` 坐标公式/`width`/`height`/每格 2 三角顺序/贪心共面合并与 `bvh.py L453-622` 对应关系（证据行号对照表是否准确）；7 条顺序单测断言强度（是否真钉顶点/索引顺序与 `half`），QA 自己构造边界样例（1×1、2×2、4×4、共面/非共面混合）复核。",
+    "**bounds**：`GeomKind::Hfield` 的 `center=pos+rot[:,2]*half[2]` 与 box 公式（`fused_mul_add`）独立重算，对照 `bvh.py L225-233`；`SceneLeaf` 文档与 `gtype==8` 仍拒绝的现状一致。",
+    "**槽语义与 ABI 等价**：`MEGAKERNEL_SLOTS[64]` 仍为 `Array(U64)`、81 槽签名零变化；blob 索引/`u64::MAX` 哨兵/长度=nhfield/空时 1 哨兵逐项核；u32 低/高字对承载 u64 在设备侧的拼接与 host 期望值一致（核设备读取代码），ABI 等价性证据成立。",
+    "**两条旧断言必要性**：核 `render_context_lifecycle.rs` 与 `render_scene_bvh_host.rs` 的改动只因「hfield 由拒绝变支持」，**不是放宽判据/容差**；其余断言强度不变（`git diff` 逐行读）。",
+    "**None 路径零差异**：注入 A 的 builder 在 `None` 时不改变上传内容/内核参数；QA 独立复跑 `cargo test --locked` 应 **1082 passed / 0 failed**（含 S7b1/S7b2/S7b3/S8 位等回归）。",
+    "**设备与 kernel gate**：`gtype==1` 与 mesh 同走 `ray_mesh_leaf`（哨兵跳过）、阴影对 `{1,7}` 不剔背、`gtype==8` 仍拒绝、`texture_hfield` 逐式对照上游、`render.cu` 零改动、无新增 `.cu`；自己重跑内核编译门记录新 `source_sha256`/`ptx_sha256`/字节并与证据对照（预期变化：`72bc364c…`/`97467d83…`/264 015）。",
+    "**行数/红线/模块源**：`megakernel.rs` 404（≤500）、`megakernel_uploads.rs` 405、`cast.rs` 411（≤450）、`cast_mesh.rs` 223、`bvh/hfield_mesh.rs` 266、`bvh/aabb.rs` 457、`context/hfield.rs` 449、`.cu` 410/383/347/32、`render.cu` 499 零改动；`launch.rs`500/`model/render.rs`500/`camera_output.rs`499 零改动；`DEVICE_SOURCES`=28、入口 6、`CollisionArgs` 504 B；模块源 38→39；`validate --fingerprints` 错误 0。",
+    "**证据**：`docs/development-evidence/render-bvh/r05-s2-hfield-intersect/`（README §1 rebase、§2 行号对照、§3 BVH 策略差异、§4 槽 ABI、§5 注入、§6 设备、§8 旧断言必要性 + receipt `/task_id` = r2 且含 `re_registered_from` + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0、**零渲染数值结论**）；先报 verdict/blockers/observations。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r05-s2-hfield-intersect-r2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r05-s2-hfield-intersect-check/"
+    ],
+    "resources": [],
+    "priority": 56
+  },
+  "note": "Arch 2026-10-28 预登记（S2 重登记卡 r2 的复核）。start 时必须同时把任务 id + 复核点发进 QA 会话。",
+  "revision": {
+    "before": "b812403217776b252bbb7d75f8b0d44414247555",
+    "after": null
+  },
+  "created_at": "2026-10-28T15:02:00.000Z",
+  "updated_at": "2026-10-28T15:02:05.647Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-s2-hfield-intersect-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-s2-hfield-intersect-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
