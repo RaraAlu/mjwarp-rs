@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-s3b-hfield-validate",
+  "title": {
+    "zh": "R05-S3b hfield 验证窗（9 实体：1 新 target + 8 回归，判据不变）",
+    "en": "R05-S3b hfield validation window (9 entities: 1 new target + 8 regressions, criteria unchanged)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "在**已双签**的 GPU 验证窗内，把 R05 hfield 产品输出与 R05-S3a 新采参考对比（rgb/depth/seg 两相机），同时跑 8 个 R09-S3b 既有回归实体确认零回退。判据沿用既有口径**不新增、不放宽**：RGB ≤1 LSB（位级优先）、depth ≤4 ULP（位级优先）、seg 完全相等；两次 sha 相同。若 hfield 出现超判据即**停手报 Arch**，不改容差/参考/fixture。",
+    "en": "Inside a dual-signed GPU validation window, compare R05 hfield product output against R05-S3a references and run 8 R09-S3b regression entities. Criteria unchanged; any exceedance stops and reports."
+  },
+  "modules": {},
+  "acceptance": [
+    "**实体清单（9）**：① R05 hfield 目标（cam0/cam1 × rgb/depth/seg，对比 R05-S3a 新参考）；②–⑨ 8 个 R09-S3b 既有回归实体（同清单、同判据、不新增口径），开窗前把逐实体 id 与命令写进证据，窗口内一条不改。",
+    "**窗口材料与双签**：开窗前向 Arch 报窗口计划（3 点 GPU 基线 free/util、`floor=min(10240, baseline_free−3072)`、0.25 s 采样器、`guards.json` + 守卫清单、9 实体清单、ASCII-only runner 自检三项），Arch 转 Chief **双签后**才开窗；guard precheck 为唯一硬门。",
+    "**冻结协议**：实体/guards 在最后构建后冻结（记 sha256）；冻结后到开窗禁跑 cargo/rustc/cargo test；签名后 runner/guards/exe 任一变动即作废重签；实体 exit 码、`WINDOW_RUN_DONE`、无效轮（exit 9 等）全部留档。",
+    "**判据（沿用既有，不新增不放宽）**：RGB ≤1 LSB 且位级优先；depth ≤4 ULP 且位级优先；seg 完全相等（mismatch=0）；两次 sha 相同；报告中必须给出每实体的比较规模（像素数/采样数）与超判据计数，不能只给「通过」。",
+    "**停手条件**：hfield 任一相机任一产物超判据，或出现 BVH `leaf_size=8` vs 上游 `2` 的 tie-break 可疑差异 → **立即停手报 Arch**，不改容差、不改参考、不改 fixture，也不得自行解释为「可接受」。",
+    "**回归零回退**：8 个 R09-S3b 回归实体结果必须与 R09-S3b 收口时记录一致（同值或同类断言），任何数值漂移都要单独列出并解释来源（例如 S2 引入的 host 侧改动是否影响 primary 路径）。",
+    "**窗口纪律**：同一时间只跑一个 GPU 满载任务；离线 authoring 优先；窗口结束立即释放 GPU 并向 Arch 报一行；窗口期间不并行其它 GPU 任务。",
+    "**证据与措辞**：`docs/development-evidence/render-bvh/r05-s3b-hfield-validate/`（README + receipt + manifest 按 committed blob 不自引用 + logs，LF 无 BOM、禁词 0）；不写「窗口通过/已覆盖/精度达标/上游等价」等禁词，只写可复核的数字与差异计数；两段提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r05-s3a-hfield-capture",
+      "2026-10-28-render-bvh-r05-s3b-hfield-target-authoring"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/r05-s3b-hfield-validate/",
+      "scripts/validate/render-bvh/",
+      "tests/render_hfield_reference.rs",
+      "tests/support/render_bvh/",
+      "fixtures/render-bvh/scene-hfield/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 58
+  },
+  "note": "Arch 2026-10-28 预登记（R05-S3b 验证窗）。files 为基线，窗口脚本如需新增/变更先报 Arch。GPU 窗必须先双签。",
+  "revision": {
+    "before": "28fb3889d569044803bd1c94d49d0aec29c57d40",
+    "after": null
+  },
+  "created_at": "2026-10-28T15:22:00.000Z",
+  "updated_at": "2026-10-28T17:10:43.824Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-s3b-hfield-validate/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-s3b-hfield-validate"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "窗口通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过",
+        "完整R01通过"
+      ]
+    }
+  ]
+}
