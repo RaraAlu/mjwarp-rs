@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-s3a-hfield-capture",
+  "title": {
+    "zh": "R05-S3a hfield 参考采集（离线 authoring + GPU 采集窗，2 组）",
+    "en": "R05-S3a hfield reference capture (offline authoring + GPU capture window, 2 groups)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "为 R05 地形 hfield 片采集渲染参考：离线 authoring 新捕获脚本与 hfield 场景（不改动 R09 已采参考与既有采集路径），再在**已双签**的 GPU 采集窗内采集两组参考（① hfield-only；② hfield + ≥1 primitive 遮挡混合），2 相机 × rgb/depth/seg，npz+capture.json 沿用 R09-S3a 格式。本片**只采集、不比数**：零渲染数值结论，数值验收全部留 R05-S3b 验证窗。窗口须先由 Arch 转 Chief 双签（窗口计划 + 基线 + 守卫 + runner）后才可开；开窗前后按窗口协议执行并留档。",
+    "en": "Capture hfield render references: offline authoring of a new capture script and hfield scene (leaving R09 references and existing capture paths untouched), then capture two groups inside a dual-signed GPU window. Capture only, no numerical acceptance."
+  },
+  "modules": {},
+  "acceptance": [
+    "**离线 authoring（不进窗口）**：新捕获脚本（建议 `scripts/capture_render_hfield.py`，按 `scripts/capture_render_shadow.py` 配方派生）必须 ① `--use-fast-math` 参数化且**默认 false**；② `capture.json` 打印完整 recipe（npz 相对路径、场景 `scene.xml` sha256、相机标识与位姿、组名、脚本自身 sha256、fast-math 标志、pinned python/numpy 版本）；③ 不修改既有 shadow-on/off 采集路径与既有脚本，保证 R09 参考可复现性不被动摇。",
+    "**hfield 场景 fixture**：① hfield 起伏非零（`size[2]` 非零）、网格 4×4；② 两个相机 cam0 俯视、cam1 侧视；③ 混合组至少 1 个 primitive 产生遮挡；④ 三角化输入覆盖**共面合并与非共面不合并**两种情形；⑤ 必须**反算并留下证据**：相邻格差值不会恰等于 `f32(1e-5)`=`0x3727C5AC`（即不命中 R05-S2 QA O1 修复后的阈值边界），若命中则改参数避开并说明。",
+    "**窗口材料与双签**：开窗前向 Arch 报窗口计划（3 点 GPU 基线 free/util、`floor=min(10240, baseline_free−3072)`、守卫清单、将要跑的实体清单、ASCII-only runner 自检三项），Arch 转 Chief **双签后**才开窗；签名前置条件（连续 ≥5 分钟干净：`free≥10240`/`util<40`/compute-apps 过滤 0/构建进程 0）与 guard precheck 作唯一硬门。",
+    "**冻结与留档**：开窗前完成最后构建，随后冻结脚本/场景/runner/exe（记 sha256 进 `target/r05-s3a-window/signature-record.md`）；冻结后到开窗**禁跑 cargo/rustc/cargo test**；签名后任一实体变动即作废重签。",
+    "**两组采集**：① hfield-only（无 primitive）；② hfield + primitive 混合。每组两相机 × `{rgb,depth,seg}`；npz+capture.json 沿用 R09-S3a 格式（不改既有字段语义，可增 `group` 字段）；采集后在同一窗口内做 **A/B 两次重采逐字节一致**校验并留 sha。",
+    "**旧参考零读写守卫**：不读、不改、不覆盖 R09 的 `capture-exact/` 与既有 npz；只新增独立目录（`capture-hfield/…`）；采集前后各做一次旧文件 sha 快照比对证明零改动。",
+    "**环境与窗口纪律**：全程 pinned python（numpy 2.5.4）单次窗口内完成，不混用系统 python/其他解释器；窗口结束立即释放 GPU 并发 Arch 一行；实体 exit 码与是否出现 `WINDOW_RUN_DONE` 完整留档，exit 9 等无效轮按协议留档不当作有效轮。",
+    "**证据与措辞**：`docs/development-evidence/render-bvh/r05-s3a-hfield-capture/`（README + receipt + manifest 按 committed blob 不自引用 + logs，LF 无 BOM、禁词 0）；两段提交（实现/证据分离）；**零渲染数值结论**，不写「窗口通过/已覆盖/精度达标/上游等价」；本片不宣称任何渲染正确性结论。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r05-s2-hfield-intersect-r2"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/capture_render_hfield.py",
+      "fixtures/render-bvh/scene-hfield/",
+      "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 58
+  },
+  "note": "Arch 2026-10-28 预登记（R05-S3a 采集）。files 为预核基线，离线 authoring 完成后如有新增/变更必须先报 Arch（改卡面需 Chief 追认）。GPU 窗必须先双签，禁止未签开窗。",
+  "revision": {
+    "before": "e73a363f2388fcc9fd3438ec30c063251841dd27",
+    "after": null
+  },
+  "created_at": "2026-10-28T15:20:00.000Z",
+  "updated_at": "2026-10-28T15:20:17.353Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-s3a-hfield-capture"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "窗口通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过",
+        "完整R01通过"
+      ]
+    }
+  ]
+}

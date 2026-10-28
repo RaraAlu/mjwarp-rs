@@ -1,0 +1,153 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-s3a-hfield-capture",
+  "kind": "render-bvh-r05-s3a-hfield-capture",
+  "stage": "authoring-complete-capture-pending",
+  "window": false,
+  "numeric_conclusion": false,
+  "capture_pending": true,
+  "script": {
+    "path": "scripts/capture_render_hfield.py",
+    "sha256": "cb1808f8c185df0e4695bb7107ec941c2e9e0aa8bb883fa1f630dc029d28a599",
+    "bytes": 20314,
+    "lines": 425,
+    "ascii_only": true,
+    "non_ascii_bytes": 0,
+    "derived_from": "scripts/capture_render_shadow.py",
+    "derived_from_sha256": "7c04809c6558eb8207d35c03c7b8777985b36d733eb711020910154bc6c18415",
+    "derived_from_untouched": true,
+    "syntax_check": "ast.parse OK (pinned python 3.12.13)",
+    "line_cap_note": "first draft was 566 lines and was rejected by the commit hook (new file >500 lines); compressed to 425 lines with identical logic, dry-runs re-run OK",
+    "dry_run_exit": {"hfield-only": 0, "hfield-primitive": 0}
+  },
+  "scenes": {
+    "hfield-only": {
+      "path": "fixtures/render-bvh/scene-hfield/scene.xml",
+      "sha256": "4ea424f9e8bf33bd69246bccb638437c1c141666fb7374dbc9608b01ee9425cf",
+      "bytes": 3264,
+      "lines": 59
+    },
+    "hfield-primitive": {
+      "path": "fixtures/render-bvh/scene-hfield/scene-mixed.xml",
+      "sha256": "73202dc946dfd7b8fa03195b7268ecaf39601acaca7b53b3f7553fa2780aa94d",
+      "bytes": 2986,
+      "lines": 58
+    },
+    "hfield": {
+      "nrow": 4,
+      "ncol": 4,
+      "size": [1.5, 1.0, 0.25, 0.1],
+      "size_z_nonzero": true,
+      "mujoco_normalizes_elevation": true,
+      "upstream_reshape_transposes_storage": true,
+      "fixture_symmetric_under_transpose": true
+    },
+    "cameras": {
+      "cam0": "top-down pos=(0,0,3.4) xyaxes=(1,0,0,0,1,0) fovy=45 res=320x240; worst coverage ratio 0.862<1",
+      "cam1": "side pos=(3.4,-2.6,1.8) xyaxes=(0.6069,0.7936,0,-0.2857,0.2185,0.9330) fovy=40 res=240x180"
+    },
+    "occluder": {"path": "scene-mixed.xml only", "body_pos": [0.62, -0.47, 0.45], "box_half": 0.14, "ray_to_terrain_centre_distance": 0.0194},
+    "lights": {"count": 2, "castshadow": [true, true], "use_shadows_param": true}
+  },
+  "environment": {
+    "python_executable": "target/mjwarp-parallel/venv/Scripts/python.exe",
+    "python_sha256": "feeec36120097a03201a96ae17a0e2c1fba70dd6241cb4bfdd9e7c2a00bada77",
+    "python_version": "3.12.13",
+    "warp": "1.15.0",
+    "mujoco": "3.15.0",
+    "mujoco_warp": "3.15.0",
+    "numpy": "2.5.4",
+    "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "upstream_clean": true,
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER",
+    "driver": "596.36",
+    "arch": 89,
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "capture_plan": {
+    "groups": ["hfield-only", "hfield-primitive"],
+    "out_dirs": [
+      "fixtures/render-bvh/scene-hfield/capture-hfield/hfield-only",
+      "fixtures/render-bvh/scene-hfield/capture-hfield/hfield-primitive"
+    ],
+    "files_per_group": ["rgb.npz", "depth.npz", "seg.npz", "capture.json"],
+    "npz_bytes_per_group": 2880000,
+    "estimated_total_bytes": 5800000,
+    "repeat": 2,
+    "ab_bitwise_criterion": "same process renders twice; arrays np.array_equal; deterministic ZIP_STORED npz (fixed 1980-01-01 timestamps, names sorted) sha256 identical; capture.json two_captures_bitwise_identical=true",
+    "use_fast_math_default": false,
+    "use_shadows_default": true,
+    "capture_at_env": "2026-10-29T00:00:00+08:00",
+    "commands": [
+      "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/capture_render_hfield.py --group hfield-only --out-dir fixtures/render-bvh/scene-hfield/capture-hfield/hfield-only",
+      "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/capture_render_hfield.py --group hfield-primitive --out-dir fixtures/render-bvh/scene-hfield/capture-hfield/hfield-primitive"
+    ]
+  },
+  "legacy_guard": {
+    "scope": "fixtures/render-bvh/ excluding scene-shadow/ and scene-hfield/",
+    "files": 38,
+    "bytes": 25320515,
+    "aggregate_sha256": "b5cb50afcc608a67ca9a7b83222029402719f2770a3510ab423df13601e50d8b",
+    "aggregate_algorithm": "sha256 over the 38 file sha256 hex strings in path-sorted order concatenated with no separator",
+    "per_file_list": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/legacy-baseline.txt",
+    "in_script_before_after_compare": true
+  },
+  "gpu_baseline": {
+    "samples": [
+      {"at": "23:25:17.679", "free_mib": 13290, "total_mib": 16376, "util_pct": 35},
+      {"at": "23:25:19.731", "free_mib": 13290, "total_mib": 16376, "util_pct": 36},
+      {"at": "23:25:21.776", "free_mib": 13290, "total_mib": 16376, "util_pct": 39}
+    ],
+    "floor_formula": "min(10240, baseline_free - 3072)",
+    "floor_mib": 10218,
+    "filtered_compute_apps": 0,
+    "filter_pattern": "python|g10_p5_|product_collision|stage2_equivalence|cargo|rustc|nvcc|cl\\.exe|render_",
+    "build_processes": 0,
+    "wall_estimate_s": 240,
+    "attempt": 1,
+    "note": "planning baseline only; a separate >=5 min clean pre-window monitor and Arch->Chief dual signature are still required"
+  },
+  "reverse_calc": {
+    "threshold_bits": "0x3727C5AC",
+    "threshold_value": 9.999999747378752e-06,
+    "cell_diffs": {
+      "planar": ["(0,0) +5.96046448e-08", "(0,1) 0", "(0,2) 0", "(1,2) 0", "(2,2) +5.96046448e-08"],
+      "non_planar": ["(1,0) +0.25", "(1,1) -0.25", "(2,0) -0.25", "(2,1) +0.25"]
+    },
+    "any_exact_threshold_hit": false,
+    "min_distance_to_threshold": 9.940395102603361e-06,
+    "fits_plane_residuals": {"count": 9, "max": 5.96046448e-08, "boundary_hits": 0},
+    "triangulation_shape": {"vertices": 13, "indices": 36, "triangles": 12, "merge_and_non_merge_present": true},
+    "reproduce": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/reverse-calc.py",
+    "output": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/reverse-calc.txt"
+  },
+  "materials": {
+    "dir": "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/",
+    "files": [
+      "legacy-baseline.txt",
+      "gpu-baseline.txt",
+      "env.txt",
+      "dryrun-hfield-only.json",
+      "dryrun-hfield-primitive.json",
+      "reverse-calc.py",
+      "reverse-calc.txt"
+    ]
+  },
+  "pending": [
+    "GPU capture window not opened; no npz/capture.json products yet",
+    "window must be dual-signed (Arch -> Chief) with window plan, guards, runner, floor and 9-entity list",
+    "S3b validation window separately signed after capture"
+  ],
+  "limits": [
+    "capture only: zero rendering numeric conclusions",
+    "R09 references and R09 capture script are read-only and untouched",
+    "hfield capture groups use use_shadows=true so the hfield shadow passthrough path is exercised",
+    "MuJoCo normalizes the MJCF elevation grid to [0,1] on load; upstream reshapes the column-major store as row-major (transpose); this fixture is symmetric under transpose",
+    "SceneLeaf.size must use the same half produced by the triangulation (S2 O5 carried to S3b)"
+  ],
+  "claims": {
+    "no_window": true,
+    "no_numeric_conclusion": true,
+    "authoring_only": true,
+    "product_python_dependency": false
+  }
+}

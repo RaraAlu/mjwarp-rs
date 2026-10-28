@@ -1,0 +1,14 @@
+# R05-S3a GPU planning baseline (read-only sampling, NOT window-open evidence)
+# sampled_at=2026-10-28T23:25:17..21+08:00 (Asia/Shanghai)
+# command: nvidia-smi --query-gpu=memory.free,memory.total,utilization.gpu --format=csv,noheader
+sample1 23:25:17.679 free_mib=13290 total_mib=16376 util_pct=35
+sample2 23:25:19.731 free_mib=13290 total_mib=16376 util_pct=36
+sample3 23:25:21.776 free_mib=13290 total_mib=16376 util_pct=39
+# gpu/driver: NVIDIA GeForce RTX 4070 Ti SUPER / driver 596.36 / compute_cap 8.9 (arch 89)
+# floor formula: floor = min(10240, baseline_free - 3072) = min(10240, 13290-3072=10218) = 10218 MiB
+# compute-apps raw count = 32 (all GUI/display processes); filtered workload pattern (python|g10_p5_|product_collision|stage2_equivalence|cargo|rustc|nvcc|cl.exe|render_) = 0
+# build processes (cargo/rustc/cl/nvcc/link) = 0
+# python processes exist (4) but none listed in nvidia-smi compute-apps -> no python GPU workload
+# wall_estimate_s = 240 total (<=120 per group: model load + 2 repeats x 2 cameras, cached kernels)
+# attempt = 1 (first capture window)
+# NOTE: window still requires a separate >=5 min clean pre-window monitor (free>=10240, util<40, filtered compute-apps 0, build procs 0) and dual signature; samples above are planning numbers only.
