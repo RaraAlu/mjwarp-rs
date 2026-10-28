@@ -161,7 +161,7 @@ extern "C" __global__ void render_megakernel(
     bool cull_backfaces = (flag_bits & MK_FLAG_CULL_BACKFACES) != 0u;
     CastHit hit = cast_ray(scene, blob, geom_type.data, geom_matid.data, (const float*)geom_rgba.data,
                            (const float*)mat_rgba.data, worldid, ray_origin_world, ray_dir_world,
-                           max_cam_dist, cull_backfaces);
+                           max_cam_dist, cull_backfaces, false);
 
     if (hit.geom_id != -1 && zfar > 0.0f && (hit.dist * -ray_dir_local_cam.z) > zfar) {
         hit.geom_id = -1;

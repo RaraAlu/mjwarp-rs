@@ -25,6 +25,6 @@ __device__ __forceinline__ float shadow_visibility(
     // 上游 L924-926：非方向光距离上限为到光距离；方向光按 1e8 近似无穷。
     float max_t = (lighttype == 1) ? 1.0e8f : (dist_to_light - 1.0e-3f);
     CastHit hit = cast_ray(scene, blob, geom_type, geom_matid, geom_rgba, mat_rgba, worldid,
-                           shadow_origin, to_light, max_t, cull_backfaces);
+                           shadow_origin, to_light, max_t, cull_backfaces, true);
     return (hit.geom_id != -1) ? shadow_light_fraction : 1.0f;
 }

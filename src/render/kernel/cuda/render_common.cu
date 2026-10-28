@@ -301,11 +301,14 @@ struct CastHit {
     int mesh_id;
 };
 
+// `shadow_ray`：阴影射线按上游 `cast_ray_first_hit`（any_hit 分支）语义处理背面剔除——
+// mesh 命中在 any-hit 下 `n` 为零向量（上游不填 surface data）→ cull 判据不生效；
+// primitive 命中仍按 cull 剔除。primary ray 传 false，行为与 S7b1/S7b2 完全一致。
 __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const MegakernelBlob& blob,
                                             const int* geom_type, const int* geom_matid,
                                             const float* geom_rgba, const float* mat_rgba, int worldid,
                                             V3 origin, V3 direction, float max_dist,
-                                            bool cull_backfaces) {
+                                            bool cull_backfaces, bool shadow_ray) {
     CastHit hit;
     hit.geom_id = -1;
     hit.dist = max_dist;
@@ -362,13 +365,16 @@ __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const Megake
         if (gtype == 7 || gtype == 8) {
             if (gtype == 7) {
                 d = ray_mesh_leaf(blob.mesh_meta, blob.mesh_params, blob.mesh_offsets, mesh_index,
-                                  pos, leaf_mat, origin, direction, query_dist, cull_backfaces, &n,
+                                  pos, leaf_mat, origin, direction, query_dist,
+                                  cull_backfaces && !shadow_ray, &n,
                                   &pass_bary_u, &pass_bary_v, &pass_face);
             }
         } else {
             render_intersect_primitive(gtype, pos, leaf_size, leaf_mat, origin, direction, &d, &n);
         }
-        if (cull_backfaces && d >= 0.0f && dot(direction, n) > 0.0f) {
+        // 上游阴影射线走 any-hit 分支（mesh 的 n 为零向量 → cull 不生效）；primitive 仍 cull。
+        bool cull_this = cull_backfaces && !(shadow_ray && gtype == 7);
+        if (cull_this && d >= 0.0f && dot(direction, n) > 0.0f) {
             d = -1.0f;
         }
         float tol = RAY_TOL_REL * (hit.dist > 1.0f ? hit.dist : 1.0f);

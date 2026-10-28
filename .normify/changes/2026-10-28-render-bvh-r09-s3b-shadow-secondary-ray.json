@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r09-s3b-shadow-secondary-ray",
+  "title": {
+    "zh": "R09-S3b-fix：阴影 secondary ray 漏判（cam1 少 1 208 个阴影像素）定位与修复",
+    "en": "R09-S3b-fix: diagnose and fix missing shadow occlusion on secondary rays (cam1 short by 1,208 shadowed pixels)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "S3b 验证窗 attempt1 出红：shadow-on 对 `capture-exact/shadow-on`，cam0 位级全等（rgb/depth/seg 全 0 差异），**cam1 rgb `mismatched=1451 / beyond_1_lsb=1436 / max_byte_diff=77`**；depth/seg 两相机仍全等。可见性对照显示参考 cam1 有 **4 745** 个阴影像素（geom (0,5) 2 341、(1,5) 2 068、(4,5) 125、(2,5) 113、(5,5) 89、(3,5) 9），产品 on/off 差异只有 **3 537** → **少 1 208 个阴影像素**，且产品在有阴影像素上偏亮（first: ref 4 → product 5）。primary ray 的 120 000 位等已由 S7b1/S7b2 证明，**secondary ray（表面起点阴影射线）在本窗首次被覆盖**。本片只做定位 + 修复 + dev 自查（小规模、非验证窗），判据/参考/容差/夹具零改动；正式验收在 attempt2 窗口。",
+    "en": "Diagnose and fix the missing shadow occlusion on secondary rays found by the S3b attempt1 window; no criteria changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "根因定位到具体机制（候选：产品自有 BVH secondary ray 的起点/自相交 eps、max_t、背面剔除、实例变换、normal 方向、closest-hit vs any-hit 路径差异等），证据写清定位过程与反例，不猜。",
+    "修复后 dev 自查：`scene-shadow` + `use_shadows=true` 的 cam1 阴影像素数量与参考一致（4 745），cam0 保持不变；cam0 位级不回归；shadow-off 路径（含对 `s7b/*_fast_math_false.json` 的逐位回归）不受影响。",
+    "判据/容差/参考/夹具**零改动**；`capture-exact/` 与 `capture/` 参考不变；不降低断言强度。",
+    "红线：`render.cu`(499)/`launch.rs`(500)/`cast.rs`(494)/`model/render.rs`(500)/`camera_output.rs`(499)/collision `DEVICE_SOURCES`=28/`CollisionArgs` 504 B 零改动；新文件 ≤500 行。",
+    "四门禁通过；证据 `docs/development-evidence/render-bvh/r09-s3b-shadow-secondary-ray/`（README + receipt 含 `/task_id` + manifest），不写「窗口通过/已覆盖/精度达标/上游等价」，本片不作验收结论。",
+    "修复后由 attempt2 验证窗复跑 9 实体（本片不宣称通过）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/kernel/",
+      "docs/development-evidence/render-bvh/r09-s3b-shadow-secondary-ray/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-28 登记（S3b attempt1 红项 1）：产品二级射线漏判，非判据问题。GPU 仅用于小规模 dev 自查（非验证窗，同一时间只允许一个 GPU 任务）。",
+  "revision": {
+    "before": "b295e7aa3c4a2256c6b5d33b14cad1d2947d66a8",
+    "after": null
+  },
+  "created_at": "2026-10-28T12:08:00.000Z",
+  "updated_at": "2026-10-28T12:10:21.110Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r09-s3b-shadow-secondary-ray/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r09-s3b-shadow-secondary-ray"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

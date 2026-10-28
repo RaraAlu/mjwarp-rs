@@ -1,0 +1,66 @@
+{
+  "task_id": "2026-10-28-render-bvh-r09-s3b-shadow-secondary-ray",
+  "kind": "render-bvh-r09-s3b-shadow-secondary-ray",
+  "stage": "root-cause-fix-and-dev-regression",
+  "head": "cbee1127",
+  "symptom": {
+    "source": "R09-S3b validation window attempt1 (valid round 1)",
+    "entity": "render_shadow_reference",
+    "shadow_on_cam1_rgb_beyond_1_lsb": 1436,
+    "shadow_on_cam1_rgb_max_byte_diff": 77,
+    "reference_shadow_pixels_cam1": 4745,
+    "missing_shadow_pixels_estimate": 1208,
+    "depth_seg_mismatch": 0
+  },
+  "root_cause": {
+    "summary": "Product shadow rays reused first-hit cast_ray with cull_backfaces, which backface-culls mesh occluders; upstream cast_ray_first_hit (any-hit variant) returns mesh hits with a zero-vector normal, so the unified cull test does not apply to mesh occluders (primitive occluders still culled)",
+    "upstream_evidence": [
+      "pinned render.py L585-827: _make_cast_ray(first_hit=True/False variants); _make_compute_lighting(cast_ray_first_hit) L830",
+      "render.py L740-750: mesh any-hit branch returns d = 0.0 if hit else -1.0, surface data (normal n) unused/unset",
+      "render.py L802-806: unified cull 'if cull_backfaces and d>=0 and dot(ray_dir_world, n) > 0: d = -1', comment states it skips branches with a zero-vector normal (any-hit)",
+      "render.py L928-958: shadow call passes cull_backfaces (rc setting, capture uses true)"
+    ],
+    "product_path": "render_shadow.cu -> cast_ray (first-hit) -> ray_mesh_leaf(..., cull_backfaces) with CULL_MARCHES=8 + outer cull -> mesh occluders over-culled by about 1398 hits",
+    "diagnostic_data": {
+      "product_cull_off_cam1_beyond_1_lsb": 38,
+      "upstream_cull_on_vs_off_cam1_diff_pixels": 38,
+      "upstream_cull_on_vs_off_cam0_diff_pixels": 0,
+      "per_light_shadow_coverage_cam1": {"sun": 1152, "lamp": 2541, "spot": 1465, "all": 3537},
+      "mismatch_all_inside_reference_shadow_set": true,
+      "mismatch_brighter_than_reference_only": true
+    }
+  },
+  "fix": {
+    "render_common_cu": {"lines_before": 387, "lines_after": 393, "detail": "cast_ray gains bool shadow_ray; shadow_ray disables mesh-internal cull (ray_mesh_leaf(..., cull_backfaces && !shadow_ray)) and limits outer cull to non-mesh geoms (!(shadow_ray && gtype == 7))"},
+    "render_megakernel_cu": {"lines_before": 340, "lines_after": 340, "detail": "primary ray call passes shadow_ray=false (behavior unchanged)"},
+    "render_shadow_cu": {"lines_before": 30, "lines_after": 30, "detail": "shadow ray call passes shadow_ray=true"},
+    "untouched": ["render.cu 499", "launch.rs 500", "cast.rs 494", "model/render.rs 500", "camera_output.rs 499", "DEVICE_SOURCES 28", "CollisionArgs 504 B"],
+    "criteria_tolerances_references_fixtures_changed": false
+  },
+  "verification": {
+    "dev_single_renders": {
+      "shadow_on": {"cam0_rgb": "0/0/0", "cam1_rgb": "0/0/0 (was 1436 beyond 1 LSB)", "depth_seg": "0/0 both cameras"},
+      "shadow_off": {"capture_exact_reference": "0/0/0 rgb, 0/0 depth/seg", "pre_unlock_bitwise": "depth/seg/rgb all 0"},
+      "residual_38_resolution": "38 was the upstream cull on/off difference itself (probe log); product aligned to any-hit semantics gives 0"
+    },
+    "primary_ray_regression": {
+      "render_kernel_depth_seg": "6 passed",
+      "render_kernel_rgb": "3 passed",
+      "render_kernel_flags": "6 passed",
+      "render_e2e": "5 passed (includes S8 negative-control use_shadows acceptance)"
+    },
+    "gates": "fmt/clippy/clippy-cuda/unit on the final tree (records under .normify/runs/2026-10-28-render-bvh-r09-s3b-shadow-secondary-ray/)"
+  },
+  "limitations": [
+    "no window verdict in this task; numeric acceptance belongs to the attempt2 validation window",
+    "no coverage claim, no precision claim, no upstream equivalence claim",
+    "references and fixtures read-only; criteria/tolerances unchanged; no failing case deleted or downgraded"
+  ],
+  "claims": {
+    "root_cause_identified": true,
+    "fix_implemented": true,
+    "dev_regression_passed": true,
+    "window_executed": false,
+    "numeric_acceptance": false
+  }
+}
