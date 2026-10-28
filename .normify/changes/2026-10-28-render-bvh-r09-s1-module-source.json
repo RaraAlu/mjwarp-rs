@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r09-s1-module-source",
+  "title": {
+    "zh": "R09-S1 治理：登记 lighting.rs 为 mjwarp.render 模块源 + 修 O3 文档笔误（O2 接受为结构债）",
+    "en": "R09-S1 governance: register lighting.rs as a mjwarp.render module source and fix the O3 doc typo (O2 accepted as debt)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "按 QA 对 R09-S1 的观察收口治理（verdict pass / 0 阻断 / 3 观察）：**O1（修）** `src/render/context/lighting.rs` 未被登记为 `mjwarp.render` 模块源（`render.md` 现有 `world_arrays.rs`/`world_camera.rs` 等，无 `lighting.rs`），补登记并刷新指纹；**O3（修）** `lighting.rs` L98-100 文档句「`Float` 或 `Index`/`Num` 之外的 `Float`」自相矛盾（笔误），改为「`Float`，长度 `3 × nlight`；非 `Float` 类型按 kind 错配拒绝」；**O2（接受，不扩 scope）** `#[path = \"lighting.rs\"] pub mod lighting;` 挂在 `params.rs` 导致模块路径 `context::params::lighting` 与文件位置不一致——记为后续片结构债，本轮只记录不改代码结构。零行为/API 变更、零判据/参考改动。",
+    "en": "Governance closure of R09-S1 QA observations: register lighting.rs as a module source, fix the doc typo, and accept the #[path] structural debt."
+  },
+  "modules": {},
+  "acceptance": [
+    "O1：`normify module source mjwarp.render --add src/render/context/lighting.rs` 执行并刷新指纹；`render.md` 含 `lighting.rs`，`normify validate --fingerprints` 无新增错误。",
+    "O3：`lighting.rs` L98-100 文档改为「`Float`，长度 `3 × nlight`；非 `Float` 类型按 kind 错配拒绝」，不再有自相矛盾措辞；纯文档，无代码/行为变化。",
+    "O2：在提交说明与证据中记录接受理由（`#[path]` 接线为范围受限时的临时方案，后续碰 `src/render/context.rs` 时归位），本轮不改结构。",
+    "不变量：无代码逻辑/API 变更（仅文档注释）、无判据/参考/夹具/红线文件改动、无 GPU；`gate fmt` 通过。",
+    "证据/记录：治理提交说明 + 本卡记录，禁词 0；不写「窗口通过/已覆盖/精度达标/上游等价」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r09-s1-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "src/render/context/lighting.rs"
+    ],
+    "resources": [],
+    "priority": 58
+  },
+  "note": "Arch 2026-10-28 登记：QA R09-S1 复核 pass/0 阻断/3 观察；Chief 指派 12:00–14:00 块内处理 O1（真问题）+ 附 O2/O3 记录，单独小治理提交，不扩 scope。",
+  "revision": {
+    "before": "523aaf25d2f189bd49e47f282f1ebc0a4d31fff7",
+    "after": null
+  },
+  "created_at": "2026-10-28T04:05:00.000Z",
+  "updated_at": "2026-10-28T04:01:31.496Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

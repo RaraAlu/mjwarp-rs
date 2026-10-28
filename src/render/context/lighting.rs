@@ -97,7 +97,7 @@ impl LightingParams {
 /// - `light_castshadow`：`Flag`，长度 `nlight`；
 /// - `light_cutoff`、`light_exponent`：`Float`，长度 `nlight`；
 /// - `light_attenuation`、`light_ambient`、`light_diffuse`、`light_specular`：
-///   `Float` 或 `Index`/`Num` 之外的 `Float`，长度 `3 × nlight`。
+///   `Float`，长度 `3 × nlight`；非 `Float` 类型按 kind 错配拒绝。
 ///
 /// 不新增上游未拒绝的输入：`use_shadows=true` 而无 castshadow 灯合法；
 /// `shadow_light_fraction` 原值透传（上游无范围校验）。
