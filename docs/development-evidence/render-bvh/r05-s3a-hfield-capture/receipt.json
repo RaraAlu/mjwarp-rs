@@ -121,7 +121,11 @@
                          "aggregate_sha256":  "b5cb50afcc608a67ca9a7b83222029402719f2770a3510ab423df13601e50d8b",
                          "aggregate_algorithm":  "sha256 over the 38 file sha256 hex strings in path-sorted order concatenated with no separator",
                          "per_file_list":  "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/legacy-baseline.txt",
-                         "in_script_before_after_compare":  true
+                         "in_script_before_after_compare":  true,
+                         "computation_basis_worktree_bytes":  "per-file sha/bytes and the aggregate are computed from WORKTREE bytes; core.autocrlf=true means text files are CRLF in the worktree (example: fixtures/render-bvh/scene-e2e/camlight-model.json worktree 6434 B vs committed blob 6020 B); recomputation from committed blobs will mismatch",
+                         "aggregate_path_order_note":  "aggregate = repo-relative path order (PowerShell Sort-Object; ordering/culture can affect the result) then lowercase sha256 hex strings concatenated then sha256; it is not equivalent to a blob-only recomputation",
+                         "r09_row_concat_aggregate":  "983617f16b534f9cda743ff2b84bfed08e0154e88c369419b885bacb841cc260",
+                         "byte_concat_aggregate":  "b21b8b02fb16ea7fd08a7b6f5cd1413288e32db9bb74a7269712d4700f1a782f"
                      },
     "gpu_baseline":  {
                          "samples":  [
@@ -204,29 +208,16 @@
                          },
     "materials":  {
                       "dir":  "docs/development-evidence/render-bvh/r05-s3a-hfield-capture/materials/",
-                      "files":  [
-                                    "legacy-baseline.txt",
-                                    "gpu-baseline.txt",
-                                    "env.txt",
-                                    "dryrun-hfield-only.json",
-                                    "dryrun-hfield-primitive.json",
-                                    "reverse-calc.py",
-                                    "reverse-calc.txt",
-                                    "order-crosscheck.txt",
-                                    "signature-record.md",
-                                    "load-attribution.txt"
-                                ]
+                      "files":  "legacy-baseline.txt, gpu-baseline.txt, env.txt, dryrun-hfield-only.json, dryrun-hfield-primitive.json, reverse-calc.py, reverse-calc.txt, order-crosscheck.txt, signature-record.md, load-attribution.txt"
                   },
-    "pending":  [
-                    "QA review of this capture slice (card kept in_progress; normify done not yet executed)",
-                    "S3b validation window (2026-10-28-render-bvh-r05-s3b-hfield-validate) still needs its own materials and signature"
-                ],
+    "pending":  "QA review of this capture slice (card kept in_progress; normify done not yet executed); S3b validation window (2026-10-28-render-bvh-r05-s3b-hfield-validate) still needs its own materials and signature",
     "limits":  [
                    "capture only: zero rendering numeric conclusions",
                    "R09 references and R09 capture script are read-only and untouched",
                    "hfield capture groups use use_shadows=true so the hfield shadow passthrough path is exercised",
                    "MuJoCo normalizes the MJCF elevation grid to [0,1] on load; upstream reshapes the column-major store as row-major (transpose); this fixture is symmetric under transpose",
-                   "SceneLeaf.size must use the same half produced by the triangulation (S2 O5 carried to S3b)"
+                   "SceneLeaf.size must use the same half produced by the triangulation (S2 O5 carried to S3b)",
+                   "QA O-3: zero-compile evidence is limited to build_processes=0; no target/debug/deps before/after snapshot was taken (the R09-S3b protocol had one); the Warp JIT \"(compiled)\" lines in the capture logs are Python/Warp-side kernel compilation, NOT Rust/cargo compilation"
                ],
     "claims":  {
                    "no_window":  false,
@@ -485,14 +476,17 @@
                                       "build_processes":  0,
                                       "gpu_released":  true
                                   },
-    "logs":  [
-                 "logs/window-facts.txt",
-                 "logs/monitor.csv",
-                 "logs/monitor-attempt2.csv",
-                 "logs/monitor-attempt3.csv",
-                 "logs/monitor-attempt4.csv",
-                 "logs/monitor-until-clean-attempt4.ps1",
-                 "logs/capture-hfield-only.log",
-                 "logs/capture-hfield-primitive.log"
-             ]
+    "logs":  "logs/window-facts.txt, logs/monitor.csv, logs/monitor-attempt2.csv, logs/monitor-attempt3.csv, logs/monitor-attempt4.csv, logs/monitor-until-clean-attempt4.ps1, logs/capture-hfield-only.log, logs/capture-hfield-primitive.log",
+    "evidence_encoding_fix":  {
+                                  "qa":  "O-1",
+                                  "files":  [
+                                                "logs/capture-hfield-only.log",
+                                                "logs/capture-hfield-primitive.log",
+                                                "materials/dryrun-hfield-only.json",
+                                                "materials/dryrun-hfield-primitive.json"
+                                            ],
+                                  "action":  "original copies were UTF-16LE (PowerShell redirection); converted to UTF-8 with LF and no BOM, logical content unchanged",
+                                  "manifest":  "recomputed from committed blobs (LF basis); these files are not guard inputs and do not affect the validation window"
+                              },
+    "qa_fixes":  "O-1/O-2/O-3 documentation and evidence fixes; no Rust/test/guards changes"
 }

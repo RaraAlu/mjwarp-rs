@@ -102,8 +102,17 @@ fast-math/shadows 标志、pinned python/numpy 版本、upstream revision、`MJW
 - 范围：`fixtures/render-bvh/` 除 `scene-shadow/`、`scene-hfield/` 外。
 - 基线（本轮现算，与 R09-S3b 窗口签名口径一致）：**38 文件 / 25 320 515 B / 聚合
   `b5cb50afcc608a67ca9a7b83222029402719f2770a3510ab423df13601e50d8b`**。
-- 聚合算法（R09 窗口口径）：38 个文件 sha256 十六进制串**按路径排序后直接拼接**再 sha256
-  （字节直接拼接 = `b21b8b02…` 仅作旁证）。逐文件清单：`materials/legacy-baseline.txt`。
+- **计算基准（口径限制，务必与 committed blob 区分）**：逐文件 sha/bytes 与上述聚合均按**工作树字节**
+  计算；`core.autocrlf=true` 下文本文件在工作树为 CRLF（例：`fixtures/render-bvh/scene-e2e/camlight-model.json`
+  工作树 **6 434 B** vs committed blob **6 020 B**）。外部若按 committed blob（LF）复算，逐文件 sha 与聚合
+  都会 mismatch——这是记录口径差异，不是旧参考被动过。
+- **聚合算法与排序依赖**：38 个文件按**仓库相对路径**排序（排序由 PowerShell `Sort-Object` 完成，可能受
+  运行环境文化/排序规则影响）→ 各文件小写 sha256 hex 串**直接拼接** → sha256。因此该聚合值依赖 PowerShell
+  路径排序口径，不能只按「blob 重算」复核。
+- **旁证（R09 行拼接口径）**：同 38 文件按 `sha256 bytes path` 行拼接再 sha256 =
+  `983617f16b534f9cda743ff2b84bfed08e0154e88c369419b885bacb841cc260`（与 R09-S3a
+  `facts.txt` / `legacy-manifest-after.txt` 记录值一致，交叉印证）；字节直接拼接 = `b21b8b02…`（仅旁证，非判据）。
+  逐文件清单：`materials/legacy-baseline.txt`。
 - 脚本内置：采集前 `legacy_before = legacy_manifest()`、采集后再次采集并比对，
   `capture.json.legacy_reference_untouched` 必须为 true，否则非零退出。窗口实测两组均为 **true**；
   采集窗口后复算旧参考仍为 **38 / 25 320 515 / `b5cb50af…`**（见 §16）。
@@ -261,7 +270,7 @@ target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_hfield.
 ## 16. 窗口后旧参考零读写复核
 
 - 旧参考复算：**38 文件 / 25 320 515 B / 聚合 `b5cb50afcc608a67ca9a7b83222029402719f2770a3510ab423df13601e50d8b`**
-  与窗口前一致。
+  与窗口前一致；复核沿用 §6 的「工作树字节 + PowerShell 路径排序」口径（**不是** committed blob 复算）。
 - `scene-shadow/`：目录 **17 文件 / 11 566 120 B**（含 `scene.xml` 4 757 B），其中 **16 个采集产物
   / 11 561 363 B**；逐文件 sha 与窗口前快照比对 **mismatch = 0**。
 - `git status --short -- scripts fixtures/render-bvh/scene-shadow fixtures/render-bvh/scene-a
@@ -272,6 +281,9 @@ target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_hfield.
 - 本片**只采集不比数**：不写任何 rgb/depth/seg 差异或正确性数字，不宣称任何数值结论。
 - attempt4 例外全程留档（批准人/时间/理由/原失败记录/脚本 sha/ASCII 自检），不表述为常规门槛通过。
 - 旧参考与 R09 采集路径零改动（§16）。
+- **局限（QA O-3）**：本片「窗内零编译」证据只到「构建进程（cargo/rustc/cl/nvcc/link）=0」，
+  **没有** `target/debug/deps` 前后计数快照（R09-S3b 窗口口径有该快照）；采集日志里的 Warp JIT
+  `(compiled)` 属 pinned Python/Warp 侧内核编译，**不是** Rust/cargo 编译，不能当作零 Rust 编译证据。
 
 ## 18. normify 前置状态
 
@@ -280,6 +292,10 @@ target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_hfield.
 - **manifest 路径基准（两种，头部亦已注明）**：8 个捕获产物行使用**仓库根相对路径**
   （`fixtures/render-bvh/scene-hfield/capture-hfield/...`）；证据目录内文件行使用**本证据目录相对路径**
   （如 `README.md`、`logs/...`、`materials/...`）；manifest 不自登记，可按头部基准一键校验；
+- **证据编码修正（QA O-1）**：4 个证据文件原为 PowerShell 重定向产生的 UTF-16LE 副本
+  （`logs/capture-hfield-{only,primitive}.log`、`materials/dryrun-hfield-{only,primitive}.json`），
+  已转为 UTF-8（LF、无 BOM），内容不变；manifest 按 committed blob 的 LF 口径重算并自校验。
+  这些文件**不在** `guards.json` 输入内，不影响验证窗；
 - 数值验收（RGB/depth/seg 判据）全部在 `2026-10-28-render-bvh-r05-s3b-hfield-validate` 验证窗执行。
 
 ## 遗留（带入 S3b，来自 S2 O5）
