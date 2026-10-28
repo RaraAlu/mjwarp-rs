@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-camera-pose-warp-fma-align-check",
+  "title": {
+    "zh": "相机世界位姿 FMA 收缩对齐独立复核（PTX 依据 / 9·9 位等 / 随机四元数 0 差 / 影响面）",
+    "en": "Independent check of the camera-pose FMA alignment (PTX basis, bit-equality, random-quaternion generalization, impact)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-28-render-bvh-camera-pose-warp-fma-align`：核实现是否**逐指令**复现 pinned warp 1.15.0 的 `quat_to_mat` 收缩序（不接受「公式族对了但差 1 ULP」的版本）、cam1/cam0 是否 **9/9 元素位级相等**、**≥1000 个随机四元数 0 差异**（防过拟合）、`src/math/mod.rs` 与 `.cu`/判据/参考/fixture 是否零改动、内核三 sha 是否不变、影响面清单（`CameraPose::from_fields` 全部消费路径与断言类型）是否准确、本地调试是否达到 cam1 world dir 位差 42449→0 与 hfield 两相机 depth mismatch=0。同时复核 RCA 核心结论（kernel 插桩 artifact、cam_xmat 位型对照、PTX 依据）是否被正确继承。",
+    "en": "QA read-only review of the camera-pose FMA alignment: instruction-level PTX replication, 9/9 bit-equality, random-quaternion generalization, zero spillover, unchanged kernel hashes, and correctness of the impact list; plus inheritance of RCA conclusions."
+  },
+  "modules": {},
+  "acceptance": [
+    "**PTX 依据可独立复核**：证据里给出 pinned warp 缓存（`target/render-bvh/r05-s3a-hfield-cache/1.15.0/**/*.sm89.ptx` 与 generated `.cu`）中 `quat_to_mat` 的**逐指令**证据；QA 需自己打开同一文件核对行/指令序列，并核对实现里的 mul/add/sub/fma 顺序与之**逐项一致**。若实现只做到「16/18 或 9 元素里剩 1–2 个差」，一律判阻断（Chief 硬门 1）。",
+    "**9/9 位等 + 泛化**：核 cam1 与 cam0 的 `cam_xmat` 9 个元素是否**逐位相等**（对照 pinned 上游采集 `d.cam_xmat` 位型）；核**≥1000 个随机四元数**（固定种子、命令可复现）的 `quat_to_matrix` 与本实现**0 差异**，并自己用固定种子重跑至少 200 个抽样核对；抽样表要能查。",
+    "**RCA 结论继承**：核证据是否正确引用 RCA `a62cc6aa` 的因果链与关键数字（cam1 world dir 42449/43200 位差、hit 6140+/6150、40 像素闭环=host 模拟 artifact、origin 43200/43200 位等、版本假设否证 3.12 vs 3.15 位等、旧场景重放 2/9 差 1 ULP 说明旧实体从未位级验证）；不得把 cam1 depth 红归因到别的层。",
+    "**零外溢**：`git diff` 只含 `src/render/kernel/cast.rs`（+任务卡/证据）；`src/math/mod.rs`、`cuda/**.cu`、`tests/`、`fixtures/`、`hfield_scene.rs`（499）零改动；`DEVICE_SOURCES=28`、81 槽、`CollisionArgs=504 B` 不变；**内核编译门 source/ptx/bytes 必须与改动前逐位相同**（`72bc364c…`/`97467d83…`/264 015）。",
+    "**影响面清单准确**：逐条核 `CameraPose::from_fields` 在 `src/` 的消费路径与对应测试（至少 `render_camera_rays`/`render_context_lifecycle`/`render_kernel_*`/`render_e2e`/`render_r08_cameras`），并标出每条是「位级断言 / 容差断言 / 不经过 quat 路径」；位级断言的那几条必须重跑并贴结果。",
+    "**本地自证（调试性质，非窗口验收）**：cam1 `cam_xmat` 9/9、world dir 位差 42449→**0**、hfield-only 与 hfield-primitive 的 **cam0/cam1 depth mismatch=0**、RGB/seg 保持 0、8 回归 exit 0；fmt/clippy/clippy-cuda/`cargo test --locked`（unit 不减 1091）/`--no-run`/`normify validate` 全过；数字须标「本地调试、非验收」。",
+    "**行数与单测**：`cast.rs` LF 行数实测（≤500，超 451 需 Chief 批准记录）；单测在 `cast.rs` 内 `#[cfg(test)]`（无 CUDA），钉住 cam1/cam0 九元素位型与随机抽样若干；断言不得弱化。",
+    "**证据与措辞**：manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0；**零渲染数值验收结论**（验收留 S3b validate attempt=2）；先报 verdict / blockers / observations。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-camera-pose-warp-fma-align"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r05-s3b-camera-pose-warp-fma-align-check/"
+    ],
+    "resources": [],
+    "priority": 61
+  },
+  "note": "Arch 2026-10-29 预登记（Chief 批方案 A 时要求 QA 复核 RCA 核心结论与 PTX 依据）。start 时必须把任务 id + 复核点发进 QA 会话。",
+  "revision": {
+    "before": "019be12a417a6aaa36e5751b158fa8a65115e8f6",
+    "after": null
+  },
+  "created_at": "2026-10-29T04:05:00.000Z",
+  "updated_at": "2026-10-28T20:03:08.497Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-s3b-camera-pose-warp-fma-align-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-camera-pose-warp-fma-align-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "窗口通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

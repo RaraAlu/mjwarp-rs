@@ -1,0 +1,43 @@
+# Rust 侧硬件 FMA 全量复现（QA 探针；1003 条 × 9 元素 = 9027 项）
+
+探针源码：`hw_fma_probe.rs`。它与生产实现的关系：
+
+- 生产：`src/render/kernel/cast.rs::warp_quat_to_mat` → `crate::math::fma::fma_f32`
+  → `is_x86_feature_detected!("fma")` 为真时内联 `vfmadd231ss`（本机为真，探针里 `is_x86_feature_detected!("fma")` 断言通过）；
+- 探针：`_mm_fmadd_ss(a,b,c)`（= `vfmadd231ss` 的 intrinsic 形式），**同一条指令**、同一表达式序。
+- 因此探针在「指令语义 + 表达式序」层面等价于生产路径；crate 内部函数本身由
+  `derived_contraction_matches_upstream_gpu_bits` 单测（4 案例）覆盖。
+
+## 输入
+
+`target/qa-cam-fma/quats.txt` = 已提交证据 `materials/gpu-reference-digest.json` 的 `quat_bits`（1003 行，
+1003 行 × 4 个 hex；前 3 条 = hfield cam0 / hfield cam1 / scene-a cam0，其余 = `numpy.random.default_rng(20261029)`）。
+对照 = 同一 JSON 的 `mat_bits`（1003 行 × 9 个 hex）= pinned GPU 链参考。
+
+## 结果
+
+| 构建 | 与 GPU 参考的差异 |
+| --- | --- |
+| `rustc -C opt-level=0` | **0 / 9027 项** |
+| `rustc -C opt-level=3` | **0 / 9027 项** |
+| opt0 与 opt3 输出逐位比较 | **完全相同**（1003 行全等） |
+
+抽样（前 3 行，索引 3/4/5 = seed 随机四元数）：
+
+```text
+idx  host e0..e8                                                      gpu e0..e8                                                        diff
+3    0x4007eda4 0x40d091fb 0xbee46100 0x40102dbe 0xbe94afb1 0x40cf76b3 0x40c43c50 0xc009a501 0xc00e8a87    同左  0
+4    0x4096901b 0x4089feb7 0xbf288506 0x405ca576 0xc0889cf1 0xc054cd67 0xc02b0ea7 0x400569e3 0xc0ae5437    同左  0
+5    0x4026eafd 0x3f2a5155 0xbfcfb3e9 0x3ed9ea6f 0x40252def 0x3fdf02d2 0x3fd9c58f 0xbfd5308e 0x40034e33    同左  0
+```
+
+（完整逐行输出未入证据 = 1003 行 × 2 份，重复内容大；复现命令见 README §11，输入与对照都在已提交的
+`gpu-reference-digest.json` 里。）
+
+## 与另外两条独立路径的一致性
+
+| 路径 | 结果 |
+| --- | --- |
+| QA Python 精确有理数 f32 fma（`recompute.py`） | 9027 项 0 差 |
+| QA Rust 硬件 FMA 探针（本文件） | 9027 项 0 差 |
+| crate 自身单测（4 案例：恒等 / hfield cam-side / scene-a cam-persp / 随机反例） | ok |

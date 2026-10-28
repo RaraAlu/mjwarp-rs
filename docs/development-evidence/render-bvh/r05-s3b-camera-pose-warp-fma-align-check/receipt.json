@@ -1,0 +1,249 @@
+{
+  "task_id": "2026-10-28-render-bvh-camera-pose-warp-fma-align-check",
+  "kind": "render-bvh-camera-pose-warp-fma-align-check",
+  "reviewed_task": "2026-10-28-render-bvh-camera-pose-warp-fma-align",
+  "reviewed_commits": ["6f246b46", "d42a465a", "f98d74a5"],
+  "reviewed_base_head": "f98d74a5",
+  "head_at_review": "5dd881d0",
+  "head_drift": {
+    "from": "f98d74a5",
+    "to": "5dd881d0",
+    "commit_subject": "工程(渲染): R05-S3b 冻结脚本加 -Attempt 参数（默认 1 行为不变）",
+    "changed_paths": ["scripts/validate/render-bvh/freeze-guards.ps1"],
+    "reviewed_paths_touched": false
+  },
+  "verdict": {
+    "result": "pass",
+    "blockers": 0,
+    "observations": 9,
+    "scope": "只读独立复核：PTX 无 fma 反证 / 收缩序唯一性独立重推 / 三条硬门（含真实采集 d.cam_xmat 溯源）/ Rust 侧硬件 FMA 全量复现 / 零外溢与不变量 / 内核三 sha / 门禁自跑 / 两条 need-to-know；不开 GPU 窗、不重冻结 guards、零渲染数值验收结论"
+  },
+  "review_points": {
+    "ptx_basis": {
+      "file": "target/render-bvh/r05-s3a-hfield-cache/1.15.0/wp_mujoco_warp._src.smooth_ca013d6/wp_mujoco_warp._src.smooth_ca013d6.sm89.ptx",
+      "bytes": 993976,
+      "lines": 28448,
+      "sha256": "5ff8714d08f736a5ce8dc2886584f0cb72849397f82a10d7c8be3dfac63aaa65",
+      "entry_line_hits": [13886, 13887, 13888, 13889, 13890, 13891],
+      "slice_a_mul_quat_lines": "14719-14733",
+      "slice_a_fma_rn_count": 6,
+      "slice_b_quat_to_mat_lines": "14734-14782",
+      "slice_b_fma_rn_count": 0,
+      "slice_b_mul_add_sub_count": 30,
+      "line_14783_blank": true,
+      "excerpt_instruction_lines": 60,
+      "excerpt_slice_a_verbatim_in_ptx": true,
+      "excerpt_slice_b_verbatim_in_ptx": true
+    },
+    "contraction_uniqueness": {
+      "method": "QA 自建候选族（按 PTX 源序、只枚举收缩选择），精确有理数 f32 fma（Fraction + RNE）逐元素独立求解",
+      "candidate_counts_per_element": {"diagonal": 12, "off_diagonal": 3},
+      "candidate_space_global": 1259712,
+      "unique_solution_per_element": 9,
+      "isolated_after_quats": {"e0": 7, "e1": 16, "e2": 4, "e3": 5, "e4": 4, "e5": 6, "e6": 2, "e7": 3, "e8": 7},
+      "isolated_after_quats_max": 16,
+      "quats": 1003,
+      "impl_vs_gpu_entries": 9027,
+      "impl_vs_gpu_diff_entries": 0,
+      "plain_formula_diff_entries": 2614,
+      "plain_formula_diff_rows": 947
+    },
+    "reference_chain": {
+      "definition": "mul_quat(world_unit_quat, cam_quat) -> quat_to_mat -> 9 f32 bits",
+      "mul_quat_equals_quat_rows": "1003/1003",
+      "digest_sha256": "be24379503081951abf92e1cc4bf460ad343c63ded5c6e8dea07eb0463d4387c",
+      "digest_bytes_equal_regen": true,
+      "digest_semantically_equal_raw_chain_reference": true
+    },
+    "hard_gates": {
+      "hfield_cam0_cam_xmat_9of9": true,
+      "hfield_cam1_cam_xmat_9of9": true,
+      "cam1_near_zero_element": "0xb31f2429",
+      "scenea_cam_persp_9of9": true,
+      "capture_provenance": {
+        "digest_row0_equals_capture_cam0": true,
+        "digest_row1_equals_capture_cam1": true,
+        "impl_equals_capture_cam0": true,
+        "impl_equals_capture_cam1": true,
+        "mujoco_host_cpu_cam1_differs_from_gpu_capture_cam1": true,
+        "source": "docs/development-evidence/render-bvh/r05-s3b-hfield-cam1-depth-rca/materials/upstream-camworld.json"
+      },
+      "random_1003_quats_zero_diff": true,
+      "sampling_20_rows_zero_diff": true
+    },
+    "rust_side_reproduction": {
+      "unit_test": "render::kernel::cast::tests::derived_contraction_matches_upstream_gpu_bits ... ok（我 touch 后强制重编后跑）",
+      "hardware_fma_probe": "_mm_fmadd_ss (= vfmadd231ss, 与生产 fma_f32 硬件主路同一指令) 全 1003 条 × 9",
+      "hardware_fma_probe_diff_entries": 0,
+      "hardware_fma_probe_opt0_equals_opt3": true,
+      "production_path": "src/math/fma.rs: is_x86_feature_detected!(\"fma\") -> vfmadd231ss（本机为真）；src/math 本片零 diff"
+    },
+    "f32_mul_add_mechanism": {
+      "step_table_cam1_quat": {
+        "q11": {"exact": "0x3e83bec4", "mul_add": "0x3e83bec4"},
+        "s1": {"exact": "0x3f4dc189", "mul_add": "0x3f4dc189"},
+        "s2_exact": "0x3f3daba1",
+        "s2_mul_add": "0x3f3daba0",
+        "s3_exact": "0x3f1b8312",
+        "s3_mul_add": "0x3f1b8311"
+      },
+      "opt_level_0_equals_opt_level_3_at_runtime": true,
+      "conclusion": "f32::mul_add 在本工具链运行时（非常量折叠）两个 opt 级别都不是单次正确舍入；差异源为常量折叠 vs 运行时，非 debug/release 之分"
+    },
+    "crlf_incident": {
+      "worktree_equals_blob_now": true,
+      "worktree_sha256": "62f0aa8af45b947feb2d1b7eade07fe0ebe817885126267a66826e57b7213376",
+      "worktree_lines_lf": 347,
+      "worktree_cr": 0,
+      "git_status_path_lines": 0,
+      "kernel_gate_source_sha256_after_normalization": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746",
+      "intermediate_f3e639ac_present_in_committed_evidence": false
+    },
+    "zero_spillover": {
+      "changed_paths_since_a7beafae": ["src/render/kernel/cast.rs", ".normify/changes/2026-10-28-render-bvh-camera-pose-warp-fma-align.json", "证据目录 22 文件"],
+      "protected_diff_empty": ["src/math", "src/render/kernel/cuda", "tests", "fixtures", "scripts", "src/render/bvh", "src/model", "src/render/camera.rs"],
+      "cast_rs_lines": 481,
+      "cast_rs_limit": 500,
+      "cast_rs_numstat": "+72/-2",
+      "cast_rs_cr": 0,
+      "device_sources": 28,
+      "megakernel_slots": 81,
+      "collision_args_bytes": 504,
+      "hfield_scene_rs_lines_unchanged": 499
+    },
+    "kernel_gate": {
+      "exit": 0,
+      "source_sha256": "72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746",
+      "ptx_sha256": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13",
+      "ptx_bytes": 264015,
+      "unchanged_vs_baseline": true
+    },
+    "gates_self_run": {
+      "fmt": "exit 0",
+      "clippy": "exit 0（touch cast.rs 后强制重编）",
+      "clippy_cuda": "exit 0（cuda 为默认特性，同一编译单元缓存命中）",
+      "unit": "1092 passed / 0 failed / 389 ignored（134 result 行）",
+      "no_run": "exit 0（132 Executable）",
+      "kernel_gate": "exit 0（1 passed）",
+      "validate_fingerprints": "错误 0、警告 5",
+      "impact_module": "exit 0（源码39、API11）",
+      "impact_file_level": "exit 1「没有模块对应」；被核证据已显式标 N/A（未登记，非门禁）"
+    },
+    "impact_surface_audit": {
+      "changed_path": "CameraPose::from_fields（src/render/kernel/cast.rs）",
+      "src_production_callers": 0,
+      "actual_test_exes_referencing_the_path": ["tests/render_e2e.rs:160 (容差 max_ulp<=1)", "tests/render_kernel_depth_seg.rs:144/137 (容差 fixed_max<=1e-6)", "tests/render_hfield_reference.rs (经 hfield_scene.rs:220；GPU ignored 位级实体)"],
+      "exes_claimed_by_evidence": 9,
+      "exes_actually_referencing_the_path": 3,
+      "note": "其余 6 个走 s7b1::camera_data_poses 参考位姿直传或别的 *::from_fields（CameraModel/TextureRegistry/ModelRenderArrays）；其 exe sha 变化来自重链"
+    },
+    "evidence_hygiene": {
+      "manifest_rows": 21,
+      "manifest_mismatches": 0,
+      "files_in_dir": 22,
+      "unlisted_files": [],
+      "self_reference": false,
+      "non_lf_or_non_utf8_files": ["materials/hfield-final.log", "materials/kernel-gate-after.log", "materials/reference-chain-identity.txt", "materials/verify-contraction.log"],
+      "non_lf_kind": "UTF-16LE（无 BOM）+ CRLF；NUL 字节 2172/921/496/1401",
+      "forbidden_word_hits": [],
+      "readme_lines": 177
+    }
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "suggestion",
+      "topic": "4 evidence files are UTF-16LE (no BOM) with CRLF, contradicting the manifest header",
+      "detail": "materials/hfield-final.log(2172 NUL/25 CR)、materials/kernel-gate-after.log(921/16)、materials/reference-chain-identity.txt(496/4)、materials/verify-contraction.log(1401/13) 按 committed blob 是 UTF-16LE 无 BOM + CRLF；manifest.txt 头写「all files LF, no BOM」、卡面要求「LF 无 BOM」。内容可解码，我已解码核对数值。",
+      "suggestion": "fix_or_note",
+      "fix": "用 UTF-8 LF 重存这 4 个文件，或在 manifest/README 注明它们是 PowerShell 原始重定向产物（UTF-16LE）"
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "topic": "impact list in README §8.2 is broader than the actual call graph",
+      "detail": "证据称 9 个 render exe「实际引用 CameraPose::from_fields 路径」；git grep 全仓实测只有 3 个 exe 引用（render_e2e、render_kernel_depth_seg 及其 s7b1::check_camera_data、render_hfield_reference 经 hfield_scene）。其余 6 个（render_camera_rays / render_context_lifecycle / render_kernel_flags / render_kernel_rgb / render_r08_cameras / render_r10_multi_world）走参考位姿直传或 CameraModel/TextureRegistry/ModelRenderArrays::from_fields；它们的 exe sha 变化来自重链，不是行为路径。src/ 内无生产调用点。",
+      "suggestion": "fix",
+      "fix": "把「引用被改路径的 exe（含断言性质：位级/容差/不经过）」与「sha 会变的 exe（重链）」分成两句"
+    },
+    {
+      "id": "O3",
+      "severity": "suggestion",
+      "topic": "fma-toolchain-note.md attributes the 1-ULP problem to debug-vs-release; measurement shows both opt levels are non-correctly-rounded at runtime",
+      "detail": "我用 black_box 的独立探针：opt-level=0 与 opt-level=3 位型完全相同（e0=0x3f1b8311、e2=0x3f3dbdb8），且都不是精确单次舍入；单步反例 fma(-q2,q2,s1) 应 0x3f3daba1、实得 0x3f3daba0。证据 note 的 -O 行成立的原因是常量折叠（未用 black_box），不是 release 更正确。改用 crate::math::fma::fma_f32 的结论成立且更强。",
+      "suggestion": "fix",
+      "fix": "note 表格改为「常量折叠 / 运行时（black_box）」两行，并补一条单步反例"
+    },
+    {
+      "id": "O4",
+      "severity": "suggestion",
+      "topic": "the intermediate kernel-gate sha f3e639ac is not evidenced; the cross-reference is wrong",
+      "detail": "zero-change-paths.md 写「详见 kernel-gate-after.log」，但该日志只有最终 72bc364c 的成功运行；'f3e639ac' 在整个已提交证据目录零出现。终态可核：工作树 .cu 与 blob 逐字节相同（17814 B/LF 347/CR 0/sha 62f0aa8a…）、git status 无输出、我重跑内核门得 72bc364c…。",
+      "suggestion": "fix",
+      "fix": "补中间那次的日志，或删掉中间 sha 的叙述只保留「按 committed blob 归一化后无 diff」这一可核事实"
+    },
+    {
+      "id": "O5",
+      "severity": "suggestion",
+      "topic": "local-debug raw logs for 8 regressions / world-dir counts are not in the evidence set",
+      "detail": "8 条回归 8/8 exit 0、world dir 42449→0、scene-a 重放 9/9 在已提交物里只有文字与计数（world-dir-counts.json）；原始日志留在 target/render-bvh/r05-s3b-window/fix-local-logs/reg-*.log（target/ 属瞬态）。hfield 两组判据有 hfield-final.log 可核（我已解码核对 8 组数字与 depth_zero 29776/37050）。",
+      "suggestion": "fix_or_note",
+      "fix": "把 8 条回归日志（或其 sha256+行数）纳入证据，或写明瞬态路径与其 sha"
+    },
+    {
+      "id": "O6",
+      "severity": "record",
+      "topic": "bit-level regression net for the new derivation is the 4-case unit test only",
+      "detail": "cast.rs 内 1 条 #[cfg(test)] 单测（恒等/hfield cam-side/scene-a cam-persp/随机反例）是这条派生口径的位级回归网；render_kernel_depth_seg 的 fixed-quat 路径断言仍是容差 fixed_max<=1e-6（本片要求 tests/ 零改动，未收紧）。",
+      "suggestion": "accept",
+      "fix": "后续可把该容差断言收紧为位等（非本卡范围）"
+    },
+    {
+      "id": "O7",
+      "severity": "record",
+      "topic": "file-level normify impact exits 1; disclosed as N/A and excluded from the gate list",
+      "detail": "normify impact src/render/kernel/cast.rs = exit 1「没有模块对应」（既有治理缺口 backlog 2026-10-28-arch-volume-module-sources）；gates.txt 与 impact.md 显式标 N/A（未登记，非门禁），并给替代口径（模块级 impact exit 0 + 任务 scope + validate 错误 0）。我复核了该披露成立。",
+      "suggestion": "accept",
+      "fix": "无（治理项另立）"
+    },
+    {
+      "id": "O8",
+      "severity": "record",
+      "topic": "evidence candidate search used float64-approx fma for the first pass",
+      "detail": "verify_contraction.py 的候选枚举用 (a64*b64+c64).astype(f32) 做初筛（可能双重舍入），逐条校验才用精确 Fraction。我用精确单次舍入独立重跑：唯一解、9027 项 0 差、2614/947 对照全部一致 ⇒ 该近似未改变结论。",
+      "suggestion": "accept",
+      "fix": "若将来扩候选族，建议初筛也改精确 fma"
+    },
+    {
+      "id": "O9",
+      "severity": "record",
+      "topic": "HEAD drifted f98d74a5 -> 5dd881d0 during review (freeze-guards.ps1 only)",
+      "detail": "复核期新增提交 5dd881d0「工程(渲染): R05-S3b 冻结脚本加 -Attempt 参数（默认 1 行为不变）」，只改 scripts/validate/render-bvh/freeze-guards.ps1；git diff f98d74a5..5dd881d0 未触 cast.rs / 证据 / 判据 / 参考 / fixture。我的证据提交落在 5dd881d0 之上。",
+      "suggestion": "accept",
+      "fix": "后续派工可指定提交号而非 HEAD；本卡已按 f98d74a5 复核 + 记录漂移"
+    }
+  ],
+  "boundaries": [
+    "未开 GPU 窗口、未重跑渲染判据；depth mismatch=0 / max_ulp=0 / beyond=0 与 RGB/seg 0 取自被核证据的本地调试留档（materials/hfield-final.log，我已解码核对 4 相机 8 组数字），不等于我独立渲染验证。",
+    "world dir 位差 42449→0 未做像素级重跑：由 cam_xmat 9/9 位等 + 同一 local dirs + 同一 plain 点积序逻辑蕴含；42449 的前值取自 RCA 已 verified 证据。",
+    "未直接调用 crate 私有 warp_quat_to_mat：Rust 侧 9027 项由硬件 FMA 探针（与生产 fma_f32 硬件主路同指令）与 crate 单测覆盖。",
+    "未重跑 attempt2 窗口材料（不属本卡）；本卡零渲染数值验收结论。",
+    "未 re-freeze guards、未改生产代码/判据/容差/参考/fixture；复核期 HEAD 未漂移。"
+  ],
+  "gates": {
+    "none": "QA 复核卡无门禁（卡面 checks 为 receipt task_id + forbid_claim，不是 gate）",
+    "self_run": "fmt/clippy/clippy-cuda/unit/no-run/kernel-gate/validate 全部 exit 0（见 review_points.gates_self_run 与 logs/）"
+  },
+  "gate_note": "QA 复核卡无门禁：normify gate exit 1「任务没有引用任何门禁」属预期。",
+  "claims": {
+    "ptx_no_fma_basis_verified": true,
+    "contraction_unique_not_fitted": true,
+    "hard_gates_reproduced": true,
+    "capture_pose_provenance_verified": true,
+    "zero_spillover_verified": true,
+    "kernel_hashes_unchanged": true,
+    "gates_self_run_all_green": true,
+    "no_gpu_no_window_no_numeric_conclusion": true
+  },
+  "recompute": {"script": "recompute.py", "result": "recompute.json", "problems": 0, "findings": 9}
+}

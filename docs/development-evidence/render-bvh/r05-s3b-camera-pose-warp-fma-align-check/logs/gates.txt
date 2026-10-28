@@ -1,0 +1,61 @@
+# QA 自跑门禁（本机 Windows 2026-10, rustc 1.99.0, 仓库根 D:\Rust\mjwarp-rs）
+# PATH 前置 target/toolchains/cuda-12.8.1/bin（与被核片同环境）。行尾已归一为 LF。
+
+## 1. 退出码（本机实测）
+
+cargo fmt --all --check
+  exit 0（无输出 = 通过；见 fmt.log 为空文件）
+
+cargo clippy --all-targets --locked -- -D warnings
+  exit 0
+  说明：为排除 cargo 缓存导致「没真正检查 cast.rs」，我先 touch src/render/kernel/cast.rs（只改 mtime，不改内容）
+  再跑；日志出现 `Checking mjwarp-rs v0.1.0` 后 `Finished dev profile ... in 5.16s`，exit 0。
+
+cargo clippy --all-targets --locked --features cuda -- -D warnings
+  exit 0
+  说明：`cuda` 是默认特性（cudarc 走②：默认开启、--no-default-features 可关），因此与上一条是同一编译单元，
+  日志为 `Finished ... in 0.19s`（缓存命中，源相同）。
+
+cargo test --locked
+  1092 passed / 0 failed / 389 ignored（134 个 `test result:` 行求和）
+  与证据 gates.txt 的「1092 passed / 0 failed / 389 ignored；134 result 行；父 1091 + 本片 1」一致。
+
+cargo test --locked --no-run
+  exit 0（日志列出 132 个 `Executable` 行）
+
+cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored megakernel_source_compiles_under_render_gate --test-threads=1 --nocapture
+  exit 0；1 passed
+  source_sha256=72bc364c4b732e278396d2aebd09625872f6dcecba469a98a3e40aba04851746
+  ptx_sha256=97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13
+  ptx_bytes=264015
+
+normify validate --fingerprints
+  exit 0；校验：错误 0 警告 5（警告为既有架构登记提示：api/leaf-empty ×2、structure/leaf-too-coarse、layout/order-incomplete ×2）
+
+normify impact mjwarp.render
+  exit 0；mjwarp.render（active，源码39，API11）
+
+normify impact src/render/kernel/cast.rs
+  exit 1；`没有模块对应：src/render/kernel/cast.rs`
+  → 与证据口径一致：文件级 impact = N/A（未登记，非门禁），既有治理缺口 backlog 2026-10-28-arch-volume-module-sources；
+    不计入本卡门禁结果（观察 O7）。
+
+## 2. 与被改路径相关的实体结果行（从本次 cargo test 日志逐行抄）
+
+Running unittests src\lib.rs
+test render::kernel::cast::tests::derived_contraction_matches_upstream_gpu_bits ... ok
+test result: ok. 730 passed; 0 failed; 137 ignored; 0 measured; 0 filtered out; finished in 0.79s
+
+Running tests\render_e2e.rs
+test result: ok. 1 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+Running tests\render_kernel_depth_seg.rs
+test result: ok. 2 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+Running tests\render_hfield_reference.rs
+test result: ok. 3 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+## 3. 汇总口径
+
+134 个 `test result:` 行，全部 status=ok；passed 求和 1092、failed 0、ignored 389。
+（求和用脚本读日志正则累计，不手抄；见 README §11 复现命令。）
