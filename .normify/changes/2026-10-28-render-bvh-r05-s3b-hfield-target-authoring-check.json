@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-s3b-hfield-target-authoring-check",
+  "title": {
+    "zh": "R05-S3b hfield 目标实体 authoring 独立复核（断言强度 / O5 half 同源 / 无编造数值 / dump provenance）",
+    "en": "Independent check of R05-S3b hfield target-entity authoring (assertion strength, O5 half provenance, no fabricated values, dump provenance)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "在 S3b 验证窗开窗**之前**，由 QA 只读复核 `2026-10-28-render-bvh-r05-s3b-hfield-target-authoring` 的测试代码质量：目标实体的断言是否真有判别力（不是「跑过即通过」）、判据是否与 R09-S3b 同级且未放宽、`SceneLeaf.size` 是否确实来自 `build_hfield_mesh().half()`（S2 O5）、host 自检是否用 S3a 记录的真实 raw f32 位型且结论限于结构核对、两个 3.12 模型 dump 是否可溯源、`shadow.rs` 是否只改了可见性。**目的是在烧窗口之前把弱断言打掉**；本片不做渲染数值验收、不跑 GPU。",
+    "en": "Pre-window QA review of the R05-S3b target-entity authoring: assertion strength, criteria parity with R09-S3b, O5 half provenance, host self-check provenance, model dump traceability, and visibility-only edits. No GPU, no render acceptance."
+  },
+  "modules": {},
+  "acceptance": [
+    "**断言强度（核心）**：逐条读 `tests/render_hfield_reference.rs` 的两个 `#[ignore]` 实体，确认 ① 真的比 cam0/cam1 × rgb/depth/seg 共 6 组产物；② 复用 `s7b2::diff_rgb` / `output::diff_depth` / `output::diff_seg` 或与 R09-S3b 完全同级的比较逻辑；③ 判据与 R09-S3b `assert_group_criteria` 一致且**未放宽**（RGB ≤1 LSB、depth 位级优先且 `max_ulp ≤ 4` 且 `beyond == 0`、seg 完全相等、两次运行 sha 相同）；④ 没有用「只 print 不 assert」「只断言文件存在/长度」「把所有差异容忍掉」之类弱化手法；⑤ 超判据时打印每相机比较规模 + 超判据计数 + max diff/ULP。",
+    "**O5 half 同源**：核场景装配代码（`hfield_scene.rs`）里 `SceneLeaf.size` 的取值确实来自 `build_hfield_mesh(...)` 返回的 `half()`，不是 host 侧另算/硬编码；hfield geom 的 `set_hfield` 注入用的是 `HfieldInputs`，`None` 路径不受影响。",
+    "**host 自检**：核那条非 `#[ignore]` 的 host 自检是否用 S3a 证据 `materials/reverse-calc.txt` 的真实 raw f32 位型作输入，断言 13 顶点 / 36 索引 / 12 三角形 + `half`，并在注释里标明「结构交叉核对、非渲染验收结论」与证据来源（含 `reverse-calc.txt` sha `3f404550…`）。QA 自己独立复算一次（可用 python 或临时 Rust 探针，事后删除不入库）。",
+    "**无编造数值 / 不提前出结论**：确认捕获前不存在任何渲染数值结论（不写 RGB/depth/seg 差异数字、不写通过/达标/等价），`#[ignore]` 用例在普通 `cargo test` 下不执行、capture 参考缺失时不会 panic 或静默成功。",
+    "**dump 溯源**：两个模型 dump（`tests/support/render_bvh/hfield/model-312.json`、`model-mixed-312.json`）的 provenance 可核算——dumper 工具 sha、命令、输入 XML 的签字 sha（`b3b9a6b4…`/`bf9bb966…`）、输出 sha/bytes 均入证据；QA 自己重算两个 JSON 的 sha。",
+    "**行数与改动面**：三个新文件均 ≤500 行（实测 `render_hfield_reference.rs` 356 / `hfield.rs` 306 / `hfield_scene.rs` 432）；`tests/support/render_bvh/shadow.rs` 的改动**仅为可见性放宽**（≈8 行），逐行核无断言/行为改动；`src/` 与 CI 口径零改动。",
+    "**静态门（QA 自跑）**：`cargo fmt --check`、`cargo clippy --all-targets --locked -- -D warnings`、`cargo test --locked --no-run` 通过；不需要 GPU；若允许可跑定向非 ignore 测试（host 自检）。",
+    "**证据**：`docs/development-evidence/render-bvh/r05-s3b-hfield-target-authoring/` 的 README/receipt/manifest 与实现一致（manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0）；先报 verdict / blockers / observations。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r05-s3b-hfield-target-authoring"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r05-s3b-hfield-target-authoring-check/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-29 预登记（S3b 目标实体 authoring 的窗口前复核，目的是先打掉弱断言）。start 时必须把任务 id + 复核点发进 QA 会话。",
+  "revision": {
+    "before": "28fb3889d569044803bd1c94d49d0aec29c57d40",
+    "after": null
+  },
+  "created_at": "2026-10-29T01:25:00.000Z",
+  "updated_at": "2026-10-28T17:10:43.680Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-s3b-hfield-target-authoring-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-s3b-hfield-target-authoring-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "窗口通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

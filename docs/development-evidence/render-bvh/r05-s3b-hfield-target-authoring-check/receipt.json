@@ -1,0 +1,143 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-s3b-hfield-target-authoring-check",
+  "kind": "render-bvh-r05-s3b-hfield-target-authoring-check",
+  "reviewed_task": "2026-10-28-render-bvh-r05-s3b-hfield-target-authoring",
+  "reviewed_commits": ["2c56cc1a", "d77b728e", "a6bcca80"],
+  "reviewed_base_head": "a6bcca80",
+  "head_at_review": "4bb9cd15",
+  "verdict": {
+    "result": "pass",
+    "blockers": 0,
+    "observations": 4,
+    "scope": "authoring 复核：断言强度与 R09-S3b 同级 / O5 half 同源 / host 自检独立复算 / dump provenance / 行数与改动面 / 静态门 / 证据；不开 GPU、零渲染数值结论"
+  },
+  "review_points": {
+    "assertion_strength": {
+      "identical_to_r09_s3b_after_type_normalization": true,
+      "assert_count": 6,
+      "criteria": "RGB beyond_one_lsb_pixels==0；depth mismatched==0 & max_ulp<=MAX_DEPTH_ULP(=4) & beyond_ulp==0；seg mismatched==0",
+      "six_groups": "cam0/cam1 x rgb/depth/seg（参考 2 相机、120000 像素）",
+      "two_run_sha_asserts": true,
+      "prints_scale_and_stats": true,
+      "no_weak_assertion_found": true,
+      "ignored_entities": 2
+    },
+    "o5_half_same_source": {
+      "half_from_build_hfield_mesh": true,
+      "injection_via_set_hfield": true,
+      "hfield_leaf_size_uses_half": true,
+      "box_leaf_uses_geom_size": true,
+      "no_host_recompute_or_hardcode": true
+    },
+    "host_self_check_independent": {
+      "reverse_calc_sha256": "3f404550bbc6acd5d3aaf8720dfa2490699e62c1fd865e2c619a816cbadc7ad5",
+      "bits_const_equal_to_reverse_calc": true,
+      "scene_xml_hfield_size": "1.5 1.0 0.25 0.1",
+      "qa_probe": {"vertices": 13, "indices": 36, "triangles": 12, "half_bits": ["3fc00000", "3f800000", "3e000000"]},
+      "upstream_replica": {"vertices": 13, "indices": 36, "triangles": 12, "half_bits": ["0x3fc00000", "0x3f800000", "0x3e000000"]},
+      "reference_depth_zero_per_group": 66826
+    },
+    "no_premature_conclusion": {
+      "host_tests_structural_only": true,
+      "ignored_not_run_by_default": "3 passed / 0 failed / 2 ignored",
+      "missing_reference_does_not_panic_in_normal_cargo_test": true,
+      "numeric_conclusion_scan_hits": 0
+    },
+    "dump_provenance": {
+      "model-312.json": {"bytes": 52527, "sha256": "bc53747492121d76580d0f19b2062ff40676443292d8907c7964f115798ac321"},
+      "model-mixed-312.json": {"bytes": 53207, "sha256": "c9a886ae8714b5a977a6bcb570960396b4cad2aa9e4c947dc26eef7e1ecac801"},
+      "dumper": {"sha256": "cd91e099659ebda3f51a84d5392f7d726c0c61378bfa2487215ddd00b2de2970", "bytes": 161280, "present_on_disk": true},
+      "input_xml_signed_sha_in_evidence": ["b3b9a6b4…", "bf9bb966…"],
+      "commands_in_evidence": true,
+      "dump_semantics_recomputed": {"version": "3.12.0", "geom_counts": [1, 2], "mixed_geom_type": [1, 6], "cams": 2, "lights": 2, "tex_bytes": 12288}
+    },
+    "lines_and_changes": {
+      "authoritative_convention": "committed blob LF count (= git numstat / wc -l)",
+      "lf_counts": {"tests/render_hfield_reference.rs": 392, "hfield.rs": 354, "hfield_scene.rs": 499,
+                     "model-312.json": 144, "model-mixed-312.json": 144, "shadow.rs": 422},
+      "text_line_counts_in_authoring_docs": {"render_hfield_reference.rs": 393, "hfield.rs": 355, "hfield_scene.rs": 500,
+                                              "model-312.json": 145, "model-mixed-312.json": 145, "shadow.rs": 423},
+      "difference_explanation": "+1 = split('\\n') 计末尾换行后的空片段；sha/bytes 全对",
+      "hfield_scene_at_limit": "LF 499 <= 500（余量 1 行）",
+      "shadow_rs_numstat_added_removed": [14, 8],
+      "shadow_rs_removed_all_fn_signatures": true,
+      "shadow_rs_assert_lines_changed": 0,
+      "shadow_rs_readme_claims_plus8_minus8": true
+    },
+    "static_gates_by_qa": {
+      "cargo_fmt_all_check": {"exit": 0},
+      "cargo_clippy_all_targets_locked_deny_warnings": {"exit": 0},
+      "cargo_test_locked_no_run": {"exit": 0},
+      "targeted_render_hfield_reference": {"passed": 3, "failed": 0, "ignored": 2, "exit": 0}
+    },
+    "window_materials_and_evidence": {
+      "entity_table": {"entities": 9, "new": 1, "regression": 8,
+                        "matches_r09_regression_list": true,
+                        "matches_guards_skeleton_entities": true},
+      "guards_skeleton": {"freeze_status": "not_frozen", "hashes_empty": true},
+      "manifest_rows": 12,
+      "manifest_problems": [],
+      "self_reference": false,
+      "bom_files": [],
+      "crlf_files": [],
+      "forbidden_word_hits": [],
+      "receipt_flags": {"numeric_conclusion": false, "gpu_window": false, "gpu_entities_executed": false}
+    }
+  },
+  "observations": [
+    {
+      "id": "O-1",
+      "severity": "suggestion",
+      "topic": "line-count convention not marked authoritative",
+      "detail": "README §1 同时给出 LF 计数（392/354/499）与文本行计数（393/355/500），但未说明仓库权威口径是哪个；hfield_scene.rs 按文本口径正好 500（贴上限）。",
+      "suggestion": "fix_doc",
+      "fix": "README §1 注明「仓库权威口径 = committed blob LF 计数（392/354/499）」"
+    },
+    {
+      "id": "O-2",
+      "severity": "suggestion",
+      "topic": "shadow.rs change-size wording inaccurate (+8/-8 vs numstat +14/-8)",
+      "detail": "README/commit 写 shadow.rs「+8/−8」；实测 git numstat = +14/−8：8 处 `fn` → `pub(super) fn` 可见性 + rustfmt 把 `i32_member` 签名折成多行（+3 续行及括号行）。断言零改、零行为。",
+      "suggestion": "fix_doc",
+      "fix": "措辞改为「8 处可见性 + 1 处 fmt 折行（+14/−8），零行为/零断言」"
+    },
+    {
+      "id": "O-3",
+      "severity": "record",
+      "topic": "hfield_scene.rs at the 500-line limit (LF 499)",
+      "detail": "hfield_scene.rs LF 499 / 文本 500，贴 500 上限（余量 1 行）；作者已在 README 声明终稿后不再加行。",
+      "suggestion": "accept",
+      "fix": "S3b 验证窗内禁改该文件"
+    },
+    {
+      "id": "O-4",
+      "severity": "record",
+      "topic": "HEAD drifted from a6bcca80 to 4bb9cd15 during review",
+      "detail": "复核期间新增 S3b 验证窗 authoring 两提交（ea45f070/4bb9cd15）与我的 S3a 复核两提交（462e48c1/cbb04758）；git diff a6bcca80..HEAD 未触被核路径（测试/辅助/dump/shadow.rs/authoring 证据）。",
+      "suggestion": "record"
+    }
+  ],
+  "boundaries": [
+    "零渲染数值结论：两个 GPU 实体未执行（不跑 --ignored、不开 GPU）；数值判据数字留 S3b 验证窗。",
+    "host 打印的 depth_zero_pixels=66826 是参考数据统计（我独立复算一致），不是产品 vs 参考的比较结论。",
+    "未重跑 S0a dumper；dump provenance 按现盘 sha + README 命令核对。",
+    "target/ 下 dumper 与 R09 guards 属瞬态；关键结论另有 git 侧证据（commit/sha/numstat）。",
+    "未核 scripts/validate/render-bvh/*（属 S3b validate 任务，不在本卡）。"
+  ],
+  "gates": {
+    "fmt": {"exit": 0, "log": "logs/fmt.log"},
+    "clippy": {"exit": 0, "log": "logs/clippy.log"},
+    "no_run": {"exit": 0, "log": "logs/no-run.log"},
+    "targeted": {"passed": 3, "failed": 0, "ignored": 2, "exit": 0, "log": "logs/targeted.log"}
+  },
+  "gate_note": "QA 复核卡无门禁：normify gate exit 1「任务没有引用任何门禁」属预期。",
+  "claims": {
+    "criteria_same_level_as_r09_s3b": true,
+    "six_groups_and_determinism_asserted": true,
+    "o5_half_same_source": true,
+    "host_self_check_independently_reproduced": true,
+    "no_premature_numeric_conclusion": true,
+    "no_gpu_no_ignored_run": true
+  },
+  "recompute": {"script": "recompute.py", "result": "recompute.json", "problems": 0, "findings": 0}
+}
