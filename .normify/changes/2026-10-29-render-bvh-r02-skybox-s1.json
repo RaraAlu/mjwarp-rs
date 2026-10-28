@@ -5,7 +5,7 @@
     "zh": "R02-S1：天空盒离线实现（sample_skybox 内核 + 竖排 2D 纹理注册表子集 + 槽填充，无窗口）",
     "en": "R02-S1: offline skybox implementation (sample_skybox kernel, vertical-strip 2D texture registry subset, slot wiring; no window)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "R02 第一片（离线，无 GPU 窗口、无渲染数值结论）：把 MuJoCo 天空盒接进产品渲染路径。上游依据：`sample_skybox`（pinned `mujoco_warp 3.15.0` `render.py:494-556`：世界方向→cube 空间 `rx=x, ry=z, rz=-y`，按 `|rx|/|ry|/|rz|` 选 face 0..5（+X,-X,+Y,-Y,+Z,-Z），`s=x`、`t=y`（sc/tc 见 516-545），`s=(safe_div(sc,ma)+1)/2`、`t=(safe_div(tc,ma)+1)/2`，`t` 夹 `[0.5*face_width_inv, 1-0.5*face_width_inv]`，`v=(face+t)/6`，`texture_sample(vec2(s,v))`）；调用点 `render.py:1259-1268`（`geom_id==-1` 且 `render_rgb` 且 `render_skybox`：采样后走 `store_pixel` 语义，AA 累加、非 AA 打包写）；host 侧 `render_util.py:514-535`（skybox 纹理 id/face_width=`tex_width`，且**只在需要时实体化**：`if use_textures or has_skybox`，其余槽位为 1×1 dummy）。本栈已确认 **不需要真 cube 纹理路径**：MuJoCo 天空盒即竖排 2D（`fixtures/render-bvh/scene-a/model-312.json`：`tex_type=[0,0,2]`、`tex_width=[64,32,64]`、`tex_height=[64,32,384]`=6×64），我方 `texture/cuda.rs:228-322` + `texture/sample.cu:28-38` 已是等价的 2D LINEAR/CLAMP/归一化 `tex.2d` 路径，`wp::texture_sample<wp::vec4>` 已在 `render_shade.cu:293` 使用。host 解析已就绪（`context/model.rs:114-143` 的 `Skybox{texture_id, face_width}`、`context.rs:161-166`），槽已 push 但为占位（`kernel/megakernel.rs:356-357`），host 现拒绝（`kernel/megakernel.rs:104-106`），纹理注册表只在 `use_textures` 时实体化（`texture.rs:226-229` + `context/lifecycle.rs:329`）。本片只做：内核翻译 + 门改 + 槽填充 + host 单测；**不产任何渲染数值结论**，capture/参考/判据留 S2（authoring 捕获）与 S3（验证窗），两者都需用户在场双签后才跑。",
     "en": "First R02 slice, offline: translate upstream sample_skybox into the CUDA kernel, materialize only requested textures (vertical-strip 2D skybox), fill the two skybox slots, remove the host rejection, and cover host wiring with unit tests. No GPU window, no rendered-value conclusions."
@@ -46,7 +46,8 @@
     "after": null
   },
   "created_at": "2026-10-28T21:58:00.000Z",
-  "updated_at": "2026-10-28T21:59:27.331Z",
+  "updated_at": "2026-10-28T22:17:03.986Z",
+  "closed_at": "2026-10-28T22:17:03.986Z",
   "checks": [
     {
       "kind": "gate",
