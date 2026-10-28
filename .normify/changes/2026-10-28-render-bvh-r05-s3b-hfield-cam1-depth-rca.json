@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-s3b-hfield-cam1-depth-rca",
+  "title": {
+    "zh": "R05-S3b hfield cam1 depth 判据红只读定位（≤7 ULP / beyond=20，判据不动）",
+    "en": "Read-only root cause for R05-S3b hfield cam1 depth mismatch (<=7 ULP, beyond=20; criteria untouched)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "零 mesh 发射修复后，本地调试跑（非窗口）显示：RGB 位级全等、seg 全等、**cam0 depth 位级全等**，但 **cam1 depth 有差异**（hfield-only mismatch=4423 / max_ulp=7 / beyond=20；hfield-primitive mismatch=4389 / max_ulp=7 / beyond=20；首差异 cam1 pixel 16913 x=113 y=70）。即使按窗口判据（≤4 ULP 且 beyond=0）也是红。本片**只做只读定位**：找出差异来自哪一层算术（深度合成、射线方向归一、相机本地帧、hfield/mesh 求交的舍入顺序），给出可复核的证据与结论；**不许改容差/参考/fixture/判据，不许开 GPU 窗口，不许边猜边改**。若结论需要改产品代码，先报 Arch 出 files/行数预核，另立 fix 片。",
+    "en": "Read-only root cause for the cam1 depth mismatch observed after the zero-mesh launch fix. No criteria/tolerance/reference/fixture changes, no GPU window; if a code fix is needed, report a pre-checked plan first."
+  },
+  "modules": {},
+  "acceptance": [
+    "**定位到具体算术层（必答）**：给出差异来源的层级判定——① 深度合成（`depth = hit.dist * -ray_dir_local_cam.z` 或等价式）② 射线方向构造/归一（host 侧 `ray_dirs` 与相机本地帧）③ hfield/mesh 求交（`hit.dist` 的舍入顺序、是否用了 fused 乘加）④ 参考语义（上游 depth 定义与本产品是否一致）。每层都要给「支持/排除」的代码位置与数值证据，不能只给结论。",
+    "**解释 cam0 位级全等而 cam1 差**：给出可证伪的机制解释（例如 cam0 的 `-ray_dir_local_cam.z` 恰为精确 1.0 使某步乘法差异消失；cam1 为斜视非 1.0）。需用数值/符号证据支持，不接受「可能」。",
+    "**与上游逐行对照**：把我们的深度相关 CUDA 源码与 pinned upstream（mujoco_warp 1.15.0 / commit `71da24d…`）对应函数**逐行对照**，标出所有可能引入 ≤1 ULP 差异的表达式（乘法顺序、是否 fma、是否先归一）；贴行号。",
+    "**上游参考自洽性检查**：用 pinned python（numpy 2.5.4）对同一相机/像素重算「上游 depth」语义（例如用参考 npz 的 depth 与已知几何反推），验证参考本身是否就是 `dist * -dir_z` 口径；若参考语义不同，给出证据并**停手报 Arch**（这属于口径问题，不许自行改判据）。",
+    "**数据规模与边界**：给出差异分布（mismatch 像素数、max_ulp、beyond 阈值计数、是否集中在边缘/背景、torch 无关的纯 f32 复算），并注明全部数字来自**本地调试跑**，不是窗口验收结论。",
+    "**证据与纪律**：`docs/development-evidence/render-bvh/r05-s3b-hfield-cam1-depth-rca/`（README + receipt + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0）；**零渲染数值验收结论**、零「窗口通过/精度达标」；不改任何 `src/`、`tests/`、`fixtures/`、`scripts/`（本片纯只读）；结论若是「需改产品代码」，给 files/行数预核与影响面，等 Arch 批。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r05-s3b-hfield-empty-mesh-fix"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/r05-s3b-hfield-cam1-depth-rca/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-10-29 登记（只读 RCA）。触发：空 mesh 修复后本地调试出现 cam1 depth red（≤7 ULP / beyond=20），cam0 位级全等。判据/容差/参考/fixture 一律不动；开窗前必须先有可复核的根因结论。",
+  "revision": {
+    "before": "60e6d2f3f5e9685bf01735e3b47642ef7d03ee5f",
+    "after": null
+  },
+  "created_at": "2026-10-29T03:10:00.000Z",
+  "updated_at": "2026-10-28T19:11:06.032Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-s3b-hfield-cam1-depth-rca/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-s3b-hfield-cam1-depth-rca"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "窗口通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

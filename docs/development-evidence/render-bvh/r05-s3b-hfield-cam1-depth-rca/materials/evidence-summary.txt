@@ -1,0 +1,17 @@
+R05-S3b hfield cam1 depth RCA - machine evidence summary (local debug, not acceptance)
+key numbers:
+  hfield mesh: point_bit_diffs=0, indices_equal=true, half_equal=true, vertices=13, triangles=12
+  hfield data: bits_equal=true (16), size_bits_equal=true
+  rays: dir_bits_equal=true (120000), offset_bits_equal=true
+  layout: rgb/depth/seg adr equal, cam_res equal, total_rays=120000
+  reference self-consistency: pinned re-render depth bit_diffs_vs_fixture=0 (cam0 76800, cam1 43200), max_abs_diff=0
+  depth formula: upstream render.py:1285-1294 == product render_megakernel.cu:201-204 (hit.dist * -ray_dir_local_cam.z)
+  arch candidate (U/V/W==0 double fallback): host f32 simulation hits cam0=0/47024, cam1=0/6150 -> excluded
+  det correlation (cam1): corr(log|det|,ulp)=0.0938, corr(1/|det|,ulp)=-0.0650, mismatch rate flat 0.713/0.699/0.720/0.745 by |det| quartile
+  intra-triangle: min-bary p50 mismatched=0.0967 vs matched=0.0964 (not edge/tie-break)
+  camera world pose: cam0 xmat bits equal (9/9), cam1 xmat 5/9 entries differ by 1-2 (int diffs [0,0,1,-1,2,0,-2040873,0,1]); xpos equal
+  world rays: cam0 dir-diff pixels=0/76800; cam1 dir-diff pixels=42449/43200; hit pixels with dir diff 6110/6150
+  depth mismatch: cam0=0; cam1 hfield-only=4423 (max_ulp=7, beyond=20), hfield-primitive=4389
+  NVRTC 12.9.1 A/B: hfield results identical to 12.8.1 (ptx sha changed 97467d83.. -> 812b4fe7..)
+root cause class: camera world pose derivation (host quat_to_mat without GPU fma contraction) -> 1-2 ULP cam_xmat for non-identity quats
+fix precheck: option A = warp-aligned host quat_to_matrix in src/render/kernel/cast.rs (+30..40 lines), needs project registration

@@ -1,0 +1,43 @@
+{
+  "task_id": "2026-10-28-render-bvh-r05-s3b-hfield-cam1-depth-rca",
+  "kind": "read-only-rca-cam1-depth",
+  "verdict_layer": "ray-direction/camera-local-frame (fixed-camera world pose derivation)",
+  "not_layers": ["depth composition", "hfield/mesh intersection arithmetic", "reference semantics"],
+  "trigger": "R05-S3b validation window attempt1 invalid round after zero-mesh launch fix; local debug run shows cam1 depth mismatch",
+  "baseline_local_debug": {
+    "kind": "local_debug_not_acceptance",
+    "hfield_only": {"rgb": "bitwise equal both cameras", "seg": "identical", "depth_cam0": "mismatch=0 max_ulp=0 beyond=0", "depth_cam1": {"mismatch": 4423, "max_ulp": 7, "beyond_ulp": 20, "first": "camera=1 pixel=16913 x=113 y=70"}},
+    "hfield_primitive": {"depth_cam0": "mismatch=0", "depth_cam1": {"mismatch": 4389, "max_ulp": 7, "beyond_ulp": 20}}
+  },
+  "layer_exclusions": {
+    "hfield_mesh": {"vertices": 13, "triangles": 12, "point_bit_diffs": 0, "indices_equal": true, "half_equal": true, "source": "Rust build_hfield_mesh vs pinned upstream _optimize_hfield_mesh dump"},
+    "hfield_data": {"bits_equal": true, "len": 16, "size_bits_equal": true},
+    "rays_local": {"dir_bits_equal": true, "dir_count": 120000, "offset_bits_equal": true},
+    "layout": {"rgb_adr_equal": true, "depth_adr_equal": true, "seg_adr_equal": true, "cam_res_equal": true, "total_rays_equal": true},
+    "reference_semantics": {"pinned_rerender_depth_bit_diffs": 0, "cam0_pixels": 76800, "cam1_pixels": 43200, "max_abs_diff": 0.0, "note": "pinned env re-render reproduces fixture depth bitwise; reference is dist * -ray_dir_local_cam[2]"},
+    "depth_formula_source": {"upstream": "render.py:1285-1294", "product": "render_megakernel.cu:201-204", "same": true},
+    "arch_candidate_uvw_zero_branch": {"host_f32_simulation_hits": {"cam0": "0/47024", "cam1": "0/6150"}, "excluded": true},
+    "det_correlation": {"cam1_corr_log_absdet_vs_ulp": 0.0938, "cam1_corr_invdet_vs_ulp": -0.0650, "mismatch_rate_by_absdet_quartile": [0.7133, 0.6988, 0.7202, 0.7450]},
+    "intra_triangle": {"cam1_mismatched_min_bary_p50": 0.0967, "cam1_matched_min_bary_p50": 0.0964, "edge_fraction_lt_1e-3": {"mismatched": 0.0070, "matched": 0.0081}},
+    "nvrtc_129_ab": {"hfield_results_identical_to_128": true, "ptx_sha256_128": "97467d835e27107a4a0803678e194f4868fb552707543a544e270cbde8a9bd13", "ptx_sha256_129": "812b4fe7dfd045f32b77053ef4b3644235300948ebb326e2665aeba0a1cba8f0"}
+  },
+  "root_cause": {
+    "camera_world_pose": {
+      "cam0_xmat_bits_equal": true,
+      "cam1_xmat_bits_equal": false,
+      "cam1_entry_int_bit_diffs": [0, 0, 1, -1, 2, 0, -2040873, 0, 1],
+      "cam1_near_zero_residual": {"ours": "-1.19e-8 (0xb3000000)", "upstream": "-1.48e-8 (0xb31f2429)"},
+      "cam_xpos_equal": true
+    },
+    "world_ray_effect": {"cam0_world_dir_bit_diff_pixels": 0, "cam1_world_dir_bit_diff_pixels": 42449, "cam1_pixels": 43200, "cam1_hit_pixels": 6150, "cam1_hit_pixels_with_dir_diff": 6110, "cam1_depth_mismatch_rate_when_dir_differs": 0.7183},
+    "mechanism": "mujoco_warp math.quat_to_mat source formula is identical to src/math/mod.rs::quat_to_mat, but the GPU warp kernel is compiled with fuse_fp=true (--fmad=true) so products are fused; host Rust f32 does not contract. cam0 quat is exact identity (both arithmetics exact), cam1 quat from xyaxes is non-trivial -> 1-2 ULP matrix differences -> world ray 1-2 ULP -> hit t 1-7 ULP -> cam1 depth red.",
+    "why_not_exposed_before": "scene-a depth entities use reference camera_data pose bits (tests/support/render_bvh/s7b1.rs camera_data_poses, asserted bitwise); the quat path is only tolerance-checked (<=1e-6, tests/render_kernel_depth_seg.rs). The S3b hfield target is the first entity using CameraPose::from_fields with a bitwise depth criterion."
+  },
+  "fix_precheck": {
+    "option_a_recommended": {"where": "src/render/kernel/cast.rs (CameraPose::from_fields + new warp-aligned quat_to_matrix helper)", "est_lines": "+30..40 (file 411 -> <=500)", "not_touching": ["src/math/mod.rs", "cuda/**.cu", "81-slot ABI", "DEVICE_SOURCES", "CollisionArgs", "criteria/tolerance/reference/fixtures"], "requires": "Arch/Chief project registration before coding; exact fma order to be read from pinned warp cached PTX in target/render-bvh/r05-s3a-hfield-cache/1.15.0/wp_mujoco_warp._src.smooth_*"},
+    "option_b": "device-side camera pose kernel (larger change; later slice)",
+    "option_c": "test-side use of reference camera_data is impossible: S3a capture.json context has no camera pose bits; and it would bypass the product derivation path"
+  },
+  "discipline": {"read_only": true, "src_tests_unchanged": true, "temp_probes_reverted": true, "no_window": true, "no_guard_refreeze": true, "attempt1_dir_preserved": true, "numeric_conclusion": false},
+  "artifacts": {"readme": "README.md", "manifest": "manifest.txt", "materials": ["materials/evidence-summary.txt", "materials/analysis-summary.json", "materials/step1-det-summary.json", "materials/campose-link.json", "materials/upstream-camworld.json", "materials/bruteforce-summary.txt", "materials/nvrtc129-run.log"]}
+}

@@ -1,0 +1,12 @@
+TEMP RCA: brute force f32 fma-contraction pattern of mujoco_warp math.quat_to_mat against upstream d.cam_xmat
+inputs: cam_quat bits (mjm, bitwise identical to upstream mjm), upstream d.cam_xmat bits (pinned warp 1.15.0 GPU)
+formula: mujoco_warp/_src/math.py::quat_to_mat (same algebraic source as src/math/mod.rs::quat_to_mat)
+enumeration: diagonal fusions (8 x 8 x 8) x offdiag minus/plus fusion modes (3 x 3)
+best result: 16 of 18 matrix entries bitwise reproduced for both cameras; 2 remaining cam1 diagonal entries differ by 1 ULP
+  best pattern: d0=(no fma), d2=(no fma), d3=(no fma), o_minus=fuse second product, o_plus=fuse second product
+cam1 got (best): 3f1b8312 be924acb 3f3dbdb7 3f4b5a1b 3e5fc077 bf111a67 b31f2429 3f6edd7f 3eb82ad8
+cam1 upstream  : 3f1b8312 be924acb 3f3dbdb7 3f4b5a1b 3e5fc075 bf111a67 b31f2429 3f6edd7f 3eb82ad7
+cam1 product   : 3f1b8312 be924acb 3f3dbdb8 3f4b5a1a 3e5fc077 bf111a67 b3000000 3f6edd7f 3eb82ad8
+conclusion: the upstream GPU bits are reproducible with the same formula plus fma contraction (16/18); the product host
+  formula uses no contraction and differs in 5/9 entries. Exact per-instruction order for the fix must be read from the
+  pinned warp cached PTX (target/render-bvh/r05-s3a-hfield-cache/1.15.0/wp_mujoco_warp._src.smooth_*) before coding.
