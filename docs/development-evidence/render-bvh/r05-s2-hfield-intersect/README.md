@@ -179,3 +179,5 @@ f32 阈值边界（恰为阈值 → 非共面；低 1 ULP → 共面）、三角
   `s7b2-span: 传输输入错误：维度无效：launcher_buffer`（同窗口 8 个回归实体 exit 0）。该缺口属既有实现缺口，
   由独立片 `2026-10-28-render-bvh-r05-s3b-hfield-empty-mesh-fix` 记录处理；**本卡的限制结论不变**，
   也不改判据/容差/参考。hfield 数值链路（RGB/depth/seg 判据）仍需 R05-S3b 验证窗 attempt=2 及后续片结论。
+
+**更新（2026-10-29）：该通路已由 R05-S3b attempt=2 验证窗验证（见 `docs/development-evidence/render-bvh/r05-s3b-hfield-validate/`），原「未验证」记录保留为历史。**
