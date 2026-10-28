@@ -3,9 +3,9 @@
 //!
 //! 判据（Arch 2026-10-28 S3b start）：
 //! - **shadow-on**：产品 `nworld=1` + scene-shadow + `use_shadows=true` 的 rgb/depth/seg 对
-//!   `fixtures/render-bvh/scene-shadow/capture/shadow-on/` 判定：RGB 每通道 ≤1 LSB、
+//!   `fixtures/render-bvh/scene-shadow/capture-exact/shadow-on/` 判定：RGB 每通道 ≤1 LSB、
 //!   depth ≤4 ULP（位级 `mismatched==0` 优先）、seg 全等；**两次运行 sha256 相同**。
-//! - **shadow-off**：① 对 `capture/shadow-off/` 同判据；② **逐位回归解锁前既有同配方产品参考**：
+//! - **shadow-off**：① 对 `capture-exact/shadow-off/` 同判据；② **逐位回归解锁前既有同配方产品参考**：
 //!   depth/seg 对 `s7b1::RECIPE_REFERENCE`（同配方 `depth_seg_fast_math_false.json`）位级
 //!   `mismatched==0`、RGB 对 `s7b2::parse_rgb_fast_math_false_reference()` 逐字节
 //!   `max_byte_diff==0`（S8 解锁前产品实测口径）；做不到逐位即算失败（不改判据）。
@@ -16,10 +16,10 @@
 //! 三灯 `castshadow=1`（scene-a 的 lamp 为 0）→ 产品字段复用 `s7b2::fields_from_model()`，
 //! 只覆盖 `light_castshadow`（见 `tests/support/render_bvh/shadow_scene.rs`）。
 //!
-//! 参考配方注意：S3a 捕获参数是 **fast-math 采集配方**（`capture.json::parameters.use_fast_math=true`），
-//! 而产品内核为精确 f32（S7b2 口径下「同配方」= `use_fast_math=False` 采集）。本文件对
-//! `capture/` 参考的断言按 ≤1 LSB / ≤4 ULP 判据执行，跨配方性质在证据中如实记录；
-//! 同配方的硬判据由 shadow-off 的 ② 承担（既有 `fast_math_false` 参考）。
+//! 参考配方：`capture-exact/` 是**产品同配方**（`use_fast_math=false`，R09-S3a-capture-exact
+//! 窗口）产物 → shadow-on/off 均按既有判据作硬断言；旧 `capture/`（fast-math 组）**不参与
+//! 本测试断言**，只在证据中作历史/跨配方诊断记录。同配方的解锁前逐位回归仍由 shadow-off ②
+//! 承担（既有 `s7b/*_fast_math_false.json`）。
 //!
 //! 全部 GPU 用例 `#[ignore]`：
 //! cargo test --locked --features cuda-probe --test render_shadow_reference -- --ignored --test-threads=1
@@ -165,7 +165,7 @@ fn shadow_on_matches_captured_reference() {
     );
 }
 
-/// shadow-off：① 对捕获参考同判据；② 逐位回归解锁前既有同配方产品参考；③ 两次运行 sha256。
+/// shadow-off：① 对 capture-exact 同配方参考同判据；② 逐位回归解锁前既有同配方产品参考；③ 两次运行 sha256。
 #[test]
 #[ignore = "需要 GPU + NVRTC"]
 fn shadow_off_bitwise_regression_to_pre_unlock_reference() {
@@ -187,7 +187,7 @@ fn shadow_off_bitwise_regression_to_pre_unlock_reference() {
     for camera in &reference.rgb {
         let stats = &rgb_stats[camera.index];
         println!(
-            "r09-s3b[shadow-off] cam{} rgb(capture): mismatched={} max_byte_diff={} beyond_1_lsb={}",
+            "r09-s3b[shadow-off] cam{} rgb(exact): mismatched={} max_byte_diff={} beyond_1_lsb={}",
             camera.index, stats.mismatched_pixels, stats.max_byte_diff, stats.beyond_one_lsb_pixels
         );
     }

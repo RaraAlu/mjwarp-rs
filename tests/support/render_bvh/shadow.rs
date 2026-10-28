@@ -1,8 +1,10 @@
 #![allow(dead_code)]
 //! R09-S3b 阴影参考读取：把 R09-S3a authoring 捕获的 npz 参考转成可比较结构。
 //!
-//! - 参考为 authoring-only 产物（pinned MJWarp 3.15.0 + warp 1.15.0，**fast-math 采集配方**），
-//!   本模块**只读**（`include_bytes!` + sha256 冻结断言），不重新采集、不修改任何夹具。
+//! - 参考为 authoring-only 产物（pinned MJWarp 3.15.0 + warp 1.15.0，**产品同配方**：
+//!   `use_fast_math=false`，`r09-s3a-capture-exact` 窗口），本模块**只读**（`include_bytes!`
+//!   + sha256 冻结断言），不重新采集、不修改任何夹具。
+//! - 旧 `capture/`（fast-math 组）**不参与本测试断言**，只在证据里作历史/跨配方诊断记录。
 //! - npz 由 `scripts/capture_render_shadow.py::save_npz_deterministic` 写出：
 //!   `zipfile.ZIP_STORED`（无压缩）容器 + 标准 npy v1.0 数组成员
 //!   （`rgb_camN.npy` / `depth_camN.npy` / `seg_camN.npy`）。仓库不为测试引入 npz 依赖，
@@ -20,35 +22,35 @@ use mjwarp_rs::render::kernel::output::RefCamera;
 
 use super::s7b2::RgbCamera;
 
-/// shadow-on 参考 sha256（S3a 窗口产物冻结值：rgb / depth / seg）。
+/// shadow-on 参考 sha256（`r09-s3a-capture-exact` 同配方冻结值：rgb / depth / seg）。
 pub const SHADOW_ON_SHA256: [&str; 3] = [
-    "65596761f77a099a6c47ed885143ba3a8b50c0ca128606ae52b373142533ebc7",
-    "0fa5582170a2b2a117e46868930fa2b4270dd993b0f5d86dc603981e0a2fd7d3",
+    "1ae5b54b808371e1df2bf7db2da1ba28c7bd78a802dac2d89d3e625155012c1b",
+    "28c1ea4bdd4533a3d4811f390051a9e0dfa75ccab2549d7b32b8b426ccc9ba14",
     "2153fa728d634c032cf38847761803c4faa806aa554e108a2e0bd7b8ac8e6a97",
 ];
 
-/// shadow-off 参考 sha256（S3a 窗口产物冻结值：rgb / depth / seg）。
+/// shadow-off 参考 sha256（`r09-s3a-capture-exact` 同配方冻结值：rgb / depth / seg）。
 ///
-/// 注：shadow-off 的 depth/seg 与 shadow-on、以及 S0b `scene-a/reference` 的 depth/seg
-/// 逐字节相同（sha 相同），这是 S3a 记录的管线交叉校验信号之一。
+/// 注：shadow-off 的 depth/seg 与 shadow-on 逐字节相同（阴影只影响光照），且与既有
+/// `s7b/*_fast_math_false.json` 同配方参考位级一致（子任务窗口内已记录）。
 pub const SHADOW_OFF_SHA256: [&str; 3] = [
-    "9379f5d3b39e2d5d0ce8ef21a28b365e3608d20f6a992c39dff2d5df3ef90c0c",
-    "0fa5582170a2b2a117e46868930fa2b4270dd993b0f5d86dc603981e0a2fd7d3",
+    "1090378b3c11bf87358adb838f4d7cce982acb40675cbadccf4ae3b06f2d7148",
+    "28c1ea4bdd4533a3d4811f390051a9e0dfa75ccab2549d7b32b8b426ccc9ba14",
     "2153fa728d634c032cf38847761803c4faa806aa554e108a2e0bd7b8ac8e6a97",
 ];
 
 const SHADOW_ON_RGB: &[u8] =
-    include_bytes!("../../../fixtures/render-bvh/scene-shadow/capture/shadow-on/rgb.npz");
+    include_bytes!("../../../fixtures/render-bvh/scene-shadow/capture-exact/shadow-on/rgb.npz");
 const SHADOW_ON_DEPTH: &[u8] =
-    include_bytes!("../../../fixtures/render-bvh/scene-shadow/capture/shadow-on/depth.npz");
+    include_bytes!("../../../fixtures/render-bvh/scene-shadow/capture-exact/shadow-on/depth.npz");
 const SHADOW_ON_SEG: &[u8] =
-    include_bytes!("../../../fixtures/render-bvh/scene-shadow/capture/shadow-on/seg.npz");
+    include_bytes!("../../../fixtures/render-bvh/scene-shadow/capture-exact/shadow-on/seg.npz");
 const SHADOW_OFF_RGB: &[u8] =
-    include_bytes!("../../../fixtures/render-bvh/scene-shadow/capture/shadow-off/rgb.npz");
+    include_bytes!("../../../fixtures/render-bvh/scene-shadow/capture-exact/shadow-off/rgb.npz");
 const SHADOW_OFF_DEPTH: &[u8] =
-    include_bytes!("../../../fixtures/render-bvh/scene-shadow/capture/shadow-off/depth.npz");
+    include_bytes!("../../../fixtures/render-bvh/scene-shadow/capture-exact/shadow-off/depth.npz");
 const SHADOW_OFF_SEG: &[u8] =
-    include_bytes!("../../../fixtures/render-bvh/scene-shadow/capture/shadow-off/seg.npz");
+    include_bytes!("../../../fixtures/render-bvh/scene-shadow/capture-exact/shadow-off/seg.npz");
 
 /// 一组阴影参考（shadow-on 或 shadow-off）：两相机 RGB packed + depth/seg。
 #[derive(Clone, Debug)]
@@ -69,7 +71,7 @@ impl ShadowReference {
     }
 }
 
-/// 读取 shadow-on 参考（`fixtures/render-bvh/scene-shadow/capture/shadow-on/`）。
+/// 读取 shadow-on 参考（`fixtures/render-bvh/scene-shadow/capture-exact/shadow-on/`）。
 pub fn shadow_on_reference() -> ShadowReference {
     build(
         "shadow-on",
@@ -78,7 +80,7 @@ pub fn shadow_on_reference() -> ShadowReference {
     )
 }
 
-/// 读取 shadow-off 参考（`fixtures/render-bvh/scene-shadow/capture/shadow-off/`）。
+/// 读取 shadow-off 参考（`fixtures/render-bvh/scene-shadow/capture-exact/shadow-off/`）。
 pub fn shadow_off_reference() -> ShadowReference {
     build(
         "shadow-off",
