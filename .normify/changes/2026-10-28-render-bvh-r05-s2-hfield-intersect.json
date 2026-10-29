@@ -5,7 +5,7 @@
     "zh": "R05-S2：设备侧 hfield 三角化 + mesh BVH 相交接入（无窗口；数值验收留 S3 验证窗）",
     "en": "R05-S2: device-side hfield triangulation plus mesh-BVH intersection wiring (no window; numeric acceptance in the S3 window)"
   },
-  "status": "proposed",
+  "status": "abandoned",
   "intent": {
     "zh": "R05 第二片：把 hfield 接入产品渲染路径。① host 侧把高度场按上游 `bvh.py:581 build_hfield_bvh` 规则三角化（`x=sz0·(c/width−1)`、`y=sz1·(r/height−1)`、`z=data[r,c]·sz2`，`width=0.5·max(nc−1,1)`、`height=0.5·max(nr−1,1)`，每格 2 三角形 TL/TR/BR + TL/BR/BL，贪心共面合并），复用既有 `MeshBvh::build`；② 把 hfield mesh **追加在 mesh blob 末尾**（既有 mesh 索引不变）并把 `hfield_bvh_id` 槽填成「blob 内 mesh 索引，未用项 `u64::MAX` 哨兵、长度=nhfield」，**不扩 81 槽 ABI**；③ 设备侧 `cast_ray` 加 `gtype==1` 分派到既有 `ray_mesh_leaf`，`hit.mesh_id` 带索引供纹理；`render_shade.cu` 加 `_texture_hfield` 翻译；阴影射线与 mesh 同规则（不剔背，对齐 any-hit）；④ 注入方式 A（显式注入、非破坏 API：`None` 路径零行为差异）。`gtype==8`（SDF）仍拒绝。本片**不产任何渲染数值结论**，数值验收（RGB ≤1 LSB 位级优先 / depth ≤4 ULP 位级优先 / seg exact / 两次 sha 相同）留 R05-S3 验证窗。",
     "en": "Wire hfield into the product render path: upstream-aligned triangulation, mesh-BVH intersection, slot semantics without ABI change, non-breaking injection."
@@ -47,7 +47,7 @@
   },
   "created_at": "2026-10-28T14:39:00.000Z",
   "updated_at": "2026-10-28T15:00:04.138Z",
-  "closed_at": null,
+  "closed_at": "2026-10-28T15:00:04.138Z",
   "checks": [
     {
       "kind": "gate",
