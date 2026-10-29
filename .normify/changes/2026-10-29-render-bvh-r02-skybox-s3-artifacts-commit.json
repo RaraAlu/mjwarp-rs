@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-bvh-r02-skybox-s3-artifacts-commit",
+  "title": {
+    "zh": "R02-S3a：窗口签字产物入库（天空盒参考 4 文件 + r02-skybox guards attempt=2）",
+    "en": "R02-S3a: commit the signed window artifacts (skybox reference x4 files and the r02-skybox attempt=2 guards file)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R02 窗口 attempt=2 依赖两类此前未跟踪的签字产物，必须入库才能让 S3 证据可追溯、后续窗口可复现：① `fixtures/render-bvh/scene-a/reference-skybox/`（stage A attempt2 产出的 `capture.json` + `rgb/depth/seg.npz`，capture.json sha `47f704de…`、`use_fast_math=false`、两跑 sha 相等、恰 4 文件；这是 `render_skybox_reference` 实体的位级参考，也是 guards 的 4 个只读输入）；② `scripts/validate/render-bvh/guards-r02-skybox.json`（suite `r02-skybox-validate`、attempt=2、77 条目、sha `2d55c0b3…`、aggregate `ca1fcaa5…`）。本片只做入库与身份记录，不改任何字节、不跑 GPU、不改判据。",
+    "en": "Commit the two signed window artifacts that were still untracked: the skybox reference directory (4 files) and the r02-skybox guards file (attempt=2). Artifacts only; no byte changes, no GPU, no criteria changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**字节不变**：入库文件的 sha256/bytes 必须与已记录值一致——capture.json `47f704de0421abbcfd89634b156323867c255aeb3f0734db7f78fc3274295a9a`/4 730 B；rgb `cf65a570…`/1 440 478 B；depth `28c1ea4b…`/480 486 B；seg `2153fa72…`/960 478 B；guards `2d55c0b3fc14a33b2acce159bf68f474131f2819e3b2230f17ece11021b2e6a3`/28 931 B、attempt=2、77 条目、aggregate `ca1fcaa5…`。",
+    "**与 S3 证据自洽**：S3 receipt 引用的 capture sha、四文件 sha、guards sha/aggregate 与入库文件逐一相等；guards 的 68 只读输入包含这 4 个参考文件（`-GuardsOnly 77/77` 的历史记录仍可复核）。",
+    "**参考目录内容**：恰好 4 文件（无部分产物、无 attempt1 残留）；attempt1 旧参考仍在 `target/render-bvh/r02-skybox-window/stage-a-attempt1-reference-superseded/`（不入库，S3 证据记录其 sha）。",
+    "**不改任何判定面**：不动参考内容、不动 guards 内容、不改判据/容差；`src/**`/`tests/**` 零改动；不跑 GPU、不重跑窗口。",
+    "**门禁与证据**：fmt / clippy / clippy-cuda / unit / `validate --fingerprints` 全绿；证据 `docs/development-evidence/render-bvh/r02-skybox-s3-artifacts-commit/`（README + receipt 含 `/task_id` + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0），记录入库文件身份与「S3 引用一致」核对。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-render-bvh-r02-skybox-s3-validate"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "fixtures/render-bvh/scene-a/reference-skybox/",
+      "scripts/validate/render-bvh/guards-r02-skybox.json",
+      "docs/development-evidence/render-bvh/r02-skybox-s3-artifacts-commit/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-29 登记（scope 修复：S3 卡只含文档，签字产物此前未跟踪；入库且字节不变是 S3 可追溯的前提）。",
+  "created_at": "2026-10-29T10:40:00.000Z",
+  "updated_at": "2026-10-29T10:40:00.000Z",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r02-skybox-s3-validate/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-bvh-r02-skybox-s3-validate"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "常规门槛通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
