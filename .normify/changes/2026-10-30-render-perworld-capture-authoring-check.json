@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-perworld-capture-authoring-check",
+  "title": {
+    "zh": "逐 world 渲染参考采集 authoring 独立复核（可行性/脚本/dry-run/零 GPU/零参考写入/范围诚实）",
+    "en": "Independent check of the per-world capture authoring (feasibility, script, dry-run, no GPU, no references written, honest scope)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-30-render-perworld-capture-authoring`：① 脚本 `scripts/capture_render_perworld.py` 行数 ≤500（LF）、非 ASCII 字节 0、`ast.parse` 通过、sha/字节/行数与 receipt 一致；② 可行性证据可独立复算：pinned 环境 `put_data`/`create_render_context` 含 `nworld`、`Data.qpos` 为 `(nworld, nq)`、`get_rgb` 输出 `(nworld,H,W)`、上游按 `geom_xpos_in[worldid, gi]` 采样；③ dry-run exit 0 且**不建 CUDA device、不写输出目录**；④ 本片零 GPU 采集、零 `fixtures/` 参考写入、零 `src/**`/`tests/**` 改动、零判据改；⑤ 证据 README/receipt 与 committed blob 一致、LF 无 BOM、禁词 0，且不宣称 per-world 灯位姿或任何渲染数值结论。",
+    "en": "QA read-only review of the per-world capture authoring: script limits/sha, independently recomputable nworld feasibility evidence, dry-run did not create a CUDA device or write outputs, no GPU capture / no fixtures / no product code changes, and honest scope wording."
+  },
+  "modules": {},
+  "acceptance": [
+    "**脚本**：`scripts/capture_render_perworld.py` ≤500 行（LF 计数）、非 ASCII 字节 0、pinned python `ast.parse` 通过；sha256/字节/行数 与 receipt 一致；派生关系（R05-S3a 骨架）不改变既有采集脚本与参考。",
+    "**可行性**：QA 能只读复算 nworld 能力（`put_data` 签名含 nworld、`Data.qpos=(nworld,nq)`、`Data.geom_xpos=(nworld,ngeom,3)`、`create_render_context` 签名含 nworld、`get_rgb` 输出 `(nworld,H,W)`、上游 `geom_xpos_in[worldid, gi]` 采样）；`materials/dryrun-plan.json` 的环境/版本/revision/python sha/scene sha 与 receipt 一致。",
+    "**dry-run**：`--dry-run` exit 0；过程中未创建 CUDA device、未写 `--out-dir`（目录不存在或为空）；legacy manifest 条数与证据一致。",
+    "**零越界**：`git diff` 相对主卡 `revision.before` 只含 `scripts/capture_render_perworld.py`、`.normify/` 与 `docs/development-evidence/`；`fixtures/**`、`src/**`、`tests/**` 零改动。",
+    "**证据与范围**：README/receipt/materials 与 committed blob 一致、LF 无 BOM、禁词 0；不得出现「per-world 灯位姿已覆盖」「渲染数值验收通过」「等价」等结论；`capture.json` 的 `per_world_scope` 口径（只覆盖 geom 位姿）在证据中写明。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-perworld-capture-authoring"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-capture-authoring-check/"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "Arch 2026-10-30 预登记（Chief 要求 B 收口后预登记 QA 复核卡）。start 时把主卡 id 与复核点发 QA 会话；本卡只读，不跑 GPU、不改证据；QA 可跑纯编译门，不可跑设备执行。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T03:20:00.000Z",
+  "updated_at": "2026-10-30T03:20:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-capture-authoring-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-perworld-capture-authoring-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "逐 world 灯位姿已覆盖",
+        "渲染数值验收通过",
+        "等价"
+      ]
+    }
+  ]
+}
