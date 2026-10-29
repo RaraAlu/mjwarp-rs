@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-module-split-check",
+  "title": {
+    "zh": "render split 步 1 独立复核（3 新叶/11 API+6 依赖原文迁移/容器无 from_api/布局/validate 36/零代码改动）",
+    "en": "Independent check of render split step 1 (three leaves, verbatim 11-API + 6-dep migration, container without from_api, layout, validate 36, zero code change)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-30-render-module-split` 的**步 1**：① `mjwarp.render` 已变容器（0 API、0 带 `from_api` 的依赖）、`mjwarp.render.kernel`/`.bvh`/`.context` 三叶创建且 API 归属正确（kernel 1、bvh 2、context 8）；② 11 条 API 的**键与描述逐字**从 `render.md` 搬到三叶（不新增/不改语义），6 条带 `from_api` 的依赖连同 `[deps.label]` 原文迁到对应叶（4→kernel、2→context），全仓无 `dep/from-api-non-leaf`、无重复 API 键；③ 53 个源仍挂容器（步 1 偏差）且路径集合与迁移前一致（不重不漏）；④ 新布局 `.normify/layouts/mjwarp/render.toml` 覆盖 3 个直接子模块、无 `layout/missing`；⑤ `normify validate --fingerprints` 错误 0、警告 5 行，`structure/leaf-too-coarse` 实测 **37→36**、`api/leaf-empty`×2 与 `layout/order-incomplete`×2 不变；⑥ 零代码改动（`src/**`、`tests/**`、`fixtures/**`、`Cargo.*`）；⑦ 证据与 committed blob 一致、LF 无 BOM、禁词 0，正文（body）逐字保留（允许末尾补 1 个 LF）并写明 `OutputChannels`/`ImageOutput` 归属偏差。",
+    "en": "QA read-only review of render split step 1: container conversion without APIs/from_api deps, three leaves with correct API ownership, verbatim 11-API and 6-dependency migration, 53 sources still on the container with unchanged path set, new layout covering three children, validate 0 errors / 5 warnings with leaf-too-coarse 37->36, zero code change, and evidence integrity."
+  },
+  "modules": {},
+  "acceptance": [
+    "**结构与归属**：`mjwarp.render` 容器 0 API / 0 `from_api`；三叶 api 计数 kernel=1、bvh=2、context=8，键与描述与迁移前 `render.md` 逐字相同；6 条依赖 `from_api` 只出现在叶子且指向本叶 API，`[deps.label]` 双语原文保留。",
+    "**源与其集合**：容器仍持 53 源；`render.md`→`render/index.md` 与三新叶的路径集合与迁移前一致（逐条比对不重不漏）；步 1 三叶 0 源是预期（步 2 才搬）。",
+    "**布局**：`.normify/layouts/mjwarp/render.toml` 存在，`order` 恰为 3 个直接子模块且无重复；`mode`/`max_columns`/双语 `reading` 合法；无 `layout/missing`/`layout/order-incomplete` 新增。",
+    "**validate**：`normify validate --fingerprints` 错误 0；警告 5 行，其中 `structure/leaf-too-coarse` 计数 **36**（实测，37→36），`api/leaf-empty`×2 与 `layout/order-incomplete`×2 不变；中间态 11 条 `change/api-already-removed` 在 verified 后消失。",
+    "**零代码改动与证据**：`git diff` 相对主卡 `revision.before` 只含 `.normify/` 与 `docs/development-evidence/`；`src/**`、`tests/**`、`fixtures/**`、`Cargo.*` 零改动；README/receipt/logs 与 committed blob 一致、LF 无 BOM、禁词 0；容器 body 与迁移前正文逐字相同（末尾 LF 允许 +1）且偏差三条已登记。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-module-split"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/render-module-split-check/"
+    ],
+    "resources": [],
+    "priority": 55
+  },
+  "note": "Arch 2026-10-30 预登记（Chief 要求 render split 步 1 落地后预登记 QA 复核卡）。本卡只复核**步 1**，不含步 2 的 46 源搬迁；start 时把主卡 id 与复核点发 QA 会话。只读复核，不改 `.normify`、不跑 GPU。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T03:05:00.000Z",
+  "updated_at": "2026-10-30T03:05:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/render-module-split-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-module-split-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "架构完成",
+        "全部模块已拆分",
+        "等价"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "task_id": "2026-10-30-render-module-split",
+  "step": 1,
+  "kind": "architecture-governance-render-split",
+  "owner": "Arch",
+  "before_head": "9e1567a2",
+  "scope": {
+    "changed": [
+      ".normify/modules/mjwarp/render.md (removed -> container)",
+      ".normify/modules/mjwarp/render/index.md (new container, 53 sources)",
+      ".normify/modules/mjwarp/render/kernel.md (new leaf: 1 API + 4 deps)",
+      ".normify/modules/mjwarp/render/bvh.md (new leaf: 2 APIs)",
+      ".normify/modules/mjwarp/render/context.md (new leaf: 8 APIs + 2 deps)",
+      ".normify/layouts/mjwarp/render.toml (new layout)",
+      "docs/development-evidence/render-bvh/render-module-split/"
+    ],
+    "product_code_changes": 0
+  },
+  "counts": {
+    "modules_before": 68,
+    "modules_after": 71,
+    "leaves_before": 61,
+    "leaves_after": 63,
+    "api_keys_before": 398,
+    "api_keys_after": 398,
+    "api_keys_duplicate": 0,
+    "container_sources": 53,
+    "leaf_sources_step1": 0
+  },
+  "migration": {
+    "apis_moved_verbatim": 11,
+    "deps_moved_verbatim": 6,
+    "api_assignment": {
+      "mjwarp.render.kernel": ["rpc:mjwarp_rs::render::render"],
+      "mjwarp.render.bvh": ["rpc:mjwarp_rs::render::bvh::refit_bvh", "rpc:mjwarp_rs::render::bvh::refit_splat_bvh"],
+      "mjwarp.render.context": [
+        "rpc:mjwarp_rs::render::create_render_context",
+        "rpc:mjwarp_rs::render::get_depth",
+        "rpc:mjwarp_rs::render::get_rgb",
+        "rpc:mjwarp_rs::render::get_segmentation",
+        "rpc:mjwarp_rs::render::RenderContext",
+        "rpc:mjwarp_rs::render::OutputChannels",
+        "rpc:mjwarp_rs::render::ImageOutput",
+        "rpc:mjwarp_rs::render::ImageBatchLayout"
+      ]
+    },
+    "dep_assignment": {
+      "mjwarp.render.kernel": [
+        "from_api=render -> mjwarp.model.core (reference)",
+        "from_api=render -> mjwarp.runtime.completion (call)",
+        "from_api=render -> mjwarp.math (reference)",
+        "from_api=render -> mjwarp.diagnostics (reference)"
+      ],
+      "mjwarp.render.context": [
+        "from_api=ImageBatchLayout -> mjwarp.model.core (call)",
+        "from_api=ImageBatchLayout -> mjwarp.diagnostics (reference)"
+      ]
+    },
+    "inbound_dependencies": 0
+  },
+  "layout": {
+    "path": ".normify/layouts/mjwarp/render.toml",
+    "order": ["mjwarp.render.bvh", "mjwarp.render.context", "mjwarp.render.kernel"],
+    "mode": "layers",
+    "max_columns": 3
+  },
+  "measured_lines": {
+    "readalllines_before": {"total": 393, "fence_line": 369, "body_lines": 24,
+                            "body_sha256": "4f54ed56e7e57c9c88183a5d0597376ea162b9fe73bd139ae5411dfb72391f22"},
+    "readalllines_after": {"total": 201, "fence_line": 177, "body_lines": 24,
+                           "body_sha256": "483d91aedfb50e2707f2fa9a8f388baa9f18c15dd819cac0a0c92a9e5cdde6df"},
+    "body_delta": "identical text; new file appends exactly one trailing LF (421 -> 422 bytes of body text)"
+  },
+  "validate": {
+    "errors": 0,
+    "warnings_final": 5,
+    "leaf_too_coarse": {"before": 37, "after": 36, "measured": true,
+                        "reason": "mjwarp.render (53 sources) no longer a leaf; 3 new leaves have 0 sources"},
+    "intermediate_extra_warnings": "11 x change/api-already-removed while in_progress; vanish after done",
+    "fingerprints_after_done": "0 errors, no stale fingerprints"
+  },
+  "impact_step1": {
+    "src/render/kernel/megakernel.rs": "mjwarp.render (container, 53 sources, 0 APIs) - step 2 should resolve to mjwarp.render.kernel",
+    "src/render/bvh/refit.rs": "mjwarp.render (container) - step 2 should resolve to mjwarp.render.bvh",
+    "src/render/context/lifecycle.rs": "mjwarp.render (container) - step 2 should resolve to mjwarp.render.context"
+  },
+  "deviations": [
+    "container holds 53 sources in step 1 (precedent: mjwarp.runtime container); step 2 moves 46 out and leaves 7",
+    "OutputChannels/ImageOutput are declared on mjwarp.render.context but implemented in src/render/mod.rs which stays on the container; mod.rs assignment deferred to step 2",
+    "render body text is byte-identical except the container file adds one trailing LF"
+  ],
+  "gates": {"fmt": "pass", "clippy": "pass", "clippy-cuda": "pass", "unit": "pass",
+            "no_run": "exit=0, log contains Finished"},
+  "not_claimed": ["架构完成", "全部模块已拆分", "等价"],
+  "step2_pending": {
+    "sources_to_move": 46,
+    "target_split": {"mjwarp.render.kernel": 19, "mjwarp.render.bvh": 11, "mjwarp.render.context": 16},
+    "remaining_on_container": 7,
+    "expected_leaf_too_coarse": 39
+  }
+}
