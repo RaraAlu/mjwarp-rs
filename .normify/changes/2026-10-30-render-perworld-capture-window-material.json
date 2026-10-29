@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-perworld-capture-window-material",
+  "title": {
+    "zh": "逐 world 采集窗口材料（离线：窗口计划/基线 SOP/预期产物/双签栏；不开窗不跑 GPU）",
+    "en": "Per-world capture window material (offline: window plan, baseline SOP, expected products, signature block; no window, no GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "为 `2026-10-30-render-perworld-capture`（真正的 GPU 采集跑片）准备用户双签材料：窗口计划一页（采集脚本身份 sha `971cb8b1…`/23,531 B/497 行、逐字命令、`--out-dir` 限定、两跑 sha 相等判据、legacy manifest 69 条前后对拍、固定相机 `[true,false]`、配方 fast_math=false/shadows=true/spp=1）、开窗前基线取法（5 分钟三点快照 + floor 公式）、预期产物清单（`rgb/depth/seg/state.npz` + `capture.json` 的路径/结构/近似大小）、窗口时限与失败即停手条款、用户双签栏。本片**纯离线**：不跑 GPU、不开窗、不写 `fixtures/`。",
+    "en": "Prepare the user double-sign material for the real per-world GPU capture run: window plan, baseline SOP, expected products, time limit and stop-on-failure terms, and a signature block. Offline only: no GPU, no window, no fixtures written."
+  },
+  "modules": {},
+  "acceptance": [
+    "**窗口计划**：一页写清脚本身份（sha256/bytes/LF 行数）、逐字命令（pinned python 路径 + `--dry-run` 与真采集两条）、`--out-dir` 必在 `fixtures/render-bvh/scene-a/perworld/` 且不得已存在非空、`--worlds 3 --hinge-deg \"0,20,40\"`、配方 `--use-fast-math false --use-shadows true`、`--repeat 2`、固定相机 `[true,false]`（仅 `cam-persp` 320×240）。",
+    "**判据与对拍**：两跑逐数组 `np.array_equal` 且 npz 字节相等（`two_captures_bitwise_identical=true`）；legacy manifest **69 条**采集前后完全一致（脚本自动对拍，任何变动非零退出）；不产生任何渲染数值结论。",
+    "**基线 SOP**：开窗前 5 分钟取三点快照（free/util ×3 + compute-apps raw/filtered + build 进程），`floor_mib = baseline_free_mib − 3072`，写入窗口事实；常规 `util<40`（不预批例外），不达标停手报 Chief。",
+    "**预期产物**：`fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/{rgb,depth,seg,state}.npz + capture.json`；给出每个 npz 的数组键/形状/元素类型与近似字节数（rgb 3×240×320×3 f32 ≈ 2.64 MiB、depth 3×240×320 f32 ≈ 0.88 MiB、seg 3×240×320×2 i32 ≈ 1.76 MiB、state ≈ 数 KB，npz 为 ZIP_STORED 故另有 ~KB 头开销）。",
+    "**窗口纪律与失败条款**：采集属 GPU 满载任务，需用户双签（窗口计划 + 基线）；时限 30 分钟内（命令本体秒级）；任一步非零退出/两跑不等/legacy manifest 变动/写盘越界 → **停手报 Chief 与用户**，不重试、不改参数、不放宽判据。",
+    "**边界**：本片不跑 GPU、不开窗、不写 `fixtures/`、不改脚本与场景；证据只落 `docs/development-evidence/render-bvh/perworld-capture-window-material/`；双签栏留空待用户填写。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/perworld-capture-window-material/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-30 注册（proposed）。这是采集跑片的**前置材料**：采集卡 `2026-10-30-render-perworld-capture` 已 `set_dependencies` 挂上本卡（材料 verified + 用户双签后才可跑窗口）。材料不含任何渲染数值结论，只含窗口纪律与预期产物；双签以 Chief 整理给用户的版本为准。已知口径：脚本的 legacy manifest 目前排除**整棵** `fixtures/render-bvh/scene-a/perworld/`（QA B 复核 O3），收窄留到实现片；本片照实记录该排除范围，不宣称更细的对拍。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T04:00:00.000Z",
+  "updated_at": "2026-10-30T04:00:00.000Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "scripts/capture_render_perworld.py",
+        "fixtures/render-bvh/scene-a/scene.xml"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-capture-window-material/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-perworld-capture-window-material"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "采集已完成",
+        "等价"
+      ]
+    }
+  ]
+}
