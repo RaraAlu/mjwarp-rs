@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-perworld-capture-authoring",
+  "title": {
+    "zh": "逐 world 渲染参考采集 authoring（nworld=3 不同位姿；离线脚本 + dry-run，不跑 GPU 不写参考）",
+    "en": "Per-world render reference capture authoring (nworld=3 distinct poses; offline script + dry-run, no GPU capture, no references written)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "为架构缺口 `2026-10-28-render-per-world-geom-light-gap` 预备参考采集能力。缺口事实：我们的设备渲染路径按单 world 步长索引 geom/灯状态，而 pinned 上游 render 已按 `geom_xpos_in[worldid, gi]` 2D 索引。本片只做 **离线 authoring**：写 `scripts/capture_render_perworld.py`（派生自 R05-S3a 采集骨架），用 pinned 上游原生多 world 能力（`put_data(nworld=N)` / `forward` / `create_render_context(nworld=N)` / `get_rgb|get_depth|get_segmentation` 输出 `(nworld,H,W)`）逐 world 写入不同 hinge 角度，采集 per-world geom 位姿的渲染参考。本片**不跑 GPU 采集、不写 fixtures 参考、不动产品代码/判据**；真实采集要另开用户双签窗口。",
+    "en": "Author the per-world reference capture for the per-world geom/light gap. Our device path indexes geom/light state with a single-world stride while pinned upstream samples geom_xpos_in[worldid, gi]. This slice is offline authoring only: a capture script using upstream nworld APIs to write per-world hinge poses, verified by dry-run. No GPU capture, no references written, no product code or criteria changes; the real capture needs a separately signed window."
+  },
+  "modules": {},
+  "acceptance": [
+    "**脚本**：`scripts/capture_render_perworld.py` 新文件 ≤500 行（LF）、非 ASCII 字节 0、pinned python `ast.parse` 通过；沿用 R05-S3a 骨架（pinned env 校验、deterministic npz、两跑逐数组与逐字节相等、legacy reference manifest 前后对拍）。",
+    "**可行性**：dry-run 证明 pinned 环境原生支持多 world（`put_data(..., nworld)`、`create_render_context(..., nworld)`、`get_rgb/get_depth/get_seg` 输出 `(nworld,H,W)`），并固化版本/revision/python sha/scene sha；证据落 `materials/dryrun-plan.json`。",
+    "**dry-run**：`--dry-run` exit 0，只做环境与计划检查（不建 CUDA device、不写输出目录）；计划包含 nworld=3、`hinge_deg=[0,20,40]`、固定相机筛选、预期输出清单、legacy manifest 条数。",
+    "**不越界**：不跑 GPU 采集、不写 `fixtures/render-bvh/scene-a/perworld/**`、不改 `src/**`/`tests/**`/既有参考、不改判据/容差；只在 `scripts/` 与证据目录落地。",
+    "**范围诚实**：README/receipt 明确该参考只覆盖 per-world geom 位姿；`light_xpos/light_xdir` 仅作完整性落盘，不宣称 per-world 灯位姿覆盖；不宣称任何渲染数值结论。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "scripts/capture_render_perworld.py",
+      "docs/development-evidence/render-bvh/perworld-capture-authoring/"
+    ],
+    "resources": [],
+    "priority": 40
+  },
+  "note": "Arch 2026-10-30 02:5x 登记（Chief 2026-10-30 批准「现在开始 B 逐 world 采集 authoring，可写可提交，不跑 GPU」）。上游缺口卡 `2026-10-28-render-per-world-geom-light-gap` 仍是 backlog，因此本卡 depends_on 留空（start 前置要求 verified，backlog 卡不能作前置）；缺口关系写在 intent。后续顺序：本片 authoring → 用户双签的采集窗口（新卡）→ per-world 设备实现切片（S1 host 容器 + 展平 1D + 内核 4 处索引）。本片登记的写法与 R05-S3a 采集一致：采集脚本只在窗口内跑，产物 `fixtures/render-bvh/scene-a/perworld/<tag>/`（rgb/depth/seg/state npz + capture.json）。",
+  "revision": {
+    "before": "d56ab379a7656f81f14f18eee7429a15ec1c49ac",
+    "after": null
+  },
+  "created_at": "2026-10-30T02:56:00.000Z",
+  "updated_at": "2026-10-29T18:49:01.435Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-capture-authoring/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-perworld-capture-authoring"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "逐 world 灯位姿已覆盖",
+        "渲染数值验收通过",
+        "等价"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "task_id": "2026-10-30-render-perworld-capture-authoring",
+  "kind": "render-perworld-capture-authoring",
+  "owner": "Arch",
+  "scope": "offline authoring only: script + feasibility evidence + dry-run; no GPU capture, no fixtures written, no product code",
+  "script": {
+    "path": "scripts/capture_render_perworld.py",
+    "sha256": "602e36daab79fd4dc269d9f935adc916ec8057b742e023d270541404d477fb36",
+    "bytes": 23521,
+    "lines_lf": 497,
+    "non_ascii_bytes": 0,
+    "syntax_check": "pinned python ast.parse -> PY_SYNTAX_OK",
+    "derived_from": "scripts/capture_render_hfield.py (R05-S3a skeleton)"
+  },
+  "dry_run": {
+    "command": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/capture_render_perworld.py --dry-run --out-dir fixtures/render-bvh/scene-a/perworld/nw3-hinge02040",
+    "exit": 0,
+    "creates_cuda_device": false,
+    "writes_outputs": false,
+    "legacy_manifest_entries": 69,
+    "cam_active_fixed_only": [true, false],
+    "materials": "materials/dryrun-plan.json"
+  },
+  "environment": {
+    "python_executable": "target/mjwarp-parallel/venv/Scripts/python.exe",
+    "python_executable_sha256": "feeec36120097a03201a96ae17a0e2c1fba70dd6241cb4bfdd9e7c2a00bada77",
+    "versions": {"python": "3.12.13", "warp": "1.15.0", "mujoco": "3.15.0", "mujoco_warp": "3.15.0", "numpy": "2.5.4"},
+    "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+    "upstream_clean": true,
+    "scene_xml": {
+      "path": "fixtures/render-bvh/scene-a/scene.xml",
+      "sha256": "a9f1f0a35464f4df17f191e1d68431bda0f17648273578e58fa08f84b0449289",
+      "bytes": 4639
+    }
+  },
+  "perworld_capability": {
+    "put_data_nworld": true,
+    "data_qpos_shape": "(nworld, nq) float32",
+    "data_geom_xpos_shape": "(nworld, ngeom, 3)",
+    "create_render_context_nworld": true,
+    "get_rgb_depth_seg_output": "(nworld, H, W)",
+    "upstream_sampling": "render.py samples geom_xpos_in[worldid, gi]",
+    "worlds": 3,
+    "hinge_deg": [0.0, 20.0, 40.0],
+    "recipe": {"use_fast_math": false, "use_shadows": true, "samples_per_pixel": 1}
+  },
+  "not_claimed": [
+    "per-world light poses are covered",
+    "rendering numerical acceptance",
+    "any GPU capture happened in this slice"
+  ],
+  "next_steps": [
+    "GPU capture window (separate user-signed window) to write fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/",
+    "then the per-world device implementation slice consumes this reference"
+  ]
+}
