@@ -1,0 +1,46 @@
+R02-S2 capture 脚本 PARAMS_28 逐项对照（窗口期修复后）
+
+对照口径
+  capture 侧 = scripts/authoring/render-bvh-r02/capture_skybox.py 的 PARAMS_28（传给 pinned mujoco_warp
+               3.15.0 的 create_render_context）
+  product 侧 = 产品 resolve_context 的实际解析值（tests/support/render_bvh/skybox.rs 的 skybox_params：
+               ContextParams::default() + render targets rgb/depth/seg=true + enabled_geom_groups=[0,1,2,3]
+               + render_skybox=true；ctx 由 resolve_context 解析）
+  注：产品侧 `ContextParams.use_fast_math` 默认 true，但渲染内核配方 WARP_1_15_RENDER 恒为
+      `fast_math=false`（src/runtime/launcher/recipe.rs）；即产品设备语义 = fast_math=false。
+      因此参考必须用 use_fast_math=false 采集（本次修复项）。
+
+参数                             capture（修复后）        product 解析            一致?
+nworld                           1                        1                       yes
+cam_res                          None（用模型分辨率）       None                     yes
+render_rgb                       True                     Bool(true)               yes
+render_depth                     True                     Bool(true)               yes
+render_seg                       True                     Bool(true)               yes
+use_textures                     True                     true                     yes
+use_fast_math                    False                    true*（内核恒 false）     yes（*见上方注：设备语义 false）
+use_shadows                      False                    false                    yes
+use_ambient_lighting             True                     true                     yes
+enabled_geom_groups              [0,1,2,3]                [0,1,2,3]                yes
+cam_active                       None（全部相机）          CameraActive::All        yes
+background_color                 [0,0,0,1]                [0.0,0.0,0.0,1.0]        yes
+flex_render_smooth               True                     true                     yes
+use_precomputed_rays             True                     true                     yes
+render_skybox                    True                     true                     yes
+enable_backface_culling          True                     true                     yes
+shadow_light_fraction            0.3                      0.3                      yes
+samples_per_pixel                1                        1                        yes
+enable_vertex_normals            True                     true                     yes
+enable_specular                  True                     true                     yes
+enable_emission                  True                     true                     yes
+enable_per_light_ambient         True                     true                     yes
+splat_position                   None                     None                     yes
+splat_rotation                   None                     None                     yes
+splat_scale                      None                     None                     yes
+splat_rgba                       None                     None                     yes
+splat_adr                        None                     None                     yes
+splat_group_id                   None                     None                     yes
+
+结论：28 项中唯一需要修改的是 use_fast_math（True→False）；其余 27 项与产品解析一致，未做任何改动。
+修复前 params28_sha256 = 95f8ce01401adf28a59e6ae8c4955eec118034dcbb021afffaf4880d863b2764
+修复后 params28_sha256 = e2bae1991f39e8a8ad995a2ee651cd1dd307b07b617eb1a7ad4b20f50aa9c3cb
+（dry-run 打印值；capture.json 必须记录同一值且 use_fast_math=false）

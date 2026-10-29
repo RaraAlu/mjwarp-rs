@@ -7,21 +7,27 @@
   "deliverables": {
     "capture_script": {
       "path": "scripts/authoring/render-bvh-r02/capture_skybox.py",
-      "bytes": 16084,
-      "lines_lf": 425,
-      "sha256": "812a2f778c21bb5cb8b24a96f6dce052be7f1f0d923174d0dcb75442e5d0c7a8",
+      "bytes": 16495,
+      "lines_lf": 428,
+      "sha256": "d6f9864cc29fb452e1914f135fe10d55c65751a89ad9a84244cfa362fabcc16d",
       "ascii_nonascii_bytes": 0,
       "cr_bytes": 0,
       "bom": false,
       "python_syntax": "ast.parse OK",
       "dry_run": {
         "exit": 0,
-        "stdout": "DRY_RUN_OK task_id=2026-10-29-render-bvh-r02-skybox-s2-capture-authoring render_skybox=True expected_pixels=120000 params28_sha256=95f8ce01401adf28a59e6ae8c4955eec118034dcbb021afffaf4880d863b2764",
+        "stdout": "DRY_RUN_OK task_id=2026-10-29-render-bvh-r02-skybox-s2-capture-authoring render_skybox=True expected_pixels=120000 params28_sha256=e2bae1991f39e8a8ad995a2ee651cd1dd307b07b617eb1a7ad4b20f50aa9c3cb",
         "note": "no GPU, no warp/mujoco_warp import; ran with target/render-bvh-precheck/venv312 python"
       },
-      "only_param_change_vs_s0b": "render_skybox False -> True",
+      "only_param_change_vs_s0b": "render_skybox False -> True; use_fast_math True -> False (window-time fix: product kernel recipe WARP_1_15_RENDER always compiles fast_math=false). All other 27 params audited identical to the product-side resolved values, see materials/params28-audit.txt",
       "output_dir": "fixtures/render-bvh/scene-a/reference-skybox/ (rgb.npz depth.npz seg.npz capture.json)",
-      "s0b_reference_untouched": true
+      "s0b_reference_untouched": true,
+      "superseded_values": {
+        "bytes": 16084,
+        "lines_lf": 425,
+        "sha256": "812a2f778c21bb5cb8b24a96f6dce052be7f1f0d923174d0dcb75442e5d0c7a8",
+        "reason": "window-time fixes: (a) determinism self-check compared an in-memory buffer encoding with the written npz zip sha (stage A attempt1 failure); (b) use_fast_math recipe mismatch caused the attempt1 skybox depth 1-4 ULP difference"
+      }
     },
     "guard_freezer": {
       "path": "scripts/validate/render-bvh/freeze-guards-r02.ps1",
@@ -58,7 +64,17 @@
     },
     "window_plan": "materials/window-plan.txt",
     "entity_table": "materials/entity-table.json",
-    "script_identity": "materials/script-identity.txt"
+    "script_identity": "materials/script-identity.txt",
+    "params28_audit": "materials/params28-audit.txt"
+  },
+  "window_time_fixes": {
+    "date": "2026-10-29",
+    "scope": "capture script only (2 hunks); no criteria/tolerance/reference change beyond the fast_math recipe alignment",
+    "fixes": [
+      "determinism self-check: write both runs with the same writer (write_npz) and compare actual file sha256 (pre-window version compared an in-memory buffer sha with the written npz sha, which cannot match; this aborted stage A attempt1)",
+      "PARAMS_28.use_fast_math True -> False: align the reference recipe with the product kernel recipe WARP_1_15_RENDER (fast_math=false); this fixes the attempt1 skybox depth 1-4 ULP difference; the other 27 params are unchanged and audited in materials/params28-audit.txt"
+    ],
+    "stage_a_attempt1_failure_record": "target/render-bvh/r02-skybox-window/stage-a-attempt1-failure.txt (+ capture-skybox-fix.diff)"
   },
   "window": {
     "executed": false,

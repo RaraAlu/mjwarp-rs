@@ -2,16 +2,30 @@ R02-S2 authoring materials - script identity and ASCII self-check
 
 capture script variant
   path   scripts/authoring/render-bvh-r02/capture_skybox.py
-  bytes  16084
-  lines  425 (LF)
-  sha256 812a2f778c21bb5cb8b24a96f6dce052be7f1f0d923174d0dcb75442e5d0c7a8
+  --- current (post window-time fixes; supersedes the values below) ---
+  bytes  16495
+  lines  428 (LF)
+  sha256 d6f9864cc29fb452e1914f135fe10d55c65751a89ad9a84244cfa362fabcc16d
   ascii  nonascii=0 cr=0 bom=false
   python syntax: ast.parse OK
   dry-run (no GPU, no warp/mujoco_warp import):
     <any python 3> scripts/authoring/render-bvh-r02/capture_skybox.py --dry-run
     -> DRY_RUN_OK task_id=2026-10-29-render-bvh-r02-skybox-s2-capture-authoring render_skybox=True
-       expected_pixels=120000 params28_sha256=95f8ce01401adf28a59e6ae8c4955eec118034dcbb021afffaf4880d863b2764
+       expected_pixels=120000 params28_sha256=e2bae1991f39e8a8ad995a2ee651cd1dd307b07b617eb1a7ad4b20f50aa9c3cb
     observed exit 0 (run with target/render-bvh-precheck/venv312 python)
+  window-time changes (2 hunks, see target/render-bvh/r02-skybox-window/):
+    (a) determinism self-check: write both runs with the same writer (write_npz) into temp dirs and
+        compare the actual file sha256; then clean the reference dir, copy run1 files and record those
+        shas in capture.json. (The pre-window version compared an in-memory concatenated buffer sha with
+        the written npz zip sha, which can never match: that is the stage A attempt1 failure.)
+    (b) PARAMS_28.use_fast_math: True -> False, aligning the reference recipe with the product kernel
+        recipe WARP_1_15_RENDER (src/runtime/launcher/recipe.rs always compiles fast_math=false).
+        This is the fix for the attempt1 skybox depth 1-4 ULP mismatch; no other parameter changed.
+  --- superseded (R02-S2 as originally delivered) ---
+  bytes  16084
+  lines  425 (LF)
+  sha256 812a2f778c21bb5cb8b24a96f6dce052be7f1f0d923174d0dcb75442e5d0c7a8  [SUPERSEDED by d6f9864c...]
+  reason superseded: stage A attempt1 self-check bug + fast_math recipe mismatch (see README addendum)
 
 guard freezer (new, R02 suite)
   path   scripts/validate/render-bvh/freeze-guards-r02.ps1

@@ -27,6 +27,7 @@ import io
 import json
 import pathlib
 import platform
+import shutil
 import sys
 import time
 import zipfile
@@ -69,7 +70,7 @@ PARAMS_28 = {
     "render_depth": True,
     "render_seg": True,
     "use_textures": True,
-    "use_fast_math": True,
+    "use_fast_math": False,
     "use_shadows": False,
     "use_ambient_lighting": True,
     "enabled_geom_groups": [0, 1, 2, 3],
@@ -274,20 +275,6 @@ def render_images(mjm, m, d, rc) -> tuple[dict, dict, float]:
     return images, meta, elapsed
 
 
-def npz_bytes(arrays: dict) -> tuple[dict, bytes]:
-    payload = {}
-    for name in ("rgb", "depth", "seg"):
-        buffer = io.BytesIO()
-        for key in sorted(arrays):
-            if not key.startswith(f"{name}_"):
-                continue
-            np.lib.format.write_array(
-                buffer, np.ascontiguousarray(arrays[key]), allow_pickle=False
-            )
-        payload[f"{name}.npz"] = buffer.getvalue()
-    return payload
-
-
 def write_npz(path: pathlib.Path, arrays: dict, prefix: str) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_STORED) as archive:
@@ -359,25 +346,41 @@ def main(argv: list[str]) -> int:
     meta = skybox_meta(mjm)
     first = capture_once(mjm, m, d)
     second = capture_once(mjm, m, d)
-    payload_first, payload_second = npz_bytes(first["arrays"]), npz_bytes(second["arrays"])
+
+    # Determinism: write BOTH runs with the same writer (npz zip) into temp dirs and compare
+    # the actual file sha256; only then copy run1 into the reference dir and record those shas.
+    # (Window-time fix: the earlier in-memory buffer comparison used a different encoding than
+    # write_npz and could never match the written bytes. Minimal diff: no model/scene/params/
+    # output-format/command change; --dry-run untouched.)
+    det_root = ROOT / "target/render-bvh/r02-skybox-window/stage-a-det"
+    for run_name, run in (("run1", first), ("run2", second)):
+        run_dir = det_root / run_name
+        shutil.rmtree(run_dir, ignore_errors=True)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        for modality in ("rgb", "depth", "seg"):
+            write_npz(run_dir / f"{modality}.npz", run["arrays"], modality)
     first_shas = {
-        name: hashlib.sha256(blob).hexdigest() for name, blob in payload_first.items()
+        f"{modality}.npz": digest(det_root / "run1" / f"{modality}.npz")
+        for modality in ("rgb", "depth", "seg")
     }
     second_shas = {
-        name: hashlib.sha256(blob).hexdigest() for name, blob in payload_second.items()
+        f"{modality}.npz": digest(det_root / "run2" / f"{modality}.npz")
+        for modality in ("rgb", "depth", "seg")
     }
     if first_shas != second_shas:
-        fail(f"two-run sha mismatch: {first_shas} vs {second_shas}")
+        fail(f"two-run file sha mismatch: {first_shas} vs {second_shas}")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    file_shas = {
-        "rgb.npz": write_npz(OUT_DIR / "rgb.npz", first["arrays"], "rgb"),
-        "depth.npz": write_npz(OUT_DIR / "depth.npz", first["arrays"], "depth"),
-        "seg.npz": write_npz(OUT_DIR / "seg.npz", first["arrays"], "seg"),
-    }
-    for name, expected in first_shas.items():
-        if file_shas[name] != expected:
-            fail(f"written {name} sha differs from in-memory sha")
+    for stale in OUT_DIR.iterdir():
+        if stale.is_file():
+            stale.unlink()
+    file_shas = {}
+    for modality in ("rgb", "depth", "seg"):
+        target = OUT_DIR / f"{modality}.npz"
+        shutil.copyfile(det_root / "run1" / f"{modality}.npz", target)
+        file_shas[f"{modality}.npz"] = digest(target)
+    if file_shas != first_shas:
+        fail(f"copied file sha differs from run1: {file_shas} vs {first_shas}")
     capture = {
         "schema": CAPTURE_SCHEMA,
         "task_id": TASK_ID,

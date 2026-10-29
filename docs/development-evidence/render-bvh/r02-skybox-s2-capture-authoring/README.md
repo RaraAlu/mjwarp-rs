@@ -46,3 +46,22 @@
 * 本片**零 GPU 执行**：未跑 capture、未开窗口、未生成任何参考产物、未做任何渲染数值结论。
 * 未改判据/容差/参考/fixture；`fixtures/` 仅将在 stage A 由脚本写入（本片不写）。
 * `-GuardsOnly` 未运行（R05 旧 guards 已历史化，跑它按预期会失败，不属漂移）。
+
+## 5. 窗口期修复（2026-10-29，Normify-Fixes；本片后补）
+
+R02 窗口 attempt1 暴露 capture 脚本两处问题，已修复并重采（只改脚本，判据/容差/输出格式/命令不变）：
+
+1. **确定性自检实现 bug**（stage A attempt1 失败根因）：原实现把「内存中拼接 buffer 的 sha」与
+   「写盘 `.npz` zip 的 sha」比较，两种编码不可能相等；现改为**同一 `write_npz` 写两跑到临时目录后
+   比较实际文件 sha256**，相等才清空参考目录、拷入 run1 并把三 sha 写进 `capture.json`。
+2. **`PARAMS_28.use_fast_math` True→False**（attempt1 天空盒 depth 1–4 ULP 根因）：产品内核配方
+   `WARP_1_15_RENDER` 恒为 `fast_math=false`（`src/runtime/launcher/recipe.rs`），参考必须同配方。
+   其余 27 个参数逐项对照产品解析值**未改**，对照表见 `materials/params28-audit.txt`。
+
+* 新脚本身份：`d6f9864cc29fb452e1914f135fe10d55c65751a89ad9a84244cfa362fabcc16d` / **16 495 B** / **428 LF**
+  （ASCII=0/CR=0）；旧 `812a2f77…`/16 084/425 在 `materials/script-identity.txt` 标 **superseded**。
+* 新 `params28_sha256 = e2bae1991f39e8a8ad995a2ee651cd1dd307b07b617eb1a7ad4b20f50aa9c3cb`（dry-run 打印）。
+* stage A attempt1 的失败留档：`target/render-bvh/r02-skybox-window/stage-a-attempt1-failure.txt`
+  + `capture-skybox-fix.diff`（原错误、旧/新 sha/bytes/lines、3 个部分产物 sha 与 `capture.json` 缺失）。
+* 重采后 `capture.json` 必须 `use_fast_math=false`、两跑三 sha 相等、恰 4 文件（attempt2 的实测数字
+  记在窗口证据目录，不在本片）。
