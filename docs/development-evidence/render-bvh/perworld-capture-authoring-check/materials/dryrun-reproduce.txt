@@ -1,0 +1,31 @@
+# dry-run 离线复跑记录（2026-10-30，QA）
+
+命令（在仓库根执行）：
+
+```text
+D:\Rust\mjwarp-rs\target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_perworld.py \
+    --dry-run --out-dir fixtures/render-bvh/scene-a/perworld/nw3-hinge02040
+```
+
+## 1. 结果
+
+| 项 | 结果 |
+| --- | --- |
+| exit | **0** |
+| stdout 字节 | **3 827**（与 `materials/dryrun-plan.json` 工作区文件**逐字节相同**，sha256 `5681a545fb075df17d4c2d9ecdc8a04c9de612a3a97e21c293cb4bf64372eb3e`） |
+| 与材料 JSON 语义 | **逐字段相等**（`json.loads` 深比较 True；材料 committed blob 因 `core.autocrlf=true` 归一为 LF=3 688 B，仅行尾差异） |
+| stderr | 空 |
+| `--out-dir` 运行前 / 运行后 | **不存在 / 不存在**（dry-run 不建目录） |
+| `fixtures/render-bvh` 全量 sha256 清单 | 运行前后**完全相同**（无任何参考被写/改） |
+| `legacy_manifest_entries` | **69**（与 receipt、材料一致） |
+| `cam_active_fixed_only` / `camera_modes` | `[true,false]` / `[0,3]` |
+
+## 2. 「不建 CUDA device」的独立验证
+
+- 代码层：dry 分支 `check_environment(want_cuda_device=False, …)`；全脚本唯一 `wp.get_device(` 调用位于 `if want_cuda_device:` 内（真实采集分支）；
+- 运行层：在 `CUDA_VISIBLE_DEVICES=99`（不存在的设备索引）下重跑同一命令：**exit 0，stdout 仍与材料逐字段相等** ⇒ 该路径不依赖可用 CUDA device。
+
+## 3. 未做
+
+- 未跑真实采集（`--repeat 2` 两跑逐字节相等、`legacy_reference_untouched`、GPU 名/arch 校验都只在真实采集分支执行）——属窗口内事项。
+- 未写 `fixtures/**`、未改产品代码。

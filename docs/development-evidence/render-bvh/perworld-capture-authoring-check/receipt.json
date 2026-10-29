@@ -1,0 +1,116 @@
+{
+  "task_id": "2026-10-30-render-perworld-capture-authoring-check",
+  "kind": "render-perworld-capture-authoring-check",
+  "reviewed_task": "2026-10-30-render-perworld-capture-authoring",
+  "reviewed_commits": {"base": "84ef186f", "implementation": "28822740", "close": "a4d25ead"},
+  "head_at_review": "b4e050d1",
+  "verdict": {
+    "result": "pass",
+    "blockers": 0,
+    "must_fix": 0,
+    "observations": 7,
+    "scope": "离线 authoring 只读复核：脚本事实与静态防护、pinned 环境/上游/场景、nworld 能力证据、dry-run 离线复跑（逐字段对账）、不建 device/不写盘、legacy 69、零越界、证据 blob 卫生、范围口径诚实"
+  },
+  "review_points": {
+    "script": {
+      "path": "scripts/capture_render_perworld.py",
+      "bytes": 23521,
+      "sha256": "602e36daab79fd4dc269d9f935adc916ec8057b742e023d270541404d477fb36",
+      "lf_lines": 497,
+      "line_limit": 500,
+      "non_ascii_bytes": 0,
+      "ast_parse_pinned_python": true,
+      "matches_receipt": true
+    },
+    "script_guards": {
+      "out_dir_inside_perworld": true,
+      "append_only_guard": true,
+      "legacy_manifest_before_after": true,
+      "dry_run_passes_want_cuda_device_false": true,
+      "only_one_wp_get_device_in_real_capture_branch": true,
+      "writes_only_under_out_dir": true,
+      "capture_json_scope_fields": true,
+      "defaults": {"worlds": 3, "hinge_deg": "0,20,40", "use_fast_math": false, "use_shadows": true, "seed": 20261030, "repeat": 2},
+      "derived_from_hfield_skeleton_exists": true
+    },
+    "pinned_environment": {
+      "python": "3.12.13",
+      "versions": {"warp": "1.15.0", "mujoco": "3.15.0", "mujoco_warp": "3.15.0", "numpy": "2.5.4"},
+      "python_executable_sha256": "feeec36120097a03201a96ae17a0e2c1fba70dd6241cb4bfdd9e7c2a00bada77",
+      "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+      "upstream_clean": true,
+      "scene_xml": {"path": "fixtures/render-bvh/scene-a/scene.xml", "bytes": 4639,
+                     "sha256": "a9f1f0a35464f4df17f191e1d68431bda0f17648273578e58fa08f84b0449289"},
+      "matches_receipt": true
+    },
+    "perworld_capability": {
+      "put_data_nworld_param": true,
+      "data_qpos_array_nworld_nq_float": true,
+      "data_geom_xpos_array_nworld_ngeom_vec3": true,
+      "data_geom_xmat_array_nworld_ngeom_mat33": true,
+      "docstring_shapes_nworld": true,
+      "create_render_context_nworld_param": true,
+      "get_rgb_output_doc_nworld_height_width": true,
+      "render_py_samples_geom_xpos_in_worldid_gi": true,
+      "runtime_signature_confirms": true
+    },
+    "dry_run": {
+      "command": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/capture_render_perworld.py --dry-run --out-dir fixtures/render-bvh/scene-a/perworld/nw3-hinge02040",
+      "exit": 0,
+      "stdout_equals_material_worktree_bytes": true,
+      "stdout_sha256": "5681a545fb075df17d4c2d9ecdc8a04c9de612a3a97e21c293cb4bf64372eb3e",
+      "material_committed_blob_lf_bytes": 3688,
+      "json_deep_equal_to_material": true,
+      "out_dir_absent_before_and_after": true,
+      "fixtures_manifest_unchanged": true,
+      "legacy_manifest_entries": 69,
+      "cam_active_fixed_only": [true, false],
+      "camera_modes": [0, 3],
+      "no_cuda_device_needed": {"env": "CUDA_VISIBLE_DEVICES=99", "exit": 0, "stdout_equals_material": true,
+                                 "static_proof": "dry 分支 want_cuda_device=False；wp.get_device 只在真实采集分支"}
+    },
+    "scope": {
+      "fixtures_src_tests_cargo_diff": [],
+      "scripts_changes": ["A scripts/capture_render_perworld.py"],
+      "perworld_output_dir_absent_in_repo": true,
+      "scope_wording_locations": 4,
+      "covered": "per-world geom poses (geom_xpos/geom_xmat) with nworld>1",
+      "not_covered": "per-world light poses (device path indexes lights single-world)"
+    },
+    "evidence": {
+      "files": 5,
+      "committed_blob_all_lf_no_bom": true,
+      "worktree_note": "materials/dryrun-plan.json 工作区 CRLF（作者重定向产物），committed blob LF",
+      "receipt_task_id_ok": true,
+      "forbidden_term_hits_in_evidence": 0,
+      "forbidden_scan_scope": "4 个证据文件（不含卡面）"
+    },
+    "cards": {
+      "main": {"status": "verified", "revision_before": "84ef186f", "closed_at_present": true},
+      "check": {"status": "in_progress", "revision_before": "b4e050d1"}
+    },
+    "recompute": {"script": "recompute.py", "result": "recompute.json", "checks": 10, "problems": 0}
+  },
+  "observations": [
+    {"id": "O1", "severity": "建议", "topic": "脚本 TASK_ID='2026-10-30-render-perworld-capture' 与主卡/证据 task_id（…-authoring）不同", "advice": "确认口径；若为采集产物 id 有意区分则 README 注明，否则窗口前统一"},
+    {"id": "O2", "severity": "建议", "topic": "README 可行性表只到文件级出处、无行号", "advice": "补行号（types.py qpos/geom_xpos/geom_xmat、render_util.py create_render_context/get_rgb、render.py geom_xpos_in[worldid, gi]）"},
+    {"id": "O3", "severity": "记录", "topic": "legacy_manifest 排除整棵 scene-a/perworld 子树（非仅本次 out_dir）", "advice": "当前子树为空属前向设计；多参考并存时建议收窄 exclude"},
+    {"id": "O4", "severity": "记录", "topic": "materials/dryrun-plan.json 工作区 CRLF、blob LF", "advice": "接受；对账以 blob 为准"},
+    {"id": "O5", "severity": "记录", "topic": "dry-run 只记 69 条计数，未落清单 sha（真实采集才前后对拍）", "advice": "可接受；窗口内 capture.json 会记 legacy_reference_untouched"},
+    {"id": "O6", "severity": "记录", "topic": "主卡 revision.before=84ef186f 的 diff 范围含其间其他卡 QA 提交", "advice": "按路径类别成立；本卡自身文件以 28822740 为准"},
+    {"id": "O7", "severity": "记录", "topic": "证据为单机口径（绝对路径/平台），跨机不可逐字节复跑", "advice": "接受（pinned env 内可复现）"}
+  ],
+  "limits": [
+    "离线 authoring：未跑任何 GPU 采集；--repeat 2 两跑相等 / legacy 对拍 / GPU 名与 arch 校验只在真实采集分支，本轮未验证",
+    "dry-run 证据为单机口径",
+    "未复核「采集参考 → 判定/容差纳入验收」流程（主卡声明另走精度契约与窗口签字）"
+  ],
+  "artifacts": [
+    "README.md",
+    "recompute.py",
+    "recompute.json",
+    "logs/recompute.log",
+    "materials/dryrun-reproduce.txt",
+    "manifest.txt"
+  ]
+}
