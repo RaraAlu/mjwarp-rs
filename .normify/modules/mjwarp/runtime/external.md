@@ -1,7 +1,7 @@
 +++
 uid = "bc1e046f"
 id = "mjwarp.runtime.external"
-fingerprint = "17b09826b971209bb77716ca899179366e4680588e369e093d52250e39fd8119"
+fingerprint = "72f001da95c07d6fd2b713e2e07215d99a74f0684b3245ab8eedb0e85910c730"
 
 [name]
 zh = "外部资源导入"

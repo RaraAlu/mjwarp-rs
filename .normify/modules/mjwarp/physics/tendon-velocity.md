@@ -2,7 +2,7 @@
 uid = "adb9b6a2"
 id = "mjwarp.physics.tendon-velocity"
 tags = ["P4", "U020", "G02"]
-fingerprint = "f88094f210542cea6b2ebbeb335bcece113e0d08f0450d44fe32c9fba35c14a9"
+fingerprint = "4f1d7a74bf4712fdd2a456fce7c821e8c0acbf5272f883387ac15931a5c4b8c6"
 
 [name]
 zh = "常驻肌腱速度消费者"

@@ -1,0 +1,119 @@
+{
+  "task_id": "2026-10-29-arch-unregistered-sources-remaining",
+  "task_kind": "architecture-governance",
+  "owner": "Arch",
+  "approved_by": "Chief 2026-10-30 01:5x (方案 B + vendored 不入树 + render split 另立一片)",
+  "scope": {
+    "before_head": "645befa7",
+    "changed": [
+      ".normify/modules/mjwarp/physics/collision.md (new)",
+      ".normify/modules/mjwarp/runtime/collision-gpu.md (new)",
+      ".normify/modules/mjwarp/physics/core.md",
+      ".normify/modules/mjwarp/physics/mass-matrix.md",
+      ".normify/modules/mjwarp/physics/tendon-velocity.md",
+      ".normify/modules/mjwarp/runtime/index.md",
+      ".normify/modules/mjwarp/runtime/compiler.md",
+      ".normify/modules/mjwarp/runtime/external.md",
+      ".normify/layouts/mjwarp/physics.toml",
+      ".normify/layouts/mjwarp/runtime.toml",
+      "docs/development-evidence/render-bvh/arch-unregistered-sources-remaining/"
+    ],
+    "product_code_changes": 0
+  },
+  "inventory": {
+    "unregistered_before": 154,
+    "breakdown_before": {
+      "physics_collision": 72,
+      "physics_other": 19,
+      "runtime_collision_gpu": 20,
+      "runtime_other": 7,
+      "include_vendored_warp_headers": 36,
+      "native": 0
+    },
+    "registered_own_files": 118,
+    "unregistered_after": 36,
+    "unregistered_after_detail": "all 36 are include/warp-headers/* (vendored, policy: not in tree)",
+    "tracked_src_include_native": 822,
+    "tracked_count_note": "P1 recorded 823; git ls-tree at f86b8575 and 645befa7 both yield 822 with no add/delete under src/include/native between them, so the 1-file delta is a P1 counting-method difference, not a file change"
+  },
+  "counts": {
+    "registered_entries_before": 680,
+    "registered_entries_after": 798,
+    "registered_distinct_before": 668,
+    "registered_distinct_after": 786,
+    "modules_before": 66,
+    "modules_after": 68,
+    "leaves_before": 59,
+    "leaves_after": 61,
+    "new_leaves": [
+      "mjwarp.physics.collision (72 sources, 17535 lines, 5 APIs migrated verbatim)",
+      "mjwarp.runtime.collision-gpu (20 sources, 4004 lines, 1 real API)"
+    ],
+    "absorbed_into_existing": {
+      "mjwarp.physics.core": 17,
+      "mjwarp.physics.mass-matrix": 1,
+      "mjwarp.physics.tendon-velocity": 1,
+      "mjwarp.runtime": 5,
+      "mjwarp.runtime.external": 2
+    },
+    "api_keys_total": 398,
+    "api_keys_duplicate": 0
+  },
+  "validate": {
+    "errors": 0,
+    "warnings_final": 5,
+    "warning_breakdown": {
+      "api/leaf-empty": 2,
+      "structure/leaf-too-coarse": "count 34 -> 37 (+2 new leaves, +1 mjwarp.runtime.external 1->3 sources)",
+      "layout/order-incomplete": 2
+    },
+    "intermediate_extra_warnings": "5 x change/api-already-removed while in_progress; vanish after done (verified)",
+    "fingerprints_after_done": "0 errors, no stale fingerprints"
+  },
+  "impact_samples": {
+    "src/physics/collision/cuda/contact.cu": "mjwarp.physics.collision",
+    "src/physics/collision/gjk/epa.rs": "mjwarp.physics.collision",
+    "src/runtime/collision_gpu/product_entry.rs": "mjwarp.runtime.collision-gpu",
+    "src/physics/sensor.rs": "mjwarp.physics.core",
+    "src/runtime/presence.rs": "mjwarp.runtime",
+    "include/warp-headers/mat.h": "no module (vendored policy assertion, expected)"
+  },
+  "vendored_policy": {
+    "directory": "include/warp-headers/",
+    "file_count": 36,
+    "line_count": 43321,
+    "upstream": "NVIDIA/warp v1.15.0 @ ffa038b1adf3927a8e893d4536f1a7562f17d749",
+    "manifest": "docs/development-evidence/w15-verbatim-headers/headers.json",
+    "enforced_by": "tests/launcher-warp-headers.rs::copied_headers_match_the_frozen_manifest",
+    "decision": "not registered in the architecture tree; recorded in mjwarp.runtime.compiler description"
+  },
+  "gates": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy-cuda": "pass",
+    "unit": "pass",
+    "no_run": "exit=0, log contains Finished"
+  },
+  "evidence_files": [
+    "README.md",
+    "receipt.json",
+    "logs/counts-before.txt",
+    "logs/counts-after.txt",
+    "logs/module-counts-after.txt",
+    "logs/validate-before.txt",
+    "logs/validate-intermediate.txt",
+    "logs/validate-final.txt",
+    "logs/no-run.txt",
+    "logs/impact-collision-contact.txt",
+    "logs/impact-collision-gjk-epa.txt",
+    "logs/impact-runtime-collision-gpu.txt",
+    "logs/impact-physics-sensor.txt",
+    "logs/impact-runtime-presence.txt",
+    "logs/impact-vendored-header-mat.txt"
+  ],
+  "not_claimed": [
+    "全部源已登记",
+    "架构树完整",
+    "等价"
+  ]
+}

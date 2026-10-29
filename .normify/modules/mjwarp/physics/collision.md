@@ -2,7 +2,7 @@
 uid = "1034f0ee"
 id = "mjwarp.physics.collision"
 tags = ["implemented-subset", "gpu", "collision", "windows"]
-fingerprint = "0000000000000000000000000000000000000000000000000000000000000000"
+fingerprint = "dc6e48a1c3746c36827963472cb785dfa22c11ff22d4c930ab54741d2ad6d732"
 
 [name]
 zh = "碰撞检测与窄相"
