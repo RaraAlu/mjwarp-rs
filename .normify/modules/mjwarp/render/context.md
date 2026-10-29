@@ -2,8 +2,7 @@
 uid = "cb74b4d5"
 id = "mjwarp.render.context"
 tags = ["engine", "render", "context"]
-fingerprint = "pending"
-source = []
+fingerprint = "abca50c5b301b2715544b8aa35d6ef41ee58ac8736c4ca831cbe1c4b5286315e"
 
 [name]
 zh = "渲染上下文与输出"
@@ -12,6 +11,63 @@ en = "Render context and outputs"
 [description]
 zh = "渲染上下文与输出"
 en = "Render context and outputs"
+
+[[source]]
+path = "src/render/context.rs"
+
+[[source]]
+path = "src/render/context/camera_output.rs"
+
+[[source]]
+path = "src/render/context/hfield.rs"
+
+[[source]]
+path = "src/render/context/hfield_inputs.rs"
+
+[[source]]
+path = "src/render/context/lifecycle.rs"
+
+[[source]]
+path = "src/render/context/lighting.rs"
+
+[[source]]
+path = "src/render/context/model.rs"
+
+[[source]]
+path = "src/render/context/output.rs"
+
+[[source]]
+path = "src/render/context/owner.rs"
+
+[[source]]
+path = "src/render/context/params.rs"
+
+[[source]]
+path = "src/render/context/tests.rs"
+
+[[source]]
+path = "src/render/context/texture_inputs.rs"
+
+[[source]]
+path = "src/render/context/world/errors.rs"
+
+[[source]]
+path = "src/render/context/world/layout.rs"
+
+[[source]]
+path = "src/render/context/world/mod.rs"
+
+[[source]]
+path = "src/render/context/world/state.rs"
+
+[[source]]
+path = "src/render/texture.rs"
+
+[[source]]
+path = "src/render/texture/cuda.rs"
+
+[[source]]
+path = "src/render/texture/sample.cu"
 
 [[apis]]
 protocol = "rpc"

@@ -2,8 +2,7 @@
 uid = "bc631296"
 id = "mjwarp.render.kernel"
 tags = ["engine", "render", "kernel", "gpu"]
-fingerprint = "pending"
-source = []
+fingerprint = "b8aeeafe7124d8ff3365a8baa99f1f30747fe9031c3b2af36223485511571957"
 
 [name]
 zh = "渲染内核与内核实参"
@@ -12,6 +11,72 @@ en = "Render kernel and argument wiring"
 [description]
 zh = "渲染内核与内核实参"
 en = "Render kernel and argument wiring"
+
+[[source]]
+path = "src/render/camera.rs"
+
+[[source]]
+path = "src/render/camera/cuda/build_rays.cu"
+
+[[source]]
+path = "src/render/kernel/cast.rs"
+
+[[source]]
+path = "src/render/kernel/cast_mesh.rs"
+
+[[source]]
+path = "src/render/kernel/cuda/aa_resolve.cu"
+
+[[source]]
+path = "src/render/kernel/cuda/render.cu"
+
+[[source]]
+path = "src/render/kernel/cuda/render_common.cu"
+
+[[source]]
+path = "src/render/kernel/cuda/render_math.cu"
+
+[[source]]
+path = "src/render/kernel/cuda/render_megakernel.cu"
+
+[[source]]
+path = "src/render/kernel/cuda/render_shade.cu"
+
+[[source]]
+path = "src/render/kernel/cuda/render_shadow.cu"
+
+[[source]]
+path = "src/render/kernel/launch.rs"
+
+[[source]]
+path = "src/render/kernel/megakernel.rs"
+
+[[source]]
+path = "src/render/kernel/megakernel_aa.rs"
+
+[[source]]
+path = "src/render/kernel/megakernel_arrays.rs"
+
+[[source]]
+path = "src/render/kernel/megakernel_uploads.rs"
+
+[[source]]
+path = "src/render/kernel/mod.rs"
+
+[[source]]
+path = "src/render/kernel/output.rs"
+
+[[source]]
+path = "src/render/kernel/renderer.rs"
+
+[[source]]
+path = "src/render/kernel/world_arrays.rs"
+
+[[source]]
+path = "src/render/kernel/world_camera.rs"
+
+[[source]]
+path = "src/render/rays.rs"
 
 [[apis]]
 protocol = "rpc"

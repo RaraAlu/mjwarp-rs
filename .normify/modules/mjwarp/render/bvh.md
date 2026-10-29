@@ -2,8 +2,7 @@
 uid = "fcd8ff58"
 id = "mjwarp.render.bvh"
 tags = ["engine", "render", "bvh", "gpu"]
-fingerprint = "pending"
-source = []
+fingerprint = "7c4c0fea975b47fa8d4b3cae730c4c941a2e8d52c062f5a4684e84e39d24b2ea"
 
 [name]
 zh = "渲染BVH与网格查询"
@@ -12,6 +11,39 @@ en = "Render BVH and mesh queries"
 [description]
 zh = "渲染BVH与网格查询"
 en = "Render BVH and mesh queries"
+
+[[source]]
+path = "src/render/bvh/aabb.rs"
+
+[[source]]
+path = "src/render/bvh/builder.rs"
+
+[[source]]
+path = "src/render/bvh/cuda/mesh.cu"
+
+[[source]]
+path = "src/render/bvh/cuda/mod.rs"
+
+[[source]]
+path = "src/render/bvh/cuda/scene.cu"
+
+[[source]]
+path = "src/render/bvh/hfield_mesh.rs"
+
+[[source]]
+path = "src/render/bvh/mesh.rs"
+
+[[source]]
+path = "src/render/bvh/mesh_query.rs"
+
+[[source]]
+path = "src/render/bvh/mod.rs"
+
+[[source]]
+path = "src/render/bvh/query.rs"
+
+[[source]]
+path = "src/render/bvh/refit.rs"
 
 [[apis]]
 protocol = "rpc"

@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-module-split-step2",
+  "title": {
+    "zh": "治理：render split 步 2 —— 53 源归位（kernel 22 / bvh 11 / context 19 / 容器仅留 mod.rs 门面）",
+    "en": "Governance: render split step 2 - assign all 53 sources (kernel 22 / bvh 11 / context 19, container keeps only mod.rs facade)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "承接 `2026-10-30-render-module-split` 步 1（结构反转 + 11 API/6 依赖迁移，源暂留容器）。本片只做**源归属搬迁**：把 `mjwarp.render` 容器上的 53 个源全部分配到三叶 + 容器门面——`mjwarp.render.kernel` 22 源（`src/render/kernel/**` 19 + `camera.rs` + `rays.rs` + `camera/cuda/build_rays.cu`，LF 6,945）、`mjwarp.render.bvh` 11 源（`src/render/bvh/**`，LF 3,662）、`mjwarp.render.context` 19 源（`src/render/context*` 16 + `texture.rs` + `texture/cuda.rs` + `texture/sample.cu`，LF 5,086）、容器只留模块门面 `src/render/mod.rs`（LF 385）。**纯搬迁**：只改 module md 的 `[[source]]` 归属，磁盘文件零移动、零 `src/**` 改动、API/deps 一条不动、布局与判据不动。",
+    "en": "Step 2 of the render split: assign all 53 container sources to the three leaves plus keep only the module facade src/render/mod.rs on the container. Pure registration move: no files moved on disk, zero src/** changes, no API/deps/layout/criteria changes."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.render",
+      "mjwarp.render.kernel",
+      "mjwarp.render.bvh",
+      "mjwarp.render.context"
+    ]
+  },
+  "acceptance": [
+    "**源归位**：`mjwarp.render.kernel` 22 源 / `mjwarp.render.bvh` 11 源 / `mjwarp.render.context` 19 源 / 容器 1 源（`src/render/mod.rs`）；四者路径集合去重后等于步 1 前的 53 条（missing=0、extra=0、duplicate=0），并落机器对拍输出。",
+    "**纯搬迁**：卡面 `unchanged(paths=src/, tests/, fixtures/)` 机器检查通过（基于 `revision.before` 的 `touched_by_task`）；`git diff --stat -- src` 为空；API/deps 一条未动（键数与归属不变），`.normify/layouts/mjwarp/render.toml` 未改。",
+    "**validate**：`normify validate --fingerprints` 错误 0、警告 5 行，`structure/leaf-too-coarse` 实测 **39**（36+3 叶），`api/leaf-empty`×2 与 `layout/order-incomplete`×2 不变；模块 71 / 叶子 63 / API 键 398（重复 0）/ deps 6 不变。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过（QA 构建完成后补跑，不叠构建）；`--no-run` 记 exit 码与 `Finished`。",
+    "**证据与口径**：证据写 `docs/development-evidence/render-bvh/render-module-split/step2/`（不覆盖步 1）；行数主表用 **LF 口径**（kernel 6,945 / bvh 3,662 / context 5,086 / 容器 385，合计 16,078），并注明 **Σ(LF+1)=16,131**（差 53=文件数）；写明「步 1 README 的『步 2 清零』由本片更新为『容器保留 1 个门面源 `src/render/mod.rs`』；先例：根容器持 `src/lib.rs`、`runtime` 容器持 `src/runtime/mod.rs`」；`mod.rs` 留容器 ⇒ `OutputChannels`/`ImageOutput`/`ImageBatchLayout` 仍「归属≠源码位置」，点名偏差。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-module-split"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/render-module-split/step2/",
+      ".normify/modules/mjwarp/render/index.md",
+      ".normify/modules/mjwarp/render/kernel.md",
+      ".normify/modules/mjwarp/render/bvh.md",
+      ".normify/modules/mjwarp/render/context.md"
+    ],
+    "resources": [],
+    "priority": 61
+  },
+  "note": "Arch 2026-10-30 03:1x 登记（Chief 批准推荐版：53 源全分、容器只留 mod.rs 门面）。分配理由：`rays.rs` 以 `include_str!(\"camera/cuda/build_rays.cu\")` + `SynchronousKernel` 发射 → camera 三件归 kernel；`texture/cuda.rs` 以 `include_str!(\"sample.cu\")` 建纹理对象/采样 → texture 三件归 context；`mod.rs` 是模块门面（`pub mod bvh/camera/context/kernel/rays/texture` + 跨叶 re-export）→ 留容器，先例根容器持 `src/lib.rs`、runtime 容器持 `src/runtime/mod.rs`。三叶当前 `fingerprint=pending` 且 0 源 ⇒ 先写 64 位 hex 占位指纹再 `module source`，`done` 刷新真值。批量命令先加后删（22/11/19 加，52 删），路径清单见落地材料。落地期间不跑 cargo（避免与 QA 构建叠锁）；门禁在 QA 完成后补跑。",
+  "revision": {
+    "before": "a7cbd0c7bd9f086f3321df0d82223ef10ad16890",
+    "after": null
+  },
+  "created_at": "2026-10-30T03:15:00.000Z",
+  "updated_at": "2026-10-30T03:15:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/render-module-split/step2/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-module-split-step2"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "架构完成",
+        "全部模块已拆分",
+        "等价"
+      ]
+    }
+  ]
+}

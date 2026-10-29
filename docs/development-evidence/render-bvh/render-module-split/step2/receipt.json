@@ -1,0 +1,70 @@
+{
+  "task_id": "2026-10-30-render-module-split-step2",
+  "step": 2,
+  "kind": "architecture-governance-render-source-assignment",
+  "owner": "Arch",
+  "revision_before": "996188fbb2f1fcf9f3e31d15af9dd70e5e4352dd",
+  "scope": {
+    "changed": [
+      ".normify/modules/mjwarp/render/index.md (53 -> 1 sources)",
+      ".normify/modules/mjwarp/render/kernel.md (0 -> 22 sources)",
+      ".normify/modules/mjwarp/render/bvh.md (0 -> 11 sources)",
+      ".normify/modules/mjwarp/render/context.md (0 -> 19 sources)",
+      "docs/development-evidence/render-bvh/render-module-split/step2/"
+    ],
+    "product_code_changes": 0,
+    "layout_changes": 0,
+    "api_or_dep_changes": 0
+  },
+  "allocation": {
+    "mjwarp.render.kernel": {"sources": 22, "lf": 6945,
+                             "composition": "src/render/kernel/** 19 + camera.rs + rays.rs + camera/cuda/build_rays.cu"},
+    "mjwarp.render.bvh": {"sources": 11, "lf": 3662, "composition": "src/render/bvh/**"},
+    "mjwarp.render.context": {"sources": 19, "lf": 5086,
+                              "composition": "src/render/context* 16 + texture.rs + texture/cuda.rs + texture/sample.cu"},
+    "mjwarp.render": {"sources": 1, "lf": 385, "composition": "src/render/mod.rs (module facade)"},
+    "total": {"sources": 53, "lf": 16078, "lf_plus_one_sum": 16131,
+              "note": "LF sum 16,078; Sigma(LF+1) = 16,131; difference = 53 = file count (QA O2 convention)"}
+  },
+  "assertions": {
+    "path_set_equal_to_baseline": true,
+    "baseline_paths": 53,
+    "total_sources": 53,
+    "distinct": 53,
+    "duplicate": 0,
+    "missing": 0,
+    "extra": 0,
+    "unchanged_check": "pass (src/, tests/, fixtures/ untouched by task)",
+    "src_diff_lines": 0,
+    "method": "materials/verify-pathset.txt"
+  },
+  "validate": {
+    "errors": 0,
+    "warnings_final": 5,
+    "leaf_too_coarse": 39,
+    "leaf_too_coarse_before": 36,
+    "modules": 71,
+    "leaves": 63,
+    "api_keys": 398,
+    "api_keys_duplicate": 0,
+    "deps": 6,
+    "intermediate_extra_warnings": "evidence/fingerprint-drift 4 modules while in_progress (placeholder fingerprints); vanish after done"
+  },
+  "impact": {
+    "src/render/kernel/megakernel.rs": "mjwarp.render.kernel (22 sources, 1 API)",
+    "src/render/bvh/refit.rs": "mjwarp.render.bvh (11 sources, 2 APIs)",
+    "src/render/context/lifecycle.rs": "mjwarp.render.context (19 sources, 8 APIs)",
+    "src/render/camera.rs": "mjwarp.render.kernel",
+    "src/render/texture.rs": "mjwarp.render.context",
+    "src/render/mod.rs": "mjwarp.render (container, 1 source, 0 APIs)"
+  },
+  "deviations_and_notes": [
+    "step 1 README said step 2 would leave 0 container sources; updated here to 1 facade source src/render/mod.rs (precedent: root container holds src/lib.rs, mjwarp.runtime container holds src/runtime/mod.rs)",
+    "mod.rs stays on the container, so OutputChannels/ImageOutput/ImageBatchLayout keep the declared-on-context / implemented-in-mod.rs split; APIs and deps were not touched in this step",
+    "layout .normify/layouts/mjwarp/render.toml unchanged (three direct children unchanged)",
+    "migration was removal-first (normify module source --add rejects paths owned by another module), so the draft's add-first order was corrected in execution"
+  ],
+  "gates": {"fmt": "pass", "clippy": "pass", "clippy-cuda": "pass", "unit": "pass (1106 passed / 0 failed)",
+            "no_run": "exit=0, log contains Finished"},
+  "not_claimed": ["架构完成", "全部模块已拆分", "等价"]
+}
