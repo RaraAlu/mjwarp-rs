@@ -7,8 +7,8 @@
   },
   "status": "proposed",
   "intent": {
-    "zh": "按 `2026-10-28-render-per-world-geom-light-gap` 与 Chief 2026-10-30 批准的**方案 L** 实现逐 world 渲染：host 侧新增 per-world 场景位姿容器（`WorldScenePoses`，nworld × n_leaf 的 xpos/xmat，仿 `WorldCameraPoses`），渲染时**逐 world 循环**——`update_poses(world_w)` + `refit_bvh()` + 以 nworld=1 发射现有 megakernel，并把该 world 的输出区段定位到大缓冲（通过按 launch 调整 `rgb_adr/depth_adr/seg_adr` 值 = `world*P + adr[cam]`，内核里 `worldid=0` 使 pitch 项归零）。即：**不改 `.cu`、不改 81 槽 ABI、不改数组形状**，用现成 seam（`RenderContext::update_poses`、`RenderContext::refit_bvh`、`bvh/refit.rs::refit_bvh`）拿到逐 world 几何与灯位姿语义（每次发射喂该 world 的 geom/light/相机行）。性能不做声明（发射×nworld）；上游式单发射（方案 K）留作后续性能片。",
-    "en": "Implement per-world rendering with plan L: a host-side per-world scene pose container, then per-world loop of update_poses + refit_bvh + single-world (nworld=1) megakernel launches, targeting each world's output section via per-launch adr adjustment. No .cu, ABI or array-shape changes; reuses existing seams. Per-world lights are fed per launch. No performance claim; upstream-style single launch (plan K) is deferred."
+    "zh": "按 `2026-10-28-render-per-world-geom-light-gap` 与 Chief 2026-10-30 批准的**方案 L** 实现逐 world 渲染：host 侧新增 per-world 场景位姿容器（`WorldScenePoses`，nworld × n_leaf 的 xpos/xmat，仿 `WorldCameraPoses`），渲染时**逐 world 循环**——`update_poses(world_w)` + `refit_bvh()` + 以 nworld=1 发射现有 megakernel，并把该 world 的输出区段定位到大缓冲（通过按 launch 调整 `rgb_adr/depth_adr/seg_adr` 值 = `world*P + adr[cam]`，内核里 `worldid=0` 使 pitch 项归零）。即：**不改 `.cu`、不改 81 槽 ABI、不改数组形状**，用现成 seam（`RenderContext::update_poses`、`RenderContext::refit_bvh`、`bvh/refit.rs::refit_bvh`）拿到逐 world **geom 位姿**语义（每次发射喂该 world 的 geom/相机行；灯数组仍模型级单份，per-world 灯留 L v2/K）。性能不做声明（发射×nworld）；上游式单发射（方案 K）留作后续性能片。",
+    "en": "Implement per-world rendering with plan L: a host-side per-world scene pose container, then per-world loop of update_poses + refit_bvh + single-world (nworld=1) megakernel launches, targeting each world's output section via per-launch adr adjustment. No .cu, ABI or array-shape changes; reuses existing seams. Per-world lights remain model-level single copy (per-world lights deferred to L v2/K). No performance claim; upstream-style single launch (plan K) is deferred."
   },
   "modules": {
     "modify": [
@@ -19,9 +19,11 @@
   "acceptance": [
     "**零内核/ABI 改动**：`git diff --stat -- src/render/kernel/cuda` 为空；81 槽 `MEGAKERNEL_SLOTS` 不变；`world_arrays.rs`/`cast.rs` 的形状规则不变（nworld 维不进形状，仍由输出数组首维承载）。",
     "**逐 world 正确性**：用 `2026-10-30-render-perworld-capture` 产出的 per-world 参考，逐 world 位级比对 rgb（`mismatched=0 / max_byte_diff=0`）、depth（`mismatched=0 / max_ulp<=4`）、seg（全等）；world 间隔离（world0 输出不受 world1 数据影响）；两次运行 SHA 相同。",
-    "**per-world 灯位姿**：每次发射传该 world 的 `light_xpos/light_xdir`，参考中灯位姿逐 world 一致；证据写明「上游 `render.py:1368-1369` 按 `light_xpos_in[worldid]` 取灯，本方案按 launch 注入同 world 灯数组，语义等价」。",
+    "**per-world 范围（L v1，Chief 2026-10-30 批，口径定死）**：v1 **只覆盖 per-world geom 位姿**（`geom_xpos/geom_xmat` → `WorldScenePoses` → `update_poses` → `refit_bvh`，每次发射喂该 world 的 geom/相机行）；**灯数组仍模型级单份**，v1 不注入 per-world 灯；`nw3-hinge02040` 参考中逐 world 灯位姿相同，比对不受影响；per-world 灯留 L v2/K。证据须写明本片覆盖范围与不覆盖项。",
+    "**AA / `spp>1` 显式拒绝且可单测**：per-world 入口对 `context.layout().nsamples > 1` 返回 `LauncherError::Unsupported`（`kernel/per_world.rs` 纯函数守卫，CPU 单测断言 `nsamples=1 → Ok`、`2/4 → Unsupported`）；禁止静默忽略、禁止静默按单样本渲染；证据写「参考 spp=1，S1 无覆盖损失；AA+per-world 留 L v2/K」。",
+    "**改动面死线（Chief 2026-10-30 批）**：`kernel/megakernel.rs` 409→**≤450**（预演 ~435，+26）、`kernel/megakernel_uploads.rs` 465→**≤480**（预演 ~475）、`kernel/per_world.rs` **≤260**（预演 ~238）；`cast.rs`(481)/`lifecycle.rs`(498)/`args.rs`(494)/`output.rs`(151)/`megakernel_aa.rs`(93) 与全部 `.cu` **零改动**；任一处预演或实测超界 → 停下报 Chief，不得为塞进去改公开 API。",
     "**参考与判据**：只消费采集片产出的参考（`fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/`）；不新增容差、不改判据；无参考时不得宣称任何逐 world 数值结论。",
-    "**证据**：README/receipt/logs/materials；含 (a) 输出定位机制说明（adr 位移而非 sub-buffer 视图）与代码位置，(b) 为何内核索引点无需改动（单 world 发射下 `worldid==0`、各数组只含该 world 数据），(c) 已知边界：scene BVH 用同拓扑 + 逐 world refit（与上游全局 BVH 单拓扑 + 逐 world bounds 对命中结果等价，但树形不同，仅影响性能），(d) 性能不做声明。",
+    "**证据**：README/receipt/logs/materials；含 (a) 输出定位机制说明（adr 位移而非 sub-buffer 视图）与代码位置，(b) 为何内核索引点无需改动（单 world 发射下 `worldid==0`、各数组只含该 world 数据），(c) 已知边界：scene BVH 用同拓扑 + 逐 world refit（与上游全局 BVH 单拓扑 + 逐 world bounds 对命中结果等价，但树形不同，仅影响性能），(d) 性能不做声明，(e) L-2（每 world 另建 context + D2D 拷贝）与 L-3（抽 `megakernel_args.rs`）不采用的理由。",
     "**门禁**：fmt / clippy / clippy-cuda / unit 全过；`--no-run` 含 exit 码与 `Finished`；验证窗按用户双签执行（不达标停手报 Chief）。"
   ],
   "schedule": {
@@ -34,7 +36,6 @@
       "src/render/kernel/per_world.rs",
       "src/render/context/world/scene_poses.rs",
       "src/render/context/world/mod.rs",
-      "src/render/context/lifecycle.rs",
       "src/render/kernel/mod.rs",
       "tests/render_per_world.rs",
       "docs/development-evidence/render-bvh/perworld-impl-s1/"
@@ -44,13 +45,13 @@
     ],
     "priority": 59
   },
-  "note": "Arch 2026-10-30 注册（proposed，**不 start**）。等待：① R08 收口（R08-S3 verified）；② 用户批窗口（本片含 1 个验证窗，需双签窗口计划+基线）；③ 采集跑片 `2026-10-30-render-perworld-capture` verified（参考必须先在）。`depends_on` 只挂采集跑片卡（验证片在本片之后另立；若需把采集跑的 QA 复核卡也作为前置，Chief 一句话我加 set_dependencies）。方案 L 的 files 清单与行数预算见 `target/per-world-impl-precheck.md`；实现期不改 `.cu`、不动 81 槽，避免内核身份与 R08 证据链冲突。",
+  "note": "Arch 2026-10-30 注册（proposed，**不 start**）。等待：① R08 收口（R08-S3 verified）；② 用户批窗口（本片含 1 个验证窗，需双签窗口计划+基线）；③ 采集跑片 `2026-10-30-render-perworld-capture` verified（参考必须先在）。`depends_on` 只挂采集跑片卡（验证片在本片之后另立；若需把采集跑的 QA 复核卡也作为前置，Chief 一句话我加 set_dependencies）。方案 L 的 files 清单与行数预算见 `target/per-world-impl-precheck.md`；实现期不改 `.cu`、不动 81 槽，避免内核身份与 R08 证据链冲突。\n\n2026-10-30 Chief 批两点口径定死，不再加项：(a) per-world 路径 `samples_per_pixel>1`（AA）在入口显式返回 `Unsupported`，错误面用 `per_world.rs` 纯函数守卫 + CPU 单测钉住（非静默忽略），`megakernel.rs` 的 AA 分支零改动；(b) L v1 只覆盖 per-world geom 位姿，灯数组仍模型级单份（per-world 灯留 L v2/K）。行数死线：`megakernel.rs` ≤450、`megakernel_uploads.rs` ≤480、`per_world.rs` ≤260，超界停下报 Chief。`files` 去掉 `context/lifecycle.rs`（已 498 LF 顶格，零改动）。采集跑片 verified 后注册其 QA 复核卡并 `set_dependencies` 到本卡（已定，不需再问）。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-30T03:55:00.000Z",
-  "updated_at": "2026-10-30T03:55:00.000Z",
+  "updated_at": "2026-10-30T03:38:00.000Z",
   "checks": [
     {
       "kind": "gate",

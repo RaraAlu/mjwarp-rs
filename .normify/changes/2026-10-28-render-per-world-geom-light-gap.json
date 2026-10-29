@@ -24,13 +24,13 @@
     "resources": [],
     "priority": 59
   },
-  "note": "Arch 2026-10-28 登记：R10-S2 attempt1 诊断时确认（RGB Capacity 56 vs 28 与内核单 world 索引）。backlog 不 start。\n\n2026-10-29 P4 排期（本卡=#3）：最小切片=host 按 world 展平 geom/light 数组（内存×nworld）+ 内核 per-world 索引（先拆 kernel 子文件）；需先只读预核 pinned 多 world 渲染参考采集可行性，再排 1–2 个窗口；量级 3–5 人日；风险=内存放大、采集可行性与 R10 证据重做。",
+  "note": "Arch 2026-10-28 登记：R10-S2 attempt1 诊断时确认（RGB Capacity 56 vs 28 与内核单 world 索引）。backlog 不 start。\n\n2026-10-29 P4 排期（本卡=#3）：最小切片=host 按 world 展平 geom/light 数组（内存×nworld）+ 内核 per-world 索引（先拆 kernel 子文件）；需先只读预核 pinned 多 world 渲染参考采集可行性，再排 1–2 个窗口；量级 3–5 人日；风险=内存放大、采集可行性与 R10 证据重做。\n\n2026-10-30 排期定案：方案 L 被批为 per-world S1（`2026-10-30-render-perworld-impl-s1`）。**L v1 范围 = 逐 world geom 位姿**（`geom_xpos/geom_xmat` 经 `WorldScenePoses` → `update_poses` → `refit_bvh`，host 逐 world 循环 + 单 world 发射 + adr 值位移；不改 `.cu`、不动 81 槽 ABI）。**灯位姿 defer 到 L v2/K**：灯数组仍模型级单份，L v1 不注入 per-world 灯；参考中逐 world 灯相同故比对不受影响。**defer 的棘轮原因**：`context/lifecycle.rs` 498 LF、`args.rs` 494 LF 已顶 500 棘轮，指针偏移 helper 放不下 ⇒ 只做 adr 值位移。AA+per-world 同样留 L v2/K（per-world 入口对 `nsamples>1` 显式 `Unsupported`）。本卡保持 backlog 不 start。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-27T20:48:00.000Z",
-  "updated_at": "2026-10-29T22:40:00.000Z",
+  "updated_at": "2026-10-30T03:39:00.000Z",
   "checks": [
     {
       "kind": "forbid_claim",
