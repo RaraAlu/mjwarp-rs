@@ -5,12 +5,16 @@
     "zh": "架构树剩余 154 个未登记文件收口（physics collision 91 / runtime 27 / vendored WARP 头 36 政策）",
     "en": "Close the remaining 154 unregistered architecture sources (physics collision 91 / runtime 27 / vendored WARP headers policy 36)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "2026-10-29 P1 卡（`2026-10-28-arch-volume-module-sources`）只收 24 个文件；全量比对（1091 条登记源 vs `git ls-files` 823 个 src/include/native 文件）后仍剩 **154** 个未登记：physics 91（collision 72 + callback 2 + derivative 2 + history 4 + integrator 4 + inverse 2 + mass_matrix 1 + rne_bias 1 + sensor 2 + tendon_velocity 1）、runtime 27（collision_gpu 19 + backend 2 + collision_upload 1 + external 2 + launcher 2 + presence 1）、include 36（全部为 vendored `include/warp-headers/*.h`；自家 2 个 probe 头已在 P1 登记）、native 0（2 个 cpp 已在 P1 随 probe 归属）。本卡目标：让文件级 `normify impact` 对全部**自家代码**可用，并给 vendored 头一个成文政策。分两类：(a) 归属清晰但缺叶子：建议新增 `mjwarp.physics.collision`（72 文件；必要时再拆 contact-solver 与 SDF/hfield 子叶）、`mjwarp.runtime.collision-gpu`（19 + `collision_upload.rs`），physics 其余 19 与 runtime 其余 8 并入既有粗叶子或按 upstream 领域新增小叶子；须先做 module add + layout order + 依赖/边界规则评估，属架构变更；(b) vendored 第三方 `include/warp-headers/*.h` 36 个：建议**不入架构树**——非本项目实现、随 W15 头树整体原样 vendored、不承载产品契约或接口归属；登记会把第三方代码计入模块规模/行数语义并制造无意义依赖边，而文件级 impact 对它们无意义（只随整树升级变化）。改为在 `mjwarp.runtime.compiler` 描述与证据中记录目录、来源与 sha。",
     "en": "Register the remaining 154 unlisted sources: 91 physics, 27 runtime, and 36 vendored WARP headers (policy: keep out of the architecture tree). Requires new leaf modules plus layout/dependency review."
   },
   "modules": {
+    "create": [
+      "mjwarp.physics.collision",
+      "mjwarp.runtime.collision-gpu"
+    ],
     "modify": [
       "mjwarp.physics.core",
       "mjwarp.physics.mass-matrix",
@@ -18,6 +22,32 @@
       "mjwarp.runtime",
       "mjwarp.runtime.compiler",
       "mjwarp.runtime.external"
+    ],
+    "api_add": [
+      {
+        "module": "mjwarp.physics.collision",
+        "key": "rpc:mjwarp_rs::physics::collision::collision"
+      },
+      {
+        "module": "mjwarp.physics.collision",
+        "key": "rpc:mjwarp_rs::physics::collision::nxn_broadphase"
+      },
+      {
+        "module": "mjwarp.physics.collision",
+        "key": "rpc:mjwarp_rs::physics::collision::sap_broadphase"
+      },
+      {
+        "module": "mjwarp.physics.collision",
+        "key": "rpc:mjwarp_rs::physics::collision::primitive_narrowphase"
+      },
+      {
+        "module": "mjwarp.physics.collision",
+        "key": "rpc:mjwarp_rs::physics::collision::sdf_narrowphase"
+      },
+      {
+        "module": "mjwarp.runtime.collision-gpu",
+        "key": "rpc:mjwarp_rs::runtime::collision_gpu::run_product_collision"
+      }
     ],
     "api_remove": [
       {
@@ -57,9 +87,11 @@
     "owner": "Arch",
     "files": [
       "docs/development-evidence/render-bvh/arch-unregistered-sources-remaining/",
+      ".normify/modules/mjwarp/physics/collision.md",
       ".normify/modules/mjwarp/physics/core.md",
       ".normify/modules/mjwarp/physics/mass-matrix.md",
       ".normify/modules/mjwarp/physics/tendon-velocity.md",
+      ".normify/modules/mjwarp/runtime/collision-gpu.md",
       ".normify/modules/mjwarp/runtime/compiler.md",
       ".normify/modules/mjwarp/runtime/external.md",
       ".normify/modules/mjwarp/runtime/index.md",
