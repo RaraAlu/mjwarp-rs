@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-bvh-r02-skybox-s1b-negative-controls",
+  "title": {
+    "zh": "R02-S1b：更新天空盒解锁后的 3 个 stale 负控断言（仅测试，不碰产品代码）",
+    "en": "R02-S1b: update the three stale negative-control assertions after the skybox unlock (tests only, no product code)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R02 窗口 attempt1 暴露 S1 的 scope 缺口：`tests/render_e2e.rs`、`tests/render_kernel_flags.rs`、`tests/render_kernel_rgb.rs` 的 ignored GPU 负控仍断言「`render_skybox=true` 必须在写前拒绝」，而 R02-S1 已按设计移除该前置拒绝 → 三个实体 exit 101。本片只改这三份测试：把「拒绝」断言替换为对新行为的断言（context 可创建、`resolved().skybox.is_some()`、`renderer.render` 返回 Ok、e2e 额外校验 RGB 输出缓冲已写），并**保留仍未支持特性的写前拒绝负控**：动态射线（`use_precomputed_rays=false` → `Unsupported`）与 **splat**（`SplatInputs` 六参数给一组 → `Unsupported`，加在 kernel 拒绝面用例里）。`flex` 目前没有 host 前置拒绝（R06 范围），不作为负控候选，已在证据说明。**不改产品代码**、不改判据/容差/参考/fixture、不新增/删除任何被支持特性的覆盖。",
+    "en": "Replace the three stale render_skybox rejection assertions with assertions of the new accepted-and-launched behaviour, and keep negative controls for still-unsupported features (dynamic rays, splat). Tests only."
+  },
+  "modules": {},
+  "acceptance": [
+    "**只改三份测试**：`git diff` 只含 `tests/render_e2e.rs`、`tests/render_kernel_flags.rs`、`tests/render_kernel_rgb.rs`（+证据+`.normify`）；`src/**` 零改动。",
+    "**新断言验证新行为**：三处都断言 `render_skybox=true` 的 context 可创建、`context.resolved().skybox.is_some()`、`renderer.render(...)` 返回 `Ok(())`；`render_e2e` 额外断言 `context.outputs().read(ImageOutput::Rgb)` 成功（输出缓冲已写）。",
+    "**仍保留不支持特性的负控**：`use_precomputed_rays=false` 仍断言 `LauncherError::Unsupported`；`splat`（`SplatInputs{position,rotation,scale,rgba}` 一组）在 `render_kernel_rgb` 断言 `Unsupported`。证据说明 `flex` 当前无 host 前置拒绝（R06 范围），故不作负控。",
+    "**行数红线**：`tests/render_e2e.rs` 原 **500 LF**，改后必须 **≤500 且净 ≤0**（本片实测 496）；`tests/render_kernel_flags.rs` ≤500（495）、`tests/render_kernel_rgb.rs` ≤500（309）。",
+    "**仓库级 stale 扫描**：grep 全仓 `render_skybox` 逐条分类（接受面/解析面/负控面），列出其余相关断言并说明「非 stale」理由，证据留存。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit / `--no-run` / `validate --fingerprints` 全绿；unit 数记录并报 Chief；GPU 用例仍 `#[ignore]`，本片不开窗、不跑设备数值。",
+    "**证据**：`docs/development-evidence/render-bvh/r02-skybox-s1b-negative-controls/`（README + receipt 含 `/task_id` + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0），**零渲染数值结论**；两段提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-render-bvh-r02-skybox-s1"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_e2e.rs",
+      "tests/render_kernel_flags.rs",
+      "tests/render_kernel_rgb.rs",
+      "docs/development-evidence/render-bvh/r02-skybox-s1b-negative-controls/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-29 登记（窗口 attempt1 INVALID_ROUND 的失败 A 修复：S1 scope 缺口）。提交后重新冻结 attempt=2 的 exe 才可信；本片不碰产品代码、不改判据。",
+  "created_at": "2026-10-29T10:25:00.000Z",
+  "updated_at": "2026-10-29T10:25:00.000Z",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r02-skybox-s1b-negative-controls/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-bvh-r02-skybox-s1b-negative-controls"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "窗口通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
