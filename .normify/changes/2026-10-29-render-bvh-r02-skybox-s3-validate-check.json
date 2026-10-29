@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-bvh-r02-skybox-s3-validate-check",
+  "title": {
+    "zh": "R02-S3 天空盒验证窗 attempt=2 独立复核（例外合法性 / 位级判据 / 冻结身份 / attempt1 与修复链审计）",
+    "en": "Independent check of the skybox validation window attempt=2 (exception legality, bitwise criteria, freeze identity, attempt1 and fix-chain audit)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-29-render-bvh-r02-skybox-s3-validate`：核 attempt2 窗口六项与 facts/guard.log/entity-results 一致性、天空盒两相机 RGB/depth/seg 位级 0 与两跑 sha、8 回归零漂移、guards attempt=2 身份（73+? 实为 77 条目=9+68，aggregate/guards sha）与 attempt1 guards/旧参考 superseded、例外 amendment 合法性（attempt2 例外 monitor 60/60 且 12 个 ≥40 样本 clean、streak 60、`-OpenUtilLimit 60` 逐字、`not_a_normal_threshold_pass=true`、`authoring_exception_used=false`、常规失败件保留、precheck 不作主证）、attempt1 invalid round 与两条修复链（S1b/S2）审计、capture 脚本 sha 链与 params28 对照。QA 不重跑 GPU、不改代码/证据。",
+    "en": "Read-only QA review of the skybox window attempt=2 evidence and the attempt1/fix-chain history."
+  },
+  "modules": {},
+  "acceptance": [
+    "**例外合法性（主证据）**：从 `attempt2` 例外 monitor CSV 独立重算 60 样本 / 60 clean / longest 60 / util 范围 / **util≥40 且 clean 的样本数与 streak 到 60** / ge60=0 / free_min / filtered=0 / build=0；核 `-MaxUtil 60` 与 `-OpenUtilLimit 60` 逐字命令；核 `not_a_normal_threshold_pass=true`、`authoring_exception_used=false`、`signature_unchanged=true`、`original_normal_threshold_attempts_retained` 指向的常规失败件（354/18/75/exit20）原样保留；**不得**把 precheck 当例外生效证据，也不得表述为常规通过。",
+    "**位级判据**：从 `attempt2/logs/render_skybox_reference.log` 独立核两相机 compared/mismatched/max_byte_diff/beyond_1_lsb、depth mismatch/max_ulp/beyond_ulp、seg mismatch 与 depth_zero；核两跑 rgb/depth/seg sha256 相等于日志打印值；核判据口径与既有位级口径一致（无新增容差/无放宽）。",
+    "**8 回归零漂移**：逐实体核 exit=0 与用例数（camera_rays/lifecycle/e2e/depth_seg/flags/rgb/r08/r10），并与 `entity-results.csv` 一致；任何非 0 或跳过即阻断。",
+    "**冻结身份**：核 `guards-r02-skybox.json` suite/attempt=2/条目数 77(9+68)/guards sha256 前缀 `2d55c0b3…`/bytes 28 931/aggregate `ca1fcaa5…`；核 `-GuardsOnly` 输出 `GUARDS_OK=77/77` 与 stash 9/9；核 attempt1 guards `b5a2d4d7…` 归档路径与 superseded 标记；核 R05 `guards.json` `e2444a96…` 未被改写。",
+    "**attempt1 与修复链审计**：核 attempt1 `invalid-round-note.txt` 的 4 失败、两类根因（stale 负控 / fast_math 配方）、`stage-a-attempt1-failure.txt` + `capture-skybox-fix.diff`、旧参考 `stage-a-attempt1-reference-superseded/`（4 文件 sha）与旧 guards 归档；核 S1b 三份测试改动（`render_e2e.rs` 500→496 净 −4 不破 500、flags 495、rgb 309；新行为断言 + 保留 dynamic-ray/splat 负控）与 capture 脚本 sha 链 `812a2f77…`→`d17d2418…`→`d6f9864c…`（每步原因）；核 `params28-audit.txt` 28 项与 `capture.json use_fast_math=false`。",
+    "**窗口六项与零编译**：核 9/9 exit 0、`sha_guards 77/77`、`post_window_exe_recheck 9/9`、`zero_rust_compile=True`（deps 1839→1839、max write 早于窗）、samples/floor/free_min/used 增量/residual/body_wall；`WINDOW_RUN_DONE`。",
+    "**证据完整性**：manifest 行数与 committed blob/现盘双向一致、不自引用；LF 无 BOM；禁词 0（不出现「常规门槛通过/精度达标/上游等价/产品渲染验收通过」）；`git diff` 只含本卡 scope + `.normify`。先报 verdict / 阻断 / 观察。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-render-bvh-r02-skybox-s3-validate"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r02-skybox-s3-validate-check/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-29 预登记。start 时必须同时把任务 id + 复核点发进 QA 会话；本片无 GPU 窗口，QA 也不得跑 GPU（只读重算留档 CSV/日志）。",
+  "created_at": "2026-10-29T10:35:00.000Z",
+  "updated_at": "2026-10-29T10:35:00.000Z",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r02-skybox-s3-validate-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-bvh-r02-skybox-s3-validate-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "常规门槛通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-bvh-r02-skybox-s3-validate",
+  "title": {
+    "zh": "R02-S3：天空盒 validation 窗 attempt=2（例外 util<60；9 实体全绿；判据位级 0；含 attempt1 invalid round 与修复链历史）",
+    "en": "R02-S3: skybox validation window attempt=2 (validation-only exception util<60; 9 entities green; bitwise-zero criteria; attempt1 invalid round and fix chain recorded)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R02 第三片：在用户签署的 validation-only 例外（util<60）下执行阶段 A capture → 冻结 attempt=2 → `-GuardsOnly` → 阶段 B 验证窗，并把 attempt1（INVALID_ROUND）与两条修复链（S1b stale 负控、S2 capture 自检/配方）作为历史一并留档。attempt2 结果：9/9 实体 exit 0；`sha_guards=77/77`；`post_window_exe_recheck=9/9`；`zero_rust_compile=True`；samples=166、util 18–40、free_min 12 587、floor 9 786 未破；天空盒两相机（76 800 + 43 200 像素）RGB `mismatched=0/max_byte_diff=0/beyond_1_lsb=0`、depth `mismatch=0/max_ulp=0/beyond_ulp=0`、seg 0、两跑 sha 相同；8 回归实体零漂移。判据/容差/参考零放宽（唯一参考配方修正为与产品 `fast_math=false` 对齐，见 S2 修复）。本片只产出窗口证据与结论记录，不改代码/判据。",
+    "en": "Execute and record the signed skybox validation window attempt=2 (capture -> freeze attempt2 -> GuardsOnly -> stage B), including the attempt1 invalid round and both fix chains as history. Evidence only."
+  },
+  "modules": {},
+  "acceptance": [
+    "**窗口六项**：9/9 实体 exit 0、`sha_guards=77/77`、`post_window_exe_recheck=9/9`、`zero_rust_compile=True`、samples/util/free_min/floor/used 增量/residual、`WINDOW_RUN_DONE`；数字与 `attempt2/facts.txt`、`guard.log`、`entity-results.csv` 逐项一致。",
+    "**天空盒判据**：`render_skybox_reference` 两相机逐相机记录 compared/mismatched/max_byte_diff/beyond_1_lsb（RGB）、mismatch/max_ulp/beyond_ulp/depth_zero（depth）、seg mismatch，全部 0；两跑 rgb/depth/seg sha256 记录且相同；判据沿用既有位级口径，**无新增容差、无放宽**。",
+    "**8 回归零漂移**：8 个回归实体逐实体 exit 0 与用例数记录；与 R05 口径一致，不新增/不放宽。",
+    "**冻结身份**：guards suite `r02-skybox-validate`、**attempt=2**、77 条目（9 exe + 68 输入）、guards sha256 `2d55c0b3…`/28 931 B、aggregate `ca1fcaa5…`；attempt1 guards `b5a2d4d7…` 归档 `target/render-bvh/r02-skybox-window/guards-r02-skybox-attempt1-superseded.json` 并标 superseded；R05 `guards.json` 未动。",
+    "**例外 amendment 留痕**：attempt2 重跑例外 monitor 60/60、util 32–41、**12 个 util≥40 样本 clean 且 streak 到 60**、free_min 12 751、exit 0；`mode=validation_only_exception_util_lt_60`、`approved_by`、`not_a_normal_threshold_pass=true`、`authoring_exception_used=false`、`signature_unchanged=true`；`window-command.txt` 逐字含 `-OpenUtilLimit 60`；常规失败件（354 样本/longest 18/exit 20）原样保留；**precheck 仅作记录、不作例外生效主证**。",
+    "**attempt1 invalid round 与修复链**：attempt1 4 实体失败（stale 负控 ×3 + 天空盒 depth 1–4 ULP）、两类根因、修复提交（S1b `f2ee32d0`/`1d3c7159`/`df24283c`、capture 修 `b3a47aca`）、旧参考目录与旧 guards 的 superseded 路径与 sha 全部记录；attempt1 **不作为有效轮**。",
+    "**capture 脚本 sha 链**：`812a2f77…`（S2 原交付）→ `d17d2418…`（窗口期确定性自检修复）→ `d6f9864c…`（use_fast_math 对齐产品 recipe）逐项原因与证据；`materials/params28-audit.txt` 引用；`capture.json` 断言 `use_fast_math=false`、`params28_sha256=e2bae199…`、两跑 sha 相等、恰 4 文件。",
+    "**证据与提交**：`docs/development-evidence/render-bvh/r02-skybox-s3-validate/`（README + receipt 含 `/task_id` + manifest 按 committed blob 不自引用、LF 无 BOM、禁词 0）；两段提交（窗口原始产物 → 文档/receipt/manifest）+ closing；`normify check` 全过；**零渲染数值结论之外的声明**（不写「常规通过/精度达标/上游等价」）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit / `validate --fingerprints` 全绿（本片不改 Rust 代码；窗口内 `zero_rust_compile=True` 已由 facts 证明）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-render-bvh-r02-skybox-s1b-negative-controls",
+      "2026-10-29-render-bvh-r02-skybox-s2-capture-authoring",
+      "2026-10-29-render-bvh-r02-skybox-s2b-reference-test"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/r02-skybox-s3-validate/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-29 登记（用户签 validation-only 例外 util<60；Chief 2026-10-29T18:2x 核过 attempt2 全绿后授权收口）。attempt2 原始产物在 target/render-bvh/r02-skybox-window/attempt2/；attempt1 保留为 invalid round 证据。",
+  "created_at": "2026-10-29T10:35:00.000Z",
+  "updated_at": "2026-10-29T10:35:00.000Z",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r02-skybox-s3-validate/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-bvh-r02-skybox-s3-validate"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "常规门槛通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
