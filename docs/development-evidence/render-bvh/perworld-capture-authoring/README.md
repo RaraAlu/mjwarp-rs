@@ -11,8 +11,8 @@
 | 项 | 值 |
 | --- | --- |
 | 路径 | `scripts/capture_render_perworld.py` |
-| sha256 | `602e36daab79fd4dc269d9f935adc916ec8057b742e023d270541404d477fb36` |
-| 字节 | 23,521 |
+| sha256 | `971cb8b13db82a9076c81b15936b2c97ffe2df8d3c0e47d1d9d0b10c78552775` |
+| 字节 | 23,531 |
 | 行数 | **497**（LF 计数；新文件 500 行上限内） |
 | ASCII 自检 | 非 ASCII 字节 **0** |
 | 语法自检 | pinned python `ast.parse` → `PY_SYNTAX_OK` |
