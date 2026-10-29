@@ -1,0 +1,44 @@
+R02-S1b render_skybox repo-wide scan (tests/src), classified after the update
+
+tests\support\render_bvh\skybox.rs:1: //! R02-S1 天空盒参考（scene-a，`render_skybox=true`，stage A 采集）与产品路径位级比较。
+tests\support\render_bvh\skybox.rs:193: .pointer("/params28/render_skybox")
+tests\support\render_bvh\skybox.rs:196: "捕获必须是 render_skybox=true"
+tests\support\render_bvh\skybox.rs:267: /// 产品路径场景：scene-a + `render_skybox=true`，纹理注册表按「use_textures || skybox」构造。
+tests\support\render_bvh\skybox.rs:281: render_skybox: true,
+tests\support\render_bvh\skybox.rs:299: resolved.render_skybox && resolved.skybox.is_some(),
+tests\support\render_bvh\skybox.rs:300: "scene-a 必须有天空盒纹理且 render_skybox=true"
+tests\render_context_params.rs:157: (resolved.render_skybox, "render_skybox"),
+tests\render_context_params.rs:320: render_skybox: true,
+tests\render_e2e.rs:433: /// GPU：负向控制保持——1 类写前拒绝（动态射线）+ AA 射线数；`use_shadows`/`render_skybox` 已解锁 → 独立「接受 → 发射成功」断言。
+tests\render_e2e.rs:448: // R02-S1：`render_skybox=true` 已解锁（接受 + 发射成功 + RGB 缓冲已写）。
+tests\render_e2e.rs:453: render_skybox: true,
+tests\render_e2e.rs:462: assert!(skybox_result.is_ok(), "render_skybox 必须被接受");
+tests\render_kernel_flags.rs:437: // 4) R02-S1：`render_skybox=true` 已解锁（host 前置拒绝移除）→ 必须被接受并发射成功。
+tests\render_kernel_flags.rs:439: render_skybox: true,
+tests\render_kernel_flags.rs:446: Err(_) => panic!("render_skybox=true 的 context 必须可创建（R02-S1 解锁）"),
+tests\render_kernel_flags.rs:463: "render_skybox=true 必须被接受（实际 {skybox_result:?}）"
+tests\render_kernel_rgb.rs:235: // R02-S1：`render_skybox=true` 已解锁（host 前置拒绝移除）→ 必须被接受并发射成功。
+tests\render_kernel_rgb.rs:237: render_skybox: true,
+tests\render_kernel_rgb.rs:244: Err(_) => panic!("render_skybox=true 的 context 必须可创建（R02-S1 解锁）"),
+tests\render_kernel_rgb.rs:254: "render_skybox=true 必须被接受（实际 {skybox_result:?}）"
+tests\render_kernel_rgb.rs:290: // `render_skybox` 由 R02-S1 解锁，均不再是拒绝项；本用例保留仍在的拒绝面（动态射线/splat）。
+tests\render_lighting_params.rs:282: // skybox 与光照解耦：`render_skybox` 只影响 skybox 字段，不改变光照校验结果。
+tests\render_lighting_params.rs:285: render_skybox: false,
+tests\render_lighting_params.rs:289: render_skybox: true,
+tests\render_skybox_reference.rs:1: //! R02-S1 天空盒位级比较实体（窗口实体 `render_skybox_reference`；GPU 用例 `#[ignore]`）。
+tests\render_skybox_reference.rs:5: //! （`render_skybox=true`，两相机 320x240 + 240x180 = 120 000 像素）。
+tests\render_skybox_reference.rs:83: /// GPU 实体：scene-a + `render_skybox=true`，两相机 × RGB/depth/seg 对 stage A 参考。
+src\render\context\model.rs:112: /// 天空盒定位：`render_skybox=true` 且模型含 `mjTEXTURE_SKYBOX` 纹理时返回引用；
+src\render\context\model.rs:113: /// 上游在没有天空盒纹理时静默把 `render_skybox` 降为 false。
+src\render\context\params.rs:91: pub render_skybox: bool,
+src\render\context\params.rs:123: render_skybox: false,
+src\render\context\params.rs:189: assert!(params.flex_render_smooth && !params.render_skybox);
+src\render\kernel\megakernel_arrays.rs:262: if resolved.render_skybox {
+src\render\kernel\megakernel_uploads.rs:183: Some(resources) if resolved.use_textures || resolved.render_skybox => {
+src\render\kernel\megakernel_uploads.rs:194: // `render_skybox=true` 是宿主配置错误，在发射前拒绝而不是设备侧越界。
+src\render\kernel\megakernel_uploads.rs:195: if resolved.render_skybox && texture_array.is_none() {
+src\render\context.rs:163: /// 天空盒纹理引用（仅在 `render_skybox=true` 且模型存在天空盒纹理时非空）。
+src\render\context.rs:182: pub render_skybox: bool,
+src\render\context.rs:299: let skybox = skybox(fields, params.render_skybox)?;
+src\render\context.rs:321: render_skybox: skybox.is_some(),
+src\render\texture.rs:213: /// 不在本片，`render_skybox` 的占位纹理路径不实现（S7b）。

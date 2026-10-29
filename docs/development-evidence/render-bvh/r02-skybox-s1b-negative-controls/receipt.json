@@ -1,0 +1,44 @@
+{
+  "task_id": "2026-10-29-render-bvh-r02-skybox-s1b-negative-controls",
+  "slice": "R02-S1b",
+  "phase": "P8-渲染与BVH",
+  "owner": "Backend",
+  "nature": "tests-only correction slice (window attempt1 failure A): no product code, no GPU execution, no rendering numeric conclusion",
+  "background": {
+    "window_attempt1": "INVALID_ROUND exit10; render_e2e/render_kernel_flags/render_kernel_rgb panicked on 'render_skybox 必须在写前拒绝（实际 Ok(())）'",
+    "cause": "R02-S1 removed the skybox host rejection by design; these three ignored GPU negative controls still asserted the old rejection (S1 scope gap: files were not in the S1 card file list; QA does not run GPU tests)"
+  },
+  "files": {
+    "tests/render_e2e.rs": {"lines_lf_before": 500, "lines_lf_after": 496, "net": -4, "limit": 500},
+    "tests/render_kernel_flags.rs": {"lines_lf_before": 475, "lines_lf_after": 495, "limit": 500},
+    "tests/render_kernel_rgb.rs": {"lines_lf_before": 270, "lines_lf_after": 309, "limit": 500}
+  },
+  "new_assertions": [
+    "render_e2e: render_skybox=true context created; resolved().skybox.is_some(); renderer.render returns Ok(()); outputs().read(ImageOutput::Rgb) succeeds (output buffer written)",
+    "render_kernel_flags: render_skybox=true context created; resolved().skybox.is_some(); render succeeds",
+    "render_kernel_rgb: render_skybox=true context created; resolved().skybox.is_some(); render succeeds"
+  ],
+  "retained_negative_controls": [
+    "use_precomputed_rays=false -> LauncherError::Unsupported (all three surfaces where present)",
+    "splat: SplatInputs{position,rotation,scale,rgba} -> LauncherError::Unsupported (render_kernel_rgb)",
+    "flex: no host pre-launch rejection exists today (R06 scope), so it is not a negative-control candidate; documented, not asserted"
+  ],
+  "repo_scan": {
+    "file": "materials/render-skybox-scan.txt",
+    "result": "all render_skybox hits in tests/ and src/ classified as accept-surface / resolve-surface / negative-control-surface; no other stale 'expect rejection' assertion found"
+  },
+  "gates": {
+    "fmt": 0,
+    "clippy": 0,
+    "clippy_cuda": 0,
+    "unit": 0,
+    "no_run": 0,
+    "normify_validate_fingerprints": 0,
+    "gpu_tests_executed": false
+  },
+  "unit_totals": {"test_result_lines": 136, "passed": 1104, "failed": 0, "ignored": 390},
+  "product_code_untouched": true,
+  "criteria_unchanged": true,
+  "followup": "re-freeze attempt=2 (exe bytes changed) before the next window run; GuardsOnly 77/77 then stage B attempt=2; depth criterion stays bitwise-first + max_ulp<=4/beyond=0",
+  "non_claims": ["not a window pass", "no rendering numeric conclusion", "not upstream equivalence", "not product render acceptance"]
+}
