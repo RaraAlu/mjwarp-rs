@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-arch-volume-module-sources",
+  "title": {
+    "zh": "架构树补登：volume 侧与 kernel 侧模块源未登记（`src/model/volume*` / `src/io/volume*` / `src/render/kernel/*.rs` 等）",
+    "en": "Architecture tree: register the unlisted volume-side module sources"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "R05-S1 复核（QA O1）时发现 `context/hfield.rs` 未登记为模块源；顺带核查发现 `src/model/volume_input.rs`、`src/io/volume*.rs` 等 volume 侧文件同样**未登记任何模块源**（架构树静默缺口，与 R09-S1 的 `lighting.rs` 同类）；另 R05 拆分② 复核（QA O2）发现 `src/render/kernel/` 下 **6 个 .rs 未登记**（`cast.rs`、`megakernel.rs`、`megakernel_aa.rs`、`megakernel_arrays.rs`、`output.rs`、`renderer.rs`），同类缺口。本卡只做登记与指纹刷新：核对 `mjwarp.model` / `mjwarp.io`（或对应模块）现有 sources 清单，把实际存在但未登记的 volume 侧与 kernel 侧 .rs 文件补上，`normify validate --fingerprints` 错误 0；不改代码行为、不改字段契约。",
+    "en": "Register the unlisted volume-side module sources in the architecture tree; fingerprints only, no behavior change."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.render",
+      "mjwarp.model.core",
+      "mjwarp.io.core",
+      "mjwarp.io.render",
+      "mjwarp.math"
+    ]
+  },
+  "acceptance": [
+    "先只读盘点：列出 `src/model/`、`src/io/`、`src/render/kernel/` 下实际存在但未出现在任何模块 `sources` 清单中的文件（含 `volume_input.rs`、`io/volume*.rs` 与 kernel 侧 `cast.rs`/`megakernel.rs`/`megakernel_aa.rs`/`megakernel_arrays.rs`/`output.rs`/`renderer.rs`），逐条判定归属模块，输出清单入证据。",
+    "按盘点结果用 `normify module source <模块> --add <路径>` 补登记（**只登记真实存在且确实属于该模块的文件**，不臆造归属）；登记前后 sources 计数写入证据。",
+    "`normify validate --fingerprints` 错误 0；若出现既有 5 条警告之外的漂移，逐条说明处置。",
+    "零代码行为改动、零字段契约改动、零判据/参考/夹具改动；四门禁通过；证据 `docs/development-evidence/render-bvh/arch-volume-module-sources/`（README + receipt 含 `/task_id`），LF 无 BOM、禁词 0。",
+    "2026-10-29 Chief 批准扩到 24 文件（18 主 + 6 顺手）：追加 `src/render/context/tests.rs`、`src/math/fma/tests.rs`、`include/mjwarp_render_probe.h`、`native/model_probe_render.cpp`、`include/mjwarp_collision_inputs_probe.h`、`native/model_probe_collision_inputs.cpp`；登记后对 `src/render/kernel/cast.rs`、`src/model/volume_input.rs`、`src/io/volume.rs`、`src/io/render.rs`、`src/math/fma/tests.rs` 五处抽样 `normify impact`；`validate --fingerprints` 错误 0、警告 5→6 若发生逐条说明。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/arch-volume-module-sources/"
+    ],
+    "resources": [],
+    "priority": 54
+  },
+  "note": "Arch 2026-10-28 登记（QA R05-S1 复核旁证发现的架构树缺口）。**backlog 不 start**，等 Chief 排；只登记不重构。\n2026-10-29 Chief 批准 24 文件（18 主 + 6 顺手）；剩余 158 个未登记文件另立 backlog 卡 `2026-10-29-arch-unregistered-sources-remaining`，本卡不做。`src/model/collision_inputs.rs` 归属 `mjwarp.model.core`（输入契约）。",
+  "revision": {
+    "before": "a7e2aac2adb49e9331a0b00e8464b203f4b5909a",
+    "after": null
+  },
+  "created_at": "2026-10-28T13:41:00.000Z",
+  "updated_at": "2026-10-29T14:13:47.498Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/arch-volume-module-sources/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-arch-volume-module-sources"
+    }
+  ]
+}
