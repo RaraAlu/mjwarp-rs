@@ -38,12 +38,12 @@ API 分配：`kernel` ← `mjwarp_rs::render::render`；`bvh` ← `bvh::refit_bv
 **偏差记录（步 1 中间态）**：
 1. **容器持 53 源** —— 步 2 清零；证据点名，不当终态。
 2. **`OutputChannels` / `ImageOutput` 的 API 归属 ≠ 源码位置**：声明挂在 `context` 叶，但实现符号在 `src/render/mod.rs`（该文件步 1 与剩余 7 源都留容器）。`mod.rs` 最终归哪叶留步 2 定。
-3. **`render` 正文末尾 LF**：原 `render.md` body 421 字节、末尾无换行；晋升容器由 `render_doc` 写出后 body 文本**逐字相同**、文件末尾补 1 个 LF（422 字节，卫生口径）。正文行数 24（ReadAllLines）不变。
+3. **正文逐字节保留**：迁移前后 `render` 正文 body（第二个 `+++` 之后）均为 **421 字符 / 749 字节**、sha256 `f680bfbe2a589b81a68ca3368b45c07d268aa3fcf78f4f90985e45a32d29b730`，**两文件逐字节相同**；正文行数 24（ReadAllLines）不变。
 
 ## 4. 实测口径（ReadAllLines/LF）
 
-- 迁移前 `render.md`：**393 行**、最后 `+++` 在**第 369 行**、正文 **24 行**（正文 sha256 `4f54ed56e7e57c9c88183a5d0597376ea162b9fe73bd139ae5411dfb72391f22`）
-- 迁移后 `render/index.md`：**201 行**、`+++` 在**第 177 行**、正文 **24 行**（正文内容除末尾 LF 外逐字相同，正文 sha256 `483d91aedfb50e2707f2fa9a8f388baa9f18c15dd819cac0a0c92a9e5cdde6df`）
+- 迁移前 `render.md`：**393 行**、最后 `+++` 在**第 369 行**、正文 **24 行 / 421 字符 / 749 字节**（正文 sha256 `f680bfbe2a589b81a68ca3368b45c07d268aa3fcf78f4f90985e45a32d29b730`）
+- 迁移后 `render/index.md`：**201 行**、`+++` 在**第 177 行**、正文 **24 行 / 421 字符 / 749 字节**，**与迁移前逐字节相同**（同一 sha256）
 
 ## 5. validate 结果（实测）
 
