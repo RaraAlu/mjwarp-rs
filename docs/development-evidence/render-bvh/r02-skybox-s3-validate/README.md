@@ -93,8 +93,11 @@ seg `065caf08c1759c34be2b9d9e2b2f8d62e874f219d8d6bf93c8d9e2408b293821`。
 ## 8. 门禁与证据
 
 fmt 0 / clippy 0 / clippy-cuda 0 / unit 0 / `validate --fingerprints` 错误 0（本片不改 Rust 代码；窗口内
-`zero_rust_compile=True` 由 facts 证明）。证据 = 本目录（README + receipt + manifest + 33 个原始产物/留档文件），
+`zero_rust_compile=True` 由 facts 证明）。证据 = 本目录（README + receipt + manifest + 32 个原始产物/留档文件），
 manifest 按 committed blob 且不自引用、LF 无 BOM。
+证据副本 line-ending 归一说明：`attempt1/facts.txt`、`attempt2/facts.txt`、`attempt2/guard_aggregate.json`
+原由 `Add-Content -Encoding UTF8` 追加形成 CRLF；证据副本归一为 LF（逐行内容一致，仅换行符），
+其余文件原本即 LF。
 
 ## 9. 非声明与限制
 
