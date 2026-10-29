@@ -583,6 +583,60 @@
         "execution": "done (pass / blockers 0 / observations 10; O1/O2 must-fix corrected in the validate evidence fix commit)",
         "evidence": "docs/development-evidence/render-bvh/r05-s3b-hfield-validate-check/",
         "note": "QA commits 5100732f + closing; independent check of attempt2 window: 9 exits 0, sha_guards 73/73, exception legitimacy (normal failures retained, five-element exception record, exception threshold 60 evidenced by 5 util>=40 clean=True rows), criteria recomputed to zero differences, frozen guards/exe/stash consistent, attempt1 untouched"
+      },
+      {
+        "slice": "R02-S1 skybox offline",
+        "task_id": "2026-10-29-render-bvh-r02-skybox-s1",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done (offline implementation, no window)",
+        "evidence": "docs/development-evidence/render-bvh/r02-skybox-s1/",
+        "note": "8aa33e00/b6b2a679/299459c0 + QA-O1 fix 58dd417f/6319500e; sample_skybox kernel + vertical-strip 2D registry subset + flag bit9; kernel source e68e3412.../ptx 0b947492.../268,275 B; module sources 39->40; unit 1103; QA 25d1e43c/a0f59f6f (pass/0/8)"
+      },
+      {
+        "slice": "R02-S1b negative controls",
+        "task_id": "2026-10-29-render-bvh-r02-skybox-s1b-negative-controls",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done (tests only)",
+        "evidence": "docs/development-evidence/render-bvh/r02-skybox-s1b-negative-controls/",
+        "note": "f2ee32d0/1d3c7159/df24283c; render_e2e 500->496 LF (net -4), flags 495, rgb 309; new accept-and-launch assertions, dynamic-ray/splat negative controls retained; unit 1104; QA 6517615c/9705eb21 (pass/0/6)"
+      },
+      {
+        "slice": "R02-S2 capture authoring",
+        "task_id": "2026-10-29-render-bvh-r02-skybox-s2-capture-authoring",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done (offline materials) + window-time fixes",
+        "evidence": "docs/development-evidence/render-bvh/r02-skybox-s2-capture-authoring/",
+        "note": "3e3665f0/f714af77/b9e38461; capture_skybox.py + freeze-guards-r02.ps1 + runner -GuardsFile; window-time fix b3a47aca: script sha chain 812a2f77->d17d2418->d6f9864c (determinism self-check, use_fast_math False); params28 audit"
+      },
+      {
+        "slice": "R02-S2b reference test",
+        "task_id": "2026-10-29-render-bvh-r02-skybox-s2b-reference-test",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done (offline test target)",
+        "evidence": "docs/development-evidence/render-bvh/r02-skybox-s2b-reference-test/",
+        "note": "9ea9fa59/7d873a64/bd9bc386; tests/render_skybox_reference.rs 138 LF + support skybox.rs 479 LF; entity render_skybox_reference; unit 1104"
+      },
+      {
+        "slice": "R02-S3 validate",
+        "task_id": "2026-10-29-render-bvh-r02-skybox-s3-validate",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done (device validation window attempt=2, validation-only exception util<60 load-bearing)",
+        "evidence": "docs/development-evidence/render-bvh/r02-skybox-s3-validate/",
+        "note": "34117187/699e4365/d7f705d0 + manifest fixes 8fecc3e4/fa5cfcfd + QA-O1 wording 82a025c2; guards-r02-skybox.json attempt=2 2d55c0b3.../28,931 B/77(9+68)/aggregate ca1fcaa5...; WINDOW_RUN_DONE: 9/9 exit 0, sha_guards 77/77, post 9/9, zero compile, floor 9,786 not breached, samples 166; skybox 2 cams (76,800/43,200 px) RGB/depth/seg all-zero, two-run sha equal; attempt1 INVALID_ROUND retained; QA cecbe729/a61dcd4c (needs-fix O1 wording only / 0 blockers / 7 observations)"
+      },
+      {
+        "slice": "R02-S3a artifacts commit",
+        "task_id": "2026-10-29-render-bvh-r02-skybox-s3-artifacts-commit",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done (artifacts only)",
+        "evidence": "docs/development-evidence/render-bvh/r02-skybox-s3-artifacts-commit/",
+        "note": "f0213748/99b88d1f/65022c3a/8a967468; reference-skybox 4 files (capture 47f704de...) and guards attempt=2 committed byte-identical (guards blob==disk 28,931 B via local -text; R05-QA-O7 class caveat)"
       }
     ],
     "structural_decisions": [
@@ -657,6 +711,12 @@
         "reason": "the attempt1 freeze was invalidated when a concurrent QA build re-linked the nine test executables (same size, different bytes): -GuardsOnly dropped to 64/73. Test executable relinking is not byte-reproducible.",
         "effect": "freeze-guards.ps1 copies the nine executables into target/render-bvh/r05-s3b-window/frozen-exes and guards.json records stash_path/stash_sha256/stash_bytes; run-window.ps1 verifies 73 + 9 stash entries and re-checks each live executable sha before and after every entity, aborting with exit 9 on drift; freeze-guards.ps1 gains an -Attempt parameter (default 1) so the attempt number is data rather than source (commit 5dd881d0, 7,803 B, ASCII-only)",
         "lesson": "freezing executable bytes only holds if freeze is the last build; keep the frozen bytes in a stash so later builds cannot invalidate the signature"
+      },
+      {
+        "decision": "split R02-S3 artifacts into a separate card (2026-10-29-render-bvh-r02-skybox-s3-artifacts-commit)",
+        "reason": "the S3 validate card scope was evidence-only, while the window signed inputs (reference-skybox 4 files and guards-r02-skybox.json) were still untracked; committing them under S3 would break the frozen scope.",
+        "effect": "S3a commits the four reference files and the attempt=2 guards byte-identically (guards blob == on-disk 28,931 B via local .git/info/attributes -text, same class as R05 QA O7); S3 evidence references their shas.",
+        "lesson": "register the artifact-commit scope in the same planning pass as the window card; signed inputs are part of the deliverable."
       }
     ],
     "scheduling_notes": [
@@ -708,6 +768,16 @@
       {
         "id": "N10",
         "note": "Backlog left by R05: SDF gtype==8 cull gap, host quat-to-matrix derivation audit (other host-derived poses), normify archived-card ingest, and the next render families (R06/R07/R02) pending user decision.",
+        "source": "Arch 2026-10-29"
+      },
+      {
+        "id": "N11",
+        "note": "R02 skybox family delivered: S1 offline kernel/registry, S1b stale negative-control fix, S2 capture authoring (+ two window-time script fixes), S2b reference test target, S3 validation window attempt=2, S3a signed-artifact commit. Window attempt1 was INVALID_ROUND (stale negative controls + capture fast_math recipe mismatch); attempt2 used the user-signed validation-only exception util<60 (60/60, 12 util>=40 clean samples, streak 60) and is green: 9/9 entities, sha_guards 77/77, post 9/9, zero compile, floor 9,786 not breached; skybox 2 cameras RGB/depth/seg all-zero, two-run sha equal.",
+        "source": "Arch 2026-10-29"
+      },
+      {
+        "id": "N12",
+        "note": "R02 follow-ups / known limits: run-window.ps1 writes guard_aggregate.suite from a hard-coded R05 string (QA B-O2, cosmetic; aggregate hashes correct); -GuardsOnly dry-run output is not archived in evidence (window guard.log 77/77 is the proof); attempt1 exception monitor CSV stays only under target/render-bvh/r02-skybox-window/ (referenced by sha in S3 evidence); guards signed bytes depend on local .git/info/attributes -text (R05 QA O7 class). Backlog: next render families R07 splat / R06 flex pending user decision.",
         "source": "Arch 2026-10-29"
       }
     ]
@@ -1740,6 +1810,96 @@
         "634d0e4a"
       ],
       "delivered_note": "authoring 2c56cc1a/d77b728e（target 392 LF + host 自检 13/36/12 + dump provenance）+ QA 36fa461e/0f35d5c2（pass/0/4）；attempt1 窗口 INVALID_ROUND：零 mesh 场景无 mesh 家族槽占位 → launcher_buffer panic（产品缺陷，S2 的 hfield 设备通路未验证）→ 修复 dce78b1f（6 槽 1 元素占位 + shape max(1)，upload 446/412 LF，内核三 sha 逐位不变）+ QA 级复核；cam1 depth 红 → RCA 54ee236a/a62cc6aa 定根因=相机世界位姿 1–2 ULP（host quat_to_mat 无 FMA 收缩 vs 上游 GPU JIT 收缩；PTX 里 quat_to_mat 段 fma.rn=0，收缩在 ptxas→SASS，故用 1003 条 GPU 参考反推唯一收缩序：候选 1 259 712、≤16 条收敛、9027 项 0 差异）→ 修复 6f246b46（cast.rs 411→481，fma_f32）+ QA 043927a2/d1bd6b0d（pass/0/9）+ 证据修正 d1f7f851；重冻结 309a68b9（guards.json e2444a96…/27 670 B/attempt=2/aggregate 7d24f036…）+ 冻结脚本参数 5dd881d0；attempt2 窗口：常规 util<40 监测失败（354 样本/最长 45/60），Chief 预批 validation-only 例外 util<60（60/60）→ 窗口 -OpenUtilLimit 60 → WINDOW_RUN_DONE，9/9 exit 0、sha_guards 73/73、窗后 9/9、zero_rust_compile=True、floor 10 233 未破、samples 171；两组 hfield cam0(76 800)/cam1(43 200) RGB/depth/seg 全 0 差异、两跑 sha 相等；收口 674426f5 → 9717a8a4 → 634d0e4a"
+    },
+    {
+      "id": "R02-S1",
+      "name": "skybox-offline",
+      "category": "rgb-skybox",
+      "depends_on": ["S7b2"],
+      "priority": 88,
+      "scope": "Translate upstream sample_skybox (render.py L494-556) into the product megakernel, materialize a vertical-strip 2D skybox texture only when needed (use_textures || has_skybox), fill the two skybox slots, remove the host rejection. No GPU window in this slice.",
+      "evidence": "docs/development-evidence/render-bvh/r02-skybox-s1/",
+      "new_files": ["src/render/context/texture_inputs.rs", "tests/render_skybox.rs"],
+      "modifies": ["src/render/kernel/cuda/render_shade.cu", "src/render/kernel/cuda/render_megakernel.cu", "src/render/kernel/megakernel.rs", "src/render/kernel/megakernel_arrays.rs", "src/render/kernel/megakernel_uploads.rs", "src/render/context.rs", "src/render/context/lifecycle.rs"],
+      "gpu": {"required": false, "reason": "offline implementation; NVRTC compile gate only"},
+      "status": "delivered",
+      "delivered_commits": ["8aa33e00", "b6b2a679", "299459c0", "db6ca47d", "58dd417f", "6319500e"],
+      "delivered_note": "kernel source 72bc364c->e68e3412, ptx 97467d83->0b947492, ptx_bytes 264015->268275; flag bit9 MK_FLAG_SKYBOX; texture_registry subset with 1x1 dummies; module sources 39->40; unit 1103; QA 25d1e43c/a0f59f6f pass/0/8 (O1 PTX table corrected at 58dd417f/6319500e)"
+    },
+    {
+      "id": "R02-S1b",
+      "name": "skybox-negative-controls",
+      "category": "rgb-skybox",
+      "depends_on": ["R02-S1"],
+      "priority": 87,
+      "scope": "Update the three stale ignored GPU negative controls that still asserted render_skybox rejection (tests only): assert the new accepted-and-launched behaviour, keep dynamic-ray and splat Unsupported negative controls.",
+      "evidence": "docs/development-evidence/render-bvh/r02-skybox-s1b-negative-controls/",
+      "new_files": [],
+      "modifies": ["tests/render_e2e.rs", "tests/render_kernel_flags.rs", "tests/render_kernel_rgb.rs"],
+      "gpu": {"required": false, "reason": "tests-only change; the assertions run in the S3 window"},
+      "status": "delivered",
+      "delivered_commits": ["f2ee32d0", "1d3c7159", "df24283c"],
+      "delivered_note": "e2e 500->496 LF (net -4, red line <=500), flags 495, rgb 309; dynamic-ray and splat negative controls retained; unit 1104; QA 6517615c/9705eb21 pass/0/6"
+    },
+    {
+      "id": "R02-S2",
+      "name": "skybox-capture-authoring",
+      "category": "rgb-skybox",
+      "depends_on": ["R02-S1"],
+      "priority": 86,
+      "scope": "Offline authoring materials for the skybox window: capture variant with render_skybox=true into a separate reference dir, new r02-skybox-validate guard freezer (77 entries) and runner -GuardsFile parameterization, one-page two-stage window plan.",
+      "evidence": "docs/development-evidence/render-bvh/r02-skybox-s2-capture-authoring/",
+      "new_files": ["scripts/authoring/render-bvh-r02/capture_skybox.py", "scripts/validate/render-bvh/freeze-guards-r02.ps1"],
+      "modifies": ["scripts/validate/render-bvh/run-window.ps1"],
+      "gpu": {"required": false, "reason": "offline authoring only; the capture runs inside the S3 window"},
+      "status": "delivered",
+      "delivered_commits": ["3e3665f0", "f714af77", "b9e38461", "b3a47aca"],
+      "delivered_note": "capture script sha chain 812a2f77 -> d17d2418 (determinism self-check fix) -> d6f9864c (use_fast_math False, product recipe alignment); params28 28-item audit; runner default behaviour unchanged (only -GuardsFile added); window-time fixes committed as b3a47aca"
+    },
+    {
+      "id": "R02-S2b",
+      "name": "skybox-reference-test",
+      "category": "rgb-skybox",
+      "depends_on": ["R02-S2"],
+      "priority": 85,
+      "scope": "Add the ignored GPU test target render_skybox_reference: product-path render of scene-a with render_skybox=true vs the stage-A reference, using the existing bitwise criteria.",
+      "evidence": "docs/development-evidence/render-bvh/r02-skybox-s2b-reference-test/",
+      "new_files": ["tests/render_skybox_reference.rs", "tests/support/render_bvh/skybox.rs"],
+      "modifies": [],
+      "gpu": {"required": true, "reason": "the entity executes inside the S3 window"},
+      "status": "delivered",
+      "delivered_commits": ["9ea9fa59", "7d873a64", "bd9bc386"],
+      "delivered_note": "138 LF test + 479 LF support; host self-check skips before stage A; entity name fixed for the freezer; unit 1104"
+    },
+    {
+      "id": "R02-S3",
+      "name": "skybox-validate",
+      "category": "rgb-skybox",
+      "depends_on": ["R02-S2b", "R02-S1b"],
+      "priority": 84,
+      "scope": "Skybox validation window attempt=2 with the user-signed validation-only exception util<60: capture -> freeze attempt=2 (77 entries) -> -GuardsOnly -> 9 entities (1 skybox target + 8 regressions), criteria unchanged (bitwise RGB/depth/seg, two-run sha equal).",
+      "evidence": "docs/development-evidence/render-bvh/r02-skybox-s3-validate/",
+      "new_files": [],
+      "modifies": [],
+      "gpu": {"required": true, "reason": "device validation window attempt=2; validation-only exception (util<60) was load-bearing"},
+      "status": "delivered",
+      "delivered_commits": ["34117187", "699e4365", "d7f705d0", "8fecc3e4", "fa5cfcfd", "82a025c2"],
+      "delivered_note": "attempt1 INVALID_ROUND (stale negative controls + fast_math capture recipe) retained; attempt2 WINDOW_RUN_DONE: 9/9 exit 0, sha_guards 77/77, post 9/9, zero compile (deps 1839->1839), floor 9,786 not breached, samples 166; skybox cam0/cam1 RGB/depth/seg all-zero, two-run sha equal; guards attempt=2 2d55c0b3.../28,931 B/aggregate ca1fcaa5...; QA cecbe729/a61dcd4c needs-fix (wording only) / 0 blockers / 7 observations"
+    },
+    {
+      "id": "R02-S3a",
+      "name": "skybox-artifacts-commit",
+      "category": "rgb-skybox",
+      "depends_on": ["R02-S3"],
+      "priority": 83,
+      "scope": "Commit the signed window inputs byte-identically: fixtures/render-bvh/scene-a/reference-skybox/ (4 files) and scripts/validate/render-bvh/guards-r02-skybox.json (attempt=2, 77 entries).",
+      "evidence": "docs/development-evidence/render-bvh/r02-skybox-s3-artifacts-commit/",
+      "new_files": ["fixtures/render-bvh/scene-a/reference-skybox/capture.json", "fixtures/render-bvh/scene-a/reference-skybox/rgb.npz", "fixtures/render-bvh/scene-a/reference-skybox/depth.npz", "fixtures/render-bvh/scene-a/reference-skybox/seg.npz", "scripts/validate/render-bvh/guards-r02-skybox.json"],
+      "modifies": [],
+      "gpu": {"required": false, "reason": "artifacts-only commit"},
+      "status": "delivered",
+      "delivered_commits": ["f0213748", "99b88d1f", "65022c3a", "8a967468"],
+      "delivered_note": "reference shas rgb cf65a570.../depth 28c1ea4b.../seg 2153fa72.../capture 47f704de...; guards blob==disk 28,931 B via local .git/info/attributes -text (R05 QA O7 class caveat recorded)"
     }
   ],
   "r01_p8_mapping": [

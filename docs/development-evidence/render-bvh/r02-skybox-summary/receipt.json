@@ -1,0 +1,78 @@
+{
+  "task_id": "2026-10-29-render-bvh-r02-skybox-closeout",
+  "family": "R02 skybox",
+  "phase": "P8-渲染与BVH",
+  "owner": "Backend",
+  "nature": "family closeout evidence: plan.json delivered rows + six R02 slices + scheduling notes + S3a scope decision + this summary; no GPU execution",
+  "cards": [
+    {"slice": "R02-S1", "task_id": "2026-10-29-render-bvh-r02-skybox-s1", "status": "verified", "qa": "pass/0/8 (O1 corrected 58dd417f/6319500e)"},
+    {"slice": "R02-S1b", "task_id": "2026-10-29-render-bvh-r02-skybox-s1b-negative-controls", "status": "verified", "qa": "pass/0/6 (6517615c/9705eb21)"},
+    {"slice": "R02-S2", "task_id": "2026-10-29-render-bvh-r02-skybox-s2-capture-authoring", "status": "verified", "qa": "materials; window-time fix b3a47aca"},
+    {"slice": "R02-S2b", "task_id": "2026-10-29-render-bvh-r02-skybox-s2b-reference-test", "status": "verified", "qa": "entity runs in S3 window"},
+    {"slice": "R02-S3", "task_id": "2026-10-29-render-bvh-r02-skybox-s3-validate", "status": "verified", "qa": "needs-fix 1 (O1 wording) /0 blockers/7 observations; O1 corrected 82a025c2"},
+    {"slice": "R02-S3a", "task_id": "2026-10-29-render-bvh-r02-skybox-s3-artifacts-commit", "status": "verified", "qa": "artifacts referenced by S3 evidence"}
+  ],
+  "plan_json": {
+    "slices_total": 29,
+    "r02_slices_added": 6,
+    "delivery_rows_total": 51,
+    "r02_rows_added": 6,
+    "scheduling_notes_total": 12,
+    "added_notes": ["N11", "N12"],
+    "structural_decisions_total": 12,
+    "added_decision": "split R02-S3 artifacts into a separate card (S3a scope fix)",
+    "validation": "node JSON.parse OK; no slice scope/acceptance/tolerance changes"
+  },
+  "key_numbers": {
+    "R02-S1": {"kernel_source": "e68e3412", "kernel_ptx": "0b947492", "ptx_bytes": 268275, "flag_bit": 9, "module_sources": "39->40", "unit": "1103/0/389"},
+    "R02-S1b": {"e2e_lines": "500->496 (net -4)", "flags_lines": 495, "rgb_lines": 309, "unit": "1104/0/390"},
+    "R02-S2": {"capture_sha_chain": ["812a2f77", "d17d2418", "d6f9864c"], "capture_bytes": 16495, "capture_lines": 428, "params28_audit": "only use_fast_math changed"},
+    "R02-S2b": {"test_lines": 138, "support_lines": 479, "entity": "render_skybox_reference"},
+    "R02-S3": {
+      "entities": "9/9 exit 0",
+      "sha_guards": "77/77 (9+68)",
+      "post_window_recheck": "9/9",
+      "zero_rust_compile": true,
+      "samples": 166,
+      "util": "18-40",
+      "free_min_mib": 12587,
+      "floor_mib": 9786,
+      "floor_breached": false,
+      "skybox_cam0": {"pixels": 76800, "rgb_mismatched": 0, "rgb_max_byte_diff": 0, "beyond_1_lsb": 0, "depth_mismatch": 0, "max_ulp": 0, "beyond_ulp": 0, "seg_mismatch": 0, "depth_zero": 16995},
+      "skybox_cam1": {"pixels": 43200, "rgb_mismatched": 0, "rgb_max_byte_diff": 0, "beyond_1_lsb": 0, "depth_mismatch": 0, "max_ulp": 0, "beyond_ulp": 0, "seg_mismatch": 0, "depth_zero": 27498},
+      "two_run_sha256": {"rgb": "92ac188d1cab24258e777461f44087d747e711f70b4943d0c9f48a727a58b3cc", "depth": "de732643aa3e9afb2a477b259dd1128139929c29ba7d8935d23096d767e42445", "seg": "065caf08c1759c34be2b9d9e2b2f8d62e874f219d8d6bf93c8d9e2408b293821"},
+      "guards_sha256": "2d55c0b3fc14a33b2acce159bf68f474131f2819e3b2230f17ece11021b2e6a3",
+      "guards_aggregate": "ca1fcaa52c0dfda4e7ae473eb195d7b53c1f57dc3ae420526b1a0644b6aa6550",
+      "regressions": "8/8 exit 0, zero drift"
+    },
+    "R02-S3a": {"reference_capture_sha256": "47f704de0421abbcfd89634b156323867c255aeb3f0734db7f78fc3274295a9a", "guards_blob_bytes": 28931}
+  },
+  "exception": {
+    "mode": "validation_only_exception_util_lt_60",
+    "attempt2_monitor": "60/60, util 32-41, 12 util>=40 clean samples, streak 60, free_min 12751",
+    "normal_failure_retained": "354 samples / longest 18 / 75 >=40 / exit 20",
+    "not_a_normal_threshold_pass": true,
+    "authoring_exception_used": false,
+    "precheck_not_used_as_evidence": true
+  },
+  "invalid_round": {
+    "attempt1": "INVALID_ROUND exit10; 4 entities failed",
+    "root_cause_A": "stale negative controls (fixed in R02-S1b)",
+    "root_cause_B": "capture fast_math recipe mismatch (fixed in capture script d6f9864c)",
+    "stage_a_attempt1": "determinism self-check bug (fixed in capture script d17d2418)"
+  },
+  "open_items": [
+    "next families R07 splat (needs compile-time constant injection for three reused slots) and R06 flex (needs flex dumper/probe) pending user decision",
+    "run-window.ps1 guard_aggregate.suite hard-coded R05 string (cosmetic)",
+    "-GuardsOnly dry-run output not archived (window guard.log 77/77 is the proof)",
+    "guards signed bytes depend on local .git/info/attributes -text (R05 QA O7 class)",
+    "kernel .rs/.cu module-source registration gap backlog 2026-10-28-arch-volume-module-sources",
+    "Linux/T4 not covered (paused by user 2026-10-24); R02 covers scene-a single-world two-camera only"
+  ],
+  "non_claims": [
+    "not a normal threshold pass",
+    "attempt1 is an invalid round",
+    "no precision/equivalence/acceptance wording",
+    "criteria/tolerances/references not relaxed (only the capture recipe was aligned to the product fast_math=false recipe)"
+  ]
+}
