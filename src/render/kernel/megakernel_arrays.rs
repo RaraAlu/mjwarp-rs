@@ -266,12 +266,37 @@ pub(crate) fn shading_words(
     (shading_constants, scale_words, flags_word)
 }
 
+/// R08-RGB：逐相机通道掩码 → 发射实参（1/0）。
+///
+/// 81 槽签名的 `render_rgb`/`render_depth`/`render_seg`（0-based 51/52/53）本就是
+/// 长度 `nrender` 的 `Array(Bool)`；这里把 `CameraPlan` 的逐激活相机布尔按原序转成
+/// `i32`（`bool_words` 再按 4 bool/u32 打包）。**禁止用全局布尔填充**：关闭通道的
+/// 相机 `*_adr = -1`，内核按 `do_rgb/do_depth/do_seg` 跳过写入。
+pub(crate) fn channel_flags(flags: &[bool]) -> Vec<i32> {
+    flags.iter().map(|enabled| i32::from(*enabled)).collect()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{scale_constants, use_shadows_arg};
+    use super::{channel_flags, scale_constants, use_shadows_arg};
     use crate::runtime::launcher::{
         MEGAKERNEL_SLOTS, RenderArg, RenderArgKind, RenderScalar, RenderScalarKind,
     };
+
+    /// R08-RGB：逐相机掩码逐项映射（禁止全局布尔折叠）。
+    #[test]
+    fn channel_flags_maps_each_camera_independent() {
+        assert_eq!(channel_flags(&[true, false, true]), vec![1, 0, 1]);
+        assert_eq!(channel_flags(&[false, true]), vec![0, 1]);
+        assert_eq!(channel_flags(&[true, true]), vec![1, 1]);
+    }
+
+    /// R08-RGB：全 false 与空输入按原长度返回（长度由 `CameraPlan` 保证 = nrender）。
+    #[test]
+    fn channel_flags_handles_all_false_and_empty() {
+        assert_eq!(channel_flags(&[false, false]), vec![0, 0]);
+        assert!(channel_flags(&[]).is_empty());
+    }
 
     /// R09-S2b：`shadow_light_fraction` 必须落在 `splat_scale` 第三分量（index 2）。
     #[test]

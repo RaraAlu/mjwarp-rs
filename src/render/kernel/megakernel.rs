@@ -20,7 +20,6 @@
 //! - 编译一律走 `RenderKernel::compile`（A′ 渲染门禁 `f32-render`，无旁路）。
 
 use crate::model::render::RenderFields;
-use crate::render::ImageOutput;
 use crate::render::camera::CameraModel;
 use crate::render::context::RenderContext;
 use crate::render::kernel::cast::{CameraPose, ModelRenderArrays, SceneDevice, pack_mesh_devices};
@@ -35,8 +34,8 @@ use self::megakernel_uploads::{UploadInputs, mesh_slot_shape, upload_megakernel_
 use super::launch::RenderKernel;
 use super::megakernel_aa::{AAResolve, launch_samples};
 use super::megakernel_arrays::{
-    array, floats, geom_data_poses, ints, light_data_poses, reals, shading_words, to_i32,
-    use_shadows_arg,
+    array, channel_flags, floats, geom_data_poses, ints, light_data_poses, reals, shading_words,
+    to_i32, use_shadows_arg,
 };
 use super::world_arrays::{camera_pose_shape, light_type_shape, shared_matrix_shape, shared_shape};
 use super::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
@@ -169,12 +168,12 @@ impl MegakernelRenderer {
         }
 
         // ---- 输出布局/相机布局/射线 ----
-        let rgb_enabled = context.outputs().is_enabled(ImageOutput::Rgb);
-        let depth_enabled = context.outputs().is_enabled(ImageOutput::Depth);
-        let seg_enabled = context.outputs().is_enabled(ImageOutput::Segmentation);
-        let render_rgb = vec![i32::from(rgb_enabled); nrender];
-        let render_depth = vec![i32::from(depth_enabled); nrender];
-        let render_seg = vec![i32::from(seg_enabled); nrender];
+        // R08-RGB：通道开关按激活相机逐项填充（81 槽 51/52/53 本就是 per-render bool 数组）。
+        // 关闭通道的相机在输出布局里 `*_adr = -1`，内核按 `do_rgb/do_depth/do_seg` 跳过写入；
+        // 不得再用全局布尔填充（否则关闭通道的相机会按负偏移写，即 latent 越界）。
+        let render_rgb = channel_flags(&resolved.plan.render_rgb);
+        let render_depth = channel_flags(&resolved.plan.render_depth);
+        let render_seg = channel_flags(&resolved.plan.render_seg);
         let cam_res_flat: Vec<i32> = resolved
             .cam_res()
             .iter()

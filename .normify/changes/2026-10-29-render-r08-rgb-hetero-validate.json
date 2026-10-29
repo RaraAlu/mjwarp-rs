@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-r08-rgb-hetero-validate",
+  "title": {
+    "zh": "R08-RGB 逐相机掩码验证窗（9 实体位级重放 + 异构 RGB 新用例；窗口材料待签字）",
+    "en": "R08-RGB per-camera mask validation window (9-entity bitwise replay + heterogeneous RGB cases; window material pending signature)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R08-RGB 离线片（`2026-10-29-render-r08-rgb-hetero`）的设备侧验证窗。目标：9 实体（`render_r08_cameras` 为 new，含逐相机 RGB 异构与 depth/seg 交叉用例；`render_camera_rays`/`render_context_lifecycle`/`render_e2e`/`render_kernel_depth_seg`/`render_kernel_flags`/`render_kernel_rgb`/`render_r10_multi_world`/`render_skybox_reference` 为回归）全部 exit 0 且现有位级基线零漂移；判据沿用（RGB mismatched=0/max_byte_diff=0/beyond_1_lsb=0、depth 位级优先+max_ulp≤4/beyond=0、seg 0、两跑 sha 相等）；新 suite `render-r08-rgb-hetero` attempt=1（9 exe 全变 + 68 输入内容不变 = 77 条目），新 freeze wrapper 为 ASCII，`-GuardsOnly 77/77` 自检后进窗。**未签不开窗、不做数值结论**；窗口材料与基线另行报 Chief 整理给用户双签。",
+    "en": "Device validation window for the R08-RGB offline slice: 9 entities, new suite attempt=1, zero criteria relaxation; window material and baseline require user signature before opening."
+  },
+  "modules": {},
+  "acceptance": [
+    "窗口材料（不进窗）：实体表 9 条、新 freeze wrapper（ASCII，含 9 exe + 68 输入=77 条目）、窗口计划一页（实体/判据/时长/停手条件）、基线快照；`-GuardsOnly` 77/77 自检。",
+    "窗口执行：9/9 实体 exit 0；sha_guards 77/77；post-window 9/9；zero Rust compile；floor 未破；samples/util 留档。",
+    "判据：`render_r08_cameras` 新增逐相机 RGB 异构/全 off/depth-seg 交叉用例按既有位级判据全 0；其余 8 实体现有位级基线零漂移；两跑 sha 相等。",
+    "留痕：`window-command.txt` 逐字（含 util 参数）、`facts.txt`、`sha-guards.txt`、`guard.log`、`entity-results.csv`、异常/停手记录；不重试不连刷；例外未预批（若需另签）。",
+    "不宣称超出本窗范围的结论；不改判据/容差/参考；窗口材料经用户双签后执行。"
+  ],
+  "schedule": {
+    "depends_on": ["2026-10-29-render-r08-rgb-hetero"],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": ["docs/development-evidence/render-bvh/r08-rgb-hetero-validate/"],
+    "resources": ["gpu:windows-t4"],
+    "priority": 50
+  },
+  "note": "Arch 2026-10-29 预登记（Chief 指示 S3 窗口另立卡）。窗口最早排 2026-10-30 12:00–13:50 空闲段（用户醒后签字）；未签不开窗。",
+  "revision": { "before": null, "after": null },
+  "created_at": "2026-10-29T22:42:00.000Z",
+  "updated_at": "2026-10-29T22:42:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r08-rgb-hetero-validate/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-r08-rgb-hetero-validate"
+    }
+  ]
+}

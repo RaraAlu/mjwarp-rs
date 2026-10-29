@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "kind": "render-r08-rgb-hetero-offline-slice",
+  "task_id": "2026-10-29-render-r08-rgb-hetero",
+  "approved_by": "Chief 2026-10-29（S1 离线实现；不改 ABI/.cu）",
+  "changes": {
+    "files": [
+      "src/render/kernel/megakernel.rs",
+      "src/render/kernel/megakernel_arrays.rs",
+      "tests/render_r08_cameras.rs",
+      "tests/support/render_bvh/r08_gpu.rs"
+    ],
+    "zero_change": [
+      "src/render/kernel/cuda/**",
+      "src/render/kernel/megakernel_uploads.rs",
+      "src/render/context/camera_output.rs",
+      "src/render/context.rs",
+      "src/render/context/params.rs",
+      "src/render/camera.rs"
+    ],
+    "summary": "host 三通道填充由全局布尔改为 resolved.plan.render_rgb/depth/seg 逐相机；新增 channel_flags 纯函数与单测；GPU 异构用例（不执行）"
+  },
+  "line_counts": {
+    "src/render/kernel/megakernel.rs": { "before": 410, "after": 409, "bound": 420 },
+    "src/render/kernel/megakernel_arrays.rs": { "before": 332, "after": 357, "bound": 365 },
+    "tests/render_r08_cameras.rs": { "before": 320, "after": 326, "bound": 380 },
+    "tests/support/render_bvh/r08_gpu.rs": { "before": 321, "after": 403, "bound": 420 },
+    "tests/support/render_bvh/r08.rs": { "before": 366, "after": 366, "bound": 380 }
+  },
+  "abi": {
+    "slots_len": 81,
+    "channel_slots_0based": [51, 52, 53],
+    "channel_slot_kind": "Array(Bool)",
+    "changed": false
+  },
+  "kernel_identity": {
+    "source_sha256": "e68e3412c1e1809e71100d9e842d5b0f5b886ffdec88d8401bb01c76e812904c",
+    "ptx_sha256": "0b9474928ab8a7add27e5da7ac0869ee955a75405cd976cd04839f2312e88f3e",
+    "ptx_bytes": 268275,
+    "source_unchanged": true,
+    "ptx_unchanged": true,
+    "aa_resolve_source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+    "aa_resolve_ptx_bytes": 27536
+  },
+  "tests": {
+    "unit": {
+      "command": "cargo test --locked --lib render::kernel::megakernel_arrays",
+      "result": "6 passed / 0 failed",
+      "new_tests": [
+        "channel_flags_maps_each_camera_independent",
+        "channel_flags_handles_all_false_and_empty"
+      ]
+    },
+    "gpu_ignored": [
+      "render_r08_cameras::gpu_heterogeneous_rgb_channels（三态 RGB + 启用位级/未启用拒绝 + 两跑 sha）",
+      "render_r08_cameras::gpu_heterogeneous_depth_seg_channels（既有，追加 MegakernelRenderer 交叉掩码负偏移回归）"
+    ],
+    "gpu_executed_in_this_slice": false
+  },
+  "gates": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "clippy-cuda": "pass",
+    "unit": { "passed": 1106, "failed": 0, "baseline": 1104 },
+    "no_run": "pass（cargo test --locked --no-run 全目标）",
+    "kernel_compile_gate": "pass（source/ptx/bytes 与基线三值一致）"
+  },
+  "criteria_impact": {
+    "changed": false,
+    "note": "不改判据/容差/参考/夹具；数值验收留 S3 窗口，且不预批例外"
+  },
+  "pending": {
+    "qa_check_card": "2026-10-29-render-r08-rgb-hetero-check（预登记，未 start）",
+    "window_card": "2026-10-29-render-r08-rgb-hetero-validate（预登记，未 start；窗口材料另行报 Chief/用户双签）",
+    "gap_card": "2026-10-28-render-per-camera-rgb-gap note 已指向本卡"
+  },
+  "evidence": {
+    "readme": "docs/development-evidence/render-bvh/r08-rgb-hetero/README.md",
+    "logs": [
+      "logs/line-counts.txt",
+      "logs/source-sha.txt",
+      "logs/kernel-gate.txt",
+      "logs/no-run.txt",
+      "logs/unit.txt",
+      "logs/scope-diff.txt"
+    ]
+  }
+}

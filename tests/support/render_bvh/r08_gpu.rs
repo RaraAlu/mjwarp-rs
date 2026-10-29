@@ -248,8 +248,28 @@ pub fn heterogeneous_depth_seg_channels() {
     );
     assert!(views.depth_raw(1).is_err(), "cam1 depth 未启用须拒绝");
     assert!(views.segmentation_raw(0).is_err(), "cam0 seg 未启用须拒绝");
+    // R08-RGB：同一交叉掩码经 MegakernelRenderer（逐相机掩码）不得负偏移写，启用通道仍对参考。
+    let mega = MegakernelRenderer::new(&session).expect("S7b2 内核编译");
+    mega.render(&context, &fields, &model, &poses, &rays)
+        .expect("交叉掩码 Mega 发射");
+    let mega_buffers = OutputBuffers::read_enabled(&context);
+    let mega_views = mega_buffers.views(&resolved);
+    assert_eq!(
+        r08::depth_bits(mega_views.depth_raw(0).expect("mega cam0 depth")),
+        recipe.cameras[0].depth_bits,
+        "megakernel 交叉掩码 cam0 depth 位等"
+    );
+    assert_eq!(
+        mega_views.segmentation_raw(1).expect("mega cam1 seg"),
+        recipe.cameras[1].seg_pairs.as_slice(),
+        "megakernel 交叉掩码 cam1 seg 全等"
+    );
+    assert!(
+        mega_views.depth_raw(1).is_err() && mega_views.segmentation_raw(0).is_err(),
+        "megakernel 交叉掩码未启用通道须拒绝"
+    );
     println!(
-        "r08[hetero] depth_adr={:?} seg_adr={:?} 逐相机对参考与未启用拒绝均成立",
+        "r08[hetero] depth_adr={:?} seg_adr={:?} 逐相机对参考与未启用拒绝均成立（含 MegakernelRenderer 负偏移回归）",
         resolved.output.depth_adr, resolved.output.seg_adr
     );
 }
@@ -318,4 +338,66 @@ pub fn empty_selection_render_is_noop() {
     println!(
         "r08[empty] 空选择：mega/depth-seg 均返回 Ok no-op，缓冲未分配、显存无增量、无可读输出"
     );
+}
+
+/// 逐相机 RGB 通道掩码（R08-RGB）：`[true,false]`/`[false,true]`/全 off；启用相机 packed RGB
+/// 对 same-recipe S7b2 参考逐位相同、未启用相机读取拒绝；depth/seg 不受 RGB 掩码影响，对 S7b1
+/// 参考位等/全等；每态两次运行输出 SHA-256 相等。
+pub fn heterogeneous_rgb_channels() {
+    let session = s7b2::session();
+    let fields = render_fields();
+    let model = CameraModel::from_fields(&fields).expect("相机模型");
+    let rgb_ref = parse_rgb_fast_math_false_reference();
+    let recipe = recipe_depth_seg();
+    let renderer = MegakernelRenderer::new(&session).expect("S7b2 内核编译");
+    let cases: [(&str, [bool; 2]); 3] = [
+        ("cam0_on", [true, false]),
+        ("cam1_on", [false, true]),
+        ("all_off", [false, false]),
+    ];
+    for (label, rgb) in cases {
+        let params = r08::targets_params(
+            CameraActive::All,
+            Some(RenderFlagSpec::List(&rgb)),
+            Some(RenderFlagSpec::Bool(true)),
+            Some(RenderFlagSpec::Bool(true)),
+        );
+        let context = s7b2::create_context(&session, &fields, &params);
+        let resolved = context.resolved();
+        let expected: Vec<i32> = rgb.iter().map(|on| if *on { 0 } else { -1 }).collect();
+        assert_eq!(resolved.output.rgb_adr, expected, "{label} rgb_adr");
+        let rays = r08::rays_for_plan(&session, &fields, resolved);
+        let poses = r08::poses_for_plan(&recipe, &model, resolved);
+        let mut hashes = Vec::new();
+        for _ in 0..2 {
+            renderer
+                .render(&context, &fields, &model, &poses, &rays)
+                .expect("渲染发射");
+            let buffers = OutputBuffers::read_enabled(&context);
+            let views = buffers.views(resolved);
+            for (camera, on) in rgb.iter().enumerate() {
+                assert_eq!(
+                    views.rgb_packed(camera).ok().map(<[u32]>::to_vec),
+                    on.then(|| rgb_ref.cameras[camera].packed.clone()),
+                    "{label} cam{camera} RGB 启用位级/未启用拒绝"
+                );
+                assert_eq!(
+                    r08::depth_bits(views.depth_raw(camera).expect("depth")),
+                    recipe.cameras[camera].depth_bits,
+                    "{label} cam{camera} depth 位等"
+                );
+                assert_eq!(
+                    views.segmentation_raw(camera).expect("seg"),
+                    recipe.cameras[camera].seg_pairs.as_slice(),
+                    "{label} cam{camera} seg 全等"
+                );
+            }
+            hashes.push(r08::sha256_buffers(&buffers));
+        }
+        assert_eq!(hashes[0], hashes[1], "{label} 两跑 SHA-256 相等");
+        println!(
+            "r08[rgb-hetero] {label}: rgb_adr={:?} sha256={}",
+            resolved.output.rgb_adr, hashes[0]
+        );
+    }
 }

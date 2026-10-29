@@ -318,3 +318,9 @@ fn gpu_heterogeneous_depth_seg_channels() {
 fn gpu_empty_selection_render_is_noop() {
     r08_gpu::empty_selection_render_is_noop();
 }
+
+#[test]
+#[ignore = "需要 GPU + NVRTC（窗口内执行）"]
+fn gpu_heterogeneous_rgb_channels() {
+    r08_gpu::heterogeneous_rgb_channels();
+}

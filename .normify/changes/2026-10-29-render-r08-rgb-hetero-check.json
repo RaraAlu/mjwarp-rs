@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-r08-rgb-hetero-check",
+  "title": {
+    "zh": "R08-RGB 逐相机掩码离线片独立复核（host 填充/ABI 零改/内核零改/单测与 GPU 用例/行数/证据）",
+    "en": "Independent check of the R08-RGB per-camera mask offline slice (host fill, zero ABI/kernel change, tests, line bounds, evidence)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-29-render-r08-rgb-hetero`：① `channel_flags` 与 `MegakernelRenderer::render` 的逐相机填充正确（与 `resolved.plan.render_*` 同序、长度 nrender），全局布尔路径已移除；② **81 槽签名/内核源零改动**（`MEGAKERNEL_SLOTS` 51/52/53 仍 `Array(Bool)`、`.cu` 零 diff、source/ptx sha 不变）；③ 单测覆盖映射/全 false/空/长度；GPU `#[ignore]` 用例含 `[true,false]`/`[false,true]`/全 RGB off、depth/seg 交叉与两跑 sha 相等断言（只读代码，不跑 GPU）；④ 行数上界（megakernel ≤420、arrays ≤365、r08 tests ≤380、r08_gpu ≤420、r08.rs ≤380）；⑤ 证据 receipt `/task_id`、禁词 0、LF 无 BOM；⑥ 不改判据/容差/参考/夹具；⑦ backlog 缺口卡 note 指向新卡、S3 窗口卡另立不 start。不改代码、不开窗口。",
+    "en": "QA read-only review of the R08-RGB offline slice: host per-camera fill, zero ABI/kernel change, unit/GPU test coverage, line bounds, evidence."
+  },
+  "modules": {},
+  "acceptance": [
+    "**host 填充**：`channel_flags` 逐项映射、长度=输入长度；`render()` 三条数组来自 `resolved.plan.render_rgb/depth/seg`，无全局布尔残留（grep `is_enabled(ImageOutput::Rgb/Depth/Segmentation)` 在 megakernel.rs 不再驱动掩码填充）。",
+    "**ABI/内核零改**：`MEGAKERNEL_SLOTS` 长度 81 且 51/52/53 为 `Array(Bool)`；`git diff` 对 `src/render/kernel/cuda/**` 为空；`MEGAKERNEL_SOURCE`/PTX sha 与基线 `e68e3412…/0b947492…/268 275 B` 一致（实现方证据提供编译复核记录，QA 独立核对 diff 与常量）。",
+    "**测试覆盖**：单测含 `[true,false,true]` 映射、全 false、空；GPU 用例（`#[ignore]`）含 RGB `[true,false]`/`[false,true]`/全 false、depth/seg 交叉、启用通道对参考位级、未启用读取拒绝、两跑 sha 相等；用例代码审阅而非执行。",
+    "**行数与边界**：行数上界逐项核对；`megakernel_uploads.rs`/`camera_output.rs`/`context.rs`/`params.rs`/`camera.rs` 零改动；不改判据/容差/参考/夹具。",
+    "**证据与规划**：主卡证据 README/receipt 与 committed blob 一致、receipt `/task_id` 正确、LF 无 BOM、禁词 0；缺口卡 note 指向本卡；S3 窗口卡存在且未 start。"
+  ],
+  "schedule": {
+    "depends_on": ["2026-10-29-render-r08-rgb-hetero"],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": ["docs/development-evidence/render-bvh/r08-rgb-hetero-check/"],
+    "resources": [],
+    "priority": 51
+  },
+  "note": "Arch 2026-10-29 预登记（Chief 批 S1 时要求随卡预登记）。start 时把主卡 id + 复核点发 QA 会话；本卡只读、不跑 GPU、不开窗口。",
+  "revision": { "before": null, "after": null },
+  "created_at": "2026-10-29T22:40:00.000Z",
+  "updated_at": "2026-10-29T22:40:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r08-rgb-hetero-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-r08-rgb-hetero-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": ["逐相机 RGB 已验收", "ABI 等价", "接口等价"]
+    }
+  ]
+}
