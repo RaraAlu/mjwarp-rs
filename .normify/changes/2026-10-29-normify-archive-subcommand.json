@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-normify-archive-subcommand",
+  "title": {
+    "zh": "normify 工具改进：`archive` 子命令（历史卡与 runs 目录正规归档，免手动状态重建）",
+    "en": "normify tooling: add an `archive` subcommand for legacy cards and runs directories"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "方案 B（Chief 2026-10-29：先登记 backlog、不实施；动共享工具须用户批准）。现状与方案 A 的执行记录见 `2026-10-29-normify-archived-card-ingest`。本卡目标：在 normify 工具内新增 `archive <id>`：把 `.normify/changes/<id>.json` 移到 `.normify/archive/changes/<id>.json`、`.normify/runs/<id>/` 移到 `.normify/archive/runs/<id>/`；hook 把 `.normify/archive/` 视为规划类路径（无需 Normify-Task、不参与 E change/transition/E commit/status/E commit/scope 判定）；store/status/schedule/validate 忽略 archive 目录（现有 load 对未识别 rel 静默忽略，需补显式规则 + 测试）；无需重建状态快照、保留原始 sha。验收：abandoned 卡 + runs 目录一条命令入库、`normify status`/`validate --fingerprints` 不变、既有 95 张 abandoned 卡可批量归档、不影响其他项目既有卡。风险：共享工具影响多项目，需用户批准后实施并重新安装；archive 目录与 changes 的搜索结果需明确（status 不显示、render 可选显示）。",
+    "en": "Add an `archive` subcommand to normify: move cards and runs into `.normify/archive/`, hooks treat archive paths as planning-class, store/status/validate ignore them. Proposal only; shared tool change needs user approval."
+  },
+  "modules": {},
+  "acceptance": [
+    "设计文档：`archive` 命令、archive 目录布局、hook 白名单与豁免语义、status/schedule/validate 忽略规则、向后兼容（既有卡/其他项目）、失败回滚与幂等。",
+    "实现与测试（用户批准后）：单元测试覆盖 move/幂等/缺失 id/已 archive/轨迹审计；影响面说明（改共享工具，需重新构建安装 `C:Userszhang.cargo\bin\normify.exe`）。",
+    "本卡不实施、不改工具；实施须用户批准并单独立实现片。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-normify-archived-card-ingest"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/normify-archive-subcommand/"
+    ],
+    "resources": [],
+    "priority": 20
+  },
+  "note": "Arch 2026-10-29 登记（Chief 裁决：方案 A 今晚执行；方案 B 只登记 backlog、不实施）。动共享工具必须先报用户批准。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-29T22:40:00.000Z",
+  "updated_at": "2026-10-29T22:40:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/normify-archive-subcommand/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-normify-archive-subcommand"
+    }
+  ]
+}

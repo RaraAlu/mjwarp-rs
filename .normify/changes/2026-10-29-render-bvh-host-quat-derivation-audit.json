@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-bvh-host-quat-derivation-audit",
+  "title": {
+    "zh": "审计其它 host 侧四元数→矩阵派生的「host 不收缩 vs 上游 GPU 收缩」口径差",
+    "en": "Audit other host-side quaternion->matrix derivations for host-no-contraction vs upstream-GPU-contraction divergence"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "R05-S3b 的 cam1 depth 红暴露出：上游 `mujoco_warp math.quat_to_mat` 在 GPU 上以 `fuse_fp=true` 收缩计算，而我方在 host Rust 里做代数展开、无 FMA 收缩，导致非平凡四元数差 1–2 ULP。本卡只做**评估**：把 `src/` 内所有 host 侧四元数→矩阵/位姿派生点（相机、geom、light、body、flex 等）列全，逐点判断「是否被位级断言覆盖 / 是否只在容差下被检查 / 是否有上游 GPU 收缩语义未对齐」，产出风险清单与优先级；**不在本卡改代码**，等 R05 收口后由 Arch 决定是否另立 fix 片。",
+    "en": "Evaluate (not fix) all host-side quaternion-to-matrix/pose derivations for the same divergence, and produce a prioritized risk list after R05 closes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**清单完整**：grep `src/` 所有四元数→矩阵/位姿派生点（至少 `src/math/mod.rs::quat_to_mat`、`src/render/kernel/cast.rs::CameraPose::from_fields`、geom/light/body/flex 派生位姿处），每点给文件:行、消费者、是否有位级断言覆盖。",
+    "**判性**：逐点标「已被位级参考覆盖 / 只在容差断言下 / 无任何比较」，并指出哪些在真实场景里会产生非平凡四元数（因此可能差 1–2 ULP）。",
+    "**给风险清单**：按「是否影响已 verified 语义 / 是否影响未来位级验收」排序，给出建议处理顺序；**不改代码**。",
+    "**输出**：结论写进一张评估记录（可放 `docs/development-evidence/render-bvh/host-quat-derivation-audit/`），由 Arch 在 R05 收口后决定是否立项。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh/host-quat-derivation-audit/"
+    ],
+    "resources": [],
+    "priority": 40
+  },
+  "note": "Arch 2026-10-29 登记（Chief 要求先记 backlog、不夹进当前 fix）。等 R05 收口后评估。\n\n2026-10-29 只读审计结论（P3，Chief 接受；无 fix 卡）：产品 host 侧四元数→矩阵派生仅 render/kernel/cast.rs::warp_quat_to_matrix（fixed 相机 world pose；R05 已按 1003 条 GPU cam_xmat 反推收缩序，cam_xmat 9/9 两相机 0 差、scene-a 9/9）；math::quat_to_mat 无产品调用（非产品路径，cast.rs 注释明确禁用）；light_data_poses 无矩阵派生且与 pinned forward 6/6 位等；geom/body 位姿为 mjData 原样拷贝；flex/physics matrix_from 仅设备侧。守则（doc-only，不做 fix）：今后新增任何 host quat→matrix 派生，必须先按目标 GPU 收缩序做位级反推并配 GPU 参考覆盖，禁止直接调用未收缩的 math::quat_to_mat 作为产品路径。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-29T04:10:00.000Z",
+  "updated_at": "2026-10-29T22:40:00.000Z",
+  "checks": []
+}
