@@ -1,0 +1,28 @@
+R02 skybox window - stage A attempt1 failure record
+time=2026-10-29T18:05:24.328+08:00 -> 18:05:45.644+08:00
+command=target\\mjwarp-parallel\\venv\\Scripts\\python.exe scripts\\authoring\\render-bvh-r02\\capture_skybox.py
+exit=1
+error=R02-S1 skybox capture mismatch: written rgb.npz sha differs from in-memory sha
+root_cause=script self-check bug: in-memory payload sha (npz_bytes: concatenated npy buffers) was compared with the sha of the written .npz zip file, which uses a different encoding; the two can never match
+two_run_check=first_shas == second_shas PASSED (same-method comparison), i.e. rendering was deterministic; the failure is only the written-vs-in-memory self-check
+gpu_side=upstream megakernel compiled and rendered normally (module load logs present), ~18 s after start
+old_script_sha256=812a2f778c21bb5cb8b24a96f6dce052be7f1f0d923174d0dcb75442e5d0c7a8
+old_script_bytes=16084
+old_script_lines_lf=425
+old_script_ascii=nonascii=0 cr=0 bom=false
+new_script_sha256=d17d24183627bcd843f21e604fb6a411d4a4682b0f921105023bed0211fea15c
+new_script_bytes=16494
+new_script_lines_lf=428
+new_script_ascii=nonascii=0 cr=0 bom=false
+change_scope=determinism self-check only (same write_npz for both runs -> compare file sha256 -> clean output dir -> copy run1 files -> record shas in capture.json) + shutil import; no model/scene/PARAMS_28/output-format/command change; --dry-run unchanged
+diff_file=capture-skybox-fix.diff
+partial_outputs_written_before_abort:
+  rgb.npz sha256=b49053a133c08541040be68583eeed5bfa5233a26897247d9368a6a5f9bda5ce bytes=1440478
+  depth.npz sha256=0fa5582170a2b2a117e46868930fa2b4270dd993b0f5d86dc603981e0a2fd7d3 bytes=480486
+  seg.npz sha256=2153fa728d634c032cf38847761803c4faa806aa554e108a2e0bd7b8ac8e6a97 bytes=960478
+capture_json_written=false
+note=the 3 partial npz are overwritten after the output dir is cleaned by the fixed script; final reference dir must contain exactly 4 files from the successful run
+window_commands_executed=0 (stage A phase)
+freeze_executed=false
+guards_only_executed=false
+stage_b_executed=false

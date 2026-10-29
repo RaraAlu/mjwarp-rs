@@ -1,0 +1,12 @@
+R02 skybox window attempt1 - INVALID ROUND (exit 10)
+stage_b_start=2026-10-29T18:07:45.162+08:00 end=18:08:41.090+08:00
+precheck=PRECHECK_OK open=3195/12867/39/28;3195/12867/37/28;3195/12867/40/28
+guards=GUARDS_OK=77/77 (pre-check run before stage B also 77/77)
+result=INVALID_ROUND exit10
+entity_failures=render_skybox_reference(exit101);render_e2e(exit101);render_kernel_flags(exit101);render_kernel_rgb(exit101)
+entity_passed=render_camera_rays;render_context_lifecycle;render_kernel_depth_seg;render_r08_cameras;render_r10_multi_world
+window_facts=zero_rust_compile=True; post_window_exe_recheck=9/9; residual_processes=0; floor_mib=9795 floor_breached=False; free_min=12493; util_max=39; samples=168; body_wall_s=49.9
+failure_A_stale_negative_controls=render_e2e/render_kernel_flags/render_kernel_rgb still assert that render_skybox=true is rejected before launch; R02-S1 removed that rejection by design, so those ignored GPU assertions are stale (scope gap of S1: those 3 files were not in S1 file list)
+failure_B_skybox_depth_not_bitwise=rgb: cam0/cam1 mismatched=0 max_byte_diff=0 beyond_1_lsb=0; seg mismatch=0; depth: cam0 mismatch=19074/76800 max_ulp=2 beyond_ulp=0; cam1 mismatch=4064/43200 max_ulp=4 beyond_ulp=0 (beyond tolerance 0; bitwise-first criterion fails)
+failure_B_root_cause=reference captured with PARAMS_28.use_fast_math=True (S0b default) while the product kernel recipe WARP_1_15_RENDER always compiles with fast_math=false (src/runtime/launcher/recipe.rs); all existing device references (R05 hfield capture, s7b2 same-recipe) use use_fast_math=false, so the skybox reference recipe is inconsistent with the product recipe
+decision=STOP and report to Chief; no retry, no tolerance change, no re-freeze inside window
