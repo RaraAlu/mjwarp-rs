@@ -1,0 +1,62 @@
+R08-RGB per-camera channel mask validation window plan (material; not executed)
+================================================================================
+Task: 2026-10-29-render-r08-rgb-hetero-validate
+Backend slice: 2026-10-29-render-r08-rgb-hetero (host per-camera fill; no ABI/kernel change)
+Material slice: 2026-10-29-render-r08-rgb-hetero-window-material
+
+Suite / attempt
+- suite = render-r08-rgb-hetero
+- attempt = 1 (new suite; R05 guards.json and R02 guards-r02-skybox.json stay untouched)
+- guards file = scripts/validate/render-bvh/guards-r08-rgb-hetero.json
+- work dir = target/render-bvh/r08-rgb-hetero-window
+
+Frozen entry counts
+- 9 exe (all change because product code + r08 test target changed) + 68 read-only inputs = 77 entries
+- inputs are the same content set as the R02 window: 8 hfield capture + 2 hfield XML + 42 legacy
+  (38 + 4 skybox reference files) + 16 scene-shadow capture artifacts.
+- GuardsOnly dry run must print GUARDS_OK=77/77 and stash 9/9 before the window body.
+
+Window discipline (GPU: single full-load task; user double-sign required before opening)
+1. Pre-window snapshot (5 min before monitor): nvidia-smi free/util x3 + filtered compute-apps
+   + build processes; record in attempt1/pre-window-snapshot.txt. The baseline free MiB value
+   from this snapshot feeds the floor formula below.
+2. Regular monitor (no exception pre-approval):
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\monitor-until-clean.ps1 -OutCsv target\render-bvh\r08-rgb-hetero-window\monitor-pre-window.csv -Required 60 -MaxMinutes 30
+   - clean = free >= 10240 MiB AND util < 40 AND filtered compute-apps = 0 AND build = 0
+   - default MaxUtil=40; do NOT pass -OpenUtilLimit or -MaxUtil 60.
+   - If 60 consecutive clean samples are not reached in 30 min: STOP and report; do not raise the
+     threshold, do not use an exception, do not retry in a loop.
+3. Freeze (only after monitor passes; never inside the window):
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\freeze-guards-r08-rgb-hetero.ps1 -Attempt 1
+   Expect: GUARDS_FROZEN suite=render-r08-rgb-hetero total=77 exes=9 inputs=68 ...
+4. Guards-only dry run (post-freeze self-check):
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 -Attempt 1 -OutDir target\render-bvh\r08-rgb-hetero-window\attempt1 -GuardsFile scripts\validate\render-bvh\guards-r08-rgb-hetero.json -GuardsOnly
+   Expect: GUARDS_OK=77/77, stash 9/9, GUARDS_ONLY_DONE.
+5. Window body (stage B):
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 -Attempt 1 -OutDir target\render-bvh\r08-rgb-hetero-window\attempt1 -GuardsFile scripts\validate\render-bvh\guards-r08-rgb-hetero.json
+   (no -OpenUtilLimit; same 9 entities as the entity table)
+6. Report facts: 9/9 exit 0; sha_guards 77/77; post-window exe recheck 9/9; zero Rust compile;
+   samples/util range/free_min; floor not breached; residual processes 0; new RGB mask cases and
+   the 8 regressions zero drift vs their existing bitwise references.
+
+Floor / budget formula
+- floor_mib = baseline_free_mib (from the 3-point pre-window snapshot) - BudgetMiB (3072)
+  (R02 precedent: baseline_free 12858 - 3072 = floor 9786 MiB)
+- abort if free_min < floor_mib or used delta > 3072 MiB during the window.
+- abort thresholds from run-window.ps1: AbortUtilLimit=80 with streak 3.
+
+Estimated duration
+- monitor: expected 5-10 min, hard cap 30 min
+- freeze + guards-only: 1-2 min
+- body: 9 entities, ~60-120 s wall (render_r08_cameras adds the new heterogeneous cases)
+- whole window: 30-60 min including snapshot and post checks
+
+Failure / rollback policy
+- monitor not met: STOP, report Chief; no threshold change, no exception unless user signs an amendment.
+- freeze mismatch / GuardsOnly != 77/77 / stash != 9/9: STOP, report; no retry loop.
+- any entity red or criteria not met: STOP, report; do not relax criteria, do not re-run in a loop.
+- invalid round: keep attempt directory as evidence and re-register attempt=2 only after a documented fix.
+- no --no-verify; never hand-edit .normify; R05/R02 guards files untouched.
+
+User signature required on: this plan, the pre-window baseline snapshot, and the 77-entry guards
+manifest identity (after freeze). Earliest slot: 2026-10-30 12:00-13:50 (idle window, user awake).

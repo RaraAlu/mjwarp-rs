@@ -7,6 +7,8 @@
 mod r08;
 #[path = "support/render_bvh/r08_gpu.rs"]
 mod r08_gpu;
+#[path = "support/render_bvh/r08_rgb_alloff.rs"]
+mod r08_rgb_alloff;
 #[path = "support/render_bvh/s7b1.rs"]
 mod s7b1;
 #[path = "support/render_bvh/s7b2.rs"]
@@ -323,4 +325,10 @@ fn gpu_empty_selection_render_is_noop() {
 #[ignore = "需要 GPU + NVRTC（窗口内执行）"]
 fn gpu_heterogeneous_rgb_channels() {
     r08_gpu::heterogeneous_rgb_channels();
+}
+
+#[test]
+#[ignore = "需要 GPU + NVRTC（窗口内执行）"]
+fn gpu_cam1_all_channels_off() {
+    r08_rgb_alloff::cam1_all_channels_off();
 }

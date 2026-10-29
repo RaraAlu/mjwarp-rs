@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-r08-rgb-hetero-window-material",
+  "title": {
+    "zh": "R08-RGB 验证窗材料（新 suite 冻结器 + 9 实体表 + 窗口计划 + 基线 + QA O1 三通道全关用例）",
+    "en": "R08-RGB validation-window material (freeze script, 9-entity table, window plan, baseline, QA O1 all-off case)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "为 `2026-10-29-render-r08-rgb-hetero-validate` 验证窗准备离线材料（不开窗、不执行真冻结）：① 新 ASCII 冻结器 `freeze-guards-r08-rgb-hetero.ps1`（suite `render-r08-rgb-hetero`、attempt=1、9 exe + 68 输入 = 77 条目，仿 R02 wrapper）；② 9 实体表（`render_r08_cameras` 为 new，含 QA O1 的「cam1 三通道全关」态；8 个既有回归）；③ 窗口计划一页（逐字命令、`-GuardsOnly 77/77`、floor 公式、常规 util<40 无例外、时长/失败回滚）；④ 只读基线快照（GPU free/util、HEAD、工具版本）；⑤ QA O1 用例代码 `tests/support/render_bvh/r08_rgb_alloff.rs` + 测试入口。判据沿用现有位级零放宽、无新参考；真实冻结与开窗须用户双签后另行执行。",
+    "en": "Prepare offline validation-window material for the R08-RGB window: ASCII freeze script, 9-entity table, one-page window plan, read-only baseline snapshot, and the QA O1 all-channels-off GPU case. No window, no real freeze."
+  },
+  "modules": {},
+  "acceptance": [
+    "新冻结器 `scripts/validate/render-bvh/freeze-guards-r08-rgb-hetero.ps1`：ASCII（nonascii=0、LF 行数==UTF-8 行数、注释含 `$` 行=0、CR=0、BOM=false）、PSParser 0 错、≤200 行；suite=render-r08-rgb-hetero、attempt 参数、9+68=77 断言；**本片不执行真冻结**。",
+    "QA O1 用例：`tests/support/render_bvh/r08_rgb_alloff.rs` 提供 cam1 三通道全关（rgb/depth/seg 均 [true,false]）GPU 用例——cam0 三通道对参考、cam1 三通道读取拒绝、两跑 sha 相等；`tests/render_r08_cameras.rs` 加 `#[ignore]` 入口；编译通过（不执行）。",
+    "实体表 `docs/development-evidence/render-bvh/r08-rgb-hetero-window-material/materials/entity-table.json`：9 实体（new=render_r08_cameras，8 回归含 render_skybox_reference），判据沿用、无新参考、每实体窗口命令。",
+    "窗口计划一页：suite/attempt/77 条目、逐字命令、`-GuardsOnly 77/77`、floor 公式（开窗 baseline free - Budget 3072 MiB）、常规 util<40 无例外、时长估计、失败/回滚口径（不重试不连刷、停手报 Chief）。",
+    "基线快照（只读）：GPU name/driver/free/util、HEAD、CUDA 工具链路径、冻结器/实体表 sha；不含任何写操作。",
+    "证据 `docs/development-evidence/render-bvh/r08-rgb-hetero-window-material/`（README + receipt 含 `/task_id` + logs）；不改判据/参考/夹具；四门禁通过；两段提交。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-render-r08-rgb-hetero"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "scripts/validate/render-bvh/freeze-guards-r08-rgb-hetero.ps1",
+      "tests/support/render_bvh/r08_rgb_alloff.rs",
+      "tests/render_r08_cameras.rs",
+      "docs/development-evidence/render-bvh/r08-rgb-hetero-window-material/"
+    ],
+    "resources": [],
+    "priority": 50
+  },
+  "note": "Arch 2026-10-29 登记（Chief 批 S2 窗口材料片：纯离线、不开窗、不执行真冻结）。material 目录也承载 S3 窗口要引用的实体表/计划/基线；真实冻结与窗口执行归 S3 卡。",
+  "revision": {
+    "before": "12465702680a336870cafc90be0ef7e03c131579",
+    "after": null
+  },
+  "created_at": "2026-10-29T22:55:00.000Z",
+  "updated_at": "2026-10-29T14:49:04.067Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r08-rgb-hetero-window-material/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-r08-rgb-hetero-window-material"
+    }
+  ]
+}
