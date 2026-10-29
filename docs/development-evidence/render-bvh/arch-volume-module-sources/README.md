@@ -12,7 +12,7 @@
 
 ## 2. 盘点方法（只读）
 
-1. 从 `.normify/modules/**/*.md` 的 `[[source]] path` 汇总登记源：**1091** 条。
+1. 从 `.normify/modules/**/*.md` 的 `[[source]] path` 汇总登记源：**1091 个不同路径（1108 条 `[[source]]` 条目，跨模块共享 17 条）**；差集按去重后的路径集合计算。
 2. 与 `git ls-files` 的 `src/` + `include/` + `native/` + `build.rs` 比对：**823** 个文件。
 3. 差集得未登记 **178** 个；本卡按 Chief 批准收 24 个（18 主 + 6 顺手），剩余 154 个记录在 backlog 卡。
 
@@ -26,7 +26,7 @@
 | mjwarp.render | `src/render/kernel/megakernel_arrays.rs` | 332 | `megakernel.rs` 子模块 |
 | mjwarp.render | `src/render/kernel/output.rs` | 450 | 渲染输出宿主布局 |
 | mjwarp.render | `src/render/kernel/renderer.rs` | 270 | depth/seg 渲染器 |
-| mjwarp.render | `src/render/kernel/cuda/render.cu` | 499 | 同目录 `scene.cu`/`mesh.cu`/`render_shadow.cu` 已登记 |
+| mjwarp.render | `src/render/kernel/cuda/render.cu` | 499 | 同模块已登记 `scene.cu`/`mesh.cu`（`src/render/bvh/cuda/`）与同目录 `render_shadow.cu` |
 | mjwarp.render | `src/render/kernel/cuda/render_common.cu` | 410 | 同上 |
 | mjwarp.render | `src/render/kernel/cuda/render_math.cu` | 309 | 同上 |
 | mjwarp.render | `src/render/kernel/cuda/render_megakernel.cu` | 368 | 同上 |
@@ -64,7 +64,7 @@
 
 - before（改动前同一命令，2026-10-29 22:07）：错误 0，警告 **5**（`logs/validate-before.txt`）。
 - after（登记后、收口刷新指纹前）：错误 0，警告 **6**（`logs/validate-after.txt`）；多出的一条是 `evidence/fingerprint-drift 5 个模块指纹已过期`，属 `done` 前的中间态，收口后消失（`logs/validate-final.txt`）。
-- 收口后最终：错误 0，警告 **5**（警告条数与基线相同；`logs/validate-final.txt`）。相对基线唯一的变化是 `structure/leaf-too-coarse` 一条警告里内嵌的叶子计数 **33→34**：`mjwarp.model.core` 由 2 个源增到 5 个，越过叶子规模阈值。该警告与既有 33 条同类、属记录级；拆分 `model.core` 需架构设计，留给 `2026-10-29-arch-unregistered-sources-remaining` 一并评估，本卡不拆。
+- 收口后最终：错误 0，警告 **5**（警告条数与基线相同；`logs/validate-final.txt`）。相对基线唯一的变化是 `structure/leaf-too-coarse` 一条警告里内嵌的叶子计数 **33→34**；按 QA 2026-10-29 复核（重建两版模块树、59 个叶子），与 (33,34) 相容的口径下**唯一翻转的叶子是 `mjwarp.io.render`（源 1→3）**；`mjwarp.model.core` 基线即 2 源/479 行、本已计入 33 条 coarse，本片 2→5（479→1253 行）不改变其 coarse 状态。该警告与既有 33 条同类、属记录级；叶子拆分（含 `model.core`/`io.render` 规模）留待 `2026-10-29-arch-unregistered-sources-remaining` 的架构设计，本卡不拆。另：`structure/leaf-too-coarse` 的精确规则在仓库内无文档（normify 二进制），本证据采用 QA 重建的「叶子源数 ≥2（或再加总行 >220）」口径且与 (33,34) 相容；该口径文档待补（QA O5）。
 - 两条 `layout/order-incomplete` 与两条 `api/leaf-empty` 为改动前既有警告，本卡未触碰，状态不变。
 - 若最终输出与上述任何一条不符，以 `logs/validate-final.txt` 为准并在本节追记。
 
@@ -78,7 +78,7 @@
 | `src/io/render.rs` | mjwarp.io.render（源码 3，API 0） | `logs/impact-io-render.txt` |
 | `src/math/fma/tests.rs` | mjwarp.math（源码 3，API 32） | `logs/impact-math-fma-tests.txt` |
 
-五处均返回模块、依赖/被依赖、约束规则与相关任务；未出现「没有模块对应」。
+五处均返回模块、依赖/被依赖、约束规则与相关任务；未出现「没有模块对应」。QA 复核时对全部 24 个路径逐一跑过 impact，24/24 命中。注：本目录 impact 日志采集于任务 in_progress（收口前），尾行「未关闭任务」计数比终态多 1，属时间性差异（QA O4 记录，非缺陷）。
 
 ## 7. 零代码改动边界
 
@@ -100,6 +100,9 @@
 | `logs/module-counts.txt` | 五模块前后计数 |
 | `logs/line-counts.txt` | 24 文件 LF 计数 |
 | `logs/impact-*.txt` | 五处 impact 抽样 |
+
+无 manifest：主卡证据未提交 manifest，QA 复核以 `git diff HEAD -- .normify/modules <本证据目录>` 替代核验并接受（QA O6）。
+QA 复核卡 `2026-10-29-arch-volume-module-sources-check`：verdict pass / 阻断 0 / 观察 6（commit `6d374cc9`/`9986bab2`）；其中 O1（coarse 归因）、O2（登记源计数口径）、O3（`.cu` 依据措辞）已在本文件与 receipt 的 `Normify-Fixes` 提交中修正，O4/O5/O6 记录级已接受。
 
 ## 10. 非声明
 
