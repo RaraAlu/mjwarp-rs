@@ -34,12 +34,14 @@
 - GPU `#[ignore]` 用例（窗口内执行）：
   - `heterogeneous_rgb_channels`：`[true,false]`/`[false,true]`/全 off 三态；启用相机 packed RGB 对 same-recipe S7b2 参考逐位相同、未启用相机 `rgb_packed` 读取拒绝；depth/seg 对 S7b1 参考位等/全等；每态两跑输出 SHA-256 相等。
   - `heterogeneous_depth_seg_channels`（既有，追加）：同一交叉掩码（cam0 仅 depth、cam1 仅 seg）再经 `MegakernelRenderer` 发射，逐相机对参考且关闭通道读取拒绝——覆盖 latent 负偏移写回归（修复前会写 `adr=-1`）。
+  - （QA O1）「cam1 三通道全关」态（rgb/depth/seg 均 `[true,false]`）归 **S3 窗口材料片**补全，用于覆盖内核 `render_megakernel.cu:131` 的 all-off early-return；本片不阻塞。
+- 口径（QA O5）：`ContextParams::use_fast_math` 默认 true，但 render 路径无消费者、`WARP_1_15_RENDER` 配方固定 `fast_math=false`，故「same-recipe」成立。
 - 窗口重放计划（S3）：9 实体（本 target 为 new + 8 回归）；无新参考；判据沿用现有位级零放宽。
 
 ## 5. 门禁
 
 - `normify gate`：fmt / clippy / clippy-cuda / unit 全过；unit **1106 passed / 0 failed**（基线 1104，+2 为本次新增单测）。
-- `cargo test --locked --no-run` 全目标编译通过（日志 `logs/no-run.txt`）。
+- `cargo test --locked --no-run` 全目标编译通过（日志 `logs/no-run.txt` 现含 `exit=0`；QA O2 指出旧版只有尾部 `Executable` 片段，已补 exit 码）。
 - 内核编译门：见 §3。
 
 ## 6. 非声明与遗留
@@ -47,6 +49,12 @@
 - 本片不做数值验收结论：GPU 用例代码已编译（`--no-run`），执行归 S3 窗口；不开窗、不预批例外。
 - 不改冻结 ABI、不改 `.cu`、不改判据/容差/参考/夹具。
 - 缺口卡 `2026-10-28-render-per-camera-rgb-gap` note 已指向本卡；S3 `2026-10-29-render-r08-rgb-hetero-validate` 已预登记、未 start；QA 复核卡 `2026-10-29-render-r08-rgb-hetero-check` 已预登记。
+- 口径（QA O6）：本片 NVRTC 纯编译门**可由 QA 只读复跑**（不需要 GPU）：`cargo test --locked --features cuda-probe --test render_kernel_flags flag_and_aa_sources_compile_under_render_gate -- --ignored --nocapture`；本次 QA 未复跑，采用 source sha 现算 + 6/6 blob 对账推定。
+
+## 6.1 QA 复核（2026-10-29）
+
+- 复核卡 `2026-10-29-render-r08-rgb-hetero-check`：**verdict pass / 阻断 0 / 观察 6**（QA 提交 `7508dafb`/`10529b14`）。
+- 观察处置：O1（cam1 三通道全关态）归 S3 窗口材料片补全；O2（no-run 日志 exit 码）、O5（use_fast_math 口径）、O6（NVRTC 纯编译门复跑口径）已在本次 `Normify-Fixes` 证据修正中落实；O3（负偏移为间接检测）、O4（长度断言隐式覆盖）记录级接受。
 
 ## 7. 证据文件
 
