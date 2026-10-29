@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-perworld-capture",
+  "title": {
+    "zh": "逐 world 渲染参考采集跑片（pinned 上游 nworld=3 采集；需用户签窗口，不跑设备渲染）",
+    "en": "Per-world render reference capture run (pinned upstream nworld=3 capture; requires a user-signed window, no device rendering)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "执行 `2026-10-30-render-perworld-capture-authoring` 写好的采集脚本 `scripts/capture_render_perworld.py`，用 pinned 上游环境（`target/mjwarp-parallel/venv`，warp 1.15.0 / mujoco 3.15.0 / upstream `71da24d9…`）在**用户双签的 GPU 窗口**内采集 per-world 参考：`--worlds 3 --hinge-deg \"0,20,40\"`、`use_fast_math=false`、`use_shadows=true`、固定相机；产物写到 `fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/`（rgb/depth/seg/state npz + capture.json），两跑逐数组与逐字节相等，legacy manifest 前后对拍。本片只采集、不比较、不对设备做任何断言；数值验收留给 `2026-10-30-render-perworld-impl-s1` 的验证窗。",
+    "en": "Run the authored per-world capture script in a user-signed GPU window against the pinned upstream environment to produce the per-world reference (rgb/depth/seg/state + capture.json). Capture only: no comparisons, no device claims."
+  },
+  "modules": {},
+  "acceptance": [
+    "**环境**：pinned python / warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4 / upstream `71da24d956378a87a703b6e1442b13aec0c4ac29` clean，脚本自检通过。",
+    "**产物**：`fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/{rgb,depth,seg,state}.npz` + `capture.json`（含 recipe、两跑相等判定、legacy manifest 对拍），全部 LF 无关（二进制）、capture.json 为 LF 无 BOM。",
+    "**确定性**：`--repeat 2` 逐数组 `np.array_equal` 且 npz 字节相等（`capture.two_captures_bitwise_identical=true`），否则不落盘、不宣称。",
+    "**不越界**：只写 `fixtures/render-bvh/scene-a/perworld/` 与证据目录；不改既有参考（legacy manifest 前后一致）、不改 `src/`、不改判据/容差；不跑设备渲染、不冻结 guards。",
+    "**窗口纪律**：采集属 GPU 满载任务 → 用户双签窗口计划+基线后执行；基线开窗前 5 分钟重取；常规 `util<40`（无例外预批）；不达标停手报 Chief、不重试不降门槛。",
+    "**证据**：README/receipt（含 `/task_id`、脚本 sha/bytes/lines、命令逐字、两次跑 sha、产物清单与 sha256）；不宣称任何渲染数值结论。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-perworld-capture-authoring"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "fixtures/render-bvh/scene-a/perworld/",
+      "docs/development-evidence/render-bvh/perworld-capture-run/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 58
+  },
+  "note": "Arch 2026-10-30 注册（proposed，**不 start**）。等两件事：① R08 收口（R08-S3 窗口与证据 verified，避免 GPU 窗口排队冲突）；② 用户批窗口（采集脚本会跑 GPU，属满载任务，需双签窗口计划+基线）。采集跑完后 pre-world impl S1 才可 start。此前置关系用 depends_on 机器钉住（authoring 已 verified）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T03:55:00.000Z",
+  "updated_at": "2026-10-30T03:55:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/perworld-capture-run/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-perworld-capture"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/render-bvh/scene-a/scene.xml",
+        "fixtures/render-bvh/scene-shadow",
+        "fixtures/render-bvh/scene-hfield"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "等价"
+      ]
+    }
+  ]
+}
