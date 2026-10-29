@@ -1,0 +1,10 @@
+# QA 独立重跑门禁（基线 73738357 → HEAD 01d1cb0b 被测；本表为 QA 侧结果）
+fmt:        cargo fmt --check                                            exit=0  (log fmt.log)
+clippy:     cargo clippy --all-targets --locked -- -D warnings          exit=0  (log clippy.log)
+clippy-cuda:cargo clippy --all-targets --locked --features cuda -- -D warnings  exit=0  (log clippy-cuda.log)
+unit:       cargo test --locked                                         exit=0  (log unit.log)
+  unit 汇总（QA 解析 unit.log）：136 条 test result，1106 passed / 0 failed / 391 ignored
+  新增单测 channel_flags_maps_each_camera_independent / channel_flags_handles_all_false_and_empty 均 ok
+  GPU ignore 入口 gpu_heterogeneous_rgb_channels / gpu_heterogeneous_depth_seg_channels 均编译并记为 ignored（本片不执行）
+no-run: 未单跑（cargo test --locked 已覆盖全部 target 的编译；实现方 logs/no-run.txt 记录同一结论）
+kernel:  未跑 NVRTC 编译门（本复核只读：不跑 --ignored；内核源 sha 由 QA 直接对 6 个 .cu 拼接重算，见 recompute.json）

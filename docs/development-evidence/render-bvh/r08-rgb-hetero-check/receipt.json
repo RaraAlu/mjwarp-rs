@@ -1,0 +1,160 @@
+{
+  "task_id": "2026-10-29-render-r08-rgb-hetero-check",
+  "kind": "render-r08-rgb-hetero-check",
+  "reviewed_task": "2026-10-29-render-r08-rgb-hetero",
+  "reviewed_commits": ["883ee521", "01d1cb0b"],
+  "reviewed_base": "73738357",
+  "head_at_review": "01d1cb0b",
+  "verdict": {
+    "result": "pass",
+    "blockers": 0,
+    "observations": 6,
+    "scope": "R08-RGB 离线片只读复核：host 逐相机三通道填充/长度同序、81 槽 ABI 与内核源零改动（sha 现算+blob 对账）、latent 负偏移闭合、测试静态覆盖、行数棘轮、零外溢、证据与规划；不开 GPU、不跑 --ignored、不改代码/证据"
+  },
+  "review_points": {
+    "host_fill": {
+      "assignments": [
+        "let render_rgb = channel_flags(&resolved.plan.render_rgb);",
+        "let render_depth = channel_flags(&resolved.plan.render_depth);",
+        "let render_seg = channel_flags(&resolved.plan.render_seg);"
+      ],
+      "global_bool_path_removed": true,
+      "image_output_import_removed": true,
+      "is_enabled_drives_mask_in_megakernel": false,
+      "channel_flags_pure_map": true,
+      "length_invariant": "resolve_targets 校验 resolved.len()==ncam；ResolvedContext::nrender()=plan.cameras.len()；三处实参形状仍 [nrender]",
+      "order_invariant": "plan.render_* 与 cam_res/cam_id_map 同源同序；内核按 camid 索引 render_*.data[camid]",
+      "gap_attribution": {
+        "sibling_device_paths_already_per_camera": true,
+        "cast_rs_pushes_plan_masks": true,
+        "renderer_rs_uploads_camera_masks": true,
+        "megakernel_uploads_only_packs": true,
+        "residual_global_fold_lines_in_src_render": []
+      },
+      "latent_negative_offset_write": {
+        "cause": "旧实现按通道全局布尔填满 nrender：任一相机开通道则全部 do_*=true；关闭通道相机 *_adr=-1 且其射线仍发射，写入下标 = worldid*pitch + (-1) + rayid_local",
+        "consequence": "worldid=0 时下标 -1（缓冲前越界）；worldid>=1 时落到上一 world 末像素",
+        "closed_by": "逐相机填充后该类相机 do_*=false，render_megakernel.cu:128-133 守卫跳过"
+      }
+    },
+    "abi_and_kernel": {
+      "megakernel_slots_len": 81,
+      "slots_0based_51_52_53": ["Array(Bool)", "Array(Bool)", "Array(Bool)"],
+      "kernel_signature_params": 81,
+      "signature_params_51_52_53": ["render_rgb", "render_depth", "render_seg"],
+      "kernel_source_sha256": "e68e3412c1e1809e71100d9e842d5b0f5b886ffdec88d8401bb01c76e812904c",
+      "kernel_source_bytes": 88190,
+      "kernel_sources_blob_base_eq_close_eq_disk": "6/6",
+      "kernel_sources_crlf": 0,
+      "aa_resolve_source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+      "aa_resolve_source_bytes": 2364,
+      "cuda_dir_diff": "empty",
+      "scene_cu_outside_kernel_cuda_also_checked": true,
+      "ptx_three_values": {
+        "declared": "0b9474928ab8a7add27e5da7ac0869ee955a75405cd976cd04839f2312e88f3e / 268275 B；aa_resolve 27536 B",
+        "qa_recomputed": false,
+        "basis": "6 个 .cu blob 基线==收口==现盘 + 拼接 source sha 现算一致 + 编译配方相关文件零改动"
+      }
+    },
+    "tests_static": {
+      "new_unit_tests": [
+        "channel_flags_maps_each_camera_independent",
+        "channel_flags_handles_all_false_and_empty"
+      ],
+      "gpu_case": "r08_gpu::heterogeneous_rgb_channels",
+      "gpu_entry_ignored": "tests/render_r08_cameras.rs::gpu_heterogeneous_rgb_channels",
+      "rgb_three_states": ["[true,false]", "[false,true]", "[false,false]"],
+      "assertions": [
+        "每态 rgb_adr 期望 Layout",
+        "启用相机 rgb_packed 对 S7b2 same-recipe 参考逐位",
+        "未启用相机 rgb_packed 读取拒绝（adr=-1 / 通道禁用）",
+        "depth/seg 对 S7b1 参考位等/全等",
+        "每态两跑输出 SHA-256 相等"
+      ],
+      "depth_seg_mega_cross_mask": "heterogeneous_depth_seg_channels 追加 MegakernelRenderer 发射 + 逐相机参考 + 未启用拒绝（latent 负偏移回归位）",
+      "regression_detectability": "间接检测：旧全局填充下 cam1 的 -1 偏移写会污染 cam0 通道区间（worldid=0 还越界），启用相机逐位比较可捕获",
+      "coverage_gap_suggested": "缺「某相机三通道全关」异构态（内核 all-off early-return 分支未覆盖）",
+      "gpu_executed_in_review": false
+    },
+    "line_counts": {
+      "src/render/kernel/megakernel.rs": {"before": 410, "after": 409, "bound": 420, "ok": true},
+      "src/render/kernel/megakernel_arrays.rs": {"before": 332, "after": 357, "bound": 365, "ok": true},
+      "tests/render_r08_cameras.rs": {"before": 320, "after": 326, "bound": 380, "ok": true},
+      "tests/support/render_bvh/r08_gpu.rs": {"before": 321, "after": 403, "bound": 420, "ok": true},
+      "tests/support/render_bvh/r08.rs": {"before": 366, "after": 366, "bound": 380, "ok": true}
+    },
+    "scope": {
+      "diff_files": 21,
+      "diff_breakdown": {"code": 4, "evidence": 8, ".normify": 9},
+      "zero_change_files_diff_empty": [
+        "src/render/kernel/cuda/**",
+        "src/render/kernel/megakernel_uploads.rs",
+        "src/render/context/camera_output.rs",
+        "src/render/context.rs",
+        "src/render/context/params.rs",
+        "src/render/camera.rs"
+      ],
+      "fixtures_or_scripts_validate_changed": [],
+      "criteria_tolerance_reference_fixture_changed": false,
+      "evidence_committed_eq_disk": true
+    },
+    "evidence": {
+      "rows": 8,
+      "lf_no_bom": "8/8",
+      "receipt_task_id": "2026-10-29-render-r08-rgb-hetero",
+      "forbidden_terms_hits": 0,
+      "manifest_in_main_card_evidence": false,
+      "manifest_note": "主卡证据不含 manifest；改为 git diff --quiet 对账 committed==现盘（本卡不适用「不自引用」）"
+    },
+    "planning": {
+      "gap_card_note_points_to_main": "2026-10-28-render-per-camera-rgb-gap",
+      "main_status": "verified",
+      "main_closed_at": "2026-10-29T14:37:19.706Z",
+      "s3_card": "2026-10-29-render-r08-rgb-hetero-validate",
+      "s3_status": "proposed（未 start）"
+    },
+    "gates_self_run": {
+      "fmt": "exit 0（logs/fmt.log 空）",
+      "clippy_all_targets": "exit 0",
+      "clippy_all_targets_features_cuda": "exit 0",
+      "unit": "exit 0；136 result 行 / 1106 passed / 0 failed / 391 ignored（logs/unit.log 逐行求和）",
+      "new_unit_tests_present_and_ok": true,
+      "gpu_entries_compiled_and_ignored": true,
+      "no_run": "未单跑（cargo test --locked 已编译全 target）",
+      "kernel_nvrtc_gate": "未跑（只读边界；改用 sha 现算 + blob 对账）",
+      "validate_fingerprints": "0 错误 / 5 警告（既有条目；模块指纹无漂移）",
+      "normify_status": "已验收 568 / 运行 1（本卡）/ 错误 0 / 警告 0"
+    },
+    "recompute": {
+      "script": "recompute.py",
+      "result": "recompute.json",
+      "checks": 18,
+      "problems": 0
+    }
+  },
+  "observations": [
+    {"id": "O1", "severity": "建议", "topic": "覆盖缺口：某相机三通道全关", "advice": "S3 窗口可加一态 rgb/depth/seg 均 [true,false]，覆盖内核 all-off early-return；不阻塞本片"},
+    {"id": "O2", "severity": "建议", "topic": "logs/no-run.txt 为截断尾部（无 exit 码/Finished 行）", "advice": "下次留 exit 码 + 尾部 Finished 行；本片已由 QA cargo test --locked exit 0 覆盖"},
+    {"id": "O3", "severity": "记录", "topic": "负偏移回归为间接检测", "advice": "接受；如需直接证明可在窗口内加越界/前置内存快照"},
+    {"id": "O4", "severity": "记录", "topic": "acceptance「长度」由整 Vec 相等隐式覆盖", "advice": "接受（channel_flags 结构上不变长）"},
+    {"id": "O5", "severity": "记录", "topic": "ContextParams::use_fast_math 默认 true 但 render 路径无消费者（kernel 配方固定 false）", "advice": "接受；建议 README 一句点明，避免误读 same-recipe"},
+    {"id": "O6", "severity": "记录", "topic": "PTX 三值未独立复跑，用 source sha + blob 对账推定", "advice": "接受；建议卡面固定「QA 是否可跑 NVRTC 纯编译门」的口径"}
+  ],
+  "limits": [
+    "PTX sha/bytes（含 aa_resolve）未独立复跑，来源为实现方 NVRTC 记录；替代证据见 review_points.abi_and_kernel.ptx_three_values",
+    "设备侧逐相机掩码行为未验证（本片声明不含设备结论），归 S3 窗口 2026-10-29-render-r08-rgb-hetero-validate",
+    "复核范围仅 73738357..01d1cb0b，之后 S2/S3 提交不在范围内"
+  ],
+  "artifacts": [
+    "README.md",
+    "recompute.py",
+    "recompute.json",
+    "logs/recompute.log",
+    "logs/fmt.log",
+    "logs/clippy.log",
+    "logs/clippy-cuda.log",
+    "logs/unit.log",
+    "logs/gates.txt",
+    "manifest.txt"
+  ]
+}
