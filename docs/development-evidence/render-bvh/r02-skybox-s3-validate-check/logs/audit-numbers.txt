@@ -1,0 +1,39 @@
+# R02-S3 关键数字（QA 独立重算；不抄文档）
+
+## 1. 例外监（主证）`monitor/monitor-pre-window-attempt2.csv`
+
+- samples=60, clean=60, longest_clean=60
+- util 32–41, util≥40 样本 12（**全部 clean=True**）, util≥60=0
+- streak 轨迹（util≥40 的行）：6:40/7, 17:40/18, 18:41/19, 21:40/22, 25:41/26, 27:40/28, 29:40/30, 30:40/31, 37:40/38, 40:40/41, 44:40/45, 55:40/**56** → 末行 streak=60
+- free_min=12 751, compute_filtered_max=0, build_max=0
+- 命令：`…monitor-until-clean.ps1 … -Required 60 -MaxMinutes 30 -MaxUtil 60`（exception-result 逐字）
+- `attempt2/window-command.txt` 逐字含 `-GuardsFile scripts\validate\render-bvh\guards-r02-skybox.json -OpenUtilLimit 60`
+- 三处 `not_a_normal_threshold_pass=true` / `authoring_exception_used=false` / `signature_unchanged=true` 一致
+
+## 2. 常规失败件 `monitor/monitor-pre-window.csv`
+
+- samples=354, longest_clean=18, util 2–43, util≥40=75, util≥60=0, free_min=12 694
+- result：`monitor_exit=20`、`decision=STOP_NORMAL_THRESHOLD_NOT_MET`、`window_commands_executed=0`（原样保留）
+
+## 3. 天空盒判据（`attempt2/logs/render_skybox_reference.log`）
+
+| cam | pixels | rgb mismatched / max_byte_diff / beyond_1_lsb | depth mismatch / max_ulp / beyond_ulp | seg | depth_zero |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 76 800 | 0 / 0 / 0 | 0 / 0 / 0 | 0 | 16 995 |
+| 1 | 43 200 | 0 / 0 / 0 | 0 / 0 / 0 | 0 | 27 498 |
+
+两跑 sha：rgb `92ac188d…`、depth `de732643…`、seg `065caf08…`（`test result: ok. 1 passed`）
+
+## 4. 窗口六项
+
+- 9/9 实体 exit 0（walls：1655/1312/7810/8724/4324/9222/3665/7874/2784 ms，与 facts 逐条一致）
+- guard.log：PRECHECK_OK(37/37/40) → GUARDS_OK=77/77 → WINDOW_RUN_DONE
+- sha_guards 77/77、post_window_exe_recheck 9/9、zero_rust_compile=True（deps 1839→1839，max write 18:12:48 < 窗 18:22:08）
+- samples.csv 166 行：used peak 3 475(seq6)、used_min 3 204、free_min 12 587、util 17–40、floor 9 786 未破、增量 271≤3 072、residual 0
+
+## 5. 冻结
+
+- guards-r02-skybox.json：28 931 B / `2d55c0b3…` / suite r02-skybox-validate / attempt=2 / 77(9+68) / aggregate `ca1fcaa5…`（证据同口径脚本复算 matches=True）
+- committed blob == 现盘；9 exe live==guards==stash 全对；sha-guards 77/77 行对现盘全中
+- R05 guards.json 仍 `e2444a96…`/27 670 B
+- attempt1 归档 `b5a2d4d7…`/28 931 B 存在

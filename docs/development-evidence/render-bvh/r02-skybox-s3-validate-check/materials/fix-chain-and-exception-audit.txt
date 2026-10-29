@@ -1,0 +1,45 @@
+# 修复链 / 例外 / attempt1 审计（QA 独立）
+
+## 一、capture 脚本 sha 链（我逐步复现，不只看文档）
+
+| 步 | 内容 | bytes / LF | sha256 | 我的核法 |
+| --- | --- | --- | --- | --- |
+| 1 | S2 原交付（commit `3e3665f0`） | 16 084 / 425 | `812a2f77…` | `git show 3e3665f0:scripts/authoring/render-bvh-r02/capture_skybox.py` |
+| 2 | + 窗口期确定性自检修复 | **16 494 / 428** | **`d17d2418…`** | 在**仓库外**临时目录把 `attempt1/capture-skybox-fix.diff` 应用到第 1 步字节，再做 LF 归一 |
+| 3 | `"use_fast_math": True` → `False`（+1 字节） | **16 495 / 428** | **`d6f9864c…`** | 在第 2 步字节上做该单处替换，结果与现盘**逐字节相同** |
+
+结论：README §7 的三段 sha 链**可逐步复现**；`d17d2418` 是窗口期工作树状态（未单独提交），`b3a47aca` 把自检修复与 `use_fast_math` 修复一起入库。`b3a47aca` 对该脚本的 diff 也包括 `import shutil`、删除 `npz_bytes`、自检改为「同 writer 两跑 → 文件 sha 比较」，无模型/场景/参数/输出格式/命令改动。
+
+## 二、params28 对照
+
+- S2 证据 `materials/params28-audit.txt` 结论行：28 项中唯一需要修改 `use_fast_math`（True→False），其余 27 项与产品 `resolve_context` 解析值一致。
+- 我核 `fixtures/.../reference-skybox/capture.json`：`params28.use_fast_math = False`、`params28_sha256 = e2bae199…`、`determinism = {two_runs: true, sha_equal: true, per_file_sha256: {rgb/depth/seg 三值}}`。
+
+## 三、attempt1（INVALID_ROUND）失败证据（我另据 target 原始日志交叉核）
+
+| 失败 | 日志证据 | 与 note 一致 |
+| --- | --- | --- |
+| A：stale 负控（3 测试） | `target/.../attempt1/logs/render_e2e.log`：`test result: FAILED. 4 passed; 1 failed`，失败用例 `negative_controls_hold_with_product_poses` | ✓（stale 断言「天空盒必须被拒绝」） |
+| B：depth 1–4 ULP | `target/.../attempt1/logs/render_skybox_reference.log`：depth 断言 `left=19074 / right=0`（cam0） | ✓（note：cam0 mismatch 19074、max_ulp=2、beyond=0） |
+
+- `attempt1/entity-results.csv`：4 失败（exit 101）+ 5 通过 ✓
+- stage A 失败留档：`stage-a-attempt1-failure.txt`（旧/新脚本 sha、部分 npz sha b49053a1/0fa55821/2153fa72、根因=内存 sha 与写盘 zip sha 比较永远不等）+ `capture-skybox-fix.diff`（可复现 d17d2418，见 §1）✓
+- 旧参考归档现盘：`target/.../stage-a-attempt1-reference-superseded/` = capture `e81e098d`/rgb `b49053a1`/depth `0fa55821`/seg `2153fa72`，与 README §6 一致 ✓
+
+## 四、例外（validation-only util<60）
+
+- attempt2 例外：主证据 = 例外监 CSV（60/60/60、12 个 ≥40 全 clean、streak 到 60、free_min 12 751、exit 0）；precheck（37/37/40）只作记录，不作例外主证（R05 O1 修正已落实）。
+- 常规 util<40 失败（354/18/75/exit20）原样保留；`decision=STOP_NORMAL_THRESHOLD_NOT_MET`、`window_commands_executed=0`。
+- attempt1 也用了同一例外（`attempt1/window-command.txt` 含 `-OpenUtilLimit 60`；attempt1 例外监 60/17 clean，文件在 target 未入库 → 观察 O4）。
+- 批准记录：`user (via Chief) 2026-10-29T15:3x`（与 R05 同类粒度；本卡不作缺陷，仅记录）。
+
+## 五、runner 侧发现（观察 O2/O5）
+
+- `scripts/validate/render-bvh/run-window.ps1:342` 硬编码 `suite = 'r05-s3b-hfield-validate'`，导致本窗 `attempt2/guard_aggregate.json` 的 suite 标签错误（其余数值/哈希字段正确，facts 里 `guards_suite=r02-skybox-validate` 正确）。
+- 同文件第 7 行注释仍写 R05 的 stash 路径（残留注释）。
+- 证据/`target/` 都没有 `-GuardsOnly` 独立 dry-run 输出（README §4 / S3a §2 称可复核）→ 观察 O3。
+
+## 六、证据副本归一
+
+- `attempt1/facts.txt`、`attempt2/facts.txt`、`attempt2/guard_aggregate.json` 的原始件为 CRLF（Add-Content 追加导致），证据副本为 LF；我核**逐行内容一致**。
+- attempt2 下 19 个文件：17 个逐字节相同，另 2 个即上述 LF 归一文件。

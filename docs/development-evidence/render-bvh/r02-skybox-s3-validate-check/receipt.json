@@ -1,0 +1,241 @@
+{
+  "task_id": "2026-10-29-render-bvh-r02-skybox-s3-validate-check",
+  "kind": "render-bvh-r02-skybox-s3-validate-check",
+  "reviewed_task": "2026-10-29-render-bvh-r02-skybox-s3-validate",
+  "reviewed_related_task": "2026-10-29-render-bvh-r02-skybox-s3-artifacts-commit",
+  "reviewed_commits": ["d7f705d0", "fa5cfcfd", "8fecc3e4", "f0213748", "99b88d1f", "65022c3a", "8a967468"],
+  "reviewed_base_head": "8a967468",
+  "head_at_review": "9705eb21",
+  "head_drift_note": "HEAD moved forward by the reviewer's own S1b check commits (6517615c, 9705eb21) before this B-slice review completed；被核路径未被改动",
+  "verdict": {
+    "result": "needs_fix",
+    "blockers": 0,
+    "must_fix": 1,
+    "observations": 7,
+    "scope_summary": "窗口事实/位级判据/冻结身份/attempt1 与两条修复链全部独立复核通过；唯一必修项 = S3 README 字面出现卡面第七条禁止的 4 个词（2 处否定句 + 1 处自列清单），措辞修正即可、不需重跑窗口"
+  },
+  "review_points": {
+    "exception_legality": {
+      "main_evidence": "monitor/monitor-pre-window-attempt2.csv（60 行，逐行重算）",
+      "samples": 60, "clean": 60, "longest_clean": 60,
+      "util_min": 32, "util_max": 41,
+      "ge40_samples": 12, "ge40_clean_samples": 12, "ge60_samples": 0,
+      "ge40_streak_trace": "seq6=40(str7), seq18=41(19), seq21=40(22), seq25=41(26), seq27=40(28), seq29/30=40(30/31), seq37=40(38), seq40=40(41), seq44=40(45), seq55=40(56) → 末尾 streak 60",
+      "free_min_mib": 12751,
+      "compute_filtered_max": 0, "build_max": 0,
+      "exit": 0,
+      "load_bearing": "12 个 util>=40 样本全部 clean=True 且 streak 连续到 60 ⇒ 生效门槛=60 而非 40",
+      "monitor_command_verbatim_has_maxutil60": true,
+      "window_command_verbatim_has_openutil60": true,
+      "window_command_verbatim_has_guardsfile": true,
+      "not_a_normal_threshold_pass": true,
+      "authoring_exception_used": false,
+      "signature_unchanged": true,
+      "precheck_not_used_as_exception_evidence": true,
+      "normal_failure_retained": {
+        "csv": "monitor/monitor-pre-window.csv",
+        "recomputed": {"samples": 354, "longest_clean": 18, "util_min": 2, "util_max": 43,
+                       "ge40": 75, "ge60": 0, "free_min_mib": 12694},
+        "result_file_has": ["monitor_exit=20", "decision=STOP_NORMAL_THRESHOLD_NOT_MET", "window_commands_executed=0"]
+      }
+    },
+    "criteria": {
+      "log": "attempt2/logs/render_skybox_reference.log",
+      "cam0": {"pixels": 76800,
+               "rgb": {"compared": 76800, "mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0},
+               "depth": {"mismatch": 0, "max_ulp": 0, "beyond_ulp": 0},
+               "seg": {"mismatch": 0}, "depth_zero_pixels": 16995},
+      "cam1": {"pixels": 43200,
+               "rgb": {"compared": 43200, "mismatched": 0, "max_byte_diff": 0, "beyond_1_lsb": 0},
+               "depth": {"mismatch": 0, "max_ulp": 0, "beyond_ulp": 0},
+               "seg": {"mismatch": 0}, "depth_zero_pixels": 27498},
+      "two_run_sha256": {
+        "rgb": "92ac188d1cab24258e777461f44087d747e711f70b4943d0c9f48a727a58b3cc",
+        "depth": "de732643aa3e9afb2a477b259dd1128139929c29ba7d8935d23096d767e42445",
+        "seg": "065caf08c1759c34be2b9d9e2b2f8d62e874f219d8d6bf93c8d9e2408b293821",
+        "equal": true,
+        "pinned_by": "tests/render_skybox_reference.rs 内两跑 assert_eq（test result: ok. 1 passed）"
+      },
+      "criteria_unchanged": true
+    },
+    "window_facts": {
+      "entities": 9, "all_exit_zero": true,
+      "new": 1, "regression": 8,
+      "walls_ms": [1655, 1312, 7810, 8724, 4324, 9222, 3665, 7874, 2784],
+      "facts_lines_match": true,
+      "guard_log": ["PRECHECK_OK open=3204/12858/37/29;…37/29;…40/29", "GUARDS_OK=77/77", "WINDOW_RUN_DONE"],
+      "sha_guards": "77/77", "post_window_exe_recheck": "9/9",
+      "zero_rust_compile": true,
+      "deps": {"before": 1839, "after": 1839, "max_write": "2026-10-29 18:12:48（早于窗 start 18:22:08）",
+               "now_on_disk": {"exe_count": 1839, "max_write": "2026-10-29 18:12:48"}},
+      "samples": {"rows": 166, "used_peak_mib": 3475, "peak_seq": 6, "used_min_mib": 3204,
+                  "free_min_mib": 12587, "util_min": 17, "util_max": 40,
+                  "floor_mib": 9786, "floor_breached": false,
+                  "delta_vs_first_mib": 271, "increment_limit_mib": 3072, "increment_exceeded": false},
+      "residual_processes": 0,
+      "body_wall_s": 48.7,
+      "guard_aggregate_vs_facts": "11 项数值/身份字段全等（唯一不一致为 suite 标签，见 O2）"
+    },
+    "freeze_identity": {
+      "guards_file": "scripts/validate/render-bvh/guards-r02-skybox.json",
+      "sha256": "2d55c0b3fc14a33b2acce159bf68f474131f2819e3b2230f17ece11021b2e6a3",
+      "bytes": 28931,
+      "committed_equals_disk": true,
+      "local_gitattributes_text_rule": "scripts/validate/render-bvh/guards-r02-skybox.json -text（已知限制，S3a 已登记）",
+      "suite": "r02-skybox-validate", "attempt": 2,
+      "counts": {"frozen_exes": 9, "guard_inputs": 68, "total": 77},
+      "aggregate_recorded": "ca1fcaa52c0dfda4e7ae473eb195d7b53c1f57dc3ae420526b1a0644b6aa6550",
+      "aggregate_recomputed_with_evidence_script": "ca1fcaa52c0dfda4e7ae473eb195d7b53c1f57dc3ae420526b1a0644b6aa6550",
+      "aggregate_caliber": "PowerShell culture 排序（Python 序数=7a9fedc1…/casefold=5ae530aa… 均非该口径）",
+      "exe_triple_equality": {"count": 9, "live_equals_guards": "9/9", "guards_equals_stash": "9/9", "bytes_equal": "9/9"},
+      "sha_guards_rows": 77, "sha_guards_key_set_equal": true, "sha_guards_live_recheck_mismatch": 0,
+      "attempt1_guards_archive": {
+        "path": "target/render-bvh/r02-skybox-window/guards-r02-skybox-attempt1-superseded.json",
+        "sha256": "b5a2d4d712ea9edcf7c29f09df35540cf20fdbd28f6441e22220db0fb2a2a346",
+        "bytes": 28931, "marked_superseded": true
+      },
+      "r05_guards_untouched": {"sha256": "e2444a96128f33575bffab0f9420a1844c2f6cf2d3b60ef309f1fcad9b7eecb3", "bytes": 27670, "unchanged": true}
+    },
+    "fix_chain": {
+      "capture_script_chain_reproduced": [
+        {"stage": "S2 原交付", "commit": "3e3665f0", "bytes": 16084, "lines_lf": 425,
+         "sha256": "812a2f778c21bb5cb8b24a96f6dce052be7f1f0d923174d0dcb75442e5d0c7a8"},
+        {"stage": "窗口期确定性自检修复（apply attempt1/capture-skybox-fix.diff 后 LF 归一）",
+         "bytes": 16494, "lines_lf": 428,
+         "sha256": "d17d24183627bcd843f21e604fb6a411d4a4682b0f921105023bed0211fea15c"},
+        {"stage": "use_fast_math True→False（+1 字节）", "commit": "b3a47aca", "bytes": 16495, "lines_lf": 428,
+         "sha256": "d6f9864cc29fb452e1914f135fe10d55c65751a89ad9a84244cfa362fabcc16d",
+         "byte_identical_to_current": true}
+      ],
+      "params28_audit": "S2 证据 materials/params28-audit.txt：28 项中唯一修改 use_fast_math（True→False），其余 27 项与产品解析值一致；我核该结论行与表结构",
+      "s1b_tests": {"e2e_lines": 496, "flags_lines": 495, "rgb_lines": 309, "e2e_net": -4, "unit": "1104/0/390"}
+    },
+    "attempt1_invalid_round": {
+      "exit": 10, "result": "INVALID_ROUND",
+      "failed": ["render_skybox_reference", "render_e2e", "render_kernel_flags", "render_kernel_rgb"],
+      "passed": ["render_camera_rays", "render_context_lifecycle", "render_kernel_depth_seg", "render_r08_cameras", "render_r10_multi_world"],
+      "root_cause_A": "stale negative controls（三份 ignored GPU 测试仍断言天空盒必须被拒绝）",
+      "root_cause_B": "参考用 use_fast_math=true，产品内核恒 fast_math=false ⇒ depth 1–4 ULP",
+      "raw_log_corroboration": {
+        "e2e_log": "test result: FAILED. 4 passed; 1 failed；失败用例 negative_controls_hold_with_product_poses",
+        "skybox_log": "depth 断言 left=19074 / right=0（cam0），与 note 的 depth mismatch=19074 max_ulp=2 一致",
+        "note": "attempt1 的 4 份失败日志只在 target/（未入库），我据原始日志交叉核对"
+      },
+      "stage_a": {"note": "stage-a-attempt1-failure.txt + capture-skybox-fix.diff 齐全", "diff_reproduces_d17d2418": true},
+      "old_reference_superseded": {
+        "path": "target/render-bvh/r02-skybox-window/stage-a-attempt1-reference-superseded/",
+        "files": {"capture.json": "e81e098d…", "rgb.npz": "b49053a1…", "depth.npz": "0fa55821…", "seg.npz": "2153fa72…"}
+      }
+    },
+    "reference_current": {
+      "dir": "fixtures/render-bvh/scene-a/reference-skybox/",
+      "file_count": 4,
+      "capture_json_sha256": "47f704de0421abbcfd89634b156323867c255aeb3f0734db7f78fc3274295a9a",
+      "files": {"rgb.npz": "cf65a5709ef01f6036e0b4abe06a11ec09e0a119f07bea18634817ac1214778f",
+                "depth.npz": "28c1ea4bdd4533a3d4811f390051a9e0dfa75ccab2549d7b32b8b426ccc9ba14",
+                "seg.npz": "2153fa728d634c032cf38847761803c4faa806aa554e108a2e0bd7b8ac8e6a97"},
+      "params28_use_fast_math": false,
+      "params28_sha256": "e2bae1991f39e8a8ad995a2ee651cd1dd307b07b617eb1a7ad4b20f50aa9c3cb",
+      "determinism": {"two_runs": true, "sha_equal": true}
+    },
+    "evidence_integrity": {
+      "s3_manifest": {"rows": 34, "committed_blob_ok": "34/34", "on_disk_ok": "34/34", "self_reference": false,
+                      "files_in_dir": 35},
+      "s3a_manifest": {"rows": 2, "committed_blob_ok": "2/2", "on_disk_ok": "2/2", "self_reference": false},
+      "lf_no_bom": true,
+      "crlf_normalized_in_evidence": ["attempt1/facts.txt", "attempt2/facts.txt", "attempt2/guard_aggregate.json"],
+      "copies_vs_target": "19 个 attempt2 文件中 17 个逐字节相同；facts.txt/guard_aggregate.json 为 LF 归一（逐行内容一致）",
+      "scope_diff": "只有 S3/S3a 证据 + 4 个参考文件 + guards-r02-skybox.json + .normify；无 src/tests/判据改动",
+      "forbidden_terms_in_evidence": {
+        "file": "S3 README.md",
+        "count": 4,
+        "contexts": "2 处否定句（本窗不是…）+ 1 处自列清单（不写…）",
+        "card_item": "卡面第七条要求禁词 0 → 字面不合格（必修 O1）"
+      }
+    }
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "must_fix",
+      "level": "general",
+      "topic": "S3 README contains the four forbidden terms literally",
+      "detail": "卡面第七条要求「禁词 0」；S3 README.md 实际上出现全部 4 个词：2 处在「本窗不是 <词>」的否定句、1 处在「不写 <三词>」的自列清单。语义上是诚实的否定/自我约束表述（没有任何结论性主张），但按字面要求不合格。",
+      "suggestion": "fix",
+      "fix": "三句改法：①「本窗不是常规阈值轮：常规 util<40 在 12:00 时段失败（354/18/75/exit20）」；②§9 同句同样改；③ 末条改为「不写精度、等价或验收类结论；结论以逐相机 0 差异与两跑 sha 相同表述」。不动任何数字、不需重跑窗口"
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "topic": "guard_aggregate.json suite label is r05 (runner hardcodes it)",
+      "detail": "attempt2/guard_aggregate.json 的 suite 字段 = r05-s3b-hfield-validate，而本窗 suite = r02-skybox-validate（facts.txt 的 guards_suite、guards.json、guard.log 均正确）。根因：scripts/validate/render-bvh/run-window.ps1:342 把 suite = 'r05-s3b-hfield-validate' 硬编码。数值与 hash 字段全部正确，仅该标签误导身份审计。",
+      "suggestion": "fix",
+      "fix": "未来把该字段改为 $guard.suite（runner 改动=新版本/重签）；本窗在 README 注明 aggregate suite 字段为 runner 硬编码遗留，身份以 facts/guards 为准"
+    },
+    {
+      "id": "O3",
+      "severity": "suggestion",
+      "topic": "no committed artifact for the claimed -GuardsOnly 77/77 dry run",
+      "detail": "README §4 与 S3a §2 称「-GuardsOnly → GUARDS_OK=77/77（stash 9/9）可复核」，但证据目录与 target/ 都没有该 dry-run 的独立输出（r02-skybox-window 下无 guards-only 产物）。实质证据是窗口内 guard.log 的 GUARDS_OK=77/77 与我核过的 stash 9/9。",
+      "suggestion": "fix_or_note",
+      "fix": "补一份 guards-only 日志，或把措辞改为「窗口 precheck 77/77 + stash 一致性（本卡已核）」"
+    },
+    {
+      "id": "O4",
+      "severity": "suggestion",
+      "topic": "attempt1 exception monitor CSV/result referenced but not committed",
+      "detail": "attempt1/exception-block.txt 引用 monitor-pre-window-exception.csv（60 样本、17 个 ≥40 clean、free_min 12833），但该 CSV 与 result 未随证据入库，只在 target/render-bvh/r02-skybox-window/（我确认存在 3800/1528 B）。attempt1 是 INVALID_ROUND 非法轮，可不作主证。",
+      "suggestion": "fix_or_note",
+      "fix": "标注为 target-only 瞬态，或把 attempt1 例外监 CSV/result 入库"
+    },
+    {
+      "id": "O5",
+      "severity": "record",
+      "topic": "run-window.ps1 header comment still references the R05 stash path",
+      "detail": "run-window.ps1 顶部注释写 target/render-bvh/r05-s3b-window/frozen-exes/，与本窗 stash 目录不同；属注释残留（与 O2 同一文件）。",
+      "suggestion": "accept",
+      "fix": "随 O2 一并修"
+    },
+    {
+      "id": "O6",
+      "severity": "record",
+      "topic": "guards signing bytes depend on local .git/info/attributes -text",
+      "detail": "与 R05 QA O7 同类：committed blob == 现盘成立（当前仓库），但该属性不随提交分发。S3a README/receipt 已登记为已知限制。",
+      "suggestion": "accept",
+      "fix": "维持现状（已登记）"
+    },
+    {
+      "id": "O7",
+      "severity": "record",
+      "topic": "attempt1 also used the same validation-only exception",
+      "detail": "attempt1/window-command.txt 也含 -OpenUtilLimit 60，attempt1/exception-block.txt 记录其例外监 60 samples/17 个 ≥40 clean；README §5 只详述 attempt2 例外，attempt1 例外记在其 exception-block。两轮一致、不冲突。",
+      "suggestion": "accept",
+      "fix": "无需改动"
+    }
+  ],
+  "boundaries": [
+    "未开 GPU、未重跑窗口：所有数字来自留档 CSV/日志/facts 的独立重算，不重跑设备像素。",
+    "「两跑 sha 相同」由测试内 assert_eq 钉住（日志打印 run1 sha）；我核了断言与 test result: ok，未单独重跑两跑。",
+    "attempt1 的 4 份失败日志只存在于 target/（未入库），我据原始日志交叉核对。",
+    "guard aggregate 按证据声明口径（PowerShell culture 排序）复算；Python 序数/casefold 不是该口径。",
+    "未改代码/证据/卡；本卡不产渲染数值结论。"
+  ],
+  "gates": {
+    "none": "QA 复核卡无门禁（卡面 checks 为 receipt task_id + forbid_claim）",
+    "not_run": "本卡为窗口留档复核：未跑 cargo/测试（窗口内 zero_rust_compile=True 已由 facts 证明；我未触发任何构建）"
+  },
+  "gate_note": "QA 复核卡无门禁：normify gate exit 1「任务没有引用任何门禁」属预期。",
+  "claims": {
+    "exception_legality_machine_proven_from_monitor_csv": true,
+    "criteria_bitwise_zero_and_two_run_sha_reproduced": true,
+    "window_six_items_recomputed_consistent": true,
+    "freeze_identity_and_aggregate_reproduced": true,
+    "script_chain_812a2f77_d17d2418_d6f9864c_reproduced": true,
+    "attempt1_failure_evidence_corroborated_from_raw_logs": true,
+    "manifests_bidirectional_self_checked": true,
+    "evidence_wording_forbidden_terms_violation_registered_as_must_fix": true,
+    "no_gpu_no_window_rerun_no_rendering_numeric_conclusion": true
+  },
+  "recompute": {"script": "recompute.py", "result": "recompute.json", "problems": 2,
+                "problems_note": "两个 problems 项分别对应 O1（README 禁词字面）与 O2（guard_aggregate suite 标签）；窗口数值/判据/冻结全部通过"}
+}
