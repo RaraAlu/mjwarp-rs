@@ -5,7 +5,7 @@
     "zh": "R08-RGB：逐相机 RGB 通道掩码（host 三通道逐相机填充 + latent 负偏移越界修复）",
     "en": "R08-RGB: per-camera RGB channel masks in the megakernel host path (plus latent negative-offset write fix)"
   },
-  "status": "in_progress",
+  "status": "verified",
   "intent": {
     "zh": "R08-S2 遗留缺口：`MegakernelRenderer::render` 把 RGB/depth/seg 三个通道开关用**全局布尔**填成 `nrender` 长数组（`megakernel.rs:172-177`），因此逐相机 RGB 异构不可用；且关闭通道的相机 `rgb_adr/depth_adr=-1` 而 `do_*` 仍为真时，内核会按负偏移写（latent 越界）。内核侧本来已按逐 render 掩码工作（`render_megakernel.cu:110-133` 读 `render_*.data[camid]`，写入均在 do_* 守卫内），81 槽冻结签名的 51/52/53 槽本就是 `Array(Bool)` 的 per-render 数组——**本片不改 ABI、不改内核**，只把 host 填充改为从 `resolved.plan.render_rgb/depth/seg`（逐激活相机）取，并加纯函数、单测与 GPU 异构用例；顺手关掉负偏移越界。",
     "en": "Fill the per-render channel flag arrays from CameraPlan instead of global booleans; no ABI/kernel change; adds unit tests and ignored GPU heterogeneity cases."
@@ -43,7 +43,8 @@
     "after": null
   },
   "created_at": "2026-10-29T22:40:00.000Z",
-  "updated_at": "2026-10-29T14:32:01.799Z",
+  "updated_at": "2026-10-29T14:37:19.706Z",
+  "closed_at": "2026-10-29T14:37:19.706Z",
   "checks": [
     {
       "kind": "gate",
