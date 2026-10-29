@@ -2,7 +2,7 @@
 uid = "a66a7856"
 id = "mjwarp.render"
 tags = ["planned", "engine", "render"]
-fingerprint = "07a698e2f6bdf3466d389f322587740f6ff293d2cacb967d928da66cf8354a17"
+fingerprint = "28e9ba5434837f96dfb289178941d618ccba31aaaefb7395e0ae33d80e4d5f09"
 
 [name]
 zh = "GPU批量渲染"
@@ -135,6 +135,45 @@ path = "src/render/bvh/hfield_mesh.rs"
 
 [[source]]
 path = "src/render/context/texture_inputs.rs"
+
+[[source]]
+path = "src/render/kernel/cast.rs"
+
+[[source]]
+path = "src/render/kernel/megakernel.rs"
+
+[[source]]
+path = "src/render/kernel/megakernel_aa.rs"
+
+[[source]]
+path = "src/render/kernel/megakernel_arrays.rs"
+
+[[source]]
+path = "src/render/kernel/output.rs"
+
+[[source]]
+path = "src/render/kernel/renderer.rs"
+
+[[source]]
+path = "src/render/kernel/cuda/render.cu"
+
+[[source]]
+path = "src/render/kernel/cuda/render_common.cu"
+
+[[source]]
+path = "src/render/kernel/cuda/render_math.cu"
+
+[[source]]
+path = "src/render/kernel/cuda/render_megakernel.cu"
+
+[[source]]
+path = "src/render/kernel/cuda/render_shade.cu"
+
+[[source]]
+path = "src/render/kernel/cuda/aa_resolve.cu"
+
+[[source]]
+path = "src/render/context/tests.rs"
 
 [[apis]]
 protocol = "rpc"

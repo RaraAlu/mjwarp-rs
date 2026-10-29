@@ -1,7 +1,7 @@
 +++
 uid = "7e422726"
 id = "mjwarp.io.render"
-fingerprint = "1ca01d81baabf1fb790901fb8d3a0b705a769c65fa075b7d5521a459c6867ef5"
+fingerprint = "ae9ff54e2bda6ca8142c830a0fdbe0442019052535ccf720b965cf6d19ba9d11"
 apis = []
 
 [name]
@@ -14,4 +14,10 @@ en = "Native render field read"
 
 [[source]]
 path = "src/io/render.rs"
+
+[[source]]
+path = "include/mjwarp_render_probe.h"
+
+[[source]]
+path = "native/model_probe_render.cpp"
 +++

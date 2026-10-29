@@ -2,7 +2,7 @@
 uid = "dfdb6f0d"
 id = "mjwarp.math"
 tags = ["planned", "engine", "math"]
-fingerprint = "89a78cdea3ea2afc39472fc630351d78257e641b88a940f36bb34b27c04388a7"
+fingerprint = "9e6134a1b6f44cc7423e4bdcc77b58dcd08d42de6c1f484bfd46fc23c8b199ea"
 
 [name]
 zh = "数学与空间代数"
@@ -21,6 +21,9 @@ path = "src/math/mod.rs"
 
 [[source]]
 path = "src/math/fma.rs"
+
+[[source]]
+path = "src/math/fma/tests.rs"
 
 [[apis]]
 protocol = "rpc"

@@ -2,7 +2,7 @@
 uid = "2ab8f906"
 id = "mjwarp.io.core"
 tags = ["planned", "engine"]
-fingerprint = "6580206cbb2b55e86d2bf1e78d17903be55cfea0591a1a3cb0cfe5670949752d"
+fingerprint = "8ea63071d7a44c0be1d4a4d5a252b5e0e73bd1e30077d3da23cf0f8e3ee76ea3"
 
 [name]
 zh = "原生准入与字段交换"
@@ -48,6 +48,21 @@ path = "src/io/state/extended.rs"
 
 [[source]]
 path = "src/io/state/extended/tests.rs"
+
+[[source]]
+path = "src/io/volume.rs"
+
+[[source]]
+path = "src/io/collision_inputs.rs"
+
+[[source]]
+path = "src/io/state/tests.rs"
+
+[[source]]
+path = "include/mjwarp_collision_inputs_probe.h"
+
+[[source]]
+path = "native/model_probe_collision_inputs.cpp"
 
 [[apis]]
 protocol = "rpc"

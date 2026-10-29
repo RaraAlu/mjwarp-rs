@@ -2,7 +2,7 @@
 uid = "2697aa91"
 id = "mjwarp.model.core"
 tags = ["planned", "engine"]
-fingerprint = "581feb04760d7bd3c8a6794fc37981f5bcc143b1f7ab89147bbecd1149b29e73"
+fingerprint = "b207bdd7d1b4ae90c9853ea089026b46c79804ec830bc4a1e32e26cdbefabb0d"
 
 [name]
 zh = "模型布局与输入契约"
@@ -21,6 +21,15 @@ path = "src/model/mod.rs"
 
 [[source]]
 path = "src/model/collision.rs"
+
+[[source]]
+path = "src/model/volume.rs"
+
+[[source]]
+path = "src/model/volume_input.rs"
+
+[[source]]
+path = "src/model/collision_inputs.rs"
 
 [[apis]]
 protocol = "rpc"
