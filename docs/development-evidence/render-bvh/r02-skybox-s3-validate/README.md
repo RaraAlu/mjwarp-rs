@@ -4,7 +4,7 @@
 本片性质：**窗口执行与证据收口**。用户已签 `validation-only 例外 util<60`；本片记录 attempt=2 的窗口事实、
 天空盒位级判据、8 回归零漂移、冻结身份、例外留痕，以及 attempt=1（INVALID_ROUND）与两条修复链的历史。
 
-> **不是常规门槛通过**：常规 `util<40` 在 12:00 时段失败（354 样本 / longest_clean=18 / 75 个 ≥40 / exit 20），
+> **本窗不是常规阈值轮**：常规 `util<40` 在 12:00 时段失败（354 样本 / longest_clean=18 / 75 个 ≥40 / exit 20），
 > attempt=2 用的是用户签署的 `mode=validation_only_exception_util_lt_60`（attempt2 monitor 60/60、12 个 ≥40 样本
 > clean、streak 60）。
 
@@ -101,7 +101,7 @@ manifest 按 committed blob 且不自引用、LF 无 BOM。
 
 ## 9. 非声明与限制
 
-* **不是常规门槛通过**：例外是用户签署的 `validation_only_exception_util_lt_60`；常规失败记录原样保留。
+* **本窗不是常规阈值轮**：例外是用户签署的 `validation_only_exception_util_lt_60`；常规失败记录原样保留。
 * attempt=1 为 **INVALID_ROUND（非法轮）**，不作为有效窗口结论。
 * 本窗判据为既有位级口径，未改判据/容差/参考（参考仅配方对齐 `fast_math=false`，见 §6）。
-* 不写「精度达标/上游等价/产品渲染验收通过」；结论以逐相机 0 差异与两跑 sha 相同表述。
+* 不写精度、等价或验收类结论；结论以逐相机 0 差异与两跑 sha 相同表述。
