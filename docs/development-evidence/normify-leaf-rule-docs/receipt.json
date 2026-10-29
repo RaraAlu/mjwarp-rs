@@ -1,0 +1,43 @@
+{
+  "task_id": "2026-10-30-normify-leaf-rule-docs",
+  "kind": "architecture-governance-rule-docs",
+  "owner": "Arch",
+  "scope": "documentation and disposition ledger only; no normify binary change, no module tree change, no product code",
+  "rule": {
+    "source": "normify-rs/src/validate.rs leaf branch (L109-126)",
+    "criterion": "coarse += 1 if module.source.len() >= 2 || span >= 220",
+    "span_definition": "max over module.source of ((s.end_line or s.line) - s.line); 0 when no line/end_line recorded",
+    "warning_kind": "single aggregate warning: 'W structure/leaf-too-coarse <N> ...'; N is a count, not a line count",
+    "misreading": "the '220' applies to recorded line ranges, not to file length"
+  },
+  "measured": {
+    "modules": 71,
+    "leaves": 63,
+    "coarse_count": 39,
+    "coarse_by_source_count_ge_2": 39,
+    "coarse_by_span_ge_220": 0,
+    "leaves_recording_line_or_end_line": 0,
+    "single_source_leaves_with_lf_ge_220_not_counted": 16,
+    "method": "materials/measured-coarse.txt (read-only recomputation, cross-checked with normify validate)"
+  },
+  "warning_text_mismatch": "warning says 'multi-file or over 220 lines' but the 220 branch measures recorded line ranges (currently never fires) and 16 single-source leaves over 220 LF are not counted",
+  "options_not_implemented": {
+    "A": "fix the warning wording only (requires changing the shared normify binary; needs user approval)",
+    "B": "make the span branch meaningful by measuring file length (changes rule semantics; needs user approval)",
+    "C": "keep behaviour, document it (this slice)"
+  },
+  "dispositions": {
+    "p1_o5": "covered by this document",
+    "qa_154_o1": "no action (CRLF is an autocrlf checkout artifact; committed blobs are LF)",
+    "qa_154_o2": "note line-count convention in later evidence (LF vs Sigma(LF+1))",
+    "qa_154_o3": "note rpc-only API column convention in later evidence",
+    "qa_154_o4": "record-level accept; zero-source containers have no row",
+    "qa_154_o5": "record-level accept; use redirection instead of manual capture",
+    "qa_154_o6": "record-level accept (non-claim terms, forbid_claim check passes)",
+    "qa_154_o7": "record-level accept (blob reconciliation used instead of manifest)",
+    "qa_154_o8": "later evidence should filter PowerShell stderr (cmd /c or --message-format)",
+    "qa_154_o9": "covered by this document"
+  },
+  "not_claimed": ["规则已文档化", "架构规则完备", "等价"],
+  "note": "not_claimed terms above are negated disclaimers: the rule IS documented by this slice, but the warning-text fix and the span-branch semantics are explicitly NOT implemented."
+}
