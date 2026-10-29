@@ -1,0 +1,57 @@
+# R02-S1b 断言审计（QA 逐条；只读）
+
+## 一、移除了什么（旧断言 → 新事实）
+
+| 文件 | 旧断言（f2ee32d0^） | 为什么必须改 | 新断言 |
+| --- | --- | --- | --- |
+| `tests/render_e2e.rs` | `cases` 含 `render_skybox`，断言 `Err(Unsupported)`；另有 `assert_eq!(rejected, 2, "2 类写前拒绝必须逐类可判定")` | R02-S1 移除了天空盒 host 前置拒绝（attempt1 三个实体 exit 101 就是这里） | context 创建、`resolved().skybox.is_some()`、`render` 返回 `Ok(())`、`outputs().read(ImageOutput::Rgb).is_ok()`；动态射线单独直接断言 `Unsupported`（panic 即失败） |
+| `tests/render_kernel_flags.rs` | 同上 2 case（动态射线、skybox） | 同上 | skybox 接受面 3 条断言；动态射线仍 `Unsupported` |
+| `tests/render_kernel_rgb.rs` | 同上 2 case | 同上 | skybox 接受面 3 条断言 + **新增** splat 负控（`SplatInputs` → `Unsupported`）；动态射线仍 `Unsupported` |
+
+**是否弱化**：没有。被删的断言钉的是「已不存在的行为」（天空盒必须被拒），留着必然红；替换后的断言钉的是「新行为」（能建 context、能解析出 skybox、能发射），且**保留了仍在的拒绝面**（动态射线在三个文件、AA 射线数在 e2e、splat 在 rgb）。
+唯一被删的「计数断言」是 e2e 的 `assert_eq!(rejected, 2)`——它统计的是旧的两个拒绝类；新代码按类逐个断言（动态射线 1 条显式断言 + 天空盒 4 条接受面断言），判定强度不降。
+
+## 二、行数（LF，我用 `git show <rev>:<path> | count('\n')` 自算）
+
+| 文件 | before | after | 净 | 红线 |
+| --- | --- | --- | --- | --- |
+| tests/render_e2e.rs | 500 | **496** | **−4** | ≤500 ✓ |
+| tests/render_kernel_flags.rs | 475 | 495 | +20 | ≤500 ✓ |
+| tests/render_kernel_rgb.rs | 270 | 309 | +39 | ≤500 ✓ |
+
+`git diff --name-status f2ee32d0^..f2ee32d0` = 仅这 3 个测试 + 任务卡 ⇒ `src/**` 零改动 ✓。
+
+## 三、扫描口径核对（我 vs 证据）
+
+- 我：`git grep -n render_skybox -- tests src` = **44** 条。
+- 证据 `materials/render-skybox-scan.txt` = **42** 条，缺：
+  - `src/render/kernel/cuda/render_megakernel.cu:30`
+  - `src/render/kernel/cuda/render_megakernel.cu:195`
+  （都是 R02-S1 的内核注释，非断言 ⇒ 不改变「没有其他 stale 拒绝断言」的结论）
+- 我按上下文复核每一条命中：**没有任何一条**仍处于「必须在写前拒绝」的断言窗口内。
+- 另发现一处**不含 `render_skybox` 字面**的 stale 陈述：`src/render/kernel/megakernel.rs:9`
+  「阴影产品路径 R09-S2b 起已解锁（天空盒/splat/flex/hfield/SDF 仍写前拒绝）」
+  ——天空盒（R02-S1）与 hfield mesh（R05-S2）均已解锁。按字面 grep 的扫描抓不到这类表述。
+
+## 四、`flex` 说法核对
+
+实现侧当前 `LauncherError::Unsupported` 拒绝面（`src/render/kernel/megakernel.rs`）：
+L98 动态射线、L106 splat、L110 SDF（`geom_type` 含 8）、L113 `light_mode != 0`、L136 `enabled_geom_ids` 覆盖不全；
+另一处 `renderer.rs:63` 是 S7b1 的 `nsamples != 1`（不同执行器）。
+**没有 flex 拒绝** ⇒ 证据「flex 无 host 前置拒绝（R06 范围），不作负控候选」与代码一致。
+
+## 五、`outputs().read()` 的真实强度
+
+`src/render/context/lifecycle.rs::OutputResources::read(output)`：
+1. 取对应缓冲（未启用 → `DisabledOutput` 错误）；
+2. `buffer.read_range_into(0, &mut values)?` 做 device→host 拷贝；
+**不校验内容**。所以 `read(Rgb).is_ok()` 只证明「RGB 输出已启用且可读回」，不能证明像素已写或正确（全零也会 Ok）。像素面由 S3 位级比较承担。
+
+## 六、设备侧交叉印证（来自 S3 attempt2 证据，非本卡重跑）
+
+`docs/development-evidence/render-bvh/r02-skybox-s3-validate/attempt2/logs/`：
+- `render_e2e.log`：`s8[negative] shadows+skybox accepted; dynamic-rays … + AA … 判定成立`，`test result: ok. 5 passed; 0 failed`
+- `render_kernel_flags.log`：`s7b3 rejection surface: AA + shadows + skybox supported; precomputed=false rejected; bad AA …`，`ok. 6 passed`
+- `render_kernel_rgb.log`：`s7b2 rejection surface: shadows+skybox supported; precomputed=false/splat rejected …`，`ok. 3 passed`
+
+即本片更新的断言**已被设备侧真实执行并通过**（该结论属 S3 证据，本卡只是交叉核对）。

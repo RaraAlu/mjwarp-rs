@@ -1,0 +1,22 @@
+# QA 自跑门禁（R02-S1b，最终树，本机 Windows 2026-10-29 18:3x；仓库 D:\Rust\mjwarp-rs）
+
+1) fmt
+   cargo fmt --all --check            -> exit 0（logs/fmt.log 为空文件 = 通过）
+
+2) clippy（--all-targets + 默认特性，默认特性含 cuda）
+   cargo clippy --all-targets --locked --features cuda -- -D warnings
+   -> exit 0（logs/clippy.log：Finished dev profile in 0.22s）
+
+3) 单元测试
+   cargo test --locked                -> exit 0
+   result lines=136  passed=1104  failed=0  ignored=390   （我逐 result 行求和，见 logs/unit-summary.txt）
+   ⚠ 派工消息写「135 result 行」，证据与我的实测都是 136（1104/0/390）。
+
+未重跑（说明）
+  · `--no-run` 与 `normify validate --fingerprints`：证据记录均为 0；本片只改测试断言，
+    编译路径已被 `cargo test` 覆盖，validate 无模块变动。未重跑不影响结论，但如实记录。
+  · 任何 GPU 窗口/`--ignored` 设备用例：本片改动的三份用例都是 `#[ignore]`，我未执行；
+    它们已在后续 S3 attempt2 窗口实际跑过（S3 证据交叉印证，见 README §1/§5）。
+
+环境
+  rustc 1.99.0 (b940084d7 2026-09-28)，x86_64-pc-windows-msvc

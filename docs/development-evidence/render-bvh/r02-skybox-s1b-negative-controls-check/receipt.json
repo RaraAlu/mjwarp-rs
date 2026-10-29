@@ -1,0 +1,149 @@
+{
+  "task_id": "2026-10-29-render-bvh-r02-skybox-s1b-negative-controls-check",
+  "kind": "render-bvh-r02-skybox-s1b-negative-controls-check",
+  "reviewed_task": "2026-10-29-render-bvh-r02-skybox-s1b-negative-controls",
+  "reviewed_commits": ["f2ee32d0", "1d3c7159", "df24283c"],
+  "reviewed_base_head": "8a967468",
+  "head_at_review": "8a967468",
+  "verdict": {
+    "result": "pass",
+    "blockers": 0,
+    "observations": 6,
+    "scope": "测试修正片只读复核：三份负控断言的增删逐条审计（是否弱化 / e2e 净≤0 / 其他 stale 断言）/ src 零改动 / 门禁自跑 / 证据 manifest；不开 GPU、不跑 --ignored、不改代码/证据"
+  },
+  "review_points": {
+    "assertion_audit": {
+      "tests/render_e2e.rs": {
+        "lines_before": 500, "lines_after": 496, "net": -4, "limit": 500,
+        "removed": ["skybox rejection case", "assert_eq!(rejected, 2) 计数断言"],
+        "added": ["resolved().skybox.is_some()", "renderer.render 返回 Ok(())", "outputs().read(ImageOutput::Rgb).is_ok()"],
+        "retained": ["动态射线 Unsupported（直接调用，panic 即失败）", "AA InvalidArray(\"ray_count\") + resolved plan.samples==4"]
+      },
+      "tests/render_kernel_flags.rs": {
+        "lines_before": 475, "lines_after": 495, "limit": 500,
+        "removed": ["skybox rejection case"],
+        "added": ["context 可创建（catch_unwind → panic!）", "skybox.is_some()", "render Ok(())"],
+        "retained": ["动态射线 Unsupported"]
+      },
+      "tests/render_kernel_rgb.rs": {
+        "lines_before": 270, "lines_after": 309, "limit": 500,
+        "removed": ["skybox rejection case"],
+        "added": ["context 可创建", "skybox.is_some()", "render Ok(())", "splat Unsupported 负控（新）"],
+        "retained": ["动态射线 Unsupported", "splat Unsupported"]
+      },
+      "weakening_found": false,
+      "e2e_net_non_positive": true,
+      "flex_claim_verified": "实现侧当前拒绝面（megakernel.rs L98 动态射线 / L106 splat / L110 SDF / L113 light_mode / L136 enabled_geom_ids）无 flex 拒绝 ⇒「flex 不作负控候选」与代码一致"
+    },
+    "stale_scan": {
+      "my_grep_hits": 44,
+      "evidence_scan_rows": 42,
+      "missing_from_evidence": ["src/render/kernel/cuda/render_megakernel.cu:30", "src/render/kernel/cuda/render_megakernel.cu:195"],
+      "stale_rejection_hits_in_tests_or_src_rs": 0,
+      "stale_statement_without_literal": "src/render/kernel/megakernel.rs:9 模块文档仍写「天空盒/splat/flex/hfield/SDF 仍写前拒绝」（天空盒与 hfield mesh 均已解锁）",
+      "resolution_tests_checked": ["tests/render_context_params.rs（解析断言：render_skybox=true → texture_id/face_width）", "tests/render_lighting_params.rs（skybox 与光照解耦）"]
+    },
+    "gates_self_run": {
+      "fmt": "exit 0",
+      "clippy_all_targets_features_cuda": "exit 0",
+      "unit": "136 result 行 / 1104 passed / 0 failed / 390 ignored（我自跑求和）",
+      "no_run": "未重跑（证据记录 0；本片只改测试断言，编译已由 cargo test 覆盖）",
+      "validate_fingerprints": "未重跑（无模块变动）",
+      "gpu_tests_executed": false,
+      "dispatch_message_number": "派工消息称 135 result 行；证据与实测均为 136"
+    },
+    "scope_and_evidence": {
+      "code_commit_diff": ["tests/render_e2e.rs", "tests/render_kernel_flags.rs", "tests/render_kernel_rgb.rs", ".normify/changes/...-s1b-negative-controls.json"],
+      "src_untouched": true,
+      "others": "整片（含证据/收口）只涉及 3 个测试 + 本卡证据 + .normify 卡/runs；未改判据/容差/参考/fixture",
+      "manifest": {"rows": 5, "committed_blob_ok": "5/5", "on_disk_ok": "5/5", "self_reference": false, "unlisted": []},
+      "forbidden_literal_hits_in_other_slice_evidence": [
+        {"file": "README.md", "where": "§6 非声明句「不宣称…」", "terms": 3,
+         "note": "否定式表述，未做任何结论性主张；但按「证据禁词 0」字面规则不合格"}
+      ]
+    },
+    "cross_evidence_s3_attempt2": {
+      "note": "本片改的 3 个 #[ignore] 用例在后续 S3 attempt2 窗口实际执行并通过（S3 证据，非本卡重跑）",
+      "render_e2e": {"test_result_ok": true, "new_println_seen": true},
+      "render_kernel_flags": {"test_result_ok": true, "new_println_seen": true},
+      "render_kernel_rgb": {"test_result_ok": true, "new_println_seen": true}
+    },
+    "output_read_semantics": {
+      "api": "OutputResources::read(&self, ImageOutput) -> Result<OutputValues, OwnerError>",
+      "does": "校验输出已启用 + 设备→主机 read_range_into；不校验内容",
+      "consequence": "e2e 的 read(Rgb).is_ok() 不能证明像素已写/正确（全零缓冲同样 Ok）"
+    }
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "suggestion",
+      "topic": "stale rejection-surface doc comment in src/render/kernel/megakernel.rs:9",
+      "detail": "模块文档仍写「阴影产品路径 R09-S2b 起已解锁（天空盒/splat/flex/hfield/SDF 仍写前拒绝）」；天空盒（R02-S1）与 hfield mesh（R05-S2）已解锁，当前拒绝面是动态射线/splat/SDF/light_mode/enabled_geom_ids 覆盖不全。该行不含 `render_skybox` 字面，本片按字面 grep 的扫描抓不到。",
+      "suggestion": "fix",
+      "fix": "更新该注释的拒绝面清单（可随下一片；本片为 tests-only，不宜扩 scope）"
+    },
+    {
+      "id": "O2",
+      "severity": "suggestion",
+      "topic": "evidence scan claims repo-wide but misses 2 hits in the CUDA source",
+      "detail": "materials/render-skybox-scan.txt 标「全仓（tests/ + src/）」共 42 行；我 `git grep -n render_skybox -- tests src` 得 44 行，漏了 src/render/kernel/cuda/render_megakernel.cu:30 与 :195（内核注释，非断言）。结论（无其他 stale 拒绝断言）不受影响。",
+      "suggestion": "fix_or_note",
+      "fix": "把口径写成「tests/ 与 src/ 的 .rs」或补齐两行"
+    },
+    {
+      "id": "O3",
+      "severity": "record",
+      "topic": "e2e read(Rgb).is_ok() does not verify content",
+      "detail": "OutputResources::read 只做「输出已启用 + device→host 拷贝」，不校验像素内容；README/receipt 写作“output buffer written”略强于断言事实。真正的像素面由 S3 位级比较承担。",
+      "suggestion": "fix_or_note",
+      "fix": "措辞改为「RGB 输出可读」"
+    },
+    {
+      "id": "O4",
+      "severity": "record",
+      "topic": "two of the three files keep the skip-on-context-panic pattern for the dynamic-ray negative control",
+      "detail": "render_kernel_flags.rs 用 `let Ok(context) = created else { continue; }`、render_kernel_rgb.rs 用 `Err(_) => continue`：若 context 创建 panic，该 case 被静默跳过；render_e2e.rs 版是直接调用（panic 即失败）。该模式是预存在写法，本片未新增；三处合并仍能判定。",
+      "suggestion": "accept",
+      "fix": "后续可统一为「创建失败即失败」"
+    },
+    {
+      "id": "O5",
+      "severity": "record",
+      "topic": "S1b evidence README lists 3 forbidden terms verbatim inside a negated sentence",
+      "detail": "证据 README §6 的「不宣称…」句里字面出现 3 个禁词；按卡面 checks 的判定口径 normify check 通过（它只按自己的口径），但按「证据禁词 0」的字面规则不合格。该句是否定式、无任何结论性主张。",
+      "suggestion": "fix",
+      "fix": "改成不含字面的表述（例如「不写任何窗口/精度/等价类结论」）"
+    },
+    {
+      "id": "O6",
+      "severity": "record",
+      "topic": "dispatch message says unit has 135 result lines; evidence and my run both show 136",
+      "detail": "我自跑 `cargo test --locked`：136 result 行 / 1104 passed / 0 failed / 390 ignored，与 S1b 证据一致；派工消息的 135 是陈旧数字。",
+      "suggestion": "accept",
+      "fix": "以证据/实测为准"
+    }
+  ],
+  "boundaries": [
+    "未开 GPU、未跑 `--ignored` 设备用例：本片改的三份用例都是 #[ignore]，只能静态核断言；设备侧执行由后续 S3 attempt2 窗口覆盖（§cross_evidence 用的是 S3 证据，不是本卡重跑）。",
+    "未重跑 --no-run 与 validate --fingerprints（证据记录 0；本片只改测试断言，编译已由 cargo test 覆盖）。",
+    "read() 的语义由源码判定（只做 device→host 拷贝、不校验内容），未在设备上实测其失败面。",
+    "未改代码/证据/卡；未产出任何渲染数值结论。"
+  ],
+  "gates": {
+    "none": "QA 复核卡无门禁（卡面 checks 为 receipt task_id + forbid_claim）",
+    "self_run": "fmt exit 0 / clippy exit 0 / unit 136 result 行 1104 passed 0 failed 390 ignored（见 logs/）"
+  },
+  "gate_note": "QA 复核卡无门禁：normify gate exit 1「任务没有引用任何门禁」属预期。",
+  "claims": {
+    "no_assertion_weakening": true,
+    "e2e_net_line_count_non_positive": true,
+    "retained_negative_controls_for_dynamic_rays_and_splat": true,
+    "src_untouched": true,
+    "unit_totals_reproduced": true,
+    "evidence_manifest_self_checked": true,
+    "device_execution_cross_checked_from_s3_attempt2": true,
+    "no_gpu_no_device_numeric_no_code_change": true
+  },
+  "recompute": {"script": "recompute.py", "result": "recompute.json", "problems": 0, "findings": 6}
+}
