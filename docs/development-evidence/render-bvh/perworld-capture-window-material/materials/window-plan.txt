@@ -1,0 +1,88 @@
+PER-WORLD RENDER REFERENCE CAPTURE - WINDOW PLAN (material; not executed)
+=========================================================================
+Task (material): 2026-10-30-render-perworld-capture-window-material
+Task (executed): 2026-10-30-render-perworld-capture   [GPU full load; user double-sign required]
+Gap: 2026-10-28-render-per-world-geom-light-gap
+
+PURPOSE
+- Capture a per-world reference (nworld=3, different hinge angle per world) with the pinned
+  upstream environment. Capture only: this window makes NO numerical acceptance claim.
+
+SCRIPT IDENTITY
+- path   : scripts/capture_render_perworld.py
+- sha256 : 971cb8b13db82a9076c81b15936b2c97ffe2df8d3c0e47d1d9d0b10c78552775
+- bytes  : 23531
+- lines  : 497 (LF, <=500)
+- ascii  : 0 non-ASCII bytes
+- derived: scripts/capture_render_hfield.py (R05-S3a skeleton); existing capture scripts and
+           existing references are untouched.
+
+PINNED ENVIRONMENT (dry-run verified 2026-10-30, no CUDA device created)
+- python   : target/mjwarp-parallel/venv/Scripts/python.exe (sha256 feeec361..., 3.12.13)
+- versions : warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4
+- upstream : target/mjwarp-parallel/upstream @ 71da24d956378a87a703b6e1442b13aec0c4ac29 (clean)
+- scene    : fixtures/render-bvh/scene-a/scene.xml sha256 a9f1f0a3... 4639 B
+- cameras  : cam-persp (fixed, 320x240, enabled) + cam-track (targetbody, NOT enabled)
+             => cam_active_fixed_only = [true, false]
+- sizes    : ngeom=7, nlight=3, nq=1 (single hinge "tri-hinge")
+
+COMMANDS (verbatim)
+(A) pre-window self-check (no CUDA device, writes nothing; may be run outside the window)
+target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_perworld.py --dry-run --out-dir fixtures/render-bvh/scene-a/perworld/nw3-hinge02040
+
+(B) the ONE GPU command inside the window (run once)
+target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_perworld.py --worlds 3 --hinge-deg "0,20,40" --use-fast-math false --use-shadows true --repeat 2 --out-dir fixtures/render-bvh/scene-a/perworld/nw3-hinge02040
+
+Optional env: MJWARP_CAPTURE_AT (ISO8601; recorded in capture.json.captured_at)
+
+HARD SELF-CHECKS (non-zero exit on violation)
+- --out-dir must be inside fixtures/render-bvh/scene-a/perworld/ and must not already be non-empty
+- --worlds >= 2 and len(hinge-deg values) == worlds
+- use_fast_math false (product same recipe), use_shadows true, samples_per_pixel=1, fixed cameras only
+- --repeat 2: array_equal for every array AND byte-identical npz (deterministic ZIP_STORED);
+  otherwise nothing is written and no claim is made
+
+PRE-WINDOW BASELINE (5 minutes before the window)
+- nvidia-smi free/util x3 (about 1 s apart), compute-apps raw + filtered, build processes (must be 0),
+  git log -1 + git status --porcelain (must be clean)
+- baseline_free_mib = min(free) of the 3 samples (conservative)
+- floor_mib = baseline_free_mib - 3072      (R02 precedent: 12858-3072=9786)
+- stop if any sample has free < floor_mib or used delta > 3072 MiB
+- regular threshold: util < 40 (NO pre-approved exception, do NOT pass -OpenUtilLimit)
+- if util stays >= 40 or foreign compute-apps appear before opening: STOP and report; do not retry
+
+WINDOW BODY / TIME CAP (30 min cap)
+  step 0 confirm zero build processes + clean tree + write snapshot          2 min
+  step 1 environment check (command A or repository state)                  1-2 min
+  step 2 run command B (two captures, write npz + capture.json)             seconds - 1 min
+  step 3 re-check floor, verify product list + sha, record window facts      3 min
+
+FAILURE => STOP (no retry, no parameter change, no relaxed criteria)
+1 any non-zero exit; 2 two captures differ; 3 legacy manifest differs (69 entries);
+4 write outside the allowed subtree / out-dir already non-empty; 5 free below floor;
+6 foreign GPU load or util >= 40. Keep target/ window facts, report Chief and user.
+
+EXPECTED PRODUCTS  (fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/)
+  rgb.npz    keys rgb_w{0,1,2}_cam0     [240,320,3] float32   ~2,764,800 B (2.64 MiB)
+  depth.npz  keys depth_w{0,1,2}_cam0   [240,320]   float32   ~921,600 B (0.88 MiB); raw planar, 0 = no hit
+  seg.npz    keys seg_w{0,1,2}_cam0     [240,320,2] int32     ~1,843,200 B (1.76 MiB); bg = (-1,-1)
+  state.npz  qpos (3,1), geom_xpos (3,7,3), geom_xmat (3,7,9), light_xpos (3,3,3),
+             light_xdir (3,3,3), all float32                         ~1.2 KB
+  capture.json  recipe + environment + two-run shas + two_captures_bitwise_identical
+                + legacy_reference_untouched + legacy_reference_files=69   ~8-20 KB
+- npz is deterministic ZIP_STORED (fixed timestamps); actual sha256 values come from the script output.
+- scope: the reference covers PER-WORLD GEOM POSES only. light_xpos/light_xdir are stored for
+  completeness; per-world light poses are NOT claimed (the device path still indexes lights
+  single-world today).
+
+LEGACY REFERENCE PROTECTION
+- the script snapshots fixtures/render-bvh (excluding the whole scene-a/perworld/ subtree) before and
+  after, requires identical sha256 manifests (69 entries measured), otherwise non-zero exit.
+- known narrowing: the exclusion is the whole perworld/ subtree (QA review O3); finer-grained
+  checks are deferred to the implementation slice and are not claimed here.
+
+USER DOUBLE-SIGN BLOCK (to be filled)
+  plan version (this file) sha256 : ____________________
+  decision: [ ] approve  [ ] reject  [ ] modify (note: ____________)
+  user signature / date           : ____________________
+  Chief collated at               : ____________________
