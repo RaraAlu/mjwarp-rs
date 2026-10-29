@@ -51,7 +51,11 @@
 
 ## 5. 门禁
 
-fmt / clippy / clippy-cuda / unit 全过（unit 1106 过 / 0 败）；`cargo test --locked --no-run` exit=0 且日志含 `Finished`。日志见 `logs/gate-*.txt`、`logs/no-run.txt`。
+fmt / clippy / clippy-cuda / unit 全过（unit **1106 过 / 0 败 / 392 ignored**）；`cargo test --locked --no-run` exit=0 且日志含 `Finished`。
+
+日志：`logs/gate-{fmt,clippy,clippy-cuda,unit}.txt` ——由 `.normify/runs/2026-10-30-render-module-split-step2/{fmt,clippy,clippy-cuda,unit}.json` **原样转写**（权威门禁结果在 `.normify/runs`，已随卡入库；转写只为证据自包含）+ `logs/no-run.txt`。
+
+**deps 口径（QA O2）**：本文与 receipt 里的「deps **6**」= `mjwarp.render` 四个模块的 **6 条 `from_api` 依赖**（`render.kernel` 4 条 + `render.context` 2 条）；**全仓 deps 总数 226 / from_api 141 在本片前后不变**（本片未增删任何依赖，只改 `[[source]]` 归属）。
 
 ## 6. 未做
 
