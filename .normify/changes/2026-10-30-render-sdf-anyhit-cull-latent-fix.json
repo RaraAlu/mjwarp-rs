@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-sdf-anyhit-cull-latent-fix",
+  "title": {
+    "zh": "渲染：阴影 any-hit 对 SDF 的背面剔除 latent fix（1 行判据 + 注释契约 + host 拒绝回归测试；不解除 host 拒绝）",
+    "en": "Render: latent fix for the SDF backface-cull divergence under any-hit shadows (one-line criterion, comment contract, host-rejection regression test; host rejection unchanged)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "承接 `2026-10-28-render-shadow-sdf-gtype-cull-gap`（Chief 2026-10-30 批准方案 A：先独立小片修 latent，再由解锁片实现 SDF 求交）。现状：`render_common.cu:393` 的 cull 排除表只有 `gtype==7|1`，SDF（8）不在其中；但设备对 `gtype==8` 目前恒 miss，且 megakernel host 对含 8 的模型硬拒绝（`megakernel.rs:109`），所以缺口今天不可达。本片只做 latent 对齐：① cull 判据排除 `gtype==8`（上游 any-hit 对 MESH/SDF 都不填 normal ⇒ 不剔背）；② 在 SDF 占位分支注释写清解锁契约；③ 把 host 拒绝抽成可单测校验并加 host-only 回归测试，钉住「不可达」前提。**不解除 host 拒绝、不实现 SDF 求交、不改判据/参考/ABI、不开窗口。**",
+    "en": "Latent alignment slice from the SDF cull gap: exclude gtype==8 from the backface-cull criterion (upstream any-hit fills no normal for MESH/SDF), document the unlock contract in the SDF placeholder branch, and add a host-only regression test that keeps the SDF host rejection in place. No host unlock, no SDF intersection implementation, no criteria/ABI changes, no GPU window."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.render.kernel"
+    ]
+  },
+  "acceptance": [
+    "**cull 判据**：`src/render/kernel/cuda/render_common.cu` 的 `cull_this` 增加 `gtype == 8` 排除，注释写明「上游 any-hit 对 MESH/SDF 不填 normal ⇒ 不剔背」并指向 gap 卡 `2026-10-28-render-shadow-sdf-gtype-cull-gap`。",
+    "**解锁契约注释**：同文件 `gtype==8` 占位分支写明解锁时必须走 any-hit 语义（`d = 0 if hit else -1`、不填 normal、不剔背），避免解锁片重复踩坑。",
+    "**host 拒绝回归测试**：把 megakernel 对 `geom_type==8` 的拒绝抽成可单测的小校验（错误串与行为不变），并新增 **host-only 单测**断言含 `geom_type==8` 的输入仍返回 `LauncherError::Unsupported`；该测试在 `cargo test` 内可执行、不需要 GPU 会话。",
+    "**证据**：README/receipt 记录改动后新的 `MEGAKERNEL_SOURCE` sha256 / PTX sha256 / PTX bytes / `aa_resolve` 三值，并附「内核身份引用清单（历史 vs 现行）」（活体断言 0；历史引用 50 行/18 文件，全部在 `docs/development-evidence/**`，**不回改**，只注明历史证据保留当时身份）。",
+    "**边界**：`git diff --stat -- src` 只含 `render_common.cu` 与 `megakernel.rs`；不改 host 拒绝语义、不改 ABI/判据/容差/参考；不改任何历史证据（卡面 `unchanged` 检查钉住 R08/R02 证据目录）。不宣称任何 SDF 渲染能力或数值结论。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过；`--no-run` 日志含 exit 码与 `Finished`；`validate --fingerprints` 错误 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-render-r08-rgb-hetero-validate"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "src/render/kernel/cuda/render_common.cu",
+      "src/render/kernel/megakernel.rs",
+      "docs/development-evidence/render-bvh/sdf-anyhit-cull-latent-fix/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-30 注册（Chief 批准方案 A）。**顺序硬约束：不得早于 R08-S3 verified 起片**——本片改 `render_common.cu` 会改 `MEGAKERNEL_SOURCE`（6 个 .cu 拼接）与 PTX sha（现行 `e68e3412…` / `0b947492…` / 268,275 B），而 R08 窗口材料与证据绑定这组三值且窗口前提是零 .cu 改动；因此用 `depends_on = 2026-10-29-render-r08-rgb-hetero-validate` 机器钉死（该卡 verified 前本卡无法 start）。start 等 Chief 通知。内核身份影响已盘点：`src/tests/scripts/fixtures` 活体断言 **0**，历史引用 **50 行/18 文件**全在 `docs/development-evidence/**`，按 Chief 口径**不回改历史证据**，只在本卡证据里记新三值与清单。另本片不处理 depth/seg 路径的 SDF 静默 miss（见 gap 卡 note 新发现），留解锁片一并解决。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T03:40:00.000Z",
+  "updated_at": "2026-10-30T03:40:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "docs/development-evidence/render-bvh/r08-rgb-hetero",
+        "docs/development-evidence/render-bvh/r08-rgb-hetero-window-material",
+        "docs/development-evidence/render-bvh/r02-skybox"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-anyhit-cull-latent-fix/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-sdf-anyhit-cull-latent-fix"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "SDF 渲染已覆盖",
+        "渲染数值验收通过",
+        "等价"
+      ]
+    }
+  ]
+}
