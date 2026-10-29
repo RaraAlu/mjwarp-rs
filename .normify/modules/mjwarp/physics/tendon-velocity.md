@@ -64,6 +64,9 @@ path = "src/physics/tendon_velocity/launcher_specs.rs"
 [[source]]
 path = "src/physics/tendon_velocity/metadata_buffer.rs"
 
+[[source]]
+path = "src/physics/tendon_velocity/tests/launcher.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::TendonVelocityPlan"

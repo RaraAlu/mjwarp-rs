@@ -328,6 +328,57 @@ path = "src/physics/query/batch.rs"
 [[source]]
 path = "src/physics/query/batch/tests.rs"
 
+[[source]]
+path = "src/physics/callback.rs"
+
+[[source]]
+path = "src/physics/callback/tests.rs"
+
+[[source]]
+path = "src/physics/derivative.rs"
+
+[[source]]
+path = "src/physics/derivative/tests.rs"
+
+[[source]]
+path = "src/physics/history/buffer.rs"
+
+[[source]]
+path = "src/physics/history/buffer/read.rs"
+
+[[source]]
+path = "src/physics/history/buffer/reset.rs"
+
+[[source]]
+path = "src/physics/history/tests.rs"
+
+[[source]]
+path = "src/physics/integrator.rs"
+
+[[source]]
+path = "src/physics/integrator/discrete.rs"
+
+[[source]]
+path = "src/physics/integrator/discrete/tests.rs"
+
+[[source]]
+path = "src/physics/integrator/tests.rs"
+
+[[source]]
+path = "src/physics/inverse.rs"
+
+[[source]]
+path = "src/physics/inverse/tests.rs"
+
+[[source]]
+path = "src/physics/rne_bias.rs"
+
+[[source]]
+path = "src/physics/sensor.rs"
+
+[[source]]
+path = "src/physics/sensor/tests.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::forward::step"
@@ -338,66 +389,6 @@ zh = """
 """
 en = """
 Planned local function contract for upstream forward.step (U001). Matrix: G16～G19. Phase: P6. Not implemented; RPC is only an abstract contract notation.
-"""
-
-[[apis]]
-protocol = "rpc"
-path = "mjwarp_rs::physics::collision::collision"
-
-[apis.description]
-zh = """
-计划保留等价函数。保留冻结上游语义。 U006；G07～G11；P5/P7。
-"""
-en = """
-Planned local function contract for upstream collision_driver.collision (U006). Matrix: G07～G11. Phase: P5/P7. Not implemented; RPC is only an abstract contract notation.
-"""
-
-[[apis]]
-protocol = "rpc"
-path = "mjwarp_rs::physics::collision::nxn_broadphase"
-
-[apis.description]
-zh = """
-计划保留等价函数。保留冻结上游语义。 U007；G07～G11；P5/P7。
-"""
-en = """
-Planned local function contract for upstream collision_driver.nxn_broadphase (U007). Matrix: G07～G11. Phase: P5/P7. Not implemented; RPC is only an abstract contract notation.
-"""
-
-[[apis]]
-protocol = "rpc"
-path = "mjwarp_rs::physics::collision::sap_broadphase"
-
-[apis.description]
-zh = """
-计划保留等价函数。保留冻结上游语义。 U008；G07～G11；P5/P7。
-"""
-en = """
-Planned local function contract for upstream collision_driver.sap_broadphase (U008). Matrix: G07～G11. Phase: P5/P7. Not implemented; RPC is only an abstract contract notation.
-"""
-
-[[apis]]
-protocol = "rpc"
-path = "mjwarp_rs::physics::collision::primitive_narrowphase"
-
-[apis.description]
-zh = """
-计划保留等价函数。保留冻结上游语义。 U009；G08；P5。
-"""
-en = """
-Planned local function contract for upstream collision_primitive.primitive_narrowphase (U009). Matrix: G08. Phase: P5. Not implemented; RPC is only an abstract contract notation.
-"""
-
-[[apis]]
-protocol = "rpc"
-path = "mjwarp_rs::physics::collision::sdf_narrowphase"
-
-[apis.description]
-zh = """
-计划保留等价函数。保留冻结上游语义。 U010；G10；P5。
-"""
-en = """
-Planned local function contract for upstream collision_sdf.sdf_narrowphase (U010). Matrix: G10. Phase: P5. Not implemented; RPC is only an abstract contract notation.
 """
 
 [[apis]]

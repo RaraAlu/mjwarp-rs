@@ -18,6 +18,12 @@ Own fixed-width prototype descriptors and import identity/weak registration. CUD
 [[source]]
 path = "src/runtime/external.rs"
 
+[[source]]
+path = "src/runtime/external/view.rs"
+
+[[source]]
+path = "src/runtime/external/view/tests.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::runtime::device_view"

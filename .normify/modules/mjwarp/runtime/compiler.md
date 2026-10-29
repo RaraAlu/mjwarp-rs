@@ -10,9 +10,10 @@ en = "Kernel compiler probes"
 [description]
 zh = """
 编译冻结CubeCL双路内核。 产品目标接口仍属计划。
+vendored 上游头政策：`include/warp-headers/` 36 个文件（NVIDIA/warp v1.15.0 @ ffa038b1）原样复制、不入架构树——来源与逐文件 sha256 见 W15 manifest `docs/development-evidence/w15-verbatim-headers/headers.json`，由 `tests/launcher-warp-headers.rs` 断言；它们是第三方头、经 NVRTC include 路径消费，无本地文件级 impact 场景，整树升级按 manifest 差集处理。
 """
 en = """
-Own frozen CubeCL C++ and LLVM kernel compilation probes, not a production backend choice. Production target APIs remain planned.
+Own frozen CubeCL C++ and LLVM kernel compilation probes; production target APIs remain planned. Vendored `include/warp-headers/` (36 files, NVIDIA/warp v1.15.0 @ ffa038b1) stays out of the architecture tree: provenance and per-file sha256 are in the W15 manifest `docs/development-evidence/w15-verbatim-headers/headers.json`, asserted by `tests/launcher-warp-headers.rs`; third-party headers consumed via the NVRTC include path, upgraded wholesale via the manifest diff.
 """
 
 [[source]]

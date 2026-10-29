@@ -151,6 +151,9 @@ path = "src/physics/mass_matrix/resident/kernels.rs"
 [[source]]
 path = "src/physics/mass_matrix/resident/tests/launcher.rs"
 
+[[source]]
+path = "src/physics/mass_matrix/multiply/borrowed/device_energy/schedule.rs"
+
 [[apis]]
 protocol = "rpc"
 path = "mjwarp_rs::physics::probe_mass_matrix"

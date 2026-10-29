@@ -240,6 +240,21 @@ path = "src/runtime/launcher/render.rs"
 
 [[source]]
 path = "src/runtime/launcher/render/args.rs"
+
+[[source]]
+path = "src/runtime/backend.rs"
+
+[[source]]
+path = "src/runtime/backend/tests.rs"
+
+[[source]]
+path = "src/runtime/launcher/frozen.rs"
+
+[[source]]
+path = "src/runtime/launcher/warp.rs"
+
+[[source]]
+path = "src/runtime/presence.rs"
 +++
 
 ## P1局部实现
