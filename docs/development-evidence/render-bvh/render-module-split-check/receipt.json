@@ -1,0 +1,144 @@
+{
+  "task_id": "2026-10-30-render-module-split-check",
+  "kind": "render-module-split-step1-check",
+  "reviewed_task": "2026-10-30-render-module-split",
+  "reviewed_step": 1,
+  "reviewed_commits": {"base": "9e1567a2", "landing": "7de14d30", "head_at_review": "4cdeffec"},
+  "verdict": {
+    "result": "pass",
+    "blockers": 0,
+    "must_fix": 1,
+    "observations": 6,
+    "must_fix_detail": "证据 body 数字不可复现：README §4/偏差3、receipt.measured_lines 的 421/422「字节」实为字符数（真实 749 B）；两个 body sha256（4f54ed56…/483d91ae…）与实际（f680bfbe…）不符；「新文件末尾补 1 个 LF」不成立——两文件 body 逐字节相同。修正只需改数字，不需重跑；正文逐字保留结论更强（byte-identical）",
+    "scope": "render split 步 1 只读复核：容器化/三叶归属/11 API 与 6 依赖逐字/body 与行数/布局/validate 与 coarse 37→36/impact 3 处/零代码改动/证据/四门禁自跑"
+  },
+  "review_points": {
+    "structure": {
+      "modules": [68, 71],
+      "leaves": [61, 63],
+      "api_keys_total": [398, 398],
+      "api_duplicates": [0, 0],
+      "new_modules": ["mjwarp.render.kernel", "mjwarp.render.bvh", "mjwarp.render.context"],
+      "removed_modules": []
+    },
+    "container": {
+      "sources": [53, 53],
+      "source_path_set_identical": true,
+      "apis": [11, 0],
+      "deps": [6, 0],
+      "pre_deps_all_with_from_api": true,
+      "post_is_container": true,
+      "children": ["mjwarp.render.bvh", "mjwarp.render.context", "mjwarp.render.kernel"]
+    },
+    "leaf_assignment": {
+      "kernel": {"apis": 1, "deps": 4, "sources": 0},
+      "bvh": {"apis": 2, "deps": 0, "sources": 0},
+      "context": {"apis": 8, "deps": 2, "sources": 0},
+      "from_api_is_own_leaf_api": true,
+      "dep_distribution": {"mjwarp.render.kernel": 4, "mjwarp.render.context": 2}
+    },
+    "apis_verbatim": {"moved": 11, "identical_protocol_path_zh_en": 11},
+    "deps_verbatim": {
+      "moved": 6,
+      "six_tuple_identical_including_bilingual_labels": true,
+      "other_modules_deps_unchanged": true,
+      "inbound_deps_to_render": 0
+    },
+    "container_body": {
+      "old": {"file_bytes": 9119, "total_lines": 393, "fence_line": 369, "body_lines": 24,
+              "body_bytes": 749, "body_chars": 421,
+              "body_sha256": "f680bfbe2a589b81a68ca3368b45c07d268aa3fcf78f4f90985e45a32d29b730"},
+      "new": {"file_bytes": 3923, "total_lines": 201, "fence_line": 177, "body_lines": 24,
+              "body_bytes": 749, "body_chars": 421,
+              "body_sha256": "f680bfbe2a589b81a68ca3368b45c07d268aa3fcf78f4f90985e45a32d29b730"},
+      "old_render_md_deleted": true,
+      "body_byte_identical": true,
+      "documented_values_mismatch": [
+        {"field": "old_body_bytes", "claimed": 421, "actual": 749, "note": "421 为字符数"},
+        {"field": "new_body_bytes", "claimed": 422, "actual": 749},
+        {"field": "old_body_sha256", "claimed": "4f54ed56…", "actual": "f680bfbe…"},
+        {"field": "new_body_sha256", "claimed": "483d91ae…", "actual": "f680bfbe…"},
+        {"field": "body_delta", "claimed": "末尾 +1 LF（421→422）", "actual": "两 body 逐字节相同"}
+      ]
+    },
+    "layout": {
+      "path": ".normify/layouts/mjwarp/render.toml",
+      "order": ["mjwarp.render.bvh", "mjwarp.render.context", "mjwarp.render.kernel"],
+      "order_three_distinct_children": true,
+      "mode": "layers",
+      "max_columns": 3,
+      "reading_bilingual": true,
+      "no_layout_missing": true,
+      "no_new_order_incomplete": true
+    },
+    "validate": {
+      "errors": 0,
+      "warnings": 5,
+      "warns_equal_evidence_final_log": true,
+      "leaf_too_coarse": {"before": 37, "after": 36, "dropped": ["mjwarp.render"], "added": []},
+      "no_from_api_non_leaf": true,
+      "no_api_already_removed_now": true,
+      "intermediate_api_already_removed_captured": 3,
+      "intermediate_api_already_removed_claimed": 11
+    },
+    "impact_step1": {
+      "src/render/kernel/megakernel.rs": "容器 mjwarp.render（53 源/0 API）",
+      "src/render/bvh/refit.rs": "容器 mjwarp.render",
+      "src/render/context/lifecycle.rs": "容器 mjwarp.render"
+    },
+    "zero_code_change": {
+      "diff_files_total": 21,
+      "diff_breakdown": {"normify": 8, "evidence": 13},
+      "non_governance_paths": [],
+      "code_diff": [],
+      "post_to_head_diff": [".normify/changes/2026-10-30-normify-leaf-rule-docs.json"]
+    },
+    "evidence": {
+      "files": 13,
+      "committed_blob_all_lf_no_bom": true,
+      "receipt_task_id_ok": true,
+      "forbidden_term_literal_hits_in_main_evidence": 5,
+      "forbidden_note": "均在否定式非声明（README §8、receipt.not_claimed）；normify 自身 check 通过"
+    },
+    "uids": {"modules_with_uid": 71, "duplicate_uids": [], "new_leaf_fingerprint_pending": true},
+    "gates_self_run": {
+      "fmt": "exit 0（logs/fmt.log 空）",
+      "clippy_all_targets": "exit 0",
+      "clippy_all_targets_features_cuda": "exit 0",
+      "unit": "exit 0；136 result 行 / 1106 passed / 0 failed / 392 ignored（与证据 gate-unit 逐项相同）",
+      "no_run_evidence_log": "含 exit=0 + Finished"
+    },
+    "cards": {
+      "main": {"status": "verified", "revision_before": "9e1567a2", "closed_at_present": true},
+      "check": {"status": "in_progress", "revision_before": "4cdeffec"}
+    },
+    "recompute": {"script": "recompute.py", "result": "recompute.json", "checks": 17, "problems": 1}
+  },
+  "observations": [
+    {"id": "P1", "severity": "需修（轻微）", "topic": "证据 body 字节数/sha256/末尾 LF 声明与 committed 文件不符", "advice": "按实测改正数字（749 B / 421 字符 / sha f680bfbe…）；两 body 逐字节相同；不需重跑"},
+    {"id": "O1", "severity": "记录", "topic": "validate-intermediate 截断（16 告警只捕获 3 条 api-already-removed，README 称 11）", "advice": "接受（中间态）；下次整段重定向落盘"},
+    {"id": "O2", "severity": "记录", "topic": "主卡证据否定式非声明里字面出现禁词 5 处", "advice": "接受（normify check 通过）；若要求字面 0 则改写"},
+    {"id": "O3", "severity": "记录", "topic": "容器持 53 源/三叶 0 源/impact 落容器 = 步 1 声明内偏差", "advice": "步 2 必须重核源集合、impact→三叶、coarse 36→39"},
+    {"id": "O4", "severity": "记录", "topic": "三新叶 fingerprint=pending（当前无漂移）", "advice": "步 2 搬源后必须刷新指纹"},
+    {"id": "O5", "severity": "记录", "topic": "正文保留旧绝对路径 C:/Rust/…（历史正文逐字）", "advice": "接受"},
+    {"id": "O6", "severity": "建议", "topic": "no-run/中间态日志沿用 PowerShell 捕获（stderr 噪声、截断）", "advice": "用 cmd /c 重定向"}
+  ],
+  "limits": [
+    "只读复核步 1：未搬源、未改模块/布局/证据、未跑 GPU",
+    "步 2（46 源搬迁 / impact→三叶 / coarse 36→39 / 指纹刷新）不在本卡范围",
+    "body 数字的实测值只用于指出偏差，未代改主卡证据"
+  ],
+  "artifacts": [
+    "README.md",
+    "recompute.py",
+    "recompute.json",
+    "logs/recompute.log",
+    "logs/fmt.log",
+    "logs/clippy.log",
+    "logs/clippy-cuda.log",
+    "logs/unit.log",
+    "logs/gates-raw.txt",
+    "materials/body-number-audit.txt",
+    "manifest.txt"
+  ]
+}
