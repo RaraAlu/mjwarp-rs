@@ -434,23 +434,43 @@ fn aa_supported_and_remaining_rejections_pre_launch() {
         "use_shadows=true 必须被接受（实际 {shadow_result:?}）"
     );
 
-    // 4) 其余 2 类仍写前拒绝（AA 与阴影均已从拒绝面移除）。
-    let cases = [
-        (
-            "use_precomputed_rays=false",
-            mjwarp_rs::render::ContextParams {
-                use_precomputed_rays: false,
-                ..s7b3::default_params()
-            },
-        ),
-        (
-            "render_skybox",
-            mjwarp_rs::render::ContextParams {
-                render_skybox: true,
-                ..s7b3::default_params()
-            },
-        ),
-    ];
+    // 4) R02-S1：`render_skybox=true` 已解锁（host 前置拒绝移除）→ 必须被接受并发射成功。
+    let skybox_params = mjwarp_rs::render::ContextParams {
+        render_skybox: true,
+        ..s7b3::default_params()
+    };
+    let skybox_context = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        s7b3::create_context_with_params(&session, &fields, &skybox_params)
+    })) {
+        Ok(context) => context,
+        Err(_) => panic!("render_skybox=true 的 context 必须可创建（R02-S1 解锁）"),
+    };
+    assert!(
+        skybox_context.resolved().skybox.is_some(),
+        "scene-a 必须解析出天空盒纹理"
+    );
+    let skybox_poses = camera_data_poses(&fields, skybox_context.resolved());
+    let skybox_rays = precomputed_rays(&session, &fields);
+    let skybox_result = renderer.render(
+        &skybox_context,
+        &fields,
+        &model,
+        &skybox_poses,
+        &skybox_rays,
+    );
+    assert!(
+        skybox_result.is_ok(),
+        "render_skybox=true 必须被接受（实际 {skybox_result:?}）"
+    );
+
+    // 5) 其余仍写前拒绝（AA/阴影/天空盒均已从拒绝面移除；动态射线由本用例守住）。
+    let cases = [(
+        "use_precomputed_rays=false",
+        mjwarp_rs::render::ContextParams {
+            use_precomputed_rays: false,
+            ..s7b3::default_params()
+        },
+    )];
     for (name, params) in cases {
         let created = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             s7b3::create_context_with_params(&session, &fields, &params)
@@ -470,6 +490,6 @@ fn aa_supported_and_remaining_rejections_pre_launch() {
         );
     }
     println!(
-        "s7b3 rejection surface: AA + shadows supported; precomputed=false/skybox rejected; bad AA ray count rejected"
+        "s7b3 rejection surface: AA + shadows + skybox supported; precomputed=false rejected; bad AA ray count rejected"
     );
 }

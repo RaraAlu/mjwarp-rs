@@ -232,6 +232,52 @@ fn unsupported_configurations_are_rejected_before_launch() {
         "use_shadows=true 必须被接受（实际 {shadow_result:?}）"
     );
 
+    // R02-S1：`render_skybox=true` 已解锁（host 前置拒绝移除）→ 必须被接受并发射成功。
+    let skybox_params = mjwarp_rs::render::ContextParams {
+        render_skybox: true,
+        ..default_params()
+    };
+    let skybox_context = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        create_context(&session, &fields, &skybox_params)
+    })) {
+        Ok(context) => context,
+        Err(_) => panic!("render_skybox=true 的 context 必须可创建（R02-S1 解锁）"),
+    };
+    assert!(
+        skybox_context.resolved().skybox.is_some(),
+        "scene-a 必须解析出天空盒纹理"
+    );
+    let skybox_poses = camera_data_poses(&recipe, &model, skybox_context.resolved());
+    let skybox_result = renderer.render(&skybox_context, &fields, &model, &skybox_poses, &rays);
+    assert!(
+        skybox_result.is_ok(),
+        "render_skybox=true 必须被接受（实际 {skybox_result:?}）"
+    );
+
+    // 仍未支持的特性保留写前拒绝：splat（R07 前不实现）。
+    let splat_position = [[0.0f32, 0.0, 1.0]];
+    let splat_rotation = [[1.0f32, 0.0, 0.0, 0.0]];
+    let splat_scale = [[0.1f32, 0.1, 0.1]];
+    let splat_rgba = [[1.0f32, 1.0, 1.0, 1.0]];
+    let splat_params = mjwarp_rs::render::ContextParams {
+        splat: mjwarp_rs::render::context::params::SplatInputs {
+            position: Some(&splat_position),
+            rotation: Some(&splat_rotation),
+            scale: Some(&splat_scale),
+            rgba: Some(&splat_rgba),
+            adr: None,
+            group_id: None,
+        },
+        ..default_params()
+    };
+    let splat_context = create_context(&session, &fields, &splat_params);
+    let splat_poses = camera_data_poses(&recipe, &model, splat_context.resolved());
+    let splat_result = renderer.render(&splat_context, &fields, &model, &splat_poses, &rays);
+    assert!(
+        matches!(splat_result, Err(LauncherError::Unsupported(_))),
+        "splat 必须在写前拒绝（实际 {splat_result:?}）"
+    );
+
     let cases: Vec<(&str, mjwarp_rs::render::ContextParams<'_>)> = vec![
         (
             "use_precomputed_rays=false",
@@ -240,15 +286,8 @@ fn unsupported_configurations_are_rejected_before_launch() {
                 ..default_params()
             },
         ),
-        // 注：`samples_per_pixel=2`（AA）已由 S7b3 实现、`use_shadows` 由 R09-S2b 解锁，
-        // 均不再是拒绝项；AA 的合法配置与拒绝面由 S7b3 用例（`tests/render_kernel_flags.rs`）验收。
-        (
-            "render_skybox",
-            mjwarp_rs::render::ContextParams {
-                render_skybox: true,
-                ..default_params()
-            },
-        ),
+        // 注：`samples_per_pixel=2`（AA）已由 S7b3 实现、`use_shadows` 由 R09-S2b、
+        // `render_skybox` 由 R02-S1 解锁，均不再是拒绝项；本用例保留仍在的拒绝面（动态射线/splat）。
     ];
     for (name, params) in cases {
         let context = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -265,6 +304,6 @@ fn unsupported_configurations_are_rejected_before_launch() {
         );
     }
     println!(
-        "s7b2 rejection surface: shadows supported; precomputed=false/skybox rejected (AA moved to S7b3)"
+        "s7b2 rejection surface: shadows+skybox supported; precomputed=false/splat rejected (AA moved to S7b3)"
     );
 }

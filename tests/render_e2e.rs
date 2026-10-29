@@ -430,8 +430,7 @@ fn lifecycle_create_render_refit_render_destroy() {
     println!("s8[lifecycle] 禁用输出 DisabledOutput 判定成立");
 }
 
-/// GPU：负向控制保持——2 类写前拒绝（动态射线/skybox）与 AA 射线数校验；
-/// `use_shadows=true` 已由 R09-S2b 解锁 → 改为独立「接受 → Ok(())」断言（不在拒绝面）。
+/// GPU：负向控制保持——1 类写前拒绝（动态射线）+ AA 射线数；`use_shadows`/`render_skybox` 已解锁 → 独立「接受 → 发射成功」断言。
 #[test]
 #[ignore = "需要 GPU + NVRTC"]
 fn negative_controls_hold_with_product_poses() {
@@ -446,39 +445,36 @@ fn negative_controls_hold_with_product_poses() {
     let shadow_context = create_context(&session, &fields, &shadow_params);
     let shadow_result = renderer.render(&shadow_context, &fields, &model, &product.poses, &rays);
     assert!(shadow_result.is_ok(), "use_shadows 接受");
-    let cases: Vec<(&str, ContextParams<'_>)> = vec![
-        (
-            "use_precomputed_rays=false",
-            ContextParams {
-                use_precomputed_rays: false,
-                ..default_params()
-            },
-        ),
-        (
-            "render_skybox",
-            ContextParams {
-                render_skybox: true,
-                ..default_params()
-            },
-        ),
-    ];
-    let mut rejected = 0;
-    for (name, params) in cases {
-        let context = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            create_context(&session, &fields, &params)
-        })) {
-            Ok(context) => context,
-            Err(_) => continue,
-        };
-        let result = renderer.render(&context, &fields, &model, &product.poses, &rays);
-        assert!(
-            matches!(result, Err(LauncherError::Unsupported(_))),
-            "{name} 必须在写前拒绝（实际 {result:?}）"
-        );
-        rejected += 1;
-    }
-    assert_eq!(rejected, 2, "2 类写前拒绝必须逐类可判定");
-    // AA：spp=2（nsamples=4）需要 nsamples × total_rays 条射线；只给 spp=1 射线 → 射线数拒绝。
+    // R02-S1：`render_skybox=true` 已解锁（接受 + 发射成功 + RGB 缓冲已写）。
+    let skybox_context = create_context(
+        &session,
+        &fields,
+        &ContextParams {
+            render_skybox: true,
+            ..default_params()
+        },
+    );
+    assert!(
+        skybox_context.resolved().skybox.is_some(),
+        "scene-a 天空盒纹理"
+    );
+    let skybox_result = renderer.render(&skybox_context, &fields, &model, &product.poses, &rays);
+    assert!(skybox_result.is_ok(), "render_skybox 必须被接受");
+    assert!(
+        skybox_context.outputs().read(ImageOutput::Rgb).is_ok(),
+        "skybox RGB"
+    );
+    // 动态射线仍写前拒绝。
+    let dynamic_params = ContextParams {
+        use_precomputed_rays: false,
+        ..default_params()
+    };
+    let dynamic_context = create_context(&session, &fields, &dynamic_params);
+    let dynamic_result = renderer.render(&dynamic_context, &fields, &model, &product.poses, &rays);
+    assert!(
+        matches!(dynamic_result, Err(LauncherError::Unsupported(_))),
+        "use_precomputed_rays=false 必须在写前拒绝"
+    );
     let aa_context = create_context(
         &session,
         &fields,
@@ -495,6 +491,6 @@ fn negative_controls_hold_with_product_poses() {
     );
     aa_context.destroy();
     println!(
-        "s8[negative] shadows accepted; 2 类写前拒绝 + AA 射线数（nsamples×total_rays）判定成立"
+        "s8[negative] shadows+skybox accepted; dynamic-rays 写前拒绝 + AA 射线数（nsamples×total_rays）判定成立"
     );
 }
