@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r05-s1-hfield-host",
+  "title": {
+    "zh": "R05-S1 地形 hfield：宿主静态校验与上传准备（CPU-only）",
+    "en": "R05-S1 terrain hfield: host-side static validation and upload preparation (CPU-only)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "渲染侧目前对 hfield 是显式拒绝：LeafGeometry 不接受 geom_type=1，megakernel 写前拒绝 hfield/SDF。本片只做宿主侧第一层——把 mjModel 的 hfield 静态字段（nrow/ncol/adr/data/size）解析成渲染可用的驻留结构并完成校验与上传准备（staging 形状、尺寸、布局），不接触任何设备求交，不接 megakernel，不开 GPU、不开窗口。校验语义必须与已验收的 G10 hfield-host 对齐，禁止两侧各写一套；既有 geom_type 拒绝面与全部红线文件零改动。",
+    "en": "The render side currently rejects hfield explicitly. This slice only adds the host layer: parse mjModel hfield static fields into a residency structure, validate them, and prepare the staging shape/size/layout. No device intersection, no megakernel wiring, no GPU, no window. Validation semantics must match the verified G10 hfield-host work; existing rejection surface and all red-line files stay untouched."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.render"
+    ]
+  },
+  "acceptance": [
+    "新增宿主结构承载 hfield 静态数据：geom_id、nrow、ncol、adr、data（f32 行主序）、size[4]，外加由长度推导的驻留元数据；字段校验覆盖 nrow/ncol<=0、adr 越界、data.len()!=nrow*ncol、size[2]<=0、size 非有限，错误可诊断且不 panic。",
+    "校验语义与 G10 hfield-host 的 `HfieldData` 对齐：同一组合法/非法输入在两侧结论一致，并写单测固定（非法输入逐项、合法输入值不被改写）；不新增上游没有的拒绝。",
+    "上传准备：给出驻留数组布局与 staging 描述（元素类型、长度、对齐、写入顺序），形状可被后续设备片直接消费；本片不调用 CUDA、不建设备缓冲，只交付宿主 buffer 构建函数并单测其长度/内容/边界。",
+    "接受面隔离：不修改 `LeafGeometry`/`SceneLeaf` 对 geom_type=1 的既有拒绝，也不改 megakernel 的写前拒绝；hfield 走独立入口，既有拒绝与回归断言零变化。",
+    "单测：3×3 正常样本、nrow=1/ncol=1 边界、逐项非法输入、与 G10 参考夹具（`fixtures/g10-p5/hfield-f32/` 的模型数组）同源比对；新文件 ≤500 行。",
+    "不变量：无 GPU、无验证窗、不改任一 `*.cu`、`DEVICE_SOURCES`(28)、`CollisionArgs`(504 B)、判据/参考/夹具、`src/model/render.rs`(500)、`launch.rs`(500)、`render.cu`(499)、`cast.rs`(494)、`megakernel.rs`(491)、`camera_output.rs`(499)。",
+    "四门禁（fmt/clippy/clippy-cuda/unit）绑最终树通过；证据 `docs/development-evidence/render-bvh/r05-s1-hfield-host/`（README + receipt 含 `/task_id` + manifest + 日志），LF 无 BOM、禁词 0；不写「窗口通过/已覆盖/精度达标/上游等价」。",
+    "证据里明确登记未覆盖项：设备求交、nworld>1 的 hfield 上传、SDF/天空盒仍拒绝、性能未测；不得据此宣称 R05 或地形渲染完成。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "src/render/bvh/hfield.rs",
+      "src/render/bvh/mod.rs",
+      "tests/render_hfield_host.rs",
+      "docs/development-evidence/render-bvh/r05-s1-hfield-host/"
+    ],
+    "resources": [],
+    "priority": 64
+  },
+  "note": "Arch 2026-10-28 21:20 登记：R09 家族 verified 后按 Chief 指定开 R05 地形 hfield 家族。本片是家族第一片（host 静态校验/上传），CPU-only，可立即在 21:00–24:00 空闲块执行；设备侧相交与 e2e 另立 S2/S3，其中 e2e 需要 1 次捕获 + 1 次验证窗，窗口排期由 Arch 报 Chief 签。校验语义复用 G10 hfield-host（2026-10-25-g10-p5-hfield-host，verified），不允许两套实现。\n放弃：与已 in_progress 的 2026-10-28-render-bvh-r05-s1-hfield-params 范围重复，撤回本卡避免抢写",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-28T13:20:00.000Z",
+  "updated_at": "2026-10-28T13:22:04.877Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r05-s1-hfield-host/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r05-s1-hfield-host"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}

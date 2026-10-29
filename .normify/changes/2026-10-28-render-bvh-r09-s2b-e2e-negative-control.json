@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-28-render-bvh-r09-s2b-e2e-negative-control",
+  "title": {
+    "zh": "R09-S2b 补齐：`render_e2e` negative control 里 `use_shadows` 旧拒绝断言",
+    "en": "R09-S2b follow-up: fix the stale use_shadows rejection assertion in render_e2e negative controls"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "S3b 验证窗 attempt1 中 `render_e2e` exit 101：`tests/render_e2e.rs:475` 的 `negative_controls_hold_with_product_poses` 仍断言「`use_shadows=true` 必须在写前被拒绝」，而 S2b 已解锁该路径（实际返回 `Ok(())`）。S2b 当时只同步了 `tests/render_kernel_flags.rs` 与 `tests/render_kernel_rgb.rs` 两条旧断言，**漏了 `render_e2e` 这一处同类断言**。本片把该 negative control 的 `use_shadows` 期望从「拒绝」改为「接受」，其余拒绝面保持全强度，不改任何判据/参考/容差。",
+    "en": "Update the render_e2e negative control that still expects use_shadows rejection after the S2b unlock; keep all other rejection surfaces at full strength."
+  },
+  "modules": {},
+  "acceptance": [
+    "`tests/render_e2e.rs` 的 `negative_controls_hold_with_product_poses` 不再断言 `use_shadows=true` 被写前拒绝（改为接受语义）；**其余 negative control 拒绝面保持全强度**，不得删除或弱化。",
+    "全仓再自查一遍「把 `use_shadows` 写前拒绝当契约」的残留断言（`grep` 证据），确认无第三处遗漏。",
+    "判据/容差/参考/夹具零改动；四门禁通过；证据 `docs/development-evidence/render-bvh/r09-s2b-e2e-negative-control/`（README + receipt 含 `/task_id` + manifest），本片不作数值结论。",
+    "红线：`render.cu`(499)/`launch.rs`(500)/`cast.rs`(494)/`model/render.rs`(500)/`camera_output.rs`(499)/`DEVICE_SOURCES`=28/`CollisionArgs` 504 B 零改动。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-28-render-bvh-r09-s2-host-guard-unlock"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "tests/render_e2e.rs",
+      "docs/development-evidence/render-bvh/r09-s2b-e2e-negative-control/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-28 登记（S3b attempt1 红项 2）：S2b 同类旧断言遗漏，非判据放宽。CPU-only，无 GPU 窗口。\n放弃：运行中范围与 S3b validation(冻结 tests/) 互锁，无法单独提交；b 项修复与证据并入 S3b validation 提交（tests/render_e2e.rs 在 S3b scope 内），本卡撤销登记",
+  "revision": {
+    "before": "b295e7aa3c4a2256c6b5d33b14cad1d2947d66a8",
+    "after": null
+  },
+  "created_at": "2026-10-28T12:08:00.000Z",
+  "updated_at": "2026-10-28T12:21:56.523Z",
+  "closed_at": null,
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r09-s2b-e2e-negative-control/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-28-render-bvh-r09-s2b-e2e-negative-control"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "完整渲染通过",
+        "完整R01通过",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
