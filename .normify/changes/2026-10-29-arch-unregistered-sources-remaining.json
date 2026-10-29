@@ -5,12 +5,43 @@
     "zh": "架构树剩余 154 个未登记文件收口（physics collision 91 / runtime 27 / vendored WARP 头 36 政策）",
     "en": "Close the remaining 154 unregistered architecture sources (physics collision 91 / runtime 27 / vendored WARP headers policy 36)"
   },
-  "status": "backlog",
+  "status": "proposed",
   "intent": {
     "zh": "2026-10-29 P1 卡（`2026-10-28-arch-volume-module-sources`）只收 24 个文件；全量比对（1091 条登记源 vs `git ls-files` 823 个 src/include/native 文件）后仍剩 **154** 个未登记：physics 91（collision 72 + callback 2 + derivative 2 + history 4 + integrator 4 + inverse 2 + mass_matrix 1 + rne_bias 1 + sensor 2 + tendon_velocity 1）、runtime 27（collision_gpu 19 + backend 2 + collision_upload 1 + external 2 + launcher 2 + presence 1）、include 36（全部为 vendored `include/warp-headers/*.h`；自家 2 个 probe 头已在 P1 登记）、native 0（2 个 cpp 已在 P1 随 probe 归属）。本卡目标：让文件级 `normify impact` 对全部**自家代码**可用，并给 vendored 头一个成文政策。分两类：(a) 归属清晰但缺叶子：建议新增 `mjwarp.physics.collision`（72 文件；必要时再拆 contact-solver 与 SDF/hfield 子叶）、`mjwarp.runtime.collision-gpu`（19 + `collision_upload.rs`），physics 其余 19 与 runtime 其余 8 并入既有粗叶子或按 upstream 领域新增小叶子；须先做 module add + layout order + 依赖/边界规则评估，属架构变更；(b) vendored 第三方 `include/warp-headers/*.h` 36 个：建议**不入架构树**——非本项目实现、随 W15 头树整体原样 vendored、不承载产品契约或接口归属；登记会把第三方代码计入模块规模/行数语义并制造无意义依赖边，而文件级 impact 对它们无意义（只随整树升级变化）。改为在 `mjwarp.runtime.compiler` 描述与证据中记录目录、来源与 sha。",
     "en": "Register the remaining 154 unlisted sources: 91 physics, 27 runtime, and 36 vendored WARP headers (policy: keep out of the architecture tree). Requires new leaf modules plus layout/dependency review."
   },
-  "modules": {},
+  "modules": {
+    "modify": [
+      "mjwarp.physics.core",
+      "mjwarp.physics.mass-matrix",
+      "mjwarp.physics.tendon-velocity",
+      "mjwarp.runtime",
+      "mjwarp.runtime.compiler",
+      "mjwarp.runtime.external"
+    ],
+    "api_remove": [
+      {
+        "module": "mjwarp.physics.core",
+        "key": "rpc:mjwarp_rs::physics::collision::collision"
+      },
+      {
+        "module": "mjwarp.physics.core",
+        "key": "rpc:mjwarp_rs::physics::collision::nxn_broadphase"
+      },
+      {
+        "module": "mjwarp.physics.core",
+        "key": "rpc:mjwarp_rs::physics::collision::sap_broadphase"
+      },
+      {
+        "module": "mjwarp.physics.core",
+        "key": "rpc:mjwarp_rs::physics::collision::primitive_narrowphase"
+      },
+      {
+        "module": "mjwarp.physics.core",
+        "key": "rpc:mjwarp_rs::physics::collision::sdf_narrowphase"
+      }
+    ]
+  },
   "acceptance": [
     "**盘点复核**：复核 154 清单与分目录计数（physics 91 / runtime 27 / include 36 vendored / native 0），与 P1 卡证据口径一致；若有新增文件先并入盘点。",
     "**新叶子方案**：给出 `mjwarp.physics.collision`、`mjwarp.runtime.collision-gpu` 等新叶子的 module add + layout order + 依赖/边界规则评估（含 `structure/leaf-too-coarse` 警告影响与拆分边界），经 Chief/Arch 确认后落 `normify module add`。",
@@ -25,19 +56,43 @@
     "phase": "P8-渲染与BVH",
     "owner": "Arch",
     "files": [
-      "docs/development-evidence/render-bvh/arch-unregistered-sources-remaining/"
+      "docs/development-evidence/render-bvh/arch-unregistered-sources-remaining/",
+      ".normify/modules/mjwarp/physics/core.md",
+      ".normify/modules/mjwarp/physics/mass-matrix.md",
+      ".normify/modules/mjwarp/physics/tendon-velocity.md",
+      ".normify/modules/mjwarp/runtime/compiler.md",
+      ".normify/modules/mjwarp/runtime/external.md",
+      ".normify/modules/mjwarp/runtime/index.md",
+      ".normify/layouts/mjwarp/physics.toml",
+      ".normify/layouts/mjwarp/runtime.toml"
     ],
     "resources": [],
     "priority": 30
   },
-  "note": "Arch 2026-10-29 登记（Chief 2026-10-29 22:1x 指示：P1 只收 24 文件，剩余只登记 backlog 卡、不 start）。口径说明：Chief 原文「剩余 158」是 18 文件方案（178-20）的旧数；24 文件方案后剩 154（178-24 = 91+27+36）。依赖 P1 主卡收口后由 Chief 排期。\n2026-10-29 P3 守则并入：新增 host 四元数→矩阵派生必须先按目标 GPU 收缩序位级反推并配 GPU 参考覆盖；math::quat_to_mat 非产品路径（详见 backlog 卡 2026-10-29-render-bvh-host-quat-derivation-audit 的 note）。",
+  "note": "Arch 2026-10-29 登记（Chief 2026-10-29 22:1x 指示：P1 只收 24 文件，剩余只登记 backlog 卡、不 start）。口径说明：Chief 原文「剩余 158」是 18 文件方案（178-20）的旧数；24 文件方案后剩 154（178-24 = 91+27+36）。依赖 P1 主卡收口后由 Chief 排期。\n2026-10-29 P3 守则并入：新增 host 四元数→矩阵派生必须先按目标 GPU 收缩序位级反推并配 GPU 参考覆盖；math::quat_to_mat 非产品路径（详见 backlog 卡 2026-10-29-render-bvh-host-quat-derivation-audit 的 note）。\n2026-10-30 01:5x 预核批准（Chief 批「方案 B + vendored 不入树 + render split 另立一片（案 2 分两步）」）。方案 B：新增 2 叶 `mjwarp.physics.collision`（72 源/17,535 行，迁入 physics.core 的 5 条 collision API 原文，不新增不改语义）、`mjwarp.runtime.collision-gpu`（20 源/4,004 行，1 条真实入口 API `run_product_collision`）；其余 26 个自家文件并入既有叶/容器：physics.core +17、physics.mass-matrix +1、physics.tendon-velocity +1、runtime 容器 +5、runtime.external +2。vendored `include/warp-headers/*` 36 文件不入树，政策写进 runtime.compiler 描述与证据。基线差异：`git ls-files src include native` 今日实测 822（P1 记录 823，差 1），本卡以现算为准并在证据说明；未登记 154 → 36（仅 vendored）。预期 validate 错误 0 / 警告 5 行（leaf-too-coarse 计数 34→37）。",
   "revision": {
-    "before": null,
+    "before": "266417f0aff678bff1e6c4b989c5cfe0fd2f7a1d",
     "after": null
   },
   "created_at": "2026-10-29T14:24:00.000Z",
-  "updated_at": "2026-10-29T22:40:00.000Z",
+  "updated_at": "2026-10-29T17:35:20.803Z",
   "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
     {
       "kind": "json",
       "path": "docs/development-evidence/render-bvh/arch-unregistered-sources-remaining/receipt.json",

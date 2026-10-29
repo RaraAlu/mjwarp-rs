@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-module-split",
+  "title": {
+    "zh": "治理：mjwarp.render 结构反转与源搬迁（案 2 分两步：结构+11 API 迁移 → 46 源搬迁）",
+    "en": "Governance: mjwarp.render container conversion and source move (case 2, two steps: structure + 11 API migration, then 46 source move)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "承接 2026-10-25-render-bvh-module-split 的阻塞原因：`mjwarp.render` 目前是叶子且声明 11 个 API，而 `normify module add` 在父模块有 API 时直接拒绝（容器不能有 API），所以无法直接新建 `mjwarp.render.kernel`。本卡按 Chief 2026-10-30 批准的**案 2 分两步**执行：**步 1（结构反转 + API 迁移）** 新建 3 个叶子 `mjwarp.render.kernel`（19 源：`src/render/kernel/**`）、`mjwarp.render.bvh`（11 源：`src/render/bvh/**`）、`mjwarp.render.context`（16 源：`src/render/context*`），把 11 个 API 原文分配到三叶（kernel：`render`；bvh：`refit_bvh`、`refit_splat_bvh`；context：`create_render_context`、`RenderContext`、`OutputChannels`、`ImageOutput`、`ImageBatchLayout`、`get_rgb`、`get_depth`、`get_segmentation`），`mjwarp.render` 变为容器，53 个源暂留容器（先例：`mjwarp.runtime` 容器持 53 源），并新建布局 `.normify/layouts/mjwarp/render.toml`；此步 validate 必须 0 错误、警告不增。**步 2（源搬迁）** 把 46 个源按路径前缀搬到三叶（kernel 19 / bvh 11 / context 16），剩余 7 源（`camera.rs`、`camera/cuda/build_rays.cu`、`rays.rs`、`texture.rs`、`texture/cuda.rs`、`texture/sample.cu`、`mod.rs`）留容器；本步为纯路径归属变更，验收用「导出+build 不变、路径集合不重不漏、validate 0 错误」。不改产品代码语义、不改判据/参考/夹具、不改已验收 render 证据语义。",
+    "en": "Case 2 of the render split: step 1 converts mjwarp.render into a container by creating three leaves and migrating 11 APIs verbatim (sources stay on the container); step 2 moves 46 sources into the leaves, leaving 7 on the container. No product semantics, criteria or evidence changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**步 1**：`mjwarp.render` 变容器（无 API）、`mjwarp.render.kernel`/`.bvh`/`.context` 三叶创建且持有各自 11 个 API（键与描述原文搬迁，不新增不改语义）；`mjwarp.render` 的 53 个源仍挂容器；`normify validate --fingerprints` 错误 0、警告数不增（`api/leaf-empty`、`leaf-too-coarse` 计数不得因本步上升）；`.normify/layouts/mjwarp/render.toml` 覆盖 3 个直接子模块。",
+    "**步 2**：46 个源按路径前缀迁入三叶（kernel 19 / bvh 11 / context 16），容器剩 7 源；迁移前后路径集合不重不漏；`normify validate --fingerprints` 错误 0；`structure/leaf-too-coarse` 计数按预期上升且逐条说明；产品代码 `src/**` 零改动、`cargo build`/`cargo test --locked --no-run` 结果不变（架构树不含代码）。",
+    "**零语义改动**：不动 `src/**`、`tests/**`、`fixtures/**`、`Cargo.*`；不改任何判据、容差、参考或已验收证据的结论；不做 `--no-verify`、不手改 `.normify` 运行态。",
+    "**证据**：两段提交（步 1、步 2 各自工作+收口或按 Chief 指令合并）与 README/receipt（含 `/task_id`、LF 无 BOM、禁词 0）；记录前后 modules/叶子数、登记条目、API 归属表、validate 逐条结果。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-arch-unregistered-sources-remaining"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/render-module-split/",
+      ".normify/modules/mjwarp/render.md",
+      ".normify/modules/mjwarp/render/",
+      ".normify/layouts/mjwarp/render.toml"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-10-30 01:5x 登记（Chief 批准「render split 另立一片」，案 2 分两步）。阻塞根因记录：`normify module add` 在父模块（`mjwarp.render`）声明了 API 时拒绝创建子模块（normify `edit.rs` 原文：父模块声明了 API；容器不能有 API，先把 API 移到子模块），所以必须先搬 API 才能建 `mjwarp.render.kernel`。案 1（一次做完）被放弃的理由：单提交 diff 过大（11 API 迁移 + 46 源搬迁同时发生），QA 无法在一段 diff 内分离「API 归属」与「源归属」两类证据。本卡 depends_on 154 收口卡，避免与本卡（余 154 卡）的指纹/范围冲突；本卡 start 前须由 Chief 复核预算与顺序。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T01:56:00.000Z",
+  "updated_at": "2026-10-30T01:56:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/render-module-split/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-module-split"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "架构完成",
+        "全部模块已拆分",
+        "等价"
+      ]
+    }
+  ]
+}
