@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-29-render-bvh-r02-skybox-closeout",
+  "title": {
+    "zh": "R02 天空盒家族整片收口（plan.json 标 delivered + 整片汇总 + 遗留登记）",
+    "en": "R02 skybox family closeout (plan.json delivered rows + family summary + open items)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R02 家族（S1 离线内核/注册表、S1b 负控修正、S2 authoring 材料、S2b 参考测试实体、S3 验证窗 attempt=2、S3a 签字产物入库）全部 verified 且 QA 复核完成（S1 pass/0/8、S1b pass/0/6、S3 needs-fix 仅 O1 措辞已修/0 阻断/7 观察）。本片：① 在 `docs/development-evidence/render-bvh-precheck/plan.json` 增补 6 个 R02 slice 对象（status delivered、delivered_commits、delivered_note）与 6 条 delivery rows，并登记 scheduling_notes N11/N12 与 structural decision（S3a scope 拆分）；② 新建 `docs/development-evidence/render-bvh/r02-skybox-summary/` 整片汇总（README + receipt + manifest）。不改判据/容差/参考，不跑 GPU。",
+    "en": "Close out the R02 skybox family: add six delivered slices and delivery rows to plan.json, record scheduling notes and the S3a scope decision, and write the family summary evidence. Evidence only; no GPU execution."
+  },
+  "modules": {},
+  "acceptance": [
+    "**plan.json**：`slices` 增 6 个 R02 slice 对象（R02-S1/S1b/S2/S2b/S3/S3a，`status=delivered`、`delivered_commits`、`delivered_note` 与各证据一致）；`delivery_tracking.rows` 增 6 条（slice/task_id/owner/normify_status=verified/execution/evidence/note）；`scheduling_notes` 增 N11（R02 家族交付摘要）、N12（已知限制与后续）；`structural_decisions` 增 S3a scope 拆分；JSON 合法（node JSON.parse 通过），slices 总数 29、rows 51、notes 12、decisions 12。",
+    "**整片汇总**：`r02-skybox-summary/README.md` 含——逐张卡清单（含 task id/状态/证据路径/QA verdict）、交付数字（S1 内核基线 source `e68e3412…`/ptx `0b947492…`/268,275 B、flag bit9、模块源 39→40、unit 1103；S1b e2e 500→496、unit 1104；S2/S2b 脚本与实体身份；S3 六项与天空盒两相机全 0、两跑 sha；S3a 参考/guards 身份）、例外与无效轮（attempt1 INVALID_ROUND + attempt2 validation-only util<60；`not_a_normal_threshold_pass=true`）、修复链（S1b `f2ee32d0/1d3c7159/df24283c`、capture `812a2f77→d17d2418→d6f9864c`）、遗留/backlog（R07/R06 待用户拍板、run-window suite 字段 R05 硬编码、`-GuardsOnly` 留档、guards `-text` 复现口径、arch-volume-module-sources）、非声明。",
+    "**receipt.json**：含 `/task_id`、卡清单、关键数字、QA verdict、非声明；与 README 数字一致。",
+    "**manifest.txt**：按 committed blob 不自引用、LF 无 BOM；README/receipt 均登记。",
+    "**不改代码/判据/参考**：`src/**`、`tests/**`、`fixtures/**`、`scripts/**` 零改动；不跑 GPU、不重跑窗口；不写常规通过/精度/等价/验收类结论（字面也避免）。",
+    "**门禁与提交**：fmt/clippy/clippy-cuda/unit/`validate --fingerprints` 全绿；两段提交（plan+summary 证据 → manifest/closing），`normify check` 全过。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-render-bvh-r02-skybox-s1",
+      "2026-10-29-render-bvh-r02-skybox-s1b-negative-controls",
+      "2026-10-29-render-bvh-r02-skybox-s2-capture-authoring",
+      "2026-10-29-render-bvh-r02-skybox-s2b-reference-test",
+      "2026-10-29-render-bvh-r02-skybox-s3-validate",
+      "2026-10-29-render-bvh-r02-skybox-s3-artifacts-commit"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "docs/development-evidence/render-bvh-precheck/plan.json",
+      "docs/development-evidence/render-bvh/r02-skybox-summary/"
+    ],
+    "resources": [],
+    "priority": 57
+  },
+  "note": "Arch 2026-10-29 登记（R02 家族收口）。roadmap 卡 `2026-10-11-roadmap-r02-p8` 按规则保持 proposed（roadmap 跟踪占位，不自动关闭；与 R05 处置一致）。",
+  "created_at": "2026-10-29T11:25:00.000Z",
+  "updated_at": "2026-10-29T11:25:00.000Z",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r02-skybox-summary/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-29-render-bvh-r02-skybox-closeout"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "常规门槛通过",
+        "精度达标",
+        "上游等价",
+        "产品渲染验收通过"
+      ]
+    }
+  ]
+}
