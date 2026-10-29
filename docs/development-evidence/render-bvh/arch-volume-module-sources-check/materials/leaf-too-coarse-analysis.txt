@@ -1,0 +1,48 @@
+# `structure/leaf-too-coarse` 33→34 的口径重建与归因核对（QA 独立）
+
+## 1. 结论先行
+
+- 警告计数 **33（基线 f86b8575）→ 34（P1 后 f38b83fd）** 可复现；
+- 但**跨过阈值的模块是 `mjwarp.io.render`（源 1 → 3），不是 `mjwarp.model.core`**；
+- `mjwarp.model.core` 在基线就是 **2 个源 / 479 行**，按任何与观测计数相容的口径它**在基线已计入 33**，本片把 2→5、479→1253 行**不改变**它的 coarse 状态；
+- 因此主卡 README §5、`receipt.validate.warning_delta_explained`（以及复核卡预登记的假设）里「model.core 越过叶子规模阈值」的**归因写错了**；警告条数、validate 错误 0、登记正确性本身不受影响。
+
+## 2. 我如何重建口径（仓库内无该规则文档，normify 为二进制）
+
+从 `git show <rev>:.normify/modules/**/*.md` 解析 `id` 与 `[[source]] path`，得到：
+
+- 66 个模块，其中**叶子模块 59 个**（无子模块）。
+- 对 5 个候选口径在基线与 P1 后各算一次（叶子范围内）：
+
+| 口径 | 基线 | P1 后 | 唯一新增命中 |
+| --- | --- | --- | --- |
+| **源数 ≥ 2** | **33** | **34** | **`mjwarp.io.render`（1→3）** |
+| 源数 ≥ 2 且总行数 > 220 | 33 | 34 | `mjwarp.io.render` |
+| 源数 ≥ 2 或最大单文件 > 220 | 51 | 51 | — |
+| 源数 > 1 或最大单文件 > 220 | 51 | 51 | — |
+| 源数 ≥ 3 | 26 | 29 | io.render + math + model.core |
+
+⇒ 只有「叶子源数 ≥ 2」这一族口径与观测 **(33, 34)** 完全吻合，且唯一翻转模块是 `io.render`。
+（两条相容口径本批数据不可区分；共同点是 model.core 基线已 ≥2 源 ⇒ 已计入。）
+
+## 3. 五个被改模块的前后叶子状态
+
+| 模块 | 基线（源数 / 总 LF / 最大单文件） | P1 后 | 是否跨阈值 |
+| --- | --- | --- | --- |
+| mjwarp.render | 40 / 11 548 / 500 | 53 / 16 054 / 500 | 基线已 coarse |
+| mjwarp.io.core | 11 / 2 287 / 462 | 16 / 3 557 / 474 | 基线已 coarse |
+| mjwarp.model.core | **2 / 479 / 345** | 5 / 1 253 / 345 | **基线已 coarse** |
+| mjwarp.math | 2 / 695 / 459 | 3 / 1 156 / 461 | 基线已 coarse |
+| mjwarp.io.render | **1 / 453 / 453** | **3 / 736 / 453** | **本片由非 coarse → coarse（唯一）** |
+
+## 4. 交叉证据
+
+- `logs/validate-before.txt`：33；`logs/validate-after.txt`：34；`logs/validate-final.txt`：34（我当前重跑 validate 亦为 34、错误 0/警告 5，与 final 完全一致）。
+- 历史旁证：R02-S1 复核（本 QA 自己的证据 `r02-skybox-s1-check/logs/validate.log`，时间早于 P1）当时也是 **33** —— 与基线口径一致。
+- `mjwarp.io.render` 在基线只有 `src/io/render.rs` 一个源；P1 为它补登了 `include/mjwarp_render_probe.h`、`native/model_probe_render.cpp`（`src/io/render.rs` 头注释明确指向该 ABI）⇒ 由 1 源变 3 源，正好跨过「多文件」阈值。
+
+## 5. 对后续的影响与建议
+
+- 不影响：24 文件登记、模块计数、validate 错误 0、impact 可用性、零代码改动。
+- 影响：**leaf-too-coarse 的「新越阈值」解释应改成 io.render**；后续 154 文件收口时若要按「哪些叶子新变 coarse」排期，需要用「基线已 coarse 与否」而不是终态源数来判断。
+- 建议：把该口径（叶子源数 ≥2）写进架构规范/文档，避免每次靠黑盒重建；并在主卡 README §5 与 receipt 的归因处更正（只改文字，不改数字）。

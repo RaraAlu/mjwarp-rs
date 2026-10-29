@@ -1,0 +1,184 @@
+{
+  "task_id": "2026-10-29-arch-volume-module-sources-check",
+  "kind": "arch-volume-module-sources-check",
+  "reviewed_task": "2026-10-28-arch-volume-module-sources",
+  "reviewed_commits": ["0dab0cd6", "f38b83fd"],
+  "reviewed_base": "f86b8575",
+  "reviewed_tip": "f38b83fd",
+  "head_at_review": "f38b83fd",
+  "scope_note": "仅复核 P1 两提交（git diff f86b8575..f38b83fd）；复核期仓内 P2/P4 在途文件不在范围，未读取其内容（所有 diff 与 HEAD 对比都限定在 P1 路径）",
+  "verdict": {
+    "result": "pass",
+    "blockers": 0,
+    "observations": 6,
+    "scope": "只读复核：24 文件清单与归属 / 前后模块源计数 / validate 错误与警告漂移 / impact 可用性（24/24）/ 零代码改动与 committed 一致性 / 证据卫生"
+  },
+  "review_points": {
+    "inventory_and_ownership": {
+      "files": 24,
+      "by_module_claimed": {"mjwarp.render": 13, "mjwarp.model.core": 3, "mjwarp.io.core": 5, "mjwarp.io.render": 2, "mjwarp.math": 1},
+      "by_module_recomputed": {"mjwarp.render": 13, "mjwarp.model.core": 3, "mjwarp.io.core": 5, "mjwarp.io.render": 2, "mjwarp.math": 1},
+      "per_module_mapping_equal": true,
+      "all_tracked": true,
+      "none_registered_before": true,
+      "no_duplicates_after": true,
+      "no_source_removed": true,
+      "module_files_before_after": [66, 66],
+      "module_md_diff_only_fingerprint_plus_sources": true,
+      "line_counts_24_equal_in_readme_log_and_disk": true,
+      "key_ownership_checks": {
+        "src/model/collision_inputs.rs": "mjwarp.model.core：文件头写明只定义字段规范/计数；原生读取在 io::collision_inputs；Chief 2026-10-29 裁定一致",
+        "include/mjwarp_render_probe.h": "mjwarp.io.render：src/io/render.rs 头注释指向该 ABI",
+        "native/model_probe_render.cpp": "mjwarp.io.render：同上；被 native/model_probe.cpp 同 TU 引入且不改其它 ABI",
+        "include/mjwarp_collision_inputs_probe.h": "mjwarp.io.core：同族 include/mjwarp_collision_probe.h 基线已在 io.core",
+        "native/model_probe_collision_inputs.cpp": "mjwarp.io.core：同族 native/model_probe_collision.cpp 基线已在 io.core"
+      },
+      "same_family_precedents_verified": [
+        "src/render/kernel/mod.rs, launch.rs (render) -> kernel/*.rs",
+        "src/render/kernel/cuda/render_shadow.cu (render) -> kernel/cuda/*.cu",
+        "src/render/bvh/cuda/scene.cu, mesh.cu (render, different directory)",
+        "src/render/context.rs (render) -> context/tests.rs",
+        "src/math/fma.rs (math) -> fma/tests.rs",
+        "src/io/state/extended/tests.rs (io.core) -> state/tests.rs",
+        "src/io/collision.rs + include/mjwarp_collision_probe.h + native/model_probe_collision.cpp (io.core)",
+        "src/io/render.rs (io.render)"
+      ]
+    },
+    "counts": {
+      "module_entries_total_before": 1108,
+      "module_entries_total_after": 1132,
+      "distinct_paths_before": 1091,
+      "distinct_paths_after": 1115,
+      "five_modules_before": {"mjwarp.render": 40, "mjwarp.model.core": 2, "mjwarp.io.core": 11, "mjwarp.io.render": 1, "mjwarp.math": 2, "total": 56},
+      "five_modules_after": {"mjwarp.render": 53, "mjwarp.model.core": 5, "mjwarp.io.core": 16, "mjwarp.io.render": 3, "mjwarp.math": 3, "total": 80},
+      "tracked_src_include_native_build_rs": 823,
+      "unregistered_before": 178,
+      "unregistered_after": 154,
+      "unregistered_after_breakdown_recomputed": {"src_physics": 91, "src_runtime": 27, "include_warp_headers": 36, "native": 0}
+    },
+    "validate": {
+      "my_run_now": {"errors": 0, "warnings": 5, "leaf_too_coarse": 34},
+      "matches_logs_validate_final": true,
+      "before_log": {"errors": 0, "warnings": 5, "leaf_too_coarse": 33},
+      "mid_state_log": {"errors": 0, "warnings": 6, "note": "evidence/fingerprint-drift 5 个模块指纹过期，done 前中间态"},
+      "unchanged_warning_lines": [
+        "api/leaf-empty mjwarp.io.render",
+        "api/leaf-empty mjwarp.model.render-model",
+        "layout/order-incomplete layout:mjwarp.io order 未覆盖 mjwarp.io.render",
+        "layout/order-incomplete layout:mjwarp.model order 未覆盖 mjwarp.model.render-model"
+      ],
+      "leaf_threshold_reconstruction": {
+        "method": "解析两版模块树，重建 59 个叶子，对候选口径计数并与记录的 33/34 对照",
+        "compatible_calibers": ["leaf.sources >= 2", "leaf.sources >= 2 and total_lines > 220"],
+        "before_after": [33, 34],
+        "flipped_module": "mjwarp.io.render（源 1 -> 3）",
+        "mjwarp.model.core": "基线已是 2 源/479 行，已计入 33；本片 2->5、479->1253 行不改变其 coarse 状态",
+        "incompatible_calibers_excluded": {"sources>=2 or max_file>220": [51, 51], "sources>1 or max_file>220": [51, 51], "sources>=3": [26, 29]}
+      }
+    },
+    "impact": {
+      "sampled_by_chief_reproduced": {
+        "src/render/kernel/cast.rs": "mjwarp.render 53",
+        "src/model/volume_input.rs": "mjwarp.model.core 5",
+        "src/io/volume.rs": "mjwarp.io.core 16",
+        "src/io/render.rs": "mjwarp.io.render 3",
+        "src/math/fma/tests.rs": "mjwarp.math 3"
+      },
+      "all_24_paths_return_module": true,
+      "no_module_missing_hits": 0,
+      "note": "证据里的 impact 日志是任务 in_progress 时采集，尾行未关闭任务计数比现在多 1（时间性差异）"
+    },
+    "zero_code_change": {
+      "code_diff_vs_base": "",
+      "diff_paths_prefixes": [".normify/", "docs/development-evidence/"],
+      "src_tests_fixtures_include_native_cargo_untouched": true
+    },
+    "committed_vs_worktree": {
+      "head": "f38b83fd",
+      "modules_dir_clean_vs_head": true,
+      "evidence_dir_clean_vs_head": true,
+      "main_card_normify_check": "通过（4 个 gate 检查 + receipt /task_id）"
+    },
+    "evidence_hygiene": {
+      "files": 12,
+      "non_lf": 0,
+      "bom": 0,
+      "receipt_task_id_ok": true,
+      "forbidden_term_hits": 0,
+      "manifest_present": false,
+      "manifest_note": "复核卡写「manifest（若有）」；现行做法可接受，committed 一致性已用 git diff HEAD 对 modules + 证据目录验证"
+    }
+  },
+  "observations": [
+    {
+      "id": "O1",
+      "severity": "suggestion",
+      "topic": "leaf-too-coarse 33->34 attribution names the wrong module",
+      "detail": "主卡 README §5 与 receipt.validate.warning_delta_explained 写「mjwarp.model.core 由 2 个源增到 5 个，越过叶子规模阈值」。我把两版模块树解析出 59 个叶子并重建口径：与记录 (33, 34) 相容的口径（叶子源数 >= 2，或再加总行 > 220）下，唯一翻转模块是 mjwarp.io.render（1 -> 3 源）；mjwarp.model.core 基线就是 2 源/479 行，已计入 33，本片 2->5 / 479->1253 行不改变其 coarse 状态。不影响 validate 错误数、警告条数（5）、登记正确性。",
+      "suggestion": "fix",
+      "fix": "只改文字：把「哪个模块新变 coarse」改为 mjwarp.io.render；后续若按「新变 coarse」排期，应以基线 coarse 状态判断。建议同时把「叶子源数 >= 2」口径写进架构文档"
+    },
+    {
+      "id": "O2",
+      "severity": "record",
+      "topic": "recorded 1091 is distinct paths, not entry count",
+      "detail": "README §2 与 receipt 的「登记源 1091 条」实为去重后的不同路径数；按 [[source]] 条目数是 1108（跨模块共享路径 17 条重复）。178/154 差集用的是去重集合，数字自洽，但「条」会与条目数混淆。",
+      "suggestion": "fix_or_note",
+      "fix": "写成「1091 个不同路径（1108 条登记条目）」"
+    },
+    {
+      "id": "O3",
+      "severity": "record",
+      "topic": "same-directory wording for .cu files is imprecise",
+      "detail": "README §3 的 .cu 行依据写「同目录 scene.cu/mesh.cu/render_shadow.cu 已登记」；实际只有 render_shadow.cu 与新增文件同目录（src/render/kernel/cuda/），scene.cu/mesh.cu 在 src/render/bvh/cuda/（同模块、不同目录）。归属结论不受影响。",
+      "suggestion": "fix_or_note",
+      "fix": "措辞改为「同模块已登记（kernel/cuda/render_shadow.cu；bvh/cuda/scene.cu、mesh.cu）」"
+    },
+    {
+      "id": "O4",
+      "severity": "record",
+      "topic": "impact logs were captured while the task was in_progress",
+      "detail": "logs/impact-*.txt 的尾行「未关闭任务」含本卡（in_progress），计数比现在多 1（如 cast 日志 +9，我核对时 +8）；模块/源码计数与现在完全一致。属时间性差异。",
+      "suggestion": "accept",
+      "fix": "无需改；如要求可重采"
+    },
+    {
+      "id": "O5",
+      "severity": "record",
+      "topic": "leaf-too-coarse exact rule has no in-repo documentation",
+      "detail": "该规则在仓库内无文字说明（normify 二进制实现）；我按其行为从数据重建（候选口径中只有一族同时得到 33/34，并排除 51/51 与 26/29 等口径）。",
+      "suggestion": "fix_or_note",
+      "fix": "在架构规范里补该口径，便于剩余 154 文件收口时预算警告漂移"
+    },
+    {
+      "id": "O6",
+      "severity": "record",
+      "topic": "main card evidence has no manifest",
+      "detail": "证据 12 文件 = README + receipt + 10 logs，无 manifest；复核卡写「manifest（若有）」。我用 git diff HEAD 对 .normify/modules 与证据目录验证 committed 与现盘一致。",
+      "suggestion": "accept",
+      "fix": "维持现状即可"
+    }
+  ],
+  "boundaries": [
+    "只复核 P1 两提交（f86b8575..f38b83fd）；复核期仓内 P2/P4 在途文件不在范围，未读取其内容。",
+    "未重跑构建/门禁（本片只改架构树与证据；主卡 4 个 gate 的 runs 随 normify check 通过）；我自跑的是只读命令：normify validate --fingerprints 与 normify impact（含全部 24 路径）。",
+    "leaf-too-coarse 规则是从观测结果重建的（不是读 normify 源码），但相容口径唯一、且与 validate-before/after/final 及 R02-S1 历史日志三重交叉一致。",
+    "未改模块树/代码/证据；本卡不产渲染或性能结论。"
+  ],
+  "gates": {
+    "none": "QA 复核卡无门禁（卡面 checks 为 receipt task_id + forbid_claim）",
+    "not_run": "本卡未跑 cargo/构建（本片只改架构树与证据）；自跑只读命令 normify validate --fingerprints（错误 0/警告 5）与 normify impact（24/24）"
+  },
+  "gate_note": "QA 复核卡无门禁：normify gate exit 1「任务没有引用任何门禁」属预期。",
+  "claims": {
+    "24_files_mapping_and_ownership_verified": true,
+    "module_counts_before_after_reproduced": true,
+    "validate_errors_zero_and_warning_drift_reconstructed": true,
+    "impact_usable_for_all_24_paths": true,
+    "zero_code_change_verified": true,
+    "committed_equals_worktree_for_p1_scope": true,
+    "evidence_hygiene_verified": true,
+    "leaf_threshold_attribution_error_registered": true
+  },
+  "recompute": {"scripts": ["recompute.py", "leaf-recompute.py"], "results": ["recompute.json", "leaf.json"], "problems": 0, "findings": 6}
+}
