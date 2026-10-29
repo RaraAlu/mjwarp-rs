@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-normify-leaf-rule-docs",
+  "title": {
+    "zh": "治理：normify 结构规则文档补齐（leaf-too-coarse 口径与告警文字）＋154 复核观察的处置台账",
+    "en": "Governance: document the normify leaf-too-coarse rule (criterion and warning text) and record the 154-review observation dispositions"
+  },
+  "status": "backlog",
+  "intent": {
+    "zh": "承接两处同源遗留：P1 复核 O5（`structure/leaf-too-coarse` 精确规则在仓库内无文档）与 154 复核 O9（同一条规则的告警文字「或超220行」与实测计数不符：单源叶最大 500 行、17 个单源叶 >220 却不计入）。目标是把**规则口径写成仓库文档**（或修正告警文字），让后续 QA 不必按数据反推；同时把 154 复核 O2–O8 的处置（注明口径 / 记录级接受）落成台账，避免散落在会话里。本卡只做文档与规划，不改 normify 二进制（动共享工具须用户批）。",
+    "en": "Carry P1 O5 and the 154-review O9: the structure/leaf-too-coarse rule has no repository documentation and its warning text ('or over 220 lines') contradicts measured counts. Document the rule (or fix the warning text) and record dispositions of 154-review observations O2-O8. Docs/planning only; the normify binary is not changed."
+  },
+  "modules": {},
+  "acceptance": [
+    "**规则文档**：把 `structure/leaf-too-coarse` 的实测口径写进仓库文档（依据 `normify-rs/src/validate.rs` 叶子分支：`source.len() >= 2 || span >= 220`，`span` = 每源 `end_line.or(line)` 的最大值，未标注行号时为 0），并注明「计数是聚合告警里的数字、不是告警条数」；或经用户批准后修正告警文字。",
+    "**台账**：把 154 复核观察的处置固化：O2 行数口径（README 的 Σ(newline+1) vs LF 行数）；O3 `module-counts-after.txt` 的 apis 列只计 `rpc:` 协议（合计 392 vs receipt 398，含 6 条 file API）；O4 零源容器不出行；O5 中间态日志捕获不完整（记录级接受）；O6 否定句里字面出现术语（记录级接受）；O7 主卡无 manifest（记录级接受）；O8 `--no-run` 日志混入 PS stderr（后续用 `cmd /c` 或 message-format 过滤）。O1（CRLF 系 `core.autocrlf=true` 检出产物、blob 全 LF）不处置。",
+    "**边界**：不改 `.normify/modules/`、不改产品代码、不改验收口径；若涉及修正 normify 告警文字，必须先经用户批（共享工具）。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/normify-leaf-rule-docs/"
+    ],
+    "resources": [],
+    "priority": 65
+  },
+  "note": "Arch 2026-10-30 登记（Chief 裁决：154 QA 观察 O9 归 P1 O5 backlog；O2/O3/O4 在后续证据注明口径；O6/O7/O8 记录级接受；O1 不处置）。本卡是 backlog 候选，不 start；实际规则文档位置建议 `docs/` 下一篇架构规则说明或并入 `docs/development-evidence/render-bvh-precheck/` 的规则附录。P1 复核 O5 原文：`structure/leaf-too-coarse` 精确规则在仓库内无文档（normify 二进制）；QA 按数据重建并排除了其他口径（51/51、26/29）。154 复核 O9 原文：警告文字「或超220行」与实测不符（单源叶最大 500 行、17 个单源叶 >220 却不计）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T03:10:00.000Z",
+  "updated_at": "2026-10-30T03:10:00.000Z",
+  "checks": [
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "规则已文档化",
+        "架构规则完备",
+        "等价"
+      ]
+    }
+  ]
+}
