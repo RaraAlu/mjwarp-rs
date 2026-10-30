@@ -1,0 +1,64 @@
+{
+  "task_id": "2026-10-31-g10-p5-mesh-cap20",
+  "kind": "g10-p5-mesh-cap20",
+  "owner": "Arch",
+  "decision": "user 2026-10-30 (via Chief): mesh capacity option A1 (16->20, implement); Chief 2026-10-31: offline implementation approved, GPU validation window waits for user sign",
+  "scope": {
+    "fixes": "U8 (prism-20, single polygon with 20 vertices) takes the full polygon clip path; expected device contacts 1 -> 4 (upstream reference b6abb8fa..)",
+    "does_not_fix": "U7 (fan-cone-24, 24 vertices / degree 24) still returns 0 and falls back to a single contact (A2, dynamic capacity)",
+    "abi_changed": false,
+    "criteria_changed": false,
+    "u8_u7_status": "record-only (not promoted to pass/fail)"
+  },
+  "changes": {
+    "device": [
+      "contact.cu: polygon[32]->[40], clipped[32]->[40], pnormal[16]->[20], pdist[16]->[20], face1[16]->[20], face2[16]->[20]",
+      "multicontact_geom.cu: G5_MC_MESH_FACE_MAX 16->20 (G5_MC_MESH_DEG_MAX stays 10)"
+    ],
+    "host": [
+      "gjk/multicontact/clip.rs: pn/pd 16->20, polygon/clipped 32->40"
+    ],
+    "comment_contracts": [
+      "contact.cu", "multicontact_geom.cu", "multicontact.cu", "multicontact_clip.cu", "multicontact_mesh.cu"
+    ],
+    "new_tests": [
+      "physics::collision::gjk::multicontact::tests::polygon_clip_accepts_twenty_vertex_face1",
+      "physics::collision::gjk::multicontact::tests::polygon_clip_accepts_twenty_vertex_face2"
+    ]
+  },
+  "kernel_identity": {
+    "probe": "cargo test --locked --features cuda-probe --lib nvrtc_smoke -- --ignored --nocapture",
+    "before": {"source_bytes": 255840, "source_sha256": "2838580194774ff79f5e24e856030eca398ebec4f6e35289d3fe18f142246696", "ptx_bytes": 3883740, "ptx_entries": 6},
+    "after": {"source_bytes": 254743, "source_sha256": "f32f0af231f95d44e3afb0d12a72926d86ae8befd025b546cd0f76c92c0da424", "ptx_bytes": 3883769, "ptx_entries": 6},
+    "changed": true,
+    "freeze_implication": "collision kernel identity changed => any later GPU window needs a fresh freeze; no old guards may be reused"
+  },
+  "gates": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "clippy-cuda": "passed",
+    "unit": "passed (1113 passed / 0 failed / 397 ignored; 1111 + 2 new A1 tests)",
+    "no_run": "EXIT=0 with Finished",
+    "validate_fingerprints": "errors 0 (module fingerprint refreshed by normify done)"
+  },
+  "expected_window": {
+    "u8": "prism-20 device contacts 1 -> 4; compare against the upstream reference (sha b6abb8fa..) with the existing criteria",
+    "u7": "still 1 contact (single-contact fallback); must be recorded as not covered (A2), not as a pass",
+    "regressions": ["g10_p5_mesh_multicontact_m2_cuda", "g10_p5_mesh_multicontact_m3_cuda", "g10_p5_branch_closure_cuda", "g10_p5_multicontact_cuda", "g10_p5_primitive_branches_cuda"],
+    "suite": "new suite (e.g. g10-p5-mesh-cap20), fresh freeze, regular util<40, no exception"
+  },
+  "untouched": [
+    "criteria / tolerances / references / fixtures",
+    "docs/development-evidence/g10-p5-multicontact-cuda",
+    "docs/development-evidence/g10-p5-mesh-multicontact-*",
+    "docs/development-evidence/g10-p5-branch-closure-validation",
+    "docs/development-evidence/render-bvh"
+  ],
+  "not_claimed": [
+    "上游等价",
+    "精度达标",
+    "mesh 容量缺口已清",
+    "U8 已通过",
+    "U7 已覆盖"
+  ]
+}

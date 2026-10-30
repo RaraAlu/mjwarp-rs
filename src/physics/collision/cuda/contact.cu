@@ -213,19 +213,19 @@ __device__ __forceinline__ void g5_ccd_pair_write(const d_contact_pair_input& in
                     (in.geomtype1 == G5_BOX && in.geomtype2 == G5_BOX);
   if (want_multi && has_polytope && multiccd_idx > -1 &&
       g5_mc_supported_type(in.geomtype1) && g5_mc_supported_type(in.geomtype2)) {
-    // 上游 convex_narrowphase 的 scratch 容量上界：npolygonmax=16（含 cylinder）、
-    // nmeshdegmax 取 10 的安全上界（本片只实现 box/cylinder 分支）。
-    v3 polygon[32];
-    v3 clipped[32];
-    v3 pnormal[16];
-    float pdist[16];
+    // 上游 convex_narrowphase 的 scratch 容量上界：npolygonmax=20（A1，2026-10-31；含 cylinder）、
+    // nmeshdegmax 取 10 的安全上界（本片只实现 box/cylinder/mesh 分支）。
+    v3 polygon[40];
+    v3 clipped[40];
+    v3 pnormal[20];
+    float pdist[20];
     int idx1[10];
     int idx2[10];
     v3 n1[10];
     v3 n2[10];
     v3 endvert[10];
-    v3 face1[16];
-    v3 face2[16];
+    v3 face1[20];
+    v3 face2[20];
     g5_mc_result mc = g5_multicontact(polygon, clipped, pnormal, pdist, idx1, idx2, n1, n2,
                                       endvert, face1, face2, pt->vert, pt->vert_index,
                                       pt->face[multiccd_idx], w1, w2, phase.geom1, phase.geom2,

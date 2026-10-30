@@ -10,8 +10,9 @@
 // 接入（mesh 助手在 `multicontact_mesh.cu`）。sidecar 缺失（9 数组全空 / `mesh_polyadr < 0`）
 // 时回退单接触，与 M0a 的 null sidecar 语义一致。box/cylinder 路径逐字保持不变。
 //
-// 调用方（`contact.cu`）保证 scratch 容量：`polygon`/`clipped` 各 32 个 v3、`plane_normal` 16、
-// `plane_dist` 16、`idx1`/`idx2`/`n1`/`n2`/`endvert` 各 10、`face1`/`face2` 各 16。
+// 调用方（`contact.cu`）保证 scratch 容量（A1，2026-10-31）：`polygon`/`clipped` 各 40 个 v3、
+// `plane_normal` 20、`plane_dist` 20、`idx1`/`idx2`/`n1`/`n2`/`endvert` 各 10、`face1`/`face2` 各 20
+// （npolygonmax=20；degree 仍 10，U7 未覆盖）。
 // 本函数不做动态分配、不用递归。
 #pragma once
 #include "multicontact_clip.cu"

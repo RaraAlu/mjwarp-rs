@@ -252,3 +252,78 @@ pub(crate) fn multicontact(
         dists: clip.dists,
     }
 }
+
+/// A1（2026-10-31）：宿主 `polygon_clip` 的固定 scratch 容量 16->20 / 32->40 的回归测试。
+///
+/// 改前 `pn/pd` 只有 16：nface1=20 会在 `pn[16]` 处越界 panic；`polygon/clipped` 只有 32：
+/// 20 顶点 face2 在最坏情况下（每边都产生交点）不够用。这两条测试就是容量契约的守卫
+/// （设备侧同容量由 `contact.cu`/`G5_MC_MESH_FACE_MAX` 保证，设备行为在验证窗内跑）。
+#[cfg(test)]
+mod tests {
+    use super::clip::polygon_clip;
+
+    /// 半径 r 的 n 边形，位于 z=0 平面，按逆时针（从 +z 看）排列。
+    fn regular_polygon(n: usize, radius: f32) -> Vec<[f32; 3]> {
+        (0..n)
+            .map(|index| {
+                let angle = std::f32::consts::TAU * (index as f32) / (n as f32);
+                [radius * angle.cos(), radius * angle.sin(), 0.0]
+            })
+            .collect()
+    }
+
+    fn square(radius: f32) -> Vec<[f32; 3]> {
+        vec![
+            [-radius, -radius, 0.0],
+            [radius, -radius, 0.0],
+            [radius, radius, 0.0],
+            [-radius, radius, 0.0],
+        ]
+    }
+
+    /// face1 = 20 边形：`pn/pd[19]` 是 A1 之前会越界的那一格。
+    /// 绕向沿用上游约定（与 `plane_normal`/`halfspace` 的符号一致）；反绕向按上游语义返回 0。
+    #[test]
+    fn polygon_clip_accepts_twenty_vertex_face1() {
+        let face1 = regular_polygon(20, 2.0);
+        let face2 = square(0.25);
+        let result = polygon_clip(
+            &face1,
+            face1.len(),
+            &face2,
+            face2.len(),
+            [0.0, 0.0, -1.0],
+            [0.0, 0.0, 1.0],
+        );
+        assert!(
+            result.ncontact <= 4,
+            "ncontact 上限 4，实际 {}",
+            result.ncontact
+        );
+        assert!(
+            result.ncontact >= 1,
+            "20 边形应能裁剪出接触（改前在 pn[16] 越界）"
+        );
+    }
+
+    /// face2 = 20 边形：裁剪中间缓冲需要容纳最多 2×nface1 个顶点（A1 后 40）。
+    #[test]
+    fn polygon_clip_accepts_twenty_vertex_face2() {
+        let face1 = square(1.0);
+        let face2 = regular_polygon(20, 0.75);
+        let result = polygon_clip(
+            &face1,
+            face1.len(),
+            &face2,
+            face2.len(),
+            [0.0, 0.0, -1.0],
+            [0.0, 0.0, 1.0],
+        );
+        assert!(
+            result.ncontact <= 4,
+            "ncontact 上限 4，实际 {}",
+            result.ncontact
+        );
+        assert!(result.ncontact >= 1, "20 顶点 face2 应能裁剪出接触");
+    }
+}

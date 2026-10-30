@@ -10,8 +10,8 @@
 // 容量边界（本实现写死；超出时返回 0 → 由 `g5_multicontact` 回退单接触）：
 // - 单顶点相邻 polygon 数（= `polymapnum[vertadr+v]`，上游 `nmeshdegmax`）≤
 //   `G5_MC_MESH_DEG_MAX`(10)，与 `contact.cu` 的 `n1`/`n2`/`endvert` scratch 一致；
-// - 单个 polygon 顶点数（`polyvertnum`，上游 `npolygonmax`）≤ `G5_MC_MESH_FACE_MAX`(16)，
-//   与 `face1`/`face2` scratch 一致。
+// - 单个 polygon 顶点数（`polyvertnum`，上游 `npolygonmax`）≤ `G5_MC_MESH_FACE_MAX`(20，
+//   A1 2026-10-31 由 16 提升)，与 `face1`/`face2` scratch 一致。
 // 本片 fixture（cube）的 degree=3、polygon 顶点=4，远低于上界；一般 mesh 超出上界的组合
 // 记未覆盖，不改变判据。
 #pragma once

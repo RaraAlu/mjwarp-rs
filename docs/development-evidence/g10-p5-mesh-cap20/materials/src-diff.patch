@@ -1,0 +1,211 @@
+﻿diff --git a/src/physics/collision/cuda/contact.cu b/src/physics/collision/cuda/contact.cu
+index f4bce925..44d1f302 100644
+--- a/src/physics/collision/cuda/contact.cu
++++ b/src/physics/collision/cuda/contact.cu
+@@ -213,19 +213,19 @@ __device__ __forceinline__ void g5_ccd_pair_write(const d_contact_pair_input& in
+                     (in.geomtype1 == G5_BOX && in.geomtype2 == G5_BOX);
+   if (want_multi && has_polytope && multiccd_idx > -1 &&
+       g5_mc_supported_type(in.geomtype1) && g5_mc_supported_type(in.geomtype2)) {
+-    // 上游 convex_narrowphase 的 scratch 容量上界：npolygonmax=16（含 cylinder）、
+-    // nmeshdegmax 取 10 的安全上界（本片只实现 box/cylinder 分支）。
+-    v3 polygon[32];
+-    v3 clipped[32];
+-    v3 pnormal[16];
+-    float pdist[16];
++    // 上游 convex_narrowphase 的 scratch 容量上界：npolygonmax=20（A1，2026-10-31；含 cylinder）、
++    // nmeshdegmax 取 10 的安全上界（本片只实现 box/cylinder/mesh 分支）。
++    v3 polygon[40];
++    v3 clipped[40];
++    v3 pnormal[20];
++    float pdist[20];
+     int idx1[10];
+     int idx2[10];
+     v3 n1[10];
+     v3 n2[10];
+     v3 endvert[10];
+-    v3 face1[16];
+-    v3 face2[16];
++    v3 face1[20];
++    v3 face2[20];
+     g5_mc_result mc = g5_multicontact(polygon, clipped, pnormal, pdist, idx1, idx2, n1, n2,
+                                       endvert, face1, face2, pt->vert, pt->vert_index,
+                                       pt->face[multiccd_idx], w1, w2, phase.geom1, phase.geom2,
+diff --git a/src/physics/collision/cuda/multicontact.cu b/src/physics/collision/cuda/multicontact.cu
+index 1db9e994..54794353 100644
+--- a/src/physics/collision/cuda/multicontact.cu
++++ b/src/physics/collision/cuda/multicontact.cu
+@@ -10,8 +10,9 @@
+ // 接入（mesh 助手在 `multicontact_mesh.cu`）。sidecar 缺失（9 数组全空 / `mesh_polyadr < 0`）
+ // 时回退单接触，与 M0a 的 null sidecar 语义一致。box/cylinder 路径逐字保持不变。
+ //
+-// 调用方（`contact.cu`）保证 scratch 容量：`polygon`/`clipped` 各 32 个 v3、`plane_normal` 16、
+-// `plane_dist` 16、`idx1`/`idx2`/`n1`/`n2`/`endvert` 各 10、`face1`/`face2` 各 16。
++// 调用方（`contact.cu`）保证 scratch 容量（A1，2026-10-31）：`polygon`/`clipped` 各 40 个 v3、
++// `plane_normal` 20、`plane_dist` 20、`idx1`/`idx2`/`n1`/`n2`/`endvert` 各 10、`face1`/`face2` 各 20
++// （npolygonmax=20；degree 仍 10，U7 未覆盖）。
+ // 本函数不做动态分配、不用递归。
+ #pragma once
+ #include "multicontact_clip.cu"
+diff --git a/src/physics/collision/cuda/multicontact_clip.cu b/src/physics/collision/cuda/multicontact_clip.cu
+index 3169c432..492b8e77 100644
+--- a/src/physics/collision/cuda/multicontact_clip.cu
++++ b/src/physics/collision/cuda/multicontact_clip.cu
+@@ -6,9 +6,9 @@
+ // `_set_edge`（L2199）属几何恢复助手，放在 `multicontact_geom.cu`；本文件只做裁剪。
+ // 数值纪律同 geom 片：全 f32、上游操作数顺序、不做代数化简。
+ //
+-// 容量契约（调用方 `multicontact.cu` 的本地 scratch）：`plane_normal` 16 个 v3、`plane_dist`
+-// 16 个 float（cylinder 端面 16 边形时的最大 nface1）、`polygon_out`/`clipped_out` 各 32 个 v3
+-// （上游 npolygonmax=16 的两倍上界，见 L2094 注释）。
++// 容量契约（调用方 `multicontact.cu` 的本地 scratch；A1，2026-10-31）：`plane_normal` 20 个 v3、
++// `plane_dist` 20 个 float（npolygonmax=20 时的最大 nface1）、`polygon_out`/`clipped_out` 各 40 个 v3
++// （上游 npolygonmax=20 的两倍上界，见 L2094 注释）。
+ #pragma once
+ #include "multicontact_geom.cu"
+ 
+diff --git a/src/physics/collision/cuda/multicontact_geom.cu b/src/physics/collision/cuda/multicontact_geom.cu
+index c098e14b..26daf968 100644
+--- a/src/physics/collision/cuda/multicontact_geom.cu
++++ b/src/physics/collision/cuda/multicontact_geom.cu
+@@ -378,10 +378,11 @@ struct g5_mc_mesh_view {
+     bool has_poly;
+ };
+ 
+-// scratch 容量上界（与 `contact.cu` 的 `n1/n2/endvert[10]`、`face1/face2[16]` 一致）：
++// scratch 容量上界（与 `contact.cu` 的 `n1/n2/endvert[10]`、`face1/face2[20]` 一致）：
+ // 超出时对应 mesh 助手返回 0，由 `g5_multicontact` 回退单接触（未覆盖边界，见证据）。
++// A1（2026-10-31）：npolygonmax 16 -> 20（对应上游 npolygonmax=20）；degree 仍 10（U7 未覆盖，A2）。
+ #define G5_MC_MESH_DEG_MAX 10
+-#define G5_MC_MESH_FACE_MAX 16
++#define G5_MC_MESH_FACE_MAX 20
+ 
+ __device__ __forceinline__ g5_mc_mesh_view g5_mc_mesh_view_of(const d_geom& mesh_geom) {
+     g5_mc_mesh_view view;
+diff --git a/src/physics/collision/cuda/multicontact_mesh.cu b/src/physics/collision/cuda/multicontact_mesh.cu
+index c0f33bdf..4514e3fa 100644
+--- a/src/physics/collision/cuda/multicontact_mesh.cu
++++ b/src/physics/collision/cuda/multicontact_mesh.cu
+@@ -10,8 +10,8 @@
+ // 容量边界（本实现写死；超出时返回 0 → 由 `g5_multicontact` 回退单接触）：
+ // - 单顶点相邻 polygon 数（= `polymapnum[vertadr+v]`，上游 `nmeshdegmax`）≤
+ //   `G5_MC_MESH_DEG_MAX`(10)，与 `contact.cu` 的 `n1`/`n2`/`endvert` scratch 一致；
+-// - 单个 polygon 顶点数（`polyvertnum`，上游 `npolygonmax`）≤ `G5_MC_MESH_FACE_MAX`(16)，
+-//   与 `face1`/`face2` scratch 一致。
++// - 单个 polygon 顶点数（`polyvertnum`，上游 `npolygonmax`）≤ `G5_MC_MESH_FACE_MAX`(20，
++//   A1 2026-10-31 由 16 提升)，与 `face1`/`face2` scratch 一致。
+ // 本片 fixture（cube）的 degree=3、polygon 顶点=4，远低于上界；一般 mesh 超出上界的组合
+ // 记未覆盖，不改变判据。
+ #pragma once
+diff --git a/src/physics/collision/gjk/multicontact/clip.rs b/src/physics/collision/gjk/multicontact/clip.rs
+index 84b5fa05..b5aa796a 100644
+--- a/src/physics/collision/gjk/multicontact/clip.rs
++++ b/src/physics/collision/gjk/multicontact/clip.rs
+@@ -33,9 +33,9 @@ pub(crate) fn polygon_clip(
+         return result;
+     }
+ 
+-    // 每个顶点的平面法线与平面常数。
+-    let mut pn = [[0.0_f32; 3]; 16];
+-    let mut pd = [0.0_f32; 16];
++    // 每个顶点的平面法线与平面常数（A1 2026-10-31：容量 16 -> 20，与设备 `pnormal/pdist[20]` 对齐）。
++    let mut pn = [[0.0_f32; 3]; 20];
++    let mut pd = [0.0_f32; 20];
+     for i in 0..nface1 - 1 {
+         let (plane_d, plane_n) = plane_normal(face1[i], face1[i + 1], n);
+         pd[i] = plane_d;
+@@ -45,9 +45,9 @@ pub(crate) fn polygon_clip(
+     pd[nface1 - 1] = plane_d;
+     pn[nface1 - 1] = plane_n;
+ 
+-    // 裁剪后的多边形最多 2 倍边数。
+-    let mut polygon = vec![[0.0_f32; 3]; 32];
+-    let mut clipped = vec![[0.0_f32; 3]; 32];
++    // 裁剪后的多边形最多 2 倍边数（A1 2026-10-31：32 -> 40，与设备 `polygon/clipped[40]` 对齐）。
++    let mut polygon = vec![[0.0_f32; 3]; 40];
++    let mut clipped = vec![[0.0_f32; 3]; 40];
+     let mut npolygon = nface2;
+     let mut nclipped = 0_usize;
+ 
+diff --git a/src/physics/collision/gjk/multicontact/mod.rs b/src/physics/collision/gjk/multicontact/mod.rs
+index 7cb3310a..1ee86e1f 100644
+--- a/src/physics/collision/gjk/multicontact/mod.rs
++++ b/src/physics/collision/gjk/multicontact/mod.rs
+@@ -252,3 +252,78 @@ pub(crate) fn multicontact(
+         dists: clip.dists,
+     }
+ }
++
++/// A1（2026-10-31）：宿主 `polygon_clip` 的固定 scratch 容量 16->20 / 32->40 的回归测试。
++///
++/// 改前 `pn/pd` 只有 16：nface1=20 会在 `pn[16]` 处越界 panic；`polygon/clipped` 只有 32：
++/// 20 顶点 face2 在最坏情况下（每边都产生交点）不够用。这两条测试就是容量契约的守卫
++/// （设备侧同容量由 `contact.cu`/`G5_MC_MESH_FACE_MAX` 保证，设备行为在验证窗内跑）。
++#[cfg(test)]
++mod tests {
++    use super::clip::polygon_clip;
++
++    /// 半径 r 的 n 边形，位于 z=0 平面，按逆时针（从 +z 看）排列。
++    fn regular_polygon(n: usize, radius: f32) -> Vec<[f32; 3]> {
++        (0..n)
++            .map(|index| {
++                let angle = std::f32::consts::TAU * (index as f32) / (n as f32);
++                [radius * angle.cos(), radius * angle.sin(), 0.0]
++            })
++            .collect()
++    }
++
++    fn square(radius: f32) -> Vec<[f32; 3]> {
++        vec![
++            [-radius, -radius, 0.0],
++            [radius, -radius, 0.0],
++            [radius, radius, 0.0],
++            [-radius, radius, 0.0],
++        ]
++    }
++
++    /// face1 = 20 边形：`pn/pd[19]` 是 A1 之前会越界的那一格。
++    /// 绕向沿用上游约定（与 `plane_normal`/`halfspace` 的符号一致）；反绕向按上游语义返回 0。
++    #[test]
++    fn polygon_clip_accepts_twenty_vertex_face1() {
++        let face1 = regular_polygon(20, 2.0);
++        let face2 = square(0.25);
++        let result = polygon_clip(
++            &face1,
++            face1.len(),
++            &face2,
++            face2.len(),
++            [0.0, 0.0, -1.0],
++            [0.0, 0.0, 1.0],
++        );
++        assert!(
++            result.ncontact <= 4,
++            "ncontact 上限 4，实际 {}",
++            result.ncontact
++        );
++        assert!(
++            result.ncontact >= 1,
++            "20 边形应能裁剪出接触（改前在 pn[16] 越界）"
++        );
++    }
++
++    /// face2 = 20 边形：裁剪中间缓冲需要容纳最多 2×nface1 个顶点（A1 后 40）。
++    #[test]
++    fn polygon_clip_accepts_twenty_vertex_face2() {
++        let face1 = square(1.0);
++        let face2 = regular_polygon(20, 0.75);
++        let result = polygon_clip(
++            &face1,
++            face1.len(),
++            &face2,
++            face2.len(),
++            [0.0, 0.0, -1.0],
++            [0.0, 0.0, 1.0],
++        );
++        assert!(
++            result.ncontact <= 4,
++            "ncontact 上限 4，实际 {}",
++            result.ncontact
++        );
++        assert!(result.ncontact >= 1, "20 顶点 face2 应能裁剪出接触");
++    }
++}
