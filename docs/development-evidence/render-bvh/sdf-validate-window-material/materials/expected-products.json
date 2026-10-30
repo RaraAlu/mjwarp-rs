@@ -142,11 +142,12 @@
     "total": 92,
     "input_breakdown": "scene-sdf 10 (2 XML + 8 capture products) + scene-hfield 10 (2 XML + 8 capture) + legacy 47 (38 base + 4 skybox + 5 perworld) + scene-shadow capture 16",
     "aggregate": "generated at freeze; not preset by the material",
-    "note": "the freeze script hard-asserts 9/83/92 and throws on mismatch; U1/U1b change product code so every exe hash differs and no historical guards may be reused"
+    "note": "the freeze script hard-asserts 9/83/92 and throws on mismatch; U1/U1b change product code so every exe hash differs and no historical guards may be reused",
+    "reconciliation": "vs the S3 window 68 inputs: +10 scene-sdf, legacy 42 -> 47 (+5 perworld); scene-hfield 10 and scene-shadow 16 unchanged; at freeze verify the guards file entry by entry, not only the total"
   },
   "window": {
     "shell": "Windows PowerShell 5.1 (aggregate_sha256 uses culture-sensitive Sort-Object; pwsh 7 differs)",
-    "mode": "regular util<40, NO exception; the authoring-only util<60 exception does NOT apply to this window",
+    "mode": "conditional: regular util<40 first; if it fails, the signed validation-only util<60 exception is enabled; never preset the path and never report the exception run as a normal threshold pass",
     "commands": {
       "monitor": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\monitor-until-clean.ps1 -OutCsv target\\render-bvh\\sdf-validate-window\\monitor-pre-window.csv -Required 60 -MaxMinutes 30",
       "freeze": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\freeze-guards-sdf.ps1 -Attempt 1",
@@ -174,14 +175,16 @@
     "hygiene": "LF no BOM; forbidden claim terms absent"
   },
   "double_sign": {
+    "decision": "approved: regular util<40 + conditional validation-only util<60 exception",
+    "signed_by": "user via Chief 2026-10-31T00:5x+08:00",
+    "approved_by": "user via Chief",
+    "signed_at": "2026-10-31T00:5x+08:00",
     "required_on": [
       "this window plan",
       "pre-window baseline snapshot",
       "the 92-entry guards identity after freeze"
     ],
-    "decision": "pending",
-    "signed_by": null,
-    "signed_at": null
+    "note": "execute step 1 first; enable the conditional exception only if step 1 fails"
   },
   "not_claimed": [
     "渲染数值验收通过",
@@ -191,5 +194,34 @@
     "plugin SDF",
     "per-world",
     "AA"
-  ]
+  ],
+  "freeze_compile_note": "the freeze step runs cargo test --no-run as an expected build (the 9 exes are new); the window claim is \"no Rust compile after the body starts\", with the deps snapshot taken before the body",
+  "conditional_protocol": {
+    "signed": "user via Chief 2026-10-31T00:5x+08:00",
+    "step1_regular": {
+      "not_a_normal_threshold_pass": false,
+      "authoring_exception_used": false,
+      "path": "3-point baseline -> floor -> monitor default (Required 60 / MaxMinutes 30, no -MaxUtil override); 60/60 -> normal window"
+    },
+    "step2_exception_only_if_step1_fails": {
+      "mode": "validation_only_exception_util_lt_60",
+      "approved_by": "user via Chief 2026-10-31T00:5x+08:00",
+      "five_elements": [
+        "mode",
+        "approved_by",
+        "reason (desktop 3D noise: dwm / Harness GUI / msedgewebview2)",
+        "original_normal_threshold_attempts_retained = the failed regular CSV",
+        "not_a_normal_threshold_pass=true"
+      ],
+      "authoring_exception_used": false,
+      "steps": [
+        "retain failed CSV + snapshot + verdict",
+        "re-take 3-point baseline -> new floor",
+        "exception monitor -MaxUtil 60 (powershell 5.1) with a NEW CSV",
+        "60/60 required before opening"
+      ],
+      "load_bearing_rule": "recompute util>=40 clean samples + streak (proves threshold 60), ge60=0, util_max<60; if all 60 samples are <40 record exception_effectively_not_load_bearing=true"
+    },
+    "evidence_rule": "both monitors (failed regular + passing exception) are kept; never written as a normal pass"
+  }
 }

@@ -33,6 +33,10 @@ SUITE / ATTEMPT / NEW FREEZE
 - expected counts: 9 exe + 83 read-only inputs = 92 entries
   inputs = scene-sdf 10 (2 XML + 8 products) + scene-hfield 10 (2 XML + 8 capture)
            + legacy 47 (38 base + 4 skybox + 5 perworld) + scene-shadow capture 16
+  reconciliation vs the S3 window (68 inputs): +10 scene-sdf, legacy 42 -> 47 (+5 perworld);
+  scene-hfield 10 and scene-shadow capture 16 are unchanged.
+  at freeze, verify the guards file entry by entry (not only the total): 9 frozen_exes +
+  83 guard_inputs = 92, with each input path listed and hashed.
 - the freeze script hard-asserts 9/83/92 and throws on mismatch; aggregate_sha256 is generated at
   freeze time and is NOT preset by this material.
 
@@ -50,7 +54,8 @@ CRITERIA (zero relaxation; from R09-S3b / R05-S3b precedents)
 WINDOW DISCIPLINE (GPU: single full-load task; user double-sign required before opening)
 1. Pre-window snapshot (5 min before monitor): nvidia-smi free/util x3 + filtered compute-apps
    + build processes (must be 0) + git clean; write attempt1/pre-window-snapshot.txt.
-2. Regular monitor (NO exception pre-approval, authoring-only util<60 exception does NOT apply):
+2. Regular monitor FIRST (the signed conditional validation-only util<60 exception is NOT enabled
+   in this step; the authoring-only exception still does not apply):
    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\monitor-until-clean.ps1 -OutCsv target\render-bvh\sdf-validate-window\monitor-pre-window.csv -Required 60 -MaxMinutes 30
    - clean = free >= 10240 MiB AND util < 40 AND filtered compute-apps = 0 AND build = 0
    - default MaxUtil=40; do NOT pass -OpenUtilLimit or -MaxUtil 60
@@ -63,7 +68,9 @@ WINDOW DISCIPLINE (GPU: single full-load task; user double-sign required before 
    Expect: GUARDS_OK=92/92, stash 9/9, GUARDS_ONLY_DONE
 5. Window body (9 entities; no -OpenUtilLimit):
    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 -Attempt 1 -OutDir target\render-bvh\sdf-validate-window\attempt1 -GuardsFile scripts\validate\render-bvh\guards-sdf-validate.json
-6. Report facts: 9/9 exit 0; sha_guards 92/92; post-window exe recheck 9/9; zero Rust compile;
+6. Report facts: 9/9 exit 0; sha_guards 92/92; post-window exe recheck 9/9; NO Rust compile after
+   the body starts (the freeze step runs cargo test --no-run as an expected build; the deps
+   snapshot is taken before the body), so the wording is 'body zero compile', not 'window zero compile';
    samples/util range/free_min; floor not breached; per-entity criteria numbers (new entity per camera);
    two-run sha256; regressions zero drift.
 
@@ -79,17 +86,50 @@ TIMING
 - whole window: 30-60 min including snapshot and post checks
 
 FAILURE POLICY
-- monitor not met: STOP, report Chief and user; no threshold change, no exception substitution
+- monitor not met: STOP the regular path, retain the failed CSV + snapshot + verdict verbatim, then
+  switch to the signed conditional validation-only exception below; never report it as a normal pass
 - freeze mismatch / GuardsOnly != 92/92 / stash != 9/9: STOP, report; no retry loop
 - any entity red or criteria not met: STOP, report; do not relax criteria, do not loop
 - invalid round: keep the attempt directory as evidence; attempt=2 only after a documented fix
 - never --no-verify; never hand-edit .normify; R05/R02/R08 guards files untouched
 
-USER DOUBLE-SIGN BLOCK (blank until signed)
-- plan version sha256      : ____________________
-- decision                 : [ ] approve  [ ] reject  [ ] modify (notes: __________)
-- approved_by              : ____________________
-- pre-window baseline      : ____________________ (min free MiB, floor MiB)
+CONDITIONAL EXECUTION PROTOCOL (signed 2026-10-31; decided live inside the window)
+=================================================================================
+The user signed BOTH: (a) the regular util<40 window, and (b) a conditional validation-only util<60
+exception that is used ONLY if the regular path fails. Do not preset the path; execute in order.
+
+Step 1 - regular path (not_a_normal_threshold_pass=false, authoring_exception_used=false):
+  new 3-point baseline -> floor = min free - 3072 -> monitor (default MaxUtil=40, no -OpenUtilLimit)
+  If it reaches 60/60 consecutive clean samples: run the window normally. The exception is NOT enabled
+  and the evidence records not_a_normal_threshold_pass=false, authoring_exception_used=false.
+
+Step 2 - only if the regular path fails (30 min cap, floor breach, foreign compute load, or build):
+  a. retain the failed CSV + pre-window snapshot + the stop verdict verbatim (do not overwrite);
+  b. material exception block (five elements):
+     mode=validation_only_exception_util_lt_60
+     approved_by=user via Chief 2026-10-31T00:5x+08:00
+     reason=persistent desktop 3D graphics noise (dwm.exe / DeepSeek Harness gpu-process /
+            msedgewebview2 gpu-process); the criteria here are per-channel comparisons against frozen
+            references, so external graphics load does not change the arithmetic results
+     original_normal_threshold_attempts_retained=<the failed regular CSV path>
+     not_a_normal_threshold_pass=true
+     authoring_exception_used=false
+  c. re-take a 3-point baseline -> new floor;
+  d. exception monitor: -Required 60 -MaxMinutes 30 -MaxUtil 60 (powershell 5.1 only) with a NEW CSV
+     name (never overwrite the failed one); the window opens only if 60/60 is reached;
+  e. load-bearing evidence recomputed from that CSV: util>=40 samples recorded clean and their streak
+     (proves the applied threshold was 60), ge60=0, util_max<60; if all 60 samples are <40, record
+     exception_effectively_not_load_bearing=true (state it as-is, do not claim the 60 threshold was
+     load-bearing);
+  f. both monitors (failed regular + passing exception) go into the evidence; the run is never
+     described as a normal threshold pass.
+
+USER DOUBLE-SIGN BLOCK (signed 2026-10-31)
+- plan version sha256      : recorded in receipt.json when the window card is registered
+- decision                 : [x] approve regular util<40  [x] approve CONDITIONAL validation-only util<60 exception
+- approved_by              : user via Chief 2026-10-31T00:5x+08:00
+- pre-window baseline      : ____________________ (filled in the window: min free MiB, floor MiB)
 - guards identity (92)     : aggregate_sha256 ____________________  (filled after freeze)
-- Chief collated at        : ____________________
-- note: regular util<40 only; the authoring-only util<60 exception is NOT applicable here.
+- Chief collated at        : 2026-10-31T00:5x+08:00 (relayed)
+- note: execute step 1 first; the conditional exception is enabled only if step 1 fails. Both paths
+        are signed. The authoring-only exception is never used here.

@@ -20,9 +20,11 @@
 ## 2. 窗口纪律（常规 util<40，无例外）
 
 - 新 suite `render-sdf-validate`、attempt=1、新冻结器 `freeze-guards-sdf.ps1`（ASCII、≤200 行、PowerShell 5.1）；**不复用 R05/R02/R08 guards**（U1/U1b 改了产品代码 ⇒ 所有 exe 哈希都变）。
-- 预期冻结条数：**9 exe + 83 inputs = 92**（scene-sdf 10 + scene-hfield 10 + legacy 47 + scene-shadow 16），冻结脚本硬断言。
-- 开窗前三点基线 → `floor = min free − 3072`；monitor `-Required 60 -MaxMinutes 30`（默认 MaxUtil=40，**不得** `-MaxUtil 60`/`-OpenUtilLimit`）；失败即停、不重试、不换例外。
-- 五条命令逐字见 `materials/window-plan.txt`。
+- 预期冻结条数：**9 exe + 83 inputs = 92**（scene-sdf 10 + scene-hfield 10 + legacy 47 + scene-shadow 16），冻结脚本硬断言，且**逐条核 guards 文件**（不只核总数）。
+  - 与 S3 窗的 68 inputs 对账：**+10 scene-sdf**、legacy **42 → 47**（+5 perworld）；scene-hfield 10、scene-shadow 16 不变。
+- **条件式执行（用户 2026-10-31 签）**：先常规 `util<40`（三点基线 → floor → monitor 默认 MaxUtil=40，不加 `-OpenUtilLimit`）；60/60 则正常开窗（`not_a_normal_threshold_pass=false`、`authoring_exception_used=false`）。**仅当常规失败**（保留失败 CSV/快照/判定）才启用已签的 `validation_only_exception_util_lt_60`：五要素 + 重取基线 + `-MaxUtil 60`（新 CSV、PowerShell 5.1）+ 60/60 才开窗；例外生效证据 = 重算 util≥40 仍 clean 的样本/连续段、`ge60=0`、`util_max<60`，全 <40 则记 `exception_effectively_not_load_bearing=true`。**现场按序执行、不预设路径；绝不可写成常规通过。**
+- 五条命令逐字见 `materials/window-plan.txt`；另见其中 `CONDITIONAL EXECUTION PROTOCOL`。
+- **编译口径**：freeze 必然跑 `cargo test --no-run`（9 个新 exe，属预期编译）⇒ **不宣称「窗口零 Rust 编译」**；证据口径为「**body 开始后零编译**」（deps 快照取在 body 之前）。
 
 ## 3. 判据（零放宽）
 
@@ -52,3 +54,10 @@ RGB `beyond_1_lsb=0`/`max_byte_diff≤1`；depth `mismatched=0` 且 `max_ulp≤4
 | `materials/entity-table.json` | 9 实体 + 判据 + guards 预期 |
 | `materials/window-plan.txt` | 窗口计划一页（ASCII）：命令逐字、基线/floor、时限、失败策略、双签栏 |
 | `materials/expected-products.json` | U4a pin、参考 sha、判据、guards 预期、窗口命令、双签栏 |
+
+## 8. 用户签字（2026-10-31，via Chief）
+
+- 用户签：**常规 `util<40` 窗口 + 条件式 `validation-only util<60` 例外**（二选一按现场结果，先常规）。
+- 签署时间：`2026-10-31T00:5x+08:00`（via Chief 转达）；材料 amend 后 pin 新提交。
+- 协议细节：`materials/window-plan.txt` 的 `CONDITIONAL EXECUTION PROTOCOL` 与 `materials/expected-products.json` 的 `conditional_protocol`。
+- 两条 QA 口径已落：①`inputs 83` 分解 + 与 S3 的 68 对账（+10 sdf、legacy 42→47）并逐条核 guards；②「body 开始后零编译」替代「窗口零编译」（freeze 编译为预期步骤）。
