@@ -1,0 +1,62 @@
+{
+  "task_id": "2026-10-31-render-sdf-sphere-dot-a-order-revert",
+  "kind": "render-sdf-sphere-dot-a-order-revert",
+  "owner": "Arch",
+  "trigger": "U4 window attempt3 (INVALID_ROUND) showed the sphere a-order fix conflicts with the scene-a precise references; Chief ordered the revert",
+  "reverted_slice": {
+    "task": "2026-10-31-render-sdf-sphere-dot-a-order-fix",
+    "commit": "8126868c",
+    "change": "render_sphere_hit a = dot3_ba(...) i.e. contraction order (1,0,2); dot3_ch0 removed"
+  },
+  "conflict_facts": {
+    "window_task": "2026-10-31-render-sdf-validate",
+    "attempt": 3,
+    "verdict": "INVALID_ROUND exit10",
+    "blocker_1_process_invalid": "U1b still rolled back (07252cd2) => render_sdf_reference panics Unsupported(\"S7b3 不含 SDF 求交\") in all 5 GPU tests; the SDF side of this attempt has no criterion evidence",
+    "blocker_2_reference_conflict": "6 scene-a regression entities fail at the same spherical-silhouette pixels (first pixel 28969 / x=169 y=120), depth max_ulp=73 (>4); these pixels were bitwise 0 before the fix",
+    "scene_a_requires": "a contraction (0,1,2) (matches its fast_math=false reference bitwise, 120,000/120,000)",
+    "scene_sdf_requires": "per the fix-slice RCA, the scene-sdf fast_math=false reference is reproduced 44/44 by a=(1,0,2) inside that dataset only (single-dataset fit)",
+    "consequence": "no single product implementation can be bitwise for both references; 73 ULP >> 4 ULP so no tolerance bridges it",
+    "cause": "not concluded here; read-only RCA of the two captures' generated kernels is being written under target/ (does not claim a cause until machine evidence exists)"
+  },
+  "change": {
+    "file": "src/render/kernel/cuda/render_math.cu",
+    "reverted_blob": "33efcb270f6ea1e8eff969d3a3b850c448bff327",
+    "fix_blob": "7a43e575b7b73b1abd69a7f70cda733099255a04",
+    "reverted_blob_equals_gen1": true,
+    "diff": "reverse of the fix commit for this file (25 lines); no other file touched"
+  },
+  "kernel_identity": {
+    "gen1": {"source_sha256": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5", "ptx_sha256": "34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d", "ptx_bytes": 268589},
+    "gen2_fix": {"source_sha256": "eb0e717fb0389355182503a44192ee5d8dbd7ef7957e8fc5f8ec0368e27d5b0b", "ptx_sha256": "7782aeb199dc49ff231a8884a70a8194a2deef02e9a7f4e2c9f43a0fc74dc5d4", "ptx_bytes": 268589},
+    "gen3_revert": {"source_sha256": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5", "ptx_sha256": "34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d", "ptx_bytes": 268589},
+    "gen3_equals_gen1": true,
+    "note": "a CRLF checkout of the same blob reports source_sha256 86a55721..; the committed blob and the LF working tree give 778216b2..",
+    "aa_resolve_unchanged": {"source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76", "ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70", "ptx_bytes": 27536}
+  },
+  "gates": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "clippy-cuda": "passed",
+    "unit": "passed (1111 passed / 0 failed / 397 ignored)",
+    "no_run": "EXIT=0 with Finished",
+    "validate_fingerprints": "errors 0"
+  },
+  "untouched": [
+    "criteria / tolerances / references / fixtures",
+    "docs/development-evidence/render-bvh/sphere-dot-a-order-fix (history kept as-is)",
+    "docs/development-evidence/render-bvh/sdf-validate-window",
+    "docs/development-evidence/render-bvh/sdf-host-unlock-rollback"
+  ],
+  "out_of_scope": [
+    "U4 verdict: still NOT PASSED; the sphere-outline criterion is unchanged",
+    "U1b re-application: deferred pending the reference-conflict decision",
+    "attempt3 freeze is burned and must not be reused"
+  ],
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "精度达标",
+    "SDF 渲染已覆盖"
+  ]
+}

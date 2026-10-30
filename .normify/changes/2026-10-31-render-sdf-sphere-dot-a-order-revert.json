@@ -5,7 +5,7 @@
     "zh": "回滚球面 a=dot(vec,vec) 收缩次序 fix（恢复 scene-a 位级回归；U4 球轮廓判据保持未通过；离线零 GPU）",
     "en": "Revert the sphere `a = dot(vec,vec)` contraction-order fix (restore bitwise scene-a regressions; U4 sphere-outline criterion stays not-passed; offline, zero GPU)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "U4 attempt3 证明该 fix 与历史参考冲突：scene-a 的 `use_fast_math=false` 参考（S7b1-kernel 采集）把 `a` 合成为 (0,1,2)，而 scene-sdf 的 `use_fast_math=false` 参考（U3 采集）合成为 (1,0,2)；改到 (1,0,2) 后 6 个回归实体全部红在 scene-a cam1 球面轮廓（首差 pixel 28969 / (169,120)，max_ulp=73），改前为位级 0。**没有任何单一实现能同时位级匹配两份参考**，且 73 ULP 远超 ≤4 ULP，无法用容差桥接。按 Chief 处置：回滚 fix（`a` 恢复 `dot3_ch0`，即 (0,1,2)），产品回到与全部历史参考位级一致的状态；U4 球轮廓判据**保持未通过**，不改判据/参考/容差。",
     "en": "Revert the sphere a-order fix because it conflicts with the scene-a precise references (73 ULP at the same silhouette pixels), restoring the product's bitwise agreement with all historical references. No criteria/reference/tolerance change."
@@ -34,11 +34,12 @@
   },
   "note": "Arch 2026-10-31 注册（Chief 处置：attempt3 证伪该 fix 的适用性 → 回滚）。冲突事实：两份同为 mujoco_warp 3.15 / warp 1.15 / fast_math=false 的上游采集，对 `a` 的 f32 收缩次序给出不同结果（scene-a=(0,1,2)、scene-sdf=(1,0,2)），同一产品实现无法同时位级匹配；详见 attempt3 记录与后续只读 RCA（`target/`）。本片只回滚产品代码并记录三代内核身份，不做窗口、不改判据；U1b 重做暂缓。",
   "revision": {
-    "before": null,
+    "before": "1bf3860edbdecf617353165069d1c8d96cdfc29e",
     "after": null
   },
   "created_at": "2026-10-31T04:00:00.000Z",
-  "updated_at": "2026-10-31T04:00:00.000Z",
+  "updated_at": "2026-10-30T19:38:40.662Z",
+  "closed_at": "2026-10-30T19:38:40.662Z",
   "checks": [
     {
       "kind": "json",
