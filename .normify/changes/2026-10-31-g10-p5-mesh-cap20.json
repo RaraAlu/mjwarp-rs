@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-g10-p5-mesh-cap20",
+  "title": {
+    "zh": "G10@P5 mesh multicontact 容量 A1（固定 scratch 16→20 / 32→40；U8 prism-20；离线零 GPU）",
+    "en": "G10@P5 mesh multicontact capacity A1 (fixed scratch 16->20 / 32->40; U8 prism-20; offline, zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按用户 2026-10-30 拍板（mesh 选 A1，16→20）与 Chief 批准的离线实现：把 mesh multicontact 分支的固定 scratch 上限从 16 提到 20（多边形裁剪缓冲 32→40），使 U8（prism-20，单 polygon 顶点 20）走完整 polygon clip，而 U7（fan-cone-24，顶点 24 / degree 24）仍按设计回退单接触（A2 范围）。**零 ABI / 零槽位改动**（per-thread 局部数组 + 宿主 Vec）；不改判据/容差/参考；U8/U7 维持 record-only。",
+    "en": "Raise the fixed mesh-multicontact scratch caps from 16 to 20 (polygon clip buffers 32->40) so U8 prism-20 takes the full polygon clip path; U7 stays a single-contact fallback (A2). No ABI, no criteria change."
+  },
+  "modules": {},
+  "acceptance": [
+    "**设备 7 处 + 宿主 2 处**：`contact.cu` 的 `polygon/clipped[32→40]`、`pnormal/pdist[16→20]`、`face1/face2[16→20]`；`multicontact_geom.cu` 的 `G5_MC_MESH_FACE_MAX 16→20`（`G5_MC_MESH_DEG_MAX 10` 不动）；宿主 `clip.rs` 的 `pn/pd[20]`、`polygon/clipped[40]`；`src/` 其它逻辑零改动（diff 仅这 7 个文件 + 新测试）。",
+    "**注释契约 5 处**：`contact.cu`（npolygonmax=20）、`multicontact_geom.cu`（FACE_MAX 20 + degree 仍 10/U7 未覆盖）、`multicontact.cu:13-14`、`multicontact_clip.cu:10-11`、`multicontact_mesh.cu:11-13` 的容量口径统一改为 20/40/face 20，并写明 U7 未覆盖（A2）。",
+    "**CPU 单测（新增 2 条）**：`polygon_clip_accepts_twenty_vertex_face1`（20 边形 face1 触发 `pn[19]`，改前会越界 panic；断言 ncontact 1..=4）与 `polygon_clip_accepts_twenty_vertex_face2`（20 顶点 face2 需要 40 缓冲；断言 ncontact 1..=4）；两条在 `cargo test --lib` 下通过，unit 总数 1111→1113、0 失败。",
+    "**内核身份（collision 设备源）**：`nvrtc_smoke` 探针记录前后值——source `255,840 B / 28385801…` → **`254,743 B / f32f0af2…`**；PTX `3,883,740 B / 6 入口` → **`3,883,769 B / 6 入口`**；说明 collision 内核身份已变 ⇒ 任何后续 GPU 窗口必须**新冻结**，不复用旧 guards。",
+    "**门禁与构建**：fmt/clippy/clippy-cuda/unit 全绿（unit 1113 过 / 0 败）、`cargo test --locked --no-run` EXIT=0 含 `Finished`、`normify validate --fingerprints` 错误 0。",
+    "**边界**：不改判据/容差/参考/fixtures；不改写历史证据（g10 既有窗口证据、render-bvh 证据零改动）；U8/U7 维持 record-only；零 GPU 窗口、零冻结；U7 仍为单接触回退，证据必须如实写「U7 未覆盖（A2）」，不得写「mesh 容量缺口已清」。",
+    "**证据**：`docs/development-evidence/g10-p5-mesh-cap20/`（README 记 A1 范围/容量表/身份新旧/U8-U7 预期、receipt、四条门禁快照、nvrtc-smoke 新旧身份、no-run、validate、src diff、manifest）；LF 无 BOM、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "src/physics/collision/cuda/contact.cu",
+      "src/physics/collision/cuda/multicontact.cu",
+      "src/physics/collision/cuda/multicontact_clip.cu",
+      "src/physics/collision/cuda/multicontact_geom.cu",
+      "src/physics/collision/cuda/multicontact_mesh.cu",
+      "src/physics/collision/gjk/multicontact/clip.rs",
+      "src/physics/collision/gjk/multicontact/mod.rs",
+      "docs/development-evidence/g10-p5-mesh-cap20/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册（用户 2026-10-30 拍板 A1；Chief 批准离线实现，窗口排后等用户签）。预核见 `target/mesh-a1-precheck.md`。只做固定容量 16→20（polygon 缓冲 32→40），不碰 degree（U7 仍回退，A2 范围）；零 ABI；U8/U7 维持 record-only，是否把 U8 提升为 pass/fail 等用户在其窗前后确认。GPU 验证窗在用户签窗口后另开（新 suite + 新冻结）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-31T04:20:00.000Z",
+  "updated_at": "2026-10-31T04:20:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap20/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-g10-p5-mesh-cap20"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/g10-p5-mesh-multicontact",
+        "fixtures/g10-p5-primitive-branches",
+        "docs/development-evidence/g10-p5-multicontact-cuda",
+        "docs/development-evidence/g10-p5-mesh-multicontact-m2-cuda",
+        "docs/development-evidence/g10-p5-mesh-multicontact-m3-cuda",
+        "docs/development-evidence/g10-p5-branch-closure-validation",
+        "docs/development-evidence/render-bvh"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "上游等价",
+        "精度达标",
+        "mesh 容量缺口已清"
+      ]
+    }
+  ]
+}
