@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-sdf-capture",
+  "title": {
+    "zh": "SDF 渲染参考采集窗（volume SDF，2 groups，regular util<40，用户已双签）",
+    "en": "SDF render reference capture window (volume SDF, 2 groups, regular util<40, user-signed)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "SDF 解锁片 U3（预核 `target/sdf-unlock-precheck.md` §8；用户 2026-10-30T23:10:52 经 Chief 双签）。用 pinned 上游环境采集 SDF 渲染参考：`sdf-mesh`（scene.xml）与 `sdf-occluder`（scene-mixed.xml）两组，每组 `--use-fast-math false --use-shadows true --repeat 2`，产 `fixtures/render-bvh/scene-sdf/capture-sdf/<group>/{rgb,depth,seg}.npz + capture.json`。**这是采集，不是验收**：本窗不产生任何渲染数值判定。窗口纪律：常规 `util<40`（无例外、不加 `-OpenUtilLimit`）、开窗前三点基线 + `floor = min(free) − 3072`、monitor 60×5 s、失败即停手不重试；**所有命令必须用 Windows PowerShell 5.1**（aggregate 的文化排序约束），窗口事实记录 shell 版本。",
+    "en": "U3 of the SDF unlock slice: capture the SDF render reference with the pinned upstream environment for two groups; regular util<40 window, no exception, stop on failure; PowerShell 5.1 only. Capture only: no numeric verdict."
+  },
+  "modules": {},
+  "acceptance": [
+    "**签字与前置**：用户签字（`approved_by=user via Chief`、2026-10-30T23:10:52+08:00、scope 四项）已写入 `sdf-capture-window-material/materials/window-plan.txt` 的双签栏；被批准 plan 版本 sha256 `eb484aa7…`；U2 authoring verified；窗口材料与脚本身份（sha `80645968…`）与证据一致。",
+    "**窗口执行**：开窗前树干净、构建 0、新快照；三点 baseline（~1 s 间隔）取 min free 并算 `floor = min(free) − 3072`；monitor `-Required 60 -MaxMinutes 30`（默认 MaxUtil 40，**不加** `-OpenUtilLimit`）60/60 干净；窗内两条采集命令各跑一次且 exit 0。",
+    "**采集结果**：两组 out-dir 各产 `rgb.npz`/`depth.npz`/`seg.npz`/`capture.json`；`capture.json` 的 `two_captures_bitwise_identical=true`、`legacy_reference_untouched=true`、`legacy_reference_files=69`、`use_fast_math=false`、`use_shadows=true`、`repeat=2`；两跑逐数组相等且 npz 字节相同；out-dir 只含预期文件；文件 sha256/bytes 记录在证据。",
+    "**窗口事实**：窗内 free/util/samples、`floor` 未破、零构建、shell 版本（Windows PowerShell 5.1）、两条命令逐字、monitor CSV 与结果；窗后 out-dir/exe 复查无异常；**失败即停手**记录（若有）原样保留。",
+    "**证据**：`docs/development-evidence/render-bvh/sdf-capture/`（README/receipt/logs/window facts/manifest）；不宣称任何渲染数值结论；不改判据/容差/参考；`src/**`/`tests/**` 零改动。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-sdf-capture-authoring"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "fixtures/render-bvh/scene-sdf/capture-sdf/",
+      "docs/development-evidence/render-bvh/sdf-capture/",
+      "docs/development-evidence/render-bvh/sdf-capture-window-material/"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 64
+  },
+  "note": "Arch 2026-10-30 注册（用户已签：都按推荐来；SDF 两窗合并、只做 volume SDF、1 场景 2 相机含 shadow 开关对比）。前置 U2 authoring verified；脚本 `scripts/capture_render_sdf.py` sha `8064596876aeec3ee2fe1f63e83d7de87f898a8dbe9a1ef64f64026de8a77b…`；**常规 util<40，无例外**；**所有命令用 Windows PowerShell 5.1**（`Sort-Object` 文化排序影响 aggregate，pwsh 7 结果不同）；失败即停手报 Chief，不重试不改门槛。U4 验证窗在其后（U1b host 解锁之后），需新冻结 guards。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T23:12:00.000Z",
+  "updated_at": "2026-10-30T23:12:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-capture/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-sdf-capture"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/render-bvh/scene-sdf/scene.xml",
+        "fixtures/render-bvh/scene-sdf/scene-mixed.xml",
+        "scripts/capture_render_sdf.py",
+        "src/render/kernel/cuda"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
