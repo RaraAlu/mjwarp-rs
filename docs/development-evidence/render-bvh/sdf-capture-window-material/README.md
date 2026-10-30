@@ -12,7 +12,7 @@
 
 ## 1. 脚本身份
 
-`scripts/capture_render_sdf.py` sha256 `9acd2130f58cfc2cc495bc73bae4e12cb1e9fb3c68c4d245819e809e524fde67`、**20,380 B / 427 行 / 非 ASCII 0**，派生自 R05-S3a `capture_render_hfield.py`（环境 pin / 确定性 npz / 两跑字节相等 / legacy sha 清单全保留）；派生器与被删改片段见 `sdf-capture-authoring/README.md` §1。
+`scripts/capture_render_sdf.py` sha256 `8064596876aeec3ee2fe1f63e83d7de87f898a8dbe9a1ef64f64026de8a77ba9`、**21,349 B / 441 行 / 非 ASCII 0**，派生自 R05-S3a `capture_render_hfield.py`（环境 pin / 确定性 npz / 两跑字节相等 / legacy sha 清单全保留）；派生器与被删改片段见 `sdf-capture-authoring/README.md` §1。**硬检查**：out-dir 非空即拒（非零退出）、真实采集要求 `--repeat >= 2`、两跑先在 out-dir 之外的临时目录比对、全相等才创建/写入 out-dir（失败不留产物、重跑不被残留挡住）。
 
 ## 2. 场景
 

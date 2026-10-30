@@ -15,7 +15,7 @@
 | --- | --- |
 | 场景 `fixtures/render-bvh/scene-sdf/scene.xml`（group `sdf-mesh`） | **3,388 B / 59 行 / sha256 `376eb81ce200b29373af3965c7abefd90b8f00188a688db583080836dfa868e8`** |
 | 场景 `fixtures/render-bvh/scene-sdf/scene-mixed.xml`（group `sdf-occluder`） | **3,062 B / 55 行 / sha256 `7869cfae5e16795ebf86b93c931ef36a8e94464452762e28f1357e0e68a1584e`** |
-| 采集脚本 `scripts/capture_render_sdf.py` | **20,380 B / 427 行（≤500）/ 非 ASCII 0 / sha256 `9acd2130f58cfc2cc495bc73bae4e12cb1e9fb3c68c4d245819e809e524fde67`** |
+| 采集脚本 `scripts/capture_render_sdf.py` | **21,349 B / 441 行（≤500）/ 非 ASCII 0 / sha256 `8064596876aeec3ee2fe1f63e83d7de87f898a8dbe9a1ef64f64026de8a77ba9`** |
 | 派生来源 | `scripts/capture_render_hfield.py`（R05-S3a 骨架）：只换场景子树/组名/task id/消息；环境 pin、确定性 npz、两跑字节相等、legacy sha 清单全部沿用；派生器 `target/sdf-u2/derive_sdf_capture.py`（不入库），缺失片段会直接失败以防静默漂移 |
 | pinned 环境 | python `feeec361…`（3.12.13）、warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4、upstream `71da24d9…`（clean） |
 
@@ -40,6 +40,12 @@ target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_sdf.py 
 - **未创建 CUDA device**（dry-run 分支 `want_cuda_device=False`），**未写 --out-dir**（实测 `fixtures/render-bvh/scene-sdf/capture-sdf/` 不存在，目录下只有两个 xml）
 - `legacy_manifest_entries=69`（本脚本 legacy 清单 = `fixtures/render-bvh` 排除新 `scene-sdf/` 子树；**包含** shadow/hfield 的既有参考，它们冻结不动，任何改动都会让采集失败——比只排除 shadow/hfield 更严）
 - 环境/版本/upstream clean/python sha 与 receipt 一致
+
+**新增硬检查（QA P1 修复，2026-10-30 晚）**：
+
+1. **`--out-dir` 非空即拒**：`out_dir` 已存在且非空（或存在但不是目录）→ 立即 `fail` 非零退出、错误串写明 `already exists and is not empty; refusing to overwrite`；dry-run 也走同一检查。负例实测：`--dry-run --out-dir fixtures/render-bvh/scene-sdf`（非空）→ **exit 1**，日志 `logs/outdir-nonempty-reject.err.txt`。
+2. **`--repeat >= 2` 守卫**：非 dry-run 且 `--repeat < 2` → 立即非零退出，错误串写明 two-run byte-identical 要求；dry-run 不受限。负例实测：`--group sdf-mesh --repeat 1`（无 `--dry-run`，在 CUDA 之前就拒绝）→ **exit 1**，日志 `logs/repeat-guard-reject.err.txt`。
+3. **先比较后落盘**：两次采集的 npz 字节在 `tempfile.TemporaryDirectory`（out-dir 之外）里比对，**全部相等才创建/写入 out-dir**；不等则非零退出且**不留 out-dir**（失败重跑不会被自己残留产物挡住）。最终写入后再与比较阶段的 sha 复核一次，不一致同样失败。
 
 ## 4. 预期产物（U3 采集窗将写入；本片不写）
 

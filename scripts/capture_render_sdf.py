@@ -314,6 +314,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if not args.dry_run and args.repeat < 2:
+        fail("--repeat must be >= 2 for a real capture "
+             "(two-run byte-identical requirement); --dry-run is unrestricted")
     global PARAMS
     PARAMS = dict(PARAMS_28)
     PARAMS["use_shadows"] = args.use_shadows == "true"
@@ -322,6 +325,11 @@ def main() -> int:
     out_dir = args.out_dir.resolve()
     if not out_dir.is_relative_to(SCENE_DIR.resolve()):
         fail(f"--out-dir {out_dir} is outside the new scene subtree {SCENE_DIR}")
+    if out_dir.exists():
+        if not out_dir.is_dir():
+            fail(f"--out-dir {out_dir} exists and is not a directory; refusing to overwrite")
+        if any(out_dir.iterdir()):
+            fail(f"--out-dir {out_dir} already exists and is not empty; refusing to overwrite")
     import warp as wp
 
     wp.config.kernel_cache_dir = str(args.warp_cache)
@@ -366,7 +374,7 @@ def main() -> int:
     wp.synchronize()
     rc = mjw.create_render_context(mjm, **PARAMS)
     first = capture_once(mjm, m, d, rc)
-    second = capture_once(mjm, m, d, rc) if args.repeat == 2 else first
+    second = capture_once(mjm, m, d, rc)
     for name in sorted(first["arrays"]):
         if not np.array_equal(first["arrays"][name], second["arrays"][name]):
             fail(f"two captures differ in array {name}")
@@ -376,17 +384,23 @@ def main() -> int:
     second_files = {f"{kind}.npz": {k: v for k, v in second["arrays"].items()
                                     if k.startswith(f"{kind}_")}
                     for kind in ("rgb", "depth", "seg")}
-    out_dir.mkdir(parents=True, exist_ok=True)
-    first_hashes = {name: save_npz_deterministic(out_dir / name, data)
-                    for name, data in first_files.items()}
-    tmp_second = out_dir / ".second"
-    second_hashes = {name: save_npz_deterministic(tmp_second / name, data)
-                     for name, data in second_files.items()}
+    # Compare npz bytes in a scratch dir OUTSIDE out-dir: a mismatch must leave no out-dir behind,
+    # so a failed run can be retried without tripping the non-empty out-dir guard.
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="mjwarp-sdf-capture-") as scratch_name:
+        scratch = pathlib.Path(scratch_name)
+        first_hashes = {name: save_npz_deterministic(scratch / "first" / name, data)
+                        for name, data in first_files.items()}
+        second_hashes = {name: save_npz_deterministic(scratch / "second" / name, data)
+                         for name, data in second_files.items()}
     if first_hashes != second_hashes:
         fail(f"two captures differ in npz bytes: {first_hashes} vs {second_hashes}")
-    import shutil
-
-    shutil.rmtree(tmp_second, ignore_errors=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written_hashes = {name: save_npz_deterministic(out_dir / name, data)
+                      for name, data in first_files.items()}
+    if written_hashes != first_hashes:
+        fail(f"written npz bytes differ from the compared bytes: {written_hashes} vs {first_hashes}")
     capture_at = __import__("os").environ.get("MJWARP_CAPTURE_AT", "")
     recipe["capture_at_env"] = capture_at
     recipe["cameras"] = camera_recipe(mjm, rc)

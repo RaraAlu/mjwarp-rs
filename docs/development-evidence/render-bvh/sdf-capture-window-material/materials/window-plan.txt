@@ -8,9 +8,9 @@ the capture therefore needs NO SDF distance-field code.
 
 SCRIPT IDENTITY
 - path   : scripts/capture_render_sdf.py
-- sha256 : 9acd2130f58cfc2cc495bc73bae4e12cb1e9fb3c68c4d245819e809e524fde67
-- bytes  : 20380
-- lines  : 427 (LF, <=500)
+- sha256 : 8064596876aeec3ee2fe1f63e83d7de87f898a8dbe9a1ef64f64026de8a77ba9
+- bytes  : 21349
+- lines  : 441 (LF, <=500)
 - ascii  : 0 non-ASCII bytes
 - derived: scripts/capture_render_hfield.py (R05-S3a skeleton); existing capture scripts and
            existing references are untouched.
@@ -41,9 +41,12 @@ Optional env: MJWARP_CAPTURE_AT (ISO8601; recorded in capture.json.captured_at; 
 
 HARD SELF-CHECKS (non-zero exit on violation)
 - --out-dir must be inside fixtures/render-bvh/scene-sdf/ and must not already be non-empty
+  (existing non-empty dir or a non-directory path is rejected with an explicit error)
+- a real capture requires --repeat 2 (--repeat 1 is rejected before any CUDA work; --dry-run is unrestricted)
+- two-run comparison happens in a scratch dir OUTSIDE out-dir: out-dir is only created/written when
+  every array is array_equal AND the npz bytes are identical; on mismatch nothing is written and
+  no out-dir is left behind (so a failed run can be retried without tripping the non-empty guard)
 - use_fast_math false (product same recipe), use_shadows true, samples_per_pixel=1
-- --repeat 2: array_equal for every array AND byte-identical npz (deterministic ZIP_STORED);
-  otherwise nothing is written and no claim is made
 - legacy sha256 manifest (fixtures/render-bvh minus scene-sdf/, measured 69 entries; includes the frozen
   shadow/hfield references) must be identical before and after; any change fails the run
 
