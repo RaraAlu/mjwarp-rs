@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-r08-rgb-hetero-validate-check",
+  "title": {
+    "zh": "R08-RGB 逐相机掩码验证窗独立复核（guards 77/77 重算/9 实体判据逐条/零编译/floor/四轮历史/证据卫生）",
+    "en": "Independent check of the R08-RGB per-camera mask validation window (guards recompute, 9-entity criteria, zero compile, floor, monitor history, evidence hygiene)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-29-render-r08-rgb-hetero-validate`（窗口执行片，pin revision = `c19ca943`）。**本轮是常规 util<40 窗口**：`not_a_normal_threshold_pass=false`、窗口命令无 `-OpenUtilLimit`、未使用任何例外、未改判据/容差/参考。复核点：① guards 77/77（9 exe + 68 输入）与 aggregate 独立重算；② `-GuardsOnly` 与 stash 9/9；③ 9 实体逐条判据（新实体 8 个用例的逐相机数字 + 8 回归零漂移）；④ `zero_rust_compile=True`（deps 计数与 max_write 不变）；⑤ floor/free/util/samples 与 window-command 逐字；⑥ 四轮失败 monitor 历史原样保留（round1 0/60、round2 37/60、round3 7/60、round4 37/60）且本轮 60/60 是 monitor CSV 重算得出；⑦ 证据卫生（LF 无 BOM、manifest 与 committed blob 一致、receipt 三处 `not_a_normal_threshold_pass`/`authoring_exception_used` 口径一致、禁词 0）。**QA 只读**：不跑设备执行、不改证据；可跑纯编译门（`cargo test --no-run`）与只读 Python/PowerShell 重算。",
+    "en": "QA read-only review of the R08-RGB validation window at pin revision c19ca943: guards/aggregate recompute, guards-only, per-entity criteria, zero compile, floor/util, retained failed monitor rounds, evidence hygiene. No device execution; no evidence edits."
+  },
+  "modules": {},
+  "acceptance": [
+    "**guards 与 aggregate**：`scripts/validate/render-bvh/guards-r08-rgb-hetero.json` committed blob bytes=**28,970**、sha256=**`e81d69a4daa0268777eff698ecf7621dee333076915f805c2e447cc9d0c34f3a`**；条目 **77** = 9 exe + 68 只读输入；QA 按 `aggregate_algorithm` 独立重算（repo-relative path 排序、sha256 hex 串无分隔拼接再 sha256）应得 **`3ad8b3522314222629f1cf8e5a9703a9c53ad75433373d0c06f402803a517f1c`**；`-GuardsOnly` 留痕为 `GUARDS_OK=77/77`、stash 9/9；R05/R02 guards 未动。",
+    "**窗口执行**：`entity-results.csv` 9 行全 `exit=0`（new 1 + 回归 8）；`facts.txt` 的 `post_window_exe_recheck=9/9 mismatches=0`、`residual_processes=0`、`sha_guards=77/77`、`entity_count=9`；`window-command.txt` 逐字 4 条（monitor / freeze / GuardsOnly / stage B）与 facts/guard.log 一致；窗口时间段与 `window_start/window_end/body_wall_s` 自洽。",
+    "**零编译**：`facts.txt` 的 `deps_before_count == deps_after_count`（1839）、`deps_before_max_write == deps_after_max_write`（10/30/2026 02:53:25）、`zero_rust_compile=True`；QA 独立确认窗口体内无 cargo/rustc 子进程留痕（`machine-load.txt`/samples 时间窗）。",
+    "**判据逐条（不宽松）**：`render_r08_cameras` 8 用例逐条可核——异构 RGB 三态（cam0_on `f62f4d73…`、cam1_on `1325755c…`、all_off `b09e2eec…`）、异构 depth/seg（`depth_adr=[0,-1]`、`seg_adr=[-1,0]` + 未启用拒绝）、矩阵 4 例（all/mask_first/names_all/indices_reversed：`rgb beyond_1_lsb=0`、`depth_mismatch=0/max_ulp=0`、`seg_mismatch=0`，120,000 或 76,800 像素/对）、cam1 三通道全关、隔离/重排位级一致、动态 vs 预计算 depth/seg 位级一致（sha `b09e2eec…`）、两跑 sha 相等（`f9fe1b9e…`）、空选择 no-op；8 回归各自 `test result: ok`（0 failed）且既有判据未改。",
+    "**资源与 floor**：monitor CSV 独立重算 = 60 samples / longest_clean 60 / util 2–8 / free_min 13,452 / ge40=0 / filtered_max=0 / build_max=0；窗口 `samples=177`、`free_min=13,179`、`util_max=7`、`delta=276 ≤ 3072`、`floor_breached=False`；两个 floor 口径（run-window `10240`、pre-window `baseline−3072=10374`）均未破，QA 需按 README §6 区分记录。",
+    "**常规窗口口径**：证据三处（README/receipt/facts）一致为 `not_a_normal_threshold_pass=false`、`authoring_exception_used=false`、无 `-OpenUtilLimit`、无例外记录；四轮失败 monitor 原样保留（`monitor-history/` 四个 CSV + round4 失败判定/重算 + round4 快照），不得被本轮 60/60 覆盖或改写。",
+    "**证据卫生与范围**：证据目录所有 blob LF 无 BOM、`manifest.txt` 与 committed blob 逐个 bytes/sha256 一致、禁词扫描 0 命中（词表见本卡 `forbid_claim`）；`git diff` 相对 pin revision 只含 `docs/development-evidence/render-bvh/r08-rgb-hetero-validate/`、`scripts/validate/render-bvh/guards-r08-rgb-hetero.json` 与 `.normify/` 中三张相关卡；`src/**`、`tests/**`、`fixtures/**`、其它 scripts 零改动；不出现「SDF cull 已解锁」「per-world 已覆盖」「性能结论」等超出本窗的结论。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-render-r08-rgb-hetero-validate"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/r08-rgb-hetero-validate-check/"
+    ],
+    "resources": [],
+    "priority": 50
+  },
+  "note": "Arch 2026-10-30 预登记（Chief 要求窗口证据提交后立刻注册 QA 复核卡）。**pin revision = c19ca943**（窗口证据 + guards 产物 + 机械入库卡均已提交、工作树干净）。复核对象：`docs/development-evidence/render-bvh/r08-rgb-hetero-validate/`（README/receipt/facts/entity-results/sha-guards/guard.log/logs 9 份/monitor 本轮 CSV+重算/monitor-history 四轮/materials）+ `scripts/validate/render-bvh/guards-r08-rgb-hetero.json`。**常规窗口**：`not_a_normal_threshold_pass=false`、无 `-OpenUtilLimit`、未使用例外。**QA 只读**：不跑设备执行、不改证据；可跑纯编译门（`cargo test --no-run`）与只读重算（`target/recompute-exception-monitor.py` 可用于 monitor CSV）。start 时把卡 id 与上述七条复核点发 QA 会话。产出放 `docs/development-evidence/render-bvh/r08-rgb-hetero-validate-check/`（README + receipt + recompute + logs）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T12:30:00.000Z",
+  "updated_at": "2026-10-30T12:30:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r08-rgb-hetero-validate-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-r08-rgb-hetero-validate-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "产品渲染验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
