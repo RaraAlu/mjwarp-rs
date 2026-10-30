@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-validate-attempt3-check",
+  "title": {
+    "zh": "U4 attempt3 记录独立复核（INVALID_ROUND 双阻塞/冻结身份/monitor 两份/attempt1-2 证据 4 需修落点）",
+    "en": "Independent check of the U4 attempt3 records (dual INVALID_ROUND blockers, freeze identity, two monitors, the four attempt1/2 evidence corrections)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 attempt3 记录与入库（`2026-10-31-render-sdf-validate` 的 attempt3）。pin revision = **`1ccb3446`**（attempt3 全量入库 + attempt1/2 证据 4 需修提交）。复核点：①attempt3 的第一个结论「流程无效」——U1b 仍回滚态导致 `render_sdf_reference` 5 个 GPU 用例 panic `Unsupported(\"S7b3 不含 SDF 求交\")`，本 attempt 的 SDF 侧不作任何判据依据；②第二个结论「真实参考冲突」——6 个 scene-a 回归红在同一批球面轮廓像素（首差 28969/(169,120)、depth max_ulp=73>4），fix 前位级 0；③窗口事实：常规 monitor 失败 CSV 原样保留、已签例外 60/60、全新冻结身份 `8b34570e…`/33,651 B/aggregate `013babf4…`、9 exe 全变/83 inputs 不变、GuardsOnly 92/92、冻结作废不复用；④attempt1/2 的 4 处证据修正（attempt2 failed_tests 更正、attempt1 util 3–76、attempt1 例外 69 样本、五要素明文块）与归档「原样保留 + errata」口径；⑤不改判据/参考/guard/body 结果。**只读**：不跑 GPU、不重跑窗口、不重冻、不改仓。",
+    "en": "Read-only check at pin 1ccb3446: the two independent attempt3 conclusions, the window facts (monitors, fresh freeze identity, guards-only, burned freeze), the four attempt1/2 evidence corrections, and that no criteria/references/results were changed."
+  },
+  "modules": {},
+  "acceptance": [
+    "**结论①流程无效**：`attempts/attempt3/logs/render_sdf_reference.log` 5 个用例均 panic `渲染发射: Unsupported(\"S7b3 不含 SDF 求交\")`（host 仍拒绝 `gtype==8`，U1b 处于 `07252cd2` 回滚态），`test result: FAILED. 0 passed; 5 failed`；记录明确写「本 attempt 的 SDF 侧不作为任何判据依据」且未把该实体失败当 U4 判据。",
+    "**结论②真实参考冲突**：6 个回归实体（`render_e2e`/`render_kernel_depth_seg`/`render_kernel_flags`/`render_kernel_rgb`/`render_r10_multi_world`/`render_skybox_reference`）日志红在同一批 scene-a cam1 球面轮廓像素（首差 pixel 28969 / x=169 y=120；`render_kernel_rgb` 报 cam1 `(183, 73)`；`render_kernel_depth_seg` 报「depth 超 4 ULP 像素必须为 0（max=73）」）；`invalid-round-record.txt` 与 README §3c 一致，未写成因定论（成因指向只读 RCA，不把「生成 kernel 收缩不同」写成唯一成因）。",
+    "**窗口事实与冻结身份**：attempt3 目录 22 文件齐全；guards 字节副本 `8b34570e…`/33,651 B/aggregate `013babf4…`（9 exe + 83 inputs = 92；9 个 exe 相对 attempt2 全变、83 inputs 全同）；`-GuardsOnly` 92/92；常规 monitor 失败 CSV（355 样本、longest 27、util 1–84、free_min 11,429、exit 20）**原样保留**、例外 monitor 60/60（60 样本、util 15–43、ge40_clean=6、ge60=0、exit 0）；冻结**作废不复用**。",
+    "**attempt1/2 的 4 处修正落点**：README §3 数字已改（attempt1 常规 util 3–76、例外 69 样本）；§3b 五要素明文块齐全（mode/approved_by/approved_at/reason/original_normal_threshold_attempts_retained/not_a_normal_threshold_pass=true/authoring_exception_used=false）；`materials/errata.txt` 说明 attempt2 `failed_tests` 归档原文与实测（3 passed / 2 failed）差异，且归档文件**未改字节**；manifest 覆盖目录内全部非 manifest 文件（sha/bytes 与 committed blob 一致）。",
+    "**边界**：不改判据/容差/参考/fixtures/guards/body 结果；不改写 attempt1/2 归档字节；attempt3 冻结不复用；U4 仍为未通过；证据 LF 无 BOM、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-31-render-sdf-validate-attempts-evidence"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/sdf-validate-attempt3-check/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册（Chief 要求 attempt3 完成后注册复核卡）。pin revision = `1ccb3446`；`revision.before = null`（proposed，QA start 时记录）。复核对象：`docs/development-evidence/render-bvh/sdf-validate-window/`（README §3/§3b/§3c、attempts/attempt1-2-3、materials/errata.txt、manifest）、`target/render-bvh/sdf-validate-window/attempt3/`（原始，工作树读取）、`target/sphere-ref-conflict-rca.md`（只读 RCA，工作树读取）。只读：不跑 GPU、不重跑窗口、不重冻。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-31T04:10:00.000Z",
+  "updated_at": "2026-10-31T04:10:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-validate-attempt3-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-validate-attempt3-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
