@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-sdf-scene-mixed-artifacts",
+  "title": {
+    "zh": "SDF 采集场景 second fixture 入库（scene-mixed.xml，卡面 scope 补登记）",
+    "en": "Commit the second SDF capture scene fixture (scene-mixed.xml, scope follow-up card)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "机械入库：U2 authoring 卡（`2026-10-30-render-sdf-capture-authoring`）的 `schedule.files` 只声明了 `fixtures/render-bvh/scene-sdf/scene.xml`，而采集的两个 group 需要第二个场景 `scene-mixed.xml`（group `sdf-occluder`，在 `cam-front` 视线内加静态 box occluder）。卡启动后声明冻结，无法在本卡内补路径，故按 R02 `s3-artifacts-commit` 先例单开本机械入库卡，只提交该文件，不改内容。",
+    "en": "Mechanical artifacts commit for scene-mixed.xml: the U2 card declared only scene.xml, but the second capture group needs this fixture; a separate card avoids editing a frozen declaration."
+  },
+  "modules": {},
+  "acceptance": [
+    "`fixtures/render-bvh/scene-sdf/scene-mixed.xml` 入库 blob 与工作树字节一致：bytes=3062、sha256=`7869cfae5e16795ebf86b93c931ef36a8e94464452762e28f1357e0e68a1584e`（与 `sdf-capture-authoring/receipt.json` 的 `scene_identity.scene_mixed` 相同）。",
+    "不修改文件内容、不修改 U2 卡面与其它证据；U2 的 dry-run 两个 group 均已在该文件存在时通过（日志 `logs/dryrun-sdf-occluder.json`）。",
+    "提交后 `git status` 干净；U2 证据里 scene-mixed 的 sha/bytes 与 blob 一致。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-sdf-capture-authoring"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "fixtures/render-bvh/scene-sdf/scene-mixed.xml"
+    ],
+    "resources": [],
+    "priority": 61
+  },
+  "note": "Arch 2026-10-30 注册（U2 提交时 commit-msg 报 `E commit/scope`，故补一张机械入库卡，同 R02-S3a 先例）。只提交 scene-mixed.xml；不 start 采集窗（U3 仍需用户双签）。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T20:05:00.000Z",
+  "updated_at": "2026-10-30T20:05:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-capture-authoring/receipt.json",
+      "pointer": "/scene_identity/scene_mixed/sha256",
+      "equals": "7869cfae5e16795ebf86b93c931ef36a8e94464452762e28f1357e0e68a1584e"
+    }
+  ]
+}
