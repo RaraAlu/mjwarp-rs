@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-evidence-eol-hygiene",
+  "title": {
+    "zh": "证据 EOL 卫生（P1-P5）：窗口三次 attempt 措辞、留档 receipt 计数、fix/revert manifest 按 blob 重算、.cu 钉 LF、attempt3 首差补限定",
+    "en": "Evidence EOL hygiene (P1-P5): three-attempt wording, archive receipt counts, fix/revert manifests recomputed from blobs, .cu pinned to LF, attempt3 first-diff qualification"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按 Chief 汇总的 QA attempt3 复核 5 条需修（全文档/属性级）做机械修：①窗口 README 的「两次 attempt」表述全部更新为三次（标题/开头/§2 表/§4 guards-only 含 attempt3/文末后续）；②`sdf-validate-window` 的 attempts-evidence receipt 的 `total_artifacts` 10→实际 35、`target_copies` 加 attempt3、`window_state` 三次；③fix 与 revert 的 `manifest.txt` 各 4 条（kernel-identity/no-run/src-diff/validate）按 **committed blob** 重算，并加 `docs/development-evidence/render-bvh/** -text -diff` 让 QA 复核目录也受字节保护；④钉 `.cu` EOL：加 `*.cu text eol=lf`（放在证据目录 `-text` 规则之前，让后者覆盖），确保内核身份 `MEGAKERNEL_SOURCE` 在 CRLF checkout 下也不变（778216b2…/88,865 B）；⑤attempt3 的「6 实体首差」补限定：`render_kernel_flags` aa2 臂首差 29448/(168,122)、max_ulp=91（结论不变）。**只改文字/属性与 manifest 数字，不改代码/判据/参考/历史结论。**",
+    "en": "Mechanical evidence-hygiene fixes P1-P5 from the QA attempt3 check: three-attempt wording, receipt counts, manifests recomputed from committed blobs plus a byte-exact evidence rule, .cu pinned to LF, and the attempt3 first-diff qualification."
+  },
+  "modules": {},
+  "acceptance": [
+    "**P1 三次 attempt 表述**：`sdf-validate-window/README.md` 标题/开头/§2 表/§4 guards-only 段/文末后续全部按 attempt1/2/3 三次表述；attempt3 行引用 §3c，不把 attempt3 写成通过或常规阈值通过。",
+    "**P2 receipt 计数**：`sdf-validate-window/receipt.json` 的 `total_artifacts` = **35**（attempt1 5 + attempt2 5 + attempt3 22 + README/receipt/errata 3）；`target_copies_retained` 列出 attempt3；`window_state` 写三次 attempt（1/2/3 均 INVALID_ROUND）。",
+    "**P3 manifest 按 blob 重算 + 证据字节保护**：`.gitattributes` 增 `docs/development-evidence/render-bvh/** -text -diff`（放在具体子目录规则之前）；`sphere-dot-a-order-fix/manifest.txt` 与 `sphere-dot-a-order-revert/manifest.txt` 各 4 条（kernel-identity/no-run/src-diff/validate）的 sha/bytes 改为 **committed blob** 字节值；8 个 CRLF 工作树副本按 QA 提醒 rm + `git checkout --` 恢复为 blob 字节；最终 `git status` 干净、`git ls-files --eol` 对这 8 个文件为 `i/lf w/lf`。",
+    "**P4 `.cu` 钉 LF**：`.gitattributes` 增 `*.cu text eol=lf`（必须写在证据目录 `-text` 规则之前）；`git check-attr text eol -- src/render/kernel/cuda/render_math.cu src/physics/collision/cuda/contact.cu` 返回 `text: set`、`eol: lf`；`git ls-files --eol` 的 `.cu` 全部 `i/lf w/lf`；`render_kernel_flags` 身份探针仍 **`778216b2…` / 88,865 B**、`git diff` 无 `.cu` 内容变化（规则不重写 blob）。",
+    "**P5 attempt3 首差限定**：`sdf-validate-window/README.md §3c` 与 `attempts/attempt3/invalid-round-record.txt` 在「6 实体首差 pixel 28969/(169,120)」后补「`render_kernel_flags` 的 aa2 臂首差为 29448/(168,122)、max_ulp=91」，结论（参考冲突、U4 未通过）不变。",
+    "**边界**：不改产品代码/判据/容差/参考/fixtures；不改写历史结论与提交历史；只改文档文字、`.gitattributes`、manifest 数字；零 GPU、零窗口、零冻结；证据 manifest 自洽、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      ".gitattributes",
+      "docs/development-evidence/render-bvh/sdf-validate-window/",
+      "docs/development-evidence/render-bvh/sphere-dot-a-order-fix/",
+      "docs/development-evidence/render-bvh/sphere-dot-a-order-revert/",
+      "docs/development-evidence/evidence-eol-hygiene/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册（Chief 按 QA attempt3 复核 pass/需修 5 合并成的机械修卡，排在 A1 收口后）。QA 两条实操提醒照做：①加 `-text` 后 fix/revert 的 4 个 CRLF 工作树文件会显示 modified，须 rm 后 `git checkout --` 恢复为 blob 字节、manifest 从 committed blob 重算、最终 git status 干净；②加 `.cu text eol=lf` 后不在同一提交里重新 add 那 6 个 `.cu`（避免无意义规范化重写），只跑身份探针确认 MEGAKERNEL_SOURCE 仍 778216b2…/88,865 B。只改文字/属性，不改代码与结论。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-31T04:45:00.000Z",
+  "updated_at": "2026-10-31T04:45:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/evidence-eol-hygiene/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-evidence-eol-hygiene"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "fixtures",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "上游等价",
+        "精度达标",
+        "渲染数值验收通过"
+      ]
+    }
+  ]
+}
