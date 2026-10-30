@@ -28,7 +28,8 @@
   ],
   "schedule": {
     "depends_on": [
-      "2026-10-30-render-perworld-capture"
+      "2026-10-30-render-perworld-capture",
+      "2026-10-30-render-perworld-capture-check"
     ],
     "phase": "P8-渲染与BVH",
     "owner": "Arch",
@@ -45,7 +46,7 @@
     ],
     "priority": 59
   },
-  "note": "Arch 2026-10-30 注册（proposed，**不 start**）。等待：① R08 收口（R08-S3 verified）；② 用户批窗口（本片含 1 个验证窗，需双签窗口计划+基线）；③ 采集跑片 `2026-10-30-render-perworld-capture` verified（参考必须先在）。`depends_on` 只挂采集跑片卡（验证片在本片之后另立；若需把采集跑的 QA 复核卡也作为前置，Chief 一句话我加 set_dependencies）。方案 L 的 files 清单与行数预算见 `target/per-world-impl-precheck.md`；实现期不改 `.cu`、不动 81 槽，避免内核身份与 R08 证据链冲突。\n\n2026-10-30 Chief 批两点口径定死，不再加项：(a) per-world 路径 `samples_per_pixel>1`（AA）在入口显式返回 `Unsupported`，错误面用 `per_world.rs` 纯函数守卫 + CPU 单测钉住（非静默忽略），`megakernel.rs` 的 AA 分支零改动；(b) L v1 只覆盖 per-world geom 位姿，灯数组仍模型级单份（per-world 灯留 L v2/K）。行数死线：`megakernel.rs` ≤450、`megakernel_uploads.rs` ≤480、`per_world.rs` ≤260，超界停下报 Chief。`files` 去掉 `context/lifecycle.rs`（已 498 LF 顶格，零改动）。采集跑片 verified 后注册其 QA 复核卡并 `set_dependencies` 到本卡（已定，不需再问）。",
+  "note": "Arch 2026-10-30 注册（proposed，**不 start**）。等待：① R08 收口（R08-S3 verified）；② 用户批窗口（本片含 1 个验证窗，需双签窗口计划+基线）；③ 采集跑片 `2026-10-30-render-perworld-capture` verified（参考必须先在）。`depends_on` 只挂采集跑片卡（验证片在本片之后另立；若需把采集跑的 QA 复核卡也作为前置，Chief 一句话我加 set_dependencies）。方案 L 的 files 清单与行数预算见 `target/per-world-impl-precheck.md`；实现期不改 `.cu`、不动 81 槽，避免内核身份与 R08 证据链冲突。\n\n2026-10-30 Chief 批两点口径定死，不再加项：(a) per-world 路径 `samples_per_pixel>1`（AA）在入口显式返回 `Unsupported`，错误面用 `per_world.rs` 纯函数守卫 + CPU 单测钉住（非静默忽略），`megakernel.rs` 的 AA 分支零改动；(b) L v1 只覆盖 per-world geom 位姿，灯数组仍模型级单份（per-world 灯留 L v2/K）。行数死线：`megakernel.rs` ≤450、`megakernel_uploads.rs` ≤480、`per_world.rs` ≤260，超界停下报 Chief。`files` 去掉 `context/lifecycle.rs`（已 498 LF 顶格，零改动）。采集跑片 verified 后注册其 QA 复核卡并 `set_dependencies` 到本卡（已定，不需再问）。\n\n2026-10-31：采集跑片 verified（`3478bbab`），QA 复核卡 `2026-10-30-render-perworld-capture-check` 已注册（proposed）；本卡 depends_on 已补上该复核卡（fixtures 须经 QA 复核后才能被实现片消费）。本卡仍 proposed 不 start，等 R08/SDF 链与用户窗口安排。",
   "revision": {
     "before": null,
     "after": null
