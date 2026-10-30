@@ -5,12 +5,13 @@
   "scope": "offline authoring only: script + feasibility evidence + dry-run; no GPU capture, no fixtures written, no product code",
   "script": {
     "path": "scripts/capture_render_perworld.py",
-    "sha256": "971cb8b13db82a9076c81b15936b2c97ffe2df8d3c0e47d1d9d0b10c78552775",
-    "bytes": 23531,
-    "lines_lf": 497,
+    "sha256": "67a760fa400f2cf89c19a700e49d08c619a78008664f03cd69fab21bd2077815",
+    "bytes": 24008,
+    "lines_lf": 499,
     "non_ascii_bytes": 0,
     "syntax_check": "pinned python ast.parse -> PY_SYNTAX_OK",
     "derived_from": "scripts/capture_render_hfield.py (R05-S3a skeleton)",
+    "previous_identity": {"sha256": "971cb8b13db82a9076c81b15936b2c97ffe2df8d3c0e47d1d9d0b10c78552775", "bytes": 23531, "lines_lf": 497, "context": "pre-window identity; superseded by the window-period fix, see window_period_fix"},
     "task_id_alignment": "fixed 2026-10-30 (QA O1): TASK_ID now equals the card id 2026-10-30-render-perworld-capture-authoring; sha/bytes/lines recomputed and dry-run re-run offline"
   },
   "dry_run": {
@@ -18,9 +19,36 @@
     "exit": 0,
     "creates_cuda_device": false,
     "writes_outputs": false,
-    "legacy_manifest_entries": 69,
+    "legacy_manifest_entries": 79,
     "cam_active_fixed_only": [true, false],
-    "materials": "materials/dryrun-plan.json"
+    "static_model": {
+      "njnt": 2,
+      "nq": 8,
+      "jnt_type": [0, 3],
+      "jnt_qposadr": [0, 7],
+      "qpos0": [0.1, -0.2, 0.3, 0.9616361734263864, 0.10017043473191527, -0.050085217365957634, 0.2504260868297882, 0.0],
+      "cameras": [[0, 0, "cam-persp"], [1, 3, "cam-track"]],
+      "world_qpos_shape": [3, 8],
+      "world_hinge_rad": [0.0, 0.3490658402442932, 0.6981316804885864]
+    },
+    "materials": "materials/dryrun-plan.json",
+    "materials_sha256": "79c1f0f2049c04d709129dea1a3abba3e908979524091895ee048e773fbb1136",
+    "materials_bytes": 4917
+  },
+  "window_period_fix": {
+    "precedent": "R02-S2 window-period fix commit b3a47aca (authoring card addendum)",
+    "trigger": "per-world capture window attempt1 stopped at the script scene self-check after the exception monitor passed: 'expected exactly one scalar hinge joint, found scalar=[0,1] hinge=[1]'; no rendering, no writes",
+    "attempt1_records_retained": [
+      "docs/development-evidence/render-bvh/perworld-capture-window/attempt1/",
+      "target/render-bvh/perworld-capture-window/attempt1/"
+    ],
+    "fixes": [
+      "scalar joints: only SLIDE(2)/HINGE(3) count; require exactly one HINGE; FREE/BALL allowed and not counted",
+      "per-world qpos base is the model default qpos0 (not zeros), then the hinge qpos address 7 is overwritten per world",
+      "material facts corrected: nq=1 -> 8, qpos (3,1) -> (3,8), legacy 69 -> 79 (69 + 10 SDF reference files)",
+      "dry-run now prints a static model self-check (njnt/jnt_type/jnt_qposadr/nq/qpos0, per-world hinge angle and qpos, camera list, legacy count)"
+    ],
+    "not_changed": "recipe, scene, camera selection, capture criteria, two-run bitwise rule, legacy manifest check, target outputs"
   },
   "environment": {
     "python_executable": "target/mjwarp-parallel/venv/Scripts/python.exe",

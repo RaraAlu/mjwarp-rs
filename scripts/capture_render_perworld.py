@@ -187,25 +187,24 @@ def check_environment(*, want_cuda_device: bool, scene_path: pathlib.Path) -> di
         }
     return report
 
-def hinge_qpos(mjm, hinge_deg: list[float]) -> list[float]:
-    """Host qpos for one world: zero everywhere, hinge angle at its qpos address."""
+def hinge_qpos(mjm):
+    """Model default qpos (qpos0) plus the single hinge joint; FREE/BALL are not scalar."""
     import numpy as np
-
-    qpos = np.zeros((int(mjm.nq),), dtype=np.float64)
-    scalar = [int(j) for j in range(int(mjm.njnt)) if int(mjm.jnt_type[j]) in (0, 1, 2, 3)]
+    scalar = [int(j) for j in range(int(mjm.njnt)) if int(mjm.jnt_type[j]) in (2, 3)]
     hinges = [j for j in scalar if int(mjm.jnt_type[j]) == 3]
-    if len(hinges) != 1 or len(scalar) != 1 or int(mjm.jnt_qposadr[hinges[0]]) >= qpos.size:
-        fail(f"expected exactly one scalar hinge joint, found scalar={scalar} hinge={hinges}")
-    return qpos, hinges[0]
+    if len(hinges) != 1:
+        fail(f"expected exactly one hinge joint, found scalar={scalar} hinge={hinges}")
+    return np.array(mjm.qpos0, dtype=np.float64), hinges[0]
 
 def build_world_qpos(mjm, world_deg: list[float]):
     import numpy as np
-
-    base, joint = hinge_qpos(mjm, world_deg)
-    out = np.zeros((len(world_deg), base.size), dtype=np.float32)
+    base, joint = hinge_qpos(mjm)
+    adr = int(mjm.jnt_qposadr[joint])
+    if not 0 <= adr < base.size:
+        fail(f"hinge qpos address {adr} outside qpos size {base.size}")
+    out = np.repeat(base.astype(np.float32)[None, :], len(world_deg), axis=0)
     for world, deg in enumerate(world_deg):
-        out[world] = base
-        out[world][int(mjm.jnt_qposadr[joint])] = float(np.deg2rad(deg))
+        out[world][adr] = float(np.deg2rad(deg))
     return out
 
 def camera_recipe(mjm, rc) -> list[dict]:
@@ -278,7 +277,6 @@ def render_images(mjm, m, d, rc) -> tuple[dict, dict, float]:
 
 def state_arrays(d) -> dict:
     import numpy as np
-
     return {
         "qpos": np.asarray(d.qpos.numpy()).astype(np.float32),
         "geom_xpos": np.asarray(d.geom_xpos.numpy()).astype(np.float32),
@@ -296,7 +294,6 @@ def npz_payload(capture: dict) -> dict:
 
 def capture_once(mjm, m, d, rc) -> dict:
     import numpy as np
-
     images, image_meta, render_seconds = render_images(mjm, m, d, rc)
     nworld = len(images["rgb"][0])
     arrays = {}
@@ -396,18 +393,25 @@ def main() -> int:
     }
     if args.dry_run:
         environment = check_environment(want_cuda_device=False, scene_path=scene_path)
+        import mujoco
+
+        mjm = mujoco.MjModel.from_xml_path(str(scene_path))
+        world_qpos = build_world_qpos(mjm, world_deg)
         plan = {
             "task_id": TASK_ID, "dry_run": True,
             "recipe": {k: v for k, v in recipe.items() if k != "capture_at_env"},
             "out_dir": out_dir.as_posix(), "repeat": args.repeat, "seed": args.seed,
             "warp_cache": str(args.warp_cache),
-            "per_world_plan": {
-                "nworld": args.worlds,
-                "world_hinge_deg": world_deg,
-                    "state_arrays": ["qpos", "geom_xpos", "geom_xmat", "light_xpos", "light_xdir"],
-                "note": "lights are captured for completeness only; the device path still "
-                        "indexes lights single-world, so per-world light poses are not claimed",
-            },
+            "model_static": {
+                "njnt": int(mjm.njnt), "nq": int(mjm.nq), "jnt_type": [int(v) for v in mjm.jnt_type],
+                "jnt_qposadr": [int(v) for v in mjm.jnt_qposadr], "qpos0": [float(v) for v in mjm.qpos0],
+                "cameras": [[i, int(mjm.cam_mode[i]), mjm.camera(i).name or f"cam{i}"]
+                            for i in range(int(mjm.ncam))]},
+            "per_world_plan": {"nworld": args.worlds, "world_hinge_deg": world_deg,
+                "world_qpos": world_qpos.tolist(),
+                "state_arrays": ["qpos", "geom_xpos", "geom_xmat", "light_xpos", "light_xdir"],
+                "note": "lights are captured for completeness only; the device path still indexes "
+                        "lights single-world, so per-world light poses are not claimed"},
             "cam_active_fixed_only": [int(mode) == 0 for mode in environment["camera_modes"]],
             "legacy_manifest_entries": len(legacy_manifest()),
             "environment": environment,
@@ -420,7 +424,6 @@ def main() -> int:
     import mujoco
     import mujoco_warp as mjw
     import numpy as np
-
     print(f"perworld environment OK; legacy reference files={len(legacy_before)}")
     mjm = mujoco.MjModel.from_xml_path(str(scene_path))
     m = mjw.put_model(mjm)
@@ -452,7 +455,6 @@ def main() -> int:
     if first_hashes != second_hashes:
         fail(f"two captures differ in npz bytes: {first_hashes} vs {second_hashes}")
     import shutil
-
     shutil.rmtree(tmp_second, ignore_errors=True)
     capture_at = __import__("os").environ.get("MJWARP_CAPTURE_AT", "")
     recipe["capture_at_env"] = capture_at
