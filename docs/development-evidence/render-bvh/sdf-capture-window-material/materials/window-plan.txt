@@ -14,6 +14,7 @@ SCRIPT IDENTITY
 - ascii  : 0 non-ASCII bytes
 - derived: scripts/capture_render_hfield.py (R05-S3a skeleton); existing capture scripts and
            existing references are untouched.
+- shell  : Windows PowerShell 5.1 (powershell.exe) REQUIRED; do NOT use pwsh 7 (see SHELL REQUIREMENT)
 
 SCENES (fixtures/render-bvh/scene-sdf/)
 - scene.xml        sha256 376eb81ce200b29373af3965c7abefd90b8f00188a688db583080836dfa868e8  3388 B
@@ -27,6 +28,13 @@ PINNED ENVIRONMENT (dry-run verified 2026-10-30, no CUDA device created)
 - python   : target/mjwarp-parallel/venv/Scripts/python.exe (sha256 feeec361..., 3.12.13)
 - versions : warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4
 - upstream : target/mjwarp-parallel/upstream @ 71da24d956378a87a703b6e1442b13aec0c4ac29 (clean)
+
+SHELL REQUIREMENT (hard)
+- every command in this plan and every aggregation/self-check must run under Windows PowerShell 5.1
+  (powershell.exe -NoProfile -ExecutionPolicy Bypass -File ...), NOT pwsh 7.
+- reason: guard aggregate_sha256 depends on PowerShell Sort-Object's culture-sensitive ordering;
+  Windows PowerShell 5.1 (NLS) and pwsh 7 (ICU) produce different digests for the same file set.
+- record the actual shell version (powershell.exe / $PSVersionTable.PSVersion) in the window facts.
 
 COMMANDS (verbatim)
 (A) pre-window self-check (no CUDA device, writes nothing; may be run outside the window)
@@ -86,8 +94,16 @@ SIGNED ARTIFACTS / NEW GUARDS
 - The U4 validation window after U1b will freeze a NEW suite (new exe hashes; the U1 .cu change invalidated
   every old executable, so R05/R02/R08 guards must not be reused).
 
-USER DOUBLE-SIGN BLOCK (to be filled)
-  plan version (this file) sha256 : ____________________
-  decision: [ ] approve  [ ] reject  [ ] modify (note: ____________)
-  user signature / date           : ____________________
-  Chief collated at               : ____________________
+USER DOUBLE-SIGN BLOCK (signed 2026-10-30)
+  plan version (as approved) sha256 : eb484aa74507f1f9568d72ce0c199491bdafd591c257b342a41675db23bd2fb2
+  decision: [x] approve
+  approved_by                       : user (via Chief) 2026-10-30T23:10:52+08:00
+  scope (4 user decisions)          : 1) SDF unlock: two windows merged (this U3 capture + the later U4 validation),
+                                        volume SDF only, 1 scene with 2 cameras incl. the shadow on/off comparison
+                                      2) per-world capture window: approved (separate window, scheduled later)
+                                      3) mesh capacity: A1 (16 -> 20) implementation approved; whether U8 cases enter
+                                        the criteria to be confirmed around its own window
+                                      4) U8 judgement scope: reconfirm around the mesh window (not part of this plan)
+  Chief collated at                 : 2026-10-30T23:11+08:00
+  note                              : the sha256 above is the plan text the user approved (pre-signature version);
+                                      the signed file's own sha256 is recorded in the window material README/receipt

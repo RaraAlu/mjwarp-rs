@@ -42,6 +42,10 @@ target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_sdf.py 
 
 `fixtures/render-bvh/scene-sdf/capture-sdf/<group>/`：`rgb.npz`、`depth.npz`、`seg.npz`、`capture.json`（字段清单见 `materials/expected-products.json`）。两组各 ≈1.4 MB。
 
-## 6. 双签栏
+## 6. 双签（已签）与 shell 约束
 
-`materials/window-plan.txt` 末尾 `USER DOUBLE-SIGN BLOCK` 待填；用户签「窗口计划 + 基线」后才执行。本窗不冻结测试可执行文件、不需要新 guards；后续 U4 验证窗才需要新冻结（U1 改了 `.cu`，旧 exe 哈希全部失效，绝不复用 R05/R02/R08 guards）。
+- **用户签字**：user (via Chief) **2026-10-30T23:10:52+08:00**，decision = **approve**；`materials/window-plan.txt` 的 `USER DOUBLE-SIGN BLOCK` 已填（approved_by / 时间戳 / scope 四项 / Chief collated at）。
+- **被批准的 plan 版本 sha256**：`eb484aa74507f1f9568d72ce0c199491bdafd591c257b342a41675db23bd2fb2`（签字前的计划文本版本）；签字后本文件（含签字块与 shell 约束段）的 sha256 以 `manifest.txt` 与 `sdf-capture` 证据的 receipt 为准。
+- **scope（4 项用户决定）**：① SDF 两窗合并（本 U3 采集 + 之后 U4 验证）、只做 volume SDF、1 场景 2 相机含 shadow 开/关对比；② per-world 采集窗批准（另窗，稍后）；③ mesh A1（16→20）实现批准，U8 是否纳入判据在其窗前后再确认；④ U8 判据确认不属于本计划。
+- **shell 硬约束**：本计划所有命令、聚合与自检**必须用 Windows PowerShell 5.1**（`powershell.exe -NoProfile -ExecutionPolicy Bypass -File …`），**不得用 pwsh 7**——`aggregate_sha256` 依赖 `Sort-Object` 的文化敏感排序，5.1（NLS）与 7（ICU）对同一文件集算出的摘要不同；窗口事实里记录实际 shell 版本。（U3 采集窗本身不产生 aggregate；U4 会用到。）
+- 本窗不冻结测试可执行文件、不需要新 guards；U4 验证窗才需要新冻结（U1 改了 `.cu`，旧 exe 哈希全部失效，绝不复用 R05/R02/R08 guards）。
