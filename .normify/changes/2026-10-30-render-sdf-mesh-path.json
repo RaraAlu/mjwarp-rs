@@ -5,7 +5,7 @@
     "zh": "渲染：SDF（gtype==8）设备侧 mesh 路径对齐（3 行；host 拒绝保留，能力不暴露）",
     "en": "Render: SDF (gtype==8) device-side mesh path alignment (3 lines; host rejection kept, capability not exposed)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "SDF 解锁片 U1（见 `target/sdf-unlock-precheck.md` §8）。上游渲染器对 SDF **没有距离场求交**：`render.py:738-761` 把 MESH|SDF 放同一分支，用 `geom_dataid` 指向的底层 mesh 走 `ray_mesh_with_bvh(_anyhit)`；`bvh.py:211-220` 的 bounds 也用 `mesh_bounds_size[did]`；纹理/顶点法线同 mesh 分支（`render.py:466-481/1211-1216`，`render_test.py:1246-1279` docstring 原文「render using the underlying mesh geometry」）。我们设备侧只差 dispatch：① `render_common.cu` 的 mesh 分支把 `gtype==8` 纳入（`if (gtype == 7 || gtype == 1 || gtype == 8)`，8 与 7 同用 `scene.leaf_mesh[leaf]`）；② `render_common.cu` 的 `hit.mesh_id` 对 8 也填（否则 `render_megakernel.cu:238` 的顶点法线分支因 `mesh_id<0` 被跳过，与上游不一致）；③ `render.cu` 的 DepthSeg 分支让 8 也走 `ray_mesh_leaf`（删两行过时注释，文件净负避开 500 棘轮）。**本片保留 host 拒绝 `reject_sdf_geometry`**（未验证能力不暴露，与 R09-S2 先例一致）：因此改动今天不可达，U1b 在 U3 verified 后、U4 前解锁。零 GPU、零窗口、不改 ABI/判据/容差/参考。",
     "en": "U1 of the SDF unlock slice: upstream renders SDF via its underlying mesh, so the device side only needs dispatch alignment (render_common.cu mesh branch + hit.mesh_id for gtype 8, render.cu DepthSeg mesh call, net-negative line count). Host rejection stays, so the capability is not exposed; no GPU, no ABI/criteria/reference change."
@@ -39,11 +39,11 @@
   },
   "note": "Arch 2026-10-30 注册（SDF 解锁片 U1；预核 `target/sdf-unlock-precheck.md` §8，Chief 已批准 5 片结构）。关键结论：上游 SDF=底层 mesh 渲染（`render_test.py:1251` docstring、`render.py:738-761`、`bvh.py:211-220`），所以本片只是 dispatch 对齐、无需 SDF 求交。**host 守卫 `reject_sdf_geometry` 本片保留**（未验证能力不暴露，同 R09-S2 先例）；host 解锁 = U1b（U3 verified 后、U4 前，失败回滚 U1b 保留 U1）。U2 采集 authoring 在其后（离线），U3/U4 两窗等用户签字。`render.cu` 现 499 行，改动必须净负否则先拆文件。",
   "revision": {
-    "before": null,
+    "before": "83a8b17c18750d039afaa885912cee8522a2dc21",
     "after": null
   },
   "created_at": "2026-10-30T18:02:00.000Z",
-  "updated_at": "2026-10-30T18:02:00.000Z",
+  "updated_at": "2026-10-30T10:00:57.236Z",
   "checks": [
     {
       "kind": "gate",
