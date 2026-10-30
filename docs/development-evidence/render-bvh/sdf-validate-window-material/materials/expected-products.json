@@ -95,7 +95,7 @@
   },
   "new_target": {
     "path": "tests/render_sdf_reference.rs",
-    "line_budget": "260-360",
+    "line_budget": "<=400",
     "support_files": [
       "tests/support/render_bvh/sdf.rs (280-340)",
       "tests/support/render_bvh/sdf_scene.rs (<=450; split sdf_compare.rs if it approaches 500)"
@@ -152,7 +152,8 @@
       "monitor": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\monitor-until-clean.ps1 -OutCsv target\\render-bvh\\sdf-validate-window\\monitor-pre-window.csv -Required 60 -MaxMinutes 30",
       "freeze": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\freeze-guards-sdf.ps1 -Attempt 1",
       "guards_only": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\run-window.ps1 -Attempt 1 -OutDir target\\render-bvh\\sdf-validate-window\\attempt1 -GuardsFile scripts\\validate\\render-bvh\\guards-sdf-validate.json -GuardsOnly",
-      "body": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\run-window.ps1 -Attempt 1 -OutDir target\\render-bvh\\sdf-validate-window\\attempt1 -GuardsFile scripts\\validate\\render-bvh\\guards-sdf-validate.json"
+      "body": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\run-window.ps1 -Attempt 1 -OutDir target\\render-bvh\\sdf-validate-window\\attempt1 -GuardsFile scripts\\validate\\render-bvh\\guards-sdf-validate.json",
+      "monitor_exception": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\monitor-until-clean.ps1 -OutCsv target\\render-bvh\\sdf-validate-window\\monitor-pre-window-exception.csv -Required 60 -MaxMinutes 30 -MaxUtil 60 (ONLY if the regular monitor fails; separate CSV)"
     },
     "baseline_sop": {
       "snapshot": "5 min before monitor: nvidia-smi free/util x3 (~1 s apart) + compute-apps raw/filtered + build processes (must be 0) + git clean",
@@ -167,7 +168,8 @@
       "body_minutes": "1-3",
       "whole_window_minutes": "30-60"
     },
-    "failure_policy": "STOP on any failure; no retry loop, no threshold change, no exception substitution, no criteria relaxation; keep the attempt directory; attempt=2 only after a documented fix"
+    "failure_policy": "STOP on any failure; no retry loop, no threshold change, no exception substitution, no criteria relaxation; keep the attempt directory; attempt=2 only after a documented fix",
+    "commands_note": "five verbatim commands = 4 regular + 1 conditional-exception monitor"
   },
   "evidence": {
     "material": "docs/development-evidence/render-bvh/sdf-validate-window-material/",
@@ -176,15 +178,16 @@
   },
   "double_sign": {
     "decision": "approved: regular util<40 + conditional validation-only util<60 exception",
-    "signed_by": "user via Chief 2026-10-31T00:5x+08:00",
+    "signed_by": "user via Chief 2026-10-31T00:55+08:00",
     "approved_by": "user via Chief",
-    "signed_at": "2026-10-31T00:5x+08:00",
+    "signed_at": "2026-10-31T00:55+08:00",
     "required_on": [
       "this window plan",
       "pre-window baseline snapshot",
       "the 92-entry guards identity after freeze"
     ],
-    "note": "execute step 1 first; enable the conditional exception only if step 1 fails"
+    "note": "execute step 1 first; enable the conditional exception only if step 1 fails",
+    "timestamp_source": "user 卡片答复后 Chief 即时转达；卡片 UI 精确时间戳未暴露，转达时点 ±5 分钟；用户批准的是协议内容（regular + conditional），amend 文本由 Arch 按 Chief 转达落字"
   },
   "not_claimed": [
     "渲染数值验收通过",
@@ -197,7 +200,7 @@
   ],
   "freeze_compile_note": "the freeze step runs cargo test --no-run as an expected build (the 9 exes are new); the window claim is \"no Rust compile after the body starts\", with the deps snapshot taken before the body",
   "conditional_protocol": {
-    "signed": "user via Chief 2026-10-31T00:5x+08:00",
+    "signed": "user via Chief 2026-10-31T00:55+08:00",
     "step1_regular": {
       "not_a_normal_threshold_pass": false,
       "authoring_exception_used": false,
@@ -205,7 +208,7 @@
     },
     "step2_exception_only_if_step1_fails": {
       "mode": "validation_only_exception_util_lt_60",
-      "approved_by": "user via Chief 2026-10-31T00:5x+08:00",
+      "approved_by": "user via Chief 2026-10-31T00:55+08:00",
       "five_elements": [
         "mode",
         "approved_by",
@@ -220,7 +223,9 @@
         "exception monitor -MaxUtil 60 (powershell 5.1) with a NEW CSV",
         "60/60 required before opening"
       ],
-      "load_bearing_rule": "recompute util>=40 clean samples + streak (proves threshold 60), ge60=0, util_max<60; if all 60 samples are <40 record exception_effectively_not_load_bearing=true"
+      "load_bearing_rule": "recompute util>=40 clean samples + streak (proves threshold 60), ge60=0, util_max<60; if all 60 samples are <40 record exception_effectively_not_load_bearing=true",
+      "exception_monitor_command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\monitor-until-clean.ps1 -OutCsv target\\render-bvh\\sdf-validate-window\\monitor-pre-window-exception.csv -Required 60 -MaxMinutes 30 -MaxUtil 60 (ONLY if the regular monitor fails; separate CSV)",
+      "exception_csv": "target/render-bvh/sdf-validate-window/monitor-pre-window-exception.csv"
     },
     "evidence_rule": "both monitors (failed regular + passing exception) are kept; never written as a normal pass"
   }

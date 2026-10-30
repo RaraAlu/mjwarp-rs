@@ -51,6 +51,19 @@ CRITERIA (zero relaxation; from R09-S3b / R05-S3b precedents)
 - DepthSeg cross-path arm: DepthSeg depth/seg bitwise equal to megakernel depth/seg (sdf-mesh, cam-front);
   if the API cannot expose both paths, single-path launch comparison, criteria unchanged
 
+FIVE VERBATIM COMMANDS (4 regular + 1 conditional-exception monitor, used only if step 1 fails)
+------------------------------------------------------------------------------------------------
+1. monitor (regular, default MaxUtil=40):
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\monitor-until-clean.ps1 -OutCsv target\render-bvh\sdf-validate-window\monitor-pre-window.csv -Required 60 -MaxMinutes 30
+2. freeze:
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\freeze-guards-sdf.ps1 -Attempt 1
+3. guards-only:
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 -Attempt 1 -OutDir target\render-bvh\sdf-validate-window\attempt1 -GuardsFile scripts\validate\render-bvh\guards-sdf-validate.json -GuardsOnly
+4. body:
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 -Attempt 1 -OutDir target\render-bvh\sdf-validate-window\attempt1 -GuardsFile scripts\validate\render-bvh\guards-sdf-validate.json
+5. conditional-exception monitor (ONLY if command 1 fails; separate CSV so the failed one is kept):
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\monitor-until-clean.ps1 -OutCsv target\render-bvh\sdf-validate-window\monitor-pre-window-exception.csv -Required 60 -MaxMinutes 30 -MaxUtil 60
+
 WINDOW DISCIPLINE (GPU: single full-load task; user double-sign required before opening)
 1. Pre-window snapshot (5 min before monitor): nvidia-smi free/util x3 + filtered compute-apps
    + build processes (must be 0) + git clean; write attempt1/pre-window-snapshot.txt.
@@ -107,7 +120,7 @@ Step 2 - only if the regular path fails (30 min cap, floor breach, foreign compu
   a. retain the failed CSV + pre-window snapshot + the stop verdict verbatim (do not overwrite);
   b. material exception block (five elements):
      mode=validation_only_exception_util_lt_60
-     approved_by=user via Chief 2026-10-31T00:5x+08:00
+     approved_by=user via Chief 2026-10-31T00:55+08:00
      reason=persistent desktop 3D graphics noise (dwm.exe / DeepSeek Harness gpu-process /
             msedgewebview2 gpu-process); the criteria here are per-channel comparisons against frozen
             references, so external graphics load does not change the arithmetic results
@@ -115,8 +128,11 @@ Step 2 - only if the regular path fails (30 min cap, floor breach, foreign compu
      not_a_normal_threshold_pass=true
      authoring_exception_used=false
   c. re-take a 3-point baseline -> new floor;
-  d. exception monitor: -Required 60 -MaxMinutes 30 -MaxUtil 60 (powershell 5.1 only) with a NEW CSV
-     name (never overwrite the failed one); the window opens only if 60/60 is reached;
+  d. exception monitor (NEW CSV, never overwrite the failed regular CSV; command 5 below):
+     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\monitor-until-clean.ps1
+     -OutCsv target\render-bvh\sdf-validate-window\monitor-pre-window-exception.csv
+     -Required 60 -MaxMinutes 30 -MaxUtil 60
+     the window opens only if 60/60 is reached;
   e. load-bearing evidence recomputed from that CSV: util>=40 samples recorded clean and their streak
      (proves the applied threshold was 60), ge60=0, util_max<60; if all 60 samples are <40, record
      exception_effectively_not_load_bearing=true (state it as-is, do not claim the 60 threshold was
@@ -127,9 +143,13 @@ Step 2 - only if the regular path fails (30 min cap, floor breach, foreign compu
 USER DOUBLE-SIGN BLOCK (signed 2026-10-31)
 - plan version sha256      : recorded in receipt.json when the window card is registered
 - decision                 : [x] approve regular util<40  [x] approve CONDITIONAL validation-only util<60 exception
-- approved_by              : user via Chief 2026-10-31T00:5x+08:00
+- approved_by              : user via Chief 2026-10-31T00:55+08:00
 - pre-window baseline      : ____________________ (filled in the window: min free MiB, floor MiB)
 - guards identity (92)     : aggregate_sha256 ____________________  (filled after freeze)
-- Chief collated at        : 2026-10-31T00:5x+08:00 (relayed)
+- Chief collated at        : 2026-10-31T00:55+08:00 (relayed)
+- timestamp source         : relayed by Chief right after the user card reply; the card UI did not
+                             expose an exact timestamp, so the relay time has a +/-5 minute window;
+                             the user approved the protocol content (regular + conditional), and Arch
+                             wrote the amendment text per the Chief relay.
 - note: execute step 1 first; the conditional exception is enabled only if step 1 fails. Both paths
         are signed. The authoring-only exception is never used here.
