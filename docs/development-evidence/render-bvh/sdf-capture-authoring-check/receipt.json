@@ -1,0 +1,104 @@
+{
+  "task_id": "2026-10-30-render-sdf-capture-authoring-check",
+  "reviewed_task": "2026-10-30-render-sdf-capture-authoring",
+  "pin": "65a16430",
+  "u2_start": "828e37cc",
+  "card_head_at_start": "b9bc2c1d",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 1,
+  "observations": 7,
+  "scope": "read-only QA review of the SDF render-reference capture authoring slice: script identity and content audit, two scene fixtures (identity + independent pinned-MuJoCo static check), offline dry-run reproduction for both groups with CUDA masked, legacy 69-entry manifest, evidence manifests/encoding, commit scope, window material consistency, product independence, receipt claims; zero GPU, zero device execution, zero reference writes, no source edits",
+  "method": {
+    "recompute": "recompute.py (12 checks -> recompute.json; committed blobs via git cat-file)",
+    "dry_run_reproduction": "target/mjwarp-parallel/venv/Scripts/python.exe -B scripts/capture_render_sdf.py --dry-run --group {sdf-mesh,sdf-occluder} --out-dir ... with CUDA_VISIBLE_DEVICES=99 (both exit 0; outputs field-identical to evidence logs)",
+    "scene_static_check": "independent pinned-MuJoCo load of both XMLs (no warp import), compared field-by-field to logs/scene-check.json",
+    "gates_self_run": ["fmt", "clippy", "clippy-cuda", "unit", "no-run", "nvrtc"]
+  },
+  "checks": {
+    "total": 12,
+    "passed": 11,
+    "failed": ["script.out_dir_self_checks"]
+  },
+  "verified_numbers": {
+    "script": {"path": "scripts/capture_render_sdf.py", "bytes": 20380,
+               "sha256": "9acd2130f58cfc2cc495bc73bae4e12cb1e9fb3c68c4d245819e809e524fde67",
+               "lines": 427, "non_ascii_bytes": 0, "cr_bytes": 0, "ast_parse": "ok"},
+    "scenes": {
+      "scene.xml": {"bytes": 3388, "lines": 59, "sha256": "376eb81ce200b29373af3965c7abefd90b8f00188a688db583080836dfa868e8"},
+      "scene-mixed.xml": {"bytes": 3062, "lines": 55, "sha256": "7869cfae5e16795ebf86b93c931ef36a8e94464452762e28f1357e0e68a1584e"}
+    },
+    "static_check_reproduced": {
+      "diffs_vs_evidence": 0,
+      "sdf-mesh": {"ngeom": 3, "nlight": 2, "ncam": 2, "nq": 0, "nmesh": 1, "sdf_iterations": 10, "sdf_initpoints": 40},
+      "sdf-occluder": {"ngeom": 4, "nlight": 2, "ncam": 2, "nq": 0, "nmesh": 1, "sdf_iterations": 10, "sdf_initpoints": 40},
+      "sdf_geom": {"name": "sdf-cube", "type": 8, "dataid": 0, "contype": 0, "conaffinity": 0, "size": [0.35, 0.35, 0.35]},
+      "mesh": {"name": "cube", "nvert": 8, "nface": 12, "bounds": [-0.35, 0.35]},
+      "cameras": ["cam-front 320x240 fovy45", "cam-top 240x180 fovy45"],
+      "lights": ["sun directional castshadow", "lamp point castshadow"]
+    },
+    "dry_run_reproduced": {
+      "sdf-mesh": {"exit": 0, "field_diffs": 0, "dry_run": true, "repeat": 2, "legacy_manifest_entries": 69},
+      "sdf-occluder": {"exit": 0, "field_diffs": 0, "dry_run": true, "repeat": 2, "legacy_manifest_entries": 69},
+      "cuda_visible_devices": "99", "cuda_device_created": false, "out_dir_created": false
+    },
+    "legacy_manifest": {"filesystem_files": 69, "tracked_files": 69, "capture_dir_exists": false,
+                        "scope": "fixtures/render-bvh minus scene-sdf/ (incl. frozen shadow/hfield references)"},
+    "commit_scope": {"total_paths": 17, "script": 1, "fixtures": 2, "evidence_files": 12, "normify_cards": 2,
+                     "src_or_tests_changed": 0},
+    "evidence_manifests": {
+      "sdf-capture-authoring": {"files": 8, "manifest_rows": 7, "match": "7/7", "self_registered": false,
+                                "utf16_files": ["dryrun-sdf-mesh.json", "dryrun-sdf-occluder.json", "scene-check.json"]},
+      "sdf-capture-window-material": {"files": 4, "manifest_rows": 3, "match": "3/3", "self_registered": false}
+    },
+    "window_material": {
+      "commands_verbatim_match_script_cli": true,
+      "regular_threshold_util_lt_40_no_exception": true,
+      "open_util_limit_passed": false,
+      "double_sign_block_unfilled": true,
+      "expected_products_script_sha_matches": true,
+      "expected_products_scene_shas_match": true,
+      "no_numeric_verdict_declared": true
+    },
+    "product_independence": {"src_tests_build_gates_references": 0},
+    "validate_now": {"errors": 0, "warnings": 5},
+    "derivation": {"against": "scripts/capture_render_hfield.py", "identical_lines": 390,
+                   "total_lines": 427, "ratio": 0.9155, "changed_blocks": 21, "changed_sdf_lines": 37}
+  },
+  "must_fix_items": [
+    {
+      "id": "P1",
+      "severity": "must-fix(minor)",
+      "where": "docs/development-evidence/render-bvh/sdf-capture-window-material/materials/window-plan.txt (HARD SELF-CHECKS) and materials/expected-products.json (self_checks.out_dir_must_be_empty=true) vs scripts/capture_render_sdf.py",
+      "finding": "the window material and expected-products declare that a non-empty --out-dir is a hard self-check (non-zero exit), but the script only validates that out-dir is inside fixtures/render-bvh/scene-sdf/, then calls out_dir.mkdir(parents=True, exist_ok=True); there is no non-empty refusal, so a rerun of the same group silently overwrites previous products",
+      "fix": "either add `if out_dir.exists() and any(out_dir.iterdir()): fail(\"--out-dir non-empty\")` and rerun both dry-runs to refresh the evidence logs, or reword the window material/expected-products to state that overwriting an existing out-dir is allowed (then no dry-run refresh needed)"
+    }
+  ],
+  "observations": [
+    {"id": "O1", "text": "three evidence JSON logs are UTF-16LE + CRLF (dryrun x2, scene-check); existing repo capture pattern (106 UTF-16 blobs under docs/development-evidence), recommend UTF-8/LF"},
+    {"id": "O2", "text": "derivation helpers (target/sdf-u2/derive_sdf_capture.py, scene_check.py) are not committed, so derivation is not reproducible from the repo alone; compensated by direct 427-line audit plus line-level diff vs the hfield skeleton (390/427 identical lines, 21 blocks)"},
+    {"id": "O3", "text": "CLI still accepts --repeat 1 while the window plan requires 2; with 1 the two_captures_bitwise_identical flag is trivially true; recommend enforcing 2 for real capture"},
+    {"id": "O4", "text": "docstring claim 'writes only under --out-dir' is inexact: real capture also writes the warp kernel cache to target/render-bvh/sdf-capture-cache (untracked, outside out-dir); dry-run compiles nothing so my rerun wrote nothing"},
+    {"id": "O5", "text": "the 'otherwise nothing is written' claim has a nuance: array mismatch writes nothing, but if arrays match and npz bytes differ the first npz files are already written before the failure"},
+    {"id": "O6", "text": "scene-check.json comes from an uncommitted helper; I re-derived every static fact independently with pinned MuJoCo and got 0 diffs, so the evidence itself is credible"},
+    {"id": "O7", "text": "the U2 range also contains the separate scene-mixed mechanical-card commits; scope was counted as 17 paths including both .normify cards, fixtures only add scene-sdf/{scene.xml,scene-mixed.xml}, existing 69 references untouched"}
+  ],
+  "boundaries": {
+    "read_only": true,
+    "gpu_window_opened": false,
+    "device_execution": false,
+    "reference_products_written": false,
+    "source_or_tests_edited": false,
+    "foreign_evidence_edited": false
+  },
+  "not_claimed": [
+    "不宣称渲染数值验收通过（本卡无 GPU、无窗口、无参考产物）",
+    "不宣称与上游逐位相同（只核 authoring 身份与可复现性）",
+    "不宣称 SDF 渲染已覆盖（数值结论只在 U4 验证窗之后成立）"
+  ],
+  "limits": [
+    "dry-run reproduction covers environment/plan/legacy-manifest only; real rendering values and two-run npz equality can only be verified inside the U3 window",
+    "derivation verified indirectly (script content + 91.6% line overlap with the hfield skeleton) because the helper is not committed",
+    "static model check proves scene structure only, not render semantics"
+  ]
+}
