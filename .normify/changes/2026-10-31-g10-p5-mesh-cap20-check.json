@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-g10-p5-mesh-cap20-check",
+  "title": {
+    "zh": "mesh 容量 A1 独立复核（7 文件容量/注释契约/2 条 CPU 单测/collision 内核身份新旧/U8-U7 边界）",
+    "en": "Independent check of mesh capacity A1 (7-file capacity change, comment contracts, 2 CPU tests, collision kernel identity before/after, U8/U7 boundary)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-31-g10-p5-mesh-cap20`（A1：mesh multicontact 固定 scratch 16→20 / 32→40）。pin revision = **`307219fe`**（A1 收口提交）。复核点：①设备 6 处数组 + `G5_MC_MESH_FACE_MAX` 16→20、`G5_MC_MESH_DEG_MAX` 保持 10；②宿主 `clip.rs` 的 pn/pd 20 与 polygon/clipped 40；③5 处注释契约统一 20/40/face 20 且写明 U7 未覆盖；④新增 2 条 CPU 单测（20 边形 face1/face2，ncontact 1..=4）；⑤collision 内核身份新旧（source 255,840/`28385801…` → 254,743/`f32f0af2…`；PTX 3,883,740/6 → 3,883,769/6）与「后续窗口需新冻结」结论；⑥零 ABI/零判据改动、U8/U7 维持 record-only、历史证据零改写。**只读**：不跑 GPU、不开窗、不冻结、不改仓。",
+    "en": "Read-only check at pin 307219fe: the capacity edits, host mirrors, comment contracts, the two new CPU tests, the collision kernel identity change and the U8/U7 boundary; no ABI or criteria change."
+  },
+  "modules": {},
+  "acceptance": [
+    "**设备与宿主容量**：`contact.cu` 的 `polygon/clipped[40]`、`pnormal/pdist[20]`、`face1/face2[20]`；`multicontact_geom.cu` 的 `G5_MC_MESH_FACE_MAX 20`（`G5_MC_MESH_DEG_MAX` 仍 10）；`clip.rs` 的 `pn/pd` 20、`polygon/clipped` 40；`git diff` 只这 7 个文件 + `mod.rs` 的测试模块；其它 `src` 逻辑零改动。",
+    "**注释契约 5 处**：`contact.cu`/`multicontact_geom.cu`/`multicontact.cu`/`multicontact_clip.cu`/`multicontact_mesh.cu` 的容量口径统一为 20/40/face 20，且明确 U7（fan-cone-24）未覆盖、仍回退单接触（A2）。",
+    "**CPU 单测**：`polygon_clip_accepts_twenty_vertex_face1`（20 边形 face1 触发 `pn[19]`，A1 前越界）与 `polygon_clip_accepts_twenty_vertex_face2`（20 顶点 face2 需 40 缓冲）存在且断言 `ncontact` 1..=4；离线可复跑 `cargo test --locked --lib physics::collision::gjk::multicontact`；unit 1113/0/397。",
+    "**内核身份与窗口含义**：证据 `logs/nvrtc-identity.txt` 记录 source `255,840 B / 28385801…` → `254,743 B / f32f0af2…`、PTX `3,883,740 / 6 入口` → `3,883,769 / 6 入口`，并写明「collision 内核身份已变 ⇒ 后续窗口必须新冻结、旧 guards 不复用」。",
+    "**边界与证据卫生**：零 ABI（81 槽/CollisionArgs/launch 签名/JSON 字段不动）；判据/容差/参考/fixtures 零改动；U8/U7 仍 record-only（未宣称 U8 通过、未宣称 U7 覆盖、未宣称 mesh 容量缺口已清）；g10 既有窗口证据与 render-bvh 证据零改动；门禁 fmt/clippy/clippy-cuda/unit 全绿、`--no-run` EXIT=0 含 Finished、validate 错误 0；证据 manifest 自洽、LF 无 BOM、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-31-g10-p5-mesh-cap20"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/g10-p5-mesh-cap20-check/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册（Chief 要求 A1 收口后派 QA）。pin revision = `307219fe`；`revision.before = null`（proposed，QA start 时记录）。复核对象：`src/physics/collision/cuda/{contact,multicontact,multicontact_clip,multicontact_geom,multicontact_mesh}.cu`、`src/physics/collision/gjk/multicontact/{clip.rs,mod.rs}`、`docs/development-evidence/g10-p5-mesh-cap20/`、`target/mesh-a1-precheck.md`（工作树读取）。只读：不跑 GPU、不开窗、不冻结。U8/U7 的 GPU 验证在用户签窗口后的新 suite 里做。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-31T04:35:00.000Z",
+  "updated_at": "2026-10-31T04:35:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/g10-p5-mesh-cap20-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-g10-p5-mesh-cap20-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "上游等价",
+        "精度达标",
+        "mesh 容量缺口已清"
+      ]
+    }
+  ]
+}
