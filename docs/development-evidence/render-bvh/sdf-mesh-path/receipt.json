@@ -1,0 +1,128 @@
+{
+  "task_id": "2026-10-30-render-sdf-mesh-path",
+  "slice": "SDF unlock U1",
+  "prerequisite": "2026-10-30-render-sdf-anyhit-cull-latent-fix",
+  "intent": "device-side dispatch alignment so gtype==8 takes the same mesh path as mesh (upstream renders SDF via its underlying mesh); host rejection kept so the capability is not exposed; no SDF distance-field intersection",
+  "upstream_facts": {
+    "sdf_is_rendered_as_underlying_mesh": true,
+    "citations": [
+      "mujoco_warp/_src/render_test.py:1246-1279 (docstring L1251 'render using the underlying mesh geometry')",
+      "mujoco_warp/_src/render.py:738-761 (MESH|SDF -> ray_mesh_with_bvh_anyhit / ray_mesh_with_bvh with geom_dataid)",
+      "mujoco_warp/_src/bvh.py:211-220 (MESH|SDF bounds from mesh_bounds_size[did])",
+      "mujoco_warp/_src/render.py:466-481, 1211-1216 (texture and vertex normals share the mesh branch)",
+      "mujoco_warp/_src/collision_sdf.py (SDF distance field is collision-only, not render)"
+    ]
+  },
+  "changes": [
+    {
+      "file": "src/render/kernel/cuda/render_common.cu",
+      "lines_before": 414,
+      "lines_after": 415,
+      "what": "mesh branch condition now includes gtype==8 (gtype == 7 || gtype == 1 || gtype == 8; 8 uses scene.leaf_mesh[leaf] = geom_dataid); hit.mesh_id is filled for gtype 7 and 8 (vertex-normal branch would otherwise skip SDF); placeholder-branch comment updated"
+    },
+    {
+      "file": "src/render/kernel/cuda/render.cu",
+      "lines_before": 499,
+      "lines_after": 496,
+      "what": "DepthSeg branch: gtype==8 now calls ray_mesh_leaf(scene.leaf_mesh[leaf]) like mesh; two stale 'SDF handled as miss' comment lines removed (net negative, stays under the 500-line ratchet)"
+    }
+  ],
+  "shadow_path": "render_shadow.cu reuses cast_ray from render_common.cu, so the any-hit path is covered by the same change; the cull_this exclusion for gtype==8 was already added by the latent fix",
+  "host_rejection_kept": {
+    "megakernel_rs_changed": false,
+    "reject_sdf_geometry_intact": true,
+    "unsupported_message": "S7b3 不含 SDF 求交",
+    "latent_fix_host_tests_still_pass": true,
+    "capability_reachable_today": false
+  },
+  "src_diff": {
+    "files": 2,
+    "insertions": 9,
+    "deletions": 11,
+    "only_files": [
+      "src/render/kernel/cuda/render_common.cu",
+      "src/render/kernel/cuda/render.cu"
+    ]
+  },
+  "line_budgets": {
+    "render_common_cu": {"limit": 417, "actual": 415},
+    "render_cu": {"limit": 498, "actual": 496},
+    "megakernel_rs_untouched": 440,
+    "cast_rs_untouched": 481
+  },
+  "kernel_identity": {
+    "old": {
+      "megakernel_source_sha256": "be4ef01b1ae45188ac512c91cfef60244a1f8b6670307b245ae1719a34cf5f5e",
+      "megakernel_ptx_sha256": "4dae03ffb3fe82214da930714c7fd1ccb6a2c8d5c5eb7cc8e489624b4e7dd085",
+      "megakernel_ptx_bytes": 268305
+    },
+    "new": {
+      "megakernel_source_sha256": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5",
+      "megakernel_ptx_sha256": "34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d",
+      "megakernel_ptx_bytes": 268589,
+      "aa_resolve_source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+      "aa_resolve_ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+      "aa_resolve_ptx_bytes": 27536,
+      "aa_resolve_unchanged": true
+    },
+    "measured_by": "cargo test --locked --features cuda-probe --test render_kernel_flags flag_and_aa_sources_compile_under_render_gate -- --ignored --nocapture (NVRTC compile only; logs/kernel-identity.txt)"
+  },
+  "identity_references": {
+    "pin_revision": "02b9c629",
+    "command": "git grep -I -n -E \"be4ef01b|4dae03ff|268305|268,305\" 02b9c629 -- .",
+    "total_lines": 28,
+    "total_files": 14,
+    "docs_files": 8,
+    "fixtures_files": 4,
+    "fixtures_note": "unrelated hex payloads, not render kernel identity assertions",
+    "normify_changes_files": 2,
+    "live_assertions_src_tests_scripts": 0,
+    "history_evidence_edited": false,
+    "list": "materials/kernel-identity-refs.txt"
+  },
+  "gates": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "clippy_cuda": "passed",
+    "unit": "passed (1108 passed / 0 failed, 392 ignored)",
+    "logs": "logs/gate-*.txt (snapshot transcription; authoritative results in committed .normify/runs/2026-10-30-render-sdf-mesh-path/)"
+  },
+  "no_run": {
+    "command": "cargo test --locked --no-run",
+    "exit": 0,
+    "has_finished": true,
+    "log_last_line": "EXIT=0",
+    "log": "logs/no-run.txt"
+  },
+  "validate": {
+    "errors": 0,
+    "warnings": 6,
+    "warning_list": [
+      "api/leaf-empty mjwarp.io.render",
+      "api/leaf-empty mjwarp.model.render-model",
+      "structure/leaf-too-coarse (39 leaves)",
+      "layout/order-incomplete layout:mjwarp.io",
+      "layout/order-incomplete layout:mjwarp.model",
+      "evidence/fingerprint-drift mjwarp.render.kernel (expected; refreshed by done)"
+    ],
+    "log": "materials/validate.txt"
+  },
+  "boundaries": {
+    "abi_slots_changed": false,
+    "criteria_changed": false,
+    "tolerance_changed": false,
+    "reference_changed": false,
+    "other_cu_files_changed": false,
+    "gpu_window_opened": false,
+    "device_execution": false,
+    "r08_r02_evidence_edited": false,
+    "megakernel_rs_changed": false
+  },
+  "claims": {
+    "sdf_rendering_covered": false,
+    "sdf_intersection_implemented": false,
+    "numeric_acceptance": false,
+    "capability_exposed": false
+  },
+  "next": "U2 capture authoring (offline) -> U3 capture window (user signature) -> U1b host unlock (after U3 verified, before U4; revert U1b if U4 fails) -> U4 validation window (user signature, new frozen guards, no reuse of old exe hashes)"
+}

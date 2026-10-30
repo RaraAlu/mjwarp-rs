@@ -363,10 +363,12 @@ __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const Megake
         float pass_bary_v = 0.0f;
         int pass_face = -1;
         int mesh_index = scene.leaf_mesh[leaf];
-        if (gtype == 7 || gtype == 1) {
+        if (gtype == 7 || gtype == 1 || gtype == 8) {
             // R05-S2：hfield（gtype==1）与 mesh 同走 `ray_mesh_leaf`；hfield 的 mesh 索引
             // 从 `hfield_bvh_id[geom_dataid[geom]]` 取（blob 内索引，追加在既有 mesh 末尾；
             // `u64::MAX` 哨兵=未建/未用 → 跳过）。上游 `render.py` L682-693 同义。
+            // SDF（gtype==8）与 mesh 同路：上游按底层 mesh 渲染（render.py L738-761、
+            // render_test.py L1251 原文）；8 直接使用 `scene.leaf_mesh[leaf]`（= geom_dataid）。
             int query_mesh = mesh_index;
             if (gtype == 1) {
                 int hfield_index = geom_dataid[geom];
@@ -385,9 +387,8 @@ __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const Megake
                                   &pass_bary_u, &pass_bary_v, &pass_face);
             }
         } else if (gtype != 8) {
-            // gtype==8（SDF）仍由 host 拒绝（`megakernel.rs` 的 `reject_sdf_geometry`）；设备侧保守不判交。
-            // 解锁契约（gap 卡 `2026-10-28-render-shadow-sdf-gtype-cull-gap`）：SDF 求交必须走上游
-            // any-hit 语义——命中时 d=0、未命中 d=-1、**不填 normal**、且不参与背面剔除（见下方 cull_this）。
+            // gtype==8 已进上一分支（上游 SDF=底层 mesh 渲染）；此处条件保留为防御：
+            // host 仍拒绝 8（`megakernel.rs` 的 `reject_sdf_geometry`），本片改动今天不可达。
             render_intersect_primitive(gtype, pos, leaf_size, leaf_mat, origin, direction, &d, &n);
         }
         // 上游阴影射线走 any-hit 分支（mesh/hfield/SDF 的 n 为零向量 → cull 不生效）；
@@ -407,7 +408,7 @@ __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const Megake
             hit.face = pass_face;
             hit.bary_u = pass_bary_u;
             hit.bary_v = pass_bary_v;
-            hit.mesh_id = gtype == 7 ? mesh_index : -1;
+            hit.mesh_id = (gtype == 7 || gtype == 8) ? mesh_index : -1;
         }
     }
     return hit;

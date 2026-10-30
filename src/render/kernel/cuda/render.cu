@@ -355,12 +355,9 @@ __device__ __forceinline__ void cast_ray(const SceneView& scene, const int* mesh
         V3 n = v3(0.0f, 0.0f, 0.0f);
         V3 pos = v3(leaf_pos[0], leaf_pos[1], leaf_pos[2]);
         if (gtype == 7 || gtype == 8) {
-            // S7b1 只实现 mesh（type 7）；SDF（type 8）不在本片范围，按 miss 处理
-            // （scene-a 无 SDF geom，参考不可观测）。
-            if (gtype == 7) {
-                d = ray_mesh_leaf(mesh_meta, mesh_params, mesh_offsets, scene.leaf_mesh[leaf], pos,
-                                  leaf_mat, origin, direction, query_dist, cull_backfaces, &n);
-            }
+            // mesh 与 SDF 同路：上游按底层 mesh 渲染（render.py L738-761）；host 仍拒绝 8（今天不可达）。
+            d = ray_mesh_leaf(mesh_meta, mesh_params, mesh_offsets, scene.leaf_mesh[leaf], pos,
+                              leaf_mat, origin, direction, query_dist, cull_backfaces, &n);
         } else {
             render_intersect_primitive(gtype, pos, leaf_size, leaf_mat, origin, direction, &d, &n);
         }
