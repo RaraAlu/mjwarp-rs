@@ -1,0 +1,20 @@
+# U4 attempt3 invalid round record (TWO independent blockers; NOT a pass)
+attempt=3
+head=2162044b4ddac887e4bf584fb754e8530f52e6d2
+tree=clean at snapshot/freeze (git status --porcelain empty)
+kernel_identity=source eb0e717fb0389355182503a44192ee5d8dbd7ef7957e8fc5f8ec0368e27d5b0b ptx 7782aeb199dc49ff231a8884a70a8194a2deef02e9a7f4e2c9f43a0fc74dc5d4 bytes 268589 (fix 片 a=dot3_ba)
+guards_suite=render-sdf-validate
+guards_sha256=8b34570ee5dd9f3858644e064ff0bef214140fd559ae2c6abd886bb59dcb48fb
+guards_bytes=33651
+guards_aggregate_sha256=013babf4b2dabb8f952cc835b06b91220dea4e94964cbc2b030caca9630fb978
+sha_guards=92/92 (9 exes + 83 inputs); all 9 exe hashes changed vs attempt2 (kernel identity change), 83 inputs unchanged
+guards_only=GUARDS_OK=92/92
+regular_monitor=FAILED 355 samples longest_clean=27 util 1-84 free_min 11429 exit20 (retained: monitor-pre-window-attempt3.csv + monitor-regular-failure.txt)
+exception_monitor=PASSED 60/60 60 samples util 15-43 free_min 11548 exit0 (signed validation_only_exception_util_lt_60; ge40_clean=6 -> load_bearing=true; ge60=0)
+floor_mib=8481 floor_breached=False
+entities=2/9 exit0 (render_context_lifecycle, render_mesh_bvh); 7 failed
+blocker_1=host SDF rejection is back (U1b rolled back by 07252cd2) => render_sdf_reference all 5 GPU tests panic Unsupported("S7b3 不含 SDF 求交"); the SDF target cannot be exercised at all in this window
+blocker_2=sphere a-order fix conflicts with the scene-a precise references: 6 regression entities fail at scene-a cam1 spherical-silhouette pixels (first 28969 x=169 y=120), depth max_ulp=73 (>4); before the fix these pixels were bitwise 0 mismatch => the scene-a fast-math=false capture contracts a as (0,1,2) while the scene-sdf fast-math=false capture contracts a as (1,0,2)
+failed_entities=render_sdf_reference(blocker1), render_e2e, render_kernel_depth_seg, render_kernel_flags, render_kernel_rgb, render_r10_multi_world, render_skybox_reference (all blocker2, first pixel 28969 / 169,120)
+invalid_round=INVALID_ROUND exit10
+policy=stop; no retry, no re-freeze, no criteria change; this freeze is burned; evidence must not be written as a normal-threshold pass

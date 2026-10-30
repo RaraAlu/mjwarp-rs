@@ -1,0 +1,38 @@
+# 证据更正（QA 复核 pass / 需修 4 条的落点）
+
+复核任务：`2026-10-31-render-sdf-validate-window-check`（pin 07252cd2 / 证据提交 d52dc774、0192016d）。
+原则：**attempt 归档记录原样保留、不改字节**；误导性数字与缺失要素在 README 与本文件更正。
+
+## P1 `attempts/attempt2/invalid-round-record.txt` 的 `failed_tests` 行是从 attempt1 抄来的
+
+- 归档原文（保留不改）：`failed_tests=sdf_mesh_matches_captured_reference,sdf_occluder_matches_captured_reference,shadow_toggle_consistency`
+- 实测（`attempts/attempt2/logs/render_sdf_reference.log`，同一归档）：`test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 3 filtered out; finished in 6.50s`
+  - failed: `sdf_mesh_matches_captured_reference`、`sdf_occluder_matches_captured_reference`
+  - passed: `shadow_toggle_consistency`、`depth_seg_cross_path_consistency`、`two_run_determinism`
+- attempt1 才是 3 failed（shadow 因 `sdf_compare.rs:138` 的 u8 溢出 red，`82dfa0c3` 修后绿）。
+- 结论不变：new entity 仍 exit 101，attempt2 仍 `INVALID_ROUND`，U4 未通过。
+
+## P2 attempt1 常规 monitor 的 util 范围
+
+- 旧文（README §3 / 早期汇报）：`5–50`
+- 实测（committed `attempts/attempt1/monitor-pre-window.csv`，354 样本，`util_percent` 列）：**min 3 / max 76**
+- README §3 已改为 `3–76`；CSV 原样保留。
+
+## P3 attempt1 例外 monitor 的样本数
+
+- 旧文：`83 样本`
+- 实测（committed `attempts/attempt1/monitor-pre-window-exception.csv`）：**69 样本**（83 是 attempt2 的例外 monitor）
+- README §3 已改为 `69 样本`。
+
+## P4 缺五要素明文块
+
+- README §3b 已补：`mode` / `approved_by` / `approved_at`（含转达精度说明）/ `reason` / `original_normal_threshold_attempts_retained` / `not_a_normal_threshold_pass=true` / `authoring_exception_used=false`。
+- 两份 monitor CSV、`regular-failure-recompute.json`、`exception-monitor-recompute.json` 内容未改。
+
+## attempt3（本目录新增）
+
+- `attempts/attempt3/` 收录 22 个文件（guards 字节副本 33,651 B / `8b34570e…`、两份 monitor、INVALID_ROUND 双阻塞说明、9 个实体日志、entity-results、facts、例外重算、sha-guards、machine-load、pre-window 快照）；attempt3 冻结作废、不复用；两个结论见 README §3c。
+
+## 本轮更正不涉及
+
+不改判据/容差/参考、不改 guards、不改 body 结果、不改 `target/` 原件；仅 README 文字与本 errata。

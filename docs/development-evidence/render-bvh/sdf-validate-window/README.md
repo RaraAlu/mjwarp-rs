@@ -26,14 +26,58 @@
 
 ## 3. monitor 证据（两份都在，绝不写成常规通过）
 
-- `attempts/attempt1/monitor-pre-window.csv` — **常规 `util<40` monitor 失败**（354 样本、longest 28/60、`util` 5–50、`free_min` 11,545 MiB、exit 20）；**原样保留**。
-- `attempts/attempt1/monitor-pre-window-exception.csv` — 已签条件式 validation-only `util<60` 例外 monitor（60/60、83 样本、exit 0）。
+- `attempts/attempt1/monitor-pre-window.csv` — **常规 `util<40` monitor 失败**（354 样本、longest 28/60、`util` **3–76**、`free_min` 11,545 MiB、exit 20）；**原样保留**。
+- `attempts/attempt1/monitor-pre-window-exception.csv` — 已签条件式 validation-only `util<60` 例外 monitor（60/60、**69 样本**、exit 0）。
 - `attempts/attempt2/monitor-pre-window-attempt2.csv` — 常规 monitor 失败（354 样本、longest 41/60、`util` 1–53、`free_min` 11,467 MiB、exit 20）。
 - `attempts/attempt2/monitor-pre-window-exception-attempt2.csv` — 例外 monitor（60/60、83 样本、exit 0）。
 
 两次 approach 都是「先常规、失败才启用已签例外」；例外 load-bearing 独立重算：attempt1 `ge40_clean=9` ⇒ true，
 attempt2 `ge40_clean=8` ⇒ true；`ge60` 样本（attempt1 2 个、attempt2 1 个）均在 60 连清段之外（预热期、streak 0），
 证据里照实记录，不写 `ge60=0`，不写「常规通过」。
+
+### 3b. 已签条件式 validation-only 例外（五要素明文块）
+
+三次 attempt 的例外路径都对应同一份用户签署（2026-10-31，via Chief）：
+
+```text
+mode=validation_only_exception_util_lt_60
+approved_by=user via Chief
+approved_at=2026-10-31T00:55+08:00    # Chief 即时转达；卡片 UI 精确时间戳未暴露，转达时点 ±5 分钟
+reason=desktop 3D noise (dwm / DSH GUI / msedgewebview2): regular monitor failed at the signed
+       original threshold while free never breached the floor and filtered compute-apps = 0
+original_normal_threshold_attempts_retained=
+  attempt1: attempts/attempt1/monitor-pre-window.csv (354 samples, longest 28/60, util 3-76, exit 20)
+  attempt2: attempts/attempt2/monitor-pre-window-attempt2.csv (354 samples, longest 41/60, util 1-53, exit 20)
+  attempt3: attempts/attempt3/monitor-pre-window-attempt3.csv (355 samples, longest 27/60, util 1-84, exit 20)
+not_a_normal_threshold_pass=true
+authoring_exception_used=false
+```
+
+`-MaxUtil 60` 只用于例外 monitor（`monitor-pre-window-exception*.csv`，PowerShell 5.1）；常规 monitor 从未加
+`-MaxUtil 60`、也从未加 `-OpenUtilLimit`。例外是否 load-bearing 由连清段内的 `ge40_clean` 独立重算证明
+（attempt1 9、attempt2 8、attempt3 6），不把 `ge60` 预热样本算作通过条件。
+
+>> 注：`attempts/attempt2/invalid-round-record.txt` 的 `failed_tests` 行是从 attempt1 抄来的旧值（3 个含 shadow），
+>> 实际 attempt2 为 **3 passed / 2 failed**（`sdf_mesh`、`sdf_occluder`；shadow 在 `82dfa0c3` 的 u8 修后已绿）。
+>> 该归档记录按「原样保留」不改字节，更正见 `materials/errata.txt`。
+
+## 3c. attempt3（INVALID_ROUND；两个独立结论）
+
+attempt3 在 `07252cd2` 回滚之后、球面 a-order fix（`8126868c`）之后执行，`INVALID_ROUND exit10`：
+
+- **① 流程无效**：`U1b` 仍处回滚态 ⇒ host 继续拒绝 `gtype==8`，`render_sdf_reference` 的 5 个 GPU 用例
+  全部在发射前 panic `Unsupported("S7b3 不含 SDF 求交")`。**本 attempt 的 SDF 侧不作为任何判据依据**；
+  7/9 实体红（该实体 5 个用例 0 passed）。窗口准备 checklist 缺失项：开窗前未核对「host 解锁状态与 target 预期一致」。
+- **② 真实参考冲突**：另 6 个 scene-a 回归实体（`render_e2e`、`render_kernel_depth_seg`、`render_kernel_flags`、
+  `render_kernel_rgb`、`render_r10_multi_world`、`render_skybox_reference`）全部红在**同一批球面轮廓像素**
+  （首差 pixel 28969 / (169,120)），depth `max_ulp=73`（>4）；这些像素在 fix 前位级 0 差异 ⇒
+  scene-a 的 fast_math=false 参考要求 `a=(0,1,2)`，而 scene-sdf 的 fast_math=false 参考在 fix 片 RCA 中
+  要求 `a=(1,0,2)`。**两份参考互不兼容，成因待只读 RCA**（本记录不写成因定论）。
+- 窗口本身：常规 monitor 失败（355 样本、longest 27/60、util 1–84、free_min 11,429、exit 20，**原样保留**）；
+  已签例外 monitor **60/60**（60 样本、util 15–43、free_min 11,548、`ge40_clean=6`、`ge60=0`、exit 0）；
+  全新冻结 `guards sha 8b34570e…`/33,651 B/aggregate `013babf4…`（9 exe 全变、83 inputs 不变）；`-GuardsOnly` 92/92；
+  body 2/9 exit 0（`render_context_lifecycle`、`render_mesh_bvh`）。
+- **attempt3 冻结作废、不复用**；U4 仍**未通过**，判据/参考零改动。
 
 ## 4. `-GuardsOnly` 92/92 的来源（如实标注）
 
