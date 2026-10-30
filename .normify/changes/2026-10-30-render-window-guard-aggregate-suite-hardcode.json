@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-window-guard-aggregate-suite-hardcode",
+  "title": {
+    "zh": "窗口工具缺口：run-window.ps1 的 guard_aggregate.suite 硬编码 r05-s3b-hfield-validate（R08-S3 QA O1，backlog 不现在修）",
+    "en": "Window tool gap: run-window.ps1 writes guard_aggregate.suite from a hard-coded R05 string (R08-S3 QA O1, deferred)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "记录 R08-S3 QA 观察 O1：`scripts/validate/render-bvh/run-window.ps1` 写 `guard_aggregate.json` 时把 `suite` 字段硬编码成 `r05-s3b-hfield-validate`，于是 R08/R02 等后续窗口的 aggregate 文件里 suite 名是错的（例：R08-S3 的 `guard_aggregate.json` 记 `r05-s3b-hfield-validate`，而实际 guards 文件 suite 为 `render-r08-rgb-hetero`）。aggregate 的 `aggregate_sha256` 与条目不受影响（QA 已复算 77 条 sha 串联一致），只是标签错。**这是共享窗口工具，单独立片做**，本卡现在只登记、不 start、不改 `run-window.ps1`；R08-S3 证据里该字段按 QA 观察如实记录为已知标签缺陷。",
+    "en": "Record that guard_aggregate.suite is hard-coded in the shared window runner; only a label is wrong (aggregate hash unaffected). Deferred: fixing the shared runner is its own slice."
+  },
+  "modules": {},
+  "acceptance": [
+    "登记完成即可（proposed，不 start）：事实（`run-window.ps1` 硬编码 `guard_aggregate.suite`）、影响面（R08/R02/R05 aggregate 文件的 suite 标签；aggregate_sha256 与条目不受影响）、修复方向（suite 从 `-GuardsFile` 的 `suite` 字段派生，或从 entity table 传入）与验收要求（新窗口 aggregate.suite == guards.suite；aggregate_sha256 不变；历史 aggregate 不回溯改写，只在证据里注明）已写入本卡。",
+    "实现时：只改 `scripts/validate/render-bvh/run-window.ps1`（及其单测/自检）+ 一次新窗口或 `-GuardsOnly` 级验证；不改已签证据的 aggregate 字节、不改 guards 文件、不改 threshold/判据。",
+    "被 R08/R02 证据引用时写明「aggregate.suite 标签为本工具已知缺陷（本卡），aggregate_sha256 仍按 77 条 sha 串联复算成立」；不得把标签缺陷写成 aggregate 失效。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "待分配",
+    "files": [
+      "scripts/validate/render-bvh/run-window.ps1",
+      "docs/development-evidence/render-bvh/window-aggregate-suite-fix/"
+    ],
+    "resources": [],
+    "priority": 40
+  },
+  "note": "Arch 2026-10-30 登记（R08-S3 QA O1；Chief 指示『先登记 backlog 卡、不现在修』）。先例同类：R02 QA B-O2/N12 已记过同一硬编码问题，但当时只在 plan N12 里记录、未立卡；本卡把它变成可排期项。修它要动共享窗口工具（所有后续窗口都用 `run-window.ps1`），故必须独立成片并带自己的验证窗/自检，不能折进 R08 收口。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T13:05:00.000Z",
+  "updated_at": "2026-10-30T13:05:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/window-aggregate-suite-fix/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-window-guard-aggregate-suite-hardcode"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "aggregate 失效",
+        "窗口工具已修复"
+      ]
+    }
+  ]
+}

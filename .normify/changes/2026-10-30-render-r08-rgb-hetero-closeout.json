@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-r08-rgb-hetero-closeout",
+  "title": {
+    "zh": "R08-RGB 逐相机掩码片收口（plan.json R08-S3 标 delivered + 整片汇总）",
+    "en": "R08-RGB per-camera mask slice closeout (plan.json R08-S3 delivered + family summary)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "R08-RGB 逐相机掩码片（`2026-10-29-render-r08-rgb-hetero` 离线实现 + S3 窗口 `2026-10-29-render-r08-rgb-hetero-validate` 已 verified + QA 复核 pass/0 阻断/需修 1 已修）的收口：① 在 `docs/development-evidence/render-bvh-precheck/plan.json` 的 `slices` 里新增 **R08-S3** 条目（delivered，含 commits/判据/guards/窗口六项/未覆盖项）并写 `delivered_note`；② 在 `delivery_tracking.rows` 追加 slice 行（task id / owner / status / evidence / note），推进 `updated_at`；③ 在 `scheduling_notes` 追加 R08 收口条目（含本轮常规窗口与四轮失败留档、per-camera RGB 缺口卡的处置）；④ 写整片汇总 `docs/development-evidence/render-bvh/r08-summary/`。**不改判据/容差/参考/已签证据语义**；不宣称超出 R08-RGB 范围的结论。",
+    "en": "Close out the R08-RGB per-camera mask slice: mark R08-S3 delivered in plan.json (slice entry, delivery row, scheduling note) and write the family summary. No criteria/reference changes; no claims beyond this slice."
+  },
+  "modules": {},
+  "acceptance": [
+    "`plan.json` 新增 `R08-S3` slice：`id/name/category/depends_on`（R08-S2）/`scope`（逐相机 RGB 异构掩码 + 窗口重放）/`deliverables`/`acceptance`（沿用既有位级判据）/`evidence`=`docs/development-evidence/render-bvh/r08-rgb-hetero-validate/`/`new_files`/`modifies`/`gpu`（一次验证窗、无新采集）/`estimate_days`/`out_of_scope`（per-world、SDF cull、AA+per-world、mesh 容量、性能）/`status=delivered`/`delivered_commits`。",
+    "`delivery_tracking.rows` 追加 R08-S3 行（slice=R08-S3、task_id=`2026-10-29-render-r08-rgb-hetero-validate`、owner=Backend、normify_status=verified、execution=`done (device validation window attempt=1, normal util<40 thresholds)`、evidence 路径、note 含 9/9、77/77、post 9/9、zero compile、60/60、guard sha）；`delivery_tracking.updated_at` 更新到 2026-10-30。",
+    "`scheduling_notes` 追加 R08 收口条目：离线实现 + S1 结构反转 + S2 窗口材料 + S3 窗口（第五轮 monitor 60/60；前四轮失败原样保留）+ QA 复核 pass/0 阻断/需修 1（manifest 两行）+ 缺口卡处置；不得把 normal util<40 轮写成例外轮，也不得把四轮失败抹掉。",
+    "`docs/development-evidence/render-bvh/r08-summary/`：README（做了什么=scope/files；门禁与数字；guards sha/bytes/aggregate；窗口六项；逐相机判据摘要；QA verdict；未覆盖项）+ receipt.json（task_id 指向本卡）+ manifest.txt；LF 无 BOM，禁词 0。",
+    "不改判据/容差/参考；不改已 verified 的 R08-S3 证据语义（只列数字与链接）；`git diff` 只含 `plan.json`、`r08-summary/` 与本卡/相关卡记录。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-29-render-r08-rgb-hetero-validate",
+      "2026-10-30-render-r08-rgb-hetero-validate-check"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh-precheck/plan.json",
+      "docs/development-evidence/render-bvh/r08-summary/"
+    ],
+    "resources": [],
+    "priority": 52
+  },
+  "note": "Arch 2026-10-30 注册（Chief 12:5x 指派：13:50 前尽量做完 plan.json 收口 + R08 简短汇总）。pin revision = `89afd36e`（manifest 需修项已修）。先例：`2026-10-29-render-bvh-r02-skybox-closeout`（plan.json 6 slice delivered + delivery row + N11/N12 + 整片汇总）、`...-r05-...-closeout`。编号/命名按 plan.json 现有结构（R08-S3 紧接 R08-S2），不硬造新家族；per-camera RGB 缺口卡 `2026-10-28-render-per-camera-rgb-gap` 在本片记实际覆盖情况与剩余项。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T13:06:00.000Z",
+  "updated_at": "2026-10-30T13:06:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/r08-summary/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-r08-rgb-hetero-closeout"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "产品渲染验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
