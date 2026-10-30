@@ -1,0 +1,29 @@
+Kernel-source EOL / identity stability — QA check (2026-10-31)
+
+question: is MEGAKERNEL_SOURCE (and therefore the recorded kernel source identity) stable across checkouts?
+
+git check-attr text eol -- src/render/kernel/cuda/render_math.cu src/render/bvh/cuda/scene.cu
+  render_math.cu : text unspecified / eol unspecified
+  scene.cu       : text unspecified / eol unspecified
+=> the repo has no rule pinning these .cu files; with core.autocrlf=true (active here) a checkout may produce CRLF bytes.
+
+MEGAKERNEL_SOURCE = concat!(scene.cu, render_math.cu, render_common.cu, render_shadow.cu, render_shade.cu, render_megakernel.cu)
+identity = sha256 over the concatenated bytes (artifact.source_sha256()).
+
+measurement
+  committed blobs (all LF):  concat 88,865 B  sha256 778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5  (= gen1, matches evidence)
+  worktree now (LF, crlf_pairs=0 in render_math.cu): concat 88,865 B sha256 778216b2..  (same)
+  LF -> CRLF simulation of all six files: concat 90,908 B sha256 e5719c81ade0b33124160145a4887070163446ad85b05b3da1ae338390e7311c
+    (the exact CRLF number recorded in the revert log is 86a55721..; the difference is which files/sections were CRLF
+     in that checkout - the dependency on EOL is confirmed either way)
+
+why it matters
+  gen1 778216b2.., gen2 eb0e717f.., gen3 778216b2.. are evidence values produced from an LF worktree. A fresh clone with
+  autocrlf=true would hash the CRLF bytes and print a different source_sha256, so a reviewer cannot reproduce the identity
+  from the recorded blob alone without normalising EOL first.
+
+recommended fix (must-fix P4, no blob change)
+  .gitattributes:
+    src/render/kernel/cuda/*.cu text eol=lf
+    src/render/bvh/cuda/*.cu   text eol=lf
+  or repo-local core.autocrlf=false; then re-state that kernel identities are checkout-stable.

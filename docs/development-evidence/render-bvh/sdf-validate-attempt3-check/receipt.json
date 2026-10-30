@@ -1,0 +1,124 @@
+{
+  "task_id": "2026-10-31-render-sdf-validate-attempt3-check",
+  "reviewed_tasks": [
+    "2026-10-31-render-sdf-validate",
+    "2026-10-31-render-sdf-sphere-dot-a-order-revert",
+    "2026-10-31-render-sdf-sphere-dot-a-order-fix",
+    "2026-10-31-render-sdf-validate-attempts-evidence"
+  ],
+  "pin": "1ccb3446",
+  "card_head_at_start": "694bb5aa33319980459eedb25cecba026f914219",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 5,
+  "observations": 7,
+  "scope": "read-only QA review of U4 attempt3 (INVALID_ROUND: (1) process-invalid because U1b was still rolled back, (2) real reference conflict where the sphere a-order fix makes 6 scene-a regressions red at the same silhouette pixels), its fresh freeze identity and archival, the four attempt1/2 evidence corrections, the sphere-fix revert and the fix-slice RCA single-dataset addendum; no GPU, no window rerun, no re-freeze, no criteria/reference change",
+  "method": {
+    "attempt3_freeze": "committed guards blob: sha/bytes, 9+83=92 counts, 10/10/47/16 breakdown, aggregate recomputed with Windows PowerShell 5.1, exe/input diff vs attempt2, stash 9/9",
+    "attempt3_window": "committed monitor CSVs and logs: sample counts, util ranges, clean streaks, ge40_clean/ge60, entity exits, panic strings, facts.txt (zero compile, floor, residual, exe recheck)",
+    "revert": "git ls-tree blobs (fix 7a43e575 -> revert 33efcb27 == gen1), MEGAKERNEL_SOURCE recomputed from worktree (LF) = 778216b2../88,865 B, gate runs json, no-run, manifest",
+    "manifests": "every manifest recomputed against committed blobs (git cat-file), plus worktree comparison to diagnose CRLF cases",
+    "eol": "git check-attr for render .cu; MEGAKERNEL_SOURCE recomputed on LF blobs vs LF->CRLF simulation",
+    "rca": "target-only RCA spot-verified: two megakernel PTX identities vs the capture kernel caches, _ray_quad_0 generated source sha equality, recipe environments, per-pixel table consistency with the committed logs",
+    "corrections": "0192016d/1ccb3446 re-read: attempt1 util 3-76, exception 69 samples, five-element block, attempt2 failed_tests errata, archived bytes unchanged"
+  },
+  "verified_numbers": {
+    "attempt3_freeze": {
+      "guards_sha256": "8b34570ee5dd9f3858644e064ff0bef214140fd559ae2c6abd886bb59dcb48fb",
+      "bytes": 33651,
+      "aggregate_recomputed": "013babf4b2dabb8f952cc835b06b91220dea4e94964cbc2b030caca9630fb978",
+      "match": true,
+      "counts": "9 exe + 83 inputs = 92 (10 scene-sdf + 10 scene-hfield + 47 legacy + 16 scene-shadow)",
+      "generated_at": "2026-10-31T03:31:17.596+08:00 (window_start 03:31:40 => freeze before body)",
+      "vs_attempt2": "9/9 exe hashes changed, 83/83 input hashes unchanged",
+      "stash": "9/9 stash sha equal; freeze burned, not reused"
+    },
+    "attempt3_window": {
+      "regular": "355 samples, longest_clean 27/60, util 1-84, free_min 11429, exit 20, CSV retained",
+      "exception": "60 samples, 60/60 clean, util 15-43, free_min 11548, ge40_clean=6, ge60=0, exit 0, load_bearing=true",
+      "entities": "2/9 exit 0 (render_context_lifecycle, render_mesh_bvh); 7 red",
+      "blocker1": "render_sdf_reference: 5/5 GPU tests panic Unsupported(\"S7b3 不含 SDF 求交\") at tests/support/render_bvh/sdf_scene.rs:267 (host rejects gtype==8 because U1b is still rolled back)",
+      "blocker2": "6 scene-a regressions red at scene-a cam1 spherical silhouette; first pixel 28969/(169,120), depth max_ulp=73 (e2e/rgb/depth_seg/skybox/r10 and the flags baseline+culling arms); render_kernel_flags also fails its aa2 arm at first pixel 29448/(168,122) with max_ulp=91; rgb is 0-1 LSB except that aa2 pixel",
+      "facts": "zero_rust_compile=True (deps_before_max_write 02:51:20 < window_start 03:31:40, deps counts 1840 both sides); floor 8481 not breached; post_window_exe_recheck 9/9; residual_processes 0; util_max 28 during body"
+    },
+    "revert": {
+      "commit": "ee1bea57",
+      "blou_math": "src/render/kernel/cuda/render_math.cu blob 7a43e575.. (fix) -> 33efcb27.. (revert) == gen1 pre-fix blob",
+      "kernel_source": "MEGAKERNEL_SOURCE recomputed from the LF worktree = 778216b23e64.. / 88,865 B = gen1; PTX 34f91147../268,589 (from committed probe log; not independently recomputed)",
+      "scope": "only render_math.cu + new revert evidence + task/module bookkeeping; no tests/fixtures/scripts/Cargo change",
+      "gates": "fmt/clippy/clippy-cuda passed; unit 1111 passed / 0 failed / 397 ignored (exit 0); no-run EXIT=0 with Finished; validate errors 0",
+      "manifest": "10 rows, all match committed blobs except the 4 CRLF entries listed in must-fix P3"
+    },
+    "window_manifest": {
+      "entries": 35,
+      "lines": 37,
+      "files": 36,
+      "unlisted": 0,
+      "mismatch_vs_committed_blobs": 0,
+      "attempt1_2_immutable": "6 sampled attempt1/2 blobs unchanged vs d52dc774 (guards/invalid-round/monitor for both attempts)"
+    },
+    "corrections_landing": {
+      "p1_attempt1_util": "README §3 now 3-76 (was 5-50) - matches the committed CSV (min 3 / max 76)",
+      "p2_attempt1_exception_samples": "README §3 now 69 samples (was 83) - matches the committed CSV",
+      "p3_five_elements": "README §3b now carries mode/approved_by/approved_at/reason/original_normal_threshold_attempts_retained(attempt1-3)/not_a_normal_threshold_pass=true/authoring_exception_used=false",
+      "p4_attempt2_failed_tests": "archived invalid-round-record bytes untouched (blob unchanged); README note + materials/errata.txt explain 3 passed/2 failed",
+      "fix_slice_corrections": "c7172e37: 6^3=216 x 2 det = 432, 2 tied dd-order winners, gate snapshots wording (transcription of an earlier run, runs/ authoritative)",
+      "fix_slice_addendum": "7f9da6b2: single-dataset scope addendum on the fix task (44/44 only inside scene-sdf; scene-a needs (0,1,2); fix already reverted in ee1bea57)"
+    },
+    "rca_spot_check": {
+      "scene_a_kernel_cache": "ptx 637,336 B ad21b93f94bb.. (from fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json)",
+      "scene_sdf_kernel_cache": "ptx 428,462 B 6f57d91519dc.. (target/render-bvh/sdf-capture-cache/.../render_megakernel_9a36ca11_73e6b6c)",
+      "generated_source": "_ray_quad_0 identical=True len=3451 sha=c4a78a35e2629176 both captures (target/rca/ptx-sphere-compare.txt)",
+      "recipe_env": "both: warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4, RTX 4070 Ti SUPER, driver 596.36; scene-sdf also records upstream 71da24d9..; use_fast_math=false on both references",
+      "per_pixel_table": "consistent with my independently verified logs: scene-a (0,1,2) green 120k/all, (1,0,2) cam1 183 px max 73; scene-sdf (0,1,2) cam0 215/191 + cam1 4/25, (1,0,2) 44/44 in the fix-slice RCA",
+      "grading": "target/sphere-ref-conflict-rca.md grades: established = the two generated CUDA texts for the sphere quadratic are identical while the compiled PTX differs; not established = which SASS instruction site belongs to the sphere (SSA attribution not done) => not written as the unique cause"
+    }
+  },
+  "must_fix_items": [
+    {"id": "P1", "severity": "must-fix(minor, evidence scope)", "where": "docs/development-evidence/render-bvh/sdf-validate-window/README.md",
+     "finding": "the directory now contains attempt3 (22 files) but the document scope still says two attempts: title 'attempt1/attempt2 key artifacts', line 3 'attempt1/attempt2 的关键产物快照', line 4 '两次 attempt 均 INVALID_ROUND', §2 heading '两次 attempt 的身份' with only attempt1/2 rows, line 34 '两次 approach', line 100 '后续 … U4 attempt=3（全新冻结）' (attempt3 already ran and failed), and §4 guards-only provenance covers only attempt1/2",
+     "fix": "update the title/status/§2/§34/§100 to three attempts (add an attempt3 identity row or point §3c), add attempt3 to the guards-only provenance, and change the next-step wording to attempt4 pending the user decision; documentation only"},
+    {"id": "P2", "severity": "must-fix(minor, evidence scope)", "where": "docs/development-evidence/render-bvh/sdf-validate-window/receipt.json",
+     "finding": "the attempts-evidence receipt still describes only attempt1/attempt2: scope says 'attempt1/attempt2 key artifacts', artifacts.total_artifacts=10, target_copies_retained lists {attempt1,attempt2}, parent.window_state says 'attempt1/attempt2 both INVALID_ROUND'. The directory now has 3 attempts / 35 manifest entries / 36 files",
+     "fix": "update the receipt scope/artifacts (attempt3: guards 8b34570e../33,651 B/aggregate 013babf4.., 22 files; total 32 artifacts) and the window state (three INVALID_ROUNDs), or append a receipt addendum; documentation only"},
+    {"id": "P3", "severity": "must-fix(minor, evidence integrity)", "where": "docs/development-evidence/render-bvh/sphere-dot-a-order-fix/manifest.txt and docs/development-evidence/render-bvh/sphere-dot-a-order-revert/manifest.txt",
+     "finding": "4 entries in each manifest list CRLF worktree bytes instead of the committed blobs: fix dir - logs/kernel-identity.txt 1152/303cc894.. vs blob 1141/10d7fadd.., logs/no-run.txt 382/4eb631af.. vs 376/24bd8851.., materials/src-diff.patch 3908/fe850614.. vs 3857/9411be0d.., materials/validate.txt 520/2768a2a4.. vs 513/61ee58e4..; revert dir - logs/kernel-identity-three-generations.txt 1340/71aafcc1.. vs 1327/eb0e34fe.., logs/no-run.txt 179/4e3cd147.. vs 175/e100d69d.., materials/src-diff.patch 3908/f752b0ea.. vs 3857/9637347e.., materials/validate.txt 520/2768a2a4.. vs 513/61ee58e4... Cause: core.autocrlf=true + these evidence dirs have no -text attribute, so the worktree copy is CRLF while the committed blob is LF; the manifests were generated from the worktree",
+     "fix": "regenerate both manifests from committed blobs (git cat-file) and verify 11/11 and 10/10; also add a .gitattributes rule (e.g. docs/development-evidence/render-bvh/** -text -diff) so worktree bytes equal blob bytes (the sdf-validate-window dir already has such a rule from d52dc774 and its manifest is clean)"},
+    {"id": "P4", "severity": "must-fix(minor, reproducibility)", "where": ".gitattributes (no rule for render/bvh .cu files)",
+     "finding": "git check-attr text/eol for src/render/kernel/cuda/render_math.cu and src/render/bvh/cuda/scene.cu returns 'unspecified'; MEGAKERNEL_SOURCE is include_str! of these files, so the kernel source identity depends on the checkout EOL. The revert log itself notes a CRLF checkout yields source_sha256 86a55721.. vs the committed/LF 778216b2..; my LF->CRLF simulation of all six files gives 88,865 -> 90,908 B and sha e5719c81.. (the exact number differs from theirs, direction confirmed). A fresh clone with autocrlf=true would therefore not reproduce the gen1/gen2 identities recorded in evidence",
+     "fix": "add .gitattributes rules 'src/render/kernel/cuda/*.cu text eol=lf' and 'src/render/bvh/cuda/*.cu text eol=lf' (or set repo-local core.autocrlf=false) and re-state that kernel identities are checkout-stable; no blob changes"},
+    {"id": "P5", "severity": "must-fix(minor, evidence number)", "where": "docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt3/invalid-round-record.txt and README §3c",
+     "finding": "both say the 6 regression entities are red at 'first pixel 28969/(169,120), depth max_ulp=73'. Verified logs: that is true for render_e2e, render_kernel_rgb, render_kernel_depth_seg, render_skybox_reference, render_r10_multi_world and the flags baseline/culling arms, but render_kernel_flags also fails its aa2 arm at first pixel 29448/(168,122) with depth max_ulp=91 - so 73 is not the global max",
+     "fix": "qualify: 'first diff 28969/(169,120) max_ulp=73 for the shared silhouette set; render_kernel_flags aa2 arm first 29448/(168,122) max_ulp=91' (still >> 4 ULP; conclusion unchanged); documentation only"}
+  ],
+  "observations": [
+    {"id": "O1", "text": "no-run logs in the fix and revert evidence are trimmed transcriptions (fix 376/382 B, revert 175/179 B); content includes Finished + EXIT=0 but not the raw log - recommend attaching the raw log for future slices (same note as the previous review)"},
+    {"id": "O2", "text": "validate snapshots record 0 errors (fix/revert warn counts differ over time); a re-run now shows the fingerprint-drift warning for mjwarp.physics.collision, caused by unrelated in-flight worktree edits under src/physics/collision/** that were present during this review, not by this slice; my checks used commit ranges"},
+    {"id": "O3", "text": "the reference-conflict RCA (target/sphere-ref-conflict-rca.md + target/rca/ptx-sphere-compare.txt, uncommitted) is correctly referenced as pending by the committed docs and its cause is graded, not asserted as unique. I spot-verified its machine claims (two megakernel PTX identities match their capture kernel caches; _ray_quad_0 generated source sha equal; recipe environments equal; per-pixel table matches the committed logs). Suggest committing an RCA summary with the user's decision so the decision basis is durable"},
+    {"id": "O4", "text": "attempt3 freeze integrity confirmed: guards generated_at 03:31:17 < window_start 03:31:40, stash 9/9, 9/9 exe changed and 83/83 inputs unchanged vs attempt2, freeze declared burned and not reused - consistent with the kernel identity change (eb0e717f..)"},
+    {"id": "O5", "text": "the errata approach worked: attempt1/2 archived records stay byte-identical (6 sampled blobs unchanged vs d52dc774) while README §3 and materials/errata.txt correct attempt2's failed_tests (3 passed / 2 failed) - my earlier P1 is closed correctly without rewriting history"},
+    {"id": "O6", "text": "window manifest is clean: 35 entries / 37 lines / 36 tracked files, 0 unlisted, 0 mismatch against committed blobs; the -text -diff rule protects the guards bytes (33,651 B each)"},
+    {"id": "O7", "text": "attempt3 exception monitor is genuinely load-bearing (60/60 clean, util inside 15-43, ge40_clean=6, ge60=0); regular monitor failed with util up to 84 and 6 ge60 samples, retained verbatim. Body util_max 28, floor not breached, zero compile after body, residual 0 - so the two INVALID_ROUND conclusions are not environment artefacts"}
+  ],
+  "boundaries": {
+    "read_only": true,
+    "gpu_used": false,
+    "window_opened": false,
+    "window_rerun": false,
+    "re_freeze": false,
+    "device_execution": false,
+    "product_src_modified": false,
+    "foreign_evidence_edited": false
+  },
+  "not_claimed": [
+    "不宣称渲染数值验收通过（U4 三次 attempt 均 INVALID_ROUND，U4 未通过）",
+    "不宣称上游等价",
+    "不宣称精度达标",
+    "不宣称两份参考冲突的成因已定论（仅记录 RCA 的分级结论与已定论部分）"
+  ],
+  "limits": [
+    "PTX identities were not independently recomputed (no NVRTC build during this review); source identities were recomputed from LF bytes",
+    "the target-only RCA is not part of the committed evidence tree; I spot-verified its machine claims from target/ but did not rerun its scripts end-to-end",
+    "the 'tree clean at snapshot/freeze' claim in the attempt3 record cannot be re-verified retroactively; the guard aggregate/stash and monitor CSVs are the durable evidence"
+  ]
+}

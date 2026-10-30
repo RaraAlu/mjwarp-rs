@@ -1,0 +1,35 @@
+U4 attempt3 — QA independent recompute (2026-10-31, committed artifacts via git cat-file, Windows PowerShell 5.1 for the aggregate)
+
+freeze identity (docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt3/guards-sdf-validate.json)
+  bytes         = 33,651
+  sha256        = 8b34570ee5dd9f3858644e064ff0bef214140fd559ae2c6abd886bb59dcb48fb
+  suite/attempt = render-sdf-validate / 3
+  counts        = 9 exe + 83 inputs = 92   (10 scene-sdf + 10 scene-hfield + 47 legacy + 16 scene-shadow)
+  aggregate     = recomputed 013babf4b2dabb8f952cc835b06b91220dea4e94964cbc2b030caca9630fb978
+                  recorded   013babf4b2dabb8f952cc835b06b91220dea4e94964cbc2b030caca9630fb978   MATCH
+  generated_at  = 2026-10-31T03:31:17.596+08:00   (window_start 03:31:40 => freeze before the body)
+  stash         = 9/9 stash sha equal
+  vs attempt2   = 9/9 exe hashes changed (kernel identity eb0e717f..), 83/83 input hashes unchanged
+
+monitors (committed CSVs)
+  regular   : 355 samples, longest_clean=27/60, util 1..84, free_min 11429, ge60=6, exit 20 (retained verbatim)
+  exception : 60 samples, final streak 60/60 clean, util 15..43, free_min 11548, ge40_clean=6, ge60=0, exit 0, load_bearing=true
+
+entity results (committed entity-results.csv) - 2/9 exit 0
+  0  render_context_lifecycle
+  0  render_mesh_bvh
+  101 render_sdf_reference        (blocker1: 5/5 GPU tests panic Unsupported at sdf_scene.rs:267)
+  101 render_e2e                  (cam1 183 px, max_ulp 73, first 28969/(169,120))
+  101 render_kernel_depth_seg     (cam1: beyond4_by_geom=[(2,149)] max=73, first 28969)
+  101 render_kernel_flags         (aa2 arm cam1 172 px max=91 first 29448/(168,122); baseline+culling arms 183/73 first 28969)
+  101 render_kernel_rgb           (cam1 depth first 28969; rgb 1 px 1 LSB on the aa2 arm only)
+  101 render_r10_multi_world      (world0 cam1 depth 183 mismatched)
+  101 render_skybox_reference     (cam1 183 px max 73 beyond4=149)
+
+window facts (committed facts.txt)
+  zero_rust_compile=True : deps_before_count=1840 == deps_after_count, deps_before_max_write=02:51:20 < window_start=03:31:40
+  floor_mib=8481 floor_breached=False; residual_processes=0; post_window_exe_recheck=9/9; util_max during body=28
+  window = 2026-10-31T03:31:40 .. 03:32:30 (+08:00)
+
+not a pass
+  invalid_round=INVALID_ROUND exit10; policy=stop; no retry, no re-freeze, no criteria change; freeze burned, not reused

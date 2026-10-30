@@ -1,0 +1,37 @@
+Manifest checks — QA independent recompute (2026-10-31, committed blobs via git cat-file)
+
+1) docs/development-evidence/render-bvh/sdf-validate-window/manifest.txt   (this round's main commit)
+   entries=35, lines=37 (2 comments), tracked files in dir=36, unlisted=0, listed-but-missing=0
+   every entry: sha256+bytes == committed blob -> mismatches=0
+   (its .gitattributes rule `sdf-validate-window/** -text -diff` keeps worktree bytes equal to blob bytes)
+
+2) attempt1/2 archived records unchanged vs the earlier evidence commit d52dc774 (immutability)
+   attempts/attempt1/guards-sdf-validate.json        unchanged
+   attempts/attempt1/invalid-round-record.txt        unchanged
+   attempts/attempt1/monitor-pre-window.csv          unchanged
+   attempts/attempt2/guards-sdf-validate.json        unchanged
+   attempts/attempt2/invalid-round-record.txt        unchanged
+   attempts/attempt2/monitor-pre-window-attempt2.csv unchanged
+
+3) docs/development-evidence/render-bvh/sphere-dot-a-order-fix/manifest.txt  (must-fix P3)
+   4 entries list CRLF WORKTREE bytes while the committed blob is LF:
+     logs/kernel-identity.txt   manifest 1152 / 303cc89460030821..   blob 1141 / 10d7fadd56df61e9..
+     logs/no-run.txt            manifest  382 / 4eb631af8d18aea6..   blob  376 / 24bd8851b217421a..
+     materials/src-diff.patch   manifest 3908 / fe8506145cb9954b..   blob 3857 / 9411be0dd26d6ece..
+     materials/validate.txt     manifest  520 / 2768a2a44d5a3306..   blob  513 / 61ee58e47f971183..
+   worktree copies currently have CRLF (looks_CRLF=True) and match the manifest, i.e. the manifest was generated from the worktree.
+
+4) docs/development-evidence/render-bvh/sphere-dot-a-order-revert/manifest.txt  (same defect)
+   4 entries:
+     logs/kernel-identity-three-generations.txt manifest 1340 / 71aafcc1b153..  blob 1327 / eb0e34fe6e5b..
+     logs/no-run.txt                            manifest  179 / 4e3cd1470a5a..  blob  175 / e100d69d9d93..
+     materials/src-diff.patch                   manifest 3908 / f752b0ea29b6..  blob 3857 / 9637347e4e1b..
+     materials/validate.txt                     manifest  520 / 2768a2a44d5a..  blob  513 / 61ee58e47f97..
+
+5) control: my own two review directories are clean against blobs
+   sdf-validate-window-check  rows=8  mismatches=0
+   sphere-dot-a-order-fix-check rows=9 mismatches=0
+
+root cause: core.autocrlf=true + no `-text` attribute on those evidence dirs => worktree CRLF / committed blob LF;
+manifests generated from the worktree record the CRLF bytes. Fix: regenerate from blobs and add
+`docs/development-evidence/render-bvh/** -text -diff` (or per-dir) to make worktree==blob stable.

@@ -1,0 +1,41 @@
+Corrections / addenda landing — QA re-check (2026-10-31, read-only)
+
+A) the four attempt1/2 evidence corrections (1ccb3446) — against my earlier must-fix list
+  P1 attempt2 failed_tests (archived text was copied from attempt1)
+     archived blob attempts/attempt2/invalid-round-record.txt unchanged vs d52dc774 (byte-identical)
+     README §3 now carries the note: actual attempt2 = 3 passed / 2 failed (sdf_mesh, sdf_occluder; shadow green after 82dfa0c3)
+     materials/errata.txt explains the mismatch and states "归档记录原样保留、不改字节"
+     => my earlier P1 closed without rewriting history. OK
+  P2 attempt1 regular monitor util range
+     README §3 now "util 3-76"; committed CSV min=3 max=76. OK
+  P3 attempt1 exception sample count
+     README §3 now "69 样本"; committed CSV 69 samples (83 belongs to attempt2). OK
+  P4 five-element block
+     README §3b block: mode=validation_only_exception_util_lt_60, approved_by=user via Chief,
+     approved_at=2026-10-31T00:55+08:00 (+relay precision note), reason=..., original_normal_threshold_attempts_retained=
+     (attempt1 354/28/3-76/20, attempt2 354/41/1-53/20, attempt3 355/27/1-84/20), not_a_normal_threshold_pass=true,
+     authoring_exception_used=false. OK
+
+B) fix-slice corrections (c7172e37) — my earlier must-fix list
+  P1 432 formula: materials/rca-summary.txt now "6^3 = 216 combinations, times 2 det formulations = 432 variants";
+     README §1 "6³ = 216 种点积次序组合 × 2 = 432 变体" (consistent with itertools.product(ORDERS,ORDERS,ORDERS,2))
+  P2 gate snapshot provenance: README §4 now "四份 JSON 抄自 .normify/runs/<task>/<gate>.json 的早期运行 ... 权威以当时的记录为准，
+     转写快照只作可读留档" - the inaccurate "transcription of the current runs" claim is gone
+  P3 winners wording: "dd 次序不影响结果 => 2 个并列 winner（dd=(0,1,2)/(1,0,2)）" - matches my re-enumeration
+  (the fix evidence manifest regenerated in this commit carries the CRLF defect reported as must-fix P3 of this review)
+
+C) fix-slice single-dataset addendum (7f9da6b2)
+  fix task card addenda now includes: the 44/44 result only holds inside the scene-sdf dataset; attempt3 shows scene-a's
+  fast_math=false reference requires a=(0,1,2) and the (1,0,2) fix makes 6 regressions red at max_ulp=73; the fix was reverted
+  in ee1bea57 (product back to gen1 source 778216b2../PTX 34f91147../268,589); cause pending the read-only RCA.
+  The addendum does not rewrite history and references the revert commit. OK
+
+D) revert relation traced in three places
+  fix card addendum references the revert slice; revert evidence README/receipt reference the fixed slice (8126868c) and say
+  history is kept as-is; window README §3c references both 07252cd2 (U1b rollback) and 8126868c (a-order fix).
+
+E) criteria / references zero change in this round
+  git diff 2162044b..694bb5aa -- tests/ fixtures/ scripts/ Cargo.toml Cargo.lock  => empty
+  src diff in the same range => only src/render/kernel/cuda/render_math.cu (the revert)
+  src/render/kernel/output.rs MAX_DEPTH_ULP = 4 (unchanged)
+  window card 2026-10-31-render-sdf-validate still in_progress; no commit claims a U4 pass.

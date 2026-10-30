@@ -1,0 +1,37 @@
+Reference-conflict RCA — QA spot check (2026-10-31; RCA itself is target-only, uncommitted)
+
+question: do the committed docs correctly (a) state the conflict as a fact, (b) leave the cause graded / not unique?
+
+committed docs
+  sdf-validate-window/README.md §3c: "两份参考互不兼容，成因待只读 RCA（本记录不写成因定论）"
+  sphere-dot-a-order-revert/README.md §1: "成因（两份采集的生成 kernel 为何不同）另做只读 RCA（target/），本片不把成因写成定论"
+  revert receipt: cause "not concluded here; read-only RCA ... does not claim a cause until machine evidence exists"
+  fix card addendum 7f9da6b2: RCA conclusion scoped to the scene-sdf dataset only
+=> no committed document asserts a cause beyond the graded evidence.
+
+target RCA (target/sphere-ref-conflict-rca.md) grading as read
+  established (machine evidence): the generated CUDA text of the sphere quadratic in _ray_quad_0 is byte-identical in the
+    two captures, while the compiled PTX differs and each PTX matches its capture's kernel_cache identity
+  not established: which SASS instruction site belongs to the sphere (SSA attribution not done) => not written as unique cause
+
+spot verification of the machine claims (from target artifacts + committed fixtures)
+  scene-a reference recipe/kernel_cache: fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json
+    kernel_cache.ptx_sha256 = ad21b93f94bbc6f42544e436104384d299d2130a78fc59b3dd24608876ca0988 / 637,336 B
+    file on disk: target/render-bvh/s7b1-fastmath-cache/1.15.0/wp__build_megakernel__locals___render_megakernel_92d94e46_dde26ad/*.sm89.ptx
+                                                                                 637,336 B / ad21b93f94bb.. MATCH
+  scene-sdf capture cache: target/render-bvh/sdf-capture-cache/1.15.0/wp__build_megakernel__locals___render_megakernel_9a36ca11_73e6b6c/*.sm89.ptx
+                                                                                 428,462 B / 6f57d91519dc.. MATCH the cited value
+  generated source: target/rca/ptx-sphere-compare.txt line 10
+    _ray_quad_0: identical=True len=3451/3451 sha=c4a78a35e2629176/c4a78a35e2629176   (byte-identical in both captures)
+    ray_sphere_0: identical=False len=2625/2625 sha=984f3764b13b3b41/8191cf296745343e (differs only in the warp source-map comments per the RCA)
+  recipe environment
+    scene-a reference env: warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4, RTX 4070 Ti SUPER, driver 596.36, same venv python
+    scene-sdf capture.json env: warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4, RTX 4070 Ti SUPER, driver 596.36,
+      cuda_toolkit 12.9 / cuda_driver 13.2, upstream 71da24d9..; use_fast_math=false on both references
+  per-pixel table consistency with my independently verified logs
+    scene-a: a=(0,1,2) bitwise 120,000/120,000 (attempt1/2 8/9 regressions green); a=(1,0,2) cam1 183 px max 73 (attempt3 logs)
+    scene-sdf: a=(0,1,2) cam0 215/191 + cam1 4/25 (attempt1/2 logs); a=(1,0,2) 44/44 (fix-slice RCA re-enumerated by QA earlier)
+=> the machine evidence cited by the RCA is reproducible from the artifacts; the grading claim matches the file.
+
+recommendation (observation O3): commit an RCA summary together with the user's decision so the decision basis is durable;
+the current committed docs already correctly withhold a cause conclusion.
