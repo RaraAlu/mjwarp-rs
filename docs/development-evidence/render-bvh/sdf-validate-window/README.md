@@ -1,9 +1,11 @@
-# U4 SDF validation window — attempt1/attempt2 key artifacts (INVALID_ROUND, not a pass)
+# U4 SDF validation window — attempt1/attempt2/attempt3 key artifacts (INVALID_ROUND, not a pass)
 
-任务：`2026-10-31-render-sdf-validate`（U4 验证窗；本目录是其 attempt1/attempt2 的**关键产物快照**）
-状态：**两次 attempt 均 `INVALID_ROUND exit10`，U4 未通过（红线）**；U1b 已回滚（`07252cd2`），U1 保留。
+任务：`2026-10-31-render-sdf-validate`（U4 验证窗；本目录是其 attempt1/attempt2/attempt3 的**关键产物快照**）
+状态：**三次 attempt 均 `INVALID_ROUND exit10`，U4 未通过**；attempt1/2 为球轮廓 depth 红线复现，
+attempt3 为双阻塞（U1b 仍回滚态导致 SDF 目标不可达 + scene-a 参考冲突，见 §3c）。
+U1b 已回滚（`07252cd2`），U1 保留。
 本目录只搬入不可从代码复算的窗口产物；完整归档（9 实体日志、facts、samples、sha-guards、monitor 原文件等）
-仍在 `target/render-bvh/sdf-validate-window/attempts/{attempt1,attempt2}/`（工作树，不入库）。
+仍在 `target/render-bvh/sdf-validate-window/attempts/{attempt1,attempt2,attempt3}/`（工作树，不入库）。
 
 ## 1. 为什么入库
 
@@ -11,18 +13,18 @@
 `target/`，不可通过代码复现也不随仓库分发。本目录把它们按字节复制进证据树，便于独立复核与长期留痕；
 `target/` 原件保留、未改名、未覆盖。
 
-## 2. 两次 attempt 的身份
+## 2. 三次 attempt 的身份
 
-| 项 | attempt1 | attempt2 |
-| --- | --- | --- |
-| guards 文件 | `attempts/attempt1/guards-sdf-validate.json` | `attempts/attempt2/guards-sdf-validate.json` |
-| sha256 | `0639f0ff5064bd2a7a44c1b9f6a29298b623b4d4901c9f089e0648a97591910d` | `d921caae93df0d911c51a64501f2427dcb58cb86f64a4158fd1f45b06933d726` |
-| bytes | 33,651 | 33,651 |
-| aggregate_sha256 | `02b2021376e27140552000a7124e4e5cff527ee558670677b6d58dcbdccf826f` | `a50e99c951c1a9277d8821f8aca9fcad2506ec5878183ff0f7ead0c53837e67a` |
-| counts | 9 exe + 83 inputs = 92 | 9 exe + 83 inputs = 92 |
-| 冻结 | 首次冻结 | **全新冻结**（attempt1 冻结不复用） |
-| body | 8/9 exit 0，`render_sdf_reference` exit 101 | 同（复现） |
-| 判定 | `INVALID_ROUND exit10` | `INVALID_ROUND exit10` |
+| 项 | attempt1 | attempt2 | attempt3 |
+| --- | --- | --- | --- |
+| guards 文件 | `attempts/attempt1/guards-sdf-validate.json` | `attempts/attempt2/guards-sdf-validate.json` | `attempts/attempt3/guards-sdf-validate.json` |
+| sha256 | `0639f0ff5064bd2a7a44c1b9f6a29298b623b4d4901c9f089e0648a97591910d` | `d921caae93df0d911c51a64501f2427dcb58cb86f64a4158fd1f45b06933d726` | `8b34570ee5dd9f3858644e064ff0bef214140fd559ae2c6abd886bb59dcb48fb` |
+| bytes | 33,651 | 33,651 | 33,651 |
+| aggregate_sha256 | `02b2021376e27140552000a7124e4e5cff527ee558670677b6d58dcbdccf826f` | `a50e99c951c1a9277d8821f8aca9fcad2506ec5878183ff0f7ead0c53837e67a` | `013babf4b2dabb8f952cc835b06b91220dea4e94964cbc2b030caca9630fb978` |
+| counts | 9 exe + 83 inputs = 92 | 9 exe + 83 inputs = 92 | 9 exe + 83 inputs = 92 |
+| 冻结 | 首次冻结 | **全新冻结**（attempt1 冻结不复用） | **全新冻结**（attempt1/2 冻结不复用；9 exe 全变） |
+| body | 8/9 exit 0，`render_sdf_reference` exit 101 | 同（复现） | 2/9 exit 0（双阻塞，见 §3c） |
+| 判定 | `INVALID_ROUND exit10` | `INVALID_ROUND exit10` | `INVALID_ROUND exit10`（冻结作废） |
 
 ## 3. monitor 证据（两份都在，绝不写成常规通过）
 
@@ -70,7 +72,9 @@ attempt3 在 `07252cd2` 回滚之后、球面 a-order fix（`8126868c`）之后�
   7/9 实体红（该实体 5 个用例 0 passed）。窗口准备 checklist 缺失项：开窗前未核对「host 解锁状态与 target 预期一致」。
 - **② 真实参考冲突**：另 6 个 scene-a 回归实体（`render_e2e`、`render_kernel_depth_seg`、`render_kernel_flags`、
   `render_kernel_rgb`、`render_r10_multi_world`、`render_skybox_reference`）全部红在**同一批球面轮廓像素**
-  （首差 pixel 28969 / (169,120)），depth `max_ulp=73`（>4）；这些像素在 fix 前位级 0 差异 ⇒
+  （首差 pixel 28969 / (169,120)），depth `max_ulp=73`（>4）；**限定**：其中 `render_kernel_flags` 的 **aa2 臂**
+  首差为 pixel **29448 / (168,122)**、`max_ulp=91`（其余实体 28969/(169,120)、max 73），同为 scene-a cam1
+  球面轮廓像素，结论不变。这些像素在 fix 前位级 0 差异 ⇒
   scene-a 的 fast_math=false 参考要求 `a=(0,1,2)`，而 scene-sdf 的 fast_math=false 参考在 fix 片 RCA 中
   要求 `a=(1,0,2)`。**两份参考互不兼容，成因待只读 RCA**（本记录不写成因定论）。
 - 窗口本身：常规 monitor 失败（355 样本、longest 27/60、util 1–84、free_min 11,429、exit 20，**原样保留**）；
@@ -86,6 +90,9 @@ attempt3 在 `07252cd2` 回滚之后、球面 a-order fix（`8126868c`）之后�
   `-GuardsOnly` 只做文件 sha 校验（CPU-only，不碰 GPU、不改变窗口判定）。两处时间在本目录以外，
   此处只作说明；该补跑记录未入库（`target/` 保留）。
 - attempt2：`GUARDS_OK=92/92` 只来自窗口内 `window/guard.log`（body 前），**没有**窗口后补跑。
+- attempt3：`GUARDS_OK=92/92` 同样只来自窗口内 `window/guard.log`（body 前，见
+  `attempts/attempt3/guard.log` 与 `sha-guards.txt`），**没有**窗口后补跑；该 attempt 的 9 exe 全部相对
+  attempt2 变了（内核身份更换），83 inputs 全同。
 
 ## 5. 偏差方向（attempt2 只读诊断）
 
@@ -97,4 +104,5 @@ attempt3 在 `07252cd2` 回滚之后、球面 a-order fix（`8126868c`）之后�
 
 不改判据/容差/参考、不缩相机、不跳球、不抬 `MAX_DEPTH_ULP`、不把「诊断已定位」当通过；本目录不含任何
 「渲染数值验收通过 / 上游等价 / 精度达标」的声明。后续：sphere 轮廓 depth 只读 RCA → 独立修复片 →
-U4 attempt=3（全新冻结）。
+U4 **attempt3**（全新冻结；已执行 = `INVALID_ROUND`，双阻塞见 §3c，冻结作废不复用）→ 参考冲突 RCA 与用户裁决；
+球面 fix 已回滚（`ee1bea57`），产品回到与全部历史参考位级一致的 gen1。

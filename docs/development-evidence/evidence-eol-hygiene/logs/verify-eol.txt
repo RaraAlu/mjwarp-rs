@@ -1,0 +1,45 @@
+﻿# EOL hygiene verification (2026-10-31)
+
+## attributes
+  *.cu text eol=lf  (placed before the evidence -text rules; later rules win)
+  docs/development-evidence/render-bvh/** -text -diff  (byte-exact evidence incl. QA check dirs)
+  docs/development-evidence/g10-p5-mesh-cap20/** -text -diff
+  docs/development-evidence/render-bvh/sdf-validate-window/** -text -diff (specific rule, after the blanket one)
+
+## check-attr
+### src/render/kernel/cuda/render_math.cu
+  src/render/kernel/cuda/render_math.cu: text: set
+  src/render/kernel/cuda/render_math.cu: eol: lf
+### src/physics/collision/cuda/contact.cu
+  src/physics/collision/cuda/contact.cu: text: set
+  src/physics/collision/cuda/contact.cu: eol: lf
+### src/physics/collision/cuda/primitive_plane_shapes.cu
+  src/physics/collision/cuda/primitive_plane_shapes.cu: text: set
+  src/physics/collision/cuda/primitive_plane_shapes.cu: eol: lf
+### docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt1/guards-sdf-validate.json
+  docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt1/guards-sdf-validate.json: text: unset
+  docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt1/guards-sdf-validate.json: eol: unspecified
+
+## .cu worktree EOL (all tracked .cu)
+  tracked=849 w/crlf=0
+
+## MEGAKERNEL_SOURCE (concat of 6 .cu, LF worktree)
+  bytes=88865 sha256=778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5
+  expected 88865 / 778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5
+
+## sphere fix/revert evidence: previously-CRLF files now match the committed blobs (i/lf w/lf)
+### sphere-dot-a-order-fix
+  i/lf    w/lf    attr/-text            	docs/development-evidence/render-bvh/sphere-dot-a-order-fix/logs/kernel-identity.txt
+  i/lf    w/lf    attr/-text            	docs/development-evidence/render-bvh/sphere-dot-a-order-fix/logs/no-run.txt
+  i/lf    w/lf    attr/-text            	docs/development-evidence/render-bvh/sphere-dot-a-order-fix/materials/src-diff.patch
+  i/lf    w/lf    attr/-text            	docs/development-evidence/render-bvh/sphere-dot-a-order-fix/materials/validate.txt
+### sphere-dot-a-order-revert
+  i/lf    w/lf    attr/-text            	docs/development-evidence/render-bvh/sphere-dot-a-order-revert/logs/kernel-identity-three-generations.txt
+  i/lf    w/lf    attr/-text            	docs/development-evidence/render-bvh/sphere-dot-a-order-revert/logs/no-run.txt
+  i/lf    w/lf    attr/-text            	docs/development-evidence/render-bvh/sphere-dot-a-order-revert/materials/src-diff.patch
+  i/lf    w/lf    attr/-text            	docs/development-evidence/render-bvh/sphere-dot-a-order-revert/materials/validate.txt
+
+## A1 evidence identity (LF-canonical, QA reproduced the same numbers)
+  before(307219fe^): source 254,005 B / 9b7435abdd986f734b47d608826bac3ac5c03dc0729d27f3fff760f0a65e7977 ; PTX 3,883,740 / 6
+  after(307219fe):  source 254,263 B / 12d50d68d3e7f155e688f9dab2f69d6d30720a6b07804c7a0a026dd38dbd34b7 ; PTX 3,883,769 / 6
+  old CRLF-contaminated numbers (255,840/28385801 -> 254,743/f32f0af2) are VOID for freeze planning.
