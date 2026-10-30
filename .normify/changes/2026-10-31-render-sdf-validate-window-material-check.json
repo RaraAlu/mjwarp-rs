@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-validate-window-material-check",
+  "title": {
+    "zh": "U4 验证窗材料独立复核（实体表 9 条/92 条分解与 S3 对账/判据/五条命令逐字/条件式例外协议/双签栏）",
+    "en": "Independent check of the U4 window material (9 entities, 92-entry decomposition vs S3, criteria, verbatim commands, conditional exception protocol, signature block)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-31-render-sdf-validate-window-material`（U4 验证窗材料；用户已签常规 + 条件式 validation-only util<60 例外）。pin revision = `285ba51f`（材料 amend 后提交：条件式例外块 + 双签栏 + QA 两口径）。复核点：①实体表 9 条与 Chief 定稿一致（new `render_sdf_reference` + 8 回归），逐条窗口命令、移出项记录；②guards 预期 **9 exe + 83 inputs = 92**，分解 `scene-sdf 10 + scene-hfield 10 + legacy 47（38+4 skybox+5 perworld）+ scene-shadow 16`，**与 S3 的 68 对账（+10 sdf、legacy 42→47）**，冻结时逐条核 guards 不只核总数；③判据零放宽（RGB ≤1 LSB / depth bitwise 优先且 max_ulp≤4 / seg exact / 两跑 sha；shadow 臂只做一致性；DepthSeg 跨路径位级）；④五条命令逐字、全 PowerShell 5.1、常规 `util<40` 默认 MaxUtil=40 不加例外参数；⑤**条件式协议**：先常规→仅失败才启用已有签字的 `validation_only_exception_util_lt_60`（五要素、保留失败 CSV、重取基线、`-MaxUtil 60` 新 CSV、60/60、load-bearing 重算），绝不写成常规通过；⑥**编译口径**：不宣称「窗口零 Rust 编译」（freeze 的 `cargo test --no-run` 为预期构建，证据写「body 开始后零编译」）；⑦双签栏已签（常规 + 条件式例外）与材料内部一致性（README/receipt/window-plan/expected-products 四处口径一致）；⑧证据卫生（manifest 自洽、LF 无 BOM、禁词 0）。**只读**：不跑 GPU、不改材料。",
+    "en": "Read-only QA check of the amended U4 window material at pin 285ba51f: entity table, 92-entry decomposition and S3 reconciliation, criteria, verbatim commands, conditional exception protocol, compile wording, signed block and evidence hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**实体表**：`materials/entity-table.json` 9 条（new `render_sdf_reference` + `render_e2e`/`render_kernel_rgb`/`render_kernel_depth_seg`/`render_kernel_flags`/`render_r10_multi_world`/`render_skybox_reference`/`render_context_lifecycle`/`render_mesh_bvh`），每条含逐字窗口命令；记录移出 `render_camera_rays`/`render_r08_cameras` 与 Chief 定稿。",
+    "**guards 92 分解与对账**：83 inputs = scene-sdf 10 + scene-hfield 10 + legacy 47（38 base + 4 skybox + 5 perworld）+ scene-shadow capture 16；与 S3 窗 68 inputs 对账为 +10 scene-sdf、legacy 42→47，其余不变；明确要求冻结时按 guards 文件**逐条**核（不只核 9/83/92 总数），aggregate 冻结时生成不预设。",
+    "**判据零放宽**：RGB `beyond_1_lsb=0`/`max_byte_diff≤1`；depth `mismatched=0` 且 `max_ulp≤4`/`beyond_ulp=0`；seg `mismatched=0`；两跑 sha 相等；shadow 开/关只做一致性（depth/seg 位级相等、rgb `shadow_off≥shadow_on` 逆序超 1 LSB=0、差异像素>0、两臂两跑 sha 相等、无外部参考）；DepthSeg 跨路径位级一致。",
+    "**命令与纪律**：window-plan 五条命令逐字（`powershell` 5.1、monitor/freeze/GuardsOnly/body），常规 monitor 默认 MaxUtil=40 且**不加** `-OpenUtilLimit`/`-MaxUtil 60`；基线三点 + `floor = min free − 3072`；失败即停/不重试；时限 30–60 min；不预设执行路径。",
+    "**条件式例外协议**：window-plan `CONDITIONAL EXECUTION PROTOCOL`、expected-products `conditional_protocol`、README §2/§8、receipt 四处口径一致：Step1 常规（`not_a_normal_threshold_pass=false`、`authoring_exception_used=false`）→ Step2 仅失败时启用 `validation_only_exception_util_lt_60`（五要素、失败 CSV 原样保留、重取基线、`-MaxUtil 60` 新 CSV、60/60 才开窗、load-bearing 重算 ge40 clean/ge60=0/util_max<60、全<40 记 `exception_effectively_not_load_bearing=true`），两 monitor 都进证据、绝不写成常规通过。",
+    "**编译口径与双签**：明确「freeze 的 `cargo test --no-run` 为预期构建；证据口径 = body 开始后零编译（deps 快照在 body 前）」，不宣称窗口零 Rust 编译；双签栏记录用户 2026-10-31 批准常规 + 条件式例外（via Chief）、签署时间与三条要求（计划/基线/92 条 guards 身份）。",
+    "**证据卫生**：`manifest.txt` 与 committed blob 一致、`window-plan.txt` 非 ASCII 0、全部 LF 无 BOM、禁词 0；`receipt.json` 的 `/task_id` 与卡 id 一致。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-31-render-sdf-validate-window-material"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/sdf-validate-window-material-check/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册（Chief 令：材料 amend 后注册 QA 复核卡并派 QA，**proposed 不 start 等 QA**）。pin revision = `285ba51f`（材料 amend 提交：条件式例外协议 + 双签栏 + QA 两口径；原材料提交 `800f4a61` 已被本次 amend 取代，不再作 pin）。复核对象：`sdf-validate-window-material/`（README/receipt/manifest + materials 3）+ 用户签字与条件式协议口径。**只读**：不跑 GPU、不改材料；如需复算可只读核 sha/统计。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T17:15:00.000Z",
+  "updated_at": "2026-10-30T17:15:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-validate-window-material-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-validate-window-material-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
