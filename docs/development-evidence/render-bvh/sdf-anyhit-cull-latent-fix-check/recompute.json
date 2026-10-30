@@ -1,0 +1,336 @@
+{
+  "schema": 1,
+  "task": "2026-10-30-render-sdf-anyhit-cull-latent-fix-check",
+  "reviewed_task": "2026-10-30-render-sdf-anyhit-cull-latent-fix",
+  "pin": "f63834e0",
+  "baseline": "e6eb0c9a",
+  "card_head": "23277f36",
+  "checks": [
+    {
+      "id": "scope.changed_paths",
+      "passed": true,
+      "detail": {
+        "total": 19,
+        "src": [
+          "src/render/kernel/cuda/render_common.cu",
+          "src/render/kernel/megakernel.rs"
+        ],
+        "forbidden": [],
+        "normify": 6,
+        "evidence": 11
+      },
+      "ok": true
+    },
+    {
+      "id": "src.line_counts",
+      "passed": true,
+      "detail": {
+        "render_common.cu": [
+          410,
+          414
+        ],
+        "megakernel.rs": [
+          409,
+          440
+        ],
+        "numstat": {
+          "src/render/kernel/cuda/render_common.cu": [
+            8,
+            4
+          ],
+          "src/render/kernel/megakernel.rs": [
+            35,
+            4
+          ]
+        },
+        "total": {
+          "insertions": 43,
+          "deletions": 8
+        }
+      },
+      "ok": true
+    },
+    {
+      "id": "kernel.source_sha256",
+      "passed": true,
+      "detail": {
+        "parts": [
+          "src/render/bvh/cuda/scene.cu",
+          "src/render/kernel/cuda/render_math.cu",
+          "src/render/kernel/cuda/render_common.cu",
+          "src/render/kernel/cuda/render_shadow.cu",
+          "src/render/kernel/cuda/render_shade.cu",
+          "src/render/kernel/cuda/render_megakernel.cu"
+        ],
+        "base_bytes": 88190,
+        "base_sha256": "e68e3412c1e1809e71100d9e842d5b0f5b886ffdec88d8401bb01c76e812904c",
+        "head_bytes": 88785,
+        "head_sha256": "be4ef01b1ae45188ac512c91cfef60244a1f8b6670307b245ae1719a34cf5f5e"
+      },
+      "ok": true
+    },
+    {
+      "id": "kernel.aa_resolve_unchanged",
+      "passed": true,
+      "detail": {
+        "bytes": 2364,
+        "sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+        "same_as_base": true
+      },
+      "ok": true
+    },
+    {
+      "id": "kernel.ptx_identity_selfrun",
+      "passed": true,
+      "detail": {
+        "megakernel": [
+          "be4ef01b1ae45188ac512c91cfef60244a1f8b6670307b245ae1719a34cf5f5e",
+          "4dae03ffb3fe82214da930714c7fd1ccb6a2c8d5c5eb7cc8e489624b4e7dd085",
+          "268305"
+        ],
+        "aa_resolve": [
+          "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+          "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+          "27536"
+        ],
+        "test_ok": true,
+        "note": "NVRTC 仅编译、无设备执行；PATH 加 target/toolchains/cuda-12.8.1/bin 后运行"
+      },
+      "ok": true
+    },
+    {
+      "id": "cull.semantics_latent",
+      "passed": true,
+      "detail": {
+        "cull_line": "bool cull_this = cull_backfaces && !(shadow_ray && (gtype == 7 || gtype == 1 || gtype == 8));",
+        "gtype8_not_intersected_on_device": true,
+        "d_init_minus_one": true,
+        "host_guard": [
+          "fn reject_sdf_geometry(geom_type: &[i32]) -> Result<(), LauncherError> {",
+          "return Err(LauncherError::Unsupported(\"S7b3 不含 SDF 求交\"));",
+          "LauncherError::Unsupported(\"S7b3 不含 SDF 求交\")"
+        ],
+        "host_reject_called": true,
+        "host_only_tests": true
+      },
+      "ok": true
+    },
+    {
+      "id": "refs.inventory",
+      "passed": false,
+      "detail": {
+        "listed": [
+          59,
+          31
+        ],
+        "stale_in_list": 0,
+        "full_repo_excl_list": [
+          79,
+          41
+        ],
+        "unlisted": [
+          20,
+          10
+        ],
+        "unlisted_by_dir": {
+          ".normify": 5,
+          "docs": 15
+        },
+        "live_assertions": 0,
+        "per_pattern": {
+          "e68e3412": 77,
+          "0b947492": 68,
+          "268275": 61,
+          "268,275": 8
+        },
+        "note": "清单自身 59/31 自洽且 0 过期；README 的「全仓检索 59/31」口径不含 .normify 卡、docs 下 3 个 recompute.py、本片 README/receipt"
+      },
+      "ok": false
+    },
+    {
+      "id": "evidence.manifest",
+      "passed": true,
+      "detail": {
+        "rows": 10,
+        "manifest_ok": 10,
+        "self_registered": false,
+        "evidence_files": 11,
+        "utf16_blobs": [
+          "docs/development-evidence/render-bvh/sdf-anyhit-cull-latent-fix/logs/kernel-identity.txt",
+          "docs/development-evidence/render-bvh/sdf-anyhit-cull-latent-fix/logs/no-run.txt"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "id": "gates.self_run",
+      "passed": true,
+      "detail": {
+        "result_lines": 136,
+        "passed": 1108,
+        "failed": 0,
+        "ignored": 392,
+        "new_host_tests_seen": [
+          "sdf_geometry_stays_unsupported",
+          "non_sdf_geometry_passes_the_guard"
+        ],
+        "gate_exits": {
+          "fmt": "0",
+          "clippy": "0",
+          "clippy-cuda": "0",
+          "unit": "0"
+        }
+      },
+      "ok": true
+    },
+    {
+      "id": "card.validate_and_checks",
+      "passed": true,
+      "detail": {
+        "validate": [
+          "0",
+          "5"
+        ],
+        "validate_exit": 0,
+        "check_exit": 0,
+        "check_says_pass": true,
+        "note": "证据 materials/validate.txt 为门禁时点 0/6（含 fingerprint-drift），done 刷指纹后现为 0/5"
+      },
+      "ok": true
+    },
+    {
+      "id": "commit.mapping_documented",
+      "passed": true,
+      "detail": {
+        "d132336c_message": "d132336c 治理(排程): 归档 SDF latent fix 卡记录（verified + addenda，工作提交随 Fixes）",
+        "d132336c_has_src": true,
+        "d132336c_paths": 19,
+        "f63834e0_message": "f63834e0 修复(渲染): SDF any-hit 背面剔除 latent 对齐（cull 排除 gtype==8 + 解锁契约注释 + host 拒绝回归测试）",
+        "f63834e0_paths": [
+          ".normify/changes/2026-10-30-render-sdf-anyhit-cull-latent-fix.json"
+        ],
+        "parent_ok": true
+      },
+      "ok": true
+    },
+    {
+      "id": "evidence.gate_provenance",
+      "passed": false,
+      "detail": {
+        "same_run_gates": [],
+        "detail": {
+          "fmt": {
+            "evidence_at": "2026-10-30T04:25:28.813Z",
+            "run_at": "2026-10-30T04:26:31.311Z",
+            "evidence_scope_hash": "be5b2477d86c",
+            "run_scope_hash": "4b255962d966",
+            "same_run": false,
+            "unit_ev": null,
+            "unit_run": null
+          },
+          "clippy": {
+            "evidence_at": "2026-10-30T04:25:26.372Z",
+            "run_at": "2026-10-30T04:26:28.886Z",
+            "evidence_scope_hash": "8f2bdf6bdf7f",
+            "run_scope_hash": "6127846c78e2",
+            "same_run": false,
+            "unit_ev": null,
+            "unit_run": null
+          },
+          "clippy-cuda": {
+            "evidence_at": "2026-10-30T04:25:26.970Z",
+            "run_at": "2026-10-30T04:26:29.473Z",
+            "evidence_scope_hash": "eee61a1ff2f6",
+            "run_scope_hash": "be458a75979f",
+            "same_run": false,
+            "unit_ev": null,
+            "unit_run": null
+          },
+          "unit": {
+            "evidence_at": "2026-10-30T04:25:40.654Z",
+            "run_at": "2026-10-30T04:26:44.166Z",
+            "evidence_scope_hash": "cf323f093340",
+            "run_scope_hash": "650367c47251",
+            "same_run": false,
+            "unit_ev": {
+              "passed": 1108,
+              "failed": 0,
+              "ignored": 392
+            },
+            "unit_run": {
+              "passed": 1108,
+              "failed": 0,
+              "ignored": 392
+            }
+          }
+        },
+        "note": "README §4 称 gate-*.txt 为 .normify/runs 的转写快照；实测四次均不同（证据 = 04:25:2x 那次，runs = 04:26:2x 那次），结论同为全过、unit 1108/0/392"
+      },
+      "ok": false
+    },
+    {
+      "id": "evidence.no_run_exit_code",
+      "passed": false,
+      "detail": {
+        "evidence_no_run_has_exit_marker": false,
+        "evidence_no_run_has_Finished": true,
+        "evidence_receipt_exit": 0,
+        "qa_selfrun_has_exit_line": true,
+        "note": "卡面 acceptance：`--no-run` 日志含 exit 码与 Finished；QA 自跑日志已按此格式（EXIT=0）"
+      },
+      "ok": false
+    },
+    {
+      "id": "boundary.unchanged_paths",
+      "passed": true,
+      "detail": {
+        "declared_unchanged": [
+          "docs/development-evidence/render-bvh/r08-rgb-hetero",
+          "docs/development-evidence/render-bvh/r08-rgb-hetero-window-material",
+          "docs/development-evidence/render-bvh/r02-skybox"
+        ],
+        "touched": [],
+        "note": "R08-S3 窗口证据 r08-rgb-hetero-validate 未列入卡面 unchanged，但同样 0 改动（按本次 diff 文件集合核）"
+      },
+      "ok": true
+    },
+    {
+      "id": "qa.evidence_scope",
+      "passed": true,
+      "detail": {
+        "files": 16,
+        "dir": "docs/development-evidence/render-bvh/sdf-anyhit-cull-latent-fix-check"
+      },
+      "ok": true
+    }
+  ],
+  "problems": [
+    {
+      "id": "P1",
+      "severity": "需修(轻微)",
+      "check": "evidence.no_run_exit_code",
+      "finding": "docs/development-evidence/render-bvh/sdf-anyhit-cull-latent-fix/logs/no-run.txt 无 exit 码（卡面 acceptance 明文要求「日志含 exit 码与 Finished」）；receipt 记 exit=0 但日志内无 exit 行，且日志为 PowerShell stderr 包装的 UTF-16LE。",
+      "fix": "重定向时追加 `; \"EXIT=$LASTEXITCODE\"` 把 exit 码写进日志（或按卡面把要求改成「receipt 记 exit」）；不需重跑测试。"
+    },
+    {
+      "id": "P2",
+      "severity": "需修(轻微)",
+      "check": "evidence.gate_provenance",
+      "finding": "README §4 称 `logs/gate-*.txt` 是 `.normify/runs/2026-10-30-render-sdf-anyhit-cull-latent-fix/*.json` 的转写快照；实测 4/4 都不是同一 run（证据 at=04:25:2x、runs at=04:26:2x；scope_hash/input_hash/log_sha256 全不同）。两次都全过、unit 均 1108/0/392，结论不受影响。",
+      "fix": "改措辞为「门禁第一次运行的 JSON 快照（权威记录见 .normify/runs 的第二次运行）」，或重转写第二次 run；不需重跑。"
+    },
+    {
+      "id": "P3",
+      "severity": "需修(轻微)",
+      "check": "refs.inventory",
+      "finding": "README §3 的「全仓检索旧三值 59 行/31 文件」不可按全仓口径复现：独立扫描（排除清单文件自身）= 79 行/41 文件；未列入的 20 行/10 文件 = 5 个 `.normify` 卡、docs 下 3 个 recompute.py（8 行）、本片 README(4)+receipt(3)。清单自身 59/31 自洽且 0 过期；「src/tests/scripts 活体断言 0」我独立确认成立。",
+      "fix": "把「全仓」改为实际口径（docs+fixtures，且排除 docs 下 .py 复算脚本与本片自述文件），或补全清单并重算 59/31；不需重跑。"
+    }
+  ],
+  "summary": {
+    "checks_total": 15,
+    "checks_passed": 12,
+    "problems": 3,
+    "blockers": 0
+  }
+}

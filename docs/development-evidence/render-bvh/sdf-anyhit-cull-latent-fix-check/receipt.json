@@ -1,0 +1,92 @@
+{
+  "task_id": "2026-10-30-render-sdf-anyhit-cull-latent-fix-check",
+  "reviewed_task": "2026-10-30-render-sdf-anyhit-cull-latent-fix",
+  "pin": "f63834e0",
+  "baseline": "e6eb0c9a",
+  "card_head_at_start": "23277f36",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 3,
+  "observations": 8,
+  "scope": "read-only QA review: two-file diff and line counts, kernel identity (source/PTX/bytes) recomputed and NVRTC-recompiled, cull semantics reachability, host rejection semantics and its two new host-only tests, old-identity reference inventory, evidence manifest/encoding, gate provenance, commit mapping anomaly; no GPU window, no device execution, no source or foreign-evidence edits",
+  "method": {
+    "recompute": "recompute.py (15 checks, writes recompute.json; reads committed blobs via git cat-file)",
+    "gates_self_run": ["fmt", "clippy", "clippy-cuda", "unit", "no-run"],
+    "nvrtc_compile_only": "cargo test --locked --features cuda-probe --test render_kernel_flags flag_and_aa_sources_compile_under_render_gate -- --ignored --nocapture (PATH += target/toolchains/cuda-12.8.1/bin; compile only, no device execution)"
+  },
+  "checks": {
+    "total": 15,
+    "passed": 12,
+    "failed": [
+      "refs.inventory",
+      "evidence.gate_provenance",
+      "evidence.no_run_exit_code"
+    ]
+  },
+  "verified_numbers": {
+    "changed_paths": 19,
+    "changed_src": ["src/render/kernel/cuda/render_common.cu", "src/render/kernel/megakernel.rs"],
+    "line_counts": {"render_common.cu": [410, 414], "megakernel.rs": [409, 440]},
+    "src_diff": {"insertions": 43, "deletions": 8, "numstat": {"render_common.cu": [8, 4], "megakernel.rs": [35, 4]}},
+    "kernel_source": {
+      "base": {"bytes": 88190, "sha256": "e68e3412c1e1809e71100d9e842d5b0f5b886ffdec88d8401bb01c76e812904c"},
+      "head": {"bytes": 88785, "sha256": "be4ef01b1ae45188ac512c91cfef60244a1f8b6670307b245ae1719a34cf5f5e"}
+    },
+    "kernel_ptx_selfrun": {
+      "megakernel_ptx_sha256": "4dae03ffb3fe82214da930714c7fd1ccb6a2c8d5c5eb7cc8e489624b4e7dd085",
+      "megakernel_ptx_bytes": 268305,
+      "aa_resolve_source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+      "aa_resolve_ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+      "aa_resolve_ptx_bytes": 27536,
+      "test_result": "1 passed; 0 failed"
+    },
+    "aa_resolve_source": {"bytes": 2364, "sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76", "same_both_commits": true},
+    "unit_self_run": {"result_lines": 136, "passed": 1108, "failed": 0, "ignored": 392},
+    "gate_exits": {"fmt": 0, "clippy": 0, "clippy-cuda": 0, "unit": 0, "no_run": 0},
+    "validate_now": {"errors": 0, "warnings": 5},
+    "identity_references": {
+      "list_entries": 59,
+      "list_files": 31,
+      "list_stale": 0,
+      "full_repo_excluding_list": {"entries": 79, "files": 41},
+      "unlisted": {"entries": 20, "files": 10, "by_dir": {".normify": 5, "docs": 15}},
+      "live_assertions_src_tests_scripts": 0
+    },
+    "evidence_manifest": {"rows": 10, "sha_bytes_match": "10/10", "self_registered": false, "files": 11},
+    "evidence_encoding": {"utf16_files": ["logs/kernel-identity.txt", "logs/no-run.txt"], "others": "UTF-8 LF, no BOM"}
+  },
+  "reachability": "gtype==8 never reaches render_intersect_primitive on device (branch is `else if (gtype != 8)`), d stays -1.0f and n stays zero; the cull block requires d >= 0 so the extended exclusion is unreachable today; host still rejects any model containing geom_type 8 (reject_sdf_geometry, identical error string), so the change is latent by construction and pinned by two host-only unit tests",
+  "must_fix_items": [
+    {"id": "P1", "severity": "must-fix(minor)", "where": "docs/development-evidence/render-bvh/sdf-anyhit-cull-latent-fix/logs/no-run.txt", "finding": "no exit code in the --no-run log although card acceptance requires exit code and Finished; receipt records no_run.exit=0 but the log itself has no exit marker (and is UTF-16LE with PowerShell stderr wrapper)", "fix": "append `; \"EXIT=$LASTEXITCODE\"` into the redirect (this review's logs/no-run.log is a template), or adjust the acceptance wording; no rerun of tests needed"},
+    {"id": "P2", "severity": "must-fix(minor)", "where": "README §4 of the reviewed evidence", "finding": "gate-*.txt are presented as transcriptions of .normify/runs/<task>/*.json but 4/4 differ (evidence from the 04:25:2x run, runs from the 04:26:2x rerun; scope_hash/input_hash/log_sha256 all differ); both runs passed with unit 1108/0/392", "fix": "reword as the first gate run's snapshot (authoritative record is .normify/runs) or re-transcribe the second run; no rerun needed"},
+    {"id": "P3", "severity": "must-fix(minor)", "where": "README §3 of the reviewed evidence", "finding": "full-repo claim of 59 lines/31 files is not reproducible: independent scan (excluding the list file itself) is 79 lines/41 files; unlisted 20 lines/10 files = 5 .normify cards, 3 docs recompute.py (8 lines), this slice's README (4) and receipt (3). The list itself is self-consistent (0 stale) and the 0 live-assertion claim holds", "fix": "state the real scope (docs+fixtures excluding .py recompute scripts and this slice's own prose) or extend the list and recompute; no rerun needed"}
+  ],
+  "observations": [
+    {"id": "O1", "text": "commit mapping anomaly (recorded per Chief): d132336c message says schedule/archive but carries code+evidence+runs+fingerprint+card; f63834e0 message says fix but carries only the card addendum (+7/-1); content is self-consistent, history not rewritten"},
+    {"id": "O2", "text": "main card acceptance still says 50 lines/18 files all under docs; measured 59 lines/31 files including 4 fixture hits"},
+    {"id": "O3", "text": "main card closed_at 04:25:43Z precedes the second gate run's unit completion 04:26:44Z; both runs passed"},
+    {"id": "O4", "text": "two evidence blobs are UTF-16LE/CRLF with PowerShell stderr wrapper noise; repo history has 106 UTF-16 blobs among 9489 docs-evidence blobs and 613 CRLF blobs, so this is an existing capture pattern"},
+    {"id": "O5", "text": "materials/kernel-identity-refs.txt is 6,909,577 B because 4 fixture hits embed whole multi-MB lines; recommend truncating long lines"},
+    {"id": "O6", "text": "card unchanged paths omit r08-rgb-hetero-validate and r08-rgb-hetero-check; both verified untouched by diff file set"},
+    {"id": "O7", "text": "evidence materials/validate.txt is 0 errors/6 warnings at gate time (expected fingerprint-drift), now 0/5 after done refreshed fingerprints"},
+    {"id": "O8", "text": ".normify/modules/mjwarp/render/kernel.md fingerprint b8aeeafe -> 0c5de3b7 with the kernel source change; validate shows no drift"}
+  ],
+  "boundaries": {
+    "read_only": true,
+    "gpu_window_opened": false,
+    "device_execution": false,
+    "source_edited": false,
+    "foreign_evidence_edited": false,
+    "code_judgment_changed": false
+  },
+  "not_claimed": [
+    "不宣称 SDF 渲染已覆盖（本卡只核 latent 判据对齐与不可达前提）",
+    "不宣称渲染数值验收通过（本卡无设备执行、无窗口）",
+    "不宣称与上游逐位相同（PTX 身份仅在本次 NVRTC 工具链下复现）"
+  ],
+  "limits": [
+    "NVRTC/PTX identity verified only on this host toolchain (CUDA 12.8.1) and only for compile, not execution",
+    "no device-side evidence about unlocked SDF cull behavior; that risk belongs to the unlock slice",
+    "commit message mismatch can only be checked against content (done); history intentionally not rewritten"
+  ]
+}
