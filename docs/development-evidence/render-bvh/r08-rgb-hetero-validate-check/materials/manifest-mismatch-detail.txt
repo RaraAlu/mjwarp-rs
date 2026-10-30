@@ -1,0 +1,16 @@
+manifest vs committed blob mismatch (QA finding)
+
+docs/development-evidence/render-bvh/r08-rgb-hetero-validate/guard_aggregate.json
+  manifest listed: bytes=1699 sha256=d7fa6428ca2251afd39186225ccbe3b8692bee4c9d3d943bf4ec646fded3fcb3
+  committed blob : bytes=1654 sha256=b1812cc6da50d5202baafc8f70531911a266a0c5c6bd1b2927f4d004be4c2980
+  worktree bytes : bytes=1699 sha256=d7fa6428ca2251afd39186225ccbe3b8692bee4c9d3d943bf4ec646fded3fcb3 crlf=45
+  worktree LF-normalized == blob: True
+
+docs/development-evidence/render-bvh/r08-rgb-hetero-validate/monitor/pre-window-snapshot-attempt5.txt
+  manifest listed: bytes=1874 sha256=09924751e9db9b48837238ea27273a435c43895c8ec44ccd4e9943e526fd8020
+  committed blob : bytes=1872 sha256=f2677caa95db2a50056dd51b9c41deb6c726e5d7abcd6d540aa6b37cc871fba2
+  worktree bytes : bytes=1874 sha256=09924751e9db9b48837238ea27273a435c43895c8ec44ccd4e9943e526fd8020 crlf=2
+  worktree LF-normalized == blob: True
+
+root cause: manifest was generated over worktree bytes (CRLF); committed blobs are LF-normalized by git.
+fix: recompute those two manifest rows from committed blobs (or normalize the two files to LF before re-freezing manifest); no window re-run needed.
