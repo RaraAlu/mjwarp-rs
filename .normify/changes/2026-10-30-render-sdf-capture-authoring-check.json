@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-sdf-capture-authoring-check",
+  "title": {
+    "zh": "SDF 采集 authoring 独立复核（脚本 sha/行数/ASCII、dry-run 离线复跑、两场景字节/结构、窗口材料、零 GPU/零 src）",
+    "en": "Independent check of the SDF capture authoring (script identity, dry-run re-run offline, two scene fixtures, window material, no GPU, no src changes)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-30-render-sdf-capture-authoring`（U2：SDF 渲染参考采集 authoring，离线 dry-run）。pin revision = `65a16430`（U2 + scene-mixed 机械入库后的收口 HEAD；scene-mixed.xml 由 `2026-10-30-render-sdf-scene-mixed-artifacts` 单独入库，字节不变）。复核点：脚本 sha/行数/非 ASCII/`ast.parse`；`--dry-run` 两组离线复跑（不建 CUDA device、不写 out-dir）与材料对账；两场景 XML 字节/结构（SDF geom type=8、dataid→mesh、非碰撞、相机/灯）；窗口材料（U3 命令逐字、判据、双签栏、预期产物）；**零 GPU、零 `src/**`/`tests/**` 改动、既有采集脚本与参考零改**。",
+    "en": "Read-only QA review of U2 at pin 65a16430: script identity and AST, both dry-runs re-run offline with no CUDA device and no writes, scene fixtures bytes/structure, U3 window material, and the zero-GPU / zero-src boundary."
+  },
+  "modules": {},
+  "acceptance": [
+    "**脚本身份**：`scripts/capture_render_sdf.py` bytes=**20,380**、lines=**427**（≤500）、非 ASCII 0、sha256=**`9acd2130f58cfc2cc495bc73bae4e12cb1e9fb3c68c4d245819e809e524fde67`**；pinned python `ast.parse` 通过；派生自 `capture_render_hfield.py` 且**不修改**既有采集脚本与参考。",
+    "**dry-run 离线复跑**：`--dry-run --group sdf-mesh` 与 `--dry-run --group sdf-occluder` 均 exit 0；过程中**未创建 CUDA device、未写 --out-dir**（`fixtures/render-bvh/scene-sdf/capture-sdf/` 不存在）；`legacy_manifest_entries=69`（排除新 scene-sdf 子树，包含冻结的 shadow/hfield 参考）；环境/版本/upstream clean/python sha 与 `receipt.json` 一致。",
+    "**场景 fixture**：`fixtures/render-bvh/scene-sdf/scene.xml` bytes=**3,388**/sha256=**`376eb81c…`**、`scene-mixed.xml` bytes=**3,062**/sha256=**`7869cfae…`**；每场景**恰好 1 个 `type==8` geom**、`dataid` 指向 cube mesh、`contype=conaffinity=0`、2 相机/2 castshadow 灯；`scene-mixed` 只多一个静态 box occluder；静态检查日志 `sdf-capture-authoring/logs/scene-check.json` 可复算（pinned MuJoCo，CPU-only）。",
+    "**窗口材料**：`docs/development-evidence/render-bvh/sdf-capture-window-material/` 含 `materials/window-plan.txt`（U3 两条 GPU 命令逐字、开窗前 dry-run、基线三点/floor、常规 `util<40` 无例外、失败即停手、时限、`USER DOUBLE-SIGN BLOCK`）与 `materials/expected-products.json`（两组 out-dir、产物清单/数组形状、配方、thresholds、`new_guards=false`）；`README.md` 与 receipt 口径一致。",
+    "**边界与证据卫生**：`git diff` 相对 pin 只含 `fixtures/render-bvh/scene-sdf/`、`scripts/capture_render_sdf.py`、两个证据目录与本卡/相关卡记录；`src/**`、`tests/**`、既有采集脚本/参考零改动；不改判据/容差；`manifest.txt` 与 committed blob 一致、禁词 0、LF 无 BOM；不宣称任何渲染数值结论。",
+    "**范围/流程观察**：U2 卡 `files` 只声明了 `scene.xml`，`scene-mixed.xml` 由 `2026-10-30-render-sdf-scene-mixed-artifacts` 机械入库（`df1d6fa4`）；结论注明「卡面 scope 漏声明已由 artifacts 卡补齐、文件字节不变」，不判阻断。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-sdf-capture-authoring"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/sdf-capture-authoring-check/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-30 注册（Chief 要求 U1/U2 收口后立刻注册 QA 复核卡，**proposed 不 start 等 QA**）。pin revision = `65a16430`（U2 + scene-mixed artifacts 后的 HEAD；tree 干净）。复核对象：`sdf-capture-authoring/`（README/receipt/logs 5/manifest）+ `sdf-capture-window-material/`（README/window-plan/expected-products/manifest）+ `fixtures/render-bvh/scene-sdf/{scene,scene-mixed}.xml` + `scripts/capture_render_sdf.py`。**只读**：dry-run 可跑（CPU-only、不建 CUDA device、不写盘）；**不得跑真采集**（U3 需用户双签）。**边界**：U3/U4 两窗仍等用户签字。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T20:16:00.000Z",
+  "updated_at": "2026-10-30T20:16:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-capture-authoring-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-sdf-capture-authoring-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
