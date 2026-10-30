@@ -1,0 +1,38 @@
+mesh A1 — QA gates / manifest / evidence hygiene (2026-10-31)
+
+committed .normify/runs/2026-10-31-g10-p5-mesh-cap20/*.json (authoritative)
+  fmt        passed=true
+  clippy     passed=true
+  clippy-cuda passed=true
+  unit       passed=true  tests: 1113 passed / 0 failed / 397 ignored / exit 0
+             at 2026-10-30T19:50:47.725Z (1111 + 2 new A1 tests)
+
+evidence transcriptions (logs/gate-*.txt) vs runs
+  fmt         wall 1657 vs 1660 ms, same log_sha  -> same run
+  clippy-cuda wall  404 vs  404 ms, same log_sha  -> same run
+  clippy      wall 5830 vs  454 ms, different log_sha -> earlier gate run
+  unit        wall 98480 vs 11700 ms, different log_sha -> earlier gate run
+  README §4 already says the transcriptions are "某次门禁的转写快照；权威结果见 .normify/runs/<task>/" => provenance only;
+  the verdicts agree (all passed; unit 1113/0/397 in both).
+
+cargo test --locked --no-run
+  logs/no-run.txt: Finished + "Executable lines: 135" + EXIT=0 (trimmed transcription)
+
+normify validate --fingerprints
+  evidenced snapshot: errors 0 / warnings 6 (incl. fingerprint drift for mjwarp.physics.collision before `done` refreshed it)
+
+evidence manifest (docs/development-evidence/g10-p5-mesh-cap20/manifest.txt)
+  rows=10, files=11
+  recomputed against the committed blobs => 4 mismatches (all CRLF worktree vs LF blob):
+    logs/no-run.txt               manifest 175 B / 5c80bcede12e..   blob 171 B / 17827815e973..
+    logs/nvrtc-identity.txt       manifest 710 B / 4578f8f79806..   blob 700 B / 71376f466511..
+    materials/src-diff.patch      manifest 10258 B / 0cc434996847.. blob 10047 B / 68f61085dfc9..
+    materials/validate.txt        manifest 524 B / 0ae62139474e..   blob 517 B / 6d861da2226b..
+  => must-fix P2: regenerate from committed blobs; the in-flight evidence-eol-hygiene card (P1-P5) is the natural place
+     (add this dir to its P3 scope) and should make the rule `docs/development-evidence/render-bvh/** -text -diff`
+     plus an equivalent rule for this evidence tree.
+
+worktree note during review
+  .gitattributes and several evidence dirs are modified by the in-flight evidence-eol-hygiene card, and
+  primitive_plane_shapes.cu carries CRLF (169 pairs, invisible to git status under autocrlf). The A1 review used
+  commit ranges/blobs; no foreign file was touched and no foreign change was staged.

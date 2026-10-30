@@ -1,0 +1,44 @@
+mesh A1 — collision device-source identity QA recompute (2026-10-31)
+
+identity definition (src/runtime/collision_gpu/source.rs)
+  assemble_device_source() = for each of the 28 DEVICE_SOURCES in fixed dependency order:
+      strip_local_includes(text) then append '\n' if the accumulated text does not end with '\n';
+    finally append PRODUCT_SOURCE (product.cu).
+  source_sha256() = sha256 over those UTF-8 bytes; nvrtc_smoke prints assemble_device_source().len() and that sha.
+  (strip_local_includes drops lines of the form #include "*.cu"; #pragma once and system includes are kept.)
+
+recorded by the A1 evidence (logs/nvrtc-identity.txt)
+  before A1 ("HEAD cd0be5e7 sources"): source 255,840 B / 2838580194774ff79f5e24e856030eca398ebec4f6e35289d3fe18f142246696
+                                        PTX 3,883,740 B / 6 entries
+  after A1 (this slice)             : source 254,743 B / f32f0af231f95d44e3afb0d12a72926d86ae8befd025b546cd0f76c92c0da424
+                                        PTX 3,883,769 B / 6 entries
+
+QA independent recompute from the committed LF blobs (same algorithm, git cat-file bytes)
+  307219fe^ (before): source 254,005 B / 9b7435abdd986f734b47d608826bac3ac5c03dc0729d27f3fff760f0a65e7977
+  307219fe  (after) : source 254,263 B / 12d50d68d3e7f155e688f9dab2f69d6d30720a6b07804c7a0a026dd38dbd34b7
+  (the assembly is otherwise identical across recent commits, as expected: only A1 touches these .cu files)
+
+QA probe run (NVRTC CPU compile; no GPU):
+  PATH=target\toolchains\cuda-12.8.1\bin;$env:PATH
+  cargo test --locked --features cuda-probe --lib nvrtc_smoke -- --ignored --nocapture
+  => nvrtc_smoke_ok ptx_bytes=3883769 entries=6 source_bytes=254431 source_sha256=af1791be6f4e01d06a3856406917c7c9a862fa7de810cbf98627fdbb2ae1ee04
+
+why the source numbers differ (EOL)
+  worktree check: CRLF pairs found only in src/physics/collision/cuda/primitive_plane_shapes.cu (169 pairs);
+                  all other collision .cu are LF in the worktree; the committed blobs are LF.
+  LF-blob assembly after A1 = 254,263 B; the probe (which embeds worktree bytes) = 254,431 B = 254,263 + 168
+                  (169 CRLF -> +169, minus the trailing-newline rule -> +168).
+  the recorded 254,743 B is therefore +480 over the LF canonical, and the recorded before 255,840 B is +1,835 over
+  the LF canonical 254,005 B: both look like CRLF-contaminated worktrees at measurement time (autocrlf).
+  => the recorded SOURCE bytes/sha are not reproducible from the committed sources; only the PTX part is
+     (3,883,769 B / 6 entries reproduced exactly).
+
+conclusion that still holds
+  the collision device-source identity changed between before and after A1: the source sha differs in any consistent
+  EOL scheme (9b7435ab.. vs 12d50d68.. on LF) and the PTX bytes changed (3,883,740 -> 3,883,769, same 6 entries).
+  => a later GPU window needs a fresh freeze; old guards must not be reused.
+
+recommended remediation (must-fix P1)
+  evidence-eol-hygiene pins *.cu text eol=lf; after that, re-run the probe from a clean LF checkout and record
+  the canonical values (expected 254,005/9b7435ab before, 254,263/12d50d68 after), or annotate the current numbers
+  as mixed-EOL measurements. Do not use the current source numbers for freeze planning until corrected.

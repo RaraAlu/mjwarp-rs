@@ -1,0 +1,96 @@
+{
+  "task_id": "2026-10-31-g10-p5-mesh-cap20-check",
+  "reviewed_task": "2026-10-31-g10-p5-mesh-cap20",
+  "pin": "307219fe",
+  "card_head_at_start": "a01b088141c57089f974243476d695303fcdf6b9",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 2,
+  "observations": 7,
+  "scope": "read-only QA review of G10@P5 mesh multicontact capacity A1 (fixed scratch 16->20 / 32->40, U8 prism-20): device arrays, host mirror, comment contracts, 2 new CPU tests, collision kernel identity before/after, U7/U8 boundary, ABI/criteria untouched, gates and evidence hygiene; no GPU, no window, no freeze, no product code change",
+  "method": {
+    "scope": "git diff --stat/--name-only/--numstat 307219fe^..307219fe (src only the 7 expected files; tests/fixtures/Cargo/runtime empty)",
+    "capacities": "git show <pin>:<file> for the 5 .cu and clip.rs: array sizes and #define values",
+    "comment_contracts": "grep A1/20/40/U7/A2 wording in the 5 .cu files",
+    "cpu_tests": "read the mod.rs test module and ran cargo test --locked --lib physics::collision::gjk::multicontact -- --nocapture (2 passed)",
+    "kernel_identity": "ran the recorded probe cargo test --locked --features cuda-probe --lib nvrtc_smoke -- --ignored --nocapture (NVRTC compile, no GPU) and recomputed assemble_device_source() independently from committed blobs",
+    "abi": "pin diff contains no src/runtime or src/physics/mod.rs change; render 81-slot ABI and CollisionArgs are untouched by construction",
+    "gates": "committed .normify/runs jsons + evidence transcriptions + no-run + validate snapshot",
+    "manifest": "recomputed every manifest row against the committed blobs"
+  },
+  "verified_numbers": {
+    "pin_diff": {
+      "source_files": 7,
+      "files": ["contact.cu", "multicontact.cu", "multicontact_clip.cu", "multicontact_geom.cu", "multicontact_mesh.cu", "gjk/multicontact/clip.rs", "gjk/multicontact/mod.rs"],
+      "numstat": "contact.cu +?/-? 16 changed lines; multicontact.cu 5; multicontact_clip.cu 6; multicontact_geom.cu 5; multicontact_mesh.cu 4; clip.rs 12; mod.rs +75 (test module only)",
+      "no_other_src": "git diff --numstat 307219fe^..307219fe -- src/runtime src/physics/mod.rs tests fixtures Cargo.toml Cargo.lock => empty",
+      "no_historical_evidence": "no docs/development-evidence path outside the new g10-p5-mesh-cap20 dir is touched"
+    },
+    "capacities": {
+      "contact.cu": "polygon[40], clipped[40], pnormal[20], pdist[20], face1[20], face2[20] (lines 218-228)",
+      "multicontact_geom.cu": "G5_MC_MESH_DEG_MAX 10 (unchanged), G5_MC_MESH_FACE_MAX 20",
+      "clip.rs": "pn [[f32;3];20], pd [f32;20], polygon vec![..;40], clipped vec![..;40]",
+      "mod.rs": "only a #[cfg(test)] mod tests appended (2 tests); no non-test logic change"
+    },
+    "cpu_tests": {
+      "names": ["polygon_clip_accepts_twenty_vertex_face1", "polygon_clip_accepts_twenty_vertex_face2"],
+      "asserts": "result.ncontact <= 4 and >= 1 for both (20-gon face1 and 20-gon face2)",
+      "qa_run": "cargo test --locked --lib physics::collision::gjk::multicontact => 2 passed, 0 failed, 872 filtered out",
+      "unit_gate": "1113 passed / 0 failed / 397 ignored (run json exit 0 at 2026-10-30T19:50:47Z; 1111 + 2 new A1 tests)"
+    },
+    "kernel_identity": {
+      "recorded_by_evidence": {"before": "255,840 B / 2838580194774ff79f5e24e856030eca398ebec4f6e35289d3fe18f142246696; PTX 3,883,740 B / 6 entries", "after": "254,743 B / f32f0af231f95d44e3afb0d12a72926d86ae8befd025b546cd0f76c92c0da424; PTX 3,883,769 B / 6 entries"},
+      "qa_probe_now": "nvrtc_smoke_ok ptx_bytes=3883769 entries=6 source_bytes=254431 source_sha256=af1791be6f4e01d06a3856406917c7c9a862fa7de810cbf98627fdbb2ae1ee04",
+      "qa_lf_assembly": {"before_307219fe_parent": "254,005 B / 9b7435abdd986f734b47d608826bac3ac5c03dc0729d27f3fff760f0a65e7977", "after_307219fe": "254,263 B / 12d50d68d3e7f155e688f9dab2f69d6d30720a6b07804c7a0a026dd38dbd34b7"},
+      "conclusion": "identity changed (source sha and PTX bytes differ) => later GPU window needs a fresh freeze, old guards invalid - this part holds; but the recorded SOURCE bytes/sha are not reproducible and are EOL-contaminated (see must-fix P1). The PTX after value 3,883,769 and entries=6 reproduce exactly.",
+      "eol_state_now": "worktree has CRLF only in primitive_plane_shapes.cu (169 pairs); the probe embeds worktree bytes => 254,431 = LF-assembly 254,263 + 168. This is the previously reported .cu EOL instability (evidence-eol-hygiene card in flight)."
+    },
+    "gates": {
+      "runs": "fmt/clippy/clippy-cuda passed; unit 1113/0/397 exit 0",
+      "no_run": "EXIT=0 with Finished (trimmed transcription)",
+      "validate_snapshot": "errors 0 / warnings 6 (fingerprint drift for mjwarp.physics.collision before done refreshed it)",
+      "gate_transcriptions": "fmt + clippy-cuda match runs (wall/sha); clippy and unit snapshots are from an earlier run (clippy 5830 vs 454 ms, unit 98480 vs 11700 ms, different log_sha) - README already states the transcriptions are one gate run and runs/ is authoritative"
+    },
+    "manifest": {"rows": 10, "files": 11, "mismatches_vs_committed_blobs": 4,
+                 "mismatched": ["logs/no-run.txt 175/5c80bced.. vs blob 171/17827815..", "logs/nvrtc-identity.txt 710/4578f8f7.. vs blob 700/71376f46..", "materials/src-diff.patch 10258/0cc43499.. vs blob 10047/68f61085..", "materials/validate.txt 524/0ae62139.. vs blob 517/6d861da2.."],
+                 "cause": "same local CRLF worktree vs LF committed blob issue; the in-flight evidence-eol-hygiene card (P1-P5) is expected to regenerate these manifests"},
+    "u7_u8_boundary": "U8 (prism-20, single polygon 20 vertices) is implemented into the clip path; expected device contacts 1 -> 4 comes from the upstream reference (sha b6abb8fa..) and is only to be asserted in a later signed window. U7 (fan-cone-24) still falls back to a single contact (G5_MC_MESH_DEG_MAX stays 10). No committed document claims U8 passed / U7 covered / mesh capacity gap cleared (the forbidden phrases appear only in not_claimed and in the 'do not write' rule)",
+    "abi_criteria": "no ABI change (no src/runtime, no CollisionArgs/launch signature/JSON change; the render 81-slot ABI is untouched); no criteria/tolerance/reference/fixtures change (diff scope)"
+  },
+  "must_fix_items": [
+    {"id": "P1", "severity": "must-fix(minor, evidence reproducibility)", "where": "docs/development-evidence/g10-p5-mesh-cap20/logs/nvrtc-identity.txt (source bytes/sha) and README §3",
+     "finding": "the recorded device-source identity is not reproducible: recorded before 255,840 B / 28385801.. and after 254,743 B / f32f0af2..; my independent assemble_device_source recompute from the committed LF blobs gives 254,005 B / 9b7435ab.. (before) and 254,263 B / 12d50d68.. (after), and the probe run now (worktree has CRLF in primitive_plane_shapes.cu only) prints 254,431 B / af1791be.. . The differences (1,835 B and 480 B / 168 B) are exactly the kind produced by CRLF vs LF checkout bytes, so the recorded source values depend on the EOL state of the worktree at measurement time. The PTX part reproduces (3,883,769 B / 6 entries matches; source sha/bytes after any consistent EOL still differ before vs after, so the 'identity changed -> fresh freeze' conclusion holds)",
+     "fix": "after evidence-eol-hygiene pins *.cu text eol=lf, re-run nvrtc_smoke from a clean LF checkout and record the canonical source bytes/sha (expected 254,005/9b7435ab before, 254,263/12d50d68 after) - or annotate the current values as measured on a mixed-EOL worktree and keep the LF values as canonical; do not use the current source numbers for freeze planning until corrected"},
+    {"id": "P2", "severity": "must-fix(minor, evidence integrity)", "where": "docs/development-evidence/g10-p5-mesh-cap20/manifest.txt",
+     "finding": "4 of 10 manifest rows list CRLF worktree bytes instead of the committed blobs (no-run.txt, nvrtc-identity.txt, src-diff.patch, validate.txt; see the numbers above), so the A1 evidence is not self-consistent against committed blobs yet",
+     "fix": "regenerate this manifest from the committed blobs as part of the in-flight evidence-eol-hygiene card (add the g10-p5-mesh-cap20 dir to its P3 scope) and verify 11 files / 10 rows all match; no content change"}
+  ],
+  "observations": [
+    {"id": "O1", "text": "identity probe is EOL-sensitive in practice: the current worktree already carries CRLF in primitive_plane_shapes.cu (169 pairs, invisible to git status under autocrlf), which alone shifts the probe by +168 B - the same root cause as the previously reported P4; after the eol-hygiene pin the probe should be rerun on a clean LF checkout"},
+    {"id": "O2", "text": "gate transcriptions: fmt/clippy-cuda match the runs records; clippy and unit snapshots are from an earlier gate run (different wall_ms/log_sha). README §4 already says the transcriptions are '某次门禁的转写快照; 权威结果见 .normify/runs/', so this is provenance-only, not a defect"},
+    {"id": "O3", "text": "no-run.txt is a trimmed transcription (Finished + executable line count + EXIT=0), not the raw log - same note as previous slices"},
+    {"id": "O4", "text": "validate snapshot records 0 errors / 6 warnings (one fingerprint drift because 'done' had not refreshed it yet); the committed snapshot is historical, a fresh run at review time shows the drift warning for a different module due to concurrent worktree edits (eol-hygiene), not from A1"},
+    {"id": "O5", "text": "target/mesh-a1-precheck.md predicted a few line counts that differ by 1 from the final files (contact.cu 271 not ~272, multicontact.cu 235 not 234, multicontact_geom.cu 411 not 410); the precheck is target-only guidance and the final files are far below the 500-line ratchet - no action"},
+    {"id": "O6", "text": "the comment contracts are consistent: contact.cu npolygonmax=20, multicontact_geom.cu FACE_MAX 20 + DEG_MAX 10 (U7 not covered, A2), multicontact.cu 40 v3 scratch, multicontact_clip.cu plane_normal 20, multicontact_mesh.cu single-polygon <= G5_MC_MESH_FACE_MAX(20)"},
+    {"id": "O7", "text": "U8's expected 1 -> 4 contacts is an upstream-reference expectation only (fixture/reference b6abb8fa..); no device execution was done in this slice (zero GPU / zero window / zero freeze), and the U7 single-contact fallback is recorded as not covered (A2), matching the record-only boundary"}
+  ],
+  "boundaries": {
+    "read_only": true,
+    "gpu_used": false,
+    "window_opened": false,
+    "freeze": false,
+    "product_src_modified": false,
+    "foreign_evidence_edited": false,
+    "builds_run": ["cargo test --locked --features cuda-probe --lib nvrtc_smoke -- --ignored --nocapture (NVRTC CPU compile only)", "cargo test --locked --lib physics::collision::gjk::multicontact -- --nocapture"]
+  },
+  "not_claimed": [
+    "不宣称渲染数值验收通过（本片只核离线容量/测试/身份/边界）",
+    "不宣称上游等价",
+    "不宣称精度达标",
+    "不宣称 U8 已通过或 U7 已覆盖（record-only，等用户窗口）"
+  ],
+  "limits": [
+    "the pre-A1 PTX bytes (3,883,740 / 6 entries) could not be reproduced without reverting the slice; only the after-PTX was reproduced",
+    "device behavior (prism-20 contacts 1 -> 4) is not exercised here; it belongs to the signed GPU validation window with a fresh freeze"
+  ]
+}

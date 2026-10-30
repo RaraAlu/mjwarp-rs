@@ -1,0 +1,59 @@
+mesh A1 capacity — QA scope / capacity / ABI check (2026-10-31, read-only)
+
+pin diff scope (git diff --numstat 307219fe^..307219fe)
+  src: exactly 7 files
+    src/physics/collision/cuda/contact.cu
+    src/physics/collision/cuda/multicontact.cu
+    src/physics/collision/cuda/multicontact_clip.cu
+    src/physics/collision/cuda/multicontact_geom.cu
+    src/physics/collision/cuda/multicontact_mesh.cu
+    src/physics/collision/gjk/multicontact/clip.rs
+    src/physics/collision/gjk/multicontact/mod.rs
+  non-source scope: src/runtime/, src/physics/mod.rs, tests/, fixtures/, Cargo.toml, Cargo.lock => EMPTY
+  historical evidence: no docs/development-evidence path outside the new g10-p5-mesh-cap20 dir
+  materials/src-diff.patch: 7 diff headers, index lines match the real blobs, 8 hunks == real diff hunk count 8
+
+device capacities @ 307219fe (contact.cu lines 218-228)
+  v3 polygon[40];      (was 32)
+  v3 clipped[40];      (was 32)
+  v3 pnormal[20];      (was 16)
+  float pdist[20];     (was 16)
+  v3 face1[20];        (was 16)
+  v3 face2[20];        (was 16)
+
+constants @ multicontact_geom.cu
+  #define G5_MC_MESH_DEG_MAX 10      (unchanged; U7 fan-cone-24 not covered, A2)
+  #define G5_MC_MESH_FACE_MAX 20     (was 16)
+
+host mirror @ gjk/multicontact/clip.rs
+  let mut pn = [[0.0_f32; 3]; 20];     (was 16)
+  let mut pd = [0.0_f32; 20];          (was 16)
+  let mut polygon = vec![[0.0_f32; 3]; 40];   (was 32)
+  let mut clipped = vec![[0.0_f32; 3]; 40];   (was 32)
+
+comment contracts (5 files, all say 20/40/face 20 and U7 not covered / A2)
+  contact.cu:216-217            npolygonmax=20 (A1, 2026-10-31)
+  multicontact_geom.cu:381-385  FACE_MAX 20, degree still 10 / U7 not covered
+  multicontact.cu:13-14         caller scratch: polygon/clipped 40 v3
+  multicontact_clip.cu:9-11     plane_normal 20 v3 capacity contract
+  multicontact_mesh.cu:11-13    single polygon vertex count <= G5_MC_MESH_FACE_MAX(20)
+
+new CPU tests (mod.rs, test module only, no non-test logic change)
+  polygon_clip_accepts_twenty_vertex_face1   (20-gon face1 -> pn[19] used)
+  polygon_clip_accepts_twenty_vertex_face2   (20-gon face2 needs the 40 buffer)
+  both assert ncontact in 1..=4
+  QA run: cargo test --locked --lib physics::collision::gjk::multicontact -- --nocapture
+          => 2 passed; 0 failed; 872 filtered out
+  gate unit (runs json): 1113 passed / 0 failed / 397 ignored / exit 0
+  no-run: EXIT=0 with Finished
+
+ABI / criteria
+  no src/runtime or src/physics/mod.rs change => CollisionArgs / launch signature / JSON fields untouched
+  render 81-slot ABI (src/runtime/launcher/render/args.rs MEGAKERNEL_SLOTS) untouched
+  no tests/fixtures/scripts/Cargo change => criteria / tolerances / references unchanged
+
+U7/U8 boundary
+  U8 implemented into the clip path; expected device contacts 1 -> 4 comes from the upstream reference
+  (fixtures/.../upstream-mesh-limits-gpu.json sha b6abb8fa..) and is only to be asserted in a later signed window
+  U7 fan-cone-24 still single-contact fallback; recorded as not covered (A2)
+  no committed document claims U8 passed / U7 covered / mesh capacity gap cleared
