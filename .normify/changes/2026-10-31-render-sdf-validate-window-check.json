@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-validate-window-check",
+  "title": {
+    "zh": "U4 验证窗独立复核（attempt1/2 协议执行与留档/两次冻结身份/body 一致失败/回滚正确/关键产物入库/方向措辞/guards-only 来源）",
+    "en": "Independent check of the U4 validation window (attempt1/2 protocol execution and archival, two freeze identities, consistent body failure, rollback correctness, committed key artifacts, deviation direction wording, guards-only provenance)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 U4 验证窗（`2026-10-31-render-sdf-validate`，attempt1/attempt2）与由此触发的 U1b 回滚（`2026-10-31-render-sdf-host-unlock-rollback`）。pin revision = **`07252cd2`**（回滚收口提交）。核心问题：两次 attempt 是否严格按条件式验证协议执行并原样留档、两次冻结身份是否各自独立可核、body 是否呈现同一量级的 sphere 轮廓 depth 超限（红线复现）、回滚是否只回 U1b 且保留 U1/内核身份、`82dfa0c3` 是否 tests-only 且诊断只读、判据/容差/参考是否零放宽；以及本轮四项证据修正是否落实：①`README:15`/`attempt-refs.txt` 偏差方向改为双向；②`-GuardsOnly` 92/92 的来源如实标注（窗口内 vs 窗口后补跑）；③关键 attempt 产物入库并记 manifest；④卡名与本卡一致。**只读**：不跑 GPU、不改仓、不重跑窗口、不重冻。",
+    "en": "Read-only check at pin 07252cd2 covering attempt1/2 protocol execution and verbatim archival, two independent freeze identities, the reproduced sphere-outline depth failure, rollback scoped to U1b with U1 and kernel identity preserved, the tests-only diagnostic commit, unchanged criteria, the committed key artifacts with manifest, the corrected deviation-direction wording and the guards-only provenance note."
+  },
+  "modules": {},
+  "acceptance": [
+    "**attempt1 协议执行与留档**：常规 `util<40` monitor 失败记录**原样保留**（`sdf-validate-window/attempts/attempt1/monitor-pre-window.csv` 354 样本/longest 28/exit 20；`materials/monitor-regular-failure.txt`；`regular-failure-recompute.json`），**未改名未覆盖**；随后启用已签 `validation_only_exception_util_lt_60`（五要素、`not_a_normal_threshold_pass=true`、`authoring_exception_used=false`）、重取基线后例外 monitor **60/60**（`monitor-pre-window-exception.csv`、exit 0）；`exception-monitor-recompute.json` 独立重算 **ge40_clean=9 ⇒ load-bearing=true**，`ge60=2` 两样本（61/62）**在 60 连清段之外**（预热期、streak 0），**未写成「ge60=0」、未写成常规通过**。",
+    "**两次冻结身份（各自独立、可核、不复用）**：attempt1 `guards-sdf-validate.json` sha256 **`0639f0ff…`** / **33,651 B** / aggregate **`02b20213…`**；attempt2 **`d921caae…`** / **33,651 B** / aggregate **`a50e99c9…`**；均 suite `render-sdf-validate`、counts **9 exe + 83 inputs = 92**；attempt2 为**全新冻结**（attempt1 guards 未被复用，`ARCHIVE-README` 与 facts 明写）；92 分解逐条核（scene-sdf 10 + scene-hfield 10 + legacy 47 + scene-shadow 16 = 83 inputs）。",
+    "**`-GuardsOnly` 来源如实标注**：attempt1 窗口内 `window/guard.log` 含 `GUARDS_OK=92/92`（body 前）；`guards-only-run/`（`window_start=2026-10-31T01:52:41+08:00`，**晚于 body**）是**窗口后补跑的复核**，CPU-only sha 校验、不碰 GPU、不改变窗口判定；attempt2 只有窗口内 `window/guard.log` 的 `GUARDS_OK=92/92`，**无**窗口后补跑。README/ARCHIVE-README 与 attempt-refs 的表述与之一致，不冒充窗口原始记录。",
+    "**body 一致失败（红线复现，方向措辞已更正）**：两 attempt 均 **8/9 exit 0**、`render_sdf_reference` exit **101**；cam0 **215/76,800 max_ulp=191**、cam1 **4/43,200 max_ulp=25**；首差 **(230,69)、参考 seg=(2,5) sphere 轮廓**；RGB `mismatched=0`/`beyond_1_lsb=0`、seg `mismatched=0`；诊断偏差为**双向**（cam0 前 40 例 product>ref 16 / product<ref 24、ULP 7–71，全量 max |ULP|=191）——README §1 与 `materials/attempt-refs.txt` 已按此更正，不再写「product depth 一律更小」；**不得**出现把诊断当通过/缩相机/跳球/抬 `MAX_DEPTH_ULP` 的改动或表述。",
+    "**关键产物入库 + manifest**：`docs/development-evidence/render-bvh/sdf-validate-window/` 收 10 个产物（两份 guards JSON、四份 monitor CSV、两份 invalid-round-record、两份 entity-results）+ README + manifest；manifest 的 sha/bytes 与 committed blob 逐条一致、**路径覆盖全部非 manifest 文件**、LF 无 BOM；`target/` 原件保留且未被改名/覆盖。",
+    "**回滚正确性**：`07252cd2` 只改 `src/render/kernel/megakernel.rs`（406 行 / 9b013d90 → **440 行 / fb9aae8f**），恢复 `reject_sdf_geometry` + `render()` 调用点 + `#[cfg(test)] mod sdf_geometry_guard_tests`（2 条 host-only 单测）；host 对 `geom_type==8` 重新 `Unsupported`；**U1 的 `.cu` 零改动**（`git diff --stat -- src/render/kernel/cuda` 为空），内核身份仍 **`778216b2…`/`34f91147…`/268,589 B**；不改判据/容差/参考/fixtures/其它 `src`/`tests`/`scripts`；U4 实现片与材料证据不被改写。",
+    "**tests-only 与诊断只读**：`82dfa0c3` 仅改 `tests/**`（shadow 臂 u8 溢出改 i32 比较、`report_depth_mismatches` 只读诊断）；诊断仅 `println!`，不参与断言、不改变判定路径；`src/`、`.cu`、`fixtures/`、判据/容差/参考零改动。",
+    "**判据零放宽 + 门禁**：`MAX_DEPTH_ULP` 仍为 4、RGB ≤1 LSB、seg exact、两跑 sha 相等、shadow 臂仅一致性；窗口卡仍 `in_progress`（未 done、绝不宣称验收通过）；回滚片 fmt/clippy/clippy-cuda/unit 全绿、unit **1111/0/397**（1109 + 2 条恢复单测；卡面 1108 笔误已在 `materials/identity.txt` 对账）、`--no-run` EXIT=0 含 `Finished`、`validate --fingerprints` 错误 0；证据 LF 无 BOM、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-31-render-sdf-validate",
+      "2026-10-31-render-sdf-host-unlock-rollback"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/sdf-validate-window-check/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册（Chief 指定卡名与 pin）。pin revision = `07252cd2`；`revision.before = null`（proposed，QA start 时记录）。复核对象：`.normify/changes/2026-10-31-render-sdf-validate.json`、`.normify/changes/2026-10-31-render-sdf-host-unlock-rollback.json`、`docs/development-evidence/render-bvh/sdf-validate-window/`（attempt1/2 关键产物 + manifest）、`docs/development-evidence/render-bvh/sdf-host-unlock-rollback/`、`target/render-bvh/sdf-validate-window/attempts/{attempt1,attempt2}/`（完整归档，工作树读取）、`src/render/kernel/megakernel.rs`、`tests/support/render_bvh/sdf_compare.rs`、`tests/render_sdf_reference.rs`、`scripts/validate/render-bvh/guards-sdf-validate.json`。本卡取代同日注册但未 start 的 `2026-10-31-render-sdf-validate-attempts-check`（按 Chief 指定卡名合并，旧卡已 abandon，无 QA 工作丢失）。**只读**：不跑 GPU、不重跑窗口、不重冻。U4 attempt=3 等 sphere 轮廓 depth 只读 RCA 定论与独立修复片。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-31T03:05:00.000Z",
+  "updated_at": "2026-10-31T03:05:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-validate-window-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-validate-window-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}

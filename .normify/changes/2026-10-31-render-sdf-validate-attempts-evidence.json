@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-validate-attempts-evidence",
+  "title": {
+    "zh": "U4 窗口 attempt1/2 关键产物入库 + guards 字节级 EOL 保护（离线，零 GPU）",
+    "en": "Commit U4 window attempt1/2 key artifacts + byte-exact EOL protection for the guards JSON (offline, zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "把 U4 验证窗 attempt1/attempt2 的关键产物（两份 guards JSON、四份 monitor CSV、两份 INVALID_ROUND 记录、两份 entity-results）按字节复制进 `docs/development-evidence/render-bvh/sdf-validate-window/` 并记 manifest（sha/bytes），使窗口结论所依赖的不可复算产物随仓库长期留痕；同时给该目录加 `-text -diff` 规则，保证 guards JSON 的 CRLF 字节与 `target/` 冻结副本逐字节一致（不被 checkout 的 EOL 转换改写）。**离线**：零 GPU、不重跑窗口、不重冻、不改判据/容差/参考/产品代码。",
+    "en": "Byte-copy the key attempt1/attempt2 window artifacts into the evidence tree with a sha/bytes manifest, and add a -text -diff rule so the guards JSON bytes match the frozen target copies exactly. Offline only."
+  },
+  "modules": {},
+  "acceptance": [
+    "**产物齐全且逐字节一致**：`sdf-validate-window/attempts/attempt1/`、`attempt2/` 各含 `guards-sdf-validate.json`、常规失败 + 例外两份 monitor CSV、`invalid-round-record.txt`、`entity-results.csv`；共 10 个产物，sha/bytes 与 `target/render-bvh/sdf-validate-window/attempts/` 原件逐字节相同（attempt1 guards `0639f0ff…`/33,651 B、attempt2 guards `d921caae…`/33,651 B；aggregate `02b20213…`/`a50e99c9…`）。",
+    "**manifest 自洽**：`manifest.txt` 覆盖该目录全部非 manifest 文件（10 产物 + README + receipt），每行 sha/bytes 与 committed blob 一致；manifest 不含自身；LF 无 BOM。",
+    "**字节级 EOL 保护**：`.gitattributes` 增 `docs/development-evidence/render-bvh/sdf-validate-window/** -text -diff`，`git check-attr` 为 `text: unset`、`diff: unset`，staged blob 大小 = 33,651 B（不被 autocrlf 改写）；该规则只影响本目录，不改任何既有 blob。",
+    "**边界**：`target/` 原件保留、未改名/未覆盖；`src`/`scripts`/`Cargo.*`/`fixtures/render-bvh/scene-sdf` 零改动；零 GPU、不重跑窗口、不重冻；窗口卡 `2026-10-31-render-sdf-validate` 仍 `in_progress`，本卡不宣称验收通过、不改判据/容差/参考。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-31-render-sdf-validate",
+      "2026-10-31-render-sdf-host-unlock-rollback"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      ".gitattributes",
+      "docs/development-evidence/render-bvh/sdf-validate-window/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册（Chief/QA 建议：窗口失败产物入库留痕）。派生于 in_progress 的窗口卡 `2026-10-31-render-sdf-validate`——该卡运行中 scope 声明冻结，无法把新证据目录并入其 files，故按「派生任务自行登记」处理：本卡只负责产物留档与 EOL 保护规则，窗口卡状态不变。离线，零 GPU。QA 复核卡 `2026-10-31-render-sdf-validate-window-check` 已覆盖这些产物的内容核对。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-31T03:20:00.000Z",
+  "updated_at": "2026-10-31T03:20:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-validate-window/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-validate-attempts-evidence"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src",
+        "scripts",
+        "Cargo.toml",
+        "Cargo.lock",
+        "fixtures/render-bvh/scene-sdf"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "等价",
+        "精度达标",
+        "SDF 渲染已覆盖"
+      ]
+    }
+  ]
+}
