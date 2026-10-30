@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-sphere-dot-a-order-revert",
+  "title": {
+    "zh": "回滚球面 a=dot(vec,vec) 收缩次序 fix（恢复 scene-a 位级回归；U4 球轮廓判据保持未通过；离线零 GPU）",
+    "en": "Revert the sphere `a = dot(vec,vec)` contraction-order fix (restore bitwise scene-a regressions; U4 sphere-outline criterion stays not-passed; offline, zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "U4 attempt3 证明该 fix 与历史参考冲突：scene-a 的 `use_fast_math=false` 参考（S7b1-kernel 采集）把 `a` 合成为 (0,1,2)，而 scene-sdf 的 `use_fast_math=false` 参考（U3 采集）合成为 (1,0,2)；改到 (1,0,2) 后 6 个回归实体全部红在 scene-a cam1 球面轮廓（首差 pixel 28969 / (169,120)，max_ulp=73），改前为位级 0。**没有任何单一实现能同时位级匹配两份参考**，且 73 ULP 远超 ≤4 ULP，无法用容差桥接。按 Chief 处置：回滚 fix（`a` 恢复 `dot3_ch0`，即 (0,1,2)），产品回到与全部历史参考位级一致的状态；U4 球轮廓判据**保持未通过**，不改判据/参考/容差。",
+    "en": "Revert the sphere a-order fix because it conflicts with the scene-a precise references (73 ULP at the same silhouette pixels), restoring the product's bitwise agreement with all historical references. No criteria/reference/tolerance change."
+  },
+  "modules": {},
+  "acceptance": [
+    "**逐字节回滚**：`src/render/kernel/cuda/render_math.cu` 恢复到 fix 前内容（`git diff 8126868c^ -- src/render/kernel/cuda/render_math.cu` 为空），即 `a = dot3_ch0(vec,vec)`（先乘第 0 分量）、`dot3_ch0` helper 存在、注释回到 fix 前文本；`git diff --stat` 仅该文件。",
+    "**内核身份三代**：证据记录 gen1（原始）`source 778216b2…/PTX 34f91147…/268,589`、gen2（fix `8126868c`）`eb0e717f…/7782aeb1…/268,589`、gen3（本回滚）应与 gen1 **完全相同**（用 `render_kernel_flags -- --ignored` 探针实测并贴原始输出）；不一致必须停下核对。",
+    "**回归恢复的证据口径**：本片不跑 GPU 窗口；用 attempt3 的失败证据（`target/render-bvh/sdf-validate-window/attempt3/`：6 个回归实体红在 pixel 28969、max_ulp 73）说明 fix 的副作用，用「gen3 == gen1 字节/身份」说明回滚把产品恢复到 attempt1/2 与全部历史窗口绿的状态；不宣称 U4 通过。",
+    "**门禁与构建**：fmt/clippy/clippy-cuda/unit 全绿（unit 1111/0/397）；`cargo test --locked --no-run` EXIT=0 含 `Finished`；`normify validate --fingerprints` 错误 0。",
+    "**边界**：不改判据/容差/参考/fixtures；不改写历史证据（fix 片证据保持原样，回滚关系在卡与 receipt 记录）；零 GPU 窗口、零冻结；U1b 重做暂缓（SDF 能力维持不可达）；attempt3 冻结作废不复用。",
+    "**证据**：`docs/development-evidence/render-bvh/sphere-dot-a-order-revert/`（README 记 fix→revert 链与冲突事实、receipt、三代内核身份、门禁快照、no-run、validate、src diff、manifest）；LF 无 BOM、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-31-render-sdf-sphere-dot-a-order-fix"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "src/render/kernel/cuda/render_math.cu",
+      "docs/development-evidence/render-bvh/sphere-dot-a-order-revert/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册（Chief 处置：attempt3 证伪该 fix 的适用性 → 回滚）。冲突事实：两份同为 mujoco_warp 3.15 / warp 1.15 / fast_math=false 的上游采集，对 `a` 的 f32 收缩次序给出不同结果（scene-a=(0,1,2)、scene-sdf=(1,0,2)），同一产品实现无法同时位级匹配；详见 attempt3 记录与后续只读 RCA（`target/`）。本片只回滚产品代码并记录三代内核身份，不做窗口、不改判据；U1b 重做暂缓。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-31T04:00:00.000Z",
+  "updated_at": "2026-10-31T04:00:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sphere-dot-a-order-revert/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-sphere-dot-a-order-revert"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/render-bvh",
+        "docs/development-evidence/render-bvh/sphere-dot-a-order-fix",
+        "docs/development-evidence/render-bvh/sdf-validate-window",
+        "docs/development-evidence/render-bvh/sdf-host-unlock-rollback"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标",
+        "SDF 渲染已覆盖"
+      ]
+    }
+  ]
+}
