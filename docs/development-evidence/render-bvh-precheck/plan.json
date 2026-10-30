@@ -171,7 +171,7 @@
     ]
   },
   "delivery_tracking": {
-    "updated_at": "2026-10-29",
+    "updated_at": "2026-10-30",
     "policy": "Rolling table only: slice -> task id -> owner -> status -> evidence path. Do not change slice scope, acceptance, or tolerances here.",
     "gpu_policy": {
       "mutex": "gpu:windows-t4",
@@ -637,6 +637,15 @@
         "execution": "done (artifacts only)",
         "evidence": "docs/development-evidence/render-bvh/r02-skybox-s3-artifacts-commit/",
         "note": "f0213748/99b88d1f/65022c3a/8a967468; reference-skybox 4 files (capture 47f704de...) and guards attempt=2 committed byte-identical (guards blob==disk 28,931 B via local -text; R05-QA-O7 class caveat)"
+      },
+      {
+        "slice": "R08-S3",
+        "task_id": "2026-10-29-render-r08-rgb-hetero-validate",
+        "owner": "Backend",
+        "normify_status": "verified",
+        "execution": "done (device validation window attempt=1, normal util<40 thresholds, no exception)",
+        "evidence": "docs/development-evidence/render-bvh/r08-rgb-hetero-validate/",
+        "note": "window c5592d65 (+ QA check card 337abc14, manifest must-fix 89afd36e, QA close 9b1c4d81); guards-r08-rgb-hetero.json attempt=1 sha e81d69a4.../28,970 B/77(9+68)/aggregate 3ad8b352...; WINDOW_RUN_DONE: 9/9 exit 0, sha_guards 77/77, post 9/9, zero compile, monitor 60/60 util 2-8, free_min 13,179, run-window floor 10,240 and pre-window floor 10,374 not breached, samples 177; per-camera RGB hetero/all-off/matrix all beyond_1_lsb=0, depth mismatch=0/0 ULP, seg mismatch=0; two-run sha equal; 8 regressions zero drift; four failed monitor rounds retained under monitor-history; QA O1 aggregate suite label deferred to 2026-10-30-render-window-guard-aggregate-suite-hardcode"
       }
     ],
     "structural_decisions": [
@@ -779,6 +788,11 @@
         "id": "N12",
         "note": "R02 follow-ups / known limits: run-window.ps1 writes guard_aggregate.suite from a hard-coded R05 string (QA B-O2, cosmetic; aggregate hashes correct); -GuardsOnly dry-run output is not archived in evidence (window guard.log 77/77 is the proof); attempt1 exception monitor CSV stays only under target/render-bvh/r02-skybox-window/ (referenced by sha in S3 evidence); guards signed bytes depend on local .git/info/attributes -text (R05 QA O7 class). Backlog: next render families R07 splat / R06 flex pending user decision.",
         "source": "Arch 2026-10-29"
+      },
+      {
+        "id": "N13",
+        "note": "R08 per-camera mask family delivered: offline implementation 2026-10-29-render-r08-rgb-hetero (S1 mk structure split 7de14d30, S2 window material e796d45e), window 2026-10-29-render-r08-rgb-hetero-validate attempt=1 (c5592d65; manifest must-fix 89afd36e; QA check 337abc14 pass/0 blockers/1 must-fix/8 observations closed 9b1c4d81). The window ran at normal util<40 thresholds (not_a_normal_threshold_pass=false, no -OpenUtilLimit, no exception): monitor 60/60 (util 2-8, free_min 13,452) after four failed rounds (foreign CUDA context, external heavy load x2, desktop 3D engine spikes) which are retained under monitor-history. guards 77/77 (sha e81d69a4..., 28,970 B, aggregate 3ad8b352...), GuardsOnly 77/77 + stash 9/9, 9/9 entities exit 0, post-window recheck 9/9, zero Rust compile (deps 1839 unchanged), free_min 13,179 above both floors, samples 177. Per-camera RGB heterogeneity (cam0_on/cam1_on/all_off), depth/seg cross masks, all-off early-return, isolation/reorder and two-run sha all at 0 differences; 8 regressions zero drift. Gap card 2026-10-28-render-per-camera-rgb-gap is covered by this window and is closed as covered (no residual item in the R08 scope). Deferred: per-world geometry/light poses (plan L S1), SDF gtype cull latent fix, AA+per-world, mesh polygon capacity, and the shared runner aggregate-suite label (2026-10-30-render-window-guard-aggregate-suite-hardcode).",
+        "source": "Arch 2026-10-30"
       }
     ]
   },
@@ -1441,6 +1455,82 @@
       "delivered_note": "attempt1 未过→A2→attempt2 全绿；QA pass ee281bc7/10301dc6；观察收口 df7f583d/254a49c4；收口复核 9bb9856b/8156591f"
     },
     {
+      "id": "R08-S3",
+      "name": "per-camera-rgb-hetero-window",
+      "category": "cameras",
+      "depends_on": [
+        "R08-S2"
+      ],
+      "priority": 88,
+      "scope": "Per-camera RGB channel masks (cam0 with RGB, cam1 without, all-off) plus depth/seg cross-channel heterogeneity, implemented offline in 2026-10-29-render-r08-rgb-hetero and replayed on the S7b/S8 frozen references in one device validation window; no new authoring capture and no criteria change.",
+      "deliverables": [
+        "src/render/context/camera_output.rs",
+        "src/render/kernel/megakernel_arrays.rs",
+        "tests/render_r08_cameras.rs",
+        "tests/support/render_bvh/r08_rgb_alloff.rs"
+      ],
+      "acceptance": [
+        "per-camera RGB masks (cam0_on=[0,-1], cam1_on=[-1,0], all_off=[-1,-1]) match the frozen references bit-level (beyond_1_lsb=0)",
+        "per-camera depth/seg masks (depth_adr=[0,-1], seg_adr=[-1,0]) match per camera and disabled channels are rejected",
+        "camera-selection matrix cases (all / mask_first / names_all / indices_reversed) stay at rgb beyond_1_lsb=0, depth mismatch=0/max_ulp=0, seg mismatch=0",
+        "cam1 all-channels-off early-return keeps cam0 three channels exact and rejects cam1's rgb/depth/seg",
+        "subset and reordered camera selections are bitwise identical to the combined render; two runs have identical sha256",
+        "8 regression entities keep their existing bitwise/ULP baselines with zero drift"
+      ],
+      "evidence": "docs/development-evidence/render-bvh/r08-rgb-hetero-validate/",
+      "new_file_limit": 500,
+      "new_files": [
+        "tests/support/render_bvh/r08_rgb_alloff.rs"
+      ],
+      "modifies": [
+        "src/render/context/camera_output.rs",
+        "src/render/kernel/megakernel_arrays.rs",
+        "src/render/kernel/megakernel.rs",
+        "tests/render_r08_cameras.rs"
+      ],
+      "gpu": {
+        "required": true,
+        "kind": "windows-sm89",
+        "window_budget": "one validation window (9 entities = 1 new + 8 regressions; 77 frozen entries); no authoring capture"
+      },
+      "window_entities": {
+        "new": [
+          "render_r08_cameras"
+        ],
+        "regressions": [
+          "render_skybox_reference",
+          "render_camera_rays",
+          "render_context_lifecycle",
+          "render_e2e",
+          "render_kernel_depth_seg",
+          "render_kernel_flags",
+          "render_kernel_rgb",
+          "render_r10_multi_world"
+        ],
+        "count": 9,
+        "freeze_profile": "cuda-probe",
+        "capture": "none (reuse the S0b/S7b/S8 frozen references)",
+        "note": "suite render-r08-rgb-hetero attempt=1; guards 77 = 9 exe + 68 read-only inputs"
+      },
+      "estimate_days": 1.5,
+      "out_of_scope": [
+        "per-world geometry/light poses (plan L S1, separate)",
+        "SDF gtype cull unlock (separate latent fix)",
+        "AA + per-world",
+        "mesh polygon capacity",
+        "performance acceptance",
+        "T4/Linux"
+      ],
+      "status": "delivered",
+      "delivered_commits": [
+        "c5592d65",
+        "337abc14",
+        "89afd36e",
+        "9b1c4d81"
+      ],
+      "delivered_note": "offline implementation card 2026-10-29-render-r08-rgb-hetero (S1 structure split 7de14d30, S2 window material e796d45e); window 2026-10-29-render-r08-rgb-hetero-validate attempt=1: normal util<40 monitor 60/60 (util 2-8, free_min 13,452, no exception), guards 77/77 sha e81d69a4.../28,970 B aggregate 3ad8b352..., 9/9 entities exit 0, post 9/9, zero compile, floor not breached, samples 177; QA check 2026-10-30-render-r08-rgb-hetero-validate-check pass/0 blockers/1 must-fix (manifest two lines, fixed 89afd36e)/8 observations; four earlier monitor rounds failed on foreign CUDA context / external load / desktop 3D engines and are retained under monitor-history"
+    },
+    {
       "id": "R09-S1",
       "name": "lighting-params",
       "category": "lighting",
@@ -2014,10 +2104,11 @@
       "item": "multicamera_heterogeneous",
       "slices": [
         "R08-S1",
-        "R08-S2"
+        "R08-S2",
+        "R08-S3"
       ],
       "status": "delivered",
-      "note": "R08 delivered 2026-10-28: per-camera output views (R08-S1) and camera-selection matrix plus heterogeneous resolutions/channels (R08-S2) are verified; single-world family only (nworld>1 moves to R10); no new authoring capture. Known gap: per-camera RGB channels is backlog 2026-10-28-render-per-camera-rgb-gap."
+      "note": "R08 delivered 2026-10-28: per-camera output views (R08-S1) and camera-selection matrix plus heterogeneous resolutions/channels (R08-S2) are verified; single-world family only (nworld>1 moves to R10); no new authoring capture. Known gap: per-camera RGB channels is backlog 2026-10-28-render-per-camera-rgb-gap. Update 2026-10-30: R08-S3 (2026-10-29-render-r08-rgb-hetero-validate) delivered per-camera RGB heterogeneity on the device at normal util<40 thresholds; the gap card is closed as covered, no residual item in the R08 scope."
     },
     {
       "item": "multi_world",

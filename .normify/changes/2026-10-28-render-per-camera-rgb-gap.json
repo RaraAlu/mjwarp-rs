@@ -5,7 +5,7 @@
     "zh": "渲染产品缺口：逐相机 RGB 通道开关（R08 发现，backlog 不 start）",
     "en": "Render product gap: per-camera RGB channel switches (found by R08, backlog)"
   },
-  "status": "backlog",
+  "status": "abandoned",
   "intent": {
     "zh": "记录 R08-S2 窗口发现的产品缺口：`megakernel` 的 RGB/depth/seg 三通道开关是**全局**（一次渲染内所有相机一致），不支持「cam0 有 RGB、cam1 无 RGB」这类**逐相机 RGB 异构**。R08-S2 窗口口径因此收窄为「分辨率异构 + depth/seg 通道异构」；RGB 异构只记录、不修。修复需要按 S7b3 先例拆 kernel 子文件，把三通道开关改成逐相机掩码（`render_rgb[nrender]` 已存在但当前由全局布尔填充），并重跑受影响的 M1/M2/M3 与 S8 位级证据 + 一次渲染验证窗。**本任务保持 backlog，不 start**；等用户/Chief 决定是否排期。",
     "en": "Record the R08-S2 product gap: the megakernel RGB/depth/seg channel switches are global (all cameras in one render share them), so per-camera RGB heterogeneity (e.g. camera0 with RGB, camera1 without) is unsupported. The R08-S2 window therefore narrows to resolution heterogeneity plus depth/seg channel heterogeneity; RGB heterogeneity is recorded only. Fixing it needs an S7b3-style kernel split with a per-camera RGB mask, a rerun of the affected M1/M2/M3 and S8 bit-level evidence, and one render validation window. This task stays in backlog and is not started until Arch/Chief schedules it."
@@ -24,13 +24,14 @@
     "resources": [],
     "priority": 60
   },
-  "note": "Arch 2026-10-28 登记：R08-S2 实现过程中发现（megakernel 三通道开关全局），Chief 已批「记产品缺口、不修、backlog 不 start」。\n\n2026-10-29 P4 排期（Chief 批准顺序 1→2→3→4，本卡=#1）：最小切片=host 逐相机通道掩码（render_rgb/depth/seg 三数组本就 per-render）+ 内核按掩码（必要时 S7b3 式拆文件）+ 窗口重放 M1/M2/M3/S8 位级 + 逐相机 RGB 异构负控；需 1 个验证窗；量级 2–3 人日；风险=内核行数棘轮（megakernel.rs/arrays 尚有余量）、R08 证据需更新、无新参考也可验。\n2026-10-29：已由实现卡 2026-10-29-render-r08-rgb-hetero 承接（host 逐相机三通道填充 + latent 负偏移修复；S1 离线、S2 窗口材料、S3 窗口 2026-10-29-render-r08-rgb-hetero-validate）；本卡保留为缺口跟踪，backlog 不 start。",
+  "note": "Arch 2026-10-28 登记：R08-S2 实现过程中发现（megakernel 三通道开关全局），Chief 已批「记产品缺口、不修、backlog 不 start」。\n\n2026-10-29 P4 排期（Chief 批准顺序 1→2→3→4，本卡=#1）：最小切片=host 逐相机通道掩码（render_rgb/depth/seg 三数组本就 per-render）+ 内核按掩码（必要时 S7b3 式拆文件）+ 窗口重放 M1/M2/M3/S8 位级 + 逐相机 RGB 异构负控；需 1 个验证窗；量级 2–3 人日；风险=内核行数棘轮（megakernel.rs/arrays 尚有余量）、R08 证据需更新、无新参考也可验。\n2026-10-29：已由实现卡 2026-10-29-render-r08-rgb-hetero 承接（host 逐相机三通道填充 + latent 负偏移修复；S1 离线、S2 窗口材料、S3 窗口 2026-10-29-render-r08-rgb-hetero-validate）；本卡保留为缺口跟踪，backlog 不 start。\n放弃：缺口已被 R08-S3 设备验证窗覆盖（逐相机 RGB 异构三态 + 矩阵 4 例全 0 差异，常规 util<40 窗口 60/60）；R08 范围无剩余项\n\n2026-10-30 覆盖明细（供追溯）：`2026-10-29-render-r08-rgb-hetero-validate` attempt=1，常规 util<40（无例外、无 `-OpenUtilLimit`）：monitor 60/60（util 2–8，free_min 13,452），guards 77/77（sha `e81d69a4…`/28,970 B，aggregate `3ad8b352…`），9/9 实体 exit 0，post 9/9，zero compile；逐相机异构 RGB：cam0_on `[0,-1]` sha `f62f4d73…`、cam1_on `[-1,0]` sha `1325755c…`、all_off `[-1,-1]` sha `b09e2eec…`；矩阵 4 例 `rgb beyond_1_lsb=0`、depth `mismatch=0/max_ulp=0`、seg `mismatch=0`；两跑 sha 相等；8 回归零漂移。证据 `docs/development-evidence/render-bvh/r08-rgb-hetero-validate/`；汇总 `docs/development-evidence/render-bvh/r08-summary/`。",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-27T18:36:00.000Z",
-  "updated_at": "2026-10-29T22:42:00.000Z",
+  "updated_at": "2026-10-30T04:18:59.958Z",
+  "closed_at": "2026-10-30T04:18:59.958Z",
   "checks": [
     {
       "kind": "forbid_claim",

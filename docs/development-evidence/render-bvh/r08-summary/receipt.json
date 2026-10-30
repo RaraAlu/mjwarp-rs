@@ -1,0 +1,76 @@
+{
+  "task_id": "2026-10-30-render-r08-rgb-hetero-closeout",
+  "slice": "R08-S3",
+  "slice_name": "per-camera-rgb-hetero-window",
+  "plan": "docs/development-evidence/render-bvh-precheck/plan.json",
+  "plan_changes": {
+    "slice_added": "R08-S3 (status delivered, depends_on R08-S2, evidence docs/development-evidence/render-bvh/r08-rgb-hetero-validate/)",
+    "delivery_row_added": "R08-S3 -> 2026-10-29-render-r08-rgb-hetero-validate (verified, node: window c5592d65, QA check 337abc14, must-fix 89afd36e, QA close 9b1c4d81)",
+    "delivery_tracking_updated_at": "2026-10-30",
+    "scheduling_note_added": "N13 (family delivered, gap card covered, deferred items listed)",
+    "r01_p8_mapping_updated": "multicamera_heterogeneous slices now [R08-S1, R08-S2, R08-S3]"
+  },
+  "chain": {
+    "offline_implementation": "2026-10-29-render-r08-rgb-hetero (S1 structure split 7de14d30, S2 window material e796d45e)",
+    "window": "2026-10-29-render-r08-rgb-hetero-validate (evidence c5592d65)",
+    "qa_check": "2026-10-30-render-r08-rgb-hetero-validate-check (card 337abc14, QA close 9b1c4d81)",
+    "must_fix": "manifest two lines recomputed from committed blobs 89afd36e"
+  },
+  "gates": {
+    "offline_slice": "fmt / clippy / clippy-cuda / unit all green; --no-run logs carry exit code and Finished",
+    "board_at_closeout": "583 verified / 0 running / 0 error / 0 warnings (HEAD 9b1c4d81)"
+  },
+  "guards": {
+    "file": "scripts/validate/render-bvh/guards-r08-rgb-hetero.json",
+    "sha256": "e81d69a4daa0268777eff698ecf7621dee333076915f805c2e447cc9d0c34f3a",
+    "bytes": 28970,
+    "entries": 77,
+    "frozen_exes": 9,
+    "guard_inputs": 68,
+    "aggregate_sha256": "3ad8b3522314222629f1cf8e5a9703a9c53ad75433373d0c06f402803a517f1c",
+    "guards_only": "GUARDS_OK=77/77 + stash 9/9",
+    "artifact_commit": "2099430e (byte-identical blob, local -text)"
+  },
+  "window": {
+    "date_local": "2026-10-30",
+    "start": "2026-10-30T12:05:31.6321113+08:00",
+    "end": "2026-10-30T12:06:27.4603431+08:00",
+    "thresholds": "normal util<40, no exception, no -OpenUtilLimit, not_a_normal_threshold_pass=false",
+    "monitor": {"samples": 60, "longest_clean": 60, "util_min": 2, "util_max": 8, "free_min_mib": 13452, "ge40_samples": 0, "compute_filtered_max": 0, "build_max": 0},
+    "entities": {"count": 9, "new": 1, "regression": 8, "all_exit_zero": true, "post_window_exe_recheck": "9/9 mismatches=0"},
+    "sha_guards": "77/77",
+    "zero_rust_compile": true,
+    "resources": {"samples": 177, "util_max_percent": 7, "free_min_mib": 13179, "used_peak_mib": 2883, "delta_mib": 276, "increment_limit_mib": 3072, "floor_mib_run_window": 10240, "floor_mib_pre_window": 10374, "floor_breached": false},
+    "failed_monitor_rounds_retained": ["round1 0/60 foreign CUDA context", "round2 37/60 external heavy load", "round3 7/60 external heavy load", "round4 37/60 desktop 3D engine spikes"]
+  },
+  "criteria_summary": {
+    "heterogeneous_rgb": {"cam0_on": "[0,-1] sha f62f4d73...", "cam1_on": "[-1,0] sha 1325755c...", "all_off": "[-1,-1] sha b09e2eec..."},
+    "heterogeneous_depth_seg": "depth_adr [0,-1], seg_adr [-1,0]; per-camera vs reference and disabled-camera rejection pass",
+    "matrix_cases_zero": "all/mask_first/names_all/indices_reversed: rgb beyond_1_lsb=0, depth mismatch=0/max_ulp=0, seg mismatch=0",
+    "two_runs_sha256_identical": true,
+    "regressions_zero_drift": true
+  },
+  "qa_verdict": {
+    "verdict": "pass / blockers 0 / must-fix 1 / observations 8",
+    "must_fix": "manifest two lines recorded worktree CRLF sizes/shas instead of committed blob values; fixed in 89afd36e (no window rerun)",
+    "observations_disposition": "O1 aggregate suite label deferred to 2026-10-30-render-window-guard-aggregate-suite-hardcode (proposed, not started); others recorded"
+  },
+  "gaps": {
+    "2026-10-28-render-per-camera-rgb-gap": "covered by this window; closed as covered (abandoned), no residual item in R08 scope",
+    "2026-10-30-render-window-guard-aggregate-suite-hardcode": "proposed backlog, shared window tool label fix, aggregate hash unaffected"
+  },
+  "not_covered": [
+    "per-world geometry/light poses (plan L v1 not implemented; per-world lights deferred)",
+    "SDF gtype==8 cull latent fix",
+    "AA + per-world (explicit Unsupported in L v1)",
+    "mesh polygon capacity 16->20",
+    "performance claims",
+    "T4/Linux"
+  ],
+  "claims": {
+    "criteria_relaxed": false,
+    "reference_changed": false,
+    "upstream_equivalence_claimed": false,
+    "product_acceptance_claimed": false
+  }
+}
