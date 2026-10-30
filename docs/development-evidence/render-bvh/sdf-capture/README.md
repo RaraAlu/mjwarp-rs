@@ -10,7 +10,7 @@
 | 项 | 值 |
 | --- | --- |
 | shell | **Windows PowerShell 5.1.26100.7920**（`aggregate_sha256` 的 `Sort-Object` 文化排序约束；本窗不产 aggregate，仍统一用 5.1） |
-| 常规 monitor（失败，原样保留） | `monitor/monitor-pre-window-regular-failure.csv`：354 samples / **longest_clean=21/60** / util 35–50（84 个 ≥40）/ free_min 13,388 / floor 10,445 未破 / filtered=0 / build=0 / exit 20，`23:12:30–23:42:26` |
+| 常规 monitor（失败，原样保留） | `monitor/monitor-pre-window-regular-failure.csv`：354 samples / **longest_clean=21/60** / util **5–50**（`util_min=5`；84 个 ≥40）/ free_min 13,388 / floor 10,445 未破 / filtered=0 / build=0 / exit 20，`23:12:30–23:42:26` |
 | 例外基线（重取） | `monitor/pre-window-snapshot-exception.txt`：min free **13,201** ⇒ `floor = 13,201 − 3,072 = 10,129`；filtered=0、build=0、树干净 |
 | 例外 monitor（生效） | `monitor/monitor-pre-window-attempt2-exception.csv`：**60/60**、util 30–42、free_min **13,171**、ge60=0、filtered=0、build=0、exit 0，`00:00:50–00:05:51` |
 | 采集命令 | 两条，各一次（`--use-fast-math false --use-shadows true --repeat 2`）：`sdf-mesh` → 00:06:08、`sdf-occluder` → 00:06:22，均 exit 0 |
