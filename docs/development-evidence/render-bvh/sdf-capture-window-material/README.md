@@ -1,0 +1,47 @@
+# SDF 渲染参考采集窗口材料（待用户双签；未执行）
+
+材料任务：`2026-10-30-render-sdf-capture-authoring`（U2）
+被执行任务：`2026-10-30-render-sdf-capture`（U3，GPU，需用户双签）
+上游事实：渲染器对 SDF 求交的是其底层 mesh（`render.py:738-761`、`render_test.py:1251`），采集不需要 SDF 距离场代码。
+
+## 0. 一句话
+
+跑两次 pinned 采集（`sdf-mesh` / `sdf-occluder` 两组），把 SDF 渲染参考落到
+`fixtures/render-bvh/scene-sdf/capture-sdf/<group>/`（rgb/depth/seg npz + capture.json）。
+**这是采集，不是验收**：本窗不产生任何渲染数值判定；数值结论只在 U4 验证窗（U1b host 解锁后）。
+
+## 1. 脚本身份
+
+`scripts/capture_render_sdf.py` sha256 `9acd2130f58cfc2cc495bc73bae4e12cb1e9fb3c68c4d245819e809e524fde67`、**20,380 B / 427 行 / 非 ASCII 0**，派生自 R05-S3a `capture_render_hfield.py`（环境 pin / 确定性 npz / 两跑字节相等 / legacy sha 清单全保留）；派生器与被删改片段见 `sdf-capture-authoring/README.md` §1。
+
+## 2. 场景
+
+- `scene.xml`（group `sdf-mesh`）sha256 `376eb81c…`、3,388 B：SDF cube（volume SDF、无 plugin、`contype=conaffinity=0`）+ plane + sphere + 2 相机（320×240 透视 / 240×180 俯视）+ 2 个 castshadow 灯。
+- `scene-mixed.xml`（group `sdf-occluder`）sha256 `7869cfae…`、3,062 B：同上 + 视线内静态 box occluder。
+- 静态校验（CPU-only pinned MuJoCo）：`sdf-capture-authoring/logs/scene-check.json`。
+
+## 3. 命令（逐字，见 `materials/window-plan.txt`）
+
+```text
+# 开窗前自检（不建 CUDA device、不写盘）
+target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_sdf.py --dry-run --group sdf-mesh --out-dir fixtures/render-bvh/scene-sdf/capture-sdf/sdf-mesh
+target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_sdf.py --dry-run --group sdf-occluder --out-dir fixtures/render-bvh/scene-sdf/capture-sdf/sdf-occluder
+
+# 窗口内唯二 GPU 命令（各跑一次）
+target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_sdf.py --group sdf-mesh --use-fast-math false --use-shadows true --repeat 2 --out-dir fixtures/render-bvh/scene-sdf/capture-sdf/sdf-mesh
+target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_sdf.py --group sdf-occluder --use-fast-math false --use-shadows true --repeat 2 --out-dir fixtures/render-bvh/scene-sdf/capture-sdf/sdf-occluder
+```
+
+## 4. 门槛与基线（常规，无例外）
+
+- monitor：`util < 40`、`-Required 60 -MaxMinutes 30`、**不预批例外、不加 `-OpenUtilLimit`**（本窗没有 `run-window`/guards 步骤，例外参数也无处可加）。
+- 基线：开窗前 5 分钟三点 free/util + compute-apps raw/filtered + build 进程 0 + 树干净；`floor = baseline_min_free − 3072`；窗内任一采样 free 破 floor 或 used 增量 > 3072 MiB → 停手。
+- 失败即停手（不重试、不调参、不放宽）：任一非零退出 / 两跑不相等（数组或 npz 字节）/ legacy 69 条变化 / 写盘越界 / free 破 floor / 外部 GPU 负载或 util ≥ 40。
+
+## 5. 预期产物
+
+`fixtures/render-bvh/scene-sdf/capture-sdf/<group>/`：`rgb.npz`、`depth.npz`、`seg.npz`、`capture.json`（字段清单见 `materials/expected-products.json`）。两组各 ≈1.4 MB。
+
+## 6. 双签栏
+
+`materials/window-plan.txt` 末尾 `USER DOUBLE-SIGN BLOCK` 待填；用户签「窗口计划 + 基线」后才执行。本窗不冻结测试可执行文件、不需要新 guards；后续 U4 验证窗才需要新冻结（U1 改了 `.cu`，旧 exe 哈希全部失效，绝不复用 R05/R02/R08 guards）。

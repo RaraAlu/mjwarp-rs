@@ -1,0 +1,124 @@
+{
+  "task_id": "2026-10-30-render-sdf-capture-authoring",
+  "slice": "SDF unlock U2",
+  "prerequisite": "2026-10-30-render-sdf-mesh-path",
+  "intent": "author the SDF render reference capture offline: scene-sdf fixtures plus a derived capture script (dry-run only); no GPU, no reference products written",
+  "upstream_facts": {
+    "sdf_is_rendered_as_underlying_mesh": true,
+    "citations": [
+      "mujoco_warp/_src/render.py:738-761 (MESH|SDF -> ray_mesh_with_bvh_anyhit / ray_mesh_with_bvh with geom_dataid)",
+      "mujoco_warp/_src/render_test.py:1251 ('render using the underlying mesh geometry')",
+      "mujoco_warp/_src/bvh.py:211-220 (MESH|SDF bounds from mesh_bounds_size[did])"
+    ]
+  },
+  "deliverables": {
+    "scene": "fixtures/render-bvh/scene-sdf/scene.xml",
+    "scene_mixed": "fixtures/render-bvh/scene-sdf/scene-mixed.xml",
+    "script": "scripts/capture_render_sdf.py",
+    "window_material": "docs/development-evidence/render-bvh/sdf-capture-window-material/",
+    "derivation_helper": "target/sdf-u2/derive_sdf_capture.py (not committed)"
+  },
+  "scene_identity": {
+    "scene": {
+      "path": "fixtures/render-bvh/scene-sdf/scene.xml",
+      "bytes": 3388,
+      "lines": 59,
+      "sha256": "376eb81ce200b29373af3965c7abefd90b8f00188a688db583080836dfa868e8"
+    },
+    "scene_mixed": {
+      "path": "fixtures/render-bvh/scene-sdf/scene-mixed.xml",
+      "bytes": 3062,
+      "lines": 55,
+      "sha256": "7869cfae5e16795ebf86b93c931ef36a8e94464452762e28f1357e0e68a1584e"
+    }
+  },
+  "script_identity": {
+    "path": "scripts/capture_render_sdf.py",
+    "bytes": 20380,
+    "lines": 427,
+    "line_limit": 500,
+    "non_ascii_bytes": 0,
+    "sha256": "9acd2130f58cfc2cc495bc73bae4e12cb1e9fb3c68c4d245819e809e524fde67",
+    "derived_from": "scripts/capture_render_hfield.py (R05-S3a skeleton; environment pin, deterministic npz, two-run byte equality and legacy sha manifest kept)",
+    "ast_parse": "ok",
+    "task_id_in_script": "2026-10-30-render-sdf-capture"
+  },
+  "scene_static_check": {
+    "tool": "target/sdf-u2/scene_check.py with pinned MuJoCo (CPU only)",
+    "log": "logs/scene-check.json",
+    "scene": {"ngeom": 3, "nlight": 2, "ncam": 2, "nq": 0, "nmesh": 1},
+    "scene_mixed": {"ngeom": 4, "nlight": 2, "ncam": 2, "nq": 0, "nmesh": 1},
+    "checks": [
+      "exactly one geom with type==8 per scene",
+      "SDF geom dataid points at the cube mesh (dataid=0, nmesh=1)",
+      "SDF geom contype==0 and conaffinity==0 (no collision pair reaches the SDF narrowphase)",
+      "cube mesh: 8 vertices / 12 faces, bounds +-0.35",
+      "cameras 2 (320x240 perspective, 240x180 top-down), lights 2 both castshadow"
+    ],
+    "geom_size_note": "MuJoCo fills an SDF geom geom_size from its underlying mesh half-extents (measured [0.35,0.35,0.35]); the upstream render_test [1,1,1] value is that fixture's mesh normalization, not a general rule"
+  },
+  "dry_run": {
+    "command_mesh": "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/capture_render_sdf.py --dry-run --group sdf-mesh --out-dir fixtures/render-bvh/scene-sdf/capture-sdf/sdf-mesh",
+    "command_occluder": "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/capture_render_sdf.py --dry-run --group sdf-occluder --out-dir fixtures/render-bvh/scene-sdf/capture-sdf/sdf-occluder",
+    "exit_codes": {"sdf-mesh": 0, "sdf-occluder": 0},
+    "logs": ["logs/dryrun-sdf-mesh.json", "logs/dryrun-sdf-occluder.json"],
+    "cuda_device_created": false,
+    "out_dir_written": false,
+    "out_dir_exists_after": false,
+    "legacy_manifest_entries": 69,
+    "legacy_scope": "fixtures/render-bvh minus the new scene-sdf/ subtree (shadow and hfield references are included on purpose; they are frozen and any change fails the run)",
+    "parameters": {
+      "use_fast_math": false,
+      "use_shadows": true,
+      "samples_per_pixel": 1,
+      "repeat": 2,
+      "seed": 20261030
+    },
+    "environment": {
+      "python": "3.12.13",
+      "python_sha256": "feeec36120097a03201a96ae17a0e2c1fba70dd6241cb4bfdd9e7c2a00bada77",
+      "warp": "1.15.0",
+      "mujoco": "3.15.0",
+      "mujoco_warp": "3.15.0",
+      "numpy": "2.5.4",
+      "upstream_revision": "71da24d956378a87a703b6e1442b13aec0c4ac29",
+      "upstream_clean": true
+    }
+  },
+  "expected_products": {
+    "dir": "fixtures/render-bvh/scene-sdf/capture-sdf/<group>/",
+    "files": ["rgb.npz", "depth.npz", "seg.npz", "capture.json"],
+    "arrays": {
+      "rgb": ["rgb_cam0 [240,320,3] f32", "rgb_cam1 [180,240,3] f32"],
+      "depth": ["depth_cam0 [240,320] f32", "depth_cam1 [180,240] f32"],
+      "seg": ["seg_cam0 [240,320,2] i32", "seg_cam1 [180,240,2] i32"]
+    },
+    "capture_json_required_fields": [
+      "task_id",
+      "group",
+      "kind=render-sdf-capture",
+      "two_captures_bitwise_identical",
+      "files_sha256",
+      "environment",
+      "recipe (scene sha/bytes)",
+      "parameters",
+      "legacy_reference_untouched",
+      "legacy_reference_files"
+    ]
+  },
+  "boundaries": {
+    "gpu": false,
+    "window_opened": false,
+    "device_execution": false,
+    "fonts_or_references_written": false,
+    "src_changed": false,
+    "tests_changed": false,
+    "existing_capture_scripts_changed": false,
+    "criteria_or_tolerance_changed": false
+  },
+  "claims": {
+    "numeric_acceptance": false,
+    "sdf_rendering_covered": false
+  },
+  "next": "U3 capture window (GPU, user double-sign; material in docs/development-evidence/render-bvh/sdf-capture-window-material/) -> U1b host unlock -> U4 validation window"
+}

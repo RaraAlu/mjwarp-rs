@@ -1,0 +1,72 @@
+{
+  "task_id_material": "2026-10-30-render-sdf-capture-authoring",
+  "task_id_executed": "2026-10-30-render-sdf-capture",
+  "gpu_required": true,
+  "user_double_sign_required": true,
+  "script": {
+    "path": "scripts/capture_render_sdf.py",
+    "sha256": "9acd2130f58cfc2cc495bc73bae4e12cb1e9fb3c68c4d245819e809e524fde67",
+    "bytes": 20380,
+    "lines": 427,
+    "non_ascii_bytes": 0
+  },
+  "groups": [
+    {
+      "group": "sdf-mesh",
+      "scene": "fixtures/render-bvh/scene-sdf/scene.xml",
+      "scene_sha256": "376eb81ce200b29373af3965c7abefd90b8f00188a688db583080836dfa868e8",
+      "out_dir": "fixtures/render-bvh/scene-sdf/capture-sdf/sdf-mesh"
+    },
+    {
+      "group": "sdf-occluder",
+      "scene": "fixtures/render-bvh/scene-sdf/scene-mixed.xml",
+      "scene_sha256": "7869cfae5e16795ebf86b93c931ef36a8e94464452762e28f1357e0e68a1584e",
+      "out_dir": "fixtures/render-bvh/scene-sdf/capture-sdf/sdf-occluder"
+    }
+  ],
+  "recipe": {
+    "use_fast_math": false,
+    "use_shadows": true,
+    "samples_per_pixel": 1,
+    "repeat": 2,
+    "seed": 20261030,
+    "cameras": ["cam-front 320x240 perspective", "cam-top 240x180 perspective"],
+    "lights": ["sun directional castshadow", "lamp point castshadow"]
+  },
+  "thresholds": {
+    "monitor": "util < 40, no pre-approved exception, do not pass -OpenUtilLimit",
+    "window_body": "plain capture commands (no run-window, no guards, no OpenUtilLimit)",
+    "floor": "floor_mib = baseline_min_free_mib - 3072; stop if free < floor or used delta > 3072 MiB"
+  },
+  "products": {
+    "dir": "fixtures/render-bvh/scene-sdf/capture-sdf/<group>/",
+    "files": ["rgb.npz", "depth.npz", "seg.npz", "capture.json"],
+    "arrays": {
+      "rgb": ["rgb_cam0 [240,320,3] float32", "rgb_cam1 [180,240,3] float32"],
+      "depth": ["depth_cam0 [240,320] float32", "depth_cam1 [180,240] float32"],
+      "seg": ["seg_cam0 [240,320,2] int32", "seg_cam1 [180,240,2] int32"]
+    },
+    "approximate_bytes_per_group": 1400000
+  },
+  "self_checks": {
+    "out_dir_inside": "fixtures/render-bvh/scene-sdf/",
+    "out_dir_must_be_empty": true,
+    "two_runs_byte_identical": true,
+    "legacy_manifest_entries": 69,
+    "legacy_scope": "fixtures/render-bvh minus scene-sdf/ (includes frozen shadow/hfield references)",
+    "no_claim": "this window produces references only; no numeric verdict"
+  },
+  "window": {
+    "time_cap_minutes": 20,
+    "commands_executed": 2,
+    "new_guards": false,
+    "reuse_old_guards": false,
+    "note": "the U4 validation window (after U1b) will freeze a new suite; old exe hashes are invalid because U1 changed the .cu sources"
+  },
+  "double_sign_block": {
+    "plan_version_sha256": "",
+    "decision": "",
+    "user_signature_date": "",
+    "chief_collated_at": ""
+  }
+}

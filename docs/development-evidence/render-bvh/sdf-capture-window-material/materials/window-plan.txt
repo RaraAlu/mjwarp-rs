@@ -1,0 +1,90 @@
+SDF RENDER REFERENCE CAPTURE - WINDOW PLAN (material; not executed)
+=========================================================================
+Task (material): 2026-10-30-render-sdf-capture-authoring
+Task (executed): 2026-10-30-render-sdf-capture   [GPU; user double-sign required]
+Unlock chain: U1 2026-10-30-render-sdf-mesh-path (verified) -> U2 authoring (this) -> U3 capture -> U1b host unlock -> U4 validation
+Upstream fact: the renderer intersects the SDF geom's underlying mesh (render.py:738-761, render_test.py:1251);
+the capture therefore needs NO SDF distance-field code.
+
+SCRIPT IDENTITY
+- path   : scripts/capture_render_sdf.py
+- sha256 : 9acd2130f58cfc2cc495bc73bae4e12cb1e9fb3c68c4d245819e809e524fde67
+- bytes  : 20380
+- lines  : 427 (LF, <=500)
+- ascii  : 0 non-ASCII bytes
+- derived: scripts/capture_render_hfield.py (R05-S3a skeleton); existing capture scripts and
+           existing references are untouched.
+
+SCENES (fixtures/render-bvh/scene-sdf/)
+- scene.xml        sha256 376eb81ce200b29373af3965c7abefd90b8f00188a688db583080836dfa868e8  3388 B
+  group sdf-mesh : SDF cube (volume SDF over convex cube mesh) + plane + sphere + 2 cameras + 2 shadow lights
+- scene-mixed.xml  sha256 7869cfae5e16795ebf86b93c931ef36a8e94464452762e28f1357e0e68a1584e  3062 B
+  group sdf-occluder : same plus one static box occluder on the cam-front line of sight
+- static check (CPU, pinned MuJoCo): logs/scene-check.json in the authoring evidence; exactly one
+  type==8 geom per scene, dataid -> cube mesh, contype=conaffinity=0 (SDF collision narrowphase never runs).
+
+PINNED ENVIRONMENT (dry-run verified 2026-10-30, no CUDA device created)
+- python   : target/mjwarp-parallel/venv/Scripts/python.exe (sha256 feeec361..., 3.12.13)
+- versions : warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4
+- upstream : target/mjwarp-parallel/upstream @ 71da24d956378a87a703b6e1442b13aec0c4ac29 (clean)
+
+COMMANDS (verbatim)
+(A) pre-window self-check (no CUDA device, writes nothing; may be run outside the window)
+target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_sdf.py --dry-run --group sdf-mesh --out-dir fixtures/render-bvh/scene-sdf/capture-sdf/sdf-mesh
+target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_sdf.py --dry-run --group sdf-occluder --out-dir fixtures/render-bvh/scene-sdf/capture-sdf/sdf-occluder
+
+(B) the TWO GPU commands inside the window, run once each (in this order)
+target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_sdf.py --group sdf-mesh --use-fast-math false --use-shadows true --repeat 2 --out-dir fixtures/render-bvh/scene-sdf/capture-sdf/sdf-mesh
+target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_sdf.py --group sdf-occluder --use-fast-math false --use-shadows true --repeat 2 --out-dir fixtures/render-bvh/scene-sdf/capture-sdf/sdf-occluder
+
+Optional env: MJWARP_CAPTURE_AT (ISO8601; recorded in capture.json.captured_at; share across both groups)
+
+HARD SELF-CHECKS (non-zero exit on violation)
+- --out-dir must be inside fixtures/render-bvh/scene-sdf/ and must not already be non-empty
+- use_fast_math false (product same recipe), use_shadows true, samples_per_pixel=1
+- --repeat 2: array_equal for every array AND byte-identical npz (deterministic ZIP_STORED);
+  otherwise nothing is written and no claim is made
+- legacy sha256 manifest (fixtures/render-bvh minus scene-sdf/, measured 69 entries; includes the frozen
+  shadow/hfield references) must be identical before and after; any change fails the run
+
+PRE-WINDOW BASELINE (5 minutes before the window)
+- nvidia-smi free/util x3 (about 1 s apart), compute-apps raw + filtered, build processes (must be 0),
+  git log -1 + git status --porcelain (must be clean)
+- baseline_free_mib = min(free) of the 3 samples
+- floor_mib = baseline_free_mib - 3072
+- stop if any sample has free < floor_mib or used delta > 3072 MiB
+- regular threshold: util < 40 (NO pre-approved exception, do NOT pass -OpenUtilLimit; capture is a plain
+  command, there is no run-window/guards step in this window)
+- if util stays >= 40 or foreign compute-apps appear before opening: STOP and report; do not retry
+
+WINDOW BODY / TIME CAP (20 min cap)
+  step 0 confirm zero build processes + clean tree + write snapshot          2 min
+  step 1 environment check (commands A)                                     1-2 min
+  step 2 run command B group 1 (sdf-mesh)                                   seconds - 1 min
+  step 3 run command B group 2 (sdf-occluder)                               seconds - 1 min
+  step 4 re-check floor, verify product lists + sha, record window facts     3 min
+
+FAILURE => STOP (no retry, no parameter change, no relaxed criteria)
+1 any non-zero exit; 2 two captures differ (arrays or npz bytes); 3 legacy manifest differs (69);
+4 write outside the allowed subtree / out-dir already non-empty; 5 free below floor;
+6 foreign GPU load or util >= 40. Keep target/ window facts, report Chief and user.
+
+EXPECTED PRODUCTS (fixtures/render-bvh/scene-sdf/capture-sdf/<group>/)
+  rgb.npz    rgb_cam0 [240,320,3] f32, rgb_cam1 [180,240,3] f32
+  depth.npz  depth_cam0 [240,320] f32, depth_cam1 [180,240] f32 (raw planar, 0 = no hit)
+  seg.npz    seg_cam0 [240,320,2] i32, seg_cam1 [180,240,2] i32 (bg = (-1,-1))
+  capture.json  task_id/group/kind + recipe + environment + two-run shas + two_captures_bitwise_identical
+                + legacy_reference_untouched + legacy_reference_files + context/context_repeat
+- actual sha256 values come from the script output; per-group total is about 1.4 MB.
+- scope: this capture is a REFERENCE, not an acceptance run: it makes no numeric verdict.
+
+SIGNED ARTIFACTS / NEW GUARDS
+- This window produces reference files only; it freezes no test executables and needs no guards.
+- The U4 validation window after U1b will freeze a NEW suite (new exe hashes; the U1 .cu change invalidated
+  every old executable, so R05/R02/R08 guards must not be reused).
+
+USER DOUBLE-SIGN BLOCK (to be filled)
+  plan version (this file) sha256 : ____________________
+  decision: [ ] approve  [ ] reject  [ ] modify (note: ____________)
+  user signature / date           : ____________________
+  Chief collated at               : ____________________
