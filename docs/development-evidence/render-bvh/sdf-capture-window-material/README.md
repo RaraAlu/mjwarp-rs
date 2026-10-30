@@ -49,3 +49,10 @@ target\mjwarp-parallel\venv\Scripts\python.exe -B scripts/capture_render_sdf.py 
 - **scope（4 项用户决定）**：① SDF 两窗合并（本 U3 采集 + 之后 U4 验证）、只做 volume SDF、1 场景 2 相机含 shadow 开/关对比；② per-world 采集窗批准（另窗，稍后）；③ mesh A1（16→20）实现批准，U8 是否纳入判据在其窗前后再确认；④ U8 判据确认不属于本计划。
 - **shell 硬约束**：本计划所有命令、聚合与自检**必须用 Windows PowerShell 5.1**（`powershell.exe -NoProfile -ExecutionPolicy Bypass -File …`），**不得用 pwsh 7**——`aggregate_sha256` 依赖 `Sort-Object` 的文化敏感排序，5.1（NLS）与 7（ICU）对同一文件集算出的摘要不同；窗口事实里记录实际 shell 版本。（U3 采集窗本身不产生 aggregate；U4 会用到。）
 - 本窗不冻结测试可执行文件、不需要新 guards；U4 验证窗才需要新冻结（U1 改了 `.cu`，旧 exe 哈希全部失效，绝不复用 R05/R02/R08 guards）。
+
+## 7. authoring-only `util<60` 例外（用户已签 2026-10-31T00:00+08:00）
+
+- **五要素**（详见 `materials/window-plan.txt` 的 `EXCEPTION BLOCK`）：`mode=authoring_only_exception_util_lt_60`、`approved_by=user via Chief 2026-10-31T00:00+08:00`、reason = 桌面 3D 噪声（dwm / Harness GUI / msedgewebview2；常规 monitor 354 样本 / longest 21 / 84 个 ≥40 / exit 20，free_min 13,388 与 floor 10,445 未破、filtered=0、build=0）、`original_normal_threshold_attempts_retained`（失败 CSV + 快照 + failure facts 原样保留）、`not_a_normal_threshold_pass=true`。
+- **例外 monitor**：`powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\monitor-until-clean.ps1 -OutCsv target\render-bvh\sdf-capture-window\monitor-pre-window-attempt2.csv -Required 60 -MaxMinutes 30 -MaxUtil 60`（新 CSV，不覆盖失败那份；**PowerShell 5.1**）。
+- **例外生效证据口径**：从例外 CSV 独立重算「util≥40 但仍 clean 的样本与连续段」、`ge60=0`、`util_max<60`、free/floor、filtered/build；若 60 样本全 <40 则记 `exception_effectively_not_load_bearing=true`，不得声称 60 门槛生效。
+- 本例外同时覆盖 per-world 采集窗（同一份用户签字，scope 见例外块）。
