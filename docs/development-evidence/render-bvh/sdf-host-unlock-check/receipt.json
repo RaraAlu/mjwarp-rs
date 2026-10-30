@@ -1,0 +1,78 @@
+{
+  "task_id": "2026-10-31-render-sdf-host-unlock-check",
+  "reviewed_task": "2026-10-31-render-sdf-host-unlock",
+  "pin": "af96c048",
+  "card_head_at_start": "abbb19ed",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 1,
+  "observations": 7,
+  "scope": "read-only QA review of U1b host unlock: single-file source diff and line counts, guard removal vs residual references, other rejections kept, kernel identity unchanged (independent concat + NVRTC), four gates + no-run + unit delta, evidence manifest, rollback declaration; no GPU, no device execution, no source edits",
+  "method": {
+    "recompute": "recompute.py (8 checks -> recompute.json; committed blobs via git cat-file)",
+    "gates_self_run": ["fmt", "clippy", "clippy-cuda", "unit", "no-run"],
+    "nvrtc_compile_only": "cargo test --locked --features cuda-probe --test render_kernel_flags flag_and_aa_sources_compile_under_render_gate -- --ignored --nocapture (PATH += cuda-12.8.1/bin)"
+  },
+  "checks": {"total": 8, "passed": 8, "failed": []},
+  "verified_numbers": {
+    "changes": {"files": ["src/render/kernel/megakernel.rs"], "insertions": 1, "deletions": 35,
+                "lines_before": 440, "lines_after": 406},
+    "guard_removal": {
+      "rust_executable_refs": 0,
+      "old_error_string_refs": 0,
+      "cu_comment_refs_remaining": 2,
+      "cu_comment_locations": ["src/render/kernel/cuda/render_common.cu:391", "src/render/kernel/cuda/render_common.cu:397"],
+      "removed_also": ["fn reject_sdf_geometry", "render() call site", "mod sdf_geometry_guard_tests (2 host-only tests)"]
+    },
+    "other_rejections_kept": ["S7b3 不含 splat", "light_mode=0", "use_precomputed_rays", "enabled_geom_ids",
+                              "splat_count", "ray_count", "nsamples"],
+    "kernel_identity": {
+      "changed": false,
+      "source_sha256": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5",
+      "source_bytes": 88865,
+      "ptx_sha256": "34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d",
+      "ptx_bytes": 268589,
+      "aa_resolve_ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+      "aa_resolve_ptx_bytes": 27536,
+      "cuda_diff_empty": true
+    },
+    "gates_self_run": {"result_lines": 136, "passed": 1106, "failed": 0, "ignored": 392,
+                       "previous_u1_passed": 1108, "delta": -2,
+                       "exits": {"fmt": 0, "clippy": 0, "clippy-cuda": 0, "unit": 0, "no-run": 0, "nvrtc": 0},
+                       "no_run_last_line": "EXIT=0", "guard_tests_absent_from_unit_log": true},
+    "scope": {"paths": 20, "src_files": 1, "evidence_files": 13, "normify_paths": 6,
+              "forbidden_prefixes_touched": 0},
+    "evidence_manifest": {"rows": 12, "match": "12/12", "files": 13, "utf16": []},
+    "validate_now": {"errors": 0, "warnings": 5}
+  },
+  "must_fix_items": [
+    {
+      "id": "P1",
+      "severity": "must-fix(minor, evidence wording)",
+      "where": "docs/development-evidence/render-bvh/sdf-host-unlock/README.md §2",
+      "finding": "README states residual references to reject_sdf_geometry are 0, but src still has 2 comment lines in render_common.cu (:391, :397) that reference the removed guard (already listed in removed-guard.txt), and those comments are now semantically inverted (they still say the host rejects gtype==8 / the change is unreachable). Executable refs are indeed 0 and the old error string has 0 hits.",
+      "fix": "reword §2 as: executable refs 0 (.rs 0 hits, old error string 0 hits); 2 .cu comment lines remain referenced, kept because this slice must not touch .cu (kernel identity), semantics to be updated at the next kernel re-baseline; no code change, no rerun"
+    }
+  ],
+  "observations": [
+    {"id": "O1", "text": "the 2 stale .cu comments (render_common.cu:391/397) still claim the host rejects SDF and the change is unreachable, which U1b inverted; they cannot be fixed here because any .cu edit changes MEGAKERNEL_SOURCE/PTX and this slice must keep identity unchanged - defer to after U4 or the next intentional kernel re-baseline; U4 material must not cite them as fact"},
+    {"id": "O2", "text": "removed-guard.txt is a good pattern: HEAD old 9 hits (incl. the 2 .cu comments), working-tree residual 2 lines, and 4 empty unchanged checks"},
+    {"id": "O3", "text": "the 'SDF unreachable' premise moves to U4 host cases (model dump semantics / SDF leaf uses mesh bounds) plus GPU reference comparison; this slice has zero GPU and claims no capability"},
+    {"id": "O4", "text": "unit 1108 -> 1106 is exactly the 2 removed host-only tests; 136 result lines unchanged; my self-run matches the evidence receipt"},
+    {"id": "O5", "text": "unchanged kernel identity is a positive check that the slice really did not touch device code (independent concat sha + NVRTC PTX equal the U1 close-out values)"},
+    {"id": "O6", "text": "gates.txt/gate-*.txt are transcriptions of .normify/runs/2026-10-31-render-sdf-host-unlock/ (runs at 2026-10-30T16:41Z); counts match my self-run"},
+    {"id": "O7", "text": "rollback declaration is consistent in four places (commit message, card note, README §4, receipt): if U4 fails, git revert this slice and keep U1; U4 review will check that path"}
+  ],
+  "boundaries": {"read_only": true, "gpu_window_opened": false, "device_execution": false,
+                 "source_edited": false, "foreign_evidence_edited": false},
+  "not_claimed": [
+    "不宣称渲染数值验收通过",
+    "不宣称上游等价",
+    "不宣称 SDF 渲染已覆盖（能力验证由 U4 窗口承担）"
+  ],
+  "limits": [
+    "unlocked capability (SDF scene loads/renders correctly) can only be proven in the U4 window",
+    "the stale .cu comment fix would change kernel identity, so it is out of scope for this slice"
+  ],
+  "rollback_boundary": "U4 failure => git revert this slice, U1 stays; SDF capability returns to unreachable"
+}

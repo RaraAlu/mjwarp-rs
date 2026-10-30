@@ -1,0 +1,157 @@
+{
+  "schema": 1,
+  "task": "2026-10-31-render-sdf-host-unlock-check",
+  "reviewed_task": "2026-10-31-render-sdf-host-unlock",
+  "pin": "af96c048",
+  "card_head": "abbb19ed",
+  "checks": [
+    {
+      "id": "scope.pin_commit",
+      "passed": true,
+      "detail": {
+        "paths": 20,
+        "src": [
+          "src/render/kernel/megakernel.rs"
+        ],
+        "evidence": 13
+      },
+      "ok": true
+    },
+    {
+      "id": "src.line_counts",
+      "passed": true,
+      "detail": {
+        "lines": [
+          440,
+          406
+        ],
+        "numstat": [
+          "1\t35\tsrc/render/kernel/megakernel.rs"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "id": "guard.removed",
+      "passed": true,
+      "detail": {
+        "rust_executable_refs": 0,
+        "cu_comment_refs": 2,
+        "old_error_string_refs": 0,
+        "cu_refs_detail": [
+          "af96c048:src/render/kernel/cuda/render_common.cu:391:            // host 仍拒绝 8（`megakernel.rs` 的 `reject_sdf_geometry`），本片改动今天不可达。",
+          "af96c048:src/render/kernel/cuda/render_common.cu:397:        // 设备侧 SDF 求交尚未解锁，host 仍拒绝，见 `megakernel.rs` 的 `reject_sdf_geometry`）。"
+        ],
+        "note": "executable refs 0；render_common.cu 仍有 2 行注释提到已删除的 guard（语义已过时，见 problems P1）"
+      },
+      "ok": true
+    },
+    {
+      "id": "host.other_rejections_kept",
+      "passed": true,
+      "detail": {
+        "S7b3 不含 splat": true,
+        "light_mode=0": true,
+        "use_precomputed_rays": true,
+        "enabled_geom_ids": true,
+        "splat_count": true,
+        "ray_count": true,
+        "nsamples": true
+      },
+      "ok": true
+    },
+    {
+      "id": "kernel.identity_unchanged",
+      "passed": true,
+      "detail": {
+        "concat": {
+          "bytes": 88865,
+          "sha256": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5"
+        },
+        "cuda_diff_empty": true,
+        "nvrtc_selfrun": {
+          "megakernel": [
+            "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5",
+            "34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d",
+            "268589"
+          ],
+          "aa": [
+            "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+            "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+            "27536"
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "id": "gates.self_run",
+      "passed": true,
+      "detail": {
+        "result_lines": 136,
+        "passed": 1106,
+        "failed": 0,
+        "ignored": 392,
+        "gate_exits": {
+          "fmt": "0",
+          "clippy": "0",
+          "clippy-cuda": "0",
+          "unit": "0",
+          "no-run": "0",
+          "nvrtc": "0"
+        },
+        "no_run_last": "EXIT=0",
+        "guard_tests_absent": true,
+        "delta_vs_u1": "1108 -> 1106 (removed 2 host-only tests)"
+      },
+      "ok": true
+    },
+    {
+      "id": "evidence.manifest_and_removed_guard",
+      "passed": true,
+      "detail": {
+        "manifest": {
+          "rows": 12,
+          "match": 12,
+          "files": 13
+        },
+        "utf16": [],
+        "removed_guard_has_old_hits": true
+      },
+      "ok": true
+    },
+    {
+      "id": "card.rollback_and_checks",
+      "passed": true,
+      "detail": {
+        "rollback_in_note": true,
+        "check_exit": 0,
+        "validate": [
+          "0",
+          "5"
+        ],
+        "rollback_also_in": [
+          "commit message",
+          "README §4",
+          "receipt"
+        ]
+      },
+      "ok": true
+    }
+  ],
+  "problems": [
+    {
+      "id": "P1",
+      "severity": "需修(轻微, 证据口径)",
+      "check": "guard.removed",
+      "finding": "README §2 写「残留引用：工作树 reject_sdf_geometry / S7b3 不含 SDF 求交 = 0」，但 pin 上 src 仍有 2 处 `reject_sdf_geometry` 引用（render_common.cu:391、:397 的注释，removed-guard.txt 自己已列出）；且这两行注释语义已被 U1b 反转（现在写「host 仍拒绝 8 / 本片改动今天不可达」）。可执行引用确实为 0、旧错误串 0 命中。",
+      "fix": "把 README §2 改成「可执行引用 0（.rs 0 命中、`S7b3 不含 SDF 求交` 0 命中）；`.cu` 注释仍有 2 行引用，因本片零 .cu 改动（内核身份必须不变）保留，语义待下一次内核重基线时更新」；不改代码、不重跑。"
+    }
+  ],
+  "summary": {
+    "checks_total": 8,
+    "checks_passed": 8,
+    "problems": 1,
+    "blockers": 0
+  }
+}

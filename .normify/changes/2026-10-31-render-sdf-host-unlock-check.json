@@ -5,7 +5,7 @@
     "zh": "U1b SDF host 解锁独立复核（440→406、guard 0 命中、其它拒绝原样、内核身份不变、unit 1106、零 .cu、四门禁）",
     "en": "Independent check of the U1b SDF host unlock (440->406 lines, guard removed, other rejections intact, kernel identity unchanged, unit 1106, no .cu change, four gates)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "QA 只读复核 `2026-10-31-render-sdf-host-unlock`（U1b：删 host 侧 `reject_sdf_geometry`，让 U4 窗口能加载 SDF 场景）。pin revision = `af96c048`（该卡收口提交：源码 + 证据 + 卡）。复核点：①`megakernel.rs` **440 → 406 行**（LF，≤500）、diff 只此 1 文件 **+1/−35**；②`fn reject_sdf_geometry`（含 doc）、`render()` 调用点、`#[cfg(test)] mod sdf_geometry_guard_tests`（2 条 host-only 单测）删除，工作树 `reject_sdf_geometry` / `S7b3 不含 SDF 求交` **0 命中**；③其它 `Unsupported`/`InvalidArray` 拒绝（precomputed_rays / splat_count / light_mode / enabled_geom_ids / nsample/ray_count / non-finite）全部原样；④零 `.cu`/cast/bvh/ABI/81 槽/判据/参考/tests/scripts 改动，**内核身份保持 U1 值**（source `778216b2…`/PTX `34f91147…`/268,589）；⑤四门禁全绿、**unit 1106 过 / 0 败 / 392 ignored**（U1 为 1108，删 2 条可解释）、`cargo test --locked --no-run` EXIT=0 且含 `Finished`、`validate --fingerprints` 错误 0；⑥回滚声明（U4 未过则 revert 本片、U1 保留）写在卡 note 与证据里；⑦证据卫生（manifest 自洽、LF 无 BOM、门禁日志标注「快照，权威见 `.normify/runs/`」）。**只读**：不跑 GPU、不改代码/证据。",
     "en": "Read-only QA check of U1b at pin af96c048: line count/diff, removed guard, untouched rejections, unchanged kernel identity, four gates with unit 1106, no-run log, validate, rollback declaration and evidence hygiene."
@@ -33,11 +33,11 @@
   },
   "note": "Arch 2026-10-31 注册（Chief 令：U1b 收口后立刻注册 QA 复核卡，**proposed 不 start 等 QA**）。pin revision = `af96c048`（U1b 收口提交；注册时 HEAD `fd4b519e`、树干净、板面 599 验收）。复核对象：`src/render/kernel/megakernel.rs` + `docs/development-evidence/render-bvh/sdf-host-unlock/`（README/receipt/manifest/logs 5/materials 4）+ 卡 note 的回滚声明。**只读**：不跑 GPU、不改代码/证据；如需复算门禁可用 `normify gate` 只读核（会写 runs/，判为可选）。U4 窗口签字前本卡不涉及任何 GPU 动作。",
   "revision": {
-    "before": null,
+    "before": "28a676ace137acf967af1d993805b2c34e0a392e",
     "after": null
   },
   "created_at": "2026-10-30T17:02:00.000Z",
-  "updated_at": "2026-10-30T17:02:00.000Z",
+  "updated_at": "2026-10-30T16:47:14.378Z",
   "checks": [
     {
       "kind": "json",
