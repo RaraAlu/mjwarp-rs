@@ -1,0 +1,78 @@
+{
+  "task_id": "2026-10-31-render-sdf-sphere-dot-a-order-fix",
+  "kind": "render-sdf-sphere-dot-a-order-fix",
+  "owner": "Arch",
+  "trigger": "U4 window attempt1/attempt2 both INVALID_ROUND on the sphere-outline depth of render_sdf_reference; read-only RCA localised the cause to the f32 FMA contraction order of a = dot(vec,vec) in the sphere quadratic",
+  "rca": {
+    "full_document": "target/sphere-depth-rca.md (not committed)",
+    "summary": "docs/development-evidence/render-bvh/sphere-dot-a-order-fix/materials/rca-summary.txt",
+    "reference_order": "a=(1,0,2) b=(1,0,2) det=fused (first term of a is the y product)",
+    "product_order_before": "a=(0,1,2) (dot3_ch0: first term is the x product)",
+    "variant_scan": "432 variants; reference reproduced 44/44 only by a=(1,0,2); product variant 0/44",
+    "parity_312_vs_315": "not the cause: cam_pos/cam_quat/cam_fovy f64 values bit-identical; sphere geom values identical",
+    "why_s7b_s8_passed": "scene-a 747-pixel probe had no counter-example (a rounded identically for those directions; no det~0 pixel with differing a)"
+  },
+  "change": {
+    "file": "src/render/kernel/cuda/render_math.cu",
+    "lines_added": 12,
+    "lines_removed": 13,
+    "what": [
+      "render_sphere_hit: float a = dot3_ba(vec.x, vec.y, vec.z, vec.x, vec.y, vec.z) (was dot3_ch0)",
+      "removed the now-unused dot3_ch0 helper",
+      "comment corrected: a uses the same contraction order as b/dd; records the RCA evidence, the 44/44 reproduction and why the S7b1/S8 probe was a sample without counter-examples"
+    ],
+    "unchanged": ["b", "dd", "fused det", "1/a (frcp_rn)", "root selection", "depth = dist * -local_dir_z", "criteria", "tolerances", "references", "fixtures", "camera handling"]
+  },
+  "kernel_identity": {
+    "megakernel": {
+      "before": {
+        "source_sha256": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5",
+        "ptx_sha256": "34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d",
+        "ptx_bytes": 268589
+      },
+      "after": {
+        "source_sha256": "eb0e717fb0389355182503a44192ee5d8dbd7ef7957e8fc5f8ec0368e27d5b0b",
+        "ptx_sha256": "7782aeb199dc49ff231a8884a70a8194a2deef02e9a7f4e2c9f43a0fc74dc5d4",
+        "ptx_bytes": 268589
+      }
+    },
+    "aa_resolve": {
+      "source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+      "ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+      "ptx_bytes": 27536,
+      "changed": false
+    },
+    "probe": "cargo test --locked --features cuda-probe --test render_kernel_flags -- --ignored --nocapture flag_and_aa_sources_compile_under_render_gate",
+    "freeze_implication": "kernel source/PTX identity changed => U4 attempt3 must use a fresh freeze (the attempt1/attempt2 92-entry freezes are invalid)"
+  },
+  "gates": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "clippy-cuda": "passed",
+    "unit": "passed (1111 passed / 0 failed / 397 ignored)",
+    "no_run": "EXIT=0 with Finished",
+    "validate_fingerprints": "errors 0 (module fingerprint refreshed by normify done)"
+  },
+  "historical_evidence_untouched": [
+    "fixtures/render-bvh",
+    "docs/development-evidence/render-bvh/r02-skybox-s3-validate",
+    "docs/development-evidence/render-bvh/r05-s3b-hfield-validate",
+    "docs/development-evidence/render-bvh/r08-rgb-hetero-validate",
+    "docs/development-evidence/render-bvh/r09-s3b-shadow-validation",
+    "docs/development-evidence/render-bvh/sdf-validate-window",
+    "docs/development-evidence/render-bvh/sdf-host-unlock-rollback",
+    "docs/development-evidence/render-bvh/sdf-validate-window-material",
+    "docs/development-evidence/render-bvh/sdf-reference-target"
+  ],
+  "out_of_scope": [
+    "no GPU window, no freeze, no body run",
+    "U4 attempt3 (waiting for Chief go; same signed conditional protocol, fresh freeze)",
+    "A1 (mesh 16->20)"
+  ],
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "精度达标",
+    "SDF 渲染已覆盖"
+  ]
+}

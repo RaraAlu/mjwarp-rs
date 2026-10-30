@@ -1,0 +1,40 @@
+# sphere-dot-a-order-fix — RCA summary (evidence copy; full RCA lives in target/sphere-depth-rca.md, not committed)
+
+## Root cause
+U4 `render_sdf_reference` sphere-outline depth mismatch (cam0 215/76,800, max |ULP| 191; cam1 4/43,200,
+max |ULP| 25; first pixel (230,69) seg=(2,5)) is the f32 **FMA contraction order of `a = dot(vec,vec)`
+in the sphere analytic quadratic**, not a model/parity problem.
+
+- reference (warp 1.15 GPU code generated for `ray.py::ray_sphere`/`_ray_quad`): `a` = mul(y*y) -> fma(x*x) -> fma(z*z)
+- product before fix (`render_math.cu::dot3_ch0`): `a` = mul(x*x) -> fma(y*y) -> fma(z*z)
+- `b`, `dd`, fused `det`, `1/a`, root selection and `depth = dist * -local_dir_z` are identical on both sides.
+
+## How it was established (read-only, offline, zero GPU)
+- **Product chain reproduces itself**: for all 44 diagnosed pixels (attempt2 read-only diagnostics),
+  product camera matrix (f32 quat->mat chain) + world transform `fma(m2,z,fma(m0,x,mul(m1,y)))` + fused det
+  + `a=dot3_ch0`, `b=dd=dot3_ba` reproduces the product depth **bit-exactly 44/44**.
+- **Instruction-order enumeration**: holding that chain, 3 dot-product contraction orders x 6 permutations
+  x fused/non-fused det = **432 variants**; exactly one family reproduces the reference **44/44**:
+  `a=(1,0,2) b=(1,0,2) det=fused` (i.e. first term of `a` is the y product). The product's variant
+  (`a=(0,1,2)`) reproduces the reference **0/44**; every other variant is <= 37/44.
+- **Mechanism / amplification**: `a` depends only on the ray direction; the two orders round to the same f32
+  for most directions. At the sphere silhouette `det = b*b - a*c ~ 0`, so a 1-ULP difference in `a`
+  is amplified by `sqrt(det)` into 7-191 ULP of depth. Sensitivity check: 1-ULP change of a single
+  matrix column-2 element or of `dir[2]` shifts depth by 32-80 ULP at those pixels.
+- **3.12 vs 3.15 parity is NOT the cause**: `cam_pos`, `cam_quat`, `cam_fovy` f64 values are bit-identical
+  between the 3.12 product dump and the 3.15 capture recipe; sphere `geom_pos`/`geom_size` are the same.
+  The product's camera matrix (f32 quat chain) does differ from `f32(mjData.cam_xmat)` in 4 of 9 elements
+  by 1 ULP (and one near-zero element), but feeding each of the three matrices through the world transform
+  gives identical depth at all 44 pixels -> recorded as an observation, not load-bearing here.
+- **Why S7b1/S8 passed**: the old 747-pixel probe on scene-a cam1 was a sample with no counter-example
+  (`a` happened to round identically for those directions and no pixel hit `det ~ 0` with a differing `a`),
+  hence the previous "a uses component 0 first" note in `render_math.cu` was wrong.
+
+## Reproduce
+Scripts (not committed): `target/rca/sphere_depth_rca.py` (chain reproduction + variant table + sensitivity),
+`target/rca/sphere_depth_rca_shift.py` (1-ULP shift scan), `target/rca/sphere_depth_rca_orders.py`,
+`target/rca/sphere_depth_rca_orders_all.py` (432-variant ranking, 40 and 44 pixels).
+Inputs: `tests/support/render_bvh/sdf/model-312.json`,
+`fixtures/render-bvh/scene-sdf/capture-sdf/sdf-mesh/capture.json`,
+`target/render-bvh/sdf-validate-window/attempts/attempt2/logs/render_sdf_reference.log`,
+pinned env `target/mjwarp-parallel/venv` (numpy 2.5.4, mujoco 3.15.0).

@@ -245,24 +245,23 @@ __device__ __forceinline__ bool mesh_query_ray(V3 pnt, V3 vec, float max_t, int 
 //
 // 上游 `cast_ray` 内联 `ray.py::ray_sphere` 后，warp 1.15（其自带 NVRTC、sm_89）生成的
 // f32 指令顺序是：
-//   a  = dot(vec, vec)   : mul(d0*d0) → fma(d1*d1) → fma(d2*d2)        （0 号分量先乘）
+//   a  = dot(vec, vec)   : mul(d1*d1) → fma(d0*d0) → fma(d2*d2)        （1 号分量先乘）
 //   b  = dot(vec, dif)   : mul(d1*dif1) → fma(d0*dif0) → fma(d2*dif2)  （1 号分量先乘）
 //   dd = dot(dif, dif)   : mul(dif1*dif1) → fma(dif0*dif0) → fma(dif2*dif2)
 //   det = b*b - a*c      : fma(b, b, -(a*c))                          （融合）
-// 产品渲染配方是冻结的 CUDA 12.8.1 NVRTC / compute_70：同一 C++ 表达式被收缩成 `a` 用
-// 「1 号分量先乘」顺序、`det` 不融合。两者在球面掠射像素（判别式 det 接近 0、
-// 近根敏感度 d(dist)/d(det) ≈ 25–78）上被放大到几十 ULP，是 S7b1 与同配方参考的唯一
-// 残差来源。这里用显式 intrinsics 固定上游顺序；其余 primitive 仍复用 S2b `scene.cu`
-// （该文件只读、未修改）。这是对齐上游编译产物的运算顺序，不是放宽任何容差。
-// 验证：离线 GPU 变体探针（target/gpu_sphere_probe.py，不入库）在 747 个 cam1 球面像素上
-// 得到 747/747 位等、max ULP 0。
+// **`a` 与 `b`/`dd` 同序（1 号分量先乘）**——U4 sphere 轮廓 depth RCA（2026-10-31，
+// `target/sphere-depth-rca.md`）在 44 个诊断像素上枚举 3 个点积次序 × det 融合共 432 个变体，
+// 只有 `a=(1,0,2) b=(1,0,2) det=fused` 能位级复现参考 44/44，而本文件当时的 `a=(0,1,2)`
+// （`dot3_ch0`）复现参考 0/44。此前「`a` 用 0 号分量先乘」的结论来自 S7b1 的 747 像素 probe，
+// 那是**样本无反例**的误判：`a` 只依赖射线方向，两种次序在多数方向上舍入相同，S7b1/scene-a 的
+// 像素恰好没有同时满足「a 差 1 ULP」与「det ≈ 0」，而 scene-sdf cam-front 的球轮廓满足，
+// 于是 1 ULP 的 a 差经 sqrt(det) 被放大成 7–191 ULP 的 depth 差。
+// 产品渲染配方是冻结的 CUDA 12.8.1 NVRTC / compute_70：显式 intrinsics 固定上述次序，与
+// 本地 NVRTC 收缩选择无关；其余 primitive 仍复用 S2b `scene.cu`（该文件只读、未修改）。
+// 这是对齐上游编译产物的运算顺序，不是放宽任何容差。
 
 __device__ __forceinline__ float dot3_ba(float a0, float a1, float a2, float b0, float b1, float b2) {
     return __fmaf_rn(a2, b2, __fmaf_rn(a0, b0, __fmul_rn(a1, b1)));
-}
-
-__device__ __forceinline__ float dot3_ch0(float a0, float a1, float a2, float b0, float b1, float b2) {
-    return __fmaf_rn(a2, b2, __fmaf_rn(a1, b1, __fmul_rn(a0, b0)));
 }
 
 // `ray_sphere(pos, size[0]*size[0], pnt, vec)` 的等价实现；`normal` 仍用 `scene.cu` 的
@@ -273,7 +272,7 @@ __device__ __forceinline__ void render_sphere_hit(V3 pos, float radius, V3 pnt, 
     float dx = __fsub_rn(pnt.x, pos.x);
     float dy = __fsub_rn(pnt.y, pos.y);
     float dz = __fsub_rn(pnt.z, pos.z);
-    float a = dot3_ch0(vec.x, vec.y, vec.z, vec.x, vec.y, vec.z);
+    float a = dot3_ba(vec.x, vec.y, vec.z, vec.x, vec.y, vec.z);
     float b = dot3_ba(vec.x, vec.y, vec.z, dx, dy, dz);
     float dd = dot3_ba(dx, dy, dz, dx, dy, dz);
     float c = __fsub_rn(dd, r2);

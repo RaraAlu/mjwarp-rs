@@ -5,7 +5,7 @@
     "zh": "球面求交 a=dot(vec,vec) FMA 收缩次序对齐上游（U4 sphere 轮廓 depth RCA 修复片；离线，零 GPU）",
     "en": "Align the sphere quadratic `a = dot(vec,vec)` FMA contraction order with upstream (U4 sphere-outline depth RCA fix; offline, zero GPU)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "按只读 RCA（`target/sphere-depth-rca.md`）的定论修产品侧：`src/render/kernel/cuda/render_math.cu::render_sphere_hit` 里 `a = dot(vec,vec)` 的 FMA 收缩次序与上游 warp 1.15 GPU 生成码不一致——产品用 `dot3_ch0`（先乘第 0 分量），参考实测为「先乘第 1 分量、再 fma 第 0、再 fma 第 2」（与 `b`/`dd` 同序）。修法：`a` 改用 `dot3_ba(...)`，删除不再使用的 `dot3_ch0`，并更正文件注释（说明 S7b1/S8 的 probe 反推样本无反例，不是「a 用 0 号分量」的证据）。**只改这一处语义**：`b`、`dd`、融合 `det`、`1/a`、根选择、`depth = t*−local_z`、判据/容差/参考/fixtures 全部不动；不改相机、不跳球、不抬 `MAX_DEPTH_ULP`。",
     "en": "Change only the contraction order of `a = dot(vec,vec)` in render_sphere_hit (dot3_ch0 -> dot3_ba), drop the now-unused helper and correct the stale comment; no other semantic, criteria, tolerance, reference or fixture change."
@@ -32,11 +32,12 @@
   },
   "note": "Arch 2026-10-31 注册（Chief 批准离线 fix 片；RCA 定论见 `target/sphere-depth-rca.md`）。只改 `render_math.cu` 的 `a` 计算与注释，其余一字不动。`.cu` 改动会改变内核身份（source/PTX），因此 U4 验证窗下一次 attempt（attempt3）必须全新冻结；本片不跑窗口、不开 GPU、不冻结。收口后按已签条件式协议等 Chief 开窗令。",
   "revision": {
-    "before": null,
+    "before": "8af227742c40f68964d587586f38024981420691",
     "after": null
   },
   "created_at": "2026-10-31T03:45:00.000Z",
-  "updated_at": "2026-10-31T03:45:00.000Z",
+  "updated_at": "2026-10-30T18:53:45.367Z",
+  "closed_at": "2026-10-30T18:53:45.367Z",
   "checks": [
     {
       "kind": "json",
