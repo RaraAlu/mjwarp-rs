@@ -1,0 +1,195 @@
+{
+  "task_id": "2026-10-31-render-sdf-validate",
+  "material_task_id": "2026-10-31-render-sdf-validate-window-material",
+  "kind": "render-bvh-validate-window-expected-products",
+  "prerequisites": {
+    "u1": "2026-10-30-render-sdf-mesh-path",
+    "u1b": "2026-10-31-render-sdf-host-unlock",
+    "u3": "2026-10-30-render-sdf-capture",
+    "u4a": "2026-10-31-render-sdf-model-dump"
+  },
+  "u4a_model_dumps": {
+    "model-312.json": {
+      "scene": "fixtures/render-bvh/scene-sdf/scene.xml",
+      "bytes": 53849,
+      "sha256": "7de15ff458aa8f6b1c026bbed5d9b1fbaf8f5dd39b385bab0b79d5c289b40d36"
+    },
+    "model-mixed-312.json": {
+      "scene": "fixtures/render-bvh/scene-sdf/scene-mixed.xml",
+      "bytes": 54205,
+      "sha256": "60698f6baaeff8dcc11e725e56242bd5d6f947741cb7070b4e1f32ec13765578"
+    }
+  },
+  "references": {
+    "root": "fixtures/render-bvh/scene-sdf/capture-sdf",
+    "sdf-mesh": {
+      "scene_xml": "fixtures/render-bvh/scene-sdf/scene.xml",
+      "rgb.npz": {
+        "bytes": 1440478,
+        "sha256": "7ca2abd663cd40bc8cbdda35f601f981256093519d7bbf02ba8dbd447a0ed3ad"
+      },
+      "depth.npz": {
+        "bytes": 480486,
+        "sha256": "3415b796748091df64ca45845c305a43f9bba63ce0fc6962bd49d75b22dc7ee3"
+      },
+      "seg.npz": {
+        "bytes": 960478,
+        "sha256": "afd5eacd771a16292cc9f39ec97be1276f3cd1abb4ab99dd6b1728de01c941e5"
+      },
+      "capture.json": {
+        "bytes": 10547,
+        "sha256": "d45c9ef9560b9e4f18e01a92a46a513c3a50b419d3203e7d378abfc1c108e517"
+      }
+    },
+    "sdf-occluder": {
+      "scene_xml": "fixtures/render-bvh/scene-sdf/scene-mixed.xml",
+      "rgb.npz": {
+        "bytes": 1440478,
+        "sha256": "598044febc6ce2f2f129321a61ef588a9fc127031a3dee385f853b3e73ec77d0"
+      },
+      "depth.npz": {
+        "bytes": 480486,
+        "sha256": "5515305d5d89ae681147222a6d1e55a30466d780f493dda4d01c7480c4462a0c"
+      },
+      "seg.npz": {
+        "bytes": 960478,
+        "sha256": "99ed0398151d2a222f33a77943ddbaff3e7cd95a9b0fe3fa19ded3a2c653c3c8"
+      },
+      "capture.json": {
+        "bytes": 10567,
+        "sha256": "08e897c805cf22fb1b4403fee577593eb6fddf261ae8e5152c7c636309f29779"
+      }
+    },
+    "recipe": {
+      "kind": "render-sdf-capture",
+      "nrender": 2,
+      "cameras": [
+        [
+          "cam-front",
+          320,
+          240
+        ],
+        [
+          "cam-top",
+          240,
+          180
+        ]
+      ],
+      "total_rays": 120000,
+      "use_fast_math": false,
+      "use_shadows": true,
+      "samples_per_pixel": 1,
+      "repeat": 2,
+      "two_captures_bitwise_identical": true,
+      "legacy_reference_files": 69,
+      "legacy_reference_untouched": true,
+      "npz_members": [
+        "rgb_cam0.npy",
+        "rgb_cam1.npy",
+        "depth_cam0.npy",
+        "depth_cam1.npy",
+        "seg_cam0.npy",
+        "seg_cam1.npy"
+      ]
+    }
+  },
+  "new_target": {
+    "path": "tests/render_sdf_reference.rs",
+    "line_budget": "260-360",
+    "support_files": [
+      "tests/support/render_bvh/sdf.rs (280-340)",
+      "tests/support/render_bvh/sdf_scene.rs (<=450; split sdf_compare.rs if it approaches 500)"
+    ],
+    "host_cases": [
+      "model_dumps_match_signed_scene_semantics",
+      "capture_references_parse_and_cross_checks_hold",
+      "sdf_leaf_geometry_uses_mesh_bounds"
+    ],
+    "gpu_cases": [
+      "sdf_mesh_matches_captured_reference",
+      "sdf_occluder_matches_captured_reference",
+      "shadow_toggle_consistency",
+      "depth_seg_cross_path_consistency",
+      "two_run_determinism"
+    ]
+  },
+  "expected_renders": {
+    "per_camera": "2 cameras per group (cam-front 320x240 = 76800 px, cam-top 240x180 = 43200 px, total 120000 px)",
+    "channels": [
+      "rgb",
+      "depth",
+      "seg"
+    ],
+    "groups": [
+      "sdf-mesh",
+      "sdf-occluder"
+    ],
+    "shadow_arm": "sdf-mesh, cam-front, shadows on vs off (consistency only, no upstream reference)",
+    "depth_seg_cross_path": "sdf-mesh, cam-front, DepthSeg path vs megakernel depth/seg (bitwise)"
+  },
+  "criteria": {
+    "rgb": "<= 1 LSB per channel (beyond_1_lsb=0, max_byte_diff<=1)",
+    "depth": "bitwise-first (mismatched == 0) AND max_ulp <= 4 AND beyond_ulp == 0",
+    "seg": "exact (mismatched == 0)",
+    "determinism": "two-run rgb/depth/seg sha256 equal (per entity, same context)",
+    "shadow_arm": "consistency only (no upstream shadow-off reference, Chief 2026-10-31): depth/seg bitwise equal between shadows on/off; rgb shadow_off >= shadow_on per channel with reversed pixels beyond 1 LSB == 0; changed pixels > 0; both arms two-run sha equal; no numerical reference claim",
+    "depth_seg_cross_path": "DepthSeg path depth/seg bitwise equal to megakernel depth/seg for the same input (sdf-mesh, cam-front); if the product API cannot expose both paths, fall back to a single-path launch comparison, criteria unchanged",
+    "reference": "no new references: reuse fixtures/render-bvh/scene-sdf/capture-sdf/{sdf-mesh,sdf-occluder} (U3 capture products)"
+  },
+  "guards": {
+    "frozen_exes": 9,
+    "guard_inputs": 83,
+    "total": 92,
+    "input_breakdown": "scene-sdf 10 (2 XML + 8 capture products) + scene-hfield 10 (2 XML + 8 capture) + legacy 47 (38 base + 4 skybox + 5 perworld) + scene-shadow capture 16",
+    "aggregate": "generated at freeze; not preset by the material",
+    "note": "the freeze script hard-asserts 9/83/92 and throws on mismatch; U1/U1b change product code so every exe hash differs and no historical guards may be reused"
+  },
+  "window": {
+    "shell": "Windows PowerShell 5.1 (aggregate_sha256 uses culture-sensitive Sort-Object; pwsh 7 differs)",
+    "mode": "regular util<40, NO exception; the authoring-only util<60 exception does NOT apply to this window",
+    "commands": {
+      "monitor": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\monitor-until-clean.ps1 -OutCsv target\\render-bvh\\sdf-validate-window\\monitor-pre-window.csv -Required 60 -MaxMinutes 30",
+      "freeze": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\freeze-guards-sdf.ps1 -Attempt 1",
+      "guards_only": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\run-window.ps1 -Attempt 1 -OutDir target\\render-bvh\\sdf-validate-window\\attempt1 -GuardsFile scripts\\validate\\render-bvh\\guards-sdf-validate.json -GuardsOnly",
+      "body": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\run-window.ps1 -Attempt 1 -OutDir target\\render-bvh\\sdf-validate-window\\attempt1 -GuardsFile scripts\\validate\\render-bvh\\guards-sdf-validate.json"
+    },
+    "baseline_sop": {
+      "snapshot": "5 min before monitor: nvidia-smi free/util x3 (~1 s apart) + compute-apps raw/filtered + build processes (must be 0) + git clean",
+      "baseline_free_mib": "min(free) of the 3 samples",
+      "floor_mib": "baseline_free_mib - 3072",
+      "abort": "free_min < floor_mib or used delta > 3072 MiB or external compute load or build process appears",
+      "monitor_clean": "free >= 10240 MiB AND util < 40 AND filtered compute-apps = 0 AND build = 0 (monitor defaults, no -MaxUtil override)"
+    },
+    "timing": {
+      "monitor_cap_minutes": 30,
+      "freeze_guards_only_minutes": "1-2",
+      "body_minutes": "1-3",
+      "whole_window_minutes": "30-60"
+    },
+    "failure_policy": "STOP on any failure; no retry loop, no threshold change, no exception substitution, no criteria relaxation; keep the attempt directory; attempt=2 only after a documented fix"
+  },
+  "evidence": {
+    "material": "docs/development-evidence/render-bvh/sdf-validate-window-material/",
+    "window": "docs/development-evidence/render-bvh/sdf-validate/",
+    "hygiene": "LF no BOM; forbidden claim terms absent"
+  },
+  "double_sign": {
+    "required_on": [
+      "this window plan",
+      "pre-window baseline snapshot",
+      "the 92-entry guards identity after freeze"
+    ],
+    "decision": "pending",
+    "signed_by": null,
+    "signed_at": null
+  },
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "等价",
+    "SDF 求交已实现",
+    "plugin SDF",
+    "per-world",
+    "AA"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-window-entity-table",
+  "task_id": "2026-10-31-render-sdf-validate",
+  "authored_by": "2026-10-31-render-sdf-validate-window-material",
+  "status": "material (not executed; exe hashes/guards filled at freeze)",
+  "suite": "render-sdf-validate",
+  "attempt": 1,
+  "guards_file": "scripts/validate/render-bvh/guards-sdf-validate.json",
+  "freeze_script": "scripts/validate/render-bvh/freeze-guards-sdf.ps1",
+  "criteria": {
+    "rgb": "<= 1 LSB per channel (beyond_1_lsb=0, max_byte_diff<=1)",
+    "depth": "bitwise-first (mismatched == 0) AND max_ulp <= 4 AND beyond_ulp == 0",
+    "seg": "exact (mismatched == 0)",
+    "determinism": "two-run rgb/depth/seg sha256 equal (per entity, same context)",
+    "shadow_arm": "consistency only (no upstream shadow-off reference, Chief 2026-10-31): depth/seg bitwise equal between shadows on/off; rgb shadow_off >= shadow_on per channel with reversed pixels beyond 1 LSB == 0; changed pixels > 0; both arms two-run sha equal; no numerical reference claim",
+    "depth_seg_cross_path": "DepthSeg path depth/seg bitwise equal to megakernel depth/seg for the same input (sdf-mesh, cam-front); if the product API cannot expose both paths, fall back to a single-path launch comparison, criteria unchanged",
+    "reference": "no new references: reuse fixtures/render-bvh/scene-sdf/capture-sdf/{sdf-mesh,sdf-occluder} (U3 capture products)"
+  },
+  "entities": [
+    {
+      "order": 1,
+      "entity": "render_sdf_reference",
+      "source": "new",
+      "window_command": "cargo test --locked --features cuda-probe --test render_sdf_reference -- --ignored --test-threads=1 --nocapture",
+      "note": "new target: SDF capture-reference comparison for both groups (2 cameras x rgb/depth/seg), shadow on/off consistency arm, DepthSeg cross-path arm, two-run determinism"
+    },
+    {
+      "order": 2,
+      "entity": "render_e2e",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_e2e -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 3,
+      "entity": "render_kernel_rgb",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 4,
+      "entity": "render_kernel_depth_seg",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_kernel_depth_seg -- --ignored --test-threads=1 --nocapture",
+      "note": "render.cu depth/seg main path (U1 touched the gtype==8 branch here)"
+    },
+    {
+      "order": 5,
+      "entity": "render_kernel_flags",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_kernel_flags -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 6,
+      "entity": "render_r10_multi_world",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_r10_multi_world -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 7,
+      "entity": "render_skybox_reference",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_skybox_reference -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 8,
+      "entity": "render_context_lifecycle",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_context_lifecycle -- --ignored --test-threads=1 --nocapture",
+      "note": "kept by Chief decision: refit/lifecycle shares the same BVH path as SDF"
+    },
+    {
+      "order": 9,
+      "entity": "render_mesh_bvh",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_mesh_bvh -- --ignored --test-threads=1 --nocapture",
+      "note": "swapped in by Chief decision: mesh BVH / ray_mesh_leaf path, same leaf path SDF uses after U1"
+    }
+  ],
+  "final_selection_note": "Chief final call 2026-10-31: keep render_e2e, render_kernel_rgb, render_kernel_depth_seg, render_kernel_flags, render_r10_multi_world, render_skybox_reference, render_context_lifecycle; swap in render_mesh_bvh; drop render_camera_rays and render_r08_cameras. Total 9 entities (1 new + 8 regressions).",
+  "guards_expected": {
+    "frozen_exes": 9,
+    "guard_inputs": 83,
+    "total": 92,
+    "input_breakdown": "scene-sdf 10 (2 XML + 8 capture products) + scene-hfield 10 (2 XML + 8 capture) + legacy 47 (38 base + 4 skybox + 5 perworld) + scene-shadow capture 16",
+    "aggregate": "generated at freeze; not preset by the material",
+    "note": "the freeze script hard-asserts 9/83/92 and throws on mismatch; U1/U1b change product code so every exe hash differs and no historical guards may be reused"
+  }
+}

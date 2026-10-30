@@ -1,0 +1,95 @@
+SDF validation window plan (material; not executed)
+===================================================
+Task (material): 2026-10-31-render-sdf-validate-window-material
+Task (executed): 2026-10-31-render-sdf-validate   [GPU full load; user double-sign required]
+Prerequisites: U1 2026-10-30-render-sdf-mesh-path, U1b 2026-10-31-render-sdf-host-unlock,
+               U3 2026-10-30-render-sdf-capture, U4a 2026-10-31-render-sdf-model-dump (all verified)
+Gap: 2026-10-28-render-shadow-sdf-gtype-cull-gap
+
+PURPOSE
+- Validate the device render path against the already-captured upstream SDF references.
+- This window makes NO numerical acceptance claim beyond the listed per-channel criteria, adds no
+  references, and does not touch criteria/tolerances.
+
+U4A MODEL DUMPS (pinned by this material)
+- tests/support/render_bvh/sdf/model-312.json  53849 B sha256 7de15ff458aa8f6b1c026bbed5d9b1fbaf8f5dd39b385bab0b79d5c289b40d36
+- tests/support/render_bvh/sdf/model-mixed-312.json  54205 B sha256 60698f6baaeff8dcc11e725e56242bd5d6f947741cb7070b4e1f32ec13765578
+- produced offline by S0a dumper (MuJoCo 3.12.0, sha256 cd91e099..., 161280 B); two same-path dumps byte-identical.
+
+REFERENCE PRODUCTS (U3, read-only, not re-captured)
+- fixtures/render-bvh/scene-sdf/capture-sdf/sdf-mesh/    (scene.xml, 2 cameras, rgb/depth/seg npz + capture.json)
+- fixtures/render-bvh/scene-sdf/capture-sdf/sdf-occluder/ (scene-mixed.xml, same layout, box occluder)
+- recipe (from capture.json): nrender=2, cam-front 320x240 + cam-top 240x180, total_rays=120000,
+  use_fast_math=false, use_shadows=true, samples_per_pixel=1, repeat=2,
+  two_captures_bitwise_identical=true, legacy_reference_files=69.
+
+SUITE / ATTEMPT / NEW FREEZE
+- suite = render-sdf-validate
+- attempt = 1 (new suite; R05 guards.json, R02 guards-r02-skybox.json and R08 guards-r08-rgb-hetero.json
+  are history and must not be reused or touched)
+- guards file = scripts/validate/render-bvh/guards-sdf-validate.json
+- freeze script = scripts/validate/render-bvh/freeze-guards-sdf.ps1 (new, ASCII only, <=200 lines, PS 5.1)
+- work dir = target/render-bvh/sdf-validate-window
+- expected counts: 9 exe + 83 read-only inputs = 92 entries
+  inputs = scene-sdf 10 (2 XML + 8 products) + scene-hfield 10 (2 XML + 8 capture)
+           + legacy 47 (38 base + 4 skybox + 5 perworld) + scene-shadow capture 16
+- the freeze script hard-asserts 9/83/92 and throws on mismatch; aggregate_sha256 is generated at
+  freeze time and is NOT preset by this material.
+
+CRITERIA (zero relaxation; from R09-S3b / R05-S3b precedents)
+- rgb: <= 1 LSB per channel (beyond_1_lsb=0, max_byte_diff<=1)
+- depth: bitwise-first (mismatched=0) AND max_ulp<=4 AND beyond_ulp=0
+- seg: exact (mismatched=0)
+- determinism: two-run rgb/depth/seg sha256 equal per entity
+- shadow on/off arm: consistency only (no upstream shadow-off reference) - depth/seg bitwise equal,
+  rgb shadow_off >= shadow_on per channel (reversed pixels beyond 1 LSB == 0), changed pixels > 0,
+  both arms two-run sha equal; no numerical reference claim
+- DepthSeg cross-path arm: DepthSeg depth/seg bitwise equal to megakernel depth/seg (sdf-mesh, cam-front);
+  if the API cannot expose both paths, single-path launch comparison, criteria unchanged
+
+WINDOW DISCIPLINE (GPU: single full-load task; user double-sign required before opening)
+1. Pre-window snapshot (5 min before monitor): nvidia-smi free/util x3 + filtered compute-apps
+   + build processes (must be 0) + git clean; write attempt1/pre-window-snapshot.txt.
+2. Regular monitor (NO exception pre-approval, authoring-only util<60 exception does NOT apply):
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\monitor-until-clean.ps1 -OutCsv target\render-bvh\sdf-validate-window\monitor-pre-window.csv -Required 60 -MaxMinutes 30
+   - clean = free >= 10240 MiB AND util < 40 AND filtered compute-apps = 0 AND build = 0
+   - default MaxUtil=40; do NOT pass -OpenUtilLimit or -MaxUtil 60
+   - if 60 consecutive clean samples are not reached in 30 min: STOP and report; no threshold change
+3. Freeze (only after monitor passes; never inside the body):
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\freeze-guards-sdf.ps1 -Attempt 1
+   Expect: GUARDS_FROZEN suite=render-sdf-validate total=92 exes=9 inputs=83 ...
+4. Guards-only dry run:
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 -Attempt 1 -OutDir target\render-bvh\sdf-validate-window\attempt1 -GuardsFile scripts\validate\render-bvh\guards-sdf-validate.json -GuardsOnly
+   Expect: GUARDS_OK=92/92, stash 9/9, GUARDS_ONLY_DONE
+5. Window body (9 entities; no -OpenUtilLimit):
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\run-window.ps1 -Attempt 1 -OutDir target\render-bvh\sdf-validate-window\attempt1 -GuardsFile scripts\validate\render-bvh\guards-sdf-validate.json
+6. Report facts: 9/9 exit 0; sha_guards 92/92; post-window exe recheck 9/9; zero Rust compile;
+   samples/util range/free_min; floor not breached; per-entity criteria numbers (new entity per camera);
+   two-run sha256; regressions zero drift.
+
+FLOOR / BUDGET
+- floor_mib = baseline_free_mib (3-point pre-window snapshot) - 3072
+- abort if free_min < floor_mib or used delta > 3072 MiB during the window
+- run-window.ps1 abort thresholds: AbortUtilLimit=80 with streak 3
+
+TIMING
+- monitor: expected 5-10 min, hard cap 30 min
+- freeze + guards-only: 1-2 min
+- body: 9 entities, ~1-3 min of GPU wall time
+- whole window: 30-60 min including snapshot and post checks
+
+FAILURE POLICY
+- monitor not met: STOP, report Chief and user; no threshold change, no exception substitution
+- freeze mismatch / GuardsOnly != 92/92 / stash != 9/9: STOP, report; no retry loop
+- any entity red or criteria not met: STOP, report; do not relax criteria, do not loop
+- invalid round: keep the attempt directory as evidence; attempt=2 only after a documented fix
+- never --no-verify; never hand-edit .normify; R05/R02/R08 guards files untouched
+
+USER DOUBLE-SIGN BLOCK (blank until signed)
+- plan version sha256      : ____________________
+- decision                 : [ ] approve  [ ] reject  [ ] modify (notes: __________)
+- approved_by              : ____________________
+- pre-window baseline      : ____________________ (min free MiB, floor MiB)
+- guards identity (92)     : aggregate_sha256 ____________________  (filled after freeze)
+- Chief collated at        : ____________________
+- note: regular util<40 only; the authoring-only util<60 exception is NOT applicable here.
