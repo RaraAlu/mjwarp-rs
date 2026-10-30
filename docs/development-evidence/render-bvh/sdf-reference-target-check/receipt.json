@@ -1,0 +1,93 @@
+{
+  "task_id": "2026-10-31-render-sdf-reference-target-check",
+  "reviewed_task": "2026-10-31-render-sdf-reference-target",
+  "pin": "4e761a7b",
+  "card_head_at_start": "e83ed63b",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 2,
+  "observations": 6,
+  "scope": "read-only QA review of the U4 implementation slice: new target and support modules, 8 cases (3 host / 5 GPU ignored), criteria assertions, shadow/depth-seg consistency arms, reference loader hard assertions, freezer static checks and hard-assert counts, offline emulation of the 83 inputs, gates self-run, evidence manifest; no GPU, no window, no product src/.cu change",
+  "method": {
+    "recompute": "recompute.py (10 checks -> recompute.json; committed blobs via git cat-file)",
+    "gates_self_run": ["fmt", "clippy", "clippy-cuda", "unit", "no-run",
+                       "cargo test --locked --features cuda-probe --test render_sdf_reference (host 3/5)"],
+    "freezer_static": "PowerShell Parser on freeze-guards-sdf.ps1 (0 errors) + hard-assert strings + entity order",
+    "input_count_emulation": "recount fixtures/render-bvh with the freezer's own rules: 10 + 10 + 47 + 16 = 83"
+  },
+  "checks": {"total": 10, "passed": 8, "failed": ["shadow.both_arms_two_run_sha",
+                                                   "gates.self_run_and_receipt_number"]},
+  "verified_numbers": {
+    "files": {
+      "tests/render_sdf_reference.rs": {"lines": 361, "bytes": 13617,
+                                         "sha256": "785d1ec7f5d634adb0d6d4bce48633d961edeb8ddb5023350122fd363855a31e"},
+      "tests/support/render_bvh/sdf.rs": {"lines": 372, "bytes": 13189,
+                                           "sha256": "7bf1f0254a0dc0a67536af5a22d55b869b88b628f04c1d2ba226bf191f9d8e41"},
+      "tests/support/render_bvh/sdf_scene.rs": {"lines": 323, "bytes": 11695,
+                                                 "sha256": "025950d003d960488cf3c39737f142ab323fa6887bbdc20632995cfb1ad4a94a"},
+      "tests/support/render_bvh/sdf_compare.rs": {"lines": 260, "bytes": 9632,
+                                                   "sha256": "45ecb5a9bfb600cb213ce2862c9b76d1df0d462cb876dac856c07caa74a358d5"},
+      "scripts/validate/render-bvh/freeze-guards-sdf.ps1": {"lines": 167, "bytes": 8679, "non_ascii": 0,
+                                                             "sha256": "d2c79620837e9072509720afc4363052e0881289fbbd3d3770d004aef7888730"}
+    },
+    "cases": {
+      "host": ["model_dumps_match_signed_scene_semantics", "capture_references_parse_and_cross_checks_hold",
+               "sdf_leaf_geometry_uses_mesh_bounds"],
+      "gpu_ignored": ["sdf_mesh_matches_captured_reference", "sdf_occluder_matches_captured_reference",
+                       "shadow_toggle_consistency", "depth_seg_cross_path_consistency", "two_run_determinism"],
+      "host_result": "3 passed / 0 failed / 5 ignored"
+    },
+    "criteria": {
+      "max_depth_ulp_constant": 4,
+      "rgb": "beyond_1_lsb=0 (implies max_byte_diff<=1)",
+      "depth": "mismatched=0 and max_ulp<=4 and beyond_ulp=0",
+      "seg": "mismatched=0",
+      "determinism": "two-run rgb/depth/seg sha256 equal",
+      "shadow_arm": "depth/seg bitwise equal, reversed==0, changed>0; on-arm rgb/depth/seg two-run sha, off-arm rgb/depth only (missing seg)",
+      "depth_seg_cross_path": "bitwise equal for all cameras"
+    },
+    "reference_loader_assertions": ["task_id", "kind", "group", "two_captures_bitwise_identical",
+                                     "legacy_reference_untouched", "legacy_reference_files=69",
+                                     "use_fast_math=false", "use_shadows=true", "repeat=2",
+                                     "recipe.scene_xml.sha256", "recipe.script.sha256=80645968...",
+                                     "npz list", "samples_per_pixel=1", "each npz sha == capture.json.files_sha256"],
+    "freezer": {"lines": 167, "non_ascii": 0, "psparser_errors": 0,
+                "hard_asserts": ["9 frozen exes", "83 read-only inputs", "92 frozen entries"],
+                "entity_order_matches_material": true, "executed_in_this_slice": false,
+                "guards_file_created": false,
+                "inputs_recount": {"scene_sdf": 10, "scene_hfield": 10, "legacy": 47, "scene_shadow_capture": 16,
+                                    "total": 83}},
+    "gates_self_run": {"result_lines": 137, "passed": 1109, "failed": 0, "ignored": 397,
+                       "exits": {"fmt": 0, "clippy": 0, "clippy-cuda": 0, "unit": 0, "no-run": 0, "host-test": 0},
+                       "no_run_last_line": "EXIT=0", "host_test": "3 passed / 5 ignored"},
+    "evidence_manifest": {"rows": 12, "match": "12/12", "files": 13, "utf16_or_bom": []},
+    "validate_now": {"errors": 0, "warnings": 5}
+  },
+  "must_fix_items": [
+    {"id": "P1", "severity": "must-fix(minor, evidence number)", "where": "docs/development-evidence/render-bvh/sdf-reference-target/receipt.json gates.unit",
+     "finding": "receipt.gates.unit says '1109 passed / 0 failed / 392 ignored' but the actual run (mine and the committed gate-unit.json) is 1109 / 0 / 397 (392 after U1b + this slice's 5 new ignored GPU cases)",
+     "fix": "change to 397 ignored (or split into passed/ignored fields); no rerun"},
+    {"id": "P2", "severity": "must-fix(minor, criteria coverage)", "where": "tests/render_sdf_reference.rs fn shadow_toggle_consistency (off arm)",
+     "finding": "the criteria say 'both arms two-run sha equal', but the shadow-on arm asserts rgb/depth/seg two-run sha while the shadow-off arm asserts only rgb and depth; the off-arm seg two-run sha is missing",
+     "fix": "add the off-arm seg two-run sha assertion (1 line; file 361 -> 362, still <=500) and rerun host/unit gates (expect 1109/0/397), or narrow the criteria wording to rgb/depth only"}
+  ],
+  "observations": [
+    {"id": "O1", "text": "material line budget for render_sdf_reference.rs was 260-360 but the file is 361 (1 over); the 500-line ratchet is satisfied; adding the P2 assertion makes it 362 - suggest relaxing the material budget to <=400"},
+    {"id": "O2", "text": "capture_params uses ContextParams::default() plus explicit use_fast_math=false / use_shadows / geom groups 0..3 / three outputs true; I checked params.rs defaults against the U3 PARAMS_28 recipe (spp=1, precomputed rays, backface culling, vertex normals, shadow fraction 0.3, background 0/0/0/1) and they match"},
+    {"id": "O3", "text": "SDF leaves use mesh_half_extents as size (with geom_dataid==0 asserted) while plane/sphere/box use geom_size; the host case also asserts LeafGeometry::from_geom_type(8, half).kind == Mesh and size == half"},
+    {"id": "O4", "text": "the 3 host cases are pure JSON reading plus arithmetic (my run finished in 0.12s, no CUDA session); all 5 GPU cases are #[ignore] with explicit reasons and only run under --ignored in the window"},
+    {"id": "O5", "text": "the freezer runs cargo test --no-run --message-format=json, maps 9 entities, stashes exes under target, hashes 92 entries, hard-asserts counts and computes the aggregate exactly like run-window (path-sorted sha concat); fail-closed on any mismatch"},
+    {"id": "O6", "text": "no product src/.cu changes in this slice (git diff for src is empty), so kernel identity and the other entities' executables are unaffected"}
+  ],
+  "boundaries": {"read_only": true, "gpu_used": false, "window_opened": false, "device_execution": false,
+                  "product_src_modified": false, "guards_file_created": false, "foreign_evidence_edited": false},
+  "not_claimed": [
+    "不宣称渲染数值验收通过（GPU 用例只静态审阅）",
+    "不宣称上游等价",
+    "不宣称 SDF 渲染已覆盖（结论只能由 U4 窗口证据给出）"
+  ],
+  "limits": [
+    "the 5 GPU cases were reviewed statically only; pass/fail must come from the U4 window",
+    "the 92-entry guards identity and aggregate are produced inside the window and must be reviewed then"
+  ]
+}

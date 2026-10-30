@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "task": "2026-10-31-render-sdf-reference-target-check",
+  "reviewed_task": "2026-10-31-render-sdf-reference-target",
+  "pin": "4e761a7b",
+  "card_head": "e83ed63b",
+  "checks": [
+    {
+      "id": "scope.pin_commit",
+      "passed": true,
+      "detail": {
+        "paths": 23,
+        "new_tests": [
+          "tests/render_sdf_reference.rs",
+          "tests/support/render_bvh/sdf.rs",
+          "tests/support/render_bvh/sdf_scene.rs",
+          "tests/support/render_bvh/sdf_compare.rs"
+        ],
+        "guards_file_created": false
+      },
+      "ok": true
+    },
+    {
+      "id": "files.line_counts",
+      "passed": true,
+      "detail": {
+        "lines": {
+          "tests/render_sdf_reference.rs": 361,
+          "tests/support/render_bvh/sdf.rs": 372,
+          "tests/support/render_bvh/sdf_scene.rs": 323,
+          "tests/support/render_bvh/sdf_compare.rs": 260,
+          "scripts/validate/render-bvh/freeze-guards-sdf.ps1": 167
+        },
+        "over_500": [],
+        "material_budget_260_360_exceeded_by": 1,
+        "note": "材料行预算 260-360，实际 361（1 行）；500 行棘轮仍满足"
+      },
+      "ok": true
+    },
+    {
+      "id": "cases.eight_with_three_host",
+      "passed": true,
+      "detail": {
+        "host": [
+          "model_dumps_match_signed_scene_semantics",
+          "capture_references_parse_and_cross_checks_hold",
+          "sdf_leaf_geometry_uses_mesh_bounds"
+        ],
+        "gpu_ignored": [
+          "sdf_mesh_matches_captured_reference",
+          "sdf_occluder_matches_captured_reference",
+          "shadow_toggle_consistency",
+          "depth_seg_cross_path_consistency",
+          "two_run_determinism"
+        ],
+        "host_run": "3 passed / 5 ignored"
+      },
+      "ok": true
+    },
+    {
+      "id": "criteria.zero_relaxation",
+      "passed": true,
+      "detail": {
+        "max_depth_ulp_constant": 4,
+        "rgb_beyond_1_lsb_assert": true,
+        "depth_mismatched_assert": true,
+        "depth_max_ulp_assert": true,
+        "depth_beyond_ulp_assert": true,
+        "seg_mismatched_assert": true,
+        "shadow_depth_seg_bitwise": true,
+        "shadow_reversed_zero": true,
+        "shadow_changed_positive": true,
+        "depthseg_all_cameras": true
+      },
+      "ok": true
+    },
+    {
+      "id": "shadow.both_arms_two_run_sha",
+      "passed": false,
+      "detail": {
+        "shadow_on_checks": [
+          "RGB",
+          "depth",
+          "seg"
+        ],
+        "shadow_off_checks": [
+          "RGB",
+          "depth"
+        ],
+        "note": "off 臂只断言 RGB/depth 两跑 sha，缺 seg（判据写 both arms two-run sha equal）"
+      },
+      "ok": false
+    },
+    {
+      "id": "comments.no_stale_cu_reference",
+      "passed": true,
+      "detail": {
+        "tests/render_sdf_reference.rs": [],
+        "tests/support/render_bvh/sdf.rs": [],
+        "tests/support/render_bvh/sdf_scene.rs": [],
+        "tests/support/render_bvh/sdf_compare.rs": [],
+        "scripts/validate/render-bvh/freeze-guards-sdf.ps1": []
+      },
+      "ok": true
+    },
+    {
+      "id": "freezer.static_and_counts",
+      "passed": true,
+      "detail": {
+        "lines": 167,
+        "psparser": "psparser_errors=0",
+        "hard_asserts_present": true,
+        "entity_order_matches_material": true,
+        "inputs_recount": {
+          "scene_sdf": 10,
+          "scene_hfield": 10,
+          "legacy": 47,
+          "scene_shadow": 16,
+          "total": 83
+        },
+        "freeze_not_executed": true
+      },
+      "ok": true
+    },
+    {
+      "id": "gates.self_run_and_receipt_number",
+      "passed": false,
+      "detail": {
+        "result_lines": 137,
+        "passed": 1109,
+        "failed": 0,
+        "ignored": 397,
+        "gate_exits": {
+          "fmt": "0",
+          "clippy": "0",
+          "clippy-cuda": "0",
+          "unit": "0",
+          "no-run": "0",
+          "host-test": "0"
+        },
+        "no_run_last": "EXIT=0",
+        "receipt_unit_text": "passed (1109 passed / 0 failed / 392 ignored)",
+        "note": "证据 gate-unit.json 也是 397 ignored；仅 receipt.gates.unit 文案写 392（U1b 旧值）"
+      },
+      "ok": false
+    },
+    {
+      "id": "evidence.manifest",
+      "passed": true,
+      "detail": {
+        "rows": 12,
+        "match": 12,
+        "files": 13,
+        "utf16_or_bom": []
+      },
+      "ok": true
+    },
+    {
+      "id": "card.checks_and_validate",
+      "passed": true,
+      "detail": {
+        "check_exit": 0,
+        "validate": [
+          "0",
+          "5"
+        ]
+      },
+      "ok": true
+    }
+  ],
+  "problems": [
+    {
+      "id": "P1",
+      "severity": "需修(轻微, 证据数字)",
+      "check": "gates.self_run_and_receipt_number",
+      "finding": "receipt.gates.unit 写 '1109 passed / 0 failed / 392 ignored'，实际（我自跑与证据 gate-unit.json 一致）是 **1109 passed / 0 failed / 397 ignored**（U1b 后 392 + 本片 5 条新 ignored GPU 用例）。",
+      "fix": "receipt.gates.unit 改为 397 ignored（或写 tests_passed/ignored 两字段）；不重跑。"
+    },
+    {
+      "id": "P2",
+      "severity": "需修(轻微, 判据覆盖)",
+      "check": "shadow.both_arms_two_run_sha",
+      "finding": "shadow 臂判据写「两臂 two-run sha 相等」，代码只对 on 臂断言 rgb/depth/seg 两跑 sha；off 臂只断言 rgb/depth，**缺 seg 两跑 sha**（render_sdf_reference.rs 的 shadow_toggle_consistency）。",
+      "fix": "在 off 臂补一条 seg 两跑 sha 断言（1 行）；或把判据措辞收窄为「shadow 两臂 rgb/depth 两跑 sha 相等」。改动后需重跑 host/unit 门禁（unit 仍 1109/0/397，行数 362）。"
+    }
+  ],
+  "summary": {
+    "checks_total": 10,
+    "checks_passed": 8,
+    "problems": 2,
+    "blockers": 0
+  }
+}
