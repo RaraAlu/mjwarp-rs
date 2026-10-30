@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-sdf-mesh-path",
+  "title": {
+    "zh": "渲染：SDF（gtype==8）设备侧 mesh 路径对齐（3 行；host 拒绝保留，能力不暴露）",
+    "en": "Render: SDF (gtype==8) device-side mesh path alignment (3 lines; host rejection kept, capability not exposed)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "SDF 解锁片 U1（见 `target/sdf-unlock-precheck.md` §8）。上游渲染器对 SDF **没有距离场求交**：`render.py:738-761` 把 MESH|SDF 放同一分支，用 `geom_dataid` 指向的底层 mesh 走 `ray_mesh_with_bvh(_anyhit)`；`bvh.py:211-220` 的 bounds 也用 `mesh_bounds_size[did]`；纹理/顶点法线同 mesh 分支（`render.py:466-481/1211-1216`，`render_test.py:1246-1279` docstring 原文「render using the underlying mesh geometry」）。我们设备侧只差 dispatch：① `render_common.cu` 的 mesh 分支把 `gtype==8` 纳入（`if (gtype == 7 || gtype == 1 || gtype == 8)`，8 与 7 同用 `scene.leaf_mesh[leaf]`）；② `render_common.cu` 的 `hit.mesh_id` 对 8 也填（否则 `render_megakernel.cu:238` 的顶点法线分支因 `mesh_id<0` 被跳过，与上游不一致）；③ `render.cu` 的 DepthSeg 分支让 8 也走 `ray_mesh_leaf`（删两行过时注释，文件净负避开 500 棘轮）。**本片保留 host 拒绝 `reject_sdf_geometry`**（未验证能力不暴露，与 R09-S2 先例一致）：因此改动今天不可达，U1b 在 U3 verified 后、U4 前解锁。零 GPU、零窗口、不改 ABI/判据/容差/参考。",
+    "en": "U1 of the SDF unlock slice: upstream renders SDF via its underlying mesh, so the device side only needs dispatch alignment (render_common.cu mesh branch + hit.mesh_id for gtype 8, render.cu DepthSeg mesh call, net-negative line count). Host rejection stays, so the capability is not exposed; no GPU, no ABI/criteria/reference change."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp.render.kernel"
+    ]
+  },
+  "acceptance": [
+    "**改动面**：`git diff --stat -- src` 只含 `src/render/kernel/cuda/render_common.cu` 与 `src/render/kernel/cuda/render.cu`；`render_common.cu` 414 → **≤417**；`render.cu` 499 → **≤498（必须净负）**；`megakernel.rs`(440)/`cast.rs`(481) 不动。",
+    "**dispatch 正确**：`render_common.cu` 的 mesh 分支条件含 `gtype == 8`（8 与 7 同用 `scene.leaf_mesh[leaf]`）；`hit.mesh_id` 对 `gtype == 7 || gtype == 8` 均填 `mesh_index`；`render.cu` 的 `gtype == 7 || gtype == 8` 分支中 8 也调 `ray_mesh_leaf(..., scene.leaf_mesh[leaf], ...)`，过时注释已删。",
+    "**host 拒绝保留（能力不暴露）**：`megakernel.rs` 的 `reject_sdf_geometry` 与调用原样保留；含 `geom_type==8` 的输入仍返回 `LauncherError::Unsupported(\"S7b3 不含 SDF 求交\")`；latent fix 的两条 host-only 单测仍通过；证据写明「本片改动今天不可达、不宣称任何 SDF 渲染能力」。",
+    "**门禁与校验**：fmt / clippy / clippy-cuda / unit 全过；`cargo test --locked --no-run` 日志含 exit 码与 `Finished`；`normify validate --fingerprints` 错误 0（指纹漂移由 done 刷新）。",
+    "**内核身份**：记录改后 `MEGAKERNEL_SOURCE` sha256 / PTX sha256 / PTX bytes 与 `aa_resolve` 三值（新旧对照）；旧身份（`be4ef01b…`/`4dae03ff…`/268,305）的 pin 口径引用清单（`git grep -I -n -E <旧三值> <pin> -- .`），历史证据不回改。",
+    "**边界**：不改 81 槽 ABI / 判据 / 容差 / 参考 / 其它 `.cu`；不改 R08/R02 证据目录（`unchanged`）；零 GPU、零窗口；不实现 SDF 求交、不解除 host 拒绝。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-sdf-anyhit-cull-latent-fix"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "src/render/kernel/cuda/render_common.cu",
+      "src/render/kernel/cuda/render.cu",
+      "docs/development-evidence/render-bvh/sdf-mesh-path/"
+    ],
+    "resources": [],
+    "priority": 63
+  },
+  "note": "Arch 2026-10-30 注册（SDF 解锁片 U1；预核 `target/sdf-unlock-precheck.md` §8，Chief 已批准 5 片结构）。关键结论：上游 SDF=底层 mesh 渲染（`render_test.py:1251` docstring、`render.py:738-761`、`bvh.py:211-220`），所以本片只是 dispatch 对齐、无需 SDF 求交。**host 守卫 `reject_sdf_geometry` 本片保留**（未验证能力不暴露，同 R09-S2 先例）；host 解锁 = U1b（U3 verified 后、U4 前，失败回滚 U1b 保留 U1）。U2 采集 authoring 在其后（离线），U3/U4 两窗等用户签字。`render.cu` 现 499 行，改动必须净负否则先拆文件。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T18:02:00.000Z",
+  "updated_at": "2026-10-30T18:02:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "docs/development-evidence/render-bvh/r08-rgb-hetero-validate",
+        "docs/development-evidence/render-bvh/r02-skybox-s3-validate",
+        "src/render/kernel/megakernel.rs"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-mesh-path/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-sdf-mesh-path"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "SDF 渲染已覆盖",
+        "渲染数值验收通过",
+        "等价"
+      ]
+    }
+  ]
+}

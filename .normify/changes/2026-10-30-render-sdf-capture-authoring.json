@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-sdf-capture-authoring",
+  "title": {
+    "zh": "SDF 渲染参考采集 authoring（scene-sdf fixture + capture_render_sdf.py；离线 dry-run，不跑 GPU）",
+    "en": "SDF render reference capture authoring (scene-sdf fixture + capture_render_sdf.py; offline dry-run, no GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "SDF 解锁片 U2（预核 `target/sdf-unlock-precheck.md` §8）。为 U4 验证窗准备 SDF 渲染参考的**采集 authoring**：① 新场景 `fixtures/render-bvh/scene-sdf/scene.xml`——`<geom type=\"sdf\" mesh=\"cube\"/>`（volume SDF、无 plugin，上游 `collision_driver_test.py:1268-1380` 的 `_SDF_VOLUME` 同写法）+ 至少 1 个静态相机 + 1 个灯 + 带纹理材质（纹理/顶点法线分支也可验），并记录 ngeom/nlight/nq；② 新采集脚本 `scripts/capture_render_sdf.py`（从 `scripts/capture_render_hfield.py` 派生，**≤500 行**），沿用 `--dry-run`（不建 CUDA device、不写盘）、`--repeat 2`（逐数组相等 + npz 字节相等才落盘）、legacy manifest 保护（排除新输出子树）、`--use-fast-math false`、`spp=1`、固定相机；③ 窗口材料 `docs/development-evidence/render-bvh/sdf-capture-window-material/`（窗口计划一页 + 预期产物 + 双签栏）。**本片只做离线 authoring + dry-run，不跑 GPU、不写 fixtures 参考。**",
+    "en": "U2 of the SDF unlock slice: author the SDF scene fixture and the derived capture script (offline dry-run only), plus the capture window material. No GPU, no reference products written."
+  },
+  "modules": {},
+  "acceptance": [
+    "**脚本**：`scripts/capture_render_sdf.py` ≤500 行（LF）、非 ASCII 0、pinned python `ast.parse` 通过；sha256/bytes/lines 与 receipt 一致；派生自 `scripts/capture_render_hfield.py` 且不修改既有采集脚本与参考。",
+    "**dry-run**：`--dry-run` exit 0；过程中**未创建 CUDA device、未写 --out-dir**；legacy manifest 条数与证据一致。",
+    "**场景**：`fixtures/render-bvh/scene-sdf/scene.xml` 静态校验通过——SDF geom（`type=\"sdf\"` + `mesh=\"cube\"`）、至少 1 个 fixed 相机、1 个灯、材质（纹理）；ngeom/nlight/nq 与证据一致；不含 plugin。",
+    "**产物契约**：预期产物表（`rgb.npz`/`depth.npz`/`seg.npz`/`state.npz`/`capture.json`）与 R05/perworld 采集同格式；`capture.json` 需含 `geom_type=8`、底层 mesh 名、`two_captures_bitwise_identical`、`legacy_reference_files`、配方字段（`use_fast_math=false`/`use_shadows`/`spp=1`）。",
+    "**窗口材料**：`sdf-capture-window-material/` 含窗口计划一页（命令逐字、`--out-dir` 限定、两跑相等判据、legacy 保护、基线取法/floor、时限与失败即停手、双签栏）与 `expected-products.json`。",
+    "**边界**：不改 `src/**`、`tests/**`、既有采集脚本/参考；零 GPU、零窗口；不宣称任何渲染数值结论。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-sdf-mesh-path"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "fixtures/render-bvh/scene-sdf/scene.xml",
+      "scripts/capture_render_sdf.py",
+      "docs/development-evidence/render-bvh/sdf-capture-authoring/",
+      "docs/development-evidence/render-bvh/sdf-capture-window-material/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-30 注册（SDF 解锁片 U2；Chief 批准 5 片结构）。前置 U1（设备 dispatch 对齐）已 verified 后开始；本片只 authoring，U3 采集窗（GPU，需用户双签）在其后。**关键事实**：上游渲染 SDF = 渲染其底层 mesh（`render_test.py:1246-1279`），所以参考采集不需要任何 SDF 距离场代码；SDF 的 `geom_size` 可能是 [1,1,1]（上游 test L1268），bounds 必须走 mesh bounds——采集/fixture 材料里要点名这一点。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T18:03:00.000Z",
+  "updated_at": "2026-10-30T18:03:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-capture-authoring/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-sdf-capture-authoring"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
