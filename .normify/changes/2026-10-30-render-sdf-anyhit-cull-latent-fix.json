@@ -5,7 +5,7 @@
     "zh": "渲染：阴影 any-hit 对 SDF 的背面剔除 latent fix（1 行判据 + 注释契约 + host 拒绝回归测试；不解除 host 拒绝）",
     "en": "Render: latent fix for the SDF backface-cull divergence under any-hit shadows (one-line criterion, comment contract, host-rejection regression test; host rejection unchanged)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "承接 `2026-10-28-render-shadow-sdf-gtype-cull-gap`（Chief 2026-10-30 批准方案 A：先独立小片修 latent，再由解锁片实现 SDF 求交）。现状：`render_common.cu:393` 的 cull 排除表只有 `gtype==7|1`，SDF（8）不在其中；但设备对 `gtype==8` 目前恒 miss，且 megakernel host 对含 8 的模型硬拒绝（`megakernel.rs:109`），所以缺口今天不可达。本片只做 latent 对齐：① cull 判据排除 `gtype==8`（上游 any-hit 对 MESH/SDF 都不填 normal ⇒ 不剔背）；② 在 SDF 占位分支注释写清解锁契约；③ 把 host 拒绝抽成可单测校验并加 host-only 回归测试，钉住「不可达」前提。**不解除 host 拒绝、不实现 SDF 求交、不改判据/参考/ABI、不开窗口。**",
     "en": "Latent alignment slice from the SDF cull gap: exclude gtype==8 from the backface-cull criterion (upstream any-hit fills no normal for MESH/SDF), document the unlock contract in the SDF placeholder branch, and add a host-only regression test that keeps the SDF host rejection in place. No host unlock, no SDF intersection implementation, no criteria/ABI changes, no GPU window."
@@ -39,11 +39,12 @@
   },
   "note": "Arch 2026-10-30 注册（Chief 批准方案 A）。**顺序硬约束：不得早于 R08-S3 verified 起片**——本片改 `render_common.cu` 会改 `MEGAKERNEL_SOURCE`（6 个 .cu 拼接）与 PTX sha（现行 `e68e3412…` / `0b947492…` / 268,275 B），而 R08 窗口材料与证据绑定这组三值且窗口前提是零 .cu 改动；因此用 `depends_on = 2026-10-29-render-r08-rgb-hetero-validate` 机器钉死（该卡 verified 前本卡无法 start）。start 等 Chief 通知。内核身份影响已盘点：`src/tests/scripts/fixtures` 活体断言 **0**，历史引用 **50 行/18 文件**全在 `docs/development-evidence/**`，按 Chief 口径**不回改历史证据**，只在本卡证据里记新三值与清单。另本片不处理 depth/seg 路径的 SDF 静默 miss（见 gap 卡 note 新发现），留解锁片一并解决。",
   "revision": {
-    "before": null,
+    "before": "91a4f5dae774fff7b1c3975fbabd2417de189189",
     "after": null
   },
   "created_at": "2026-10-30T03:40:00.000Z",
-  "updated_at": "2026-10-30T03:40:00.000Z",
+  "updated_at": "2026-10-30T04:26:27.624Z",
+  "closed_at": "2026-10-30T04:25:43.131Z",
   "checks": [
     {
       "kind": "gate",
@@ -82,6 +83,14 @@
         "渲染数值验收通过",
         "等价"
       ]
+    }
+  ],
+  "addenda": [
+    {
+      "at": "2026-10-30T04:26:27.624Z",
+      "reason": "证据日志最终化（gate 转写/清单/manifest）后复跑四门禁；门禁以最终证据范围为准",
+      "prev": null,
+      "hash": "sha256:e73dfb916d30003b31f5228aee67536f3a9381ba7037ef25f2a29e03f9363e68"
     }
   ]
 }

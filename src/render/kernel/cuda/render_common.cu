@@ -385,12 +385,16 @@ __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const Megake
                                   &pass_bary_u, &pass_bary_v, &pass_face);
             }
         } else if (gtype != 8) {
-            // gtype==8（SDF）仍由 host 拒绝；设备侧保守不判交。
+            // gtype==8（SDF）仍由 host 拒绝（`megakernel.rs` 的 `reject_sdf_geometry`）；设备侧保守不判交。
+            // 解锁契约（gap 卡 `2026-10-28-render-shadow-sdf-gtype-cull-gap`）：SDF 求交必须走上游
+            // any-hit 语义——命中时 d=0、未命中 d=-1、**不填 normal**、且不参与背面剔除（见下方 cull_this）。
             render_intersect_primitive(gtype, pos, leaf_size, leaf_mat, origin, direction, &d, &n);
         }
-        // 上游阴影射线走 any-hit 分支（mesh/hfield 的 n 为零向量 → cull 不生效）；
-        // primitive 仍 cull。
-        bool cull_this = cull_backfaces && !(shadow_ray && (gtype == 7 || gtype == 1));
+        // 上游阴影射线走 any-hit 分支（mesh/hfield/SDF 的 n 为零向量 → cull 不生效）；
+        // primitive 仍 cull。SDF（gtype==8）按上游 any-hit 语义也不填 normal ⇒ 排除
+        // （latent 对齐，见 gap 卡 `2026-10-28-render-shadow-sdf-gtype-cull-gap`；
+        // 设备侧 SDF 求交尚未解锁，host 仍拒绝，见 `megakernel.rs` 的 `reject_sdf_geometry`）。
+        bool cull_this = cull_backfaces && !(shadow_ray && (gtype == 7 || gtype == 1 || gtype == 8));
         if (cull_this && d >= 0.0f && dot(direction, n) > 0.0f) {
             d = -1.0f;
         }

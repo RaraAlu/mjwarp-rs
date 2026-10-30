@@ -1,0 +1,102 @@
+{
+  "task_id": "2026-10-30-render-sdf-anyhit-cull-latent-fix",
+  "scope": "latent alignment only: cull exclusion for gtype==8, SDF placeholder unlock-contract comment, host-rejection regression test; host rejection unchanged, no SDF intersection, no GPU window",
+  "gap_card": "2026-10-28-render-shadow-sdf-gtype-cull-gap",
+  "prerequisite": "2026-10-29-render-r08-rgb-hetero-validate (verified before this slice started)",
+  "changes": [
+    {
+      "file": "src/render/kernel/cuda/render_common.cu",
+      "lines_before": 410,
+      "lines_after": 414,
+      "what": "cull_this any-hit exclusion extended from gtype==7|1 to include gtype==8 (upstream any-hit fills no normal for MESH/SDF => no backface cull); placeholder branch comment now states the unlock contract (hit d=0, miss d=-1, no normal, no culling) and points at the gap card"
+    },
+    {
+      "file": "src/render/kernel/megakernel.rs",
+      "lines_before": 409,
+      "lines_after": 440,
+      "what": "host gtype==8 rejection extracted into reject_sdf_geometry(&[i32]) with the unchanged error string Unsupported(\"S7b3 不含 SDF 求交\"); new #[cfg(test)] mod sdf_geometry_guard_tests with sdf_geometry_stays_unsupported and non_sdf_geometry_passes_the_guard (host-only, no GPU session)"
+    }
+  ],
+  "src_diff": {
+    "files": 2,
+    "insertions": 43,
+    "deletions": 8,
+    "only_files": ["src/render/kernel/cuda/render_common.cu", "src/render/kernel/megakernel.rs"]
+  },
+  "kernel_identity": {
+    "old": {
+      "megakernel_source_sha256_prefix": "e68e3412",
+      "megakernel_ptx_sha256_prefix": "0b947492",
+      "megakernel_ptx_bytes": 268275
+    },
+    "new": {
+      "megakernel_source_sha256": "be4ef01b1ae45188ac512c91cfef60244a1f8b6670307b245ae1719a34cf5f5e",
+      "megakernel_ptx_sha256": "4dae03ffb3fe82214da930714c7fd1ccb6a2c8d5c5eb7cc8e489624b4e7dd085",
+      "megakernel_ptx_bytes": 268305,
+      "aa_resolve_source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+      "aa_resolve_ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+      "aa_resolve_ptx_bytes": 27536,
+      "aa_resolve_unchanged": true
+    },
+    "measured_by": "cargo test --locked --features cuda-probe --test render_kernel_flags flag_and_aa_sources_compile_under_render_gate -- --ignored --nocapture (NVRTC compile + f32-render gate; logs/kernel-identity.txt)"
+  },
+  "identity_references": {
+    "total_lines": 59,
+    "total_files": 31,
+    "docs_lines": 55,
+    "docs_files": 27,
+    "fixtures_lines": 4,
+    "fixtures_note": "unrelated hex payloads (g01 reference, mass-solve ptx json), not render kernel identity assertions",
+    "live_assertions_src_tests_scripts": 0,
+    "history_evidence_edited": false,
+    "list": "materials/kernel-identity-refs.txt"
+  },
+  "gates": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "clippy_cuda": "passed",
+    "unit": "passed (1108 passed / 0 failed, 392 ignored, 105216 ms)",
+    "logs": "logs/gate-*.txt (verbatim transcription of .normify/runs/2026-10-30-render-sdf-anyhit-cull-latent-fix/*.json)"
+  },
+  "no_run": {
+    "command": "cargo test --locked --no-run",
+    "exit": 0,
+    "has_finished": true,
+    "log": "logs/no-run.txt"
+  },
+  "validate": {
+    "errors": 0,
+    "warnings": 6,
+    "warning_list": [
+      "api/leaf-empty mjwarp.io.render",
+      "api/leaf-empty mjwarp.model.render-model",
+      "structure/leaf-too-coarse (39 leaves)",
+      "layout/order-incomplete layout:mjwarp.io",
+      "layout/order-incomplete layout:mjwarp.model",
+      "evidence/fingerprint-drift mjwarp.render.kernel (expected; refreshed by done)"
+    ],
+    "log": "materials/validate.txt"
+  },
+  "boundaries": {
+    "abi_slots_changed": false,
+    "criteria_changed": false,
+    "tolerance_changed": false,
+    "reference_changed": false,
+    "host_rejection_semantics_changed": false,
+    "gpu_window_opened": false,
+    "device_execution": false,
+    "r08_r02_evidence_edited": false,
+    "unchanged_check_paths": [
+      "docs/development-evidence/render-bvh/r08-rgb-hetero",
+      "docs/development-evidence/render-bvh/r08-rgb-hetero-window-material",
+      "docs/development-evidence/render-bvh/r02-skybox"
+    ]
+  },
+  "unreachability": "host keeps rejecting any model containing geom_type==8 (reject_sdf_geometry, pinned by the new host-only unit test), so the device-side cull change is unreachable until the unlock slice also implements SDF intersection and removes this guard",
+  "claims": {
+    "sdf_intersection_implemented": false,
+    "sdf_rendering_covered": false,
+    "numeric_acceptance": false,
+    "kernel_identity_unchanged": false
+  }
+}
