@@ -5,7 +5,7 @@
     "zh": "SDF 验证窗（U4：常规 util<40 优先 + 已签条件式 validation-only util<60 例外；9 实体/92 条新冻结；需用户双签）",
     "en": "SDF validation window (U4: regular util<40 first + signed conditional validation-only util<60 exception; 9 entities, 92-entry new freeze; user double-sign)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
     "zh": "在用户双签的 GPU 窗口里执行 U4 验证：新 target `render_sdf_reference`（两组参考比对 + shadow 开/关一致性 + DepthSeg 跨路径一致性 + 两跑确定性）+ 8 条回归，共 9 实体；新 suite `render-sdf-validate` attempt=1，新冻结 **9 exe + 83 inputs = 92**（不复用 R05/R02/R08 guards）。执行协议：**先常规 `util<40`**（三点基线 → floor → monitor 默认 MaxUtil=40）→ 60/60 则正常开窗；仅当常规失败才启用用户已签的 `validation_only_exception_util_lt_60`（保留失败 CSV/快照/判定、重取基线、`-MaxUtil 60` 新 CSV、60/60 才开窗、load-bearing 重算），**绝不写成常规通过**。判据零放宽；shadow-off 无上游参考只做一致性。本卡 offline 部分（实体/冻结器/材料 pin）已完成，GPU body 等 QA 核材料+实现后由 Chief 批准执行。",
     "en": "Run the signed U4 validation window (9 entities, new 92-entry freeze, regular util<40 first with the signed conditional validation-only util<60 exception only if it fails). GPU body waits for QA review and Chief approval."
@@ -39,11 +39,11 @@
   },
   "note": "Arch 2026-10-31 注册并 start（offline 部分已完成：实体、冻结器、材料 pin 均由 `2026-10-31-render-sdf-reference-target` 与 `2026-10-31-render-sdf-validate-window-material` 收口）。GPU body 执行前置：①QA 复核材料与实现；②Chief 批准开窗（用户已签常规 + 条件式 validation-only util<60 例外）。执行顺序严格按材料 `CONDITIONAL EXECUTION PROTOCOL`：先常规、失败才启用例外、现场按序执行、不预设路径；开窗前把当日 GPU 状态写进 facts。同一时间只允许一个 GPU 满载任务。",
   "revision": {
-    "before": null,
+    "before": "5a81da00ed3cea9365ddb98158667efc6a44776e",
     "after": null
   },
   "created_at": "2026-10-30T17:30:00.000Z",
-  "updated_at": "2026-10-30T17:30:00.000Z",
+  "updated_at": "2026-10-30T17:01:20.720Z",
   "checks": [
     {
       "kind": "json",
