@@ -136,3 +136,13 @@ attempt1 在**例外 monitor 60/60 通过后**、采集命令的**脚本场景�
 - 先例：R02-S2 窗口期修复 `b3a47aca`（走 authoring 卡 addendum + `Normify-Fixes`）。
 - **未变**：配方、场景、相机选择、采集判据、两跑位级规则、legacy 对拍、产出目标、用户已签窗口范围。
 - attempt2 流程：新基线 → 新 floor → 例外 monitor（新 CSV、`-MaxUtil 60`、PowerShell 5.1）→ 同一条 GPU 命令 → 产物/sha 校验 → 证据落 `perworld-capture-run/`。
+
+## 11. 证据清单
+
+| 文件 | 内容 |
+| --- | --- |
+| `README.md` | 本文 |
+| `receipt.json` | 材料 id、脚本身份、场景/位形、文件哈希、双签与例外状态、修正记录 |
+| `manifest.txt` | 本目录除自身外全部文件 sha256/bytes（QA 观察：补全材料完整性，2026-10-31） |
+| `materials/window-plan.txt` | 窗口计划一页（ASCII）：命令逐字、基线/floor、时限、失败策略、双签与例外块、CORRECTION BLOCK |
+| `materials/expected-products.json` | 预期产物/判据、dry-run 自检、例外命令、修正记录 |
