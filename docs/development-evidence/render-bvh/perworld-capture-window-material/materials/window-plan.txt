@@ -10,21 +10,27 @@ PURPOSE
 
 SCRIPT IDENTITY
 - path   : scripts/capture_render_perworld.py
-- sha256 : 971cb8b13db82a9076c81b15936b2c97ffe2df8d3c0e47d1d9d0b10c78552775
-- bytes  : 23531
-- lines  : 497 (LF, <=500)
+- sha256 : 67a760fa400f2cf89c19a700e49d08c619a78008664f03cd69fab21bd2077815
+- bytes  : 24008
+- lines  : 499 (LF, <=500)
 - ascii  : 0 non-ASCII bytes
 - derived: scripts/capture_render_hfield.py (R05-S3a skeleton); existing capture scripts and
            existing references are untouched.
+- note   : identity above is the attempt2 (window-period fixed) script; the attempt1 script was
+           971cb8b1.../23531 B/497 lines and stopped at the scene self-check - see CORRECTION BLOCK.
 
 PINNED ENVIRONMENT (dry-run verified 2026-10-30, no CUDA device created)
 - python   : target/mjwarp-parallel/venv/Scripts/python.exe (sha256 feeec361..., 3.12.13)
 - versions : warp 1.15.0 / mujoco 3.15.0 / mujoco_warp 3.15.0 / numpy 2.5.4
 - upstream : target/mjwarp-parallel/upstream @ 71da24d956378a87a703b6e1442b13aec0c4ac29 (clean)
 - scene    : fixtures/render-bvh/scene-a/scene.xml sha256 a9f1f0a3... 4639 B
-- cameras  : cam-persp (fixed, 320x240, enabled) + cam-track (targetbody, NOT enabled)
+- cameras  : id 0 cam-persp (fixed, 320x240, enabled) + id 1 cam-track (targetbody, NOT enabled)
              => cam_active_fixed_only = [true, false]
-- sizes    : ngeom=7, nlight=3, nq=1 (single hinge "tri-hinge")
+- sizes    : ngeom=7, nlight=3, njnt=2 (FREE base + one HINGE), nq=8, jnt_qposadr=[0,7]
+- qpos0    : [0.1, -0.2, 0.3, 0.961636, 0.10017, -0.050085, 0.250426, 0.0]  (model default)
+- base qpos: model default qpos0 (NOT zeros); per world only hinge address 7 is overwritten
+             => per-world qpos (3,8) float32; hinge rad = [0.0, 0.349066, 0.698132]
+             (free base quaternion preserved; all-zero base would have been a different pose)
 
 COMMANDS (verbatim)
 (A) pre-window self-check (no CUDA device, writes nothing; may be run outside the window)
@@ -41,6 +47,11 @@ HARD SELF-CHECKS (non-zero exit on violation)
 - use_fast_math false (product same recipe), use_shadows true, samples_per_pixel=1, fixed cameras only
 - --repeat 2: array_equal for every array AND byte-identical npz (deterministic ZIP_STORED);
   otherwise nothing is written and no claim is made
+- static model check: scalar joints are SLIDE|HINGE only, exactly one HINGE is required (FREE/BALL
+  are allowed and not counted); per-world qpos base is the model qpos0, not zeros
+- --dry-run prints the static model facts (njnt/jnt_type/jnt_qposadr/nq/qpos0, per-world hinge angle
+  and qpos, camera list, legacy count) so that a material assumption that contradicts the real scene
+  fails before the window, not inside it
 
 PRE-WINDOW BASELINE (5 minutes before the window)
 - nvidia-smi free/util x3 (about 1 s apart), compute-apps raw + filtered, build processes (must be 0),
@@ -58,7 +69,8 @@ WINDOW BODY / TIME CAP (30 min cap)
   step 3 re-check floor, verify product list + sha, record window facts      3 min
 
 FAILURE => STOP (no retry, no parameter change, no relaxed criteria)
-1 any non-zero exit; 2 two captures differ; 3 legacy manifest differs (69 entries);
+1 any non-zero exit; 2 two captures differ; 3 legacy manifest differs (79 entries: 69 legacy render-bvh
+references + 10 SDF reference files);
 4 write outside the allowed subtree / out-dir already non-empty; 5 free below floor;
 6 foreign GPU load or util >= 40. Keep target/ window facts, report Chief and user.
 
@@ -66,10 +78,10 @@ EXPECTED PRODUCTS  (fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/)
   rgb.npz    keys rgb_w{0,1,2}_cam0     [240,320,3] float32   ~2,764,800 B (2.64 MiB)
   depth.npz  keys depth_w{0,1,2}_cam0   [240,320]   float32   ~921,600 B (0.88 MiB); raw planar, 0 = no hit
   seg.npz    keys seg_w{0,1,2}_cam0     [240,320,2] int32     ~1,843,200 B (1.76 MiB); bg = (-1,-1)
-  state.npz  qpos (3,1), geom_xpos (3,7,3), geom_xmat (3,7,9), light_xpos (3,3,3),
+  state.npz  qpos (3,8), geom_xpos (3,7,3), geom_xmat (3,7,9), light_xpos (3,3,3),
              light_xdir (3,3,3), all float32                         ~1.2 KB
   capture.json  recipe + environment + two-run shas + two_captures_bitwise_identical
-                + legacy_reference_untouched + legacy_reference_files=69   ~8-20 KB
+                + legacy_reference_untouched + legacy_reference_files=79   ~8-20 KB
 - npz is deterministic ZIP_STORED (fixed timestamps); actual sha256 values come from the script output.
 - scope: the reference covers PER-WORLD GEOM POSES only. light_xpos/light_xdir are stored for
   completeness; per-world light poses are NOT claimed (the device path still indexes lights
@@ -77,7 +89,8 @@ EXPECTED PRODUCTS  (fixtures/render-bvh/scene-a/perworld/nw3-hinge02040/)
 
 LEGACY REFERENCE PROTECTION
 - the script snapshots fixtures/render-bvh (excluding the whole scene-a/perworld/ subtree) before and
-  after, requires identical sha256 manifests (69 entries measured), otherwise non-zero exit.
+  after, requires identical sha256 manifests (79 entries measured: 69 legacy + 10 SDF reference files),
+  otherwise non-zero exit.
 - known narrowing: the exclusion is the whole perworld/ subtree (QA review O3); finer-grained
   checks are deferred to the implementation slice and are not claimed here.
 
@@ -99,7 +112,7 @@ approved_by=user via Chief 2026-10-31T00:00+08:00
 scope=per-world capture window AND the SDF capture window (one signed authoring-only exception for both)
 reason=persistent desktop 3D graphics noise (dwm.exe / DeepSeek Harness gpu-process / msedgewebview2 gpu-process):
   the SDF capture window's normal util<40 monitor failed in the signed slot (354 samples, longest_clean=21,
-  84 samples >=40, util 35-50, exit 20) while free/floors were fine and compute_apps filtered=0, build=0;
+  84 samples >=40, util 5-50 (util_min=5), exit 20) while free/floors were fine and compute_apps filtered=0, build=0;
   the same desktop load is present for this window. Capture criteria are bitwise (two-run identical arrays
   and npz bytes), so external graphics load does not change arithmetic results.
 original_normal_threshold_attempts_retained=
@@ -109,8 +122,27 @@ original_normal_threshold_attempts_retained=
   docs/development-evidence/render-bvh/sdf-capture/monitor/monitor-pre-window-regular-failure.csv.
 exception_monitor_command=
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\monitor-until-clean.ps1
-  -OutCsv target\render-bvh\perworld-capture-window\monitor-pre-window-attempt1.csv -Required 60 -MaxMinutes 30 -MaxUtil 60
+  -OutCsv target\render-bvh\perworld-capture-window\monitor-pre-window-attempt2.csv -Required 60 -MaxMinutes 30 -MaxUtil 60
 not_a_normal_threshold_pass=true
 authoring_exception_used=true
 signature_unchanged=true
 shell_constraint=Windows PowerShell 5.1 only (aggregate/self-check culture-sorting constraint)
+attempt1_retained=
+  monitor CSV monitor-pre-window-attempt1.csv (60/60 clean, free_min 13,047, ge60=0, exit 0) and
+  target/render-bvh/perworld-capture-window/attempt1/ (snapshot, recompute JSON, capture-failure.txt);
+  attempt1's capture command failed in the scene self-check before rendering/writing - see CORRECTION BLOCK
+
+CORRECTION BLOCK (post-signature, attempt2) - 2026-10-31
+reason=attempt1 capture command exited 1 in the script scene self-check, before any rendering or write:
+  "expected exactly one scalar hinge joint, found scalar=[0,1] hinge=[1]". Root cause: the script counted
+  the FREE joint as a scalar joint and required exactly one, and the per-world qpos base was all zeros
+  (the free base pose/quaternion was lost, so the reference would have described a different pose).
+  The signed window scope is unchanged; the user-signed authoring-only exception still applies.
+fixed (window-period fix precedent R02-S2 b3a47aca):
+  1 scalar = SLIDE|HINGE only; exactly one HINGE required; FREE/BALL allowed and not counted
+  2 per-world qpos base = model qpos0; only hinge address 7 overwritten; output f32 qpos (3,8)
+  3 material facts: nq 1->8, qpos (3,1)->(3,8), legacy 69->79 (69 + 10 SDF reference files)
+  4 dry-run now prints the static model self-check listed under HARD SELF-CHECKS
+not_changed=recipe, scene, camera selection, capture criteria, two-run bitwise rule, legacy check, targets
+attempt2_plan=new 3-point baseline -> new floor -> exception monitor -MaxUtil 60 (new CSV, PowerShell 5.1)
+  -> the same one GPU command -> product/sha verification -> evidence under perworld-capture-run/
