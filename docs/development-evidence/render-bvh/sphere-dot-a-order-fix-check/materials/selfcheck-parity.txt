@@ -1,0 +1,25 @@
+sphere a-order fix — QA 3.12 vs 3.15 parity check (2026-10-31, read-only)
+
+claim under test (rca-summary.txt): "3.12 vs 3.15 parity is NOT the cause: cam_pos, cam_quat, cam_fovy f64 values are
+bit-identical between the 3.12 product dump and the 3.15 capture recipe; sphere geom_pos/geom_size are the same."
+
+inputs
+  tests/support/render_bvh/sdf/model-312.json            (MuJoCo 3.12 product dump, U4a)
+  fixtures/render-bvh/scene-sdf/capture-sdf/sdf-mesh/capture.json  (MuJoCo 3.15 capture recipe metadata)
+
+result (bit-level f64 comparison, struct.pack("<d"))
+  cam0 cam-front: pos_bitequal=True quat_bitequal=True  fovy=45.0
+      pos  model [1.5, -1.4, 1.2]                  == recipe [1.5, -1.4, 1.2]
+      quat model [0.826744697582135, 0.3972944767030241, 0.17252208984507525, 0.35900756582080856]
+           == recipe (identical digits)
+  cam1 cam-top:   pos_bitequal=True quat_bitequal=True  fovy=45.0
+      pos  model [0, 0, 3.2]                       == recipe [0.0, 0.0, 3.2]
+      quat model [1, 0, 0, 0]                      == recipe [1.0, 0.0, 0.0, 0.0]
+  => cameras are bit-identical between 3.12 and 3.15: parity cannot explain the depth deviation.
+
+geometry
+  3.12 dump: geom_type [0, 8, 2]; sphere (type 2) geom_pos [0.65, 0, 0.2]; geom_size [0.12, 0, 0]
+             mesh/SDF (type 8) geom_size [0.3499999940395355]*3
+  the 3.15 side has no separate model dump in-repo; both sides consume the same scene.xml
+  (sha256 376eb81ce200b29373af3965c7abefd90b8f00188a688db583080836dfa868e8 / 3,388 B, recorded in the capture recipe),
+  so the geometry equality is supported indirectly (observation O2), unlike the camera side which was verified bit-exactly.

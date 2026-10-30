@@ -1,0 +1,28 @@
+sphere a-order fix — QA gate/build check (2026-10-31, read-only, gates NOT rerun)
+
+reason for not rerunning: U4 attempt3 window body was running; the window discipline requires zero Rust compile
+after the body starts, so QA used the committed .normify runs records and the evidence logs.
+
+committed .normify/runs/2026-10-31-render-sdf-sphere-dot-a-order-fix/*.json (authoritative)
+  fmt        passed=true  wall_ms=1712   at=2026-10-30T18:53:26.749Z
+  clippy     passed=true  wall_ms=455    at=2026-10-30T18:53:27.370Z
+  clippy-cuda passed=true wall_ms=404    at=2026-10-30T18:53:27.936Z
+  unit       passed=true  wall_ms=12225  at=2026-10-30T18:53:40.328Z  tests: 1111 passed / 0 failed / 397 ignored / exit 0
+  (commit 8126868c at 2026-10-31T02:53:56+08:00 = 18:53:56Z; the unit run at 18:53:40Z precedes it)
+
+evidence transcriptions docs/development-evidence/render-bvh/sphere-dot-a-order-fix/logs/gate-*.txt
+  fmt        passed=true wall_ms=1610   log_sha=e3b0c442...98b855 (empty log)
+  clippy     passed=true wall_ms=5629   log_sha=6ee02e7d...06763
+  clippy-cuda passed=true wall_ms=404    log_sha=299f16a2...466887
+  unit       passed=true wall_ms=95034  log_sha=eb587f68...95ab1
+  => the transcriptions are NOT from the same runs as runs/ (see must-fix P2); their verdict numbers agree
+     (all passed; unit 1111/0/397 in the unit snapshot's tests block).
+
+cargo test --locked --no-run
+  logs/no-run.txt: "Finished `test` profile ... " + last executables + "EXIT=0" (+ "Executable lines: 135")
+  => EXIT=0 with Finished (trimmed transcription, observation O5)
+
+normify validate --fingerprints
+  evidence snapshot materials/validate.txt: errors 0 / warnings 6, incl. "evidence/fingerprint-drift 1 个模块指纹已过期"
+  re-run by QA at review time: errors 0 / warnings 5 (the fingerprint-drift warning is gone because 8126868c refreshed
+  the mjwarp.render.kernel module doc) - historical snapshot, not a contradiction (observation O3)

@@ -1,0 +1,23 @@
+sphere a-order fix — commit mapping anomaly check (2026-10-31, content not message)
+
+claim: the fix slice's closing commit 8126868c has a message that describes a different action
+("治理(渲染): 复核卡去掉 in_progress 依赖（QA 可 start）"), the trailer is correct, and addendum 1e814b92
+records the mapping without rewriting history.
+
+verified
+  git log --oneline: 8126868c "治理(渲染): 复核卡去掉 in_progress 依赖（QA 可 start）"
+  its body ends with: "Normify-Task: 2026-10-31-render-sdf-sphere-dot-a-order-fix"   (correct trailer)
+  content (19 files): src/render/kernel/cuda/render_math.cu (the fix), the new sphere-dot-a-order-fix evidence dir
+                       (README/receipt/manifest/logs/materials), the task's .normify runs (fmt/clippy/clippy-cuda/unit),
+                       .normify/changes/<fix task>.json, .normify/modules/mjwarp/render/kernel.md
+  the dependency removal described by the message actually happened in d3bca361
+    ("治理(渲染): 注册球面 a-order fix 片；复核卡去掉 in_progress 依赖")
+  addendum: 1e814b92 "修复(渲染): 记录 fix 片收口提交的映射说明（内容为准，不改写历史）"
+    -> .normify/changes/2026-10-31-render-sdf-sphere-dot-a-order-fix.json addenda[] documents the mis-mapping
+  fix task status: verified (closed_at set); the QA check card was registered with pin 8126868c and instructs
+  "按内容核、不按 message 核" - followed here.
+
+verdict on the anomaly: content is self-consistent with the fix task; message is wrong but history is not rewritten
+and the mapping is recorded. No blocker. Recorded as observation O6.
+
+scope boundary: this check does not touch the fix task's own evidence; it only reads it.

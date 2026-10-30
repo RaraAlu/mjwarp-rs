@@ -1,0 +1,38 @@
+sphere a-order fix — QA source-diff check (2026-10-31, read-only)
+
+command: git show 8126868c -- src/render/kernel/cuda/render_math.cu
+  numstat src : 12  13  src/render/kernel/cuda/render_math.cu
+  file lines  : 309 -> 308
+
+semantic change (only one line)
+  float a = dot3_ch0(vec.x, vec.y, vec.z, vec.x, vec.y, vec.z);
+  float a = dot3_ba(vec.x, vec.y, vec.z, vec.x, vec.y, vec.z);
+
+removed
+  __device__ __forceinline__ float dot3_ch0(float a0, float a1, float a2, float b0, float b1, float b2) {
+      return __fmaf_rn(a2, b2, __fmaf_rn(a1, b1, __fmul_rn(a0, b0)));
+  }
+
+dot order semantics (vec vs vec, so a_i == b_i)
+  dot3_ch0: mul(x*x) -> fma(y*y) -> fma(z*z)      (component 0 first)  = order (0,1,2)
+  dot3_ba : mul(y*y) -> fma(x*x) -> fma(z*z)      (component 1 first)  = order (1,0,2)
+  => now a, b, dd all use the same (1,0,2) order
+
+untouched (verified in the diff: no hunk touches them)
+  b  = dot3_ba(vec, d)
+  dd = dot3_ba(d, d)
+  det = __fmaf_rn(b, b, __fmsub_rn/__fmul_rn form, fused)
+  den = (a != 0.0f) ? __frcp_rn(a) : 1.0e-15f
+  x0 = __fmul_rn(den, __fsub_rn(nb, sq)); x1 = __fmul_rn(den, __fsub_rn(sq, b))
+  sol = (x0 >= 0) ? x0 : ((x1 >= 0) ? x1 : -1); if (sol < 0) return; *dist = sol
+  hit = add(pnt, scale(vec, sol)); *normal = normalize3(sub(hit, pos))
+  camera handling in render_common.cu / render_shade.cu: not in this commit
+
+scope check
+  git diff --numstat 8126868c^..8126868c -- tests/ fixtures/ scripts/ Cargo.toml Cargo.lock  => empty
+  only src file in the commit: src/render/kernel/cuda/render_math.cu
+  historical evidence: no R02/R05/R08/R09/sdf-series evidence path in the commit name list
+
+stale mention (observation O1)
+  src/render/kernel/cuda/render_shade.cu:10, :14 comments still list `dot3_ch0` as an available helper
+  (comment only; the helper definition was deleted) - deferred to the next kernel rebaseline

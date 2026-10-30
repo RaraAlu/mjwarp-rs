@@ -1,0 +1,97 @@
+{
+  "task_id": "2026-10-31-render-sdf-sphere-dot-a-order-fix-check",
+  "reviewed_task": "2026-10-31-render-sdf-sphere-dot-a-order-fix",
+  "pin": "8126868c",
+  "card_head_at_start": "786a9342372a9e18a8ba25bb64c1434237d42840",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 3,
+  "observations": 6,
+  "scope": "read-only QA review of the sphere `a = dot(vec,vec)` FMA contraction-order fix: single-file source diff (render_sphere_hit a order + dot3_ch0 removal + RCA comment), untouched b/dd/fused-det/1-a/root-selection/depth paths, kernel identity before/after, independent RCA re-enumeration, gates and no-run, historical evidence untouched, commit-mapping anomaly checked by content; no GPU, no window, no freeze, no build (U4 attempt3 window body was running)",
+  "method": {
+    "source_diff": "git show 8126868c -- src/render/kernel/cuda/render_math.cu; git diff --numstat/--name-only 8126868c^..8126868c",
+    "kernel_source_identity": "independent recompute: sha256 over MEGAKERNEL_SOURCE's 6 include_str! files in mod.rs order, from worktree (after) and from git blobs at 8126868c^ (before)",
+    "rca_recheck": "my own enumeration driver (materials/recompute-rca-variants.py) over the 44 diagnosed pixels parsed from attempt2 diagnostics: 6^3 dot orders x 2 det modes = 432 variants, scored against product/reference depth bits",
+    "parity": "bit-level comparison of f64 cam_pos/cam_quat/cam_fovy between tests/support/render_bvh/sdf/model-312.json (MuJoCo 3.12 dump) and capture.json recipe cameras (MuJoCo 3.15 capture)",
+    "gates": "committed .normify/runs jsons + transcribed logs + no-run snapshot; not rerun (window body running, zero-compile discipline)",
+    "evidence_manifest": "recomputed sha256/bytes for the fix evidence directory; src-diff.patch compared with the real diff",
+    "historical_evidence": "8126868c name-only diff: no R02/R05/R08/R09/sdf-series evidence path touched"
+  },
+  "verified_numbers": {
+    "source_diff": {
+      "files": "only src/render/kernel/cuda/render_math.cu (+12/-13; 309 -> 308 lines; one semantic line: float a = dot3_ba(vec.x, vec.y, vec.z, vec.x, vec.y, vec.z);)",
+      "removed": "dot3_ch0 definition (no remaining call site in src; only comments mention it)",
+      "untouched": "b = dot3_ba(...), dd = dot3_ba(...), det = __fmaf_rn(b, b, -__fmul_rn(a, c)) fused, den = (a != 0) ? __frcp_rn(a) : 1e-15, x0/x1 root selection, *dist = sol, depth = dist * -local_dir_z, normal = normalize3(hit - pos)",
+      "other_scope": "git diff --numstat tests/ fixtures/ scripts/ Cargo.toml Cargo.lock => empty; no other .cu touched"
+    },
+    "kernel_identity": {
+      "method": "sha256 of MEGAKERNEL_SOURCE = concat of scene.cu + render_math.cu + render_common.cu + render_shadow.cu + render_shade.cu + render_megakernel.cu (mod.rs include_str! order)",
+      "before_recomputed": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5 / 88,865 B",
+      "after_recomputed": "eb0e717fb0389355182503a44192ee5d8dbd7ef7957e8fc5f8ec0368e27d5b0b / 89,063 B",
+      "evidence_agreement": "both match logs/kernel-identity.txt",
+      "ptx": "before 34f91147.. -> after 7782aeb1.., bytes 268,589 both (from committed kernel-identity.txt; NOT independently recomputed - NVRTC compile would need a build while the U4 window body is running)",
+      "aa_resolve": "unchanged 0bf8af5a.. / b28e155c.. / 27,536 B; aa_resolve.cu is not in this commit, so the identity cannot have changed",
+      "conclusion": "kernel identity changed => U4 attempt3 must use a fresh freeze (attempt1/attempt2 92-entry guards cannot be reused)"
+    },
+    "rca": {
+      "variants": 432,
+      "enumeration": "6^3 dot-order combinations (a, b, dd) x {'fused','nonfused'} det = 432",
+      "winner_family": "a=(1,0,2) b=(1,0,2) det=fused -> 44/44 reference matches, 0/44 product matches",
+      "winners_count": 2,
+      "winners": ["a(1,0,2) b(1,0,2) dd(0,1,2) det=fused", "a(1,0,2) b(1,0,2) dd(1,0,2) det=fused"],
+      "product_before_fix_variant": "a(0,1,2) b(1,0,2) dd(1,0,2) det=fused -> product_matches 44/44, reference_matches 0/44 (product chain reproduces itself; matches the RCA claim)",
+      "next_best": "37/44 (a(1,2,0) b(1,0,2) dd(0,1,2)/(1,0,2) det=fused); everything else <= 36/44",
+      "parity_312_315": "cam0/cam1 xpos/xquat/fovy are bit-identical (f64) between the 3.12 product dump and the 3.15 capture recipe => parity is not the cause (geom values: only the 3.12 side exists in-repo; shared scene.xml sha 376eb81c.. supports equality indirectly)",
+      "reproducible": "materials/recompute-rca-variants.py re-run under target/mjwarp-parallel/venv (numpy) reproduces the numbers above"
+    },
+    "gates": {
+      "unit_run_json": {"passed": 1111, "failed": 0, "ignored": 397, "exit": 0, "at": "2026-10-30T18:53:40.328Z"},
+      "runs_jsons": "fmt/clippy/clippy-cuda passed=true",
+      "no_run": "logs/no-run.txt: Finished + EXIT=0 (transcribed snapshot, 6 lines)",
+      "validate_snapshot": "materials/validate.txt: errors 0 / warnings 6 (incl. 1 fingerprint-drift); the same commit refreshed the module fingerprint; re-run now: errors 0 / warnings 5",
+      "note": "not rerun by QA: the U4 attempt3 window body was running and the window discipline requires zero Rust compile after the body starts"
+    },
+    "evidence_manifest": {"rows": 11, "files": 12, "mismatches": 0},
+    "src_diff_patch": "materials/src-diff.patch matches the real diff (index 33efcb27..7a43e575, 2 hunks)",
+    "historical_evidence": "8126868c touches only: render_math.cu, the new sphere-dot-a-order-fix evidence dir, its .normify runs/card, and the mjwarp.render.kernel module doc; no R02/R05/R08/R09/sdf-series evidence path"
+  },
+  "must_fix_items": [
+    {"id": "P1", "severity": "must-fix(minor, RCA document arithmetic)", "where": "docs/development-evidence/render-bvh/sphere-dot-a-order-fix/materials/rca-summary.txt ('Instruction-order enumeration') and README §1",
+     "finding": "the summary writes '3 dot-product contraction orders x 6 permutations x fused/non-fused det = 432 variants'; that product is 36, not 432. The script actually enumerates 6 orders for EACH of the three dots (a, b, dd) x 2 det modes = 432 (itertools.product(ORDERS, ORDERS, ORDERS, ('fused','nonfused'))), which my re-enumeration confirms",
+     "fix": "write 'a/b/dd 各 6 种次序 (6^3) x det 融合/非融合 (x2) = 432' (or equivalent); no rerun needed"},
+    {"id": "P2", "severity": "must-fix(minor, evidence provenance)", "where": "docs/development-evidence/render-bvh/sphere-dot-a-order-fix/README.md §4",
+     "finding": "README says logs/gate-*.txt are transcriptions of .normify/runs/<task>/<gate>.json, but none of the four snapshots is from the run recorded in runs/: fmt wall 1610 vs 1712 ms; clippy 5629 vs 455 ms and a different log_sha; clippy-cuda same wall but different log_sha; unit 95034 vs 12225 ms and a different log_sha. The verdict numbers agree (all passed, unit 1111/0/397), so this is provenance wording only",
+     "fix": "say 'a transcription of one gate run; not the same run as the current runs/ records; runs/ is authoritative' (the wording used for the same issue on the R08-S3 card), or regenerate the snapshots from runs/"},
+    {"id": "P3", "severity": "must-fix(minor, RCA wording)", "where": "docs/development-evidence/render-bvh/sphere-dot-a-order-fix/materials/rca-summary.txt ('Instruction-order enumeration') + README §1",
+     "finding": "'exactly one family reproduces the reference 44/44: a=(1,0,2) b=(1,0,2) det=fused' is right as a family, but two distinct variants tie at 44/44 because the dd order is immaterial at these pixels: dd=(0,1,2) and dd=(1,0,2) (both with a=(1,0,2) b=(1,0,2) det=fused). Reading '唯一' as 'unique variant' would overstate the evidence",
+     "fix": "state that the unique family is (a,b,det) and that dd order does not matter here (2 tied variants); the fixed code's actual dd order is (1,0,2)"}
+  ],
+  "observations": [
+    {"id": "O1", "text": "render_shade.cu:10 and :14 still mention `dot3_ch0` as an available helper although the definition was deleted in this fix; comments only, no functional effect. Editing them now would change the kernel source identity again while U4 attempt3 is freezing/running; suggest deferring to the next kernel rebaseline (same precedent as the U1b .cu comment)"},
+    {"id": "O2", "text": "RCA summary says '3.12 dump and 3.15 capture cam/geom values are bit-identical'. I verified the camera side bit-exactly (2 cameras, pos/quat/fovy f64). For geom only the 3.12 dump exists in-repo; the 3.15 side is supported indirectly by the shared scene.xml sha 376eb81c.. - suggest labelling that half as indirect evidence"},
+    {"id": "O3", "text": "validate snapshot (0 errors / 6 warnings incl. one fingerprint-drift) predates the module-fingerprint refresh done in the same commit; a re-run now gives 0 errors / 5 warnings. Historical snapshot, not a contradiction"},
+    {"id": "O4", "text": "PTX identity (34f91147.. -> 7782aeb1.., 268,589 B both) was NOT independently recomputed (NVRTC compile would require a build during the running window); I independently recomputed the source identity instead. aa_resolve unchanged is structural (its .cu was not touched)"},
+    {"id": "O5", "text": "logs/no-run.txt is a trimmed transcription (Finished + last executables + EXIT=0), weaker than a raw log; suggest attaching the raw log for future fix slices"},
+    {"id": "O6", "text": "commit-mapping anomaly checked by content: 8126868c's message describes the dependency removal that actually happened in d3bca361; its content is this fix slice (render_math.cu + evidence + gate runs + module fingerprint) and its Normify-Task trailer is the fix task; addendum 1e814b92 records the mapping without rewriting history, and the fix task is verified. Passed as content-consistent"}
+  ],
+  "boundaries": {
+    "read_only": true,
+    "gpu_used": false,
+    "window_opened": false,
+    "freeze": false,
+    "build_run": false,
+    "product_src_modified": false,
+    "foreign_evidence_edited": false
+  },
+  "not_claimed": [
+    "不宣称渲染数值验收通过（本片只核源改动与 RCA 一致性；数值结论只能由 U4 attempt3 窗口给出）",
+    "不宣称上游等价",
+    "不宣称精度达标",
+    "不宣称 U4 attempt3 会通过"
+  ],
+  "limits": [
+    "PTX identity and the GPU tests were not rerun (window body in progress, zero-compile discipline); source identity was recomputed independently",
+    "RCA enumeration reused Arch's f32 primitives (mul32/fma32, quat->mat, diagnostic parser) from target/rca/sphere_depth_rca.py; my own driver performed the 6^3 x 2 enumeration and scoring",
+    "3.15-side geometry values are not present in-repo; only camera f64 values were verified bit-exactly"
+  ]
+}

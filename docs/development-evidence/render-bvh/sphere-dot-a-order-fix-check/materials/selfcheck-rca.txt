@@ -1,0 +1,30 @@
+sphere a-order fix — QA RCA re-enumeration output (2026-10-31, read-only, CPU only)
+
+driver: materials/recompute-rca-variants.py (my own enumeration; reuses the f32 primitives and diagnostic
+        parser of target/rca/sphere_depth_rca.py, which is uncommitted)
+env   : target/mjwarp-parallel/venv/Scripts/python.exe (numpy)
+
+$ python recompute-rca-variants.py
+pixels: 44
+total variants: 432
+winners(44/44): 2
+  a(1, 0, 2) b(1, 0, 2) dd(0, 1, 2) det=fused product_matches= 0
+  a(1, 0, 2) b(1, 0, 2) dd(1, 0, 2) det=fused product_matches= 0
+product-before-fix variant -> product_matches,ref_matches = (44, 0)
+fixed-code variant -> (0, 44)
+next after winners: [(37, ((1, 2, 0), (1, 0, 2), (1, 0, 2), 'fused')), (37, ((1, 2, 0), (1, 0, 2), (0, 1, 2), 'fused')), (36, ((1, 0, 2), (1, 2, 0), (1, 0, 2), 'fused'))]
+
+cross-check against Arch's own script (target/rca/sphere_depth_rca_orders_all.py):
+  output: "== 44 diagnosed cam0+cam1 pixels, 432 instruction-order variants"
+  top: "ref_matches= 44/44 product_matches= 0/44 a(1, 0, 2) b(1, 0, 2) dd(0, 1, 2) det=fused"
+  second: same a/b, dd(1,0,2) det=fused, 44/44; then 37/44 and below
+  => identical ranking; 432 variants confirmed.
+
+QA notes
+- P1 (must-fix): rca-summary.txt writes the count as "3 dot-product contraction orders x 6 permutations
+  x fused/non-fused det = 432", but 3*6*2 = 36; the real enumeration is 6 orders for EACH of the three dots
+  x 2 det modes = 6^3 * 2 = 432.
+- P3 (must-fix): the 44/44 family is unique in (a, b, det) but not a unique variant: dd order does not matter
+  at these pixels (dd=(0,1,2) and dd=(1,0,2) tie). The fixed code's dd is (1,0,2).
+- the product-before-fix variant reproduces the product bits 44/44 and the reference 0/44, i.e. the RCA's
+  "product chain reproduces itself" claim holds independently.

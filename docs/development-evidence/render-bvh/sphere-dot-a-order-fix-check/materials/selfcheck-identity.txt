@@ -1,0 +1,32 @@
+sphere a-order fix — QA kernel identity recompute (2026-10-31)
+
+MEGAKERNEL_SOURCE composition (src/render/kernel/mod.rs):
+  concat!(
+    include_str!("../bvh/cuda/scene.cu"),
+    include_str!("cuda/render_math.cu"),
+    include_str!("cuda/render_common.cu"),
+    include_str!("cuda/render_shadow.cu"),
+    include_str!("cuda/render_shade.cu"),
+    include_str!("cuda/render_megakernel.cu"),
+  )
+identity = sha256 over the concatenated bytes (this is what artifact.source_sha256() hashes; tests/render_kernel_flags.rs prints it)
+
+before fix (git blobs at 8126868c^):
+  concat bytes = 88865
+  sha256       = 778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5   MATCHES logs/kernel-identity.txt
+
+after fix (worktree at 8126868c):
+  concat bytes = 89063   (+198 bytes: comment rewrite minus the deleted dot3_ch0 helper)
+  sha256       = eb0e717fb0389355182503a44192ee5d8dbd7ef7957e8fc5f8ec0368e27d5b0b   MATCHES logs/kernel-identity.txt
+
+PTX (from committed logs/kernel-identity.txt, NOT independently recomputed):
+  before 34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d  268589 B
+  after  7782aeb199dc49ff231a8884a70a8194a2deef02e9a7f4e2c9f43a0fc74dc5d4  268589 B   (same length, different content)
+
+aa_resolve (from the same log):
+  source 0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76 / PTX b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70 / 27536 B
+  unchanged both sides; aa_resolve.cu is not part of 8126868c, so the identity is structurally unchanged.
+
+method note: the identity is computed over the product's own concatenated source; I rebuilt the same concatenation
+from the git blobs (before) and the worktree files (after), so the two numbers are independent of the evidence file.
+PTX requires the NVRTC compile step (cargo test build), which was not run while the U4 attempt3 window body was running.
