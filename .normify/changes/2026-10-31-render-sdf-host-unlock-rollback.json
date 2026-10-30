@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-host-unlock-rollback",
+  "title": {
+    "zh": "回滚 U1b host 解锁（U4 两次窗口均复现 sphere 轮廓 depth 同一量级超限；保留 U1，能力回到不可达）",
+    "en": "Roll back the U1b host unlock (U4 reproduced the same-order sphere-silhouette depth deviation in both windows; keep U1, capability unreachable again)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "U4 验证窗 attempt1 与 attempt2 均 `INVALID_ROUND`：新实体 `render_sdf_reference` 的 depth 比对在同一批像素上超判据（cam0 215/76,800、max_ulp=191；cam1 4/43,200、max_ulp=25；首差 (230,69)、参考 seg=(2,5) = sphere 轮廓；RGB `mismatched=0`/`beyond_1_lsb=0`、seg `mismatched=0`），attempt2 用全新冻结 + 只读诊断后**完全复现同一量级**，属 Chief/QA 约定的红线。按 U1b 卡的回滚声明：**revert U1b（恢复 `megakernel.rs` 的 `reject_sdf_geometry` 与 2 条 host-only 单测），保留 U1（`.cu` 不变）**，使 SDF 能力回到「host 拒绝、不可达」；不缩相机、不跳球、不抬 `MAX_DEPTH_ULP`、不改判据。Sphere 轮廓 depth 的 RCA 与修复另开独立片（参考 R05 相机 FMA 先例），fix 后再 attempt=3。",
+    "en": "Roll back the host SDF unlock after U4 failed twice with the same sphere-silhouette depth deviation; restore the host rejection, keep the device-side U1 change, and treat the sphere depth RCA/fix as a separate slice."
+  },
+  "modules": {},
+  "acceptance": [
+    "**回滚内容**：`src/render/kernel/megakernel.rs` 恢复为 U1b 之前内容（440 行；`reject_sdf_geometry` + `render()` 调用点 + `#[cfg(test)] mod sdf_geometry_guard_tests` 2 条 host-only 单测全部回来）；`git diff` 相对 HEAD 只此 1 个源码文件 + 证据目录；**U1 的 `.cu` 改动零触碰**（`git diff --stat -- src/render/kernel/cuda` 为空）。",
+    "**能力回到不可达**：host 对 `geom_type==8` 重新返回 `Unsupported（S7b3 不含 SDF 求交）`；既有两个 host-only 单测（拒绝 8 / 非 8 通过）重新生效；U1 的 `.cu` 保留（内核身份仍为 U1 值 `778216b2…`/`34f91147…`/268,589）。",
+    "**零越界**：不动判据/容差/参考/`fixtures/**`/其它 `src/**`/`tests/**`/`scripts/**`；不修改 U4 实现片与材料的既有证据（只新增回滚证据并引用它们的失败结论）。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全绿（unit 预期回到 **1108**：1106 + 回滚恢复的 2 条 host-only 单测；与预期不符即停下核对）；`cargo test --locked --no-run` EXIT=0 含 `Finished`；`validate --fingerprints` 错误 0。",
+    "**红线留痕**：证据写明 attempt1/attempt2 两份 `INVALID_ROUND`（目标 `target/render-bvh/sdf-validate-window/attempts/{attempt1,attempt2}/` 的 invalid-round-record + guards 字节副本 + monitor CSV + 实体日志）、复现的 depth 数字（215/4、max_ulp 191/25、首差 (230,69)、seg=(2,5)）、以及「未缩相机/未跳球/未抬 MAX_DEPTH_ULP/未把诊断当通过」。",
+    "**证据**：`docs/development-evidence/render-bvh/sdf-host-unlock-rollback/`（README、receipt.json 含 `/task_id`、manifest.txt、logs 5、materials pre/post identity/diff/attempt refs）；LF 无 BOM、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-31-render-sdf-host-unlock"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "src/render/kernel/megakernel.rs",
+      "docs/development-evidence/render-bvh/sdf-host-unlock-rollback/"
+    ],
+    "resources": [],
+    "priority": 61
+  },
+  "note": "Arch 2026-10-31 注册（Chief/QA 红线约定：attempt2 若再现 215px/max_ulp≈191 即 U4 未通过 → 回滚 U1b、保留 U1）。依据：U1b 卡 note 的回滚声明 + U4 窗口 attempt1/attempt2 的 INVALID_ROUND 留档。后续：sphere 轮廓 depth 的 RCA（先读 pinned `ray.py::ray_sphere`/`_ray_quad` 与产品 `render_math.cu`/`render_common.cu` 的 f32 运算顺序对位）→ 独立修复片（R05 相机 FMA 先例）→ 修好后 U4 attempt=3（新冻结、92 条再换）。本片不跑 GPU。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T18:45:00.000Z",
+  "updated_at": "2026-10-30T18:45:00.000Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda",
+        "fixtures/render-bvh/scene-sdf",
+        "docs/development-evidence/render-bvh/r08-rgb-hetero-validate",
+        "docs/development-evidence/render-bvh/r02-skybox-s3-validate"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-host-unlock-rollback/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-host-unlock-rollback"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "等价",
+        "SDF 渲染已覆盖"
+      ]
+    }
+  ]
+}
