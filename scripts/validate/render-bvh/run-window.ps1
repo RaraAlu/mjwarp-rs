@@ -338,8 +338,13 @@ $intMax = if ($diffs.Count -gt 0) { $diffs[$diffs.Count - 1] } else { 0 }
 $entityRows = @(Import-Csv $entityPath)
 $entityExits = @{}
 foreach ($row in $entityRows) { $entityExits[$row.entity] = [int]$row.exit }
+$aggregateSuite = $guard.suite
+if (-not $aggregateSuite) {
+    $aggregateSuite = 'r05-s3b-hfield-validate'
+    Guard ("AGGREGATE_SUITE_FALLBACK suite=$aggregateSuite (guards file has no suite field; old behavior kept)")
+}
 $agg = [pscustomobject]@{
-    suite = 'r05-s3b-hfield-validate'
+    suite = $aggregateSuite
     attempt = $Attempt
     device_validation_window = $true
     authoring_exception_used = $false

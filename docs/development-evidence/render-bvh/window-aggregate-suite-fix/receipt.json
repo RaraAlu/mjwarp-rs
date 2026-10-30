@@ -1,0 +1,53 @@
+{
+  "task_id": "2026-10-30-render-window-guard-aggregate-suite-hardcode",
+  "scope": "one-logic-point fix in run-window.ps1: guard_aggregate.suite now derives from the guards file suite field (fallback keeps old behavior plus a guard.log line); no window executed, no GPU",
+  "origin": "R08-S3 QA O1 (same class as R02 B-O2 / plan N12)",
+  "change": {
+    "file": "scripts/validate/render-bvh/run-window.ps1",
+    "diff_insertions": 6,
+    "diff_deletions": 1,
+    "lines_before": 386,
+    "lines_after": 391,
+    "bytes": 18491,
+    "sha256": "2a49503d68a73605c6cb426b57b7cccc38df96f788649ab47fb96839d6d1fe3b",
+    "logic": "suite = $guard.suite instead of the hard-coded 'r05-s3b-hfield-validate'",
+    "fallback": "when the guards file has no suite field, keep the old value and emit AGGREGATE_SUITE_FALLBACK to guard.log",
+    "psparser_errors": 0,
+    "non_ascii_bytes": 0
+  },
+  "aggregate_semantics": {
+    "algorithm_changed": false,
+    "entries_changed": false,
+    "ordering_or_concatenation_changed": false,
+    "note": "aggregate_sha256 recomputation for all three existing guards files matches their recorded values bit for bit"
+  },
+  "offline_self_check": {
+    "script": "materials/suite-derivation-check.ps1",
+    "log": "logs/suite-derivation-check.txt",
+    "result": "SELF_CHECK_OK (exit 0)",
+    "checks": [
+      "PSParser run-window.ps1: 0 errors",
+      "non-ASCII bytes: 0",
+      "derivation present exactly once, suite field uses $aggregateSuite, old literal appears only as the documented fallback",
+      "guards.json: suite=r05-s3b-hfield-validate, 73 entries, aggregate recompute matches",
+      "guards-r02-skybox.json: suite=r02-skybox-validate, 77 entries, aggregate recompute matches",
+      "guards-r08-rgb-hetero.json: suite=render-r08-rgb-hetero, 77 entries, aggregate recompute matches"
+    ]
+  },
+  "boundaries": {
+    "window_executed": false,
+    "gpu_used": false,
+    "device_execution": false,
+    "guards_files_modified": false,
+    "history_aggregate_files_rewritten": false,
+    "thresholds_or_criteria_changed": false,
+    "entities_changed": false,
+    "only_file_changed": "scripts/validate/render-bvh/run-window.ps1"
+  },
+  "claims": {
+    "aggregate_definition_changed": false,
+    "any_window_passed": false,
+    "numeric_conclusion": false
+  },
+  "next": "the next window (SDF U4 or any new suite) writes the guards file suite into guard_aggregate.json; the SDF capture window (U3) does not use run-window and is unaffected"
+}
