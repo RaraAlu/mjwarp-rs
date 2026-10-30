@@ -1,0 +1,225 @@
+{
+  "schema": 1,
+  "task": "2026-10-31-render-sdf-validate-window-material-check",
+  "reviewed_task": "2026-10-31-render-sdf-validate-window-material",
+  "pin": "285ba51f",
+  "card_head": "ca88e04f",
+  "checks": [
+    {
+      "id": "scope.amend_only_material",
+      "passed": true,
+      "detail": {
+        "paths": [
+          ".normify/changes/2026-10-31-render-sdf-validate-window-material.json",
+          "docs/development-evidence/render-bvh/sdf-validate-window-material/README.md",
+          "docs/development-evidence/render-bvh/sdf-validate-window-material/manifest.txt",
+          "docs/development-evidence/render-bvh/sdf-validate-window-material/materials/expected-products.json",
+          "docs/development-evidence/render-bvh/sdf-validate-window-material/materials/window-plan.txt",
+          "docs/development-evidence/render-bvh/sdf-validate-window-material/receipt.json"
+        ],
+        "entity_table_unchanged": true
+      },
+      "ok": true
+    },
+    {
+      "id": "entities.final_selection",
+      "passed": true,
+      "detail": {
+        "entities": [
+          "render_sdf_reference",
+          "render_e2e",
+          "render_kernel_rgb",
+          "render_kernel_depth_seg",
+          "render_kernel_flags",
+          "render_r10_multi_world",
+          "render_skybox_reference",
+          "render_context_lifecycle",
+          "render_mesh_bvh"
+        ],
+        "order_ok": true,
+        "new": [
+          "render_sdf_reference"
+        ],
+        "dropped_absent": true
+      },
+      "ok": true
+    },
+    {
+      "id": "guards.92_and_s3_reconciliation",
+      "passed": true,
+      "detail": {
+        "counts": [
+          9,
+          83,
+          92
+        ],
+        "breakdown": "scene-sdf 10 (2 XML + 8 capture products) + scene-hfield 10 (2 XML + 8 capture) + legacy 47 (38 base + 4 skybox + 5 perworld) + scene-shadow capture 16",
+        "reconciliation_present": true,
+        "aggregate_not_preset": "generated at freeze; not preset by the material"
+      },
+      "ok": true
+    },
+    {
+      "id": "commands.five_verbatim_as_claimed",
+      "passed": false,
+      "detail": {
+        "verbatim_powershell_commands": 4,
+        "claims_five": true,
+        "exception_monitor_command_verbatim": false,
+        "note": "材料声明 5 条逐字命令；实际 4 条（monitor/freeze/guards-only/body），条件式例外 monitor 命令只描述了 -MaxUtil 60 与新 CSV，未给逐字命令/CSV 名"
+      },
+      "ok": false
+    },
+    {
+      "id": "criteria.zero_relaxation",
+      "passed": true,
+      "detail": {
+        "criteria": {
+          "rgb": "<= 1 LSB per channel (beyond_1_lsb=0, max_byte_diff<=1)",
+          "depth": "bitwise-first (mismatched == 0) AND max_ulp <= 4 AND beyond_ulp == 0",
+          "seg": "exact (mismatched == 0)",
+          "determinism": "two-run rgb/depth/seg sha256 equal (per entity, same context)",
+          "shadow_arm": "consistency only (no upstream shadow-off reference, Chief 2026-10-31): depth/seg bitwise equal between shadows on/off; rgb shadow_off >= shadow_on per channel with reversed pixels beyond 1 LSB == 0; changed pixels > 0; both arms two-run sha equal; no numerical reference claim",
+          "depth_seg_cross_path": "DepthSeg path depth/seg bitwise equal to megakernel depth/seg for the same input (sdf-mesh, cam-front); if the product API cannot expose both paths, fall back to a single-path launch comparison, criteria unchanged",
+          "reference": "no new references: reuse fixtures/render-bvh/scene-sdf/capture-sdf/{sdf-mesh,sdf-occluder} (U3 capture products)"
+        },
+        "unchanged_vs_prev": true
+      },
+      "ok": true
+    },
+    {
+      "id": "exception.conditional_protocol",
+      "passed": true,
+      "detail": {
+        "mode": "validation_only_exception_util_lt_60",
+        "approved_by": "user via Chief 2026-10-31T00:5x+08:00",
+        "authoring_exception_used": false,
+        "five_elements": [
+          "mode",
+          "approved_by",
+          "reason (desktop 3D noise: dwm / Harness GUI / msedgewebview2)",
+          "original_normal_threshold_attempts_retained = the failed regular CSV",
+          "not_a_normal_threshold_pass=true"
+        ],
+        "evidence_rule": "both monitors (failed regular + passing exception) are kept; never written as a normal pass"
+      },
+      "ok": true
+    },
+    {
+      "id": "signature.user_and_artifacts",
+      "passed": false,
+      "detail": {
+        "approved_by": "user via Chief",
+        "decision": "approved: regular util<40 + conditional validation-only util<60 exception",
+        "required_on": [
+          "this window plan",
+          "pre-window baseline snapshot",
+          "the 92-entry guards identity after freeze"
+        ],
+        "placeholder_timestamp_occurrences": 10,
+        "note": "签字时间用 '2026-10-31T00:5x+08:00' 占位（10 处），不是具体时间戳"
+      },
+      "ok": false
+    },
+    {
+      "id": "discipline.shell_regular_zero_compile",
+      "passed": true,
+      "detail": {
+        "shell_ok": true,
+        "regular_first": true,
+        "body_zero_compile_wording": true
+      },
+      "ok": true
+    },
+    {
+      "id": "evidence.manifest_and_self_entry",
+      "passed": false,
+      "detail": {
+        "manifest": {
+          "rows": 5,
+          "match": 5,
+          "files": 6
+        },
+        "window_plan_ascii": true,
+        "receipt_self_entry": {
+          "sha256": "4ef24623e449d9be89fca46542a7ca90ae0ea59526d571111d10fa31340c5cec",
+          "bytes": 2078,
+          "lines_lf": 53
+        },
+        "receipt_actual": {
+          "sha256": "87631dba98a35e78819511fae6add3b41370923b5ff03b550fc185200f78b897",
+          "bytes": 3825
+        },
+        "self_entry_matches_actual": false
+      },
+      "ok": false
+    },
+    {
+      "id": "readme.heading_consistency",
+      "passed": false,
+      "detail": {
+        "headings": [
+          "## 0. 一句话",
+          "## 1. 脚本身份与 U4a dump pin",
+          "## 2. 窗口纪律（常规 util<40，无例外）",
+          "## 3. 判据（零放宽）",
+          "## 4. 实体（9 条，Chief 2026-10-31 定稿）",
+          "## 5. 参考产物（U3 已入库，只读）",
+          "## 6. 边界与不宣称",
+          "## 7. 证据清单",
+          "## 8. 用户签字（2026-10-31，via Chief）"
+        ],
+        "stale_no_exception_heading": true
+      },
+      "ok": false
+    },
+    {
+      "id": "card.checks_and_validate",
+      "passed": true,
+      "detail": {
+        "check_exit": 0,
+        "validate": [
+          "0",
+          "5"
+        ]
+      },
+      "ok": true
+    }
+  ],
+  "problems": [
+    {
+      "id": "P1",
+      "severity": "需修(轻微, 证据数字)",
+      "check": "evidence.manifest_and_self_entry",
+      "finding": "receipt.files 里 receipt.json 自条目仍是 amend 前的旧值：sha 4ef24623…/2078 B/53 行；实际 receipt 为 87631dba…/3825 B。manifest.txt 不含 receipt 正确值，但 receipt 自己列了过期的自引用。",
+      "fix": "receipt.files 去掉 receipt.json 自条目（manifest 本身就不登记自己），或注明自引用不可自证；不重跑。"
+    },
+    {
+      "id": "P2",
+      "severity": "需修(轻微, 签字卫生)",
+      "check": "signature.user_and_artifacts",
+      "finding": "签字时间在 4 个文件里共 10 处写成 '2026-10-31T00:5x+08:00'（分钟位占位 x）。签字件应是具体时间戳；另：材料 amend 发生在签字之后，双签块只写「plan version sha256 记录在 receipt」，未标明用户实际批准的是哪一版文本。",
+      "fix": "用 Chief 转达的准确时间（或明确写「分钟未转达」并在窗口事实里记 Chief 时间）替换；并在双签块注明签字覆盖的是协议内容（regular + conditional），计划文本 amend 由 Arch 按转达落字、非用户逐字节 review。不重跑。"
+    },
+    {
+      "id": "P3",
+      "severity": "需修(轻微, 措辞)",
+      "check": "readme.heading_consistency",
+      "finding": "README §2 标题仍是「窗口纪律（常规 util<40，无例外）」，但该节内容已改成条件式例外协议，标题与正文矛盾。",
+      "fix": "标题改为「窗口纪律（先常规 util<40；失败才启用已签条件式 validation-only 例外）」；不重跑。"
+    },
+    {
+      "id": "P4",
+      "severity": "需修(轻微, 可执行性)",
+      "check": "commands.four_or_five",
+      "finding": "README §2/receipt 声明「5 条命令逐字」，window-plan 实际只有 4 条完整 powershell 命令（monitor/freeze/guards-only/body）；条件式例外的 monitor 命令只写「-Required 60 -MaxMinutes 30 -MaxUtil 60 (powershell 5.1) with a NEW CSV」，没有完整命令行、也没规定新 CSV 文件名（窗口内现场决定时容易写错/覆盖失败 CSV）。",
+      "fix": "在 window-plan 里补第 5 条逐字命令（例如 -OutCsv ...monitor-pre-window-exception.csv ... -MaxUtil 60），或把「5 条」改成「4 条 + 条件式例外命令模板」；不重跑。"
+    }
+  ],
+  "summary": {
+    "checks_total": 11,
+    "checks_passed": 7,
+    "problems": 4,
+    "blockers": 0
+  }
+}

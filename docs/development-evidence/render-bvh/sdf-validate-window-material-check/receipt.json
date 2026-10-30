@@ -1,0 +1,110 @@
+{
+  "task_id": "2026-10-31-render-sdf-validate-window-material-check",
+  "reviewed_task": "2026-10-31-render-sdf-validate-window-material",
+  "pin": "285ba51f",
+  "card_head_at_start": "ca88e04f",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 4,
+  "observations": 6,
+  "scope": "read-only QA review of the U4 validation-window material amendment: 9-entity final selection, 9 exe + 83 inputs = 92 breakdown and reconciliation vs the S3 68 inputs, verbatim commands and conditional-exception protocol, zero-relaxation criteria, user-only double-sign three artifacts, new-suite guards (no reuse), PowerShell 5.1, body zero-compile wording, evidence manifest/ASCII, and the receipt self-entry; no GPU, no execution, no criteria/reference change",
+  "method": {
+    "recompute": "recompute.py (11 checks -> recompute.json; committed blobs via git cat-file)",
+    "input_count_emulation": "recount fixtures/render-bvh with the freezer's own selection rules (scene-sdf recursive, scene-hfield recursive, legacy = render-bvh minus the three subtrees, scene-shadow capture(-exact)): 10 + 10 + 47 + 16 = 83"
+  },
+  "checks": {"total": 11, "passed": 7, "failed": [
+    "commands.five_verbatim_as_claimed",
+    "signature.user_and_artifacts",
+    "evidence.manifest_and_self_entry",
+    "readme.heading_consistency"
+  ]},
+  "verified_numbers": {
+    "entities": {
+      "count": 9,
+      "order": ["render_sdf_reference", "render_e2e", "render_kernel_rgb", "render_kernel_depth_seg",
+                "render_kernel_flags", "render_r10_multi_world", "render_skybox_reference",
+                "render_context_lifecycle", "render_mesh_bvh"],
+      "new": ["render_sdf_reference"],
+      "regressions": 8,
+      "dropped": ["render_camera_rays", "render_r08_cameras"],
+      "swapped_in": ["render_mesh_bvh"],
+      "entity_table_unchanged_vs_amend_base": true
+    },
+    "guards": {"frozen_exes": 9, "guard_inputs": 83, "total": 92,
+               "breakdown": {"scene_sdf": 10, "scene_hfield": 10, "legacy": 47, "scene_shadow_capture": 16},
+               "emulated_inputs_total": 83,
+               "reconciliation": "+10 scene-sdf, legacy 42 -> 47 (+5 perworld); hfield 10 and shadow 16 unchanged",
+               "aggregate_not_preset": true},
+    "commands": {"verbatim_powershell_lines_in_window_plan": 4,
+                  "claimed": "5 verbatim commands",
+                  "conditional_exception_monitor_verbatim": false,
+                  "exception_monitor_partial": "described as -Required 60 -MaxMinutes 30 -MaxUtil 60 (powershell 5.1) with a NEW CSV, no full command / no CSV filename"},
+    "criteria": {"rgb": "<= 1 LSB (beyond_1_lsb=0, max_byte_diff<=1)",
+                  "depth": "mismatched=0 AND max_ulp<=4 AND beyond_ulp=0",
+                  "seg": "mismatched=0",
+                  "determinism": "two-run rgb/depth/seg sha256 equal",
+                  "shadow_arm": "consistency only; no numerical reference claim",
+                  "depth_seg_cross_path": "bitwise, with a declared single-path fallback keeping criteria",
+                  "unchanged_vs_amend_base": true},
+    "conditional_protocol": {
+      "mode": "validation_only_exception_util_lt_60",
+      "approved_by": "user via Chief",
+      "authoring_exception_used": false,
+      "not_a_normal_threshold_pass": true,
+      "five_elements": ["mode", "approved_by", "reason", "original_normal_threshold_attempts_retained",
+                         "not_a_normal_threshold_pass=true"],
+      "evidence_rule": "both monitors kept; never written as a normal pass",
+      "load_bearing_rule": "util>=40 clean samples + streak, ge60=0, util_max<60; all <40 => exception_effectively_not_load_bearing=true"
+    },
+    "signature": {
+      "approved_by": "user via Chief",
+      "decision": "approved: regular util<40 + conditional validation-only util<60 exception",
+      "required_on": ["this window plan", "pre-window baseline snapshot", "the 92-entry guards identity after freeze"],
+      "placeholder_timestamp_occurrences": 10,
+      "placeholder_value": "2026-10-31T00:5x+08:00",
+      "files_with_placeholder": ["README.md", "receipt.json", "materials/window-plan.txt", "materials/expected-products.json"]
+    },
+    "discipline": {"shell": "Windows PowerShell 5.1", "regular_first": true,
+                    "step1_maxutil": "default 40, no -OpenUtilLimit / no -MaxUtil 60",
+                    "body_zero_compile_wording": true},
+    "evidence": {"manifest_rows": 5, "manifest_match": "5/5", "files": 6,
+                  "window_plan_non_ascii": 0, "utf16_or_bom": 0,
+                  "receipt_self_entry": {"sha256": "4ef24623e449d9be89fca46542a7ca90ae0ea59526d571111d10fa31340c5cec", "bytes": 2078, "lines_lf": 53},
+                  "receipt_actual": {"sha256": "87631dba98a35e78819511fae6add3b41370923b5ff03b550fc185200f78b897", "bytes": 3825}},
+    "validate_now": {"errors": 0, "warnings": 5}
+  },
+  "must_fix_items": [
+    {"id": "P1", "severity": "must-fix(minor, evidence number)", "where": "docs/development-evidence/render-bvh/sdf-validate-window-material/receipt.json files.receipt.json",
+     "finding": "the receipt's self entry is stale: it records sha 4ef24623... / 2078 B / 53 lines (the pre-amend receipt) while the actual receipt is 87631dba... / 3825 B",
+     "fix": "drop the receipt.json self entry (a file cannot hash itself; the manifest already does not register itself) or mark it as the pre-amend value; no rerun"},
+    {"id": "P2", "severity": "must-fix(minor, signature hygiene)", "where": "README.md, receipt.json, materials/window-plan.txt, materials/expected-products.json",
+     "finding": "the signature time is a placeholder '2026-10-31T00:5x+08:00' in 10 places across 4 files; a signed artifact should carry a concrete timestamp. Also the amend happened after the user approval while the double-sign block only says 'plan version sha recorded in receipt', without stating which text the user actually approved",
+     "fix": "replace with the exact time relayed by Chief (or state explicitly that the minute was not relayed and record the relayed time); add a note that the signature covers the protocol content (regular + conditional) and the amended text was written by Arch per the relay; no rerun"},
+    {"id": "P3", "severity": "must-fix(minor, wording)", "where": "docs/development-evidence/render-bvh/sdf-validate-window-material/README.md section 2 heading",
+     "finding": "heading still reads '窗口纪律（常规 util<40，无例外）' while the section body now describes the conditional exception protocol - heading contradicts content",
+     "fix": "retitle as '窗口纪律（先常规 util<40；仅当失败才启用已签条件式 validation-only 例外）'; no rerun"},
+    {"id": "P4", "severity": "must-fix(minor, executability)", "where": "README.md section 2 / receipt.contents vs materials/window-plan.txt",
+     "finding": "material claims '5 verbatim commands', but the plan has only 4 full powershell commands (monitor/freeze/guards-only/body); the conditional-exception monitor is described only as '-Required 60 -MaxMinutes 30 -MaxUtil 60 with a NEW CSV' with no full command line and no new CSV filename, which invites mistakes or overwriting the failed CSV in the live window",
+     "fix": "add the 5th verbatim command (e.g. -OutCsv .../monitor-pre-window-exception.csv with -MaxUtil 60) or change the claim to '4 commands + conditional command template'; no rerun"}
+  ],
+  "observations": [
+    {"id": "O1", "text": "the conditional protocol is complete and matches the QA decision tree: regular first, exception only if it fails, in-order live execution, failed CSV/snapshot/verdict retained, authoring_exception_used=false, not_a_normal_threshold_pass=true, load-bearing recompute rule incl. exception_effectively_not_load_bearing"},
+    {"id": "O2", "text": "criteria are unchanged verbatim vs the amend base and equal the R09/R05 wording; the shadow arm is consistency-only with no numerical reference claim; the DepthSeg cross-path fallback is pre-declared and does not relax criteria"},
+    {"id": "O3", "text": "the 92 entry count reconciles with the S3 68 inputs (+10 scene-sdf, legacy 42 -> 47 incl. 5 perworld); I re-counted the live tree with the freezer's own rules and got exactly 10/10/47/16 = 83, so the freeze will hard-assert on a clean tree"},
+    {"id": "O4", "text": "the material does not preset aggregate_sha256 and says the freezer generates it; entity order, suite name and guards filename match the freezer (reviewed in the implementation card)"},
+    {"id": "O5", "text": "the double-sign is user-only (approved_by=user via Chief) and covers three artifacts (plan, baseline snapshot, 92-entry guards identity); Chief is not recorded as the signer"},
+    {"id": "O6", "text": "receipt.not_claimed lists only 3 terms while expected-products lists 7 (incl. SDF intersection / plugin SDF / per-world / AA); not contradictory but aligning them would make the window evidence less likely to omit a not-claimed item"}
+  ],
+  "boundaries": {"read_only": true, "gpu_used": false, "executed": false, "material_only": true,
+                 "criteria_or_reference_changed": false, "foreign_evidence_edited": false},
+  "not_claimed": [
+    "不宣称渲染数值验收通过",
+    "不宣称上游等价",
+    "不宣称 SDF 渲染已覆盖（材料只写计划）"
+  ],
+  "limits": [
+    "the 83 inputs were re-counted on the live tree with the freezer's rules; the actual guards file and per-entry shas are produced at window freeze",
+    "the real signature minute can only come from Chief's relay; the repository cannot prove it"
+  ],
+  "window_conditional_boundary": "validation-only util<60 exception relaxes the util threshold only, never the render criteria; if used, it must not be recorded as a normal util<40 pass and the failed regular attempt must be retained verbatim"
+}
