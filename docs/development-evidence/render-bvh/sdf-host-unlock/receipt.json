@@ -1,0 +1,77 @@
+{
+  "task_id": "2026-10-31-render-sdf-host-unlock",
+  "kind": "render-sdf-host-unlock",
+  "owner": "Arch",
+  "scope": "remove the host-side SDF rejection only (megakernel.rs); no GPU, no .cu change, no numerical claim",
+  "prerequisites": [
+    "2026-10-30-render-sdf-mesh-path",
+    "2026-10-30-render-sdf-capture"
+  ],
+  "changes": {
+    "files": [
+      "src/render/kernel/megakernel.rs"
+    ],
+    "insertions": 1,
+    "deletions": 35,
+    "lines_before": 440,
+    "lines_after": 406,
+    "removed": [
+      "fn reject_sdf_geometry(geom_type: &[i32]) -> Result<(), LauncherError> (incl. doc)",
+      "render() call site: reject_sdf_geometry(&ints(fields, \"geom_type\")?)?;",
+      "#[cfg(test)] mod sdf_geometry_guard_tests (2 host-only tests pinning the \"unreachable\" premise)"
+    ],
+    "kept_unchanged": [
+      "use_precomputed_rays rejection",
+      "splat_count rejection",
+      "light_mode rejection",
+      "enabled_geom_ids length check",
+      "nsamples / ray_count checks (overflow, length)",
+      "non-finite checks",
+      "all .cu sources, cast.rs, bvh/**, ABI 81 slots, criteria/tolerances/references",
+      "tests/**, scripts/**"
+    ]
+  },
+  "gates": {
+    "fmt": {
+      "passed": true,
+      "wall_ms": 1658
+    },
+    "clippy": {
+      "passed": true,
+      "wall_ms": 5830
+    },
+    "clippy-cuda": {
+      "passed": true,
+      "wall_ms": 404
+    },
+    "unit": {
+      "passed": true,
+      "wall_ms": 102664,
+      "tests_passed": 1106,
+      "tests_failed": 0,
+      "ignored": 392,
+      "expected_tests_passed": 1106,
+      "previous_tests_passed": 1108
+    },
+    "no_run": {
+      "exit": 0,
+      "finished_in_log": true
+    },
+    "validate_fingerprints_errors": 0
+  },
+  "kernel_identity": {
+    "changed": false,
+    "source_sha256": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5",
+    "ptx_sha256": "34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d",
+    "ptx_bytes": 268589,
+    "citation": "docs/development-evidence/render-bvh/sdf-mesh-path/receipt.json",
+    "verification": "git diff --stat -- src/render/kernel/cuda is empty"
+  },
+  "rollback": "if the U4 validation window fails, git revert this slice (U1 stays; SDF capability becomes unreachable again)",
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "等价",
+    "SDF 渲染已覆盖"
+  ]
+}

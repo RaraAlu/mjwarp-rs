@@ -1,0 +1,20 @@
+# old guard (HEAD before this slice), for the record
+HEAD:src/render/kernel/cuda/render_common.cu:391:            // host 仍拒绝 8（`megakernel.rs` 的 `reject_sdf_geometry`），本片改动今天不可达。
+HEAD:src/render/kernel/cuda/render_common.cu:397:        // 设备侧 SDF 求交尚未解锁，host 仍拒绝，见 `megakernel.rs` 的 `reject_sdf_geometry`）。
+HEAD:src/render/kernel/megakernel.rs:55:fn reject_sdf_geometry(geom_type: &[i32]) -> Result<(), LauncherError> {
+HEAD:src/render/kernel/megakernel.rs:120:        // SDF（`gtype==8`）仍拒绝（`reject_sdf_geometry`，host-only 单测钉住「不可达」前提）。
+HEAD:src/render/kernel/megakernel.rs:121:        reject_sdf_geometry(&ints(fields, "geom_type")?)?;
+HEAD:src/render/kernel/megakernel.rs:423:    use super::reject_sdf_geometry;
+HEAD:src/render/kernel/megakernel.rs:428:        let err = reject_sdf_geometry(&[0, 2, 8]).expect_err("gtype==8 must be rejected");
+HEAD:src/render/kernel/megakernel.rs:437:        assert!(reject_sdf_geometry(&[]).is_ok());
+HEAD:src/render/kernel/megakernel.rs:438:        assert!(reject_sdf_geometry(&[0, 1, 2, 7]).is_ok());
+
+# working tree after this slice
+(src/render/kernel/cuda/render_common.cu:391:            // host 仍拒绝 8（`megakernel.rs` 的 `reject_sdf_geometry`），本片改动今天不可达。
+src/render/kernel/cuda/render_common.cu:397:        // 设备侧 SDF 求交尚未解锁，host 仍拒绝，见 `megakernel.rs` 的 `reject_sdf_geometry`）。)
+
+# unchanged checks (must be empty)
+cuda_diff=
+scene_sdf_diff=
+r08_evidence_diff=
+r02_evidence_diff=
