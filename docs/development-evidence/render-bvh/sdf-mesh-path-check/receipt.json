@@ -1,0 +1,96 @@
+{
+  "task_id": "2026-10-30-render-sdf-mesh-path-check",
+  "reviewed_task": "2026-10-30-render-sdf-mesh-path",
+  "pin": "ed508d77",
+  "baseline": "02b9c629",
+  "card_head_at_start": "b9bc2c1d",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 0,
+  "observations": 7,
+  "scope": "read-only QA review of the SDF U1 device-dispatch slice: pin-commit scope and line counts, kernel identity (source/PTX/bytes) recomputed and NVRTC-recompiled, three dispatch sites and mesh_id semantics, host rejection retained (unreachable today), upstream mesh/SDF rendering citations, old-identity reference inventory, evidence manifest/encoding/no-run exit code, gate provenance wording, commit-mapping anomaly; no GPU window, no device execution, no source or foreign-evidence edits",
+  "method": {
+    "recompute": "recompute.py (16 checks -> recompute.json; committed blobs via git cat-file)",
+    "gates_self_run": ["fmt", "clippy", "clippy-cuda", "unit", "no-run"],
+    "nvrtc_compile_only": "cargo test --locked --features cuda-probe --test render_kernel_flags flag_and_aa_sources_compile_under_render_gate -- --ignored --nocapture (PATH += target/toolchains/cuda-12.8.1/bin; compile only)"
+  },
+  "checks": {
+    "total": 16,
+    "passed": 16,
+    "failed": []
+  },
+  "verified_numbers": {
+    "changed_paths": 19,
+    "changed_src": ["src/render/kernel/cuda/render.cu", "src/render/kernel/cuda/render_common.cu"],
+    "line_counts": {"render_common.cu": [414, 415], "render.cu": [499, 496], "megakernel.rs": 440, "cast.rs": 481},
+    "src_diff": {"insertions": 9, "deletions": 11, "numstat": {"render_common.cu": [6, 5], "render.cu": [3, 6]}},
+    "kernel_source": {
+      "base": {"bytes": 88785, "sha256": "be4ef01b1ae45188ac512c91cfef60244a1f8b6670307b245ae1719a34cf5f5e"},
+      "pin": {"bytes": 88865, "sha256": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5"}
+    },
+    "kernel_ptx_selfrun": {
+      "megakernel_ptx_sha256": "34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d",
+      "megakernel_ptx_bytes": 268589,
+      "aa_resolve_source_sha256": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76",
+      "aa_resolve_ptx_sha256": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70",
+      "aa_resolve_ptx_bytes": 27536,
+      "test_result": "1 passed; 0 failed"
+    },
+    "dispatch_semantics": {
+      "common_mesh_branch_includes_type8": true,
+      "common_mesh_id_filled_for_type8": true,
+      "depthseg_calls_mesh_leaf_for_type8": true,
+      "cull_this_excludes_type8": true,
+      "vertex_normal_branch_needs_mesh_id": true,
+      "leaf_mesh_is_geom_dataid_for_7_8": true
+    },
+    "host_rejection": {"megakernel_rs_bytes": 21373, "unchanged_vs_baseline": true,
+                        "error_string": "Unsupported(\"S7b3 不含 SDF 求交\")",
+                        "latent_guard_tests_still_run": ["sdf_geometry_stays_unsupported", "non_sdf_geometry_passes_the_guard"]},
+    "upstream_citations_verified": [
+      "mujoco_warp/_src/render.py:738-761 (MESH|SDF -> ray_mesh_with_bvh(_anyhit) with geom_dataid)",
+      "mujoco_warp/_src/render_test.py:1251 (Mesh and SDF geoms render using the underlying mesh geometry.)",
+      "mujoco_warp/_src/bvh.py:211-220 (MESH|SDF bounds from mesh_bounds_size[did])"
+    ],
+    "identity_references": {"pin": "02b9c629", "lines": 28, "files": 14,
+                            "docs_files": 8, "fixtures_files": 4, "normify_files": 2,
+                            "stale": 0, "missing": 0, "live_assertions_src_tests_scripts": 0},
+    "evidence_manifest": {"rows": 10, "match": "10/10", "files": 11, "self_registered": false,
+                          "utf16_files": ["logs/kernel-identity.txt", "logs/no-run.txt"],
+                          "no_run_last_line": "EXIT=0"},
+    "gates_self_run": {"result_lines": 136, "passed": 1108, "failed": 0, "ignored": 392,
+                       "exits": {"fmt": 0, "clippy": 0, "clippy-cuda": 0, "unit": 0, "no-run": 0, "nvrtc": 0}},
+    "validate_now": {"errors": 0, "warnings": 5},
+    "gate_provenance": {"evidence_snapshot_at": "2026-10-30T10:01-10:03Z", "runs_at": "2026-10-30T10:04-10:05Z",
+                        "same_run": "4/4 different", "unit_counts_equal": true,
+                        "readme_wording_accurate": "某次门禁转写快照，权威见 .normify/runs"}
+  },
+  "reachability": "host still rejects any model containing geom_type==8 (megakernel.rs byte-identical to baseline, reject_sdf_geometry plus the two host-only unit tests unchanged), so the new device dispatch is unreachable today; U1b (host unlock) and U4 (validation window with newly frozen guards) remain",
+  "observations": [
+    {"id": "O1", "text": "commit mapping anomaly (third occurrence): ed508d77 subject says schedule/close but carries the 19-path work commit including src; eff2de88 subject says feature but carries only the card JSON (+7/-1); content self-consistent, history not rewritten"},
+    {"id": "O2", "text": "two evidence logs are UTF-16LE + CRLF with PowerShell stderr wrapper noise (kernel-identity.txt 2138 B, no-run.txt 29068 B); existing repo pattern (106 UTF-16 blobs under docs/development-evidence), recommend UTF-8/LF capture"},
+    {"id": "O3", "text": "evidence gate-*.txt snapshot is a different run than .normify/runs (10:01-10:03Z vs 10:04-10:05Z, 4/4 scope_hash differ); README now says 'a snapshot of some gate run, authoritative = runs', wording accurate, unit counts identical"},
+    {"id": "O4", "text": "evidence materials/validate.txt is 0 errors/6 warnings at gate time (expected fingerprint drift), now 0/5 after done refreshed the kernel.md fingerprint"},
+    {"id": "O5", "text": "line ratchet satisfied and beat the estimate: render.cu 496 (-3, precheck expected ~498), render_common.cu 415 (<=417); megakernel.rs 440 and cast.rs 481 untouched"},
+    {"id": "O6", "text": "slice remains unreachable by design: host rejects geom_type==8, so device dispatch cannot be exercised on any GPU today; U1b unlock and U4 window (new guards, old exe hashes invalid) remain"},
+    {"id": "O7", "text": "old-identity inventory at pin 02b9c629 (28 lines/14 files) includes self-references from the previous QA check evidence; pin-scoped, 0 stale, 0 missing, no live assertions"}
+  ],
+  "boundaries": {
+    "read_only": true,
+    "gpu_window_opened": false,
+    "device_execution": false,
+    "source_edited": false,
+    "foreign_evidence_edited": false,
+    "host_rejection_changed": false
+  },
+  "not_claimed": [
+    "不宣称 SDF 渲染已覆盖（本卡只核设备 dispatch 对齐与不可达前提）",
+    "不宣称渲染数值验收通过（本卡无设备执行、无窗口）",
+    "不宣称与上游逐位相同（只核源码分支与语义，未做位级对比）"
+  ],
+  "limits": [
+    "NVRTC/PTX identity reproduced only on this host toolchain (CUDA 12.8.1), compile only",
+    "no device-side evidence that unlocked SDF hits match mesh hits bitwise; that belongs to U4",
+    "commit message/content mismatch checked by content only; history intentionally not rewritten"
+  ]
+}
