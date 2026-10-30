@@ -1,0 +1,111 @@
+{
+  "task_id": "2026-10-31-render-sdf-reference-target",
+  "kind": "render-sdf-reference-target",
+  "owner": "Arch",
+  "scope": "offline: new validation target + support modules + new-suite freezer; no GPU, no product src/.cu change",
+  "prerequisites": [
+    "2026-10-31-render-sdf-host-unlock",
+    "2026-10-31-render-sdf-model-dump",
+    "2026-10-30-render-sdf-capture"
+  ],
+  "files": {
+    "tests/render_sdf_reference.rs": {
+      "lines": 361,
+      "bytes": 13617,
+      "sha256": "785d1ec7f5d634adb0d6d4bce48633d961edeb8ddb5023350122fd363855a31e"
+    },
+    "tests/support/render_bvh/sdf.rs": {
+      "lines": 372,
+      "bytes": 13189,
+      "sha256": "7bf1f0254a0dc0a67536af5a22d55b869b88b628f04c1d2ba226bf191f9d8e41"
+    },
+    "tests/support/render_bvh/sdf_scene.rs": {
+      "lines": 323,
+      "bytes": 11695,
+      "sha256": "025950d003d960488cf3c39737f142ab323fa6887bbdc20632995cfb1ad4a94a"
+    },
+    "tests/support/render_bvh/sdf_compare.rs": {
+      "lines": 260,
+      "bytes": 9632,
+      "sha256": "45ecb5a9bfb600cb213ce2862c9b76d1df0d462cb876dac856c07caa74a358d5"
+    },
+    "scripts/validate/render-bvh/freeze-guards-sdf.ps1": {
+      "lines": 167,
+      "bytes": 8679,
+      "sha256": "d2c79620837e9072509720afc4363052e0881289fbbd3d3770d004aef7888730"
+    }
+  },
+  "tests": {
+    "host": [
+      "model_dumps_match_signed_scene_semantics",
+      "capture_references_parse_and_cross_checks_hold",
+      "sdf_leaf_geometry_uses_mesh_bounds"
+    ],
+    "gpu_ignored": [
+      "sdf_mesh_matches_captured_reference",
+      "sdf_occluder_matches_captured_reference",
+      "shadow_toggle_consistency",
+      "depth_seg_cross_path_consistency",
+      "two_run_determinism"
+    ],
+    "host_result": "3 passed / 0 failed / 5 ignored",
+    "unit_gate_tests_passed": 1109,
+    "unit_gate_note": "1106 after U1b + 3 new host tests"
+  },
+  "criteria": {
+    "rgb": "beyond_1_lsb=0, max_byte_diff<=1",
+    "depth": "mismatched=0 and max_ulp<=4 and beyond_ulp=0",
+    "seg": "mismatched=0",
+    "determinism": "two-run rgb/depth/seg sha256 equal",
+    "shadow_arm": "consistency only: depth/seg bitwise equal, rgb off>=on with reversed>1LSB==0, changed pixels>0, both arms two-run sha equal; no numerical reference claim",
+    "depth_seg_cross_path": "DepthSegRenderer vs megakernel depth/seg bitwise equal (all cameras)",
+    "no_relaxation": true
+  },
+  "freezer": {
+    "path": "scripts/validate/render-bvh/freeze-guards-sdf.ps1",
+    "lines": 167,
+    "non_ascii": 0,
+    "psparser_errors": "0",
+    "suite": "render-sdf-validate",
+    "expected_counts": {
+      "frozen_exes": 9,
+      "guard_inputs": 83,
+      "total": 92
+    },
+    "entity_order": [
+      "render_sdf_reference",
+      "render_e2e",
+      "render_kernel_rgb",
+      "render_kernel_depth_seg",
+      "render_kernel_flags",
+      "render_r10_multi_world",
+      "render_skybox_reference",
+      "render_context_lifecycle",
+      "render_mesh_bvh"
+    ],
+    "executed_here": false,
+    "note": "the freezer runs inside the window SOP after the monitor passes; this offline slice only ships and statically checks it"
+  },
+  "gates": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "clippy-cuda": "passed",
+    "unit": "passed (1109 passed / 0 failed / 392 ignored)",
+    "no_run": "EXIT=0 with Finished",
+    "validate_fingerprints_errors": 0
+  },
+  "boundaries": {
+    "gpu_used": false,
+    "product_src_modified": false,
+    "cuda_sources_modified": false,
+    "existing_tests_modified": false,
+    "criteria_or_references_changed": false,
+    "guards_file_created": false
+  },
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "等价",
+    "SDF 渲染已覆盖"
+  ]
+}

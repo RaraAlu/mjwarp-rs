@@ -5,7 +5,7 @@
     "zh": "U4 SDF 参考验证目标实现（render_sdf_reference + sdf/sdf_scene 支撑 + 新冻结器；8 用例/判据零放宽/离线）",
     "en": "U4 SDF reference target implementation (render_sdf_reference + sdf/sdf_scene support + new freezer; 8 cases, unchanged criteria, offline)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "为 `2026-10-31-render-sdf-validate` 窗口写目标实体与冻结器（离线，不跑 GPU）：①`tests/render_sdf_reference.rs`（host 3：模型 dump 语义/参考自证/SDF 用 mesh bounds；GPU 5：两组参考比对 + shadow 开/关一致性 + DepthSeg 跨路径一致性 + 两跑确定性）；②`tests/support/render_bvh/sdf.rs`（U3 参考加载与硬断言，仿 `hfield.rs`）；③`tests/support/render_bvh/sdf_scene.rs`（产品场景装配 + 比较统计，仿 `hfield_scene.rs`，但 SDF 用 mesh 0 作 `MeshState`、leaf `size` 用 mesh bounds）；④`scripts/validate/render-bvh/freeze-guards-sdf.ps1`（新 suite `render-sdf-validate` 冻结器，ASCII、≤200 行、PowerShell 5.1、硬断言 9 exe + 83 inputs = 92）。判据沿用 R09-S3b/R05-S3b，零放宽；shadow-off 无上游参考 ⇒ 只做一致性，不产数值结论。",
     "en": "Implement the U4 target entity, support modules and the new suite freezer offline; criteria unchanged; shadow-off arm consistency-only."
@@ -30,6 +30,7 @@
       "tests/render_sdf_reference.rs",
       "tests/support/render_bvh/sdf.rs",
       "tests/support/render_bvh/sdf_scene.rs",
+      "tests/support/render_bvh/sdf_compare.rs",
       "scripts/validate/render-bvh/freeze-guards-sdf.ps1",
       "docs/development-evidence/render-bvh/sdf-reference-target/"
     ],
@@ -38,11 +39,12 @@
   },
   "note": "Arch 2026-10-31 注册（用户已签 U4 窗口；实现属离线工作，不必等窗口签字）。本片只写测试目标 + 支撑模块 + 冻结器；GPU 实体在窗口内由 `2026-10-31-render-sdf-validate` 执行。判据沿用 R09-S3b/R05-S3b，零放宽；shadow-off 臂只做一致性（无上游参考）。实现依据：U4 材料 `2026-10-31-render-sdf-validate-window-material`（pin U4a dump sha）。",
   "revision": {
-    "before": null,
+    "before": "348a2ae8252f71b22c53df87bb0a71f7f7fdae45",
     "after": null
   },
   "created_at": "2026-10-30T17:20:00.000Z",
-  "updated_at": "2026-10-30T17:20:00.000Z",
+  "updated_at": "2026-10-30T17:00:26.336Z",
+  "closed_at": "2026-10-30T17:00:26.336Z",
   "checks": [
     {
       "kind": "gate",
