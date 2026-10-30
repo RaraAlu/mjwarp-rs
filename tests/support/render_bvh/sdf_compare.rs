@@ -135,7 +135,9 @@ pub fn assert_shadow_consistency(
             if off_byte != on_byte {
                 pixel_changed = true;
             }
-            if off_byte + 1 < on_byte {
+            // 判据语义不变：shadow-off 比 shadow-on 暗超过 1 LSB 视为逆序。
+            // 用 i32 比较，避免 u8 `255 + 1` 溢出（QA P2）。
+            if (off_byte as i32) + 1 < on_byte as i32 {
                 reversed += 1;
             }
         }
@@ -257,4 +259,73 @@ pub fn rgb_changed_pixels(a: &[u32], b: &[u32]) -> usize {
         .zip(b)
         .filter(|(left, right)| left != right)
         .count()
+}
+
+/// 只读诊断（attempt2 前置，QA 要求）：打印 depth mismatch 像素的 product / reference 深度位型、
+/// ULP、seg 对与射线 origin/dir。
+///
+/// 边界说明：设备输出只回 rgb/depth/seg（不含 tri id / normal / bary / 顶点），因此本函数只打印能从
+/// 产品输出与 `RayBuffer` 直接得到的字段；triangle/normal/bary 需要额外 host 反算，不在本诊断内做。
+/// **只写日志**：不参与断言、不改变判定路径。
+pub fn report_depth_mismatches(
+    label: &str,
+    rendered: &Rendered,
+    scene: &SdfScene,
+    reference: &SdfReference,
+    limit_per_camera: usize,
+) {
+    let layout = &scene.context.resolved().output;
+    let directions = scene.rays.directions();
+    let offsets = scene.rays.offsets();
+    for camera in &reference.depth_seg {
+        let pixels = grid_pixels(scene, camera.index);
+        let start = layout.depth_adr[camera.index] as usize;
+        let ray_base = layout.rgb_adr[camera.index] as usize;
+        let mut printed = 0usize;
+        for pixel in 0..pixels {
+            let got = rendered.depth[start + pixel];
+            let expected = f32::from_bits(camera.depth_bits[pixel]);
+            if got.to_bits() == expected.to_bits() {
+                continue;
+            }
+            if printed >= limit_per_camera {
+                break;
+            }
+            printed += 1;
+            let x = pixel % camera.width;
+            let y = pixel / camera.width;
+            let ray = if ray_base + pixel < directions.len() && ray_base + pixel < offsets.len() {
+                format!(
+                    "ray_origin={:?} ray_dir={:?}",
+                    offsets[ray_base + pixel],
+                    directions[ray_base + pixel]
+                )
+            } else {
+                "ray=-".to_string()
+            };
+            println!(
+                "u4-sdf[diag][{label}] cam{} mismatch#{printed} pixel={pixel} x={x} y={y} \
+                 product_depth_bits=0x{:08x} product_depth={got:?} ref_depth_bits=0x{:08x} \
+                 ref_depth={expected:?} ulp={} seg={:?} {ray}",
+                camera.index,
+                got.to_bits(),
+                expected.to_bits(),
+                ulp_between(got, expected),
+                camera.seg_pairs[pixel]
+            );
+        }
+        if printed > 0 {
+            println!(
+                "u4-sdf[diag][{label}] cam{} mismatch head printed={printed} (limit per camera {limit_per_camera})",
+                camera.index
+            );
+        }
+    }
+}
+
+/// f32 位型差（ULP 距离，诊断展示用）。
+fn ulp_between(a: f32, b: f32) -> u64 {
+    let ai = a.to_bits() as i64;
+    let bi = b.to_bits() as i64;
+    (ai - bi).unsigned_abs()
 }

@@ -296,6 +296,8 @@ fn run_group(group: SdfGroup) {
     let first = sdf_scene::fire(&renderer, &scene);
     let (rgb_stats, depth_stats, seg_stats) =
         sdf_compare::compare_group(&first, &scene, &reference);
+    // 只读诊断（QA 前置）：只打印 depth mismatch 明细，不参与断言/判定。
+    sdf_compare::report_depth_mismatches(group.label(), &first, &scene, &reference, 40);
 
     for (camera, stats) in reference.rgb.iter().zip(&rgb_stats) {
         println!(

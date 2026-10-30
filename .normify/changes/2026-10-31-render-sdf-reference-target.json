@@ -43,7 +43,7 @@
     "after": null
   },
   "created_at": "2026-10-30T17:20:00.000Z",
-  "updated_at": "2026-10-30T17:10:09.100Z",
+  "updated_at": "2026-10-30T17:54:20.545Z",
   "closed_at": "2026-10-30T17:00:26.336Z",
   "checks": [
     {
@@ -93,6 +93,12 @@
       "reason": "QA 两需修（freeze 前）：P1 receipt.gates.unit ignored 392（U1b 旧值）-> 397（实测 1109 passed/0 failed/397 ignored，本片 5 条新 ignored GPU 用例）；P2 shadow_toggle_consistency 的 off 臂补 seg 两跑 sha 断言（判据语义不变，两臂各有 rgb/depth/seg 两跑 sha；文件 342/361 -> 366 行，仍 ≤500），并顺带按 O1 把材料预算改为 ≤400。freeze 未发生，代码修改不会使任何已冻结 guards 失效；render_sdf_reference 的 exe 会在窗口 freeze 时自然生成。证据：README/receipt/file-identity/manifest 刷新，host 3 passed/5 ignored 复跑通过，四门禁全绿（unit 1109/0/397）。",
       "prev": null,
       "hash": "sha256:b78494ff736211d9ea2c5f3930f0dc11c19c9d9e833b0dcb193cc786bb7a9255"
+    },
+    {
+      "at": "2026-10-30T17:54:20.545Z",
+      "reason": "attempt2 前置（QA/Chief 三硬前置，freeze 前）：①u8 溢出修复——sdf_compare.rs 的 shadow-off 逆序判定改 i32 比较（(off_byte as i32)+1 < on_byte as i32），语义不变；②新增只读诊断 report_depth_mismatches（run_group 比较后调用，只 println 逐 mismatch 像素的 product/reference depth 位型/f32/ULP/seg 对/射线 origin-dir；设备输出无 tri/normal/bary，已在注释写明边界；不参与断言、不改判定路径；两组场景都调用）；③仅改 tests/**，不碰 src/.cu/fixtures/判据/容差/参考；④attempt1 身份已留档 target/.../attempts/attempt1（guards 字节副本 0639f0ff/33651B + entity-results + 9 日志 + GuardsOnly 92/92 日志 + 两份 monitor CSV），attempt2 全新冻结、不复用 attempt1 guards；⑤红线记录：若 attempt2 再现 215px/max_ulp≈191 即 U4 未通过，按回滚声明 revert U1b 保留 U1，不缩相机/不跳球/不抬 MAX_DEPTH_ULP。门禁重跑全绿（unit 1109/0）；render_sdf_reference.rs 368 行、sdf_compare.rs 331 行，仍 ≤500。",
+      "prev": "sha256:b78494ff736211d9ea2c5f3930f0dc11c19c9d9e833b0dcb193cc786bb7a9255",
+      "hash": "sha256:eda73c3136563ff326ced4bd06a384a1b36a6528c2c879eaaa16cff2dcd2214c"
     }
   ]
 }

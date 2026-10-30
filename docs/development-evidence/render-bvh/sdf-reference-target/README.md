@@ -8,10 +8,10 @@
 
 | 文件 | 行数 | 说明 |
 | --- | --- | --- |
-| `tests/render_sdf_reference.rs` | 366 | 8 用例：host 3（模型 dump 语义 / 参考自证 / SDF 用 mesh bounds）+ GPU 5（两组参考比对 / shadow 一致性 / DepthSeg 跨路径 / 两跑确定性） |
+| `tests/render_sdf_reference.rs` | 368 | 8 用例：host 3（模型 dump 语义 / 参考自证 / SDF 用 mesh bounds）+ GPU 5（两组参考比对 / shadow 一致性 / DepthSeg 跨路径 / 两跑确定性） |
 | `tests/support/render_bvh/sdf.rs` | 372 | U3 参考加载与硬断言（capture.json 全字段 + npz sha 对 `files_sha256`，仿 `hfield.rs`） |
 | `tests/support/render_bvh/sdf_scene.rs` | 323 | 产品场景装配（mesh 0 → `MeshState`、SDF leaf size=mesh bounds、pose=geom_pos/单位 quat） |
-| `tests/support/render_bvh/sdf_compare.rs` | 260 | 比较统计 + 判据断言 + shadow 一致性 + DepthSeg 跨路径 |
+| `tests/support/render_bvh/sdf_compare.rs` | 331 | 比较统计 + 判据断言 + shadow 一致性 + DepthSeg 跨路径 |
 | `scripts/validate/render-bvh/freeze-guards-sdf.ps1` | 167 | 新 suite `render-sdf-validate` 冻结器（ASCII、≤200 行、PS 5.1、硬断言 9/83/92） |
 
 全部 ≤500 行；`sdf_scene.rs` 原本 573 行，按材料预案**拆出 `sdf_compare.rs`**（不突破 500 行棘轮）。
@@ -53,3 +53,15 @@
 | O1 | 材料预算 260–360 与实际不符 | 材料 amend 已把预算改为「≤400」（本片实际 366 行） |
 
 - freeze 尚未发生，故代码修改不会使任何已冻结 guards 失效；`render_sdf_reference` 的 exe 会在窗口 freeze 时自然生成。
+
+## 6. attempt2 前置修复（2026-10-31，QA/Chief 三条硬前置）
+
+| # | 前置 | 修法 |
+| --- | --- | --- |
+| 1 | attempt1 身份留档 | 归档到 `target/render-bvh/sdf-validate-window/attempts/attempt1/`（guards 字节副本 sha `0639f0ff…`/33,651 B、entity-results、9 实体日志、`-GuardsOnly` 92/92 日志、两份 monitor CSV、facts/samples/sha-guards）；原 `attempt1/` 不动；ARCHIVE-README 写明「attempt1 freeze 不复用，attempt2 全新冻结」 |
+| 2 | u8 溢出（`off_byte + 1`，u8=255） | `sdf_compare.rs` 改为 **i32 比较**（`(off_byte as i32) + 1 < on_byte as i32`），判定语义不变；只改 `tests/**` |
+| 3 | 只读诊断 | `sdf_compare::report_depth_mismatches` 在 `run_group` 比较后调用，只 `println!`：逐 mismatch 像素打印 product/reference depth 位型与 f32、ULP、seg 对、射线 origin/dir（设备输出不含 tri/normal/bary，已在函数注释写明边界）；**不参与断言、不改变判定路径**；两组场景都调用 |
+| 4 | 红线（Chief/QA） | attempt2 若再现同量级 sphere 轮廓 depth 超限（215 px / max_ulp≈191）即 **U4 未通过**：按回滚声明 revert U1b、保留 U1；不缩相机、不跳球、不抬 `MAX_DEPTH_ULP`；诊断只定位不改 verdict |
+
+- 本次改动后文件行数：`render_sdf_reference.rs` 368、`sdf.rs` 372、`sdf_scene.rs` 323、`sdf_compare.rs` 331、冻结器 167（均 ≤500）。
+- 改动只涉及 `tests/**`；`src/**`、`.cu`、`fixtures/**`、判据/容差/参考零改动。attempt2 将**全新冻结**（attempt=2，92 条身份会换）。
