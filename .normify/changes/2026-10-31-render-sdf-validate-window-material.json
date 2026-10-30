@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-validate-window-material",
+  "title": {
+    "zh": "SDF 验证窗材料（U4：实体表 9 条/new suite 冻结器/判据/窗口计划/双签栏；pin U4a dump；未执行）",
+    "en": "SDF validation window material (U4: entity table, new-suite freezer, criteria, window plan, double-sign block; pins U4a dumps; not executed)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "为 `2026-10-31-render-sdf-validate`（U4 验证窗，GPU 满载，需用户双签）准备材料：①实体表 9 条（1 new `render_sdf_reference` + 8 回归，Chief 2026-10-31 定稿）；②新 suite `render-sdf-validate` 冻结器设计（ASCII、≤200 行、PowerShell 5.1、硬断言 9 exe + 83 inputs = 92）；③判据（RGB ≤1 LSB、depth bitwise 优先且 max_ulp≤4、seg exact、两跑 sha 相等；shadow 开/关只做一致性；DepthSeg 跨路径位级一致）；④窗口计划（常规 `util<40`、**不使用 authoring 例外**、基线三点 + floor、失败即停、五条命令逐字）；⑤双签栏。本片**只写材料**：零 GPU、零执行、零参考写入、不改判据/容差。材料 pin U4a 的真实 dump sha。",
+    "en": "Prepare the user double-sign material for the U4 validation window (entities, new suite freezer, criteria, window plan, signature block). Offline only; no GPU, no execution, no reference writes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**实体表**：`materials/entity-table.json` 9 条（new `render_sdf_reference` + `render_e2e`/`render_kernel_rgb`/`render_kernel_depth_seg`/`render_kernel_flags`/`render_r10_multi_world`/`render_skybox_reference`/`render_context_lifecycle`/`render_mesh_bvh`），每条含逐字窗口命令；记录 Chief 定稿（移出 `render_camera_rays`/`render_r08_cameras`）。",
+    "**新 suite 冻结器设计**：`materials/window-plan.txt` 写明 suite `render-sdf-validate`、attempt=1、`freeze-guards-sdf.ps1`（新、ASCII、≤200 行、PowerShell 5.1）、预期 **9 exe + 83 inputs = 92**（scene-sdf 10 + scene-hfield 10 + legacy 47 + scene-shadow capture 16）、脚本硬断言、aggregate 冻结时生成不预设、不复用 R05/R02/R08 guards。",
+    "**判据（零放宽）**：RGB `beyond_1_lsb=0`/`max_byte_diff≤1`；depth `mismatched=0` 且 `max_ulp≤4`/`beyond_ulp=0`；seg `mismatched=0`；两跑 sha 相等；shadow 开/关只做一致性（depth/seg 位级相等、rgb `shadow_off≥shadow_on` 且逆序超 1 LSB=0、差异像素>0、两臂两跑 sha 相等、不产数值参考）；DepthSeg 跨路径位级一致。",
+    "**窗口计划**：五条命令逐字（monitor/freeze/GuardsOnly/body，全 `powershell` 5.1）；常规 `util<40`（默认 MaxUtil=40，**不得** `-MaxUtil 60`/`-OpenUtilLimit`；authoring-only 例外不适用）；开窗前三点基线 + `floor = min free − 3072`；失败即停/不重试/不换例外；时限 30–60 min；双签栏（计划/基线/冻结后 92 条 guards 身份）。",
+    "**U4a pin**：`materials/expected-products.json` 记录 `tests/support/render_bvh/sdf/model-312.json` 与 `model-mixed-312.json` 的真实 bytes/sha（U4a 已验收产物）；参考产物 sha/recipe 与 U3 证据一致。",
+    "**边界与卫生**：只在 `docs/development-evidence/render-bvh/sdf-validate-window-material/` 落地；零 GPU、零执行、零 `fixtures/` 写入、零 `src/**`/`tests/**`/`scripts/**` 改动；`window-plan.txt` 非 ASCII 0；全部 LF 无 BOM、禁词 0；`manifest.txt` 自洽。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-31-render-sdf-model-dump"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/sdf-validate-window-material/"
+    ],
+    "resources": [],
+    "priority": 61
+  },
+  "note": "Arch 2026-10-31 注册（Chief 令：U4a 收口后落 U4 材料卡 proposed，然后请用户双签窗口）。材料来源草稿 `target/u4-validate-window-material.md` / `u4-entity-table.json` / `u4-expected-products.json`。当前未执行：窗口卡 `2026-10-31-render-sdf-validate` 尚未注册；用户双签后才 start。材料已 pin U4a dump（model-312.json / model-mixed-312.json），U4 实现片需要先写 `tests/render_sdf_reference.rs` + 两个 support 文件、然后才可开窗。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T16:53:00.000Z",
+  "updated_at": "2026-10-30T16:43:36.768Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-validate-window-material/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-validate-window-material"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/render-bvh/scene-sdf",
+        "src"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "等价"
+      ]
+    }
+  ]
+}
