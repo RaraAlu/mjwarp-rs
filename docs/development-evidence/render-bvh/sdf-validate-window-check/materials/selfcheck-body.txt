@@ -1,0 +1,36 @@
+U4 window body — QA independent recompute (2026-10-31, logs under target/ referenced by the committed invalid-round records)
+
+entity exits (both attempts, committed entity-results.csv)
+  9 entities: render_sdf_reference (new) exit 101; the other 8 regressions exit 0  => "8/9 exit 0"
+  windowed INVALID_ROUND exit10 (guard.log), floor not breached, residual_processes=0, post_window_exe_recheck=9/9,
+  deps snapshot before the body (deps_before_max_write < window_start) and deps_after identical => zero Rust compile after body begins.
+
+attempt1 render_sdf_reference test set (target/render-bvh/sdf-validate-window/attempt1/logs/render_sdf_reference.log)
+  test result: FAILED. 2 passed; 3 failed
+  failed: sdf_mesh_matches_captured_reference
+          sdf_occluder_matches_captured_reference
+          shadow_toggle_consistency  (panicked with "attempt to add with overflow" at tests/support/render_bvh/sdf_compare.rs:138
+                                      => the test-side u8 overflow bug, fixed in 82dfa0c3)
+
+attempt2 render_sdf_reference test set (attempt2/logs/render_sdf_reference.log)
+  test result: FAILED. 3 passed; 2 failed; 3 filtered out (host cases)
+  passed: shadow_toggle_consistency (u8 fix effective), depth_seg_cross_path_consistency, two_run_determinism
+  failed: sdf_mesh_matches_captured_reference, sdf_occluder_matches_captured_reference
+  NOTE: the committed attempt2 invalid-round-record lists shadow_toggle_consistency among failed_tests; that is attempt1's set
+        (see must-fix P1).
+
+depth deviation (identical both attempts; attempt2 has the read-only diagnostic)
+  cam0: 215 / 76,800 mismatched, max_ulp=191, beyond_ulp=215
+  cam1: 4 / 43,200 mismatched, max_ulp=25, beyond_ulp=4
+  first difference pixel (230,69), reference seg=(2,5) = sphere silhouette
+  rgb: mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0 ; seg: mismatched=0
+  diagnostic direction: bidirectional - cam0 first 40 printed cases: product>ref 16, product<ref 24, ULP 7..71;
+                        full-set max |ULP| = 191 (the direction is NOT "product always smaller")
+
+no criteria relaxation (checked against the product constant and the tests)
+  src/render/kernel/output.rs: pub const MAX_DEPTH_ULP: i64 = 4;   (unchanged)
+  both cameras compared (cam0 76,800 px, cam1 43,200 px); sphere not skipped; no camera shrink
+  82dfa0c3 diff: tests/render_sdf_reference.rs +2 lines; tests/support/render_bvh/sdf_compare.rs +73/-1
+    - u8 comparison fixed by casting to i32: (off_byte as i32) + 1 < on_byte as i32  (same semantics, no overflow)
+    - report_depth_mismatches(...) added: returns (), prints only (println!), called before the asserts, does not touch the verdict path
+  no product src/, .cu, fixtures/, Cargo*, scripts/ change in 82dfa0c3 (git diff --stat empty)

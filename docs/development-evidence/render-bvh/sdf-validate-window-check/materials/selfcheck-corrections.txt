@@ -1,0 +1,23 @@
+Rollback evidence corrections (0192016d) — QA re-read (2026-10-31)
+
+1) deviation direction (previous QA must-fix)
+   docs/development-evidence/render-bvh/sdf-host-unlock-rollback/README.md §1 and materials/attempt-refs.txt now say:
+     bidirectional; attempt2 diagnostic, cam0 first 40 cases: product>ref 16, product<ref 24, ULP 7-71; full-set max |ULP| = 191
+   my own recompute from target/render-bvh/sdf-validate-window/attempt2/logs/render_sdf_reference.log:
+     printed cam0 cases = 40; product>ref = 16; product<ref = 24; ULP range 7..71  => exactly matches the corrected wording
+   receipt.json gained "deviation.direction" with the same values.
+   => the earlier "product depth always smaller by ~10-191 ULP" wording is gone.
+
+2) guards-only provenance
+   README.md §4 / materials/attempt-refs.txt / receipt.json now state:
+     attempt1: in-window window/guard.log has GUARDS_OK=92/92 (before the body);
+               plus a guards-only-run/ with window_start=2026-10-31T01:52:41+08:00, which is AFTER the body end (01:50:19) -
+               a post-body re-check, -GuardsOnly does sha-file verification only (CPU-only, no GPU work, does not change the verdict);
+               that re-check log is not committed (target/ only).
+     attempt2: GUARDS_OK=92/92 comes from the in-window window/guard.log only (before the body); no post-body re-run.
+   cross-checks: attempt1/window/guard.log = "PRECHECK_OK ... / GUARDS_OK=92/92 / INVALID_ROUND exit10";
+                 attempt1 entity_start 01:49:31, entity_end 01:50:19, window_end 01:50:20; guards-only-run facts.txt window_start 01:52:41 (> window_end)
+   => wording is accurate and does not present the re-check as the in-window record.
+
+3) follow-up housekeeping verified
+   rollback manifest.txt recomputed => 0 mismatch; unit run json re-run at 2026-10-30T18:43:27Z still 1111/0/397; the four gate snapshots refreshed.

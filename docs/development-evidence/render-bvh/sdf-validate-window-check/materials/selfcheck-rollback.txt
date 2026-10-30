@@ -1,0 +1,26 @@
+U1b rollback — QA independent recompute (pin 07252cd2, 2026-10-31)
+
+scope of 07252cd2: src/render/kernel/megakernel.rs + rollback evidence + task/module bookkeeping only.
+  megakernel.rs 406 lines / 20,172 B / 9b013d90..  ->  440 lines / 21,813 B / fb9aae8f82eb9a3891f8c43879d2f79c894f9eeb4cd15da468004d746999e380
+  git diff --stat af96c048^..07252cd2 -- src/   => EMPTY  (exact inverse of U1b: byte-identical to the pre-unlock state)
+  restored: fn reject_sdf_geometry (line 55), render() call site (line 121), #[cfg(test)] mod sdf_geometry_guard_tests (line 422, 2 host-only tests)
+  host rejects geom_type==8 again with LauncherError::Unsupported("S7b3 不含 SDF 求交") => SDF unreachable again
+
+U1 device-side change kept:
+  git diff --stat af96c048..07252cd2 -- src/render/kernel/cuda  => EMPTY
+  git diff --stat 07252cd2..d3bca361 -- src/render/kernel/cuda  => EMPTY
+  kernel identity remains the U1 value: source 778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5
+                                      PTX    34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d / 268,589 B
+                                      (cross-checked against docs/development-evidence/render-bvh/sdf-mesh-path/receipt.json)
+
+committed range after the rollback:
+  git diff --stat 07252cd2..d3bca361 -- src/  => EMPTY (only evidence/registration commits follow)
+
+gates (rollback evidence, authoritative = .normify/runs/):
+  fmt / clippy / clippy-cuda: passed; unit: 1111 passed / 0 failed / 397 ignored (exit 0, run json at 2026-10-30T18:36:46Z,
+  re-run after the wording fix at 18:43:27Z keeps 1111/0/397); cargo test --locked --no-run => EXIT=0 with Finished
+  reconciliation: 1106 (after U1b) + 3 U4 host tests = 1109; + 2 restored host-only guard tests = 1111 (card 1108 = documented miscount)
+
+rollback evidence integrity (after 0192016d corrections):
+  manifest.txt recomputed over worktree files => 0 mismatch
+  materials/restore-diff.patch: index 69f69f05..cddd612c; git ls-tree 82dfa0c3 -> 69f69f05f5b3.., 07252cd2 -> cddd612c6b25.. (patch matches the real commit)

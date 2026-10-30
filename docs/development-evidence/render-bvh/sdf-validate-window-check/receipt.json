@@ -1,0 +1,115 @@
+{
+  "task_id": "2026-10-31-render-sdf-validate-window-check",
+  "reviewed_tasks": [
+    "2026-10-31-render-sdf-validate",
+    "2026-10-31-render-sdf-host-unlock-rollback",
+    "2026-10-31-render-sdf-validate-attempts-evidence"
+  ],
+  "pin": "07252cd2",
+  "evidence_commits": ["d52dc774", "0192016d"],
+  "card_head_at_start": "d3bca3615005238a5b7ca72e0fa0a322b49f0a2c",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 4,
+  "observations": 6,
+  "scope": "read-only QA review of the U4 validation window attempt1/attempt2 (conditional protocol execution and verbatim archival, two independent freeze identities, reproduced sphere-silhouette depth deviation, clean INVALID_ROUND handling) plus the resulting U1b rollback, the tests-only diagnostic commit, unchanged criteria, and the committed attempt-artifact snapshot with manifest; no GPU, no window rerun, no re-freeze, no product/evidence edit",
+  "method": {
+    "monitor": "Import-Csv on the committed monitor CSVs (git cat-file blob) recomputed samples/util/free/clean-streak/ge40_clean/ge60 position",
+    "freeze_identity": "committed guards JSON blobs: sha256/bytes, 9+83=92 counts, 10/10/47/16 breakdown, aggregate recomputed with Windows PowerShell 5.1 (NLS Sort-Object) from the path-sorted sha concatenation, 92-entry sha-guards cross-check, target originals byte comparison, stash 9/9",
+    "body": "attempt logs (target worktree, referenced by the committed invalid-round records) parsed for pass/fail sets and depth statistics; criteria constant read from product src/render/kernel/output.rs",
+    "rollback": "git diff af96c048^..07252cd2 (exact inverse), 07252cd2..d3bca361 (no committed src change), cuda diff, restored line numbers, unit run json 1111/0/397",
+    "artifacts": "manifest 12/12 recomputed from committed blobs, committed-vs-target 10/10 byte equality, guards CRLF preservation, git check-attr text/diff unset on the evidence tree",
+    "corrections": "0192016d re-read: deviation direction now bidirectional (16/24, ULP 7-71, max |ULP| 191), guards-only provenance recorded; rollback manifest recomputed 0 mismatch"
+  },
+  "verified_numbers": {
+    "monitor": {
+      "attempt1_regular": {"csv": "attempts/attempt1/monitor-pre-window.csv", "samples": 354, "longest_clean": 28, "util_min": 3, "util_max": 76, "free_min_mib": 11545, "exit": 20, "retained_verbatim": true},
+      "attempt1_exception": {"csv": "attempts/attempt1/monitor-pre-window-exception.csv", "samples": 69, "final_streak": 60, "util_max_in_final_streak": 43, "ge40_clean": 9, "ge60": 2, "ge60_outside_final_streak": true, "util_min": 1, "util_max": 62, "free_min_mib": 11545, "exit": 0},
+      "attempt2_regular": {"csv": "attempts/attempt2/monitor-pre-window-attempt2.csv", "samples": 354, "longest_clean": 41, "util_min": 1, "util_max": 53, "free_min_mib": 11467, "ge60": 0, "exit": 20, "retained_verbatim": true},
+      "attempt2_exception": {"csv": "attempts/attempt2/monitor-pre-window-exception-attempt2.csv", "samples": 83, "final_streak": 60, "util_max_in_final_streak": 45, "ge40_clean": 8, "ge60": 1, "ge60_outside_final_streak": true, "util_min": 2, "util_max": 68, "free_min_mib": 11548, "exit": 0},
+      "protocol": "both attempts: regular util<40 monitor ran first and FAILED (exit 20), CSV retained verbatim; then the signed conditional validation-only util<60 exception monitor passed 60/60; never reported as a normal pass; ge60 recorded as-is (2 and 1), not written as ge60=0"
+    },
+    "freeze_identity": {
+      "attempt1": {"guards_sha256": "0639f0ff5064bd2a7a44c1b9f6a29298b623b4d4901c9f089e0648a97591910d", "bytes": 33651, "aggregate_recomputed": "02b2021376e27140552000a7124e4e5cff527ee558670677b6d58dcbdccf826f", "aggregate_recorded": "02b2021376e27140552000a7124e4e5cff527ee558670677b6d58dcbdccf826f", "match": true},
+      "attempt2": {"guards_sha256": "d921caae93df0d911c51a64501f2427dcb58cb86f64a4158fd1f45b06933d726", "bytes": 33651, "aggregate_recomputed": "a50e99c951c1a9277d8821f8aca9fcad2506ec5878183ff0f7ead0c53837e67a", "aggregate_recorded": "a50e99c951c1a9277d8821f8aca9fcad2506ec5878183ff0f7ead0c53837e67a", "match": true},
+      "counts": "9 exe + 83 inputs = 92 (both attempts)",
+      "input_breakdown": {"scene_sdf": 10, "scene_hfield": 10, "legacy": 47, "scene_shadow_capture": 16, "total": 83},
+      "fresh_freeze_proof": "83 inputs identical in both freezes; 8/9 exe hashes identical; only render_sdf_reference changed (24e68933.. -> 9f5d4098.., 100487206 -> 100497318 B) because 82dfa0c3 is tests-only; attempt2 guards/aggregate/generated_at/attempt differ => attempt1 freeze not reused",
+      "stash": {"attempt2": "9/9 stash sha equal to guards", "attempt1": "stash dir holds the latest freeze only; attempt1 render_sdf_reference stash was overwritten, hashes retained in the archived guards (INVALID_ROUND, not reused)"},
+      "sha_guards": "92/92 entries per attempt, entries agree with the guards JSON (83 inputs re-verified against the worktree)"
+    },
+    "body": {
+      "attempt1": {"entity_exits": "8/9 exit 0; render_sdf_reference exit 101", "render_sdf_reference": "3 failed: sdf_mesh_matches_captured_reference, sdf_occluder_matches_captured_reference, shadow_toggle_consistency (the third failed with 'attempt to add with overflow' at sdf_compare.rs:138, i.e. the test-side u8 bug)"},
+      "attempt2": {"entity_exits": "8/9 exit 0; render_sdf_reference exit 101", "render_sdf_reference": "3 passed / 2 failed: sdf_mesh_matches_captured_reference, sdf_occluder_matches_captured_reference; shadow_toggle_consistency passed after the 82dfa0c3 u8 fix; depth_seg_cross_path_consistency and two_run_determinism passed"},
+      "depth_deviation": {"cam0": "215/76800 mismatched, max_ulp=191, beyond_ulp=215", "cam1": "4/43200 mismatched, max_ulp=25, beyond_ulp=4", "first_pixel": {"x": 230, "y": 69, "reference_seg": [2, 5], "note": "sphere silhouette"}, "rgb": "mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0", "seg": "mismatched=0"},
+      "diagnostic_direction": "bidirectional (cam0 first 40 printed cases: product>ref 16, product<ref 24, ULP 7-71; full set max |ULP| 191)",
+      "no_relaxation": "MAX_DEPTH_ULP=4 unchanged in src/render/kernel/output.rs; both cameras compared; no sphere skip; no camera shrink; 82dfa0c3 is tests-only (tests/render_sdf_reference.rs +2 lines, tests/support/render_bvh/sdf_compare.rs +73/-1: u8->i32 comparison and a println-only diagnostic that returns ())"
+    },
+    "rollback": {
+      "commit": "07252cd2",
+      "src_diff": "only src/render/kernel/megakernel.rs (U1b inverse); 406 lines/9b013d90.. -> 440 lines/21813 B/fb9aae8f82eb9a3891f8c43879d2f79c894f9eeb4cd15da468004d746999e380",
+      "exact_inverse": "git diff af96c048^..07252cd2 -- src/ is empty (byte-identical restore of the pre-U1b state)",
+      "restored": {"reject_sdf_geometry": "line 55", "render_call": "line 121", "cfg_test_mod": "line 422 with 2 host-only tests"},
+      "u1_kept": {"cuda_diff": "empty", "kernel_source_sha256": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5", "kernel_ptx_sha256": "34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d", "kernel_ptx_bytes": 268589},
+      "gates": {"fmt": "passed", "clippy": "passed", "clippy-cuda": "passed", "unit": "1111 passed / 0 failed / 397 ignored (run json exit 0)", "no_run": "EXIT=0 with Finished", "unit_reconciliation": "1109 - 0 (rollback) ... 1106 after U1b + 3 U4 host tests = 1109; + 2 restored host-only tests = 1111; the card acceptance 1108 is documented as a miscount"},
+      "no_change_after": "git diff 07252cd2..d3bca361 -- src/ is empty (only registration/evidence commits after the rollback)"
+    },
+    "committed_artifacts": {
+      "dir": "docs/development-evidence/render-bvh/sdf-validate-window/",
+      "files": 13,
+      "manifest": {"rows": 12, "recomputed_from_committed_blobs": "12/12 match (sha256+bytes)"},
+      "byte_equal_to_target": "10/10 artifacts byte-identical to target/render-bvh/sdf-validate-window originals",
+      "guard_blobs": {"attempt1": 33651, "attempt2": 33651, "crlf_preserved": true},
+      "eol_rule": "git check-attr text/diff = unset on the evidence tree; blob size == worktree size == manifest bytes",
+      "receipt_task_id": "2026-10-31-render-sdf-validate-attempts-evidence (separate task because the running window card's files list is frozen)"
+    },
+    "corrections_02016d": {
+      "direction": "README §1 and materials/attempt-refs.txt now say bidirectional (product>ref 16 / product<ref 24 of the first 40, ULP 7-71, full max |ULP| 191); my recomputation matches exactly",
+      "guards_only_provenance": "attempt1 in-window window/guard.log GUARDS_OK=92/92 (before body), post-body re-check guards-only-run/ window_start=2026-10-31T01:52:41+08:00 (> body end 01:50:19, sha-only CPU check, does not change the verdict); attempt2 only in-window guard.log, no post-body rerun",
+      "rollback_manifest": "recomputed 0 mismatch; unit run json re-run 1111/0/397"
+    }
+  },
+  "must_fix_items": [
+    {"id": "P1", "severity": "must-fix(minor, evidence accuracy)", "where": "docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt2/invalid-round-record.txt line failed_tests",
+     "finding": "attempt2's committed invalid-round record lists failed_tests=sdf_mesh_matches_captured_reference,sdf_occluder_matches_captured_reference,shadow_toggle_consistency (copied from attempt1), but the attempt2 body log says '3 passed; 2 failed' with failures sdf_mesh + sdf_occluder only; shadow_toggle_consistency passed after the 82dfa0c3 u8 fix (attempt1 is the run where it failed with 'attempt to add with overflow' at sdf_compare.rs:138)",
+     "fix": "change attempt2 failed_tests to the two names and note shadow is green after the u8 fix (attempt1 keeps its three); evidence-only, no rerun"},
+    {"id": "P2", "severity": "must-fix(minor, evidence number)", "where": "docs/development-evidence/render-bvh/sdf-validate-window/README.md §3 first bullet",
+     "finding": "attempt1 regular monitor util range is written as '5-50', but the committed monitor-pre-window.csv has util_min=3, util_max=76 (354 samples, longest 28, free_min 11545, exit 20 all correct)",
+     "fix": "write util 3-76"},
+    {"id": "P3", "severity": "must-fix(minor, evidence number)", "where": "docs/development-evidence/render-bvh/sdf-validate-window/README.md §3 second bullet",
+     "finding": "attempt1 exception monitor is written as '83 samples', but the committed monitor-pre-window-exception.csv has 69 samples (83 is attempt2's exception count; 60/60 and exit 0 are correct)",
+     "fix": "write 69 samples"},
+    {"id": "P4", "severity": "must-fix(minor, evidence completeness)", "where": "docs/development-evidence/render-bvh/sdf-validate-window/ (README §3 / the two invalid-round records)",
+     "finding": "the committed attempt evidence only says 'signed conditional validation-only exception' in prose and records exception_load_bearing; the five protocol elements are not stated explicitly: approved_by=user via Chief, mode=validation_only_exception_util_lt_60, original_attempts_retained=true (both regular-failure CSVs kept), not_a_normal_threshold_pass=true, authoring_exception_used=false. They exist in the material and in the target facts.txt (authoring_exception_used=false) but are not in the committed evidence tree",
+     "fix": "add a short explicit block (with the five keys) to the window README §3 or to both invalid-round records; documentation only, no rerun, no re-freeze"}
+  ],
+  "observations": [
+    {"id": "O1", "text": "only the key attempt artifacts are committed; the 9 entity logs, facts.txt, samples.csv, sha-guards.txt and the post-body guards-only-run record stay under target/ (not distributed). The depth numbers are therefore backed in-repo only by the invalid-round records plus the throwaway diagnostics; suggest committing attempts/<n>/logs/render_sdf_reference.log (2.7 KB + 25.3 KB) with the attempt3 window evidence"},
+    {"id": "O2", "text": ".gitattributes 'sdf-validate-window/** -text -diff' also marks README.md/receipt.json as binary (diff: unset) - the deliberate trade-off to keep the guards JSON byte-identical (CRLF, 33,651 B); acceptable, recorded"},
+    {"id": "O3", "text": "the current target/debug/deps exes were rebuilt after the rollback and differ from both freezes; freeze identity is verifiable via the stash (attempt2 9/9 equal) and the archived guards hashes; attempt1's render_sdf_reference stash was overwritten by the attempt2 freeze (hashes retained, INVALID_ROUND not reused)"},
+    {"id": "O4", "text": "at review time the worktree carried Arch's in-progress sphere a-order fix (src/render/kernel/cuda/render_math.cu modified; later committed as 8126868c under a separate fix card). normify check on the rollback/attempts-evidence tasks therefore flags that path in their Unchanged checks, because the file changed after those pins. I verified against commit ranges instead: 07252cd2..d3bca361 has no committed src change; the fix slice is outside this card's scope"},
+    {"id": "O5", "text": "the ge60 samples (attempt1 62@#6, 61@#9; attempt2 68@#23) all have streak=0 and sit before the 60-clean streak start; the streak interiors peak at util 43/45 (<60), so exceptions were load-bearing (ge40_clean 9/8). Recorded as-is; ge60 is not a pass criterion"},
+    {"id": "O6", "text": "the window card 2026-10-31-render-sdf-validate is still in_progress and correctly does not claim a pass; the attempt-artifact commit went through a separate task (...attempts-evidence, verified, receipt explains why) and the same-name aborted card is abandoned with no QA work lost"}
+  ],
+  "boundaries": {
+    "read_only": true,
+    "gpu_used": false,
+    "window_opened": false,
+    "window_rerun": false,
+    "re_freeze": false,
+    "device_execution": false,
+    "product_src_modified": false,
+    "foreign_evidence_edited": false
+  },
+  "not_claimed": [
+    "不宣称渲染数值验收通过（U4 两次均 INVALID_ROUND，U4 未通过）",
+    "不宣称上游等价",
+    "不宣称精度达标",
+    "不宣称 sphere 轮廓 depth RCA 结论（属 fix 片/后续卡）"
+  ],
+  "limits": [
+    "the body pass/fail sets and depth statistics come from the attempt logs under target/, referenced by the committed invalid-round records; the committed records are the durable evidence",
+    "attempt1's frozen exe bytes are not archived (only hashes); not reused, so this is acceptable for an INVALID_ROUND run",
+    "no U4 pass decision is made here; the window card remains in_progress until attempt3"
+  ]
+}

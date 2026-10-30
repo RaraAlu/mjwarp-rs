@@ -1,0 +1,33 @@
+U4 window freeze identity — QA independent recompute (2026-10-31, Windows PowerShell 5.1)
+source: committed guards blobs (git cat-file blob HEAD:...) + archived copies under target/render-bvh/sdf-validate-window/attempts/
+
+attempt1
+  guards sha256 = 0639f0ff5064bd2a7a44c1b9f6a29298b623b4d4901c9f089e0648a97591910d
+  bytes         = 33651 (committed blob and worktree both 33651; CRLF preserved by .gitattributes -text -diff)
+  counts        = 9 exe + 83 inputs = 92      suite=render-sdf-validate attempt=1
+  breakdown     = scene-sdf 10 + scene-hfield 10 + legacy 47 + scene-shadow capture 16 = 83
+  aggregate     = recomputed 02b2021376e27140552000a7124e4e5cff527ee558670677b6d58dcbdccf826f
+                  recorded   02b2021376e27140552000a7124e4e5cff527ee558670677b6d58dcbdccf826f  MATCH
+
+attempt2
+  guards sha256 = d921caae93df0d911c51a64501f2427dcb58cb86f64a4158fd1f45b06933d726
+  bytes         = 33651 (same rule as above)
+  counts        = 9 exe + 83 inputs = 92      suite=render-sdf-validate attempt=2
+  breakdown     = 10 + 10 + 47 + 16 = 83
+  aggregate     = recomputed a50e99c951c1a9277d8821f8aca9fcad2506ec5878183ff0f7ead0c53837e67a
+                  recorded   a50e99c951c1a9277d8821f8aca9fcad2506ec5878183ff0f7ead0c53837e67a  MATCH
+
+method: aggregate = sha256 over the 92 entry sha256 hex strings in path-sorted order, concatenated with no separator,
+        path sort done by Windows PowerShell 5.1 Sort-Object (NLS/culture); pinned pwsh 7 (ICU) yields a different value.
+
+fresh-freeze proof (attempt1 freeze not reused)
+  83 inputs: identical paths and hashes in both freezes (0 differences)
+  9 exes  : 8 identical; only render_sdf_reference differs
+            attempt1 24e68933ebab8e54670e47b67b3bc4a208069f7f8d967dfab8196c2535647073 (100,487,206 B)
+            attempt2 9f5d4098963af18f3ba91568670197f6b8662874965d763aea1fe382dde9d679 (100,497,318 B)
+            (+10,112 B; expected: 82dfa0c3 is tests-only and changes that test binary)
+  guards sha / aggregate / generated_at / attempt field all differ => attempt2 is a fresh freeze.
+
+sha-guards lists: 92/92 entries per attempt; all entries agree with the guards JSON; the 83 inputs re-verified against the worktree (0 mismatch).
+stash: attempt2 9/9 stash sha equal to guards; attempt1 stash dir holds the latest freeze only (its render_sdf_reference stash was
+       overwritten by the attempt2 freeze - only hashes retained in the archived attempt1 guards; attempt1 is INVALID_ROUND and not reused).
