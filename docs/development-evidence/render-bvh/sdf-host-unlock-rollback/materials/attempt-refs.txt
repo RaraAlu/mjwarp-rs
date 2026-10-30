@@ -1,0 +1,10 @@
+# U4 window failure records that triggered the rollback (archived under target/, not committed)
+attempt1: target/render-bvh/sdf-validate-window/attempts/attempt1/ (guards sha 0639f0ff../33651 B, aggregate 02b20213.., INVALID_ROUND, regular monitor FAILED, exception monitor 60/60)
+attempt2: target/render-bvh/sdf-validate-window/attempts/attempt2/ (fresh freeze guards sha d921caae../33651 B, aggregate a50e99c9.., INVALID_ROUND, regular monitor FAILED, exception monitor 60/60)
+reproduced deviation (both attempts, identical):
+  render_sdf_reference: cam0 215/76800 depth mismatched, max_ulp=191; cam1 4/43200, max_ulp=25; first pixel (230,69), reference seg=(2,5) = sphere silhouette
+  rgb: mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0; seg: mismatched=0 (both cameras, both groups)
+  diagnostic (attempt2, read-only): product depth < reference depth by ~10-191 ULP, seg always (2,5)
+verdict: U4 NOT PASSED (red line: same-order reproduction); no camera shrink / no sphere skip / no MAX_DEPTH_ULP raise / diagnosis not treated as pass
+rollback action: host unlock reverted, U1 kept; SDF capability unreachable again
+next: sphere-silhouette depth RCA (pinned ray.py::ray_sphere/_ray_quad vs product render_math.cu/render_common.cu f32 order), then a separate fix slice (R05 camera-FMA precedent) and U4 attempt=3 with a fresh freeze

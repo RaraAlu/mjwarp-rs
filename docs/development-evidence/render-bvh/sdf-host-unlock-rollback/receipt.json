@@ -1,0 +1,80 @@
+{
+  "task_id": "2026-10-31-render-sdf-host-unlock-rollback",
+  "kind": "render-sdf-host-unlock-rollback",
+  "owner": "Arch",
+  "scope": "rollback the host SDF unlock (U1b) after U4 failed twice; keep U1; no GPU, no criteria change",
+  "trigger": "U4 window attempt1 and attempt2 both INVALID_ROUND on the same sphere-silhouette depth deviation (red line)",
+  "deviation": {
+    "entity": "render_sdf_reference",
+    "depth_cam0": {
+      "mismatched": 215,
+      "pixels": 76800,
+      "max_ulp": 191
+    },
+    "depth_cam1": {
+      "mismatched": 4,
+      "pixels": 43200,
+      "max_ulp": 25
+    },
+    "first_pixel": {
+      "x": 230,
+      "y": 69,
+      "reference_seg": [
+        2,
+        5
+      ],
+      "note": "sphere silhouette"
+    },
+    "rgb": "mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0",
+    "seg": "mismatched=0",
+    "reproduced_in_attempt2_with_fresh_freeze": true
+  },
+  "source": {
+    "path": "src/render/kernel/megakernel.rs",
+    "before": {
+      "lines": 406,
+      "bytes": 20172,
+      "sha256": "9b013d908d98a5915a0413a09a6ea1ed431c2acc0e054269d686e1e82a3ee170",
+      "state": "U1b unlocked"
+    },
+    "after": {
+      "lines": 440,
+      "bytes": 21813,
+      "sha256": "fb9aae8f82eb9a3891f8c43879d2f79c894f9eeb4cd15da468004d746999e380",
+      "state": "U1b rolled back"
+    },
+    "restored": [
+      "fn reject_sdf_geometry",
+      "render() call site",
+      "#[cfg(test)] mod sdf_geometry_guard_tests (2 host-only tests)"
+    ]
+  },
+  "u1_kept": {
+    "cuda_diff": "empty",
+    "kernel_source_sha256": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5",
+    "kernel_ptx_sha256": "34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d",
+    "kernel_ptx_bytes": 268589,
+    "citation": "docs/development-evidence/render-bvh/sdf-mesh-path/receipt.json"
+  },
+  "gates": {
+    "fmt": "passed",
+    "clippy": "passed",
+    "clippy-cuda": "passed",
+    "unit": "passed (1111 passed / 0 failed / 397 ignored)",
+    "unit_reconciliation": "1109 (1106 after U1b + 3 U4 host tests) + 2 restored host-only guard tests = 1111; the 1108 written in the card acceptance was a miscount, actual is 1111",
+    "no_run": "EXIT=0 with Finished",
+    "validate_fingerprints_errors": 0
+  },
+  "attempt_records": {
+    "attempt1": "target/render-bvh/sdf-validate-window/attempts/attempt1/ (guards 0639f0ff../33,651 B, aggregate 02b20213..)",
+    "attempt2": "target/render-bvh/sdf-validate-window/attempts/attempt2/ (guards d921caae../33,651 B, aggregate a50e99c9..)",
+    "verdict": "U4 NOT PASSED; diagnosis is not a pass; no camera shrink / no sphere skip / no MAX_DEPTH_ULP raise"
+  },
+  "next": "sphere-silhouette depth RCA (pinned ray.py sphere/quad vs product CUDA f32 order) -> separate fix slice -> U4 attempt=3 with fresh freeze",
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "等价",
+    "SDF 渲染已覆盖"
+  ]
+}

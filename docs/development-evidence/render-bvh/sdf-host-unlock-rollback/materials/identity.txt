@@ -1,0 +1,17 @@
+# megakernel.rs identity: before rollback (U1b unlocked) vs after rollback (restored)
+before (U1b unlocked, HEAD 82dfa0c3):
+  lines=406 bytes=20172 sha256=9b013d908d98a5915a0413a09a6ea1ed431c2acc0e054269d686e1e82a3ee170
+after (restored to af96c048^ content):
+  lines=440 bytes=21813 sha256=fb9aae8f82eb9a3891f8c43879d2f79c894f9eeb4cd15da468004d746999e380
+
+# restored elements (verified by grep)
+reject_sdf_geometry fn line 55; render() call line 121; #[cfg(test)] mod sdf_geometry_guard_tests line 422 (2 host-only tests)
+Unsupported("S7b3 不含 SDF 求交") restored
+
+# U1 device-side change is untouched
+cuda_diff=
+kernel identity remains U1 value: source 778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5, PTX 34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d, bytes 268589 (citation: docs/development-evidence/render-bvh/sdf-mesh-path/receipt.json)
+
+# unit counter reconciliation
+after rollback unit = 1111 passed / 0 failed / 397 ignored
+reconciliation: 1109 before rollback (1106 after U1b + 3 U4 host tests) + 2 restored host-only guard tests = 1111; the card acceptance text initially said 1108 (it assumed the 1106 base and forgot the U4 +3); actual 1111 is the correct number
