@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-sphere-dot-a-order-fix",
+  "title": {
+    "zh": "球面求交 a=dot(vec,vec) FMA 收缩次序对齐上游（U4 sphere 轮廓 depth RCA 修复片；离线，零 GPU）",
+    "en": "Align the sphere quadratic `a = dot(vec,vec)` FMA contraction order with upstream (U4 sphere-outline depth RCA fix; offline, zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按只读 RCA（`target/sphere-depth-rca.md`）的定论修产品侧：`src/render/kernel/cuda/render_math.cu::render_sphere_hit` 里 `a = dot(vec,vec)` 的 FMA 收缩次序与上游 warp 1.15 GPU 生成码不一致——产品用 `dot3_ch0`（先乘第 0 分量），参考实测为「先乘第 1 分量、再 fma 第 0、再 fma 第 2」（与 `b`/`dd` 同序）。修法：`a` 改用 `dot3_ba(...)`，删除不再使用的 `dot3_ch0`，并更正文件注释（说明 S7b1/S8 的 probe 反推样本无反例，不是「a 用 0 号分量」的证据）。**只改这一处语义**：`b`、`dd`、融合 `det`、`1/a`、根选择、`depth = t*−local_z`、判据/容差/参考/fixtures 全部不动；不改相机、不跳球、不抬 `MAX_DEPTH_ULP`。",
+    "en": "Change only the contraction order of `a = dot(vec,vec)` in render_sphere_hit (dot3_ch0 -> dot3_ba), drop the now-unused helper and correct the stale comment; no other semantic, criteria, tolerance, reference or fixture change."
+  },
+  "modules": {},
+  "acceptance": [
+    "**改动范围**：`src/render/kernel/cuda/render_math.cu` 内 `render_sphere_hit` 的 `a` 计算由 `dot3_ch0(...)` 改为 `dot3_ba(...)`；删除不再引用的 `dot3_ch0`；注释按 RCA 更正（写明参考实测为「先 mul 第 1 分量」的 `a=(1,0,2)`、S7b1/S8 的 747 像素 probe 是因为该场景方向下两种次序舍入相同而没有反面例、RCA 脚本与 44/44 复现结论）；`b`/`dd`/`det`/`1/a`/根选择/深度乘法零改动；零其它 `.rs`/`.cu`/`fixtures`/判据/参考改动（`git diff --stat` 只有该文件）。",
+    "**RCA 证据落库**：证据 `docs/development-evidence/render-bvh/sphere-dot-a-order-fix/` 收录 RCA 结论摘要（44/44 参考复现、432 变体、唯一命中变体 `a(1,0,2) b(1,0,2) det=fused`、3.12/3.15 parity 排除、S7b1/S8 为何过）与复现脚本路径说明（脚本本身在 `target/rca/`，不入库）。",
+    "**内核身份新旧三值**：用现有 `render_kernel_flags` 身份探针记录改动前后 `s7b3 megakernel` 的 `source_sha256`/`ptx_sha256`/`ptx_bytes` 与 `aa_resolve` 的不变值；写入 `logs/kernel-identity.txt`，并在证据里说明 `.cu` 改动 ⇒ source/PTX 必变 ⇒ **U4 attempt3 必须全新冻结**（旧 92 条不复用）。",
+    "**门禁与构建**：fmt/clippy/clippy-cuda/unit 全绿（unit 数不因本改动变化，仍为 1111/0）；`cargo test --locked --no-run` 日志含 exit 码与 `Finished`；`normify validate --fingerprints` 错误 0；`dot3_ch0` 删除后无 dead_code/未使用告警（clippy 通过即为证）。",
+    "**历史证据不改写**：R02/R05/R08/R09 及 sdf 系列既有证据目录零改动（本片新增证据目录除外）；不改写任何既往 receipt/manifest/log；不改判据/容差/参考。",
+    "**边界**：离线、零 GPU 窗口、零冻结、零 `normify gate` 之外的窗口动作；U4 attempt3 与 A1 均不在本片范围。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "src/render/kernel/cuda/render_math.cu",
+      "docs/development-evidence/render-bvh/sphere-dot-a-order-fix/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册（Chief 批准离线 fix 片；RCA 定论见 `target/sphere-depth-rca.md`）。只改 `render_math.cu` 的 `a` 计算与注释，其余一字不动。`.cu` 改动会改变内核身份（source/PTX），因此 U4 验证窗下一次 attempt（attempt3）必须全新冻结；本片不跑窗口、不开 GPU、不冻结。收口后按已签条件式协议等 Chief 开窗令。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-31T03:45:00.000Z",
+  "updated_at": "2026-10-31T03:45:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sphere-dot-a-order-fix/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-sphere-dot-a-order-fix"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/render-bvh",
+        "docs/development-evidence/render-bvh/r02-skybox-s3-validate",
+        "docs/development-evidence/render-bvh/r05-s3b-hfield-validate",
+        "docs/development-evidence/render-bvh/r08-rgb-hetero-validate",
+        "docs/development-evidence/render-bvh/r09-s3b-shadow-validation",
+        "docs/development-evidence/render-bvh/sdf-validate-window",
+        "docs/development-evidence/render-bvh/sdf-host-unlock-rollback",
+        "docs/development-evidence/render-bvh/sdf-validate-window-material",
+        "docs/development-evidence/render-bvh/sdf-reference-target"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标",
+        "SDF 渲染已覆盖"
+      ]
+    }
+  ]
+}
