@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-model-dump",
+  "title": {
+    "zh": "SDF 场景产品侧模型 dump（MuJoCo 3.12.0 → tests/support/render_bvh/sdf/，两次同路径 dump 逐字节相等；零 GPU）",
+    "en": "SDF scene product-side model dump (MuJoCo 3.12.0 to tests/support/render_bvh/sdf/, two dumps byte-identical, no GPU)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "U4 验证窗的 host 场景输入：用 S0a dumper（`target/render-bvh/s0a/compile_scene_312.exe`，MuJoCo **3.12.0** 产品版本）把两个 SDF 场景 XML dump 成 render 模型 JSON，放 `tests/support/render_bvh/sdf/`（照 R05-S3b hfield 先例，不动 `fixtures/`）。本片**只产模型 dump**：不跑 GPU、不改产品代码、不动 SDF 采集参考；U4 材料落卡时 pin 本片真实 dump sha。离线探测已确认 3.12.0 能解析 `type=\"sdf\"`。",
+    "en": "Produce the host-side render model dumps for the U4 window with the MuJoCo 3.12.0 S0a dumper; offline only, no GPU, no product code change."
+  },
+  "modules": {},
+  "acceptance": [
+    "**输入签字值**：`fixtures/render-bvh/scene-sdf/scene.xml` sha256 `376eb81ce200b29373af3965c7abefd90b8f00188a688db583080836dfa868e8` / 3,388 B；`scene-mixed.xml` sha256 `7869cfae5e16795ebf86b93c931ef36a8e94464452762e28f1357e0e68a1584e` / 3,062 B；工具 `target/render-bvh/s0a/compile_scene_312.exe` sha256 `cd91e099659ebda3f51a84d5392f7d726c0c61378bfa2487215ddd00b2de2970` / 161,280 B、`mujoco_version=3.12.0`。",
+    "**输出与确定性**：`tests/support/render_bvh/sdf/model-312.json`（约 53.8 KB）与 `model-mixed-312.json`（约 54.2 KB）；**同一路径连续 dump 两次逐字节相等**（sha256 记录在 receipt），dump 内 `model_file` 字段随输出路径变化、不随重复运行变化。",
+    "**语义自检**（dump JSON 抽读）：`loaded_mjb=true`；`counts` 与签字场景一致（ngeom 3 / 4、nmesh 1、nmeshvert 8、nmeshface 12、ncam 2、nlight 2、nq 0）；`geom_type` 分别含 8（`[0,8,2]` / `[0,8,2,6]`）；`geom_dataid` 指向 mesh 0（`[-1,0,-1]` / `[-1,0,-1,-1]`）。",
+    "**边界**：只在 `tests/support/render_bvh/sdf/` 与证据目录落地；**不动 `fixtures/**`**、不改 `src/**`/`tests/*.rs`/`Cargo.*`/`scripts/**`、不改判据/容差/参考、零 GPU、零内核身份变化。",
+    "**证据**：`docs/development-evidence/render-bvh/sdf-model-dump/`（README、receipt.json 含 `/task_id`、manifest.txt、materials/{dump-commands.txt,dump-identity.txt,dump-counts.json,determinism.txt}）；LF 无 BOM、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-31-render-sdf-host-unlock",
+      "2026-10-30-render-sdf-capture"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "tests/support/render_bvh/sdf/",
+      "docs/development-evidence/render-bvh/sdf-model-dump/"
+    ],
+    "resources": [],
+    "priority": 59
+  },
+  "note": "Arch 2026-10-31 注册（Chief 令：U4a 独立成离线小片、排在 U4 材料落卡之前，材料才能 pin 真实 dump sha）。工具是 S0a 已验收 dumper（离线工具，不参与产品构建/测试/门禁）；中间 `.mjb` 落 `target/render-bvh/sdf-model-dump/`，**不入库**。探测记录：`target/u4-model-probe/`（未提交，仅作风险排除证据）。U4 材料落卡时 pin 本片的两个 dump sha。",
+  "revision": {
+    "before": "e40c29aee7b770c752ae2129c24a60a3f67dde8c",
+    "after": null
+  },
+  "created_at": "2026-10-30T16:46:00.000Z",
+  "updated_at": "2026-10-30T16:42:05.506Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-model-dump/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-model-dump"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/render-bvh/scene-sdf",
+        "src",
+        "Cargo.toml",
+        "Cargo.lock",
+        "scripts"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "等价",
+        "SDF 渲染已覆盖"
+      ]
+    }
+  ]
+}
