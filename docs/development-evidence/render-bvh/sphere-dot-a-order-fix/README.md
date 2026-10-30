@@ -16,8 +16,9 @@ RCA：只读、离线（`target/sphere-depth-rca.md`，摘要见 `materials/rca-
 | `det` | `fma(b,b,−(a·c))` 融合 | 同左 |
 
 证据强度：44 个诊断像素上，产品链自身 **44/44** 位级复现产品 depth；固定该链后枚举
-3 个点积次序 × 6 排列 × det 融合/非融合 = **432 变体**，唯一能位级复现参考的是
-`a=(1,0,2) b=(1,0,2) det=fused`（**44/44**），产品原变体 `a=(0,1,2)` 对参考 **0/44**。
+**6³ = 216 种点积次序组合 × det 融合/非融合 2 种 = 432 变体**。其中 `dd`（`dot(dif,dif)`）的次序
+不影响结果，所以复现参考的是 **2 个并列 winner**（`a=(1,0,2) b=(1,0,2) det=fused`，`dd` 取
+`(0,1,2)` 或 `(1,0,2)` 皆可，合起来是同一实现），对参考 **44/44**；产品原变体 `a=(0,1,2)` 对参考 **0/44**。
 机制：`a` 只依赖射线方向，多数方向两种次序舍入相同；球轮廓处 `det≈0`，`a` 的 1 ULP 经 `sqrt(det)`
 放大成 7–191 ULP depth 差。3.12 dump 与 3.15 capture 的 cam/geom 值逐位相同 ⇒ **不是 parity 问题**。
 S7b1/S8 当时 747 像素 probe 全等是「样本无反例」，文件旧注释据此写反，本片一并更正。
@@ -56,10 +57,19 @@ S7b1/S8 当时 747 像素 probe 全等是「样本无反例」，文件旧注释
 | `cargo test --locked --no-run` | **EXIT=0** 且含 `Finished`（`logs/no-run.txt`） |
 | `normify validate --fingerprints` | 错误 0（`materials/validate.txt`） |
 
-`logs/gate-*.txt` 是 `.normify/runs/<task>/<gate>.json` 的转写快照；权威结果以当时 `runs/` 记录为准。
+`logs/gate-*.txt` 是**某次门禁的转写快照**：四份 JSON 抄自 `.normify/runs/<task>/<gate>.json` 的早期运行，
+与本片收口前最后一次 `normify gate` **不是同一个 run**（scope_hash 不同）；**权威结果以 `.normify/runs/<task>/`
+当时的记录为准**，转写快照只作可读留档（与 R08-S3 同类口径）。
 
 ## 5. 边界（没做什么）
 
 不跑 GPU 窗口、不冻结、不跑 body；不改判据/容差/参考/fixtures；不改写任何既有证据目录
 （R02/R05/R08/R09 与 sdf 系列历史证据零改动，见卡面 `unchanged`）；不宣称任何渲染数值通过。
 U4 attempt3 按同一条已签条件式协议、全新冻结、判据零放宽，等 Chief 开窗令；A1（mesh 16→20）排在其后。
+
+## 6. 已知项（记录级，本片不改）
+
+- `src/render/kernel/cuda/render_shade.cu` 的 L10/L14 注释仍把已删除的 `dot3_ch0` 列为球面点积实现之一。
+  **本片不改**：改 `.cu` 会再次改变内核身份（source/PTX），必须等下一次内核重基线统一更新。
+- `materials/rca-summary.txt` 的「432 变体」口径：6³ = 216 种点积次序组合 × 2 种 det 形式 = 432；
+  `dd` 次序不影响结果 ⇒ 复现参考的是 2 个并列 winner（同一实现）。

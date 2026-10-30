@@ -13,9 +13,11 @@ in the sphere analytic quadratic**, not a model/parity problem.
 - **Product chain reproduces itself**: for all 44 diagnosed pixels (attempt2 read-only diagnostics),
   product camera matrix (f32 quat->mat chain) + world transform `fma(m2,z,fma(m0,x,mul(m1,y)))` + fused det
   + `a=dot3_ch0`, `b=dd=dot3_ba` reproduces the product depth **bit-exactly 44/44**.
-- **Instruction-order enumeration**: holding that chain, 3 dot-product contraction orders x 6 permutations
-  x fused/non-fused det = **432 variants**; exactly one family reproduces the reference **44/44**:
-  `a=(1,0,2) b=(1,0,2) det=fused` (i.e. first term of `a` is the y product). The product's variant
+- **Instruction-order enumeration**: holding that chain, each of the three dot products has 6 f32
+  contraction orders (first term as a plain mul, then two fma steps) -> 6^3 = 216 combinations, times
+  2 det formulations (fused / non-fused) = **432 variants**. Exactly the family with `a=(1,0,2)` and
+  `b=(1,0,2)` reproduces the reference **44/44**; the `dd` order is irrelevant, so this shows up as
+  **2 tied winners** (`dd=(0,1,2)` and `dd=(1,0,2)`) in the raw ranking. The product's variant
   (`a=(0,1,2)`) reproduces the reference **0/44**; every other variant is <= 37/44.
 - **Mechanism / amplification**: `a` depends only on the ray direction; the two orders round to the same f32
   for most directions. At the sphere silhouette `det = b*b - a*c ~ 0`, so a 1-ULP difference in `a`
