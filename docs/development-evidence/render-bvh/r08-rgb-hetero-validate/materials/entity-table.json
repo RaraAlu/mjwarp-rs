@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "kind": "render-bvh-window-entity-table",
+  "task_id": "2026-10-29-render-r08-rgb-hetero-validate",
+  "authored_by": "2026-10-29-render-r08-rgb-hetero-window-material",
+  "status": "material only (not executed; hashes/exe paths filled in the validation window)",
+  "suite": "render-r08-rgb-hetero",
+  "attempt": 1,
+  "guards_file": "scripts/validate/render-bvh/guards-r08-rgb-hetero.json",
+  "criteria": {
+    "rgb": "<= 1 LSB per channel (bitwise preferred: mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0)",
+    "depth": "bitwise-first (mismatched == 0) AND max_ulp <= 4 AND beyond_ulp == 0",
+    "seg": "exact (mismatched == 0)",
+    "determinism": "two-run rgb/depth/seg sha256 equal for the new per-camera RGB cases",
+    "reference": "no new reference files; reuse existing S7b2 same-recipe RGB and S7b1 depth/seg references"
+  },
+  "entities": [
+    {
+      "order": 1,
+      "entity": "render_r08_cameras",
+      "source": "new",
+      "window_command": "cargo test --locked --features cuda-probe --test render_r08_cameras -- --ignored --test-threads=1 --nocapture",
+      "note": "includes gpu_heterogeneous_rgb_channels (rgb [true,false]/[false,true]/all_off + depth/seg cross mask via megakernel) and gpu_cam1_all_channels_off (QA O1: rgb/depth/seg all [true,false], covers render_megakernel.cu:131 all-off early-return)"
+    },
+    {
+      "order": 2,
+      "entity": "render_skybox_reference",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_skybox_reference -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 3,
+      "entity": "render_camera_rays",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_camera_rays -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 4,
+      "entity": "render_context_lifecycle",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_context_lifecycle -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 5,
+      "entity": "render_e2e",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_e2e -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 6,
+      "entity": "render_kernel_depth_seg",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_kernel_depth_seg -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 7,
+      "entity": "render_kernel_flags",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_kernel_flags -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 8,
+      "entity": "render_kernel_rgb",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_kernel_rgb -- --ignored --test-threads=1 --nocapture"
+    },
+    {
+      "order": 9,
+      "entity": "render_r10_multi_world",
+      "source": "regression",
+      "window_command": "cargo test --locked --features cuda-probe --test render_r10_multi_world -- --ignored --test-threads=1 --nocapture"
+    }
+  ],
+  "guards_expected": { "frozen_exes": 9, "guard_inputs": 68, "total": 77 }
+}
