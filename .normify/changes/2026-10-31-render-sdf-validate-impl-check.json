@@ -5,7 +5,7 @@
     "zh": "U4 实现片独立复核（8 用例/行数预算/判据零放宽/冻结器 9+83=92 且 ASCII·PSParser·5.1/不引用过时 .cu 注释）",
     "en": "Independent check of the U4 implementation slice (8 cases, line budgets, unchanged criteria, freezer 9+83=92 with ASCII/PSParser/5.1, no reliance on stale .cu comments)"
   },
-  "status": "proposed",
+  "status": "abandoned",
   "intent": {
     "zh": "QA 只读复核 `2026-10-31-render-sdf-reference-target`（U4 实现片：新 target + 支撑模块 + 新 suite 冻结器）。pin revision = **`4e761a7b`**（该卡收口提交：代码 + 证据 + 卡）。复核点：①**8 用例**：host 3（`model_dumps_match_signed_scene_semantics`、`capture_references_parse_and_cross_checks_hold`、`sdf_leaf_geometry_uses_mesh_bounds`）+ GPU 5（`sdf_mesh_matches_captured_reference`、`sdf_occluder_matches_captured_reference`、`shadow_toggle_consistency`、`depth_seg_cross_path_consistency`、`two_run_determinism`），GPU 用例 `#[ignore]`、含 shadow 一致性臂与 DepthSeg 跨路径臂；②**行数预算**：`tests/render_sdf_reference.rs` 260–360（实测 342）、`sdf.rs` 280–340（实测 373，超预算但 <500 且与 hfield.rs 354 同量级）、`sdf_scene.rs` ≤450（实测 323；原 573 行按材料预案拆出 `sdf_compare.rs` 257）、全部 ≤500 棘轮；③**判据零放宽**：RGB `beyond_1_lsb=0`/`max_byte_diff≤1`、depth `mismatched=0` 且 `max_ulp≤4`/`beyond_ulp=0`、seg exact、两跑 sha 相等；shadow-off 无上游参考只做一致性（depth/seg 位级、rgb 单调逆序=0、差异像素>0）、不产数值参考；④**冻结器** `freeze-guards-sdf.ps1`：suite `render-sdf-validate`、硬断言 **9 exe + 83 inputs = 92**、ASCII 0 非 ASCII、行数 ≤200（实测 167）、PSParser 0 错、PowerShell 5.1 可跑、不复用旧 guards、本片不执行冻结（属窗口 SOP）；⑤**不引用过时事实**：U1b 后 `.cu` 内仍描述「host 仍拒绝 8」的注释**已过时**，实现/证据不得把它当作能力事实（能力事实 = 可执行路径已放行 + U4 窗口验证）；⑥**边界**：零 GPU、零产品 `src`/`.cu` 改动、既有 tests/判据/参考/fixtures 零改动；证据卫生（manifest 自洽、LF 无 BOM、禁词 0）。**只读**：不跑 GPU、不改代码/证据；host 用例可离线复跑。",
     "en": "Read-only QA check of the U4 implementation slice at pin 4e761a7b: 8 cases, line budgets, unchanged criteria, freezer hard-assertions and static checks, no reliance on stale .cu comments, and the zero-change boundary."
@@ -31,13 +31,14 @@
     "resources": [],
     "priority": 62
   },
-  "note": "Arch 2026-10-31 注册（Chief 令：U4 实现片收口后注册 QA 复核卡，**proposed 不 start 等 QA**）。pin revision = `4e761a7b`（实现片收口提交；注册时 HEAD `ca88e04f`、树干净、板面 602 验收）。复核对象：`tests/render_sdf_reference.rs` + `tests/support/render_bvh/{sdf.rs,sdf_scene.rs,sdf_compare.rs}` + `scripts/validate/render-bvh/freeze-guards-sdf.ps1` + `docs/development-evidence/render-bvh/sdf-reference-target/`。**只读**：不跑 GPU；host 用例可离线复跑；冻结器只做静态检查，**不得在窗口前执行 freeze**（会产出 guards 并消耗窗口冻结时点）。GPU body 仍等 Chief 批准。",
+  "note": "Arch 2026-10-31 注册（Chief 令：U4 实现片收口后注册 QA 复核卡，**proposed 不 start 等 QA**）。pin revision = `4e761a7b`（实现片收口提交；注册时 HEAD `ca88e04f`、树干净、板面 602 验收）。复核对象：`tests/render_sdf_reference.rs` + `tests/support/render_bvh/{sdf.rs,sdf_scene.rs,sdf_compare.rs}` + `scripts/validate/render-bvh/freeze-guards-sdf.ps1` + `docs/development-evidence/render-bvh/sdf-reference-target/`。**只读**：不跑 GPU；host 用例可离线复跑；冻结器只做静态检查，**不得在窗口前执行 freeze**（会产出 guards 并消耗窗口冻结时点）。GPU body 仍等 Chief 批准。\n放弃：Chief 指定卡名：注册 2026-10-31-render-sdf-reference-target-check（同 pin 4e761a7b）替代；本卡未被 QA start、无证据，作重复卡放弃",
   "revision": {
     "before": null,
     "after": null
   },
   "created_at": "2026-10-30T17:40:00.000Z",
-  "updated_at": "2026-10-30T17:40:00.000Z",
+  "updated_at": "2026-10-30T17:02:21.141Z",
+  "closed_at": "2026-10-30T17:02:21.141Z",
   "checks": [
     {
       "kind": "json",

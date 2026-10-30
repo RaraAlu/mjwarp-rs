@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-reference-target-check",
+  "title": {
+    "zh": "U4 实现片独立复核（8 用例/行数 342·373·323·257/判据零放宽/冻结器 167 行·9+83=92/门禁 unit 1109）",
+    "en": "Independent check of the U4 implementation slice (8 cases; line counts 342/373/323/257; unchanged criteria; freezer 167 lines, 9+83=92; unit gate 1109)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-31-render-sdf-reference-target`（U4 实现片：新 target + 支撑模块 + 新 suite 冻结器）。pin revision = **`4e761a7b`**（实现片收口提交：代码 + 证据 + 卡；注册基线 HEAD `ca88e04f`）。复核点：①`tests/render_sdf_reference.rs` **342 行 / 8 用例**（host 3 离线 3 passed + GPU 5 `#[ignore]`：两组参考比对、shadow 开/关一致性、DepthSeg 跨路径、两跑确定性）；②行数：`sdf.rs` **373**、`sdf_scene.rs` **323**、`sdf_compare.rs` **257**（原合并稿 **573 → 拆分**守 500 行棘轮）；③**判据零放宽**：RGB ≤1 LSB、depth bitwise 优先且 `max_ulp≤4`、seg exact、两跑 sha 相等；shadow 臂**仅一致性**（无上游 shadow-off 参考、不产数值声明）；**不引用 U1b 后过时 `.cu`「host 仍拒绝 8」注释当能力事实**（能力事实 = 可执行路径已放行 + U4 窗口验证）；④`freeze-guards-sdf.ps1`：**167 行 / 非 ASCII 0 / PSParser 0 错**、suite `render-sdf-validate`、硬断言 **9 exe + 83 inputs = 92**（scene-sdf 10 + scene-hfield 10 + legacy 47 + scene-shadow 16）、PowerShell 5.1、不复用旧 guards；**本片不执行冻结**（冻结属窗口 SOP）；⑤门禁 **unit 1109 / 0**、`--no-run` EXIT=0 含 `Finished`、`validate --fingerprints` 错误 0；⑥零 `.cu`/产品 `src` 改动、既有 tests/判据/参考/fixtures 零改动、纯新增 5 文件；⑦证据卫生（manifest 自洽、LF 无 BOM、禁词 0）。**只读**：不跑 GPU；host 用例可离线复跑；**不得在窗口前执行 freeze**。",
+    "en": "Read-only QA check of the U4 implementation slice at pin 4e761a7b (baseline HEAD ca88e04f): 8 cases, line counts and the 573->split handling, unchanged criteria, freezer static properties and 9+83=92 hard assertion, unit 1109, zero product-code change, evidence hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**8 用例与 host 结果**：`tests/render_sdf_reference.rs` 342 行、`#[test]` 面 8 个（host 3：`model_dumps_match_signed_scene_semantics` / `capture_references_parse_and_cross_checks_hold` / `sdf_leaf_geometry_uses_mesh_bounds`；GPU 5：`sdf_mesh_matches_captured_reference` / `sdf_occluder_matches_captured_reference` / `shadow_toggle_consistency` / `depth_seg_cross_path_consistency` / `two_run_determinism`，均带 `#[ignore]` 与 GPU/NVRTC 理由）；离线重跑 host = **3 passed / 5 ignored**；模型 dump sha 在 host 用例 pin 为 U4a 值 `7de15ff4…`/`60698f6b…`。",
+    "**行数与拆分**：`sdf.rs` **373**、`sdf_scene.rs` **323**、`sdf_compare.rs` **257**、`freeze-guards-sdf.ps1` **167**；全部 ≤500；证据写明 `sdf_scene.rs` 合并稿 573 行按材料预案拆出 `sdf_compare.rs`（不是静默超预算），且拆分文件已补进卡 scope。",
+    "**判据零放宽**：逐条核对 RGB `beyond_1_lsb=0`/`max_byte_diff≤1`、depth `mismatched=0` 且 `max_ulp≤4`/`beyond_ulp=0`、seg `mismatched=0`、两跑 sha 相等；`shadow_toggle_consistency` 只断言 depth/seg 位级相等 + rgb `off≥on`（逆序超 1 LSB=0）+ 差异像素>0 + 两臂两跑 sha，**不出现** shadow-off 数值参考声明；`depth_seg_cross_path_consistency` 只断言 megakernel 与 `render_depth_seg` 的 depth/seg 位级相等。",
+    "**冻结器**：`freeze-guards-sdf.ps1` suite `render-sdf-validate`、attempt 参数、`cargo test --no-run --message-format=json` 解析 exe + stash、只读输入 83、**硬断言 9/83/92**、path 排序 aggregate；**167 行 / 非 ASCII 0 / PSParser 0 错 / PowerShell 5.1**；不复用/不改 R05/R02/R08 guards；**本片不产出 guards 文件**（证据 `freezer-checks.txt` 明写未执行）。",
+    "**不引用过时注释**：实现/证据/卡不得把 U1b 后 `.cu` 内仍存在的「host 仍拒绝 8」注释当成当前能力事实（该注释语义过时，待下一次内核重基线统一更新）；能力事实应为「可执行路径已放行（U1b）+ 数值验证在 U4 窗口」。若发现据此下结论的表述，记需修。",
+    "**门禁与边界**：`unit` **1109 过 / 0 败**（U1b 后 1106 + 3 host 测试）、`--no-run` EXIT=0 含 `Finished`、`validate --fingerprints` 错误 0；相对 pin 前只新增 5 个文件（测试 4 + 冻结器 1）+ 证据目录/卡记录；零 `.cu`/产品 `src`/既有 tests/判据/参考/fixtures 改动；`manifest.txt` 与 committed blob 一致、LF 无 BOM、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-31-render-sdf-reference-target"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/sdf-reference-target-check/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册（Chief 指定卡名与 pin；**proposed 不 start 等 QA**）。pin revision = `4e761a7b`（实现片收口提交）；`revision.before = null`（proposed，QA start 时记录）；注册基线 HEAD `ca88e04f`。复核对象：`tests/render_sdf_reference.rs`、`tests/support/render_bvh/{sdf.rs,sdf_scene.rs,sdf_compare.rs}`、`scripts/validate/render-bvh/freeze-guards-sdf.ps1`、`docs/development-evidence/render-bvh/sdf-reference-target/`。**只读**：不跑 GPU；host 用例可离线复跑；**冻结器只做静态检查，不得在窗口前执行 freeze**。GPU body 等 Chief 开窗令。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T17:45:00.000Z",
+  "updated_at": "2026-10-30T17:45:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-reference-target-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-reference-target-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
