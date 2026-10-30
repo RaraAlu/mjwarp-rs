@@ -1,0 +1,82 @@
+{
+  "task_id": "2026-10-30-render-sdf-capture-check",
+  "reviewed_task": "2026-10-30-render-sdf-capture",
+  "pin": "1b185557",
+  "window_commit": "e0ab7ce8",
+  "card_head_at_start": "e0988285",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 0,
+  "observations": 8,
+  "scope": "read-only QA review of the SDF capture window (U3, authoring-only util<60 exception): exception five elements and retention of the failed regular-threshold attempt, independent monitor recomputation (load-bearing proof), two-run npz equality and product hashes, legacy 69 untouched, zero Rust compile in-window, scope of window and util_min correction; no GPU rerun, no device execution, no source edits",
+  "method": {
+    "recompute": "recompute.py (9 checks -> recompute.json; committed blobs via git cat-file; npz parsed with pinned python numpy)",
+    "monitor_recompute": "independent CSV parse: samples/clean/streak/ge40/ge60/util range/free/filtered/build",
+    "retention": "target/ window copies compared byte-for-byte with committed evidence copies"
+  },
+  "checks": {"total": 9, "passed": 9, "failed": []},
+  "verified_numbers": {
+    "exception": {
+      "mode": "authoring_only_exception_util_lt_60",
+      "approved_by": "user via Chief 2026-10-31T00:00+08:00",
+      "not_a_normal_threshold_pass": true,
+      "authoring_exception_used": true,
+      "signature_unchanged": true,
+      "retained_original_attempts": 3,
+      "retained_target_copies_byte_equal": true
+    },
+    "exception_monitor": {"samples": 60, "clean": 60, "max_streak": 60, "util_min": 30, "util_max": 42,
+                          "ge40_samples": 17, "ge40_clean_samples": 17, "ge60_samples": 0, "free_min_mib": 13171,
+                          "compute_filtered_max": 0, "build_max": 0, "maxutil_argument": "-MaxUtil 60",
+                          "exception_load_bearing": true},
+    "regular_failure": {"samples": 354, "longest_clean": 21, "required": 60, "util_min": 5, "util_max": 50,
+                        "ge40_samples": 84, "ge40_clean": 0, "free_min_mib": 13388, "floor_mib": 10445,
+                        "exit": 20, "retained": true, "util_min_corrected_from": 35},
+    "products": {
+      "sdf-mesh": {"capture_json": {"bytes": 10547, "sha256": "d45c9ef9560b9e4f18e01a92a46a513c3a50b419d3203e7d378abfc1c108e517"},
+                   "rgb.npz": {"bytes": 1440478, "sha256": "7ca2abd663cd40bc8cbdda35f601f981256093519d7bbf02ba8dbd447a0ed3ad"},
+                   "depth.npz": {"bytes": 480486, "sha256": "3415b796748091df64ca45845c305a43f9bba63ce0fc6962bd49d75b22dc7ee3"},
+                   "seg.npz": {"bytes": 960478, "sha256": "afd5eacd771a16292cc9f39ec97be1276f3cd1abb4ab99dd6b1728de01c941e5"}},
+      "sdf-occluder": {"capture_json": {"bytes": 10567, "sha256": "08e897c805cf22fb1b4403fee577593eb6fddf261ae8e5152c7c636309f29779"},
+                       "rgb.npz": {"bytes": 1440478, "sha256": "598044febc6ce2f2f129321a61ef588a9fc127031a3dee385f853b3e73ec77d0"},
+                       "depth.npz": {"bytes": 480486, "sha256": "5515305d5d89ae681147222a6d1e55a30466d780f493dda4d01c7480c4462a0c"},
+                       "seg.npz": {"bytes": 960478, "sha256": "99ed0398151d2a222f33a77943ddbaff3e7cd95a9b0fe3fa19ded3a2c653c3c8"}},
+      "two_run": "capture.json run1 == context_repeat run2 == on-disk sha (3-way equal) for both groups",
+      "two_captures_bitwise_identical": true,
+      "legacy_reference_files": 69,
+      "script_sha_prefix": "80645968",
+      "scene_sha_prefix": {"sdf-mesh": "376eb81c", "sdf-occluder": "7869cfae"},
+      "array_shapes": {"rgb_cam0": "[240,320,3] float32", "rgb_cam1": "[180,240,3] float32",
+                       "depth_cam0": "[240,320] float32", "depth_cam1": "[180,240] float32",
+                       "seg_cam0": "[240,320,2] int32", "seg_cam1": "[180,240,2] int32"}
+    },
+    "legacy": {"count": 69, "changed_bytes": 0, "scope": "fixtures/render-bvh minus scene-sdf/"},
+    "zero_rust_compile": {"target_debug_files_modified_in_window": 0, "only_warp_cache_written": true},
+    "scope": {"window_paths": 25, "src_tests_scripts_touched": 0, "u3_correction_paths": 6},
+    "validate_now": {"errors": 0, "warnings": 5},
+    "evidence_manifests": {"sdf-capture": "11/11", "sdf-capture-window-material": "3/3"}
+  },
+  "observations": [
+    {"id": "O1", "text": "two evidence logs are UTF-16LE (capture-sdf-mesh/occluder.log); existing repo capture pattern, recommend UTF-8/LF"},
+    {"id": "O2", "text": "exception is genuinely load-bearing: 17 util>=40 samples recorded clean with the streak continuing to 60, proving the applied threshold was 60; recorded as not-a-normal-threshold-pass"},
+    {"id": "O3", "text": "zero Rust compile in-window (target/debug 0 modified files, newest before window); only the pinned-python warp kernel cache under target/render-bvh/sdf-capture-cache changed; window_commands_executed=2"},
+    {"id": "O4", "text": "util_min correction 35->5 touched only 6 documentation paths; products and monitor CSVs are blob-identical to the window commit, manifests refreshed"},
+    {"id": "O5", "text": "captured_at is an empty string (MJWARP_CAPTURE_AT not set); capture.json carries no timestamp, receipt/file mtimes do; suggest fixing the convention in U4 material"},
+    {"id": "O6", "text": "the U3 pin range also contains later per-world commits; U3's own correction after the window commit is 6 paths, scope split accordingly"},
+    {"id": "O7", "text": "two-run equality chain is complete: capture.json stores both run1 and context_repeat hashes plus on-disk sha, enabling 3-way cross-check (a pattern worth reusing in U4)"},
+    {"id": "O8", "text": "legacy excludes the new scene-sdf subtree (69); U3's 10 new files grow the legacy set seen by later windows to 79, which is expected growth and was confirmed in the per-world review"}
+  ],
+  "boundaries": {"read_only": true, "gpu_rerun": false, "device_execution": false, "reference_written": false,
+                 "source_or_fixture_edited": false, "foreign_evidence_edited": false},
+  "not_claimed": [
+    "不宣称渲染数值验收通过（本卡无 GPU、本窗是采集不是验收）",
+    "不宣称与上游逐位相同",
+    "不宣称 SDF 渲染能力已覆盖（数值结论只在 U4 之后成立）"
+  ],
+  "limits": [
+    "no GPU rerun: two-run equality verified via script-reported flag + both-run hashes in capture.json + on-disk sha",
+    "exception monitor shell version (5.1) comes from snapshots/README; the CSV itself carries no shell field",
+    "no numeric semantics judged for rgb/depth/seg (belongs to U4)"
+  ],
+  "exception_scope_boundary": "this authoring-only util<60 exception covers the U3 and per-world capture windows only; it must NOT be reused for the U4 validation window (U4 uses the regular util<40 threshold or a separate signature)"
+}
