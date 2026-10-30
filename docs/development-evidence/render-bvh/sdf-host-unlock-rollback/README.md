@@ -12,7 +12,8 @@ U4 验证窗 attempt1 与 attempt2 都在新实体 `render_sdf_reference` 的 **
 - `cam0` 215 / 76,800 像素不符、**max_ulp = 191**；`cam1` 4 / 43,200、max_ulp = 25；
 - 首差像素 (230,69)，参考 seg = (2,5) = sphere（轮廓边缘，邻行是 plane）；
 - 同两组场景 RW：**RGB `mismatched=0`/`max_byte_diff=0`/`beyond_1_lsb=0`，seg `mismatched=0`**；
-- attempt2 用**全新冻结 + 只读诊断**后完全复现（诊断显示 product depth 比参考小约 10–191 ULP，seg 恒 (2,5)）。
+- attempt2 用**全新冻结 + 只读诊断**后完全复现（诊断：**双向偏差**——前 40 例 product>ref 16 例 /
+  product<ref 24 例、ULP 7–71，全量最大绝对值 191 ULP；seg 恒 (2,5)）。
 
 按 Chief/QA 红线：**U4 未通过** → 回滚 U1b、保留 U1；不缩相机、不跳球、不抬 `MAX_DEPTH_ULP`、
 不把「诊断已定位」当通过。窗口 attempt1/attempt2 记录原样保留在

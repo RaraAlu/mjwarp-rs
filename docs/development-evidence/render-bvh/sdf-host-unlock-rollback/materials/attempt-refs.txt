@@ -4,7 +4,8 @@ attempt2: target/render-bvh/sdf-validate-window/attempts/attempt2/ (fresh freeze
 reproduced deviation (both attempts, identical):
   render_sdf_reference: cam0 215/76800 depth mismatched, max_ulp=191; cam1 4/43200, max_ulp=25; first pixel (230,69), reference seg=(2,5) = sphere silhouette
   rgb: mismatched=0 / max_byte_diff=0 / beyond_1_lsb=0; seg: mismatched=0 (both cameras, both groups)
-  diagnostic (attempt2, read-only): product depth < reference depth by ~10-191 ULP, seg always (2,5)
+  diagnostic (attempt2, read-only): bidirectional deviation (first 40 cases: product>ref 16, product<ref 24, ULP 7-71; full set max |ULP| = 191), seg always (2,5)
+guards-only provenance: attempt1 window/guard.log = in-window GUARDS_OK=92/92 (logged before body); attempt1 guards-only-run/ (window_start 2026-10-31T01:52:41+08:00, after body) is a POST-BODY RE-CHECK, CPU-only sha verification (-GuardsOnly), no GPU work, and it does not change the window verdict. attempt2 GUARDS_OK=92/92 comes from the in-window window/guard.log only (no post-body re-run).
 verdict: U4 NOT PASSED (red line: same-order reproduction); no camera shrink / no sphere skip / no MAX_DEPTH_ULP raise / diagnosis not treated as pass
 rollback action: host unlock reverted, U1 kept; SDF capability unreachable again
 next: sphere-silhouette depth RCA (pinned ray.py::ray_sphere/_ray_quad vs product render_math.cu/render_common.cu f32 order), then a separate fix slice (R05 camera-FMA precedent) and U4 attempt=3 with a fresh freeze
