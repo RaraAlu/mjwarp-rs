@@ -9,7 +9,7 @@ U1b 已回滚（`07252cd2`），U1 保留。
 
 ## 1. 为什么入库
 
-窗口结论依赖的产物（guards 冻结身份、两份 monitor 原始 CSV、INVALID_ROUND 判定、9 实体结果）此前只在
+窗口结论依赖的产物（guards 冻结身份、各 attempt 的 monitor 原始 CSV、INVALID_ROUND 判定、9 实体结果）此前只在
 `target/`，不可通过代码复现也不随仓库分发。本目录把它们按字节复制进证据树，便于独立复核与长期留痕；
 `target/` 原件保留、未改名、未覆盖。
 
@@ -26,15 +26,16 @@ U1b 已回滚（`07252cd2`），U1 保留。
 | body | 8/9 exit 0，`render_sdf_reference` exit 101 | 同（复现） | 2/9 exit 0（双阻塞，见 §3c） |
 | 判定 | `INVALID_ROUND exit10` | `INVALID_ROUND exit10` | `INVALID_ROUND exit10`（冻结作废） |
 
-## 3. monitor 证据（两份都在，绝不写成常规通过）
+## 3. monitor 证据（attempt1/2 原件都在；attempt3 见 §3c；三次都绝不写成常规通过）
 
 - `attempts/attempt1/monitor-pre-window.csv` — **常规 `util<40` monitor 失败**（354 样本、longest 28/60、`util` **3–76**、`free_min` 11,545 MiB、exit 20）；**原样保留**。
 - `attempts/attempt1/monitor-pre-window-exception.csv` — 已签条件式 validation-only `util<60` 例外 monitor（60/60、**69 样本**、exit 0）。
 - `attempts/attempt2/monitor-pre-window-attempt2.csv` — 常规 monitor 失败（354 样本、longest 41/60、`util` 1–53、`free_min` 11,467 MiB、exit 20）。
 - `attempts/attempt2/monitor-pre-window-exception-attempt2.csv` — 例外 monitor（60/60、83 样本、exit 0）。
+- attempt3 的两份 monitor（常规失败 + 已签例外）见 §3c 与 `attempts/attempt3/`，同样原样保留、不作常规通过。
 
-两次 approach 都是「先常规、失败才启用已签例外」；例外 load-bearing 独立重算：attempt1 `ge40_clean=9` ⇒ true，
-attempt2 `ge40_clean=8` ⇒ true；`ge60` 样本（attempt1 2 个、attempt2 1 个）均在 60 连清段之外（预热期、streak 0），
+三次 approach 都是「先常规、失败才启用已签例外」（attempt3 见 §3c）；例外 load-bearing 独立重算：attempt1 `ge40_clean=9` ⇒ true，
+attempt2 `ge40_clean=8` ⇒ true、attempt3 `ge40_clean=6` ⇒ true；`ge60` 样本（attempt1 2 个、attempt2 1 个、attempt3 0 个）均在 60 连清段之外（预热期、streak 0），
 证据里照实记录，不写 `ge60=0`，不写「常规通过」。
 
 ### 3b. 已签条件式 validation-only 例外（五要素明文块）
