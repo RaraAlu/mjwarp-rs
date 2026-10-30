@@ -1,0 +1,137 @@
+{
+  "task_id": "2026-10-30-render-sdf-capture",
+  "slice": "SDF unlock U3",
+  "prerequisite": "2026-10-30-render-sdf-capture-authoring",
+  "window": {
+    "date_local": "2026-10-30/2026-10-31",
+    "shell": "Windows PowerShell 5.1.26100.7920 (powershell.exe; pwsh 7 forbidden for aggregation)",
+    "regular_monitor": {
+      "csv": "monitor/monitor-pre-window-regular-failure.csv",
+      "samples": 354,
+      "longest_clean": 21,
+      "required": 60,
+      "util_min": 35,
+      "util_max": 50,
+      "util_ge40_samples": 84,
+      "free_min_mib": 13388,
+      "floor_mib": 10445,
+      "floor_breached": false,
+      "compute_filtered_max": 0,
+      "build_max": 0,
+      "exit": 20,
+      "start": "2026-10-30T23:12:30.500+08:00",
+      "end": "2026-10-30T23:42:26.866+08:00",
+      "retained": true
+    },
+    "exception_baseline": {
+      "snapshot": "monitor/pre-window-snapshot-exception.txt",
+      "baseline_min_free_mib": 13201,
+      "floor_mib": 10129,
+      "compute_filtered": 0,
+      "build": 0,
+      "tree_clean": true
+    },
+    "exception_monitor": {
+      "csv": "monitor/monitor-pre-window-attempt2-exception.csv",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\monitor-until-clean.ps1 -OutCsv target\\render-bvh\\sdf-capture-window\\monitor-pre-window-attempt2.csv -Required 60 -MaxMinutes 30 -MaxUtil 60",
+      "samples": 60,
+      "longest_clean": 60,
+      "ready": true,
+      "util_min": 30,
+      "util_max": 42,
+      "free_min_mib": 13171,
+      "ge40_samples": 17,
+      "ge60_samples": 0,
+      "compute_filtered_max": 0,
+      "build_max": 0,
+      "exit": 0,
+      "start": "2026-10-31T00:00:50.867+08:00",
+      "end": "2026-10-31T00:05:51.012+08:00"
+    },
+    "captures": [
+      {"group": "sdf-mesh", "command": "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/capture_render_sdf.py --group sdf-mesh --use-fast-math false --use-shadows true --repeat 2 --out-dir fixtures/render-bvh/scene-sdf/capture-sdf/sdf-mesh", "exit": 0, "files_mtime": "2026-10-31T00:06:08"},
+      {"group": "sdf-occluder", "command": "target\\mjwarp-parallel\\venv\\Scripts\\python.exe -B scripts/capture_render_sdf.py --group sdf-occluder --use-fast-math false --use-shadows true --repeat 2 --out-dir fixtures/render-bvh/scene-sdf/capture-sdf/sdf-occluder", "exit": 0, "files_mtime": "2026-10-31T00:06:22"}
+    ],
+    "window_commands_executed": 2,
+    "zero_rust_compile": true,
+    "captured_at_env": ""
+  },
+  "exception": {
+    "mode": "authoring_only_exception_util_lt_60",
+    "approved_by": "user via Chief 2026-10-31T00:00+08:00",
+    "scope": "per-world capture window AND this SDF capture window",
+    "reason": "persistent desktop 3D graphics noise (dwm / DeepSeek Harness gpu-process / msedgewebview2); normal util<40 monitor failed in the signed slot while free/floors were fine and filtered=0/build=0; capture criteria are bitwise two-run identical",
+    "not_a_normal_threshold_pass": true,
+    "authoring_exception_used": true,
+    "signature_unchanged": true,
+    "original_normal_threshold_attempts_retained": [
+      "monitor/monitor-pre-window-regular-failure.csv",
+      "monitor/pre-window-snapshot-regular.txt",
+      "monitor/monitor-failure-regular.txt"
+    ],
+    "effectiveness": {
+      "recompute": "monitor/exception-monitor-recompute.json",
+      "ge40_samples": 17,
+      "ge40_clean_samples": 17,
+      "ge60_samples": 0,
+      "util_max": 42,
+      "exception_load_bearing": true,
+      "note": "17 util>=40 samples were recorded clean and the streak continued to 60, so the applied open threshold was 60, not 40"
+    }
+  },
+  "products": {
+    "groups": ["sdf-mesh", "sdf-occluder"],
+    "table": "materials/products.txt",
+    "sdf-mesh": {
+      "rgb.npz": {"bytes": 1440478, "sha256": "7ca2abd663cd40bc8cbdda35f601f981256093519d7bbf02ba8dbd447a0ed3ad"},
+      "depth.npz": {"bytes": 480486, "sha256": "3415b796748091df64ca45845c305a43f9bba63ce0fc6962bd49d75b22dc7ee3"},
+      "seg.npz": {"bytes": 960478, "sha256": "afd5eacd771a16292cc9f39ec97be1276f3cd1abb4ab99dd6b1728de01c941e5"},
+      "capture.json": {"bytes": 10547, "sha256": "d45c9ef9560b9e4f18e01a92a46a513c3a50b419d3203e7d378abfc1c108e517"}
+    },
+    "sdf-occluder": {
+      "rgb.npz": {"bytes": 1440478, "sha256": "598044febc6ce2f2f129321a61ef588a9fc127031a3dee385f853b3e73ec77d0"},
+      "depth.npz": {"bytes": 480486, "sha256": "5515305d5d89ae681147222a6d1e55a30466d780f493dda4d01c7480c4462a0c"},
+      "seg.npz": {"bytes": 960478, "sha256": "99ed0398151d2a222f33a77943ddbaff3e7cd95a9b0fe3fa19ded3a2c653c3c8"},
+      "capture.json": {"bytes": 10567, "sha256": "08e897c805cf22fb1b4403fee577593eb6fddf261ae8e5152c7c636309f29779"}
+    },
+    "capture_json": {
+      "task_id": "2026-10-30-render-sdf-capture",
+      "kind": "render-sdf-capture",
+      "two_captures_bitwise_identical": true,
+      "legacy_reference_untouched": true,
+      "legacy_reference_files": 69,
+      "use_fast_math": false,
+      "use_shadows": true,
+      "repeat": 2,
+      "nrender": 2,
+      "cameras": 2,
+      "scene_sha256": {
+        "sdf-mesh": "376eb81ce200b29373af3965c7abefd90b8f00188a688db583080836dfa868e8",
+        "sdf-occluder": "7869cfae5e16795ebf86b93c931ef36a8e94464452762e28f1357e0e68a1584e"
+      }
+    },
+    "array_shapes": {
+      "rgb_cam0": "[240,320,3] float32",
+      "rgb_cam1": "[180,240,3] float32",
+      "depth_cam0": "[240,320] float32",
+      "depth_cam1": "[180,240] float32",
+      "seg_cam0": "[240,320,2] int32",
+      "seg_cam1": "[180,240,2] int32"
+    }
+  },
+  "boundaries": {
+    "src_changed": false,
+    "tests_changed": false,
+    "scene_fixtures_changed": false,
+    "capture_script_changed": false,
+    "criteria_or_tolerance_changed": false,
+    "numeric_acceptance": false,
+    "gpu_products_outside_capture_dir": false
+  },
+  "claims": {
+    "sdf_rendering_covered": false,
+    "numeric_conclusion": false,
+    "normal_threshold_pass": false
+  },
+  "next": "U1b host unlock (after U3 verified, before U4; revert U1b if U4 fails) -> U4 validation window with new frozen guards (old exe hashes invalid)"
+}
