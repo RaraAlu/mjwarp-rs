@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-sdf-capture-check",
+  "title": {
+    "zh": "SDF 采集窗（U3）独立复核（窗口事实/例外生效口径/两跑位级/产物 sha/legacy 69/证据卫生）",
+    "en": "Independent check of the SDF capture window (U3): window facts, exception load-bearing evidence, two-run identity, product sha, legacy 69, evidence hygiene"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-30-render-sdf-capture`（U3：SDF 渲染参考采集窗，authoring-only util<60 例外）。pin revision = `1b185557`（该卡证据最终态：`util_min=5` 三处更正提交；窗口产物与证据本体在 `e0ab7ce8`）。复核点：①窗口事实（常规失败 354 samples / longest_clean=21/60 / **util_min=5、util 5–50** / 84 个 ≥40 / free_min 13,388 / floor 10,445 未破 / filtered=0 / build=0 / exit 20，原样保留）；②例外 monitor（60/60、util 30–42、free_min 13,171、ge60=0、exit 0）与**独立重算**（ge40=17 全 clean ⇒ `exception_load_bearing=true`、`not_a_normal_threshold_pass=true`）；③两组采集命令各一次 exit 0、两跑逐数组与 npz 字节相等、legacy 69 前后不变、out-dir 未被覆盖、零编译；④产物 10 文件 sha/bytes 与 `materials/products.txt`、`manifest.txt`、`capture.json.files_sha256` 三处一致；⑤证据卫生（manifest 自洽、LF 无 BOM、禁词 0）与 `util_min` 更正只改数字不改结论。**只读**：不重跑窗口、不跑 GPU、不宣称任何渲染数值结论。",
+    "en": "Read-only QA check of the SDF capture window card at pin 1b185557: regular-failure retention (util_min=5), signed authoring-only util<60 exception with independent recompute, two capture runs (bitwise identity, legacy 69, zero overwrite, zero compile), product sha cross-check, and evidence hygiene."
+  },
+  "modules": {},
+  "acceptance": [
+    "**窗口事实**：`sdf-capture/README.md`、`receipt.json`、`sdf-capture-window-material/materials/window-plan.txt` 三处 util 口径一致为 **util_min=5 / 5–50**；常规失败 CSV（`monitor/monitor-pre-window-regular-failure.csv`，354 样本、longest_clean=21/60、84 个 ≥40、exit 20）与快照原样保留、未被覆盖；其余数字（free_min 13,388、floor 10,445 未破、filtered=0、build=0）与 CSV 可复算。",
+    "**例外生效口径**：`monitor/exception-monitor-recompute.json` 独立重算 60 样本、longest_clean 60、ge40=17 且全部 clean、ge60=0、util_max=42、free_min 13,171、filtered/build 0 ⇒ `exception_load_bearing=true`；证据同时写 `not_a_normal_threshold_pass=true`、`authoring_exception_used=true`、`signature_unchanged=true`，并明确不把例外写成常规通过。",
+    "**采集与确定性**：两组命令各一次 exit 0（`logs/capture-sdf-mesh.log`、`logs/capture-sdf-occluder.log`）；两跑逐数组相等且 npz 字节相等；legacy 69 前后不变；`capture.json` 字段（kind=render-sdf-capture、nrender=2、cameras=2、fast_math=false、shadows=true、repeat=2）；窗口内零 cargo/rustc。",
+    "**产物对账**：两组 10 个产物文件的 sha256/bytes 与 `materials/products.txt`、`manifest.txt`（committed blob）及各自 `capture.json.files_sha256` 三处一致；`fixtures/render-bvh/scene-sdf/capture-sdf/` 是本窗新增、未改写既有参考。",
+    "**证据卫生与边界**：`manifest.txt` 与 committed blob 一致、LF 无 BOM、禁词 0；`util_min` 更正提交 `1b185557` 只改三处数字（README/receipt/window-plan）与两个 manifest 行哈希，其余数字、结论、失败留档不变；不重跑窗口、不跑 GPU、不冻结 guards、不宣称渲染数值结论。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-sdf-capture"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/sdf-capture-check/"
+    ],
+    "resources": [],
+    "priority": 63
+  },
+  "note": "Arch 2026-10-31 注册（Chief 要求两窗收口后一并注册 QA 复核卡，**proposed 不 start 等 QA**）。pin revision = `1b185557`（U3 证据最终态；窗口本体 `e0ab7ce8`，util_min 更正 `1b185557`）。复核对象：`sdf-capture/`（README/receipt/manifest/monitor/logs/materials）+ `sdf-capture-window-material/`（README/window-plan/expected-products/manifest）+ `fixtures/render-bvh/scene-sdf/capture-sdf/`。**只读**：不重跑窗口、不跑 GPU、不改证据；确需下载/复算只用 pinned python CPU 路径。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T16:36:00.000Z",
+  "updated_at": "2026-10-30T16:36:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-capture-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-sdf-capture-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
