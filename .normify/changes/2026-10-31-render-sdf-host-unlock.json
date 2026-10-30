@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-host-unlock",
+  "title": {
+    "zh": "SDF host 解锁小片（删 megakernel.rs 的 reject_sdf_geometry + 单测撤除；零 GPU/零 .cu/内核身份不变）",
+    "en": "SDF host unlock slice (remove megakernel.rs reject_sdf_geometry and its host-only tests; no GPU, no .cu change, kernel identity unchanged)"
+  },
+  "status": "in_progress",
+  "intent": {
+    "zh": "U1 已让设备侧 `gtype==8` 走底层 mesh 路径（U1 verified），但 host 侧 `megakernel.rs` 的 `reject_sdf_geometry` 仍把含 SDF geom 的模型判为 `Unsupported`，因此能力不可达。本片只删 host 拒绝（函数 + 调用点 + 2 条钉「不可达前提」的 host-only 单测），让 U4 窗口可以真正加载 SDF 场景；**不实现 SDF 求交、不跑 GPU、不宣称能力**。U1b 与 U4 是同一验证链：U4 未过则 revert 本片（U1 保留，能力回到不可达）。",
+    "en": "Remove the host-side SDF rejection so the U4 window can load SDF scenes; device path was already unlocked by U1. No GPU, no numerical claim; revert this slice if U4 fails."
+  },
+  "modules": {},
+  "acceptance": [
+    "**改动面**：`git diff --stat -- src` 只有 `src/render/kernel/megakernel.rs`（440 → 405–410 行，≤500）；删除 `reject_sdf_geometry`（含 doc）、`render()` 内调用点与 `sdf_geometry_guard_tests` 整块（2 条 host-only 单测）；`rg \"reject_sdf_geometry|S7b3 不含 SDF 求交\" src/` = 0 命中。",
+    "**其余拒绝不变**：`use_precomputed_rays`、`splat_count != 0`、`light_mode != 0`、`enabled_geom_ids` 覆盖长度、`nsamples/ray_count` 溢出与长度、non-finite 等 `Unsupported`/`InvalidArray` 分支全部原样（diff 未触碰）。",
+    "**零改动**：全部 `.cu`、`cast.rs`、`bvh/**`、ABI/81 槽、判据/容差/参考、`tests/**`、`scripts/**` 零改动；内核身份三值保持 U1 收口值（source `778216b2…`、PTX `34f91147…`、bytes 268,589，不重算、不变）。",
+    "**单测口径**：原 2 条 host-only 单测钉的是「不可达前提」，解锁后前提消失 ⇒ 删除（不造假断言）；unit 计数预期 **1108 → 1106**（与预期不符即停下核对，不顺手加测试）。",
+    "**门禁**：`fmt`、`clippy`、`clippy-cuda`、`unit` 全绿；`cargo test --locked --no-run` EXIT=0 且日志含 `Finished`；`normify validate --fingerprints` 错误 0 / 警告不变（5）。",
+    "**证据**：`docs/development-evidence/render-bvh/sdf-host-unlock/`（README、receipt.json 含 `/task_id`、manifest.txt、logs 5、materials diff/removed-guard/gates/kernel-identity）；LF 无 BOM、禁词 0；零 GPU、零窗口。",
+    "**回滚声明**：note 明写「U4 未过 → revert 本片（U1 保留，能力回到不可达）」；本片不发布、不宣称 SDF 能力。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-sdf-mesh-path",
+      "2026-10-30-render-sdf-capture"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "src/render/kernel/megakernel.rs",
+      "docs/development-evidence/render-bvh/sdf-host-unlock/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-10-31 注册（Chief 令：QA 两卡 verified 后立刻做 U1b）。执行草稿 `target/u1b-host-unlock-plan.md`。**回滚声明**：U4 验证窗未过 → `git revert` 本片提交（U1 保留，SDF 能力回到不可达）。本片只删 host 拒绝，不实现 SDF 求交、不跑 GPU、不改内核身份；解锁后的能力验证全部由 U4 窗口（`2026-10-31-render-sdf-validate`）承担。U4 之前不得发布/宣称 SDF 能力。",
+  "revision": {
+    "before": "faaf98775fd454164f2f444c65000227febd9e38",
+    "after": null
+  },
+  "created_at": "2026-10-30T16:40:00.000Z",
+  "updated_at": "2026-10-30T16:37:11.345Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda",
+        "fixtures/render-bvh/scene-sdf",
+        "docs/development-evidence/render-bvh/r08-rgb-hetero-validate",
+        "docs/development-evidence/render-bvh/r02-skybox-s3-validate"
+      ]
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-host-unlock/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-host-unlock"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "等价",
+        "SDF 渲染已覆盖"
+      ]
+    }
+  ]
+}
