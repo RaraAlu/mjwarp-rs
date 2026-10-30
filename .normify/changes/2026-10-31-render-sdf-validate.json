@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-validate",
+  "title": {
+    "zh": "SDF 验证窗（U4：常规 util<40 优先 + 已签条件式 validation-only util<60 例外；9 实体/92 条新冻结；需用户双签）",
+    "en": "SDF validation window (U4: regular util<40 first + signed conditional validation-only util<60 exception; 9 entities, 92-entry new freeze; user double-sign)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "在用户双签的 GPU 窗口里执行 U4 验证：新 target `render_sdf_reference`（两组参考比对 + shadow 开/关一致性 + DepthSeg 跨路径一致性 + 两跑确定性）+ 8 条回归，共 9 实体；新 suite `render-sdf-validate` attempt=1，新冻结 **9 exe + 83 inputs = 92**（不复用 R05/R02/R08 guards）。执行协议：**先常规 `util<40`**（三点基线 → floor → monitor 默认 MaxUtil=40）→ 60/60 则正常开窗；仅当常规失败才启用用户已签的 `validation_only_exception_util_lt_60`（保留失败 CSV/快照/判定、重取基线、`-MaxUtil 60` 新 CSV、60/60 才开窗、load-bearing 重算），**绝不写成常规通过**。判据零放宽；shadow-off 无上游参考只做一致性。本卡 offline 部分（实体/冻结器/材料 pin）已完成，GPU body 等 QA 核材料+实现后由 Chief 批准执行。",
+    "en": "Run the signed U4 validation window (9 entities, new 92-entry freeze, regular util<40 first with the signed conditional validation-only util<60 exception only if it fails). GPU body waits for QA review and Chief approval."
+  },
+  "modules": {},
+  "acceptance": [
+    "**执行协议**：先常规（三点基线 → `floor = min free − 3072` → `monitor-until-clean.ps1 -Required 60 -MaxMinutes 30`，默认 MaxUtil=40、不加 `-OpenUtilLimit`）；60/60 则正常窗口（`not_a_normal_threshold_pass=false`、`authoring_exception_used=false`）。常规失败 → 保留失败 CSV/快照/判定，启用已签 `validation_only_exception_util_lt_60`（五要素、重取基线、`-MaxUtil 60` 新 CSV、60/60 才开窗、load-bearing 重算/ge60=0/util_max<60/全<40 记 `exception_effectively_not_load_bearing=true`）；两份 monitor 都进证据，绝不写成常规通过。",
+    "**冻结**：`freeze-guards-sdf.ps1 -Attempt 1` → GUARDS_FROZEN suite=render-sdf-validate total=92 exes=9 inputs=83；逐条核 guards 文件（不只总数）；GuardOnly `GUARDS_OK=92/92`、stash 9/9；不复用/不改 R05/R02/R08 guards。",
+    "**实体**：9/9 exit 0（new `render_sdf_reference` + 8 回归）；判据零放宽：RGB `beyond_1_lsb=0`/`max_byte_diff≤1`、depth `mismatched=0` 且 `max_ulp≤4`、seg exact、两跑 sha 相等；shadow 臂与 DepthSeg 跨路径只做一致性；回归零漂移。",
+    "**窗口事实**：`sha_guards 92/92`、窗后 exe 复查 9/9、**body 开始后零 Rust 编译**（freeze 期 `cargo test --no-run` 属预期构建；deps 快照取在 body 前）、samples/util/free_min/floor、filtered/build、每实体判据数字与两跑 sha、`window-command.txt` 逐字。",
+    "**失败即停**：monitor 不达标/冻结不符/GuardOnly≠92/92/任一实体红/判据不符/破 floor/外部计算负载/编译出现 → 停手报 Chief 与用户，不重试、不改门槛、不放宽判据；无效轮保留 attempt 目录。",
+    "**证据**：`docs/development-evidence/render-bvh/sdf-validate/`（README、receipt.json 含 `/task_id`、manifest.txt、entity-results.csv、logs/、sha-guards.txt、facts.txt、samples.csv、monitor/、materials/、window-command.txt）；LF 无 BOM、禁词 0。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-31-render-sdf-reference-target",
+      "2026-10-31-render-sdf-validate-window-material",
+      "2026-10-31-render-sdf-host-unlock",
+      "2026-10-30-render-sdf-capture"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/sdf-validate/",
+      "scripts/validate/render-bvh/guards-sdf-validate.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册并 start（offline 部分已完成：实体、冻结器、材料 pin 均由 `2026-10-31-render-sdf-reference-target` 与 `2026-10-31-render-sdf-validate-window-material` 收口）。GPU body 执行前置：①QA 复核材料与实现；②Chief 批准开窗（用户已签常规 + 条件式 validation-only util<60 例外）。执行顺序严格按材料 `CONDITIONAL EXECUTION PROTOCOL`：先常规、失败才启用例外、现场按序执行、不预设路径；开窗前把当日 GPU 状态写进 facts。同一时间只允许一个 GPU 满载任务。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T17:30:00.000Z",
+  "updated_at": "2026-10-30T17:30:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-validate/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-validate"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "fixtures/render-bvh/scene-sdf",
+        "src/render/kernel/cuda"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "等价"
+      ]
+    }
+  ]
+}
