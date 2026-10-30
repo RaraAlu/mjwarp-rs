@@ -1,0 +1,44 @@
+{
+  "task_id": "2026-10-31-render-sdf-validate-attempts-evidence",
+  "kind": "render-sdf-validate-attempts-evidence",
+  "owner": "Arch",
+  "scope": "commit the U4 window attempt1/attempt2 key artifacts byte-exactly with a sha/bytes manifest, plus a -text -diff rule for the evidence directory; offline, zero GPU",
+  "parent": {
+    "window_task": "2026-10-31-render-sdf-validate",
+    "window_state": "in_progress (attempt1/attempt2 both INVALID_ROUND; U4 NOT PASSED)",
+    "rollback_task": "2026-10-31-render-sdf-host-unlock-rollback",
+    "why_separate_task": "the running window card's schedule/declaration is frozen, so the new evidence directory cannot be added to its files list"
+  },
+  "artifacts": {
+    "attempt1": {
+      "guards_sha256": "0639f0ff5064bd2a7a44c1b9f6a29298b623b4d4901c9f089e0648a97591910d",
+      "guards_bytes": 33651,
+      "guards_aggregate_sha256": "02b2021376e27140552000a7124e4e5cff527ee558670677b6d58dcbdccf826f",
+      "files": 5
+    },
+    "attempt2": {
+      "guards_sha256": "d921caae93df0d911c51a64501f2427dcb58cb86f64a4158fd1f45b06933d726",
+      "guards_bytes": 33651,
+      "guards_aggregate_sha256": "a50e99c951c1a9277d8821f8aca9fcad2506ec5878183ff0f7ead0c53837e67a",
+      "files": 5
+    },
+    "total_artifacts": 10,
+    "manifest": "docs/development-evidence/render-bvh/sdf-validate-window/manifest.txt (sha/bytes for every non-manifest file)",
+    "target_copies_retained": "target/render-bvh/sdf-validate-window/attempts/{attempt1,attempt2}/ (unchanged, not renamed, not overwritten)"
+  },
+  "byte_exact_eol_rule": {
+    "rule": "docs/development-evidence/render-bvh/sdf-validate-window/** -text -diff",
+    "why": "the frozen guards JSON files are CRLF; without the rule git normalizes the blob to LF and the committed bytes no longer match the 33,651-byte freeze identity recorded in the manifest",
+    "verification": "git check-attr text/diff = unset; staged blob size = 33,651 = worktree size"
+  },
+  "gates": {
+    "not_applicable": "no code, no product build, no GPU; checks are receipt json + unchanged(src/scripts/Cargo/fixtures scene-sdf) + forbid_claim"
+  },
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "等价",
+    "精度达标",
+    "SDF 渲染已覆盖"
+  ]
+}
