@@ -38,6 +38,7 @@
 ## 3. 校验
 
 - **两跑确定性**：脚本 `--repeat 2` 逐数组 `np.array_equal` 且 npz 字节相等，否则非零退出、不宣称；本次 exit 0 且 `two_captures_bitwise_identical=true`。
+- **两跑证据形式（QA 观察，记录级接受，2026-10-31）**：脚本做法是把第二跑写进 out-dir 内的 `.second/` 临时目录，**逐字节比对成功后删除**，因此 `capture.json` 只留布尔 `two_captures_bitwise_identical`、没有 run2 的文件 sha 可独立重算。补 run2 sha 必须**重采**（重跑窗口），本片不重采、不改脚本；已登记为后续采集脚本改进（把 run2 sha 写进 `capture.json`）。本条不影响「两跑位级相等」这一脚本内断言本身。
 - **legacy 对拍**：采集前后 manifest 均 **79** 条（69 既有渲染参考 + 10 个 SDF 采集参考文件），`legacy_reference_untouched=true`。
 - **三处一致**：磁盘 sha（`materials/products.txt`）= `capture.json.files_sha256` = 脚本 stdout。
 - **写盘边界**：`--out-dir` 在 `scene-a/perworld/` 子树内且采集前不存在；窗口内只写该目录。
