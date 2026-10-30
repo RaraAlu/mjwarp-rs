@@ -1,0 +1,77 @@
+{
+  "task_id": "2026-10-31-render-sdf-model-dump-check",
+  "reviewed_task": "2026-10-31-render-sdf-model-dump",
+  "pin": "60541da3",
+  "card_head_at_start": "abbb19ed",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 0,
+  "observations": 7,
+  "scope": "read-only QA review of U4a model dumps: dump identity (bytes/sha), independent dumper rerun for determinism (twice per file, same path), dump semantics vs dump-counts.json, tool identity, scope (no src/fixtures/Cargo/scripts/*.rs), intermediate .mjb not committed, evidence manifest; no GPU, no device execution, no product code change",
+  "method": {
+    "recompute": "recompute.py (8 checks -> recompute.json; committed blobs via git cat-file; dumps parsed with pinned python)",
+    "determinism_rerun": "target/render-bvh/s0a/compile_scene_312.exe (MuJoCo 3.12.0) run twice per file with the verbatim evidence commands and PATH += target/toolchains/mujoco-3.12.0/package/bin; recorded in materials/rerun-determinism.txt"
+  },
+  "checks": {"total": 8, "passed": 8, "failed": []},
+  "verified_numbers": {
+    "dumps": {
+      "tests/support/render_bvh/sdf/model-312.json": {
+        "bytes": 53849, "sha256": "7de15ff458aa8f6b1c026bbed5d9b1fbaf8f5dd39b385bab0b79d5c289b40d36",
+        "scene": "fixtures/render-bvh/scene-sdf/scene.xml",
+        "geom_type": [0, 8, 2], "geom_dataid": [-1, 0, -1],
+        "counts": {"ngeom": 3, "nmesh": 1, "nmeshvert": 8, "nmeshface": 12, "ncam": 2, "nlight": 2, "nq": 0},
+        "cam_resolution": [320, 240, 240, 180], "light_castshadow": [1, 1]
+      },
+      "tests/support/render_bvh/sdf/model-mixed-312.json": {
+        "bytes": 54205, "sha256": "60698f6baaeff8dcc11e725e56242bd5d6f947741cb7070b4e1f32ec13765578",
+        "scene": "fixtures/render-bvh/scene-sdf/scene-mixed.xml",
+        "geom_type": [0, 8, 2, 6], "geom_dataid": [-1, 0, -1, -1],
+        "counts": {"ngeom": 4, "nmesh": 1, "nmeshvert": 8, "nmeshface": 12, "ncam": 2, "nlight": 2, "nq": 0},
+        "cam_resolution": [320, 240, 240, 180], "light_castshadow": [1, 1]
+      }
+    },
+    "determinism": {"reruns_per_file": 2, "all_exit": 0,
+                    "all_sha_equal_committed": true, "git_tree_unchanged_after_rerun": true},
+    "semantics": {"counts_match_dump_counts_json": true,
+                  "sdf_geom_dataid_points_mesh0": true,
+                  "mesh_bounds_pm_0_349999994": true,
+                  "sdf_geom_size_0_35": true,
+                  "mujoco_version": "3.12.0 (3012000)",
+                  "loaded_mjb": true,
+                  "model_file": "target\\render-bvh\\sdf-model-dump\\*.mjb",
+                  "sdf_leaf_rule_premise": "geom_size 0.35 and mesh bounds +/-0.35 coexist, so U4 host cases can assert mesh-bounds usage"}
+    ,
+    "tool": {"path": "target/render-bvh/s0a/compile_scene_312.exe",
+             "bytes": 161280,
+             "sha256": "cd91e099659ebda3f51a84d5392f7d726c0c61378bfa2487215ddd00b2de2970",
+             "mujoco_3_12_runtime_present": true,
+             "offline_only": true},
+    "scope": {"paths": 10, "src_fixtures_cargo_scripts_or_rs_changed": 0,
+              "dumps_added": 2, "evidence_files": 7},
+    "intermediate": {"mjb_committed": false,
+                     "target_mjb": ["target/render-bvh/sdf-model-dump/scene-sdf.mjb",
+                                     "target/render-bvh/sdf-model-dump/scene-sdf-mixed.mjb"]},
+    "evidence_manifest": {"rows": 6, "match": "6/6", "files": 7, "utf16": []},
+    "validate_now": {"errors": 0, "warnings": 5}
+  },
+  "observations": [
+    {"id": "O1", "text": "determinism independently reproduced: 4 dump runs (twice per file, same output path) all exit 0 and all sha equal committed; rerun only wrote target/*.mjb and byte-identical JSON, repo tree unchanged"},
+    {"id": "O2", "text": "the dump's tool field only carries the name compile_scene_312, while the tool sha256 lives only in the evidence material/receipt; if the dumper is ever rebuilt the dump cannot prove its tool identity - optional future improvement (would change dump sha and require refreshing material)"},
+    {"id": "O3", "text": "the ~9.4 MB .mjb intermediate exists only under target/render-bvh/sdf-model-dump (untracked); that dir also holds a working-copy determinism.txt which does not affect the repo"},
+    {"id": "O4", "text": "determinism requires the identical output path because the dump embeds model_file; the evidence determinism.txt states this and I reproduced it by using the verbatim commands - U4 material should not change the dump output path"},
+    {"id": "O5", "text": "semantics are useful for U4: SDF geom geom_size=0.35 and mesh bounds +/-0.35 coexist, so U4 host cases can assert that SDF leaves use mesh bounds rather than geom_size; camera resolutions and light castshadow match the U3 scene"},
+    {"id": "O6", "text": "only tests/support JSON was added, no tests/*.rs changes; the U4 host case that will consume these dumps is not wired yet, so how it is used cannot be reviewed here"},
+    {"id": "O7", "text": "dumps are single-line large-array JSON (53 KB), hostile to text diff but stably parseable; sha + counts in the evidence is the right recording style"}
+  ],
+  "boundaries": {"read_only": true, "gpu_used": false, "device_execution": false,
+                 "dumps_modified": false, "source_or_fixture_edited": false, "foreign_evidence_edited": false},
+  "not_claimed": [
+    "不宣称渲染数值验收通过",
+    "不宣称上游等价",
+    "不宣称 SDF 渲染已覆盖（dump 只是 U4 的 host 输入）"
+  ],
+  "limits": [
+    "dump semantics prove model data consistency only, not device rendering (U4 window)",
+    "tool identity verified against the on-disk target exe sha, not self-proven by the dump"
+  ]
+}
