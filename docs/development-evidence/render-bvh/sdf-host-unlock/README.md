@@ -19,9 +19,11 @@ U1 已让设备侧 `gtype==8` 走底层 mesh 路径，但 host 侧 `megakernel.r
 | --- | --- |
 | 源码 diff | **只 `src/render/kernel/megakernel.rs`**：1 文件、**+1 / −35** |
 | 行数 | **440 → 406**（LF，≤500） |
-| 残留引用 | 工作树 `reject_sdf_geometry` / `S7b3 不含 SDF 求交` = **0**（`materials/removed-guard.txt` 留 HEAD 旧 3 处） |
+| 残留引用 | **可执行引用 0**（工作树 `reject_sdf_geometry` / `S7b3 不含 SDF 求交` 0 命中）；`.cu` 注释 2 行保留（零 `.cu` 改动、内核身份不变），注释语义待下一次内核重基线时更新（清单见下方注） |
 | 零改动 | 全部 `.cu`、`cast.rs`、`bvh/**`、ABI/81 槽、判据/容差/参考、`tests/**`、`scripts/**`（`materials/removed-guard.txt` 的 4 条 unchanged 均为空） |
 | 内核身份 | **不变**：source `778216b2…` / PTX `34f91147…` / 268,589 B（U1 收口值，见 `materials/kernel-identity.txt`） |
+
+- 注（QA P1）：`.cu` 内仍描述「host 仍拒绝 8」的注释为 `render_common.cu:391`、`render_common.cu:397`（另有 `render.cu:358` 提到同一语义）。U1b 只删 host Rust 拒绝、零 `.cu` 改动；改这些注释会改变内核身份（source/PTX/bytes），因此保留到下一次内核重基线时统一更新。可执行路径已不再拦截 `gtype==8`。
 
 ## 3. 门禁
 
