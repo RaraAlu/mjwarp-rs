@@ -32,18 +32,27 @@
 
 ## 3. 内核身份引用清单（历史 vs 现行；**不回改历史证据**）
 
-- 全仓检索旧三值（`e68e3412` / `0b947492` / `268275` / `268,275`）：**59 行 / 31 文件**。
-  - `docs/development-evidence/**`：**55 行 / 27 文件**（R02 skybox S1/S3/check/summary、R08-RGB 离线/复核/窗口、154 收口、precheck plan 等历史记录）——**保留当时身份，不改**；本片仅在 `materials/kernel-identity-refs.txt` 列清单并注明。
+可复现口径（pin 在 fix 提交 **`f63834e0`**，任何人在任何时间可复算）：
+
+```text
+git grep -I -n -E "e68e3412|0b947492|268275|268,275" f63834e0 -- .
+```
+
+- **pin 口径全仓：139 行 / 42 文件**（本片 `materials/kernel-identity-refs.txt` 即这 139 行，长行截断到 500 字符并标 `[truncated]`）。
+  - `src/` / `tests/` / `scripts/`：**0 行（活体断言 0）**——本片改动不会让任何活体测试红灯。
   - `fixtures/**`：4 行（`g01/reference.json`、mass-solve 的 ptx json）——**无关 hex 载荷，不是渲染内核身份断言**。
-  - `src/` / `tests/` / `scripts/`：**0 行活体断言**（本片改动不会让任何活体测试红灯）。
-- 清单文件：`materials/kernel-identity-refs.txt`（逐行 path:line + 内容）。
+  - `docs/development-evidence/**`：130 行 / 33 文件（R02 skybox S1/S3/check/summary、R08-RGB 离线/复核/窗口、154 收口、precheck plan 等历史记录）——**保留当时身份，不改**。
+  - `.normify/changes/**`：5 行 / 5 文件（卡面文字引用）。
+- **QA 独立复核在其工作树测得 79 行 / 41 文件**（更窄的包含集合 + 当时时点，不含部分 logs/JSON 与后来新增的复核证据）。两个数字不冲突：以 pin + 上述 `git grep` 命令为权威可复现口径；差异全部来自「包含哪些文件集合」与「扫描时点」，不是清单过期。
+- **清单本身 0 过期**（生成时 pin 全量检索、无遗漏行）、**活体断言 0**（code 分区 0 行）这两条成立；证据随新证据/新卡增长时引用数会自然增加（自引用），不影响结论。
+- 清单文件：`materials/kernel-identity-refs.txt`（逐行 `path:line:content`，长行 `[truncated]`，38 KB）。
 
 ## 4. 门禁与架构校验
 
 | 项 | 结果 |
 | --- | --- |
-| `normify gate`（fmt / clippy / clippy-cuda / unit） | 全过；unit **1108 passed / 0 failed**（ignored 392）；`logs/gate-*.txt` 为 `.normify/runs/2026-10-30-render-sdf-anyhit-cull-latent-fix/*.json` 的转写快照，**权威门禁记录以已提交的 `.normify/runs/` 为准**（本证据目录在 gate 之后不再写盘，避免 scope 变化） |
-| `cargo test --locked --no-run` | exit **0**，含 `Finished` → `logs/no-run.txt` |
+| `normify gate`（fmt / clippy / clippy-cuda / unit） | 全过；unit **1108 passed / 0 failed**（ignored 392）；`logs/gate-*.txt` 是**某一次**门禁运行的转写快照（**与当前 `.normify/runs/2026-10-30-render-sdf-anyhit-cull-latent-fix/*.json` 4 个文件不是同一次 run**：`at` 时间与 `scope_hash` 都不同）；**权威门禁结果以已提交的 `.normify/runs/` 为准**。证据目录在最终 gate 之后冻结，避免 scope 反复变化 |
+| `cargo test --locked --no-run` | **`EXIT=0`** + 含 `Finished` → `logs/no-run.txt`（首行 `Finished`、末行 `EXIT=0`；重跑后追加 exit 码） |
 | `normify validate --fingerprints` | **错误 0**、警告 6：既有 5 条（`api/leaf-empty`×2、`structure/leaf-too-coarse` 39、`layout/order-incomplete`×2）+ `evidence/fingerprint-drift 1（mjwarp.render.kernel）`——预期内，由 `done` 刷新指纹 → `materials/validate.txt` |
 | `git diff --stat -- src` | 只 `render_common.cu`（12+）与 `megakernel.rs`（39+/8−）；**+43 / −8** |
 | 边界 | 不改 81 槽 ABI / 判据 / 容差 / 参考；不改 host 拒绝语义（错误串不变）；不改 R08 / R02 证据目录（`unchanged` 检查）；无 GPU、无窗口 |
