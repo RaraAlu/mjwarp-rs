@@ -81,8 +81,36 @@ LEGACY REFERENCE PROTECTION
 - known narrowing: the exclusion is the whole perworld/ subtree (QA review O3); finer-grained
   checks are deferred to the implementation slice and are not claimed here.
 
-USER DOUBLE-SIGN BLOCK (to be filled)
-  plan version (this file) sha256 : ____________________
-  decision: [ ] approve  [ ] reject  [ ] modify (note: ____________)
-  user signature / date           : ____________________
-  Chief collated at               : ____________________
+USER DOUBLE-SIGN BLOCK (signed 2026-10-30/31)
+  plan version (as approved) sha256 : 42791918e7b6aa2977752b5fe065590616f56d57f711479a1062ec719865935d
+  decision: [x] approve
+  approved_by                       : user via Chief 2026-10-30T23:10:52+08:00 (window scope 2: per-world capture window approved)
+  scope (4 user decisions)          : 1) SDF unlock: two windows merged, volume SDF only, 1 scene 2 cameras incl. shadow on/off
+                                      2) per-world capture window: approved (this window)
+                                      3) mesh capacity A1 (16->20) approved; U8 criteria confirmed around its own window
+                                      4) U8 judgement scope: reconfirmed later, not part of this plan
+  Chief collated at                 : 2026-10-30T23:11+08:00
+  note                              : the sha256 above is the plan text the user approved (pre-signature version);
+                                      the signed file's own sha256 is recorded in the material README/receipt
+
+EXCEPTION BLOCK (authoring-only, util<60) - signed 2026-10-31T00:00+08:00
+mode=authoring_only_exception_util_lt_60
+approved_by=user via Chief 2026-10-31T00:00+08:00
+scope=per-world capture window AND the SDF capture window (one signed authoring-only exception for both)
+reason=persistent desktop 3D graphics noise (dwm.exe / DeepSeek Harness gpu-process / msedgewebview2 gpu-process):
+  the SDF capture window's normal util<40 monitor failed in the signed slot (354 samples, longest_clean=21,
+  84 samples >=40, util 35-50, exit 20) while free/floors were fine and compute_apps filtered=0, build=0;
+  the same desktop load is present for this window. Capture criteria are bitwise (two-run identical arrays
+  and npz bytes), so external graphics load does not change arithmetic results.
+original_normal_threshold_attempts_retained=
+  no first-party normal util<40 monitor was run for THIS window before this exception path: the Chief order
+  was to go directly to the exception monitor after the shared SDF-window failure and the user's signature.
+  The regular util<40 plan text above is retained verbatim; the shared failure record is
+  docs/development-evidence/render-bvh/sdf-capture/monitor/monitor-pre-window-regular-failure.csv.
+exception_monitor_command=
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\validate\render-bvh\monitor-until-clean.ps1
+  -OutCsv target\render-bvh\perworld-capture-window\monitor-pre-window-attempt1.csv -Required 60 -MaxMinutes 30 -MaxUtil 60
+not_a_normal_threshold_pass=true
+authoring_exception_used=true
+signature_unchanged=true
+shell_constraint=Windows PowerShell 5.1 only (aggregate/self-check culture-sorting constraint)

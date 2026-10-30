@@ -108,3 +108,10 @@ git log --oneline -1 && git status --porcelain                                  
 | 用户签名 / 日期 | ______________________ |
 | Chief 整理时间 | ______________________ |
 | 备注 | 采集只产参考、不做数值判定；窗口内只跑 (B) 一条 GPU 命令 |
+
+## 9. 签字与 authoring-only util<60 例外（已签）
+
+- **窗口计划**：user via Chief **2026-10-30T23:10:52+08:00** approve（scope 四项见 `materials/window-plan.txt`）；被批准的 plan 版本 sha256 `42791918e7b6aa2977752b5fe065590616f56d57f711479a1062ec719865935d`。
+- **authoring-only 例外**：user via Chief **2026-10-31T00:00+08:00**，`mode=authoring_only_exception_util_lt_60`，同一签字覆盖本窗与 SDF 采集窗；五要素与例外 monitor 命令（`-MaxUtil 60`、新 CSV `target/render-bvh/perworld-capture-window/monitor-pre-window-attempt1.csv`、PowerShell 5.1）见 `materials/window-plan.txt` 的 `EXCEPTION BLOCK`。
+- **原失败留档**：本窗未跑常规 `util<40` monitor（Chief 指令：共享 SDF 窗口失败 + 用户签字后直接走例外路径）；常规计划文本原样保留，共享失败记录在 `docs/development-evidence/render-bvh/sdf-capture/monitor/monitor-pre-window-regular-failure.csv`。
+- **例外生效证据口径**：从例外 CSV 独立重算 util≥40 仍 clean 的样本与连续段、`ge60=0`、`util_max<60`；全 <40 则记 `exception_effectively_not_load_bearing=true`，不得声称 60 门槛生效。

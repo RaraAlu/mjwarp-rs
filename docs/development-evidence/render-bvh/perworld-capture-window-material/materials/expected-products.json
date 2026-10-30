@@ -46,6 +46,7 @@
     "baseline_free_mib": "min(free) of the 3 samples",
     "floor_mib": "baseline_free_mib - 3072",
     "threshold": "util < 40, no pre-approved exception, do not pass -OpenUtilLimit",
+    "threshold_note": "the regular util<40 text is retained verbatim; a user-signed authoring-only util<60 exception (2026-10-31T00:00+08:00) supersedes it for this run - see the exception object below",
     "stop_on": ["any non-zero exit", "two captures differ", "legacy manifest differs (69)", "write outside subtree", "free below floor", "foreign GPU load or util >= 40"]
   },
   "expected_products": {
@@ -63,10 +64,23 @@
     "legacy manifest excludes the whole scene-a/perworld/ subtree (QA review O3); finer-grained checks deferred to the implementation slice"
   ],
   "user_signature": {
-    "plan_sha256": "to be filled after signing",
-    "decision": "pending",
-    "signed_by": "",
-    "signed_at": ""
+    "plan_sha256": "42791918e7b6aa2977752b5fe065590616f56d57f711479a1062ec719865935d",
+    "decision": "approve",
+    "signed_by": "user via Chief 2026-10-30T23:10:52+08:00",
+    "signed_at": "2026-10-30T23:10:52+08:00",
+    "chief_collated_at": "2026-10-30T23:11+08:00"
+  },
+  "exception": {
+    "mode": "authoring_only_exception_util_lt_60",
+    "approved_by": "user via Chief 2026-10-31T00:00+08:00",
+    "scope": "per-world capture window AND the SDF capture window",
+    "not_a_normal_threshold_pass": true,
+    "authoring_exception_used": true,
+    "signature_unchanged": true,
+    "original_normal_threshold_attempts_retained": "no first-party normal util<40 monitor was run for this window (Chief order went directly to the exception path after the shared SDF-window failure and the user signature); regular plan text retained; shared failure record docs/development-evidence/render-bvh/sdf-capture/monitor/monitor-pre-window-regular-failure.csv",
+    "exception_monitor_command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\validate\\render-bvh\\monitor-until-clean.ps1 -OutCsv target\\render-bvh\\perworld-capture-window\\monitor-pre-window-attempt1.csv -Required 60 -MaxMinutes 30 -MaxUtil 60",
+    "load_bearing_rule": "exception_load_bearing = (util>=40 samples recorded clean with the streak continuing); ge60 must be 0 and util_max < 60; if all 60 samples are < 40 record exception_effectively_not_load_bearing=true",
+    "shell_constraint": "Windows PowerShell 5.1 only"
   },
   "not_claimed": ["渲染数值验收通过", "采集已完成", "等价"]
 }
