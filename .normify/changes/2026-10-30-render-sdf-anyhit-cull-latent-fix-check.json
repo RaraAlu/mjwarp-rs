@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-30-render-sdf-anyhit-cull-latent-fix-check",
+  "title": {
+    "zh": "SDF any-hit 背面剔除 latent fix 独立复核（两文件 diff/内核身份三值/host 拒绝语义/旧引用不回改/门禁；只读不跑设备）",
+    "en": "Independent check of the SDF any-hit backface-cull latent fix (two-file diff, kernel identity, host rejection semantics, retained history references, gates; read-only, no device execution)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 `2026-10-30-render-sdf-anyhit-cull-latent-fix`（已 verified；pin revision = `f63834e0`）。本片是 latent 对齐，**不解除 host 对 `gtype==8` 的拒绝、不实现 SDF 求交**：① `src/render/kernel/cuda/render_common.cu` 的 any-hit cull 排除表加 `gtype == 8`（+ 解锁契约注释）；② `src/render/kernel/megakernel.rs` 把 host 拒绝抽成 `reject_sdf_geometry`（错误串不变）并加 2 条 host-only 单测钉住不可达前提。复核点：两文件 diff 与行数、内核身份新旧三值（含 `aa_resolve` 不变）、旧身份引用清单与「历史证据不回改」、host 拒绝语义不变 + 2 条单测、`src` 外零改动 / R08·R02 证据 unchanged、四门禁（unit 1108）、`--no-run` exit 0 + Finished、validate 错误 0、以及**提交映射不理想的事实**。**QA 只读**：不跑设备执行、不改证据；可跑纯编译门（`cargo test --no-run`）与只读重算。",
+    "en": "Read-only QA review of the SDF latent fix at pin f63834e0: cull exclusion for gtype==8, unlock-contract comment, host-rejection extraction with unchanged error string plus two host-only unit tests, kernel identity old/new, retained history references, boundaries, gates, and the disclosed non-ideal commit mapping. No device execution; no evidence edits."
+  },
+  "modules": {},
+  "acceptance": [
+    "**两文件 diff 与行数**：相对 pin `f63834e0` 的 `git diff --stat e6eb0c9a..f63834e0 -- src` 只含 `render_common.cu` 与 `megakernel.rs`（+43 / −8）；行数 `render_common.cu` 410→**414**、`megakernel.rs` 409→**440**；`cull_this` 的 any-hit 排除表为 `gtype == 7 || gtype == 1 || gtype == 8`，且 `gtype==8` 占位分支注释含「命中 d=0 / 未命中 d=-1 / 不填 normal / 不剔背」的解锁契约并指向 gap 卡 `2026-10-28-render-shadow-sdf-gtype-cull-gap`。",
+    "**内核身份三值（新旧）**：`MEGAKERNEL_SOURCE` `e68e3412…`→ **`be4ef01b1ae45188ac512c91cfef60244a1f8b6670307b245ae1719a34cf5f5e`**；PTX `0b947492…`→ **`4dae03ffb3fe82214da930714c7fd1ccb6a2c8d5c5eb7cc8e489624b4e7dd085`**；bytes 268,275→**268,305**；`aa_resolve` 三值 **未变**（`0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76` / `b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70` / 27,536）。QA 可用 NVRTC 纯编译复算（`cargo test --locked --features cuda-probe --test render_kernel_flags flag_and_aa_sources_compile_under_render_gate -- --ignored --nocapture`，不建 GPU 会话、不跑渲染）。",
+    "**旧引用清单与历史不回改**：`materials/kernel-identity-refs.txt` 列全仓旧三值引用（59 行 / 31 文件；docs 历史证据 55 行 / 27 文件；fixtures 4 行属无关 hex 载荷；`src`/`tests`/`scripts` 活体断言 **0**）；QA 独立 grep 复核计数与分类；`docs/development-evidence/**` 历史文件在本片 diff 中 **零改动**（历史证据保留当时身份）。",
+    "**host 拒绝语义不变 + 单测**：`reject_sdf_geometry` 对含 8 的输入返回 `LauncherError::Unsupported(\"S7b3 不含 SDF 求交\")`（错误串逐字不变），非 8 输入 Ok；`#[cfg(test)] mod sdf_geometry_guard_tests` 的两条测试存在且在 `unit` 门禁内通过（unit 1108 passed / 0 failed，较上片 +2）。QA 独立确认「含 `gtype==8` 的模型无法到达设备」这一不可达前提。",
+    "**边界与门禁**：`git diff` 相对 pin 只含 `src/render/kernel/**` 两文件、本卡/上卡记录、`.normify/runs` 与本片证据目录；不改 81 槽 ABI/判据/容差/参考/`cast.rs`/`.cu` 其它文件；R08·R02 证据目录 unchanged 成立；`cargo test --locked --no-run` exit 0 且含 `Finished`；`normify validate --fingerprints` 错误 0（警告 5 为既有）；`--no-run` 与 gate 日志/`receipt.json`/`manifest.txt` 可核。",
+    "**提交映射事实（按内容核，不按 message 核）**：本片代码+证据实际在 **`d132336c`**（该提交的消息是「治理(排程): 归档 SDF latent fix 卡记录（verified + addenda，工作提交随 Fixes）」——原因是先前暂存区已含 src/证据，被一并提交），addendum 记录在 **`f63834e0`**。**不改写历史**；QA 复核顺序建议：先按 `git diff e6eb0c9a..f63834e0` 核内容，再按 `git show --stat d132336c` 核文件集合；结论里注明「提交 message 与内容不匹配，内容与证据自洽」，不据此判阻断。",
+    "**不宣称**：本片不解除 host 拒绝、不实现/不宣称 SDF 求交、不宣称任何渲染数值结论；QA 也不得把「latent 对齐」写成「SDF 能力已具备」。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-30-render-sdf-anyhit-cull-latent-fix"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/sdf-anyhit-cull-latent-fix-check/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-10-30 预登记（Chief 要求 SDF fix 收口后立刻注册 QA 复核卡）。**pin revision = `f63834e0`**（tree 干净；fix 卡已 verified）。复核对象：`docs/development-evidence/render-bvh/sdf-anyhit-cull-latent-fix/`（README/receipt/logs 6 份/materials 2 份/manifest）+ `src/render/kernel/cuda/render_common.cu` + `src/render/kernel/megakernel.rs`。**只读**：不跑设备执行、不改证据；可跑纯编译门与只读重算。**必须写进复核结论的两条**：① 提交映射不理想（代码+证据在 `d132336c` 的消息是卡记录、addendum 在 `f63834e0`；不改写历史，按内容核不按 message 核）；② 本片不解除 host 拒绝、不实现 SDF 求交（gap 卡 `2026-10-28-render-shadow-sdf-gtype-cull-gap` 仍 open，解锁片另立）。**另记**：本片改了 `render_common.cu` ⇒ 未来任何窗口的测试 exe 哈希都会变；R05/R02/R08 的 guards 是历史产物、不复跑，新窗口一律新冻结、不复用旧 guards。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-30T13:10:00.000Z",
+  "updated_at": "2026-10-30T13:10:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-anyhit-cull-latent-fix-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-30-render-sdf-anyhit-cull-latent-fix-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "SDF 渲染已覆盖",
+        "渲染数值验收通过",
+        "等价"
+      ]
+    }
+  ]
+}
