@@ -208,6 +208,11 @@ fn shadow_toggle_consistency() {
         sdf_compare::hash_depth(&again_off.depth),
         "shadow-off 两跑 depth sha"
     );
+    assert_eq!(
+        sdf_compare::hash_seg(&rendered_off.seg),
+        sdf_compare::hash_seg(&again_off.seg),
+        "shadow-off 两跑 seg sha"
+    );
 }
 
 /// GPU：DepthSeg 跨路径一致性（megakernel vs `render_depth_seg`，cam 全量位级）。

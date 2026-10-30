@@ -8,7 +8,7 @@
 
 | 文件 | 行数 | 说明 |
 | --- | --- | --- |
-| `tests/render_sdf_reference.rs` | 361 | 8 用例：host 3（模型 dump 语义 / 参考自证 / SDF 用 mesh bounds）+ GPU 5（两组参考比对 / shadow 一致性 / DepthSeg 跨路径 / 两跑确定性） |
+| `tests/render_sdf_reference.rs` | 366 | 8 用例：host 3（模型 dump 语义 / 参考自证 / SDF 用 mesh bounds）+ GPU 5（两组参考比对 / shadow 一致性 / DepthSeg 跨路径 / 两跑确定性） |
 | `tests/support/render_bvh/sdf.rs` | 372 | U3 参考加载与硬断言（capture.json 全字段 + npz sha 对 `files_sha256`，仿 `hfield.rs`） |
 | `tests/support/render_bvh/sdf_scene.rs` | 323 | 产品场景装配（mesh 0 → `MeshState`、SDF leaf size=mesh bounds、pose=geom_pos/单位 quat） |
 | `tests/support/render_bvh/sdf_compare.rs` | 260 | 比较统计 + 判据断言 + shadow 一致性 + DepthSeg 跨路径 |
@@ -43,3 +43,13 @@
 | `materials/file-identity.txt` | 5 个新文件行数/bytes/非 ASCII/sha |
 | `materials/changed-files.txt` | 纯新增文件清单（无产品源码改动） |
 | `materials/freezer-checks.txt` | 冻结器 ASCII/行数/PSParser/实体顺序/预期计数 |
+
+## 5. QA 需修修复（2026-10-31，freeze 前）
+
+| # | 需修 | 修法 |
+| --- | --- | --- |
+| P1 | `receipt.gates.unit` 写 392 ignored（U1b 旧值） | 改为 **397**（U1b 后 392 + 本片 5 条新 ignored GPU 用例）；`logs/gate-unit.txt`/`runs/unit.json` 本即 397 |
+| P2 | shadow-off 臂缺 seg 两跑 sha | `shadow_toggle_consistency` 的 off 臂补 1 条 seg sha 断言（语义不变，两臂各有 rgb/depth/seg 两跑 sha）；补后文件 366 行（≤500），host 3 passed / 5 ignored，unit 复跑 1109/0/397 |
+| O1 | 材料预算 260–360 与实际不符 | 材料 amend 已把预算改为「≤400」（本片实际 366 行） |
+
+- freeze 尚未发生，故代码修改不会使任何已冻结 guards 失效；`render_sdf_reference` 的 exe 会在窗口 freeze 时自然生成。
