@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-sphere-dot-a-order-fix-check",
+  "title": {
+    "zh": "球面 a=dot(vec,vec) 收缩次序 fix 独立复核（单文件 diff/内核身份新旧/RCA 复现/gates/历史证据未改写）",
+    "en": "Independent check of the sphere `a = dot(vec,vec)` contraction-order fix (single-file diff, kernel identity before/after, RCA reproduction, gates, untouched historical evidence)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读复核 fix 片 `2026-10-31-render-sdf-sphere-dot-a-order-fix`。pin revision = **`8126868c`**（收口提交：render_math.cu + 证据 + 门禁 runs + 模块指纹；**该提交 message 误写为「治理(渲染): 复核卡去掉 in_progress 依赖」，按「不改写历史」保留，卡 addendum `1e814b92` 记录映射事实——按 `git show` 内容核，不按 message 核**）。复核点：只改 `render_math.cu::render_sphere_hit` 的 `a`（`dot3_ch0` → `dot3_ba`）+ 删 helper + 注释更正；`b`/`dd`/融合 det/`1/a`/根选择/depth 乘法/相机处理/判据/容差/参考/fixtures 零改动；内核身份新旧三值；RCA 结论与证据自洽（44/44、432 变体）；门禁与构建；R02/R05/R08/R09 与 sdf 系列历史证据零改写。**只读**：不跑 GPU、不窗口、不冻结、不改仓。",
+    "en": "Read-only check at pin 8126868c (check by content, not by message): only the sphere `a` contraction order changed in render_sphere_hit plus helper removal and comment correction; everything else untouched; kernel identity before/after; RCA evidence consistency; gates; historical evidence untouched."
+  },
+  "modules": {},
+  "acceptance": [
+    "**改动范围**：`git show 8126868c -- src/render/kernel/cuda/render_math.cu` 只有：`render_sphere_hit` 的 `float a = dot3_ba(vec.x, vec.y, vec.z, vec.x, vec.y, vec.z);`、删除 `dot3_ch0`、注释更正（+12/−13）；`b = dot3_ba(...)`、`dd = dot3_ba(...)`、`det = __fmaf_rn(b, b, -__fmul_rn(a, c))`、`__frcp_rn`、根选择、`depth = dist * -local_dir_z` 均为原样；`src` 其它文件零改动（`git diff --stat` 仅该文件 + 证据 + `.normify`）。",
+    "**RCA 一致性**：证据 `materials/rca-summary.txt` 与 `target/sphere-depth-rca.md` 口径一致——44 个诊断像素产品链 44/44 自复现；432 变体中唯一复现参考的是 `a=(1,0,2) b=(1,0,2) det=fused`（44/44），产品原 `a=(0,1,2)` 对参考 0/44；掠射 `det≈0` 放大机制；3.12/3.15 parity 排除（cam/geom f64 逐位相同）；S7b1/S8 probe 样本无反例。证据不得把 RCA 结论当成「渲染数值验收通过」。",
+    "**内核身份新旧三值**：`logs/kernel-identity.txt` 记录 megakernel source `778216b2…` → `eb0e717f…`、PTX `34f91147…` → `7782aeb1…`、PTX bytes 268,589（同长不同内容）、aa_resolve 不变（`0bf8af5a…`/`b28e155c…`/27,536）；并明确「内核身份已变 ⇒ U4 attempt3 必须全新冻结，attempt1/2 的 92 条不得复用」。",
+    "**门禁与构建**：`logs/gate-*.txt` 四个门禁 JSON：fmt/clippy/clippy-cuda/unit 全绿、**unit 1111 过 / 0 败 / 397 ignored**；`logs/no-run.txt` 含 `Finished` 与 `EXIT=0`（转写快照，权威见 `.normify/runs/<task>/`）；`materials/validate.txt` 错误 0；`dot3_ch0` 删除后 clippy 无未使用告警。",
+    "**历史证据与边界**：`fixtures/render-bvh`、`r02-skybox-s3-validate`、`r05-s3b-hfield-validate`、`r08-rgb-hetero-validate`、`r09-s3b-shadow-validation`、`sdf-validate-window`、`sdf-host-unlock-rollback`、`sdf-validate-window-material`、`sdf-reference-target` 在本片范围内零改动（卡面 `unchanged` 检查通过）；本片未跑 GPU/窗口/冻结，未改判据/容差/参考；证据 manifest 自洽、LF 无 BOM、禁词 0。",
+    "**提交映射**：8126868c 的 message 与内容不符（误写为治理提交），卡 addendum `1e814b92` 已如实记录；QA 按内容核、不要求改写历史；若发现除 message 之外的映射问题记需修。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-10-31-render-sdf-sphere-dot-a-order-fix"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/render-bvh/sphere-dot-a-order-fix-check/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册（Chief 要求 fix 片复核卡）。pin revision = `8126868c`；`revision.before = null`（proposed，QA start 时记录）。复核对象：`src/render/kernel/cuda/render_math.cu`、`docs/development-evidence/render-bvh/sphere-dot-a-order-fix/`（README/receipt/rca-summary/src-diff/gate 快照/kernel-identity/no-run/validate/manifest）、`.normify/changes/2026-10-31-render-sdf-sphere-dot-a-order-fix.json`（含 addendum `1e814b92` 的提交映射说明）、`target/sphere-depth-rca.md`（工作树读取，不入库）、`target/rca/*.py`（复现脚本）。只读：不跑 GPU、不重跑窗口、不冻结。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-31T04:00:00.000Z",
+  "updated_at": "2026-10-31T04:00:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sphere-dot-a-order-fix-check/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-sphere-dot-a-order-fix-check"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
