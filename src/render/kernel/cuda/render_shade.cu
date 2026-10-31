@@ -7,11 +7,11 @@
 // 精度对齐方法沿用 S7b1：参考 megakernel 由 warp 1.15 自带 NVRTC（CUDA 12.9、sm_89）编译，
 // 产品是 CUDA 12.8.1 / compute_70，同一 C++ 表达式的 fma 收缩顺序可能不同。因此涉及
 // dot/normalize/atan2/asin/pow 的关键表达式用显式 `__fmul_rn`/`__fmaf_rn`/`__fsub_rn`
-// 固定上游顺序（点积见 `dot3_ba`/`dot3_ch0`，normalize 见 `normalize3_rays`），其余交给
+// 固定上游顺序（点积见 `dot3_ba`，normalize 见 `normalize3_rays`），其余交给
 // 8 位量化吸收；对比口径是「解包后每通道 ≤1 LSB」，不做任何容差放宽。
 //
 // 本文件被 `mod.rs::MEGAKERNEL_SOURCE` 接在 `render_common.cu` 之后、`render_megakernel.cu`
-// 之前，因此可用 `V3` 辅助、`normalize3_rays`、`dot3_ba`/`dot3_ch0`、`geom_rgba`。
+// 之前，因此可用 `V3` 辅助、`normalize3_rays`、`dot3_ba`、`geom_rgba`。
 
 __device__ __forceinline__ float safe_div_render(float x, float y) {
     return x / (y != 0.0f ? y : 1.0e-15f);
