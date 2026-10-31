@@ -5,7 +5,7 @@
     "zh": "球轮廓 body 期解析阻断修复（9 列原型清单无 metadata → 改读 outline-lists.json 单一真相源；fail-closed）",
     "en": "sphere-outline body-time parser blocker fix (9-column prototype lists carry no metadata -> read outline-lists.json as the single source of truth; fail-closed)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "修复 QA 新阻断：已签原型 9 列清单没有 rows/exact_max_ulp/bound_ulp header，而 env-gated 测试支持 parse_list 直接 panic，窗口 body 必 INVALID_ROUND。改为：列表文件保持原型逐字节（不加 header），rows/exact_max_ulp/bound_ulp 从同目录 outline-lists.json 读取，并与清单 data rows、唯一像素数、sha256、bytes、first_pixel 交叉校验；freeze/runner/body 三方共用同一 JSON 记录。新增 CPU-only 回归：committed 原型 9 列清单 + JSON 解析成功、env 启用成功路径、env 缺 JSON panic、JSON rows 不符/重复像素/bound!=128/exact_max>128 panic；单测 6→10。单测拆到 outline_tests.rs 以过 500 行棘轮。",
     "en": "Fix the QA blocker: the signed prototype 9-column lists carry no rows/exact_max_ulp/bound_ulp header, so the env-gated parser panics and the window body would be INVALID_ROUND. The list files stay prototype byte-identical; rows/exact_max_ulp/bound_ulp come from the sibling outline-lists.json and are cross-checked against the list (data rows, unique pixels, sha256, bytes, first pixel). Freeze, runner and body-time support consume the same JSON record. Adds CPU-only regressions (committed prototype list + JSON parse, env-enabled success path, env-enabled missing-JSON panic, JSON rows mismatch / duplicate pixels / wrong bound / exact max over bound panics); unit tests 6 -> 10. Tests split into outline_tests.rs to stay under the 500-line ratchet."
@@ -32,11 +32,12 @@
   },
   "note": "Arch 2026-11-01 注册（QA 开窗前阻断修复；零 GPU）。旧测试支持卡保持 verified 不动；本卡承接 body 期解析修复并更新其证据目录。",
   "revision": {
-    "before": "9e83c4b6313fddd66e460e218ebf4286dc055b46",
+    "before": "518fe991028fb0df3b3d19b4215c1a2cd502c3b8",
     "after": null
   },
   "created_at": "2026-11-01T04:30:00.000Z",
-  "updated_at": "2026-10-31T19:12:53.364Z",
+  "updated_at": "2026-10-31T19:13:24.194Z",
+  "closed_at": "2026-10-31T19:13:24.194Z",
   "checks": [
     {
       "kind": "json",

@@ -18,10 +18,11 @@
   "fail_closed_matrix": [
     "only one env var set or REQUIRE != 1 -> panic",
     "list missing / unreadable -> panic",
-    "# rows != data rows -> panic",
+    "outline-lists.json missing / invalid -> panic",
+    "JSON arm entry missing, or JSON rows != data rows -> panic",
     "duplicate pixel indices -> panic",
-    "# bound_ulp != 128 -> panic",
-    "# exact_max_ulp > 128 -> panic",
+    "JSON / list sha256, bytes or first pixel mismatch -> panic",
+    "bound_ulp != 128 or exact_max_ulp > 128 -> panic",
     "malformed row / pixel out of range -> panic",
     "cam1 outside-list delta != 0 -> panic",
     "cam1 in-list delta > 128 ULP -> panic",
@@ -31,9 +32,13 @@
   "files": {
     "new": {
       "tests/support/render_bvh/outline.rs": {
-        "bytes": 15625,
-        "lines": 473,
-        "sha256": "8ad0f94db3d6d38df712ad5c9313bc2a86cc6d01dd529dc5f836191d6d192ba5"
+        "bytes": 16640,
+        "lines": 445,
+        "sha256": "8d6a531578ee6cc8caeee47a4fe6ea91e4f17d46271c081ad22c25929a502393"
+      },
+      "tests/support/render_bvh/outline_tests.rs": {
+        "lines": 206,
+        "sha256": "f0f84715bca7ee0cae3d34d05e1a98cda81441e2bf261f57c47881880ee67433"
       }
     },
     "modified": {
@@ -70,7 +75,7 @@
     },
     "product_src_changed": false,
     "fixtures_changed": false,
-    "line_ratchet": "all touched/added files <= 500 lines (s7b1 477, flags 499, e2e 500, outline 473, skybox 475, rgb 309, r10 298)"
+    "line_ratchet": "all touched/added files <= 500 lines (s7b1 477, flags 499, e2e 500, outline 445, outline_tests 206, skybox 475, rgb 309, r10 298)"
   },
   "wiring": {
     "recipe_arm_consumers": [
@@ -92,7 +97,7 @@
   "unit_tests": {
     "log": "logs/outline-tests.txt",
     "command": "cargo test --locked --test render_kernel_depth_seg outline",
-    "result": "6 passed / 0 failed (valid parse, row mismatch panic, duplicate-pixel panic, wrong bound panic, exact max over bound panic, ulp ordering)"
+    "result": "10 passed / 0 failed (valid parse, missing JSON, JSON rows mismatch, duplicate pixels, wrong bound, exact max over bound, ULP ordering, committed prototype list regression, env-enabled success, env-enabled missing JSON)"
   },
   "gates": {
     "fmt": "cargo fmt --check passed",
@@ -110,8 +115,10 @@
   ],
   "next": "slice 4 freeze/runner extension (94 guards entries + list checks + env export + list immutability); slice 5 attempt4 material v3; slice 6 double-sign package",
   "hardening_2026_11_01": [
-    "parse_list now also asserts unique pixel count == data rows (duplicate pixel indices panic, fail-closed)",
-    "duplicate comment lines at s7b1 compare_reference removed",
-    "unit-test count 5 -> 6 (duplicate-pixel rejection)"
-  ]
+    "blocker fix: the 9-column prototype lists carry no metadata header; the env-gated parser now reads rows/exact_max_ulp/bound_ulp from outline-lists.json (single source of truth) and cross-checks sha256/bytes/first pixel against the list; unit tests cover the env-enabled success path and the committed prototype list",
+    "parse_list asserts unique pixel count == data rows (duplicate pixel indices panic, fail-closed)",
+    "unit tests moved to outline_tests.rs to stay under the 500-line ratchet (outline 445 / tests 206)",
+    "duplicate comment lines at s7b1 compare_reference removed"
+  ],
+  "metadata_source_of_truth": "the 9-column list files remain the signed proposal prototype byte-for-byte; rows / exact_max_ulp / bound_ulp come from outline-lists.json written next to the lists and are cross-checked against the list (rows, unique pixels, sha256, bytes, first pixel). Freeze, runner and body-time support consume the same JSON record."
 }

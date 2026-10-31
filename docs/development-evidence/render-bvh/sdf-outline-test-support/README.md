@@ -11,6 +11,12 @@ time, without changing the product `src/` and without changing any assertion tex
 **env-gated**: plain `cargo test` / CI is unchanged; only the validation-window runner exports
 the two variables.
 
+Metadata source of truth: the 9-column list files stay the signed proposal prototype
+byte-for-byte (no extra header lines). `rows`, `exact_max_ulp` and the signed `bound_ulp` are
+read from the machine-readable `outline-lists.json` that the authoring tool writes next to the
+lists, and cross-checked against the list (data rows, unique pixels, sha256, bytes, first pixel).
+Freeze, runner and body-time support all consume the same JSON record, so the three cannot drift.
+
 Env contract (window runner sets them; see slice 4):
 
 | variable | meaning |
@@ -26,8 +32,11 @@ Fail-closed matrix (all panics, never silent relaxation):
 | list file missing / unreadable | panic |
 | `# rows:` != number of data rows | panic |
 | `# bound_ulp:` != 128 | panic |
-| `# exact_max_ulp:` > 128 | panic |
+| `outline-lists.json` missing / invalid | panic |
+| JSON arm entry missing, or JSON rows != data rows | panic |
 | duplicate pixel indices (rows != unique pixels) | panic |
+| JSON / list sha256, bytes or first pixel mismatch | panic |
+| JSON `bound_ulp` != 128 or `exact_max_ulp` > 128 | panic |
 | malformed row / pixel index out of range | panic |
 | cam 1 pixel outside the list with a non-zero delta | panic (violation) |
 | cam 1 in-list pixel > 128 ULP | panic (violation) |
@@ -60,9 +69,12 @@ Product `src/` untouched; fixtures/criteria values/kernel untouched; assertion t
 
 ## Unit tests (run without GPU, no env)
 
-`tests/support/render_bvh/outline.rs` adds six non-ignored tests: valid parse, row-count
-mismatch panic, duplicate-pixel panic, wrong-bound panic, exact-max-over-bound panic, and ULP
-ordering. Captured log: `logs/outline-tests.txt` (`6 passed; 0 failed`).
+`tests/support/render_bvh/outline.rs` (module) + `outline_tests.rs` add ten non-ignored tests:
+valid parse, missing-JSON panic, JSON-row mismatch panic, duplicate-pixel panic, wrong-bound
+panic, exact-max-over-bound panic, ULP ordering, a CPU-only regression on the **committed
+prototype 9-column list** (183 rows / exact max 73), an env-enabled success path (both variables
+set, prototype list + JSON in a temp dir) and an env-enabled missing-JSON panic. Captured log:
+`logs/outline-tests.txt` (`10 passed; 0 failed`).
 
 ## Boundaries
 

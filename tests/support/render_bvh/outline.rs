@@ -93,47 +93,18 @@ pub struct OutlineList {
     pub entries: BTreeMap<usize, i64>,
 }
 
-/// Parse one frozen list; panics (fail-closed) on any inconsistency.
-pub fn parse_list(text: &str, arm: Arm, path: &std::path::Path) -> OutlineList {
-    let mut header_rows: Option<usize> = None;
-    let mut exact_max: Option<i64> = None;
-    let mut bound: Option<i64> = None;
+/// Parse the 9-column data rows of one frozen list (signed prototype format).
+///
+/// The prototype list carries no metadata header; rows / exact_max_ulp / bound_ulp come from
+/// the machine-readable `outline-lists.json` written by the authoring tool next to the lists
+/// (single source of truth for freeze, runner and body-time support).
+fn parse_rows(text: &str, path: &std::path::Path) -> (BTreeMap<usize, i64>, usize, usize) {
     let mut entries = BTreeMap::new();
     let mut data_rows = 0usize;
     let mut max_pixel_seen = 0usize;
     for (line_no, line) in text.lines().enumerate() {
         let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-        if let Some(rest) = line.strip_prefix('#') {
-            let rest = rest.trim();
-            if let Some(value) = rest.strip_prefix("rows:") {
-                header_rows = Some(
-                    value
-                        .trim()
-                        .parse()
-                        .unwrap_or_else(|_| panic!("{}: bad `# rows` header", path.display())),
-                );
-            } else if let Some(value) = rest.strip_prefix("exact_max_ulp:") {
-                exact_max = Some(
-                    value
-                        .trim()
-                        .parse()
-                        .unwrap_or_else(|_| panic!("{}: bad `# exact_max_ulp`", path.display())),
-                );
-            } else if let Some(value) = rest.strip_prefix("bound_ulp:") {
-                let digits: String = value
-                    .trim()
-                    .chars()
-                    .take_while(|c| c.is_ascii_digit())
-                    .collect();
-                bound = Some(
-                    digits
-                        .parse()
-                        .unwrap_or_else(|_| panic!("{}: bad `# bound_ulp`", path.display())),
-                );
-            }
+        if line.is_empty() || line.starts_with('#') {
             continue;
         }
         let fields: Vec<&str> = line.split_whitespace().collect();
@@ -154,35 +125,103 @@ pub fn parse_list(text: &str, arm: Arm, path: &std::path::Path) -> OutlineList {
         max_pixel_seen = max_pixel_seen.max(pixel);
         data_rows += 1;
     }
-    let rows =
-        header_rows.unwrap_or_else(|| panic!("{}: missing `# rows:` header", path.display()));
-    let exact_max = exact_max
-        .unwrap_or_else(|| panic!("{}: missing `# exact_max_ulp:` header", path.display()));
-    let bound =
-        bound.unwrap_or_else(|| panic!("{}: missing `# bound_ulp:` header", path.display()));
+    (entries, data_rows, max_pixel_seen)
+}
+
+/// Name of the machine-readable metadata file written next to the lists.
+pub const LISTS_JSON: &str = "outline-lists.json";
+
+fn json_u64(doc: &serde_json::Value, key: &str, path: &std::path::Path) -> u64 {
+    doc.get(key)
+        .and_then(|value| value.as_u64())
+        .unwrap_or_else(|| panic!("{}: missing/invalid `{key}`", path.display()))
+}
+
+/// Parse one frozen list together with its metadata JSON; panics (fail-closed) on any
+/// inconsistency: missing JSON, arm entry missing, rows != data rows, duplicate pixels,
+/// exact max > 128, bound != 128, list bytes/sha or first pixel mismatch.
+pub fn parse_list_with_json(
+    list_text: &str,
+    json_text: &str,
+    arm: Arm,
+    dir: &std::path::Path,
+) -> OutlineList {
+    let path = dir.join(arm.list_file());
+    let json_path = dir.join(LISTS_JSON);
+    let (entries, data_rows, max_pixel_seen) = parse_rows(list_text, &path);
+    let list_bytes = list_text.len();
+    let list_sha = {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(list_text.as_bytes());
+        format!("{:x}", hasher.finalize())
+    };
+    let doc: serde_json::Value = serde_json::from_str(json_text)
+        .unwrap_or_else(|error| panic!("{}: invalid JSON: {error}", json_path.display()));
+    assert_eq!(
+        doc.get("criterion_version").and_then(|v| v.as_str()),
+        Some("render-sdf-criterion-v2.1"),
+        "{}: criterion_version is not render-sdf-criterion-v2.1",
+        json_path.display()
+    );
+    let bound = json_u64(&doc, "bound_ulp", &json_path);
+    assert_eq!(
+        bound,
+        BOUND_ULP as u64,
+        "{}: bound_ulp {bound} is not the signed {BOUND_ULP}",
+        json_path.display()
+    );
+    let arms = doc
+        .get("arms")
+        .and_then(|value| value.as_array())
+        .unwrap_or_else(|| panic!("{}: missing `arms`", json_path.display()));
+    let entry = arms
+        .iter()
+        .find(|entry| entry.get("arm").and_then(|v| v.as_str()) == Some(arm.label()))
+        .unwrap_or_else(|| panic!("{}: no entry for arm {}", json_path.display(), arm.label()));
+    let rows = json_u64(entry, "rows", &json_path) as usize;
+    let exact_max = json_u64(entry, "exact_max_ulp", &json_path) as i64;
+    let first_pixel = json_u64(entry, "first_pixel", &json_path) as usize;
     assert_eq!(
         rows,
         data_rows,
-        "{}: `# rows: {rows}` does not match {data_rows} data rows (fail-closed)",
-        path.display()
+        "{}: arm {} rows {rows} != {data_rows} data rows (fail-closed)",
+        json_path.display(),
+        arm.label()
     );
     assert_eq!(
         entries.len(),
         data_rows,
         "{}: {data_rows} data rows contain duplicate pixel indices ({} unique, fail-closed)",
-        path.display(),
+        json_path.display(),
         entries.len()
-    );
-    assert_eq!(
-        bound,
-        BOUND_ULP,
-        "{}: `# bound_ulp: {bound}` is not the signed {BOUND_ULP}",
-        path.display()
     );
     assert!(
         exact_max <= BOUND_ULP,
-        "{}: exact_max_ulp {exact_max} exceeds the signed bound {BOUND_ULP}",
-        path.display()
+        "{}: arm {} exact_max_ulp {exact_max} exceeds the signed bound {BOUND_ULP}",
+        json_path.display(),
+        arm.label()
+    );
+    assert_eq!(
+        entry.get("sha256").and_then(|v| v.as_str()),
+        Some(list_sha.as_str()),
+        "{}: arm {} list sha256 mismatch (list bytes changed vs the freeze-time record)",
+        json_path.display(),
+        arm.label()
+    );
+    assert_eq!(
+        json_u64(entry, "bytes", &json_path) as usize,
+        list_bytes,
+        "{}: arm {} list bytes mismatch",
+        json_path.display(),
+        arm.label()
+    );
+    assert_eq!(
+        first_pixel,
+        entries.keys().next().copied().unwrap_or(usize::MAX),
+        "{}: arm {} first_pixel mismatch",
+        json_path.display(),
+        arm.label()
     );
     assert!(
         max_pixel_seen < 76_800,
@@ -191,24 +230,37 @@ pub fn parse_list(text: &str, arm: Arm, path: &std::path::Path) -> OutlineList {
     );
     OutlineList {
         arm,
-        path: path.to_path_buf(),
+        path,
         rows,
         exact_max_ulp: exact_max,
-        bound_ulp: bound,
+        bound_ulp: bound as i64,
         entries,
     }
 }
 
-fn load_uncached(arm: Arm) -> OutlineList {
-    let path = list_dir().join(arm.list_file());
-    let text = std::fs::read_to_string(&path).unwrap_or_else(|error| {
+/// Load one arm's frozen list + metadata from a directory (env-gated callers use `list_dir()`).
+pub fn load_from_dir(dir: &std::path::Path, arm: Arm) -> OutlineList {
+    let list_path = dir.join(arm.list_file());
+    let json_path = dir.join(LISTS_JSON);
+    let list_text = std::fs::read_to_string(&list_path).unwrap_or_else(|error| {
         panic!(
             "outline criterion is enabled but the {} list is missing/unreadable at {}: {error}",
             arm.label(),
-            path.display()
+            list_path.display()
         )
     });
-    parse_list(&text, arm, &path)
+    let json_text = std::fs::read_to_string(&json_path).unwrap_or_else(|error| {
+        panic!(
+            "outline criterion is enabled but {} is missing/unreadable at {}: {error}",
+            LISTS_JSON,
+            json_path.display()
+        )
+    });
+    parse_list_with_json(&list_text, &json_text, arm, dir)
+}
+
+fn load_uncached(arm: Arm) -> OutlineList {
+    load_from_dir(&list_dir(), arm)
 }
 
 pub fn list(arm: Arm) -> &'static OutlineList {
@@ -389,85 +441,5 @@ pub fn adjust_recipe_diff(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    const HEADER: &str = "# scene-a sphere-outline exact-difference list\n\
-                          # camera: 1 raster: 240x180\n\
-                          # columns: pixel x y ref_seg_geom ref_seg_type ref_depth_bits formA_bits formB_bits ulp_ab bound_raw margin\n";
-
-    fn sample(rows: usize, exact_max: i64, bound: i64) -> String {
-        let mut text = String::from(HEADER);
-        text.push_str(&format!(
-            "# rows: {rows}\n# exact_max_ulp: {exact_max}\n# bound_ulp: {bound}\n"
-        ));
-        for index in 0..rows {
-            text.push_str(&format!(
-                "{} 0 0 2 5 1 2 3 {} 10.0 11.5\n",
-                index + 100,
-                exact_max.min(index as i64 + 1)
-            ));
-        }
-        text
-    }
-
-    #[test]
-    fn parses_valid_list() {
-        let path = std::path::Path::new("recipe.txt");
-        let parsed = parse_list(&sample(3, 73, 128), Arm::Recipe, path);
-        assert_eq!(parsed.rows, 3);
-        assert_eq!(parsed.exact_max_ulp, 73);
-        assert_eq!(parsed.entries.len(), 3);
-        assert!(parsed.entries.contains_key(&100));
-    }
-
-    #[test]
-    #[should_panic(expected = "does not match")]
-    fn rejects_row_count_mismatch() {
-        let text = sample(3, 73, 128).replace("# rows: 3", "# rows: 2");
-        parse_list(&text, Arm::Recipe, std::path::Path::new("bad.txt"));
-    }
-
-    #[test]
-    #[should_panic(expected = "duplicate pixel indices")]
-    fn rejects_duplicate_pixel_rows() {
-        let mut text = sample(2, 73, 128);
-        text.push_str("100 0 0 2 5 1 2 3 1 10.0 11.5\n");
-        text = text.replace("# rows: 2", "# rows: 3");
-        parse_list(&text, Arm::Recipe, std::path::Path::new("bad.txt"));
-    }
-
-    #[test]
-    #[should_panic(expected = "signed 128")]
-    fn rejects_wrong_bound() {
-        parse_list(
-            &sample(2, 73, 512),
-            Arm::Recipe,
-            std::path::Path::new("bad.txt"),
-        );
-    }
-
-    #[test]
-    #[should_panic(expected = "exceeds the signed bound")]
-    fn rejects_exact_max_over_bound() {
-        parse_list(
-            &sample(2, 512, 128),
-            Arm::Recipe,
-            std::path::Path::new("bad.txt"),
-        );
-    }
-
-    #[test]
-    fn ulp_distance_matches_f32_ordering() {
-        assert_eq!(ulp_distance(1.0f32.to_bits(), 1.0f32.to_bits()), 0);
-        assert_eq!(
-            ulp_distance((1.0f32 + f32::EPSILON).to_bits(), 1.0f32.to_bits()),
-            1
-        );
-        assert_eq!(ulp_distance((-1.0f32).to_bits(), (-1.0f32).to_bits()), 0);
-        assert_eq!(
-            ulp_distance((-1.0f32).to_bits(), (-0.999_999_94f32).to_bits()),
-            1
-        );
-    }
-}
+#[path = "outline_tests.rs"]
+mod tests;
