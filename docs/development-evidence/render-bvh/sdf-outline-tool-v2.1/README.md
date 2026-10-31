@@ -24,38 +24,43 @@ Per arm (`recipe` = spp 1, `aa2` = spp 2 sub-sample 0 on the doubled grid):
 
 | output | content |
 | --- | --- |
-| `scene-a-sphere-outline-<arm>.txt` | exact-difference list: `pixel x y ref_seg_geom ref_seg_type ref_depth_bits formA_bits formB_bits ulp_ab bound_raw margin`, sorted by pixel; header carries criterion version, reference path + sha256, camera/raster, rows, `exact_max_ulp`, `bound_ulp=128` |
-| `outline-lists.json` | machine-readable freeze contract: `criterion_version`, `bound_ulp`, `bound_definition`, per arm `{arm, entities, path, bytes, sha256, rows, first_pixel, first_xy, exact_max_ulp, spp, raster, sphere_pixels, reference, reference_sha256, analytic_bound{bound_raw/margin min/median/max + max observed ratios}}` |
-| `b-recompute.txt` | exact max vs signed B verdict + analytic bounds recorded only |
-| `selfcheck.txt` | ray/form-A/form-B self-check and attempt3 consistency |
+| `scene-a-sphere-outline-<arm>.txt` | **signed proposal prototype, byte-identical**: 9 columns `pixel x y ref_seg_geom ref_seg_type ref_depth_bits formA_bits formB_bits ulp_ab`; header = criterion line, reference path, reference sha256, camera/raster/spp, columns |
+| `outline-bounds-<arm>.txt` | analytic-bound sidecar: header + one row per listed pixel (`pixel bound_raw margin`); recorded only, explicitly not used to determine B |
+| `outline-lists.json` | machine-readable freeze contract: `criterion_version`, `bound_ulp`, `bound_definition`, per arm `{arm, entities, path, bytes, sha256, prototype_byte_identical, bounds_sidecar{path,bytes,sha256}, rows, first_pixel, first_xy, exact_max_ulp, spp, raster, sphere_pixels, reference, reference_sha256, analytic_bound{...}}` |
+| `b-recompute.txt` | exact max vs signed B verdict + prototype identity + analytic bounds recorded only |
+| `selfcheck.txt` | ray/form-A/form-B self-check, prototype byte identity and attempt3 consistency |
 | `open-items.txt` | freeze-step prerequisites owned by the window runner |
 | `sha256sums.txt` | sha256 of every emitted file |
 
-Exit codes: **0** = freeze verdict OK (`exact_max <= 128` and self-check pass); **4** = exact max
-> 128 (v2.1 freeze failure; raising B forbidden); **5** = internal self-check failed; **6** =
+Exit codes: **0** = freeze verdict OK (lists byte-identical to the prototype, `exact_max <= 128`
+and self-check pass); **4** = exact max > 128 (v2.1 freeze failure; raising B forbidden);
+**5** = internal self-check failed (including a prototype byte-identity mismatch); **6** =
 pinned input drift.
 
 Self-check reproduces the frozen data (see `logs/tool-selfcheck.txt`): rays vs S5 fixture
 **256/256** bitwise; form A vs frozen reference depth bits **747/747** (recipe) and **745/745**
 (aa2); list **183 px / exact max 73 ULP** (first 28969 = (169,120)) and **172 px / exact max 91
-ULP** (first 29448 = (168,122)); camera 0 sphere pixels **0**; two runs byte-identical, 6 sha
-re-verified by the wrapper.
+ULP** (first 29448 = (168,122)); camera 0 sphere pixels **0**; the two lists are **byte-identical
+to the signed proposal prototype** (`cfd1038a.. / 10,099 B / 183 rows`, `14893fc6.. / 9,509 B /
+172 rows`); two runs byte-identical, 8 sha re-verified by the wrapper.
 
 ## Contract output sample (self-check run, `target/render-bvh/sdf-validate-window/attempt4/outline-v21-selftest/`)
 
 | file | bytes | sha256 |
 | --- | --- | --- |
-| `scene-a-sphere-outline-recipe.txt` | 13,944 | `43ffaf1b2f8b2dc9b195e7cf78f2e2b69253f2b3d3bd4a975c39d80ff5f68b3c` |
-| `scene-a-sphere-outline-aa2.txt` | 13,130 | `0c37a22022fdb76d852728e7b7552638fc75152f0b5d76fb4b5d2d262dc6bb06` |
-| `outline-lists.json` | 2,356 | `58c57bb369a51bef1510a1109de61d7112d69031954cd50bcd380fb7f41a8c28` |
-| `b-recompute.txt` | 1,407 | `9df88b2725c54ab31796db42b33094c0d47eeb5c47f94db3b991240cc4eb58b6` |
-| `selfcheck.txt` | 787 | `44ad3afb9407eec46eea5c8d6511ba91867d05d65ad704d3392ca1e99f4ca755` |
+| `scene-a-sphere-outline-recipe.txt` | 10,099 | `cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee` |
+| `scene-a-sphere-outline-aa2.txt` | 9,509 | `14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab` |
+| `outline-bounds-recipe.txt` | 5,027 | `8a80fb0a43cbe1c2805ce7307c1ed62f0f7f1f42cf2ded621dcec3d658cf7948` |
+| `outline-bounds-aa2.txt` | 4,734 | `f23ca697f34ebd75a21c618ae5c309cfc710d2f2ad82349f864f02dcb30fc303` |
+| `outline-lists.json` | 2,808 | `a25dbb0d3a2c02fa2d3583e5c0e814109d394f46dba4bf016248846188e1ed39` |
+| `b-recompute.txt` | 1,994 | `fe1b62053c7939792ce37eb098e0a65ed35ed9dfcf82dd766dd8489e564a17c9` |
+| `selfcheck.txt` | 1,051 | `35a6a71d530bc2fc7b2cfa4402d2c488a06b6ab65ae2be5937823f245ec54106` |
 | `open-items.txt` | 632 | `8af93f6776451893ff0f32b71c719f84b9eb94bdf1a4991ebf0a5737e4f3b322` |
-| `sha256sums.txt` | 525 | `45375a6e9cbc58dab8fc28ea10a5d8910b9b3638f811c84a7569c69d30887e12` |
+| `sha256sums.txt` | 706 | `acaec0020207b23cb19bdd6a5367e6322a55eb05d5186daf69c630b9b03bc997` |
 
-The 11-column list format differs from the `prototype-lists/` proposal prototype (9 columns, no
-bounds); list membership, first pixel and exact max are unchanged (same 183/172 and 73/91), the
-prototype stays as proposal evidence, and the freeze step consumes `outline-lists.json`.
+The two list files are the signed proposal prototype byte-for-byte (same 183/172 rows, same
+membership, same first pixels and exact maxima 73/91); the analytic `bound_raw`/`margin` columns
+moved to the `outline-bounds-<arm>.txt` sidecars, and the freeze step consumes `outline-lists.json`.
 
 ## Boundaries
 

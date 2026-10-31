@@ -18,9 +18,11 @@ Contract (criterion render-sdf-criterion-v2.1):
   * the analytic v2 section-3 bound is reported per pixel (bound_raw and margin = 1.15x
     bound_raw) and recorded only - it is explicitly not used to determine B.
 
-Outputs (ASCII, LF): `scene-a-sphere-outline-<arm>.txt` lists, `outline-lists.json` (machine
-readable summary used by the freeze step to fill the guards file), `b-recompute.txt`,
-`selfcheck.txt`, `open-items.txt`, `sha256sums.txt`.
+Outputs (ASCII, LF): `scene-a-sphere-outline-<arm>.txt` lists in the signed proposal prototype
+format (9 columns, byte-identical), `outline-bounds-<arm>.txt` analytic-bound sidecars (recorded
+only; not used to determine B), `outline-lists.json` (machine readable summary used by the freeze
+step to fill the guards file), `b-recompute.txt`, `selfcheck.txt`, `open-items.txt`,
+`sha256sums.txt`.
 
 Exit codes: 0 = freeze verdict OK; 4 = exact max > 128 (v2.1 freeze failure); 5 = internal
 self-check failed; 6 = frozen input hash mismatch.
@@ -52,25 +54,46 @@ CAMERA = 1
 ARM_NAMES = {replay_mod.RECIPE_REFERENCE: "recipe", replay_mod.AA2_REFERENCE: "aa2"}
 
 
-def format_list_file(arm, ref, rows, reference_label, reference_sha, exact_max):
+# The criterion v2.1 list format is the signed proposal prototype, byte-identical
+# (see docs/development-evidence/render-bvh/sdf-validate-window-material-v2/prototype-lists/):
+# 9 columns, header = criterion line, reference, reference sha256, camera/raster/spp, columns.
+PROTOTYPE_LISTS = {
+    "recipe": {
+        "sha256": "cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee",
+        "bytes": 10099,
+        "rows": 183,
+    },
+    "aa2": {
+        "sha256": "14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab",
+        "bytes": 9509,
+        "rows": 172,
+    },
+}
+
+
+def format_list_file(arm, ref, rows, spp, reference_label, reference_sha):
     lines = [
-        f"# scene-a sphere-outline exact-difference list (criterion {CRITERION_VERSION})",
-        f"# arm: {arm}",
+        "# scene-a sphere-outline exact-diff list (criterion v2.1 proposal format)",
         f"# reference: {reference_label}",
         f"# reference sha256: {reference_sha}",
-        f"# camera: {CAMERA} raster: {ref.width}x{ref.height}",
-        "# columns: pixel x y ref_seg_geom ref_seg_type ref_depth_bits formA_bits formB_bits "
-        "ulp_ab bound_raw margin",
-        f"# rows: {len(rows)}",
-        f"# exact_max_ulp: {exact_max}",
-        f"# bound_ulp: {BOUND_ULP} (= next power of two above exact_max_ulp; "
-        "bound_raw/margin are analytic and recorded only)",
+        f"# camera: {CAMERA} raster: {ref.width}x{ref.height} spp: {spp}",
+        "# columns: pixel x y ref_seg_geom ref_seg_type ref_depth_bits formA_bits formB_bits ulp_ab",
     ]
-    for pixel, x, y, seg_geom, seg_type, ref_bits, a_bits, b_bits, ulp, bound_raw, margin in rows:
-        lines.append(
-            f"{pixel} {x} {y} {seg_geom} {seg_type} {ref_bits} {a_bits} {b_bits} {ulp} "
-            f"{bound_raw:.6f} {margin:.6f}"
-        )
+    for pixel, x, y, seg_geom, seg_type, ref_bits, a_bits, b_bits, ulp, _bound_raw, _margin in rows:
+        lines.append(f"{pixel} {x} {y} {seg_geom} {seg_type} {ref_bits} {a_bits} {b_bits} {ulp}")
+    return "\n".join(lines) + "\n"
+
+
+def format_bounds_sidecar(arm, list_name, list_sha, rows):
+    lines = [
+        "# scene-a sphere-outline analytic bound sidecar (recorded only; NOT used to determine B)",
+        f"# arm: {arm}",
+        f"# list: {list_name}",
+        f"# list sha256: {list_sha}",
+        "# columns: pixel bound_raw margin",
+    ]
+    for pixel, _x, _y, _sg, _st, _rb, _ab, _bb, _ulp, bound_raw, margin in rows:
+        lines.append(f"{pixel} {bound_raw:.6f} {margin:.6f}")
     return "\n".join(lines) + "\n"
 
 
@@ -149,17 +172,35 @@ def main(argv=None):
         if [replay_mod.bits(v) for v in direction] != [int(v) for v in entry["dir_bits"]]:
             ray_bad += 1
 
-    # ---- arms: lists + machine-readable summary ----------------------------
+    # ---- arms: prototype-format lists + sidecars + machine-readable summary --
     arm_results = []
     for reference_rel, spp, entities in ARMS:
         result = run_arm(root, scene, reference_rel, spp, entities)
-        arm_results.append(result)
         ref = replay_mod.Reference(root, reference_rel, CAMERA)
         name = f"scene-a-sphere-outline-{result['arm']}.txt"
-        text = format_list_file(result["arm"], ref, result["rows"], reference_rel,
-                                result["reference_sha256"], result["exact_max_ulp"])
+        text = format_list_file(result["arm"], ref, result["rows"], spp, reference_rel,
+                                result["reference_sha256"])
         (out / name).write_bytes(text.encode("ascii"))
         writes.append(name)
+        payload = (out / name).read_bytes()
+        expected = PROTOTYPE_LISTS[result["arm"]]
+        result["list_name"] = name
+        result["list_bytes"] = len(payload)
+        result["list_sha256"] = hashlib.sha256(payload).hexdigest()
+        result["prototype_match"] = (
+            result["list_sha256"] == expected["sha256"]
+            and result["list_bytes"] == expected["bytes"]
+            and len(result["rows"]) == expected["rows"]
+        )
+        sidecar = f"outline-bounds-{result['arm']}.txt"
+        sidecar_text = format_bounds_sidecar(result["arm"], name, result["list_sha256"], result["rows"])
+        (out / sidecar).write_bytes(sidecar_text.encode("ascii"))
+        writes.append(sidecar)
+        sidecar_payload = (out / sidecar).read_bytes()
+        result["sidecar_name"] = sidecar
+        result["sidecar_bytes"] = len(sidecar_payload)
+        result["sidecar_sha256"] = hashlib.sha256(sidecar_payload).hexdigest()
+        arm_results.append(result)
 
     # ---- self-check 2: skybox capture equals the recipe reference ----------
     recipe = replay_mod.Reference(root, replay_mod.RECIPE_REFERENCE, CAMERA)
@@ -183,6 +224,7 @@ def main(argv=None):
         and recipe_arm["list_pixels"] == 183 and recipe_arm["exact_max_ulp"] == 73
         and aa2_arm["list_pixels"] == 172 and aa2_arm["exact_max_ulp"] == 91
         and recipe_arm["first_pixel"] == 28969 and aa2_arm["first_pixel"] == 29448
+        and all(r["prototype_match"] for r in arm_results)
     )
     over_bound = [r for r in arm_results if r["exact_max_ulp"] > BOUND_ULP]
 
@@ -197,15 +239,19 @@ def main(argv=None):
         "arms": [],
     }
     for result in arm_results:
-        name = f"scene-a-sphere-outline-{result['arm']}.txt"
-        payload = (out / name).read_bytes()
         stats = result["bound_stats"]
         summary["arms"].append({
             "arm": result["arm"],
             "entities": result["entities"],
-            "path": name,
-            "bytes": len(payload),
-            "sha256": hashlib.sha256(payload).hexdigest(),
+            "path": result["list_name"],
+            "bytes": result["list_bytes"],
+            "sha256": result["list_sha256"],
+            "prototype_byte_identical": result["prototype_match"],
+            "bounds_sidecar": {
+                "path": result["sidecar_name"],
+                "bytes": result["sidecar_bytes"],
+                "sha256": result["sidecar_sha256"],
+            },
             "rows": result["list_pixels"],
             "first_pixel": result["first_pixel"],
             "first_xy": result["first_xy"],
@@ -246,6 +292,10 @@ def main(argv=None):
         lines.append(f"  spp={result['spp']} raster={result['raster']} "
                      f"sphere_pixels={result['sphere_pixels']} list_pixels={result['list_pixels']} "
                      f"exact_max_ulp={result['exact_max_ulp']} first_pixel={result['first_pixel']}")
+        lines.append(f"  list={result['list_name']} bytes={result['list_bytes']} "
+                     f"sha256={result['list_sha256']} prototype_byte_identical={result['prototype_match']}")
+        lines.append(f"  bounds sidecar={result['sidecar_name']} bytes={result['sidecar_bytes']} "
+                     f"sha256={result['sidecar_sha256']} (recorded only)")
         lines.append(f"  analytic (recorded only): bound_raw min/median/max = "
                      f"{stats['raw_min']:.2f} / {stats['raw_median']:.2f} / {stats['raw_max']:.2f}; "
                      f"margin = {stats['margin_min']:.2f} / {stats['margin_median']:.2f} / "
@@ -271,6 +321,8 @@ def main(argv=None):
         lines.append(f"   arm {result['arm']}: list = {result['list_pixels']} px, "
                      f"exact_max_ulp={result['exact_max_ulp']}, first pixel={result['first_pixel']} "
                      f"{result['first_xy']}")
+        lines.append(f"   arm {result['arm']}: list sha256={result['list_sha256']} "
+                     f"bytes={result['list_bytes']} prototype_byte_identical={result['prototype_match']}")
     lines += [
         f"3) skybox capture depth/seg vs recipe reference: depth mismatches={sky_depth_mismatch}, "
         f"seg mismatches={sky_seg_mismatch}",

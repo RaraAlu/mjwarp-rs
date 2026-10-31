@@ -2,45 +2,52 @@
   "task_id": "2026-11-01-render-sdf-outline-tool-v21-contract",
   "kind": "render-sdf-outline-authoring-tool-v2.1-contract",
   "owner": "Arch",
-  "status": "tool contract updated and self-checked offline; no freeze, no window, zero GPU",
+  "status": "tool contract updated (prototype 9-column lists + analytic-bound sidecars); self-checked offline; no freeze, no window, zero GPU",
   "basis": {
     "criterion": "render-sdf-criterion-v2.1",
     "signed_at": "2026-11-01T02:42:29+08:00",
     "approved_by": "user via Chief",
-    "criterion_evidence": "docs/development-evidence/render-bvh/sdf-criterion-v2.1/"
+    "criterion_evidence": "docs/development-evidence/render-bvh/sdf-criterion-v2.1/",
+    "fix_note": "QA blocking item: the list files must be the signed proposal prototype byte-for-byte; bounds moved to sidecars (verified by QA review 2026-11-01)"
   },
   "tool": {
     "wrapper": "scripts/authoring/author-scene-a-sphere-outline.ps1",
     "wrapper_sha256": "dd0663f4f5f60190a63b216d7d527de655701f2430df70f31d52669b26be21aa",
     "wrapper_bytes": 5923,
     "helper": "scripts/authoring/author-scene-a-sphere-outline.py",
-    "helper_sha256": "440fdf7a8b1541179afee80a838c3e0bfda85063cf3dbc38bd0588f23a1a00a9",
-    "helper_bytes": 15970,
+    "helper_sha256": "9aea5d6a13481de81e24c1f84f72ea1382468126cb5eb9fb07789933b83fa88e",
+    "helper_bytes": 18613,
     "replay": "scripts/authoring/scene_a_outline_replay.py",
     "replay_sha256": "94ea3786aaa9406172125263632ec5c7d17c9634ba1c36e8a8999ecbf65d2d65",
     "replay_bytes": 16567,
-    "line_counts": { "wrapper": 110, "helper": 317, "replay": 416 }
+    "line_counts": { "wrapper": 110, "helper": 369, "replay": 416 }
   },
   "contract": {
     "criterion_version": "render-sdf-criterion-v2.1",
     "bound_ulp": 128,
     "bound_definition": "next power of two above the exact freeze-time maximum difference",
-    "analytic_bound_use": "recorded only (bound_raw and margin=1.15x per pixel); explicitly not used to determine B",
+    "list_format": "signed proposal prototype, byte-identical: 9 columns (pixel x y ref_seg_geom ref_seg_type ref_depth_bits formA_bits formB_bits ulp_ab), header = criterion line, reference, reference sha256, camera/raster/spp, columns",
+    "bounds_sidecar": "outline-bounds-<arm>.txt: header + one row per listed pixel (pixel bound_raw margin); analytic bounds recorded only, explicitly not used to determine B",
     "outputs": [
       "scene-a-sphere-outline-recipe.txt",
       "scene-a-sphere-outline-aa2.txt",
+      "outline-bounds-recipe.txt",
+      "outline-bounds-aa2.txt",
       "outline-lists.json",
       "b-recompute.txt",
       "selfcheck.txt",
       "open-items.txt",
       "sha256sums.txt"
     ],
-    "list_columns": ["pixel", "x", "y", "ref_seg_geom", "ref_seg_type", "ref_depth_bits", "formA_bits", "formB_bits", "ulp_ab", "bound_raw", "margin"],
-    "outline_lists_json_fields": ["criterion_version", "bound_ulp", "bound_definition", "camera", "analytic_bound_use", "arms[].{arm,entities,path,bytes,sha256,rows,first_pixel,first_xy,exact_max_ulp,spp,raster,sphere_pixels,reference,reference_sha256,analytic_bound{bound_raw_min,median,max,margin_min,median,max,max_observed_over_bound_raw,max_observed_over_margin}}"],
+    "outline_lists_json_fields": ["criterion_version", "bound_ulp", "bound_definition", "camera", "analytic_bound_use", "arms[].{arm,entities,path,bytes,sha256,prototype_byte_identical,bounds_sidecar{path,bytes,sha256},rows,first_pixel,first_xy,exact_max_ulp,spp,raster,sphere_pixels,reference,reference_sha256,analytic_bound{bound_raw min/median/max, margin min/median/max, max observed ratios}}"],
+    "prototype_identity": {
+      "recipe": {"path": "scene-a-sphere-outline-recipe.txt", "bytes": 10099, "sha256": "cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee", "rows": 183},
+      "aa2": {"path": "scene-a-sphere-outline-aa2.txt", "bytes": 9509, "sha256": "14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab", "rows": 172}
+    },
     "exit_codes": {
-      "0": "freeze verdict OK (exact_max <= 128 and self-check pass)",
+      "0": "freeze verdict OK (lists byte-identical to the prototype, exact_max <= 128, self-check pass)",
       "4": "exact max > 128 (v2.1 freeze failure; raising B is forbidden)",
-      "5": "internal self-check failed",
+      "5": "internal self-check failed (including prototype byte-identity mismatch)",
       "6": "pinned frozen input drift"
     },
     "determinism": "wrapper runs the helper twice and requires byte-identical outputs; independently re-verifies every sha256 in sha256sums.txt"
@@ -49,7 +56,7 @@
     "recipe": { "reference_sha256": "d6ab6dde58034df5c1bc69ab397026a8f7c3aaf58d29d25edb032d3818000dc7", "spp": 1, "sphere_pixels": 747, "list_pixels": 183, "first_pixel": 28969, "first_xy": [169, 120], "exact_max_ulp": 73, "analytic_bound_raw_max": 360.4946, "analytic_bound_margin_max": 414.5687, "max_observed_over_bound_raw": 0.400528, "max_observed_over_margin": 0.348285 },
     "aa2": { "reference_sha256": "79a275eff5d45f6bef764957e5f4987d0e6abfbb9b7a2cb578c8e1f717d4b7e1", "spp": 2, "sphere_pixels": 745, "list_pixels": 172, "first_pixel": 29448, "first_xy": [168, 122], "exact_max_ulp": 91, "analytic_bound_raw_max": 430.0171, "analytic_bound_margin_max": 494.5197, "max_observed_over_bound_raw": 0.420321, "max_observed_over_margin": 0.365497 },
     "camera0_sphere_pixels": 0,
-    "attempt3_consistency": "183 px / 73 ULP (first 28969=(169,120)) and 172 px / 91 ULP (first 29448=(168,122)) match the attempt3 observations; camera 0 = 0"
+    "attempt3_consistency": "183 px / 73 ULP (first 28969=(169,120)) and 172 px / 91 ULP (first 29448=(168,122)) match attempt3; camera 0 = 0"
   },
   "selfcheck": {
     "log": "logs/tool-selfcheck.txt",
@@ -57,27 +64,30 @@
     "rays_vs_s5": "256/256 bitwise",
     "form_a_vs_reference": "747/747 recipe, 745/745 aa2 bitwise",
     "form_b_vs_form_a": "183 px / max 73 ULP recipe, 172 px / max 91 ULP aa2",
-    "two_run_determinism": "byte-identical, 7 files",
-    "sha_verified": 6
+    "prototype_byte_identity": "recipe cfd1038a.. / 10,099 B / 183 rows; aa2 14893fc6.. / 9,509 B / 172 rows (byte-identical to the signed proposal prototype)",
+    "two_run_determinism": "byte-identical, 9 files",
+    "sha_verified": 8
   },
   "sample_outputs": {
     "run_dir": "target/render-bvh/sdf-validate-window/attempt4/outline-v21-selftest (out of tree, not committed)",
     "files": {
-      "scene-a-sphere-outline-recipe.txt": { "bytes": 13944, "sha256": "43ffaf1b2f8b2dc9b195e7cf78f2e2b69253f2b3d3bd4a975c39d80ff5f68b3c" },
-      "scene-a-sphere-outline-aa2.txt": { "bytes": 13130, "sha256": "0c37a22022fdb76d852728e7b7552638fc75152f0b5d76fb4b5d2d262dc6bb06" },
-      "outline-lists.json": { "bytes": 2356, "sha256": "58c57bb369a51bef1510a1109de61d7112d69031954cd50bcd380fb7f41a8c28" },
-      "b-recompute.txt": { "bytes": 1407, "sha256": "9df88b2725c54ab31796db42b33094c0d47eeb5c47f94db3b991240cc4eb58b6" },
-      "selfcheck.txt": { "bytes": 787, "sha256": "44ad3afb9407eec46eea5c8d6511ba91867d05d65ad704d3392ca1e99f4ca755" },
+      "scene-a-sphere-outline-recipe.txt": { "bytes": 10099, "sha256": "cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee" },
+      "scene-a-sphere-outline-aa2.txt": { "bytes": 9509, "sha256": "14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab" },
+      "outline-bounds-recipe.txt": { "bytes": 5027, "sha256": "8a80fb0a43cbe1c2805ce7307c1ed62f0f7f1f42cf2ded621dcec3d658cf7948" },
+      "outline-bounds-aa2.txt": { "bytes": 4734, "sha256": "f23ca697f34ebd75a21c618ae5c309cfc710d2f2ad82349f864f02dcb30fc303" },
+      "outline-lists.json": { "bytes": 2808, "sha256": "a25dbb0d3a2c02fa2d3583e5c0e814109d394f46dba4bf016248846188e1ed39" },
+      "b-recompute.txt": { "bytes": 1994, "sha256": "fe1b62053c7939792ce37eb098e0a65ed35ed9dfcf82dd766dd8489e564a17c9" },
+      "selfcheck.txt": { "bytes": 1051, "sha256": "35a6a71d530bc2fc7b2cfa4402d2c488a06b6ab65ae2be5937823f245ec54106" },
       "open-items.txt": { "bytes": 632, "sha256": "8af93f6776451893ff0f32b71c719f84b9eb94bdf1a4991ebf0a5737e4f3b322" },
-      "sha256sums.txt": { "bytes": 525, "sha256": "45375a6e9cbc58dab8fc28ea10a5d8910b9b3638f811c84a7569c69d30887e12" }
+      "sha256sums.txt": { "bytes": 706, "sha256": "acaec0020207b23cb19bdd6a5367e6322a55eb05d5186daf69c630b9b03bc997" }
     }
   },
-  "authoring_exception_record": "authoring-exception-v21.txt (supersedes the v2-era tool identity record for the tool contract; pinned env, upstream identity, script sha256, zero product usage grep)",
+  "authoring_exception_record": "authoring-exception-v21.txt (pinned env, upstream identity, script sha256, zero product usage grep; helper identity updated for this fix)",
   "gates": {
     "fmt": "passed",
     "clippy": "passed",
     "clippy-cuda": "passed",
-    "unit": "passed (1111 passed / 0 failed)",
+    "unit": "passed (1166 passed / 0 failed)",
     "no_run": "EXIT=0 (logs/no-run.txt)"
   },
   "boundaries": "changes only scripts/authoring/** and this evidence; product src/tests/fixtures/criteria values/references/kernel untouched; zero GPU; no freeze; no window",
@@ -86,5 +96,5 @@
     "上游等价",
     "精度达标"
   ],
-  "next": "slice 3: env-gated test support; slice 4: freeze/runner extension; slice 5: attempt4 material v3; slice 6: double-sign package"
+  "next": "freeze/runner reads the prototype 9-column lists + sidecars (next fix); then hold for the user double-sign"
 }
