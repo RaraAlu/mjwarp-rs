@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-01-render-sdf-outline-parser-blocker-fix",
+  "title": {
+    "zh": "球轮廓 body 期解析阻断修复（9 列原型清单无 metadata → 改读 outline-lists.json 单一真相源；fail-closed）",
+    "en": "sphere-outline body-time parser blocker fix (9-column prototype lists carry no metadata -> read outline-lists.json as the single source of truth; fail-closed)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "修复 QA 新阻断：已签原型 9 列清单没有 rows/exact_max_ulp/bound_ulp header，而 env-gated 测试支持 parse_list 直接 panic，窗口 body 必 INVALID_ROUND。改为：列表文件保持原型逐字节（不加 header），rows/exact_max_ulp/bound_ulp 从同目录 outline-lists.json 读取，并与清单 data rows、唯一像素数、sha256、bytes、first_pixel 交叉校验；freeze/runner/body 三方共用同一 JSON 记录。新增 CPU-only 回归：committed 原型 9 列清单 + JSON 解析成功、env 启用成功路径、env 缺 JSON panic、JSON rows 不符/重复像素/bound!=128/exact_max>128 panic；单测 6→10。单测拆到 outline_tests.rs 以过 500 行棘轮。",
+    "en": "Fix the QA blocker: the signed prototype 9-column lists carry no rows/exact_max_ulp/bound_ulp header, so the env-gated parser panics and the window body would be INVALID_ROUND. The list files stay prototype byte-identical; rows/exact_max_ulp/bound_ulp come from the sibling outline-lists.json and are cross-checked against the list (data rows, unique pixels, sha256, bytes, first pixel). Freeze, runner and body-time support consume the same JSON record. Adds CPU-only regressions (committed prototype list + JSON parse, env-enabled success path, env-enabled missing-JSON panic, JSON rows mismatch / duplicate pixels / wrong bound / exact max over bound panics); unit tests 6 -> 10. Tests split into outline_tests.rs to stay under the 500-line ratchet."
+  },
+  "modules": {},
+  "acceptance": [
+    "outline.rs：parse_rows 只解析 9 列数据行（原型清单不加 header）；load_from_dir 读取同目录 outline-lists.json，校验 criterion_version、bound_ulp=128、arm 条目、rows/唯一像素/exact_max<=128/sha256/bytes/first_pixel；缺失或不符 panic（fail-closed）；parse_list_with_json 为可测入口。",
+    "CPU-only 回归：committed prototype 9 列清单（183 行/exact max 73）+ 合成 JSON 解析成功；env 两变量启用后 load_from_dir 成功；env 缺 JSON panic；JSON rows 不符、重复像素、bound!=128、exact_max>128 panic；单测 10 条通过。",
+    "文件行数：outline.rs 445、outline_tests.rs 206（均 <=500）；四门禁（unit 1221/0）+ --no-run EXIT=0；证据 sdf-outline-test-support/ 更新（README/receipt/logs/manifest）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-01-render-sdf-outline-test-support"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "tests/support/render_bvh/outline.rs",
+      "tests/support/render_bvh/outline_tests.rs",
+      "docs/development-evidence/render-bvh/sdf-outline-test-support/"
+    ],
+    "resources": [],
+    "priority": 58
+  },
+  "note": "Arch 2026-11-01 注册（QA 开窗前阻断修复；零 GPU）。旧测试支持卡保持 verified 不动；本卡承接 body 期解析修复并更新其证据目录。",
+  "revision": {
+    "before": "9e83c4b6313fddd66e460e218ebf4286dc055b46",
+    "after": null
+  },
+  "created_at": "2026-11-01T04:30:00.000Z",
+  "updated_at": "2026-10-31T19:12:53.364Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-outline-test-support/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-01-render-sdf-outline-test-support"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-outline-test-support/receipt.json",
+      "pointer": "/metadata_source_of_truth",
+      "equals": "the 9-column list files remain the signed proposal prototype byte-for-byte; rows / exact_max_ulp / bound_ulp come from outline-lists.json written next to the lists and are cross-checked against the list (rows, unique pixels, sha256, bytes, first pixel). Freeze, runner and body-time support consume the same JSON record."
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
