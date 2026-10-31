@@ -1,0 +1,105 @@
+{
+  "task_id": "2026-10-31-render-sdf-sphere-dot-a-order-refix-check",
+  "reviewed_task": "2026-10-31-render-sdf-sphere-dot-a-order-refix",
+  "pin": "fa604008",
+  "card_head_at_start": "2006544f04e3b2599aa56b3db64afbd89ad18ad4",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 1,
+  "observations": 8,
+  "scope": "read-only QA review of the sphere a-order refix: render_math.cu a = dot3_ba / dot3_ch0 removal / RCA comment, render_shade.cu comment-debt cleanup, kernel identity before/after recomputed independently via the 6-segment assembly, PTX cross-check between two independent evidence records, warding limited to pending attempt4, stacked state with 013d8d4a for attempt4 prerequisites, gates and evidence hygiene; no GPU, no window, no build, no freeze",
+  "method": {
+    "scope": "git show --stat fa604008; git diff --name-only 8bc0f2b3..fa604008 -- tests fixtures scripts Cargo.toml Cargo.lock docs/development-evidence/render-bvh/sdf-criterion-v2",
+    "shape": "git show <rev>:src/render/kernel/cuda/render_math.cu classified into total/blank/comment-only/code lines; git grep for dot3_ch0, a = dot3_ba, b/dd/det",
+    "same_diff": "git rev-parse 8126868c:render_math.cu vs fa604008:render_math.cu blob equality, and byte-normalized patch comparison",
+    "kernel_source_identity": "independent recompute: sha256 over the 6 include_str! files of MEGAKERNEL_SOURCE in mod.rs order, read as committed blobs with git cat-file at 8bc0f2b3 (before) and fa604008 (after); AA_RESOLVE_SOURCE from aa_resolve.cu",
+    "ptx": "not recomputed (zero-build discipline); cross-checked across two independent committed records (original 8126868c evidence and this refix evidence)",
+    "evidence_manifest": "upstream manifest.txt rows recomputed against committed blobs at fa604008; src-diff.patch compared with the real diff",
+    "gates": "committed .normify/runs/2026-10-31-render-sdf-sphere-dot-a-order-refix/*.json vs evidence logs/gate-*.txt; unit counts from runs json; validate --fingerprints re-run read-only at HEAD",
+    "stacked_state": "git diff --name-only fa604008..HEAD -- src; git grep reject_sdf_geometry HEAD -- '*.rs'; git grep 'float a = dot3_ba' HEAD -- src/render/kernel/cuda",
+    "wording": "grep of the upstream README/receipt for the scene-sdf/attempt4 claim scope and for SDF pass claims; criterion v2 section 2 exemption objects checked for consistency"
+  },
+  "verified_numbers": {
+    "scope": {"files_in_slice_commit": 19, "src_files": 2, "tests_fixtures_scripts_cargo_criterion_diff": "empty"},
+    "render_math": {
+      "lines_before": 309,
+      "lines_after": 308,
+      "blank": 30,
+      "comment_only": 49,
+      "code": 229,
+      "a_form": "float a = dot3_ba(vec.x, vec.y, vec.z, vec.x, vec.y, vec.z); (line 275)",
+      "b_dd_det_untouched": ["float b = dot3_ba(...) (276)", "float dd = dot3_ba(...) (277)", "float det = __fmaf_rn(b, b, -__fmul_rn(a, c)) (279)"],
+      "dot3_ch0_executable_refs": 0,
+      "dot3_ch0_mentions": ["src/render/kernel/cuda/render_math.cu:255 (explanatory comment)"]
+    },
+    "render_shade": {"lines": 457, "changed": "2 comment lines (L10/L14), no code line changed"},
+    "same_diff_as_8126868c": {
+      "post_fix_blob": "7a43e575b7b73b1abd69a7f70cda733099255a04",
+      "original_fix_blob": "7a43e575b7b73b1abd69a7f70cda733099255a04",
+      "before_blob": "33efcb270f6ea1e8eff969d3a3b850c448bff327",
+      "patch_text_identical": true
+    },
+    "kernel_identity": {
+      "method": "sha256 of MEGAKERNEL_SOURCE = concat of scene.cu + render_math.cu + render_common.cu + render_shadow.cu + render_shade.cu + render_megakernel.cu (mod.rs include_str! order), from committed blobs",
+      "before_recomputed": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5 / 88,865 B",
+      "after_recomputed": "1007022681231f08116956cc817a384abee36e826971df5b0914aab4198a741e / 89,041 B",
+      "evidence_agreement": "both match materials/kernel-identity.txt",
+      "ptx": "7782aeb199dc49ff231a8884a70a8194a2deef02e9a7f4e2c9f43a0fc74dc5d4 / 268,589 B, identical in the original fix record and this refix record (NOT independently recomputed)",
+      "aa_resolve": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76 / 2,364 B, unchanged (recomputed); PTX b28e155c../27,536 unchanged (evidence)"
+    },
+    "evidence_manifest": {"rows": 10, "mismatches": 0},
+    "src_diff_patch": "matches the real diff",
+    "gates": {
+      "unit": {"passed": 1111, "failed": 0, "ignored": 397, "exit": 0},
+      "fmt_clippy_clippy_cuda": "passed",
+      "no_run": "EXIT=0 with Finished",
+      "validate_snapshot": "errors 0 / warnings 6 (incl. 1 fingerprint-drift) - predates the same-commit module fingerprint refresh",
+      "validate_rerun_at_head": "errors 0 / warnings 5 / no drift"
+    },
+    "gate_provenance": "evidence logs are NOT the same runs as .normify/runs (different at timestamps; clippy/unit log_sha256 differ); verdict numbers agree",
+    "stacked_state": {
+      "src_changes_since_fa604008": "none",
+      "host_guard_rs_hits_at_head": 0,
+      "megakernel_lines_at_head": 405,
+      "device_a_dot3_ba_at_head": "present at src/render/kernel/cuda/render_math.cu:275 and inside the 6-segment assembly",
+      "conclusion": "both attempt4 prerequisites (host admits gtype==8 AND the a-order form is in the assembled kernel source) hold at the same HEAD"
+    }
+  },
+  "must_fix_items": [
+    {"id": "P1", "severity": "must-fix(minor, evidence wording)", "where": "docs/development-evidence/render-bvh/sdf-sphere-a-order-refix/README.md bullet 1; receipt.json change.render_math_cu.lines; commit fa604008 message",
+     "finding": "the evidence and the commit message say render_math.cu is 290 lines; measured 308 lines (309 before this slice; blank 30, comment-only 49, code 229). 290 matches no line metric",
+     "fix": "change 290 to 308 (or write 309 -> 308); no code change, no rerun needed"}
+  ],
+  "observations": [
+    {"id": "O1", "text": "PTX identity was NOT independently recomputed (zero-build discipline), but two independent committed records agree: the original fix 8126868c evidence and this refix evidence both give 7782aeb1../268,589 B; the source difference (eb0e717f -> 10070226) is explained by the render_shade comment cleanup, which is part of the assembled source hash"},
+    {"id": "O2", "text": "'same diff as 8126868c' holds at byte level: the post-fix render_math.cu blob equals 8126868c's blob and the two patch texts are identical - stronger than a wording comparison"},
+    {"id": "O3", "text": "dot3_ch0 has zero executable references; the only remaining mention is one explanatory comment at render_math.cu:255"},
+    {"id": "O4", "text": "gate evidence logs/gate-*.txt are not the same runs as .normify/runs/2026-10-31-render-sdf-sphere-dot-a-order-refix/*.json (evidence 05:13:15-05:14:52 vs runs 05:15:20-05:15:34; clippy and unit log_sha256 differ). Verdict numbers agree (unit 1111/0/397); README makes no transcription claim"},
+    {"id": "O5", "text": "validate snapshot is 0 errors / 6 warnings including evidence/fingerprint-drift mjwarp.render.kernel; the same commit refreshed that fingerprint, and a re-run at HEAD gives 0 errors / 5 warnings / no drift"},
+    {"id": "O6", "text": "logs/no-run.txt is a trimmed transcription (header + Finished + executable count + EXIT=0)"},
+    {"id": "O7", "text": "the host-side .cu comments render_common.cu:391/397 still say the host rejects gtype==8; they exist at the same HEAD (recorded as P1 on the U1b redo review card) and must not be quoted as fact by attempt4 material"},
+    {"id": "O8", "text": "attempt4 window material v2 (9f12002d) prepare checklist cites kernel identity 10070226../7782aeb1../268,589, matching this slice's measured/handoff values (the material itself is out of scope here)"}
+  ],
+  "boundaries": {
+    "read_only": true,
+    "gpu_used": false,
+    "window_opened": false,
+    "freeze": false,
+    "build_run": false,
+    "product_src_modified": false,
+    "foreign_evidence_edited": false,
+    "criteria_modified": false
+  },
+  "not_claimed": [
+    "不宣称 SDF 通过（scene-sdf 是否位级只能由 attempt4 给出）",
+    "不宣称渲染数值验收通过",
+    "不宣称上游等价",
+    "不宣称精度达标",
+    "不宣称 attempt4 会通过"
+  ],
+  "limits": [
+    "PTX identity and GPU tests were not rerun (zero-build discipline); source identity was recomputed independently",
+    "criterion v2 (B=128 ULP, user-signed) was only checked for the exemption-object and claim-scope consistency cited by this slice; the criterion itself is not re-audited here",
+    "the evidence gate-log provenance mismatch is recorded as an observation because the verdict numbers agree"
+  ]
+}

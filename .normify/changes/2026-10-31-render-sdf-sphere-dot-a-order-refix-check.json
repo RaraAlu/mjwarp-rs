@@ -2,21 +2,21 @@
   "schema_version": 1,
   "id": "2026-10-31-render-sdf-sphere-dot-a-order-refix-check",
   "title": {
-    "zh": "球面 a-order refix 独立复核（render_math.cu 290 行、身份 10070226/7782aeb1/268,589、render_shade 注释残债、口径只到待 attempt4 验证）",
-    "en": "Independent check of the sphere a-order refix (render_math.cu 290 lines, kernel identity 10070226/7782aeb1/268,589, render_shade comment debt, wording limited to pending attempt4)"
+    "zh": "球面 a-order refix 独立复核（render_math.cu 309→308 行、身份 10070226/7782aeb1/268,589、render_shade 注释残债、口径只到待 attempt4 验证）",
+    "en": "Independent check of the sphere a-order refix (render_math.cu 309->308 lines, kernel identity 10070226/7782aeb1/268,589, render_shade comment debt, wording limited to pending attempt4)"
   },
-  "status": "proposed",
+  "status": "in_progress",
   "intent": {
-    "zh": "QA 只读复核 `2026-10-31-render-sdf-sphere-dot-a-order-refix`（pin `fa604008`）。复核点：①`render_math.cu` 290 行，`a = dot3_ba`、删 `dot3_ch0`、注释按 RCA 更正，与历史修复 `8126868c` 同形态；②同笔清 `render_shade.cu` L10/L14 的 `dot3_ch0` 注释残债（只改注释）；③用 6 段拼接独立重算 `MEGAKERNEL_SOURCE`（LF 工作树）复核 source `778216b2…` → `10070226…`；PTX 应 `7782aeb1…`/268,589（与 `8126868c` 形态一致）、aa_resolve 不变；④确认 `013d8d4a + fa604008` 叠加后 host 放行 `gtype==8` 与 a-order 形态同时在场；⑤证据口径只到「待 attempt4 验证」，不得出现 SDF 通过/渲染数值验收通过，历史证据零改写；⑥门禁（unit 1111/0/397、`--no-run` EXIT=0、fmt/clippy/clippy-cuda、validate 0 错）与证据卫生。**只读**：不跑 GPU、不编译、不冻结。",
+    "zh": "QA 只读复核 `2026-10-31-render-sdf-sphere-dot-a-order-refix`（pin `fa604008`）。复核点：①`render_math.cu` 309→308 行（实测；上游证据写 290 行不实，见证据 P1），`a = dot3_ba`、删 `dot3_ch0`、注释按 RCA 更正，与历史修复 `8126868c` 同形态；②同笔清 `render_shade.cu` L10/L14 的 `dot3_ch0` 注释残债（只改注释）；③用 6 段拼接独立重算 `MEGAKERNEL_SOURCE`（LF 工作树）复核 source `778216b2…` → `10070226…`；PTX 应 `7782aeb1…`/268,589（与 `8126868c` 形态一致）、aa_resolve 不变；④确认 `013d8d4a + fa604008` 叠加后 host 放行 `gtype==8` 与 a-order 形态同时在场；⑤证据口径只到「待 attempt4 验证」，不得出现 SDF 通过/渲染数值验收通过，历史证据零改写；⑥门禁（unit 1111/0/397、`--no-run` EXIT=0、fmt/clippy/clippy-cuda、validate 0 错）与证据卫生。**只读**：不跑 GPU、不编译、不冻结。",
     "en": "Read-only check at pin fa604008: render_math.cu at 290 lines with a = dot3_ba, dot3_ch0 removed and RCA comment, render_shade.cu comment debt cleaned, kernel identity recomputed independently via 6-segment assembly (778216b2 -> 10070226), PTX expected 7782aeb1/268,589, aa_resolve unchanged, stacked state with 013d8d4a, wording limited to pending attempt4, gates and evidence hygiene."
   },
   "modules": {},
   "acceptance": [
-    "**范围与形态**：`git diff 8bc0f2b3..fa604008 -- src` 只有 `src/render/kernel/cuda/render_math.cu`（290 行）与 `render_shade.cu`（注释）；`render_math.cu` 含 `a = dot3_ba`、无 `dot3_ch0` 定义/调用；`b`/融合 det/`__frcp_rn`/根选择/depth/normal 未动；`render_shade.cu` 改动仅为注释（无代码行变更），`dot3_ch0` 残债清零。",
+    "**范围与形态**：`git diff 8bc0f2b3..fa604008 -- src` 只有 `src/render/kernel/cuda/render_math.cu`（309→308 行）与 `render_shade.cu`（注释）；`render_math.cu` 含 `a = dot3_ba`、无 `dot3_ch0` 定义/调用；`b`/融合 det/`__frcp_rn`/根选择/depth/normal 未动；`render_shade.cu` 改动仅为注释（无代码行变更），`dot3_ch0` 残债清零。",
     "**内核身份独立重算**：我按 `src/render/kernel/mod.rs` 的 6 段拼接独立重算 `MEGAKERNEL_SOURCE`（LF 工作树）＝ after source `10070226…`（before `778216b2…`）；PTX `7782aeb1…`/268,589 与历史修复 `8126868c` 的证据一致且 bytes 不变；aa_resolve 两段 `0bf8af5a…`/`b28e155c…`/27,536 不变。",
     "**叠加态（attempt4 前置）**：同一 HEAD（`fa604008`）同时具备 host 放行 `gtype==8`（`013d8d4a` 的 megakernel.rs 无拒绝）与 a-order 形态（`render_math.cu` 的 `a = dot3_ba` 在 6 段拼接内），无互相回退；attempt4 前置成立。",
     "**口径与边界**：证据 README/receipt 只写「本形态只保证 scene-sdf 数据集内用于 attempt4 的位级比较，是否位级待 attempt4 验证」「scene-a 球轮廓由 criterion v2 受控豁免覆盖」，**无** SDF 通过/渲染数值验收通过类声明；判据/参考/fixtures/历史证据零改动（diff 只含 2 个 `.cu` + 证据 + 卡 + 模块 md）。",
-    "**门禁与证据卫生**：unit `1111 passed / 0 failed / 397 ignored`、`--no-run` EXIT=0 含 Finished、fmt/clippy/clippy-cuda passed、validate 错误 0；`materials/src-diff.patch` 与真实 diff 一致；manifest 全量 sha256/bytes 对 committed blob 逐条一致；LF、无 BOM、禁词 0。"
+    "**门禁与证据卫生**：unit `1111 passed / 0 failed / 397 ignored`、`--no-run` EXIT=0 含 Finished、fmt/clippy/clippy-cuda passed、validate 错误 0；`materials/src-diff.patch` 与真实 diff 一致；manifest 全量 sha256/bytes 对 committed blob 逐条一致；文本证据 LF 无 BOM、`selfcheck.ps1` 用 UTF-8 BOM（Windows PowerShell 5.1 读中文脚本所需）、禁词 0。"
   ],
   "schedule": {
     "depends_on": [
@@ -32,11 +32,11 @@
   },
   "note": "Chief 2026-10-31 要求 QA 复核该片（第 3 片；第 2 片红线已回滚后按 criterion v2 重落）。pin = `fa604008`；revision.before = null（proposed，QA start 时记录为当时 HEAD）。复核对象：`src/render/kernel/cuda/render_math.cu`、`render_shade.cu`（pin 态）、`docs/development-evidence/render-bvh/sdf-sphere-a-order-refix/`、`src/render/kernel/mod.rs`（6 段拼接定义，只读）、历史 `8126868c` 证据（只读对照）。只读：不跑 GPU、不编译、不冻结。",
   "revision": {
-    "before": null,
+    "before": "010dca9bae93d032a19c32826f344940b1c873f5",
     "after": null
   },
   "created_at": "2026-10-31T05:17:00.000Z",
-  "updated_at": "2026-10-31T05:17:00.000Z",
+  "updated_at": "2026-10-31T05:18:19.898Z",
   "checks": [
     {
       "kind": "json",

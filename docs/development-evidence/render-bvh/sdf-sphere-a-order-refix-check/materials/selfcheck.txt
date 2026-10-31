@@ -1,0 +1,112 @@
+# selfcheck B: sphere a-order refix (pin fa604008)
+generated_at=2026-10-31T13:23:26.3225753+08:00
+head=2006544f04e3b2599aa56b3db64afbd89ad18ad4
+
+## 1 scope: slice commit fa604008
+...-10-31-render-sdf-sphere-dot-a-order-refix.json | 141 ++++++++++-----------
+ .normify/modules/mjwarp/render/kernel.md           |   2 +-
+ .../clippy-cuda.json                               |  13 ++
+ .../clippy.json                                    |  13 ++
+ .../fmt.json                                       |  13 ++
+ .../unit.json                                      |  18 +++
+ .../render-bvh/sdf-sphere-a-order-refix/README.md  | Bin 0 -> 1016 bytes
+ .../logs/gate-clippy-cuda.txt                      | Bin 0 -> 461 bytes
+ .../sdf-sphere-a-order-refix/logs/gate-clippy.txt  | Bin 0 -> 457 bytes
+ .../sdf-sphere-a-order-refix/logs/gate-fmt.txt     | Bin 0 -> 454 bytes
+ .../sdf-sphere-a-order-refix/logs/gate-unit.txt    | Bin 0 -> 530 bytes
+ .../sdf-sphere-a-order-refix/logs/no-run.txt       | Bin 0 -> 164 bytes
+ .../sdf-sphere-a-order-refix/manifest.txt          | Bin 0 -> 1623 bytes
+ .../materials/kernel-identity.txt                  | Bin 0 -> 836 bytes
+ .../materials/src-diff.patch                       | Bin 0 -> 5194 bytes
+ .../materials/validate.txt                         | Bin 0 -> 520 bytes
+ .../sdf-sphere-a-order-refix/receipt.json          | Bin 0 -> 2340 bytes
+ src/render/kernel/cuda/render_math.cu              |  25 ++--
+ src/render/kernel/cuda/render_shade.cu             |   4 +-
+ 19 files changed, 140 insertions(+), 89 deletions(-)
+src_files=[src/render/kernel/cuda/render_math.cu, src/render/kernel/cuda/render_shade.cu]
+tests_fixtures_criterion_diff=[]
+
+## 2 render_math.cu shape / line counts
+  8bc0f2b3 render_math_lines=309 blank=31 comment_only=46 code=232
+  fa604008 render_math_lines=308 blank=30 comment_only=49 code=229
+dot3_ch0_refs_at_pin:
+  fa604008:src/render/kernel/cuda/render_math.cu:255:// （`dot3_ch0`）复现参考 0/44。此前「`a` 用 0 号分量先乘」的结论来自 S7b1 的 747 像素 probe，
+a_dot3_ba_at_pin:
+  fa604008:src/render/kernel/cuda/render_math.cu:275:    float a = dot3_ba(vec.x, vec.y, vec.z, vec.x, vec.y, vec.z);
+b_dd_det_kept:
+  fa604008:src/render/kernel/cuda/render_math.cu:276:    float b = dot3_ba(vec.x, vec.y, vec.z, dx, dy, dz);
+  fa604008:src/render/kernel/cuda/render_math.cu:277:    float dd = dot3_ba(dx, dy, dz, dx, dy, dz);
+  fa604008:src/render/kernel/cuda/render_math.cu:279:    float det = __fmaf_rn(b, b, -__fmul_rn(a, c));
+
+## 3 render_shade.cu comment-only change
+diff --git a/src/render/kernel/cuda/render_shade.cu b/src/render/kernel/cuda/render_shade.cu
+index 341fca45..bc9ab141 100644
+--- a/src/render/kernel/cuda/render_shade.cu
++++ b/src/render/kernel/cuda/render_shade.cu
+@@ -7,11 +7,11 @@
+ // 精度对齐方法沿用 S7b1：参考 megakernel 由 warp 1.15 自带 NVRTC（CUDA 12.9、sm_89）编译，
+ // 产品是 CUDA 12.8.1 / compute_70，同一 C++ 表达式的 fma 收缩顺序可能不同。因此涉及
+ // dot/normalize/atan2/asin/pow 的关键表达式用显式 `__fmul_rn`/`__fmaf_rn`/`__fsub_rn`
+-// 固定上游顺序（点积见 `dot3_ba`/`dot3_ch0`，normalize 见 `normalize3_rays`），其余交给
++// 固定上游顺序（点积见 `dot3_ba`，normalize 见 `normalize3_rays`），其余交给
+ // 8 位量化吸收；对比口径是「解包后每通道 ≤1 LSB」，不做任何容差放宽。
+ //
+ // 本文件被 `mod.rs::MEGAKERNEL_SOURCE` 接在 `render_common.cu` 之后、`render_megakernel.cu`
+-// 之前，因此可用 `V3` 辅助、`normalize3_rays`、`dot3_ba`/`dot3_ch0`、`geom_rgba`。
++// 之前，因此可用 `V3` 辅助、`normalize3_rays`、`dot3_ba`、`geom_rgba`。
+ 
+ __device__ __forceinline__ float safe_div_render(float x, float y) {
+     return x / (y != 0.0f ? y : 1.0e-15f);
+render_shade_lines=457 line10=// 固定上游顺序（点积见 `dot3_ba`，normalize 见 `normalize3_rays`），其余交给 line14=// 之前，因此可用 `V3` 辅助、`normalize3_rays`、`dot3_ba`、`geom_rgba`。
+
+## 4 same diff as 8126868c (file-byte level)
+blob_8126868c=7a43e575b7b73b1abd69a7f70cda733099255a04
+blob_fa604008=7a43e575b7b73b1abd69a7f70cda733099255a04
+blob_before_8bc0f2b3=33efcb270f6ea1e8eff969d3a3b850c448bff327
+render_math_patch_identical_to_original_fix=True
+
+## 5 kernel identity (independent recompute from committed blobs)
+  8bc0f2b3 MEGAKERNEL_SOURCE bytes=88865 sha256=778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5
+  fa604008 MEGAKERNEL_SOURCE bytes=89041 sha256=1007022681231f08116956cc817a384abee36e826971df5b0914aab4198a741e
+  fa604008 AA_RESOLVE_SOURCE bytes=2364 sha256=0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76
+refix_identity_file=docs\development-evidence\render-bvh\sdf-sphere-a-order-refix\materials\kernel-identity.txt
+  source_sha256=778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5 ptx_sha256=34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d ptx_bytes=268589
+  source_sha256=1007022681231f08116956cc817a384abee36e826971df5b0914aab4198a741e ptx_sha256=7782aeb199dc49ff231a8884a70a8194a2deef02e9a7f4e2c9f43a0fc74dc5d4 ptx_bytes=268589
+  note: PTX identical to the 8126868c fix; source differs only because render_shade.cu comments no longer mention dot3_ch0 (comments are part of the assembled source hash).
+original_fix_identity_file=docs\development-evidence\render-bvh\sphere-dot-a-order-fix\logs\kernel-identity.txt
+  s7b3 megakernel: source_sha256=778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5 ptx_sha256=34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d ptx_bytes=268589
+  s7b3 megakernel: source_sha256=eb0e717fb0389355182503a44192ee5d8dbd7ef7957e8fc5f8ec0368e27d5b0b ptx_sha256=7782aeb199dc49ff231a8884a70a8194a2deef02e9a7f4e2c9f43a0fc74dc5d4 ptx_bytes=268589
+ptx_identical_across_two_records=True ptx=7782aeb199dc49ff231a8884a70a8194a2deef02e9a7f4e2c9f43a0fc74dc5d4 ptx_bytes_expected=268589
+
+## 6 upstream evidence manifest / patch
+manifest_entries=10 mismatches=0
+src_diff_patch_matches_real=True
+
+## 7 gate provenance: committed runs/ vs evidence logs/
+  fmt runs_at=2026-10-31T05:15:20.235Z runs_wall=1661 runs_logsha=e3b0c44298fc | evidence_at=2026-10-31T05:13:15.574Z evidence_wall=1711 evidence_logsha=e3b0c44298fc same_run=False
+  clippy runs_at=2026-10-31T05:15:20.909Z runs_wall=506 runs_logsha=5604fc8f0c27 | evidence_at=2026-10-31T05:13:21.710Z evidence_wall=5891 evidence_logsha=e9ab88ae4a79 same_run=False
+  clippy-cuda runs_at=2026-10-31T05:15:21.500Z runs_wall=404 runs_logsha=299f16a2c523 | evidence_at=2026-10-31T05:13:22.305Z evidence_wall=405 evidence_logsha=299f16a2c523 same_run=False
+  unit runs_at=2026-10-31T05:15:34.096Z runs_wall=12428 runs_logsha=f8d574199e32 | evidence_at=2026-10-31T05:14:52.606Z evidence_wall=90145 evidence_logsha=4adcdf01fb64 same_run=False
+unit runs: passed=1111 failed=0 ignored=397 exit=0
+no_run_log=# cargo test --locked --no-run (a-order refix)
+cargo :     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+Executable lines: 135
+EXIT=0
+
+## 8 claims cross-check (upstream evidence text)
+readme_claims_290_lines=True
+receipt_change_render_math_lines_290=True
+measured_total_lines=308 (309 before this slice); claim 290 does not match any line metric
+readme_wording_pending_attempt4=True
+receipt_claim_scope_pending_attempt4=True
+readme_no_sdf_pass_claim=True
+
+## 9 stacked state (attempt4 prerequisites)
+src_diff_fa604008_to_head=[]
+host_guard_rs_hits_at_head=0
+megakernel_lines_at_head=405
+device_a_dot3_ba_at_head=1
+criterion_v2_exemption_objects (spec section 2):
+  3: 版本：**`render-sdf-criterion-v2`**（**已签发**；B=128 ULP；签署时间 2026-10-31T11:04:37+08:00；approved_by=user via Chief）；判据数值以签发版为准，清单外 1 ULP 即失败。
+  26: ## 2. 受控豁免：scene-a 回归的球轮廓像素
+
