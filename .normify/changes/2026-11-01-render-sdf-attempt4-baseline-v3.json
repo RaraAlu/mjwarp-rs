@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-01-render-sdf-attempt4-baseline-v3",
+  "title": {
+    "zh": "U4 attempt4 双签包：重采开窗前基线（三点 free 13079 / floor 10007 MiB）入证",
+    "en": "U4 attempt4 double-sign package: re-measured pre-window baseline (free 13079 / floor 10007 MiB) recorded"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按双签前置要求在开窗前重采三点 GPU 基线（只读 nvidia-smi）：free 13079/13079/13079 MiB、used 2983 MiB、util 28/33/30%、driver 596.36；floor = min(free) − 3072 = 10007 MiB；写入 material v3 的 baseline-pre-window-v3.txt，更新 receipt 的 baseline 块与 manifest，供 Chief 报用户双签。零 GPU 负载、零冻结。",
+    "en": "Re-measure the three-point pre-window GPU baseline before signing (read-only nvidia-smi): free 13079/13079/13079 MiB, used 2983 MiB, util 28/33/30 %, driver 596.36; floor = min(free) - 3072 = 10007 MiB; record it in material v3 baseline-pre-window-v3.txt and update the receipt baseline block + manifest for Chief to take to the user."
+  },
+  "modules": {},
+  "acceptance": [
+    "baseline-pre-window-v3.txt：三点原始 nvidia-smi（free/used/util/timestamp）、driver/总显存、min(free)=13079、floor=10007 MiB、窗口时复测低于 floor 即停；声明取代 2026-10-31 的 8400/5328 旧基线。",
+    "receipt 的 baseline 块与本文件一致（含 floor 10007 与 window_rule）；manifest 覆盖 baseline 文件与更新后的 receipt；四门禁 + --no-run 通过；零 GPU 负载、零冻结、未改判据/参考/内核。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-01-render-sdf-attempt4-material-v3"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/sdf-validate-window-material-v3/"
+    ],
+    "resources": [],
+    "priority": 63
+  },
+  "note": "Arch 2026-11-01 注册（step-3 第 6 片 = 双签包）：只有只读 nvidia-smi 采样与证据写入；窗口仍不开、不冻结。之后计划 + 基线报 Chief。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-01T04:05:00.000Z",
+  "updated_at": "2026-11-01T04:05:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-validate-window-material-v3/receipt.json",
+      "pointer": "/baseline/floor_mib",
+      "equals": 10007
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-validate-window-material-v3/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-01-render-sdf-attempt4-material-v3"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
