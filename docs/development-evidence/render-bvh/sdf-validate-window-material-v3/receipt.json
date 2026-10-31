@@ -1,0 +1,75 @@
+{
+  "task_id": "2026-11-01-render-sdf-attempt4-material-v3",
+  "kind": "render-sdf-validate-window-material-v3",
+  "owner": "Arch",
+  "status": "material only; window NOT opened; baseline measured in the follow-up slice (2026-11-01-render-sdf-attempt4-baseline-v3)",
+  "criterion": {
+    "version": "render-sdf-criterion-v2.1",
+    "signed_at": "2026-11-01T02:42:29+08:00",
+    "approved_by": "user via Chief",
+    "bound_ulp": 128,
+    "bound_definition": "next power of two above the exact freeze-time maximum difference (recipe 73, aa2 91)",
+    "list_rule": "outside the frozen exact-difference list any non-zero delta fails; inside the list <= 128 ULP; list membership pixel-for-pixel; camera 0 bitwise",
+    "evidence": "docs/development-evidence/render-bvh/sdf-criterion-v2.1/"
+  },
+  "three_question_header": {
+    "ruling_goal": "decide whether SDF (gtype==8) can be released",
+    "consumer": "product release; the scene-a 8 regressions are internal regression only",
+    "nature": "SDF = gtype==8 via the underlying mesh; the scene-a sphere outline = FMA-association arithmetic difference",
+    "premise": "bitwise holds only under the same compilation form; criterion v2.1 exact-difference list exemption applies to the scene-a outline"
+  },
+  "entities": {
+    "new": ["render_sdf_reference"],
+    "regressions": ["render_context_lifecycle", "render_e2e", "render_kernel_depth_seg", "render_kernel_flags", "render_kernel_rgb", "render_mesh_bvh", "render_r10_multi_world", "render_skybox_reference"]
+  },
+  "freeze": {
+    "attempt": 4,
+    "fresh": true,
+    "step1_tool": "scripts/authoring/author-scene-a-sphere-outline.ps1 -Out target/render-bvh/sdf-validate-window/attempt4/outline (offline authoring-class pinned-Python, zero GPU, exit 0 required)",
+    "step2": "scripts/validate/render-bvh/freeze-guards-sdf.ps1 -Attempt 4",
+    "step3": "scripts/validate/render-bvh/run-window.ps1 -GuardsOnly",
+    "counts": "9 exes + 83 inputs + 2 outline lists = 94 entries",
+    "guards_fields": ["criterion_version", "bound_ulp", "counts.outline_lists=2", "counts.total=94", "outline_lists[].{arm,entities,path,bytes,sha256,rows,first_pixel,exact_max_ulp,reference,reference_sha256}"],
+    "hard_asserts": "criterion v2.1 version, bound 128, two arms, per-arm exact_max_ulp <= 128, list bytes/sha256/rows/first_pixel match",
+    "immutability": "runner re-checks both lists before the body and after the window; any drift is OUTLINE_LIST_DRIFT exit 9",
+    "guards_only_expected": "GUARDS_OK=94/94 + OUTLINE_LISTS_OK=2/2 + GUARDS_ONLY_DONE"
+  },
+  "lists": {
+    "recipe": {"rows": 183, "first_pixel": 28969, "first_xy": [169, 120], "exact_max_ulp": 73, "reference": "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json", "reference_sha256": "d6ab6dde58034df5c1bc69ab397026a8f7c3aaf58d29d25edb032d3818000dc7"},
+    "aa2": {"rows": 172, "first_pixel": 29448, "first_xy": [168, 122], "exact_max_ulp": 91, "reference": "fixtures/render-bvh/scene-a/s7b/flags/aa2_depth_seg.json", "reference_sha256": "79a275eff5d45f6bef764957e5f4987d0e6abfbb9b7a2cb578c8e1f717d4b7e1"},
+    "camera0_sphere_pixels": 0,
+    "attempt3_consistency": "both lists/first pixels/exact maxima equal the attempt3 observations"
+  },
+  "protocol": "conditional: regular util<40 first (PowerShell 5.1, default MaxUtil=40, no -OpenUtilLimit); on failure keep the failed CSV/snapshot/verdict verbatim, re-baseline, use the signed validation_only_exception_util_lt_60 monitor (-MaxUtil 60, new CSV); both monitors into evidence; never described as a regular-threshold pass",
+  "preparation_checklist": [
+    "tree clean; cargo test --no-run EXIT=0; build processes 0; GPU idle (util < 40, free >= signed floor)",
+    "host unlock state matches target expectation (grep reject_sdf_geometry = 0 hits)",
+    "criterion render-sdf-criterion-v2.1 signed; B=128; exact max 73/91",
+    "kernel identity source 10070226../PTX 7782aeb1../268,589; aa_resolve 0bf8af5a../b28e155c../27,536",
+    "fresh freeze only (attempt=4); outline lists regenerated now, no reuse of attempt1/2/3 guards",
+    "-GuardsOnly 94/94 + OUTLINE_LISTS_OK=2/2"
+  ],
+  "body_consumption": {
+    "env": ["MJWARP_RENDER_OUTLINE_LIST_DIR", "MJWARP_REQUIRE_OUTLINE_CRITERION=1"],
+    "behaviour": "cam0 bitwise; cam1 outside-list bitwise, in-list <= 128 ULP; fail-closed panic on any violation; plain cargo test unchanged without the env vars",
+    "evidence": "docs/development-evidence/render-bvh/sdf-outline-test-support/"
+  },
+  "baseline": {
+    "planned": "three read-only nvidia-smi points, floor = min(free) - 3072 MiB, measured immediately before signing",
+    "status": "measured in slice 2026-11-01-render-sdf-attempt4-baseline-v3 (baseline-pre-window-v3.txt in this directory)"
+  },
+  "prerequisites": {
+    "u1b_redo": "013d8d4a",
+    "a_order_refix": "fa604008 (kernel 10070226../7782aeb1../268,589)",
+    "criterion": "sdf-criterion-v2.1/",
+    "tool_contract": "sdf-outline-tool-v2.1/",
+    "test_support": "sdf-outline-test-support/",
+    "freeze_runner": "sdf-freeze-runner-v2.1/"
+  },
+  "next": "slice 6: measure the pre-window baseline, record baseline-pre-window-v3.txt, then hand the plan + baseline to Chief for the user double-sign; only after sign: open GPU window, freeze, body, evidence, QA review",
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "精度达标"
+  ]
+}
