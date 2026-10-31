@@ -16,7 +16,7 @@ mod s7b2;
 use mjwarp_rs::render::CameraModel;
 use mjwarp_rs::render::ImageOutput;
 use mjwarp_rs::render::kernel::launch::compile_render_artifact;
-use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, diff_depth, diff_seg};
+use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, diff_seg};
 use mjwarp_rs::render::kernel::{
     MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE, MegakernelRenderer, check_render_ptx,
 };
@@ -98,7 +98,7 @@ fn rgb_matches_reference_and_depth_seg_do_not_regress() {
         let seg_base = camera.seg_adr as usize;
         let actual_depth = &depth[base..base + camera.pixels];
         let actual_seg = &seg[seg_base..seg_base + camera.pixels];
-        let depth_diff = diff_depth(actual_depth, camera).expect("depth diff");
+        let depth_diff = s7b1::outline::recipe_depth_diff(actual_depth, camera);
         let seg_diff = diff_seg(actual_seg, camera).expect("seg diff");
         assert_eq!(
             (depth_diff.mismatched, depth_diff.max_ulp),

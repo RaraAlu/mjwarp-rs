@@ -12,9 +12,7 @@
 use mjwarp_rs::render::CameraModel;
 use mjwarp_rs::render::kernel::MegakernelRenderer;
 use mjwarp_rs::render::kernel::cast::CameraPose;
-use mjwarp_rs::render::kernel::output::{
-    DepthDiff, MAX_DEPTH_ULP, RefCamera, SegDiff, diff_depth, diff_seg,
-};
+use mjwarp_rs::render::kernel::output::{DepthDiff, MAX_DEPTH_ULP, RefCamera, SegDiff, diff_seg};
 use mjwarp_rs::render::{ContextParams, RayBuffer, RenderContext, SceneState, resolve_context};
 use mjwarp_rs::runtime::TransferSession;
 use serde_json::Value;
@@ -371,13 +369,11 @@ pub fn compare(
     let mut seg_stats = Vec::with_capacity(reference.depth_seg.len());
     for camera in &reference.depth_seg {
         let depth_start = layout.depth_adr[camera.index] as usize;
-        depth_stats.push(
-            diff_depth(
-                &rendered.depth[depth_start..depth_start + camera.pixels],
-                camera,
-            )
-            .expect("depth diff"),
-        );
+        depth_stats.push(super::s7b1::outline::diff_depth_with_outline(
+            &rendered.depth[depth_start..depth_start + camera.pixels],
+            camera,
+            Some(super::s7b1::outline::Arm::Recipe),
+        ));
         let seg_start = layout.seg_adr[camera.index] as usize;
         seg_stats.push(
             diff_seg(&rendered.seg[seg_start..seg_start + camera.pixels], camera)

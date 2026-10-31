@@ -331,12 +331,16 @@ pub fn assert_depth_seg_same_recipe(
     depth: &[f32],
     seg: &[[i32; 2]],
 ) -> (usize, i64, usize) {
-    use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, diff_depth, diff_seg};
+    use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, diff_seg};
     let (mut depth_mismatch, mut max_ulp, mut seg_mismatch) = (0usize, 0i64, 0usize);
     for camera in &reference.cameras {
         let base = camera.depth_adr as usize;
         let seg_base = camera.seg_adr as usize;
-        let diff = diff_depth(&depth[base..base + camera.pixels], camera).expect("depth diff");
+        let diff = super::s7b1::outline::diff_depth_with_outline(
+            &depth[base..base + camera.pixels],
+            camera,
+            Some(super::s7b1::outline::Arm::Recipe),
+        );
         let seg_diff =
             diff_seg(&seg[seg_base..seg_base + camera.pixels], camera).expect("seg diff");
         println!(

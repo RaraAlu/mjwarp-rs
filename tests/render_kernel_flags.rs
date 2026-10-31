@@ -28,7 +28,7 @@ mod s7b3;
 
 use mjwarp_rs::render::ImageOutput;
 use mjwarp_rs::render::kernel::launch::compile_render_artifact;
-use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, diff_depth, diff_seg};
+use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, diff_seg};
 use mjwarp_rs::render::kernel::{
     AA_RESOLVE_ENTRY, AA_RESOLVE_SOURCE, MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE, MegakernelRenderer,
     check_render_ptx,
@@ -157,8 +157,12 @@ fn check_variant_reference(
         let depth_base = camera.depth_adr as usize;
         let seg_base = camera.seg_adr as usize;
         let pixels = camera.depth_bits.len();
-        let depth_diff =
-            diff_depth(&depth[depth_base..depth_base + pixels], camera).expect("depth");
+        let depth_diff = s7b1::outline::variant_depth_diff(
+            &depth[depth_base..depth_base + pixels],
+            camera,
+            variant,
+            AA_VARIANT,
+        );
         let seg_diff = diff_seg(&seg[seg_base..seg_base + pixels], camera).expect("seg");
         println!(
             "s7b3[{variant}] cam{}: depth_mismatch={} max_ulp={} seg_mismatch={}",
@@ -260,7 +264,7 @@ fn baseline_no_regression_after_flags_and_aa() {
         let seg_base = camera.seg_adr as usize;
         let pixels = camera.depth_bits.len();
         let depth_diff =
-            diff_depth(&depth[depth_base..depth_base + pixels], camera).expect("depth");
+            s7b1::outline::recipe_depth_diff(&depth[depth_base..depth_base + pixels], camera);
         let seg_diff = diff_seg(&seg[seg_base..seg_base + pixels], camera).expect("seg");
         println!(
             "s7b3[baseline] cam{}: depth_mismatch={} max_ulp={} seg_mismatch={}",

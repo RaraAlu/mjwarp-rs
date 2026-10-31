@@ -16,7 +16,7 @@ mod s7b2;
 
 use mjwarp_rs::render::CameraModel;
 use mjwarp_rs::render::kernel::cast::CameraPose;
-use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, diff_depth, diff_seg};
+use mjwarp_rs::render::kernel::output::{MAX_DEPTH_ULP, diff_seg};
 use mjwarp_rs::render::kernel::world_camera::world_camera_pose_arrays;
 use mjwarp_rs::render::kernel::{DepthSegRenderer, MegakernelRenderer};
 use mjwarp_rs::render::resolve_context;
@@ -176,7 +176,7 @@ fn gpu_nworld_two_depth_seg_per_world_cameras() {
         let seg_adr = reference.seg_adr[index] as usize;
         let pixels = camera.pixels;
         let depth = &depth_a[depth_adr..depth_adr + pixels];
-        let diff = diff_depth(depth, camera).expect("depth diff");
+        let diff = s7b1::outline::recipe_depth_diff(depth, camera);
         assert_eq!(diff.mismatched, 0, "world0 相机 {index} depth 不匹配");
         assert!(
             diff.max_ulp <= MAX_DEPTH_ULP,

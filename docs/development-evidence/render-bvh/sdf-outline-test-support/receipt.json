@@ -1,0 +1,71 @@
+{
+  "task_id": "2026-11-01-render-sdf-outline-test-support",
+  "kind": "render-sdf-outline-env-gated-test-support",
+  "owner": "Arch",
+  "status": "env-gated support implemented and type-checked offline; no GPU body run, no freeze, no window",
+  "basis": {
+    "criterion": "render-sdf-criterion-v2.1",
+    "signed_at": "2026-11-01T02:42:29+08:00",
+    "tool_contract": "docs/development-evidence/render-bvh/sdf-outline-tool-v2.1/"
+  },
+  "env_contract": {
+    "list_dir": "MJWARP_RENDER_OUTLINE_LIST_DIR",
+    "require": "MJWARP_REQUIRE_OUTLINE_CRITERION",
+    "require_value": "1",
+    "disabled_behaviour": "plain cargo test / CI unchanged (raw product comparison)",
+    "enabled_behaviour": "cam0 bitwise; cam1 outside-list bitwise, in-list <= 128 ULP; list file must parse with matching rows / bound 128 / exact max <= 128; any violation panics"
+  },
+  "fail_closed_matrix": [
+    "only one env var set or REQUIRE != 1 -> panic",
+    "list missing / unreadable -> panic",
+    "# rows != data rows -> panic",
+    "# bound_ulp != 128 -> panic",
+    "# exact_max_ulp > 128 -> panic",
+    "malformed row / pixel out of range -> panic",
+    "cam1 outside-list delta != 0 -> panic",
+    "cam1 in-list delta > 128 ULP -> panic",
+    "cam0 any delta != 0 -> panic",
+    "no env vars -> raw comparison"
+  ],
+  "files": {
+    "new": {
+      "tests/support/render_bvh/outline.rs": { "bytes": 15074, "lines": 457, "sha256": "a3480746f856daa860eda276d75ddaecbcfa8c3bc7de4db40306977c8c752f1b" }
+    },
+    "modified": {
+      "tests/support/render_bvh/s7b1.rs": { "bytes": 17494, "lines": 479, "sha256": "6b45544ac1870f764a0fd27de26b4ba82ebb8f238cb7a00a92985cff5b7889d8" },
+      "tests/support/render_bvh/e2e.rs": { "bytes": 19009, "lines": 500, "sha256": "c0a3dac3601a37e160a6b64d905e7b8a2743c732b92fa862ab1075d2f1f824f8" },
+      "tests/support/render_bvh/skybox.rs": { "bytes": 16563, "lines": 475, "sha256": "b49b6d2240e9198d964794a6659bfb1f029427c8fa67e276f472dbdc1151f382" },
+      "tests/render_kernel_rgb.rs": { "bytes": 13458, "lines": 309, "sha256": "59ad2683f9e81fcab9b9ea31ed8adf7ae8239507e8a6d25afa03721215dfcda0" },
+      "tests/render_r10_multi_world.rs": { "bytes": 12245, "lines": 298, "sha256": "805971cc4448dd0e6e7f15ae0fb27c4ae2a363d5eec2721c088512f15a99e535" },
+      "tests/render_kernel_flags.rs": { "bytes": 21272, "lines": 499, "sha256": "392d20d155311fb6cdc021308321dcf65971ec97f4ed386512805f0f8907e745" }
+    },
+    "product_src_changed": false,
+    "fixtures_changed": false,
+    "line_ratchet": "all touched/added files <= 500 lines (s7b1 479, flags 499, e2e 500, outline 457, skybox 475, rgb 309, r10 298)"
+  },
+  "wiring": {
+    "recipe_arm_consumers": ["compare_reference(label=recipe) via outline::adjust_recipe_diff", "e2e::assert_depth_seg_same_recipe via outline::recipe_depth_diff", "skybox::compare via outline::recipe_depth_diff", "render_kernel_rgb", "render_r10_multi_world", "render_kernel_flags baseline"],
+    "aa2_arm_consumers": ["render_kernel_flags aa2 variant via outline::variant_depth_diff"],
+    "raw_consumers_kept": ["depth_seg cross-recipe s0b-fast-math comparison", "render_kernel_flags non-aa2 variants (culling_off)"]
+  },
+  "unit_tests": {
+    "log": "logs/outline-tests.txt",
+    "command": "cargo test --locked --test render_kernel_depth_seg outline",
+    "result": "5 passed / 0 failed (valid parse, row mismatch panic, wrong bound panic, exact max over bound panic, ulp ordering)"
+  },
+  "gates": {
+    "fmt": "cargo fmt --check passed",
+    "clippy": "cargo clippy --all-targets --locked -- -D warnings passed",
+    "clippy-cuda": "cargo clippy --all-targets --locked --features cuda -- -D warnings passed",
+    "unit": "cargo test --locked passed (1111 baseline + 55 outline unit-test instances across the render binaries)",
+    "no_run": "cargo test --locked --features cuda-probe --no-run EXIT=0 (logs/no-run.txt)"
+  },
+  "scope_note": "requested scope was tests/support/** only; wiring required a one-call swap in three entity test files (render_kernel_rgb, render_r10_multi_world, render_kernel_flags) because those tests call the product diff_depth directly - no product src change, no assertion text change. The initial wiring pushed s7b1/flags over the 500-line ratchet, so the exemption blocks were extracted into outline.rs helpers (adjust_recipe_diff / recipe_depth_diff / variant_depth_diff); final line counts are all <= 500.",
+  "boundaries": "zero GPU, no freeze, no window, no fixture/criteria/kernel change; the exemption is enforced only when the window runner exports the two env vars",
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "精度达标"
+  ],
+  "next": "slice 4 freeze/runner extension (94 guards entries + list checks + env export + list immutability); slice 5 attempt4 material v3; slice 6 double-sign package"
+}

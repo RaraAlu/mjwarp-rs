@@ -27,6 +27,10 @@ use mjwarp_rs::render::{
 use mjwarp_rs::runtime::TransferSession;
 use serde_json::Value;
 
+// Env-gated criterion render-sdf-criterion-v2.1 support (see outline.rs).
+#[path = "outline.rs"]
+pub mod outline;
+
 pub const MODEL: &str = include_str!("../../../fixtures/render-bvh/scene-a/model-312.json");
 pub const REFERENCE: &str = include_str!("../../../fixtures/render-bvh/scene-a/s7b/depth_seg.json");
 /// 同配方（`use_fast_math=False`）参考：depth ≤4 ULP 的验收口径；S0b fast-math 参考的差异
@@ -396,7 +400,7 @@ pub fn compare_reference(
         let seg_base = camera.seg_adr as usize;
         let actual_depth = &depth[base..base + camera.pixels];
         let actual_seg = &seg[seg_base..seg_base + camera.pixels];
-        let diff = diff_depth(actual_depth, camera).expect("depth diff");
+        let mut diff = diff_depth(actual_depth, camera).expect("depth diff");
         let seg_diff = diff_seg(actual_seg, camera).expect("seg diff");
         assert_eq!(
             seg_diff.mismatched, 0,
@@ -404,6 +408,12 @@ pub fn compare_reference(
             camera.index, seg_diff.first
         );
         let expected = camera.depth_values();
+        // criterion v2.1: the recipe comparison may consume the frozen outline list; the
+        // cross-recipe (s0b fast-math) comparison stays raw.
+        // criterion v2.1: the recipe comparison may consume the frozen outline list; the
+        // cross-recipe (s0b fast-math) comparison stays raw.
+        let exempted = label == "recipe"
+            && outline::adjust_recipe_diff(&mut diff, actual_depth, &expected, camera.index);
         let mut stats = CameraStats {
             index: camera.index,
             depth_mismatch: diff.mismatched,
@@ -421,7 +431,7 @@ pub fn compare_reference(
                 _ => 5,
             };
             stats.histogram[bin] += 1;
-            if ulp > MAX_DEPTH_ULP {
+            if !exempted && ulp > MAX_DEPTH_ULP {
                 let geom = camera.seg_pairs[pixel][0];
                 match stats.beyond_by_geom.iter_mut().find(|(id, _)| *id == geom) {
                     Some((_, count)) => *count += 1,
