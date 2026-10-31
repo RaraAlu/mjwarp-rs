@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-criteria-purpose-audit",
+  "title": {
+    "zh": "机器判据的目的与本质审计（裁定目标/服务对象/被测物本质/界来源 + 高危筛查；只读枚举 .normify checks/gate/src 容差/tests 断言/docs 契约）",
+    "en": "Audit of machine criteria purpose and nature (decision target, served purpose, measured object, bound provenance; high-risk screening over .normify checks, gates, src tolerances, test assertions and docs contracts)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "用户指出方法论缺口：验收裁定前未先定义「裁定的目标/服务对象/本质」，导致 U4 把参考产物的编译形态位级当成 SDF 正确性（`MAX_DEPTH_ULP=4` 在 `src/render/kernel/output.rs:11` 只有一句「最大允许差」，无推导、未说服务哪个决定）。本卡只读枚举仓库内全部机器判据点（.normify 任务 checks、gate 定义与阈值、src 容差常量、tests 比较/位级断言、docs 契约与证据 README 口径），逐项输出：判据 ID | 位置 | 裁定目标 | 服务对象 | 被测物本质 | 测量方式 | 界与来源（推导/参考/历史沿用/无说明）| 前提 | 风险分类 A/B/C | 备注；并给出高危清单（A 本质-推导型 / B 参考-前提型 / C 完整性-哈希型）。只出证据与汇总，不改判据、数值、代码、参考；处置由 Chief 复核后决定，改数值需用户签。",
+    "en": "Read-only audit of every machine criterion in the repo: enumerate .normify task checks, gate definitions/thresholds, src tolerance constants, test comparison/bit-level assertions, docs contracts and evidence README criteria. For each: decision target, served purpose (release / upstream equivalence / internal regression / integrity), measured object nature, measurement method, bound provenance (derived / reference / historical / undocumented), premises, A/B/C risk class, notes. Output a high-risk list grouped by class. No criteria, values, code or reference changes."
+  },
+  "modules": {},
+  "acceptance": [
+    "**枚举完整性**：覆盖 ①`.normify/changes/*.json` 的 `checks`（按 kind 计数并列出 gate 名/unchanged 路径/json 指针/forbid_claim 词/record 项）；②`.normify/gates.toml`（或等价）的 gate 定义与阈值；③`src/**` 容差常量（至少 `MAX_DEPTH_ULP`、`beyond_1_lsb`/`max_byte_diff`、物理 `*_TOL/*_EPS/*_ULP` 等）及其注释来源；④`tests/**` 的容差比较与位级断言；⑤`docs/*contract*.md` 与证据 README 的判据口径。每类给文件/条目计数，可复现的扫描命令与原始输出进 materials。",
+    "**逐项字段**：汇总表每行含 `判据 ID | 位置 | 裁定目标 | 服务对象 | 被测物本质 | 测量方式 | 界与来源 | 前提 | 风险分类 A/B/C | 备注`；A/B/C 定义按卡面（A 本质-推导型、B 参考-前提型、C 完整性-哈希型）；对无法判定来源的条目必须写「无说明」而不是猜推导。",
+    "**高危筛查**：按规则筛出（a）位级判据但参考来自不同 kernel 形态/不同场景；（b）容差常量无推导注释；（c）被判据跨场景/跨平台复用；（d）把证据完整性当数值正确性。逐条给出证据位置与命中规则；U4 的 `MAX_DEPTH_ULP=4` 必须作为案例逐项展开（含 4 ULP 的实际作用、参考形态前提、跨场景复用情况）。",
+    "**结论分级与建议**：按 A/B/C 分组给高危清单及处置建议（A 保留 / B 补前提 / C 不动；需要改数值的一律标注「需用户签」，本卡不改）。明确本审计只基于仓库现状（含只读引用 target/ 与证据目录，不跑 GPU/构建）。",
+    "**证据卫生**：`docs/development-evidence/criteria-purpose-audit/` 下 README + receipt.json（`/task_id` 等于本卡 id）+ manifest.txt 自洽、LF 无 BOM、禁词 0；只读纪律（不改判据/数值/代码/参考）在 README 中声明。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-娓叉煋涓嶣VH",
+    "owner": "QA",
+    "files": [
+      "docs/development-evidence/criteria-purpose-audit/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Chief 2026-10-31 注册（用户指出：验收裁定前未先定义裁定的目标/服务对象/本质；U4 把参考产物编译形态位级当成 SDF 正确性）。只读审计，不声明 GPU 资源、不跑窗口/构建、不改任何判据；与 SDF attempt4（Arch 在跑）解耦。产出汇总表 + 高危清单（A/B/C 分组），Chief 复核后决定处置，改数值需用户签。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-31T03:10:00.000Z",
+  "updated_at": "2026-10-31T03:12:38.314Z","checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/criteria-purpose-audit/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-criteria-purpose-audit"
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "全部判据已合规",
+        "已可发布"
+      ]
+    }
+  ]
+}
