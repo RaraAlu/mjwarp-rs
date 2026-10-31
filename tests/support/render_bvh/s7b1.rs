@@ -410,8 +410,6 @@ pub fn compare_reference(
         let expected = camera.depth_values();
         // criterion v2.1: the recipe comparison may consume the frozen outline list; the
         // cross-recipe (s0b fast-math) comparison stays raw.
-        // criterion v2.1: the recipe comparison may consume the frozen outline list; the
-        // cross-recipe (s0b fast-math) comparison stays raw.
         let exempted = label == "recipe"
             && outline::adjust_recipe_diff(&mut diff, actual_depth, &expected, camera.index);
         let mut stats = CameraStats {

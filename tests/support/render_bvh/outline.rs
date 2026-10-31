@@ -167,6 +167,13 @@ pub fn parse_list(text: &str, arm: Arm, path: &std::path::Path) -> OutlineList {
         path.display()
     );
     assert_eq!(
+        entries.len(),
+        data_rows,
+        "{}: {data_rows} data rows contain duplicate pixel indices ({} unique, fail-closed)",
+        path.display(),
+        entries.len()
+    );
+    assert_eq!(
         bound,
         BOUND_ULP,
         "{}: `# bound_ulp: {bound}` is not the signed {BOUND_ULP}",
@@ -418,6 +425,15 @@ mod tests {
     #[should_panic(expected = "does not match")]
     fn rejects_row_count_mismatch() {
         let text = sample(3, 73, 128).replace("# rows: 3", "# rows: 2");
+        parse_list(&text, Arm::Recipe, std::path::Path::new("bad.txt"));
+    }
+
+    #[test]
+    #[should_panic(expected = "duplicate pixel indices")]
+    fn rejects_duplicate_pixel_rows() {
+        let mut text = sample(2, 73, 128);
+        text.push_str("100 0 0 2 5 1 2 3 1 10.0 11.5\n");
+        text = text.replace("# rows: 2", "# rows: 3");
         parse_list(&text, Arm::Recipe, std::path::Path::new("bad.txt"));
     }
 

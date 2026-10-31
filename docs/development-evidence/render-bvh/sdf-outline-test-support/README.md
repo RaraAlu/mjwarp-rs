@@ -27,6 +27,7 @@ Fail-closed matrix (all panics, never silent relaxation):
 | `# rows:` != number of data rows | panic |
 | `# bound_ulp:` != 128 | panic |
 | `# exact_max_ulp:` > 128 | panic |
+| duplicate pixel indices (rows != unique pixels) | panic |
 | malformed row / pixel index out of range | panic |
 | cam 1 pixel outside the list with a non-zero delta | panic (violation) |
 | cam 1 in-list pixel > 128 ULP | panic (violation) |
@@ -59,9 +60,9 @@ Product `src/` untouched; fixtures/criteria values/kernel untouched; assertion t
 
 ## Unit tests (run without GPU, no env)
 
-`tests/support/render_bvh/outline.rs` adds five non-ignored tests: valid parse, row-count
-mismatch panic, wrong-bound panic, exact-max-over-bound panic, and ULP ordering. Captured log:
-`logs/outline-tests.txt` (`5 passed; 0 failed`).
+`tests/support/render_bvh/outline.rs` adds six non-ignored tests: valid parse, row-count
+mismatch panic, duplicate-pixel panic, wrong-bound panic, exact-max-over-bound panic, and ULP
+ordering. Captured log: `logs/outline-tests.txt` (`6 passed; 0 failed`).
 
 ## Boundaries
 
