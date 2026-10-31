@@ -2,7 +2,7 @@
   "task_id": "2026-10-31-render-sdf-validate-window-material-v2",
   "kind": "render-sdf-validate-window-material-v2",
   "owner": "Arch",
-  "status": "material only; window NOT opened; awaiting user double-sign of plan + baseline",
+  "status": "material only; window NOT opened; pre-window baseline recorded; freeze-step tool self-check PASS but the signed criterion-v2 freeze verdict FAILS -> window blocked pending a criterion decision",
   "criterion": {
     "version": "render-sdf-criterion-v2",
     "bound_ulp": 128,
@@ -35,8 +35,52 @@
     "attempt": 4,
     "fresh": true,
     "counts": "9 exe + 83 inputs + scene-a sphere-outline list hashes",
-    "dump_tool": "scripts/validate/render-bvh/dump-scene-a-sphere-outline.ps1 (read-only, freeze step only; contract fixed by this material; implementation + self-check in the window-preparation step before the freeze)",
+    "dump_tool": "scripts/authoring/author-scene-a-sphere-outline.ps1 (+ .py helpers) - offline authoring-class pinned-Python tool: zero GPU, outside the product chain, never referenced by product build/tests/cargo gates/product scripts; wrapper re-checks pinned env + upstream identity and fails closed; refuses to write under fixtures/; read-only; freeze step only",
+    "dump_tool_runner": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/authoring/author-scene-a-sphere-outline.ps1 -Out target/render-bvh/sdf-validate-window/attempt4/outline",
     "guards_hashes": "per-entity outline list sha256 written into the guards file and the window evidence"
+  },
+  "authoring_exception": {
+    "record": "authoring-exception.txt",
+    "basis": "user-approved offline authoring exception 2026-10-22; scripts/authoring is the only allowed offline pinned-Python area",
+    "pinned_env": "python 3.12.13 / numpy 2.5.4 / mujoco 3.15.0 / warp 1.15.0 / mujoco-warp 3.15.0 at target/mjwarp-parallel/venv",
+    "upstream": "target/mjwarp-parallel/upstream HEAD 71da24d956378a87a703b6e1442b13aec0c4ac29 clean, 75 installed sources byte-equal",
+    "scripts_sha256": {
+      "ps1": "dd0663f4f5f60190a63b216d7d527de655701f2430df70f31d52669b26be21aa",
+      "orchestrator_py": "a20a5971f32d88c1cbde553b0637a44aa90727225288d195c8f08a64fa6c72d2",
+      "replay_py": "253c74a22c33365565b7ac35e494f31a1f323d82cd7b9682ae53d6efbad2b7c5"
+    },
+    "product_usage": "zero: git grep for the tool name outside scripts/authoring = 0 hits; product code never starts Python (only receipt metadata field names contain python_executable/python_executions)"
+  },
+  "dump_tool_selfcheck": {
+    "log": "dump-tool-selfcheck.txt",
+    "rays_vs_s5": "256/256 bitwise equal",
+    "recipe_arm_form_a_vs_reference": "747/747 bitwise equal",
+    "recipe_arm_affected": "183 pixels, max_ulp 73 (reproduces attempt3)",
+    "aa2_arm_form_a_vs_reference": "745/745 bitwise equal",
+    "aa2_arm_affected": "172 pixels, max_ulp 91 (reproduces attempt3 flags aa2 arm)",
+    "cam0_sphere_pixels": 0,
+    "determinism": "two runs byte-identical, 11 files",
+    "content_digest": "ee273ba2907726f8db9603e55dcb673d9761ce78b989a9e9a49d6ebf0d36edcc",
+    "internal_self_check": "PASS",
+    "criterion_verdict": "CRITERION_V2_FREEZE_FAIL"
+  },
+  "blocker": {
+    "record": "outline-replay-findings.txt",
+    "list_predicate": "v2 section-2 4-neighbour outline band covers only 9/183 affected pixels (recipe) and 18/172 (aa2) -> fail-closed rule fails the attempt",
+    "b_recompute": "v2 section-3 with exact extremes: recipe band4 1049.60 -> 2048; recipe affected 363.01 -> 512; aa2 band4 441.00 -> 512; aa2 affected 440.72 -> 512 (signed 128) -> freeze rule fails",
+    "decision_owner": "criterion change (list predicate / bound derivation / B value) is a signature-level item for Chief/user; Arch records facts only and changes no criterion/reference value"
+  },
+  "baseline": {
+    "file": "baseline-pre-window.txt",
+    "sampled_at": "2026-10-31T13:24:28/13:24:31/13:24:34+08:00",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER, driver 596.36, 16376 MiB",
+    "points": [
+      "free 8400 MiB, used 7662 MiB, util 93 %",
+      "free 8400 MiB, used 7662 MiB, util 93 %",
+      "free 8400 MiB, used 7662 MiB, util 37 %"
+    ],
+    "floor_mib": 5328,
+    "window_rule": "re-sample three points after the freeze step; if free < 5328 MiB at any sample -> STOP; regular monitor unchanged (util < 40, MaxUtil=40, no -OpenUtilLimit)"
   },
   "protocol": "conditional: regular util<40 first (PowerShell 5.1, default MaxUtil=40, no -OpenUtilLimit); on failure keep the failed CSV/snapshot/verdict verbatim, re-baseline, use the signed validation_only_exception_util_lt_60 monitor (-MaxUtil 60, new CSV); both monitors into evidence; never described as a regular-threshold pass",
   "preparation_checklist": [
@@ -44,14 +88,14 @@
     "criterion v2 signed; B=128; per-entity outline list hashes in guards",
     "kernel identity = source 10070226../PTX 7782aeb1../268,589",
     "tree clean; build processes 0; GPU idle; today's GPU state in facts",
-    "fresh freeze only; -GuardsOnly 92/92 plus list check"
+    "fresh freeze only; -GuardsOnly 92/92 plus list check",
+    "criterion blocker decided (list predicate / B recomputation) before any window opening"
   ],
-  "baseline": "not in this material; three-point baseline + floor recorded in target/render-bvh/sdf-validate-window/attempt4/ at window time",
   "prerequisites": {
     "u1b_redo": "2026-10-31-render-sdf-host-unlock-redo (013d8d4a)",
     "a_order_refix": "2026-10-31-render-sdf-sphere-dot-a-order-refix (fa604008)"
   },
-  "next": "send window plan + baseline to Chief -> user double-sign -> open GPU window -> attempt4 body -> evidence commit -> QA check",
+  "next": "report baseline + tool self-check + blocker to Chief; hold the window until the criterion question is decided; then window plan + baseline double-sign -> GPU window",
   "not_claimed": [
     "渲染数值验收通过",
     "上游等价",

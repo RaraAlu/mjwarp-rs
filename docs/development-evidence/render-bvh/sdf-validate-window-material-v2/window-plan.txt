@@ -33,8 +33,11 @@ Prerequisites (all verified): U1b redo 2026-10-31-render-sdf-host-unlock-redo (0
 
 3. FREEZE (attempt=4, fresh; old 92-entry freezes are invalid)
   freeze-guards-sdf.ps1 -Attempt 4 -> hard assert 9 exe + 83 inputs + outline list hashes = entries;
-  dump-scene-a-sphere-outline.ps1 (read-only, runs only in the freeze step) emits the per-entity lists and their sha256;
+  scripts/authoring/author-scene-a-sphere-outline.ps1 (offline authoring-class pinned-Python
+  tool, read-only, runs only in the freeze step) emits the per-entity lists and their sha256;
   guards file must contain the list hashes; -GuardsOnly must be 92/92 plus list check.
+  Runner command: powershell -NoProfile -ExecutionPolicy Bypass -File
+  scripts/authoring/author-scene-a-sphere-outline.ps1 -Out target/render-bvh/sdf-validate-window/attempt4/outline
 
 4. CONDITIONAL MONITOR PROTOCOL (unchanged, PowerShell 5.1 only)
   step1 regular: monitor-until-clean.ps1 -OutCsv target/render-bvh/sdf-validate-window/monitor-pre-window-attempt4.csv -Required 60 -MaxMinutes 30
@@ -52,13 +55,37 @@ Prerequisites (all verified): U1b redo 2026-10-31-render-sdf-host-unlock-redo (0
   [ ] tree clean; build processes 0; GPU idle check; today's GPU state written into facts
   [ ] new fresh freeze (no reuse of attempt1/2/3 guards); -GuardsOnly passes including list check
 
-6. WINDOW PLAN / BASELINE (to be taken at window time)
+6. WINDOW PLAN / BASELINE (baseline measured BEFORE the window; signed together with this plan)
+  Pre-window baseline (2026-10-31, read-only nvidia-smi, zero GPU compute; full record in
+  baseline-pre-window.txt):
+    points 13:24:28 / 13:24:31 / 13:24:34 (+08:00): free 8400 / 8400 / 8400 MiB,
+      used 7662 MiB, util 93 / 93 / 37 %; GPU RTX 4070 Ti SUPER, driver 596.36, 16376 MiB total.
+    min(free) = 8400 MiB -> floor = min(free) - 3072 = 5328 MiB.
+  At window time re-sample three points immediately before the body (after the freeze step);
+  if free < 5328 MiB at any sample -> STOP, no body in this attempt, samples recorded verbatim
+  in facts. The regular monitor still requires util < 40 with default MaxUtil=40 and no
+  -OpenUtilLimit; desktop graphics utilization at baseline sampling is not a window result.
   expected duration 30-60 min (freeze ~2-3 min + body ~50 s + monitor up to 30 min);
   9 entities; single full-load GPU task; no other GPU job concurrently.
-  This material does NOT contain a baseline; the three-point baseline and floor are recorded in target/render-bvh/sdf-validate-window/attempt4/ at window time.
+  BLOCKER: under the signed render-sdf-criterion-v2 the freeze step fails (list predicate and
+  B recomputation; see outline-replay-findings.txt). The window must NOT open until that
+  criterion question is decided; this plan is material only.
 
 7. OPEN ITEMS (explicit)
-  - The actual dump tool script (scripts/validate/render-bvh/dump-scene-a-sphere-outline.ps1) is implemented and self-checked in the
-    window-preparation step BEFORE the freeze; this material fixes its contract (read-only, freeze-step only, per-entity list format,
-    list sha256 into the guards file). If implementation deviates, Chief/QA must review before the freeze.
-  - B recomputation at freeze uses the v2 section-3 formula; result must be <= 128 or the attempt fails.
+  - The freeze step runs an AUTHORING-CLASS pinned-Python tool: it is offline, zero GPU and
+    outside the product chain - scripts/authoring/author-scene-a-sphere-outline.ps1 (plus
+    .py helpers). It is declared here explicitly for the double-sign card: the wrapper
+    re-checks the pinned interpreter/package versions and the upstream identity before the run,
+    refuses to write under fixtures/, writes only to the -Out directory, and no product
+    build/test/cargo gate or product script references it (grep proof in
+    authoring-exception.txt). Contract: read-only, freeze-step only, per-entity lists with the
+    list sha256 going into the guards file; implementation and self-check are recorded in
+    dump-tool-selfcheck.txt and authoring-exception.txt.
+  - BLOCKER for the signed criterion: the v2 section-2 predicate (4-neighbour outline band)
+    covers only 9/183 (recipe) and 18/172 (aa2) of the derived affected pixels, and the v2
+    section-3 recomputation gives 512 ULP (> signed 128) on the derived affected set
+    (2048/512 on the band sets). Facts and exact numbers: outline-replay-findings.txt. Any
+    change (list predicate / bound derivation / B value) is a criterion change requiring a new
+    user signature; Arch does not decide it.
+  - B recomputation at freeze uses the v2 section-3 formula; result must be <= 128 or the
+    attempt fails (raising B is forbidden).

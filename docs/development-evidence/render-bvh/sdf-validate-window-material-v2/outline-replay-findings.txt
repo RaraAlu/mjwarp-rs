@@ -1,0 +1,67 @@
+scene-a sphere-outline replay findings (offline, zero GPU) - freeze-blocking facts
+================================================================================
+Material task: 2026-10-31-render-sdf-validate-window-material-v2 (Arch; offline, zero GPU).
+Criterion in force (signed): render-sdf-criterion-v2, B = 128 ULP.
+Tool: scripts/authoring/author-scene-a-sphere-outline.ps1 (+ .py helpers).
+Run evidence: dump-tool-selfcheck.txt; raw outputs under
+target/render-bvh/sdf-validate-window/attempt4/outline-selfcheck/ (not in the repository).
+
+A. How the replay was validated (why the numbers below can be trusted)
+   1) camera-space rays vs the S5 fixture samples: 256/256 bitwise equal.
+   2) form A (`a` order (0,1,2), the scene-a reference form) vs the frozen recipe reference
+      depth bits, all camera-1 sphere pixels: 747/747 bitwise equal.
+   3) form B (`a` order (1,0,2), the product form after the refix) vs form A: 183 pixels,
+      max_ulp = 73 - exactly the attempt3 observation on the recipe arm
+      (attempt3: 183 px / max 73, first diff pixel 28969 = (169,120)).
+   4) aa2 arm (samples_per_pixel=2; depth/seg are first-pass only, so sub-sample 0 on the
+      doubled image grid): form A vs the frozen aa2 reference: 745/745 bitwise equal;
+      form B vs form A: 172 pixels, max_ulp = 91 - exactly the attempt3 flags aa2 arm
+      observation (172 px / max 91, first diff pixel 29448 = (168,122)).
+   5) skybox capture depth/seg vs the recipe reference: 0/0 mismatches (same lists apply).
+   6) camera 0 sphere pixels: 0 (no list needed for camera 0).
+   7) two runs of the tool are byte-identical (11 files, determinism check in the wrapper).
+
+B. Finding 1 - the criterion-v2 section-2 predicate does not cover the affected set
+   The v2 predicate is "reference seg points at the sphere (2,5) AND the pixel is on the
+   outline band: at least one 4-neighbour is a non-sphere hit".
+   - recipe arm: 4-neighbour band = 90 pixels; derived affected set (form A vs form B) = 183
+     pixels; the band covers only 9/183 (174 affected pixels outside any frozen list).
+   - aa2 arm: band = 89 pixels; affected = 172; band covers 18/172.
+   Consequently, with the fail-closed rule "any pixel outside the frozen list with a non-zero
+   delta fails", an attempt4 built from the v2 predicate FAILS even for the current product.
+   Cause: the affected region is roughly a 2-pixel-wide band (interior rim pixels also have a
+   small discriminant), not the 1-pixel outer silhouette.
+
+C. Finding 2 - the criterion-v2 section-3 recomputation exceeds the signed B on both sets
+   Using the v2 section-3 formula with exact extremes from the frozen ray grid
+   (raw bound = 5u*|c|max*|vz|max / (2a*sqrt(det)_min) / ULP(depth_min), then x1.15, then
+   the next power of two):
+   - recipe / band4:        sqrt(det)_min 2.199769e-03, |c|max 1.894825, |vz|max 0.974813,
+                            depth_min 1.258332 -> raw 1049.60 -> x1.15 1207.04 -> pow2 2048
+   - recipe / affected:     sqrt(det)_min 6.356325e-03 -> raw 363.01 -> x1.15 417.46 -> 512
+   - aa2 / band4:           sqrt(det)_min 5.233964e-03 -> raw 441.00 -> x1.15 507.15 -> 512
+   - aa2 / affected:        sqrt(det)_min 5.233964e-03 -> raw 440.72 -> x1.15 506.83 -> 512
+   Observed maximum deltas are 73 ULP (recipe) and 91 ULP (aa2), i.e. the rigorous bound is
+   ~5x above the observed worst case, but it is still far above the signed B = 128 ULP.
+   Per the signed v2 rule ("recomputed B > 128 => the attempt fails, raising B is forbidden"),
+   the freeze step itself fails.
+
+D. Consequence (fact, no disposition decided here)
+   With the signed render-sdf-criterion-v2 unchanged, attempt4 cannot reach the body: the
+   freeze step fails on both the list-coverage rule and the B recomputation rule. This is not
+   an execution problem and not a product-code defect found by the tool; it is a criterion
+   property. Any change to the list predicate, to the bound derivation, or to the B value is
+   a criterion change: a new criterion version plus a fresh user signature. Arch does not
+   decide this and does not change any criterion/reference value while the decision is open.
+
+E. Inputs used (sha256)
+   fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json  d6ab6dde58034df5c1bc69ab397026a8f7c3aaf58d29d25edb032d3818000dc7
+   fixtures/render-bvh/scene-a/s7b/flags/aa2_depth_seg.json         79a275eff5d45f6bef764957e5f4987d0e6abfbb9b7a2cb578c8e1f717d4b7e1
+   fixtures/render-bvh/scene-a/model-312.json                      cdd490f0209dd16a57b2685f3139548af8a2b73195cdb0e01a74ab094ef1df00
+   fixtures/render-bvh/scene-a/s2/reference_hits.json              609ffc527e8216654cb7b6576f998659026d0e5324429c31c7a67f058c225f84
+   fixtures/render-bvh/scene-a/s5/camera_rays.json                 545a1442fc5ac67d8de9abd6d7f7cf0a24e5a86baa3b473f660d8aae83842022
+   fixtures/render-bvh/scene-a/reference-skybox/depth.npz          28c1ea4bdd4533a3d4811f390051a9e0dfa75ccab2549d7b32b8b426ccc9ba14
+   fixtures/render-bvh/scene-a/reference-skybox/seg.npz            2153fa728d634c032cf38847761803c4faa806aa554e108a2e0bd7b8ac8e6a97
+
+Not claimed: no window result, no pass, no precision-admission statement, no criterion or
+reference change.

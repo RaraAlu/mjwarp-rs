@@ -1,0 +1,64 @@
+Offline authoring exception record: scene-a sphere-outline dump tool
+================================================================================
+Material task: 2026-10-31-render-sdf-validate-window-material-v2 (Arch; offline, zero GPU).
+Tool entry: scripts/authoring/author-scene-a-sphere-outline.ps1
+Tool helper: scripts/authoring/author-scene-a-sphere-outline.py
+Tool replay: scripts/authoring/scene_a_outline_replay.py
+
+1. Boundary basis
+   - User-approved offline authoring exception (2026-10-22): pinned-Python authoring tools
+     live only under scripts/authoring/, are never part of the product build/test/gate
+     chain, and their outputs go to evidence or a caller-chosen scratch dir - never into
+     product fixtures.
+   - scripts/authoring/README.md states the same boundary (no product build/test/cargo gate
+     or product script reference; pinned environment and upstream identity are re-checked by
+     the wrapper and any mismatch refuses to run; products only run cargo, never Python).
+
+2. Pinned environment re-check (performed by the wrapper on every run)
+   - interpreter: target/mjwarp-parallel/venv/Scripts/python.exe  (prefix must equal the venv)
+   - python 3.12.13 / numpy 2.5.4 / mujoco 3.15.0 / warp 1.15.0 / mujoco-warp 3.15.0
+     (any mismatch -> `authoring pinned-env check failed`, no run)
+   - upstream identity: target/mjwarp-parallel/upstream at
+     71da24d956378a87a703b6e1442b13aec0c4ac29, checkout clean, and 75 installed
+     mujoco_warp .py sources byte-equal to the upstream checkout
+   - GPU identity read only (name/driver): NVIDIA GeForce RTX 4070 Ti SUPER, driver 596.36
+   - last observed wrapper line: `pinned env OK: python=3.12.13 numpy=2.5.4 mujoco=3.15.0
+     warp=1.15.0 gpu=NVIDIA GeForce RTX 4070 Ti SUPER, 596.36
+     upstream=71da24d956378a87a703b6e1442b13aec0c4ac29 installed_sources=75`
+
+3. Script identities (sha256, bytes)
+   dd0663f4f5f60190a63b216d7d527de655701f2430df70f31d52669b26be21aa  5923  scripts/authoring/author-scene-a-sphere-outline.ps1
+   a20a5971f32d88c1cbde553b0637a44aa90727225288d195c8f08a64fa6c72d2 14313  scripts/authoring/author-scene-a-sphere-outline.py
+   253c74a22c33365565b7ac35e494f31a1f323d82cd7b9682ae53d6efbad2b7c5 14198  scripts/authoring/scene_a_outline_replay.py
+   Line counts: wrapper 110, orchestrator 281, replay module 364 (all below the 500-line
+   ratchet).
+
+4. Zero product usage (grep proof; commands and full results)
+   a) git grep -n "author-scene-a-sphere-outline" -- src tests benches scripts ':!scripts/authoring'
+      -> 0 hits (exit 1). No product source, test, bench or product script references the tool.
+   b) git grep -n "python.exe" -- src tests benches
+      -> only metadata field names in receipts/evidence JSON (e.g. `python_executable_sha256`,
+         `python_executions` counters); no product code path starts a Python process.
+   c) Product build/tests/gates are cargo-only; this tool is not wired into cargo, CI, the
+      normify gate set or any scripts/ product wrapper.
+
+5. What the tool reads / writes
+   - reads frozen fixtures only (sha256 pins embedded; a pinned-input drift exits 6 without
+     writing lists): scene-a model-312.json, s2/reference_hits.json,
+     s7b/depth_seg_fast_math_false.json, s7b/flags/aa2_depth_seg.json,
+     reference-skybox/{depth,seg}.npz, s5/camera_rays.json.
+   - writes only to the -Out directory; refuses to write under fixtures/. The freeze step
+     uses target/render-bvh/sdf-validate-window/attempt4/outline (out of tree).
+   - zero GPU: no CUDA context, no NVRTC, no kernel launch, no nvidia-smi sampling beyond the
+     read-only name/driver identity line; replay is host-side exact f32 arithmetic.
+
+6. Self-check evidence
+   - docs/development-evidence/render-bvh/sdf-validate-window-material-v2/dump-tool-selfcheck.txt
+     (captured wrapper log; includes the pinned-env line, both script hashes, the two-run
+     byte-identical determinism check, the independently re-verified sha256sums, and exit
+     code 4 = criterion verdict fails).
+   - Current outputs of the self-check run: 11 files, content_digest
+     ee273ba2907726f8db9603e55dcb673d9761ce78b989a9e9a49d6ebf0d36edcc; the per-file
+     sha256 list is in the captured log.
+   - The run exits 4 (not 0) because the signed criterion-v2 freeze-time B recomputation
+     exceeds B=128 - a factual verdict, not a tool failure (tool self-check is PASS).

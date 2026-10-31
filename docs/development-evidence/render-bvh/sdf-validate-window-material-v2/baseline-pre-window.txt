@@ -1,0 +1,44 @@
+U4 attempt4 pre-window GPU baseline (signed-before-window, taken 2026-10-31)
+================================================================================
+Purpose: the plan is dual-signed BEFORE the GPU window opens, so the baseline and the
+floor are measured before the window (read-only `nvidia-smi`, zero GPU compute).
+Material task: 2026-10-31-render-sdf-validate-window-material-v2 (Arch; offline, zero GPU).
+Executed task: 2026-10-31-render-sdf-validate (GPU full load; user double-sign required).
+
+Environment
+  GPU            : NVIDIA GeForce RTX 4070 Ti SUPER
+  driver         : 596.36
+  memory total   : 16376 MiB
+  shell          : Windows PowerShell 5.1.26100.7920
+  command        : nvidia-smi --query-gpu=timestamp,memory.free,memory.used,utilization.gpu
+                   --format=csv,noheader   (three points, 3 s apart, sampled manually)
+  no compute app held GPU memory at sampling time (no process with a used_memory value in
+  `nvidia-smi --query-compute-apps`); the utilization below is desktop/graphics activity,
+  not a compute job.
+
+Raw three points (verbatim)
+  2026/10/31 13:24:28.594, 8400 MiB, 7662 MiB, 93 %
+  2026/10/31 13:24:31.668, 8400 MiB, 7662 MiB, 93 %
+  2026/10/31 13:24:34.710, 8400 MiB, 7662 MiB, 37 %
+
+Derived values
+  min(memory.free) = 8400 MiB
+  floor            = min(free) - 3072 MiB = 8400 - 3072 = 5328 MiB
+  (3072 MiB is the reserved headroom used by every render-bvh window floor formula.)
+
+Context sample (earlier, same idle session; NOT the signed set)
+  2026/10/31 13:17:48.853, 8165 MiB, 7897 MiB, 93 %
+  2026/10/31 13:17:51.918, 8165 MiB, 7897 MiB, 93 %
+  2026/10/31 13:17:54.968, 8165 MiB, 7897 MiB, 94 %
+  (free 8165 MiB -> floor would be 5093 MiB; the 13:24 set above is the signed one.)
+
+Window-time rule (material window-plan.txt section 6)
+  - Re-sample three points immediately before the body after the freeze step.
+  - If free < the signed floor (5328 MiB) at any window-time sample -> STOP, no retry of the
+    body in the same attempt, record the samples verbatim in facts.
+  - The regular monitor still requires the default threshold (util < 40, MaxUtil=40, no
+    -OpenUtilLimit); the desktop graphics utilization at baseline sampling is NOT a window
+    result and must not be quoted as one.
+
+Not claimed: no window result, no pass, no precision-admission statement. This file only
+records pre-window idle GPU memory and the derived floor.
