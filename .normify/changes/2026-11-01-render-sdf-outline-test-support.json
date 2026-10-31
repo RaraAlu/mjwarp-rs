@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-01-render-sdf-outline-test-support",
+  "title": {
+    "zh": "env-gated 球轮廓判据测试支持（MJWARP_RENDER_OUTLINE_LIST_DIR + REQUIRE=1，fail-closed；产品 src 零改动）",
+    "en": "env-gated sphere-outline criterion test support (MJWARP_RENDER_OUTLINE_LIST_DIR + REQUIRE=1, fail-closed; product src untouched)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "实现 criterion v2.1 的 body 期消费：新增 tests/support/render_bvh/outline.rs（env-gated：两个变量都设才启用；清单缺失/行数不符/bound≠128/exact_max>128/像素越界 → panic；cam0 位级、cam1 清单外位级、清单内 ≤128 ULP；无变量时行为不变），并把 6 个 scene-a 回归实体的 depth 比较接上（depth_seg 走 compare_reference(recipe)、e2e、skybox 在 support 内接；rgb/r10/flags 三个测试文件各做一次调用替换）。产品 src/fixtures/判据数值零改动，断言文案不改。",
+    "en": "Wire body-time consumption of criterion v2.1: add tests/support/render_bvh/outline.rs (env-gated; enabled only when both vars are set; panics on missing list / row mismatch / bound != 128 / exact max > 128 / out-of-range pixel; cam0 bitwise, cam1 outside-list bitwise and in-list <= 128 ULP; behaviour unchanged when disabled) and connect the six scene-a regression depth comparisons (depth_seg via compare_reference(recipe), e2e and skybox inside support; rgb/r10/flags with a single call swap each). No product src/fixtures/criteria change, no assertion text change."
+  },
+  "modules": {},
+  "acceptance": [
+    "outline.rs 生效路径：两变量都设才启用、单变量/REQUIRE≠1 panic；清单缺失/行数不符/#bound_ulp≠128/#exact_max_ulp>128/像素越界 panic；cam1 清单外 Δ≠0 或清单内 >128 视为 violation 并 panic；无变量时保持原比较（本地/CI 不变）。",
+    "六个 scene-a 回归实体 depth 比较已接 outline helper（recipe/aa2 臂正确；跨配方 s0b 与 culling_off 等非清单参考保持 raw）；产品 src 零改动、断言文案零改动；5 条 outline 单元测试（含 3 条 fail-closed panic 用例）通过。",
+    "四门禁通过（fmt/clippy/clippy-cuda/unit）+ --no-run EXIT=0；证据目录 sdf-outline-test-support/（README/receipt/logs/manifest）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-01-render-sdf-outline-tool-v21-contract"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "tests/support/render_bvh/outline.rs",
+      "tests/support/render_bvh/s7b1.rs",
+      "tests/support/render_bvh/e2e.rs",
+      "tests/support/render_bvh/skybox.rs",
+      "tests/render_kernel_rgb.rs",
+      "tests/render_r10_multi_world.rs",
+      "tests/render_kernel_flags.rs",
+      "docs/development-evidence/render-bvh/sdf-outline-test-support/"
+    ],
+    "resources": [],
+    "priority": 61
+  },
+  "note": "Arch 2026-11-01 注册（step-3 第 3 片；零 GPU，不声明 gpu 资源）。范围说明：support-only 不足以覆盖 3 个直接调用产品 diff_depth 的测试文件，按最小改动做了调用替换（产品 src 未动、断言文案未改），已在本片 receipt/scope_note 与报告中说明。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-01T03:20:00.000Z",
+  "updated_at": "2026-11-01T03:20:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-outline-test-support/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-01-render-sdf-outline-test-support"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-outline-test-support/receipt.json",
+      "pointer": "/files/product_src_changed",
+      "equals": false
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
