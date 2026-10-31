@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-01-render-sdf-outline-tool-v21-contract",
+  "title": {
+    "zh": "scene-a 球轮廓 authoring 工具 v2.1 契约（精确差集清单 + 逐像素 bound + exact max；离线零 GPU）",
+    "en": "scene-a sphere-outline authoring tool v2.1 contract (exact-difference lists + per-pixel bounds + exact max; offline, zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按已签 render-sdf-criterion-v2.1 更新 scripts/authoring 离线工具契约：每臂输出精确差集清单（recipe 183 / aa2 172，含 bound_raw/margin 列）、outline-lists.json（清单 sha/bytes/rows/first_pixel/exact_max_ulp + 解析界统计，供冻结步写 guards）、b-recompute/selfcheck/open-items/sha256sums；exit 0/4/5/6 语义；自检复现 attempt3（183/73、172/91、cam0=0、两跑逐字节一致）。不改产品 src/tests/fixtures、不改判据数值/参考/内核。",
+    "en": "Update the offline scripts/authoring tool to the signed render-sdf-criterion-v2.1 contract: per-arm exact-difference lists (recipe 183 / aa2 172 with bound_raw/margin columns), outline-lists.json (list sha/bytes/rows/first_pixel/exact_max_ulp + analytic bound stats for the freeze step), b-recompute/selfcheck/open-items/sha256sums, exit codes 0/4/5/6, and a self-check reproducing attempt3 (183/73, 172/91, cam0=0, two-run byte-identical). No product src/tests/fixtures change, no criteria/reference/kernel change."
+  },
+  "modules": {},
+  "acceptance": [
+    "工具输出符合 v2.1 契约：scene-a-sphere-outline-{recipe,aa2}.txt（11 列，含 bound_raw/margin，行数 183/172，首像素 28969/29448，exact_max 73/91）、outline-lists.json（字段完整、sha/bytes/rows 与被哈希文件一致）、b-recompute.txt（exact max vs B=128 verdict）、selfcheck.txt、open-items.txt、sha256sums.txt。",
+    "自检 PASS 且 exit 0：射线 256/256、form A 747/747 与 745/745 位级、list 183/73 与 172/91、cam0=0、wrapper 两跑逐字节一致并独立复核 6 个 sha；零 GPU、零冻结；产品链零调用（authoring-exception-v21.txt）。",
+    "四门禁通过（fmt/clippy/clippy-cuda/unit 1111/0）+ --no-run EXIT=0；scripts/authoring 三文件均 <500 行。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-01-render-sdf-criterion-v21-signed"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "scripts/authoring/author-scene-a-sphere-outline.py",
+      "scripts/authoring/scene_a_outline_replay.py",
+      "docs/development-evidence/render-bvh/sdf-outline-tool-v2.1/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-11-01 注册（step-3 第 2 片；零 GPU）。wrapper 行为不变（pinned 环境/上游身份复核、两次运行确定性、sha 复核），只改 helper/replay 的输出契约。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-01T03:00:00.000Z",
+  "updated_at": "2026-11-01T03:00:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-outline-tool-v2.1/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-01-render-sdf-outline-tool-v21-contract"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-outline-tool-v2.1/receipt.json",
+      "pointer": "/contract/criterion_version",
+      "equals": "render-sdf-criterion-v2.1"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
