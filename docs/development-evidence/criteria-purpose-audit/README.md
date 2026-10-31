@@ -4,6 +4,7 @@
 pin：`b908075c`（start 时 HEAD；`revision.before`）
 审计标准：`standard.md`（v1；§5 按 Chief 2026-10-31 最终口径：QA 报告 → Chief 定夺；仅放宽数值/改参考/对外发布三类报用户）
 产出：`materials/criteria-table.md`（31 条判据逐项表）、`materials/high-risk.md`（A/B/C 分组高危清单）、`materials/checks-inventory.txt`、`materials/gates-policy.txt`、`materials/src-tolerance-constants.txt`、`materials/tests-assertions.txt`、`materials/docs-criteria-statements.txt`、`materials/downgrade-impact.txt`
+裁定记录（Chief 2026-10-31，非审计产出）：`materials/adjudication.md`（A 保留 / B 降级 + 前提句子模板 / C 两条硬规则进 `standard.md` §6）
 
 ## 1. 为什么要审计
 
@@ -39,3 +40,4 @@ pin：`b908075c`（start 时 HEAD；`revision.before`）
 - 未逐条枚举 299 个测试文件里的每一行断言，而是按判据族聚合（同一 helper 的断言归一族）；`tests-assertions.txt` 保留 7 组关键字的命中样本与总数，可复查。
 - 降级影响面是**卡面文本匹配的上限式粗估**（一卡可命中多族），不是精确归属；精确归属需按卡逐条人工核对。
 - 本审计**不写处置建议**（Chief 定夺）；**不宣称**判据全部合规、**不宣称**已可发布；未产生任何签名级结论。
+- 后补的 `materials/adjudication.md` 是 Chief 裁定记录（A 保留 / B 降级 / C 两条硬规则），不是审计产出，也不改判据、数值、参考或任何证据字节。
