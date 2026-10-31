@@ -17,7 +17,7 @@ attempt1/2/3 证据。
 - **前提**：位级判据只在同编译形态下成立（两份上游参考对 `a` 的结合次序不同，机器证据见
   `reference-conflict-rca.md`），因此 scene-a 球轮廓不适用位级判据，按 §2 的精确差集清单受控豁免。
 
-## 1. SDF 实体判据（与 v2 完全一致，不放宽，位级）
+## 1. SDF 实体判据（不放宽，位级）
 
 实体 `render_sdf_reference`（scene-sdf 参考，`fixtures/render-bvh/scene-sdf/capture-sdf/{sdf-mesh,sdf-occluder}`）逐条：
 
@@ -27,10 +27,10 @@ attempt1/2/3 证据。
 | depth | `mismatched = 0` 且 `max_ulp = 0`（位级） |
 | seg | `mismatched = 0`（逐像素相等） |
 | 两跑确定性 | 同一 context 两次渲染 rgb/depth/seg sha256 相等 |
-| shadow 开/关一致性臂 | depth/seg 位级相等；rgb `shadow_off >= shadow_on`（逆序超 1 LSB = 0）；差异像素 > 0；两臂各自两跑 sha 相等 |
+| shadow 开/关一致性臂 | depth/seg 位级相等；rgb `shadow_off ≥ shadow_on`（逆序超 1 LSB=0）；差异像素 > 0；两臂各自两跑 sha 相等 |
 | DepthSeg 跨路径 | `render_depth_seg` 与 megakernel 的 depth/seg 位级相等 |
 
-依据：a-order fix 形态下 scene-sdf 诊断 44/44 位级复现；该实体与 scene-a 参考互相独立，不受 §2 豁免影响。
+依据：a-order fix 下 scene-sdf 诊断 44/44 位级复现；该实体与 scene-a 参考互相独立，不受本草案豁免影响。
 
 ## 2. scene-a 回归：精确差集清单（取代 v2 的「三条件谓词」）
 
@@ -150,3 +150,19 @@ signature_sentence: "SDF 实体保持位级；scene-a 球轮廓仅在冻结清�
   `MJWARP_RENDER_OUTLINE_LIST_DIR` + `MJWARP_REQUIRE_OUTLINE_CRITERION=1` 时才启用）；窗口外的普通
   `cargo test` / CI 不使用清单、行为与既有判据一致，也不得据本判据宣称任何通过。
 - U4 在窗口按本判据完成 attempt4 之前仍为未通过；本轮窗口在计划与基线双签后才会打开。
+
+## 7. errata（2026-11-01，记录型；已签数值不变）
+
+本节只记录 v2.1 签发后发现的表述/证据修正，不改变任何已签数值或口径：
+
+1. **清单格式 = 已签提案原型（9 列）+ bounds sidecar**：§2.2 的清单文件为
+   `sdf-validate-window-material-v2/prototype-lists/` 的原型 9 列格式（`pixel x y ref_seg_geom
+   ref_seg_type ref_depth_bits formA_bits formB_bits ulp_ab`，header 含 reference、reference sha256、
+   camera/raster/spp、列定义），工具输出与原型**逐字节一致**：recipe `cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee`
+   / 10,099 B / 183 行；aa2 `14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab` / 9,509 B /
+   172 行。解析界 `bound_raw`/`margin` 移到 `outline-bounds-<arm>.txt` sidecar（仅记录，不用于定 B）。
+2. **§1 恢复 v2 字面原文**：v2.1 入库时 §1 与已签 v2 §1 存在措辞差异（`>=`、`1 LSB = 0`、依据句、
+   小节标题等），现已按 v2 `spec.md` 的 §1 逐字恢复，使「§1 与 v2 完全一致」成立。
+3. **已签数值与签署信息不变**：B = 128 ULP；清单 183/172；exact max 73/91；签署时间
+   2026-11-01T02:42:29+08:00；approved_by = user via Chief；§2 豁免规则、§3 精确可算 B 定义、
+   §4 前提、§5 签署块均未改动。
