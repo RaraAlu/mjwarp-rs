@@ -1,0 +1,86 @@
+{
+  "task_id": "2026-11-01-render-sdf-criterion-v21-signed",
+  "kind": "render-sdf-criterion-v2.1-signed",
+  "owner": "Arch",
+  "status": "signed and recorded; no window opened, no freeze, zero GPU",
+  "criterion": {
+    "version": "render-sdf-criterion-v2.1",
+    "based_on": "render-sdf-criterion-v2 (signed 2026-10-31T11:04:37+08:00, B=128 ULP)",
+    "bound_ulp": 128,
+    "bound_definition": "B = next power of two >= the exact freeze-time maximum |depth_bits(form A) - depth_bits(form B)| over the frozen list pixels (exactly computable, not an analytic upper bound)",
+    "signed_at": "2026-11-01T02:42:29+08:00",
+    "approved_by": "user via Chief",
+    "exact_max_ulp": { "recipe": 73, "aa2": 91 },
+    "analytic_bound_recorded_only": {
+      "recipe": "414.57 ULP margin (raw 360.49)",
+      "aa2": "494.52 ULP margin (raw 430.02)",
+      "use": "recorded loose upper bound only; explicitly NOT used to determine B"
+    },
+    "fail_closed": [
+      "outside the frozen list: any non-zero depth delta fails (1 ULP included)",
+      "inside the frozen list: |delta| > 128 ULP fails",
+      "list membership must match pixel-for-pixel (extra or missing pixel fails)",
+      "freeze-time exact max > 128 fails the attempt; raising B is forbidden; no re-freeze in the same attempt",
+      "list sha256 / row count mismatch at freeze or inside the window fails"
+    ],
+    "signature_sentence": "SDF 实体保持位级；scene-a 球轮廓仅在冻结清单内、精确 max <= 128 ULP 时豁免；清单外任何像素 depth 偏差 1 ULP 即失败，清单内超 128 ULP 即失败；冻结时精确 max > 128 即该 attempt 失败且禁止抬高 B。"
+  },
+  "scope": {
+    "sdf_entity": "render_sdf_reference bitwise, unchanged from v2 section 1 (rgb max_byte_diff=0, depth mismatched=0 & max_ulp=0, seg exact, two-run sha, shadow arm consistency, DepthSeg cross-path)",
+    "scene_a_exemption": "camera 1 only: pixels where form A (a-order 0,1,2) and form B (a-order 1,0,2) differ, frozen as exact-difference lists; camera 0 has 0 sphere pixels",
+    "window_only": "the list + exact-computable B are enforced only inside the frozen validation window (window runner sets MJWARP_RENDER_OUTLINE_LIST_DIR + MJWARP_REQUIRE_OUTLINE_CRITERION=1); outside the window plain cargo test/CI behaviour is unchanged and nothing may be claimed from this criterion"
+  },
+  "lists": {
+    "recipe": {
+      "entities": ["render_e2e", "render_kernel_depth_seg", "render_kernel_flags", "render_kernel_rgb", "render_r10_multi_world", "render_skybox_reference"],
+      "reference": "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json",
+      "reference_sha256": "d6ab6dde58034df5c1bc69ab397026a8f7c3aaf58d29d25edb032d3818000dc7",
+      "samples_per_pixel": 1,
+      "sphere_pixels": 747,
+      "list_pixels": 183,
+      "first_differing_pixel": 28969,
+      "first_differing_xy": [169, 120],
+      "exact_max_ulp": 73,
+      "prototype": "v2.1-proposal prototype-lists/scene-a-sphere-outline-recipe.txt (183 rows / 10,099 bytes / sha256 cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee)"
+    },
+    "aa2": {
+      "entities": ["render_kernel_flags-aa2"],
+      "reference": "fixtures/render-bvh/scene-a/s7b/flags/aa2_depth_seg.json",
+      "reference_sha256": "79a275eff5d45f6bef764957e5f4987d0e6abfbb9b7a2cb578c8e1f717d4b7e1",
+      "samples_per_pixel": 2,
+      "sphere_pixels": 745,
+      "list_pixels": 172,
+      "first_differing_pixel": 29448,
+      "first_differing_xy": [168, 122],
+      "exact_max_ulp": 91,
+      "prototype": "v2.1-proposal prototype-lists/scene-a-sphere-outline-aa2.txt (172 rows / 9,509 bytes / sha256 14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab)"
+    },
+    "attempt3_consistency": "both first-differing pixels and both exact maxima equal the attempt3 observations (183 px / 73 ULP, first 28969=(169,120); aa2 172 px / 91 ULP, first 29448=(168,122)); camera 0 = 0"
+  },
+  "premise": {
+    "same_frozen_reference_forms": "v2.1 applies only to the frozen reference files listed above (their sha256 are pinned by the authoring tool, which exits 6 on drift)",
+    "same_product_kernel_identity": "megakernel source 10070226../PTX 7782aeb1../268,589 B (a-order refix form); aa_resolve 0bf8af5a../b28e155c../27,536 B",
+    "replay_fidelity": "camera-space rays vs S5 fixture 256/256 bitwise; form A vs frozen reference depth bits 747/747 (recipe) and 745/745 (aa2); form B vs form A gives 183 px / 73 ULP and 172 px / 91 ULP, matching attempt3",
+    "freeze_time_recompute": "lists, list sha256 and exact max are re-derived at the freeze step and written into the guards file; any drift fails closed"
+  },
+  "evidence": {
+    "spec": "docs/development-evidence/render-bvh/sdf-criterion-v2.1/spec.md",
+    "spec_sha256": "fd8ec4bbd5fa372d143ece93b514b3b643255fb763a121f26c094abcd918c32d",
+    "spec_bytes": 9595,
+    "no_run_log": "docs/development-evidence/render-bvh/sdf-criterion-v2.1/logs/no-run.txt (cargo test --locked --features cuda-probe --no-run, EXIT=0)",
+    "proposal": "docs/development-evidence/render-bvh/sdf-validate-window-material-v2/v2.1-proposal.md",
+    "findings": "docs/development-evidence/render-bvh/sdf-validate-window-material-v2/outline-replay-findings.txt"
+  },
+  "step3_remaining": [
+    "dump tool contract update (exact-difference lists + per-pixel bound_raw/margin + exact max)",
+    "env-gated test support (MJWARP_RENDER_OUTLINE_LIST_DIR + MJWARP_REQUIRE_OUTLINE_CRITERION=1, fail-closed when enabled)",
+    "freeze/runner extension (94 guards entries, outline_lists[], exact max <= 128, list immutability)",
+    "attempt4 window material v3 + re-sampled baseline, double-sign, freeze, body, evidence, QA review"
+  ],
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "精度达标"
+  ],
+  "boundaries": "zero GPU, zero freeze, zero window, no criterion/reference/fixture/kernel/code change in this slice; only the signed spec and its evidence were added"
+}
