@@ -1,0 +1,95 @@
+# selfcheck A: U1b redo (pin 013d8d4a)
+generated_at=2026-10-31T13:23:16.9128157+08:00
+head=2006544f04e3b2599aa56b3db64afbd89ad18ad4
+
+## 1 scope: slice commit 013d8d4a
+.../2026-10-31-render-sdf-host-unlock-redo.json    | 153 ++++++++++-----------
+ .normify/modules/mjwarp/render/kernel.md           |   2 +-
+ .../clippy-cuda.json                               |  13 ++
+ .../clippy.json                                    |  13 ++
+ .../fmt.json                                       |  13 ++
+ .../unit.json                                      |  18 +++
+ .../render-bvh/sdf-host-unlock-redo/README.md      | Bin 0 -> 1675 bytes
+ .../sdf-host-unlock-redo/logs/gate-clippy-cuda.txt | Bin 0 -> 453 bytes
+ .../sdf-host-unlock-redo/logs/gate-clippy.txt      | Bin 0 -> 450 bytes
+ .../sdf-host-unlock-redo/logs/gate-fmt.txt         | Bin 0 -> 446 bytes
+ .../sdf-host-unlock-redo/logs/gate-unit.txt        | Bin 0 -> 522 bytes
+ .../sdf-host-unlock-redo/logs/no-run.txt           | Bin 0 -> 159 bytes
+ .../render-bvh/sdf-host-unlock-redo/manifest.txt   | Bin 0 -> 1600 bytes
+ .../materials/kernel-identity-unchanged.txt        | Bin 0 -> 509 bytes
+ .../sdf-host-unlock-redo/materials/src-diff.patch  | Bin 0 -> 2421 bytes
+ .../sdf-host-unlock-redo/materials/validate.txt    | Bin 0 -> 520 bytes
+ .../render-bvh/sdf-host-unlock-redo/receipt.json   | Bin 0 -> 1952 bytes
+ src/render/kernel/megakernel.rs                    |  35 -----
+ 18 files changed, 132 insertions(+), 115 deletions(-)
+src_files_only=src/render/kernel/megakernel.rs
+cuda_diff_empty=True
+tests_fixtures_criterion_diff=[]
+
+## 2 line counts / numstat
+megakernel_lines_before=440 after=405
+0	35	src/render/kernel/megakernel.rs
+af96c048_megakernel_lines=406 (original U1b; diff adds 1 unlock comment line)
+
+## 3 guard removal
+rs_hits=0
+cu_comment_hits=2
+  013d8d4a:src/render/kernel/cuda/render_common.cu:391:            // host 仍拒绝 8（`megakernel.rs` 的 `reject_sdf_geometry`），本片改动今天不可达。
+  013d8d4a:src/render/kernel/cuda/render_common.cu:397:        // 设备侧 SDF 求交尚未解锁，host 仍拒绝，见 `megakernel.rs` 的 `reject_sdf_geometry`）。
+old_error_string_hits=0
+guard_test_module_hits=0
+other_unsupported_rejection_calls=4
+  013d8d4a:src/render/kernel/megakernel.rs:98:            return Err(LauncherError::Unsupported(
+  013d8d4a:src/render/kernel/megakernel.rs:105:            return Err(LauncherError::Unsupported("S7b3 不含 splat"));
+  013d8d4a:src/render/kernel/megakernel.rs:109:            return Err(LauncherError::Unsupported(
+  013d8d4a:src/render/kernel/megakernel.rs:132:            return Err(LauncherError::Unsupported(
+
+## 4 kernel identity (independent recompute from committed blobs)
+  segment src/render/bvh/cuda/scene.cu bytes=17315
+  segment src/render/kernel/cuda/render_math.cu bytes=12127
+  segment src/render/kernel/cuda/render_common.cu bytes=17604
+  segment src/render/kernel/cuda/render_shadow.cu bytes=2021
+  segment src/render/kernel/cuda/render_shade.cu bytes=20439
+  segment src/render/kernel/cuda/render_megakernel.cu bytes=19359
+MEGAKERNEL_SOURCE bytes=88865 sha256=778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5
+AA_RESOLVE_SOURCE bytes=2364 sha256=0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76
+upstream_identity_file=docs/development-evidence/render-bvh/sdf-host-unlock-redo/materials/kernel-identity-unchanged.txt
+  # render kernel identity unchanged (no .cu touched)
+  megakernel source_sha256=778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5
+  megakernel ptx_sha256=34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d ptx_bytes=268589
+  aa_resolve source_sha256=0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76 ptx_sha256=b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70 ptx_bytes=27536
+  note: git diff --stat -- src/render/kernel/cuda is empty for this slice.
+
+## 5 upstream evidence manifest vs committed blobs
+manifest_entries=10 mismatches=0
+src_diff_patch_matches_real=True
+
+## 6 gate provenance: committed runs/ vs evidence logs/
+  fmt runs_at=2026-10-31T03:14:01.091Z runs_wall=1716 runs_logsha=e3b0c44298fc | evidence_at=2026-10-31T03:11:49.760Z evidence_wall=1662 evidence_logsha=e3b0c44298fc same_run=False
+  clippy runs_at=2026-10-31T03:14:01.714Z runs_wall=456 runs_logsha=f4403412cb20 | evidence_at=2026-10-31T03:12:04.439Z evidence_wall=14512 evidence_logsha=ae2747e52bc3 same_run=False
+  clippy-cuda runs_at=2026-10-31T03:14:02.295Z runs_wall=406 runs_logsha=4f27ac380b22 | evidence_at=2026-10-31T03:12:05.028Z evidence_wall=405 evidence_logsha=4f27ac380b22 same_run=False
+  unit runs_at=2026-10-31T03:14:34.976Z runs_wall=32511 runs_logsha=5cfed4eb8551 | evidence_at=2026-10-31T03:13:30.564Z evidence_wall=85371 evidence_logsha=67dbd83cf52e same_run=False
+unit runs: passed=1111 failed=0 ignored=397 exit=0
+no_run_log=# cargo test --locked --no-run (U1b redo)
+cargo :     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+Executable lines: 135
+EXIT=0
+
+## 7 stacked state (attempt4 prerequisites)
+src_diff_fa604008_to_head=[]
+megakernel_lines_at_head=405
+guard_rs_hits_at_head=0
+device_a_dot3_ba_at_head=1
+  HEAD:src/render/kernel/cuda/render_math.cu:275:    float a = dot3_ba(vec.x, vec.y, vec.z, vec.x, vec.y, vec.z);
+
+## 8 claims cross-check (upstream evidence text)
+readme_claims_440_to_405=True
+readme_claims_zero_cu=True
+readme_mentions_residual_cu_comments=False
+same_shape_note=af96c048 added 1 unlock comment line (406 lines); this redo omits it (405 lines), guard removal identical
+u4_card_note_still_says_u1b_deferred=True
+attempt4_material_v2_prepare_checklist_refs_host_unlock_and_identity=True
+
+## 9 validation re-run (read-only)
+validate=校验：错误0 警告5
+

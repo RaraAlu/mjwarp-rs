@@ -1,0 +1,105 @@
+{
+  "task_id": "2026-10-31-render-sdf-host-unlock-redo-check",
+  "reviewed_task": "2026-10-31-render-sdf-host-unlock-redo",
+  "pin": "013d8d4a",
+  "card_head_at_start": "2006544f04e3b2599aa56b3db64afbd89ad18ad4",
+  "verdict": "pass",
+  "blockers": 0,
+  "must_fix": 2,
+  "observations": 7,
+  "scope": "read-only QA review of the U1b redo: megakernel.rs 440->405 with the host SDF rejection (reject_sdf_geometry + 2 host-only tests) removed, zero .cu diff so kernel identity must stay 778216b2../34f91147../268,589 and aa_resolve 0bf8af5a../b28e155c../27,536, independent 6-segment MEGAKERNEL_SOURCE recompute, stacked state with fa604008 (host unlock + a-order form) for attempt4 prerequisites, gates/evidence hygiene and evidence wording; no GPU, no window, no build, no freeze",
+  "method": {
+    "scope": "git show --stat 013d8d4a; git diff --name-only 1735d062..013d8d4a -- src tests fixtures scripts Cargo.toml Cargo.lock docs/development-evidence/render-bvh/sdf-criterion-v2",
+    "line_counts": "git show <rev>:src/render/kernel/megakernel.rs line counts; git diff --numstat",
+    "guard_removal": "git grep at 013d8d4a for reject_sdf_geometry / sdf_geometry_guard / the old Unsupported string, separated into *.rs (executable) and *.cu (comments); all other Unsupported calls counted",
+    "kernel_source_identity": "independent recompute: sha256 over the 6 include_str! files of MEGAKERNEL_SOURCE in mod.rs order, read as committed blobs with git cat-file at 013d8d4a; AA_RESOLVE_SOURCE recomputed the same way from aa_resolve.cu",
+    "evidence_manifest": "upstream manifest.txt rows recomputed against committed blobs at 013d8d4a; src-diff.patch compared byte-normalized with the real git diff",
+    "gates": "committed .normify/runs/2026-10-31-render-sdf-host-unlock-redo/*.json vs evidence logs/gate-*.txt (provenance comparison); unit counts from runs json; validate --fingerprints re-run read-only at HEAD",
+    "stacked_state": "git diff --name-only fa604008..HEAD -- src; git grep reject_sdf_geometry HEAD -- '*.rs'; git grep 'float a = dot3_ba' HEAD -- src/render/kernel/cuda",
+    "claims": "grep of the upstream README/receipt for the 440->405, zero-.cu and residual-comment statements; checked attempt4 window material v2 prepare checklist references"
+  },
+  "verified_numbers": {
+    "scope": {
+      "files_in_slice_commit": 18,
+      "src_files": 1,
+      "cuda_bvh_diff": "empty",
+      "tests_fixtures_scripts_cargo_criterion_diff": "empty"
+    },
+    "line_counts": {"before": 440, "after": 405, "numstat": "+0/-35", "pure_deletion": true},
+    "guard_removal": {
+      "rs_executable_hits": 0,
+      "old_unsupported_string_hits": 0,
+      "host_only_test_module_hits": 0,
+      "cu_comment_hits": 2,
+      "cu_comment_locations": ["src/render/kernel/cuda/render_common.cu:391", "src/render/kernel/cuda/render_common.cu:397"],
+      "cu_comment_semantics": "inverted by this slice: they still say the host rejects gtype==8 and the change is unreachable today",
+      "other_unsupported_rejections_kept": 4,
+      "other_rejections": ["use_precomputed_rays", "splat_count", "light_mode", "enabled_geom_ids"]
+    },
+    "kernel_identity": {
+      "method": "sha256 of MEGAKERNEL_SOURCE = concat of scene.cu + render_math.cu + render_common.cu + render_shadow.cu + render_shade.cu + render_megakernel.cu (mod.rs include_str! order), from committed blobs at 013d8d4a",
+      "megakernel_source_recomputed": "778216b23e64e1211ad5c6e9087550851c4ee79a6d8385c5d3f0fd05016f40f5 / 88,865 B",
+      "megakernel_source_evidence": "778216b2../88,865 B (agree)",
+      "megakernel_ptx_evidence": "34f91147f8861601f4d96602223d282b570be38a305b83511e43fa4fa76b408d / 268,589 B (NOT independently recomputed; zero-build discipline)",
+      "aa_resolve_source_recomputed": "0bf8af5a68f9cae50d0cb9cc4da2a01da2607066cf1fe3072c8345e6e104bc76 / 2,364 B (agree)",
+      "aa_resolve_ptx_evidence": "b28e155c6e8b0f1c8c05d36054036764d2c437ae3c58e09c8d10360666ec8a70 / 27,536 B (NOT independently recomputed)"
+    },
+    "evidence_manifest": {"rows": 10, "mismatches": 0},
+    "src_diff_patch": "matches the real diff",
+    "gates": {
+      "unit": {"passed": 1111, "failed": 0, "ignored": 397, "exit": 0},
+      "fmt_clippy_clippy_cuda": "passed",
+      "no_run": "EXIT=0 with Finished",
+      "validate_snapshot": "errors 0 / warnings 6 (incl. 1 fingerprint-drift) - predates the same-commit module fingerprint refresh",
+      "validate_rerun_at_head": "errors 0 / warnings 5 / no drift"
+    },
+    "gate_provenance": "evidence logs are NOT the same runs as .normify/runs (different at timestamps; clippy/unit log_sha256 differ); verdict numbers agree",
+    "stacked_state": {
+      "src_changes_since_fa604008": "none",
+      "megakernel_lines_at_head": 405,
+      "rs_guard_hits_at_head": 0,
+      "device_a_dot3_ba_at_head": "present at src/render/kernel/cuda/render_math.cu:275 and inside the 6-segment assembly",
+      "conclusion": "both attempt4 prerequisites (host admits gtype==8 AND the a-order form is in the assembled kernel source) hold at the same HEAD"
+    },
+    "same_shape_note": "af96c048 (original U1b) ended at 406 lines because it added one unlock comment line; this redo omits that comment (405 lines). Guard and host-only-test removal is identical"
+  },
+  "must_fix_items": [
+    {"id": "P1", "severity": "must-fix(minor, evidence wording)", "where": "docs/development-evidence/render-bvh/sdf-host-unlock-redo/README.md section 2 + receipt.json change.unchanged",
+     "finding": "the evidence says zero .cu diff (true) but does not record that render_common.cu:391 and :397 still contain 2 comments referencing the deleted reject_sdf_geometry, with semantics inverted by this slice ('the host still rejects 8 / unreachable today'). A reader would conclude no related text remains in sources",
+     "fix": "add to README section 2: executable references 0; the .cu still has 2 comment lines (kept because zero .cu diff / kernel identity must not change), semantics to be updated at the next kernel rebaseline; sync receipt change.unchanged. No code change, no rerun"},
+    {"id": "P2", "severity": "must-fix(minor, evidence wording)", "where": "docs/development-evidence/render-bvh/sdf-host-unlock-redo/README.md section 2 ('same shape as af96c048')",
+     "finding": "af96c048 added one unlock comment line at the removed call site (440 -> 406, +1/-35); this redo omits it (440 -> 405, -35). The guard/test removal is the same, but 'same shape' plus the 405/406 difference is not stated",
+     "fix": "state in README section 2 that the shape covers guard + host-only tests and that af96c048's 1-line unlock comment is not carried (405 vs 406); no code change needed for this card"}
+  ],
+  "observations": [
+    {"id": "O1", "text": "gate evidence logs/gate-*.txt are not the same runs as .normify/runs/2026-10-31-render-sdf-host-unlock-redo/*.json (evidence 03:11:49-03:13:30 vs runs 03:14:01-03:14:34; clippy and unit log_sha256 differ; clippy wall 14512 vs 456 ms, unit 85371 vs 32511 ms). Verdict numbers agree (all passed, unit 1111/0/397). README does not claim transcription source; suggest noting it or regenerating from runs/"},
+    {"id": "O2", "text": "validate snapshot is 0 errors / 6 warnings including evidence/fingerprint-drift mjwarp.render.kernel; the same commit refreshed that module fingerprint, and a re-run at HEAD gives 0 errors / 5 warnings / no drift. Historical snapshot, not a contradiction"},
+    {"id": "O3", "text": "PTX identity (34f91147../268,589; aa_resolve b28e155c../27,536) was NOT independently recomputed (zero-build discipline); the source identity was independently recomputed and matches. The PTX values agree with the prior U1/window records"},
+    {"id": "O4", "text": "logs/no-run.txt is a trimmed transcription (header + Finished + executable count + EXIT=0), weaker than a raw log"},
+    {"id": "O5", "text": "attempt4 window material v2 (9f12002d) already carries the prepare-checklist items 'host unlock state', 'criterion version', 'list hash' and kernel identity 10070226../7782aeb1../268,589 - the checklist requirement of this slice landed downstream (that material is out of this card's scope)"},
+    {"id": "O6", "text": "the U4 window card note (.normify/changes/2026-10-31-render-sdf-validate.json) still ends with 'U1b redo deferred (SDF capability stays unreachable)', which is stale after 013d8d4a + fa604008; belongs to the window-card/material update, not this review"},
+    {"id": "O7", "text": "stacked state verified: no src changes between fa604008 and HEAD; at HEAD the host has no gtype==8 rejection (405-line megakernel.rs) and the device source contains a = dot3_ba inside the 6-segment assembly, so both attempt4 prerequisites are simultaneously present"}
+  ],
+  "boundaries": {
+    "read_only": true,
+    "gpu_used": false,
+    "window_opened": false,
+    "freeze": false,
+    "build_run": false,
+    "product_src_modified": false,
+    "foreign_evidence_edited": false,
+    "criteria_modified": false
+  },
+  "not_claimed": [
+    "不宣称 SDF 通过（本卡只核 host 解锁与设备源未变）",
+    "不宣称渲染数值验收通过",
+    "不宣称上游等价",
+    "不宣称精度达标",
+    "不宣称 attempt4 会通过"
+  ],
+  "limits": [
+    "PTX identity and GPU tests were not rerun (zero-build discipline); source identity was recomputed independently",
+    "the evidence gate-log provenance mismatch is recorded as an observation because the verdict numbers agree and README makes no transcription claim",
+    "the residual .cu comment semantics can only be corrected by changing the kernel identity, which this slice must not do"
+  ]
+}
