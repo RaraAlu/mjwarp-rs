@@ -1,0 +1,75 @@
+{
+  "task_id": "2026-11-01-render-sdf-freeze-runner-v21",
+  "kind": "render-sdf-freeze-runner-v2.1-extension",
+  "owner": "Arch",
+  "status": "scripts extended and dry-run verified offline; no freeze executed, no GPU, no window",
+  "basis": {
+    "criterion": "render-sdf-criterion-v2.1",
+    "signed_at": "2026-11-01T02:42:29+08:00",
+    "tool_contract": "docs/development-evidence/render-bvh/sdf-outline-tool-v2.1/",
+    "test_support": "docs/development-evidence/render-bvh/sdf-outline-test-support/"
+  },
+  "scripts": {
+    "freeze": {
+      "path": "scripts/validate/render-bvh/freeze-guards-sdf.ps1",
+      "bytes": 11631,
+      "lines": 219,
+      "sha256": "13e589c4b4ae42a780b7ac6ab4bde3064deb82bf28973ede3f8ab84eafa77e3f",
+      "new_params": ["CriterionVersion", "BoundUlp", "OutlineDir"],
+      "validation": [
+        "outline-lists.json present and criterion_version == render-sdf-criterion-v2.1",
+        "bound_ulp == 128",
+        "exactly two outline arms (recipe, aa2)",
+        "per arm exact_max_ulp <= 128",
+        "per arm file bytes / sha256 / data rows / first pixel match the machine summary"
+      ],
+      "entry_count": "9 exes + 83 inputs + 2 outline lists = 94",
+      "aggregate": "sha256 over the 94 sha256 hex strings in repo-relative path order",
+      "guards_fields": ["criterion_version", "bound_ulp", "counts.outline_lists", "counts.total=94", "outline_lists[].{arm,entities,path,bytes,sha256,rows,first_pixel,exact_max_ulp,reference,reference_sha256}"]
+    },
+    "runner": {
+      "path": "scripts/validate/render-bvh/run-window.ps1",
+      "bytes": 21967,
+      "lines": 466,
+      "sha256": "2a63ee7407f4332a4adff0090d750ea6066a123f9937c0ec067d483d1f6179a5",
+      "guards_only": "verifies outline lists (path/bytes/sha256/rows/first_pixel and exact_max_ulp <= bound_ulp) and reports OUTLINE_LISTS_OK=2/2 inside GUARDS_OK=94/94",
+      "drift_guard": "pre-body and post-window re-verification, any drift -> OUTLINE_LIST_DRIFT exit9",
+      "body_env": ["MJWARP_RENDER_OUTLINE_LIST_DIR", "MJWARP_REQUIRE_OUTLINE_CRITERION=1"],
+      "legacy_compat": "guards files without outline_lists skip all new behaviour (R05/R08 suites unchanged)"
+    },
+    "ascii_only": true,
+    "powershell_parse": "both scripts parse cleanly (logs/syntax-parse.txt)"
+  },
+  "dry_run": {
+    "note": "synthetic guards file with 0 exes + 0 inputs + the two real outline list entries from the out-of-tree tool self-check; NOT a freeze",
+    "positive": {
+      "log": "logs/guards-only-dryrun.txt",
+      "output": ["OUTLINE_LISTS_OK=2/2", "GUARDS_OK=2/2", "GUARDS_ONLY_DONE"],
+      "exit": 0
+    },
+    "negative_tampered_sha": {
+      "log": "logs/guards-only-dryrun-tampered.txt",
+      "output": ["OUTLINE_LISTS_OK=1/2", "GUARDS_OK=1/2", "INVALID_ROUND exit9", "OUTLINE_MISMATCH[guards] arm=recipe ..."],
+      "exit": 9
+    }
+  },
+  "gates": {
+    "fmt": "cargo fmt --check passed",
+    "clippy": "cargo clippy --all-targets --locked -- -D warnings passed",
+    "clippy-cuda": "cargo clippy --all-targets --locked --features cuda -- -D warnings passed",
+    "unit": "cargo test --locked passed (no source change in this slice)",
+    "no_run": "cargo test --locked --features cuda-probe --no-run EXIT=0"
+  },
+  "not_executed": [
+    "freeze-guards-sdf.ps1 was NOT run (no attempt4 guards file produced, no freeze)",
+    "guards-sdf-validate.json was not overwritten",
+    "no GPU window, no body, no entity run"
+  ],
+  "boundaries": "scripts under scripts/validate/render-bvh only; product src/tests/fixtures/criteria values/kernel untouched; zero GPU; no freeze",
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "精度达标"
+  ],
+  "next": "slice 5 attempt4 window material v3; slice 6 double-sign package (plan + re-sampled baseline)"
+}

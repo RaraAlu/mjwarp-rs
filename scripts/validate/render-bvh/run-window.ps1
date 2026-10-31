@@ -43,6 +43,37 @@ foreach ($p in @($factsPath, $shaPath, $samplesPath, $entityPath, $guardLog, $ab
 function Add-Txt([string]$path, [string]$text) { [IO.File]::AppendAllText($path, $text + "`n", $utf8) }
 function Fact([string]$text) { Add-Txt $factsPath $text }
 function Guard([string]$text) { Add-Txt $guardLog $text; Write-Output $text }
+function Outline-Info([string]$fullPath) {
+    $data = @(Get-Content -LiteralPath $fullPath | Where-Object { $_ -and -not $_.TrimStart().StartsWith('#') })
+    [pscustomobject]@{
+        rows = $data.Count
+        first_pixel = if ($data.Count -gt 0) { [int](($data[0] -split '\s+')[0]) } else { -1 }
+    }
+}
+function Verify-OutlineLists([string]$stage) {
+    if (-not $guard.outline_lists) { return @{ ok = 0; bad = 0; count = 0 } }
+    $ok = 0
+    $bad = 0
+    foreach ($list in @($guard.outline_lists)) {
+        $full = Join-Path $RepoRoot $list.path
+        $hash = if (Test-Path -LiteralPath $full) { (Get-FileHash $full -Algorithm SHA256).Hash.ToLower() } else { 'MISSING' }
+        $bytes = if (Test-Path -LiteralPath $full) { (Get-Item $full).Length } else { -1 }
+        $info = if (Test-Path -LiteralPath $full) { Outline-Info $full } else { [pscustomobject]@{ rows = -1; first_pixel = -1 } }
+        $good = ($hash -eq $list.sha256) -and ($bytes -eq [int]$list.bytes) -and
+            ($info.rows -eq [int]$list.rows) -and ($info.first_pixel -eq [int]$list.first_pixel)
+        if ($good) { $ok++ } else {
+            $bad++
+            Guard ("OUTLINE_MISMATCH[$stage] arm={0} expect={1}/{2}/{3}/{4} actual={5}/{6}/{7}/{8}" -f `
+                $list.arm, $list.sha256, $list.bytes, $list.rows, $list.first_pixel, $hash, $bytes, $info.rows, $info.first_pixel)
+        }
+        if ([int]$list.exact_max_ulp -gt [int]$guard.bound_ulp) {
+            $bad++
+            Guard ("OUTLINE_EXACT_MAX_OVER_B[$stage] arm={0} exact_max_ulp={1} bound_ulp={2}" -f `
+                $list.arm, $list.exact_max_ulp, $guard.bound_ulp)
+        }
+    }
+    @{ ok = $ok; bad = $bad; count = @($guard.outline_lists).Count }
+}
 function Iso { (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss.fffffffK') }
 function GpuSample {
     $line = (& nvidia-smi --query-gpu=memory.used,memory.free,utilization.gpu,temperature.gpu --format=csv,noheader)
@@ -191,7 +222,14 @@ foreach ($input in $guard.guard_inputs) {
     if ($ok) { $guardOk++ } else { $guardBad++; Guard "SHA_MISMATCH $($input.path) expect=$($input.sha256)/$($input.bytes) actual=$hash/$bytes" }
     Add-Txt $shaPath ("SHA_OK {0} {1} {2}" -f $hash, $bytes, $input.path)
 }
-$guardTotal = $guard.frozen_exes.Count + $guard.guard_inputs.Count
+$outlineCheck = Verify-OutlineLists 'guards'
+$outlineCount = $outlineCheck.count
+$guardOk += $outlineCheck.ok
+$guardBad += $outlineCheck.bad
+$guardTotal = $guard.frozen_exes.Count + $guard.guard_inputs.Count + $outlineCount
+if ($outlineCount -gt 0) {
+    Guard ("OUTLINE_LISTS_OK={0}/{1}" -f $outlineCheck.ok, $outlineCount)
+}
 Fact "sha_guards=$guardOk/$guardTotal ($($guard.frozen_exes.Count) exes + $($guard.guard_inputs.Count) read-only inputs), mismatches=$guardBad"
 Guard "GUARDS_OK=$guardOk/$guardTotal"
 if ($guardBad -gt 0) {
@@ -203,8 +241,33 @@ if ($guardBad -gt 0) {
 if ($GuardsOnly) {
     Fact 'guards_only=true'
     Fact "sha_guards=$guardOk/$guardTotal"
+    if ($outlineCount -gt 0) {
+        Fact "outline_lists=$($outlineCheck.ok)/$outlineCount"
+        foreach ($list in @($guard.outline_lists)) {
+            Fact ("outline_list arm={0} rows={1} exact_max_ulp={2} sha256={3}" -f `
+                $list.arm, $list.rows, $list.exact_max_ulp, $list.sha256)
+        }
+    }
     Guard 'GUARDS_ONLY_DONE'
     exit 0
+}
+# criterion v2.1: export the frozen outline lists to the entity body (env-gated test support).
+if ($outlineCount -gt 0) {
+    $outlineDirFull = Join-Path $RepoRoot (Split-Path -Parent ([string](@($guard.outline_lists)[0].path)))
+    $preBody = Verify-OutlineLists 'pre-body'
+    if ($preBody.bad -ne 0) {
+        Fact 'outline_list_drift=pre-body'
+        Fact ('window_end=' + (Iso))
+        Guard 'OUTLINE_LIST_DRIFT exit9'
+        exit 9
+    }
+    $env:MJWARP_RENDER_OUTLINE_LIST_DIR = $outlineDirFull
+    $env:MJWARP_REQUIRE_OUTLINE_CRITERION = '1'
+    Fact "outline_list_dir=$outlineDirFull"
+    Fact 'outline_require=1'
+    foreach ($list in @($guard.outline_lists)) {
+        Fact ("outline_list_pre arm={0} sha256={1}" -f $list.arm, $list.sha256)
+    }
 }
 $depsBefore = DepsSnapshot
 Fact "deps_before_count=$($depsBefore.count)"
@@ -260,6 +323,18 @@ if ($driftEntity) {
     Fact ('window_end=' + (Iso))
     Guard 'INVALID_ROUND exit9'
     exit 9
+}
+if ($outlineCount -gt 0) {
+    $postBody = Verify-OutlineLists 'post-window'
+    if ($postBody.bad -ne 0) {
+        Fact 'outline_list_drift=post-window'
+        Fact ('window_end=' + (Iso))
+        Guard 'OUTLINE_LIST_DRIFT exit9'
+        exit 9
+    }
+    Fact "outline_lists_post=$($postBody.ok)/$($postBody.count)"
+    $env:MJWARP_RENDER_OUTLINE_LIST_DIR = ''
+    $env:MJWARP_REQUIRE_OUTLINE_CRITERION = ''
 }
 $post = @()
 for ($i = 0; $i -lt 3; $i++) {
