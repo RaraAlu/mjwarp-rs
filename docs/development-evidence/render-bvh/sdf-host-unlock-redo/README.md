@@ -1,13 +1,15 @@
-﻿# 重做 U1b host 解锁（离线，零 GPU）
+# 重做 U1b host 解锁（离线，零 GPU）
 
 任务：`2026-10-31-render-sdf-host-unlock-redo`（Arch；P8）
 
 ## 1. 为什么重做
 criterion v2 已由用户签发（B=128 ULP，2026-10-31T11:04:37+08:00），SDF 要发布；U1b 曾在 `07252cd2` 因 U4 attempt1/2 失败按红线回滚，attempt4 必须先让 host 重新放行 `gtype==8`。
 
-## 2. 改动（与 af96c048 同形态）
+## 2. 改动（守卫删除与 af96c048 同形，行数口径更精确）
 - `src/render/kernel/megakernel.rs`：**440 → 405 行**，删除 `fn reject_sdf_geometry` 与文档注释、`render()` 调用点（含 1 行注释）、`#[cfg(test)] mod sdf_geometry_guard_tests`（2 条 host-only 单测）。
+- 与 `af96c048` 的关系**只在「守卫删除」这一动作同形**：`af96c048` 是 **440 → 406（+1/−35，多一行解锁说明注释）**，本次是 **440 → 405（−35）**；两者不是逐行同 diff。
 - 零 `.cu` 改动（`git diff --stat -- src/render/kernel/cuda` 为空）；零 ABI/81 槽/判据/参考/fixtures 改动。diff 见 `materials/src-diff.patch`。
+- **`.cu` 注释残债（记录，不在本片修）**：`src/render/kernel/cuda/render_common.cu` 第 **391/397** 行仍有 2 行注释引用已删除的 `reject_sdf_geometry` / 「host 仍拒绝」。可执行引用为 **0**（`grep reject_sdf_geometry src/**/*.cu` 仅注释命中）；注释保留，语义待**下次内核重基线**时更新（改 `.cu` 会改变内核身份，按既有口径不在守卫删除片里动）。
 
 ## 3. 内核身份（不变）
 render megakernel source `778216b2…` / PTX `34f91147…` / 268,589 B；aa_resolve `0bf8af5a…` / `b28e155c…` / 27,536 B（本片未动设备源，见 `materials/kernel-identity-unchanged.txt`）。
