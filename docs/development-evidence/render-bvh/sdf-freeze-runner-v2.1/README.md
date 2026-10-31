@@ -49,7 +49,8 @@ GUARDS_ONLY_DONE
 EXIT=0
 ```
 
-`logs/guards-only-dryrun-tampered.txt` — same file with the recipe list sha256 replaced by zeros:
+`logs/guards-only-dryrun-tampered.txt` — same file with the recipe list sha256 replaced by zeros
+(full capture: runner stdout + the appended `guard.log`, not a summary):
 
 ```
 OUTLINE_LISTS_OK=1/2
@@ -60,7 +61,9 @@ OUTLINE_MISMATCH[guards] arm=recipe expect=0000../10099/183/28969 actual=cfd1038
 EXIT=9
 ```
 
-`logs/syntax-parse.txt` — both scripts parse cleanly under the PowerShell parser.
+`logs/syntax-parse.txt` — real PowerShell parser output (`Parser::ParseFile`): both scripts
+`parse OK` with token counts and `ascii_only=True` (the earlier file was a capture of the
+checking command's own environment errors; it was replaced by this parser output).
 Both scripts remain **ASCII-only** (verified: 0 non-ASCII bytes).
 
 ## Not done in this slice
