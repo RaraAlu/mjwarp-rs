@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-01-render-sdf-freeze-runner-v21",
+  "title": {
+    "zh": "冻结/runner 扩展 v2.1（94 条 = 9 exe + 83 inputs + 2 清单；清单校验/不可改/body env；离线 dry-run）",
+    "en": "freeze/runner v2.1 extension (94 entries = 9 exes + 83 inputs + 2 lists; list checks, immutability, body env; offline dry run)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "按已签 criterion v2.1 扩展 scripts/validate/render-bvh 两个脚本：freeze-guards-sdf.ps1 读并校验 outline-lists.json（版本/128 界/两臂/exact_max<=128/字节 sha 行数与首像素），冻结条目改为 9+83+2=94 并写 criterion_version/bound_ulp/outline_lists；run-window.ps1 的 -GuardsOnly 增清单校验（OUTLINE_LISTS_OK=2/2 计入 GUARDS_OK=94/94），body 前/窗后各复核清单不可改（drift→exit9），body 期导出 MJWARP_RENDER_OUTLINE_LIST_DIR + MJWARP_REQUIRE_OUTLINE_CRITERION=1，老 guards（无清单）行为不变。只改脚本、不执行冻结、零 GPU。",
+    "en": "Extend the two scripts/validate/render-bvh scripts for signed criterion v2.1: freeze-guards-sdf.ps1 validates outline-lists.json (version / 128 bound / two arms / exact_max<=128 / bytes, sha, rows, first pixel) and freezes 9+83+2=94 entries with criterion_version/bound_ulp/outline_lists; run-window.ps1 -GuardsOnly verifies the lists (OUTLINE_LISTS_OK=2/2 inside GUARDS_OK=94/94), re-checks immutability before the body and after the window (drift -> exit9), exports the two MJWARP_* variables for the body, and keeps legacy guards files (no lists) unchanged. Scripts only; no freeze executed; zero GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "freeze-guards-sdf.ps1：-OutlineDir/-CriterionVersion/-BoundUlp 参数；outline-lists.json 版本与 bound=128 校验；两臂 exact_max<=128；字节/sha/行数/首像素与机器摘要一致；冻结 94 条且 aggregate 覆盖 94 条；guards 含 criterion_version/bound_ulp/counts.outline_lists/outline_lists[]。任一不符 throw，不写 guards。",
+    "run-window.ps1：-GuardsOnly 输出 OUTLINE_LISTS_OK=2/2 且计入总数；body 前/窗后复核清单 sha（drift → OUTLINE_LIST_DRIFT exit9）；设置并记录 body env 两个变量；无 outline_lists 的旧 guards 走原行为。",
+    "离线 dry-run：合成 guards（0 exe + 0 input + 2 清单）正向 exit 0（OUTLINE_LISTS_OK=2/2、GUARDS_ONLY_DONE），篡改清单 sha 反向 exit 9（OUTLINE_MISMATCH）；两脚本 PowerShell 解析通过且 ASCII-only。",
+    "四门禁通过 + --no-run EXIT=0；证据 sdf-freeze-runner-v2.1/（README/receipt/logs/manifest）。未执行冻结、未改产品 src/tests/fixtures/判据数值。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-01-render-sdf-outline-test-support"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "scripts/validate/render-bvh/freeze-guards-sdf.ps1",
+      "scripts/validate/render-bvh/run-window.ps1",
+      "docs/development-evidence/render-bvh/sdf-freeze-runner-v2.1/"
+    ],
+    "resources": [],
+    "priority": 60
+  },
+  "note": "Arch 2026-11-01 注册（step-3 第 4 片；零 GPU，不声明 gpu 资源）。只做脚本就绪 + 离线 dry-run；真实 94/94 -GuardsOnly 在双签窗口内执行。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-11-01T03:40:00.000Z",
+  "updated_at": "2026-11-01T03:40:00.000Z",
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-freeze-runner-v2.1/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-01-render-sdf-freeze-runner-v21"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-freeze-runner-v2.1/receipt.json",
+      "pointer": "/dry_run/positive/exit",
+      "equals": 0
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
