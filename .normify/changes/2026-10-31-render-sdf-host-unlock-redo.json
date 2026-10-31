@@ -1,80 +1,75 @@
 {
-    "schema_version":  1,
-    "id":  "2026-10-31-render-sdf-host-unlock-redo",
-    "title":  {
-                  "zh":  "重做 U1b host 解锁（删 reject_sdf_geometry + host-only 单测；离线零 GPU）",
-                  "en":  "Re-apply U1b host unlock (remove reject_sdf_geometry + host-only tests; offline, zero GPU)"
-              },
-    "status":  "proposed",
-    "intent":  {
-                   "zh":  "criterion v2 已签、SDF 要发布；attempt4 前必须让 host 重新放行 gtype==8（U1b 曾在 07252cd2 因 U4 失败回滚）。按 af96c048 同形态重做：删 megakernel.rs 的 reject_sdf_geometry、render() 调用点与 2 条 host-only 单测；零 .cu/零 ABI/内核身份不变（render 源码集合无改动）。",
-                   "en":  "Restore the host SDF unlock exactly as in af96c048 so attempt4 can exercise SDF; no device-source change."
-               },
-    "modules":  {
-
-                },
-    "acceptance":  [
-                       "megakernel.rs 删 reject_sdf_geometry 定义/调用点/2 条 host-only 单测后行数重报（预期 ~406-410）；`grep reject_sdf_geometry` 0 命中；零 `.cu` 改动（git diff --stat -- src/render/kernel/cuda 为空）、内核身份仍 source 778216b2../PTX 34f91147../268,589；fmt/clippy/clippy-cuda/unit 全绿、`--no-run` EXIT=0 含 Finished、validate 0 错；证据目录 sdf-host-unlock-redo/（README/receipt/logs/manifest）；不改判据/参考/其它代码。"
-                   ],
-    "schedule":  {
-                     "depends_on":  [
-
-                                    ],
-                     "owner":  "Arch",
-                     "files":  [
-                                   "src/render/kernel/megakernel.rs",
-                                   "docs/development-evidence/render-bvh/sdf-host-unlock-redo/"
-                               ],
-                     "resources":  [
-
-                                   ],
-                     "priority":  62,
-                     "phase":  "P8-渲染与BVH"
-                 },
-    "note":  "Arch 2026-10-31 注册（用户签 criterion v2 后按顺序第 2 片）。U4 窗口 checklist 补「开窗前核对 host 解锁状态与 target 预期一致」在第 4 片 attempt4 材料里写；本片零 GPU。",
-    "revision":  {
-                     "before":  null,
-                     "after":  null
-                 },
-    "created_at":  "2026-10-31T11:20:00.000Z",
-    "updated_at":  "2026-10-31T11:20:00.000Z",
-    "checks":  [
-                   {
-                       "kind":  "gate",
-                       "gate":  "fmt"
-                   },
-                   {
-                       "kind":  "gate",
-                       "gate":  "clippy"
-                   },
-                   {
-                       "kind":  "gate",
-                       "gate":  "clippy-cuda"
-                   },
-                   {
-                       "kind":  "gate",
-                       "gate":  "unit"
-                   },
-                   {
-                       "path":  "docs/development-evidence/render-bvh/sdf-host-unlock-redo/receipt.json",
-                       "pointer":  "/task_id",
-                       "equals":  "2026-10-31-render-sdf-host-unlock-redo",
-                       "kind":  "json"
-                   },
-                   {
-                       "kind":  "unchanged",
-                       "paths":  [
-                                     "src/render/kernel/cuda",
-                                     "fixtures/render-bvh"
-                                 ]
-                   },
-                   {
-                       "kind":  "forbid_claim",
-                       "terms":  [
-                                     "渲染数值验收通过",
-                                     "上游等价",
-                                     "精度达标"
-                                 ]
-                   }
-               ]
+  "schema_version": 1,
+  "id": "2026-10-31-render-sdf-host-unlock-redo",
+  "title": {
+    "zh": "重做 U1b host 解锁（删 reject_sdf_geometry + host-only 单测；离线零 GPU）",
+    "en": "Re-apply U1b host unlock (remove reject_sdf_geometry + host-only tests; offline, zero GPU)"
+  },
+  "status": "verified",
+  "intent": {
+    "zh": "criterion v2 已签、SDF 要发布；attempt4 前必须让 host 重新放行 gtype==8（U1b 曾在 07252cd2 因 U4 失败回滚）。按 af96c048 同形态重做：删 megakernel.rs 的 reject_sdf_geometry、render() 调用点与 2 条 host-only 单测；零 .cu/零 ABI/内核身份不变（render 源码集合无改动）。",
+    "en": "Restore the host SDF unlock exactly as in af96c048 so attempt4 can exercise SDF; no device-source change."
+  },
+  "modules": {},
+  "acceptance": [
+    "megakernel.rs 删 reject_sdf_geometry 定义/调用点/2 条 host-only 单测后行数重报（预期 ~406-410）；`grep reject_sdf_geometry` 0 命中；零 `.cu` 改动（git diff --stat -- src/render/kernel/cuda 为空）、内核身份仍 source 778216b2../PTX 34f91147../268,589；fmt/clippy/clippy-cuda/unit 全绿、`--no-run` EXIT=0 含 Finished、validate 0 错；证据目录 sdf-host-unlock-redo/（README/receipt/logs/manifest）；不改判据/参考/其它代码。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "src/render/kernel/megakernel.rs",
+      "docs/development-evidence/render-bvh/sdf-host-unlock-redo/"
+    ],
+    "resources": [],
+    "priority": 62
+  },
+  "note": "Arch 2026-10-31 注册（用户签 criterion v2 后按顺序第 2 片）。U4 窗口 checklist 补「开窗前核对 host 解锁状态与 target 预期一致」在第 4 片 attempt4 材料里写；本片零 GPU。",
+  "revision": {
+    "before": "eb39466648b5ab72c01d53488e9f0fd3e6aad62e",
+    "after": null
+  },
+  "created_at": "2026-10-31T11:20:00.000Z",
+  "updated_at": "2026-10-31T03:14:37.742Z",
+  "closed_at": "2026-10-31T03:14:37.742Z",
+  "checks": [
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-host-unlock-redo/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-10-31-render-sdf-host-unlock-redo"
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cuda",
+        "fixtures/render-bvh"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
 }

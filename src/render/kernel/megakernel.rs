@@ -47,18 +47,6 @@ mod megakernel_uploads;
 
 const BLOCK: u32 = 256;
 
-/// host 侧 SDF 拒绝（`gtype==8`）：设备侧尚未实现 SDF 求交，保持 `Unsupported`。
-///
-/// 抽成独立小校验是为了用 host-only 单测钉住「本片 cull latent 对齐今天不可达」这一前提，
-/// 防止解锁片在未实现 SDF 求交时误把 `gtype==8` 放进来
-/// （gap 卡 `2026-10-28-render-shadow-sdf-gtype-cull-gap`）。
-fn reject_sdf_geometry(geom_type: &[i32]) -> Result<(), LauncherError> {
-    if geom_type.contains(&8) {
-        return Err(LauncherError::Unsupported("S7b3 不含 SDF 求交"));
-    }
-    Ok(())
-}
-
 /// S7b3 渲染执行器；持有 81 槽 megakernel 与 AA 解析内核（模块缓存）与传输会话。
 pub struct MegakernelRenderer {
     session: TransferSession,
@@ -117,8 +105,6 @@ impl MegakernelRenderer {
             return Err(LauncherError::Unsupported("S7b3 不含 splat"));
         }
         // R05-S2：hfield 求交已接入（`gtype==1` 由设备侧分派到 mesh BVH）；
-        // SDF（`gtype==8`）仍拒绝（`reject_sdf_geometry`，host-only 单测钉住「不可达」前提）。
-        reject_sdf_geometry(&ints(fields, "geom_type")?)?;
         if ints(fields, "light_mode")?.iter().any(|mode| *mode != 0) {
             return Err(LauncherError::Unsupported(
                 "S7b3 只支持 light_mode=0（固定灯）的 data 位姿推导",
@@ -415,26 +401,5 @@ impl MegakernelRenderer {
         }
         self.aa
             .resolve(&self.session, context, nworld, layout.rgb_pixels, nsamples)
-    }
-}
-
-#[cfg(test)]
-mod sdf_geometry_guard_tests {
-    use super::reject_sdf_geometry;
-    use crate::runtime::launcher::LauncherError;
-
-    #[test]
-    fn sdf_geometry_stays_unsupported() {
-        let err = reject_sdf_geometry(&[0, 2, 8]).expect_err("gtype==8 must be rejected");
-        assert!(matches!(
-            err,
-            LauncherError::Unsupported("S7b3 不含 SDF 求交")
-        ));
-    }
-
-    #[test]
-    fn non_sdf_geometry_passes_the_guard() {
-        assert!(reject_sdf_geometry(&[]).is_ok());
-        assert!(reject_sdf_geometry(&[0, 1, 2, 7]).is_ok());
     }
 }
