@@ -1,6 +1,6 @@
-# SDF 判据 v2 草案（离线；待用户签）
+# SDF 判据 v2（已签发 2026-10-31T11:04:37+08:00；approved_by=user via Chief）
 
-版本：**`render-sdf-criterion-v2`**（草案；未生效，未改任何现有判据/参考文件）
+版本：**`render-sdf-criterion-v2`**（**已签发**；B=128 ULP；签署时间 2026-10-31T11:04:37+08:00；approved_by=user via Chief）；判据数值以签发版为准，清单外 1 ULP 即失败。
 作者：Arch 2026-10-31；依据：Chief 定性（SDF 渲染 = `gtype==8` 走底层 mesh `ray_mesh_leaf`，与 `ray_sphere` 的 `a` 求和次序无关；U4 的 73 ULP 属 scene-a **普通球 primitive** 的 FMA 结合律差异）+ `target/sphere-ref-conflict-rca.md` + attempt1/2/3 证据。
 
 ## 0. 为什么需要 v2
