@@ -1,0 +1,64 @@
+U4 attempt4 window plan (material v2, criterion render-sdf-criterion-v2 signed B=128 ULP, 2026-10-31T11:04:37+08:00)
+===============================================================================================================
+Task (material): 2026-10-31-render-sdf-validate-window-material-v2
+Task (executed): 2026-10-31-render-sdf-validate   [GPU full load; user double-sign required]
+Prerequisites (all verified): U1b redo 2026-10-31-render-sdf-host-unlock-redo (013d8d4a, host unlocks gtype==8),
+  a-order refix 2026-10-31-render-sdf-sphere-dot-a-order-refix (fa604008), criterion v2 signed,
+  U3 capture, U4a model dumps, attempt1/2/3 records.
+
+0. THREE-QUESTION HEADER (wording aligned with criteria-purpose-audit/standard.md)
+- Ruling goal: decide whether SDF (gtype==8) can be released (not to find a pass path for the scene-a sphere outline).
+- Consumer: product release (SDF reachability); the scene-a 8 regressions are internal regression only.
+- Nature of the measured object: SDF = gtype==8 intersecting via the underlying mesh (render_common.cu:366 / upstream render.py:738-761);
+  the scene-a sphere outline = ordinary sphere primitive FMA-association arithmetic difference (a = dot(vec,vec)), NOT an SDF decision item.
+- Premise: bitwise criteria hold only when reference and product share the compilation form; the two upstream references differ in
+  the `a` association (RCA sha 90a39b03../9176), so the scene-a sphere outline is NOT covered by bitwise criteria; criterion v2 exemption applies.
+
+1. CRITERIA
+1.1 SDF entity render_sdf_reference (bitwise, no relaxation)
+  rgb max_byte_diff=0; depth bitwise mismatched=0 AND max_ulp=0; seg exact; two-run rgb/depth/seg sha256 equal;
+  shadow on/off arm consistency (depth/seg bitwise, rgb off>=on reversed>1LSB=0, changed pixels>0, both arms two-run sha);
+  DepthSeg cross-path bitwise identical to megakernel.
+1.2 scene-a regressions (8 entities): criterion v2 controlled exemption
+  exempt only pixels that satisfy all three: reference seg = sphere geom (2,5); pixel on outline band (4-neighbour non-sphere hit);
+  |depth delta| <= B. Outside list: any delta != 0 fails. Inside list: delta > B fails. B = 128 ULP (signed), recomputed at freeze
+  with exact sqrt(det)_min and |c|max from the frozen ray grid; if recomputation > 128 the attempt FAILS (raising B is forbidden).
+  Frozen per-entity lists scene-a-sphere-outline-<entity>.txt (pixel index, x, y, reference seg, both associations' depth bits+ULP, outline flag)
+  are hashed into the guards file; the pixel set must match pixel-for-pixel inside the window.
+
+2. ENTITIES (9)
+  new: render_sdf_reference (5 GPU tests)
+  regressions: render_context_lifecycle, render_e2e, render_kernel_depth_seg, render_kernel_flags, render_kernel_rgb,
+               render_mesh_bvh, render_r10_multi_world, render_skybox_reference
+
+3. FREEZE (attempt=4, fresh; old 92-entry freezes are invalid)
+  freeze-guards-sdf.ps1 -Attempt 4 -> hard assert 9 exe + 83 inputs + outline list hashes = entries;
+  dump-scene-a-sphere-outline.ps1 (read-only, runs only in the freeze step) emits the per-entity lists and their sha256;
+  guards file must contain the list hashes; -GuardsOnly must be 92/92 plus list check.
+
+4. CONDITIONAL MONITOR PROTOCOL (unchanged, PowerShell 5.1 only)
+  step1 regular: monitor-until-clean.ps1 -OutCsv target/render-bvh/sdf-validate-window/monitor-pre-window-attempt4.csv -Required 60 -MaxMinutes 30
+    (default MaxUtil=40, no -OpenUtilLimit); 60/60 => normal window; else keep the failed CSV/snapshot/verdict verbatim.
+  step2 exception (signed validation_only_exception_util_lt_60): re-baseline -> monitor ...-exception-attempt4.csv -MaxUtil 60 -> 60/60 only.
+    Both monitors go into evidence; never described as a regular-threshold pass. ge40_clean recomputed; ge60 warm-up samples outside
+    the 60-clean streak recorded as-is.
+  baseline: three nvidia-smi points ~1 s apart -> floor = min(free) - 3072 MiB; abort if floor breached.
+  fail-closed: any nonzero step / floor breach / external compute apps / build process => stop, no retry, no re-freeze, no criteria change.
+
+5. WINDOW PREPARATION CHECKLIST (must be checked before opening)
+  [ ] host unlock state matches the target expectation: `grep reject_sdf_geometry src/render/kernel/megakernel.rs` = 0 hits (attempt3 failed here)
+  [ ] criterion version = render-sdf-criterion-v2 signed; B=128 ULP; per-entity outline list hashes present in the guards file
+  [ ] kernel identity = source 10070226../PTX 7782aeb1../268,589 (a=dot3_ba form)
+  [ ] tree clean; build processes 0; GPU idle check; today's GPU state written into facts
+  [ ] new fresh freeze (no reuse of attempt1/2/3 guards); -GuardsOnly passes including list check
+
+6. WINDOW PLAN / BASELINE (to be taken at window time)
+  expected duration 30-60 min (freeze ~2-3 min + body ~50 s + monitor up to 30 min);
+  9 entities; single full-load GPU task; no other GPU job concurrently.
+  This material does NOT contain a baseline; the three-point baseline and floor are recorded in target/render-bvh/sdf-validate-window/attempt4/ at window time.
+
+7. OPEN ITEMS (explicit)
+  - The actual dump tool script (scripts/validate/render-bvh/dump-scene-a-sphere-outline.ps1) is implemented and self-checked in the
+    window-preparation step BEFORE the freeze; this material fixes its contract (read-only, freeze-step only, per-entity list format,
+    list sha256 into the guards file). If implementation deviates, Chief/QA must review before the freeze.
+  - B recomputation at freeze uses the v2 section-3 formula; result must be <= 128 or the attempt fails.

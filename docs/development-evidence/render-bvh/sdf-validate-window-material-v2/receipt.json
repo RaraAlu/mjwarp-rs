@@ -1,0 +1,60 @@
+{
+  "task_id": "2026-10-31-render-sdf-validate-window-material-v2",
+  "kind": "render-sdf-validate-window-material-v2",
+  "owner": "Arch",
+  "status": "material only; window NOT opened; awaiting user double-sign of plan + baseline",
+  "criterion": {
+    "version": "render-sdf-criterion-v2",
+    "bound_ulp": 128,
+    "signed_at": "2026-10-31T11:04:37+08:00",
+    "approved_by": "user via Chief",
+    "freeze_recompute": "B recomputed at freeze with exact sqrt(det)_min and |c|max from the frozen ray grid; > 128 => attempt fails (raising B forbidden)"
+  },
+  "three_question_header": {
+    "ruling_goal": "decide whether SDF (gtype==8) can be released",
+    "consumer": "product release; scene-a 8 regressions are internal regression only",
+    "nature": "SDF = gtype==8 via underlying mesh; scene-a sphere outline = FMA-association arithmetic difference",
+    "premise": "bitwise holds only under the same compilation form; the two upstream references differ in `a` association, so scene-a outline is exempt per v2"
+  },
+  "entities": {
+    "new": [
+      "render_sdf_reference"
+    ],
+    "regressions": [
+      "render_context_lifecycle",
+      "render_e2e",
+      "render_kernel_depth_seg",
+      "render_kernel_flags",
+      "render_kernel_rgb",
+      "render_mesh_bvh",
+      "render_r10_multi_world",
+      "render_skybox_reference"
+    ]
+  },
+  "freeze": {
+    "attempt": 4,
+    "fresh": true,
+    "counts": "9 exe + 83 inputs + scene-a sphere-outline list hashes",
+    "dump_tool": "scripts/validate/render-bvh/dump-scene-a-sphere-outline.ps1 (read-only, freeze step only; contract fixed by this material; implementation + self-check in the window-preparation step before the freeze)",
+    "guards_hashes": "per-entity outline list sha256 written into the guards file and the window evidence"
+  },
+  "protocol": "conditional: regular util<40 first (PowerShell 5.1, default MaxUtil=40, no -OpenUtilLimit); on failure keep the failed CSV/snapshot/verdict verbatim, re-baseline, use the signed validation_only_exception_util_lt_60 monitor (-MaxUtil 60, new CSV); both monitors into evidence; never described as a regular-threshold pass",
+  "preparation_checklist": [
+    "host unlock state matches target expectation (grep reject_sdf_geometry = 0 hits)",
+    "criterion v2 signed; B=128; per-entity outline list hashes in guards",
+    "kernel identity = source 10070226../PTX 7782aeb1../268,589",
+    "tree clean; build processes 0; GPU idle; today's GPU state in facts",
+    "fresh freeze only; -GuardsOnly 92/92 plus list check"
+  ],
+  "baseline": "not in this material; three-point baseline + floor recorded in target/render-bvh/sdf-validate-window/attempt4/ at window time",
+  "prerequisites": {
+    "u1b_redo": "2026-10-31-render-sdf-host-unlock-redo (013d8d4a)",
+    "a_order_refix": "2026-10-31-render-sdf-sphere-dot-a-order-refix (fa604008)"
+  },
+  "next": "send window plan + baseline to Chief -> user double-sign -> open GPU window -> attempt4 body -> evidence commit -> QA check",
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "精度达标"
+  ]
+}
