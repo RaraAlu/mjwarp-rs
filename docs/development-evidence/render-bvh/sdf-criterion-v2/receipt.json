@@ -1,0 +1,69 @@
+{
+  "task_id": "2026-10-31-render-sdf-criterion-v2",
+  "kind": "render-sdf-criterion-v2",
+  "owner": "Arch",
+  "status": "draft (NOT signed, NOT in force; no existing criteria/reference file was changed)",
+  "criterion_version": "render-sdf-criterion-v2",
+  "user_decision": "user rejected 'do not ship SDF'; SDF must ship and be maintained long-term; proceed as 'SDF reachable + controlled exemption'",
+  "qualification": "SDF rendering = gtype==8 through the underlying mesh path (render_common.cu L366 / upstream render.py L738-761); the U4 73-91 ULP deviation belongs to the scene-a ordinary sphere primitive FMA-association difference, not to the SDF decision item",
+  "sdf_entity_criteria_bitwise": {
+    "entity": "render_sdf_reference (scene-sdf references: capture-sdf/sdf-mesh, capture-sdf/sdf-occluder)",
+    "rgb": "max_byte_diff = 0 (bitwise)",
+    "depth": "mismatched = 0 and max_ulp = 0 (bitwise)",
+    "seg": "mismatched = 0",
+    "two_run_determinism": "rgb/depth/seg sha256 equal across two runs of the same context",
+    "shadow_toggle_arm": "depth/seg bitwise equal; rgb shadow_off >= shadow_on (reversed beyond 1 LSB = 0); changed pixels > 0; both arms two-run sha equal",
+    "depth_seg_cross_path": "render_depth_seg vs megakernel depth/seg bitwise equal"
+  },
+  "controlled_exemption": {
+    "applies_to": "the 8 scene-a regression entities of the U4 window",
+    "predicate_three_conditions": [
+      "reference seg points at the sphere geom (scene-a geom 2 => seg=(2,5))",
+      "pixel lies on the sphere outline band (reference depth has at least one 4-neighbour that is not a sphere hit)",
+      "|depth delta ULP| against the frozen bitwise form <= B (128 ULP draft)"
+    ],
+    "outside_exemption": "any pixel with delta != 0 fails",
+    "inside_exemption": "any pixel with |delta| > B fails",
+    "frozen_list": "at freeze time a read-only dump tool emits per entity: pixel index, x, y, reference seg, both association forms' depth bits + ULP, outline flag; the list is hashed together with the guards file and must be byte-identical inside the window"
+  },
+  "affected_pixels_draft": {
+    "unit": "per entity/arm, camera 1 (43200 px)",
+    "values": {
+      "render_kernel_depth_seg_recipe": 183,
+      "render_skybox_reference_r02_s1": 183,
+      "render_kernel_flags_aa2": 172,
+      "render_kernel_rgb_s7b2": 183,
+      "render_e2e": 183,
+      "render_r10_multi_world": 183,
+      "camera_0": 0
+    },
+    "max_ulp_observed": {"recipe_arm": 73, "aa2_arm": 91},
+    "source": "docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt3/logs/ (5 regression entities)",
+    "draft_only": true
+  },
+  "ulp_bound": {
+    "draft_value_ulp": 128,
+    "derivation": "delta a <= 4u*a_max; delta det <= |c|*delta a + u*|a*c| <= 5u|c|; delta t = delta det/(2*a*sqrt(det)); delta depth = |v_z|*delta t + u*depth; Delta ULP(px) = [5u|c| |v_z| / (2 a sqrt(det))] / ULP(depth); with conservative |c|max=4.2, |v_z|max=1, a_min=1-4u, sqrt(det)_min=3.4e-2, ULP(1.2)=1.19e-7 => ~110 ULP, times 1.15 safety rounded up to a power of two => 128",
+    "final_value_policy": "recomputed at freeze with the exact sqrt(det)_min and |c|max from the frozen ray grid using the same formula; if the recomputation exceeds 128 the attempt fails (temporary relaxation of B is forbidden)",
+    "not_observed_then_relaxed": true
+  },
+  "fail_closed": [
+    "pixels outside the frozen list: depth must be bitwise equal, else fail",
+    "pixels inside the frozen list: |delta ULP| <= B, else fail",
+    "the frozen pixel set itself must match pixel-for-pixel (extra or missing pixel = fail)",
+    "list file is frozen and hashed with the guards; rewriting it inside the window is forbidden",
+    "seg stays exact for all pixels; rgb stays <= 1 LSB; the SDF entity stays bitwise (section 1)",
+    "manually raising B or deleting pixels is a violation => the round fails"
+  ],
+  "sources": {
+    "rca": "docs/development-evidence/render-bvh/sdf-validate/materials/reference-conflict-rca.md (sha 90a39b03../9176)",
+    "attempts": "docs/development-evidence/render-bvh/sdf-validate-window/attempts/{attempt1,attempt2,attempt3}/",
+    "draft": "target/render-sdf-criterion-v2-draft.md (working tree; spec.md in this directory is the evidence copy)"
+  },
+  "next_after_sign": "re-apply U1b (host unlock) -> fresh freeze (guards + pixel list) -> U4 attempt4 under the same signed conditional monitor protocol",
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "精度达标"
+  ]
+}
