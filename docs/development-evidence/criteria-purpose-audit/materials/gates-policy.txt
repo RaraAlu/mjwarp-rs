@@ -1,0 +1,154 @@
+# gate definitions, thresholds, policy and config (raw excerpts)
+
+## .normify/gates.toml
+# mjwarp-rs 闂ㄧ銆備换鍔＄殑 checks 閫氳繃闂ㄧ鍚嶅紩鐢ㄣ€?# 鏋舵瀯鏍￠獙宸插唴缃簬 done 涓庢彁浜ら挬瀛愶紝涓嶅崟璁鹃棬绂併€?# GPU 闂ㄧ鐢卞悇浠诲姟鎸夐渶鏂板锛屽苟鍐欐槑 host 涓?resources銆?hash_inputs = ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml"]
+
+[gate.fmt]
+cmd = ["cargo", "fmt", "--check"]
+
+[gate.clippy]
+cmd = ["cargo", "clippy", "--all-targets", "--locked", "--", "-D", "warnings"]
+timeout_s = 3600
+
+[gate.unit]
+cmd = ["cargo", "test", "--locked"]
+parse = "libtest"
+timeout_s = 3600
+
+[gate.clippy-cuda]
+cmd = ["cargo", "clippy", "--all-targets", "--locked", "--features", "cuda", "--", "-D", "warnings"]
+timeout_s = 3600
+
+# 鏃犲崱/蹇€?CI 璺緞锛?-no-default-features锛堟棤 cudarc 渚濊禆锛屽彲鍦ㄦ棤椹卞姩鏈哄櫒鏋勫缓/娴嬭瘯锛夈€?[gate.unit-nocuda]
+cmd = ["cargo", "test", "--locked", "--no-default-features"]
+parse = "libtest"
+timeout_s = 3600
+
+[gate.clippy-nocuda]
+cmd = ["cargo", "clippy", "--all-targets", "--locked", "--no-default-features", "--", "-D", "warnings"]
+timeout_s = 3600
+
+# G26鍔ㄨ兘鍏ㄩ摼锛氬畾鍚慓PU鍏ㄩ摼娴嬭瘯锛堢绾縜uthoring鐢熸垚鐨勪笂娓竐nergy_vel鍚屾潯浠跺弬鑰冿級銆?# 闇€瑕丆UDA宸ュ叿閾句笌NVIDIA椹卞姩锛沨ost涓巖esources鎸夐渶鏂板銆?[gate.g26-energy]
+cmd = ["cargo", "+1.99.0-x86_64-pc-windows-msvc", "test", "--locked", "--all-features", "--test", "g26_energy_chain", "--", "--ignored", "--test-threads=1"]
+host = "DarkSea"
+resources = ["gpu:windows-t4"]
+timeout_s = 3600
+probe = [["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"]]
+inputs = ["tests", "fixtures"]
+
+# G01瀹屾暣鍥炲綊锛氳剼鏈嚜琛屾牳瀵规牱鏈笌DLL鍝堝笇锛屽苟璁剧疆CUDA宸ュ叿閾俱€?# 鍙湪Rara杩愯锛涢攣鍚嶄笉璇佹槑鏄惧崱鍨嬪彿锛宲robe璁板綍瀹為檯璁惧涓庨┍鍔ㄣ€?# 鑴氭湰鎸夊瓙椤规牳瀵圭敤渚嬫暟骞朵互閫€鍑虹爜鎶ュ憡锛涙帶鍒跺彴涓嶅惈libtest姹囨€汇€?[gate.g01-full]
+cmd = ["D:\\Rust\\mjwarp-rs\\target\\toolchains\\powershell-7.6.7\\bin\\pwsh.exe", "-NoProfile", "-File", "scripts/test-windows-g01.ps1", "-AllFeatures", "-FullRegression"]
+host = "DarkSea"
+resources = ["gpu:windows-t4"]
+timeout_s = 14400
+probe = [["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"]]
+sample = { cmd = ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"], name = "gpu_mem_mib" }
+inputs = ["tests", "fixtures", "native", "include", "build.rs", "scripts/test-windows-g01.ps1"]
+
+[gate.g01-full-release]
+cmd = ["D:\\Rust\\mjwarp-rs\\target\\toolchains\\powershell-7.6.7\\bin\\pwsh.exe", "-NoProfile", "-File", "scripts/test-windows-g01.ps1", "-AllFeatures", "-FullRegression", "-Release"]
+host = "DarkSea"
+resources = ["gpu:windows-t4"]
+timeout_s = 14400
+probe = [["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"]]
+sample = { cmd = ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"], name = "gpu_mem_mib" }
+inputs = ["tests", "fixtures", "native", "include", "build.rs", "scripts/test-windows-g01.ps1"]
+
+## .normify/policy.toml
+[[rules]]
+id = "core-acyclic"
+include_cross_tree = true
+severity = "error"
+type = "acyclic"
+
+[[rules]]
+from = ["**"]
+id = "core-no-deprecated-target"
+severity = "warning"
+to = ["**"]
+to_state = "deprecated"
+type = "forbid-dependency"
+
+[[rules]]
+from = ["mjwarp.io", "mjwarp.io.**"]
+id = "boundary-io"
+severity = "error"
+to = ["mjwarp.render", "mjwarp.render.**"]
+type = "forbid-dependency"
+
+[[rules]]
+from = ["mjwarp.physics", "mjwarp.physics.**"]
+id = "boundary-physics"
+severity = "error"
+to = ["mjwarp.io", "mjwarp.io.**", "mjwarp.render", "mjwarp.render.**"]
+type = "forbid-dependency"
+
+[[rules]]
+from = ["mjwarp.render", "mjwarp.render.**"]
+id = "boundary-render"
+severity = "error"
+to = ["mjwarp.io", "mjwarp.io.**", "mjwarp.physics", "mjwarp.physics.**"]
+type = "forbid-dependency"
+
+[[rules]]
+from = ["mjwarp.model", "mjwarp.model.**"]
+id = "boundary-model"
+severity = "error"
+to = ["mjwarp.io", "mjwarp.io.**", "mjwarp.physics", "mjwarp.physics.**", "mjwarp.render", "mjwarp.render.**"]
+type = "forbid-dependency"
+
+[[rules]]
+from = ["mjwarp.runtime", "mjwarp.runtime.**"]
+id = "boundary-runtime"
+severity = "error"
+to = ["mjwarp.io", "mjwarp.io.**", "mjwarp.physics", "mjwarp.physics.**", "mjwarp.render", "mjwarp.render.**", "mjwarp.model", "mjwarp.model.**", "mjwarp.math", "mjwarp.math.**"]
+type = "forbid-dependency"
+
+[[rules]]
+from = ["mjwarp.math", "mjwarp.math.**"]
+id = "boundary-math"
+severity = "error"
+to = ["mjwarp.io", "mjwarp.io.**", "mjwarp.physics", "mjwarp.physics.**", "mjwarp.render", "mjwarp.render.**", "mjwarp.model", "mjwarp.model.**", "mjwarp.runtime", "mjwarp.runtime.**"]
+type = "forbid-dependency"
+
+[[rules]]
+from = ["mjwarp.diagnostics", "mjwarp.diagnostics.**"]
+id = "boundary-diagnostics"
+severity = "error"
+to = ["mjwarp.io", "mjwarp.io.**", "mjwarp.physics", "mjwarp.physics.**", "mjwarp.render", "mjwarp.render.**", "mjwarp.model", "mjwarp.model.**", "mjwarp.runtime", "mjwarp.runtime.**", "mjwarp.math", "mjwarp.math.**"]
+type = "forbid-dependency"
+
+[[rules]]
+id = "no-cross-tree"
+mode = "forbid"
+severity = "error"
+type = "cross-tree"
+
+[[rules]]
+id = "depth-budget"
+max_depth = 12
+severity = "error"
+type = "max-depth"
+
+[[rules]]
+first = "a-z"
+id = "module-names"
+rest = "a-z0-9-"
+severity = "error"
+type = "naming"
+
+## .normify/config.toml
+schema_version = 1
+
+[project]
+name = "mjwarp-rs"
+
+[commit]
+types = ["鍔熻兘", "淇", "閲嶆瀯", "鏂囨。", "娴嬭瘯", "璇佹嵁", "宸ョ▼", "娌荤悊"]
+forbid_trailers = ["Signed-off-by", "Co-Authored-By"]
+
+[size]
+exclude = ["docs/evidence", "docs/development-evidence", "fixtures", "include/warp-headers"]
+
+[enforce]
+waivers = true

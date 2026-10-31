@@ -1,0 +1,95 @@
+{
+  "task_id": "2026-10-31-criteria-purpose-audit",
+  "kind": "criteria-purpose-audit",
+  "owner": "QA",
+  "pin": "b908075c",
+  "card_id": "2026-10-31-criteria-purpose-audit",
+  "standard": "docs/development-evidence/criteria-purpose-audit/standard.md (v1; section 5 per Chief 2026-10-31 final: QA reports, Chief decides; only numeric relaxation / reference change / external release statement go to the user)",
+  "scope": "read-only enumeration and classification of every machine criterion in the repo: .normify task checks (json/unchanged/gate/forbid_claim), gate definitions and thresholds, src tolerance constants, tests comparison/bit-level assertions, docs contracts and evidence README criteria statements; each entry judged by the three questions (decision target / served purpose / measured object nature), bound provenance, premises, A/B/C class and high-risk screening; no GPU, no window, no freeze, no build",
+  "coverage": {
+    "normify_tasks": 784,
+    "tasks_with_checks": 524,
+    "tasks_without_checks": 260,
+    "status_counts": {"verified": 616, "abandoned": 100, "backlog": 41, "proposed": 25, "in_progress": 2},
+    "check_kinds": {"gate": 1322, "json": 446, "unchanged": 246, "forbid_claim": 503, "record": 0},
+    "gate_references": {"fmt": 403, "unit": 345, "clippy": 295, "clippy-cuda": 276, "clippy-nocuda": 1, "unit-nocuda": 1, "g26-energy": 1},
+    "gates_defined": 9,
+    "gates_unreferenced": ["g01-full", "g01-full-release"],
+    "policy_rules": 11,
+    "src_tolerance_constants_found": 38,
+    "test_files": 299,
+    "test_assertion_hits": {"ULP": 388, "LSB": 86, "seg": 109, "tolerance": 384, "bitwise": 44, "hash": 1123, "consistency": 38},
+    "docs_files_with_criteria": 172,
+    "docs_criteria_statements": 922
+  },
+  "criteria_table": {
+    "path": "materials/criteria-table.md",
+    "rows": 31,
+    "class_counts": {"A": 9, "B": 11, "C": 11},
+    "A_entries": ["CR-01", "CR-02", "CR-13", "CR-14", "CR-15", "CR-17", "CR-19", "CR-29", "CR-30"],
+    "B_entries": ["CR-10", "CR-11", "CR-12", "CR-16", "CR-18", "CR-23", "CR-24", "CR-25", "CR-26", "CR-27", "CR-28"],
+    "C_entries": ["CR-03", "CR-04", "CR-05", "CR-06", "CR-07", "CR-08", "CR-20", "CR-21", "CR-22", "CR-31", "CR-32"]
+  },
+  "high_risk": {
+    "path": "materials/high-risk.md",
+    "B_high_risk": ["CR-10", "CR-11", "CR-12", "CR-16", "CR-18", "CR-23", "CR-24", "CR-25", "CR-26", "CR-27"],
+    "C_misuse_high_risk": ["CR-04", "CR-05", "CR-08", "CR-20", "CR-21", "CR-31"],
+    "A_premise_gaps": ["CR-02", "CR-15", "CR-17", "CR-29", "CR-30"],
+    "top_impact": {
+      "MAX_DEPTH_ULP_family": {"cards": 80, "verified": 70},
+      "rgb_lsb_family": {"cards": 37, "verified": 30},
+      "bit_equal_family": {"cards": 10, "verified": 10},
+      "ulp_scale_family": {"cards": 21, "verified": 19},
+      "integrity_family": {"cards": 297, "verified": 275},
+      "forbid_claim": {"cards": 503, "verified": 458},
+      "unchanged": {"cards": 303, "verified": 279},
+      "note": "text-match upper bound; one card may hit several families; not an exact attribution"
+    }
+  },
+  "key_findings": [
+    "MAX_DEPTH_ULP=4 (src/render/kernel/output.rs:11) has no derivation, no stated served decision, and no written premises (same kernel form / recipe / GPU / warp version); it is a B-class reference-premise bound reused across scenes, which is exactly what the U4 incident hit (CR-10/11/18).",
+    "The U4 case hit three high-risk rules at once: bit-level criterion, reference from a different kernel form (SDF mesh path vs scene-a sphere primitive), and reuse across scenarios; the RCA shows the two references require different a-contraction orders, so no single product implementation can be bit-level for both.",
+    "render-bvh/sdf-criterion-v2/spec.md is the only criterion in the repo with a written error-model derivation (B=128 ULP, safety factor, frozen affected-pixel list); its premises (freeze-time extrema, single scenario, list/dump/guards sameness) still need explicit documentation at landing (CR-17).",
+    "G10 collision criteria (bit_equal first + 4 ULP@scale) are reference-based; criterion_scale.rs explains the scale semantics and the 32x relaxation but gives no error model, and the witness sampling face already recorded a 1/24 overshoot that remains unresolved (CR-24/25).",
+    "260 of 784 tasks (about one third) have no machine checks at all; 33% of the board's acceptance has text-only traceability (CR-08).",
+    "Integrity-type checks (unchanged / forbid_claim / guards / kernel identity / manifest) are frequently cited as if they supported numeric correctness; U4 attempt3 is the concrete example: the freeze was complete but the body was INVALID_ROUND (CR-04/05/20/21/31)."
+  ],
+  "deliverables": [
+    "README.md",
+    "standard.md",
+    "materials/criteria-table.md (31 criteria rows)",
+    "materials/high-risk.md (A/B/C grouped high-risk list)",
+    "materials/checks-inventory.txt",
+    "materials/gates-policy.txt",
+    "materials/src-tolerance-constants.txt",
+    "materials/tests-assertions.txt",
+    "materials/docs-criteria-statements.txt",
+    "materials/downgrade-impact.txt",
+    "materials/scan-commands.txt",
+    "manifest.txt"
+  ],
+  "boundaries": {
+    "read_only": true,
+    "gpu_used": false,
+    "window_opened": false,
+    "freeze": false,
+    "build_run": false,
+    "criteria_modified": false,
+    "values_modified": false,
+    "code_modified": false,
+    "references_modified": false,
+    "foreign_evidence_edited": false
+  },
+  "not_claimed": [
+    "不宣称判据全部合规",
+    "不宣称已可发布",
+    "不宣称任何判据数值最优或应保留/修改（处置由 Chief 定夺）",
+    "不宣称降级影响面是精确归属（文本匹配上限式粗估）"
+  ],
+  "limits": [
+    "299 test files were aggregated by criterion family; individual assertion lines were sampled by keyword groups, not exhaustively enumerated",
+    "downgrade impact counts come from card-text matching and overlap across families",
+    "the audit reads the repo at pin b908075c only; it does not judge whether any specific value is optimal",
+    "no disposal suggestions are given by design (Chief decides)"
+  ]
+}

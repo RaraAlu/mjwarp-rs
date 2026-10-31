@@ -1,0 +1,44 @@
+# 本次审计的扫描方法（可复现；脚本为临时 PowerShell，未入库）
+
+所有扫描只读；原始输出在 materials/ 下。以下命令在仓库根 `D:\Rust\mjwarp-rs` 执行。
+
+## 1. .normify checks 清单
+- 遍历 `.normify/changes/*.json`，UTF-8 读入后 ConvertFrom-Json；
+- 统计 `status`、`checks`（缺失视为 0 条，**不**把 null 当 1 条）、`checks.kind`、`gate` 名、`json` pointer、`forbid_claim` 词频、`unchanged.paths` 频次；
+- 输出：`materials/checks-inventory.txt`（含逐条 raw rows）。
+
+## 2. gate 定义/policy/config
+- 直接读取 `.normify/gates.toml`、`.normify/policy.toml`、`.normify/config.toml` 全文；
+- 统计 checks 引用的 gate 名与 gates.toml 定义的差集（得到 g01-full / g01-full-release 未被引用）。
+- 输出：`materials/gates-policy.txt`。
+
+## 3. src 容差常量
+- `git ls-files 'src/**'` 取 .rs，正则：
+  `^\s*(pub(\(crate\))?\s+)?const\s+\w*(ULP|TOL|EPS|THRESH|LIMIT|MIN_|MAX_|MARGIN)\w*\s*:`
+- 每条取 ±3 行上下文（标 `>>` 为命中行）。
+- 输出：`materials/src-tolerance-constants.txt`（38 处，344 行）。
+
+## 4. tests 断言
+- `git ls-files 'tests/**'` 取 .rs（299 个），按 7 组关键字分别 Select-String，记录每组总数与前 260 条命中：
+  U_ULP `MAX_DEPTH_ULP|max_ulp|beyond_ulp|ulp_distance|to_bits\(\)`；
+  V_LSB `beyond_1_lsb|max_byte_diff|1 ?LSB`；W_SEG `seg_mismatch|mismatched`；
+  X_TOL `TOLERANCE|_TOL\b|EPS|1\.0e-|1e-`；Y_BITWISE `bitwise|位级|位等`；
+  Z_HASH `sha256|Sha256|hash_depth|hash_rgb|hash_seg`；S_CONSISTENT `reversed|changed_pixels|consistency|determinism`。
+- 输出：`materials/tests-assertions.txt`（总数：388/86/109/384/44/1123/38）。
+
+## 5. docs 判据口径
+- 取 `docs/**/*contract*.md` 与 `docs/development-evidence/**/README.md`（172 个），正则
+  `容差|ULP|LSB|位级|判据|阈值|tolerance|threshold|bitwise`，记录文件命中排行与前 600 条。
+- 输出：`materials/docs-criteria-statements.txt`（922 条命中）。
+
+## 6. 降级影响面（粗估）
+- 遍历 `.normify/changes/*.json` 全文，按 9 个判据族关键字匹配，统计 `cards` 与 `status=verified` 数量并抽样 id；
+- 同一卡可命中多族，数字是**上限式粗估**。
+- 输出：`materials/downgrade-impact.txt`。
+
+## 7. 判据表与高危清单
+- 人工把上述扫描 + 关键实现文件（`src/render/kernel/output.rs`、`tests/support/render_bvh/*`、
+  `tests/support/launcher_compare_support.rs`、`criterion_scale.rs`、`gjk/mod.rs`、`hfield/driver.rs`、
+  `sdf-criterion-v2/spec.md` 等）映射为 31 条判据；
+- 逐条按 `standard.md` 三问 + 界来源 + 前提 + A/B/C + 高危规则 + 降级影响填写。
+- 输出：`materials/criteria-table.md`、`materials/high-risk.md`。
