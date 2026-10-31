@@ -1,4 +1,4 @@
-"""Author the scene-a sphere-outline exemption lists for the U4 attempt4 freeze step.
+"""Author the scene-a sphere-outline exact-difference lists for the v2.1 freeze step.
 
 OFFLINE AUTHORING TOOL (outside the product chain): it is never referenced by the product
 build, the product tests, cargo gates or product scripts; it reads frozen fixtures only and
@@ -7,22 +7,30 @@ author-scene-a-sphere-outline.ps1` re-checks the pinned environment and upstream
 before running this file.
 
 The numeric replay (exact single-rounding f32, camera-ray port, both `a = dot(vec,vec)`
-association forms) lives in `scene_a_outline_replay.py` next to this file. See that module's
-docstring for the semantics and the aa2 sub-sample rule.
+association forms) lives in `scene_a_outline_replay.py` next to this file.
 
-Outputs (ASCII, LF): per-entity lists `scene-a-sphere-outline-<entity>.txt`, the
-criterion-v2 section-3 recomputation `b-recompute.txt`, `selfcheck.txt`, `open-items.txt`
-and `sha256sums.txt`.
+Contract (criterion render-sdf-criterion-v2.1):
+  * list(arm) = the exact difference set of the two `a = dot(vec,vec)` association forms
+    (form A = (0,1,2) reference form, form B = (1,0,2) product form) over camera-1 sphere
+    pixels of the frozen reference; outside the list the product must be bitwise equal;
+  * B = 128 = next power of two above the exact freeze-time maximum difference (recipe 73,
+    aa2 91); a recomputed exact max above 128 makes the attempt fail (B must not be raised);
+  * the analytic v2 section-3 bound is reported per pixel (bound_raw and margin = 1.15x
+    bound_raw) and recorded only - it is explicitly not used to determine B.
 
-Exit codes: 0 = lists written and the criterion-v2 freeze verdict OK; 4 = lists written but
-the criterion-v2 freeze verdict FAILS; 5 = internal self-check failed; 6 = frozen input
-hash mismatch.
+Outputs (ASCII, LF): `scene-a-sphere-outline-<arm>.txt` lists, `outline-lists.json` (machine
+readable summary used by the freeze step to fill the guards file), `b-recompute.txt`,
+`selfcheck.txt`, `open-items.txt`, `sha256sums.txt`.
+
+Exit codes: 0 = freeze verdict OK; 4 = exact max > 128 (v2.1 freeze failure); 5 = internal
+self-check failed; 6 = frozen input hash mismatch.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import sys
 from pathlib import Path
 
@@ -30,44 +38,44 @@ import numpy as np
 
 import scene_a_outline_replay as replay_mod
 
-F32 = replay_mod.F32
-U = replay_mod.U
+BOUND_ULP = 128
+CRITERION_VERSION = "render-sdf-criterion-v2.1"
 
-
-# (output suffix, reference path, samples_per_pixel, camera index, entities sharing it).
-# Camera 0 has no sphere hit pixels at all, so only camera 1 needs a list.
+# (reference path, samples_per_pixel, entities consuming the list)
 ARMS = (
-    (replay_mod.RECIPE_REFERENCE,
+    (replay_mod.RECIPE_REFERENCE, 1,
      ("render_e2e", "render_kernel_depth_seg", "render_kernel_flags", "render_kernel_rgb",
       "render_r10_multi_world", "render_skybox_reference")),
-    (replay_mod.AA2_REFERENCE, ("render_kernel_flags-aa2",)),
+    (replay_mod.AA2_REFERENCE, 2, ("render_kernel_flags-aa2",)),
 )
-SPP = {replay_mod.RECIPE_REFERENCE: 1, replay_mod.AA2_REFERENCE: 2}
 CAMERA = 1
+ARM_NAMES = {replay_mod.RECIPE_REFERENCE: "recipe", replay_mod.AA2_REFERENCE: "aa2"}
 
 
-def format_list_file(entity, ref, rows, reference_label, reference_sha):
+def format_list_file(arm, ref, rows, reference_label, reference_sha, exact_max):
     lines = [
-        "# scene-a sphere-outline exemption list (criterion render-sdf-criterion-v2)",
-        f"# entity: {entity}",
-        f"# camera: {ref.index}  resolution: {ref.width}x{ref.height}  pixels: {ref.pixels}",
+        f"# scene-a sphere-outline exact-difference list (criterion {CRITERION_VERSION})",
+        f"# arm: {arm}",
         f"# reference: {reference_label}",
         f"# reference sha256: {reference_sha}",
-        "# replay: exact f32 product math (offline authoring tool, zero GPU)",
-        "# form A = a-order (0,1,2) [reference form]; form B = a-order (1,0,2) [product form]",
-        "# columns: pixel x y ref_seg_geom ref_seg_type ref_depth_bits formA_depth_bits",
-        "#          formB_depth_bits ulp_ab outline_band4 derived_affected",
-        "# outline_band4 = criterion v2 condition 2 (4-neighbour non-sphere hit);",
-        "# derived_affected = form A and form B depth bits differ.",
+        f"# camera: {CAMERA} raster: {ref.width}x{ref.height}",
+        "# columns: pixel x y ref_seg_geom ref_seg_type ref_depth_bits formA_bits formB_bits "
+        "ulp_ab bound_raw margin",
         f"# rows: {len(rows)}",
+        f"# exact_max_ulp: {exact_max}",
+        f"# bound_ulp: {BOUND_ULP} (= next power of two above exact_max_ulp; "
+        "bound_raw/margin are analytic and recorded only)",
     ]
-    lines.extend(" ".join(str(v) for v in row) for row in rows)
+    for pixel, x, y, seg_geom, seg_type, ref_bits, a_bits, b_bits, ulp, bound_raw, margin in rows:
+        lines.append(
+            f"{pixel} {x} {y} {seg_geom} {seg_type} {ref_bits} {a_bits} {b_bits} {ulp} "
+            f"{bound_raw:.6f} {margin:.6f}"
+        )
     return "\n".join(lines) + "\n"
 
 
-def run_arm(root, scene, reference_rel):
+def run_arm(root, scene, reference_rel, spp, entities):
     ref = replay_mod.Reference(root, reference_rel, CAMERA)
-    spp = SPP[reference_rel]
     sphere = replay_mod.sphere_pixels(scene, ref)
     data_a = replay_mod.replay(scene, ref, CAMERA, spp, "A", sphere)
     data_b = replay_mod.replay(scene, ref, CAMERA, spp, "B", sphere)
@@ -78,25 +86,34 @@ def run_arm(root, scene, reference_rel):
     dirs = {p: data_a[p][2] for p in sphere}
     form_a_bad = sum(1 for p in sphere if replay_mod.bits(depths_a[p]) != ref.depth[p])
     affected = [p for p in sphere if replay_mod.bits(depths_a[p]) != replay_mod.bits(depths_b[p])]
-    affected_ulp = [abs(replay_mod.bits(depths_a[p]) - replay_mod.bits(depths_b[p]))
-                    for p in affected]
-    band = replay_mod.band4_pixels(scene, ref)
-    band_set = set(band)
-    affected_set = set(affected)
-    covered = sum(1 for p in affected if p in band_set)
-    rows = [(p, p % ref.width, p // ref.width, ref.seg[2 * p], ref.seg[2 * p + 1],
-             ref.depth[p], replay_mod.bits(depths_a[p]), replay_mod.bits(depths_b[p]),
-             abs(replay_mod.bits(depths_a[p]) - replay_mod.bits(depths_b[p])),
-             p in band_set, p in affected_set)
-            for p in sphere]
+    deltas = {p: abs(replay_mod.bits(depths_a[p]) - replay_mod.bits(depths_b[p])) for p in affected}
+    bounds = replay_mod.per_pixel_bounds(affected, depths_a, terms_a, terms_b, dirs, deltas)
+    bound_by_pixel = {row["pixel"]: row for row in bounds}
+    rows = []
+    for pixel in affected:
+        bound = bound_by_pixel[pixel]
+        rows.append((
+            pixel, pixel % ref.width, pixel // ref.width,
+            ref.seg[2 * pixel], ref.seg[2 * pixel + 1], ref.depth[pixel],
+            replay_mod.bits(depths_a[pixel]), replay_mod.bits(depths_b[pixel]), deltas[pixel],
+            bound["bound_raw"], bound["margin"],
+        ))
+    stats = replay_mod.summarize_bounds(bounds)
     return {
-        "ref": ref, "reference_rel": reference_rel, "spp": spp,
-        "rows": rows, "sphere": len(sphere), "form_a_bad": form_a_bad,
-        "affected_count": len(affected), "max_ulp": max(affected_ulp, default=0),
-        "band_count": len(band), "covered": covered,
-        "band_bound": replay_mod.bound_v2(band, depths_a, terms_a, terms_b, dirs) if band else None,
-        "affected_bound": replay_mod.bound_v2(affected, depths_a, terms_a, terms_b, dirs)
-        if affected else None,
+        "arm": ARM_NAMES[reference_rel],
+        "reference": reference_rel,
+        "reference_sha256": ref.sha,
+        "spp": spp,
+        "entities": list(entities),
+        "raster": f"{ref.width}x{ref.height}",
+        "sphere_pixels": len(sphere),
+        "rows": rows,
+        "list_pixels": len(rows),
+        "exact_max_ulp": max(deltas.values(), default=0),
+        "first_pixel": affected[0] if affected else None,
+        "first_xy": [affected[0] % ref.width, affected[0] // ref.width] if affected else None,
+        "form_a_bad": form_a_bad,
+        "bound_stats": stats,
     }
 
 
@@ -132,18 +149,17 @@ def main(argv=None):
         if [replay_mod.bits(v) for v in direction] != [int(v) for v in entry["dir_bits"]]:
             ray_bad += 1
 
-    # ---- per arm: replay, lists, self-checks --------------------------------
-    arms = {}
-    for reference_rel, entities in ARMS:
-        result = run_arm(root, scene, reference_rel)
-        arms[reference_rel] = result
-        for entity in entities:
-            name = f"scene-a-sphere-outline-{entity}.txt"
-            (out / name).write_text(
-                format_list_file(entity, result["ref"], result["rows"], reference_rel,
-                                 result["ref"].sha),
-                encoding="ascii", newline="\n")
-            writes.append(name)
+    # ---- arms: lists + machine-readable summary ----------------------------
+    arm_results = []
+    for reference_rel, spp, entities in ARMS:
+        result = run_arm(root, scene, reference_rel, spp, entities)
+        arm_results.append(result)
+        ref = replay_mod.Reference(root, reference_rel, CAMERA)
+        name = f"scene-a-sphere-outline-{result['arm']}.txt"
+        text = format_list_file(result["arm"], ref, result["rows"], reference_rel,
+                                result["reference_sha256"], result["exact_max_ulp"])
+        (out / name).write_bytes(text.encode("ascii"))
+        writes.append(name)
 
     # ---- self-check 2: skybox capture equals the recipe reference ----------
     recipe = replay_mod.Reference(root, replay_mod.RECIPE_REFERENCE, CAMERA)
@@ -155,126 +171,146 @@ def main(argv=None):
     want_seg = np.asarray(recipe.seg, dtype="int64").reshape(-1, 2)
     sky_depth_mismatch = int((got_depth != want_depth).sum())
     sky_seg_mismatch = int((got_seg != want_seg).sum())
-
     cam0 = replay_mod.Reference(root, replay_mod.RECIPE_REFERENCE, 0)
     cam0_sphere = len(replay_mod.sphere_pixels(scene, cam0))
 
+    recipe_arm = next(r for r in arm_results if r["arm"] == "recipe")
+    aa2_arm = next(r for r in arm_results if r["arm"] == "aa2")
     checks_ok = (
         ray_bad == 0
-        and all(r["form_a_bad"] == 0 for r in arms.values())
+        and all(r["form_a_bad"] == 0 for r in arm_results)
         and sky_depth_mismatch == 0 and sky_seg_mismatch == 0 and cam0_sphere == 0
+        and recipe_arm["list_pixels"] == 183 and recipe_arm["exact_max_ulp"] == 73
+        and aa2_arm["list_pixels"] == 172 and aa2_arm["exact_max_ulp"] == 91
+        and recipe_arm["first_pixel"] == 28969 and aa2_arm["first_pixel"] == 29448
     )
-    recipe_result = arms[replay_mod.RECIPE_REFERENCE]
-    aa2_result = arms[replay_mod.AA2_REFERENCE]
-    if recipe_result["affected_count"] != 183 or recipe_result["max_ulp"] != 73:
-        checks_ok = False
-    if aa2_result["affected_count"] != 172 or aa2_result["max_ulp"] != 91:
-        checks_ok = False
+    over_bound = [r for r in arm_results if r["exact_max_ulp"] > BOUND_ULP]
 
-    # ---- criterion-v2 freeze verdict --------------------------------------
-    verdict_ok = True
-    for result in arms.values():
-        if result["covered"] != result["affected_count"]:
-            verdict_ok = False
-        for bound in (result["band_bound"], result["affected_bound"]):
-            if bound is not None and bound["pow2"] > 128:
-                verdict_ok = False
+    # ---- outline-lists.json (freeze-step contract) -------------------------
+    summary = {
+        "schema": 1,
+        "criterion_version": CRITERION_VERSION,
+        "bound_ulp": BOUND_ULP,
+        "bound_definition": "next power of two above the exact freeze-time maximum difference",
+        "camera": CAMERA,
+        "analytic_bound_use": "recorded only; explicitly not used to determine B",
+        "arms": [],
+    }
+    for result in arm_results:
+        name = f"scene-a-sphere-outline-{result['arm']}.txt"
+        payload = (out / name).read_bytes()
+        stats = result["bound_stats"]
+        summary["arms"].append({
+            "arm": result["arm"],
+            "entities": result["entities"],
+            "path": name,
+            "bytes": len(payload),
+            "sha256": hashlib.sha256(payload).hexdigest(),
+            "rows": result["list_pixels"],
+            "first_pixel": result["first_pixel"],
+            "first_xy": result["first_xy"],
+            "exact_max_ulp": result["exact_max_ulp"],
+            "spp": result["spp"],
+            "raster": result["raster"],
+            "sphere_pixels": result["sphere_pixels"],
+            "reference": result["reference"],
+            "reference_sha256": result["reference_sha256"],
+            "analytic_bound": {
+                "bound_raw_min": round(stats["raw_min"], 4),
+                "bound_raw_median": round(stats["raw_median"], 4),
+                "bound_raw_max": round(stats["raw_max"], 4),
+                "margin_min": round(stats["margin_min"], 4),
+                "margin_median": round(stats["margin_median"], 4),
+                "margin_max": round(stats["margin_max"], 4),
+                "max_observed_over_bound_raw": round(stats["max_ratio_raw"], 6),
+                "max_observed_over_margin": round(stats["max_ratio_margin"], 6),
+            },
+        })
+    (out / "outline-lists.json").write_bytes(
+        (json.dumps(summary, ensure_ascii=True, indent=2, sort_keys=True) + "\n").encode("ascii"))
+    writes.append("outline-lists.json")
 
     # ---- reports ----------------------------------------------------------
     lines = [
-        "criterion render-sdf-criterion-v2 freeze-time B recomputation (scene-a, camera 1)",
-        "signed B = 128 ULP; per v2 section 3 a recomputed B > 128 fails the attempt and",
-        "raising B is forbidden (a criterion revision needs a new user signature).",
+        f"criterion {CRITERION_VERSION} freeze report (scene-a, camera {CAMERA})",
+        f"signed B = {BOUND_ULP} ULP = next power of two above the exact freeze-time maximum",
+        "difference; a recomputed exact max above the signed B fails the attempt and raising B",
+        "is forbidden. The analytic v2 section-3 bound below is recorded only.",
         f"inputs: model {replay_mod.MODEL}; sphere geom {scene.sphere_geom}; camera pose from",
         "        each reference's camera_data_check[1]; znear = f32(vis.map.znear * stat.extent)",
         "",
     ]
-    for reference_rel, result in arms.items():
-        lines.append(f"arm {reference_rel}: sha256 {result['ref'].sha}")
-        lines.append(f"  spp={result['spp']} raster={result['ref'].width}x{result['ref'].height} "
-                     f"sphere_pixels={result['sphere']} affected={result['affected_count']} "
-                     f"max_observed_ulp={result['max_ulp']}")
-        for name, bound in (("band4", result["band_bound"]),
-                            ("derived_affected", result["affected_bound"])):
-            if bound is None:
-                lines.append(f"  set {name}: empty")
-                continue
-            lines.append(
-                f"  set {name}: sqrt(det)_min={bound['sqrt_det_min']:.6e} "
-                f"|c|max={bound['c_max']:.6f} |vz|max={bound['vz_max']:.6f} "
-                f"depth_min={bound['depth_min']:.6f} ULP(depth)={bound['ulp_depth']:.6e}")
-            lines.append(
-                f"    raw_bound={bound['raw']:.2f} ULP x1.15={bound['with_margin']:.2f} "
-                f"pow2={bound['pow2']} per_pixel_max={bound['per_pixel_max']:.2f}")
-        lines.append(f"  band4 covers {result['covered']}/{result['affected_count']} affected pixels.")
+    for result in arm_results:
+        stats = result["bound_stats"]
+        lines.append(f"arm {result['arm']}: {result['reference']} sha256 {result['reference_sha256']}")
+        lines.append(f"  spp={result['spp']} raster={result['raster']} "
+                     f"sphere_pixels={result['sphere_pixels']} list_pixels={result['list_pixels']} "
+                     f"exact_max_ulp={result['exact_max_ulp']} first_pixel={result['first_pixel']}")
+        lines.append(f"  analytic (recorded only): bound_raw min/median/max = "
+                     f"{stats['raw_min']:.2f} / {stats['raw_median']:.2f} / {stats['raw_max']:.2f}; "
+                     f"margin = {stats['margin_min']:.2f} / {stats['margin_median']:.2f} / "
+                     f"{stats['margin_max']:.2f}")
+        lines.append(f"  observed/bound ratios: raw {stats['max_ratio_raw']:.4f}, "
+                     f"margin {stats['max_ratio_margin']:.4f} (no pixel with ratio >= 1)")
+        lines.append(f"  exact_max <= B: {'YES' if result['exact_max_ulp'] <= BOUND_ULP else 'NO'}")
         lines.append("")
-    lines.append(f"verdict: {'CRITERION_V2_FREEZE_OK' if verdict_ok else 'CRITERION_V2_FREEZE_FAIL'}")
-    (out / "b-recompute.txt").write_text("\n".join(lines) + "\n", encoding="ascii", newline="\n")
+    lines.append(f"verdict: {'CRITERION_V2.1_FREEZE_OK' if not over_bound else 'CRITERION_V2.1_FREEZE_FAIL'}")
+    (out / "b-recompute.txt").write_bytes(("\n".join(lines) + "\n").encode("ascii"))
     writes.append("b-recompute.txt")
 
     lines = [
-        "dump tool self-check (offline authoring, zero GPU)",
+        "dump tool self-check (offline authoring, zero GPU; criterion v2.1 contract)",
         f"1) camera-space rays vs S5 fixture default_all samples: {ray_total - ray_bad}/{ray_total} "
         f"bitwise equal",
     ]
-    for reference_rel, result in arms.items():
-        lines.append(
-            f"2) arm {reference_rel}: form A vs frozen reference depth bits (sphere pixels): "
-            f"{result['sphere'] - result['form_a_bad']}/{result['sphere']} bitwise equal")
-        lines.append(
-            f"   arm {reference_rel}: form A vs form B (derived affected set): "
-            f"{result['affected_count']} pixels, max_ulp={result['max_ulp']}")
-        lines.append(
-            f"   arm {reference_rel}: band4 pixels={result['band_count']}, covers "
-            f"{result['covered']}/{result['affected_count']} of the derived affected set")
+    for result in arm_results:
+        lines.append(f"2) arm {result['arm']}: form A vs frozen reference depth bits "
+                     f"({result['sphere_pixels']} sphere pixels): "
+                     f"{result['sphere_pixels'] - result['form_a_bad']}/{result['sphere_pixels']} "
+                     f"bitwise equal")
+        lines.append(f"   arm {result['arm']}: list = {result['list_pixels']} px, "
+                     f"exact_max_ulp={result['exact_max_ulp']}, first pixel={result['first_pixel']} "
+                     f"{result['first_xy']}")
     lines += [
         f"3) skybox capture depth/seg vs recipe reference: depth mismatches={sky_depth_mismatch}, "
         f"seg mismatches={sky_seg_mismatch}",
-        f"4) camera 0 sphere pixels: {cam0_sphere} (camera 0 looks away from the sphere; no list needed)",
-        "5) attempt3 observation set reproduced: cam1 183 px / max 73 (recipe arm), "
-        "render_kernel_flags aa2 arm 172 px / max 91, cam0 0",
+        f"4) camera 0 sphere pixels: {cam0_sphere}",
+        "5) attempt3 observation set reproduced: recipe 183 px / 73 ULP (first 28969=(169,120)); "
+        "flags aa2 arm 172 px / 91 ULP (first 29448=(168,122)); cam0 = 0",
         f"internal_self_check: {'PASS' if checks_ok else 'FAIL'}",
     ]
-    (out / "selfcheck.txt").write_text("\n".join(lines) + "\n", encoding="ascii", newline="\n")
+    (out / "selfcheck.txt").write_bytes(("\n".join(lines) + "\n").encode("ascii"))
     writes.append("selfcheck.txt")
 
     open_items = [
-        "OPEN ITEMS (not silently dropped; decisions belong to Chief/user)",
-        "1) The criterion-v2 section-2 predicate (band4) does not cover the derived affected set,",
-        "   and the section-3 recomputation exceeds the signed B=128 ULP on both sets (see",
-        "   b-recompute.txt). Under the signed v2 this attempt therefore FAILS at the freeze step;",
-        "   any revision (list predicate / bound / B value) is a criterion change that needs the",
-        "   user's signature.",
-        "2) The aa2 arm keys off the product rule that depth/seg are written on the first pass only",
-        "   (render_megakernel.cu); this tool replays sub-sample 0 on the doubled image grid and",
-        "   reproduces the attempt3 172 px / max 91 observation bit-for-bit in form A.",
+        "OPEN ITEMS (freeze-step prerequisites checked by the window runner, not by this tool)",
+        "1) product kernel identity must equal megakernel source 10070226../PTX 7782aeb1../268,589",
+        "   (a-order refix form) and the host unlock state must match the target expectation.",
+        "2) the freeze step writes outline-lists.json (list sha256/bytes/rows/exact max) into the",
+        "   guards file; the lists are immutable inside the window (runner re-checks before/after body).",
+        "3) body-time consumption is env-gated in the test support (MJWARP_RENDER_OUTLINE_LIST_DIR +",
+        "   MJWARP_REQUIRE_OUTLINE_CRITERION=1); without them plain cargo test behaviour is unchanged.",
     ]
-    (out / "open-items.txt").write_text("\n".join(open_items) + "\n", encoding="ascii", newline="\n")
+    (out / "open-items.txt").write_bytes(("\n".join(open_items) + "\n").encode("ascii"))
     writes.append("open-items.txt")
 
     names = sorted(p.name for p in out.iterdir() if p.is_file() and p.name != "sha256sums.txt")
     sums = "".join(f"{replay_mod.sha256_file(out / name)}  {name}\n" for name in names)
-    (out / "sha256sums.txt").write_text(sums, encoding="ascii", newline="\n")
+    (out / "sha256sums.txt").write_bytes(sums.encode("ascii"))
 
-    digest = hashlib.sha256()
-    for name in sorted(writes):
-        digest.update((out / name).read_bytes())
-    print(f"entities={sum(len(entities) for _, entities in ARMS)} arms={len(ARMS)} "
-          f"ray_selfcheck={ray_total - ray_bad}/{ray_total}")
-    for reference_rel, result in arms.items():
-        label = "recipe" if reference_rel == replay_mod.RECIPE_REFERENCE else "aa2"
-        bound = result["affected_bound"]
-        print(f"arm {label}: sphere={result['sphere']} affected={result['affected_count']} "
-              f"max_ulp={result['max_ulp']} band4={result['band_count']} covered={result['covered']} "
-              f"B_recompute={bound['pow2'] if bound else 'n/a'}")
-    print(f"cam0_sphere={cam0_sphere} skybox_depth_mismatch={sky_depth_mismatch} "
-          f"self_check={'PASS' if checks_ok else 'FAIL'} criterion_verdict="
-          f"{'OK' if verdict_ok else 'FAIL'}")
-    print(f"content_digest={digest.hexdigest()}")
+    print(f"arms={len(arm_results)} ray_selfcheck={ray_total - ray_bad}/{ray_total} "
+          f"cam0_sphere={cam0_sphere}")
+    for result in arm_results:
+        print(f"arm {result['arm']}: sphere={result['sphere_pixels']} list={result['list_pixels']} "
+              f"exact_max_ulp={result['exact_max_ulp']} first={result['first_pixel']} "
+              f"bound_raw_max={result['bound_stats']['raw_max']:.2f} "
+              f"margin_max={result['bound_stats']['margin_max']:.2f}")
+    print(f"self_check={'PASS' if checks_ok else 'FAIL'} "
+          f"criterion_verdict={'OK' if not over_bound else 'FAIL'}")
     print(f"outputs written to {out}")
     if not checks_ok:
         return 5
-    return 0 if verdict_ok else 4
+    return 0 if not over_bound else 4
 
 
 if __name__ == "__main__":

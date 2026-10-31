@@ -23,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import statistics
 import zipfile
 from fractions import Fraction
 from pathlib import Path
@@ -332,6 +333,57 @@ def band4_pixels(scene, ref):
 
 def next_pow2(value):
     return 2 ** math.ceil(math.log2(value))
+
+
+def per_pixel_bounds(pixels, depths_a, terms_a, terms_b, dirs, deltas=None):
+    """Criterion v2 section-3 analytic bound per pixel: bound_raw and margin (x1.15).
+
+    `deltas` (pixel -> observed |ULP| difference) is optional; when given, the observed/bound
+    ratios are included for the recorded-only statistics.
+    """
+    rows = []
+    for pixel in pixels:
+        det_a = terms_a[pixel][0]
+        det_b = terms_b[pixel][0]
+        if det_a <= 0 or det_b <= 0 or depths_a[pixel] <= 0:
+            continue
+        sqrt_det = math.sqrt(min(float(det_a), float(det_b)))
+        a = float(terms_a[pixel][1])
+        c_abs = abs(float(terms_a[pixel][3]))
+        vz = abs(float(dirs[pixel][2]))
+        depth = float(depths_a[pixel])
+        ulp = 2.0 ** (math.floor(math.log2(depth)) - 23)
+        bound_raw = 5.0 * U * c_abs * vz / (2.0 * a * sqrt_det) / ulp
+        margin = bound_raw * 1.15
+        row = {"pixel": pixel, "bound_raw": bound_raw, "margin": margin}
+        if deltas is not None and pixel in deltas:
+            observed = deltas[pixel]
+            row["observed_ratio_raw"] = observed / bound_raw if bound_raw > 0 else 0.0
+            row["observed_ratio_margin"] = observed / margin if margin > 0 else 0.0
+        rows.append(row)
+    return rows
+
+
+def summarize_bounds(rows):
+    """Distribution of the analytic per-pixel bounds (recorded only, not used to set B)."""
+    if not rows:
+        return {
+            "count": 0, "raw_min": 0.0, "raw_median": 0.0, "raw_max": 0.0,
+            "margin_min": 0.0, "margin_median": 0.0, "margin_max": 0.0,
+            "max_ratio_raw": 0.0, "max_ratio_margin": 0.0, "over_one_raw": 0, "over_one_margin": 0,
+        }
+    raw = [row["bound_raw"] for row in rows]
+    margin = [row["margin"] for row in rows]
+    return {
+        "count": len(rows),
+        "raw_min": min(raw), "raw_median": statistics.median(raw), "raw_max": max(raw),
+        "margin_min": min(margin), "margin_median": statistics.median(margin),
+        "margin_max": max(margin),
+        "max_ratio_raw": max(row["observed_ratio_raw"] for row in rows),
+        "max_ratio_margin": max(row["observed_ratio_margin"] for row in rows),
+        "over_one_raw": sum(1 for row in rows if row["observed_ratio_raw"] >= 1.0),
+        "over_one_margin": sum(1 for row in rows if row["observed_ratio_margin"] >= 1.0),
+    }
 
 
 def bound_v2(pixels, depths_a, terms_a, terms_b, dirs):

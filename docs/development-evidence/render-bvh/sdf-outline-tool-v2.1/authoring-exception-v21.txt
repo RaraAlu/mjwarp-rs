@@ -1,0 +1,52 @@
+Offline authoring exception record (criterion v2.1 tool contract)
+================================================================================
+Task: 2026-11-01-render-sdf-outline-tool-v21-contract (Arch; offline, zero GPU).
+Tool entry: scripts/authoring/author-scene-a-sphere-outline.ps1
+Tool helper: scripts/authoring/author-scene-a-sphere-outline.py
+Tool replay: scripts/authoring/scene_a_outline_replay.py
+
+1. Boundary basis
+   - User-approved offline authoring exception (2026-10-22): pinned-Python authoring tools live
+     only under scripts/authoring/, are never part of the product build/test/gate chain, and
+     their outputs go to evidence or a caller-chosen scratch dir - never into product fixtures.
+   - This record supersedes the v2-era tool identites in
+     `sdf-validate-window-material-v2/authoring-exception.txt` (that file stays as historical
+     v2 evidence; the v2.1 contract identities are the ones below).
+
+2. Pinned environment re-check (performed by the wrapper on every run)
+   - interpreter: target/mjwarp-parallel/venv/Scripts/python.exe (prefix must equal the venv)
+   - python 3.12.13 / numpy 2.5.4 / mujoco 3.15.0 / warp 1.15.0 / mujoco-warp 3.15.0
+   - upstream identity: target/mjwarp-parallel/upstream at
+     71da24d956378a87a703b6e1442b13aec0c4ac29, clean, 75 installed mujoco_warp sources byte-equal
+   - GPU identity read only: NVIDIA GeForce RTX 4070 Ti SUPER, driver 596.36
+   - last observed wrapper line: `pinned env OK: python=3.12.13 numpy=2.5.4 mujoco=3.15.0
+     warp=1.15.0 gpu=NVIDIA GeForce RTX 4070 Ti SUPER, 596.36
+     upstream=71da24d956378a87a703b6e1442b13aec0c4ac29 installed_sources=75`
+
+3. Script identities (sha256, bytes, lines)
+   dd0663f4f5f60190a63b216d7d527de655701f2430df70f31d52669b26be21aa   5,923  110  scripts/authoring/author-scene-a-sphere-outline.ps1
+   440fdf7a8b1541179afee80a838c3e0bfda85063cf3dbc38bd0588f23a1a00a9  15,970  317  scripts/authoring/author-scene-a-sphere-outline.py
+   94ea3786aaa9406172125263632ec5c7d17c9634ba1c36e8a8999ecbf65d2d65  16,567  416  scripts/authoring/scene_a_outline_replay.py
+   All below the 500-line ratchet.
+
+4. Zero product usage (grep proof)
+   a) git grep -n "author-scene-a-sphere-outline" -- src tests benches scripts ':!scripts/authoring'
+      -> 0 hits (exit 1). No product source/test/bench/product script references the tool.
+   b) product code never starts Python; `python_executable_sha256` / `python_executions` occur
+      only as receipt metadata field names/counters in existing evidence, not as a code path.
+   c) product build/tests/gates are cargo-only; this tool is not wired into cargo, CI, the
+      normify gate set or any scripts/ product wrapper.
+
+5. What it reads / writes
+   - frozen fixtures with embedded sha256 pins (drift exits 6 before any list is written):
+     scene-a model-312.json, s2/reference_hits.json, s7b/depth_seg_fast_math_false.json,
+     s7b/flags/aa2_depth_seg.json, reference-skybox/{depth,seg}.npz, s5/camera_rays.json.
+   - writes only to the -Out directory; refuses to write under fixtures/. The freeze step uses
+     target/render-bvh/sdf-validate-window/attempt4/outline (out of tree).
+   - zero GPU: no CUDA context, no NVRTC, no kernel launch; replay is host-side exact-f32 math.
+
+6. Self-check evidence
+   - logs/tool-selfcheck.txt (captured wrapper log): pinned-env line, helper/replay sha256,
+     two-run byte-identical determinism, independently re-verified sha256sums, exit 0.
+   - Reproduced: rays 256/256, form A 747/747 (recipe) / 745/745 (aa2), list 183 px / 73 ULP and
+     172 px / 91 ULP, first pixels 28969=(169,120) / 29448=(168,122), camera 0 = 0.
