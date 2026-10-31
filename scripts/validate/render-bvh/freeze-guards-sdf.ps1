@@ -137,6 +137,12 @@ if (-not (Test-Path -LiteralPath $outlineJsonPath)) {
     throw "criterion v2.1 outline-lists.json missing: $outlineJsonPath (run the authoring tool first)"
 }
 $outlineDoc = [IO.File]::ReadAllText($outlineJsonPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
+# signed proposal prototype list sha256 (criterion v2.1 section 2.2: the lists are byte-identical
+# to prototype-lists/ in sdf-validate-window-material-v2/).
+$prototypeSha = @{
+    recipe = 'cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee'
+    aa2 = '14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab'
+}
 if ($outlineDoc.criterion_version -ne $CriterionVersion) {
     throw "outline-lists.json criterion_version $($outlineDoc.criterion_version) != $CriterionVersion"
 }
@@ -154,10 +160,20 @@ foreach ($arm in @($outlineDoc.arms)) {
     $entry = File-Entry $listFull
     if ($entry.bytes -ne [int]$arm.bytes) { throw "outline $armName bytes mismatch: $($entry.bytes) != $($arm.bytes)" }
     if ($entry.sha256 -ne [string]$arm.sha256) { throw "outline $armName sha256 mismatch: $($entry.sha256) != $($arm.sha256)" }
+    if ($prototypeSha.ContainsKey($armName) -and $entry.sha256 -ne $prototypeSha[$armName]) {
+        throw "outline $armName sha256 $($entry.sha256) is not the signed prototype $($prototypeSha[$armName])"
+    }
     $dataLines = @(Get-Content -LiteralPath $listFull | Where-Object { $_ -and -not $_.TrimStart().StartsWith('#') })
     if ($dataLines.Count -ne [int]$arm.rows) { throw "outline $armName rows mismatch: $($dataLines.Count) != $($arm.rows)" }
     $firstPixel = if ($dataLines.Count -gt 0) { [int](($dataLines[0] -split '\s+')[0]) } else { -1 }
     if ($firstPixel -ne [int]$arm.first_pixel) { throw "outline $armName first_pixel mismatch: $firstPixel != $($arm.first_pixel)" }
+    $sidecar = $arm.bounds_sidecar
+    if (-not $sidecar) { throw "outline $armName bounds_sidecar entry missing" }
+    $sidecarFull = Join-Path $outlineRoot ([string]$sidecar.path)
+    if (-not (Test-Path -LiteralPath $sidecarFull)) { throw "outline $armName sidecar missing: $sidecarFull" }
+    $sidecarEntry = File-Entry $sidecarFull
+    if ($sidecarEntry.bytes -ne [int]$sidecar.bytes) { throw "outline $armName sidecar bytes mismatch" }
+    if ($sidecarEntry.sha256 -ne [string]$sidecar.sha256) { throw "outline $armName sidecar sha256 mismatch" }
     $outlineLists += [pscustomobject]@{
         arm = $armName
         entities = @($arm.entities)
@@ -169,6 +185,11 @@ foreach ($arm in @($outlineDoc.arms)) {
         exact_max_ulp = [int]$arm.exact_max_ulp
         reference = [string]$arm.reference
         reference_sha256 = [string]$arm.reference_sha256
+        bounds_sidecar = [pscustomobject]@{
+            path = $sidecarEntry.path
+            bytes = $sidecarEntry.bytes
+            sha256 = $sidecarEntry.sha256
+        }
     }
 }
 if ($outlineLists.Count -ne 2) { throw "expected 2 outline lists, got $($outlineLists.Count)" }

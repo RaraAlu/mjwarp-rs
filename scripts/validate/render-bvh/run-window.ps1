@@ -61,6 +61,16 @@ function Verify-OutlineLists([string]$stage) {
         $info = if (Test-Path -LiteralPath $full) { Outline-Info $full } else { [pscustomobject]@{ rows = -1; first_pixel = -1 } }
         $good = ($hash -eq $list.sha256) -and ($bytes -eq [int]$list.bytes) -and
             ($info.rows -eq [int]$list.rows) -and ($info.first_pixel -eq [int]$list.first_pixel)
+        if ($good -and $list.bounds_sidecar) {
+            $sidecarFull = Join-Path $RepoRoot $list.bounds_sidecar.path
+            $sidecarHash = if (Test-Path -LiteralPath $sidecarFull) { (Get-FileHash $sidecarFull -Algorithm SHA256).Hash.ToLower() } else { 'MISSING' }
+            $sidecarBytes = if (Test-Path -LiteralPath $sidecarFull) { (Get-Item $sidecarFull).Length } else { -1 }
+            if (($sidecarHash -ne $list.bounds_sidecar.sha256) -or ($sidecarBytes -ne [int]$list.bounds_sidecar.bytes)) {
+                $good = $false
+                Guard ("OUTLINE_SIDECAR_MISMATCH[{0}] arm={1} expect={2}/{3} actual={4}/{5}" -f `
+                    $stage, $list.arm, $list.bounds_sidecar.sha256, $list.bounds_sidecar.bytes, $sidecarHash, $sidecarBytes)
+            }
+        }
         if ($good) { $ok++ } else {
             $bad++
             Guard ("OUTLINE_MISMATCH[$stage] arm={0} expect={1}/{2}/{3}/{4} actual={5}/{6}/{7}/{8}" -f `
@@ -246,6 +256,9 @@ if ($GuardsOnly) {
         foreach ($list in @($guard.outline_lists)) {
             Fact ("outline_list arm={0} rows={1} exact_max_ulp={2} sha256={3}" -f `
                 $list.arm, $list.rows, $list.exact_max_ulp, $list.sha256)
+            if ($list.bounds_sidecar) {
+                Fact ("outline_bounds arm={0} sha256={1}" -f $list.arm, $list.bounds_sidecar.sha256)
+            }
         }
     }
     Guard 'GUARDS_ONLY_DONE'

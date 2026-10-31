@@ -10,17 +10,22 @@ Basis: signed `render-sdf-criterion-v2.1` + `sdf-outline-tool-v2.1/` + `sdf-outl
   (default `target/render-bvh/sdf-validate-window/attemptN/outline`).
 - requires and validates `outline-lists.json` before freezing: criterion version, signed bound,
   two arms (`recipe`/`aa2`), per-arm `exact_max_ulp <= 128`, file bytes/sha256, data-row count
-  and first pixel must match the machine summary (any mismatch throws, no guards written).
+  and first pixel must match the machine summary, the list sha256 must equal the signed prototype
+  (`cfd1038a..` recipe, `14893fc6..` aa2), and the `outline-bounds-<arm>.txt` sidecar bytes/sha256
+  must match (any mismatch throws, no guards written).
 - frozen entry count becomes **9 exes + 83 inputs + 2 outline lists = 94**; the aggregate is
   sha256 over all 94 sha256 hex strings in repo-relative path order.
 - guards object gains `criterion_version`, `bound_ulp`, `outline_lists[]`
   (`arm`, `entities`, `path`, `bytes`, `sha256`, `rows`, `first_pixel`, `exact_max_ulp`,
-  `reference`, `reference_sha256`) and `counts.outline_lists` / `counts.total = 94`.
+  `reference`, `reference_sha256`, `bounds_sidecar{path,bytes,sha256}`) and
+  `counts.outline_lists` / `counts.total = 94`; the list `sha256` values are the prototype ones
+  (`cfd1038a..` / 10,099 B / 183 rows and `14893fc6..` / 9,509 B / 172 rows).
 
 `scripts/validate/render-bvh/run-window.ps1`
 - new helpers `Outline-Info` (rows + first pixel from a list file) and `Verify-OutlineLists`
-  (path/bytes/sha256/rows/first_pixel + `exact_max_ulp <= bound_ulp`; mismatch logs
-  `OUTLINE_MISMATCH[...]`, over-bound logs `OUTLINE_EXACT_MAX_OVER_B[...]`).
+  (path/bytes/sha256/rows/first_pixel + sidecar bytes/sha256 + `exact_max_ulp <= bound_ulp`;
+  mismatch logs `OUTLINE_MISMATCH[...]`, `OUTLINE_SIDECAR_MISMATCH[...]`, over-bound logs
+  `OUTLINE_EXACT_MAX_OVER_B[...]`).
 - `-GuardsOnly` now checks the outline lists too: `OUTLINE_LISTS_OK=2/2`,
   `SHA_OK/OUTLINE_OK`, total `GUARDS_OK=94/94` for the real attempt4 guards file
   (the dry run below uses a synthetic 2-entry guards file so only the new path is exercised).
@@ -50,7 +55,8 @@ EXIT=0
 OUTLINE_LISTS_OK=1/2
 GUARDS_OK=1/2
 INVALID_ROUND exit9
-OUTLINE_MISMATCH[guards] arm=recipe expect=0000.../13944/183/28969 actual=43ffaf1b.../13944/183/28969
+OUTLINE_MISMATCH[guards] arm=recipe expect=0000../10099/183/28969 actual=cfd1038a../10099/183/28969
+(the captured log also appends the runner guard.log verbatim)
 EXIT=9
 ```
 

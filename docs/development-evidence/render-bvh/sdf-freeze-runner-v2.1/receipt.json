@@ -7,32 +7,35 @@
     "criterion": "render-sdf-criterion-v2.1",
     "signed_at": "2026-11-01T02:42:29+08:00",
     "tool_contract": "docs/development-evidence/render-bvh/sdf-outline-tool-v2.1/",
-    "test_support": "docs/development-evidence/render-bvh/sdf-outline-test-support/"
+    "test_support": "docs/development-evidence/render-bvh/sdf-outline-test-support/",
+    "fix_note": "QA blocking item follow-up: the frozen lists are the signed proposal prototype (9 columns / byte-identical, prototype sha256 cfd1038a../14893fc6..) with analytic bounds in outline-bounds-<arm>.txt sidecars; the guards carry the prototype list sha256 values"
   },
   "scripts": {
     "freeze": {
       "path": "scripts/validate/render-bvh/freeze-guards-sdf.ps1",
-      "bytes": 11631,
-      "lines": 219,
-      "sha256": "13e589c4b4ae42a780b7ac6ab4bde3064deb82bf28973ede3f8ab84eafa77e3f",
+      "bytes": 12906,
+      "lines": 240,
+      "sha256": "7f156a223f737df8a2969ce52d94f52e7e70646467d7d30a6e1af43752765cf0",
       "new_params": ["CriterionVersion", "BoundUlp", "OutlineDir"],
       "validation": [
         "outline-lists.json present and criterion_version == render-sdf-criterion-v2.1",
         "bound_ulp == 128",
         "exactly two outline arms (recipe, aa2)",
         "per arm exact_max_ulp <= 128",
-        "per arm file bytes / sha256 / data rows / first pixel match the machine summary"
+        "per arm list file bytes / sha256 / data rows / first pixel match the machine summary",
+        "per arm list sha256 equals the signed prototype sha256 (cfd1038a.. recipe, 14893fc6.. aa2)",
+        "per arm bounds sidecar present with matching bytes / sha256"
       ],
       "entry_count": "9 exes + 83 inputs + 2 outline lists = 94",
       "aggregate": "sha256 over the 94 sha256 hex strings in repo-relative path order",
-      "guards_fields": ["criterion_version", "bound_ulp", "counts.outline_lists", "counts.total=94", "outline_lists[].{arm,entities,path,bytes,sha256,rows,first_pixel,exact_max_ulp,reference,reference_sha256}"]
+      "guards_fields": ["criterion_version", "bound_ulp", "counts.outline_lists", "counts.total=94", "outline_lists[].{arm,entities,path,bytes,sha256,rows,first_pixel,exact_max_ulp,reference,reference_sha256,bounds_sidecar{path,bytes,sha256}}"]
     },
     "runner": {
       "path": "scripts/validate/render-bvh/run-window.ps1",
-      "bytes": 21967,
-      "lines": 466,
-      "sha256": "2a63ee7407f4332a4adff0090d750ea6066a123f9937c0ec067d483d1f6179a5",
-      "guards_only": "verifies outline lists (path/bytes/sha256/rows/first_pixel and exact_max_ulp <= bound_ulp) and reports OUTLINE_LISTS_OK=2/2 inside GUARDS_OK=94/94",
+      "bytes": 22910,
+      "lines": 479,
+      "sha256": "2abb8a77a6616750227e03243ba91a61b1835da87886a74019e92a954c3a487d",
+      "guards_only": "verifies the prototype 9-column lists (path/bytes/sha256/rows/first_pixel) and the bounds sidecars, plus exact_max_ulp <= bound_ulp; reports OUTLINE_LISTS_OK=2/2 inside GUARDS_OK=94/94",
       "drift_guard": "pre-body and post-window re-verification, any drift -> OUTLINE_LIST_DRIFT exit9",
       "body_env": ["MJWARP_RENDER_OUTLINE_LIST_DIR", "MJWARP_REQUIRE_OUTLINE_CRITERION=1"],
       "legacy_compat": "guards files without outline_lists skip all new behaviour (R05/R08 suites unchanged)"
@@ -41,7 +44,7 @@
     "powershell_parse": "both scripts parse cleanly (logs/syntax-parse.txt)"
   },
   "dry_run": {
-    "note": "synthetic guards file with 0 exes + 0 inputs + the two real outline list entries from the out-of-tree tool self-check; NOT a freeze",
+    "note": "synthetic guards file with 0 exes + 0 inputs + the two real outline list entries (prototype lists + bounds sidecars) from the out-of-tree tool self-check; NOT a freeze",
     "positive": {
       "log": "logs/guards-only-dryrun.txt",
       "output": ["OUTLINE_LISTS_OK=2/2", "GUARDS_OK=2/2", "GUARDS_ONLY_DONE"],
@@ -49,7 +52,7 @@
     },
     "negative_tampered_sha": {
       "log": "logs/guards-only-dryrun-tampered.txt",
-      "output": ["OUTLINE_LISTS_OK=1/2", "GUARDS_OK=1/2", "INVALID_ROUND exit9", "OUTLINE_MISMATCH[guards] arm=recipe ..."],
+      "output": ["OUTLINE_MISMATCH[guards] arm=recipe expect=0000.../10099/183/28969 actual=cfd1038a.../10099/183/28969", "OUTLINE_LISTS_OK=1/2", "GUARDS_OK=1/2", "INVALID_ROUND exit9"],
       "exit": 9
     }
   },
@@ -71,5 +74,5 @@
     "上游等价",
     "精度达标"
   ],
-  "next": "slice 5 attempt4 window material v3; slice 6 double-sign package (plan + re-sampled baseline)"
+  "next": "hold for the user double-sign; after sign: freeze inside the window (94 entries with the prototype list sha256) and run the body"
 }
