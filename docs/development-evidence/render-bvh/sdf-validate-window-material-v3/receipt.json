@@ -2,7 +2,7 @@
   "task_id": "2026-11-01-render-sdf-attempt4-material-v3",
   "kind": "render-sdf-validate-window-material-v3",
   "owner": "Arch",
-  "status": "material only; window NOT opened; baseline measured in the follow-up slice (2026-11-01-render-sdf-attempt4-baseline-v3)",
+  "status": "material complete; plan + pre-window baseline recorded; window NOT opened; awaiting user double-sign",
   "criterion": {
     "version": "render-sdf-criterion-v2.1",
     "signed_at": "2026-11-01T02:42:29+08:00",
@@ -19,8 +19,19 @@
     "premise": "bitwise holds only under the same compilation form; criterion v2.1 exact-difference list exemption applies to the scene-a outline"
   },
   "entities": {
-    "new": ["render_sdf_reference"],
-    "regressions": ["render_context_lifecycle", "render_e2e", "render_kernel_depth_seg", "render_kernel_flags", "render_kernel_rgb", "render_mesh_bvh", "render_r10_multi_world", "render_skybox_reference"]
+    "new": [
+      "render_sdf_reference"
+    ],
+    "regressions": [
+      "render_context_lifecycle",
+      "render_e2e",
+      "render_kernel_depth_seg",
+      "render_kernel_flags",
+      "render_kernel_rgb",
+      "render_mesh_bvh",
+      "render_r10_multi_world",
+      "render_skybox_reference"
+    ]
   },
   "freeze": {
     "attempt": 4,
@@ -29,14 +40,40 @@
     "step2": "scripts/validate/render-bvh/freeze-guards-sdf.ps1 -Attempt 4",
     "step3": "scripts/validate/render-bvh/run-window.ps1 -GuardsOnly",
     "counts": "9 exes + 83 inputs + 2 outline lists = 94 entries",
-    "guards_fields": ["criterion_version", "bound_ulp", "counts.outline_lists=2", "counts.total=94", "outline_lists[].{arm,entities,path,bytes,sha256,rows,first_pixel,exact_max_ulp,reference,reference_sha256}"],
+    "guards_fields": [
+      "criterion_version",
+      "bound_ulp",
+      "counts.outline_lists=2",
+      "counts.total=94",
+      "outline_lists[].{arm,entities,path,bytes,sha256,rows,first_pixel,exact_max_ulp,reference,reference_sha256}"
+    ],
     "hard_asserts": "criterion v2.1 version, bound 128, two arms, per-arm exact_max_ulp <= 128, list bytes/sha256/rows/first_pixel match",
     "immutability": "runner re-checks both lists before the body and after the window; any drift is OUTLINE_LIST_DRIFT exit 9",
     "guards_only_expected": "GUARDS_OK=94/94 + OUTLINE_LISTS_OK=2/2 + GUARDS_ONLY_DONE"
   },
   "lists": {
-    "recipe": {"rows": 183, "first_pixel": 28969, "first_xy": [169, 120], "exact_max_ulp": 73, "reference": "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json", "reference_sha256": "d6ab6dde58034df5c1bc69ab397026a8f7c3aaf58d29d25edb032d3818000dc7"},
-    "aa2": {"rows": 172, "first_pixel": 29448, "first_xy": [168, 122], "exact_max_ulp": 91, "reference": "fixtures/render-bvh/scene-a/s7b/flags/aa2_depth_seg.json", "reference_sha256": "79a275eff5d45f6bef764957e5f4987d0e6abfbb9b7a2cb578c8e1f717d4b7e1"},
+    "recipe": {
+      "rows": 183,
+      "first_pixel": 28969,
+      "first_xy": [
+        169,
+        120
+      ],
+      "exact_max_ulp": 73,
+      "reference": "fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json",
+      "reference_sha256": "d6ab6dde58034df5c1bc69ab397026a8f7c3aaf58d29d25edb032d3818000dc7"
+    },
+    "aa2": {
+      "rows": 172,
+      "first_pixel": 29448,
+      "first_xy": [
+        168,
+        122
+      ],
+      "exact_max_ulp": 91,
+      "reference": "fixtures/render-bvh/scene-a/s7b/flags/aa2_depth_seg.json",
+      "reference_sha256": "79a275eff5d45f6bef764957e5f4987d0e6abfbb9b7a2cb578c8e1f717d4b7e1"
+    },
     "camera0_sphere_pixels": 0,
     "attempt3_consistency": "both lists/first pixels/exact maxima equal the attempt3 observations"
   },
@@ -50,13 +87,25 @@
     "-GuardsOnly 94/94 + OUTLINE_LISTS_OK=2/2"
   ],
   "body_consumption": {
-    "env": ["MJWARP_RENDER_OUTLINE_LIST_DIR", "MJWARP_REQUIRE_OUTLINE_CRITERION=1"],
+    "env": [
+      "MJWARP_RENDER_OUTLINE_LIST_DIR",
+      "MJWARP_REQUIRE_OUTLINE_CRITERION=1"
+    ],
     "behaviour": "cam0 bitwise; cam1 outside-list bitwise, in-list <= 128 ULP; fail-closed panic on any violation; plain cargo test unchanged without the env vars",
     "evidence": "docs/development-evidence/render-bvh/sdf-outline-test-support/"
   },
   "baseline": {
-    "planned": "three read-only nvidia-smi points, floor = min(free) - 3072 MiB, measured immediately before signing",
-    "status": "measured in slice 2026-11-01-render-sdf-attempt4-baseline-v3 (baseline-pre-window-v3.txt in this directory)"
+    "file": "baseline-pre-window-v3.txt",
+    "sampled_at": "2026-11-01T02:56:33/02:56:36/02:56:39+08:00",
+    "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER, driver 596.36, 16376 MiB",
+    "points": [
+      "free 13079 MiB, used 2983 MiB, util 28 %",
+      "free 13079 MiB, used 2983 MiB, util 33 %",
+      "free 13079 MiB, used 2983 MiB, util 30 %"
+    ],
+    "floor_mib": 10007,
+    "window_rule": "re-sample three points after the freeze step; if free < 10007 MiB at any sample -> STOP; regular monitor unchanged (util < 40, MaxUtil=40, no -OpenUtilLimit)",
+    "supersedes": "2026-10-31 13:24 baseline (free 8400/8400/8400, floor 5328) recorded in sdf-validate-window-material-v2/"
   },
   "prerequisites": {
     "u1b_redo": "013d8d4a",
@@ -66,7 +115,7 @@
     "test_support": "sdf-outline-test-support/",
     "freeze_runner": "sdf-freeze-runner-v2.1/"
   },
-  "next": "slice 6: measure the pre-window baseline, record baseline-pre-window-v3.txt, then hand the plan + baseline to Chief for the user double-sign; only after sign: open GPU window, freeze, body, evidence, QA review",
+  "next": "hand plan + baseline to Chief for the user double-sign; only after sign: open GPU window, freeze (94 entries), body, evidence, QA review",
   "not_claimed": [
     "渲染数值验收通过",
     "上游等价",
