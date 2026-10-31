@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-31-criteria-audit-eol-rule",
+  "title": {
+    "zh": "证据 EOL 留痕：审计证据目录补 -text -diff 属性规则（只补规则、不改字节）",
+    "en": "Evidence EOL hygiene: add the -text -diff attribute rule for the criteria-purpose-audit evidence directory (attribute only, no byte changes)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "QA 只读审计证据目录 docs/development-evidence/criteria-purpose-audit/ 目前没有字节留痕规则：manifest 现与 committed blob 逐条一致，但 core.autocrlf=true 的 fresh checkout 会把 LF 工作树变成 CRLF，导致 manifest 逐条漂移。Chief 2026-10-31 裁定「做」：在 .gitattributes 的证据规则区（*.cu text eol=lf 之后、与既有证据 -text 规则同区）新增 docs/development-evidence/criteria-purpose-audit/** -text -diff。只补属性规则，不改任何证据字节、判据、数值、代码、参考；完成后 done 必须刷新 mjwarp 根指纹（.gitattributes 属根模块 source），避免 evidence/stale 卡死。",
+    "en": "The QA audit evidence directory has no byte-preserving attribute rule yet; with core.autocrlf=true a fresh checkout would turn the LF working tree into CRLF and drift the manifest line by line. Chief decided to add `docs/development-evidence/criteria-purpose-audit/** -text -diff` in the evidence rule block of .gitattributes (after `*.cu text eol=lf`). Attribute rule only: no evidence bytes, criteria, values, code or references change; `done` must refresh the mjwarp root fingerprint because .gitattributes is a root-module source."
+  },
+  "modules": {
+    "modify": [
+      "mjwarp"
+    ]
+  },
+  "acceptance": [
+    ".gitattributes 在证据规则区新增 `docs/development-evidence/criteria-purpose-audit/** -text -diff`：位置在 `*.cu text eol=lf`（行 304）之后、与 `docs/development-evidence/render-bvh/** -text -diff` 等既有证据规则同区，且不存在更早的覆盖规则。",
+    "`git check-attr` 对该目录文件返回 `text: unset` / `diff: unset`；工作树字节与 committed LF blob 完全一致（`git status` 干净、无 modified），该目录 manifest 13/13 仍逐条自洽（sha256 + 字节数）。",
+    "本次提交只动 `.gitattributes` 与卡面/根模块指纹；`docs/development-evidence/criteria-purpose-audit/` 下所有文件字节零改动（`unchanged` 检查）、`src/**` 零改动；未改任何判据、数值、参考。",
+    "`normify done` 刷新 mjwarp 根模块指纹 1 个模块；`normify validate --fingerprints` = 0 错误 / 0 drift。"
+  ],
+  "schedule": {
+    "depends_on": [],
+    "phase": "P8-渲染与BVH",
+    "owner": "QA",
+    "files": [
+      ".gitattributes"
+    ],
+    "resources": [],
+    "priority": 30
+  },
+  "note": "Chief 2026-10-31 裁定（审计裁定第 2 件顺手记账卡）：RCA 是审计证据目录缺 -text 规则会在 CRLF checkout 后漂移；只补属性、不改字节。.gitattributes 是 mjwarp 根模块 source，done 需刷新根指纹（modules.modify=[\"mjwarp\"]），否则重演 evidence/stale 卡死。",
+  "revision": {
+    "before": null,
+    "after": null
+  },
+  "created_at": "2026-10-31T03:19:00.000Z",
+  "updated_at": "2026-10-31T03:19:00.000Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "docs/development-evidence/criteria-purpose-audit",
+        "src"
+      ]
+    }
+  ]
+}
