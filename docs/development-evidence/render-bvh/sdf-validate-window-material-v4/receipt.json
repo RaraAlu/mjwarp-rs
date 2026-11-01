@@ -91,7 +91,7 @@
     "floor_mib": 10376,
     "floor_formula": "min(free) - 3072 MiB",
     "desktop_load_note": "utilization 37/64/62 % is recorded as-is and is NOT a baseline acceptance gate; the pre-window monitor still needs 60 consecutive util<40, and if the desktop util does not settle below 40 only the signed validation-only exception (-MaxUtil 60, 60/60) applies, both monitors kept in evidence",
-    "window_time_rule": "re-sample three points after the freeze step; if free < the signed floor 10376 MiB -> STOP; runner floor = min(10240, baseline_free-3072) is stricter and a stop caused by it is honoured",
+    "window_time_rule": "re-sample three points after the freeze step; if free < the SIGNED floor 10376 MiB at any sample -> STOP (no body, no retry). The signed floor 10376 MiB is the effective and stricter threshold. The runner own floor is min(10240, baseline_free-3072) = 10240 for the 04:12 baseline (13531 at the guards-only re-run), which is LOOSER (10240 < 10376) and acts only as a lower bound: if a window-time sample falls in [10240, 10376) the runner will NOT abort by itself, so the operator MUST stop manually by the signed floor before the monitor/body and record the samples verbatim.",
     "superseded": "2026-11-01 21:49:30/33/37 set (free 14461/14461/14482, floor 11389) was measured but never signed because an external desktop load took the GPU immediately after; it is kept as context only"
   },
   "script_identities": {

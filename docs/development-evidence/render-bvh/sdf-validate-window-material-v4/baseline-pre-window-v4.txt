@@ -48,8 +48,11 @@ Window-time rule (window-plan.txt v4 section 6)
     no -OpenUtilLimit); the baseline utilization values above are not a window result and must not
     be quoted as one. If the desktop util does not settle below 40, only the signed
     validation-only exception (-MaxUtil 60, 60/60) applies, with both monitors kept in evidence.
-  - The runner's own floor is min(OpenFreeMiB=10240, baseline_free - 3072); the stricter of the
-    two governs.
+  - The runner's own floor is min(OpenFreeMiB=10240, baseline_free - 3072) = 10240 for this
+    baseline, which is LOOSER than the signed floor 10376 (10240 < 10376); it acts only as a lower
+    bound. The SIGNED floor governs: if a window-time sample falls in [10240, 10376) the runner does
+    not abort by itself, so the operator MUST stop manually by the signed floor before the
+    monitor/body and record the samples verbatim.
 
 Not claimed: no window result, no pass, no precision-admission statement. This file only
 records pre-window idle GPU memory and the derived floor.

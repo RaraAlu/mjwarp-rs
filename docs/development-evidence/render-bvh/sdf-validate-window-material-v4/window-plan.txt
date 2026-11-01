@@ -105,6 +105,8 @@ and its freeze is VOID - archived in sdf-validate-window/attempts/attempt4/, nev
   [ ] kernel identity: source 10070226../PTX 7782aeb1../268,589; aa_resolve 0bf8af5a../b28e155c../27,536
   [ ] fresh freeze only (attempt=5); no reuse of attempt1/2/3/4 guards; outline lists regenerated now
   [ ] -GuardsOnly 94/94 + OUTLINE_LISTS_OK=2/2 with ALL parameters (-Attempt 5 -GuardsFile .. -OutDir ..)
+  [ ] body-time free check: every pre-body sample must be >= the SIGNED floor 10376 MiB. The runner only
+      aborts below 10240 MiB, so a sample in [10240, 10376) requires a MANUAL stop (no body, facts verbatim).
 
 6. WINDOW PLAN / BASELINE (baseline measured BEFORE the window; signed together with this plan)
   Pre-window baseline: baseline-pre-window-v4.txt (three read-only nvidia-smi points re-sampled
@@ -114,7 +116,10 @@ and its freeze is VOID - archived in sdf-validate-window/attempts/attempt4/, nev
   and it was never signed.
   At window time re-sample three points after the freeze step; if free < the signed floor at any sample ->
   STOP, verbatim facts, no body in this attempt. The runner's own floor is
-  min(OpenFreeMiB=10240, baseline_free - 3072); the stricter of the two governs.
+  min(OpenFreeMiB=10240, baseline_free - 3072) = 10240 here, which is LOOSER than the signed floor
+  10376 (10240 < 10376) and acts only as a lower bound. The SIGNED floor governs: if a window-time
+  sample falls in [10240, 10376) the runner does NOT abort by itself, so the operator MUST STOP
+  manually by the signed floor before the monitor/body (record the samples verbatim).
   Expected duration 30-60 min (freeze ~3-4 min incl. tool + 94 hashes + body ~50 s + monitor up to 30 min);
   9 entities; single full-load GPU task; no other GPU job concurrently.
 

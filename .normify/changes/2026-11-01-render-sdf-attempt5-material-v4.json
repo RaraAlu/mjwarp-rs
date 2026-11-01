@@ -38,7 +38,7 @@
     "after": null
   },
   "created_at": "2026-11-01T14:35:00.000Z",
-  "updated_at": "2026-11-01T20:13:58.008Z",
+  "updated_at": "2026-11-01T20:15:53.652Z",
   "closed_at": "2026-11-01T13:52:46.207Z",
   "checks": [
     {
@@ -75,6 +75,12 @@
       "reason": "基线重采 + QA 措辞观察落材料（不重冻、不动 guards）：①2026-11-02 04:12:35/38/41 重采三点 free 13448/13453/13513 MiB、used 2614/2609/2549、util 37/64/62（如实记录、不作门槛），min free 13448、floor 10376 MiB；2026-11-01 21:49 旧集（14461/floor 11389）标 superseded（未签、采后即被外部负载占用）并保留为 context；baseline-pre-window-v4.txt/receipt/window-plan §5§6/README 同步。②-GuardsOnly 全参数重跑干净 facts（2026-11-02T04:13:03 起，free 13531x3、runner floor 10240、GUARDS_OK=94/94 + OUTLINE_LISTS_OK=2/2 + GUARDS_ONLY_DONE exit 0，aggregate 034c7551..）。③措辞：卡正文『四门禁…unit 735/0』以本 addenda 为准=其余三门禁 + cargo test --lib --locked --features cuda-probe 735/0/137（非 gate.unit）；exe 身份 9/9 取自冻结 guards（exe-identities.txt 权威，target/v22-new-exe-sha.txt 为 patch 时点快照）；README/window-plan/receipt 的 mtime 改实测 21:51:27-29（7 个重编；lifecycle 21:44:49、mesh_bvh 21:44:51 未重编），删除无归档的 21:50:38 no-run 时点、改指 freeze-tool-run.txt 唯一归档日志；窗口构建规则（冻结后只 --features cuda-probe）。④manifest 重算 6 项；guards 仍 9e000bfc../37,000 B 未重冻。",
       "prev": "sha256:9d62d70ad10d9068814f6515e017da5448430ad65610c3428ebe0b37472adb96",
       "hash": "sha256:0fc94f3ccfb9026371dfee3fa300e8b7f87b1553db211300c4f27c0178289013"
+    },
+    {
+      "at": "2026-11-01T20:15:53.652Z",
+      "reason": "安全口径修正（数字不变，只改措辞）：原写 runner floor=min(10240, baseline_free-3072)『is stricter』有误——本次 baseline_free=13531 -> min(10240,10459)=10240 < 已签 floor 10376，runner 实际更松。更正为：已签 floor 10376 生效且更严；runner floor 10240 只作下界兜底；窗口时采样落 [10240,10376) 时 runner 不会自行拦截，必须由操作员按 signed floor 手动 STOP（不启 body/不重试，facts 原样记录）。落到 receipt baseline.window_time_rule、window-plan §6 执行规则与 §5 checklist 新增 body-time free check 项、baseline 文件。另补 README 冻结段：GuardsOnly 复跑于 2026-11-02T04:13:03（baseline_free 13531x3、runner floor 10240、GUARDS_OK=94/94+OUTLINE_LISTS_OK=2/2+GUARDS_ONLY_DONE exit0；21:51 facts 已被覆盖，此行为复跑时点留痕）。不重冻、不动 guards、不开 GPU。",
+      "prev": "sha256:0fc94f3ccfb9026371dfee3fa300e8b7f87b1553db211300c4f27c0178289013",
+      "hash": "sha256:3327e5b6c400889ed5fc5ce207ec635b0a62a69e5b43ac2bf78c5341cb8fab54"
     }
   ]
 }

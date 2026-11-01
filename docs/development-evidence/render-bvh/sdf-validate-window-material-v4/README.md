@@ -40,6 +40,11 @@ fail-closed). The complete attempt4 record is archived in
   `criterion_version=render-sdf-criterion-v2.2`, `bound_ulp=128`.
 - `-GuardsOnly` with full parameters: `OUTLINE_LISTS_OK=2/2` + `GUARDS_OK=94/94` +
   `GUARDS_ONLY_DONE`, EXIT=0.
+- GuardsOnly re-run at 2026-11-02T04:13:03 (+08:00): baseline_free 13,531 MiB (x3), runner floor
+  10,240 MiB, `GUARDS_OK=94/94 + OUTLINE_LISTS_OK=2/2 + GUARDS_ONLY_DONE`, EXIT=0. (The
+  2026-11-01 21:51 GuardsOnly facts were overwritten by this re-run; this line keeps the re-run time
+  point and the clean facts.)
+
 - Lists unchanged and byte-identical to the signed prototype: recipe
   `cfd1038a../10,099 B/183` (exact max 73), aa2 `14893fc6../9,509 B/172` (exact max 91).
 
