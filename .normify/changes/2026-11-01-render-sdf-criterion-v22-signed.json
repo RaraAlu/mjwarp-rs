@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-01-render-sdf-criterion-v22-signed",
+  "title": {
+    "zh": "criterion v2.2 签署入库（条款 1 变体臂扩豁免 + 条款 2 S0b 跨配方 record-only + 加固断言；零 GPU）",
+    "en": "criterion v2.2 signing recorded (clause 1 variant-arm list reuse + clause 2 S0b cross-recipe record-only + hardened static assertion; zero GPU)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "把用户 2026-11-01T21:42:50+08:00 签署的 render-sdf-criterion-v2.2 落成证据：以 v2.1 全文为基础，新增 §2.5 条款 1（scene-a 回归实体内凡以同配方参考为基准的 camera 1 球面轮廓比较，含 culling_off 等变体臂，统一使用 recipe 精确差集清单；aa2 臂用 aa2 清单；前提是变体参考球面位与 recipe 参考 747/747 位级相同，由零 GPU 静态断言每次 cargo test 检查）与 §4.5 条款 2（S0b fast-math 跨配方比较降级为 record-only，保留 fail-closed『所有 >4 ULP 像素必须落在冻结 recipe 清单内』）；§1 SDF 实体位级、§2.1-2.4、§3（B=128）、§4.1-4.4、清单数值逐字不变；附签署块（时间/approved_by/两条条款口径原文）、§8 变更记录、receipt（/task_id + 条款 + attempt4 INVALID 归类 + 不变项）、manifest 与 no-run 日志。",
+    "en": "Record the user-signed render-sdf-criterion-v2.2 (2026-11-01T21:42:50+08:00) on top of the literal v2.1 text: add section 2.5 clause 1 (every same-recipe camera-1 sphere-outline comparison in the scene-a regression entities, including culling_off and other flag-variant arms, uses the recipe exact-difference list; aa2 keeps the aa2 list; premise is 747/747 bitwise-identical variant-reference sphere pixels, mechanically re-checked by a zero-GPU static assertion on every cargo test) and section 4.5 clause 2 (the S0b fast-math cross-recipe comparison becomes record-only, keeping the fail-closed rule that all >4 ULP pixels must be inside the frozen recipe list); sections 1, 2.1-2.4, 3 (B=128), 4.1-4.4 and all list numbers stay literally unchanged; plus the signing block, a section-8 change log, receipt (/task_id, clauses, attempt4 INVALID classification, unchanged items), manifest and no-run log."
+  },
+  "modules": {},
+  "acceptance": [
+    "证据目录 sdf-criterion-v2.2/ 含 spec.md（以 v2.1 全文为基础：§0 三问头、§1 SDF 实体位级不变、§2.1-2.4 精确差集清单不变、新增 §2.5 条款 1、§3 精确可算 B=128 不变、§4.1-4.4 前提不变、新增 §4.5 条款 2、§5 已填签署块含 v2.2 时间与两条条款口径、§6 边界、§7 v2.1 errata 保留、§8 v2.2 变更记录）、receipt.json（/task_id=本卡、criterion.bound_ulp=128、clauses_v2_2、lists_unchanged_from_v2_1、attempt4_invalid、not_claimed）、manifest（3 项 sha256/bytes 自洽：spec/receipt/no-run）、logs/no-run.txt（cargo test --locked --features cuda-probe --no-run，EXIT=0）。",
+    "零 GPU、零冻结、零窗口；判据数值（B=128、清单 183/172、exact max 73/91）与清单 sha/bytes 不变；§1 SDF 实体判据、参考/fixtures/内核/src/tests 零改动；sdf-criterion-v2.1/ 与 v2/ 历史零改写；四门禁（fmt/clippy/clippy-cuda/unit 735/0）+ --no-run 通过并记录。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-01-render-sdf-criterion-v21-signed"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/sdf-criterion-v2.2/"
+    ],
+    "resources": [],
+    "priority": 63
+  },
+  "note": "Arch 2026-11-01 注册（v2.2 第 1 片；零 GPU、不声明 gpu 资源）。用户已签 v2.2（approved_by=user via Chief，2026-11-01T21:42:50+08:00）；本片只入库签署文本与证据，不改判据数值、不动清单、不碰测试（测试 patch 下一片 apply）。",
+  "created_at": "2026-11-01T13:45:00.000Z",
+  "updated_at": "2026-11-01T13:45:00.000Z",
+  "revision": {
+    "before": "62bf80450cd388a3a65ea5b6e7d7e612510e6179",
+    "after": null
+  },
+  "checks": [
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-criterion-v2.2/receipt.json",
+      "pointer": "/task_id",
+      "equals": "2026-11-01-render-sdf-criterion-v22-signed"
+    },
+    {
+      "kind": "json",
+      "path": "docs/development-evidence/render-bvh/sdf-criterion-v2.2/receipt.json",
+      "pointer": "/criterion/bound_ulp",
+      "equals": 128
+    },
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "tests/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
