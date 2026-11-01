@@ -1,0 +1,30 @@
+U4 attempt4 run notes (errata + floor caliber)
+==============================================
+
+1. INVALID INVOCATION (void, NOT evidence)
+   The first `run-window.ps1 -GuardsOnly` call omitted -GuardsFile/-Attempt/-OutDir, so the
+   script defaulted to scripts/validate/render-bvh/guards.json (hfield suite
+   r05-s3b-hfield-validate, attempt2, 9 exes + 64 inputs = 73 entries). Result:
+   GUARDS_OK=64/73, INVALID_ROUND exit9 (the 9 exe sha mismatches are hfield-era baselines).
+   Outputs landed in target/render-bvh/r05-s3b-window/attempt1 (a hfield target dir) and are
+   VOID, not evidence. No guard file was written or modified; zero GPU load (three read-only
+   nvidia-smi samples only). Material-v3 section 3 step 3 omitted these parameters: errata,
+   no re-freeze, no guards/numeric change.
+
+2. VALID INVOCATION (the official result)
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/run-window.ps1 ^
+     -GuardsOnly -Attempt 4 ^
+     -GuardsFile scripts/validate/render-bvh/guards-sdf-validate.json ^
+     -OutDir target/render-bvh/sdf-validate-window/attempt4
+   -> OUTLINE_LISTS_OK=2/2, GUARDS_OK=94/94, GUARDS_ONLY_DONE, EXIT=0
+   facts: guards_suite=render-sdf-validate, aggregate c039998a1c682a4dba1729f1006f12a7e9e190f018a61afd78a220d9504757dd,
+   9 exes + 83 read-only inputs, mismatches=0; outline_lists recipe 183 rows / exact_max 73 /
+   cfd1038a.. + sidecar 8a80fb0a..; aa2 172 / 91 / 14893fc6.. + sidecar f23ca697...
+
+3. FLOOR CALIBER
+   The signed pre-window floor is 10007 MiB (min free 13079 - 3072, baseline-pre-window-v3.txt).
+   The runner's own floor is floor_mib = min(OpenFreeMiB=10240, baseline_free - 3072).
+   At GuardsOnly time baseline_free=13493 -> runner floor 10240, which is STRICTER than the
+   signed 10007. Rule: the stricter of the two governs. If a window-time sample falls in
+   10007..10240 the runner stops (free < 10240); that stop is honoured as a conservative
+   abort and must not be bypassed or re-argued as a signed-floor pass.

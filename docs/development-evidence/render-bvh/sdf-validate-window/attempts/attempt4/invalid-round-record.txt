@@ -1,0 +1,25 @@
+# U4 attempt4 invalid round record (criterion v2.1 acceptance-surface coverage gap; NOT a pass)
+attempt=4
+run_date=2026-11-01 (Beijing), window_start 11:09:28, body 11:23:05-11:23:54
+head_at_freeze=0c715aa8 (attempt4 material v3); tree clean at snapshot/freeze
+criterion_version=render-sdf-criterion-v2.1 (signed 2026-11-01T02:42:29+08:00)
+kernel_identity=source 10070226../ptx 7782aeb1../bytes 268589; aa_resolve 0bf8af5a../b28e155c../27536
+guards_suite=render-sdf-validate
+guards_sha256=13ba1bee2f2691e9d93e4d1128c9c193eaa6b4229ea62c2924e0cfea4bdbfd88
+guards_bytes=37000
+guards_aggregate_sha256=c039998a1c682a4dba1729f1006f12a7e9e190f018a61afd78a220d9504757dd
+guards_counts=frozen_exes 9 + guard_inputs 83 + outline_lists 2 = 94
+sha_guards=94/94 (9 exes + 83 read-only inputs), mismatches=0
+guards_only=PASSED GUARDS_OK=94/94 + OUTLINE_LISTS_OK=2/2 + GUARDS_ONLY_DONE exit0 (valid invocation with -Attempt 4 -GuardsFile scripts/validate/render-bvh/guards-sdf-validate.json -OutDir target/render-bvh/sdf-validate-window/attempt4)
+invalid_invocation_1=the first -GuardsOnly call omitted -GuardsFile/-Attempt/-OutDir, so the runner defaulted to scripts/validate/render-bvh/guards.json (hfield suite r05-s3b-hfield-validate, 73 entries = 9 exes + 64 inputs) => GUARDS_OK=64/73, INVALID_ROUND exit9; outputs landed in target/render-bvh/r05-s3b-window/attempt1 and are VOID (not evidence); no guard file was written or modified, zero GPU load (three read-only nvidia-smi samples only); material-v3 section 3 step 3 omitted these parameters (errata, no re-freeze)
+regular_monitor=PASSED 147 samples longest_clean=60 util 1-64 free_min 13037 exit0 (monitor-pre-window-attempt4.csv)
+pre_window_baseline=free 13838/13838/13684 MiB (min 13684) >= signed floor 10007 MiB; used 2224/2224/2378; util 39/38/5
+window_time_baseline=body baseline_free=13462 MiB; runner floor_mib=min(10240, 13462-3072)=10240 (stricter than the signed 10007; the stricter rule governs); floor_breached=False
+outline_lists=recipe 183 rows / exact_max 73 ULP / sha256 cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee; aa2 172 / 91 / 14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab; both byte-identical to the signed prototype; pre-body and post-window checks 2/2, no drift
+entities=7/9 exit0 (render_sdf_reference 6936 ms, render_context_lifecycle 7760, render_e2e 8456, render_kernel_rgb 3768, render_mesh_bvh 1009, render_r10_multi_world 2731, render_skybox_reference 1739); render_kernel_depth_seg exit101 (4222 ms); render_kernel_flags exit101 (9456 ms)
+failure_1=render_kernel_flags: the culling_off flag-variant arm kept the raw comparison (variant_depth_diff only exempted the aa2 arm) => culling_off cam1 depth_mismatch=183 max_ulp=73 first pixel 28969=(169,120) hit the <=4 ULP assertion; the frozen recipe exact-difference list was not applied to that arm
+failure_2=render_kernel_depth_seg: the S0b fast-math cross-recipe comparison kept raw (compare_reference exempts only label=="recipe") => product-vs-S0b cam1 depth_mismatch=4247 max_ulp=73 histogram(0,1,2,3,4,>4)=[38953,3677,382,12,27,149] beyond4=149, cam0 19074/2/[57726,17681,1393,0,0,0]; assertions "cross-recipe >4 ULP must be 0" (left=149), "max_ulp == 4" and the old histogram fixture all failed
+root_cause=criterion v2.1 acceptance-surface coverage gap. Offline read-only analysis (target/v22-precheck.md, QA independently reproduced): the 149 >4 ULP pixels are ALL inside the 183 frozen list (149/149, zero outside); culling_off camera-1 sphere 747 pixels seg+depth are bitwise identical to the recipe reference (culling_off camera-1 non-sphere: 38 depth diffs, 29 of them with seg diffs, all outside the list). NOT a product regression, NOT an execution error.
+discipline=zero_rust_compile=True (deps 152/152, max_write 2026-11-01 03:11:35); post-window exe recheck 9/9; residual processes 0; samples 167; used_peak 2871 MiB; free_min 13191 MiB; util_max 8; util_streak_ge_80 0; increment_exceeded False; floor_breached False; body_wall_s 47.4
+invalid_round=INVALID_ROUND exit10
+policy=stop; no retry; the attempt4 freeze (guards sha 13ba1bee.., aggregate c039998a..) is VOID and must not be reused; no re-freeze in the same attempt; criteria surface changed only through the separately signed render-sdf-criterion-v2.2 (2026-11-01T21:42:50+08:00); attempt5 must start from a fresh compile + fresh freeze
