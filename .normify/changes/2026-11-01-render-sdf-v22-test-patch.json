@@ -5,7 +5,7 @@
     "zh": "criterion v2.2 测试落地（条款 1 变体臂豁免 + 加固断言 + 条款 2 S0b record-only；仅 tests/**）",
     "en": "Apply the criterion v2.2 test patch (clause 1 variant-arm exemption + hardened assertion + clause 2 S0b record-only; tests/** only)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "把已签 v2.2 的两条条款落地到测试接受面（仅 `tests/**`，`src/` 零改）：①条款 1：`outline.rs::variant_depth_diff` 改为 aa2 臂用 `Arm::Aa2`、其它变体一律 `Arm::Recipe`（culling_off 等复用已签 recipe 清单）；②加固：`s7b3.rs` 新增 `assert_culling_off_sphere_matches_recipe_reference()`（无 GPU，断言 culling_off cam1 球面 747 像素 seg+depth 与 recipe 参考逐位相同），`flags.rs` 的无 GPU 测试加一行调用；③条款 2：`depth_seg.rs` 产品↔S0b 三处断言改 record-only，新增 fail-closed「>4 ULP 像素必须 ⊆ 冻结清单」断言（仅窗口 env 启用时执行），保留「参考↔参考」直方图夹具断言。四门禁 + --no-run 通过；9 个实体测试 exe 哈希全部变化（attempt5 必须全新冻结）。",
     "en": "Apply the signed v2.2 clauses to the test acceptance surface (tests/** only, src/ untouched): clause 1 makes variant_depth_diff use Arm::Recipe for every non-aa2 variant; a zero-GPU hardened assertion in s7b3.rs verifies culling_off camera-1 sphere pixels (747/747 seg+depth) equal the recipe reference and is called from flags.rs; clause 2 makes the product-vs-S0b comparison record-only, adds the fail-closed rule that all >4 ULP pixels must be inside the frozen recipe list (window env only) and keeps the reference-vs-reference histogram fixture assertion. Four gates + --no-run pass; all 9 entity test exe hashes change, so attempt5 must re-freeze."
@@ -30,12 +30,13 @@
     "priority": 64
   },
   "note": "Arch 2026-11-01 注册（v2.2 第 2 片）。用户已签 v2.2；本片只 apply 已审 patch 到 tests/** 并过门禁，零 GPU、不冻结、不动清单/判据数值。改动导致 9 个实体 exe 哈希全变 ⇒ attempt5 必须全新编译+冻结（attempt4 已 INVALID 作废）。",
-  "created_at": "2026-11-01T14:05:00.000Z",
-  "updated_at": "2026-11-01T14:05:00.000Z",
   "revision": {
-    "before": "bf2ac3e15e87b9d2f517ed7f80a4b1d22ca989f3",
+    "before": "68a8d0e7a96216f2e4ee06b3a5063b7e2d669c26",
     "after": null
   },
+  "created_at": "2026-11-01T14:05:00.000Z",
+  "updated_at": "2026-11-01T13:48:10.235Z",
+  "closed_at": "2026-11-01T13:48:10.235Z",
   "checks": [
     {
       "kind": "unchanged",

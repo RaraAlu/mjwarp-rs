@@ -395,8 +395,13 @@ pub fn recipe_depth_diff(actual: &[f32], camera: &RefCamera) -> DepthDiff {
     diff_depth_with_outline(actual, camera, Some(Arm::Recipe))
 }
 
-/// Variant-aware comparison for `render_kernel_flags`: the aa2 variant consumes the aa2 list,
-/// every other variant keeps the raw comparison.
+/// Variant-aware comparison for `render_kernel_flags` (criterion v2.2 clause 1).
+///
+/// Every flag variant compares against its own same-recipe (`use_fast_math=False`) camera-1
+/// reference, whose sphere-outline depth bits are bitwise identical to the recipe reference
+/// (verified offline: culling_off 747/747 sphere pixels identical), so all variants consume the
+/// recipe list; the aa2 arm keeps the aa2 list (spp=2, sub-sample 0). The active fail-closed rule
+/// is the same as the recipe arm: outside-list bitwise, in-list `|ULP| <= 128`.
 pub fn variant_depth_diff(
     actual: &[f32],
     camera: &RefCamera,
@@ -404,11 +409,11 @@ pub fn variant_depth_diff(
     aa_variant: &str,
 ) -> DepthDiff {
     let arm = if variant == aa_variant {
-        Some(Arm::Aa2)
+        Arm::Aa2
     } else {
-        None
+        Arm::Recipe
     };
-    diff_depth_with_outline(actual, camera, arm)
+    diff_depth_with_outline(actual, camera, Some(arm))
 }
 
 /// Adjust a raw `diff_depth` result for the recipe comparison (used by

@@ -291,3 +291,35 @@ pub fn synthetic_normal_rgb(suffix: &str) -> VariantRgb {
 pub fn synthetic_normal_index() -> Value {
     read_json("synthetic_normals_index.json")
 }
+
+/// criterion v2.2 clause 1 premise (fixture-only, zero GPU): the flag-variant references are
+/// same-recipe for the sphere outline, i.e. culling_off's camera-1 sphere depth bits are bitwise
+/// identical to the recipe reference. Re-verified on every test run so the recipe-list reuse
+/// cannot silently drift if a variant fixture is re-captured.
+pub fn assert_culling_off_sphere_matches_recipe_reference() {
+    let recipe = parse_reference(s7b1::RECIPE_REFERENCE).expect("recipe depth/seg reference");
+    let culling = variant_depth_seg("culling_off").expect("culling_off depth/seg reference");
+    let recipe_cam1 = &recipe.cameras[1];
+    let culling_cam1 = &culling.reference.cameras[1];
+    let mut sphere_pixels = 0usize;
+    for pixel in 0..recipe_cam1.pixels {
+        if recipe_cam1.seg_pairs[pixel] == [2, 5] {
+            sphere_pixels += 1;
+            assert_eq!(
+                culling_cam1.seg_pairs[pixel], recipe_cam1.seg_pairs[pixel],
+                "culling_off cam1 sphere pixel {pixel}: seg pair must equal the recipe reference",
+            );
+            assert_eq!(
+                culling_cam1.depth_bits[pixel], recipe_cam1.depth_bits[pixel],
+                "culling_off cam1 sphere pixel {pixel}: depth bits must equal the recipe reference",
+            );
+        }
+    }
+    assert_eq!(
+        sphere_pixels, 747,
+        "culling_off cam1 sphere pixel count (scene-a recipe form)",
+    );
+    println!(
+        "s7b3 fixtures: culling_off cam1 sphere depth bits == recipe reference ({sphere_pixels}/747)"
+    );
+}

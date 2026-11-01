@@ -24,6 +24,7 @@ use mjwarp_rs::render::kernel::{
 };
 use mjwarp_rs::render::{CameraModel, ContextParams, ImageOutput, resolve_context};
 use serde_json::Value;
+use support::outline;
 use support::{
     MODEL, RECIPE_REFERENCE, REFERENCE, beyond_ulp_count, bitwise_differences, camera_data_poses,
     camera_modes, check_camera_data, compare_reference, create_context, max_ulp, model_ints,
@@ -209,18 +210,69 @@ fn depth_and_seg_match_frozen_reference_for_both_cameras() {
         max_ulp(&stats)
     );
     let recipe_max_ulp = max_ulp(&stats);
-    // 产品已与同配方参考逐位一致，因此「产品 vs S0b fast-math 参考」的差异就等于
-    // 「同配方参考 vs S0b 参考」这条跨配方已知偏差（只记录、不是通过依据、不放宽容差）：
-    // 两相机 ULP 直方图与夹具 `cross_recipe_vs_s0b` 逐项相同、超 4 ULP 为 0。
+    // criterion v2.2 clause 2: the S0b fast-math reference is a DIFFERENT compilation form, so the
+    // B-class premise "same compilation form" does not hold after the a-order refix. This
+    // cross-recipe comparison is RECORD-ONLY (observation; never an acceptance basis). The one
+    // fail-closed rule kept: every >4 ULP pixel must belong to the frozen recipe list
+    // (outside-list bitwise equality is already guaranteed by the recipe arm above).
     let known = compare_reference("s0b-fast-math", &depth, &seg, &s0b);
     let known_beyond = beyond_ulp_count(&known, &[0, 1, 2, 3, 4, 5, 6]);
-    assert_eq!(known_beyond, 0, "跨配方（参考↔参考）超 4 ULP 必须为 0");
-    assert_eq!(max_ulp(&known), 4, "跨配方已知偏差 max ULP（夹具口径）");
-    let cross_histograms: Vec<[usize; 6]> = known.iter().map(|camera| camera.histogram).collect();
+    let known_histograms: Vec<[usize; 6]> = known.iter().map(|camera| camera.histogram).collect();
+    println!(
+        "s7b1[s0b-fast-math] record-only (B-class premise not met): cam0 hist={:?} cam1 hist={:?} \
+         beyond4={} max_ulp={}",
+        known_histograms[0],
+        known_histograms[1],
+        known_beyond,
+        max_ulp(&known)
+    );
+    if outline::enabled() {
+        let frozen = outline::list(outline::Arm::Recipe);
+        let mut beyond_total = 0usize;
+        let mut beyond_outside = 0usize;
+        for camera in &s0b.cameras {
+            let base = camera.depth_adr as usize;
+            for pixel in 0..camera.pixels {
+                let ulp = ulp_distance(depth[base + pixel].to_bits(), camera.depth_bits[pixel]);
+                if ulp <= MAX_DEPTH_ULP {
+                    continue;
+                }
+                beyond_total += 1;
+                if camera.index != 1 || !frozen.entries.contains_key(&pixel) {
+                    beyond_outside += 1;
+                }
+            }
+        }
+        assert_eq!(
+            beyond_outside, 0,
+            "criterion v2.2: S0b cross-recipe >4 ULP pixels must all be inside the frozen recipe \
+             list (outside={beyond_outside} of {beyond_total})"
+        );
+        println!(
+            "s7b1[s0b-fast-math] beyond4_subset_of_frozen_list=true beyond4={beyond_total} \
+             outside={beyond_outside} list_rows={}",
+            frozen.rows
+        );
+    }
+    // Reference-to-reference cross-recipe delta stays a fixture assertion (it does not involve the
+    // product): recipe (form A) vs S0b over both cameras.
+    let reference_histograms: Vec<[usize; 6]> = recipe
+        .cameras
+        .iter()
+        .zip(&s0b.cameras)
+        .map(|(left, right)| {
+            let mut histogram = [0usize; 6];
+            for (a, b) in left.depth_bits.iter().zip(&right.depth_bits) {
+                let ulp = ulp_distance(*a, *b);
+                histogram[if ulp > 4 { 5 } else { ulp as usize }] += 1;
+            }
+            histogram
+        })
+        .collect();
     assert_eq!(
-        cross_histograms,
+        reference_histograms,
         vec![[57726, 17681, 1393, 0, 0, 0], [39136, 3677, 382, 3, 2, 0]],
-        "跨配方已知偏差直方图必须与夹具 cross_recipe_vs_s0b 一致"
+        "参考↔参考跨配方已知偏差直方图必须与夹具 cross_recipe_vs_s0b 一致"
     );
     let geom_type = model_ints(
         &serde_json::from_str::<Value>(MODEL).expect("模型"),

@@ -90,6 +90,7 @@ fn flag_fixtures_are_complete_and_documented() {
             "{name} 必须有 depth/seg 参考"
         );
     }
+    s7b3::assert_culling_off_sphere_matches_recipe_reference();
     println!("s7b3 fixtures: 6 variants complete, per-variant references present");
 }
 
