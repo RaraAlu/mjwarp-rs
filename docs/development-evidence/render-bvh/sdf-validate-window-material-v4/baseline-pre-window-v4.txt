@@ -1,5 +1,5 @@
-U4 attempt5 pre-window GPU baseline v4 (measured 2026-11-01, before the user double-sign)
-============================================================================================
+U4 attempt5 pre-window GPU baseline v4 (RE-SAMPLED 2026-11-02 04:12, before the user double-sign)
+=================================================================================================
 Purpose: the plan is dual-signed BEFORE the GPU window opens, so this baseline and floor are
 measured before signing (read-only `nvidia-smi`, zero GPU compute).
 Material task: 2026-11-01-render-sdf-attempt5-material-v4 / baseline slice
@@ -15,35 +15,41 @@ Environment
   command        : nvidia-smi --query-gpu=timestamp,memory.free,memory.used,utilization.gpu
                    --format=csv,noheader   (three points, 3 s apart)
   compute apps   : no process held GPU memory in `nvidia-smi --query-compute-apps`
-                   (33 desktop processes only, used_memory N/A)
+                   (only desktop processes, used_memory N/A)
   build procs    : cargo/rustc/nvcc/link = 0
 
-Raw three points (verbatim)
-  2026/11/01 21:49:30.858, 1601 MiB, 14461 MiB, 82 %
-  2026/11/01 21:49:33.937, 1601 MiB, 14461 MiB, 86 %
-  2026/11/01 21:49:37.014, 1580 MiB, 14482 MiB, 92 %
+Raw three points (verbatim) - the signed set
+  2026/11/02 04:12:35.850, 13448 MiB, 2614 MiB, 37 %
+  2026/11/02 04:12:38.923, 13453 MiB, 2609 MiB, 64 %
+  2026/11/02 04:12:41.965, 13513 MiB, 2549 MiB, 62 %
+
+Utilization is recorded as-is (37 / 64 / 62 %) and is NOT a baseline acceptance gate; the
+pre-window monitor decides utilization.
 
 Derived values
-  min(memory.free) = 14461 MiB
-  floor            = min(free) - 3072 MiB = 14461 - 3072 = 11389 MiB
+  min(memory.free) = 13448 MiB
+  floor            = min(free) - 3072 MiB = 13448 - 3072 = 10376 MiB
   (3072 MiB is the reserved headroom used by every render-bvh window floor formula.)
 
-Desktop-load note (must be read before the window opens)
-  The sampled `utilization.gpu` was 82/86/92 % from desktop/overlay processes (all compute-app
-  rows are N/A, no process holds GPU memory). This baseline measures idle GPU MEMORY, which is
-  what the signed floor uses; the utilization samples are NOT a window result and must not be
-  quoted as one. The pre-window monitor still requires 60 consecutive samples with util < 40
-  (default MaxUtil=40, no -OpenUtilLimit); if the desktop load does not calm down, the monitor
-  fails and the already-signed validation-only exception (-MaxUtil 60, 60/60) is the only path,
-  with both monitors kept in evidence and never described as a regular-threshold pass.
+Superseded context (NOT the signed set)
+  2026-11-01 21:49:30/33/37 (+08:00): free 14461/14461/14482 MiB, used 1601/1601/1580,
+  util 82/86/92 %, floor 11389 MiB. That set was measured but never signed: the GPU was
+  immediately taken over by an external desktop load (free fell to ~1.4-1.6 GB from 21:51), so
+  it is superseded by the 2026-11-02 04:12 set above.
+  Watch context 2026-11-01 22:40 - 2026-11-02 00:58 (2-minute samples, 70 points): free
+  370..13677 MiB, util 37..96 %; memory was free again from ~00:42 (13677 MiB) with util
+  37-47 %; by 04:12 no external load held GPU memory and no build process ran.
 
 Window-time rule (window-plan.txt v4 section 6)
   - Re-sample three points immediately before the body after the freeze step.
-  - If free < the signed floor (11389 MiB) at any window-time sample -> STOP, no retry of the
+  - If free < the signed floor (10376 MiB) at any window-time sample -> STOP, no retry of the
     body in the same attempt, record the samples verbatim in facts.
+  - The regular monitor still requires 60 consecutive samples with util < 40 (default MaxUtil=40,
+    no -OpenUtilLimit); the baseline utilization values above are not a window result and must not
+    be quoted as one. If the desktop util does not settle below 40, only the signed
+    validation-only exception (-MaxUtil 60, 60/60) applies, with both monitors kept in evidence.
   - The runner's own floor is min(OpenFreeMiB=10240, baseline_free - 3072); the stricter of the
-    two governs (signed floor 11389 vs runner floor <= 10240 -> the runner threshold is stricter
-    whenever it is 10240; a stop caused by it is honoured as a conservative abort).
+    two governs.
 
 Not claimed: no window result, no pass, no precision-admission statement. This file only
 records pre-window idle GPU memory and the derived floor.

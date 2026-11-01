@@ -96,7 +96,7 @@ and its freeze is VOID - archived in sdf-validate-window/attempts/attempt4/, nev
   no re-freeze, no criteria change.
 
 5. WINDOW PREPARATION CHECKLIST (must all hold before opening)
-  [ ] tree clean; `cargo test --no-run` EXIT=0; build processes 0; GPU idle (util < 40, free >= signed floor 11389 MiB)
+  [ ] tree clean; `cargo test --no-run` EXIT=0; build processes 0; GPU idle (util < 40, free >= signed floor 10376 MiB)
   [ ] host unlock state matches the target expectation: grep reject_sdf_geometry src/render/kernel/megakernel.rs = 0
   [ ] criterion version render-sdf-criterion-v2.2 signed; B=128; exact max 73/91
   [ ] clause 1 hardened assertion in place (s7b3.rs assert_culling_off_sphere_matches_recipe_reference; the
@@ -107,8 +107,11 @@ and its freeze is VOID - archived in sdf-validate-window/attempts/attempt4/, nev
   [ ] -GuardsOnly 94/94 + OUTLINE_LISTS_OK=2/2 with ALL parameters (-Attempt 5 -GuardsFile .. -OutDir ..)
 
 6. WINDOW PLAN / BASELINE (baseline measured BEFORE the window; signed together with this plan)
-  Pre-window baseline: baseline-pre-window-v4.txt (three read-only nvidia-smi points; min free 14461 MiB;
-  floor = min(free) - 3072 = 11389 MiB; desktop utilization 82-92 % noted as not-a-window-result).
+  Pre-window baseline: baseline-pre-window-v4.txt (three read-only nvidia-smi points re-sampled
+  2026-11-02 04:12:35/38/41 +08:00; min free 13448 MiB; floor = min(free) - 3072 = 10376 MiB;
+  utilization 37/64/62 % recorded as-is and not-a-window-result). The earlier 2026-11-01 21:49 set
+  (free 14461, floor 11389) is superseded: an external desktop load took the GPU right after it
+  and it was never signed.
   At window time re-sample three points after the freeze step; if free < the signed floor at any sample ->
   STOP, verbatim facts, no body in this attempt. The runner's own floor is
   min(OpenFreeMiB=10240, baseline_free - 3072); the stricter of the two governs.
@@ -152,10 +155,13 @@ and its freeze is VOID - archived in sdf-validate-window/attempts/attempt4/, nev
     (script_identities): authoring wrapper dd0663f4../5,923 B, authoring helper 5308e4e4../18,613 B,
     replay 94ea3786../16,567 B, freeze 21fe74a5../12,906 B, runner 2abb8a77../22,910 B.
   - The attempt5 freeze resolved the 9 entity executables through the freeze script's internal
-    `cargo test --no-run --message-format=json` (first line of freeze-tool-run.txt) after an
-    explicit `cargo test --locked --features cuda-probe --no-run` returned EXIT=0 at 21:50:38;
-    exe-identities.txt lists the 9 frozen exe sha256/bytes straight from the frozen guards file
-    (exe mtimes 21:50:xx), so the freeze is bound to the current source.
+    `cargo test --no-run --message-format=json` (first line of freeze-tool-run.txt; that is the
+    only archived no-run log for the freeze instant). exe-identities.txt lists the 9 frozen exe
+    sha256/bytes straight from the frozen guards file. Exe mtimes: 7 of the 9 rebuilt at
+    21:51:27-29 (render_sdf_reference, render_e2e, render_kernel_rgb, render_kernel_depth_seg,
+    render_kernel_flags, render_r10_multi_world, render_skybox_reference);
+    render_context_lifecycle 21:44:49 and render_mesh_bvh 21:44:51 were not recompiled, so the
+    freeze is bound to the current source.
   - WINDOW BUILD RULE (fail-closed): after the freeze ONLY the `--features cuda-probe` test
     profile may be built/run (the profile the frozen exe were built with). Building or testing
     with the default feature set is forbidden inside the window: it recompiles the test crates

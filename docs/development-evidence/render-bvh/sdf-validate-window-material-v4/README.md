@@ -10,7 +10,7 @@ baseline must be double-signed before the window.
 | file | content |
 | --- | --- |
 | `window-plan.txt` | the attempt5 window plan (criterion v2.2, attempt=5, full-parameter commands, conditional monitor, checklist) |
-| `baseline-pre-window-v4.txt` | three read-only nvidia-smi points; min free 14461 MiB; floor = 11389 MiB; desktop-util note |
+| `baseline-pre-window-v4.txt` | three read-only nvidia-smi points re-sampled 2026-11-02 04:12:35/38/41; min free 13448 MiB; floor = 10376 MiB; utilization 37/64/62 % recorded; superseded 2026-11-01 set noted |
 | `receipt.json` | `/task_id`, criterion/clauses, attempt4 INVALID reference, frozen attempt5 guards identity, lists, baseline, script identities, commands, boundaries |
 | `manifest.txt` | self-consistent sha256/bytes list of the files above |
 
@@ -64,10 +64,10 @@ value, list, reference, fixture or kernel identity changed. The registered attem
   (authoring helper `5308e4e4../18,613 B`, freeze `21fe74a5../12,906 B`, runner `2abb8a77../22,910 B`).
 - `exe-identities.txt` is the authoritative list of the 9 frozen entity exe sha256/bytes, taken
   from the frozen guards file; `target/v22-new-exe-sha.txt` is a patch-time snapshot only.
-- The freeze ran `cargo test --no-run --message-format=json` inside the freeze script
-  (`freeze-tool-run.txt`, first line) after an explicit
-  `cargo test --locked --features cuda-probe --no-run` returned EXIT=0; exe mtimes 21:50:xx bind
-  the freeze to the current source.
+- The freeze resolved the executables through `cargo test --no-run --message-format=json` inside
+  the freeze script (`freeze-tool-run.txt`, first line - the only archived no-run log for that
+  instant); exe mtimes: 7 rebuilt at 21:51:27-29, `render_context_lifecycle` 21:44:49 and
+  `render_mesh_bvh` 21:44:51 unchanged - so the freeze is bound to the current source.
 - **Window build rule**: after the freeze only `--features cuda-probe` build/test is allowed; the
   default feature set is forbidden inside the window (it recompiles the test crates and replaces
   the frozen exe sha).

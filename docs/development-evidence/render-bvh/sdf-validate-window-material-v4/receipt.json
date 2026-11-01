@@ -71,27 +71,28 @@
   },
   "baseline": {
     "file": "docs/development-evidence/render-bvh/sdf-validate-window-material-v4/baseline-pre-window-v4.txt",
-    "measured_at": "2026-11-01 21:49:30/33/37 +08:00 (three read-only points, 3 s apart)",
+    "measured_at": "2026-11-02 04:12:35.850/38.923/41.965 +08:00 (three read-only points, 3 s apart; re-sampled after the 2026-11-01 21:49 set was superseded)",
     "free_mib": [
-      14461,
-      14461,
-      14482
+      13448,
+      13453,
+      13513
     ],
     "used_mib": [
-      1601,
-      1601,
-      1580
+      2614,
+      2609,
+      2549
     ],
     "util_percent": [
-      82,
-      86,
-      92
+      37,
+      64,
+      62
     ],
-    "min_free_mib": 14461,
-    "floor_mib": 11389,
+    "min_free_mib": 13448,
+    "floor_mib": 10376,
     "floor_formula": "min(free) - 3072 MiB",
-    "desktop_load_note": "utilization 82-92 % came from desktop processes (all compute-app rows N/A, no process holds GPU memory); these are NOT window results. The pre-window monitor still needs 60 consecutive util<40; if the desktop load does not calm down, only the signed validation-only exception (-MaxUtil 60, 60/60) applies, both monitors kept in evidence",
-    "window_time_rule": "re-sample three points after the freeze step; if free < the signed floor 11389 MiB -> STOP; runner floor = min(10240, baseline_free-3072) is stricter and a stop caused by it is honoured"
+    "desktop_load_note": "utilization 37/64/62 % is recorded as-is and is NOT a baseline acceptance gate; the pre-window monitor still needs 60 consecutive util<40, and if the desktop util does not settle below 40 only the signed validation-only exception (-MaxUtil 60, 60/60) applies, both monitors kept in evidence",
+    "window_time_rule": "re-sample three points after the freeze step; if free < the signed floor 10376 MiB -> STOP; runner floor = min(10240, baseline_free-3072) is stricter and a stop caused by it is honoured",
+    "superseded": "2026-11-01 21:49:30/33/37 set (free 14461/14461/14482, floor 11389) was measured but never signed because an external desktop load took the GPU immediately after; it is kept as context only"
   },
   "script_identities": {
     "authoring_wrapper": "scripts/authoring/author-scene-a-sphere-outline.ps1 sha256 dd0663f4f5f60190a63b216d7d527de655701f2430df70f31d52669b26be21aa 5,923 B",
@@ -109,7 +110,7 @@
     "body": "run-window.ps1 -Attempt 5 -GuardsFile scripts/validate/render-bvh/guards-sdf-validate.json -OutDir target/render-bvh/sdf-validate-window/attempt5"
   },
   "next_steps": [
-    "user double-sign of window-plan v4 + baseline v4 (floor 11389 MiB)",
+    "user double-sign of window-plan v4 + baseline v4 (floor 10376 MiB)",
     "open the window: pre-window baseline re-sample -> authoring tool -> freeze (already frozen offline; re-freeze only if any input/exe changed) -> GuardsOnly -> monitor 60/60 -> body 9 entities",
     "post-window recheck (lists immutable, post exe recheck), evidence submission and QA review"
   ],
@@ -134,7 +135,7 @@
   },
   "freeze_tool_run": {
     "file": "docs/development-evidence/render-bvh/sdf-validate-window-material-v4/freeze-tool-run.txt",
-    "content": "freeze script internal cargo test --no-run --message-format=json after an explicit cargo test --locked --features cuda-probe --no-run EXIT=0 at 21:50:38; exe mtimes 21:50:xx bind the freeze to the current source"
+    "content": "freeze script internal cargo test --no-run --message-format=json (freeze-tool-run.txt, first line; the only archived no-run log for the freeze instant); exe mtimes: 7 rebuilt at 21:51:27-29 (render_sdf_reference, render_e2e, render_kernel_rgb, render_kernel_depth_seg, render_kernel_flags, render_r10_multi_world, render_skybox_reference), render_context_lifecycle 21:44:49 and render_mesh_bvh 21:44:51 not recompiled, binding the freeze to the current source"
   },
   "window_build_rule": "after the freeze only --features cuda-probe build/test is allowed; the default feature set is forbidden inside the window (it recompiles the test crates with a different fingerprint and replaces the frozen exe sha; any deps drift is already a runner hard failure)",
   "unit_gate_note": "the 735/0/137 unit numbers in the slice cards were measured as cargo test --lib --locked --features cuda-probe; gates.toml gate.unit is cargo test --locked (default features) and was NOT run for these evidence-only slices, so the numbers are not quoted as gate.unit results"
