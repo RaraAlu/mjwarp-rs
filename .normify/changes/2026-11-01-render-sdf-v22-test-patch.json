@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-01-render-sdf-v22-test-patch",
+  "title": {
+    "zh": "criterion v2.2 测试落地（条款 1 变体臂豁免 + 加固断言 + 条款 2 S0b record-only；仅 tests/**）",
+    "en": "Apply the criterion v2.2 test patch (clause 1 variant-arm exemption + hardened assertion + clause 2 S0b record-only; tests/** only)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "把已签 v2.2 的两条条款落地到测试接受面（仅 `tests/**`，`src/` 零改）：①条款 1：`outline.rs::variant_depth_diff` 改为 aa2 臂用 `Arm::Aa2`、其它变体一律 `Arm::Recipe`（culling_off 等复用已签 recipe 清单）；②加固：`s7b3.rs` 新增 `assert_culling_off_sphere_matches_recipe_reference()`（无 GPU，断言 culling_off cam1 球面 747 像素 seg+depth 与 recipe 参考逐位相同），`flags.rs` 的无 GPU 测试加一行调用；③条款 2：`depth_seg.rs` 产品↔S0b 三处断言改 record-only，新增 fail-closed「>4 ULP 像素必须 ⊆ 冻结清单」断言（仅窗口 env 启用时执行），保留「参考↔参考」直方图夹具断言。四门禁 + --no-run 通过；9 个实体测试 exe 哈希全部变化（attempt5 必须全新冻结）。",
+    "en": "Apply the signed v2.2 clauses to the test acceptance surface (tests/** only, src/ untouched): clause 1 makes variant_depth_diff use Arm::Recipe for every non-aa2 variant; a zero-GPU hardened assertion in s7b3.rs verifies culling_off camera-1 sphere pixels (747/747 seg+depth) equal the recipe reference and is called from flags.rs; clause 2 makes the product-vs-S0b comparison record-only, adds the fail-closed rule that all >4 ULP pixels must be inside the frozen recipe list (window env only) and keeps the reference-vs-reference histogram fixture assertion. Four gates + --no-run pass; all 9 entity test exe hashes change, so attempt5 must re-freeze."
+  },
+  "modules": {},
+  "acceptance": [
+    "`git apply target/v22-tests.patch`（sha256 421c1a2c96a9ea981b029ec8b4d7cc7c63872c3878d247950b80c78c4dee，8,466 B，5 hunks）干净落地：outline.rs 450 行、render_kernel_depth_seg.rs 474 行、s7b3.rs 325 行、render_kernel_flags.rs 500 行（均 ≤500 棘轮）。",
+    "条款 1：`variant_depth_diff` 非 aa2 变体一律 `Arm::Recipe`；`flags.rs` 的 culling_off depth 比较接入 recipe 清单豁免。加固断言：`s7b3.rs::assert_culling_off_sphere_matches_recipe_reference` 在无 GPU 的 `flag_fixtures_are_complete_and_documented` 中调用，断言 cam1 球面 747 像素 seg+depth 位级相同（每次 cargo test 机械检查条款 1 前提）。",
+    "条款 2：产品↔S0b `known_beyond`/`max_ulp` 改 record-only 打印；新增 fail-closed「>4 ULP 像素全部 ⊆ 冻结 recipe 清单」断言（仅 `outline::enabled()` 时）；保留参考↔参考直方图断言 `[[57726,17681,1393,0,0,0],[39136,3677,382,3,2,0]]`；无 env 时本地 cargo test 行为不变。",
+    "四门禁通过（fmt / clippy / clippy-cuda / unit 735/0）+ `cargo test --locked --features cuda-probe --no-run` EXIT=0；只改 `tests/**`；`src/`、`fixtures/`、清单、判据数值零改动；9/9 实体测试 exe sha 全变（新身份记录在 `target/v22-new-exe-sha.txt`，供 attempt5 冻结对比）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-01-render-sdf-criterion-v22-signed"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "tests/"
+    ],
+    "resources": [],
+    "priority": 64
+  },
+  "note": "Arch 2026-11-01 注册（v2.2 第 2 片）。用户已签 v2.2；本片只 apply 已审 patch 到 tests/** 并过门禁，零 GPU、不冻结、不动清单/判据数值。改动导致 9 个实体 exe 哈希全变 ⇒ attempt5 必须全新编译+冻结（attempt4 已 INVALID 作废）。",
+  "created_at": "2026-11-01T14:05:00.000Z",
+  "updated_at": "2026-11-01T14:05:00.000Z",
+  "revision": {
+    "before": "bf2ac3e15e87b9d2f517ed7f80a4b1d22ca989f3",
+    "after": null
+  },
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
