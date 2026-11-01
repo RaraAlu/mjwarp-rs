@@ -47,3 +47,13 @@ fail-closed). The complete attempt4 record is archived in
 
 This material is a plan and an offline freeze record. It makes no acceptance, parity or
 precision statement; U4 stays not passed until attempt5 runs inside a double-signed window.
+## §3e attempt5 freeze errata (zero body, zero GPU)
+
+The first attempt=5 freeze wrote `criterion_version=render-sdf-criterion-v2.1` (the freeze default
+`-CriterionVersion`, the authoring `CRITERION_VERSION` and the
+`tests/support/render_bvh` outline-lists.json version check were still at v2.1). It was discarded
+**before any body step** (zero GPU, no entity ran, no body facts), the three constants were updated
+to v2.2 (list file headers keep the signed prototype v2.1 bytes) and the freeze re-ran. The list
+sha256 values are unchanged (`cfd1038a../10,099 B/183`, `14893fc6../9,509 B/172`); no criterion
+value, list, reference, fixture or kernel identity changed. The registered attempt5 guards are
+`9e000bfc../37,000 B`, aggregate `034c7551..`, `criterion_version=render-sdf-criterion-v2.2`.
