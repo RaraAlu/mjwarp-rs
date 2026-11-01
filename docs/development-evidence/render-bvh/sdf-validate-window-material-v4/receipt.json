@@ -1,0 +1,104 @@
+{
+  "task_id": "2026-11-01-render-sdf-attempt5-material-v4",
+  "kind": "render-sdf-attempt5-window-material-v4",
+  "owner": "Arch",
+  "status": "material ready; attempt5 guards frozen offline (zero GPU); window NOT opened; user double-sign of plan + baseline required",
+  "criterion": {
+    "version": "render-sdf-criterion-v2.2",
+    "signed_at": "2026-11-01T21:42:50+08:00",
+    "approved_by": "user via Chief",
+    "bound_ulp": 128,
+    "spec": "docs/development-evidence/render-bvh/sdf-criterion-v2.2/spec.md",
+    "spec_sha256": "053e1104c8f6e25fc1fc99e47f5017ea52eb7b8b6236a117662b345cc76996e0",
+    "spec_bytes": 15677,
+    "clause_1": "scene-a regression entities: every camera-1 sphere-outline depth comparison against a same-recipe reference (including culling_off and other flag-variant arms) uses the frozen recipe list (183 px / cfd1038a..); aa2 arm keeps the aa2 list (172 px / 14893fc6..). Premise: variant references' camera-1 sphere pixels seg+depth bitwise equal to the recipe reference (culling_off 747/747), re-checked on every cargo test by the zero-GPU static assertion in tests/support/render_bvh/s7b3.rs",
+    "clause_2": "the S0b fast-math cross-recipe comparison in render_kernel_depth_seg is record-only; the kept fail-closed rule is that every >4 ULP pixel must be inside the frozen recipe list (attempt4: 149/149 inside, 0 outside); the reference-vs-reference histogram assertion is kept",
+    "numeric_unchanged": "B=128 ULP; lists 183/172; exact max 73/91; analytic bounds 414.57/494.52 recorded only"
+  },
+  "attempt": 5,
+  "attempt4_invalid": {
+    "result": "INVALID_ROUND exit10 (7/9 entities exit0; render_kernel_depth_seg exit101, render_kernel_flags exit101)",
+    "classification": "criterion v2.1 acceptance-surface coverage gap (culling_off variant arm raw comparison; S0b cross-recipe >4 ULP assertion); NOT a product regression, NOT an execution error; discipline metrics clean",
+    "freeze": "void and never reused (guards sha 13ba1bee../37,000 B, aggregate c039998a..)",
+    "evidence": "docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt4/"
+  },
+  "guards": {
+    "suite": "render-sdf-validate",
+    "attempt": 5,
+    "path": "scripts/validate/render-bvh/guards-sdf-validate.json",
+    "sha256": "9e000bfc1f8438a4bd6fd5f8c8ccf214c2ab43aee7c1ed1fce78ed51e7646c32",
+    "bytes": 37000,
+    "aggregate_sha256": "034c7551226e321fab83b0ec4ef92a2dd82e9077ee3f31e7ad88f9a5d3b305b9",
+    "criterion_version": "render-sdf-criterion-v2.2",
+    "bound_ulp": 128,
+    "counts": {
+      "frozen_exes": 9,
+      "guard_inputs": 83,
+      "outline_lists": 2,
+      "total": 94
+    },
+    "guards_only": "OUTLINE_LISTS_OK=2/2 + GUARDS_OK=94/94 + GUARDS_ONLY_DONE, EXIT=0 (full parameters: -GuardsOnly -Attempt 5 -GuardsFile scripts/validate/render-bvh/guards-sdf-validate.json -OutDir target/render-bvh/sdf-validate-window/attempt5)",
+    "exe_identities": "all 9 entity exe hashes changed vs attempt4 (v2.2 test patch + criterion-version constant update); fresh compile + fresh freeze only, no reuse of attempt1/2/3/4 guards",
+    "invalid_first_freeze": "the first attempt=5 freeze wrote criterion_version=render-sdf-criterion-v2.1 because the freeze script default and the authoring criterion constant were still at v2.1; it was discarded before any body step (zero GPU, no body data). The version constants were then updated to v2.2 (helper py CRITERION_VERSION, freeze default -CriterionVersion, tests/support/render_bvh/outline.rs JSON check) and the freeze re-run; the list files stayed byte-identical to the signed prototype."
+  },
+  "lists": {
+    "recipe": {
+      "sha256": "cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee",
+      "bytes": 10099,
+      "rows": 183,
+      "first_differing_pixel": 28969,
+      "first_differing_xy": [169, 120],
+      "exact_max_ulp": 73,
+      "bounds_sidecar": "outline-bounds-recipe.txt 5,027 B / 8a80fb0a43cbe1c2805ce7307c1ed62f0f7f1f42cf2ded621dcec3d658cf7948"
+    },
+    "aa2": {
+      "sha256": "14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab",
+      "bytes": 9509,
+      "rows": 172,
+      "first_differing_pixel": 29448,
+      "first_differing_xy": [168, 122],
+      "exact_max_ulp": 91,
+      "bounds_sidecar": "outline-bounds-aa2.txt 4,734 B / f23ca697f34ebd75a21c618ae5c309cfc710d2f2ad82349f864f02dcb30fc303"
+    },
+    "unchanged_from_v2_1": true,
+    "single_source_of_truth": "outline-lists.json (criterion_version=render-sdf-criterion-v2.2; rows/exact_max_ulp/bound_ulp) consumed by freeze, runner and the body-time test support"
+  },
+  "baseline": {
+    "file": "docs/development-evidence/render-bvh/sdf-validate-window-material-v4/baseline-pre-window-v4.txt",
+    "measured_at": "2026-11-01 21:49:30/33/37 +08:00 (three read-only points, 3 s apart)",
+    "free_mib": [14461, 14461, 14482],
+    "used_mib": [1601, 1601, 1580],
+    "util_percent": [82, 86, 92],
+    "min_free_mib": 14461,
+    "floor_mib": 11389,
+    "floor_formula": "min(free) - 3072 MiB",
+    "desktop_load_note": "utilization 82-92 % came from desktop processes (all compute-app rows N/A, no process holds GPU memory); these are NOT window results. The pre-window monitor still needs 60 consecutive util<40; if the desktop load does not calm down, only the signed validation-only exception (-MaxUtil 60, 60/60) applies, both monitors kept in evidence",
+    "window_time_rule": "re-sample three points after the freeze step; if free < the signed floor 11389 MiB -> STOP; runner floor = min(10240, baseline_free-3072) is stricter and a stop caused by it is honoured"
+  },
+  "script_identities": {
+    "authoring_wrapper": "scripts/authoring/author-scene-a-sphere-outline.ps1 sha256 dd0663f4f5f60190a63b216d7d527de655701f2430df70f31d52669b26be21aa 5,923 B",
+    "authoring_helper": "scripts/authoring/author-scene-a-sphere-outline.py sha256 5308e4e4c950b93638c7d4e6e58deecb98bce5389ffe8d8009f6927dcf25eb65 18,613 B",
+    "replay": "scripts/authoring/scene_a_outline_replay.py sha256 94ea3786aaa9406172125263632ec5c7d17c9634ba1c36e8a8999ecbf65d2d65 16,567 B",
+    "freeze": "scripts/validate/render-bvh/freeze-guards-sdf.ps1 sha256 21fe74a50b823b50ae423872454c2accaf36f84b17405fbfdbd0803ca867e606 12,906 B",
+    "runner": "scripts/validate/render-bvh/run-window.ps1 sha256 2abb8a77a6616750227e03243ba91a61b1835da87886a74019e92a954c3a487d 22,910 B",
+    "outline_test_support": "tests/support/render_bvh/outline.rs / outline_tests.rs / s7b3.rs / render_kernel_depth_seg.rs / render_kernel_flags.rs (criterion_version check now v2.2)"
+  },
+  "window_commands": {
+    "authoring": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/authoring/author-scene-a-sphere-outline.ps1 -Out target/render-bvh/sdf-validate-window/attempt5/outline",
+    "freeze": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards-sdf.ps1 -Attempt 5",
+    "guards_only": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/run-window.ps1 -GuardsOnly -Attempt 5 -GuardsFile scripts/validate/render-bvh/guards-sdf-validate.json -OutDir target/render-bvh/sdf-validate-window/attempt5",
+    "monitor_regular": "monitor-until-clean.ps1 -OutCsv target/render-bvh/sdf-validate-window/monitor-pre-window-attempt5.csv -Required 60 -MaxMinutes 30 (PS 5.1, default MaxUtil=40, no -OpenUtilLimit)",
+    "body": "run-window.ps1 -Attempt 5 -GuardsFile scripts/validate/render-bvh/guards-sdf-validate.json -OutDir target/render-bvh/sdf-validate-window/attempt5"
+  },
+  "next_steps": [
+    "user double-sign of window-plan v4 + baseline v4 (floor 11389 MiB)",
+    "open the window: pre-window baseline re-sample -> authoring tool -> freeze (already frozen offline; re-freeze only if any input/exe changed) -> GuardsOnly -> monitor 60/60 -> body 9 entities",
+    "post-window recheck (lists immutable, post exe recheck), evidence submission and QA review"
+  ],
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "精度达标"
+  ],
+  "boundaries": "zero GPU; no window opened; no body; criterion numeric values, lists, references, fixtures, product src and kernel identity unchanged by this material; attempt4 INVALID and its freeze void; attempt5 guards are a fresh freeze and must not be confused with attempt4"
+}

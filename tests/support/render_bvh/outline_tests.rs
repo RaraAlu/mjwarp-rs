@@ -38,7 +38,7 @@ fn sample_json(
 ) -> String {
     serde_json::json!({
         "schema": 1,
-        "criterion_version": "render-sdf-criterion-v2.1",
+        "criterion_version": "render-sdf-criterion-v2.2",
         "bound_ulp": bound,
         "camera": 1,
         "arms": [{

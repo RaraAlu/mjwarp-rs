@@ -12,7 +12,7 @@ param(
     [string]$OutFile = 'scripts\validate\render-bvh\guards-sdf-validate.json',
     [string]$WorkDir = 'target\render-bvh\sdf-validate-window',
     [int]$Attempt = 1,
-    [string]$CriterionVersion = 'render-sdf-criterion-v2.1',
+    [string]$CriterionVersion = 'render-sdf-criterion-v2.2',
     [int]$BoundUlp = 128,
     [string]$OutlineDir = ''
 )
@@ -129,12 +129,12 @@ $shadow = @(Get-ChildItem (Join-Path $RepoRoot 'fixtures/render-bvh/scene-shadow
 } | Sort-Object { $_.FullName })
 foreach ($file in $shadow) { $inputs += File-Entry $file.FullName.Substring($RepoRoot.Length + 1) }
 
-# criterion v2.1 outline lists (2 frozen entries; see sdf-outline-tool-v2.1 contract).
+# criterion v2.2 outline lists (2 frozen entries; see sdf-outline-tool-v2.1 contract).
 $outlineLists = @()
 $outlineRoot = if ($OutlineDir) { $OutlineDir } else { Join-Path $WorkDir ("attempt$Attempt\outline") }
 $outlineJsonPath = Join-Path $outlineRoot 'outline-lists.json'
 if (-not (Test-Path -LiteralPath $outlineJsonPath)) {
-    throw "criterion v2.1 outline-lists.json missing: $outlineJsonPath (run the authoring tool first)"
+    throw "criterion v2.2 outline-lists.json missing: $outlineJsonPath (run the authoring tool first)"
 }
 $outlineDoc = [IO.File]::ReadAllText($outlineJsonPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
 # signed proposal prototype list sha256 (criterion v2.1 section 2.2: the lists are byte-identical

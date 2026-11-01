@@ -1,4 +1,4 @@
-//! Env-gated scene-a sphere-outline exemption support (criterion render-sdf-criterion-v2.1).
+//! Env-gated scene-a sphere-outline exemption support (criterion render-sdf-criterion-v2.2).
 //!
 //! Semantics:
 //!   - disabled (neither env var set): callers keep the raw product comparison, so plain
@@ -160,8 +160,8 @@ pub fn parse_list_with_json(
         .unwrap_or_else(|error| panic!("{}: invalid JSON: {error}", json_path.display()));
     assert_eq!(
         doc.get("criterion_version").and_then(|v| v.as_str()),
-        Some("render-sdf-criterion-v2.1"),
-        "{}: criterion_version is not render-sdf-criterion-v2.1",
+        Some("render-sdf-criterion-v2.2"),
+        "{}: criterion_version is not render-sdf-criterion-v2.2",
         json_path.display()
     );
     let bound = json_u64(&doc, "bound_ulp", &json_path);
@@ -287,7 +287,7 @@ impl OutlineStats {
     }
 }
 
-/// Criterion-v2.1 depth comparison for one camera. `None` arm or disabled env => `None`
+/// Criterion-v2.2 depth comparison for one camera. `None` arm or disabled env => `None`
 /// (caller keeps the raw comparison).
 pub fn depth_stats(
     actual: &[f32],
@@ -356,7 +356,7 @@ pub fn depth_stats(
     Some(stats)
 }
 
-/// Drop-in for `diff_depth` applying the env-gated v2.1 exemption. `None` arm keeps the raw
+/// Drop-in for `diff_depth` applying the env-gated v2.2 exemption. `None` arm keeps the raw
 /// comparison. Panics on any violation; on success the returned numbers express the criterion
 /// (outside-list mismatches, in-list values logged separately).
 pub fn diff_depth_with_outline(actual: &[f32], camera: &RefCamera, arm: Option<Arm>) -> DepthDiff {
@@ -372,7 +372,7 @@ pub fn diff_depth_with_outline(actual: &[f32], camera: &RefCamera, arm: Option<A
     assert_eq!(
         stats.violations,
         0,
-        "criterion v2.1 outline violation on cam{} (arm {}): outside_list_mismatch={} \
+        "criterion v2.2 outline violation on cam{} (arm {}): outside_list_mismatch={} \
          in_list_over_bound={} in_list_max_ulp={} (list {} px, exact max {}): {}",
         camera.index,
         arm.label(),
@@ -430,7 +430,7 @@ pub fn adjust_recipe_diff(
     assert_eq!(
         stats.violations,
         0,
-        "criterion v2.1 outline violation on cam{} (arm recipe): outside_list_mismatch={} \
+        "criterion v2.2 outline violation on cam{} (arm recipe): outside_list_mismatch={} \
          in_list_over_bound={} in_list_max_ulp={} (list {} px, exact max {})",
         camera_index,
         stats.outside_mismatch,

@@ -1,0 +1,135 @@
+U4 attempt5 window plan v4 (material v4; criterion render-sdf-criterion-v2.2 signed 2026-11-01T21:42:50+08:00)
+===================================================================================================================
+Material task: 2026-11-01-render-sdf-attempt5-material-v4 (Arch; offline, zero GPU)
+Executed task: 2026-10-31-render-sdf-validate   [GPU full load; user double-sign required]
+
+Prerequisites (all landed, verified): U1b redo 013d8d4a; a-order refix fa604008 (kernel source
+10070226../PTX 7782aeb1../268,589); criterion v2.2 signed and recorded
+(docs/development-evidence/render-bvh/sdf-criterion-v2.2/); v2.2 test patch applied
+(commit 685aa498, tests/** only, 9/9 entity exe hashes changed); authoring tool v2.1 contract
+(sdf-outline-tool-v2.1/); env-gated test support (sdf-outline-test-support/); freeze/runner
+extension (sdf-freeze-runner-v2.1/). attempt4 is INVALID (v2.1 acceptance-surface coverage gap)
+and its freeze is VOID - archived in sdf-validate-window/attempts/attempt4/, never reused.
+
+0. THREE-QUESTION HEADER (aligned with docs/development-evidence/criteria-purpose-audit/standard.md)
+- Ruling goal: decide whether SDF (gtype==8) can be released.
+- Consumer: product release (SDF reachability); the scene-a 8 regressions are internal regression only.
+- Nature of the measured object: SDF = gtype==8 intersecting via the underlying mesh (render_common.cu:366 /
+  upstream render.py:738-761); the scene-a sphere outline = ordinary sphere primitive FMA-association
+  arithmetic difference (a = dot(vec,vec)), NOT an SDF decision item.
+- Premise: bitwise criteria hold only when reference and product share the compilation form; the two upstream
+  references differ in the `a` association (RCA sha 90a39b03../9176), so the scene-a sphere outline uses the
+  criterion-v2.1 exact-difference list exemption instead of bitwise equality.
+
+1. CRITERIA (criterion render-sdf-criterion-v2.2, signed 2026-11-01T21:42:50+08:00; B=128 ULP)
+1.1 SDF entity render_sdf_reference (bitwise, no relaxation; unchanged from v2/v2.1)
+    rgb max_byte_diff=0; depth bitwise mismatched=0 AND max_ulp=0; seg exact; two-run rgb/depth/seg sha256
+    equal; shadow on/off arm consistency (depth/seg bitwise, rgb off>=on reversed>1LSB=0, changed pixels>0,
+    both arms two-run sha); DepthSeg cross-path bitwise identical to megakernel.
+1.2 scene-a regressions (8 entities): exact-difference list exemption (v2.2 clauses 1/2)
+    list(arm) = pixels where form A (a-order 0,1,2, the reference form) and form B (a-order 1,0,2, the
+    product form after the refix) produce different depth bits, over all camera-1 sphere pixels.
+    - outside the frozen list: any non-zero delta fails (1 ULP included);
+    - inside the frozen list: |delta| <= 128 ULP; list membership must match pixel-for-pixel;
+    - camera 0 has 0 sphere pixels and stays bitwise;
+    - the two lists are frozen into the guards file (sha256/bytes/rows/first_pixel/exact_max_ulp) and are
+      immutable inside the window.
+    - clause 1 (v2.2 section 2.5): every camera-1 sphere-outline depth comparison based on a same-recipe
+      (use_fast_math=False) reference - including the baseline arms and culling_off / other flag-variant
+      arms - uses the frozen recipe list (183 px / cfd1038a.. / exact max 73); the aa2 arm uses the aa2
+      list (172 px / 14893fc6.. / exact max 91). Premise: variant references' camera-1 sphere pixels
+      (seg geom 2/type 5) are seg+depth bitwise identical to the recipe reference (culling_off 747/747),
+      mechanically re-checked on every `cargo test` by the zero-GPU static assertion
+      (tests/support/render_bvh/s7b3.rs::assert_culling_off_sphere_matches_recipe_reference).
+    - clause 2 (v2.2 section 4.5): the S0b fast-math cross-recipe comparison in render_kernel_depth_seg is
+      RECORD-ONLY (B-class premise "same compilation form" does not hold after the a-order refix); the one
+      kept fail-closed rule is that every >4 ULP pixel must be inside the frozen recipe list (attempt4:
+      149/149 inside, 0 outside). The reference-vs-reference histogram assertion is kept.
+    Measured (reproduces attempt3/attempt4 exactly): recipe 183 px / exact max 73 ULP (first 28969 = (169,120));
+    aa2 arm 172 px / exact max 91 ULP (first 29448 = (168,122)); B = 128 = next power of two above the exact
+    maxima; the analytic v2 section-3 bound (414.57 / 494.52 ULP margin) is recorded only and NOT used for B.
+
+2. ENTITIES (9)
+  new: render_sdf_reference (5 GPU tests)
+  regressions: render_context_lifecycle, render_e2e, render_kernel_depth_seg, render_kernel_flags,
+               render_kernel_rgb, render_mesh_bvh, render_r10_multi_world, render_skybox_reference
+
+3. FREEZE (attempt=5, fresh; attempt4 INVALID and void; old 92-entry freezes are invalid)
+  step 1 (offline authoring-class pinned-Python tool; zero GPU; declared in section 7):
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/authoring/author-scene-a-sphere-outline.ps1 ^
+      -Out target/render-bvh/sdf-validate-window/attempt5/outline
+    expects exit 0; produces scene-a-sphere-outline-{recipe,aa2}.txt (byte-identical to the signed
+    prototype: recipe cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee / 10,099 B /
+    183 rows; aa2 14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab / 9,509 B / 172 rows)
+    + outline-lists.json (single source of truth for rows / exact_max_ulp / bound_ulp) + bounds sidecars.
+  step 2 (freeze; 9 exe + 83 inputs + 2 outline lists = 94 entries; the 9 entity exe hashes ALL changed
+  after the v2.2 test patch, so this must be a fresh compile + fresh freeze):
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/freeze-guards-sdf.ps1 ^
+      -Attempt 5
+    hard asserts: criterion_version=render-sdf-criterion-v2.2, bound_ulp=128, two arms, per-arm
+    exact_max_ulp<=128, list bytes/sha256/rows/first_pixel match; guards file carries criterion_version,
+    bound_ulp, counts.outline_lists=2, counts.total=94 and outline_lists[] (with bounds_sidecar).
+  step 3 (guards-only recheck; ALL parameters are mandatory - attempt4 errata):
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate/render-bvh/run-window.ps1 ^
+      -GuardsOnly -Attempt 5 ^
+      -GuardsFile scripts/validate/render-bvh/guards-sdf-validate.json ^
+      -OutDir target/render-bvh/sdf-validate-window/attempt5
+    expects GUARDS_OK=94/94 + OUTLINE_LISTS_OK=2/2 + GUARDS_ONLY_DONE.
+    (Omitting -GuardsFile makes the runner read the hfield guards.json with 73 entries and fail with
+    GUARDS_OK=64/73 INVALID_ROUND exit9 - exactly the attempt4 invalid invocation; see
+    sdf-validate-window/attempts/attempt4/notes-errata.txt.)
+  The two lists are immutable inside the window (runner re-checks before the body and after the window;
+  any drift is OUTLINE_LIST_DRIFT exit 9).
+
+4. CONDITIONAL MONITOR PROTOCOL (unchanged, PowerShell 5.1 only)
+  step1 regular: monitor-until-clean.ps1 -OutCsv target/render-bvh/sdf-validate-window/monitor-pre-window-attempt5.csv
+    -Required 60 -MaxMinutes 30   (default MaxUtil=40, no -OpenUtilLimit); 60/60 => normal window;
+    otherwise keep the failed CSV/snapshot/verdict verbatim.
+  step2 exception (signed validation_only_exception_util_lt_60): re-baseline -> monitor ...-exception-attempt5.csv
+    -MaxUtil 60 -> 60/60 only. Both monitors go into evidence; never described as a regular-threshold pass.
+    ge40_clean recomputed; ge60 warm-up samples outside the 60-clean streak recorded as-is.
+  Desktop-load note: the v4 pre-window baseline sampled utilization.gpu 82/86/92 % from desktop processes
+  (all compute-app rows N/A, no process holds GPU memory). The monitor must nevertheless reach 60 consecutive
+  util<40 samples before the body; if the desktop load does not calm down, only the signed exception path
+  applies. These pre-window utilization samples are not a window result.
+  fail-closed: any nonzero step / floor breach / external compute app / build process => stop, no retry,
+  no re-freeze, no criteria change.
+
+5. WINDOW PREPARATION CHECKLIST (must all hold before opening)
+  [ ] tree clean; `cargo test --no-run` EXIT=0; build processes 0; GPU idle (util < 40, free >= signed floor 11389 MiB)
+  [ ] host unlock state matches the target expectation: grep reject_sdf_geometry src/render/kernel/megakernel.rs = 0
+  [ ] criterion version render-sdf-criterion-v2.2 signed; B=128; exact max 73/91
+  [ ] clause 1 hardened assertion in place (s7b3.rs assert_culling_off_sphere_matches_recipe_reference; the
+      zero-GPU flag fixture test passes) and clause 2 record-only + ">4 ULP subset of frozen list" fail-closed
+      assertions in place (depth_seg.rs)
+  [ ] kernel identity: source 10070226../PTX 7782aeb1../268,589; aa_resolve 0bf8af5a../b28e155c../27,536
+  [ ] fresh freeze only (attempt=5); no reuse of attempt1/2/3/4 guards; outline lists regenerated now
+  [ ] -GuardsOnly 94/94 + OUTLINE_LISTS_OK=2/2 with ALL parameters (-Attempt 5 -GuardsFile .. -OutDir ..)
+
+6. WINDOW PLAN / BASELINE (baseline measured BEFORE the window; signed together with this plan)
+  Pre-window baseline: baseline-pre-window-v4.txt (three read-only nvidia-smi points; min free 14461 MiB;
+  floor = min(free) - 3072 = 11389 MiB; desktop utilization 82-92 % noted as not-a-window-result).
+  At window time re-sample three points after the freeze step; if free < the signed floor at any sample ->
+  STOP, verbatim facts, no body in this attempt. The runner's own floor is
+  min(OpenFreeMiB=10240, baseline_free - 3072); the stricter of the two governs.
+  Expected duration 30-60 min (freeze ~3-4 min incl. tool + 94 hashes + body ~50 s + monitor up to 30 min);
+  9 entities; single full-load GPU task; no other GPU job concurrently.
+
+7. FREEZE-STEP TOOL DECLARATION + BODY CONSUMPTION
+  The freeze step runs an offline authoring-class pinned-Python tool
+  (scripts/authoring/author-scene-a-sphere-outline.ps1 + helpers): zero GPU, outside the product chain, not
+  referenced by product build/tests/cargo gates/product scripts; the wrapper re-checks the pinned environment
+  and upstream identity and fails closed; it writes only to -Out. Its exact-difference lists (183/172 rows)
+  and exact max (73/91) are frozen into the guards file; exact max > 128 aborts the freeze.
+  Body consumption is env-gated: run-window.ps1 exports MJWARP_RENDER_OUTLINE_LIST_DIR and
+  MJWARP_REQUIRE_OUTLINE_CRITERION=1; tests/support/render_bvh applies the exemption (outside list bitwise,
+  inside <= 128 ULP, clause 1 variant arms included) and panics on any violation; without the variables
+  plain cargo test behaviour is unchanged.
+
+8. BOUNDARIES / NOT CLAIMED
+  criterion v2.2 (user-signed) adds clause 1 (variant arms reuse the recipe list), clause 2 (S0b
+  cross-recipe record-only + fail-closed subset rule) and the zero-GPU hardened assertion; numeric values
+  (B=128, lists 183/172, exact max 73/91), references, fixtures, product src and kernel identity are
+  unchanged by this material. attempt4 is INVALID (v2.1 acceptance-surface coverage gap, not a product
+  regression) and its freeze is void. The exemption is signature-level and only applies inside the frozen
+  window. No acceptance, parity or precision statement is made here; U4 stays not passed until attempt5 runs.

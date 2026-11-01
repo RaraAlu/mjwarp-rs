@@ -1,4 +1,4 @@
-"""Author the scene-a sphere-outline exact-difference lists for the v2.1 freeze step.
+"""Author the scene-a sphere-outline exact-difference lists for the v2.2 freeze step.
 
 OFFLINE AUTHORING TOOL (outside the product chain): it is never referenced by the product
 build, the product tests, cargo gates or product scripts; it reads frozen fixtures only and
@@ -9,7 +9,7 @@ before running this file.
 The numeric replay (exact single-rounding f32, camera-ray port, both `a = dot(vec,vec)`
 association forms) lives in `scene_a_outline_replay.py` next to this file.
 
-Contract (criterion render-sdf-criterion-v2.1):
+Contract (criterion render-sdf-criterion-v2.2):
   * list(arm) = the exact difference set of the two `a = dot(vec,vec)` association forms
     (form A = (0,1,2) reference form, form B = (1,0,2) product form) over camera-1 sphere
     pixels of the frozen reference; outside the list the product must be bitwise equal;
@@ -24,7 +24,7 @@ only; not used to determine B), `outline-lists.json` (machine readable summary u
 step to fill the guards file), `b-recompute.txt`, `selfcheck.txt`, `open-items.txt`,
 `sha256sums.txt`.
 
-Exit codes: 0 = freeze verdict OK; 4 = exact max > 128 (v2.1 freeze failure); 5 = internal
+Exit codes: 0 = freeze verdict OK; 4 = exact max > 128 (v2.2 freeze failure); 5 = internal
 self-check failed; 6 = frozen input hash mismatch.
 """
 
@@ -41,7 +41,7 @@ import numpy as np
 import scene_a_outline_replay as replay_mod
 
 BOUND_ULP = 128
-CRITERION_VERSION = "render-sdf-criterion-v2.1"
+CRITERION_VERSION = "render-sdf-criterion-v2.2"
 
 # (reference path, samples_per_pixel, entities consuming the list)
 ARMS = (
@@ -304,12 +304,12 @@ def main(argv=None):
                      f"margin {stats['max_ratio_margin']:.4f} (no pixel with ratio >= 1)")
         lines.append(f"  exact_max <= B: {'YES' if result['exact_max_ulp'] <= BOUND_ULP else 'NO'}")
         lines.append("")
-    lines.append(f"verdict: {'CRITERION_V2.1_FREEZE_OK' if not over_bound else 'CRITERION_V2.1_FREEZE_FAIL'}")
+    lines.append(f"verdict: {'CRITERION_V2.2_FREEZE_OK' if not over_bound else 'CRITERION_V2.2_FREEZE_FAIL'}")
     (out / "b-recompute.txt").write_bytes(("\n".join(lines) + "\n").encode("ascii"))
     writes.append("b-recompute.txt")
 
     lines = [
-        "dump tool self-check (offline authoring, zero GPU; criterion v2.1 contract)",
+        "dump tool self-check (offline authoring, zero GPU; criterion v2.2 contract)",
         f"1) camera-space rays vs S5 fixture default_all samples: {ray_total - ray_bad}/{ray_total} "
         f"bitwise equal",
     ]
