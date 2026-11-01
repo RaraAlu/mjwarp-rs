@@ -1,0 +1,108 @@
+{
+  "task_id": "2026-11-01-render-sdf-criterion-v22-signed",
+  "kind": "render-sdf-criterion-v2.2-signed",
+  "owner": "Arch",
+  "status": "signed and recorded; no window opened, no freeze, zero GPU",
+  "criterion": {
+    "version": "render-sdf-criterion-v2.2",
+    "based_on": "render-sdf-criterion-v2.1 (signed 2026-11-01T02:42:29+08:00, B=128 ULP)",
+    "bound_ulp": 128,
+    "bound_definition": "B = next power of two >= the exact freeze-time maximum |depth_bits(form A) - depth_bits(form B)| over the frozen list pixels (exactly computable, not an analytic upper bound); unchanged from v2.1",
+    "signed_at": "2026-11-01T21:42:50+08:00",
+    "approved_by": "user via Chief",
+    "exact_max_ulp": {
+      "recipe": 73,
+      "aa2": 91
+    },
+    "signature_sentence": "SDF 实体保持位级；scene-a 球轮廓仅在冻结清单内、精确 max <= 128 ULP 时豁免；清单外任何像素 depth 偏差 1 ULP 即失败，清单内超 128 ULP 即失败；冻结时精确 max > 128 即该 attempt 失败且禁止抬高 B。条款 1：scene-a 回归实体内，凡以同配方参考为基准的 camera 1 球面轮廓深度比较，含 culling_off 等 flag 变体臂，统一使用 recipe 清单（183 px / cfd1038a..），aa2 臂使用 aa2 清单；前提是变体参考球面位与 recipe 参考逐位相同（747/747，由每次 cargo test 的零 GPU 静态断言机械检查）。条款 2：S0b fast-math 跨配方比较降级为记录（B 类前提不成立），保留 fail-closed：任何 >4 ULP 像素必须落在冻结 recipe 清单内。",
+    "fail_closed": [
+      "outside the frozen list: any non-zero depth delta fails (1 ULP included)",
+      "inside the frozen list: |delta| > 128 ULP fails",
+      "list membership must match pixel-for-pixel (extra or missing pixel fails)",
+      "freeze-time exact max > 128 fails the attempt; raising B is forbidden; no re-freeze in the same attempt",
+      "list sha256 / row count mismatch at freeze or inside the window fails",
+      "clause 2: S0b cross-recipe >4 ULP pixels must all be inside the frozen recipe list (window env only)"
+    ]
+  },
+  "clauses_v2_2": {
+    "clause_1_variant_arms_reuse_recipe_list": {
+      "scope": "scene-a regression entities: any camera-1 sphere-outline depth comparison against a same-recipe (use_fast_math=False) reference, including culling_off and any other flag-variant arm",
+      "list": "recipe exact-difference list (183 px / sha cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee), aa2 arm keeps the aa2 list (172 px / 14893fc6..)",
+      "premise": "variant references camera-1 sphere pixels (seg geom 2/type 5) have bitwise-identical seg and depth to the recipe reference (culling_off 747/747; camera 0 76,800/76,800 bitwise)",
+      "premise_check": "tests/support/render_bvh/s7b3.rs::assert_culling_off_sphere_matches_recipe_reference, called from the zero-GPU flag_fixtures_are_complete_and_documented test on every cargo test run"
+    },
+    "clause_2_s0b_cross_recipe_record_only": {
+      "scope": "render_kernel_depth_seg product-vs-S0b-fast-math cross-recipe comparison",
+      "change": "downgraded to record-only (observation; never an acceptance basis) because the B-class premise same compilation form does not hold after the a-order refix",
+      "fail_closed_kept": "every >4 ULP pixel must be inside the frozen recipe list (attempt4: 149/149 inside, 0 outside); reference-vs-reference histogram assertion kept",
+      "recorded_values": "cam1 mismatched=4247 max_ulp=73 histogram=[38953,3677,382,12,27,149] beyond4=149; cam0 mismatched=19074 max_ulp=2 histogram=[57726,17681,1393,0,0,0]"
+    }
+  },
+  "scope": {
+    "sdf_entity": "render_sdf_reference bitwise, unchanged from v2/v2.1 section 1",
+    "scene_a_exemption": "camera 1 only: pixels where form A (a-order 0,1,2) and form B (a-order 1,0,2) differ, frozen as exact-difference lists; camera 0 has 0 sphere pixels",
+    "window_only": "the lists + exact-computable B are enforced only inside the frozen validation window (window runner sets MJWARP_RENDER_OUTLINE_LIST_DIR + MJWARP_REQUIRE_OUTLINE_CRITERION=1); outside the window plain cargo test/CI behaviour is unchanged and nothing may be claimed from this criterion"
+  },
+  "lists_unchanged_from_v2_1": {
+    "recipe": {
+      "list_pixels": 183,
+      "bytes": 10099,
+      "sha256": "cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee",
+      "first_differing_pixel": 28969,
+      "first_differing_xy": [
+        169,
+        120
+      ],
+      "exact_max_ulp": 73,
+      "sphere_pixels": 747
+    },
+    "aa2": {
+      "list_pixels": 172,
+      "bytes": 9509,
+      "sha256": "14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab",
+      "first_differing_pixel": 29448,
+      "first_differing_xy": [
+        168,
+        122
+      ],
+      "exact_max_ulp": 91,
+      "sphere_pixels": 745
+    },
+    "note": "v2.2 does not change the lists, B or the exact maxima; attempt5 must re-freeze with the same prototype list sha256 values"
+  },
+  "premise": {
+    "same_frozen_reference_forms": "v2.2 applies only to the frozen reference files pinned by the authoring tool",
+    "same_product_kernel_identity": "megakernel source 10070226../PTX 7782aeb1../268,589 B (a-order refix form); aa_resolve 0bf8af5a../b28e155c../27,536 B",
+    "replay_fidelity": "camera-space rays 256/256; form A vs frozen reference depth bits 747/747 (recipe) and 745/745 (aa2); form B vs form A 183 px / 73 ULP and 172 px / 91 ULP",
+    "clause_1_premise": "culling_off camera-1 sphere pixels seg+depth bitwise equal to the recipe reference (747/747), re-checked on every cargo test run",
+    "freeze_time_recompute": "lists, list sha256 and exact max are re-derived at the freeze step and written into the guards file; any drift fails closed"
+  },
+  "attempt4_invalid": {
+    "result": "INVALID_ROUND exit10: 7/9 entities exit 0; render_kernel_depth_seg exit101 (s0b cross-recipe >4 ULP assertion), render_kernel_flags exit101 (culling_off raw comparison)",
+    "discipline_clean": "zero_rust_compile=true, guards 94/94, outline lists pre/post 2/2, post-window exe recheck 9/9, free_min 13191, floor not breached, residual processes 0",
+    "classification": "criterion v2.1 acceptance-surface coverage gap (not a product regression, not an execution error); the freeze is void and must not be reused",
+    "evidence": "docs/development-evidence/render-bvh/sdf-validate-window-material-v4/attempt4-invalid/ (guards 13ba1bee../37,000 B, facts, entity results, logs, errata)",
+    "offline_analysis": "target/v22-precheck.md (read-only fixtures; QA independently reproduced the numbers)"
+  },
+  "evidence": {
+    "spec": "docs/development-evidence/render-bvh/sdf-criterion-v2.2/spec.md",
+    "spec_sha256": "053e1104c8f6e25fc1fc99e47f5017ea52eb7b8b6236a117662b345cc76996e0",
+    "spec_bytes": 15677,
+    "no_run_log": "docs/development-evidence/render-bvh/sdf-criterion-v2.2/logs/no-run.txt (cargo test --locked --features cuda-probe --no-run, EXIT=0)",
+    "previous_signed": "docs/development-evidence/render-bvh/sdf-criterion-v2.1/spec.md (frozen history, unchanged)",
+    "offline_analysis": "target/v22-precheck.md",
+    "test_patch": "target/v22-tests.patch (sha256 421c1a2c96a9ea981b029ec8b4d7cc7c63872c3878d247950b80c78c4dee, 8,466 B, 5 hunks, tests/** only)"
+  },
+  "next_slices": [
+    "apply the v2.2 test patch (tests/** only) + four gates + --no-run + commit",
+    "attempt4 INVALID evidence into attempts/attempt4/",
+    "attempt5 window material v4 + fresh freeze (94 = 9 exe + 83 inputs + 2 lists) after the double-sign",
+    "body attempt5, evidence, QA review"
+  ],
+  "not_claimed": [
+    "渲染数值验收通过",
+    "上游等价",
+    "精度达标"
+  ],
+  "boundaries": "zero GPU, zero freeze, zero window, no criterion numeric change, no list/reference/fixture/kernel/src change in this slice; only the signed spec/receipt/manifest/log and the frozen v2.1 history reference"
+}
