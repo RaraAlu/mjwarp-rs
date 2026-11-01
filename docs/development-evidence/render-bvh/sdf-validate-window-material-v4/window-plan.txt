@@ -145,3 +145,19 @@ and its freeze is VOID - archived in sdf-validate-window/attempts/attempt4/, nev
   sha256 9e000bfc1f8438a4bd6fd5f8c8ccf214c2ab43aee7c1ed1fce78ed51e7646c32 / 37,000 B,
   aggregate 034c7551226e321fab83b0ec4ef92a2dd82e9077ee3f31e7ad88f9a5d3b305b9,
   criterion_version=render-sdf-criterion-v2.2, bound_ulp=128, 94 - 9 exe + 83 inputs + 2 lists.
+10. EVIDENCE CROSS-REFERENCES AND WINDOW BUILD RULE (2026-11-01, evidence-level)
+  - The prerequisite list above references the v2.1-era evidence directories
+    (sdf-outline-tool-v2.1/, sdf-freeze-runner-v2.1/); those record the v2.1-TIME tool/runner
+    identities. The CURRENT scripts are identified in this material's receipt.json
+    (script_identities): authoring wrapper dd0663f4../5,923 B, authoring helper 5308e4e4../18,613 B,
+    replay 94ea3786../16,567 B, freeze 21fe74a5../12,906 B, runner 2abb8a77../22,910 B.
+  - The attempt5 freeze resolved the 9 entity executables through the freeze script's internal
+    `cargo test --no-run --message-format=json` (first line of freeze-tool-run.txt) after an
+    explicit `cargo test --locked --features cuda-probe --no-run` returned EXIT=0 at 21:50:38;
+    exe-identities.txt lists the 9 frozen exe sha256/bytes straight from the frozen guards file
+    (exe mtimes 21:50:xx), so the freeze is bound to the current source.
+  - WINDOW BUILD RULE (fail-closed): after the freeze ONLY the `--features cuda-probe` test
+    profile may be built/run (the profile the frozen exe were built with). Building or testing
+    with the default feature set is forbidden inside the window: it recompiles the test crates
+    with a different fingerprint and replaces the frozen exe sha. Any deps drift is already a
+    runner hard failure (zero_rust_compile / post-window exe recheck).

@@ -57,3 +57,21 @@ to v2.2 (list file headers keep the signed prototype v2.1 bytes) and the freeze 
 sha256 values are unchanged (`cfd1038a../10,099 B/183`, `14893fc6../9,509 B/172`); no criterion
 value, list, reference, fixture or kernel identity changed. The registered attempt5 guards are
 `9e000bfc../37,000 B`, aggregate `034c7551..`, `criterion_version=render-sdf-criterion-v2.2`.
+## §3f evidence cross-references and window build rule
+
+- The header references to `sdf-outline-tool-v2.1/` and `sdf-freeze-runner-v2.1/` are the
+  **v2.1-time** identities; the CURRENT scripts are listed in `receipt.json` `script_identities`
+  (authoring helper `5308e4e4../18,613 B`, freeze `21fe74a5../12,906 B`, runner `2abb8a77../22,910 B`).
+- `exe-identities.txt` is the authoritative list of the 9 frozen entity exe sha256/bytes, taken
+  from the frozen guards file; `target/v22-new-exe-sha.txt` is a patch-time snapshot only.
+- The freeze ran `cargo test --no-run --message-format=json` inside the freeze script
+  (`freeze-tool-run.txt`, first line) after an explicit
+  `cargo test --locked --features cuda-probe --no-run` returned EXIT=0; exe mtimes 21:50:xx bind
+  the freeze to the current source.
+- **Window build rule**: after the freeze only `--features cuda-probe` build/test is allowed; the
+  default feature set is forbidden inside the window (it recompiles the test crates and replaces
+  the frozen exe sha).
+- Unit-gate caliber: the `735/0/137` numbers in the slice cards were measured as
+  `cargo test --lib --locked --features cuda-probe`; `gates.toml` defines `gate.unit` as
+  `cargo test --locked` (default features), which was NOT run for these evidence-only slices and
+  the numbers are not quoted as gate.unit results.
