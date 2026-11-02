@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-02-render-sdf-attempt5-valid",
+  "title": {
+    "zh": "attempt5 窗口执行（criterion v2.2；常规 monitor 60/60；9 实体 exit 0；guards 入库）",
+    "en": "attempt5 window execution (criterion v2.2; regular monitor 60/60; 9 entities exit 0; guards committed)"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "在用户 2026-11-02T08:29:18+08:00 双签的 attempt5 窗口（12:00–14:00 空闲段）内执行 criterion v2.2 验证：12:00 首次开窗因外部负载（free 1747 MiB < signed floor 10376）手动 STOP 并留痕；13:14 GPU 释放后复采三点（free 12947x3、util 4）→ 等 util 稳定 → 常规 monitor `-Required 60 -MaxMinutes 10`（PS 5.1、MaxUtil=40、不加 -OpenUtilLimit）通过（94 样本、longest_clean=60、util 1–64%、free_min 12435、exit0，未用例外）→ body（`-Attempt 5 -GuardsFile scripts/validate/render-bvh/guards-sdf-validate.json -OutDir target/render-bvh/sdf-validate-window/attempt5`）9 实体全部 exit 0（body_wall 48.4s）→ 窗后复查（outline_lists_post 2/2、post exe 9/9、zero_rust_compile、floor/increment 未破）。证据 33 文件归档到 attempts/attempt5/ 并出 manifest；冻结 guards（9e000bfc../37,000 B、aggregate 034c7551..、94 条）随同一笔提交入库，供删 target 后复算。",
+    "en": "Execute the criterion v2.2 attempt5 window signed at 2026-11-02T08:29:18+08:00: the 12:00 open attempt was manually stopped (external load, free 1747 MiB < signed floor 10376) and recorded; after the GPU was released at 13:14, re-sample three points (free 12947x3, util 4), run the regular monitor (-Required 60 -MaxMinutes 10, PS 5.1, MaxUtil=40, no -OpenUtilLimit) which passed (94 samples, longest_clean=60, util 1-64%, free_min 12435, exit 0; no exception), run the body (-Attempt 5 -GuardsFile ... -OutDir ...) with all 9 entities at exit 0 (body_wall 48.4 s), and post-window rechecks (outline_lists_post 2/2, post exe 9/9, zero_rust_compile, floor/increment not breached). Archive 33 evidence files under attempts/attempt5/ with a manifest, and commit the frozen guards (9e000bfc../37,000 B, aggregate 034c7551.., 94 entries) in the same commit so the freeze identity can be re-derived after target cleanup."
+  },
+  "modules": {},
+  "acceptance": [
+    "证据目录 `sdf-validate-window/attempts/attempt5/` 含 facts.txt、guard.log、sha-guards.txt、samples.csv、entity-results.csv、baseline.txt、machine-load.txt、monitor-pre-window-attempt5.csv、window-open-attempt.txt、guards-sdf-validate.json 副本、outline/（9 个 authoring 产物：两份 9 列清单 + outline-lists.json + 两侧车 + 确定性/sha/selfcheck/recompute/open-items 报告）、logs/（authoring/freeze/guards-only/monitor/body + 9 实体日志）、README.md、manifest.txt（33 项 sha256/bytes 自洽）。",
+    "冻结身份可复算：`scripts/validate/render-bvh/guards-sdf-validate.json` 入库（sha 9e000bfc1f8438a4bd6fd5f8c8ccf214c2ab43aee7c1ed1fce78ed51e7646c32 / 37,000 B、aggregate 034c7551226e321fab83b0ec4ef92a2dd82e9077ee3f31e7ad88f9a5d3b305b9、criterion_version=render-sdf-criterion-v2.2、94 = 9 exe + 83 inputs + 2 清单、9 个 stash 副本）；`sha_guards=94/94`、`post_window_exe_recheck=9/9`。",
+    "窗口事实：常规 monitor 94 样本/longest_clean=60/util 1–64%/free_min 12435/exit0（未用例外）；body 前复采 min free 12947 ≥ signed floor 10376（runner floor 9875 更松，signed floor 生效）；body 9/9 实体 exit 0、body_wall_s 48.4、zero_rust_compile=True、floor_breached=False、increment_exceeded=False、residual_processes=0；outline_lists pre/post 2/2 无漂移。12:00 首次开窗手动 STOP 记录在 window-open-attempt.txt。",
+    "不声明验收通过/上游等价/精度达标：证据只记录 runner verdict 与实测事实，U4 验收状态由判据 owner 决定；零 GPU 任务重跑、零重冻、src/fixtures/判据数值/参考/内核身份零改动。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-01-render-sdf-attempt5-material-v4"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Arch",
+    "files": [
+      "docs/development-evidence/render-bvh/sdf-validate-window/attempts/attempt5/",
+      "scripts/validate/render-bvh/guards-sdf-validate.json"
+    ],
+    "resources": [
+      "gpu:windows-t4"
+    ],
+    "priority": 67
+  },
+  "note": "Arch 2026-11-02 注册（用户已双签 attempt5，criterion v2.2）。GPU 窗口内执行：12:00 首次开窗因外部负载手动 STOP；13:14-13:26 完成常规 monitor 60/60 + body 9 实体 exit 0。guards 随本片入库（QA 磁盘瘦身前置）。窗口已关闭（13:25:58），无并发 GPU 任务。",
+  "created_at": "2026-11-02T05:30:00.000Z",
+  "updated_at": "2026-11-02T05:30:00.000Z",
+  "revision": {
+    "before": "0a28fb46c84b831ce9c7990f18816ccc472bac00",
+    "after": null
+  },
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/",
+        "fixtures/"
+      ]
+    },
+    {
+      "kind": "forbid_claim",
+      "terms": [
+        "渲染数值验收通过",
+        "上游等价",
+        "精度达标"
+      ]
+    }
+  ]
+}
