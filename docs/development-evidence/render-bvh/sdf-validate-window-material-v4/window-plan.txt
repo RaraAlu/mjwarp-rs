@@ -172,3 +172,16 @@ and its freeze is VOID - archived in sdf-validate-window/attempts/attempt4/, nev
     with the default feature set is forbidden inside the window: it recompiles the test crates
     with a different fingerprint and replaces the frozen exe sha. Any deps drift is already a
     runner hard failure (zero_rust_compile / post-window exe recheck).
+11. USER DOUBLE-SIGN (recorded 2026-11-02)
+  signed_at   : 2026-11-02T08:29:18+08:00
+  approved_by : user via Chief
+  covers      : window plan v4 (this file) + baseline-pre-window-v4.txt (floor 10376 MiB)
+  note        : the window opens at 12:00 (+08:00) inside the 12:00-14:00 idle band (the
+                09:00-12:00 and 14:00-18:00 weekday bands are read-only, no GPU window).
+                Execution order after opening: re-sample three points and manually check
+                min free >= 10376 MiB (a sample in [10240, 10376) requires a manual STOP; the
+                runner only aborts below 10240) -> wait for util < 40 to be stable -> regular
+                monitor 60/60 (PS 5.1, MaxUtil=40, no -OpenUtilLimit) -> body 9 entities
+                (-Attempt 5 -GuardsFile scripts/validate/render-bvh/guards-sdf-validate.json
+                -OutDir target/render-bvh/sdf-validate-window/attempt5) -> post-window recheck
+                and evidence.

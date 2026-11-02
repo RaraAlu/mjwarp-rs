@@ -80,3 +80,9 @@ value, list, reference, fixture or kernel identity changed. The registered attem
   `cargo test --lib --locked --features cuda-probe`; `gates.toml` defines `gate.unit` as
   `cargo test --locked` (default features), which was NOT run for these evidence-only slices and
   the numbers are not quoted as gate.unit results.
+
+## §3g user double-sign (2026-11-02T08:29:18+08:00)
+
+Window plan v4 and this baseline v4 (floor 10,376 MiB) were double-signed by user via Chief at
+2026-11-02T08:29:18+08:00. The window opens at 12:00 (+08:00) in the 12:00-14:00 idle band;
+the 09:00-12:00 weekday band is read-only (no builds, no GPU window).
