@@ -38,10 +38,15 @@ reference/fixture/product change.
 
 `cargo clean` also removed the prepared toolchains that were intentionally kept under `target/`:
 
-- `target/toolchains/cuda-12.8.1/` (CUDA 12.8.1 + libmathdx)
+- `target/toolchains/cuda-12.8.1/`
+- `target/toolchains/cuda-12.9.1-nvrtc/`
+- `target/toolchains/libmathdx-0.3.1/`
 - `target/toolchains/mujoco-3.12.0/`
-- `target/toolchains/libmathdx/`
 - `target/mathdx11/`
+
+  Directory names follow the restore run on 2026-11-02 (these are exactly the directory names
+  the two prepare scripts create; the earlier wording `libmathdx/` was wrong and the
+  `cuda-12.9.1-nvrtc` directory was missing from this list).
 
 **Consequence: until they are restored, the default cuda build and native tests are NOT
 available** (`clippy-cuda` / `unit` with the default feature set require the CUDA toolchain;
@@ -81,7 +86,8 @@ recovery requirements; it makes no release/acceptance/parity statement.
   cuda_nvrtc, cuda_cudart, cuda_cccl, cuda_nvcc, libnvjitlink, libmathdx 0.3.1, cuda_nvrtc 12.9.86;
   the script's own sha256 checks passed (exit 0). Restored toolchains:
   `target/toolchains/cuda-12.8.1` (3,683.8 MB), `target/toolchains/cuda-12.9.1-nvrtc`
-  (2,631.4 MB), `target/toolchains/libmathdx-0.3.1` (102.9 MB). `target/toolchains/cuda-12.8.1/bin/nvcc.exe`
+  (2,631.4 MB), `target/toolchains/libmathdx-0.3.1` (102.9 MB) - the restored names match the
+  collateral-deletion list above. `target/toolchains/cuda-12.8.1/bin/nvcc.exe`
   exists ("NVIDIA (R) Cuda compiler driver, Copyright (c) 2005-2025"). Log: `logs/prepare-cuda.txt`.
 - `scripts/prepare-native-probe.ps1`: **EXIT=0, elapsed 13.1 s**; MuJoCo 3.12.0 restored
   (`target/toolchains/mujoco-3.12.0/package/include/mujoco/mujoco.h` present; zip sha256 verified by
