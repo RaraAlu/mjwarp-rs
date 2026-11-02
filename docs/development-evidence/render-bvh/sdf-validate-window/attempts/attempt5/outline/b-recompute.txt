@@ -1,0 +1,24 @@
+criterion render-sdf-criterion-v2.2 freeze report (scene-a, camera 1)
+signed B = 128 ULP = next power of two above the exact freeze-time maximum
+difference; a recomputed exact max above the signed B fails the attempt and raising B
+is forbidden. The analytic v2 section-3 bound below is recorded only.
+inputs: model fixtures/render-bvh/scene-a/model-312.json; sphere geom 2; camera pose from
+        each reference's camera_data_check[1]; znear = f32(vis.map.znear * stat.extent)
+
+arm recipe: fixtures/render-bvh/scene-a/s7b/depth_seg_fast_math_false.json sha256 d6ab6dde58034df5c1bc69ab397026a8f7c3aaf58d29d25edb032d3818000dc7
+  spp=1 raster=240x180 sphere_pixels=747 list_pixels=183 exact_max_ulp=73 first_pixel=28969
+  list=scene-a-sphere-outline-recipe.txt bytes=10099 sha256=cfd1038a1cc50326de51a25495db68cd8b25c0983121dea88a2fb89ca83724ee prototype_byte_identical=True
+  bounds sidecar=outline-bounds-recipe.txt bytes=5027 sha256=8a80fb0a43cbe1c2805ce7307c1ed62f0f7f1f42cf2ded621dcec3d658cf7948 (recorded only)
+  analytic (recorded only): bound_raw min/median/max = 25.39 / 32.13 / 360.49; margin = 29.20 / 36.95 / 414.57
+  observed/bound ratios: raw 0.4005, margin 0.3483 (no pixel with ratio >= 1)
+  exact_max <= B: YES
+
+arm aa2: fixtures/render-bvh/scene-a/s7b/flags/aa2_depth_seg.json sha256 79a275eff5d45f6bef764957e5f4987d0e6abfbb9b7a2cb578c8e1f717d4b7e1
+  spp=2 raster=240x180 sphere_pixels=745 list_pixels=172 exact_max_ulp=91 first_pixel=29448
+  list=scene-a-sphere-outline-aa2.txt bytes=9509 sha256=14893fc6a2479e8e8f5e9cc07cabe72fd9f37aea638dda25fc26839d59ec8eab prototype_byte_identical=True
+  bounds sidecar=outline-bounds-aa2.txt bytes=4734 sha256=f23ca697f34ebd75a21c618ae5c309cfc710d2f2ad82349f864f02dcb30fc303 (recorded only)
+  analytic (recorded only): bound_raw min/median/max = 25.35 / 32.40 / 430.02; margin = 29.16 / 37.26 / 494.52
+  observed/bound ratios: raw 0.4203, margin 0.3655 (no pixel with ratio >= 1)
+  exact_max <= B: YES
+
+verdict: CRITERION_V2.2_FREEZE_OK
