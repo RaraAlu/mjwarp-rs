@@ -21,8 +21,11 @@ statement (U4 acceptance status is decided by the criteria owner).
   this baseline is min(10240, 12947−3072) = 9,875 MiB, which is LOOSER than the signed floor;
   the signed floor governed and was met.)
 - First 12:00 open attempt was stopped manually: free 1,747 MiB < floor (external desktop load);
-  see `window-open-attempt.txt`. The window was opened only after the GPU was released at
-  13:14 (three consecutive samples free 12,942+ MiB, util 4 %).
+  see `window-open-attempt.txt`. The window was opened only after the GPU was released.
+  Archive anchors for the released state: the body-time re-sample in `baseline.txt`
+  (2026-11-02T13:24:53/56/59, free 12,947 MiB x3, util 4/4/4) and the regular-monitor CSV points
+  13:23:31.643 (free 12,942 MiB, util 5) and 13:23:41.809 (free 12,942 MiB, util 4). The earlier
+  13:14 observation existed only in the local watch log and is NOT cited as evidence.
 
 ## Freeze identity (frozen guards, also committed at `scripts/validate/render-bvh/guards-sdf-validate.json`)
 
@@ -70,6 +73,7 @@ statement (U4 acceptance status is decided by the criteria owner).
 | `baseline.txt` / `machine-load.txt` | body-time baseline and machine load |
 | `monitor-pre-window-attempt5.csv` | regular pre-window monitor (60/60 clean, exit 0) |
 | `window-open-attempt.txt` | the 12:00 manual stop by the signed floor (external load) |
+| `guard_aggregate.json` | guard aggregate record (entries/counts and the sampler interval; the same guard numbers also appear in `facts.txt`) |
 | `guards-sdf-validate.json` | the frozen attempt5 guards (also committed under scripts/) |
 | `outline/` | the 9 authoring outputs: two 9-column lists, `outline-lists.json`, two bounds sidecars, determinism/sha/selfcheck/recompute/open-items reports |
 | `logs/` | authoring, freeze, guards-only, monitor, body and the 9 entity logs |
