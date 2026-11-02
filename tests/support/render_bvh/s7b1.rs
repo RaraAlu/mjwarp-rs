@@ -388,6 +388,10 @@ pub struct CameraStats {
 /// 两相机参考对照统计；断言 seg 逐像素全等（可判定），depth 只统计不设容差。
 ///
 /// `label` 用于输出区分「同配方参考（验收口径）」与「S0b fast-math 参考（跨配方已知偏差）」。
+/// B-class premise (reference-premise criterion): the readings produced here are only valid for
+/// the same recipe, the same compilation form, the same GPU+driver and the same warp version;
+/// when a premise fails the criterion is not applicable and it is never a standalone pass basis
+/// (see docs/development-evidence/criteria-purpose-audit/).
 pub fn compare_reference(
     label: &str,
     depth: &[f32],

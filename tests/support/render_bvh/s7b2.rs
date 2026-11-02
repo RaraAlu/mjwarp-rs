@@ -201,6 +201,10 @@ pub struct RgbStats {
     pub first: Option<(usize, usize, usize, usize, u8, u8)>,
 }
 
+/// B-class premise (reference-premise criterion): the readings produced here are only valid for
+/// the same recipe, the same compilation form, the same GPU+driver and the same warp version;
+/// when a premise fails the criterion is not applicable and it is never a standalone pass basis
+/// (see docs/development-evidence/criteria-purpose-audit/).
 pub fn diff_rgb(actual: &[u32], camera: &RgbCamera) -> RgbStats {
     assert_eq!(actual.len(), camera.pixels, "RGB 像素数");
     let mut stats = RgbStats {

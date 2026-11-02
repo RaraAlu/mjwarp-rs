@@ -8,6 +8,10 @@
 use serde::Deserialize;
 
 /// 验收的 depth 最大允许差（ULP，按 f32 位型有序化后比较）。
+/// B-class premise (reference-premise criterion): the bound below holds only when the
+/// comparison uses the same recipe, the same compilation form, the same GPU+driver and the same
+/// warp version. If any premise fails the criterion is NOT applicable, and it is never a
+/// standalone pass basis (see docs/development-evidence/criteria-purpose-audit/).
 pub const MAX_DEPTH_ULP: i64 = 4;
 
 /// 参考夹具形状/长度错误；出现即 fail，不静默跳过。
@@ -377,6 +381,10 @@ pub fn ulp_distance(left: u32, right: u32) -> i64 {
 }
 
 /// 逐像素比较 actual（f32 值）与参考位型。
+/// B-class premise (reference-premise criterion): the readings produced here are only valid for
+/// the same recipe, the same compilation form, the same GPU+driver and the same warp version;
+/// when a premise fails the criterion is not applicable and it is never a standalone pass basis
+/// (see docs/development-evidence/criteria-purpose-audit/).
 pub fn diff_depth(actual: &[f32], reference: &RefCamera) -> Result<DepthDiff, ReferenceError> {
     if actual.len() != reference.depth_bits.len() {
         return Err(ReferenceError::Length {
