@@ -17,6 +17,10 @@
 //! - shadow 开/关：depth/seg 位级相等；rgb `off >= on`（逆序超 1 LSB 的通道=0）且差异像素>0；
 //! - DepthSeg 跨路径：`render_depth_seg` 与 megakernel 的 depth/seg 位级相等。
 //!
+//! 前提（B 类，CR-10/11/12/16）：上述 `<=4 ULP`、位级 depth、RGB `<=1 LSB` 与 DepthSeg 跨路径断言均为
+//! 参考-前提型判据：仅在同 recipe、同编译形态、同 GPU+驱动、同 warp 版本下成立；前提不成立即不适用，
+//! 不得单独作为通过依据（详见 `docs/development-evidence/criteria-purpose-audit/b-class-premises.md`）。
+//!
 //! ```text
 //! cargo test --locked --features cuda-probe --test render_sdf_reference
 //! cargo test --locked --features cuda-probe --test render_sdf_reference -- --ignored --test-threads=1
