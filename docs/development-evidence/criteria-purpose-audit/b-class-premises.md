@@ -32,7 +32,7 @@
 - `src/render/kernel/output.rs`：`MAX_DEPTH_ULP` 常量与 `diff_depth` 补 B 类前提注释。
 - `tests/support/render_bvh/s7b2.rs`：`diff_rgb` 补 CR-12 前提注释。
 - `tests/support/render_bvh/s7b1.rs`：`compare_reference` 补 CR-11 前提注释。
-- `tests/render_sdf_reference.rs`：头部判据列表后补 B 类前提段（CR-10/11/12/16）。
+- `tests/render_sdf_reference.rs`：头部 B 类前提段（CR-10/11/12/16）**未纳入上一张卡（卡 files 未覆盖），该文件本次未改**；待后续小卡 `2026-11-02-render-sdf-reference-premise-header` 落地。
 - 本文件：B 类清单与规则。
 
 ## 不改动项
