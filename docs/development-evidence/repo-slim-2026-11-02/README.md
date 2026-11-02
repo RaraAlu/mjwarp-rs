@@ -75,3 +75,22 @@ toolchain directories.
 No criterion numeric values, lists, references, fixtures, product src or kernel identity were
 changed by the cleanup or by this record. This file records the operator's cleanup numbers and the
 recovery requirements; it makes no release/acceptance/parity statement.
+## Recovery result (2026-11-02 20:2x, executed by Arch)
+
+- `scripts/prepare-cuda-probe.ps1`: **EXIT=0, elapsed 889.2 s (~14.8 min)**, download list
+  cuda_nvrtc, cuda_cudart, cuda_cccl, cuda_nvcc, libnvjitlink, libmathdx 0.3.1, cuda_nvrtc 12.9.86;
+  the script's own sha256 checks passed (exit 0). Restored toolchains:
+  `target/toolchains/cuda-12.8.1` (3,683.8 MB), `target/toolchains/cuda-12.9.1-nvrtc`
+  (2,631.4 MB), `target/toolchains/libmathdx-0.3.1` (102.9 MB). `target/toolchains/cuda-12.8.1/bin/nvcc.exe`
+  exists ("NVIDIA (R) Cuda compiler driver, Copyright (c) 2005-2025"). Log: `logs/prepare-cuda.txt`.
+- `scripts/prepare-native-probe.ps1`: **EXIT=0, elapsed 13.1 s**; MuJoCo 3.12.0 restored
+  (`target/toolchains/mujoco-3.12.0/package/include/mujoco/mujoco.h` present; zip sha256 verified by
+  the script). Log: `logs/prepare-native.txt`.
+- `target/mathdx11`: **NOT restored** (absent after recovery); follow
+  `docs/development-evidence/g03-mathdx-alignment/README.md` before any mathdx/g03 work.
+- Note: the prepare scripts are UTF-8 without BOM and contain CJK; Windows PowerShell 5.1 cannot
+  parse them (parser error). They were executed through a temporary UTF-8-with-BOM copy in the same
+  directory (so `$PSScriptRoot` stays correct) which was deleted immediately after the run; the
+  repository scripts were not modified.
+- The new `target/` is a fresh build cache. It is unrelated to the attempt5 freeze and its new exe
+  identities must not be used to re-identify that freeze.
