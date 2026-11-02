@@ -2,7 +2,7 @@
 uid = "4098c702"
 id = "mjwarp.runtime"
 tags = ["planned", "engine", "runtime"]
-fingerprint = "477586d41d2bed5c1276ec2fe2091b9b828ae0c39036450e0b79b5f195a9ec86"
+fingerprint = "7cbeec1eef01d04bbb47d5658ffd7b4788497792863e45727efacdd0a0148ae7"
 
 [name]
 zh = "GPU运行时"

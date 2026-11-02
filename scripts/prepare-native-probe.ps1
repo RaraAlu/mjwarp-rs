@@ -10,14 +10,15 @@ if (-not (Test-Path -LiteralPath $archive)) {
     Invoke-WebRequest -Uri 'https://github.com/google-deepmind/mujoco/releases/download/3.12.0/mujoco-3.12.0-windows-x86_64.zip' -OutFile $archive
 }
 if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $sha) {
-    throw '原生工具包校验失败'
+    throw 'native toolkit checksum failed'
 }
 $package = Join-Path $destination 'package'
 Expand-Archive -LiteralPath $archive -DestinationPath $package -Force
 if (-not (Test-Path -LiteralPath (Join-Path $package 'include\mujoco\mujoco.h'))) {
-    throw '原生头文件缺失'
+    throw 'native header missing'
 }
-# 只下载工具，不运行模型编译器。
-# 用户须主动信任此工具包。
+# Downloads the toolkit only; it does not run the model compiler.
+# The user must explicitly trust this toolkit.
 Write-Host "MJWARP_MUJOCO_ROOT=$package"
 Write-Host "MJWARP_MUJOCO_DLL=$(Join-Path $package 'bin\mujoco.dll')"
+Write-Host ("PREPARE_NATIVE_SUMMARY exit=0 archive_sha256={0} sha_verified=1" -f $sha)
