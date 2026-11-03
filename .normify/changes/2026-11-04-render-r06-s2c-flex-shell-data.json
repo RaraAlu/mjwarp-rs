@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s2c-flex-shell-data",
+  "title": {
+    "zh": "R06-S2c：flex shell/elem 数据层（additive 字段 + native/io/model + T4 重钉），S3/S4 前置",
+    "en": "R06-S2c: flex shell/elem data layer (additive fields, native/io/model, T4 re-pin) as S3/S4 prerequisite"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "S3a 预检报出 2D/3D flex（shell/elem）数据面缺口：当前数据层只覆盖 1D flex（`flex_vertadr`/`flex_vertbodyid`/`flex_vertnum` 等）。本片补 **`flex_shell*` / `flex_elem*` additive 原生字段 + native probe + io/model 只读视图 + T4 源码身份重钉**，为 S3（2D/3D 机制）与 S4（参考采集）提供数据前置。**只交数据层**：`src/render/kernel/` 零改动、不实现设备逻辑、不宣称 flex 渲染可用；不改上游 pin/数值参考/判据/容差。T4 重钉按既有口径（逐行 old→new 写进证据 README，不改 pin/参考/判据/断言逻辑，precedent `61fb6baf`/`097c54b9`）。",
+    "en": "Add the flex shell/elem data layer (additive native fields, io/model read-only views, T4 source-identity re-pin) as the prerequisite for S3 mechanism work and S4 reference capture."
+  },
+  "modules": {},
+  "acceptance": [
+    "**additive 字段**：`flex_shell*`/`flex_elem*` 以 additive 方式进原生 ABI（`include/mjwarp_native_probe.h` + `native/model_probe.cpp`），不删不改既有字段、不重复导；结构体大小与偏移在 native 侧 static_assert 校验。",
+    "**io/model 只读视图**：`src/io/flex*.rs` + `src/model/flex*.rs` 提供 shell/elem 只读视图（计数、拓扑、映射），宿主边界 f64→f32 转换仍集中一处；`#[cfg(test)]` 覆盖空/单/多与尺寸不一致拒绝。",
+    "**T4 重钉**：随源码改动重钉涉及的 fixture/map 身份行，逐行 old→new 写进证据 README；重钉前后 FAIL→PASS 原始输出留档；**不改上游 pin / 数值参考 / 判据 / 断言逻辑**（precedent `61fb6baf`/`097c54b9`）。",
+    "**不变量**：`src/render/kernel/` 与全部 `.cu` 零改动；零判据/容差/参考/fixtures 语义改动；不宣称 flex 渲染可用。",
+    "**门禁**：fmt / clippy / clippy-cuda / unit 全过（unit 只增不减）；零 GPU。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s2b-flex-datasource-t4-merged"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "include/mjwarp_native_probe.h",
+      "native/model_probe.cpp",
+      "src/io/flex.rs",
+      "src/io/flex/",
+      "src/model/flex.rs",
+      "src/physics/flex.rs",
+      "fixtures/precision/",
+      "docs/development-evidence/render-bvh/r06-s2c-flex-shell/"
+    ],
+    "resources": [],
+    "priority": 75
+  },
+  "note": "Arch 2026-11-04 登记（Chief 指令：S3a 预检报 2D/3D flex 数据面缺口，S3/S4 前置单立卡）。与 S3a 的分工：S3a 做 1D 端到端 + 2D/3D 机制（显式拓扑入参、不接产品数据），本片补 shell/elem 的真实数据面；S4 参考采集依赖本片。T4 重钉面以实现时实测为准并逐行写证据。",
+  "revision": { "before": "0e8f133a6271a3e8ebf466fc7f75c6975fefac26", "after": null },
+  "created_at": "2026-11-03T22:55:00.000Z",
+  "updated_at": "2026-11-03T22:55:00.000Z",
+  "checks": [
+    { "kind": "gate", "gate": "fmt" },
+    { "kind": "gate", "gate": "clippy" },
+    { "kind": "gate", "gate": "clippy-cuda" },
+    { "kind": "gate", "gate": "unit" },
+    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/"] }
+  ]
+}

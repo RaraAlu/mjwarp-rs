@@ -15,6 +15,7 @@
     "**设备实现**：`render_flex.cu` 覆盖 flex 图元遍历与求交；设备 cast 增加 flex 分支；seg 编码按上游语义；flex BVH 构建/重拟合接入既有 BVH 结构。与 pinned 上游的 9 个 flex 形参与 `bvh_nflexgeom` 语义逐项对表（引用 S0 证据 `r06-flex-precheck`）。",
     "**零判据改动**：不改上游 pin（`71da24d…`）、不改数值参考/判据/容差/fixtures；不新增 ABI 槽（S0 结论：槽数/槽类型不变）。",
     "**离线自证**：能离线做的证据（源码对表、PTX 编译通过、单测覆盖 flex cast/BVH 路径的纯宿主逻辑）全部落地；不跑 GPU、不开窗口、不生成参考。",
+    "**范围（Chief 2026-11-04 收窄）**：**1D flex 端到端**（数据齐、可跑通整链）+ **2D/3D 机制**（显式拓扑入参、宿主/设备机制 + standalone 编译核，**不接产品数据**）；host 对 `dim != 1` 显式返回 `Unsupported`（不 panic、不静默降级）。S3b 首窗只用 **1D flex + 刚性几何共存**场景。",
     "**门禁**：fmt / clippy / clippy-cuda / unit 全过（unit 只增不减）；`checks.unchanged` 含 `fixtures/` 与 `docs/evidence/`。",
     "**边界**：不宣称 flex 渲染可用；参考采集与窗口验证归 S3b（走 Chief go 制 + 必须重冻）。"
   ],
@@ -27,6 +28,10 @@
     "files": [
       "src/render/kernel/cuda/",
       "src/render/bvh/",
+      "src/render/kernel/mod.rs",
+      "src/render/kernel/cast.rs",
+      "src/render/kernel/megakernel_arrays.rs",
+      "src/render/kernel/megakernel.rs",
       "docs/development-evidence/render-bvh/r06-s3a-flex-device/"
     ],
     "resources": [],
