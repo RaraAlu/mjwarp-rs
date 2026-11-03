@@ -5,7 +5,7 @@
     "zh": "R06-S3b③b：flex GPU 用例取数缺陷修复（`flex_edge` 不在 model dump 内导致实体体首跑即 panic；补 CPU 自证）",
     "en": "Fix the flex GPU test's model-input defect (flex_edge absent from the model dump) and add a CPU self-proof"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "S3b④ 窗口 attempt 1（INVALID_ROUND，证据 `7c4a8296`）暴露：`tests/render_flex_validate.rs` 只做过 `--no-run` 编译，从未真正执行；实体体首跑即在 `tests/render_flex_validate.rs:56`（经 `:294 ints(model,\"flex_edge\")`）panic——`fixtures/render-bvh/scene-flex/model-312.json` 的 17 个 flex 数组里**没有 `flex_edge`**（只有 `flex_elem`/`flex_shell`/`flex_edgeadr`/`flex_edgenum` 等），`arrays.flex_edge.values` 取不到；另有 `flexedge_j_rownnz: vec![1; len/2]` 属无依据硬编码。本片修取数、补 CPU 自证，**不改判据/容差/参考**，**不宣称 flex 通过**。",
     "en": "Fix model-input extraction in the flex GPU test and add a CPU-side self-proof; no criteria change, no pass claim."
@@ -33,13 +33,29 @@
     "priority": 76
   },
   "note": "Arch 2026-11-04 登记（来源：S3b④ 窗口 attempt 1 INVALID，提交 `7c4a8296`）。**教训**：用例只编译不执行会在首次真实执行时才暴露 schema 缺陷；本卡把「CPU 可自证」写成硬要求，之后所有 GPU 用例卡都沿用这条。修完需重建并**重新真冻结**（exe 哈希变化）再跑 attempt 2，按 Chief 指令顺延空闲块。",
-  "revision": { "before": "77380f2eb464fb5e439abfc83dfea6007f953cdd", "after": null },
+  "revision": {
+    "before": "8b674329717dd74102fcced5e7d9b74b18b532fd",
+    "after": null
+  },
   "created_at": "2026-11-04T07:48:00.000Z",
-  "updated_at": "2026-11-04T07:48:00.000Z",
+  "updated_at": "2026-11-03T23:50:27.626Z",
+  "closed_at": "2026-11-03T23:50:27.626Z",
   "checks": [
-    { "kind": "gate", "gate": "fmt" },
-    { "kind": "gate", "gate": "clippy" },
-    { "kind": "gate", "gate": "clippy-cuda" },
-    { "kind": "gate", "gate": "unit" }
+    {
+      "kind": "gate",
+      "gate": "fmt"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy"
+    },
+    {
+      "kind": "gate",
+      "gate": "clippy-cuda"
+    },
+    {
+      "kind": "gate",
+      "gate": "unit"
+    }
   ]
 }
