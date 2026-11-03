@@ -5,7 +5,7 @@
     "zh": "审计其它 host 侧四元数→矩阵派生的「host 不收缩 vs 上游 GPU 收缩」口径差",
     "en": "Audit other host-side quaternion->matrix derivations for host-no-contraction vs upstream-GPU-contraction divergence"
   },
-  "status": "backlog",
+  "status": "proposed",
   "intent": {
     "zh": "R05-S3b 的 cam1 depth 红暴露出：上游 `mujoco_warp math.quat_to_mat` 在 GPU 上以 `fuse_fp=true` 收缩计算，而我方在 host Rust 里做代数展开、无 FMA 收缩，导致非平凡四元数差 1–2 ULP。本卡只做**评估**：把 `src/` 内所有 host 侧四元数→矩阵/位姿派生点（相机、geom、light、body、flex 等）列全，逐点判断「是否被位级断言覆盖 / 是否只在容差下被检查 / 是否有上游 GPU 收缩语义未对齐」，产出风险清单与优先级；**不在本卡改代码**，等 R05 收口后由 Arch 决定是否另立 fix 片。",
     "en": "Evaluate (not fix) all host-side quaternion-to-matrix/pose derivations for the same divergence, and produce a prioritized risk list after R05 closes."
@@ -33,6 +33,14 @@
     "after": null
   },
   "created_at": "2026-10-29T04:10:00.000Z",
-  "updated_at": "2026-10-29T22:40:00.000Z",
-  "checks": []
+  "updated_at": "2026-11-03T04:50:00.000Z",
+  "checks": [
+    {
+      "kind": "unchanged",
+      "paths": [
+        "src/render/kernel/cast.rs",
+        "src/math/mod.rs"
+      ]
+    }
+  ]
 }
