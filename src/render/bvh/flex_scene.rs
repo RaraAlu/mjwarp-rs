@@ -103,8 +103,9 @@ pub struct FlexMeshChannel<'a> {
 pub struct FlexMeshAssembly {
     pub leaves: FlexSceneLeaves,
     pub device: FlexMeshDevice,
-    /// 长度 = nflex；1D/无 mesh 的 flex 为 `u64::MAX`，其余 = 该 flex 首条目绝对索引
-    /// （设备条目索引 = `bvh_ids[flexid] + worldid`）。
+    /// 长度 = nflex；build 期存**段内相对条目号**（1D/无 mesh 的 flex 为 `u64::MAX`）；
+    /// [`Self::append_to_mesh_device`] 追加到 `MeshDevice` 后转成 blob 绝对条目号
+    /// （设备条目索引 = `flex_bvh_id[flexid] + worldid`）。
     pub bvh_ids: Vec<u64>,
     /// 2D/3D mesh 条目数（= 该 flex 的 world 数累加）。
     pub mesh_count: usize,
