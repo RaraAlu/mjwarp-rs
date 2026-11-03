@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-render-r06-s2b-t4-repin",
+  "title": {
+    "zh": "R06-S2b 拆出：T4 源码身份重钉（7 文件 11 行，随 flex 数据面改动）",
+    "en": "Split from R06-S2b: T4 source-identity re-pin (7 files / 11 lines) driven by the flex data-plane change"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "S2b 实现会改 `src/physics/flex.rs` 等产品源码，必然触发 T4 源码身份漂移；该重钉面实测为 **7 文件 11 行**（含 `fixtures/precision/t4-current-kernels.json` 及 g01 三个打包/输入 fixture、t4-g03-retest 三个 map/previous-kernels）。本卡把重钉从 S2b 拆出单独承载：逐行更新 old/new LF-sha256 并写进证据 README，`live_product_sources_match_fixture` 由红转绿。**不改上游 pin / 数值参考 / 判据 / 断言逻辑**（precedent `61fb6baf` / `097c54b9`）。拆出原因：S2b 已 in_progress，normify 冻结其 `schedule.files` 声明，无法原地加 6 条 scope（尝试被 `E change/transition … 声明、检查与验收已冻结` 拒绝）。",
+    "en": "Split the T4 identity re-pin out of S2b because a running task freezes its scope declaration; re-pin 7 files / 11 lines without touching upstream pin, references, criteria, or assertion logic."
+  },
+  "modules": {},
+  "acceptance": [
+    "**逐行重钉**：7 个 fixture/map 文件里过期的产品源码 LF-sha256 全部更新为当前值；证据 README 逐行给出 `文件:行 → old sha256 → new sha256`，并附 `git diff --stat`（应只含这 7 个文件的身份行）。",
+    "**红转绿自证**：重钉前后各跑一次 `cargo test --locked --test precision_evidence_gate live_product_sources_match_fixture`（或等价目标），记录重钉前 FAIL（`expected=旧 actual=新`）与重钉后 PASS 的原始输出。",
+    "**不扩面**：不改上游 pin（`71da24d…`）、不改数值参考/判据/断言逻辑、不改 `.cu` 与 `src/render/kernel/cuda/`；`checks.unchanged` 保留 `src/render/kernel/cuda/`。",
+    "**边界与门禁**：`cargo fmt --check`、`cargo test --locked` 全绿（unit 计数只增不减）；零 GPU、零窗口。",
+    "**证据**：`docs/development-evidence/render-bvh/r06-s2b-t4-repin/README.md` 落地，含重钉清单、命令、红转绿日志、与 S2b 的依赖关系。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-render-r06-s2b-flex-data-source"
+    ],
+    "phase": "P8-渲染与BVH",
+    "owner": "Backend",
+    "files": [
+      "fixtures/precision/t4-current-kernels.json",
+      "fixtures/precision/g01-inputs.json",
+      "fixtures/precision/g01-packing-routes.json",
+      "fixtures/precision/g01-state-packing.json",
+      "docs/evidence/t4-g03-retest/flex-internal/map.json",
+      "docs/evidence/t4-g03-retest/flex-matrices/map.json",
+      "docs/evidence/t4-g03-retest/rigid-rotate-recapture/previous-kernels.json",
+      "docs/development-evidence/render-bvh/r06-s2b-t4-repin/"
+    ],
+    "resources": [],
+    "priority": 74
+  },
+  "note": "Arch 2026-11-04 登记（从 S2b 拆出；Chief 2026-11-04 指令：S2b 追加 6 条 fixture scope + 7 文件 11 行重钉口径）。拆分留痕：S2b 处于 in_progress，`normify` 冻结其声明字段，原地加 scope 被拒绝（`E change/transition 2026-11-04-render-r06-s2b-flex-data-source 运行中任务的声明、检查与验收已冻结`），故按裁决惯例（拆分/重登记）另立本卡承载重钉面，S2b 只负责数据层与 `t4-current-kernels.json` 之外的原 scope。重钉面口径：7 文件 11 行、逐行新旧值写进证据 README、不改上游 pin/参考/判据/断言逻辑、precedent `61fb6baf`/`097c54b9`。已知单点：当前 worktree `src/physics/flex.rs` LF-sha256 = `0299be86…`（旧 `cb2977a3…`），其余 10 行以重钉时实测为准。",
+  "revision": { "before": "5ecb8bbeba169a7fc890cace2309e617341f4d20", "after": null },
+  "created_at": "2026-11-03T21:15:00.000Z",
+  "updated_at": "2026-11-03T21:15:00.000Z",
+  "checks": [
+    { "kind": "unchanged", "paths": ["src/render/kernel/cuda/"] }
+  ]
+}
