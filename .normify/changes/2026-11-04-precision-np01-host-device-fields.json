@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-04-precision-np01-host-device-fields",
+  "title": {
+    "zh": "NP01 B2：host/device 字段级位差分账（类型 / recipe / 同 recipe 实现 / 引擎语义四类分开算）",
+    "en": "NP01 B2: host/device field-level difference ledger separating type, recipe, same-recipe implementation and engine-semantics classes"
+  },
+  "status": "proposed",
+  "intent": {
+    "zh": "B1 已给出逐表达式 PTX 定序（device 默认融合、face_norm2 三步仍融合）。本片把归档中的数值差拆成四类并分别量化：①类型偏离（0 项，依据 = 30+3 逐字段表 + CUDA/host token 门禁，**不从数值反推**）；②recipe 差（`compare-cpu-vs-gpu.json` 5 case × dist/pos/frame 的位等比例与 max_abs）；③同 recipe 实现残差（`result.json` 设备 vs 上游，4 case）；④引擎语义差（引用 A0 native 材料，不重复判定）。已知 witness 偏差引用 verified 卡、归类为同 recipe 实现残差，不冒充类型偏离。**不改判据/容差/fixtures、零 GPU、不宣称位级等价或 NP01/NP03 通过。**",
+    "en": "Quantify the four difference classes from archives and state that type deviation is zero on type/token evidence only; no criteria change, no GPU."
+  },
+  "modules": {},
+  "acceptance": [
+    "**四类互斥且可追溯**：类型偏离（0 项 + 三条依据）、recipe 差、同 recipe 实现残差、引擎语义差各自绑定归档文件与数字；脚本产出 `host_device_fields.json`，README 数字全部来自脚本。",
+    "**纠正反推**：明确写「类型偏离 0 项不从数值相等反推」，并说明 ULP 在近零分量失真要按 max_abs 读（如 frame 4294967295 的成因）。",
+    "**已知偏差引用**：witness `cylinder-box-sweep`（x1 1 项 / x2 3 项超 4·ULP@scale）引用 verified 卡 `2026-10-25-g10-p5-deep-epa-witness-sampling`，归类为同 recipe 实现残差，不改判据、不当新发现。",
+    "**边界**：零 GPU、零窗口、零新采样；不改产品代码/判据/容差/fixtures；不宣称 NP01/NP03 通过、不宣称位级等价。",
+    "**门禁**：`cargo fmt --check`、`cargo test --locked --test precision_type_gate`、`cargo test --locked --test precision_host_gate` 全绿（本片只新增离线脚本与证据）。"
+  ],
+  "schedule": {
+    "depends_on": [
+      "2026-11-04-precision-np01-host-device-expr"
+    ],
+    "phase": "P11-发布准入",
+    "owner": "Arch",
+    "files": [
+      "scripts/authoring/np01-host-device-fields.py",
+      "docs/development-evidence/np01-host-device-fields/"
+    ],
+    "resources": [],
+    "priority": 64
+  },
+  "note": "Arch 2026-11-04 登记（Chief 批准：B2 在 B1 之后、B4 QA 复核之前；A2 等用户签 E 口径）。四类差异结论：类型偏离 0（表+token 门禁）；recipe 差 max_abs 1e-9–8e-7（B1 机制解释）；同 recipe 残差 hfield 两例逐位全等、sdf/ellipsoid 少量 ULP；引擎语义差引用 A0。后续 B4 = QA 独立复核「没把 recipe 差写成类型偏离」。",
+  "revision": { "before": "fce6690a82db74f8e0b2813d3b4014abe4f9cd9d", "after": null },
+  "created_at": "2026-11-03T22:20:00.000Z",
+  "updated_at": "2026-11-03T22:20:00.000Z",
+  "checks": [
+    { "kind": "unchanged", "paths": ["src/", "fixtures/"] }
+  ]
+}
