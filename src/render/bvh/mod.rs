@@ -14,6 +14,7 @@ mod builder;
 pub mod cuda;
 mod flex;
 mod flex_mesh;
+mod flex_scene;
 mod hfield_mesh;
 mod mesh;
 #[cfg(feature = "cuda-probe")]
@@ -31,6 +32,9 @@ pub use flex::{
     FlexLeafError, FlexSceneLeaves, OneDimensionalLeafInput, one_dimensional_scene_leaves,
 };
 pub use flex_mesh::{FlexMeshBvh, FlexMeshError, FlexMeshInput};
+pub use flex_scene::{
+    FLEX_NO_MESH, FlexMeshAssembly, FlexMeshChannel, FlexMeshDevice, FlexSceneError,
+};
 pub use hfield_mesh::{HfieldMesh, HfieldMeshInput, build_hfield_mesh, triangulate_hfield};
 pub use mesh::{MeshBvh, MeshBvhError, MeshBvhInput, MeshNode, MeshNodeKind};
 #[cfg(feature = "cuda-probe")]

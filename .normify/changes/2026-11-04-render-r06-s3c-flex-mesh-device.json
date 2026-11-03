@@ -5,7 +5,7 @@
     "zh": "R06-S3c：2D/3D flex 设备接线（真实 topology → 设备 flex mesh BVH/cast/refit；host 解锁 dim 2/3）",
     "en": "R06-S3c: 2D/3D flex device wiring (real topology -> device flex mesh BVH/cast/refit; host unlocks dim 2/3)"
   },
-  "status": "proposed",
+  "status": "verified",
   "intent": {
     "zh": "S2c 已交付 `flex_shell*`/`flex_elem*` additive 数据面与 `FlexTopologyFields`；S3a 已建 2D/3D **机制**（`bvh::flex_mesh` + 显式拓扑入参 + `render_with_flex(Some)` 逐帧并入 flex 叶），但 host 对 `dim != 1` 显式 `Unsupported`。本片把真实 topology 接进设备侧：设备 flex mesh BVH 构建/refit + cast 走 shell/elem 面片（与 pinned 上游 flex mesh 语义对表），host 侧把 `FlexTopologyFields` 接进 `render_with_flex`、对 `dim == 2/3` 解锁 `Unsupported`。**离线可完成**（NVRTC 编译核 + 宿主单测 + 与 pinned 语义对表）；不跑 GPU、不生成参考；参考采集/窗口仍归 S3b。不改上游 pin / 数值参考 / 判据 / 容差 / fixtures。",
     "en": "Wire the real flex shell/elem topology into the device side (mesh BVH build/refit + cast over shell/elem faces) and unlock dim 2/3 on the host, offline only."
@@ -39,11 +39,12 @@
   },
   "note": "Arch 2026-11-04 登记（Backend 建议：S2c 数据面解锁 2D/3D 设备接线；S3b 1D 采集窗口仍归 Arch）。scope 参考 S3a 7 条 + 证据目录；若实现发现需动 `src/render/context/`（host 数据注入）或 `src/io|model/flex*`，先报 Arch 改 scope 并按「一个任务一个 owner」口径处理。与 S3b 并行互不阻塞：S3b 只用 1D 场景。",
   "revision": {
-    "before": "fc0f54cd038fd386b9453b569696a9b2a441c4f8",
+    "before": "8c7337b7d557b9230b18269e51fd6ba9b294a3d2",
     "after": null
   },
   "created_at": "2026-11-03T23:41:00.000Z",
-  "updated_at": "2026-11-03T22:08:57.628Z",
+  "updated_at": "2026-11-03T22:24:15.370Z",
+  "closed_at": "2026-11-03T22:24:15.370Z",
   "checks": [
     {
       "kind": "gate",

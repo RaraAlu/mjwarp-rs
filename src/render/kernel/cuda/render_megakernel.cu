@@ -171,6 +171,9 @@ extern "C" __global__ void render_megakernel(
     flex.rgba = (const float*)flex_rgba.data;
     flex.geom_flexid = flex_geom_flexid.data;
     flex.geom_edgeid = flex_geom_edgeid.data;
+    // R06-S3c：2D/3D mesh 条目基址（宿主把 `flex_bvh_id` 槽覆盖为 blob 绝对条目号；
+    // 1D/无 mesh 的 flex 为 `u64::MAX` 哨兵，设备侧据此走胶囊路径）。
+    flex.bvh_id = (const unsigned long long*)flex_bvh_id.data;
     flex.nflexvert = (int)flexvert_xpos_in.shape.dims[1];
     bool cull_backfaces = (flag_bits & MK_FLAG_CULL_BACKFACES) != 0u;
     CastHit hit = cast_ray(scene, blob, flex, geom_type.data, geom_dataid.data, geom_matid.data,

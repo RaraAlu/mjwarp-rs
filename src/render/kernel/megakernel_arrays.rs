@@ -2,8 +2,11 @@
 //! BVH blob 打包与设备上传。供 `megakernel.rs` 使用；行数口径按新文件拆分（各 ≤500 行）。
 
 use crate::model::render::{FieldData, RenderFields};
+use crate::render::bvh::{FlexSceneLeaves, SceneBvhInput, build_scene_bvh};
+use crate::render::context::RenderContext;
 use crate::render::context::ResolvedContext;
-use crate::render::kernel::cast::SceneDevice;
+use crate::render::context::owner::{LeafPose, SceneLeaf, SceneState};
+use crate::render::kernel::cast::{ModelRenderArrays, SceneDevice};
 use crate::runtime::launcher::{
     LauncherError, RenderArg, RenderArrayValue, RenderElem, RenderScalar,
 };
@@ -48,6 +51,53 @@ pub(crate) fn geom_data_poses(
         xmat[9 * geom..9 * geom + 9].copy_from_slice(&scene.params[mat..mat + 9]);
     }
     Ok((xpos, xmat))
+}
+
+/// R06-S3a/S3c：把 flex 叶并入本帧场景 BVH 并打包为 `SceneDevice`。
+///
+/// 上游每帧 `refit` 语义的等价实现（本实现逐帧重建，节点布局只服务自有打包）；
+/// flex 叶编码 `geom_id = -1 - flex_local`，在 `SceneState` 里只承载布局（size/pose 零占位，
+/// 几何出自 flex 通道）。
+pub(crate) fn pack_flex_scene(
+    context: &RenderContext,
+    model_arrays: &ModelRenderArrays,
+    node: &FlexSceneLeaves,
+) -> Result<SceneDevice, LauncherError> {
+    let state = context.scene();
+    let mut bounds = state
+        .bounds()
+        .map_err(|error| LauncherError::Driver(format!("flex-scene-bounds: {error}")))?;
+    let mut groups: Vec<u32> = state.leaves().iter().map(|leaf| leaf.group).collect();
+    let mut geom_ids: Vec<i32> = state.leaves().iter().map(|leaf| leaf.geom_id).collect();
+    let mut leaves = state.leaves().to_vec();
+    let mut poses = state.poses().to_vec();
+    for (local, leaf_bounds) in node.bounds.iter().enumerate() {
+        let flex_local = i32::try_from(local).map_err(|_| LauncherError::Overflow("flex_leaf"))?;
+        let encoded = -flex_local - 1;
+        bounds.push(*leaf_bounds);
+        groups.push(node.groups[local]);
+        geom_ids.push(encoded);
+        leaves.push(SceneLeaf {
+            geom_type: 9,
+            size: [0.0; 3],
+            group: node.groups[local],
+            geom_id: encoded,
+        });
+        poses.push(LeafPose {
+            xpos: [0.0; 3],
+            xmat: [0.0; 9],
+        });
+    }
+    let combined = SceneState::new(leaves, poses, state.worlds())
+        .map_err(|error| LauncherError::Driver(format!("flex-scene-state: {error}")))?;
+    let bvh = build_scene_bvh(SceneBvhInput {
+        bounds: &bounds,
+        groups: &groups,
+        geom_ids: &geom_ids,
+        worlds: state.worlds(),
+    })
+    .map_err(|error| LauncherError::Driver(format!("flex-scene-bvh: {error}")))?;
+    SceneDevice::pack(&bvh, &combined, model_arrays, context.mesh_count())
 }
 
 /// BVH blob：header(10 × u32 字节偏移/长度) + 五段数据（16 字节对齐）。

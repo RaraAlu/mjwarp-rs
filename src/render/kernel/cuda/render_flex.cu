@@ -8,9 +8,9 @@
 //
 // 语义锚点（冻结上游 `71da24d`，逐项对表见证据 README §pre-check）：
 //   - `render_util.py` L490-512：1D flex 每条边一个胶囊图元（`edgeid = flex_edgeadr[f] + e`）；
-//     2D/3D 每 flex 一个 mesh 图元（`edgeid = -1`）。本片只接 1D 产品数据（host 对 2D/3D
-//     显式 `Unsupported`），2D/3D 的 mesh BVH 宿主/设备机制在 `bvh/flex.rs` +
-//     既有 `MeshBvhQuery`（世界空间、identity 位姿、`cull_backfaces=false`）上验证。
+//     2D/3D 每 flex 一个 mesh 图元（`edgeid = -1`）。R06-S3c 起两条路径都在设备侧接通：
+//     1D 走本文件的胶囊求交；2D/3D 走 `bvh/flex_scene` 打包的三角 BVH（世界空间、identity
+//     位姿、无内部背面剔除），设备条目索引 = `flex_bvh_id[flexid] + worldid`。
 //   - `render.py` L762-800：flex 叶命中分派与胶囊几何（`pos = 0.5*(v0+v1)`、
 //     `vec = v1-v0`、`quat_z2vec`、`size = (radius, 0.5*|vec|, 0)`、`ray_capsule`）；
 //     命中后 `hit_geom_id = -2`、`hit_mesh_id = flexid`；`flex_rgba[flexid][3] == 0` 跳过。
@@ -103,6 +103,8 @@ struct FlexView {
     const float* rgba;
     const int* geom_flexid;
     const int* geom_edgeid;
+    // R06-S3c：2D/3D mesh 条目的 blob 绝对条目基址（`u64::MAX` = 该 flex 走 1D 胶囊）。
+    const unsigned long long* bvh_id;
     int nflexvert;
 };
 
@@ -110,8 +112,8 @@ struct FlexView {
 //
 // `flex_local` 是该叶在 `bvh_nflexgeom` 里的局部号（scene 叶的 `leaf_geom = -1 - flex_local`）。
 // 命中返回 true 并填 `out_dist`/`out_normal`/`out_mesh_id`（= flexid，着色与 seg 用）；
-// miss / 透明（`rgba[3] == 0`）返回 false。2D/3D mesh 图元（`edgeid < 0`）在本片不接产品
-// 数据（host 已显式 `Unsupported`），此处按 miss 处理而不是静默给假命中。
+// miss / 透明（`rgba[3] == 0`）返回 false。2D/3D mesh 图元（`edgeid < 0`）由
+// `render_common.cu::flex_mesh_leaf_hit` 走三角 BVH 路径（本函数只服务 1D 胶囊叶）。
 __device__ __forceinline__ bool flex_leaf_hit(const FlexView& flex, int worldid, int flex_local,
                                               V3 origin, V3 direction, float* out_dist,
                                               V3* out_normal, int* out_mesh_id) {

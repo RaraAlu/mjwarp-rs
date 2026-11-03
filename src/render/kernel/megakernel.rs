@@ -17,11 +17,10 @@
 //!   `render` 逐字节等价，设备侧 flex 分支与 81 槽 ABI 均不变（`.cu` 零改动）。
 use crate::model::render::RenderFields;
 use crate::render::bvh::{
-    OneDimensionalLeafInput, SceneBvhInput, build_scene_bvh, one_dimensional_scene_leaves,
+    FlexMeshAssembly, FlexMeshChannel, OneDimensionalLeafInput, one_dimensional_scene_leaves,
 };
 use crate::render::camera::CameraModel;
 use crate::render::context::RenderContext;
-use crate::render::context::owner::{LeafPose, SceneLeaf, SceneState};
 use crate::render::kernel::cast::{CameraPose, ModelRenderArrays, SceneDevice, pack_mesh_devices};
 use crate::render::rays::RayBuffer;
 use crate::runtime::TransferSession;
@@ -33,7 +32,8 @@ use self::megakernel_uploads::{UploadInputs, upload_megakernel_arrays};
 use super::launch::RenderKernel;
 use super::megakernel_aa::{AAResolve, launch_samples};
 use super::megakernel_arrays::{
-    channel_flags, floats, geom_data_poses, ints, light_data_poses, reals, shading_words,
+    channel_flags, floats, geom_data_poses, ints, light_data_poses, pack_flex_scene, reals,
+    shading_words,
 };
 use super::{MEGAKERNEL_ENTRY, MEGAKERNEL_SOURCE};
 
@@ -61,6 +61,8 @@ struct RenderPass<'a> {
     world: Option<usize>,
     /// 宿主 flex 通道；`None` 与 S7b2 等价（S7b2 的 1 元素占位）。
     flex: Option<&'a FlexHostInputs<'a>>,
+    /// R06-S3c：2D/3D flex mesh 通道（真实 shell/elem 拓扑）；`None` 只走 1D/无 flex 路径。
+    flex_mesh: Option<&'a FlexMeshChannel<'a>>,
 }
 
 /// S7b3 渲染执行器；持有 81 槽 megakernel 与 AA 解析内核（模块缓存）与传输会话。
@@ -113,15 +115,18 @@ impl MegakernelRenderer {
             RenderPass {
                 world: None,
                 flex: None,
+                flex_mesh: None,
             },
         )
     }
 
-    /// R06-S2：带显式宿主 flex 通道发射（`None` 与 [`Self::render`] 逐字节等价）。
+    /// R06-S2/S3c：带显式宿主 flex 通道发射（`None` 与 [`Self::render`] 逐字节等价）。
     ///
-    /// 通道只做宿主校验 + 上传 + 实参形状口径；设备侧 flex 分支留 S3（`.cu` 零改动），
-    /// model/context 的真实数据源归 R06-S2b。逐 world 入口（[`Self::render_world`]）本片
-    /// 不支持 flex 通道（留 L v2/K）。
+    /// 通道只做宿主校验 + 上传 + 实参装配；S3c 起第二个通道给 2D/3D mesh 拓扑（`None` 走
+    /// 1D/无 flex 路径）。逐 world 入口（[`Self::render_world`]）本片不支持 flex 通道（留 L v2/K）。
+    // 8 参数：S3c 的 2D/3D 通道必须显式传入才能保持 `None` 路径逐字节等价（同 `render` 的
+    // 7 参数表面 + 1 个可选 mesh 通道；仓库内既有同类 `#[allow]` 先例）。
+    #[allow(clippy::too_many_arguments)]
     pub fn render_with_flex(
         &self,
         context: &RenderContext,
@@ -130,6 +135,7 @@ impl MegakernelRenderer {
         camera_poses: &[CameraPose],
         rays: &RayBuffer,
         flex: Option<&FlexHostInputs<'_>>,
+        flex_mesh: Option<&FlexMeshChannel<'_>>,
     ) -> Result<(), LauncherError> {
         self.render_impl(
             context,
@@ -137,7 +143,11 @@ impl MegakernelRenderer {
             model,
             camera_poses,
             rays,
-            RenderPass { world: None, flex },
+            RenderPass {
+                world: None,
+                flex,
+                flex_mesh,
+            },
         )
     }
 
@@ -161,6 +171,7 @@ impl MegakernelRenderer {
             RenderPass {
                 world: Some(world),
                 flex: None,
+                flex_mesh: None,
             },
         )
     }
@@ -174,7 +185,11 @@ impl MegakernelRenderer {
         rays: &RayBuffer,
         pass: RenderPass<'_>,
     ) -> Result<(), LauncherError> {
-        let RenderPass { world, flex } = pass;
+        let RenderPass {
+            world,
+            flex,
+            flex_mesh,
+        } = pass;
         let resolved = context.resolved();
         let layout = &resolved.output;
         let nsamples = layout.nsamples;
@@ -248,8 +263,13 @@ impl MegakernelRenderer {
         // R05-S2：hfield mesh 追加在既有 mesh 末尾（既有索引不变），打包逻辑在 `cast_mesh.rs`。
         // R06-S3a：有 flex 通道时把 1D flex 叶并入本帧场景 BVH（上游每帧 refit 语义；本实现
         // 逐帧重建，节点布局只服务自有打包）。`None` 路径仍用 context 拥有的 BVH，逐字节不变。
-        let flex_leaves = match flex {
-            Some(inputs) => {
+        // R06-S3c：2D/3D mesh 通道（真实 shell/elem 拓扑）；`dim == 1` 仍走 S3a 胶囊路径。
+        let mesh_nflex = flex.map_or(0, |inputs| inputs.nflex);
+        let mesh_assembly = FlexMeshAssembly::prepare(flex_mesh, nworld, mesh_nflex)
+            .map_err(|error| LauncherError::Driver(format!("flex-mesh: {error}")))?;
+        let flex_leaves = match (&mesh_assembly, flex) {
+            (Some(assembly), _) => Some(assembly.leaves.clone()),
+            (None, Some(inputs)) => {
                 if inputs.nworld != nworld {
                     return Err(LauncherError::InvalidArray("flex_nworld"));
                 }
@@ -269,49 +289,10 @@ impl MegakernelRenderer {
                     })?,
                 )
             }
-            None => None,
+            (None, None) => None,
         };
         let scene = match &flex_leaves {
-            Some(node) => {
-                let state = context.scene();
-                let mut bounds = state.bounds().map_err(|error| {
-                    LauncherError::Driver(format!("flex-scene-bounds: {error}"))
-                })?;
-                let mut groups: Vec<u32> = state.leaves().iter().map(|leaf| leaf.group).collect();
-                let mut geom_ids: Vec<i32> =
-                    state.leaves().iter().map(|leaf| leaf.geom_id).collect();
-                let mut leaves = state.leaves().to_vec();
-                let mut poses = state.poses().to_vec();
-                for (local, leaf_bounds) in node.bounds.iter().enumerate() {
-                    let flex_local =
-                        i32::try_from(local).map_err(|_| LauncherError::Overflow("flex_leaf"))?;
-                    let encoded = -flex_local - 1;
-                    bounds.push(*leaf_bounds);
-                    groups.push(node.groups[local]);
-                    geom_ids.push(encoded);
-                    // flex 叶在 `SceneState` 里只承载布局（size/pose 零占位）；几何出自 flex 通道。
-                    leaves.push(SceneLeaf {
-                        geom_type: 9,
-                        size: [0.0; 3],
-                        group: node.groups[local],
-                        geom_id: encoded,
-                    });
-                    poses.push(LeafPose {
-                        xpos: [0.0; 3],
-                        xmat: [0.0; 9],
-                    });
-                }
-                let combined = SceneState::new(leaves, poses, state.worlds())
-                    .map_err(|error| LauncherError::Driver(format!("flex-scene-state: {error}")))?;
-                let bvh = build_scene_bvh(SceneBvhInput {
-                    bounds: &bounds,
-                    groups: &groups,
-                    geom_ids: &geom_ids,
-                    worlds: state.worlds(),
-                })
-                .map_err(|error| LauncherError::Driver(format!("flex-scene-bvh: {error}")))?;
-                SceneDevice::pack(&bvh, &combined, &model_arrays, context.mesh_count())?
-            }
+            Some(node) => pack_flex_scene(context, &model_arrays, node)?,
             None => SceneDevice::pack(
                 context.scene_bvh(),
                 context.scene(),
@@ -319,7 +300,25 @@ impl MegakernelRenderer {
                 context.mesh_count(),
             )?,
         };
-        let (mesh, hfield) = pack_mesh_devices(context, resolved, &model_arrays)?;
+        let (mut mesh, hfield) = pack_mesh_devices(context, resolved, &model_arrays)?;
+        // R06-S3c：flex mesh 段追加到既有 `MeshDevice` 末尾（既有条目索引不变），
+        // `flex_bvh_id` 槽改成 blob 内绝对条目基址。
+        let flex_bvh_ids = match &mesh_assembly {
+            Some(assembly) => Some(
+                assembly
+                    .append_to_mesh_device(&mut mesh.meta, &mut mesh.params, &mut mesh.offsets)
+                    .map_err(|error| LauncherError::Driver(format!("flex-mesh: {error}")))?,
+            ),
+            None => None,
+        };
+        // 设备 `flex_bvh_id` 槽：1D/无 mesh 的 flex 保持 `u64::MAX` 哨兵（设备跳过 mesh 查询）。
+        let adjusted_flex = flex_bvh_ids
+            .as_ref()
+            .zip(flex)
+            .map(|(ids, inputs)| FlexHostInputs {
+                flex_bvh_id: ids,
+                ..*inputs
+            });
 
         // ---- 相机参数（按模型相机 id；上游 `cam_*_in[worldid, mujoco_cam_id]`） ----
         let cam_projection = ints(fields, "cam_projection")?;
@@ -400,8 +399,8 @@ impl MegakernelRenderer {
             scale_constants: &scale_constants,
             // R05-S2：无 hfield geom 时为空切片（上传侧落 1 个 `u64::MAX` 哨兵占位）。
             hfield_bvh_ids: hfield.as_ref().map_or(&[], |device| device.bvh_ids()),
-            // R06-S2：宿主 flex 通道（`None` = S7b2 等价占位；数据源接线归 S2b）。
-            flex,
+            // R06-S2/S3c：宿主 flex 通道（可能带 S3c 修正后的 `flex_bvh_id` 条目基址）。
+            flex: adjusted_flex.as_ref(),
             // 方案 L：单 world 发射时把输出 adr 平移到该 world 的区段（`world × pitch`）。
             adr_world: world,
         })?;

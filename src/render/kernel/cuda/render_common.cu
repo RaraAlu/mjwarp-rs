@@ -208,6 +208,27 @@ __device__ __forceinline__ float ray_mesh_leaf(const int* mesh_meta, const float
     return distance;
 }
 
+// R06-S3c：2D/3D flex mesh 叶求交（上游 `ray.py` L759-802 `ray_flex_with_bvh` 语义）。
+//
+// flex mesh 已在世界空间：无 `_ray_map`、无多段 march、无内部背面剔除（统一在 `cast_ray`
+// 后判据处理）。每个 `(flex, world)` 一棵三角 BVH，`flex.bvh_id[flexid]` 是该 flex 首条目的
+// blob 绝对条目号（`u64::MAX` = 1D/无 mesh → miss），条目索引 = `bvh_id + worldid`。
+__device__ __forceinline__ float flex_mesh_leaf_hit(const FlexView& flex, int worldid, int flexid,
+                                                    const int* mesh_meta,
+                                                    const float* mesh_params,
+                                                    const wp::vec2i* mesh_offsets, V3 pnt, V3 vec,
+                                                    float max_t, V3* normal, float* bary_u,
+                                                    float* bary_v, int* face_out) {
+    unsigned long long base = flex.bvh_id[flexid];
+    if (base == 0xFFFFFFFFFFFFFFFFull) {
+        return -1.0f;
+    }
+    int mesh_index = (int)(base + (unsigned long long)worldid);
+    const float identity[9] = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    return ray_mesh_leaf(mesh_meta, mesh_params, mesh_offsets, mesh_index, v3(0.0f, 0.0f, 0.0f),
+                         identity, pnt, vec, max_t, false, normal, bary_u, bary_v, face_out);
+}
+
 // 上游 `_geom_rgba`：geom_rgba 为默认 (0.5,0.5,0.5,1) 且 matid>=0 时改用 mat_rgba。
 __device__ __forceinline__ void render_geom_rgba(const int* geom_matid, const float* geom_rgba,
                                           const float* mat_rgba, int geom_id, float* rgba,
@@ -369,11 +390,29 @@ __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const Megake
         float pass_bary_v = 0.0f;
         int pass_face = -1;
         int mesh_index = scene.leaf_mesh[leaf];
+        // R06-S3c：2D/3D mesh 路径在 shadow any-hit 下按上游「n 为零向量」语义不参与背面剔除。
+        bool flex_mesh_path = false;
         if (leaf_geom < 0) {
-            // R06-S3a：flex 叶（上游 render.py L762-800）。1D 胶囊有真实法向，命中后照常参与
-            // 统一背面剔除与 tie-break；`candidate = -2` 与上游 `hit_geom_id` 一致。
-            if (!flex_leaf_hit(flex, worldid, -1 - leaf_geom, origin, direction, &d, &n, &flexid)) {
+            // R06-S3a/S3c：flex 叶（上游 render.py L762-800）。1D 胶囊有真实法向；2D/3D mesh
+            // 走世界空间三角 BVH（`flex_bvh_id` 条目基址）。`candidate = -2` 与上游一致。
+            int flex_local = -1 - leaf_geom;
+            int flex_id = flex.geom_flexid[flex_local];
+            if (flex_id < 0 || flex.rgba[4 * flex_id + 3] == 0.0f) {
                 continue;
+            }
+            if (flex.geom_edgeid[flex_local] >= 0) {
+                if (!flex_leaf_hit(flex, worldid, flex_local, origin, direction, &d, &n, &flexid)) {
+                    continue;
+                }
+            } else {
+                flex_mesh_path = true;
+                d = flex_mesh_leaf_hit(flex, worldid, flex_id, blob.mesh_meta, blob.mesh_params,
+                                       blob.mesh_offsets, origin, direction, query_dist, &n,
+                                       &pass_bary_u, &pass_bary_v, &pass_face);
+                flexid = flex_id;
+                if (d < 0.0f) {
+                    continue;
+                }
             }
         } else if (gtype == 7 || gtype == 1 || gtype == 8) {
             // R05-S2：hfield（gtype==1）与 mesh 同走 `ray_mesh_leaf`；hfield 的 mesh 索引
@@ -407,7 +446,9 @@ __device__ __forceinline__ CastHit cast_ray(const SceneView& scene, const Megake
         // primitive 仍 cull。SDF（gtype==8）按上游 any-hit 语义也不填 normal ⇒ 排除
         // （latent 对齐，见 gap 卡 `2026-10-28-render-shadow-sdf-gtype-cull-gap`；
         // 设备侧 SDF 求交尚未解锁，host 仍拒绝，见 `megakernel.rs` 的 `reject_sdf_geometry`）。
-        bool cull_this = cull_backfaces && !(shadow_ray && (gtype == 7 || gtype == 1 || gtype == 8));
+        bool cull_this =
+            cull_backfaces && !(shadow_ray && (gtype == 7 || gtype == 1 || gtype == 8 ||
+                                               flex_mesh_path));
         if (cull_this && d >= 0.0f && dot(direction, n) > 0.0f) {
             d = -1.0f;
         }
